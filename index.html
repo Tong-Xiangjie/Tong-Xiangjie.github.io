@@ -478,4 +478,37 @@
                 <div class="detail-grid">
                     <div class="detail-field"><label>📅 购买日期</label><div class="value">${copy.purchaseDate || '未记录'}</div></div>
                     <div class="detail-field"><label>💰 购入价格</label><div class="value">${copy.price || '未记录'}</div></div>
-                    <div class="detail-field"><label>🏦 发行银行</label><div class="value">${
+                    <div class="detail-field"><label>🏦 发行银行</label><div class="value">${copy.bank || '未记录'}</div></div>
+                    <div class="detail-field"><label>🔖 冠号</label><div class="value">${copy.version || '未记录'}</div></div>
+                    <div class="detail-field"><label>⭐ 品相</label><div class="value">${copy.condition || '未记录'}</div></div>
+                </div>
+                <div class="remark-box">
+                    <label>📝 备注 / 收藏心得</label>
+                    <div class="long-text" style="margin-top:6px;">${copy.remark || '暂无备注，可在此记录品相、版别特征或收藏故事。'}</div>
+                </div>
+                <div style="font-size:0.7rem; color:#aa8b6e; text-align:center; margin-top:1rem;">点击图片可放大查看细节</div>
+            </div>
+        `;
+        document.getElementById("app").innerHTML = detailHtml;
+        currentView = "detail";
+        currentCopy = { categoryId, seriesIndex, copyIndex };
+    }
+
+    // 交互函数
+    window.selectCategory = (id) => renderSeriesList(id);
+    window.selectSeries = (catId, seriesIdx) => renderCopyList(catId, seriesIdx);
+    window.selectCopy = (catId, seriesIdx, copyIdx) => renderDetail(catId, seriesIdx, copyIdx);
+    window.backToCategories = () => renderCategories();
+    window.backToSeriesList = () => { if (currentCategoryId) renderSeriesList(currentCategoryId); };
+    window.backToCopyList = () => { if (currentSeries) renderCopyList(currentSeries.categoryId, currentSeries.seriesIndex); };
+    
+    window.openModal = (src) => {
+        document.getElementById("imageModal").style.display = "flex";
+        document.getElementById("modalImg").src = src;
+    };
+    window.closeModal = () => document.getElementById("imageModal").style.display = "none";
+
+    renderCategories();
+</script>
+</body>
+</html>
