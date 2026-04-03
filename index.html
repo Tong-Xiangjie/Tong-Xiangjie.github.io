@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>钱币收藏档案馆 - 四层详情系统</title>
+    <title>铜の币纪</title>
     <style>
         * {
             margin: 0;
@@ -246,11 +246,11 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏦 纸币收藏档案馆</h1>
-        <div class="sub">📜 分类 → 品种 → 具体藏品 → 完整详情</div>
+        <h1>收藏品档案</h1>
+        <div class="sub">Bilibili @ 铜の币纪</div>
     </div>
     <div id="app"></div>
-    <div class="footer">🌟 点击分类进入 | 同一品种可收藏多张，分别记录细节</div>
+    <div class="footer">网址建立时间：2026年4月3日</div>
 </div>
 
 <div id="imageModal" class="modal" onclick="closeModal()">
@@ -262,37 +262,40 @@
     // 每个品种(series)下可以有多个具体藏品(copies)
     const banknotesData = {
         commemorative: {
-            name: "纪念钞", icon: "🎖️", desc: "重大事件纪念钞 · 精美防伪",
+            name: "纪念钞", icon: "𝟘𝟙", desc: "重大事件纪念钞 · 精美防伪",
             series: [
                 { 
                     seriesName: "建国50周年纪念钞", year: 1999,
                     copies: [
-                        { copyId: 1, purchaseDate: "2021-03-15", price: "350元", bank: "中国人民银行", version: "J冠", condition: "全新UNC", remark: "第一张入手，号码无47", img1: "https://picsum.photos/800/500?random=1", img2: "https://picsum.photos/800/500?random=2" },
-                        { copyId: 2, purchaseDate: "2023-06-20", price: "380元", bank: "中国人民银行", version: "J冠", condition: "9品", remark: "第二张，号码带8，品相稍弱", img1: "https://picsum.photos/800/500?random=101", img2: "https://picsum.photos/800/500?random=102" }
+                        { copyId: 1, purchaseDate: "2021-03-15", price: "350元", bank: "中国人民银行", version: "J07529257", condition: "ACG
+65E", remark: "第一张入手，号码无47", img1: "https://picsum.photos/800/500?random=1", img2: "https://picsum.photos/800/500?random=2" },
+                        { copyId: 2, purchaseDate: "2023-06-20", price: "380元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E☆☆☆", remark: "第二张，号码带8，品相稍弱", img1: "https://picsum.photos/800/500?random=101", img2: "https://picsum.photos/800/500?random=102" }
                     ]
                 },
                 { 
                     seriesName: "迎接新世纪纪念钞（龙钞）", year: 2000,
                     copies: [
-                        { copyId: 1, purchaseDate: "2022-07-20", price: "1650元", bank: "中国人民银行", version: "塑料钞", condition: "全新", remark: "千禧龙年，荧光效果漂亮", img1: "https://picsum.photos/800/500?random=3", img2: "https://picsum.photos/800/500?random=4" }
+                        { copyId: 1, purchaseDate: "2022-07-20", price: "1650元", bank: "中国人民银行", version: "J00344985", condition: "ACG65E☆☆☆", remark: "千禧龙年，荧光效果漂亮", img1: "https://picsum.photos/800/500?random=3", img2: "https://picsum.photos/800/500?random=4" }
+			{ copyId: 1, purchaseDate: "2022-07-20", price: "1650元", bank: "中国人民银行", version: "I00181114", condition: "PMG67E", remark: "千禧龙年，荧光效果漂亮", img1: "https://picsum.photos/800/500?random=3", img2: "https://picsum.photos/800/500?random=4" }
+
                     ]
                 },
                 { 
                     seriesName: "奥运纪念钞", year: 2008,
                     copies: [
-                        { copyId: 1, purchaseDate: "2020-10-05", price: "3800元", bank: "中国人民银行", version: "J冠", condition: "全新", remark: "发行量600万张", img1: "https://picsum.photos/800/500?random=5", img2: "https://picsum.photos/800/500?random=6" }
+                        { copyId: 1, purchaseDate: "2020-10-05", price: "3800元", bank: "中国人民银行", version: "J04266645", condition: "全新", remark: "发行量600万张", img1: "https://picsum.photos/800/500?random=5", img2: "https://picsum.photos/800/500?random=6" }
                     ]
                 },
                 { 
                     seriesName: "航天纪念钞", year: 2015,
                     copies: [
-                        { copyId: 1, purchaseDate: "2023-01-12", price: "101元", bank: "中国人民银行", version: "J冠", condition: "全新", remark: "荧光效果丰富", img1: "https://picsum.photos/800/500?random=7", img2: "https://picsum.photos/800/500?random=8" }
+                        { copyId: 1, purchaseDate: "2023-01-12", price: "101元", bank: "中国人民银行", version: "None", condition: "全新", remark: "荧光效果丰富", img1: "https://picsum.photos/800/500?random=7", img2: "https://picsum.photos/800/500?random=8" }
                     ]
                 }
             ]
         },
         hk: {
-            name: "港币", icon: "🇭🇰", desc: "香港纸币 · 汇丰/中银/渣打",
+            name: "港币", icon: "𝟘𝟚", desc: "汇丰/中银/渣打",
             series: [
                 { seriesName: "汇丰银行 20元", year: 2018,
                   copies: [{ copyId: 1, purchaseDate: "2022-05-18", price: "18元", bank: "香港汇丰银行", version: "冠号AA", condition: "全新", remark: "蝴蝶系列", img1: "https://picsum.photos/800/500?random=9", img2: "https://picsum.photos/800/500?random=10" }] },
@@ -301,7 +304,7 @@
             ]
         },
         macau: {
-            name: "澳门币", icon: "🇲🇴", desc: "大西洋银行 & 中国银行澳门币",
+            name: "澳门币（澳门元）", icon: "𝟘𝟛", desc: "大西洋银行、中国银行",
             series: [
                 { seriesName: "大西洋银行 10元", year: 2015,
                   copies: [{ copyId: 1, purchaseDate: "2022-09-01", price: "12元", bank: "大西洋银行", version: "BNU", condition: "全新", remark: "澳门塔", img1: "https://picsum.photos/800/500?random=13", img2: "https://picsum.photos/800/500?random=14" }] },
@@ -310,14 +313,14 @@
             ]
         },
         specimen: {
-            name: "样币", icon: "🔖", desc: "票样 · 试样 · 趣味品",
+            name: "新台币", icon: "𝟘𝟜", desc: "新台币",
             series: [
                 { seriesName: "第四套人民币样币", year: 1987,
                   copies: [{ copyId: 1, purchaseDate: "2021-12-03", price: "450元", bank: "中国人民银行", version: "票样", condition: "好品", remark: "禁止流通", img1: "https://picsum.photos/800/500?random=17", img2: "https://picsum.photos/800/500?random=18" }] }
             ]
         },
         rmb2: {
-            name: "第二套人民币", icon: "💴", desc: "1955-1962",
+            name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962",
             series: [
                 { seriesName: "大黑拾", year: 1957,
                   copies: [{ copyId: 1, purchaseDate: "2020-06-18", price: "125000元", bank: "中国人民银行", version: "工农像", condition: "7品", remark: "苏联代印", img1: "https://picsum.photos/800/500?random=19", img2: "https://picsum.photos/800/500?random=20" }] },
@@ -326,7 +329,7 @@
             ]
         },
         rmb3: {
-            name: "第三套人民币", icon: "🧾", desc: "1962-2000",
+            name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000",
             series: [
                 { seriesName: "背绿水印壹角", year: 1966,
                   copies: [{ copyId: 1, purchaseDate: "2019-09-09", price: "38000元", bank: "中国人民银行", version: "背绿五星", condition: "9品", remark: "三版币王", img1: "https://picsum.photos/800/500?random=23", img2: "https://picsum.photos/800/500?random=24" }] },
@@ -335,30 +338,30 @@
             ]
         },
         rmb4: {
-            name: "第四套人民币", icon: "📄", desc: "1987-2018",
+            name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018",
             series: [
                 { seriesName: "80版50元", year: 1987,
                   copies: [{ copyId: 1, purchaseDate: "2020-08-20", price: "1850元", bank: "中国人民银行", version: "工人农民", condition: "9品", remark: "四版币王", img1: "https://picsum.photos/800/500?random=27", img2: "https://picsum.photos/800/500?random=28" }] }
             ]
         },
         rmb5: {
-            name: "第五套人民币", icon: "💵", desc: "1999-2019",
+            name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019",
             series: [
                 { seriesName: "99版50元", year: 2001,
                   copies: [{ copyId: 1, purchaseDate: "2023-03-01", price: "120元", bank: "中国人民银行", version: "毛主席", condition: "全新", remark: "早期冠号", img1: "https://picsum.photos/800/500?random=29", img2: "https://picsum.photos/800/500?random=30" }] }
             ]
         },
         fec: {
-            name: "外汇兑换券", icon: "🏛️", desc: "1979-1995",
+            name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995",
             series: [
                 { seriesName: "79版50元", year: 1979,
                   copies: [{ copyId: 1, purchaseDate: "2022-05-17", price: "360元", bank: "中国银行", version: "桂林山水", condition: "全新", remark: "外汇经典", img1: "https://picsum.photos/800/500?random=31", img2: "https://picsum.photos/800/500?random=32" }] }
             ]
         },
         foreign: {
-            name: "外币", icon: "🌍", desc: "世界纸币精选",
+            name: "日本", icon: "𝟙𝟘", desc: "日本纸币",
             series: [
-                { seriesName: "100美元", year: 2009,
+                { seriesName: "1000日元", year: 2024,
                   copies: [{ copyId: 1, purchaseDate: "2021-11-11", price: "650元", bank: "美联储", version: "富兰克林", condition: "全新", remark: "彩版", img1: "https://picsum.photos/800/500?random=33", img2: "https://picsum.photos/800/500?random=34" }] }
             ]
         }
