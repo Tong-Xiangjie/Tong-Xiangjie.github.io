@@ -241,7 +241,7 @@ function renderSeries() {
     <li class="series-item" onclick="renderCopies(${i})">
       <div class="series-name">${s.seriesName}</div>
       <div class="series-count">${s.copies.length}张</div>
-      <div class="series-year">${s.year}</div>
+      <div class="series-year">${s.year}年</div>
     </li>`;
   });
   html += `</ul></div>`;
@@ -256,7 +256,7 @@ function renderCopies(si) {
   let html = `
   <div class="list-panel">
     <div class="panel-header">
-      <h2>${s.seriesName}（${s.year}）</h2>
+      <h2>${s.seriesName}（${s.year}年）</h2>
     </div>
     <ul class="copy-list">`;
   s.copies.forEach((cp, ci) => {
@@ -301,7 +301,7 @@ function renderDetail(si, ci) {
       <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
       <div class="detail-field"><label>发行银行</label><div>${cp.bank}</div></div>
       <div class="detail-field"><label>克劳斯编号</label><div>${cp.krause || '无'}</div></div>
-      <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
+      <div class="detail-field"><label>年份</label><div>${s.year}年</div></div>
     </div>
 
     <div class="remark-box">
@@ -324,10 +324,13 @@ function openViewer(idx, a, b) {
   vimg2.src = b;
   current = idx;
   scale = 1;
+  vimg1.style.transform = "scale(1)";
+  vimg2.style.transform = "scale(1)";
   updateViewer();
   viewer.style.display = "block";
 }
 
+// 点击空白关闭
 viewer.addEventListener("click", (e) => {
   if (e.target === viewer) {
     viewer.style.display = "none";
@@ -337,7 +340,7 @@ viewer.addEventListener("click", (e) => {
 viewer.addEventListener("touchstart", (e) => {
   e.preventDefault();
   if (e.touches.length === 1) {
-    startX = e.touches[0].clientX - wrap.getBoundingClientRect().left;
+    startX = e.touches[0].clientX;
   } else if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -348,8 +351,8 @@ viewer.addEventListener("touchstart", (e) => {
 viewer.addEventListener("touchmove", (e) => {
   e.preventDefault();
   if (e.touches.length === 1) {
-    const x = e.touches[0].clientX - startX;
-    wrap.style.transform = `translateX(${x}px)`;
+    const dx = e.touches[0].clientX - startX;
+    wrap.style.transform = `translateX(calc(-${current * 100}% + ${dx}px))`;
   } else if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -361,14 +364,16 @@ viewer.addEventListener("touchmove", (e) => {
 });
 
 viewer.addEventListener("touchend", () => {
-  const w = window.innerWidth;
-  const l = wrap.getBoundingClientRect().left;
-  if (l < -w * 0.2) current = 1;
-  if (l >  w * 0.2) current = 0;
-  scale = 1;
+  const w = innerWidth;
+  const dx = parseFloat(wrap.style.transform.match(/-?\d+/g).pop() || 0);
+
+  if (dx < -w * 0.2) {
+    current++;
+  } else if (dx > w * 0.2) {
+    current--;
+  }
+  current = Math.max(0, Math.min(1, current));
   updateViewer();
-  vimg1.style.transform = "scale(1)";
-  vimg2.style.transform = "scale(1)";
 });
 
 function updateViewer() {
