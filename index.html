@@ -304,14 +304,13 @@
         // ---------- 状态管理 ----------
         // 有效密码列表 (6位数字)
         const VALID_CODES = new Set(["070529", "790815"]);
-        
+        const LOCK_DURATION_MS = 30000; // 30秒锁定
+
         // 锁定状态变量
         let lockUntil = 0;            // 时间戳 (毫秒) 锁定的截止时刻
         let failCount = 0;            // 当前连续错误次数 (每次锁定周期内)
-        let isLocked = false;          // 辅助标志, 实际根据 lockUntil 和 Date.now 判断
-        
-        let timerInterval = null;      // 倒计时刷新句柄
-        
+        let timerInterval = null;     // 倒计时刷新句柄
+
         // DOM 元素
         const lockZone = document.getElementById('lockZone');
         const dashboardZone = document.getElementById('dashboardZone');
@@ -320,7 +319,45 @@
         const errorMsgDiv = document.getElementById('errorMsg');
         const timerInfoDiv = document.getElementById('timerInfo');
         const resetLockBtn = document.getElementById('resetLockBtn');
-        
+
+        // ---------- localStorage 持久化 ----------
+        const STORAGE_KEY = 'lockUntilTimestamp';
+
+        // 保存锁定到期时间到 localStorage
+        function persistLockUntil() {
+            if (lockUntil > 0) {
+                localStorage.setItem(STORAGE_KEY, lockUntil.toString());
+            } else {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        }
+
+        // 从 localStorage 恢复锁定状态
+        function restoreLockFromStorage() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const storedTime = parseInt(stored, 10);
+                const now = Date.now();
+                if (storedTime > now) {
+                    // 锁定尚未过期
+                    lockUntil = storedTime;
+                    // 注意：failCount 需要重置，因为刷新后不知道之前错了多少次
+                    // 但为了安全，锁定结束后重新计数，锁定期间 failCount 应为 0 或保持锁定标记即可
+                    failCount = 0;
+                    return true;
+                } else {
+                    // 存储的锁已过期，清除
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
+            return false;
+        }
+
+        // 清除持久化锁
+        function clearPersistedLock() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+
         // 辅助函数: 清除计时器
         function clearTimer() {
             if(timerInterval) {
@@ -328,22 +365,39 @@
                 timerInterval = null;
             }
         }
-        
+
+        // 释放锁定 (重置错误计数, 清空计时器, 清除持久化)
+        function releaseLock() {
+            const wasLocked = (lockUntil > Date.now());
+            lockUntil = 0;
+            if (wasLocked) {
+                failCount = 0;
+                clearPersistedLock();
+            }
+            clearTimer();
+            updateLockUI();
+            // 清理错误消息残留
+            if (!errorMsgDiv.innerHTML.includes('密码') && !errorMsgDiv.innerHTML.includes('错误')) {
+                if (failCount === 0) errorMsgDiv.innerHTML = '';
+            }
+        }
+
         // 更新界面锁定状态 (禁用输入框、按钮、显示倒计时等)
         function updateLockUI() {
             const now = Date.now();
             const isCurrentlyLocked = (lockUntil > now);
-            
-            if(isCurrentlyLocked) {
-                isLocked = true;
+
+            if (isCurrentlyLocked) {
                 const remainSeconds = Math.ceil((lockUntil - now) / 1000);
-                if(remainSeconds > 0) {
+                if (remainSeconds > 0) {
                     timerInfoDiv.style.display = 'block';
-                    timerInfoDiv.innerHTML = ` 验证失败次数过多，已锁定。<br>请 ${remainSeconds} 秒后再试。 `;
+                    timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${remainSeconds} 秒后再试。`;
                 } else {
-                    // 理论上锁到期会在 tick 里清理, 但先处理边界
-                    if(lockUntil <= now) releaseLock();
-                    return;
+                    // 理论上锁到期会在倒计时 tick 里清理，但以防万一
+                    if (lockUntil <= now) {
+                        releaseLock();
+                        return;
+                    }
                 }
                 // 禁用输入和按钮
                 passwordInput.disabled = true;
@@ -351,208 +405,185 @@
                 errorMsgDiv.innerHTML = '账户暂时锁定，请稍后再试';
             } else {
                 // 未锁定状态
-                if(lockUntil === 0 || lockUntil <= now) {
-                    // 确保释放锁
-                    releaseLock();
+                if (lockUntil === 0 || lockUntil <= now) {
+                    // 确保释放锁（清理持久化等）
+                    if (lockUntil > 0 && lockUntil <= now) {
+                        releaseLock();
+                    }
                 }
                 passwordInput.disabled = false;
                 unlockBtn.disabled = false;
                 timerInfoDiv.style.display = 'none';
-                // 不清空errorMsg, 但清除锁定类错误提示（仅当无错误时）
-                if(errorMsgDiv.innerHTML.includes('锁定') || errorMsgDiv.innerHTML.includes('等待')) {
-                    if(failCount === 0) errorMsgDiv.innerHTML = '';
+                // 如果错误消息还是锁定相关的，清空
+                if (errorMsgDiv.innerHTML.includes('锁定') || errorMsgDiv.innerHTML.includes('等待')) {
+                    if (failCount === 0) errorMsgDiv.innerHTML = '';
                 }
             }
         }
-        
-        // 释放锁定 (重置错误计数, 清空计时器)
-        function releaseLock() {
-            const wasLocked = (lockUntil > Date.now());
-            lockUntil = 0;
-            isLocked = false;
-            // 注意: 当锁释放时，不清除failCount？按照设计规范: "如果接下来又错了三次也是等这么久" 
-            // 意思是在同一个锁定周期解锁后，错误计数应该重置? 但为了连续逻辑，每次锁定结束后连续错误次数应当归零。
-            // 规范: 连续输错三次，等待30秒。如果接下来又错了三次也是等这么久。就是说每次锁定周期独立计数。
-            // 释放锁后，错误计数归零，重新累计。
-            if(wasLocked) {
-                failCount = 0;
-            }
-            clearTimer();
-            updateLockUI();
-            // 如果之前是因为锁而清空的错误提示，这里可以清一下非锁错误残留，但保留正常错误由验证逻辑填充
-            if(!errorMsgDiv.innerHTML.includes('密码') && !errorMsgDiv.innerHTML.includes('错误')) {
-                if(failCount === 0) errorMsgDiv.innerHTML = '';
-            }
-        }
-        
+
         // 设置锁定30秒 (保留当前错误次数已经达到3)
         function applyLockout() {
             const now = Date.now();
-            lockUntil = now + 30000;   // 30秒锁定
-            // 锁定期间不清除failCount，但锁定结束后会重置。但要确保倒计时期间失败不再累加（按钮禁用）
+            lockUntil = now + LOCK_DURATION_MS;
+            // 持久化锁定时间戳
+            persistLockUntil();
+            // 锁定期间错误计数归零（锁定结束后重新累计）
+            failCount = 0;
             clearTimer();
             updateLockUI();
+
             // 启动倒计时刷新
             timerInterval = setInterval(() => {
-                const remaining = lockUntil - Date.now();
-                if(remaining <= 0) {
+                const nowMs = Date.now();
+                const remaining = lockUntil - nowMs;
+                if (remaining <= 0) {
                     // 锁定到期
                     clearTimer();
                     releaseLock();      // 重置failCount并解锁界面
                     updateLockUI();
-                    // 清空错误提示框温和恢复
                     errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
                     setTimeout(() => {
-                        if(errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') errorMsgDiv.innerHTML = '';
+                        if (errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') {
+                            errorMsgDiv.innerHTML = '';
+                        }
                     }, 1800);
                     passwordInput.value = '';
+                    passwordInput.focus();
                 } else {
                     const secs = Math.ceil(remaining / 1000);
                     timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${secs} 秒后再试。`;
                 }
             }, 200);
         }
-        
+
         // 处理验证失败
         function handleFail() {
-            // 先检查当前是否锁定中 (安全)
-            if(lockUntil > Date.now()) {
+            // 先检查当前是否锁定中
+            if (lockUntil > Date.now()) {
                 errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。';
                 return;
             }
-            
+
             // 未锁定状态，增加错误计数
             failCount++;
             const remainingAttempts = 3 - failCount;
-            if(failCount >= 3) {
+            if (failCount >= 3) {
                 // 达到三次错误 -> 触发锁定30秒
-                errorMsgDiv.innerHTML = `已连续错误3次！系统锁定30秒，无法进行任何操作 `;
+                errorMsgDiv.innerHTML = `已连续错误3次！系统锁定30秒，无法进行任何操作`;
                 applyLockout();
-                // 清空输入框
                 passwordInput.value = '';
-                // 锁定后不用再提示剩余尝试次数
             } else {
                 // 未达三次，显示剩余尝试
                 errorMsgDiv.innerHTML = `密码错误！还剩 ${remainingAttempts} 次尝试机会，连续错误3次将锁定30秒`;
                 passwordInput.value = '';
                 passwordInput.focus();
-                // 确保没有锁定倒计时显示隐藏
                 timerInfoDiv.style.display = 'none';
             }
             // 震动效果(可选)
             const panel = document.querySelector('.glass-panel');
-            if(panel) {
+            if (panel) {
                 panel.style.transform = 'translateX(3px)';
-                setTimeout(() => { if(panel) panel.style.transform = ''; }, 100);
+                setTimeout(() => { if (panel) panel.style.transform = ''; }, 100);
             }
         }
-        
+
         // 验证成功: 进入仪表板
         function handleSuccess() {
             // 清除锁定状态、重置计数器、清除计时器
             clearTimer();
             lockUntil = 0;
             failCount = 0;
-            isLocked = false;
+            clearPersistedLock();
             // 清空输入框以及错误消息
             passwordInput.value = '';
             errorMsgDiv.innerHTML = '';
             timerInfoDiv.style.display = 'none';
-            
+
             // 切换显示: 隐藏锁界面，展示仪表板
             lockZone.style.display = 'none';
             dashboardZone.style.display = 'block';
-            // 可额外重置页面title
         }
-        
+
         // 验证密码核心
         function verifyPassword() {
             // 如果当前处于锁定状态，阻止验证
-            if(lockUntil > Date.now()) {
+            if (lockUntil > Date.now()) {
                 errorMsgDiv.innerHTML = `锁定倒计时进行中，请耐心等待。`;
                 return;
             }
-            
+
             const rawValue = passwordInput.value;
-            // 过滤非数字，但本身限制maxlength且输入法数字，但以防万一
             const trimmed = rawValue.trim();
-            if(trimmed.length !== 6) {
+            if (trimmed.length !== 6) {
                 errorMsgDiv.innerHTML = ' 请输入6位数字密码';
                 passwordInput.value = '';
                 return;
             }
-            // 检查是否为纯数字 (额外保证)
-            if(!/^\d{6}$/.test(trimmed)) {
+            if (!/^\d{6}$/.test(trimmed)) {
                 errorMsgDiv.innerHTML = '密码必须为6位数字 (0-9)';
                 passwordInput.value = '';
                 return;
             }
-            
-            // 正式校验
-            if(VALID_CODES.has(trimmed)) {
+
+            if (VALID_CODES.has(trimmed)) {
                 // 密码正确
-                // 重置错误计数，清除任何锁存残留
                 failCount = 0;
-                if(lockUntil) lockUntil = 0;
+                if (lockUntil) lockUntil = 0;
                 clearTimer();
+                clearPersistedLock();
                 handleSuccess();
             } else {
-                // 错误处理
                 handleFail();
             }
         }
-        
+
         // 重置/退出登录 (从仪表板返回锁定界面，重置所有状态)
         function resetToLock() {
             // 清除dashboard显示，显示锁界面
             dashboardZone.style.display = 'none';
             lockZone.style.display = 'block';
-            
+
             // 重置所有安全状态: 清除锁定计时器, 重置失败次数, 清除锁定时间戳
             clearTimer();
-            lockUntil = 0;
+            // 注意：这里不能直接清 lockUntil，因为可能还在锁定中
+            // 但是重置界面时，应该保留原有锁定状态（如果有的话）
+            // 所以我们只重置 failCount 和界面，不清除 lockUntil
+            // 但为了避免刷新后还记住旧的 failCount，将其重置
             failCount = 0;
-            isLocked = false;
+            // 不清除 lockUntil，保留锁定状态
             // 清空输入框及错误消息
             passwordInput.value = '';
             errorMsgDiv.innerHTML = '';
-            timerInfoDiv.style.display = 'none';
-            // 确保输入框和按钮启用
-            passwordInput.disabled = false;
-            unlockBtn.disabled = false;
-            // 重新聚焦
+            // 重新更新UI以反映当前锁定状态
+            updateLockUI();
+            // 确保输入框和按钮根据锁定状态正确启用/禁用
             passwordInput.focus();
-            // 额外的界面清爽
-            const anyLockMsg = timerInfoDiv;
-            if(anyLockMsg) anyLockMsg.style.display = 'none';
         }
-        
+
         // 键盘支持: 回车验证
         function onEnterKey(e) {
-            if(e.key === 'Enter') {
+            if (e.key === 'Enter') {
                 e.preventDefault();
-                if(lockZone.style.display !== 'none') {
-                    // 仅在锁界面有效
-                    if(!(lockUntil > Date.now())) {
+                if (lockZone.style.display !== 'none') {
+                    if (!(lockUntil > Date.now())) {
                         verifyPassword();
                     }
                 }
             }
         }
-        
-        // 限制输入框只能输入最多6位数字, 实时过滤
+
+        // 限制输入框只能输入最多6位数字
         function enforceNumericInput(e) {
             let input = e.target;
             let value = input.value;
-            // 移除非数字
             let newValue = value.replace(/\D/g, '');
-            if(newValue.length > 6) newValue = newValue.slice(0,6);
-            if(newValue !== value) {
+            if (newValue.length > 6) newValue = newValue.slice(0,6);
+            if (newValue !== value) {
                 input.value = newValue;
             }
         }
-        
-        // 初始化界面，默认锁界面可见，仪表板隐藏
+
+        // 初始化界面
         function initUI() {
             lockZone.style.display = 'block';
             dashboardZone.style.display = 'none';
@@ -560,64 +591,62 @@
             errorMsgDiv.innerHTML = '';
             timerInfoDiv.style.display = 'none';
             failCount = 0;
-            lockUntil = 0;
-            passwordInput.disabled = false;
-            unlockBtn.disabled = false;
+            
+            // 尝试从 localStorage 恢复锁定状态
+            const hasValidLock = restoreLockFromStorage();
+            if (!hasValidLock) {
+                lockUntil = 0;
+                clearPersistedLock();
+            }
+            
+            // 更新 UI 以反映锁定状态（如果恢复的锁还在有效期内，输入框将被禁用）
+            updateLockUI();
+            
+            // 如果当前是锁定状态，且倒计时未启动，则重新启动倒计时显示
+            if (lockUntil > Date.now()) {
+                // 清除可能残留的计时器，重新启动倒计时
+                clearTimer();
+                timerInterval = setInterval(() => {
+                    const nowMs = Date.now();
+                    const remaining = lockUntil - nowMs;
+                    if (remaining <= 0) {
+                        clearTimer();
+                        releaseLock();
+                        updateLockUI();
+                        errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
+                        setTimeout(() => {
+                            if (errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') {
+                                errorMsgDiv.innerHTML = '';
+                            }
+                        }, 1800);
+                        passwordInput.value = '';
+                        passwordInput.focus();
+                    } else {
+                        const secs = Math.ceil(remaining / 1000);
+                        timerInfoDiv.style.display = 'block';
+                        timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${secs} 秒后再试。`;
+                    }
+                }, 200);
+            }
+            
             // 添加监听
             unlockBtn.addEventListener('click', verifyPassword);
             resetLockBtn.addEventListener('click', resetToLock);
             passwordInput.addEventListener('input', enforceNumericInput);
             passwordInput.addEventListener('keypress', onEnterKey);
-            // 额外聚焦
             passwordInput.focus();
         }
-        
-        // 处理页面加载后可能的自动残留计时 (无)
+
+        // 页面加载启动
         initUI();
-        
-        // 附加特性: 如果由于某些原因定时器外部干扰，可以定期清理保护
-        window.addEventListener('load', () => {
-            // 确保任何异常锁定不残留
-            if(lockUntil < Date.now() && lockUntil !==0) {
-                releaseLock();
-            }
-            passwordInput.focus();
-        });
-        
-        // 当用户通过reset返回时，保证所有变量重置并且计时器清理干净，并且启用控件
-        // 增强 resetLockBtn 确保完全重置
-        const originalResetHandler = resetLockBtn.onclick;
-        resetLockBtn.addEventListener('click', () => {
-            // 重置前清理全局计时器，避免倒计时继续干扰
-            clearTimer();
-            lockUntil = 0;
-            failCount = 0;
-            if(dashboardZone.style.display === 'block') {
-                dashboardZone.style.display = 'none';
-                lockZone.style.display = 'block';
-            }
-            passwordInput.disabled = false;
-            unlockBtn.disabled = false;
-            passwordInput.value = '';
-            errorMsgDiv.innerHTML = '';
-            timerInfoDiv.style.display = 'none';
-            passwordInput.focus();
-        });
-        
-        // 防止全局未锁定的时候任何不合理的错误计数残留
-        // 完善锁定状态下倒计时解锁时刷新界面
-        function safetyWatch() {
-            // 如果锁界面可见且锁时间过去，恢复界面（以防计时器异常）
-            if(lockZone.style.display !== 'none' && lockUntil > 0 && lockUntil <= Date.now()) {
+
+        // 定期清理过期锁（安全后备）
+        setInterval(() => {
+            if (lockUntil > 0 && lockUntil <= Date.now()) {
                 releaseLock();
                 updateLockUI();
-                errorMsgDiv.innerHTML = ' 锁定已结束，请继续输入';
-                setTimeout(()=>{
-                    if(errorMsgDiv.innerHTML === ' 锁定已结束，请继续输入') errorMsgDiv.innerHTML = '';
-                },1500);
             }
-        }
-        setInterval(safetyWatch, 800);
+        }, 1000);
     })();
 </script>
 </body>
