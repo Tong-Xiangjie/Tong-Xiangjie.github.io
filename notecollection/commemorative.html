@@ -1,346 +1,267 @@
+<!-- commemorative.html （纪念钞独立页面，保留原结构与功能）-->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>纪念钞 | 铜の币纪</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1.5rem;min-height:100vh;padding-top:70px;}
-.container{max-width:1200px;margin:0 auto;}
-.header{text-align:center;margin-bottom:2rem;}
-.header h1{font-size:1.8rem;background:linear-gradient(135deg,#b8860b,#daa520);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
-
-.back-bar{position:fixed;top:0;left:0;width:100%;background:#f0ebe3;padding:0.8rem 1.2rem;z-index:999;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
-.back-btn{background:white;border:1px solid #e2d5c8;color:#b8860b;padding:0.5rem 1rem;border-radius:30px;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;}
-
-#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin:1.5rem 0;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
-.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;outline:none;}
-.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;outline:none;}
-.search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
-.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
-.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
-
-.list-panel{background:white;border-radius:1.5rem;padding:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
-.panel-header{border-left:4px solid #daa520;padding-left:1rem;margin-bottom:1rem;}
-.panel-header h2{font-size:1.4rem;margin-bottom:0.2rem;}
-.series-item{display:flex;align-items:center;padding:1rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
-.series-item:hover{background:#faf5ef;}
-.series-name{flex:1;font-weight:500;}
-.series-count{background:#e8d9cc;padding:0.2rem 0.6rem;border-radius:30px;font-size:0.7rem;margin-right:1rem;}
-.series-year{width:100px;color:#8b6b4f;}
-
-.copy-item{display:flex;align-items:center;padding:1rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
-.copy-item:hover{background:#faf5ef;}
-.copy-index{width:40px;font-weight:bold;color:#b8860b;}
-.copy-badge{background:#e6d5c0;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;margin-right:1rem;}
-.copy-version{flex:1;color:#b8860b;font-weight:500;}
-.copy-price{width:100px;text-align:center;}
-
-.detail-panel{background:white;border-radius:1.5rem;padding:2rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
-.img-group{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;}
-.img-group img{width:100%;border-radius:10px;cursor:pointer;object-fit:cover;}
-.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin:1rem 0;}
-.detail-field{background:#faf8f5;padding:1rem;border-radius:1rem;}
-.detail-field label{font-size:0.7rem;color:#b1967c;display:block;margin-bottom:0.3rem;}
-.remark-box{background:#fef9f0;border-left:4px solid #daa520;padding:1rem;border-radius:1rem;margin-top:1rem;}
-
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;touch-action:none;}
-.modal-slider{width:100%;height:100%;display:flex;transition:transform 0.2s ease;}
-.modal-slide{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
-.modal-slide img{max-width:92%;max-height:92vh;object-fit:contain;user-select:none;transform-origin:center center;}
-</style>
-</head>
-
-<body>
-<div class="container">
-  <div class="header">
-    <h1>纪念钞收藏</h1>
-    <div class="sub">Bilibili @ 铜の币纪</div>
-  </div>
-
-  <div class="back-bar">
-    <button class="back-btn" onclick="goBack()">← 返回</button>
-  </div>
-
-  <div id="search-container">
-    <select id="searchType" class="search-select">
-      <option value="all">全字段</option>
-      <option value="name">名称</option>
-      <option value="version">冠号</option>
-      <option value="year">年份</option>
-      <option value="agency">评级</option>
-      <option value="krause">克劳斯</option>
-    </select>
-    <input id="searchInput" class="search-input" placeholder="搜索当前分类" type="text">
-    <button class="search-btn" onclick="doSearch()">搜索</button>
-    <button class="reset-btn" onclick="resetSearch()">重置</button>
-  </div>
-  <div class="search-tip">💡 实时搜索，输入即查</div>
-
-  <div id="content"></div>
-  <div style="height:30px;"></div>
-</div>
-
-<div class="modal" id="imageModal">
-  <div class="modal-slider" id="modalSlider">
-    <div class="modal-slide"><img id="modalImg1"></div>
-    <div class="modal-slide"><img id="modalImg2"></div>
-  </div>
-</div>
-
-<script>
-const data = allData.commemorative.series;
-let page = "series";
-let currentSeriesIndex = 0;
-let currentCopyIndex = 0;
-let historyStack = [];
-let searchTimer = null;
-let lastSearchResult = [];
-
-const modal = document.getElementById("imageModal");
-const modalSlider = document.getElementById("modalSlider");
-let currentModalSlide = 0;
-let modalScale = 1;
-let modalStartX = 0;
-let modalMoveX = 0;
-let isModalZooming = false;
-let initialPinchDistance = 0;
-
-function saveHistory() {
-    historyStack.push({ page, currentSeriesIndex, currentCopyIndex });
-}
-
-function goBack() {
-    if (historyStack.length === 0) {
-        location.href = "index.html";
-        return;
-    }
-    const prev = historyStack.pop();
-    page = prev.page;
-    currentSeriesIndex = prev.currentSeriesIndex;
-    currentCopyIndex = prev.currentCopyIndex;
-    renderCurrentPage();
-}
-
-function renderCurrentPage() {
-    if (page === "series") renderSeriesList();
-    else if (page === "copies") renderCopyList();
-    else if (page === "detail") renderDetail();
-    else if (page === "search") renderSearchResult(lastSearchResult);
-}
-
-function renderSeriesList() {
-    page = "series";
-    let html = `<div class="list-panel"><div class="panel-header"><h2>📁 纪念钞系列</h2><p>点击查看藏品</p></div><ul style="list-style:none;">`;
-    data.forEach((s, i) => {
-        html += `
-        <li class="series-item" onclick="openSeries(${i})">
-            <div class="series-name">${s.seriesName}</div>
-            <div class="series-count">${s.copies.length}张</div>
-            <div class="series-year">${s.year}年</div>
-        </li>`;
-    });
-    html += "</ul></div>";
-    document.getElementById("content").innerHTML = html;
-}
-
-function openSeries(i) {
-    saveHistory();
-    currentSeriesIndex = i;
-    page = "copies";
-    renderCopyList();
-}
-
-function renderCopyList() {
-    const s = data[currentSeriesIndex];
-    let html = `<div class="list-panel"><div class="panel-header"><h2>📌 ${s.seriesName}</h2><p>${s.year}年 · 共${s.copies.length}张</p></div><ul style="list-style:none;">`;
-    s.copies.forEach((c, i) => {
-        html += `
-        <li class="copy-item" onclick="openCopy(${i})">
-            <div class="copy-index">#${c.copyId}</div>
-            <div class="copy-badge">${c.condition}</div>
-            <div class="copy-version">${c.version}</div>
-            <div class="copy-price">${c.price}</div>
-        </li>`;
-    });
-    html += "</ul></div>";
-    document.getElementById("content").innerHTML = html;
-}
-
-function openCopy(i) {
-    saveHistory();
-    currentCopyIndex = i;
-    page = "detail";
-    renderDetail();
-}
-
-function renderDetail() {
-    const s = data[currentSeriesIndex];
-    const c = s.copies[currentCopyIndex];
-    const html = `
-    <div class="detail-panel">
-        <div class="img-group">
-            <img src="${c.img1}" onclick="openModal('${c.img1}','${c.img2}')" loading="lazy">
-            <img src="${c.img2}" onclick="openModal('${c.img1}','${c.img2}')" loading="lazy">
-        </div>
-        <div class="detail-grid">
-            <div class="detail-field"><label>购买日期</label><div>${c.purchaseDate}</div></div>
-            <div class="detail-field"><label>价格</label><div>${c.price}</div></div>
-            <div class="detail-field"><label>发行银行</label><div>${c.bank}</div></div>
-            <div class="detail-field"><label>冠字号</label><div>${c.version}</div></div>
-            <div class="detail-field"><label>评级分数</label><div>${c.condition}</div></div>
-            <div class="detail-field"><label>克劳斯编号</label><div>${c.krause || '未录入'}</div></div>
-        </div>
-        <div class="remark-box"><label>备注</label><div style="margin-top:6px;">${c.remark || '无备注'}</div></div>
-    </div>`;
-    document.getElementById("content").innerHTML = html;
-}
-
-function openModal(img1, img2) {
-    document.getElementById("modalImg1").src = img1;
-    document.getElementById("modalImg2").src = img2;
-    modal.style.display = "block";
-    currentModalSlide = 0;
-    modalScale = 1;
-    modalSlider.style.transform = "translateX(0)";
-    document.querySelectorAll(".modal-slide img").forEach(img => {
-        img.style.transform = "scale(1)";
-    });
-}
-
-modal.onclick = (e) => {
-    if (e.target === modal) modal.style.display = "none";
-};
-
-document.addEventListener("touchstart", (e) => {
-    if (modal.style.display !== "block") return;
-    if (e.touches.length === 1) {
-        modalStartX = e.touches[0].clientX;
-        isModalZooming = false;
-    } else if (e.touches.length === 2) {
-        isModalZooming = true;
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
-    }
-}, { passive: true });
-
-document.addEventListener("touchmove", (e) => {
-    if (modal.style.display !== "block") return;
-    if (e.touches.length === 1 && !isModalZooming) {
-        modalMoveX = e.touches[0].clientX - modalStartX;
-        if (Math.abs(modalMoveX) > 10) {
-            modalSlider.style.transform = `translateX(calc(-${currentModalSlide * 100}% + ${modalMoveX}px))`;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>铜の币纪 - 纪念钞</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        e.preventDefault();
-    }
-    if (e.touches.length === 2) {
-        e.preventDefault();
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (initialPinchDistance > 0) {
-            modalScale = Math.max(1, Math.min(3, distance / initialPinchDistance));
-            document.querySelectorAll(".modal-slide img").forEach(img => {
-                img.style.transform = `scale(${modalScale})`;
-            });
+
+        body {
+            background: #f0ebe3;
+            font-family: system-ui, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+            color: #2c2418;
+            padding: 1.5rem;
+            min-height: 100vh;
+            padding-top: 70px;
         }
-    }
-}, { passive: false });
 
-document.addEventListener("touchend", () => {
-    if (modal.style.display !== "block") return;
-    if (!isModalZooming && Math.abs(modalMoveX) > 40) {
-        currentModalSlide = modalMoveX < 0 ? 1 : 0;
-    }
-    modalSlider.style.transform = `translateX(-${currentModalSlide * 100}%)`;
-    modalMoveX = 0;
-    initialPinchDistance = 0;
-    isModalZooming = false;
-});
-
-function doSearch() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        const type = document.getElementById("searchType").value;
-        const kw = document.getElementById("searchInput").value.trim().toLowerCase();
-        if (!kw) {
-            renderSeriesList();
-            return;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        let results = [];
-        data.forEach((s, si) => {
-            s.copies.forEach((c, ci) => {
-                let match = false;
-                const txt = `${s.seriesName} ${c.version} ${s.year} ${c.condition} ${c.krause}`.toLowerCase();
-                if (type === "all" && txt.includes(kw)) match = true;
-                else if (type === "name" && s.seriesName.toLowerCase().includes(kw)) match = true;
-                else if (type === "version" && (c.version || "").toLowerCase().includes(kw)) match = true;
-                else if (type === "year" && s.year.toString().includes(kw)) match = true;
-                else if (type === "agency" && (c.condition || "").toLowerCase().includes(kw)) match = true;
-                else if (type === "krause" && (c.krause || "").toLowerCase().includes(kw)) match = true;
-                if (match) results.push({ si, ci });
-            });
-        });
-        lastSearchResult = results;
-        page = "search";
-        renderSearchResult(results);
-    }, 150);
-}
 
-function renderSearchResult(results) {
-    let html = `<div class="list-panel"><div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配</p></div><ul style="list-style:none;">`;
-    if (results.length === 0) {
-        html += `<div style="padding:2rem;text-align:center;color:#8b6b4f;">暂无匹配藏品</div>`;
-    } else {
-        results.forEach(item => {
-            const s = data[item.si];
-            const c = s.copies[item.ci];
-            html += `
-            <li class="copy-item" onclick="jumpToDetail(${item.si}, ${item.ci})">
-                <div class="copy-index">#${c.copyId}</div>
-                <div class="copy-badge">${c.condition}</div>
-                <div class="copy-version">${s.seriesName}</div>
-                <div class="copy-price">${c.version}</div>
-            </li>`;
-        });
-    }
-    html += "</ul></div>";
-    document.getElementById("content").innerHTML = html;
-}
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-function jumpToDetail(si, ci) {
-    saveHistory();
-    currentSeriesIndex = si;
-    currentCopyIndex = ci;
-    page = "detail";
-    renderDetail();
-}
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #b8860b, #daa520);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
 
-function resetSearch() {
-    document.getElementById("searchInput").value = "";
-    renderSeriesList();
-}
+        .sub {
+            color: #8b6b4f;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
 
-window.onload = () => {
-    const params = new URLSearchParams(location.search);
-    const kw = params.get("keyword");
-    const type = params.get("type");
-    if (kw) {
-        document.getElementById("searchInput").value = kw;
-        document.getElementById("searchType").value = type || "all";
-        doSearch();
-    } else {
-        renderSeriesList();
-    }
+        .back-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #f0ebe3;
+            z-index: 999;
+            padding: 0.8rem 1.2rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .back-btn {
+            background: white;
+            border: 1px solid #e2d5c8;
+            color: #b8860b;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .back-btn:hover {
+            background: #e8d9cc;
+        }
 
-    const input = document.getElementById("searchInput");
-    input.addEventListener("input", () => {
-        doSearch();
-    });
-};
-</script>
-</body>
-</html>
+        .search-bar {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            align-items: center;
+        }
+        .search-select {
+            padding: 0.5rem 0.8rem;
+            border: 1px solid #e2d5c8;
+            border-radius: 0.6rem;
+            background: white;
+            font-size: 0.9rem;
+            color: #4a3522;
+            outline: none;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 180px;
+            padding: 0.6rem 1rem;
+            border: 1px solid #e2d5c8;
+            border-radius: 0.6rem;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: #daa520;
+        }
+        .search-btn {
+            background: #daa520;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .search-btn:hover {
+            background: #b8860b;
+        }
+        .reset-btn {
+            background: #f0ebe3;
+            color: #8b6b4f;
+            border: 1px solid #e2d5c8;
+            padding: 0.6rem 1rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .search-tip {
+            font-size: 0.75rem;
+            color: #b1967c;
+            margin-top: 0.3rem;
+        }
+
+        .list-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .panel-header {
+            border-left: 5px solid #daa520;
+            padding-left: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .panel-header h2 { font-size: 1.5rem; margin-bottom: 0.2rem; }
+        .panel-header p { color: #7a5a4a; font-size: 0.8rem; }
+        
+        .series-list { list-style: none; }
+        .series-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid #f0e4d6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .series-item:hover { background: #faf5ef; }
+        .series-name { flex: 1; font-weight: 500; }
+        .series-count {
+            background: #e8d9cc;
+            padding: 0.2rem 0.6rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            margin-right: 1rem;
+        }
+        .series-year { width: 110px; color: #8b6b4f; }
+
+        .copy-list { list-style: none; }
+        .copy-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid #f0e4d6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .copy-item:hover { background: #faf5ef; }
+        .copy-index {
+            width: 45px;
+            font-weight: 600;
+            color: #b8860b;
+        }
+        .copy-badge {
+            background: #e6d5c0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            margin-right: 1rem;
+        }
+        .copy-price {
+            width: 100px;
+            color: #5a6e4a;
+            text-align: center;
+        }
+        .copy-version {
+            flex: 1;
+            text-align: left;
+            padding: 0 0.5rem;
+            color: #b8860b;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .detail-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .detail-header {
+            border-bottom: 2px solid #f0e4d6;
+            padding-bottom: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .detail-header h3 { font-size: 1.6rem; color: #4a3522; margin-bottom: 0.3rem; }
+        
+        .img-slider {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 280px;
+            margin: 0 auto 2rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            background: #faf6ef;
+            touch-action: pan-x;
+        }
+        .img-slider-inner {
+            display: flex;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        .img-slide {
+            min-width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .img-slide img {
+            max-height: 100%;
+            max-width: 100%;
+            border-radius: 0.8rem;
+            cursor: pointer;
+        }
+        .slider-dots {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.2);
+        }
+        .dot.active {
+            background: #daa520;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.2rem;
+            margin:
