@@ -1,165 +1,683 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>铜の币纪</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1.5rem;min-height:100vh;padding-top:70px;}
-.container{max-width:1200px;margin:0 auto;}
-.header{text-align:center;margin-bottom:2rem;}
-.header h1{font-size:1.8rem;background:linear-gradient(135deg,#b8860b,#daa520);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>铜の币纪 - 收藏品档案</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
-.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;outline:none;}
-.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;outline:none;}
-.search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
-.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
-.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
+        body {
+            background: #f0ebe3;
+            font-family: system-ui, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+            color: #2c2418;
+            padding: 1.5rem;
+            min-height: 100vh;
+            padding-top: 70px;
+        }
 
-.category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.5rem;margin-bottom:2rem;}
-.category-card{background:white;border-radius:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.08);text-align:center;padding:1.5rem;border:1px solid #e2d5c8;transition:0.2s;cursor:pointer;}
-.category-card:hover{transform:translateY(-5px);border-color:#c9aa7c;}
-.category-icon{font-size:2.5rem;margin-bottom:0.5rem;}
-.category-card h3{font-size:1.3rem;color:#4a3522;margin-bottom:0.3rem;}
-.category-card p{color:#8b6b4f;font-size:0.8rem;}
-.count-badge{background:#e8d9cc;padding:0.2rem 0.7rem;border-radius:40px;font-size:0.7rem;margin-top:0.6rem;}
-.footer{text-align:center;margin-top:1.5rem;font-size:0.7rem;color:#b1967c;}
-</style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #b8860b, #daa520);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .sub {
+            color: #8b6b4f;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+
+        .back-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #f0ebe3;
+            z-index: 999;
+            padding: 0.8rem 1.2rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .back-btn {
+            background: white;
+            border: 1px solid #e2d5c8;
+            color: #b8860b;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .back-btn:hover {
+            background: #e8d9cc;
+        }
+
+        .search-bar {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            align-items: center;
+        }
+        .search-select {
+            padding: 0.5rem 0.8rem;
+            border: 1px solid #e2d5c8;
+            border-radius: 0.6rem;
+            background: white;
+            font-size: 0.9rem;
+            color: #4a3522;
+            outline: none;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 180px;
+            padding: 0.6rem 1rem;
+            border: 1px solid #e2d5c8;
+            border-radius: 0.6rem;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: #daa520;
+        }
+        .search-btn {
+            background: #daa520;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .search-btn:hover {
+            background: #b8860b;
+        }
+        .reset-btn {
+            background: #f0ebe3;
+            color: #8b6b4f;
+            border: 1px solid #e2d5c8;
+            padding: 0.6rem 1rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .search-tip {
+            font-size: 0.75rem;
+            color: #b1967c;
+            margin-top: 0.3rem;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .category-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e2d5c8;
+            text-align: center;
+            padding: 1.5rem;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 28px rgba(0,0,0,0.12);
+            border-color: #c9aa7b;
+        }
+        .category-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .category-card h3 { font-size: 1.3rem; color: #4a3522; margin-bottom: 0.3rem; }
+        .category-card p { color: #8b6b4f; font-size: 0.8rem; }
+        .count-badge {
+            background: #e8d9cc;
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            margin-top: 0.6rem;
+        }
+
+        .list-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .panel-header {
+            border-left: 5px solid #daa520;
+            padding-left: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .panel-header h2 { font-size: 1.5rem; margin-bottom: 0.2rem; }
+        .panel-header p { color: #7a5a4a; font-size: 0.8rem; }
+        
+        .series-list { list-style: none; }
+        .series-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid #f0e4d6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .series-item:hover { background: #faf5ef; }
+        .series-name { flex: 1; font-weight: 500; }
+        .series-count {
+            background: #e8d9cc;
+            padding: 0.2rem 0.6rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            margin-right: 1rem;
+        }
+        .series-year { width: 110px; color: #8b6b4f; }
+
+        .copy-list { list-style: none; }
+        .copy-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid #f0e4d6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .copy-item:hover { background: #faf5ef; }
+        .copy-index {
+            width: 45px;
+            font-weight: 600;
+            color: #b8860b;
+        }
+        .copy-badge {
+            background: #e6d5c0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            margin-right: 1rem;
+        }
+        .copy-price {
+            width: 100px;
+            color: #5a6e4a;
+            text-align: center;
+        }
+        .copy-version {
+            flex: 1;
+            text-align: left;
+            padding: 0 0.5rem;
+            color: #b8860b;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .detail-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .detail-header {
+            border-bottom: 2px solid #f0e4d6;
+            padding-bottom: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .detail-header h3 { font-size: 1.6rem; color: #4a3522; margin-bottom: 0.3rem; }
+        
+        .img-slider {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 280px;
+            margin: 0 auto 2rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            background: #faf6ef;
+            touch-action: pan-x;
+        }
+        .img-slider-inner {
+            display: flex;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        .img-slide {
+            min-width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .img-slide img {
+            max-height: 100%;
+            max-width: 100%;
+            border-radius: 0.8rem;
+            cursor: pointer;
+        }
+        .slider-dots {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.2);
+        }
+        .dot.active {
+            background: #daa520;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.2rem;
+            margin: 1.5rem 0;
+        }
+        .detail-field {
+            background: #faf8f5;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+        }
+        .detail-field label {
+            font-size: 0.7rem;
+            color: #b1967c;
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+        .remark-box {
+            background: #fef9f0;
+            border-left: 3px solid #daa520;
+            padding: 1rem;
+            margin: 1.2rem 0;
+            border-radius: 0.8rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        .modal img { max-width: 90%; max-height: 90%; border-radius: 1rem; }
+        .footer { text-align: center; margin-top: 1.5rem; font-size: 0.7rem; color: #b1967c; }
+        
+        @media (max-width: 650px) {
+            body { padding: 1rem; padding-top: 70px; }
+        }
+    </style>
 </head>
 <body>
-
 <div class="container">
-  <div class="header">
-    <h1>收藏品档案</h1>
-    <div class="sub">Bilibili @ 铜の币纪</div>
-  </div>
-
-  <div id="search-container">
-    <select class="search-select" id="searchType">
-      <option value="all">全字段搜索</option>
-      <option value="name">按名称</option>
-      <option value="version">按冠号</option>
-      <option value="year">按年份</option>
-      <option value="agency">按评级</option>
-      <option value="krause">按克劳斯</option>
-    </select>
-    <input class="search-input" id="searchInput" placeholder="搜索全站藏品" type="text">
-    <button class="search-btn" onclick="doSearch()">搜索</button>
-    <button class="reset-btn" onclick="resetSearch()">重置</button>
-  </div>
-  <div class="search-tip">💡 首页搜索 = 全局搜索</div>
-
-  <div class="category-grid" id="categoryGrid"></div>
-
-  <div class="footer">
-  网址建立时间：2026年4月3日<br>© 2026 铜の币纪
-  </div>
+    <div class="header">
+        <h1>收藏品档案</h1>
+        <div class="sub">Bilibili @ 铜の币纪</div>
+    </div>
+    <div id="app"></div>
+    <div class="footer">网址建立时间：2026年4月3日<br>© 2026 铜の币纪 版权所有<div style="font-size:0.6rem; margin-top:4px;">Powered by GitHub Pages</div></div>
 </div>
 
+<div id="imageModal" class="modal" onclick="closeModal()">
+    <img id="modalImg" src="">
+</div>
+
+<script src="data.js"></script>
 <script>
-const allData = {
-    commemorative: {
-        name: "纪念钞", icon: "𝟘𝟙", desc: "包含央行以及港澳台地区的所有纪念钞",
-        series: [
-            { seriesName: "澳门格兰披治大奖赛35周年纪念钞", year: 1988, copies: [{ copyId: 1, purchaseDate: "2026年2月19日", price: "925元", bank: "大西洋银行", version: "KP04057", condition: "ACG65E", krause: "KL001", remark: "纪念钞的鼻祖，发行量最少的一张", img1: "images/KP04057-1.jpg", img2: "images/KP04057-2.jpg" }] },
-            { seriesName: "新台币发行50周年纪念钞", year: 1999, copies: [
-                { copyId: 1, purchaseDate: "2025年10月2日", price: "56元", bank: "台湾银行", version: "A179021G", condition: "ACG67E", krause: "KL002", remark: "", img1: "images/A179021G-1.jpg", img2: "images/A179021G-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL003", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
-            ]},
-            { seriesName: "庆祝中华人民共和国成立50周年纪念钞", year: 1999, copies: [
-                { copyId: 1, purchaseDate: "2025年8月30日", price: "203元", bank: "中国人民银行", version: "J07529257", condition: "ACG65E", krause: "KL004", remark: "刚好是我的生日号", img1: "images/J07529257-1.jpg", img2: "images/J07529257-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月1日", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL005", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
-            ]},
-            { seriesName: "迎接新世纪纪念钞", year: 2000, copies: [
-                { copyId: 1, purchaseDate: "2025年9月25日", price: "1225元", bank: "中国人民银行", version: "J00344985", condition: "ACG65E", krause: "KL006", remark: "普通冠号", img1: "images/J00344985-1.jpg", img2: "images/J00344985-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年11月1日", price: "2050元", bank: "中国人民银行", version: "I00181114", condition: "PMG67E", krause: "KL007", remark: "补号", img1: "images/I00181114-1.jpg", img2: "images/I00181114-2.jpg" }
-            ]},
-            { seriesName: "第29届奥林匹克运动会纪念钞", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "2360元", bank: "中国人民银行", version: "J04266645", condition: "PMG67E", krause: "KL008", remark: "钞王！传家宝级别", img1: "images/J04266645-1.jpg", img2: "images/J04266645-2.jpg" }]},
-            { seriesName: "第29届奥林匹克运动会纪念钞（香港）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "176元", bank: "中国银行（香港）", version: "762965", condition: "ACG66E", krause: "KL009", remark: "", img1: "images/762965-1.jpg", img2: "images/762965-2.jpg" }]},
-            { seriesName: "第29届奥林匹克运动会纪念钞（澳门）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "245元", bank: "中国银行", version: "MO239989", condition: "ACG66E", krause: "KL010", remark: "", img1: "images/MO239989-1.jpg", img2: "images/MO239989-2.jpg" }]},
-            { seriesName: "渣打银行成立150周年纪念钞", year: 2009, copies:[]},
-            { seriesName: "中华民国成立100年纪念钞", year: 2011, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "61元", bank: "中央银行", version: "JP578968ZB", condition: "ACG67E", krause: "KL011", remark: "", img1: "images/JP578968ZB-1.jpg", img2: "images/JP578968ZB-2.jpg" }]},
-            { seriesName: "纪念中国银行成立100周年纪念钞（香港）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2026年1月30日", price: "198元", bank: "中国银行（香港）", version: "357185", condition: "ACG67E", krause: "KL012", remark: "", img1: "images/357185-1.jpg", img2: "images/357185-2.jpg" }]},
-            { seriesName: "纪念中国银行成立100周年纪念钞（澳门）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2025年12月5日", price: "458元", bank: "中国银行", version: "AA709609", condition: "PMG66E", krause: "KL013", remark: "传说中的“最美荷花钞”", img1: "images/AA709609-1.jpg", img2: "images/AA709609-2.jpg" }]},
-            { seriesName: "澳门生肖钞", year: "2012~2023", copies:[]},
-            { seriesName: "中国航天纪念钞", year: 2015, copies: [
-                { copyId: 1, purchaseDate: "2025年12月1日", price: "160元", bank: "中国人民银行", version: "J8301922333", condition: "ACG68E", krause: "KL014", remark: "普通荧光", img1: "images/J8301922333-1.jpg", img2: "images/J8301922333-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月18日", price: "218元", bank: "中国人民银行", version: "J5252197777", condition: "ACG67E", krause: "KL015", remark: "宇宙之眼", img1: "images/J5252197777-1.jpg", img2: "images/J5252197777-2.jpg" },
-                { copyId: 3, purchaseDate: "2025年11月7日", price: "134元", bank: "中国人民银行", version: "J9069497791", condition: "PMG66E", krause: "KL016", remark: "流浪地球", img1: "images/J9069497791-1.jpg", img2: "images/J9069497791-2.jpg" }
-            ]},
-            { seriesName: "汇丰银行成立150周年纪念钞", year: 2015, copies: [{ copyId: 1, purchaseDate: "2026年1月8日", price: "285元", bank: "香港上海汇丰银行", version: "AB140236", condition: "ACG67E", krause: "KL017", remark: "补号", img1: "images/AB140236-1.jpg", img2: "images/AB140236-2.jpg" }]},
-            { seriesName: "中国银行在港服务100周年纪念钞", year: 2017, copies: [{ copyId: 1, purchaseDate: "2026年2月18日", price: "192元", bank: "中国银行（香港）", version: "HY583251", condition: "ACG67E", krause: "KL018", remark: "HY = Hundred Years百年", img1: "images/HY583251-1.jpg", img2: "images/HY583251-2.jpg" }]},
-            { seriesName: "人民币发行70周年纪念钞", year: 2018, copies: [
-                { copyId: 1, purchaseDate: "2025年12月1日", price: "798元", bank: "中国人民银行", version: "J000009987", condition: "PMG66E", krause: "KL019", remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", img1: "images/J000009987-1.jpg", img2: "images/J000009987-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年8月5日", price: "79元", bank: "中国人民银行", version: "J191756567", condition: "ACG68E", krause: "KL020", remark: "补号，虽然PMG没有特殊标注", img1: "images/J191756567-1.jpg", img2: "images/J191756567-2.jpg" }
-            ]},
-            { seriesName: "澳门回归20周年纪念钞", year: 2019, copies: [
-                { copyId: 1, purchaseDate: "2025年12月5日", price: "34元", bank: "中国银行", version: "MA3518209", condition: "ACG66E", krause: "KL021", remark: "", img1: "images/MA3518209-1.jpg", img2: "images/MA3518209-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年12月5日", price: "34元", bank: "大西洋银行", version: "MA0500209", condition: "ACG66E", krause: "KL022", remark: "算不算是半个生日号？总感觉这张与我挺有缘的", img1: "images/MA0500209-1.jpg", img2: "images/MA0500209-2.jpg" }
-            ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年11月7日", price: "40元", bank: "中国人民银行", version: "J180000183", condition: "ACG68E", krause: "KL023", remark: "", img1: "images/J180000183-1.jpg", img2: "images/J180000183-2.jpg" }]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", year: 2022, copies: [
-                { copyId: 1, purchaseDate: "2025年11月16日", price: "120元", bank: "中国人民银行", version: "J333686866", condition: "ACG68E", krause: "KL024", remark: "普通版本", img1: "images/J333686866-1.jpg", img2: "images/J333686866-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年3月6日", price: "32元", bank: "中国人民银行", version: "J208213254", condition: "ACG68E", krause: "KL025", remark: "绿奥之星", img1: "images/J208213254-1.jpg", img2: "images/J208213254-2.jpg" },
-                { copyId: 3, purchaseDate: "2025年11月16日", price: "45元", bank: "中国人民银行", version: "J207861101", condition: "ACG67E", krause: "KL026", remark: "绿奥之王", img1: "images/J207861101-1.jpg", img2: "images/J207861101-2.jpg" }
-            ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）", year: 2022, copies: [
-                { copyId: 1, purchaseDate: "2026年2月21日", price: "170元", bank: "中国银行（香港）", version: "545654", condition: "ACG68E", krause: "KL027", remark: "这张的号码其实非常值得玩味", img1: "images/545654-1.jpg", img2: "images/545654-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月17日", price: "188元", bank: "中国银行（香港）", version: "AA537379", condition: "ACG68E", krause: "KL028", remark: "", img1: "images/AA537379-1.jpg", img2: "images/AA537379-2.jpg" }
-            ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年10月26日", price: "69元", bank: "中国银行", version: "BC0838287", condition: "ACG66E", krause: "KL029", remark: "", img1: "images/BC0838287-1.jpg", img2: "images/BC0838287-2.jpg" }]},
-            { seriesName: "龙年贺岁纪念钞", year: 2024, copies: [{ copyId: 1, purchaseDate: "2026年1月21日", price: "158元", bank: "中国人民银行", version: "J005003567", condition: "ACG67E", krause: "KL030", remark: "", img1: "images/J005003567-1.jpg", img2: "images/J005003567-2.jpg" }]},
-            { seriesName: "蛇年贺岁纪念钞", year: 2025, copies: [{ copyId: 1, purchaseDate: "2026年1月22日", price: "60元", bank: "中国人民银行", version: "J006206654", condition: "ACG67E", krause: "KL031", remark: "", img1: "images/J006206654-1.jpg", img2: "images/J006206654-2.jpg" }]},
-            { seriesName: "马年贺岁纪念钞", year: 2026, copies: [
-                { copyId: 1, purchaseDate: "2026年2月26日", price: "88元", bank: "中国人民银行", version: "J005516765", condition: "ACG67E", krause: "KL032", remark: "就是凑个品种，太丑了", img1: "images/J005516765-1.jpg", img2: "images/J005516765-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年1月20日", price: "272元", bank: "中国人民银行", version: "J037241561-70", condition: "ACG68E", krause: "KL033", remark: "", img1: "images/J037241561-70-1.jpg", img2: "images/J037241561-70-2.jpg" }
-            ]}
-        ]
-    },
-    hk: { name: "港币", icon: "𝟘𝟚", desc: "中国银行（香港）、香港上海汇丰银行、渣打银行", series: [] },
-    macau: { name: "澳门币", icon: "𝟘𝟛", desc: "中国银行、大西洋银行", series: [] },
-    specimen: { name: "新台币", icon: "𝟘𝟜", desc: "台湾银行、中央银行", series: [] },
-    rmb2: { name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962", series: [] },
-    rmb3: { name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000", series: [] },
-    rmb4: { name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018", series: [] },
-    rmb5: { name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019", series: [] },
-    fec: { name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995", series: [] },
-    foreign: { name: "日本", icon: "𝟙𝟘", desc: "日本纸币", series: [] }
+// 板块顺序（只保留纪念钞）
+const categoryOrder = ["commemorative"];
+
+let currentView = "categories";
+let currentCategoryId = null;
+let currentSeries = null;
+let lastScrollY = 0;
+let scrollMemory = {};
+
+let searchScope = 'global';
+let lastSearchHtml = "";
+let lastSearchType = "all";
+let lastSearchKeyword = "";
+let isFromSearch = false;
+
+let searchTimer = null;
+
+function saveScroll() {
+    const key = currentView + "_" + (currentCategoryId || "") + "_" + (currentSeries?.cid || "") + "_" + (currentSeries?.si || "");
+    scrollMemory[key] = window.scrollY;
+}
+function restoreScroll() {
+    const key = currentView + "_" + (currentCategoryId || "") + "_" + (currentSeries?.cid || "") + "_" + (currentSeries?.si || "");
+    setTimeout(() => window.scrollTo(0, scrollMemory[key] || 0), 0);
+}
+
+function getSearchHtml(scope) {
+    const scopeText = scope === 'global' ? '全局' : '当前板块';
+    return `
+        <div class="search-bar">
+            <select class="search-select" id="searchType">
+                <option value="all" selected>全字段搜索（默认）</option>
+                <option value="name">按名称搜索</option>
+                <option value="version">按冠字号搜索</option>
+                <option value="year">按年份搜索</option>
+                <option value="agency">按评级机构(ACG/PMG)</option>
+                <option value="krause">按克劳斯编号搜索</option>
+            </select>
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." oninput="doSearch()">
+            <button class="search-btn" onclick="doSearch()">搜索 ${scopeText}</button>
+            <button class="reset-btn" onclick="resetSearch()">重置</button>
+        </div>
+        <div class="search-tip">💡 全字段：名称+冠号+年份+评级+克劳斯 同时匹配</div>
+    `;
+}
+
+function restoreSearchInput() {
+    setTimeout(() => {
+        const ipt = document.getElementById('searchInput');
+        const sel = document.getElementById('searchType');
+        if (ipt) {
+            ipt.value = lastSearchKeyword;
+            ipt.focus();
+        }
+        if (sel) sel.value = lastSearchType;
+    }, 0);
+}
+
+function renderSearchResult(results) {
+    saveScroll();
+    isFromSearch = true;
+    let resultHtml = `<div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>
+        <div class="list-panel"><div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配 | 关键词：${lastSearchKeyword||'空'}</p></div><div class="copy-list">`;
+    if (results.length === 0) {
+        resultHtml += `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
+    } else {
+        results.forEach(item => {
+            resultHtml += `
+                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
+                    <div class="copy-index">#${item.copy.copyId}</div>
+                    <div class="copy-badge">${item.copy.condition || '无'}</div>
+                    <div class="copy-version">${item.series.seriesName}</div>
+                    <div class="copy-price">${item.copy.version || '无冠号'}</div>
+                    <div class="copy-price">${item.copy.price}</div>
+                </div>`;
+        });
+    }
+    resultHtml += `</div></div>`;
+    lastSearchHtml = resultHtml;
+    const full = getSearchHtml(searchScope) + resultHtml;
+    document.getElementById("app").innerHTML = full;
+    restoreSearchInput();
+    restoreScroll();
+}
+
+window.doSearch = () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const type = document.getElementById('searchType').value;
+        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+        lastSearchType = type;
+        lastSearchKeyword = keyword;
+
+        let results = [];
+        const targetCats = searchScope === 'global' ? categoryOrder : [currentCategoryId];
+        targetCats.forEach(cid => {
+            const cat = banknotesData[cid];
+            if (!cat) return;
+            cat.series.forEach((s, si) => {
+                s.copies.forEach((cp, ci) => {
+                    let match = false;
+                    if (type === 'all') {
+                        const txt = `${s.seriesName} ${cp.version||''} ${s.year} ${cp.condition||''} ${cp.krause||''}`.toLowerCase();
+                        match = txt.includes(keyword);
+                    } else {
+                        switch(type) {
+                            case 'name': match = s.seriesName.toLowerCase().includes(keyword); break;
+                            case 'version': match = (cp.version||'').toLowerCase().includes(keyword); break;
+                            case 'year': match = String(s.year).toLowerCase().includes(keyword); break;
+                            case 'agency': match = (cp.condition||'').toLowerCase().includes(keyword); break;
+                            case 'krause': match = (cp.krause||'').toLowerCase().includes(keyword); break;
+                        }
+                    }
+                    if (match) results.push({ catId: cid, sIdx: si, cIdx: ci, series: s, copy: cp });
+                });
+            });
+        });
+        renderSearchResult(results);
+    }, 200);
 };
 
-const categoryOrder = ["commemorative", "hk", "macau", "specimen", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "foreign"];
+window.resetSearch = () => {
+    isFromSearch = false;
+    lastSearchKeyword = '';
+    if (currentView === 'seriesList' && currentCategoryId) {
+        renderSeriesList(currentCategoryId);
+    } else {
+        renderCategories();
+    }
+};
 
 function renderCategories() {
-    const grid = document.getElementById('categoryGrid');
-    grid.innerHTML = '';
-    categoryOrder.forEach(id => {
-        const cat = allData[id];
+    saveScroll();
+    searchScope = 'global';
+    currentView = "categories";
+    isFromSearch = false;
+    let html = getSearchHtml('global');
+    html += `<div class="category-grid">`;
+    for (let id of categoryOrder) {
+        const cat = banknotesData[id];
+        if (!cat) continue;
         let total = 0;
         cat.series.forEach(s => total += s.copies.length);
-        let url = id === "commemorative" ? "commemorative.html" : "#";
-        grid.innerHTML += `
-            <div class="category-card" onclick="location.href='${url}'">
+        html += `
+            <div class="category-card" onclick="selectCategory('${id}')">
                 <div class="category-icon">${cat.icon}</div>
                 <h3>${cat.name}</h3>
                 <p>${cat.desc}</p>
-                <div class="count-badge">📌 ${total} 张</div>
+                <div class="count-badge">📌 ${total} 张藏品</div>
             </div>`;
+    }
+    html += `</div>`;
+    document.getElementById("app").innerHTML = html;
+    restoreScroll();
+}
+
+function renderSeriesList(cid) {
+    saveScroll();
+    searchScope = 'currentCategory';
+    currentView = "seriesList";
+    currentCategoryId = cid;
+    isFromSearch = false;
+    const cat = banknotesData[cid];
+    let items = `<div class="series-list">`;
+    cat.series.forEach((s, idx) => {
+        items += `
+            <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
+                <div class="series-name">${s.seriesName}</div>
+                <div class="series-count">${s.copies.length}张</div>
+                <div class="series-year">${s.year}年</div>
+            </div>`;
+    });
+    items += `</div>`;
+    const full = `
+        <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
+        ${getSearchHtml('currentCategory')}
+        <div class="list-panel">
+            <div class="panel-header"><h2>${cat.icon} ${cat.name}</h2><p>点击品种查看藏品</p></div>
+            ${items}
+        </div>`;
+    document.getElementById("app").innerHTML = full;
+    restoreScroll();
+}
+
+function renderCopyList(cid, si) {
+    saveScroll();
+    currentView = "copyList";
+    isFromSearch = false;
+    const cat = banknotesData[cid];
+    const s = cat.series[si];
+    currentSeries = { cid, si };
+    let copies = `<div class="copy-list">`;
+    s.copies.forEach((cp, idx) => {
+        copies += `
+            <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${idx})">
+                <div class="copy-index">#${idx+1}</div>
+                <div class="copy-badge">${cp.condition || '未知'}</div>
+                <div class="copy-version">${cp.version || '无冠号'}</div>
+                <div class="copy-price">${cp.price}</div>
+            </div>`;
+    });
+    copies += `</div>`;
+    const full = `
+        <div class="back-bar"><button class="back-btn" onclick="backToSeriesList()">← 返回品种列表</button></div>
+        <div class="list-panel">
+            <div class="panel-header"><h2>📌 ${s.seriesName} (${s.year}年)</h2><p>共${s.copies.length}张</p></div>
+            ${copies}
+        </div>`;
+    document.getElementById("app").innerHTML = full;
+    restoreScroll();
+}
+
+function renderDetail(cid, si, ci) {
+    currentView = "detail";
+    const s = banknotesData[cid].series[si];
+    const cp = s.copies[ci];
+    const backAction = isFromSearch 
+        ? `onclick="goBackFromDetail()"` 
+        : `onclick="backToCopyList()"`;
+
+    const html = `
+        <div class="back-bar"><button class="back-btn" ${backAction}>← 返回列表</button></div>
+        <div class="detail-panel">
+            <div class="detail-header"><h3>${s.seriesName}</h3><div>年份：${s.year} · 第${ci+1}张</div></div>
+            <div class="img-slider" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)">
+                <div class="img-slider-inner">
+                    <div class="img-slide"><img src="${cp.img1}" onclick="openModal(this.src)"></div>
+                    <div class="img-slide"><img src="${cp.img2}" onclick="openModal(this.src)"></div>
+                </div>
+                <div class="slider-dots">
+                    <div class="dot active" data-index="0"></div>
+                    <div class="dot" data-index="1"></div>
+                </div>
+            </div>
+            <div class="detail-grid">
+                <div class="detail-field"><label>购买日期</label><div>${cp.purchaseDate}</div></div>
+                <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
+                <div class="detail-field"><label>银行</label><div>${cp.bank}</div></div>
+                <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
+                <div class="detail-field"><label>品相</label><div>${cp.condition}</div></div>
+                <div class="detail-field"><label>克劳斯编号</label><div>${cp.krause || '未录入'}</div></div>
+            </div>
+            <div class="remark-box"><label>备注</label><div style="margin-top:6px;">${cp.remark || '无'}</div></div>
+        </div>`;
+    document.getElementById("app").innerHTML = html;
+    initSlider();
+}
+let slideStartX = 0;
+let currentSlide = 0;
+let isDragging = false;
+let startX = 0;
+
+function initSlider() {
+    currentSlide = 0;
+    updateSlide();
+
+    const slider = document.querySelector('.img-slider');
+    if (!slider) return;
+
+    slider.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        slider.style.cursor = 'grabbing';
+    });
+
+    slider.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        if (Math.abs(dx) > 30) {
+            currentSlide = dx < 0 ? 1 : 0;
+            updateSlide();
+            isDragging = false;
+        }
+    });
+
+    slider.addEventListener('mouseup', () => { isDragging = false; slider.style.cursor = 'grab'; });
+    slider.addEventListener('mouseleave', () => { isDragging = false; slider.style.cursor = 'grab'; });
+
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((dot, idx) => {
+        dot.addEventListener('click', () => {
+            currentSlide = idx;
+            updateSlide();
+        });
     });
 }
 
-function doSearch() {
-    const kw = document.getElementById('searchInput').value.trim();
-    const type = document.getElementById('searchType').value;
-    if (!kw) return;
-    location.href = `commemorative.html?from=index&keyword=${encodeURIComponent(kw)}&type=${type}`;
+function handleTouchStart(e) {
+    slideStartX = e.touches[0].clientX;
+}
+function handleTouchMove(e) {
+    const dx = e.touches[0].clientX - slideStartX;
+    if (Math.abs(dx) > 50) {
+        currentSlide = dx < 0 ? 1 : 0;
+        updateSlide();
+    }
 }
 
-function resetSearch() {
-    document.getElementById('searchInput').value = '';
+function updateSlide() {
+    const slider = document.querySelector('.img-slider-inner');
+    const dots = document.querySelectorAll('.dot');
+    if (!slider) return;
+    slider.style.transform = `translateX(-${currentSlide * 100}%)`;
+    dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
 }
+window.goBackFromDetail = () => {
+    document.getElementById("app").innerHTML = getSearchHtml(searchScope) + lastSearchHtml;
+    restoreSearchInput();
+    restoreScroll();
+};
+
+window.selectCategory = renderSeriesList;
+window.selectSeries = renderCopyList;
+window.selectCopy = renderDetail;
+window.backToCategories = renderCategories;
+window.backToSeriesList = () => renderSeriesList(currentCategoryId);
+window.backToCopyList = () => renderCopyList(currentSeries.cid, currentSeries.si);
+
+window.openModal = (src) => {
+    document.getElementById("imageModal").style.display = "flex";
+    document.getElementById("modalImg").src = src;
+};
+window.closeModal = () => document.getElementById("imageModal").style.display = "none";
 
 renderCategories();
 </script>
