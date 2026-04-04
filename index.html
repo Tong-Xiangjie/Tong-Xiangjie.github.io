@@ -9,12 +9,13 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none; /* 避免复制干扰，但保留输入框可选 */
+            user-select: none;
         }
 
+        /* 整体纯黑背景 */
         body {
             min-height: 100vh;
-            background: radial-gradient(circle at 20% 30%, #0a0f1a, #03060c);
+            background: #000000;
             font-family: 'Segoe UI', 'Inter', 'Fira Code', monospace, system-ui;
             display: flex;
             align-items: center;
@@ -22,32 +23,28 @@
             padding: 1.5rem;
         }
 
-        /* 主容器 - 玻璃质感 */
+        /* 面板也纯黑，无玻璃模糊、无阴影、无边框 */
         .glass-panel {
-            background: rgba(10, 18, 28, 0.65);
-            backdrop-filter: blur(12px);
+            background: #000000;
             border-radius: 2.5rem;
-            border: 1px solid rgba(72, 187, 255, 0.2);
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 255, 255, 0.05) inset;
+            border: none;
+            box-shadow: none;
             width: 100%;
             max-width: 580px;
             transition: all 0.3s ease;
             overflow: hidden;
         }
 
-        /* 内容区 */
         .content {
             padding: 2.2rem 2rem 2.5rem;
         }
 
-        /* 头部暗黑徽标 */
         .logo-area {
             text-align: center;
             margin-bottom: 2rem;
         }
         .logo-icon {
             font-size: 3.2rem;
-            /* 已去掉阴影，无发光 */
             opacity: 0.9;
             width: 80px;
             height: 80px;
@@ -72,7 +69,6 @@
             padding-top: 0.5rem;
         }
 
-        /* 密码面板 */
         .password-section {
             transition: all 0.2s;
         }
@@ -84,7 +80,6 @@
             align-items: center;
             padding: 0.2rem 0.2rem 0.2rem 1.5rem;
             margin-bottom: 1rem;
-            backdrop-filter: blur(4px);
         }
         .input-group input {
             background: transparent;
@@ -93,21 +88,20 @@
             font-size: 1.4rem;
             letter-spacing: 4px;
             font-weight: 500;
-            color: #c0f2ff;
+            color: #c0c0c0;
             width: 100%;
             outline: none;
             font-family: monospace;
         }
         .input-group input::placeholder {
             color: #3a465a;
-            letter-spacing: 2px;
-            font-size: 1rem;
-            font-family: monospace;
         }
         .lock-icon {
             color: #4cffb0;
             font-size: 1.4rem;
         }
+
+        /* ———— 按钮颜色完全保留不变 ———— */
         button {
             background: linear-gradient(95deg, #1f2a3e, #0f172a);
             border: 1px solid #2e3b4e;
@@ -119,7 +113,6 @@
             font-size: 1rem;
             cursor: pointer;
             transition: 0.2s;
-            font-family: inherit;
             letter-spacing: 1px;
         }
         button:active {
@@ -131,6 +124,7 @@
             color: white;
             box-shadow: 0 0 8px #2d68c0;
         }
+
         .error-msg {
             color: #ff7a6e;
             font-size: 0.8rem;
@@ -138,7 +132,7 @@
             text-align: center;
             min-height: 2.5rem;
             font-weight: 500;
-            background: #220c0c60;
+            background: transparent;
             border-radius: 2rem;
             padding: 0.4rem;
         }
@@ -148,26 +142,19 @@
             font-size: 0.9rem;
             font-weight: bold;
             color: #f2b56b;
-            background: #0f111acc;
+            background: transparent;
             border-radius: 2rem;
             padding: 0.5rem;
         }
 
-        /* 网站列表 (成功后才显示) */
         .dashboard {
             display: none;
-            animation: fadeInUp 0.5s ease;
         }
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
+
         .section-title {
             font-size: 1.5rem;
             margin-bottom: 1.5rem;
@@ -176,9 +163,10 @@
             padding-left: 1rem;
             color: #eef5ff;
         }
+
+        /* 卡片背景纯黑 */
         .site-card {
-            background: rgba(18, 25, 40, 0.7);
-            backdrop-filter: blur(4px);
+            background: #000000;
             border-radius: 1.8rem;
             margin-bottom: 1.2rem;
             padding: 1rem 1.5rem;
@@ -190,15 +178,13 @@
             flex-wrap: wrap;
         }
         .site-card:hover {
-            background: #0f1b2fdd;
+            background: #000000;
             border-color: #3e8bcb;
-            transform: translateX(6px);
         }
         .site-name {
             font-weight: 600;
             font-size: 1.2rem;
             color: #cdedff;
-            letter-spacing: 1px;
         }
         .site-link {
             background: #0b1422;
@@ -214,11 +200,11 @@
             gap: 6px;
         }
         .site-link:hover {
-            background: #00a6ff20;
+            background: #000000;
             color: white;
             border-color: #2bc0ff;
-            box-shadow: 0 0 6px #0af;
         }
+
         .footer-note {
             margin-top: 2rem;
             font-size: 0.7rem;
@@ -242,7 +228,6 @@
             gap: 1rem;
         }
 
-        /* 禁用状态 */
         input:disabled, button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -255,9 +240,9 @@
     </style>
 </head>
 <body>
+
 <div class="glass-panel" id="appRoot">
     <div class="content">
-        <!-- 未解锁区域 (密码界面) -->
         <div id="lockZone">
             <div class="logo-area">
                 <img src="images/headphoto.png" class="logo-icon">
@@ -275,7 +260,6 @@
             </div>
         </div>
 
-        <!-- 解锁后网站列表区域 -->
         <div id="dashboardZone" class="dashboard">
             <div class="logo-area" style="margin-bottom: 1rem;">
                 <img src="images/headphoto.png" class="logo-icon">
@@ -289,7 +273,6 @@
                     notecollection ↗
                 </a>
             </div>
-            <!-- 预留扩展其他分站，未来可加 -->
             <div class="site-card" style="opacity: 0.7;">
                 <span class="site-name">更多站点 (敬请期待)</span>
                 <span class="site-link" style="background:#11161f; cursor:default;">即将开放</span>
@@ -304,17 +287,13 @@
 
 <script>
     (function(){
-        // ---------- 状态管理 ----------
-        // 有效密码列表 (6位数字)
         const VALID_CODES = new Set(["070529", "790815"]);
-        const LOCK_DURATION_MS = 30000; // 30秒锁定
+        const LOCK_DURATION_MS = 30000;
 
-        // 锁定状态变量
-        let lockUntil = 0;            // 时间戳 (毫秒) 锁定的截止时刻
-        let failCount = 0;            // 当前连续错误次数 (每次锁定周期内)
-        let timerInterval = null;     // 倒计时刷新句柄
+        let lockUntil = 0;
+        let failCount = 0;
+        let timerInterval = null;
 
-        // DOM 元素
         const lockZone = document.getElementById('lockZone');
         const dashboardZone = document.getElementById('dashboardZone');
         const passwordInput = document.getElementById('passwordInput');
@@ -323,10 +302,8 @@
         const timerInfoDiv = document.getElementById('timerInfo');
         const resetLockBtn = document.getElementById('resetLockBtn');
 
-        // ---------- localStorage 持久化 ----------
         const STORAGE_KEY = 'lockUntilTimestamp';
 
-        // 保存锁定到期时间到 localStorage
         function persistLockUntil() {
             if (lockUntil > 0) {
                 localStorage.setItem(STORAGE_KEY, lockUntil.toString());
@@ -335,33 +312,26 @@
             }
         }
 
-        // 从 localStorage 恢复锁定状态
         function restoreLockFromStorage() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const storedTime = parseInt(stored, 10);
                 const now = Date.now();
                 if (storedTime > now) {
-                    // 锁定尚未过期
                     lockUntil = storedTime;
-                    // 注意：failCount 需要重置，因为刷新后不知道之前错了多少次
-                    // 但为了安全，锁定结束后重新计数，锁定期间 failCount 应为 0 或保持锁定标记即可
                     failCount = 0;
                     return true;
                 } else {
-                    // 存储的锁已过期，清除
                     localStorage.removeItem(STORAGE_KEY);
                 }
             }
             return false;
         }
 
-        // 清除持久化锁
         function clearPersistedLock() {
             localStorage.removeItem(STORAGE_KEY);
         }
 
-        // 辅助函数: 清除计时器
         function clearTimer() {
             if(timerInterval) {
                 clearInterval(timerInterval);
@@ -369,7 +339,6 @@
             }
         }
 
-        // 释放锁定 (重置错误计数, 清空计时器, 清除持久化)
         function releaseLock() {
             const wasLocked = (lockUntil > Date.now());
             lockUntil = 0;
@@ -379,70 +348,46 @@
             }
             clearTimer();
             updateLockUI();
-            // 清理错误消息残留
             if (!errorMsgDiv.innerHTML.includes('密码') && !errorMsgDiv.innerHTML.includes('错误')) {
                 if (failCount === 0) errorMsgDiv.innerHTML = '';
             }
         }
 
-        // 更新界面锁定状态 (禁用输入框、按钮、显示倒计时等)
         function updateLockUI() {
             const now = Date.now();
             const isCurrentlyLocked = (lockUntil > now);
 
             if (isCurrentlyLocked) {
                 const remainSeconds = Math.ceil((lockUntil - now) / 1000);
-                if (remainSeconds > 0) {
-                    timerInfoDiv.style.display = 'block';
-                    timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${remainSeconds} 秒后再试。`;
-                } else {
-                    // 理论上锁到期会在倒计时 tick 里清理，但以防万一
-                    if (lockUntil <= now) {
-                        releaseLock();
-                        return;
-                    }
-                }
-                // 禁用输入和按钮
+                timerInfoDiv.style.display = 'block';
+                timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${remainSeconds} 秒后再试。`;
                 passwordInput.disabled = true;
                 unlockBtn.disabled = true;
                 errorMsgDiv.innerHTML = '账户暂时锁定，请稍后再试';
             } else {
-                // 未锁定状态
-                if (lockUntil === 0 || lockUntil <= now) {
-                    // 确保释放锁（清理持久化等）
-                    if (lockUntil > 0 && lockUntil <= now) {
-                        releaseLock();
-                    }
-                }
                 passwordInput.disabled = false;
                 unlockBtn.disabled = false;
                 timerInfoDiv.style.display = 'none';
-                // 如果错误消息还是锁定相关的，清空
                 if (errorMsgDiv.innerHTML.includes('锁定') || errorMsgDiv.innerHTML.includes('等待')) {
                     if (failCount === 0) errorMsgDiv.innerHTML = '';
                 }
             }
         }
 
-        // 设置锁定30秒 (保留当前错误次数已经达到3)
         function applyLockout() {
             const now = Date.now();
             lockUntil = now + LOCK_DURATION_MS;
-            // 持久化锁定时间戳
             persistLockUntil();
-            // 锁定期间错误计数归零（锁定结束后重新累计）
             failCount = 0;
             clearTimer();
             updateLockUI();
 
-            // 启动倒计时刷新
             timerInterval = setInterval(() => {
                 const nowMs = Date.now();
                 const remaining = lockUntil - nowMs;
                 if (remaining <= 0) {
-                    // 锁定到期
                     clearTimer();
-                    releaseLock();      // 重置failCount并解锁界面
+                    releaseLock();
                     updateLockUI();
                     errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
                     setTimeout(() => {
@@ -459,30 +404,25 @@
             }, 200);
         }
 
-        // 处理验证失败
         function handleFail() {
-            // 先检查当前是否锁定中
             if (lockUntil > Date.now()) {
                 errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。';
                 return;
             }
 
-            // 未锁定状态，增加错误计数
             failCount++;
             const remainingAttempts = 3 - failCount;
             if (failCount >= 3) {
-                // 达到三次错误 -> 触发锁定30秒
                 errorMsgDiv.innerHTML = `已连续错误3次！系统锁定30秒，无法进行任何操作`;
                 applyLockout();
                 passwordInput.value = '';
             } else {
-                // 未达三次，显示剩余尝试
                 errorMsgDiv.innerHTML = `密码错误！还剩 ${remainingAttempts} 次尝试机会，连续错误3次将锁定30秒`;
                 passwordInput.value = '';
                 passwordInput.focus();
                 timerInfoDiv.style.display = 'none';
             }
-            // 震动效果(可选)
+
             const panel = document.querySelector('.glass-panel');
             if (panel) {
                 panel.style.transform = 'translateX(3px)';
@@ -490,26 +430,20 @@
             }
         }
 
-        // 验证成功: 进入仪表板
         function handleSuccess() {
-            // 清除锁定状态、重置计数器、清除计时器
             clearTimer();
             lockUntil = 0;
             failCount = 0;
             clearPersistedLock();
-            // 清空输入框以及错误消息
             passwordInput.value = '';
             errorMsgDiv.innerHTML = '';
             timerInfoDiv.style.display = 'none';
 
-            // 切换显示: 隐藏锁界面，展示仪表板
             lockZone.style.display = 'none';
             dashboardZone.style.display = 'block';
         }
 
-        // 验证密码核心
         function verifyPassword() {
-            // 如果当前处于锁定状态，阻止验证
             if (lockUntil > Date.now()) {
                 errorMsgDiv.innerHTML = `锁定倒计时进行中，请耐心等待。`;
                 return;
@@ -529,9 +463,8 @@
             }
 
             if (VALID_CODES.has(trimmed)) {
-                // 密码正确
                 failCount = 0;
-                if (lockUntil) lockUntil = 0;
+                lockUntil = 0;
                 clearTimer();
                 clearPersistedLock();
                 handleSuccess();
@@ -540,30 +473,17 @@
             }
         }
 
-        // 重置/退出登录 (从仪表板返回锁定界面，重置所有状态)
         function resetToLock() {
-            // 清除dashboard显示，显示锁界面
             dashboardZone.style.display = 'none';
             lockZone.style.display = 'block';
-
-            // 重置所有安全状态: 清除锁定计时器, 重置失败次数, 清除锁定时间戳
             clearTimer();
-            // 注意：这里不能直接清 lockUntil，因为可能还在锁定中
-            // 但是重置界面时，应该保留原有锁定状态（如果有的话）
-            // 所以我们只重置 failCount 和界面，不清除 lockUntil
-            // 但为了避免刷新后还记住旧的 failCount，将其重置
             failCount = 0;
-            // 不清除 lockUntil，保留锁定状态
-            // 清空输入框及错误消息
             passwordInput.value = '';
             errorMsgDiv.innerHTML = '';
-            // 重新更新UI以反映当前锁定状态
             updateLockUI();
-            // 确保输入框和按钮根据锁定状态正确启用/禁用
             passwordInput.focus();
         }
 
-        // 键盘支持: 回车验证
         function onEnterKey(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -575,7 +495,6 @@
             }
         }
 
-        // 限制输入框只能输入最多6位数字
         function enforceNumericInput(e) {
             let input = e.target;
             let value = input.value;
@@ -586,7 +505,6 @@
             }
         }
 
-        // 初始化界面
         function initUI() {
             lockZone.style.display = 'block';
             dashboardZone.style.display = 'none';
@@ -594,20 +512,11 @@
             errorMsgDiv.innerHTML = '';
             timerInfoDiv.style.display = 'none';
             failCount = 0;
-            
-            // 尝试从 localStorage 恢复锁定状态
-            const hasValidLock = restoreLockFromStorage();
-            if (!hasValidLock) {
-                lockUntil = 0;
-                clearPersistedLock();
-            }
-            
-            // 更新 UI 以反映锁定状态（如果恢复的锁还在有效期内，输入框将被禁用）
+
+            restoreLockFromStorage();
             updateLockUI();
-            
-            // 如果当前是锁定状态，且倒计时未启动，则重新启动倒计时显示
+
             if (lockUntil > Date.now()) {
-                // 清除可能残留的计时器，重新启动倒计时
                 clearTimer();
                 timerInterval = setInterval(() => {
                     const nowMs = Date.now();
@@ -631,8 +540,7 @@
                     }
                 }, 200);
             }
-            
-            // 添加监听
+
             unlockBtn.addEventListener('click', verifyPassword);
             resetLockBtn.addEventListener('click', resetToLock);
             passwordInput.addEventListener('input', enforceNumericInput);
@@ -640,10 +548,8 @@
             passwordInput.focus();
         }
 
-        // 页面加载启动
         initUI();
 
-        // 定期清理过期锁（安全后备）
         setInterval(() => {
             if (lockUntil > 0 && lockUntil <= Date.now()) {
                 releaseLock();
