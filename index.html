@@ -2,635 +2,623 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>铜の币纪</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>暗黑之门 · 导航中枢</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none; /* 避免复制干扰，但保留输入框可选 */
         }
 
         body {
-            background: #f0ebe3;
-            font-family: system-ui, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
-            color: #2c2418;
-            padding: 1.5rem;
             min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #0a0f1a, #03060c);
+            font-family: 'Segoe UI', 'Inter', 'Fira Code', monospace, system-ui;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        /* 主容器 - 玻璃质感 */
+        .glass-panel {
+            background: rgba(10, 18, 28, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 2.5rem;
+            border: 1px solid rgba(72, 187, 255, 0.2);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 255, 255, 0.05) inset;
+            width: 100%;
+            max-width: 580px;
+            transition: all 0.3s ease;
+            overflow: hidden;
         }
 
-        .header {
+        /* 内容区 */
+        .content {
+            padding: 2.2rem 2rem 2.5rem;
+        }
+
+        /* 头部暗黑徽标 */
+        .logo-area {
             text-align: center;
             margin-bottom: 2rem;
         }
-
-        .header h1 {
+        .logo-icon {
+            font-size: 3.2rem;
+            filter: drop-shadow(0 0 6px #0ff);
+            opacity: 0.9;
+        }
+        h1 {
             font-size: 1.8rem;
-            background: linear-gradient(135deg, #b8860b, #daa520);
-            background-clip: text;
+            font-weight: 500;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #eef2ff, #6bc2ff);
             -webkit-background-clip: text;
+            background-clip: text;
             color: transparent;
+            margin-top: 0.5rem;
         }
-
         .sub {
-            color: #8b6b4f;
-            font-size: 0.85rem;
-            margin-top: 0.3rem;
+            font-size: 0.75rem;
+            color: #7e8a9e;
+            border-top: 1px dashed #2a3440;
+            display: inline-block;
+            margin-top: 0.6rem;
+            padding-top: 0.5rem;
         }
 
-        .back-bar {
-            margin-bottom: 1.2rem;
+        /* 密码面板 */
+        .password-section {
+            transition: all 0.2s;
         }
-        .back-btn {
-            background: none;
+        .input-group {
+            background: #0e1622cc;
+            border-radius: 2rem;
+            border: 1px solid #2a3647;
+            display: flex;
+            align-items: center;
+            padding: 0.2rem 0.2rem 0.2rem 1.5rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(4px);
+        }
+        .input-group input {
+            background: transparent;
             border: none;
-            color: #b8860b;
-            font-size: 0.9rem;
+            padding: 1rem 0.5rem 1rem 0;
+            font-size: 1.4rem;
+            letter-spacing: 4px;
+            font-weight: 500;
+            color: #c0f2ff;
+            width: 100%;
+            outline: none;
+            font-family: monospace;
+        }
+        .input-group input::placeholder {
+            color: #3a465a;
+            letter-spacing: 2px;
+            font-size: 1rem;
+            font-family: monospace;
+        }
+        .lock-icon {
+            color: #4cffb0;
+            font-size: 1.4rem;
+        }
+        button {
+            background: linear-gradient(95deg, #1f2a3e, #0f172a);
+            border: 1px solid #2e3b4e;
+            color: #b9e2ff;
+            font-weight: 600;
+            padding: 0.8rem 1.4rem;
+            border-radius: 2.5rem;
+            width: 100%;
+            font-size: 1rem;
             cursor: pointer;
-            padding: 0.4rem 0.8rem;
-            border-radius: 30px;
+            transition: 0.2s;
+            font-family: inherit;
+            letter-spacing: 1px;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        button:hover {
+            background: #1f314a;
+            border-color: #3c8dbc;
+            color: white;
+            box-shadow: 0 0 8px #2d68c0;
+        }
+        .error-msg {
+            color: #ff7a6e;
+            font-size: 0.8rem;
+            margin-top: 0.75rem;
+            text-align: center;
+            min-height: 2.5rem;
+            font-weight: 500;
+            background: #220c0c60;
+            border-radius: 2rem;
+            padding: 0.4rem;
+        }
+        .timer-block {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #f2b56b;
+            background: #0f111acc;
+            border-radius: 2rem;
+            padding: 0.5rem;
+        }
+
+        /* 网站列表 (成功后才显示) */
+        .dashboard {
+            display: none;
+            animation: fadeInUp 0.5s ease;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            border-left: 5px solid #2bc0ff;
+            padding-left: 1rem;
+            color: #eef5ff;
+        }
+        .site-card {
+            background: rgba(18, 25, 40, 0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 1.8rem;
+            margin-bottom: 1.2rem;
+            padding: 1rem 1.5rem;
+            border: 1px solid #2c3e55;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .site-card:hover {
+            background: #0f1b2fdd;
+            border-color: #3e8bcb;
+            transform: translateX(6px);
+        }
+        .site-name {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #cdedff;
+            letter-spacing: 1px;
+        }
+        .site-link {
+            background: #0b1422;
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.9rem;
+            text-decoration: none;
+            color: #6bc2ff;
+            border: 1px solid #2e5570;
+            transition: 0.2s;
             display: inline-flex;
             align-items: center;
             gap: 6px;
         }
-        .back-btn:hover {
-            background: #e8d9cc;
-        }
-
-        .search-bar {
-            background: white;
-            border-radius: 1rem;
-            padding: 1rem 1.2rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.8rem;
-            align-items: center;
-        }
-        .search-select {
-            padding: 0.5rem 0.8rem;
-            border: 1px solid #e2d5c8;
-            border-radius: 0.6rem;
-            background: white;
-            font-size: 0.9rem;
-            color: #4a3522;
-            outline: none;
-        }
-        .search-input {
-            flex: 1;
-            min-width: 180px;
-            padding: 0.6rem 1rem;
-            border: 1px solid #e2d5c8;
-            border-radius: 0.6rem;
-            font-size: 0.9rem;
-            outline: none;
-        }
-        .search-input:focus {
-            border-color: #daa520;
-        }
-        .search-btn {
-            background: #daa520;
+        .site-link:hover {
+            background: #00a6ff20;
             color: white;
-            border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 0.6rem;
-            cursor: pointer;
-            font-size: 0.9rem;
+            border-color: #2bc0ff;
+            box-shadow: 0 0 6px #0af;
         }
-        .search-btn:hover {
-            background: #b8860b;
-        }
-        .reset-btn {
-            background: #f0ebe3;
-            color: #8b6b4f;
-            border: 1px solid #e2d5c8;
-            padding: 0.6rem 1rem;
-            border-radius: 0.6rem;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        .search-tip {
-            font-size: 0.75rem;
-            color: #b1967c;
-            margin-top: 0.3rem;
-        }
-
-        .category-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .category-card {
-            background: white;
-            border-radius: 1.5rem;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid #e2d5c8;
+        .footer-note {
+            margin-top: 2rem;
+            font-size: 0.7rem;
             text-align: center;
-            padding: 1.5rem;
+            color: #3f506e;
+            border-top: 1px solid #1e2a3a;
+            padding-top: 1rem;
         }
-        .category-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 14px 28px rgba(0,0,0,0.12);
-            border-color: #c9aa7b;
+        .back-btn {
+            background: none;
+            border: 1px solid #3e556e;
+            margin-top: 1rem;
+            color: #9ab3cf;
+            width: auto;
+            padding: 0.5rem 1.2rem;
+            font-size: 0.8rem;
         }
-        .category-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        .category-card h3 { font-size: 1.3rem; color: #4a3522; margin-bottom: 0.3rem; }
-        .category-card p { color: #8b6b4f; font-size: 0.8rem; }
-        .count-badge {
-            background: #e8d9cc;
-            display: inline-block;
-            padding: 0.2rem 0.7rem;
-            border-radius: 40px;
-            font-size: 0.7rem;
-            margin-top: 0.6rem;
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
         }
 
-        .list-panel {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 1.5rem;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        /* 禁用状态 */
+        input:disabled, button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
-        .panel-header {
-            border-left: 5px solid #daa520;
-            padding-left: 1rem;
-            margin-bottom: 1.2rem;
-        }
-        .panel-header h2 { font-size: 1.5rem; margin-bottom: 0.2rem; }
-        .panel-header p { color: #7a5a4a; font-size: 0.8rem; }
-        
-        .series-list { list-style: none; }
-        .series-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 0.6rem;
-            border-bottom: 1px solid #f0e4d6;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .series-item:hover { background: #faf5ef; }
-        .series-name { flex: 1; font-weight: 500; }
-        .series-count {
-            background: #e8d9cc;
-            padding: 0.2rem 0.6rem;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            margin-right: 1rem;
-        }
-        .series-year { width: 80px; color: #8b6b4f; }
-
-        .copy-list { list-style: none; }
-        .copy-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 0.6rem;
-            border-bottom: 1px solid #f0e4d6;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .copy-item:hover { background: #faf5ef; }
-        .copy-index {
-            width: 45px;
-            font-weight: 60;
-            color: #b8860b;
-        }
-        .copy-badge {
-            background: #e6d5c0;
-            padding: 0.2rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            margin-right: 1rem;
-        }
-        .copy-price {
-            width: 100px;
-            color: #5a6e4a;
-            text-align: center;
-        }
-        .copy-version {
-            flex: 1;
-            text-align: left;
-            padding: 0 0.5rem;
-            color: #b8860b;
-            font-weight: 500;
-            font-size: 0.85rem;
-        }
-
-        .detail-panel {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 1.8rem;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
-        }
-        .detail-header {
-            border-bottom: 2px solid #f0e4d6;
-            padding-bottom: 1rem;
-            margin-bottom: 1.2rem;
-        }
-        .detail-header h3 { font-size: 1.6rem; color: #4a3522; margin-bottom: 0.3rem; }
-        
-        .images-section-top {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-            margin: 1rem 0 1.8rem 0;
-            justify-content: center;
-            background: #faf6ef;
-            border-radius: 1.2rem;
-            padding: 1.2rem;
-        }
-        .image-card {
-            flex: 1;
-            min-width: 200px;
-            text-align: center;
-        }
-        .image-card p { font-size: 0.7rem; color: #b1967c; margin-bottom: 0.5rem; }
-        .clickable-img {
-            max-width: 100%;
-            max-height: 260px;
-            border-radius: 0.8rem;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .clickable-img:hover { transform: scale(1.02); }
-        
-        .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.2rem;
-            margin: 1.5rem 0;
-        }
-        .detail-field {
-            background: #faf8f5;
-            padding: 0.8rem 1rem;
-            border-radius: 1rem;
-        }
-        .detail-field label {
-            font-size: 0.7rem;
-            color: #b1967c;
-            display: block;
-            margin-bottom: 0.3rem;
-        }
-        .remark-box {
-            background: #fef9f0;
-            border-left: 3px solid #daa520;
-            padding: 1rem;
-            margin: 1.2rem 0;
-            border-radius: 0.8rem;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-        }
-        .modal img { max-width: 90%; max-height: 90%; border-radius: 1rem; }
-        .footer { text-align: center; margin-top: 1.5rem; font-size: 0.7rem; color: #b1967c; }
-        
-        @media (max-width: 650px) {
-            body { padding: 1rem; }
-            .images-section-top { flex-direction: column; align-items: center; }
+        @media (max-width: 480px) {
+            .content { padding: 1.5rem; }
+            .site-card { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+            .site-link { align-self: flex-start; }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h1>收藏品档案</h1>
-        <div class="sub">Bilibili @ 铜の币纪</div>
-    </div>
-    <div id="app"></div>
-    <div class="footer">网址建立时间：2026年4月3日<br>© 2026 铜の币纪 版权所有<div style="font-size:0.6rem; margin-top:4px;">Powered by GitHub Pages</div></div>
-</div>
+<div class="glass-panel" id="appRoot">
+    <div class="content">
+        <!-- 未解锁区域 (密码界面) -->
+        <div id="lockZone">
+            <div class="logo-area">
+                <div class="logo-icon">⛧</div>
+                <h1>暗黑·导航站</h1>
+                <div class="sub">VERIFICATION GATE</div>
+            </div>
+            <div class="password-section">
+                <div class="input-group">
+                    <span class="lock-icon">🔐</span>
+                    <input type="password" id="passwordInput" maxlength="6" placeholder="输入6位通行码" inputmode="numeric" pattern="\d*">
+                </div>
+                <button id="unlockBtn">◉ 验证访问 ◉</button>
+                <div id="errorMsg" class="error-msg"></div>
+                <div id="timerInfo" class="timer-block" style="display: none;"></div>
+            </div>
+        </div>
 
-<div id="imageModal" class="modal" onclick="closeModal()">
-    <img id="modalImg" src="">
+        <!-- 解锁后网站列表区域 -->
+        <div id="dashboardZone" class="dashboard">
+            <div class="logo-area" style="margin-bottom: 1rem;">
+                <div class="logo-icon">🜄</div>
+                <h1>总站 · 星门枢纽</h1>
+                <div class="sub">ACCESS GRANTED</div>
+            </div>
+            <div class="section-title">▶ 收藏的分站</div>
+            <div class="site-card">
+                <span class="site-name">🏦 钱币收藏档案</span>
+                <a href="https://Tong-Xiangjie.github.io/notecollection/" class="site-link" target="_blank" rel="noopener noreferrer">
+                    notecollection ↗
+                </a>
+            </div>
+            <!-- 预留扩展其他分站，未来可加 -->
+            <div class="site-card" style="opacity: 0.7;">
+                <span class="site-name">🌌 更多站点 (待接入)</span>
+                <span class="site-link" style="background:#11161f; cursor:default;">即将开放</span>
+            </div>
+            <div class="footer-note">
+                ⚡ 安全中枢 · 仅供授权使用 ⚡
+            </div>
+            <button id="resetLockBtn" class="back-btn">⟳ 返回锁定界面</button>
+        </div>
+    </div>
 </div>
 
 <script>
-const banknotesData = {
-    commemorative: {
-        name: "纪念钞", icon: "𝟘𝟙", desc: "包含央行以及港澳台地区的所有纪念钞",
-        series: [
-            { seriesName: "澳门格兰披治大奖赛35周年纪念钞", year: 1988, copies: [{ copyId: 1, purchaseDate: "2026年2月19日", price: "925元", bank: "大西洋银行", version: "KP04057", condition: "ACG65E", remark: "纪念钞的鼻祖，发行量最少的一张", img1: "images/KP04057-1.jpg", img2: "images/KP04057-2.jpg" }] },
-            { seriesName: "新台币发行50周年纪念钞", year: 1999, copies: [
-                { copyId: 1, purchaseDate: "2025年10月2日", price: "56元", bank: "台湾银行", version: "A179021G", condition: "ACG67E", remark: "", img1: "images/A179021G-1.jpg", img2: "images/A179021G-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
-            ]},
-            { seriesName: "庆祝中华人民共和国成立50周年纪念钞", year: 1999, copies: [
-                { copyId: 1, purchaseDate: "2025年8月30日", price: "203元", bank: "中国人民银行", version: "J07529257", condition: "ACG65E", remark: "刚好是我的生日号", img1: "images/J07529257-1.jpg", img2: "images/J07529257-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月1日", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
-            ]},
-            { seriesName: "迎接新世纪纪念钞", year: 2000, copies: [
-                { copyId: 1, purchaseDate: "2025年9月25日", price: "1225元", bank: "中国人民银行", version: "J00344985", condition: "ACG65E", remark: "普通冠号", img1: "images/J00344985-1.jpg", img2: "images/J00344985-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年11月1日", price: "2050元", bank: "中国人民银行", version: "I00181114", condition: "PMG67E", remark: "补号", img1: "images/I00181114-1.jpg", img2: "images/I00181114-2.jpg" }
-            ]},
-            { seriesName: "第29届奥林匹克运动会纪念钞", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "2360元", bank: "中国人民银行", version: "J04266645", condition: "PMG67E", remark: "钞王！传家宝级别", img1: "images/J04266645-1.jpg", img2: "images/J04266645-2.jpg" }]},
-            { seriesName: "第29届奥林匹克运动会纪念钞（香港）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "176元", bank: "中国银行（香港）", version: "762965", condition: "ACG66E", remark: "", img1: "images/762965-1.jpg", img2: "images/762965-2.jpg" }]},
-            { seriesName: "第29届奥林匹克运动会纪念钞（澳门）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "245元", bank: "中国银行", version: "MO239989", condition: "ACG66E", remark: "", img1: "images/MO239989-1.jpg", img2: "images/MO239989-2.jpg" }]},
-            { seriesName: "渣打银行成立150周年纪念钞", year: 2009, copies:[]},
-            { seriesName: "中华民国成立100年纪念钞", year: 2011, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "61元", bank: "中央银行", version: "JP578968ZB", condition: "ACG67E", remark: "", img1: "images/JP578968ZB-1.jpg", img2: "images/JP578968ZB-2.jpg" }]},
-            { seriesName: "纪念中国银行成立100周年纪念钞（香港）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2026年1月30日", price: "198元", bank: "中国银行（香港）", version: "357185", condition: "ACG67E", remark: "", img1: "images/357185-1.jpg", img2: "images/357185-2.jpg" }]},
-            { seriesName: "纪念中国银行成立100周年纪念钞（澳门）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2025年12月5日", price: "458元", bank: "中国银行", version: "AA709609", condition: "PMG66E", remark: "传说中的“最美荷花钞”", img1: "images/AA709609-1.jpg", img2: "images/AA709609-2.jpg" }]},
-            { seriesName: "澳门生肖钞", year: "2012~2023", copies:[]},
-            { seriesName: "中国航天纪念钞", year: 2015, copies: [
-                { copyId: 1, purchaseDate: "2025年12月1日", price: "160元", bank: "中国人民银行", version: "J8301922333", condition: "ACG68E", remark: "普通荧光", img1: "images/J8301922333-1.jpg", img2: "images/J8301922333-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月18日", price: "218元", bank: "中国人民银行", version: "J5252197777", condition: "ACG67E", remark: "宇宙之眼", img1: "images/J5252197777-1.jpg", img2: "images/J5252197777-2.jpg" },
-                { copyId: 3, purchaseDate: "2025年11月7日", price: "134元", bank: "中国人民银行", version: "J9069497791", condition: "PMG66E", remark: "流浪地球", img1: "images/J9069497791-1.jpg", img2: "images/J9069497791-2.jpg" }
-            ]},
-            { seriesName: "汇丰银行成立150周年纪念钞", year: 2015, copies: [{ copyId: 1, purchaseDate: "2026年1月8日", price: "285元", bank: "香港上海汇丰银行", version: "AB140236", condition: "ACG67E", remark: "补号", img1: "images/AB140236-1.jpg", img2: "images/AB140236-2.jpg" }]},
-            { seriesName: "中国银行在港服务100周年纪念钞", year: 2017, copies: [{ copyId: 1, purchaseDate: "2026年2月18日", price: "192元", bank: "中国银行（香港）", version: "HY583251", condition: "ACG67E", remark: "HY = Hundred Years百年", img1: "images/HY583251-1.jpg", img2: "images/HY583251-2.jpg" }]},
-            { seriesName: "人民币发行70周年纪念钞", year: 2018, copies: [
-                { copyId: 1, purchaseDate: "2025年12月1日", price: "798元", bank: "中国人民银行", version: "J000009987", condition: "PMG66E", remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", img1: "images/J000009987-1.jpg", img2: "images/J000009987-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年8月5日", price: "79元", bank: "中国人民银行", version: "J191756567", condition: "ACG68E", remark: "补号，虽然PMG没有特殊标注", img1: "images/J191756567-1.jpg", img2: "images/J191756567-2.jpg" }
-            ]},
-            { seriesName: "澳门回归20周年纪念钞", year: 2019, copies: [
-                { copyId: 1, purchaseDate: "2025年12月5日", price: "34元", bank: "中国银行", version: "MA3518209", condition: "ACG66E", remark: "", img1: "images/MA3518209-1.jpg", img2: "images/MA3518209-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年12月5日", price: "34元", bank: "大西洋银行", version: "MA0500209", condition: "ACG66E", remark: "算不算是半个生日号？总感觉这张与我挺有缘的", img1: "images/MA0500209-1.jpg", img2: "images/MA0500209-2.jpg" }
-            ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年11月7日", price: "40元", bank: "中国人民银行", version: "J180000183", condition: "ACG68E", remark: "", img1: "images/J180000183-1.jpg", img2: "images/J180000183-2.jpg" }]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", year: 2022, copies: [
-                { copyId: 1, purchaseDate: "2025年11月16日", price: "120元", bank: "中国人民银行", version: "J333686866", condition: "ACG68E", remark: "普通版本", img1: "images/J333686866-1.jpg", img2: "images/J333686866-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年3月6日", price: "32元", bank: "中国人民银行", version: "J208213254", condition: "ACG68E", remark: "绿奥之星", img1: "images/J208213254-1.jpg", img2: "images/J208213254-2.jpg" },
-                { copyId: 3, purchaseDate: "2025年11月16日", price: "45元", bank: "中国人民银行", version: "J207861101", condition: "ACG67E", remark: "绿奥之王", img1: "images/J207861101-1.jpg", img2: "images/J207861101-2.jpg" }
-            ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）", year: 2022, copies: [
-                { copyId: 1, purchaseDate: "2026年2月21日", price: "170元", bank: "中国银行（香港）", version: "545654", condition: "ACG68E", remark: "这张的号码其实非常值得玩味", img1: "images/545654-1.jpg", img2: "images/545654-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月17日", price: "188元", bank: "中国银行（香港）", version: "AA537379", condition: "ACG68E", remark: "", img1: "images/AA537379-1.jpg", img2: "images/AA537379-2.jpg" }
-            ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年10月26日", price: "69元", bank: "中国银行", version: "BC0838287", condition: "ACG66E", remark: "", img1: "images/BC0838287-1.jpg", img2: "images/BC0838287-2.jpg" }]},
-            { seriesName: "龙年贺岁纪念钞", year: 2024, copies: [{ copyId: 1, purchaseDate: "2026年1月21日", price: "158元", bank: "中国人民银行", version: "J005003567", condition: "ACG67E", remark: "", img1: "images/J005003567-1.jpg", img2: "images/J005003567-2.jpg" }]},
-            { seriesName: "蛇年贺岁纪念钞", year: 2025, copies: [{ copyId: 1, purchaseDate: "2026年1月22日", price: "60元", bank: "中国人民银行", version: "J006206654", condition: "ACG67E", remark: "", img1: "images/J006206654-1.jpg", img2: "images/J006206654-2.jpg" }]},
-            { seriesName: "马年贺岁纪念钞", year: 2026, copies: [
-                { copyId: 1, purchaseDate: "2026年2月26日", price: "88元", bank: "中国人民银行", version: "J005516765", condition: "ACG67E", remark: "就是凑个品种，太丑了", img1: "images/J005516765-1.jpg", img2: "images/J005516765-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年1月20日", price: "272元", bank: "中国人民银行", version: "J037241561-70", condition: "ACG68E", remark: "", img1: "images/J037241561-70-1.jpg", img2: "images/J037241561-70-2.jpg" }
-            ]}
-        ]
-    },
-    hk: { name: "港币", icon: "𝟘𝟚", desc: "中国银行（香港）、香港上海汇丰银行、渣打银行", series: [{ seriesName: "汇丰银行 20元", year: 2018, copies: [{ copyId: 1, purchaseDate: "2022-05-18", price: "18元", bank: "香港汇丰银行", version: "冠号AA", condition: "全新", remark: "蝴蝶系列", img1: "https://picsum.photos/800/500?random=9", img2: "https://picsum.photos/800/500?random=10" }]},{ seriesName: "中国银行 100元", year: 2018, copies: [{ copyId: 1, purchaseDate: "2023-02-22", price: "88元", bank: "中国银行香港", version: "BOC冠", condition: "UNC", remark: "中银百年", img1: "https://picsum.photos/800/500?random=11", img2: "https://picsum.photos/800/500?random=12" }]}]},
-    macau: { name: "澳门币（澳门元）", icon: "𝟘𝟛", desc: "中国银行、大西洋银行", series: [{ seriesName: "大西洋银行 10元", year: 2015, copies: [{ copyId: 1, purchaseDate: "2022-09-01", price: "12元", bank: "大西洋银行", version: "BNU", condition: "全新", remark: "澳门塔", img1: "https://picsum.photos/800/500?random=13", img2: "https://picsum.photos/800/500?random=14" }]},{ seriesName: "中国银行 20元", year: 2019, copies: [{ copyId: 1, purchaseDate: "2023-04-10", price: "19元", bank: "中国银行澳门", version: "BOCM", condition: "全新", remark: "大三巴", img1: "https://picsum.photos/800/500?random=15", img2: "https://picsum.photos/800/500?random=16" }]}]},
-    specimen: { name: "新台币", icon: "𝟘𝟜", desc: "台湾银行，中央银行", series: [{ seriesName: "第四套人民币样币", year: 1987, copies: [{ copyId: 1, purchaseDate: "2021-12-03", price: "450元", bank: "中国人民银行", version: "票样", condition: "好品", remark: "禁止流通", img1: "https://picsum.photos/800/500?random=17", img2: "https://picsum.photos/800/500?random=18" }]}]},
-    rmb2: { name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962", series: [{ seriesName: "大黑拾", year: 1957, copies: [{ copyId: 1, purchaseDate: "2020-06-18", price: "125000元", bank: "中国人民银行", version: "工农像", condition: "7品", remark: "苏联代印", img1: "https://picsum.photos/800/500?random=19", img2: "https://picsum.photos/800/500?random=20" }]},{ seriesName: "宝塔山", year: 1955, copies: [{ copyId: 1, purchaseDate: "2022-11-11", price: "3200元", bank: "中国人民银行", version: "延安宝塔山", condition: "9品", remark: "精品贰圆", img1: "https://picsum.photos/800/500?random=21", img2: "https://picsum.photos/800/500?random=22" }]}]},
-    rmb3: { name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000", series: [{ seriesName: "背绿水印壹角", year: 1966, copies: [{ copyId: 1, purchaseDate: "2019-09-09", price: "38000元", bank: "中国人民银行", version: "背绿五星", condition: "9品", remark: "三版币王", img1: "https://picsum.photos/800/500?random=23", img2: "https://picsum.photos/800/500?random=24" }]},{ seriesName: "车工贰元", year: 1964, copies: [{ copyId: 1, purchaseDate: "2021-04-07", price: "2200元", bank: "中国人民银行", version: "实心星", condition: "UNC", remark: "五星水印", img1: "https://picsum.photos/800/500?random=25", img2: "https://picsum.photos/800/500?random=26" }]}]},
-    rmb4: { name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018", series: [{ seriesName: "80版50元", year: 1987, copies: [{ copyId: 1, purchaseDate: "2020-08-20", price: "1850元", bank: "中国人民银行", version: "工人农民", condition: "9品", remark: "四版币王", img1: "https://picsum.photos/800/500?random=27", img2: "https://picsum.photos/800/500?random=28" }]}]},
-    rmb5: { name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019", series: [{ seriesName: "99版50元", year: 2001, copies: [{ copyId: 1, purchaseDate: "2023-03-01", price: "120元", bank: "中国人民银行", version: "毛主席", condition: "全新", remark: "早期冠号", img1: "https://picsum.photos/800/500?random=29", img2: "https://picsum.photos/800/500?random=30" }]}]},
-    fec: { name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995", series: [{ seriesName: "79版50元", year: 1979, copies: [{ copyId: 1, purchaseDate: "2022-05-17", price: "360元", bank: "中国银行", version: "桂林山水", condition: "全新", remark: "外汇经典", img1: "https://picsum.photos/800/500?random=31", img2: "https://picsum.photos/800/500?random=32" }]}]},
-    foreign: { name: "日本", icon: "𝟙𝟘", desc: "日本纸币", series: [{ seriesName: "1000日元", year: 2024, copies: [{ copyId: 1, purchaseDate: "2021-11-11", price: "650元", bank: "日本银行", version: "富兰克林", condition: "全新", remark: "彩版", img1: "https://picsum.photos/800/500?random=33", img2: "https://picsum.photos/800/500?random=34" }]}]}
-};
-
-const categoryOrder = ["commemorative", "hk", "macau", "specimen", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "foreign"];
-
-let currentView = "categories";
-let currentCategoryId = null;
-let currentSeries = null;
-
-let searchScope = 'global';
-let lastSearchHtml = "";
-let lastSearchType = "all";
-let lastSearchKeyword = "";
-let isFromSearch = false;
-
-let searchTimer = null;
-
-function getSearchHtml(scope) {
-    const scopeText = scope === 'global' ? '全局' : '当前板块';
-    return `
-        <div class="search-bar">
-            <select class="search-select" id="searchType">
-                <option value="all" selected>全字段搜索（默认）</option>
-                <option value="name">按名称搜索</option>
-                <option value="version">按冠字号搜索</option>
-                <option value="year">按年份搜索</option>
-                <option value="agency">按评级机构(ACG/PMG)</option>
-            </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." oninput="doSearch()">
-            <button class="search-btn" onclick="doSearch()">搜索 ${scopeText}</button>
-            <button class="reset-btn" onclick="resetSearch()">重置</button>
-        </div>
-        <div class="search-tip">💡 全字段：名称+冠号+年份+评级 同时匹配</div>
-    `;
-}
-
-function restoreSearchInput() {
-    setTimeout(() => {
-        const ipt = document.getElementById('searchInput');
-        const sel = document.getElementById('searchType');
-        if (ipt) {
-            ipt.value = lastSearchKeyword;
-            ipt.focus();
+    (function(){
+        // ---------- 状态管理 ----------
+        // 有效密码列表 (6位数字)
+        const VALID_CODES = new Set(["070529", "790815"]);
+        
+        // 锁定状态变量
+        let lockUntil = 0;            // 时间戳 (毫秒) 锁定的截止时刻
+        let failCount = 0;            // 当前连续错误次数 (每次锁定周期内)
+        let isLocked = false;          // 辅助标志, 实际根据 lockUntil 和 Date.now 判断
+        
+        let timerInterval = null;      // 倒计时刷新句柄
+        
+        // DOM 元素
+        const lockZone = document.getElementById('lockZone');
+        const dashboardZone = document.getElementById('dashboardZone');
+        const passwordInput = document.getElementById('passwordInput');
+        const unlockBtn = document.getElementById('unlockBtn');
+        const errorMsgDiv = document.getElementById('errorMsg');
+        const timerInfoDiv = document.getElementById('timerInfo');
+        const resetLockBtn = document.getElementById('resetLockBtn');
+        
+        // 辅助函数: 清除计时器
+        function clearTimer() {
+            if(timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
         }
-        if (sel) sel.value = lastSearchType;
-    }, 0);
-}
-
-function renderSearchResult(results) {
-    isFromSearch = true;
-    let resultHtml = `<div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>
-        <div class="list-panel"><div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配 | 关键词：${lastSearchKeyword||'空'}</p></div><div class="copy-list">`;
-    if (results.length === 0) {
-        resultHtml += `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
-    } else {
-        results.forEach(item => {
-            resultHtml += `
-                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
-                    <div class="copy-index">#${item.copy.copyId}</div>
-                    <div class="copy-badge">${item.copy.condition || '无'}</div>
-                    <div class="copy-version">${item.series.seriesName}</div>
-                    <div class="copy-price">${item.copy.version || '无冠号'}</div>
-                    <div class="copy-price">${item.copy.price}</div>
-                </div>`;
-        });
-    }
-    resultHtml += `</div></div>`;
-    lastSearchHtml = resultHtml;
-    const full = getSearchHtml(searchScope) + resultHtml;
-    document.getElementById("app").innerHTML = full;
-    restoreSearchInput();
-}
-
-window.doSearch = () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        const type = document.getElementById('searchType').value;
-        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-        lastSearchType = type;
-        lastSearchKeyword = keyword;
-
-        let results = [];
-        const targetCats = searchScope === 'global' ? categoryOrder : [currentCategoryId];
-        targetCats.forEach(cid => {
-            const cat = banknotesData[cid];
-            if (!cat) return;
-            cat.series.forEach((s, si) => {
-                s.copies.forEach((cp, ci) => {
-                    let match = false;
-                    if (type === 'all') {
-                        const txt = `${s.seriesName} ${cp.version||''} ${s.year} ${cp.condition||''}`.toLowerCase();
-                        match = txt.includes(keyword);
-                    } else {
-                        switch(type) {
-                            case 'name': match = s.seriesName.toLowerCase().includes(keyword); break;
-                            case 'version': match = (cp.version||'').toLowerCase().includes(keyword); break;
-                            case 'year': match = String(s.year).toLowerCase().includes(keyword); break;
-                            case 'agency': match = (cp.condition||'').toLowerCase().includes(keyword); break;
-                        }
+        
+        // 更新界面锁定状态 (禁用输入框、按钮、显示倒计时等)
+        function updateLockUI() {
+            const now = Date.now();
+            const isCurrentlyLocked = (lockUntil > now);
+            
+            if(isCurrentlyLocked) {
+                isLocked = true;
+                const remainSeconds = Math.ceil((lockUntil - now) / 1000);
+                if(remainSeconds > 0) {
+                    timerInfoDiv.style.display = 'block';
+                    timerInfoDiv.innerHTML = `⏳ 验证失败次数过多，锁定中 · 请等待 ${remainSeconds} 秒 ⏳`;
+                } else {
+                    // 理论上锁到期会在 tick 里清理, 但先处理边界
+                    if(lockUntil <= now) releaseLock();
+                    return;
+                }
+                // 禁用输入和按钮
+                passwordInput.disabled = true;
+                unlockBtn.disabled = true;
+                errorMsgDiv.innerHTML = '⛔ 账户暂时锁定，请稍后再试 ⛔';
+            } else {
+                // 未锁定状态
+                if(lockUntil === 0 || lockUntil <= now) {
+                    // 确保释放锁
+                    releaseLock();
+                }
+                passwordInput.disabled = false;
+                unlockBtn.disabled = false;
+                timerInfoDiv.style.display = 'none';
+                // 不清空errorMsg, 但清除锁定类错误提示（仅当无错误时）
+                if(errorMsgDiv.innerHTML.includes('锁定') || errorMsgDiv.innerHTML.includes('等待')) {
+                    if(failCount === 0) errorMsgDiv.innerHTML = '';
+                }
+            }
+        }
+        
+        // 释放锁定 (重置错误计数, 清空计时器)
+        function releaseLock() {
+            const wasLocked = (lockUntil > Date.now());
+            lockUntil = 0;
+            isLocked = false;
+            // 注意: 当锁释放时，不清除failCount？按照设计规范: "如果接下来又错了三次也是等这么久" 
+            // 意思是在同一个锁定周期解锁后，错误计数应该重置? 但为了连续逻辑，每次锁定结束后连续错误次数应当归零。
+            // 规范: 连续输错三次，等待30秒。如果接下来又错了三次也是等这么久。就是说每次锁定周期独立计数。
+            // 释放锁后，错误计数归零，重新累计。
+            if(wasLocked) {
+                failCount = 0;
+            }
+            clearTimer();
+            updateLockUI();
+            // 如果之前是因为锁而清空的错误提示，这里可以清一下非锁错误残留，但保留正常错误由验证逻辑填充
+            if(!errorMsgDiv.innerHTML.includes('密码') && !errorMsgDiv.innerHTML.includes('错误')) {
+                if(failCount === 0) errorMsgDiv.innerHTML = '';
+            }
+        }
+        
+        // 设置锁定30秒 (保留当前错误次数已经达到3)
+        function applyLockout() {
+            const now = Date.now();
+            lockUntil = now + 30000;   // 30秒锁定
+            // 锁定期间不清除failCount，但锁定结束后会重置。但要确保倒计时期间失败不再累加（按钮禁用）
+            clearTimer();
+            updateLockUI();
+            // 启动倒计时刷新
+            timerInterval = setInterval(() => {
+                const remaining = lockUntil - Date.now();
+                if(remaining <= 0) {
+                    // 锁定到期
+                    clearTimer();
+                    releaseLock();      // 重置failCount并解锁界面
+                    updateLockUI();
+                    // 清空错误提示框温和恢复
+                    errorMsgDiv.innerHTML = '⌛ 锁定已解除，请重新输入密码';
+                    setTimeout(() => {
+                        if(errorMsgDiv.innerHTML === '⌛ 锁定已解除，请重新输入密码') errorMsgDiv.innerHTML = '';
+                    }, 1800);
+                    passwordInput.value = '';
+                } else {
+                    const secs = Math.ceil(remaining / 1000);
+                    timerInfoDiv.innerHTML = `⏳ 验证失败次数过多，锁定中 · 请等待 ${secs} 秒 ⏳`;
+                }
+            }, 200);
+        }
+        
+        // 处理验证失败
+        function handleFail() {
+            // 先检查当前是否锁定中 (安全)
+            if(lockUntil > Date.now()) {
+                errorMsgDiv.innerHTML = '🔒 系统锁定中，请等待倒计时结束。';
+                return;
+            }
+            
+            // 未锁定状态，增加错误计数
+            failCount++;
+            const remainingAttempts = 3 - failCount;
+            if(failCount >= 3) {
+                // 达到三次错误 -> 触发锁定30秒
+                errorMsgDiv.innerHTML = `❌ 已连续错误3次！系统锁定30秒，请勿操作 ❌`;
+                applyLockout();
+                // 清空输入框
+                passwordInput.value = '';
+                // 锁定后不用再提示剩余尝试次数
+            } else {
+                // 未达三次，显示剩余尝试
+                errorMsgDiv.innerHTML = `⚠️ 密码错误！还剩 ${remainingAttempts} 次尝试机会，连续3次将锁定30秒。`;
+                passwordInput.value = '';
+                passwordInput.focus();
+                // 确保没有锁定倒计时显示隐藏
+                timerInfoDiv.style.display = 'none';
+            }
+            // 震动效果(可选)
+            const panel = document.querySelector('.glass-panel');
+            if(panel) {
+                panel.style.transform = 'translateX(3px)';
+                setTimeout(() => { if(panel) panel.style.transform = ''; }, 100);
+            }
+        }
+        
+        // 验证成功: 进入仪表板
+        function handleSuccess() {
+            // 清除锁定状态、重置计数器、清除计时器
+            clearTimer();
+            lockUntil = 0;
+            failCount = 0;
+            isLocked = false;
+            // 清空输入框以及错误消息
+            passwordInput.value = '';
+            errorMsgDiv.innerHTML = '';
+            timerInfoDiv.style.display = 'none';
+            
+            // 切换显示: 隐藏锁界面，展示仪表板
+            lockZone.style.display = 'none';
+            dashboardZone.style.display = 'block';
+            // 可额外重置页面title
+        }
+        
+        // 验证密码核心
+        function verifyPassword() {
+            // 如果当前处于锁定状态，阻止验证
+            if(lockUntil > Date.now()) {
+                errorMsgDiv.innerHTML = `🔒 锁定倒计时进行中，请耐心等待。`;
+                return;
+            }
+            
+            const rawValue = passwordInput.value;
+            // 过滤非数字，但本身限制maxlength且输入法数字，但以防万一
+            const trimmed = rawValue.trim();
+            if(trimmed.length !== 6) {
+                errorMsgDiv.innerHTML = '⚠️ 请输入6位数字密码';
+                passwordInput.value = '';
+                return;
+            }
+            // 检查是否为纯数字 (额外保证)
+            if(!/^\d{6}$/.test(trimmed)) {
+                errorMsgDiv.innerHTML = '⚠️ 密码必须为6位数字 (0-9)';
+                passwordInput.value = '';
+                return;
+            }
+            
+            // 正式校验
+            if(VALID_CODES.has(trimmed)) {
+                // 密码正确
+                // 重置错误计数，清除任何锁存残留
+                failCount = 0;
+                if(lockUntil) lockUntil = 0;
+                clearTimer();
+                handleSuccess();
+            } else {
+                // 错误处理
+                handleFail();
+            }
+        }
+        
+        // 重置/退出登录 (从仪表板返回锁定界面，重置所有状态)
+        function resetToLock() {
+            // 清除dashboard显示，显示锁界面
+            dashboardZone.style.display = 'none';
+            lockZone.style.display = 'block';
+            
+            // 重置所有安全状态: 清除锁定计时器, 重置失败次数, 清除锁定时间戳
+            clearTimer();
+            lockUntil = 0;
+            failCount = 0;
+            isLocked = false;
+            // 清空输入框及错误消息
+            passwordInput.value = '';
+            errorMsgDiv.innerHTML = '';
+            timerInfoDiv.style.display = 'none';
+            // 确保输入框和按钮启用
+            passwordInput.disabled = false;
+            unlockBtn.disabled = false;
+            // 重新聚焦
+            passwordInput.focus();
+            // 额外的界面清爽
+            const anyLockMsg = timerInfoDiv;
+            if(anyLockMsg) anyLockMsg.style.display = 'none';
+        }
+        
+        // 键盘支持: 回车验证
+        function onEnterKey(e) {
+            if(e.key === 'Enter') {
+                e.preventDefault();
+                if(lockZone.style.display !== 'none') {
+                    // 仅在锁界面有效
+                    if(!(lockUntil > Date.now())) {
+                        verifyPassword();
                     }
-                    if (match) results.push({ catId: cid, sIdx: si, cIdx: ci, series: s, copy: cp });
-                });
-            });
+                }
+            }
+        }
+        
+        // 限制输入框只能输入最多6位数字, 实时过滤
+        function enforceNumericInput(e) {
+            let input = e.target;
+            let value = input.value;
+            // 移除非数字
+            let newValue = value.replace(/\D/g, '');
+            if(newValue.length > 6) newValue = newValue.slice(0,6);
+            if(newValue !== value) {
+                input.value = newValue;
+            }
+        }
+        
+        // 初始化界面，默认锁界面可见，仪表板隐藏
+        function initUI() {
+            lockZone.style.display = 'block';
+            dashboardZone.style.display = 'none';
+            passwordInput.value = '';
+            errorMsgDiv.innerHTML = '';
+            timerInfoDiv.style.display = 'none';
+            failCount = 0;
+            lockUntil = 0;
+            passwordInput.disabled = false;
+            unlockBtn.disabled = false;
+            // 添加监听
+            unlockBtn.addEventListener('click', verifyPassword);
+            resetLockBtn.addEventListener('click', resetToLock);
+            passwordInput.addEventListener('input', enforceNumericInput);
+            passwordInput.addEventListener('keypress', onEnterKey);
+            // 额外聚焦
+            passwordInput.focus();
+        }
+        
+        // 处理页面加载后可能的自动残留计时 (无)
+        initUI();
+        
+        // 附加特性: 如果由于某些原因定时器外部干扰，可以定期清理保护
+        window.addEventListener('load', () => {
+            // 确保任何异常锁定不残留
+            if(lockUntil < Date.now() && lockUntil !==0) {
+                releaseLock();
+            }
+            passwordInput.focus();
         });
-        renderSearchResult(results);
-    }, 200);
-};
-
-window.resetSearch = () => {
-    isFromSearch = false;
-    lastSearchKeyword = '';
-    if (currentView === 'seriesList' && currentCategoryId) {
-        renderSeriesList(currentCategoryId);
-    } else {
-        renderCategories();
-    }
-};
-
-function renderCategories() {
-    searchScope = 'global';
-    currentView = "categories";
-    isFromSearch = false;
-    let html = getSearchHtml('global');
-    html += `<div class="category-grid">`;
-    for (let id of categoryOrder) {
-        const cat = banknotesData[id];
-        if (!cat) continue;
-        let total = 0;
-        cat.series.forEach(s => total += s.copies.length);
-        html += `
-            <div class="category-card" onclick="selectCategory('${id}')">
-                <div class="category-icon">${cat.icon}</div>
-                <h3>${cat.name}</h3>
-                <p>${cat.desc}</p>
-                <div class="count-badge">📌 ${total} 张藏品</div>
-            </div>`;
-    }
-    html += `</div>`;
-    document.getElementById("app").innerHTML = html;
-}
-
-function renderSeriesList(cid) {
-    searchScope = 'currentCategory';
-    currentView = "seriesList";
-    currentCategoryId = cid;
-    isFromSearch = false;
-    const cat = banknotesData[cid];
-    let items = `<div class="series-list">`;
-    cat.series.forEach((s, idx) => {
-        items += `
-            <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
-                <div class="series-name">${s.seriesName}</div>
-                <div class="series-count">${s.copies.length}张</div>
-                <div class="series-year">${s.year}年</div>
-            </div>`;
-    });
-    items += `</div>`;
-    const full = `
-        <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
-        ${getSearchHtml('currentCategory')}
-        <div class="list-panel">
-            <div class="panel-header"><h2>${cat.icon} ${cat.name}</h2><p>点击品种查看藏品</p></div>
-            ${items}
-        </div>`;
-    document.getElementById("app").innerHTML = full;
-}
-
-function renderCopyList(cid, si) {
-    currentView = "copyList";
-    isFromSearch = false;
-    const cat = banknotesData[cid];
-    const s = cat.series[si];
-    currentSeries = { cid, si };
-    let copies = `<div class="copy-list">`;
-    s.copies.forEach((cp, idx) => {
-        copies += `
-            <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${idx})">
-                <div class="copy-index">#${idx+1}</div>
-                <div class="copy-badge">${cp.condition || '未知'}</div>
-                <div class="copy-version">${cp.version || '无冠号'}</div>
-                <div class="copy-price">${cp.price}</div>
-            </div>`;
-    });
-    copies += `</div>`;
-    const full = `
-        <div class="back-bar"><button class="back-btn" onclick="backToSeriesList()">← 返回品种列表</button></div>
-        <div class="list-panel">
-            <div class="panel-header"><h2>📌 ${s.seriesName} (${s.year}年)</h2><p>共${s.copies.length}张</p></div>
-            ${copies}
-        </div>`;
-    document.getElementById("app").innerHTML = full;
-}
-
-function renderDetail(cid, si, ci) {
-    currentView = "detail";
-    const s = banknotesData[cid].series[si];
-    const cp = s.copies[ci];
-    const backAction = isFromSearch 
-        ? `onclick="goBackFromDetail()"` 
-        : `onclick="backToCopyList()"`;
-
-    const html = `
-        <div class="back-bar"><button class="back-btn" ${backAction}>← 返回列表</button></div>
-        <div class="detail-panel">
-            <div class="detail-header"><h3>${s.seriesName}</h3><div>年份：${s.year} · 第${ci+1}张</div></div>
-            <div class="images-section-top">
-                <div class="image-card"><p>正面</p><img class="clickable-img" src="${cp.img1}" onclick="openModal(this.src)"></div>
-                <div class="image-card"><p>背面</p><img class="clickable-img" src="${cp.img2}" onclick="openModal(this.src)"></div>
-            </div>
-            <div class="detail-grid">
-                <div class="detail-field"><label>购买日期</label><div>${cp.purchaseDate}</div></div>
-                <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
-                <div class="detail-field"><label>银行</label><div>${cp.bank}</div></div>
-                <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
-                <div class="detail-field"><label>品相</label><div>${cp.condition}</div></div>
-            </div>
-            <div class="remark-box"><label>备注</label><div style="margin-top:6px;">${cp.remark || '无'}</div></div>
-        </div>`;
-    document.getElementById("app").innerHTML = html;
-}
-
-window.goBackFromDetail = () => {
-    document.getElementById("app").innerHTML = getSearchHtml(searchScope) + lastSearchHtml;
-    restoreSearchInput();
-};
-
-window.selectCategory = renderSeriesList;
-window.selectSeries = renderCopyList;
-window.selectCopy = renderDetail;
-window.backToCategories = renderCategories;
-window.backToSeriesList = () => renderSeriesList(currentCategoryId);
-window.backToCopyList = () => renderCopyList(currentSeries.cid, currentSeries.si);
-
-window.openModal = (src) => {
-    document.getElementById("imageModal").style.display = "flex";
-    document.getElementById("modalImg").src = src;
-};
-window.closeModal = () => document.getElementById("imageModal").style.display = "none";
-
-renderCategories();
+        
+        // 当用户通过reset返回时，保证所有变量重置并且计时器清理干净，并且启用控件
+        // 增强 resetLockBtn 确保完全重置
+        const originalResetHandler = resetLockBtn.onclick;
+        resetLockBtn.addEventListener('click', () => {
+            // 重置前清理全局计时器，避免倒计时继续干扰
+            clearTimer();
+            lockUntil = 0;
+            failCount = 0;
+            if(dashboardZone.style.display === 'block') {
+                dashboardZone.style.display = 'none';
+                lockZone.style.display = 'block';
+            }
+            passwordInput.disabled = false;
+            unlockBtn.disabled = false;
+            passwordInput.value = '';
+            errorMsgDiv.innerHTML = '';
+            timerInfoDiv.style.display = 'none';
+            passwordInput.focus();
+        });
+        
+        // 防止全局未锁定的时候任何不合理的错误计数残留
+        // 完善锁定状态下倒计时解锁时刷新界面
+        function safetyWatch() {
+            // 如果锁界面可见且锁时间过去，恢复界面（以防计时器异常）
+            if(lockZone.style.display !== 'none' && lockUntil > 0 && lockUntil <= Date.now()) {
+                releaseLock();
+                updateLockUI();
+                errorMsgDiv.innerHTML = '⏩ 锁定已结束，请继续输入';
+                setTimeout(()=>{
+                    if(errorMsgDiv.innerHTML === '⏩ 锁定已结束，请继续输入') errorMsgDiv.innerHTML = '';
+                },1500);
+            }
+        }
+        setInterval(safetyWatch, 800);
+    })();
 </script>
 </body>
 </html>
