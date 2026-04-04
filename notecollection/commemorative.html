@@ -5,243 +5,188 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>纪念钞 | 铜の币纪</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1.5rem;min-height:100vh;padding-top:70px;}
-.container{max-width:1200px;margin:0 auto;}
-.header{text-align:center;margin-bottom:2rem;}
-.header h1{font-size:1.8rem;background:linear-gradient(135deg,#b8860b,#daa520);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    background: #f0ebe3;
+    font-family: system-ui, sans-serif;
+    padding: 1.5rem;
+    padding-top: 70px;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .back-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #f0ebe3;
+    padding: 10px 16px;
+    z-index: 999;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .back-btn {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
 
-.back-bar{position:fixed;top:0;left:0;width:100%;background:#f0ebe3;z-index:999;padding:0.8rem 1.2rem;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
-.back-btn{background:white;border:1px solid #e2d5c8;color:#b8860b;font-size:0.9rem;padding:0.5rem 1rem;border-radius:30px;cursor:pointer;}
+  /* 图片预览：文字在下方，不遮挡 */
+  .img-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+  }
+  .img-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+  }
+  .img-box img {
+    width: 100%;
+    border-radius: 10px;
+    background: #f8f3eb;
+  }
+  .img-label {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
 
-#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
-.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;}
-.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;}
-.search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
-.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
-.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
-
-.list-panel{background:white;border-radius:1.5rem;padding:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
-.panel-header{border-left:5px solid #daa520;padding-left:1rem;margin-bottom:1.2rem;}
-.series-list{list-style:none;}
-.series-item{display:flex;align-items:center;padding:0.8rem 0.6rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
-.series-item:hover{background:#faf5ef;}
-.series-name{flex:1;font-weight:500;}
-.series-count{background:#e8d9cc;padding:0.2rem 0.6rem;border-radius:30px;font-size:0.7rem;}
-.series-year{width:110px;color:#8b6b4f;}
-
-.copy-list{list-style:none;}
-.copy-item{display:flex;align-items:center;padding:0.8rem 0.6rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
-.copy-item:hover{background:#faf5ef;}
-.copy-index{width:45px;font-weight:600;color:#000;}
-.copy-badge{background:#e6d5c0;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;}
-.copy-price{width:100px;color:#5a6e4a;text-align:center;}
-.copy-version{flex:1;padding:0 0.5rem;color:#b8860b;font-weight:500;}
-
-.detail-panel{background:white;border-radius:1.5rem;padding:1.8rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
-.detail-header{border-bottom:2px solid #f0e4d6;padding-bottom:1rem;margin-bottom:1.2rem;}
-
-/* 预览图：文字在下方，不遮挡 */
-.img-preview-group{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:2rem;}
-.img-preview-item{display:flex;flex-direction:column;gap:6px;cursor:pointer;}
-.img-preview-item img{width:100%;height:auto;border-radius:12px;background:#faf6ef;}
-.img-label{text-align:center;font-size:13px;color:#333;font-weight:500;}
-
-.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem;margin:1.5rem 0;}
-.detail-field{background:#faf8f5;padding:0.8rem 1rem;border-radius:1rem;}
-.detail-field label{font-size:0.7rem;color:#b1967c;display:block;margin-bottom:0.3rem;}
-.remark-box{background:#fef9f0;border-left:3px solid #daa520;padding:1rem;margin:1.2rem 0;border-radius:0.8rem;}
-
-/* 全屏大图容器 */
-#viewer{display:none;position:fixed;inset:0;background:#000;z-index:9999;overflow:hidden;touch-action:none;}
-.viewer-slide{position:absolute;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
-.viewer-slide img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;}
-
-.footer{text-align:center;margin-top:1.5rem;font-size:0.7rem;color:#b1967c;}
+  /* 全屏预览层 */
+  #lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    z-index: 9999;
+    overflow: hidden;
+  }
+  #lightboxContent {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    transition: transform 0.2s ease;
+  }
+  .lb-slide {
+    min-width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lb-slide img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    touch-action: none;
+  }
 </style>
 </head>
 
 <body>
-<div class="container">
-  <div class="header">
-    <h1>纪念钞收藏</h1>
-    <div class="sub">Bilibili @ 铜の币纪</div>
-  </div>
-
-  <div id="search-container">
-    <select class="search-select" id="searchType">
-      <option value="all">全字段搜索</option>
-      <option value="name">名称</option>
-      <option value="version">冠号</option>
-      <option value="year">年份</option>
-      <option value="agency">评级</option>
-      <option value="krause">克劳斯</option>
-    </select>
-    <input class="search-input" id="searchInput" placeholder="搜索">
-    <button class="search-btn">搜索</button>
-    <button class="reset-btn">重置</button>
-  </div>
-  <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
-
-  <div id="content"></div>
-  <div class="footer">© 2026 铜の币纪</div>
+<div class="back-bar">
+  <button class="back-btn" onclick="history.back()">返回</button>
 </div>
 
-<!-- 大图查看器 -->
-<div id="viewer">
-  <div class="viewer-slide" id="v1"><img id="vimg1"></div>
-  <div class="viewer-slide" id="v2"><img id="vimg2"></div>
+<div class="container">
+  <div class="img-group">
+    <div class="img-box" onclick="openLightbox(0)">
+      <img id="imgFront">
+      <div class="img-label">正面</div>
+    </div>
+    <div class="img-box" onclick="openLightbox(1)">
+      <img id="imgBack">
+      <div class="img-label">背面</div>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox">
+  <div id="lightboxContent">
+    <div class="lb-slide"><img id="lb1"></div>
+    <div class="lb-slide"><img id="lb2"></div>
+  </div>
 </div>
 
 <script src="data.js"></script>
 <script>
-const cat = allData.commemorative;
-let currentSeries = null;
-
-function setContent(html){ document.getElementById('content').innerHTML = html; }
-function toTop(){ window.scrollTo(0,0); }
-
-// 系列列表
-function renderSeries(){
-  let html = `
-  <div class="back-bar">
-    <button class="back-btn" onclick="location.href='index.html'">← 首页</button>
-  </div>
-  <div class="list-panel">
-    <div class="panel-header"><h2>${cat.icon} ${cat.name}</h2><p>${cat.desc}</p></div>
-    <ul class="series-list">`;
-  cat.series.forEach((s,i)=>{
-    html+=`<li class="series-item" onclick="renderCopies(${i})">
-      <div class="series-name">${s.seriesName}</div>
-      <div class="series-count">${s.copies.length}张</div>
-      <div class="series-year">${s.year}</div>
-    </li>`;
-  });
-  html+=`</ul></div>`;
-  setContent(html);
-}
-
-// 藏品列表
-function renderCopies(si){
-  currentSeries = si;
-  toTop();
-  const s = cat.series[si];
-  let html = `
-  <div class="back-bar">
-    <button class="back-btn" onclick="renderSeries()">← 返回</button>
-  </div>
-  <div class="list-panel">
-    <div class="panel-header"><h2>${s.seriesName}（${s.year}）</h2><p>共${s.copies.length}张</p></div>
-    <ul class="copy-list">`;
-  s.copies.forEach((cp,ci)=>{
-    html+=`<li class="copy-item" onclick="renderDetail(${si},${ci})">
-      <div class="copy-index">#${cp.copyId}</div>
-      <div class="copy-badge">${cp.condition||''}</div>
-      <div class="copy-version">${cp.version||''}</div>
-      <div class="copy-price">${cp.price||''}</div>
-    </li>`;
-  });
-  html+=`</ul></div>`;
-  setContent(html);
-}
-
-// 详情页（文字在图片下方）
-function renderDetail(si, ci){
-  toTop();
-  const s=cat.series[si], cp=s.copies[ci];
-  let html = `
-  <div class="back-bar">
-    <button class="back-btn" onclick="renderCopies(${si})">← 返回</button>
-  </div>
-  <div class="detail-panel">
-    <div class="detail-header"><h3>${s.seriesName}</h3><p>${cp.version} · ${cp.condition}</p></div>
-
-    <div class="img-preview-group">
-      <div class="img-preview-item" onclick="openViewer(0,'${cp.img1}','${cp.img2}')">
-        <img src="${cp.img1}">
-        <div class="img-label">正面</div>
-      </div>
-      <div class="img-preview-item" onclick="openViewer(1,'${cp.img1}','${cp.img2}')">
-        <img src="${cp.img2}">
-        <div class="img-label">背面</div>
-      </div>
-    </div>
-
-    <div class="detail-grid">
-      <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
-      <div class="detail-field"><label>评级</label><div>${cp.condition}</div></div>
-      <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
-      <div class="detail-field"><label>发行银行</label><div>${cp.bank}</div></div>
-      <div class="detail-field"><label>克劳斯</label><div>${cp.krause||'无'}</div></div>
-      <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
-    </div>
-
-    <div class="remark-box"><label>备注</label><div>${cp.remark||'无'}</div></div>
-  </div>`;
-  setContent(html);
-}
-
-// ====================== 真正可滑动 + 缩放的大图 ======================
-const viewer = document.getElementById('viewer');
-let slide = 0, startX=0, dx=0, scale=1, startDist=0;
-
-function openViewer(idx, a, b){
-  vimg1.src=a; vimg2.src=b; slide=idx; dx=0; scale=1; update();
-  viewer.style.display='block';
-}
-
-viewer.addEventListener('click', e=>{
-  if(e.target===viewer) viewer.style.display='none';
-});
-
-viewer.addEventListener('touchstart', e=>{
-  e.preventDefault();
-  if(e.touches.length===1){
-    startX = e.touches[0].clientX - dx;
-  } else if(e.touches.length===2){
-    const xd = e.touches[0].clientX - e.touches[1].clientX;
-    const yd = e.touches[0].clientY - e.touches[1].clientY;
-    startDist = Math.hypot(xd, yd);
-  }
-});
-
-viewer.addEventListener('touchmove', e=>{
-  e.preventDefault();
-  if(e.touches.length===1){
-    dx = e.touches[0].clientX - startX;
-    update();
-  } else if(e.touches.length===2){
-    const xd = e.touches[0].clientX - e.touches[1].clientX;
-    const yd = e.touches[0].clientY - e.touches[1].clientY;
-    const d = Math.hypot(xd, yd);
-    scale = Math.min(3, Math.max(1, d/startDist));
-    update();
-  }
-});
-
-viewer.addEventListener('touchend', ()=>{
-  const w = innerWidth;
-  if(dx < -w*0.25) slide=1;
-  if(dx > w*0.25)  slide=0;
-  dx = -slide*w;
-  update();
-});
-
-function update(){
-  const w = innerWidth;
-  v1.style.transform = `translate(${dx}px, 0) scale(${scale})`;
-  v2.style.transform = `translate(${dx + w}px, 0) scale(${scale})`;
-}
-
-// 搜索
-document.querySelector('.search-btn').onclick=()=>{};
-document.querySelector('.reset-btn').onclick=()=>{
-  document.getElementById('searchInput').value='';
-  renderSeries();
+// 这里换成你当前的钞信息
+const cp = {
+  img1: "https://via.placeholder.com/600x300?text=FRONT",
+  img2: "https://via.placeholder.com/600x300?text=BACK"
 };
 
-renderSeries();
+imgFront.src = cp.img1;
+imgBack.src  = cp.img2;
+
+// 滑动与缩放
+let startX, startScale, current = 0;
+const wrap = lightboxContent;
+
+function openLightbox(idx) {
+  lb1.src = cp.img1;
+  lb2.src = cp.img2;
+  current = idx;
+  wrap.style.transform = `translateX(-${current * 100}%)`;
+  lightbox.style.display = "block";
+}
+
+lightbox.onclick = e => {
+  if (e.target === lightbox) lightbox.style.display = "none";
+};
+
+// 单指滑动
+lightbox.addEventListener("touchstart", e => {
+  if (e.touches.length === 1) {
+    startX = e.touches[0].clientX;
+  } else if (e.touches.length === 2) {
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    startScale = d;
+  }
+});
+
+lightbox.addEventListener("touchmove", e => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const dx = e.touches[0].clientX - startX;
+    wrap.style.transform = `translateX(calc(-${current * 100}% + ${dx}px))`;
+  } else if (e.touches.length === 2) {
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const scale = Math.min(3, Math.max(1, d / startScale));
+    lb1.style.transform = `scale(${scale})`;
+    lb2.style.transform = `scale(${scale})`;
+  }
+});
+
+lightbox.addEventListener("touchend", () => {
+  const w = window.innerWidth;
+  const dx = parseFloat(wrap.style.transform.match(/-?\d+/g).slice(-1)[0] || 0);
+  if (dx < -w * 0.2) current++;
+  if (dx > w * 0.2) current--;
+  current = Math.max(0, Math.min(1, current));
+  wrap.style.transform = `translateX(-${current * 100}%)`;
+  lb1.style.transform = "scale(1)";
+  lb2.style.transform = "scale(1)";
+});
 </script>
 </body>
 </html>
