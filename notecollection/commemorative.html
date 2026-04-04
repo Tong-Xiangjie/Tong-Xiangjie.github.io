@@ -13,38 +13,41 @@ body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1
 .sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
 
 .back-bar{position:fixed;top:0;left:0;width:100%;background:#f0ebe3;padding:0.8rem 1.2rem;z-index:999;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
-.back-btn{background:white;border:1px solid #e2d5c8;color:#b8860b;padding:0.5rem 1rem;border-radius:30px;cursor:pointer;}
+.back-btn{background:white;border:1px solid #e2d5c8;color:#b8860b;padding:0.5rem 1rem;border-radius:30px;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;}
 
-#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin:1.5rem 0;display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
-.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;}
-.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;}
+#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin:1.5rem 0;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
+.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;outline:none;}
+.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;outline:none;}
 .search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
-.reset-btn{background:#f0ebe3;border:1px solid #e2d5c8;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
+.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
+.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
 
 .list-panel{background:white;border-radius:1.5rem;padding:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
 .panel-header{border-left:4px solid #daa520;padding-left:1rem;margin-bottom:1rem;}
+.panel-header h2{font-size:1.4rem;margin-bottom:0.2rem;}
 .series-item{display:flex;align-items:center;padding:1rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
 .series-item:hover{background:#faf5ef;}
 .series-name{flex:1;font-weight:500;}
 .series-count{background:#e8d9cc;padding:0.2rem 0.6rem;border-radius:30px;font-size:0.7rem;margin-right:1rem;}
+.series-year{width:100px;color:#8b6b4f;}
 
 .copy-item{display:flex;align-items:center;padding:1rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
 .copy-item:hover{background:#faf5ef;}
 .copy-index{width:40px;font-weight:bold;color:#b8860b;}
 .copy-badge{background:#e6d5c0;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;margin-right:1rem;}
-.copy-version{flex:1;color:#b8860b;}
+.copy-version{flex:1;color:#b8860b;font-weight:500;}
+.copy-price{width:100px;text-align:center;}
 
 .detail-panel{background:white;border-radius:1.5rem;padding:2rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
 .img-group{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;}
 .img-group img{width:100%;border-radius:10px;cursor:pointer;object-fit:cover;}
-
 .detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin:1rem 0;}
 .detail-field{background:#faf8f5;padding:1rem;border-radius:1rem;}
-.detail-field label{font-size:0.7rem;color:#b1967c;}
+.detail-field label{font-size:0.7rem;color:#b1967c;display:block;margin-bottom:0.3rem;}
 .remark-box{background:#fef9f0;border-left:4px solid #daa520;padding:1rem;border-radius:1rem;margin-top:1rem;}
 
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;touch-action:none;}
-.modal-slider{width:100%;height:100%;display:flex;transition:transform 0.3s ease;}
+.modal-slider{width:100%;height:100%;display:flex;transition:transform 0.2s ease;}
 .modal-slide{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
 .modal-slide img{max-width:92%;max-height:92vh;object-fit:contain;user-select:none;transform-origin:center center;}
 </style>
@@ -70,189 +73,274 @@ body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1
       <option value="agency">评级</option>
       <option value="krause">克劳斯</option>
     </select>
-    <input id="searchInput" class="search-input" placeholder="搜索当前分类" oninput="doSearch()">
+    <input id="searchInput" class="search-input" placeholder="搜索当前分类" type="text">
     <button class="search-btn" onclick="doSearch()">搜索</button>
     <button class="reset-btn" onclick="resetSearch()">重置</button>
   </div>
+  <div class="search-tip">💡 实时搜索，输入即查</div>
 
   <div id="content"></div>
-
-  <div class="footer">© 2026 铜の币纪</div>
+  <div style="height:30px;"></div>
 </div>
 
 <div class="modal" id="imageModal">
   <div class="modal-slider" id="modalSlider">
-    <div class="modal-slide"><img id="m1"></div>
-    <div class="modal-slide"><img id="m2"></div>
+    <div class="modal-slide"><img id="modalImg1"></div>
+    <div class="modal-slide"><img id="modalImg2"></div>
   </div>
 </div>
 
-<script src="data.js"></script>
 <script>
+const data = allData.commemorative.series;
 let page = "series";
 let currentSeriesIndex = 0;
 let currentCopyIndex = 0;
-let history = [];
+let historyStack = [];
 let searchTimer = null;
+let lastSearchResult = [];
 
 const modal = document.getElementById("imageModal");
-const slider = document.getElementById("modalSlider");
-let slide = 0;
-let scale = 1;
+const modalSlider = document.getElementById("modalSlider");
+let currentModalSlide = 0;
+let modalScale = 1;
+let modalStartX = 0;
+let modalMoveX = 0;
+let isModalZooming = false;
+let initialPinchDistance = 0;
 
-function saveHistory(){history.push({page,currentSeriesIndex,currentCopyIndex});}
-function goBack(){
-  if(history.length===0){location.href="index.html";return;}
-  const h=history.pop();
-  page=h.page;
-  currentSeriesIndex=h.currentSeriesIndex;
-  currentCopyIndex=h.currentCopyIndex;
-  if(page==="series") renderSeries();
-  else if(page==="copies") renderCopies();
-  else if(page==="detail") renderDetail();
-  else if(page==="search") renderSearch(lastSearch);
+function saveHistory() {
+    historyStack.push({ page, currentSeriesIndex, currentCopyIndex });
 }
 
-function renderSeries(){
-  page="series";
-  const data=allData.commemorative.series;
-  let html=`<div class="list-panel"><div class="panel-header"><h2>所有纪念钞系列</h2></div>`;
-  data.forEach((s,i)=>{
-    html+=`
-    <div class="series-item" onclick="openCopies(${i})">
-      <div class="series-name">${s.seriesName}</div>
-      <div class="series-count">${s.copies.length}张</div>
-      <div>${s.year}</div>
+function goBack() {
+    if (historyStack.length === 0) {
+        location.href = "index.html";
+        return;
+    }
+    const prev = historyStack.pop();
+    page = prev.page;
+    currentSeriesIndex = prev.currentSeriesIndex;
+    currentCopyIndex = prev.currentCopyIndex;
+    renderCurrentPage();
+}
+
+function renderCurrentPage() {
+    if (page === "series") renderSeriesList();
+    else if (page === "copies") renderCopyList();
+    else if (page === "detail") renderDetail();
+    else if (page === "search") renderSearchResult(lastSearchResult);
+}
+
+function renderSeriesList() {
+    page = "series";
+    let html = `<div class="list-panel"><div class="panel-header"><h2>📁 纪念钞系列</h2><p>点击查看藏品</p></div><ul style="list-style:none;">`;
+    data.forEach((s, i) => {
+        html += `
+        <li class="series-item" onclick="openSeries(${i})">
+            <div class="series-name">${s.seriesName}</div>
+            <div class="series-count">${s.copies.length}张</div>
+            <div class="series-year">${s.year}年</div>
+        </li>`;
+    });
+    html += "</ul></div>";
+    document.getElementById("content").innerHTML = html;
+}
+
+function openSeries(i) {
+    saveHistory();
+    currentSeriesIndex = i;
+    page = "copies";
+    renderCopyList();
+}
+
+function renderCopyList() {
+    const s = data[currentSeriesIndex];
+    let html = `<div class="list-panel"><div class="panel-header"><h2>📌 ${s.seriesName}</h2><p>${s.year}年 · 共${s.copies.length}张</p></div><ul style="list-style:none;">`;
+    s.copies.forEach((c, i) => {
+        html += `
+        <li class="copy-item" onclick="openCopy(${i})">
+            <div class="copy-index">#${c.copyId}</div>
+            <div class="copy-badge">${c.condition}</div>
+            <div class="copy-version">${c.version}</div>
+            <div class="copy-price">${c.price}</div>
+        </li>`;
+    });
+    html += "</ul></div>";
+    document.getElementById("content").innerHTML = html;
+}
+
+function openCopy(i) {
+    saveHistory();
+    currentCopyIndex = i;
+    page = "detail";
+    renderDetail();
+}
+
+function renderDetail() {
+    const s = data[currentSeriesIndex];
+    const c = s.copies[currentCopyIndex];
+    const html = `
+    <div class="detail-panel">
+        <div class="img-group">
+            <img src="${c.img1}" onclick="openModal('${c.img1}','${c.img2}')" loading="lazy">
+            <img src="${c.img2}" onclick="openModal('${c.img1}','${c.img2}')" loading="lazy">
+        </div>
+        <div class="detail-grid">
+            <div class="detail-field"><label>购买日期</label><div>${c.purchaseDate}</div></div>
+            <div class="detail-field"><label>价格</label><div>${c.price}</div></div>
+            <div class="detail-field"><label>发行银行</label><div>${c.bank}</div></div>
+            <div class="detail-field"><label>冠字号</label><div>${c.version}</div></div>
+            <div class="detail-field"><label>评级分数</label><div>${c.condition}</div></div>
+            <div class="detail-field"><label>克劳斯编号</label><div>${c.krause || '未录入'}</div></div>
+        </div>
+        <div class="remark-box"><label>备注</label><div style="margin-top:6px;">${c.remark || '无备注'}</div></div>
     </div>`;
-  });
-  html+="</div>";
-  document.getElementById("content").innerHTML=html;
+    document.getElementById("content").innerHTML = html;
 }
 
-function openCopies(i){saveHistory();currentSeriesIndex=i;page="copies";renderCopies();}
-function renderCopies(){
-  const s=allData.commemorative.series[currentSeriesIndex];
-  let html=`<div class="list-panel"><div class="panel-header"><h2>${s.seriesName} (${s.year})</h2></div>`;
-  s.copies.forEach((c,i)=>{
-    html+=`
-    <div class="copy-item" onclick="openDetail(${i})">
-      <div class="copy-index">#${c.copyId}</div>
-      <div class="copy-badge">${c.condition}</div>
-      <div class="copy-version">${c.version}</div>
-      <div>${c.price}</div>
-    </div>`;
-  });
-  html+="</div>";
-  document.getElementById("content").innerHTML=html;
+function openModal(img1, img2) {
+    document.getElementById("modalImg1").src = img1;
+    document.getElementById("modalImg2").src = img2;
+    modal.style.display = "block";
+    currentModalSlide = 0;
+    modalScale = 1;
+    modalSlider.style.transform = "translateX(0)";
+    document.querySelectorAll(".modal-slide img").forEach(img => {
+        img.style.transform = "scale(1)";
+    });
 }
 
-function openDetail(i){saveHistory();currentCopyIndex=i;page="detail";renderDetail();}
-function renderDetail(){
-  const s=allData.commemorative.series[currentSeriesIndex];
-  const c=s.copies[currentCopyIndex];
-  const html=`
-  <div class="detail-panel">
-    <div class="img-group">
-      <img src="${c.img1}" onclick="openImg('${c.img1}','${c.img2}')">
-      <img src="${c.img2}" onclick="openImg('${c.img1}','${c.img2}')">
-    </div>
-    <div class="detail-grid">
-      <div class="detail-field"><label>冠号</label><div>${c.version}</div></div>
-      <div class="detail-field"><label>评级</label><div>${c.condition}</div></div>
-      <div class="detail-field"><label>价格</label><div>${c.price}</div></div>
-      <div class="detail-field"><label>银行</label><div>${c.bank}</div></div>
-      <div class="detail-field"><label>克劳斯</label><div>${c.krause||''}</div></div>
-      <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
-    </div>
-    <div class="remark-box"><label>备注</label><div>${c.remark||''}</div></div>
-  </div>`;
-  document.getElementById("content").innerHTML=html;
-}
+modal.onclick = (e) => {
+    if (e.target === modal) modal.style.display = "none";
+};
 
-function openImg(a,b){
-  document.getElementById("m1").src=a;
-  document.getElementById("m2").src=b;
-  modal.style.display="block";
-  slide=0;scale=1;
-  slider.style.transform="translateX(0)";
-  document.querySelectorAll(".modal-slide img").forEach(i=>i.style.transform="scale(1)");
-}
+document.addEventListener("touchstart", (e) => {
+    if (modal.style.display !== "block") return;
+    if (e.touches.length === 1) {
+        modalStartX = e.touches[0].clientX;
+        isModalZooming = false;
+    } else if (e.touches.length === 2) {
+        isModalZooming = true;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+    }
+}, { passive: true });
 
-modal.onclick=(e)=>{if(e.target===modal)modal.style.display="none";}
-let startX=0;let moveX=0;
-document.addEventListener("touchstart",(e)=>{startX=e.touches[0].clientX;},{passive:true});
-document.addEventListener("touchmove",(e)=>{
-  if(!modal.style.display||modal.style.display==="none")return;
-  if(e.touches.length===1){
-    moveX=e.touches[0].clientX-startX;
-  }
-}, {passive:true});
-document.addEventListener("touchend",()=>{
-  if(!modal.style.display||modal.style.display==="none")return;
-  if(moveX<-50){slide=1;}
-  if(moveX>50){slide=0;}
-  slider.style.transform=`translateX(-${slide*100}%)`;
-  moveX=0;
+document.addEventListener("touchmove", (e) => {
+    if (modal.style.display !== "block") return;
+    if (e.touches.length === 1 && !isModalZooming) {
+        modalMoveX = e.touches[0].clientX - modalStartX;
+        if (Math.abs(modalMoveX) > 10) {
+            modalSlider.style.transform = `translateX(calc(-${currentModalSlide * 100}% + ${modalMoveX}px))`;
+        }
+        e.preventDefault();
+    }
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (initialPinchDistance > 0) {
+            modalScale = Math.max(1, Math.min(3, distance / initialPinchDistance));
+            document.querySelectorAll(".modal-slide img").forEach(img => {
+                img.style.transform = `scale(${modalScale})`;
+            });
+        }
+    }
+}, { passive: false });
+
+document.addEventListener("touchend", () => {
+    if (modal.style.display !== "block") return;
+    if (!isModalZooming && Math.abs(modalMoveX) > 40) {
+        currentModalSlide = modalMoveX < 0 ? 1 : 0;
+    }
+    modalSlider.style.transform = `translateX(-${currentModalSlide * 100}%)`;
+    modalMoveX = 0;
+    initialPinchDistance = 0;
+    isModalZooming = false;
 });
 
-let lastSearch=[];
-function doSearch(){
-  clearTimeout(searchTimer);
-  searchTimer=setTimeout(()=>{
-    const t=document.getElementById("searchType").value;
-    const kw=document.getElementById("searchInput").value.trim().toLowerCase();
-    if(!kw){renderSeries();return;}
-    let res=[];
-    allData.commemorative.series.forEach((s,si)=>{
-      s.copies.forEach((c,ci)=>{
-        let match=false;
-        const str=`${s.seriesName} ${c.version} ${s.year} ${c.condition} ${c.krause}`.toLowerCase();
-        if(t==="all"&&str.includes(kw))match=true;
-        else if(t==="name"&&s.seriesName.toLowerCase().includes(kw))match=true;
-        else if(t==="version"&&c.version?.toLowerCase().includes(kw))match=true;
-        else if(t==="year"&&s.year.toString().includes(kw))match=true;
-        else if(t==="agency"&&c.condition?.toLowerCase().includes(kw))match=true;
-        else if(t==="krause"&&c.krause?.toLowerCase().includes(kw))match=true;
-        if(match)res.push({si,ci});
-      });
-    });
-    lastSearch=res;
-    page="search";
-    let html=`<div class="list-panel"><div class="panel-header"><h2>搜索结果 ${res.length} 件</h2></div>`;
-    if(res.length===0)html+=`<div style="padding:2rem;text-align:center;">无结果</div>`;
-    else{
-      res.forEach(item=>{
-        const s=allData.commemorative.series[item.si];
-        const c=s.copies[item.ci];
-        html+=`
-        <div class="copy-item" onclick="jumpDetail(item.si,item.ci)">
-          <div class="copy-index">#${c.copyId}</div>
-          <div class="copy-badge">${c.condition}</div>
-          <div class="copy-version">${c.version}</div>
-          <div>${c.price}</div>
-        </div>`;
-      });
+function doSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const type = document.getElementById("searchType").value;
+        const kw = document.getElementById("searchInput").value.trim().toLowerCase();
+        if (!kw) {
+            renderSeriesList();
+            return;
+        }
+        let results = [];
+        data.forEach((s, si) => {
+            s.copies.forEach((c, ci) => {
+                let match = false;
+                const txt = `${s.seriesName} ${c.version} ${s.year} ${c.condition} ${c.krause}`.toLowerCase();
+                if (type === "all" && txt.includes(kw)) match = true;
+                else if (type === "name" && s.seriesName.toLowerCase().includes(kw)) match = true;
+                else if (type === "version" && (c.version || "").toLowerCase().includes(kw)) match = true;
+                else if (type === "year" && s.year.toString().includes(kw)) match = true;
+                else if (type === "agency" && (c.condition || "").toLowerCase().includes(kw)) match = true;
+                else if (type === "krause" && (c.krause || "").toLowerCase().includes(kw)) match = true;
+                if (match) results.push({ si, ci });
+            });
+        });
+        lastSearchResult = results;
+        page = "search";
+        renderSearchResult(results);
+    }, 150);
+}
+
+function renderSearchResult(results) {
+    let html = `<div class="list-panel"><div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配</p></div><ul style="list-style:none;">`;
+    if (results.length === 0) {
+        html += `<div style="padding:2rem;text-align:center;color:#8b6b4f;">暂无匹配藏品</div>`;
+    } else {
+        results.forEach(item => {
+            const s = data[item.si];
+            const c = s.copies[item.ci];
+            html += `
+            <li class="copy-item" onclick="jumpToDetail(${item.si}, ${item.ci})">
+                <div class="copy-index">#${c.copyId}</div>
+                <div class="copy-badge">${c.condition}</div>
+                <div class="copy-version">${s.seriesName}</div>
+                <div class="copy-price">${c.version}</div>
+            </li>`;
+        });
     }
-    html+="</div>";
-    document.getElementById("content").innerHTML=html;
-  },200);
+    html += "</ul></div>";
+    document.getElementById("content").innerHTML = html;
 }
 
-function jumpDetail(si,ci){
-  saveHistory();currentSeriesIndex=si;currentCopyIndex=ci;page="detail";renderDetail();
+function jumpToDetail(si, ci) {
+    saveHistory();
+    currentSeriesIndex = si;
+    currentCopyIndex = ci;
+    page = "detail";
+    renderDetail();
 }
-function resetSearch(){document.getElementById("searchInput").value="";renderSeries();}
 
-window.onload=()=>{
-  const p=new URLSearchParams(location.search);
-  const kw=p.get("keyword");
-  const type=p.get("type");
-  if(kw){
-    document.getElementById("searchInput").value=kw;
-    document.getElementById("searchType").value=type||"all";
-    doSearch();
-  }else renderSeries();
+function resetSearch() {
+    document.getElementById("searchInput").value = "";
+    renderSeriesList();
 }
+
+window.onload = () => {
+    const params = new URLSearchParams(location.search);
+    const kw = params.get("keyword");
+    const type = params.get("type");
+    if (kw) {
+        document.getElementById("searchInput").value = kw;
+        document.getElementById("searchType").value = type || "all";
+        doSearch();
+    } else {
+        renderSeriesList();
+    }
+
+    const input = document.getElementById("searchInput");
+    input.addEventListener("input", () => {
+        doSearch();
+    });
+};
 </script>
 </body>
 </html>
