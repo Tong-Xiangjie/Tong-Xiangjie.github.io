@@ -1,282 +1,107 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>铜の币纪</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>铜の币纪</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1.5rem;min-height:100vh;padding-top:70px;}
+.container{max-width:1200px;margin:0 auto;}
+.header{text-align:center;margin-bottom:2rem;}
+.header h1{font-size:1.8rem;background:linear-gradient(135deg,#b8860b,#daa520);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
 
-        body {
-            background: #f0ebe3;
-            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-            color: #2c2418;
-            padding: 1.5rem;
-            min-height: 100vh;
-            padding-top: 70px;
-        }
+#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
+.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;}
+.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;}
+.search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
+.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
+.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+.category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.5rem;margin-bottom:2rem;}
+.category-card{background:white;border-radius:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.08);text-align:center;padding:1.5rem;border:1px solid #e2d5c8;transition:0.2s;}
+.category-card:hover{transform:translateY(-5px);border-color:#c9aa7b;}
+.category-icon{font-size:2.5rem;margin-bottom:0.5rem;color:#000;}
+.category-card h3{font-size:1.3rem;color:#4a3522;}
+.category-card p{color:#8b6b4f;font-size:0.8rem;}
+.count-badge{background:#e8d9cc;padding:0.2rem 0.7rem;border-radius:40px;font-size:0.7rem;margin-top:0.6rem;display:inline-block;}
 
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .header h1 {
-            font-size: 1.8rem;
-            background: linear-gradient(135deg, #b8860b, #daa520);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        .sub {
-            color: #8b6b4f;
-            font-size: 0.85rem;
-            margin-top: 0.3rem;
-        }
-
-        #search-container {
-            background: white;
-            border-radius: 1rem;
-            padding: 1rem 1.2rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.8rem;
-            align-items: center;
-        }
-
-        .search-select {
-            padding: 0.5rem 0.8rem;
-            border: 1px solid #e2d5c8;
-            border-radius: 0.6rem;
-            background: white;
-            font-size: 0.9rem;
-            color: #4a3522;
-            outline: none;
-        }
-
-        .search-input {
-            flex: 1;
-            min-width: 180px;
-            padding: 0.6rem 1rem;
-            border: 1px solid #e2d5c8;
-            border-radius: 0.6rem;
-            font-size: 0.9rem;
-            outline: none;
-        }
-
-        .search-input:focus {
-            border-color: #daa520;
-        }
-
-        .search-btn {
-            background: #daa520;
-            color: white;
-            border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 0.6rem;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .search-btn:hover {
-            background: #b8860b;
-        }
-
-        .reset-btn {
-            background: #f0ebe3;
-            color: #8b6b4f;
-            border: 1px solid #e2d5c8;
-            padding: 0.6rem 1rem;
-            border-radius: 0.6rem;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .search-tip {
-            font-size: 0.75rem;
-            color: #b1967c;
-            margin-top: 0.3rem;
-        }
-
-        .category-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .category-card {
-            background: white;
-            border-radius: 1.5rem;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-            transition: all 0.2s;
-            border: 1px solid #e2d5c8;
-            text-align: center;
-            padding: 1.5rem;
-        }
-
-        .category-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 14px 28px rgba(0,0,0,0.12);
-            border-color: #c9aa7b;
-        }
-
-        .category-icon {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .category-card h3 {
-            font-size: 1.3rem;
-            color: #4a3522;
-            margin-bottom: 0.3rem;
-        }
-
-        .category-card p {
-            color: #8b6b4f;
-            font-size: 0.8rem;
-        }
-
-        .count-badge {
-            background: #e8d9cc;
-            display: inline-block;
-            padding: 0.2rem 0.7rem;
-            border-radius: 40px;
-            font-size: 0.7rem;
-            margin-top: 0.6rem;
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 1.5rem;
-            font-size: 0.7rem;
-            color: #b1967c;
-        }
-
-        a {
-            text-decoration: none;
-        }
-
-        @media (max-width: 650px) {
-            body {
-                padding: 1rem;
-                padding-top: 70px;
-            }
-        }
-    </style>
+.footer{text-align:center;margin-top:1.5rem;font-size:0.7rem;color:#b1967c;}
+a{text-decoration:none;}
+</style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>收藏品档案</h1>
-            <div class="sub">Bilibili @ 铜の币纪</div>
-        </div>
+<div class="container">
+  <div class="header">
+    <h1>收藏品档案</h1>
+    <div class="sub">Bilibili @ 铜の币纪</div>
+  </div>
 
-        <div id="search-container">
-            <select class="search-select">
-                <option value="all" selected>全字段搜索（默认）</option>
-                <option value="name">按名称搜索</option>
-                <option value="version">按冠字号搜索</option>
-                <option value="year">按年份搜索</option>
-                <option value="agency">按评级机构(ACG/PMG)</option>
-                <option value="krause">按克劳斯编号搜索</option>
-            </select>
-            <input type="text" class="search-input" placeholder="请输入搜索内容">
-            <button class="search-btn">搜索</button>
-            <button class="reset-btn">重置</button>
-        </div>
-        <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
+  <div id="search-container">
+    <select class="search-select" id="searchType">
+      <option value="all">全字段搜索</option>
+      <option value="name">名称</option>
+      <option value="version">冠号</option>
+      <option value="year">年份</option>
+      <option value="agency">评级</option>
+      <option value="krause">克劳斯</option>
+    </select>
+    <input class="search-input" id="searchInput" placeholder="搜索" oninput="doSearch()">
+    <button class="search-btn" onclick="doSearch()">搜索</button>
+    <button class="reset-btn" onclick="resetSearch()">重置</button>
+  </div>
+  <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
 
-        <div class="category-grid">
-            <a href="commemorative.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟙</div>
-                    <h3>纪念钞</h3>
-                    <p>包含央行以及港澳台地区的所有纪念钞</p>
-                </div>
-            </a>
-            <a href="hongkong.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟚</div>
-                    <h3>港币</h3>
-                    <p>中国银行（香港）、汇丰、渣打</p>
-                </div>
-            </a>
-            <a href="macau.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟛</div>
-                    <h3>澳门币</h3>
-                    <p>中国银行、大西洋银行</p>
-                </div>
-            </a>
-            <a href="taiwan.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟜</div>
-                    <h3>新台币</h3>
-                    <p>台湾银行、中央银行</p>
-                </div>
-            </a>
-            <a href="rmb2.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟝</div>
-                    <h3>第二套人民币</h3>
-                    <p>1955-1962</p>
-                </div>
-            </a>
-            <a href="rmb3.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟞</div>
-                    <h3>第三套人民币</h3>
-                    <p>1962-2000</p>
-                </div>
-            </a>
-            <a href="rmb4.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟟</div>
-                    <h3>第四套人民币</h3>
-                    <p>1987-2018</p>
-                </div>
-            </a>
-            <a href="rmb5.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟠</div>
-                    <h3>第五套人民币</h3>
-                    <p>1999-2019</p>
-                </div>
-            </a>
-            <a href="fec.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟘𝟡</div>
-                    <h3>外汇兑换券</h3>
-                    <p>1979-1995</p>
-                </div>
-            </a>
-            <a href="japan.html">
-                <div class="category-card">
-                    <div class="category-icon">𝟙𝟘</div>
-                    <h3>日本</h3>
-                    <p>日本纸币</p>
-                </div>
-            </a>
-        </div>
+  <div class="category-grid" id="categoryGrid"></div>
 
-        <div class="footer">
-            网页建立时间：2026年4月3日<br>
-            © 2026 铜の币纪 版权所有
+  <div class="footer">
+    网址建立时间：2026年4月3日<br>© 2026 铜の币纪
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+function renderCategories(){
+  const grid = document.getElementById('categoryGrid');
+  grid.innerHTML = '';
+  categoryOrder.forEach(id => {
+    const cat = allData[id];
+    let total = 0;
+    cat.series.forEach(s => total += s.copies.length);
+    grid.innerHTML += `
+      <a href="${id === 'commemorative' ? 'commemorative.html' : 
+        id === 'hk' ? 'hongkong.html' :
+        id === 'macau' ? 'macau.html' :
+        id === 'specimen' ? 'taiwan.html' :
+        id === 'rmb2' ? 'rmb2.html' :
+        id === 'rmb3' ? 'rmb3.html' :
+        id === 'rmb4' ? 'rmb4.html' :
+        id === 'rmb5' ? 'rmb5.html' :
+        id === 'fec' ? 'fec.html' : 'japan.html'}">
+        <div class="category-card">
+          <div class="category-icon">${cat.icon}</div>
+          <h3>${cat.name}</h3>
+          <p>${cat.desc}</p>
+          <div class="count-badge">📌 ${total} 张藏品</div>
         </div>
-    </div>
+      </a>`;
+  });
+}
+
+function doSearch(){
+  const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+  if(!kw){ renderCategories(); return; }
+  alert('请进入对应板块后使用搜索');
+}
+
+function resetSearch(){
+  document.getElementById('searchInput').value = '';
+  renderCategories();
+}
+
+renderCategories();
+</script>
 </body>
 </html>
