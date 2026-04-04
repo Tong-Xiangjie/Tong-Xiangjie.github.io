@@ -1,10 +1,9 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>铜の币纪 - 收藏品档案</title>
+    <title>铜の币纪</title>
     <style>
         * {
             margin: 0;
@@ -353,10 +352,78 @@
     <img id="modalImg" src="">
 </div>
 
-<script src="data.js"></script>
 <script>
-// 板块顺序（只保留纪念钞）
-const categoryOrder = ["commemorative"];
+const banknotesData = {
+    commemorative: {
+        name: "纪念钞", icon: "𝟘𝟙", desc: "包含央行以及港澳台地区的所有纪念钞",
+        series: [
+            { seriesName: "澳门格兰披治大奖赛35周年纪念钞", year: 1988, copies: [{ copyId: 1, purchaseDate: "2026年2月19日", price: "925元", bank: "大西洋银行", version: "KP04057", condition: "ACG65E", krause: "KL001", remark: "纪念钞的鼻祖，发行量最少的一张", img1: "images/KP04057-1.jpg", img2: "images/KP04057-2.jpg" }] },
+            { seriesName: "新台币发行50周年纪念钞", year: 1999, copies: [
+                { copyId: 1, purchaseDate: "2025年10月2日", price: "56元", bank: "台湾银行", version: "A179021G", condition: "ACG67E", krause: "KL002", remark: "", img1: "images/A179021G-1.jpg", img2: "images/A179021G-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL003", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
+            ]},
+            { seriesName: "庆祝中华人民共和国成立50周年纪念钞", year: 1999, copies: [
+                { copyId: 1, purchaseDate: "2025年8月30日", price: "203元", bank: "中国人民银行", version: "J07529257", condition: "ACG65E", krause: "KL004", remark: "刚好是我的生日号", img1: "images/J07529257-1.jpg", img2: "images/J07529257-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年2月1日", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL005", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
+            ]},
+            { seriesName: "迎接新世纪纪念钞", year: 2000, copies: [
+                { copyId: 1, purchaseDate: "2025年9月25日", price: "1225元", bank: "中国人民银行", version: "J00344985", condition: "ACG65E", krause: "KL006", remark: "普通冠号", img1: "images/J00344985-1.jpg", img2: "images/J00344985-2.jpg" },
+                { copyId: 2, purchaseDate: "2025年11月1日", price: "2050元", bank: "中国人民银行", version: "I00181114", condition: "PMG67E", krause: "KL007", remark: "补号", img1: "images/I00181114-1.jpg", img2: "images/I00181114-2.jpg" }
+            ]},
+            { seriesName: "第29届奥林匹克运动会纪念钞", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "2360元", bank: "中国人民银行", version: "J04266645", condition: "PMG67E", krause: "KL008", remark: "钞王！传家宝级别", img1: "images/J04266645-1.jpg", img2: "images/J04266645-2.jpg" }]},
+            { seriesName: "第29届奥林匹克运动会纪念钞（香港）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "176元", bank: "中国银行（香港）", version: "762965", condition: "ACG66E", krause: "KL009", remark: "", img1: "images/762965-1.jpg", img2: "images/762965-2.jpg" }]},
+            { seriesName: "第29届奥林匹克运动会纪念钞（澳门）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "245元", bank: "中国银行", version: "MO239989", condition: "ACG66E", krause: "KL010", remark: "", img1: "images/MO239989-1.jpg", img2: "images/MO239989-2.jpg" }]},
+            { seriesName: "渣打银行成立150周年纪念钞", year: 2009, copies:[]},
+            { seriesName: "中华民国成立100年纪念钞", year: 2011, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "61元", bank: "中央银行", version: "JP578968ZB", condition: "ACG67E", krause: "KL011", remark: "", img1: "images/JP578968ZB-1.jpg", img2: "images/JP578968ZB-2.jpg" }]},
+            { seriesName: "纪念中国银行成立100周年纪念钞（香港）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2026年1月30日", price: "198元", bank: "中国银行（香港）", version: "357185", condition: "ACG67E", krause: "KL012", remark: "", img1: "images/357185-1.jpg", img2: "images/357185-2.jpg" }]},
+            { seriesName: "纪念中国银行成立100周年纪念钞（澳门）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2025年12月5日", price: "458元", bank: "中国银行", version: "AA709609", condition: "PMG66E", krause: "KL013", remark: "传说中的“最美荷花钞”", img1: "images/AA709609-1.jpg", img2: "images/AA709609-2.jpg" }]},
+            { seriesName: "澳门生肖钞", year: "2012~2023", copies:[]},
+            { seriesName: "中国航天纪念钞", year: 2015, copies: [
+                { copyId: 1, purchaseDate: "2025年12月1日", price: "160元", bank: "中国人民银行", version: "J8301922333", condition: "ACG68E", krause: "KL014", remark: "普通荧光", img1: "images/J8301922333-1.jpg", img2: "images/J8301922333-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年2月18日", price: "218元", bank: "中国人民银行", version: "J5252197777", condition: "ACG67E", krause: "KL015", remark: "宇宙之眼", img1: "images/J5252197777-1.jpg", img2: "images/J5252197777-2.jpg" },
+                { copyId: 3, purchaseDate: "2025年11月7日", price: "134元", bank: "中国人民银行", version: "J9069497791", condition: "PMG66E", krause: "KL016", remark: "流浪地球", img1: "images/J9069497791-1.jpg", img2: "images/J9069497791-2.jpg" }
+            ]},
+            { seriesName: "汇丰银行成立150周年纪念钞", year: 2015, copies: [{ copyId: 1, purchaseDate: "2026年1月8日", price: "285元", bank: "香港上海汇丰银行", version: "AB140236", condition: "ACG67E", krause: "KL017", remark: "补号", img1: "images/AB140236-1.jpg", img2: "images/AB140236-2.jpg" }]},
+            { seriesName: "中国银行在港服务100周年纪念钞", year: 2017, copies: [{ copyId: 1, purchaseDate: "2026年2月18日", price: "192元", bank: "中国银行（香港）", version: "HY583251", condition: "ACG67E", krause: "KL018", remark: "HY = Hundred Years百年", img1: "images/HY583251-1.jpg", img2: "images/HY583251-2.jpg" }]},
+            { seriesName: "人民币发行70周年纪念钞", year: 2018, copies: [
+                { copyId: 1, purchaseDate: "2025年12月1日", price: "798元", bank: "中国人民银行", version: "J000009987", condition: "PMG66E", krause: "KL019", remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", img1: "images/J000009987-1.jpg", img2: "images/J000009987-2.jpg" },
+                { copyId: 2, purchaseDate: "2025年8月5日", price: "79元", bank: "中国人民银行", version: "J191756567", condition: "ACG68E", krause: "KL020", remark: "补号，虽然PMG没有特殊标注", img1: "images/J191756567-1.jpg", img2: "images/J191756567-2.jpg" }
+            ]},
+            { seriesName: "澳门回归20周年纪念钞", year: 2019, copies: [
+                { copyId: 1, purchaseDate: "2025年12月5日", price: "34元", bank: "中国银行", version: "MA3518209", condition: "ACG66E", krause: "KL021", remark: "", img1: "images/MA3518209-1.jpg", img2: "images/MA3518209-2.jpg" },
+                { copyId: 2, purchaseDate: "2025年12月5日", price: "34元", bank: "大西洋银行", version: "MA0500209", condition: "ACG66E", krause: "KL022", remark: "算不算是半个生日号？总感觉这张与我挺有缘的", img1: "images/MA0500209-1.jpg", img2: "images/MA0500209-2.jpg" }
+            ]},
+            { seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年11月7日", price: "40元", bank: "中国人民银行", version: "J180000183", condition: "ACG68E", krause: "KL023", remark: "", img1: "images/J180000183-1.jpg", img2: "images/J180000183-2.jpg" }]},
+            { seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", year: 2022, copies: [
+                { copyId: 1, purchaseDate: "2025年11月16日", price: "120元", bank: "中国人民银行", version: "J333686866", condition: "ACG68E", krause: "KL024", remark: "普通版本", img1: "images/J333686866-1.jpg", img2: "images/J333686866-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年3月6日", price: "32元", bank: "中国人民银行", version: "J208213254", condition: "ACG68E", krause: "KL025", remark: "绿奥之星", img1: "images/J208213254-1.jpg", img2: "images/J208213254-2.jpg" },
+                { copyId: 3, purchaseDate: "2025年11月16日", price: "45元", bank: "中国人民银行", version: "J207861101", condition: "ACG67E", krause: "KL026", remark: "绿奥之王", img1: "images/J207861101-1.jpg", img2: "images/J207861101-2.jpg" }
+            ]},
+            { seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）", year: 2022, copies: [
+                { copyId: 1, purchaseDate: "2026年2月21日", price: "170元", bank: "中国银行（香港）", version: "545654", condition: "ACG68E", krause: "KL027", remark: "这张的号码其实非常值得玩味", img1: "images/545654-1.jpg", img2: "images/545654-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年2月17日", price: "188元", bank: "中国银行（香港）", version: "AA537379", condition: "ACG68E", krause: "KL028", remark: "", img1: "images/AA537379-1.jpg", img2: "images/AA537379-2.jpg" }
+            ]},
+            { seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年10月26日", price: "69元", bank: "中国银行", version: "BC0838287", condition: "ACG66E", krause: "KL029", remark: "", img1: "images/BC0838287-1.jpg", img2: "images/BC0838287-2.jpg" }]},
+            { seriesName: "龙年贺岁纪念钞", year: 2024, copies: [{ copyId: 1, purchaseDate: "2026年1月21日", price: "158元", bank: "中国人民银行", version: "J005003567", condition: "ACG67E", krause: "KL030", remark: "", img1: "images/J005003567-1.jpg", img2: "images/J005003567-2.jpg" }]},
+            { seriesName: "蛇年贺岁纪念钞", year: 2025, copies: [{ copyId: 1, purchaseDate: "2026年1月22日", price: "60元", bank: "中国人民银行", version: "J006206654", condition: "ACG67E", krause: "KL031", remark: "", img1: "images/J006206654-1.jpg", img2: "images/J006206654-2.jpg" }]},
+            { seriesName: "马年贺岁纪念钞", year: 2026, copies: [
+                { copyId: 1, purchaseDate: "2026年2月26日", price: "88元", bank: "中国人民银行", version: "J005516765", condition: "ACG67E", krause: "KL032", remark: "就是凑个品种，太丑了", img1: "images/J005516765-1.jpg", img2: "images/J005516765-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年1月20日", price: "272元", bank: "中国人民银行", version: "J037241561-70", condition: "ACG68E", krause: "KL033", remark: "", img1: "images/J037241561-70-1.jpg", img2: "images/J037241561-70-2.jpg" }
+            ]}
+        ]
+    },
+    hk: { name: "港币", icon: "𝟘𝟚", desc: "中国银行（香港）、香港上海汇丰银行、渣打银行", series: [{ seriesName: "汇丰银行 20元", year: 2018, copies: [{ copyId: 1, purchaseDate: "2022-05-18", price: "18元", bank: "香港汇丰银行", version: "冠号AA", condition: "全新", krause: "HK001", remark: "蝴蝶系列", img1: "https://picsum.photos/800/500?random=9", img2: "https://picsum.photos/800/500?random=10" }]},{ seriesName: "中国银行 100元", year: 2018, copies: [{ copyId: 1, purchaseDate: "2023-02-22", price: "88元", bank: "中国银行香港", version: "BOC冠", condition: "UNC", krause: "HK002", remark: "中银百年", img1: "https://picsum.photos/800/500?random=11", img2: "https://picsum.photos/800/500?random=12" }]}]},
+    macau: { name: "澳门币（澳门元）", icon: "𝟘𝟛", desc: "中国银行、大西洋银行", series: [{ seriesName: "大西洋银行 10元", year: 2015, copies: [{ copyId: 1, purchaseDate: "2022-09-01", price: "12元", bank: "大西洋银行", version: "BNU", condition: "全新", krause: "MO001", remark: "澳门塔", img1: "https://picsum.photos/800/500?random=13", img2: "https://picsum.photos/800/500?random=14" }]},{ seriesName: "中国银行 20元", year: 2019, copies: [{ copyId: 1, purchaseDate: "2023-04-10", price: "19元", bank: "中国银行澳门", version: "BOCM", condition: "全新", krause: "MO002", remark: "大三巴", img1: "https://picsum.photos/800/500?random=15", img2: "https://picsum.photos/800/500?random=16" }]}]},
+    specimen: { name: "新台币", icon: "𝟘𝟜", desc: "台湾银行，中央银行", series: [{ seriesName: "第四套人民币样币", year: 1987, copies: [{ copyId: 1, purchaseDate: "2021-12-03", price: "450元", bank: "中国人民银行", version: "票样", condition: "好品", krause: "TW001", remark: "禁止流通", img1: "https://picsum.photos/800/500?random=17", img2: "https://picsum.photos/800/500?random=18" }]}]},
+    rmb2: { name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962", series: [{ seriesName: "大黑拾", year: 1957, copies: [{ copyId: 1, purchaseDate: "2020-06-18", price: "125000元", bank: "中国人民银行", version: "工农像", condition: "7品", krause: "RMB2-01", remark: "苏联代印", img1: "https://picsum.photos/800/500?random=19", img2: "https://picsum.photos/800/500?random=20" }]},{ seriesName: "宝塔山", year: 1955, copies: [{ copyId: 1, purchaseDate: "2022-11-11", price: "3200元", bank: "中国人民银行", version: "延安宝塔山", condition: "9品", krause: "RMB2-02", remark: "精品贰圆", img1: "https://picsum.photos/800/500?random=21", img2: "https://picsum.photos/800/500?random=22" }]}]},
+    rmb3: { name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000", series: [{ seriesName: "背绿水印壹角", year: 1966, copies: [{ copyId: 1, purchaseDate: "2019-09-09", price: "38000元", bank: "中国人民银行", version: "背绿五星", condition: "9品", krause: "RMB3-01", remark: "三版币王", img1: "https://picsum.photos/800/500?random=23", img2: "https://picsum.photos/800/500?random=24" }]},{ seriesName: "车工贰元", year: 1964, copies: [{ copyId: 1, purchaseDate: "2021-04-07", price: "2200元", bank: "中国人民银行", version: "实心星", condition: "UNC", krause: "RMB3-02", remark: "五星水印", img1: "https://picsum.photos/800/500?random=25", img2: "https://picsum.photos/800/500?random=26" }]}]},
+    rmb4: { name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018", series: [{ seriesName: "80版50元", year: 1987, copies: [{ copyId: 1, purchaseDate: "2020-08-20", price: "1850元", bank: "中国人民银行", version: "工人农民", condition: "9品", krause: "RMB4-01", remark: "四版币王", img1: "https://picsum.photos/800/500?random=27", img2: "https://picsum.photos/800/500?random=28" }]}]},
+    rmb5: { name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019", series: [{ seriesName: "99版50元", year: 2001, copies: [{ copyId: 1, purchaseDate: "2023-03-01", price: "120元", bank: "中国人民银行", version: "毛主席", condition: "全新", krause: "RMB5-01", remark: "早期冠号", img1: "https://picsum.photos/800/500?random=29", img2: "https://picsum.photos/800/500?random=30" }]}]},
+    fec: { name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995", series: [{ seriesName: "79版50元", year: 1979, copies: [{ copyId: 1, purchaseDate: "2022-05-17", price: "360元", bank: "中国银行", version: "桂林山水", condition: "全新", krause: "FEC-01", remark: "外汇经典", img1: "https://picsum.photos/800/500?random=31", img2: "https://picsum.photos/800/500?random=32" }]}]},
+    foreign: { name: "日本", icon: "𝟙𝟘", desc: "日本纸币", series: [{ seriesName: "1000日元", year: 2024, copies: [{ copyId: 1, purchaseDate: "2021-11-11", price: "650元", bank: "日本银行", version: "富兰克林", condition: "全新", krause: "JP-001", remark: "彩版", img1: "https://picsum.photos/800/500?random=33", img2: "https://picsum.photos/800/500?random=34" }]}]}
+};
+
+const categoryOrder = ["commemorative", "hk", "macau", "specimen", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "foreign"];
 
 let currentView = "categories";
 let currentCategoryId = null;
@@ -614,12 +681,14 @@ function initSlider() {
     const slider = document.querySelector('.img-slider');
     if (!slider) return;
 
+    // 电脑鼠标按下
     slider.addEventListener('mousedown', (e) => {
         isDragging = true;
         startX = e.clientX;
         slider.style.cursor = 'grabbing';
     });
 
+    // 电脑鼠标移动
     slider.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         const dx = e.clientX - startX;
@@ -630,9 +699,11 @@ function initSlider() {
         }
     });
 
+    // 电脑鼠标松开/离开
     slider.addEventListener('mouseup', () => { isDragging = false; slider.style.cursor = 'grab'; });
     slider.addEventListener('mouseleave', () => { isDragging = false; slider.style.cursor = 'grab'; });
 
+    // 点击小圆点切换
     const dots = document.querySelectorAll('.dot');
     dots.forEach((dot, idx) => {
         dot.addEventListener('click', () => {
@@ -642,6 +713,7 @@ function initSlider() {
     });
 }
 
+// 手机触摸
 function handleTouchStart(e) {
     slideStartX = e.touches[0].clientX;
 }
