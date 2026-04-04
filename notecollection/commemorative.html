@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
 <title>纪念钞 | 铜の币纪</title>
 <style>
   * {
@@ -13,7 +13,7 @@
 
   body {
     background: #f0ebe3;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: system-ui, sans-serif;
     color: #2c2418;
     padding: 1.5rem;
     min-height: 100vh;
@@ -52,7 +52,7 @@
     background: #f0ebe3;
     z-index: 999;
     padding: 0.8rem 1.2rem;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
 
   .back-btn {
@@ -70,7 +70,7 @@
     border-radius: 1rem;
     padding: 1rem 1.2rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     display: flex;
     flex-wrap: wrap;
     gap: 0.8rem;
@@ -122,7 +122,7 @@
     background: white;
     border-radius: 1.5rem;
     padding: 1.5rem;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.05);
   }
 
   .panel-header {
@@ -210,7 +210,7 @@
     background: white;
     border-radius: 1.5rem;
     padding: 1.8rem;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.05);
   }
 
   .detail-header {
@@ -219,29 +219,38 @@
     margin-bottom: 1.2rem;
   }
 
-  /* 这里已经修复图片大小 */
+  /* 预览图正常大小 + 正面/背面标注 */
   .img-preview-group {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 14px;
     margin-bottom: 2rem;
   }
 
   .img-preview-item {
+    position: relative;
     background: #faf6ef;
     border-radius: 12px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    cursor: pointer;
   }
 
   .img-preview-item img {
-    max-width: 100%;
+    width: 100%;
     height: auto;
-    object-fit: contain;
-    cursor: pointer;
     display: block;
+  }
+
+  .img-label {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 0;
   }
 
   .detail-grid {
@@ -272,23 +281,26 @@
     border-radius: 0.8rem;
   }
 
-  .modal {
+  /* 大图轮播 + 缩放 */
+  .carousel-modal {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 2000;
+    background: #000;
+    z-index: 3000;
+    overflow: hidden;
   }
 
-  .modal-slider {
+  .carousel-wrapper {
     display: flex;
     height: 100%;
+    transition: transform 0.3s ease;
   }
 
-  .modal-slide {
+  .carousel-slide {
     min-width: 100%;
     height: 100vh;
     display: flex;
@@ -296,10 +308,11 @@
     justify-content: center;
   }
 
-  .modal-slide img {
-    max-width: 95%;
-    max-height: 95vh;
+  .carousel-slide img {
+    max-width: 100%;
+    max-height: 100vh;
     object-fit: contain;
+    touch-action: manipulation;
   }
 
   .footer {
@@ -321,13 +334,13 @@
   <div id="search-container">
     <select class="search-select" id="searchType">
       <option value="all">全字段搜索</option>
-      <option value="name">按名称</option>
-      <option value="version">按冠号</option>
-      <option value="year">按年份</option>
-      <option value="agency">按评级</option>
-      <option value="krause">按克劳斯</option>
+      <option value="name">名称</option>
+      <option value="version">冠号</option>
+      <option value="year">年份</option>
+      <option value="agency">评级</option>
+      <option value="krause">克劳斯</option>
     </select>
-    <input class="search-input" id="searchInput" placeholder="搜索藏品" oninput="doSearch()">
+    <input class="search-input" id="searchInput" placeholder="搜索">
     <button class="search-btn" onclick="doSearch()">搜索</button>
     <button class="reset-btn" onclick="resetSearch()">重置</button>
   </div>
@@ -335,23 +348,23 @@
 
   <div id="content"></div>
 
-  <div class="footer">
-    © 2026 铜の币纪
-  </div>
+  <div class="footer">© 2026 铜の币纪</div>
 </div>
 
-<div class="modal" id="imageModal" onclick="closeModal()">
-  <div class="modal-slider">
-    <div class="modal-slide"><img id="imgModal1"></div>
-    <div class="modal-slide"><img id="imgModal2"></div>
+<!-- 大图轮播模态框 -->
+<div class="carousel-modal" id="carouselModal">
+  <div class="carousel-wrapper" id="carouselWrapper">
+    <div class="carousel-slide"><img id="c1"></div>
+    <div class="carousel-slide"><img id="c2"></div>
   </div>
 </div>
 
 <script src="data.js"></script>
 <script>
   const cat = allData.commemorative;
-  let currentView = "series";
-  let currentSeriesIndex = null;
+  let currentSeries = null;
+  let touchStartX = 0;
+  let currentSlide = 0;
 
   function setContent(html) {
     document.getElementById("content").innerHTML = html;
@@ -362,135 +375,148 @@
   }
 
   // 系列列表
-  function renderSeriesList() {
-    currentView = "series";
+  function renderSeries() {
     let html = `
-      <div class="back-bar">
-        <button class="back-btn" onclick="location.href='index.html'">← 返回首页</button>
+    <div class="back-bar">
+      <button class="back-btn" onclick="location.href='index.html'">← 首页</button>
+    </div>
+    <div class="list-panel">
+      <div class="panel-header">
+        <h2>${cat.icon} ${cat.name}</h2>
+        <p>${cat.desc}</p>
       </div>
-      <div class="list-panel">
-        <div class="panel-header">
-          <h2>${cat.icon} ${cat.name}</h2>
-          <p>${cat.desc}</p>
-        </div>
-        <ul class="series-list">
-    `;
+      <ul class="series-list">`;
+
     cat.series.forEach((s, i) => {
       html += `
-        <li class="series-item" onclick="renderCopyList(${i})">
-          <div class="series-name">${s.seriesName}</div>
-          <div class="series-count">${s.copies.length} 张</div>
-          <div class="series-year">${s.year}</div>
-        </li>
-      `;
+      <li class="series-item" onclick="renderCopies(${i})">
+        <div class="series-name">${s.seriesName}</div>
+        <div class="series-count">${s.copies.length}张</div>
+        <div class="series-year">${s.year}</div>
+      </li>`;
     });
+
     html += `</ul></div>`;
     setContent(html);
   }
 
   // 藏品列表
-  function renderCopyList(si) {
-    currentView = "copies";
-    currentSeriesIndex = si;
+  function renderCopies(si) {
+    currentSeries = si;
     scrollToTop();
-
     const s = cat.series[si];
     let html = `
-      <div class="back-bar">
-        <button class="back-btn" onclick="renderSeriesList()">← 返回</button>
+    <div class="back-bar">
+      <button class="back-btn" onclick="renderSeries()">← 返回</button>
+    </div>
+    <div class="list-panel">
+      <div class="panel-header">
+        <h2>${s.seriesName}（${s.year}）</h2>
+        <p>共${s.copies.length}张</p>
       </div>
-      <div class="list-panel">
-        <div class="panel-header">
-          <h2>${s.seriesName}（${s.year}）</h2>
-          <p>共 ${s.copies.length} 张</p>
-        </div>
-        <ul class="copy-list">
-    `;
+      <ul class="copy-list">`;
+
     s.copies.forEach((cp, ci) => {
       html += `
-        <li class="copy-item" onclick="renderDetail(${si}, ${ci})">
-          <div class="copy-index">#${cp.copyId}</div>
-          <div class="copy-badge">${cp.condition || ""}</div>
-          <div class="copy-version">${cp.version || ""}</div>
-          <div class="copy-price">${cp.price || ""}</div>
-        </li>
-      `;
+      <li class="copy-item" onclick="renderDetail(${si},${ci})">
+        <div class="copy-index">#${cp.copyId}</div>
+        <div class="copy-badge">${cp.condition || ''}</div>
+        <div class="copy-version">${cp.version || ''}</div>
+        <div class="copy-price">${cp.price || ''}</div>
+      </li>`;
     });
+
     html += `</ul></div>`;
     setContent(html);
   }
 
-  // 详情页（图片已修复）
+  // 详情页（带正面/背面标注）
   function renderDetail(si, ci) {
-    currentView = "detail";
     scrollToTop();
-
     const s = cat.series[si];
     const cp = s.copies[ci];
 
     let html = `
-      <div class="back-bar">
-        <button class="back-btn" onclick="renderCopyList(${si})">← 返回</button>
+    <div class="back-bar">
+      <button class="back-btn" onclick="renderCopies(${si})">← 返回</button>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-header">
+        <h3>${s.seriesName}</h3>
+        <p>${cp.version} · ${cp.condition}</p>
       </div>
-      <div class="detail-panel">
-        <div class="detail-header">
-          <h3>${s.seriesName}</h3>
-          <p>${cp.version} · ${cp.condition}</p>
-        </div>
 
-        <div class="img-preview-group">
-          <div class="img-preview-item" onclick="openModal('${cp.img1}', '${cp.img2}')">
-            <img src="${cp.img1}" alt="正面">
-          </div>
-          <div class="img-preview-item" onclick="openModal('${cp.img1}', '${cp.img2}')">
-            <img src="${cp.img2}" alt="背面">
-          </div>
+      <div class="img-preview-group">
+        <div class="img-preview-item" onclick="openCarousel('${cp.img1}','${cp.img2}',0)">
+          <img src="${cp.img1}">
+          <div class="img-label">正面</div>
         </div>
-
-        <div class="detail-grid">
-          <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
-          <div class="detail-field"><label>评级</label><div>${cp.condition}</div></div>
-          <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
-          <div class="detail-field"><label>发行银行</label><div>${cp.bank}</div></div>
-          <div class="detail-field"><label>克劳斯编号</label><div>${cp.krause || "无"}</div></div>
-          <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
-        </div>
-
-        <div class="remark-box">
-          <label>备注</label>
-          <div>${cp.remark || "无"}</div>
+        <div class="img-preview-item" onclick="openCarousel('${cp.img1}','${cp.img2}',1)">
+          <img src="${cp.img2}">
+          <div class="img-label">背面</div>
         </div>
       </div>
-    `;
+
+      <div class="detail-grid">
+        <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
+        <div class="detail-field"><label>评级</label><div>${cp.condition}</div></div>
+        <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
+        <div class="detail-field"><label>发行银行</label><div>${cp.bank}</div></div>
+        <div class="detail-field"><label>克劳斯</label><div>${cp.krause || '无'}</div></div>
+        <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
+      </div>
+
+      <div class="remark-box">
+        <label>备注</label>
+        <div>${cp.remark || '无'}</div>
+      </div>
+    </div>`;
+
     setContent(html);
   }
 
-  function openModal(src1, src2) {
-    document.getElementById("imgModal1").src = src1;
-    document.getElementById("imgModal2").src = src2;
-    document.getElementById("imageModal").style.display = "flex";
+  // 打开轮播大图
+  function openCarousel(a, b, idx) {
+    document.getElementById("c1").src = a;
+    document.getElementById("c2").src = b;
+    currentSlide = idx;
+    updateSlide();
+    document.getElementById("carouselModal").style.display = "block";
   }
 
-  function closeModal() {
-    document.getElementById("imageModal").style.display = "none";
-  }
-
-  function doSearch() {
-    const kw = document.getElementById("searchInput").value.trim().toLowerCase();
-    if (!kw) {
-      renderSeriesList();
-      return;
+  // 关闭轮播
+  document.getElementById("carouselModal").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("carouselModal")) {
+      document.getElementById("carouselModal").style.display = "none";
     }
-    // 简单搜索示意，需要完整搜索我再加上
+  });
+
+  // 滑动切换
+  const wrapper = document.getElementById("carouselWrapper");
+  wrapper.addEventListener("touchstart", (e) => {
+    touchStartX = e.touches[0].clientX;
+  });
+
+  wrapper.addEventListener("touchend", (e) => {
+    const diff = e.changedTouches[0].clientX - touchStartX;
+    if (diff > 50) currentSlide = Math.max(0, currentSlide - 1);
+    if (diff < -50) currentSlide = Math.min(1, currentSlide + 1);
+    updateSlide();
+  });
+
+  function updateSlide() {
+    wrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
   }
 
+  // 搜索
+  function doSearch() {}
   function resetSearch() {
     document.getElementById("searchInput").value = "";
-    renderSeriesList();
+    renderSeries();
   }
 
   // 初始化
-  renderSeriesList();
+  renderSeries();
 </script>
 </body>
 </html>
