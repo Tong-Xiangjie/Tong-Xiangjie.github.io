@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>暗黑之门 · 导航中枢</title>
+    <title>总网站入口</title>
     <style>
         * {
             margin: 0;
@@ -258,15 +258,15 @@
         <div id="lockZone">
             <div class="logo-area">
                 <div class="logo-icon">⛧</div>
-                <h1>暗黑·导航站</h1>
+                <h1>请验证后进入</h1>
                 <div class="sub">VERIFICATION GATE</div>
             </div>
             <div class="password-section">
                 <div class="input-group">
-                    <span class="lock-icon">🔐</span>
-                    <input type="password" id="passwordInput" maxlength="6" placeholder="输入6位通行码" inputmode="numeric" pattern="\d*">
+                    <span class="lock-icon"></span>
+                    <input type="password" id="passwordInput" maxlength="6" placeholder="请输入6位数字密码" inputmode="numeric" pattern="\d*">
                 </div>
-                <button id="unlockBtn">◉ 验证访问 ◉</button>
+                <button id="unlockBtn">验证/VERIFY</button>
                 <div id="errorMsg" class="error-msg"></div>
                 <div id="timerInfo" class="timer-block" style="display: none;"></div>
             </div>
@@ -276,12 +276,12 @@
         <div id="dashboardZone" class="dashboard">
             <div class="logo-area" style="margin-bottom: 1rem;">
                 <div class="logo-icon">🜄</div>
-                <h1>总站 · 星门枢纽</h1>
+                <h1>网页总站</h1>
                 <div class="sub">ACCESS GRANTED</div>
             </div>
-            <div class="section-title">▶ 收藏的分站</div>
+            <div class="section-title">分站入口</div>
             <div class="site-card">
-                <span class="site-name">🏦 钱币收藏档案</span>
+                <span class="site-name">钱币收藏档案</span>
                 <a href="https://Tong-Xiangjie.github.io/notecollection/" class="site-link" target="_blank" rel="noopener noreferrer">
                     notecollection ↗
                 </a>
@@ -292,7 +292,7 @@
                 <span class="site-link" style="background:#11161f; cursor:default;">即将开放</span>
             </div>
             <div class="footer-note">
-                ⚡ 安全中枢 · 仅供授权使用 ⚡
+                网址建立时间：2026年4月3日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
             </div>
             <button id="resetLockBtn" class="back-btn">⟳ 返回锁定界面</button>
         </div>
@@ -339,7 +339,7 @@
                 const remainSeconds = Math.ceil((lockUntil - now) / 1000);
                 if(remainSeconds > 0) {
                     timerInfoDiv.style.display = 'block';
-                    timerInfoDiv.innerHTML = `⏳ 验证失败次数过多，锁定中 · 请等待 ${remainSeconds} 秒 ⏳`;
+                    timerInfoDiv.innerHTML = ` 验证失败次数过多，已锁定。<br>请 ${remainSeconds} 秒后再试。 `;
                 } else {
                     // 理论上锁到期会在 tick 里清理, 但先处理边界
                     if(lockUntil <= now) releaseLock();
@@ -348,7 +348,7 @@
                 // 禁用输入和按钮
                 passwordInput.disabled = true;
                 unlockBtn.disabled = true;
-                errorMsgDiv.innerHTML = '⛔ 账户暂时锁定，请稍后再试 ⛔';
+                errorMsgDiv.innerHTML = '账户暂时锁定，请稍后再试';
             } else {
                 // 未锁定状态
                 if(lockUntil === 0 || lockUntil <= now) {
@@ -401,14 +401,14 @@
                     releaseLock();      // 重置failCount并解锁界面
                     updateLockUI();
                     // 清空错误提示框温和恢复
-                    errorMsgDiv.innerHTML = '⌛ 锁定已解除，请重新输入密码';
+                    errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
                     setTimeout(() => {
-                        if(errorMsgDiv.innerHTML === '⌛ 锁定已解除，请重新输入密码') errorMsgDiv.innerHTML = '';
+                        if(errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') errorMsgDiv.innerHTML = '';
                     }, 1800);
                     passwordInput.value = '';
                 } else {
                     const secs = Math.ceil(remaining / 1000);
-                    timerInfoDiv.innerHTML = `⏳ 验证失败次数过多，锁定中 · 请等待 ${secs} 秒 ⏳`;
+                    timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${secs} 秒后再试。`;
                 }
             }, 200);
         }
@@ -417,7 +417,7 @@
         function handleFail() {
             // 先检查当前是否锁定中 (安全)
             if(lockUntil > Date.now()) {
-                errorMsgDiv.innerHTML = '🔒 系统锁定中，请等待倒计时结束。';
+                errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。';
                 return;
             }
             
@@ -426,14 +426,14 @@
             const remainingAttempts = 3 - failCount;
             if(failCount >= 3) {
                 // 达到三次错误 -> 触发锁定30秒
-                errorMsgDiv.innerHTML = `❌ 已连续错误3次！系统锁定30秒，请勿操作 ❌`;
+                errorMsgDiv.innerHTML = `已连续错误3次！系统锁定30秒，无法进行任何操作 `;
                 applyLockout();
                 // 清空输入框
                 passwordInput.value = '';
                 // 锁定后不用再提示剩余尝试次数
             } else {
                 // 未达三次，显示剩余尝试
-                errorMsgDiv.innerHTML = `⚠️ 密码错误！还剩 ${remainingAttempts} 次尝试机会，连续3次将锁定30秒。`;
+                errorMsgDiv.innerHTML = `密码错误！还剩 ${remainingAttempts} 次尝试机会，连续错误3次将锁定30秒`;
                 passwordInput.value = '';
                 passwordInput.focus();
                 // 确保没有锁定倒计时显示隐藏
@@ -469,7 +469,7 @@
         function verifyPassword() {
             // 如果当前处于锁定状态，阻止验证
             if(lockUntil > Date.now()) {
-                errorMsgDiv.innerHTML = `🔒 锁定倒计时进行中，请耐心等待。`;
+                errorMsgDiv.innerHTML = `锁定倒计时进行中，请耐心等待。`;
                 return;
             }
             
@@ -477,13 +477,13 @@
             // 过滤非数字，但本身限制maxlength且输入法数字，但以防万一
             const trimmed = rawValue.trim();
             if(trimmed.length !== 6) {
-                errorMsgDiv.innerHTML = '⚠️ 请输入6位数字密码';
+                errorMsgDiv.innerHTML = ' 请输入6位数字密码';
                 passwordInput.value = '';
                 return;
             }
             // 检查是否为纯数字 (额外保证)
             if(!/^\d{6}$/.test(trimmed)) {
-                errorMsgDiv.innerHTML = '⚠️ 密码必须为6位数字 (0-9)';
+                errorMsgDiv.innerHTML = '密码必须为6位数字 (0-9)';
                 passwordInput.value = '';
                 return;
             }
@@ -611,9 +611,9 @@
             if(lockZone.style.display !== 'none' && lockUntil > 0 && lockUntil <= Date.now()) {
                 releaseLock();
                 updateLockUI();
-                errorMsgDiv.innerHTML = '⏩ 锁定已结束，请继续输入';
+                errorMsgDiv.innerHTML = ' 锁定已结束，请继续输入';
                 setTimeout(()=>{
-                    if(errorMsgDiv.innerHTML === '⏩ 锁定已结束，请继续输入') errorMsgDiv.innerHTML = '';
+                    if(errorMsgDiv.innerHTML === ' 锁定已结束，请继续输入') errorMsgDiv.innerHTML = '';
                 },1500);
             }
         }
