@@ -2,58 +2,312 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>纪念钞 | 铜の币纪</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1.5rem;min-height:100vh;padding-top:70px;}
-.container{max-width:1200px;margin:0 auto;}
-.header{text-align:center;margin-bottom:2rem;}
-.header h1{font-size:1.8rem;background:linear-gradient(135deg,#b8860b,#daa520);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 
-.back-bar{position:fixed;top:0;left:0;width:100%;background:#f0ebe3;z-index:999;padding:0.8rem 1.2rem;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
-.back-btn{background:white;border:1px solid #e2d5c8;color:#b8860b;font-size:0.9rem;padding:0.5rem 1rem;border-radius:30px;cursor:pointer;}
+  body {
+    background: #f0ebe3;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #2c2418;
+    padding: 1.5rem;
+    min-height: 100vh;
+    padding-top: 70px;
+  }
 
-#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
-.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;}
-.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;}
-.search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
-.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
-.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
 
-.list-panel{background:white;border-radius:1.5rem;padding:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
-.panel-header{border-left:5px solid #daa520;padding-left:1rem;margin-bottom:1.2rem;}
-.series-list{list-style:none;}
-.series-item{display:flex;align-items:center;padding:0.8rem 0.6rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
-.series-item:hover{background:#faf5ef;}
-.series-name{flex:1;font-weight:500;}
-.series-count{background:#e8d9cc;padding:0.2rem 0.6rem;border-radius:30px;font-size:0.7rem;}
-.series-year{width:110px;color:#8b6b4f;}
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
 
-.copy-list{list-style:none;}
-.copy-item{display:flex;align-items:center;padding:0.8rem 0.6rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
-.copy-item:hover{background:#faf5ef;}
-.copy-index{width:45px;font-weight:600;color:#000;}
-.copy-badge{background:#e6d5c0;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;}
-.copy-price{width:100px;color:#5a6e4a;text-align:center;}
-.copy-version{flex:1;padding:0 0.5rem;color:#b8860b;font-weight:500;}
+  .header h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, #b8860b, #daa520);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 
-.detail-panel{background:white;border-radius:1.5rem;padding:1.8rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
-.detail-header{border-bottom:2px solid #f0e4d6;padding-bottom:1rem;margin-bottom:1.2rem;}
-.img-preview-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:2rem;}
-.img-preview-item{background:#faf6ef;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
-.img-preview-item img{max-width:100%;height:auto;object-fit:contain;cursor:pointer;}
-.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem;margin:1.5rem 0;}
-.detail-field{background:#faf8f5;padding:0.8rem 1rem;border-radius:1rem;}
-.detail-field label{font-size:0.7rem;color:#b1967c;display:block;margin-bottom:0.3rem;}
-.remark-box{background:#fef9f0;border-left:3px solid #daa520;padding:1rem;margin:1.2rem 0;border-radius:0.8rem;}
+  .sub {
+    color: #8b6b4f;
+    font-size: 0.85rem;
+    margin-top: 0.3rem;
+  }
 
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:1000;}
-.modal-slide{min-width:100%;height:100vh;display:flex;align-items:center;justify-content:center;}
-.modal-slide img{max-width:90%;max-height:90vh;object-fit:contain;}
+  .back-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #f0ebe3;
+    z-index: 999;
+    padding: 0.8rem 1.2rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  }
 
-.footer{text-align:center;margin-top:1.5rem;font-size:0.7rem;color:#b1967c;}
+  .back-btn {
+    background: white;
+    border: 1px solid #e2d5c8;
+    color: #b8860b;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    cursor: pointer;
+  }
+
+  #search-container {
+    background: white;
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    align-items: center;
+  }
+
+  .search-select {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #e2d5c8;
+    border-radius: 0.6rem;
+    background: white;
+    font-size: 0.9rem;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 180px;
+    padding: 0.6rem 1rem;
+    border: 1px solid #e2d5c8;
+    border-radius: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .search-btn {
+    background: #daa520;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.6rem;
+    cursor: pointer;
+  }
+
+  .reset-btn {
+    background: #f0ebe3;
+    color: #8b6b4f;
+    border: 1px solid #e2d5c8;
+    padding: 0.6rem 1rem;
+    border-radius: 0.6rem;
+    cursor: pointer;
+  }
+
+  .search-tip {
+    font-size: 0.75rem;
+    color: #b1967c;
+    margin-top: 0.3rem;
+  }
+
+  .list-panel {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+  }
+
+  .panel-header {
+    border-left: 5px solid #daa520;
+    padding-left: 1rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .series-list {
+    list-style: none;
+  }
+
+  .series-item {
+    display: flex;
+    align-items: center;
+    padding: 0.8rem 0.6rem;
+    border-bottom: 1px solid #f0e4d6;
+    cursor: pointer;
+  }
+
+  .series-item:hover {
+    background: #faf5ef;
+  }
+
+  .series-name {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .series-count {
+    background: #e8d9cc;
+    padding: 0.2rem 0.6rem;
+    border-radius: 30px;
+    font-size: 0.7rem;
+  }
+
+  .series-year {
+    width: 110px;
+    color: #8b6b4f;
+  }
+
+  .copy-list {
+    list-style: none;
+  }
+
+  .copy-item {
+    display: flex;
+    align-items: center;
+    padding: 0.8rem 0.6rem;
+    border-bottom: 1px solid #f0e4d6;
+    cursor: pointer;
+  }
+
+  .copy-item:hover {
+    background: #faf5ef;
+  }
+
+  .copy-index {
+    width: 45px;
+    font-weight: 600;
+    color: #000;
+  }
+
+  .copy-badge {
+    background: #e6d5c0;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+  }
+
+  .copy-price {
+    width: 100px;
+    color: #5a6e4a;
+    text-align: center;
+  }
+
+  .copy-version {
+    flex: 1;
+    padding: 0 0.5rem;
+    color: #b8860b;
+    font-weight: 500;
+  }
+
+  .detail-panel {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 1.8rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+  }
+
+  .detail-header {
+    border-bottom: 2px solid #f0e4d6;
+    padding-bottom: 1rem;
+    margin-bottom: 1.2rem;
+  }
+
+  /* 这里已经修复图片大小 */
+  .img-preview-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin-bottom: 2rem;
+  }
+
+  .img-preview-item {
+    background: #faf6ef;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .img-preview-item img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    cursor: pointer;
+    display: block;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.2rem;
+    margin: 1.5rem 0;
+  }
+
+  .detail-field {
+    background: #faf8f5;
+    padding: 0.8rem 1rem;
+    border-radius: 1rem;
+  }
+
+  .detail-field label {
+    font-size: 0.7rem;
+    color: #b1967c;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+
+  .remark-box {
+    background: #fef9f0;
+    border-left: 3px solid #daa520;
+    padding: 1rem;
+    margin: 1.2rem 0;
+    border-radius: 0.8rem;
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+  }
+
+  .modal-slider {
+    display: flex;
+    height: 100%;
+  }
+
+  .modal-slide {
+    min-width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-slide img {
+    max-width: 95%;
+    max-height: 95vh;
+    object-fit: contain;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
+    color: #b1967c;
+  }
 </style>
 </head>
 
@@ -66,97 +320,177 @@ body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1
 
   <div id="search-container">
     <select class="search-select" id="searchType">
-      <option value="all">全字段搜索</option><option value="name">名称</option><option value="version">冠号</option>
-      <option value="year">年份</option><option value="agency">评级</option><option value="krause">克劳斯</option>
+      <option value="all">全字段搜索</option>
+      <option value="name">按名称</option>
+      <option value="version">按冠号</option>
+      <option value="year">按年份</option>
+      <option value="agency">按评级</option>
+      <option value="krause">按克劳斯</option>
     </select>
-    <input class="search-input" id="searchInput" placeholder="搜索" oninput="doSearch()">
+    <input class="search-input" id="searchInput" placeholder="搜索藏品" oninput="doSearch()">
     <button class="search-btn" onclick="doSearch()">搜索</button>
     <button class="reset-btn" onclick="resetSearch()">重置</button>
   </div>
   <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
 
   <div id="content"></div>
-  <div class="footer">© 2026 铜の币纪</div>
+
+  <div class="footer">
+    © 2026 铜の币纪
+  </div>
 </div>
 
 <div class="modal" id="imageModal" onclick="closeModal()">
-  <div id="modalSlider">
-    <div class="modal-slide"><img id="m1"></div>
-    <div class="modal-slide"><img id="m2"></div>
+  <div class="modal-slider">
+    <div class="modal-slide"><img id="imgModal1"></div>
+    <div class="modal-slide"><img id="imgModal2"></div>
   </div>
 </div>
 
 <script src="data.js"></script>
 <script>
-const cat = allData.commemorative;
-let currentView = 'series';
-let currentSeries = null;
+  const cat = allData.commemorative;
+  let currentView = "series";
+  let currentSeriesIndex = null;
 
-function setContent(html){ document.getElementById('content').innerHTML = html; }
-function toTop(){ window.scrollTo(0,0); }
+  function setContent(html) {
+    document.getElementById("content").innerHTML = html;
+  }
 
-function renderSeries(){
-  currentView = 'series';
-  let html = `<div class="back-bar"><button class="back-btn" onclick="location.href='index.html'">← 返回首页</button></div>`;
-  html += `<div class="list-panel"><div class="panel-header"><h2>${cat.icon} ${cat.name}</h2><p>${cat.desc}</p></div><ul class="series-list">`;
-  cat.series.forEach((s,i)=>{
-    html+=`<li class="series-item" onclick="renderCopies(${i})"><div class="series-name">${s.seriesName}</div><div class="series-count">${s.copies.length}张</div><div class="series-year">${s.year}</div></li>`;
-  });
-  html+=`</ul></div>`;
-  setContent(html);
-}
+  function scrollToTop() {
+    window.scrollTo(0, 0);
+  }
 
-function renderCopies(si){
-  currentView = 'copies';
-  currentSeries = si;
-  toTop();
-  const s = cat.series[si];
-  let html = `<div class="back-bar"><button class="back-btn" onclick="renderSeries()">← 返回</button></div>`;
-  html += `<div class="list-panel"><div class="panel-header"><h2>${s.seriesName} (${s.year})</h2><p>共${s.copies.length}张</p></div><ul class="copy-list">`;
-  s.copies.forEach((cp,ci)=>{
-    html+=`<li class="copy-item" onclick="renderDetail(${si},${ci})">
-      <div class="copy-index">#${cp.copyId}</div>
-      <div class="copy-badge">${cp.condition||''}</div>
-      <div class="copy-version">${cp.version||''}</div>
-      <div class="copy-price">${cp.price||''}</div>
-    </li>`;
-  });
-  html+=`</ul></div>`;
-  setContent(html);
-}
+  // 系列列表
+  function renderSeriesList() {
+    currentView = "series";
+    let html = `
+      <div class="back-bar">
+        <button class="back-btn" onclick="location.href='index.html'">← 返回首页</button>
+      </div>
+      <div class="list-panel">
+        <div class="panel-header">
+          <h2>${cat.icon} ${cat.name}</h2>
+          <p>${cat.desc}</p>
+        </div>
+        <ul class="series-list">
+    `;
+    cat.series.forEach((s, i) => {
+      html += `
+        <li class="series-item" onclick="renderCopyList(${i})">
+          <div class="series-name">${s.seriesName}</div>
+          <div class="series-count">${s.copies.length} 张</div>
+          <div class="series-year">${s.year}</div>
+        </li>
+      `;
+    });
+    html += `</ul></div>`;
+    setContent(html);
+  }
 
-function renderDetail(si,ci){
-  currentView = 'detail';
-  toTop();
-  const s=cat.series[si],cp=s.copies[ci];
-  let html=`<div class="back-bar"><button class="back-btn" onclick="renderCopies(${si})">← 返回</button></div>`;
-  html+=`<div class="detail-panel"><div class="detail-header"><h3>${s.seriesName}</h3><p>${cp.version} · ${cp.condition}</p></div>`;
-  html+=`<div class="img-preview-group"><div onclick="openModal('${cp.img1}','${cp.img2}')"><img src="${cp.img1}"></div><div onclick="openModal('${cp.img1}','${cp.img2}')"><img src="${cp.img2}"></div></div>`;
-  html+=`<div class="detail-grid">
-    <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
-    <div class="detail-field"><label>评级</label><div>${cp.condition}</div></div>
-    <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
-    <div class="detail-field"><label>银行</label><div>${cp.bank}</div></div>
-    <div class="detail-field"><label>克劳斯</label><div>${cp.krause||'无'}</div></div>
-    <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
-  </div>`;
-  html+=`<div class="remark-box"><label>备注</label><div>${cp.remark||'无'}</div></div></div>`;
-  setContent(html);
-}
+  // 藏品列表
+  function renderCopyList(si) {
+    currentView = "copies";
+    currentSeriesIndex = si;
+    scrollToTop();
 
-function openModal(a,b){
-  document.getElementById('m1').src=a;
-  document.getElementById('m2').src=b;
-  document.getElementById('imageModal').style.display='block';
-}
-function closeModal(){
-  document.getElementById('imageModal').style.display='none';
-}
+    const s = cat.series[si];
+    let html = `
+      <div class="back-bar">
+        <button class="back-btn" onclick="renderSeriesList()">← 返回</button>
+      </div>
+      <div class="list-panel">
+        <div class="panel-header">
+          <h2>${s.seriesName}（${s.year}）</h2>
+          <p>共 ${s.copies.length} 张</p>
+        </div>
+        <ul class="copy-list">
+    `;
+    s.copies.forEach((cp, ci) => {
+      html += `
+        <li class="copy-item" onclick="renderDetail(${si}, ${ci})">
+          <div class="copy-index">#${cp.copyId}</div>
+          <div class="copy-badge">${cp.condition || ""}</div>
+          <div class="copy-version">${cp.version || ""}</div>
+          <div class="copy-price">${cp.price || ""}</div>
+        </li>
+      `;
+    });
+    html += `</ul></div>`;
+    setContent(html);
+  }
 
-function doSearch(){/* 内部搜索逻辑略 */}
-function resetSearch(){renderSeries();}
+  // 详情页（图片已修复）
+  function renderDetail(si, ci) {
+    currentView = "detail";
+    scrollToTop();
 
-renderSeries();
+    const s = cat.series[si];
+    const cp = s.copies[ci];
+
+    let html = `
+      <div class="back-bar">
+        <button class="back-btn" onclick="renderCopyList(${si})">← 返回</button>
+      </div>
+      <div class="detail-panel">
+        <div class="detail-header">
+          <h3>${s.seriesName}</h3>
+          <p>${cp.version} · ${cp.condition}</p>
+        </div>
+
+        <div class="img-preview-group">
+          <div class="img-preview-item" onclick="openModal('${cp.img1}', '${cp.img2}')">
+            <img src="${cp.img1}" alt="正面">
+          </div>
+          <div class="img-preview-item" onclick="openModal('${cp.img1}', '${cp.img2}')">
+            <img src="${cp.img2}" alt="背面">
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
+          <div class="detail-field"><label>评级</label><div>${cp.condition}</div></div>
+          <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
+          <div class="detail-field"><label>发行银行</label><div>${cp.bank}</div></div>
+          <div class="detail-field"><label>克劳斯编号</label><div>${cp.krause || "无"}</div></div>
+          <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
+        </div>
+
+        <div class="remark-box">
+          <label>备注</label>
+          <div>${cp.remark || "无"}</div>
+        </div>
+      </div>
+    `;
+    setContent(html);
+  }
+
+  function openModal(src1, src2) {
+    document.getElementById("imgModal1").src = src1;
+    document.getElementById("imgModal2").src = src2;
+    document.getElementById("imageModal").style.display = "flex";
+  }
+
+  function closeModal() {
+    document.getElementById("imageModal").style.display = "none";
+  }
+
+  function doSearch() {
+    const kw = document.getElementById("searchInput").value.trim().toLowerCase();
+    if (!kw) {
+      renderSeriesList();
+      return;
+    }
+    // 简单搜索示意，需要完整搜索我再加上
+  }
+
+  function resetSearch() {
+    document.getElementById("searchInput").value = "";
+    renderSeriesList();
+  }
+
+  // 初始化
+  renderSeriesList();
 </script>
 </body>
 </html>
