@@ -91,9 +91,10 @@ function renderCategories(){
 }
 
 function doSearch(){
-  const kw = document.getElementById('searchInput').value.trim().toLowerCase();
-  if(!kw){ renderCategories(); return; }
-  alert('请进入对应板块后使用搜索');
+  const kw = document.getElementById('searchInput').value.trim();
+  const type = document.getElementById('searchType').value;
+  if(!kw) return;
+  location.href = `commemorative.html?search=${encodeURIComponent(kw)}&type=${type}`;
 }
 
 function resetSearch(){
