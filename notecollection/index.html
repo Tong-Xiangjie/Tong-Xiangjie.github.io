@@ -187,238 +187,6 @@
             margin-top: 0.6rem;
         }
 
-        .list-panel {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 1.5rem;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
-        }
-
-        .panel-header {
-            border-left: 5px solid #daa520;
-            padding-left: 1rem;
-            margin-bottom: 1.2rem;
-        }
-
-        .panel-header h2 {
-            font-size: 1.5rem;
-            margin-bottom: 0.2rem;
-        }
-
-        .panel-header p {
-            color: #7a5a4a;
-            font-size: 0.8rem;
-        }
-
-        .series-list {
-            list-style: none;
-        }
-
-        .series-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 0.6rem;
-            border-bottom: 1px solid #f0e4d6;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-
-        .series-item:hover {
-            background: #faf5ef;
-        }
-
-        .series-name {
-            flex: 1;
-            font-weight: 500;
-        }
-
-        .series-count {
-            background: #e8d9cc;
-            padding: 0.2rem 0.6rem;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            margin-right: 1rem;
-        }
-
-        .series-year {
-            width: 110px;
-            color: #8b6b4f;
-        }
-
-        .copy-list {
-            list-style: none;
-        }
-
-        .copy-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 0.6rem;
-            border-bottom: 1px solid #f0e4d6;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-
-        .copy-item:hover {
-            background: #faf5ef;
-        }
-
-        .copy-index {
-            width: 45px;
-            font-weight: 600;
-            color: #b8860b;
-        }
-
-        .copy-badge {
-            background: #e6d5c0;
-            padding: 0.2rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            margin-right: 1rem;
-        }
-
-        .copy-price {
-            width: 100px;
-            color: #5a6e4a;
-            text-align: center;
-        }
-
-        .copy-version {
-            flex: 1;
-            text-align: left;
-            padding: 0 0.5rem;
-            color: #b8860b;
-            font-weight: 500;
-            font-size: 0.85rem;
-        }
-
-        .detail-panel {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 1.8rem;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
-        }
-
-        .detail-header {
-            border-bottom: 2px solid #f0e4d6;
-            padding-bottom: 1rem;
-            margin-bottom: 1.2rem;
-        }
-
-        .detail-header h3 {
-            font-size: 1.6rem;
-            color: #4a3522;
-            margin-bottom: 0.3rem;
-        }
-
-        .img-slider {
-            position: relative;
-            width: 100%;
-            max-width: 500px;
-            height: auto;
-            min-height: 220px;
-            margin: 0 auto 2rem;
-            border-radius: 1rem;
-            overflow: hidden;
-            background: #faf6ef;
-            touch-action: pan-x;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .img-slider-inner {
-            display: flex;
-            height: 100%;
-            transition: transform 0.3s ease;
-        }
-
-        .img-slide {
-            min-width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .img-slide img {
-            max-height: 90vh;
-            max-width: 100%;
-            border-radius: 0.8rem;
-            cursor: pointer;
-            object-fit: contain;
-        }
-
-        .slider-dots {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        .dot.active {
-            background: #daa520;
-        }
-
-        .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.2rem;
-            margin: 1.5rem 0;
-        }
-
-        .detail-field {
-            background: #faf8f5;
-            padding: 0.8rem 1rem;
-            border-radius: 1rem;
-        }
-
-        .detail-field label {
-            font-size: 0.7rem;
-            color: #b1967c;
-            display: block;
-            margin-bottom: 0.3rem;
-        }
-
-        .remark-box {
-            background: #fef9f0;
-            border-left: 3px solid #daa520;
-            padding: 1rem;
-            margin: 1.2rem 0;
-            border-radius: 0.8rem;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            overflow: auto;
-        }
-
-        .modal img {
-            max-width: 95%;
-            max-height: 95vh;
-            border-radius: 1rem;
-            object-fit: contain;
-            touch-action: manipulation;
-        }
-
         .footer {
             text-align: center;
             margin-top: 1.5rem;
@@ -442,7 +210,6 @@
             <div class="sub">Bilibili @ 铜の币纪</div>
         </div>
 
-        <!-- 搜索框固定只渲染一次，彻底解决焦点丢失 -->
         <div id="search-container">
             <select class="search-select" id="searchType">
                 <option value="all" selected>全字段搜索（默认）</option>
@@ -452,14 +219,65 @@
                 <option value="agency">按评级机构(ACG/PMG)</option>
                 <option value="krause">按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容" oninput="doSearch()">
-            <button class="search-btn" onclick="doSearch()">搜索</button>
-            <button class="reset-btn" onclick="resetSearch()">重置</button>
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容">
+            <button class="search-btn">搜索</button>
+            <button class="reset-btn">重置</button>
         </div>
         <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
 
-        <!-- 内容区域 -->
-        <div id="content"></div>
+        <!-- 10 个分类，跳转到独立 HTML -->
+        <div class="category-grid">
+            <div class="category-card" onclick="location.href='commemorative.html'">
+                <div class="category-icon">𝟘𝟙</div>
+                <h3>纪念钞</h3>
+                <p>包含央行以及港澳台地区的所有纪念钞</p>
+            </div>
+            <div class="category-card" onclick="location.href='hongkong.html'">
+                <div class="category-icon">𝟘𝟚</div>
+                <h3>港币</h3>
+                <p>中国银行（香港）、汇丰、渣打</p>
+            </div>
+            <div class="category-card" onclick="location.href='macau.html'">
+                <div class="category-icon">𝟘𝟛</div>
+                <h3>澳门币</h3>
+                <p>中国银行、大西洋银行</p>
+            </div>
+            <div class="category-card" onclick="location.href='taiwan.html'">
+                <div class="category-icon">𝟘𝟜</div>
+                <h3>新台币</h3>
+                <p>台湾银行、中央银行</p>
+            </div>
+            <div class="category-card" onclick="location.href='rmb2.html'">
+                <div class="category-icon">𝟘𝟝</div>
+                <h3>第二套人民币</h3>
+                <p>1955-1962</p>
+            </div>
+            <div class="category-card" onclick="location.href='rmb3.html'">
+                <div class="category-icon">𝟘𝟞</div>
+                <h3>第三套人民币</h3>
+                <p>1962-2000</p>
+            </div>
+            <div class="category-card" onclick="location.href='rmb4.html'">
+                <div class="category-icon">𝟘𝟟</div>
+                <h3>第四套人民币</h3>
+                <p>1987-2018</p>
+            </div>
+            <div class="category-card" onclick="location.href='rmb5.html'">
+                <div class="category-icon">𝟘𝟠</div>
+                <h3>第五套人民币</h3>
+                <p>1999-2019</p>
+            </div>
+            <div class="category-card" onclick="location.href='fec.html'">
+                <div class="category-icon">𝟘𝟡</div>
+                <h3>外汇兑换券</h3>
+                <p>1979-1995</p>
+            </div>
+            <div class="category-card" onclick="location.href='japan.html'">
+                <div class="category-icon">𝟙𝟘</div>
+                <h3>日本</h3>
+                <p>日本纸币</p>
+            </div>
+        </div>
 
         <div class="footer">
             网址建立时间：2026年4月3日<br>
@@ -467,226 +285,20 @@
         </div>
     </div>
 
-    <div id="imageModal" class="modal" onclick="closeModal()">
-        <img id="modalImg" src="">
-    </div>
-
     <script>
-        // ================== 你的原始数据，完全不动 ==================
-        const banknotesData = {
-            commemorative: { name: "纪念钞", icon: "𝟘𝟙", desc: "包含央行以及港澳台地区的所有纪念钞", series: [] },
-            hk: { name: "港币", icon: "𝟘𝟚", desc: "中国银行（香港）、香港上海汇丰银行、渣打银行", series: [] },
-            macau: { name: "澳门币", icon: "𝟘𝟛", desc: "中国银行、大西洋银行", series: [] },
-            specimen: { name: "新台币", icon: "𝟘𝟜", desc: "台湾银行，中央银行", series: [] },
-            rmb2: { name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962", series: [] },
-            rmb3: { name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000", series: [] },
-            rmb4: { name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018", series: [] },
-            rmb5: { name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019", series: [] },
-            fec: { name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995", series: [] },
-            foreign: { name: "日本", icon: "𝟙𝟘", desc: "日本纸币", series: [] }
-        };
+        // 搜索框简单保留，不影响跳转
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.querySelector('.search-btn');
+        const resetBtn = document.querySelector('.reset-btn');
 
-        const categoryOrder = ["commemorative", "hk", "macau", "specimen", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "foreign"];
+        searchBtn.addEventListener('click', () => {
+            const kw = searchInput.value.trim();
+            if (kw) alert('搜索功能仅在对应分站内使用');
+        });
 
-        let currentView = "categories";
-        let currentCategoryId = null;
-        let currentSeries = null;
-        let scrollMemory = {};
-        let searchScope = 'global';
-        let lastSearchType = "all";
-        let lastSearchKeyword = "";
-        let searchTimer = null;
-
-        // 只刷新内容，不刷新搜索框
-        function setContent(html) {
-            document.getElementById('content').innerHTML = html;
-        }
-
-        // 首页分类
-        function renderCategories() {
-            currentView = "categories";
-            currentCategoryId = null;
-            let html = `<div class="category-grid">`;
-            categoryOrder.forEach(id => {
-                const cat = banknotesData[id];
-                let total = 0;
-                cat.series.forEach(s => total += s.copies.length);
-                html += `
-                    <div class="category-card" onclick="renderSeriesList('${id}')">
-                        <div class="category-icon">${cat.icon}</div>
-                        <h3>${cat.name}</h3>
-                        <p>${cat.desc}</p>
-                        <div class="count-badge">📌 ${total} 张藏品</div>
-                    </div>`;
-            });
-            html += `</div>`;
-            setContent(html);
-        }
-
-        // 系列列表
-        function renderSeriesList(cid) {
-            currentView = "seriesList";
-            currentCategoryId = cid;
-            const cat = banknotesData[cid];
-            let html = `<div class="back-bar"><button class="back-btn" onclick="renderCategories()">← 返回分类</button></div>`;
-            html += `<div class="list-panel">
-                        <div class="panel-header">
-                            <h2>${cat.icon} ${cat.name}</h2>
-                            <p>${cat.desc}</p>
-                        </div>
-                        <div class="series-list">`;
-
-            cat.series.forEach((s, si) => {
-                html += `
-                    <div class="series-item" onclick="renderCopyList('${cid}',${si})">
-                        <div class="series-name">${s.seriesName}</div>
-                        <div class="series-count">${s.copies.length} 张</div>
-                        <div class="series-year">${s.year}</div>
-                    </div>`;
-            });
-
-            html += `</div></div>`;
-            setContent(html);
-        }
-
-        // 列表
-        function renderCopyList(cid, si) {
-            currentView = "copyList";
-            currentSeries = { cid, si };
-            const s = banknotesData[cid].series[si];
-            let html = `<div class="back-bar"><button class="back-btn" onclick="renderSeriesList('${cid}')">← 返回</button></div>`;
-            html += `<div class="list-panel">
-                        <div class="panel-header">
-                            <h2>📂 ${s.seriesName} (${s.year})</h2>
-                            <p>共 ${s.copies.length} 张</p>
-                        </div>
-                        <div class="copy-list">`;
-
-            s.copies.forEach((cp, ci) => {
-                html += `
-                    <div class="copy-item" onclick="renderDetail('${cid}',${si},${ci})">
-                        <div class="copy-index">#${cp.copyId}</div>
-                        <div class="copy-badge">${cp.condition || ''}</div>
-                        <div class="copy-version">${cp.version || ''}</div>
-                        <div class="copy-price">${cp.price || ''}</div>
-                    </div>`;
-            });
-
-            html += `</div></div>`;
-            setContent(html);
-        }
-
-        // 详情
-        function renderDetail(cid, si, ci) {
-            currentView = "detail";
-            const s = banknotesData[cid].series[si];
-            const cp = s.copies[ci];
-            let html = `<div class="back-bar"><button class="back-btn" onclick="renderCopyList('${cid}',${si})">← 返回</button></div>`;
-            html += `<div class="detail-panel">
-                        <div class="detail-header">
-                            <h3>${s.seriesName}</h3>
-                            <p>${cp.version || '无编号'} · ${cp.condition || ''}</p>
-                        </div>
-                        <div class="img-slider">
-                            <div class="img-slider-inner">
-                                <div class="img-slide"><img src="${cp.img1}" onclick="openModal(this.src)"></div>
-                                <div class="img-slide"><img src="${cp.img2}" onclick="openModal(this.src)"></div>
-                            </div>
-                            <div class="slider-dots">
-                                <span class="dot active" onclick="goSlide(0)"></span>
-                                <span class="dot" onclick="goSlide(1)"></span>
-                            </div>
-                        </div>
-                        <div class="detail-grid">
-                            <div class="detail-field"><label>冠号</label><div>${cp.version}</div></div>
-                            <div class="detail-field"><label>评级</label><div>${cp.condition}</div></div>
-                            <div class="detail-field"><label>价格</label><div>${cp.price}</div></div>
-                            <div class="detail-field"><label>发行银行</label><div>${cp.bank}</div></div>
-                            <div class="detail-field"><label>克劳斯编号</label><div>${cp.krause || '无'}</div></div>
-                            <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
-                        </div>
-                        <div class="remark-box"><label>备注</label><div>${cp.remark || '无'}</div></div>
-                    </div>`;
-            setContent(html);
-        }
-
-        // ================== 搜索：只刷新结果，不重建输入框 ==================
-        function doSearch() {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
-                const type = document.getElementById('searchType').value;
-                const kw = document.getElementById('searchInput').value.trim().toLowerCase();
-                lastSearchType = type;
-                lastSearchKeyword = kw;
-
-                if (!kw) {
-                    renderCategories();
-                    return;
-                }
-
-                let results = [];
-                categoryOrder.forEach(cid => {
-                    const cat = banknotesData[cid];
-                    cat.series.forEach((s, si) => {
-                        s.copies.forEach((cp, ci) => {
-                            let match = false;
-                            const txt = `${s.seriesName} ${cp.version} ${s.year} ${cp.condition} ${cp.krause}`.toLowerCase();
-                            if (type === 'all' && txt.includes(kw)) match = true;
-                            if (type === 'name' && s.seriesName.toLowerCase().includes(kw)) match = true;
-                            if (type === 'version' && cp.version?.toLowerCase().includes(kw)) match = true;
-                            if (type === 'year' && s.year.includes(kw)) match = true;
-                            if (type === 'agency' && cp.condition?.toLowerCase().includes(kw)) match = true;
-                            if (type === 'krause' && cp.krause?.toLowerCase().includes(kw)) match = true;
-                            if (match) results.push({ cid, si, ci, series: s, copy: cp });
-                        });
-                    });
-                });
-
-                let html = `<div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>`;
-                html += `<div class="list-panel"><div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个结果</p></div><div class="copy-list">`;
-                if (!results.length) html += `<div style="padding:2rem;text-align:center;">暂无匹配</div>`;
-                else results.forEach(item => {
-                    html += `
-                        <div class="copy-item" onclick="renderDetail('${item.cid}',${item.si},${item.ci})">
-                            <div class="copy-index">#${item.copy.copyId}</div>
-                            <div class="copy-badge">${item.copy.condition || ''}</div>
-                            <div class="copy-version">${item.series.seriesName}</div>
-                            <div class="copy-price">${item.copy.version || ''}</div>
-                        </div>`;
-                });
-                html += `</div></div>`;
-                setContent(html);
-            }, 200);
-        }
-
-        function resetSearch() {
-            document.getElementById('searchInput').value = '';
-            lastSearchKeyword = '';
-            renderCategories();
-        }
-
-        // 图片预览
-        function openModal(src) {
-            document.getElementById('imageModal').style.display = 'flex';
-            document.getElementById('modalImg').src = src;
-        }
-
-        function closeModal() {
-            document.getElementById('imageModal').style.display = 'none';
-        }
-
-        // 轮播
-        let currentSlide = 0;
-        function goSlide(i) {
-            currentSlide = i;
-            const inner = document.querySelector('.img-slider-inner');
-            const dots = document.querySelectorAll('.dot');
-            if (inner) inner.style.transform = `translateX(-${i * 100}%)`;
-            dots.forEach((d, j) => d.classList.toggle('active', j === i));
-        }
-
-        // 初始化
-        renderCategories();
+        resetBtn.addEventListener('click', () => {
+            searchInput.value = '';
+        });
     </script>
 </body>
 </html>
