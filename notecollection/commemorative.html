@@ -2,317 +2,63 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>纪念钞 | 铜の币纪</title>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#f0ebe3;font-family:system-ui,sans-serif;color:#2c2418;padding:1.5rem;min-height:100vh;padding-top:70px;}
+.container{max-width:1200px;margin:0 auto;}
+.header{text-align:center;margin-bottom:2rem;}
+.header h1{font-size:1.8rem;background:linear-gradient(135deg,#b8860b,#daa520);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:#8b6b4f;font-size:0.85rem;margin-top:0.3rem;}
 
-  body {
-    background: #f0ebe3;
-    font-family: system-ui, sans-serif;
-    color: #2c2418;
-    padding: 1.5rem;
-    min-height: 100vh;
-    padding-top: 70px;
-  }
+.back-bar{position:fixed;top:0;left:0;width:100%;background:#f0ebe3;z-index:999;padding:0.8rem 1.2rem;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.back-btn{background:white;border:1px solid #e2d5c8;color:#b8860b;font-size:0.9rem;padding:0.5rem 1rem;border-radius:30px;cursor:pointer;}
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+#search-container{background:white;border-radius:1rem;padding:1rem 1.2rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.05);display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
+.search-select{padding:0.5rem 0.8rem;border:1px solid #e2d5c8;border-radius:0.6rem;background:white;font-size:0.9rem;}
+.search-input{flex:1;min-width:180px;padding:0.6rem 1rem;border:1px solid #e2d5c8;border-radius:0.6rem;font-size:0.9rem;}
+.search-btn{background:#daa520;color:white;border:none;padding:0.6rem 1.2rem;border-radius:0.6rem;cursor:pointer;}
+.reset-btn{background:#f0ebe3;color:#8b6b4f;border:1px solid #e2d5c8;padding:0.6rem 1rem;border-radius:0.6rem;cursor:pointer;}
+.search-tip{font-size:0.75rem;color:#b1967c;margin-top:0.3rem;}
 
-  .header {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
+.list-panel{background:white;border-radius:1.5rem;padding:1.5rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
+.panel-header{border-left:5px solid #daa520;padding-left:1rem;margin-bottom:1.2rem;}
+.series-list{list-style:none;}
+.series-item{display:flex;align-items:center;padding:0.8rem 0.6rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
+.series-item:hover{background:#faf5ef;}
+.series-name{flex:1;font-weight:500;}
+.series-count{background:#e8d9cc;padding:0.2rem 0.6rem;border-radius:30px;font-size:0.7rem;}
+.series-year{width:110px;color:#8b6b4f;}
 
-  .header h1 {
-    font-size: 1.8rem;
-    background: linear-gradient(135deg, #b8860b, #daa520);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
+.copy-list{list-style:none;}
+.copy-item{display:flex;align-items:center;padding:0.8rem 0.6rem;border-bottom:1px solid #f0e4d6;cursor:pointer;}
+.copy-item:hover{background:#faf5ef;}
+.copy-index{width:45px;font-weight:600;color:#000;}
+.copy-badge{background:#e6d5c0;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.7rem;}
+.copy-price{width:100px;color:#5a6e4a;text-align:center;}
+.copy-version{flex:1;padding:0 0.5rem;color:#b8860b;font-weight:500;}
 
-  .sub {
-    color: #8b6b4f;
-    font-size: 0.85rem;
-    margin-top: 0.3rem;
-  }
+.detail-panel{background:white;border-radius:1.5rem;padding:1.8rem;box-shadow:0 6px 16px rgba(0,0,0,0.05);}
+.detail-header{border-bottom:2px solid #f0e4d6;padding-bottom:1rem;margin-bottom:1.2rem;}
 
-  .back-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background: #f0ebe3;
-    z-index: 999;
-    padding: 0.8rem 1.2rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  }
+/* 预览图：文字在下方，不遮挡 */
+.img-preview-group{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:2rem;}
+.img-preview-item{display:flex;flex-direction:column;gap:6px;cursor:pointer;}
+.img-preview-item img{width:100%;height:auto;border-radius:12px;background:#faf6ef;}
+.img-label{text-align:center;font-size:13px;color:#333;font-weight:500;}
 
-  .back-btn {
-    background: white;
-    border: 1px solid #e2d5c8;
-    color: #b8860b;
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
-    border-radius: 30px;
-    cursor: pointer;
-  }
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem;margin:1.5rem 0;}
+.detail-field{background:#faf8f5;padding:0.8rem 1rem;border-radius:1rem;}
+.detail-field label{font-size:0.7rem;color:#b1967c;display:block;margin-bottom:0.3rem;}
+.remark-box{background:#fef9f0;border-left:3px solid #daa520;padding:1rem;margin:1.2rem 0;border-radius:0.8rem;}
 
-  #search-container {
-    background: white;
-    border-radius: 1rem;
-    padding: 1rem 1.2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.8rem;
-    align-items: center;
-  }
+/* 全屏大图容器 */
+#viewer{display:none;position:fixed;inset:0;background:#000;z-index:9999;overflow:hidden;touch-action:none;}
+.viewer-slide{position:absolute;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.viewer-slide img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;}
 
-  .search-select {
-    padding: 0.5rem 0.8rem;
-    border: 1px solid #e2d5c8;
-    border-radius: 0.6rem;
-    background: white;
-    font-size: 0.9rem;
-  }
-
-  .search-input {
-    flex: 1;
-    min-width: 180px;
-    padding: 0.6rem 1rem;
-    border: 1px solid #e2d5c8;
-    border-radius: 0.6rem;
-    font-size: 0.9rem;
-  }
-
-  .search-btn {
-    background: #daa520;
-    color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 0.6rem;
-    cursor: pointer;
-  }
-
-  .reset-btn {
-    background: #f0ebe3;
-    color: #8b6b4f;
-    border: 1px solid #e2d5c8;
-    padding: 0.6rem 1rem;
-    border-radius: 0.6rem;
-    cursor: pointer;
-  }
-
-  .search-tip {
-    font-size: 0.75rem;
-    color: #b1967c;
-    margin-top: 0.3rem;
-  }
-
-  .list-panel {
-    background: white;
-    border-radius: 1.5rem;
-    padding: 1.5rem;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.05);
-  }
-
-  .panel-header {
-    border-left: 5px solid #daa520;
-    padding-left: 1rem;
-    margin-bottom: 1.2rem;
-  }
-
-  .series-list {
-    list-style: none;
-  }
-
-  .series-item {
-    display: flex;
-    align-items: center;
-    padding: 0.8rem 0.6rem;
-    border-bottom: 1px solid #f0e4d6;
-    cursor: pointer;
-  }
-
-  .series-item:hover {
-    background: #faf5ef;
-  }
-
-  .series-name {
-    flex: 1;
-    font-weight: 500;
-  }
-
-  .series-count {
-    background: #e8d9cc;
-    padding: 0.2rem 0.6rem;
-    border-radius: 30px;
-    font-size: 0.7rem;
-  }
-
-  .series-year {
-    width: 110px;
-    color: #8b6b4f;
-  }
-
-  .copy-list {
-    list-style: none;
-  }
-
-  .copy-item {
-    display: flex;
-    align-items: center;
-    padding: 0.8rem 0.6rem;
-    border-bottom: 1px solid #f0e4d6;
-    cursor: pointer;
-  }
-
-  .copy-item:hover {
-    background: #faf5ef;
-  }
-
-  .copy-index {
-    width: 45px;
-    font-weight: 600;
-    color: #000;
-  }
-
-  .copy-badge {
-    background: #e6d5c0;
-    padding: 0.2rem 0.6rem;
-    border-radius: 20px;
-    font-size: 0.7rem;
-  }
-
-  .copy-price {
-    width: 100px;
-    color: #5a6e4a;
-    text-align: center;
-  }
-
-  .copy-version {
-    flex: 1;
-    padding: 0 0.5rem;
-    color: #b8860b;
-    font-weight: 500;
-  }
-
-  .detail-panel {
-    background: white;
-    border-radius: 1.5rem;
-    padding: 1.8rem;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.05);
-  }
-
-  .detail-header {
-    border-bottom: 2px solid #f0e4d6;
-    padding-bottom: 1rem;
-    margin-bottom: 1.2rem;
-  }
-
-  /* 图片预览：文字在下方，不遮挡 */
-  .img-preview-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 2rem;
-  }
-
-  .img-preview-item {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    cursor: pointer;
-  }
-
-  .img-preview-item img {
-    width: 100%;
-    height: auto;
-    border-radius: 12px;
-    background: #faf6ef;
-    display: block;
-  }
-
-  .img-label {
-    text-align: center;
-    font-size: 13px;
-    color: #333;
-    font-weight: 500;
-  }
-
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.2rem;
-    margin: 1.5rem 0;
-  }
-
-  .detail-field {
-    background: #faf8f5;
-    padding: 0.8rem 1rem;
-    border-radius: 1rem;
-  }
-
-  .detail-field label {
-    font-size: 0.7rem;
-    color: #b1967c;
-    display: block;
-    margin-bottom: 0.3rem;
-  }
-
-  .remark-box {
-    background: #fef9f0;
-    border-left: 3px solid #daa520;
-    padding: 1rem;
-    margin: 1.2rem 0;
-    border-radius: 0.8rem;
-  }
-
-  /* 全屏大图：支持拖拽 + 缩放 */
-  .zoom-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #000;
-    z-index: 3000;
-    overflow: hidden;
-  }
-
-  .zoom-slide {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: none;
-  }
-
-  .zoom-slide img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    user-select: none;
-  }
-
-  .footer {
-    text-align: center;
-    margin-top: 1.5rem;
-    font-size: 0.7rem;
-    color: #b1967c;
-  }
+.footer{text-align:center;margin-top:1.5rem;font-size:0.7rem;color:#b1967c;}
 </style>
 </head>
 
@@ -333,20 +79,19 @@
       <option value="krause">克劳斯</option>
     </select>
     <input class="search-input" id="searchInput" placeholder="搜索">
-    <button class="search-btn" onclick="doSearch()">搜索</button>
-    <button class="reset-btn" onclick="resetSearch()">重置</button>
+    <button class="search-btn">搜索</button>
+    <button class="reset-btn">重置</button>
   </div>
   <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
 
   <div id="content"></div>
-
   <div class="footer">© 2026 铜の币纪</div>
 </div>
 
 <!-- 大图查看器 -->
-<div class="zoom-modal" id="zoomModal">
-  <div class="zoom-slide" id="slide1"><img id="z1"></div>
-  <div class="zoom-slide" id="slide2"><img id="z2"></div>
+<div id="viewer">
+  <div class="viewer-slide" id="v1"><img id="vimg1"></div>
+  <div class="viewer-slide" id="v2"><img id="vimg2"></div>
 </div>
 
 <script src="data.js"></script>
@@ -354,21 +99,17 @@
 const cat = allData.commemorative;
 let currentSeries = null;
 
-// 基础渲染
-function setContent(html) { document.getElementById("content").innerHTML = html; }
-function scrollToTop() { window.scrollTo(0,0); }
+function setContent(html){ document.getElementById('content').innerHTML = html; }
+function toTop(){ window.scrollTo(0,0); }
 
 // 系列列表
-function renderSeries() {
+function renderSeries(){
   let html = `
   <div class="back-bar">
     <button class="back-btn" onclick="location.href='index.html'">← 首页</button>
   </div>
   <div class="list-panel">
-    <div class="panel-header">
-      <h2>${cat.icon} ${cat.name}</h2>
-      <p>${cat.desc}</p>
-    </div>
+    <div class="panel-header"><h2>${cat.icon} ${cat.name}</h2><p>${cat.desc}</p></div>
     <ul class="series-list">`;
   cat.series.forEach((s,i)=>{
     html+=`<li class="series-item" onclick="renderCopies(${i})">
@@ -382,19 +123,16 @@ function renderSeries() {
 }
 
 // 藏品列表
-function renderCopies(si) {
+function renderCopies(si){
   currentSeries = si;
-  scrollToTop();
+  toTop();
   const s = cat.series[si];
   let html = `
   <div class="back-bar">
     <button class="back-btn" onclick="renderSeries()">← 返回</button>
   </div>
   <div class="list-panel">
-    <div class="panel-header">
-      <h2>${s.seriesName}（${s.year}）</h2>
-      <p>共${s.copies.length}张</p>
-    </div>
+    <div class="panel-header"><h2>${s.seriesName}（${s.year}）</h2><p>共${s.copies.length}张</p></div>
     <ul class="copy-list">`;
   s.copies.forEach((cp,ci)=>{
     html+=`<li class="copy-item" onclick="renderDetail(${si},${ci})">
@@ -409,26 +147,22 @@ function renderCopies(si) {
 }
 
 // 详情页（文字在图片下方）
-function renderDetail(si, ci) {
-  scrollToTop();
-  const s = cat.series[si];
-  const cp = s.copies[ci];
+function renderDetail(si, ci){
+  toTop();
+  const s=cat.series[si], cp=s.copies[ci];
   let html = `
   <div class="back-bar">
     <button class="back-btn" onclick="renderCopies(${si})">← 返回</button>
   </div>
   <div class="detail-panel">
-    <div class="detail-header">
-      <h3>${s.seriesName}</h3>
-      <p>${cp.version} · ${cp.condition}</p>
-    </div>
+    <div class="detail-header"><h3>${s.seriesName}</h3><p>${cp.version} · ${cp.condition}</p></div>
 
     <div class="img-preview-group">
-      <div class="img-preview-item" onclick="openZoom(0,'${cp.img1}','${cp.img2}')">
+      <div class="img-preview-item" onclick="openViewer(0,'${cp.img1}','${cp.img2}')">
         <img src="${cp.img1}">
         <div class="img-label">正面</div>
       </div>
-      <div class="img-preview-item" onclick="openZoom(1,'${cp.img1}','${cp.img2}')">
+      <div class="img-preview-item" onclick="openViewer(1,'${cp.img1}','${cp.img2}')">
         <img src="${cp.img2}">
         <div class="img-label">背面</div>
       </div>
@@ -443,83 +177,70 @@ function renderDetail(si, ci) {
       <div class="detail-field"><label>年份</label><div>${s.year}</div></div>
     </div>
 
-    <div class="remark-box">
-      <label>备注</label>
-      <div>${cp.remark||'无'}</div>
-    </div>
+    <div class="remark-box"><label>备注</label><div>${cp.remark||'无'}</div></div>
   </div>`;
   setContent(html);
 }
 
-// ====================== 大图缩放 + 滑动 ======================
-let currentZoomIndex = 0;
-let startX = 0, currentX = 0;
-let scale = 1, startScale = 1;
+// ====================== 真正可滑动 + 缩放的大图 ======================
+const viewer = document.getElementById('viewer');
+let slide = 0, startX=0, dx=0, scale=1, startDist=0;
 
-function openZoom(idx, src1, src2) {
-  document.getElementById("z1").src = src1;
-  document.getElementById("z2").src = src2;
-  currentZoomIndex = idx;
-  scale = 1;
-  updateZoom();
-  document.getElementById("zoomModal").style.display = "block";
+function openViewer(idx, a, b){
+  vimg1.src=a; vimg2.src=b; slide=idx; dx=0; scale=1; update();
+  viewer.style.display='block';
 }
 
-document.getElementById("zoomModal").addEventListener("click", (e) => {
-  if (e.target === document.getElementById("zoomModal")) {
-    document.getElementById("zoomModal").style.display = "none";
-  }
+viewer.addEventListener('click', e=>{
+  if(e.target===viewer) viewer.style.display='none';
 });
 
-// 单指滑动切换
-document.getElementById("zoomModal").addEventListener("touchstart", (e) => {
-  if (e.touches.length === 1) {
-    startX = e.touches[0].clientX - currentX;
-  }
-});
-
-document.getElementById("zoomModal").addEventListener("touchmove", (e) => {
+viewer.addEventListener('touchstart', e=>{
   e.preventDefault();
-  if (e.touches.length === 1) {
-    // 滑动跟随手指
-    currentX = e.touches[0].clientX - startX;
-    updateZoom();
-  } else if (e.touches.length === 2) {
-    // 双指缩放
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    scale = Math.min(3, Math.max(1, dist / 50));
-    updateZoom();
+  if(e.touches.length===1){
+    startX = e.touches[0].clientX - dx;
+  } else if(e.touches.length===2){
+    const xd = e.touches[0].clientX - e.touches[1].clientX;
+    const yd = e.touches[0].clientY - e.touches[1].clientY;
+    startDist = Math.hypot(xd, yd);
   }
 });
 
-document.getElementById("zoomModal").addEventListener("touchend", () => {
-  // 松手吸附
-  const w = window.innerWidth;
-  if (currentX < -w/2) currentZoomIndex = 1;
-  if (currentX > w/2) currentZoomIndex = 0;
-  currentX = -currentZoomIndex * w;
-  updateZoom();
+viewer.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if(e.touches.length===1){
+    dx = e.touches[0].clientX - startX;
+    update();
+  } else if(e.touches.length===2){
+    const xd = e.touches[0].clientX - e.touches[1].clientX;
+    const yd = e.touches[0].clientY - e.touches[1].clientY;
+    const d = Math.hypot(xd, yd);
+    scale = Math.min(3, Math.max(1, d/startDist));
+    update();
+  }
 });
 
-function updateZoom() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+viewer.addEventListener('touchend', ()=>{
+  const w = innerWidth;
+  if(dx < -w*0.25) slide=1;
+  if(dx > w*0.25)  slide=0;
+  dx = -slide*w;
+  update();
+});
 
-  // 位置
-  slide1.style.transform = `translate(${currentX}px, 0) scale(${scale})`;
-  slide2.style.transform = `translate(${currentX + w}px, 0) scale(${scale})`;
+function update(){
+  const w = innerWidth;
+  v1.style.transform = `translate(${dx}px, 0) scale(${scale})`;
+  v2.style.transform = `translate(${dx + w}px, 0) scale(${scale})`;
 }
 
 // 搜索
-function doSearch() {}
-function resetSearch() {
-  document.getElementById("searchInput").value = "";
+document.querySelector('.search-btn').onclick=()=>{};
+document.querySelector('.reset-btn').onclick=()=>{
+  document.getElementById('searchInput').value='';
   renderSeries();
-}
+};
 
-// 初始化
 renderSeries();
 </script>
 </body>
