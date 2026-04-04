@@ -153,6 +153,23 @@
             padding: 0.5rem;
         }
 
+        /* 日期时间显示样式 */
+        .datetime-display {
+            text-align: center;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: #5a6e8a;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+            border-top: 1px dashed #2a3644;
+            padding-top: 1rem;
+        }
+        .dashboard .datetime-display {
+            margin-top: 1rem;
+            border-top: 1px dashed #2a3644;
+        }
+
         .dashboard {
             display: none;
             animation: fadeInUp 0.5s ease;
@@ -221,7 +238,7 @@
         }
 
         .footer-note {
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             font-size: 0.7rem;
             text-align: center;
             color: #3f506e;
@@ -273,6 +290,8 @@
                 <div id="errorMsg" class="error-msg"></div>
                 <div id="timerInfo" class="timer-block" style="display: none;"></div>
             </div>
+            <!-- 验证页面的日期时间显示 -->
+            <div class="datetime-display" id="lockDatetime">--年--月--日 --:--:--</div>
         </div>
 
         <!-- 解锁后网站列表区域 -->
@@ -294,6 +313,8 @@
                 <span class="site-name">更多站点 (敬请期待)</span>
                 <span class="site-link" style="background:#11161f; cursor:default;">即将开放</span>
             </div>
+            <!-- 解锁页面的日期时间显示 -->
+            <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
             <div class="footer-note">
                 网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
             </div>
@@ -316,6 +337,7 @@
         let failCount = 0;              // 当前连续错误次数（未锁定期间累加，达到3触发锁定）
         let lockLevel = 0;              // 当前是第几次锁定（0=第一次锁定，1=第二次...用于决定锁定时间）
         let timerInterval = null;
+        let datetimeInterval = null;    // 日期时间更新定时器
         
         // DOM 元素
         const lockZone = document.getElementById('lockZone');
@@ -325,10 +347,54 @@
         const errorMsgDiv = document.getElementById('errorMsg');
         const timerInfoDiv = document.getElementById('timerInfo');
         const resetLockBtn = document.getElementById('resetLockBtn');
+        const lockDatetimeEl = document.getElementById('lockDatetime');
+        const dashboardDatetimeEl = document.getElementById('dashboardDatetime');
         
         // localStorage 持久化
         const STORAGE_LOCK_UNTIL = 'lockUntilTimestamp';
         const STORAGE_LOCK_LEVEL = 'lockLevel';
+        
+        // ---------- 日期时间显示函数 ----------
+        // 格式化日期时间：2026年4月4日 23:59:59
+        function formatCurrentDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+        }
+        
+        // 更新所有页面的日期时间显示
+        function updateAllDatetime() {
+            const datetimeStr = formatCurrentDateTime();
+            if (lockDatetimeEl) {
+                lockDatetimeEl.textContent = datetimeStr;
+            }
+            if (dashboardDatetimeEl) {
+                dashboardDatetimeEl.textContent = datetimeStr;
+            }
+        }
+        
+        // 启动日期时间定时器（每秒更新）
+        function startDatetimeTimer() {
+            if (datetimeInterval) {
+                clearInterval(datetimeInterval);
+            }
+            // 立即更新一次
+            updateAllDatetime();
+            datetimeInterval = setInterval(updateAllDatetime, 1000);
+        }
+        
+        // 停止日期时间定时器（页面关闭时可选，但保留也没问题）
+        function stopDatetimeTimer() {
+            if (datetimeInterval) {
+                clearInterval(datetimeInterval);
+                datetimeInterval = null;
+            }
+        }
         
         // 格式化时间显示：大于等于60秒显示"X分Y秒"，60秒显示"1分0秒"
         function formatTime(seconds) {
@@ -627,6 +693,9 @@
                     }
                 }, 200);
             }
+            
+            // 启动日期时间显示（每秒更新）
+            startDatetimeTimer();
             
             unlockBtn.addEventListener('click', verifyPassword);
             resetLockBtn.addEventListener('click', resetToLock);
