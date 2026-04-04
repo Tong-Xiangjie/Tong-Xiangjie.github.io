@@ -44,34 +44,6 @@
             margin-top: 0.3rem;
         }
 
-        .back-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background: #f0ebe3;
-            z-index: 999;
-            padding: 0.8rem 1.2rem;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-        }
-
-        .back-btn {
-            background: white;
-            border: 1px solid #e2d5c8;
-            color: #b8860b;
-            font-size: 0.9rem;
-            cursor: pointer;
-            padding: 0.5rem 1rem;
-            border-radius: 30px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .back-btn:hover {
-            background: #e8d9cc;
-        }
-
         #search-container {
             background: white;
             border-radius: 1rem;
@@ -149,7 +121,6 @@
             background: white;
             border-radius: 1.5rem;
             box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-            cursor: pointer;
             transition: all 0.2s;
             border: 1px solid #e2d5c8;
             text-align: center;
@@ -194,6 +165,10 @@
             color: #b1967c;
         }
 
+        a {
+            text-decoration: none;
+        }
+
         @media (max-width: 650px) {
             body {
                 padding: 1rem;
@@ -211,7 +186,7 @@
         </div>
 
         <div id="search-container">
-            <select class="search-select" id="searchType">
+            <select class="search-select">
                 <option value="all" selected>全字段搜索（默认）</option>
                 <option value="name">按名称搜索</option>
                 <option value="version">按冠字号搜索</option>
@@ -219,86 +194,89 @@
                 <option value="agency">按评级机构(ACG/PMG)</option>
                 <option value="krause">按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容">
+            <input type="text" class="search-input" placeholder="请输入搜索内容">
             <button class="search-btn">搜索</button>
             <button class="reset-btn">重置</button>
         </div>
         <div class="search-tip">💡 名称、冠号、年份、评级、编号均可搜索</div>
 
-        <!-- 10 个分类，跳转到独立 HTML -->
         <div class="category-grid">
-            <div class="category-card" onclick="location.href='commemorative.html'">
-                <div class="category-icon">𝟘𝟙</div>
-                <h3>纪念钞</h3>
-                <p>包含央行以及港澳台地区的所有纪念钞</p>
-            </div>
-            <div class="category-card" onclick="location.href='hongkong.html'">
-                <div class="category-icon">𝟘𝟚</div>
-                <h3>港币</h3>
-                <p>中国银行（香港）、汇丰、渣打</p>
-            </div>
-            <div class="category-card" onclick="location.href='macau.html'">
-                <div class="category-icon">𝟘𝟛</div>
-                <h3>澳门币</h3>
-                <p>中国银行、大西洋银行</p>
-            </div>
-            <div class="category-card" onclick="location.href='taiwan.html'">
-                <div class="category-icon">𝟘𝟜</div>
-                <h3>新台币</h3>
-                <p>台湾银行、中央银行</p>
-            </div>
-            <div class="category-card" onclick="location.href='rmb2.html'">
-                <div class="category-icon">𝟘𝟝</div>
-                <h3>第二套人民币</h3>
-                <p>1955-1962</p>
-            </div>
-            <div class="category-card" onclick="location.href='rmb3.html'">
-                <div class="category-icon">𝟘𝟞</div>
-                <h3>第三套人民币</h3>
-                <p>1962-2000</p>
-            </div>
-            <div class="category-card" onclick="location.href='rmb4.html'">
-                <div class="category-icon">𝟘𝟟</div>
-                <h3>第四套人民币</h3>
-                <p>1987-2018</p>
-            </div>
-            <div class="category-card" onclick="location.href='rmb5.html'">
-                <div class="category-icon">𝟘𝟠</div>
-                <h3>第五套人民币</h3>
-                <p>1999-2019</p>
-            </div>
-            <div class="category-card" onclick="location.href='fec.html'">
-                <div class="category-icon">𝟘𝟡</div>
-                <h3>外汇兑换券</h3>
-                <p>1979-1995</p>
-            </div>
-            <div class="category-card" onclick="location.href='japan.html'">
-                <div class="category-icon">𝟙𝟘</div>
-                <h3>日本</h3>
-                <p>日本纸币</p>
-            </div>
+            <a href="commemorative.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟙</div>
+                    <h3>纪念钞</h3>
+                    <p>包含央行以及港澳台地区的所有纪念钞</p>
+                </div>
+            </a>
+            <a href="hongkong.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟚</div>
+                    <h3>港币</h3>
+                    <p>中国银行（香港）、汇丰、渣打</p>
+                </div>
+            </a>
+            <a href="macau.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟛</div>
+                    <h3>澳门币</h3>
+                    <p>中国银行、大西洋银行</p>
+                </div>
+            </a>
+            <a href="taiwan.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟜</div>
+                    <h3>新台币</h3>
+                    <p>台湾银行、中央银行</p>
+                </div>
+            </a>
+            <a href="rmb2.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟝</div>
+                    <h3>第二套人民币</h3>
+                    <p>1955-1962</p>
+                </div>
+            </a>
+            <a href="rmb3.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟞</div>
+                    <h3>第三套人民币</h3>
+                    <p>1962-2000</p>
+                </div>
+            </a>
+            <a href="rmb4.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟟</div>
+                    <h3>第四套人民币</h3>
+                    <p>1987-2018</p>
+                </div>
+            </a>
+            <a href="rmb5.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟠</div>
+                    <h3>第五套人民币</h3>
+                    <p>1999-2019</p>
+                </div>
+            </a>
+            <a href="fec.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟘𝟡</div>
+                    <h3>外汇兑换券</h3>
+                    <p>1979-1995</p>
+                </div>
+            </a>
+            <a href="japan.html">
+                <div class="category-card">
+                    <div class="category-icon">𝟙𝟘</div>
+                    <h3>日本</h3>
+                    <p>日本纸币</p>
+                </div>
+            </a>
         </div>
 
         <div class="footer">
-            网址建立时间：2026年4月3日<br>
+            网页建立时间：2026年4月3日<br>
             © 2026 铜の币纪 版权所有
         </div>
     </div>
-
-    <script>
-        // 搜索框简单保留，不影响跳转
-        const searchInput = document.getElementById('searchInput');
-        const searchBtn = document.querySelector('.search-btn');
-        const resetBtn = document.querySelector('.reset-btn');
-
-        searchBtn.addEventListener('click', () => {
-            const kw = searchInput.value.trim();
-            if (kw) alert('搜索功能仅在对应分站内使用');
-        });
-
-        resetBtn.addEventListener('click', () => {
-            searchInput.value = '';
-        });
-    </script>
 </body>
 </html>
