@@ -12,7 +12,6 @@
             user-select: none;
         }
 
-        /* 整体纯黑背景（保留要求） */
         body {
             min-height: 100vh;
             background: #000000;
@@ -23,7 +22,6 @@
             padding: 1.5rem;
         }
 
-        /* 面板纯黑，无玻璃模糊、无阴影、无边框 */
         .glass-panel {
             background: #000000;
             border-radius: 2.5rem;
@@ -43,7 +41,7 @@
             text-align: center;
             margin-bottom: 2rem;
         }
-        /* 主图尺寸改为120×120，适配放大需求 */
+
         .logo-icon {
             font-size: 3.2rem;
             opacity: 0.9;
@@ -51,7 +49,7 @@
             height: 120px;
             object-fit: contain;
         }
-        /* 标题渐变改为蓝色荧光系，匹配图片 */
+
         h1 {
             font-size: 1.8rem;
             font-weight: 500;
@@ -62,6 +60,7 @@
             color: transparent;
             margin-top: 0.5rem;
         }
+
         .sub {
             font-size: 0.75rem;
             color: #7e8a9e;
@@ -74,6 +73,7 @@
         .password-section {
             transition: all 0.2s;
         }
+
         .input-group {
             background: #0e1622cc;
             border-radius: 2rem;
@@ -83,6 +83,7 @@
             padding: 0.2rem 0.2rem 0.2rem 1.5rem;
             margin-bottom: 1rem;
         }
+
         .input-group input {
             background: transparent;
             border: none;
@@ -95,18 +96,19 @@
             outline: none;
             font-family: monospace;
         }
+
         .input-group input::placeholder {
             color: #3a465a;
             letter-spacing: 2px;
             font-size: 1rem;
             font-family: monospace;
         }
+
         .lock-icon {
             color: #00aaff;
             font-size: 1.4rem;
         }
 
-        /* 按钮主题色改为蓝色荧光系，hover发光匹配图片 */
         button {
             background: linear-gradient(95deg, #1f2a3e, #0f172a);
             border: 1px solid #2e3b4e;
@@ -121,9 +123,11 @@
             font-family: inherit;
             letter-spacing: 1px;
         }
+
         button:active {
             transform: scale(0.97);
         }
+
         button:hover {
             background: #1f314a;
             border-color: #3c8dbc;
@@ -142,6 +146,7 @@
             border-radius: 2rem;
             padding: 0.4rem;
         }
+
         .timer-block {
             text-align: center;
             margin-top: 1rem;
@@ -153,7 +158,6 @@
             padding: 0.5rem;
         }
 
-        /* 日期时间显示样式 */
         .datetime-display {
             text-align: center;
             margin-top: 1.5rem;
@@ -165,6 +169,7 @@
             border-top: 1px dashed #2a3644;
             padding-top: 1rem;
         }
+
         .dashboard .datetime-display {
             margin-top: 1rem;
             border-top: 1px dashed #2a3644;
@@ -174,6 +179,7 @@
             display: none;
             animation: fadeInUp 0.5s ease;
         }
+
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -184,7 +190,7 @@
                 transform: translateY(0);
             }
         }
-        /* 左侧标题条改为蓝色荧光 */
+
         .section-title {
             font-size: 1.5rem;
             margin-bottom: 1.5rem;
@@ -206,17 +212,20 @@
             align-items: center;
             flex-wrap: wrap;
         }
+
         .site-card:hover {
             background: #000000;
             border-color: #3c8dbc;
             transform: translateX(6px);
         }
+
         .site-name {
             font-weight: 600;
             font-size: 1.2rem;
             color: #cde0ff;
             letter-spacing: 1px;
         }
+
         .site-link {
             background: #0b1422;
             padding: 0.4rem 1rem;
@@ -230,6 +239,7 @@
             align-items: center;
             gap: 6px;
         }
+
         .site-link:hover {
             background: #00aaff20;
             color: white;
@@ -245,6 +255,7 @@
             border-top: 1px solid #1e2a3a;
             padding-top: 1rem;
         }
+
         .back-btn {
             background: none;
             border: 1px solid #3e506e;
@@ -254,6 +265,7 @@
             padding: 0.5rem 1.2rem;
             font-size: 0.8rem;
         }
+
         .flex-between {
             display: flex;
             justify-content: space-between;
@@ -264,20 +276,37 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+
+        /* 验证码明文显示，增大间距 */
+        .captcha-display {
+            background: #0e1622cc;
+            border-radius: 2rem;
+            border: 1px solid #00aaff;
+            padding: 0.8rem 1.5rem;
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 8px;
+            font-family: monospace;
+            color: #00aaff;
+            margin-bottom: 1rem;
+        }
+
         @media (max-width: 480px) {
             .content { padding: 1.5rem; }
             .site-card { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
             .site-link { align-self: flex-start; }
+            .captcha-display { font-size: 1.4rem; letter-spacing: 4px; }
         }
     </style>
 </head>
 <body>
 <div class="glass-panel" id="appRoot">
     <div class="content">
-        <!-- 未解锁区域 (密码界面) -->
+        <!-- 页面1: 密码验证界面 -->
         <div id="lockZone">
             <div class="logo-area">
-                <img src="image/headphoto.png" class="logo-icon">
+                <img src="image/headphoto.png" class="logo-icon" alt="logo">
                 <h1>请验证后进入</h1>
                 <div class="sub">VERIFICATION GATE</div>
             </div>
@@ -290,42 +319,66 @@
                 <div id="errorMsg" class="error-msg"></div>
                 <div id="timerInfo" class="timer-block" style="display: none;"></div>
             </div>
-            <!-- 验证页面的日期时间显示 -->
             <div class="datetime-display" id="lockDatetime">--年--月--日 --:--:--</div>
+            <div class="footer-note">
+                网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
+            </div>
         </div>
 
-        <!-- 解锁后网站列表区域 -->
+        <!-- 页面2: 二次验证界面 (仅锁定过的人才会进入) -->
+        <div id="twoFactorZone" style="display: none;">
+            <div class="logo-area">
+                <img src="image/headphoto.png" class="logo-icon" alt="logo">
+                <h1>二次验证</h1>
+                <div class="sub">TWO-FACTOR VERIFICATION</div>
+            </div>
+            <div class="password-section">
+                <div class="captcha-display" id="captchaCode">----</div>
+                <div class="input-group">
+                    <span class="lock-icon"></span>
+                    <input type="text" id="twoFactorInput" maxlength="4" placeholder="请输入上方验证码" inputmode="text" style="letter-spacing: 2px;">
+                </div>
+                <div class="flex-between" style="gap: 1rem;">
+                    <button id="twoFactorBackBtn" class="back-btn" style="width: 40%;">返回</button>
+                    <button id="twoFactorVerifyBtn" style="width: 60%;">验证/VERIFY</button>
+                </div>
+                <div id="twoFactorErrorMsg" class="error-msg"></div>
+                <div id="twoFactorTimerInfo" class="timer-block" style="display: none;"></div>
+            </div>
+            <div class="datetime-display" id="twoFactorDatetime">--年--月--日 --:--:--</div>
+            <div class="footer-note">
+                网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
+            </div>
+        </div>
+
+        <!-- 页面3: 网站列表界面 -->
         <div id="dashboardZone" class="dashboard">
             <div class="logo-area" style="margin-bottom: 1rem;">
-                <img src="image/headphoto.png" class="logo-icon">
+                <img src="image/headphoto.png" class="logo-icon" alt="logo">
                 <h1>网页总站</h1>
                 <div class="sub">MAIN PORTAL</div>
             </div>
             <div class="section-title">分站入口</div>
-            
-            <!-- 第1个站点：钱币收藏档案 -->
+
             <div class="site-card">
                 <span class="site-name">钱币收藏档案</span>
                 <a href="https://Tong-Xiangjie.github.io/notecollection/" class="site-link" target="_blank" rel="noopener noreferrer">
                     notecollection ↗
                 </a>
             </div>
-            
-            <!-- 第2个站点：全屏时钟 (新增) -->
+
             <div class="site-card">
                 <span class="site-name">全屏时钟</span>
                 <a href="https://Tong-Xiangjie.github.io/time/" class="site-link" target="_blank" rel="noopener noreferrer">
                     time ↗
                 </a>
             </div>
-            
-            <!-- 预留扩展其他分站，未来可加 -->
+
             <div class="site-card" style="opacity: 0.7;">
                 <span class="site-name">更多站点 (敬请期待)</span>
                 <span class="site-link" style="background:#11161f; cursor:default;">即将开放</span>
             </div>
-            
-            <!-- 解锁页面的日期时间显示 -->
+
             <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
             <div class="footer-note">
                 网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
@@ -339,20 +392,23 @@
     (function(){
         // ---------- 阶梯锁定配置 ----------
         const VALID_CODES = new Set(["070529", "790815"]);
-        
-        // 阶梯锁定时间序列（秒）：第1次锁30秒，第2次锁60秒(1分钟)，第3次锁120秒(2分钟)，第4次锁180秒(3分钟)，第5次及以后锁300秒(5分钟)
         const LOCK_STEPS = [30, 60, 120, 180, 300];
-        const MAX_LOCK_SECONDS = 300;  // 最高5分钟
-        
-        // 状态变量
+        const MAX_LOCK_SECONDS = 300;
+
+        // 核心状态
         let lockUntil = 0;              // 锁定截止时间戳
-        let failCount = 0;              // 当前连续错误次数（未锁定期间累加，达到3触发锁定）
-        let lockLevel = 0;              // 当前是第几次锁定（0=第一次锁定，1=第二次...用于决定锁定时间）
+        let failCount = 0;              // 当前连续错误次数（仅用于一次验证）
+        let lockLevel = 0;              // 当前是第几次锁定（0=第一次锁定前，1=已锁1次...）
+        let hasEverLocked = false;      // 是否曾经被锁定过（用于判断是否需要二次验证）
+        let pendingTwoFactor = false;    // 是否等待二次验证（正确密码后但未过二验）
+        let currentCaptcha = "";         // 当前验证码
+
         let timerInterval = null;
-        let datetimeInterval = null;    // 日期时间更新定时器
-        
+        let datetimeInterval = null;
+
         // DOM 元素
         const lockZone = document.getElementById('lockZone');
+        const twoFactorZone = document.getElementById('twoFactorZone');
         const dashboardZone = document.getElementById('dashboardZone');
         const passwordInput = document.getElementById('passwordInput');
         const unlockBtn = document.getElementById('unlockBtn');
@@ -361,13 +417,17 @@
         const resetLockBtn = document.getElementById('resetLockBtn');
         const lockDatetimeEl = document.getElementById('lockDatetime');
         const dashboardDatetimeEl = document.getElementById('dashboardDatetime');
-        
-        // localStorage 持久化
-        const STORAGE_LOCK_UNTIL = 'lockUntilTimestamp';
-        const STORAGE_LOCK_LEVEL = 'lockLevel';
-        
-        // ---------- 日期时间显示函数 ----------
-        // 格式化日期时间：2026年4月4日 23:59:59
+
+        // 二次验证 DOM
+        const twoFactorInput = document.getElementById('twoFactorInput');
+        const twoFactorVerifyBtn = document.getElementById('twoFactorVerifyBtn');
+        const twoFactorBackBtn = document.getElementById('twoFactorBackBtn');
+        const twoFactorErrorMsg = document.getElementById('twoFactorErrorMsg');
+        const twoFactorTimerInfo = document.getElementById('twoFactorTimerInfo');
+        const captchaCodeEl = document.getElementById('captchaCode');
+        const twoFactorDatetimeEl = document.getElementById('twoFactorDatetime');
+
+        // ---------- 辅助函数 ----------
         function formatCurrentDateTime() {
             const now = new Date();
             const year = now.getFullYear();
@@ -378,92 +438,75 @@
             const seconds = now.getSeconds().toString().padStart(2, '0');
             return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
         }
-        
-        // 更新所有页面的日期时间显示
+
         function updateAllDatetime() {
             const datetimeStr = formatCurrentDateTime();
-            if (lockDatetimeEl) {
-                lockDatetimeEl.textContent = datetimeStr;
-            }
-            if (dashboardDatetimeEl) {
-                dashboardDatetimeEl.textContent = datetimeStr;
-            }
+            if (lockDatetimeEl) lockDatetimeEl.textContent = datetimeStr;
+            if (dashboardDatetimeEl) dashboardDatetimeEl.textContent = datetimeStr;
+            if (twoFactorDatetimeEl) twoFactorDatetimeEl.textContent = datetimeStr;
         }
-        
-        // 启动日期时间定时器（每秒更新）
+
         function startDatetimeTimer() {
-            if (datetimeInterval) {
-                clearInterval(datetimeInterval);
-            }
-            // 立即更新一次
+            if (datetimeInterval) clearInterval(datetimeInterval);
             updateAllDatetime();
             datetimeInterval = setInterval(updateAllDatetime, 1000);
         }
-        
-        // 停止日期时间定时器（页面关闭时可选，但保留也没问题）
-        function stopDatetimeTimer() {
-            if (datetimeInterval) {
-                clearInterval(datetimeInterval);
-                datetimeInterval = null;
-            }
-        }
-        
-        // 格式化时间显示：大于等于60秒显示"X分Y秒"，60秒显示"1分0秒"
+
         function formatTime(seconds) {
-            if (seconds < 60) {
-                return seconds + '秒';
-            }
+            if (seconds < 60) return seconds + '秒';
             const minutes = Math.floor(seconds / 60);
             const secs = seconds % 60;
-            if (secs === 0) {
-                return minutes + '分0秒';
-            }
+            if (secs === 0) return minutes + '分0秒';
             return minutes + '分' + secs + '秒';
         }
-        
-        // 根据锁定次数获取锁定时长（秒）
+
         function getLockDuration(level) {
-            if (level < LOCK_STEPS.length) {
-                return LOCK_STEPS[level];
-            }
+            if (level < LOCK_STEPS.length) return LOCK_STEPS[level];
             return MAX_LOCK_SECONDS;
         }
-        
-        // 持久化锁定到期时间
-        function persistLockUntil() {
+
+        // 生成4位随机验证码（数字+大小写字母）
+        function generateCaptcha() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // 刷新验证码显示
+        function refreshCaptcha() {
+            currentCaptcha = generateCaptcha();
+            captchaCodeEl.textContent = currentCaptcha;
+        }
+
+        // 持久化存储
+        const STORAGE_LOCK_UNTIL = 'lockUntilTimestamp';
+        const STORAGE_LOCK_LEVEL = 'lockLevel';
+        const STORAGE_HAS_EVER_LOCKED = 'hasEverLocked';
+
+        function persistLockState() {
             if (lockUntil > 0) {
                 localStorage.setItem(STORAGE_LOCK_UNTIL, lockUntil.toString());
             } else {
                 localStorage.removeItem(STORAGE_LOCK_UNTIL);
             }
-        }
-        
-        // 持久化锁定等级
-        function persistLockLevel() {
             localStorage.setItem(STORAGE_LOCK_LEVEL, lockLevel.toString());
+            localStorage.setItem(STORAGE_HAS_EVER_LOCKED, hasEverLocked.toString());
         }
-        
-        function clearPersistedLock() {
-            localStorage.removeItem(STORAGE_LOCK_UNTIL);
-            localStorage.removeItem(STORAGE_LOCK_LEVEL);
-        }
-        
-        // 从存储恢复锁定状态
-        function restoreLockFromStorage() {
+
+        function restoreLockState() {
             const storedUntil = localStorage.getItem(STORAGE_LOCK_UNTIL);
             const storedLevel = localStorage.getItem(STORAGE_LOCK_LEVEL);
-            
-            if (storedLevel) {
-                lockLevel = parseInt(storedLevel, 10);
-                if (isNaN(lockLevel)) lockLevel = 0;
-            } else {
-                lockLevel = 0;
-            }
-            
+            const storedEverLocked = localStorage.getItem(STORAGE_HAS_EVER_LOCKED);
+
+            if (storedLevel) lockLevel = parseInt(storedLevel, 10) || 0;
+            if (storedEverLocked) hasEverLocked = storedEverLocked === 'true';
+
             if (storedUntil) {
                 const storedTime = parseInt(storedUntil, 10);
-                const now = Date.now();
-                if (storedTime > now) {
+                if (storedTime > Date.now()) {
                     lockUntil = storedTime;
                     return true;
                 } else {
@@ -472,101 +515,110 @@
             }
             return false;
         }
-        
+
+        function clearPersistedLock() {
+            localStorage.removeItem(STORAGE_LOCK_UNTIL);
+            localStorage.removeItem(STORAGE_LOCK_LEVEL);
+            localStorage.removeItem(STORAGE_HAS_EVER_LOCKED);
+        }
+
         function clearTimer() {
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
         }
-        
-        // 解除锁定（仅解除锁定状态，不清除lockLevel，因为阶梯等级需要保留直到登录成功）
-        function releaseLockOnly() {
-            lockUntil = 0;
-            clearPersistedLock();
-            persistLockLevel();  // 保留lockLevel
-            clearTimer();
-            updateLockUI();
-        }
-        
-        // 登录成功时完全重置所有状态
-        function resetAllOnSuccess() {
-            clearTimer();
-            lockUntil = 0;
-            failCount = 0;
-            lockLevel = 0;           // 成功登录，阶梯等级归零
-            clearPersistedLock();    // 会清除level和until
-            updateLockUI();
-        }
-        
-        // 触发锁定
-        function applyLockout() {
+
+        // 锁定核心
+        function applyLockout(isFromTwoFactor = false) {
             const now = Date.now();
             const lockSeconds = getLockDuration(lockLevel);
             const lockDurationMs = lockSeconds * 1000;
             lockUntil = now + lockDurationMs;
             
-            // 锁定等级递增（下一次锁定时间更长）
+            // 锁定等级递增
             lockLevel++;
+            hasEverLocked = true;
             
-            // 持久化
-            persistLockUntil();
-            persistLockLevel();
-            
-            // 重置当前错误计数（因为已经触发锁定，重新开始计数）
+            persistLockState();
             failCount = 0;
             
             clearTimer();
-            updateLockUI();
+            updateAllLockUI();
             
-            // 启动倒计时刷新
+            // 启动倒计时
             timerInterval = setInterval(() => {
-                const nowMs = Date.now();
-                const remaining = lockUntil - nowMs;
+                const remaining = lockUntil - Date.now();
                 if (remaining <= 0) {
                     clearTimer();
-                    releaseLockOnly();
-                    updateLockUI();
-                    errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
-                    setTimeout(() => {
-                        if (errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') {
-                            errorMsgDiv.innerHTML = '';
-                        }
-                    }, 1800);
-                    passwordInput.value = '';
-                    passwordInput.focus();
+                    releaseLock();
+                    updateAllLockUI();
+                    
+                    // 显示解锁提示
+                    const errorDiv = isFromTwoFactor ? twoFactorErrorMsg : errorMsgDiv;
+                    if (errorDiv) {
+                        errorDiv.innerHTML = '锁定已解除，请重新验证';
+                        setTimeout(() => {
+                            if (errorDiv.innerHTML === '锁定已解除，请重新验证') errorDiv.innerHTML = '';
+                        }, 1800);
+                    }
+                    if (passwordInput) passwordInput.value = '';
+                    if (twoFactorInput) twoFactorInput.value = '';
                 } else {
                     const secs = Math.ceil(remaining / 1000);
-                    timerInfoDiv.style.display = 'block';
-                    timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${formatTime(secs)} 后再试。`;
+                    const timerMsg = `验证失败次数过多，已锁定。<br>请 ${formatTime(secs)} 后再试。`;
+                    
+                    if (isFromTwoFactor && twoFactorZone.style.display === 'block') {
+                        twoFactorTimerInfo.style.display = 'block';
+                        twoFactorTimerInfo.innerHTML = timerMsg;
+                    } else if (lockZone.style.display === 'block') {
+                        timerInfoDiv.style.display = 'block';
+                        timerInfoDiv.innerHTML = timerMsg;
+                    }
                 }
             }, 200);
         }
         
-        function updateLockUI() {
+        function releaseLock() {
+            lockUntil = 0;
+            clearPersistedLock();
+            persistLockState();
+            clearTimer();
+            updateAllLockUI();
+        }
+        
+        function updateAllLockUI() {
             const now = Date.now();
-            const isCurrentlyLocked = (lockUntil > now);
+            const isLocked = (lockUntil > now);
             
-            if (isCurrentlyLocked) {
-                const remainSeconds = Math.ceil((lockUntil - now) / 1000);
-                if (remainSeconds > 0) {
-                    timerInfoDiv.style.display = 'block';
-                    timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${formatTime(remainSeconds)} 后再试。`;
-                }
+            // 更新密码页UI
+            if (isLocked) {
                 passwordInput.disabled = true;
                 unlockBtn.disabled = true;
                 errorMsgDiv.innerHTML = '账户暂时锁定，请稍后再试';
             } else {
                 passwordInput.disabled = false;
                 unlockBtn.disabled = false;
-                timerInfoDiv.style.display = 'none';
-                if (errorMsgDiv.innerHTML.includes('锁定') && !errorMsgDiv.innerHTML.includes('错误')) {
+                if (!errorMsgDiv.innerHTML.includes('密码')) {
                     if (failCount === 0) errorMsgDiv.innerHTML = '';
+                }
+                timerInfoDiv.style.display = 'none';
+            }
+            
+            // 更新二次验证页UI（如果显示）
+            if (twoFactorZone.style.display === 'block') {
+                if (isLocked) {
+                    twoFactorInput.disabled = true;
+                    twoFactorVerifyBtn.disabled = true;
+                } else {
+                    twoFactorInput.disabled = false;
+                    twoFactorVerifyBtn.disabled = false;
                 }
             }
         }
         
-        function handleFail() {
+        // 一次验证失败
+        function handlePrimaryFail() {
             if (lockUntil > Date.now()) {
                 errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。';
                 return;
@@ -578,7 +630,7 @@
             if (failCount >= 3) {
                 const lockSec = getLockDuration(lockLevel);
                 errorMsgDiv.innerHTML = `已连续错误3次！系统锁定${formatTime(lockSec)}，无法进行任何操作`;
-                applyLockout();
+                applyLockout(false);
                 passwordInput.value = '';
             } else {
                 errorMsgDiv.innerHTML = `密码错误！还剩 ${remainingAttempts} 次尝试机会，连续错误3次将锁定`;
@@ -586,28 +638,65 @@
                 passwordInput.focus();
                 timerInfoDiv.style.display = 'none';
             }
-            
-            const panel = document.querySelector('.glass-panel');
-            if (panel) {
-                panel.style.transform = 'translateX(3px)';
-                setTimeout(() => { if (panel) panel.style.transform = ''; }, 10);
-            }
         }
         
-        function handleSuccess() {
-            clearTimer();
-            resetAllOnSuccess();
-            passwordInput.value = '';
-            errorMsgDiv.innerHTML = '';
-            timerInfoDiv.style.display = 'none';
+        // 二次验证失败
+        function handleTwoFactorFail() {
+            if (lockUntil > Date.now()) {
+                twoFactorErrorMsg.innerHTML = '系统锁定中，请等待倒计时结束。';
+                return;
+            }
             
-            lockZone.style.display = 'none';
+            // 二次验证错1次就锁定，等级+1
+            const lockSec = getLockDuration(lockLevel);
+            twoFactorErrorMsg.innerHTML = `二次验证错误！系统锁定${formatTime(lockSec)}`;
+            applyLockout(true);
+            twoFactorInput.value = '';
+            refreshCaptcha();
+        }
+        
+        // 二次验证成功
+        function handleTwoFactorSuccess() {
+            // 清空所有锁定记录，等级归零，但保留 hasEverLocked（已经无所谓了，因为进站了）
+            lockLevel = 0;
+            hasEverLocked = false;
+            lockUntil = 0;
+            clearPersistedLock();
+            clearTimer();
+            
+            // 进入网站列表
+            twoFactorZone.style.display = 'none';
             dashboardZone.style.display = 'block';
+            pendingTwoFactor = false;
+        }
+        
+        // 一次验证成功（密码正确）
+        function handlePrimarySuccess() {
+            clearTimer();
+            lockUntil = 0;
+            failCount = 0;
+            
+            // 判断是否需要二次验证
+            if (hasEverLocked) {
+                // 需要二次验证
+                pendingTwoFactor = true;
+                refreshCaptcha();
+                twoFactorInput.value = '';
+                twoFactorErrorMsg.innerHTML = '';
+                twoFactorTimerInfo.style.display = 'none';
+                lockZone.style.display = 'none';
+                twoFactorZone.style.display = 'block';
+                updateAllLockUI();
+            } else {
+                // 从未锁定过，直接进入
+                dashboardZone.style.display = 'block';
+                lockZone.style.display = 'none';
+            }
         }
         
         function verifyPassword() {
             if (lockUntil > Date.now()) {
-                errorMsgDiv.innerHTML = `锁定倒计时进行中，请耐心等待。`;
+                errorMsgDiv.innerHTML = '锁定倒计时进行中，请耐心等待。';
                 return;
             }
             
@@ -625,94 +714,110 @@
             }
             
             if (VALID_CODES.has(trimmed)) {
-                handleSuccess();
+                handlePrimarySuccess();
             } else {
-                handleFail();
+                handlePrimaryFail();
+            }
+        }
+        
+        function verifyTwoFactor() {
+            if (lockUntil > Date.now()) {
+                twoFactorErrorMsg.innerHTML = '锁定倒计时进行中，请耐心等待。';
+                return;
+            }
+            
+            const inputCode = twoFactorInput.value.trim();
+            if (inputCode !== currentCaptcha) {
+                handleTwoFactorFail();
+            } else {
+                handleTwoFactorSuccess();
             }
         }
         
         function resetToLock() {
+            // 从网站列表返回密码页
             dashboardZone.style.display = 'none';
             lockZone.style.display = 'block';
-            
-            // 注意：不清除 lockUntil 和 lockLevel，保留当前锁定状态
-            // 只重置界面相关
+            twoFactorZone.style.display = 'none';
+            pendingTwoFactor = false;
             passwordInput.value = '';
             errorMsgDiv.innerHTML = '';
-            updateLockUI();
+            updateAllLockUI();
             passwordInput.focus();
         }
         
-        function onEnterKey(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (lockZone.style.display !== 'none') {
-                    if (!(lockUntil > Date.now())) {
-                        verifyPassword();
-                    }
-                }
-            }
+        function backFromTwoFactor() {
+            // 从二次验证返回密码页，不清除锁定状态
+            twoFactorZone.style.display = 'none';
+            lockZone.style.display = 'block';
+            pendingTwoFactor = false;
+            passwordInput.value = '';
+            errorMsgDiv.innerHTML = '';
+            updateAllLockUI();
+            passwordInput.focus();
         }
         
         function enforceNumericInput(e) {
-            let input = e.target;
-            let value = input.value;
+            let value = e.target.value;
             let newValue = value.replace(/\D/g, '');
-            if (newValue.length > 6) newValue = newValue.slice(0,6);
-            if (newValue !== value) {
-                input.value = newValue;
-            }
+            if (newValue.length > 6) newValue = newValue.slice(0, 6);
+            if (newValue !== value) e.target.value = newValue;
         }
         
         function initUI() {
             lockZone.style.display = 'block';
+            twoFactorZone.style.display = 'none';
             dashboardZone.style.display = 'none';
             passwordInput.value = '';
             errorMsgDiv.innerHTML = '';
             timerInfoDiv.style.display = 'none';
             failCount = 0;
             
-            const hasValidLock = restoreLockFromStorage();
+            const hasValidLock = restoreLockState();
             if (!hasValidLock) {
                 lockUntil = 0;
-                // 如果没有有效锁定，确保lockLevel合理（保留之前存储的level或为0）
                 if (isNaN(lockLevel)) lockLevel = 0;
             }
             
-            updateLockUI();
+            updateAllLockUI();
             
             if (lockUntil > Date.now()) {
                 clearTimer();
                 timerInterval = setInterval(() => {
-                    const nowMs = Date.now();
-                    const remaining = lockUntil - nowMs;
-                    if (remaining <= 0) {
+                    if (lockUntil <= Date.now()) {
                         clearTimer();
-                        releaseLockOnly();
-                        updateLockUI();
+                        releaseLock();
+                        updateAllLockUI();
                         errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
                         setTimeout(() => {
-                            if (errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') {
-                                errorMsgDiv.innerHTML = '';
-                            }
+                            if (errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') errorMsgDiv.innerHTML = '';
                         }, 1800);
                         passwordInput.value = '';
                         passwordInput.focus();
-                    } else {
-                        const secs = Math.ceil(remaining / 1000);
-                        timerInfoDiv.style.display = 'block';
-                        timerInfoDiv.innerHTML = `验证失败次数过多，已锁定。<br>请 ${formatTime(secs)} 后再试。`;
                     }
                 }, 200);
             }
             
-            // 启动日期时间显示（每秒更新）
             startDatetimeTimer();
             
             unlockBtn.addEventListener('click', verifyPassword);
             resetLockBtn.addEventListener('click', resetToLock);
+            twoFactorVerifyBtn.addEventListener('click', verifyTwoFactor);
+            twoFactorBackBtn.addEventListener('click', backFromTwoFactor);
             passwordInput.addEventListener('input', enforceNumericInput);
-            passwordInput.addEventListener('keypress', onEnterKey);
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && lockZone.style.display !== 'none') {
+                    e.preventDefault();
+                    if (!(lockUntil > Date.now())) verifyPassword();
+                }
+            });
+            twoFactorInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && twoFactorZone.style.display !== 'none') {
+                    e.preventDefault();
+                    if (!(lockUntil > Date.now())) verifyTwoFactor();
+                }
+            });
+            
             passwordInput.focus();
         }
         
@@ -720,8 +825,8 @@
         
         setInterval(() => {
             if (lockUntil > 0 && lockUntil <= Date.now()) {
-                releaseLockOnly();
-                updateLockUI();
+                releaseLock();
+                updateAllLockUI();
             }
         }, 1000);
     })();
