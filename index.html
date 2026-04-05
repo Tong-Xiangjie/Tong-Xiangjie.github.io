@@ -259,11 +259,11 @@
         .back-btn {
             background: none;
             border: 1px solid #3e506e;
-            margin-top: 1rem;
+            margin-top: 0;
             color: #9ab3cf;
-            width: auto;
-            padding: 0.5rem 1.2rem;
-            font-size: 0.8rem;
+            width: 100%;
+            padding: 0.8rem 1.4rem;
+            font-size: 1rem;
         }
 
         .flex-between {
@@ -272,12 +272,15 @@
             gap: 1rem;
         }
 
+        .flex-between button {
+            width: 50%;
+        }
+
         input:disabled, button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
 
-        /* 验证码明文显示，增大间距 */
         .captcha-display {
             background: #0e1622cc;
             border-radius: 2rem;
@@ -338,9 +341,9 @@
                     <span class="lock-icon"></span>
                     <input type="text" id="twoFactorInput" maxlength="4" placeholder="请输入上方验证码" inputmode="text" style="letter-spacing: 2px;">
                 </div>
-                <div class="flex-between" style="gap: 1rem;">
-                    <button id="twoFactorBackBtn" class="back-btn" style="width: 40%;">返回</button>
-                    <button id="twoFactorVerifyBtn" style="width: 60%;">验证/VERIFY</button>
+                <div class="flex-between">
+                    <button id="twoFactorBackBtn" class="back-btn">返回/BACK</button>
+                    <button id="twoFactorVerifyBtn">验证/VERIFY</button>
                 </div>
                 <div id="twoFactorErrorMsg" class="error-msg"></div>
                 <div id="twoFactorTimerInfo" class="timer-block" style="display: none;"></div>
@@ -396,12 +399,12 @@
         const MAX_LOCK_SECONDS = 300;
 
         // 核心状态
-        let lockUntil = 0;              // 锁定截止时间戳
-        let failCount = 0;              // 当前连续错误次数（仅用于一次验证）
-        let lockLevel = 0;              // 当前是第几次锁定（0=第一次锁定前，1=已锁1次...）
-        let hasEverLocked = false;      // 是否曾经被锁定过（用于判断是否需要二次验证）
-        let pendingTwoFactor = false;    // 是否等待二次验证（正确密码后但未过二验）
-        let currentCaptcha = "";         // 当前验证码
+        let lockUntil = 0;
+        let failCount = 0;
+        let lockLevel = 0;
+        let hasEverLocked = false;
+        let pendingTwoFactor = false;
+        let currentCaptcha = "";
 
         let timerInterval = null;
         let datetimeInterval = null;
@@ -418,7 +421,6 @@
         const lockDatetimeEl = document.getElementById('lockDatetime');
         const dashboardDatetimeEl = document.getElementById('dashboardDatetime');
 
-        // 二次验证 DOM
         const twoFactorInput = document.getElementById('twoFactorInput');
         const twoFactorVerifyBtn = document.getElementById('twoFactorVerifyBtn');
         const twoFactorBackBtn = document.getElementById('twoFactorBackBtn');
@@ -465,7 +467,6 @@
             return MAX_LOCK_SECONDS;
         }
 
-        // 生成4位随机验证码（数字+大小写字母）
         function generateCaptcha() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             let result = '';
@@ -475,13 +476,11 @@
             return result;
         }
 
-        // 刷新验证码显示
         function refreshCaptcha() {
             currentCaptcha = generateCaptcha();
             captchaCodeEl.textContent = currentCaptcha;
         }
 
-        // 持久化存储
         const STORAGE_LOCK_UNTIL = 'lockUntilTimestamp';
         const STORAGE_LOCK_LEVEL = 'lockLevel';
         const STORAGE_HAS_EVER_LOCKED = 'hasEverLocked';
@@ -529,14 +528,12 @@
             }
         }
 
-        // 锁定核心
         function applyLockout(isFromTwoFactor = false) {
             const now = Date.now();
             const lockSeconds = getLockDuration(lockLevel);
             const lockDurationMs = lockSeconds * 1000;
             lockUntil = now + lockDurationMs;
             
-            // 锁定等级递增
             lockLevel++;
             hasEverLocked = true;
             
@@ -546,7 +543,6 @@
             clearTimer();
             updateAllLockUI();
             
-            // 启动倒计时
             timerInterval = setInterval(() => {
                 const remaining = lockUntil - Date.now();
                 if (remaining <= 0) {
@@ -554,7 +550,6 @@
                     releaseLock();
                     updateAllLockUI();
                     
-                    // 显示解锁提示
                     const errorDiv = isFromTwoFactor ? twoFactorErrorMsg : errorMsgDiv;
                     if (errorDiv) {
                         errorDiv.innerHTML = '锁定已解除，请重新验证';
@@ -591,7 +586,6 @@
             const now = Date.now();
             const isLocked = (lockUntil > now);
             
-            // 更新密码页UI
             if (isLocked) {
                 passwordInput.disabled = true;
                 unlockBtn.disabled = true;
@@ -605,19 +599,19 @@
                 timerInfoDiv.style.display = 'none';
             }
             
-            // 更新二次验证页UI（如果显示）
             if (twoFactorZone.style.display === 'block') {
                 if (isLocked) {
                     twoFactorInput.disabled = true;
                     twoFactorVerifyBtn.disabled = true;
+                    twoFactorBackBtn.disabled = true;
                 } else {
                     twoFactorInput.disabled = false;
                     twoFactorVerifyBtn.disabled = false;
+                    twoFactorBackBtn.disabled = false;
                 }
             }
         }
         
-        // 一次验证失败
         function handlePrimaryFail() {
             if (lockUntil > Date.now()) {
                 errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。';
@@ -640,14 +634,12 @@
             }
         }
         
-        // 二次验证失败
         function handleTwoFactorFail() {
             if (lockUntil > Date.now()) {
                 twoFactorErrorMsg.innerHTML = '系统锁定中，请等待倒计时结束。';
                 return;
             }
             
-            // 二次验证错1次就锁定，等级+1
             const lockSec = getLockDuration(lockLevel);
             twoFactorErrorMsg.innerHTML = `二次验证错误！系统锁定${formatTime(lockSec)}`;
             applyLockout(true);
@@ -655,30 +647,24 @@
             refreshCaptcha();
         }
         
-        // 二次验证成功
         function handleTwoFactorSuccess() {
-            // 清空所有锁定记录，等级归零，但保留 hasEverLocked（已经无所谓了，因为进站了）
             lockLevel = 0;
             hasEverLocked = false;
             lockUntil = 0;
             clearPersistedLock();
             clearTimer();
             
-            // 进入网站列表
             twoFactorZone.style.display = 'none';
             dashboardZone.style.display = 'block';
             pendingTwoFactor = false;
         }
         
-        // 一次验证成功（密码正确）
         function handlePrimarySuccess() {
             clearTimer();
             lockUntil = 0;
             failCount = 0;
             
-            // 判断是否需要二次验证
             if (hasEverLocked) {
-                // 需要二次验证
                 pendingTwoFactor = true;
                 refreshCaptcha();
                 twoFactorInput.value = '';
@@ -688,7 +674,6 @@
                 twoFactorZone.style.display = 'block';
                 updateAllLockUI();
             } else {
-                // 从未锁定过，直接进入
                 dashboardZone.style.display = 'block';
                 lockZone.style.display = 'none';
             }
@@ -735,7 +720,6 @@
         }
         
         function resetToLock() {
-            // 从网站列表返回密码页
             dashboardZone.style.display = 'none';
             lockZone.style.display = 'block';
             twoFactorZone.style.display = 'none';
@@ -747,7 +731,6 @@
         }
         
         function backFromTwoFactor() {
-            // 从二次验证返回密码页，不清除锁定状态
             twoFactorZone.style.display = 'none';
             lockZone.style.display = 'block';
             pendingTwoFactor = false;
