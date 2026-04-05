@@ -55,7 +55,7 @@ function escapeHtml(str) {
     });
 }
 
-// 搜索栏结构
+// 搜索栏结构（修复：显示已有的搜索词）
 function getSearchHtml(scope) {
     const scopeText = scope === 'global' ? '全局' : '当前板块';
     return `
@@ -76,7 +76,7 @@ function getSearchHtml(scope) {
     `;
 }
 
-// 执行搜索（修复版：正确匹配所有数据）
+// ========== 核心：执行搜索（修复版） ==========
 function performSearch(keyword, type, scope) {
     if (!keyword || keyword === '') return [];
     
@@ -84,53 +84,46 @@ function performSearch(keyword, type, scope) {
     let results = [];
     const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
     
-    targetCats.forEach(cid => {
+    for (let cid of targetCats) {
         const cat = banknotesData[cid];
-        if (!cat || !cat.series) return;
+        if (!cat || !cat.series) continue;
         
-        cat.series.forEach((s, si) => {
-            if (!s.copies || s.copies.length === 0) return;
+        for (let si = 0; si < cat.series.length; si++) {
+            const series = cat.series[si];
+            if (!series.copies || series.copies.length === 0) continue;
             
-            s.copies.forEach((cp, ci) => {
+            for (let ci = 0; ci < series.copies.length; ci++) {
+                const copy = series.copies[ci];
                 let match = false;
                 
                 switch(type) {
                     case 'all':
-                        // 全字段匹配：名称、冠号、年份、评级、克劳斯
-                        const searchText = `${s.seriesName} ${cp.version || ''} ${s.year} ${cp.condition || ''} ${cp.krause || ''}`.toLowerCase();
+                        const searchText = `${series.seriesName} ${copy.version || ''} ${series.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
                         match = searchText.includes(lowerKeyword);
                         break;
                     case 'name':
-                        match = s.seriesName.toLowerCase().includes(lowerKeyword);
+                        match = series.seriesName.toLowerCase().includes(lowerKeyword);
                         break;
                     case 'version':
-                        match = (cp.version || '').toLowerCase().includes(lowerKeyword);
+                        match = (copy.version || '').toLowerCase().includes(lowerKeyword);
                         break;
                     case 'year':
-                        match = String(s.year).toLowerCase().includes(lowerKeyword);
+                        match = String(series.year).toLowerCase().includes(lowerKeyword);
                         break;
                     case 'agency':
-                        match = (cp.condition || '').toLowerCase().includes(lowerKeyword);
+                        match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
                         break;
                     case 'krause':
-                        match = (cp.krause || '').toLowerCase().includes(lowerKeyword);
+                        match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
                         break;
-                    default:
-                        match = false;
                 }
                 
                 if (match) {
-                    results.push({ 
-                        catId: cid, 
-                        sIdx: si, 
-                        cIdx: ci, 
-                        series: s, 
-                        copy: cp 
-                    });
+                    results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
                 }
-            });
-        });
-    });
+            }
+        }
+    }
     
     return results;
 }
@@ -145,7 +138,7 @@ function updateSearchResultList(results) {
     if (results.length === 0) {
         html = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     } else {
-        results.forEach(item => {
+        for (let item of results) {
             html += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
@@ -154,7 +147,7 @@ function updateSearchResultList(results) {
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${item.series.year}</div>
                 </div>`;
-        });
+        }
     }
     wrap.innerHTML = html;
     if (countSpan) {
@@ -197,7 +190,9 @@ function renderCategories() {
         if (!cat) continue;
         let total = 0;
         if (cat.series) {
-            cat.series.forEach(s => total += s.copies ? s.copies.length : 0);
+            for (let s of cat.series) {
+                total += s.copies ? s.copies.length : 0;
+            }
         }
         html += `
             <div class="category-card" onclick="selectCategory('${id}')">
@@ -221,12 +216,11 @@ function renderSeriesList(cid) {
     currentCategoryId = cid;
     isFromSearch = false;
     const cat = banknotesData[cid];
-    if (!cat || !cat.series) {
-        console.error('分类数据不存在:', cid);
-        return;
-    }
+    if (!cat || !cat.series) return;
+    
     let items = `<div class="series-list">`;
-    cat.series.forEach((s, idx) => {
+    for (let idx = 0; idx < cat.series.length; idx++) {
+        const s = cat.series[idx];
         const copyCount = s.copies ? s.copies.length : 0;
         items += `
             <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
@@ -234,7 +228,7 @@ function renderSeriesList(cid) {
                 <div class="series-count">${copyCount}张</div>
                 <div class="series-year">${s.year}年</div>
             </div>`;
-    });
+    }
     items += `</div>`;
     const full = `
         <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
@@ -283,7 +277,7 @@ function renderSearchResultPage() {
     if (results.length === 0) {
         list = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     } else {
-        results.forEach(item => {
+        for (let item of results) {
             list += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
@@ -292,7 +286,7 @@ function renderSearchResultPage() {
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${item.series.year}</div>
                 </div>`;
-        });
+        }
     }
     const foot = `</div></div>`;
     document.getElementById("app").innerHTML = head + list + foot;
@@ -300,7 +294,7 @@ function renderSearchResultPage() {
     restoreScroll();
 }
 
-// 绑定搜索事件
+// 绑定搜索事件（关键：不重新渲染整个页面，只更新结果列表）
 function bindSearchEvents(isResultPage) {
     const ipt = document.getElementById('searchInput');
     const sel = document.getElementById('searchType');
@@ -312,7 +306,6 @@ function bindSearchEvents(isResultPage) {
         const keyword = ipt.value.trim().toLowerCase();
         const type = sel ? sel.value : 'all';
         
-        // 更新全局变量
         lastSearchKeyword = keyword;
         lastSearchType = type;
         
@@ -323,7 +316,6 @@ function bindSearchEvents(isResultPage) {
             } else if (currentView === 'seriesList' && currentCategoryId) {
                 renderSeriesList(currentCategoryId);
             } else if (isResultPage) {
-                // 在搜索结果页清空，显示提示
                 const wrap = document.getElementById('searchResultWrap');
                 const countSpan = document.getElementById('resultCount');
                 if (wrap) wrap.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
@@ -332,9 +324,8 @@ function bindSearchEvents(isResultPage) {
             return;
         }
         
-        // 有搜索词
         if (isResultPage) {
-            // 搜索结果页内：只更新列表，不重绘页面（保持键盘）
+            // 搜索结果页内：只更新列表，不重绘页面
             const results = performSearch(keyword, type, searchScope);
             updateSearchResultList(results);
         } else {
@@ -401,14 +392,12 @@ function renderCopyList(cid, si) {
     currentSeries = { cid, si };
     isFromSearch = false;
     const cat = banknotesData[cid];
-    if (!cat || !cat.series || !cat.series[si]) {
-        console.error('数据不存在');
-        return;
-    }
+    if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const copies = series.copies || [];
     let copiesHtml = `<div class="copy-list">`;
-    copies.forEach((cp, ci) => {
+    for (let ci = 0; ci < copies.length; ci++) {
+        const cp = copies[ci];
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
                 <div class="copy-index">#${cp.copyId}</div>
@@ -416,7 +405,7 @@ function renderCopyList(cid, si) {
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
                 <div class="copy-price">${cp.price}</div>
             </div>`;
-    });
+    }
     if (copies.length === 0) {
         copiesHtml += `<div style="padding:1rem; text-align:center; color:#999;">暂无藏品</div>`;
     }
@@ -489,7 +478,7 @@ function renderDetail(cid, si, ci) {
     restoreScroll();
 }
 
-// ========== 双指缩放功能（Hammer.js） ==========
+// ========== 双指缩放功能 ==========
 function initPinchZoom() {
     const container = document.getElementById('imageContainer');
     if (!container) return;
@@ -583,7 +572,6 @@ function initPinchZoom() {
     resetTransform();
 }
 
-// 打开弹窗
 function openModal(index = 0) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
@@ -625,7 +613,6 @@ function closeModal() {
     }
 }
 
-// 点击背景关闭
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('imageModal');
     if (modal) {
@@ -637,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ========== 路由函数 ==========
+// 路由函数
 function selectCategory(cid) { renderSeriesList(cid); }
 function backToCategories() { renderCategories(); }
 function backToSeries(cid) { renderSeriesList(cid); }
