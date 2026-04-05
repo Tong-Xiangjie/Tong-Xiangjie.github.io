@@ -185,7 +185,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
                 <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="当前模式：${modeText}" value="${escapeHtml(keyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(keyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -339,7 +339,7 @@ function renderCategories(restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="当前模式：${modeText}" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
