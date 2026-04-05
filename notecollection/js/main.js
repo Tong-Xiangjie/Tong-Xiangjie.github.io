@@ -28,6 +28,15 @@ let searchTimer = null;
 let currentModalImg1 = '';
 let currentModalImg2 = '';
 
+// 缩放相关变量
+let hammerManager = null;
+let currentScale = 1;
+let currentX = 0;
+let currentY = 0;
+let initialScale = 1;
+let initialX = 0;
+let initialY = 0;
+
 // 滚动记忆
 function saveScroll() {
     const key = currentView + "_" + (currentCategoryId || "") + "_" + (currentSeries?.cid || "") + "_" + (currentSeries?.si || "");
@@ -55,14 +64,14 @@ function getSearchHtml(scope) {
     return `
         <div class="search-bar">
             <select class="search-select" id="searchType">
-                <option value="all" selected>全字段搜索（默认）</option>
-                <option value="name">按名称搜索</option>
-                <option value="version">按冠字号搜索</option>
-                <option value="year">按年份搜索</option>
-                <option value="agency">按评级机构(ACG/PMG)</option>
-                <option value="krause">按克劳斯编号搜索</option>
+                <option value="all" ${lastSearchType === 'all' ? 'selected' : ''}>全字段搜索（默认）</option>
+                <option value="name" ${lastSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
+                <option value="version" ${lastSearchType === 'version' ? 'selected' : ''}>按冠字号搜索</option>
+                <option value="year" ${lastSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
+                <option value="agency" ${lastSearchType === 'agency' ? 'selected' : ''}>按评级机构(ACG/PMG)</option>
+                <option value="krause" ${lastSearchType === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(lastSearchKeyword)}">
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(lastSearchKeyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索 ${scopeText}</button>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
@@ -70,7 +79,7 @@ function getSearchHtml(scope) {
     `;
 }
 
-// 执行搜索（返回结果数组）
+// 执行搜索
 function performSearch(keyword, type, scope) {
     if (!keyword) return [];
     let results = [];
@@ -100,8 +109,8 @@ function performSearch(keyword, type, scope) {
     return results;
 }
 
-// 更新搜索结果列表（不重绘页面）
-function updateSearchResultList(results, keyword) {
+// 更新搜索结果列表（不重绘整个页面）
+function updateSearchResultList(results) {
     const wrap = document.getElementById('searchResultWrap');
     const countSpan = document.getElementById('resultCount');
     if (!wrap) return;
@@ -142,9 +151,6 @@ function resetSearch() {
     lastSearchKeyword = '';
     lastSearchType = 'all';
     
-    const ipt = document.getElementById('searchInput');
-    if (ipt) ipt.value = '';
-    
     if (currentView === 'seriesList' && currentCategoryId) {
         renderSeriesList(currentCategoryId);
     } else {
@@ -175,7 +181,7 @@ function renderCategories() {
     }
     html += `</div>`;
     document.getElementById("app").innerHTML = html;
-    bindSearchEvents();
+    bindSearchEvents(false);
     restoreScroll();
 }
 
@@ -205,7 +211,7 @@ function renderSeriesList(cid) {
             ${items}
         </div>`;
     document.getElementById("app").innerHTML = full;
-    bindSearchEvents();
+    bindSearchEvents(false);
     restoreScroll();
 }
 
@@ -231,7 +237,7 @@ function renderSearchResultPage() {
                 <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构(ACG/PMG)</option>
                 <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(keyword)}">
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(keyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
@@ -257,16 +263,56 @@ function renderSearchResultPage() {
     }
     const foot = `</div></div>`;
     document.getElementById("app").innerHTML = head + list + foot;
-    bindRealtimeSearchOnly();
+    bindSearchEvents(true);
     restoreScroll();
 }
 
-// 搜索结果页的实时搜索（只更新列表）
-function bindRealtimeSearchOnly() {
+// 绑定搜索事件（关键：不重新渲染整个页面，只更新结果列表）
+function bindSearchEvents(isResultPage) {
     const ipt = document.getElementById('searchInput');
     const sel = document.getElementById('searchType');
+    
     if (!ipt) return;
     
+    // 保存当前光标位置
+    let cursorPos = ipt.selectionStart;
+    
+    // 实时搜索：只更新结果列表，不重绘页面
+    const handleInput = debounce(function() {
+        const keyword = ipt.value.trim().toLowerCase();
+        const type = sel ? sel.value : 'all';
+        
+        lastSearchKeyword = keyword;
+        lastSearchType = type;
+        
+        if (keyword === '') {
+            if (isResultPage) {
+                const wrap = document.getElementById('searchResultWrap');
+                const countSpan = document.getElementById('resultCount');
+                if (wrap) wrap.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
+                if (countSpan) countSpan.innerText = '0';
+            } else {
+                // 非搜索结果页，清空时恢复原页面
+                if (currentView === 'categories') {
+                    renderCategories();
+                } else if (currentView === 'seriesList' && currentCategoryId) {
+                    renderSeriesList(currentCategoryId);
+                }
+            }
+            return;
+        }
+        
+        if (isResultPage) {
+            // 搜索结果页：只更新列表
+            const results = performSearch(keyword, type, searchScope);
+            updateSearchResultList(results);
+        } else {
+            // 非搜索结果页：跳转到搜索结果页
+            renderSearchResultPage();
+        }
+    }, 200);
+    
+    // 移除旧事件，避免重复绑定
     const newIpt = ipt.cloneNode(true);
     ipt.parentNode.replaceChild(newIpt, ipt);
     const newSel = sel ? sel.cloneNode(true) : null;
@@ -275,27 +321,10 @@ function bindRealtimeSearchOnly() {
     const finalIpt = document.getElementById('searchInput');
     const finalSel = document.getElementById('searchType');
     
-    const handleInput = debounce(function() {
-        const keyword = finalIpt.value.trim().toLowerCase();
-        const type = finalSel ? finalSel.value : 'all';
-        
-        lastSearchKeyword = keyword;
-        lastSearchType = type;
-        
-        if (keyword === '') {
-            const wrap = document.getElementById('searchResultWrap');
-            const countSpan = document.getElementById('resultCount');
-            if (wrap) wrap.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
-            if (countSpan) countSpan.innerText = '0';
-            return;
-        }
-        
-        const results = performSearch(keyword, type, searchScope);
-        updateSearchResultList(results, keyword);
-    }, 150);
-    
+    // 绑定 input 事件
     finalIpt.addEventListener('input', handleInput);
     
+    // 搜索按钮
     const searchBtn = document.getElementById('searchBtn');
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
@@ -311,62 +340,19 @@ function bindRealtimeSearchOnly() {
         });
     }
     
+    // 重置按钮
     const resetBtn = document.getElementById('resetBtn');
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
-        newReset.addEventListener('click', function() { resetSearch(); });
-    }
-}
-
-// 普通页面的搜索事件
-function bindSearchEvents() {
-    const ipt = document.getElementById('searchInput');
-    const sel = document.getElementById('searchType');
-    const searchBtn = document.getElementById('searchBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    
-    if (!ipt) return;
-    
-    const handleRealTime = debounce(function() {
-        const keyword = ipt.value.trim().toLowerCase();
-        const type = sel ? sel.value : 'all';
-        
-        lastSearchKeyword = keyword;
-        lastSearchType = type;
-        
-        if (keyword === '') {
-            if (currentView === 'categories') {
-                renderCategories();
-            } else if (currentView === 'seriesList' && currentCategoryId) {
-                renderSeriesList(currentCategoryId);
-            }
-            return;
-        }
-        
-        renderSearchResultPage();
-    }, 300);
-    
-    ipt.addEventListener('input', handleRealTime);
-    
-    if (searchBtn) {
-        const newBtn = searchBtn.cloneNode(true);
-        searchBtn.parentNode.replaceChild(newBtn, searchBtn);
-        newBtn.addEventListener('click', function() {
-            const keyword = ipt.value.trim().toLowerCase();
-            const type = sel ? sel.value : 'all';
-            if (keyword) {
-                lastSearchKeyword = keyword;
-                lastSearchType = type;
-                renderSearchResultPage();
-            }
+        newReset.addEventListener('click', function() {
+            resetSearch();
         });
     }
     
-    if (resetBtn) {
-        const newReset = resetBtn.cloneNode(true);
-        resetBtn.parentNode.replaceChild(newReset, resetBtn);
-        newReset.addEventListener('click', function() { resetSearch(); });
+    // 恢复光标位置
+    if (cursorPos !== undefined) {
+        finalIpt.setSelectionRange(cursorPos, cursorPos);
     }
 }
 
@@ -460,23 +446,133 @@ function renderDetail(cid, si, ci) {
     restoreScroll();
 }
 
-// ========== 弹窗功能（流畅版） ==========
+// ========== 双指缩放功能（使用 Hammer.js） ==========
+function initPinchZoom() {
+    const container = document.getElementById('imageContainer');
+    if (!container) return;
+    
+    // 销毁旧的 manager
+    if (hammerManager) {
+        hammerManager.destroy();
+    }
+    
+    hammerManager = new Hammer.Manager(container);
+    const pinch = new Hammer.Pinch();
+    const pan = new Hammer.Pan();
+    
+    hammerManager.add([pinch, pan]);
+    
+    // 重置变换
+    function resetTransform() {
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+    }
+    
+    // 限制边界，防止图片拖出视野
+    function clampTransform() {
+        const img = document.getElementById('modalImg');
+        if (!img) return;
+        
+        const containerRect = container.parentElement.getBoundingClientRect();
+        const imgRect = img.getBoundingClientRect();
+        
+        const scaledWidth = imgRect.width;
+        const scaledHeight = imgRect.height;
+        
+        let maxX = 0;
+        let maxY = 0;
+        
+        if (scaledWidth > containerRect.width) {
+            maxX = (scaledWidth - containerRect.width) / 2;
+        }
+        if (scaledHeight > containerRect.height) {
+            maxY = (scaledHeight - containerRect.height) / 2;
+        }
+        
+        currentX = Math.min(maxX, Math.max(-maxX, currentX));
+        currentY = Math.min(maxY, Math.max(-maxY, currentY));
+        
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+    }
+    
+    let lastScale = 1;
+    let lastX = 0;
+    let lastY = 0;
+    
+    hammerManager.on('pinchstart', function(e) {
+        lastScale = currentScale;
+        e.preventDefault();
+    });
+    
+    hammerManager.on('pinchmove', function(e) {
+        const newScale = lastScale * e.scale;
+        currentScale = Math.min(4, Math.max(1, newScale));
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        e.preventDefault();
+    });
+    
+    hammerManager.on('pinchend', function(e) {
+        clampTransform();
+        e.preventDefault();
+    });
+    
+    hammerManager.on('panstart', function(e) {
+        lastX = currentX;
+        lastY = currentY;
+    });
+    
+    hammerManager.on('panmove', function(e) {
+        if (currentScale > 1) {
+            currentX = lastX + e.deltaX;
+            currentY = lastY + e.deltaY;
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        }
+        e.preventDefault();
+    });
+    
+    hammerManager.on('panend', function(e) {
+        clampTransform();
+    });
+    
+    // 双击重置
+    container.addEventListener('dblclick', function(e) {
+        resetTransform();
+        e.preventDefault();
+    });
+    
+    resetTransform();
+}
+
+// 打开弹窗
 function openModal(index = 0) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
     const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
     modalImg.src = imgSrc;
     modal.style.display = 'flex';
-    modalImg.classList.remove('zoomed');
     
+    // 重置缩放
+    const container = document.getElementById('imageContainer');
+    if (container) {
+        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+    }
+    
+    // 禁止页面滚动
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
     
-    const modalContent = document.getElementById('modalContent');
-    if (modalContent) {
-        modalContent.scrollTop = 0;
-        modalContent.scrollLeft = 0;
+    // 等待图片加载完成后初始化手势
+    modalImg.onload = function() {
+        initPinchZoom();
+    };
+    if (modalImg.complete) {
+        initPinchZoom();
     }
 }
 
@@ -487,19 +583,16 @@ function closeModal() {
     document.body.style.paddingRight = '';
     const modalImg = document.getElementById('modalImg');
     modalImg.src = '';
-    modalImg.classList.remove('zoomed');
+    
+    // 销毁 hammer 实例
+    if (hammerManager) {
+        hammerManager.destroy();
+        hammerManager = null;
+    }
 }
 
-// 点击图片切换缩放
+// 点击背景关闭
 document.addEventListener('DOMContentLoaded', function() {
-    const modalImg = document.getElementById('modalImg');
-    if (modalImg) {
-        modalImg.addEventListener('click', function(e) {
-            e.stopPropagation();
-            this.classList.toggle('zoomed');
-        });
-    }
-    
     const modal = document.getElementById('imageModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
