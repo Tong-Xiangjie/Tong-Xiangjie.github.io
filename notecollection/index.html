@@ -1,737 +1,423 @@
-// 合并所有数据
-const banknotesData = {
-    commemorative: commemorativeData,
-    hk: hkData,
-    macau: macauData,
-    taiwan: taiwanData,
-    rmb2: rmb2Data,
-    rmb3: rmb3Data,
-    rmb4: rmb4Data,
-    rmb5: rmb5Data,
-    fec: fecData,
-    japan: japanData
-};
-
-const categoryOrder = ["commemorative", "hk", "macau", "taiwan", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "japan"];
-
-let currentView = "categories";
-let currentCategoryId = null;
-let currentSeries = null;
-let scrollMemory = {};
-
-let searchScope = 'global';
-let currentSearchKeyword = '';
-let currentSearchType = 'all';
-
-// 搜索模式：'click' 或 'realtime'
-let searchMode = 'click';
-
-let currentModalImg1 = '';
-let currentModalImg2 = '';
-
-// ========== 缩放相关变量 ==========
-let hammerManager = null;
-let currentScale = 1;
-let currentX = 0;
-let currentY = 0;
-
-// 克劳斯前缀常量
-const KRAUSE_PREFIX = 'Pick# ';
-
-// ========== 滚动位置保存和恢复 ==========
-function saveScroll(key) {
-    scrollMemory[key] = window.scrollY;
-}
-
-function restoreScroll(key) {
-    if (scrollMemory[key] !== undefined && scrollMemory[key] !== null) {
-        setTimeout(() => {
-            window.scrollTo(0, scrollMemory[key]);
-        }, 50);
-    }
-}
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
-
-function formatYear(year) {
-    if (year === undefined || year === null) return '—';
-    return year + '年';
-}
-
-function formatKrause(krause) {
-    if (krause && krause !== '') {
-        return `Pick# ${krause}`;
-    }
-    return `Pick#`;
-}
-
-function getActualKeyword(inputValue, searchType) {
-    if (searchType === 'krause') {
-        if (inputValue.startsWith(KRAUSE_PREFIX)) {
-            return inputValue.substring(KRAUSE_PREFIX.length).trim();
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>铜の币纪</title>
+    <!-- Hammer.js 手势库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        return inputValue.trim();
-    }
-    return inputValue.trim();
-}
 
-function getDisplayValue(keyword, searchType) {
-    if (searchType === 'krause' && keyword !== '') {
-        if (!keyword.startsWith(KRAUSE_PREFIX)) {
-            return KRAUSE_PREFIX + keyword;
+        body {
+            background: #f0ebe3;
+            font-family: system-ui, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+            color: #2c2418;
+            padding: 1.5rem;
+            min-height: 100vh;
+            padding-top: 70px;
         }
-    }
-    return keyword;
-}
 
-// 执行搜索
-function performSearch(rawKeyword, type, scope) {
-    const keyword = getActualKeyword(rawKeyword, type);
-    if (!keyword || keyword === '') return [];
-
-    const lowerKeyword = keyword.toLowerCase();
-    let results = [];
-    const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
-
-    for (let cid of targetCats) {
-        const cat = banknotesData[cid];
-        if (!cat || !cat.series) continue;
-
-        for (let si = 0; si < cat.series.length; si++) {
-            const series = cat.series[si];
-            if (!series.copies || series.copies.length === 0) continue;
-
-            for (let ci = 0; ci < series.copies.length; ci++) {
-                const copy = series.copies[ci];
-                let match = false;
-
-                switch(type) {
-                    case 'all':
-                        const searchText = `${series.seriesName} ${copy.version || ''} ${series.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
-                        match = searchText.includes(lowerKeyword);
-                        break;
-                    case 'name':
-                        match = series.seriesName.toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'version':
-                        match = (copy.version || '').toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'year':
-                        match = String(series.year).toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'agency':
-                        match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'krause':
-                        match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
-                        break;
-                }
-
-                if (match) {
-                    results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
-                }
-            }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-    }
 
-    return results;
-}
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-// 渲染结果列表HTML
-function renderResultsList(results) {
-    if (results.length === 0) {
-        return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
-    }
-    
-    let html = `<div class="copy-list">`;
-    for (let item of results) {
-        const krauseDisplay = formatKrause(item.copy.krause);
-        html += `
-            <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
-                <div class="copy-index">#${item.copy.copyId}</div>
-                <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
-                <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
-                <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
-                <div class="copy-price">${formatYear(item.series.year)}</div>
-                <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
-            </div>`;
-    }
-    html += `</div>`;
-    return html;
-}
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #b8860b, #daa520);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
 
-// ========== 实时搜索函数 ==========
-function performRealtimeSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const searchType = document.getElementById('searchType');
-    
-    if (!searchInput) return;
-    
-    const rawKeyword = searchInput.value;
-    const type = searchType ? searchType.value : 'all';
-    
-    currentSearchKeyword = rawKeyword;
-    currentSearchType = type;
-    
-    if (!rawKeyword || rawKeyword.trim() === '') {
-        backToPrevious();
-        return;
-    }
-    
-    let resultContainer = document.getElementById('dynamicResultContainer');
-    
-    if (!resultContainer) {
-        currentSearchKeyword = rawKeyword;
-        currentSearchType = type;
-        renderSearchResultPage(rawKeyword, type, true);
-        return;
-    }
-    
-    const results = performSearch(rawKeyword, type, searchScope);
-    const resultsHtml = renderResultsList(results);
-    resultContainer.innerHTML = resultsHtml;
-    
-    const countSpan = document.getElementById('resultCount');
-    if (countSpan) {
-        countSpan.innerText = results.length;
-    }
-}
+        .sub {
+            color: #8b6b4f;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
 
-// 渲染搜索结果页
-function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
-    if (!rawKeyword || rawKeyword.trim() === '') return;
-    
-    saveScroll(currentView + "_search");
-    
-    const results = performSearch(rawKeyword, type, searchScope);
-    const resultsHtml = renderResultsList(results);
-    const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
-    const displayValue = getDisplayValue(rawKeyword, type);
-    const modeIcon = searchMode === 'click' ? '□' : '■';
-    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    
-    const fullHtml = `
-        <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
-        <div class="search-bar">
-            <select class="search-select" id="searchType">
-                <option value="all" ${type === 'all' ? 'selected' : ''}>全字段搜索</option>
-                <option value="name" ${type === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="version" ${type === 'version' ? 'selected' : ''}>按冠字号搜索</option>
-                <option value="year" ${type === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
-                <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
-            </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
-            <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
-            <button class="reset-btn" id="resetBtn">重置</button>
+        .back-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #f0ebe3;
+            z-index: 999;
+            padding: 0.8rem 1.2rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .back-btn {
+            background: white;
+            border: 1px solid #e2d5c8;
+            color: #b8860b;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .back-btn:hover {
+            background: #e8d9cc;
+        }
+
+        .search-bar {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            align-items: center;
+        }
+        .search-select {
+            padding: 0.5rem 0.8rem;
+            border: 1px solid #e2d5c8;
+            border-radius: 0.6rem;
+            background: white;
+            font-size: 0.9rem;
+            color: #4a3522;
+            outline: none;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 180px;
+            padding: 0.6rem 1rem;
+            border: 1px solid #e2d5c8;
+            border-radius: 0.6rem;
+            font-size: 0.9rem;
+            outline: none;
+            background: white;
+        }
+        .search-input:focus {
+            border-color: #daa520;
+        }
+        .search-btn {
+            background: #daa520;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .search-btn:hover {
+            background: #b8860b;
+        }
+        .reset-btn {
+            background: #f0ebe3;
+            color: #8b6b4f;
+            border: 1px solid #e2d5c8;
+            padding: 0.6rem 1rem;
+            border-radius: 0.6rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .search-tip {
+            font-size: 0.75rem;
+            color: #b1967c;
+            margin-top: 0.3rem;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .category-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e2d5c8;
+            text-align: center;
+            padding: 1.5rem;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 28px rgba(0,0,0,0.12);
+            border-color: #c9aa7b;
+        }
+        .category-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .category-card h3 { font-size: 1.3rem; color: #4a3522; margin-bottom: 0.3rem; }
+        .category-card p { color: #8b6b4f; font-size: 0.8rem; }
+        .count-badge {
+            background: #e8d9cc;
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            margin-top: 0.6rem;
+        }
+
+        .list-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .panel-header {
+            border-left: 5px solid #daa520;
+            padding-left: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .panel-header h2 { font-size: 1.5rem; margin-bottom: 0.2rem; }
+        .panel-header p { color: #7a5a4a; font-size: 0.8rem; }
+
+        .series-list { list-style: none; }
+        .series-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid #f0e4d6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .series-item:hover { background: #faf5ef; }
+        .series-name { flex: 1; font-weight: 500; }
+        .series-count {
+            background: #e8d9cc;
+            padding: 0.2rem 0.6rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            margin-right: 1rem;
+        }
+        .series-year { width: 110px; color: #8b6b4f; }
+
+        .copy-list { list-style: none; }
+        .copy-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid #f0e4d6;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .copy-item:hover { background: #faf5ef; }
+        .copy-index {
+            width: 45px;
+            font-weight: 600;
+            color: #b8860b;
+        }
+        .copy-badge {
+            background: #e6d5c0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            margin-right: 1rem;
+        }
+        .copy-price {
+            width: 100px;
+            text-align: center;
+        }
+        .copy-version {
+            flex: 1;
+            text-align: left;
+            padding: 0 0.5rem;
+            color: #b8860b;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .detail-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .detail-header {
+            border-bottom: 2px solid #f0e4d6;
+            padding-bottom: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .detail-header h3 { font-size: 1.6rem; color: #4a3522; margin-bottom: 0.3rem; }
+
+        .img-pair {
+            display: flex;
+            gap: 1rem;
+            max-width: 500px;
+            margin: 0 auto 2rem;
+        }
+        .img-box {
+            flex: 1;
+            background: #faf6ef;
+            border-radius: 1rem;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .img-box img {
+            max-width: 100%;
+            max-height: 40vh;
+            object-fit: contain;
+            border-radius: 0.8rem;
+            cursor: pointer;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.2rem;
+            margin: 1.5rem 0;
+        }
+        .detail-field {
+            background: #faf8f5;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+        }
+        .detail-field label {
+            font-size: 0.7rem;
+            color: #b1967c;
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+        .remark-box {
+            background: #fef9f0;
+            border-left: 3px solid #daa520;
+            padding: 1rem;
+            margin: 1.2rem 0;
+            border-radius: 0.8rem;
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+            transition: none;
+        }
+        .modal-img {
+            display: block;
+            max-width: 90vw;
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            pointer-events: none;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            color: white;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            backdrop-filter: blur(4px);
+            border: none;
+            font-weight: bold;
+        }
+        .modal-close:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        .modal-tip {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.75rem;
+            pointer-events: none;
+            z-index: 1001;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.7rem;
+            color: #b1967c;
+        }
+
+        @media (max-width: 650px) {
+            body { padding: 1rem; padding-top: 70px; }
+            .img-pair { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>收藏品档案</h1>
+        <div class="sub">Bilibili @ 铜の币纪</div>
+    </div>
+    <div id="app"></div>
+    <div class="footer">
+        网址建立时间：2026年4月3日<br>© 2026 铜の币纪 版权所有
+        <div style="font-size:0.6rem; margin-top:4px;">Powered by GitHub Pages</div>
+    </div>
+</div>
+
+<!-- 弹窗 -->
+<div id="imageModal" class="modal">
+    <div class="modal-close" onclick="closeModal()">✕</div>
+    <div class="modal-content" id="modalContent">
+        <div class="image-container" id="imageContainer">
+            <img id="modalImg" class="modal-img" src="" alt="预览图">
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
-        <div class="list-panel">
-            <div class="panel-header">
-                <h2>搜索结果</h2>
-                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}</p>
-            </div>
-            <div id="dynamicResultContainer">${resultsHtml}</div>
-        </div>
-    `;
-    
-    document.getElementById("app").innerHTML = fullHtml;
-    bindSearchEvents();
-    restoreScroll(currentView + "_search");
-    
-    if (restoreCursor) {
-        const input = document.getElementById('searchInput');
-        if (input) {
-            input.focus();
-            input.setSelectionRange(input.value.length, input.value.length);
-        }
-    }
-}
+    </div>
+    <div class="modal-tip">双指缩放 | 拖动查看 | 点击背景关闭</div>
+</div>
 
-// 返回上一页
-function backToPrevious() {
-    if (currentView === 'categories') {
-        renderCategories(true);
-    } else if (currentView === 'seriesList' && currentCategoryId) {
-        renderSeriesList(currentCategoryId, true);
-    } else if (currentView === 'copyList' && currentSeries) {
-        renderCopyList(currentSeries.cid, currentSeries.si, true);
-    } else {
-        renderCategories(true);
-    }
-}
+<!-- 数据文件 -->
+<script src="data/commemorative.js"></script>
+<script src="data/hk.js"></script>
+<script src="data/macau.js"></script>
+<script src="data/taiwan.js"></script>
+<script src="data/rmb2.js"></script>
+<script src="data/rmb3.js"></script>
+<script src="data/rmb4.js"></script>
+<script src="data/rmb5.js"></script>
+<script src="data/fec.js"></script>
+<script src="data/japan.js"></script>
 
-// 重置搜索
-function resetSearchAndBack() {
-    currentSearchKeyword = '';
-    const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-    backToPrevious();
-}
-
-// 绑定搜索事件
-function bindSearchEvents() {
-    const searchBtn = document.getElementById('searchBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const modeToggle = document.getElementById('modeToggle');
-    const searchInput = document.getElementById('searchInput');
-    const searchType = document.getElementById('searchType');
-    const searchTip = document.getElementById('searchTip');
-    
-    if (!searchInput) return;
-    
-    if (searchInput._realtimeHandler) {
-        searchInput.removeEventListener('input', searchInput._realtimeHandler);
-    }
-    
-    let realtimeTimer = null;
-    
-    const handleRealtimeInput = function(e) {
-        if (realtimeTimer) clearTimeout(realtimeTimer);
-        realtimeTimer = setTimeout(() => {
-            performRealtimeSearch();
-        }, 300);
-    };
-    
-    if (searchMode === 'realtime') {
-        searchInput.addEventListener('input', handleRealtimeInput);
-        searchInput._realtimeHandler = handleRealtimeInput;
-        if (searchBtn) {
-            searchBtn.disabled = true;
-            searchBtn.style.opacity = '0.5';
-        }
-    } else {
-        searchInput.removeEventListener('input', handleRealtimeInput);
-        if (searchBtn) {
-            searchBtn.disabled = false;
-            searchBtn.style.opacity = '1';
-        }
-    }
-    
-    if (searchBtn) {
-        const newBtn = searchBtn.cloneNode(true);
-        searchBtn.parentNode.replaceChild(newBtn, searchBtn);
-        newBtn.addEventListener('click', function() {
-            if (searchMode === 'click') {
-                const keyword = searchInput.value;
-                const type = searchType ? searchType.value : 'all';
-                if (keyword && keyword.trim() !== '') {
-                    currentSearchKeyword = keyword;
-                    currentSearchType = type;
-                    renderSearchResultPage(keyword, type, false);
-                } else {
-                    alert('请输入搜索关键词');
-                }
-            }
-        });
-    }
-    
-    if (modeToggle) {
-        const newToggle = modeToggle.cloneNode(true);
-        modeToggle.parentNode.replaceChild(newToggle, modeToggle);
-        newToggle.addEventListener('click', function() {
-            searchMode = searchMode === 'click' ? 'realtime' : 'click';
-            const modeIcon = searchMode === 'click' ? '□' : '■';
-            const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-            newToggle.textContent = modeIcon;
-            if (searchTip) {
-                searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
-            }
-            bindSearchEvents();
-        });
-    }
-    
-    if (resetBtn) {
-        const newReset = resetBtn.cloneNode(true);
-        resetBtn.parentNode.replaceChild(newReset, resetBtn);
-        newReset.addEventListener('click', function() {
-            resetSearchAndBack();
-        });
-    }
-}
-
-// 分类页
-function renderCategories(restore = false) {
-    if (!restore) saveScroll("categories");
-    searchScope = 'global';
-    currentView = "categories";
-    currentCategoryId = null;
-    
-    const modeIcon = searchMode === 'click' ? '□' : '■';
-    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-    
-    let html = `
-        <div class="search-bar">
-            <select class="search-select" id="searchType">
-                <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
-                <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="version" ${currentSearchType === 'version' ? 'selected' : ''}>按冠字号搜索</option>
-                <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
-                <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
-            </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
-            <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
-            <button class="reset-btn" id="resetBtn">重置</button>
-        </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
-        <div class="category-grid">`;
-    
-    for (let id of categoryOrder) {
-        const cat = banknotesData[id];
-        if (!cat) continue;
-        let total = 0;
-        if (cat.series) {
-            for (let s of cat.series) total += s.copies ? s.copies.length : 0;
-        }
-        html += `
-            <div class="category-card" onclick="selectCategory('${id}')">
-                <div class="category-icon">${cat.icon || '📷'}</div>
-                <h3>${cat.name || id}</h3>
-                <p>${cat.desc || ''}</p>
-                <div class="count-badge"> ${total} 张藏品</div>
-            </div>`;
-    }
-    html += `</div>`;
-    document.getElementById("app").innerHTML = html;
-    bindSearchEvents();
-    if (restore) restoreScroll("categories");
-}
-
-// 系列列表
-function renderSeriesList(cid, restore = false) {
-    if (!restore) saveScroll("seriesList_" + cid);
-    searchScope = 'currentCategory';
-    currentView = "seriesList";
-    currentCategoryId = cid;
-    
-    const cat = banknotesData[cid];
-    if (!cat || !cat.series) return;
-    
-    const modeIcon = searchMode === 'click' ? '□' : '■';
-    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-    
-    let items = `<div class="series-list">`;
-    for (let idx = 0; idx < cat.series.length; idx++) {
-        const s = cat.series[idx];
-        items += `
-            <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
-                <div class="series-name">${escapeHtml(s.seriesName)}</div>
-                <div class="series-count">${s.copies ? s.copies.length : 0}张</div>
-                <div class="series-year">${formatYear(s.year)}</div>
-            </div>`;
-    }
-    items += `</div>`;
-    
-    const full = `
-        <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
-        <div class="search-bar">
-            <select class="search-select" id="searchType">
-                <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
-                <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="version" ${currentSearchType === 'version' ? 'selected' : ''}>按冠字号搜索</option>
-                <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
-                <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
-            </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
-            <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
-            <button class="reset-btn" id="resetBtn">重置</button>
-        </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
-        <div class="list-panel">
-            <div class="panel-header"><h2>${cat.icon || ''} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
-            ${items}
-        </div>`;
-    document.getElementById("app").innerHTML = full;
-    bindSearchEvents();
-    if (restore) restoreScroll("seriesList_" + cid);
-}
-
-// 单张列表
-function renderCopyList(cid, si, restore = false) {
-    if (!restore) saveScroll("copyList_" + cid + "_" + si);
-    currentView = "copyList";
-    currentCategoryId = cid;
-    currentSeries = { cid, si };
-    
-    const cat = banknotesData[cid];
-    if (!cat || !cat.series || !cat.series[si]) return;
-    const series = cat.series[si];
-    const copies = series.copies || [];
-    
-    let copiesHtml = `<div class="copy-list">`;
-    for (let ci = 0; ci < copies.length; ci++) {
-        const cp = copies[ci];
-        copiesHtml += `
-            <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
-                <div class="copy-index">#${cp.copyId}</div>
-                <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
-                <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
-                <div class="copy-price">${formatYear(series.year)}</div>
-                <div class="copy-price">${escapeHtml(formatKrause(cp.krause))}</div>
-            </div>`;
-    }
-    if (copies.length === 0) {
-        copiesHtml += `<div style="padding:1rem; text-align:center; color:#999;">暂无藏品</div>`;
-    }
-    copiesHtml += `</div>`;
-    
-    const full = `
-        <div class="back-bar">
-            <button class="back-btn" onclick="backToSeries('${cid}')">← 返回品种</button>
-        </div>
-        <div class="list-panel">
-            <div class="panel-header">
-                <h2>${escapeHtml(series.seriesName)}</h2>
-                <p>${formatYear(series.year)} · 共 ${copies.length} 张</p>
-            </div>
-            ${copiesHtml}
-        </div>`;
-    document.getElementById("app").innerHTML = full;
-    if (restore) restoreScroll("copyList_" + cid + "_" + si);
-}
-
-// 详情页
-function renderDetail(cid, si, ci) {
-    saveScroll("copyList_" + cid + "_" + si);
-    currentView = "detail";
-    currentCategoryId = cid;
-    currentSeries = { cid, si };
-    
-    const cat = banknotesData[cid];
-    if (!cat || !cat.series || !cat.series[si]) return;
-    const series = cat.series[si];
-    const cp = series.copies[ci];
-    if (!cp) return;
-    
-    currentModalImg1 = cp.img1 || '';
-    currentModalImg2 = cp.img2 || '';
-    const krauseDisplay = formatKrause(cp.krause);
-    
-    const detailHtml = `
-        <div class="back-bar">
-            <button class="back-btn" onclick="backToCopyList('${cid}', ${si})">← 返回藏品列表</button>
-        </div>
-        <div class="detail-panel">
-            <div class="detail-header">
-                <h3>${escapeHtml(series.seriesName)}</h3>
-                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div>
-            </div>
-
-            <div class="img-pair">
-                <div class="img-box">
-                    <img src="${cp.img1}" alt="正面" onclick="openModal(0)">
-                </div>
-                <div class="img-box">
-                    <img src="${cp.img2}" alt="背面" onclick="openModal(1)">
-                </div>
-            </div>
-
-            <div class="detail-grid">
-                <div class="detail-field"><label>冠字号码</label><div>${escapeHtml(cp.version || '—')}</div></div>
-                <div class="detail-field"><label>发行银行</label><div>${escapeHtml(cp.bank || '—')}</div></div>
-                <div class="detail-field"><label>发行年份</label><div>${formatYear(series.year)}</div></div>
-                <div class="detail-field"><label>评级分数</label><div>${escapeHtml(cp.condition || '—')}</div></div>
-                <div class="detail-field"><label>购入价格</label><div>${cp.price || '—'}</div></div>
-                <div class="detail-field"><label>购入日期</label><div>${cp.purchaseDate || '—'}</div></div>
-                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(krauseDisplay)}</div></div>
-                <div class="detail-field"><label>藏品编号</label><div>#${cp.copyId}</div></div>
-            </div>
-
-            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
-        </div>`;
-    document.getElementById("app").innerHTML = detailHtml;
-    window.scrollTo(0, 0);
-}
-
-function backToCopyList(cid, si) {
-    renderCopyList(cid, si, true);
-}
-
-function backToSeries(cid) {
-    renderSeriesList(cid, true);
-}
-
-function backToCategories() {
-    renderCategories(true);
-}
-
-// ========== 双指缩放功能（Hammer.js） ==========
-function initPinchZoom() {
-    // 检查 Hammer 是否可用
-    if (typeof Hammer === 'undefined') {
-        console.log('Hammer.js 未加载，缩放功能不可用');
-        return;
-    }
-    
-    const container = document.getElementById('imageContainer');
-    if (!container) return;
-    
-    if (hammerManager) {
-        hammerManager.destroy();
-    }
-    
-    hammerManager = new Hammer.Manager(container);
-    const pinch = new Hammer.Pinch();
-    const pan = new Hammer.Pan();
-    
-    hammerManager.add([pinch, pan]);
-    
-    let lastScale = 1;
-    let lastX = 0;
-    let lastY = 0;
-    
-    function resetTransform() {
-        currentScale = 1;
-        currentX = 0;
-        currentY = 0;
-        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
-    }
-    
-    function clampTransform() {
-        const img = document.getElementById('modalImg');
-        if (!img) return;
-        
-        const containerRect = container.parentElement.getBoundingClientRect();
-        const imgRect = img.getBoundingClientRect();
-        
-        const scaledWidth = imgRect.width;
-        const scaledHeight = imgRect.height;
-        
-        let maxX = 0, maxY = 0;
-        if (scaledWidth > containerRect.width) {
-            maxX = (scaledWidth - containerRect.width) / 2;
-        }
-        if (scaledHeight > containerRect.height) {
-            maxY = (scaledHeight - containerRect.height) / 2;
-        }
-        
-        currentX = Math.min(maxX, Math.max(-maxX, currentX));
-        currentY = Math.min(maxY, Math.max(-maxY, currentY));
-        
-        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-    }
-    
-    hammerManager.on('pinchstart', function(e) {
-        lastScale = currentScale;
-        e.preventDefault();
-    });
-    
-    hammerManager.on('pinchmove', function(e) {
-        let newScale = lastScale * e.scale;
-        newScale = Math.min(4, Math.max(1, newScale));
-        currentScale = newScale;
-        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-        e.preventDefault();
-    });
-    
-    hammerManager.on('pinchend', function(e) {
-        clampTransform();
-        e.preventDefault();
-    });
-    
-    hammerManager.on('panstart', function(e) {
-        lastX = currentX;
-        lastY = currentY;
-    });
-    
-    hammerManager.on('panmove', function(e) {
-        if (currentScale > 1) {
-            currentX = lastX + e.deltaX;
-            currentY = lastY + e.deltaY;
-            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-        }
-        e.preventDefault();
-    });
-    
-    hammerManager.on('panend', function(e) {
-        clampTransform();
-    });
-    
-    container.addEventListener('dblclick', function(e) {
-        resetTransform();
-        e.preventDefault();
-    });
-    
-    resetTransform();
-}
-
-// 打开弹窗
-function openModal(index = 0) {
-    const modal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImg');
-    const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
-    modalImg.src = imgSrc;
-    modal.style.display = 'flex';
-    
-    const container = document.getElementById('imageContainer');
-    if (container) {
-        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
-        currentScale = 1;
-        currentX = 0;
-        currentY = 0;
-    }
-    
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = scrollbarWidth + 'px';
-    
-    modalImg.onload = function() {
-        initPinchZoom();
-    };
-    if (modalImg.complete) {
-        initPinchZoom();
-    }
-}
-
-function closeModal() {
-    const modal = document.getElementById('imageModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = '';
-    document.body.style.paddingRight = '';
-    const modalImg = document.getElementById('modalImg');
-    modalImg.src = '';
-    
-    if (hammerManager) {
-        hammerManager.destroy();
-        hammerManager = null;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('imageModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this || e.target.classList.contains('modal-content')) {
-                closeModal();
-            }
-        });
-    }
-});
-
-// 路由函数
-function selectCategory(cid) { renderSeriesList(cid, false); }
-function selectSeries(cid, si) { renderCopyList(cid, si, false); }
-function selectCopy(cid, si, ci) { renderDetail(cid, si, ci); }
-
-// 初始化
-window.addEventListener('DOMContentLoaded', function() {
-    renderCategories(false);
-});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeModal();
-});
+<!-- 主逻辑 -->
+<script src="js/main.js"></script>
+</body>
+</html>
