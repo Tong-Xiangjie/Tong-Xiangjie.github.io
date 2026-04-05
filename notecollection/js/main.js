@@ -29,6 +29,12 @@ let searchMode = 'click';
 let currentModalImg1 = '';
 let currentModalImg2 = '';
 
+// ========== 缩放相关变量 ==========
+let hammerManager = null;
+let currentScale = 1;
+let currentX = 0;
+let currentY = 0;
+
 // 克劳斯前缀常量
 const KRAUSE_PREFIX = 'Pick# ';
 
@@ -164,47 +170,31 @@ function renderResultsList(results) {
 
 // ========== 实时搜索函数 ==========
 function performRealtimeSearch() {
-    console.log('performRealtimeSearch 被调用了');
-    
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
     
-    if (!searchInput) {
-        console.log('searchInput 不存在');
-        return;
-    }
+    if (!searchInput) return;
     
     const rawKeyword = searchInput.value;
     const type = searchType ? searchType.value : 'all';
     
-    console.log('搜索关键词:', rawKeyword, '类型:', type);
-    
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
     
-    // 如果关键词为空，返回上一页
     if (!rawKeyword || rawKeyword.trim() === '') {
-        console.log('关键词为空，返回上一页');
         backToPrevious();
         return;
     }
     
-    // 获取或创建结果容器
     let resultContainer = document.getElementById('dynamicResultContainer');
     
-    // 如果当前不在搜索结果页，需要先进入搜索结果页
     if (!resultContainer) {
-        console.log('不在搜索结果页，先进入搜索结果页');
-        // 保存当前搜索关键词和类型
         currentSearchKeyword = rawKeyword;
         currentSearchType = type;
-        // 进入搜索结果页
         renderSearchResultPage(rawKeyword, type, true);
         return;
     }
     
-    // 已经在搜索结果页，只更新结果
-    console.log('更新搜索结果');
     const results = performSearch(rawKeyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
     resultContainer.innerHTML = resultsHtml;
@@ -217,8 +207,6 @@ function performRealtimeSearch() {
 
 // 渲染搜索结果页
 function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
-    console.log('renderSearchResultPage 被调用', rawKeyword, type);
-    
     if (!rawKeyword || rawKeyword.trim() === '') return;
     
     saveScroll(currentView + "_search");
@@ -260,7 +248,6 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     bindSearchEvents();
     restoreScroll(currentView + "_search");
     
-    // 恢复光标
     if (restoreCursor) {
         const input = document.getElementById('searchInput');
         if (input) {
@@ -302,14 +289,12 @@ function bindSearchEvents() {
     
     if (!searchInput) return;
     
-    // 移除旧事件
     if (searchInput._realtimeHandler) {
         searchInput.removeEventListener('input', searchInput._realtimeHandler);
     }
     
     let realtimeTimer = null;
     
-    // 实时搜索处理函数
     const handleRealtimeInput = function(e) {
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
@@ -318,7 +303,6 @@ function bindSearchEvents() {
     };
     
     if (searchMode === 'realtime') {
-        console.log('切换到实时模式');
         searchInput.addEventListener('input', handleRealtimeInput);
         searchInput._realtimeHandler = handleRealtimeInput;
         if (searchBtn) {
@@ -326,7 +310,6 @@ function bindSearchEvents() {
             searchBtn.style.opacity = '0.5';
         }
     } else {
-        console.log('切换到点击模式');
         searchInput.removeEventListener('input', handleRealtimeInput);
         if (searchBtn) {
             searchBtn.disabled = false;
@@ -334,7 +317,6 @@ function bindSearchEvents() {
         }
     }
     
-    // 搜索按钮（点击模式）
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
@@ -353,7 +335,6 @@ function bindSearchEvents() {
         });
     }
     
-    // 模式切换
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
@@ -369,7 +350,6 @@ function bindSearchEvents() {
         });
     }
     
-    // 重置按钮
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
@@ -590,7 +570,107 @@ function backToCategories() {
     renderCategories(true);
 }
 
-// 简单的图片弹窗（无缩放，只显示）
+// ========== 双指缩放功能（Hammer.js） ==========
+function initPinchZoom() {
+    // 检查 Hammer 是否可用
+    if (typeof Hammer === 'undefined') {
+        console.log('Hammer.js 未加载，缩放功能不可用');
+        return;
+    }
+    
+    const container = document.getElementById('imageContainer');
+    if (!container) return;
+    
+    if (hammerManager) {
+        hammerManager.destroy();
+    }
+    
+    hammerManager = new Hammer.Manager(container);
+    const pinch = new Hammer.Pinch();
+    const pan = new Hammer.Pan();
+    
+    hammerManager.add([pinch, pan]);
+    
+    let lastScale = 1;
+    let lastX = 0;
+    let lastY = 0;
+    
+    function resetTransform() {
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+    }
+    
+    function clampTransform() {
+        const img = document.getElementById('modalImg');
+        if (!img) return;
+        
+        const containerRect = container.parentElement.getBoundingClientRect();
+        const imgRect = img.getBoundingClientRect();
+        
+        const scaledWidth = imgRect.width;
+        const scaledHeight = imgRect.height;
+        
+        let maxX = 0, maxY = 0;
+        if (scaledWidth > containerRect.width) {
+            maxX = (scaledWidth - containerRect.width) / 2;
+        }
+        if (scaledHeight > containerRect.height) {
+            maxY = (scaledHeight - containerRect.height) / 2;
+        }
+        
+        currentX = Math.min(maxX, Math.max(-maxX, currentX));
+        currentY = Math.min(maxY, Math.max(-maxY, currentY));
+        
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+    }
+    
+    hammerManager.on('pinchstart', function(e) {
+        lastScale = currentScale;
+        e.preventDefault();
+    });
+    
+    hammerManager.on('pinchmove', function(e) {
+        let newScale = lastScale * e.scale;
+        newScale = Math.min(4, Math.max(1, newScale));
+        currentScale = newScale;
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        e.preventDefault();
+    });
+    
+    hammerManager.on('pinchend', function(e) {
+        clampTransform();
+        e.preventDefault();
+    });
+    
+    hammerManager.on('panstart', function(e) {
+        lastX = currentX;
+        lastY = currentY;
+    });
+    
+    hammerManager.on('panmove', function(e) {
+        if (currentScale > 1) {
+            currentX = lastX + e.deltaX;
+            currentY = lastY + e.deltaY;
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        }
+        e.preventDefault();
+    });
+    
+    hammerManager.on('panend', function(e) {
+        clampTransform();
+    });
+    
+    container.addEventListener('dblclick', function(e) {
+        resetTransform();
+        e.preventDefault();
+    });
+    
+    resetTransform();
+}
+
+// 打开弹窗
 function openModal(index = 0) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
@@ -598,9 +678,24 @@ function openModal(index = 0) {
     modalImg.src = imgSrc;
     modal.style.display = 'flex';
     
+    const container = document.getElementById('imageContainer');
+    if (container) {
+        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+    }
+    
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
+    
+    modalImg.onload = function() {
+        initPinchZoom();
+    };
+    if (modalImg.complete) {
+        initPinchZoom();
+    }
 }
 
 function closeModal() {
@@ -609,7 +704,12 @@ function closeModal() {
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
     const modalImg = document.getElementById('modalImg');
-    if (modalImg) modalImg.src = '';
+    modalImg.src = '';
+    
+    if (hammerManager) {
+        hammerManager.destroy();
+        hammerManager = null;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
