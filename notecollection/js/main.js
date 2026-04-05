@@ -35,6 +35,10 @@ let currentY = 0;
 
 const KRAUSE_PREFIX = 'Pick# ';
 
+// 搜索结果页返回相关变量
+let fromSearchResult = false;
+let lastSearchParams = null;
+
 function saveScroll(key) {
     scrollMemory[key] = window.scrollY;
 }
@@ -206,6 +210,9 @@ function performRealtimeSearch() {
 
 function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
+
+    // 标记当前在搜索结果页
+    currentView = 'searchResult';
 
     // 进入搜索结果页前，保存当前页面的滚动位置
     if (currentView === 'categories') {
@@ -420,6 +427,7 @@ function bindSearchEvents() {
 }
 
 function renderCategories(restore = false) {
+    fromSearchResult = false;
     if (!restore) {
         window.scrollTo(0, 0);
     }
@@ -473,6 +481,7 @@ function renderCategories(restore = false) {
 }
 
 function renderSeriesList(cid, restore = false) {
+    fromSearchResult = false;
     if (!restore) {
         window.scrollTo(0, 0);
     }
@@ -528,6 +537,7 @@ function renderSeriesList(cid, restore = false) {
 }
 
 function renderCopyList(cid, si, restore = false) {
+    fromSearchResult = false;
     if (!restore) {
         window.scrollTo(0, 0);
     }
@@ -650,7 +660,12 @@ function renderDetail(cid, si, ci) {
 }
 
 function backToCopyList(cid, si) {
-    renderCopyList(cid, si, true);
+    if (fromSearchResult) {
+        fromSearchResult = false;
+        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, true);
+    } else {
+        renderCopyList(cid, si, true);
+    }
 }
 
 function backToSeries(cid) {
@@ -673,7 +688,17 @@ function selectSeries(cid, si) {
 }
 
 function selectCopy(cid, si, ci) {
-    saveScroll("copyList_" + cid + "_" + si);
+    // 判断当前是否在搜索结果页
+    if (currentView === 'searchResult') {
+        fromSearchResult = true;
+        lastSearchParams = {
+            keyword: currentSearchKeyword,
+            type: currentSearchType
+        };
+    } else {
+        fromSearchResult = false;
+        saveScroll("copyList_" + cid + "_" + si);
+    }
     renderDetail(cid, si, ci);
 }
 
