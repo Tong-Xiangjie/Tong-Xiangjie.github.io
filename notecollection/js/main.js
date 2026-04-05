@@ -23,22 +23,18 @@ let searchScope = 'global';
 let currentSearchKeyword = '';
 let currentSearchType = 'all';
 
-// 搜索模式：'click' 或 'realtime'
 let searchMode = 'click';
 
 let currentModalImg1 = '';
 let currentModalImg2 = '';
 
-// ========== 缩放相关变量 ==========
 let hammerManager = null;
 let currentScale = 1;
 let currentX = 0;
 let currentY = 0;
 
-// 克劳斯前缀常量
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ========== 滚动位置保存和恢复 ==========
 function saveScroll(key) {
     scrollMemory[key] = window.scrollY;
 }
@@ -66,12 +62,11 @@ function formatYear(year) {
     return year + '年';
 }
 
-// ========== 修复1：克劳斯格式化（确保 Pick# 显示） ==========
 function formatKrause(krause) {
     if (krause && krause !== '') {
         return `Pick# ${krause}`;
     }
-    return `Pick#`;  // 没有编码时也显示 Pick#
+    return `Pick#`;
 }
 
 function getActualKeyword(inputValue, searchType) {
@@ -84,16 +79,19 @@ function getActualKeyword(inputValue, searchType) {
     return inputValue.trim();
 }
 
+// ========== 修复：克劳斯前缀显示 ==========
 function getDisplayValue(keyword, searchType) {
-    if (searchType === 'krause' && keyword !== '') {
+    if (searchType === 'krause') {
+        if (!keyword || keyword === '') {
+            return KRAUSE_PREFIX;
+        }
         if (!keyword.startsWith(KRAUSE_PREFIX)) {
             return KRAUSE_PREFIX + keyword;
         }
     }
-    return keyword;
+    return keyword || '';
 }
 
-// 执行搜索
 function performSearch(rawKeyword, type, scope) {
     const keyword = getActualKeyword(rawKeyword, type);
     if (!keyword || keyword === '') return [];
@@ -146,7 +144,6 @@ function performSearch(rawKeyword, type, scope) {
     return results;
 }
 
-// 渲染结果列表HTML
 function renderResultsList(results) {
     if (results.length === 0) {
         return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
@@ -169,7 +166,6 @@ function renderResultsList(results) {
     return html;
 }
 
-// ========== 实时搜索函数 ==========
 function performRealtimeSearch() {
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
@@ -190,8 +186,6 @@ function performRealtimeSearch() {
     let resultContainer = document.getElementById('dynamicResultContainer');
     
     if (!resultContainer) {
-        currentSearchKeyword = rawKeyword;
-        currentSearchType = type;
         renderSearchResultPage(rawKeyword, type, true);
         return;
     }
@@ -205,14 +199,12 @@ function performRealtimeSearch() {
         countSpan.innerText = results.length;
     }
     
-    // ========== 修复2：实时搜索时更新关键词提示 ==========
     const keywordSpan = document.getElementById('searchKeywordDisplay');
     if (keywordSpan) {
         keywordSpan.innerText = escapeHtml(getActualKeyword(rawKeyword, type));
     }
 }
 
-// 渲染搜索结果页
 function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
     
@@ -265,7 +257,6 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     }
 }
 
-// 返回上一页
 function backToPrevious() {
     if (currentView === 'categories') {
         renderCategories(true);
@@ -278,7 +269,6 @@ function backToPrevious() {
     }
 }
 
-// 重置搜索
 function resetSearchAndBack() {
     currentSearchKeyword = '';
     const input = document.getElementById('searchInput');
@@ -286,7 +276,35 @@ function resetSearchAndBack() {
     backToPrevious();
 }
 
-// 绑定搜索事件
+// 克劳斯输入框保护
+function setupKrauseInputProtection(inputElement, searchTypeElement) {
+    if (!inputElement || !searchTypeElement) return;
+    
+    const handleKeydown = function(e) {
+        if (searchTypeElement.value !== 'krause') return;
+        const cursorPos = inputElement.selectionStart;
+        if (cursorPos <= KRAUSE_PREFIX.length) {
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+                return;
+            }
+        }
+    };
+    
+    const handleInput = function(e) {
+        if (searchTypeElement.value !== 'krause') return;
+        let currentValue = inputElement.value;
+        if (!currentValue.startsWith(KRAUSE_PREFIX)) {
+            inputElement.value = KRAUSE_PREFIX + currentValue;
+        }
+    };
+    
+    inputElement.removeEventListener('keydown', handleKeydown);
+    inputElement.removeEventListener('input', handleInput);
+    inputElement.addEventListener('keydown', handleKeydown);
+    inputElement.addEventListener('input', handleInput);
+}
+
 function bindSearchEvents() {
     const searchBtn = document.getElementById('searchBtn');
     const resetBtn = document.getElementById('resetBtn');
@@ -309,6 +327,34 @@ function bindSearchEvents() {
             performRealtimeSearch();
         }, 300);
     };
+    
+    // 搜索类型变化时的处理（确保克劳斯前缀）
+    if (searchType) {
+        const handleTypeChange = function() {
+            const newType = searchType.value;
+            const currentRaw = searchInput.value;
+            
+            if (newType === 'krause') {
+                if (!currentRaw.startsWith(KRAUSE_PREFIX)) {
+                    searchInput.value = KRAUSE_PREFIX + currentRaw;
+                }
+            } else {
+                if (currentRaw.startsWith(KRAUSE_PREFIX)) {
+                    searchInput.value = currentRaw.substring(KRAUSE_PREFIX.length);
+                }
+            }
+            currentSearchKeyword = searchInput.value;
+            currentSearchType = newType;
+            setupKrauseInputProtection(searchInput, searchType);
+        };
+        
+        searchType.removeEventListener('change', handleTypeChange);
+        searchType.addEventListener('change', handleTypeChange);
+        // 初始化时也执行一次
+        handleTypeChange();
+    }
+    
+    setupKrauseInputProtection(searchInput, searchType);
     
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
@@ -367,7 +413,6 @@ function bindSearchEvents() {
     }
 }
 
-// 分类页
 function renderCategories(restore = false) {
     if (!restore) saveScroll("categories");
     searchScope = 'global';
@@ -417,7 +462,6 @@ function renderCategories(restore = false) {
     if (restore) restoreScroll("categories");
 }
 
-// 系列列表
 function renderSeriesList(cid, restore = false) {
     if (!restore) saveScroll("seriesList_" + cid);
     searchScope = 'currentCategory';
@@ -469,7 +513,6 @@ function renderSeriesList(cid, restore = false) {
     if (restore) restoreScroll("seriesList_" + cid);
 }
 
-// 单张列表
 function renderCopyList(cid, si, restore = false) {
     if (!restore) saveScroll("copyList_" + cid + "_" + si);
     currentView = "copyList";
@@ -513,7 +556,6 @@ function renderCopyList(cid, si, restore = false) {
     if (restore) restoreScroll("copyList_" + cid + "_" + si);
 }
 
-// 详情页
 function renderDetail(cid, si, ci) {
     saveScroll("copyList_" + cid + "_" + si);
     currentView = "detail";
@@ -578,7 +620,6 @@ function backToCategories() {
     renderCategories(true);
 }
 
-// ========== 双指缩放功能（Hammer.js） ==========
 function initPinchZoom() {
     if (typeof Hammer === 'undefined') {
         console.log('Hammer.js 未加载，缩放功能不可用');
@@ -677,7 +718,6 @@ function initPinchZoom() {
     resetTransform();
 }
 
-// 打开弹窗
 function openModal(index = 0) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
@@ -730,12 +770,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 路由函数
 function selectCategory(cid) { renderSeriesList(cid, false); }
 function selectSeries(cid, si) { renderCopyList(cid, si, false); }
 function selectCopy(cid, si, ci) { renderDetail(cid, si, ci); }
 
-// 初始化
 window.addEventListener('DOMContentLoaded', function() {
     renderCategories(false);
 });
