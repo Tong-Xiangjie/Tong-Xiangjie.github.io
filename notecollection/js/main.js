@@ -66,11 +66,12 @@ function formatYear(year) {
     return year + '年';
 }
 
+// ========== 修复1：克劳斯格式化（确保 Pick# 显示） ==========
 function formatKrause(krause) {
     if (krause && krause !== '') {
         return `Pick# ${krause}`;
     }
-    return `Pick#`;
+    return `Pick#`;  // 没有编码时也显示 Pick#
 }
 
 function getActualKeyword(inputValue, searchType) {
@@ -203,6 +204,12 @@ function performRealtimeSearch() {
     if (countSpan) {
         countSpan.innerText = results.length;
     }
+    
+    // ========== 修复2：实时搜索时更新关键词提示 ==========
+    const keywordSpan = document.getElementById('searchKeywordDisplay');
+    if (keywordSpan) {
+        keywordSpan.innerText = escapeHtml(getActualKeyword(rawKeyword, type));
+    }
 }
 
 // 渲染搜索结果页
@@ -217,6 +224,7 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     const displayValue = getDisplayValue(rawKeyword, type);
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
+    const actualKeyword = escapeHtml(getActualKeyword(rawKeyword, type));
     
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
@@ -238,7 +246,7 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
-                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}</p>
+                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：<span id="searchKeywordDisplay">${actualKeyword}</span></p>
             </div>
             <div id="dynamicResultContainer">${resultsHtml}</div>
         </div>
@@ -572,7 +580,6 @@ function backToCategories() {
 
 // ========== 双指缩放功能（Hammer.js） ==========
 function initPinchZoom() {
-    // 检查 Hammer 是否可用
     if (typeof Hammer === 'undefined') {
         console.log('Hammer.js 未加载，缩放功能不可用');
         return;
