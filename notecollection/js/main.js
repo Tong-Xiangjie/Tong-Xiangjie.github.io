@@ -171,7 +171,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
         resultsHtml += `</div>`;
     }
     
-    const modeIcon = searchMode === 'click' ? '🔘' : '⚡';
+    const modeIcon = searchMode === 'click' ? '实时' : '点击';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     
     const fullHtml = `
@@ -185,15 +185,15 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
                 <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(keyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="当前模式：${modeText}" value="${escapeHtml(keyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">💡 当前模式：${modeText} | 点击 ${modeIcon === '🔘' ? '🔘' : '⚡'} 可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText}</div>
         <div class="list-panel">
             <div class="panel-header">
-                <h2>🔍 搜索结果</h2>
+                <h2>搜索结果</h2>
                 <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(keyword)}</p>
             </div>
             ${resultsHtml}
@@ -294,11 +294,11 @@ function bindSearchEvents() {
             searchMode = searchMode === 'click' ? 'realtime' : 'click';
             
             // 更新提示文字和图标
-            const modeIcon = searchMode === 'click' ? '🔘' : '⚡';
+            const modeIcon = searchMode === 'click' ? '实时' : '点击';
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             newToggle.textContent = modeIcon;
             if (searchTip) {
-                searchTip.innerHTML = `💡 当前模式：${modeText} | 点击 ${modeIcon} 可切换`;
+                searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换至${modeIcon}搜索模式`;
             }
             
             // 重新绑定事件
@@ -326,7 +326,7 @@ function renderCategories(restore = false) {
     currentView = "categories";
     currentCategoryId = null;
     
-    const modeIcon = searchMode === 'click' ? '🔘' : '⚡';
+    const modeIcon = searchMode === 'click' ? '实时' : '点击';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     
     let html = `
@@ -337,14 +337,14 @@ function renderCategories(restore = false) {
                 <option value="version" ${currentSearchType === 'version' ? 'selected' : ''}>按冠字号搜索</option>
                 <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
-                <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
+                <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="当前模式：${modeText}" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">💡 当前模式：${modeText} | 点击 ${modeIcon} 可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换至${modeIcon}搜索模式</div>
     `;
     html += `<div class="category-grid">`;
     for (let id of categoryOrder) {
@@ -361,7 +361,7 @@ function renderCategories(restore = false) {
                 <div class="category-icon">${cat.icon || '📷'}</div>
                 <h3>${cat.name || id}</h3>
                 <p>${cat.desc || ''}</p>
-                <div class="count-badge">📌 ${total} 张藏品</div>
+                <div class="count-badge"> ${total} 张藏品</div>
             </div>`;
     }
     html += `</div>`;
@@ -385,7 +385,7 @@ function renderSeriesList(cid, restore = false) {
     const cat = banknotesData[cid];
     if (!cat || !cat.series) return;
     
-    const modeIcon = searchMode === 'click' ? '🔘' : '⚡';
+    const modeIcon = searchMode === 'click' ? '实时' : '点击';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     
     let items = `<div class="series-list">`;
@@ -417,7 +417,7 @@ function renderSeriesList(cid, restore = false) {
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">💡 当前模式：${modeText} | 点击 ${modeIcon} 可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换至${modeIcon}搜索模式</div>
         <div class="list-panel">
             <div class="panel-header"><h2>${cat.icon || ''} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
             ${items}
