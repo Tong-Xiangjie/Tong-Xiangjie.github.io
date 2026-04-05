@@ -207,7 +207,14 @@ function performRealtimeSearch() {
 function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
 
-    saveScroll(currentView + "_search");
+    // 进入搜索结果页前，保存当前页面的滚动位置
+    if (currentView === 'categories') {
+        saveScroll("categories");
+    } else if (currentView === 'seriesList' && currentCategoryId) {
+        saveScroll("seriesList_" + currentCategoryId);
+    } else if (currentView === 'copyList' && currentSeries) {
+        saveScroll("copyList_" + currentSeries.cid + "_" + currentSeries.si);
+    }
 
     const results = performSearch(rawKeyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
@@ -245,13 +252,10 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
 
     document.getElementById("app").innerHTML = fullHtml;
     
-    // 进入搜索结果页：非恢复模式时滚动到顶部
-    if (!restoreCursor) {
-        window.scrollTo(0, 0);
-    }
+    // 搜索结果页总是从顶部开始
+    window.scrollTo(0, 0);
     
     bindSearchEvents();
-    restoreScroll(currentView + "_search");
 
     if (restoreCursor) {
         const input = document.getElementById('searchInput');
@@ -417,8 +421,7 @@ function bindSearchEvents() {
 
 function renderCategories(restore = false) {
     if (!restore) {
-        saveScroll("categories");
-        window.scrollTo(0, 0);  // 非恢复模式：滚动到顶部
+        window.scrollTo(0, 0);
     }
     searchScope = 'global';
     currentView = "categories";
@@ -464,13 +467,14 @@ function renderCategories(restore = false) {
     html += `</div>`;
     document.getElementById("app").innerHTML = html;
     bindSearchEvents();
-    if (restore) restoreScroll("categories");
+    if (restore) {
+        restoreScroll("categories");
+    }
 }
 
 function renderSeriesList(cid, restore = false) {
     if (!restore) {
-        saveScroll("seriesList_" + cid);
-        window.scrollTo(0, 0);  // 非恢复模式：滚动到顶部
+        window.scrollTo(0, 0);
     }
     searchScope = 'currentCategory';
     currentView = "seriesList";
@@ -518,13 +522,14 @@ function renderSeriesList(cid, restore = false) {
         </div>`;
     document.getElementById("app").innerHTML = full;
     bindSearchEvents();
-    if (restore) restoreScroll("seriesList_" + cid);
+    if (restore) {
+        restoreScroll("seriesList_" + cid);
+    }
 }
 
 function renderCopyList(cid, si, restore = false) {
     if (!restore) {
-        saveScroll("copyList_" + cid + "_" + si);
-        window.scrollTo(0, 0);  // 非恢复模式：滚动到顶部
+        window.scrollTo(0, 0);
     }
     currentView = "copyList";
     currentCategoryId = cid;
@@ -564,14 +569,12 @@ function renderCopyList(cid, si, restore = false) {
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
-    if (restore) restoreScroll("copyList_" + cid + "_" + si);
+    if (restore) {
+        restoreScroll("copyList_" + cid + "_" + si);
+    }
 }
 
-// ========== 动态详情页（根据板块的 detailFields 配置渲染） ==========
 function renderDetail(cid, si, ci) {
-    // 进入详情页前，保存当前列表页的滚动位置
-    saveScroll("copyList_" + cid + "_" + si);
-    
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si };
@@ -585,7 +588,6 @@ function renderDetail(cid, si, ci) {
     currentModalImg1 = cp.img1 || '';
     currentModalImg2 = cp.img2 || '';
 
-    // 获取该板块的字段配置，如果没有则使用默认配置
     const detailFields = cat.detailFields || [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行银行" },
@@ -597,12 +599,10 @@ function renderDetail(cid, si, ci) {
         { key: "copyId", label: "藏品编号" }
     ];
 
-    // 动态生成详情字段HTML
     let detailGridHtml = '';
     for (let field of detailFields) {
         let value = cp[field.key];
         
-        // 特殊处理
         if (field.key === 'year') {
             value = formatYear(series.year);
         } else if (field.key === 'krause') {
@@ -646,7 +646,6 @@ function renderDetail(cid, si, ci) {
             ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
         </div>`;
     document.getElementById("app").innerHTML = detailHtml;
-    // 详情页总是从顶部开始
     window.scrollTo(0, 0);
 }
 
@@ -660,6 +659,22 @@ function backToSeries(cid) {
 
 function backToCategories() {
     renderCategories(true);
+}
+
+// 路由函数 - 进入更深层时保存当前滚动位置
+function selectCategory(cid) {
+    saveScroll("categories");
+    renderSeriesList(cid, false);
+}
+
+function selectSeries(cid, si) {
+    saveScroll("seriesList_" + cid);
+    renderCopyList(cid, si, false);
+}
+
+function selectCopy(cid, si, ci) {
+    saveScroll("copyList_" + cid + "_" + si);
+    renderDetail(cid, si, ci);
 }
 
 function initPinchZoom() {
@@ -811,10 +826,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-function selectCategory(cid) { renderSeriesList(cid, false); }
-function selectSeries(cid, si) { renderCopyList(cid, si, false); }
-function selectCopy(cid, si, ci) { renderDetail(cid, si, ci); }
 
 window.addEventListener('DOMContentLoaded', function() {
     renderCategories(false);
