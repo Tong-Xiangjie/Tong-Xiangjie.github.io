@@ -208,7 +208,8 @@ function performRealtimeSearch() {
     }
 }
 
-function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
+// 修改：增加 autoFocus 参数，默认为 true（保持原有行为）
+function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
 
     // 标记当前在搜索结果页
@@ -259,12 +260,13 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
 
     document.getElementById("app").innerHTML = fullHtml;
     
-    // 搜索结果页总是从顶部开始
-    window.scrollTo(0, 0);
+    // 恢复搜索结果页的滚动位置
+    restoreScroll("searchResult");
     
     bindSearchEvents();
 
-    if (restoreCursor) {
+    // 根据 autoFocus 参数决定是否自动聚焦输入框
+    if (autoFocus) {
         const input = document.getElementById('searchInput');
         if (input) {
             input.focus();
@@ -394,7 +396,7 @@ function bindSearchEvents() {
                 if (keyword && keyword.trim() !== '') {
                     currentSearchKeyword = keyword;
                     currentSearchType = type;
-                    renderSearchResultPage(keyword, type, false);
+                    renderSearchResultPage(keyword, type, true);
                 } else {
                     alert('请输入搜索关键词');
                 }
@@ -659,10 +661,12 @@ function renderDetail(cid, si, ci) {
     window.scrollTo(0, 0);
 }
 
+// 修改：从搜索结果页返回时，保存滚动位置，且不自动聚焦输入框
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
-        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, true);
+        // 从搜索结果进入详情前已经保存了滚动位置，返回时恢复
+        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
     }
@@ -687,10 +691,12 @@ function selectSeries(cid, si) {
     renderCopyList(cid, si, false);
 }
 
+// 修改：从搜索结果页进入详情时，保存搜索结果页的滚动位置
 function selectCopy(cid, si, ci) {
     // 判断当前是否在搜索结果页
     if (currentView === 'searchResult') {
         fromSearchResult = true;
+        saveScroll("searchResult");  // 保存搜索结果页的滚动位置
         lastSearchParams = {
             keyword: currentSearchKeyword,
             type: currentSearchType
