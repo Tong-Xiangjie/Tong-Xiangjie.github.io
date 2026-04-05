@@ -1,6 +1,7 @@
+// data/fec.js
 const fecData = {
-    name: "外汇兑换券",
-    icon: "𝟘𝟡",
-    desc: "1979-1995",
+    name: "外汇券",
+    icon: "𝟙𝟜",
+    desc: "外汇兑换券",
     series: []
 };
