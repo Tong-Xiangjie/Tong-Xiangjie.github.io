@@ -220,7 +220,6 @@
         }
         .copy-price {
             width: 100px;
-            color: #5a6e4a;
             text-align: center;
         }
         .copy-version {
@@ -245,51 +244,27 @@
         }
         .detail-header h3 { font-size: 1.6rem; color: #4a3522; margin-bottom: 0.3rem; }
 
-        /* 移除固定高度，自动适应图片 */
-        .img-slider {
-            position: relative;
-            width: 100%;
+        .img-pair {
+            display: flex;
+            gap: 1rem;
             max-width: 500px;
             margin: 0 auto 2rem;
-            border-radius: 1rem;
-            overflow: hidden;
+        }
+        .img-box {
+            flex: 1;
             background: #faf6ef;
-            touch-action: pan-x;
-        }
-        .img-slider-inner {
-            display: flex;
-            transition: transform 0.3s ease;
-        }
-        .img-slide {
-            min-width: 100%;
+            border-radius: 1rem;
+            padding: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px;
         }
-        .img-slide img {
+        .img-box img {
             max-width: 100%;
-            max-height: 80vh;
-            border-radius: 0.8rem;
+            max-height: 40vh;
             object-fit: contain;
+            border-radius: 0.8rem;
             cursor: pointer;
-        }
-        .slider-dots {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-        }
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: rgba(0,0,0,0.2);
-        }
-        .dot.active {
-            background: #daa520;
         }
 
         .detail-grid {
@@ -317,7 +292,6 @@
             border-radius: 0.8rem;
         }
 
-        /* 弹窗支持滑动 + 缩放 */
         .modal {
             display: none;
             position: fixed;
@@ -351,24 +325,33 @@
             touch-action: manipulation;
         }
 
-        .footer { text-align: center; margin-top: 1.5rem; font-size: 0.7rem; color: #b1967c; }
+        .footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.7rem;
+            color: #b1967c;
+        }
 
         @media (max-width: 650px) {
             body { padding: 1rem; padding-top: 70px; }
+            .img-pair { flex-direction: column; }
         }
     </style>
 </head>
 <body>
+
 <div class="container">
     <div class="header">
         <h1>收藏品档案</h1>
         <div class="sub">Bilibili @ 铜の币纪</div>
     </div>
     <div id="app"></div>
-    <div class="footer">网址建立时间：2026年4月3日<br>© 2026 铜の币纪 版权所有<div style="font-size:0.6rem; margin-top:4px;">Powered by GitHub Pages</div></div>
+    <div class="footer">
+        网址建立时间：2026年4月3日<br>© 2026 铜の币纪 版权所有
+        <div style="font-size:0.6rem; margin-top:4px;">Powered by GitHub Pages</div>
+    </div>
 </div>
 
-<!-- 弹窗改为可滑动 -->
 <div id="imageModal" class="modal">
     <div class="modal-slider" id="modalSlider">
         <div class="modal-slide"><img id="modalImg1" src="" alt="正面"></div>
@@ -377,74 +360,77 @@
 </div>
 
 <script>
+// ======================================
+// 这里只留结构，具体数据你自己填进去
+// ======================================
 const banknotesData = {
     commemorative: {
         name: "纪念钞", icon: "𝟘𝟙", desc: "包含央行以及港澳台地区的所有纪念钞",
         series: [
-            { seriesName: "澳门格兰披治大奖赛35周年纪念钞", year: 1988, copies: [{ copyId: 1, purchaseDate: "2026年2月19日", price: "925元", bank: "大西洋银行", version: "KP04057", condition: "ACG65E", krause: "KL001", remark: "纪念钞的鼻祖，发行量最少的一张", img1: "comm/KP04057-1.jpg", img2: "comm/KP04057-2.jpg" }] },
+            { seriesName: "澳门格兰披治大奖赛35周年纪念钞", year: 1988, copies: [{ copyId: 1, purchaseDate: "2026年2月19日", price: "925元", bank: "大西洋银行", version: "KP04057", condition: "ACG65E", krause: "KL001", remark: "纪念钞的鼻祖，发行量最少的一张", img1: "images/KP04057-1.jpg", img2: "images/KP04057-2.jpg" }] },
             { seriesName: "新台币发行50周年纪念钞", year: 1999, copies: [
-                { copyId: 1, purchaseDate: "2025年10月2日", price: "56元", bank: "台湾银行", version: "A179021G", condition: "ACG67E", krause: "KL002", remark: "", img1: "comm/A179021G-1.jpg", img2: "comm/A179021G-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL003", remark: "顺子号", img1: "comm/J51665987-1.jpg", img2: "comm/J51665987-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年10月2日", price: "56元", bank: "台湾银行", version: "A179021G", condition: "ACG67E", krause: "KL002", remark: "", img1: "images/A179021G-1.jpg", img2: "images/A179021G-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL003", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
             ]},
             { seriesName: "庆祝中华人民共和国成立50周年纪念钞", year: 1999, copies: [
-                { copyId: 1, purchaseDate: "2025年8月30日", price: "203元", bank: "中国人民银行", version: "J07529257", condition: "ACG65E", krause: "KL004", remark: "刚好是我的生日号", img1: "comm/J07529257-1.jpg", img2: "comm/J07529257-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月1日", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL005", remark: "顺子号", img1: "comm/J51665987-1.jpg", img2: "comm/J51665987-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年8月30日", price: "203元", bank: "中国人民银行", version: "J07529257", condition: "ACG65E", krause: "KL004", remark: "刚好是我的生日号", img1: "images/J07529257-1.jpg", img2: "images/J07529257-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年2月1日", price: "278元", bank: "中国人民银行", version: "J51665987", condition: "ACG67E", krause: "KL005", remark: "顺子号", img1: "images/J51665987-1.jpg", img2: "images/J51665987-2.jpg" }
             ]},
             { seriesName: "迎接新世纪纪念钞", year: 2000, copies: [
-                { copyId: 1, purchaseDate: "2025年9月25日", price: "1225元", bank: "中国人民银行", version: "J00344985", condition: "ACG65E", krause: "KL006", remark: "普通冠号", img1: "comm/J00344985-1.jpg", img2: "comm/J00344985-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年11月1日", price: "2050元", bank: "中国人民银行", version: "I00181114", condition: "PMG67E", krause: "KL007", remark: "补号", img1: "comm/I00181114-1.jpg", img2: "comm/I00181114-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年9月25日", price: "1225元", bank: "中国人民银行", version: "J00344985", condition: "ACG65E", krause: "KL006", remark: "普通冠号", img1: "images/J00344985-1.jpg", img2: "images/J00344985-2.jpg" },
+                { copyId: 2, purchaseDate: "2025年11月1日", price: "2050元", bank: "中国人民银行", version: "I00181114", condition: "PMG67E", krause: "KL007", remark: "补号", img1: "images/I00181114-1.jpg", img2: "images/I00181114-2.jpg" }
             ]},
-            { seriesName: "第29届奥林匹克运动会纪念钞", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "2360元", bank: "中国人民银行", version: "J04266645", condition: "PMG67E", krause: "KL008", remark: "钞王！传家宝级别", img1: "comm/J04266645-1.jpg", img2: "comm/J04266645-2.jpg" }]},
-            { seriesName: "第29届奥林匹克运动会纪念钞（香港）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "176元", bank: "中国银行（香港）", version: "762965", condition: "ACG66E", krause: "KL009", remark: "", img1: "comm/762965-1.jpg", img2: "comm/762965-2.jpg" }]},
-            { seriesName: "第29届奥林匹克运动会纪念钞（澳门）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "245元", bank: "中国银行", version: "MO239989", condition: "ACG66E", krause: "KL010", remark: "", img1: "comm/MO239989-1.jpg", img2: "comm/MO239989-2.jpg" }]},
+            { seriesName: "第29届奥林匹克运动会纪念钞", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "2360元", bank: "中国人民银行", version: "J04266645", condition: "PMG67E", krause: "KL008", remark: "钞王！传家宝级别", img1: "images/J04266645-1.jpg", img2: "images/J04266645-2.jpg" }]},
+            { seriesName: "第29届奥林匹克运动会纪念钞（香港）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "176元", bank: "中国银行（香港）", version: "762965", condition: "ACG66E", krause: "KL009", remark: "", img1: "images/762965-1.jpg", img2: "images/762965-2.jpg" }]},
+            { seriesName: "第29届奥林匹克运动会纪念钞（澳门）", year: 2008, copies: [{ copyId: 1, purchaseDate: "2025年10月7日", price: "245元", bank: "中国银行", version: "MO239989", condition: "ACG66E", krause: "KL010", remark: "", img1: "images/MO239989-1.jpg", img2: "images/MO239989-2.jpg" }]},
             { seriesName: "渣打银行成立150周年纪念钞", year: 2009, copies:[]},
-            { seriesName: "中华民国成立100年纪念钞", year: 2011, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "61元", bank: "中央银行", version: "JP578968ZB", condition: "ACG67E", krause: "KL011", remark: "", img1: "comm/JP578968ZB-1.jpg", img2: "comm/JP578968ZB-2.jpg" }]},
-            { seriesName: "纪念中国银行成立100周年纪念钞（香港）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2026年1月30日", price: "198元", bank: "中国银行（香港）", version: "357185", condition: "ACG67E", krause: "KL012", remark: "", img1: "comm/357185-1.jpg", img2: "comm/357185-2.jpg" }]},
-            { seriesName: "纪念中国银行成立100周年纪念钞（澳门）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2025年12月5日", price: "458元", bank: "中国银行", version: "AA709609", condition: "PMG66E", krause: "KL013", remark: "传说中的“最美荷花钞”", img1: "comm/AA709609-1.jpg", img2: "comm/AA709609-2.jpg" }]},
+            { seriesName: "中华民国成立100年纪念钞", year: 2011, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "61元", bank: "中央银行", version: "JP578968ZB", condition: "ACG67E", krause: "KL011", remark: "", img1: "images/JP578968ZB-1.jpg", img2: "images/JP578968ZB-2.jpg" }]},
+            { seriesName: "纪念中国银行成立100周年纪念钞（香港）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2026年1月30日", price: "198元", bank: "中国银行（香港）", version: "357185", condition: "ACG67E", krause: "KL012", remark: "", img1: "images/357185-1.jpg", img2: "images/357185-2.jpg" }]},
+            { seriesName: "纪念中国银行成立100周年纪念钞（澳门）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2025年12月5日", price: "458元", bank: "中国银行", version: "AA709609", condition: "PMG66E", krause: "KL013", remark: "传说中的“最美荷花钞”", img1: "images/AA709609-1.jpg", img2: "images/AA709609-2.jpg" }]},
             { seriesName: "澳门生肖钞", year: "2012~2023", copies:[]},
             { seriesName: "中国航天纪念钞", year: 2015, copies: [
-                { copyId: 1, purchaseDate: "2025年12月1日", price: "160元", bank: "中国人民银行", version: "J8301922333", condition: "ACG68E", krause: "KL014", remark: "普通荧光", img1: "comm/J8301922333-1.jpg", img2: "comm/J8301922333-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月18日", price: "218元", bank: "中国人民银行", version: "J5252197777", condition: "ACG67E", krause: "KL015", remark: "宇宙之眼", img1: "comm/J5252197777-1.jpg", img2: "comm/J5252197777-2.jpg" },
-                { copyId: 3, purchaseDate: "2025年11月7日", price: "134元", bank: "中国人民银行", version: "J9069497791", condition: "PMG66E", krause: "KL016", remark: "流浪地球", img1: "comm/J9069497791-1.jpg", img2: "comm/J9069497791-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年12月1日", price: "160元", bank: "中国人民银行", version: "J8301922333", condition: "ACG68E", krause: "KL014", remark: "普通荧光", img1: "images/J8301922333-1.jpg", img2: "images/J8301922333-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年2月18日", price: "218元", bank: "中国人民银行", version: "J5252197777", condition: "ACG67E", krause: "KL015", remark: "宇宙之眼", img1: "images/J5252197777-1.jpg", img2: "images/J5252197777-2.jpg" },
+                { copyId: 3, purchaseDate: "2025年11月7日", price: "134元", bank: "中国人民银行", version: "J9069497791", condition: "PMG66E", krause: "KL016", remark: "流浪地球", img1: "images/J9069497791-1.jpg", img2: "images/J9069497791-2.jpg" }
             ]},
-            { seriesName: "汇丰银行成立150周年纪念钞", year: 2015, copies: [{ copyId: 1, purchaseDate: "2026年1月8日", price: "285元", bank: "香港上海汇丰银行", version: "AB140236", condition: "ACG67E", krause: "KL017", remark: "补号", img1: "comm/AB140236-1.jpg", img2: "comm/AB140236-2.jpg" }]},
-            { seriesName: "中国银行在港服务100周年纪念钞", year: 2017, copies: [{ copyId: 1, purchaseDate: "2026年2月18日", price: "192元", bank: "中国银行（香港）", version: "HY583251", condition: "ACG67E", krause: "KL018", remark: "HY = Hundred Years百年", img1: "comm/HY583251-1.jpg", img2: "comm/HY583251-2.jpg" }]},
+            { seriesName: "汇丰银行成立150周年纪念钞", year: 2015, copies: [{ copyId: 1, purchaseDate: "2026年1月8日", price: "285元", bank: "香港上海汇丰银行", version: "AB140236", condition: "ACG67E", krause: "KL017", remark: "补号", img1: "images/AB140236-1.jpg", img2: "images/AB140236-2.jpg" }]},
+            { seriesName: "中国银行在港服务100周年纪念钞", year: 2017, copies: [{ copyId: 1, purchaseDate: "2026年2月18日", price: "192元", bank: "中国银行（香港）", version: "HY583251", condition: "ACG67E", krause: "KL018", remark: "HY = Hundred Years百年", img1: "images/HY583251-1.jpg", img2: "images/HY583251-2.jpg" }]},
             { seriesName: "人民币发行70周年纪念钞", year: 2018, copies: [
-                { copyId: 1, purchaseDate: "2025年12月1日", price: "798元", bank: "中国人民银行", version: "J000009987", condition: "PMG66E", krause: "KL019", remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", img1: "comm/J000009987-1.jpg", img2: "comm/J000009987-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年8月5日", price: "79元", bank: "中国人民银行", version: "J191756567", condition: "ACG68E", krause: "KL020", remark: "补号，虽然PMG没有特殊标注", img1: "comm/J191756567-1.jpg", img2: "comm/J191756567-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年12月1日", price: "798元", bank: "中国人民银行", version: "J000009987", condition: "PMG66E", krause: "KL019", remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", img1: "images/J000009987-1.jpg", img2: "images/J000009987-2.jpg" },
+                { copyId: 2, purchaseDate: "2025年8月5日", price: "79元", bank: "中国人民银行", version: "J191756567", condition: "ACG68E", krause: "KL020", remark: "补号，虽然PMG没有特殊标注", img1: "images/J191756567-1.jpg", img2: "images/J191756567-2.jpg" }
             ]},
             { seriesName: "澳门回归20周年纪念钞", year: 2019, copies: [
-                { copyId: 1, purchaseDate: "2025年12月5日", price: "34元", bank: "中国银行", version: "MA3518209", condition: "ACG66E", krause: "KL021", remark: "", img1: "comm/MA3518209-1.jpg", img2: "comm/MA3518209-2.jpg" },
-                { copyId: 2, purchaseDate: "2025年12月5日", price: "34元", bank: "大西洋银行", version: "MA0500209", condition: "ACG66E", krause: "KL022", remark: "算不算是半个生日号？总感觉这张与我挺有缘的", img1: "comm/MA0500209-1.jpg", img2: "comm/MA0500209-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年12月5日", price: "34元", bank: "中国银行", version: "MA3518209", condition: "ACG66E", krause: "KL021", remark: "", img1: "images/MA3518209-1.jpg", img2: "images/MA3518209-2.jpg" },
+                { copyId: 2, purchaseDate: "2025年12月5日", price: "34元", bank: "大西洋银行", version: "MA0500209", condition: "ACG66E", krause: "KL022", remark: "算不算是半个生日号？总感觉这张与我挺有缘的", img1: "images/MA0500209-1.jpg", img2: "images/MA0500209-2.jpg" }
             ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年11月7日", price: "40元", bank: "中国人民银行", version: "J180000183", condition: "ACG68E", krause: "KL023", remark: "", img1: "comm/J180000183-1.jpg", img2: "comm/J180000183-2.jpg" }]},
+            { seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年11月7日", price: "40元", bank: "中国人民银行", version: "J180000183", condition: "ACG68E", krause: "KL023", remark: "", img1: "images/J180000183-1.jpg", img2: "images/J180000183-2.jpg" }]},
             { seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", year: 2022, copies: [
-                { copyId: 1, purchaseDate: "2025年11月16日", price: "120元", bank: "中国人民银行", version: "J333686866", condition: "ACG68E", krause: "KL024", remark: "普通版本", img1: "comm/J333686866-1.jpg", img2: "comm/J333686866-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年3月6日", price: "32元", bank: "中国人民银行", version: "J208213254", condition: "ACG68E", krause: "KL025", remark: "绿奥之星", img1: "comm/J208213254-1.jpg", img2: "comm/J208213254-2.jpg" },
-                { copyId: 3, purchaseDate: "2025年11月16日", price: "45元", bank: "中国人民银行", version: "J207861101", condition: "ACG67E", krause: "KL026", remark: "绿奥之王", img1: "comm/J207861101-1.jpg", img2: "comm/J207861101-2.jpg" }
+                { copyId: 1, purchaseDate: "2025年11月16日", price: "120元", bank: "中国人民银行", version: "J333686866", condition: "ACG68E", krause: "KL024", remark: "普通版本", img1: "images/J333686866-1.jpg", img2: "images/J333686866-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年3月6日", price: "32元", bank: "中国人民银行", version: "J208213254", condition: "ACG68E", krause: "KL025", remark: "绿奥之星", img1: "images/J208213254-1.jpg", img2: "images/J208213254-2.jpg" },
+                { copyId: 3, purchaseDate: "2025年11月16日", price: "45元", bank: "中国人民银行", version: "J207861101", condition: "ACG67E", krause: "KL026", remark: "绿奥之王", img1: "images/J207861101-1.jpg", img2: "images/J207861101-2.jpg" }
             ]},
             { seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）", year: 2022, copies: [
-                { copyId: 1, purchaseDate: "2026年2月21日", price: "170元", bank: "中国银行（香港）", version: "545654", condition: "ACG68E", krause: "KL027", remark: "这张的号码其实非常值得玩味", img1: "comm/545654-1.jpg", img2: "comm/545654-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年2月17日", price: "188元", bank: "中国银行（香港）", version: "AA537379", condition: "ACG68E", krause: "KL028", remark: "", img1: "comm/AA537379-1.jpg", img2: "comm/AA537379-2.jpg" }
+                { copyId: 1, purchaseDate: "2026年2月21日", price: "170元", bank: "中国银行（香港）", version: "545654", condition: "ACG68E", krause: "KL027", remark: "这张的号码其实非常值得玩味", img1: "images/545654-1.jpg", img2: "images/545654-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年2月17日", price: "188元", bank: "中国银行（香港）", version: "AA537379", condition: "ACG68E", krause: "KL028", remark: "", img1: "images/AA537379-1.jpg", img2: "images/AA537379-2.jpg" }
             ]},
-            { seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年10月26日", price: "69元", bank: "中国银行", version: "BC0838287", condition: "ACG66E", krause: "KL029", remark: "", img1: "comm/BC0838287-1.jpg", img2: "comm/BC0838287-2.jpg" }]},
-            { seriesName: "龙年贺岁纪念钞", year: 2024, copies: [{ copyId: 1, purchaseDate: "2026年1月21日", price: "158元", bank: "中国人民银行", version: "J005003567", condition: "ACG67E", krause: "KL030", remark: "", img1: "comm/J005003567-1.jpg", img2: "comm/J005003567-2.jpg" }]},
-            { seriesName: "蛇年贺岁纪念钞", year: 2025, copies: [{ copyId: 1, purchaseDate: "2026年1月22日", price: "60元", bank: "中国人民银行", version: "J006206654", condition: "ACG67E", krause: "KL031", remark: "", img1: "comm/J006206654-1.jpg", img2: "comm/J006206654-2.jpg" }]},
+            { seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", year: 2022, copies: [{ copyId: 1, purchaseDate: "2025年10月26日", price: "69元", bank: "中国银行", version: "BC0838287", condition: "ACG66E", krause: "KL029", remark: "", img1: "images/BC0838287-1.jpg", img2: "images/BC0838287-2.jpg" }]},
+            { seriesName: "龙年贺岁纪念钞", year: 2024, copies: [{ copyId: 1, purchaseDate: "2026年1月21日", price: "158元", bank: "中国人民银行", version: "J005003567", condition: "ACG67E", krause: "KL030", remark: "", img1: "images/J005003567-1.jpg", img2: "images/J005003567-2.jpg" }]},
+            { seriesName: "蛇年贺岁纪念钞", year: 2025, copies: [{ copyId: 1, purchaseDate: "2026年1月22日", price: "60元", bank: "中国人民银行", version: "J006206654", condition: "ACG67E", krause: "KL031", remark: "", img1: "images/J006206654-1.jpg", img2: "images/J006206654-2.jpg" }]},
             { seriesName: "马年贺岁纪念钞", year: 2026, copies: [
-                { copyId: 1, purchaseDate: "2026年2月26日", price: "88元", bank: "中国人民银行", version: "J005516765", condition: "ACG67E", krause: "KL032", remark: "就是凑个品种，太丑了", img1: "comm/J005516765-1.jpg", img2: "comm/J005516765-2.jpg" },
-                { copyId: 2, purchaseDate: "2026年1月20日", price: "272元", bank: "中国人民银行", version: "J037241561-70", condition: "ACG68E", krause: "KL033", remark: "", img1: "comm/J037241561-70-1.jpg", img2: "comm/J037241561-70-2.jpg" }
+                { copyId: 1, purchaseDate: "2026年2月26日", price: "88元", bank: "中国人民银行", version: "J005516765", condition: "ACG67E", krause: "KL032", remark: "就是凑个品种，太丑了", img1: "images/J005516765-1.jpg", img2: "images/J005516765-2.jpg" },
+                { copyId: 2, purchaseDate: "2026年1月20日", price: "272元", bank: "中国人民银行", version: "J037241561-70", condition: "ACG68E", krause: "KL033", remark: "", img1: "images/J037241561-70-1.jpg", img2: "images/J037241561-70-2.jpg" }
             ]}
         ]
     },
-    hk: { name: "港币", icon: "𝟘𝟚", desc: "中国银行（香港）、香港上海汇丰银行、渣打银行", series: [{ seriesName: "汇丰银行 20元", year: 2018, copies: [{ copyId: 1, purchaseDate: "2022-05-18", price: "18元", bank: "香港汇丰银行", version: "冠号AA", condition: "全新", krause: "HK001", remark: "蝴蝶系列", img1: "https://picsum.photos/800/500?random=9", img2: "https://picsum.photos/800/500?random=10" }]},{ seriesName: "中国银行 100元", year: 2018, copies: [{ copyId: 1, purchaseDate: "2023-02-22", price: "88元", bank: "中国银行香港", version: "BOC冠", condition: "UNC", krause: "HK002", remark: "中银百年", img1: "https://picsum.photos/800/500?random=11", img2: "https://picsum.photos/800/500?random=12" }]}]},
-    macau: { name: "澳门币（澳门元）", icon: "𝟘𝟛", desc: "中国银行、大西洋银行", series: [{ seriesName: "大西洋银行 10元", year: 2015, copies: [{ copyId: 1, purchaseDate: "2022-09-01", price: "12元", bank: "大西洋银行", version: "BNU", condition: "全新", krause: "MO001", remark: "澳门塔", img1: "https://picsum.photos/800/500?random=13", img2: "https://picsum.photos/800/500?random=14" }]},{ seriesName: "中国银行 20元", year: 2019, copies: [{ copyId: 1, purchaseDate: "2023-04-10", price: "19元", bank: "中国银行澳门", version: "BOCM", condition: "全新", krause: "MO002", remark: "大三巴", img1: "https://picsum.photos/800/500?random=15", img2: "https://picsum.photos/800/500?random=16" }]}]},
-    specimen: { name: "新台币", icon: "𝟘𝟜", desc: "台湾银行，中央银行", series: [{ seriesName: "第四套人民币样币", year: 1987, copies: [{ copyId: 1, purchaseDate: "2021-12-03", price: "450元", bank: "中国人民银行", version: "票样", condition: "好品", krause: "TW001", remark: "禁止流通", img1: "https://picsum.photos/800/500?random=17", img2: "https://picsum.photos/800/500?random=18" }]}]},
-    rmb2: { name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962", series: [{ seriesName: "大黑拾", year: 1957, copies: [{ copyId: 1, purchaseDate: "2020-06-18", price: "125000元", bank: "中国人民银行", version: "工农像", condition: "7品", krause: "RMB2-01", remark: "苏联代印", img1: "https://picsum.photos/800/500?random=19", img2: "https://picsum.photos/800/500?random=20" }]},{ seriesName: "宝塔山", year: 1955, copies: [{ copyId: 1, purchaseDate: "2022-11-11", price: "3200元", bank: "中国人民银行", version: "延安宝塔山", condition: "9品", krause: "RMB2-02", remark: "精品贰圆", img1: "https://picsum.photos/800/500?random=21", img2: "https://picsum.photos/800/500?random=22" }]}]},
-    rmb3: { name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000", series: [{ seriesName: "背绿水印壹角", year: 1966, copies: [{ copyId: 1, purchaseDate: "2019-09-09", price: "38000元", bank: "中国人民银行", version: "背绿五星", condition: "9品", krause: "RMB3-01", remark: "三版币王", img1: "https://picsum.photos/800/500?random=23", img2: "https://picsum.photos/800/500?random=24" }]},{ seriesName: "车工贰元", year: 1964, copies: [{ copyId: 1, purchaseDate: "2021-04-07", price: "2200元", bank: "中国人民银行", version: "实心星", condition: "UNC", krause: "RMB3-02", remark: "五星水印", img1: "https://picsum.photos/800/500?random=25", img2: "https://picsum.photos/800/500?random=26" }]}]},
-    rmb4: { name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018", series: [{ seriesName: "80版50元", year: 1987, copies: [{ copyId: 1, purchaseDate: "2020-08-20", price: "1850元", bank: "中国人民银行", version: "工人农民", condition: "9品", krause: "RMB4-01", remark: "四版币王", img1: "https://picsum.photos/800/500?random=27", img2: "https://picsum.photos/800/500?random=28" }]}]},
-    rmb5: { name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019", series: [{ seriesName: "99版50元", year: 2001, copies: [{ copyId: 1, purchaseDate: "2023-03-01", price: "120元", bank: "中国人民银行", version: "毛主席", condition: "全新", krause: "RMB5-01", remark: "早期冠号", img1: "https://picsum.photos/800/500?random=29", img2: "https://picsum.photos/800/500?random=30" }]}]},
-    fec: { name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995", series: [{ seriesName: "79版50元", year: 1979, copies: [{ copyId: 1, purchaseDate: "2022-05-17", price: "360元", bank: "中国银行", version: "桂林山水", condition: "全新", krause: "FEC-01", remark: "外汇经典", img1: "https://picsum.photos/800/500?random=31", img2: "https://picsum.photos/800/500?random=32" }]}]},
-    foreign: { name: "日本", icon: "𝟙𝟘", desc: "日本纸币", series: [{ seriesName: "1000日元", year: 2024, copies: [{ copyId: 1, purchaseDate: "2021-11-11", price: "650元", bank: "日本银行", version: "富兰克林", condition: "全新", krause: "JP-001", remark: "彩版", img1: "https://picsum.photos/800/500?random=33", img2: "https://picsum.photos/800/500?random=34" }]}]}
+    hk: { name: "港币", icon: "𝟘𝟚", desc: "中国银行（香港）、香港上海汇丰银行、渣打银行", series: [] },
+    macau: { name: "澳门币", icon: "𝟘𝟛", desc: "中国银行、大西洋银行", series: [] },
+    specimen: { name: "新台币", icon: "𝟘𝟜", desc: "台湾银行，中央银行", series: [] },
+    rmb2: { name: "第二套人民币", icon: "𝟘𝟝", desc: "1955-1962", series: [] },
+    rmb3: { name: "第三套人民币", icon: "𝟘𝟞", desc: "1962-2000", series: [] },
+    rmb4: { name: "第四套人民币", icon: "𝟘𝟟", desc: "1987-2018", series: [] },
+    rmb5: { name: "第五套人民币", icon: "𝟘𝟠", desc: "1999-2019", series: [] },
+    fec: { name: "外汇兑换券", icon: "𝟘𝟡", desc: "1979-1995", series: [] },
+    foreign: { name: "日本", icon: "𝟙𝟘", desc: "日本纸币", series: [] }
 };
 
 const categoryOrder = ["commemorative", "hk", "macau", "specimen", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "foreign"];
@@ -452,23 +438,19 @@ const categoryOrder = ["commemorative", "hk", "macau", "specimen", "rmb2", "rmb3
 let currentView = "categories";
 let currentCategoryId = null;
 let currentSeries = null;
-let lastScrollY = 0;
 let scrollMemory = {};
 
 let searchScope = 'global';
-let lastSearchHtml = "";
 let lastSearchType = "all";
 let lastSearchKeyword = "";
 let isFromSearch = false;
 
-let searchTimer = null;
-
-// 弹窗滑动用
 let modalStartX = 0;
 let modalCurrentSlide = 0;
 let currentModalImg1 = '';
 let currentModalImg2 = '';
 
+// 滚动记忆
 function saveScroll() {
     const key = currentView + "_" + (currentCategoryId || "") + "_" + (currentSeries?.cid || "") + "_" + (currentSeries?.si || "");
     scrollMemory[key] = window.scrollY;
@@ -478,6 +460,7 @@ function restoreScroll() {
     setTimeout(() => window.scrollTo(0, scrollMemory[key] || 0), 0);
 }
 
+// 搜索结构
 function getSearchHtml(scope) {
     const scopeText = scope === 'global' ? '全局' : '当前板块';
     return `
@@ -490,7 +473,7 @@ function getSearchHtml(scope) {
                 <option value="agency">按评级机构(ACG/PMG)</option>
                 <option value="krause">按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." oninput="doSearch()">
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容...">
             <button class="search-btn" onclick="doSearch()">搜索 ${scopeText}</button>
             <button class="reset-btn" onclick="resetSearch()">重置</button>
         </div>
@@ -498,82 +481,111 @@ function getSearchHtml(scope) {
     `;
 }
 
-function restoreSearchInput() {
-    setTimeout(() => {
-        const ipt = document.getElementById('searchInput');
-        const sel = document.getElementById('searchType');
-        if (ipt) {
-            ipt.value = lastSearchKeyword;
-            ipt.focus();
-        }
-        if (sel) sel.value = lastSearchType;
-    }, 0);
+// 实时搜索（不刷新DOM结构，只更新结果）
+function bindRealTimeSearch() {
+    const ipt = document.getElementById('searchInput');
+    const sel = document.getElementById('searchType');
+    if (!ipt) return;
+    ipt.oninput = () => {
+        lastSearchType = sel.value;
+        lastSearchKeyword = ipt.value.trim().toLowerCase();
+        doSearch(true);
+    };
 }
 
-function renderSearchResult(results) {
-    saveScroll();
-    isFromSearch = true;
-    let resultHtml = `<div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>
-        <div class="list-panel"><div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配 | 关键词：${lastSearchKeyword||'空'}</p></div><div class="copy-list">`;
+// 执行搜索
+function doSearch(isRealTime = false) {
+    const type = lastSearchType;
+    const keyword = lastSearchKeyword;
+
+    let results = [];
+    const targetCats = searchScope === 'global' ? categoryOrder : [currentCategoryId];
+    targetCats.forEach(cid => {
+        const cat = banknotesData[cid];
+        if (!cat) return;
+        cat.series.forEach((s, si) => {
+            s.copies.forEach((cp, ci) => {
+                let match = false;
+                if (type === 'all') {
+                    const txt = `${s.seriesName} ${cp.version||''} ${s.year} ${cp.condition||''} ${cp.krause||''}`.toLowerCase();
+                    match = txt.includes(keyword);
+                } else {
+                    switch(type) {
+                        case 'name': match = s.seriesName.toLowerCase().includes(keyword); break;
+                        case 'version': match = (cp.version||'').toLowerCase().includes(keyword); break;
+                        case 'year': match = String(s.year).toLowerCase().includes(keyword); break;
+                        case 'agency': match = (cp.condition||'').toLowerCase().includes(keyword); break;
+                        case 'krause': match = (cp.krause||'').toLowerCase().includes(keyword); break;
+                    }
+                }
+                if (match) results.push({ catId: cid, sIdx: si, cIdx: ci, series: s, copy: cp });
+            });
+        });
+    });
+
+    if (isRealTime) {
+        updateSearchResultList(results);
+    } else {
+        renderSearchResult(results);
+    }
+}
+
+// 仅更新结果列表，不重绘整个区域 → 键盘不会收起
+function updateSearchResultList(results) {
+    const wrap = document.getElementById('searchResultWrap');
+    if (!wrap) return;
+    let html = '';
     if (results.length === 0) {
-        resultHtml += `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
+        html = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     } else {
         results.forEach(item => {
-            resultHtml += `
+            html += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
                     <div class="copy-badge">${item.copy.condition || '无'}</div>
                     <div class="copy-version">${item.series.seriesName}</div>
                     <div class="copy-price">${item.copy.version || '无冠号'}</div>
-                    <div class="copy-price">${item.copy.price}</div>
+                    <div class="copy-price">${item.series.year}</div>
                 </div>`;
         });
     }
-    resultHtml += `</div></div>`;
-    lastSearchHtml = resultHtml;
-    const full = getSearchHtml(searchScope) + resultHtml;
-    document.getElementById("app").innerHTML = full;
-    restoreSearchInput();
+    wrap.innerHTML = html;
+}
+
+// 首次渲染搜索页
+function renderSearchResult(results) {
+    saveScroll();
+    isFromSearch = true;
+    const head = `
+        <div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>
+        ${getSearchHtml(searchScope)}
+        <div class="list-panel">
+            <div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配 | 关键词：${lastSearchKeyword||'空'}</p></div>
+            <div class="copy-list" id="searchResultWrap">
+    `;
+    let list = '';
+    if (results.length === 0) {
+        list = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
+    } else {
+        results.forEach(item => {
+            list += `
+                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
+                    <div class="copy-index">#${item.copy.copyId}</div>
+                    <div class="copy-badge">${item.copy.condition || '无'}</div>
+                    <div class="copy-version">${item.series.seriesName}</div>
+                    <div class="copy-price">${item.copy.version || '无冠号'}</div>
+                    <div class="copy-price">${item.series.year}</div>
+                </div>`;
+        });
+    }
+    const foot = `</div></div>`;
+    document.getElementById("app").innerHTML = head + list + foot;
+    bindRealTimeSearch();
     restoreScroll();
 }
 
-window.doSearch = () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        const type = document.getElementById('searchType').value;
-        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-        lastSearchType = type;
-        lastSearchKeyword = keyword;
-
-        let results = [];
-        const targetCats = searchScope === 'global' ? categoryOrder : [currentCategoryId];
-        targetCats.forEach(cid => {
-            const cat = banknotesData[cid];
-            if (!cat) return;
-            cat.series.forEach((s, si) => {
-                s.copies.forEach((cp, ci) => {
-                    let match = false;
-                    if (type === 'all') {
-                        const txt = `${s.seriesName} ${cp.version||''} ${s.year} ${cp.condition||''} ${cp.krause||''}`.toLowerCase();
-                        match = txt.includes(keyword);
-                    } else {
-                        switch(type) {
-                            case 'name': match = s.seriesName.toLowerCase().includes(keyword); break;
-                            case 'version': match = (cp.version||'').toLowerCase().includes(keyword); break;
-                            case 'year': match = String(s.year).toLowerCase().includes(keyword); break;
-                            case 'agency': match = (cp.condition||'').toLowerCase().includes(keyword); break;
-                            case 'krause': match = (cp.krause||'').toLowerCase().includes(keyword); break;
-                        }
-                    }
-                    if (match) results.push({ catId: cid, sIdx: si, cIdx: ci, series: s, copy: cp });
-                });
-            });
-        });
-        renderSearchResult(results);
-    }, 200);
-};
-
-window.resetSearch = () => {
+// 重置搜索
+function resetSearch() {
     isFromSearch = false;
     lastSearchKeyword = '';
     if (currentView === 'seriesList' && currentCategoryId) {
@@ -581,8 +593,9 @@ window.resetSearch = () => {
     } else {
         renderCategories();
     }
-};
+}
 
+// 分类页
 function renderCategories() {
     saveScroll();
     searchScope = 'global';
@@ -605,9 +618,11 @@ function renderCategories() {
     }
     html += `</div>`;
     document.getElementById("app").innerHTML = html;
+    bindRealTimeSearch();
     restoreScroll();
 }
 
+// 系列列表
 function renderSeriesList(cid) {
     saveScroll();
     searchScope = 'currentCategory';
@@ -633,9 +648,11 @@ function renderSeriesList(cid) {
             ${items}
         </div>`;
     document.getElementById("app").innerHTML = full;
+    bindRealTimeSearch();
     restoreScroll();
 }
 
+// 单张列表
 function renderCopyList(cid, si) {
     saveScroll();
     currentView = "copyList";
@@ -674,6 +691,7 @@ function renderCopyList(cid, si) {
     restoreScroll();
 }
 
+// 详情页（并排图，只显示冠号）
 function renderDetail(cid, si, ci) {
     saveScroll();
     currentView = "detail";
@@ -695,21 +713,15 @@ function renderDetail(cid, si, ci) {
         <div class="detail-panel">
             <div class="detail-header">
                 <h3>${series.seriesName}</h3>
-                <div style="color:#8b6b4f; font-size:0.9rem;">${cp.version || '无冠号'} · ${cp.condition || '无评级'}</div>
+                <div style="color:#8b6b4f; font-size:0.9rem;">${cp.version || '无冠号'}</div>
             </div>
 
-            <div class="img-slider" id="imgSlider">
-                <div class="img-slider-inner" id="imgSliderInner">
-                    <div class="img-slide">
-                        <img src="${cp.img1}" alt="正面" onclick="openModal(0)">
-                    </div>
-                    <div class="img-slide">
-                        <img src="${cp.img2}" alt="背面" onclick="openModal(1)">
-                    </div>
+            <div class="img-pair">
+                <div class="img-box">
+                    <img src="${cp.img1}" alt="正面" onclick="openModal(0)">
                 </div>
-                <div class="slider-dots">
-                    <div class="dot active" onclick="jumpToSlide(0)"></div>
-                    <div class="dot" onclick="jumpToSlide(1)"></div>
+                <div class="img-box">
+                    <img src="${cp.img2}" alt="背面" onclick="openModal(1)">
                 </div>
             </div>
 
@@ -756,50 +768,11 @@ function renderDetail(cid, si, ci) {
         </div>`;
 
     document.getElementById("app").innerHTML = detailHtml;
-    initSliderSwipe();
     restoreScroll();
 }
 
-// 小图轮播滑动
-let sliderStartX = 0;
-let sliderCurrent = 0;
-
-function initSliderSwipe() {
-    const slider = document.getElementById('imgSlider');
-    const inner = document.getElementById('imgSliderInner');
-    if (!slider) return;
-
-    slider.addEventListener('touchstart', (e) => {
-        sliderStartX = e.touches[0].clientX;
-    });
-
-    slider.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-    });
-
-    slider.addEventListener('touchend', (e) => {
-        const dx = e.changedTouches[0].clientX - sliderStartX;
-        if (dx > 50) sliderCurrent = Math.max(0, sliderCurrent - 1);
-        if (dx < -50) sliderCurrent = Math.min(1, sliderCurrent + 1);
-        updateSlider();
-    });
-}
-
-function jumpToSlide(idx) {
-    sliderCurrent = idx;
-    updateSlider();
-}
-
-function updateSlider() {
-    const inner = document.getElementById('imgSliderInner');
-    const dots = document.querySelectorAll('.dot');
-    if (!inner) return;
-    inner.style.transform = `translateX(-${sliderCurrent * 100}%)`;
-    dots.forEach((d, i) => d.classList.toggle('active', i === sliderCurrent));
-}
-
-// 弹窗大图
-window.openModal = function (index = 0) {
+// 弹窗滑动 + 缩放
+function openModal(index = 0) {
     modalCurrentSlide = index;
     const modal = document.getElementById('imageModal');
     const img1 = document.getElementById('modalImg1');
@@ -809,14 +782,13 @@ window.openModal = function (index = 0) {
     modal.style.display = 'flex';
     updateModalSlider();
     document.body.style.overflow = 'hidden';
-};
+}
 
 function updateModalSlider() {
     const ms = document.getElementById('modalSlider');
     ms.style.transform = `translateX(-${modalCurrentSlide * 100}vw)`;
 }
 
-// 弹窗滑动
 document.getElementById('imageModal').addEventListener('touchstart', (e) => {
     modalStartX = e.touches[0].clientX;
 });
@@ -829,51 +801,25 @@ document.getElementById('imageModal').addEventListener('touchend', (e) => {
 });
 
 document.getElementById('imageModal').addEventListener('click', (e) => {
-    if (e.target.tagName !== 'IMG') {
-        closeModal();
-    }
+    if (e.target.tagName !== 'IMG') closeModal();
 });
 
 function closeModal() {
-    const modal = document.getElementById('imageModal');
-    modal.style.display = 'none';
+    document.getElementById('imageModal').style.display = 'none';
     document.body.style.overflow = '';
 }
 
-// 路由跳转
-window.selectCategory = function (cid) {
-    renderSeriesList(cid);
-};
-
-window.backToCategories = function () {
-    renderCategories();
-};
-
-window.backToSeries = function (cid) {
-    renderSeriesList(cid);
-};
-
-window.selectSeries = function (cid, si) {
-    renderCopyList(cid, si);
-};
-
-window.backToCopyList = function (cid, si) {
-    renderCopyList(cid, si);
-};
-
-window.selectCopy = function (cid, si, ci) {
-    renderDetail(cid, si, ci);
-};
+// 路由
+function selectCategory(cid) { renderSeriesList(cid); }
+function backToCategories() { renderCategories(); }
+function backToSeries(cid) { renderSeriesList(cid); }
+function selectSeries(cid, si) { renderCopyList(cid, si); }
+function backToCopyList(cid, si) { renderCopyList(cid, si); }
+function selectCopy(cid, si, ci) { renderDetail(cid, si, ci); }
 
 // 初始化
-window.addEventListener('DOMContentLoaded', () => {
-    renderCategories();
-});
-
-// 键盘ESC关闭弹窗
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-});
+window.addEventListener('DOMContentLoaded', renderCategories);
+document.addEventListener('keydown', e => e.key === 'Escape' && closeModal());
 </script>
 </body>
 </html>
