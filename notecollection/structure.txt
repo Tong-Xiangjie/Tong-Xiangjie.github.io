@@ -1,14 +1,30 @@
 ├── index.html
 ├── data/
 │   ├── commemorative.js
-│   ├── hk.js
-│   ├── macau.js
+│   ├── hk_boc.js
+│   ├── hk_hsbc.js
+│   ├── hk_sc.js
+│   ├── hk_gov.js
+│   ├── macau_boc.js
+│   ├── macau_bnu.js
 │   ├── taiwan.js
+│   ├── rmb1.js
 │   ├── rmb2.js
 │   ├── rmb3.js
 │   ├── rmb4.js
 │   ├── rmb5.js
 │   ├── fec.js
-│   └── japan.js
+│   ├── gkq.js
+│   ├── republic_cbc.js
+│   ├── republic_boc.js
+│   ├── republic_communications.js
+│   ├── republic_fbc.js
+│   ├── republic_kpb.js
+│   ├── republic_crbc.js
+│   ├── japan.js
+│   ├── indonesia.js
+│   ├── venezuela.js
+│   ├── ukarine.js
+│   └── korea.js
 └── js/
     └── main.js
