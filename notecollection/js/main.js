@@ -189,7 +189,7 @@ function performRealtimeSearch() {
     let resultContainer = document.getElementById('dynamicResultContainer');
 
     if (!resultContainer) {
-        renderSearchResultPage(rawKeyword, type, true);
+        renderSearchResultPage(rawKeyword, type, false);
         return;
     }
 
@@ -208,19 +208,25 @@ function performRealtimeSearch() {
     }
 }
 
+// ========== 修改后的 renderSearchResultPage ==========
 function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
 
     // 标记当前在搜索结果页
     currentView = 'searchResult';
 
-    // 进入搜索结果页前，保存当前页面的滚动位置
-    if (currentView === 'categories') {
-        saveScroll("categories");
-    } else if (currentView === 'seriesList' && currentCategoryId) {
-        saveScroll("seriesList_" + currentCategoryId);
-    } else if (currentView === 'copyList' && currentSeries) {
-        saveScroll("copyList_" + currentSeries.cid + "_" + currentSeries.si);
+    // 生成滚动位置保存的 key
+    const searchResultKey = "searchResult_" + rawKeyword + "_" + type;
+
+    // 如果不是恢复模式（即首次进入），先保存当前页面的滚动位置
+    if (!restoreCursor) {
+        if (currentView === 'categories') {
+            saveScroll("categories");
+        } else if (currentView === 'seriesList' && currentCategoryId) {
+            saveScroll("seriesList_" + currentCategoryId);
+        } else if (currentView === 'copyList' && currentSeries) {
+            saveScroll("copyList_" + currentSeries.cid + "_" + currentSeries.si);
+        }
     }
 
     const results = performSearch(rawKeyword, type, searchScope);
@@ -259,17 +265,15 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
 
     document.getElementById("app").innerHTML = fullHtml;
     
-    // 搜索结果页总是从顶部开始
-    window.scrollTo(0, 0);
-    
     bindSearchEvents();
 
     if (restoreCursor) {
-        const input = document.getElementById('searchInput');
-        if (input) {
-            input.focus();
-            input.setSelectionRange(input.value.length, input.value.length);
-        }
+        // 从详情页返回：恢复滚动位置，但不恢复光标
+        restoreScroll(searchResultKey);
+    } else {
+        // 首次进入搜索结果页：滚动到顶部并保存滚动位置
+        window.scrollTo(0, 0);
+        saveScroll(searchResultKey);
     }
 }
 
@@ -659,9 +663,11 @@ function renderDetail(cid, si, ci) {
     window.scrollTo(0, 0);
 }
 
+// ========== 修改后的 backToCopyList ==========
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
+        // 传入 true 表示需要恢复滚动位置
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, true);
     } else {
         renderCopyList(cid, si, true);
