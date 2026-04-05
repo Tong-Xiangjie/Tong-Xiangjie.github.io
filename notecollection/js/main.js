@@ -61,13 +61,13 @@ function escapeHtml(str) {
     });
 }
 
-// 年份格式化（加"年"字）
+// 年份格式化
 function formatYear(year) {
     if (year === undefined || year === null) return '—';
     return year + '年';
 }
 
-// 格式化克劳斯编码显示
+// 克劳斯格式化
 function formatKrause(krause) {
     if (krause && krause !== '') {
         return `Pick# ${krause}`;
@@ -149,71 +149,88 @@ function performSearch(rawKeyword, type, scope) {
     return results;
 }
 
-// 更新搜索结果列表（实时模式用，不重绘页面）
-function updateSearchResultList(results) {
-    const wrap = document.getElementById('searchResultWrap');
-    const countSpan = document.getElementById('resultCount');
-    if (!wrap) return;
-
-    let html = '';
+// 渲染搜索结果列表（纯HTML生成，不涉及页面重绘）
+function renderResultsList(results) {
     if (results.length === 0) {
-        html = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
-    } else {
-        for (let item of results) {
-            const krauseDisplay = formatKrause(item.copy.krause);
-            html += `
-                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
-                    <div class="copy-index">#${item.copy.copyId}</div>
-                    <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
-                    <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
-                    <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
-                    <div class="copy-price">${formatYear(item.series.year)}</div>
-                    <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
-                </div>`;
-        }
+        return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     }
-    wrap.innerHTML = html;
+    
+    let html = `<div class="copy-list">`;
+    for (let item of results) {
+        const krauseDisplay = formatKrause(item.copy.krause);
+        html += `
+            <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
+                <div class="copy-index">#${item.copy.copyId}</div>
+                <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
+                <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
+                <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
+                <div class="copy-price">${formatYear(item.series.year)}</div>
+                <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
+            </div>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+// 实时搜索：只更新结果区域，不重绘页面
+function performRealtimeSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchType = document.getElementById('searchType');
+    
+    if (!searchInput) return;
+    
+    const rawKeyword = searchInput.value;
+    const type = searchType ? searchType.value : 'all';
+    
+    currentSearchKeyword = rawKeyword;
+    currentSearchType = type;
+    
+    const results = performSearch(rawKeyword, type, searchScope);
+    const resultsHtml = renderResultsList(results);
+    
+    // 更新结果区域
+    const resultContainer = document.getElementById('dynamicResultContainer');
+    if (resultContainer) {
+        resultContainer.innerHTML = resultsHtml;
+    }
+    
+    // 更新结果数量
+    const countSpan = document.getElementById('resultCount');
     if (countSpan) {
         countSpan.innerText = results.length;
     }
 }
 
-// 渲染搜索结果页（点击模式用）
-function renderSearchResultPage(rawKeyword, type, isRealtime = false) {
-    const keyword = getActualKeyword(rawKeyword, type);
-    if (!keyword || keyword === '') return;
-
-    if (!isRealtime) {
-        saveScroll(currentView + "_search");
+// 点击搜索：重绘整个页面
+function performClickSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchType = document.getElementById('searchType');
+    
+    if (!searchInput) return;
+    
+    const rawKeyword = searchInput.value;
+    const type = searchType ? searchType.value : 'all';
+    const actualKeyword = getActualKeyword(rawKeyword, type);
+    
+    if (!actualKeyword || actualKeyword === '') {
+        alert('请输入搜索关键词');
+        return;
     }
-
+    
+    currentSearchKeyword = rawKeyword;
+    currentSearchType = type;
+    
+    // 保存滚动位置
+    saveScroll(currentView + "_search");
+    
     const results = performSearch(rawKeyword, type, searchScope);
-
-    let resultsHtml = '';
-    if (results.length === 0) {
-        resultsHtml = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
-    } else {
-        resultsHtml = `<div class="copy-list" id="searchResultWrap">`;
-        for (let item of results) {
-            const krauseDisplay = formatKrause(item.copy.krause);
-            resultsHtml += `
-                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
-                    <div class="copy-index">#${item.copy.copyId}</div>
-                    <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
-                    <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
-                    <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
-                    <div class="copy-price">${formatYear(item.series.year)}</div>
-                    <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
-                </div>`;
-        }
-        resultsHtml += `</div>`;
-    }
-
+    const resultsHtml = renderResultsList(results);
+    
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
     const displayValue = getDisplayValue(rawKeyword, type);
-
+    
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
         <div class="search-bar">
@@ -234,18 +251,15 @@ function renderSearchResultPage(rawKeyword, type, isRealtime = false) {
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
-                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(keyword)}</p>
+                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(actualKeyword)}</p>
             </div>
-            ${resultsHtml}
+            <div id="dynamicResultContainer">${resultsHtml}</div>
         </div>
     `;
-
+    
     document.getElementById("app").innerHTML = fullHtml;
     bindSearchEvents();
-
-    if (!isRealtime) {
-        restoreScroll(currentView + "_search");
-    }
+    restoreScroll(currentView + "_search");
 }
 
 // 返回上一页
@@ -261,49 +275,14 @@ function backToPrevious() {
     }
 }
 
-// 重置搜索（只清空搜索框，完全不清空搜索类型）
+// 重置搜索（只清空搜索框）
 function resetSearchAndBack() {
-    // 只清空搜索关键词，保留搜索类型
     currentSearchKeyword = '';
-    
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.value = '';
     }
-    
     backToPrevious();
-}
-
-// 处理克劳斯输入框的前缀保护
-function setupKrauseInputProtection(inputElement, searchTypeElement) {
-    if (!inputElement || !searchTypeElement) return;
-    
-    const handleKeydown = function(e) {
-        if (searchTypeElement.value !== 'krause') return;
-        
-        const cursorPos = inputElement.selectionStart;
-        if (cursorPos <= KRAUSE_PREFIX.length) {
-            if (e.key === 'Backspace' || e.key === 'Delete') {
-                e.preventDefault();
-                return;
-            }
-        }
-    };
-    
-    const handleInput = function(e) {
-        if (searchTypeElement.value !== 'krause') return;
-        
-        let currentValue = inputElement.value;
-        if (!currentValue.startsWith(KRAUSE_PREFIX)) {
-            inputElement.value = KRAUSE_PREFIX + currentValue;
-        }
-    };
-    
-    inputElement.removeEventListener('keydown', handleKeydown);
-    inputElement.removeEventListener('input', handleInput);
-    
-    inputElement.addEventListener('keydown', handleKeydown);
-    inputElement.addEventListener('input', handleInput);
 }
 
 // 绑定搜索事件
@@ -317,73 +296,26 @@ function bindSearchEvents() {
 
     if (!searchInput) return;
 
-    // 移除旧的实时输入事件
-    if (searchInput._realtimeHandler) {
-        searchInput.removeEventListener('input', searchInput._realtimeHandler);
-        searchInput._realtimeHandler = null;
-    }
-
+    // 实时搜索处理函数（防抖）
     let realtimeTimer = null;
-
-    // 实时搜索处理函数
     const handleRealtimeInput = function(e) {
-        const rawKeyword = searchInput.value;
-        const type = searchType ? searchType.value : 'all';
-        
-        currentSearchKeyword = rawKeyword;
-        currentSearchType = type;
-        
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
-            const actualKeyword = getActualKeyword(rawKeyword, type);
-            if (actualKeyword && actualKeyword !== '') {
-                const results = performSearch(rawKeyword, type, searchScope);
-                updateSearchResultList(results);
-            } else if (rawKeyword === '' || actualKeyword === '') {
-                backToPrevious();
-            }
-        }, 300);
+            performRealtimeSearch();
+        }, 200);
     };
 
-    // 搜索类型变化时的处理
-    if (searchType) {
-        const handleTypeChange = function() {
-            const newType = searchType.value;
-            const currentRaw = searchInput.value;
-            
-            if (newType === 'krause') {
-                if (!currentRaw.startsWith(KRAUSE_PREFIX)) {
-                    searchInput.value = KRAUSE_PREFIX + currentRaw;
-                }
-            } else {
-                if (currentRaw.startsWith(KRAUSE_PREFIX)) {
-                    searchInput.value = currentRaw.substring(KRAUSE_PREFIX.length);
-                }
-            }
-            currentSearchKeyword = searchInput.value;
-            currentSearchType = newType;
-            
-            setupKrauseInputProtection(searchInput, searchType);
-        };
-        
-        searchType.removeEventListener('change', handleTypeChange);
-        searchType.addEventListener('change', handleTypeChange);
-    }
-    
-    setupKrauseInputProtection(searchInput, searchType);
-    
     // 根据模式设置
     if (searchMode === 'realtime') {
-        // 实时模式：绑定输入事件，禁用搜索按钮
+        // 实时模式：绑定输入事件
         searchInput.addEventListener('input', handleRealtimeInput);
-        searchInput._realtimeHandler = handleRealtimeInput;
         if (searchBtn) {
             searchBtn.disabled = true;
             searchBtn.style.opacity = '0.5';
             searchBtn.style.cursor = 'not-allowed';
         }
     } else {
-        // 点击模式：移除输入事件，启用搜索按钮
+        // 点击模式：移除输入事件
         searchInput.removeEventListener('input', handleRealtimeInput);
         if (searchBtn) {
             searchBtn.disabled = false;
@@ -392,27 +324,18 @@ function bindSearchEvents() {
         }
     }
 
-    // 搜索按钮（点击模式时触发）
+    // 搜索按钮
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
         newBtn.addEventListener('click', function() {
             if (searchMode === 'click') {
-                const rawKeyword = searchInput.value;
-                const type = searchType ? searchType.value : 'all';
-                const actualKeyword = getActualKeyword(rawKeyword, type);
-                if (actualKeyword && actualKeyword !== '') {
-                    currentSearchKeyword = rawKeyword;
-                    currentSearchType = type;
-                    renderSearchResultPage(rawKeyword, type, false);
-                } else {
-                    alert('请输入搜索关键词');
-                }
+                performClickSearch();
             }
         });
     }
 
-    // 模式切换图标
+    // 模式切换
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
@@ -426,22 +349,16 @@ function bindSearchEvents() {
                 searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
             }
             
-            // 重新绑定事件
             bindSearchEvents();
         });
     }
 
-    // 重置按钮（只清空搜索框，不清空搜索类型）
+    // 重置按钮
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
         newReset.addEventListener('click', function() {
-            // 只清空搜索框内容，不清空搜索类型
-            currentSearchKeyword = '';
-            if (searchInput) {
-                searchInput.value = '';
-            }
-            backToPrevious();
+            resetSearchAndBack();
         });
     }
 }
