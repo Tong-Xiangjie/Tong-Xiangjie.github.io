@@ -89,7 +89,6 @@ function getActualKeyword(inputValue, searchType) {
 // 获取输入框显示的值（处理克劳斯前缀自动补全）
 function getDisplayValue(keyword, searchType) {
     if (searchType === 'krause' && keyword !== '') {
-        // 如果还没有前缀，自动加上
         if (!keyword.startsWith(KRAUSE_PREFIX)) {
             return KRAUSE_PREFIX + keyword;
         }
@@ -150,7 +149,7 @@ function performSearch(rawKeyword, type, scope) {
     return results;
 }
 
-// 更新搜索结果列表（实时模式用，不重绘页面，光标不丢失）
+// 更新搜索结果列表（实时模式用，不重绘页面）
 function updateSearchResultList(results) {
     const wrap = document.getElementById('searchResultWrap');
     const countSpan = document.getElementById('resultCount');
@@ -262,10 +261,10 @@ function backToPrevious() {
     }
 }
 
-// 重置搜索（清空搜索框和搜索词）
+// 重置搜索（只清空搜索框，不清空搜索类型）
 function resetSearchAndBack() {
+    // 只清空搜索关键词，保留搜索类型
     currentSearchKeyword = '';
-    currentSearchType = 'all';
     
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -283,10 +282,8 @@ function setupKrauseInputProtection(inputElement, searchTypeElement) {
         if (searchTypeElement.value !== 'krause') return;
         
         const currentValue = inputElement.value;
-        // 如果当前值不以前缀开头，自动补全
         if (!currentValue.startsWith(KRAUSE_PREFIX)) {
             inputElement.value = KRAUSE_PREFIX + currentValue;
-            // 将光标移到前缀后面
             const newCursorPos = KRAUSE_PREFIX.length + (currentValue.length);
             inputElement.setSelectionRange(newCursorPos, newCursorPos);
         }
@@ -298,16 +295,9 @@ function setupKrauseInputProtection(inputElement, searchTypeElement) {
         const currentValue = inputElement.value;
         const cursorPos = inputElement.selectionStart;
         
-        // 禁止删除前缀（前6个字符 Pick# ）
         if (cursorPos <= KRAUSE_PREFIX.length) {
-            // 如果是删除键（Backspace 或 Delete）
             if (e.key === 'Backspace' || e.key === 'Delete') {
                 e.preventDefault();
-                return;
-            }
-            // 如果是 Ctrl+A 全选后删除，也阻止
-            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-                // 允许全选，但删除时会被上面的逻辑阻止
                 return;
             }
         }
@@ -317,7 +307,6 @@ function setupKrauseInputProtection(inputElement, searchTypeElement) {
         if (searchTypeElement.value !== 'krause') return;
         
         let currentValue = inputElement.value;
-        // 确保前缀存在
         if (!currentValue.startsWith(KRAUSE_PREFIX)) {
             inputElement.value = KRAUSE_PREFIX + currentValue;
         }
@@ -343,19 +332,16 @@ function bindSearchEvents() {
 
     if (!searchInput) return;
 
-    // 移除旧的 input 事件
     if (searchInput._realtimeHandler) {
         searchInput.removeEventListener('input', searchInput._realtimeHandler);
     }
 
     let realtimeTimer = null;
 
-    // 实时搜索处理函数
     const handleRealtimeInput = function(e) {
         const rawKeyword = searchInput.value;
         const type = searchType ? searchType.value : 'all';
         
-        // 更新全局变量
         currentSearchKeyword = rawKeyword;
         currentSearchType = type;
         
@@ -371,28 +357,23 @@ function bindSearchEvents() {
         }, 300);
     };
 
-    // 监听搜索类型变化，处理克劳斯前缀
     if (searchType) {
         const handleTypeChange = function() {
             const newType = searchType.value;
             const currentRaw = searchInput.value;
             
             if (newType === 'krause') {
-                // 切换到克劳斯模式，自动加上前缀
                 if (!currentRaw.startsWith(KRAUSE_PREFIX)) {
                     searchInput.value = KRAUSE_PREFIX + currentRaw;
                 }
             } else {
-                // 切换到其他模式，去掉前缀
                 if (currentRaw.startsWith(KRAUSE_PREFIX)) {
                     searchInput.value = currentRaw.substring(KRAUSE_PREFIX.length);
                 }
             }
-            // 更新当前搜索关键词
             currentSearchKeyword = searchInput.value;
             currentSearchType = newType;
             
-            // 重新绑定保护逻辑
             setupKrauseInputProtection(searchInput, searchType);
         };
         
@@ -400,21 +381,17 @@ function bindSearchEvents() {
         searchType.addEventListener('change', handleTypeChange);
     }
     
-    // 设置输入框保护
     setupKrauseInputProtection(searchInput, searchType);
     
-    // 根据当前模式设置
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
         searchInput._realtimeHandler = handleRealtimeInput;
         if (searchBtn) searchBtn.style.opacity = '0.6';
     } else {
         if (searchBtn) searchBtn.style.opacity = '1';
-        // 点击模式下也要处理输入（但不触发搜索，只是保护前缀）
         searchInput.removeEventListener('input', handleRealtimeInput);
     }
 
-    // 搜索按钮（点击模式时触发搜索）
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
@@ -434,7 +411,6 @@ function bindSearchEvents() {
         });
     }
 
-    // 模式切换图标
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
@@ -452,7 +428,6 @@ function bindSearchEvents() {
         });
     }
 
-    // 重置按钮
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
@@ -579,7 +554,7 @@ function renderSeriesList(cid, restore = false) {
     }
 }
 
-// 单张列表
+// 单张列表（将价格列改为年份列）
 function renderCopyList(cid, si, restore = false) {
     if (!restore) {
         saveScroll("copyList_" + cid + "_" + si);
@@ -602,7 +577,7 @@ function renderCopyList(cid, si, restore = false) {
                 <div class="copy-index">#${cp.copyId}</div>
                 <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
-                <div class="copy-price">${cp.price}</div>
+                <div class="copy-price">${formatYear(series.year)}</div>
                 <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
             </div>`;
     }
