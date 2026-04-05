@@ -230,10 +230,10 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
             </select>
             <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
+            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
@@ -244,6 +244,12 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     `;
 
     document.getElementById("app").innerHTML = fullHtml;
+    
+    // 进入搜索结果页：非恢复模式时滚动到顶部
+    if (!restoreCursor) {
+        window.scrollTo(0, 0);
+    }
+    
     bindSearchEvents();
     restoreScroll(currentView + "_search");
 
@@ -394,7 +400,7 @@ function bindSearchEvents() {
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             newToggle.textContent = modeIcon;
             if (searchTip) {
-                searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
+                searchTip.innerHTML = `当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换`;
             }
             bindSearchEvents();
         });
@@ -410,7 +416,10 @@ function bindSearchEvents() {
 }
 
 function renderCategories(restore = false) {
-    if (!restore) saveScroll("categories");
+    if (!restore) {
+        saveScroll("categories");
+        window.scrollTo(0, 0);  // 非恢复模式：滚动到顶部
+    }
     searchScope = 'global';
     currentView = "categories";
     currentCategoryId = null;
@@ -431,10 +440,10 @@ function renderCategories(restore = false) {
             </select>
             <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
+            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
         <div class="category-grid">`;
 
     for (let id of categoryOrder) {
@@ -459,7 +468,10 @@ function renderCategories(restore = false) {
 }
 
 function renderSeriesList(cid, restore = false) {
-    if (!restore) saveScroll("seriesList_" + cid);
+    if (!restore) {
+        saveScroll("seriesList_" + cid);
+        window.scrollTo(0, 0);  // 非恢复模式：滚动到顶部
+    }
     searchScope = 'currentCategory';
     currentView = "seriesList";
     currentCategoryId = cid;
@@ -496,10 +508,10 @@ function renderSeriesList(cid, restore = false) {
             </select>
             <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
+            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
         <div class="list-panel">
             <div class="panel-header"><h2>${cat.icon || ''} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
             ${items}
@@ -510,7 +522,10 @@ function renderSeriesList(cid, restore = false) {
 }
 
 function renderCopyList(cid, si, restore = false) {
-    if (!restore) saveScroll("copyList_" + cid + "_" + si);
+    if (!restore) {
+        saveScroll("copyList_" + cid + "_" + si);
+        window.scrollTo(0, 0);  // 非恢复模式：滚动到顶部
+    }
     currentView = "copyList";
     currentCategoryId = cid;
     currentSeries = { cid, si };
@@ -554,7 +569,9 @@ function renderCopyList(cid, si, restore = false) {
 
 // ========== 动态详情页（根据板块的 detailFields 配置渲染） ==========
 function renderDetail(cid, si, ci) {
+    // 进入详情页前，保存当前列表页的滚动位置
     saveScroll("copyList_" + cid + "_" + si);
+    
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si };
@@ -629,6 +646,7 @@ function renderDetail(cid, si, ci) {
             ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
         </div>`;
     document.getElementById("app").innerHTML = detailHtml;
+    // 详情页总是从顶部开始
     window.scrollTo(0, 0);
 }
 
