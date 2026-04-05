@@ -33,9 +33,6 @@ let hammerManager = null;
 let currentScale = 1;
 let currentX = 0;
 let currentY = 0;
-let initialScale = 1;
-let initialX = 0;
-let initialY = 0;
 
 // 滚动记忆
 function saveScroll() {
@@ -79,37 +76,66 @@ function getSearchHtml(scope) {
     `;
 }
 
-// 执行搜索
+// 执行搜索（修复版：正确匹配所有数据）
 function performSearch(keyword, type, scope) {
-    if (!keyword) return [];
+    if (!keyword || keyword === '') return [];
+    
+    const lowerKeyword = keyword.toLowerCase();
     let results = [];
     const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
+    
     targetCats.forEach(cid => {
         const cat = banknotesData[cid];
-        if (!cat) return;
+        if (!cat || !cat.series) return;
+        
         cat.series.forEach((s, si) => {
+            if (!s.copies || s.copies.length === 0) return;
+            
             s.copies.forEach((cp, ci) => {
                 let match = false;
-                if (type === 'all') {
-                    const txt = `${s.seriesName} ${cp.version||''} ${s.year} ${cp.condition||''} ${cp.krause||''}`.toLowerCase();
-                    match = txt.includes(keyword);
-                } else {
-                    switch(type) {
-                        case 'name': match = s.seriesName.toLowerCase().includes(keyword); break;
-                        case 'version': match = (cp.version||'').toLowerCase().includes(keyword); break;
-                        case 'year': match = String(s.year).toLowerCase().includes(keyword); break;
-                        case 'agency': match = (cp.condition||'').toLowerCase().includes(keyword); break;
-                        case 'krause': match = (cp.krause||'').toLowerCase().includes(keyword); break;
-                    }
+                
+                switch(type) {
+                    case 'all':
+                        // 全字段匹配：名称、冠号、年份、评级、克劳斯
+                        const searchText = `${s.seriesName} ${cp.version || ''} ${s.year} ${cp.condition || ''} ${cp.krause || ''}`.toLowerCase();
+                        match = searchText.includes(lowerKeyword);
+                        break;
+                    case 'name':
+                        match = s.seriesName.toLowerCase().includes(lowerKeyword);
+                        break;
+                    case 'version':
+                        match = (cp.version || '').toLowerCase().includes(lowerKeyword);
+                        break;
+                    case 'year':
+                        match = String(s.year).toLowerCase().includes(lowerKeyword);
+                        break;
+                    case 'agency':
+                        match = (cp.condition || '').toLowerCase().includes(lowerKeyword);
+                        break;
+                    case 'krause':
+                        match = (cp.krause || '').toLowerCase().includes(lowerKeyword);
+                        break;
+                    default:
+                        match = false;
                 }
-                if (match) results.push({ catId: cid, sIdx: si, cIdx: ci, series: s, copy: cp });
+                
+                if (match) {
+                    results.push({ 
+                        catId: cid, 
+                        sIdx: si, 
+                        cIdx: ci, 
+                        series: s, 
+                        copy: cp 
+                    });
+                }
             });
         });
     });
+    
     return results;
 }
 
-// 更新搜索结果列表（不重绘整个页面）
+// 更新搜索结果列表（只更新DOM，不重绘页面）
 function updateSearchResultList(results) {
     const wrap = document.getElementById('searchResultWrap');
     const countSpan = document.getElementById('resultCount');
@@ -170,12 +196,14 @@ function renderCategories() {
         const cat = banknotesData[id];
         if (!cat) continue;
         let total = 0;
-        cat.series.forEach(s => total += s.copies.length);
+        if (cat.series) {
+            cat.series.forEach(s => total += s.copies ? s.copies.length : 0);
+        }
         html += `
             <div class="category-card" onclick="selectCategory('${id}')">
-                <div class="category-icon">${cat.icon}</div>
-                <h3>${cat.name}</h3>
-                <p>${cat.desc}</p>
+                <div class="category-icon">${cat.icon || '📷'}</div>
+                <h3>${cat.name || id}</h3>
+                <p>${cat.desc || ''}</p>
                 <div class="count-badge">📌 ${total} 张藏品</div>
             </div>`;
     }
@@ -193,12 +221,17 @@ function renderSeriesList(cid) {
     currentCategoryId = cid;
     isFromSearch = false;
     const cat = banknotesData[cid];
+    if (!cat || !cat.series) {
+        console.error('分类数据不存在:', cid);
+        return;
+    }
     let items = `<div class="series-list">`;
     cat.series.forEach((s, idx) => {
+        const copyCount = s.copies ? s.copies.length : 0;
         items += `
             <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
                 <div class="series-name">${escapeHtml(s.seriesName)}</div>
-                <div class="series-count">${s.copies.length}张</div>
+                <div class="series-count">${copyCount}张</div>
                 <div class="series-year">${s.year}年</div>
             </div>`;
     });
@@ -207,7 +240,7 @@ function renderSeriesList(cid) {
         <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
         ${getSearchHtml('currentCategory')}
         <div class="list-panel">
-            <div class="panel-header"><h2>${cat.icon} ${cat.name}</h2><p>点击品种查看藏品</p></div>
+            <div class="panel-header"><h2>${cat.icon || ''} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
             ${items}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -215,12 +248,12 @@ function renderSeriesList(cid) {
     restoreScroll();
 }
 
-// 搜索结果页
+// 搜索结果页渲染
 function renderSearchResultPage() {
     const keyword = lastSearchKeyword;
     const type = lastSearchType;
     
-    if (!keyword) return;
+    if (!keyword || keyword === '') return;
     
     saveScroll();
     isFromSearch = true;
@@ -267,43 +300,41 @@ function renderSearchResultPage() {
     restoreScroll();
 }
 
-// 绑定搜索事件（关键：不重新渲染整个页面，只更新结果列表）
+// 绑定搜索事件
 function bindSearchEvents(isResultPage) {
     const ipt = document.getElementById('searchInput');
     const sel = document.getElementById('searchType');
     
     if (!ipt) return;
     
-    // 保存当前光标位置
-    let cursorPos = ipt.selectionStart;
-    
-    // 实时搜索：只更新结果列表，不重绘页面
+    // 实时搜索处理函数
     const handleInput = debounce(function() {
         const keyword = ipt.value.trim().toLowerCase();
         const type = sel ? sel.value : 'all';
         
+        // 更新全局变量
         lastSearchKeyword = keyword;
         lastSearchType = type;
         
         if (keyword === '') {
-            if (isResultPage) {
+            // 清空搜索，返回原页面
+            if (currentView === 'categories') {
+                renderCategories();
+            } else if (currentView === 'seriesList' && currentCategoryId) {
+                renderSeriesList(currentCategoryId);
+            } else if (isResultPage) {
+                // 在搜索结果页清空，显示提示
                 const wrap = document.getElementById('searchResultWrap');
                 const countSpan = document.getElementById('resultCount');
                 if (wrap) wrap.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
                 if (countSpan) countSpan.innerText = '0';
-            } else {
-                // 非搜索结果页，清空时恢复原页面
-                if (currentView === 'categories') {
-                    renderCategories();
-                } else if (currentView === 'seriesList' && currentCategoryId) {
-                    renderSeriesList(currentCategoryId);
-                }
             }
             return;
         }
         
+        // 有搜索词
         if (isResultPage) {
-            // 搜索结果页：只更新列表
+            // 搜索结果页内：只更新列表，不重绘页面（保持键盘）
             const results = performSearch(keyword, type, searchScope);
             updateSearchResultList(results);
         } else {
@@ -311,6 +342,9 @@ function bindSearchEvents(isResultPage) {
             renderSearchResultPage();
         }
     }, 200);
+    
+    // 保存当前光标位置
+    const cursorPos = ipt.selectionStart;
     
     // 移除旧事件，避免重复绑定
     const newIpt = ipt.cloneNode(true);
@@ -351,8 +385,11 @@ function bindSearchEvents(isResultPage) {
     }
     
     // 恢复光标位置
-    if (cursorPos !== undefined) {
-        finalIpt.setSelectionRange(cursorPos, cursorPos);
+    if (cursorPos !== undefined && cursorPos !== null) {
+        setTimeout(() => {
+            finalIpt.focus();
+            finalIpt.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
     }
 }
 
@@ -364,9 +401,14 @@ function renderCopyList(cid, si) {
     currentSeries = { cid, si };
     isFromSearch = false;
     const cat = banknotesData[cid];
+    if (!cat || !cat.series || !cat.series[si]) {
+        console.error('数据不存在');
+        return;
+    }
     const series = cat.series[si];
+    const copies = series.copies || [];
     let copiesHtml = `<div class="copy-list">`;
-    series.copies.forEach((cp, ci) => {
+    copies.forEach((cp, ci) => {
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
                 <div class="copy-index">#${cp.copyId}</div>
@@ -375,7 +417,7 @@ function renderCopyList(cid, si) {
                 <div class="copy-price">${cp.price}</div>
             </div>`;
     });
-    if (series.copies.length === 0) {
+    if (copies.length === 0) {
         copiesHtml += `<div style="padding:1rem; text-align:center; color:#999;">暂无藏品</div>`;
     }
     copiesHtml += `</div>`;
@@ -387,7 +429,7 @@ function renderCopyList(cid, si) {
         <div class="list-panel">
             <div class="panel-header">
                 <h2>${escapeHtml(series.seriesName)}</h2>
-                <p>${series.year} 年 · 共 ${series.copies.length} 张</p>
+                <p>${series.year} 年 · 共 ${copies.length} 张</p>
             </div>
             ${copiesHtml}
         </div>`;
@@ -403,6 +445,7 @@ function renderDetail(cid, si, ci) {
     currentSeries = { cid, si };
     isFromSearch = false;
     const cat = banknotesData[cid];
+    if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const cp = series.copies[ci];
     if (!cp) return;
@@ -446,12 +489,11 @@ function renderDetail(cid, si, ci) {
     restoreScroll();
 }
 
-// ========== 双指缩放功能（使用 Hammer.js） ==========
+// ========== 双指缩放功能（Hammer.js） ==========
 function initPinchZoom() {
     const container = document.getElementById('imageContainer');
     if (!container) return;
     
-    // 销毁旧的 manager
     if (hammerManager) {
         hammerManager.destroy();
     }
@@ -462,7 +504,10 @@ function initPinchZoom() {
     
     hammerManager.add([pinch, pan]);
     
-    // 重置变换
+    let lastScale = 1;
+    let lastX = 0;
+    let lastY = 0;
+    
     function resetTransform() {
         currentScale = 1;
         currentX = 0;
@@ -470,7 +515,6 @@ function initPinchZoom() {
         container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
     }
     
-    // 限制边界，防止图片拖出视野
     function clampTransform() {
         const img = document.getElementById('modalImg');
         if (!img) return;
@@ -481,9 +525,7 @@ function initPinchZoom() {
         const scaledWidth = imgRect.width;
         const scaledHeight = imgRect.height;
         
-        let maxX = 0;
-        let maxY = 0;
-        
+        let maxX = 0, maxY = 0;
         if (scaledWidth > containerRect.width) {
             maxX = (scaledWidth - containerRect.width) / 2;
         }
@@ -497,18 +539,15 @@ function initPinchZoom() {
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
     }
     
-    let lastScale = 1;
-    let lastX = 0;
-    let lastY = 0;
-    
     hammerManager.on('pinchstart', function(e) {
         lastScale = currentScale;
         e.preventDefault();
     });
     
     hammerManager.on('pinchmove', function(e) {
-        const newScale = lastScale * e.scale;
-        currentScale = Math.min(4, Math.max(1, newScale));
+        let newScale = lastScale * e.scale;
+        newScale = Math.min(4, Math.max(1, newScale));
+        currentScale = newScale;
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
         e.preventDefault();
     });
@@ -536,7 +575,6 @@ function initPinchZoom() {
         clampTransform();
     });
     
-    // 双击重置
     container.addEventListener('dblclick', function(e) {
         resetTransform();
         e.preventDefault();
@@ -553,7 +591,6 @@ function openModal(index = 0) {
     modalImg.src = imgSrc;
     modal.style.display = 'flex';
     
-    // 重置缩放
     const container = document.getElementById('imageContainer');
     if (container) {
         container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
@@ -562,12 +599,10 @@ function openModal(index = 0) {
         currentY = 0;
     }
     
-    // 禁止页面滚动
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
     
-    // 等待图片加载完成后初始化手势
     modalImg.onload = function() {
         initPinchZoom();
     };
@@ -584,7 +619,6 @@ function closeModal() {
     const modalImg = document.getElementById('modalImg');
     modalImg.src = '';
     
-    // 销毁 hammer 实例
     if (hammerManager) {
         hammerManager.destroy();
         hammerManager = null;
