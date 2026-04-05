@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>铜の币纪</title>
+    <!-- Hammer.js 手势库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -98,6 +100,7 @@
             border-radius: 0.6rem;
             font-size: 0.9rem;
             outline: none;
+            background: white;
         }
         .search-input:focus {
             border-color: #daa520;
@@ -292,7 +295,7 @@
             border-radius: 0.8rem;
         }
 
-        /* ========== 弹窗样式（流畅缩放版） ========== */
+        /* ========== 弹窗样式（双指缩放版） ========== */
         .modal {
             display: none;
             position: fixed;
@@ -311,25 +314,25 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow: hidden;
+            position: relative;
         }
-        /* 初始状态：适应屏幕，不卡顿 */
+        /* 图片容器，用于 transform 缩放 */
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+            transition: none;
+        }
         .modal-img {
+            display: block;
             max-width: 90vw;
             max-height: 90vh;
             width: auto;
             height: auto;
-            display: block;
             object-fit: contain;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        /* 放大状态：显示原始尺寸，可滚动查看 */
-        .modal-img.zoomed {
-            max-width: none;
-            max-height: none;
-            cursor: zoom-out;
+            pointer-events: none;  /* 让手势由容器处理 */
         }
         .modal-close {
             position: absolute;
@@ -396,9 +399,11 @@
 <div id="imageModal" class="modal">
     <div class="modal-close" onclick="closeModal()">✕</div>
     <div class="modal-content" id="modalContent">
-        <img id="modalImg" class="modal-img" src="" alt="预览图">
+        <div class="image-container" id="imageContainer">
+            <img id="modalImg" class="modal-img" src="" alt="预览图">
+        </div>
     </div>
-    <div class="modal-tip">👆 点击图片放大 | 再次点击还原 | 可拖动查看</div>
+    <div class="modal-tip">👆 双指缩放 | 拖动查看 | 点击背景关闭</div>
 </div>
 
 <!-- 数据文件 -->
