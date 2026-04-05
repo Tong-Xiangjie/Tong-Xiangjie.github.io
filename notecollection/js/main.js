@@ -38,6 +38,17 @@ function restoreScroll() {
     setTimeout(() => window.scrollTo(0, scrollMemory[key] || 0), 0);
 }
 
+// 辅助函数：转义HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 // 搜索栏结构
 function getSearchHtml(scope) {
     const scopeText = scope === 'global' ? '全局' : '当前板块';
@@ -51,34 +62,19 @@ function getSearchHtml(scope) {
                 <option value="agency">按评级机构(ACG/PMG)</option>
                 <option value="krause">按克劳斯编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容...">
-            <button class="search-btn" onclick="doSearch(false)">搜索 ${scopeText}</button>
-            <button class="reset-btn" onclick="resetSearch()">重置</button>
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(lastSearchKeyword)}">
+            <button class="search-btn" id="searchBtn">搜索 ${scopeText}</button>
+            <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip">💡 全字段：名称+冠号+年份+评级+克劳斯 同时匹配</div>
+        <div class="search-tip">💡 实时搜索，输入即显示结果</div>
     `;
 }
 
-// 绑定实时搜索（防抖+不重绘）
-function bindRealTimeSearch() {
-    const ipt = document.getElementById('searchInput');
-    const sel = document.getElementById('searchType');
-    if (!ipt) return;
-    ipt.oninput = () => {
-        lastSearchType = sel.value;
-        lastSearchKeyword = ipt.value.trim().toLowerCase();
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => doSearch(true), 80);
-    };
-}
-
-// 执行搜索
-function doSearch(isRealTime = false) {
-    const type = lastSearchType;
-    const keyword = lastSearchKeyword;
-
+// 执行搜索（返回结果数组）
+function performSearch(keyword, type, scope) {
+    if (!keyword) return [];
     let results = [];
-    const targetCats = searchScope === 'global' ? categoryOrder : [currentCategoryId];
+    const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
     targetCats.forEach(cid => {
         const cat = banknotesData[cid];
         if (!cat) return;
@@ -101,18 +97,15 @@ function doSearch(isRealTime = false) {
             });
         });
     });
-
-    if (isRealTime) {
-        updateSearchResultList(results);
-    } else {
-        renderSearchResult(results);
-    }
+    return results;
 }
 
-// 仅更新结果列表，不重绘整个区域 → 键盘绝不收起
-function updateSearchResultList(results) {
+// 更新搜索结果列表（不重绘页面）
+function updateSearchResultList(results, keyword) {
     const wrap = document.getElementById('searchResultWrap');
+    const countSpan = document.getElementById('resultCount');
     if (!wrap) return;
+    
     let html = '';
     if (results.length === 0) {
         html = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
@@ -121,52 +114,37 @@ function updateSearchResultList(results) {
             html += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
-                    <div class="copy-badge">${item.copy.condition || '无'}</div>
-                    <div class="copy-version">${item.series.seriesName}</div>
-                    <div class="copy-price">${item.copy.version || '无冠号'}</div>
+                    <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
+                    <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
+                    <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${item.series.year}</div>
                 </div>`;
         });
     }
     wrap.innerHTML = html;
+    if (countSpan) {
+        countSpan.innerText = results.length;
+    }
 }
 
-// 首次渲染搜索页
-function renderSearchResult(results) {
-    saveScroll();
-    isFromSearch = true;
-    const head = `
-        <div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>
-        ${getSearchHtml(searchScope)}
-        <div class="list-panel">
-            <div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 ${results.length} 个匹配 | 关键词：${lastSearchKeyword||'空'}</p></div>
-            <div class="copy-list" id="searchResultWrap">
-    `;
-    let list = '';
-    if (results.length === 0) {
-        list = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
-    } else {
-        results.forEach(item => {
-            list += `
-                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
-                    <div class="copy-index">#${item.copy.copyId}</div>
-                    <div class="copy-badge">${item.copy.condition || '无'}</div>
-                    <div class="copy-version">${item.series.seriesName}</div>
-                    <div class="copy-price">${item.copy.version || '无冠号'}</div>
-                    <div class="copy-price">${item.series.year}</div>
-                </div>`;
-        });
-    }
-    const foot = `</div></div>`;
-    document.getElementById("app").innerHTML = head + list + foot;
-    bindRealTimeSearch();
-    restoreScroll();
+// 防抖函数
+function debounce(func, delay) {
+    let timer;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => func.apply(this, args), delay);
+    };
 }
 
 // 重置搜索
 function resetSearch() {
     isFromSearch = false;
     lastSearchKeyword = '';
+    lastSearchType = 'all';
+    
+    const ipt = document.getElementById('searchInput');
+    if (ipt) ipt.value = '';
+    
     if (currentView === 'seriesList' && currentCategoryId) {
         renderSeriesList(currentCategoryId);
     } else {
@@ -197,7 +175,7 @@ function renderCategories() {
     }
     html += `</div>`;
     document.getElementById("app").innerHTML = html;
-    bindRealTimeSearch();
+    bindSearchEvents();
     restoreScroll();
 }
 
@@ -213,7 +191,7 @@ function renderSeriesList(cid) {
     cat.series.forEach((s, idx) => {
         items += `
             <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
-                <div class="series-name">${s.seriesName}</div>
+                <div class="series-name">${escapeHtml(s.seriesName)}</div>
                 <div class="series-count">${s.copies.length}张</div>
                 <div class="series-year">${s.year}年</div>
             </div>`;
@@ -227,8 +205,169 @@ function renderSeriesList(cid) {
             ${items}
         </div>`;
     document.getElementById("app").innerHTML = full;
-    bindRealTimeSearch();
+    bindSearchEvents();
     restoreScroll();
+}
+
+// 搜索结果页
+function renderSearchResultPage() {
+    const keyword = lastSearchKeyword;
+    const type = lastSearchType;
+    
+    if (!keyword) return;
+    
+    saveScroll();
+    isFromSearch = true;
+    const results = performSearch(keyword, type, searchScope);
+    
+    const head = `
+        <div class="back-bar"><button class="back-btn" onclick="resetSearch()">← 返回</button></div>
+        <div class="search-bar">
+            <select class="search-select" id="searchType">
+                <option value="all" ${type === 'all' ? 'selected' : ''}>全字段搜索（默认）</option>
+                <option value="name" ${type === 'name' ? 'selected' : ''}>按名称搜索</option>
+                <option value="version" ${type === 'version' ? 'selected' : ''}>按冠字号搜索</option>
+                <option value="year" ${type === 'year' ? 'selected' : ''}>按年份搜索</option>
+                <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构(ACG/PMG)</option>
+                <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
+            </select>
+            <input type="text" class="search-input" id="searchInput" placeholder="请输入搜索内容..." value="${escapeHtml(keyword)}">
+            <button class="search-btn" id="searchBtn">搜索</button>
+            <button class="reset-btn" id="resetBtn">重置</button>
+        </div>
+        <div class="search-tip">💡 实时搜索，输入即显示结果</div>
+        <div class="list-panel">
+            <div class="panel-header"><h2>🔍 搜索结果</h2><p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(keyword)}</p></div>
+            <div class="copy-list" id="searchResultWrap">
+    `;
+    let list = '';
+    if (results.length === 0) {
+        list = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
+    } else {
+        results.forEach(item => {
+            list += `
+                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
+                    <div class="copy-index">#${item.copy.copyId}</div>
+                    <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
+                    <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
+                    <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
+                    <div class="copy-price">${item.series.year}</div>
+                </div>`;
+        });
+    }
+    const foot = `</div></div>`;
+    document.getElementById("app").innerHTML = head + list + foot;
+    bindRealtimeSearchOnly();
+    restoreScroll();
+}
+
+// 搜索结果页的实时搜索（只更新列表）
+function bindRealtimeSearchOnly() {
+    const ipt = document.getElementById('searchInput');
+    const sel = document.getElementById('searchType');
+    if (!ipt) return;
+    
+    const newIpt = ipt.cloneNode(true);
+    ipt.parentNode.replaceChild(newIpt, ipt);
+    const newSel = sel ? sel.cloneNode(true) : null;
+    if (newSel && sel) sel.parentNode.replaceChild(newSel, sel);
+    
+    const finalIpt = document.getElementById('searchInput');
+    const finalSel = document.getElementById('searchType');
+    
+    const handleInput = debounce(function() {
+        const keyword = finalIpt.value.trim().toLowerCase();
+        const type = finalSel ? finalSel.value : 'all';
+        
+        lastSearchKeyword = keyword;
+        lastSearchType = type;
+        
+        if (keyword === '') {
+            const wrap = document.getElementById('searchResultWrap');
+            const countSpan = document.getElementById('resultCount');
+            if (wrap) wrap.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
+            if (countSpan) countSpan.innerText = '0';
+            return;
+        }
+        
+        const results = performSearch(keyword, type, searchScope);
+        updateSearchResultList(results, keyword);
+    }, 150);
+    
+    finalIpt.addEventListener('input', handleInput);
+    
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) {
+        const newBtn = searchBtn.cloneNode(true);
+        searchBtn.parentNode.replaceChild(newBtn, searchBtn);
+        newBtn.addEventListener('click', function() {
+            const keyword = finalIpt.value.trim().toLowerCase();
+            const type = finalSel ? finalSel.value : 'all';
+            if (keyword) {
+                lastSearchKeyword = keyword;
+                lastSearchType = type;
+                renderSearchResultPage();
+            }
+        });
+    }
+    
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        const newReset = resetBtn.cloneNode(true);
+        resetBtn.parentNode.replaceChild(newReset, resetBtn);
+        newReset.addEventListener('click', function() { resetSearch(); });
+    }
+}
+
+// 普通页面的搜索事件
+function bindSearchEvents() {
+    const ipt = document.getElementById('searchInput');
+    const sel = document.getElementById('searchType');
+    const searchBtn = document.getElementById('searchBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    if (!ipt) return;
+    
+    const handleRealTime = debounce(function() {
+        const keyword = ipt.value.trim().toLowerCase();
+        const type = sel ? sel.value : 'all';
+        
+        lastSearchKeyword = keyword;
+        lastSearchType = type;
+        
+        if (keyword === '') {
+            if (currentView === 'categories') {
+                renderCategories();
+            } else if (currentView === 'seriesList' && currentCategoryId) {
+                renderSeriesList(currentCategoryId);
+            }
+            return;
+        }
+        
+        renderSearchResultPage();
+    }, 300);
+    
+    ipt.addEventListener('input', handleRealTime);
+    
+    if (searchBtn) {
+        const newBtn = searchBtn.cloneNode(true);
+        searchBtn.parentNode.replaceChild(newBtn, searchBtn);
+        newBtn.addEventListener('click', function() {
+            const keyword = ipt.value.trim().toLowerCase();
+            const type = sel ? sel.value : 'all';
+            if (keyword) {
+                lastSearchKeyword = keyword;
+                lastSearchType = type;
+                renderSearchResultPage();
+            }
+        });
+    }
+    
+    if (resetBtn) {
+        const newReset = resetBtn.cloneNode(true);
+        resetBtn.parentNode.replaceChild(newReset, resetBtn);
+        newReset.addEventListener('click', function() { resetSearch(); });
+    }
 }
 
 // 单张列表
@@ -245,8 +384,8 @@ function renderCopyList(cid, si) {
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
                 <div class="copy-index">#${cp.copyId}</div>
-                <div class="copy-badge">${cp.condition || '无评级'}</div>
-                <div class="copy-version">${cp.version || '无冠号'}</div>
+                <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
+                <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
                 <div class="copy-price">${cp.price}</div>
             </div>`;
     });
@@ -261,7 +400,7 @@ function renderCopyList(cid, si) {
         </div>
         <div class="list-panel">
             <div class="panel-header">
-                <h2>${series.seriesName}</h2>
+                <h2>${escapeHtml(series.seriesName)}</h2>
                 <p>${series.year} 年 · 共 ${series.copies.length} 张</p>
             </div>
             ${copiesHtml}
@@ -291,8 +430,8 @@ function renderDetail(cid, si, ci) {
         </div>
         <div class="detail-panel">
             <div class="detail-header">
-                <h3>${series.seriesName}</h3>
-                <div style="color:#8b6b4f; font-size:0.9rem;">${cp.version || '无冠号'}</div>
+                <h3>${escapeHtml(series.seriesName)}</h3>
+                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div>
             </div>
 
             <div class="img-pair">
@@ -305,70 +444,35 @@ function renderDetail(cid, si, ci) {
             </div>
 
             <div class="detail-grid">
-                <div class="detail-field">
-                    <label>冠字号码</label>
-                    <div>${cp.version || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>发行银行</label>
-                    <div>${cp.bank || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>发行年份</label>
-                    <div>${series.year || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>评级分数</label>
-                    <div>${cp.condition || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>购入价格</label>
-                    <div>${cp.price || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>购入日期</label>
-                    <div>${cp.purchaseDate || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>克劳斯编号</label>
-                    <div>${cp.krause || '—'}</div>
-                </div>
-                <div class="detail-field">
-                    <label>藏品编号</label>
-                    <div>#${cp.copyId}</div>
-                </div>
+                <div class="detail-field"><label>冠字号码</label><div>${escapeHtml(cp.version || '—')}</div></div>
+                <div class="detail-field"><label>发行银行</label><div>${escapeHtml(cp.bank || '—')}</div></div>
+                <div class="detail-field"><label>发行年份</label><div>${series.year || '—'}</div></div>
+                <div class="detail-field"><label>评级分数</label><div>${escapeHtml(cp.condition || '—')}</div></div>
+                <div class="detail-field"><label>购入价格</label><div>${cp.price || '—'}</div></div>
+                <div class="detail-field"><label>购入日期</label><div>${cp.purchaseDate || '—'}</div></div>
+                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(cp.krause || '—')}</div></div>
+                <div class="detail-field"><label>藏品编号</label><div>#${cp.copyId}</div></div>
             </div>
 
-            ${cp.remark ? `
-            <div class="remark-box">
-                <label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label>
-                <div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${cp.remark}</div>
-            </div>` : ''}
+            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
         </div>`;
-
     document.getElementById("app").innerHTML = detailHtml;
     restoreScroll();
 }
 
-// ========== 弹窗功能（单图 + 可缩放，不回弹） ==========
-
-// 打开弹窗
+// ========== 弹窗功能（流畅版） ==========
 function openModal(index = 0) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
-    
-    // 根据 index 选择显示正面还是背面（0=正面，1=背面）
     const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
     modalImg.src = imgSrc;
-    
     modal.style.display = 'flex';
+    modalImg.classList.remove('zoomed');
     
-    // 禁止页面滚动，并补偿滚动条宽度防止偏移
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
     
-    // 重置缩放位置（让图片回到原始大小和位置）
     const modalContent = document.getElementById('modalContent');
     if (modalContent) {
         modalContent.scrollTop = 0;
@@ -376,24 +480,26 @@ function openModal(index = 0) {
     }
 }
 
-// 关闭弹窗
 function closeModal() {
     const modal = document.getElementById('imageModal');
     modal.style.display = 'none';
-    
-    // 恢复页面滚动
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
-    
-    // 清空图片，释放内存
     const modalImg = document.getElementById('modalImg');
-    if (modalImg) {
-        modalImg.src = '';
-    }
+    modalImg.src = '';
+    modalImg.classList.remove('zoomed');
 }
 
-// 点击弹窗背景关闭（点击图片本身不关闭，点击周围区域关闭）
+// 点击图片切换缩放
 document.addEventListener('DOMContentLoaded', function() {
+    const modalImg = document.getElementById('modalImg');
+    if (modalImg) {
+        modalImg.addEventListener('click', function(e) {
+            e.stopPropagation();
+            this.classList.toggle('zoomed');
+        });
+    }
+    
     const modal = document.getElementById('imageModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
