@@ -1,6 +1,7 @@
+// data/rmb5.js
 const rmb5Data = {
     name: "第五套人民币",
-    icon: "𝟘𝟠",
-    desc: "1999-2019",
+    icon: "𝟙𝟛",
+    desc: "第五套人民币",
     series: []
 };
