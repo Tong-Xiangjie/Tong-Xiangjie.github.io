@@ -79,7 +79,6 @@ function getActualKeyword(inputValue, searchType) {
     return inputValue.trim();
 }
 
-// ========== 修复：克劳斯前缀显示 ==========
 function getDisplayValue(keyword, searchType) {
     if (searchType === 'krause') {
         if (!keyword || keyword === '') {
@@ -148,7 +147,7 @@ function renderResultsList(results) {
     if (results.length === 0) {
         return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     }
-    
+
     let html = `<div class="copy-list">`;
     for (let item of results) {
         const krauseDisplay = formatKrause(item.copy.krause);
@@ -169,36 +168,36 @@ function renderResultsList(results) {
 function performRealtimeSearch() {
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
-    
+
     if (!searchInput) return;
-    
+
     const rawKeyword = searchInput.value;
     const type = searchType ? searchType.value : 'all';
-    
+
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
-    
+
     if (!rawKeyword || rawKeyword.trim() === '') {
         backToPrevious();
         return;
     }
-    
+
     let resultContainer = document.getElementById('dynamicResultContainer');
-    
+
     if (!resultContainer) {
         renderSearchResultPage(rawKeyword, type, true);
         return;
     }
-    
+
     const results = performSearch(rawKeyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
     resultContainer.innerHTML = resultsHtml;
-    
+
     const countSpan = document.getElementById('resultCount');
     if (countSpan) {
         countSpan.innerText = results.length;
     }
-    
+
     const keywordSpan = document.getElementById('searchKeywordDisplay');
     if (keywordSpan) {
         keywordSpan.innerText = escapeHtml(getActualKeyword(rawKeyword, type));
@@ -207,9 +206,9 @@ function performRealtimeSearch() {
 
 function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
-    
+
     saveScroll(currentView + "_search");
-    
+
     const results = performSearch(rawKeyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
     const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
@@ -217,7 +216,7 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const actualKeyword = escapeHtml(getActualKeyword(rawKeyword, type));
-    
+
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
         <div class="search-bar">
@@ -243,11 +242,11 @@ function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
             <div id="dynamicResultContainer">${resultsHtml}</div>
         </div>
     `;
-    
+
     document.getElementById("app").innerHTML = fullHtml;
     bindSearchEvents();
     restoreScroll(currentView + "_search");
-    
+
     if (restoreCursor) {
         const input = document.getElementById('searchInput');
         if (input) {
@@ -276,10 +275,9 @@ function resetSearchAndBack() {
     backToPrevious();
 }
 
-// 克劳斯输入框保护
 function setupKrauseInputProtection(inputElement, searchTypeElement) {
     if (!inputElement || !searchTypeElement) return;
-    
+
     const handleKeydown = function(e) {
         if (searchTypeElement.value !== 'krause') return;
         const cursorPos = inputElement.selectionStart;
@@ -290,7 +288,7 @@ function setupKrauseInputProtection(inputElement, searchTypeElement) {
             }
         }
     };
-    
+
     const handleInput = function(e) {
         if (searchTypeElement.value !== 'krause') return;
         let currentValue = inputElement.value;
@@ -298,7 +296,7 @@ function setupKrauseInputProtection(inputElement, searchTypeElement) {
             inputElement.value = KRAUSE_PREFIX + currentValue;
         }
     };
-    
+
     inputElement.removeEventListener('keydown', handleKeydown);
     inputElement.removeEventListener('input', handleInput);
     inputElement.addEventListener('keydown', handleKeydown);
@@ -312,28 +310,27 @@ function bindSearchEvents() {
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
     const searchTip = document.getElementById('searchTip');
-    
+
     if (!searchInput) return;
-    
+
     if (searchInput._realtimeHandler) {
         searchInput.removeEventListener('input', searchInput._realtimeHandler);
     }
-    
+
     let realtimeTimer = null;
-    
+
     const handleRealtimeInput = function(e) {
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
             performRealtimeSearch();
         }, 300);
     };
-    
-    // 搜索类型变化时的处理（确保克劳斯前缀）
+
     if (searchType) {
         const handleTypeChange = function() {
             const newType = searchType.value;
             const currentRaw = searchInput.value;
-            
+
             if (newType === 'krause') {
                 if (!currentRaw.startsWith(KRAUSE_PREFIX)) {
                     searchInput.value = KRAUSE_PREFIX + currentRaw;
@@ -347,15 +344,14 @@ function bindSearchEvents() {
             currentSearchType = newType;
             setupKrauseInputProtection(searchInput, searchType);
         };
-        
+
         searchType.removeEventListener('change', handleTypeChange);
         searchType.addEventListener('change', handleTypeChange);
-        // 初始化时也执行一次
         handleTypeChange();
     }
-    
+
     setupKrauseInputProtection(searchInput, searchType);
-    
+
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
         searchInput._realtimeHandler = handleRealtimeInput;
@@ -370,7 +366,7 @@ function bindSearchEvents() {
             searchBtn.style.opacity = '1';
         }
     }
-    
+
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
@@ -388,7 +384,7 @@ function bindSearchEvents() {
             }
         });
     }
-    
+
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
@@ -403,7 +399,7 @@ function bindSearchEvents() {
             bindSearchEvents();
         });
     }
-    
+
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
@@ -418,11 +414,11 @@ function renderCategories(restore = false) {
     searchScope = 'global';
     currentView = "categories";
     currentCategoryId = null;
-    
+
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-    
+
     let html = `
         <div class="search-bar">
             <select class="search-select" id="searchType">
@@ -440,7 +436,7 @@ function renderCategories(restore = false) {
         </div>
         <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
         <div class="category-grid">`;
-    
+
     for (let id of categoryOrder) {
         const cat = banknotesData[id];
         if (!cat) continue;
@@ -467,14 +463,14 @@ function renderSeriesList(cid, restore = false) {
     searchScope = 'currentCategory';
     currentView = "seriesList";
     currentCategoryId = cid;
-    
+
     const cat = banknotesData[cid];
     if (!cat || !cat.series) return;
-    
+
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-    
+
     let items = `<div class="series-list">`;
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
@@ -486,7 +482,7 @@ function renderSeriesList(cid, restore = false) {
             </div>`;
     }
     items += `</div>`;
-    
+
     const full = `
         <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
         <div class="search-bar">
@@ -518,12 +514,12 @@ function renderCopyList(cid, si, restore = false) {
     currentView = "copyList";
     currentCategoryId = cid;
     currentSeries = { cid, si };
-    
+
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const copies = series.copies || [];
-    
+
     let copiesHtml = `<div class="copy-list">`;
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
@@ -540,7 +536,7 @@ function renderCopyList(cid, si, restore = false) {
         copiesHtml += `<div style="padding:1rem; text-align:center; color:#999;">暂无藏品</div>`;
     }
     copiesHtml += `</div>`;
-    
+
     const full = `
         <div class="back-bar">
             <button class="back-btn" onclick="backToSeries('${cid}')">← 返回品种</button>
@@ -556,22 +552,57 @@ function renderCopyList(cid, si, restore = false) {
     if (restore) restoreScroll("copyList_" + cid + "_" + si);
 }
 
+// ========== 动态详情页（根据板块的 detailFields 配置渲染） ==========
 function renderDetail(cid, si, ci) {
     saveScroll("copyList_" + cid + "_" + si);
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si };
-    
+
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const cp = series.copies[ci];
     if (!cp) return;
-    
+
     currentModalImg1 = cp.img1 || '';
     currentModalImg2 = cp.img2 || '';
-    const krauseDisplay = formatKrause(cp.krause);
-    
+
+    // 获取该板块的字段配置，如果没有则使用默认配置
+    const detailFields = cat.detailFields || [
+        { key: "version", label: "冠字号码" },
+        { key: "bank", label: "发行银行" },
+        { key: "year", label: "发行年份" },
+        { key: "condition", label: "评级分数" },
+        { key: "price", label: "购入价格" },
+        { key: "purchaseDate", label: "购入日期" },
+        { key: "krause", label: "克劳斯编号" },
+        { key: "copyId", label: "藏品编号" }
+    ];
+
+    // 动态生成详情字段HTML
+    let detailGridHtml = '';
+    for (let field of detailFields) {
+        let value = cp[field.key];
+        
+        // 特殊处理
+        if (field.key === 'year') {
+            value = formatYear(series.year);
+        } else if (field.key === 'krause') {
+            value = formatKrause(value);
+        } else if (field.key === 'copyId') {
+            value = `#${value}`;
+        } else if (value === undefined || value === null || value === '') {
+            value = '—';
+        }
+        
+        detailGridHtml += `
+            <div class="detail-field">
+                <label>${field.label}</label>
+                <div>${escapeHtml(String(value))}</div>
+            </div>`;
+    }
+
     const detailHtml = `
         <div class="back-bar">
             <button class="back-btn" onclick="backToCopyList('${cid}', ${si})">← 返回藏品列表</button>
@@ -592,14 +623,7 @@ function renderDetail(cid, si, ci) {
             </div>
 
             <div class="detail-grid">
-                <div class="detail-field"><label>冠字号码</label><div>${escapeHtml(cp.version || '—')}</div></div>
-                <div class="detail-field"><label>发行银行</label><div>${escapeHtml(cp.bank || '—')}</div></div>
-                <div class="detail-field"><label>发行年份</label><div>${formatYear(series.year)}</div></div>
-                <div class="detail-field"><label>评级分数</label><div>${escapeHtml(cp.condition || '—')}</div></div>
-                <div class="detail-field"><label>购入价格</label><div>${cp.price || '—'}</div></div>
-                <div class="detail-field"><label>购入日期</label><div>${cp.purchaseDate || '—'}</div></div>
-                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(krauseDisplay)}</div></div>
-                <div class="detail-field"><label>藏品编号</label><div>#${cp.copyId}</div></div>
+                ${detailGridHtml}
             </div>
 
             ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
@@ -625,41 +649,41 @@ function initPinchZoom() {
         console.log('Hammer.js 未加载，缩放功能不可用');
         return;
     }
-    
+
     const container = document.getElementById('imageContainer');
     if (!container) return;
-    
+
     if (hammerManager) {
         hammerManager.destroy();
     }
-    
+
     hammerManager = new Hammer.Manager(container);
     const pinch = new Hammer.Pinch();
     const pan = new Hammer.Pan();
-    
+
     hammerManager.add([pinch, pan]);
-    
+
     let lastScale = 1;
     let lastX = 0;
     let lastY = 0;
-    
+
     function resetTransform() {
         currentScale = 1;
         currentX = 0;
         currentY = 0;
         container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
     }
-    
+
     function clampTransform() {
         const img = document.getElementById('modalImg');
         if (!img) return;
-        
+
         const containerRect = container.parentElement.getBoundingClientRect();
         const imgRect = img.getBoundingClientRect();
-        
+
         const scaledWidth = imgRect.width;
         const scaledHeight = imgRect.height;
-        
+
         let maxX = 0, maxY = 0;
         if (scaledWidth > containerRect.width) {
             maxX = (scaledWidth - containerRect.width) / 2;
@@ -667,18 +691,18 @@ function initPinchZoom() {
         if (scaledHeight > containerRect.height) {
             maxY = (scaledHeight - containerRect.height) / 2;
         }
-        
+
         currentX = Math.min(maxX, Math.max(-maxX, currentX));
         currentY = Math.min(maxY, Math.max(-maxY, currentY));
-        
+
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
     }
-    
+
     hammerManager.on('pinchstart', function(e) {
         lastScale = currentScale;
         e.preventDefault();
     });
-    
+
     hammerManager.on('pinchmove', function(e) {
         let newScale = lastScale * e.scale;
         newScale = Math.min(4, Math.max(1, newScale));
@@ -686,17 +710,17 @@ function initPinchZoom() {
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
         e.preventDefault();
     });
-    
+
     hammerManager.on('pinchend', function(e) {
         clampTransform();
         e.preventDefault();
     });
-    
+
     hammerManager.on('panstart', function(e) {
         lastX = currentX;
         lastY = currentY;
     });
-    
+
     hammerManager.on('panmove', function(e) {
         if (currentScale > 1) {
             currentX = lastX + e.deltaX;
@@ -705,16 +729,16 @@ function initPinchZoom() {
         }
         e.preventDefault();
     });
-    
+
     hammerManager.on('panend', function(e) {
         clampTransform();
     });
-    
+
     container.addEventListener('dblclick', function(e) {
         resetTransform();
         e.preventDefault();
     });
-    
+
     resetTransform();
 }
 
@@ -724,7 +748,7 @@ function openModal(index = 0) {
     const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
     modalImg.src = imgSrc;
     modal.style.display = 'flex';
-    
+
     const container = document.getElementById('imageContainer');
     if (container) {
         container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
@@ -732,11 +756,11 @@ function openModal(index = 0) {
         currentX = 0;
         currentY = 0;
     }
-    
+
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
-    
+
     modalImg.onload = function() {
         initPinchZoom();
     };
@@ -752,7 +776,7 @@ function closeModal() {
     document.body.style.paddingRight = '';
     const modalImg = document.getElementById('modalImg');
     modalImg.src = '';
-    
+
     if (hammerManager) {
         hammerManager.destroy();
         hammerManager = null;
