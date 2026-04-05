@@ -35,6 +35,9 @@ let currentScale = 1;
 let currentX = 0;
 let currentY = 0;
 
+// 克劳斯前缀常量
+const KRAUSE_PREFIX = 'Pick# ';
+
 // ========== 滚动位置保存和恢复 ==========
 function saveScroll(key) {
     scrollMemory[key] = window.scrollY;
@@ -64,11 +67,42 @@ function formatYear(year) {
     return year + '年';
 }
 
-// 执行搜索
-function performSearch(keyword, type, scope) {
-    if (!keyword || keyword.trim() === '') return [];
+// 格式化克劳斯编码显示（始终显示 Pick# + 编码值，为空也显示 Pick#）
+function formatKrause(krause) {
+    if (krause && krause !== '') {
+        return `Pick# ${krause}`;
+    }
+    return `Pick#`;
+}
 
-    const lowerKeyword = keyword.trim().toLowerCase();
+// 从输入框获取实际搜索关键词（处理克劳斯前缀）
+function getActualKeyword(inputValue, searchType) {
+    if (searchType === 'krause') {
+        if (inputValue.startsWith(KRAUSE_PREFIX)) {
+            return inputValue.substring(KRAUSE_PREFIX.length).trim();
+        }
+        return inputValue.trim();
+    }
+    return inputValue.trim();
+}
+
+// 获取输入框显示的值（处理克劳斯前缀自动补全）
+function getDisplayValue(keyword, searchType) {
+    if (searchType === 'krause' && keyword !== '') {
+        // 如果还没有前缀，自动加上
+        if (!keyword.startsWith(KRAUSE_PREFIX)) {
+            return KRAUSE_PREFIX + keyword;
+        }
+    }
+    return keyword;
+}
+
+// 执行搜索
+function performSearch(rawKeyword, type, scope) {
+    const keyword = getActualKeyword(rawKeyword, type);
+    if (!keyword || keyword === '') return [];
+
+    const lowerKeyword = keyword.toLowerCase();
     let results = [];
     const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
 
@@ -117,7 +151,7 @@ function performSearch(keyword, type, scope) {
 }
 
 // 更新搜索结果列表（实时模式用，不重绘页面，光标不丢失）
-function updateSearchResultList(results, keyword) {
+function updateSearchResultList(results) {
     const wrap = document.getElementById('searchResultWrap');
     const countSpan = document.getElementById('resultCount');
     if (!wrap) return;
@@ -127,6 +161,7 @@ function updateSearchResultList(results, keyword) {
         html = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     } else {
         for (let item of results) {
+            const krauseDisplay = formatKrause(item.copy.krause);
             html += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
@@ -134,6 +169,7 @@ function updateSearchResultList(results, keyword) {
                     <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${formatYear(item.series.year)}</div>
+                    <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
                 </div>`;
         }
     }
@@ -144,14 +180,15 @@ function updateSearchResultList(results, keyword) {
 }
 
 // 渲染搜索结果页（点击模式用，会重绘整个页面）
-function renderSearchResultPage(keyword, type, isRealtime = false) {
-    if (!keyword || keyword.trim() === '') return;
+function renderSearchResultPage(rawKeyword, type, isRealtime = false) {
+    const keyword = getActualKeyword(rawKeyword, type);
+    if (!keyword || keyword === '') return;
 
     if (!isRealtime) {
         saveScroll(currentView + "_search");
     }
 
-    const results = performSearch(keyword, type, searchScope);
+    const results = performSearch(rawKeyword, type, searchScope);
 
     let resultsHtml = '';
     if (results.length === 0) {
@@ -159,6 +196,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
     } else {
         resultsHtml = `<div class="copy-list" id="searchResultWrap">`;
         for (let item of results) {
+            const krauseDisplay = formatKrause(item.copy.krause);
             resultsHtml += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
@@ -166,6 +204,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
                     <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${formatYear(item.series.year)}</div>
+                    <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
                 </div>`;
         }
         resultsHtml += `</div>`;
@@ -174,6 +213,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
+    const displayValue = getDisplayValue(rawKeyword, type);
 
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
@@ -186,7 +226,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
                 <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(keyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -209,7 +249,7 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
     }
 }
 
-// 返回上一页（重置时不清空搜索词的版本已废弃，改用独立的重置逻辑）
+// 返回上一页
 function backToPrevious() {
     if (currentView === 'categories') {
         renderCategories(true);
@@ -224,18 +264,72 @@ function backToPrevious() {
 
 // 重置搜索（清空搜索框和搜索词）
 function resetSearchAndBack() {
-    // 清空搜索关键词
     currentSearchKeyword = '';
     currentSearchType = 'all';
     
-    // 清空输入框（如果存在）
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.value = '';
     }
     
-    // 返回上一页
     backToPrevious();
+}
+
+// 处理克劳斯输入框的前缀保护
+function setupKrauseInputProtection(inputElement, searchTypeElement) {
+    if (!inputElement || !searchTypeElement) return;
+    
+    const handleBeforeInput = function(e) {
+        if (searchTypeElement.value !== 'krause') return;
+        
+        const currentValue = inputElement.value;
+        // 如果当前值不以前缀开头，自动补全
+        if (!currentValue.startsWith(KRAUSE_PREFIX)) {
+            inputElement.value = KRAUSE_PREFIX + currentValue;
+            // 将光标移到前缀后面
+            const newCursorPos = KRAUSE_PREFIX.length + (currentValue.length);
+            inputElement.setSelectionRange(newCursorPos, newCursorPos);
+        }
+    };
+    
+    const handleKeydown = function(e) {
+        if (searchTypeElement.value !== 'krause') return;
+        
+        const currentValue = inputElement.value;
+        const cursorPos = inputElement.selectionStart;
+        
+        // 禁止删除前缀（前6个字符 Pick# ）
+        if (cursorPos <= KRAUSE_PREFIX.length) {
+            // 如果是删除键（Backspace 或 Delete）
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+                return;
+            }
+            // 如果是 Ctrl+A 全选后删除，也阻止
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                // 允许全选，但删除时会被上面的逻辑阻止
+                return;
+            }
+        }
+    };
+    
+    const handleInput = function(e) {
+        if (searchTypeElement.value !== 'krause') return;
+        
+        let currentValue = inputElement.value;
+        // 确保前缀存在
+        if (!currentValue.startsWith(KRAUSE_PREFIX)) {
+            inputElement.value = KRAUSE_PREFIX + currentValue;
+        }
+    };
+    
+    inputElement.removeEventListener('beforeinput', handleBeforeInput);
+    inputElement.removeEventListener('keydown', handleKeydown);
+    inputElement.removeEventListener('input', handleInput);
+    
+    inputElement.addEventListener('beforeinput', handleBeforeInput);
+    inputElement.addEventListener('keydown', handleKeydown);
+    inputElement.addEventListener('input', handleInput);
 }
 
 // 绑定搜索事件
@@ -256,27 +350,59 @@ function bindSearchEvents() {
 
     let realtimeTimer = null;
 
-    // 实时搜索处理函数（关键：不重绘页面，只更新结果列表，光标不丢失）
+    // 实时搜索处理函数
     const handleRealtimeInput = function(e) {
-        const keyword = searchInput.value;
+        const rawKeyword = searchInput.value;
         const type = searchType ? searchType.value : 'all';
-
-        currentSearchKeyword = keyword;
+        
+        // 更新全局变量
+        currentSearchKeyword = rawKeyword;
         currentSearchType = type;
-
+        
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
-            if (keyword && keyword.trim() !== '') {
-                // 实时模式：只更新结果列表，不重绘整个页面
-                const results = performSearch(keyword, type, searchScope);
-                updateSearchResultList(results, keyword);
-            } else if (keyword === '') {
-                // 清空搜索，返回上一页
+            const actualKeyword = getActualKeyword(rawKeyword, type);
+            if (actualKeyword && actualKeyword !== '') {
+                const results = performSearch(rawKeyword, type, searchScope);
+                updateSearchResultList(results);
+            } else if (rawKeyword === '' || actualKeyword === '') {
                 backToPrevious();
             }
         }, 300);
     };
 
+    // 监听搜索类型变化，处理克劳斯前缀
+    if (searchType) {
+        const handleTypeChange = function() {
+            const newType = searchType.value;
+            const currentRaw = searchInput.value;
+            
+            if (newType === 'krause') {
+                // 切换到克劳斯模式，自动加上前缀
+                if (!currentRaw.startsWith(KRAUSE_PREFIX)) {
+                    searchInput.value = KRAUSE_PREFIX + currentRaw;
+                }
+            } else {
+                // 切换到其他模式，去掉前缀
+                if (currentRaw.startsWith(KRAUSE_PREFIX)) {
+                    searchInput.value = currentRaw.substring(KRAUSE_PREFIX.length);
+                }
+            }
+            // 更新当前搜索关键词
+            currentSearchKeyword = searchInput.value;
+            currentSearchType = newType;
+            
+            // 重新绑定保护逻辑
+            setupKrauseInputProtection(searchInput, searchType);
+        };
+        
+        searchType.removeEventListener('change', handleTypeChange);
+        searchType.addEventListener('change', handleTypeChange);
+    }
+    
+    // 设置输入框保护
+    setupKrauseInputProtection(searchInput, searchType);
+    
     // 根据当前模式设置
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
@@ -284,20 +410,23 @@ function bindSearchEvents() {
         if (searchBtn) searchBtn.style.opacity = '0.6';
     } else {
         if (searchBtn) searchBtn.style.opacity = '1';
+        // 点击模式下也要处理输入（但不触发搜索，只是保护前缀）
+        searchInput.removeEventListener('input', handleRealtimeInput);
     }
 
-    // 搜索按钮（点击模式时触发搜索，会重绘页面）
+    // 搜索按钮（点击模式时触发搜索）
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
         newBtn.addEventListener('click', function() {
             if (searchMode === 'click') {
-                const keyword = searchInput.value;
+                const rawKeyword = searchInput.value;
                 const type = searchType ? searchType.value : 'all';
-                if (keyword && keyword.trim() !== '') {
-                    currentSearchKeyword = keyword;
+                const actualKeyword = getActualKeyword(rawKeyword, type);
+                if (actualKeyword && actualKeyword !== '') {
+                    currentSearchKeyword = rawKeyword;
                     currentSearchType = type;
-                    renderSearchResultPage(keyword, type, false);
+                    renderSearchResultPage(rawKeyword, type, false);
                 } else {
                     alert('请输入搜索关键词');
                 }
@@ -310,23 +439,20 @@ function bindSearchEvents() {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
         newToggle.addEventListener('click', function() {
-            // 切换模式
             searchMode = searchMode === 'click' ? 'realtime' : 'click';
-
-            // 更新提示文字和图标
+            
             const modeIcon = searchMode === 'click' ? '□' : '■';
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             newToggle.textContent = modeIcon;
             if (searchTip) {
                 searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
             }
-
-            // 重新绑定事件
+            
             bindSearchEvents();
         });
     }
 
-    // 重置按钮（清空搜索框，不清空其他东西）
+    // 重置按钮
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
@@ -348,6 +474,7 @@ function renderCategories(restore = false) {
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const placeholderText = '在全局搜索';
+    const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
 
     let html = `
         <div class="search-bar">
@@ -359,7 +486,7 @@ function renderCategories(restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -408,6 +535,7 @@ function renderSeriesList(cid, restore = false) {
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const placeholderText = '在当前板块搜索';
+    const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
 
     let items = `<div class="series-list">`;
     for (let idx = 0; idx < cat.series.length; idx++) {
@@ -433,7 +561,7 @@ function renderSeriesList(cid, restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -468,12 +596,14 @@ function renderCopyList(cid, si, restore = false) {
     let copiesHtml = `<div class="copy-list">`;
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
+        const krauseDisplay = formatKrause(cp.krause);
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
                 <div class="copy-index">#${cp.copyId}</div>
                 <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
                 <div class="copy-price">${cp.price}</div>
+                <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
             </div>`;
     }
     if (copies.length === 0) {
@@ -515,6 +645,7 @@ function renderDetail(cid, si, ci) {
 
     currentModalImg1 = cp.img1 || '';
     currentModalImg2 = cp.img2 || '';
+    const krauseDisplay = formatKrause(cp.krause);
 
     const detailHtml = `
         <div class="back-bar">
@@ -542,7 +673,7 @@ function renderDetail(cid, si, ci) {
                 <div class="detail-field"><label>评级分数</label><div>${escapeHtml(cp.condition || '—')}</div></div>
                 <div class="detail-field"><label>购入价格</label><div>${cp.price || '—'}</div></div>
                 <div class="detail-field"><label>购入日期</label><div>${cp.purchaseDate || '—'}</div></div>
-                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(cp.krause || '—')}</div></div>
+                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(krauseDisplay)}</div></div>
                 <div class="detail-field"><label>藏品编号</label><div>#${cp.copyId}</div></div>
             </div>
 
