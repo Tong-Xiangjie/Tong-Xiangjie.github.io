@@ -662,7 +662,7 @@ function renderDetail(cid, si, ci) {
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
-        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, true);
+        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
     }
