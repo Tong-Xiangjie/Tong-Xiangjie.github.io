@@ -637,4 +637,203 @@ function renderDetail(cid, si, ci) {
         </div>
         <div class="detail-panel">
             <div class="detail-header">
-                <h3>${escapeHtml(series.seriesName)}</h
+                <h3>${escapeHtml(series.seriesName)}</h3>
+                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div>
+            </div>
+
+            <div class="img-pair">
+                <div class="img-box">
+                    <img src="${cp.img1}" alt="正面" onclick="openModal(0)">
+                </div>
+                <div class="img-box">
+                    <img src="${cp.img2}" alt="背面" onclick="openModal(1)">
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-field"><label>冠字号码</label><div>${escapeHtml(cp.version || '—')}</div></div>
+                <div class="detail-field"><label>发行银行</label><div>${escapeHtml(cp.bank || '—')}</div></div>
+                <div class="detail-field"><label>发行年份</label><div>${formatYear(series.year)}</div></div>
+                <div class="detail-field"><label>评级分数</label><div>${escapeHtml(cp.condition || '—')}</div></div>
+                <div class="detail-field"><label>购入价格</label><div>${cp.price || '—'}</div></div>
+                <div class="detail-field"><label>购入日期</label><div>${cp.purchaseDate || '—'}</div></div>
+                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(krauseDisplay)}</div></div>
+                <div class="detail-field"><label>藏品编号</label><div>#${cp.copyId}</div></div>
+            </div>
+
+            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
+        </div>`;
+    document.getElementById("app").innerHTML = detailHtml;
+    window.scrollTo(0, 0);
+}
+
+function backToCopyList(cid, si) {
+    renderCopyList(cid, si, true);
+}
+
+function backToSeries(cid) {
+    renderSeriesList(cid, true);
+}
+
+function backToCategories() {
+    renderCategories(true);
+}
+
+// ========== 双指缩放功能 ==========
+function initPinchZoom() {
+    const container = document.getElementById('imageContainer');
+    if (!container) return;
+
+    if (hammerManager) {
+        hammerManager.destroy();
+    }
+
+    hammerManager = new Hammer.Manager(container);
+    const pinch = new Hammer.Pinch();
+    const pan = new Hammer.Pan();
+
+    hammerManager.add([pinch, pan]);
+
+    let lastScale = 1;
+    let lastX = 0;
+    let lastY = 0;
+
+    function resetTransform() {
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+    }
+
+    function clampTransform() {
+        const img = document.getElementById('modalImg');
+        if (!img) return;
+
+        const containerRect = container.parentElement.getBoundingClientRect();
+        const imgRect = img.getBoundingClientRect();
+
+        const scaledWidth = imgRect.width;
+        const scaledHeight = imgRect.height;
+
+        let maxX = 0, maxY = 0;
+        if (scaledWidth > containerRect.width) {
+            maxX = (scaledWidth - containerRect.width) / 2;
+        }
+        if (scaledHeight > containerRect.height) {
+            maxY = (scaledHeight - containerRect.height) / 2;
+        }
+
+        currentX = Math.min(maxX, Math.max(-maxX, currentX));
+        currentY = Math.min(maxY, Math.max(-maxY, currentY));
+
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+    }
+
+    hammerManager.on('pinchstart', function(e) {
+        lastScale = currentScale;
+        e.preventDefault();
+    });
+
+    hammerManager.on('pinchmove', function(e) {
+        let newScale = lastScale * e.scale;
+        newScale = Math.min(4, Math.max(1, newScale));
+        currentScale = newScale;
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        e.preventDefault();
+    });
+
+    hammerManager.on('pinchend', function(e) {
+        clampTransform();
+        e.preventDefault();
+    });
+
+    hammerManager.on('panstart', function(e) {
+        lastX = currentX;
+        lastY = currentY;
+    });
+
+    hammerManager.on('panmove', function(e) {
+        if (currentScale > 1) {
+            currentX = lastX + e.deltaX;
+            currentY = lastY + e.deltaY;
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        }
+        e.preventDefault();
+    });
+
+    hammerManager.on('panend', function(e) {
+        clampTransform();
+    });
+
+    container.addEventListener('dblclick', function(e) {
+        resetTransform();
+        e.preventDefault();
+    });
+
+    resetTransform();
+}
+
+function openModal(index = 0) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
+    modalImg.src = imgSrc;
+    modal.style.display = 'flex';
+
+    const container = document.getElementById('imageContainer');
+    if (container) {
+        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+    }
+
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = scrollbarWidth + 'px';
+
+    modalImg.onload = function() {
+        initPinchZoom();
+    };
+    if (modalImg.complete) {
+        initPinchZoom();
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('imageModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    const modalImg = document.getElementById('modalImg');
+    modalImg.src = '';
+
+    if (hammerManager) {
+        hammerManager.destroy();
+        hammerManager = null;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('imageModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this || e.target.classList.contains('modal-content')) {
+                closeModal();
+            }
+        });
+    }
+});
+
+// 路由函数
+function selectCategory(cid) { renderSeriesList(cid, false); }
+function selectSeries(cid, si) { renderCopyList(cid, si, false); }
+function selectCopy(cid, si, ci) { renderDetail(cid, si, ci); }
+
+// 初始化
+window.addEventListener('DOMContentLoaded', function() {
+    renderCategories(false);
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
