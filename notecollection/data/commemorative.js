@@ -23,7 +23,7 @@ const commemorativeData = {
         { seriesName: "中华民国成立100年纪念钞", year: 2011, copies: [{ copyId: 1, purchaseDate: "2025年10月12日", price: "61元", bank: "中央银行", version: "JP578968ZB", condition: "ACG67E", krause: "1998", remark: "", img1: "comm/JP578968ZB-1.jpg", img2: "comm/JP578968ZB-2.jpg" }]},
         { seriesName: "纪念中国银行成立100周年纪念钞（香港）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2026年1月30日", price: "198元", bank: "中国银行（香港）", version: "357185", condition: "ACG67E", krause: "346", remark: "", img1: "comm/357185-1.jpg", img2: "comm/357185-2.jpg" }]},
         { seriesName: "纪念中国银行成立100周年纪念钞（澳门）", year: 2012, copies: [{ copyId: 1, purchaseDate: "2025年12月5日", price: "458元", bank: "中国银行", version: "AA709609", condition: "PMG66E", krause: "114", remark: "传说中的“最美荷花钞”", img1: "comm/AA709609-1.jpg", img2: "comm/AA709609-2.jpg" }]},
-        { seriesName: "澳门生肖钞", year: "2012~2023", copies: [] },
+        { seriesName: "澳门生肖钞", year: "2012～2023", copies: [] },
         { seriesName: "中国航天纪念钞", year: 2015, copies: [
             { copyId: 1, purchaseDate: "2025年12月1日", price: "160元", bank: "中国人民银行", version: "J8301922333", condition: "ACG68E", krause: "910a", remark: "普通荧光", img1: "comm/J8301922333-1.jpg", img2: "comm/J8301922333-2.jpg" },
             { copyId: 2, purchaseDate: "2026年2月18日", price: "218元", bank: "中国人民银行", version: "J5252197777", condition: "ACG67E", krause: "910a", remark: "宇宙之眼", img1: "comm/J5252197777-1.jpg", img2: "comm/J5252197777-2.jpg" },
