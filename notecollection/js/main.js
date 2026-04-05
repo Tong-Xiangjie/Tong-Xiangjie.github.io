@@ -67,23 +67,23 @@ function formatYear(year) {
 // 执行搜索
 function performSearch(keyword, type, scope) {
     if (!keyword || keyword.trim() === '') return [];
-    
+
     const lowerKeyword = keyword.trim().toLowerCase();
     let results = [];
     const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
-    
+
     for (let cid of targetCats) {
         const cat = banknotesData[cid];
         if (!cat || !cat.series) continue;
-        
+
         for (let si = 0; si < cat.series.length; si++) {
             const series = cat.series[si];
             if (!series.copies || series.copies.length === 0) continue;
-            
+
             for (let ci = 0; ci < series.copies.length; ci++) {
                 const copy = series.copies[ci];
                 let match = false;
-                
+
                 switch(type) {
                     case 'all':
                         const searchText = `${series.seriesName} ${copy.version || ''} ${series.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
@@ -105,23 +105,23 @@ function performSearch(keyword, type, scope) {
                         match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
                         break;
                 }
-                
+
                 if (match) {
                     results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
                 }
             }
         }
     }
-    
+
     return results;
 }
 
-// 更新搜索结果列表（实时模式用，不重绘页面）
+// 更新搜索结果列表（实时模式用，不重绘页面，光标不丢失）
 function updateSearchResultList(results, keyword) {
     const wrap = document.getElementById('searchResultWrap');
     const countSpan = document.getElementById('resultCount');
     if (!wrap) return;
-    
+
     let html = '';
     if (results.length === 0) {
         html = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
@@ -143,16 +143,16 @@ function updateSearchResultList(results, keyword) {
     }
 }
 
-// 渲染搜索结果页
+// 渲染搜索结果页（点击模式用，会重绘整个页面）
 function renderSearchResultPage(keyword, type, isRealtime = false) {
     if (!keyword || keyword.trim() === '') return;
-    
+
     if (!isRealtime) {
         saveScroll(currentView + "_search");
     }
-    
+
     const results = performSearch(keyword, type, searchScope);
-    
+
     let resultsHtml = '';
     if (results.length === 0) {
         resultsHtml = `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
@@ -170,10 +170,11 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
         }
         resultsHtml += `</div>`;
     }
-    
+
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    
+    const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
+
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
         <div class="search-bar">
@@ -183,9 +184,9 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
                 <option value="version" ${type === 'version' ? 'selected' : ''}>按冠字号搜索</option>
                 <option value="year" ${type === 'year' ? 'selected' : ''}>按年份搜索</option>
                 <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
-                <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯编号搜索</option>
+                <option value="krause" ${type === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(keyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(keyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -199,16 +200,16 @@ function renderSearchResultPage(keyword, type, isRealtime = false) {
             ${resultsHtml}
         </div>
     `;
-    
+
     document.getElementById("app").innerHTML = fullHtml;
     bindSearchEvents();
-    
+
     if (!isRealtime) {
         restoreScroll(currentView + "_search");
     }
 }
 
-// 返回上一页
+// 返回上一页（重置时不清空搜索词的版本已废弃，改用独立的重置逻辑）
 function backToPrevious() {
     if (currentView === 'categories') {
         renderCategories(true);
@@ -221,6 +222,22 @@ function backToPrevious() {
     }
 }
 
+// 重置搜索（清空搜索框和搜索词）
+function resetSearchAndBack() {
+    // 清空搜索关键词
+    currentSearchKeyword = '';
+    currentSearchType = 'all';
+    
+    // 清空输入框（如果存在）
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // 返回上一页
+    backToPrevious();
+}
+
 // 绑定搜索事件
 function bindSearchEvents() {
     const searchBtn = document.getElementById('searchBtn');
@@ -229,34 +246,37 @@ function bindSearchEvents() {
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
     const searchTip = document.getElementById('searchTip');
-    
+
     if (!searchInput) return;
-    
+
     // 移除旧的 input 事件
     if (searchInput._realtimeHandler) {
         searchInput.removeEventListener('input', searchInput._realtimeHandler);
     }
-    
+
     let realtimeTimer = null;
-    
-    // 实时搜索处理函数
+
+    // 实时搜索处理函数（关键：不重绘页面，只更新结果列表，光标不丢失）
     const handleRealtimeInput = function(e) {
         const keyword = searchInput.value;
         const type = searchType ? searchType.value : 'all';
-        
+
         currentSearchKeyword = keyword;
         currentSearchType = type;
-        
+
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
             if (keyword && keyword.trim() !== '') {
-                renderSearchResultPage(keyword, type, true);
+                // 实时模式：只更新结果列表，不重绘整个页面
+                const results = performSearch(keyword, type, searchScope);
+                updateSearchResultList(results, keyword);
             } else if (keyword === '') {
+                // 清空搜索，返回上一页
                 backToPrevious();
             }
         }, 300);
     };
-    
+
     // 根据当前模式设置
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
@@ -265,8 +285,8 @@ function bindSearchEvents() {
     } else {
         if (searchBtn) searchBtn.style.opacity = '1';
     }
-    
-    // 搜索按钮（点击模式时触发搜索）
+
+    // 搜索按钮（点击模式时触发搜索，会重绘页面）
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
@@ -284,7 +304,7 @@ function bindSearchEvents() {
             }
         });
     }
-    
+
     // 模式切换图标
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
@@ -292,7 +312,7 @@ function bindSearchEvents() {
         newToggle.addEventListener('click', function() {
             // 切换模式
             searchMode = searchMode === 'click' ? 'realtime' : 'click';
-            
+
             // 更新提示文字和图标
             const modeIcon = searchMode === 'click' ? '□' : '■';
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
@@ -300,19 +320,18 @@ function bindSearchEvents() {
             if (searchTip) {
                 searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
             }
-            
+
             // 重新绑定事件
             bindSearchEvents();
         });
     }
-    
-    // 重置按钮
+
+    // 重置按钮（清空搜索框，不清空其他东西）
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
         newReset.addEventListener('click', function() {
-            if (searchInput) searchInput.value = '';
-            backToPrevious();
+            resetSearchAndBack();
         });
     }
 }
@@ -325,10 +344,11 @@ function renderCategories(restore = false) {
     searchScope = 'global';
     currentView = "categories";
     currentCategoryId = null;
-    
+
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    
+    const placeholderText = '在全局搜索';
+
     let html = `
         <div class="search-bar">
             <select class="search-select" id="searchType">
@@ -339,7 +359,7 @@ function renderCategories(restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -367,7 +387,7 @@ function renderCategories(restore = false) {
     html += `</div>`;
     document.getElementById("app").innerHTML = html;
     bindSearchEvents();
-    
+
     if (restore) {
         restoreScroll("categories");
     }
@@ -381,13 +401,14 @@ function renderSeriesList(cid, restore = false) {
     searchScope = 'currentCategory';
     currentView = "seriesList";
     currentCategoryId = cid;
-    
+
     const cat = banknotesData[cid];
     if (!cat || !cat.series) return;
-    
+
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    
+    const placeholderText = '在当前板块搜索';
+
     let items = `<div class="series-list">`;
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
@@ -400,7 +421,7 @@ function renderSeriesList(cid, restore = false) {
             </div>`;
     }
     items += `</div>`;
-    
+
     const full = `
         <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
         <div class="search-bar">
@@ -412,7 +433,7 @@ function renderSeriesList(cid, restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(currentSearchKeyword)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -424,7 +445,7 @@ function renderSeriesList(cid, restore = false) {
         </div>`;
     document.getElementById("app").innerHTML = full;
     bindSearchEvents();
-    
+
     if (restore) {
         restoreScroll("seriesList_" + cid);
     }
@@ -438,12 +459,12 @@ function renderCopyList(cid, si, restore = false) {
     currentView = "copyList";
     currentCategoryId = cid;
     currentSeries = { cid, si };
-    
+
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const copies = series.copies || [];
-    
+
     let copiesHtml = `<div class="copy-list">`;
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
@@ -472,7 +493,7 @@ function renderCopyList(cid, si, restore = false) {
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
-    
+
     if (restore) {
         restoreScroll("copyList_" + cid + "_" + si);
     }
@@ -481,11 +502,11 @@ function renderCopyList(cid, si, restore = false) {
 // 详情页
 function renderDetail(cid, si, ci) {
     saveScroll("copyList_" + cid + "_" + si);
-    
+
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si };
-    
+
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
@@ -547,38 +568,38 @@ function backToCategories() {
 function initPinchZoom() {
     const container = document.getElementById('imageContainer');
     if (!container) return;
-    
+
     if (hammerManager) {
         hammerManager.destroy();
     }
-    
+
     hammerManager = new Hammer.Manager(container);
     const pinch = new Hammer.Pinch();
     const pan = new Hammer.Pan();
-    
+
     hammerManager.add([pinch, pan]);
-    
+
     let lastScale = 1;
     let lastX = 0;
     let lastY = 0;
-    
+
     function resetTransform() {
         currentScale = 1;
         currentX = 0;
         currentY = 0;
         container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
     }
-    
+
     function clampTransform() {
         const img = document.getElementById('modalImg');
         if (!img) return;
-        
+
         const containerRect = container.parentElement.getBoundingClientRect();
         const imgRect = img.getBoundingClientRect();
-        
+
         const scaledWidth = imgRect.width;
         const scaledHeight = imgRect.height;
-        
+
         let maxX = 0, maxY = 0;
         if (scaledWidth > containerRect.width) {
             maxX = (scaledWidth - containerRect.width) / 2;
@@ -586,18 +607,18 @@ function initPinchZoom() {
         if (scaledHeight > containerRect.height) {
             maxY = (scaledHeight - containerRect.height) / 2;
         }
-        
+
         currentX = Math.min(maxX, Math.max(-maxX, currentX));
         currentY = Math.min(maxY, Math.max(-maxY, currentY));
-        
+
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
     }
-    
+
     hammerManager.on('pinchstart', function(e) {
         lastScale = currentScale;
         e.preventDefault();
     });
-    
+
     hammerManager.on('pinchmove', function(e) {
         let newScale = lastScale * e.scale;
         newScale = Math.min(4, Math.max(1, newScale));
@@ -605,17 +626,17 @@ function initPinchZoom() {
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
         e.preventDefault();
     });
-    
+
     hammerManager.on('pinchend', function(e) {
         clampTransform();
         e.preventDefault();
     });
-    
+
     hammerManager.on('panstart', function(e) {
         lastX = currentX;
         lastY = currentY;
     });
-    
+
     hammerManager.on('panmove', function(e) {
         if (currentScale > 1) {
             currentX = lastX + e.deltaX;
@@ -624,16 +645,16 @@ function initPinchZoom() {
         }
         e.preventDefault();
     });
-    
+
     hammerManager.on('panend', function(e) {
         clampTransform();
     });
-    
+
     container.addEventListener('dblclick', function(e) {
         resetTransform();
         e.preventDefault();
     });
-    
+
     resetTransform();
 }
 
@@ -643,7 +664,7 @@ function openModal(index = 0) {
     const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
     modalImg.src = imgSrc;
     modal.style.display = 'flex';
-    
+
     const container = document.getElementById('imageContainer');
     if (container) {
         container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
@@ -651,11 +672,11 @@ function openModal(index = 0) {
         currentX = 0;
         currentY = 0;
     }
-    
+
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
-    
+
     modalImg.onload = function() {
         initPinchZoom();
     };
@@ -671,7 +692,7 @@ function closeModal() {
     document.body.style.paddingRight = '';
     const modalImg = document.getElementById('modalImg');
     modalImg.src = '';
-    
+
     if (hammerManager) {
         hammerManager.destroy();
         hammerManager = null;
