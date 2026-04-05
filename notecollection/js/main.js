@@ -1,18 +1,61 @@
 // 合并所有数据
 const banknotesData = {
     commemorative: commemorativeData,
-    hk: hkData,
-    macau: macauData,
+    hk_boc: hk_bocData,
+    hk_hsbc: hk_hsbcData,
+    hk_sc: hk_scData,
+    hk_gov: hk_govData,
+    macau_boc: macau_bocData,
+    macau_bnu: macau_bnuData,
     taiwan: taiwanData,
+    rmb1: rmb1Data,
     rmb2: rmb2Data,
     rmb3: rmb3Data,
     rmb4: rmb4Data,
     rmb5: rmb5Data,
     fec: fecData,
-    japan: japanData
+    gkq: gkqData,
+    republic_cbc: republic_cbcData,
+    republic_boc: republic_bocData,
+    republic_communications: republic_communicationsData,
+    republic_fbc: republic_fbcData,
+    republic_kpb: republic_kpbData,
+    republic_crbc: republic_crbcData,
+    japan: japanData,
+    indonesia: indonesiaData,
+    venezuela: venezuelaData,
+    ukarine: ukarineData,
+    korea: koreaData
 };
 
-const categoryOrder = ["commemorative", "hk", "macau", "taiwan", "rmb2", "rmb3", "rmb4", "rmb5", "fec", "japan"];
+const categoryOrder = [
+    "commemorative",
+    "hk_boc",
+    "hk_hsbc",
+    "hk_sc",
+    "hk_gov",
+    "macau_boc",
+    "macau_bnu",
+    "taiwan",
+    "rmb1",
+    "rmb2",
+    "rmb3",
+    "rmb4",
+    "rmb5",
+    "fec",
+    "gkq",
+    "republic_cbc",
+    "republic_boc",
+    "republic_communications",
+    "republic_fbc",
+    "republic_kpb",
+    "republic_crbc",
+    "japan",
+    "indonesia",
+    "venezuela",
+    "ukarine",
+    "korea"
+];
 
 let currentView = "categories";
 let currentCategoryId = null;
@@ -208,7 +251,6 @@ function performRealtimeSearch() {
     }
 }
 
-// 修改：增加 autoFocus 参数，默认为 true（保持原有行为）
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     if (!rawKeyword || rawKeyword.trim() === '') return;
 
@@ -265,7 +307,6 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     
     bindSearchEvents();
 
-    // 根据 autoFocus 参数决定是否自动聚焦输入框
     if (autoFocus) {
         const input = document.getElementById('searchInput');
         if (input) {
@@ -661,11 +702,9 @@ function renderDetail(cid, si, ci) {
     window.scrollTo(0, 0);
 }
 
-// 修改：从搜索结果页返回时，保存滚动位置，且不自动聚焦输入框
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
-        // 从搜索结果进入详情前已经保存了滚动位置，返回时恢复
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
@@ -680,7 +719,6 @@ function backToCategories() {
     renderCategories(true);
 }
 
-// 路由函数 - 进入更深层时保存当前滚动位置
 function selectCategory(cid) {
     saveScroll("categories");
     renderSeriesList(cid, false);
@@ -691,12 +729,10 @@ function selectSeries(cid, si) {
     renderCopyList(cid, si, false);
 }
 
-// 修改：从搜索结果页进入详情时，保存搜索结果页的滚动位置
 function selectCopy(cid, si, ci) {
-    // 判断当前是否在搜索结果页
     if (currentView === 'searchResult') {
         fromSearchResult = true;
-        saveScroll("searchResult");  // 保存搜索结果页的滚动位置
+        saveScroll("searchResult");
         lastSearchParams = {
             keyword: currentSearchKeyword,
             type: currentSearchType
