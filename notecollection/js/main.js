@@ -67,7 +67,7 @@ function formatYear(year) {
     return year + '年';
 }
 
-// 格式化克劳斯编码显示（始终显示 Pick# + 编码值，为空也显示 Pick#）
+// 格式化克劳斯编码显示
 function formatKrause(krause) {
     if (krause && krause !== '') {
         return `Pick# ${krause}`;
@@ -75,7 +75,7 @@ function formatKrause(krause) {
     return `Pick#`;
 }
 
-// 从输入框获取实际搜索关键词（处理克劳斯前缀）
+// 从输入框获取实际搜索关键词
 function getActualKeyword(inputValue, searchType) {
     if (searchType === 'krause') {
         if (inputValue.startsWith(KRAUSE_PREFIX)) {
@@ -86,7 +86,7 @@ function getActualKeyword(inputValue, searchType) {
     return inputValue.trim();
 }
 
-// 获取输入框显示的值（处理克劳斯前缀自动补全）
+// 获取输入框显示的值
 function getDisplayValue(keyword, searchType) {
     if (searchType === 'krause' && keyword !== '') {
         if (!keyword.startsWith(KRAUSE_PREFIX)) {
@@ -178,7 +178,7 @@ function updateSearchResultList(results) {
     }
 }
 
-// 渲染搜索结果页（点击模式用，会重绘整个页面）
+// 渲染搜索结果页（点击模式用）
 function renderSearchResultPage(rawKeyword, type, isRealtime = false) {
     const keyword = getActualKeyword(rawKeyword, type);
     if (!keyword || keyword === '') return;
@@ -261,7 +261,7 @@ function backToPrevious() {
     }
 }
 
-// 重置搜索（只清空搜索框，不清空搜索类型）
+// 重置搜索（只清空搜索框，完全不清空搜索类型）
 function resetSearchAndBack() {
     // 只清空搜索关键词，保留搜索类型
     currentSearchKeyword = '';
@@ -278,23 +278,10 @@ function resetSearchAndBack() {
 function setupKrauseInputProtection(inputElement, searchTypeElement) {
     if (!inputElement || !searchTypeElement) return;
     
-    const handleBeforeInput = function(e) {
-        if (searchTypeElement.value !== 'krause') return;
-        
-        const currentValue = inputElement.value;
-        if (!currentValue.startsWith(KRAUSE_PREFIX)) {
-            inputElement.value = KRAUSE_PREFIX + currentValue;
-            const newCursorPos = KRAUSE_PREFIX.length + (currentValue.length);
-            inputElement.setSelectionRange(newCursorPos, newCursorPos);
-        }
-    };
-    
     const handleKeydown = function(e) {
         if (searchTypeElement.value !== 'krause') return;
         
-        const currentValue = inputElement.value;
         const cursorPos = inputElement.selectionStart;
-        
         if (cursorPos <= KRAUSE_PREFIX.length) {
             if (e.key === 'Backspace' || e.key === 'Delete') {
                 e.preventDefault();
@@ -312,11 +299,9 @@ function setupKrauseInputProtection(inputElement, searchTypeElement) {
         }
     };
     
-    inputElement.removeEventListener('beforeinput', handleBeforeInput);
     inputElement.removeEventListener('keydown', handleKeydown);
     inputElement.removeEventListener('input', handleInput);
     
-    inputElement.addEventListener('beforeinput', handleBeforeInput);
     inputElement.addEventListener('keydown', handleKeydown);
     inputElement.addEventListener('input', handleInput);
 }
@@ -332,12 +317,15 @@ function bindSearchEvents() {
 
     if (!searchInput) return;
 
+    // 移除旧的实时输入事件
     if (searchInput._realtimeHandler) {
         searchInput.removeEventListener('input', searchInput._realtimeHandler);
+        searchInput._realtimeHandler = null;
     }
 
     let realtimeTimer = null;
 
+    // 实时搜索处理函数
     const handleRealtimeInput = function(e) {
         const rawKeyword = searchInput.value;
         const type = searchType ? searchType.value : 'all';
@@ -357,6 +345,7 @@ function bindSearchEvents() {
         }, 300);
     };
 
+    // 搜索类型变化时的处理
     if (searchType) {
         const handleTypeChange = function() {
             const newType = searchType.value;
@@ -383,15 +372,27 @@ function bindSearchEvents() {
     
     setupKrauseInputProtection(searchInput, searchType);
     
+    // 根据模式设置
     if (searchMode === 'realtime') {
+        // 实时模式：绑定输入事件，禁用搜索按钮
         searchInput.addEventListener('input', handleRealtimeInput);
         searchInput._realtimeHandler = handleRealtimeInput;
-        if (searchBtn) searchBtn.style.opacity = '0.6';
+        if (searchBtn) {
+            searchBtn.disabled = true;
+            searchBtn.style.opacity = '0.5';
+            searchBtn.style.cursor = 'not-allowed';
+        }
     } else {
-        if (searchBtn) searchBtn.style.opacity = '1';
+        // 点击模式：移除输入事件，启用搜索按钮
         searchInput.removeEventListener('input', handleRealtimeInput);
+        if (searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.style.opacity = '1';
+            searchBtn.style.cursor = 'pointer';
+        }
     }
 
+    // 搜索按钮（点击模式时触发）
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
@@ -411,6 +412,7 @@ function bindSearchEvents() {
         });
     }
 
+    // 模式切换图标
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
@@ -424,15 +426,22 @@ function bindSearchEvents() {
                 searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
             }
             
+            // 重新绑定事件
             bindSearchEvents();
         });
     }
 
+    // 重置按钮（只清空搜索框，不清空搜索类型）
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
         newReset.addEventListener('click', function() {
-            resetSearchAndBack();
+            // 只清空搜索框内容，不清空搜索类型
+            currentSearchKeyword = '';
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            backToPrevious();
         });
     }
 }
@@ -554,7 +563,7 @@ function renderSeriesList(cid, restore = false) {
     }
 }
 
-// 单张列表（将价格列改为年份列）
+// 单张列表
 function renderCopyList(cid, si, restore = false) {
     if (!restore) {
         saveScroll("copyList_" + cid + "_" + si);
@@ -628,203 +637,4 @@ function renderDetail(cid, si, ci) {
         </div>
         <div class="detail-panel">
             <div class="detail-header">
-                <h3>${escapeHtml(series.seriesName)}</h3>
-                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div>
-            </div>
-
-            <div class="img-pair">
-                <div class="img-box">
-                    <img src="${cp.img1}" alt="正面" onclick="openModal(0)">
-                </div>
-                <div class="img-box">
-                    <img src="${cp.img2}" alt="背面" onclick="openModal(1)">
-                </div>
-            </div>
-
-            <div class="detail-grid">
-                <div class="detail-field"><label>冠字号码</label><div>${escapeHtml(cp.version || '—')}</div></div>
-                <div class="detail-field"><label>发行银行</label><div>${escapeHtml(cp.bank || '—')}</div></div>
-                <div class="detail-field"><label>发行年份</label><div>${formatYear(series.year)}</div></div>
-                <div class="detail-field"><label>评级分数</label><div>${escapeHtml(cp.condition || '—')}</div></div>
-                <div class="detail-field"><label>购入价格</label><div>${cp.price || '—'}</div></div>
-                <div class="detail-field"><label>购入日期</label><div>${cp.purchaseDate || '—'}</div></div>
-                <div class="detail-field"><label>克劳斯编号</label><div>${escapeHtml(krauseDisplay)}</div></div>
-                <div class="detail-field"><label>藏品编号</label><div>#${cp.copyId}</div></div>
-            </div>
-
-            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
-        </div>`;
-    document.getElementById("app").innerHTML = detailHtml;
-    window.scrollTo(0, 0);
-}
-
-function backToCopyList(cid, si) {
-    renderCopyList(cid, si, true);
-}
-
-function backToSeries(cid) {
-    renderSeriesList(cid, true);
-}
-
-function backToCategories() {
-    renderCategories(true);
-}
-
-// ========== 双指缩放功能 ==========
-function initPinchZoom() {
-    const container = document.getElementById('imageContainer');
-    if (!container) return;
-
-    if (hammerManager) {
-        hammerManager.destroy();
-    }
-
-    hammerManager = new Hammer.Manager(container);
-    const pinch = new Hammer.Pinch();
-    const pan = new Hammer.Pan();
-
-    hammerManager.add([pinch, pan]);
-
-    let lastScale = 1;
-    let lastX = 0;
-    let lastY = 0;
-
-    function resetTransform() {
-        currentScale = 1;
-        currentX = 0;
-        currentY = 0;
-        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
-    }
-
-    function clampTransform() {
-        const img = document.getElementById('modalImg');
-        if (!img) return;
-
-        const containerRect = container.parentElement.getBoundingClientRect();
-        const imgRect = img.getBoundingClientRect();
-
-        const scaledWidth = imgRect.width;
-        const scaledHeight = imgRect.height;
-
-        let maxX = 0, maxY = 0;
-        if (scaledWidth > containerRect.width) {
-            maxX = (scaledWidth - containerRect.width) / 2;
-        }
-        if (scaledHeight > containerRect.height) {
-            maxY = (scaledHeight - containerRect.height) / 2;
-        }
-
-        currentX = Math.min(maxX, Math.max(-maxX, currentX));
-        currentY = Math.min(maxY, Math.max(-maxY, currentY));
-
-        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-    }
-
-    hammerManager.on('pinchstart', function(e) {
-        lastScale = currentScale;
-        e.preventDefault();
-    });
-
-    hammerManager.on('pinchmove', function(e) {
-        let newScale = lastScale * e.scale;
-        newScale = Math.min(4, Math.max(1, newScale));
-        currentScale = newScale;
-        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-        e.preventDefault();
-    });
-
-    hammerManager.on('pinchend', function(e) {
-        clampTransform();
-        e.preventDefault();
-    });
-
-    hammerManager.on('panstart', function(e) {
-        lastX = currentX;
-        lastY = currentY;
-    });
-
-    hammerManager.on('panmove', function(e) {
-        if (currentScale > 1) {
-            currentX = lastX + e.deltaX;
-            currentY = lastY + e.deltaY;
-            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-        }
-        e.preventDefault();
-    });
-
-    hammerManager.on('panend', function(e) {
-        clampTransform();
-    });
-
-    container.addEventListener('dblclick', function(e) {
-        resetTransform();
-        e.preventDefault();
-    });
-
-    resetTransform();
-}
-
-function openModal(index = 0) {
-    const modal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImg');
-    const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
-    modalImg.src = imgSrc;
-    modal.style.display = 'flex';
-
-    const container = document.getElementById('imageContainer');
-    if (container) {
-        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
-        currentScale = 1;
-        currentX = 0;
-        currentY = 0;
-    }
-
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = scrollbarWidth + 'px';
-
-    modalImg.onload = function() {
-        initPinchZoom();
-    };
-    if (modalImg.complete) {
-        initPinchZoom();
-    }
-}
-
-function closeModal() {
-    const modal = document.getElementById('imageModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = '';
-    document.body.style.paddingRight = '';
-    const modalImg = document.getElementById('modalImg');
-    modalImg.src = '';
-
-    if (hammerManager) {
-        hammerManager.destroy();
-        hammerManager = null;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('imageModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this || e.target.classList.contains('modal-content')) {
-                closeModal();
-            }
-        });
-    }
-});
-
-// 路由函数
-function selectCategory(cid) { renderSeriesList(cid, false); }
-function selectSeries(cid, si) { renderCopyList(cid, si, false); }
-function selectCopy(cid, si, ci) { renderDetail(cid, si, ci); }
-
-// 初始化
-window.addEventListener('DOMContentLoaded', function() {
-    renderCategories(false);
-});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeModal();
-});
+                <h3>${escapeHtml(series.seriesName)}</h
