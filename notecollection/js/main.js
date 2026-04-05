@@ -23,17 +23,11 @@ let searchScope = 'global';
 let currentSearchKeyword = '';
 let currentSearchType = 'all';
 
-// 搜索模式：'click' 或 'realtime'，默认点击模式
+// 搜索模式：'click' 或 'realtime'
 let searchMode = 'click';
 
 let currentModalImg1 = '';
 let currentModalImg2 = '';
-
-// 缩放相关变量
-let hammerManager = null;
-let currentScale = 1;
-let currentX = 0;
-let currentY = 0;
 
 // 克劳斯前缀常量
 const KRAUSE_PREFIX = 'Pick# ';
@@ -61,13 +55,11 @@ function escapeHtml(str) {
     });
 }
 
-// 年份格式化
 function formatYear(year) {
     if (year === undefined || year === null) return '—';
     return year + '年';
 }
 
-// 克劳斯格式化
 function formatKrause(krause) {
     if (krause && krause !== '') {
         return `Pick# ${krause}`;
@@ -75,7 +67,6 @@ function formatKrause(krause) {
     return `Pick#`;
 }
 
-// 从输入框获取实际搜索关键词
 function getActualKeyword(inputValue, searchType) {
     if (searchType === 'krause') {
         if (inputValue.startsWith(KRAUSE_PREFIX)) {
@@ -86,7 +77,6 @@ function getActualKeyword(inputValue, searchType) {
     return inputValue.trim();
 }
 
-// 获取输入框显示的值
 function getDisplayValue(keyword, searchType) {
     if (searchType === 'krause' && keyword !== '') {
         if (!keyword.startsWith(KRAUSE_PREFIX)) {
@@ -149,7 +139,7 @@ function performSearch(rawKeyword, type, scope) {
     return results;
 }
 
-// 渲染搜索结果列表（纯HTML生成，不涉及页面重绘）
+// 渲染结果列表HTML
 function renderResultsList(results) {
     if (results.length === 0) {
         return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
@@ -172,64 +162,73 @@ function renderResultsList(results) {
     return html;
 }
 
-// 实时搜索：只更新结果区域，不重绘页面
+// ========== 实时搜索函数 ==========
 function performRealtimeSearch() {
+    console.log('performRealtimeSearch 被调用了');
+    
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
     
-    if (!searchInput) return;
+    if (!searchInput) {
+        console.log('searchInput 不存在');
+        return;
+    }
     
     const rawKeyword = searchInput.value;
     const type = searchType ? searchType.value : 'all';
     
+    console.log('搜索关键词:', rawKeyword, '类型:', type);
+    
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
     
-    const results = performSearch(rawKeyword, type, searchScope);
-    const resultsHtml = renderResultsList(results);
-    
-    // 更新结果区域
-    const resultContainer = document.getElementById('dynamicResultContainer');
-    if (resultContainer) {
-        resultContainer.innerHTML = resultsHtml;
+    // 如果关键词为空，返回上一页
+    if (!rawKeyword || rawKeyword.trim() === '') {
+        console.log('关键词为空，返回上一页');
+        backToPrevious();
+        return;
     }
     
-    // 更新结果数量
+    // 获取或创建结果容器
+    let resultContainer = document.getElementById('dynamicResultContainer');
+    
+    // 如果当前不在搜索结果页，需要先进入搜索结果页
+    if (!resultContainer) {
+        console.log('不在搜索结果页，先进入搜索结果页');
+        // 保存当前搜索关键词和类型
+        currentSearchKeyword = rawKeyword;
+        currentSearchType = type;
+        // 进入搜索结果页
+        renderSearchResultPage(rawKeyword, type, true);
+        return;
+    }
+    
+    // 已经在搜索结果页，只更新结果
+    console.log('更新搜索结果');
+    const results = performSearch(rawKeyword, type, searchScope);
+    const resultsHtml = renderResultsList(results);
+    resultContainer.innerHTML = resultsHtml;
+    
     const countSpan = document.getElementById('resultCount');
     if (countSpan) {
         countSpan.innerText = results.length;
     }
 }
 
-// 点击搜索：重绘整个页面
-function performClickSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const searchType = document.getElementById('searchType');
+// 渲染搜索结果页
+function renderSearchResultPage(rawKeyword, type, restoreCursor = false) {
+    console.log('renderSearchResultPage 被调用', rawKeyword, type);
     
-    if (!searchInput) return;
+    if (!rawKeyword || rawKeyword.trim() === '') return;
     
-    const rawKeyword = searchInput.value;
-    const type = searchType ? searchType.value : 'all';
-    const actualKeyword = getActualKeyword(rawKeyword, type);
-    
-    if (!actualKeyword || actualKeyword === '') {
-        alert('请输入搜索关键词');
-        return;
-    }
-    
-    currentSearchKeyword = rawKeyword;
-    currentSearchType = type;
-    
-    // 保存滚动位置
     saveScroll(currentView + "_search");
     
     const results = performSearch(rawKeyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
-    
-    const modeIcon = searchMode === 'click' ? '□' : '■';
-    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
     const displayValue = getDisplayValue(rawKeyword, type);
+    const modeIcon = searchMode === 'click' ? '□' : '■';
+    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
@@ -251,7 +250,7 @@ function performClickSearch() {
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
-                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(actualKeyword)}</p>
+                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}</p>
             </div>
             <div id="dynamicResultContainer">${resultsHtml}</div>
         </div>
@@ -260,6 +259,15 @@ function performClickSearch() {
     document.getElementById("app").innerHTML = fullHtml;
     bindSearchEvents();
     restoreScroll(currentView + "_search");
+    
+    // 恢复光标
+    if (restoreCursor) {
+        const input = document.getElementById('searchInput');
+        if (input) {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+    }
 }
 
 // 返回上一页
@@ -275,13 +283,11 @@ function backToPrevious() {
     }
 }
 
-// 重置搜索（只清空搜索框）
+// 重置搜索
 function resetSearchAndBack() {
     currentSearchKeyword = '';
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.value = '';
-    }
+    const input = document.getElementById('searchInput');
+    if (input) input.value = '';
     backToPrevious();
 }
 
@@ -293,66 +299,76 @@ function bindSearchEvents() {
     const searchInput = document.getElementById('searchInput');
     const searchType = document.getElementById('searchType');
     const searchTip = document.getElementById('searchTip');
-
+    
     if (!searchInput) return;
-
-    // 实时搜索处理函数（防抖）
+    
+    // 移除旧事件
+    if (searchInput._realtimeHandler) {
+        searchInput.removeEventListener('input', searchInput._realtimeHandler);
+    }
+    
     let realtimeTimer = null;
+    
+    // 实时搜索处理函数
     const handleRealtimeInput = function(e) {
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
             performRealtimeSearch();
-        }, 200);
+        }, 300);
     };
-
-    // 根据模式设置
+    
     if (searchMode === 'realtime') {
-        // 实时模式：绑定输入事件
+        console.log('切换到实时模式');
         searchInput.addEventListener('input', handleRealtimeInput);
+        searchInput._realtimeHandler = handleRealtimeInput;
         if (searchBtn) {
             searchBtn.disabled = true;
             searchBtn.style.opacity = '0.5';
-            searchBtn.style.cursor = 'not-allowed';
         }
     } else {
-        // 点击模式：移除输入事件
+        console.log('切换到点击模式');
         searchInput.removeEventListener('input', handleRealtimeInput);
         if (searchBtn) {
             searchBtn.disabled = false;
             searchBtn.style.opacity = '1';
-            searchBtn.style.cursor = 'pointer';
         }
     }
-
-    // 搜索按钮
+    
+    // 搜索按钮（点击模式）
     if (searchBtn) {
         const newBtn = searchBtn.cloneNode(true);
         searchBtn.parentNode.replaceChild(newBtn, searchBtn);
         newBtn.addEventListener('click', function() {
             if (searchMode === 'click') {
-                performClickSearch();
+                const keyword = searchInput.value;
+                const type = searchType ? searchType.value : 'all';
+                if (keyword && keyword.trim() !== '') {
+                    currentSearchKeyword = keyword;
+                    currentSearchType = type;
+                    renderSearchResultPage(keyword, type, false);
+                } else {
+                    alert('请输入搜索关键词');
+                }
             }
         });
     }
-
+    
     // 模式切换
     if (modeToggle) {
         const newToggle = modeToggle.cloneNode(true);
         modeToggle.parentNode.replaceChild(newToggle, modeToggle);
         newToggle.addEventListener('click', function() {
             searchMode = searchMode === 'click' ? 'realtime' : 'click';
-            
             const modeIcon = searchMode === 'click' ? '□' : '■';
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             newToggle.textContent = modeIcon;
             if (searchTip) {
                 searchTip.innerHTML = `当前模式：${modeText} | 点击“${modeIcon}”可切换`;
             }
-            
             bindSearchEvents();
         });
     }
-
+    
     // 重置按钮
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
@@ -365,18 +381,15 @@ function bindSearchEvents() {
 
 // 分类页
 function renderCategories(restore = false) {
-    if (!restore) {
-        saveScroll("categories");
-    }
+    if (!restore) saveScroll("categories");
     searchScope = 'global';
     currentView = "categories";
     currentCategoryId = null;
-
+    
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    const placeholderText = '在全局搜索';
     const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-
+    
     let html = `
         <div class="search-bar">
             <select class="search-select" id="searchType">
@@ -387,22 +400,20 @@ function renderCategories(restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
         <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“${modeIcon}”可切换</div>
-    `;
-    html += `<div class="category-grid">`;
+        <div class="category-grid">`;
+    
     for (let id of categoryOrder) {
         const cat = banknotesData[id];
         if (!cat) continue;
         let total = 0;
         if (cat.series) {
-            for (let s of cat.series) {
-                total += s.copies ? s.copies.length : 0;
-            }
+            for (let s of cat.series) total += s.copies ? s.copies.length : 0;
         }
         html += `
             <div class="category-card" onclick="selectCategory('${id}')">
@@ -415,42 +426,35 @@ function renderCategories(restore = false) {
     html += `</div>`;
     document.getElementById("app").innerHTML = html;
     bindSearchEvents();
-
-    if (restore) {
-        restoreScroll("categories");
-    }
+    if (restore) restoreScroll("categories");
 }
 
 // 系列列表
 function renderSeriesList(cid, restore = false) {
-    if (!restore) {
-        saveScroll("seriesList_" + cid);
-    }
+    if (!restore) saveScroll("seriesList_" + cid);
     searchScope = 'currentCategory';
     currentView = "seriesList";
     currentCategoryId = cid;
-
+    
     const cat = banknotesData[cid];
     if (!cat || !cat.series) return;
-
+    
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    const placeholderText = '在当前板块搜索';
     const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-
+    
     let items = `<div class="series-list">`;
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
-        const copyCount = s.copies ? s.copies.length : 0;
         items += `
             <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
                 <div class="series-name">${escapeHtml(s.seriesName)}</div>
-                <div class="series-count">${copyCount}张</div>
+                <div class="series-count">${s.copies ? s.copies.length : 0}张</div>
                 <div class="series-year">${formatYear(s.year)}</div>
             </div>`;
     }
     items += `</div>`;
-
+    
     const full = `
         <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
         <div class="search-bar">
@@ -462,7 +466,7 @@ function renderSeriesList(cid, restore = false) {
                 <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
                 <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
             </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
+            <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
@@ -474,44 +478,38 @@ function renderSeriesList(cid, restore = false) {
         </div>`;
     document.getElementById("app").innerHTML = full;
     bindSearchEvents();
-
-    if (restore) {
-        restoreScroll("seriesList_" + cid);
-    }
+    if (restore) restoreScroll("seriesList_" + cid);
 }
 
 // 单张列表
 function renderCopyList(cid, si, restore = false) {
-    if (!restore) {
-        saveScroll("copyList_" + cid + "_" + si);
-    }
+    if (!restore) saveScroll("copyList_" + cid + "_" + si);
     currentView = "copyList";
     currentCategoryId = cid;
     currentSeries = { cid, si };
-
+    
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const copies = series.copies || [];
-
+    
     let copiesHtml = `<div class="copy-list">`;
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
-        const krauseDisplay = formatKrause(cp.krause);
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
                 <div class="copy-index">#${cp.copyId}</div>
                 <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
                 <div class="copy-price">${formatYear(series.year)}</div>
-                <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
+                <div class="copy-price">${escapeHtml(formatKrause(cp.krause))}</div>
             </div>`;
     }
     if (copies.length === 0) {
         copiesHtml += `<div style="padding:1rem; text-align:center; color:#999;">暂无藏品</div>`;
     }
     copiesHtml += `</div>`;
-
+    
     const full = `
         <div class="back-bar">
             <button class="back-btn" onclick="backToSeries('${cid}')">← 返回品种</button>
@@ -524,30 +522,26 @@ function renderCopyList(cid, si, restore = false) {
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
-
-    if (restore) {
-        restoreScroll("copyList_" + cid + "_" + si);
-    }
+    if (restore) restoreScroll("copyList_" + cid + "_" + si);
 }
 
 // 详情页
 function renderDetail(cid, si, ci) {
     saveScroll("copyList_" + cid + "_" + si);
-
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si };
-
+    
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const cp = series.copies[ci];
     if (!cp) return;
-
+    
     currentModalImg1 = cp.img1 || '';
     currentModalImg2 = cp.img2 || '';
     const krauseDisplay = formatKrause(cp.krause);
-
+    
     const detailHtml = `
         <div class="back-bar">
             <button class="back-btn" onclick="backToCopyList('${cid}', ${si})">← 返回藏品列表</button>
@@ -596,125 +590,17 @@ function backToCategories() {
     renderCategories(true);
 }
 
-// ========== 双指缩放功能 ==========
-function initPinchZoom() {
-    const container = document.getElementById('imageContainer');
-    if (!container) return;
-
-    if (hammerManager) {
-        hammerManager.destroy();
-    }
-
-    hammerManager = new Hammer.Manager(container);
-    const pinch = new Hammer.Pinch();
-    const pan = new Hammer.Pan();
-
-    hammerManager.add([pinch, pan]);
-
-    let lastScale = 1;
-    let lastX = 0;
-    let lastY = 0;
-
-    function resetTransform() {
-        currentScale = 1;
-        currentX = 0;
-        currentY = 0;
-        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
-    }
-
-    function clampTransform() {
-        const img = document.getElementById('modalImg');
-        if (!img) return;
-
-        const containerRect = container.parentElement.getBoundingClientRect();
-        const imgRect = img.getBoundingClientRect();
-
-        const scaledWidth = imgRect.width;
-        const scaledHeight = imgRect.height;
-
-        let maxX = 0, maxY = 0;
-        if (scaledWidth > containerRect.width) {
-            maxX = (scaledWidth - containerRect.width) / 2;
-        }
-        if (scaledHeight > containerRect.height) {
-            maxY = (scaledHeight - containerRect.height) / 2;
-        }
-
-        currentX = Math.min(maxX, Math.max(-maxX, currentX));
-        currentY = Math.min(maxY, Math.max(-maxY, currentY));
-
-        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-    }
-
-    hammerManager.on('pinchstart', function(e) {
-        lastScale = currentScale;
-        e.preventDefault();
-    });
-
-    hammerManager.on('pinchmove', function(e) {
-        let newScale = lastScale * e.scale;
-        newScale = Math.min(4, Math.max(1, newScale));
-        currentScale = newScale;
-        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-        e.preventDefault();
-    });
-
-    hammerManager.on('pinchend', function(e) {
-        clampTransform();
-        e.preventDefault();
-    });
-
-    hammerManager.on('panstart', function(e) {
-        lastX = currentX;
-        lastY = currentY;
-    });
-
-    hammerManager.on('panmove', function(e) {
-        if (currentScale > 1) {
-            currentX = lastX + e.deltaX;
-            currentY = lastY + e.deltaY;
-            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
-        }
-        e.preventDefault();
-    });
-
-    hammerManager.on('panend', function(e) {
-        clampTransform();
-    });
-
-    container.addEventListener('dblclick', function(e) {
-        resetTransform();
-        e.preventDefault();
-    });
-
-    resetTransform();
-}
-
+// 简单的图片弹窗（无缩放，只显示）
 function openModal(index = 0) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
     const imgSrc = index === 0 ? currentModalImg1 : currentModalImg2;
     modalImg.src = imgSrc;
     modal.style.display = 'flex';
-
-    const container = document.getElementById('imageContainer');
-    if (container) {
-        container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
-        currentScale = 1;
-        currentX = 0;
-        currentY = 0;
-    }
-
+    
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = scrollbarWidth + 'px';
-
-    modalImg.onload = function() {
-        initPinchZoom();
-    };
-    if (modalImg.complete) {
-        initPinchZoom();
-    }
 }
 
 function closeModal() {
@@ -723,12 +609,7 @@ function closeModal() {
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
     const modalImg = document.getElementById('modalImg');
-    modalImg.src = '';
-
-    if (hammerManager) {
-        hammerManager.destroy();
-        hammerManager = null;
-    }
+    if (modalImg) modalImg.src = '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
