@@ -26,7 +26,7 @@ const hkData = {
                     condition: "PMG66E",
                     price: "1200元",
                     purchaseDate: "2026年1月15日",
-                    krause: "",
+                    krause: "Unlisted",
                     signature: "陈德霖",           // 港币特有
                     faceDate: "2018年1月1日",      // 港币特有
                     remark: "首发冠",
@@ -49,7 +49,7 @@ const hkData = {
                     krause: "",
                     signature: "岳毅",
                     faceDate: "2019年7月1日",
-                    remark: "",
+                    remark: "Unlisted",
                     img1: "comm/xxx-1.jpg",
                     img2: "comm/xxx-2.jpg"
                 }
