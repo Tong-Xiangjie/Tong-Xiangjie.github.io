@@ -245,7 +245,7 @@ const commemorativeData = {
                 krause: "114",
                 issueDate: "2012年2月",
                 issueQuantity: "200万张",
-                remark: "传说中的"最美荷花钞"", 
+                remark: "传说中的最美荷花钞", 
                 img1: "comm/AA709609-1.jpg", 
                 img2: "comm/AA709609-2.jpg" 
             }] 
