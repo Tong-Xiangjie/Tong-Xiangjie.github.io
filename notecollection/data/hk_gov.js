@@ -2,7 +2,7 @@
 const hk_govData = {
     name: "香港政府",
     icon: "𝟘𝟝",
-    desc: "The Government of Hong Kong",
+    desc: "香港政府纸币",
     // 港币板块的详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
@@ -26,14 +26,14 @@ const hk_govData = {
                     version: "DD954229",
                     bank: "香港政府",
                     condition: "ACG68E",
-                    price: "43元",
-                    purchaseDate: "2026年2月14日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "400a",
                     signature: "财政司司长：梁锦松<br>金融管理专员：任志刚",
                     faceDate: "2002年7月1日",
                     remark: "",
-                    img1: "hk_gov/DD954229-1.jpg",
-                    img2: "hk_gov/DD954229-2.jpg"
+                    img1: "image/hk_gov/DD954229-1.jpg",
+                    img2: "image/hk_gov/DD954229-2.jpg"
                 }
             ]
         },
@@ -68,14 +68,14 @@ const hk_govData = {
                     version: "SK706047",
                     bank: "香港政府",
                     condition: "ACG68E",
-                    price: "42元",
-                    purchaseDate: "2026年2月14日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "400c",
                     signature: "财政司司长：唐英年<br>金融管理专员：任志刚",
                     faceDate: "2005年1月1日",
                     remark: "",
-                    img1: "hk_gov/SK706047-1.jpg",
-                    img2: "hk_gov/SK706047-2.jpg"
+                    img1: "image/hk_gov/SK706047-1.jpg",
+                    img2: "image/hk_gov/SK706047-2.jpg"
                 }
             ]
         },
@@ -110,14 +110,14 @@ const hk_govData = {
                     version: "PG293444",
                     bank: "香港政府",
                     condition: "ACG67E",
-                    price: "42元",
-                    purchaseDate: "2026年1月11日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "401b",
                     signature: "财政司司长：曾俊华<br>金融管理专员：任志刚",
                     faceDate: "2007年10月1日",
                     remark: "",
-                    img1: "hk_gov/PG293444-1.jpg",
-                    img2: "hk_gov/PG293444-2.jpg"
+                    img1: "image/hk_gov/PG293444-1.jpg",
+                    img2: "image/hk_gov/PG293444-2.jpg"
                 }
             ]
         },
@@ -131,14 +131,14 @@ const hk_govData = {
                     version: "UJ104777",
                     bank: "香港政府",
                     condition: "ACG68E",
-                    price: "45元",
-                    purchaseDate: "2026年1月11日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "401c",
                     signature: "财政司司长：曾俊华<br>金融管理专员：陈德霖",
                     faceDate: "2012年1月1日",
                     remark: "",
-                    img1: "hk_gov/UJ104777-1.jpg",
-                    img2: "hk_gov/UJ104777-2.jpg"
+                    img1: "image/hk_gov/UJ104777-1.jpg",
+                    img2: "image/hk_gov/UJ104777-2.jpg"
                 }
             ]
         },
@@ -152,14 +152,14 @@ const hk_govData = {
                     version: "YR735333",
                     bank: "香港政府",
                     condition: "ACG68E",
-                    price: "52元",
-                    purchaseDate: "2026年1月11日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "401d",
                     signature: "财政司司长：曾俊华<br>金融管理专员：陈德霖",
                     faceDate: "2014年1月1日",
                     remark: "",
-                    img1: "hk_gov/YR735333-1.jpg",
-                    img2: "hk_gov/YR735333-2.jpg"
+                    img1: "image/hk_gov/YR735333-1.jpg",
+                    img2: "image/hk_gov/YR735333-2.jpg"
                 }
             ]
         },
@@ -173,14 +173,14 @@ const hk_govData = {
                     version: "DH136631",
                     bank: "香港政府",
                     condition: "ACG68E",
-                    price: "42元",
-                    purchaseDate: "2026年1月11日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "401e",
                     signature: "财政司司长：陈茂波<br>金融管理专员：陈德霖",
                     faceDate: "2018年7月1日",
                     remark: "",
-                    img1: "hk_gov/DH136631-1.jpg",
-                    img2: "hk_gov/DH136631-2.jpg"
+                    img1: "image/hk_gov/DH136631-1.jpg",
+                    img2: "image/hk_gov/DH136631-2.jpg"
                 }
             ]
         },
@@ -194,14 +194,14 @@ const hk_govData = {
                     version: "HL395991",
                     bank: "香港政府",
                     condition: "ACG69E",
-                    price: "39元",
-                    purchaseDate: "2026年3月1日",
+                    price: "",
+                    purchaseDate: "",
                     krause: "401f",
                     signature: "财政司司长：陈茂波<br>金融管理专员：余伟文",
                     faceDate: "2024年1月1日",
                     remark: "",
-                    img1: "hk_gov/HL395991-1.jpg",
-                    img2: "hk_gov/HL395991-2.jpg"
+                    img1: "image/hk_gov/HL395991-1.jpg",
+                    img2: "image/hk_gov/HL395991-2.jpg"
                 }
             ]
         }
