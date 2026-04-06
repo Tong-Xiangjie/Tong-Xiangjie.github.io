@@ -2,7 +2,7 @@ const commemorativeData = {
     name: "纪念钞",
     icon: "𝟘𝟙",
     desc: "包含央行以及港澳台地区的所有纪念钞",
-    // 详情页字段配置（去掉了藏品编号，增加了发行日期和发行量）
+    // 详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行银行" },
@@ -17,17 +17,17 @@ const commemorativeData = {
     series: [
         { 
             seriesName: "澳门格兰披治大奖赛35周年纪念钞", 
-            year: 1988, 
             copies: [{ 
                 copyId: 1, 
+                year: 1988,
                 purchaseDate: "2026年2月19日", 
                 price: "925元", 
                 bank: "大西洋银行", 
                 version: "KP04057", 
                 condition: "ACG65E", 
                 krause: "64",
-                issueDate: "1988年11月",      // 发行日期
-                issueQuantity: "1.5万张",      // 发行量
+                issueDate: "1988年11月",
+                issueQuantity: "1.5万张",
                 remark: "纪念钞的鼻祖，发行量最少的一张", 
                 img1: "comm/KP04057-1.jpg", 
                 img2: "comm/KP04057-2.jpg" 
@@ -35,10 +35,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "新台币发行50周年纪念钞", 
-            year: 1999, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 1999,
                     purchaseDate: "2025年10月2日", 
                     price: "56元", 
                     bank: "台湾银行", 
@@ -53,6 +53,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 1999,
                     purchaseDate: "2026年", 
                     price: "278元", 
                     bank: "中国人民银行", 
@@ -69,10 +70,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "庆祝中华人民共和国成立50周年纪念钞", 
-            year: 1999, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 1999,
                     purchaseDate: "2025年8月30日", 
                     price: "203元", 
                     bank: "中国人民银行", 
@@ -87,6 +88,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 1999,
                     purchaseDate: "2026年2月1日", 
                     price: "278元", 
                     bank: "中国人民银行", 
@@ -103,10 +105,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "迎接新世纪纪念钞", 
-            year: 2000, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2000,
                     purchaseDate: "2025年9月25日", 
                     price: "1225元", 
                     bank: "中国人民银行", 
@@ -121,6 +123,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2000,
                     purchaseDate: "2025年11月1日", 
                     price: "2050元", 
                     bank: "中国人民银行", 
@@ -137,9 +140,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "第29届奥林匹克运动会纪念钞", 
-            year: 2008, 
             copies: [{ 
                 copyId: 1, 
+                year: 2008,
                 purchaseDate: "2025年10月12日", 
                 price: "2360元", 
                 bank: "中国人民银行", 
@@ -155,9 +158,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "第29届奥林匹克运动会纪念钞（香港）", 
-            year: 2008, 
             copies: [{ 
                 copyId: 1, 
+                year: 2008,
                 purchaseDate: "2025年10月7日", 
                 price: "176元", 
                 bank: "中国银行（香港）", 
@@ -173,9 +176,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "第29届奥林匹克运动会纪念钞（澳门）", 
-            year: 2008, 
             copies: [{ 
                 copyId: 1, 
+                year: 2008,
                 purchaseDate: "2025年10月7日", 
                 price: "245元", 
                 bank: "中国银行", 
@@ -191,14 +194,13 @@ const commemorativeData = {
         },
         { 
             seriesName: "渣打银行成立150周年纪念钞", 
-            year: 2009, 
             copies: [] 
         },
         { 
             seriesName: "中华民国成立100年纪念钞", 
-            year: 2011, 
             copies: [{ 
                 copyId: 1, 
+                year: 2011,
                 purchaseDate: "2025年10月12日", 
                 price: "61元", 
                 bank: "中央银行", 
@@ -214,9 +216,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "纪念中国银行成立100周年纪念钞（香港）", 
-            year: 2012, 
             copies: [{ 
                 copyId: 1, 
+                year: 2012,
                 purchaseDate: "2026年1月30日", 
                 price: "198元", 
                 bank: "中国银行（香港）", 
@@ -232,9 +234,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "纪念中国银行成立100周年纪念钞（澳门）", 
-            year: 2012, 
             copies: [{ 
                 copyId: 1, 
+                year: 2012,
                 purchaseDate: "2025年12月5日", 
                 price: "458元", 
                 bank: "中国银行", 
@@ -243,22 +245,21 @@ const commemorativeData = {
                 krause: "114",
                 issueDate: "2012年2月",
                 issueQuantity: "200万张",
-                remark: "传说中的“最美荷花钞”", 
+                remark: "传说中的"最美荷花钞"", 
                 img1: "comm/AA709609-1.jpg", 
                 img2: "comm/AA709609-2.jpg" 
             }] 
         },
         { 
             seriesName: "澳门生肖钞", 
-            year: "2012～2023", 
             copies: [] 
         },
         { 
             seriesName: "中国航天纪念钞", 
-            year: 2015, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2015,
                     purchaseDate: "2025年12月1日", 
                     price: "160元", 
                     bank: "中国人民银行", 
@@ -273,6 +274,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2015,
                     purchaseDate: "2026年2月18日", 
                     price: "218元", 
                     bank: "中国人民银行", 
@@ -287,6 +289,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 3, 
+                    year: 2015,
                     purchaseDate: "2025年11月7日", 
                     price: "134元", 
                     bank: "中国人民银行", 
@@ -303,9 +306,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "汇丰银行成立150周年纪念钞", 
-            year: 2015, 
             copies: [{ 
                 copyId: 1, 
+                year: 2015,
                 purchaseDate: "2026年1月8日", 
                 price: "285元", 
                 bank: "香港上海汇丰银行", 
@@ -321,9 +324,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "中国银行在港服务100周年纪念钞", 
-            year: 2017, 
             copies: [{ 
                 copyId: 1, 
+                year: 2017,
                 purchaseDate: "2026年2月18日", 
                 price: "192元", 
                 bank: "中国银行（香港）", 
@@ -339,10 +342,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "人民币发行70周年纪念钞", 
-            year: 2018, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2018,
                     purchaseDate: "2025年12月1日", 
                     price: "798元", 
                     bank: "中国人民银行", 
@@ -357,6 +360,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2018,
                     purchaseDate: "2025年8月5日", 
                     price: "79元", 
                     bank: "中国人民银行", 
@@ -373,10 +377,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "澳门回归20周年纪念钞", 
-            year: 2019, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2019,
                     purchaseDate: "2025年12月5日", 
                     price: "34元", 
                     bank: "中国银行", 
@@ -391,6 +395,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2019,
                     purchaseDate: "2025年12月5日", 
                     price: "34元", 
                     bank: "大西洋银行", 
@@ -407,9 +412,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", 
-            year: 2022, 
             copies: [{ 
                 copyId: 1, 
+                year: 2022,
                 purchaseDate: "2025年11月7日", 
                 price: "40元", 
                 bank: "中国人民银行", 
@@ -425,10 +430,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", 
-            year: 2022, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2022,
                     purchaseDate: "2025年11月16日", 
                     price: "120元", 
                     bank: "中国人民银行", 
@@ -443,6 +448,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2022,
                     purchaseDate: "2026年3月6日", 
                     price: "32元", 
                     bank: "中国人民银行", 
@@ -457,6 +463,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 3, 
+                    year: 2022,
                     purchaseDate: "2025年11月16日", 
                     price: "45元", 
                     bank: "中国人民银行", 
@@ -473,10 +480,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）", 
-            year: 2022, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2022,
                     purchaseDate: "2026年2月21日", 
                     price: "170元", 
                     bank: "中国银行（香港）", 
@@ -491,6 +498,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2022,
                     purchaseDate: "2026年2月17日", 
                     price: "188元", 
                     bank: "中国银行（香港）", 
@@ -507,9 +515,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", 
-            year: 2022, 
             copies: [{ 
                 copyId: 1, 
+                year: 2022,
                 purchaseDate: "2025年10月26日", 
                 price: "69元", 
                 bank: "中国银行", 
@@ -525,9 +533,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "龙年贺岁纪念钞", 
-            year: 2024, 
             copies: [{ 
                 copyId: 1, 
+                year: 2024,
                 purchaseDate: "2026年1月21日", 
                 price: "158元", 
                 bank: "中国人民银行", 
@@ -543,9 +551,9 @@ const commemorativeData = {
         },
         { 
             seriesName: "蛇年贺岁纪念钞", 
-            year: 2025, 
             copies: [{ 
                 copyId: 1, 
+                year: 2025,
                 purchaseDate: "2026年1月22日", 
                 price: "60元", 
                 bank: "中国人民银行", 
@@ -561,10 +569,10 @@ const commemorativeData = {
         },
         { 
             seriesName: "马年贺岁纪念钞", 
-            year: 2026, 
             copies: [
                 { 
                     copyId: 1, 
+                    year: 2026,
                     purchaseDate: "2026年2月26日", 
                     price: "88元", 
                     bank: "中国人民银行", 
@@ -579,6 +587,7 @@ const commemorativeData = {
                 },
                 { 
                     copyId: 2, 
+                    year: 2026,
                     purchaseDate: "2026年1月20日", 
                     price: "272元", 
                     bank: "中国人民银行", 
