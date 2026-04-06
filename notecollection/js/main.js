@@ -224,16 +224,21 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
-    // 如果搜索框为空，清空结果但不返回
+    // 如果搜索框为空，展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
         currentSearchKeyword = '';
+        
+        // 获取当前范围（全局或当前板块）下的所有结果
+        const allResults = performSearch('', 'all', searchScope);
+        const resultsHtml = renderResultsList(allResults);
+        
         const resultContainer = document.getElementById('dynamicResultContainer');
         if (resultContainer) {
-            resultContainer.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
+            resultContainer.innerHTML = resultsHtml;
         }
         const countSpan = document.getElementById('resultCount');
         if (countSpan) {
-            countSpan.innerText = '0';
+            countSpan.innerText = allResults.length;
         }
         const keywordSpan = document.getElementById('searchKeywordDisplay');
         if (keywordSpan) {
