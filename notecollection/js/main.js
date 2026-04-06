@@ -160,7 +160,7 @@ function performSearch(rawKeyword, type, scope) {
 
                 switch(type) {
                     case 'all':
-                        const searchText = `${series.seriesName} ${copy.version || ''} ${series.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
+                        const searchText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
                         match = searchText.includes(lowerKeyword);
                         break;
                     case 'name':
@@ -170,7 +170,7 @@ function performSearch(rawKeyword, type, scope) {
                         match = (copy.version || '').toLowerCase().includes(lowerKeyword);
                         break;
                     case 'year':
-                        match = String(series.year).toLowerCase().includes(lowerKeyword);
+                        match = String(copy.year).toLowerCase().includes(lowerKeyword);
                         break;
                     case 'agency':
                         match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
@@ -204,7 +204,7 @@ function renderResultsList(results) {
                 <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
                 <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
                 <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
-                <div class="copy-price">${formatYear(item.cp.year)}</div>
+                <div class="copy-price">${formatYear(item.copy.year)}</div>
                 <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
             </div>`;
     }
