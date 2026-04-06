@@ -141,7 +141,7 @@ function getDisplayValue(keyword, searchType) {
 function performSearch(rawKeyword, type, scope) {
     const keyword = getActualKeyword(rawKeyword, type);
     
-    // 如果关键词为空（且不是按年份等特殊搜索），返回当前范围内的所有结果
+    // 判断是否为空搜索（关键词为空字符串）
     const isEmptySearch = !keyword || keyword === '';
     
     const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
@@ -261,8 +261,9 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
-    // 实时搜索模式下，关键词为空时展示所有结果
+    // 如果搜索框为空，展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
+        // 确保关键词为空字符串
         currentSearchKeyword = '';
         
         const allResults = performSearch('', type, searchScope);
@@ -326,7 +327,10 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     const displayValue = getDisplayValue(rawKeyword, type);
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    const actualKeyword = escapeHtml(getActualKeyword(rawKeyword, type));
+    
+    // 如果关键词为空，显示“全部藏品”而不是关键词
+    const actualKeyword = rawKeyword.trim() === '' ? '' : escapeHtml(getActualKeyword(rawKeyword, type));
+    const keywordDisplayText = rawKeyword.trim() === '' ? '全部藏品' : actualKeyword;
 
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
@@ -348,7 +352,7 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
-                <p>找到 <span id="resultCount">${results.length}</span> 个匹配 | 关键词：<span id="searchKeywordDisplay">${actualKeyword}</span></p>
+                <p>找到 <span id="resultCount">${results.length}</span> 个匹配${rawKeyword.trim() !== '' ? ` | 关键词：<span id="searchKeywordDisplay">${actualKeyword}</span>` : '<span id="searchKeywordDisplay" style="display:none;"></span>'}</p>
             </div>
             <div id="dynamicResultContainer">${resultsHtml}</div>
         </div>
@@ -761,7 +765,11 @@ function renderDetail(cid, si, ci) {
 
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
+        // 清除标记，防止重复触发
         fromSearchResult = false;
+        // 确保当前视图状态正确
+        currentView = 'searchResult';
+        // 返回到搜索结果页（空关键词或有关键词）
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
@@ -791,7 +799,7 @@ function selectCopy(cid, si, ci) {
         fromSearchResult = true;
         saveScroll("searchResult");
         lastSearchParams = {
-            keyword: currentSearchKeyword,
+            keyword: currentSearchKeyword,  // 可能是空字符串
             type: currentSearchType
         };
     } else {
