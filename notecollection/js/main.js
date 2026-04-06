@@ -1,3 +1,6 @@
+// 禁用浏览器的自动滚动恢复，防止 F5 刷新后自动滚动到之前的位置
+history.scrollRestoration = 'manual';
+
 // 合并所有数据
 const banknotesData = {
     commemorative: commemorativeData,
@@ -945,6 +948,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('DOMContentLoaded', function() {
     renderCategories(false);
+    // 确保刷新后滚动到顶部
+    window.scrollTo(0, 0);
 });
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
