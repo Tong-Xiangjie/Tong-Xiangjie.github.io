@@ -2,7 +2,7 @@
 const rmb5Data = {
     name: "第五套人民币",
     icon: "𝟙𝟛",
-    desc: "第五套人民币",
+    desc: "Fifth Series of the Renminbi",
     // 五版币板块的详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
@@ -307,7 +307,7 @@ const rmb5Data = {
                     krause: "912a",
                     wmk: "",
                     issueDate: "",
-                    remark: "",
+                    remark: "BJ/BD/BF/CH/EH/FQ/FS/GE/HA/QD33333454",
                     img1: "image/rmb5/33333454-1.jpg",
                     img2: "image/rmb5/33333454-2.jpg"
                 }
