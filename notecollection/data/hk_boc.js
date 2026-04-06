@@ -18,6 +18,7 @@ const hk_bocData = {
     series: [
         {
             seriesName: "1994～2001年版 港币20元",
+            year: "1994～2001",
             copies: [
                 {
                     copyId: 1,
@@ -38,6 +39,7 @@ const hk_bocData = {
         },
         {
             seriesName: "1994～2001年版 港币50元",
+            year: "1994～2001",
             copies: [
                 {
                     copyId: 1,
@@ -88,6 +90,7 @@ const hk_bocData = {
         },
         {
             seriesName: "1994～2001年版 港币100元",
+            year: "1994～2001",
             copies: [
                 {
                     copyId: 1,
@@ -108,6 +111,7 @@ const hk_bocData = {
         },
         {
             seriesName: "2003～2009年版 港币20元",
+            year: "2003～2009",
             copies: [
                 {
                     copyId: 1,
@@ -128,6 +132,7 @@ const hk_bocData = {
         },
         {
             seriesName: "2003～2009年版 港币50元",
+            year: "2003～2009",
             copies: [
                 {
                     copyId: 1,
@@ -148,6 +153,7 @@ const hk_bocData = {
         },
         {
             seriesName: "2010～2015年版 港币20元",
+            year: "2010～2015",
             copies: [
                 {
                     copyId: 1,
@@ -168,6 +174,7 @@ const hk_bocData = {
         },
         {
             seriesName: "2018～至今版 港币20元",
+            year: "2018～至今",
             copies: [
                 {
                     copyId: 1,
@@ -203,6 +210,7 @@ const hk_bocData = {
         },
         {
             seriesName: "2018～至今版 港币50元",
+            year: "2018～至今",
             copies: [
                 {
                     copyId: 1,
@@ -223,6 +231,7 @@ const hk_bocData = {
         },
         {
             seriesName: "2018～至今版 港币100元",
+            year: "2018～至今",
             copies: [
                 {
                     copyId: 1,
