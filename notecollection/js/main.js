@@ -224,8 +224,21 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
+    // 如果搜索框为空，清空结果但不返回
     if (!rawKeyword || rawKeyword.trim() === '') {
-        backToPrevious();
+        currentSearchKeyword = '';
+        const resultContainer = document.getElementById('dynamicResultContainer');
+        if (resultContainer) {
+            resultContainer.innerHTML = `<div style="padding:1rem; text-align:center; color:#999;">请输入搜索关键词</div>`;
+        }
+        const countSpan = document.getElementById('resultCount');
+        if (countSpan) {
+            countSpan.innerText = '0';
+        }
+        const keywordSpan = document.getElementById('searchKeywordDisplay');
+        if (keywordSpan) {
+            keywordSpan.innerText = '';
+        }
         return;
     }
 
