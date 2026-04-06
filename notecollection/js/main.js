@@ -204,7 +204,7 @@ function renderResultsList(results) {
                 <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
                 <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
                 <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
-                <div class="copy-price">${formatYear(item.series.year)}</div>
+                <div class="copy-price">${formatYear(item.cp.year)}</div>
                 <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
             </div>`;
     }
@@ -601,7 +601,7 @@ function renderCopyList(cid, si, restore = false) {
                 <div class="copy-index">#${cp.copyId}</div>
                 <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
-                <div class="copy-price">${formatYear(series.year)}</div>
+                <div class="copy-price">${formatYear(cp.year)}</div>
                 <div class="copy-price">${escapeHtml(formatKrause(cp.krause))}</div>
             </div>`;
     }
@@ -657,7 +657,7 @@ function renderDetail(cid, si, ci) {
         let value = cp[field.key];
         
         if (field.key === 'year') {
-            value = formatYear(series.year);
+            value = formatYear(cp.year);
         } else if (field.key === 'krause') {
             value = formatKrause(value);
         } else if (field.key === 'copyId') {
