@@ -202,19 +202,49 @@ function renderResultsList(results) {
         return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     }
 
-    let html = `<div class="copy-list">`;
+    // 按 catId 分组
+    const grouped = {};
     for (let item of results) {
-        const krauseDisplay = formatKrause(item.copy.krause);
-        html += `
-            <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
-                <div class="copy-index">#${item.copy.copyId}</div>
-                <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
-                <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
-                <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
-                <div class="copy-price">${formatYear(item.copy.year)}</div>
-                <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
-            </div>`;
+        if (!grouped[item.catId]) {
+            grouped[item.catId] = [];
+        }
+        grouped[item.catId].push(item);
     }
+
+    let html = `<div class="copy-list">`;
+    
+    for (let cid of categoryOrder) {
+        const groupResults = grouped[cid];
+        if (!groupResults || groupResults.length === 0) continue;
+        
+        const cat = banknotesData[cid];
+        const catName = cat ? cat.name : cid;
+        const catIcon = cat ? cat.icon : '📷';
+        
+        // 添加分类标题（带数量统计）
+        html += `
+            <div class="search-category-divider">
+                <span class="category-icon">${catIcon}</span>
+                <span class="category-name">${escapeHtml(catName)}</span>
+                <span class="category-count">${groupResults.length}张</span>
+            </div>
+        `;
+        
+        // 添加该分类下的藏品
+        for (let item of groupResults) {
+            const krauseDisplay = formatKrause(item.copy.krause);
+            html += `
+                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
+                    <div class="copy-index">#${item.copy.copyId}</div>
+                    <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
+                    <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
+                    <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
+                    <div class="copy-price">${formatYear(item.copy.year)}</div>
+                    <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
+                </div>`;
+        }
+    }
+    
     html += `</div>`;
     return html;
 }
