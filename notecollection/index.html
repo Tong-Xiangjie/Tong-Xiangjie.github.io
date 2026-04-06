@@ -405,8 +405,37 @@
         }
 
         @media (max-width: 650px) {
-            body { padding: 1rem; padding-top: 70px; }
-            .img-pair { flex-direction: column; }
+            .hero-image {
+                max-width: 90%;
+            }
+            .header h1 {
+                font-size: 1.4rem;
+            }
+        }
+        
+        /* 主图样式 */
+        .hero-image {
+            width: 100%;
+            max-width: 600px;      /* 和标题宽度协调 */
+            margin: 0 auto 1rem auto;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .hero-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+        }
+        
+        /* 标题样式微调，让视觉平衡 */
+        .header h1 {
+            font-size: 1.8rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.3rem;
         }
     </style>
 </head>
@@ -414,6 +443,9 @@
 
 <div class="container">
     <div class="header">
+        <div class="hero-image">
+            <img src="image/decoration/headphoto.jpg" alt="铜の币纪主图">
+        </div>
         <h1>收藏品档案</h1>
         <div class="sub">Bilibili @ 铜の币纪</div>
     </div>
