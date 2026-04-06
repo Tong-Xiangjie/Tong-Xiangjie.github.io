@@ -18,7 +18,6 @@ const hk_bocData = {
     series: [
         {
             seriesName: "1994～2001年版 港币20元",
-            year: "1994～2001",
             copies: [
                 {
                     copyId: 1,
@@ -32,14 +31,13 @@ const hk_bocData = {
                     signature: "香港分行总经理：周振兴",
                     faceDate: "1994年5月1日",
                     remark: "首发冠",
-                    img1: "hk_boc/AA775221-1.jpg",
-                    img2: "hk_boc/AA775221-2.jpg"
+                    img1: "image/hk_boc/AA775221-1.jpg",
+                    img2: "image/hk_boc/AA775221-2.jpg"
                 }
             ]
         },
         {
             seriesName: "1994～2001年版 港币50元",
-            year: "1994～2001",
             copies: [
                 {
                     copyId: 1,
@@ -53,8 +51,8 @@ const hk_bocData = {
                     signature: "香港分行总经理：羊子林",
                     faceDate: "1996年1月1日",
                     remark: "",
-                    img1: "hk_boc/AF724347-1.jpg",
-                    img2: "hk_boc/AF724347-2.jpg"
+                    img1: "image/hk_boc/AF724347-1.jpg",
+                    img2: "image/hk_boc/AF724347-2.jpg"
                 },
                 {
                     copyId: 2,
@@ -68,8 +66,8 @@ const hk_bocData = {
                     signature: "香港分行总经理：刘金宝",
                     faceDate: "1999年1月1日",
                     remark: "",
-                    img1: "hk_boc/AZ261561-1.jpg",
-                    img2: "hk_boc/AZ261561-2.jpg"
+                    img1: "image/hk_boc/AZ261561-1.jpg",
+                    img2: "image/hk_boc/AZ261561-2.jpg"
                 },
                 {
                     copyId: 3,
@@ -83,14 +81,13 @@ const hk_bocData = {
                     signature: "香港分行总经理：刘金宝",
                     faceDate: "2000年1月1日",
                     remark: "",
-                    img1: "hk_boc/AT691569-1.jpg",
-                    img2: "hk_boc/AT691569-2.jpg"
+                    img1: "image/hk_boc/AT691569-1.jpg",
+                    img2: "image/hk_boc/AT691569-2.jpg"
                 }
             ]
         },
         {
             seriesName: "1994～2001年版 港币100元",
-            year: "1994～2001",
             copies: [
                 {
                     copyId: 1,
@@ -104,14 +101,13 @@ const hk_bocData = {
                     signature: "香港分行总经理：刘金宝",
                     faceDate: "2000年1月1日",
                     remark: "",
-                    img1: "hk_boc/CA253979-1.jpg",
-                    img2: "hk_boc/CA253979-2.jpg"
+                    img1: "image/hk_boc/CA253979-1.jpg",
+                    img2: "image/hk_boc/CA253979-2.jpg"
                 }
             ]
         },
         {
             seriesName: "2003～2009年版 港币20元",
-            year: "2003～2009",
             copies: [
                 {
                     copyId: 1,
@@ -125,14 +121,13 @@ const hk_bocData = {
                     signature: "总裁：和广北",
                     faceDate: "2008年1月1日",
                     remark: "",
-                    img1: "hk_boc/HB778596-1.jpg",
-                    img2: "hk_boc/HB778596-2.jpg"
+                    img1: "image/hk_boc/HB778596-1.jpg",
+                    img2: "image/hk_boc/HB778596-2.jpg"
                 }
             ]
         },
         {
             seriesName: "2003～2009年版 港币50元",
-            year: "2003～2009",
             copies: [
                 {
                     copyId: 1,
@@ -146,14 +141,13 @@ const hk_bocData = {
                     signature: "总裁：和广北",
                     faceDate: "2009年1月1日",
                     remark: "",
-                    img1: "hk_boc/DB198972-1.jpg",
-                    img2: "hk_boc/DB198972-2.jpg"
+                    img1: "image/hk_boc/DB198972-1.jpg",
+                    img2: "image/hk_boc/DB198972-2.jpg"
                 }
             ]
         },
         {
             seriesName: "2010～2015年版 港币20元",
-            year: "2010～2015",
             copies: [
                 {
                     copyId: 1,
@@ -167,14 +161,13 @@ const hk_bocData = {
                     signature: "总裁：岳毅",
                     faceDate: "2015年7月1日",
                     remark: "",
-                    img1: "hk_boc/JF775298-1.jpg",
-                    img2: "hk_boc/JF775298-2.jpg"
+                    img1: "image/hk_boc/JF775298-1.jpg",
+                    img2: "image/hk_boc/JF775298-2.jpg"
                 }
             ]
         },
         {
             seriesName: "2018～至今版 港币20元",
-            year: "2018～至今",
             copies: [
                 {
                     copyId: 1,
@@ -188,8 +181,8 @@ const hk_bocData = {
                     signature: "总裁：高迎欣",
                     faceDate: "2018年1月1日",
                     remark: "",
-                    img1: "hk_boc/AW102222-1.jpg",
-                    img2: "hk_boc/AW102222-2.jpg"
+                    img1: "image/hk_boc/AW102222-1.jpg",
+                    img2: "image/hk_boc/AW102222-2.jpg"
                 },
                 {
                     copyId: 2,
@@ -203,14 +196,13 @@ const hk_bocData = {
                     signature: "总裁：孙煜",
                     faceDate: "2023年1月1日",
                     remark: "",
-                    img1: "hk_boc/JA601300-1.jpg",
-                    img2: "hk_boc/JA601300-2.jpg"
+                    img1: "image/hk_boc/JA601300-1.jpg",
+                    img2: "image/hk_boc/JA601300-2.jpg"
                 }
             ]
         },
         {
             seriesName: "2018～至今版 港币50元",
-            year: "2018～至今",
             copies: [
                 {
                     copyId: 1,
@@ -224,14 +216,13 @@ const hk_bocData = {
                     signature: "总裁：孙煜",
                     faceDate: "2023年1月1日",
                     remark: "",
-                    img1: "hk_boc/BR046520-1.jpg",
-                    img2: "hk_boc/BR046520-2.jpg"
+                    img1: "image/hk_boc/BR046520-1.jpg",
+                    img2: "image/hk_boc/BR046520-2.jpg"
                 }
             ]
         },
         {
             seriesName: "2018～至今版 港币100元",
-            year: "2018～至今",
             copies: [
                 {
                     copyId: 1,
@@ -245,8 +236,8 @@ const hk_bocData = {
                     signature: "总裁：高迎欣",
                     faceDate: "2018年1月1日",
                     remark: "",
-                    img1: "hk_boc/AA739695-1.jpg",
-                    img2: "hk_boc/AA739695-2.jpg"
+                    img1: "image/hk_boc/AA739695-1.jpg",
+                    img2: "image/hk_boc/AA739695-2.jpg"
                 },
                 {
                     copyId: 2,
@@ -260,8 +251,8 @@ const hk_bocData = {
                     signature: "总裁：孙煜",
                     faceDate: "2023年1月1日",
                     remark: "",
-                    img1: "hk_boc/EX015191-1.jpg",
-                    img2: "hk_boc/EX015191-2.jpg"
+                    img1: "image/hk_boc/EX015191-1.jpg",
+                    img2: "image/hk_boc/EX015191-2.jpg"
                 }
             ]
         }
