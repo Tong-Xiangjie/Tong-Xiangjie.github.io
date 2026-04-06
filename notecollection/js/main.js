@@ -88,9 +88,9 @@ function saveScroll(key) {
 
 function restoreScroll(key) {
     if (scrollMemory[key] !== undefined && scrollMemory[key] !== null) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             window.scrollTo(0, scrollMemory[key]);
-        }, 50);
+        });
     }
 }
 
