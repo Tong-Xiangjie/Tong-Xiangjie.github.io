@@ -666,10 +666,13 @@ function renderDetail(cid, si, ci) {
             value = '—';
         }
         
+        // signature 字段支持 HTML 换行，其他字段正常转义
+        const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
+        
         detailGridHtml += `
             <div class="detail-field">
                 <label>${field.label}</label>
-                <div>${escapeHtml(String(value))}</div>
+                <div>${displayValue}</div>
             </div>`;
     }
 
