@@ -261,10 +261,11 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
-    // 实时搜索模式下，关键词为空时展示所有藏品
+    // 如果搜索框为空，展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
         currentSearchKeyword = '';
-        // 统一使用 renderSearchResultPage 渲染，保证状态一致
+        // 保存当前滚动位置，避免删空后跳回旧位置
+        saveScroll("searchResult");
         renderSearchResultPage('', type, true);
         return;
     }
