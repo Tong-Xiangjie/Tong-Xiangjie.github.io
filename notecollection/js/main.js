@@ -140,9 +140,11 @@ function getDisplayValue(keyword, searchType) {
 
 function performSearch(rawKeyword, type, scope) {
     const keyword = getActualKeyword(rawKeyword, type);
-    if (!keyword || keyword === '') return [];
-
-    const lowerKeyword = keyword.toLowerCase();
+    
+    // 如果关键词为空（且不是按年份等特殊搜索），返回当前范围内的所有结果
+    const isEmptySearch = !keyword || keyword === '';
+    
+    const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
     let results = [];
     const targetCats = scope === 'global' ? categoryOrder : [currentCategoryId];
 
@@ -156,32 +158,37 @@ function performSearch(rawKeyword, type, scope) {
 
             for (let ci = 0; ci < series.copies.length; ci++) {
                 const copy = series.copies[ci];
-                let match = false;
-
-                switch(type) {
-                    case 'all':
-                        const searchText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
-                        match = searchText.includes(lowerKeyword);
-                        break;
-                    case 'name':
-                        match = series.seriesName.toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'version':
-                        match = (copy.version || '').toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'year':
-                        match = String(copy.year).toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'agency':
-                        match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
-                        break;
-                    case 'krause':
-                        match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
-                        break;
-                }
-
-                if (match) {
+                
+                if (isEmptySearch) {
+                    // 空关键词：直接添加所有结果
                     results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
+                } else {
+                    // 正常搜索匹配
+                    let match = false;
+                    switch(type) {
+                        case 'all':
+                            const searchText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
+                            match = searchText.includes(lowerKeyword);
+                            break;
+                        case 'name':
+                            match = series.seriesName.toLowerCase().includes(lowerKeyword);
+                            break;
+                        case 'version':
+                            match = (copy.version || '').toLowerCase().includes(lowerKeyword);
+                            break;
+                        case 'year':
+                            match = String(copy.year).toLowerCase().includes(lowerKeyword);
+                            break;
+                        case 'agency':
+                            match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
+                            break;
+                        case 'krause':
+                            match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
+                            break;
+                    }
+                    if (match) {
+                        results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
+                    }
                 }
             }
         }
@@ -224,12 +231,11 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
-    // 如果搜索框为空，展示所有藏品
+    // 实时搜索模式下，关键词为空时展示所有结果
     if (!rawKeyword || rawKeyword.trim() === '') {
         currentSearchKeyword = '';
         
-        // 获取当前范围（全局或当前板块）下的所有结果
-        const allResults = performSearch('', 'all', searchScope);
+        const allResults = performSearch('', type, searchScope);
         const resultsHtml = renderResultsList(allResults);
         
         const resultContainer = document.getElementById('dynamicResultContainer');
