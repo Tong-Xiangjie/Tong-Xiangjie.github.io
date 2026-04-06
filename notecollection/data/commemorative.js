@@ -16,7 +16,8 @@ const commemorativeData = {
     ],
     series: [
         { 
-            seriesName: "澳门格兰披治大奖赛35周年纪念钞", 
+            seriesName: "澳门格兰披治大奖赛35周年纪念钞",
+            year: "1988",
             copies: [{ 
                 copyId: 1, 
                 year: 1988,
@@ -34,7 +35,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "新台币发行50周年纪念钞", 
+            seriesName: "新台币发行50周年纪念钞",
+            year: "1999",
             copies: [
                 { 
                     copyId: 1, 
@@ -69,7 +71,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "庆祝中华人民共和国成立50周年纪念钞", 
+            seriesName: "庆祝中华人民共和国成立50周年纪念钞",
+            year: "1999",
             copies: [
                 { 
                     copyId: 1, 
@@ -104,7 +107,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "迎接新世纪纪念钞", 
+            seriesName: "迎接新世纪纪念钞",
+            year: "2000",
             copies: [
                 { 
                     copyId: 1, 
@@ -139,7 +143,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第29届奥林匹克运动会纪念钞", 
+            seriesName: "第29届奥林匹克运动会纪念钞",
+            year: "2008",
             copies: [{ 
                 copyId: 1, 
                 year: 2008,
@@ -157,7 +162,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "第29届奥林匹克运动会纪念钞（香港）", 
+            seriesName: "第29届奥林匹克运动会纪念钞（香港）",
+            year: "2008",
             copies: [{ 
                 copyId: 1, 
                 year: 2008,
@@ -175,7 +181,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "第29届奥林匹克运动会纪念钞（澳门）", 
+            seriesName: "第29届奥林匹克运动会纪念钞（澳门）",
+            year: "2008",
             copies: [{ 
                 copyId: 1, 
                 year: 2008,
@@ -193,11 +200,13 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "渣打银行成立150周年纪念钞", 
+            seriesName: "渣打银行成立150周年纪念钞",
+            year: "2009",
             copies: [] 
         },
         { 
-            seriesName: "中华民国成立100年纪念钞", 
+            seriesName: "中华民国成立100年纪念钞",
+            year: "2011",
             copies: [{ 
                 copyId: 1, 
                 year: 2011,
@@ -215,7 +224,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "纪念中国银行成立100周年纪念钞（香港）", 
+            seriesName: "纪念中国银行成立100周年纪念钞（香港）",
+            year: "2012",
             copies: [{ 
                 copyId: 1, 
                 year: 2012,
@@ -233,7 +243,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "纪念中国银行成立100周年纪念钞（澳门）", 
+            seriesName: "纪念中国银行成立100周年纪念钞（澳门）",
+            year: "2012",
             copies: [{ 
                 copyId: 1, 
                 year: 2012,
@@ -251,11 +262,13 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "澳门生肖钞", 
+            seriesName: "澳门生肖钞",
+            year: "2012～2023",
             copies: [] 
         },
         { 
-            seriesName: "中国航天纪念钞", 
+            seriesName: "中国航天纪念钞",
+            year: "2015",
             copies: [
                 { 
                     copyId: 1, 
@@ -305,7 +318,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "汇丰银行成立150周年纪念钞", 
+            seriesName: "汇丰银行成立150周年纪念钞",
+            year: "2015",
             copies: [{ 
                 copyId: 1, 
                 year: 2015,
@@ -323,7 +337,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "中国银行在港服务100周年纪念钞", 
+            seriesName: "中国银行在港服务100周年纪念钞",
+            year: "2017",
             copies: [{ 
                 copyId: 1, 
                 year: 2017,
@@ -341,7 +356,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "人民币发行70周年纪念钞", 
+            seriesName: "人民币发行70周年纪念钞",
+            year: "2018",
             copies: [
                 { 
                     copyId: 1, 
@@ -376,7 +392,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "澳门回归20周年纪念钞", 
+            seriesName: "澳门回归20周年纪念钞",
+            year: "2019",
             copies: [
                 { 
                     copyId: 1, 
@@ -411,7 +428,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", 
+            seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
+            year: "2022",
             copies: [{ 
                 copyId: 1, 
                 year: 2022,
@@ -429,7 +447,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", 
+            seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
+            year: "2022",
             copies: [
                 { 
                     copyId: 1, 
@@ -479,7 +498,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）", 
+            seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）",
+            year: "2022",
             copies: [
                 { 
                     copyId: 1, 
@@ -514,7 +534,8 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）", 
+            seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
+            year: "2022",
             copies: [{ 
                 copyId: 1, 
                 year: 2022,
@@ -532,7 +553,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "龙年贺岁纪念钞", 
+            seriesName: "龙年贺岁纪念钞",
+            year: "2024",
             copies: [{ 
                 copyId: 1, 
                 year: 2024,
@@ -550,7 +572,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "蛇年贺岁纪念钞", 
+            seriesName: "蛇年贺岁纪念钞",
+            year: "2025",
             copies: [{ 
                 copyId: 1, 
                 year: 2025,
@@ -568,7 +591,8 @@ const commemorativeData = {
             }] 
         },
         { 
-            seriesName: "马年贺岁纪念钞", 
+            seriesName: "马年贺岁纪念钞",
+            year: "2026",
             copies: [
                 { 
                     copyId: 1, 
