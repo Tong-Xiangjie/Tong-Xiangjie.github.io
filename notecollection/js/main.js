@@ -267,32 +267,13 @@ function performRealtimeSearch() {
     // 如果搜索框为空，展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
         currentSearchKeyword = '';
-        // 保存当前滚动位置，避免删空后跳回旧位置
         saveScroll("searchResult");
         renderSearchResultPage('', type, true);
         return;
     }
 
-    let resultContainer = document.getElementById('dynamicResultContainer');
-
-    if (!resultContainer) {
-        renderSearchResultPage(rawKeyword, type, true);
-        return;
-    }
-
-    const results = performSearch(rawKeyword, type, searchScope);
-    const resultsHtml = renderResultsList(results);
-    resultContainer.innerHTML = resultsHtml;
-
-    const countSpan = document.getElementById('resultCount');
-    if (countSpan) {
-        countSpan.innerText = results.length;
-    }
-
-    const keywordSpan = document.getElementById('searchKeywordDisplay');
-    if (keywordSpan) {
-        keywordSpan.innerText = escapeHtml(getActualKeyword(rawKeyword, type));
-    }
+    // 实时搜索模式下，统一重新渲染页面，确保关键词提示正确显示
+    renderSearchResultPage(rawKeyword, type, true);
 }
 
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
