@@ -261,26 +261,11 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
-    // 如果搜索框为空，展示所有藏品
+    // 实时搜索模式下，关键词为空时展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
-        // 确保关键词为空字符串
         currentSearchKeyword = '';
-        
-        const allResults = performSearch('', type, searchScope);
-        const resultsHtml = renderResultsList(allResults);
-        
-        const resultContainer = document.getElementById('dynamicResultContainer');
-        if (resultContainer) {
-            resultContainer.innerHTML = resultsHtml;
-        }
-        const countSpan = document.getElementById('resultCount');
-        if (countSpan) {
-            countSpan.innerText = allResults.length;
-        }
-        const keywordSpan = document.getElementById('searchKeywordDisplay');
-        if (keywordSpan) {
-            keywordSpan.innerText = '';
-        }
+        // 统一使用 renderSearchResultPage 渲染，保证状态一致
+        renderSearchResultPage('', type, true);
         return;
     }
 
@@ -307,12 +292,13 @@ function performRealtimeSearch() {
 }
 
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
-    if (!rawKeyword || rawKeyword.trim() === '') return;
-
+    // 允许空关键词，表示展示所有藏品
+    const keyword = rawKeyword || '';
+    
     // 标记当前在搜索结果页
     currentView = 'searchResult';
 
-    // 进入搜索结果页前，保存当前页面的滚动位置
+    // 保存滚动位置（原有代码不变）
     if (currentView === 'categories') {
         saveScroll("categories");
     } else if (currentView === 'seriesList' && currentCategoryId) {
@@ -321,16 +307,18 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
         saveScroll("copyList_" + currentSeries.cid + "_" + currentSeries.si);
     }
 
-    const results = performSearch(rawKeyword, type, searchScope);
+    const results = performSearch(keyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
     const placeholderText = searchScope === 'global' ? '在全局搜索' : '在当前板块搜索';
-    const displayValue = getDisplayValue(rawKeyword, type);
+    const displayValue = getDisplayValue(keyword, type);
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     
-    // 如果关键词为空，显示“全部藏品”而不是关键词
-    const actualKeyword = rawKeyword.trim() === '' ? '' : escapeHtml(getActualKeyword(rawKeyword, type));
-    const keywordDisplayText = rawKeyword.trim() === '' ? '全部藏品' : actualKeyword;
+    // 空关键词时显示“全部藏品”，否则显示关键词
+    const actualKeyword = keyword === '' ? '' : escapeHtml(getActualKeyword(keyword, type));
+    const keywordDisplayHtml = keyword === '' 
+        ? '' 
+        : ` | 关键词：<span id="searchKeywordDisplay">${actualKeyword}</span>`;
 
     const fullHtml = `
         <div class="back-bar"><button class="back-btn" onclick="backToPrevious()">← 返回</button></div>
@@ -352,7 +340,7 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
-                <p>找到 <span id="resultCount">${results.length}</span> 个匹配${rawKeyword.trim() !== '' ? ` | 关键词：<span id="searchKeywordDisplay">${actualKeyword}</span>` : '<span id="searchKeywordDisplay" style="display:none;"></span>'}</p>
+                <p>找到 <span id="resultCount">${results.length}</span> 个匹配${keywordDisplayHtml}</p>
             </div>
             <div id="dynamicResultContainer">${resultsHtml}</div>
         </div>
@@ -360,9 +348,7 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
 
     document.getElementById("app").innerHTML = fullHtml;
     
-    // 恢复搜索结果页的滚动位置
     restoreScroll("searchResult");
-    
     bindSearchEvents();
 
     if (autoFocus) {
@@ -765,11 +751,8 @@ function renderDetail(cid, si, ci) {
 
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
-        // 清除标记，防止重复触发
         fromSearchResult = false;
-        // 确保当前视图状态正确
-        currentView = 'searchResult';
-        // 返回到搜索结果页（空关键词或有关键词）
+        // 恢复搜索结果页，关键词可能为空
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
