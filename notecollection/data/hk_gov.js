@@ -2,7 +2,7 @@
 const hk_govData = {
     name: "香港政府",
     icon: "𝟘𝟝",
-    desc: "香港政府纸币",
+    desc: "Government of Hong Kong",
     // 港币板块的详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
