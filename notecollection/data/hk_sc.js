@@ -223,7 +223,7 @@ const hk_scData = {
                     year: 2020,
                     version: "BE308101",
                     bank: "渣打银行（香港）",
-                    condition: "ACG67E",
+                    condition: "ACG66E",
                     price: "",
                     purchaseDate: "",
                     krause: "304b",
