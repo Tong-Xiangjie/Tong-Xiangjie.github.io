@@ -1,7 +1,7 @@
 const commemorativeData = {
     name: "纪念钞",
     icon: "𝟘𝟙",
-    desc: "包含央行以及港澳台地区的所有纪念钞",
+    desc: "Commemorative",
     // 详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
@@ -9,10 +9,11 @@ const commemorativeData = {
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "issueQuantity", label: "发行量" },
+        { key: "size", label: "尺寸" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "krause", label: "克劳斯编号" }
+        { key: "krause", label: "克劳斯目录编号" }
     ],
     series: [
         { 
@@ -28,7 +29,8 @@ const commemorativeData = {
                 condition: "ACG65E", 
                 krause: "64",
                 issueDate: "1988年11月",
-                issueQuantity: "1.5万张",
+                issueQuantity: "1.2万",
+                size:"135mm*70mm",
                 remark: "纪念钞的鼻祖，发行量最少的一张", 
                 img1: "image/comm/KP04057-1.jpg", 
                 img2: "image/comm/KP04057-2.jpg" 
@@ -48,7 +50,7 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "1990",
                     issueDate: "1999年6月",
-                    issueQuantity: "3000万张",
+                    issueQuantity: "3000万",
                     remark: "", 
                     img1: "image/comm/A179021G-1.jpg", 
                     img2: "image/comm/A179021G-2.jpg" 
@@ -59,12 +61,12 @@ const commemorativeData = {
                     purchaseDate: "2026年", 
                     price: "278元", 
                     bank: "中国人民银行", 
-                    version: "J51665987", 
+                    version: "A000000B", 
                     condition: "ACG67E", 
-                    krause: "KL003",
+                    krause: "000",
                     issueDate: "1999年6月",
-                    issueQuantity: "3000万张",
-                    remark: "顺子号", 
+                    issueQuantity: "3000万",
+                    remark: "", 
                     img1: "image/comm/J51665987-1.jpg", 
                     img2: "image/comm/J51665987-2.jpg" 
                 }
@@ -84,7 +86,7 @@ const commemorativeData = {
                     condition: "ACG65E", 
                     krause: "891",
                     issueDate: "1999年9月20日",
-                    issueQuantity: "6000万张",
+                    issueQuantity: "6000万",
                     remark: "刚好是我的生日号", 
                     img1: "image/comm/J07529257-1.jpg", 
                     img2: "image/comm/J07529257-2.jpg" 
@@ -99,7 +101,7 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "891",
                     issueDate: "1999年9月20日",
-                    issueQuantity: "6000万张",
+                    issueQuantity: "6000万",
                     remark: "顺子号", 
                     img1: "image/comm/J51665987-1.jpg", 
                     img2: "image/comm/J51665987-2.jpg" 
@@ -120,7 +122,7 @@ const commemorativeData = {
                     condition: "ACG65E", 
                     krause: "902",
                     issueDate: "2000年11月28日",
-                    issueQuantity: "1000万张",
+                    issueQuantity: "1000万",
                     remark: "普通冠号", 
                     img1: "image/comm/J00344985-1.jpg", 
                     img2: "image/comm/J00344985-2.jpg" 
@@ -135,7 +137,7 @@ const commemorativeData = {
                     condition: "PMG67E", 
                     krause: "902*",
                     issueDate: "2000年11月28日",
-                    issueQuantity: "1000万张",
+                    issueQuantity: "1000万",
                     remark: "补号", 
                     img1: "image/comm/I00181114-1.jpg", 
                     img2: "image/comm/I00181114-2.jpg" 
@@ -155,7 +157,7 @@ const commemorativeData = {
                 condition: "PMG67E", 
                 krause: "908",
                 issueDate: "2008年7月8日",
-                issueQuantity: "600万张",
+                issueQuantity: "600万",
                 remark: "钞王！传家宝级别", 
                 img1: "image/comm/J04266645-1.jpg", 
                 img2: "image/comm/J04266645-2.jpg" 
@@ -280,7 +282,7 @@ const commemorativeData = {
                     condition: "ACG68E", 
                     krause: "910a",
                     issueDate: "2015年11月26日",
-                    issueQuantity: "3亿张",
+                    issueQuantity: "3亿",
                     remark: "普通荧光", 
                     img1: "image/comm/J8301922333-1.jpg", 
                     img2: "image/comm/J8301922333-2.jpg" 
@@ -295,7 +297,7 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "910a",
                     issueDate: "2015年11月26日",
-                    issueQuantity: "3亿张",
+                    issueQuantity: "3亿",
                     remark: "宇宙之眼", 
                     img1: "image/comm/J5252197777-1.jpg", 
                     img2: "image/comm/J5252197777-2.jpg" 
@@ -310,7 +312,7 @@ const commemorativeData = {
                     condition: "PMG66E", 
                     krause: "910a",
                     issueDate: "2015年11月26日",
-                    issueQuantity: "3亿张",
+                    issueQuantity: "3亿",
                     remark: "流浪地球", 
                     img1: "image/comm/J9069497791-1.jpg", 
                     img2: "image/comm/J9069497791-2.jpg" 
@@ -369,7 +371,7 @@ const commemorativeData = {
                     condition: "PMG66E", 
                     krause: "911",
                     issueDate: "2018年11月23日",
-                    issueQuantity: "1.2亿张",
+                    issueQuantity: "1.2亿",
                     remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", 
                     img1: "image/comm/J000009987-1.jpg", 
                     img2: "image/comm/J000009987-2.jpg" 
@@ -384,7 +386,7 @@ const commemorativeData = {
                     condition: "ACG68E", 
                     krause: "911",
                     issueDate: "2018年11月23日",
-                    issueQuantity: "1.2亿张",
+                    issueQuantity: "1.2亿",
                     remark: "补号，虽然PMG没有特殊标注", 
                     img1: "image/comm/J191756567-1.jpg", 
                     img2: "image/comm/J191756567-2.jpg" 
@@ -440,7 +442,7 @@ const commemorativeData = {
                 condition: "ACG68E", 
                 krause: "916a",
                 issueDate: "2021年12月21日",
-                issueQuantity: "2亿张",
+                issueQuantity: "2亿对",
                 remark: "", 
                 img1: "image/comm/J180000183-1.jpg", 
                 img2: "image/comm/J180000183-2.jpg" 
@@ -460,7 +462,7 @@ const commemorativeData = {
                     condition: "ACG68E", 
                     krause: "917a",
                     issueDate: "2021年12月21日",
-                    issueQuantity: "2亿张",
+                    issueQuantity: "2亿对",
                     remark: "普通版本", 
                     img1: "image/comm/J333686866-1.jpg", 
                     img2: "image/comm/J333686866-2.jpg" 
@@ -475,7 +477,7 @@ const commemorativeData = {
                     condition: "ACG68E", 
                     krause: "917a",
                     issueDate: "2021年12月21日",
-                    issueQuantity: "2亿张",
+                    issueQuantity: "2亿对",
                     remark: "绿奥之星", 
                     img1: "image/comm/J208213254-1.jpg", 
                     img2: "image/comm/J208213254-2.jpg" 
@@ -490,7 +492,7 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "917a",
                     issueDate: "2021年12月21日",
-                    issueQuantity: "2亿张",
+                    issueQuantity: "2亿对",
                     remark: "绿奥之王", 
                     img1: "image/comm/J207861101-1.jpg", 
                     img2: "image/comm/J207861101-2.jpg" 
@@ -565,7 +567,7 @@ const commemorativeData = {
                 condition: "ACG67E", 
                 krause: "920",
                 issueDate: "2024年1月",
-                issueQuantity: "1亿张",
+                issueQuantity: "1亿",
                 remark: "", 
                 img1: "image/comm/J005003567-1.jpg", 
                 img2: "image/comm/J005003567-2.jpg" 
@@ -584,7 +586,7 @@ const commemorativeData = {
                 condition: "ACG67E", 
                 krause: "921",
                 issueDate: "2024年12月",
-                issueQuantity: "1亿张",
+                issueQuantity: "1亿",
                 remark: "", 
                 img1: "image/comm/J006206654-1.jpg", 
                 img2: "image/comm/J006206654-2.jpg" 
@@ -603,8 +605,8 @@ const commemorativeData = {
                     version: "J005516765", 
                     condition: "ACG67E", 
                     krause: "922",
-                    issueDate: "2025年12月",
-                    issueQuantity: "1亿张",
+                    issueDate: "2026年1月20日",
+                    issueQuantity: "1亿",
                     remark: "就是凑个品种，太丑了", 
                     img1: "image/comm/J005516765-1.jpg", 
                     img2: "image/comm/J005516765-2.jpg" 
@@ -618,8 +620,8 @@ const commemorativeData = {
                     version: "J037241561-70", 
                     condition: "ACG68E", 
                     krause: "922",
-                    issueDate: "2025年12月",
-                    issueQuantity: "1亿张",
+                    issueDate: "2026年1月20日",
+                    issueQuantity: "1亿",
                     remark: "", 
                     img1: "image/comm/J037241561-70-1.jpg", 
                     img2: "image/comm/J037241561-70-2.jpg" 
