@@ -169,6 +169,20 @@ const hk_hsbcData = {
                     remark: "",
                     img1: "image/hk_hsbc/GB308600-1.jpg",
                     img2: "image/hk_hsbc/GB308600-2.jpg"
+                },{
+                    copyId: 2,
+                    year: 2020,
+                    version: "LW669689",
+                    bank: "香港上海汇丰银行",
+                    condition: "ACG67E",
+                    price: "48元",
+                    purchaseDate: "2026年4月7日",
+                    krause: "218a",
+                    signature: "",
+                    faceDate: "2020年1月1日",
+                    remark: "",
+                    img1: "image/hk_hsbc/LW669689-1.jpg",
+                    img2: "image/hk_hsbc/LW669689-2.jpg"
                 }
             ]
         },
