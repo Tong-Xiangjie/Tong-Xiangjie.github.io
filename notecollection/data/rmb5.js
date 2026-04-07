@@ -1,7 +1,7 @@
 // data/rmb5.js
 const rmb5Data = {
     name: "第五套人民币",
-    icon: "𝟙𝟛",
+    icon: "𝟘𝟡",
     desc: "Fifth Series of the Renminbi",
     // 五版币板块的详情页字段配置
     detailFields: [
