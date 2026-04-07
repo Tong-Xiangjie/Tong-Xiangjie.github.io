@@ -9,7 +9,7 @@ const commemorativeData = {
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "issueQuantity", label: "发行量" },
-        { key: "size", label: "尺寸" },
+        { key: "size", label: "标准尺寸" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
