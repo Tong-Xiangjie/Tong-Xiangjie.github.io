@@ -358,6 +358,12 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
             input.setSelectionRange(input.value.length, input.value.length);
         }
     }
+    
+    // 隐藏切换按钮（搜索结果页）
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
+    }
 }
 
 function backToPrevious() {
@@ -567,6 +573,12 @@ function renderCategories(restore = false) {
     if (restore) {
         restoreScroll("categories");
     }
+    
+    // 显示切换按钮（分类页显示）
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'inline-block';
+    }
 }
 
 function renderSeriesList(cid, restore = false) {
@@ -626,6 +638,12 @@ function renderSeriesList(cid, restore = false) {
     if (restore) {
         restoreScroll("seriesList_" + cid);
     }
+    
+    // 隐藏切换按钮（非分类页）
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
+    }
 }
 
 function renderCopyList(cid, si, restore = false) {
@@ -635,7 +653,7 @@ function renderCopyList(cid, si, restore = false) {
     }
     currentView = "copyList";
     currentCategoryId = cid;
-    currentSeries = { cid, si };
+    currentSeries = { cid, si, ci: null };
 
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
@@ -673,6 +691,12 @@ function renderCopyList(cid, si, restore = false) {
     document.getElementById("app").innerHTML = full;
     if (restore) {
         restoreScroll("copyList_" + cid + "_" + si);
+    }
+    
+    // 隐藏切换按钮（非分类页）
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
     }
 }
 
@@ -752,6 +776,12 @@ function renderDetail(cid, si, ci) {
         </div>`;
     document.getElementById("app").innerHTML = detailHtml;
     window.scrollTo(0, 0);
+    
+    // 隐藏切换按钮（非分类页）
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
+    }
 }
 
 function backToCopyList(cid, si) {
@@ -996,9 +1026,8 @@ function goBackToPreviousView() {
             }
             break;
         case 'detail':
-            if (previousView.series && previousView.categoryId && previousView.series.ci !== undefined) {
-                renderDetail(previousView.categoryId, previousView.series.si, previousView.series.ci);
-            } else if (previousView.series && previousView.categoryId) {
+            // 从详情页返回时，回到藏品列表页
+            if (previousView.series && previousView.categoryId) {
                 renderCopyList(previousView.categoryId, previousView.series.si, true);
             } else if (previousView.categoryId) {
                 renderSeriesList(previousView.categoryId, true);
