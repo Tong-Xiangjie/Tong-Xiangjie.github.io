@@ -1026,9 +1026,9 @@ function goBackToPreviousView() {
             }
             break;
         case 'detail':
-            // 从详情页返回时，回到藏品列表页
-            if (previousView.series && previousView.categoryId) {
-                renderCopyList(previousView.categoryId, previousView.series.si, true);
+            // 返回到藏品列表页（第3层）
+            if (currentSeries && currentSeries.cid) {
+                renderCopyList(currentSeries.cid, currentSeries.si, true);
             } else if (previousView.categoryId) {
                 renderSeriesList(previousView.categoryId, true);
             } else {
