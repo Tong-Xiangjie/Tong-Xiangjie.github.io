@@ -1,6 +1,10 @@
 // 禁用浏览器的自动滚动恢复，防止 F5 刷新后自动滚动到之前的位置
 history.scrollRestoration = 'manual';
 
+// 侧滑返回历史记录管理
+let isHandlingPopState = false;
+let viewHistoryStack = [];
+
 // 合并所有数据
 const banknotesData = {
     commemorative: commemorativeData,
@@ -932,6 +936,166 @@ function closeModal() {
     }
 }
 
+// 记录当前视图到历史栈
+function recordCurrentView() {
+    const currentViewInfo = {
+        view: currentView,
+        categoryId: currentCategoryId,
+        series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si } : null,
+        searchKeyword: currentSearchKeyword,
+        searchType: currentSearchType
+    };
+    viewHistoryStack.push(currentViewInfo);
+    
+    // 只保留最近50条记录，避免内存过大
+    if (viewHistoryStack.length > 50) {
+        viewHistoryStack.shift();
+    }
+}
+
+// 执行返回上一级
+function goBackToPreviousView() {
+    if (viewHistoryStack.length <= 1) {
+        // 没有更多历史记录，不执行任何操作（让浏览器处理默认行为）
+        return false;
+    }
+    
+    // 移除当前视图
+    viewHistoryStack.pop();
+    
+    // 获取上一个视图
+    const previousView = viewHistoryStack[viewHistoryStack.length - 1];
+    
+    if (!previousView) {
+        return false;
+    }
+    
+    // 根据上一个视图类型进行跳转
+    switch (previousView.view) {
+        case 'categories':
+            renderCategories(true);
+            break;
+        case 'seriesList':
+            if (previousView.categoryId) {
+                renderSeriesList(previousView.categoryId, true);
+            } else {
+                renderCategories(true);
+            }
+            break;
+        case 'copyList':
+            if (previousView.series && previousView.categoryId) {
+                renderCopyList(previousView.categoryId, previousView.series.si, true);
+            } else if (previousView.categoryId) {
+                renderSeriesList(previousView.categoryId, true);
+            } else {
+                renderCategories(true);
+            }
+            break;
+        case 'detail':
+            if (previousView.series && previousView.categoryId) {
+                renderDetail(previousView.categoryId, previousView.series.si, previousView.series.ci);
+            } else if (previousView.series && previousView.categoryId) {
+                renderCopyList(previousView.categoryId, previousView.series.si, true);
+            } else if (previousView.categoryId) {
+                renderSeriesList(previousView.categoryId, true);
+            } else {
+                renderCategories(true);
+            }
+            break;
+        case 'searchResult':
+            if (previousView.searchKeyword !== undefined) {
+                renderSearchResultPage(previousView.searchKeyword, previousView.searchType || 'all', false);
+            } else {
+                renderCategories(true);
+            }
+            break;
+        default:
+            renderCategories(true);
+    }
+    
+    return true;
+}
+
+// 监听浏览器的 popstate 事件（侧滑返回触发）
+window.addEventListener('popstate', function(event) {
+    if (isHandlingPopState) return;
+    isHandlingPopState = true;
+    
+    // 阻止默认的浏览器返回行为，使用我们的自定义返回
+    event.preventDefault();
+    
+    const handled = goBackToPreviousView();
+    
+    // 如果没有更多历史记录，让浏览器执行默认行为（退出网页）
+    if (!handled) {
+        // 重新触发一次，让浏览器执行默认返回
+        setTimeout(() => {
+            window.history.back();
+        }, 0);
+    }
+    
+    setTimeout(() => {
+        isHandlingPopState = false;
+    }, 100);
+});
+
+// 在每次视图切换时添加一条历史记录
+function pushViewToHistory() {
+    if (isHandlingPopState) return;
+    
+    recordCurrentView();
+    
+    // 添加一个虚拟的历史状态，用于拦截侧滑返回
+    history.pushState({ custom: true }, '');
+}
+
+// 修改各个渲染函数，在视图切换时调用 pushViewToHistory
+// 保存原始函数引用
+const originalRenderCategories = renderCategories;
+const originalRenderSeriesList = renderSeriesList;
+const originalRenderCopyList = renderCopyList;
+const originalRenderDetail = renderDetail;
+const originalRenderSearchResultPage = renderSearchResultPage;
+
+// 包装函数，添加历史记录
+window.renderCategories = function(restore = false) {
+    if (!restore) {
+        pushViewToHistory();
+    }
+    return originalRenderCategories(restore);
+};
+
+window.renderSeriesList = function(cid, restore = false) {
+    if (!restore) {
+        pushViewToHistory();
+    }
+    return originalRenderSeriesList(cid, restore);
+};
+
+window.renderCopyList = function(cid, si, restore = false) {
+    if (!restore) {
+        pushViewToHistory();
+    }
+    return originalRenderCopyList(cid, si, restore);
+};
+
+window.renderDetail = function(cid, si, ci) {
+    pushViewToHistory();
+    return originalRenderDetail(cid, si, ci);
+};
+
+window.renderSearchResultPage = function(rawKeyword, type, autoFocus = true) {
+    pushViewToHistory();
+    return originalRenderSearchResultPage(rawKeyword, type, autoFocus);
+};
+
+// 重新绑定函数引用
+renderCategories = window.renderCategories;
+renderSeriesList = window.renderSeriesList;
+renderCopyList = window.renderCopyList;
+renderDetail = window.renderDetail;
+renderSearchResultPage = window.renderSearchResultPage;
+
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('imageModal');
     if (modal) {
@@ -944,6 +1108,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.addEventListener('DOMContentLoaded', function() {
+    // 初始化历史记录
+    viewHistoryStack = [];
+    pushViewToHistory();
     renderCategories(false);
     // 确保刷新后滚动到顶部
     window.scrollTo(0, 0);
