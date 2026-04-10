@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>铜の币纪</title>
+    <title>铜の币纪 | 纸币</title>
     <!-- Hammer.js 手势库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
@@ -404,12 +404,40 @@
             color: #b1967c;
         }
 
+        /* 切换按钮样式 */
+        .switch-btn {
+            background: #daa520;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.9rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .switch-btn:hover {
+            background: #b8860b;
+        }
+
+        .title-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 650px) {
             .hero-image {
                 max-width: 90%;
             }
             .header h1 {
                 font-size: 1.4rem;
+            }
+            .title-row {
+                gap: 0.6rem;
             }
         }
         
@@ -443,7 +471,12 @@
         <div class="hero-image">
             <img src="image/decoration/headphoto.png" alt="铜の币纪主图">
         </div>
-        <h1>收藏品档案</h1>
+        <div class="title-row">
+            <h1>铜の币纪 | 纸币</h1>
+            <button class="switch-btn" onclick="window.location.href='https://tong-xiangjie.github.io/coincollection'">
+                切换到硬币 →
+            </button>
+        </div>
         <div class="sub">Bilibili @ 铜の币纪</div>
     </div>
     <div id="app"></div>
