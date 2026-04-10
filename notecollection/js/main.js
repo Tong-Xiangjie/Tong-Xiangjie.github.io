@@ -1090,36 +1090,40 @@ const originalRenderCopyList = renderCopyList;
 const originalRenderDetail = renderDetail;
 const originalRenderSearchResultPage = renderSearchResultPage;
 
-// 包装函数，添加历史记录
 window.renderCategories = function(restore = false) {
+    const result = originalRenderCategories(restore);
     if (!restore) {
         pushViewToHistory();
     }
-    return originalRenderCategories(restore);
+    return result;
 };
 
 window.renderSeriesList = function(cid, restore = false) {
+    const result = originalRenderSeriesList(cid, restore);
     if (!restore) {
         pushViewToHistory();
     }
-    return originalRenderSeriesList(cid, restore);
+    return result;
 };
 
 window.renderCopyList = function(cid, si, restore = false) {
+    const result = originalRenderCopyList(cid, si, restore);
     if (!restore) {
         pushViewToHistory();
     }
-    return originalRenderCopyList(cid, si, restore);
+    return result;
 };
 
 window.renderDetail = function(cid, si, ci) {
+    const result = originalRenderDetail(cid, si, ci);
     pushViewToHistory();
-    return originalRenderDetail(cid, si, ci);
+    return result;
 };
 
 window.renderSearchResultPage = function(rawKeyword, type, autoFocus = true) {
+    const result = originalRenderSearchResultPage(rawKeyword, type, autoFocus);
     pushViewToHistory();
-    return originalRenderSearchResultPage(rawKeyword, type, autoFocus);
+    return result;
 };
 
 // 重新绑定函数引用
