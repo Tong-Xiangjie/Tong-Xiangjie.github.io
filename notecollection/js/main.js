@@ -85,6 +85,16 @@ const KRAUSE_PREFIX = 'Pick# ';
 let fromSearchResult = false;
 let lastSearchParams = null;
 
+// 将数字转换为带圈数字（使用数学专用字符）
+function toCircledNumber(num) {
+    const numStr = num.toString();
+    const circledDigits = {
+        '0': '𝟘', '1': '𝟙', '2': '𝟚', '3': '𝟛', '4': '𝟜',
+        '5': '𝟝', '6': '𝟞', '7': '𝟟', '8': '𝟠', '9': '𝟡'
+    };
+    return numStr.split('').map(d => circledDigits[d] || d).join('');
+}
+
 function saveScroll(key) {
     scrollMemory[key] = window.scrollY;
 }
@@ -222,7 +232,8 @@ function renderResultsList(results) {
         
         const cat = banknotesData[cid];
         const catName = cat ? cat.name : cid;
-        const catIcon = cat ? cat.icon : '📷';
+        // 优先使用数据文件中的 icon，否则自动生成
+        const catIcon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(cid) + 1);
         
         // 添加分类标题（带数量统计）
         html += `
@@ -536,9 +547,11 @@ function renderCategories(restore = false) {
         if (cat.series) {
             for (let s of cat.series) total += s.copies ? s.copies.length : 0;
         }
+        // 优先使用数据文件中的 icon，否则自动生成
+        const icon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(id) + 1);
         html += `
             <div class="category-card" onclick="selectCategory('${id}')">
-                <div class="category-icon">${cat.icon || '📷'}</div>
+                <div class="category-icon">${icon}</div>
                 <h3>${cat.name || id}</h3>
                 <p>${cat.desc || ''}</p>
                 <div class="count-badge"> ${total} 张藏品</div>
@@ -580,6 +593,9 @@ function renderSeriesList(cid, restore = false) {
     }
     items += `</div>`;
 
+    // 优先使用数据文件中的 icon，否则自动生成
+    const icon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(cid) + 1);
+
     const full = `
         <div class="back-bar"><button class="back-btn" onclick="backToCategories()">← 返回分类</button></div>
         <div class="search-bar">
@@ -598,7 +614,7 @@ function renderSeriesList(cid, restore = false) {
         </div>
         <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
         <div class="list-panel">
-            <div class="panel-header"><h2>${cat.icon || ''} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
+            <div class="panel-header"><h2>${icon} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
             ${items}
         </div>`;
     document.getElementById("app").innerHTML = full;
