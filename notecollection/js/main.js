@@ -679,7 +679,7 @@ function renderCopyList(cid, si, restore = false) {
 function renderDetail(cid, si, ci) {
     currentView = "detail";
     currentCategoryId = cid;
-    currentSeries = { cid, si };
+    currentSeries = { cid, si, ci };
 
     const cat = banknotesData[cid];
     if (!cat || !cat.series || !cat.series[si]) return;
@@ -941,7 +941,11 @@ function recordCurrentView() {
     const currentViewInfo = {
         view: currentView,
         categoryId: currentCategoryId,
-        series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si } : null,
+        series: currentSeries ? { 
+            cid: currentSeries.cid, 
+            si: currentSeries.si,
+            ci: currentSeries.ci
+        } : null,
         searchKeyword: currentSearchKeyword,
         searchType: currentSearchType
     };
@@ -992,7 +996,7 @@ function goBackToPreviousView() {
             }
             break;
         case 'detail':
-            if (previousView.series && previousView.categoryId) {
+            if (previousView.series && previousView.categoryId && previousView.series.ci !== undefined) {
                 renderDetail(previousView.categoryId, previousView.series.si, previousView.series.ci);
             } else if (previousView.series && previousView.categoryId) {
                 renderCopyList(previousView.categoryId, previousView.series.si, true);
