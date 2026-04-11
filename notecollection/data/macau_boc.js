@@ -19,8 +19,8 @@ const macau_bocData = {
     series: [
         // 1995年版 10元（1995年10月16日发行）
         {
-            seriesName: "1995年版 澳门币10元",
-            year: "1995",
+            seriesName: "1995～2003年版 澳门币10元",
+            year: "1995～2003",
             copies: [
                 {
                     copyId: 1,
@@ -42,8 +42,8 @@ const macau_bocData = {
         },
         // 2003年版 100元（2003年12月8日发行）
         {
-            seriesName: "2003年版 澳门币100元",
-            year: "2003",
+            seriesName: "1995～2003年版 澳门币100元",
+            year: "1995～2003",
             copies: [
                 {
                     copyId: 1,
@@ -65,8 +65,8 @@ const macau_bocData = {
         },
         // 2013年版 10元（2013年7月1日发行）
         {
-            seriesName: "2013年版 澳门币10元",
-            year: "2013",
+            seriesName: "2008～2017年版 澳门币10元",
+            year: "2008～2017",
             copies: [
                 {
                     copyId: 1,
