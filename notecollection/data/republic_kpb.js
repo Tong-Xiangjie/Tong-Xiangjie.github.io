@@ -2,7 +2,7 @@
 const republic_kpbData = {
     name: "民国广东省银行",
     icon: "𝟚𝟘",
-    desc: "民国广东省银行纸币·大洋票",
+    desc: "The Kuangtung Provincial Bank",
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行银行" },
