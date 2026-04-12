@@ -23,11 +23,11 @@ const gkqData = {
                     year: 1982,
                     version: "ⅣⅩ148437",
                     condition: "ACG65E",
-                    price: "",
-                    purchaseDate: "",
+                    price: "52元",
+                    purchaseDate: "2026年3月29日",
                     krause: "Unlisted",
-                    wmk: "",
-                    remark: "",
+                    wmk: "无水印/Without Watermark",
+                    remark: "二冠",
                     img1: "image/gkq/ⅣⅩ148437-1.jpg",
                     img2: "image/gkq/ⅣⅩ148437-2.jpg"
                 }
