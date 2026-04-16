@@ -1,5 +1,5 @@
-// data/taiwan.js
-const taiwanData = {
+// data/nedb.js
+const nedbData = {
     name: "国家经济建设债券",
     icon: "𝟘𝟠",
     desc: "National Economic Development Bond",
