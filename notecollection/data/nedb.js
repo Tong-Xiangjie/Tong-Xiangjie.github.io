@@ -1,6 +1,6 @@
 // data/nedb.js
 const nedbData = {
-    name: "国家经济建设债券",
+    name: "国家经济建设公债",
     icon: "𝟘𝟠",
     desc: "National Economic Development Bond",
     detailFields: [
@@ -15,12 +15,12 @@ const nedbData = {
 
     series: [
             {
-            seriesName: "1957年版 国家经济建设债券1元",
+            seriesName: "1957年版 国家经济建设公债1元",
             year: "1957",
             copies: [
                 {
                     copyId: 1,
-                    year: 1972,
+                    year: 1957,
                     version: "ⅢⅩⅩ3307203",
                     bank: "中华人民共和国财政部",
                     condition: "ACG63E",
