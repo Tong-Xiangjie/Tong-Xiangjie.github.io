@@ -16,7 +16,7 @@ const nedbData = {
     series: [
             {
             seriesName: "1957年版 国家经济建设债券1元",
-            year: "1972",
+            year: "1957",
             copies: [
                 {
                     copyId: 1,
