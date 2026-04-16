@@ -91,6 +91,21 @@ const macau_bocData = {
             copies: [
                 {
                     copyId: 1,
+                    year: 2008,
+                    version: "AR921648",
+                    bank: "中国银行",
+                    condition: "ACG68E",
+                    price: "元",
+                    purchaseDate: "2026年月日",
+                    krause: "109a",
+                    signature: "澳门分行总经理：叶一新",
+                    faceDate: "2008年8月8日",
+                    size: "140mm*69mm",
+                    remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
+                    img1: "image/macau_boc/AR921648-1.jpg",
+                    img2: "image/macau_boc/AR921648-2.jpg"
+                },{
+                    copyId: 2,
                     year: 2013,
                     version: "AJ008699",
                     bank: "中国银行",
