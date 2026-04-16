@@ -17,6 +17,26 @@ const hk_hsbcData = {
     ],
     series: [
         {
+            seriesName: "1959～1975年版 港币5元 小棉胎",
+            year: "1959～1975",
+            copies: [
+                {
+                    copyId: 1,
+                    year: 1975,
+                    version: "328397FY",
+                    bank: "香港上海汇丰银行",
+                    condition: "ACG66E",
+                    price: "54元",
+                    purchaseDate: "2026年4月14日",
+                    krause: "181f.2",
+                    signature: "",
+                    faceDate: "1975年3月31日",
+                    remark: "",
+                    img1: "image/hk_hsbc/328397FY-1.jpg",
+                    img2: "image/hk_hsbc/328397FY-2.jpg"
+                }
+            ]
+        },{
             seriesName: "1985～1992年版 港币10元",
             year: "1985～1992",
             copies: [
