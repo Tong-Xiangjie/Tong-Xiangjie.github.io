@@ -97,10 +97,10 @@ const macau_bocData = {
                     condition: "ACG67E",
                     price: "48元",
                     purchaseDate: "2026年4月16日",
-                    krause: "108b.1",
+                    krause: "109b.1",
                     signature: "澳门分行行长：叶一新",
                     faceDate: "2013年7月1日",
-                    size: "mm*mm",
+                    size: "140mm*69mm",
                     remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
                     img1: "image/macau_boc/AJ008699-1.jpg",
                     img2: "image/macau_boc/AJ008699-2.jpg"
