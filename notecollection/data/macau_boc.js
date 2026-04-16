@@ -85,6 +85,27 @@ const macau_bocData = {
                     img2: "image/macau_boc/BA118169-2.jpg"
                 }
             ]
+        },{
+            seriesName: "2008～2017年版 澳门币20元",
+            year: "2008～2017",
+            copies: [
+                {
+                    copyId: 1,
+                    year: 2013,
+                    version: "AJ008699",
+                    bank: "中国银行",
+                    condition: "ACG67E",
+                    price: "48元",
+                    purchaseDate: "2026年4月16日",
+                    krause: "108b.1",
+                    signature: "澳门分行行长：叶一新",
+                    faceDate: "2013年7月1日",
+                    size: "mm*mm",
+                    remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
+                    img1: "image/macau_boc/AJ008699-1.jpg",
+                    img2: "image/macau_boc/AJ008699-2.jpg"
+                }
+            ]
         },
         // 2020年版 20元（2020年5月18日发行）
         {
