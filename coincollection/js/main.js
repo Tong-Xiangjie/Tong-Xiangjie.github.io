@@ -401,7 +401,7 @@ function renderCategories(restore = false) {
         <div class="search-bar">
             <select class="search-select" id="searchType">
                 <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
-                <option value="name" ${currentSearchType === 'name' ? 'selected' ''}>按名称搜索</option>
+                <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
                 <option value="grade" ${currentSearchType === 'grade' ? 'selected' : ''}>按评级搜索</option>
                 <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
                 <option value="company" ${currentSearchType === 'company' ? 'selected' : ''}>按评级公司搜索</option>
