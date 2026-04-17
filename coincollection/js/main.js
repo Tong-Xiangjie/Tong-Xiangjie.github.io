@@ -7,15 +7,15 @@ let viewHistoryStack = [];
 
 // 合并所有数据
 const coinsData = {
-    commemorative_coins: commemorative_coinsData,
-    circulating_coins: circulating_coinsData,
-    gold_silver_coins: gold_silver_coinsData
+    commemorative: commemorativeData,
+    circulating: circulatingData,
+    gold_silver: gold_silverData
 };
 
 const categoryOrder = [
-    "commemorative_coins",
-    "circulating_coins",
-    "gold_silver_coins"
+    "commemorative",
+    "circulating",
+    "gold_silver"
 ];
 
 let currentView = "categories";
