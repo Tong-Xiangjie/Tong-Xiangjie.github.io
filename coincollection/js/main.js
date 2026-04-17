@@ -108,23 +108,23 @@ function performSearch(rawKeyword, type, scope) {
                     let match = false;
                     switch(type) {
                         case 'all':
-                            const searchText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''}`.toLowerCase();
+                            const searchText = `${series.seriesName} ${copy.grade || ''} ${copy.year} ${copy.material || ''} ${copy.country || ''} ${copy.gradingCompany || ''}`.toLowerCase();
                             match = searchText.includes(lowerKeyword);
                             break;
                         case 'name':
                             match = series.seriesName.toLowerCase().includes(lowerKeyword);
                             break;
-                        case 'version':
-                            match = (copy.version || '').toLowerCase().includes(lowerKeyword);
+                        case 'grade':
+                            match = (copy.grade || '').toLowerCase().includes(lowerKeyword);
                             break;
                         case 'year':
                             match = String(copy.year).toLowerCase().includes(lowerKeyword);
                             break;
-                        case 'agency':
-                            match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
+                        case 'company':
+                            match = (copy.gradingCompany || '').toLowerCase().includes(lowerKeyword);
                             break;
                         default:
-                            const defaultText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''}`.toLowerCase();
+                            const defaultText = `${series.seriesName} ${copy.grade || ''} ${copy.year} ${copy.material || ''} ${copy.country || ''}`.toLowerCase();
                             match = defaultText.includes(lowerKeyword);
                     }
                     if (match) {
@@ -172,9 +172,9 @@ function renderResultsList(results) {
             html += `
                 <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
                     <div class="copy-index">#${item.copy.copyId}</div>
-                    <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
+                    <div class="copy-badge">${escapeHtml(item.copy.grade || '无评级')}</div>
                     <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
-                    <div class="copy-price">${escapeHtml(item.copy.version || '无版别')}</div>
+                    <div class="copy-price">${escapeHtml(item.copy.gradingCompany || '无评级公司')}</div>
                     <div class="copy-price">${formatYear(item.copy.year)}</div>
                 </div>`;
         }
@@ -234,9 +234,9 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
             <select class="search-select" id="searchType">
                 <option value="all" ${type === 'all' ? 'selected' : ''}>全字段搜索</option>
                 <option value="name" ${type === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="version" ${type === 'version' ? 'selected' : ''}>按版别搜索</option>
+                <option value="grade" ${type === 'grade' ? 'selected' : ''}>按评级搜索</option>
                 <option value="year" ${type === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="agency" ${type === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
+                <option value="company" ${type === 'company' ? 'selected' : ''}>按评级公司搜索</option>
             </select>
             <input type="text" class="search-input" id="searchInput" placeholder="${placeholderText}" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
@@ -401,10 +401,10 @@ function renderCategories(restore = false) {
         <div class="search-bar">
             <select class="search-select" id="searchType">
                 <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
-                <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="version" ${currentSearchType === 'version' ? 'selected' : ''}>按版别搜索</option>
+                <option value="name" ${currentSearchType === 'name' ? 'selected' ''}>按名称搜索</option>
+                <option value="grade" ${currentSearchType === 'grade' ? 'selected' : ''}>按评级搜索</option>
                 <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
+                <option value="company" ${currentSearchType === 'company' ? 'selected' : ''}>按评级公司搜索</option>
             </select>
             <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
@@ -479,9 +479,9 @@ function renderSeriesList(cid, restore = false) {
             <select class="search-select" id="searchType">
                 <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
                 <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="version" ${currentSearchType === 'version' ? 'selected' : ''}>按版别搜索</option>
+                <option value="grade" ${currentSearchType === 'grade' ? 'selected' : ''}>按评级搜索</option>
                 <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
+                <option value="company" ${currentSearchType === 'company' ? 'selected' : ''}>按评级公司搜索</option>
             </select>
             <input type="text" class="search-input" id="searchInput" placeholder="在当前板块搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
             <button class="search-btn" id="searchBtn">搜索</button>
@@ -525,8 +525,8 @@ function renderCopyList(cid, si, restore = false) {
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
                 <div class="copy-index">#${cp.copyId}</div>
-                <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
-                <div class="copy-version">${escapeHtml(cp.version || '无版别')}</div>
+                <div class="copy-badge">${escapeHtml(cp.grade || '无评级')}</div>
+                <div class="copy-version">${escapeHtml(cp.gradingCompany || '无评级公司')}</div>
                 <div class="copy-price">${formatYear(cp.year)}</div>
             </div>`;
     }
@@ -572,9 +572,11 @@ function renderDetail(cid, si, ci) {
     currentModalImg2 = cp.img2 || '';
 
     const detailFields = cat.detailFields || [
-        { key: "version", label: "版别" },
+        { key: "country", label: "国家/地区" },
         { key: "year", label: "发行年份" },
-        { key: "condition", label: "评级分数" },
+        { key: "material", label: "材质" },
+        { key: "grade", label: "评级分数" },
+        { key: "gradingCompany", label: "评级公司" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
         { key: "copyId", label: "藏品编号" }
@@ -592,7 +594,7 @@ function renderDetail(cid, si, ci) {
             value = '—';
         }
         
-        const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
+        const displayValue = field.key === 'design' ? String(value) : escapeHtml(String(value));
         
         detailGridHtml += `
             <div class="detail-field">
@@ -608,7 +610,7 @@ function renderDetail(cid, si, ci) {
         <div class="detail-panel">
             <div class="detail-header">
                 <h3>${escapeHtml(series.seriesName)}</h3>
-                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无版别')}</div>
+                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.gradingCompany || '无评级公司')} ${escapeHtml(cp.grade || '')}</div>
             </div>
 
             <div class="img-pair">
