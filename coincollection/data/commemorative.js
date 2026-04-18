@@ -170,13 +170,13 @@ const commemorativeData = {
         // ==================== 2019 世界文化遗产·峨眉山-乐山大佛 ====================
         {
             seriesName: "世界文化遗产普通纪念币",
-            year: 2019,
+            year: 2022,
             copies: [
                 {
                     copyId: 6,
                     country: "中华人民共和国",
-                    year: 2019,
-                    issueDate: "2019年",
+                    year: 2022,
+                    issueDate: "2022年",
                     mint: "沈阳造币厂",
                     material: "铜合金",
                     diameter: "外接圆直径30mm",
@@ -191,8 +191,8 @@ const commemorativeData = {
                     purchaseDate: "2026年4月8日",
                     catalogNumber: "Unlisted",
                     remark: "",
-                    img1: "image/commemorative/2019emei-1.jpg",
-                    img2: "image/commemorative/2019emei-2.jpg"
+                    img1: "image/commemorative/2023emei-1.jpg",
+                    img2: "image/commemorative/2023emei-2.jpg"
                 }
             ]
         },
@@ -220,8 +220,8 @@ const commemorativeData = {
                     purchaseDate: "2026年4月8日",
                     catalogNumber: "Unlisted",
                     remark: "",
-                    img1: "image/commemorative/2022huangshan-1.jpg",
-                    img2: "image/commemorative/2022huangshan-2.jpg"
+                    img1: "image/commemorative/2023huangshan-1.jpg",
+                    img2: "image/commemorative/2023huangshan-2.jpg"
                 }
             ]
         },
