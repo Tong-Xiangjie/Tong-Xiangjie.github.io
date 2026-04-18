@@ -193,6 +193,20 @@ const hk_bocData = {
                 },
                 {
                     copyId: 2,
+                    year: 2021,
+                    version: "FQ880098",
+                    bank: "中国银行（香港）",
+                    condition: "ACG67E",
+                    price: "49元",
+                    purchaseDate: "2026年4月18日",
+                    krause: "348b",
+                    signature: "总裁：孙煜",
+                    faceDate: "2021年1月1日",
+                    remark: "",
+                    img1: "image/hk_boc/FQ880098-1.jpg",
+                    img2: "image/hk_boc/FQ880098-2.jpg"
+                },{
+                    copyId: 3,
                     year: 2023,
                     version: "JA601300",
                     bank: "中国银行（香港）",
