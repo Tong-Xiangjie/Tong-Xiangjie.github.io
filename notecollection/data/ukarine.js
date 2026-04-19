@@ -1,7 +1,7 @@
 // data/ukarine.js
 const ukarineData = {
     name: "乌克兰",
-    icon: "𝟚𝟝",
+    icon: null,
     desc: "Ukraine",
     detailFields: [
         { key: "version", label: "冠字号码" },
