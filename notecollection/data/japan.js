@@ -1,7 +1,7 @@
 // data/japan.js
 const japanData = {
     name: "日本",
-    icon: "𝟚𝟚",
+    icon: null,
     desc: "日本纸币",
     detailFields: [
         { key: "version", label: "冠字号码" },
