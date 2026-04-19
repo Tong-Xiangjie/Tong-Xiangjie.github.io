@@ -1,7 +1,7 @@
 // data/nedb.js
 const nedbData = {
     name: "国家经济建设公债",
-    icon: "𝟘𝟠",
+    icon: null,
     desc: "National Economic Development Bond",
     detailFields: [
         { key: "version", label: "冠字号码" },
