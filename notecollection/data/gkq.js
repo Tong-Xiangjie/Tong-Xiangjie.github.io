@@ -1,7 +1,7 @@
 // data/gkq.js
 const gkqData = {
     name: "国库券",
-    icon: "𝟙𝟝",
+    icon: null,
     desc: "Treasury Bond",
     // 国库券板块的详情页字段配置
     detailFields: [
