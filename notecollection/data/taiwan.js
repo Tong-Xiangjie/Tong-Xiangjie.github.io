@@ -1,7 +1,7 @@
 // data/taiwan.js
 const taiwanData = {
     name: "新台币",
-    icon: "𝟘𝟠",
+    icon: null,
     desc: "New Taiwan Currency",
     detailFields: [
         { key: "version", label: "冠字号码" },
