@@ -1,7 +1,7 @@
 // data/rmb3.js
 const rmb3Data = {
     name: "第三套人民币",
-    icon: "𝟙𝟙",
+    icon: null,
     desc: "Third Series of the Renminbi",
     detailFields: [
         { key: "version", label: "冠字号码" },
