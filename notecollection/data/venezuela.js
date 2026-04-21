@@ -26,7 +26,7 @@ const venezuelaData = {
                     bank: "委内瑞拉中央银行/Central Bank of Venezuela",
                     condition: "ACG67E",
                     price: "25元",
-                    purchaseDate: 2026年4月1日",
+                    purchaseDate: "2026年4月1日",
                     krause: "105",
                     size: "",
                     watermark: "",
