@@ -1,7 +1,7 @@
 // data/rmb4.js
 const rmb4Data = {
     name: "第四套人民币",
-    icon: "𝟙𝟘",
+    icon: null,
     desc: "Fourth Series of the Renminbi",
     // 四版币板块的详情页字段配置
     detailFields: [
