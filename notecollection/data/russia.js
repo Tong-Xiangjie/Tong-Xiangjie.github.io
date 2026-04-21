@@ -1,5 +1,5 @@
 // data/russia.js
-const koreaData = {
+const russiaData = {
     name: "俄罗斯",
     icon: null,
     desc: "Russia",
