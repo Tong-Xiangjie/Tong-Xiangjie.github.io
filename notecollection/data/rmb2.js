@@ -1,7 +1,7 @@
 // data/rmb2.js
 const rmb2Data = {
     name: "第二套人民币",
-    icon: "𝟙𝟘",
+    icon: null,
     desc: "Second Series of the Renminbi",
     detailFields: [
         { key: "version", label: "冠字号码" },
