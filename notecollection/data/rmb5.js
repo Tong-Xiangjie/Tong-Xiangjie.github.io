@@ -1,7 +1,7 @@
 // data/rmb5.js
 const rmb5Data = {
     name: "第五套人民币",
-    icon: "𝟘𝟡",
+    icon: null,
     desc: "Fifth Series of the Renminbi",
     detailFields: [
         { key: "version", label: "冠字号码" },
