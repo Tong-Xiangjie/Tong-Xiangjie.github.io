@@ -1,6 +1,6 @@
 const commemorativeData = {
     name: "纪念钞",
-    icon: "𝟘𝟙",
+    icon: null,
     desc: "Commemorative",
     // 详情页字段配置
     detailFields: [
