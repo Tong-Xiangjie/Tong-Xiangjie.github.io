@@ -2,7 +2,7 @@
 const japanData = {
     name: "日本",
     icon: null,
-    desc: "日本纸币",
+    desc: "Japan",
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行银行" },  
