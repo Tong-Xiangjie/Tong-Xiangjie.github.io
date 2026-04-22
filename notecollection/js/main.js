@@ -446,11 +446,27 @@ function backToPrevious() {
 }
 
 function resetSearchAndBack() {
+    // 清空搜索关键词
     currentSearchKeyword = '';
+    currentSearchType = 'all';
+    
+    // 清除搜索滚动记录
     delete scrollMemory["searchResult"];
+    
+    // 清空输入框
     const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-    backToPrevious();
+    if (input) {
+        input.value = '';
+    }
+    
+    // 重置搜索类型为默认值（全字段搜索）
+    const searchType = document.getElementById('searchType');
+    if (searchType) {
+        searchType.value = 'all';
+    }
+    
+    // 重新渲染当前搜索结果页（显示全部藏品），不改变页面位置
+    renderSearchResultPage('', 'all', false);
 }
 
 function setupKrauseInputProtection(inputElement, searchTypeElement) {
