@@ -278,13 +278,20 @@ function performRealtimeSearch() {
     const rawKeyword = searchInput.value;
     const type = searchType ? searchType.value : 'all';
 
+    // 判断是否为新搜索
+    const isNewSearch = (currentSearchKeyword !== rawKeyword || currentSearchType !== type);
+    
+    // 如果是新搜索，清除旧的滚动缓存
+    if (isNewSearch) {
+        delete scrollMemory["searchResult"];
+    }
+
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
     // 如果搜索框为空，展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
         currentSearchKeyword = '';
-        saveScroll("searchResult");
         renderSearchResultPage('', type, true);
         return;
     }
@@ -296,6 +303,9 @@ function performRealtimeSearch() {
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     // 允许空关键词，表示展示所有藏品
     const keyword = rawKeyword || '';
+    
+    // 判断是否为新搜索（关键词或类型改变）
+    const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
     
     // 标记当前在搜索结果页
     currentView = 'searchResult';
@@ -316,7 +326,6 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     const modeIcon = searchMode === 'click' ? '□' : '■';
     const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
     
-    // 空关键词时显示“全部藏品”，否则显示关键词
     const actualKeyword = keyword === '' ? '' : escapeHtml(getActualKeyword(keyword, type));
     const keywordDisplayHtml = keyword === '' 
         ? '' 
@@ -350,7 +359,16 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
 
     document.getElementById("app").innerHTML = fullHtml;
     
-    restoreScroll("searchResult");
+    // 核心修改：根据是否是同一次搜索来决定滚动行为
+    if (isNewSearch) {
+        // 新搜索：清除旧缓存，不恢复位置（页面自然在顶部）
+        delete scrollMemory["searchResult"];
+        // 不调用 restoreScroll，让页面保持在顶部
+    } else {
+        // 同一个搜索（从详情返回）：恢复之前保存的滚动位置
+        restoreScroll("searchResult");
+    }
+    
     bindSearchEvents();
 
     if (autoFocus) {
@@ -382,6 +400,8 @@ function backToPrevious() {
 
 function resetSearchAndBack() {
     currentSearchKeyword = '';
+    // 清除搜索滚动记录
+    delete scrollMemory["searchResult"];
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
     backToPrevious();
@@ -789,7 +809,7 @@ function renderDetail(cid, si, ci) {
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
-        // 恢复搜索结果页，关键词可能为空
+        // 返回搜索结果时，使用相同的关键词和类型，让 isNewSearch 为 false，从而恢复滚动位置
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
@@ -817,9 +837,9 @@ function selectSeries(cid, si) {
 function selectCopy(cid, si, ci) {
     if (currentView === 'searchResult') {
         fromSearchResult = true;
-        saveScroll("searchResult");
+        saveScroll("searchResult");  // 保存当前搜索结果的滚动位置
         lastSearchParams = {
-            keyword: currentSearchKeyword,  // 可能是空字符串
+            keyword: currentSearchKeyword,
             type: currentSearchType
         };
     } else {
