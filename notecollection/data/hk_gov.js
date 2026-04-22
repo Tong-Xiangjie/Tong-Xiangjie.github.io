@@ -1,7 +1,7 @@
 // data/hk_gov.js
 const hk_govData = {
     name: "香港政府",
-    icon: "𝟘𝟝",
+    icon: null,
     desc: "Government of Hong Kong",
     // 港币板块的详情页字段配置
     detailFields: [
