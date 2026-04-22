@@ -46,24 +46,26 @@
             margin-top: 0.3rem;
         }
 
-        /* 标题栏容器：左右布局，按钮靠右 */
+        /* 标题栏容器 */
         .title-bar {
+            position: relative;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            flex-wrap: wrap;
             margin-bottom: 0.5rem;
         }
 
-        /* 左侧标题区域保持居中视觉，但实际左对齐 */
+        /* 标题区域 - 完全居中 */
         .title-left {
-            flex: 1;
-            text-align: left;
+            text-align: center;
         }
 
-        /* 右侧按钮区域 */
+        /* 右侧按钮 - 绝对定位，不占用布局空间 */
         .title-right {
-            flex-shrink: 0;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
         .switch-btn {
@@ -78,24 +80,26 @@
             text-decoration: none;
             display: inline-block;
             font-weight: normal;
+            white-space: nowrap;
         }
         .switch-btn:hover {
             background: #b8860b;
         }
 
-        /* 为了让标题在视觉上仍然居中，可以在宽屏时调整 */
-        @media (min-width: 768px) {
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .title-bar {
+                flex-direction: column;
+                gap: 0.5rem;
+                position: static;
+            }
             .title-left {
                 text-align: center;
             }
-            .title-bar {
-                position: relative;
-            }
             .title-right {
-                position: absolute;
-                right: 0;
-                top: 50%;
-                transform: translateY(-50%);
+                position: static;
+                transform: none;
+                align-self: flex-end;
             }
         }
 
@@ -464,16 +468,6 @@
             .header h1 {
                 font-size: 1.4rem;
             }
-            .title-bar {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            .title-left {
-                text-align: center;
-            }
-            .title-right {
-                align-self: flex-end;
-            }
             
             /* 图片上下排列并适应屏幕 */
             .img-pair {
@@ -520,7 +514,7 @@
         <div class="hero-image">
             <img src="image/decoration/headphoto.png" alt="铜の币纪主图">
         </div>
-        <!-- 标题栏：标题左/中，按钮靠右 -->
+        <!-- 标题栏：标题完全居中，按钮浮动在最右侧 -->
         <div class="title-bar">
             <div class="title-left">
                 <h1>纸币收藏品档案</h1>
