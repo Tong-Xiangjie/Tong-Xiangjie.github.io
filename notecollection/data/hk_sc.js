@@ -1,7 +1,7 @@
 // data/hk_sc.js
 const hk_scData = {
     name: "香港渣打银行",
-    icon: "𝟘𝟜",
+    icon: null,
     desc: "Standard Chartered Bank",
     // 港币板块的详情页字段配置
     detailFields: [
