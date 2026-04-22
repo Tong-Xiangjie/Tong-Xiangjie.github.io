@@ -445,28 +445,87 @@ function backToPrevious() {
     }
 }
 
+// 重置搜索并返回分类页，保持当前滚动位置
 function resetSearchAndBack() {
     // 清空搜索关键词
     currentSearchKeyword = '';
     currentSearchType = 'all';
     
-    // 清除搜索滚动记录
+    // 清除所有相关的滚动记录
     delete scrollMemory["searchResult"];
+    delete scrollMemory["categories"];
     
-    // 清空输入框
-    const input = document.getElementById('searchInput');
-    if (input) {
-        input.value = '';
+    // 重置标志
+    fromSearchResult = false;
+    
+    // 切换到分类页，但不恢复滚动位置
+    renderCategoriesWithoutRestore();
+}
+
+// 专门用于重置的渲染函数，不恢复滚动位置
+function renderCategoriesWithoutRestore() {
+    fromSearchResult = false;
+    searchScope = 'global';
+    currentView = "categories";
+    currentCategoryId = null;
+
+    const modeIcon = searchMode === 'click' ? '□' : '■';
+    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
+    const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
+
+    let html = `
+        <div class="search-bar">
+            <select class="search-select" id="searchType">
+                <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
+                <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
+                <option value="version" ${currentSearchType === 'version' ? 'selected' : ''}>按冠字号搜索</option>
+                <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
+                <option value="agency" ${currentSearchType === 'agency' ? 'selected' : ''}>按评级机构搜索</option>
+                <option value="krause" ${currentSearchType === 'krause' ? 'selected' : ''}>按克劳斯目录编号搜索</option>
+            </select>
+            <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
+            <button class="search-btn" id="searchBtn">搜索</button>
+            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
+            <button class="reset-btn" id="resetBtn">重置</button>
+        </div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
+        <div class="category-grid">`;
+
+    for (let id of categoryOrder) {
+        const cat = banknotesData[id];
+        if (!cat) continue;
+        let total = 0;
+        if (cat.series) {
+            for (let s of cat.series) {
+                if (s.varieties && s.varieties.length > 0) {
+                    for (let v of s.varieties) {
+                        total += v.copies ? v.copies.length : 0;
+                    }
+                } else {
+                    total += s.copies ? s.copies.length : 0;
+                }
+            }
+        }
+        const icon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(id) + 1);
+        html += `
+            <div class="category-card" onclick="selectCategory('${id}')">
+                <div class="category-icon">${icon}</div>
+                <h3>${cat.name || id}</h3>
+                <p>${cat.desc || ''}</p>
+                <div class="count-badge"> ${total} 张藏品</div>
+            </div>`;
+    }
+    html += `</div>`;
+    document.getElementById("app").innerHTML = html;
+    bindSearchEvents();
+    
+    // 显示切换按钮（分类页显示）
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'inline-block';
     }
     
-    // 重置搜索类型为默认值（全字段搜索）
-    const searchType = document.getElementById('searchType');
-    if (searchType) {
-        searchType.value = 'all';
-    }
-    
-    // 重新渲染当前搜索结果页（显示全部藏品），不改变页面位置
-    renderSearchResultPage('', 'all', false);
+    // 关键：不调用 restoreScroll，保持当前滚动位置不变
 }
 
 function setupKrauseInputProtection(inputElement, searchTypeElement) {
@@ -1431,12 +1490,12 @@ function pushViewToHistory() {
 
 const originalRenderCategories = renderCategories;
 const originalRenderSeriesList = renderSeriesList;
-const originalRenderCopyList = renderCopyList;
-const originalRenderDetail = renderDetail;
-const originalRenderSearchResultPage = renderSearchResultPage;
 const originalRenderVarietyList = renderVarietyList;
+const originalRenderCopyList = renderCopyList;
 const originalRenderCopyListFromVariety = renderCopyListFromVariety;
+const originalRenderDetail = renderDetail;
 const originalRenderDetailFromVariety = renderDetailFromVariety;
+const originalRenderSearchResultPage = renderSearchResultPage;
 
 window.renderCategories = function(restore = false) {
     const result = originalRenderCategories(restore);
