@@ -173,40 +173,78 @@ function performSearch(rawKeyword, type, scope) {
 
         for (let si = 0; si < cat.series.length; si++) {
             const series = cat.series[si];
-            if (!series.copies || series.copies.length === 0) continue;
-
-            for (let ci = 0; ci < series.copies.length; ci++) {
-                const copy = series.copies[ci];
-                
-                if (isEmptySearch) {
-                    // 空关键词：直接添加所有结果
-                    results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
-                } else {
-                    // 正常搜索匹配
-                    let match = false;
-                    switch(type) {
-                        case 'all':
-                            const searchText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
-                            match = searchText.includes(lowerKeyword);
-                            break;
-                        case 'name':
-                            match = series.seriesName.toLowerCase().includes(lowerKeyword);
-                            break;
-                        case 'version':
-                            match = (copy.version || '').toLowerCase().includes(lowerKeyword);
-                            break;
-                        case 'year':
-                            match = String(copy.year).toLowerCase().includes(lowerKeyword);
-                            break;
-                        case 'agency':
-                            match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
-                            break;
-                        case 'krause':
-                            match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
-                            break;
+            
+            // 判断是否有 varieties 层
+            if (series.varieties && series.varieties.length > 0) {
+                for (let vi = 0; vi < series.varieties.length; vi++) {
+                    const variety = series.varieties[vi];
+                    if (!variety.copies || variety.copies.length === 0) continue;
+                    for (let ci = 0; ci < variety.copies.length; ci++) {
+                        const copy = variety.copies[ci];
+                        if (isEmptySearch) {
+                            results.push({ catId: cid, sIdx: si, vIdx: vi, cIdx: ci, series: series, variety: variety, copy: copy, hasVarieties: true });
+                        } else {
+                            let match = false;
+                            switch(type) {
+                                case 'all':
+                                    const searchText = `${series.seriesName} ${variety.varietyName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
+                                    match = searchText.includes(lowerKeyword);
+                                    break;
+                                case 'name':
+                                    match = series.seriesName.toLowerCase().includes(lowerKeyword) || variety.varietyName.toLowerCase().includes(lowerKeyword);
+                                    break;
+                                case 'version':
+                                    match = (copy.version || '').toLowerCase().includes(lowerKeyword);
+                                    break;
+                                case 'year':
+                                    match = String(copy.year).toLowerCase().includes(lowerKeyword);
+                                    break;
+                                case 'agency':
+                                    match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
+                                    break;
+                                case 'krause':
+                                    match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
+                                    break;
+                            }
+                            if (match) {
+                                results.push({ catId: cid, sIdx: si, vIdx: vi, cIdx: ci, series: series, variety: variety, copy: copy, hasVarieties: true });
+                            }
+                        }
                     }
-                    if (match) {
-                        results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy });
+                }
+            } else {
+                // 原有的无 varieties 结构
+                if (!series.copies || series.copies.length === 0) continue;
+                for (let ci = 0; ci < series.copies.length; ci++) {
+                    const copy = series.copies[ci];
+                    if (isEmptySearch) {
+                        results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy, hasVarieties: false });
+                    } else {
+                        let match = false;
+                        switch(type) {
+                            case 'all':
+                                const searchText = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
+                                match = searchText.includes(lowerKeyword);
+                                break;
+                            case 'name':
+                                match = series.seriesName.toLowerCase().includes(lowerKeyword);
+                                break;
+                            case 'version':
+                                match = (copy.version || '').toLowerCase().includes(lowerKeyword);
+                                break;
+                            case 'year':
+                                match = String(copy.year).toLowerCase().includes(lowerKeyword);
+                                break;
+                            case 'agency':
+                                match = (copy.condition || '').toLowerCase().includes(lowerKeyword);
+                                break;
+                            case 'krause':
+                                match = (copy.krause || '').toLowerCase().includes(lowerKeyword);
+                                break;
+                        }
+                        if (match) {
+                            results.push({ catId: cid, sIdx: si, cIdx: ci, series: series, copy: copy, hasVarieties: false });
+                        }
                     }
                 }
             }
@@ -238,10 +276,8 @@ function renderResultsList(results) {
         
         const cat = banknotesData[cid];
         const catName = cat ? cat.name : cid;
-        // 优先使用数据文件中的 icon，否则自动生成
         const catIcon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(cid) + 1);
         
-        // 添加分类标题（带数量统计）
         html += `
             <div class="search-category-divider">
                 <span class="category-icon">${catIcon}</span>
@@ -250,14 +286,14 @@ function renderResultsList(results) {
             </div>
         `;
         
-        // 添加该分类下的藏品
         for (let item of groupResults) {
             const krauseDisplay = formatKrause(item.copy.krause);
+            const displayName = item.hasVarieties ? `${item.series.seriesName} - ${item.variety.varietyName}` : item.series.seriesName;
             html += `
-                <div class="copy-item" onclick="selectCopy('${item.catId}', ${item.sIdx}, ${item.cIdx})">
+                <div class="copy-item" onclick="selectCopyFromSearchResult('${item.catId}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : null}, ${item.cIdx}, ${item.hasVarieties})">
                     <div class="copy-index">#${item.copy.copyId}</div>
                     <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
-                    <div class="copy-version">${escapeHtml(item.series.seriesName)}</div>
+                    <div class="copy-version">${escapeHtml(displayName)}</div>
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${formatYear(item.copy.year)}</div>
                     <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
@@ -267,6 +303,22 @@ function renderResultsList(results) {
     
     html += `</div>`;
     return html;
+}
+
+// 从搜索结果选择藏品
+function selectCopyFromSearchResult(cid, si, vi, ci, hasVarieties) {
+    fromSearchResult = true;
+    saveScroll("searchResult");
+    lastSearchParams = {
+        keyword: currentSearchKeyword,
+        type: currentSearchType
+    };
+    
+    if (hasVarieties) {
+        renderDetailFromVariety(cid, si, vi, ci);
+    } else {
+        renderDetail(cid, si, ci);
+    }
 }
 
 function performRealtimeSearch() {
@@ -289,28 +341,22 @@ function performRealtimeSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
 
-    // 如果搜索框为空，展示所有藏品
     if (!rawKeyword || rawKeyword.trim() === '') {
         currentSearchKeyword = '';
         renderSearchResultPage('', type, true);
         return;
     }
 
-    // 实时搜索模式下，统一重新渲染页面，确保关键词提示正确显示
     renderSearchResultPage(rawKeyword, type, true);
 }
 
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
-    // 允许空关键词，表示展示所有藏品
     const keyword = rawKeyword || '';
     
-    // 判断是否为新搜索（关键词或类型改变）
     const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
     
-    // 标记当前在搜索结果页
     currentView = 'searchResult';
 
-    // 保存滚动位置（原有代码不变）
     if (currentView === 'categories') {
         saveScroll("categories");
     } else if (currentView === 'seriesList' && currentCategoryId) {
@@ -359,13 +405,9 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
 
     document.getElementById("app").innerHTML = fullHtml;
     
-    // 核心修改：根据是否是同一次搜索来决定滚动行为
     if (isNewSearch) {
-        // 新搜索：清除旧缓存，不恢复位置（页面自然在顶部）
         delete scrollMemory["searchResult"];
-        // 不调用 restoreScroll，让页面保持在顶部
     } else {
-        // 同一个搜索（从详情返回）：恢复之前保存的滚动位置
         restoreScroll("searchResult");
     }
     
@@ -379,7 +421,6 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
         }
     }
     
-    // 隐藏切换按钮（搜索结果页）
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'none';
@@ -391,8 +432,14 @@ function backToPrevious() {
         renderCategories(true);
     } else if (currentView === 'seriesList' && currentCategoryId) {
         renderSeriesList(currentCategoryId, true);
+    } else if (currentView === 'varietyList' && currentSeries) {
+        renderVarietyList(currentSeries.cid, currentSeries.si, true);
     } else if (currentView === 'copyList' && currentSeries) {
-        renderCopyList(currentSeries.cid, currentSeries.si, true);
+        if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
+            renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
+        } else {
+            renderCopyList(currentSeries.cid, currentSeries.si, true);
+        }
     } else {
         renderCategories(true);
     }
@@ -400,7 +447,6 @@ function backToPrevious() {
 
 function resetSearchAndBack() {
     currentSearchKeyword = '';
-    // 清除搜索滚动记录
     delete scrollMemory["searchResult"];
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
@@ -577,9 +623,16 @@ function renderCategories(restore = false) {
         if (!cat) continue;
         let total = 0;
         if (cat.series) {
-            for (let s of cat.series) total += s.copies ? s.copies.length : 0;
+            for (let s of cat.series) {
+                if (s.varieties && s.varieties.length > 0) {
+                    for (let v of s.varieties) {
+                        total += v.copies ? v.copies.length : 0;
+                    }
+                } else {
+                    total += s.copies ? s.copies.length : 0;
+                }
+            }
         }
-        // 优先使用数据文件中的 icon，否则自动生成
         const icon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(id) + 1);
         html += `
             <div class="category-card" onclick="selectCategory('${id}')">
@@ -596,7 +649,6 @@ function renderCategories(restore = false) {
         restoreScroll("categories");
     }
     
-    // 显示切换按钮（分类页显示）
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'inline-block';
@@ -622,16 +674,26 @@ function renderSeriesList(cid, restore = false) {
     let items = `<div class="series-list">`;
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
+        
+        const hasVarieties = s.varieties && s.varieties.length > 0;
+        let totalCount = 0;
+        if (hasVarieties) {
+            for (let v of s.varieties) {
+                totalCount += v.copies ? v.copies.length : 0;
+            }
+        } else {
+            totalCount = s.copies ? s.copies.length : 0;
+        }
+        
         items += `
-            <div class="series-item" onclick="selectSeries('${cid}', ${idx})">
+            <div class="series-item" onclick="selectSeriesOrVariety('${cid}', ${idx})">
                 <div class="series-name">${escapeHtml(s.seriesName)}</div>
-                <div class="series-count">${s.copies ? s.copies.length : 0}张</div>
+                <div class="series-count">${totalCount}张</div>
                 <div class="series-year">${formatYear(s.year)}</div>
             </div>`;
     }
     items += `</div>`;
 
-    // 优先使用数据文件中的 icon，否则自动生成
     const icon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(cid) + 1);
 
     const full = `
@@ -652,7 +714,7 @@ function renderSeriesList(cid, restore = false) {
         </div>
         <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
         <div class="list-panel">
-            <div class="panel-header"><h2>${icon} ${cat.name || cid}</h2><p>点击品种查看藏品</p></div>
+            <div class="panel-header"><h2>${icon} ${cat.name || cid}</h2><p>点击版别查看详情</p></div>
             ${items}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -661,10 +723,257 @@ function renderSeriesList(cid, restore = false) {
         restoreScroll("seriesList_" + cid);
     }
     
-    // 隐藏切换按钮（非分类页）
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'none';
+    }
+}
+
+function selectSeriesOrVariety(cid, si) {
+    const cat = banknotesData[cid];
+    if (!cat || !cat.series[si]) return;
+    
+    const series = cat.series[si];
+    
+    if (series.varieties && series.varieties.length > 0) {
+        saveScroll("seriesList_" + cid);
+        renderVarietyList(cid, si, false);
+    } else {
+        saveScroll("seriesList_" + cid);
+        renderCopyList(cid, si, false);
+    }
+}
+
+function renderVarietyList(cid, si, restore = false) {
+    fromSearchResult = false;
+    if (!restore) {
+        window.scrollTo(0, 0);
+    }
+    currentView = "varietyList";
+    currentCategoryId = cid;
+    currentSeries = { cid, si, vi: null };
+
+    const cat = banknotesData[cid];
+    if (!cat || !cat.series[si]) return;
+    const series = cat.series[si];
+    const varieties = series.varieties || [];
+
+    let itemsHtml = `<div class="series-list">`;
+    for (let vi = 0; vi < varieties.length; vi++) {
+        const v = varieties[vi];
+        const copyCount = v.copies ? v.copies.length : 0;
+        itemsHtml += `
+            <div class="series-item" onclick="selectVariety('${cid}', ${si}, ${vi})">
+                <div class="series-name">${escapeHtml(v.varietyName)}</div>
+                <div class="series-count">${copyCount}张</div>
+                <div class="series-year">${formatYear(series.year)}</div>
+            </div>`;
+    }
+    itemsHtml += `</div>`;
+
+    const full = `
+        <div class="back-bar"><button class="back-btn" onclick="backToSeriesList('${cid}')">← 返回版别</button></div>
+        <div class="list-panel">
+            <div class="panel-header">
+                <h2>${escapeHtml(series.seriesName)}</h2>
+                <p>${formatYear(series.year)} · 共 ${varieties.length} 个品种</p>
+            </div>
+            ${itemsHtml}
+        </div>`;
+    document.getElementById("app").innerHTML = full;
+    
+    if (restore) {
+        restoreScroll("varietyList_" + cid + "_" + si);
+    }
+    
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
+    }
+}
+
+function selectVariety(cid, si, vi) {
+    saveScroll("varietyList_" + cid + "_" + si);
+    renderCopyListFromVariety(cid, si, vi, false);
+}
+
+function renderCopyListFromVariety(cid, si, vi, restore = false) {
+    fromSearchResult = false;
+    if (!restore) {
+        window.scrollTo(0, 0);
+    }
+    currentView = "copyList";
+    currentCategoryId = cid;
+    currentSeries = { cid, si, vi };
+
+    const cat = banknotesData[cid];
+    if (!cat || !cat.series[si]) return;
+    const series = cat.series[si];
+    const variety = series.varieties[vi];
+    const copies = variety.copies || [];
+
+    let copiesHtml = `<div class="copy-list">`;
+    for (let ci = 0; ci < copies.length; ci++) {
+        const cp = copies[ci];
+        copiesHtml += `
+            <div class="copy-item" onclick="selectCopyFromVariety('${cid}', ${si}, ${vi}, ${ci})">
+                <div class="copy-index">#${cp.copyId}</div>
+                <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
+                <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
+                <div class="copy-price">${formatYear(cp.year)}</div>
+                <div class="copy-price">${escapeHtml(formatKrause(cp.krause))}</div>
+            </div>`;
+    }
+    if (copies.length === 0) {
+        copiesHtml += `<div style="padding:1rem; text-align:center; color:#999;">暂无藏品</div>`;
+    }
+    copiesHtml += `</div>`;
+
+    const full = `
+        <div class="back-bar">
+            <button class="back-btn" onclick="backToVarietyList('${cid}', ${si})">← 返回品种</button>
+        </div>
+        <div class="list-panel">
+            <div class="panel-header">
+                <h2>${escapeHtml(variety.varietyName)}</h2>
+                <p>${formatYear(series.year)} · 共 ${copies.length} 张</p>
+            </div>
+            ${copiesHtml}
+        </div>`;
+    document.getElementById("app").innerHTML = full;
+    
+    if (restore) {
+        restoreScroll("copyList_" + cid + "_" + si + "_" + vi);
+    }
+    
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
+    }
+}
+
+function selectCopyFromVariety(cid, si, vi, ci) {
+    if (currentView === 'searchResult') {
+        fromSearchResult = true;
+        saveScroll("searchResult");
+        lastSearchParams = {
+            keyword: currentSearchKeyword,
+            type: currentSearchType
+        };
+    } else {
+        fromSearchResult = false;
+        saveScroll("copyList_" + cid + "_" + si + "_" + vi);
+    }
+    renderDetailFromVariety(cid, si, vi, ci);
+}
+
+function renderDetailFromVariety(cid, si, vi, ci) {
+    currentView = "detail";
+    currentCategoryId = cid;
+    currentSeries = { cid, si, vi, ci };
+
+    const cat = banknotesData[cid];
+    if (!cat || !cat.series[si]) return;
+    const series = cat.series[si];
+    const variety = series.varieties[vi];
+    const cp = variety.copies[ci];
+    if (!cp) return;
+
+    currentModalImg1 = cp.img1 || '';
+    currentModalImg2 = cp.img2 || '';
+
+    const detailFields = cat.detailFields || [
+        { key: "version", label: "冠字号码" },
+        { key: "bank", label: "发行银行" },
+        { key: "year", label: "发行年份" },
+        { key: "condition", label: "评级分数" },
+        { key: "price", label: "购入价格" },
+        { key: "purchaseDate", label: "购入日期" },
+        { key: "krause", label: "克劳斯编号" },
+        { key: "copyId", label: "藏品编号" }
+    ];
+
+    let detailGridHtml = '';
+    for (let field of detailFields) {
+        let value = cp[field.key];
+        
+        if (field.key === 'year') {
+            value = formatYear(cp.year);
+        } else if (field.key === 'krause') {
+            value = formatKrause(value);
+        } else if (field.key === 'copyId') {
+            value = `#${value}`;
+        } else if (value === undefined || value === null || value === '') {
+            value = '—';
+        }
+        
+        const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
+        
+        detailGridHtml += `
+            <div class="detail-field">
+                <label>${field.label}</label>
+                <div>${displayValue}</div>
+            </div>`;
+    }
+
+    const detailHtml = `
+        <div class="back-bar">
+            <button class="back-btn" onclick="backToCopyListFromVariety('${cid}', ${si}, ${vi})">← 返回藏品列表</button>
+        </div>
+        <div class="detail-panel">
+            <div class="detail-header">
+                <h3>${escapeHtml(variety.varietyName)}</h3>
+                <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div>
+            </div>
+
+            <div class="img-pair">
+                <div class="img-box">
+                    <img src="${cp.img1}" alt="正面" onclick="openModal(0)">
+                </div>
+                <div class="img-box">
+                    <img src="${cp.img2}" alt="背面" onclick="openModal(1)">
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                ${detailGridHtml}
+            </div>
+
+            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
+        </div>`;
+    document.getElementById("app").innerHTML = detailHtml;
+    window.scrollTo(0, 0);
+    
+    const switchBtn = document.getElementById('switchToCoinsBtn');
+    if (switchBtn) {
+        switchBtn.style.display = 'none';
+    }
+}
+
+function backToCopyListFromVariety(cid, si, vi) {
+    if (fromSearchResult) {
+        fromSearchResult = false;
+        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
+    } else {
+        renderCopyListFromVariety(cid, si, vi, true);
+    }
+}
+
+function backToVarietyList(cid, si) {
+    if (fromSearchResult) {
+        fromSearchResult = false;
+        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
+    } else {
+        renderVarietyList(cid, si, true);
+    }
+}
+
+function backToSeriesList(cid) {
+    if (fromSearchResult) {
+        fromSearchResult = false;
+        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
+    } else {
+        renderSeriesList(cid, true);
     }
 }
 
@@ -715,7 +1024,6 @@ function renderCopyList(cid, si, restore = false) {
         restoreScroll("copyList_" + cid + "_" + si);
     }
     
-    // 隐藏切换按钮（非分类页）
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'none';
@@ -761,7 +1069,6 @@ function renderDetail(cid, si, ci) {
             value = '—';
         }
         
-        // signature 字段支持 HTML 换行，其他字段正常转义
         const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
         
         detailGridHtml += `
@@ -799,7 +1106,6 @@ function renderDetail(cid, si, ci) {
     document.getElementById("app").innerHTML = detailHtml;
     window.scrollTo(0, 0);
     
-    // 隐藏切换按钮（非分类页）
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'none';
@@ -809,7 +1115,6 @@ function renderDetail(cid, si, ci) {
 function backToCopyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
-        // 返回搜索结果时，使用相同的关键词和类型，让 isNewSearch 为 false，从而恢复滚动位置
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
         renderCopyList(cid, si, true);
@@ -837,7 +1142,7 @@ function selectSeries(cid, si) {
 function selectCopy(cid, si, ci) {
     if (currentView === 'searchResult') {
         fromSearchResult = true;
-        saveScroll("searchResult");  // 保存当前搜索结果的滚动位置
+        saveScroll("searchResult");
         lastSearchParams = {
             keyword: currentSearchKeyword,
             type: currentSearchType
@@ -988,7 +1293,6 @@ function closeModal() {
     }
 }
 
-// 记录当前视图到历史栈
 function recordCurrentView() {
     const currentViewInfo = {
         view: currentView,
@@ -996,6 +1300,7 @@ function recordCurrentView() {
         series: currentSeries ? { 
             cid: currentSeries.cid, 
             si: currentSeries.si,
+            vi: currentSeries.vi,
             ci: currentSeries.ci
         } : null,
         searchKeyword: currentSearchKeyword,
@@ -1003,30 +1308,24 @@ function recordCurrentView() {
     };
     viewHistoryStack.push(currentViewInfo);
     
-    // 只保留最近50条记录，避免内存过大
     if (viewHistoryStack.length > 50) {
         viewHistoryStack.shift();
     }
 }
 
-// 执行返回上一级
 function goBackToPreviousView() {
     if (viewHistoryStack.length <= 1) {
-        // 没有更多历史记录，不执行任何操作（让浏览器处理默认行为）
         return false;
     }
     
-    // 移除当前视图
     viewHistoryStack.pop();
     
-    // 获取上一个视图
     const previousView = viewHistoryStack[viewHistoryStack.length - 1];
     
     if (!previousView) {
         return false;
     }
     
-    // 根据上一个视图类型进行跳转
     switch (previousView.view) {
         case 'categories':
             renderCategories(true);
@@ -1038,9 +1337,22 @@ function goBackToPreviousView() {
                 renderCategories(true);
             }
             break;
+        case 'varietyList':
+            if (previousView.series && previousView.categoryId) {
+                renderVarietyList(previousView.categoryId, previousView.series.si, true);
+            } else if (previousView.categoryId) {
+                renderSeriesList(previousView.categoryId, true);
+            } else {
+                renderCategories(true);
+            }
+            break;
         case 'copyList':
             if (previousView.series && previousView.categoryId) {
-                renderCopyList(previousView.categoryId, previousView.series.si, true);
+                if (previousView.series.vi !== undefined) {
+                    renderCopyListFromVariety(previousView.categoryId, previousView.series.si, previousView.series.vi, true);
+                } else {
+                    renderCopyList(previousView.categoryId, previousView.series.si, true);
+                }
             } else if (previousView.categoryId) {
                 renderSeriesList(previousView.categoryId, true);
             } else {
@@ -1048,9 +1360,12 @@ function goBackToPreviousView() {
             }
             break;
         case 'detail':
-            // 返回到藏品列表页（第3层）
             if (currentSeries && currentSeries.cid) {
-                renderCopyList(currentSeries.cid, currentSeries.si, true);
+                if (currentSeries.vi !== undefined) {
+                    renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
+                } else {
+                    renderCopyList(currentSeries.cid, currentSeries.si, true);
+                }
             } else if (previousView.categoryId) {
                 renderSeriesList(previousView.categoryId, true);
             } else {
@@ -1071,19 +1386,15 @@ function goBackToPreviousView() {
     return true;
 }
 
-// 监听浏览器的 popstate 事件（侧滑返回触发）
 window.addEventListener('popstate', function(event) {
     if (isHandlingPopState) return;
     isHandlingPopState = true;
     
-    // 阻止默认的浏览器返回行为，使用我们的自定义返回
     event.preventDefault();
     
     const handled = goBackToPreviousView();
     
-    // 如果没有更多历史记录，让浏览器执行默认行为（退出网页）
     if (!handled) {
-        // 重新触发一次，让浏览器执行默认返回
         setTimeout(() => {
             window.history.back();
         }, 0);
@@ -1094,23 +1405,22 @@ window.addEventListener('popstate', function(event) {
     }, 100);
 });
 
-// 在每次视图切换时添加一条历史记录
 function pushViewToHistory() {
     if (isHandlingPopState) return;
     
     recordCurrentView();
     
-    // 添加一个虚拟的历史状态，用于拦截侧滑返回
     history.pushState({ custom: true }, '');
 }
 
-// 修改各个渲染函数，在视图切换时调用 pushViewToHistory
-// 保存原始函数引用
 const originalRenderCategories = renderCategories;
 const originalRenderSeriesList = renderSeriesList;
 const originalRenderCopyList = renderCopyList;
 const originalRenderDetail = renderDetail;
 const originalRenderSearchResultPage = renderSearchResultPage;
+const originalRenderVarietyList = renderVarietyList;
+const originalRenderCopyListFromVariety = renderCopyListFromVariety;
+const originalRenderDetailFromVariety = renderDetailFromVariety;
 
 window.renderCategories = function(restore = false) {
     const result = originalRenderCategories(restore);
@@ -1128,8 +1438,24 @@ window.renderSeriesList = function(cid, restore = false) {
     return result;
 };
 
+window.renderVarietyList = function(cid, si, restore = false) {
+    const result = originalRenderVarietyList(cid, si, restore);
+    if (!restore) {
+        pushViewToHistory();
+    }
+    return result;
+};
+
 window.renderCopyList = function(cid, si, restore = false) {
     const result = originalRenderCopyList(cid, si, restore);
+    if (!restore) {
+        pushViewToHistory();
+    }
+    return result;
+};
+
+window.renderCopyListFromVariety = function(cid, si, vi, restore = false) {
+    const result = originalRenderCopyListFromVariety(cid, si, vi, restore);
     if (!restore) {
         pushViewToHistory();
     }
@@ -1142,17 +1468,25 @@ window.renderDetail = function(cid, si, ci) {
     return result;
 };
 
+window.renderDetailFromVariety = function(cid, si, vi, ci) {
+    const result = originalRenderDetailFromVariety(cid, si, vi, ci);
+    pushViewToHistory();
+    return result;
+};
+
 window.renderSearchResultPage = function(rawKeyword, type, autoFocus = true) {
     const result = originalRenderSearchResultPage(rawKeyword, type, autoFocus);
     pushViewToHistory();
     return result;
 };
 
-// 重新绑定函数引用
 renderCategories = window.renderCategories;
 renderSeriesList = window.renderSeriesList;
+renderVarietyList = window.renderVarietyList;
 renderCopyList = window.renderCopyList;
+renderCopyListFromVariety = window.renderCopyListFromVariety;
 renderDetail = window.renderDetail;
+renderDetailFromVariety = window.renderDetailFromVariety;
 renderSearchResultPage = window.renderSearchResultPage;
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1167,13 +1501,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.addEventListener('DOMContentLoaded', function() {
-    // 初始化历史记录
     viewHistoryStack = [];
     pushViewToHistory();
     renderCategories(false);
-    // 确保刷新后滚动到顶部
     window.scrollTo(0, 0);
 });
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
 });
