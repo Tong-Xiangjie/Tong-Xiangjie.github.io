@@ -1,7 +1,7 @@
 // data/macau_bnu.js
 const macau_bnuData = {
     name: "澳门大西洋银行",
-    icon: "𝟘𝟟",
+    icon: null,
     desc: "Banco Nacional Ultramarino",
     detailFields: [
         { key: "version", label: "冠字号码" },
