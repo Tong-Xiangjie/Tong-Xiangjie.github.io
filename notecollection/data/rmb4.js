@@ -300,47 +300,69 @@ const rmb4Data = {
                 }
             ]
         },
-        // ==================== 50元（只有1990年，无varieties层） ====================
+        // ==================== 50元（有多个年份，需要varieties层） ====================
         {
             seriesName: "50元",
-            year: "1990",
-            copies: [
+            year: "",
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1990,
-                    version: "TG17299637",
-                    bank: "中国人民银行",
-                    condition: "ACG66E",
-                    price: "123元",
-                    purchaseDate: "2025年10月4日",
-                    krause: "888b",
-                    wmk: "炼钢工人/Steel Worker",
-                    issueDate: "",
-                    remark: "",
-                    img1: "image/rmb4/TG17299637-1.jpg",
-                    img2: "image/rmb4/TG17299637-2.jpg"
+                    varietyName: "1980年版",
+                    copies: [
+                        // 1980年版暂无藏品，预留空数组
+                    ]
+                },
+                {
+                    varietyName: "1990年版",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1990,
+                            version: "TG17299637",
+                            bank: "中国人民银行",
+                            condition: "ACG66E",
+                            price: "123元",
+                            purchaseDate: "2025年10月4日",
+                            krause: "888b",
+                            wmk: "炼钢工人/Steel Worker",
+                            issueDate: "",
+                            remark: "",
+                            img1: "image/rmb4/TG17299637-1.jpg",
+                            img2: "image/rmb4/TG17299637-2.jpg"
+                        }
+                    ]
                 }
             ]
         },
-        // ==================== 100元（只有1990年，无varieties层） ====================
+        // ==================== 100元（有多个年份，需要varieties层） ====================
         {
             seriesName: "100元",
-            year: "1990",
-            copies: [
+            year: "",
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1990,
-                    version: "XF29286837",
-                    bank: "中国人民银行",
-                    condition: "ACG67E",
-                    price: "160元",
-                    purchaseDate: "2026年2月18日",
-                    krause: "889b",
-                    wmk: "",
-                    issueDate: "",
-                    remark: "",
-                    img1: "image/rmb4/XF29286837-1.jpg",
-                    img2: "image/rmb4/XF29286837-2.jpg"
+                    varietyName: "1980年版",
+                    copies: [
+                        // 1980年版暂无藏品，预留空数组
+                    ]
+                },
+                {
+                    varietyName: "1990年版",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1990,
+                            version: "XF29286837",
+                            bank: "中国人民银行",
+                            condition: "ACG67E",
+                            price: "160元",
+                            purchaseDate: "2026年2月18日",
+                            krause: "889b",
+                            wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
+                            issueDate: "",
+                            remark: "",
+                            img1: "image/rmb4/XF29286837-1.jpg",
+                            img2: "image/rmb4/XF29286837-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
