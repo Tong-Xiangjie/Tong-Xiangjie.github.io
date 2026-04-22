@@ -1,7 +1,7 @@
 // data/hk_boc.js
 const hk_bocData = {
     name: "香港中国银行",
-    icon: "𝟘𝟚",
+    icon: null,
     desc: "Bank of China (Hong Kong Limited)",
     // 港币板块的详情页字段配置
     detailFields: [
