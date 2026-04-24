@@ -993,13 +993,14 @@ function renderDetailFromVariety(cid, si, vi, ci) {
             </div>`;
     }
 
+    // ✅ 关键修改：标题改为 "系列名 - 品种名"
     const detailHtml = `
         <div class="back-bar">
             <button class="back-btn" onclick="backToCopyListFromVariety('${cid}', ${si}, ${vi})">← 返回藏品列表</button>
         </div>
         <div class="detail-panel">
             <div class="detail-header">
-                <h3>${escapeHtml(variety.varietyName)}</h3>
+                <h3>${escapeHtml(series.seriesName)} - ${escapeHtml(variety.varietyName)}</h3>
                 <div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div>
             </div>
 
