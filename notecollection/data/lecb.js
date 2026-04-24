@@ -17,7 +17,7 @@ const lecbData = {
         // ==================== 四川省 ====================
         {
             seriesName: "四川省",
-            year: "",
+            year: "1959",
             varieties: [
                 {
                     varietyName: "1959年",
@@ -28,15 +28,15 @@ const lecbData = {
                                 {
                                     copyId: 1,
                                     year: 1959,
-                                    version: "ⅢⅩⅩ3307203",
+                                    version: "ⅠⅡⅢ00000000",
                                     bank: "四川省人民委员会",
                                     condition: "未评级",
                                     price: "裸票85元",
                                     purchaseDate: "2026年4月24日",
                                     krause: "Unlisted",
                                     remark: "",
-                                    img1: "image/lecb/ⅢⅩⅩ3307203-1.jpg",
-                                    img2: "image/lecb/ⅢⅩⅩ3307203-2.jpg"
+                                    img1: "image/lecb/ⅠⅡⅢ00000000-1.jpg",
+                                    img2: "image/lecb/ⅠⅡⅢ00000000-2.jpg"
                                 }
                             ]
                         }
