@@ -14,24 +14,32 @@ const nedbData = {
     ],
 
     series: [
-            {
-            seriesName: "1957年版 国家经济建设公债1元",
+        // ==================== 1957年版 ====================
+        {
+            seriesName: "1957年版",
             year: "1957",
-            copies: [
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1957,
-                    version: "ⅢⅩⅩ3307203",
-                    bank: "中华人民共和国财政部",
-                    condition: "ACG63E",
-                    price: "587元",
-                    purchaseDate: "2026年4月16日",
-                    krause: "Unlisted",
-                    remark: "",
-                    img1: "image/nedb/ⅢⅩⅩ3307203-1.jpg",
-                    img2: "image/nedb/ⅢⅩⅩ3307203-2.jpg"
+                    varietyName: "1元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1957,
+                            version: "ⅢⅩⅩ3307203",
+                            bank: "中华人民共和国财政部",
+                            condition: "ACG63E",
+                            price: "587元",
+                            purchaseDate: "2026年4月16日",
+                            krause: "Unlisted",
+                            remark: "file:remarks/nedb_1957_1yuan.txt",
+                            img1: "image/nedb/ⅢⅩⅩ3307203-1.jpg",
+                            img2: "image/nedb/ⅢⅩⅩ3307203-2.jpg"
+                        }
+                    ]
                 }
+                // 可继续添加：2元、5元、10元、50元、100元等面值
             ]
         }
+        // 可继续添加：1955年版、1956年版、1958年版等
     ]
 };
