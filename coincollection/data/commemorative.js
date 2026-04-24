@@ -21,73 +21,63 @@ const commemorativeData = {
         { key: "design", label: "设计元素" },
     ],
     series: [
-        // ==================== 国际和平年 ====================
+        // ==================== 国际和平年（4层） ====================
         {
             seriesName: "国际和平年普通纪念币",
             year: 1986,
-            varieties: [
+            copies: [
                 {
-                    varietyName: "国际和平年",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 1986,
-                            issueDate: "1986年9月20日",
-                            mint: "上海造币厂、沈阳造币厂",
-                            material: "铜镍合金（75%铜，25%镍）",
-                            diameter: "30mm",
-                            weight: "9.32g",
-                            edge: "连续丝齿",
-                            design: "正面为中华人民共和国国徽（1950年9月20日启用版本），上方刊“中华人民共和国”国名，下方刊“1986”年号；背面主图为一位坐姿少女面朝右方伸展右臂，身旁环绕四只和平鸽，下方刊“国际和平年”主题字样，左侧有邓小平同志手书的“和平”二字，右下方标注“壹圆”面值。",
-                            mintage: "2704.8万",
-                            grade: "MS67",
-                            gradingCompany: "ACG",
-                            price: "69元",
-                            purchaseDate: "2026年4月3日",
-                            catalogNumber: "KM# 130",
-                            remark: "",
-                            img1: "image/commemorative/1986gjhpn1-1.jpg",
-                            img2: "image/commemorative/1986gjhpn1-2.jpg"
-                        }
-                    ]
+                    copyId: 1,
+                    country: "中华人民共和国",
+                    year: 1986,
+                    issueDate: "1986年9月20日",
+                    mint: "上海造币厂、沈阳造币厂",
+                    material: "铜镍合金（75%铜，25%镍）",
+                    diameter: "30mm",
+                    weight: "9.32g",
+                    edge: "连续丝齿",
+                    design: "正面为中华人民共和国国徽（1950年9月20日启用版本），上方刊“中华人民共和国”国名，下方刊“1986”年号；背面主图为一位坐姿少女面朝右方伸展右臂，身旁环绕四只和平鸽，下方刊“国际和平年”主题字样，左侧有邓小平同志手书的“和平”二字，右下方标注“壹圆”面值。",
+                    mintage: "2704.8万",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "69元",
+                    purchaseDate: "2026年4月3日",
+                    catalogNumber: "KM# 130",
+                    remark: "",
+                    img1: "image/commemorative/1986gjhpn1-1.jpg",
+                    img2: "image/commemorative/1986gjhpn1-2.jpg"
                 }
             ]
         },
-        // ==================== 建国40周年 ====================
+        // ==================== 建国40周年（4层） ====================
         {
             seriesName: "中华人民共和国成立四十周年普通纪念币",
             year: 1989,
-            varieties: [
+            copies: [
                 {
-                    varietyName: "建国40周年",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 1989,
-                            issueDate: "1989年9月28日",
-                            mint: "上海造币厂",
-                            material: "铜镍合金",
-                            diameter: "30mm",
-                            weight: "9.32g",
-                            edge: "连续丝齿",
-                            design: "正面为中华人民共和国国徽，上方刊“中华人民共和国”国名，下方刊“1989”年号；背面主图为人民大会堂，上方刊“中华人民共和国成立四十周年”字样，下方刊“1949-1989”及“壹圆”面值。",
-                            mintage: "2100万",
-                            grade: "MS67",
-                            gradingCompany: "ACG",
-                            price: "74元",
-                            purchaseDate: "2025年12月14日",
-                            catalogNumber: "KM# 220",
-                            remark: "",
-                            img1: "image/commemorative/1989gj40-1.jpg",
-                            img2: "image/commemorative/1989gj40-2.jpg"
-                        }
-                    ]
+                    copyId: 1,
+                    country: "中华人民共和国",
+                    year: 1989,
+                    issueDate: "1989年9月28日",
+                    mint: "上海造币厂",
+                    material: "铜镍合金",
+                    diameter: "30mm",
+                    weight: "9.32g",
+                    edge: "连续丝齿",
+                    design: "正面为中华人民共和国国徽，上方刊“中华人民共和国”国名，下方刊“1989”年号；背面主图为人民大会堂，上方刊“中华人民共和国成立四十周年”字样，下方刊“1949-1989”及“壹圆”面值。",
+                    mintage: "2100万",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "74元",
+                    purchaseDate: "2025年12月14日",
+                    catalogNumber: "KM# 220",
+                    remark: "",
+                    img1: "image/commemorative/1989gj40-1.jpg",
+                    img2: "image/commemorative/1989gj40-2.jpg"
                 }
             ]
         },
-        // ==================== 珍稀动物系列 ====================
+        // ==================== 珍稀动物系列（5层，有多品种） ====================
         {
             seriesName: "珍稀动物普通纪念币",
             year: 1993,
@@ -121,73 +111,63 @@ const commemorativeData = {
                 // 可继续添加：金丝猴、白鳍豚、华南虎等
             ]
         },
-        // ==================== 抗战胜利50周年 ====================
+        // ==================== 抗战胜利50周年（4层） ====================
         {
             seriesName: "中国抗日战争和世界反法西斯战争胜利五十周年普通纪念币",
             year: 1995,
-            varieties: [
+            copies: [
                 {
-                    varietyName: "抗战胜利50周年",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 1995,
-                            issueDate: "1995年8月31日",
-                            mint: "上海造币厂",
-                            material: "钢芯镀镍（约91%铁，1.2%碳，8%镍）",
-                            diameter: "25mm",
-                            weight: "6.05g",
-                            edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
-                            design: "正面为长城、“中华人民共和国”国名及“1995”年号；背面为战士握枪与百姓挥刀杀敌的场景，背景有旗帜和地球，并刊面额、“1945-1995”字样、“中国人民抗日战争和世界反法西斯战争胜利五十周年”主题文字。",
-                            mintage: "1000万",
-                            grade: "MS68",
-                            gradingCompany: "ACG",
-                            price: "33元",
-                            purchaseDate: "2026年4月7日",
-                            catalogNumber: "KM# 711",
-                            remark: "",
-                            img1: "image/commemorative/1995fxs1-1.jpg",
-                            img2: "image/commemorative/1995fxs1-2.jpg"
-                        }
-                    ]
+                    copyId: 1,
+                    country: "中华人民共和国",
+                    year: 1995,
+                    issueDate: "1995年8月31日",
+                    mint: "上海造币厂",
+                    material: "钢芯镀镍（约91%铁，1.2%碳，8%镍）",
+                    diameter: "25mm",
+                    weight: "6.05g",
+                    edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
+                    design: "正面为长城、“中华人民共和国”国名及“1995”年号；背面为战士握枪与百姓挥刀杀敌的场景，背景有旗帜和地球，并刊面额、“1945-1995”字样、“中国人民抗日战争和世界反法西斯战争胜利五十周年”主题文字。",
+                    mintage: "1000万",
+                    grade: "MS68",
+                    gradingCompany: "ACG",
+                    price: "33元",
+                    purchaseDate: "2026年4月7日",
+                    catalogNumber: "KM# 711",
+                    remark: "",
+                    img1: "image/commemorative/1995fxs1-1.jpg",
+                    img2: "image/commemorative/1995fxs1-2.jpg"
                 }
             ]
         },
-        // ==================== 迎接新世纪 ====================
+        // ==================== 迎接新世纪（4层） ====================
         {
             seriesName: "迎接新世纪普通纪念币",
             year: 2000,
-            varieties: [
+            copies: [
                 {
-                    varietyName: "迎接新世纪",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2000,
-                            issueDate: "2000年11月28日",
-                            mint: "上海造币厂",
-                            material: "双色铜合金（外环黄铜，内芯白铜）",
-                            diameter: "25.5mm",
-                            weight: "6.05g",
-                            edge: "连续丝齿",
-                            design: "正面（外环）上方刊“中华人民共和国”国名，下方刊“2000”年号，主图为滚滚向前的历史车轮，左侧衬以火箭，右侧衬以现代高层建筑；背面（外环）刊“迎接新世纪”主题字样，下方标注“10元”面值，内芯主图为一只抽象的眼睛，以太阳光芒为底纹，前方为丝带状的“2”字，衬以亚洲地图及中国区域。",
-                            mintage: "1000万",
-                            grade: "MS66",
-                            gradingCompany: "ACG",
-                            price: "15元",
-                            purchaseDate: "2026年3月2日",
-                            catalogNumber: "KM# 1300",
-                            remark: "",
-                            img1: "image/commemorative/2000xsj1-1.jpg",
-                            img2: "image/commemorative/2000xsj1-2.jpg"
-                        }
-                    ]
+                    copyId: 1,
+                    country: "中华人民共和国",
+                    year: 2000,
+                    issueDate: "2000年11月28日",
+                    mint: "上海造币厂",
+                    material: "双色铜合金（外环黄铜，内芯白铜）",
+                    diameter: "25.5mm",
+                    weight: "6.05g",
+                    edge: "连续丝齿",
+                    design: "正面（外环）上方刊“中华人民共和国”国名，下方刊“2000”年号，主图为滚滚向前的历史车轮，左侧衬以火箭，右侧衬以现代高层建筑；背面（外环）刊“迎接新世纪”主题字样，下方标注“10元”面值，内芯主图为一只抽象的眼睛，以太阳光芒为底纹，前方为丝带状的“2”字，衬以亚洲地图及中国区域。",
+                    mintage: "1000万",
+                    grade: "MS66",
+                    gradingCompany: "ACG",
+                    price: "15元",
+                    purchaseDate: "2026年3月2日",
+                    catalogNumber: "KM# 1300",
+                    remark: "",
+                    img1: "image/commemorative/2000xsj1-1.jpg",
+                    img2: "image/commemorative/2000xsj1-2.jpg"
                 }
             ]
         },
-        // ==================== 世界文化遗产系列 ====================
+        // ==================== 世界文化遗产系列（5层，有多品种） ====================
         {
             seriesName: "世界文化遗产系列普通纪念币",
             year: 2022,
@@ -246,7 +226,7 @@ const commemorativeData = {
                 }
             ]
         },
-        // ==================== 国家公园系列 ====================
+        // ==================== 国家公园系列（5层，有多品种） ====================
         {
             seriesName: "国家公园系列普通纪念币",
             year: 2023,
