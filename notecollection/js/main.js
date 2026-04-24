@@ -22,7 +22,7 @@ const banknotesData = {
     rmb1: rmb1Data,
     fec: fecData,
     gkq: gkqData,
-    nedb: nedbData,
+    lecb: lecbData,
     republic_cbc: republic_cbcData,
     republic_boc: republic_bocData,
     republic_communications: republic_communicationsData,
@@ -52,7 +52,7 @@ const categoryOrder = [
     "rmb1",
     "fec",
     "gkq",
-    "nedb",
+    "lecb",
     "republic_cbc",
     "republic_boc",
     "republic_communications",
@@ -123,11 +123,10 @@ function escapeHtml(str) {
     });
 }
 
-// ✅ 新增：加载外部文件内容（用于备注等长文本）
+// 加载外部文件内容（用于备注等长文本）
 async function loadExternalContent(path) {
     if (!path) return null;
     
-    // 匹配 file:路径 或 LOAD:路径 格式
     const fileMatch = path.match(/^(?:file:|LOAD:)?(.+)$/i);
     if (!fileMatch) return null;
     
@@ -146,11 +145,10 @@ async function loadExternalContent(path) {
     }
 }
 
-// ✅ 新增：处理备注内容（支持外部文件加载和HTML）
+// 处理备注内容（支持外部文件加载和HTML）
 async function processRemarkContent(remark) {
     if (!remark) return '';
     
-    // 检查是否需要从外部文件加载
     const isExternalFile = remark.startsWith('file:') || remark.startsWith('LOAD:');
     let content = remark;
     
@@ -159,7 +157,6 @@ async function processRemarkContent(remark) {
         if (!content) return '';
     }
     
-    // 返回原始内容（不转义，允许HTML标签）
     return content;
 }
 
@@ -200,7 +197,6 @@ function getDisplayValue(keyword, searchType) {
 function performSearch(rawKeyword, type, scope) {
     const keyword = getActualKeyword(rawKeyword, type);
     
-    // 判断是否为空搜索（关键词为空字符串）
     const isEmptySearch = !keyword || keyword === '';
     
     const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
@@ -214,7 +210,6 @@ function performSearch(rawKeyword, type, scope) {
         for (let si = 0; si < cat.series.length; si++) {
             const series = cat.series[si];
             
-            // 判断是否有 varieties 层
             if (series.varieties && series.varieties.length > 0) {
                 for (let vi = 0; vi < series.varieties.length; vi++) {
                     const variety = series.varieties[vi];
@@ -253,7 +248,6 @@ function performSearch(rawKeyword, type, scope) {
                     }
                 }
             } else {
-                // 原有的无 varieties 结构
                 if (!series.copies || series.copies.length === 0) continue;
                 for (let ci = 0; ci < series.copies.length; ci++) {
                     const copy = series.copies[ci];
@@ -299,7 +293,6 @@ function renderResultsList(results) {
         return `<div style="padding:1rem; text-align:center;">暂无匹配结果</div>`;
     }
 
-    // 按 catId 分组
     const grouped = {};
     for (let item of results) {
         if (!grouped[item.catId]) {
@@ -345,7 +338,6 @@ function renderResultsList(results) {
     return html;
 }
 
-// 从搜索结果选择藏品
 function selectCopyFromSearchResult(cid, si, vi, ci, hasVarieties) {
     fromSearchResult = true;
     saveScroll("searchResult");
@@ -370,10 +362,8 @@ function performRealtimeSearch() {
     const rawKeyword = searchInput.value;
     const type = searchType ? searchType.value : 'all';
 
-    // 判断是否为新搜索
     const isNewSearch = (currentSearchKeyword !== rawKeyword || currentSearchType !== type);
     
-    // 如果是新搜索，清除旧的滚动缓存
     if (isNewSearch) {
         delete scrollMemory["searchResult"];
     }
@@ -485,24 +475,18 @@ function backToPrevious() {
     }
 }
 
-// 重置搜索并返回分类页，保持当前滚动位置
 function resetSearchAndBack() {
-    // 清空搜索关键词
     currentSearchKeyword = '';
     currentSearchType = 'all';
     
-    // 清除所有相关的滚动记录
     delete scrollMemory["searchResult"];
     delete scrollMemory["categories"];
     
-    // 重置标志
     fromSearchResult = false;
     
-    // 切换到分类页，但不恢复滚动位置
     renderCategoriesWithoutRestore();
 }
 
-// 专门用于重置的渲染函数，不恢复滚动位置
 function renderCategoriesWithoutRestore() {
     fromSearchResult = false;
     searchScope = 'global';
@@ -559,13 +543,10 @@ function renderCategoriesWithoutRestore() {
     document.getElementById("app").innerHTML = html;
     bindSearchEvents();
     
-    // 显示切换按钮（分类页显示）
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'inline-block';
     }
-    
-    // 关键：不调用 restoreScroll，保持当前滚动位置不变
 }
 
 function setupKrauseInputProtection(inputElement, searchTypeElement) {
@@ -1022,7 +1003,6 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
             value = '—';
         }
         
-        // signature 字段支持 HTML 换行，其他字段正常转义
         const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
         
         detailGridHtml += `
@@ -1032,7 +1012,6 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
             </div>`;
     }
     
-    // ✅ 处理备注内容（支持外部文件和HTML标签）
     let remarkHtml = '';
     if (cp.remark) {
         const remarkContent = await processRemarkContent(cp.remark);
@@ -1194,7 +1173,6 @@ async function renderDetail(cid, si, ci) {
             value = '—';
         }
         
-        // signature 字段支持 HTML 换行，其他字段正常转义
         const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
         
         detailGridHtml += `
@@ -1204,7 +1182,6 @@ async function renderDetail(cid, si, ci) {
             </div>`;
     }
     
-    // ✅ 处理备注内容（支持外部文件和HTML标签）
     let remarkHtml = '';
     if (cp.remark) {
         const remarkContent = await processRemarkContent(cp.remark);
@@ -1402,9 +1379,10 @@ function openModal(index = 0) {
         currentY = 0;
     }
 
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = scrollbarWidth + 'px';
+    // 锁定页面，禁止滚动和边缘滑动手势
+    const scrollY = window.scrollY;
+    document.body.classList.add('modal-open');
+    document.body.style.top = `-${scrollY}px`;
 
     modalImg.onload = function() {
         initPinchZoom();
@@ -1417,8 +1395,16 @@ function openModal(index = 0) {
 function closeModal() {
     const modal = document.getElementById('imageModal');
     modal.style.display = 'none';
-    document.body.style.overflow = '';
-    document.body.style.paddingRight = '';
+    
+    // 恢复滚动和触摸
+    const scrollY = parseInt(document.body.style.top || '0') * -1;
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    
+    if (scrollY) {
+        window.scrollTo(0, scrollY);
+    }
+    
     const modalImg = document.getElementById('modalImg');
     modalImg.src = '';
 
