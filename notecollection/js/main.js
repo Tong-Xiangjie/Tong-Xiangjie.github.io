@@ -23,7 +23,6 @@ const banknotesData = {
     fec: fecData,
     gkq: gkqData,
     nedb: nedbData,
-    lecb: lecbData,
     republic_cbc: republic_cbcData,
     republic_boc: republic_bocData,
     republic_communications: republic_communicationsData,
@@ -54,7 +53,6 @@ const categoryOrder = [
     "fec",
     "gkq",
     "nedb",
-    "lecb",
     "republic_cbc",
     "republic_boc",
     "republic_communications",
@@ -123,6 +121,46 @@ function escapeHtml(str) {
         if (m === '>') return '&gt;';
         return m;
     });
+}
+
+// ✅ 新增：加载外部文件内容（用于备注等长文本）
+async function loadExternalContent(path) {
+    if (!path) return null;
+    
+    // 匹配 file:路径 或 LOAD:路径 格式
+    const fileMatch = path.match(/^(?:file:|LOAD:)?(.+)$/i);
+    if (!fileMatch) return null;
+    
+    const filePath = fileMatch[1];
+    try {
+        const response = await fetch(filePath);
+        if (response.ok) {
+            return await response.text();
+        } else {
+            console.error('加载文件失败:', filePath, response.status);
+            return `[文件加载失败: ${filePath}]`;
+        }
+    } catch(e) {
+        console.error('加载文件异常:', filePath, e);
+        return `[文件加载异常: ${filePath}]`;
+    }
+}
+
+// ✅ 新增：处理备注内容（支持外部文件加载和HTML）
+async function processRemarkContent(remark) {
+    if (!remark) return '';
+    
+    // 检查是否需要从外部文件加载
+    const isExternalFile = remark.startsWith('file:') || remark.startsWith('LOAD:');
+    let content = remark;
+    
+    if (isExternalFile) {
+        content = await loadExternalContent(remark);
+        if (!content) return '';
+    }
+    
+    // 返回原始内容（不转义，允许HTML标签）
+    return content;
 }
 
 function formatYear(year) {
@@ -944,7 +982,7 @@ function selectCopyFromVariety(cid, si, vi, ci) {
     renderDetailFromVariety(cid, si, vi, ci);
 }
 
-function renderDetailFromVariety(cid, si, vi, ci) {
+async function renderDetailFromVariety(cid, si, vi, ci) {
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si, vi, ci };
@@ -984,6 +1022,7 @@ function renderDetailFromVariety(cid, si, vi, ci) {
             value = '—';
         }
         
+        // signature 字段支持 HTML 换行，其他字段正常转义
         const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
         
         detailGridHtml += `
@@ -992,8 +1031,16 @@ function renderDetailFromVariety(cid, si, vi, ci) {
                 <div>${displayValue}</div>
             </div>`;
     }
+    
+    // ✅ 处理备注内容（支持外部文件和HTML标签）
+    let remarkHtml = '';
+    if (cp.remark) {
+        const remarkContent = await processRemarkContent(cp.remark);
+        if (remarkContent) {
+            remarkHtml = `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${remarkContent}</div></div>`;
+        }
+    }
 
-    // ✅ 关键修改：标题改为 "系列名 - 品种名"
     const detailHtml = `
         <div class="back-bar">
             <button class="back-btn" onclick="backToCopyListFromVariety('${cid}', ${si}, ${vi})">← 返回藏品列表</button>
@@ -1017,7 +1064,7 @@ function renderDetailFromVariety(cid, si, vi, ci) {
                 ${detailGridHtml}
             </div>
 
-            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
+            ${remarkHtml}
         </div>`;
     document.getElementById("app").innerHTML = detailHtml;
     window.scrollTo(0, 0);
@@ -1108,7 +1155,7 @@ function renderCopyList(cid, si, restore = false) {
     }
 }
 
-function renderDetail(cid, si, ci) {
+async function renderDetail(cid, si, ci) {
     currentView = "detail";
     currentCategoryId = cid;
     currentSeries = { cid, si, ci };
@@ -1147,6 +1194,7 @@ function renderDetail(cid, si, ci) {
             value = '—';
         }
         
+        // signature 字段支持 HTML 换行，其他字段正常转义
         const displayValue = field.key === 'signature' ? String(value) : escapeHtml(String(value));
         
         detailGridHtml += `
@@ -1154,6 +1202,15 @@ function renderDetail(cid, si, ci) {
                 <label>${field.label}</label>
                 <div>${displayValue}</div>
             </div>`;
+    }
+    
+    // ✅ 处理备注内容（支持外部文件和HTML标签）
+    let remarkHtml = '';
+    if (cp.remark) {
+        const remarkContent = await processRemarkContent(cp.remark);
+        if (remarkContent) {
+            remarkHtml = `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${remarkContent}</div></div>`;
+        }
     }
 
     const detailHtml = `
@@ -1179,7 +1236,7 @@ function renderDetail(cid, si, ci) {
                 ${detailGridHtml}
             </div>
 
-            ${cp.remark ? `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${escapeHtml(cp.remark)}</div></div>` : ''}
+            ${remarkHtml}
         </div>`;
     document.getElementById("app").innerHTML = detailHtml;
     window.scrollTo(0, 0);
@@ -1322,16 +1379,6 @@ function initPinchZoom() {
         clampTransform();
     });
 
-    // ✅ 新增：阻止边缘滑动时被 Hammer 消费
-    container.addEventListener('touchstart', function(e) {
-        const clientX = e.touches[0].clientX;
-        const screenWidth = window.innerWidth;
-        if (clientX < 30 || clientX > screenWidth - 30) {
-            // 边缘滑动不交给 Hammer 处理
-            e.stopPropagation();
-        }
-    });
-
     container.addEventListener('dblclick', function(e) {
         resetTransform();
         e.preventDefault();
@@ -1365,128 +1412,6 @@ function openModal(index = 0) {
     if (modalImg.complete) {
         initPinchZoom();
     }
-    
-    // ✅ 新增：初始化边缘滑动关闭（在弹窗最外层监听）
-    initEdgeSwipeToClose();
-}
-
-// ✅ 边缘滑动关闭变量
-let edgeStartX = 0;
-let edgeStartY = 0;
-let edgeListening = false;
-
-function initEdgeSwipeToClose() {
-    const modal = document.getElementById('imageModal');
-    if (!modal) return;
-    
-    // 移除旧监听
-    modal.removeEventListener('touchstart', onEdgeTouchStart);
-    modal.removeEventListener('touchmove', onEdgeTouchMove);
-    
-    // 添加新监听，使用较高优先级
-    modal.addEventListener('touchstart', onEdgeTouchStart, { passive: false });
-    modal.addEventListener('touchmove', onEdgeTouchMove, { passive: false });
-}
-
-function onEdgeTouchStart(e) {
-    const touch = e.touches[0];
-    const screenWidth = window.innerWidth;
-    const clientX = touch.clientX;
-    const clientY = touch.clientY;
-    
-    // 只在屏幕左边缘30px内 或 右边缘30px内 时记录起点
-    if (clientX < 30 || clientX > screenWidth - 30) {
-        edgeStartX = clientX;
-        edgeStartY = clientY;
-        edgeListening = true;
-    } else {
-        edgeListening = false;
-    }
-}
-
-function onEdgeTouchMove(e) {
-    if (!edgeListening) return;
-    
-    const touch = e.touches[0];
-    const screenWidth = window.innerWidth;
-    const currentX = touch.clientX;
-    const currentY = touch.clientY;
-    const deltaX = currentX - edgeStartX;
-    const deltaY = Math.abs(currentY - edgeStartY);
-    
-    // 左边缘向右滑动超过30px，且纵向移动不大（避免误触）
-    if (edgeStartX < 30 && deltaX > 30 && deltaY < 50) {
-        e.preventDefault();
-        closeModal();
-        edgeListening = false;
-    }
-    // 右边缘向左滑动超过30px
-    else if (edgeStartX > screenWidth - 30 && deltaX < -30 && deltaY < 50) {
-        e.preventDefault();
-        closeModal();
-        edgeListening = false;
-    }
-}
-
-// ✅ 新增：边缘滑动关闭相关变量
-let edgeSwipeStartX = 0;
-let edgeSwipeStartY = 0;
-let isEdgeSwiping = false;
-
-function initEdgeSwipeToClose() {
-    const modal = document.getElementById('imageModal');
-    if (!modal) return;
-    
-    // 移除旧监听，避免重复
-    modal.removeEventListener('touchstart', onEdgeSwipeStart);
-    modal.removeEventListener('touchmove', onEdgeSwipeMove);
-    modal.removeEventListener('touchend', onEdgeSwipeEnd);
-    
-    // 添加新监听
-    modal.addEventListener('touchstart', onEdgeSwipeStart, { passive: false });
-    modal.addEventListener('touchmove', onEdgeSwipeMove, { passive: false });
-    modal.addEventListener('touchend', onEdgeSwipeEnd);
-}
-
-function onEdgeSwipeStart(e) {
-    const touch = e.touches[0];
-    const screenWidth = window.innerWidth;
-    const clientX = touch.clientX;
-    const clientY = touch.clientY;
-    
-    // 检测是否从边缘开始（左边缘30px内 或 右边缘30px内）
-    const isLeftEdge = clientX < 30;
-    const isRightEdge = clientX > screenWidth - 30;
-    
-    if (isLeftEdge || isRightEdge) {
-        edgeSwipeStartX = clientX;
-        edgeSwipeStartY = clientY;
-        isEdgeSwiping = true;
-        e.preventDefault();
-    }
-}
-
-function onEdgeSwipeMove(e) {
-    if (!isEdgeSwiping) return;
-    
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - edgeSwipeStartX;
-    const deltaY = touch.clientY - edgeSwipeStartY;
-    const screenWidth = window.innerWidth;
-    
-    // 左边缘向右滑动超过30px 或 右边缘向左滑动超过30px
-    const isLeftEdgeSwipe = (edgeSwipeStartX < 30 && deltaX > 30);
-    const isRightEdgeSwipe = (edgeSwipeStartX > screenWidth - 30 && deltaX < -30);
-    
-    if (isLeftEdgeSwipe || isRightEdgeSwipe) {
-        e.preventDefault();
-        closeModal();  // 关闭图片弹窗
-        isEdgeSwiping = false;
-    }
-}
-
-function onEdgeSwipeEnd(e) {
-    isEdgeSwiping = false;
 }
 
 function closeModal() {
@@ -1501,9 +1426,6 @@ function closeModal() {
         hammerManager.destroy();
         hammerManager = null;
     }
-    
-    // 清理边缘滑动相关变量
-    isEdgeSwiping = false;
 }
 
 function recordCurrentView() {
