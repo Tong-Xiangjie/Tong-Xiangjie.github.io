@@ -16,11 +16,11 @@ const lecbData = {
     series: [
         // ==================== 四川省 ====================
         {
-            seriesName: "四川省",
+            seriesName: "四川省 1959年",
             year: "1959",
             varieties: [
                 {
-                    varietyName: "1959年",
+                    varietyName: "1元",
                     varieties: [
                         {
                             varietyName: "1元",
