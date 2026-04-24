@@ -1322,6 +1322,16 @@ function initPinchZoom() {
         clampTransform();
     });
 
+    // ✅ 新增：阻止边缘滑动时被 Hammer 消费
+    container.addEventListener('touchstart', function(e) {
+        const clientX = e.touches[0].clientX;
+        const screenWidth = window.innerWidth;
+        if (clientX < 30 || clientX > screenWidth - 30) {
+            // 边缘滑动不交给 Hammer 处理
+            e.stopPropagation();
+        }
+    });
+
     container.addEventListener('dblclick', function(e) {
         resetTransform();
         e.preventDefault();
@@ -1356,8 +1366,66 @@ function openModal(index = 0) {
         initPinchZoom();
     }
     
-    // ✅ 新增：初始化边缘滑动关闭
+    // ✅ 新增：初始化边缘滑动关闭（在弹窗最外层监听）
     initEdgeSwipeToClose();
+}
+
+// ✅ 边缘滑动关闭变量
+let edgeStartX = 0;
+let edgeStartY = 0;
+let edgeListening = false;
+
+function initEdgeSwipeToClose() {
+    const modal = document.getElementById('imageModal');
+    if (!modal) return;
+    
+    // 移除旧监听
+    modal.removeEventListener('touchstart', onEdgeTouchStart);
+    modal.removeEventListener('touchmove', onEdgeTouchMove);
+    
+    // 添加新监听，使用较高优先级
+    modal.addEventListener('touchstart', onEdgeTouchStart, { passive: false });
+    modal.addEventListener('touchmove', onEdgeTouchMove, { passive: false });
+}
+
+function onEdgeTouchStart(e) {
+    const touch = e.touches[0];
+    const screenWidth = window.innerWidth;
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+    
+    // 只在屏幕左边缘30px内 或 右边缘30px内 时记录起点
+    if (clientX < 30 || clientX > screenWidth - 30) {
+        edgeStartX = clientX;
+        edgeStartY = clientY;
+        edgeListening = true;
+    } else {
+        edgeListening = false;
+    }
+}
+
+function onEdgeTouchMove(e) {
+    if (!edgeListening) return;
+    
+    const touch = e.touches[0];
+    const screenWidth = window.innerWidth;
+    const currentX = touch.clientX;
+    const currentY = touch.clientY;
+    const deltaX = currentX - edgeStartX;
+    const deltaY = Math.abs(currentY - edgeStartY);
+    
+    // 左边缘向右滑动超过30px，且纵向移动不大（避免误触）
+    if (edgeStartX < 30 && deltaX > 30 && deltaY < 50) {
+        e.preventDefault();
+        closeModal();
+        edgeListening = false;
+    }
+    // 右边缘向左滑动超过30px
+    else if (edgeStartX > screenWidth - 30 && deltaX < -30 && deltaY < 50) {
+        e.preventDefault();
+        closeModal();
+        edgeListening = false;
+    }
 }
 
 // ✅ 新增：边缘滑动关闭相关变量
