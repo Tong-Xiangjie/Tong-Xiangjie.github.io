@@ -1355,6 +1355,70 @@ function openModal(index = 0) {
     if (modalImg.complete) {
         initPinchZoom();
     }
+    
+    // ✅ 新增：初始化边缘滑动关闭
+    initEdgeSwipeToClose();
+}
+
+// ✅ 新增：边缘滑动关闭相关变量
+let edgeSwipeStartX = 0;
+let edgeSwipeStartY = 0;
+let isEdgeSwiping = false;
+
+function initEdgeSwipeToClose() {
+    const modal = document.getElementById('imageModal');
+    if (!modal) return;
+    
+    // 移除旧监听，避免重复
+    modal.removeEventListener('touchstart', onEdgeSwipeStart);
+    modal.removeEventListener('touchmove', onEdgeSwipeMove);
+    modal.removeEventListener('touchend', onEdgeSwipeEnd);
+    
+    // 添加新监听
+    modal.addEventListener('touchstart', onEdgeSwipeStart, { passive: false });
+    modal.addEventListener('touchmove', onEdgeSwipeMove, { passive: false });
+    modal.addEventListener('touchend', onEdgeSwipeEnd);
+}
+
+function onEdgeSwipeStart(e) {
+    const touch = e.touches[0];
+    const screenWidth = window.innerWidth;
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
+    
+    // 检测是否从边缘开始（左边缘30px内 或 右边缘30px内）
+    const isLeftEdge = clientX < 30;
+    const isRightEdge = clientX > screenWidth - 30;
+    
+    if (isLeftEdge || isRightEdge) {
+        edgeSwipeStartX = clientX;
+        edgeSwipeStartY = clientY;
+        isEdgeSwiping = true;
+        e.preventDefault();
+    }
+}
+
+function onEdgeSwipeMove(e) {
+    if (!isEdgeSwiping) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - edgeSwipeStartX;
+    const deltaY = touch.clientY - edgeSwipeStartY;
+    const screenWidth = window.innerWidth;
+    
+    // 左边缘向右滑动超过30px 或 右边缘向左滑动超过30px
+    const isLeftEdgeSwipe = (edgeSwipeStartX < 30 && deltaX > 30);
+    const isRightEdgeSwipe = (edgeSwipeStartX > screenWidth - 30 && deltaX < -30);
+    
+    if (isLeftEdgeSwipe || isRightEdgeSwipe) {
+        e.preventDefault();
+        closeModal();  // 关闭图片弹窗
+        isEdgeSwiping = false;
+    }
+}
+
+function onEdgeSwipeEnd(e) {
+    isEdgeSwiping = false;
 }
 
 function closeModal() {
@@ -1369,6 +1433,9 @@ function closeModal() {
         hammerManager.destroy();
         hammerManager = null;
     }
+    
+    // 清理边缘滑动相关变量
+    isEdgeSwiping = false;
 }
 
 function recordCurrentView() {
