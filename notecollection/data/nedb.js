@@ -2,7 +2,7 @@
 const nedbData = {
     name: "国家经济建设公债",
     icon: null,
-    desc: "National Economic Development Bond",
+    desc: "State Economic Construction Bonds",
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行部门" },
