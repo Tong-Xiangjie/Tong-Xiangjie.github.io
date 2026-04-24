@@ -14,31 +14,26 @@ const lecbData = {
     ],
 
     series: [
-        // ==================== 四川省 ====================
+        // ==================== 四川省 1959年 ====================
         {
             seriesName: "四川省 1959年",
             year: "1959",
             varieties: [
                 {
                     varietyName: "1元",
-                    varieties: [
+                    copies: [
                         {
-                            varietyName: "1元",
-                            copies: [
-                                {
-                                    copyId: 1,
-                                    year: 1959,
-                                    version: "ⅠⅡⅢ00000000",
-                                    bank: "四川省人民委员会",
-                                    condition: "未评级",
-                                    price: "裸票85元",
-                                    purchaseDate: "2026年4月24日",
-                                    krause: "Unlisted",
-                                    remark: "",
-                                    img1: "image/lecb/ⅠⅡⅢ00000000-1.jpg",
-                                    img2: "image/lecb/ⅠⅡⅢ00000000-2.jpg"
-                                }
-                            ]
+                            copyId: 1,
+                            year: 1959,
+                            version: "ⅠⅡⅢ00000000",
+                            bank: "四川省人民委员会",
+                            condition: "未评级",
+                            price: "裸票85元",
+                            purchaseDate: "2026年4月24日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/lecb/ⅠⅡⅢ00000000-1.jpg",
+                            img2: "image/lecb/ⅠⅡⅢ00000000-2.jpg"
                         }
                     ]
                 }
