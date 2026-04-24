@@ -63,7 +63,7 @@ const commemorativeData = {
                     varietyName: "建国40周年",
                     copies: [
                         {
-                            copyId: 2,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 1989,
                             issueDate: "1989年9月28日",
@@ -96,7 +96,7 @@ const commemorativeData = {
                     varietyName: "大熊猫",
                     copies: [
                         {
-                            copyId: 3,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 1993,
                             issueDate: "1993年",
@@ -130,7 +130,7 @@ const commemorativeData = {
                     varietyName: "抗战胜利50周年",
                     copies: [
                         {
-                            copyId: 4,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 1995,
                             issueDate: "1995年8月31日",
@@ -163,7 +163,7 @@ const commemorativeData = {
                     varietyName: "迎接新世纪",
                     copies: [
                         {
-                            copyId: 5,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 2000,
                             issueDate: "2000年11月28日",
@@ -196,7 +196,7 @@ const commemorativeData = {
                     varietyName: "峨眉山-乐山大佛",
                     copies: [
                         {
-                            copyId: 6,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 2022,
                             issueDate: "2022年",
@@ -222,7 +222,7 @@ const commemorativeData = {
                     varietyName: "黄山",
                     copies: [
                         {
-                            copyId: 7,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 2022,
                             issueDate: "2022年",
@@ -255,7 +255,7 @@ const commemorativeData = {
                     varietyName: "三江源国家公园",
                     copies: [
                         {
-                            copyId: 8,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 2023,
                             issueDate: "2023年",
@@ -281,7 +281,7 @@ const commemorativeData = {
                     varietyName: "大熊猫国家公园",
                     copies: [
                         {
-                            copyId: 9,
+                            copyId: 1,
                             country: "中华人民共和国",
                             year: 2023,
                             issueDate: "2023年",
