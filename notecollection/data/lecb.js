@@ -25,15 +25,15 @@ const lecbData = {
                         {
                             copyId: 1,
                             year: 1959,
-                            version: "ⅠⅡⅢ00000000",
+                            version: "ⅠⅡⅢ06173849",
                             bank: "四川省人民委员会",
                             condition: "未评级",
                             price: "裸票85元",
                             purchaseDate: "2026年4月24日",
                             krause: "Unlisted",
-                            remark: "",
-                            img1: "image/lecb/ⅠⅡⅢ00000000-1.jpg",
-                            img2: "image/lecb/ⅠⅡⅢ00000000-2.jpg"
+                            remark: "file:remarks/lecb_sichuan_1959_1yuan.txt",
+                            img1: "image/lecb/ⅠⅡⅢ06173849-1.jpg",
+                            img2: "image/lecb/ⅠⅡⅢ06173849-2.jpg"
                         }
                     ]
                 }
