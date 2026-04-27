@@ -100,7 +100,7 @@ const rmb4Data = {
         // ==================== 1元（有多个年份，需要varieties层） ====================
         {
             seriesName: "1元",
-            year: "",
+            year: "1980～1996",
             varieties: [
                 {
                     varietyName: "1980年版",
@@ -182,7 +182,7 @@ const rmb4Data = {
         // ==================== 2元（有多个年份，需要varieties层） ====================
         {
             seriesName: "2元",
-            year: "",
+            year: "1980～1990",
             varieties: [
                 {
                     varietyName: "1980年版",
@@ -303,7 +303,7 @@ const rmb4Data = {
         // ==================== 50元（有多个年份，需要varieties层） ====================
         {
             seriesName: "50元",
-            year: "",
+            year: "1980～1990",
             varieties: [
                 {
                     varietyName: "1980年版",
@@ -336,7 +336,7 @@ const rmb4Data = {
         // ==================== 100元（有多个年份，需要varieties层） ====================
         {
             seriesName: "100元",
-            year: "",
+            year: "1980～1990",
             varieties: [
                 {
                     varietyName: "1980年版",
