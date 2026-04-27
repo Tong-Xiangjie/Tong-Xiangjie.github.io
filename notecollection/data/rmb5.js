@@ -22,7 +22,7 @@ const rmb5Data = {
         // ==================== 1元 ====================
         {
             seriesName: "1元",
-            year: "",
+            year: "1999～2019",
             varieties: [
                 {
                     varietyName: "1999年版",
@@ -111,7 +111,7 @@ const rmb5Data = {
         // ==================== 5元 ====================
         {
             seriesName: "5元",
-            year: "",
+            year: "1999～2020",
             varieties: [
                 {
                     varietyName: "1999年版",
@@ -187,7 +187,7 @@ const rmb5Data = {
         // ==================== 10元 ====================
         {
             seriesName: "10元",
-            year: "",
+            year: "1999～2019",
             varieties: [
                 {
                     varietyName: "1999年版",
@@ -281,7 +281,7 @@ const rmb5Data = {
         // ==================== 20元 ====================
         {
             seriesName: "20元",
-            year: "",
+            year: "1999～2019",
             varieties: [
                 {
                     varietyName: "1999年版",
@@ -357,7 +357,7 @@ const rmb5Data = {
         // ==================== 50元 ====================
         {
             seriesName: "50元",
-            year: "",
+            year: "1999～2019",
             varieties: [
                 {
                     varietyName: "1999年版",
@@ -416,7 +416,7 @@ const rmb5Data = {
         // ==================== 100元 ====================
         {
             seriesName: "100元",
-            year: "",
+            year: "1999～2015",
             varieties: [
                 {
                     varietyName: "1999年版",
