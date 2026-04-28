@@ -8,6 +8,7 @@ let viewHistoryStack = [];
 // 合并所有数据
 const banknotesData = {
     commemorative: commemorativeData,
+    uncut: uncutData,
     hk_boc: hk_bocData,
     hk_hsbc: hk_hsbcData,
     hk_sc: hk_scData,
@@ -39,6 +40,7 @@ const banknotesData = {
 
 const categoryOrder = [
     "commemorative",
+    "uncut",
     "hk_boc",
     "hk_hsbc",
     "hk_sc",
