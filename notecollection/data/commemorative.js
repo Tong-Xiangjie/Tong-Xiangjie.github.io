@@ -207,7 +207,7 @@ const commemorativeData = {
             copies: [] 
         },
         { 
-            seriesName: "中华民国成立100年纪念钞",
+            seriesName: "庆祝中华民国建国一百年纪念钞",
             year: "2011",
             copies: [{ 
                 copyId: 1, 
