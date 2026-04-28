@@ -14,48 +14,73 @@ const uncutData = {
         { key: "krause", label: "克劳斯目录编号" }
     ],
     series: [
+        // ==================== 2001年 澳门双错四连体 ====================
         {
-            seriesName: "2001年 澳门双错四连体 中国银行",
+            seriesName: "2001年 澳门双错四连体",
             year: "2001",
-            copies: [
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 2001,
-                    version: "DQ6/7/8/98397",
-                    bank: "中国银行",
-                    number: "10万",
-                    condition: "暂未评级",
-                    price: "裸钞290元",
-                    purchaseDate: "2026年4月8日",
-                    krause: "",
-                    remark: "",
-                    img1: "image/uncut/DQ67898397-1.jpg",
-                    img2: "image/uncut/DQ67898397-2.jpg"
+                    varietyName: "中国银行",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 2001,
+                            version: "DQ6/7/8/98397",
+                            bank: "中国银行",
+                            number: "10万",
+                            condition: "暂未评级",
+                            price: "裸钞290元",
+                            purchaseDate: "2026年4月8日",
+                            krause: "",
+                            remark: "",
+                            img1: "image/uncut/DQ67898397-1.jpg",
+                            img2: "image/uncut/DQ67898397-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "大西洋银行",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 2001,
+                            version: "BH00/2/4/68397",
+                            bank: "大西洋银行",
+                            number: "10万",
+                            condition: "暂未评级",
+                            price: "裸钞290元",
+                            purchaseDate: "2026年4月8日",
+                            krause: "",
+                            remark: "",
+                            img1: "image/uncut/BH002468397-1.jpg",
+                            img2: "image/uncut/BH002468397-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "证书",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 2001,
+                            version: "048397",
+                            bank: "中国长城硬币投资有限公司",
+                            number: "10万",
+                            condition: "暂未评级",
+                            price: "0元",
+                            purchaseDate: "2026年4月8日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/uncut/048397-1.jpg",
+                            img2: "image/uncut/048397-2.jpg"
+                        }
+                    ]
                 }
             ]
         },
+        // ==================== 2011年 台湾辛亥三连体 ====================
         {
-            seriesName: "2001年 澳门双错四连体 大西洋银行",
-            year: "2001",
-            copies: [
-                {
-                    copyId: 1,
-                    year: 2001,
-                    version: "BH00/2/4/68397",
-                    bank: "大西洋银行",
-                    number: "10万",
-                    condition: "暂未评级",
-                    price: "裸钞290元",
-                    purchaseDate: "2026年4月8日",
-                    krause: "",
-                    remark: "",
-                    img1: "image/uncut/BH002468397-1.jpg",
-                    img2: "image/uncut/BH002468397-2.jpg"
-                }
-            ]
-        },
-        {
-            seriesName: "2011年 台湾辛亥三连体",
+            seriesName: "2011年 中华民国成立100年三连体",
             year: "2011",
             copies: [
                 {
