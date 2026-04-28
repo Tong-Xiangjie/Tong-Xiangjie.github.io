@@ -86,7 +86,7 @@ const uncutData = {
                 {
                     copyId: 1,
                     year: 2011,
-                    version: "0",
+                    version: "JQ47754/5/6ZA",
                     bank: "中央银行",
                     number: "30万",
                     condition: "暂未评级",
@@ -94,8 +94,8 @@ const uncutData = {
                     purchaseDate: "2026年4月1日",
                     krause: "",
                     remark: "",
-                    img1: "image/uncut/taiwan2011-1.jpg",
-                    img2: "image/uncut/taiwan2011-2.jpg"
+                    img1: "image/uncut/JQ47754456ZA-1.jpg",
+                    img2: "image/uncut/JQ47754456ZA-2.jpg"
                 }
             ]
         }
