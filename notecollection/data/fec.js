@@ -1,7 +1,7 @@
 // data/fec.js
 const fecData = {
     name: "外汇兑换券",
-    icon: "𝟙𝟜",
+    icon: null,
     desc: "Foreign Exchange Certificate",
     // 详情页字段配置
     detailFields: [
