@@ -1,11 +1,23 @@
-// 侧滑返回恢复滚动位置，F5刷新回到顶部
-window.addEventListener('pageshow', function(event) {
-    if (!event.persisted) {
-        // 不是从缓存加载（即正常加载或刷新），滚动到顶部
+(function() {
+    // 检查 sessionStorage 中的刷新标记
+    const wasReload = sessionStorage.getItem('reloadFlag') === 'true';
+    
+    if (wasReload) {
+        // 这是刷新操作 → 回到顶部
         window.scrollTo(0, 0);
+        sessionStorage.removeItem('reloadFlag');
     }
-    // event.persisted === true 时（侧滑返回），浏览器自动恢复滚动位置
-});
+    
+    // 监听 beforeunload，标记即将刷新
+    window.addEventListener('beforeunload', function() {
+        sessionStorage.setItem('reloadFlag', 'true');
+    });
+    
+    // 确保浏览器自动滚动恢复是开启的
+    if (history.scrollRestoration !== 'auto') {
+        history.scrollRestoration = 'auto';
+    }
+})();
 
 // 侧滑返回历史记录管理
 let isHandlingPopState = false;
