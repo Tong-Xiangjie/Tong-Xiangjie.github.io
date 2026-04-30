@@ -432,6 +432,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
+            // 新增 readme
+            readme: {
+                title: "北京2022年冬奥会纪念钞宣传视频",
+                content: "file:readmes/winter_olympics_promo.txt"
+            },
             copies: [{ 
                 copyId: 1, 
                 year: 2022,
@@ -451,6 +456,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
             year: "2022",
+            // 新增 readme
+            readme: {
+                title: "北京2022年冬奥会纪念钞宣传视频",
+                content: "file:readmes/winter_olympics_promo.txt"
+            },
             copies: [
                 { 
                     copyId: 1, 
@@ -502,6 +512,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）",
             year: "2022",
+            // 新增 readme
+            readme: {
+                title: "北京2022年冬奥会纪念钞宣传视频",
+                content: "file:readmes/winter_olympics_promo.txt"
+            },
             copies: [
                 { 
                     copyId: 1, 
@@ -538,6 +553,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
             year: "2022",
+            // 新增 readme
+            readme: {
+                title: "北京2022年冬奥会纪念钞宣传视频",
+                content: "file:readmes/winter_olympics_promo.txt"
+            },
             copies: [{ 
                 copyId: 1, 
                 year: 2022,
