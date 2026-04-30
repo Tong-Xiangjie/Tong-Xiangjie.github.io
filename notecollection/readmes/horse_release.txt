@@ -10,33 +10,33 @@
 <br><br>
 <b>1.正面图案。</b>
 <p>双色铜合金纪念币正面图案为“中国人民银行”、“10元”字样，汉语拼音字母“SHIYUAN”及年号“2026”，底纹衬以团花图案。</p>
-<center><img src="/image/comm/horse_release_1.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_1.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">正面图案</span></center>
 <br>
 <p>纪念钞正面主景为马的造型图案，上方为中华人民共和国国徽、“中国人民银行”、篆书“马”字印章，下方依次为光彩光变面额数字“20”与汉字“贰拾圆”、动感全息图案、透明视窗、盲文面额标记和冠字号码。</p>
-<center><img src="/image/comm/horse_release_2.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_2.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">正面图案</span></center>
 <br>
 <b>2.背面图案。</b>
 <p>双色铜合金纪念币背面图案为中国传统剪纸艺术与装饰年画元素相结合的马形象，衬以花灯和萱草图案，币面左侧刊“丙午”字样。</p>
-<center><img src="/image/comm/horse_release_3.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_3.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">背面图案</span></center>
 <br>
 <p>纪念钞背面主景为儿童欢庆锣鼓图案，辅以蒙古包装饰图案，上方为面额数字“20”、汉语拼音字母“YUAN”，下方为花卉与动感全息图案、年号“2026年”、行长章、面额数字“20”、“中国人民银行”汉语拼音和蒙、藏、维、壮四种民族文字的“中国人民银行 贰拾圆”字样。</p>
-<center><img src="/image/comm/horse_release_4.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_4.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">背面图案</span></center>
 <br>
 <b>（二）双色铜合金纪念币和纪念钞面额、规格、材质及发行数量。</b>
 <p>双色铜合金纪念币面额10元，直径27毫米，材质为双色铜合金，发行数量为1亿枚（含留存历史货币档案1万枚）。</p>
 <p>纪念钞面额20元，票面长145毫米，宽70毫米，采用塑料材质，发行数量为1亿张（含留存历史货币档案2万张）。</p>
 <p>各省、自治区、直辖市双色铜合金纪念币和纪念钞分配数量如下：</p>
-<center><img src="/image/comm/horse_release_5.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_5.webp" width="80%"></center>
 <br>
 <b>（三）发行方式。</b>
 <p>双色铜合金纪念币和纪念钞采取预约兑换方式发行。具体发行工作安排如下：</p>
 <p><b>1.承办预约兑换工作的银行业金融机构</b></p>
 <p>中国工商银行、中国农业银行、中国银行、中国建设银行、交通银行、中国邮政储蓄银行、华夏银行、浦发银行、徽商银行、长沙银行、陕西省农村信用社联合社（以下统称承办银行）共同承担2026年贺岁双色铜合金纪念币和纪念钞的预约兑换工作。各地区具体安排如下：</p>
-<center><img src="/image/comm/horse_release_6.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_6.webp" width="80%"></center>
 <br>
 <p><b>2.各地预约分配数量公布</b></p>
 <p>2026年1月12日前，中国人民银行分支机构将向社会公告当地2026年贺岁双色铜合金纪念币和纪念钞的分配数量等信息。承办银行将在其官方网站公布2026年贺岁双色铜合金纪念币和纪念钞预约兑换网点及每个网点的可预约数量等信息。</p>
@@ -60,47 +60,47 @@
 <br><br>
 <b>（1）双金属结构和内芯复合材料。</b>
 <p>硬币外环为黄铜合金，内芯为具有独特机读性能的镍带复合白铜材料。防伪特征效果见图1。</p>
-<center><img src="/image/comm/horse_release_7.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_7.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图1 内芯-复合材料效果示意图</span></center>
 <br>
 <b>（2）斜全齿间隔半齿。</b>
 <p>硬币外缘分布有交替排列的斜全齿与半齿。防伪特征效果见图2。</p>
-<center><img src="/image/comm/horse_release_8.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_8.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图2 斜全齿间隔半齿效果示意图</span></center>
 <br>
 <b>（3）隐形图文。</b>
 <p>将硬币倾斜适当角度，可在正面面额数字“10”的轮廓线内，观察到两组由3个“10”和“RMB”构成的隐形图文。防伪特征效果见图3。</p>
-<center><img src="/image/comm/horse_release_9.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_9.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图3 隐形图文效果示意图</span></center>
 <br>
 <b>（4）微缩文字。</b>
 <p>在硬币正面面额数字“10”的底端，可观察到“RMB 10 YUAN”的微缩文字。防伪特征效果见图4。</p>
-<center><img src="/image/comm/horse_release_10.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_10.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图4 微缩文字效果示意图</span></center>
 <br>
 <p>2026年贺岁双色铜合金纪念币公众防伪特征整体效果见图5。</p>
-<center><img src="/image/comm/horse_release_11.jpg" width="80%"></center>
-<center><img src="/image/comm/horse_release_12.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_11.webp" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_12.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图5 2026年贺岁双色铜合金纪念币防伪特征示意图</span></center>
 <br>
 <b>2.2026年贺岁纪念钞公众防伪特征</b>
 <br><br>
 <b>（1）动感全息。</b>
 <p>位于票面下方。改变观察角度，票面正面可见“如意云纹”、“山茶花”与“福”字组成的装饰纹样呈现多色动感特征。“福”字下部“田”字内可见立体动感高亮圆环效果。防伪特征效果见图6。</p>
-<center><img src="/image/comm/horse_release_13.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_13.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">垂直观察</span></center>
-<center><img src="/image/comm/horse_release_14.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_14.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">倾斜观察</span></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图6 动感全息防伪效果示意图</span></center>
 <br>
 <b>（2）透明视窗。</b>
 <p>位于票面下方。票面背面可见“八方花窗”内“福”字装饰纹样呈现金色效果。防伪特征效果见图7。</p>
-<center><img src="/image/comm/horse_release_15.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_15.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图7 透明视窗防伪效果示意图</span></center>
 <br>
 <b>（3）光彩光变图案。</b>
 <p>位于票面正面。改变观察角度，面额数字“20”的颜色在金色和绿色之间变化，并可见多边形立体效果。防伪特征效果见图8。</p>
-<center><img src="/image/comm/horse_release_16.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_16.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">图8 光彩光变图案防伪效果示意图</span></center>
 <br>
 <b>（4）雕刻凹印图案。</b>
@@ -114,17 +114,17 @@
 <br><br>
 <b>1.正面图案。</b>
 <p>该套金银纪念币正面图案均为中国传统吉祥纹饰组合图案，并刊国名、年号。</p>
-<center><img src="/image/comm/horse_release_17.jpg" width="80%"></center>
-<center><img src="/image/comm/horse_release_18.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_17.webp" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_18.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">金银纪念币正面图案</span></center>
 <br>
 <b>2.背面图案。</b>
 <p>1克圆形金质纪念币背面图案为“福”字、荷包组合设计，并刊面额。</p>
-<center><img src="/image/comm/horse_release_19.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_19.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">1克圆形金质纪念币背面图案</span></center>
 <br>
 <p>8克菱形银质纪念币背面图案为“福”字、舞鱼灯场景组合设计，并刊面额。</p>
-<center><img src="/image/comm/horse_release_20.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/horse_release_20.webp" width="80%"></center>
 <center><span style="color:#8b6b4f; font-size:0.85rem;">8克菱形银质纪念币背面图案</span></center>
 <br>
 <b>（二）金银纪念币规格及发行数量。</b>
