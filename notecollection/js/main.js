@@ -95,8 +95,8 @@ const KRAUSE_PREFIX = 'Pick# ';
 let fromSearchResult = false;
 let lastSearchParams = null;
 
-// readme 返回回调
-let currentReadmeCallback = null;
+// readme 返回信息存储
+let currentReadmeBackInfo = null;
 
 // 将数字转换为带圈数字（使用数学专用字符）
 function toCircledNumber(num) {
@@ -1309,10 +1309,38 @@ function selectCopy(cid, si, ci) {
     renderDetail(cid, si, ci);
 }
 
-// ========= 新增 readme 功能 =========
+// ========= readme 功能 =========
+
+// 从 readme 返回
+function goBackFromReadme() {
+    if (!currentReadmeBackInfo) {
+        // 没有保存返回信息，默认回到分类页
+        renderCategories(true);
+        return;
+    }
+    
+    const { viewType, params } = currentReadmeBackInfo;
+    
+    switch (viewType) {
+        case 'varietyList':
+            renderVarietyList(params.cid, params.si, true);
+            break;
+        case 'copyList':
+            if (params.vi !== undefined && params.vi !== null) {
+                renderCopyListFromVariety(params.cid, params.si, params.vi, true);
+            } else {
+                renderCopyList(params.cid, params.si, true);
+            }
+            break;
+        default:
+            renderCategories(true);
+    }
+    
+    currentReadmeBackInfo = null;
+}
 
 // 渲染 readme 详情页（新的一层）
-async function renderReadmePage(readmeData, backCallback) {
+async function renderReadmePage(readmeData, viewType, params) {
     const title = readmeData.title || 'Readme';
     let content = readmeData.content;
     
@@ -1321,9 +1349,15 @@ async function renderReadmePage(readmeData, backCallback) {
         content = await loadExternalContent(content) || '内容加载失败';
     }
     
+    // 保存返回信息，供返回按钮和 popstate 使用
+    currentReadmeBackInfo = {
+        viewType: viewType,
+        params: params
+    };
+    
     const html = `
         <div class="back-bar">
-            <button class="back-btn" onclick="(${backCallback.toString()})()">← 返回</button>
+            <button class="back-btn" onclick="goBackFromReadme()">← 返回</button>
         </div>
         <div class="readme-detail-panel">
             <div class="readme-detail-header">
@@ -1356,35 +1390,34 @@ function goToReadmeFromSeries(cid, si) {
     if (!readme) return;
     
     saveScroll("varietyList_" + cid + "_" + si);
-    currentReadmeCallback = () => renderVarietyList(cid, si, true);
-    renderReadmePage(readme, currentReadmeCallback);
+    renderReadmePage(readme, 'varietyList', { cid: cid, si: si });
 }
 
-// 从品种进入 readme（藏品列表页，有 varieties）
+// 从品种/系列进入 readme（藏品列表页）
 function goToReadmeFromCopyList(cid, si, vi = null) {
     const cat = banknotesData[cid];
     if (!cat || !cat.series[si]) return;
     
     let readme = null;
-    let backFunc = null;
+    let viewType = 'copyList';
+    let params = {};
     
     if (vi !== undefined && vi !== null) {
-        // 有 varieties 的情况
+        // 有 varieties 的情况（品种级别）
         const variety = cat.series[si].varieties[vi];
         readme = variety.readme;
-        backFunc = () => renderCopyListFromVariety(cid, si, vi, true);
+        params = { cid: cid, si: si, vi: vi };
         saveScroll("copyList_" + cid + "_" + si + "_" + vi);
     } else {
-        // 无 varieties 的情况
+        // 无 varieties 的情况（系列级别）
         const series = cat.series[si];
         readme = series.readme;
-        backFunc = () => renderCopyList(cid, si, true);
+        params = { cid: cid, si: si, vi: null };
         saveScroll("copyList_" + cid + "_" + si);
     }
     
     if (!readme) return;
-    currentReadmeCallback = backFunc;
-    renderReadmePage(readme, currentReadmeCallback);
+    renderReadmePage(readme, viewType, params);
 }
 
 function initPinchZoom() {
@@ -1602,13 +1635,7 @@ function goBackToPreviousView() {
             }
             break;
         case 'readmePage':
-            if (currentReadmeCallback) {
-                currentReadmeCallback();
-            } else if (previousView.categoryId) {
-                renderSeriesList(previousView.categoryId, true);
-            } else {
-                renderCategories(true);
-            }
+            goBackFromReadme();
             break;
         case 'detail':
             if (currentSeries && currentSeries.cid) {
