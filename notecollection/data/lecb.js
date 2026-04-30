@@ -18,6 +18,11 @@ const lecbData = {
         {
             seriesName: "四川省 1959年",
             year: "1959",
+            // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
+            readme: {
+                title: "四川省一九五九年地方经济建设公债发行办法",
+                content: "file:readmes/lecb_sichuan_1959_ordinance.txt"
+            },
             varieties: [
                 {
                     varietyName: "1元",
@@ -31,13 +36,15 @@ const lecbData = {
                             price: "裸票85元",
                             purchaseDate: "2026年4月24日",
                             krause: "Unlisted",
-                            remark: "file:remarks/lecb_sichuan_1959_1yuan.txt",
+                            remark: "",
                             img1: "image/lecb/ⅠⅡⅢ06173849-1.jpg",
                             img2: "image/lecb/ⅠⅡⅢ06173849-2.jpg"
                         }
                     ]
                 }
+                // 可继续添加：2元、5元、10元、50元等面值
             ]
         }
+        // 可继续添加：其他省份或年份，如四川省1960年、北京市1959年等
     ]
 };
