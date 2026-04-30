@@ -433,6 +433,61 @@
             pointer-events: none;
             z-index: 1001;
         }
+        /* ========= 新增 readme 卡片样式 ========= */
+        .readme-card {
+            background: #f7f2ea;
+            border-radius: 0.8rem;
+            margin: 0 0 1.2rem 0;
+            cursor: pointer;
+            border: 1px solid #e2d5c8;
+            transition: all 0.2s;
+        }
+        .readme-card:hover {
+            background: #efe4d8;
+            border-color: #c9aa7b;
+        }
+        .readme-title {
+            padding: 0.6rem 1rem;
+            font-weight: 500;
+            color: #b8860b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .readme-title::before {
+            content: "📖";
+            font-size: 1rem;
+        }
+        
+        /* readme 详情页样式 */
+        .readme-detail-panel {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+        }
+        .readme-detail-header {
+            border-bottom: 2px solid #daa520;
+            padding-bottom: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+        .readme-detail-header h3 {
+            font-size: 1.4rem;
+            color: #4a3522;
+        }
+        .rich-content {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: #2c2418;
+        }
+        .rich-content img,
+        .rich-content video {
+            max-width: 100%;
+            border-radius: 0.6rem;
+            margin: 0.5rem auto;
+            cursor: pointer;
+            display: block;
+        }
 
         /* 搜索结果分类分隔线 */
         .search-category-divider {
