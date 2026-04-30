@@ -1231,9 +1231,10 @@ async function renderDetail(cid, si, ci) {
         }
     }
 
+    // ========== 【修复点】修复引号语法错误 ==========
     const detailHtml = `
         <div class="back-bar">
-            <button class="back-btn" onclick="backToCopyList('${cid}', ${si}')">← 返回藏品列表</button>
+            <button class="back-btn" onclick="backToCopyList('${cid}', ${si})">← 返回藏品列表</button>
         </div>
         <div class="detail-panel">
             <div class="detail-header">
