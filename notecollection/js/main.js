@@ -1,3 +1,5 @@
+history.scrollRestoration = 'manual';
+
 // 侧滑返回历史记录管理
 let isHandlingPopState = false;
 let viewHistoryStack = [];
