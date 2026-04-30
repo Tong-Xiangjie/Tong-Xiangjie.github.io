@@ -18,8 +18,13 @@ const nedbData = {
         {
             seriesName: "1955年版",
             year: "1955",
+            // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
+            readme: {
+                title: "1955年国家经济建设公债条例",
+                content: "file:readmes/nedb_1955_ordinance.md"
+            },
             varieties: [
-               {
+                {
                     varietyName: "10000元",
                     copies: [
                         {
@@ -34,7 +39,8 @@ const nedbData = {
                             remark: "",
                             img1: "image/nedb/1955-10000-1-1.jpg",
                             img2: "image/nedb/1955-10000-1-2.jpg"
-                        },{
+                        },
+                        {
                             copyId: 2,
                             year: 1955,
                             version: "00887",
@@ -47,9 +53,9 @@ const nedbData = {
                             img1: "image/nedb/1955-10000-2-1.jpg",
                             img2: "image/nedb/1955-10000-2-2.jpg"
                         }
-
                     ]
-                },{
+                },
+                {
                     varietyName: "20000元",
                     copies: [
                         {
@@ -64,7 +70,8 @@ const nedbData = {
                             remark: "",
                             img1: "image/nedb/1955-20000-1-1.jpg",
                             img2: "image/nedb/1955-20000-1-2.jpg"
-                        },{
+                        },
+                        {
                             copyId: 2,
                             year: 1955,
                             version: "00887",
@@ -77,9 +84,9 @@ const nedbData = {
                             img1: "image/nedb/1955-20000-2-1.jpg",
                             img2: "image/nedb/1955-20000-2-2.jpg"
                         }
-
                     ]
-                },{
+                },
+                {
                     varietyName: "50000元",
                     copies: [
                         {
@@ -94,7 +101,8 @@ const nedbData = {
                             remark: "",
                             img1: "image/nedb/1955-50000-1-1.jpg",
                             img2: "image/nedb/1955-50000-1-2.jpg"
-                        },{
+                        },
+                        {
                             copyId: 2,
                             year: 1955,
                             version: "00887",
@@ -107,9 +115,9 @@ const nedbData = {
                             img1: "image/nedb/1955-50000-2-1.jpg",
                             img2: "image/nedb/1955-50000-2-2.jpg"
                         }
-
                     ]
-                },{
+                },
+                {
                     varietyName: "100000元",
                     copies: [
                         {
@@ -124,7 +132,8 @@ const nedbData = {
                             remark: "",
                             img1: "image/nedb/1955-100000-1-1.jpg",
                             img2: "image/nedb/1955-100000-1-2.jpg"
-                        },{
+                        },
+                        {
                             copyId: 2,
                             year: 1955,
                             version: "00887",
@@ -137,9 +146,9 @@ const nedbData = {
                             img1: "image/nedb/1955-100000-2-1.jpg",
                             img2: "image/nedb/1955-100000-2-2.jpg"
                         }
-
                     ]
-                }, {
+                },
+                {
                     varietyName: "500000元",
                     copies: [
                         {
@@ -154,7 +163,8 @@ const nedbData = {
                             remark: "",
                             img1: "image/nedb/1955-500000-1-1.jpg",
                             img2: "image/nedb/1955-500000-1-2.jpg"
-                        },{
+                        },
+                        {
                             copyId: 2,
                             year: 1955,
                             version: "00887",
@@ -167,9 +177,9 @@ const nedbData = {
                             img1: "image/nedb/1955-500000-2-1.jpg",
                             img2: "image/nedb/1955-500000-2-2.jpg"
                         }
-
                     ]
-                },{
+                },
+                {
                     varietyName: "1000000元",
                     copies: [
                         {
@@ -184,7 +194,8 @@ const nedbData = {
                             remark: "",
                             img1: "image/nedb/1955-1000000-1-1.jpg",
                             img2: "image/nedb/1955-1000000-1-2.jpg"
-                        },{
+                        },
+                        {
                             copyId: 2,
                             year: 1955,
                             version: "00887",
@@ -197,15 +208,19 @@ const nedbData = {
                             img1: "image/nedb/1955-1000000-2-1.jpg",
                             img2: "image/nedb/1955-1000000-2-2.jpg"
                         }
-
                     ]
                 }
             ]
         },
-	// ==================== 1957年版 ====================
+        // ==================== 1957年版 ====================
         {
             seriesName: "1957年版",
             year: "1957",
+            // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
+            readme: {
+                title: "1957年国家经济建设公债条例",
+                content: "file:readmes/nedb_1957_ordinance.md"
+            },
             varieties: [
                 {
                     varietyName: "1元",
@@ -219,7 +234,8 @@ const nedbData = {
                             price: "587元",
                             purchaseDate: "2026年4月16日",
                             krause: "Unlisted",
-                            remark: "file:remarks/nedb_1957_1yuan.txt",
+                            // 原来的 remark 文件已移到 series 级别的 readme 中
+                            remark: "",
                             img1: "image/nedb/ⅢⅩⅩ3307203-1.jpg",
                             img2: "image/nedb/ⅢⅩⅩ3307203-2.jpg"
                         }
@@ -228,7 +244,6 @@ const nedbData = {
                 // 可继续添加：2元、5元、10元、50元、100元等面值
             ]
         }
-
         // 可继续添加：1955年版、1956年版、1958年版等
     ]
 };
