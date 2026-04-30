@@ -1,0 +1,44 @@
+name: Deploy to GitHub Pages with LFS
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code with Git LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Download all Git LFS files
+        run: git lfs pull
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 关键：从 notecollection/ 文件夹部署，不动你的结构
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './notecollection'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
