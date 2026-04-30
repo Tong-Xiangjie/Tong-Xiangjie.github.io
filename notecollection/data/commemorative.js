@@ -362,7 +362,7 @@ const commemorativeData = {
             year: "2018",
  	    readme: {
                 title: "发行公告",
-                content: "file:readmes/snake_relese.txt"
+                content: "file:readmes/snake_release.txt"
             },
             copies: [
                 { 
@@ -438,7 +438,7 @@ const commemorativeData = {
             year: "2022",
  	    readme: {
                 title: "发行公告",
-                content: "file:readmes/winter_olympics_relese.txt"
+                content: "file:readmes/winter_olympics_release.txt"
             },
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
@@ -465,7 +465,7 @@ const commemorativeData = {
             year: "2022",
  	    readme: {
                 title: "发行公告",
-                content: "file:readmes/winter_olympics_relese.txt"
+                content: "file:readmes/winter_olympics_release.txt"
             },
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
@@ -589,7 +589,7 @@ const commemorativeData = {
             year: "2024",
  	    readme: {
                 title: "发行公告",
-                content: "file:readmes/dragon_relese.txt"
+                content: "file:readmes/dragon_release.txt"
             },
             copies: [{ 
                 copyId: 1, 
@@ -635,7 +635,7 @@ const commemorativeData = {
             year: "2026",
  	    readme: {
                 title: "发行公告",
-                content: "file:readmes/horse_relese.txt"
+                content: "file:readmes/horse_release.txt"
             },
             copies: [
                 { 
