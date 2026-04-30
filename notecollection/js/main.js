@@ -477,6 +477,8 @@ function backToPrevious() {
         } else {
             renderCopyList(currentSeries.cid, currentSeries.si, true);
         }
+    } else if (currentView === 'readmePage') {
+        goBackFromReadme();
     } else {
         renderCategories(true);
     }
@@ -1314,7 +1316,6 @@ function selectCopy(cid, si, ci) {
 // 从 readme 返回
 function goBackFromReadme() {
     if (!currentReadmeBackInfo) {
-        // 没有保存返回信息，默认回到分类页
         renderCategories(true);
         return;
     }
@@ -1344,12 +1345,10 @@ async function renderReadmePage(readmeData, viewType, params) {
     const title = readmeData.title || 'Readme';
     let content = readmeData.content;
     
-    // 支持外部文件加载
     if (content && (content.startsWith('file:') || content.startsWith('LOAD:'))) {
         content = await loadExternalContent(content) || '内容加载失败';
     }
     
-    // 保存返回信息，供返回按钮和 popstate 使用
     currentReadmeBackInfo = {
         viewType: viewType,
         params: params
@@ -1370,7 +1369,6 @@ async function renderReadmePage(readmeData, viewType, params) {
     `;
     document.getElementById("app").innerHTML = html;
     
-    // 为 readme 内的图片绑定点击弹窗（复用现有 openModal）
     document.querySelectorAll('.rich-content img').forEach(img => {
         img.style.cursor = 'pointer';
         img.onclick = (e) => {
@@ -1379,6 +1377,8 @@ async function renderReadmePage(readmeData, viewType, params) {
             openModal(0);
         };
     });
+    
+    currentView = "readmePage";
 }
 
 // 从系列进入 readme（品种列表页）
@@ -1390,6 +1390,10 @@ function goToReadmeFromSeries(cid, si) {
     if (!readme) return;
     
     saveScroll("varietyList_" + cid + "_" + si);
+    
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    
     renderReadmePage(readme, 'varietyList', { cid: cid, si: si });
 }
 
@@ -1403,13 +1407,11 @@ function goToReadmeFromCopyList(cid, si, vi = null) {
     let params = {};
     
     if (vi !== undefined && vi !== null) {
-        // 有 varieties 的情况（品种级别）
         const variety = cat.series[si].varieties[vi];
         readme = variety.readme;
         params = { cid: cid, si: si, vi: vi };
         saveScroll("copyList_" + cid + "_" + si + "_" + vi);
     } else {
-        // 无 varieties 的情况（系列级别）
         const series = cat.series[si];
         readme = series.readme;
         params = { cid: cid, si: si, vi: null };
@@ -1417,6 +1419,10 @@ function goToReadmeFromCopyList(cid, si, vi = null) {
     }
     
     if (!readme) return;
+    
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    
     renderReadmePage(readme, viewType, params);
 }
 
@@ -1533,7 +1539,6 @@ function openModal(index = 0) {
         currentY = 0;
     }
 
-    // 锁定页面，禁止滚动和边缘滑动手势
     const scrollY = window.scrollY;
     document.body.classList.add('modal-open');
     document.body.style.top = `-${scrollY}px`;
@@ -1550,7 +1555,6 @@ function closeModal() {
     const modal = document.getElementById('imageModal');
     modal.style.display = 'none';
     
-    // 恢复滚动和触摸
     const scrollY = parseInt(document.body.style.top || '0') * -1;
     document.body.classList.remove('modal-open');
     document.body.style.top = '';
