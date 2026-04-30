@@ -464,30 +464,39 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     }
 }
 
+// ========== 修改后的返回函数 ==========
 function backToPrevious() {
-    // 修复：按钮返回时同步出栈，确保侧滑与按钮历史一致
-    if (viewHistoryStack.length > 1) {
-        viewHistoryStack.pop();
-    }
-
-    if (currentView === 'categories') {
-        renderCategories(true);
-    } else if (currentView === 'seriesList' && currentCategoryId) {
-        renderSeriesList(currentCategoryId, true);
-    } else if (currentView === 'varietyList' && currentSeries) {
-        renderVarietyList(currentSeries.cid, currentSeries.si, true);
-    } else if (currentView === 'copyList' && currentSeries) {
-        if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
-            renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
-        } else {
-            renderCopyList(currentSeries.cid, currentSeries.si, true);
-        }
-    } else if (currentView === 'readmePage') {
-        goBackFromReadme();
-    } else {
-        renderCategories(true);
-    }
+    history.back();
 }
+
+function backToCopyList() {
+    history.back();
+}
+
+function backToCopyListFromVariety() {
+    history.back();
+}
+
+function backToVarietyList() {
+    history.back();
+}
+
+function backToSeriesList() {
+    history.back();
+}
+
+function backToSeries() {
+    history.back();
+}
+
+function backToCategories() {
+    history.back();
+}
+
+function goBackFromReadme() {
+    history.back();
+}
+// ========== 返回函数修改结束 ==========
 
 function resetSearchAndBack() {
     currentSearchKeyword = '';
@@ -909,7 +918,7 @@ function renderVarietyList(cid, si, restore = false) {
     const readmeCardsHtml = generateReadmeCards(series.readme, 'varietyList', cid, si);
 
     const full = `
-        <div class="back-bar"><button class="back-btn" onclick="backToSeriesList('${cid}')">← 返回版别</button></div>
+        <div class="back-bar"><button class="back-btn" onclick="backToSeriesList()">← 返回版别</button></div>
         <div class="list-panel">
             <div class="panel-header">
                 <h2>${escapeHtml(series.seriesName)}</h2>
@@ -972,7 +981,7 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
 
     const full = `
         <div class="back-bar">
-            <button class="back-btn" onclick="backToVarietyList('${cid}', ${si})">← 返回品种</button>
+            <button class="back-btn" onclick="backToVarietyList()">← 返回品种</button>
         </div>
         <div class="list-panel">
             <div class="panel-header">
@@ -1068,7 +1077,7 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
 
     const detailHtml = `
         <div class="back-bar">
-            <button class="back-btn" onclick="backToCopyListFromVariety('${cid}', ${si}, ${vi})">← 返回藏品列表</button>
+            <button class="back-btn" onclick="backToCopyListFromVariety()">← 返回藏品列表</button>
         </div>
         <div class="detail-panel">
             <div class="detail-header">
@@ -1097,24 +1106,6 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) {
         switchBtn.style.display = 'none';
-    }
-}
-
-function backToVarietyList(cid, si) {
-    if (fromSearchResult) {
-        fromSearchResult = false;
-        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
-    } else {
-        renderVarietyList(cid, si, true);
-    }
-}
-
-function backToSeriesList(cid) {
-    if (fromSearchResult) {
-        fromSearchResult = false;
-        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
-    } else {
-        renderSeriesList(cid, true);
     }
 }
 
@@ -1154,7 +1145,7 @@ function renderCopyList(cid, si, restore = false) {
 
     const full = `
         <div class="back-bar">
-            <button class="back-btn" onclick="backToSeries('${cid}')">← 返回品种</button>
+            <button class="back-btn" onclick="backToSeries()">← 返回品种</button>
         </div>
         <div class="list-panel">
             <div class="panel-header">
@@ -1231,10 +1222,9 @@ async function renderDetail(cid, si, ci) {
         }
     }
 
-    // ========== 【修复点】修复引号语法错误 ==========
     const detailHtml = `
         <div class="back-bar">
-            <button class="back-btn" onclick="backToCopyList('${cid}', ${si})">← 返回藏品列表</button>
+            <button class="back-btn" onclick="backToCopyList()">← 返回藏品列表</button>
         </div>
         <div class="detail-panel">
             <div class="detail-header">
@@ -1266,28 +1256,6 @@ async function renderDetail(cid, si, ci) {
     }
 }
 
-function backToCopyList(cid, si) {
-    // 修复：按钮返回同步出栈，保证侧滑一致
-    if (viewHistoryStack.length > 1) {
-        viewHistoryStack.pop();
-    }
-
-    if (fromSearchResult) {
-        fromSearchResult = false;
-        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
-    } else {
-        renderCopyList(cid, si, true);
-    }
-}
-
-function backToSeries(cid) {
-    renderSeriesList(cid, true);
-}
-
-function backToCategories() {
-    renderCategories(true);
-}
-
 function selectCategory(cid) {
     saveScroll("categories");
     renderSeriesList(cid, false);
@@ -1316,31 +1284,7 @@ function selectCopy(cid, si, ci) {
 // ========= readme 功能（支持数组） =========
 
 // 从 readme 返回
-function goBackFromReadme() {
-    if (!currentReadmeBackInfo) {
-        renderCategories(true);
-        return;
-    }
-    
-    const { viewType, params } = currentReadmeBackInfo;
-    
-    switch (viewType) {
-        case 'varietyList':
-            renderVarietyList(params.cid, params.si, true);
-            break;
-        case 'copyList':
-            if (params.vi !== undefined && params.vi !== null) {
-                renderCopyListFromVariety(params.cid, params.si, params.vi, true);
-            } else {
-                renderCopyList(params.cid, params.si, true);
-            }
-            break;
-        default:
-            renderCategories(true);
-    }
-    
-    currentReadmeBackInfo = null;
-}
+// 已在上方修改为 goBackFromReadme = history.back
 
 // 渲染 readme 详情页（新的一层）
 async function renderReadmePage(readmeItem, viewType, params) {
@@ -1431,15 +1375,6 @@ function goToReadmeFromCopyListWithIndex(cid, si, vi, readmeIndex) {
     history.pushState({ custom: true }, '');
     
     renderReadmePage(readmeItem, viewType, params);
-}
-
-// 兼容旧版单个 readme 的调用（如果 data 中还是对象而非数组）
-function goToReadmeFromSeries(cid, si) {
-    goToReadmeFromSeriesWithIndex(cid, si, 0);
-}
-
-function goToReadmeFromCopyList(cid, si, vi = null) {
-    goToReadmeFromCopyListWithIndex(cid, si, vi, 0);
 }
 
 function initPinchZoom() {
