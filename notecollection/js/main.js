@@ -465,10 +465,11 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
 }
 
 function backToPrevious() {
-    // 关键修复：在返回前，先用 replaceState 覆盖当前历史记录
-    // 这样当用户侧滑时，不会有多余的历史记录
-    history.replaceState({ custom: true }, '');
-    
+    // 修复：按钮返回时同步出栈，确保侧滑与按钮历史一致
+    if (viewHistoryStack.length > 1) {
+        viewHistoryStack.pop();
+    }
+
     if (currentView === 'categories') {
         renderCategories(true);
     } else if (currentView === 'seriesList' && currentCategoryId) {
@@ -483,25 +484,6 @@ function backToPrevious() {
         }
     } else if (currentView === 'readmePage') {
         goBackFromReadme();
-    } else if (currentView === 'detail') {
-        if (currentSeries && currentSeries.cid) {
-            if (currentSeries.vi !== undefined) {
-                renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
-            } else {
-                renderCopyList(currentSeries.cid, currentSeries.si, true);
-            }
-        } else if (currentCategoryId) {
-            renderSeriesList(currentCategoryId, true);
-        } else {
-            renderCategories(true);
-        }
-    } else if (currentView === 'searchResult') {
-        if (fromSearchResult && lastSearchParams) {
-            fromSearchResult = false;
-            renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
-        } else {
-            renderCategories(true);
-        }
     } else {
         renderCategories(true);
     }
@@ -674,9 +656,7 @@ function bindSearchEvents() {
     }
 
     if (searchBtn) {
-        const newBtn = searchBtn.cloneNode(true);
-        searchBtn.parentNode.replaceChild(newBtn, searchBtn);
-        newBtn.addEventListener('click', function() {
+        searchBtn.onclick = function() {
             if (searchMode === 'click') {
                 const keyword = searchInput.value;
                 const type = searchType ? searchType.value : 'all';
@@ -688,30 +668,26 @@ function bindSearchEvents() {
                     alert('请输入搜索关键词');
                 }
             }
-        });
+        };
     }
 
     if (modeToggle) {
-        const newToggle = modeToggle.cloneNode(true);
-        modeToggle.parentNode.replaceChild(newToggle, modeToggle);
-        newToggle.addEventListener('click', function() {
+        modeToggle.onclick = function() {
             searchMode = searchMode === 'click' ? 'realtime' : 'click';
             const modeIcon = searchMode === 'click' ? '□' : '■';
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-            newToggle.textContent = modeIcon;
+            modeToggle.textContent = modeIcon;
             if (searchTip) {
                 searchTip.innerHTML = `当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换`;
             }
             bindSearchEvents();
-        });
+        };
     }
 
     if (resetBtn) {
-        const newReset = resetBtn.cloneNode(true);
-        resetBtn.parentNode.replaceChild(newReset, resetBtn);
-        newReset.addEventListener('click', function() {
+        resetBtn.onclick = function() {
             resetSearchAndBack();
-        });
+        };
     }
 }
 
@@ -1129,8 +1105,7 @@ function backToCopyListFromVariety(cid, si, vi) {
         fromSearchResult = false;
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
-        // 调用统一的 backToPrevious，而不是直接渲染
-        backToPrevious();
+        renderCopyListFromVariety(cid, si, vi, true);
     }
 }
 
@@ -1139,7 +1114,7 @@ function backToVarietyList(cid, si) {
         fromSearchResult = false;
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
-        backToPrevious();
+        renderVarietyList(cid, si, true);
     }
 }
 
@@ -1148,7 +1123,7 @@ function backToSeriesList(cid) {
         fromSearchResult = false;
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
-        backToPrevious();
+        renderSeriesList(cid, true);
     }
 }
 
@@ -1267,7 +1242,7 @@ async function renderDetail(cid, si, ci) {
 
     const detailHtml = `
         <div class="back-bar">
-            <button class="back-btn" onclick="backToCopyList('${cid}', ${si})">← 返回藏品列表</button>
+            <button class="back-btn" onclick="backToCopyList('${cid}', ${si}')">← 返回藏品列表</button>
         </div>
         <div class="detail-panel">
             <div class="detail-header">
@@ -1304,16 +1279,16 @@ function backToCopyList(cid, si) {
         fromSearchResult = false;
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
-        backToPrevious();
+        renderCopyList(cid, si, true);
     }
 }
 
 function backToSeries(cid) {
-    backToPrevious();
+    renderSeriesList(cid, true);
 }
 
 function backToCategories() {
-    backToPrevious();
+    renderCategories(true);
 }
 
 function selectCategory(cid) {
@@ -1637,19 +1612,15 @@ function recordCurrentView() {
 }
 
 function goBackToPreviousView() {
-    if (isHandlingPopState) return false;
     if (viewHistoryStack.length <= 1) {
         return false;
     }
-    
-    isHandlingPopState = true;
     
     viewHistoryStack.pop();
     
     const previousView = viewHistoryStack[viewHistoryStack.length - 1];
     
     if (!previousView) {
-        isHandlingPopState = false;
         return false;
     }
     
@@ -1713,19 +1684,7 @@ function goBackToPreviousView() {
             renderCategories(true);
     }
     
-    setTimeout(() => {
-        isHandlingPopState = false;
-    }, 100);
-    
     return true;
-}
-
-function pushViewToHistory() {
-    if (isHandlingPopState) return;
-    
-    recordCurrentView();
-    
-    history.pushState({ custom: true }, '');
 }
 
 window.addEventListener('popstate', function(event) {
@@ -1746,6 +1705,14 @@ window.addEventListener('popstate', function(event) {
         isHandlingPopState = false;
     }, 100);
 });
+
+function pushViewToHistory() {
+    if (isHandlingPopState) return;
+    
+    recordCurrentView();
+    
+    history.pushState({ custom: true }, '');
+}
 
 const originalRenderCategories = renderCategories;
 const originalRenderSeriesList = renderSeriesList;
