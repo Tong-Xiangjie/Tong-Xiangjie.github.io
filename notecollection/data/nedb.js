@@ -14,7 +14,195 @@ const nedbData = {
     ],
 
     series: [
-        // ==================== 1957年版 ====================
+        // ==================== 1955年版 ====================
+        {
+            seriesName: "1955年版",
+            year: "1955",
+            varieties: [
+               {
+                    varietyName: "10000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1955,
+                            version: "00000000 00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-10000-1-1.jpg",
+                            img2: "image/nedb/1955-10000-1-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1955,
+                            version: "00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-10000-2-1.jpg",
+                            img2: "image/nedb/1955-10000-2-2.jpg"
+                        }
+
+                    ]
+                },{
+                    varietyName: "20000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1955,
+                            version: "00000000 00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-20000-1-1.jpg",
+                            img2: "image/nedb/1955-20000-1-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1955,
+                            version: "00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-20000-2-1.jpg",
+                            img2: "image/nedb/1955-20000-2-2.jpg"
+                        }
+
+                    ]
+                },{
+                    varietyName: "50000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1955,
+                            version: "00000000 00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-50000-1-1.jpg",
+                            img2: "image/nedb/1955-50000-1-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1955,
+                            version: "00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-50000-2-1.jpg",
+                            img2: "image/nedb/1955-50000-2-2.jpg"
+                        }
+
+                    ]
+                },{
+                    varietyName: "100000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1955,
+                            version: "〈123〉00000000 00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-100000-1-1.jpg",
+                            img2: "image/nedb/1955-100000-1-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1955,
+                            version: "00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-100000-2-1.jpg",
+                            img2: "image/nedb/1955-100000-2-2.jpg"
+                        }
+
+                    ]
+                }, {
+                    varietyName: "500000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1955,
+                            version: "〈123〉00000000 00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-500000-1-1.jpg",
+                            img2: "image/nedb/1955-500000-1-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1955,
+                            version: "00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-500000-2-1.jpg",
+                            img2: "image/nedb/1955-500000-2-2.jpg"
+                        }
+
+                    ]
+                },{
+                    varietyName: "1000000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1955,
+                            version: "〈123〉00000000 00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-1000000-1-1.jpg",
+                            img2: "image/nedb/1955-1000000-1-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1955,
+                            version: "00887",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "138元",
+                            purchaseDate: "2026年4月30日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1955-1000000-2-1.jpg",
+                            img2: "image/nedb/1955-1000000-2-2.jpg"
+                        }
+
+                    ]
+                }
+            ]
+        },
+	// ==================== 1957年版 ====================
         {
             seriesName: "1957年版",
             year: "1957",
@@ -40,6 +228,7 @@ const nedbData = {
                 // 可继续添加：2元、5元、10元、50元、100元等面值
             ]
         }
+
         // 可继续添加：1955年版、1956年版、1958年版等
     ]
 };
