@@ -1100,15 +1100,6 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
     }
 }
 
-function backToCopyListFromVariety(cid, si, vi) {
-    if (fromSearchResult) {
-        fromSearchResult = false;
-        renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
-    } else {
-        renderCopyListFromVariety(cid, si, vi, true);
-    }
-}
-
 function backToVarietyList(cid, si) {
     if (fromSearchResult) {
         fromSearchResult = false;
@@ -1275,6 +1266,11 @@ async function renderDetail(cid, si, ci) {
 }
 
 function backToCopyList(cid, si) {
+    // 修复：按钮返回同步出栈，保证侧滑一致
+    if (viewHistoryStack.length > 1) {
+        viewHistoryStack.pop();
+    }
+
     if (fromSearchResult) {
         fromSearchResult = false;
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
