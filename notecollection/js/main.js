@@ -1,21 +1,35 @@
+// ========== 强制所有链接在本页面打开，支持侧滑返回 ==========
 (function() {
-    // 检查 sessionStorage 中的刷新标记
-    const wasReload = sessionStorage.getItem('reloadFlag') === 'true';
-    
-    if (wasReload) {
-        // 这是刷新操作 → 回到顶部
-        window.scrollTo(0, 0);
-        sessionStorage.removeItem('reloadFlag');
-    }
-    
-    // 监听 beforeunload，标记即将刷新
-    window.addEventListener('beforeunload', function() {
-        sessionStorage.setItem('reloadFlag', 'true');
+    // 拦截所有链接点击，统一改为当前页面跳转
+    document.addEventListener('click', function(e) {
+        let target = e.target;
+        while (target && target !== document) {
+            if (target.tagName === 'A' && target.getAttribute('href')) {
+                const href = target.getAttribute('href');
+                // 忽略锚点、javascript、空链接
+                if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+                    return;
+                }
+                e.preventDefault();
+                // 保存当前滚动位置
+                sessionStorage.setItem('banknote_scroll_pos', window.scrollY);
+                // 跳转
+                window.location.href = href;
+                return;
+            }
+            target = target.parentElement;
+        }
     });
     
-    // 确保浏览器自动滚动恢复是开启的
-    if (history.scrollRestoration !== 'auto') {
-        history.scrollRestoration = 'auto';
+    // 页面加载时检查是否需要恢复滚动位置
+    const savedPos = sessionStorage.getItem('banknote_scroll_pos');
+    if (savedPos) {
+        setTimeout(() => {
+            window.scrollTo(0, parseInt(savedPos));
+            sessionStorage.removeItem('banknote_scroll_pos');
+        }, 0);
+    } else {
+        window.scrollTo(0, 0);
     }
 })();
 
