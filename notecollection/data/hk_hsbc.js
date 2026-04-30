@@ -191,6 +191,11 @@ const hk_hsbcData = {
         {
             seriesName: "2018～至今版",
             year: "2018～至今",
+            // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
+            readme: {
+                title: "汇丰银行2018年新版港币宣传片",
+                content: "file:readmes/hk_hsbc_2018_promo.txt"
+            },
             varieties: [
                 {
                     varietyName: "港币20元 一家茶叙",
