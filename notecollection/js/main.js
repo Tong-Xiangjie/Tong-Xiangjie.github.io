@@ -464,10 +464,44 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     }
 }
 
-// 核心修改：按钮返回改为调用 history.back()
 function backToPrevious() {
-    if (viewHistoryStack.length > 1) {
-        history.back();
+    // 关键修复：在返回前，先用 replaceState 覆盖当前历史记录
+    // 这样当用户侧滑时，不会有多余的历史记录
+    history.replaceState({ custom: true }, '');
+    
+    if (currentView === 'categories') {
+        renderCategories(true);
+    } else if (currentView === 'seriesList' && currentCategoryId) {
+        renderSeriesList(currentCategoryId, true);
+    } else if (currentView === 'varietyList' && currentSeries) {
+        renderVarietyList(currentSeries.cid, currentSeries.si, true);
+    } else if (currentView === 'copyList' && currentSeries) {
+        if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
+            renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
+        } else {
+            renderCopyList(currentSeries.cid, currentSeries.si, true);
+        }
+    } else if (currentView === 'readmePage') {
+        goBackFromReadme();
+    } else if (currentView === 'detail') {
+        if (currentSeries && currentSeries.cid) {
+            if (currentSeries.vi !== undefined) {
+                renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
+            } else {
+                renderCopyList(currentSeries.cid, currentSeries.si, true);
+            }
+        } else if (currentCategoryId) {
+            renderSeriesList(currentCategoryId, true);
+        } else {
+            renderCategories(true);
+        }
+    } else if (currentView === 'searchResult') {
+        if (fromSearchResult && lastSearchParams) {
+            fromSearchResult = false;
+            renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
+        } else {
+            renderCategories(true);
+        }
     } else {
         renderCategories(true);
     }
@@ -1095,6 +1129,7 @@ function backToCopyListFromVariety(cid, si, vi) {
         fromSearchResult = false;
         renderSearchResultPage(lastSearchParams.keyword, lastSearchParams.type, false);
     } else {
+        // 调用统一的 backToPrevious，而不是直接渲染
         backToPrevious();
     }
 }
@@ -1315,7 +1350,23 @@ function goBackFromReadme() {
         return;
     }
     
-    backToPrevious();
+    const { viewType, params } = currentReadmeBackInfo;
+    
+    switch (viewType) {
+        case 'varietyList':
+            renderVarietyList(params.cid, params.si, true);
+            break;
+        case 'copyList':
+            if (params.vi !== undefined && params.vi !== null) {
+                renderCopyListFromVariety(params.cid, params.si, params.vi, true);
+            } else {
+                renderCopyList(params.cid, params.si, true);
+            }
+            break;
+        default:
+            renderCategories(true);
+    }
+    
     currentReadmeBackInfo = null;
 }
 
@@ -1566,42 +1617,18 @@ function closeModal() {
 }
 
 function recordCurrentView() {
-    let currentViewInfo = null;
-    
-    switch (currentView) {
-        case 'categories':
-            currentViewInfo = { view: 'categories' };
-            break;
-        case 'seriesList':
-            currentViewInfo = { view: 'seriesList', categoryId: currentCategoryId };
-            break;
-        case 'varietyList':
-            currentViewInfo = { view: 'varietyList', categoryId: currentCategoryId, series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si } : null };
-            break;
-        case 'copyList':
-            currentViewInfo = { view: 'copyList', categoryId: currentCategoryId, series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi } : null };
-            break;
-        case 'detail':
-            currentViewInfo = { view: 'detail', categoryId: currentCategoryId, series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null };
-            break;
-        case 'readmePage':
-            currentViewInfo = { view: 'readmePage' };
-            break;
-        case 'searchResult':
-            currentViewInfo = { view: 'searchResult', searchKeyword: currentSearchKeyword, searchType: currentSearchType };
-            break;
-        default:
-            return;
-    }
-    
-    // 去重：如果栈顶和当前要记录的相同，就不重复添加
-    if (viewHistoryStack.length > 0) {
-        const last = viewHistoryStack[viewHistoryStack.length - 1];
-        if (JSON.stringify(last) === JSON.stringify(currentViewInfo)) {
-            return;
-        }
-    }
-    
+    const currentViewInfo = {
+        view: currentView,
+        categoryId: currentCategoryId,
+        series: currentSeries ? { 
+            cid: currentSeries.cid, 
+            si: currentSeries.si,
+            vi: currentSeries.vi,
+            ci: currentSeries.ci
+        } : null,
+        searchKeyword: currentSearchKeyword,
+        searchType: currentSearchType
+    };
     viewHistoryStack.push(currentViewInfo);
     
     if (viewHistoryStack.length > 50) {
@@ -1609,7 +1636,6 @@ function recordCurrentView() {
     }
 }
 
-// 核心修改：增强版 goBackToPreviousView，处理所有视图类型
 function goBackToPreviousView() {
     if (isHandlingPopState) return false;
     if (viewHistoryStack.length <= 1) {
@@ -1618,10 +1644,8 @@ function goBackToPreviousView() {
     
     isHandlingPopState = true;
     
-    // 移除当前视图（栈顶）
     viewHistoryStack.pop();
     
-    // 获取上一个视图
     const previousView = viewHistoryStack[viewHistoryStack.length - 1];
     
     if (!previousView) {
@@ -1629,7 +1653,6 @@ function goBackToPreviousView() {
         return false;
     }
     
-    // 根据上一个视图类型恢复页面
     switch (previousView.view) {
         case 'categories':
             renderCategories(true);
@@ -1652,7 +1675,7 @@ function goBackToPreviousView() {
             break;
         case 'copyList':
             if (previousView.series && previousView.categoryId) {
-                if (previousView.series.vi !== undefined && previousView.series.vi !== null) {
+                if (previousView.series.vi !== undefined) {
                     renderCopyListFromVariety(previousView.categoryId, previousView.series.si, previousView.series.vi, true);
                 } else {
                     renderCopyList(previousView.categoryId, previousView.series.si, true);
@@ -1664,34 +1687,14 @@ function goBackToPreviousView() {
             }
             break;
         case 'readmePage':
-            // readme 返回时，需要回到之前的视图，但 currentReadmeBackInfo 记录了返回信息
-            if (currentReadmeBackInfo) {
-                const backInfo = currentReadmeBackInfo;
-                currentReadmeBackInfo = null;
-                switch (backInfo.viewType) {
-                    case 'varietyList':
-                        renderVarietyList(backInfo.params.cid, backInfo.params.si, true);
-                        break;
-                    case 'copyList':
-                        if (backInfo.params.vi !== undefined && backInfo.params.vi !== null) {
-                            renderCopyListFromVariety(backInfo.params.cid, backInfo.params.si, backInfo.params.vi, true);
-                        } else {
-                            renderCopyList(backInfo.params.cid, backInfo.params.si, true);
-                        }
-                        break;
-                    default:
-                        renderCategories(true);
-                }
-            } else {
-                renderCategories(true);
-            }
+            goBackFromReadme();
             break;
         case 'detail':
-            if (previousView.series && previousView.series.cid) {
-                if (previousView.series.vi !== undefined && previousView.series.vi !== null) {
-                    renderCopyListFromVariety(previousView.series.cid, previousView.series.si, previousView.series.vi, true);
+            if (currentSeries && currentSeries.cid) {
+                if (currentSeries.vi !== undefined) {
+                    renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
                 } else {
-                    renderCopyList(previousView.series.cid, previousView.series.si, true);
+                    renderCopyList(currentSeries.cid, currentSeries.si, true);
                 }
             } else if (previousView.categoryId) {
                 renderSeriesList(previousView.categoryId, true);
@@ -1722,7 +1725,7 @@ function pushViewToHistory() {
     
     recordCurrentView();
     
-    history.pushState({ custom: true, viewIndex: viewHistoryStack.length - 1 }, '');
+    history.pushState({ custom: true }, '');
 }
 
 window.addEventListener('popstate', function(event) {
@@ -1735,9 +1738,8 @@ window.addEventListener('popstate', function(event) {
     
     if (!handled) {
         setTimeout(() => {
-            isHandlingPopState = false;
+            window.history.back();
         }, 0);
-        return;
     }
     
     setTimeout(() => {
