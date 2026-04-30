@@ -191,6 +191,17 @@ const hk_scData = {
         {
             seriesName: "2018～至今版",
             year: "2018～至今",
+            // 新增 readme 数组：显示在品种列表页（与各个面额并列，在上方）
+            readme: [
+                {
+                    title: "渣打银行2018年新版港币宣传片",
+                    content: "file:readmes/hk_sc_2018_promo.txt"
+                },
+                {
+                    title: "渣打银行2018年新版港币设计理念",
+                    content: "file:readmes/hk_sc_2018_design.txt"
+                }
+            ],
             varieties: [
                 {
                     varietyName: "港币20元",
