@@ -30,13 +30,13 @@
 <p>双色铜合金纪念币面额10元，直径27毫米，材质为双色铜合金，发行数量为1亿枚（含留存历史货币档案1万枚）。</p>
 <p>纪念钞面额20元，票面长145毫米，宽70毫米，采用塑料材质，发行数量为1亿张（含留存历史货币档案2万张）。</p>
 <p>各省、自治区、直辖市双色铜合金纪念币和纪念钞分配数量如下：</p>
-<center><img src="readmes/image/comm/snake_release_5.png" width="80%"></center>
+<center><img src="readmes/image/comm/snake_release_5.jpg" width="80%"></center>
 <br>
 <b>（三）发行方式。</b>
 <p>双色铜合金纪念币和纪念钞采取预约兑换方式发行。具体发行工作安排如下：</p>
 <p><b>1.承办预约兑换工作的银行业金融机构</b></p>
 <p>中国工商银行、中国农业银行、中国银行、中国建设银行、交通银行、中国邮政储蓄银行、华夏银行、浦发银行、苏州银行、徽商银行、长沙银行、陕西省农村信用社联合社（以下统称预约承办银行）共同承担2025年贺岁双色铜合金纪念币和纪念钞的预约兑换工作。各地区具体安排如下：</p>
-<center><img src="readmes/image/comm/snake_release_6.png" width="80%"></center>
+<center><img src="readmes/image/comm/snake_release_6.jpg" width="80%"></center>
 <br>
 <p><b>2.各地预约分配数量公布</b></p>
 <p>2024年12月22日前，中国人民银行分支机构将向社会公告当地2025年贺岁双色铜合金纪念币和纪念钞的分配数量等信息。预约承办银行将在其官方网站公布2025年贺岁双色铜合金纪念币和纪念钞预约兑换网点及每个网点的可预约数量等信息。</p>
@@ -110,15 +110,15 @@
 <br><br>
 <b>1.正面图案。</b>
 <p>该套金银纪念币正面图案均为中国传统吉祥纹饰组合图案，并刊国名、年号。</p>
-<center><img src="readmes/image/comm/snake_release_15.png" width="80%"></center>
-<center><img src="readmes/image/comm/snake_release_16.png" width="80%"></center>
+<center><img src="readmes/image/comm/snake_release_15.jpg" width="80%"></center>
+<center><img src="readmes/image/comm/snake_release_16.jpg" width="80%"></center>
 <br>
 <b>2.背面图案。</b>
 <p>1克圆形金质纪念币背面图案为“福”字、柿子、蝠纹等组合设计，并刊面额。</p>
-<center><img src="readmes/image/comm/snake_release_17.png" width="80%"></center>
+<center><img src="readmes/image/comm/snake_release_17.jpg" width="80%"></center>
 <br>
 <p>8克菱形银质纪念币背面图案为贴“福”字场景，并刊面额。</p>
-<center><img src="readmes/image/comm/snake_release_18.png" width="80%"></center>
+<center><img src="readmes/image/comm/snake_release_18.jpg" width="80%"></center>
 <br>
 <b>（二）金银纪念币规格及发行数量。</b>
 <p>1克圆形金质纪念币为普制币，含纯金1克，直径10毫米，面额10元，成色99.9%，最大发行量150000枚。</p>
