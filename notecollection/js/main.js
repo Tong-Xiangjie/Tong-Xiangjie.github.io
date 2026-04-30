@@ -849,6 +849,36 @@ function selectSeriesOrVariety(cid, si) {
     }
 }
 
+// 辅助函数：生成 readme 卡片 HTML（支持数组或单个对象）
+function generateReadmeCards(readmeData, type, cid, si, vi = null) {
+    if (!readmeData) return '';
+    
+    let cardsHtml = '';
+    const items = Array.isArray(readmeData) ? readmeData : [readmeData];
+    
+    for (let idx = 0; idx < items.length; idx++) {
+        const rm = items[idx];
+        const title = rm.title || 'Readme';
+        
+        let onclickAttr = '';
+        if (type === 'varietyList') {
+            onclickAttr = `onclick="goToReadmeFromSeriesWithIndex('${cid}', ${si}, ${idx})"`;
+        } else if (type === 'copyListFromVariety') {
+            onclickAttr = `onclick="goToReadmeFromCopyListWithIndex('${cid}', ${si}, ${vi}, ${idx})"`;
+        } else {
+            onclickAttr = `onclick="goToReadmeFromCopyListWithIndex('${cid}', ${si}, null, ${idx})"`;
+        }
+        
+        cardsHtml += `
+            <div class="readme-card" ${onclickAttr}>
+                <div class="readme-title">${escapeHtml(title)}</div>
+            </div>
+        `;
+    }
+    
+    return cardsHtml;
+}
+
 function renderVarietyList(cid, si, restore = false) {
     fromSearchResult = false;
     if (!restore) {
@@ -876,16 +906,8 @@ function renderVarietyList(cid, si, restore = false) {
     }
     itemsHtml += `</div>`;
 
-    // readme 卡片（仅当 series 有 readme 时显示）
-    let readmeCardHtml = '';
-    if (series.readme) {
-        const title = series.readme.title || 'Readme';
-        readmeCardHtml = `
-            <div class="readme-card" onclick="goToReadmeFromSeries('${cid}', ${si})">
-                <div class="readme-title">${escapeHtml(title)}</div>
-            </div>
-        `;
-    }
+    // readme 卡片（支持数组）
+    const readmeCardsHtml = generateReadmeCards(series.readme, 'varietyList', cid, si);
 
     const full = `
         <div class="back-bar"><button class="back-btn" onclick="backToSeriesList('${cid}')">← 返回版别</button></div>
@@ -894,7 +916,7 @@ function renderVarietyList(cid, si, restore = false) {
                 <h2>${escapeHtml(series.seriesName)}</h2>
                 <p>${formatYear(series.year)} · 共 ${varieties.length} 个品种</p>
             </div>
-            ${readmeCardHtml}
+            ${readmeCardsHtml}
             ${itemsHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -946,16 +968,8 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
     }
     copiesHtml += `</div>`;
 
-    // readme 卡片（仅当 variety 有 readme 时显示）
-    let readmeCardHtml = '';
-    if (variety.readme) {
-        const title = variety.readme.title || 'Readme';
-        readmeCardHtml = `
-            <div class="readme-card" onclick="goToReadmeFromCopyList('${cid}', ${si}, ${vi})">
-                <div class="readme-title">${escapeHtml(title)}</div>
-            </div>
-        `;
-    }
+    // readme 卡片（支持数组）
+    const readmeCardsHtml = generateReadmeCards(variety.readme, 'copyListFromVariety', cid, si, vi);
 
     const full = `
         <div class="back-bar">
@@ -966,7 +980,7 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
                 <h2>${escapeHtml(variety.varietyName)}</h2>
                 <p>${formatYear(series.year)} · 共 ${copies.length} 张</p>
             </div>
-            ${readmeCardHtml}
+            ${readmeCardsHtml}
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -1145,16 +1159,8 @@ function renderCopyList(cid, si, restore = false) {
     }
     copiesHtml += `</div>`;
 
-    // readme 卡片（仅当 series 有 readme 时显示）
-    let readmeCardHtml = '';
-    if (series.readme) {
-        const title = series.readme.title || 'Readme';
-        readmeCardHtml = `
-            <div class="readme-card" onclick="goToReadmeFromCopyList('${cid}', ${si})">
-                <div class="readme-title">${escapeHtml(title)}</div>
-            </div>
-        `;
-    }
+    // readme 卡片（支持数组）
+    const readmeCardsHtml = generateReadmeCards(series.readme, 'copyList', cid, si);
 
     const full = `
         <div class="back-bar">
@@ -1165,7 +1171,7 @@ function renderCopyList(cid, si, restore = false) {
                 <h2>${escapeHtml(series.seriesName)}</h2>
                 <p>${formatYear(series.year)} · 共 ${copies.length} 张</p>
             </div>
-            ${readmeCardHtml}
+            ${readmeCardsHtml}
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -1311,7 +1317,7 @@ function selectCopy(cid, si, ci) {
     renderDetail(cid, si, ci);
 }
 
-// ========= readme 功能 =========
+// ========= readme 功能（支持数组） =========
 
 // 从 readme 返回
 function goBackFromReadme() {
@@ -1341,9 +1347,9 @@ function goBackFromReadme() {
 }
 
 // 渲染 readme 详情页（新的一层）
-async function renderReadmePage(readmeData, viewType, params) {
-    const title = readmeData.title || 'Readme';
-    let content = readmeData.content;
+async function renderReadmePage(readmeItem, viewType, params) {
+    const title = readmeItem.title || 'Readme';
+    let content = readmeItem.content;
     
     if (content && (content.startsWith('file:') || content.startsWith('LOAD:'))) {
         content = await loadExternalContent(content) || '内容加载失败';
@@ -1381,49 +1387,63 @@ async function renderReadmePage(readmeData, viewType, params) {
     currentView = "readmePage";
 }
 
-// 从系列进入 readme（品种列表页）
-function goToReadmeFromSeries(cid, si) {
+// 从系列进入 readme（品种列表页）- 带索引
+function goToReadmeFromSeriesWithIndex(cid, si, readmeIndex) {
     const cat = banknotesData[cid];
     if (!cat || !cat.series[si]) return;
     const series = cat.series[si];
-    const readme = series.readme;
-    if (!readme) return;
+    const readmeList = series.readme;
+    if (!readmeList) return;
+    
+    const readmeItem = Array.isArray(readmeList) ? readmeList[readmeIndex] : readmeList;
+    if (!readmeItem) return;
     
     saveScroll("varietyList_" + cid + "_" + si);
     
     recordCurrentView();
     history.pushState({ custom: true }, '');
     
-    renderReadmePage(readme, 'varietyList', { cid: cid, si: si });
+    renderReadmePage(readmeItem, 'varietyList', { cid: cid, si: si });
 }
 
-// 从品种/系列进入 readme（藏品列表页）
-function goToReadmeFromCopyList(cid, si, vi = null) {
+// 从系列/品种进入 readme（藏品列表页）- 带索引
+function goToReadmeFromCopyListWithIndex(cid, si, vi, readmeIndex) {
     const cat = banknotesData[cid];
     if (!cat || !cat.series[si]) return;
     
-    let readme = null;
+    let readmeList = null;
     let viewType = 'copyList';
     let params = {};
     
     if (vi !== undefined && vi !== null) {
         const variety = cat.series[si].varieties[vi];
-        readme = variety.readme;
+        readmeList = variety.readme;
         params = { cid: cid, si: si, vi: vi };
         saveScroll("copyList_" + cid + "_" + si + "_" + vi);
     } else {
         const series = cat.series[si];
-        readme = series.readme;
+        readmeList = series.readme;
         params = { cid: cid, si: si, vi: null };
         saveScroll("copyList_" + cid + "_" + si);
     }
     
-    if (!readme) return;
+    if (!readmeList) return;
+    const readmeItem = Array.isArray(readmeList) ? readmeList[readmeIndex] : readmeList;
+    if (!readmeItem) return;
     
     recordCurrentView();
     history.pushState({ custom: true }, '');
     
-    renderReadmePage(readme, viewType, params);
+    renderReadmePage(readmeItem, viewType, params);
+}
+
+// 兼容旧版单个 readme 的调用（如果 data 中还是对象而非数组）
+function goToReadmeFromSeries(cid, si) {
+    goToReadmeFromSeriesWithIndex(cid, si, 0);
+}
+
+function goToReadmeFromCopyList(cid, si, vi = null) {
+    goToReadmeFromCopyListWithIndex(cid, si, vi, 0);
 }
 
 function initPinchZoom() {
