@@ -880,7 +880,7 @@ function renderVarietyList(cid, si, restore = false) {
         const title = series.readme.title || 'Readme';
         readmeCardHtml = `
             <div class="readme-card" onclick="goToReadmeFromSeries('${cid}', ${si})">
-                <div class="readme-title">📖 ${escapeHtml(title)}</div>
+                <div class="readme-title">${escapeHtml(title)}</div>
             </div>
         `;
     }
@@ -950,7 +950,7 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
         const title = variety.readme.title || 'Readme';
         readmeCardHtml = `
             <div class="readme-card" onclick="goToReadmeFromCopyList('${cid}', ${si}, ${vi})">
-                <div class="readme-title">📖 ${escapeHtml(title)}</div>
+                <div class="readme-title">${escapeHtml(title)}</div>
             </div>
         `;
     }
@@ -1149,7 +1149,7 @@ function renderCopyList(cid, si, restore = false) {
         const title = series.readme.title || 'Readme';
         readmeCardHtml = `
             <div class="readme-card" onclick="goToReadmeFromCopyList('${cid}', ${si})">
-                <div class="readme-title">📖 ${escapeHtml(title)}</div>
+                <div class="readme-title">${escapeHtml(title)}</div>
             </div>
         `;
     }
