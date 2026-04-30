@@ -1,5 +1,11 @@
-// 禁用浏览器的自动滚动恢复，防止F5刷新后自动滚动到之前的位置
-history.scrollRestoration = 'manual';
+// 侧滑返回恢复滚动位置，F5刷新回到顶部
+window.addEventListener('pageshow', function(event) {
+    if (!event.persisted) {
+        // 不是从缓存加载（即正常加载或刷新），滚动到顶部
+        window.scrollTo(0, 0);
+    }
+    // event.persisted === true 时（侧滑返回），浏览器自动恢复滚动位置
+});
 
 // 侧滑返回历史记录管理
 let isHandlingPopState = false;
