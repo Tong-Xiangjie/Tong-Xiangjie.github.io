@@ -116,16 +116,13 @@
 <p>该套金银纪念币正面图案均为中国传统吉祥纹饰组合图案，并刊国名、年号。</p>
 <center><img src="readmes/image/comm/horse_release_17.webp" width="80%"></center>
 <center><img src="readmes/image/comm/horse_release_18.webp" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">金银纪念币正面图案</span></center>
 <br>
 <b>2.背面图案。</b>
 <p>1克圆形金质纪念币背面图案为“福”字、荷包组合设计，并刊面额。</p>
 <center><img src="readmes/image/comm/horse_release_19.webp" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">1克圆形金质纪念币背面图案</span></center>
 <br>
 <p>8克菱形银质纪念币背面图案为“福”字、舞鱼灯场景组合设计，并刊面额。</p>
 <center><img src="readmes/image/comm/horse_release_20.webp" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">8克菱形银质纪念币背面图案</span></center>
 <br>
 <b>（二）金银纪念币规格及发行数量。</b>
 <p>1克圆形金质纪念币为普制币，含纯金1克，直径10毫米，面额10元，成色99.9%，最大发行量150000枚。</p>
