@@ -360,6 +360,10 @@ const commemorativeData = {
         { 
             seriesName: "人民币发行70周年纪念钞",
             year: "2018",
+ 	    readme: {
+                title: "发行公告",
+                content: "file:readmes/snake_relese.txt"
+            },
             copies: [
                 { 
                     copyId: 1, 
@@ -432,7 +436,10 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
-            // 新增 readme
+ 	    readme: {
+                title: "发行公告",
+                content: "file:readmes/winter_olympics_relese.txt"
+            },
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
                 content: "file:readmes/winter_olympics_promo.txt"
@@ -456,7 +463,10 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
             year: "2022",
-            // 新增 readme
+ 	    readme: {
+                title: "发行公告",
+                content: "file:readmes/winter_olympics_relese.txt"
+            },
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
                 content: "file:readmes/winter_olympics_promo.txt"
@@ -577,6 +587,10 @@ const commemorativeData = {
         { 
             seriesName: "龙年贺岁纪念钞",
             year: "2024",
+ 	    readme: {
+                title: "发行公告",
+                content: "file:readmes/dragon_relese.txt"
+            },
             copies: [{ 
                 copyId: 1, 
                 year: 2024,
@@ -596,6 +610,10 @@ const commemorativeData = {
         { 
             seriesName: "蛇年贺岁纪念钞",
             year: "2025",
+ 	    readme: {
+                title: "发行公告",
+                content: "file:readmes/snake_relese.txt"
+            },
             copies: [{ 
                 copyId: 1, 
                 year: 2025,
@@ -615,6 +633,10 @@ const commemorativeData = {
         { 
             seriesName: "马年贺岁纪念钞",
             year: "2026",
+ 	    readme: {
+                title: "发行公告",
+                content: "file:readmes/horse_relese.txt"
+            },
             copies: [
                 { 
                     copyId: 1, 
