@@ -1,0 +1,7 @@
+<center>
+<b><span style="font-size:1.1em;">中国银行新款澳门元宣传片</span></b>
+</center>
+<br>
+<center><video controls src="video/boc_macau_video1.mp4" style="width:100%; max-width:800px; border-radius:12px;"></video></center>
+<br>
+<div style="text-align:left;">占位字符。</div>
