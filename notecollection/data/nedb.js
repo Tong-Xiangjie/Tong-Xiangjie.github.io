@@ -20,8 +20,8 @@ const nedbData = {
             year: "1955",
             // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
             readme: {
-                title: "1955年国家经济建设公债条例",
-                content: "file:readmes/nedb_1955_ordinance.md"
+                title: "一九五五年国家经济建设公债条例",
+                content: "file:readmes/nedb_1955_ordinance.txt"
             },
             varieties: [
                 {
@@ -218,8 +218,8 @@ const nedbData = {
             year: "1957",
             // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
             readme: {
-                title: "1957年国家经济建设公债条例",
-                content: "file:readmes/nedb_1957_ordinance.md"
+                title: "一九五七年国家经济建设公债条例",
+                content: "file:readmes/nedb_1957_ordinance.txt"
             },
             varieties: [
                 {
