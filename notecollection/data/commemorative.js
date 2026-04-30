@@ -612,7 +612,7 @@ const commemorativeData = {
             year: "2025",
  	    readme: {
                 title: "发行公告",
-                content: "file:readmes/snake_relese.txt"
+                content: "file:readmes/snake_release.txt"
             },
             copies: [{ 
                 copyId: 1, 
