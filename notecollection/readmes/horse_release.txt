@@ -2,10 +2,8 @@
 <b><span style="font-size:1.1em;">中国人民银行公告〔2025〕第32号</span></b>
 </center>
 <br>
-<!-- 隐藏图片，让 main.js 自动绑定弹窗 -->
-<img src="image/comm/horse_release0.png" id="snapshotImg" style="display:none;">
 <center>
-<a href="javascript:void(0);" onclick="var img=document.getElementById('snapshotImg'); if(img && img.onclick) img.onclick(); else if(img) img.click();" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="var imgUrl='readmes/image/comm/horse_release0.png'; var img=new Image(); img.onload=function(){ window.currentModalImg1=imgUrl; window.currentModalImg2=''; if(window.openModal) window.openModal(0); }; img.src=imgUrl;" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
 <a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2026年马年贺岁纪念钞发行公告：中国人民银行公告〔2025〕第32号，网页链接https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2025121915472814584/index.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
 </center>
 <br>
