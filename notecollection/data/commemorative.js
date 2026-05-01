@@ -62,13 +62,13 @@ const commemorativeData = {
                     price: "278元", 
                     bank: "中国人民银行", 
                     version: "A000000B", 
-                    condition: "ACG67E", 
-                    krause: "000",
+                    condition: "暂未评级", 
+                    krause: "1990",
                     issueDate: "1999年6月",
                     issueQuantity: "3000万",
                     remark: "", 
-                    img1: "image/comm/J51665987-1.jpg", 
-                    img2: "image/comm/J51665987-2.jpg" 
+                    img1: "image/comm/-1.jpg", 
+                    img2: "image/comm/-2.jpg" 
                 }
             ] 
         },
@@ -425,7 +425,7 @@ const commemorativeData = {
                     "varietyName": "大西洋银行",
                     "copies": [
                         {
-                            "copyId": 2,
+                            "copyId": 1,
                             "year": 2019,
                             "purchaseDate": "2025年12月5日",
                             "price": "34元",
