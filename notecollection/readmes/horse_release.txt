@@ -1,7 +1,13 @@
 <center>
 <b><span style="font-size:1.1em;">中国人民银行公告〔2025〕第32号</span></b>
 </center>
-<br>
+<br>
+<center>
+<a href="readmes/image/comm/horse_release_0.webp" target="_blank" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2026年马年贺岁纪念钞发行公告：中国人民银行公告〔2025〕第32号，网页链接https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2025121915472814584/index.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
+</center>
+<br>
+
 <p>中国人民银行定于2025年12月22日起陆续发行2026年贺岁纪念币和纪念钞，其中双色铜合金纪念币1枚，纪念钞1张，金质纪念币1枚，银质纪念币1枚，均为中华人民共和国法定货币。</p>
 
 <b>一、双色铜合金纪念币和纪念钞</b>
