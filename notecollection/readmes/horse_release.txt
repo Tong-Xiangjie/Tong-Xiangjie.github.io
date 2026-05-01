@@ -4,8 +4,7 @@
 <br>
 
 <center>
-<!-- 完全按照你的文案，修复弹窗功能，无隐藏图片、无报错、路径正确 -->
-<a href="javascript:void(0);" onclick="window.currentModalImg1='readmes/image/comm/horse_release0.png'; window.openModal(0);" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="window.currentModalImg1='https://tong-xiangjie.github.io/notecollection/readmes/image/comm/horse_release0.png'; window.openModal(0);" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
 <a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2026年马年贺岁纪念钞发行公告：中国人民银行公告〔2025〕第32号，网页链接https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2025121915472814584/index.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
 </center>
 <br>
