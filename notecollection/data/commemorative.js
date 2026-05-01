@@ -360,9 +360,9 @@ const commemorativeData = {
         { 
             seriesName: "人民币发行70周年纪念钞",
             year: "2018",
- 	    readme: {
+ 	        readme: {
                 title: "发行公告",
-                content: "file:readmes/snake_release.txt"
+                content: "暂无"
             },
             copies: [
                 { 
@@ -397,46 +397,56 @@ const commemorativeData = {
                 }
             ] 
         },
-        { 
-            seriesName: "澳门回归20周年纪念钞",
-            year: "2019",
-            copies: [
-                { 
-                    copyId: 1, 
-                    year: 2019,
-                    purchaseDate: "2025年12月5日", 
-                    price: "34元", 
-                    bank: "中国银行", 
-                    version: "MA3518209", 
-                    condition: "ACG66E", 
-                    krause: "123",
-                    issueDate: "2019年7月",
-                    issueQuantity: "500万对",
-                    remark: "", 
-                    img1: "image/comm/MA3518209-1.jpg", 
-                    img2: "image/comm/MA3518209-2.jpg" 
+        {
+            "seriesName": "澳门回归20周年纪念钞",
+            "year": "2019",
+            "varieties": [
+                {
+                    "varietyName": "中国银行",
+                    "copies": [
+                        {
+                            "copyId": 1,
+                            "year": 2019,
+                            "purchaseDate": "2025年12月5日",
+                            "price": "34元",
+                            "bank": "中国银行",
+                            "version": "MA3518209",
+                            "condition": "ACG66E",
+                            "krause": "123",
+                            "issueDate": "2019年7月",
+                            "issueQuantity": "500万对",
+                            "remark": "",
+                            "img1": "image/comm/MA3518209-1.jpg",
+                            "img2": "image/comm/MA3518209-2.jpg"
+                        }
+                    ]
                 },
-                { 
-                    copyId: 2, 
-                    year: 2019,
-                    purchaseDate: "2025年12月5日", 
-                    price: "34元", 
-                    bank: "大西洋银行", 
-                    version: "MA0500209", 
-                    condition: "ACG66E", 
-                    krause: "89",
-                    issueDate: "2019年7月",
-                    issueQuantity: "500万对",
-                    remark: "算不算是半个生日号？总感觉这张与我挺有缘的", 
-                    img1: "image/comm/MA0500209-1.jpg", 
-                    img2: "image/comm/MA0500209-2.jpg" 
+                {
+                    "varietyName": "大西洋银行",
+                    "copies": [
+                        {
+                            "copyId": 2,
+                            "year": 2019,
+                            "purchaseDate": "2025年12月5日",
+                            "price": "34元",
+                            "bank": "大西洋银行",
+                            "version": "MA0500209",
+                            "condition": "ACG66E",
+                            "krause": "89",
+                            "issueDate": "2019年7月",
+                            "issueQuantity": "500万对",
+                            "remark": "算不算是半个生日号？总感觉这张与我挺有缘的",
+                            "img1": "image/comm/MA0500209-1.jpg",
+                            "img2": "image/comm/MA0500209-2.jpg"
+                        }
+                    ]
                 }
-            ] 
+            ]
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
- 	    readme: {
+ 	        readme: {
                 title: "发行公告",
                 content: "file:readmes/winter_olympics_release.txt"
             },
@@ -587,7 +597,7 @@ const commemorativeData = {
         { 
             seriesName: "龙年贺岁纪念钞",
             year: "2024",
- 	    readme: {
+ 	        readme: {
                 title: "发行公告",
                 content: "file:readmes/dragon_release.txt"
             },
@@ -610,7 +620,7 @@ const commemorativeData = {
         { 
             seriesName: "蛇年贺岁纪念钞",
             year: "2025",
- 	    readme: {
+ 	        readme: {
                 title: "发行公告",
                 content: "file:readmes/snake_release.txt"
             },
@@ -633,7 +643,7 @@ const commemorativeData = {
         { 
             seriesName: "马年贺岁纪念钞",
             year: "2026",
- 	    readme: {
+ 	        readme: {
                 title: "发行公告",
                 content: "file:readmes/horse_release.txt"
             },
