@@ -2,6 +2,12 @@
 <b><span style="font-size:1.1em;">中国人民银行公告〔2024〕第18号</span></b>
 </center>
 <br>
+
+<center>
+<a href="javascript:void(0);" onclick="currentModalImg1='https://tong-xiangjie.github.io/notecollection/readmes/image/comm/horse_release0.png'; openModal(0);" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2025年蛇年贺岁纪念钞发行公告：中国人民银行公告〔2024〕第18号，网页链接https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2025092212554451111/index.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
+</center>
+<br>
 <p>中国人民银行定于2024年12月16日起陆续发行2025年贺岁纪念币和纪念钞，其中双色铜合金纪念币1枚，纪念钞1张，金质纪念币1枚，银质纪念币1枚，均为中华人民共和国法定货币。</p>
 
 <b>一、双色铜合金纪念币和纪念钞</b>
