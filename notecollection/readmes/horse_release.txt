@@ -1,10 +1,12 @@
 <center>
-<b><span style="font-size:1.1em;">中国人民银行公告〔2025〕第32号</span></b>
+<b><span style="font-size:1.1em;">中国人民银行公告〔2026〕第1号</span></b>
 </center>
 <br>
+
 <center>
-<a href="javascript:void(0);" onclick="var imgUrl='/notecollection/readmes/image/comm/horse_release0.png'; var img=new Image(); img.onload=function(){ window.currentModalImg1=imgUrl; window.currentModalImg2=''; if(window.openModal) window.openModal(0); }; img.src=imgUrl;" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
-<a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2026年马年贺岁纪念钞发行公告：中国人民银行公告〔2025〕第32号，网页链接https://www.pbc.gov.cn/goutongjiaoliu/113456/113469/2025121915472814584/index.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
+<!-- 修复后的超链接：直接调用 openModal 函数，无需隐藏图片 -->
+<a href="javascript:void(0);" onclick="window.currentModalImg1='image/comm/horse_release0.png'; window.openModal(0);" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2026年马年贺岁纪念钞发行公告：中国人民银行公告〔2026〕第1号，网页链接https://www.pbc.gov.cn/huobijinyinju/147948/147966/xxxxxxxxxxxxx.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
 </center>
 <br>
 
