@@ -2,8 +2,9 @@
 <b><span style="font-size:1.1em;">中国人民银行公告〔2023〕第21号</span></b>
 </center>
 <br>
+
 <center>
-<a href="readmes/image/comm/dragon_release0.png" target="_blank" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="currentModalImg1='https://tong-xiangjie.github.io/notecollection/readmes/image/comm/dragon_release0.png'; openModal(0);" style="color:#b8860b; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
 <a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2024年龙年贺岁纪念钞发行公告：中国人民银行公告〔2023〕第21号，网页链接https://www.pbc.gov.cn/huobijinyinju/147948/147966/dd037939156c4b319172915826a823d4/index.html');alert('链接已复制到剪贴板');" style="color:#b8860b; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
 </center>
 <br>
