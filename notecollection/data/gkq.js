@@ -41,8 +41,104 @@ const gkqData = {
                             img2: "image/gkq/ⅣⅩ148437-2.jpg"
                         }
                     ]
+                },{
+                    varietyName: "5元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1982,
+                            version: "ⅩⅦ813772",
+                            condition: "----",
+                            price: "裸票115元",
+                            purchaseDate: "2026年5月2日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/-1.jpg",
+                            img2: "image/gkq/-2.jpg"
+                        }
+                    ]
                 }
-                // 可继续添加：5元、10元等面值
+            ]
+        },{
+            seriesName: "1989年",
+            year: "1989",
+            varieties: [
+                {
+                    varietyName: "5元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1982,
+                            version: "ⅢⅡ00000000",
+                            condition: "----",
+                            price: "裸票19元",
+                            purchaseDate: "2026年5月2日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/-1.jpg",
+                            img2: "image/gkq/-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "1991年",
+            year: "1991",
+            varieties: [
+                {
+                    varietyName: "5元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1991,
+                            version: "ⅩⅡ83410889",
+                            condition: "ACG65E",
+                            price: "55元",
+                            purchaseDate: "2026年5月2日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/ⅩⅡ83410889-1.jpg",
+                            img2: "image/gkq/ⅩⅡ83410889-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "10元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1991,
+                            version: "ⅩⅠ61258426",
+                            condition: "----",
+                            price: "裸票50元",
+                            purchaseDate: "2026年5月2日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/-1.jpg",
+                            img2: "image/gkq/-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "50元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1991,
+                            version: "ⅩⅠ40955834",
+                            condition: "----",
+                            price: "裸票188元",
+                            purchaseDate: "2026年5月2日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/-1.jpg",
+                            img2: "image/gkq/-2.jpg"
+                        }
+                    ]
+                }
             ]
         }
         // 可继续添加：1983年、1984年等年份
