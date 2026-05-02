@@ -16,7 +16,7 @@ const fecData = {
     ],
     series: [
         {
-            seriesName: "1角",
+            seriesName: "1979年 1角",
             year: "1979",
             varieties: [
                 {
