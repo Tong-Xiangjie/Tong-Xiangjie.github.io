@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>铜の币纪 · 趣味收藏</title>
+    <link rel="stylesheet" href="css/common.css">
+    <style>
+        /* 主站特有的导航网格布局 */
+        .fun-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .fun-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #e2d5c8;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: block;
+            color: inherit;
+        }
+        .fun-card:hover {
+            transform: translateY(-4px);
+            border-color: #daa520;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+        .fun-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #b8860b;
+        }
+        .fun-card p {
+            color: #8b6b4f;
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            margin-top: 0.8rem;
+            font-size: 0.7rem;
+            background: #f0ebe3;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            color: #8b6b4f;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="hero-image">
+            <img src="../coincollection/image/decoration/headphoto.png" alt="铜の币纪" onerror="this.style.display='none'">
+        </div>
+        <h1>趣味收藏实验室</h1>
+        <div class="sub">从另一个角度，重新审视纸币</div>
+    </div>
+
+    <div class="fun-grid">
+        <a href="years/" class="fun-card">
+            <h3>📅 年份图鉴</h3>
+            <p>采集纸币上的年份数字，每一枚字体都不尽相同</p>
+            <div class="badge">即将上线</div>
+        </a>
+        <!-- 未来更多子站 -->
+    </div>
+
+    <div class="footer">
+        铜の币纪 · 趣味收藏<br>© 2026
+    </div>
+</div>
+</body>
+</html>
