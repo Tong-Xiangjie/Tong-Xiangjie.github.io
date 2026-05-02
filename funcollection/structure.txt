@@ -1,0 +1,18 @@
+funcollection/                     # 趣味收藏根目录
+│
+├── index.html                     # 趣味收藏主站（导航页）
+├── css/
+│   └── common.css                 # 全局通用样式（色系、字体、基础组件）
+│
+├── years/                         # 年份图鉴子站
+│   ├── index.html
+│   ├── data.js                    # 年份图鉴专用数据
+│   └── style.css                  # 子站特有布局样式（可选）
+│
+├── (未来子站2)/                   # 例如：面值图鉴
+│   ├── index.html
+│   └── data.js
+│
+└── (未来子站3)/                   # 例如：冠号趣闻
+    ├── index.html
+    └── data.js
