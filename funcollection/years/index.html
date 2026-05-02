@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>年份图鉴 · 铜の币纪趣味收藏</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <style>
+        /* ========== 年份图鉴专属样式 ========== */
+        .year-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .year-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #e2d5c8;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+        .year-card:hover {
+            transform: translateY(-4px);
+            border-color: #c9aa7b;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+        }
+        .year-number {
+            font-size: 3rem;
+            font-weight: 600;
+            color: #b8860b;
+            line-height: 1.2;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+        .year-count {
+            font-size: 0.7rem;
+            color: #8b6b4f;
+            margin-top: 0.5rem;
+            background: #f0ebe3;
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+        }
+        .year-preview {
+            margin-top: 0.75rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+        .year-preview-img {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #e2d5c8;
+            background: #faf5ef;
+            cursor: pointer;
+        }
+        .year-preview-more {
+            font-size: 0.6rem;
+            color: #b1967c;
+            background: #f0ebe3;
+            padding: 0 0.4rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-container {
+            background: #f0ebe3;
+            max-width: 800px;
+            width: 90%;
+            max-height: 85vh;
+            border-radius: 1rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 1rem 1.2rem;
+            background: white;
+            border-bottom: 1px solid #e2d5c8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            font-size: 1.3rem;
+            color: #b8860b;
+            font-weight: 500;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #8b6b4f;
+            padding: 0 0.5rem;
+        }
+        .modal-body {
+            padding: 1.2rem;
+            overflow-y: auto;
+        }
+        .year-note-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .year-note-item {
+            display: flex;
+            gap: 1rem;
+            padding: 0.8rem;
+            background: white;
+            border-radius: 0.6rem;
+            border: 1px solid #e2d5c8;
+        }
+        .year-note-item:hover {
+            border-color: #daa520;
+        }
+        .year-note-img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 0.4rem;
+            background: #faf5ef;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .year-note-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .year-note-name {
+            font-weight: 500;
+            color: #4a3522;
+            font-size: 1rem;
+            margin-bottom: 0.3rem;
+        }
+        .year-note-krause {
+            font-size: 0.7rem;
+            color: #b8860b;
+            font-family: monospace;
+        }
+
+        /* 横向滚动区 */
+        .scroll-section {
+            margin: 3rem 0;
+        }
+        .scroll-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .scroll-header h3 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #4a3522;
+        }
+        .scroll-hint {
+            font-size: 0.65rem;
+            color: #b8860b;
+        }
+        .horizontal-scroll {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: thin;
+        }
+        .horizontal-scroll::-webkit-scrollbar {
+            height: 5px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-track {
+            background: #e2d5c8;
+            border-radius: 10px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+            background: #daa520;
+            border-radius: 10px;
+        }
+        .mini-card {
+            flex: 0 0 160px;
+            background: white;
+            border-radius: 0.6rem;
+            padding: 1rem;
+            border: 1px solid #e2d5c8;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .mini-card:hover {
+            background: #fef9f0;
+            border-color: #daa520;
+        }
+        .mini-card .label {
+            font-size: 0.65rem;
+            color: #b8860b;
+            font-weight: 500;
+        }
+        .mini-card .value {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-top: 0.3rem;
+            color: #2c2418;
+        }
+        .mini-card .sub-value {
+            font-size: 0.65rem;
+            color: #8b6b4f;
+            margin-top: 0.3rem;
+        }
+
+        /* 统计卡片 */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            margin-top: 1rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 0.6rem;
+            padding: 1.2rem;
+            border: 1px solid #e7ddd0;
+        }
+        .stat-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.5px;
+            color: #b1967c;
+            margin-bottom: 0.5rem;
+        }
+        .stat-number {
+            font-size: 1.6rem;
+            font-weight: 500;
+            color: #b8860b;
+            line-height: 1.2;
+        }
+        .stat-desc {
+            font-size: 0.7rem;
+            color: #6b5a48;
+            margin-top: 0.4rem;
+        }
+
+        /* 大图弹窗 */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1100;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-modal-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+        }
+        .modal-img {
+            display: block;
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1101;
+        }
+        .image-modal-tip {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.7rem;
+            pointer-events: none;
+        }
+
+        @media (max-width: 650px) {
+            .year-grid {
+                gap: 0.8rem;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+            .year-number {
+                font-size: 2rem;
+            }
+            .year-note-item {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="hero-image">
+            <img src="../../coincollection/image/decoration/headphoto.png" alt="铜の币纪" onerror="this.style.display='none'">
+        </div>
+        <h1>纸币 · 年份图鉴</h1>
+        <div class="sub">每一枚年份数字，都是纸币的独特笔迹</div>
+    </div>
+
+    <div class="breadcrumb">
+        <a href="../">趣味收藏</a> / 年份图鉴
+        <span style="float: right;">点击年份卡片，查看该年份所有纸币</span>
+    </div>
+
+    <div class="year-grid" id="yearGrid"></div>
+
+    <div class="scroll-section">
+        <div class="scroll-header">
+            <h3>年代时间轴</h3>
+            <div class="scroll-hint">横向滚动 · 查看各年代藏品数量</div>
+        </div>
+        <div class="horizontal-scroll" id="decadeScroll"></div>
+    </div>
+
+    <div class="feature-grid" id="statsGrid"></div>
+
+    <div class="footer">
+        铜の币纪 · 趣味收藏实验室<br>© 2026
+    </div>
+</div>
+
+<!-- 年份详情弹窗 -->
+<div id="yearModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="modalYearTitle">---- 年</h3>
+            <button class="modal-close" onclick="closeYearModal()">×</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- 大图弹窗 -->
+<div id="imageModal" class="image-modal">
+    <div class="image-modal-close" onclick="closeImageModal()">✕</div>
+    <div class="image-modal-content">
+        <div class="image-container" id="imageContainer">
+            <img id="modalImg" class="modal-img" src="" alt="年份实拍图">
+        </div>
+    </div>
+    <div class="image-modal-tip">双指缩放 | 拖动查看 | 点击背景关闭</div>
+</div>
+
+<script src="data.js"></script>
+<script>
+    // ========== 大图弹窗逻辑（同主站） ==========
+    let hammerManager = null;
+    let currentScale = 1, currentX = 0, currentY = 0;
+
+    function initPinchZoom() {
+        if (typeof Hammer === 'undefined') return;
+        const container = document.getElementById('imageContainer');
+        if (!container) return;
+        if (hammerManager) hammerManager.destroy();
+        hammerManager = new Hammer.Manager(container);
+        const pinch = new Hammer.Pinch();
+        const pan = new Hammer.Pan();
+        hammerManager.add([pinch, pan]);
+        let lastScale = 1, lastX = 0, lastY = 0;
+        function resetTransform() {
+            currentScale = 1; currentX = 0; currentY = 0;
+            container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+        }
+        function clampTransform() {
+            const img = document.getElementById('modalImg');
+            if (!img) return;
+            const containerRect = container.parentElement.getBoundingClientRect();
+            const imgRect = img.getBoundingClientRect();
+            let maxX = 0, maxY = 0;
+            if (imgRect.width > containerRect.width) maxX = (imgRect.width - containerRect.width) / 2;
+            if (imgRect.height > containerRect.height) maxY = (imgRect.height - containerRect.height) / 2;
+            currentX = Math.min(maxX, Math.max(-maxX, currentX));
+            currentY = Math.min(maxY, Math.max(-maxY, currentY));
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        }
+        hammerManager.on('pinchstart', e => { lastScale = currentScale; e.preventDefault(); });
+        hammerManager.on('pinchmove', e => {
+            let newScale = lastScale * e.scale;
+            newScale = Math.min(4, Math.max(1, newScale));
+            currentScale = newScale;
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+            e.preventDefault();
+        });
+        hammerManager.on('pinchend', e => { clampTransform(); e.preventDefault(); });
+        hammerManager.on('panstart', e => { lastX = currentX; lastY = currentY; });
+        hammerManager.on('panmove', e => {
+            if (currentScale > 1) {
+                currentX = lastX + e.deltaX;
+                currentY = lastY + e.deltaY;
+                container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+            }
+            e.preventDefault();
+        });
+        hammerManager.on('panend', e => { clampTransform(); });
+        container.addEventListener('dblclick', e => { resetTransform(); e.preventDefault(); });
+        resetTransform();
+    }
+
+    function openImageModal(imgSrc) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImg');
+        modalImg.src = imgSrc;
+        modal.style.display = 'flex';
+        const container = document.getElementById('imageContainer');
+        if (container) {
+            container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+            currentScale = 1; currentX = 0; currentY = 0;
+        }
+        const scrollY = window.scrollY;
+        document.body.classList.add('modal-open');
+        document.body.style.top = `-${scrollY}px`;
+        modalImg.onload = () => initPinchZoom();
+        if (modalImg.complete) initPinchZoom();
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.style.display = 'none';
+        const scrollY = parseInt(document.body.style.top || '0') * -1;
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        if (scrollY) window.scrollTo(0, scrollY);
+        if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
+    }
+
+    document.getElementById('imageModal')?.addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('image-modal-content')) closeImageModal();
+    });
+
+    // ========== 年份图鉴逻辑 ==========
+    const yearMap = new Map();
+    for (let note of banknoteYears) {
+        if (!yearMap.has(note.year)) yearMap.set(note.year, []);
+        yearMap.get(note.year).push(note);
+    }
+    const sortedYears = Array.from(yearMap.keys()).sort((a,b) => a-b);
+
+    function renderYearCards() {
+        const grid = document.getElementById('yearGrid');
+        grid.innerHTML = '';
+        for (let year of sortedYears) {
+            const notes = yearMap.get(year);
+            const count = notes.length;
+            const previewImgs = notes.slice(0, 3).map(n => n.yearImg);
+            const hasMore = count > 3;
+            const card = document.createElement('div');
+            card.className = 'year-card';
+            card.onclick = (e) => {
+                if (e.target.classList.contains('year-preview-img')) return;
+                openYearModal(year, notes);
+            };
+            let previewHtml = '';
+            if (previewImgs.length) {
+                previewHtml = '<div class="year-preview">';
+                for (let imgUrl of previewImgs) {
+                    previewHtml += `<img src="${imgUrl}" class="year-preview-img" onclick="event.stopPropagation(); openImageModal('${imgUrl}')">`;
+                }
+                if (hasMore) previewHtml += `<span class="year-preview-more">+${count - 3}</span>`;
+                previewHtml += '</div>';
+            }
+            card.innerHTML = `
+                <div class="year-number">${year}</div>
+                <div class="year-count">${count} 张藏品</div>
+                ${previewHtml}
+            `;
+            grid.appendChild(card);
+        }
+    }
+
+    function openYearModal(year, notes) {
+        const modal = document.getElementById('yearModal');
+        document.getElementById('modalYearTitle').innerText = `${year} 年 · 共 ${notes.length} 张`;
+        let listHtml = '<div class="year-note-list">';
+        for (let note of notes) {
+            listHtml += `
+                <div class="year-note-item">
+                    <img src="${note.yearImg}" class="year-note-img" onclick="openImageModal('${note.yearImg}')">
+                    <div class="year-note-info">
+                        <div class="year-note-name">${note.name}</div>
+                        <div class="year-note-krause">${note.krause}</div>
+                    </div>
+                </div>
+            `;
+        }
+        listHtml += '</div>';
+        document.getElementById('modalBody').innerHTML = listHtml;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeYearModal() {
+        document.getElementById('yearModal').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    document.getElementById('yearModal')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeYearModal(); });
+
+    function renderDecadeScroll() {
+        const decadeMap = new Map();
+        for (let [year, notes] of yearMap.entries()) {
+            const decade = Math.floor(year / 10) * 10;
+            decadeMap.set(`${decade}s`, (decadeMap.get(`${decade}s`) || 0) + notes.length);
+        }
+        const container = document.getElementById('decadeScroll');
+        container.innerHTML = '';
+        for (let [dec, count] of [...decadeMap.entries()].sort()) {
+            const card = document.createElement('div');
+            card.className = 'mini-card';
+            const decadeStart = parseInt(dec);
+            card.onclick = () => {
+                const filteredYears = sortedYears.filter(y => y >= decadeStart && y <= decadeStart + 9);
+                if (filteredYears.length) {
+                    openYearModal(`${dec}年代`, filteredYears.flatMap(y => yearMap.get(y)));
+                }
+            };
+            card.innerHTML = `<div class="label">年代</div><div class="value">${dec}</div><div class="sub-value">${count} 张</div>`;
+            container.appendChild(card);
+        }
+    }
+
+    function renderStats() {
+        const totalNotes = banknoteYears.length;
+        const totalYears = yearMap.size;
+        const minYear = sortedYears[0], maxYear = sortedYears[sortedYears.length - 1];
+        let maxCountYear = null, maxCount = 0;
+        for (let [year, notes] of yearMap) if (notes.length > maxCount) { maxCount = notes.length; maxCountYear = year; }
+        const stats = [
+            { title: "藏品总数", number: totalNotes, desc: "已收录纸币" },
+            { title: "不同年份", number: totalYears, desc: "跨越的年份刻度" },
+            { title: "时间跨度", number: `${minYear} — ${maxYear}`, desc: "年份区间" },
+            { title: "最密年份", number: `${maxCountYear}年`, desc: `${maxCount} 张藏品` }
+        ];
+        const container = document.getElementById('statsGrid');
+        container.innerHTML = '';
+        for (let s of stats) {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML = `<div class="stat-title">${s.title}</div><div class="stat-number">${s.number}</div><div class="stat-desc">${s.desc}</div>`;
+            container.appendChild(card);
+        }
+    }
+
+    renderYearCards();
+    renderDecadeScroll();
+    renderStats();
+</script>
+</body>
+</html>
