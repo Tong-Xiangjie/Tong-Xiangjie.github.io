@@ -140,7 +140,29 @@ const gkqData = {
                     ]
                 }
             ]
+        },{
+            seriesName: "1992年",
+            year: "1992",
+            varieties: [
+                {
+                    varietyName: "50元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1991,
+                            version: "ⅩⅡ53007116",
+                            condition: "----",
+                            price: "裸票250元",
+                            purchaseDate: "2026年5月2日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/-1.jpg",
+                            img2: "image/gkq/-2.jpg"
+                        }
+                    ]
+                }
+            ]
         }
-        // 可继续添加：1983年、1984年等年份
     ]
 };
