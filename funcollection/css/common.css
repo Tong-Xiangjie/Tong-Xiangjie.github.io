@@ -1,0 +1,98 @@
+/* ========== 继承主站色系和字体 ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #f0ebe3;
+    font-family: 'Noto Sans CJK SC', 'Source Han Sans SC', 'Noto Sans', sans-serif;
+    color: #2c2418;
+    padding: 1.5rem;
+    min-height: 100vh;
+    padding-top: 80px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* 头部 */
+.header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.hero-image {
+    width: 120px;
+    margin: 0 auto 0.5rem auto;
+}
+.hero-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, #b8860b, #daa520);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    margin-bottom: 0.3rem;
+}
+
+.sub {
+    color: #8b6b4f;
+    font-size: 0.85rem;
+}
+
+/* 面包屑 */
+.breadcrumb {
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e2d5c8;
+    font-size: 0.8rem;
+    color: #8b6b4f;
+}
+.breadcrumb a {
+    color: #b8860b;
+    text-decoration: none;
+}
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+/* 通用按钮 */
+.back-link {
+    display: inline-block;
+    margin-bottom: 1.5rem;
+    color: #b8860b;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+/* 页脚 */
+.footer {
+    text-align: center;
+    margin-top: 3rem;
+    font-size: 0.65rem;
+    color: #b1967c;
+    border-top: 1px solid #e2d5c8;
+    padding-top: 1.2rem;
+}
+
+/* 响应式 */
+@media (max-width: 650px) {
+    body {
+        padding: 1rem;
+        padding-top: 70px;
+    }
+    h1 {
+        font-size: 1.4rem;
+    }
+}
