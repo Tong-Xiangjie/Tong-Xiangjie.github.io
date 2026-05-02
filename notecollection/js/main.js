@@ -498,8 +498,10 @@ function goBackFromReadme() {
 // ========== 返回函数修改结束 ==========
 
 function resetSearchAndBack() {
+    const currentType = currentSearchType;  // 保存当前搜索类型
+    
     currentSearchKeyword = '';
-    currentSearchType = 'all';
+    // currentSearchType = 'all';  // 删除这一行
     
     delete scrollMemory["searchResult"];
     delete scrollMemory["categories"];
@@ -507,6 +509,8 @@ function resetSearchAndBack() {
     fromSearchResult = false;
     
     renderCategoriesWithoutRestore();
+    
+    currentSearchType = currentType;  // 恢复搜索类型
 }
 
 function renderCategoriesWithoutRestore() {
