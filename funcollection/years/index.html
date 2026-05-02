@@ -8,16 +8,26 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
         /* ========== 年份图鉴专属样式 ========== */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin: 2rem 0 0.5rem 0;
+            color: #3a2a1c;
+            border-left: 4px solid #daa520;
+            padding-left: 1rem;
+        }
+
         .year-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 1.5rem;
-            margin-bottom: 3rem;
+            margin: 1.5rem 0 2rem 0;
         }
+
         .year-card {
             background: white;
             border-radius: 0.75rem;
-            padding: 1.2rem;
+            padding: 1rem 0.8rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -29,13 +39,16 @@
             border-color: #c9aa7b;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
         }
+
         .year-number {
-            font-size: 3rem;
-            font-weight: 600;
+            font-size: 1.8rem;
+            font-weight: 500;
             color: #b8860b;
-            line-height: 1.2;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.3;
+            letter-spacing: 2px;
+            font-family: 'Segoe UI', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
         }
+
         .year-count {
             font-size: 0.7rem;
             color: #8b6b4f;
@@ -45,6 +58,7 @@
             padding: 0.2rem 0.7rem;
             border-radius: 30px;
         }
+
         .year-preview {
             margin-top: 0.75rem;
             display: flex;
@@ -164,7 +178,7 @@
 
         /* 横向滚动区 */
         .scroll-section {
-            margin: 3rem 0;
+            margin: 2rem 0;
         }
         .scroll-header {
             display: flex;
@@ -234,13 +248,13 @@
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.2rem;
-            margin-top: 1rem;
+            gap: 1rem;
+            margin: 1.5rem 0;
         }
         .stat-card {
             background: white;
             border-radius: 0.6rem;
-            padding: 1.2rem;
+            padding: 1rem;
             border: 1px solid #e7ddd0;
         }
         .stat-title {
@@ -324,10 +338,11 @@
         @media (max-width: 650px) {
             .year-grid {
                 gap: 0.8rem;
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             }
             .year-number {
-                font-size: 2rem;
+                font-size: 1.4rem;
+                letter-spacing: 1px;
             }
             .year-note-item {
                 flex-direction: column;
@@ -353,6 +368,8 @@
         <span style="float: right;">点击年份卡片，查看该年份所有纸币</span>
     </div>
 
+    <div class="section-title">年份分布</div>
+
     <div class="year-grid" id="yearGrid"></div>
 
     <div class="scroll-section">
@@ -363,6 +380,7 @@
         <div class="horizontal-scroll" id="decadeScroll"></div>
     </div>
 
+    <div class="section-title">统计数据</div>
     <div class="feature-grid" id="statsGrid"></div>
 
     <div class="footer">
@@ -394,7 +412,17 @@
 
 <script src="data.js"></script>
 <script>
-    // ========== 大图弹窗逻辑（同主站） ==========
+    // ========== 数字转双圈字符（与主站 toCircledNumber 一致） ==========
+    function toCircledNumber(num) {
+        const numStr = num.toString();
+        const circledDigits = {
+            '0': '𝟘', '1': '𝟙', '2': '𝟚', '3': '𝟛', '4': '𝟜',
+            '5': '𝟝', '6': '𝟞', '7': '𝟟', '8': '𝟠', '9': '𝟡'
+        };
+        return numStr.split('').map(d => circledDigits[d] || d).join('');
+    }
+
+    // ========== 大图弹窗逻辑 ==========
     let hammerManager = null;
     let currentScale = 1, currentX = 0, currentY = 0;
 
@@ -510,7 +538,7 @@
                 previewHtml += '</div>';
             }
             card.innerHTML = `
-                <div class="year-number">${year}</div>
+                <div class="year-number">${toCircledNumber(year)}</div>
                 <div class="year-count">${count} 张藏品</div>
                 ${previewHtml}
             `;
