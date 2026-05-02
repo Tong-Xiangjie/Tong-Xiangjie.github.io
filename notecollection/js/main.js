@@ -309,6 +309,9 @@ function renderResultsList(results) {
 
     let html = `<div class="copy-list">`;
     
+    // 全局序号：从1开始，所有分类共用
+    let globalIndex = 1;
+    
     for (let cid of categoryOrder) {
         const groupResults = grouped[cid];
         if (!groupResults || groupResults.length === 0) continue;
@@ -325,21 +328,20 @@ function renderResultsList(results) {
             </div>
         `;
         
-        // 添加动态序号：在每个分类内从1开始编号
-        let localIndex = 1;
+        // 不再独立编号，使用全局序号
         for (let item of groupResults) {
             const krauseDisplay = formatKrause(item.copy.krause);
             const displayName = item.hasVarieties ? `${item.series.seriesName} - ${item.variety.varietyName}` : item.series.seriesName;
             html += `
                 <div class="copy-item" onclick="selectCopyFromSearchResult('${item.catId}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : null}, ${item.cIdx}, ${item.hasVarieties})">
-                    <div class="copy-index">#${localIndex}</div>
+                    <div class="copy-index">#${globalIndex}</div>
                     <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
                     <div class="copy-version">${escapeHtml(displayName)}</div>
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${formatYear(item.copy.year)}</div>
                     <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
                 </div>`;
-            localIndex++;
+            globalIndex++;
         }
     }
     
