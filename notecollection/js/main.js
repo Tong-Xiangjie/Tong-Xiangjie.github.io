@@ -325,18 +325,21 @@ function renderResultsList(results) {
             </div>
         `;
         
+        // 添加动态序号：在每个分类内从1开始编号
+        let localIndex = 1;
         for (let item of groupResults) {
             const krauseDisplay = formatKrause(item.copy.krause);
             const displayName = item.hasVarieties ? `${item.series.seriesName} - ${item.variety.varietyName}` : item.series.seriesName;
             html += `
                 <div class="copy-item" onclick="selectCopyFromSearchResult('${item.catId}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : null}, ${item.cIdx}, ${item.hasVarieties})">
-                    <div class="copy-index">#${item.copy.copyId}</div>
+                    <div class="copy-index">#${localIndex}</div>
                     <div class="copy-badge">${escapeHtml(item.copy.condition || '无')}</div>
                     <div class="copy-version">${escapeHtml(displayName)}</div>
                     <div class="copy-price">${escapeHtml(item.copy.version || '无冠号')}</div>
                     <div class="copy-price">${formatYear(item.copy.year)}</div>
                     <div class="copy-price">${escapeHtml(krauseDisplay)}</div>
                 </div>`;
+            localIndex++;
         }
     }
     
@@ -963,11 +966,12 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
     const copies = variety.copies || [];
 
     let copiesHtml = `<div class="copy-list">`;
+    // 动态序号：从1开始
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
         copiesHtml += `
             <div class="copy-item" onclick="selectCopyFromVariety('${cid}', ${si}, ${vi}, ${ci})">
-                <div class="copy-index">#${cp.copyId}</div>
+                <div class="copy-index">#${ci + 1}</div>
                 <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
                 <div class="copy-price">${formatYear(cp.year)}</div>
@@ -979,7 +983,6 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
     }
     copiesHtml += `</div>`;
 
-    // readme 卡片（支持数组）
     const readmeCardsHtml = generateReadmeCards(variety.readme, 'copyListFromVariety', cid, si, vi);
 
     const full = `
@@ -1127,11 +1130,12 @@ function renderCopyList(cid, si, restore = false) {
     const copies = series.copies || [];
 
     let copiesHtml = `<div class="copy-list">`;
+    // 动态序号：从1开始
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
         copiesHtml += `
             <div class="copy-item" onclick="selectCopy('${cid}', ${si}, ${ci})">
-                <div class="copy-index">#${cp.copyId}</div>
+                <div class="copy-index">#${ci + 1}</div>
                 <div class="copy-badge">${escapeHtml(cp.condition || '无评级')}</div>
                 <div class="copy-version">${escapeHtml(cp.version || '无冠号')}</div>
                 <div class="copy-price">${formatYear(cp.year)}</div>
@@ -1143,7 +1147,6 @@ function renderCopyList(cid, si, restore = false) {
     }
     copiesHtml += `</div>`;
 
-    // readme 卡片（支持数组）
     const readmeCardsHtml = generateReadmeCards(series.readme, 'copyList', cid, si);
 
     const full = `
