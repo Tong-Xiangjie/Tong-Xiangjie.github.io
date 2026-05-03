@@ -1,20 +1,57 @@
 // 年份图鉴数据
 // 每张纸币只需要：年份、名称、克劳斯编号、年份实拍图路径
 const banknoteYears = [
-    { year: 1979, name: "外汇兑换券 1角 (五星火炬)", krause: "FX1s", yearImg: "../../coincollection/image/fec/year/1979-1.jpg" },
-    { year: 1979, name: "外汇兑换券 1角 (五星)", krause: "FX1a", yearImg: "../../coincollection/image/fec/year/1979-2.jpg" },
-    { year: 1979, name: "外汇兑换券 5角", krause: "FX2", yearImg: "../../coincollection/image/fec/year/1979-3.jpg" },
-    { year: 1979, name: "外汇兑换券 1元", krause: "FX3", yearImg: "../../coincollection/image/fec/year/1979-4.jpg" },
-    { year: 1979, name: "外汇兑换券 5元", krause: "FX4", yearImg: "../../coincollection/image/fec/year/1979-5.jpg" },
-    { year: 1979, name: "外汇兑换券 10元", krause: "FX5s", yearImg: "../../coincollection/image/fec/year/1979-6.jpg" },
-    { year: 1979, name: "外汇兑换券 50元", krause: "FX6s", yearImg: "../../coincollection/image/fec/year/1979-7.jpg" },
-    { year: 1979, name: "外汇兑换券 100元", krause: "FX7s", yearImg: "../../coincollection/image/fec/year/1979-8.jpg" },
-    { year: 1953, name: "第二套人民币 1分", krause: "Pick# 1", yearImg: "../../coincollection/image/rmb2/year/1953-1.jpg" },
-    { year: 1953, name: "第二套人民币 2分", krause: "Pick# 2", yearImg: "../../coincollection/image/rmb2/year/1953-2.jpg" },
-    { year: 1953, name: "第二套人民币 5分", krause: "Pick# 3", yearImg: "../../coincollection/image/rmb2/year/1953-3.jpg" },
-    { year: 1980, name: "第四套人民币 1角", krause: "Pick# 4", yearImg: "../../coincollection/image/rmb4/year/1980-1.jpg" },
-    { year: 1990, name: "第四套人民币 1元", krause: "Pick# 5", yearImg: "../../coincollection/image/rmb4/year/1990-1.jpg" },
-    { year: 2005, name: "第五套人民币 10元", krause: "Pick# 6", yearImg: "../../coincollection/image/rmb5/year/2005-1.jpg" },
-    { year: 1960, name: "第三套人民币 1元", krause: "Pick# 7", yearImg: "../../coincollection/image/rmb3/year/1960-1.jpg" },
-    { year: 1965, name: "第三套人民币 10元", krause: "Pick# 8", yearImg: "../../coincollection/image/rmb3/year/1965-1.jpg" }
+
+    // ==================== 外汇兑换券 1979 ====================
+    { year: 1979, name: "外汇兑换券 1角", krause: "FX1a/b", yearImg: "images/1979-fec01.jpg" },
+    { year: 1979, name: "外汇兑换券 5角", krause: "FX2", yearImg: "images/1979-fec05.jpg" },
+    { year: 1979, name: "外汇兑换券 1元", krause: "FX3", yearImg: "images/1979-fec1.jpg" },
+    { year: 1979, name: "外汇兑换券 5元", krause: "FX4", yearImg: "images/1979-fec5.jpg" },
+    { year: 1979, name: "外汇兑换券 10元", krause: "FX5", yearImg: "images/1979-fec10.jpg" },
+    { year: 1979, name: "外汇兑换券 50元", krause: "FX6", yearImg: "images/1979-fec50.jpg" },
+    { year: 1979, name: "外汇兑换券 100元", krause: "FX7", yearImg: "images/1979-fec100.jpg" },
+
+    // ==================== 第二套人民币 1953 ====================
+    { year: 1953, name: "第二套人民币 1分", krause: "Pick# 860a/b/c", yearImg: "images/1953-001.jpg" },
+    { year: 1953, name: "第二套人民币 2分", krause: "Pick# 861a/b/c", yearImg: "images/1953-002.jpg" },
+    { year: 1953, name: "第二套人民币 5分", krause: "Pick# 862a/b/c", yearImg: "images/1953-005.jpg" },
+
+    // ==================== 第三套人民币 ====================
+    { year: 1962, name: "第三套人民币 1角", krause: "Pick# 877", yearImg: "images/1962-01.jpg" },
+    { year: 1962, name: "第三套人民币 2角", krause: "Pick# 878", yearImg: "images/1962-02.jpg" },
+    { year: 1972, name: "第三套人民币 5角", krause: "Pick# 879", yearImg: "images/1974-05.jpg" },
+    { year: 1969, name: "第三套人民币 1元", krause: "Pick# 880", yearImg: "images/1969-1.jpg" },
+
+    // ==================== 纪念钞 ====================
+    { year: 2000, name: "迎接新世纪纪念钞", krause: "Pick# ", yearImg: "images/2000-xsj.jpg" },
+    { year: 2008, name: "第29届奥林匹克运动会纪念钞", krause: "Pick# 2", yearImg: "images/2008-ay.jpg" },
+
+    // ==================== 生肖纪念钞（2024-2026） ====================
+    { year: 2024, name: "龙年贺岁纪念钞", krause: "Pick# -", yearImg: "images/2024-long.jpg" },
+    { year: 2025, name: "蛇年贺岁纪念钞", krause: "Pick# -", yearImg: "images/2025-she.jpg" },
+    { year: 2026, name: "马年贺岁纪念钞", krause: "Pick# -", yearImg: "images/2026-ma.jpg" },
+
+    // ==================== 乌克兰战争纪念钞 ====================
+    { year: 2023, name: "俄乌战争一周年纪念钞", krause: "Pick# -", yearImg: "images/2023-wkl.jpg" },
+    { year: 2024, name: "俄乌战争二周年纪念钞", krause: "Pick# -", yearImg: "images/2024-wkl.jpg" },
+
+    // ==================== 民国纸币 ====================
+    // 交通银行 1914年
+    { year: 1914, name: "交通银行 5元", krause: "Pick# -", yearImg: "images/1914-jtyh5y.jpg" },
+    { year: 1914, name: "交通银行 10元", krause: "Pick# -", yearImg: "images/1914-jtyh10y.jpg" },
+
+    // 中国银行 1937年
+    { year: 1937, name: "中国银行 10元", krause: "Pick# -", yearImg: "images/1937-zgyh10y.jpg" },
+
+    // 中央银行 1941年
+    { year: 1941, name: "中央银行 10元", krause: "Pick# -", yearImg: "images/1941-zyyh10.jpg" },
+    { year: 1941, name: "中央银行 100元", krause: "Pick# -", yearImg: "images/1941-zyyh100.jpg" },
+
+    // 大洋票 1949年（全套）
+    { year: 1949, name: "大洋票 1角", krause: "Pick# -", yearImg: "images/1949-dyp01.jpg" },
+    { year: 1949, name: "大洋票 5角", krause: "Pick# -", yearImg: "images/1949-dyp05.jpg" }, 
+    { year: 1949, name: "大洋票 1元", krause: "Pick# -", yearImg: "images/1949-dyp1.jpg" }, 
+    { year: 1949, name: "大洋票 5元", krause: "Pick# -", yearImg: "images/1949-dyp5.jpg" },
+    { year: 1949, name: "大洋票 10元", krause: "Pick# -", yearImg: "images/1949-dyp10.jpg" },
+    { year: 1949, name: "大洋票 100元", krause: "Pick# -", yearImg: "images/1949-dyp100.jpg" } 
 ];
