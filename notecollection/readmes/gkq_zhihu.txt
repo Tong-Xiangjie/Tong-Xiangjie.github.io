@@ -151,7 +151,7 @@ hr {
     <summary>二、早期的分析（1981-1984）</summary>
     <div class="gkq-accordion-content">
         <div class="gkq-img-row">
-            <img src="readmes/image/gkq/zhihu_headphoto_2.avif" alt="早期国库券" style="max-width:100%">
+            <img src="readmes/image/gkq/zhihu_headphoto_2.webp" alt="早期国库券" style="max-width:100%">
         </div>
         <p>国库券1981-1984年间可以看作是第一阶段，这一阶段国库券的格式尚未完全定型，大小尺寸也是常有变化，可以说每一年都有不同之处。</p>
         
@@ -341,7 +341,7 @@ hr {
     <summary>四、后期（1990-1991）</summary>
     <div class="gkq-accordion-content">
         <div class="gkq-img-row">
-            <img src="readmes/image/gkq/zhihu_headphoto_4.avif" alt="后期国库券" style="max-width:100%">
+            <img src="readmes/image/gkq/zhihu_headphoto_4.webp" alt="后期国库券" style="max-width:100%">
         </div>
         <p>1990-1991这两年我把他们放在一起，是因为这两年增加了20元的面值，从此国库券增加为五个面值，是单年份面值数量之最了。这两年还有一个好处是价格普遍便宜，按年度收集齐全的难度最小。由于20元国库券只有这两张，除了1元一张，按面值也就数这个面值难度最小。由于价格低廉，就不放印刷量表格了，最后我会把所有国库券规格、图案、印刷量等做一个总表格放在最后。</p>
         
@@ -612,7 +612,7 @@ hr {
     <summary>六、最后的国库券（1995-1997）</summary>
     <div class="gkq-accordion-content">
         <div class="gkq-img-row">
-            <img src="readmes/image/gkq/zhihu_headphoto_6.avif" alt="最后三年国库券" style="max-width:100%">
+            <img src="readmes/image/gkq/zhihu_headphoto_6.webp" alt="最后三年国库券" style="max-width:100%">
         </div>
         <p>国库券的最后三年精品很多，有好几张一般人可望而不可及的品种，原因之一就是增加了五千元的面值，95年精品普遍、96分了两期，97价格尚可。这三年利率已经不高了，并且都是三年期。作为债券本身不像前几年那样复杂了。</p>
         
