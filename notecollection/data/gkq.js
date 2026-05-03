@@ -14,7 +14,7 @@ const gkqData = {
     ],
     // 新增：独立的 readme 字段，与 series 平级
     readme: {
-        title: "国库券收藏知识（来自知乎专栏）",
+        title: "国库券收藏知识",
         content: "file:readmes/gkq_zhihu.txt"
     },
     series: [
