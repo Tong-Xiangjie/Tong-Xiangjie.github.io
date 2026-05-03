@@ -48,8 +48,8 @@ const banknoteYears = [
     { year: 1937, name: "中国银行 10元", krause: "Pick# 81", yearImg: "images/1937-zgyh10y.jpg" },
 
     // 中央银行 1941年
-    { year: 1941, name: "中央银行 10元", krause: "Pick# -", yearImg: "images/1941-zyyh10.jpg" },
-    { year: 1941, name: "中央银行 100元", krause: "Pick# -", yearImg: "images/1941-zyyh100.jpg" },
+    { year: 1941, name: "中央银行 10元", krause: "Pick# 239a", yearImg: "images/1941-zyyh10.jpg" },
+    { year: 1941, name: "中央银行 100元", krause: "Pick# 243a", yearImg: "images/1941-zyyh100.jpg" },
 
     // 大洋票 1949年（全套）
     { year: 1949, name: "大洋票 1角", krause: "Pick# S2454", yearImg: "images/1949-dyp01.jpg" },
