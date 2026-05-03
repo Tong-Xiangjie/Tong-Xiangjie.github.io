@@ -150,7 +150,7 @@
         .year-note-item:hover {
             border-color: #daa520;
         }
-        /* 弹窗内大图 4:3 比例，限制最大宽高 */
+        /* 弹窗内大图 4:3 比例 */
         .year-note-img {
             width: 120px;
             height: 90px;
@@ -311,7 +311,6 @@
             width: auto;
             height: auto;
             object-fit: contain;
-            /* 确保原图保持 4:3 比例显示，不拉伸 */
             aspect-ratio: 4 / 3;
         }
         .image-modal-close {
@@ -341,6 +340,88 @@
             pointer-events: none;
         }
 
+        /* ========== 可折叠全部列表样式 ========== */
+        .collapsible-section {
+            margin: 2rem 0;
+            border-top: 1px solid #e2d5c8;
+            padding-top: 1.5rem;
+        }
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.8rem 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #4a3522;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+        .collapsible-header:hover {
+            color: #b8860b;
+        }
+        .collapse-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        .collapse-icon.open {
+            transform: rotate(90deg);
+        }
+        .collapsible-content {
+            display: none;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+        .collapsible-content.open {
+            display: block;
+        }
+        
+        /* 全部纸币表格样式 */
+        .all-notes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 600px;
+        }
+        .all-notes-table th,
+        .all-notes-table td {
+            padding: 0.8rem 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid #e2d5c8;
+            vertical-align: middle;
+        }
+        .all-notes-table th {
+            background: #f0ebe3;
+            color: #b8860b;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+        }
+        .all-notes-table tr:hover {
+            background: #faf5ef;
+        }
+        .table-img {
+            width: 60px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #e2d5c8;
+            cursor: pointer;
+        }
+        .table-year {
+            font-family: 'Georgia', serif;
+            font-weight: 500;
+            color: #b8860b;
+        }
+        .table-krause {
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #8b6b4f;
+        }
+
         @media (max-width: 650px) {
             .year-grid {
                 gap: 0.8rem;
@@ -350,12 +431,10 @@
                 font-size: 1.4rem;
                 letter-spacing: 1px;
             }
-            /* 移动端预览小图 */
             .year-preview-img {
                 width: 40px;
                 height: 30px;
             }
-            /* 移动端弹窗内大图 */
             .year-note-img {
                 width: 100px;
                 height: 75px;
@@ -364,6 +443,15 @@
                 flex-direction: column;
                 align-items: center;
                 text-align: center;
+            }
+            .table-img {
+                width: 48px;
+                height: 36px;
+            }
+            .all-notes-table th,
+            .all-notes-table td {
+                padding: 0.5rem 0.3rem;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -399,6 +487,17 @@
     <div class="section-title">统计数据</div>
     <div class="feature-grid" id="statsGrid"></div>
 
+    <!-- 可折叠的全部纸币列表 -->
+    <div class="collapsible-section">
+        <button class="collapsible-header" id="collapseBtn">
+            <span>📋 全部纸币清单（按年份排序）</span>
+            <span class="collapse-icon" id="collapseIcon">▶</span>
+        </button>
+        <div class="collapsible-content" id="collapsibleContent">
+            <div id="allNotesTableContainer"></div>
+        </div>
+    </div>
+
     <div class="footer">
         网页建立时间：2026年5月2日<br>© 2026 铜の币纪 版权所有
     </div>
@@ -428,7 +527,7 @@
 
 <script src="data.js"></script>
 <script>
-    // ========== 数字转双圈字符（与主站 toCircledNumber 一致） ==========
+    // ========== 数字转双圈字符 ==========
     function toCircledNumber(num) {
         const numStr = num.toString();
         const circledDigits = {
@@ -564,7 +663,9 @@
 
     function openYearModal(year, notes) {
         const modal = document.getElementById('yearModal');
-        document.getElementById('modalYearTitle').innerText = `${year} 年 · 共 ${notes.length} 张`;
+        // 如果 year 是字符串（如 "1950s"），则直接显示，否则加"年"
+        const titleText = typeof year === 'string' ? `${year} · 共 ${notes.length} 张` : `${year} 年 · 共 ${notes.length} 张`;
+        document.getElementById('modalYearTitle').innerText = titleText;
         let listHtml = '<div class="year-note-list">';
         for (let note of notes) {
             listHtml += `
@@ -604,7 +705,8 @@
             card.onclick = () => {
                 const filteredYears = sortedYears.filter(y => y >= decadeStart && y <= decadeStart + 9);
                 if (filteredYears.length) {
-                    openYearModal(`${dec}年代`, filteredYears.flatMap(y => yearMap.get(y)));
+                    const decadeNotes = filteredYears.flatMap(y => yearMap.get(y));
+                    openYearModal(dec, decadeNotes);  // 直接传入 dec 字符串，不加"年"
                 }
             };
             card.innerHTML = `<div class="label">年代</div><div class="value">${dec}</div><div class="sub-value">${count} 张</div>`;
@@ -634,9 +736,74 @@
         }
     }
 
+    // ========== 全部纸币清单（按年份排序） ==========
+    function renderAllNotesTable() {
+        // 按年份排序，同一年份内按名称排序
+        const allNotes = [...banknoteYears].sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return a.name.localeCompare(b.name);
+        });
+        
+        let tableHtml = `
+            <table class="all-notes-table">
+                <thead>
+                    <tr>
+                        <th>图片</th>
+                        <th>年份</th>
+                        <th>纸币名称</th>
+                        <th>克劳斯编号</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        for (let note of allNotes) {
+            tableHtml += `
+                <tr>
+                    <td><img src="${note.yearImg}" class="table-img" onclick="openImageModal('${note.yearImg}')" alt="年份图"></td>
+                    <td class="table-year">${note.year}</td>
+                    <td>${note.name}</td>
+                    <td class="table-krause">${note.krause}</td>
+                </tr>
+            `;
+        }
+        
+        tableHtml += `
+                </tbody>
+            </table>
+        `;
+        
+        document.getElementById('allNotesTableContainer').innerHTML = tableHtml;
+    }
+
+    // ========== 折叠功能 ==========
+    function initCollapsible() {
+        const btn = document.getElementById('collapseBtn');
+        const content = document.getElementById('collapsibleContent');
+        const icon = document.getElementById('collapseIcon');
+        
+        if (!btn || !content) return;
+        
+        btn.addEventListener('click', () => {
+            const isOpen = content.classList.contains('open');
+            if (isOpen) {
+                content.classList.remove('open');
+                icon.classList.remove('open');
+            } else {
+                content.classList.add('open');
+                icon.classList.add('open');
+                // 首次展开时渲染表格
+                if (document.getElementById('allNotesTableContainer').innerHTML === '') {
+                    renderAllNotesTable();
+                }
+            }
+        });
+    }
+
     renderYearCards();
     renderDecadeScroll();
     renderStats();
+    initCollapsible();
 </script>
 </body>
 </html>
