@@ -429,42 +429,56 @@
             max-height: 2000px;
         }
         
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-8px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* 全部纸币表格样式 - 年份列增宽两个字符 */
+        /* 全部纸币表格样式 - 优化列宽，表头居中 */
         .all-notes-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
-            table-layout: auto;
+            table-layout: fixed;
         }
         .all-notes-table th,
         .all-notes-table td {
             padding: 0.8rem 0.5rem;
-            text-align: left;
             border-bottom: 1px solid #e2d5c8;
             vertical-align: middle;
             word-break: break-word;
         }
-        /* 年份列增宽两个字符（约 2em） */
-        .all-notes-table th:nth-child(2),
-        .all-notes-table td:nth-child(2) {
-            min-width: 5em;
-            padding-right: 1rem;
-        }
+        /* 表头居中 */
         .all-notes-table th {
+            text-align: center;
             background: #f0ebe3;
             color: #b8860b;
             font-weight: 500;
+        }
+        /* 表格内容对齐方式 */
+        .all-notes-table td:first-child {
+            text-align: center;
+        }
+        .all-notes-table td:nth-child(2) {
+            text-align: center;
+        }
+        .all-notes-table td:nth-child(3) {
+            text-align: left;
+        }
+        .all-notes-table td:nth-child(4) {
+            text-align: center;
+        }
+        /* 各列宽度分配：图片列 + 年份列 + 名称列(自适应) + 克劳斯列(宽2字符) */
+        .all-notes-table th:first-child,
+        .all-notes-table td:first-child {
+            width: 70px;
+        }
+        .all-notes-table th:nth-child(2),
+        .all-notes-table td:nth-child(2) {
+            width: 80px;
+        }
+        .all-notes-table th:nth-child(3),
+        .all-notes-table td:nth-child(3) {
+            width: auto;
+        }
+        .all-notes-table th:nth-child(4),
+        .all-notes-table td:nth-child(4) {
+            width: 130px;
         }
         .all-notes-table tr {
             transition: background 0.2s ease;
@@ -522,19 +536,19 @@
             .all-notes-table th,
             .all-notes-table td {
                 padding: 0.5rem 0.3rem;
-                font-size: 0.75rem;
-            }
-            .all-notes-table {
                 font-size: 0.7rem;
             }
+            .all-notes-table th:first-child,
             .all-notes-table td:first-child {
                 width: 55px;
             }
-            /* 移动端年份列仍保持增宽 */
             .all-notes-table th:nth-child(2),
             .all-notes-table td:nth-child(2) {
-                min-width: 4.5em;
-                padding-right: 0.6rem;
+                width: 60px;
+            }
+            .all-notes-table th:nth-child(4),
+            .all-notes-table td:nth-child(4) {
+                width: 100px;
             }
         }
     </style>
@@ -610,10 +624,44 @@
 
 <script src="data.js"></script>
 <script>
-    // ========== 页面加载后回到顶部 ==========
-    window.addEventListener('load', function() {
+    // ========== 强制回到顶部（多次执行确保生效） ==========
+    (function scrollToTopForcefully() {
+        // 立即执行
         window.scrollTo(0, 0);
-    });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        
+        // DOM 加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        });
+        
+        // 页面完全加载后执行
+        window.addEventListener('load', function() {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        });
+        
+        // 处理浏览器前进后退时的滚动位置
+        window.addEventListener('pageshow', function(event) {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        });
+        
+        // 多次延迟执行，确保在所有渲染完成后滚动到顶部
+        var delays = [0, 50, 100, 200, 500];
+        delays.forEach(function(delay) {
+            setTimeout(function() {
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+            }, delay);
+        });
+    })();
 
     // ========== 数字转双圈字符 ==========
     function toCircledNumber(num) {
@@ -882,16 +930,12 @@
         btn.addEventListener('click', () => {
             const isOpen = content.classList.contains('open');
             if (isOpen) {
-                // 收起：先移除 open 类，触发 max-height 过渡
                 content.classList.remove('open');
                 icon.classList.remove('open');
             } else {
-                // 展开
                 content.classList.add('open');
                 icon.classList.add('open');
-                // 首次展开时渲染表格（使用 requestAnimationFrame 确保动画流畅）
                 if (document.getElementById('allNotesTableContainer').innerHTML === '') {
-                    // 延迟一帧渲染，避免动画卡顿
                     requestAnimationFrame(() => {
                         renderAllNotesTable();
                     });
