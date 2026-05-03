@@ -108,7 +108,6 @@
 
 <script>
 (function() {
-    // 初始化所有折叠面板，并修复展开时的滚动问题
     function initGkqAccordions() {
         var accordions = document.querySelectorAll('.rich-content .gkq-accordion');
         for (var i = 0; i < accordions.length; i++) {
@@ -123,13 +122,8 @@
             
             if (!content || !inner) continue;
             
-            // 存储内容高度
-            var innerHeight = inner.scrollHeight;
-            
-            // 设置初始状态为收起
             content.style.height = '0';
             
-            // 点击事件
             header.addEventListener('click', function(e) {
                 e.stopPropagation();
                 var self = this.parentElement;
@@ -139,33 +133,29 @@
                 var h = inn.scrollHeight;
                 
                 if (c.classList.contains('open')) {
-                    // 收起：不做任何滚动干预，允许浏览器自然回退
                     c.classList.remove('open');
                     if (ic) ic.classList.remove('open');
                     c.style.height = '0';
                 } else {
-                    // 展开：记录当前滚动位置，展开后恢复
                     var scrollY = window.scrollY;
                     c.classList.add('open');
                     if (ic) ic.classList.add('open');
                     c.style.height = h + 'px';
-                    // 展开动画完成后恢复滚动位置
-                    setTimeout(function() {
+                    // 使用 requestAnimationFrame 在下一帧恢复，避免闪烁
+                    requestAnimationFrame(function() {
                         window.scrollTo(0, scrollY);
-                    }, 50);
+                    });
                 }
             });
         }
     }
     
-    // 页面加载完成后初始化
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initGkqAccordions);
     } else {
         initGkqAccordions();
     }
     
-    // 暴露全局函数，供 main.js 重新初始化
     window.initGkqAccordions = initGkqAccordions;
 })();
 </script>
