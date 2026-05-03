@@ -3,13 +3,13 @@
 const banknoteYears = [
 
     // ==================== 外汇兑换券 1979 ====================
-    { year: 1979, name: "外汇兑换券 1角", krause: "FX1a/b", yearImg: "images/1979-fec01.jpg" },
-    { year: 1979, name: "外汇兑换券 5角", krause: "FX2", yearImg: "images/1979-fec05.jpg" },
-    { year: 1979, name: "外汇兑换券 1元", krause: "FX3", yearImg: "images/1979-fec1.jpg" },
-    { year: 1979, name: "外汇兑换券 5元", krause: "FX4", yearImg: "images/1979-fec5.jpg" },
-    { year: 1979, name: "外汇兑换券 10元", krause: "FX5", yearImg: "images/1979-fec10.jpg" },
-    { year: 1979, name: "外汇兑换券 50元", krause: "FX6", yearImg: "images/1979-fec50.jpg" },
-    { year: 1979, name: "外汇兑换券 100元", krause: "FX7", yearImg: "images/1979-fec100.jpg" },
+    { year: 1979, name: "外汇兑换券 1角", krause: "Pick# FX1a/b", yearImg: "images/1979-fec01.jpg" },
+    { year: 1979, name: "外汇兑换券 5角", krause: "Pick# FX2", yearImg: "images/1979-fec05.jpg" },
+    { year: 1979, name: "外汇兑换券 1元", krause: "Pick# FX3", yearImg: "images/1979-fec1.jpg" },
+    { year: 1979, name: "外汇兑换券 5元", krause: "Pick# FX4", yearImg: "images/1979-fec5.jpg" },
+    { year: 1979, name: "外汇兑换券 10元", krause: "Pick# FX5", yearImg: "images/1979-fec10.jpg" },
+    { year: 1979, name: "外汇兑换券 50元", krause: "Pick# FX6", yearImg: "images/1979-fec50.jpg" },
+    { year: 1979, name: "外汇兑换券 100元", krause: "Pick# FX7", yearImg: "images/1979-fec100.jpg" },
 
     // ==================== 第二套人民币 1953 ====================
     { year: 1953, name: "第二套人民币 1分", krause: "Pick# 860a/b/c", yearImg: "images/1953-001.jpg" },
