@@ -1,40 +1,27 @@
-<!-- 
-  国库券收藏知识 - Readme
-  来源：知乎专栏 "charter谈人民币'准货币'"
-  整理：铜の币纪
--->
-
-<div class="gkq-readme-container">
+<div class="rich-content">
   <style>
-    /* 折叠面板样式 */
+    /* 折叠面板样式 - 仅限本 readme 使用 */
     .gkq-accordion {
       margin-bottom: 1rem;
-      border-radius: 1rem;
-      background: white;
+      border-radius: 0.8rem;
+      background: #faf8f5;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border: 1px solid #e2d5c8;
     }
     .gkq-accordion-header {
-      background: #faf5ef;
-      padding: 1rem 1.5rem;
+      background: #f0ebe3;
+      padding: 0.8rem 1.2rem;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: background 0.2s;
-      border-left: 4px solid #daa520;
+      font-weight: 500;
+      color: #b8860b;
     }
     .gkq-accordion-header:hover {
-      background: #f0e8df;
-    }
-    .gkq-accordion-header h2 {
-      margin: 0;
-      font-size: 1.25rem;
-      color: #4a3522;
+      background: #e8dfd5;
     }
     .gkq-accordion-icon {
-      font-size: 1.2rem;
-      color: #b8860b;
       transition: transform 0.3s;
     }
     .gkq-accordion-icon.open {
@@ -43,26 +30,13 @@
     .gkq-accordion-content {
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.4s ease-out;
-      padding: 0 1.5rem;
+      transition: max-height 0.3s ease;
+      padding: 0 1.2rem;
     }
     .gkq-accordion-content.open {
       max-height: none;
-      padding: 1rem 1.5rem 1.5rem;
+      padding: 0.8rem 1.2rem 1.2rem;
     }
-    
-    /* 主图样式 */
-    .gkq-hero-image {
-      text-align: center;
-      margin: 1rem 0;
-    }
-    .gkq-hero-image img {
-      max-width: 100%;
-      border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    
-    /* 表格样式 */
     .gkq-table-wrapper {
       overflow-x: auto;
       margin: 1rem 0;
@@ -71,27 +45,15 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 0.85rem;
-      background: #fefcf8;
-      border-radius: 0.8rem;
-      overflow: hidden;
+      background: white;
     }
-    .gkq-table th,
-    .gkq-table td {
+    .gkq-table th, .gkq-table td {
       border: 1px solid #e2d5c8;
-      padding: 0.6rem 0.8rem;
-      text-align: left;
-      vertical-align: top;
+      padding: 0.5rem 0.8rem;
     }
     .gkq-table th {
       background: #e8d9cc;
-      color: #4a3522;
-      font-weight: 600;
     }
-    .gkq-table tr:nth-child(even) {
-      background: #f8f4ee;
-    }
-    
-    /* 图片行样式 */
     .gkq-img-row {
       display: flex;
       flex-wrap: wrap;
@@ -103,145 +65,39 @@
       text-align: center;
       font-size: 0.75rem;
       color: #8b6b4f;
-      margin-top: 0.3rem;
     }
-    .gkq-inline-img {
-      max-width: 100%;
-      border-radius: 0.6rem;
-      margin: 0.5rem 0;
-      cursor: pointer;
+    .gkq-note {
+      background: #f7f2ea;
+      border-left: 3px solid #daa520;
+      padding: 0.5rem 1rem;
+      margin: 1rem 0;
+      font-size: 0.85rem;
     }
-    
-    /* 弹窗卡片按钮样式 */
     .gkq-popup-card {
       display: inline-block;
       background: #f0ebe3;
       border: 1px solid #daa520;
       border-radius: 2rem;
-      padding: 0.3rem 1rem;
-      margin: 0.3rem 0.2rem;
+      padding: 0.2rem 0.8rem;
+      margin: 0.2rem;
       font-size: 0.8rem;
       color: #b8860b;
       cursor: pointer;
-      transition: all 0.2s;
     }
-    .gkq-popup-card:hover {
-      background: #e8d9cc;
-    }
-    .gkq-popup-card.disabled {
-      opacity: 0.6;
-      cursor: default;
-      background: #e8e0d8;
-    }
-    .gkq-popup-card.disabled:hover {
-      background: #e8e0d8;
-    }
-    
-    /* 弹窗样式 - 复用 modal，增加滚动内容 */
-    .gkq-modal-content {
-      max-width: 600px;
-      width: 90%;
-      max-height: 80vh;
-      background: white;
-      border-radius: 1.5rem;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .gkq-modal-body {
-      padding: 1.5rem;
-      overflow-y: auto;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    .gkq-modal-body h4 {
-      margin-top: 0;
-      color: #4a3522;
-    }
-    .gkq-modal-body .source-link {
-      margin-top: 1rem;
-      padding-top: 0.5rem;
-      border-top: 1px solid #e2d5c8;
-      font-size: 0.8rem;
-      color: #8b6b4f;
-      word-break: break-all;
-    }
-    
-    /* 图片注释（无末尾标点） */
-    .gkq-img-caption {
-      text-align: center;
-      font-size: 0.75rem;
-      color: #8b6b4f;
-      margin-top: 0.3rem;
-    }
-    
-    /* 引用块/灰色注释样式 */
-    .gkq-note {
-      background: #f7f2ea;
-      border-left: 3px solid #daa520;
-      padding: 0.6rem 1rem;
-      margin: 0.8rem 0;
-      font-size: 0.85rem;
-      color: #6b5a4a;
-    }
-    
     hr {
       margin: 1.5rem 0;
-      border: none;
-      border-top: 1px solid #e2d5c8;
     }
   </style>
-  
-  <!-- 弹窗容器 -->
-  <div id="gkqModal" class="modal" style="display:none; z-index:1100;">
-    <div class="modal-close" onclick="closeGkqModal()">✕</div>
-    <div class="modal-content gkq-modal-content" onclick="event.stopPropagation()">
-      <div class="gkq-modal-body" id="gkqModalBody">
-        <!-- 弹窗内容动态填充 -->
-      </div>
-    </div>
-  </div>
 
   <script>
-    // 弹窗相关函数
-    let currentGkqModalCallback = null;
-    
-    function openGkqModal(title, content, linkText = '') {
-      const modal = document.getElementById('gkqModal');
-      const body = document.getElementById('gkqModalBody');
-      let html = `<h4>${escapeHtml(title)}</h4><div>${content}</div>`;
-      if (linkText) {
-        html += `<div class="source-link">来源链接：${escapeHtml(linkText)}</div>`;
-      }
-      body.innerHTML = html;
-      modal.style.display = 'flex';
-      const scrollY = window.scrollY;
-      document.body.classList.add('modal-open');
-      document.body.style.top = `-${scrollY}px`;
-    }
-    
-    function closeGkqModal() {
-      const modal = document.getElementById('gkqModal');
-      modal.style.display = 'none';
-      const scrollY = parseInt(document.body.style.top || '0') * -1;
-      document.body.classList.remove('modal-open');
-      document.body.style.top = '';
-      if (scrollY) window.scrollTo(0, scrollY);
-    }
-    
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeGkqModal();
-    });
-    
     // 折叠面板初始化
-    function initGkqAccordions() {
+    function initAccordions() {
       document.querySelectorAll('.gkq-accordion-header').forEach(header => {
-        header.addEventListener('click', function() {
+        header.removeEventListener('click', header._handler);
+        header._handler = function() {
           const content = this.nextElementSibling;
           const icon = this.querySelector('.gkq-accordion-icon');
-          const isOpen = content.classList.contains('open');
-          
-          if (isOpen) {
+          if (content.classList.contains('open')) {
             content.classList.remove('open');
             icon.classList.remove('open');
             content.style.maxHeight = null;
@@ -250,11 +106,35 @@
             icon.classList.add('open');
             content.style.maxHeight = content.scrollHeight + 'px';
           }
-        });
+        };
+        header.addEventListener('click', header._handler);
       });
     }
     
-    document.addEventListener('DOMContentLoaded', initGkqAccordions);
+    // 弹窗
+    function openPopup(title, content, link) {
+      const modal = document.getElementById('imageModal');
+      if (modal && typeof openModal === 'function') {
+        // 临时借用图片弹窗来显示文字内容
+        const modalImg = document.getElementById('modalImg');
+        if (modalImg) {
+          modalImg.style.display = 'none';
+        }
+        const container = document.getElementById('imageContainer');
+        if (container) {
+          container.innerHTML = `<div style="color:white; padding:2rem; max-width:500px; background:#2c2418; border-radius:1rem;"><h4>${title}</h4><p>${content}</p><p style="font-size:0.75rem; color:#aaa;">来源：${link}</p></div>`;
+          container.style.display = 'flex';
+          container.style.alignItems = 'center';
+          container.style.justifyContent = 'center';
+        }
+        modal.style.display = 'flex';
+      } else {
+        alert(title + '\n\n' + content + (link ? '\n\n来源：' + link : ''));
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', initAccordions);
+    setTimeout(initAccordions, 500);
   </script>
 
   <!-- ========== 标题一：概述和市场情况 ========== -->
@@ -946,100 +826,3 @@
     }, 100);
   </script>
 </div>
-<!-- 
-  国库券收藏知识 - Readme 续
-  图片编号说明：
-  主图：zhihu_headphoto_1.avif ~ zhihu_headphoto_6.avif
-  普通图：zhihu_1.jpg ~ zhihu_75.jpg（根据文章中出现顺序）
-  
-  注意：由于原文中【图片】标记较多，部分图片位置可能未完全对应到具体图片，
-  实际使用时请根据知乎原文的配图补充相应的图片文件。
--->
-
-<!-- 补充：第一部分之前可能缺失的概述图片 -->
-<!-- 已在前面的第一部分中包含了 zhihu_1.jpg 作为水印示例图 -->
-
-<!-- 补充说明：以下是一些可能在原文中出现的额外图片，按顺序编号 -->
-<!-- zhihu_76.jpg 至 zhihu_xx.jpg 可根据实际需要继续添加 -->
-
-<div class="gkq-readme-footer" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2d5c8; font-size: 0.75rem; color: #8b6b4f; text-align: center;">
-  资料来源：知乎专栏 "charter谈人民币'准货币'"（https://zhuanlan.zhihu.com/p/144350861 等）<br>
-  由铜の币纪整理，仅供个人学习研究使用。<br>
-  图片版权归原作者所有，部分图片为示意，实际请参考原文。
-</div>
-
-<!-- 全局修复弹窗关闭函数，避免与主站冲突 -->
-<script>
-// 确保国库券弹窗函数不污染全局但又能正常工作
-if (typeof window.openGkqModal !== 'function') {
-  window.openGkqModal = function(title, content, linkText) {
-    // 检查是否已有国库券专用弹窗
-    let modal = document.getElementById('gkqModal');
-    if (!modal) {
-      // 动态创建弹窗
-      modal = document.createElement('div');
-      modal.id = 'gkqModal';
-      modal.className = 'modal';
-      modal.style.display = 'none';
-      modal.style.zIndex = '1100';
-      modal.innerHTML = `
-        <div class="modal-close" onclick="window.closeGkqModal && window.closeGkqModal()">✕</div>
-        <div class="modal-content gkq-modal-content" onclick="event.stopPropagation()">
-          <div class="gkq-modal-body" id="gkqModalBody"></div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-      
-      // 添加样式
-      const style = document.createElement('style');
-      style.textContent = `
-        .gkq-modal-content { max-width: 600px; width: 90%; max-height: 80vh; background: white; border-radius: 1.5rem; overflow: hidden; display: flex; flex-direction: column; }
-        .gkq-modal-body { padding: 1.5rem; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; }
-        .gkq-modal-body h4 { margin-top: 0; color: #4a3522; }
-        .gkq-modal-body .source-link { margin-top: 1rem; padding-top: 0.5rem; border-top: 1px solid #e2d5c8; font-size: 0.8rem; color: #8b6b4f; word-break: break-all; }
-      `;
-      document.head.appendChild(style);
-    }
-    
-    const body = document.getElementById('gkqModalBody');
-    let html = `<h4>${escapeHtml(title)}</h4><div>${content.replace(/\n/g, '<br>')}</div>`;
-    if (linkText) {
-      html += `<div class="source-link">来源链接：${escapeHtml(linkText)}</div>`;
-    }
-    body.innerHTML = html;
-    modal.style.display = 'flex';
-    const scrollY = window.scrollY;
-    document.body.classList.add('modal-open');
-    document.body.style.top = `-${scrollY}px`;
-  };
-  
-  window.closeGkqModal = function() {
-    const modal = document.getElementById('gkqModal');
-    if (modal) {
-      modal.style.display = 'none';
-      const scrollY = parseInt(document.body.style.top || '0') * -1;
-      document.body.classList.remove('modal-open');
-      document.body.style.top = '';
-      if (scrollY) window.scrollTo(0, scrollY);
-    }
-  };
-  
-  // ESC关闭
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      const modal = document.getElementById('gkqModal');
-      if (modal && modal.style.display === 'flex') {
-        window.closeGkqModal();
-      }
-    }
-  });
-  
-  // 点击模态背景关闭
-  document.addEventListener('click', function(e) {
-    const modal = document.getElementById('gkqModal');
-    if (modal && modal.style.display === 'flex' && e.target === modal) {
-      window.closeGkqModal();
-    }
-  });
-}
-</script>
