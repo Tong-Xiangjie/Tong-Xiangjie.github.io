@@ -3,7 +3,6 @@ const gkqData = {
     name: "国库券",
     icon: null,
     desc: "Treasury Bond",
-    // 国库券板块的详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "year", label: "发行年份" },
@@ -13,12 +12,16 @@ const gkqData = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "克劳斯目录编号" }
     ],
+    // 新增：独立的 readme 字段，与 series 平级
+    readme: {
+        title: "国库券收藏知识（来自知乎专栏）",
+        content: "file:readmes/gkq_zhihu.txt"
+    },
     series: [
         // ==================== 1982年 ====================
         {
             seriesName: "1982年",
             year: "1982",
-            // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
             readme: {
                 title: "中华人民共和国一九八二年国库券条例",
                 content: "file:readmes/gkq_1982_ordinance.txt"
@@ -41,7 +44,8 @@ const gkqData = {
                             img2: "image/gkq/ⅣⅩ148437-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "5元",
                     copies: [
                         {
@@ -60,7 +64,9 @@ const gkqData = {
                     ]
                 }
             ]
-        },{
+        },
+        // ==================== 1989年 ====================
+        {
             seriesName: "1989年",
             year: "1989",
             varieties: [
@@ -69,7 +75,7 @@ const gkqData = {
                     copies: [
                         {
                             copyId: 1,
-                            year: 1982,
+                            year: 1989,  // 已修正
                             version: "ⅢⅡ00000000",
                             condition: "----",
                             price: "裸票19元",
@@ -83,7 +89,9 @@ const gkqData = {
                     ]
                 }
             ]
-        },{
+        },
+        // ==================== 1991年 ====================
+        {
             seriesName: "1991年",
             year: "1991",
             varieties: [
@@ -104,7 +112,8 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅡ83410889-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "10元",
                     copies: [
                         {
@@ -121,7 +130,8 @@ const gkqData = {
                             img2: "image/gkq/-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "50元",
                     copies: [
                         {
@@ -140,7 +150,9 @@ const gkqData = {
                     ]
                 }
             ]
-        },{
+        },
+        // ==================== 1992年 ====================
+        {
             seriesName: "1992年",
             year: "1992",
             varieties: [
@@ -149,7 +161,7 @@ const gkqData = {
                     copies: [
                         {
                             copyId: 1,
-                            year: 1991,
+                            year: 1992,  // 已修正
                             version: "ⅩⅡ53007116",
                             condition: "----",
                             price: "裸票250元",
