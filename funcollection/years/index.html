@@ -418,14 +418,17 @@
         .collapse-icon.open {
             transform: rotate(90deg);
         }
+        
+        /* 折叠内容区域 - 支持高度过渡动画 */
         .collapsible-content {
-            display: none;
-            margin-top: 1rem;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 0;
         }
         .collapsible-content.open {
-            display: block;
-            animation: fadeIn 0.3s ease;
+            max-height: 2000px;
         }
+        
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -437,7 +440,7 @@
             }
         }
         
-        /* 全部纸币表格样式 - 手机端自动适应宽度，无滚动条 */
+        /* 全部纸币表格样式 - 年份列增宽两个字符 */
         .all-notes-table {
             width: 100%;
             border-collapse: collapse;
@@ -451,6 +454,12 @@
             border-bottom: 1px solid #e2d5c8;
             vertical-align: middle;
             word-break: break-word;
+        }
+        /* 年份列增宽两个字符（约 2em） */
+        .all-notes-table th:nth-child(2),
+        .all-notes-table td:nth-child(2) {
+            min-width: 5em;
+            padding-right: 1rem;
         }
         .all-notes-table th {
             background: #f0ebe3;
@@ -515,12 +524,17 @@
                 padding: 0.5rem 0.3rem;
                 font-size: 0.75rem;
             }
-            /* 表格列宽自动调整，不溢出 */
             .all-notes-table {
                 font-size: 0.7rem;
             }
             .all-notes-table td:first-child {
                 width: 55px;
+            }
+            /* 移动端年份列仍保持增宽 */
+            .all-notes-table th:nth-child(2),
+            .all-notes-table td:nth-child(2) {
+                min-width: 4.5em;
+                padding-right: 0.6rem;
             }
         }
     </style>
@@ -596,6 +610,11 @@
 
 <script src="data.js"></script>
 <script>
+    // ========== 页面加载后回到顶部 ==========
+    window.addEventListener('load', function() {
+        window.scrollTo(0, 0);
+    });
+
     // ========== 数字转双圈字符 ==========
     function toCircledNumber(num) {
         const numStr = num.toString();
@@ -852,7 +871,7 @@
         document.getElementById('collapseTitle').innerText = `全部纸币清单（共 ${totalCount} 张）`;
     }
 
-    // ========== 折叠功能 ==========
+    // ========== 折叠功能（支持丝滑动画） ==========
     function initCollapsible() {
         const btn = document.getElementById('collapseBtn');
         const content = document.getElementById('collapsibleContent');
@@ -863,13 +882,19 @@
         btn.addEventListener('click', () => {
             const isOpen = content.classList.contains('open');
             if (isOpen) {
+                // 收起：先移除 open 类，触发 max-height 过渡
                 content.classList.remove('open');
                 icon.classList.remove('open');
             } else {
+                // 展开
                 content.classList.add('open');
                 icon.classList.add('open');
+                // 首次展开时渲染表格（使用 requestAnimationFrame 确保动画流畅）
                 if (document.getElementById('allNotesTableContainer').innerHTML === '') {
-                    renderAllNotesTable();
+                    // 延迟一帧渲染，避免动画卡顿
+                    requestAnimationFrame(() => {
+                        renderAllNotesTable();
+                    });
                 }
             }
         });
