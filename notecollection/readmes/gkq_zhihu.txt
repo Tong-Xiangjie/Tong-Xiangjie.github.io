@@ -1,14 +1,14 @@
 <div class="rich-content">
 <style>
 /* 折叠面板 - 完全动画版，手机兼容 */
-.gkq-accordion {
+.rich-content .gkq-accordion {
     margin-bottom: 1rem;
     border-radius: 0.8rem;
     background: #faf8f5;
     border: 1px solid #e2d5c8;
     overflow: hidden;
 }
-.gkq-accordion-header {
+.rich-content .gkq-accordion-header {
     background: #f0ebe3;
     padding: 0.8rem 1.2rem;
     cursor: pointer;
@@ -20,71 +20,72 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
 }
-.gkq-accordion-header:active {
+.rich-content .gkq-accordion-header:active {
     background: #e8dfd5;
 }
-.gkq-accordion-icon {
+.rich-content .gkq-accordion-icon {
     transition: transform 0.3s ease;
     font-size: 0.9rem;
 }
-.gkq-accordion-icon.open {
+.rich-content .gkq-accordion-icon.open {
     transform: rotate(180deg);
 }
-.gkq-accordion-content {
+.rich-content .gkq-accordion-content {
     overflow: hidden;
     transition: height 0.4s ease-in-out;
     height: 0;
     background: #faf8f5;
 }
-.gkq-accordion-content-inner {
+.rich-content .gkq-accordion-content-inner {
     padding: 0.8rem 1.2rem 1.2rem;
 }
 /* 图片 - 宽度80%，手机自适应，保持比例 */
-.gkq-img-single {
+.rich-content .gkq-img-single {
     text-align: center;
     margin: 1rem auto;
 }
-.gkq-img-single img {
+.rich-content .gkq-img-single img {
     width: 80%;
     height: auto;
     border-radius: 0.6rem;
     display: inline-block;
 }
 /* 表格区域 - 手机横向滚动 */
-.gkq-table-wrapper {
+.rich-content .gkq-table-wrapper {
     overflow-x: auto;
     margin: 1rem 0;
     -webkit-overflow-scrolling: touch;
 }
-.gkq-table {
+.rich-content .gkq-table {
     width: 100%;
     min-width: 300px;
     border-collapse: collapse;
     font-size: 0.85rem;
     background: white;
 }
-.gkq-table th, .gkq-table td {
+.rich-content .gkq-table th, 
+.rich-content .gkq-table td {
     border: 1px solid #e2d5c8;
     padding: 0.5rem 0.8rem;
     text-align: center;
 }
-.gkq-table th {
+.rich-content .gkq-table th {
     background: #e8d9cc;
 }
-.gkq-img-caption {
+.rich-content .gkq-img-caption {
     text-align: center;
     font-size: 0.75rem;
     color: #8b6b4f;
     margin-top: 0.3rem;
 }
-.gkq-note {
+.rich-content .gkq-note {
     background: #f7f2ea;
     border-left: 3px solid #daa520;
     padding: 0.5rem 1rem;
     margin: 1rem 0;
     font-size: 0.85rem;
 }
-.gkq-popup-card {
+.rich-content .gkq-popup-card {
     display: block;
     background: #f0ebe3;
     border: 1px solid #daa520;
@@ -97,7 +98,7 @@
     text-align: center;
     -webkit-tap-highlight-color: transparent;
 }
-hr {
+.rich-content hr {
     margin: 1.5rem 0;
 }
 </style>
@@ -106,7 +107,7 @@ hr {
 (function() {
     // 初始化所有折叠面板
     function initGkqAccordions() {
-        var accordions = document.querySelectorAll('.gkq-accordion');
+        var accordions = document.querySelectorAll('.rich-content .gkq-accordion');
         for (var i = 0; i < accordions.length; i++) {
             var accordion = accordions[i];
             if (accordion._bound) continue;
@@ -339,10 +340,10 @@ hr {
                         <tr><th>1985 国库券面值</th><th>印刷量（万张）</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>5元</td><td>51420</td> </tr>
-                        <tr><td>10元</td><td>22035</td> </tr>
-                        <tr><td>50元</td><td>406</td> </tr>
-                        <tr><td>100元</td><td>106</td> </tr>
+                        <tr><td>5元</td><td>51420</td></tr>
+                        <tr><td>10元</td><td>22035</td></tr>
+                        <tr><td>50元</td><td>406</td></tr>
+                        <tr><td>100元</td><td>106</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -362,10 +363,10 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>1986国库券面值</th><th>印刷量（万张）</th></tr></thead>
                     <tbody>
-                        <tr><td>5元</td><td>46742</td> </tr>
-                        <tr><td>10元</td><td>24175</td> </tr>
-                        <tr><td>50元</td><td>838</td> </tr>
-                        <tr><td>100元</td><td>210</td> </tr>
+                        <tr><td>5元</td><td>46742</td></tr>
+                        <tr><td>10元</td><td>24175</td></tr>
+                        <tr><td>50元</td><td>838</td></tr>
+                        <tr><td>100元</td><td>210</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -585,13 +586,13 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>品种</th><th>发行量</th><th>备注</th></tr></thead>
                     <tbody>
-                        <tr><td>50</td><td>未知</td><td>发现最大流水号约5900万</td> </tr>
-                        <tr><td>100</td><td>未知，2000万张</td><td>很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td> </tr>
-                        <tr><td>500</td><td>1400万张</td><td>记载称92500印刷量2200万张，已经发现最大流水号1356万号</td> </tr>
-                        <tr><td>50（二）</td><td>1.2亿</td><td>无记载，发现最大流水号约1.2亿，包含03冠号</td> </tr>
-                        <tr><td>100（二）</td><td>1.1亿</td><td>记载称92100印刷量13010万张，已经发现1.049亿流水号</td> </tr>
-                        <tr><td>500（二）</td><td>800万张</td><td>记载称92500印刷量2200万张，发现最大流水号776万号</td> </tr>
-                        <tr><td>1000（二）</td><td>620万张</td><td>明确记载</td> </tr>
+                        <tr><td>50</td><td>未知</td><td>发现最大流水号约5900万</td></tr>
+                        <tr><td>100</td><td>未知，2000万张</td><td>很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td></tr>
+                        <tr><td>500</td><td>1400万张</td><td>记载称92500印刷量2200万张，已经发现最大流水号1356万号</td></tr>
+                        <tr><td>50（二）</td><td>1.2亿</td><td>无记载，发现最大流水号约1.2亿，包含03冠号</td></tr>
+                        <tr><td>100（二）</td><td>1.1亿</td><td>记载称92100印刷量13010万张，已经发现1.049亿流水号</td></tr>
+                        <tr><td>500（二）</td><td>800万张</td><td>记载称92500印刷量2200万张，发现最大流水号776万号</td></tr>
+                        <tr><td>1000（二）</td><td>620万张</td><td>明确记载</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -606,15 +607,15 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>面值</th><th>期限</th><th>冠号</th><th>颜色</th></tr></thead>
                     <tbody>
-                        <tr><td>100元</td><td>三</td><td>01</td><td>红</td> </tr>
-                        <tr><td>100元</td><td>五</td><td>02</td><td>绿</td> </tr>
-                        <tr><td>500元</td><td>三</td><td>03</td><td>深棕色</td> </tr>
-                        <tr><td>500元</td><td>五</td><td>04</td><td>黑紫色</td> </tr>
-                        <tr><td>1000元</td><td>三</td><td>05</td><td>暗绿色</td> </tr>
-                        <tr><td>1000元</td><td>五</td><td>06</td><td>深黑色</td> </tr>
-                        <tr><td>100元</td><td>三</td><td>07</td><td>红</td> </tr>
+                        <tr><td>100元</td><td>三</td><td>01</td><td>红</td></tr>
+                        <tr><td>100元</td><td>五</td><td>02</td><td>绿</td></tr>
+                        <tr><td>500元</td><td>三</td><td>03</td><td>深棕色</td></tr>
+                        <tr><td>500元</td><td>五</td><td>04</td><td>黑紫色</td></tr>
+                        <tr><td>1000元</td><td>三</td><td>05</td><td>暗绿色</td></tr>
+                        <tr><td>1000元</td><td>五</td><td>06</td><td>深黑色</td></tr>
+                        <tr><td>100元</td><td>三</td><td>07</td><td>红</td></tr>
                     </tbody>
-                </table>
+                <tr>
             </div>
             
             <div class="gkq-popup-card" onclick="alert('网页已失效：财政部关于发行1993年国库券的公告\n\n来源链接：http://m.110.com/fagui/121519.html')">📄 财政部关于发行1993年国库券的公告</div>
@@ -774,8 +775,8 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>期数</th><th>100元</th><th>1000元</th><th>5000元</th></tr></thead>
                     <tbody>
-                        <tr><td>第一期</td><td>PA</td><td>PB</td><td>PC</td> </tr>
-                        <tr><td>第二期</td><td>PD</td><td>PE</td><td>PF</td> </tr>
+                        <tr><td>第一期</td><td>PA</td><td>PB</td><td>PC</td></tr>
+                        <tr><td>第二期</td><td>PD</td><td>PE</td><td>PF</td></tr>
                     </tbody>
                 </table>
             </div>
