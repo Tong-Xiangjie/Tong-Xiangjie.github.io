@@ -39,6 +39,11 @@
 .rich-content .gkq-accordion-content-inner {
     padding: 0.8rem 1.2rem 1.2rem;
 }
+/* 段落行间距 */
+.rich-content p {
+    margin-bottom: 0.75em;
+    line-height: 1.6;
+}
 /* 图片 - 宽度80%，手机自适应，保持比例 */
 .rich-content .gkq-img-single {
     text-align: center;
@@ -50,23 +55,21 @@
     border-radius: 0.6rem;
     display: inline-block;
 }
-/* 表格区域 - 手机横向滚动 */
+/* 表格区域 - 手机端不滚动，自动压缩 */
 .rich-content .gkq-table-wrapper {
-    overflow-x: auto;
     margin: 1rem 0;
-    -webkit-overflow-scrolling: touch;
 }
 .rich-content .gkq-table {
     width: 100%;
-    min-width: 300px;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     background: white;
+    word-break: break-word;
 }
 .rich-content .gkq-table th, 
 .rich-content .gkq-table td {
     border: 1px solid #e2d5c8;
-    padding: 0.5rem 0.8rem;
+    padding: 0.4rem 0.3rem;
     text-align: center;
 }
 .rich-content .gkq-table th {
@@ -74,9 +77,9 @@
 }
 .rich-content .gkq-img-caption {
     text-align: center;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #8b6b4f;
-    margin-top: 0.3rem;
+    margin-top: 0.1rem;
 }
 .rich-content .gkq-note {
     background: #f7f2ea;
@@ -105,7 +108,7 @@
 
 <script>
 (function() {
-    // 初始化所有折叠面板
+    // 初始化所有折叠面板，并修复展开时的滚动问题
     function initGkqAccordions() {
         var accordions = document.querySelectorAll('.rich-content .gkq-accordion');
         for (var i = 0; i < accordions.length; i++) {
@@ -136,15 +139,20 @@
                 var h = inn.scrollHeight;
                 
                 if (c.classList.contains('open')) {
-                    // 收起
+                    // 收起：不做任何滚动干预，允许浏览器自然回退
                     c.classList.remove('open');
                     if (ic) ic.classList.remove('open');
                     c.style.height = '0';
                 } else {
-                    // 展开
+                    // 展开：记录当前滚动位置，展开后恢复
+                    var scrollY = window.scrollY;
                     c.classList.add('open');
                     if (ic) ic.classList.add('open');
                     c.style.height = h + 'px';
+                    // 展开动画完成后恢复滚动位置
+                    setTimeout(function() {
+                        window.scrollTo(0, scrollY);
+                    }, 50);
                 }
             });
         }
@@ -340,10 +348,10 @@
                         <tr><th>1985 国库券面值</th><th>印刷量（万张）</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>5元</td><td>51420</td></tr>
-                        <tr><td>10元</td><td>22035</td></tr>
-                        <tr><td>50元</td><td>406</td></tr>
-                        <tr><td>100元</td><td>106</td></tr>
+                        <tr><td>5元</td><td>51420</td> </tr>
+                        <tr><td>10元</td><td>22035</td> </tr>
+                        <tr><td>50元</td><td>406</td> </tr>
+                        <tr><td>100元</td><td>106</td> </tr>
                     </tbody>
                 </table>
             </div>
@@ -586,13 +594,13 @@
                 <table class="gkq-table">
                     <thead><tr><th>品种</th><th>发行量</th><th>备注</th></tr></thead>
                     <tbody>
-                        <tr><td>50</td><td>未知</td><td>发现最大流水号约5900万</td></tr>
-                        <tr><td>100</td><td>未知，2000万张</td><td>很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td></tr>
-                        <tr><td>500</td><td>1400万张</td><td>记载称92500印刷量2200万张，已经发现最大流水号1356万号</td></tr>
-                        <tr><td>50（二）</td><td>1.2亿</td><td>无记载，发现最大流水号约1.2亿，包含03冠号</td></tr>
-                        <tr><td>100（二）</td><td>1.1亿</td><td>记载称92100印刷量13010万张，已经发现1.049亿流水号</td></tr>
-                        <tr><td>500（二）</td><td>800万张</td><td>记载称92500印刷量2200万张，发现最大流水号776万号</td></tr>
-                        <tr><td>1000（二）</td><td>620万张</td><td>明确记载</td></tr>
+                        <tr><td>50</td><td>未知</td><td>发现最大流水号约5900万</td> </tr>
+                        <tr><td>100</td><td>未知，2000万张</td><td>很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td> </tr>
+                        <tr><td>500</td><td>1400万张</td><td>记载称92500印刷量2200万张，已经发现最大流水号1356万号</td> </tr>
+                        <tr><td>50（二）</td><td>1.2亿</td><td>无记载，发现最大流水号约1.2亿，包含03冠号</td> </tr>
+                        <tr><td>100（二）</td><td>1.1亿</td><td>记载称92100印刷量13010万张，已经发现1.049亿流水号</td> </tr>
+                        <tr><td>500（二）</td><td>800万张</td><td>记载称92500印刷量2200万张，发现最大流水号776万号</td> </tr>
+                        <tr><td>1000（二）</td><td>620万张</td><td>明确记载</td> </tr>
                     </tbody>
                 </table>
             </div>
@@ -607,15 +615,15 @@
                 <table class="gkq-table">
                     <thead><tr><th>面值</th><th>期限</th><th>冠号</th><th>颜色</th></tr></thead>
                     <tbody>
-                        <tr><td>100元</td><td>三</td><td>01</td><td>红</td></tr>
-                        <tr><td>100元</td><td>五</td><td>02</td><td>绿</td></tr>
-                        <tr><td>500元</td><td>三</td><td>03</td><td>深棕色</td></tr>
-                        <tr><td>500元</td><td>五</td><td>04</td><td>黑紫色</td></tr>
-                        <tr><td>1000元</td><td>三</td><td>05</td><td>暗绿色</td></tr>
-                        <tr><td>1000元</td><td>五</td><td>06</td><td>深黑色</td></tr>
-                        <tr><td>100元</td><td>三</td><td>07</td><td>红</td></tr>
+                        <tr><td>100元</td><td>三</td><td>01</td><td>红</td> </tr>
+                        <tr><td>100元</td><td>五</td><td>02</td><td>绿</td> </tr>
+                        <tr><td>500元</td><td>三</td><td>03</td><td>深棕色</td> </tr>
+                        <tr><td>500元</td><td>五</td><td>04</td><td>黑紫色</td> </tr>
+                        <tr><td>1000元</td><td>三</td><td>05</td><td>暗绿色</td> </tr>
+                        <tr><td>1000元</td><td>五</td><td>06</td><td>深黑色</td> </tr>
+                        <tr><td>100元</td><td>三</td><td>07</td><td>红</td> </tr>
                     </tbody>
-                <tr>
+                </table>
             </div>
             
             <div class="gkq-popup-card" onclick="alert('网页已失效：财政部关于发行1993年国库券的公告\n\n来源链接：http://m.110.com/fagui/121519.html')">📄 财政部关于发行1993年国库券的公告</div>
@@ -714,7 +722,7 @@
     </div>
 </div>
 
-<!-- 标题六 -->
+<!-- 标题六（独立出来） -->
 <div class="gkq-accordion">
     <div class="gkq-accordion-header">
         <span>六、最后的国库券（1995-1997）</span>
@@ -775,8 +783,8 @@
                 <table class="gkq-table">
                     <thead><tr><th>期数</th><th>100元</th><th>1000元</th><th>5000元</th></tr></thead>
                     <tbody>
-                        <tr><td>第一期</td><td>PA</td><td>PB</td><td>PC</td></tr>
-                        <tr><td>第二期</td><td>PD</td><td>PE</td><td>PF</td></tr>
+                        <tr><td>第一期</td><td>PA</td><td>PB</td><td>PC</td> </tr>
+                        <tr><td>第二期</td><td>PD</td><td>PE</td><td>PF</td> </tr>
                     </tbody>
                 </table>
             </div>
