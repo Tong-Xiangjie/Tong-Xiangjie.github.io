@@ -1,6 +1,6 @@
 <div class="rich-content">
 <style>
-/* 折叠面板 - 完全动画版 */
+/* 折叠面板 - 完全动画版，手机兼容 */
 .gkq-accordion {
     margin-bottom: 1rem;
     border-radius: 0.8rem;
@@ -18,8 +18,9 @@
     justify-content: space-between;
     align-items: center;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
-.gkq-accordion-header:hover {
+.gkq-accordion-header:active {
     background: #e8dfd5;
 }
 .gkq-accordion-icon {
@@ -30,14 +31,10 @@
     transform: rotate(180deg);
 }
 .gkq-accordion-content {
-    max-height: 0;
     overflow: hidden;
-    transition: max-height 0.4s ease-out;
+    transition: height 0.4s ease-in-out;
+    height: 0;
     background: #faf8f5;
-}
-.gkq-accordion-content.open {
-    max-height: 2000px;
-    transition: max-height 0.5s ease-in;
 }
 .gkq-accordion-content-inner {
     padding: 0.8rem 1.2rem 1.2rem;
@@ -98,6 +95,7 @@
     color: #b8860b;
     cursor: pointer;
     text-align: center;
+    -webkit-tap-highlight-color: transparent;
 }
 hr {
     margin: 1.5rem 0;
@@ -106,7 +104,8 @@ hr {
 
 <script>
 (function() {
-    function initAccordions() {
+    // 初始化所有折叠面板
+    function initGkqAccordions() {
         var accordions = document.querySelectorAll('.gkq-accordion');
         for (var i = 0; i < accordions.length; i++) {
             var accordion = accordions[i];
@@ -116,52 +115,49 @@ hr {
             var header = accordion.querySelector('.gkq-accordion-header');
             var content = accordion.querySelector('.gkq-accordion-content');
             var icon = header.querySelector('.gkq-accordion-icon');
+            var inner = content.querySelector('.gkq-accordion-content-inner');
             
-            if (!content) continue;
+            if (!content || !inner) continue;
             
-            // 设置初始状态
-            content.style.maxHeight = '0';
+            // 存储内容高度
+            var innerHeight = inner.scrollHeight;
             
+            // 设置初始状态为收起
+            content.style.height = '0';
+            
+            // 点击事件
             header.addEventListener('click', function(e) {
                 e.stopPropagation();
                 var self = this.parentElement;
                 var c = self.querySelector('.gkq-accordion-content');
                 var ic = this.querySelector('.gkq-accordion-icon');
-                var inner = c.querySelector('.gkq-accordion-content-inner');
+                var inn = c.querySelector('.gkq-accordion-content-inner');
+                var h = inn.scrollHeight;
                 
                 if (c.classList.contains('open')) {
                     // 收起
                     c.classList.remove('open');
                     if (ic) ic.classList.remove('open');
-                    c.style.maxHeight = '0';
+                    c.style.height = '0';
                 } else {
-                    // 展开 - 先显示内容再计算高度
+                    // 展开
                     c.classList.add('open');
                     if (ic) ic.classList.add('open');
-                    var height = inner ? inner.scrollHeight : c.scrollHeight;
-                    c.style.maxHeight = height + 'px';
-                    
-                    // 监听过渡结束，确保高度自适应内容变化
-                    var onTransitionEnd = function() {
-                        if (c.classList.contains('open')) {
-                            c.style.maxHeight = 'none';
-                        }
-                        c.removeEventListener('transitionend', onTransitionEnd);
-                    };
-                    c.addEventListener('transitionend', onTransitionEnd);
+                    c.style.height = h + 'px';
                 }
             });
         }
     }
     
+    // 页面加载完成后初始化
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAccordions);
+        document.addEventListener('DOMContentLoaded', initGkqAccordions);
     } else {
-        initAccordions();
+        initGkqAccordions();
     }
     
     // 暴露全局函数，供 main.js 重新初始化
-    window.initGkqAccordions = initAccordions;
+    window.initGkqAccordions = initGkqAccordions;
 })();
 </script>
 
@@ -197,7 +193,7 @@ hr {
             <p>尺寸在1983年之后只有两种：5、10、20的小尺寸，50、100、500、1000、5000的大尺寸。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_1.jpg" style="width:80%" alt="国库券水印示例">
+                <img src="readmes/image/gkq/zhihu_1.jpg" alt="国库券水印示例">
             </div>
             <div class="gkq-img-caption">国库券水印示例</div>
             
@@ -258,7 +254,7 @@ hr {
             <p>1000元是国库券中的最大尺寸，边缘的团花印刷的繁复程度在中国印刷纸币中数一数二，这张同样没有想象中的贵，价格大概在6000-8000，甚至比不上后期的1992、1995版1000元。但是这张和十万元那张形制上是相同的，欣赏价值很大。万元和十万元实物票达到罕见的程度，这里不谈论。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_4.jpg" style="width:80%" alt="印刷数据">
+                <img src="readmes/image/gkq/zhihu_4.jpg" alt="印刷数据">
             </div>
             <div class="gkq-img-caption">数据来源于印钞造币志，部分明显错误的数据经过了修正</div>
             
@@ -343,10 +339,10 @@ hr {
                         <tr><th>1985 国库券面值</th><th>印刷量（万张）</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>5元</td><td>51420</td></tr>
-                        <tr><td>10元</td><td>22035</td></tr>
-                        <tr><td>50元</td><td>406</td></tr>
-                        <tr><td>100元</td><td>106</td></tr>
+                        <tr><td>5元</td><td>51420</td> </tr>
+                        <tr><td>10元</td><td>22035</td> </tr>
+                        <tr><td>50元</td><td>406</td> </tr>
+                        <tr><td>100元</td><td>106</td> </tr>
                     </tbody>
                 </table>
             </div>
@@ -366,10 +362,10 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>1986国库券面值</th><th>印刷量（万张）</th></tr></thead>
                     <tbody>
-                        <tr><td>5元</td><td>46742</td></tr>
-                        <tr><td>10元</td><td>24175</td></tr>
-                        <tr><td>50元</td><td>838</td></tr>
-                        <tr><td>100元</td><td>210</td></tr>
+                        <tr><td>5元</td><td>46742</td> </tr>
+                        <tr><td>10元</td><td>24175</td> </tr>
+                        <tr><td>50元</td><td>838</td> </tr>
+                        <tr><td>100元</td><td>210</td> </tr>
                     </tbody>
                 </table>
             </div>
@@ -589,13 +585,13 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>品种</th><th>发行量</th><th>备注</th></tr></thead>
                     <tbody>
-                        <tr><td>50</td><td>未知</td><td>发现最大流水号约5900万</td></tr>
-                        <tr><td>100</td><td>未知，2000万张</td><td>很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td></tr>
-                        <tr><td>500</td><td>1400万张</td><td>记载称92500印刷量2200万张，已经发现最大流水号1356万号</td></tr>
-                        <tr><td>50（二）</td><td>1.2亿</td><td>无记载，发现最大流水号约1.2亿，包含03冠号</td></tr>
-                        <tr><td>100（二）</td><td>1.1亿</td><td>记载称92100印刷量13010万张，已经发现1.049亿流水号</td></tr>
-                        <tr><td>500（二）</td><td>800万张</td><td>记载称92500印刷量2200万张，发现最大流水号776万号</td></tr>
-                        <tr><td>1000（二）</td><td>620万张</td><td>明确记载</td></tr>
+                        <tr><td>50</td><td>未知</td><td>发现最大流水号约5900万</td> </tr>
+                        <tr><td>100</td><td>未知，2000万张</td><td>很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td> </tr>
+                        <tr><td>500</td><td>1400万张</td><td>记载称92500印刷量2200万张，已经发现最大流水号1356万号</td> </tr>
+                        <tr><td>50（二）</td><td>1.2亿</td><td>无记载，发现最大流水号约1.2亿，包含03冠号</td> </tr>
+                        <tr><td>100（二）</td><td>1.1亿</td><td>记载称92100印刷量13010万张，已经发现1.049亿流水号</td> </tr>
+                        <tr><td>500（二）</td><td>800万张</td><td>记载称92500印刷量2200万张，发现最大流水号776万号</td> </tr>
+                        <tr><td>1000（二）</td><td>620万张</td><td>明确记载</td> </tr>
                     </tbody>
                 </table>
             </div>
@@ -610,13 +606,13 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>面值</th><th>期限</th><th>冠号</th><th>颜色</th></tr></thead>
                     <tbody>
-                        <tr><td>100元</td><td>三</td><td>01</td><td>红</td></tr>
-                        <tr><td>100元</td><td>五</td><td>02</td><td>绿</td></tr>
-                        <tr><td>500元</td><td>三</td><td>03</td><td>深棕色</td></tr>
-                        <tr><td>500元</td><td>五</td><td>04</td><td>黑紫色</td></tr>
-                        <tr><td>1000元</td><td>三</td><td>05</td><td>暗绿色</td></tr>
-                        <tr><td>1000元</td><td>五</td><td>06</td><td>深黑色</td></tr>
-                        <tr><td>100元</td><td>三</td><td>07</td><td>红</td></tr>
+                        <tr><td>100元</td><td>三</td><td>01</td><td>红</td> </tr>
+                        <tr><td>100元</td><td>五</td><td>02</td><td>绿</td> </tr>
+                        <tr><td>500元</td><td>三</td><td>03</td><td>深棕色</td> </tr>
+                        <tr><td>500元</td><td>五</td><td>04</td><td>黑紫色</td> </tr>
+                        <tr><td>1000元</td><td>三</td><td>05</td><td>暗绿色</td> </tr>
+                        <tr><td>1000元</td><td>五</td><td>06</td><td>深黑色</td> </tr>
+                        <tr><td>100元</td><td>三</td><td>07</td><td>红</td> </tr>
                     </tbody>
                 </table>
             </div>
@@ -778,8 +774,8 @@ hr {
                 <table class="gkq-table">
                     <thead><tr><th>期数</th><th>100元</th><th>1000元</th><th>5000元</th></tr></thead>
                     <tbody>
-                        <tr><td>第一期</td><td>PA</td><td>PB</td><td>PC</td></tr>
-                        <tr><td>第二期</td><td>PD</td><td>PE</td><td>PF</td></tr>
+                        <tr><td>第一期</td><td>PA</td><td>PB</td><td>PC</td> </tr>
+                        <tr><td>第二期</td><td>PD</td><td>PE</td><td>PF</td> </tr>
                     </tbody>
                 </table>
             </div>
