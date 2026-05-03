@@ -826,3 +826,41 @@
     }, 100);
   </script>
 </div>
+
+<script>
+(function() {
+    function initGkqAccordions() {
+        // 查找所有折叠标题
+        var headers = document.querySelectorAll('.gkq-accordion-header');
+        for (var i = 0; i < headers.length; i++) {
+            var header = headers[i];
+            // 避免重复绑定
+            if (header._bound) continue;
+            header._bound = true;
+            header.onclick = function() {
+                var content = this.nextElementSibling;
+                var icon = this.querySelector('.gkq-accordion-icon');
+                if (content.classList.contains('open')) {
+                    content.classList.remove('open');
+                    if (icon) icon.classList.remove('open');
+                    content.style.maxHeight = null;
+                } else {
+                    content.classList.add('open');
+                    if (icon) icon.classList.add('open');
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                }
+            };
+        }
+    }
+    
+    // 立即执行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initGkqAccordions);
+    } else {
+        initGkqAccordions();
+    }
+    
+    // 暴露全局函数供 main.js 调用
+    window.initGkqAccordions = initGkqAccordions;
+})();
+</script>
