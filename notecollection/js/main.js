@@ -794,7 +794,7 @@ function renderSeriesList(cid, restore = false) {
 
     let items = `<div class="series-list">`;
     
-    // ========== 新增：渲染顶层的 readme（与 series 平级） ==========
+    // 渲染顶层的 readme（与 series 平级）
     if (cat.readme) {
         const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
         for (let idx = 0; idx < readmeList.length; idx++) {
@@ -802,16 +802,14 @@ function renderSeriesList(cid, restore = false) {
             const title = rm.title || 'Readme';
             items += `
                 <div class="series-item" onclick="goToReadmeFromCategory('${cid}', ${idx})">
-                    <div class="series-name">📖 ${escapeHtml(title)}</div>
+                    <div class="series-name">${escapeHtml(title)}</div>
                     <div class="series-count">阅读</div>
                     <div class="series-year"></div>
                 </div>
             `;
         }
     }
-    // ========== 新增结束 ==========
     
-    // 遍历原有的 series
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
         
@@ -867,6 +865,23 @@ function renderSeriesList(cid, restore = false) {
     if (switchBtn) {
         switchBtn.style.display = 'none';
     }
+}
+
+// 从分类板块进入顶层 readme（与 series 平级）
+function goToReadmeFromCategory(cid, readmeIndex) {
+    const cat = banknotesData[cid];
+    if (!cat || !cat.readme) return;
+    
+    const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
+    const readmeItem = readmeList[readmeIndex];
+    if (!readmeItem) return;
+    
+    saveScroll("seriesList_" + cid);
+    
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    
+    renderReadmePage(readmeItem, 'seriesList', { cid: cid });
 }
 
 function selectSeriesOrVariety(cid, si) {
@@ -987,7 +1002,6 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
     const copies = variety.copies || [];
 
     let copiesHtml = `<div class="copy-list">`;
-    // 动态序号：从1开始
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
         copiesHtml += `
@@ -1151,7 +1165,6 @@ function renderCopyList(cid, si, restore = false) {
     const copies = series.copies || [];
 
     let copiesHtml = `<div class="copy-list">`;
-    // 动态序号：从1开始
     for (let ci = 0; ci < copies.length; ci++) {
         const cp = copies[ci];
         copiesHtml += `
@@ -1310,9 +1323,6 @@ function selectCopy(cid, si, ci) {
 
 // ========= readme 功能（支持数组） =========
 
-// 从 readme 返回
-// 已在上方修改为 goBackFromReadme = history.back
-
 // 渲染 readme 详情页（新的一层）
 async function renderReadmePage(readmeItem, viewType, params) {
     const title = readmeItem.title || 'Readme';
@@ -1342,6 +1352,12 @@ async function renderReadmePage(readmeItem, viewType, params) {
     `;
     document.getElementById("app").innerHTML = html;
     
+    // 初始化国库券折叠面板（如果存在）
+    if (typeof initGkqAccordions === 'function') {
+        initGkqAccordions();
+    }
+    
+    // 处理图片点击
     document.querySelectorAll('.rich-content img').forEach(img => {
         img.style.cursor = 'pointer';
         img.onclick = (e) => {
@@ -1402,23 +1418,6 @@ function goToReadmeFromCopyListWithIndex(cid, si, vi, readmeIndex) {
     history.pushState({ custom: true }, '');
     
     renderReadmePage(readmeItem, viewType, params);
-}
-
-// 从分类板块进入顶层 readme（与 series 平级）
-function goToReadmeFromCategory(cid, readmeIndex) {
-    const cat = banknotesData[cid];
-    if (!cat || !cat.readme) return;
-    
-    const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
-    const readmeItem = readmeList[readmeIndex];
-    if (!readmeItem) return;
-    
-    saveScroll("seriesList_" + cid);
-    
-    recordCurrentView();
-    history.pushState({ custom: true }, '');
-    
-    renderReadmePage(readmeItem, 'seriesList', { cid: cid });
 }
 
 function initPinchZoom() {
