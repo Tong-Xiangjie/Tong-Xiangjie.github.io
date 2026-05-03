@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>年份图鉴 · 铜の币纪趣味收藏</title>
+    <title>铜の币纪|趣味收藏|年份图鉴</title>
     <link rel="stylesheet" href="../css/common.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
@@ -66,9 +66,10 @@
             gap: 0.3rem;
             flex-wrap: wrap;
         }
+        /* 预览小图 4:3 比例 */
         .year-preview-img {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 36px;
             object-fit: cover;
             border-radius: 4px;
             border: 1px solid #e2d5c8;
@@ -149,9 +150,10 @@
         .year-note-item:hover {
             border-color: #daa520;
         }
+        /* 弹窗内大图 4:3 比例，限制最大宽高 */
         .year-note-img {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 90px;
             object-fit: cover;
             border-radius: 0.4rem;
             background: #faf5ef;
@@ -275,7 +277,7 @@
             margin-top: 0.4rem;
         }
 
-        /* 大图弹窗 */
+        /* 大图弹窗 - 4:3 比例限制 */
         .image-modal {
             display: none;
             position: fixed;
@@ -306,7 +308,11 @@
             display: block;
             max-width: 90vw;
             max-height: 90vh;
+            width: auto;
+            height: auto;
             object-fit: contain;
+            /* 确保原图保持 4:3 比例显示，不拉伸 */
+            aspect-ratio: 4 / 3;
         }
         .image-modal-close {
             position: absolute;
@@ -344,6 +350,16 @@
                 font-size: 1.4rem;
                 letter-spacing: 1px;
             }
+            /* 移动端预览小图 */
+            .year-preview-img {
+                width: 40px;
+                height: 30px;
+            }
+            /* 移动端弹窗内大图 */
+            .year-note-img {
+                width: 100px;
+                height: 75px;
+            }
             .year-note-item {
                 flex-direction: column;
                 align-items: center;
@@ -359,7 +375,7 @@
         <div class="hero-image">
             <img src="../../coincollection/image/decoration/headphoto.png" alt="铜の币纪" onerror="this.style.display='none'">
         </div>
-        <h1>纸币 · 年份图鉴</h1>
+        <h1>纸币|年份图鉴</h1>
         <div class="sub">每一枚年份数字，都是纸币的独特笔迹</div>
     </div>
 
@@ -384,7 +400,7 @@
     <div class="feature-grid" id="statsGrid"></div>
 
     <div class="footer">
-        铜の币纪 · 趣味收藏实验室<br>© 2026
+        网页建立时间：2026年5月2日<br>© 2026 铜の币纪 版权所有
     </div>
 </div>
 
