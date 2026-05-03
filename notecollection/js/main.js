@@ -793,6 +793,25 @@ function renderSeriesList(cid, restore = false) {
     const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
 
     let items = `<div class="series-list">`;
+    
+    // ========== 新增：渲染顶层的 readme（与 series 平级） ==========
+    if (cat.readme) {
+        const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
+        for (let idx = 0; idx < readmeList.length; idx++) {
+            const rm = readmeList[idx];
+            const title = rm.title || 'Readme';
+            items += `
+                <div class="series-item" onclick="goToReadmeFromCategory('${cid}', ${idx})">
+                    <div class="series-name">📖 ${escapeHtml(title)}</div>
+                    <div class="series-count">阅读</div>
+                    <div class="series-year"></div>
+                </div>
+            `;
+        }
+    }
+    // ========== 新增结束 ==========
+    
+    // 遍历原有的 series
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
         
@@ -1383,6 +1402,23 @@ function goToReadmeFromCopyListWithIndex(cid, si, vi, readmeIndex) {
     history.pushState({ custom: true }, '');
     
     renderReadmePage(readmeItem, viewType, params);
+}
+
+// 从分类板块进入顶层 readme（与 series 平级）
+function goToReadmeFromCategory(cid, readmeIndex) {
+    const cat = banknotesData[cid];
+    if (!cat || !cat.readme) return;
+    
+    const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
+    const readmeItem = readmeList[readmeIndex];
+    if (!readmeItem) return;
+    
+    saveScroll("seriesList_" + cid);
+    
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    
+    renderReadmePage(readmeItem, 'seriesList', { cid: cid });
 }
 
 function initPinchZoom() {
