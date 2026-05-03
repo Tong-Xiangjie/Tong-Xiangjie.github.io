@@ -1337,6 +1337,24 @@ async function renderReadmePage(readmeItem, viewType, params) {
         params: params
     };
     
+    // 创建一个临时容器来解析 HTML，以便执行脚本
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    
+    // 执行所有脚本
+    const scripts = tempDiv.querySelectorAll('script');
+    for (let i = 0; i < scripts.length; i++) {
+        const oldScript = scripts[i];
+        const newScript = document.createElement('script');
+        if (oldScript.src) {
+            newScript.src = oldScript.src;
+        }
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    }
+    
+    const processedContent = tempDiv.innerHTML;
+    
     const html = `
         <div class="back-bar">
             <button class="back-btn" onclick="goBackFromReadme()">← 返回</button>
@@ -1346,16 +1364,11 @@ async function renderReadmePage(readmeItem, viewType, params) {
                 <h3>${escapeHtml(title)}</h3>
             </div>
             <div class="rich-content">
-                ${content}
+                ${processedContent}
             </div>
         </div>
     `;
     document.getElementById("app").innerHTML = html;
-    
-    // 初始化国库券折叠面板（如果存在）
-    if (typeof initGkqAccordions === 'function') {
-        initGkqAccordions();
-    }
     
     // 处理图片点击
     document.querySelectorAll('.rich-content img').forEach(img => {
