@@ -364,9 +364,7 @@
             
             <div class="gkq-table-wrapper">
                 <table class="gkq-table">
-                    <thead>
-                        <tr><th>1986国库券面值</th><th>印刷量（万张）</th></tr>
-                    </thead>
+                    <thead><tr><th>1986国库券面值</th><th>印刷量（万张）</th></table></thead>
                     <tbody>
                         <tr><td>5元</td><td>46742</td> </tr>
                         <tr><td>10元</td><td>24175</td> </tr>
