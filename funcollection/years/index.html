@@ -1,809 +1,953 @@
-<div class="rich-content">
-<style>
-.gkq-accordion {
-    margin-bottom: 1rem;
-    border-radius: 0.8rem;
-    background: #faf8f5;
-    border: 1px solid #e2d5c8;
-    overflow: hidden;
-}
-.gkq-accordion-header {
-    background: #f0ebe3;
-    padding: 0.8rem 1.2rem;
-    cursor: pointer;
-    font-weight: 500;
-    color: #b8860b;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.gkq-accordion-icon {
-    transition: transform 0.3s ease;
-}
-.gkq-accordion-icon.open {
-    transform: rotate(180deg);
-}
-.gkq-accordion-content {
-    overflow: hidden;
-    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    max-height: 0;
-}
-.gkq-accordion-content.open {
-    max-height: 2000px;
-}
-.gkq-accordion-content-inner {
-    padding: 0.8rem 1.2rem 1.2rem;
-}
-.gkq-img-single {
-    text-align: center;
-    margin: 1rem auto;
-}
-.gkq-img-single img {
-    max-width: 80%;
-    height: auto;
-    border-radius: 0.6rem;
-}
-.gkq-table-wrapper {
-    overflow-x: auto;
-    margin: 1rem 0;
-}
-.gkq-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-    background: white;
-}
-.gkq-table th, .gkq-table td {
-    border: 1px solid #e2d5c8;
-    padding: 0.5rem 0.8rem;
-    text-align: center;
-}
-.gkq-table th {
-    background: #e8d9cc;
-}
-.gkq-img-caption {
-    text-align: center;
-    font-size: 0.75rem;
-    color: #8b6b4f;
-    margin-top: 0.3rem;
-}
-.gkq-note {
-    background: #f7f2ea;
-    border-left: 3px solid #daa520;
-    padding: 0.5rem 1rem;
-    margin: 1rem 0;
-    font-size: 0.85rem;
-}
-.gkq-popup-card {
-    display: block;
-    background: #f0ebe3;
-    border: 1px solid #daa520;
-    border-radius: 2rem;
-    padding: 0.3rem 1rem;
-    margin: 0.5rem 0;
-    font-size: 0.8rem;
-    color: #b8860b;
-    cursor: pointer;
-    text-align: center;
-}
-hr {
-    margin: 1.5rem 0;
-}
-</style>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>铜の币纪 | 趣味收藏 | 年份图鉴</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <style>
+        /* ========== 强制思源黑体（年份花体除外） ========== */
+        body, .container, .breadcrumb, .section-title, .section-sub,
+        .year-count, .year-preview-more, .modal-header, .modal-body,
+        .year-note-name, .year-note-krause, .scroll-header, .mini-card,
+        .stat-card, .collapsible-header, .collapsible-content,
+        .all-notes-table, .all-notes-table th, .all-notes-table td,
+        .footer, .sub, h1, .modal-close, .scroll-hint, .stat-title, .stat-desc, .label, .sub-value,
+        .year-card, .year-number, .back-link, .switch-btn {
+            font-family: 'Noto Sans CJK SC', 'Source Han Sans SC', 'Noto Sans', sans-serif;
+        }
 
+        /* 年份数字专用花体字（覆盖上面的强制） */
+        .year-number {
+            font-family: 'Segoe UI', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif !important;
+        }
+
+        /* ========== 年份图鉴专属样式 ========== */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin: 2rem 0 0.5rem 0;
+            color: #3a2a1c;
+            border-left: 4px solid #daa520;
+            padding-left: 1rem;
+        }
+
+        .year-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0 2rem 0;
+        }
+
+        .year-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1rem 0.8rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #e2d5c8;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+        .year-card:hover {
+            transform: translateY(-4px);
+            border-color: #c9aa7b;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .year-number {
+            font-size: 1.8rem;
+            font-weight: 500;
+            color: #b8860b;
+            line-height: 1.3;
+            letter-spacing: 2px;
+        }
+
+        .year-count {
+            font-size: 0.7rem;
+            color: #8b6b4f;
+            margin-top: 0.5rem;
+            background: #f0ebe3;
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+        }
+
+        .year-preview {
+            margin-top: 0.75rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+        /* 预览小图 4:3 比例 */
+        .year-preview-img {
+            width: 48px;
+            height: 36px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #e2d5c8;
+            background: #faf5ef;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        .year-preview-img:hover {
+            opacity: 0.8;
+        }
+        .year-preview-more {
+            font-size: 0.6rem;
+            color: #b1967c;
+            background: #f0ebe3;
+            padding: 0 0.4rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+        }
+        .modal-container {
+            background: #f0ebe3;
+            max-width: 800px;
+            width: 90%;
+            max-height: 85vh;
+            border-radius: 1rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+        }
+        .modal-overlay.show .modal-container {
+            transform: scale(1);
+        }
+        .modal-header {
+            padding: 1rem 1.2rem;
+            background: white;
+            border-bottom: 1px solid #e2d5c8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            font-size: 1.3rem;
+            color: #b8860b;
+            font-weight: 500;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #8b6b4f;
+            padding: 0 0.5rem;
+            transition: color 0.2s ease;
+        }
+        .modal-close:hover {
+            color: #b8860b;
+        }
+        .modal-body {
+            padding: 1.2rem;
+            overflow-y: auto;
+        }
+        .year-note-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .year-note-item {
+            display: flex;
+            gap: 1rem;
+            padding: 0.8rem;
+            background: white;
+            border-radius: 0.6rem;
+            border: 1px solid #e2d5c8;
+            transition: all 0.2s ease;
+        }
+        .year-note-item:hover {
+            border-color: #daa520;
+            transform: translateX(2px);
+        }
+        /* 弹窗内大图 4:3 比例 */
+        .year-note-img {
+            width: 120px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 0.4rem;
+            background: #faf5ef;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        .year-note-img:hover {
+            opacity: 0.8;
+        }
+        .year-note-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .year-note-name {
+            font-weight: 500;
+            color: #4a3522;
+            font-size: 1rem;
+            margin-bottom: 0.3rem;
+        }
+        .year-note-krause {
+            font-size: 0.7rem;
+            color: #b8860b;
+        }
+
+        /* 横向滚动区 */
+        .scroll-section {
+            margin: 2rem 0;
+        }
+        .scroll-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .scroll-header h3 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #4a3522;
+        }
+        .scroll-hint {
+            font-size: 0.65rem;
+            color: #b8860b;
+        }
+        .horizontal-scroll {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: thin;
+        }
+        .horizontal-scroll::-webkit-scrollbar {
+            height: 5px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-track {
+            background: #e2d5c8;
+            border-radius: 10px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+            background: #daa520;
+            border-radius: 10px;
+        }
+        .mini-card {
+            flex: 0 0 160px;
+            background: white;
+            border-radius: 0.6rem;
+            padding: 1rem;
+            border: 1px solid #e2d5c8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .mini-card:hover {
+            background: #fef9f0;
+            border-color: #daa520;
+            transform: translateY(-2px);
+        }
+        .mini-card .label {
+            font-size: 0.65rem;
+            color: #b8860b;
+            font-weight: 500;
+        }
+        .mini-card .value {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-top: 0.3rem;
+            color: #2c2418;
+        }
+        .mini-card .sub-value {
+            font-size: 0.65rem;
+            color: #8b6b4f;
+            margin-top: 0.3rem;
+        }
+
+        /* 统计卡片 */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 0.6rem;
+            padding: 1rem;
+            border: 1px solid #e7ddd0;
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            border-color: #daa520;
+            transform: translateY(-2px);
+        }
+        .stat-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.5px;
+            color: #b1967c;
+            margin-bottom: 0.5rem;
+        }
+        .stat-number {
+            font-size: 1.6rem;
+            font-weight: 500;
+            color: #b8860b;
+            line-height: 1.2;
+        }
+        .stat-desc {
+            font-size: 0.7rem;
+            color: #6b5a48;
+            margin-top: 0.4rem;
+        }
+
+        /* 大图弹窗 - 保持原主站逻辑 */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1100;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-modal-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+        }
+        .modal-img {
+            display: block;
+            max-width: 90vw;
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1101;
+            transition: background 0.2s ease;
+        }
+        .image-modal-close:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        .image-modal-tip {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.7rem;
+            pointer-events: none;
+        }
+
+        /* ========== 可折叠全部列表样式 ========== */
+        .collapsible-section {
+            margin: 2rem 0;
+            border-top: 1px solid #e2d5c8;
+            padding-top: 1.5rem;
+        }
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.8rem 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #4a3522;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+            transition: color 0.2s ease;
+        }
+        .collapsible-header:hover {
+            color: #b8860b;
+        }
+        .collapse-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        .collapse-icon.open {
+            transform: rotate(90deg);
+        }
+        
+        /* 折叠内容区域 - 支持高度过渡动画 */
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 0;
+        }
+        .collapsible-content.open {
+            max-height: 2000px;
+        }
+        
+        /* 全部纸币表格样式 - 优化列宽，表头居中 */
+        .all-notes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            table-layout: fixed;
+        }
+        .all-notes-table th,
+        .all-notes-table td {
+            padding: 0.8rem 0.5rem;
+            border-bottom: 1px solid #e2d5c8;
+            vertical-align: middle;
+            word-break: break-word;
+        }
+        /* 表头居中 */
+        .all-notes-table th {
+            text-align: center;
+            background: #f0ebe3;
+            color: #b8860b;
+            font-weight: 500;
+        }
+        /* 表格内容对齐方式 */
+        .all-notes-table td:first-child {
+            text-align: center;
+        }
+        .all-notes-table td:nth-child(2) {
+            text-align: center;
+        }
+        .all-notes-table td:nth-child(3) {
+            text-align: left;
+        }
+        .all-notes-table td:nth-child(4) {
+            text-align: center;
+        }
+        /* 各列宽度分配：图片列 + 年份列 + 名称列(自适应) + 克劳斯列(宽2字符) */
+        .all-notes-table th:first-child,
+        .all-notes-table td:first-child {
+            width: 70px;
+        }
+        .all-notes-table th:nth-child(2),
+        .all-notes-table td:nth-child(2) {
+            width: 80px;
+        }
+        .all-notes-table th:nth-child(3),
+        .all-notes-table td:nth-child(3) {
+            width: auto;
+        }
+        .all-notes-table th:nth-child(4),
+        .all-notes-table td:nth-child(4) {
+            width: 130px;
+        }
+        .all-notes-table tr {
+            transition: background 0.2s ease;
+        }
+        .all-notes-table tr:hover {
+            background: #faf5ef;
+        }
+        .table-img {
+            width: 60px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #e2d5c8;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        .table-img:hover {
+            opacity: 0.8;
+        }
+        .table-year {
+            font-weight: 500;
+            color: #b8860b;
+        }
+        .table-krause {
+            font-size: 0.7rem;
+            color: #8b6b4f;
+        }
+
+        @media (max-width: 650px) {
+            .year-grid {
+                gap: 0.8rem;
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            }
+            .year-number {
+                font-size: 1.4rem;
+                letter-spacing: 1px;
+            }
+            .year-preview-img {
+                width: 40px;
+                height: 30px;
+            }
+            .year-note-img {
+                width: 100px;
+                height: 75px;
+            }
+            .year-note-item {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .table-img {
+                width: 48px;
+                height: 36px;
+            }
+            .all-notes-table th,
+            .all-notes-table td {
+                padding: 0.5rem 0.3rem;
+                font-size: 0.7rem;
+            }
+            .all-notes-table th:first-child,
+            .all-notes-table td:first-child {
+                width: 55px;
+            }
+            .all-notes-table th:nth-child(2),
+            .all-notes-table td:nth-child(2) {
+                width: 60px;
+            }
+            .all-notes-table th:nth-child(4),
+            .all-notes-table td:nth-child(4) {
+                width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="hero-image">
+            <img src="../../coincollection/image/decoration/headphoto.png" alt="铜の币纪" onerror="this.style.display='none'">
+        </div>
+        <h1>纸币 | 年份图鉴</h1>
+        <div class="sub">每一枚年份数字，都是纸币的独特笔迹</div>
+    </div>
+
+    <div class="breadcrumb">
+        <a href="../">趣味收藏</a> / 年份图鉴
+        <span style="float: right;">点击年份卡片，查看该年份所有纸币</span>
+    </div>
+
+    <div class="section-title">年份分布</div>
+
+    <div class="year-grid" id="yearGrid"></div>
+
+    <div class="scroll-section">
+        <div class="scroll-header">
+            <h3>年代时间轴</h3>
+            <div class="scroll-hint">横向滚动 · 查看各年代藏品数量</div>
+        </div>
+        <div class="horizontal-scroll" id="decadeScroll"></div>
+    </div>
+
+    <div class="section-title">统计数据</div>
+    <div class="feature-grid" id="statsGrid"></div>
+
+    <!-- 可折叠的全部纸币列表 -->
+    <div class="collapsible-section">
+        <button class="collapsible-header" id="collapseBtn">
+            <span id="collapseTitle">全部纸币清单</span>
+            <span class="collapse-icon" id="collapseIcon">›</span>
+        </button>
+        <div class="collapsible-content" id="collapsibleContent">
+            <div id="allNotesTableContainer"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        网页建立时间：2026年5月2日<br>© 2026 铜の币纪 版权所有
+    </div>
+</div>
+
+<!-- 年份详情弹窗 -->
+<div id="yearModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="modalYearTitle">---- 年</h3>
+            <button class="modal-close" onclick="closeYearModal()">×</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- 大图弹窗 -->
+<div id="imageModal" class="image-modal">
+    <div class="image-modal-close" onclick="closeImageModal()">✕</div>
+    <div class="image-modal-content">
+        <div class="image-container" id="imageContainer">
+            <img id="modalImg" class="modal-img" src="" alt="年份实拍图">
+        </div>
+    </div>
+    <div class="image-modal-tip">双指缩放 | 拖动查看 | 点击背景关闭</div>
+</div>
+
+<script src="data.js"></script>
 <script>
-(function() {
-    function initGkqAccordions() {
-        var headers = document.querySelectorAll('.gkq-accordion-header');
-        for (var i = 0; i < headers.length; i++) {
-            if (headers[i]._bound) continue;
-            headers[i]._bound = true;
-            headers[i].onclick = function() {
-                var content = this.nextElementSibling;
-                var icon = this.querySelector('.gkq-accordion-icon');
-                if (content.classList.contains('open')) {
-                    content.classList.remove('open');
-                    if (icon) icon.classList.remove('open');
-                } else {
-                    content.classList.add('open');
-                    if (icon) icon.classList.add('open');
-                }
+    // ========== 强制回到顶部（多次执行确保生效） ==========
+    (function scrollToTopForcefully() {
+        // 立即执行
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        
+        // DOM 加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        });
+        
+        // 页面完全加载后执行
+        window.addEventListener('load', function() {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        });
+        
+        // 处理浏览器前进后退时的滚动位置
+        window.addEventListener('pageshow', function(event) {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        });
+        
+        // 多次延迟执行，确保在所有渲染完成后滚动到顶部
+        var delays = [0, 50, 100, 200, 500];
+        delays.forEach(function(delay) {
+            setTimeout(function() {
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+            }, delay);
+        });
+    })();
+
+    // ========== 数字转双圈字符 ==========
+    function toCircledNumber(num) {
+        const numStr = num.toString();
+        const circledDigits = {
+            '0': '𝟘', '1': '𝟙', '2': '𝟚', '3': '𝟛', '4': '𝟜',
+            '5': '𝟝', '6': '𝟞', '7': '𝟟', '8': '𝟠', '9': '𝟡'
+        };
+        return numStr.split('').map(d => circledDigits[d] || d).join('');
+    }
+
+    // ========== 大图弹窗逻辑（保持主站原逻辑） ==========
+    let hammerManager = null;
+    let currentScale = 1, currentX = 0, currentY = 0;
+
+    function initPinchZoom() {
+        if (typeof Hammer === 'undefined') return;
+        const container = document.getElementById('imageContainer');
+        if (!container) return;
+        if (hammerManager) hammerManager.destroy();
+        hammerManager = new Hammer.Manager(container);
+        const pinch = new Hammer.Pinch();
+        const pan = new Hammer.Pan();
+        hammerManager.add([pinch, pan]);
+        let lastScale = 1, lastX = 0, lastY = 0;
+        function resetTransform() {
+            currentScale = 1; currentX = 0; currentY = 0;
+            container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+        }
+        function clampTransform() {
+            const img = document.getElementById('modalImg');
+            if (!img) return;
+            const containerRect = container.parentElement.getBoundingClientRect();
+            const imgRect = img.getBoundingClientRect();
+            let maxX = 0, maxY = 0;
+            if (imgRect.width > containerRect.width) maxX = (imgRect.width - containerRect.width) / 2;
+            if (imgRect.height > containerRect.height) maxY = (imgRect.height - containerRect.height) / 2;
+            currentX = Math.min(maxX, Math.max(-maxX, currentX));
+            currentY = Math.min(maxY, Math.max(-maxY, currentY));
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        }
+        hammerManager.on('pinchstart', e => { lastScale = currentScale; e.preventDefault(); });
+        hammerManager.on('pinchmove', e => {
+            let newScale = lastScale * e.scale;
+            newScale = Math.min(4, Math.max(1, newScale));
+            currentScale = newScale;
+            container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+            e.preventDefault();
+        });
+        hammerManager.on('pinchend', e => { clampTransform(); e.preventDefault(); });
+        hammerManager.on('panstart', e => { lastX = currentX; lastY = currentY; });
+        hammerManager.on('panmove', e => {
+            if (currentScale > 1) {
+                currentX = lastX + e.deltaX;
+                currentY = lastY + e.deltaY;
+                container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+            }
+            e.preventDefault();
+        });
+        hammerManager.on('panend', e => { clampTransform(); });
+        container.addEventListener('dblclick', e => { resetTransform(); e.preventDefault(); });
+        resetTransform();
+    }
+
+    function openImageModal(imgSrc) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImg');
+        modalImg.src = imgSrc;
+        modal.style.display = 'flex';
+        const container = document.getElementById('imageContainer');
+        if (container) {
+            container.style.transform = `translate3d(0px, 0px, 0px) scale3d(1, 1, 1)`;
+            currentScale = 1; currentX = 0; currentY = 0;
+        }
+        const scrollY = window.scrollY;
+        document.body.classList.add('modal-open');
+        document.body.style.top = `-${scrollY}px`;
+        modalImg.onload = () => initPinchZoom();
+        if (modalImg.complete) initPinchZoom();
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.style.display = 'none';
+        const scrollY = parseInt(document.body.style.top || '0') * -1;
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        if (scrollY) window.scrollTo(0, scrollY);
+        if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
+    }
+
+    document.getElementById('imageModal')?.addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('image-modal-content')) closeImageModal();
+    });
+
+    // ========== 年份图鉴逻辑 ==========
+    const yearMap = new Map();
+    for (let note of banknoteYears) {
+        if (!yearMap.has(note.year)) yearMap.set(note.year, []);
+        yearMap.get(note.year).push(note);
+    }
+    const sortedYears = Array.from(yearMap.keys()).sort((a,b) => a-b);
+
+    function renderYearCards() {
+        const grid = document.getElementById('yearGrid');
+        grid.innerHTML = '';
+        for (let year of sortedYears) {
+            const notes = yearMap.get(year);
+            const count = notes.length;
+            const previewImgs = notes.slice(0, 3).map(n => n.yearImg);
+            const hasMore = count > 3;
+            const card = document.createElement('div');
+            card.className = 'year-card';
+            card.onclick = (e) => {
+                if (e.target.classList.contains('year-preview-img')) return;
+                openYearModal(year, notes);
             };
+            let previewHtml = '';
+            if (previewImgs.length) {
+                previewHtml = '<div class="year-preview">';
+                for (let imgUrl of previewImgs) {
+                    previewHtml += `<img src="${imgUrl}" class="year-preview-img" onclick="event.stopPropagation(); openImageModal('${imgUrl}')">`;
+                }
+                if (hasMore) previewHtml += `<span class="year-preview-more">+${count - 3}</span>`;
+                previewHtml += '</div>';
+            }
+            card.innerHTML = `
+                <div class="year-number">${toCircledNumber(year)}</div>
+                <div class="year-count">${count} 张藏品</div>
+                ${previewHtml}
+            `;
+            grid.appendChild(card);
         }
     }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initGkqAccordions);
-    } else {
-        initGkqAccordions();
+
+    function openYearModal(year, notes) {
+        const modal = document.getElementById('yearModal');
+        const titleText = typeof year === 'string' ? `${year} · 共 ${notes.length} 张` : `${year} 年 · 共 ${notes.length} 张`;
+        document.getElementById('modalYearTitle').innerText = titleText;
+        let listHtml = '<div class="year-note-list">';
+        for (let note of notes) {
+            listHtml += `
+                <div class="year-note-item">
+                    <img src="${note.yearImg}" class="year-note-img" onclick="openImageModal('${note.yearImg}')">
+                    <div class="year-note-info">
+                        <div class="year-note-name">${note.name}</div>
+                        <div class="year-note-krause">${note.krause}</div>
+                    </div>
+                </div>
+            `;
+        }
+        listHtml += '</div>';
+        document.getElementById('modalBody').innerHTML = listHtml;
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+        document.body.style.overflow = 'hidden';
     }
-    window.initGkqAccordions = initGkqAccordions;
-})();
+
+    function closeYearModal() {
+        const modal = document.getElementById('yearModal');
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+        document.body.style.overflow = '';
+    }
+    document.getElementById('yearModal')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeYearModal(); });
+
+    function renderDecadeScroll() {
+        const decadeMap = new Map();
+        for (let [year, notes] of yearMap.entries()) {
+            const decade = Math.floor(year / 10) * 10;
+            decadeMap.set(`${decade}s`, (decadeMap.get(`${decade}s`) || 0) + notes.length);
+        }
+        const container = document.getElementById('decadeScroll');
+        container.innerHTML = '';
+        for (let [dec, count] of [...decadeMap.entries()].sort()) {
+            const card = document.createElement('div');
+            card.className = 'mini-card';
+            const decadeStart = parseInt(dec);
+            card.onclick = () => {
+                const filteredYears = sortedYears.filter(y => y >= decadeStart && y <= decadeStart + 9);
+                if (filteredYears.length) {
+                    const decadeNotes = filteredYears.flatMap(y => yearMap.get(y));
+                    openYearModal(dec, decadeNotes);
+                }
+            };
+            card.innerHTML = `<div class="label">年代</div><div class="value">${dec}</div><div class="sub-value">${count} 张</div>`;
+            container.appendChild(card);
+        }
+    }
+
+    function renderStats() {
+        const totalNotes = banknoteYears.length;
+        const totalYears = yearMap.size;
+        const minYear = sortedYears[0], maxYear = sortedYears[sortedYears.length - 1];
+        let maxCountYear = null, maxCount = 0;
+        for (let [year, notes] of yearMap) if (notes.length > maxCount) { maxCount = notes.length; maxCountYear = year; }
+        const stats = [
+            { title: "藏品总数", number: totalNotes, desc: "已收录纸币" },
+            { title: "不同年份", number: totalYears, desc: "跨越的年份刻度" },
+            { title: "时间跨度", number: `${minYear} — ${maxYear}`, desc: "年份区间" },
+            { title: "最密年份", number: `${maxCountYear}年`, desc: `${maxCount} 张藏品` }
+        ];
+        const container = document.getElementById('statsGrid');
+        container.innerHTML = '';
+        for (let s of stats) {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML = `<div class="stat-title">${s.title}</div><div class="stat-number">${s.number}</div><div class="stat-desc">${s.desc}</div>`;
+            container.appendChild(card);
+        }
+    }
+
+    // ========== 全部纸币清单（按年份排序） ==========
+    function renderAllNotesTable() {
+        const allNotes = [...banknoteYears].sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return a.name.localeCompare(b.name);
+        });
+        
+        let tableHtml = `
+            <table class="all-notes-table">
+                <thead>
+                    <tr>
+                        <th>图片</th>
+                        <th>年份</th>
+                        <th>纸币名称</th>
+                        <th>克劳斯编号</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        for (let note of allNotes) {
+            tableHtml += `
+                <tr>
+                    <td><img src="${note.yearImg}" class="table-img" onclick="openImageModal('${note.yearImg}')" alt="年份图"></td>
+                    <td class="table-year">${note.year}</td>
+                    <td>${note.name}</td>
+                    <td class="table-krause">${note.krause}</td>
+                </tr>
+            `;
+        }
+        
+        tableHtml += `
+                </tbody>
+            </table>
+        `;
+        
+        document.getElementById('allNotesTableContainer').innerHTML = tableHtml;
+        
+        // 更新折叠按钮上的数量
+        const totalCount = banknoteYears.length;
+        document.getElementById('collapseTitle').innerText = `全部纸币清单（共 ${totalCount} 张）`;
+    }
+
+    // ========== 折叠功能（支持丝滑动画） ==========
+    function initCollapsible() {
+        const btn = document.getElementById('collapseBtn');
+        const content = document.getElementById('collapsibleContent');
+        const icon = document.getElementById('collapseIcon');
+        
+        if (!btn || !content) return;
+        
+        btn.addEventListener('click', () => {
+            const isOpen = content.classList.contains('open');
+            if (isOpen) {
+                content.classList.remove('open');
+                icon.classList.remove('open');
+            } else {
+                content.classList.add('open');
+                icon.classList.add('open');
+                if (document.getElementById('allNotesTableContainer').innerHTML === '') {
+                    requestAnimationFrame(() => {
+                        renderAllNotesTable();
+                    });
+                }
+            }
+        });
+    }
+
+    renderYearCards();
+    renderDecadeScroll();
+    renderStats();
+    initCollapsible();
 </script>
-
-<!-- 标题一 -->
-<div class="gkq-accordion">
-    <div class="gkq-accordion-header">
-        <span>一、概述和市场情况</span>
-        <span class="gkq-accordion-icon">▼</span>
-    </div>
-    <div class="gkq-accordion-content">
-        <div class="gkq-accordion-content-inner">
-            <p>8月29日写的，被知乎吞了，现在重新写一份，语言上更加简洁一些。</p>
-            <p>这一系列是人民币的"准货币"系列，主要是权威机构发行的、在一定区域或时期提供流通职能的钞票，或是国家级无记名债券。债券里包括国库券、国家经济建设公债，地方经济建设公债、国家保值公债、重点建设债券等，类货币包括军用代金券、外汇兑换券、人民银行本票等。预计2021年7月1日之前写完。</p>
-            <p>国库券是最常见的一种国债，在1981-1997年间发行，最后一期于2000年到期，从此国内实物国债消失。国库券永不作废，每年财政部公告都会注明实物债券继续兑付，只是国库券逾期不计息，到期后只以计息期间的本利兑付。很多人家里可能都会有几张当年发工资时候买的五块十块的。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_1.avif" onerror="this.style.display='none'" alt="国库券">
-            </div>
-            
-            <h4>一、国库券的面值</h4>
-            <p>在1981年有十元，百元，千元，万元，十万。1982年1、5、10、100。1983-1991年间5、10、50、100，1990、1991有20元面值。1992年的50、100、500、1000。1993-1994有100、500、1000。1995-1997有100、1000、5000元。只有100元是每年都有发行的，直到今日电子化的债券也是以100元为"一张"来交易。</p>
-            
-            <h4>二、国库券的主题</h4>
-            <p>多种，没有固定模式，经济建设、工农业生产、风景名胜是最常见的。1990年有三张是北京亚运会场馆，1991年全是风景，可以勉强算是主题统一的，其余几乎无规律。</p>
-            
-            <h4>三、国库券的印刷方式</h4>
-            <p>1981-1987年间的50、100元是凹版印刷，1992和96、97年的100元，以及所有500元及以上的国库券是凹版印刷，其余全是平版印刷。整个1988-1991年的全部是平版。</p>
-            
-            <h4>四、国库券的纸张</h4>
-            <p>火炬五星水印：和外汇兑换券相同，1981年国库券</p>
-            <p>古钱水印：和第四套人民币1980版1、2、5元纸币相同。1990-1992年的50元及以上面值，其中1990年的古钱水印中带有PBC字母，中国人民银行英文缩写，并不是财政部。</p>
-            <p>GKQ水印：1993年后的所有国库券。其中，1995五千，1996一千和五千，1997一千和五千带有彩色纤维。这种水印为国库券独有。</p>
-            <p>尺寸在1983年之后只有两种：5、10、20的小尺寸，50、100、500、1000、5000的大尺寸。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_1.jpg" alt="国库券水印示例">
-            </div>
-            <div class="gkq-img-caption">国库券水印示例</div>
-            
-            <h4>五、国库券的收藏方向</h4>
-            <p>按面值只有5、10、20方便收集全套。还有个1元单独成套。50元在1987年之前都很贵。100元在1990年之前都很贵，1996 100元也很贵。500元只在1992、1993、1994有发行，1994二期，1992二期很贵。1000元在1981、1992之后有发行，1992、1995很贵。5000元及以上全都是高档品种。</p>
-            <p>按主题不太好说，因为啥主题都有很贵的东西，不说也罢。</p>
-            <p>按年份，1991年最便宜，其次是1990年，其余每个年份至少都要近万元或以上的预算了。1991年是唯一实钞价格低于票样的，国库券大多高档品种都是票样更便宜。</p>
-            
-            <h4>六、收藏建议</h4>
-            <p>低端就是1982-1991年十年间的20元及以下面值是个小全套，若是再加上1992-1997一百元各一张，即可以收集成小套。</p>
-            <p>中端可以再加上1988-1992年的五十元，1991-1995年的一百元细分品种。</p>
-            <p>中高端可以在加上部分500、1000元，以及1996二期和1990的100元。比如1993、1994、1996、1997的一千元就不算太贵，几张500元除了1994二期也都不离谱。</p>
-            <p>更高端包括了1982-1989的一百元，1983-1987的五十元，这几张一百元都是万元或以上的价格，1983-1985的五十元也不弱。1995千元，1992五百元二期，1992千元，1997五千。</p>
-            <p>特高端包括了1981的万元、十万元，1994五百、一千的二期，1995五千东方明珠，1996两张五千，1983、1985的百元，这几个有些都是有钱也不太好买的东西了。</p>
-            
-            <h4>七、逐年分析</h4>
-            <p>1981年的国库券原则上是对公发行的，所以10、100这两张都比不过1982年的，早起国库券在一些单位、国企之类的档案里还时有发现，一旦流出来一些就对价格有冲击。不怎么建议碰这一年的国库券，1981年10元就没见过几张旧的。</p>
-            <p>1982年的国库券也是横式，这两年的国库券都和五十年代的债券有些类似，1982年有张1元，为国库券中的唯一，这一年的5、10都是小面值中绝对的龙头，当然100元宝钢也不是吃素的，但是价格比不上83、85的。</p>
-            <p>1983到1989年的规格统一，都是5、10、50、100四种，从此国库券尺寸统一，50元以下小尺寸，50元及以上大尺寸，一直到5000元都是一样大的。5元里价格大概是83、84、86、85、87、89、88，10元里大概是83、85、84、86、87、89、88，50元里大概是83、85、84、86、87、89、88，100元里大概是83、85、84、86、87、89、88。注意50元里86及以后比之前便宜很多，100元里再便宜都是万元级别的。注意1985往往比1984贵，这一年除了大量发行的5元，其余面值都不多。10元方面它和83也有的一比，我有很多连号85十元品相都有很多问题。国库券这个问题很严重，因为几乎没有库存，所有的都是使用过的，一旦评级出高分都不便宜。还有1989年或许是发行保值公债太多，各种面值比起1988年似乎是反而少了一点点，1988年是国库券开始交易的年份，这一年50元发行量大增，并且期限变作3年，所以比1987年档次都要低。</p>
-            <p>1990、1991是国库券中风格较为统一的，1990年北京亚运会，这一年的5、20、100票面上都是亚运会场馆，算是国库券中难得的结合时事的纪念版本，虽说这一年的设计都不好看。1991是最便宜一年，同时也是最漂亮一年，风格统一，全是山水，最适宜全套收集。这两年都有20元，也都不贵。</p>
-            <p>1992年之后的国库券都有些复杂了。</p>
-            <p>1992年分作两期发行，最低面值50元，第一期五年，第二期三年，利息还差不远，导致当年有涂改现象。这两期看正面的冠号能看出来，背面多个第二期字样，其余完全一样。50、100元都是第一期更少，500第二期更佳，1000元只有第二期，是千元票中的中高档品种。</p>
-            <p>1993年国库券设计较为现代化，用了GKQ水印专用纸张，防伪技术有所升级。这一年利率加上保值补贴率利息特高，三年百分之六十多，五年百分之七十多，当年的利率很是厉害了。但是这不妨碍1993年的各种面值都不出彩，但是普遍五年期少于三年期。这一年吸取了教训，两期改变了颜色。</p>
-            <p>1994年保持了1993年的形制，100元又是最便宜的百元之一，这一年虽说推出了两期，但是没了保值补贴，期限大减。虽说装模作样发行了两期，利息期限完全一样的，1994年第二期大大少于第一期，第二期背面都是蓝色，即使是蓝100都是远远少于棕100，蓝500、1000为高档品种，远远贵于93，所幸票样不贵。</p>
-            <p>1995年很简单，是国库券总印刷数量最小的一年，虽然都印刷了第一期，实际上也就一期，这一年取消500，增加5000。1000元布达拉宫是国库券设计之最，抢跑了第五套人民币的五十元图案，本身这一年的设计也很大胆。这一年的一千无论设计价格都是精品，比前比后都胜出。这一年的5000图案是东方明珠，当然了，升值率比起东方明珠的房价也是不示弱的，为后期国库券最大珍品。</p>
-            <p>1996在后期是最复杂的，一期二期的利率、图案都不一样，二期100元是九十年代100元最贵，这一年开始国库券全部用凹印了。1996千元不贵，两张都还算漂亮，我也刚买了一张牧场，毕竟是人民币币王的主题。两张五千都是大精品，可遇不可求。都得五万左右了吧，这种东西本就不多见，其实是没有公允价格的。</p>
-            <p>1997是最后一年了，这三张的图案名气都变大了，外高桥，京九铁路，北京西站，难得一年三个图案名气都大。这一年有钱都能买到，五千元也不算多么贵，一万多即可，毕竟面值也那么高了。一千元是最便宜的一张千元，不到两千块就能买到。</p>
-            <div class="gkq-note">20200829初稿被吞，知乎存草稿吞了我三次｜20200928 02:08重写</div>
-        </div>
-    </div>
-</div>
-
-<!-- 标题二 -->
-<div class="gkq-accordion">
-    <div class="gkq-accordion-header">
-        <span>二、早期的分析（1981-1984）</span>
-        <span class="gkq-accordion-icon">▼</span>
-    </div>
-    <div class="gkq-accordion-content">
-        <div class="gkq-accordion-content-inner">
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_2.avif" alt="早期国库券">
-            </div>
-            <p>国库券1981-1984年间可以看作是第一阶段，这一阶段国库券的格式尚未完全定型，大小尺寸也是常有变化，可以说每一年都有不同之处。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_2.jpg" alt="1981年国库券">
-            </div>
-            <div class="gkq-img-caption">1981年国库券</div>
-            
-            <p>1981年国库券对公发行，里面的一万、十万这两个品种事实上可以被忽略，不仅少而且贵、并且有钱也极难买得到。10元双面胶印，旧票反而罕见，大多都是全新连号的形式存在，300-500左右的价格，事实上不值得这个价，有效留存量不少。100元和82-89年间的100元都不一样，虽然印刷量也挺小的，全品也就是在2500-3500左右。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_3.jpg" alt="1981年1000元流水号">
-            </div>
-            <div class="gkq-img-caption">见过的最大流水号，理论印刷量201.4万张，这张198万号，很接近</div>
-            
-            <p>1000元是国库券中的最大尺寸，边缘的团花印刷的繁复程度在中国印刷纸币中数一数二，这张同样没有想象中的贵，价格大概在6000-8000，甚至比不上后期的1992、1995版1000元。但是这张和十万元那张形制上是相同的，欣赏价值很大。万元和十万元实物票达到罕见的程度，这里不谈论。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_4.jpg" alt="印刷数据">
-            </div>
-            <div class="gkq-img-caption">数据来源于印钞造币志，部分明显错误的数据经过了修正</div>
-            
-            <p>1982年只有四个面值，仍然采用横式的格局，包含一张唯一的一元，这一年的每个品种都在各自面值中都属于顶级品种。一元和五元冠号都有两种，二冠和三冠号，细字体，十元只有一种双冠号，苏式字体。十元的两位冠号加上六位冠号刚好一亿张，一元和五元是先印刷了二冠，再印刷了三冠号。一元的二冠1亿张、三冠2.1亿张。五元的二冠1亿张，再加上50个冠号约五千万张。也就是说五元三冠比较少，一元二冠比较少。注意，国库券都是一年之内发行，顶多跨年度印刷，不存在首发冠和末尾冠先后的问题。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_5.jpg" alt="019冠号">
-            </div>
-            <div class="gkq-img-caption">019冠号，三冠号中的第九组，本组结束时是第1.54亿张，记载印刷量1.53亿，这很接近最后的冠号了，符合记载发行量</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_6.jpg" alt="174冠号">
-            </div>
-            <div class="gkq-img-caption">1元的174冠号，本组发行完毕时是3.10亿张，记载印刷量3.12亿张，后面的148组应该印刷不满了</div>
-            
-            <p>100元这几年也见不到有几次货源了，印刷量不足百万，连一个冠号（百万张）都用不完，从这往后，国库券的冠号除了补号没啥好说的了。1983年起再也没有六位数的流水号，高面值的发行量低，基本上都是一个就够。低面值的发行量大增，并且冠号加流水号几乎可以直接视为总流水号。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_7.jpg" alt="82版国库券背面">
-            </div>
-            <div class="gkq-img-caption">82版国库券背面是条例，这和50年代的公债是很相似的，不过印刷水平有所提升。前几年1元票还很便宜，我十块一张买了很多</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_8.jpg" alt="最初的两张国库券">
-            </div>
-            <div class="gkq-img-caption">这是我2009年最初买的两张国库券，花了三十块钱，我将长期留着这两张也是作为纪念了</div>
-            
-            <p>1983-1984年的图案区别有三个，一是84年改用了简体字，二是84高面值号码全部使用了细字体，从此苏式字体再也没有用在国库券上。三是83版低面值共用一个图案，低值炼油厂、高值立交桥，84版每种主图都不同</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_9.jpg" alt="1983-1984小面值">
-            </div>
-            <div class="gkq-img-caption">这四种小面值我已经买了五十多张了，连号的也有一部分，还真找不到几张品相好的</div>
-            
-            <p>这两年的国库券奠定了往后近15年里国库券的一些形制。</p>
-            <p>一是尺寸。1983版奠定了今后国库券的尺寸，只是在1985年以后全部不再使用竖式布局。即小面值（20元及以下）142×64，大面值（50元及以上）156×72，注意！小尺寸国库券大概是三版炼钢的尺寸，大尺寸国库券的尺寸大概是大团结的尺寸。</p>
-            <p>二是文字。1984年修改了1981-1983国库券的繁体隶书字体，改为简体字，同时背面的财政部印章有所更改。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_10.jpg" alt="繁体简体对比">
-            </div>
-            <div class="gkq-img-caption">繁体字和简体字的区别</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_11.jpg" alt="83与84对比">
-            </div>
-            <div class="gkq-img-caption">左为83，右为84</div>
-            
-            <p>这两年总的来说是很相似，83年全面都比84年的贵一些，特别8350比8450还是高档很多的，83版多数面值的价格都在该面值中处于数一数二的地位。</p>
-            <p>这两年的期限都是5-9年，即第五年开始抽签兑付，每年还一部分，第九年还清。九年之后都是按照72%的利息，再逾期就不计算利息了。个人购买的都是百分之八的年利率。在84之后，个人的国库券都是到期一次还本付息了。</p>
-            <p>单位购买的国库券不使用实物券，因为通常金额较大，而采取国库券收款单的形式，并且利率直接缩水一半，只有百分之四。单位的国库券事实上延迟兑付，十年才还清......这也体现了我国始终还是以群众利益为重。</p>
-            <div class="gkq-note">20210416 20:22初稿未插图｜20210527 13:36暂发待改｜20210528 22:18三次修改｜20221017 16.46四次修改</div>
-        </div>
-    </div>
-</div>
-
-<!-- 标题三 -->
-<div class="gkq-accordion">
-    <div class="gkq-accordion-header">
-        <span>三、中期的分析（1985-1989）</span>
-        <span class="gkq-accordion-icon">▼</span>
-    </div>
-    <div class="gkq-accordion-content">
-        <div class="gkq-accordion-content-inner">
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_3.avif" alt="中期国库券">
-            </div>
-            <p>1985-1989是国库券形制最为整齐的一段，四种面值，延续8384两年的尺寸。发行方式上取消了抽签兑付，全部改为一次付清。这五年的高面值大多属于高档品种，除了88、89的50元，其余的五十元大多在五千元以上，一百元多在万元以上。我自己把这一区域称作国库券中期，90、91两年称作后期，92以后的每年都有区别，需要特别分析。</p>
-            
-            <p>先说85，整个85板块除了五元，其余面值都是国库券同面值中的高端，85的10、50、100价格比肩83年，全部超过84版。85版国库券期限五年，从此之后再没有了抽签还款这一说法。背面的说明94年还清，是设计时加上去的，实际被弃用，前几年的国库券发生过很多有人去兑换，由于未中签不能兑付，甚至引发对债券信用误解的问题，于是85年之后取消了这种做法。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_12.jpg" alt="85国库券背面说明">
-            </div>
-            <div class="gkq-img-caption">国库券只有一年这样说明了，本意是想要按照旧的方式兑付</div>
-            
-            <p>85普遍比较贵且少的原因，一是回收率较高85年之后物价上涨确实快，1990年到期的时候仍然是物价不稳，这种情况群众去兑换的意愿都会加大。二是低面值发行多，这几年的国库券一度摊派任务发行，五元十元发在工资里就行，大面值买的人较少，单位购买也全面使用国库券收款单了，所以大面值没有必要印刷太多，反倒是85年5元印刷量达到了五亿张的巨大数量。三是到期时间早，85国库券由于取消抽签缩短了年限，到期时间比8384还要早。四是发行难度增加，从1981年之后年年发行国库券，越来越不好卖。这四个原因都造成85国库券大面值极为罕见的最终结果。85五元印刷量巨大，高低面值完全不是一种东西，印刷量存世量差距悬殊。</p>
-            
-            <div class="gkq-table-wrapper">
-                <table class="gkq-table">
-                    <thead><tr><th>1985 国库券面值</th><th>印刷量（万张）</th></tr></thead>
-                    <tbody>
-                        <tr><td>5元</td><td>51420</td><td style="text-align:center"> </tr>
-                        <tr><td>10元</td><td style="text-align:center">22035</td><td style="text-align:center"> </tr>
-                        <tr><td>50元</td><td style="text-align:center">406</td><td style="text-align:center"> </tr>
-                        <tr><td>100元</td><td style="text-align:center">106</td><td style="text-align:center"> </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p>85的设计改为横式，这成为了之后国库券最常见的样子，同时面值字体使用了第二版人民币上类似的字体，看起来更像是一张"钱"了。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_13.jpg" alt="85五十元">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_14.jpg" alt="85一百元">
-            </div>
-            <div class="gkq-img-caption">这是五十元中接近最贵的品种｜红一百也不比83的紫红100弱多少</div>
-            
-            <p>86再次沿袭85的形制，部分色彩有所改变，百元黑色、十元棕色、五元绿色都是以前未用过的，只有五十元的蓝色得以保留。面额字体还是85的样式，右下角的团花布局，略像是第四套人民币中大面值的特色。86的低面值印刷量和85类似，高面值翻倍，这也是物价上涨的体现，虽然更大面值的国库券要六年后才发行。</p>
-            
-            <div class="gkq-table-wrapper">
-                <table class="gkq-table">
-                    <thead><tr><th>1986国库券面值</th><th>印刷量（万张）</th></tr></thead>
-                    <tbody>
-                        <tr><td>5元</td><td style="text-align:center">46742</td><td style="text-align:center"> </tr>
-                        <tr><td>10元</td><td style="text-align:center">24175</td><td style="text-align:center"> </tr>
-                        <tr><td>50元</td><td style="text-align:center">838</td><td style="text-align:center"> </tr>
-                        <tr><td>100元</td><td style="text-align:center">210</td><td style="text-align:center"> </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p>86的五十元收割机是我比较喜欢的一个画面，农业生产主题在之后用得越来越少，多是建设场景、建筑、风景了。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_15.jpg" alt="86五十元">
-            </div>
-            <div class="gkq-img-caption">右边的浪花鲤鱼，金色稻穗，都说明了这张设计还算用心，相比之下贵得多的一百元就美观来说，逊色很多</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_16.jpg" alt="86五元电化教育">
-            </div>
-            <div class="gkq-img-caption">再有一个五元需要说一下，这个主题叫做"电化教育"，图中的牌子是"电视大学"，"电大"和"电教中心"这两个称呼都很有年代感了，一直到今天，某重要部门中仍然有"电教中心"这个编制</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_17.jpg" alt="86十元工人体育场">
-            </div>
-            <div class="gkq-img-caption">工人体育场</div>
-            
-            <p>1987年国库券的设计焕然一新，减去了绝大多数的雕刻风格花纹。全面以主图作为设计主题。从此已经可以初步看出，国库券的创新设计大多在单数年份，双数年份多是沿袭，风格普遍保守，两年后的89国库券更是第一次跳出了方框框的设计。并且这一年的主要图案质量也有提升。大都采用了较为独特的视角。收藏上来说，50元的档次越来越低，毕竟这一年80版50元纸币都已经发行了。100元还是同样的贵，但是出现频率也高于86之前的了。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_18.jpg" alt="87五十元">
-            </div>
-            <div class="gkq-img-caption">50元是凹印，虽然风格看上去也像是平印</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_19.jpg" alt="87一百元宝钢码头">
-            </div>
-            <div class="gkq-img-caption">宝钢码头，在百元国库券中算是比较漂亮的</div>
-            
-            <p>1988版国库券又回到了以前的条条框框，并且全部改成了胶印，并且没有水印，由于设计的原因，这一年的50和100元都成为了印刷最简陋的高面值国库券。1988年开始国库券发行金额大增，并且这一年开始国库券开放交易，因而，从此之后的国库券存世量逐步增加，五元十元还都是差不多的。8850元的印刷量在印钞造币志上极大，应该是有误的，应该也就是两三千万的级别。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_20.jpg" alt="1988年四张国库券">
-            </div>
-            <div class="gkq-img-caption">四张除了尺寸印刷方式是一致的，总体给人一种廉价感，50元是89之前最便宜的50元，100元还是一如既往地贵，不含糊，即使它看起来那么的不"高端"</div>
-            
-            <p>终于到了我几乎是最喜欢的1989年版国库券，这一年和1987、1985类似，单数的年份带来了大胆的设计。题材上同样出色，5元的桑塔纳，10元的海南，50元的新客站，桑塔纳下线、海南建省、新客站落成，这些都有着普遍的社会记忆。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_21.jpg" alt="89五元桑塔纳">
-            </div>
-            <div class="gkq-img-caption">侧置竖直的多彩条纹，甚至看到了第五套人民币的影子</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_22.jpg" alt="新客站老图片">
-            </div>
-            <div class="gkq-img-caption">附带一张新客站的老图片</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_23.jpg" alt="89100湛江油码头">
-            </div>
-            <div class="gkq-img-caption">89100湛江油码头，虽然是平印，但是和88100相比廉价感少了很多，反而呈现出另外一种"贵气"十足的感觉</div>
-            
-            <p>1985-1989这五年的低面值除了8510的绝品，都很便宜。高面值除了88、89的五十元，都是绝对的贵，相对低端品种也至少要和枣红比肩，这一区域和90年代高值，每一张都是一座大山，让人略感绝望，是国库券中的高端区域，收藏这一部分的小面值又太没成就感。国库券因此一定程度上降低了很多收藏乐趣，但是从另外一个角度来看，这些真正的收藏品是对精力、财力、眼力、运气、知识储备的综合考验，能得到的成就感也绝非现今流行的高分无47可以比拟的。</p>
-            <div class="gkq-note">20210527 14:17初稿图片、附表待补充｜20210528 10:26暂发｜20210610 16.35修改</div>
-        </div>
-    </div>
-</div>
-
-<!-- 标题四 -->
-<div class="gkq-accordion">
-    <div class="gkq-accordion-header">
-        <span>四、后期（1990-1991）</span>
-        <span class="gkq-accordion-icon">▼</span>
-    </div>
-    <div class="gkq-accordion-content">
-        <div class="gkq-accordion-content-inner">
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_4.avif" alt="后期国库券">
-            </div>
-            <p>1990-1991这两年我把他们放在一起，是因为这两年增加了20元的面值，从此国库券增加为五个面值，是单年份面值数量之最了。这两年还有一个好处是价格普遍便宜，按年度收集齐全的难度最小。由于20元国库券只有这两张，除了1元一张，按面值也就数这个面值难度最小。由于价格低廉，就不放印刷量表格了，最后我会把所有国库券规格、图案、印刷量等做一个总表格放在最后。</p>
-            
-            <p>1990年国库券的主题很奇怪，这一年办了亚运会，有三个面值都是以亚运会场馆作为主图，而其余两个也并不是多么精美，这一年总体设计上印刷上都不能说是很好，好在高面值增加了水印，结束了88、89两年国库券印刷质量较低的情况。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_24.jpg" alt="90五十元">
-            </div>
-            <div class="gkq-img-caption">这个五十元虽然很旧，架不住85块的价格实在便宜，我是不大喜欢这一年的，设计上格式虽然是89年的格局，但是细微之处很不统一，强迫症看了极为难受。总体给我的感觉是小家子气</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_25.jpg" alt="90背面设计">
-            </div>
-            <div class="gkq-img-caption">背面的设计很简陋，没太多好说的</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_26.jpg" alt="89、90设计共通">
-            </div>
-            <div class="gkq-img-caption">89、90的设计还是有共通之处的，包括正面的格局，以及背面都有个计息月表格，但是也并没有什么用处</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_27.jpg" alt="90版底纹">
-            </div>
-            <div class="gkq-img-caption">90版的进步一是在于底纹的精细程度大幅提高，甚至超出了同期第四版人民币的水平</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_28.jpg" alt="PBC水印">
-            </div>
-            <div class="gkq-img-caption">进步之二是高面值用了水印纸，和第四版人民币的元券差不多，但是含有PBC水印，这种水印只见于1988年国家建设债券和90国库券上</div>
-            
-            <p>90年绿色的100元虽然无法和81-89的那几张相比，和90年代的大多数来说还是绰绰有余的，只有96二期100元可以相比。我暂时没入，去年错过一个好机会，后悔至今。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_29.jpg" alt="90一百元局部">
-            </div>
-            <div class="gkq-img-caption">右下角火炬状的小图案，以及下方运动图案倒是不错，让这张国库券看上去甚至像是一张纪念钞，只是到处都与整套格格不入</div>
-            
-            <p>下面说91版，91版虽说还是全平印，价格更低。我是很喜欢这一年的。是主题极为统一，全部是山水风光，并且易于入手。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_30.jpg" alt="91版成套">
-            </div>
-            <div class="gkq-img-caption">终于可以全用自己的图了，91年是很少有的票样价格高于正票的年份，这也侧面说明了他的存世量实在很大。我这一组花了大概六百块</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_31.jpg" alt="91一百元">
-            </div>
-            <div class="gkq-img-caption">一百元的色彩和图案都很平庸，100元的面值，在两年后就从最高面值变成最低面值了</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_32.jpg" alt="91字体对比">
-            </div>
-            <div class="gkq-img-caption">注意喔，91国库券的字体和76版瑞士法郎</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_33.jpg" alt="91与巴西纸币对比">
-            </div>
-            <div class="gkq-img-caption">再注意喔，右边是1987版巴西1000，右边这个数字字体也即将用在1995年左右设计的第五套人民币上</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_34.jpg" alt="91云南风光">
-            </div>
-            <div class="gkq-img-caption">这张品相是很好的，但是水印很模糊</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_35.jpg" alt="91模糊水印">
-            </div>
-            <div class="gkq-img-caption">还是一样模糊</div>
-            
-            <p>云南风光是我最喜欢的品种之一，买了好几张，若是用上凹印该是多么美丽。他的主图和左侧的花纹我都相当喜爱。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_36.jpg" alt="91江南水乡">
-            </div>
-            <div class="gkq-img-caption">江南水乡几乎就是整个国库券中存世量最大的品种，它还是很漂亮的</div>
-            <div class="gkq-note">20210529 01:10</div>
-        </div>
-    </div>
-</div>
-
-<!-- 标题五 -->
-<div class="gkq-accordion">
-    <div class="gkq-accordion-header">
-        <span>五、大面值国库券（1992-1994）</span>
-        <span class="gkq-accordion-icon">▼</span>
-    </div>
-    <div class="gkq-accordion-content">
-        <div class="gkq-accordion-content-inner">
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_5.avif" alt="大面值国库券">
-            </div>
-            <p>1992年开始先前作为大面值的¥50和¥100的国库券在1992年变成了低面值，从1993年开始¥50面值已经被取消，从此之后国库券的最低面值变成¥100。我把1992年到1994年作为一个专门的分类，是因为这三年都存在¥500的面值，并且最高面值是¥1000。这三年都存在两期国库券。除了1992年的¥1000。</p>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：财政部、中国人民银行关于1992年国库券发行工作有关事项的通知\n\n来源链接：http://m.110.com/fagui/57906.html')">📄 财政部、中国人民银行关于1992年国库券发行工作有关事项的通知</div>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：财政部、中国人民银行关于防止误收、误兑、误销1992年变造国库券的紧急通知\n\n来源链接：http://m.law-lib.com/law/law_view.asp?id=60195')">📄 财政部、中国人民银行关于防止误收、误兑、误销1992年变造国库券的紧急通知</div>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：财政部、中国人民银行关于在内部传达鉴别1992年三年期国库券（变造券）要点的紧急通知\n\n来源链接：http://www.law-lib.com/law/law_view.asp?id=60454')">📄 财政部、中国人民银行关于在内部传达鉴别1992年三年期国库券（变造券）要点的紧急通知</div>
-            
-            <p>先说1992年，九二年的国库券发行量是很大的。相对于之前的每一年来说，都不在一个体量上，本身的面值就非常大，并且印刷量也较大，但是它的好处是¥100以上都是凹版印刷，1992年的100元前后几年，往前到1988年，往后到1996年，都是全胶版的。所以1996、1997、1992年这三年的¥100是雕刻版国库券最便宜的品种。</p>
-            <p>1992年的第一期和第二期国库券的区别只在背面多了一个第二期的加字，以及正面冠号的区别，1000元只有第二期。其余三种面值，50、100元都是第一期更少，500元是第二期更少。第一期期限五年，第二期期限三年，当年有很多把第一期涂改成第二期的状况出现。为此，1995年左右为此多次下发文件通知。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_37.jpg" alt="变造券示例">
-            </div>
-            <div class="gkq-img-caption">如图，猛地一看还以为是92500的珍稀补号，实则是一张变造券，从第一期涂改成为第二期，00这个冠号只会出现在第一期的补号之中，这张实在是可惜了</div>
-            
-            <p>直到1996年，涂改债券这起事情还没完。95年就到期的国库券因为参杂了涂改券，结清和销毁工作一直延后。</p>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：财政部、中国人民银行关于销毁1992年三年期国库券有关事项的通知\n\n来源链接：https://code.fabao365.com/law_255560.html')">📄 财政部、中国人民银行关于销毁1992年三年期国库券有关事项的通知</div>
-            
-            <p>到了1998年，五年期也已经到期了，又发了一个通知</p>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：财政部、中国人民银行关于1992年国库券变造券处理意见的通知\n\n来源链接：http://www.law-lib.com/law/law_view1.asp?id=68196')">📄 财政部、中国人民银行关于1992年国库券变造券处理意见的通知</div>
-            
-            <p>涂改债券的风波还不算完，1993年，由于物价上涨太快，1992年国库券市场价格低于面值。财政部发公告，调整部分国库券利率，并且开始使用保值补贴。真是阴差阳错，1989年保值公债都没用上。</p>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：关于调整国库券发行条件的公告\n\n来源链接：http://www.czj.sh.gov.cn/zys_8908/zcfg_8983/zcfb_8985/gkgl_8991/gjzw/201509/t20150916_155602.shtml')">📄 关于调整国库券发行条件的公告</div>
-            
-            <p>92年五年期（第一期）国库券名义上利率10.5%，三年期（第二期）国库券利率名义上9.5%，实际上五年期1997年到期兑付165.74元，三年期1995年到期兑付148.50元，这其中的混乱，现在看来是不可思议的。1992年国库券可以说是风波不断，1995年，1992年三年期国库券快要到期的时候，又出了岔子。</p>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：1995年到期的各类国债券的还本付息事宜公告\n\n来源链接：https://www.chinaacc.com/new/63%252F64%252F80%252F2006%252F3%252Fma081016385612360028100-0.htm')">📄 1995年到期的各类国债券的还本付息事宜公告</div>
-            
-            <div class="gkq-note">
-                <p>根据1993年5月14日中华人民共和国财政部公告，在1996年3月1日期满三年后，也可作为1993年三年期国库券兑付。计息方法与1993年三年期国库券相同。另外，1993年三年期国库券和1993年五年期实物国库券虽然可以同时兑付，但仍是两个不同的券种，因此在兑付时要严格区分，做到券面分类存放，报表中分别统计。</p>
-            </div>
-            
-            <p>1995年财政部又调整了92年国库券的最终兑付价格。又加上当时市场上的一些原因，诱发了中国证券历史上大名鼎鼎的327国债事件。</p>
-            <p>据网络消息："327"国债期货事件的主角，是1992年发行的三年期国库券，该券发行总量为240亿，1995年6月到期兑付，利率是9.5%的票面利息加保值贴补率，但财政部是否对之实行保值贴补，并不确定。1995年2月23日，财政部发布公告称，"327"国债将按148.50元兑付。</p>
-            
-            <p>终于说完了这一系列的风波，下面开始说关于收藏的事项。</p>
-            <p>92国库券的设计很保守，看起来甚至比87国库券还要落后，但是印制水平是有上升的，所有的品种都用了古币水印纸张，并且质量比91国库券的要更好。只有五十元是胶印，其余都是单凹。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_38.jpg" alt="古币水印">
-            </div>
-            <div class="gkq-img-caption">第三年也是最后一年使用古币水印</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_39.jpg" alt="92五百元">
-            </div>
-            <div class="gkq-img-caption">50、100是很多年以前买的了，三百块两张，500是今年入得，一千多块</div>
-            
-            <div class="gkq-table-wrapper">
-                <table class="gkq-table">
-                    <thead><tr><th>品种</th><th>发行量</th><th>备注</th></tr></thead>
-                    <tbody>
-                        <tr><td>50</td><td style="text-align:center">未知</td><td style="text-align:center">发现最大流水号约5900万</td></tr>
-                        <tr><td style="text-align:center">100</td><td style="text-align:center">未知，2000万张</td><td style="text-align:center">很离谱的事情，发现最大流水号居然是我自己六年前买的1453万号</td></tr>
-                        <tr><td style="text-align:center">500</td><td style="text-align:center">1400万张</td><td style="text-align:center">记载称92500印刷量2200万张，已经发现最大流水号1356万号</td></tr>
-                        <tr><td style="text-align:center">50（二）</td><td style="text-align:center">1.2亿</td><td style="text-align:center">无记载，发现最大流水号约1.2亿，包含03冠号</td></tr>
-                        <tr><td style="text-align:center">100（二）</td><td style="text-align:center">1.1亿</td><td style="text-align:center">记载称92100印刷量13010万张，已经发现1.049亿流水号</td></tr>
-                        <tr><td style="text-align:center">500（二）</td><td style="text-align:center">800万张</td><td style="text-align:center">记载称92500印刷量2200万张，发现最大流水号776万号</td></tr>
-                        <tr><td style="text-align:center">1000（二）</td><td style="text-align:center">620万张</td><td style="text-align:center">明确记载</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <p>这一年的一百元和五十元虽然印刷量挺大的，但是价格上也就比91版略便宜一些，92100比93、94的100元都要贵，甚至比94二期100元还要贵。或许有印刷精良的因素，更多应是兑付率更高的缘故。92的50、100元都是第一期更少，特别是100元第一期，从流水号上来看，量是相当小的。能见到的号码多为00、01、08、10开头的有限几个区域。50元第一期也没有感觉到比9150多到哪儿去。500元是第二期更少，其实整个92国库券都存在第二期兑付率更高的问题。只有500这个面值第二期发行量少于第一期，或许是第一期500元承担了最高面值的作用，反而比第二期多了。1000元是千元国库券中的珍品，地位和951000元差不多，只存在第二期。按照我的观点后期国库券的每个冠号（非补号）都可以视为一个品种了，比如92二期的两种03冠号，93100三的07冠号，因为92后每种国库券印刷达到一亿张的情况以上几乎不存在。</p>
-            
-            <hr>
-            
-            <p>1993年国库券的印刷吸收了1992年的教训，改为双色印刷，这下再也不怕分不清楚了。三种面值的国库券，生出来六种版本。每种版本的冠号都不同。只有100元三年期的发行量实在太大，用了两种冠号。</p>
-            
-            <div class="gkq-table-wrapper">
-                <table class="gkq-table">
-                    <thead><tr><th>面值</th><th>期限</th><th>冠号</th><th>颜色</th></tr></thead>
-                    <tbody>
-                        <tr><td style="text-align:center">100元</td><td style="text-align:center">三</td><td style="text-align:center">01</td><td style="text-align:center">红</td></tr>
-                        <tr><td style="text-align:center">100元</td><td style="text-align:center">五</td><td style="text-align:center">02</td><td style="text-align:center">绿</td></tr>
-                        <tr><td style="text-align:center">500元</td><td style="text-align:center">三</td><td style="text-align:center">03</td><td style="text-align:center">深棕色</td></tr>
-                        <tr><td style="text-align:center">500元</td><td style="text-align:center">五</td><td style="text-align:center">04</td><td style="text-align:center">黑紫色</td></tr>
-                        <tr><td style="text-align:center">1000元</td><td style="text-align:center">三</td><td style="text-align:center">05</td><td style="text-align:center">暗绿色</td></tr>
-                        <tr><td style="text-align:center">1000元</td><td style="text-align:center">五</td><td style="text-align:center">06</td><td style="text-align:center">深黑色</td></tr>
-                        <tr><td style="text-align:center">100元</td><td style="text-align:center">三</td><td style="text-align:center">07</td><td style="text-align:center">红</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="gkq-popup-card" onclick="alert('网页已失效：财政部关于发行1993年国库券的公告\n\n来源链接：http://m.110.com/fagui/121519.html')">📄 财政部关于发行1993年国库券的公告</div>
-            
-            <p>三年期最初利率10%，后改为13.96%；五年期最初利率11%，后改为15.86%。实际上三年期到期的时候，兑付171.99元，折合年利率达24%。实际上五年期到期的时候，兑付179.30元。实际上五年期在1996年就可以提前兑付，拿到1998年再兑就亏大了。</p>
-            
-            <div class="gkq-note">【根据1993年5月14日中华人民共和国财政部公告，在1996年3月1日期满三年后，也可作为1993年三年期国库券兑付。计息方法与1993年三年期国库券相同。另外，1993年三年期国库券和1993年五年期实物国库券虽然可以同时兑付，但仍是两个不同的券种，因此在兑付时要严格区分，做到券面分类存放，报表中分别统计。】</div>
-            
-            <p>说完了兑付的事情，开始说设计和收藏。93国库券是设计布局最为激进的一年，不仅是明显的不对称设计，背面的财政部印章都不居中了。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_40.jpg" alt="93设计1">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_41.jpg" alt="93设计2">
-            </div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_42.jpg" alt="93500三年期">
-            </div>
-            <div class="gkq-img-caption">500三年期是五百元面值最常见的一种</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_43.jpg" alt="已列入计划">
-            </div>
-            <div class="gkq-img-caption">已经列入计划</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_44.jpg" alt="931000">
-            </div>
-            <div class="gkq-img-caption">1000元正面看起来很相似，色彩更深的是五年期</div>
-            
-            <p>93国库券的主题分别是100元深圳火车站，500元上海农民新村，1000元南浦大桥，综合看来全部是一线城市的景物，是所有年份国库券中最有都市感的。印刷上首次使用了国库券水印，从此之后的国库券水印都是这种形式了。首次使用了无色荧光油墨，纸张含有多色荧光纤维，总的来说比92国库券的印刷先进一些。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_45.jpg" alt="GKQ水印">
-            </div>
-            <div class="gkq-img-caption">专用于国库券的GKQ五星水印，一直用到国库券停止发行</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_46.jpg" alt="荧光图案">
-            </div>
-            <div class="gkq-img-caption">荧光图案和背面的梅花相同</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_47.jpg" alt="93冠号">
-            </div>
-            <div class="gkq-img-caption">01 02 07的冠号</div>
-            
-            <p>93红100元是发行量最大的百元国库券，01的冠号印满，又用07冠号印刷了好几千万张。绿色的100元发行量少很多，一般见到的流水号都在三千万以下。但是他们俩都很便宜，比兑付价格高不了多少。93的100元也是整个国库券板块中溢价率最低的品种之一。若非兑换价格很高，最便宜的100国库券铁定就是它了。93的高面值我还没有涉及，目前还是想先把预算用在92500二、94高值上。这四张在各自的面值中也都是比较便宜的，特别是93500三年期，是500元面值最常见品种，1000元价格也都低于942，92、95、941，可能和961、962差不多，只能明确比97的贵，注意五年期都比三年期贵。</p>
-            
-            <hr>
-            
-            <p>1994年国库券简单很多，第一期棕色，第二期蓝色。设计上回归保守，兑换也简单，都是两年期。利率13，两年后兑换126元。虽然设计了两期，但是两者发行兑换完全一致。可能是因为92、93国库券的政策一改再改，也可能是94年开始发行了凭证式国债，从此把纸质的国库券成为无记名国债或是实物国债了。先前的国库券收款单是国库券的附属和代替，从1994之后，以非实物形式发行的国债比例不断提高，直到1997年后实物国库券彻底停止发行，2000年之后全部到期，国库券就退出历史舞台了。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_48.jpg" alt="1994凭证式国库券">
-            </div>
-            <div class="gkq-img-caption">1994年发行的三年期凭证式国库券，已经可以提前兑付了</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_49.jpg" alt="国库券收款凭证">
-            </div>
-            <div class="gkq-img-caption">如图，这是第一次发行的凭证式国债（凭证式国债这个品种直到今天还在发行），但是票面上仍然叫做国库券收款凭证</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_50.jpg" alt="94一百元山区医院">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_51.jpg" alt="94五百元紫金山">
-            </div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_52.jpg" alt="94一千元浦东">
-            </div>
-            <div class="gkq-img-caption">浦东开发这张我感觉像是杨浦大桥。1994年二期高面值是整部国库券中的珍品，特别是1000元二期，极其珍贵。不是有钱就有运气能买到的</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_53.jpg" alt="无色荧光">
-            </div>
-            <div class="gkq-img-caption">无色荧光</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_54.jpg" alt="正背面第二期字样荧光">
-            </div>
-            <div class="gkq-img-caption">正背面的第贰期字样，和背面的财政部印章都发光</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_55.jpg" alt="微缩文字">
-            </div>
-            <div class="gkq-img-caption">山区医院下方一行很粗糙的微缩文字</div>
-            
-            <p>收藏方面94入门很简单，六千块能买齐三种面值，二期高值太难见到，即使出现了也买不起，就当他不存在吧。94一期500目前还不太贵，看流水号比93年应该是少一些，五百元一共就六张三个年份，我感觉顺序是94500二期、92500二期、92500一期、93500五、94500一期、93500三。1000元一期和96、93的价格类似，大额国库券公允价格不好确定，需求和供给都比较小。94一期100元存量太大，二期100元以当前的价格是有些性价比的，从流水号来看大概两千多万号，并不是巨大的量。</p>
-            <div class="gkq-note">20210601 19:25｜20210624 00:22修补</div>
-        </div>
-    </div>
-</div>
-
-<!-- 标题六 -->
-<div class="gkq-accordion">
-    <div class="gkq-accordion-header">
-        <span>六、最后的国库券（1995-1997）</span>
-        <span class="gkq-accordion-icon">▼</span>
-    </div>
-    <div class="gkq-accordion-content">
-        <div class="gkq-accordion-content-inner">
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_6.avif" alt="最后三年国库券">
-            </div>
-            <p>国库券的最后三年精品很多，有好几张一般人可望而不可及的品种，原因之一就是增加了五千元的面值，95年精品普遍、96分了两期，97价格尚可。这三年利率已经不高了，并且都是三年期。作为债券本身不像前几年那样复杂了。</p>
-            
-            <p>95年三种面值，虽然标注了第一期的字样实际上也就这么一期。100元山东石臼港煤码头，码头这个主题在89100、87100都出现过，这张由于是低面值，比较便宜。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_56.jpg" alt="95设计布局">
-            </div>
-            <div class="gkq-img-caption">95国库券的设计布局很是特别，还是我说好多次的结论，单数年份的设计都是很激进的</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_57.jpg" alt="95100两张连号">
-            </div>
-            <div class="gkq-img-caption">我好几年前买的两张连号，三百块</div>
-            
-            <p>1000元布达拉宫，国库券设计之冠，我感觉大概两万块，比前后的1000元都要贵，和921000差不多的水平，应比811000还要少。</p>
-            <p>5000元上海陆家嘴金融贸易区，这张价格得六位数。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_58.jpg" alt="95一千布达拉宫">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_59.jpg" alt="95五千东方明珠">
-            </div>
-            
-            <p>1996国库券分为两期，利率也差不多，但是第二期普遍还是少一些，96100元二期是后期100元最贵的品种，得两千块左右，看流水号不小，但是存世量是很小，大都以全新的状态存在。5000元攀钢、武汉港都达到罕见的水平，只能借票样图了。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_60.jpg" alt="96票样">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_61.jpg" alt="96五千武汉港">
-            </div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_62.jpg" alt="96一百元">
-            </div>
-            <div class="gkq-img-caption">这张迟早要拿下的，印刷量还挺大，两千多万</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_63.jpg" alt="96两枚">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_64.jpg" alt="96细节">
-            </div>
-            <div class="gkq-img-caption">我自己就这么两张，这两张图案还是很漂亮的。1996国库券开始使用了第四套人民币的号码样式，冠号分别从PA到PF</div>
-            
-            <div class="gkq-table-wrapper">
-                <table class="gkq-table">
-                    <thead><tr><th>期数</th><th>100元</th><th>1000元</th><th>5000元</th></tr></thead>
-                    <tbody>
-                        <tr><td style="text-align:center">第一期</td><td style="text-align:center">PA</td><td style="text-align:center">PB</td><td style="text-align:center">PC</td></tr>
-                        <tr><td style="text-align:center">第二期</td><td style="text-align:center">PD</td><td style="text-align:center">PE</td><td style="text-align:center">PF</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_65.jpg" alt="96隐形面额数字">
-            </div>
-            <div class="gkq-img-caption">90年代中期中钞就在澳门币、港币上开始用隐形面额数字，最初的效果都是一般般</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_66.jpg" alt="96荧光花">
-            </div>
-            <div class="gkq-img-caption">96国库券的荧光改成了一朵花</div>
-            
-            <p>97年是国库券发行的最后一年，这一年发行量普遍较大，97年100见过好几次整刀的，补号JZ也不是极度罕见的品种了。1000元有不少大连号存在。5000元也不是高不可及，还是容易买到的，长期收藏这个目前看来是肯定跑不过通胀。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_67.jpg" alt="97年藏品">
-            </div>
-            <div class="gkq-img-caption">一千八买的1000，150买的100，有两张100在路上，低端品种这样子的品相太惭愧了，是很久以前刚入门不挑食的时候入的</div>
-            
-            <p>975000是我一直想要的东西，十年间错过了五六次了，实在太遗憾。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_68.jpg" alt="97三张">
-            </div>
-            <div class="gkq-img-caption">97年的三幅主图都有很大的辨识度，国库券多年来经常用一些非特指的景物，或是工农业场景。像是93年、97年这样著名的主图是个例</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_69.jpg" alt="97正面底纹">
-            </div>
-            <div class="gkq-img-caption">正面的底纹质量看起来不高，在国库券中已属难得，毕竟整体水准就比人民币低很多。他设计出来又不是为了流通的，也不需要很高的防伪技术</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_70.jpg" alt="97隐形文字">
-            </div>
-            <div class="gkq-img-caption">继续用隐形文字，比96的好了一点点</div>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_71.jpg" alt="97荧光">
-            </div>
-            <div class="gkq-img-caption">荧光还是没变</div>
-            
-            <p>忘了说一点，95年以来的高面值国库券纸张不仅有荧光纤维，还有有色纤维。有色纤维这个技术在99版人民币上用了几年，05版取消了，也确实是用处不大。但是市场上还是有不少假的京九铁路存在的，印刷垃圾。国库券假票很容易识别，对于收藏没有很大风险。</p>
-            <p>从1997之后，实物国库券就彻底消失了，1998年国库券网上有图片，但是没有发行。同样，1998年国库券又是个保守的设计，仍然没有脱离双数年份的风格。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_72.jpg" alt="1998国库券图片1">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_73.jpg" alt="1998国库券图片2">
-            </div>
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_74.jpg" alt="1998国库券图片3">
-            </div>
-            
-            <p>从1999（？）开始，国库券收款凭证这个词语也没了，目前最传统的国债就是凭证式国债，一般来说要通过"凭证式国债收款凭证"的方式来发行，但是现实中大多还是电子记账的形式。这种凭证我见到的都是1999或者2000年印刷的，目前还没见到比较新的版本。我也寻找了一张相对较早的凭证存根联的样本，2003年，还用手写，有点意思。下一次发凭证式国债的时候我也准备去弄一张留作纪念。</p>
-            
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_75.jpg" alt="2003凭证">
-            </div>
-            <div class="gkq-img-caption">这张利率只有2.63了呵呵呵，比现在的还要低</div>
-            
-            <p>到此国库券逐年的分析就结束了，后面还会分析我比较感兴趣的一些设计，印刷量复核、最大流水号统计、基础资料表格还在完善中，以后会再补充。</p>
-            <div class="gkq-note">20210601 20:30</div>
-        </div>
-    </div>
-</div>
-
-<div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2d5c8; font-size: 0.75rem; color: #8b6b4f; text-align: center;">
-    资料来源：知乎专栏 "charter谈人民币'准货币'"<br>
-    由铜の币纪整理，仅供个人学习研究使用
-</div>
-</div>
+</body>
+</html>
