@@ -339,13 +339,17 @@
             <div class="gkq-table-wrapper">
                 <table class="gkq-table">
                     <thead>
-                        <tr><th>1985 国库券面值</th><th>印刷量（万张）</th></tr>
+                        <table><th>1985 国库券面值</th><th>印刷量（万张）</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>5元</td><td>51420</td> </tr>
-                        <tr><td>10元</td><td>22035</td> </tr>
-                        <tr><td>50元</td><td>406</td> </tr>
-                        <tr><td>100元</td><td>106</td> </tr>
+                        <tr><td>5元</div> </td><td>51420</div> </td>
+                        </tr>
+                        <tr><td>10元</div> </td><td>22035</div> </td>
+                        </tr>
+                        <tr><td>50元</div> </td><td>406</div> </td>
+                        </tr>
+                        <tr><td>100元</div> </td><td>106</div> </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -364,17 +368,10 @@
             
             <div class="gkq-table-wrapper">
                 <table class="gkq-table">
-                    <thead>
-                        <tr><th>1986国库券面值</th><th>印刷量（万张）</th></tr>
-                    </thead>
+                    <thead><tr><th>1986国库券面值</th><th>印刷量（万张）</th></tr></thead>
                     <tbody>
-                        <tr><td>5元</td><td>46742</td> </tr>
-                        <tr><td>10元</td><td>24175</td> </tr>
-                        <tr><td>50元</td><td>838</td> </tr>
-                        <tr><td>100元</td><td>210</td> </tr>
-                    </tbody>
-                </table>
-            </div>
+                        <tr>
+            
             <p>86的五十元收割机是我比较喜欢的一个画面，农业生产主题在之后用得越来越少，多是建设场景、建筑、风景了。</p>
             
             <div class="gkq-img-single">
@@ -596,7 +593,6 @@
                         <tr><th>品种</th><th>发行量</th><th>备注</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>50</div> </td><td>未知</div> </td><td>发现最大流水号约5900万</div> </td> </tr>
                         <tr>
             
             <p>这一年的一百元和五十元虽然印刷量挺大的，但是价格上也就比91版略便宜一些，92100比93、94的100元都要贵，甚至比94二期100元还要贵。或许有印刷精良的因素，更多应是兑付率更高的缘故。<p></p>92的50、100元都是第一期更少，特别是100元第一期，从流水号上来看，量是相当小的。能见到的号码多为00、01、08、10开头的有限几个区域。50元第一期也没有感觉到比9150多到哪儿去。<p></p>500元是第二期更少，其实整个92国库券都存在第二期兑付率更高的问题。只有500这个面值第二期发行量少于第一期，或许是第一期500元承担了最高面值的作用，反而比第二期多了。<p></p>1000元是千元国库券中的珍品，地位和951000元差不多，只存在第二期。<p></p>按照我的观点后期国库券的每个冠号（非补号）都可以视为一个品种了，比如92二期的两种03冠号，93100三的07冠号，因为92后每种国库券印刷达到一亿张的情况以上几乎不存在。</p>
@@ -608,7 +604,7 @@
             <div class="gkq-table-wrapper">
                 <table class="gkq-table">
                     <thead>
-                        <table><th>面值</th><th>期限</th><th>冠号</th><th>颜色</th></tr>
+                        <tr><th>面值</th><th>期限</th><th>冠号</th><th>颜色</th></tr>
                     </thead>
                     <tbody>
                         <tr>
@@ -777,9 +773,77 @@
                     </thead>
                     <tbody>
                         <tr>
-        
+            
+            <p>从1993年以来的国库券都是每个品种一个专属冠号。</p><p>由于96国库券全部凹版印刷了，100元也出现了隐形面额数字</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_66.jpg" alt="96隐形面额数字">
+            </div>
+            <div class="gkq-img-caption">90年代中期中钞就在澳门币、港币上开始用隐形面额数字，最初的效果都是一般般</div>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_67.jpg" alt="96荧光花">
+            </div>
+            <div class="gkq-img-caption">96国库券的荧光改成了一朵花</div>
+            
+            <p>97年是国库券发行的最后一年，这一年发行量普遍较大，97年100见过好几次整刀的，补号JZ也不是极度罕见的品种了。1000元有不少大连号存在。5000元也不是高不可及，还是容易买到的，长期收藏这个目前看来是肯定跑不过通胀。</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_68.jpg" alt="97年藏品">
+            </div>
+            <div class="gkq-img-caption">一千八买的1000，150买的100，有两张100在路上，低端品种这样子的品相太惭愧了，是很久以前刚入门不挑食的时候入的</div>
+            
+            <p>975000是我一直想要的东西，十年间错过了五六次了，实在太遗憾。</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_69.jpg" alt="97三张">
+            </div>
+            <p>97年的三幅主图都有很大的辨识度，国库券多年来经常用一些非特指的景物，或是工农业场景。像是93年、97年这样著名的主图是个例。</p>
+            <p>97年的印刷不论胶版还是凹版质量都已经很高了。背面很少见的多色，之前的几乎都是单色底纹加上红色印章。</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_70.jpg" alt="97正面底纹">
+            </div>
+            <p>正面的底纹质量看起来不高，在国库券中已属难得，毕竟整体水准就比人民币低很多。他设计出来又不是为了流通的，也不需要很高的防伪技术。</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_71.jpg" alt="97隐形文字">
+            </div>
+            <div class="gkq-img-caption">继续用隐形文字，比96的好了一点点</div>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_72.jpg" alt="97荧光">
+            </div>
+            <div class="gkq-img-caption">荧光还是没变</div>
+            
+            <p>忘了说一点，95年以来的高面值国库券纸张不仅有荧光纤维，还有有色纤维。有色纤维这个技术在99版人民币上用了几年，05版取消了，也确实是用处不大。但是市场上还是有不少假的京九铁路存在的，印刷垃圾。国库券假票很容易识别，对于收藏没有很大风险。</p>
+            <p>从1997之后，实物国库券就彻底消失了，1998年国库券网上有图片，但是没有发行。同样，1998年国库券又是个保守的设计，仍然没有脱离双数年份的风格。</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_73.jpg" alt="1998国库券图片1">
+            </div>
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_74.jpg" alt="1998国库券图片2">
+            </div>
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_75.jpg" alt="1998国库券图片3">
+            </div>
+            
+            <p>从1999（？）开始，国库券收款凭证这个词语也没了，目前最传统的国债就是凭证式国债，一般来说要通过“凭证式国债收款凭证”的方式来发行，但是现实中大多还是电子记账的形式。这种凭证我见到的都是1999或者2000年印刷的，目前还没见到比较新的版本。<p></p>我也寻找了一张相对较早的凭证存根联的样本，2003年，还用手写，有点意思。下一次发凭证式国债的时候我也准备去弄一张留作纪念。</p>
+            
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_76.jpg" alt="2003凭证">
+            </div>
+            <div class="gkq-img-caption">这张利率只有2.63%了呵呵呵，比现在的还要低</div>
+            
+            <p>到此国库券逐年的分析就结束了，后面还会分析我比较感兴趣的一些设计，印刷量复核、最大流水号统计、基础资料表格还在完善中，以后会再补充。</p>
+            <div class="gkq-note">20210601 20:30</div>
         </div>
     </div>
 </div>
 
+<div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2d5c8; font-size: 0.75rem; color: #8b6b4f; text-align: center;">
+    资料来源：知乎专栏 "charter谈人民币'准货币'"<br>
+    整理：铜の币纪<br>仅供个人学习研究使用
+</div>
 </div>
