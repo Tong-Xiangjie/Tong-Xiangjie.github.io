@@ -258,8 +258,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2020年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/BE308101-1.jpg",
-                            img2: "image/hk_sc/BE308101-2.jpg"
+                            img1: "image/hk_sc/BE308101-2.jpg",
+                            img2: "image/hk_sc/BE308101-1.jpg"
                         }
                     ]
                 }
