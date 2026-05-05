@@ -717,36 +717,36 @@
             <p>1994年国库券简单很多，第一期棕色，第二期蓝色。设计上回归保守，兑换也简单，都是两年期。利率13%，两年后兑换126元。</p><p>虽然设计了两期，但是两者发行兑换完全一致。可能是因为92、93国库券的政策一改再改，也可能是94年开始发行了凭证式国债，从此把纸质的国库券成为无记名国债或是实物国债了。</p><p>先前的国库券收款单是国库券的附属和代替，从1994之后，以非实物形式发行的国债比例不断提高，直到1997年后实物国库券彻底停止发行，2000年之后全部到期，国库券就退出历史舞台了。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_51.jpg" alt="1994凭证式国库券">
+                <img src="readmes/image/gkq/zhihu_76.jpg" alt="1994凭证式国库券">
             </div>
             <div class="gkq-img-caption">1994年发行的三年期凭证式国库券，已经可以提前兑付了</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_52.jpg" alt="国库券收款凭证">
+                <img src="readmes/image/gkq/zhihu_51.jpg" alt="国库券收款凭证">
             </div>
             <div class="gkq-img-caption">如图，这是第一次发行的凭证式国债（凭证式国债这个品种直到今天还在发行），但是票面上仍然叫做国库券收款凭证</div>
             <p>94国库券的图案：100元山区医院，500元紫金山天文台，1000元浦东开发。</p>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_53.jpg" alt="94一百元山区医院">
+                <img src="readmes/image/gkq/zhihu_52.jpg" alt="94一百元山区医院">
             </div>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_54.jpg" alt="94五百元紫金山">
+                <img src="readmes/image/gkq/zhihu_53.jpg" alt="94五百元紫金山">
             </div>
             
             <div class="gkq-img-caption">浦东开发这张我感觉像是杨浦大桥。1994年二期高面值是整部国库券中的珍品，特别是1000元二期，极其珍贵。不是有钱就有运气能买到的</div>
             <p>印刷上有小提升，高面值增加了简单的潜像图案，都增加了简单的微缩文字。以及彩色荧光油墨。</p>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_55.jpg" alt="无色荧光">
+                <img src="readmes/image/gkq/zhihu_54.jpg" alt="无色荧光">
             </div>
             <div class="gkq-img-caption">无色荧光</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_56.jpg" alt="正背面第二期字样荧光">
+                <img src="readmes/image/gkq/zhihu_55.jpg" alt="正背面第二期字样荧光">
             </div>
             <div class="gkq-img-caption">正背面的第贰期字样，和背面的财政部印章都发光</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_57.jpg" alt="微缩文字">
+                <img src="readmes/image/gkq/zhihu_56.jpg" alt="微缩文字">
             </div>
             <div class="gkq-img-caption">山区医院下方一行很粗糙的微缩文字</div>
             
@@ -772,41 +772,41 @@
             <p>95年三种面值，虽然标注了第一期的字样实际上也就这么一期。</p><p>100元山东石臼港煤码头，码头这个主题在89100、87100都出现过，这张由于是低面值，比较便宜。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_58.jpg" alt="95设计布局">
+                <img src="readmes/image/gkq/zhihu_57.jpg" alt="95设计布局">
             </div>
             <div class="gkq-img-caption">95国库券的设计布局很是特别，还是我说好多次的结论，单数年份的设计都是很激进的</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_59.jpg" alt="95100两张连号">
+                <img src="readmes/image/gkq/zhihu_58.jpg" alt="95100两张连号">
             </div>
             <div class="gkq-img-caption">我好几年前买的两张连号，三百块</div>
             
             <p>1000元布达拉宫，国库券设计之冠，我感觉大概两万块，比前后的1000元都要贵，和921000差不多的水平，应比811000还要少。</p>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_60.jpg" alt="布达拉宫">
+                <img src="readmes/image/gkq/zhihu_59.jpg" alt="布达拉宫">
             </div>
             <p>5000元上海陆家嘴金融贸易区，这张价格得六位数。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_61.jpg" alt="95五千东方明珠">
+                <img src="readmes/image/gkq/zhihu_60.jpg" alt="95五千东方明珠">
             </div>
             
             <p>1996国库券分为两期，利率也差不多，但是第二期普遍还是少一些，96100元二期是后期100元最贵的品种，得两千块左右，看流水号不小，但是存世量是很小，大都以全新的状态存在。</p><p>5000元攀钢、武汉港都达到罕见的水平，只能借票样图了。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_62.jpg" alt="96票样">
+                <img src="readmes/image/gkq/zhihu_61.jpg" alt="96票样">
             </div>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_63.jpg" alt="96五千武汉港">
+                <img src="readmes/image/gkq/zhihu_62.jpg" alt="96五千武汉港">
             </div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_64.jpg" alt="96一百元">
+                <img src="readmes/image/gkq/zhihu_63.jpg" alt="96一百元">
             </div>
             <div class="gkq-img-caption">这张迟早要拿下的，印刷量还挺大，两千多万</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_65.jpg" alt="96两枚">
+                <img src="readmes/image/gkq/zhihu_64.jpg" alt="96两枚">
             </div>
             <div class="gkq-img-caption">我自己就这么两张，这两张图案还是很漂亮的。1996国库券开始使用了第四套人民币的号码样式，冠号分别从PA到PF</div>
             
@@ -826,42 +826,42 @@
             <p>从1993年以来的国库券都是每个品种一个专属冠号。</p><p>由于96国库券全部凹版印刷了，100元也出现了隐形面额数字</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_66.jpg" alt="96隐形面额数字">
+                <img src="readmes/image/gkq/zhihu_65.jpg" alt="96隐形面额数字">
             </div>
             <div class="gkq-img-caption">90年代中期中钞就在澳门币、港币上开始用隐形面额数字，最初的效果都是一般般</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_67.jpg" alt="96荧光花">
+                <img src="readmes/image/gkq/zhihu_66.jpg" alt="96荧光花">
             </div>
             <div class="gkq-img-caption">96国库券的荧光改成了一朵花</div>
             
             <p>97年是国库券发行的最后一年，这一年发行量普遍较大，97年100见过好几次整刀的，补号JZ也不是极度罕见的品种了。1000元有不少大连号存在。5000元也不是高不可及，还是容易买到的，长期收藏这个目前看来是肯定跑不过通胀。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_68.jpg" alt="97年藏品">
+                <img src="readmes/image/gkq/zhihu_67.jpg" alt="97年藏品">
             </div>
             <div class="gkq-img-caption">一千八买的1000，150买的100，有两张100在路上，低端品种这样子的品相太惭愧了，是很久以前刚入门不挑食的时候入的</div>
             
             <p>975000是我一直想要的东西，十年间错过了五六次了，实在太遗憾。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_69.jpg" alt="97三张">
+                <img src="readmes/image/gkq/zhihu_68.jpg" alt="97三张">
             </div>
             <p>97年的三幅主图都有很大的辨识度，国库券多年来经常用一些非特指的景物，或是工农业场景。像是93年、97年这样著名的主图是个例。</p>
             <p>97年的印刷不论胶版还是凹版质量都已经很高了。背面很少见的多色，之前的几乎都是单色底纹加上红色印章。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_70.jpg" alt="97正面底纹">
+                <img src="readmes/image/gkq/zhihu_69.jpg" alt="97正面底纹">
             </div>
             <p>正面的底纹质量看起来不高，在国库券中已属难得，毕竟整体水准就比人民币低很多。他设计出来又不是为了流通的，也不需要很高的防伪技术。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_71.jpg" alt="97隐形文字">
+                <img src="readmes/image/gkq/zhihu_70.jpg" alt="97隐形文字">
             </div>
             <div class="gkq-img-caption">继续用隐形文字，比96的好了一点点</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_72.jpg" alt="97荧光">
+                <img src="readmes/image/gkq/zhihu_71.jpg" alt="97荧光">
             </div>
             <div class="gkq-img-caption">荧光还是没变</div>
             
@@ -869,19 +869,19 @@
             <p>从1997之后，实物国库券就彻底消失了，1998年国库券网上有图片，但是没有发行。同样，1998年国库券又是个保守的设计，仍然没有脱离双数年份的风格。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_73.jpg" alt="1998国库券图片1">
+                <img src="readmes/image/gkq/zhihu_72.jpg" alt="1998国库券图片1">
             </div>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_74.jpg" alt="1998国库券图片2">
+                <img src="readmes/image/gkq/zhihu_73.jpg" alt="1998国库券图片2">
             </div>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_75.jpg" alt="1998国库券图片3">
+                <img src="readmes/image/gkq/zhihu_74.jpg" alt="1998国库券图片3">
             </div>
             
             <p>从1999（？）开始，国库券收款凭证这个词语也没了，目前最传统的国债就是凭证式国债，一般来说要通过“凭证式国债收款凭证”的方式来发行，但是现实中大多还是电子记账的形式。这种凭证我见到的都是1999或者2000年印刷的，目前还没见到比较新的版本。<p></p>我也寻找了一张相对较早的凭证存根联的样本，2003年，还用手写，有点意思。下一次发凭证式国债的时候我也准备去弄一张留作纪念。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_76.jpg" alt="2003凭证">
+                <img src="readmes/image/gkq/zhihu_75.jpg" alt="2003凭证">
             </div>
             <div class="gkq-img-caption">这张利率只有2.63%了呵呵呵，比现在的还要低</div>
             
