@@ -317,7 +317,7 @@ body {
     font-size: 7.5pt;
     color: #d93025;
 }
-/* 组间空距：严格1个填涂框完整宽度 */
+/* 组间空距：严格1个填涂框完整宽度（5题与6题之间标准空隙） */
 .choice-gap {
     width: 4.5mm;
 }
@@ -382,17 +382,21 @@ genBtn.addEventListener('click', () => {
     let zkHtml = '';
     for(let i=0; i<zkLen; i++) zkHtml += '<td></td>';
 
-    // ========== 2. 选择题规则 ==========
-    // 5题一组，一行最多4组(20题)，超了自动换行
+    // ========== 2. 选择题分组&空隙铁则 ==========
+    // 规则：
+    // 1.固定5题一组，1-5、6-10、11-15……
+    // 2.5题和6题之间固定留标准组间空隙
+    // 3.一行最多4组(20题)，自动换行
+    // 4.末尾余数1、2题并入上一组，无额外空隙；余数3、4单独成组，正常留空隙
     const GROUP_SIZE = 5;
     const MAX_GROUP_PER_LINE = 4;
 
-    // 分组：余数1、2合并上一组
     function splitChoice(total) {
         const arr = [];
         let cur = 1;
         while(cur <= total) {
             const left = total - cur + 1;
+            // 余数1、2 合并到上一组
             if(left <= 2 && arr.length > 0) {
                 arr[arr.length - 1].end = total;
                 break;
@@ -445,12 +449,12 @@ genBtn.addEventListener('click', () => {
                     ${numRow}${aRow}${bRow}${cRow}${dRow}
                 </div>
             `;
-            // 组间间隔
+            // 组间加标准空隙（5题与6题之间正常间隔）
             if(idx < line.length - 1){
                 choiceHtml += `<div class="choice-gap"></div>`;
             }
         });
-        // 每行结束换行
+        // 每行换行间距
         choiceHtml += `<div style="width:100%;height:3mm;"></div>`;
     });
 
