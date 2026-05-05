@@ -99,7 +99,7 @@ body {
     background: #000;
 }
 
-/* ========== 标题区 ========== */
+/* ========== 标题区 两行统一18pt字号 ========== */
 .main-title {
     font-family: "SimHei", "黑体", sans-serif;
     font-size: 18pt;
@@ -110,7 +110,7 @@ body {
 }
 .sub-title {
     font-family: "SimHei", "黑体", sans-serif;
-    font-size: 22pt;
+    font-size: 18pt;
     color: #000000;
     text-align: center;
     margin-bottom: 10mm;
@@ -279,6 +279,7 @@ body {
     display: flex;
     align-items: flex-start;
     gap: 0;
+    flex-wrap: wrap;
 }
 /* 单列结构 */
 .choice-col {
@@ -355,7 +356,7 @@ body {
     </div>
     <div class="input-item">
         <label>选择题数量</label>
-        <input type="number" id="choiceTotal" value="11" min="1" max="50">
+        <input type="number" id="choiceTotal" value="27" min="1" max="50">
     </div>
     <button class="btn-generate" id="genBtn">生成答题卡</button>
     <button class="btn-pdf" id="pdfBtn">导出PDF</button>
@@ -381,55 +382,79 @@ genBtn.addEventListener('click', () => {
     let zkHtml = '';
     for(let i=0; i<zkLen; i++) zkHtml += '<td></td>';
 
-    // ========== 2. 生成选择题（严格你的分块规则） ==========
-    // 规则：5题一组；余数1/2连，3/4另起
+    // ========== 2. 选择题规则 ==========
+    // 5题一组，一行最多4组(20题)，超了自动换行
+    const GROUP_SIZE = 5;
+    const MAX_GROUP_PER_LINE = 4;
+
+    // 分组：余数1、2合并上一组
     function splitChoice(total) {
-        const group = 5;
         const arr = [];
         let cur = 1;
         while(cur <= total) {
             const left = total - cur + 1;
             if(left <= 2 && arr.length > 0) {
-                arr[arr.length-1].end = total;
+                arr[arr.length - 1].end = total;
                 break;
-            } else {
-                const end = Math.min(cur+group-1, total);
-                arr.push({start:cur, end:end});
-                cur = end + 1;
             }
+            const end = Math.min(cur + GROUP_SIZE - 1, total);
+            arr.push({start: cur, end: end});
+            cur = end + 1;
         }
         return arr;
     }
-    const choiceGroups = splitChoice(choiceTotal);
-    let choiceHtml = '';
-    choiceGroups.forEach((g, idx) => {
-        const count = g.end - g.start + 1;
-        // 题号行
-        let numRow = '<div class="num-row">';
-        for(let i=g.start; i<=g.end; i++) numRow += `<div class="num-item">${i}</div>`;
-        numRow += '</div>';
-        // 选项行
-        let aRow='',bRow='',cRow='',dRow='';
-        for(let i=g.start; i<=g.end; i++) {
-            aRow += '<div class="opt-box">A</div>';
-            bRow += '<div class="opt-box">B</div>';
-            cRow += '<div class="opt-box">C</div>';
-            dRow += '<div class="opt-box">D</div>';
+
+    // 分组拆成行，每行最多4组
+    const groups = splitChoice(choiceTotal);
+    const lineGroups = [];
+    let tempLine = [];
+    groups.forEach(g=>{
+        if(tempLine.length >= MAX_GROUP_PER_LINE){
+            lineGroups.push(tempLine);
+            tempLine = [g];
+        }else{
+            tempLine.push(g);
         }
-        aRow = `<div class="opt-row">${aRow}</div>`;
-        bRow = `<div class="opt-row">${bRow}</div>`;
-        cRow = `<div class="opt-row">${cRow}</div>`;
-        dRow = `<div class="opt-row">${dRow}</div>`;
-        // 单组
-        choiceHtml += `
-            <div class="choice-col">
-                ${numRow}${aRow}${bRow}${cRow}${dRow}
-            </div>
-            ${idx < choiceGroups.length-1 ? '<div class="choice-gap"></div>' : ''}
-        `;
+    });
+    if(tempLine.length) lineGroups.push(tempLine);
+
+    // 生成选择题HTML
+    let choiceHtml = '';
+    lineGroups.forEach(line=>{
+        line.forEach((g, idx)=>{
+            let numRow = '<div class="num-row">';
+            for(let i=g.start; i<=g.end; i++){
+                numRow += `<div class="num-item">${i}</div>`;
+            }
+            numRow += '</div>';
+
+            let aRow='',bRow='',cRow='',dRow='';
+            for(let i=g.start; i<=g.end; i++){
+                aRow += '<div class="opt-box">A</div>';
+                bRow += '<div class="opt-box">B</div>';
+                cRow += '<div class="opt-box">C</div>';
+                dRow += '<div class="opt-box">D</div>';
+            }
+            aRow = `<div class="opt-row">${aRow}</div>`;
+            bRow = `<div class="opt-row">${bRow}</div>`;
+            cRow = `<div class="opt-row">${cRow}</div>`;
+            dRow = `<div class="opt-row">${dRow}</div>`;
+
+            choiceHtml += `
+                <div class="choice-col">
+                    ${numRow}${aRow}${bRow}${cRow}${dRow}
+                </div>
+            `;
+            // 组间间隔
+            if(idx < line.length - 1){
+                choiceHtml += `<div class="choice-gap"></div>`;
+            }
+        });
+        // 每行结束换行
+        choiceHtml += `<div style="width:100%;height:3mm;"></div>`;
     });
 
-    // ========== 3. 完整答题卡HTML（100%复刻你格式） ==========
+    // ========== 3. 完整答题卡HTML ==========
     const cardHtml = `
     <div class="answer-card" id="pdfTarget">
         <!-- 四角大定位块 -->
@@ -479,9 +504,8 @@ genBtn.addEventListener('click', () => {
             </div>
         </div>
 
-        <!-- 选择题区域（精准对齐版） -->
+        <!-- 选择题区域 -->
         <div class="choice-wrap">
-            <!-- 左侧定位块：和ABCD精准对齐 -->
             <div class="left-mark-outer">
                 <div class="left-mark"></div>
                 <div class="left-mark"></div>
