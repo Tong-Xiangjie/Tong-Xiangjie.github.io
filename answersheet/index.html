@@ -71,18 +71,15 @@ body {
     margin: 0 auto;
     position: relative;
     overflow: hidden;
-    /* 全局基准边距：所有定位块以此为基准 */
     --base-margin: 2.5mm;
-    /* 全局基准宽度：定位块/填涂框统一宽度，保证全卡对齐 */
     --block-width: 4.5mm;
 }
 
-/* ========== 定位块 铁则（严格按你要求修改） ========== */
-/* 四角大定位块：4:3比例、留边距、宽度与填涂框同源 */
+/* ========== 定位块 ========== */
 .corner-mark {
     position: absolute;
     width: var(--block-width);
-    height: calc(var(--block-width) * 3 / 4); /* 严格4:3 */
+    height: calc(var(--block-width) * 3 / 4);
     background: #000;
 }
 .tl { top: var(--base-margin); left: var(--base-margin); }
@@ -90,7 +87,6 @@ body {
 .bl { bottom: var(--base-margin); left: var(--base-margin); }
 .br { bottom: var(--base-margin); right: var(--base-margin); }
 
-/* 顶部横向定位块：严格夹在左右角块之间居中、宽度同源 */
 .top-mark-container {
     position: absolute;
     top: var(--base-margin);
@@ -107,7 +103,7 @@ body {
     background: #000;
 }
 
-/* ========== 标题区 两行统一18pt字号 ========== */
+/* ========== 标题区 ========== */
 .main-title {
     font-family: "SimHei", "黑体", sans-serif;
     font-size: 18pt;
@@ -125,7 +121,7 @@ body {
     font-weight: normal;
 }
 
-/* ========== 姓名+准考证 铁则 ========== */
+/* ========== 姓名+准考证（表格已变大） ========== */
 .info-line {
     display: flex;
     align-items: center;
@@ -145,17 +141,16 @@ body {
 .zk-text {
     margin-right: 4mm;
 }
-/* 准考证无缝表格，高度严格1.4倍 */
 .zk-table {
     border-collapse: collapse;
 }
 .zk-table td {
-    width: 5mm;
-    height: 5.6mm; /* 严格1.4倍 */
+    width: 7mm;
+    height: 8mm;
     border: 1px solid #d93025;
 }
 
-/* ========== 注意事项+条形码 铁则 ========== */
+/* ========== 注意事项+条形码 ========== */
 .note-barcode-wrap {
     display: flex;
     justify-content: space-between;
@@ -163,7 +158,6 @@ body {
     align-items: center;
     gap: 5mm;
 }
-/* 注意事项2×2合并表格 */
 .note-table {
     border-collapse: collapse;
     border: 1px solid #d93025;
@@ -195,7 +189,6 @@ body {
     font-size: 10pt;
     color: #d93025;
 }
-/* 缺考方框：与填涂框同比例 */
 .note-check-box {
     display: inline-block;
     width: var(--block-width);
@@ -204,7 +197,6 @@ body {
     margin-right: 2mm;
     vertical-align: middle;
 }
-/* 条形码框 */
 .barcode-box {
     width: 50mm;
     height: 25mm;
@@ -229,12 +221,11 @@ body {
     white-space: nowrap;
 }
 
-/* ========== 选择题区域 铁则（左侧定位块宽度同源对齐） ========== */
+/* ========== 选择题区域 ========== */
 .choice-wrap {
     position: relative;
     margin: 0 10mm;
 }
-/* 左侧纵向定位块：宽度同源，和顶部、填涂框完全对齐 */
 .left-mark-outer {
     position: absolute;
     left: -6mm;
@@ -246,13 +237,11 @@ body {
     background: #000;
     margin-bottom: 1.5mm;
 }
-/* 外层红圆角框 */
 .choice-outer {
     border: 1px solid #d93025;
     border-radius: 4mm;
     padding: 3mm;
 }
-/* 选择题标题+提示 */
 .choice-header {
     display: flex;
     align-items: center;
@@ -277,25 +266,23 @@ body {
     display: inline-block;
     vertical-align: middle;
 }
-/* 内层黑框 */
 .choice-inner {
     border: 1px solid #000000;
     padding: 2.5mm;
 }
-/* 填涂区整体布局 */
 .choice-content-wrap {
     display: flex;
     align-items: flex-start;
     gap: 0;
     flex-wrap: wrap;
 }
-/* 单列结构 */
+/* 关键修复：每一列必须有明确的宽度，不被压缩 */
 .choice-col {
     display: flex;
     flex-direction: column;
     gap: 2.2mm;
+    flex-shrink: 0;  /* 防止被压缩 */
 }
-/* 题号行：核心对齐——每个数字与下方填涂框中心精准对齐 */
 .num-row {
     display: flex;
     gap: 1.2mm;
@@ -308,12 +295,10 @@ body {
     width: var(--block-width);
     text-align: center;
 }
-/* 选项行 */
 .opt-row {
     display: flex;
     gap: 1.2mm;
 }
-/* 填涂框：宽高严格5:3，宽度全局同源 */
 .opt-box {
     width: var(--block-width);
     height: calc(var(--block-width) * 3 / 5);
@@ -324,15 +309,36 @@ body {
     font-family: "SimHei", "黑体", sans-serif;
     font-size: 7.5pt;
     color: #d93025;
+    background: #ffffff;
+    flex-shrink: 0;
 }
-/* 组间空距：用同源空白列占位，保证和填涂列宽度1:1 */
-.choice-gap {
+/* 隐形占位列：方框完整存在，只是所有颜色为白色 */
+.opt-box-invisible {
     width: var(--block-width);
-    /* 空白占位，视觉透明 */
-    background: transparent;
-    border: none;
+    height: calc(var(--block-width) * 3 / 5);
+    border: 1px solid #ffffff;
+    background: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: "SimHei", "黑体", sans-serif;
+    font-size: 7.5pt;
+    color: #ffffff;
+    flex-shrink: 0;
 }
-/* 右侧填涂示例 */
+.invisible-num-cell {
+    width: var(--block-width);
+    text-align: center;
+    color: #ffffff;
+    background: #ffffff;
+    font-size: 10pt;
+}
+/* 确保整个隐形列完全透明但结构完整 */
+.invisible-col .num-row .num-item {
+    border: none;
+    background: #ffffff;
+    color: #ffffff;
+}
 .right-example-group {
     display: flex;
     flex-direction: column;
@@ -346,11 +352,14 @@ body {
 .ex-correct { background: #d93025; }
 .ex-half { background: #cccccc; }
 .ex-wrong { background: #333333; }
+
+/* 调试用：临时显示占位框为红色（取消注释即可看到方框位置） */
+/* .opt-box-invisible { border: 1px solid #ff0000 !important; background: #ffcccc !important; color: #ff0000 !important; } */
+/* .invisible-num-cell { color: #ff0000 !important; background: #ffcccc !important; } */
 </style>
 </head>
 <body>
 
-<!-- 输入面板 -->
 <div class="input-panel">
     <h2 class="text-xl font-bold mb-5 text-center">答题卡生成器（精准复刻版）</h2>
     <div class="input-item">
@@ -373,129 +382,149 @@ body {
     <button class="btn-pdf" id="pdfBtn">导出PDF</button>
 </div>
 
-<!-- 答题卡预览容器 -->
 <div id="cardContainer"></div>
 
 <script>
-// 获取元素
 const genBtn = document.getElementById('genBtn');
 const pdfBtn = document.getElementById('pdfBtn');
 const cardContainer = document.getElementById('cardContainer');
 
-// 生成答题卡
-genBtn.addEventListener('click', () => {
-    const title = document.getElementById('cardTitle').value;
-    const subject = document.getElementById('cardSubject').value;
-    const zkLen = Number(document.getElementById('zkLength').value);
-    const choiceTotal = Number(document.getElementById('choiceTotal').value);
+// 生成正常的一列（一组连续题目）
+function generateNormalColumn(startNum, endNum) {
+    let numHtml = '';
+    for(let i = startNum; i <= endNum; i++) {
+        numHtml += `<div class="num-item">${i}</div>`;
+    }
+    const numRowHtml = `<div class="num-row">${numHtml}</div>`;
+    
+    const itemCount = endNum - startNum + 1;
+    const generateOptRow = (letter) => {
+        let boxes = '';
+        for(let i = 0; i < itemCount; i++) {
+            boxes += `<div class="opt-box">${letter}</div>`;
+        }
+        return `<div class="opt-row">${boxes}</div>`;
+    };
+    
+    return `<div class="choice-col">
+        ${numRowHtml}
+        ${generateOptRow('A')}
+        ${generateOptRow('B')}
+        ${generateOptRow('C')}
+        ${generateOptRow('D')}
+    </div>`;
+}
 
-    // ========== 1. 生成准考证框 ==========
-    let zkHtml = '';
-    for(let i=0; i<zkLen; i++) zkHtml += '<td></td>';
+// 生成隐形占位列：只占1道题目的宽度（1个空白题号 + 1组A/B/C/D白框）
+// 方框完整存在，只是颜色为白色
+function generateInvisibleColumn() {
+    return `<div class="choice-col invisible-col">
+        <div class="num-row">
+            <div class="num-item invisible-num-cell"></div>
+        </div>
+        <div class="opt-row"><div class="opt-box-invisible">A</div></div>
+        <div class="opt-row"><div class="opt-box-invisible">B</div></div>
+        <div class="opt-row"><div class="opt-box-invisible">C</div></div>
+        <div class="opt-row"><div class="opt-box-invisible">D</div></div>
+    </div>`;
+}
 
-    // ========== 2. 选择题分组&空隙铁则（完全保留你原逻辑，仅空隙改为同源空白列） ==========
-    // 规则：
-    // 1.固定5题一组，1-5、6-10、11-15……
-    // 2.5题和6题之间固定留标准组间空隙（同源空白列占位）
-    // 3.一行最多4组(20题)，自动换行
-    // 4.末尾余数1、2题并入上一组，无额外空隙；余数3、4单独成组，正常留空隙
+// 生成选择题HTML
+function buildChoiceHtml(choiceTotal) {
     const GROUP_SIZE = 5;
     const MAX_GROUP_PER_LINE = 4;
-
-    function splitChoice(total) {
-        const arr = [];
-        let cur = 1;
-        while(cur <= total) {
-            const left = total - cur + 1;
-            // 余数1、2 合并到上一组
-            if(left <= 2 && arr.length > 0) {
-                arr[arr.length - 1].end = total;
-                break;
-            }
-            const end = Math.min(cur + GROUP_SIZE - 1, total);
-            arr.push({start: cur, end: end});
-            cur = end + 1;
-        }
-        return arr;
+    
+    // 分组
+    let groups = [];
+    for(let start = 1; start <= choiceTotal; start += GROUP_SIZE) {
+        let end = Math.min(start + GROUP_SIZE - 1, choiceTotal);
+        groups.push({ start, end });
     }
-
-    // 分组拆成行，每行最多4组
-    const groups = splitChoice(choiceTotal);
+    
+    // 分行
     const lineGroups = [];
     let tempLine = [];
-    groups.forEach(g=>{
-        if(tempLine.length >= MAX_GROUP_PER_LINE){
+    groups.forEach(g => {
+        if(tempLine.length >= MAX_GROUP_PER_LINE) {
             lineGroups.push(tempLine);
             tempLine = [g];
-        }else{
+        } else {
             tempLine.push(g);
         }
     });
     if(tempLine.length) lineGroups.push(tempLine);
-
-    // 生成选择题HTML（完全保留原逻辑，空隙使用你要求的同源空白列）
-    let choiceHtml = '';
-    lineGroups.forEach(line=>{
-        line.forEach((g, idx)=>{
-            let numRow = '<div class="num-row">';
-            for(let i=g.start; i<=g.end; i++){
-                numRow += `<div class="num-item">${i}</div>`;
+    
+    let finalHtml = '';
+    
+    for(let lineIdx = 0; lineIdx < lineGroups.length; lineIdx++) {
+        const currentLine = lineGroups[lineIdx];
+        
+        for(let groupIdx = 0; groupIdx < currentLine.length; groupIdx++) {
+            const group = currentLine[groupIdx];
+            // 添加正常列（一组题目）
+            finalHtml += generateNormalColumn(group.start, group.end);
+            
+            // 在组与组之间插入【1道题宽度】的隐形占位列
+            const isLastGroupInLine = (groupIdx === currentLine.length - 1);
+            if (!isLastGroupInLine) {
+                finalHtml += generateInvisibleColumn();
             }
-            numRow += '</div>';
+        }
+        
+        // 行间距
+        if(lineIdx < lineGroups.length - 1) {
+            finalHtml += `<div style="width:100%;height:3mm;"></div>`;
+        }
+    }
+    
+    return finalHtml;
+}
 
-            let aRow='',bRow='',cRow='',dRow='';
-            for(let i=g.start; i<=g.end; i++){
-                aRow += '<div class="opt-box">A</div>';
-                bRow += '<div class="opt-box">B</div>';
-                cRow += '<div class="opt-box">C</div>';
-                dRow += '<div class="opt-box">D</div>';
-            }
-            aRow = `<div class="opt-row">${aRow}</div>`;
-            bRow = `<div class="opt-row">${bRow}</div>`;
-            cRow = `<div class="opt-row">${cRow}</div>`;
-            dRow = `<div class="opt-row">${dRow}</div>`;
+function buildZkTableHtml(zkLen) {
+    let zkHtml = '';
+    for(let i = 0; i < zkLen; i++) {
+        zkHtml += '<td><td>';
+    }
+    return zkHtml;
+}
 
-            choiceHtml += `
-                <div class="choice-col">
-                    ${numRow}${aRow}${bRow}${cRow}${dRow}
-                </div>
-            `;
-            // 组间加【同源空白列】（你要求的核心对齐方案）
-            if(idx < line.length - 1){
-                choiceHtml += `<div class="choice-gap"></div>`;
-            }
-        });
-        // 每行换行间距
-        choiceHtml += `<div style="width:100%;height:3mm;"></div>`;
+function escapeHtml(str) {
+    if(!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if(m === '&') return '&amp;';
+        if(m === '<') return '&lt;';
+        if(m === '>') return '&gt;';
+        return m;
     });
+}
 
-    // ========== 3. 完整答题卡HTML（完全保留你原结构，仅修改定位块样式） ==========
-    const cardHtml = `
+function renderAnswerCard(title, subject, zkLen, choiceTotal) {
+    const zkTableHtml = buildZkTableHtml(zkLen);
+    const choiceHtml = buildChoiceHtml(choiceTotal);
+    
+    return `
     <div class="answer-card" id="pdfTarget">
-        <!-- 四角大定位块（已修改：留边距、4:3、宽度同源） -->
         <div class="corner-mark tl"></div>
         <div class="corner-mark tr"></div>
         <div class="corner-mark bl"></div>
         <div class="corner-mark br"></div>
 
-        <!-- 顶部横向定位块31个（已修改：夹在角块之间、宽度同源） -->
         <div class="top-mark-container">
             ${Array(31).fill('<div class="top-mark"></div>').join('')}
         </div>
 
-        <!-- 标题 -->
-        <div class="main-title">${title}</div>
-        <div class="sub-title">${subject}答题卡</div>
+        <div class="main-title">${escapeHtml(title)}</div>
+        <div class="sub-title">${escapeHtml(subject)}答题卡</div>
 
-        <!-- 姓名+准考证 -->
         <div class="info-line">
             <span class="name-text">姓名：</span>
             <div class="name-line"></div>
             <span class="zk-text">准考证号</span>
-            <table class="zk-table"><tr>${zkHtml}</tr></table>
+            <table class="zk-table">
+                <tr>${zkTableHtml}</tr>
+            </table>
         </div>
 
-        <!-- 注意事项+条形码 -->
         <div class="note-barcode-wrap">
             <table class="note-table">
                 <tr>
@@ -519,7 +548,6 @@ genBtn.addEventListener('click', () => {
             </div>
         </div>
 
-        <!-- 选择题区域（左侧定位块宽度同源对齐） -->
         <div class="choice-wrap">
             <div class="left-mark-outer">
                 <div class="left-mark"></div>
@@ -535,7 +563,6 @@ genBtn.addEventListener('click', () => {
                 <div class="choice-inner">
                     <div class="choice-content-wrap">
                         ${choiceHtml}
-                        <!-- 右侧示例 -->
                         <div class="right-example-group">
                             <div class="example-item ex-correct"></div>
                             <div class="example-item ex-half"></div>
@@ -547,24 +574,41 @@ genBtn.addEventListener('click', () => {
         </div>
     </div>
     `;
+}
 
-    // 渲染
-    cardContainer.innerHTML = cardHtml;
+genBtn.addEventListener('click', () => {
+    const title = document.getElementById('cardTitle').value;
+    const subject = document.getElementById('cardSubject').value;
+    const zkLen = Number(document.getElementById('zkLength').value);
+    let choiceTotal = Number(document.getElementById('choiceTotal').value);
+    if(isNaN(choiceTotal) || choiceTotal < 1) choiceTotal = 1;
+    if(choiceTotal > 50) choiceTotal = 50;
+    
+    cardContainer.innerHTML = renderAnswerCard(title, subject, zkLen, choiceTotal);
     pdfBtn.style.display = 'block';
 });
 
-// 导出PDF（完全保留你原导出逻辑）
 pdfBtn.addEventListener('click', () => {
     const target = document.getElementById('pdfTarget');
+    if(!target) return;
     html2pdf().set({
         margin: 0,
         filename: '答题卡.pdf',
-        image: {type:'image/png', quality:1},
-        html2canvas: {scale:3},
-        jsPDF: {unit:'mm', format:'a4', orientation:'portrait'}
+        image: { type: 'image/png', quality: 1 },
+        html2canvas: { scale: 3 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     }).from(target).save();
 });
-</script>
 
+// 初始加载
+window.addEventListener('DOMContentLoaded', () => {
+    const title = document.getElementById('cardTitle').value;
+    const subject = document.getElementById('cardSubject').value;
+    const zkLen = Number(document.getElementById('zkLength').value);
+    const choiceTotal = Number(document.getElementById('choiceTotal').value);
+    cardContainer.innerHTML = renderAnswerCard(title, subject, zkLen, choiceTotal);
+    pdfBtn.style.display = 'block';
+});
+</script>
 </body>
 </html>
