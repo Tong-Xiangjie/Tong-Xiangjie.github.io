@@ -126,34 +126,11 @@ const japanData = {
         // ==================== D序列 ====================
         {
             seriesName: "D序列",
-            year: "1984（2000）",
+            year: "1984",
             varieties: [
                 {
                     varietyName: "1984年 1000円 夏目漱石",
                     copies: []
-                },
-                {
-                    varietyName: "2000年 2000円 守礼门",
-                    copies: [
-                        {
-                            copyId: 1,
-                            year: 2000,
-                            version: "SA586830V",
-                            bank: "日本银行/Bank of Japan",
-                            condition: "ACG68E",
-                            price: "172元",
-                            purchaseDate: "2026年2月19日",
-                            krause: "103b",
-                            print: "大藏省印刷局",
-                            issueDate: "2000年7月19日",
-                            withdrawnDate: "正在流通",
-                            size: "154mm*76mm",
-                            wmk: "守礼门/Shureimon Gate",
-                            remark: "D号券，为纪念第26届八国集团首脑会议和千禧年发行。正面：守礼门，背面：源氏物语绘卷与紫式部。2003年后未再印制。",
-                            img1: "image/japan/SA586830V-1.jpg",
-                            img2: "image/japan/SA586830V-2.jpg"
-                        }
-                    ]
                 },
                 {
                     varietyName: "1984年 5000円 新渡户稻造",
@@ -219,6 +196,34 @@ const japanData = {
                 {
                     varietyName: "2024年 10000円 涩泽荣一",
                     copies: []
+                }
+            ]
+        },{
+            seriesName: "纪念钞",
+            year: "2000",
+            varieties: [
+                {
+                    varietyName: "D序列 2000年 2000円 守礼门",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 2000,
+                            version: "SA586830V",
+                            bank: "日本银行/Bank of Japan",
+                            condition: "ACG68E",
+                            price: "172元",
+                            purchaseDate: "2026年2月19日",
+                            krause: "103b",
+                            print: "大藏省印刷局",
+                            issueDate: "2000年7月19日",
+                            withdrawnDate: "正在流通",
+                            size: "154mm*76mm",
+                            wmk: "守礼门/Shureimon Gate",
+                            remark: "D号券，为纪念第26届八国集团首脑会议和千禧年发行。正面：守礼门，背面：源氏物语绘卷与紫式部。2003年后未再印制。",
+                            img1: "image/japan/SA586830V-1.jpg",
+                            img2: "image/japan/SA586830V-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
