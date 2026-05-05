@@ -61,7 +61,7 @@ const japanData = {
         // ==================== B序列 ====================
         {
             seriesName: "B序列",
-            year: "1950~1953",
+            year: "1950～1953",
             varieties: [
                 {
                     varietyName: "1951年 50円 高桥是清",
@@ -103,7 +103,7 @@ const japanData = {
         // ==================== C序列 ====================
         {
             seriesName: "C序列",
-            year: "1957~1963",
+            year: "1957～1963",
             varieties: [
                 {
                     varietyName: "1957年 500円 岩仓具视",
