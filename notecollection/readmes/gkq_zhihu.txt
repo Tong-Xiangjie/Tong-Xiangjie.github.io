@@ -548,7 +548,7 @@
     <div class="gkq-accordion-content">
         <div class="gkq-accordion-content-inner">
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_5.webp" alt="大面值国库券">
+                <img src="readmes/image/gkq/zhihu_headphoto_5.avif" alt="大面值国库券">
             </div>
             <p>1992年开始先前作为大面值的¥50和¥100的国库券在1992年变成了低面值，从1993年开始¥50面值已经被取消，从此之后国库券的最低面值变成¥100。我把1992年到1994年作为一个专门的分类，是因为这三年都存在¥500的面值，并且最高面值是¥1000。这三年都存在两期国库券。除了1992年的¥1000。</p>
             
