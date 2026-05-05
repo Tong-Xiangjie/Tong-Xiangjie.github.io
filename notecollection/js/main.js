@@ -392,6 +392,39 @@ function backToSeries() { history.back(); }
 function backToCategories() { history.back(); }
 function goBackFromReadme() { history.back(); }
 
+// 重置历史记录栈：只删除当前搜索结果页之后的多余记录，保留正常的浏览历史
+function cleanupHistoryStack() {
+    // 如果当前是搜索结果页且有 preSearchView，删除它之后的多余记录
+    if (currentView === 'searchResult' && preSearchView) {
+        // 从栈中找到 preSearchView 对应的记录位置
+        let foundIndex = -1;
+        for (let i = viewHistoryStack.length - 1; i >= 0; i--) {
+            const item = viewHistoryStack[i];
+            if (item.view === preSearchView.view &&
+                item.categoryId === preSearchView.categoryId) {
+                // 检查 series 是否匹配
+                let seriesMatch = true;
+                if (preSearchView.series && item.series) {
+                    if (preSearchView.series.cid !== item.series.cid ||
+                        preSearchView.series.si !== item.series.si) {
+                        seriesMatch = false;
+                    }
+                } else if (preSearchView.series || item.series) {
+                    seriesMatch = false;
+                }
+                if (seriesMatch) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+        }
+        if (foundIndex !== -1 && foundIndex + 1 < viewHistoryStack.length) {
+            // 截断到 foundIndex + 1，删除之后的所有记录
+            viewHistoryStack = viewHistoryStack.slice(0, foundIndex + 1);
+        }
+    }
+}
+
 // 改进后的重置函数：在当前板块清空搜索，不跳回首页，保持滚动位置
 function resetSearchAndStay() {
     // 保存当前搜索类型
@@ -412,12 +445,11 @@ function resetSearchAndStay() {
     // 根据当前所在的视图，刷新当前板块内容
     if (currentView === 'seriesList' && currentCategoryId) {
         renderSeriesList(currentCategoryId, false);
-        // 重置历史记录栈
-        resetHistoryStack();
+        cleanupHistoryStack();
     } 
     else if (currentView === 'varietyList' && currentSeries && currentSeries.cid !== undefined && currentSeries.si !== undefined) {
         renderVarietyList(currentSeries.cid, currentSeries.si, false);
-        resetHistoryStack();
+        cleanupHistoryStack();
     }
     else if (currentView === 'copyList' && currentSeries) {
         if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
@@ -425,7 +457,7 @@ function resetSearchAndStay() {
         } else {
             renderCopyList(currentSeries.cid, currentSeries.si, false);
         }
-        resetHistoryStack();
+        cleanupHistoryStack();
     }
     else if (currentView === 'searchResult') {
         // 在搜索结果页：返回到搜索前的视图
@@ -477,17 +509,19 @@ function resetSearchAndStay() {
                 }, 0);
             }
             
+            // 清理历史记录栈
+            cleanupHistoryStack();
+            
             // 清空 preSearchView
             preSearchView = null;
         } else {
             renderCategories(false);
+            cleanupHistoryStack();
         }
-        // 重置历史记录栈
-        resetHistoryStack();
     }
     else if (currentView === 'categories') {
         renderCategories(false);
-        resetHistoryStack();
+        cleanupHistoryStack();
     }
     else {
         if (currentCategoryId) {
@@ -495,7 +529,7 @@ function resetSearchAndStay() {
         } else {
             renderCategories(false);
         }
-        resetHistoryStack();
+        cleanupHistoryStack();
     }
     
     // 恢复当前搜索类型
@@ -507,18 +541,6 @@ function resetSearchAndStay() {
     }, 100);
 }
 
-// 重置历史记录栈，只保留当前页面
-function resetHistoryStack() {
-    const currentViewInfo = {
-        view: currentView,
-        categoryId: currentCategoryId,
-        series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
-        searchKeyword: currentSearchKeyword,
-        searchType: currentSearchType
-    };
-    viewHistoryStack = [currentViewInfo];
-}
-
 function resetSearchAndBack() {
     const currentType = currentSearchType;
     currentSearchKeyword = '';
@@ -528,7 +550,6 @@ function resetSearchAndBack() {
     preSearchView = null;
     renderCategoriesWithoutRestore();
     currentSearchType = currentType;
-    resetHistoryStack();
 }
 
 function renderCategoriesWithoutRestore() {
