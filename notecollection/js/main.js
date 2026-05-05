@@ -100,6 +100,9 @@ let isResetOperation = false;
 // 记录进入搜索前的视图状态
 let preSearchView = null;
 
+// 历史记录替换标志
+let isReplacingHistory = false;
+
 function toCircledNumber(num) {
     const numStr = num.toString();
     const circledDigits = {
@@ -342,7 +345,6 @@ function performRealtimeSearch() {
     renderSearchResultPage(rawKeyword, type, true);
 }
 
-// 修改 pushViewToHistory 函数，支持替换模式
 function pushViewToHistory(replace = false) {
     if (isHandlingPopState) return;
     const currentViewInfo = {
@@ -353,44 +355,20 @@ function pushViewToHistory(replace = false) {
         searchType: currentSearchType
     };
     
-    if (replace && viewHistoryStack.length > 0) {
+    if (replace || isReplacingHistory) {
         // 替换栈顶记录
-        viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        if (viewHistoryStack.length > 0) {
+            viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        } else {
+            viewHistoryStack.push(currentViewInfo);
+        }
         history.replaceState({ custom: true }, '');
+        isReplacingHistory = false;
     } else {
         viewHistoryStack.push(currentViewInfo);
         history.pushState({ custom: true }, '');
     }
     if (viewHistoryStack.length > 50) viewHistoryStack.shift();
-}
-
-// 新增：清理搜索结果页历史记录的函数
-function cleanupSearchHistory() {
-    // 从历史栈中删除所有搜索结果页记录
-    const newStack = [];
-    let lastNonSearchView = null;
-    
-    for (let i = 0; i < viewHistoryStack.length; i++) {
-        const item = viewHistoryStack[i];
-        if (item.view !== 'searchResult') {
-            newStack.push(item);
-            lastNonSearchView = item;
-        }
-    }
-    
-    // 如果没有任何非搜索页面，至少保留首页
-    if (newStack.length === 0 && lastNonSearchView === null) {
-        newStack.push({
-            view: 'categories',
-            categoryId: null,
-            series: null,
-            searchKeyword: '',
-            searchType: 'all'
-        });
-    }
-    
-    viewHistoryStack.length = 0;
-    viewHistoryStack.push(...newStack);
 }
 
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
@@ -402,11 +380,15 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
             series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
             scrollY: window.scrollY
         };
+        // 第一次进入搜索结果页，push 新历史记录
+        isReplacingHistory = false;
+    } else {
+        // 已经在搜索结果页，后续搜索使用 replace
+        isReplacingHistory = true;
     }
     
     const keyword = rawKeyword || '';
     const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
-    const wasInSearchResult = (currentView === 'searchResult');
     currentView = 'searchResult';
     if (currentView === 'categories') saveScroll("categories");
     else if (currentView === 'seriesList' && currentCategoryId) saveScroll("seriesList_" + currentCategoryId);
@@ -434,22 +416,25 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) switchBtn.style.display = 'none';
     
-    // 处理历史记录：如果是同一个搜索结果页内的搜索，替换当前记录
-    if (wasInSearchResult && !isNewSearch) {
-        // 替换栈顶的历史记录
+    // 处理历史记录
+    if (isReplacingHistory) {
+        // 替换当前历史记录
+        const currentViewInfo = {
+            view: currentView,
+            categoryId: currentCategoryId,
+            series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
+            searchKeyword: currentSearchKeyword,
+            searchType: currentSearchType
+        };
         if (viewHistoryStack.length > 0) {
-            const currentViewInfo = {
-                view: currentView,
-                categoryId: currentCategoryId,
-                series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
-                searchKeyword: currentSearchKeyword,
-                searchType: currentSearchType
-            };
             viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
-            history.replaceState({ custom: true }, '');
+        } else {
+            viewHistoryStack.push(currentViewInfo);
         }
+        history.replaceState({ custom: true }, '');
+        isReplacingHistory = false;
     } else {
-        // 新的搜索页面，添加到历史记录
+        // 新增历史记录
         pushViewToHistory(false);
     }
 }
@@ -463,40 +448,6 @@ function backToSeries() { history.back(); }
 function backToCategories() { history.back(); }
 function goBackFromReadme() { history.back(); }
 
-// 重置历史记录栈：只删除当前搜索结果页之后的多余记录，保留正常的浏览历史
-function cleanupHistoryStack() {
-    // 如果当前是搜索结果页且有 preSearchView，删除它之后的多余记录
-    if (currentView === 'searchResult' && preSearchView) {
-        // 从栈中找到 preSearchView 对应的记录位置
-        let foundIndex = -1;
-        for (let i = viewHistoryStack.length - 1; i >= 0; i--) {
-            const item = viewHistoryStack[i];
-            if (item.view === preSearchView.view &&
-                item.categoryId === preSearchView.categoryId) {
-                // 检查 series 是否匹配
-                let seriesMatch = true;
-                if (preSearchView.series && item.series) {
-                    if (preSearchView.series.cid !== item.series.cid ||
-                        preSearchView.series.si !== item.series.si) {
-                        seriesMatch = false;
-                    }
-                } else if (preSearchView.series || item.series) {
-                    seriesMatch = false;
-                }
-                if (seriesMatch) {
-                    foundIndex = i;
-                    break;
-                }
-            }
-        }
-        if (foundIndex !== -1 && foundIndex + 1 < viewHistoryStack.length) {
-            // 截断到 foundIndex + 1，删除之后的所有记录
-            viewHistoryStack = viewHistoryStack.slice(0, foundIndex + 1);
-        }
-    }
-}
-
-// 改进后的重置函数：在当前板块清空搜索，不跳回首页，保持滚动位置
 function resetSearchAndStay() {
     // 保存当前搜索类型
     const currentType = currentSearchType;
@@ -597,11 +548,6 @@ function resetSearchAndStay() {
         }
     }
     
-    // 清理历史记录栈
-    if (wasInSearchResult) {
-        cleanupSearchHistory();
-    }
-    
     // 恢复当前搜索类型
     currentSearchType = currentType;
     
@@ -609,6 +555,33 @@ function resetSearchAndStay() {
     setTimeout(() => {
         isResetOperation = false;
     }, 100);
+    
+    // 关键修复：重置后如果之前在搜索页，需要清理多余的浏览器历史记录
+    if (wasInSearchResult && preSearchView === null) {
+        // 使用 replaceState 替换掉当前历史记录，避免残留
+        const currentViewInfo = {
+            view: currentView,
+            categoryId: currentCategoryId,
+            series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
+            searchKeyword: currentSearchKeyword,
+            searchType: currentSearchType
+        };
+        if (viewHistoryStack.length > 0) {
+            viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        }
+        history.replaceState({ custom: true }, '');
+    }
+    
+    // 保持光标在搜索框内
+    setTimeout(() => {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+            searchInput.focus();
+            const len = searchInput.value.length;
+            searchInput.setSelectionRange(len, len);
+        }
+    }, 50);
 }
 
 function resetSearchAndBack() {
@@ -698,36 +671,28 @@ function bindSearchEvents() {
     }
     
     let realtimeTimer = null;
-    let isComposing = false;  // 是否正在使用输入法组合输入
+    let isComposing = false;
     
-    // 输入法开始组合（开始打拼音）
     const compositionStartHandler = function() {
         isComposing = true;
     };
     
-    // 输入法结束组合（确认汉字）
     const compositionEndHandler = function() {
         isComposing = false;
-        // 组合结束后立即触发一次搜索，让用户能马上看到结果
         if (searchMode === 'realtime') {
             if (realtimeTimer) clearTimeout(realtimeTimer);
             performRealtimeSearch();
         }
     };
     
-    // 保存处理器引用
     searchInput._compositionStartHandler = compositionStartHandler;
     searchInput._compositionEndHandler = compositionEndHandler;
     
-    // 添加输入法组合事件监听
     searchInput.addEventListener('compositionstart', compositionStartHandler);
     searchInput.addEventListener('compositionend', compositionEndHandler);
     
-    // 实时搜索的 input 处理
     const handleRealtimeInput = function(e) {
-        // 如果正在使用输入法组合输入（打拼音中），不触发搜索
         if (isComposing) return;
-        
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => { performRealtimeSearch(); }, 300);
     };
@@ -752,7 +717,6 @@ function bindSearchEvents() {
     
     setupKrauseInputProtection(searchInput, searchType);
     
-    // 根据搜索模式绑定事件
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
         searchInput._realtimeHandler = handleRealtimeInput;
@@ -783,7 +747,7 @@ function bindSearchEvents() {
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             modeToggle.textContent = modeIcon;
             if (searchTip) searchTip.innerHTML = `当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换`;
-            bindSearchEvents();  // 重新绑定事件以应用新模式
+            bindSearchEvents();
         };
     }
     
@@ -1105,7 +1069,6 @@ function selectCopy(cid, si, ci) {
     renderDetail(cid, si, ci);
 }
 
-// ========= 核心修复：readme 渲染 + 折叠面板初始化 =========
 async function renderReadmePage(readmeItem, viewType, params) {
     const title = readmeItem.title || 'Readme';
     let content = readmeItem.content;
@@ -1115,11 +1078,9 @@ async function renderReadmePage(readmeItem, viewType, params) {
     
     currentReadmeBackInfo = { viewType: viewType, params: params };
     
-    // 创建一个临时容器来解析 HTML，以便执行脚本
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
     
-    // 执行所有脚本（关键：确保折叠面板的初始化函数被调用）
     const scripts = tempDiv.querySelectorAll('script');
     for (let i = 0; i < scripts.length; i++) {
         const oldScript = scripts[i];
@@ -1141,7 +1102,6 @@ async function renderReadmePage(readmeItem, viewType, params) {
     `;
     document.getElementById("app").innerHTML = html;
     
-    // 处理图片点击
     document.querySelectorAll('.rich-content img').forEach(img => {
         img.style.cursor = 'pointer';
         img.onclick = (e) => {
@@ -1151,8 +1111,6 @@ async function renderReadmePage(readmeItem, viewType, params) {
         };
     });
     
-    // 【关键修复】在 DOM 完全渲染后，重新执行所有 script 标签（确保折叠面板初始化）
-    // 因为上面虽然替换了 script，但 innerHTML 赋值后脚本不会自动执行
     const allScripts = document.querySelectorAll('.rich-content script');
     for (let i = 0; i < allScripts.length; i++) {
         const oldScript = allScripts[i];
@@ -1164,11 +1122,9 @@ async function renderReadmePage(readmeItem, viewType, params) {
         oldScript.parentNode.replaceChild(newScript, oldScript);
     }
     
-    // 额外调用全局初始化函数（如果存在）
     if (typeof window.initGkqAccordions === 'function') {
         window.initGkqAccordions();
     }
-    // 兼容：如果 readme 内部定义了其他初始化函数，也尝试调用
     if (typeof window.initAccordions === 'function') {
         window.initAccordions();
     }
@@ -1347,7 +1303,6 @@ window.addEventListener('popstate', function(event) {
     setTimeout(() => { isHandlingPopState = false; }, 100);
 });
 
-// 修改包装函数，使用新的 pushViewToHistory
 const originalRenderCategories = renderCategories;
 const originalRenderSeriesList = renderSeriesList;
 const originalRenderVarietyList = renderVarietyList;
@@ -1392,7 +1347,6 @@ window.renderDetailFromVariety = function(cid, si, vi, ci) {
     return result;
 };
 
-// 覆盖全局函数
 renderCategories = window.renderCategories;
 renderSeriesList = window.renderSeriesList;
 renderVarietyList = window.renderVarietyList;
