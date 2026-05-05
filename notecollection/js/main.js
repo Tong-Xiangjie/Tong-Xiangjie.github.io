@@ -376,6 +376,68 @@ function backToSeries() { history.back(); }
 function backToCategories() { history.back(); }
 function goBackFromReadme() { history.back(); }
 
+// 改进后的重置函数：在当前板块清空搜索，不跳回首页
+function resetSearchAndStay() {
+    // 保存当前视图状态和当前搜索类型
+    const currentType = currentSearchType;
+    
+    // 清空搜索关键词
+    currentSearchKeyword = '';
+    
+    // 删除搜索结果滚动位置记忆
+    delete scrollMemory["searchResult"];
+    
+    // 标记不是从搜索结果进入
+    fromSearchResult = false;
+    
+    // 清空搜索框的值
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        if (currentType === 'krause') {
+            searchInput.value = KRAUSE_PREFIX;
+        } else {
+            searchInput.value = '';
+        }
+    }
+    
+    // 根据当前所在的视图，刷新当前板块内容（不清空搜索框，只是重置搜索结果）
+    if (currentView === 'seriesList' && currentCategoryId) {
+        // 在系列列表页（有readme和系列列表）
+        renderSeriesList(currentCategoryId, false);
+    } 
+    else if (currentView === 'varietyList' && currentSeries && currentSeries.cid !== undefined && currentSeries.si !== undefined) {
+        // 在品种列表页
+        renderVarietyList(currentSeries.cid, currentSeries.si, false);
+    }
+    else if (currentView === 'copyList' && currentSeries) {
+        // 在藏品列表页
+        if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
+            renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, false);
+        } else {
+            renderCopyList(currentSeries.cid, currentSeries.si, false);
+        }
+    }
+    else if (currentView === 'searchResult') {
+        // 在搜索结果页，清空并显示空搜索结果（显示所有内容）
+        renderSearchResultPage('', currentType, true);
+    }
+    else if (currentView === 'categories') {
+        // 在分类首页
+        renderCategories(false);
+    }
+    else {
+        // 其他情况（如详情页），返回到对应的列表页
+        if (currentCategoryId) {
+            renderSeriesList(currentCategoryId, false);
+        } else {
+            renderCategories(false);
+        }
+    }
+    
+    // 恢复当前搜索类型（保持用户之前的选择）
+    currentSearchType = currentType;
+}
+
 function resetSearchAndBack() {
     const currentType = currentSearchType;
     currentSearchKeyword = '';
@@ -507,7 +569,10 @@ function bindSearchEvents() {
         };
     }
     if (resetBtn) {
-        resetBtn.onclick = function() { resetSearchAndBack(); };
+        // 使用改进后的重置函数
+        resetBtn.onclick = function() { 
+            resetSearchAndStay(); 
+        };
     }
 }
 
@@ -548,6 +613,7 @@ function renderCategories(restore = false) {
 function renderSeriesList(cid, restore = false) {
     fromSearchResult = false;
     if (!restore) window.scrollTo(0, 0);
+    // 进入板块时自动切换到当前板块搜索
     searchScope = 'currentCategory';
     currentView = "seriesList";
     currentCategoryId = cid;
@@ -630,6 +696,8 @@ function generateReadmeCards(readmeData, type, cid, si, vi = null) {
 function renderVarietyList(cid, si, restore = false) {
     fromSearchResult = false;
     if (!restore) window.scrollTo(0, 0);
+    // 进入品种列表页时保持当前板块搜索
+    searchScope = 'currentCategory';
     currentView = "varietyList";
     currentCategoryId = cid;
     currentSeries = { cid, si, vi: null };
@@ -660,6 +728,8 @@ function selectVariety(cid, si, vi) {
 function renderCopyListFromVariety(cid, si, vi, restore = false) {
     fromSearchResult = false;
     if (!restore) window.scrollTo(0, 0);
+    // 进入藏品列表页时保持当前板块搜索
+    searchScope = 'currentCategory';
     currentView = "copyList";
     currentCategoryId = cid;
     currentSeries = { cid, si, vi };
@@ -737,6 +807,8 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
 function renderCopyList(cid, si, restore = false) {
     fromSearchResult = false;
     if (!restore) window.scrollTo(0, 0);
+    // 进入藏品列表页时保持当前板块搜索
+    searchScope = 'currentCategory';
     currentView = "copyList";
     currentCategoryId = cid;
     currentSeries = { cid, si, ci: null };
