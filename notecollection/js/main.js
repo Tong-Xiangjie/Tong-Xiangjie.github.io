@@ -394,13 +394,10 @@ function goBackFromReadme() { history.back(); }
 
 // 改进后的重置函数：在当前板块清空搜索，不跳回首页，保持滚动位置
 function resetSearchAndStay() {
-    // 保存当前滚动位置
-    const currentScrollY = window.scrollY;
-    
-    // 保存当前视图状态和当前搜索类型
+    // 保存当前搜索类型
     const currentType = currentSearchType;
     
-    // 清空搜索关键词
+    // 清空搜索关键词（全局状态）
     currentSearchKeyword = '';
     
     // 删除搜索结果滚动位置记忆
@@ -408,16 +405,6 @@ function resetSearchAndStay() {
     
     // 标记不是从搜索结果进入
     fromSearchResult = false;
-    
-    // 清空搜索框的值
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        if (currentType === 'krause') {
-            searchInput.value = KRAUSE_PREFIX;
-        } else {
-            searchInput.value = '';
-        }
-    }
     
     // 设置重置操作标志，防止渲染时滚动到顶部
     isResetOperation = true;
@@ -437,10 +424,10 @@ function resetSearchAndStay() {
         }
     }
     else if (currentView === 'searchResult') {
-        // 返回到搜索前的视图
+        // 在搜索结果页：返回到搜索前的视图
         if (preSearchView) {
-            // 保存滚动位置
-            const savedScrollY = preSearchView.scrollY || 0;
+            // 恢复搜索类型
+            currentSearchType = currentType;
             
             // 根据保存的视图返回
             switch (preSearchView.view) {
@@ -480,16 +467,18 @@ function resetSearchAndStay() {
             }
             
             // 恢复滚动位置
-            setTimeout(() => {
-                window.scrollTo(0, savedScrollY);
-            }, 0);
+            if (preSearchView.scrollY !== undefined) {
+                setTimeout(() => {
+                    window.scrollTo(0, preSearchView.scrollY);
+                }, 0);
+            }
             
-            // ========== 关键修复：清理历史记录栈 ==========
-            // 移除当前搜索结果页的历史记录
+            // 清理历史记录栈中当前的搜索结果页记录
             if (viewHistoryStack.length > 0 && viewHistoryStack[viewHistoryStack.length - 1].view === 'searchResult') {
                 viewHistoryStack.pop();
             }
             
+            // 清空 preSearchView
             preSearchView = null;
         } else {
             renderCategories(false);
@@ -509,19 +498,10 @@ function resetSearchAndStay() {
     // 恢复当前搜索类型
     currentSearchType = currentType;
     
-    // 恢复滚动位置（非搜索页面的情况）
-    if (currentView !== 'searchResult') {
-        setTimeout(() => {
-            window.scrollTo(0, currentScrollY);
-            setTimeout(() => {
-                isResetOperation = false;
-            }, 100);
-        }, 0);
-    } else {
-        setTimeout(() => {
-            isResetOperation = false;
-        }, 100);
-    }
+    // 清除重置标志
+    setTimeout(() => {
+        isResetOperation = false;
+    }, 100);
 }
 
 function resetSearchAndBack() {
