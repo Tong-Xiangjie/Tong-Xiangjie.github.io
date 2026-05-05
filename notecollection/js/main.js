@@ -439,6 +439,9 @@ function resetSearchAndStay() {
     else if (currentView === 'searchResult') {
         // 返回到搜索前的视图
         if (preSearchView) {
+            // 保存滚动位置
+            const savedScrollY = preSearchView.scrollY || 0;
+            
             // 根据保存的视图返回
             switch (preSearchView.view) {
                 case 'seriesList':
@@ -475,12 +478,18 @@ function resetSearchAndStay() {
                     renderCategories(false);
                     break;
             }
+            
             // 恢复滚动位置
-            if (preSearchView.scrollY !== undefined) {
-                setTimeout(() => {
-                    window.scrollTo(0, preSearchView.scrollY);
-                }, 0);
+            setTimeout(() => {
+                window.scrollTo(0, savedScrollY);
+            }, 0);
+            
+            // ========== 关键修复：清理历史记录栈 ==========
+            // 移除当前搜索结果页的历史记录
+            if (viewHistoryStack.length > 0 && viewHistoryStack[viewHistoryStack.length - 1].view === 'searchResult') {
+                viewHistoryStack.pop();
             }
+            
             preSearchView = null;
         } else {
             renderCategories(false);
