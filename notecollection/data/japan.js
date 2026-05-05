@@ -19,11 +19,54 @@ const japanData = {
     ],
 
     series: [
+        // ==================== A序列 ====================
+        {
+            seriesName: "A序列",
+            year: "",
+            varieties: [
+                {
+                    varietyName: "1946年 10銭 政府纸币",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 5円 政府纸币",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 10円 政府纸币",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 100円 圣德太子",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 1円 二宫尊德",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 5円 一円兑换券",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 20円 政府纸币",
+                    copies: []
+                },
+                {
+                    varietyName: "1946年 100円 圣德太子",
+                    copies: []
+                }
+            ]
+        },
         // ==================== B序列 ====================
         {
             seriesName: "B序列",
             year: "",
             varieties: [
+                {
+                    varietyName: "1951年 50円 高桥是清",
+                    copies: []
+                },
                 {
                     varietyName: "1953年 100円 板垣退助",
                     copies: [
@@ -46,6 +89,37 @@ const japanData = {
                             img2: "image/japan/XP807592G-2.jpg"
                         }
                     ]
+                },
+                {
+                    varietyName: "1951年 500円 岩仓具视",
+                    copies: []
+                },
+                {
+                    varietyName: "1950年 1000円 圣德太子",
+                    copies: []
+                }
+            ]
+        },
+        // ==================== C序列 ====================
+        {
+            seriesName: "C序列",
+            year: "",
+            varieties: [
+                {
+                    varietyName: "1957年 500円 岩仓具视",
+                    copies: []
+                },
+                {
+                    varietyName: "1963年 1000円 伊藤博文",
+                    copies: []
+                },
+                {
+                    varietyName: "1957年 5000円 圣德太子",
+                    copies: []
+                },
+                {
+                    varietyName: "1958年 10000円 圣德太子",
+                    copies: []
                 }
             ]
         },
@@ -54,6 +128,10 @@ const japanData = {
             seriesName: "D序列",
             year: "",
             varieties: [
+                {
+                    varietyName: "1984年 1000円 夏目漱石",
+                    copies: []
+                },
                 {
                     varietyName: "2000年 2000円 守礼门",
                     copies: [
@@ -76,6 +154,33 @@ const japanData = {
                             img2: "image/japan/SA586830V-2.jpg"
                         }
                     ]
+                },
+                {
+                    varietyName: "1984年 5000円 新渡户稻造",
+                    copies: []
+                },
+                {
+                    varietyName: "1984年 10000円 福泽谕吉",
+                    copies: []
+                }
+            ]
+        },
+        // ==================== E序列 ====================
+        {
+            seriesName: "E序列",
+            year: "",
+            varieties: [
+                {
+                    varietyName: "2004年 1000円 野口英世",
+                    copies: []
+                },
+                {
+                    varietyName: "2004年 5000円 樋口一叶",
+                    copies: []
+                },
+                {
+                    varietyName: "2004年 10000円 福泽谕吉",
+                    copies: []
                 }
             ]
         },
@@ -100,12 +205,20 @@ const japanData = {
                             issueDate: "2024年7月3日",
                             withdrawnDate: "正在流通",
                             size: "150mm*76mm",
-                            wmk: "北里柴三郎肖像&条形水印/S.Kitasato&Bar Pattern",
+                            wmk: "北里柴三郎肖像/S.Kitasato",
                             remark: "F号券，新版纸币。正面：北里柴三郎（细菌学家），背面：神奈川冲浪里（葛饰北斋画作）。",
                             img1: "image/japan/AA229466RM-1.jpg",
                             img2: "image/japan/AA229466RM-2.jpg"
                         }
                     ]
+                },
+                {
+                    varietyName: "2024年 5000円 津田梅子",
+                    copies: []
+                },
+                {
+                    varietyName: "2024年 10000円 涩泽荣一",
+                    copies: []
                 }
             ]
         }
