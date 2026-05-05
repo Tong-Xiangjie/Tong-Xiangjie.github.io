@@ -85,10 +85,10 @@ body {
     box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     
     /* 🔧 可调参数 1：纸张四周边距（单位 mm）*/
-    --page-top: 18mm;        /* 上边距 - 调大则标题和定位块下移 */
-    --page-bottom: 15mm;     /* 下边距 - 调大则底部留白增加 */
-    --page-left: 15mm;       /* 左边距 - 调大则所有内容右移 */
-    --page-right: 15mm;      /* 右边距 - 调大则所有内容左移 */
+    --page-top: 13mm;        /* 上边距 - 调大则标题和定位块下移 */
+    --page-bottom: 13mm;     /* 下边距 - 调大则底部留白增加 */
+    --page-left: 10mm;       /* 左边距 - 调大则所有内容右移 */
+    --page-right: 10mm;      /* 右边距 - 调大则所有内容左移 */
     
     /* 🔧 可调参数 2：定位块和填涂框尺寸（单位 mm）*/
     --block-width: 4.5mm;    /* 黑色方块宽度 - 调大则所有填涂框变宽 */
@@ -145,7 +145,7 @@ body {
     position: relative;
     z-index: 2;
     /* 🔧 可调参数 3：标题区顶部留白（避开顶部定位块）*/
-    padding-top: 23mm;       /* 调大则标题下移，调小则标题上移 */
+    padding-top: 18mm;       /* 调大则标题下移，调小则标题上移 */
 }
 /* 🔧 可调参数 4：主标题样式 */
 .main-title {
@@ -207,10 +207,16 @@ body {
    注意事项区 + 条形码区
    🔧 可调参数 39：注意事项表格的各种参数
    ============================================== */
+/* 🔧 可调参数 44：注意事项区与上方信息区的间距 */
 .note-section {
     display: flex;
     justify-content: space-between;
-    margin: 0 var(--page-left) 12mm var(--page-left);
+    margin: -5mm var(--page-left) 12mm var(--page-left);
+    /*       ↑
+         从 0 改为 3mm，间距调小了
+         如果想更小，可以改为 1mm 或 2mm
+         如果想更大，改为 5mm 或 8mm
+    */
     gap: 5mm;
 }
 .note-table {
@@ -249,7 +255,7 @@ body {
 /* 🔧 可调参数 11：缺考标记行样式 */
 .note-check-cell {
     /* 🔧 可调参数 39f：缺考标记行内边距 */
-    padding: 2mm 3mm;
+    padding: 0mm 3mm;
     font-family: "SimSun", "宋体", serif;
     font-size: 9.5pt;
     color: #d93025;
@@ -265,7 +271,7 @@ body {
 }
 /* 🔧 可调参数 12：条形码框样式 */
 .barcode-box {
-    width: 60mm;              /* 条形码框宽度 */
+    width: 63mm;              /* 条形码框宽度 */
     height: 25mm;             /* 条形码框高度 */
     /* 🔧 可调参数 39h：条形码边框样式 */
     border: 1px dashed #d93025;
@@ -291,9 +297,15 @@ body {
 /* ================================================
    选择题区域
    ============================================== */
+/* 🔧 可调参数 46：选择题区与上方注意事项区的间距 */
 .choice-section {
     position: relative;
-    margin: 0 var(--page-left);
+    margin: -8mm var(--page-left) 0 var(--page-left);
+    /*       ↑
+         这个值控制选择题框与注意事项区的间距
+         调大（如 10mm）→ 间距变大
+         调小（如 0mm）→ 间距变小
+    */
 }
 
 /* ---------- 左侧纵向定位块 ---------- */
@@ -319,17 +331,27 @@ body {
 .choice-outer {
     /* 🔧 可调参数 41：外框边框颜色和粗细 */
     border: 1px solid #d93025;
-    border-radius: 4mm;       /* 圆角大小 - 调大则边框更圆 */
-    /* 🔧 可调参数 17：外框内边距（影响横向对齐位置）*/
-    padding: 3mm;             /* 调大会让选择题内容整体右移下移 */
+    /* 🔧 可调参数 16a：外框圆角大小 - 调大则边框更圆 */
+    border-radius: 3mm;
+    /* 🔧 可调参数 17：外框内边距（影响横向对齐位置，也影响标题行与顶部距离）*/
+    /*    四个值顺序：上 右 下 左 */
+    padding: 1.5mm 1.5mm 2mm 1.5mm;             /* 统一内边距，调大会让选择题内容整体右移下移 */
+    /*    如需单独控制顶部间距，可改为：padding: 2mm 3mm 3mm 3mm; */
     background: white;
 }
+
+/* 🔧 可调参数 48：标题行（选择题+提示）样式 - 控制标题行与填涂区的垂直间距 */
 .choice-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 2.5mm;
+    /* 🔧 可调参数 48a：标题行与下方填涂区的间距 */
+    margin-bottom: 0mm;      /* 调大（如 5mm）→ 标题与填涂区距离变大 */
+    /*                       调小（如 1mm）→ 标题与填涂区距离变小 */
+    /* 🔧 可调参数 48b：标题行与红色外框顶部的间距（微调用）*/
+    margin-top: 0;             /* 调大（正值）则标题下移，调小（负值）则标题上移 */
 }
+
 /* 🔧 可调参数 18：“选择题”标题样式 */
 .choice-title {
     font-family: "SimHei", "黑体", sans-serif;
@@ -454,19 +476,19 @@ body {
 <div class="input-panel">
     <h2 class="text-xl font-bold mb-4 text-center">答题卡生成器（格点精确对齐版）</h2>
     <div class="input-item">
-        <label>📝 答题卡标题</label>
+        <label>试卷标题</label>
         <input type="text" id="cardTitle" value="2026年普通高等学校招生全国统一考试">
     </div>
     <div class="input-item">
-        <label>📚 考试学科</label>
+        <label>考试学科</label>
         <input type="text" id="cardSubject" value="数学">
     </div>
     <div class="input-item">
-        <label>🔢 准考证号位数</label>
+        <label>准考证号位数</label>
         <input type="number" id="zkLength" value="9" min="4" max="11">
     </div>
     <div class="input-item">
-        <label>✅ 选择题数量</label>
+        <label>选择题数量</label>
         <input type="number" id="choiceTotal" value="27" min="1">
     </div>
     <button class="btn-generate" id="genBtn">生成答题卡</button>
