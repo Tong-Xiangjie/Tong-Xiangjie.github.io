@@ -71,31 +71,39 @@ body {
     margin: 0 auto;
     position: relative;
     overflow: hidden;
+    /* 全局基准边距：所有定位块以此为基准 */
+    --base-margin: 2.5mm;
+    /* 全局基准宽度：定位块/填涂框统一宽度，保证全卡对齐 */
+    --block-width: 4.5mm;
 }
 
-/* ========== 定位块 铁则 ========== */
-/* 四角大定位块（长方形、放大） */
+/* ========== 定位块 铁则（严格按你要求修改） ========== */
+/* 四角大定位块：4:3比例、留边距、宽度与填涂框同源 */
 .corner-mark {
     position: absolute;
-    width: 7mm;
-    height: 3mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 3 / 4); /* 严格4:3 */
     background: #000;
 }
-.tl { top: 2mm; left: 2mm; }
-.tr { top: 2mm; right: 2mm; }
-.bl { bottom: 2mm; left: 2mm; }
-.br { bottom: 2mm; right: 2mm; }
-/* 顶部横向定位块 31个 */
+.tl { top: var(--base-margin); left: var(--base-margin); }
+.tr { top: var(--base-margin); right: var(--base-margin); }
+.bl { bottom: var(--base-margin); left: var(--base-margin); }
+.br { bottom: var(--base-margin); right: var(--base-margin); }
+
+/* 顶部横向定位块：严格夹在左右角块之间居中、宽度同源 */
 .top-mark-container {
+    position: absolute;
+    top: var(--base-margin);
+    left: calc(var(--base-margin) + var(--block-width) + 1mm);
+    right: calc(var(--base-margin) + var(--block-width) + 1mm);
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 2mm;
-    padding: 2mm 0;
+    height: calc(var(--block-width) * 3 / 4);
 }
 .top-mark {
-    width: 4.5mm;
-    height: 2mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 2 / 4);
     background: #000;
 }
 
@@ -190,8 +198,8 @@ body {
 /* 缺考方框：与填涂框同比例 */
 .note-check-box {
     display: inline-block;
-    width: 4.5mm;
-    height: 2.7mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 3 / 5);
     border: 1px solid #d93025;
     margin-right: 2mm;
     vertical-align: middle;
@@ -221,20 +229,20 @@ body {
     white-space: nowrap;
 }
 
-/* ========== 选择题区域 铁则 ========== */
+/* ========== 选择题区域 铁则（左侧定位块宽度同源对齐） ========== */
 .choice-wrap {
     position: relative;
     margin: 0 10mm;
 }
-/* 左侧纵向定位块：和ABCD严格居中对齐 */
+/* 左侧纵向定位块：宽度同源，和顶部、填涂框完全对齐 */
 .left-mark-outer {
     position: absolute;
     left: -6mm;
     top: 5.5mm;
 }
 .left-mark {
-    width: 4mm;
-    height: 2mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 2 / 4);
     background: #000;
     margin-bottom: 1.5mm;
 }
@@ -263,8 +271,8 @@ body {
     color: #d93025;
 }
 .choice-example-block {
-    width: 4.5mm;
-    height: 2.7mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 3 / 5);
     background: #000000;
     display: inline-block;
     vertical-align: middle;
@@ -297,7 +305,7 @@ body {
     color: #000000;
 }
 .num-item {
-    width: 4.5mm;
+    width: var(--block-width);
     text-align: center;
 }
 /* 选项行 */
@@ -305,10 +313,10 @@ body {
     display: flex;
     gap: 1.2mm;
 }
-/* 填涂框：宽高严格5:3 */
+/* 填涂框：宽高严格5:3，宽度全局同源 */
 .opt-box {
-    width: 4.5mm;
-    height: 2.7mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 3 / 5);
     border: 1px solid #d93025;
     display: flex;
     justify-content: center;
@@ -317,9 +325,12 @@ body {
     font-size: 7.5pt;
     color: #d93025;
 }
-/* 组间空距：严格1个填涂框完整宽度（5题与6题之间标准空隙） */
+/* 组间空距：用同源空白列占位，保证和填涂列宽度1:1 */
 .choice-gap {
-    width: 4.5mm;
+    width: var(--block-width);
+    /* 空白占位，视觉透明 */
+    background: transparent;
+    border: none;
 }
 /* 右侧填涂示例 */
 .right-example-group {
@@ -329,8 +340,8 @@ body {
     margin-left: 8mm;
 }
 .example-item {
-    width: 4.5mm;
-    height: 2.7mm;
+    width: var(--block-width);
+    height: calc(var(--block-width) * 3 / 5);
 }
 .ex-correct { background: #d93025; }
 .ex-half { background: #cccccc; }
@@ -382,10 +393,10 @@ genBtn.addEventListener('click', () => {
     let zkHtml = '';
     for(let i=0; i<zkLen; i++) zkHtml += '<td></td>';
 
-    // ========== 2. 选择题分组&空隙铁则 ==========
+    // ========== 2. 选择题分组&空隙铁则（完全保留你原逻辑，仅空隙改为同源空白列） ==========
     // 规则：
     // 1.固定5题一组，1-5、6-10、11-15……
-    // 2.5题和6题之间固定留标准组间空隙
+    // 2.5题和6题之间固定留标准组间空隙（同源空白列占位）
     // 3.一行最多4组(20题)，自动换行
     // 4.末尾余数1、2题并入上一组，无额外空隙；余数3、4单独成组，正常留空隙
     const GROUP_SIZE = 5;
@@ -422,7 +433,7 @@ genBtn.addEventListener('click', () => {
     });
     if(tempLine.length) lineGroups.push(tempLine);
 
-    // 生成选择题HTML
+    // 生成选择题HTML（完全保留原逻辑，空隙使用你要求的同源空白列）
     let choiceHtml = '';
     lineGroups.forEach(line=>{
         line.forEach((g, idx)=>{
@@ -449,7 +460,7 @@ genBtn.addEventListener('click', () => {
                     ${numRow}${aRow}${bRow}${cRow}${dRow}
                 </div>
             `;
-            // 组间加标准空隙（5题与6题之间正常间隔）
+            // 组间加【同源空白列】（你要求的核心对齐方案）
             if(idx < line.length - 1){
                 choiceHtml += `<div class="choice-gap"></div>`;
             }
@@ -458,16 +469,16 @@ genBtn.addEventListener('click', () => {
         choiceHtml += `<div style="width:100%;height:3mm;"></div>`;
     });
 
-    // ========== 3. 完整答题卡HTML ==========
+    // ========== 3. 完整答题卡HTML（完全保留你原结构，仅修改定位块样式） ==========
     const cardHtml = `
     <div class="answer-card" id="pdfTarget">
-        <!-- 四角大定位块 -->
+        <!-- 四角大定位块（已修改：留边距、4:3、宽度同源） -->
         <div class="corner-mark tl"></div>
         <div class="corner-mark tr"></div>
         <div class="corner-mark bl"></div>
         <div class="corner-mark br"></div>
 
-        <!-- 顶部横向定位块31个 -->
+        <!-- 顶部横向定位块31个（已修改：夹在角块之间、宽度同源） -->
         <div class="top-mark-container">
             ${Array(31).fill('<div class="top-mark"></div>').join('')}
         </div>
@@ -508,7 +519,7 @@ genBtn.addEventListener('click', () => {
             </div>
         </div>
 
-        <!-- 选择题区域 -->
+        <!-- 选择题区域（左侧定位块宽度同源对齐） -->
         <div class="choice-wrap">
             <div class="left-mark-outer">
                 <div class="left-mark"></div>
@@ -542,7 +553,7 @@ genBtn.addEventListener('click', () => {
     pdfBtn.style.display = 'block';
 });
 
-// 导出PDF
+// 导出PDF（完全保留你原导出逻辑）
 pdfBtn.addEventListener('click', () => {
     const target = document.getElementById('pdfTarget');
     html2pdf().set({
