@@ -412,9 +412,12 @@ function resetSearchAndStay() {
     // 根据当前所在的视图，刷新当前板块内容
     if (currentView === 'seriesList' && currentCategoryId) {
         renderSeriesList(currentCategoryId, false);
+        // 重置历史记录栈
+        resetHistoryStack();
     } 
     else if (currentView === 'varietyList' && currentSeries && currentSeries.cid !== undefined && currentSeries.si !== undefined) {
         renderVarietyList(currentSeries.cid, currentSeries.si, false);
+        resetHistoryStack();
     }
     else if (currentView === 'copyList' && currentSeries) {
         if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
@@ -422,6 +425,7 @@ function resetSearchAndStay() {
         } else {
             renderCopyList(currentSeries.cid, currentSeries.si, false);
         }
+        resetHistoryStack();
     }
     else if (currentView === 'searchResult') {
         // 在搜索结果页：返回到搜索前的视图
@@ -473,19 +477,17 @@ function resetSearchAndStay() {
                 }, 0);
             }
             
-            // 清理历史记录栈中当前的搜索结果页记录
-            if (viewHistoryStack.length > 0 && viewHistoryStack[viewHistoryStack.length - 1].view === 'searchResult') {
-                viewHistoryStack.pop();
-            }
-            
             // 清空 preSearchView
             preSearchView = null;
         } else {
             renderCategories(false);
         }
+        // 重置历史记录栈
+        resetHistoryStack();
     }
     else if (currentView === 'categories') {
         renderCategories(false);
+        resetHistoryStack();
     }
     else {
         if (currentCategoryId) {
@@ -493,6 +495,7 @@ function resetSearchAndStay() {
         } else {
             renderCategories(false);
         }
+        resetHistoryStack();
     }
     
     // 恢复当前搜索类型
@@ -504,6 +507,18 @@ function resetSearchAndStay() {
     }, 100);
 }
 
+// 重置历史记录栈，只保留当前页面
+function resetHistoryStack() {
+    const currentViewInfo = {
+        view: currentView,
+        categoryId: currentCategoryId,
+        series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
+        searchKeyword: currentSearchKeyword,
+        searchType: currentSearchType
+    };
+    viewHistoryStack = [currentViewInfo];
+}
+
 function resetSearchAndBack() {
     const currentType = currentSearchType;
     currentSearchKeyword = '';
@@ -513,6 +528,7 @@ function resetSearchAndBack() {
     preSearchView = null;
     renderCategoriesWithoutRestore();
     currentSearchType = currentType;
+    resetHistoryStack();
 }
 
 function renderCategoriesWithoutRestore() {
