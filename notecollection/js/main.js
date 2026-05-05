@@ -94,6 +94,9 @@ let fromSearchResult = false;
 let lastSearchParams = null;
 let currentReadmeBackInfo = null;
 
+// 重置操作标志，用于防止重置时滚动到顶部
+let isResetOperation = false;
+
 function toCircledNumber(num) {
     const numStr = num.toString();
     const circledDigits = {
@@ -376,8 +379,11 @@ function backToSeries() { history.back(); }
 function backToCategories() { history.back(); }
 function goBackFromReadme() { history.back(); }
 
-// 改进后的重置函数：在当前板块清空搜索，不跳回首页
+// 改进后的重置函数：在当前板块清空搜索，不跳回首页，保持滚动位置
 function resetSearchAndStay() {
+    // 保存当前滚动位置
+    const currentScrollY = window.scrollY;
+    
     // 保存当前视图状态和当前搜索类型
     const currentType = currentSearchType;
     
@@ -400,17 +406,17 @@ function resetSearchAndStay() {
         }
     }
     
-    // 根据当前所在的视图，刷新当前板块内容（不清空搜索框，只是重置搜索结果）
+    // 设置重置操作标志，防止渲染时滚动到顶部
+    isResetOperation = true;
+    
+    // 根据当前所在的视图，刷新当前板块内容
     if (currentView === 'seriesList' && currentCategoryId) {
-        // 在系列列表页（有readme和系列列表）
         renderSeriesList(currentCategoryId, false);
     } 
     else if (currentView === 'varietyList' && currentSeries && currentSeries.cid !== undefined && currentSeries.si !== undefined) {
-        // 在品种列表页
         renderVarietyList(currentSeries.cid, currentSeries.si, false);
     }
     else if (currentView === 'copyList' && currentSeries) {
-        // 在藏品列表页
         if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
             renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, false);
         } else {
@@ -418,15 +424,12 @@ function resetSearchAndStay() {
         }
     }
     else if (currentView === 'searchResult') {
-        // 在搜索结果页，清空并显示空搜索结果（显示所有内容）
         renderSearchResultPage('', currentType, true);
     }
     else if (currentView === 'categories') {
-        // 在分类首页
         renderCategories(false);
     }
     else {
-        // 其他情况（如详情页），返回到对应的列表页
         if (currentCategoryId) {
             renderSeriesList(currentCategoryId, false);
         } else {
@@ -434,8 +437,17 @@ function resetSearchAndStay() {
         }
     }
     
-    // 恢复当前搜索类型（保持用户之前的选择）
+    // 恢复当前搜索类型
     currentSearchType = currentType;
+    
+    // 恢复滚动位置
+    setTimeout(() => {
+        window.scrollTo(0, currentScrollY);
+        // 清除重置操作标志
+        setTimeout(() => {
+            isResetOperation = false;
+        }, 100);
+    }, 0);
 }
 
 function resetSearchAndBack() {
@@ -569,7 +581,6 @@ function bindSearchEvents() {
         };
     }
     if (resetBtn) {
-        // 使用改进后的重置函数
         resetBtn.onclick = function() { 
             resetSearchAndStay(); 
         };
@@ -578,7 +589,7 @@ function bindSearchEvents() {
 
 function renderCategories(restore = false) {
     fromSearchResult = false;
-    if (!restore) window.scrollTo(0, 0);
+    if (!restore && !isResetOperation) window.scrollTo(0, 0);
     searchScope = 'global';
     currentView = "categories";
     currentCategoryId = null;
@@ -612,8 +623,7 @@ function renderCategories(restore = false) {
 
 function renderSeriesList(cid, restore = false) {
     fromSearchResult = false;
-    if (!restore) window.scrollTo(0, 0);
-    // 进入板块时自动切换到当前板块搜索
+    if (!restore && !isResetOperation) window.scrollTo(0, 0);
     searchScope = 'currentCategory';
     currentView = "seriesList";
     currentCategoryId = cid;
@@ -695,8 +705,7 @@ function generateReadmeCards(readmeData, type, cid, si, vi = null) {
 
 function renderVarietyList(cid, si, restore = false) {
     fromSearchResult = false;
-    if (!restore) window.scrollTo(0, 0);
-    // 进入品种列表页时保持当前板块搜索
+    if (!restore && !isResetOperation) window.scrollTo(0, 0);
     searchScope = 'currentCategory';
     currentView = "varietyList";
     currentCategoryId = cid;
@@ -727,8 +736,7 @@ function selectVariety(cid, si, vi) {
 
 function renderCopyListFromVariety(cid, si, vi, restore = false) {
     fromSearchResult = false;
-    if (!restore) window.scrollTo(0, 0);
-    // 进入藏品列表页时保持当前板块搜索
+    if (!restore && !isResetOperation) window.scrollTo(0, 0);
     searchScope = 'currentCategory';
     currentView = "copyList";
     currentCategoryId = cid;
@@ -806,8 +814,7 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
 
 function renderCopyList(cid, si, restore = false) {
     fromSearchResult = false;
-    if (!restore) window.scrollTo(0, 0);
-    // 进入藏品列表页时保持当前板块搜索
+    if (!restore && !isResetOperation) window.scrollTo(0, 0);
     searchScope = 'currentCategory';
     currentView = "copyList";
     currentCategoryId = cid;
