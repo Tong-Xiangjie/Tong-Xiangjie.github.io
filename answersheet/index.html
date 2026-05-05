@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>标准答题卡生成器（格点精确对齐版）</title>
+<title>标准答题卡生成器</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
@@ -771,17 +771,27 @@ body {
         pdfBtn.style.display = 'block';
     });
     
-    pdfBtn.addEventListener('click', () => {
-        const target = document.getElementById('pdfTarget');
-        if(!target) return;
-        html2pdf().set({
-            margin: 0,
-            filename: '答题卡.pdf',
-            image: { type: 'image/png', quality: 1 },
-            html2canvas: { scale: 3, letterRendering: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(target).save();
-    });
+pdfBtn.addEventListener('click', () => {
+    const target = document.getElementById('pdfTarget');
+    if(!target) return;
+    
+    // 获取当前标题和学科
+    const title = document.getElementById('cardTitle').value;
+    const subject = document.getElementById('cardSubject').value;
+    
+    // 生成文件名：标题_学科答题卡.pdf
+    // 移除标题中可能影响文件名的特殊字符
+    const safeTitle = title.replace(/[\\/:*?"<>|]/g, '');
+    const fileName = `${safeTitle}_${subject}答题卡.pdf`;
+    
+    html2pdf().set({
+        margin: 0,
+        filename: fileName,    // 动态文件名
+        image: { type: 'image/png', quality: 1 },
+        html2canvas: { scale: 3, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(target).save();
+});
     
     // 初始加载
     window.addEventListener('DOMContentLoaded', () => {
