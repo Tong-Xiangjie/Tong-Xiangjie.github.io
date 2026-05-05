@@ -342,8 +342,59 @@ function performRealtimeSearch() {
     renderSearchResultPage(rawKeyword, type, true);
 }
 
+// 修改 pushViewToHistory 函数，支持替换模式
+function pushViewToHistory(replace = false) {
+    if (isHandlingPopState) return;
+    const currentViewInfo = {
+        view: currentView,
+        categoryId: currentCategoryId,
+        series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
+        searchKeyword: currentSearchKeyword,
+        searchType: currentSearchType
+    };
+    
+    if (replace && viewHistoryStack.length > 0) {
+        // 替换栈顶记录
+        viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        history.replaceState({ custom: true }, '');
+    } else {
+        viewHistoryStack.push(currentViewInfo);
+        history.pushState({ custom: true }, '');
+    }
+    if (viewHistoryStack.length > 50) viewHistoryStack.shift();
+}
+
+// 新增：清理搜索结果页历史记录的函数
+function cleanupSearchHistory() {
+    // 从历史栈中删除所有搜索结果页记录
+    const newStack = [];
+    let lastNonSearchView = null;
+    
+    for (let i = 0; i < viewHistoryStack.length; i++) {
+        const item = viewHistoryStack[i];
+        if (item.view !== 'searchResult') {
+            newStack.push(item);
+            lastNonSearchView = item;
+        }
+    }
+    
+    // 如果没有任何非搜索页面，至少保留首页
+    if (newStack.length === 0 && lastNonSearchView === null) {
+        newStack.push({
+            view: 'categories',
+            categoryId: null,
+            series: null,
+            searchKeyword: '',
+            searchType: 'all'
+        });
+    }
+    
+    viewHistoryStack.length = 0;
+    viewHistoryStack.push(...newStack);
+}
+
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
-    // 保存进入搜索前的视图状态
+    // 保存进入搜索前的视图状态（只在第一次进入搜索结果页时保存）
     if (currentView !== 'searchResult') {
         preSearchView = {
             view: currentView,
@@ -355,6 +406,7 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     
     const keyword = rawKeyword || '';
     const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
+    const wasInSearchResult = (currentView === 'searchResult');
     currentView = 'searchResult';
     if (currentView === 'categories') saveScroll("categories");
     else if (currentView === 'seriesList' && currentCategoryId) saveScroll("seriesList_" + currentCategoryId);
@@ -381,6 +433,25 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     }
     const switchBtn = document.getElementById('switchToCoinsBtn');
     if (switchBtn) switchBtn.style.display = 'none';
+    
+    // 处理历史记录：如果是同一个搜索结果页内的搜索，替换当前记录
+    if (wasInSearchResult && !isNewSearch) {
+        // 替换栈顶的历史记录
+        if (viewHistoryStack.length > 0) {
+            const currentViewInfo = {
+                view: currentView,
+                categoryId: currentCategoryId,
+                series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
+                searchKeyword: currentSearchKeyword,
+                searchType: currentSearchType
+            };
+            viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+            history.replaceState({ custom: true }, '');
+        }
+    } else {
+        // 新的搜索页面，添加到历史记录
+        pushViewToHistory(false);
+    }
 }
 
 function backToPrevious() { history.back(); }
@@ -442,14 +513,15 @@ function resetSearchAndStay() {
     // 设置重置操作标志，防止渲染时滚动到顶部
     isResetOperation = true;
     
+    // 如果当前在搜索结果页，需要清理历史记录
+    const wasInSearchResult = (currentView === 'searchResult');
+    
     // 根据当前所在的视图，刷新当前板块内容
     if (currentView === 'seriesList' && currentCategoryId) {
         renderSeriesList(currentCategoryId, false);
-        cleanupHistoryStack();
     } 
     else if (currentView === 'varietyList' && currentSeries && currentSeries.cid !== undefined && currentSeries.si !== undefined) {
         renderVarietyList(currentSeries.cid, currentSeries.si, false);
-        cleanupHistoryStack();
     }
     else if (currentView === 'copyList' && currentSeries) {
         if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
@@ -457,7 +529,6 @@ function resetSearchAndStay() {
         } else {
             renderCopyList(currentSeries.cid, currentSeries.si, false);
         }
-        cleanupHistoryStack();
     }
     else if (currentView === 'searchResult') {
         // 在搜索结果页：返回到搜索前的视图
@@ -509,19 +580,14 @@ function resetSearchAndStay() {
                 }, 0);
             }
             
-            // 清理历史记录栈
-            cleanupHistoryStack();
-            
             // 清空 preSearchView
             preSearchView = null;
         } else {
             renderCategories(false);
-            cleanupHistoryStack();
         }
     }
     else if (currentView === 'categories') {
         renderCategories(false);
-        cleanupHistoryStack();
     }
     else {
         if (currentCategoryId) {
@@ -529,7 +595,11 @@ function resetSearchAndStay() {
         } else {
             renderCategories(false);
         }
-        cleanupHistoryStack();
+    }
+    
+    // 清理历史记录栈
+    if (wasInSearchResult) {
+        cleanupSearchHistory();
     }
     
     // 恢复当前搜索类型
@@ -1277,12 +1347,7 @@ window.addEventListener('popstate', function(event) {
     setTimeout(() => { isHandlingPopState = false; }, 100);
 });
 
-function pushViewToHistory() {
-    if (isHandlingPopState) return;
-    recordCurrentView();
-    history.pushState({ custom: true }, '');
-}
-
+// 修改包装函数，使用新的 pushViewToHistory
 const originalRenderCategories = renderCategories;
 const originalRenderSeriesList = renderSeriesList;
 const originalRenderVarietyList = renderVarietyList;
@@ -1290,49 +1355,44 @@ const originalRenderCopyList = renderCopyList;
 const originalRenderCopyListFromVariety = renderCopyListFromVariety;
 const originalRenderDetail = renderDetail;
 const originalRenderDetailFromVariety = renderDetailFromVariety;
-const originalRenderSearchResultPage = renderSearchResultPage;
 
 window.renderCategories = function(restore = false) {
     const result = originalRenderCategories(restore);
-    if (!restore) pushViewToHistory();
+    if (!restore) pushViewToHistory(false);
     return result;
 };
 window.renderSeriesList = function(cid, restore = false) {
     const result = originalRenderSeriesList(cid, restore);
-    if (!restore) pushViewToHistory();
+    if (!restore) pushViewToHistory(false);
     return result;
 };
 window.renderVarietyList = function(cid, si, restore = false) {
     const result = originalRenderVarietyList(cid, si, restore);
-    if (!restore) pushViewToHistory();
+    if (!restore) pushViewToHistory(false);
     return result;
 };
 window.renderCopyList = function(cid, si, restore = false) {
     const result = originalRenderCopyList(cid, si, restore);
-    if (!restore) pushViewToHistory();
+    if (!restore) pushViewToHistory(false);
     return result;
 };
 window.renderCopyListFromVariety = function(cid, si, vi, restore = false) {
     const result = originalRenderCopyListFromVariety(cid, si, vi, restore);
-    if (!restore) pushViewToHistory();
+    if (!restore) pushViewToHistory(false);
     return result;
 };
 window.renderDetail = function(cid, si, ci) {
     const result = originalRenderDetail(cid, si, ci);
-    pushViewToHistory();
+    pushViewToHistory(false);
     return result;
 };
 window.renderDetailFromVariety = function(cid, si, vi, ci) {
     const result = originalRenderDetailFromVariety(cid, si, vi, ci);
-    pushViewToHistory();
-    return result;
-};
-window.renderSearchResultPage = function(rawKeyword, type, autoFocus = true) {
-    const result = originalRenderSearchResultPage(rawKeyword, type, autoFocus);
-    pushViewToHistory();
+    pushViewToHistory(false);
     return result;
 };
 
+// 覆盖全局函数
 renderCategories = window.renderCategories;
 renderSeriesList = window.renderSeriesList;
 renderVarietyList = window.renderVarietyList;
@@ -1353,7 +1413,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('DOMContentLoaded', function() {
     viewHistoryStack = [];
-    pushViewToHistory();
+    pushViewToHistory(false);
     renderCategories(false);
     window.scrollTo(0, 0);
 });
