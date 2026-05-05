@@ -22,7 +22,7 @@ const japanData = {
         // ==================== A序列 ====================
         {
             seriesName: "A序列",
-            year: "",
+            year: "1946",
             varieties: [
                 {
                     varietyName: "1946年 10銭 政府纸币",
@@ -61,7 +61,7 @@ const japanData = {
         // ==================== B序列 ====================
         {
             seriesName: "B序列",
-            year: "",
+            year: "1950~1953",
             varieties: [
                 {
                     varietyName: "1951年 50円 高桥是清",
@@ -103,7 +103,7 @@ const japanData = {
         // ==================== C序列 ====================
         {
             seriesName: "C序列",
-            year: "",
+            year: "1957~1963",
             varieties: [
                 {
                     varietyName: "1957年 500円 岩仓具视",
@@ -126,7 +126,7 @@ const japanData = {
         // ==================== D序列 ====================
         {
             seriesName: "D序列",
-            year: "",
+            year: "1984（2000）",
             varieties: [
                 {
                     varietyName: "1984年 1000円 夏目漱石",
@@ -168,7 +168,7 @@ const japanData = {
         // ==================== E序列 ====================
         {
             seriesName: "E序列",
-            year: "",
+            year: "2004",
             varieties: [
                 {
                     varietyName: "2004年 1000円 野口英世",
@@ -187,7 +187,7 @@ const japanData = {
         // ==================== F序列 ====================
         {
             seriesName: "F序列",
-            year: "",
+            year: "2024",
             varieties: [
                 {
                     varietyName: "2024年 1000円 北里柴三郎",
