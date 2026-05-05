@@ -97,6 +97,9 @@ let currentReadmeBackInfo = null;
 // 重置操作标志，用于防止重置时滚动到顶部
 let isResetOperation = false;
 
+// 记录进入搜索前的视图状态
+let preSearchView = null;
+
 function toCircledNumber(num) {
     const numStr = num.toString();
     const circledDigits = {
@@ -340,6 +343,16 @@ function performRealtimeSearch() {
 }
 
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
+    // 保存进入搜索前的视图状态
+    if (currentView !== 'searchResult') {
+        preSearchView = {
+            view: currentView,
+            categoryId: currentCategoryId,
+            series: currentSeries ? { cid: currentSeries.cid, si: currentSeries.si, vi: currentSeries.vi, ci: currentSeries.ci } : null,
+            scrollY: window.scrollY
+        };
+    }
+    
     const keyword = rawKeyword || '';
     const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
     currentView = 'searchResult';
@@ -424,7 +437,54 @@ function resetSearchAndStay() {
         }
     }
     else if (currentView === 'searchResult') {
-        renderSearchResultPage('', currentType, true);
+        // 返回到搜索前的视图
+        if (preSearchView) {
+            // 根据保存的视图返回
+            switch (preSearchView.view) {
+                case 'seriesList':
+                    if (preSearchView.categoryId) {
+                        renderSeriesList(preSearchView.categoryId, false);
+                    } else {
+                        renderCategories(false);
+                    }
+                    break;
+                case 'varietyList':
+                    if (preSearchView.series && preSearchView.categoryId) {
+                        renderVarietyList(preSearchView.categoryId, preSearchView.series.si, false);
+                    } else if (preSearchView.categoryId) {
+                        renderSeriesList(preSearchView.categoryId, false);
+                    } else {
+                        renderCategories(false);
+                    }
+                    break;
+                case 'copyList':
+                    if (preSearchView.series && preSearchView.categoryId) {
+                        if (preSearchView.series.vi !== undefined && preSearchView.series.vi !== null) {
+                            renderCopyListFromVariety(preSearchView.categoryId, preSearchView.series.si, preSearchView.series.vi, false);
+                        } else {
+                            renderCopyList(preSearchView.categoryId, preSearchView.series.si, false);
+                        }
+                    } else if (preSearchView.categoryId) {
+                        renderSeriesList(preSearchView.categoryId, false);
+                    } else {
+                        renderCategories(false);
+                    }
+                    break;
+                case 'categories':
+                default:
+                    renderCategories(false);
+                    break;
+            }
+            // 恢复滚动位置
+            if (preSearchView.scrollY !== undefined) {
+                setTimeout(() => {
+                    window.scrollTo(0, preSearchView.scrollY);
+                }, 0);
+            }
+            preSearchView = null;
+        } else {
+            renderCategories(false);
+        }
     }
     else if (currentView === 'categories') {
         renderCategories(false);
@@ -440,14 +500,19 @@ function resetSearchAndStay() {
     // 恢复当前搜索类型
     currentSearchType = currentType;
     
-    // 恢复滚动位置
-    setTimeout(() => {
-        window.scrollTo(0, currentScrollY);
-        // 清除重置操作标志
+    // 恢复滚动位置（非搜索页面的情况）
+    if (currentView !== 'searchResult') {
+        setTimeout(() => {
+            window.scrollTo(0, currentScrollY);
+            setTimeout(() => {
+                isResetOperation = false;
+            }, 100);
+        }, 0);
+    } else {
         setTimeout(() => {
             isResetOperation = false;
         }, 100);
-    }, 0);
+    }
 }
 
 function resetSearchAndBack() {
@@ -456,6 +521,7 @@ function resetSearchAndBack() {
     delete scrollMemory["searchResult"];
     delete scrollMemory["categories"];
     fromSearchResult = false;
+    preSearchView = null;
     renderCategoriesWithoutRestore();
     currentSearchType = currentType;
 }
@@ -525,12 +591,51 @@ function bindSearchEvents() {
     const searchType = document.getElementById('searchType');
     const searchTip = document.getElementById('searchTip');
     if (!searchInput) return;
-    if (searchInput._realtimeHandler) searchInput.removeEventListener('input', searchInput._realtimeHandler);
+    
+    // 移除旧的监听器
+    if (searchInput._realtimeHandler) {
+        searchInput.removeEventListener('input', searchInput._realtimeHandler);
+    }
+    if (searchInput._compositionStartHandler) {
+        searchInput.removeEventListener('compositionstart', searchInput._compositionStartHandler);
+        searchInput.removeEventListener('compositionend', searchInput._compositionEndHandler);
+    }
+    
     let realtimeTimer = null;
+    let isComposing = false;  // 是否正在使用输入法组合输入
+    
+    // 输入法开始组合（开始打拼音）
+    const compositionStartHandler = function() {
+        isComposing = true;
+    };
+    
+    // 输入法结束组合（确认汉字）
+    const compositionEndHandler = function() {
+        isComposing = false;
+        // 组合结束后立即触发一次搜索，让用户能马上看到结果
+        if (searchMode === 'realtime') {
+            if (realtimeTimer) clearTimeout(realtimeTimer);
+            performRealtimeSearch();
+        }
+    };
+    
+    // 保存处理器引用
+    searchInput._compositionStartHandler = compositionStartHandler;
+    searchInput._compositionEndHandler = compositionEndHandler;
+    
+    // 添加输入法组合事件监听
+    searchInput.addEventListener('compositionstart', compositionStartHandler);
+    searchInput.addEventListener('compositionend', compositionEndHandler);
+    
+    // 实时搜索的 input 处理
     const handleRealtimeInput = function(e) {
+        // 如果正在使用输入法组合输入（打拼音中），不触发搜索
+        if (isComposing) return;
+        
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => { performRealtimeSearch(); }, 300);
     };
+    
     if (searchType) {
         const handleTypeChange = function() {
             const newType = searchType.value;
@@ -548,7 +653,10 @@ function bindSearchEvents() {
         searchType.addEventListener('change', handleTypeChange);
         handleTypeChange();
     }
+    
     setupKrauseInputProtection(searchInput, searchType);
+    
+    // 根据搜索模式绑定事件
     if (searchMode === 'realtime') {
         searchInput.addEventListener('input', handleRealtimeInput);
         searchInput._realtimeHandler = handleRealtimeInput;
@@ -557,6 +665,7 @@ function bindSearchEvents() {
         searchInput.removeEventListener('input', handleRealtimeInput);
         if (searchBtn) { searchBtn.disabled = false; searchBtn.style.opacity = '1'; }
     }
+    
     if (searchBtn) {
         searchBtn.onclick = function() {
             if (searchMode === 'click') {
@@ -570,6 +679,7 @@ function bindSearchEvents() {
             }
         };
     }
+    
     if (modeToggle) {
         modeToggle.onclick = function() {
             searchMode = searchMode === 'click' ? 'realtime' : 'click';
@@ -577,9 +687,10 @@ function bindSearchEvents() {
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             modeToggle.textContent = modeIcon;
             if (searchTip) searchTip.innerHTML = `当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换`;
-            bindSearchEvents();
+            bindSearchEvents();  // 重新绑定事件以应用新模式
         };
     }
+    
     if (resetBtn) {
         resetBtn.onclick = function() { 
             resetSearchAndStay(); 
