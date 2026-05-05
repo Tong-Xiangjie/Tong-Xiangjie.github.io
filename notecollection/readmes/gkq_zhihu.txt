@@ -522,12 +522,18 @@
             </div>
             <div class="gkq-img-caption">还是一样模糊</div>
             
-            <p>云南风光是我最喜欢的品种之一，买了好几张，若是用上凹印该是多么美丽。他的主图和左侧的花纹我都相当喜爱。</p>
+            <p>云南风光是我最喜欢的品种之一，买了好几张，若是用上凹印该是多么美丽。他的主图和左侧的花纹我都相当喜爱。</p> 
+
+            <div class="gkq-img-single">
+                <img src="readmes/image/gkq/zhihu_38.jpg" alt="91云南风光">
+            </div>
+
+            <p>江南水乡几乎就是整个国库券中存世量最大的品种，它还是很漂亮的。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_38.jpg" alt="91江南水乡">
+                <img src="readmes/image/gkq/zhihu_39.jpg" alt="91江南水乡">
             </div>
-            <div class="gkq-img-caption">江南水乡几乎就是整个国库券中存世量最大的品种，它还是很漂亮的</div>
+
             <div class="gkq-note">20210529 01:10</div>
         </div>
     </div>
@@ -542,40 +548,40 @@
     <div class="gkq-accordion-content">
         <div class="gkq-accordion-content-inner">
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_headphoto_5.avif" alt="大面值国库券">
+                <img src="readmes/image/gkq/zhihu_headphoto_5.webp" alt="大面值国库券">
             </div>
             <p>1992年开始先前作为大面值的¥50和¥100的国库券在1992年变成了低面值，从1993年开始¥50面值已经被取消，从此之后国库券的最低面值变成¥100。我把1992年到1994年作为一个专门的分类，是因为这三年都存在¥500的面值，并且最高面值是¥1000。这三年都存在两期国库券。除了1992年的¥1000。</p>
             
-            <div class="gkq-popup-card" onclick="alert('财政部、中国人民银行关于1992年国库券发行工作有关事项的通知\n\n链接：http://m.110.com/fagui/57906.html')">📄 财政部、中国人民银行关于1992年国库券发行工作有关事项的通知</div>
+            <div class="gkq-popup-card" onclick="alert('财政部、中国人民银行关于1992年国库券发行工作有关事项的通知\n\n链接：http://m.110.com/fagui/57906.html')">财政部、中国人民银行关于1992年国库券发行工作有关事项的通知</div>
  
             <p>先说1992年，九二年的国库券发行量是很大的。相对于之前的每一年来说，都不在一个体量上，本身的面值就非常大，并且印刷量也较大，但是它的好处是¥100以上都是凹版印刷，1992年的100元前后几年，往前到1988年，往后到1996年，都是全胶版的。所以1996、1997、1992年这三年的¥100是雕刻版国库券最便宜的品种。</p>
             
             <p>1992年的第一期和第二期国库券的区别只在背面多了一个第二期的加字，以及正面冠号的区别，1000元只有第二期。其余三种面值，50、100元都是第一期更少，500元是第二期更少。第一期期限五年，第二期期限三年，当年有很多把第一期涂改成第二期的状况出现。为此，1995年左右为此多次下发文件通知。</p>
 
-            <div class="gkq-popup-card" onclick="alert('（网页已失效）财政部、中国人民银行关于防止误收、误兑、误销1992年变造国库券的紧急通知\n\n链接：http://m.law-lib.com/law/law_view.asp?id=60195')">📄 财政部、中国人民银行关于防止误收、误兑、误销1992年变造国库券的紧急通知</div>
+            <div class="gkq-popup-card" onclick="alert('（网页已失效）财政部、中国人民银行关于防止误收、误兑、误销1992年变造国库券的紧急通知\n\n链接：http://m.law-lib.com/law/law_view.asp?id=60195')">财政部、中国人民银行关于防止误收、误兑、误销1992年变造国库券的紧急通知</div>
             
-            <div class="gkq-popup-card" onclick="alert('（网页已失效）财政部、中国人民银行关于在内部传达鉴别1992年三年期国库券（变造券）要点的紧急通知\n\n链接：http://www.law-lib.com/law/law_view.asp?id=60454')">📄 财政部、中国人民银行关于在内部传达鉴别1992年三年期国库券（变造券）要点的紧急通知</div>
+            <div class="gkq-popup-card" onclick="alert('（网页已失效）财政部、中国人民银行关于在内部传达鉴别1992年三年期国库券（变造券）要点的紧急通知\n\n链接：http://www.law-lib.com/law/law_view.asp?id=60454')">财政部、中国人民银行关于在内部传达鉴别1992年三年期国库券（变造券）要点的紧急通知</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_39.jpg" alt="变造券示例">
+                <img src="readmes/image/gkq/zhihu_40.jpg" alt="变造券示例">
             </div>
             <div class="gkq-img-caption">如图，猛地一看还以为是92500的珍稀补号，实则是一张变造券，从第一期涂改成为第二期，00这个冠号只会出现在第一期的补号之中，这张实在是可惜了</div>
             
             <p>直到1996年，涂改债券这起事情还没完。95年就到期的国库券因为参杂了涂改券，结清和销毁工作一直延后。</p>
             
-            <div class="gkq-popup-card" onclick="alert('财政部、中国人民银行关于销毁1992年三年期国库券有关事项的通知\n\n链接：https://code.fabao365.com/law_255560.html')">📄 财政部、中国人民银行关于销毁1992年三年期国库券有关事项的通知</div>
+            <div class="gkq-popup-card" onclick="alert('财政部、中国人民银行关于销毁1992年三年期国库券有关事项的通知\n\n链接：https://code.fabao365.com/law_255560.html')">财政部、中国人民银行关于销毁1992年三年期国库券有关事项的通知</div>
             
             <p>到了1998年，五年期也已经到期了，又发了一个通知</p>
             
-            <div class="gkq-popup-card" onclick="alert('财政部、中国人民银行关于1992年国库券变造券处理意见的通知\n\n链接：http://www.law-lib.com/law/law_view1.asp?id=68196')">📄 财政部、中国人民银行关于1992年国库券变造券处理意见的通知</div>
+            <div class="gkq-popup-card" onclick="alert('财政部、中国人民银行关于1992年国库券变造券处理意见的通知\n\n链接：http://www.law-lib.com/law/law_view1.asp?id=68196')">财政部、中国人民银行关于1992年国库券变造券处理意见的通知</div>
             
             <p>涂改债券的风波还不算完，1993年，由于物价上涨太快，1992年国库券市场价格低于面值。财政部发公告，调整部分国库券利率，并且开始使用保值补贴。真是阴差阳错，1989年保值公债都没用上。</p>
             
-            <div class="gkq-popup-card" onclick="alert('（网页已失效）关于调整国库券发行条件的公告\n\n链接：http://www.czj.sh.gov.cn/zys_8908/zcfg_8983/zcfb_8985/gkgl_8991/gjzw/201509/t20150916_155602.shtml')">📄 关于调整国库券发行条件的公告</div>
+            <div class="gkq-popup-card" onclick="alert('（网页已失效）关于调整国库券发行条件的公告\n\n链接：http://www.czj.sh.gov.cn/zys_8908/zcfg_8983/zcfb_8985/gkgl_8991/gjzw/201509/t20150916_155602.shtml')">关于调整国库券发行条件的公告</div>
             
             <p>92年五年期（第一期）国库券名义上利率10.5%，三年期（第二期）国库券利率名义上9.5%，实际上五年期1997年到期兑付165.74元，三年期1995年到期兑付148.50元，这其中的混乱，现在看来是不可思议的。<p></p>1992年国库券可以说是风波不断，1995年，1992年三年期国库券快要到期的时候，又出了岔子。</p>
             
-            <div class="gkq-popup-card" onclick="alert('1995年到期的各类国债券的还本付息事宜公告\n\n来源链接：https://www.chinaacc.com/new/63%252F64%252F80%252F2006%252F3%252Fma081016385612360028100-0.htm')">📄 1995年到期的各类国债券的还本付息事宜公告</div>
+            <div class="gkq-popup-card" onclick="alert('1995年到期的各类国债券的还本付息事宜公告\n\n来源链接：https://www.chinaacc.com/new/63%252F64%252F80%252F2006%252F3%252Fma081016385612360028100-0.htm')">1995年到期的各类国债券的还本付息事宜公告</div>
             
             <div class="gkq-note">
                 <p>根据1993年5月14日中华人民共和国财政部公告，在1996年3月1日期满三年后，也可作为1993年三年期国库券兑付。计息方法与1993年三年期国库券相同。另外，1993年三年期国库券和1993年五年期实物国库券虽然可以同时兑付，但仍是两个不同的券种，因此在兑付时要严格区分，做到券面分类存放，报表中分别统计。</p>
@@ -588,12 +594,12 @@
             <p>92国库券的设计很保守，看起来甚至比87国库券还要落后，但是印制水平是有上升的，所有的品种都用了古币水印纸张，并且质量比91国库券的要更好。只有五十元是胶印，其余都是单凹。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_40.jpg" alt="古币水印">
+                <img src="readmes/image/gkq/zhihu_41.jpg" alt="古币水印">
             </div>
             <div class="gkq-img-caption">第三年也是最后一年使用古币水印</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_41.jpg" alt="92五百元">
+                <img src="readmes/image/gkq/zhihu_42.jpg" alt="92五百元">
             </div>
             <div class="gkq-img-caption">50、100是很多年以前买的了，三百块两张，500是今年入得，一千多块</div>
             
@@ -653,9 +659,9 @@
                 </table>
             </div>
             
-            <div class="gkq-popup-card" onclick="alert('财政部关于发行1993年国库券的公告\n\n链接：http://m.110.com/fagui/121519.html')">📄 财政部关于发行1993年国库券的公告</div>
+            <div class="gkq-popup-card" onclick="alert('财政部关于发行1993年国库券的公告\n\n链接：http://m.110.com/fagui/121519.html')">财政部关于发行1993年国库券的公告</div>
             <p>1993年7月，调整了利率。</p>
-            <div class="gkq-popup-card" onclick="alert('关于调整国库券发行条件的公告\n\n链接：www.czj.sh.gov.cn/zys_8908/zcfg_8983/zcfb_8985/gkgl_8991/gjzw/201509/t20150916_155602.shtml')">📄 关于调整国库券发行条件的公告</div>
+            <div class="gkq-popup-card" onclick="alert('关于调整国库券发行条件的公告\n\n链接：www.czj.sh.gov.cn/zys_8908/zcfg_8983/zcfb_8985/gkgl_8991/gjzw/201509/t20150916_155602.shtml')">关于调整国库券发行条件的公告</div>
             
             <p>三年期最初利率10%，后改为13.96%；<p></p>五年期最初利率11%，后改为15.86%。<p></p>实际上三年期到期的时候，兑付171.99元，折合年利率达24%。<p></p>实际上五年期到期的时候，兑付179.30元。<p></p>实际上五年期在1996年就可以提前兑付，拿到1998年再兑就亏大了。</p>
             
@@ -664,43 +670,43 @@
             <p>说完了兑付的事情，开始说设计和收藏。<p></p>93国库券是设计布局最为激进的一年，不仅是明显的不对称设计，背面的财政部印章都不居中了。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_42.jpg" alt="93设计1">
+                <img src="readmes/image/gkq/zhihu_43.jpg" alt="93设计1">
             </div>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_43.jpg" alt="93设计2">
+                <img src="readmes/image/gkq/zhihu_44.jpg" alt="93设计2">
             </div>
             <p>下面的图来自赵涌</p>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_44.jpg" alt="93500三年期">
+                <img src="readmes/image/gkq/zhihu_45.jpg" alt="93500三年期">
             </div>
             <div class="gkq-img-caption">500三年期是五百元面值最常见的一种</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_45.jpg" alt="已列入计划">
+                <img src="readmes/image/gkq/zhihu_46.jpg" alt="已列入计划">
             </div>
             <div class="gkq-img-caption">已经列入计划</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_46.jpg" alt="931000">
+                <img src="readmes/image/gkq/zhihu_47.jpg" alt="931000">
             </div>
             <div class="gkq-img-caption">1000元正面看起来很相似，色彩更深的是五年期</div>
             
             <p>93国库券的主题分别是100元深圳火车站，500元上海农民新村，1000元南浦大桥，综合看来全部是一线城市的景物，是所有年份国库券中最有都市感的。<p></p>印刷上首次使用了国库券水印，从此之后的国库券水印都是这种形式了。首次使用了无色荧光油墨，纸张含有多色荧光纤维，总的来说比92国库券的印刷先进一些。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_47.jpg" alt="GKQ水印">
+                <img src="readmes/image/gkq/zhihu_48.jpg" alt="GKQ水印">
             </div>
             <div class="gkq-img-caption">专用于国库券的GKQ五星水印，一直用到国库券停止发行</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_48.jpg" alt="荧光图案">
+                <img src="readmes/image/gkq/zhihu_49.jpg" alt="荧光图案">
             </div>
             <div class="gkq-img-caption">荧光图案和背面的梅花相同</div>
 
             <p>93红100元是发行量最大的百元国库券，01的冠号印满，又用07冠号印刷了好几千万张。绿色的100元发行量少很多，一般见到的流水号都在三千万以下。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_49.jpg" alt="93冠号">
+                <img src="readmes/image/gkq/zhihu_50.jpg" alt="93冠号">
             </div>
             <div class="gkq-img-caption">01 02 07的冠号</div>
             
@@ -711,25 +717,22 @@
             <p>1994年国库券简单很多，第一期棕色，第二期蓝色。设计上回归保守，兑换也简单，都是两年期。利率13%，两年后兑换126元。</p><p>虽然设计了两期，但是两者发行兑换完全一致。可能是因为92、93国库券的政策一改再改，也可能是94年开始发行了凭证式国债，从此把纸质的国库券成为无记名国债或是实物国债了。</p><p>先前的国库券收款单是国库券的附属和代替，从1994之后，以非实物形式发行的国债比例不断提高，直到1997年后实物国库券彻底停止发行，2000年之后全部到期，国库券就退出历史舞台了。</p>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_50.jpg" alt="1994凭证式国库券">
+                <img src="readmes/image/gkq/zhihu_51.jpg" alt="1994凭证式国库券">
             </div>
             <div class="gkq-img-caption">1994年发行的三年期凭证式国库券，已经可以提前兑付了</div>
             
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_51.jpg" alt="国库券收款凭证">
+                <img src="readmes/image/gkq/zhihu_52.jpg" alt="国库券收款凭证">
             </div>
             <div class="gkq-img-caption">如图，这是第一次发行的凭证式国债（凭证式国债这个品种直到今天还在发行），但是票面上仍然叫做国库券收款凭证</div>
             <p>94国库券的图案：100元山区医院，500元紫金山天文台，1000元浦东开发。</p>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_52.jpg" alt="94一百元山区医院">
+                <img src="readmes/image/gkq/zhihu_53.jpg" alt="94一百元山区医院">
             </div>
             <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_53.jpg" alt="94五百元紫金山">
+                <img src="readmes/image/gkq/zhihu_54.jpg" alt="94五百元紫金山">
             </div>
             
-            <div class="gkq-img-single">
-                <img src="readmes/image/gkq/zhihu_54.jpg" alt="94一千元浦东">
-            </div>
             <div class="gkq-img-caption">浦东开发这张我感觉像是杨浦大桥。1994年二期高面值是整部国库券中的珍品，特别是1000元二期，极其珍贵。不是有钱就有运气能买到的</div>
             <p>印刷上有小提升，高面值增加了简单的潜像图案，都增加了简单的微缩文字。以及彩色荧光油墨。</p>
             <div class="gkq-img-single">
