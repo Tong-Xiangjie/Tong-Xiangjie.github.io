@@ -678,7 +678,7 @@ if(pagePool.length > 0){
             // 顶部提示语加在<table>之前，红黑之间
             .replace('<table class="subject-inner-table">', `
                 <div class="subject-page-tip" style="margin:0 0 2mm 0;">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</div>
-                <table class="subject-inner-table">
+                <table class="subject-inner-table" style="height:240mm !important;">
             `)
             // 底部提示语加在</table>之后，红黑之间
             .replace('</table></div>', `</table>
