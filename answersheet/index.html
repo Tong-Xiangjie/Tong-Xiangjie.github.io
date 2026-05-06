@@ -30,7 +30,7 @@ body { background: #e2e8f0; padding: 20px; }
     border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 700;
 }
 .btn-pdf {
-    width: 100%; padding: 12px; background: #166534; color: #fff;
+    width: 100%; padding: 12px; background: #166334; color: #fff;
     border: none; border-radius: 8px; font-size: 16px; cursor: pointer;
     margin-top: 10px; display: none; font-weight: 700;
 }
@@ -48,47 +48,49 @@ body { background: #e2e8f0; padding: 20px; }
     page-break-after: always;
     
     /* 🔧 纸张边距（单位 mm）*/
-    --page-top: 13mm;        /* 上边距 - 调大内容整体下移 */
-    --page-bottom: 13mm;     /* 下边距 - 调大底部留白增加 */
-    --page-left: 10mm;       /* 左边距 - 调大内容右移 */
-    --page-right: 10mm;      /* 右边距 - 调大内容左移 */
+    --page-top: 13mm;        /* 上边距 */
+    --page-bottom: 13mm;     /* 下边距 */
+    --page-left: 10mm;       /* 左边距 */
+    --page-right: 10mm;      /* 右边距 */
     
     /* 🔧 填涂框和定位块尺寸 */
-    --block-width: 4.5mm;    /* 填涂框宽度 - 调大则所有方块变宽 */
-    --block-step: 6.5mm;     /* 列间距（相邻方块中心距）- 调大则选择题列间距变大 */
+    --block-width: 4.5mm;    /* 填涂框宽度 */
+    --block-step: 6.5mm;     /* 题目列间距 */
 }
 
-/* 🔧 四角大定位块 */
+/* 🔧 四角定位块：答题卡四个角的黑色定位标记 */
 .corner-mark {
     position: absolute;
-    width: var(--block-width);
-    height: calc(var(--block-width) * 3 / 4);
+    /* 比原来更大：宽高都放大 */
+    width: calc(var(--block-width) * 1.4);
+    height: calc(var(--block-width) * 1.0);
     background: #000;
 }
-.tl { top: var(--page-top); left: var(--page-left); }
-.tr { top: var(--page-top); right: var(--page-right); }
-.bl { bottom: var(--page-bottom); left: var(--page-left); }
-.br { bottom: var(--page-bottom); right: var(--page-right); }
+.tl { top: 12.5mm; left: 3mm; }  /* 左上角：往下10mm，往右10mm */
+.tr { top: 12.5mm; right: 3mm; }/* 右上角：往下10mm，往左10mm */
+.bl { bottom: 12.5mm; left: 3mm; }/*左下角：往上10mm，往右10mm*/
+.br { bottom: 12.5mm; right: 3mm; }/*右下角：往上10mm，往左10mm*/
 
-/* 🔧 顶部31个横向定位块 */
+/* 🔧 顶部定位条：答题卡顶部的一排定位标记容器 */
 .top-mark-container {
-    position: absolute;
-    top: var(--page-top);
-    left: calc(var(--page-left) + var(--block-width) + 1mm);
-    right: calc(var(--page-right) + var(--block-width) + 1mm);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: calc(var(--block-width) * 3 / 4);
+    position: absolute;          /* 绝对定位 */
+    top: var(--page-top);       /* 距离顶部边距 */
+    left: calc(var(--page-left) + var(--block-width) - 0.5mm);  /* 左侧起始位置 */
+    right: calc(var(--page-right) + var(--block-width) - 0.5mm); /* 右侧结束位置 */
+    display: flex;              /* 弹性布局，均匀排列 */
+    justify-content: space-between; /* 标记之间均匀分布 */
+    align-items: center;        /* 垂直居中 */
+    height: calc(var(--block-width) * 3 / 4); /* 容器高度 */
 }
+/* 🔧 顶部单个定位标记 */
 .top-mark {
-    width: var(--block-width);
-    height: calc(var(--block-width) * 2 / 4);
-    background: #000;
+    width: var(--block-width);   /* 单个标记宽度 */
+    height: calc(var(--block-width) * 2 / 4); /* 单个标记高度 */
+    background: #000;            /* 黑色 */
 }
 
-/* 🔧 标题区 */
-.title-section { position: relative; z-index: 2; padding-top: 18mm; }  /* 标题顶部留白 */
+/* 🔧 标题区域 */
+.title-section { position: relative; z-index: 2; padding-top: 18mm; }
 .main-title {
     font-family: "SimHei", "黑体", sans-serif;
     font-size: 18pt; color: #d93025; text-align: center;
@@ -100,7 +102,7 @@ body { background: #e2e8f0; padding: 20px; }
     margin-bottom: 3mm; font-weight: normal;
 }
 
-/* 🔧 考生信息区 */
+/* 🔧 考生信息 */
 .info-section { margin: 0 var(--page-left) 10mm var(--page-left); }
 .info-line {
     display: flex; align-items: center;
@@ -119,7 +121,7 @@ body { background: #e2e8f0; padding: 20px; }
     border: 1px solid #d93025;
 }
 
-/* 🔧 注意事项区 + 条形码区（仅第1页）*/
+/* 🔧 注意事项 */
 .note-section {
     display: flex; justify-content: space-between;
     margin: -5mm var(--page-left) 12mm var(--page-left);
@@ -160,9 +162,9 @@ body { background: #e2e8f0; padding: 20px; }
 /* 🔧 选择题区域 */
 .choice-section { position: relative; margin: -8mm var(--page-left) 0 var(--page-left); }
 
-/* 左侧纵向定位块 */
+/* 左侧定位点 */
 .left-marks-container {
-    position: absolute; left: -6mm; top: 0;
+    position: absolute; left: -6mm; top: 15.5mm;
     display: flex; flex-direction: column;
 }
 .left-mark {
@@ -177,7 +179,7 @@ body { background: #e2e8f0; padding: 20px; }
     background: white;
 }
 
-/* 🔧 提示语区域 - 第1页（选择题标题 + 提示语，左对齐）*/
+/* 选择题标题 */
 .choice-header {
     display: flex;
     align-items: center;
@@ -186,24 +188,18 @@ body { background: #e2e8f0; padding: 20px; }
     margin-bottom: 2mm;
     margin-top: 0;
 }
-
-/* 🔧 “选择题”三个字的样式 - 黑体 */
 .choice-title {
     font-family: "SimHei", "黑体", sans-serif;
     font-size: 12pt;
     color: #d93025;
     font-weight: normal;
 }
-
-/* 提示文字样式 */
 .choice-tip {
     font-family: "SimSun", "宋体", serif;
     font-size: 9pt;
     color: #d93025;
     text-align: left;
 }
-
-/* 正确填涂示例方块 */
 .choice-example-block {
     display: inline-block;
     width: var(--block-width);
@@ -213,7 +209,7 @@ body { background: #e2e8f0; padding: 20px; }
     margin-left: 2px;
 }
 
-/* 🔧 后续页提示语（只有提示语，居中）*/
+/* 后续页面提示 */
 .choice-header-no-example {
     display: flex;
     justify-content: center;
@@ -238,11 +234,11 @@ body { background: #e2e8f0; padding: 20px; }
     flex-wrap: wrap;
 }
 
-/* 每一列（每道题）*/
+/* 题目列 */
 .choice-col {
     display: flex;
     flex-direction: column;
-    gap: 2.2mm;
+    gap: 1.845mm;
     flex-shrink: 0;
     width: var(--block-step);
 }
@@ -259,7 +255,7 @@ body { background: #e2e8f0; padding: 20px; }
     font-size: 7.5pt; color: #d93025; background: white;
 }
 
-/* 隐形占位列 */
+/* 隐形占位 */
 .opt-box-invisible {
     width: var(--block-width); height: calc(var(--block-width) * 3 / 5);
     border: 1px solid #fff; background: #fff;
@@ -271,7 +267,7 @@ body { background: #e2e8f0; padding: 20px; }
     color: #fff; background: #fff; font-size: 9.5pt;
 }
 
-/* 右侧填涂示例 */
+/* 右侧示例 */
 .right-example-group {
     display: flex; flex-direction: column;
     gap: 3mm; margin-left: 8mm;
@@ -283,13 +279,11 @@ body { background: #e2e8f0; padding: 20px; }
 .ex-half { background: #ccc; }
 .ex-wrong { background: #333; }
 
-/* 组间分隔线 */
-.choice-group-spacer { width: 100%; height: 2.5mm; }
+.choice-group-spacer { width: 100%; height: 4.5mm; }
 
-/* 🔧 非答题区域（动态高度）- 红框宽度与选择题外框一致，背景白色 */
+/* 非答题区 */
 .no-answer-area {
     margin: 5mm var(--page-left) 5mm var(--page-left);
-    /*      ↑ 上边距    ↑ 下边距 */
     border: 1px solid #d93025;
     border-radius: 3mm;
     background: #ffffff;
@@ -310,11 +304,11 @@ body { background: #e2e8f0; padding: 20px; }
 <body>
 
 <div class="input-panel">
-    <h2 class="text-xl font-bold mb-4 text-center">答题卡生成器（全参数可调版）</h2>
-    <div class="input-item"><label>试卷标题</label><input type="text" id="cardTitle" value="2026年普通高等学校招生全国统一考试"></div>
+    <h2 class="text-xl font-bold mb-4 text-center">答题卡生成器</h2>
+    <div class="input-item"><label>试卷标题</label><input type="text" id="cardTitle" value="2025年普通高等学校招生全国统一考试"></div>
     <div class="input-item"><label>考试学科</label><input type="text" id="cardSubject" value="数学"></div>
     <div class="input-item"><label>准考证号位数</label><input type="number" id="zkLength" value="9" min="4" max="11"></div>
-    <div class="input-item"><label>选择题数量</label><input type="number" id="choiceTotal" value="270" min="1"></div>
+    <div class="input-item"><label>选择题数量</label><input type="number" id="choiceTotal" value="30" min="1"></div>
     <button class="btn-generate" id="genBtn">生成答题卡</button>
     <button class="btn-pdf" id="pdfBtn">导出 PDF</button>
 </div>
@@ -322,8 +316,7 @@ body { background: #e2e8f0; padding: 20px; }
 
 <script>
 /* ==============================================
-   🔧 JavaScript 可调参数区（全部集中在这里）
-   修改下面的数值即可调整布局和逻辑
+   🔧 JS 可调参数区
    ============================================== */
 (function(){
     const genBtn = document.getElementById('genBtn');
@@ -331,44 +324,41 @@ body { background: #e2e8f0; padding: 20px; }
     const cardContainer = document.getElementById('cardContainer');
 
     // ========== 布局参数 ==========
-    const BLOCK_STEP = 6.5;           // 列宽(mm)
-    const PAGE_LEFT = 15;              // 左边距(mm)
-    const BLOCK_WIDTH = 4.5;          // 方块宽度(mm)
-    const OUTER_PADDING = 3;          // 外框内边距(mm)
-    const INNER_PADDING = 2.5;        // 内框内边距(mm)
-    const OFFSET_FIX = 0;             // 横向微调(mm)
-    const TARGET_BLOCK_INDEX = -1;    // 对齐目标方块索引
+    const BLOCK_STEP = 6.5;           // 列宽
+    const PAGE_LEFT = 15;              // 左边距
+    const BLOCK_WIDTH = 4.5;          // 方块宽度
+    const OUTER_PADDING = 3;          // 外框内边距
+    const INNER_PADDING = 2.5;        // 内框内边距
+    const OFFSET_FIX = 0;             // 横向微调
+    const TARGET_BLOCK_INDEX = -1;    // 对齐目标
     
     // ========== 分页参数 ==========
-    const MAX_GROUP_PER_LINE = 4;      // 每行最多几组
-    const GROUP_SIZE = 5;              // 每组几题
-    const LINE_GAP = 3;               // 行间距(mm)
-    // 每行总高度 = (选项框高度 * 5行) + 行间距，选项框高度 = 方块宽度 * 3/5 ≈ 2.7mm
-    const OPTION_HEIGHT = BLOCK_WIDTH * 3 / 5;  // 约2.7mm
-    const ROW_HEIGHT = OPTION_HEIGHT * 5 + LINE_GAP;  // 约16.5mm
+    const MAX_GROUP_PER_LINE = 4;      // 一行几组
+    const GROUP_SIZE = 5;              // 一组几题
+    const LINE_GAP = -1;               // 行间距
+    const OPTION_HEIGHT = BLOCK_WIDTH * 3 / 5;
+    const ROW_HEIGHT = OPTION_HEIGHT * 5 + LINE_GAP;
     
     // ========== 右侧示例 ==========
-    const RIGHT_EXAMPLE_GAP = 3;       // 示例间距(mm)
-    const RIGHT_EXAMPLE_MARGIN = 8;    // 示例与题目间距(mm)
+    const RIGHT_EXAMPLE_GAP = 3;       // 示例间距
+    const RIGHT_EXAMPLE_MARGIN = 8;    // 离题目距离
     
-    // ========== 红色外框参数 ==========
-    const BOTTOM_PADDING = 2;          // 红色框底部固定间距(mm)
+    // ========== 红色外框 ==========
+    const BOTTOM_PADDING = 2;          // 红框底部间距
     
-    // ========== 非答题区参数 ==========
-    const NO_ANSWER_MIN_HEIGHT = 35;    // 非答题区最小高度(mm)
-    const NO_ANSWER_PADDING = 8;       // 非答题区内边距(mm)
-    const NO_ANSWER_MIN_FONT = 12;      // 最小字体(px)
-    const NO_ANSWER_MAX_FONT = 60;      // 最大字体(px)
+    // ========== 非答题区 ==========
+    const NO_ANSWER_MIN_HEIGHT = 35;    // 最小高度
+    const NO_ANSWER_PADDING = 8;       // 内边距
+    const NO_ANSWER_MIN_FONT = 12;      // 最小字体
+    const NO_ANSWER_MAX_FONT = 60;      // 最大字体
     
-    // ========== 页面固定占位高度（精确计算）==========
-    // 第一页额外占位：标题区(~20mm) + 考生信息区(~12mm) + 注意事项区(~28mm) = 60mm
-    const FIRST_PAGE_EXTRA_MM = 160;
-    // 非第一页顶部额外占位：定位块区域 + 提示语区域 ≈ 8mm
-    const OTHER_PAGE_EXTRA_MM = 8;
-    const PAGE_TOP_MM = 13;    // CSS变量 --page-top
-    const PAGE_BOTTOM_MM = 13; // CSS变量 --page-bottom
+    // ========== 页面高度 ==========
+    const FIRST_PAGE_EXTRA_MM = 160;   // 第一页占用高度
+    const OTHER_PAGE_EXTRA_MM = 8;     // 其他页占用高度
+    const PAGE_TOP_MM = 13;            // 上边距
+    const PAGE_BOTTOM_MM = 13;         // 下边距
 
-    // 计算横向对齐偏移
+    // 计算横向对齐
     function calculateAlignmentOffset() {
         const firstBlockLeft = PAGE_LEFT + BLOCK_WIDTH;
         const targetX = firstBlockLeft + TARGET_BLOCK_INDEX * BLOCK_STEP;
@@ -376,7 +366,7 @@ body { background: #e2e8f0; padding: 20px; }
         return targetX - totalPadding + OFFSET_FIX;
     }
 
-    // 生成单道题的列
+    // 生成单题
     function generateQuestionColumn(q) {
         return `<div class="choice-col" style="width: ${BLOCK_STEP}mm;">
             <div class="num-row"><div class="num-item">${q}</div></div>
@@ -387,7 +377,7 @@ body { background: #e2e8f0; padding: 20px; }
         </div>`;
     }
 
-    // 生成隐形占位列
+    // 生成占位
     function generateInvisibleColumn() {
         return `<div class="choice-col invisible-col" style="width: ${BLOCK_STEP}mm;">
             <div class="num-row"><div class="num-item invisible-num-cell"></div></div>
@@ -398,7 +388,7 @@ body { background: #e2e8f0; padding: 20px; }
         </div>`;
     }
 
-    // 构建指定范围的题目网格
+    // 构建题目
     function buildChoiceGrid(start, end, maxRows) {
         let groups = [];
         for(let s = start; s <= end; s += GROUP_SIZE) {
@@ -441,7 +431,7 @@ body { background: #e2e8f0; padding: 20px; }
         return { html, rows: limitedLines.length, totalQuestions };
     }
 
-    // 生成左侧纵向定位块
+    // 左侧定位
     function generateLeftMarks(rows) {
         let totalMarks = rows * 5 + (rows - 1);
         if(totalMarks < 0) totalMarks = 0;
@@ -450,7 +440,7 @@ body { background: #e2e8f0; padding: 20px; }
         return `<div class="left-marks-container">${marks}</div>`;
     }
 
-    // 准考证表格
+    // 准考证
     function buildZkTable(len) {
         let cells = '';
         for(let i = 0; i < len; i++) {
@@ -464,7 +454,7 @@ body { background: #e2e8f0; padding: 20px; }
         return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
     }
 
-    // 精确计算每页可用高度(mm)
+    // 可用高度计算
     function getAvailableHeight(isFirstPage) {
         let fixedHeight = PAGE_TOP_MM + PAGE_BOTTOM_MM;
         if(isFirstPage) {
@@ -475,46 +465,31 @@ body { background: #e2e8f0; padding: 20px; }
         return 297 - fixedHeight;
     }
 
-    // 计算每页能放的行数（基于可用高度）
+    // 每页行数
     function calcRowsPerPage(availableHeightMM) {
         let rows = Math.floor((availableHeightMM + 0.5) / ROW_HEIGHT);
         return Math.max(1, Math.min(rows, 20));
     }
 
-    // ============================================================
-    // 🔧【核心改进】动态计算非答题区字体大小
-    // 根据框的宽高比自动决定横排还是竖排
-    // ============================================================
+    // 字体计算
     function calcNoAnswerFontStyle(containerWidthPX, containerHeightPX) {
-        const TEXT_LEN = 11;  // "考生请不要在此区域作答" 共11个字
-        const ASPECT_RATIO = containerWidthPX / containerHeightPX;
-        
-        // 判断：宽度 >= 高度 时横排，否则竖排
+        const TEXT_LEN = 11;
         const isHorizontal = containerWidthPX >= containerHeightPX;
         
-        let fontSize;
-        let writingMode;
-        let whiteSpace;
+        let fontSize, writingMode, whiteSpace;
         
         if (isHorizontal) {
-            // 横排：文字一行显示，字体大小受宽度限制
-            // 公式：宽度 / 字数 * 系数（系数0.85~0.95，预留边距）
             fontSize = (containerWidthPX / TEXT_LEN) * 0.85;
-            // 同时不能超过高度的 0.7 倍（留出上下边距）
             fontSize = Math.min(fontSize, containerHeightPX * 0.7);
             writingMode = 'horizontal-tb';
             whiteSpace = 'nowrap';
         } else {
-            // 竖排：每个字占一行，字体大小受高度限制
-            // 公式：高度 / 字数 * 系数
             fontSize = (containerHeightPX / TEXT_LEN) * 0.85;
-            // 同时不能超过宽度的 0.7 倍
             fontSize = Math.min(fontSize, containerWidthPX * 0.7);
             writingMode = 'vertical-rl';
             whiteSpace = 'normal';
         }
         
-        // 限制字体范围
         fontSize = Math.min(Math.max(fontSize, NO_ANSWER_MIN_FONT), NO_ANSWER_MAX_FONT);
         
         return { fontSize, writingMode, whiteSpace, isHorizontal };
@@ -526,18 +501,14 @@ body { background: #e2e8f0; padding: 20px; }
         let maxRows = calcRowsPerPage(availableHeight);
         if(maxRows < 1) maxRows = 1;
         
-        // 计算本页最多能放多少题
         const maxQuestionsPerPage = maxRows * MAX_GROUP_PER_LINE * GROUP_SIZE;
-        // 实际结束题号
         let actualEndQ = Math.min(endQ, startQ + maxQuestionsPerPage - 1);
         if(actualEndQ < startQ) actualEndQ = startQ;
         
         const { html, rows, totalQuestions } = buildChoiceGrid(startQ, actualEndQ, maxRows);
         const leftMarks = generateLeftMarks(rows);
-        
         const choiceOuterStyle = `padding: 1.5mm 1.5mm ${BOTTOM_PADDING}mm 1.5mm;`;
         
-        // 第1页：选择题标题 + 提示语
         let headerHtml = '';
         if(isFirstPage) {
             headerHtml = `<div class="choice-header">
@@ -545,7 +516,6 @@ body { background: #e2e8f0; padding: 20px; }
                 <span class="choice-tip">(提示：请用2B铅笔在正确答案上填涂，修改时只能用橡皮擦干净，不留痕迹。正确填涂示例：<span class="choice-example-block"></span>)</span>
             </div>`;
         } else {
-            // 后续页：只有提示语（居中）
             headerHtml = `<div class="choice-header-no-example">
                 <span class="choice-tip">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</span>
             </div>`;
@@ -553,7 +523,7 @@ body { background: #e2e8f0; padding: 20px; }
         
         let fullHtml = `<div class="answer-card">`;
         fullHtml += `<div class="corner-mark tl"></div><div class="corner-mark tr"></div><div class="corner-mark bl"></div><div class="corner-mark br"></div>`;
-        fullHtml += `<div class="top-mark-container">${Array(31).fill('<div class="top-mark"></div>').join('')}</div>`;
+        fullHtml += `<div class="top-mark-container">${Array(29).fill('<div class="top-mark"></div>').join('')}</div>`;
         
         if(isFirstPage) {
             const title = document.getElementById('cardTitle').value;
@@ -565,14 +535,12 @@ body { background: #e2e8f0; padding: 20px; }
         
         fullHtml += `<div class="choice-section">${leftMarks}<div class="choice-outer" style="${choiceOuterStyle}">${headerHtml}<div class="choice-inner"><div class="choice-content-wrap" style="margin-left: ${alignOffset}mm;">${html}<div class="right-example-group" style="gap: ${RIGHT_EXAMPLE_GAP}mm; margin-left: ${RIGHT_EXAMPLE_MARGIN}mm;"><div class="example-item ex-correct"></div><div class="example-item ex-half"></div><div class="example-item ex-wrong"></div></div></div></div></div></div>`;
         
-        // 非答题区：最后一页且题目已全部放置完毕时，动态填充剩余空白
         const isReallyLastPage = (startQ + totalQuestions - 1 >= totalChoiceCount);
         if(isReallyLastPage && isLastPage) {
             const usedHeight = rows * ROW_HEIGHT;
             const remainingBlankHeight = availableHeight - usedHeight - BOTTOM_PADDING - 3;
             if(remainingBlankHeight > NO_ANSWER_MIN_HEIGHT) {
                 const noAnswerHeight = Math.max(remainingBlankHeight - NO_ANSWER_PADDING, NO_ANSWER_MIN_HEIGHT);
-                // 预设置一个合理的字体大小（后续会动态调整）
                 let fontSize = Math.min(noAnswerHeight * 0.35, NO_ANSWER_MAX_FONT);
                 fontSize = Math.max(fontSize, NO_ANSWER_MIN_FONT);
                 fullHtml += `<div class="no-answer-area" style="height: ${noAnswerHeight}mm; min-height: auto; display: flex; justify-content: center; align-items: center;">
@@ -589,7 +557,7 @@ body { background: #e2e8f0; padding: 20px; }
         return { html: fullHtml, usedQuestions: totalQuestions };
     }
 
-    // 主渲染函数 - 精确分页
+    // 主函数
     function renderAllPages() {
         let zkLen = parseInt(document.getElementById('zkLength').value, 10);
         let choiceTotal = parseInt(document.getElementById('choiceTotal').value, 10);
@@ -628,7 +596,6 @@ body { background: #e2e8f0; padding: 20px; }
         
         cardContainer.innerHTML = allPages;
         
-        // 🔧【核心改进】渲染后根据实际容器尺寸动态调整非答题区文字样式（横排/竖排）
         setTimeout(() => {
             const noAnswerAreas = document.querySelectorAll('.no-answer-area');
             noAnswerAreas.forEach(area => {
@@ -641,7 +608,6 @@ body { background: #e2e8f0; padding: 20px; }
                         textDiv.style.fontSize = fontSize + 'px';
                         textDiv.style.writingMode = writingMode;
                         textDiv.style.whiteSpace = whiteSpace;
-                        // 竖排时调整文字方向，使其正向阅读（从上到下，从右向左）
                         if (writingMode === 'vertical-rl') {
                             textDiv.style.textOrientation = 'mixed';
                         }
