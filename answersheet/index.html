@@ -65,6 +65,7 @@ body { background: #e2e8f0; padding: 20px; }
     width: calc(var(--block-width) * 1.4);
     height: calc(var(--block-width) * 1.0);
     background: #000;
+    border: 1px solid #d93025; /* 👈 只加了这一行：红色描边 */
 }
 .tl { top: 12.5mm; left: 3mm; }  /* 左上角：往下10mm，往右10mm */
 .tr { top: 12.5mm; right: 3mm; }/* 右上角：往下10mm，往左10mm */
@@ -267,17 +268,65 @@ body { background: #e2e8f0; padding: 20px; }
     color: #fff; background: #fff; font-size: 9.5pt;
 }
 
-/* 右侧示例 */
+/* 右侧填涂示例 - 改成4个：红-白-灰-黑 */
 .right-example-group {
-    display: flex; flex-direction: column;
-    gap: 3mm; margin-left: 8mm;
+    display: flex; 
+    flex-direction: column;
+    /* 和题目填涂框的间距完全同步 */
+    gap: 1.845mm !important; /* 👈 必须和 .choice-col 的 gap 保持一致 */
+    margin-left: 8mm;
 }
 .example-item {
-    width: var(--block-width); height: calc(var(--block-width) * 3 / 5);
+    width: var(--block-width); 
+    height: calc(var(--block-width) * 3 / 5);
+    /* 加上边框，和题目方框样式统一 */
+    border: 1px solid #d93025;
+    background: white; /* 默认白色，再用类覆盖 */
 }
-.ex-correct { background: #d93025; }
-.ex-half { background: #ccc; }
-.ex-wrong { background: #333; }
+/* 右侧填涂示例容器 */
+.right-example-group {
+    position: absolute;
+    right: 10mm;
+    top: auto;
+    bottom: auto;
+    align-self: end;        /* 👈 对齐最后一排题目高度 */
+    display: flex;
+    flex-direction: column;
+    gap: 1.845mm !important;
+    margin-left: 0;
+    transform: translateY(0mm); /* 👈 微调上下，0.5mm 是标准 */
+}
+
+/* 所有示例方块的基础样式 */
+.example-item {
+    width: var(--block-width); 
+    height: calc(var(--block-width) * 3 / 5);
+    background: white; /* 默认背景为白色 */
+}
+
+/* 🔴 正确填涂（红色）+ 带边框 */
+.ex-correct { 
+    background: #d93025; 
+    border: 1px solid #d93025; 
+}
+
+/* ⚪ 不完整填涂（灰色）+ 带边框 */
+.ex-half { 
+    background: #ccc; 
+    border: 1px solid #d93025; 
+}
+
+/* ⚫ 错误填涂（黑色）+ 带边框 */
+.ex-wrong { 
+    background: #333; 
+    border: 1px solid #d93025; 
+}
+
+/* ⚪ 未填涂/占位（白色）：无背景、无描边 */
+.ex-empty { 
+    background: #fff; 
+    border: none; 
+}
 
 .choice-group-spacer { width: 100%; height: 4.5mm; }
 
@@ -341,7 +390,7 @@ body { background: #e2e8f0; padding: 20px; }
     
     // ========== 右侧示例 ==========
     const RIGHT_EXAMPLE_GAP = 3;       // 示例间距
-    const RIGHT_EXAMPLE_MARGIN = 8;    // 离题目距离
+    const RIGHT_EXAMPLE_MARGIN = 92;    // 离题目距离
     
     // ========== 红色外框 ==========
     const BOTTOM_PADDING = 2;          // 红框底部间距
@@ -533,7 +582,13 @@ body { background: #e2e8f0; padding: 20px; }
             fullHtml += `<div class="note-section"><table class="note-table"><tr><td rowspan="2" class="note-left-cell">注意事项</td><td class="note-content-cell">1. 答题前，考生先填写好自己的姓名、准考证号，并认真核对条形码上的姓名、准考证号、考室和座位号；<br>2. 在草稿纸、试题卷上答题无效；<br>3. 答题时，请考生注意各题号后面的答题提示；<br>4. 请勿折叠答题卡，保持字体工整、笔迹清晰、卡面清洁。</td></tr><tr><td class="note-check-cell"><span class="note-check-box"></span> ← 此方框为缺考考生标记，由监考员用2B铅笔填涂</td></tr></table><div class="barcode-box"><div class="barcode-title">贴条形码区</div><div class="barcode-tip">(正面朝上，切勿贴出虚线方框)</div></div></div>`;
         }
         
-        fullHtml += `<div class="choice-section">${leftMarks}<div class="choice-outer" style="${choiceOuterStyle}">${headerHtml}<div class="choice-inner"><div class="choice-content-wrap" style="margin-left: ${alignOffset}mm;">${html}<div class="right-example-group" style="gap: ${RIGHT_EXAMPLE_GAP}mm; margin-left: ${RIGHT_EXAMPLE_MARGIN}mm;"><div class="example-item ex-correct"></div><div class="example-item ex-half"></div><div class="example-item ex-wrong"></div></div></div></div></div></div>`;
+        fullHtml += `<div class="choice-section">${leftMarks}<div class="choice-outer" style="${choiceOuterStyle}">${headerHtml}<div class="choice-inner"><div class="choice-content-wrap" style="margin-left: ${alignOffset}mm;">${html}
+<div class="right-example-group" style="margin-top: 6.8mm; gap: ${RIGHT_EXAMPLE_GAP}mm; margin-left: ${RIGHT_EXAMPLE_MARGIN}mm;">
+    <div class="example-item ex-correct"></div>
+    <div class="example-item ex-empty"></div>
+    <div class="example-item ex-half"></div>
+    <div class="example-item ex-wrong"></div>
+</div></div></div></div></div>`;
         
         const isReallyLastPage = (startQ + totalQuestions - 1 >= totalChoiceCount);
         if(isReallyLastPage && isLastPage) {
