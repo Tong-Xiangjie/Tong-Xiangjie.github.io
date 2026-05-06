@@ -7,14 +7,9 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
-/* ==============================================
-   答题卡样式 - 🔧 标记处均为可调参数
-   直接修改数值即可调整布局
-   ============================================== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #e2e8f0; padding: 20px; }
 
-/* ---------- 用户输入面板（无需调整）---------- */
 .input-panel {
     max-width: 640px; margin: 0 auto 30px; padding: 24px;
     background: #fff; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
@@ -35,9 +30,7 @@ body { background: #e2e8f0; padding: 20px; }
     margin-top: 10px; display: none; font-weight: 700;
 }
 
-/* ==============================================
-   🔧 答题卡核心参数（修改这里调整整体布局）
-   ============================================== */
+/* ========== 全局统一尺寸变量 保证选择/非选择框同宽 ========== */
 .answer-card {
     width: 210mm;
     min-height: 297mm;
@@ -46,51 +39,51 @@ body { background: #e2e8f0; padding: 20px; }
     position: relative;
     box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     page-break-after: always;
-    
-    /* 🔧 纸张边距（单位 mm）*/
-    --page-top: 13mm;        /* 上边距 */
-    --page-bottom: 13mm;     /* 下边距 */
-    --page-left: 10mm;       /* 左边距 */
-    --page-right: 10mm;      /* 右边距 */
-    
-    /* 🔧 填涂框和定位块尺寸 */
-    --block-width: 4.5mm;    /* 填涂框宽度 */
-    --block-step: 6.5mm;     /* 题目列间距 */
+
+    --page-top: 13mm;
+    --page-bottom: 13mm;
+    --page-left: 10mm;
+    --page-right: 10mm;
+
+    --block-width: 4.5mm;
+    --block-step: 6.5mm;
+
+    /* 选择/非选择题 外红框统一左右边距 */
+    --card-outer-lr: var(--page-left);
+    --card-outer-tb: 1.5mm;
+    /* 内黑框统一内边距 */
+    --card-inner-padding: 2.5mm;
 }
 
-/* 🔧 四角定位块：答题卡四个角的黑色定位标记 */
+/* 四角定位块 */
 .corner-mark {
     position: absolute;
-    /* 比原来更大：宽高都放大 */
     width: calc(var(--block-width) * 1.4);
     height: calc(var(--block-width) * 1.0);
     background: #000;
-    border: 1px solid #d93025; /* 👈 只加了这一行：红色描边 */
 }
-.tl { top: 12.5mm; left: 3mm; }  /* 左上角：往下10mm，往右10mm */
-.tr { top: 12.5mm; right: 3mm; }/* 右上角：往下10mm，往左10mm */
-.bl { bottom: 12.5mm; left: 3mm; }/*左下角：往上10mm，往右10mm*/
-.br { bottom: 12.5mm; right: 3mm; }/*右下角：往上10mm，往左10mm*/
+.tl { top: 12.5mm; left: 3mm; }
+.tr { top: 12.5mm; right: 3mm; }
+.bl { bottom: 12.5mm; left: 3mm; }
+.br { bottom: 12.5mm; right: 3mm; }
 
-/* 🔧 顶部定位条：答题卡顶部的一排定位标记容器 */
 .top-mark-container {
-    position: absolute;          /* 绝对定位 */
-    top: var(--page-top);       /* 距离顶部边距 */
-    left: calc(var(--page-left) + var(--block-width) - 0.5mm);  /* 左侧起始位置 */
-    right: calc(var(--page-right) + var(--block-width) - 0.5mm); /* 右侧结束位置 */
-    display: flex;              /* 弹性布局，均匀排列 */
-    justify-content: space-between; /* 标记之间均匀分布 */
-    align-items: center;        /* 垂直居中 */
-    height: calc(var(--block-width) * 3 / 4); /* 容器高度 */
+    position: absolute;
+    top: var(--page-top);
+    left: calc(var(--page-left) + var(--block-width) - 0.5mm);
+    right: calc(var(--page-right) + var(--block-width) - 0.5mm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: calc(var(--block-width) * 3 / 4);
 }
-/* 🔧 顶部单个定位标记 */
 .top-mark {
-    width: var(--block-width);   /* 单个标记宽度 */
-    height: calc(var(--block-width) * 2 / 4); /* 单个标记高度 */
-    background: #000;            /* 黑色 */
+    width: var(--block-width);
+    height: calc(var(--block-width) * 2 / 4);
+    background: #000;
 }
 
-/* 🔧 标题区域 */
+/* 标题 */
 .title-section { position: relative; z-index: 2; padding-top: 18mm; }
 .main-title {
     font-family: "SimHei", "黑体", sans-serif;
@@ -103,7 +96,7 @@ body { background: #e2e8f0; padding: 20px; }
     margin-bottom: 3mm; font-weight: normal;
 }
 
-/* 🔧 考生信息 */
+/* 考生信息 */
 .info-section { margin: 0 var(--page-left) 10mm var(--page-left); }
 .info-line {
     display: flex; align-items: center;
@@ -122,7 +115,7 @@ body { background: #e2e8f0; padding: 20px; }
     border: 1px solid #d93025;
 }
 
-/* 🔧 注意事项 */
+/* 注意事项 */
 .note-section {
     display: flex; justify-content: space-between;
     margin: -5mm var(--page-left) 12mm var(--page-left);
@@ -157,13 +150,14 @@ body { background: #e2e8f0; padding: 20px; }
     border-radius: 3mm; display: flex; flex-direction: column;
     justify-content: center; align-items: center; background: #fff;
 }
-.barcode-title { font-family: "SimSun", "宋体", serif; font-size: 14pt; color: #d93025; }
+.barcode-title { font-family: "SimHei", "黑体", sans-serif; font-size: 14pt; color: #d93025; }
 .barcode-tip { font-family: "SimSun", "宋体", serif; font-size: 8pt; color: #d93025; }
 
-/* 🔧 选择题区域 */
-.choice-section { position: relative; margin: -8mm var(--page-left) 0 var(--page-left); }
-
-/* 左侧定位点 */
+/* 选择题区域 */
+.choice-section { 
+    position: relative; 
+    margin: -8mm var(--card-outer-lr) 0 var(--card-outer-lr); 
+}
 .left-marks-container {
     position: absolute; left: -6mm; top: 15.5mm;
     display: flex; flex-direction: column;
@@ -172,76 +166,42 @@ body { background: #e2e8f0; padding: 20px; }
     width: var(--block-width); height: calc(var(--block-width) * 2 / 4);
     background: #000; margin-bottom: 2.2mm;
 }
-
-/* 红色外框 */
 .choice-outer {
     border: 1px solid #d93025; border-radius: 3mm;
-    padding: 1.5mm 1.5mm 0 1.5mm;
+    padding: var(--card-outer-tb) 1.5mm 2mm 1.5mm;
     background: white;
 }
-
-/* 选择题标题 */
 .choice-header {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    margin-bottom: 2mm;
-    margin-top: 0;
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 2mm; margin-top: 0;
 }
 .choice-title {
     font-family: "SimHei", "黑体", sans-serif;
-    font-size: 12pt;
-    color: #d93025;
-    font-weight: normal;
+    font-size: 12pt; color: #d93025; font-weight: normal;
 }
 .choice-tip {
     font-family: "SimSun", "宋体", serif;
-    font-size: 9pt;
-    color: #d93025;
-    text-align: left;
+    font-size: 9pt; color: #d93025; text-align: left;
 }
 .choice-example-block {
-    display: inline-block;
-    width: var(--block-width);
-    height: calc(var(--block-width) * 3 / 5);
-    background: #000;
-    vertical-align: middle;
-    margin-left: 2px;
+    display: inline-block; width: var(--block-width);
+    height: calc(var(--block-width) * 3 / 5); background: #000;
+    vertical-align: middle; margin-left: 2px;
 }
-
-/* 后续页面提示 */
 .choice-header-no-example {
-    display: flex;
-    justify-content: center;
-    margin-bottom: -0.5mm;
-    margin-top: -1mm;
+    display: flex; justify-content: center;
+    margin-bottom: -0.5mm; margin-top: -1mm;
 }
-.choice-header-no-example .choice-tip {
-    text-align: center;
-    font-size: 11pt;
+.choice-header-no-example .choice-tip { text-align: center; font-size: 11pt; }
+.choice-inner { 
+    border: 1px solid #000; 
+    padding: var(--card-inner-padding); 
+    background: white; 
 }
-
-/* 黑色内框 */
-.choice-inner {
-    border: 1px solid #000;
-    padding: 2.5mm;
-    background: white;
-}
-.choice-content-wrap {
-    display: flex;
-    align-items: flex-start;
-    gap: 0;
-    flex-wrap: wrap;
-}
-
-/* 题目列 */
+.choice-content-wrap { display: flex; align-items: flex-start; gap: 0; flex-wrap: wrap; }
 .choice-col {
-    display: flex;
-    flex-direction: column;
-    gap: 1.845mm;
-    flex-shrink: 0;
-    width: var(--block-step);
+    display: flex; flex-direction: column; gap: 1.845mm;
+    flex-shrink: 0; width: var(--block-step);
 }
 .num-row, .opt-row { display: flex; gap: 0; justify-content: space-between; }
 .num-item {
@@ -255,8 +215,6 @@ body { background: #e2e8f0; padding: 20px; }
     align-items: center; font-family: "SimHei", "黑体", sans-serif;
     font-size: 7.5pt; color: #d93025; background: white;
 }
-
-/* 隐形占位 */
 .opt-box-invisible {
     width: var(--block-width); height: calc(var(--block-width) * 3 / 5);
     border: 1px solid #fff; background: #fff;
@@ -267,86 +225,66 @@ body { background: #e2e8f0; padding: 20px; }
     width: var(--block-width); text-align: center;
     color: #fff; background: #fff; font-size: 9.5pt;
 }
-
-/* 右侧填涂示例 - 改成4个：红-白-灰-黑 */
 .right-example-group {
-    display: flex; 
-    flex-direction: column;
-    /* 和题目填涂框的间距完全同步 */
-    gap: 1.845mm !important; /* 👈 必须和 .choice-col 的 gap 保持一致 */
-    margin-left: 8mm;
+    position: absolute; right: 10mm; top: auto; bottom: auto;
+    align-self: end; display: flex; flex-direction: column;
+    gap: 1.845mm !important; margin-left: 0; transform: translateY(0mm);
 }
 .example-item {
-    width: var(--block-width); 
-    height: calc(var(--block-width) * 3 / 5);
-    /* 加上边框，和题目方框样式统一 */
-    border: 1px solid #d93025;
-    background: white; /* 默认白色，再用类覆盖 */
+    width: var(--block-width); height: calc(var(--block-width) * 3 / 5);
+    background: white; border: 1px solid #d93025;
 }
-/* 右侧填涂示例容器 */
-.right-example-group {
-    position: absolute;
-    right: 10mm;
-    top: auto;
-    bottom: auto;
-    align-self: end;        /* 👈 对齐最后一排题目高度 */
-    display: flex;
-    flex-direction: column;
-    gap: 1.845mm !important;
-    margin-left: 0;
-    transform: translateY(0mm); /* 👈 微调上下，0.5mm 是标准 */
-}
-
-/* 所有示例方块的基础样式 */
-.example-item {
-    width: var(--block-width); 
-    height: calc(var(--block-width) * 3 / 5);
-    background: white; /* 默认背景为白色 */
-}
-
-/* 🔴 正确填涂（红色）+ 带边框 */
-.ex-correct { 
-    background: #d93025; 
-    border: 1px solid #d93025; 
-}
-
-/* ⚪ 不完整填涂（灰色）+ 带边框 */
-.ex-half { 
-    background: #ccc; 
-    border: 1px solid #d93025; 
-}
-
-/* ⚫ 错误填涂（黑色）+ 带边框 */
-.ex-wrong { 
-    background: #333; 
-    border: 1px solid #d93025; 
-}
-
-/* ⚪ 未填涂/占位（白色）：无背景、无描边 */
-.ex-empty { 
-    background: #fff; 
-    border: none; 
-}
-
+.ex-correct { background: #d93025; border: 1px solid #d93025; }
+.ex-half { background: #ccc; border: 1px solid #d93025; }
+.ex-wrong { background: #333; border: 1px solid #d93025; }
+.ex-empty { background: #fff; border: none; }
 .choice-group-spacer { width: 100%; height: 4.5mm; }
 
-/* 非答题区 */
-.no-answer-area {
-    margin: 5mm var(--page-left) 5mm var(--page-left);
-    border: 1px solid #d93025;
-    border-radius: 3mm;
-    background: #ffffff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
+/* 非选择题 同宽同框 */
+.subject-outer {
+    margin: 4mm var(--card-outer-lr) 0 var(--card-outer-lr);
+    border: 1px solid #d93025; border-radius: 3mm;
+    padding: var(--card-outer-tb) 1.5mm 2mm 1.5mm;
+    background: #fff;
 }
-.no-answer-text {
+.subject-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 2mm; margin-top: 0;
+}
+.subject-title {
     font-family: "SimHei", "黑体", sans-serif;
-    color: #d93025;
-    text-align: center;
-    line-height: 1.2;
-    word-break: keep-all;
+    font-size: 12pt; color: #d93025; font-weight: normal;
+}
+.subject-tip {
+    font-family: "SimSun", "宋体", serif;
+    font-size: 9pt; color: #d93025; text-align: left;
+}
+.subject-inner-table {
+    width: 100%; border-collapse: collapse; 
+    border: 1px solid #000;
+}
+.subject-inner-table td {
+    padding: var(--card-inner-padding); 
+    vertical-align: top; border-top: 1px solid #000;
+}
+.subject-inner-table tr:first-child td { border-top: none; }
+
+.fill-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4mm; margin-bottom: 3mm; }
+.fill-item { display: inline-flex; align-items: center; gap: 1.5mm; }
+.fill-label { font-family: "SimSun", serif; font-size: 11pt; }
+.fill-blank { display: inline-block; width: 12mm; border-bottom: 1px dashed #d93025; }
+
+.answer-title {
+    font-family: "SimSun", serif; display: flex; align-items: baseline;
+    gap: 1.5mm; margin-bottom: 1.5mm;
+}
+.answer-no { font-size: 12.5pt; }
+.answer-score { font-size: 10pt; }
+.answer-blank { width: 100%; background: #fff; }
+
+.subject-page-tip {
+    text-align: center; font-family: "SimSun", serif;
+    font-size: 10pt; color: #d93025; margin: 2mm 0;
 }
 </style>
 </head>
@@ -357,57 +295,46 @@ body { background: #e2e8f0; padding: 20px; }
     <div class="input-item"><label>试卷标题</label><input type="text" id="cardTitle" value="2025年普通高等学校招生全国统一考试"></div>
     <div class="input-item"><label>考试学科</label><input type="text" id="cardSubject" value="数学"></div>
     <div class="input-item"><label>准考证号位数</label><input type="number" id="zkLength" value="9" min="4" max="11"></div>
-    <div class="input-item"><label>选择题数量</label><input type="number" id="choiceTotal" value="30" min="1"></div>
+    <div class="input-item"><label>选择题数量</label><input type="number" id="choiceTotal" value="10" min="0"></div>
+
+    <div class="input-item"><label>填空题(格式:1-2,2-2)</label><input type="text" id="fillRule" value="1-2,2-2,3-2"></div>
+    <div class="input-item"><label>解答题数量</label><input type="number" id="ansCount" value="3" min="0"></div>
+    <div class="input-item"><label>解答题分值(请用空格分隔)</label><input type="text" id="ansScores" value="12 12 14"></div>
+
     <button class="btn-generate" id="genBtn">生成答题卡</button>
     <button class="btn-pdf" id="pdfBtn">导出 PDF</button>
 </div>
 <div id="cardContainer"></div>
 
 <script>
-/* ==============================================
-   🔧 JS 可调参数区
-   ============================================== */
 (function(){
     const genBtn = document.getElementById('genBtn');
     const pdfBtn = document.getElementById('pdfBtn');
     const cardContainer = document.getElementById('cardContainer');
 
-    // ========== 布局参数 ==========
-    const BLOCK_STEP = 6.5;           // 列宽
-    const PAGE_LEFT = 15;              // 左边距
-    const BLOCK_WIDTH = 4.5;          // 方块宽度
-    const OUTER_PADDING = 3;          // 外框内边距
-    const INNER_PADDING = 2.5;        // 内框内边距
-    const OFFSET_FIX = 0;             // 横向微调
-    const TARGET_BLOCK_INDEX = -1;    // 对齐目标
-    
-    // ========== 分页参数 ==========
-    const MAX_GROUP_PER_LINE = 4;      // 一行几组
-    const GROUP_SIZE = 5;              // 一组几题
-    const LINE_GAP = -1;               // 行间距
+    const BLOCK_STEP = 6.5;
+    const PAGE_LEFT = 15;
+    const BLOCK_WIDTH = 4.5;
+    const OUTER_PADDING = 3;
+    const INNER_PADDING = 2.5;
+    const OFFSET_FIX = 0;
+    const TARGET_BLOCK_INDEX = -1;
+
+    const MAX_GROUP_PER_LINE = 4;
+    const GROUP_SIZE = 5;
+    const LINE_GAP = -1;
     const OPTION_HEIGHT = BLOCK_WIDTH * 3 / 5;
     const ROW_HEIGHT = OPTION_HEIGHT * 5 + LINE_GAP;
-    
-    // ========== 右侧示例 ==========
-    const RIGHT_EXAMPLE_GAP = 3;       // 示例间距
-    const RIGHT_EXAMPLE_MARGIN = 92;    // 离题目距离
-    
-    // ========== 红色外框 ==========
-    const BOTTOM_PADDING = 2;          // 红框底部间距
-    
-    // ========== 非答题区 ==========
-    const NO_ANSWER_MIN_HEIGHT = 35;    // 最小高度
-    const NO_ANSWER_PADDING = 8;       // 内边距
-    const NO_ANSWER_MIN_FONT = 12;      // 最小字体
-    const NO_ANSWER_MAX_FONT = 60;      // 最大字体
-    
-    // ========== 页面高度 ==========
-    const FIRST_PAGE_EXTRA_MM = 160;   // 第一页占用高度
-    const OTHER_PAGE_EXTRA_MM = 8;     // 其他页占用高度
-    const PAGE_TOP_MM = 13;            // 上边距
-    const PAGE_BOTTOM_MM = 13;         // 下边距
 
-    // 计算横向对齐
+    const FIRST_PAGE_EXTRA_MM = 160;
+    const OTHER_PAGE_EXTRA_MM = 8;
+    const PAGE_TOP_MM = 13;
+    const PAGE_BOTTOM_MM = 13;
+    const PAGE_FULL_HEIGHT = 297;
+
+    const QUESTION_BASE_H = 12;
+    const QUESTION_PER_SCORE_H = 1.8;
+
     function calculateAlignmentOffset() {
         const firstBlockLeft = PAGE_LEFT + BLOCK_WIDTH;
         const targetX = firstBlockLeft + TARGET_BLOCK_INDEX * BLOCK_STEP;
@@ -415,7 +342,6 @@ body { background: #e2e8f0; padding: 20px; }
         return targetX - totalPadding + OFFSET_FIX;
     }
 
-    // 生成单题
     function generateQuestionColumn(q) {
         return `<div class="choice-col" style="width: ${BLOCK_STEP}mm;">
             <div class="num-row"><div class="num-item">${q}</div></div>
@@ -426,7 +352,6 @@ body { background: #e2e8f0; padding: 20px; }
         </div>`;
     }
 
-    // 生成占位
     function generateInvisibleColumn() {
         return `<div class="choice-col invisible-col" style="width: ${BLOCK_STEP}mm;">
             <div class="num-row"><div class="num-item invisible-num-cell"></div></div>
@@ -437,7 +362,6 @@ body { background: #e2e8f0; padding: 20px; }
         </div>`;
     }
 
-    // 构建题目
     function buildChoiceGrid(start, end, maxRows) {
         let groups = [];
         for(let s = start; s <= end; s += GROUP_SIZE) {
@@ -446,7 +370,6 @@ body { background: #e2e8f0; padding: 20px; }
             for(let q = s; q <= e; q++) questions.push(q);
             groups.push(questions);
         }
-        
         let lines = [];
         let curLine = [];
         for(let g of groups) {
@@ -458,7 +381,6 @@ body { background: #e2e8f0; padding: 20px; }
             }
         }
         if(curLine.length) lines.push(curLine);
-        
         const limitedLines = lines.slice(0, maxRows);
         let html = '';
         let totalQuestions = 0;
@@ -480,7 +402,6 @@ body { background: #e2e8f0; padding: 20px; }
         return { html, rows: limitedLines.length, totalQuestions };
     }
 
-    // 左侧定位
     function generateLeftMarks(rows) {
         let totalMarks = rows * 5 + (rows - 1);
         if(totalMarks < 0) totalMarks = 0;
@@ -489,13 +410,12 @@ body { background: #e2e8f0; padding: 20px; }
         return `<div class="left-marks-container">${marks}</div>`;
     }
 
-    // 准考证
     function buildZkTable(len) {
         let cells = '';
         for(let i = 0; i < len; i++) {
             cells += '<td style="width:7mm;height:8mm;border:1px solid #d93025;"></td>';
         }
-        return '<table class="zk-table" style="border-collapse:collapse;"><tr>' + cells + '<tr></table>';
+        return '<table class="zk-table" style="border-collapse:collapse;"><tr>' + cells + '</tr></table>';
     }
 
     function escapeHtml(str) {
@@ -503,179 +423,279 @@ body { background: #e2e8f0; padding: 20px; }
         return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
     }
 
-    // 可用高度计算
     function getAvailableHeight(isFirstPage) {
         let fixedHeight = PAGE_TOP_MM + PAGE_BOTTOM_MM;
-        if(isFirstPage) {
-            fixedHeight += FIRST_PAGE_EXTRA_MM;
-        } else {
-            fixedHeight += OTHER_PAGE_EXTRA_MM;
-        }
-        return 297 - fixedHeight;
+        if(isFirstPage) fixedHeight += FIRST_PAGE_EXTRA_MM;
+        else fixedHeight += OTHER_PAGE_EXTRA_MM;
+        return PAGE_FULL_HEIGHT - fixedHeight;
     }
 
-    // 每页行数
     function calcRowsPerPage(availableHeightMM) {
         let rows = Math.floor((availableHeightMM + 0.5) / ROW_HEIGHT);
         return Math.max(1, Math.min(rows, 20));
     }
 
-    // 字体计算
-    function calcNoAnswerFontStyle(containerWidthPX, containerHeightPX) {
-        const TEXT_LEN = 11;
-        const isHorizontal = containerWidthPX >= containerHeightPX;
-        
-        let fontSize, writingMode, whiteSpace;
-        
-        if (isHorizontal) {
-            fontSize = (containerWidthPX / TEXT_LEN) * 0.85;
-            fontSize = Math.min(fontSize, containerHeightPX * 0.7);
-            writingMode = 'horizontal-tb';
-            whiteSpace = 'nowrap';
-        } else {
-            fontSize = (containerHeightPX / TEXT_LEN) * 0.85;
-            fontSize = Math.min(fontSize, containerWidthPX * 0.7);
-            writingMode = 'vertical-rl';
-            whiteSpace = 'normal';
+    function parseFillRule(str, startNo){
+        let list = [];
+        const items = str.split(',').filter(x=>x.trim());
+        for(let i=0;i<items.length;i++){
+            const item = items[i].trim();
+            const arr = item.split('-');
+            const cnt = parseInt(arr[1])||1;
+            list.push({no: startNo + i, blank: cnt});
         }
-        
-        fontSize = Math.min(Math.max(fontSize, NO_ANSWER_MIN_FONT), NO_ANSWER_MAX_FONT);
-        
-        return { fontSize, writingMode, whiteSpace, isHorizontal };
+        return list;
     }
 
-    // 生成单页
-    function renderPage(pageNum, startQ, endQ, isFirstPage, isLastPage, zkTableHtml, alignOffset, totalChoiceCount) {
-        const availableHeight = getAvailableHeight(isFirstPage);
-        let maxRows = calcRowsPerPage(availableHeight);
-        if(maxRows < 1) maxRows = 1;
-        
-        const maxQuestionsPerPage = maxRows * MAX_GROUP_PER_LINE * GROUP_SIZE;
-        let actualEndQ = Math.min(endQ, startQ + maxQuestionsPerPage - 1);
-        if(actualEndQ < startQ) actualEndQ = startQ;
-        
-        const { html, rows, totalQuestions } = buildChoiceGrid(startQ, actualEndQ, maxRows);
-        const leftMarks = generateLeftMarks(rows);
-        const choiceOuterStyle = `padding: 1.5mm 1.5mm ${BOTTOM_PADDING}mm 1.5mm;`;
-        
-        let headerHtml = '';
-        if(isFirstPage) {
-            headerHtml = `<div class="choice-header">
-                <span class="choice-title">选择题</span>
-                <span class="choice-tip">(提示：请用2B铅笔在正确答案上填涂，修改时只能用橡皮擦干净，不留痕迹。正确填涂示例：<span class="choice-example-block"></span>)</span>
-            </div>`;
-        } else {
-            headerHtml = `<div class="choice-header-no-example">
-                <span class="choice-tip">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</span>
-            </div>`;
-        }
-        
-        let fullHtml = `<div class="answer-card">`;
-        fullHtml += `<div class="corner-mark tl"></div><div class="corner-mark tr"></div><div class="corner-mark bl"></div><div class="corner-mark br"></div>`;
-        fullHtml += `<div class="top-mark-container">${Array(29).fill('<div class="top-mark"></div>').join('')}</div>`;
-        
-        if(isFirstPage) {
+    function buildFillHtml(fillList){
+        let html = '<div class="fill-row">';
+        fillList.forEach(it=>{
+            let blankStr = '';
+            for(let i=0;i<it.blank;i++) blankStr += '<span class="fill-blank"></span>';
+            html += `<div class="fill-item"><span class="fill-label">${it.no}.</span>${blankStr}</div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    // 生成空白答题卡页壳
+    function genPageShell(isFirstPage, zkTableHtml){
+        let shell = `<div class="answer-card">
+            <div class="corner-mark tl"></div><div class="corner-mark tr"></div>
+            <div class="corner-mark bl"></div><div class="corner-mark br"></div>
+            <div class="top-mark-container">${Array(29).fill('<div class="top-mark"></div>').join('')}</div>`;
+        if(isFirstPage){
             const title = document.getElementById('cardTitle').value;
             const subject = document.getElementById('cardSubject').value;
-            fullHtml += `<div class="title-section"><div class="main-title">${escapeHtml(title)}</div><div class="sub-title">${escapeHtml(subject)}答题卡</div></div>`;
-            fullHtml += `<div class="info-section"><div class="info-line"><span class="name-text">姓名：</span><div class="name-line"></div><span class="zk-text">准考证号</span>${zkTableHtml}</div></div>`;
-            fullHtml += `<div class="note-section"><table class="note-table"><tr><td rowspan="2" class="note-left-cell">注意事项</td><td class="note-content-cell">1. 答题前，考生先填写好自己的姓名、准考证号，并认真核对条形码上的姓名、准考证号、考室和座位号；<br>2. 在草稿纸、试题卷上答题无效；<br>3. 答题时，请考生注意各题号后面的答题提示；<br>4. 请勿折叠答题卡，保持字体工整、笔迹清晰、卡面清洁。</td></tr><tr><td class="note-check-cell"><span class="note-check-box"></span> ← 此方框为缺考考生标记，由监考员用2B铅笔填涂</td></tr></table><div class="barcode-box"><div class="barcode-title">贴条形码区</div><div class="barcode-tip">(正面朝上，切勿贴出虚线方框)</div></div></div>`;
+            shell += `<div class="title-section"><div class="main-title">${escapeHtml(title)}</div><div class="sub-title">${escapeHtml(subject)}答题卡</div></div>`;
+            shell += `<div class="info-section"><div class="info-line"><span class="name-text">姓名：</span><div class="name-line"></div><span class="zk-text">准考证号</span>${zkTableHtml}</div></div>`;
+            shell += `<div class="note-section">
+                <table class="note-table">
+                    <tr><td rowspan="2" class="note-left-cell">注意事项</td>
+                    <td class="note-content-cell">1. 答题前，考生先填写好自己的姓名、准考证号，并认真核对条形码上的姓名、准考证号、考室和座位号；<br>2. 在草稿纸、试题卷上答题无效；<br>3. 答题时，请考生注意各题号后面的答题提示；<br>4. 请勿折叠答题卡，保持字体工整、笔迹清晰、卡面清洁。</td></tr>
+                    <tr><td class="note-check-cell"><span class="note-check-box"></span> ← 此方框为缺考考生标记，由监考员用2B铅笔填涂</td></tr>
+                </table>
+                <div class="barcode-box">
+                    <div class="barcode-title">贴条形码区</div>
+                    <div class="barcode-tip">(正面朝上，切勿贴出虚线方框)</div>
+                </div>
+            </div>`;
         }
-        
-        fullHtml += `<div class="choice-section">${leftMarks}<div class="choice-outer" style="${choiceOuterStyle}">${headerHtml}<div class="choice-inner"><div class="choice-content-wrap" style="margin-left: ${alignOffset}mm;">${html}
-<div class="right-example-group" style="margin-top: 6.8mm; gap: ${RIGHT_EXAMPLE_GAP}mm; margin-left: ${RIGHT_EXAMPLE_MARGIN}mm;">
-    <div class="example-item ex-correct"></div>
-    <div class="example-item ex-empty"></div>
-    <div class="example-item ex-half"></div>
-    <div class="example-item ex-wrong"></div>
-</div></div></div></div></div>`;
-        
-        const isReallyLastPage = (startQ + totalQuestions - 1 >= totalChoiceCount);
-        if(isReallyLastPage && isLastPage) {
-            const usedHeight = rows * ROW_HEIGHT;
-            const remainingBlankHeight = availableHeight - usedHeight - BOTTOM_PADDING - 3;
-            if(remainingBlankHeight > NO_ANSWER_MIN_HEIGHT) {
-                const noAnswerHeight = Math.max(remainingBlankHeight - NO_ANSWER_PADDING, NO_ANSWER_MIN_HEIGHT);
-                let fontSize = Math.min(noAnswerHeight * 0.35, NO_ANSWER_MAX_FONT);
-                fontSize = Math.max(fontSize, NO_ANSWER_MIN_FONT);
-                fullHtml += `<div class="no-answer-area" style="height: ${noAnswerHeight}mm; min-height: auto; display: flex; justify-content: center; align-items: center;">
-                    <div class="no-answer-text" style="font-size: ${fontSize}px;">考生请不要在此区域作答</div>
-                </div>`;
-            } else if(remainingBlankHeight > 15) {
-                fullHtml += `<div class="no-answer-area" style="height: ${NO_ANSWER_MIN_HEIGHT}mm; display: flex; justify-content: center; align-items: center;">
-                    <div class="no-answer-text" style="font-size: ${NO_ANSWER_MIN_FONT}px;">考生请不要在此区域作答</div>
-                </div>`;
-            }
-        }
-        
-        fullHtml += `</div>`;
-        return { html: fullHtml, usedQuestions: totalQuestions };
+        return shell;
     }
 
-    // 主函数
     function renderAllPages() {
         let zkLen = parseInt(document.getElementById('zkLength').value, 10);
         let choiceTotal = parseInt(document.getElementById('choiceTotal').value, 10);
+        let fillRule = document.getElementById('fillRule').value.trim();
+        let ansCount = parseInt(document.getElementById('ansCount').value) || 0;
+        let ansScores = (document.getElementById('ansScores').value || '').trim().split(/\s+/).map(Number).filter(x => !isNaN(x));
+
         if(isNaN(zkLen)) zkLen = 9;
         if(zkLen < 4) zkLen = 4;
         if(zkLen > 11) zkLen = 11;
-        if(isNaN(choiceTotal) || choiceTotal < 1) choiceTotal = 1;
-        
+        if(isNaN(choiceTotal) || choiceTotal < 0) choiceTotal = 0;
+
         const zkTableHtml = buildZkTable(zkLen);
         const alignOffset = calculateAlignmentOffset();
-        
+
         let allPages = '';
         let placedCount = 0;
         let pageNum = 1;
-        
-        while(placedCount < choiceTotal) {
-            const isFirstPage = (pageNum === 1);
-            const availableHeight = getAvailableHeight(isFirstPage);
-            const rowsPerPage = calcRowsPerPage(availableHeight);
-            const questionsPerPage = rowsPerPage * MAX_GROUP_PER_LINE * GROUP_SIZE;
-            
-            const startQ = placedCount + 1;
-            let endQ = Math.min(placedCount + questionsPerPage, choiceTotal);
-            if(endQ < startQ) endQ = startQ;
-            
-            const isLastPage = (endQ >= choiceTotal);
-            const { html, usedQuestions } = renderPage(pageNum, startQ, endQ, isFirstPage, isLastPage, zkTableHtml, alignOffset, choiceTotal);
-            
-            allPages += html;
-            placedCount += usedQuestions;
-            pageNum++;
-            
-            if(usedQuestions === 0) break;
-            if(pageNum > 100) break;
-        }
-        
-        cardContainer.innerHTML = allPages;
-        
-        setTimeout(() => {
-            const noAnswerAreas = document.querySelectorAll('.no-answer-area');
-            noAnswerAreas.forEach(area => {
-                const textDiv = area.querySelector('.no-answer-text');
-                if(textDiv && area) {
-                    const areaWidth = area.clientWidth;
-                    const areaHeight = area.clientHeight;
-                    if(areaWidth > 0 && areaHeight > 0) {
-                        const { fontSize, writingMode, whiteSpace, isHorizontal } = calcNoAnswerFontStyle(areaWidth, areaHeight);
-                        textDiv.style.fontSize = fontSize + 'px';
-                        textDiv.style.writingMode = writingMode;
-                        textDiv.style.whiteSpace = whiteSpace;
-                        if (writingMode === 'vertical-rl') {
-                            textDiv.style.textOrientation = 'mixed';
-                        }
-                    }
+        let firstPageShell = '';
+        let firstRemainHeight = 0;
+
+        // ========== 1. 处理选择题分页 ==========
+        if(choiceTotal > 0){
+            while(placedCount < choiceTotal) {
+                const isFirstPage = (pageNum === 1);
+                const startQ = placedCount + 1;
+                let endQ = choiceTotal;
+                const availableHeight = getAvailableHeight(isFirstPage);
+                let maxRows = calcRowsPerPage(availableHeight);
+                if(maxRows < 1) maxRows = 1;
+                const maxQuestionsPerPage = maxRows * MAX_GROUP_PER_LINE * GROUP_SIZE;
+                let actualEndQ = Math.min(endQ, startQ + maxQuestionsPerPage - 1);
+                if(actualEndQ < startQ) actualEndQ = startQ;
+                const { html, rows, totalQuestions } = buildChoiceGrid(startQ, actualEndQ, maxRows);
+                const leftMarks = generateLeftMarks(rows);
+
+                let headerHtml = '';
+                if(isFirstPage) {
+                    headerHtml = `<div class="choice-header">
+                        <span class="choice-title">选择题</span>
+                        <span class="choice-tip">(提示：请用2B铅笔在正确答案上填涂，修改时只能用橡皮擦干净，不留痕迹。正确填涂示例：<span class="choice-example-block"></span>)</span>
+                    </div>`;
+                } else {
+                    headerHtml = `<div class="choice-header-no-example">
+                        <span class="choice-tip">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</span>
+                    </div>`;
                 }
-            });
-        }, 100);
-        
+
+                let pageHtml = genPageShell(isFirstPage, zkTableHtml);
+                pageHtml += `<div class="choice-section">${leftMarks}
+                    <div class="choice-outer">
+                        ${headerHtml}
+                        <div class="choice-inner">
+                            <div class="choice-content-wrap" style="margin-left: ${alignOffset}mm;">
+                                ${html}
+                                <div class="right-example-group" style="margin-top: 6.8mm; gap: 3mm; margin-left: 92mm;">
+                                    <div class="example-item ex-correct"></div>
+                                    <div class="example-item ex-empty"></div>
+                                    <div class="example-item ex-half"></div>
+                                    <div class="example-item ex-wrong"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                if(isFirstPage){
+                    const usedHeight = rows * ROW_HEIGHT + 20;
+                    firstRemainHeight = availableHeight - usedHeight - 10;
+                    firstPageShell = pageHtml;
+                } else {
+                    allPages += pageHtml + `</div>`;
+                }
+
+                placedCount += totalQuestions;
+                pageNum++;
+            }
+        }else{
+            // 无选择题：直接生成第一页壳
+            firstPageShell = genPageShell(true, zkTableHtml);
+            firstRemainHeight = getAvailableHeight(true);
+        }
+
+        // ========== 2. 非选择题题号自动接续 ==========
+        const startFillNo = choiceTotal + 1;
+        let fillList = parseFillRule(fillRule, startFillNo);
+        let startAnsNo = fillList.length ? fillList[fillList.length-1].no + 1 : startFillNo;
+        let ansList = [];
+        for(let i=0;i<ansCount;i++){
+            ansList.push({ no: startAnsNo++, score: ansScores[i]||10 });
+        }
+
+        // ========== 3. 非选择题智能自动分页 ==========
+        let pagePool = [];
+        let curPageHtml = '';
+        let curRemainH = firstRemainHeight;
+        let hasSubjectHeader = false;
+
+        // 填空题
+        if(fillList.length > 0){
+            const fillHtml = buildFillHtml(fillList);
+            const needH = 12;
+            if(curRemainH >= needH){
+                if(!hasSubjectHeader){
+                    curPageHtml += `<div class="subject-outer">
+                        <div class="subject-header">
+                            <span class="subject-title">非选择题</span>
+                            <span class="subject-tip">(提示：请用0.5毫米黑色签字笔作答，答案不能超出黑色边框限定区域，否则答案无效。)</span>
+                        </div>
+                        <table class="subject-inner-table">`;
+                    hasSubjectHeader = true;
+                }
+                curPageHtml += `<tr><td>${fillHtml}</td></tr>`;
+                curRemainH -= needH;
+            }else{
+                // 新开页
+                pagePool.push({html:curPageHtml, hasHeader:hasSubjectHeader});
+                curPageHtml = '';
+                hasSubjectHeader = false;
+                curRemainH = getAvailableHeight(false);
+                // 重新放
+                curPageHtml += `<div class="subject-outer"><table class="subject-inner-table">`;
+                hasSubjectHeader = true;
+                curPageHtml += `<tr><td>${fillHtml}</td></tr>`;
+                curRemainH -= needH;
+            }
+        }
+
+        // 解答题逐个判断分页
+        for(let q of ansList){
+            const needH = QUESTION_BASE_H + q.score * QUESTION_PER_SCORE_H;
+            if(curRemainH >= needH){
+                if(!hasSubjectHeader){
+                    curPageHtml += `<div class="subject-outer">
+                        <div class="subject-header">
+                            <span class="subject-title">非选择题</span>
+                            <span class="subject-tip">(提示：请用0.5毫米黑色签字笔作答，答案不能超出黑色边框限定区域，否则答案无效。)</span>
+                        </div>
+                        <table class="subject-inner-table">`;
+                    hasSubjectHeader = true;
+                }
+                curPageHtml += `<tr><td>
+                    <div class="answer-title">
+                        <span class="answer-no">${q.no}.</span>
+                        <span class="answer-score">（${q.score}分）</span>
+                    </div>
+                    <div class="answer-blank" style="min-height:${needH}mm;"></div>
+                </td></tr>`;
+                curRemainH -= needH;
+            }else{
+                // 当前页收尾入池
+                if(hasSubjectHeader) curPageHtml += `</table></div>`;
+                pagePool.push({html:curPageHtml, hasHeader:hasSubjectHeader});
+                // 换新页
+                curPageHtml = '';
+                hasSubjectHeader = false;
+                curRemainH = getAvailableHeight(false);
+                // 放入当前题
+                curPageHtml += `<div class="subject-outer"><table class="subject-inner-table">`;
+                hasSubjectHeader = true;
+                curPageHtml += `<tr><td>
+                    <div class="answer-title">
+                        <span class="answer-no">${q.no}.</span>
+                        <span class="answer-score">（${q.score}分）</span>
+                    </div>
+                    <div class="answer-blank" style="min-height:${needH}mm;"></div>
+                </td></tr>`;
+                curRemainH -= needH;
+            }
+        }
+
+        // 收尾当前页
+        if(hasSubjectHeader) curPageHtml += `</table></div>`;
+        if(curPageHtml) pagePool.push({html:curPageHtml});
+
+// 拼接所有页面
+// 第一页
+if(pagePool.length > 0){
+    // 给第一页的非选择题加上底部提示语，放在红框内、黑框外
+    allPages += firstPageShell + 
+        pagePool[0].html
+            // 把提示语加在</table>之后、</div>之前，确保在红黑之间
+            .replace('</table></div>', `</table>
+                <div class="subject-page-tip" style="margin:2mm 0 0 0;">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</div>
+            </div>`)
+        + `</div>`;
+
+    // 后续非选择题分页
+    for(let i=1;i<pagePool.length;i++){
+        let shell = genPageShell(false, zkTableHtml);
+        shell += pagePool[i].html
+            // 顶部提示语加在<table>之前，红黑之间
+            .replace('<table class="subject-inner-table">', `
+                <div class="subject-page-tip" style="margin:0 0 2mm 0;">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</div>
+                <table class="subject-inner-table">
+            `)
+            // 底部提示语加在</table>之后，红黑之间
+            .replace('</table></div>', `</table>
+                <div class="subject-page-tip" style="margin:2mm 0 0 0;">请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！</div>
+            </div>`);
+        shell += `</div>`;
+        allPages += shell;
+    }
+}else{
+    allPages += firstPageShell + `</div>`;
+}
+
+        cardContainer.innerHTML = allPages;
         pdfBtn.style.display = 'block';
     }
 
     genBtn.addEventListener('click', renderAllPages);
-    
     pdfBtn.addEventListener('click', () => {
         const target = cardContainer;
         if(!target) return;
@@ -690,7 +710,6 @@ body { background: #e2e8f0; padding: 20px; }
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
         }).from(target).save();
     });
-    
     window.addEventListener('DOMContentLoaded', renderAllPages);
 })();
 </script>
