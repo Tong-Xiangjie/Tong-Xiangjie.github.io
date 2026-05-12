@@ -34,7 +34,8 @@ const banknotesData = {
     indonesia: indonesiaData,
     venezuela: venezuelaData,
     ukarine: ukarineData,
-    russia: russiaData
+    russia: russiaData,
+    vietnam: vietnamData
 };
 
 const categoryOrder = [
@@ -66,7 +67,8 @@ const categoryOrder = [
     "indonesia",
     "venezuela",
     "ukarine",
-    "russia"
+    "russia",
+    "vietnam"
 ];
 
 let currentView = "categories";
