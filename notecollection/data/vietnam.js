@@ -22,17 +22,17 @@ const vietnamData = {
                 {
                     copyId: 1,
                     year: 2016,
-                    version: "NH00115545",
+                    version: "",
                     bank: "越南国家银行/State Bank of Vietnam",
-                    condition: "ACG67E",
-                    price: "19元",
-                    purchaseDate: "2026年5月12日",
+                    condition: "ACG00E",
+                    price: "",
+                    purchaseDate: "",
                     krause: "125",
                     size: "163 × 83 mm",
                     watermark: "花卉和数字“65”/Flower & 65",
-                    remark: "捡漏哈哈哈！",
-                    img1: "image/vietnam/NH00115545-1.jpg",
-                    img2: "image/vietnam/NH00115545-2.jpg"
+                    remark: "",
+                    img1: "image/vietnam/-1.jpg",
+                    img2: "image/vietnam/-2.jpg"
                 }
             ]
         }
