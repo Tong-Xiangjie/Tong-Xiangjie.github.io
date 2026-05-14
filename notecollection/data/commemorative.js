@@ -305,7 +305,7 @@ const commemorativeData = {
                 { 
                     copyId: 3, 
                     year: 2015,
-                    purchaseDate: "2025年11月7日", 
+                    purchaseDate: "2025年11月7日",
                     price: "134元", 
                     bank: "中国人民银行", 
                     version: "J9069497791", 
@@ -360,7 +360,7 @@ const commemorativeData = {
         { 
             seriesName: "人民币发行70周年纪念钞",
             year: "2018",
- 	        readme: {
+            readme: {
                 title: "发行公告",
                 content: "暂无"
             },
@@ -446,13 +446,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
- 	        readme: {
-                title: "发行公告",
-                content: "file:readmes/winter_olympics_release.txt"
-            },
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
-                content: "file:readmes/winter_olympics_promo.txt"
+                content: `<div style="text-align:center;">
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
+</div>`
             },
             copies: [{ 
                 copyId: 1, 
@@ -473,13 +471,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
             year: "2022",
- 	    readme: {
-                title: "发行公告",
-                content: "file:readmes/winter_olympics_release.txt"
-            },
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
-                content: "file:readmes/winter_olympics_promo.txt"
+                content: `<div style="text-align:center;">
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
+</div>`
             },
             copies: [
                 { 
@@ -515,7 +511,7 @@ const commemorativeData = {
                 { 
                     copyId: 3, 
                     year: 2022,
-                    purchaseDate: "2025年11月16日", 
+                    purchaseDate: "2025年11月16日",
                     price: "45元", 
                     bank: "中国人民银行", 
                     version: "J207861101", 
@@ -532,10 +528,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）",
             year: "2022",
-            // 新增 readme
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
-                content: "file:readmes/winter_olympics_promo.txt"
+                content: `<div style="text-align:center;">
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
+</div>`
             },
             copies: [
                 { 
@@ -573,10 +570,11 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
             year: "2022",
-            // 新增 readme
             readme: {
                 title: "北京2022年冬奥会纪念钞宣传视频",
-                content: "file:readmes/winter_olympics_promo.txt"
+                content: `<div style="text-align:center;">
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
+</div>`
             },
             copies: [{ 
                 copyId: 1, 
@@ -597,7 +595,7 @@ const commemorativeData = {
         { 
             seriesName: "龙年贺岁纪念钞",
             year: "2024",
- 	        readme: {
+            readme: {
                 title: "发行公告",
                 content: "file:readmes/dragon_release.txt"
             },
@@ -620,7 +618,7 @@ const commemorativeData = {
         { 
             seriesName: "蛇年贺岁纪念钞",
             year: "2025",
- 	        readme: {
+            readme: {
                 title: "发行公告",
                 content: "file:readmes/snake_release.txt"
             },
@@ -643,7 +641,7 @@ const commemorativeData = {
         { 
             seriesName: "马年贺岁纪念钞",
             year: "2026",
- 	        readme: {
+            readme: {
                 title: "发行公告",
                 content: "file:readmes/horse_release.txt"
             },
@@ -666,9 +664,9 @@ const commemorativeData = {
                 { 
                     copyId: 2, 
                     year: 2026,
-                    purchaseDate: "2026年1月20日", 
+                    purchaseDate: "2026年1月20日",
                     price: "272元", 
-                    bank: "中国人民银行", 
+                    bank: "中国人民银行",
                     version: "J037241561-70", 
                     condition: "ACG68E", 
                     krause: "922",
