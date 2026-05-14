@@ -195,11 +195,11 @@ const hk_scData = {
             readme: [
                 {
                     title: "渣打银行2018年新版港币宣传片",
-                    content: "file:readmes/hk_sc_2018_promo.txt"
+                    content: `<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=27926226&bvid=BV1rs411A7L3&cid=48234392&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>`
                 },
                 {
                     title: "渣打银行2018年新版港币设计理念",
-                    content: "file:readmes/hk_sc_2018_design.txt"
+                    content: `<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=114771424712971&bvid=BV1hmgkz2ELC&cid=30774199924&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>`
                 }
             ],
             varieties: [
