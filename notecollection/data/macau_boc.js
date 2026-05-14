@@ -135,10 +135,11 @@ const macau_bocData = {
         {
             seriesName: "2020年版",
             year: "2020",
-            // 新增 readme
             readme: {
                 title: "中国银行新款澳门元宣传片",
-                content: "file:readmes/macau_boc_2020_promo.txt"
+                content: `<div style="text-align:center;">
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=277632087&bvid=BV1ac411Z7gb&cid=1313375852&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
+</div>`
             },
             varieties: [
                 {
