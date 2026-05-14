@@ -162,6 +162,20 @@ const hk_hsbcData = {
                             remark: "",
                             img1: "image/hk_hsbc/BB926286-1.jpg",
                             img2: "image/hk_hsbc/BB926286-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 2013,
+                            version: "DT006806",
+                            bank: "香港上海汇丰银行",
+                            condition: "ACG67E",
+                            price: "85元",
+                            purchaseDate: "2026年5月13日",
+                            krause: "213c",
+                            signature: "",
+                            faceDate: "2013年1月1日",
+                            remark: "",
+                            img1: "image/hk_hsbc/DT006806-1.jpg",
+                            img2: "image/hk_hsbc/DT006806-2.jpg"
                         }
                     ]
                 },
