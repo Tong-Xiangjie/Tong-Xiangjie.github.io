@@ -191,19 +191,11 @@ const hk_bocData = {
         {
             seriesName: "2018～至今版",
             year: "2018～至今",
-            // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
             readme: {
                 title: "中国银行（香港）2018年新版港币宣传片",
-                // 用HTML写，让页面识别为视频播放器
-                content: `
-            <video controls style="width: 100%; max-width: 800px; border-radius: 8px;">
-              <source src="https://streamtape.com/v/84Xlq4AaK0UowZK/hk_boc_1.mp4" type="video/mp4">
-              你的浏览器不支持视频播放，请点击链接观看：
-              <a href="https://streamtape.com/v/84Xlq4AaK0UowZK/hk_boc_1.mp4" target="_blank">
-                中国银行（香港）2018年新版港币宣传片
-              </a>
-            </video>
-            `
+                content: `<div style="text-align:center;">
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=27960164&bvid=BV19s411A7L7&cid=48298187&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
+</div>`
             },
             varieties: [
                 {
