@@ -1,0 +1,28 @@
+{
+  "background_color": "#121212",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "铜香结的一隅",
+  "orientation": "any",
+  "scope": "/https://tong-xiangjie.github.io/",
+  "short_name": "铜香结的一隅",
+  "start_url": "/https://tong-xiangjie.github.io/",
+  "theme_color": "#222222",
+  "icons": [
+    {
+      "src": "https://tong-xiangjie.github.io/favicon.ico",
+      "type": "image/x-icon",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ],
+  "id": "com.tongxiangjie.website",
+  "description": "铜香结的私人网站。",
+  "lang": "zh"
+}
