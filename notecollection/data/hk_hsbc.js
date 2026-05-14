@@ -3,7 +3,6 @@ const hk_hsbcData = {
     name: "香港汇丰银行",
     icon: null,
     desc: "The Hong Kong and Shanghai Banking Corporation",
-    // 港币板块的详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行银行" },
@@ -162,7 +161,7 @@ const hk_hsbcData = {
                             remark: "",
                             img1: "image/hk_hsbc/BB926286-1.jpg",
                             img2: "image/hk_hsbc/BB926286-2.jpg"
-                        },{
+                        }, {
                             copyId: 2,
                             year: 2013,
                             version: "DT006806",
@@ -205,10 +204,9 @@ const hk_hsbcData = {
         {
             seriesName: "2018～至今版",
             year: "2018～至今",
-            // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
             readme: {
                 title: "汇丰银行2018年新版港币宣传片",
-                content: "file:readmes/hk_hsbc_2018_promo.txt"
+                content: `<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=28094946&bvid=BV19s411c7W3&cid=48551121&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>`
             },
             varieties: [
                 {
