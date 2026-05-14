@@ -194,7 +194,7 @@ const hk_bocData = {
             // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
             readme: {
                 title: "中国银行（香港）2018年新版港币宣传片",
-                content: "file:readmes/hk_boc_2018_promo.txt"
+                content: "video:https://streamtape.com/v/84Xlq4AaK0UowZK/hk_boc_1.mp4"
             },
             varieties: [
                 {
