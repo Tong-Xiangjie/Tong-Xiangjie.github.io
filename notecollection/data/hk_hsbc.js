@@ -89,6 +89,33 @@ const hk_hsbcData = {
                 }
             ]
         },
+        // ==================== 1993～2002年版 ====================
+        {
+            seriesName: "1993～2002年版",
+            year: "1993～2002",
+            varieties: [
+                {
+                    varietyName: "港币20元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 2002,
+                            version: "SC888085",
+                            bank: "香港上海汇丰银行",
+                            condition: "ACG67E",
+                            price: "55元",
+                            purchaseDate: "2026年5月15日",
+                            krause: "201d.5",
+                            signature: "",
+                            faceDate: "2002年1月1日",
+                            remark: "",
+                            img1: "image/hk_hsbc/SC888085-1.jpg",
+                            img2: "image/hk_hsbc/SC888085-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },
         // ==================== 2010～2016年版 ====================
         {
             seriesName: "2010～2016年版",
