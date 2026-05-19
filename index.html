@@ -372,6 +372,13 @@
             </div>
 
             <div class="site-card">
+                <span class="site-name">WPME词根记忆</span>
+                <a href="https://Tong-Xiangjie.github.io/WPME/" class="site-link" target="_blank" rel="noopener noreferrer">
+                    WPME ↗
+                </a>
+            </div>
+            
+            <div class="site-card">
                 <span class="site-name">全屏时钟</span>
                 <a href="https://Tong-Xiangjie.github.io/time/" class="site-link" target="_blank" rel="noopener noreferrer">
                     time ↗
@@ -590,7 +597,7 @@
             if (isLocked) {
                 passwordInput.disabled = true;
                 unlockBtn.disabled = true;
-                errorMsgDiv.innerHTML = '账户暂时锁定，请稍后再试';
+                errorMsgDiv.innerHTML = '账户暂时锁定，请 ${formatTime(secs)} 后再试。';
             } else {
                 passwordInput.disabled = false;
                 unlockBtn.disabled = false;
