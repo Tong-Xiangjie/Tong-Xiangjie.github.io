@@ -106,6 +106,10 @@
             font-size: 0.8rem;
         }
 
+        .btn-success {
+            background: #10b981;
+        }
+
         .flex-row {
             display: flex;
             flex-wrap: wrap;
@@ -206,18 +210,11 @@
             display: inline-block;
         }
 
-        .nav-buttons {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            margin-top: 28px;
-        }
-
         .action-buttons {
             display: flex;
             gap: 12px;
             justify-content: center;
-            margin-top: 16px;
+            margin-top: 28px;
         }
 
         .footer-actions {
@@ -246,6 +243,43 @@
             word-break: break-all;
         }
 
+        .unfamiliar-item {
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .unfamiliar-root {
+            font-size: 1.3rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 30px;
+            color: #475569;
+        }
+
+        .tab-btn.active {
+            background: #3b82f6;
+            color: white;
+        }
+
         @media (max-width: 550px) {
             .root-word { font-size: 2rem; }
             .meaning { font-size: 1.2rem; }
@@ -254,55 +288,73 @@
 </head>
 <body>
 <div class="app-container" id="app">
+    <!-- 主页 -->
     <div id="homeView" style="display: block;">
         <div class="hero">
-            <h1>📖 词根斩 · Word Power</h1>
+            <h1>词根斩 · Word Power</h1>
             <p style="color: #475569;">基于《Word Power Made Easy》| 完整词根库</p>
         </div>
         <div class="card">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 搜索词根 / 示例单词 (如 ego, 人类, phobia)" autocomplete="off">
-                <button class="btn" id="searchBtn">搜 索</button>
+                <input type="text" id="searchInput" placeholder="搜索词根 / 示例单词 (如 ego, 人类, phobia)" autocomplete="off">
+                <button class="btn" id="searchBtn">搜索</button>
             </div>
             <div class="mode-group" style="margin: 24px 0;">
-                <button class="mode-btn" id="modeChapterBtn">📚 按章节顺序</button>
-                <button class="mode-btn" id="modeRandomBtn">🎲 随机顺序</button>
+                <button class="mode-btn" id="modeChapterBtn">按章节顺序</button>
+                <button class="mode-btn" id="modeRandomBtn">随机顺序</button>
             </div>
-            <div style="text-align: center;">
-                <button class="btn" id="startBtn" style="padding: 12px 28px; font-size: 1.1rem;">🚀 开始记单词</button>
+            <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 20px;">
+                <button class="btn" id="startBtn" style="padding: 12px 28px; font-size: 1.1rem;">开始记单词</button>
+                <button class="btn btn-outline" id="unfamiliarBookBtn">不懂词本</button>
             </div>
             <div style="margin-top: 28px; background: #fef9c3; border-radius: 24px; padding: 16px;">
-                <div style="font-weight: 600; margin-bottom: 8px;">📌 不懂词根序列 (跨设备同步)</div>
+                <div style="font-weight: 600; margin-bottom: 8px;">不懂词根序列 (跨设备同步)</div>
                 <textarea id="exportSequenceArea" rows="2" placeholder="复制此序列到新设备即可同步“不懂”记录" readonly></textarea>
                 <div class="flex-row" style="margin-top: 8px;">
-                    <button class="btn btn-sm btn-outline" id="copySeqBtn">📋 复制序列</button>
+                    <button class="btn btn-sm btn-outline" id="copySeqBtn">复制序列</button>
                     <div style="display: flex; gap: 8px; flex:1;">
                         <input type="text" id="importSeqInput" placeholder="粘贴序列" style="flex:2; padding: 6px 12px; border-radius: 40px; border:1px solid #cbd5e1;">
                         <button class="btn btn-sm btn-secondary" id="importSeqBtn">恢复记录</button>
                     </div>
                 </div>
-                <div class="seq-info" id="statInfo">📊 当前不懂词根数量: 0</div>
+                <div class="seq-info" id="statInfo">当前不懂词根数量: 0</div>
             </div>
         </div>
     </div>
 
+    <!-- 学习视图 -->
     <div id="studyView" style="display: none;">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
                 <span class="progress" id="studyProgress">第0/0个</span>
-                <button class="btn btn-sm btn-outline" id="backHomeBtn">🏠 返回主页</button>
+                <div>
+                    <button class="btn btn-sm btn-outline" id="backHomeFromStudyBtn">返回主页</button>
+                    <button class="btn btn-sm btn-outline" id="unfamiliarBookFromStudyBtn">不懂词本</button>
+                </div>
             </div>
             <div id="cardContent"></div>
-            <div class="nav-buttons">
-                <button class="btn btn-outline" id="prevBtn">◀ 上一个</button>
-                <button class="btn btn-outline" id="nextBtn">下一个 ▶</button>
-            </div>
             <div class="action-buttons">
-                <button class="btn" id="knowBtn" style="background: #10b981;">✓ 认识</button>
-                <button class="btn btn-danger" id="dontKnowBtn">✗ 不懂</button>
+                <button class="btn btn-success" id="knowBtn">认识</button>
+                <button class="btn btn-danger" id="dontKnowBtn">不懂</button>
             </div>
             <div class="footer-actions">
-                <button class="btn btn-sm btn-secondary" id="resetUnfamiliarBtn">🔄 清除所有“不懂”标记</button>
+                <button class="btn btn-sm btn-secondary" id="resetUnfamiliarFromStudyBtn">清除所有不懂标记</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 不懂词本视图 -->
+    <div id="unfamiliarView" style="display: none;">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin:0;">不懂词本</h3>
+                <button class="btn btn-sm btn-outline" id="backHomeFromUnfamiliarBtn">返回主页</button>
+            </div>
+            <div id="unfamiliarListContainer">
+                <!-- 动态列表 -->
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-sm btn-secondary" id="clearAllUnfamiliarBtn">清空不懂词本</button>
             </div>
         </div>
     </div>
@@ -314,41 +366,63 @@
     let currentStudyList = [];
     let currentIndex = 0;
     let studyMode = "chapter";
-    let unfamiliarSet = new Set();
+    let unfamiliarSet = new Set();  // 存储不懂的词根id
 
+    // DOM 元素
     const homeView = document.getElementById('homeView');
     const studyView = document.getElementById('studyView');
+    const unfamiliarView = document.getElementById('unfamiliarView');
     const cardContent = document.getElementById('cardContent');
     const searchInput = document.getElementById('searchInput');
     const exportSeqArea = document.getElementById('exportSequenceArea');
     const statInfoSpan = document.getElementById('statInfo');
 
+    // 更新不懂词本UI（导出序列、统计）
     function updateUnfamiliarUI() {
-        const seq = Array.from(unfamiliarSet).join(',');
+        const seq = Array.from(unfamiliarSet).join('-');
         exportSeqArea.value = seq;
-        statInfoSpan.innerText = `📊 当前不懂词根数量: ${unfamiliarSet.size}`;
+        statInfoSpan.innerText = `当前不懂词根数量: ${unfamiliarSet.size}`;
         localStorage.setItem('root_unfamiliar_seq', seq);
     }
 
+    // 加载本地不懂记录（支持两种分隔符）
     function loadUnfamiliar() {
         const saved = localStorage.getItem('root_unfamiliar_seq');
         if (saved && saved.trim()) {
-            const ids = saved.split(',').map(Number).filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
-            unfamiliarSet = new Set(ids);
+            let ids;
+            if (saved.includes('-')) {
+                ids = saved.split('-').map(Number);
+            } else if (saved.includes(',')) {
+                ids = saved.split(',').map(Number);
+            } else {
+                ids = [];
+            }
+            const validIds = ids.filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
+            unfamiliarSet = new Set(validIds);
         } else {
             unfamiliarSet = new Set();
         }
         updateUnfamiliarUI();
     }
 
+    // 导入序列
     function importSequence(seqStr) {
         if (!seqStr.trim()) return;
-        const ids = seqStr.split(',').map(Number).filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
-        unfamiliarSet = new Set(ids);
+        let ids;
+        if (seqStr.includes('-')) {
+            ids = seqStr.split('-').map(Number);
+        } else if (seqStr.includes(',')) {
+            ids = seqStr.split(',').map(Number);
+        } else {
+            ids = [Number(seqStr)];
+        }
+        const validIds = ids.filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
+        unfamiliarSet = new Set(validIds);
         updateUnfamiliarUI();
         alert(`已导入 ${unfamiliarSet.size} 个“不懂”标记`);
     }
 
+    // 渲染词根卡片
     function renderCardById(rootId) {
         const item = rootsData.find(r => r.id === rootId);
         if (!item) return "<div>词根不存在</div>";
@@ -356,27 +430,38 @@
         return `
             <div>
                 <div class="root-word">${item.root}</div>
-                <div class="meaning">🇨🇳 ${item.meaning_cn} &nbsp;|&nbsp; 🇬🇧 ${item.meaning_en}</div>
-                <div class="origin">📜 来源: ${item.origin} | 章节 ${item.chapter}</div>
-                <div class="example-title">📚 书中示例单词：</div>
+                <div class="meaning">中文: ${item.meaning_cn} &nbsp;|&nbsp; 英文: ${item.meaning_en}</div>
+                <div class="origin">来源: ${item.origin} | 章节: ${item.chapter}</div>
+                <div class="example-title">书中示例单词：</div>
                 <ul class="example-list">${examplesHtml || '<li>无示例</li>'}</ul>
-                <div style="margin-top: 16px; font-size: 0.8rem; color:#3b82f6;">⭐ 点击“不懂”会加入复习序列（跨设备同步）</div>
+                <div style="margin-top: 16px; font-size: 0.8rem; color:#3b82f6;">点击“不懂”将加入不懂词本，可跨设备同步</div>
             </div>
         `;
     }
 
+    // 更新学习卡片显示
     function updateCard() {
-        if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
+        if (!currentStudyList.length || currentIndex >= currentStudyList.length) {
+            cardContent.innerHTML = "<div>当前列表已学完，请返回主页重新开始。</div>";
+            document.getElementById('studyProgress').innerText = `已学完`;
+            return;
+        }
         const rid = currentStudyList[currentIndex];
         cardContent.innerHTML = renderCardById(rid);
-        document.getElementById('studyProgress').innerText = `📖 第${currentIndex+1}/${currentStudyList.length} 个词根`;
+        document.getElementById('studyProgress').innerText = `第 ${currentIndex+1} / ${currentStudyList.length} 个词根`;
     }
 
+    // 构建学习列表
     function buildStudyList(mode) {
         let list = [...rootsData];
         if (mode === 'chapter') {
             list.sort((a,b) => {
                 if (a.chapter === b.chapter) return a.id - b.id;
+                // 章节格式：数字或 "appx"，数字优先
+                const aIsNum = !isNaN(parseFloat(a.chapter));
+                const bIsNum = !isNaN(parseFloat(b.chapter));
+                if (aIsNum && !bIsNum) return -1;
+                if (!aIsNum && bIsNum) return 1;
                 return a.chapter.localeCompare(b.chapter);
             });
         } else {
@@ -388,6 +473,7 @@
         return list.map(r => r.id);
     }
 
+    // 开始学习（清空当前列表，重新生成）
     function startStudy(mode) {
         studyMode = mode;
         currentStudyList = buildStudyList(mode);
@@ -395,9 +481,11 @@
         if (currentStudyList.length === 0) return;
         homeView.style.display = 'none';
         studyView.style.display = 'block';
+        unfamiliarView.style.display = 'none';
         updateCard();
     }
 
+    // 搜索功能
     function performSearch() {
         const keyword = searchInput.value.trim().toLowerCase();
         if (!keyword) return alert("请输入搜索关键词");
@@ -412,24 +500,32 @@
         currentIndex = 0;
         homeView.style.display = 'none';
         studyView.style.display = 'block';
+        unfamiliarView.style.display = 'none';
         updateCard();
     }
 
+    // 认识：从当前列表移除（可选，这里简单移到下一个）
     function markAsKnow() {
-        if (!currentStudyList.length) return;
+        if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
         const rid = currentStudyList[currentIndex];
-        if (unfamiliarSet.has(rid)) unfamiliarSet.delete(rid);
-        updateUnfamiliarUI();
+        // 如果之前标记过不懂，从不懂集合中移除（因为现在认识了）
+        if (unfamiliarSet.has(rid)) {
+            unfamiliarSet.delete(rid);
+            updateUnfamiliarUI();
+        }
+        // 移到下一个
         if (currentIndex + 1 < currentStudyList.length) {
             currentIndex++;
             updateCard();
         } else {
-            alert("🎉 恭喜！已学完当前列表所有词根！");
+            alert("恭喜！已学完当前列表所有词根！");
+            // 可选：自动返回主页
         }
     }
 
+    // 不懂：加入不懂集合，移到下一个
     function markAsDontKnow() {
-        if (!currentStudyList.length) return;
+        if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
         const rid = currentStudyList[currentIndex];
         unfamiliarSet.add(rid);
         updateUnfamiliarUI();
@@ -437,10 +533,11 @@
             currentIndex++;
             updateCard();
         } else {
-            alert("已学完本轮，不懂的词根已标记，可导出序列跨设备同步");
+            alert("已学完本轮，不懂的词根已加入不懂词本。");
         }
     }
 
+    // 清空所有不懂标记
     function resetUnfamiliar() {
         if (confirm("清除所有“不懂”标记？")) {
             unfamiliarSet.clear();
@@ -448,17 +545,72 @@
         }
     }
 
-    // 绑定事件
+    // 渲染不懂词本列表
+    function renderUnfamiliarList() {
+        const container = document.getElementById('unfamiliarListContainer');
+        if (!container) return;
+        const ids = Array.from(unfamiliarSet).sort((a,b) => a-b);
+        if (ids.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">暂无不懂词根，继续学习吧。</div>';
+            return;
+        }
+        let html = '';
+        for (let id of ids) {
+            const item = rootsData.find(r => r.id === id);
+            if (!item) continue;
+            html += `
+                <div class="unfamiliar-item">
+                    <div class="unfamiliar-root">${item.root}</div>
+                    <div style="margin: 8px 0;">中文: ${item.meaning_cn} | 英文: ${item.meaning_en}</div>
+                    <div style="font-size:0.8rem; color:#475569;">来源: ${item.origin} | 章节: ${item.chapter}</div>
+                    <button class="btn btn-sm btn-outline" data-id="${id}" style="margin-top: 8px;">移出词本（已掌握）</button>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+        // 绑定移出按钮事件
+        container.querySelectorAll('.btn-outline[data-id]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(btn.dataset.id);
+                if (unfamiliarSet.has(id)) {
+                    unfamiliarSet.delete(id);
+                    updateUnfamiliarUI();
+                    renderUnfamiliarList();  // 刷新列表
+                }
+            });
+        });
+    }
+
+    // 显示不懂词本视图
+    function showUnfamiliarView() {
+        renderUnfamiliarList();
+        homeView.style.display = 'none';
+        studyView.style.display = 'none';
+        unfamiliarView.style.display = 'block';
+    }
+
+    // 返回主页
+    function showHomeView() {
+        homeView.style.display = 'block';
+        studyView.style.display = 'none';
+        unfamiliarView.style.display = 'none';
+        // 刷新统计
+        updateUnfamiliarUI();
+    }
+
+    // 事件绑定
     document.getElementById('startBtn').onclick = () => startStudy(studyMode);
     document.getElementById('modeChapterBtn').onclick = () => { studyMode = 'chapter'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeChapterBtn').classList.add('active'); };
     document.getElementById('modeRandomBtn').onclick = () => { studyMode = 'random'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeRandomBtn').classList.add('active'); };
     document.getElementById('searchBtn').onclick = performSearch;
-    document.getElementById('backHomeBtn').onclick = () => { homeView.style.display = 'block'; studyView.style.display = 'none'; };
-    document.getElementById('prevBtn').onclick = () => { if(currentIndex > 0) { currentIndex--; updateCard(); } };
-    document.getElementById('nextBtn').onclick = () => { if(currentIndex+1 < currentStudyList.length) { currentIndex++; updateCard(); } };
+    document.getElementById('backHomeFromStudyBtn').onclick = showHomeView;
+    document.getElementById('backHomeFromUnfamiliarBtn').onclick = showHomeView;
+    document.getElementById('unfamiliarBookBtn').onclick = showUnfamiliarView;
+    document.getElementById('unfamiliarBookFromStudyBtn').onclick = showUnfamiliarView;
     document.getElementById('knowBtn').onclick = markAsKnow;
     document.getElementById('dontKnowBtn').onclick = markAsDontKnow;
-    document.getElementById('resetUnfamiliarBtn').onclick = resetUnfamiliar;
+    document.getElementById('resetUnfamiliarFromStudyBtn').onclick = resetUnfamiliar;
+    document.getElementById('clearAllUnfamiliarBtn').onclick = resetUnfamiliar;
     document.getElementById('copySeqBtn').onclick = () => { exportSeqArea.select(); document.execCommand('copy'); alert("序列已复制"); };
     document.getElementById('importSeqBtn').onclick = () => { const val = document.getElementById('importSeqInput').value; importSequence(val); document.getElementById('importSeqInput').value = ''; };
     searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') performSearch(); });
