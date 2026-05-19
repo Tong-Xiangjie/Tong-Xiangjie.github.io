@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>词根斩 · Word Power Made Easy 词根记忆</title>
+    <title>词根斩 · Word Power Made Easy</title>
     <style>
         * {
             box-sizing: border-box;
@@ -19,23 +19,19 @@
             min-height: 100vh;
         }
 
-        /* 主容器 */
         .app-container {
             max-width: 800px;
             margin: 0 auto;
         }
 
-        /* 卡片样式 */
         .card {
             background: white;
             border-radius: 32px;
             box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
             padding: 28px 24px 32px;
-            transition: all 0.2s ease;
             margin-bottom: 24px;
         }
 
-        /* 主页搜索区 */
         .hero {
             text-align: center;
             margin-bottom: 32px;
@@ -65,7 +61,6 @@
             font-size: 1rem;
             background: white;
             outline: none;
-            transition: 0.2s;
         }
 
         .search-box input:focus {
@@ -83,7 +78,6 @@
             font-size: 0.9rem;
             cursor: pointer;
             transition: 0.2s;
-            text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -127,6 +121,7 @@
             background: #eef2ff;
             padding: 6px 12px;
             border-radius: 60px;
+            justify-content: center;
         }
 
         .mode-btn {
@@ -136,7 +131,6 @@
             border-radius: 40px;
             font-weight: 500;
             cursor: pointer;
-            transition: 0.1s;
         }
 
         .mode-btn.active {
@@ -144,7 +138,6 @@
             color: white;
         }
 
-        /* 词根卡片内部 */
         .root-word {
             font-size: 2.8rem;
             font-weight: 700;
@@ -154,7 +147,6 @@
             padding: 6px 20px;
             border-radius: 60px;
             margin-bottom: 24px;
-            letter-spacing: 1px;
             border: 1px solid #e2e8f0;
         }
 
@@ -179,7 +171,6 @@
         .example-title {
             font-weight: 600;
             margin: 18px 0 8px 0;
-            font-size: 1rem;
             color: #334155;
         }
 
@@ -256,31 +247,24 @@
         }
 
         @media (max-width: 550px) {
-            .card {
-                padding: 20px;
-            }
-            .root-word {
-                font-size: 2rem;
-            }
+            .root-word { font-size: 2rem; }
+            .meaning { font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
 <div class="app-container" id="app">
-    <!-- 主页面 (首页) -->
     <div id="homeView" style="display: block;">
         <div class="hero">
             <h1>📖 词根斩 · Word Power</h1>
-            <p style="color: #475569;">基于《Word Power Made Easy》| 词根词源记忆法</p>
+            <p style="color: #475569;">基于《Word Power Made Easy》| 完整词根库</p>
         </div>
         <div class="card">
-            <div style="margin-bottom: 20px;">
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="🔍 搜索词根 / 示例单词 (如 ego, alter, 人类)" autocomplete="off">
-                    <button class="btn" id="searchBtn">搜 索</button>
-                </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 搜索词根 / 示例单词 (如 ego, 人类, phobia)" autocomplete="off">
+                <button class="btn" id="searchBtn">搜 索</button>
             </div>
-            <div class="mode-group" style="justify-content: center; margin-bottom: 28px;">
+            <div class="mode-group" style="margin: 24px 0;">
                 <button class="mode-btn" id="modeChapterBtn">📚 按章节顺序</button>
                 <button class="mode-btn" id="modeRandomBtn">🎲 随机顺序</button>
             </div>
@@ -292,8 +276,8 @@
                 <textarea id="exportSequenceArea" rows="2" placeholder="复制此序列到新设备即可同步“不懂”记录" readonly></textarea>
                 <div class="flex-row" style="margin-top: 8px;">
                     <button class="btn btn-sm btn-outline" id="copySeqBtn">📋 复制序列</button>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="importSeqInput" placeholder="粘贴序列" style="flex:1; padding: 6px 12px; border-radius: 40px; border:1px solid #cbd5e1;">
+                    <div style="display: flex; gap: 8px; flex:1;">
+                        <input type="text" id="importSeqInput" placeholder="粘贴序列" style="flex:2; padding: 6px 12px; border-radius: 40px; border:1px solid #cbd5e1;">
                         <button class="btn btn-sm btn-secondary" id="importSeqBtn">恢复记录</button>
                     </div>
                 </div>
@@ -302,16 +286,13 @@
         </div>
     </div>
 
-    <!-- 学习卡片视图 (默认隐藏) -->
     <div id="studyView" style="display: none;">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
                 <span class="progress" id="studyProgress">第0/0个</span>
                 <button class="btn btn-sm btn-outline" id="backHomeBtn">🏠 返回主页</button>
             </div>
-            <div id="cardContent">
-                <!-- 动态卡片内容 -->
-            </div>
+            <div id="cardContent"></div>
             <div class="nav-buttons">
                 <button class="btn btn-outline" id="prevBtn">◀ 上一个</button>
                 <button class="btn btn-outline" id="nextBtn">下一个 ▶</button>
@@ -322,97 +303,19 @@
             </div>
             <div class="footer-actions">
                 <button class="btn btn-sm btn-secondary" id="resetUnfamiliarBtn">🔄 清除所有“不懂”标记</button>
-                <span style="font-size: 12px; color: #64748b;">标记“不懂”的词根会重点同步</span>
             </div>
         </div>
     </div>
 </div>
 
+<script src="data.js"></script>
 <script>
-    // --------------------------------------------------------------
-    // 基于书中的词根数据 (整合1~19章及附录，包含示例单词)
-    // 数据格式: id, root, meaning_cn, meaning_en, origin, chapter, examples[{word, trans}]
-    // --------------------------------------------------------------
-    const rootsData = [
-        // Chapter 3 核心词根
-        { id:0, root:"ego", meaning_cn:"我，自我", meaning_en:"I, self", origin:"Latin", chapter:"3", examples:[{word:"egoist", trans:"利己主义者"},{word:"egotist", trans:"自夸者"},{word:"egocentric", trans:"自我中心的"}] },
-        { id:1, root:"alter", meaning_cn:"其他", meaning_en:"other", origin:"Latin", chapter:"3", examples:[{word:"altruist", trans:"利他主义者"},{word:"alternate", trans:"交替的"},{word:"alter ego", trans:"另一个自我"}] },
-        { id:2, root:"verto", meaning_cn:"转向", meaning_en:"to turn", origin:"Latin", chapter:"3", examples:[{word:"introvert", trans:"内向者"},{word:"extrovert", trans:"外向者"},{word:"ambivert", trans:"中间性格者"}] },
-        { id:3, root:"misein", meaning_cn:"憎恨", meaning_en:"to hate", origin:"Greek", chapter:"3", examples:[{word:"misanthrope", trans:"厌世者"},{word:"misogynist", trans:"厌恶女性者"},{word:"misogamist", trans:"厌恶婚姻者"}] },
-        { id:4, root:"anthropos", meaning_cn:"人类", meaning_en:"mankind", origin:"Greek", chapter:"3", examples:[{word:"anthropology", trans:"人类学"},{word:"philanthropist", trans:"慈善家"}] },
-        { id:5, root:"gyne", meaning_cn:"女性", meaning_en:"woman", origin:"Greek", chapter:"3", examples:[{word:"gynecologist", trans:"妇科医生"},{word:"misogyny", trans:"厌女症"}] },
-        { id:6, root:"gamos", meaning_cn:"婚姻", meaning_en:"marriage", origin:"Greek", chapter:"3", examples:[{word:"monogamy", trans:"一夫一妻制"},{word:"bigamy", trans:"重婚"},{word:"polygamy", trans:"多配偶制"}] },
-        // Chapter 4 医疗词根
-        { id:7, root:"internus", meaning_cn:"内部", meaning_en:"inside", origin:"Latin", chapter:"4", examples:[{word:"internist", trans:"内科医生"},{word:"internal", trans:"内部的"}] },
-        { id:8, root:"paidos (ped-)", meaning_cn:"儿童", meaning_en:"child", origin:"Greek", chapter:"4", examples:[{word:"pediatrician", trans:"儿科医生"},{word:"pedagogy", trans:"教学法"}] },
-        { id:9, root:"derma", meaning_cn:"皮肤", meaning_en:"skin", origin:"Greek", chapter:"4", examples:[{word:"dermatologist", trans:"皮肤科医生"},{word:"hypodermic", trans:"皮下的"},{word:"epidermis", trans:"表皮"}] },
-        { id:10, root:"ophthalmos", meaning_cn:"眼睛", meaning_en:"eye", origin:"Greek", chapter:"4", examples:[{word:"ophthalmologist", trans:"眼科医生"},{word:"ophthalmic", trans:"眼科的"}] },
-        { id:11, root:"kardia", meaning_cn:"心脏", meaning_en:"heart", origin:"Greek", chapter:"4", examples:[{word:"cardiologist", trans:"心脏病专家"},{word:"cardiac", trans:"心脏的"},{word:"cardiogram", trans:"心电图"}] },
-        { id:12, root:"neuron", meaning_cn:"神经", meaning_en:"nerve", origin:"Greek", chapter:"4", examples:[{word:"neurologist", trans:"神经科医生"},{word:"neuralgia", trans:"神经痛"}] },
-        { id:13, root:"psyche", meaning_cn:"精神，心灵", meaning_en:"mind, soul", origin:"Greek", chapter:"4", examples:[{word:"psychiatrist", trans:"精神科医生"},{word:"psychology", trans:"心理学"},{word:"psychosomatic", trans:"身心相关的"}] },
-        // Chapter 5 职业/学科
-        { id:14, root:"iatreia", meaning_cn:"医疗", meaning_en:"medical healing", origin:"Greek", chapter:"5", examples:[{word:"podiatry", trans:"足病学"},{word:"psychiatry", trans:"精神病学"}] },
-        { id:15, root:"graphein", meaning_cn:"书写", meaning_en:"to write", origin:"Greek", chapter:"5", examples:[{word:"graphologist", trans:"笔迹学家"},{word:"calligraphy", trans:"书法"},{word:"cacography", trans:"拙劣书写"}] },
-        { id:16, root:"cheir (chiro-)", meaning_cn:"手", meaning_en:"hand", origin:"Greek", chapter:"5", examples:[{word:"chiropractor", trans:"脊椎按摩师"},{word:"chirography", trans:"书法"},{word:"chiromancy", trans:"手相术"}] },
-        // Chapter 6 科学词根
-        { id:17, root:"astron", meaning_cn:"星星", meaning_en:"star", origin:"Greek", chapter:"6", examples:[{word:"astronomer", trans:"天文学家"},{word:"astrology", trans:"占星术"},{word:"astronaut", trans:"宇航员"}] },
-        { id:18, root:"ge (geo-)", meaning_cn:"地球", meaning_en:"earth", origin:"Greek", chapter:"6", examples:[{word:"geologist", trans:"地质学家"},{word:"geography", trans:"地理学"}] },
-        { id:19, root:"bios", meaning_cn:"生命", meaning_en:"life", origin:"Greek", chapter:"6", examples:[{word:"biology", trans:"生物学"},{word:"biography", trans:"传记"},{word:"biopsy", trans:"活组织检查"}] },
-        { id:20, root:"zoion", meaning_cn:"动物", meaning_en:"animal", origin:"Greek", chapter:"6", examples:[{word:"zoologist", trans:"动物学家"},{word:"zodiac", trans:"黄道十二宫"}] },
-        { id:21, root:"logos", meaning_cn:"科学，言语", meaning_en:"science, word", origin:"Greek", chapter:"6", examples:[{word:"philology", trans:"语言学"},{word:"eulogy", trans:"颂词"}] },
-        // Chapter 7 说谎 & 品质
-        { id:22, root:"notus", meaning_cn:"已知的", meaning_en:"known", origin:"Latin", chapter:"7", examples:[{word:"notorious", trans:"臭名昭著的"},{word:"notoriety", trans:"恶名"}] },
-        { id:23, root:"genesis", meaning_cn:"出生，起源", meaning_en:"birth, origin", origin:"Greek", chapter:"7", examples:[{word:"congenital", trans:"先天的"},{word:"genetics", trans:"遗传学"}] },
-        { id:24, root:"chronos", meaning_cn:"时间", meaning_en:"time", origin:"Greek", chapter:"7", examples:[{word:"chronic", trans:"慢性的"},{word:"anachronism", trans:"时代错误"},{word:"synchronize", trans:"同步"}] },
-        { id:25, root:"pathos", meaning_cn:"痛苦，情感", meaning_en:"suffering, feeling", origin:"Greek", chapter:"7", examples:[{word:"sympathy", trans:"同情"},{word:"apathy", trans:"冷漠"},{word:"empathy", trans:"共情"}] },
-        // Chapter 9 动作动词词根
-        { id:26, root:"par", meaning_cn:"相等", meaning_en:"equal", origin:"Latin", chapter:"9", examples:[{word:"disparage", trans:"贬低"},{word:"parity", trans:"平等"}] },
-        { id:27, root:"aequus (equ-)", meaning_cn:"相等", meaning_en:"equal", origin:"Latin", chapter:"9", examples:[{word:"equivocate", trans:"含糊其辞"},{word:"equity", trans:"公平"},{word:"equilibrium", trans:"平衡"}] },
-        { id:28, root:"vox, vocis", meaning_cn:"声音", meaning_en:"voice", origin:"Latin", chapter:"9", examples:[{word:"vociferous", trans:"喧闹的"},{word:"vocal", trans:"声音的"}] },
-        { id:29, root:"scribo, scriptus", meaning_cn:"书写", meaning_en:"to write", origin:"Latin", chapter:"9", examples:[{word:"proscribe", trans:"禁止"},{word:"describe", trans:"描述"},{word:"manuscript", trans:"手稿"}] },
-        { id:30, root:"malus", meaning_cn:"坏的", meaning_en:"bad, evil", origin:"Latin", chapter:"9", examples:[{word:"malign", trans:"诽谤"},{word:"malevolent", trans:"恶意的"},{word:"malefactor", trans:"罪犯"}] },
-        { id:31, root:"bonus, bene", meaning_cn:"好的", meaning_en:"good, well", origin:"Latin", chapter:"9", examples:[{word:"benign", trans:"良性的"},{word:"benevolent", trans:"仁慈的"},{word:"benefactor", trans:"捐助者"}] },
-        // Chapter 10 言语习惯
-        { id:32, root:"taceo", meaning_cn:"沉默", meaning_en:"to be silent", origin:"Latin", chapter:"10", examples:[{word:"taciturn", trans:"沉默寡言的"},{word:"tacit", trans:"心照不宣的"}] },
-        { id:33, root:"loquor", meaning_cn:"说话", meaning_en:"to speak", origin:"Latin", chapter:"10", examples:[{word:"loquacious", trans:"健谈的"},{word:"soliloquy", trans:"独白"},{word:"colloquial", trans:"口语的"}] },
-        { id:34, root:"volvo, volutus", meaning_cn:"滚动", meaning_en:"to roll", origin:"Latin", chapter:"10", examples:[{word:"voluble", trans:"流利的"},{word:"revolve", trans:"旋转"},{word:"evolve", trans:"进化"}] },
-        // Chapter 11 侮辱敌人词根
-        { id:35, root:"phanein", meaning_cn:"显示", meaning_en:"to show", origin:"Greek", chapter:"11", examples:[{word:"sycophant", trans:"马屁精"},{word:"diaphanous", trans:"透明的"}] },
-        { id:36, root:"pater, patris", meaning_cn:"父亲", meaning_en:"father", origin:"Latin", chapter:"11", examples:[{word:"patricide", trans:"弑父"},{word:"patrimony", trans:"遗产"},{word:"patron", trans:"赞助人"}] },
-        { id:37, root:"mater, matris", meaning_cn:"母亲", meaning_en:"mother", origin:"Latin", chapter:"11", examples:[{word:"matricide", trans:"弑母"},{word:"maternity", trans:"母性"},{word:"alma mater", trans:"母校"}] },
-        { id:38, root:"theos", meaning_cn:"神", meaning_en:"God", origin:"Greek", chapter:"11", examples:[{word:"atheist", trans:"无神论者"},{word:"monotheism", trans:"一神论"}] },
-        // Chapter 12 赞美词根
-        { id:39, root:"vivo", meaning_cn:"生活", meaning_en:"to live", origin:"Latin", chapter:"12", examples:[{word:"convivial", trans:"欢乐的"},{word:"vivacious", trans:"活泼的"},{word:"revive", trans:"复活"}] },
-        { id:40, root:"vita", meaning_cn:"生命", meaning_en:"life", origin:"Latin", chapter:"12", examples:[{word:"vital", trans:"至关重要的"},{word:"vitamin", trans:"维生素"}] },
-        { id:41, root:"cred", meaning_cn:"相信", meaning_en:"to believe", origin:"Latin", chapter:"12", examples:[{word:"credulous", trans:"轻信的"},{word:"incredible", trans:"难以置信的"},{word:"creed", trans:"信条"}] },
-        { id:42, root:"spect", meaning_cn:"看", meaning_en:"to look", origin:"Latin", chapter:"12", examples:[{word:"perspicacious", trans:"敏锐的"},{word:"retrospect", trans:"回顾"},{word:"circumspect", trans:"谨慎的"}] },
-        // Chapter 14 常见现象
-        { id:43, root:"fluo", meaning_cn:"流动", meaning_en:"to flow", origin:"Latin", chapter:"14", examples:[{word:"affluent", trans:"富裕的"},{word:"influence", trans:"影响"},{word:"fluent", trans:"流利的"}] },
-        { id:44, root:"carnis", meaning_cn:"肉", meaning_en:"flesh", origin:"Latin", chapter:"14", examples:[{word:"carnivorous", trans:"食肉的"},{word:"carnage", trans:"大屠杀"},{word:"incarnate", trans:"化身的"}] },
-        { id:45, root:"voro", meaning_cn:"吞食", meaning_en:"to devour", origin:"Latin", chapter:"14", examples:[{word:"voracious", trans:"贪婪的"},{word:"herbivorous", trans:"草食的"},{word:"omnivorous", trans:"杂食的"}] },
-        { id:46, root:"omnis", meaning_cn:"所有", meaning_en:"all", origin:"Latin", chapter:"14", examples:[{word:"omnipotent", trans:"全能的"},{word:"omniscient", trans:"全知的"},{word:"omnipresent", trans:"无处不在的"}] },
-        // Chapter 15 动作
-        { id:47, root:"caput", meaning_cn:"头", meaning_en:"head", origin:"Latin", chapter:"15", examples:[{word:"recapitulate", trans:"概括"},{word:"decapitate", trans:"斩首"},{word:"captain", trans:"船长"}] },
-        { id:48, root:"levis", meaning_cn:"轻", meaning_en:"light", origin:"Latin", chapter:"15", examples:[{word:"alleviate", trans:"缓解"},{word:"levity", trans:"轻浮"},{word:"elevate", trans:"提升"}] },
-        { id:49, root:"simulo", meaning_cn:"模仿", meaning_en:"to copy", origin:"Latin", chapter:"15", examples:[{word:"simulate", trans:"模拟"},{word:"dissimulate", trans:"掩饰"}] },
-        // Chapter 16 性格特征
-        { id:50, root:"sequor", meaning_cn:"跟随", meaning_en:"to follow", origin:"Latin", chapter:"16", examples:[{word:"obsequious", trans:"谄媚的"},{word:"subsequent", trans:"随后的"},{word:"sequence", trans:"顺序"}] },
-        { id:51, root:"queror", meaning_cn:"抱怨", meaning_en:"to complain", origin:"Latin", chapter:"16", examples:[{word:"querulous", trans:"爱发牢骚的"}] },
-        { id:52, root:"super", meaning_cn:"上面", meaning_en:"above", origin:"Latin", chapter:"16", examples:[{word:"supercilious", trans:"目中无人的"},{word:"superior", trans:"优越的"}] },
-        { id:53, root:"cado", meaning_cn:"落下", meaning_en:"to fall", origin:"Latin", chapter:"16", examples:[{word:"decadent", trans:"颓废的"},{word:"incident", trans:"事件"},{word:"accident", trans:"事故"}] },
-        // 附录补充几个高频
-        { id:54, root:"phobia", meaning_cn:"恐惧", meaning_en:"morbid fear", origin:"Greek", chapter:"appx", examples:[{word:"claustrophobia", trans:"幽闭恐惧症"},{word:"acrophobia", trans:"恐高症"},{word:"xenophobia", trans:"仇外"}] },
-        { id:55, root:"mancy", meaning_cn:"占卜", meaning_en:"divination", origin:"Greek", chapter:"appx", examples:[{word:"chiromancy", trans:"手相术"},{word:"necromancy", trans:"巫术"}] },
-    ];
-
-    // 全局状态
-    let currentStudyList = [];        // 当前学习队列（id数组）
+    // 引用全局 rootsData
+    let currentStudyList = [];
     let currentIndex = 0;
-    let studyMode = "chapter";        // 'chapter' or 'random'
-    let unfamiliarSet = new Set();     // 存储不懂的词根id (持久化序列)
-    let currentSearchResult = null;     // 搜索结果暂存
+    let studyMode = "chapter";
+    let unfamiliarSet = new Set();
 
-    // DOM 元素
     const homeView = document.getElementById('homeView');
     const studyView = document.getElementById('studyView');
     const cardContent = document.getElementById('cardContent');
@@ -420,24 +323,17 @@
     const exportSeqArea = document.getElementById('exportSequenceArea');
     const statInfoSpan = document.getElementById('statInfo');
 
-    // 辅助: 更新导出区域和统计
     function updateUnfamiliarUI() {
         const seq = Array.from(unfamiliarSet).join(',');
         exportSeqArea.value = seq;
         statInfoSpan.innerText = `📊 当前不懂词根数量: ${unfamiliarSet.size}`;
+        localStorage.setItem('root_unfamiliar_seq', seq);
     }
 
-    // 保存不懂标记至localStorage
-    function persistUnfamiliar() {
-        localStorage.setItem('root_unfamiliar_seq', Array.from(unfamiliarSet).join(','));
-        updateUnfamiliarUI();
-    }
-
-    // 加载本地不懂标记
-    function loadUnfamiliarFromLocal() {
+    function loadUnfamiliar() {
         const saved = localStorage.getItem('root_unfamiliar_seq');
-        if (saved && saved.trim() !== "") {
-            const ids = saved.split(',').map(Number).filter(n => !isNaN(n));
+        if (saved && saved.trim()) {
+            const ids = saved.split(',').map(Number).filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
             unfamiliarSet = new Set(ids);
         } else {
             unfamiliarSet = new Set();
@@ -445,16 +341,14 @@
         updateUnfamiliarUI();
     }
 
-    // 导入序列（跨设备恢复）
     function importSequence(seqStr) {
         if (!seqStr.trim()) return;
         const ids = seqStr.split(',').map(Number).filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
         unfamiliarSet = new Set(ids);
-        persistUnfamiliar();
+        updateUnfamiliarUI();
         alert(`已导入 ${unfamiliarSet.size} 个“不懂”标记`);
     }
 
-    // 生成卡片html
     function renderCardById(rootId) {
         const item = rootsData.find(r => r.id === rootId);
         if (!item) return "<div>词根不存在</div>";
@@ -466,7 +360,7 @@
                 <div class="origin">📜 来源: ${item.origin} | 章节 ${item.chapter}</div>
                 <div class="example-title">📚 书中示例单词：</div>
                 <ul class="example-list">${examplesHtml || '<li>无示例</li>'}</ul>
-                <div style="margin-top: 16px; font-size: 0.8rem; color:#3b82f6;">⭐ 点击“不懂”会加入复习序列</div>
+                <div style="margin-top: 16px; font-size: 0.8rem; color:#3b82f6;">⭐ 点击“不懂”会加入复习序列（跨设备同步）</div>
             </div>
         `;
     }
@@ -478,19 +372,14 @@
         document.getElementById('studyProgress').innerText = `📖 第${currentIndex+1}/${currentStudyList.length} 个词根`;
     }
 
-    // 构建学习列表
-    function buildStudyList(mode, chapterFilter = null) {
+    function buildStudyList(mode) {
         let list = [...rootsData];
-        if (mode === 'chapter' && chapterFilter) {
-            list = list.filter(r => r.chapter === chapterFilter);
-        } else if (mode === 'chapter') {
-            // 按章节数字排序
+        if (mode === 'chapter') {
             list.sort((a,b) => {
                 if (a.chapter === b.chapter) return a.id - b.id;
-                return (a.chapter.localeCompare(b.chapter));
+                return a.chapter.localeCompare(b.chapter);
             });
-        } else { // random
-            list = [...rootsData];
+        } else {
             for (let i = list.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [list[i], list[j]] = [list[j], list[i]];
@@ -501,38 +390,24 @@
 
     function startStudy(mode) {
         studyMode = mode;
-        if (mode === 'chapter') {
-            currentStudyList = buildStudyList('chapter');
-        } else {
-            currentStudyList = buildStudyList('random');
-        }
+        currentStudyList = buildStudyList(mode);
         currentIndex = 0;
-        if (currentStudyList.length === 0) {
-            alert("无词根数据");
-            return;
-        }
+        if (currentStudyList.length === 0) return;
         homeView.style.display = 'none';
         studyView.style.display = 'block';
         updateCard();
     }
 
-    // 搜索功能
     function performSearch() {
         const keyword = searchInput.value.trim().toLowerCase();
-        if (keyword === "") {
-            alert("请输入搜索关键词");
-            return;
-        }
-        const matched = rootsData.filter(r => 
-            r.root.toLowerCase().includes(keyword) || 
-            r.meaning_cn.includes(keyword) || 
+        if (!keyword) return alert("请输入搜索关键词");
+        const matched = rootsData.filter(r =>
+            r.root.toLowerCase().includes(keyword) ||
+            r.meaning_cn.includes(keyword) ||
             r.meaning_en.toLowerCase().includes(keyword) ||
             r.examples.some(ex => ex.word.toLowerCase().includes(keyword) || ex.trans.includes(keyword))
         );
-        if (matched.length === 0) {
-            alert("未找到匹配词根");
-            return;
-        }
+        if (matched.length === 0) return alert("未找到匹配词根");
         currentStudyList = matched.map(r => r.id);
         currentIndex = 0;
         homeView.style.display = 'none';
@@ -540,15 +415,11 @@
         updateCard();
     }
 
-    // 不懂/认识逻辑
     function markAsKnow() {
         if (!currentStudyList.length) return;
         const rid = currentStudyList[currentIndex];
-        if (unfamiliarSet.has(rid)) {
-            unfamiliarSet.delete(rid);
-            persistUnfamiliar();
-        }
-        // 移到下一个
+        if (unfamiliarSet.has(rid)) unfamiliarSet.delete(rid);
+        updateUnfamiliarUI();
         if (currentIndex + 1 < currentStudyList.length) {
             currentIndex++;
             updateCard();
@@ -561,50 +432,39 @@
         if (!currentStudyList.length) return;
         const rid = currentStudyList[currentIndex];
         unfamiliarSet.add(rid);
-        persistUnfamiliar();
+        updateUnfamiliarUI();
         if (currentIndex + 1 < currentStudyList.length) {
             currentIndex++;
             updateCard();
         } else {
-            alert("已学完本轮，不懂的词根已标记，可导出序列");
+            alert("已学完本轮，不懂的词根已标记，可导出序列跨设备同步");
         }
     }
 
     function resetUnfamiliar() {
-        if (confirm("清除所有“不懂”标记？不会影响词库数据。")) {
+        if (confirm("清除所有“不懂”标记？")) {
             unfamiliarSet.clear();
-            persistUnfamiliar();
-            alert("已重置");
+            updateUnfamiliarUI();
         }
     }
 
-    // 初始化事件绑定
-    function bindEvents() {
-        document.getElementById('startBtn').onclick = () => startStudy(studyMode);
-        document.getElementById('modeChapterBtn').onclick = () => { studyMode = 'chapter'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeChapterBtn').classList.add('active'); };
-        document.getElementById('modeRandomBtn').onclick = () => { studyMode = 'random'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeRandomBtn').classList.add('active'); };
-        document.getElementById('searchBtn').onclick = performSearch;
-        document.getElementById('backHomeBtn').onclick = () => { homeView.style.display = 'block'; studyView.style.display = 'none'; };
-        document.getElementById('prevBtn').onclick = () => { if(currentIndex > 0) { currentIndex--; updateCard(); } };
-        document.getElementById('nextBtn').onclick = () => { if(currentIndex+1 < currentStudyList.length) { currentIndex++; updateCard(); } };
-        document.getElementById('knowBtn').onclick = markAsKnow;
-        document.getElementById('dontKnowBtn').onclick = markAsDontKnow;
-        document.getElementById('resetUnfamiliarBtn').onclick = resetUnfamiliar;
-        document.getElementById('copySeqBtn').onclick = () => { exportSeqArea.select(); document.execCommand('copy'); alert("序列已复制"); };
-        document.getElementById('importSeqBtn').onclick = () => { const val = document.getElementById('importSeqInput').value; importSequence(val); document.getElementById('importSeqInput').value = ''; };
-        // 回车搜索
-        searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') performSearch(); });
-    }
+    // 绑定事件
+    document.getElementById('startBtn').onclick = () => startStudy(studyMode);
+    document.getElementById('modeChapterBtn').onclick = () => { studyMode = 'chapter'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeChapterBtn').classList.add('active'); };
+    document.getElementById('modeRandomBtn').onclick = () => { studyMode = 'random'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeRandomBtn').classList.add('active'); };
+    document.getElementById('searchBtn').onclick = performSearch;
+    document.getElementById('backHomeBtn').onclick = () => { homeView.style.display = 'block'; studyView.style.display = 'none'; };
+    document.getElementById('prevBtn').onclick = () => { if(currentIndex > 0) { currentIndex--; updateCard(); } };
+    document.getElementById('nextBtn').onclick = () => { if(currentIndex+1 < currentStudyList.length) { currentIndex++; updateCard(); } };
+    document.getElementById('knowBtn').onclick = markAsKnow;
+    document.getElementById('dontKnowBtn').onclick = markAsDontKnow;
+    document.getElementById('resetUnfamiliarBtn').onclick = resetUnfamiliar;
+    document.getElementById('copySeqBtn').onclick = () => { exportSeqArea.select(); document.execCommand('copy'); alert("序列已复制"); };
+    document.getElementById('importSeqBtn').onclick = () => { const val = document.getElementById('importSeqInput').value; importSequence(val); document.getElementById('importSeqInput').value = ''; };
+    searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') performSearch(); });
 
-    // 初始化
-    function init() {
-        bindEvents();
-        loadUnfamiliarFromLocal();
-        // 默认章节模式
-        studyMode = 'chapter';
-        document.getElementById('modeChapterBtn').classList.add('active');
-    }
-    init();
+    loadUnfamiliar();
+    document.getElementById('modeChapterBtn').classList.add('active');
 </script>
 </body>
 </html>
