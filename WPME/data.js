@@ -234,7 +234,7 @@ const rootsData = [
     { id: 213, root: "trepido", meaning_cn: "颤抖", meaning_en: "to tremble", origin: "Latin", chapter: "12", examples: [{ word: "intrepid", trans: "无畏的" }, { word: "intrepidity", trans: "无畏" }, { word: "trepidation", trans: "惊恐" }] },
     { id: 214, root: "scintilla", meaning_cn: "火花", meaning_en: "spark", origin: "Latin", chapter: "12", examples: [{ word: "scintillate", trans: "闪闪发光" }, { word: "scintillation", trans: "闪烁" }] },
     { id: 215, root: "urbs", meaning_cn: "城市", meaning_en: "city", origin: "Latin", chapter: "12", examples: [{ word: "urbane", trans: "温文尔雅的" }, { word: "urbanity", trans: "温文尔雅" }, { word: "urban", trans: "城市的" }, { word: "suburb", trans: "郊区" }, { word: "exurb", trans: "远郊" }] },
-    { id: 216, root: "rus", "ruris", meaning_cn: "乡村", meaning_en: "countryside", origin: "Latin", chapter: "12", examples: [{ word: "rural", trans: "乡村的" }, { word: "rustic", trans: "乡村的" }] },
+    { id: 216, root: ["rus", "ruris"], meaning_cn: "乡村", meaning_en: "countryside", origin: "Latin", chapter: "12", examples: [{ word: "rural", trans: "乡村的" }, { word: "rustic", trans: "乡村的" }] },
 
     // ======================= Chapter 14 =======================
     { id: 217, root: "penuria", meaning_cn: "缺乏", meaning_en: "want, neediness", origin: "Latin", chapter: "14", examples: [{ word: "penury", trans: "贫困" }, { word: "penurious", trans: "贫困的；吝啬的" }] },
