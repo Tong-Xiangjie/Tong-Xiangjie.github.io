@@ -10,7 +10,6 @@
             margin: 0;
             padding: 0;
         }
-
         body {
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
             background: #f1f5f9;
@@ -18,41 +17,23 @@
             padding: 20px;
             min-height: 100vh;
         }
-
-        .app-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
+        .app-container { max-width: 800px; margin: 0 auto; }
         .card {
             background: white;
             border-radius: 32px;
-            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.15);
             padding: 28px 24px 32px;
             margin-bottom: 24px;
         }
-
-        .hero {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
+        .hero { text-align: center; margin-bottom: 32px; }
         .hero h1 {
             font-size: 2rem;
-            letter-spacing: -0.02em;
             background: linear-gradient(135deg, #3b82f6, #06b6d4);
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
         }
-
-        .search-box {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
+        .search-box { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
         .search-box input {
             flex: 1;
             padding: 14px 18px;
@@ -62,12 +43,7 @@
             background: white;
             outline: none;
         }
-
-        .search-box input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
-        }
-
+        .search-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
         .btn {
             background: #3b82f6;
             border: none;
@@ -82,66 +58,16 @@
             align-items: center;
             gap: 8px;
         }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #3b82f6;
-            color: #3b82f6;
-        }
-
-        .btn-outline:hover {
-            background: #eff6ff;
-        }
-
-        .btn-secondary {
-            background: #475569;
-        }
-
-        .btn-danger {
-            background: #ef4444;
-        }
-
-        .btn-sm {
-            padding: 6px 14px;
-            font-size: 0.8rem;
-        }
-
-        .btn-success {
-            background: #10b981;
-        }
-
-        .flex-row {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .mode-group {
-            display: flex;
-            gap: 12px;
-            background: #eef2ff;
-            padding: 6px 12px;
-            border-radius: 60px;
-            justify-content: center;
-        }
-
-        .mode-btn {
-            background: transparent;
-            border: none;
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .mode-btn.active {
-            background: #3b82f6;
-            color: white;
-        }
-
+        .btn-outline { background: transparent; border: 1px solid #3b82f6; color: #3b82f6; }
+        .btn-outline:hover { background: #eff6ff; }
+        .btn-secondary { background: #475569; }
+        .btn-danger { background: #ef4444; }
+        .btn-success { background: #10b981; }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .flex-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 20px; }
+        .mode-group { display: flex; gap: 12px; background: #eef2ff; padding: 6px 12px; border-radius: 60px; justify-content: center; }
+        .mode-btn { background: transparent; border: none; padding: 8px 18px; border-radius: 40px; font-weight: 500; cursor: pointer; }
+        .mode-btn.active { background: #3b82f6; color: white; }
         .root-word {
             font-size: 2.8rem;
             font-weight: 700;
@@ -153,7 +79,6 @@
             margin-bottom: 24px;
             border: 1px solid #e2e8f0;
         }
-
         .meaning {
             font-size: 1.4rem;
             font-weight: 500;
@@ -161,7 +86,6 @@
             border-left: 4px solid #3b82f6;
             padding-left: 16px;
         }
-
         .origin {
             color: #475569;
             background: #f1f5f9;
@@ -171,36 +95,16 @@
             font-size: 0.8rem;
             margin-bottom: 20px;
         }
-
-        .example-title {
-            font-weight: 600;
-            margin: 18px 0 8px 0;
-            color: #334155;
-        }
-
+        .example-title { font-weight: 600; margin: 18px 0 8px 0; color: #334155; }
         .example-list {
             background: #f8fafc;
             border-radius: 24px;
             padding: 16px 20px;
             list-style: none;
         }
-
-        .example-list li {
-            margin-bottom: 12px;
-            border-bottom: 1px dashed #e2e8f0;
-            padding-bottom: 8px;
-        }
-
-        .example-word {
-            font-weight: 700;
-            color: #0f172a;
-        }
-
-        .example-trans {
-            color: #475569;
-            margin-left: 8px;
-        }
-
+        .example-list li { margin-bottom: 12px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
+        .example-word { font-weight: 700; color: #0f172a; }
+        .example-trans { color: #475569; margin-left: 8px; }
         .progress {
             font-size: 0.85rem;
             color: #3b82f6;
@@ -209,80 +113,31 @@
             border-radius: 40px;
             display: inline-block;
         }
-
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-top: 28px;
-        }
-
-        .footer-actions {
-            margin-top: 24px;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border-radius: 20px;
-            border: 1px solid #cbd5e1;
-            font-family: monospace;
-            margin-top: 8px;
-            font-size: 0.8rem;
-        }
-
-        .seq-info {
-            font-size: 0.75rem;
-            color: #4b5563;
-            word-break: break-all;
-        }
-
+        .action-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 28px; }
+        .footer-actions { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+        textarea { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #cbd5e1; font-family: monospace; margin-top: 8px; font-size: 0.8rem; }
+        .seq-info { font-size: 0.75rem; color: #4b5563; word-break: break-all; }
         .unfamiliar-item {
             background: #f8fafc;
             border-radius: 20px;
             padding: 16px;
             margin-bottom: 12px;
         }
-
-        .unfamiliar-root {
-            font-size: 1.3rem;
-            font-weight: bold;
-            font-family: monospace;
-        }
-
-        .nav-tabs {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 8px;
-        }
-
-        .tab-btn {
-            background: none;
-            border: none;
-            font-size: 1rem;
-            font-weight: 500;
-            padding: 8px 16px;
-            cursor: pointer;
-            border-radius: 30px;
-            color: #475569;
-        }
-
-        .tab-btn.active {
-            background: #3b82f6;
-            color: white;
-        }
-
+        .unfamiliar-root { font-size: 1.3rem; font-weight: bold; font-family: monospace; }
+        .nav-tabs { display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+        .tab-btn { background: none; border: none; font-size: 1rem; font-weight: 500; padding: 8px 16px; cursor: pointer; border-radius: 30px; color: #475569; }
+        .tab-btn.active { background: #3b82f6; color: white; }
         @media (max-width: 550px) {
             .root-word { font-size: 2rem; }
             .meaning { font-size: 1.2rem; }
+        }
+        .error-banner {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 12px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            text-align: center;
         }
     </style>
 </head>
@@ -304,7 +159,7 @@
                 <button class="mode-btn" id="modeRandomBtn">随机顺序</button>
             </div>
             <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 20px;">
-                <button class="btn" id="startBtn" style="padding: 12px 28px; font-size: 1.1rem;">开始记单词</button>
+                <button class="btn" id="startBtn">开始记单词</button>
                 <button class="btn btn-outline" id="unfamiliarBookBtn">不懂词本</button>
             </div>
             <div style="margin-top: 28px; background: #fef9c3; border-radius: 24px; padding: 16px;">
@@ -350,9 +205,7 @@
                 <h3 style="margin:0;">不懂词本</h3>
                 <button class="btn btn-sm btn-outline" id="backHomeFromUnfamiliarBtn">返回主页</button>
             </div>
-            <div id="unfamiliarListContainer">
-                <!-- 动态列表 -->
-            </div>
+            <div id="unfamiliarListContainer"></div>
             <div style="margin-top: 20px;">
                 <button class="btn btn-sm btn-secondary" id="clearAllUnfamiliarBtn">清空不懂词本</button>
             </div>
@@ -362,261 +215,273 @@
 
 <script src="data.js"></script>
 <script>
-    // 引用全局 rootsData
-    let currentStudyList = [];
-    let currentIndex = 0;
-    let studyMode = "chapter";
-    let unfamiliarSet = new Set();  // 存储不懂的词根id
+    // 等待 data.js 加载完成
+    (function waitForData() {
+        if (typeof rootsData === 'undefined') {
+            // 显示错误提示，阻止操作
+            const homeView = document.getElementById('homeView');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-banner';
+            errorDiv.innerHTML = '错误: 词根数据加载失败，请确保 data.js 文件存在且格式正确。';
+            homeView.insertBefore(errorDiv, homeView.firstChild);
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('searchBtn').disabled = true;
+            return;
+        }
+        initApp();
+    })();
 
-    // DOM 元素
-    const homeView = document.getElementById('homeView');
-    const studyView = document.getElementById('studyView');
-    const unfamiliarView = document.getElementById('unfamiliarView');
-    const cardContent = document.getElementById('cardContent');
-    const searchInput = document.getElementById('searchInput');
-    const exportSeqArea = document.getElementById('exportSequenceArea');
-    const statInfoSpan = document.getElementById('statInfo');
+    function initApp() {
+        // 全局变量
+        let currentStudyList = [];
+        let currentIndex = 0;
+        let studyMode = "chapter";
+        let unfamiliarSet = new Set();
 
-    // 更新不懂词本UI（导出序列、统计）
-    function updateUnfamiliarUI() {
-        const seq = Array.from(unfamiliarSet).join('-');
-        exportSeqArea.value = seq;
-        statInfoSpan.innerText = `当前不懂词根数量: ${unfamiliarSet.size}`;
-        localStorage.setItem('root_unfamiliar_seq', seq);
-    }
+        // DOM 元素
+        const homeView = document.getElementById('homeView');
+        const studyView = document.getElementById('studyView');
+        const unfamiliarView = document.getElementById('unfamiliarView');
+        const cardContent = document.getElementById('cardContent');
+        const searchInput = document.getElementById('searchInput');
+        const exportSeqArea = document.getElementById('exportSequenceArea');
+        const statInfoSpan = document.getElementById('statInfo');
 
-    // 加载本地不懂记录（支持两种分隔符）
-    function loadUnfamiliar() {
-        const saved = localStorage.getItem('root_unfamiliar_seq');
-        if (saved && saved.trim()) {
-            let ids;
-            if (saved.includes('-')) {
-                ids = saved.split('-').map(Number);
-            } else if (saved.includes(',')) {
-                ids = saved.split(',').map(Number);
+        // 更新不懂词本UI（导出序列、统计）
+        function updateUnfamiliarUI() {
+            const seq = Array.from(unfamiliarSet).join('-');
+            exportSeqArea.value = seq;
+            statInfoSpan.innerText = `当前不懂词根数量: ${unfamiliarSet.size}`;
+            localStorage.setItem('root_unfamiliar_seq', seq);
+        }
+
+        // 加载本地不懂记录
+        function loadUnfamiliar() {
+            const saved = localStorage.getItem('root_unfamiliar_seq');
+            if (saved && saved.trim()) {
+                let ids;
+                if (saved.includes('-')) {
+                    ids = saved.split('-').map(Number);
+                } else if (saved.includes(',')) {
+                    ids = saved.split(',').map(Number);
+                } else {
+                    ids = [];
+                }
+                const validIds = ids.filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
+                unfamiliarSet = new Set(validIds);
             } else {
-                ids = [];
+                unfamiliarSet = new Set();
+            }
+            updateUnfamiliarUI();
+        }
+
+        // 导入序列
+        function importSequence(seqStr) {
+            if (!seqStr.trim()) return;
+            let ids;
+            if (seqStr.includes('-')) {
+                ids = seqStr.split('-').map(Number);
+            } else if (seqStr.includes(',')) {
+                ids = seqStr.split(',').map(Number);
+            } else {
+                ids = [Number(seqStr)];
             }
             const validIds = ids.filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
             unfamiliarSet = new Set(validIds);
-        } else {
-            unfamiliarSet = new Set();
-        }
-        updateUnfamiliarUI();
-    }
-
-    // 导入序列
-    function importSequence(seqStr) {
-        if (!seqStr.trim()) return;
-        let ids;
-        if (seqStr.includes('-')) {
-            ids = seqStr.split('-').map(Number);
-        } else if (seqStr.includes(',')) {
-            ids = seqStr.split(',').map(Number);
-        } else {
-            ids = [Number(seqStr)];
-        }
-        const validIds = ids.filter(n => !isNaN(n) && rootsData.some(r => r.id === n));
-        unfamiliarSet = new Set(validIds);
-        updateUnfamiliarUI();
-        alert(`已导入 ${unfamiliarSet.size} 个“不懂”标记`);
-    }
-
-    // 渲染词根卡片
-    function renderCardById(rootId) {
-        const item = rootsData.find(r => r.id === rootId);
-        if (!item) return "<div>词根不存在</div>";
-        const examplesHtml = item.examples.map(ex => `<li><span class="example-word">${ex.word}</span><span class="example-trans"> — ${ex.trans}</span></li>`).join('');
-        return `
-            <div>
-                <div class="root-word">${item.root}</div>
-                <div class="meaning">中文: ${item.meaning_cn} &nbsp;|&nbsp; 英文: ${item.meaning_en}</div>
-                <div class="origin">来源: ${item.origin} | 章节: ${item.chapter}</div>
-                <div class="example-title">书中示例单词：</div>
-                <ul class="example-list">${examplesHtml || '<li>无示例</li>'}</ul>
-                <div style="margin-top: 16px; font-size: 0.8rem; color:#3b82f6;">点击“不懂”将加入不懂词本，可跨设备同步</div>
-            </div>
-        `;
-    }
-
-    // 更新学习卡片显示
-    function updateCard() {
-        if (!currentStudyList.length || currentIndex >= currentStudyList.length) {
-            cardContent.innerHTML = "<div>当前列表已学完，请返回主页重新开始。</div>";
-            document.getElementById('studyProgress').innerText = `已学完`;
-            return;
-        }
-        const rid = currentStudyList[currentIndex];
-        cardContent.innerHTML = renderCardById(rid);
-        document.getElementById('studyProgress').innerText = `第 ${currentIndex+1} / ${currentStudyList.length} 个词根`;
-    }
-
-    // 构建学习列表
-    function buildStudyList(mode) {
-        let list = [...rootsData];
-        if (mode === 'chapter') {
-            list.sort((a,b) => {
-                if (a.chapter === b.chapter) return a.id - b.id;
-                // 章节格式：数字或 "appx"，数字优先
-                const aIsNum = !isNaN(parseFloat(a.chapter));
-                const bIsNum = !isNaN(parseFloat(b.chapter));
-                if (aIsNum && !bIsNum) return -1;
-                if (!aIsNum && bIsNum) return 1;
-                return a.chapter.localeCompare(b.chapter);
-            });
-        } else {
-            for (let i = list.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [list[i], list[j]] = [list[j], list[i]];
-            }
-        }
-        return list.map(r => r.id);
-    }
-
-    // 开始学习（清空当前列表，重新生成）
-    function startStudy(mode) {
-        studyMode = mode;
-        currentStudyList = buildStudyList(mode);
-        currentIndex = 0;
-        if (currentStudyList.length === 0) return;
-        homeView.style.display = 'none';
-        studyView.style.display = 'block';
-        unfamiliarView.style.display = 'none';
-        updateCard();
-    }
-
-    // 搜索功能
-    function performSearch() {
-        const keyword = searchInput.value.trim().toLowerCase();
-        if (!keyword) return alert("请输入搜索关键词");
-        const matched = rootsData.filter(r =>
-            r.root.toLowerCase().includes(keyword) ||
-            r.meaning_cn.includes(keyword) ||
-            r.meaning_en.toLowerCase().includes(keyword) ||
-            r.examples.some(ex => ex.word.toLowerCase().includes(keyword) || ex.trans.includes(keyword))
-        );
-        if (matched.length === 0) return alert("未找到匹配词根");
-        currentStudyList = matched.map(r => r.id);
-        currentIndex = 0;
-        homeView.style.display = 'none';
-        studyView.style.display = 'block';
-        unfamiliarView.style.display = 'none';
-        updateCard();
-    }
-
-    // 认识：从当前列表移除（可选，这里简单移到下一个）
-    function markAsKnow() {
-        if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
-        const rid = currentStudyList[currentIndex];
-        // 如果之前标记过不懂，从不懂集合中移除（因为现在认识了）
-        if (unfamiliarSet.has(rid)) {
-            unfamiliarSet.delete(rid);
             updateUnfamiliarUI();
+            alert(`已导入 ${unfamiliarSet.size} 个“不懂”标记`);
         }
-        // 移到下一个
-        if (currentIndex + 1 < currentStudyList.length) {
-            currentIndex++;
-            updateCard();
-        } else {
-            alert("恭喜！已学完当前列表所有词根！");
-            // 可选：自动返回主页
-        }
-    }
 
-    // 不懂：加入不懂集合，移到下一个
-    function markAsDontKnow() {
-        if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
-        const rid = currentStudyList[currentIndex];
-        unfamiliarSet.add(rid);
-        updateUnfamiliarUI();
-        if (currentIndex + 1 < currentStudyList.length) {
-            currentIndex++;
-            updateCard();
-        } else {
-            alert("已学完本轮，不懂的词根已加入不懂词本。");
-        }
-    }
-
-    // 清空所有不懂标记
-    function resetUnfamiliar() {
-        if (confirm("清除所有“不懂”标记？")) {
-            unfamiliarSet.clear();
-            updateUnfamiliarUI();
-        }
-    }
-
-    // 渲染不懂词本列表
-    function renderUnfamiliarList() {
-        const container = document.getElementById('unfamiliarListContainer');
-        if (!container) return;
-        const ids = Array.from(unfamiliarSet).sort((a,b) => a-b);
-        if (ids.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">暂无不懂词根，继续学习吧。</div>';
-            return;
-        }
-        let html = '';
-        for (let id of ids) {
-            const item = rootsData.find(r => r.id === id);
-            if (!item) continue;
-            html += `
-                <div class="unfamiliar-item">
-                    <div class="unfamiliar-root">${item.root}</div>
-                    <div style="margin: 8px 0;">中文: ${item.meaning_cn} | 英文: ${item.meaning_en}</div>
-                    <div style="font-size:0.8rem; color:#475569;">来源: ${item.origin} | 章节: ${item.chapter}</div>
-                    <button class="btn btn-sm btn-outline" data-id="${id}" style="margin-top: 8px;">移出词本（已掌握）</button>
+        // 渲染词根卡片
+        function renderCardById(rootId) {
+            const item = rootsData.find(r => r.id === rootId);
+            if (!item) return "<div>词根不存在</div>";
+            const examplesHtml = item.examples.map(ex => `<li><span class="example-word">${ex.word}</span><span class="example-trans"> — ${ex.trans}</span></li>`).join('');
+            return `
+                <div>
+                    <div class="root-word">${item.root}</div>
+                    <div class="meaning">中文: ${item.meaning_cn} &nbsp;|&nbsp; 英文: ${item.meaning_en}</div>
+                    <div class="origin">来源: ${item.origin} | 章节: ${item.chapter}</div>
+                    <div class="example-title">书中示例单词：</div>
+                    <ul class="example-list">${examplesHtml || '<li>无示例</li>'}</ul>
+                    <div style="margin-top: 16px; font-size: 0.8rem; color:#3b82f6;">点击“不懂”将加入不懂词本，可跨设备同步</div>
                 </div>
             `;
         }
-        container.innerHTML = html;
-        // 绑定移出按钮事件
-        container.querySelectorAll('.btn-outline[data-id]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = parseInt(btn.dataset.id);
-                if (unfamiliarSet.has(id)) {
-                    unfamiliarSet.delete(id);
-                    updateUnfamiliarUI();
-                    renderUnfamiliarList();  // 刷新列表
+
+        // 更新学习卡片
+        function updateCard() {
+            if (!currentStudyList.length || currentIndex >= currentStudyList.length) {
+                cardContent.innerHTML = "<div>当前列表已学完，请返回主页重新开始。</div>";
+                document.getElementById('studyProgress').innerText = `已学完`;
+                return;
+            }
+            const rid = currentStudyList[currentIndex];
+            cardContent.innerHTML = renderCardById(rid);
+            document.getElementById('studyProgress').innerText = `第 ${currentIndex+1} / ${currentStudyList.length} 个词根`;
+        }
+
+        // 构建学习列表
+        function buildStudyList(mode) {
+            let list = [...rootsData];
+            if (mode === 'chapter') {
+                list.sort((a,b) => {
+                    if (a.chapter === b.chapter) return a.id - b.id;
+                    const aIsNum = !isNaN(parseFloat(a.chapter));
+                    const bIsNum = !isNaN(parseFloat(b.chapter));
+                    if (aIsNum && !bIsNum) return -1;
+                    if (!aIsNum && bIsNum) return 1;
+                    return a.chapter.localeCompare(b.chapter);
+                });
+            } else {
+                for (let i = list.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [list[i], list[j]] = [list[j], list[i]];
                 }
+            }
+            return list.map(r => r.id);
+        }
+
+        // 开始学习
+        function startStudy(mode) {
+            studyMode = mode;
+            currentStudyList = buildStudyList(mode);
+            currentIndex = 0;
+            if (currentStudyList.length === 0) return;
+            homeView.style.display = 'none';
+            studyView.style.display = 'block';
+            unfamiliarView.style.display = 'none';
+            updateCard();
+        }
+
+        // 搜索功能
+        function performSearch() {
+            const keyword = searchInput.value.trim().toLowerCase();
+            if (!keyword) return alert("请输入搜索关键词");
+            const matched = rootsData.filter(r =>
+                r.root.toLowerCase().includes(keyword) ||
+                r.meaning_cn.includes(keyword) ||
+                r.meaning_en.toLowerCase().includes(keyword) ||
+                r.examples.some(ex => ex.word.toLowerCase().includes(keyword) || ex.trans.includes(keyword))
+            );
+            if (matched.length === 0) return alert("未找到匹配词根");
+            currentStudyList = matched.map(r => r.id);
+            currentIndex = 0;
+            homeView.style.display = 'none';
+            studyView.style.display = 'block';
+            unfamiliarView.style.display = 'none';
+            updateCard();
+        }
+
+        // 认识
+        function markAsKnow() {
+            if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
+            const rid = currentStudyList[currentIndex];
+            if (unfamiliarSet.has(rid)) {
+                unfamiliarSet.delete(rid);
+                updateUnfamiliarUI();
+            }
+            if (currentIndex + 1 < currentStudyList.length) {
+                currentIndex++;
+                updateCard();
+            } else {
+                alert("恭喜！已学完当前列表所有词根！");
+            }
+        }
+
+        // 不懂
+        function markAsDontKnow() {
+            if (!currentStudyList.length || currentIndex >= currentStudyList.length) return;
+            const rid = currentStudyList[currentIndex];
+            unfamiliarSet.add(rid);
+            updateUnfamiliarUI();
+            if (currentIndex + 1 < currentStudyList.length) {
+                currentIndex++;
+                updateCard();
+            } else {
+                alert("已学完本轮，不懂的词根已加入不懂词本。");
+            }
+        }
+
+        // 清空所有不懂标记
+        function resetUnfamiliar() {
+            if (confirm("清除所有“不懂”标记？")) {
+                unfamiliarSet.clear();
+                updateUnfamiliarUI();
+            }
+        }
+
+        // 渲染不懂词本列表
+        function renderUnfamiliarList() {
+            const container = document.getElementById('unfamiliarListContainer');
+            if (!container) return;
+            const ids = Array.from(unfamiliarSet).sort((a,b) => a-b);
+            if (ids.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">暂无不懂词根，继续学习吧。</div>';
+                return;
+            }
+            let html = '';
+            for (let id of ids) {
+                const item = rootsData.find(r => r.id === id);
+                if (!item) continue;
+                html += `
+                    <div class="unfamiliar-item">
+                        <div class="unfamiliar-root">${item.root}</div>
+                        <div style="margin: 8px 0;">中文: ${item.meaning_cn} | 英文: ${item.meaning_en}</div>
+                        <div style="font-size:0.8rem; color:#475569;">来源: ${item.origin} | 章节: ${item.chapter}</div>
+                        <button class="btn btn-sm btn-outline" data-id="${id}" style="margin-top: 8px;">移出词本（已掌握）</button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+            container.querySelectorAll('.btn-outline[data-id]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(btn.dataset.id);
+                    if (unfamiliarSet.has(id)) {
+                        unfamiliarSet.delete(id);
+                        updateUnfamiliarUI();
+                        renderUnfamiliarList();
+                    }
+                });
             });
-        });
+        }
+
+        // 显示不懂词本
+        function showUnfamiliarView() {
+            renderUnfamiliarList();
+            homeView.style.display = 'none';
+            studyView.style.display = 'none';
+            unfamiliarView.style.display = 'block';
+        }
+
+        // 返回主页
+        function showHomeView() {
+            homeView.style.display = 'block';
+            studyView.style.display = 'none';
+            unfamiliarView.style.display = 'none';
+            updateUnfamiliarUI();
+        }
+
+        // 事件绑定
+        document.getElementById('startBtn').onclick = () => startStudy(studyMode);
+        document.getElementById('modeChapterBtn').onclick = () => { studyMode = 'chapter'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeChapterBtn').classList.add('active'); };
+        document.getElementById('modeRandomBtn').onclick = () => { studyMode = 'random'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeRandomBtn').classList.add('active'); };
+        document.getElementById('searchBtn').onclick = performSearch;
+        document.getElementById('backHomeFromStudyBtn').onclick = showHomeView;
+        document.getElementById('backHomeFromUnfamiliarBtn').onclick = showHomeView;
+        document.getElementById('unfamiliarBookBtn').onclick = showUnfamiliarView;
+        document.getElementById('unfamiliarBookFromStudyBtn').onclick = showUnfamiliarView;
+        document.getElementById('knowBtn').onclick = markAsKnow;
+        document.getElementById('dontKnowBtn').onclick = markAsDontKnow;
+        document.getElementById('resetUnfamiliarFromStudyBtn').onclick = resetUnfamiliar;
+        document.getElementById('clearAllUnfamiliarBtn').onclick = resetUnfamiliar;
+        document.getElementById('copySeqBtn').onclick = () => { exportSeqArea.select(); document.execCommand('copy'); alert("序列已复制"); };
+        document.getElementById('importSeqBtn').onclick = () => { const val = document.getElementById('importSeqInput').value; importSequence(val); document.getElementById('importSeqInput').value = ''; };
+        searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') performSearch(); });
+
+        loadUnfamiliar();
+        document.getElementById('modeChapterBtn').classList.add('active');
     }
-
-    // 显示不懂词本视图
-    function showUnfamiliarView() {
-        renderUnfamiliarList();
-        homeView.style.display = 'none';
-        studyView.style.display = 'none';
-        unfamiliarView.style.display = 'block';
-    }
-
-    // 返回主页
-    function showHomeView() {
-        homeView.style.display = 'block';
-        studyView.style.display = 'none';
-        unfamiliarView.style.display = 'none';
-        // 刷新统计
-        updateUnfamiliarUI();
-    }
-
-    // 事件绑定
-    document.getElementById('startBtn').onclick = () => startStudy(studyMode);
-    document.getElementById('modeChapterBtn').onclick = () => { studyMode = 'chapter'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeChapterBtn').classList.add('active'); };
-    document.getElementById('modeRandomBtn').onclick = () => { studyMode = 'random'; document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.remove('active')); document.getElementById('modeRandomBtn').classList.add('active'); };
-    document.getElementById('searchBtn').onclick = performSearch;
-    document.getElementById('backHomeFromStudyBtn').onclick = showHomeView;
-    document.getElementById('backHomeFromUnfamiliarBtn').onclick = showHomeView;
-    document.getElementById('unfamiliarBookBtn').onclick = showUnfamiliarView;
-    document.getElementById('unfamiliarBookFromStudyBtn').onclick = showUnfamiliarView;
-    document.getElementById('knowBtn').onclick = markAsKnow;
-    document.getElementById('dontKnowBtn').onclick = markAsDontKnow;
-    document.getElementById('resetUnfamiliarFromStudyBtn').onclick = resetUnfamiliar;
-    document.getElementById('clearAllUnfamiliarBtn').onclick = resetUnfamiliar;
-    document.getElementById('copySeqBtn').onclick = () => { exportSeqArea.select(); document.execCommand('copy'); alert("序列已复制"); };
-    document.getElementById('importSeqBtn').onclick = () => { const val = document.getElementById('importSeqInput').value; importSequence(val); document.getElementById('importSeqInput').value = ''; };
-    searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') performSearch(); });
-
-    loadUnfamiliar();
-    document.getElementById('modeChapterBtn').classList.add('active');
 </script>
 </body>
 </html>
