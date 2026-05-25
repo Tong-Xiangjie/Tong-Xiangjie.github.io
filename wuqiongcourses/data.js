@@ -10,16 +10,16 @@
 
 const curriculumData = {
   meta: {
-    title: "无穹书院 人工智能专业本科培养方案",
+    title: "无穹书院<br>人工智能专业本科培养方案",
     version: "2025级",
     lastUpdated: "2026-05-25"
   },
 
   student: {
-    name: "（姓名）",
-    studentId: "（学号）",
-    major: "人工智能",
-    direction: "AI专业方向"   // 可选: "AI专业方向", 或各交叉方向名称
+    name: "童湘杰",
+    studentId: "2025013206",
+    major: "无穹书院",
+    direction: "具身智能"   // 可选: "AI专业方向", 或各交叉方向名称
   },
 
   // 学分要求概览
@@ -50,8 +50,8 @@ const curriculumData = {
       season: "入学前（军事课程）",
       note: "建议修读学分: 4",
       courses: [
-        { id: "12090052", name: "军事理论", credits: 2, category: "军事课程", score: "未修", remark: "" },
-        { id: "12090062", name: "军事技能", credits: 2, category: "军事课程", score: "未修", remark: "3周" }
+        { id: "12090052", name: "军事理论", credits: 2, category: "军事课程", score: "4.0", remark: "" },
+        { id: "12090062", name: "军事技能", credits: 2, category: "军事课程", score: "3.3", remark: "3周" }
       ]
     },
     {
@@ -60,15 +60,15 @@ const curriculumData = {
       note: "建议修读学分: 21",
       courses: [
         { id: "30420095", name: "高等微积分(1)", credits: 5, category: "数学基础", score: "未修", remark: "二选一" },
-        { id: "10421055", name: "微积分A(1)", credits: 5, category: "数学基础", score: "未修", remark: "二选一" },
-        { id: "30240233", name: "程序设计基础", credits: 3, category: "信息基础", score: "未修", remark: "二选一" },
+        { id: "10421055", name: "微积分A(1)", credits: 5, category: "数学基础", score: "4.0", remark: "二选一" },
+        { id: "30240233", name: "程序设计基础", credits: 3, category: "信息基础", score: "3.6", remark: "二选一" },
         { id: "34100063", name: "程序设计基础", credits: 3, category: "信息基础", score: "未修", remark: "二选一" },
-        { id: "10421324", name: "线性代数", credits: 4, category: "数学基础", score: "未修", remark: "" },
-        { id: "10680053", name: "思想道德与法治", credits: 3, category: "思想政治理论课", score: "未修", remark: "" },
-        { id: "10680101", name: "形势与政策(1)-秋", credits: 1, category: "思想政治理论课", score: "未修", remark: "" },
-        { id: "14201002", name: "英语(1)", credits: 2, category: "外语", score: "未修", remark: "" },
+        { id: "10421324", name: "线性代数", credits: 4, category: "数学基础", score: "3.6", remark: "" },
+        { id: "10680053", name: "思想道德与法治", credits: 3, category: "思想政治理论课", score: "4.0", remark: "" },
+        { id: "10680101", name: "形势与政策(1)-秋", credits: 1, category: "思想政治理论课", score: "P", remark: "" },
+        { id: "14201002", name: "英语(1)", credits: 2, category: "外语", score: "免修", remark: "" },
         { id: "10691342", name: "写作与沟通", credits: 2, category: "写作与沟通", score: "未修", remark: "" },
-        { id: "10720011", name: "体育(1)", credits: 1, category: "体育", score: "未修", remark: "" }
+        { id: "10720011", name: "体育(1)", credits: 1, category: "体育", score: "2.6", remark: "" }
       ]
     },
     {
