@@ -1,14 +1,14 @@
 /**
  * 无穹书院 人工智能专业本科培养方案 - 课程数据
- * 
+ *
  * 使用说明：
- * 1. 修改学生个人信息：student 对象
- * 2. 录入成绩：将对应课程的 score 字段从 "未修" 改为绩点数值（如 4.0）
- * 3. 选择专业方向：修改 direction 字段，并从相关选修课组中选课
- * 4. 对于多选一课程（二选一、三选一），为已选课程填写成绩，其他保持 "未修"
+ * - 录入成绩：将 score 字段从 "未修" 改为绩点数值（如 4.0, 3.7, 3.3）
+ * - "已选课"：表示已选课但尚未获得成绩
+ * - 多选一课程：只保留所选课程的数据行，为其填入成绩即可
+ * - 通识选修课：在 generalEducation 的四个课组中填入所选课程名称与成绩
  */
 
-const curriculumData = {
+var curriculumData = {
   meta: {
     title: "无穹书院<br>人工智能专业本科培养方案",
     version: "2025级",
@@ -19,7 +19,7 @@ const curriculumData = {
     name: "童湘杰",
     studentId: "2025013206",
     major: "无穹书院",
-    direction: "具身智能"   // 可选: "AI专业方向", 或各交叉方向名称
+    direction: "具身智能"
   },
 
   // 学分要求概览
@@ -41,9 +41,52 @@ const curriculumData = {
     { total: true, required: "146-150", key: "total" }
   ],
 
+  // ====== 通识选修课（四个课组） ======
+  // 书院定制通识课已分布在学期数据中：
+  //   脑与认知科学(3学分) -> 科学课组
+  //   人工智能伦理与社会(3学分) -> 社科课组
+  // 以下请自行填写各课组其他选修课程
+  generalEducation: {
+    note: "通识选修课共需11学分。书院定制通识课（脑与认知科学3cr计入科学课组、人工智能伦理与社会3cr计入社科课组）已包含在学期数据中。以下四个课组各至少需2学分，请自行填写所选课程。",
+    groups: [
+      {
+        name: "人文",
+        required: 2,
+        courses: [
+          { name: "老庄研读", credits: 3, score: "4.0", remark: "" }
+        ]
+      },
+      {
+        name: "社科",
+        required: 2,
+        courses: [
+          { name: "人工智能伦理与社会", credits: 3, score: "未修", remark: "" },
+          { name: "实验室科研探究（1）", credits: 1, score: "P", remark: "" },
+          { name: "实验室科研探究（2）", credits: 1, score: "已选课", remark: "" }
+        ]
+      },
+      {
+        name: "艺术",
+        required: 2,
+        courses: [
+          { name: "电影音乐鉴赏", credits: 2, score: "已选课", remark: "" }
+        ]
+      },
+      {
+        name: "科学",
+        required: 2,
+        courses: [
+          { name: "脑与认知科学", credits: 0, score: "未修", remark: "" }
+        ]
+      }
+    ]
+  },
+
   // ====== 按学期组织的课程数据 ======
-  // score: 填入绩点数值（如 4.0, 3.7, 3.3 等），未修保持 "未修"
+  // score: 绩点数值（如4.0）/ "已选课" / "未修"
+  // 多选一课程只保留所选的那一行，alternatives 字段列出其他可选方案（仅作参考展示）
   semesters: [
+
     // ========== 第一学年 ==========
     {
       year: "第一学年",
@@ -59,15 +102,12 @@ const curriculumData = {
       season: "秋季学期",
       note: "建议修读学分: 21",
       courses: [
-        { id: "30420095", name: "高等微积分(1)", credits: 5, category: "数学基础", score: "未修", remark: "二选一" },
-        { id: "10421055", name: "微积分A(1)", credits: 5, category: "数学基础", score: "4.0", remark: "二选一" },
-        { id: "30240233", name: "程序设计基础", credits: 3, category: "信息基础", score: "3.6", remark: "二选一" },
-        { id: "34100063", name: "程序设计基础", credits: 3, category: "信息基础", score: "未修", remark: "二选一" },
+        { id: "30420095", name: "微积分A(1)", credits: 5, category: "数学基础", score: "4.0", remark: "另可选：高等微积分(1)" },
+        { id: "30240233", name: "程序设计基础", credits: 3, category: "信息基础", score: "3.6", remark: "另可选：34100063 程序设计基础" },
         { id: "10421324", name: "线性代数", credits: 4, category: "数学基础", score: "3.6", remark: "" },
         { id: "10680053", name: "思想道德与法治", credits: 3, category: "思想政治理论课", score: "4.0", remark: "" },
         { id: "10680101", name: "形势与政策(1)-秋", credits: 1, category: "思想政治理论课", score: "P", remark: "" },
         { id: "14201002", name: "英语(1)", credits: 2, category: "外语", score: "免修", remark: "" },
-        { id: "10691342", name: "写作与沟通", credits: 2, category: "写作与沟通", score: "未修", remark: "" },
         { id: "10720011", name: "体育(1)", credits: 1, category: "体育", score: "2.6", remark: "" }
       ]
     },
@@ -76,18 +116,15 @@ const curriculumData = {
       season: "春季学期",
       note: "建议修读学分: 21",
       courses: [
-        { id: "30420105", name: "高等微积分(2)", credits: 5, category: "数学基础", score: "未修", remark: "二选一" },
-        { id: "10421065", name: "微积分A(2)", credits: 5, category: "数学基础", score: "未修", remark: "二选一" },
-        { id: "30240532", name: "面向对象程序设计基础", credits: 2, category: "信息基础", score: "未修", remark: "二选一" },
-        { id: "34100362", name: "面向对象程序设计基础", credits: 2, category: "信息基础", score: "未修", remark: "二选一" },
-        { id: "10880012", name: "概率论", credits: 2, category: "数学基础", score: "未修", remark: "" },
-        { id: "10430934", name: "大学物理A(1)", credits: 4, category: "科学基础", score: "未修", remark: "AI专业方向三选一" },
-        { id: "10430484", name: "大学物理B(1)", credits: 4, category: "科学基础", score: "未修", remark: "三选一" },
-        { id: "10430344", name: "大学物理(1)英", credits: 4, category: "科学基础", score: "未修", remark: "三选一" },
-        { id: "10610193", name: "中国近现代史纲要", credits: 3, category: "思想政治理论课", score: "未修", remark: "" },
-        { id: "10680131", name: "形势与政策(2)-春", credits: 1, category: "思想政治理论课", score: "未修", remark: "" },
-        { id: "14201012", name: "英语(2)", credits: 2, category: "外语", score: "未修", remark: "" },
-        { id: "10720021", name: "体育(2)", credits: 1, category: "体育", score: "未修", remark: "" }
+        { id: "30420105", name: "微积分A(2)", credits: 5, category: "数学基础", score: "已选课", remark: "另可选：高等微积分(2)" },
+        { id: "30240532", name: "面向对象程序设计基础", credits: 2, category: "信息基础", score: "已选课", remark: "另可选：34100362 面向对象程序设计基础" },
+        { id: "10880012", name: "概率论", credits: 2, category: "数学基础", score: "已选课", remark: "" },
+        { id: "10430934", name: "大学物理A(1)", credits: 4, category: "科学基础", score: "已选课", remark: "AI专业方向可选；另可選：大学物理B(1)、大学物理(1)英" },
+        { id: "10610193", name: "中国近现代史纲要", credits: 3, category: "思想政治理论课", score: "已选课", remark: "" },
+        { id: "10680131", name: "形势与政策(2)-春", credits: 1, category: "思想政治理论课", score: "已选课", remark: "" },
+        { id: "14201012", name: "英语(2)", credits: 2, category: "外语", score: "免修", remark: "" },
+        { id: "10691342", name: "写作与沟通", credits: 2, category: "写作与沟通", score: "已选课", remark: "" },
+        { id: "10720021", name: "体育(2)", credits: 1, category: "体育", score: "已选课", remark: "" }
       ]
     },
     {
@@ -95,8 +132,8 @@ const curriculumData = {
       season: "夏季学期",
       note: "建议修读学分: 4",
       courses: [
-        { id: "30940022", name: "AI基石设计", credits: 2, category: "创新实践环节", score: "未修", remark: "" },
-        { id: "10680092", name: "思政实践", credits: 2, category: "思想政治理论课", score: "未修", remark: "建议大一大二暑期选修" }
+        { id: "30940022", name: "AI基石设计", credits: 2, category: "创新实践环节", score: "已选课", remark: "" },
+        { id: "10680092", name: "思政实践", credits: 2, category: "思想政治理论课", score: "已选课", remark: "建议大一大二暑期选修" }
       ]
     },
 
@@ -107,18 +144,13 @@ const curriculumData = {
       note: "建议修读学分: 22",
       courses: [
         { id: "30160263", name: "统计推断", credits: 3, category: "数学基础", score: "未修", remark: "" },
-        { id: "30240184", name: "数据结构", credits: 4, category: "信息基础", score: "未修", remark: "二选一" },
-        { id: "34100373", name: "数据结构", credits: 3, category: "信息基础", score: "未修", remark: "二选一" },
+        { id: "30240184", name: "数据结构", credits: 4, category: "信息基础", score: "未修", remark: "另可选：34100373 数据结构(3学分)" },
         { id: "20240143", name: "离散数学(1)", credits: 3, category: "数学基础", score: "未修", remark: "" },
-        { id: "20240152", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "未修", remark: "三选一" },
-        { id: "30940032", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "未修", remark: "三选一" },
-        { id: "44100102", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "未修", remark: "三选一" },
+        { id: "20240152", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "未修", remark: "另可选：30940032 / 44100102" },
         { id: "10680073", name: "马克思主义基本原理", credits: 3, category: "思想政治理论课", score: "未修", remark: "" },
         { id: "10720031", name: "体育(3)", credits: 1, category: "体育", score: "未修", remark: "" },
         { id: "14201022", name: "英语(3)", credits: 2, category: "外语", score: "未修", remark: "" },
-        { id: "10430944", name: "大学物理A(2)", credits: 4, category: "科学基础", score: "未修", remark: "AI专业方向三选一" },
-        { id: "10430494", name: "大学物理B(2)", credits: 4, category: "科学基础", score: "未修", remark: "三选一" },
-        { id: "10430354", name: "大学物理(2)英", credits: 4, category: "科学基础", score: "未修", remark: "三选一" },
+        { id: "10430944", name: "大学物理A(2)", credits: 4, category: "科学基础", score: "未修", remark: "AI专业方向可选；另可選：大学物理B(2)、大学物理(2)英" },
         { id: "10430801", name: "物理实验B(1)", credits: 1, category: "科学基础", score: "未修", remark: "AI专业方向选修" }
       ]
     },
@@ -130,14 +162,13 @@ const curriculumData = {
         { id: "new001", name: "最优化方法", credits: 3, category: "数学基础", score: "未修", remark: "新开课" },
         { id: "new002", name: "信息论", credits: 3, category: "信息基础", score: "未修", remark: "新开课" },
         { id: "new003", name: "计算机组成原理与系统", credits: 3, category: "信息基础", score: "未修", remark: "新开课" },
-        { id: "new004", name: "机器学习", credits: 3, category: "专业核心课程", score: "未修", remark: "新开课" },
+        { id: "new004", name: "机器学习", credits: 3, category: "专业核心课程", score: "未修", remark: "新开课；另可选：统计机器学习(40880043)" },
         { id: "10430811", name: "物理实验B(2)", credits: 1, category: "科学基础", score: "未修", remark: "AI专业方向选修，先修物理实验B(1)" },
         { id: "10680142", name: "毛泽东思想和中国特色社会主义理论体系概论", credits: 2, category: "思想政治理论课", score: "未修", remark: "" },
         { id: "10680022", name: "习近平新时代中国特色社会主义思想概论", credits: 2, category: "思想政治理论课", score: "未修", remark: "" },
         { id: "14201032", name: "英语(4)", credits: 2, category: "外语", score: "未修", remark: "" },
         { id: "10720041", name: "体育(4)", credits: 1, category: "体育", score: "未修", remark: "" },
-        { id: "elec_s2_1", name: "人工智能选修课组", credits: 3, category: "专业选修课程", score: "未修", remark: "二选一" },
-        { id: "elec_s2_2", name: "项目式学习", credits: 3, category: "专业选修课程", score: "未修", remark: "二选一" }
+        { id: "elec_s2_1", name: "人工智能选修课组", credits: 3, category: "专业选修课程", score: "未修", remark: "二选一；另可选：项目式学习" }
       ]
     },
     {
@@ -156,12 +187,10 @@ const curriculumData = {
       note: "建议修读学分: 15",
       courses: [
         { id: "new006", name: "脑与认知科学", credits: 3, category: "通识选修课", score: "未修", remark: "书院定制通识课（计入科学课组）" },
-        { id: "80240743", name: "深度学习", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一" },
-        { id: "84100343", name: "深度学习", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一" },
+        { id: "80240743", name: "深度学习", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一；另可选：84100343 深度学习" },
         { id: "ideology_limit", name: "思政限选课", credits: 1, category: "思想政治理论课", score: "未修", remark: "限选（四史等）" },
         { id: "lib_elec_1", name: "通识选修课", credits: 3, category: "通识选修课", score: "未修", remark: "人文/社科/艺术/科学" },
-        { id: "elec_s3_1", name: "人工智能选修课组", credits: 5, category: "专业选修课程", score: "未修", remark: "二选一" },
-        { id: "elec_s3_2", name: "人工智能选修课组+项目式学习", credits: 5, category: "专业选修课程", score: "未修", remark: "二选一" }
+        { id: "elec_s3_1", name: "人工智能选修课组", credits: 5, category: "专业选修课程", score: "未修", remark: "二选一；另可选：人工智能选修课组+项目式学习" }
       ]
     },
     {
@@ -169,8 +198,7 @@ const curriculumData = {
       season: "春季学期",
       note: "建议修读学分: 16",
       courses: [
-        { id: "new007", name: "计算机视觉", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一" },
-        { id: "new008", name: "自然语言处理", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一" },
+        { id: "new007", name: "计算机视觉", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一；另可选：自然语言处理" },
         { id: "40241012", name: "强化学习", credits: 3, category: "专业核心课程", score: "未修", remark: "" },
         { id: "new009", name: "人工智能伦理与社会", credits: 3, category: "通识选修课", score: "未修", remark: "书院定制通识课（计入社科课组）" },
         { id: "elec_s4_1", name: "人工智能选修课组", credits: 5, category: "专业选修课程", score: "未修", remark: "" },
@@ -192,8 +220,7 @@ const curriculumData = {
       season: "秋季学期",
       note: "建议修读学分: 15",
       courses: [
-        { id: "elec_s5_1", name: "人工智能选修课组", credits: 15, category: "专业选修课程", score: "未修", remark: "二选一" },
-        { id: "elec_s5_2", name: "人工智能选修课组+项目式学习", credits: 15, category: "专业选修课程", score: "未修", remark: "二选一" }
+        { id: "elec_s5_1", name: "人工智能选修课组", credits: 15, category: "专业选修课程", score: "未修", remark: "二选一；另可选：人工智能选修课组+项目式学习" }
       ]
     },
     {
@@ -201,15 +228,14 @@ const curriculumData = {
       season: "春季学期",
       note: "建议修读学分: 8",
       courses: [
-        { id: "new011", name: "综合论文训练", credits: 8, category: "创新实践环节", score: "未修", remark: "二选一" },
-        { id: "new012", name: "论文写作+人工智能选修课组", credits: 8, category: "创新实践环节", score: "未修", remark: "二选一" }
+        { id: "new011", name: "综合论文训练", credits: 8, category: "创新实践环节", score: "未修", remark: "二选一；另可选：论文写作+人工智能选修课组" }
       ]
     }
   ],
 
-  // 专业选修课组详细列表（人工智能专业方向）
+  // ====== 专业选修课组详细列表 ======
   electiveGroups: {
-    title: "人工智能专业方向选修课组（三横两纵，需至少覆盖3个课组，总学分不少于20学分）",
+    title: "人工智能专业方向选修课组（三横两纵：先进模型与算法、智能信息处理、AI软硬件基础、具身智能、人工智能安全。需至少覆盖3个课组，总学分不少于20学分）",
     groups: [
       {
         name: "课组1：先进模型与算法",
@@ -270,9 +296,9 @@ const curriculumData = {
           { id: "30260222", name: "电子学基础", credits: 2, remark: "A类必修，四选一" },
           { id: "30260252", name: "电子电路与系统基础(1)", credits: 2, remark: "A类必修，四选一" },
           { id: "30260272", name: "电子电路与系统基础(2)", credits: 2, remark: "A类必修，四选一" },
-          { id: "40260373", name: "集成电路基础:芯片设计", credits: 3 },
-          { id: "40241103", name: "人工智能编译框架与原理", credits: 3 },
-          { id: "new019", name: "智能操作系统", credits: 3 }
+          { id: "40260373", name: "集成电路基础:芯片设计", credits: 3, remark: "" },
+          { id: "40241103", name: "人工智能编译框架与原理", credits: 3, remark: "" },
+          { id: "new019", name: "智能操作系统", credits: 3, remark: "" }
         ],
         optional: [
           { id: "30240192", name: "高性能计算导论", credits: 2 },
@@ -282,17 +308,17 @@ const curriculumData = {
           { id: "30230643", name: "计算机网络技术与实践", credits: 3, remark: "二选一" },
           { id: "44100512", name: "大数据系统软件", credits: 3 },
           { id: "new021", name: "模型驱动软件开发", credits: 2, remark: "二选一" },
-          { id: "new022", name: "基于生成式人工智能的代码生成", credits: 2, remark: "二选一" },
+          { id: "new022", name: "基于生成式AI的代码生成", credits: 2, remark: "二选一" },
           { id: "30240262", name: "数据库系统概论", credits: 2, remark: "三选一" },
           { id: "30230272", name: "数据库", credits: 2, remark: "三选一" },
           { id: "34100173", name: "数据库原理", credits: 3, remark: "三选一" },
           { id: "44100203", name: "软件工程", credits: 3, remark: "二选一" },
           { id: "30240163", name: "软件工程", credits: 3, remark: "二选一" },
-          { id: "80231392", name: "人工智能基础软硬件核心技术", credits: 2 }
+          { id: "80231392", name: "AI基础软硬件核心技术", credits: 2 }
         ]
       },
       {
-        name: "课组4：具身智能",
+        name: "课组4：具身智能（当前方向）",
         required: [
           { id: "new023", name: "机器人运动学与动力学", credits: 3, remark: "A类必修" },
           { id: "40240013", name: "系统分析与控制", credits: 3, remark: "A类必修，二选一" },
