@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>无穹书院 - 培养方案完成情况</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="data.js"></script>
+  <style>
+    /* 额外的布局样式 */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-bottom: 20px;
+    }
+
+    /* 导航锚点 */
+    .nav-bar {
+      background: #fff;
+      padding: 12px 24px;
+      margin: 0 24px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .nav-bar a {
+      color: #1a2a6c;
+      text-decoration: none;
+      padding: 4px 12px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .nav-bar a:hover {
+      background: #f0f2f7;
+    }
+
+    .nav-bar .nav-sep {
+      color: #ddd;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>无穹书院 人工智能专业本科培养方案</h1>
+  <div class="subtitle">课程完成情况一览</div>
+  <div class="version" id="headerVersion"></div>
+</div>
+
+<div class="container">
+  <div class="student-info" id="studentInfo"></div>
+
+  <div class="nav-bar" id="navBar"></div>
+
+  <div class="summary-section" id="summarySection">
+    <div class="section-title">学分要求概览</div>
+    <table class="summary-table" id="summaryTable">
+      <thead>
+        <tr>
+          <th>类别</th>
+          <th>要求学分</th>
+          <th>已修学分</th>
+          <th>完成情况</th>
+        </tr>
+      </thead>
+      <tbody id="summaryBody"></tbody>
+    </table>
+  </div>
+
+  <div id="semesterContainer"></div>
+
+  <div class="elective-section" id="electiveSection">
+    <div class="section-title">专业选修课组详情</div>
+    <div class="section-desc" id="electiveDesc"></div>
+    <div id="electiveGroups"></div>
+  </div>
+
+  <div class="footer">
+    <p>数据维护：修改 data.js 中的课程 score 字段（绩点数值 或 "未修"）</p>
+    <p>本网站为静态托管，所有数据均在本地管理</p>
+  </div>
+</div>
+
+<script>
+(function() {
+  var data = curriculumData;
+
+  // ---------- 工具函数 ----------
+  function getScoreDisplay(score) {
+    if (score === "未修" || score === undefined || score === null || score === "") {
+      return '<span class="score-none">未修</span>';
+    }
+    var num = parseFloat(score);
+    if (!isNaN(num)) {
+      if (num >= 3.7) return '<span class="score-high">' + num.toFixed(1) + '</span>';
+      return '<span class="score-pass">' + num.toFixed(1) + '</span>';
+    }
+    return '<span class="score-pass">' + score + '</span>';
+  }
+
+  function isCourseTaken(score) {
+    return score !== "未修" && score !== undefined && score !== null && score !== "";
+  }
+
+  // 计算某个类别下已修学分
+  function getEarnedCreditsByCategory(key) {
+    var total = 0;
+    data.semesters.forEach(function(sem) {
+      sem.courses.forEach(function(c) {
+        // 映射 category 到 key
+        var catKey = mapCategoryToKey(c.category);
+        if (catKey === key && isCourseTaken(c.score)) {
+          total += c.credits;
+        }
+      });
+    });
+    return total;
+  }
+
+  function mapCategoryToKey(cat) {
+    var map = {
+      "思想政治理论课": "ideology",
+      "体育": "pe",
+      "外语": "foreignLang",
+      "写作与沟通": "writing",
+      "通识选修课": "liberal",
+      "军事课程": "military",
+      "数学基础": "math",
+      "科学基础": "science",
+      "信息基础": "informatics",
+      "专业核心课程": "core",
+      "专业选修课程": "elective",
+      "创新实践环节": "practice"
+    };
+    return map[cat] || "other";
+  }
+
+  function getEarnedBySubKey(key) {
+    var total = 0;
+    data.semesters.forEach(function(sem) {
+      sem.courses.forEach(function(c) {
+        var catKey = mapCategoryToKey(c.category);
+        if (catKey === key && isCourseTaken(c.score)) {
+          total += c.credits;
+        }
+      });
+    });
+    return total;
+  }
+
+  // 大类汇总
+  function getGeneralEarned() {
+    var keys = ["ideology", "pe", "foreignLang", "writing", "liberal", "military"];
+    var total = 0;
+    data.semesters.forEach(function(sem) {
+      sem.courses.forEach(function(c) {
+        var catKey = mapCategoryToKey(c.category);
+        if (keys.indexOf(catKey) !== -1 && isCourseTaken(c.score)) {
+          total += c.credits;
+        }
+      });
+    });
+    return total;
+  }
+
+  function getFoundationEarned() {
+    var keys = ["math", "science", "informatics"];
+    var total = 0;
+    data.semesters.forEach(function(sem) {
+      sem.courses.forEach(function(c) {
+        var catKey = mapCategoryToKey(c.category);
+        if (keys.indexOf(catKey) !== -1 && isCourseTaken(c.score)) {
+          total += c.credits;
+        }
+      });
+    });
+    return total;
+  }
+
+  // ---------- 渲染 ----------
+  // 1. 版本信息
+  document.getElementById("headerVersion").textContent = "版本: " + (data.meta.version || "2025级") + " | 更新日期: " + (data.meta.lastUpdated || "");
+
+  // 2. 学生信息
+  var infoHtml = "";
+  infoHtml += '<div class="info-item"><span class="label">姓名</span><span class="value">' + data.student.name + '</span></div>';
+  infoHtml += '<div class="info-item"><span class="label">学号</span><span class="value">' + data.student.studentId + '</span></div>';
+  infoHtml += '<div class="info-item"><span class="label">专业</span><span class="value">' + data.student.major + '</span></div>';
+  infoHtml += '<div class="info-item"><span class="label">方向</span><span class="value">' + data.student.direction + '</span></div>';
+  document.getElementById("studentInfo").innerHTML = infoHtml;
+
+  // 3. 导航栏
+  var navHtml = "";
+  navHtml += '<a href="#summarySection">学分概览</a>';
+  data.semesters.forEach(function(sem, idx) {
+    var anchor = "sem" + idx;
+    navHtml += '<span class="nav-sep">|</span>';
+    navHtml += '<a href="#' + anchor + '">' + sem.year + ' ' + sem.season + '</a>';
+  });
+  navHtml += '<span class="nav-sep">|</span>';
+  navHtml += '<a href="#electiveSection">选修课组</a>';
+  document.getElementById("navBar").innerHTML = navHtml;
+
+  // 4. 学分概览
+  var summaryBody = document.getElementById("summaryBody");
+  var sHtml = "";
+
+  // 校级通识教育
+  var genEarned = getGeneralEarned();
+  var genRequired = 47;
+  sHtml += '<tr><td><strong>校级通识教育</strong></td><td>' + genRequired + '</td><td>' + genEarned.toFixed(1) + '</td><td class="' + (genEarned >= genRequired ? 'status-ok' : 'status-warn') + '">' + (genEarned >= genRequired ? '已完成' : '未完成') + '</td></tr>';
+
+  var subItems = [
+    { label: "思想政治理论课", key: "ideology", req: 18 },
+    { label: "体育", key: "pe", req: 4 },
+    { label: "外语", key: "foreignLang", req: 8 },
+    { label: "写作与沟通", key: "writing", req: 2 },
+    { label: "通识选修课", key: "liberal", req: 11 },
+    { label: "军事课程", key: "military", req: 4 }
+  ];
+
+  subItems.forEach(function(item) {
+    var earned = getEarnedBySubKey(item.key);
+    sHtml += '<tr class="sub-row"><td>' + item.label + '</td><td>' + item.req + '</td><td>' + earned.toFixed(1) + '</td><td class="' + (earned >= item.req ? 'status-ok' : (earned > 0 ? 'status-warn' : 'status-neutral')) + '">' + (earned >= item.req ? '已完成' : (earned > 0 ? '进行中' : '未开始')) + '</td></tr>';
+  });
+
+  // 基础课程
+  var foundEarned = getFoundationEarned();
+  sHtml += '<tr><td><strong>基础课程</strong></td><td>44-49</td><td>' + foundEarned.toFixed(1) + '</td><td class="status-neutral">' + (foundEarned >= 44 ? '满足最低要求' : '进行中') + '</td></tr>';
+
+  var foundSubs = [
+    { label: "数学基础", key: "math", req: 25 },
+    { label: "科学基础", key: "science", reqLow: 4, reqHigh: 9 },
+    { label: "信息基础", key: "informatics", req: 15 }
+  ];
+
+  foundSubs.forEach(function(item) {
+    var earned = getEarnedBySubKey(item.key);
+    var reqStr = item.req ? item.req : (item.reqLow + "-" + item.reqHigh);
+    var ok = item.req ? (earned >= item.req) : (earned >= item.reqLow);
+    sHtml += '<tr class="sub-row"><td>' + item.label + '</td><td>' + reqStr + '</td><td>' + earned.toFixed(1) + '</td><td class="' + (ok ? 'status-ok' : (earned > 0 ? 'status-warn' : 'status-neutral')) + '">' + (ok ? '已完成' : (earned > 0 ? '进行中' : '未开始')) + '</td></tr>';
+  });
+
+  // 专业核心课程
+  var coreEarned = getEarnedBySubKey("core");
+  sHtml += '<tr><td><strong>专业核心课程</strong></td><td>16</td><td>' + coreEarned.toFixed(1) + '</td><td class="' + (coreEarned >= 16 ? 'status-ok' : (coreEarned > 0 ? 'status-warn' : 'status-neutral')) + '">' + (coreEarned >= 16 ? '已完成' : (coreEarned > 0 ? '进行中' : '未开始')) + '</td></tr>';
+
+  // 专业选修课程
+  var elecEarned = getEarnedBySubKey("elective");
+  sHtml += '<tr><td><strong>专业选修课程</strong></td><td>20-26</td><td>' + elecEarned.toFixed(1) + '</td><td class="' + (elecEarned >= 20 ? 'status-ok' : (elecEarned > 0 ? 'status-warn' : 'status-neutral')) + '">' + (elecEarned >= 20 ? '满足最低要求' : (elecEarned > 0 ? '进行中' : '未开始')) + '</td></tr>';
+
+  // 创新实践环节
+  var pracEarned = getEarnedBySubKey("practice");
+  sHtml += '<tr><td><strong>创新实践环节</strong></td><td>18</td><td>' + pracEarned.toFixed(1) + '</td><td class="' + (pracEarned >= 18 ? 'status-ok' : (pracEarned > 0 ? 'status-warn' : 'status-neutral')) + '">' + (pracEarned >= 18 ? '已完成' : (pracEarned > 0 ? '进行中' : '未开始')) + '</td></tr>';
+
+  // 总计
+  var totalEarned = genEarned + foundEarned + coreEarned + elecEarned + pracEarned;
+  sHtml += '<tr class="total-row"><td>总计</td><td>146-150</td><td>' + totalEarned.toFixed(1) + '</td><td class="' + (totalEarned >= 146 ? 'status-ok' : 'status-warn') + '">' + (totalEarned >= 146 ? '满足毕业要求' : '未满足毕业要求') + '</td></tr>';
+
+  summaryBody.innerHTML = sHtml;
+
+  // 5. 学期课程表
+  var semContainer = document.getElementById("semesterContainer");
+
+  data.semesters.forEach(function(sem, semIdx) {
+    var card = document.createElement("div");
+    card.className = "semester-card";
+    card.id = "sem" + semIdx;
+
+    // 计算该学期已修学分
+    var semEarned = 0;
+    sem.courses.forEach(function(c) {
+      if (isCourseTaken(c.score)) semEarned += c.credits;
+    });
+
+    var headerHtml = '<div class="semester-header">';
+    headerHtml += '<div class="semester-title">' + sem.year + ' - ' + sem.season + '</div>';
+    headerHtml += '<div class="semester-note">' + (sem.note || "") + ' | 已修: ' + semEarned.toFixed(1) + ' 学分</div>';
+    headerHtml += '</div>';
+    card.innerHTML = headerHtml;
+
+    var table = document.createElement("table");
+    table.className = "course-table";
+
+    var thead = document.createElement("thead");
+    thead.innerHTML = '<tr><th class="col-id">课程编号</th><th class="col-name">课程名称</th><th class="col-credit">学分</th><th class="col-category">类别</th><th class="col-score">成绩/绩点</th><th class="col-remark">备注</th></tr>';
+    table.appendChild(thead);
+
+    var tbody = document.createElement("tbody");
+    sem.courses.forEach(function(c) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="col-id">' + (c.id || "") + '</td>' +
+        '<td class="col-name">' + c.name + '</td>' +
+        '<td class="col-credit">' + c.credits + '</td>' +
+        '<td class="col-category">' + (c.category || "") + '</td>' +
+        '<td class="col-score">' + getScoreDisplay(c.score) + '</td>' +
+        '<td class="col-remark">' + (c.remark || "") + '</td>';
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    card.appendChild(table);
+    semContainer.appendChild(card);
+  });
+
+  // 6. 专业选修课组
+  if (data.electiveGroups) {
+    document.getElementById("electiveDesc").textContent = data.electiveGroups.title || "";
+
+    var egContainer = document.getElementById("electiveGroups");
+    var egHtml = "";
+
+    data.electiveGroups.groups.forEach(function(group) {
+      egHtml += '<div class="elective-group">';
+      egHtml += '<div class="group-name">' + group.name + '</div>';
+
+      if (group.required && group.required.length > 0) {
+        egHtml += '<div class="group-courses">';
+        egHtml += '<strong>A类必修：</strong>';
+        group.required.forEach(function(c) {
+          egHtml += '<span class="course-tag">' + c.name + ' (' + c.credits + '学分)' + (c.remark ? ' - ' + c.remark : '') + '</span>';
+        });
+        egHtml += '</div>';
+      }
+
+      if (group.optional && group.optional.length > 0) {
+        egHtml += '<div class="group-courses" style="margin-top:4px;">';
+        egHtml += '<strong>B类选修：</strong>';
+        group.optional.forEach(function(c) {
+          egHtml += '<span class="course-tag">' + c.name + ' (' + c.credits + '学分)' + (c.remark ? ' - ' + c.remark : '') + '</span>';
+        });
+        egHtml += '</div>';
+      }
+
+      egHtml += '</div>';
+    });
+
+    egContainer.innerHTML = egHtml;
+  }
+
+})();
+</script>
+
+</body>
+</html>

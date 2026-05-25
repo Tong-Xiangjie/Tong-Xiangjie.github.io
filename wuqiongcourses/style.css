@@ -1,0 +1,371 @@
+/* ===== 全局重置与基础 ===== */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+  background-color: #f5f6f8;
+  color: #222;
+  line-height: 1.6;
+  padding: 0;
+}
+
+/* ===== 顶部标题栏 ===== */
+.header {
+  background: linear-gradient(135deg, #1a2a6c, #2d4373);
+  color: #fff;
+  padding: 32px 40px 28px;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.header .subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  letter-spacing: 1px;
+}
+
+.header .version {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 6px;
+}
+
+/* ===== 学生信息栏 ===== */
+.student-info {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  font-size: 14px;
+  color: #444;
+}
+
+.student-info .info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.student-info .label {
+  color: #888;
+  font-weight: 500;
+}
+
+.student-info .value {
+  font-weight: 600;
+  color: #222;
+}
+
+/* ===== 学分概览 ===== */
+.summary-section {
+  background: #fff;
+  margin: 20px 24px 0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.summary-section .section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a2a6c;
+  padding: 16px 24px 12px;
+  border-bottom: 2px solid #1a2a6c;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 10px 16px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+.summary-table th {
+  background: #f8f9fb;
+  font-weight: 600;
+  color: #555;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.summary-table tr.sub-row td {
+  padding-left: 32px;
+  font-size: 12.5px;
+  color: #555;
+}
+
+.summary-table tr.total-row {
+  background: #f0f2f7;
+  font-weight: 700;
+}
+
+.summary-table tr.total-row td {
+  color: #1a2a6c;
+  border-top: 2px solid #1a2a6c;
+}
+
+.summary-table .status-ok {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.summary-table .status-warn {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.summary-table .status-neutral {
+  color: #888;
+}
+
+/* ===== 学期卡片 ===== */
+.semester-card {
+  background: #fff;
+  margin: 16px 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.semester-header {
+  background: #f0f2f7;
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.semester-header .semester-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a2a6c;
+}
+
+.semester-header .semester-note {
+  font-size: 12px;
+  color: #888;
+}
+
+/* ===== 课程表格 ===== */
+.course-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.course-table th,
+.course-table td {
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.course-table thead th {
+  background: #f8f9fb;
+  font-weight: 600;
+  color: #666;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+}
+
+.course-table tbody tr:hover {
+  background: #fafbfd;
+}
+
+.course-table .col-id {
+  width: 12%;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  color: #888;
+}
+
+.course-table .col-name {
+  width: 28%;
+  font-weight: 500;
+}
+
+.course-table .col-credit {
+  width: 8%;
+  text-align: center;
+}
+
+.course-table .col-category {
+  width: 18%;
+  font-size: 12px;
+  color: #666;
+}
+
+.course-table .col-score {
+  width: 12%;
+  text-align: center;
+  font-weight: 600;
+}
+
+.course-table .col-remark {
+  width: 22%;
+  font-size: 12px;
+  color: #999;
+}
+
+.course-table .score-pass {
+  color: #2e7d32;
+}
+
+.course-table .score-none {
+  color: #bbb;
+}
+
+.course-table .score-high {
+  color: #1565c0;
+}
+
+/* ===== 底部 ===== */
+.footer {
+  text-align: center;
+  padding: 24px 40px 32px;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* ===== 专业选修课组展开区 ===== */
+.elective-section {
+  background: #fff;
+  margin: 16px 24px 32px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.elective-section .section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a2a6c;
+  padding: 16px 24px 12px;
+  border-bottom: 2px solid #1a2a6c;
+}
+
+.elective-section .section-desc {
+  padding: 10px 24px;
+  font-size: 12.5px;
+  color: #666;
+  background: #fafbfd;
+  border-bottom: 1px solid #eee;
+}
+
+.elective-group {
+  padding: 12px 24px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.elective-group:last-child {
+  border-bottom: none;
+}
+
+.elective-group .group-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.elective-group .group-courses {
+  font-size: 12.5px;
+  color: #555;
+  line-height: 1.8;
+  padding-left: 16px;
+}
+
+.elective-group .group-courses .course-tag {
+  display: inline-block;
+  margin: 2px 4px;
+  padding: 2px 8px;
+  background: #f0f2f7;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #444;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .header {
+    padding: 24px 16px 20px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+  }
+
+  .student-info {
+    padding: 12px 16px;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .summary-section,
+  .semester-card,
+  .elective-section {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .course-table {
+    font-size: 12px;
+  }
+
+  .course-table th,
+  .course-table td {
+    padding: 8px 10px;
+  }
+
+  .course-table .col-id {
+    width: auto;
+  }
+
+  .course-table .col-remark {
+    display: none;
+  }
+
+  .semester-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .summary-section,
+  .semester-card,
+  .elective-section {
+    box-shadow: none;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+  }
+}
