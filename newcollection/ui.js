@@ -1,62 +1,96 @@
 document.addEventListener('DOMContentLoaded', function () {
     const sidebar = document.querySelector('.sidebar');
+    const tabItems = document.querySelectorAll('.tab-item');
+    const contentApp = document.getElementById('app');
 
-    // 这里全部使用你真实存在的 category id
-    // 点击后会 100% 显示对应藏品内容
-    const categories = [
-        { name: "纪念钞", cid: "commemorative" },
-        { name: "连体钞", cid: "uncut" },
-        { name: "港币", cid: "hk_boc" },
-        { name: "澳门币", cid: "macau_boc" },
-        { name: "台币", cid: "taiwan" },
-        { name: "票证", cid: "gkq" },
-        { name: "邮票", cid: "stamp" },
-        { name: "外币", cid: "japan" }
+    // 侧边栏菜单（真实数据）
+    const menu = [
+        { name: "纪念钞", data: window.commemorativeData },
+        { name: "连体钞", data: window.uncutData },
+        { name: "港币", data: window.hk_bocData },
+        { name: "澳门币", data: window.macau_bocData },
+        { name: "台币", data: window.taiwanData },
+        { name: "票证", data: window.gkqData },
+        { name: "邮票", data: null },
+        { name: "外币", data: window.japanData }
     ];
 
     // 渲染侧边栏
-    categories.forEach(cat => {
-        const div = document.createElement("div");
-        div.className = "sidebar-item";
-        div.textContent = cat.name;
-        div.dataset.cid = cat.cid;
+    menu.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'sidebar-item';
+        div.textContent = item.name;
         sidebar.appendChild(div);
+
+        // ========== 点击直接展示数据 ==========
+        div.onclick = () => {
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            div.classList.add('active');
+
+            if (!item.data) {
+                contentApp.innerHTML = '<div style="padding:20px">暂无数据</div>';
+                return;
+            }
+
+            // 直接渲染内容（不依赖任何外部函数）
+            renderContent(item.data);
+        };
     });
 
-    // 点击侧边栏 = 直接加载对应分类的藏品内容
-    sidebar.addEventListener("click", function (e) {
-        const item = e.target.closest(".sidebar-item");
-        if (!item) return;
-
-        const cid = item.dataset.cid;
-        window.renderCategory(cid); // 这行是关键：直接渲染你真实藏品
-
-        // 高亮
-        document.querySelectorAll(".sidebar-item").forEach(i => i.classList.remove("active"));
-        item.classList.add("active");
-    });
-
-    // 底部 TAB 栏（不动）
-    const tabItems = document.querySelectorAll('.tab-item');
+    // 底部TAB
     tabItems.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const target = tab.dataset.target;
-            if (target === 'coins' || target === 'special') {
+        tab.onclick = () => {
+            const t = tab.dataset.target;
+            if (t === 'coins' || t === 'special') {
                 alert('暂未开放');
-                return;
             }
-            if (target === 'settings') {
+            if (t === 'settings') {
                 toggleThemeModal();
-                return;
             }
-            tabItems.forEach(i => i.classList.remove('active'));
-            tab.classList.add('active');
-        });
+        };
     });
     document.querySelector('.tab-item[data-target="notes"]').classList.add('active');
 });
 
-// 主题弹窗（不动）
+// ========== 内置渲染内容（独立可用） ==========
+function renderContent(data) {
+    const app = document.getElementById('app');
+    if (!data || !data.series) {
+        app.innerHTML = '<div style="padding:20px">暂无数据</div>';
+        return;
+    }
+
+    let html = `<div style="padding:10px">`;
+    html += `<h2>${data.name}</h2>`;
+
+    data.series.forEach(s => {
+        html += `<div style="margin:10px 0; padding:10px; border:1px solid #ddd;">`;
+        html += `<h3>${s.seriesName}</h3>`;
+
+        if (s.copies && s.copies.length > 0) {
+            s.copies.forEach(c => {
+                html += `<div style="margin-top:8px;">`;
+                if (c.img1) html += `<img src="${c.img1}" style="width:100px; margin-right:10px;">`;
+                html += `${c.version} | ${c.condition}`;
+                html += `</div>`;
+            });
+        } else if (s.varieties) {
+            s.varieties.forEach(v => {
+                html += `<div><strong>${v.varietyName}</strong></div>`;
+                v.copies.forEach(c => {
+                    if (c.img1) html += `<img src="${c.img1}" style="width:80px;">`;
+                });
+            });
+        }
+
+        html += `</div>`;
+    });
+
+    html += `</div>`;
+    app.innerHTML = html;
+}
+
+// ========== 主题功能 ==========
 let themeModal = null;
 function toggleThemeModal() {
     if (!themeModal) {
