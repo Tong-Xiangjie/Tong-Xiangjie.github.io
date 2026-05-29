@@ -98,6 +98,25 @@ const uncutData = {
                     img2: "image/uncut/JQ47754456ZA-2.jpg"
                 }
             ]
+        },{
+            seriesName: "纪念中国银行成立100周年纪念钞（香港）（三连体）",
+            year: "2012",
+            copies: [
+                {
+                    copyId: 1,
+                    year: 2012,
+                    version: "54/5/65788",
+                    bank: "中国银行（香港）",
+                    number: "",
+                    condition: "暂未评级",
+                    price: "裸钞480元",
+                    purchaseDate: "2026年5月25日",
+                    krause: "346a",
+                    remark: "",
+                    img1: "image/uncut/54565788-1.jpg",
+                    img2: "image/uncut/54565788-2.jpg"
+                }
+            ]
         }
     ]
 };
