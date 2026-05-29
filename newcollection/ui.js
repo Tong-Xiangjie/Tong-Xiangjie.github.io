@@ -3,16 +3,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const tabItems = document.querySelectorAll('.tab-item');
     const contentApp = document.getElementById('app');
 
-    // 真实数据 ID，和你 index.html 里引入的文件名完全对应
+    // 菜单列表，只和你实际存在的数据对应
     const menu = [
         { name: "纪念钞", key: "commemorativeData" },
-        { name: "连体钞", key: "uncutData" },
-        { name: "港币", key: "hk_bocData" },
-        { name: "澳门币", key: "macau_bocData" },
-        { name: "台币", key: "taiwanData" },
-        { name: "票证", key: "gkqData" },
+        { name: "连体钞", key: null },
+        { name: "港币", key: null },
+        { name: "澳门币", key: null },
+        { name: "台币", key: null },
+        { name: "票证", key: null },
         { name: "邮票", key: null },
-        { name: "外币", key: "japanData" }
+        { name: "外币", key: null }
     ];
 
     // 渲染侧边栏
@@ -26,7 +26,11 @@ document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
             div.classList.add('active');
 
-            // 关键修复：从全局对象读取数据
+            if (!item.key) {
+                contentApp.innerHTML = '<div style="padding:20px">该分类暂无数据</div>';
+                return;
+            }
+
             const data = window[item.key];
             if (!data || !data.series) {
                 contentApp.innerHTML = '<div style="padding:20px">暂无数据</div>';
