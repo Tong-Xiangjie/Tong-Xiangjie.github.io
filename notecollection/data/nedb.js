@@ -14,7 +14,108 @@ const nedbData = {
     ],
 
     series: [
-        // ==================== 1955年版 ====================
+        // ==================== 1954年版 ====================
+        {
+            seriesName: "1954年版",
+            year: "1954",
+            // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
+            readme: {
+                title: "一九五四年国家经济建设公债条例",
+                content: "file:readmes/nedb_1954_ordinance.txt"
+            },
+            varieties: [
+                {
+                    varietyName: "10000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1954,
+                            version: "00000000 08241",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "293元",
+                            purchaseDate: "2026年5月29日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1954-10000-1.jpg",
+                            img2: "image/nedb/1954-10000-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "20000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1954,
+                            version: "00000000 08241",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "293元",
+                            purchaseDate: "2026年5月29日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1954-20000-1.jpg",
+                            img2: "image/nedb/1954-20000-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "50000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1954,
+                            version: "00000000 08241",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "293元",
+                            purchaseDate: "2026年5月29日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1954-50000-1.jpg",
+                            img2: "image/nedb/1954-50000-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "100000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1954,
+                            version: "〈ⅠⅡⅢ〉0000000 08241",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "293元",
+                            purchaseDate: "2026年5月29日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1954-100000-1.jpg",
+                            img2: "image/nedb/1954-100000-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "500000元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1954,
+                            version: "〈ⅠⅡⅢ〉0000000 08241",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "293元",
+                            purchaseDate: "2026年5月29日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/1954-500000-1.jpg",
+                            img2: "image/nedb/1954-500000-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },// ==================== 1955年版 ====================
         {
             seriesName: "1955年版",
             year: "1955",
