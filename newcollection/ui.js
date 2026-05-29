@@ -19,14 +19,26 @@ document.addEventListener('DOMContentLoaded', function () {
         el.textContent = item.name;
         el.dataset.id = item.id;
         sidebar.appendChild(el);
-
-        el.addEventListener('click', () => {
-            selectCategory(item.id);
-            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
-        });
     });
 
+    // 委托事件：解决函数未加载完成无法调用问题
+    sidebar.addEventListener('click', function (e) {
+        const item = e.target.closest('.sidebar-item');
+        if (!item) return;
+
+        const id = item.dataset.id;
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+
+        // 安全调用：确保函数存在再执行
+        if (window.selectCategory) {
+            window.selectCategory(id);
+        } else {
+            console.log('功能加载中，请稍候重试');
+        }
+    });
+
+    // 底部TAB
     const tabItems = document.querySelectorAll('.tab-item');
     tabItems.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -65,7 +77,7 @@ function toggleThemeModal() {
                 <div class="theme-color" style="background:#ff7d00"></div>
                 <div class="theme-color" style="background:#722ed1"></div>
             </div>
-            <input type="color" id="custom-theme" style="width:100%">
+            <input type="color" id="custom-theme" style="width:100%;margin-top:10px">
         `;
         document.body.appendChild(themeModal);
 
