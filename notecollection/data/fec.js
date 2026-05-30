@@ -25,16 +25,16 @@ const fecData = {
                         {
                             copyId: 1,
                             year: 1979,
-                            purchaseDate: "日",
-                            price: "元",
+                            purchaseDate: "2026年5月30日",
+                            price: "255元",
                             bank: "中国银行",
-                            version: "ZA000000",
-                            condition: "ACG00E",
+                            version: "ZA000000 17458",
+                            condition: "ACG66E",
                             krause: "FX1s",
                             wmk: "五星火炬/Star&Torch",
                             remark: "",
-                            img1: "image/fec/1706-1.jpg",
-                            img2: "image/fec/1706-2.jpg"
+                            img1: "image/fec/17458-1.jpg",
+                            img2: "image/fec/17458-2.jpg"
                         }
                     ]
                 },
