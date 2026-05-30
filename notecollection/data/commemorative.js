@@ -266,7 +266,188 @@ const commemorativeData = {
         { 
             seriesName: "澳门生肖钞",
             year: "2012～2023",
-            copies: [] 
+            "varieties": [
+                {
+                    "varietyName": "2014 马年",
+                    "copies": [
+                        {
+                            "copyId": 1,
+                            "year": 2014,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "中国银行",
+                            "version": "甲午09610321",
+                            "condition": "ACG67E",
+                            "krause": "117",
+                            "issueDate": "2014年10月8日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/09610321-1.jpg",
+                            "img2": "image/comm/09610321-2.jpg"
+                        },{
+                            "copyId": 2,
+                            "year": 2014,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "大西洋银行",
+                            "version": "甲午06686321",
+                            "condition": "ACG67E",
+                            "krause": "87",
+                            "issueDate": "2014年10月8日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/06686321-1.jpg",
+                            "img2": "image/comm/06686321-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    "varietyName": "2015 羊年",
+                    "copies": [
+                        {
+                            "copyId": 1,
+                            "year": 2015,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "中国银行",
+                            "version": "乙未02265321",
+                            "condition": "ACG67E",
+                            "krause": "118",
+                            "issueDate": "2015年月日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/02265321-1.jpg",
+                            "img2": "image/comm/02265321-2.jpg"
+                        },{
+                            "copyId": 2,
+                            "year": 2015,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "32元",
+                            "bank": "大西洋银行",
+                            "version": "乙未11501321",
+                            "condition": "ACG66E",
+                            "krause": "88",
+                            "issueDate": "2015年月日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/11501321-1.jpg",
+                            "img2": "image/comm/11501321-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    "varietyName": "2016 猴年",
+                    "copies": [
+                        {
+                            "copyId": 1,
+                            "year": 2016,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "中国银行",
+                            "version": "丙申13298321",
+                            "condition": "ACG67E",
+                            "krause": "119",
+                            "issueDate": "2016年5月9日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/13298321-1.jpg",
+                            "img2": "image/comm/13298321-2.jpg"
+                        },{
+                            "copyId": 2,
+                            "year": 2016,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "大西洋银行",
+                            "version": "丙申09608321",
+                            "condition": "ACG67E",
+                            "krause": "88A",
+                            "issueDate": "2016年5月9日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/09608321-1.jpg",
+                            "img2": "image/comm/09608321-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    "varietyName": "2017 鸡年",
+                    "copies": [
+                        {
+                            "copyId": 1,
+                            "year": 2017,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "中国银行",
+                            "version": "丁酉11650321",
+                            "condition": "ACG67E",
+                            "krause": "120",
+                            "issueDate": "2016年5月9日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/11650321-1.jpg",
+                            "img2": "image/comm/11650321-2.jpg"
+                        },{
+                            "copyId": 2,
+                            "year": 2017,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "大西洋银行",
+                            "version": "丁酉16011321",
+                            "condition": "ACG67E",
+                            "krause": "88B",
+                            "issueDate": "2016年5月9日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/16011321-1.jpg",
+                            "img2": "image/comm/16011321-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    "varietyName": "2018 狗年",
+                    "copies": [
+                        {
+                            "copyId": 1,
+                            "year": 2018,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "32元",
+                            "bank": "中国银行",
+                            "version": "戊戌11860321",
+                            "condition": "ACG66E",
+                            "krause": "121",
+                            "issueDate": "2018年8月27日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/11860321-1.jpg",
+                            "img2": "image/comm/11860321-2.jpg"
+                        },{
+                            "copyId": 2,
+                            "year": 2018,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "32元",
+                            "bank": "大西洋银行",
+                            "version": "戊戌00651321",
+                            "condition": "ACG66E★",
+                            "krause": "88C",
+                            "issueDate": "2018年8月27日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "image/comm/00651321-1.jpg",
+                            "img2": "image/comm/00651321-2.jpg"
+                        }
+                    ]
+                }
+            ]  
         },
         { 
             seriesName: "中国航天纪念钞",
