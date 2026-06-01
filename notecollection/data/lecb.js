@@ -44,7 +44,73 @@ const lecbData = {
                 }
                 // 可继续添加：2元、5元、10元、50元等面值
             ]
-        }
+        },
         // 可继续添加：其他省份或年份，如四川省1960年、北京市1959年等
+        {
+            seriesName: "福建省 1960年",
+            year: "1960",
+            // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
+            readme: {
+                title: "福建省地方经济建设公债条例",
+                content: "file:readmes/lecb_fujian_ordinance.txt"
+            },
+            varieties: [
+                {
+                    varietyName: "1元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1960,
+                            version: "1566062",
+                            bank: "福建省人民委员会",
+                            condition: "未评级",
+                            price: "裸票90元",
+                            purchaseDate: "2026年6月1日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/lecb/1566062-1.jpg",
+                            img2: "image/lecb/1566062-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1960,
+                            version: "1566063",
+                            bank: "福建省人民委员会",
+                            condition: "未评级",
+                            price: "裸票90元",
+                            purchaseDate: "2026年6月1日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/lecb/1566063-1.jpg",
+                            img2: "image/lecb/1566063-2.jpg"
+                        },{
+                            copyId: 3,
+                            year: 1960,
+                            version: "1566064",
+                            bank: "福建省人民委员会",
+                            condition: "未评级",
+                            price: "裸票90元",
+                            purchaseDate: "2026年6月1日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/lecb/1566064-1.jpg",
+                            img2: "image/lecb/1566064-2.jpg"
+                        },{
+                            copyId: 4,
+                            year: 1960,
+                            version: "1566065",
+                            bank: "福建省人民委员会",
+                            condition: "未评级",
+                            price: "裸票90元",
+                            purchaseDate: "2026年6月1日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/lecb/1566065-1.jpg",
+                            img2: "image/lecb/1566065-2.jpg"
+                        }
+                    ]
+                }
+                // 可继续添加：2元、5元、10元、50元等面值
+            ]
+        }
     ]
 };
