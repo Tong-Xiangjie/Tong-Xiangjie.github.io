@@ -48,6 +48,18 @@ const nedbData = {
                         {
                             copyId: 1,
                             year: 1954,
+                            version: "41497032",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "566元",
+                            purchaseDate: "2026年6月1日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/41497032-1.jpg",
+                            img2: "image/nedb/41497032-2.jpg"
+                        },{
+                            copyId: 2,
+                            year: 1954,
                             version: "00000000 08241",
                             bank: "中华人民共和国财政部",
                             condition: "暂未评级",
@@ -65,6 +77,18 @@ const nedbData = {
                     copies: [
                         {
                             copyId: 1,
+                            year: 1954,
+                            version: "37985231",
+                            bank: "中华人民共和国财政部",
+                            condition: "暂未评级",
+                            price: "690元",
+                            purchaseDate: "2026年6月1日",
+                            krause: "Unlisted",
+                            remark: "",
+                            img1: "image/nedb/37985231-1.jpg",
+                            img2: "image/nedb/37985231-2.jpg"
+                        },{
+                            copyId: 2,
                             year: 1954,
                             version: "00000000 08241",
                             bank: "中华人民共和国财政部",
