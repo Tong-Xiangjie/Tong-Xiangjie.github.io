@@ -31,7 +31,7 @@ const rmb4Data = {
                     purchaseDate: "2025年10月17日",
                     krause: "881b",
                     wmk: "无水印/Without watermark",
-                    issueDate: "",
+                    issueDate: "1988年9月22日",
                     remark: "",
                     img1: "image/rmb4/SE11609551-1.jpg",
                     img2: "image/rmb4/SE11609551-2.jpg"
@@ -53,7 +53,7 @@ const rmb4Data = {
                     purchaseDate: "2025年10月30日",
                     krause: "882",
                     wmk: "无水印/Without watermark",
-                    issueDate: "",
+                    issueDate: "1988年5月10日",
                     remark: "",
                     img1: "image/rmb4/AS29332232-1.jpg",
                     img2: "image/rmb4/AS29332232-2.jpg"
@@ -68,7 +68,7 @@ const rmb4Data = {
                     purchaseDate: "2025年10月22日",
                     krause: "882",
                     wmk: "无水印/Without watermark",
-                    issueDate: "",
+                    issueDate: "1988年5月10日",
                     remark: "幼线体",
                     img1: "image/rmb4/TC61307820-1.jpg",
                     img2: "image/rmb4/TC61307820-2.jpg"
@@ -90,7 +90,7 @@ const rmb4Data = {
                     purchaseDate: "2025年10月5日",
                     krause: "883a",
                     wmk: "无水印/Without watermark",
-                    issueDate: "",
+                    issueDate: "1987年4月27日",
                     remark: "",
                     img1: "image/rmb4/AM11901126-1.jpg",
                     img2: "image/rmb4/AM11901126-2.jpg"
@@ -115,7 +115,7 @@ const rmb4Data = {
                             purchaseDate: "2026年2月18日",
                             krause: "884",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1988年5月10日",
                             remark: "",
                             img1: "image/rmb4/GZ93445496-1.jpg",
                             img2: "image/rmb4/GZ93445496-2.jpg"
@@ -130,7 +130,7 @@ const rmb4Data = {
                             purchaseDate: "2025年10月22日",
                             krause: "884",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1988年5月10日",
                             remark: "",
                             img1: "image/rmb4/JT98150594-1.jpg",
                             img2: "image/rmb4/JT98150594-2.jpg"
@@ -150,7 +150,7 @@ const rmb4Data = {
                             purchaseDate: "2025年11月24日",
                             krause: "884",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1995年3月1日",
                             remark: "",
                             img1: "image/rmb4/WO00026774-1.jpg",
                             img2: "image/rmb4/WO00026774-2.jpg"
@@ -170,7 +170,7 @@ const rmb4Data = {
                             purchaseDate: "2025年11月24日",
                             krause: "884g",
                             wmk: "满版五星水印/Stars",
-                            issueDate: "",
+                            issueDate: "1997年4月1日",
                             remark: "",
                             img1: "image/rmb4/QE99989731-1.jpg",
                             img2: "image/rmb4/QE99989731-2.jpg"
@@ -197,7 +197,7 @@ const rmb4Data = {
                             purchaseDate: "2025年10月22日",
                             krause: "885a",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1988年5月10日",
                             remark: "",
                             img1: "image/rmb4/AR82501713-1.jpg",
                             img2: "image/rmb4/AR82501713-2.jpg"
@@ -217,7 +217,7 @@ const rmb4Data = {
                             purchaseDate: "2025年10月6日",
                             krause: "885b",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1996年4月10日",
                             remark: "",
                             img1: "image/rmb4/UB35002347-1.jpg",
                             img2: "image/rmb4/UB35002347-2.jpg"
@@ -232,7 +232,7 @@ const rmb4Data = {
                             purchaseDate: "2025年10月21日",
                             krause: "885bf",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1996年4月10日",
                             remark: "",
                             img1: "image/rmb4/HR62925341-1.jpg",
                             img2: "image/rmb4/HR62925341-2.jpg"
@@ -247,7 +247,7 @@ const rmb4Data = {
                             purchaseDate: "2025年10月10日",
                             krause: "885b",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            issueDate: "",
+                            issueDate: "1996年4月10日",
                             remark: "",
                             img1: "image/rmb4/WG11911933-1.jpg",
                             img2: "image/rmb4/WG11911933-2.jpg"
@@ -271,7 +271,7 @@ const rmb4Data = {
                     purchaseDate: "2025年10月6日",
                     krause: "886",
                     wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                    issueDate: "",
+                    issueDate: "1988年9月22日",
                     remark: "",
                     img1: "image/rmb4/EN36556458-1.jpg",
                     img2: "image/rmb4/EN36556458-2.jpg"
@@ -293,7 +293,7 @@ const rmb4Data = {
                     purchaseDate: "2025年10月6日",
                     krause: "887",
                     wmk: "人像/Man's Head",
-                    issueDate: "",
+                    issueDate: "1988年9月22日",
                     remark: "",
                     img1: "image/rmb4/YF23802314-1.jpg",
                     img2: "image/rmb4/YF23802314-2.jpg"
@@ -324,7 +324,7 @@ const rmb4Data = {
                             purchaseDate: "2025年10月4日",
                             krause: "888b",
                             wmk: "炼钢工人/Steel Worker",
-                            issueDate: "",
+                            issueDate: "1992年8月20日",
                             remark: "",
                             img1: "image/rmb4/TG17299637-1.jpg",
                             img2: "image/rmb4/TG17299637-2.jpg"
@@ -357,7 +357,7 @@ const rmb4Data = {
                             purchaseDate: "2026年2月18日",
                             krause: "889b",
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
-                            issueDate: "",
+                            issueDate: "1992年8月20日",
                             remark: "",
                             img1: "image/rmb4/XF29286837-1.jpg",
                             img2: "image/rmb4/XF29286837-2.jpg"
