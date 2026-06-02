@@ -4,7 +4,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>总网站入口</title>
+    <title>总网站入口 - 安全验证门户</title>
     <style>
         * {
             margin: 0;
@@ -16,7 +16,7 @@
         body {
             min-height: 100vh;
             background: #000000;
-            font-family: 'Segoe UI', 'Inter', 'Fira Code', monospace, system-ui;
+            font-family: "Source Han Sans", "Noto Sans CJK SC", "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -71,69 +71,115 @@
             padding-top: 0.5rem;
         }
 
+        /* 密码点阵显示区 */
+        .pin-dots {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1.5rem 0 1.8rem;
+        }
+        .pin-dot {
+            width: 18px;
+            height: 18px;
+            background-color: #2a3a55;
+            border-radius: 50%;
+            transition: all 0.1s ease;
+        }
+        .pin-dot.active {
+            background-color: #00aaff;
+            box-shadow: 0 0 6px #00aaff;
+        }
+
+        /* 二次验证输入显示区 */
+        .twofactor-input-display {
+            background: #0e1622cc;
+            border-radius: 2rem;
+            border: 1px solid #2e5570;
+            padding: 0.8rem 1.5rem;
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 8px;
+            font-family: monospace;
+            color: #c0f0ff;
+            margin-bottom: 1rem;
+            min-height: 70px;
+            word-break: break-all;
+        }
+
+        /* 自定义键盘公共样式 */
+        .custom-keyboard {
+            margin-top: 1.2rem;
+            background: #0a0f1aee;
+            border-radius: 2rem;
+            padding: 1rem 0.8rem;
+            border: 1px solid #2c3e55;
+        }
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.6rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .key-btn {
+            background: #111822;
+            border: 1px solid #2e5570;
+            color: #e0f0ff;
+            font-size: 1.3rem;
+            font-weight: 500;
+            border-radius: 2rem;
+            padding: 0.7rem 0;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.1s linear;
+            font-family: "Source Han Sans", "Noto Sans CJK SC", monospace;
+            flex: 1 0 60px;
+            min-width: 55px;
+        }
+        .key-btn:active {
+            transform: scale(0.96);
+            background: #1f2c44;
+        }
+        .key-btn.disabled, .key-btn:disabled {
+            opacity: 0.4;
+            transform: none;
+            pointer-events: none;
+        }
+        .key-special {
+            background: #1a2538;
+            border-color: #3c8dbc;
+            color: #88ddff;
+        }
+        .key-delete {
+            background: #2a1e2e;
+            border-color: #aa5577;
+            color: #ffaa88;
+        }
+        .key-clear {
+            background: #3a2a2a;
+            border-color: #bb7755;
+            color: #ffcc99;
+        }
+        .key-space {
+            flex-grow: 2;
+        }
+        .keyboard-switch-row {
+            margin-top: 0.5rem;
+            justify-content: space-around;
+        }
+        .small-btn {
+            font-size: 1rem;
+            padding: 0.5rem 0;
+            min-width: 70px;
+        }
+
         .password-section {
             transition: all 0.2s;
         }
 
-        .input-group {
-            background: #0e1622cc;
-            border-radius: 2rem;
-            border: 1px solid #2a3644;
-            display: flex;
-            align-items: center;
-            padding: 0.2rem 0.2rem 0.2rem 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .input-group input {
-            background: transparent;
-            border: none;
-            padding: 1rem 0.5rem 1rem 0;
-            font-size: 1.4rem;
-            letter-spacing: 4px;
-            font-weight: 500;
-            color: #c0f0ff;
-            width: 100%;
-            outline: none;
-            font-family: monospace;
-        }
-
-        .input-group input::placeholder {
-            color: #3a465a;
-            letter-spacing: 2px;
-            font-size: 1rem;
-            font-family: monospace;
-        }
-
-        .lock-icon {
-            color: #00aaff;
-            font-size: 1.4rem;
-        }
-
-        button {
-            background: linear-gradient(95deg, #1f2a3e, #0f172a);
-            border: 1px solid #2e3b4e;
-            color: #b9e2ff;
-            font-weight: 600;
-            padding: 0.8rem 1.4rem;
-            border-radius: 2.5rem;
-            width: 100%;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: 0.2s;
-            font-family: inherit;
-            letter-spacing: 1px;
-        }
-
         button:active {
             transform: scale(0.97);
-        }
-
-        button:hover {
-            background: #1f314a;
-            border-color: #3c8dbc;
-            color: white;
-            box-shadow: 0 0 8px #2d68ff;
         }
 
         .error-msg {
@@ -143,9 +189,6 @@
             text-align: center;
             min-height: 2.5rem;
             font-weight: 500;
-            background: transparent;
-            border-radius: 2rem;
-            padding: 0.4rem;
         }
 
         .timer-block {
@@ -171,25 +214,14 @@
             padding-top: 1rem;
         }
 
-        .dashboard .datetime-display {
-            margin-top: 1rem;
-            border-top: 1px dashed #2a3644;
-        }
-
         .dashboard {
             display: none;
             animation: fadeInUp 0.5s ease;
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .section-title {
@@ -213,20 +245,15 @@
             align-items: center;
             flex-wrap: wrap;
         }
-
         .site-card:hover {
-            background: #000000;
             border-color: #3c8dbc;
             transform: translateX(6px);
         }
-
         .site-name {
             font-weight: 600;
             font-size: 1.2rem;
             color: #cde0ff;
-            letter-spacing: 1px;
         }
-
         .site-link {
             background: #0b1422;
             padding: 0.4rem 1rem;
@@ -240,14 +267,11 @@
             align-items: center;
             gap: 6px;
         }
-
         .site-link:hover {
             background: #00aaff20;
             color: white;
             border-color: #00aaff;
-            box-shadow: 0 0 6px #00aaff;
         }
-
         .footer-note {
             margin-top: 1.5rem;
             font-size: 0.7rem;
@@ -256,32 +280,19 @@
             border-top: 1px solid #1e2a3a;
             padding-top: 1rem;
         }
-
         .back-btn {
             background: none;
             border: 1px solid #3e506e;
-            margin-top: 0;
             color: #9ab3cf;
-            width: 100%;
-            padding: 0.8rem 1.4rem;
-            font-size: 1rem;
         }
-
         .flex-between {
             display: flex;
             justify-content: space-between;
             gap: 1rem;
         }
-
         .flex-between button {
             width: 50%;
         }
-
-        input:disabled, button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
         .captcha-display {
             background: #0e1622cc;
             border-radius: 2rem;
@@ -299,15 +310,14 @@
         @media (max-width: 480px) {
             .content { padding: 1.5rem; }
             .site-card { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
-            .site-link { align-self: flex-start; }
-            .captcha-display { font-size: 1.4rem; letter-spacing: 4px; }
+            .key-btn { min-width: 48px; font-size: 1.1rem; padding: 0.5rem 0; }
         }
     </style>
 </head>
 <body>
 <div class="glass-panel" id="appRoot">
     <div class="content">
-        <!-- 页面1: 密码验证界面 -->
+        <!-- 页面1: 密码验证界面 自定义数字键盘（含清空+删除） -->
         <div id="lockZone">
             <div class="logo-area">
                 <img src="image/headphoto.png" class="logo-icon" alt="logo">
@@ -315,21 +325,40 @@
                 <div class="sub">VERIFICATION GATE</div>
             </div>
             <div class="password-section">
-                <div class="input-group">
-                    <span class="lock-icon"></span>
-                    <input type="password" id="passwordInput" maxlength="6" placeholder="请输入6位数字密码" inputmode="numeric" pattern="\d*">
+                <!-- 密码点阵显示 -->
+                <div class="pin-dots" id="pinDotsContainer"></div>
+                <!-- 自定义数字键盘 含清空和删除 -->
+                <div class="custom-keyboard" id="numericKeyboard">
+                    <div class="keyboard-row">
+                        <div class="key-btn" data-key="7">7</div>
+                        <div class="key-btn" data-key="8">8</div>
+                        <div class="key-btn" data-key="9">9</div>
+                    </div>
+                    <div class="keyboard-row">
+                        <div class="key-btn" data-key="4">4</div>
+                        <div class="key-btn" data-key="5">5</div>
+                        <div class="key-btn" data-key="6">6</div>
+                    </div>
+                    <div class="keyboard-row">
+                        <div class="key-btn" data-key="1">1</div>
+                        <div class="key-btn" data-key="2">2</div>
+                        <div class="key-btn" data-key="3">3</div>
+                    </div>
+                    <div class="keyboard-row">
+                        <div class="key-btn key-delete" data-key="del">×</div>
+                        <div class="key-btn" data-key="0">0</div>
+                        <div class="key-btn key-clear" data-key="clearAll">清空</div>
+                    </div>
                 </div>
                 <button id="unlockBtn">验证/VERIFY</button>
                 <div id="errorMsg" class="error-msg"></div>
                 <div id="timerInfo" class="timer-block" style="display: none;"></div>
             </div>
             <div class="datetime-display" id="lockDatetime">--年--月--日 --:--:--</div>
-            <div class="footer-note">
-                网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
-            </div>
+            <div class="footer-note">网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages</div>
         </div>
 
-        <!-- 页面2: 二次验证界面 (仅锁定过的人才会进入) -->
+        <!-- 页面2: 二次验证界面 (全键盘 含清空+删除+大小写切换) -->
         <div id="twoFactorZone" style="display: none;">
             <div class="logo-area">
                 <img src="image/headphoto.png" class="logo-icon" alt="logo">
@@ -338,11 +367,11 @@
             </div>
             <div class="password-section">
                 <div class="captcha-display" id="captchaCode">----</div>
-                <div class="input-group">
-                    <span class="lock-icon"></span>
-                    <input type="text" id="twoFactorInput" maxlength="4" placeholder="请输入上方验证码" inputmode="text" style="letter-spacing: 2px;">
-                </div>
-                <div class="flex-between">
+                <!-- 用户输入展示区 -->
+                <div class="twofactor-input-display" id="twoFactorInputDisplay">____</div>
+                <!-- 自定义全键盘容器 -->
+                <div id="twoFactorKeyboardContainer" class="custom-keyboard"></div>
+                <div class="flex-between" style="margin-top: 0.8rem;">
                     <button id="twoFactorBackBtn" class="back-btn">返回/BACK</button>
                     <button id="twoFactorVerifyBtn">验证/VERIFY</button>
                 </div>
@@ -350,9 +379,7 @@
                 <div id="twoFactorTimerInfo" class="timer-block" style="display: none;"></div>
             </div>
             <div class="datetime-display" id="twoFactorDatetime">--年--月--日 --:--:--</div>
-            <div class="footer-note">
-                网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
-            </div>
+            <div class="footer-note">网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages</div>
         </div>
 
         <!-- 页面3: 网站列表界面 -->
@@ -363,58 +390,15 @@
                 <div class="sub">MAIN PORTAL</div>
             </div>
             <div class="section-title">分站入口</div>
-
-            <div class="site-card">
-                <span class="site-name">纸币收藏档案</span>
-                <a href="https://Tong-Xiangjie.github.io/notecollection/" class="site-link" target="_blank" rel="noopener noreferrer">
-                    notecollection ↗
-                </a>
-            </div>
-            
-            <div class="site-card">
-                <span class="site-name">硬币收藏档案</span>
-                <a href="https://Tong-Xiangjie.github.io/coincollection/" class="site-link" target="_blank" rel="noopener noreferrer">
-                    coincollection ↗
-                </a>
-            </div>
-            
-            <div class="site-card">
-                <span class="site-name">钱币趣味收藏档案</span>
-                <a href="https://Tong-Xiangjie.github.io/funcollection/" class="site-link" target="_blank" rel="noopener noreferrer">
-                    funcollection ↗
-                </a>
-            </div>
-            
-            <div class="site-card">
-                <span class="site-name">无穹书院培养方案</span>
-                <a href="https://Tong-Xiangjie.github.io/wuqiongcourses/" class="site-link" target="_blank" rel="noopener noreferrer">
-                    courses ↗
-                </a>
-            </div>
-
-            <div class="site-card">
-                <span class="site-name">WPME词根记忆</span>
-                <a href="https://Tong-Xiangjie.github.io/WPME/" class="site-link" target="_blank" rel="noopener noreferrer">
-                    WPME ↗
-                </a>
-            </div>
-            
-            <div class="site-card">
-                <span class="site-name">全屏时钟</span>
-                <a href="https://Tong-Xiangjie.github.io/time/" class="site-link" target="_blank" rel="noopener noreferrer">
-                    time ↗
-                </a>
-            </div>
-
-            <div class="site-card" style="opacity: 0.7;">
-                <span class="site-name">更多站点 (敬请期待)</span>
-                <span class="site-link" style="background:#11161f; cursor:default;">即将开放</span>
-            </div>
-
+            <div class="site-card"><span class="site-name">纸币收藏档案</span><a href="https://Tong-Xiangjie.github.io/notecollection/" class="site-link" target="_blank">notecollection ↗</a></div>
+            <div class="site-card"><span class="site-name">硬币收藏档案</span><a href="https://Tong-Xiangjie.github.io/coincollection/" class="site-link" target="_blank">coincollection ↗</a></div>
+            <div class="site-card"><span class="site-name">钱币趣味收藏档案</span><a href="https://Tong-Xiangjie.github.io/funcollection/" class="site-link" target="_blank">funcollection ↗</a></div>
+            <div class="site-card"><span class="site-name">无穹书院培养方案</span><a href="https://Tong-Xiangjie.github.io/wuqiongcourses/" class="site-link" target="_blank">courses ↗</a></div>
+            <div class="site-card"><span class="site-name">WPME词根记忆</span><a href="https://Tong-Xiangjie.github.io/WPME/" class="site-link" target="_blank">WPME ↗</a></div>
+            <div class="site-card"><span class="site-name">全屏时钟</span><a href="https://Tong-Xiangjie.github.io/time/" class="site-link" target="_blank">time ↗</a></div>
+            <div class="site-card" style="opacity: 0.7;"><span class="site-name">更多站点 (敬请期待)</span><span class="site-link" style="background:#11161f; cursor:default;">即将开放</span></div>
             <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
-            <div class="footer-note">
-                网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
-            </div>
+            <div class="footer-note">网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages</div>
             <button id="resetLockBtn" class="back-btn">锁定</button>
         </div>
     </div>
@@ -427,13 +411,16 @@
         const LOCK_STEPS = [30, 60, 120, 180, 300];
         const MAX_LOCK_SECONDS = 300;
 
-        // 核心状态
         let lockUntil = 0;
         let failCount = 0;
         let lockLevel = 0;
         let hasEverLocked = false;
         let pendingTwoFactor = false;
         let currentCaptcha = "";
+
+        // 自定义输入存储
+        let currentPassword = "";      // max 6 digits
+        let currentTwoFactorInput = ""; // max 4 chars (字母数字)
 
         let timerInterval = null;
         let datetimeInterval = null;
@@ -442,411 +429,436 @@
         const lockZone = document.getElementById('lockZone');
         const twoFactorZone = document.getElementById('twoFactorZone');
         const dashboardZone = document.getElementById('dashboardZone');
-        const passwordInput = document.getElementById('passwordInput');
         const unlockBtn = document.getElementById('unlockBtn');
         const errorMsgDiv = document.getElementById('errorMsg');
         const timerInfoDiv = document.getElementById('timerInfo');
         const resetLockBtn = document.getElementById('resetLockBtn');
         const lockDatetimeEl = document.getElementById('lockDatetime');
         const dashboardDatetimeEl = document.getElementById('dashboardDatetime');
-
-        const twoFactorInput = document.getElementById('twoFactorInput');
         const twoFactorVerifyBtn = document.getElementById('twoFactorVerifyBtn');
         const twoFactorBackBtn = document.getElementById('twoFactorBackBtn');
         const twoFactorErrorMsg = document.getElementById('twoFactorErrorMsg');
         const twoFactorTimerInfo = document.getElementById('twoFactorTimerInfo');
         const captchaCodeEl = document.getElementById('captchaCode');
         const twoFactorDatetimeEl = document.getElementById('twoFactorDatetime');
+        const twoFactorInputDisplay = document.getElementById('twoFactorInputDisplay');
+        const pinDotsContainer = document.getElementById('pinDotsContainer');
 
         // ---------- 辅助函数 ----------
         function formatCurrentDateTime() {
             const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            const seconds = now.getSeconds().toString().padStart(2, '0');
-            return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+            return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
         }
-
         function updateAllDatetime() {
-            const datetimeStr = formatCurrentDateTime();
-            if (lockDatetimeEl) lockDatetimeEl.textContent = datetimeStr;
-            if (dashboardDatetimeEl) dashboardDatetimeEl.textContent = datetimeStr;
-            if (twoFactorDatetimeEl) twoFactorDatetimeEl.textContent = datetimeStr;
+            const str = formatCurrentDateTime();
+            if(lockDatetimeEl) lockDatetimeEl.textContent = str;
+            if(dashboardDatetimeEl) dashboardDatetimeEl.textContent = str;
+            if(twoFactorDatetimeEl) twoFactorDatetimeEl.textContent = str;
         }
-
         function startDatetimeTimer() {
-            if (datetimeInterval) clearInterval(datetimeInterval);
+            if(datetimeInterval) clearInterval(datetimeInterval);
             updateAllDatetime();
             datetimeInterval = setInterval(updateAllDatetime, 1000);
         }
-
         function formatTime(seconds) {
-            if (seconds < 60) return seconds + '秒';
+            if(seconds < 60) return seconds + '秒';
             const minutes = Math.floor(seconds / 60);
             const secs = seconds % 60;
-            if (secs === 0) return minutes + '分0秒';
             return minutes + '分' + secs + '秒';
         }
-
         function getLockDuration(level) {
-            if (level < LOCK_STEPS.length) return LOCK_STEPS[level];
+            if(level < LOCK_STEPS.length) return LOCK_STEPS[level];
             return MAX_LOCK_SECONDS;
         }
-
         function generateCaptcha() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             let result = '';
-            for (let i = 0; i < 4; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
+            for(let i=0;i<4;i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
             return result;
         }
-
         function refreshCaptcha() {
             currentCaptcha = generateCaptcha();
             captchaCodeEl.textContent = currentCaptcha;
         }
 
+        // 持久化存储
         const STORAGE_LOCK_UNTIL = 'lockUntilTimestamp';
         const STORAGE_LOCK_LEVEL = 'lockLevel';
         const STORAGE_HAS_EVER_LOCKED = 'hasEverLocked';
-
         function persistLockState() {
-            if (lockUntil > 0) {
-                localStorage.setItem(STORAGE_LOCK_UNTIL, lockUntil.toString());
-            } else {
-                localStorage.removeItem(STORAGE_LOCK_UNTIL);
-            }
+            if(lockUntil > 0) localStorage.setItem(STORAGE_LOCK_UNTIL, lockUntil.toString());
+            else localStorage.removeItem(STORAGE_LOCK_UNTIL);
             localStorage.setItem(STORAGE_LOCK_LEVEL, lockLevel.toString());
             localStorage.setItem(STORAGE_HAS_EVER_LOCKED, hasEverLocked.toString());
         }
-
         function restoreLockState() {
             const storedUntil = localStorage.getItem(STORAGE_LOCK_UNTIL);
             const storedLevel = localStorage.getItem(STORAGE_LOCK_LEVEL);
             const storedEverLocked = localStorage.getItem(STORAGE_HAS_EVER_LOCKED);
-
-            if (storedLevel) lockLevel = parseInt(storedLevel, 10) || 0;
-            if (storedEverLocked) hasEverLocked = storedEverLocked === 'true';
-
-            if (storedUntil) {
-                const storedTime = parseInt(storedUntil, 10);
-                if (storedTime > Date.now()) {
-                    lockUntil = storedTime;
-                    return true;
-                } else {
-                    localStorage.removeItem(STORAGE_LOCK_UNTIL);
-                }
+            if(storedLevel) lockLevel = parseInt(storedLevel,10) || 0;
+            if(storedEverLocked) hasEverLocked = storedEverLocked === 'true';
+            if(storedUntil) {
+                const storedTime = parseInt(storedUntil,10);
+                if(storedTime > Date.now()) { lockUntil = storedTime; return true; }
+                else localStorage.removeItem(STORAGE_LOCK_UNTIL);
             }
             return false;
         }
+        function clearPersistedLock() { localStorage.removeItem(STORAGE_LOCK_UNTIL); localStorage.removeItem(STORAGE_LOCK_LEVEL); localStorage.removeItem(STORAGE_HAS_EVER_LOCKED); }
+        function clearTimer() { if(timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
 
-        function clearPersistedLock() {
-            localStorage.removeItem(STORAGE_LOCK_UNTIL);
-            localStorage.removeItem(STORAGE_LOCK_LEVEL);
-            localStorage.removeItem(STORAGE_HAS_EVER_LOCKED);
+        // 更新密码点阵显示
+        function updatePinDisplay() {
+            const dots = document.querySelectorAll('.pin-dot');
+            for(let i=0;i<dots.length;i++) {
+                if(i < currentPassword.length) dots[i].classList.add('active');
+                else dots[i].classList.remove('active');
+            }
+        }
+        // 二次验证显示更新
+        function updateTwoFactorDisplay() {
+            let displayStr = currentTwoFactorInput.padEnd(4, '_');
+            if(displayStr.length>4) displayStr = displayStr.slice(0,4);
+            twoFactorInputDisplay.textContent = displayStr;
+        }
+        // 密码键盘处理（含清空和删除）
+        function handleNumericKey(key) {
+            if(lockUntil > Date.now()) return;
+            if(key === 'del') {
+                currentPassword = currentPassword.slice(0, -1);
+                updatePinDisplay();
+            } else if(key === 'clearAll') {
+                currentPassword = "";
+                updatePinDisplay();
+            } else if(/^\d$/.test(key)) {
+                if(currentPassword.length < 6) currentPassword += key;
+                updatePinDisplay();
+            }
         }
 
-        function clearTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
+        // 二次验证键盘动态构建（字母/数字，带清空+删除）
+        let twoFactorKeyboardMode = 'alpha'; // 'alpha' or 'num'
+        let isUpperCase = true;
+
+        function rebuildTwoFactorKeyboard() {
+            const container = document.getElementById('twoFactorKeyboardContainer');
+            if(!container) return;
+            if(twoFactorKeyboardMode === 'alpha') {
+                // 字母键盘布局 QWERTY
+                const rows = [
+                    ['Q','W','E','R','T','Y','U','I','O','P'],
+                    ['A','S','D','F','G','H','J','K','L'],
+                    ['Z','X','C','V','B','N','M']
+                ];
+                let html = '';
+                for(let row of rows) {
+                    html += '<div class="keyboard-row">';
+                    for(let ch of row) {
+                        let displayChar = isUpperCase ? ch : ch.toLowerCase();
+                        html += `<div class="key-btn" data-val="${displayChar}">${displayChar}</div>`;
+                    }
+                    html += '</div>';
+                }
+                // 功能按钮行: Shift, 123(数字模式), 清空, 删除
+                html += `<div class="keyboard-row keyboard-switch-row">
+                            <div class="key-btn key-special" id="shiftKeyBtn">${isUpperCase ? '⇧大写' : '⇩小写'}</div>
+                            <div class="key-btn key-special" id="numModeBtn">123</div>
+                            <div class="key-btn key-clear" id="twoFactorClearBtn">清空</div>
+                            <div class="key-btn key-delete" id="twoFactorDelBtn">⌫ 删除</div>
+                         </div>`;
+                container.innerHTML = html;
+                // 绑定字母按键
+                document.querySelectorAll('#twoFactorKeyboardContainer .key-btn[data-val]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if(lockUntil > Date.now()) return;
+                        let val = btn.getAttribute('data-val');
+                        if(val && currentTwoFactorInput.length < 4) {
+                            currentTwoFactorInput += val;
+                            updateTwoFactorDisplay();
+                        }
+                    });
+                });
+                // Shift
+                const shiftBtn = document.getElementById('shiftKeyBtn');
+                if(shiftBtn) shiftBtn.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    isUpperCase = !isUpperCase;
+                    rebuildTwoFactorKeyboard();
+                });
+                // 切换到数字模式
+                const numBtn = document.getElementById('numModeBtn');
+                if(numBtn) numBtn.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    twoFactorKeyboardMode = 'num';
+                    rebuildTwoFactorKeyboard();
+                });
+                // 清空按钮
+                const clearBtn = document.getElementById('twoFactorClearBtn');
+                if(clearBtn) clearBtn.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    currentTwoFactorInput = "";
+                    updateTwoFactorDisplay();
+                });
+                // 删除按钮
+                const delBtn = document.getElementById('twoFactorDelBtn');
+                if(delBtn) delBtn.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    currentTwoFactorInput = currentTwoFactorInput.slice(0, -1);
+                    updateTwoFactorDisplay();
+                });
+            } 
+            else { // 数字键盘模式 0-9 + 清空 + 删除 + 返回字母
+                let numHtml = `<div class="keyboard-row"><div class="key-btn" data-num="7">7</div><div class="key-btn" data-num="8">8</div><div class="key-btn" data-num="9">9</div></div>
+                               <div class="keyboard-row"><div class="key-btn" data-num="4">4</div><div class="key-btn" data-num="5">5</div><div class="key-btn" data-num="6">6</div></div>
+                               <div class="keyboard-row"><div class="key-btn" data-num="1">1</div><div class="key-btn" data-num="2">2</div><div class="key-btn" data-num="3">3</div></div>
+                               <div class="keyboard-row">
+                                    <div class="key-btn" data-num="0">0</div>
+                                    <div class="key-btn key-special" id="backToAlphaBtn">ABC</div>
+                                    <div class="key-btn key-clear" id="numClearBtn">清空</div>
+                                    <div class="key-btn key-delete" id="numDelBtn">⌫</div>
+                               </div>`;
+                container.innerHTML = numHtml;
+                // 数字按键
+                document.querySelectorAll('#twoFactorKeyboardContainer .key-btn[data-num]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if(lockUntil > Date.now()) return;
+                        let num = btn.getAttribute('data-num');
+                        if(num && currentTwoFactorInput.length < 4) {
+                            currentTwoFactorInput += num;
+                            updateTwoFactorDisplay();
+                        }
+                    });
+                });
+                // 返回字母模式
+                const backAlpha = document.getElementById('backToAlphaBtn');
+                if(backAlpha) backAlpha.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    twoFactorKeyboardMode = 'alpha';
+                    rebuildTwoFactorKeyboard();
+                });
+                // 数字模式清空
+                const numClear = document.getElementById('numClearBtn');
+                if(numClear) numClear.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    currentTwoFactorInput = "";
+                    updateTwoFactorDisplay();
+                });
+                // 数字模式删除
+                const delNum = document.getElementById('numDelBtn');
+                if(delNum) delNum.addEventListener('click', () => {
+                    if(lockUntil > Date.now()) return;
+                    currentTwoFactorInput = currentTwoFactorInput.slice(0, -1);
+                    updateTwoFactorDisplay();
+                });
             }
+            // 根据锁定状态禁用键盘
+            setKeyboardDisabledState(lockUntil > Date.now());
+        }
+
+        function setKeyboardDisabledState(disabled) {
+            const allBtns = document.querySelectorAll('#twoFactorKeyboardContainer .key-btn, #numericKeyboard .key-btn');
+            allBtns.forEach(btn => {
+                if(disabled) {
+                    btn.style.pointerEvents = 'none';
+                    btn.classList.add('disabled');
+                } else {
+                    btn.style.pointerEvents = 'auto';
+                    btn.classList.remove('disabled');
+                }
+            });
         }
 
         function applyLockout(isFromTwoFactor = false) {
             const now = Date.now();
             const lockSeconds = getLockDuration(lockLevel);
-            const lockDurationMs = lockSeconds * 1000;
-            lockUntil = now + lockDurationMs;
-            
+            lockUntil = now + (lockSeconds * 1000);
             lockLevel++;
             hasEverLocked = true;
-            
             persistLockState();
             failCount = 0;
-            
             clearTimer();
             updateAllLockUI();
-            
+            setKeyboardDisabledState(true);
             timerInterval = setInterval(() => {
                 const remaining = lockUntil - Date.now();
-                if (remaining <= 0) {
+                if(remaining <= 0) {
                     clearTimer();
                     releaseLock();
                     updateAllLockUI();
-                    
-                    const errorDiv = isFromTwoFactor ? twoFactorErrorMsg : errorMsgDiv;
-                    if (errorDiv) {
-                        errorDiv.innerHTML = '锁定已解除，请重新验证';
-                        setTimeout(() => {
-                            if (errorDiv.innerHTML === '锁定已解除，请重新验证') errorDiv.innerHTML = '';
-                        }, 1800);
+                    setKeyboardDisabledState(false);
+                    const errDiv = isFromTwoFactor ? twoFactorErrorMsg : errorMsgDiv;
+                    if(errDiv) {
+                        errDiv.innerHTML = '锁定已解除，请重新验证';
+                        setTimeout(() => { if(errDiv.innerHTML === '锁定已解除，请重新验证') errDiv.innerHTML = ''; }, 1800);
                     }
-                    if (passwordInput) passwordInput.value = '';
-                    if (twoFactorInput) twoFactorInput.value = '';
+                    if(!isFromTwoFactor) currentPassword = "";
+                    else currentTwoFactorInput = "";
+                    updatePinDisplay();
+                    updateTwoFactorDisplay();
                 } else {
-                    const secs = Math.ceil(remaining / 1000);
-                    const timerMsg = `验证失败次数过多，已锁定。<br>请 ${formatTime(secs)} 后再试。`;
-                    
-                    if (isFromTwoFactor && twoFactorZone.style.display === 'block') {
+                    const secs = Math.ceil(remaining/1000);
+                    const msg = `验证失败次数过多，已锁定。<br>请 ${formatTime(secs)} 后再试。`;
+                    if(isFromTwoFactor && twoFactorZone.style.display === 'block') {
                         twoFactorTimerInfo.style.display = 'block';
-                        twoFactorTimerInfo.innerHTML = timerMsg;
-                    } else if (lockZone.style.display === 'block') {
+                        twoFactorTimerInfo.innerHTML = msg;
+                    } else if(lockZone.style.display === 'block') {
                         timerInfoDiv.style.display = 'block';
-                        timerInfoDiv.innerHTML = timerMsg;
+                        timerInfoDiv.innerHTML = msg;
                     }
                 }
             }, 200);
         }
-        
         function releaseLock() {
             lockUntil = 0;
             clearPersistedLock();
-            persistLockState();
             clearTimer();
             updateAllLockUI();
+            setKeyboardDisabledState(false);
+            if(twoFactorTimerInfo) { twoFactorTimerInfo.style.display = 'none'; twoFactorTimerInfo.innerHTML = ''; }
+            if(timerInfoDiv) { timerInfoDiv.style.display = 'none'; timerInfoDiv.innerHTML = ''; }
         }
-        
         function updateAllLockUI() {
-            const now = Date.now();
-            const isLocked = (lockUntil > now);
-            
-            if (isLocked) {
-                passwordInput.disabled = true;
-                unlockBtn.disabled = true;
-                errorMsgDiv.innerHTML = '账户暂时锁定，请 ${formatTime(secs)} 后再试。';
-            } else {
-                passwordInput.disabled = false;
-                unlockBtn.disabled = false;
-                if (!errorMsgDiv.innerHTML.includes('密码')) {
-                    if (failCount === 0) errorMsgDiv.innerHTML = '';
-                }
-                timerInfoDiv.style.display = 'none';
-            }
-            
-            if (twoFactorZone.style.display === 'block') {
-                if (isLocked) {
-                    twoFactorInput.disabled = true;
-                    twoFactorVerifyBtn.disabled = true;
-                    twoFactorBackBtn.disabled = true;
-                } else {
-                    twoFactorInput.disabled = false;
-                    twoFactorVerifyBtn.disabled = false;
-                    twoFactorBackBtn.disabled = false;
-                }
-            }
+            const isLocked = lockUntil > Date.now();
+            unlockBtn.disabled = isLocked;
+            if(isLocked) errorMsgDiv.innerHTML = `账户暂时锁定，请稍后再试。`;
+            else if(failCount===0) errorMsgDiv.innerHTML = '';
+            if(twoFactorVerifyBtn) twoFactorVerifyBtn.disabled = isLocked;
+            if(twoFactorBackBtn) twoFactorBackBtn.disabled = isLocked;
+            setKeyboardDisabledState(isLocked);
         }
-        
         function handlePrimaryFail() {
-            if (lockUntil > Date.now()) {
-                errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。';
-                return;
-            }
-            
+            if(lockUntil > Date.now()) { errorMsgDiv.innerHTML = '系统锁定中，请等待倒计时结束。'; return; }
             failCount++;
-            const remainingAttempts = 3 - failCount;
-            
-            if (failCount >= 3) {
-                const lockSec = getLockDuration(lockLevel);
-                errorMsgDiv.innerHTML = `已连续错误3次！系统锁定${formatTime(lockSec)}，无法进行任何操作`;
+            if(failCount >= 3) {
+                errorMsgDiv.innerHTML = `已连续错误3次！系统锁定${formatTime(getLockDuration(lockLevel))}`;
                 applyLockout(false);
-                passwordInput.value = '';
+                currentPassword = "";
+                updatePinDisplay();
             } else {
-                errorMsgDiv.innerHTML = `密码错误！还剩 ${remainingAttempts} 次尝试机会，连续错误3次将锁定`;
-                passwordInput.value = '';
-                passwordInput.focus();
-                timerInfoDiv.style.display = 'none';
+                errorMsgDiv.innerHTML = `密码错误！还剩 ${3-failCount} 次尝试机会，连续错误3次将锁定`;
+                currentPassword = "";
+                updatePinDisplay();
             }
         }
-        
         function handleTwoFactorFail() {
-            if (lockUntil > Date.now()) {
-                twoFactorErrorMsg.innerHTML = '系统锁定中，请等待倒计时结束。';
-                return;
-            }
-            
-            const lockSec = getLockDuration(lockLevel);
-            twoFactorErrorMsg.innerHTML = `二次验证错误！系统锁定${formatTime(lockSec)}`;
+            if(lockUntil > Date.now()) { twoFactorErrorMsg.innerHTML = '系统锁定中，请等待倒计时结束。'; return; }
+            twoFactorErrorMsg.innerHTML = `二次验证错误！系统锁定${formatTime(getLockDuration(lockLevel))}`;
             applyLockout(true);
-            twoFactorInput.value = '';
+            currentTwoFactorInput = "";
+            updateTwoFactorDisplay();
             refreshCaptcha();
         }
-        
         function handleTwoFactorSuccess() {
-            lockLevel = 0;
-            hasEverLocked = false;
-            lockUntil = 0;
-            clearPersistedLock();
-            clearTimer();
-            
+            lockLevel = 0; hasEverLocked = false; lockUntil = 0;
+            clearPersistedLock(); clearTimer();
             twoFactorZone.style.display = 'none';
             dashboardZone.style.display = 'block';
             pendingTwoFactor = false;
+            setKeyboardDisabledState(false);
         }
-        
         function handlePrimarySuccess() {
             clearTimer();
-            lockUntil = 0;
-            failCount = 0;
-            
-            if (hasEverLocked) {
+            lockUntil = 0; failCount = 0;
+            if(hasEverLocked) {
                 pendingTwoFactor = true;
                 refreshCaptcha();
-                twoFactorInput.value = '';
+                currentTwoFactorInput = "";
+                updateTwoFactorDisplay();
                 twoFactorErrorMsg.innerHTML = '';
                 twoFactorTimerInfo.style.display = 'none';
                 lockZone.style.display = 'none';
                 twoFactorZone.style.display = 'block';
+                // 重置二次验证键盘模式
+                twoFactorKeyboardMode = 'alpha';
+                isUpperCase = true;
+                rebuildTwoFactorKeyboard();
                 updateAllLockUI();
             } else {
                 dashboardZone.style.display = 'block';
                 lockZone.style.display = 'none';
             }
         }
-        
         function verifyPassword() {
-            if (lockUntil > Date.now()) {
-                errorMsgDiv.innerHTML = '锁定倒计时进行中，请耐心等待。';
-                return;
-            }
-            
-            const rawValue = passwordInput.value;
-            const trimmed = rawValue.trim();
-            if (trimmed.length !== 6) {
+            if(lockUntil > Date.now()) { errorMsgDiv.innerHTML = '锁定倒计时进行中，请耐心等待。'; return; }
+            if(currentPassword.length !== 6) {
                 errorMsgDiv.innerHTML = '请输入6位数字密码';
-                passwordInput.value = '';
                 return;
             }
-            if (!/^\d{6}$/.test(trimmed)) {
-                errorMsgDiv.innerHTML = '密码必须为6位数字 (0-9)';
-                passwordInput.value = '';
-                return;
-            }
-            
-            if (VALID_CODES.has(trimmed)) {
-                handlePrimarySuccess();
-            } else {
-                handlePrimaryFail();
-            }
+            if(VALID_CODES.has(currentPassword)) handlePrimarySuccess();
+            else handlePrimaryFail();
         }
-        
         function verifyTwoFactor() {
-            if (lockUntil > Date.now()) {
-                twoFactorErrorMsg.innerHTML = '锁定倒计时进行中，请耐心等待。';
+            if(lockUntil > Date.now()) { twoFactorErrorMsg.innerHTML = '锁定倒计时进行中，请耐心等待。'; return; }
+            if(currentTwoFactorInput.length !== 4) {
+                twoFactorErrorMsg.innerHTML = '请输入4位验证码';
                 return;
             }
-            
-            const inputCode = twoFactorInput.value.trim();
-            if (inputCode !== currentCaptcha) {
-                handleTwoFactorFail();
-            } else {
-                handleTwoFactorSuccess();
-            }
+            if(currentTwoFactorInput === currentCaptcha) handleTwoFactorSuccess();
+            else handleTwoFactorFail();
         }
-        
         function resetToLock() {
             dashboardZone.style.display = 'none';
             lockZone.style.display = 'block';
             twoFactorZone.style.display = 'none';
             pendingTwoFactor = false;
-            passwordInput.value = '';
+            currentPassword = "";
+            updatePinDisplay();
             errorMsgDiv.innerHTML = '';
             updateAllLockUI();
-            passwordInput.focus();
         }
-        
         function backFromTwoFactor() {
             twoFactorZone.style.display = 'none';
             lockZone.style.display = 'block';
             pendingTwoFactor = false;
-            passwordInput.value = '';
+            currentPassword = "";
+            updatePinDisplay();
             errorMsgDiv.innerHTML = '';
             updateAllLockUI();
-            passwordInput.focus();
         }
-        
-        function enforceNumericInput(e) {
-            let value = e.target.value;
-            let newValue = value.replace(/\D/g, '');
-            if (newValue.length > 6) newValue = newValue.slice(0, 6);
-            if (newValue !== value) e.target.value = newValue;
-        }
-        
-        function initUI() {
-            lockZone.style.display = 'block';
-            twoFactorZone.style.display = 'none';
-            dashboardZone.style.display = 'none';
-            passwordInput.value = '';
-            errorMsgDiv.innerHTML = '';
-            timerInfoDiv.style.display = 'none';
-            failCount = 0;
-            
-            const hasValidLock = restoreLockState();
-            if (!hasValidLock) {
-                lockUntil = 0;
-                if (isNaN(lockLevel)) lockLevel = 0;
+        function init() {
+            // 生成点阵
+            for(let i=0;i<6;i++) {
+                let dot = document.createElement('div');
+                dot.className = 'pin-dot';
+                pinDotsContainer.appendChild(dot);
             }
-            
-            updateAllLockUI();
-            
-            if (lockUntil > Date.now()) {
-                clearTimer();
-                timerInterval = setInterval(() => {
-                    if (lockUntil <= Date.now()) {
-                        clearTimer();
-                        releaseLock();
-                        updateAllLockUI();
-                        errorMsgDiv.innerHTML = '锁定已解除，请重新输入密码';
-                        setTimeout(() => {
-                            if (errorMsgDiv.innerHTML === '锁定已解除，请重新输入密码') errorMsgDiv.innerHTML = '';
-                        }, 1800);
-                        passwordInput.value = '';
-                        passwordInput.focus();
-                    }
-                }, 200);
-            }
-            
-            startDatetimeTimer();
-            
+            // 绑定数字键盘（含清空和删除）
+            document.querySelectorAll('#numericKeyboard .key-btn').forEach(btn => {
+                let key = btn.getAttribute('data-key');
+                btn.addEventListener('click', () => handleNumericKey(key));
+            });
             unlockBtn.addEventListener('click', verifyPassword);
             resetLockBtn.addEventListener('click', resetToLock);
             twoFactorVerifyBtn.addEventListener('click', verifyTwoFactor);
             twoFactorBackBtn.addEventListener('click', backFromTwoFactor);
-            passwordInput.addEventListener('input', enforceNumericInput);
-            passwordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && lockZone.style.display !== 'none') {
-                    e.preventDefault();
-                    if (!(lockUntil > Date.now())) verifyPassword();
-                }
-            });
-            twoFactorInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && twoFactorZone.style.display !== 'none') {
-                    e.preventDefault();
-                    if (!(lockUntil > Date.now())) verifyTwoFactor();
-                }
-            });
-            
-            passwordInput.focus();
-        }
-        
-        initUI();
-        
-        setInterval(() => {
-            if (lockUntil > 0 && lockUntil <= Date.now()) {
-                releaseLock();
-                updateAllLockUI();
+            startDatetimeTimer();
+            const hasLock = restoreLockState();
+            if(hasLock && lockUntil > Date.now()) {
+                clearTimer();
+                applyLockout(false);
+            } else {
+                lockUntil = 0;
+                if(isNaN(lockLevel)) lockLevel=0;
             }
+            updateAllLockUI();
+            setKeyboardDisabledState(lockUntil > Date.now());
+            // 初始化二次验证键盘（不可见状态先构建）
+            rebuildTwoFactorKeyboard();
+            lockZone.style.display = 'block';
+            twoFactorZone.style.display = 'none';
+            dashboardZone.style.display = 'none';
+            currentPassword = "";
+            updatePinDisplay();
+        }
+        init();
+        setInterval(() => {
+            if(lockUntil > 0 && lockUntil <= Date.now()) releaseLock();
         }, 1000);
     })();
 </script>
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
-}
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(e=>console.log); }
 </script>
 </body>
 </html>
