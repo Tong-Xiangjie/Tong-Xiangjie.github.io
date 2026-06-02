@@ -841,6 +841,20 @@ const commemorativeData = {
                     remark: "", 
                     img1: "image/comm/J037241561-70-1.jpg", 
                     img2: "image/comm/J037241561-70-2.jpg" 
+                },{ 
+                    copyId: 3, 
+                    year: 2026,
+                    purchaseDate: "2026年1月20日",
+                    price: "272元", 
+                    bank: "中国人民银行",
+                    version: "J037241571-80", 
+                    condition: "ACG68E", 
+                    krause: "922",
+                    issueDate: "2026年1月20日",
+                    issueQuantity: "1亿",
+                    remark: "", 
+                    img1: "image/comm/J037241571-80-1.jpg", 
+                    img2: "image/comm/J037241571-80-2.jpg" 
                 }
             ] 
         }
