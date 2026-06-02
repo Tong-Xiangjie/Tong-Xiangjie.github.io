@@ -94,7 +94,7 @@ var curriculumData = {
       note: "建议修读学分: 4",
       courses: [
         { id: "12090052", name: "军事理论", credits: 2, category: "军事课程", score: "4.0", remark: "" },
-        { id: "12090062", name: "军事技能", credits: 2, category: "军事课程", score: "3.3", remark: "3周" }
+        { id: "12090062", name: "军事技能", credits: 2, category: "军事课程", score: "3.3", remark: "" }
       ]
     },
     {
@@ -119,7 +119,7 @@ var curriculumData = {
         { id: "30420105", name: "微积分A(2)", credits: 5, category: "数学基础", score: "已选课", remark: "另可选：高等微积分(2)" },
         { id: "30240532", name: "面向对象程序设计基础", credits: 2, category: "信息基础", score: "已选课", remark: "另可选：34100362 面向对象程序设计基础" },
         { id: "10880012", name: "概率论", credits: 2, category: "数学基础", score: "已选课", remark: "" },
-        { id: "10430934", name: "大学物理A(1)", credits: 4, category: "科学基础", score: "已选课", remark: "AI专业方向可选；另可選：大学物理B(1)、大学物理(1)英" },
+        { id: "10430934", name: "大学物理A(1)", credits: 4, category: "科学基础", score: "已选课", remark: "AI专业方向可选；另可选：大学物理B(1)、大学物理(1)英" },
         { id: "10610193", name: "中国近现代史纲要", credits: 3, category: "思想政治理论课", score: "已选课", remark: "" },
         { id: "10680131", name: "形势与政策(2)-春", credits: 1, category: "思想政治理论课", score: "已选课", remark: "" },
         { id: "14201012", name: "英语(2)", credits: 2, category: "外语", score: "免修", remark: "" },
@@ -133,7 +133,7 @@ var curriculumData = {
       note: "建议修读学分: 4",
       courses: [
         { id: "30940022", name: "AI基石设计", credits: 2, category: "创新实践环节", score: "已选课", remark: "" },
-        { id: "10680092", name: "思政实践", credits: 2, category: "思想政治理论课", score: "已选课", remark: "建议大一大二暑期选修" }
+        { id: "10680092", name: "思政实践", credits: 2, category: "思想政治理论课", score: "已选课", remark: "" }
       ]
     },
 
@@ -143,15 +143,15 @@ var curriculumData = {
       season: "秋季学期",
       note: "建议修读学分: 22",
       courses: [
-        { id: "30160263", name: "统计推断", credits: 3, category: "数学基础", score: "未修", remark: "" },
-        { id: "30240184", name: "数据结构", credits: 4, category: "信息基础", score: "未修", remark: "另可选：34100373 数据结构(3学分)" },
-        { id: "20240143", name: "离散数学(1)", credits: 3, category: "数学基础", score: "未修", remark: "" },
-        { id: "20240152", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "未修", remark: "另可选：30940032 / 44100102" },
-        { id: "10680073", name: "马克思主义基本原理", credits: 3, category: "思想政治理论课", score: "未修", remark: "" },
-        { id: "10720031", name: "体育(3)", credits: 1, category: "体育", score: "未修", remark: "" },
-        { id: "14201022", name: "英语(3)", credits: 2, category: "外语", score: "未修", remark: "" },
-        { id: "10430944", name: "大学物理A(2)", credits: 4, category: "科学基础", score: "未修", remark: "AI专业方向可选；另可選：大学物理B(2)、大学物理(2)英" },
-        { id: "10430801", name: "物理实验B(1)", credits: 1, category: "科学基础", score: "未修", remark: "AI专业方向选修" }
+        { id: "30160263", name: "统计推断", credits: 3, category: "数学基础", score: "已选课", remark: "" },
+        { id: "34100373", name: "数据结构", credits: 3, category: "信息基础", score: "已选课", remark: "另可选：30240184 数据结构(4学分)" },
+        { id: "20240143", name: "离散数学(1)", credits: 3, category: "数学基础", score: "已选课", remark: "" },
+        { id: "20240152", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "已选课", remark: "另可选：30940032 / 44100102" },
+        { id: "10680073", name: "马克思主义基本原理", credits: 3, category: "思想政治理论课", score: "已选课", remark: "" },
+        { id: "10720031", name: "体育(3)", credits: 1, category: "体育", score: "已选课", remark: "游泳专项" },
+        { id: "14201022", name: "英语(3)", credits: 2, category: "外语", score: "已选课", remark: "大一下学期选课：词汇的力量" },
+        { id: "10430944", name: "大学物理A(2)", credits: 4, category: "科学基础", score: "已选课", remark: "AI专业方向可选；另可选：大学物理B(2)、大学物理(2)英" },
+        { id: "10430801", name: "物理实验B(1)", credits: 1, category: "科学基础", score: "已选课", remark: "AI专业方向选修" }
       ]
     },
     {
@@ -166,7 +166,7 @@ var curriculumData = {
         { id: "10430811", name: "物理实验B(2)", credits: 1, category: "科学基础", score: "未修", remark: "AI专业方向选修，先修物理实验B(1)" },
         { id: "10680142", name: "毛泽东思想和中国特色社会主义理论体系概论", credits: 2, category: "思想政治理论课", score: "未修", remark: "" },
         { id: "10680022", name: "习近平新时代中国特色社会主义思想概论", credits: 2, category: "思想政治理论课", score: "未修", remark: "" },
-        { id: "14201032", name: "英语(4)", credits: 2, category: "外语", score: "未修", remark: "" },
+        { id: "14201032", name: "英语(4)", credits: 2, category: "外语", score: "已选课", remark: "大二上学期选课：科技英语中级" },
         { id: "10720041", name: "体育(4)", credits: 1, category: "体育", score: "未修", remark: "" },
         { id: "elec_s2_1", name: "人工智能选修课组", credits: 3, category: "专业选修课程", score: "未修", remark: "二选一；另可选：项目式学习" }
       ]
@@ -188,8 +188,8 @@ var curriculumData = {
       courses: [
         { id: "new006", name: "脑与认知科学", credits: 3, category: "通识选修课", score: "未修", remark: "书院定制通识课（计入科学课组）" },
         { id: "80240743", name: "深度学习", credits: 3, category: "专业核心课程", score: "未修", remark: "二选一；另可选：84100343 深度学习" },
-        { id: "ideology_limit", name: "思政限选课", credits: 1, category: "思想政治理论课", score: "未修", remark: "限选（四史等）" },
-        { id: "lib_elec_1", name: "通识选修课", credits: 3, category: "通识选修课", score: "未修", remark: "人文/社科/艺术/科学" },
+        { id: "ideology_limit", name: "思政限选课", credits: 2, category: "思想政治理论课", score: "已选课", remark: "大二上学期选课：工业生产概论" },
+        { id: "lib_elec_1", name: "通识选修课", credits: 3, category: "通识选修课", score: "已选课", remark: "人文/社科/艺术/科学四个课组。见上方。" },
         { id: "elec_s3_1", name: "人工智能选修课组", credits: 5, category: "专业选修课程", score: "未修", remark: "二选一；另可选：人工智能选修课组+项目式学习" }
       ]
     },
@@ -202,7 +202,7 @@ var curriculumData = {
         { id: "40241012", name: "强化学习", credits: 3, category: "专业核心课程", score: "未修", remark: "" },
         { id: "new009", name: "人工智能伦理与社会", credits: 3, category: "通识选修课", score: "未修", remark: "书院定制通识课（计入社科课组）" },
         { id: "elec_s4_1", name: "人工智能选修课组", credits: 5, category: "专业选修课程", score: "未修", remark: "" },
-        { id: "lib_elec_2", name: "通识选修课", credits: 2, category: "通识选修课", score: "未修", remark: "人文/社科/艺术/科学" }
+        { id: "lib_elec_2", name: "通识选修课", credits: 2, category: "通识选修课", score: "已选课", remark: "人文/社科/艺术/科学四个课组。见上方。" }
       ]
     },
     {
