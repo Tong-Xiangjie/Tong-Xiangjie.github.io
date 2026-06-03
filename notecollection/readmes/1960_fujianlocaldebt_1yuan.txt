@@ -9,7 +9,7 @@
 
 <center><img src="readmes/image/lecb/1960_fujian1yuan_0.jpg" width="80%"></center>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_2.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">1960年福建地方公债与1958年国家公债</span></center>
+<center><span style="color:#8b6b4f; font-size:0.85rem;">1960年福建地方公债与1957年国家公债（去掉了息票）</span></center>
 <br>
 
 <p>首先最打眼的是这一张主图，这其实是1958年3月建设的<strong>东圳水库</strong>，位于福建省莆田市区西北8公里许的延寿溪中游（莆田市城厢区常太镇东圳尾村）。东圳水库具有灌溉、防洪、发电、养殖、游览等作用。是福建省大型水库之一，是莆田市的“大水缸”和生命线工程。</p>
