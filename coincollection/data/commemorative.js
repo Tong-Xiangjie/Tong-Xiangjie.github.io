@@ -47,8 +47,8 @@ const commemorativeData = {
                             purchaseDate: "2026年5月30日",
                             catalogNumber: "Sun-J2a1",
                             remark: "",
-                            img1: "image/commemorative/1984-jg1-1.jpg",
-                            img2: "image/commemorative/1984-jg1-2.jpg"
+                            img1: "image/commemorative/1984-jg1-1.png",
+                            img2: "image/commemorative/1984-jg1-2.png"
                         }
                     ]
                 }
