@@ -21,6 +21,40 @@ const commemorativeData = {
         { key: "design", label: "设计元素" },
     ],
     series: [
+        // ==================== 建国35周年（5层） ====================
+        {
+            seriesName: "中华人民共和国成立35周年普通纪念币",
+            year: 1993,
+            varieties: [
+                {
+                    varietyName: "欢庆",
+                    copies: [
+                        {
+                            copyId: 1,
+                            country: "中华人民共和国",
+                            year: 1984,
+                            issueDate: "1984年",
+                            mint: "上海造币厂",
+                            material: "铜镍合金",
+                            diameter: "30mm",
+                            weight: "9.32g",
+                            edge: "连续丝齿",
+                            design: "",
+                            mintage: "879.3万",
+                            grade: "MS67",
+                            gradingCompany: "PCGS",
+                            price: "198元",
+                            purchaseDate: "2026年5月30日",
+                            catalogNumber: "Sun-J2a1",
+                            remark: "",
+                            img1: "image/commemorative/1984-jg1-1.jpg",
+                            img2: "image/commemorative/1984-jg1-2.jpg"
+                        }
+                    ]
+                }
+                // 可继续添加：金丝猴、白鳍豚、华南虎等
+            ]
+        },
         // ==================== 国际和平年（4层） ====================
         {
             seriesName: "国际和平年普通纪念币",
