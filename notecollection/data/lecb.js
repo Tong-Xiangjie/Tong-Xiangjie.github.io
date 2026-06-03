@@ -57,6 +57,10 @@ const lecbData = {
             varieties: [
                 {
                     varietyName: "1元",
+                    readme: {
+                        title: "福建省1960年地方经济建设公债1元券赏析",
+                        content: "file:readmes/1960_fujianlocaldebt_1yuan.txtt"
+                    },
                     copies: [
                         {
                             copyId: 1,
