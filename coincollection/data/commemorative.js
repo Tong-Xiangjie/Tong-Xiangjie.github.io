@@ -23,11 +23,11 @@ const commemorativeData = {
     series: [
         // ==================== 建国35周年（5层） ====================
         {
-            seriesName: "中华人民共和国成立35周年普通纪念币",
+            seriesName: "中华人民共和国成立三十五周年普通纪念币",
             year: 1984,
             varieties: [
                 {
-                    varietyName: "欢庆",
+                    varietyName: "舞者欢庆",
                     copies: [
                         {
                             copyId: 1,
