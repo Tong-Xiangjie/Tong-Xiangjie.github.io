@@ -143,7 +143,6 @@ function getDisplayValue(keyword, searchType) {
 
 function renderSearchResults(results, rawKeyword, type) {
     const app = document.getElementById('app');
-    const displayValue = getDisplayValue(rawKeyword, type);
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
     html += `<div class="panel-header"><h2>搜索结果</h2>`;
@@ -183,11 +182,10 @@ function renderSearchResults(results, rawKeyword, type) {
                 : item.series.seriesName;
 
             html += `<div class="search-result-item" onclick="navigateToCopy('${item.dataKey}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : 'null'}, ${item.cIdx}, ${item.hasVarieties})">`;
-            // 双缩略图
             html += `<div class="dual-thumb">`;
             if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
             if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;background:#e0d8cc;">无</div>`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;">无预览</div>`;
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
