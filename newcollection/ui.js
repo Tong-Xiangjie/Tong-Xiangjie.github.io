@@ -1,4 +1,4 @@
-// ========== 概览页渲染（所有藏品扁平列表） ==========
+// ========== 概览页渲染（全部藏品） ==========
 function renderOverview() {
     const app = document.getElementById('app');
     currentView = 'overview';
@@ -73,14 +73,12 @@ function renderOverview() {
     }
 
     let html = `<div class="overview-header"><h2>全部藏品</h2><p>共 ${allItems.length} 张</p></div>`;
-
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
         return;
     }
 
-    // 按分类顺序分组
     const grouped = {};
     for (const item of allItems) {
         if (!grouped[item.catLabel]) grouped[item.catLabel] = [];
@@ -91,14 +89,12 @@ function renderOverview() {
         if (cat.children) {
             for (const sub of cat.children) {
                 const label = cat.name + ' - ' + sub.name;
-                const group = grouped[label];
-                if (!group) continue;
-                html += renderOverviewGroup(label, group);
+                if (!grouped[label]) continue;
+                html += renderOverviewGroup(label, grouped[label]);
             }
         } else {
-            const group = grouped[cat.name];
-            if (!group) continue;
-            html += renderOverviewGroup(cat.name, group);
+            if (!grouped[cat.name]) continue;
+            html += renderOverviewGroup(cat.name, grouped[cat.name]);
         }
     }
 
@@ -117,27 +113,18 @@ function renderOverviewGroup(label, items) {
             : item.series.seriesName;
 
         html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
-        // 正反面缩略图
-        html += `<div class="dual-thumb" style="display:flex;gap:3px;flex-shrink:0;">`;
-        if (img1) {
-            html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        }
-        if (img2) {
-            html += `<img class="mini-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        }
-        if (!img1 && !img2) {
-            html += `<div class="mini-thumb" style="background:#e0d8cc;display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;">无图</div>`;
-        }
+        html += `<div class="dual-thumb">`;
+        if (img1) html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img class="mini-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;background:#e0d8cc;">无</div>`;
         html += `</div>`;
-
         html += `<div class="info">`;
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
         html += `<div class="detail">`;
         if (c.version) html += `${escapeHtml(c.version)} · `;
         if (c.condition) html += `${escapeHtml(c.condition)} · `;
         if (c.year) html += `${c.year}年`;
-        html += `</div>`;
-        html += `</div>`;
+        html += `</div></div>`;
         html += `<div style="color:#999;font-size:0.7rem;flex-shrink:0;padding-left:6px;">#${item.globalIndex}</div>`;
         html += `</div>`;
     }
@@ -145,7 +132,6 @@ function renderOverviewGroup(label, items) {
     return html;
 }
 
-// 从概览跳转到分类展开
 function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     for (const cat of categoryTree) {
         if (cat.children) {
@@ -157,23 +143,21 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                     renderSidebar();
                     renderCurrentCategory();
                     setTimeout(() => {
-                        // 展开系列
                         const seriesId = `series-${si}`;
                         toggleSeries(seriesId);
                         if (hasVarieties && vi !== null) {
                             setTimeout(() => {
-                                const vid = `v-${si}-${vi}`;
-                                toggleVariety(vid);
+                                toggleVariety(`v-${si}-${vi}`);
                                 setTimeout(() => {
-                                    const el = document.getElementById('list-' + vid);
+                                    const el = document.getElementById('list-v-' + si + '-' + vi);
                                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 100);
-                            }, 50);
+                                }, 120);
+                            }, 60);
                         } else {
                             setTimeout(() => {
                                 const el = document.getElementById('copies-' + seriesId);
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 100);
+                            }, 120);
                         }
                     }, 50);
                     return;
@@ -190,18 +174,17 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                 toggleSeries(seriesId);
                 if (hasVarieties && vi !== null) {
                     setTimeout(() => {
-                        const vid = `v-${si}-${vi}`;
-                        toggleVariety(vid);
+                        toggleVariety(`v-${si}-${vi}`);
                         setTimeout(() => {
-                            const el = document.getElementById('list-' + vid);
+                            const el = document.getElementById('list-v-' + si + '-' + vi);
                             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 100);
-                    }, 50);
+                        }, 120);
+                    }, 60);
                 } else {
                     setTimeout(() => {
                         const el = document.getElementById('copies-' + seriesId);
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 100);
+                    }, 120);
                 }
             }, 50);
             return;
@@ -209,7 +192,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     }
 }
 
-// ========== 分类内容页渲染（系列→面值→藏品三级） ==========
+// ========== 分类内容页（系列→面值→藏品） ==========
 function renderSeriesList(data, title) {
     const app = document.getElementById('app');
     if (!data || !data.series || data.series.length === 0) {
@@ -221,14 +204,12 @@ function renderSeriesList(data, title) {
     html += `<h2>${escapeHtml(title || data.name || '')}</h2>`;
     if (data.desc) html += `<div class="series-desc">${escapeHtml(data.desc)}</div>`;
     html += `</div>`;
-
     html += `<div class="series-container">`;
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
         const seriesId = `series-${si}`;
 
-        // === 系列/年份级（大品类）===
         let seriesTotal = 0;
         if (series.varieties) {
             for (const v of series.varieties) seriesTotal += (v.copies ? v.copies.length : 0);
@@ -242,12 +223,9 @@ function renderSeriesList(data, title) {
         html += `<span class="series-count-badge">${seriesTotal}张</span>`;
         html += `<span class="series-expand-icon" id="icon-${seriesId}">▼</span>`;
         html += `</div>`;
-
-        // === 系列下的内容（面值列表 或 直接藏品）===
         html += `<div class="series-body" id="body-${seriesId}">`;
 
         if (series.varieties && series.varieties.length > 0) {
-            // 有面值层级
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 const copies = variety.copies || [];
@@ -255,7 +233,6 @@ function renderSeriesList(data, title) {
 
                 html += `<div class="variety-row">`;
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}')">`;
-                html += `<span class="variety-indent"></span>`;
                 html += `<span class="variety-name">${escapeHtml(variety.varietyName)}</span>`;
                 html += `<span class="variety-summary">`;
                 html += `<span class="count">${copies.length}张</span>`;
@@ -266,45 +243,33 @@ function renderSeriesList(data, title) {
                 html += `</div></div>`;
             }
         } else if (series.copies && series.copies.length > 0) {
-            // 扁平结构，没有面值层
-            html += `<div class="copy-list open" id="copies-${seriesId}">`;
+            html += `<div class="copy-list open" id="copies-${seriesId}" style="max-height:none;opacity:1;">`;
             html += renderCopiesList(series.copies);
             html += `</div>`;
         }
 
-        html += `</div>`; // series-body
-        html += `</div>`; // series-year-row
+        html += `</div></div>`;
     }
 
     html += `</div>`;
     app.innerHTML = html;
 }
 
-// ========== 藏品列表渲染（双缩略图） ==========
+// ========== 藏品列表（双缩略图） ==========
 function renderCopiesList(copies) {
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;color:#999;font-size:0.8rem;">暂无藏品</div>';
     }
-
     let html = '';
     for (const c of copies) {
         const img1 = c.img1 ? IMAGE_BASE + c.img1 : '';
         const img2 = c.img2 ? IMAGE_BASE + c.img2 : '';
-
         html += `<div class="copy-item">`;
-        // 正反缩略图并排
         html += `<div class="dual-thumb">`;
-        if (img1) {
-            html += `<img class="copy-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        }
-        if (img2) {
-            html += `<img class="copy-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        }
-        if (!img1 && !img2) {
-            html += `<div class="copy-thumb no-img">无图</div>`;
-        }
+        if (img1) html += `<img class="copy-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img class="copy-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (!img1 && !img2) html += `<div class="copy-thumb no-img">无图</div>`;
         html += `</div>`;
-
         html += `<div class="copy-info">`;
         if (c.version) html += `<div class="version">${escapeHtml(c.version)}</div>`;
         html += `<div>`;
@@ -320,25 +285,36 @@ function renderCopiesList(copies) {
     return html;
 }
 
-// ========== 展开/折叠系列（大品类） ==========
+// ========== 展开/折叠 ==========
 function toggleSeries(id) {
     const body = document.getElementById('body-' + id);
     const icon = document.getElementById('icon-' + id);
     if (!body) return;
-    body.classList.toggle('open');
-    if (icon) icon.classList.toggle('open');
+    const isOpen = body.classList.contains('open');
+    if (isOpen) {
+        body.classList.remove('open');
+        if (icon) icon.classList.remove('open');
+    } else {
+        body.classList.add('open');
+        if (icon) icon.classList.add('open');
+    }
 }
 
-// ========== 展开/折叠面值（小品种） ==========
 function toggleVariety(id) {
     const list = document.getElementById('list-' + id);
     const icon = document.getElementById('icon-' + id);
     if (!list) return;
-    list.classList.toggle('open');
-    if (icon) icon.classList.toggle('open');
+    const isOpen = list.classList.contains('open');
+    if (isOpen) {
+        list.classList.remove('open');
+        if (icon) icon.classList.remove('open');
+    } else {
+        list.classList.add('open');
+        if (icon) icon.classList.add('open');
+    }
 }
 
-// ========== 图片弹窗（与之前相同） ==========
+// ========== 图片弹窗 ==========
 function openModal(imgSrc1, imgSrc2) {
     currentModalImg1 = imgSrc1;
     currentModalImg2 = imgSrc2;
@@ -381,9 +357,7 @@ function initPinchZoom() {
     if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
     hammerManager = new Hammer(container);
     hammerManager.get('pinch').set({ enable: true });
-
     let lastScale = 1, lastX = 0, lastY = 0;
-
     hammerManager.on('pinchstart', function() { lastScale = currentScale; });
     hammerManager.on('pinch', function(e) {
         currentScale = Math.max(0.5, Math.min(5, lastScale * e.scale));
