@@ -4,7 +4,10 @@ let currentArticleCategory = 'all';
 let currentArticleIndex = -1;
 let collectedArticles = [];
 let articleContentCache = {};
+let articlePlainTextCache = {};
 let articleSearchKeyword = '';
+let articleSearchMode = 'title';
+let isArticlePreloading = false;
 
 let articleCategoryTree = [];
 
@@ -87,7 +90,63 @@ function buildArticleCategoryTree() {
     }
 }
 
-// ========== 侧边栏渲染（文章模式） ==========
+// ========== 预加载全部文章 ==========
+async function preloadAllArticles() {
+    if (isArticlePreloading) return;
+    isArticlePreloading = true;
+
+    const promises = collectedArticles.map(article => preloadArticle(article));
+    await Promise.allSettled(promises);
+
+    isArticlePreloading = false;
+}
+
+async function preloadArticle(article) {
+    if (articleContentCache[article.contentPath]) return;
+
+    let filePath = article.contentPath;
+    if (filePath.startsWith('file:')) filePath = filePath.substring(5);
+
+    try {
+        const response = await fetch('../notecollection/' + filePath);
+        if (!response.ok) throw new Error('加载失败');
+        const html = await response.text();
+        articleContentCache[article.contentPath] = html;
+        articlePlainTextCache[article.contentPath] = stripHtml(html);
+    } catch (e) {
+        // 加载失败忽略
+    }
+}
+
+function stripHtml(html) {
+    if (!html) return '';
+    let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    text = text.replace(/<[^>]+>/g, '');
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/\s+/g, ' ').trim();
+    return text;
+}
+
+// ========== 切换搜索模式 ==========
+function toggleArticleSearchMode() {
+    if (articleSearchMode === 'title') {
+        articleSearchMode = 'fulltext';
+        preloadAllArticles().then(() => {
+            if (articleSearchKeyword) renderArticleList();
+        });
+    } else {
+        articleSearchMode = 'title';
+        if (articleSearchKeyword) renderArticleList();
+    }
+}
+
+// ========== 侧边栏渲染 ==========
 function renderArticleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -143,8 +202,11 @@ function renderArticleList() {
         const kw = articleSearchKeyword.toLowerCase();
         articles = articles.filter(a => {
             if (a.title.toLowerCase().includes(kw)) return true;
-            const content = articleContentCache[a.contentPath] || '';
-            return content.toLowerCase().includes(kw);
+            if (articleSearchMode === 'fulltext') {
+                const plainText = articlePlainTextCache[a.contentPath] || '';
+                if (plainText.toLowerCase().includes(kw)) return true;
+            }
+            return false;
         });
     }
 
@@ -172,8 +234,8 @@ function renderArticleList() {
             html += `<div class="info">`;
             html += `<div class="name">${highlightText(escapeHtml(article.title), articleSearchKeyword)}</div>`;
             html += `<div class="detail">${escapeHtml(article.seriesName)}</div>`;
-            if (articleSearchKeyword && articleContentCache[article.contentPath]) {
-                const snippet = getContextSnippet(articleContentCache[article.contentPath], articleSearchKeyword);
+            if (articleSearchKeyword && articleSearchMode === 'fulltext' && articlePlainTextCache[article.contentPath]) {
+                const snippet = getContextSnippet(articlePlainTextCache[article.contentPath], articleSearchKeyword);
                 if (snippet) {
                     html += `<div class="article-snippet">${highlightText(escapeHtml(snippet), articleSearchKeyword)}</div>`;
                 }
@@ -193,17 +255,17 @@ function renderArticleList() {
     });
 }
 
-function getContextSnippet(content, keyword) {
-    if (!content || !keyword) return '';
-    const lower = content.toLowerCase();
+function getContextSnippet(plainText, keyword) {
+    if (!plainText || !keyword) return '';
+    const lower = plainText.toLowerCase();
     const kwLower = keyword.toLowerCase();
     const idx = lower.indexOf(kwLower);
     if (idx === -1) return '';
     const start = Math.max(0, idx - 20);
-    const end = Math.min(content.length, idx + keyword.length + 20);
-    let snippet = content.substring(start, end);
+    const end = Math.min(plainText.length, idx + keyword.length + 20);
+    let snippet = plainText.substring(start, end);
     if (start > 0) snippet = '...' + snippet;
-    if (end < content.length) snippet = snippet + '...';
+    if (end < plainText.length) snippet = snippet + '...';
     return snippet;
 }
 
@@ -240,6 +302,7 @@ function openArticleReader(index) {
         })
         .then(content => {
             articleContentCache[article.contentPath] = content;
+            articlePlainTextCache[article.contentPath] = stripHtml(content);
             renderArticleReader(article, content);
         })
         .catch(() => {
