@@ -244,6 +244,32 @@ function renderCurrentCategory() {
     renderSeriesList(data, title);
 }
 
+function updateSearchUIForMode() {
+    const select = document.getElementById('searchType');
+    const toggle = document.getElementById('modeToggle');
+    const tip = document.getElementById('searchTip');
+
+    if (!select || !toggle || !tip) return;
+
+    if (currentMode === 'articles') {
+        select.classList.add('hidden');
+        toggle.classList.remove('hidden');
+        toggle.textContent = articleSearchMode === 'title' ? '标' : '全';
+        toggle.title = articleSearchMode === 'title' ? '当前：标题索引，点击切换为全字段索引' : '当前：全字段索引，点击切换为标题索引';
+        tip.textContent = articleSearchMode === 'title' ? '文章搜索：标题索引' : '文章搜索：全字段索引';
+    } else if (isSettingsMode) {
+        select.classList.add('hidden');
+        toggle.classList.add('hidden');
+        tip.textContent = '设置搜索';
+    } else {
+        select.classList.remove('hidden');
+        toggle.classList.remove('hidden');
+        toggle.textContent = searchMode === 'click' ? '□' : '■';
+        toggle.title = '切换搜索模式';
+        tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
+    }
+}
+
 function onTabClick(target) {
     if (target === 'settings') {
         if (!isSettingsMode) {
@@ -291,6 +317,7 @@ function onTabClick(target) {
                 currentArticleIndex = articleState.currentIndex;
                 articleSearchKeyword = articleState.searchKeyword;
                 if (collectedArticles.length === 0) collectAllArticles();
+                updateSearchUIForMode();
                 renderSidebar();
                 if (currentArticleView === 'list') renderArticleList();
                 else openArticleReader(currentArticleIndex);
@@ -303,6 +330,7 @@ function onTabClick(target) {
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
         }
+        updateSearchUIForMode();
         renderSidebar();
         if (currentView === 'overview') renderOverview();
         else renderCurrentCategory();
@@ -336,6 +364,7 @@ function onTabClick(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
 
+        updateSearchUIForMode();
         renderSidebar();
         if (currentArticleView === 'list') renderArticleList();
         else openArticleReader(currentArticleIndex);
@@ -375,6 +404,7 @@ function onTabClick(target) {
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
 
+        updateSearchUIForMode();
         renderSidebar();
         if (currentView === 'overview') {
             renderOverview();
@@ -399,9 +429,11 @@ function onTabClick(target) {
 
 function enterSettings() {
     isSettingsMode = true;
+    currentSearchKeyword = '';
     document.querySelector('.body-row')?.classList.add('settings-mode');
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
+    updateSearchUIForMode();
     renderSettingsPage();
 }
 
@@ -413,7 +445,7 @@ function renderSettingsPage(searchKw) {
     let html = `<div class="settings-page">`;
     html += `<h2>设置</h2>`;
 
-    const showTheme = !kw || '主题色 颜色 主题 配色'.includes(kw) || '主题'.includes(kw);
+    const showTheme = !kw || '主题色 颜色 主题 配色'.includes(kw);
     if (showTheme) {
         html += `<div class="settings-section">`;
         const label = kw ? highlightText('主题色', searchKw) : '主题色';
@@ -469,11 +501,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('searchBtn')?.addEventListener('click', doSearch);
     document.getElementById('resetBtn')?.addEventListener('click', resetSearch);
-    document.getElementById('modeToggle')?.addEventListener('click', toggleSearchMode);
+    document.getElementById('modeToggle')?.addEventListener('click', function() {
+        if (currentMode === 'articles') {
+            toggleArticleSearchMode();
+            updateSearchUIForMode();
+        } else {
+            toggleSearchMode();
+        }
+    });
 
     document.getElementById('searchInput')?.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
-            if (searchMode === 'click') doSearch();
+            if (currentMode === 'articles') {
+                doSearch();
+            } else if (searchMode === 'click') {
+                doSearch();
+            }
         }
     });
 
