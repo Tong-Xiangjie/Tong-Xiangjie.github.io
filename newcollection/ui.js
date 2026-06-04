@@ -102,7 +102,6 @@ function renderOverview() {
     }
 
     app.innerHTML = html;
-    // 淡入动画
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -126,7 +125,7 @@ function renderOverviewGroup(label, items) {
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
         if (img2) html += `<img class="mini-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;">无预览</div>`;
+        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
         html += `</div>`;
         html += `<div class="info">`;
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
@@ -162,13 +161,13 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                                 setTimeout(() => {
                                     const el = document.getElementById('list-' + 'v-' + si + '-' + vi);
                                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 120);
-                            }, 60);
+                                }, 100);
+                            }, 50);
                         } else {
                             setTimeout(() => {
                                 const el = document.getElementById('copies-' + seriesId);
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 120);
+                            }, 100);
                         }
                     }, 50);
                     return;
@@ -189,13 +188,13 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                         setTimeout(() => {
                             const el = document.getElementById('list-' + 'v-' + si + '-' + vi);
                             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 120);
-                    }, 60);
+                        }, 100);
+                    }, 50);
                 } else {
                     setTimeout(() => {
                         const el = document.getElementById('copies-' + seriesId);
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 120);
+                    }, 100);
                 }
             }, 50);
             return;
@@ -265,7 +264,6 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
-    // 淡入动画
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -277,7 +275,7 @@ function renderSeriesList(data, title) {
 function renderCopiesList(copies) {
     const imgBase = getImageBase();
     if (!copies || copies.length === 0) {
-        return '<div style="padding:8px;color:#999;font-size:0.8rem;">暂无藏品</div>';
+        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">暂无藏品</div>';
     }
     let html = '';
     for (const c of copies) {
