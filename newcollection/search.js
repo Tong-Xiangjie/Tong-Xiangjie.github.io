@@ -33,6 +33,59 @@ function doSearch() {
     performSearchAndRender(rawKeyword, type);
 }
 
+function resetSearch() {
+    const input = document.getElementById('searchInput');
+    if (input) input.value = '';
+    currentSearchKeyword = '';
+
+    // 文章模式
+    if (currentMode === 'articles') {
+        articleSearchKeyword = '';
+        renderArticleList();
+        return;
+    }
+
+    // 设置模式
+    if (isSettingsMode) {
+        renderSettingsPage();
+        return;
+    }
+
+    // 纸币/硬币模式
+    currentView = currentCategoryId ? 'category' : 'overview';
+    if (currentView === 'overview') {
+        renderOverview();
+    } else {
+        renderCurrentCategory();
+    }
+}
+
+function toggleSearchMode() {
+    if (currentMode === 'articles') {
+        toggleArticleSearchMode();
+        return;
+    }
+
+    // 设置模式下不切换模式
+    if (isSettingsMode) return;
+
+    searchMode = searchMode === 'click' ? 'realtime' : 'click';
+    const toggle = document.getElementById('modeToggle');
+    const tip = document.getElementById('searchTip');
+    if (toggle) toggle.textContent = searchMode === 'click' ? '□' : '■';
+    if (tip) tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
+
+    const input = document.getElementById('searchInput');
+    if (input) {
+        if (searchMode === 'realtime') {
+            input.addEventListener('input', doSearch);
+        } else {
+            input.removeEventListener('input', doSearch);
+        }
+    }
+}
+
+// 以下函数保持不变...
 function performSearchAndRender(rawKeyword, type) {
     const keyword = getActualKeyword(rawKeyword, type);
     const isEmptySearch = !keyword || keyword === '';
@@ -303,35 +356,4 @@ function backFromSearch() {
     }
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
-}
-
-function resetSearch() {
-    const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-    currentSearchKeyword = '';
-    currentView = currentCategoryId ? 'category' : 'overview';
-    if (currentView === 'overview') {
-        renderOverview();
-    } else {
-        renderCurrentCategory();
-    }
-}
-
-function toggleSearchMode() {
-    if (currentMode === 'articles') return; // 由 modeToggle 统一处理
-
-    searchMode = searchMode === 'click' ? 'realtime' : 'click';
-    const toggle = document.getElementById('modeToggle');
-    const tip = document.getElementById('searchTip');
-    if (toggle) toggle.textContent = searchMode === 'click' ? '□' : '■';
-    if (tip) tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
-
-    const input = document.getElementById('searchInput');
-    if (input) {
-        if (searchMode === 'realtime') {
-            input.addEventListener('input', doSearch);
-        } else {
-            input.removeEventListener('input', doSearch);
-        }
-    }
 }
