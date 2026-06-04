@@ -1,8 +1,6 @@
-// ========== 搜索状态 ==========
 let currentSearchKeyword = '';
 let currentSearchType = 'all';
 
-// ========== 搜索主函数 ==========
 function doSearch() {
     const input = document.getElementById('searchInput');
     const typeSelect = document.getElementById('searchType');
@@ -11,7 +9,6 @@ function doSearch() {
     const rawKeyword = input.value;
     const type = typeSelect ? typeSelect.value : 'all';
 
-    // 保存滚动位置
     saveScroll(currentView === 'overview' ? 'overview' : 'category');
 
     currentSearchKeyword = rawKeyword;
@@ -21,7 +18,6 @@ function doSearch() {
     performSearchAndRender(rawKeyword, type);
 }
 
-// ========== 执行搜索 ==========
 function performSearchAndRender(rawKeyword, type) {
     const keyword = getActualKeyword(rawKeyword, type);
     const isEmptySearch = !keyword || keyword === '';
@@ -32,7 +28,6 @@ function performSearchAndRender(rawKeyword, type) {
         const data = getData(dataKey);
         if (!data || !data.series) continue;
 
-        // 找到对应的分类信息
         let catName = dataKey;
         let parentName = '';
         for (const cat of categoryTree) {
@@ -53,7 +48,6 @@ function performSearchAndRender(rawKeyword, type) {
 
         for (let si = 0; si < data.series.length; si++) {
             const series = data.series[si];
-
             if (series.varieties && series.varieties.length > 0) {
                 for (let vi = 0; vi < series.varieties.length; vi++) {
                     const variety = series.varieties[vi];
@@ -147,7 +141,6 @@ function getDisplayValue(keyword, searchType) {
     return keyword || '';
 }
 
-// ========== 渲染搜索结果 ==========
 function renderSearchResults(results, rawKeyword, type) {
     const app = document.getElementById('app');
     const displayValue = getDisplayValue(rawKeyword, type);
@@ -164,7 +157,6 @@ function renderSearchResults(results, rawKeyword, type) {
         return;
     }
 
-    // 按分类分组
     const grouped = {};
     for (const item of results) {
         const key = item.dataKey;
@@ -184,20 +176,22 @@ function renderSearchResults(results, rawKeyword, type) {
 
         for (const item of group) {
             const copy = item.copy;
-            const imgSrc = copy.img1 ? IMAGE_BASE + copy.img1 : '';
+            const img1 = copy.img1 ? IMAGE_BASE + copy.img1 : '';
+            const img2 = copy.img2 ? IMAGE_BASE + copy.img2 : '';
             const displayName = item.hasVarieties
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
 
             html += `<div class="search-result-item" onclick="navigateToCopy('${item.dataKey}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : 'null'}, ${item.cIdx}, ${item.hasVarieties})">`;
-            if (imgSrc) {
-                html += `<img class="thumb" src="${imgSrc}" alt="">`;
-            } else {
-                html += `<div class="thumb" style="background:#e0d8cc;"></div>`;
-            }
+            // 双缩略图
+            html += `<div class="dual-thumb">`;
+            if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+            if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;background:#e0d8cc;">无</div>`;
+            html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
-            html += `<div class="detail">${escapeHtml(copy.version || '无冠号')} · ${escapeHtml(copy.condition || '无评级')}${copy.price ? ' · ' + escapeHtml(copy.price) : ''}</div>`;
+            html += `<div class="detail">${escapeHtml(copy.version || '无冠号')} · ${escapeHtml(copy.condition || '无评级')}</div>`;
             html += `</div>`;
             html += `<div style="color:#999;font-size:0.7rem;">#${idx}</div>`;
             html += `</div>`;
@@ -209,9 +203,7 @@ function renderSearchResults(results, rawKeyword, type) {
     app.innerHTML = html;
 }
 
-// ========== 从搜索结果跳转到藏品 ==========
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
-    // 找到对应的分类
     for (const cat of categoryTree) {
         if (cat.children) {
             for (const sub of cat.children) {
@@ -221,22 +213,22 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
                     currentView = 'category';
                     renderSidebar();
                     renderCurrentCategory();
-                    // 自动展开对应的品种
                     setTimeout(() => {
-                        // 尝试展开对应的品种行
-                        let targetId;
+                        const seriesId = `series-${si}`;
+                        toggleSeries(seriesId);
                         if (hasVarieties && vi !== null) {
-                            targetId = `v-${si}-${vi}`;
-                        } else {
-                            targetId = `s-${si}`;
-                        }
-                        toggleVariety(targetId);
-                        // 滚动到该位置
-                        const el = document.getElementById('list-' + targetId);
-                        if (el) {
                             setTimeout(() => {
-                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 100);
+                                toggleVariety(`v-${si}-${vi}`);
+                                setTimeout(() => {
+                                    const el = document.getElementById('list-v-' + si + '-' + vi);
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }, 120);
+                            }, 60);
+                        } else {
+                            setTimeout(() => {
+                                const el = document.getElementById('copies-' + seriesId);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 120);
                         }
                     }, 50);
                     return;
@@ -249,18 +241,21 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
             renderSidebar();
             renderCurrentCategory();
             setTimeout(() => {
-                let targetId;
+                const seriesId = `series-${si}`;
+                toggleSeries(seriesId);
                 if (hasVarieties && vi !== null) {
-                    targetId = `v-${si}-${vi}`;
-                } else {
-                    targetId = `s-${si}`;
-                }
-                toggleVariety(targetId);
-                const el = document.getElementById('list-' + targetId);
-                if (el) {
                     setTimeout(() => {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 100);
+                        toggleVariety(`v-${si}-${vi}`);
+                        setTimeout(() => {
+                            const el = document.getElementById('list-v-' + si + '-' + vi);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 120);
+                    }, 60);
+                } else {
+                    setTimeout(() => {
+                        const el = document.getElementById('copies-' + seriesId);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 120);
                 }
             }, 50);
             return;
@@ -268,7 +263,6 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
     }
 }
 
-// ========== 从搜索结果返回 ==========
 function backFromSearch() {
     currentView = currentCategoryId ? 'category' : 'overview';
     currentSearchKeyword = '';
@@ -277,12 +271,10 @@ function backFromSearch() {
     } else {
         renderCurrentCategory();
     }
-    // 恢复搜索栏
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
 }
 
-// ========== 重置 ==========
 function resetSearch() {
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
@@ -295,7 +287,6 @@ function resetSearch() {
     }
 }
 
-// ========== 切换搜索模式 ==========
 function toggleSearchMode() {
     searchMode = searchMode === 'click' ? 'realtime' : 'click';
     const toggle = document.getElementById('modeToggle');
