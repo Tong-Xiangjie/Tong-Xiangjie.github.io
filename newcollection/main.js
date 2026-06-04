@@ -9,6 +9,22 @@ let scrollMemory = {};
 let isSettingsMode = false;
 let settingsReturnState = null;
 
+// 存储各模式的状态
+let modeStates = {
+    notes: {
+        currentCategoryId: null,
+        currentSubId: null,
+        currentView: 'overview',
+        currentSearchKeyword: ''
+    },
+    coins: {
+        currentCategoryId: null,
+        currentSubId: null,
+        currentView: 'overview',
+        currentSearchKeyword: ''
+    }
+};
+
 // 弹窗状态
 let hammerManager = null;
 let currentScale = 1;
@@ -104,7 +120,8 @@ function onSidebarItemClick(catId) {
     const cat = tree.find(c => c.id === catId);
     if (!cat) return;
 
-    if (currentCategoryId === catId && cat.children) {
+    // 再次点击已选中的项 -> 回到概览
+    if (currentCategoryId === catId) {
         currentCategoryId = null;
         currentSubId = null;
         currentView = 'overview';
@@ -169,17 +186,22 @@ function renderCurrentCategory() {
 // ========== Tab切换 ==========
 function onTabClick(target) {
     if (target === 'settings') {
-        // 保存当前状态
+        // 保存当前模式的状态
         if (!isSettingsMode) {
-            settingsReturnState = {
-                currentMode: currentMode,
-                currentCategoryId: currentCategoryId,
-                currentSubId: currentSubId,
-                currentView: currentView,
+            modeStates[currentMode] = {
+                currentCategoryId,
+                currentSubId,
+                currentView,
                 currentSearchKeyword: currentSearchKeyword || ''
             };
+            settingsReturnState = { ...modeStates[currentMode], currentMode };
         }
         enterSettings();
+        return;
+    }
+
+    if (target === 'special') {
+        alert('暂未开放');
         return;
     }
 
@@ -194,44 +216,51 @@ function onTabClick(target) {
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
         }
-    }
-
-    // 切换 Tab
-    if (target === 'coins') {
-        // 切换到硬币模式
-        if (currentMode !== 'coins') {
-            currentMode = 'coins';
-            currentCategoryId = null;
-            currentSubId = null;
-            currentView = 'overview';
-            currentSearchKeyword = '';
-            currentTab = 'coins';
-            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
-            renderSidebar();
-            renderOverview();
-        }
+        renderSidebar();
+        if (currentView === 'overview') renderOverview();
+        else renderCurrentCategory();
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
         return;
     }
 
-    if (target === 'notes') {
-        if (currentMode !== 'notes') {
-            currentMode = 'notes';
-            currentCategoryId = null;
-            currentSubId = null;
-            currentView = 'overview';
-            currentSearchKeyword = '';
-        }
-        currentTab = 'notes';
+    // 切换 notes / coins
+    if (target === 'notes' || target === 'coins') {
+        // 保存当前模式的状态
+        modeStates[currentMode] = {
+            currentCategoryId,
+            currentSubId,
+            currentView,
+            currentSearchKeyword: currentSearchKeyword || ''
+        };
+
+        // 切换到目标模式
+        const newMode = target;
+        currentMode = newMode;
+
+        // 恢复目标模式的状态
+        const saved = modeStates[newMode];
+        currentCategoryId = saved.currentCategoryId;
+        currentSubId = saved.currentSubId;
+        currentView = saved.currentView;
+        currentSearchKeyword = saved.currentSearchKeyword || '';
+
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
-        renderSidebar();
-        renderOverview();
-        return;
-    }
 
-    if (target === 'special') {
-        alert('暂未开放');
+        renderSidebar();
+        if (currentView === 'overview') {
+            renderOverview();
+        } else if (currentView === 'category') {
+            renderCurrentCategory();
+        } else if (currentView === 'search') {
+            if (currentSearchKeyword) {
+                performSearchAndRender(currentSearchKeyword, currentSearchType);
+            } else {
+                currentView = 'overview';
+                renderOverview();
+            }
+        }
         return;
     }
 }
