@@ -3,11 +3,9 @@ let currentSearchType = 'all';
 
 function doSearch() {
     const input = document.getElementById('searchInput');
-    const typeSelect = document.getElementById('searchType');
     if (!input) return;
 
-    const rawKeyword = input.value;
-    const type = typeSelect ? typeSelect.value : 'all';
+    const rawKeyword = input.value.trim();
 
     // 文章模式搜索
     if (currentMode === 'articles') {
@@ -26,6 +24,8 @@ function doSearch() {
     }
 
     // 原有的纸币/硬币搜索
+    const typeSelect = document.getElementById('searchType');
+    const type = typeSelect ? typeSelect.value : 'all';
     saveScroll(currentView === 'overview' ? 'overview' : 'category');
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
@@ -318,11 +318,13 @@ function resetSearch() {
 }
 
 function toggleSearchMode() {
+    if (currentMode === 'articles') return; // 由 modeToggle 统一处理
+
     searchMode = searchMode === 'click' ? 'realtime' : 'click';
     const toggle = document.getElementById('modeToggle');
     const tip = document.getElementById('searchTip');
     if (toggle) toggle.textContent = searchMode === 'click' ? '□' : '■';
-    if (tip) tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${searchMode === 'click' ? '□' : '■'}"可切换`;
+    if (tip) tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
 
     const input = document.getElementById('searchInput');
     if (input) {
