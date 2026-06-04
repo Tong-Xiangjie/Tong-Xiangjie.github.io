@@ -30,7 +30,7 @@ const categoryTree = [
         children: [
             { id: 'hk_boc', name: '中国银行（香港）', dataKey: 'hk_bocData' },
             { id: 'hk_hsbc', name: '香港上海汇丰银行', dataKey: 'hk_hsbcData' },
-            { id: 'hk_sc', name: '渣打银行', dataKey: 'hk_scData' },
+            { id: 'hk_sc', name: '渣打银行（香港）', dataKey: 'hk_scData' },
             { id: 'hk_gov', name: '香港政府', dataKey: 'hk_govData' }
         ]
     },
