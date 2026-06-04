@@ -9,12 +9,27 @@ function doSearch() {
     const rawKeyword = input.value;
     const type = typeSelect ? typeSelect.value : 'all';
 
-    saveScroll(currentView === 'overview' ? 'overview' : 'category');
+    // 文章模式搜索
+    if (currentMode === 'articles') {
+        saveScroll('articles');
+        currentSearchKeyword = rawKeyword;
+        articleSearchKeyword = rawKeyword;
+        renderArticleList();
+        return;
+    }
 
+    // 设置模式搜索
+    if (isSettingsMode) {
+        currentSearchKeyword = rawKeyword;
+        renderSettingsPage(rawKeyword);
+        return;
+    }
+
+    // 原有的纸币/硬币搜索
+    saveScroll(currentView === 'overview' ? 'overview' : 'category');
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
     currentView = 'search';
-
     performSearchAndRender(rawKeyword, type);
 }
 
@@ -185,6 +200,8 @@ function renderSearchResults(results, rawKeyword, type) {
             const displayName = item.hasVarieties
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
+            const catalogNum = copy.catalogNumber || copy.krause || '';
+            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
 
             html += `<div class="search-result-item" onclick="navigateToCopy('${item.dataKey}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : 'null'}, ${item.cIdx}, ${item.hasVarieties})">`;
             html += `<div class="dual-thumb">`;
@@ -194,8 +211,12 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
-            html += `<div class="detail">${escapeHtml(copy.version || '无冠号')} · ${escapeHtml(copy.condition || copy.grade || '无评级')}</div>`;
-            html += `</div>`;
+            html += `<div class="detail">`;
+            if (copy.version) html += `${escapeHtml(copy.version)} · `;
+            if (copy.condition || copy.grade) html += `${escapeHtml(copy.condition || copy.grade)} · `;
+            if (copy.year) html += `${copy.year}年`;
+            if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
+            html += `</div></div>`;
             html += `<div class="index-num">#${idx}</div>`;
             html += `</div>`;
             idx++;
