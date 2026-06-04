@@ -190,7 +190,7 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `<div class="dual-thumb">`;
             if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
             if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;">无预览</div>`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
@@ -204,6 +204,11 @@ function renderSearchResults(results, rawKeyword, type) {
     }
 
     app.innerHTML = html;
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
 }
 
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
@@ -226,13 +231,13 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
                                 setTimeout(() => {
                                     const el = document.getElementById('list-v-' + si + '-' + vi);
                                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 120);
-                            }, 60);
+                                }, 100);
+                            }, 50);
                         } else {
                             setTimeout(() => {
                                 const el = document.getElementById('copies-' + seriesId);
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 120);
+                            }, 100);
                         }
                     }, 50);
                     return;
@@ -253,13 +258,13 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
                         setTimeout(() => {
                             const el = document.getElementById('list-v-' + si + '-' + vi);
                             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 120);
-                    }, 60);
+                        }, 100);
+                    }, 50);
                 } else {
                     setTimeout(() => {
                         const el = document.getElementById('copies-' + seriesId);
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 120);
+                    }, 100);
                 }
             }, 50);
             return;
