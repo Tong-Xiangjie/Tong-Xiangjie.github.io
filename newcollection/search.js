@@ -16,14 +16,7 @@ function doSearch() {
         return;
     }
 
-    // 设置模式搜索
-    if (isSettingsMode) {
-        currentSearchKeyword = rawKeyword;
-        renderSettingsPage(rawKeyword);
-        return;
-    }
-
-    // 原有的纸币/硬币搜索
+    // 纸币/硬币搜索
     const typeSelect = document.getElementById('searchType');
     const type = typeSelect ? typeSelect.value : 'all';
     saveScroll(currentView === 'overview' ? 'overview' : 'category');
@@ -45,12 +38,6 @@ function resetSearch() {
         return;
     }
 
-    // 设置模式
-    if (isSettingsMode) {
-        renderSettingsPage();
-        return;
-    }
-
     // 纸币/硬币模式
     currentView = currentCategoryId ? 'category' : 'overview';
     if (currentView === 'overview') {
@@ -65,9 +52,6 @@ function toggleSearchMode() {
         toggleArticleSearchMode();
         return;
     }
-
-    // 设置模式下不切换模式
-    if (isSettingsMode) return;
 
     searchMode = searchMode === 'click' ? 'realtime' : 'click';
     const toggle = document.getElementById('modeToggle');
@@ -85,7 +69,6 @@ function toggleSearchMode() {
     }
 }
 
-// 以下函数保持不变...
 function performSearchAndRender(rawKeyword, type) {
     const keyword = getActualKeyword(rawKeyword, type);
     const isEmptySearch = !keyword || keyword === '';
