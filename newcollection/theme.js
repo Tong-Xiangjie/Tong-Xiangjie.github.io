@@ -49,9 +49,12 @@ function applyTheme(color) {
     const borderColor = lightenColor(color, 0.78);
     document.documentElement.style.setProperty('--border', borderColor);
 
-    // 缩略图占位背景
     const thumbBg = lightenColor(color, 0.82);
     document.documentElement.style.setProperty('--thumb-bg', thumbBg);
+
+    // 主题色变亮版本（用于搜索模式切换按钮等）
+    const themeLight = lightenColor(color, 0.3);
+    document.documentElement.style.setProperty('--theme-light', themeLight);
 }
 
 function loadTheme() {
