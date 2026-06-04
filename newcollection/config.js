@@ -17,19 +17,19 @@ const categoryTree = [
         id: 'rmb',
         name: '人民币',
         children: [
-            { id: 'rmb5', name: '第五版', dataKey: 'rmb5Data' },
-            { id: 'rmb4', name: '第四版', dataKey: 'rmb4Data' },
-            { id: 'rmb3', name: '第三版', dataKey: 'rmb3Data' },
-            { id: 'rmb2', name: '第二版', dataKey: 'rmb2Data' },
-            { id: 'rmb1', name: '第一版', dataKey: 'rmb1Data' }
+            { id: 'rmb5', name: '第五套人民币', dataKey: 'rmb5Data' },
+            { id: 'rmb4', name: '第四套人民币', dataKey: 'rmb4Data' },
+            { id: 'rmb3', name: '第三套人民币', dataKey: 'rmb3Data' },
+            { id: 'rmb2', name: '第二套人民币', dataKey: 'rmb2Data' },
+            { id: 'rmb1', name: '第一套人民币', dataKey: 'rmb1Data' }
         ]
     },
     {
         id: 'hk',
         name: '港币',
         children: [
-            { id: 'hk_boc', name: '中国银行', dataKey: 'hk_bocData' },
-            { id: 'hk_hsbc', name: '汇丰银行', dataKey: 'hk_hsbcData' },
+            { id: 'hk_boc', name: '中国银行（香港）', dataKey: 'hk_bocData' },
+            { id: 'hk_hsbc', name: '香港上海汇丰银行', dataKey: 'hk_hsbcData' },
             { id: 'hk_sc', name: '渣打银行', dataKey: 'hk_scData' },
             { id: 'hk_gov', name: '香港政府', dataKey: 'hk_govData' }
         ]
@@ -68,8 +68,8 @@ const categoryTree = [
             { id: 'republic_boc', name: '中国银行', dataKey: 'republic_bocData' },
             { id: 'republic_communications', name: '交通银行', dataKey: 'republic_communicationsData' },
             { id: 'republic_fbc', name: '农民银行', dataKey: 'republic_fbcData' },
-            { id: 'republic_kpb', name: '各省银行', dataKey: 'republic_kpbData' },
-            { id: 'republic_crbc', name: '商业银行', dataKey: 'republic_crbcData' }
+            { id: 'republic_kpb', name: '广东省银行', dataKey: 'republic_kpbData' },
+            { id: 'republic_crbc', name: '中央储备银行', dataKey: 'republic_crbcData' }
         ]
     },
     {
