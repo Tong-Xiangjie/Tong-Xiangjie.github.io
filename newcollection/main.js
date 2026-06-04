@@ -318,7 +318,6 @@ function onTabClick(target) {
                 currentArticleIndex = articleState.currentIndex;
                 articleSearchKeyword = articleState.searchKeyword;
                 if (collectedArticles.length === 0) collectAllArticles();
-                // 文章模式设为实时搜索
                 searchMode = 'realtime';
                 const si = document.getElementById('searchInput');
                 if (si) {
@@ -372,7 +371,6 @@ function onTabClick(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
 
-        // 文章模式设为实时搜索
         searchMode = 'realtime';
         const si = document.getElementById('searchInput');
         if (si) {
@@ -417,7 +415,6 @@ function onTabClick(target) {
         currentView = saved.currentView;
         currentSearchKeyword = saved.currentSearchKeyword || '';
 
-        // 离开文章模式，移除实时搜索的绑定（保持原来的搜索模式）
         if (searchMode === 'realtime') {
             const inp = document.getElementById('searchInput');
             if (inp) {
@@ -455,6 +452,7 @@ function onTabClick(target) {
 function enterSettings() {
     isSettingsMode = true;
     currentSearchKeyword = '';
+    articleSearchKeyword = '';
     document.querySelector('.body-row')?.classList.add('settings-mode');
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
@@ -544,7 +542,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 初始默认纸币模式用点击搜索
     if (searchMode === 'realtime') {
         document.getElementById('searchInput')?.addEventListener('input', doSearch);
     }
