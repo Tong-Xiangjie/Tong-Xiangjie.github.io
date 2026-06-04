@@ -25,9 +25,9 @@ function lightenColor(color, ratio) {
     } else if (color.startsWith('rgb')) {
         rgb = rgbStrToRgb(color);
     } else {
-        return '#f5f0e8';
+        return '#f0ebe3';
     }
-    if (!rgb) return '#f5f0e8';
+    if (!rgb) return '#f0ebe3';
     const nr = Math.round(rgb.r + (255 - rgb.r) * ratio);
     const ng = Math.round(rgb.g + (255 - rgb.g) * ratio);
     const nb = Math.round(rgb.b + (255 - rgb.b) * ratio);
@@ -35,24 +35,23 @@ function lightenColor(color, ratio) {
 }
 
 function applyTheme(color) {
-    // 主色调
     document.documentElement.style.setProperty('--theme', color);
 
-    // 背景淡色（混合 92% 白色）
     const lightBg = lightenColor(color, 0.92);
     document.documentElement.style.setProperty('--bg', lightBg);
 
-    // 更淡的背景（卡片、搜索栏用）
     const lighterBg = lightenColor(color, 0.96);
     document.documentElement.style.setProperty('--bg-light', lighterBg);
 
-    // 侧边栏背景（比主背景略深）
     const sidebarBg = lightenColor(color, 0.86);
     document.documentElement.style.setProperty('--sidebar-bg', sidebarBg);
 
-    // 边框色
     const borderColor = lightenColor(color, 0.78);
     document.documentElement.style.setProperty('--border', borderColor);
+
+    // 缩略图占位背景
+    const thumbBg = lightenColor(color, 0.82);
+    document.documentElement.style.setProperty('--thumb-bg', thumbBg);
 }
 
 function loadTheme() {
