@@ -1,4 +1,5 @@
 // ========== 状态管理 ==========
+let currentMode = 'notes';       // 'notes' | 'coins'
 let currentTab = 'notes';
 let currentCategoryId = null;
 let currentSubId = null;
@@ -18,6 +19,31 @@ let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
 
+// ========== 模式感知 getter ==========
+function getCategoryTree() {
+    return currentMode === 'notes' ? categoryTree : coinCategoryTree;
+}
+
+function getImageBase() {
+    return currentMode === 'notes' ? IMAGE_BASE : COIN_IMAGE_BASE;
+}
+
+function getAllDataKeys() {
+    return currentMode === 'notes' ? allDataKeys : coinAllDataKeys;
+}
+
+function getData(dataKey) {
+    if (currentMode === 'notes') {
+        return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
+    } else {
+        return window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey] ? window.COIN_DATA_MAP[dataKey] : null;
+    }
+}
+
+function getSubCategoryMap() {
+    return currentMode === 'notes' ? subCategoryMap : {};
+}
+
 // ========== 工具函数 ==========
 function escapeHtml(str) {
     if (!str) return '';
@@ -31,14 +57,15 @@ function escapeHtml(str) {
 
 function saveScroll(key) {
     const content = document.querySelector('.content');
-    if (content) scrollMemory[key] = content.scrollTop;
+    if (content) scrollMemory[currentMode + '-' + key] = content.scrollTop;
 }
 
 function restoreScroll(key) {
-    if (scrollMemory[key] !== undefined) {
+    const sk = currentMode + '-' + key;
+    if (scrollMemory[sk] !== undefined) {
         requestAnimationFrame(() => {
             const content = document.querySelector('.content');
-            if (content) content.scrollTop = scrollMemory[key];
+            if (content) content.scrollTop = scrollMemory[sk];
         });
     }
 }
@@ -47,8 +74,9 @@ function restoreScroll(key) {
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
+    const tree = getCategoryTree();
     let html = '';
-    for (const cat of categoryTree) {
+    for (const cat of tree) {
         const hasChildren = cat.children && cat.children.length > 0;
         const isActive = currentCategoryId === cat.id;
         const isExpanded = isActive && hasChildren;
@@ -72,7 +100,8 @@ function renderSidebar() {
 
 // ========== 侧边栏点击 ==========
 function onSidebarItemClick(catId) {
-    const cat = categoryTree.find(c => c.id === catId);
+    const tree = getCategoryTree();
+    const cat = tree.find(c => c.id === catId);
     if (!cat) return;
 
     if (currentCategoryId === catId && cat.children) {
@@ -111,12 +140,14 @@ function renderCurrentCategory() {
         renderOverview();
         return;
     }
-    const cat = categoryTree.find(c => c.id === currentCategoryId);
+    const tree = getCategoryTree();
+    const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); return; }
 
     let dataKey;
+    const subMap = getSubCategoryMap();
     if (currentSubId) {
-        const subInfo = subCategoryMap[currentSubId];
+        const subInfo = subMap[currentSubId];
         if (subInfo) dataKey = subInfo.dataKey;
     } else if (cat.dataKey) {
         dataKey = cat.dataKey;
@@ -130,7 +161,7 @@ function renderCurrentCategory() {
         return;
     }
 
-    const subName = currentSubId ? (subCategoryMap[currentSubId]?.name || '') : '';
+    const subName = currentSubId ? (subMap[currentSubId]?.name || '') : '';
     const title = subName ? subName : (cat.name || '');
     renderSeriesList(data, title);
 }
@@ -138,19 +169,26 @@ function renderCurrentCategory() {
 // ========== Tab切换 ==========
 function onTabClick(target) {
     if (target === 'settings') {
+        // 保存当前状态
+        if (!isSettingsMode) {
+            settingsReturnState = {
+                currentMode: currentMode,
+                currentCategoryId: currentCategoryId,
+                currentSubId: currentSubId,
+                currentView: currentView,
+                currentSearchKeyword: currentSearchKeyword || ''
+            };
+        }
         enterSettings();
         return;
     }
-    if (target === 'coins' || target === 'special') {
-        alert('暂未开放');
-        return;
-    }
 
-    // 如果从设置回来
+    // 从设置页返回
     if (isSettingsMode) {
         isSettingsMode = false;
         document.querySelector('.body-row')?.classList.remove('settings-mode');
         if (settingsReturnState) {
+            currentMode = settingsReturnState.currentMode || 'notes';
             currentCategoryId = settingsReturnState.currentCategoryId;
             currentSubId = settingsReturnState.currentSubId;
             currentView = settingsReturnState.currentView;
@@ -158,40 +196,52 @@ function onTabClick(target) {
         }
     }
 
-    currentTab = 'notes';
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
-
-    if (currentView === 'search' && !currentSearchKeyword) {
-        currentView = currentCategoryId ? 'category' : 'overview';
+    // 切换 Tab
+    if (target === 'coins') {
+        // 切换到硬币模式
+        if (currentMode !== 'coins') {
+            currentMode = 'coins';
+            currentCategoryId = null;
+            currentSubId = null;
+            currentView = 'overview';
+            currentSearchKeyword = '';
+            currentTab = 'coins';
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
+            renderSidebar();
+            renderOverview();
+        }
+        return;
     }
 
-    renderSidebar();
-    if (currentView === 'overview') {
+    if (target === 'notes') {
+        if (currentMode !== 'notes') {
+            currentMode = 'notes';
+            currentCategoryId = null;
+            currentSubId = null;
+            currentView = 'overview';
+            currentSearchKeyword = '';
+        }
+        currentTab = 'notes';
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
+        renderSidebar();
         renderOverview();
-    } else if (currentView === 'category') {
-        renderCurrentCategory();
-    } else if (currentView === 'search') {
-        // 保持搜索结果
+        return;
+    }
+
+    if (target === 'special') {
+        alert('暂未开放');
+        return;
     }
 }
 
 // ========== 设置页 ==========
 function enterSettings() {
-    // 保存返回状态
-    settingsReturnState = {
-        currentCategoryId: currentCategoryId,
-        currentSubId: currentSubId,
-        currentView: currentView,
-        currentSearchKeyword: currentSearchKeyword || ''
-    };
-
     isSettingsMode = true;
     document.querySelector('.body-row')?.classList.add('settings-mode');
-
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
-
     renderSettingsPage();
 }
 
@@ -214,12 +264,10 @@ function renderSettingsPage() {
     html += `<label for="settingsCustomColor">自定义颜色：</label>`;
     html += `<input type="color" id="settingsCustomColor" value="${currentTheme}">`;
     html += `</div>`;
-    html += `</div>`;
-    html += `</div>`;
+    html += `</div></div>`;
 
     app.innerHTML = html;
 
-    // 绑定事件
     document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
         el.addEventListener('click', function() {
             const color = this.dataset.color;
@@ -229,7 +277,6 @@ function renderSettingsPage() {
             if (typeof setTheme === 'function') setTheme(color);
         });
     });
-
     document.getElementById('settingsCustomColor').addEventListener('input', function() {
         document.querySelectorAll('#settingsThemeColors .theme-color').forEach(c => c.classList.remove('active'));
         if (typeof setTheme === 'function') setTheme(this.value);
@@ -240,9 +287,7 @@ function renderSettingsPage() {
 function setupModalEvents() {
     const modal = document.getElementById('imageModal');
     if (!modal) return;
-
     modal.addEventListener('click', function(e) {
-        // 点击背景（modal本身）关闭
         if (e.target === modal) {
             closeModal();
         }
