@@ -116,7 +116,7 @@ function renderOverviewGroup(label, items) {
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
         if (img2) html += `<img class="mini-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;background:#e0d8cc;">无</div>`;
+        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#999;">无预览</div>`;
         html += `</div>`;
         html += `<div class="info">`;
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
@@ -370,7 +370,6 @@ function initPinchZoom() {
     });
 }
 
-// 移除旧的主题弹窗函数（已迁移到设置页）
 function toggleThemeModal() {
-    // 不再使用底部弹窗，设置页已有主题色选择
+    // 设置页已有主题色选择，此函数留空
 }
