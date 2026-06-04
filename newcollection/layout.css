@@ -587,6 +587,43 @@ body {
     color: var(--text-secondary);
 }
 
+/* ========== 文章阅读器 ========== */
+.article-reader {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 10px 0;
+    line-height: 1.8;
+    font-size: 0.95rem;
+}
+
+.article-reader p {
+    margin: 12px 0;
+}
+
+.article-reader img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px auto;
+    border-radius: 6px;
+}
+
+.article-reader center {
+    display: block;
+    text-align: center;
+}
+
+.article-reader .article-snippet {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: var(--bg-light);
+    border-radius: 4px;
+    border-left: 3px solid var(--theme-light);
+    line-height: 1.5;
+}
+
 /* ========== 弹窗 ========== */
 .modal {
     display: none;
