@@ -121,6 +121,10 @@ function renderOverviewGroup(label, items) {
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
 
+        // 目录编号（兼容纸币 krause 和硬币 catalogNumber）
+        const catalogNum = c.catalogNumber || c.krause || '';
+        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+
         html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
@@ -133,6 +137,7 @@ function renderOverviewGroup(label, items) {
         if (c.version) html += `${escapeHtml(c.version)} · `;
         if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
         if (c.year) html += `${c.year}年`;
+        if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
         html += `</div></div>`;
         html += `<div class="index-num">#${item.globalIndex}</div>`;
         html += `</div>`;
@@ -281,6 +286,8 @@ function renderCopiesList(copies) {
     for (const c of copies) {
         const img1 = c.img1 ? imgBase + c.img1 : '';
         const img2 = c.img2 ? imgBase + c.img2 : '';
+        const catalogNum = c.catalogNumber || c.krause || '';
+        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
@@ -295,8 +302,7 @@ function renderCopiesList(copies) {
         if (c.year) html += `<span class="meta">${c.year}年</span>`;
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
         html += `</div>`;
-        if (c.catalogNumber) html += `<div class="meta">${escapeHtml(c.catalogNumber)}</div>`;
-        if (c.krause) html += `<div class="meta">Pick# ${escapeHtml(c.krause)}</div>`;
+        if (catalogDisplay) html += `<div class="meta">${escapeHtml(catalogDisplay)}</div>`;
         if (c.material) html += `<div class="meta">材质：${escapeHtml(c.material)}</div>`;
         if (c.remark) html += `<div class="meta">${escapeHtml(c.remark)}</div>`;
         html += `</div>`;
