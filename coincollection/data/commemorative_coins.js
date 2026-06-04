@@ -1,5 +1,5 @@
 // data/commemorative.js
-const commemorativeData = {
+const coincommData = {
     name: "纪念币",
     icon: null,
     desc: "Commemorative",
