@@ -5,8 +5,10 @@ function renderOverview() {
 
     let allItems = [];
     let globalIndex = 1;
+    const tree = getCategoryTree();
+    const imgBase = getImageBase();
 
-    for (const cat of categoryTree) {
+    for (const cat of tree) {
         if (cat.children) {
             for (const sub of cat.children) {
                 const data = getData(sub.dataKey);
@@ -72,7 +74,8 @@ function renderOverview() {
         }
     }
 
-    let html = `<div class="overview-header"><h2>全部藏品</h2><p>共 ${allItems.length} 张</p></div>`;
+    const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
+    let html = `<div class="overview-header"><h2>全部${modeLabel}</h2><p>共 ${allItems.length} 件藏品</p></div>`;
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
@@ -85,7 +88,7 @@ function renderOverview() {
         grouped[item.catLabel].push(item);
     }
 
-    for (const cat of categoryTree) {
+    for (const cat of tree) {
         if (cat.children) {
             for (const sub of cat.children) {
                 const label = cat.name + ' - ' + sub.name;
@@ -102,12 +105,13 @@ function renderOverview() {
 }
 
 function renderOverviewGroup(label, items) {
+    const imgBase = getImageBase();
     let html = `<div class="search-result-group">`;
-    html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}张</span></div>`;
+    html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
     for (const item of items) {
         const c = item.copy;
-        const img1 = c.img1 ? IMAGE_BASE + c.img1 : '';
-        const img2 = c.img2 ? IMAGE_BASE + c.img2 : '';
+        const img1 = c.img1 ? imgBase + c.img1 : '';
+        const img2 = c.img2 ? imgBase + c.img2 : '';
         const displayName = item.hasVarieties && item.variety
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
@@ -122,7 +126,7 @@ function renderOverviewGroup(label, items) {
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
         html += `<div class="detail">`;
         if (c.version) html += `${escapeHtml(c.version)} · `;
-        if (c.condition) html += `${escapeHtml(c.condition)} · `;
+        if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
         if (c.year) html += `${c.year}年`;
         html += `</div></div>`;
         html += `<div class="index-num">#${item.globalIndex}</div>`;
@@ -133,7 +137,8 @@ function renderOverviewGroup(label, items) {
 }
 
 function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
-    for (const cat of categoryTree) {
+    const tree = getCategoryTree();
+    for (const cat of tree) {
         if (cat.children) {
             for (const sub of cat.children) {
                 if (sub.dataKey === dataKey) {
@@ -195,6 +200,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
 // ========== 分类内容页 ==========
 function renderSeriesList(data, title) {
     const app = document.getElementById('app');
+    const imgBase = getImageBase();
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">暂无藏品</div>';
         return;
@@ -220,7 +226,7 @@ function renderSeriesList(data, title) {
         html += `<div class="series-year-row">`;
         html += `<div class="series-year-header" onclick="toggleSeries('${seriesId}')">`;
         html += `<span class="series-name-label">${escapeHtml(series.seriesName)}</span>`;
-        html += `<span class="series-count-badge">${seriesTotal}张</span>`;
+        html += `<span class="series-count-badge">${seriesTotal}件</span>`;
         html += `<span class="series-expand-icon" id="icon-${seriesId}">▼</span>`;
         html += `</div>`;
         html += `<div class="series-body" id="body-${seriesId}">`;
@@ -235,7 +241,7 @@ function renderSeriesList(data, title) {
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}')">`;
                 html += `<span class="variety-name">${escapeHtml(variety.varietyName)}</span>`;
                 html += `<span class="variety-summary">`;
-                html += `<span class="count">${copies.length}张</span>`;
+                html += `<span class="count">${copies.length}件</span>`;
                 html += `<span class="variety-expand-icon" id="icon-${uid}">▼</span>`;
                 html += `</span></div>`;
                 html += `<div class="copy-list" id="list-${uid}">`;
@@ -257,13 +263,14 @@ function renderSeriesList(data, title) {
 
 // ========== 藏品列表 ==========
 function renderCopiesList(copies) {
+    const imgBase = getImageBase();
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;color:#999;font-size:0.8rem;">暂无藏品</div>';
     }
     let html = '';
     for (const c of copies) {
-        const img1 = c.img1 ? IMAGE_BASE + c.img1 : '';
-        const img2 = c.img2 ? IMAGE_BASE + c.img2 : '';
+        const img1 = c.img1 ? imgBase + c.img1 : '';
+        const img2 = c.img2 ? imgBase + c.img2 : '';
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
@@ -273,11 +280,13 @@ function renderCopiesList(copies) {
         html += `<div class="copy-info">`;
         if (c.version) html += `<div class="version">${escapeHtml(c.version)}</div>`;
         html += `<div>`;
-        if (c.condition) html += `<span class="condition">${escapeHtml(c.condition)}</span>`;
+        if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
+        if (c.gradingCompany) html += `<span class="meta">${escapeHtml(c.gradingCompany)}</span>`;
         if (c.year) html += `<span class="meta">${c.year}年</span>`;
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
         html += `</div>`;
-        if (c.krause) html += `<div class="meta">Pick# ${escapeHtml(c.krause)}</div>`;
+        if (c.catalogNumber) html += `<div class="meta">${escapeHtml(c.catalogNumber)}</div>`;
+        if (c.material) html += `<div class="meta">材质：${escapeHtml(c.material)}</div>`;
         if (c.remark) html += `<div class="meta">${escapeHtml(c.remark)}</div>`;
         html += `</div>`;
         html += `</div>`;
@@ -370,6 +379,4 @@ function initPinchZoom() {
     });
 }
 
-function toggleThemeModal() {
-    // 设置页已有主题色选择，此函数留空
-}
+function toggleThemeModal() {}
