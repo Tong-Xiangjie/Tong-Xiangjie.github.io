@@ -220,7 +220,7 @@ body {
 .sidebar-children {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
     opacity: 0;
     background: rgba(0,0,0,0.03);
 }
@@ -383,7 +383,7 @@ body {
 .series-expand-icon {
     font-size: 0.7rem;
     color: var(--text-secondary);
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease;
     flex-shrink: 0;
 }
 
@@ -391,11 +391,11 @@ body {
     transform: rotate(180deg);
 }
 
-/* 系列展开/折叠动画 */
+/* 系列展开/折叠动画 0.2s */
 .series-body {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
     opacity: 0;
 }
 
@@ -446,7 +446,7 @@ body {
 .variety-expand-icon {
     font-size: 0.7rem;
     color: var(--text-secondary);
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease;
     margin-left: 8px;
     flex-shrink: 0;
 }
@@ -455,11 +455,11 @@ body {
     transform: rotate(180deg);
 }
 
-/* 面值展开/折叠动画 */
+/* 面值展开/折叠动画 0.2s */
 .copy-list {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
     opacity: 0;
 }
 
@@ -522,7 +522,7 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 0.5rem;
-    color: #999;
+    color: var(--text-secondary);
     background: var(--thumb-bg);
 }
 
