@@ -192,7 +192,7 @@ body {
     align-items: center;
     justify-content: space-between;
     font-size: 0.9rem;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: background 0.15s, color 0.15s;
     white-space: nowrap;
 }
 
@@ -235,7 +235,7 @@ body {
     cursor: pointer;
     font-size: 0.85rem;
     color: var(--text-secondary);
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: background 0.15s, color 0.15s;
     white-space: nowrap;
 }
 
@@ -258,6 +258,22 @@ body {
     padding: 16px;
     background: var(--bg);
     transition: background 0.2s ease;
+}
+
+/* 内容切换淡入动画 */
+#app.content-enter {
+    animation: appFadeIn 0.15s ease;
+}
+
+@keyframes appFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ========== 概览页 ========== */
@@ -312,7 +328,7 @@ body {
 
 /* 编号靠右 */
 .search-result-item .index-num {
-    color: #999;
+    color: var(--text-secondary);
     font-size: 0.7rem;
     flex-shrink: 0;
     margin-left: auto;
@@ -458,7 +474,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 6px 14px 6px 40px;
-    border-top: 1px solid #f0ebe3;
+    border-top: 1px solid var(--border);
 }
 
 .copy-item:last-child {
@@ -525,11 +541,12 @@ body {
 
 .copy-info .condition {
     display: inline-block;
-    background: #e8e0d4;
+    background: var(--thumb-bg);
     padding: 0 6px;
     border-radius: 3px;
     font-size: 0.7rem;
     margin-right: 4px;
+    color: var(--text);
 }
 
 .copy-info .meta {
