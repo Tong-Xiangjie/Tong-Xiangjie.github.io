@@ -257,10 +257,6 @@ function updateSearchUIForMode() {
         toggle.textContent = articleSearchMode === 'title' ? '标' : '全';
         toggle.title = articleSearchMode === 'title' ? '当前：标题索引，点击切换为全字段索引' : '当前：全字段索引，点击切换为标题索引';
         tip.textContent = articleSearchMode === 'title' ? '文章搜索：标题索引（实时）' : '文章搜索：全字段索引（实时）';
-    } else if (isSettingsMode) {
-        select.classList.add('hidden');
-        toggle.classList.add('hidden');
-        tip.textContent = '设置搜索';
     } else {
         select.classList.remove('hidden');
         toggle.classList.remove('hidden');
@@ -309,6 +305,11 @@ function onTabClick(target) {
 
     if (isSettingsMode) {
         isSettingsMode = false;
+
+        // 显示搜索栏
+        const searchContainer = document.querySelector('.top-search-container');
+        if (searchContainer) searchContainer.classList.remove('hidden');
+
         document.querySelector('.body-row')?.classList.remove('settings-mode');
         if (settingsReturnState) {
             currentMode = settingsReturnState.currentMode || 'notes';
@@ -453,42 +454,39 @@ function enterSettings() {
     isSettingsMode = true;
     currentSearchKeyword = '';
     articleSearchKeyword = '';
+
+    // 隐藏搜索栏（带动画）
+    const searchContainer = document.querySelector('.top-search-container');
+    if (searchContainer) searchContainer.classList.add('hidden');
+
     document.querySelector('.body-row')?.classList.add('settings-mode');
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
-    updateSearchUIForMode();
     renderSettingsPage();
 }
 
-function renderSettingsPage(searchKw) {
+function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
-    const kw = (searchKw || '').toLowerCase();
 
     let html = `<div class="settings-page">`;
     html += `<h2>设置</h2>`;
-
-    const showTheme = !kw || '主题色 颜色 主题 配色'.includes(kw);
-    if (showTheme) {
-        html += `<div class="settings-section">`;
-        const label = kw ? highlightText('主题色', searchKw) : '主题色';
-        html += `<h3>${label}</h3>`;
-        html += `<div class="theme-colors" id="settingsThemeColors">`;
-        const colors = ['#1677ff', '#d92121', '#00b42a', '#ff7d00', '#722ed1'];
-        for (const color of colors) {
-            const active = color === currentTheme ? ' active' : '';
-            html += `<div class="theme-color${active}" style="background:${color}" data-color="${color}"></div>`;
-        }
-        html += `</div>`;
-        html += `<div class="custom-color-row">`;
-        const clabel = kw ? highlightText('自定义颜色', searchKw) : '自定义颜色';
-        html += `<label for="settingsCustomColor">${clabel}：</label>`;
-        html += `<input type="color" id="settingsCustomColor" value="${currentTheme}">`;
-        html += `</div>`;
-        html += `</div>`;
+    html += `<div class="settings-section">`;
+    html += `<h3>主题色</h3>`;
+    html += `<div class="theme-colors" id="settingsThemeColors">`;
+    const colors = ['#1677ff', '#d92121', '#00b42a', '#ff7d00', '#722ed1'];
+    for (const color of colors) {
+        const active = color === currentTheme ? ' active' : '';
+        html += `<div class="theme-color${active}" style="background:${color}" data-color="${color}"></div>`;
     }
-
     html += `</div>`;
+    html += `<div class="custom-color-row">`;
+    html += `<label for="settingsCustomColor">自定义颜色：</label>`;
+    html += `<input type="color" id="settingsCustomColor" value="${currentTheme}">`;
+    html += `</div>`;
+    html += `</div>`;
+    html += `</div>`;
+
     app.innerHTML = html;
 
     document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
