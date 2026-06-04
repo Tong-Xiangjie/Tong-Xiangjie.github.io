@@ -9,19 +9,25 @@ let scrollMemory = {};
 let isSettingsMode = false;
 let settingsReturnState = null;
 
-// 存储各模式的状态
+// 存储各模式的状态（含展开状态）
 let modeStates = {
     notes: {
         currentCategoryId: null,
         currentSubId: null,
         currentView: 'overview',
-        currentSearchKeyword: ''
+        currentSearchKeyword: '',
+        expandedSeries: [],
+        expandedVarieties: [],
+        scrollY: 0
     },
     coins: {
         currentCategoryId: null,
         currentSubId: null,
         currentView: 'overview',
-        currentSearchKeyword: ''
+        currentSearchKeyword: '',
+        expandedSeries: [],
+        expandedVarieties: [],
+        scrollY: 0
     }
 };
 
@@ -84,6 +90,63 @@ function restoreScroll(key) {
             if (content) content.scrollTop = scrollMemory[sk];
         });
     }
+}
+
+// 收集当前展开状态
+function collectExpandedStates() {
+    const expandedSeries = [];
+    const expandedVarieties = [];
+
+    document.querySelectorAll('.series-body.open').forEach(el => {
+        const id = el.id;
+        if (id && id.startsWith('body-series-')) {
+            expandedSeries.push(id.replace('body-', ''));
+        }
+    });
+
+    document.querySelectorAll('.copy-list.open').forEach(el => {
+        const id = el.id;
+        if (id && (id.startsWith('list-v-') || id.startsWith('list-s-'))) {
+            expandedVarieties.push(id.replace('list-', ''));
+        }
+    });
+
+    return { expandedSeries, expandedVarieties };
+}
+
+// 恢复展开状态
+function restoreExpandedStates(states) {
+    if (!states) return;
+
+    requestAnimationFrame(() => {
+        if (states.expandedSeries) {
+            for (const id of states.expandedSeries) {
+                const body = document.getElementById('body-' + id);
+                const icon = document.getElementById('icon-' + id);
+                if (body) {
+                    body.classList.add('open');
+                    if (icon) icon.classList.add('open');
+                }
+            }
+        }
+
+        if (states.expandedVarieties) {
+            for (const id of states.expandedVarieties) {
+                const list = document.getElementById('list-' + id);
+                const icon = document.getElementById('icon-' + id);
+                if (list) {
+                    list.classList.add('open');
+                    if (icon) icon.classList.add('open');
+                }
+            }
+        }
+
+        // 恢复滚动位置
+        if (states.scrollY) {
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = states.scrollY;
+        }
+    });
 }
 
 // ========== 侧边栏渲染 ==========
@@ -186,13 +249,19 @@ function renderCurrentCategory() {
 // ========== Tab切换 ==========
 function onTabClick(target) {
     if (target === 'settings') {
-        // 保存当前模式的状态
+        // 保存当前模式的状态（含展开状态和滚动位置）
         if (!isSettingsMode) {
+            const content = document.querySelector('.content');
+            const scrollY = content ? content.scrollTop : 0;
+            const expanded = collectExpandedStates();
             modeStates[currentMode] = {
                 currentCategoryId,
                 currentSubId,
                 currentView,
-                currentSearchKeyword: currentSearchKeyword || ''
+                currentSearchKeyword: currentSearchKeyword || '',
+                expandedSeries: expanded.expandedSeries,
+                expandedVarieties: expanded.expandedVarieties,
+                scrollY
             };
             settingsReturnState = { ...modeStates[currentMode], currentMode };
         }
@@ -217,8 +286,19 @@ function onTabClick(target) {
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
         }
         renderSidebar();
-        if (currentView === 'overview') renderOverview();
-        else renderCurrentCategory();
+        if (currentView === 'overview') {
+            renderOverview();
+        } else {
+            renderCurrentCategory();
+            // 恢复展开状态
+            if (settingsReturnState) {
+                restoreExpandedStates({
+                    expandedSeries: settingsReturnState.expandedSeries,
+                    expandedVarieties: settingsReturnState.expandedVarieties,
+                    scrollY: settingsReturnState.scrollY
+                });
+            }
+        }
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
         return;
@@ -226,12 +306,18 @@ function onTabClick(target) {
 
     // 切换 notes / coins
     if (target === 'notes' || target === 'coins') {
-        // 保存当前模式的状态
+        // 保存当前模式的状态（含展开状态和滚动位置）
+        const content = document.querySelector('.content');
+        const scrollY = content ? content.scrollTop : 0;
+        const expanded = collectExpandedStates();
         modeStates[currentMode] = {
             currentCategoryId,
             currentSubId,
             currentView,
-            currentSearchKeyword: currentSearchKeyword || ''
+            currentSearchKeyword: currentSearchKeyword || '',
+            expandedSeries: expanded.expandedSeries,
+            expandedVarieties: expanded.expandedVarieties,
+            scrollY
         };
 
         // 切换到目标模式
@@ -253,6 +339,12 @@ function onTabClick(target) {
             renderOverview();
         } else if (currentView === 'category') {
             renderCurrentCategory();
+            // 恢复展开状态
+            restoreExpandedStates({
+                expandedSeries: saved.expandedSeries,
+                expandedVarieties: saved.expandedVarieties,
+                scrollY: saved.scrollY
+            });
         } else if (currentView === 'search') {
             if (currentSearchKeyword) {
                 performSearchAndRender(currentSearchKeyword, currentSearchType);
