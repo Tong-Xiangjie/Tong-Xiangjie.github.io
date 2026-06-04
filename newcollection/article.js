@@ -30,6 +30,8 @@ function collectAllArticles() {
 
         for (let si = 0; si < data.series.length; si++) {
             const series = data.series[si];
+
+            // 检查 series 级别的 readme
             if (series.readme && series.readme.title && series.readme.content) {
                 collectedArticles.push({
                     title: series.readme.title,
@@ -38,8 +40,28 @@ function collectAllArticles() {
                     parentCategory: catInfo.parentCategory,
                     dataKey,
                     seriesIndex: si,
+                    varietyIndex: -1,
                     seriesName: series.seriesName
                 });
+            }
+
+            // 检查 varieties 级别的 readme
+            if (series.varieties && series.varieties.length > 0) {
+                for (let vi = 0; vi < series.varieties.length; vi++) {
+                    const variety = series.varieties[vi];
+                    if (variety.readme && variety.readme.title && variety.readme.content) {
+                        collectedArticles.push({
+                            title: variety.readme.title,
+                            contentPath: variety.readme.content,
+                            category: catInfo.category,
+                            parentCategory: catInfo.parentCategory,
+                            dataKey,
+                            seriesIndex: si,
+                            varietyIndex: vi,
+                            seriesName: series.seriesName
+                        });
+                    }
+                }
             }
         }
     }
@@ -95,10 +117,14 @@ async function preloadAllArticles() {
     if (isArticlePreloading) return;
     isArticlePreloading = true;
 
+    const tip = document.getElementById('searchTip');
+    if (tip) tip.textContent = '正在加载全文索引...';
+
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
 
     isArticlePreloading = false;
+    if (tip) tip.textContent = '全文索引已就绪，可搜索正文内容';
 }
 
 async function preloadArticle(article) {
@@ -137,13 +163,21 @@ function stripHtml(html) {
 function toggleArticleSearchMode() {
     if (articleSearchMode === 'title') {
         articleSearchMode = 'fulltext';
+        // 切换为实时搜索 + 预加载
+        const input = document.getElementById('searchInput');
+        if (input) {
+            input.removeEventListener('input', doSearch); // 避免重复绑定
+            input.addEventListener('input', doSearch);
+        }
         preloadAllArticles().then(() => {
             if (articleSearchKeyword) renderArticleList();
         });
     } else {
         articleSearchMode = 'title';
+        // 保持实时搜索
         if (articleSearchKeyword) renderArticleList();
     }
+    updateSearchUIForMode();
 }
 
 // ========== 侧边栏渲染 ==========
