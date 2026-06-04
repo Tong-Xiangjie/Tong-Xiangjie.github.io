@@ -1,5 +1,4 @@
 // ========== 新站分类树定义 ==========
-// 与旧站数据文件通过 dataKey 关联 (window[dataKey])
 
 const categoryTree = [
     {
@@ -85,7 +84,7 @@ const categoryTree = [
     }
 ];
 
-// 展平映射：subId -> { parentId, name, dataKey }
+// 子分类查找映射
 const subCategoryMap = {};
 (function buildMap() {
     for (const cat of categoryTree) {
@@ -101,7 +100,7 @@ const subCategoryMap = {};
     }
 })();
 
-// 旧站所有 dataKey 的列表（用于概览页统计和搜索）
+// 所有 dataKey 列表
 const allDataKeys = [];
 (function collectKeys() {
     for (const cat of categoryTree) {
@@ -117,3 +116,8 @@ const allDataKeys = [];
 
 // 图片路径前缀（旧站图片相对于新站的位置）
 const IMAGE_BASE = '../notecollection/';
+
+// 获取数据（通过 DATA_MAP 桥接）
+function getData(dataKey) {
+    return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
+}
