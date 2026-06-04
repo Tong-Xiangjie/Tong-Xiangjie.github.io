@@ -328,6 +328,23 @@ body {
     background: rgba(0,0,0,0.04);
 }
 
+.search-result-item .info {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-result-item .info .name {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+
+.search-result-item .info .detail {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
 /* 编号靠右 */
 .search-result-item .index-num {
     color: var(--text-secondary);
