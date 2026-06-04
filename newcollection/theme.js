@@ -54,8 +54,6 @@ function applyTheme(color) {
 
     const themeLight = lightenColor(color, 0.4);
     document.documentElement.style.setProperty('--theme-light', themeLight);
-
-    // 文字颜色保持 CSS 默认值，不动态设置
 }
 
 function loadTheme() {
