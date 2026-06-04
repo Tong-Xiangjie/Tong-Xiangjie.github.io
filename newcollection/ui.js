@@ -1,49 +1,188 @@
-// ========== 概览页渲染 ==========
+// ========== 概览页渲染（显示全部藏品列表） ==========
 function renderOverview() {
     const app = document.getElementById('app');
     currentView = 'overview';
 
-    let html = `<div class="overview-grid">`;
+    // 收集所有藏品（类似旧站空搜索）
+    let allItems = [];
+    let globalIndex = 1;
 
     for (const cat of categoryTree) {
-        let totalCopies = 0;
-        let totalPrice = 0;
-
         if (cat.children) {
             for (const sub of cat.children) {
                 const data = getData(sub.dataKey);
-                if (data) {
-                    totalCopies += countCopies(data);
-                    totalPrice += sumPrice(data);
+                if (!data || !data.series) continue;
+                const catLabel = cat.name + ' - ' + sub.name;
+                for (let si = 0; si < data.series.length; si++) {
+                    const series = data.series[si];
+                    if (series.varieties) {
+                        for (let vi = 0; vi < series.varieties.length; vi++) {
+                            const variety = series.varieties[vi];
+                            if (!variety.copies) continue;
+                            for (let ci = 0; ci < variety.copies.length; ci++) {
+                                allItems.push({
+                                    catLabel, catId: cat.id, subId: sub.id,
+                                    dataKey: sub.dataKey, si, vi, ci,
+                                    series, variety, copy: variety.copies[ci],
+                                    hasVarieties: true, globalIndex: globalIndex++
+                                });
+                            }
+                        }
+                    } else if (series.copies) {
+                        for (let ci = 0; ci < series.copies.length; ci++) {
+                            allItems.push({
+                                catLabel, catId: cat.id, subId: sub.id,
+                                dataKey: sub.dataKey, si, vi: null, ci,
+                                series, variety: null, copy: series.copies[ci],
+                                hasVarieties: false, globalIndex: globalIndex++
+                            });
+                        }
+                    }
                 }
             }
         } else {
             const data = getData(cat.dataKey);
-            if (data) {
-                totalCopies = countCopies(data);
-                totalPrice = sumPrice(data);
+            if (!data || !data.series) continue;
+            const catLabel = cat.name;
+            for (let si = 0; si < data.series.length; si++) {
+                const series = data.series[si];
+                if (series.varieties) {
+                    for (let vi = 0; vi < series.varieties.length; vi++) {
+                        const variety = series.varieties[vi];
+                        if (!variety.copies) continue;
+                        for (let ci = 0; ci < variety.copies.length; ci++) {
+                            allItems.push({
+                                catLabel, catId: cat.id, subId: null,
+                                dataKey: cat.dataKey, si, vi, ci,
+                                series, variety, copy: variety.copies[ci],
+                                hasVarieties: true, globalIndex: globalIndex++
+                            });
+                        }
+                    }
+                } else if (series.copies) {
+                    for (let ci = 0; ci < series.copies.length; ci++) {
+                        allItems.push({
+                            catLabel, catId: cat.id, subId: null,
+                            dataKey: cat.dataKey, si, vi: null, ci,
+                            series, variety: null, copy: series.copies[ci],
+                            hasVarieties: false, globalIndex: globalIndex++
+                        });
+                    }
+                }
             }
         }
-
-        html += `<div class="category-card" onclick="onSidebarItemClick('${cat.id}')">`;
-        html += `<h3>${escapeHtml(cat.name)}</h3>`;
-        if (cat.children) {
-            html += `<div class="subtitle">${cat.children.map(c => c.name).join(' · ')}</div>`;
-        }
-        html += `<div class="count-badge">${totalCopies} 张藏品`;
-        if (totalPrice > 0) html += ` · 约${Math.round(totalPrice)}元`;
-        html += `</div>`;
-        html += `</div>`;
     }
 
-    html += `</div>`;
-    app.innerHTML = html;
+    let html = `<div class="overview-header"><h2>全部藏品</h2><p>共 ${allItems.length} 张</p></div>`;
 
-    const switchBtn = document.getElementById('switchToCoinsBtn');
-    if (switchBtn) switchBtn.style.display = 'inline-block';
+    if (allItems.length === 0) {
+        html += '<div class="empty-state">暂无数据</div>';
+        app.innerHTML = html;
+        return;
+    }
+
+    // 按分类分组
+    const grouped = {};
+    for (const item of allItems) {
+        const key = item.catLabel;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+    }
+
+    // 按 categoryTree 顺序输出
+    for (const cat of categoryTree) {
+        if (cat.children) {
+            for (const sub of cat.children) {
+                const label = cat.name + ' - ' + sub.name;
+                const group = grouped[label];
+                if (!group) continue;
+                html += renderOverviewGroup(label, group);
+            }
+        } else {
+            const label = cat.name;
+            const group = grouped[label];
+            if (!group) continue;
+            html += renderOverviewGroup(label, group);
+        }
+    }
+
+    app.innerHTML = html;
 }
 
-// ========== 系列列表渲染（子分类内容页） ==========
+function renderOverviewGroup(label, items) {
+    let html = `<div class="search-result-group">`;
+    html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}张</span></div>`;
+    for (const item of items) {
+        const c = item.copy;
+        const imgSrc = c.img1 ? IMAGE_BASE + c.img1 : '';
+        const displayName = item.hasVarieties && item.variety
+            ? `${item.series.seriesName} - ${item.variety.varietyName}`
+            : item.series.seriesName;
+
+        html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
+        if (imgSrc) {
+            html += `<img class="thumb" src="${imgSrc}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(imgSrc)}', '${escapeHtml(c.img2 ? IMAGE_BASE + c.img2 : imgSrc)}')">`;
+        } else {
+            html += `<div class="thumb" style="background:#e0d8cc;"></div>`;
+        }
+        html += `<div class="info">`;
+        html += `<div class="name">${escapeHtml(displayName)}</div>`;
+        html += `<div class="detail">`;
+        if (c.version) html += `${escapeHtml(c.version)} · `;
+        if (c.condition) html += `${escapeHtml(c.condition)} · `;
+        if (c.year) html += `${c.year}年 · `;
+        if (c.price) html += `${escapeHtml(c.price)}`;
+        html += `</div>`;
+        html += `</div>`;
+        html += `<div style="color:#999;font-size:0.7rem;flex-shrink:0;">#${item.globalIndex}</div>`;
+        html += `</div>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+// 从概览跳转到分类展开
+function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
+    for (const cat of categoryTree) {
+        if (cat.children) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) {
+                    currentCategoryId = cat.id;
+                    currentSubId = sub.id;
+                    currentView = 'category';
+                    renderSidebar();
+                    renderCurrentCategory();
+                    setTimeout(() => {
+                        const targetId = (hasVarieties && vi !== null) ? `v-${si}-${vi}` : `s-${si}`;
+                        toggleVariety(targetId);
+                        setTimeout(() => {
+                            const el = document.getElementById('list-' + targetId);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 100);
+                    }, 50);
+                    return;
+                }
+            }
+        } else if (cat.dataKey === dataKey) {
+            currentCategoryId = cat.id;
+            currentSubId = null;
+            currentView = 'category';
+            renderSidebar();
+            renderCurrentCategory();
+            setTimeout(() => {
+                const targetId = (hasVarieties && vi !== null) ? `v-${si}-${vi}` : `s-${si}`;
+                toggleVariety(targetId);
+                setTimeout(() => {
+                    const el = document.getElementById('list-' + targetId);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }, 50);
+            return;
+        }
+    }
+}
+
+// ========== 分类内容页渲染 ==========
 function renderSeriesList(data, title) {
     const app = document.getElementById('app');
     if (!data || !data.series || data.series.length === 0) {
@@ -56,16 +195,12 @@ function renderSeriesList(data, title) {
     if (data.desc) html += `<div class="series-desc">${escapeHtml(data.desc)}</div>`;
     html += `</div>`;
 
-    // 如果有 readme，显示入口（预留，暂不实现内容）
-    // TODO: readme 支持
-
     html += `<div class="variety-list">`;
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
 
         if (series.varieties && series.varieties.length > 0) {
-            // 有 varieties 的格式
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 const copies = variety.copies || [];
@@ -87,11 +222,10 @@ function renderSeriesList(data, title) {
                 html += `<span class="variety-expand-icon" id="icon-${uniqueId}">▼</span>`;
                 html += `</div></div>`;
                 html += `<div class="copy-list" id="list-${uniqueId}">`;
-                html += renderCopiesList(copies, data.detailFields);
+                html += renderCopiesList(copies);
                 html += `</div></div>`;
             }
         } else if (series.copies && series.copies.length > 0) {
-            // 扁平格式
             const copies = series.copies;
             const totalPrice = copies.reduce((sum, c) => {
                 const num = parseFloat(String(c.price || '0').replace(/[^0-9.]/g, ''));
@@ -108,7 +242,7 @@ function renderSeriesList(data, title) {
             html += `<span class="variety-expand-icon" id="icon-${uniqueId}">▼</span>`;
             html += `</div></div>`;
             html += `<div class="copy-list" id="list-${uniqueId}">`;
-            html += renderCopiesList(copies, data.detailFields);
+            html += renderCopiesList(copies);
             html += `</div></div>`;
         }
     }
@@ -118,14 +252,13 @@ function renderSeriesList(data, title) {
 }
 
 // ========== 藏品列表渲染 ==========
-function renderCopiesList(copies, detailFields) {
+function renderCopiesList(copies) {
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;color:#999;font-size:0.8rem;">暂无藏品</div>';
     }
 
     let html = '';
-    for (let ci = 0; ci < copies.length; ci++) {
-        const c = copies[ci];
+    for (const c of copies) {
         const imgSrc1 = c.img1 ? IMAGE_BASE + c.img1 : '';
         const imgSrc2 = c.img2 ? IMAGE_BASE + c.img2 : '';
 
