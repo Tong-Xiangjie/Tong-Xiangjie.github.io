@@ -208,8 +208,12 @@ body {
 .sidebar-item .expand-icon {
     font-size: 0.7rem;
     transition: transform 0.2s ease;
-    color: inherit;
+    color: var(--text-secondary);
     flex-shrink: 0;
+}
+
+.sidebar-item.active .expand-icon {
+    color: #fff;
 }
 
 .sidebar-item .expand-icon.expanded {
