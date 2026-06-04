@@ -256,7 +256,7 @@ function updateSearchUIForMode() {
         toggle.classList.remove('hidden');
         toggle.textContent = articleSearchMode === 'title' ? '标' : '全';
         toggle.title = articleSearchMode === 'title' ? '当前：标题索引，点击切换为全字段索引' : '当前：全字段索引，点击切换为标题索引';
-        tip.textContent = articleSearchMode === 'title' ? '文章搜索：标题索引' : '文章搜索：全字段索引';
+        tip.textContent = articleSearchMode === 'title' ? '文章搜索：标题索引（实时）' : '文章搜索：全字段索引（实时）';
     } else if (isSettingsMode) {
         select.classList.add('hidden');
         toggle.classList.add('hidden');
@@ -292,7 +292,8 @@ function onTabClick(target) {
                     scrollY
                 };
             }
-            settingsReturnState = { currentMode,
+            settingsReturnState = {
+                currentMode,
                 currentCategoryId, currentSubId, currentView,
                 currentSearchKeyword: currentSearchKeyword || ''
             };
@@ -317,6 +318,13 @@ function onTabClick(target) {
                 currentArticleIndex = articleState.currentIndex;
                 articleSearchKeyword = articleState.searchKeyword;
                 if (collectedArticles.length === 0) collectAllArticles();
+                // 文章模式设为实时搜索
+                searchMode = 'realtime';
+                const si = document.getElementById('searchInput');
+                if (si) {
+                    si.removeEventListener('input', doSearch);
+                    si.addEventListener('input', doSearch);
+                }
                 updateSearchUIForMode();
                 renderSidebar();
                 if (currentArticleView === 'list') renderArticleList();
@@ -364,6 +372,14 @@ function onTabClick(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
 
+        // 文章模式设为实时搜索
+        searchMode = 'realtime';
+        const si = document.getElementById('searchInput');
+        if (si) {
+            si.removeEventListener('input', doSearch);
+            si.addEventListener('input', doSearch);
+        }
+
         updateSearchUIForMode();
         renderSidebar();
         if (currentArticleView === 'list') renderArticleList();
@@ -400,6 +416,15 @@ function onTabClick(target) {
         currentSubId = saved.currentSubId;
         currentView = saved.currentView;
         currentSearchKeyword = saved.currentSearchKeyword || '';
+
+        // 离开文章模式，移除实时搜索的绑定（保持原来的搜索模式）
+        if (searchMode === 'realtime') {
+            const inp = document.getElementById('searchInput');
+            if (inp) {
+                inp.removeEventListener('input', doSearch);
+                inp.addEventListener('input', doSearch);
+            }
+        }
 
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
@@ -504,7 +529,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('modeToggle')?.addEventListener('click', function() {
         if (currentMode === 'articles') {
             toggleArticleSearchMode();
-            updateSearchUIForMode();
         } else {
             toggleSearchMode();
         }
@@ -520,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // 初始默认纸币模式用点击搜索
     if (searchMode === 'realtime') {
         document.getElementById('searchInput')?.addEventListener('input', doSearch);
     }
