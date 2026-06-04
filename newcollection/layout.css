@@ -7,6 +7,7 @@
     --text: #2c2418;
     --text-secondary: #8b6b4f;
     --border: #d5dce8;
+    --thumb-bg: #dce6f0;
     --gold: #daa520;
     --gold-dark: #b8860b;
 }
@@ -168,7 +169,7 @@ body {
     transform: rotate(90deg);
 }
 
-/* ---- 侧边栏子菜单动画 ---- */
+/* 侧边栏子菜单动画 */
 .sidebar-children {
     max-height: 0;
     overflow: hidden;
@@ -260,7 +261,7 @@ body {
     background: rgba(0,0,0,0.04);
 }
 
-/* 编号推到最右边 */
+/* 编号靠右 */
 .search-result-item .index-num {
     color: #999;
     font-size: 0.7rem;
@@ -322,7 +323,7 @@ body {
     transform: rotate(180deg);
 }
 
-/* ---- 系列展开/折叠动画（同步） ---- */
+/* 系列展开/折叠动画 */
 .series-body {
     max-height: 0;
     overflow: hidden;
@@ -383,7 +384,7 @@ body {
     transform: rotate(180deg);
 }
 
-/* ---- 面值展开/折叠动画（同步） ---- */
+/* 面值展开/折叠动画 */
 .copy-list {
     max-height: 0;
     overflow: hidden;
@@ -419,7 +420,7 @@ body {
     width: 36px;
     height: 26px;
     object-fit: contain;
-    background: #f0ebe3;
+    background: var(--thumb-bg);
     border-radius: 3px;
     cursor: pointer;
     flex-shrink: 0;
@@ -434,7 +435,7 @@ body {
     width: 56px;
     height: 40px;
     object-fit: contain;
-    background: #f0ebe3;
+    background: var(--thumb-bg);
     border-radius: 4px;
     cursor: pointer;
     flex-shrink: 0;
@@ -451,6 +452,7 @@ body {
     justify-content: center;
     font-size: 0.5rem;
     color: #999;
+    background: var(--thumb-bg);
 }
 
 .copy-info {
