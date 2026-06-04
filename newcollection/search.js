@@ -193,7 +193,7 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
             html += `<div class="detail">${escapeHtml(copy.version || '无冠号')} · ${escapeHtml(copy.condition || '无评级')}</div>`;
             html += `</div>`;
-            html += `<div style="color:#999;font-size:0.7rem;">#${idx}</div>`;
+            html += `<div class="index-num">#${idx}</div>`;
             html += `</div>`;
             idx++;
         }
