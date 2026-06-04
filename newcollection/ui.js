@@ -102,6 +102,12 @@ function renderOverview() {
     }
 
     app.innerHTML = html;
+    // 淡入动画
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
 }
 
 function renderOverviewGroup(label, items) {
@@ -154,7 +160,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                             setTimeout(() => {
                                 toggleVariety(`v-${si}-${vi}`);
                                 setTimeout(() => {
-                                    const el = document.getElementById('list-v-' + si + '-' + vi);
+                                    const el = document.getElementById('list-' + 'v-' + si + '-' + vi);
                                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }, 120);
                             }, 60);
@@ -181,7 +187,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                     setTimeout(() => {
                         toggleVariety(`v-${si}-${vi}`);
                         setTimeout(() => {
-                            const el = document.getElementById('list-v-' + si + '-' + vi);
+                            const el = document.getElementById('list-' + 'v-' + si + '-' + vi);
                             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }, 120);
                     }, 60);
@@ -259,6 +265,12 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
+    // 淡入动画
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
 }
 
 // ========== 藏品列表 ==========
@@ -286,6 +298,7 @@ function renderCopiesList(copies) {
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
         html += `</div>`;
         if (c.catalogNumber) html += `<div class="meta">${escapeHtml(c.catalogNumber)}</div>`;
+        if (c.krause) html += `<div class="meta">Pick# ${escapeHtml(c.krause)}</div>`;
         if (c.material) html += `<div class="meta">材质：${escapeHtml(c.material)}</div>`;
         if (c.remark) html += `<div class="meta">${escapeHtml(c.remark)}</div>`;
         html += `</div>`;
