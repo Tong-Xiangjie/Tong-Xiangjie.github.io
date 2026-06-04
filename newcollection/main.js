@@ -5,6 +5,8 @@ let currentSubId = null;
 let currentView = 'overview';
 let searchMode = 'click';
 let scrollMemory = {};
+let isSettingsMode = false;
+let settingsReturnState = null;
 
 // 弹窗状态
 let hammerManager = null;
@@ -73,7 +75,6 @@ function onSidebarItemClick(catId) {
     const cat = categoryTree.find(c => c.id === catId);
     if (!cat) return;
 
-    // 如果点击已展开的父级 -> 折叠，回到概览
     if (currentCategoryId === catId && cat.children) {
         currentCategoryId = null;
         currentSubId = null;
@@ -137,23 +138,115 @@ function renderCurrentCategory() {
 // ========== Tab切换 ==========
 function onTabClick(target) {
     if (target === 'settings') {
-        toggleThemeModal();
+        enterSettings();
         return;
     }
     if (target === 'coins' || target === 'special') {
         alert('暂未开放');
         return;
     }
+
+    // 如果从设置回来
+    if (isSettingsMode) {
+        isSettingsMode = false;
+        document.querySelector('.body-row')?.classList.remove('settings-mode');
+        if (settingsReturnState) {
+            currentCategoryId = settingsReturnState.currentCategoryId;
+            currentSubId = settingsReturnState.currentSubId;
+            currentView = settingsReturnState.currentView;
+            currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
+        }
+    }
+
     currentTab = 'notes';
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
 
-    if (currentView === 'search') return;
-    currentCategoryId = null;
-    currentSubId = null;
-    currentView = 'overview';
+    if (currentView === 'search' && !currentSearchKeyword) {
+        currentView = currentCategoryId ? 'category' : 'overview';
+    }
+
     renderSidebar();
-    renderOverview();
+    if (currentView === 'overview') {
+        renderOverview();
+    } else if (currentView === 'category') {
+        renderCurrentCategory();
+    } else if (currentView === 'search') {
+        // 保持搜索结果
+    }
+}
+
+// ========== 设置页 ==========
+function enterSettings() {
+    // 保存返回状态
+    settingsReturnState = {
+        currentCategoryId: currentCategoryId,
+        currentSubId: currentSubId,
+        currentView: currentView,
+        currentSearchKeyword: currentSearchKeyword || ''
+    };
+
+    isSettingsMode = true;
+    document.querySelector('.body-row')?.classList.add('settings-mode');
+
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
+
+    renderSettingsPage();
+}
+
+function renderSettingsPage() {
+    const app = document.getElementById('app');
+    const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
+
+    let html = `<div class="settings-page">`;
+    html += `<h2>设置</h2>`;
+    html += `<div class="settings-section">`;
+    html += `<h3>主题色</h3>`;
+    html += `<div class="theme-colors" id="settingsThemeColors">`;
+    const colors = ['#1677ff', '#d92121', '#00b42a', '#ff7d00', '#722ed1'];
+    for (const color of colors) {
+        const active = color === currentTheme ? ' active' : '';
+        html += `<div class="theme-color${active}" style="background:${color}" data-color="${color}"></div>`;
+    }
+    html += `</div>`;
+    html += `<div class="custom-color-row">`;
+    html += `<label for="settingsCustomColor">自定义颜色：</label>`;
+    html += `<input type="color" id="settingsCustomColor" value="${currentTheme}">`;
+    html += `</div>`;
+    html += `</div>`;
+    html += `</div>`;
+
+    app.innerHTML = html;
+
+    // 绑定事件
+    document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
+        el.addEventListener('click', function() {
+            const color = this.dataset.color;
+            document.querySelectorAll('#settingsThemeColors .theme-color').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('settingsCustomColor').value = color;
+            if (typeof setTheme === 'function') setTheme(color);
+        });
+    });
+
+    document.getElementById('settingsCustomColor').addEventListener('input', function() {
+        document.querySelectorAll('#settingsThemeColors .theme-color').forEach(c => c.classList.remove('active'));
+        if (typeof setTheme === 'function') setTheme(this.value);
+    });
+}
+
+// ========== 弹窗事件 ==========
+function setupModalEvents() {
+    const modal = document.getElementById('imageModal');
+    if (!modal) return;
+
+    modal.addEventListener('click', function(e) {
+        // 点击背景（modal本身）关闭
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
 }
 
 // ========== 初始化 ==========
@@ -179,9 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('searchInput')?.addEventListener('input', doSearch);
     }
 
-    document.getElementById('imageModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
-    });
+    setupModalEvents();
 
     if (typeof loadTheme === 'function') loadTheme();
 });
