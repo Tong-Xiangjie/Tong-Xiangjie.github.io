@@ -23,14 +23,16 @@ function performSearchAndRender(rawKeyword, type) {
     const isEmptySearch = !keyword || keyword === '';
     const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
     let results = [];
+    const keys = getAllDataKeys();
 
-    for (const dataKey of allDataKeys) {
+    for (const dataKey of keys) {
         const data = getData(dataKey);
         if (!data || !data.series) continue;
 
         let catName = dataKey;
         let parentName = '';
-        for (const cat of categoryTree) {
+        const tree = getCategoryTree();
+        for (const cat of tree) {
             if (cat.dataKey === dataKey) {
                 catName = cat.name;
                 break;
@@ -87,7 +89,7 @@ function matchCopy(copy, series, variety, keyword, type, isEmpty) {
     if (isEmpty) return true;
     switch(type) {
         case 'all':
-            const text = `${series.seriesName} ${variety.varietyName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
+            const text = `${series.seriesName} ${variety.varietyName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
             return text.includes(keyword);
         case 'name':
             return series.seriesName.toLowerCase().includes(keyword) || variety.varietyName.toLowerCase().includes(keyword);
@@ -96,9 +98,9 @@ function matchCopy(copy, series, variety, keyword, type, isEmpty) {
         case 'year':
             return String(copy.year).toLowerCase().includes(keyword);
         case 'agency':
-            return (copy.condition || '').toLowerCase().includes(keyword);
+            return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
         case 'krause':
-            return (copy.krause || '').toLowerCase().includes(keyword);
+            return (copy.catalogNumber || copy.krause || '').toLowerCase().includes(keyword);
     }
     return false;
 }
@@ -107,7 +109,7 @@ function matchCopyFlat(copy, series, keyword, type, isEmpty) {
     if (isEmpty) return true;
     switch(type) {
         case 'all':
-            const text = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || ''} ${copy.krause || ''}`.toLowerCase();
+            const text = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
             return text.includes(keyword);
         case 'name':
             return series.seriesName.toLowerCase().includes(keyword);
@@ -116,9 +118,9 @@ function matchCopyFlat(copy, series, keyword, type, isEmpty) {
         case 'year':
             return String(copy.year).toLowerCase().includes(keyword);
         case 'agency':
-            return (copy.condition || '').toLowerCase().includes(keyword);
+            return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
         case 'krause':
-            return (copy.krause || '').toLowerCase().includes(keyword);
+            return (copy.catalogNumber || copy.krause || '').toLowerCase().includes(keyword);
     }
     return false;
 }
@@ -143,9 +145,11 @@ function getDisplayValue(keyword, searchType) {
 
 function renderSearchResults(results, rawKeyword, type) {
     const app = document.getElementById('app');
+    const imgBase = getImageBase();
+    const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
-    html += `<div class="panel-header"><h2>搜索结果</h2>`;
+    html += `<div class="panel-header"><h2>搜索结果（${modeLabel}）</h2>`;
     html += `<p>找到 ${results.length} 个匹配`;
     if (rawKeyword) html += ` · 关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}`;
     html += `</p></div>`;
@@ -164,19 +168,20 @@ function renderSearchResults(results, rawKeyword, type) {
     }
 
     let idx = 1;
-    for (const dataKey of allDataKeys) {
+    const keys = getAllDataKeys();
+    for (const dataKey of keys) {
         const group = grouped[dataKey];
         if (!group || group.length === 0) continue;
         const first = group[0];
         const label = first.parentName ? `${first.parentName} - ${first.catName}` : first.catName;
 
         html += `<div class="search-result-group">`;
-        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${group.length}张</span></div>`;
+        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${group.length}件</span></div>`;
 
         for (const item of group) {
             const copy = item.copy;
-            const img1 = copy.img1 ? IMAGE_BASE + copy.img1 : '';
-            const img2 = copy.img2 ? IMAGE_BASE + copy.img2 : '';
+            const img1 = copy.img1 ? imgBase + copy.img1 : '';
+            const img2 = copy.img2 ? imgBase + copy.img2 : '';
             const displayName = item.hasVarieties
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
@@ -189,7 +194,7 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
-            html += `<div class="detail">${escapeHtml(copy.version || '无冠号')} · ${escapeHtml(copy.condition || '无评级')}</div>`;
+            html += `<div class="detail">${escapeHtml(copy.version || '无冠号')} · ${escapeHtml(copy.condition || copy.grade || '无评级')}</div>`;
             html += `</div>`;
             html += `<div class="index-num">#${idx}</div>`;
             html += `</div>`;
@@ -202,7 +207,8 @@ function renderSearchResults(results, rawKeyword, type) {
 }
 
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
-    for (const cat of categoryTree) {
+    const tree = getCategoryTree();
+    for (const cat of tree) {
         if (cat.children) {
             for (const sub of cat.children) {
                 if (sub.dataKey === dataKey) {
