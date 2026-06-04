@@ -108,8 +108,8 @@ const fecData = {
                     krause: "FX3",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
-                    img1: "",
-                    img2: ""
+                    img1: "image/fec/DN598149-1.jpg",
+                    img2: "image/fec/DN598149-2.jpg"
                 }
             ]
         },
