@@ -1,0 +1,35 @@
+// data-bridge.js
+// 旧站数据文件用 const 声明，不会挂到 window 上
+// 这里统一收集到 window.DATA_MAP 供新站使用
+window.DATA_MAP = {
+    commemorativeData:  typeof commemorativeData  !== 'undefined' ? commemorativeData  : null,
+    uncutData:          typeof uncutData          !== 'undefined' ? uncutData          : null,
+    hk_bocData:         typeof hk_bocData         !== 'undefined' ? hk_bocData         : null,
+    hk_hsbcData:        typeof hk_hsbcData        !== 'undefined' ? hk_hsbcData        : null,
+    hk_scData:          typeof hk_scData          !== 'undefined' ? hk_scData          : null,
+    hk_govData:         typeof hk_govData         !== 'undefined' ? hk_govData         : null,
+    macau_bocData:      typeof macau_bocData      !== 'undefined' ? macau_bocData      : null,
+    macau_bnuData:      typeof macau_bnuData      !== 'undefined' ? macau_bnuData      : null,
+    taiwanData:         typeof taiwanData         !== 'undefined' ? taiwanData         : null,
+    rmb1Data:           typeof rmb1Data           !== 'undefined' ? rmb1Data           : null,
+    rmb2Data:           typeof rmb2Data           !== 'undefined' ? rmb2Data           : null,
+    rmb3Data:           typeof rmb3Data           !== 'undefined' ? rmb3Data           : null,
+    rmb4Data:           typeof rmb4Data           !== 'undefined' ? rmb4Data           : null,
+    rmb5Data:           typeof rmb5Data           !== 'undefined' ? rmb5Data           : null,
+    fecData:            typeof fecData            !== 'undefined' ? fecData            : null,
+    gkqData:            typeof gkqData            !== 'undefined' ? gkqData            : null,
+    nedbData:           typeof nedbData           !== 'undefined' ? nedbData           : null,
+    lecbData:           typeof lecbData           !== 'undefined' ? lecbData           : null,
+    republic_cbcData:   typeof republic_cbcData   !== 'undefined' ? republic_cbcData   : null,
+    republic_bocData:   typeof republic_bocData   !== 'undefined' ? republic_bocData   : null,
+    republic_communicationsData: typeof republic_communicationsData !== 'undefined' ? republic_communicationsData : null,
+    republic_fbcData:   typeof republic_fbcData   !== 'undefined' ? republic_fbcData   : null,
+    republic_kpbData:   typeof republic_kpbData   !== 'undefined' ? republic_kpbData   : null,
+    republic_crbcData:  typeof republic_crbcData  !== 'undefined' ? republic_crbcData  : null,
+    japanData:          typeof japanData          !== 'undefined' ? japanData          : null,
+    indonesiaData:      typeof indonesiaData      !== 'undefined' ? indonesiaData      : null,
+    venezuelaData:      typeof venezuelaData      !== 'undefined' ? venezuelaData      : null,
+    ukarineData:        typeof ukarineData        !== 'undefined' ? ukarineData        : null,
+    russiaData:         typeof russiaData         !== 'undefined' ? russiaData         : null,
+    vietnamData:        typeof vietnamData        !== 'undefined' ? vietnamData        : null
+};
