@@ -1,4 +1,4 @@
-// ========== 概览页渲染（全部藏品） ==========
+// ========== 概览页渲染 ==========
 function renderOverview() {
     const app = document.getElementById('app');
     currentView = 'overview';
@@ -125,7 +125,7 @@ function renderOverviewGroup(label, items) {
         if (c.condition) html += `${escapeHtml(c.condition)} · `;
         if (c.year) html += `${c.year}年`;
         html += `</div></div>`;
-        html += `<div style="color:#999;font-size:0.7rem;flex-shrink:0;padding-left:6px;">#${item.globalIndex}</div>`;
+        html += `<div class="index-num">#${item.globalIndex}</div>`;
         html += `</div>`;
     }
     html += `</div>`;
@@ -192,7 +192,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     }
 }
 
-// ========== 分类内容页（系列→面值→藏品） ==========
+// ========== 分类内容页 ==========
 function renderSeriesList(data, title) {
     const app = document.getElementById('app');
     if (!data || !data.series || data.series.length === 0) {
@@ -255,7 +255,7 @@ function renderSeriesList(data, title) {
     app.innerHTML = html;
 }
 
-// ========== 藏品列表（双缩略图） ==========
+// ========== 藏品列表 ==========
 function renderCopiesList(copies) {
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;color:#999;font-size:0.8rem;">暂无藏品</div>';
@@ -290,28 +290,16 @@ function toggleSeries(id) {
     const body = document.getElementById('body-' + id);
     const icon = document.getElementById('icon-' + id);
     if (!body) return;
-    const isOpen = body.classList.contains('open');
-    if (isOpen) {
-        body.classList.remove('open');
-        if (icon) icon.classList.remove('open');
-    } else {
-        body.classList.add('open');
-        if (icon) icon.classList.add('open');
-    }
+    body.classList.toggle('open');
+    if (icon) icon.classList.toggle('open');
 }
 
 function toggleVariety(id) {
     const list = document.getElementById('list-' + id);
     const icon = document.getElementById('icon-' + id);
     if (!list) return;
-    const isOpen = list.classList.contains('open');
-    if (isOpen) {
-        list.classList.remove('open');
-        if (icon) icon.classList.remove('open');
-    } else {
-        list.classList.add('open');
-        if (icon) icon.classList.add('open');
-    }
+    list.classList.toggle('open');
+    if (icon) icon.classList.toggle('open');
 }
 
 // ========== 图片弹窗 ==========
@@ -382,32 +370,7 @@ function initPinchZoom() {
     });
 }
 
-// ========== 主题弹窗 ==========
-let themeModal = null;
+// 移除旧的主题弹窗函数（已迁移到设置页）
 function toggleThemeModal() {
-    if (!themeModal) {
-        themeModal = document.createElement('div');
-        themeModal.className = 'theme-modal';
-        themeModal.innerHTML = `
-            <div style="margin-bottom:8px;font-size:0.9rem;">选择主题色</div>
-            <div class="theme-colors">
-                <div class="theme-color" style="background:#1677ff"></div>
-                <div class="theme-color" style="background:#d92121"></div>
-                <div class="theme-color" style="background:#00b42a"></div>
-                <div class="theme-color" style="background:#ff7d00"></div>
-                <div class="theme-color" style="background:#722ed1"></div>
-            </div>
-            <input type="color" id="custom-theme" style="width:100%;margin-top:10px;border:none;height:30px;cursor:pointer;">
-        `;
-        document.body.appendChild(themeModal);
-        themeModal.querySelectorAll('.theme-color').forEach(el => {
-            el.addEventListener('click', () => {
-                if (typeof setTheme === 'function') setTheme(el.style.backgroundColor);
-            });
-        });
-        document.getElementById('custom-theme').addEventListener('input', e => {
-            if (typeof setTheme === 'function') setTheme(e.target.value);
-        });
-    }
-    themeModal.classList.toggle('show');
+    // 不再使用底部弹窗，设置页已有主题色选择
 }
