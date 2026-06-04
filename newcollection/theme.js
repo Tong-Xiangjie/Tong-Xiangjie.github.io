@@ -37,7 +37,6 @@ function lightenColor(color, ratio) {
 function applyTheme(color) {
     document.documentElement.style.setProperty('--theme', color);
 
-    // 背景色系
     const lightBg = lightenColor(color, 0.92);
     document.documentElement.style.setProperty('--bg', lightBg);
 
@@ -47,22 +46,16 @@ function applyTheme(color) {
     const sidebarBg = lightenColor(color, 0.86);
     document.documentElement.style.setProperty('--sidebar-bg', sidebarBg);
 
-    // 边框
     const borderColor = lightenColor(color, 0.78);
     document.documentElement.style.setProperty('--border', borderColor);
 
-    // 缩略图占位背景
     const thumbBg = lightenColor(color, 0.82);
     document.documentElement.style.setProperty('--thumb-bg', thumbBg);
 
-    // 主题色变亮版本（搜索模式按钮等）
     const themeLight = lightenColor(color, 0.4);
     document.documentElement.style.setProperty('--theme-light', themeLight);
 
-    // 文字颜色保持不变（使用 CSS :root 中的固定值）
-    // --text: #2c2418
-    // --text-secondary: #8b6b4f
-    // 不需要动态设置
+    // 文字颜色保持 CSS 默认值，不动态设置
 }
 
 function loadTheme() {
