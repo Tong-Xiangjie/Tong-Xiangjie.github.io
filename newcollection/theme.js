@@ -52,8 +52,8 @@ function applyTheme(color) {
     const thumbBg = lightenColor(color, 0.82);
     document.documentElement.style.setProperty('--thumb-bg', thumbBg);
 
-    // 主题色变亮版本（用于搜索模式切换按钮等）
-    const themeLight = lightenColor(color, 0.3);
+    // 主题色变亮版本（搜索模式按钮等）
+    const themeLight = lightenColor(color, 0.4);
     document.documentElement.style.setProperty('--theme-light', themeLight);
 }
 
