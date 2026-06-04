@@ -8,6 +8,7 @@ let searchMode = 'click';
 let scrollMemory = {};
 let isSettingsMode = false;
 let settingsReturnState = null;
+let isSidebarCollapsed = false;
 
 // 存储各模式的状态（含展开状态）
 let modeStates = {
@@ -147,6 +148,17 @@ function restoreExpandedStates(states) {
             if (content) content.scrollTop = states.scrollY;
         }
     });
+}
+
+// ========== 侧边栏折叠 ==========
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggle) return;
+    isSidebarCollapsed = !isSidebarCollapsed;
+    sidebar.classList.toggle('collapsed', isSidebarCollapsed);
+    toggle.textContent = isSidebarCollapsed ? '▶' : '◀';
+    toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
 }
 
 // ========== 侧边栏渲染 ==========
@@ -439,6 +451,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setupModalEvents();
+
+    // 侧边栏折叠
+    document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
 
     if (typeof loadTheme === 'function') loadTheme();
 });
