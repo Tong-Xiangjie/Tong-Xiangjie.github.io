@@ -7,7 +7,7 @@ let viewHistoryStack = [];
 
 // 合并所有数据
 const coinsData = {
-    commemorative: commemorativeData,
+    commemorative: coincommData,
     circulating: circulatingData,
     gold_silver: gold_silverData
 };
