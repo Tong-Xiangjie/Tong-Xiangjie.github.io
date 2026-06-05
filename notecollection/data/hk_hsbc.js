@@ -276,7 +276,7 @@ const hk_hsbcData = {
                             version: "CZ388408",
                             bank: "香港上海汇丰银行",
                             condition: "ACG66E",
-                            price: "68元",
+                            price: "78元",
                             purchaseDate: "2026年2月18日",
                             krause: "219b",
                             signature: "",
