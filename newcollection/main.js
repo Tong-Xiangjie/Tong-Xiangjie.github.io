@@ -311,28 +311,78 @@ function onTabClick(target) {
         if (searchContainer) searchContainer.classList.remove('hidden');
 
         document.querySelector('.body-row')?.classList.remove('settings-mode');
+
+        // 根据目标 Tab 切换模式
+        if (target === 'articles') {
+            currentMode = 'articles';
+            currentArticleView = articleState.currentView;
+            currentArticleCategory = articleState.currentCategory;
+            currentArticleIndex = articleState.currentIndex;
+            articleSearchKeyword = articleState.searchKeyword;
+            if (collectedArticles.length === 0) collectAllArticles();
+            searchMode = 'realtime';
+            const si = document.getElementById('searchInput');
+            if (si) {
+                si.removeEventListener('input', doSearch);
+                si.addEventListener('input', doSearch);
+            }
+            updateSearchUIForMode();
+            renderSidebar();
+            if (currentArticleView === 'list') renderArticleList();
+            else openArticleReader(currentArticleIndex);
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
+            return;
+        }
+
+        if (target === 'notes' || target === 'coins') {
+            // 恢复之前保存的状态，但切换到目标模式
+            if (settingsReturnState) {
+                // 从之前保存的状态中恢复非模式相关的信息
+                currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
+            }
+            currentMode = target;
+            const saved = modeStates[target];
+            currentCategoryId = saved.currentCategoryId;
+            currentSubId = saved.currentSubId;
+            currentView = saved.currentView;
+            currentSearchKeyword = saved.currentSearchKeyword || '';
+
+            if (searchMode === 'realtime') {
+                const inp = document.getElementById('searchInput');
+                if (inp) {
+                    inp.removeEventListener('input', doSearch);
+                    inp.addEventListener('input', doSearch);
+                }
+            }
+
+            updateSearchUIForMode();
+            renderSidebar();
+            if (currentView === 'overview') {
+                renderOverview();
+            } else if (currentView === 'category') {
+                renderCurrentCategory();
+                restoreExpandedStates({
+                    expandedSeries: saved.expandedSeries,
+                    expandedVarieties: saved.expandedVarieties,
+                    scrollY: saved.scrollY
+                });
+            } else if (currentView === 'search') {
+                if (currentSearchKeyword) {
+                    performSearchAndRender(currentSearchKeyword, currentSearchType);
+                } else {
+                    currentView = 'overview';
+                    renderOverview();
+                }
+            }
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
+            return;
+        }
+
+        // 如果点了其他未知 target，恢复之前模式
         if (settingsReturnState) {
             currentMode = settingsReturnState.currentMode || 'notes';
-            if (currentMode === 'articles') {
-                currentArticleView = articleState.currentView;
-                currentArticleCategory = articleState.currentCategory;
-                currentArticleIndex = articleState.currentIndex;
-                articleSearchKeyword = articleState.searchKeyword;
-                if (collectedArticles.length === 0) collectAllArticles();
-                searchMode = 'realtime';
-                const si = document.getElementById('searchInput');
-                if (si) {
-                    si.removeEventListener('input', doSearch);
-                    si.addEventListener('input', doSearch);
-                }
-                updateSearchUIForMode();
-                renderSidebar();
-                if (currentArticleView === 'list') renderArticleList();
-                else openArticleReader(currentArticleIndex);
-                document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-                document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
-                return;
-            }
             currentCategoryId = settingsReturnState.currentCategoryId;
             currentSubId = settingsReturnState.currentSubId;
             currentView = settingsReturnState.currentView;
@@ -468,40 +518,86 @@ function enterSettings() {
 function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
+    const customColors = getCustomColors();
 
     let html = `<div class="settings-page">`;
     html += `<h2>设置</h2>`;
+
+    // 预设主题色
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
-    const colors = ['#1677ff', '#d92121', '#00b42a', '#ff7d00', '#722ed1'];
-    for (const color of colors) {
+    const presetColors = ['#1677ff', '#d92121', '#00b42a', '#ff7d00', '#722ed1'];
+    for (const color of presetColors) {
         const active = color === currentTheme ? ' active' : '';
         html += `<div class="theme-color${active}" style="background:${color}" data-color="${color}"></div>`;
     }
     html += `</div>`;
+
+    // 已保存的自定义颜色
+    html += `<div class="saved-colors" id="savedColorsContainer">`;
+    if (customColors.length === 0) {
+        html += `<span class="empty-colors-hint">暂无自定义颜色</span>`;
+    } else {
+        for (let i = 0; i < customColors.length; i++) {
+            const color = customColors[i];
+            const active = color === currentTheme ? ' active' : '';
+            html += `<div class="saved-color-item">`;
+            html += `<div class="color-block${active}" style="background:${color}" data-color="${color}" onclick="setTheme('${color}'); updateSettingsPageTheme('${color}')"></div>`;
+            html += `<button class="remove-color-btn" onclick="removeCustomColor(${i})">✕</button>`;
+            html += `</div>`;
+        }
+    }
+    html += `</div>`;
+
+    // 自定义颜色添加
     html += `<div class="custom-color-row">`;
     html += `<label for="settingsCustomColor">自定义颜色：</label>`;
     html += `<input type="color" id="settingsCustomColor" value="${currentTheme}">`;
-    html += `</div>`;
+    html += `<button class="add-color-btn" onclick="addCurrentCustomColor()">添加</button>`;
     html += `</div>`;
     html += `</div>`;
 
+    html += `</div>`;
     app.innerHTML = html;
 
+    // 绑定预设颜色点击
     document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
         el.addEventListener('click', function() {
             const color = this.dataset.color;
-            document.querySelectorAll('#settingsThemeColors .theme-color').forEach(c => c.classList.remove('active'));
-            this.classList.add('active');
-            document.getElementById('settingsCustomColor').value = color;
+            updateSettingsPageTheme(color);
             if (typeof setTheme === 'function') setTheme(color);
         });
     });
+
+    // 绑定自定义颜色输入
     document.getElementById('settingsCustomColor').addEventListener('input', function() {
-        document.querySelectorAll('#settingsThemeColors .theme-color').forEach(c => c.classList.remove('active'));
-        if (typeof setTheme === 'function') setTheme(this.value);
+        // 实时预览但不保存
     });
+}
+
+function updateSettingsPageTheme(color) {
+    // 更新所有选中状态
+    document.querySelectorAll('.theme-color, .color-block').forEach(el => {
+        el.classList.remove('active');
+        if (el.dataset.color === color) {
+            el.classList.add('active');
+        }
+    });
+    // 更新颜色选择器的值
+    const picker = document.getElementById('settingsCustomColor');
+    if (picker) picker.value = color;
+}
+
+function addCurrentCustomColor() {
+    const picker = document.getElementById('settingsCustomColor');
+    if (!picker) return;
+    const color = picker.value;
+    addCustomColor(color);
+    // 重新渲染设置页
+    renderSettingsPage();
+    // 应用颜色
+    if (typeof setTheme === 'function') setTheme(color);
 }
 
 function setupModalEvents() {
