@@ -416,7 +416,6 @@ function onTabClick(target) {
 
     // ===== 专题 =====
     if (target === 'special') {
-        // 离开专题模式时恢复折叠按钮显示
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
             toggleBtn.style.display = '';
@@ -500,7 +499,6 @@ function onTabClick(target) {
         document.querySelector('.body-row')?.classList.remove('settings-mode');
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
-        // 恢复折叠按钮显示
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
             toggleBtn.style.display = '';
@@ -605,7 +603,6 @@ function onTabClick(target) {
 
     // ===== 文章 =====
     if (target === 'articles') {
-        // 离开专题模式时恢复折叠按钮显示
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
             toggleBtn.style.display = '';
@@ -664,7 +661,6 @@ function onTabClick(target) {
 
     // ===== 纸币/硬币 =====
     if (target === 'notes' || target === 'coins') {
-        // 离开专题模式时恢复折叠按钮显示
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
             toggleBtn.style.display = '';
@@ -1168,35 +1164,33 @@ function onPriceSortOrFilterChange() {
     const stats = computeStats();
     
     let filterInfo = null;
+    let filteredPrices = stats.prices;
+    
     if (filter && filter !== 'all') {
         const filterCats = buildPriceFilterCategories();
         const matchedCat = filterCats.find(c => c.id === filter);
         if (matchedCat) {
             filterInfo = { dataKey: matchedCat.dataKey, source: matchedCat.source };
-        }
-    }
-    
-    let filteredPrices = stats.prices;
-    if (filterInfo) {
-        const data = getDataBySource(filterInfo.dataKey, filterInfo.source);
-        if (data && data.series) {
-            const allowedNames = [];
-            for (const series of data.series) {
-                if (series.varieties) {
-                    for (const v of series.varieties) {
-                        if (v.copies) {
-                            for (const c of v.copies) {
-                                allowedNames.push(series.seriesName + ' - ' + v.varietyName);
+            const data = getDataBySource(matchedCat.dataKey, matchedCat.source);
+            if (data && data.series) {
+                const allowedNames = [];
+                for (const series of data.series) {
+                    if (series.varieties) {
+                        for (const v of series.varieties) {
+                            if (v.copies) {
+                                for (const c of v.copies) {
+                                    allowedNames.push(series.seriesName + ' - ' + v.varietyName);
+                                }
                             }
                         }
-                    }
-                } else if (series.copies) {
-                    for (const c of series.copies) {
-                        allowedNames.push(series.seriesName);
+                    } else if (series.copies) {
+                        for (const c of series.copies) {
+                            allowedNames.push(series.seriesName);
+                        }
                     }
                 }
+                filteredPrices = stats.prices.filter(p => allowedNames.includes(p.name));
             }
-            filteredPrices = stats.prices.filter(p => allowedNames.includes(p.name));
         }
     }
     
@@ -1355,14 +1349,14 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布（切换按钮在标题上面）
+    // 评级分布（切换按钮在标题上方）
     html += `<div class="settings-section">`;
     html += `<div class="rating-section-header">`;
-    html += `<h3>评级分布</h3>`;
     html += `<div class="rating-tabs">`;
     html += `<span class="rating-tab ${ratingMode === 'notes' ? 'active' : ''}" data-mode="notes" onclick="switchRatingMode('notes')">纸币</span>`;
     html += `<span class="rating-tab ${ratingMode === 'coins' ? 'active' : ''}" data-mode="coins" onclick="switchRatingMode('coins')">硬币</span>`;
     html += `</div>`;
+    html += `<h3>评级分布</h3>`;
     html += `</div>`;
     html += `<div id="ratingSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
     html += buildRatingHTML(stats);
