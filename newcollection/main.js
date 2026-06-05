@@ -15,8 +15,8 @@ let settingsPageCache = null;
 let selectedSpecial = null;
 let specialPageCache = null;
 
-// 评级切换状态（在"我的"页面中）
-let ratingMode = 'notes'; // 'notes' 或 'coins'
+// 评级切换状态
+let ratingMode = 'notes';
 
 let modeStates = {
     notes: {
@@ -493,6 +493,7 @@ function onTabClick(target) {
         if (searchContainer) searchContainer.classList.remove('hidden');
 
         document.querySelector('.body-row')?.classList.remove('settings-mode');
+        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
         if (target === 'articles') {
             currentMode = 'articles';
@@ -557,12 +558,12 @@ function onTabClick(target) {
         }
 
         if (target === 'special') {
-            // 特殊处理：从设置回到专题
             currentMode = 'special';
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector('.tab-item[data-target="special"]')?.classList.add('active');
             const searchContainer = document.querySelector('.top-search-container');
             if (searchContainer) searchContainer.classList.add('hidden');
+            
             if (settingsReturnState && settingsReturnState.selectedSpecial) {
                 selectedSpecial = settingsReturnState.selectedSpecial;
                 currentCategoryId = settingsReturnState.selectedSpecial;
@@ -732,35 +733,24 @@ function enterSettings() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
+    // 移除专题概览模式（如果有）
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
     document.querySelector('.body-row')?.classList.add('settings-mode');
+    
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
-    if (settingsPageCache) {
-        document.getElementById('app').innerHTML = settingsPageCache.innerHTML;
-        document.querySelectorAll('#settingsThemeColors .theme-color, .rating-tab').forEach(el => {
-            if (el.classList.contains('theme-color')) {
-                el.addEventListener('click', function() {
-                    const color = this.dataset.color;
-                    updateSettingsPageTheme(color);
-                    if (typeof setTheme === 'function') setTheme(color);
-                });
-            }
-            if (el.classList.contains('rating-tab')) {
-                el.addEventListener('click', function() {
-                    const mode = this.dataset.mode;
-                    if (mode) switchRatingMode(mode);
-                });
-            }
-        });
-        requestAnimationFrame(() => {
-            const content = document.querySelector('.content');
-            if (content && settingsPageCache.scrollY) {
-                content.scrollTop = settingsPageCache.scrollY;
-            }
-        });
-    } else {
-        renderSettingsPage();
+    // 直接渲染设置页（不使用缓存，确保每次进入都能显示）
+    renderSettingsPage();
+    
+    // 保存当前页面状态到缓存（供下次进入时直接恢复）
+    const appEl = document.getElementById('app');
+    const contentEl = document.querySelector('.content');
+    if (appEl && contentEl) {
+        settingsPageCache = {
+            innerHTML: appEl.innerHTML,
+            scrollY: contentEl.scrollTop
+        };
     }
 }
 
@@ -784,7 +774,6 @@ function renderSpecialOverview() {
     }
     sidebar.innerHTML = html;
 
-    // 内容区为空（已去掉提示语句）
     app.innerHTML = '';
 }
 
@@ -985,7 +974,6 @@ function collectAllCopies() {
 function computeStats(typeFilter) {
     const allCopies = collectAllCopies();
     
-    // 根据 typeFilter 筛选
     let filtered = allCopies;
     if (typeFilter === 'notes') {
         filtered = allCopies.filter(c => c.type === 'notes');
@@ -1067,25 +1055,30 @@ function computeStats(typeFilter) {
 
 function buildPriceFilterCategories() {
     const cats = [];
-    for (const cat of categoryTree) {
-        if (cat.children) {
-            for (const sub of cat.children) {
-                const data = getData(sub.dataKey);
-                if (data && data.series) {
-                    cats.push({ id: 'notes_' + sub.id, name: '纸币 - ' + sub.name, dataKey: sub.dataKey });
+    // 直接检查 window.DATA_MAP 和 window.COIN_DATA_MAP，绕过 getData()
+    if (window.DATA_MAP) {
+        for (const cat of categoryTree) {
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    const data = window.DATA_MAP[sub.dataKey];
+                    if (data && data.series) {
+                        cats.push({ id: 'notes_' + sub.id, name: '纸币 - ' + sub.name, dataKey: sub.dataKey });
+                    }
                 }
-            }
-        } else if (cat.dataKey) {
-            const data = getData(cat.dataKey);
-            if (data && data.series) {
-                cats.push({ id: 'notes_' + cat.id, name: '纸币 - ' + cat.name, dataKey: cat.dataKey });
+            } else if (cat.dataKey) {
+                const data = window.DATA_MAP[cat.dataKey];
+                if (data && data.series) {
+                    cats.push({ id: 'notes_' + cat.id, name: '纸币 - ' + cat.name, dataKey: cat.dataKey });
+                }
             }
         }
     }
-    for (const cat of coinCategoryTree) {
-        const data = getData(cat.dataKey);
-        if (data && data.series) {
-            cats.push({ id: 'coins_' + cat.id, name: '硬币 - ' + cat.name, dataKey: cat.dataKey });
+    if (window.COIN_DATA_MAP) {
+        for (const cat of coinCategoryTree) {
+            const data = window.COIN_DATA_MAP[cat.dataKey];
+            if (data && data.series) {
+                cats.push({ id: 'coins_' + cat.id, name: '硬币 - ' + cat.name, dataKey: cat.dataKey });
+            }
         }
     }
     return cats;
@@ -1094,11 +1087,9 @@ function buildPriceFilterCategories() {
 function renderPriceListItems(prices, order, filter, filterDataKey) {
     let filteredPrices = prices;
     if (filter && filter !== 'all' && filterDataKey) {
-        const data = window.DATA_MAP && window.DATA_MAP[filterDataKey] 
-            ? window.DATA_MAP[filterDataKey] 
-            : (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey] 
-                ? window.COIN_DATA_MAP[filterDataKey] 
-                : null);
+        // 直接从 DATA_MAP / COIN_DATA_MAP 获取数据
+        const data = (window.DATA_MAP && window.DATA_MAP[filterDataKey]) 
+            || (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey]);
         if (data && data.series) {
             const allowedNames = [];
             for (const series of data.series) {
@@ -1106,8 +1097,7 @@ function renderPriceListItems(prices, order, filter, filterDataKey) {
                     for (const v of series.varieties) {
                         if (v.copies) {
                             for (const c of v.copies) {
-                                const name = series.seriesName + ' - ' + v.varietyName;
-                                allowedNames.push(name);
+                                allowedNames.push(series.seriesName + ' - ' + v.varietyName);
                             }
                         }
                     }
@@ -1162,14 +1152,10 @@ function onPriceSortOrFilterChange() {
         if (matchedCat) filterDataKey = matchedCat.dataKey;
     }
     
-    // 计算筛选后的数据用于汇总
     let filteredPrices = stats.prices;
     if (filterDataKey) {
-        const data = window.DATA_MAP && window.DATA_MAP[filterDataKey] 
-            ? window.DATA_MAP[filterDataKey] 
-            : (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey] 
-                ? window.COIN_DATA_MAP[filterDataKey] 
-                : null);
+        const data = (window.DATA_MAP && window.DATA_MAP[filterDataKey]) 
+            || (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey]);
         if (data && data.series) {
             const allowedNames = [];
             for (const series of data.series) {
@@ -1191,7 +1177,6 @@ function onPriceSortOrFilterChange() {
         }
     }
     
-    // 显示/隐藏板块汇总
     if (summaryEl) {
         if (filterDataKey) {
             const total = filteredPrices.reduce((s, p) => s + (p.noPrice ? 0 : p.value), 0);
@@ -1215,27 +1200,36 @@ function changePriceSort(order) {
 
 function switchRatingMode(mode) {
     ratingMode = mode;
-    // 重新渲染评级和年代部分
-    const app = document.getElementById('app');
-    // 提取当前页面中需要刷新的部分
     const stats = computeStats(ratingMode);
-    
-    // 更新评级分布
-    const gradeSection = document.getElementById('ratingSection');
-    if (gradeSection) {
-        gradeSection.innerHTML = buildRatingHTML(stats);
-    }
-    
-    // 更新年代分布
-    const yearSection = document.getElementById('yearSection');
-    if (yearSection) {
-        yearSection.innerHTML = buildYearHTML(stats);
-    }
     
     // 更新评级tab样式
     document.querySelectorAll('.rating-tab').forEach(el => {
         el.classList.toggle('active', el.dataset.mode === mode);
     });
+    
+    // 更新评级分布（带动画）
+    const gradeSection = document.getElementById('ratingSection');
+    if (gradeSection) {
+        gradeSection.style.opacity = '0';
+        gradeSection.style.transform = 'translateY(8px)';
+        setTimeout(() => {
+            gradeSection.innerHTML = buildRatingHTML(stats);
+            gradeSection.style.opacity = '1';
+            gradeSection.style.transform = 'translateY(0)';
+        }, 100);
+    }
+    
+    // 更新年代分布（带动画）
+    const yearSection = document.getElementById('yearSection');
+    if (yearSection) {
+        yearSection.style.opacity = '0';
+        yearSection.style.transform = 'translateY(8px)';
+        setTimeout(() => {
+            yearSection.innerHTML = buildYearHTML(stats);
+            yearSection.style.opacity = '1';
+            yearSection.style.transform = 'translateY(0)';
+        }, 100);
+    }
 }
 
 function buildRatingHTML(stats) {
@@ -1291,7 +1285,8 @@ function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
     const customColors = getCustomColors();
-    const stats = computeStats(ratingMode);
+    const allStats = computeStats();  // 总数据
+    const stats = computeStats(ratingMode);  // 当前评级模式数据
 
     let html = `<div class="settings-page">`;
     html += `<h2>我的</h2>`;
@@ -1300,9 +1295,6 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<h3>收藏概况</h3>`;
     html += `<div class="stats-summary-cards">`;
-    html += `<div class="stat-card"><div class="stat-num">${stats.total + (stats.notesCount - stats.total) + (stats.coinsCount - (stats.total - (stats.notesCount > stats.coinsCount ? stats.coinsCount : stats.notesCount)))}</div><div class="stat-label">总藏品</div></div>`;
-    // 简化：直接显示总、纸币、硬币
-    const allStats = computeStats();
     html += `<div class="stat-card"><div class="stat-num">${allStats.total}</div><div class="stat-label">藏品总数</div></div>`;
     html += `<div class="stat-card"><div class="stat-num">${allStats.notesCount}</div><div class="stat-label">纸币</div></div>`;
     html += `<div class="stat-card"><div class="stat-num">${allStats.coinsCount}</div><div class="stat-label">硬币</div></div>`;
@@ -1344,14 +1336,14 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布（带切换）
+    // 评级分布（带切换选项卡）
     html += `<div class="settings-section">`;
     html += `<h3>评级分布</h3>`;
     html += `<div class="rating-tabs">`;
     html += `<span class="rating-tab ${ratingMode === 'notes' ? 'active' : ''}" data-mode="notes" onclick="switchRatingMode('notes')">纸币</span>`;
     html += `<span class="rating-tab ${ratingMode === 'coins' ? 'active' : ''}" data-mode="coins" onclick="switchRatingMode('coins')">硬币</span>`;
     html += `</div>`;
-    html += `<div id="ratingSection">`;
+    html += `<div id="ratingSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
     html += buildRatingHTML(stats);
     html += `</div>`;
     html += `</div>`;
@@ -1359,7 +1351,7 @@ function renderSettingsPage() {
     // 年代分布
     html += `<div class="settings-section">`;
     html += `<h3>年代分布</h3>`;
-    html += `<div id="yearSection">`;
+    html += `<div id="yearSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
     html += buildYearHTML(stats);
     html += `</div>`;
     html += `</div>`;
@@ -1409,70 +1401,12 @@ function renderSettingsPage() {
     });
 }
 
-function renderPriceListItems(prices, order, filter, filterDataKey) {
-    let filteredPrices = prices;
-    if (filter && filter !== 'all' && filterDataKey) {
-        const data = window.DATA_MAP && window.DATA_MAP[filterDataKey] 
-            ? window.DATA_MAP[filterDataKey] 
-            : (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey] 
-                ? window.COIN_DATA_MAP[filterDataKey] 
-                : null);
-        if (data && data.series) {
-            const allowedNames = [];
-            for (const series of data.series) {
-                if (series.varieties) {
-                    for (const v of series.varieties) {
-                        if (v.copies) {
-                            for (const c of v.copies) {
-                                allowedNames.push(series.seriesName + ' - ' + v.varietyName);
-                            }
-                        }
-                    }
-                } else if (series.copies) {
-                    for (const c of series.copies) {
-                        allowedNames.push(series.seriesName);
-                    }
-                }
-            }
-            filteredPrices = prices.filter(p => allowedNames.includes(p.name));
-        }
-    }
-    
-    const sorted = [...filteredPrices].sort((a, b) => {
-        if (order === 'desc') return b.value - a.value;
-        else return a.value - b.value;
-    });
-
-    let html = '';
-    for (let i = 0; i < sorted.length; i++) {
-        const p = sorted[i];
-        const displayPrice = p.noPrice ? '-' : p.value + ' 元';
-        const nameHtml = escapeHtml(p.name);
-        const versionHtml = p.version ? escapeHtml(p.version) : '';
-        html += `<div class="price-list-item">`;
-        html += `<span class="price-list-index">${i + 1}</span>`;
-        html += `<span class="price-list-name">${nameHtml}${versionHtml ? ' (' + versionHtml + ')' : ''}</span>`;
-        html += `<span class="price-list-value ${p.noPrice ? 'no-price' : ''}">${displayPrice}</span>`;
-        html += `</div>`;
-    }
-    if (sorted.length === 0) {
-        html += `<div class="price-list-empty">无匹配结果</div>`;
-    }
-    return html;
-}
-
 function togglePriceList() {
     const body = document.getElementById('priceListBody');
     const arrow = document.getElementById('priceListArrow');
     if (!body || !arrow) return;
     body.classList.toggle('open');
     arrow.classList.toggle('open');
-}
-
-function changePriceSort(order) {
-    const sortSelect = document.getElementById('priceSortSelect');
-    if (sortSelect) sortSelect.value = order;
-    onPriceSortOrFilterChange();
 }
 
 function updateSettingsPageTheme(color) {
