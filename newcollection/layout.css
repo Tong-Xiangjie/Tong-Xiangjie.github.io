@@ -1080,3 +1080,100 @@ body.modal-open {
     text-align: right;
     flex-shrink: 0;
 }
+
+/* ========== 价格列表 ========== */
+
+.price-list-wrapper {
+    margin-top: 10px;
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.price-list-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+.price-list-header span:first-child {
+    font-weight: bold;
+    color: var(--text-secondary);
+}
+
+.price-sort-select {
+    margin-left: auto;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+}
+
+.price-list-arrow {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.price-list-arrow.open {
+    transform: rotate(180deg);
+}
+
+.price-list-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.price-list-body.open {
+    max-height: 4000px;
+    opacity: 1;
+}
+
+.price-list-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    border-top: 1px solid var(--border);
+    gap: 8px;
+}
+
+.price-list-index {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    min-width: 24px;
+    flex-shrink: 0;
+}
+
+.price-list-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+}
+
+.price-list-value {
+    font-weight: bold;
+    color: var(--theme);
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 60px;
+}
+
+.price-list-value.no-price {
+    color: var(--text-secondary);
+    font-weight: normal;
+}
