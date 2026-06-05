@@ -416,6 +416,11 @@ function onTabClick(target) {
 
     // ===== 专题 =====
     if (target === 'special') {
+        // 离开专题模式时恢复折叠按钮显示
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn && toggleBtn.style.display === 'none') {
+            toggleBtn.style.display = '';
+        }
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
         if (isSettingsMode) {
@@ -494,6 +499,12 @@ function onTabClick(target) {
 
         document.querySelector('.body-row')?.classList.remove('settings-mode');
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
+        // 恢复折叠按钮显示
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn && toggleBtn.style.display === 'none') {
+            toggleBtn.style.display = '';
+        }
 
         if (target === 'articles') {
             currentMode = 'articles';
@@ -594,6 +605,11 @@ function onTabClick(target) {
 
     // ===== 文章 =====
     if (target === 'articles') {
+        // 离开专题模式时恢复折叠按钮显示
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn && toggleBtn.style.display === 'none') {
+            toggleBtn.style.display = '';
+        }
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
         if (currentMode === 'notes' || currentMode === 'coins') {
@@ -648,6 +664,11 @@ function onTabClick(target) {
 
     // ===== 纸币/硬币 =====
     if (target === 'notes' || target === 'coins') {
+        // 离开专题模式时恢复折叠按钮显示
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn && toggleBtn.style.display === 'none') {
+            toggleBtn.style.display = '';
+        }
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
         if (currentMode === 'articles') {
@@ -733,17 +754,14 @@ function enterSettings() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
-    // 移除专题概览模式（如果有）
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
     document.querySelector('.body-row')?.classList.add('settings-mode');
     
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
-    // 直接渲染设置页（不使用缓存，确保每次进入都能显示）
     renderSettingsPage();
     
-    // 保存当前页面状态到缓存（供下次进入时直接恢复）
     const appEl = document.getElementById('app');
     const contentEl = document.querySelector('.content');
     if (appEl && contentEl) {
@@ -1013,12 +1031,12 @@ function computeStats(typeFilter) {
         if (ps) {
             const num = parseFloat(ps.replace(/[^0-9.]/g, ''));
             if (!isNaN(num) && num > 0) {
-                prices.push({ value: num, name: item.seriesName, version: item.copy.version || '', dataKey: item.dataKey });
+                prices.push({ value: num, name: item.seriesName, version: item.copy.version || '', dataKey: item.dataKey, type: item.type });
             } else {
-                prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true, dataKey: item.dataKey });
+                prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true, dataKey: item.dataKey, type: item.type });
             }
         } else {
-            prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true, dataKey: item.dataKey });
+            prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true, dataKey: item.dataKey, type: item.type });
         }
     }
     const totalPrice = prices.reduce((s, p) => s + (p.noPrice ? 0 : p.value), 0);
@@ -1055,20 +1073,19 @@ function computeStats(typeFilter) {
 
 function buildPriceFilterCategories() {
     const cats = [];
-    // 直接检查 window.DATA_MAP 和 window.COIN_DATA_MAP，绕过 getData()
     if (window.DATA_MAP) {
         for (const cat of categoryTree) {
             if (cat.children) {
                 for (const sub of cat.children) {
                     const data = window.DATA_MAP[sub.dataKey];
-                    if (data && data.series) {
-                        cats.push({ id: 'notes_' + sub.id, name: '纸币 - ' + sub.name, dataKey: sub.dataKey });
+                    if (data && data.series && data.series.length > 0) {
+                        cats.push({ id: 'notes_' + sub.id, name: '纸币 - ' + sub.name, dataKey: sub.dataKey, source: 'notes' });
                     }
                 }
             } else if (cat.dataKey) {
                 const data = window.DATA_MAP[cat.dataKey];
-                if (data && data.series) {
-                    cats.push({ id: 'notes_' + cat.id, name: '纸币 - ' + cat.name, dataKey: cat.dataKey });
+                if (data && data.series && data.series.length > 0) {
+                    cats.push({ id: 'notes_' + cat.id, name: '纸币 - ' + cat.name, dataKey: cat.dataKey, source: 'notes' });
                 }
             }
         }
@@ -1076,20 +1093,25 @@ function buildPriceFilterCategories() {
     if (window.COIN_DATA_MAP) {
         for (const cat of coinCategoryTree) {
             const data = window.COIN_DATA_MAP[cat.dataKey];
-            if (data && data.series) {
-                cats.push({ id: 'coins_' + cat.id, name: '硬币 - ' + cat.name, dataKey: cat.dataKey });
+            if (data && data.series && data.series.length > 0) {
+                cats.push({ id: 'coins_' + cat.id, name: '硬币 - ' + cat.name, dataKey: cat.dataKey, source: 'coins' });
             }
         }
     }
     return cats;
 }
 
-function renderPriceListItems(prices, order, filter, filterDataKey) {
+function getDataBySource(dataKey, source) {
+    if (source === 'coins') {
+        return window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey] ? window.COIN_DATA_MAP[dataKey] : null;
+    }
+    return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
+}
+
+function renderPriceListItems(prices, order, filter, filterInfo) {
     let filteredPrices = prices;
-    if (filter && filter !== 'all' && filterDataKey) {
-        // 直接从 DATA_MAP / COIN_DATA_MAP 获取数据
-        const data = (window.DATA_MAP && window.DATA_MAP[filterDataKey]) 
-            || (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey]);
+    if (filter && filter !== 'all' && filterInfo) {
+        const data = getDataBySource(filterInfo.dataKey, filterInfo.source);
         if (data && data.series) {
             const allowedNames = [];
             for (const series of data.series) {
@@ -1145,17 +1167,18 @@ function onPriceSortOrFilterChange() {
     const filter = filterSelect.value;
     const stats = computeStats();
     
-    let filterDataKey = null;
+    let filterInfo = null;
     if (filter && filter !== 'all') {
         const filterCats = buildPriceFilterCategories();
         const matchedCat = filterCats.find(c => c.id === filter);
-        if (matchedCat) filterDataKey = matchedCat.dataKey;
+        if (matchedCat) {
+            filterInfo = { dataKey: matchedCat.dataKey, source: matchedCat.source };
+        }
     }
     
     let filteredPrices = stats.prices;
-    if (filterDataKey) {
-        const data = (window.DATA_MAP && window.DATA_MAP[filterDataKey]) 
-            || (window.COIN_DATA_MAP && window.COIN_DATA_MAP[filterDataKey]);
+    if (filterInfo) {
+        const data = getDataBySource(filterInfo.dataKey, filterInfo.source);
         if (data && data.series) {
             const allowedNames = [];
             for (const series of data.series) {
@@ -1178,7 +1201,7 @@ function onPriceSortOrFilterChange() {
     }
     
     if (summaryEl) {
-        if (filterDataKey) {
+        if (filterInfo) {
             const total = filteredPrices.reduce((s, p) => s + (p.noPrice ? 0 : p.value), 0);
             const pricedItems = filteredPrices.filter(p => !p.noPrice);
             const avg = pricedItems.length > 0 ? Math.round(total / pricedItems.length) : 0;
@@ -1189,7 +1212,7 @@ function onPriceSortOrFilterChange() {
         }
     }
     
-    bodyEl.innerHTML = renderPriceListItems(stats.prices, order, filter, filterDataKey);
+    bodyEl.innerHTML = renderPriceListItems(stats.prices, order, filter, filterInfo);
 }
 
 function changePriceSort(order) {
@@ -1202,12 +1225,10 @@ function switchRatingMode(mode) {
     ratingMode = mode;
     const stats = computeStats(ratingMode);
     
-    // 更新评级tab样式
     document.querySelectorAll('.rating-tab').forEach(el => {
         el.classList.toggle('active', el.dataset.mode === mode);
     });
     
-    // 更新评级分布（带动画）
     const gradeSection = document.getElementById('ratingSection');
     if (gradeSection) {
         gradeSection.style.opacity = '0';
@@ -1219,7 +1240,6 @@ function switchRatingMode(mode) {
         }, 100);
     }
     
-    // 更新年代分布（带动画）
     const yearSection = document.getElementById('yearSection');
     if (yearSection) {
         yearSection.style.opacity = '0';
@@ -1285,8 +1305,8 @@ function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
     const customColors = getCustomColors();
-    const allStats = computeStats();  // 总数据
-    const stats = computeStats(ratingMode);  // 当前评级模式数据
+    const allStats = computeStats();
+    const stats = computeStats(ratingMode);
 
     let html = `<div class="settings-page">`;
     html += `<h2>我的</h2>`;
@@ -1310,7 +1330,6 @@ function renderSettingsPage() {
     html += `<div class="money-row"><span class="money-label">均价</span><span class="money-value">${allStats.avgPrice} 元/件</span></div>`;
     html += `</div>`;
 
-    // 价格列表（折叠）
     html += `<div class="price-list-wrapper">`;
     html += `<div class="price-list-header" onclick="togglePriceList()">`;
     html += `<span>价格列表</span>`;
@@ -1336,12 +1355,14 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布（带切换选项卡）
+    // 评级分布（切换按钮在标题上面）
     html += `<div class="settings-section">`;
+    html += `<div class="rating-section-header">`;
     html += `<h3>评级分布</h3>`;
     html += `<div class="rating-tabs">`;
     html += `<span class="rating-tab ${ratingMode === 'notes' ? 'active' : ''}" data-mode="notes" onclick="switchRatingMode('notes')">纸币</span>`;
     html += `<span class="rating-tab ${ratingMode === 'coins' ? 'active' : ''}" data-mode="coins" onclick="switchRatingMode('coins')">硬币</span>`;
+    html += `</div>`;
     html += `</div>`;
     html += `<div id="ratingSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
     html += buildRatingHTML(stats);
