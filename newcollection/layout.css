@@ -163,7 +163,7 @@ body {
     position: relative;
 }
 
-/* 设置模式：侧边栏和折叠按钮收起（带动画） */
+/* 设置/专题模式：侧边栏和折叠按钮收起（带动画） */
 .body-row.settings-mode .sidebar,
 .body-row.settings-mode .sidebar-toggle {
     width: 0;
@@ -1177,4 +1177,139 @@ body.modal-open {
 .price-list-value.no-price {
     color: var(--text-secondary);
     font-weight: normal;
+}
+
+/* ========== 专题样式 ========== */
+
+.special-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.special-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.special-card:hover {
+    border-color: var(--theme);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+.special-card-name {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.special-card-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.special-card-count {
+    font-size: 0.75rem;
+    color: var(--theme);
+    background: var(--bg-light);
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 20px;
+}
+
+/* 专题内容页 */
+.special-content h2 {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+}
+
+.special-year-section {
+    margin: 18px 0;
+}
+
+.special-year-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--theme);
+    padding: 8px 10px;
+    background: var(--bg-light);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--theme);
+}
+
+.special-year-title .count {
+    font-weight: normal;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-left: 8px;
+}
+
+.special-year-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.special-item-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.special-item-card:hover {
+    border-color: var(--theme-light);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+}
+
+.special-item-img-wrapper {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--thumb-bg);
+}
+
+.special-item-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s ease;
+}
+
+.special-item-card:hover .special-item-img {
+    transform: scale(1.05);
+}
+
+.special-item-info {
+    padding: 8px 10px;
+}
+
+.special-item-name {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.special-item-krause {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
 }
