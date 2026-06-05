@@ -14,6 +14,7 @@ let settingsPageCache = null;
 // 专题状态
 let selectedSpecial = null;
 let specialPageCache = null;
+let specialOverviewHintVisible = true;
 
 let modeStates = {
     notes: {
@@ -398,7 +399,9 @@ function onTabClick(target) {
                 const contentEl = document.querySelector('.content');
                 specialPageCache = {
                     innerHTML: appEl ? appEl.innerHTML : '',
-                    scrollY: contentEl ? contentEl.scrollTop : 0
+                    scrollY: contentEl ? contentEl.scrollTop : 0,
+                    selectedSpecial: selectedSpecial,
+                    currentSubId: currentSubId
                 };
             }
             settingsReturnState = {
@@ -456,19 +459,31 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.add('hidden');
 
-        // 恢复缓存或显示概览页
-        if (specialPageCache && selectedSpecial !== null) {
-            document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            if (toggleBtn) toggleBtn.style.display = '';
-            document.getElementById('app').innerHTML = specialPageCache.innerHTML;
-            renderSidebar();
-            requestAnimationFrame(() => {
-                const content = document.querySelector('.content');
-                if (content && specialPageCache.scrollY) {
-                    content.scrollTop = specialPageCache.scrollY;
-                }
-            });
+        // 从缓存恢复 selectedSpecial 和 currentSubId
+        if (specialPageCache) {
+            if (specialPageCache.selectedSpecial !== undefined) {
+                selectedSpecial = specialPageCache.selectedSpecial;
+            }
+            if (specialPageCache.currentSubId !== undefined) {
+                currentSubId = specialPageCache.currentSubId;
+            }
+            if (selectedSpecial !== null && specialPageCache.innerHTML) {
+                // 恢复内容页
+                document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+                const toggleBtn = document.getElementById('sidebarToggle');
+                if (toggleBtn) toggleBtn.style.display = '';
+                currentCategoryId = selectedSpecial;
+                document.getElementById('app').innerHTML = specialPageCache.innerHTML;
+                renderSidebar();
+                requestAnimationFrame(() => {
+                    const content = document.querySelector('.content');
+                    if (content && specialPageCache.scrollY) {
+                        content.scrollTop = specialPageCache.scrollY;
+                    }
+                });
+            } else {
+                renderSpecialOverview();
+            }
         } else {
             renderSpecialOverview();
         }
@@ -594,7 +609,9 @@ function onTabClick(target) {
             const contentEl = document.querySelector('.content');
             specialPageCache = {
                 innerHTML: appEl ? appEl.innerHTML : '',
-                scrollY: contentEl ? contentEl.scrollTop : 0
+                scrollY: contentEl ? contentEl.scrollTop : 0,
+                selectedSpecial: selectedSpecial,
+                currentSubId: currentSubId
             };
         }
 
@@ -654,7 +671,9 @@ function onTabClick(target) {
             const contentEl = document.querySelector('.content');
             specialPageCache = {
                 innerHTML: appEl ? appEl.innerHTML : '',
-                scrollY: contentEl ? contentEl.scrollTop : 0
+                scrollY: contentEl ? contentEl.scrollTop : 0,
+                selectedSpecial: selectedSpecial,
+                currentSubId: currentSubId
             };
         }
 
@@ -759,8 +778,9 @@ function renderSpecialOverview() {
     }
     sidebar.innerHTML = html;
 
-    // 内容区显示提示信息
-    app.innerHTML = '<div class="empty-state">选择一个专题开始浏览</div>';
+    // 内容区显示提示信息（带动画）
+    specialOverviewHintVisible = true;
+    app.innerHTML = '<div class="special-overview-hint" id="specialOverviewHint">选择一个专题开始浏览</div>';
 }
 
 function onSpecialOverviewItemClick(specialId) {
@@ -773,7 +793,15 @@ function onSpecialOverviewItemClick(specialId) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = '';
 
-    // 默认选中第一个子分类（和"人民币→第五套人民币"一样）
+    // 提示语淡出
+    specialOverviewHintVisible = false;
+    const hint = document.getElementById('specialOverviewHint');
+    if (hint) {
+        hint.style.opacity = '0';
+        hint.style.transform = 'translateY(-10px)';
+    }
+
+    // 默认选中第一个子分类
     const config = specialConfigs.find(c => c.id === specialId);
     if (config && config.categories && config.categories.length > 0) {
         currentCategoryId = specialId;
