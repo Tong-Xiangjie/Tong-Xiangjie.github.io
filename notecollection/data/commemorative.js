@@ -612,12 +612,6 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
-            readme: {
-                title: "北京2022年冬奥会纪念钞宣传视频",
-                content: `<div style="text-align:center;">
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
-</div>`
-            },
             copies: [{ 
                 copyId: 1, 
                 year: 2022,
@@ -637,12 +631,6 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
             year: "2022",
-            readme: {
-                title: "北京2022年冬奥会纪念钞宣传视频",
-                content: `<div style="text-align:center;">
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
-</div>`
-            },
             copies: [
                 { 
                     copyId: 1, 
@@ -694,12 +682,6 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）",
             year: "2022",
-            readme: {
-                title: "北京2022年冬奥会纪念钞宣传视频",
-                content: `<div style="text-align:center;">
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
-</div>`
-            },
             copies: [
                 { 
                     copyId: 1, 
@@ -736,12 +718,6 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
             year: "2022",
-            readme: {
-                title: "北京2022年冬奥会纪念钞宣传视频",
-                content: `<div style="text-align:center;">
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115432866448794&bvid=BV1KjsdzjEFk&cid=33416875965&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
-</div>`
-            },
             copies: [{ 
                 copyId: 1, 
                 year: 2022,
