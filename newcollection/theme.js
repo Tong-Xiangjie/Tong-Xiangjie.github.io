@@ -66,4 +66,38 @@ function setTheme(color) {
     localStorage.setItem('app-theme', color);
 }
 
+// ========== 自定义颜色管理 ==========
+function getCustomColors() {
+    try {
+        const stored = localStorage.getItem('custom-theme-colors');
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function addCustomColor(color) {
+    const colors = getCustomColors();
+    // 去重：不添加已存在的颜色
+    if (colors.includes(color)) return;
+    // 限制最多20个自定义颜色
+    if (colors.length >= 20) {
+        alert('自定义颜色最多20个');
+        return;
+    }
+    colors.push(color);
+    localStorage.setItem('custom-theme-colors', JSON.stringify(colors));
+}
+
+function removeCustomColor(index) {
+    const colors = getCustomColors();
+    if (index < 0 || index >= colors.length) return;
+    colors.splice(index, 1);
+    localStorage.setItem('custom-theme-colors', JSON.stringify(colors));
+    // 刷新设置页
+    if (typeof renderSettingsPage === 'function') {
+        renderSettingsPage();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', loadTheme);
