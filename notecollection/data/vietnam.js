@@ -24,7 +24,7 @@ const vietnamData = {
                     year: 2016,
                     version: "",
                     bank: "越南国家银行/State Bank of Vietnam",
-                    condition: "ACG00E",
+                    condition: "ACGE",
                     price: "",
                     purchaseDate: "",
                     krause: "125",
