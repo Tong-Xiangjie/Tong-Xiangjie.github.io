@@ -12,9 +12,8 @@ let isSidebarCollapsed = false;
 let settingsPageCache = null;
 
 // 专题状态
-let selectedSpecial = null;          // 当前选中的专题ID，null=概览页
-let specialPageCache = null;         // 缓存专题内容页的 HTML+滚动位置
-let specialExpandedState = {};       // 记录概览页每个专题区块的展开状态
+let selectedSpecial = null;
+let specialPageCache = null;
 
 let modeStates = {
     notes: {
@@ -211,7 +210,6 @@ function renderSidebar() {
         return;
     }
 
-    // 专题模式：使用专题分类树
     let tree;
     if (currentMode === 'special') {
         tree = specialCategoryTree;
@@ -248,19 +246,14 @@ function onSidebarItemClick(catId) {
     // 专题模式
     if (currentMode === 'special') {
         if (selectedSpecial === catId) {
-            // 点击已选中的专题 → 回到概览页
+            // 点击已选中的专题 → 回到概览页（侧边栏重新展开铺满）
             selectedSpecial = null;
             currentCategoryId = null;
             currentSubId = null;
-            // 隐藏侧边栏
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            if (sidebar) sidebar.style.display = 'none';
-            if (toggle) toggle.style.display = 'none';
             renderSpecialOverview();
             return;
         }
-        // 选中新专题
+        // 切换到其他专题
         selectedSpecial = catId;
         const config = specialConfigs.find(c => c.id === catId);
         if (config && config.categories && config.categories.length > 0) {
@@ -275,7 +268,7 @@ function onSidebarItemClick(catId) {
         return;
     }
 
-    // 纸币/硬币模式（原有逻辑）
+    // 纸币/硬币模式
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === catId);
     if (!cat) return;
@@ -420,8 +413,10 @@ function onTabClick(target) {
 
     // ===== 专题 =====
     if (target === 'special') {
+        // 离开其他模式时移除概览模式 class
+        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
         if (isSettingsMode) {
-            // 退出设置模式，保存缓存
             const appEl = document.getElementById('app');
             const contentEl = document.querySelector('.content');
             if (appEl) {
@@ -463,11 +458,9 @@ function onTabClick(target) {
 
         // 恢复缓存或显示概览页
         if (specialPageCache && selectedSpecial !== null) {
-            // 恢复内容页（侧边栏显示）
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            if (sidebar) sidebar.style.display = '';
-            if (toggle) toggle.style.display = '';
+            document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            if (toggleBtn) toggleBtn.style.display = '';
             document.getElementById('app').innerHTML = specialPageCache.innerHTML;
             renderSidebar();
             requestAnimationFrame(() => {
@@ -477,23 +470,7 @@ function onTabClick(target) {
                 }
             });
         } else {
-            // 首次进入或已回到概览
-            if (selectedSpecial !== null) {
-                // 恢复内容页
-                const sidebar = document.getElementById('sidebar');
-                const toggle = document.getElementById('sidebarToggle');
-                if (sidebar) sidebar.style.display = '';
-                if (toggle) toggle.style.display = '';
-                renderSidebar();
-                renderSpecialContent();
-            } else {
-                // 显示概览页（侧边栏隐藏）
-                const sidebar = document.getElementById('sidebar');
-                const toggle = document.getElementById('sidebarToggle');
-                if (sidebar) sidebar.style.display = 'none';
-                if (toggle) toggle.style.display = 'none';
-                renderSpecialOverview();
-            }
+            renderSpecialOverview();
         }
         return;
     }
@@ -598,6 +575,9 @@ function onTabClick(target) {
 
     // ===== 文章 =====
     if (target === 'articles') {
+        // 离开专题模式时移除概览模式 class
+        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
         if (currentMode === 'notes' || currentMode === 'coins') {
             const content = document.querySelector('.content');
             const scrollY = content ? content.scrollTop : 0;
@@ -636,7 +616,6 @@ function onTabClick(target) {
             si.addEventListener('input', doSearch);
         }
 
-        // 显示搜索栏
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
@@ -649,6 +628,9 @@ function onTabClick(target) {
 
     // ===== 纸币/硬币 =====
     if (target === 'notes' || target === 'coins') {
+        // 离开专题模式时移除概览模式 class
+        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
         if (currentMode === 'articles') {
             articleState = {
                 currentView: currentArticleView,
@@ -693,7 +675,6 @@ function onTabClick(target) {
             }
         }
 
-        // 显示搜索栏
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
@@ -759,90 +740,49 @@ function enterSettings() {
 
 function renderSpecialOverview() {
     const app = document.getElementById('app');
-    
-    // 隐藏侧边栏和折叠按钮
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('sidebarToggle');
-    if (sidebar) sidebar.style.display = 'none';
+
+    // 添加概览模式 class → 侧边栏展开铺满 + 内容区隐藏
+    document.querySelector('.body-row')?.classList.add('special-overview-mode');
+
+    // 隐藏折叠按钮
     if (toggleBtn) toggleBtn.style.display = 'none';
 
-    let html = `<div class="special-overview">`;
-    html += `<h2 class="special-overview-title">专题</h2>`;
-
+    // 渲染侧边栏：只显示专题名称，无子分类
+    let html = '';
     for (const config of specialConfigs) {
-        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
-        const count = data ? data.length : 0;
-        const expanded = specialExpandedState[config.id] || false;
-        
-        html += `<div class="special-overview-section">`;
-        // 主标题（可点击展开/收起子分类）
-        html += `<div class="special-overview-header${expanded ? ' expanded' : ''}" onclick="toggleSpecialSection('${config.id}')">`;
-        html += `<span class="special-overview-name">${escapeHtml(config.name)}</span>`;
-        html += `<span class="special-overview-count">${count} 条数据</span>`;
-        html += `<span class="special-overview-arrow">▼</span>`;
-        html += `</div>`;
-        
-        // 子分类列表（展开/折叠动画）
-        html += `<div class="special-overview-children" id="special-children-${config.id}"${expanded ? '' : ' style="max-height:0;opacity:0;"'}>`;
-        for (const cat of config.categories) {
-            html += `<div class="special-overview-child" onclick="onSpecialChildClick('${config.id}', '${cat.id}'); event.stopPropagation();">`;
-            html += `${escapeHtml(cat.name)}`;
-            html += `</div>`;
-        }
-        html += `</div>`;
+        const isActive = selectedSpecial === config.id;
+        html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onSpecialOverviewItemClick('${config.id}')">`;
+        html += `<span>${escapeHtml(config.name)}</span>`;
         html += `</div>`;
     }
+    sidebar.innerHTML = html;
 
-    if (specialConfigs.length === 0) {
-        html += `<div class="empty-colors-hint">暂无专题</div>`;
-    }
-
-    html += `</div>`;
-    app.innerHTML = html;
-    
-    // 展开动画处理
-    for (const config of specialConfigs) {
-        if (specialExpandedState[config.id]) {
-            const el = document.getElementById('special-children-' + config.id);
-            if (el) {
-                el.style.maxHeight = el.scrollHeight + 'px';
-                el.style.opacity = '1';
-            }
-        }
-    }
+    // 内容区显示提示信息
+    app.innerHTML = '<div class="empty-state">选择一个专题开始浏览</div>';
 }
 
-function toggleSpecialSection(specialId) {
-    specialExpandedState[specialId] = !specialExpandedState[specialId];
-    const el = document.getElementById('special-children-' + specialId);
-    const header = el ? el.previousElementSibling : null;
-    
-    if (specialExpandedState[specialId]) {
-        if (el) {
-            el.style.maxHeight = el.scrollHeight + 'px';
-            el.style.opacity = '1';
-        }
-        if (header) header.classList.add('expanded');
-    } else {
-        if (el) {
-            el.style.maxHeight = '0';
-            el.style.opacity = '0';
-        }
-        if (header) header.classList.remove('expanded');
-    }
-}
-
-function onSpecialChildClick(specialId, categoryId) {
+function onSpecialOverviewItemClick(specialId) {
     selectedSpecial = specialId;
-    currentCategoryId = specialId;
-    currentSubId = categoryId;
-    
-    // 恢复侧边栏显示
-    const sidebar = document.getElementById('sidebar');
+
+    // 移除概览模式 → 侧边栏收缩 + 内容区出现
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
+    // 恢复折叠按钮
     const toggleBtn = document.getElementById('sidebarToggle');
-    if (sidebar) sidebar.style.display = '';
     if (toggleBtn) toggleBtn.style.display = '';
-    
+
+    // 默认选中第一个子分类（和"人民币→第五套人民币"一样）
+    const config = specialConfigs.find(c => c.id === specialId);
+    if (config && config.categories && config.categories.length > 0) {
+        currentCategoryId = specialId;
+        currentSubId = config.categories[0].id;
+    } else {
+        currentCategoryId = specialId;
+        currentSubId = null;
+    }
+
     renderSidebar();
     renderSpecialContent();
 }
@@ -954,7 +894,6 @@ function openSpecialModal(imgSrc) {
 function collectAllCopies() {
     const allCopies = [];
 
-    // 处理纸币 (DATA_MAP)
     if (window.DATA_MAP) {
         for (const dataKey of allDataKeys) {
             const data = window.DATA_MAP[dataKey];
@@ -984,7 +923,6 @@ function collectAllCopies() {
         }
     }
 
-    // 处理硬币 (COIN_DATA_MAP)
     if (window.COIN_DATA_MAP) {
         for (const dataKey of coinAllDataKeys) {
             const data = window.COIN_DATA_MAP[dataKey];
@@ -1021,7 +959,6 @@ function computeStats() {
     const allCopies = collectAllCopies();
     const total = allCopies.length;
 
-    // 纸币/硬币分别计数
     let notesCount = 0, coinsCount = 0;
     if (window.DATA_MAP) {
         for (const key of allDataKeys) {
@@ -1046,7 +983,6 @@ function computeStats() {
         }
     }
 
-    // 价格统计
     let prices = [];
     for (const item of allCopies) {
         const ps = item.copy.price;
@@ -1065,7 +1001,6 @@ function computeStats() {
     const pricedItems = prices.filter(p => !p.noPrice);
     const avgPrice = pricedItems.length > 0 ? Math.round(totalPrice / pricedItems.length) : 0;
 
-    // 评级分布
     const gradeCounts = {};
     let ungraded = 0;
     for (const item of allCopies) {
@@ -1080,7 +1015,6 @@ function computeStats() {
     }
     const sortedGrades = Object.entries(gradeCounts).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
 
-    // 年代分布
     const yearCounts = {};
     for (const item of allCopies) {
         const y = item.copy.year;
@@ -1106,7 +1040,6 @@ function renderSettingsPage() {
     let html = `<div class="settings-page">`;
     html += `<h2>我的</h2>`;
 
-    // 收藏概况
     html += `<div class="settings-section">`;
     html += `<h3>收藏概况</h3>`;
     html += `<div class="stats-summary-cards">`;
@@ -1117,7 +1050,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 资金概况 + 价格列表
     html += `<div class="settings-section">`;
     html += `<h3>资金概况</h3>`;
     html += `<div class="stats-money">`;
@@ -1125,7 +1057,6 @@ function renderSettingsPage() {
     html += `<div class="money-row"><span class="money-label">均价</span><span class="money-value">${stats.avgPrice} 元/件</span></div>`;
     html += `</div>`;
 
-    // 价格列表（折叠）
     html += `<div class="price-list-wrapper">`;
     html += `<div class="price-list-header" onclick="togglePriceList()">`;
     html += `<span>价格列表</span>`;
@@ -1141,7 +1072,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布
     html += `<div class="settings-section">`;
     html += `<h3>评级分布</h3>`;
     html += `<div class="stats-bars">`;
@@ -1170,7 +1100,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 年代分布
     html += `<div class="settings-section">`;
     html += `<h3>年代分布</h3>`;
     html += `<div class="stats-bars">`;
@@ -1192,7 +1121,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 主题色设置
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
