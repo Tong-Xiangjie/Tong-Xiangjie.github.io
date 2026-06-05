@@ -251,7 +251,7 @@ const hk_bocData = {
                             version: "BR046520",
                             bank: "中国银行（香港）",
                             condition: "ACG68E",
-                            price: "58元",
+                            price: "78元",
                             purchaseDate: "2026年2月18日",
                             krause: "349",
                             signature: "总裁：孙煜",
