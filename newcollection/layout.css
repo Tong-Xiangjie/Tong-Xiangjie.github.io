@@ -1312,3 +1312,90 @@ body.modal-open {
     font-size: 0.9rem;
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
+
+/* ========== 价格列表双下拉控件 ========== */
+.price-list-controls {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.price-sort-select,
+.price-filter-select {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    max-width: 100px;
+}
+
+.price-list-summary {
+    padding: 8px 14px;
+    background: var(--bg-light);
+    border-top: 1px solid var(--border);
+}
+
+.price-list-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    padding: 3px 0;
+    color: var(--text-secondary);
+}
+
+.price-list-summary-row span:last-child {
+    font-weight: bold;
+    color: var(--text);
+}
+
+.price-list-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+/* ========== 评级切换选项卡 ========== */
+.rating-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    display: inline-flex;
+}
+
+.rating-tab {
+    padding: 4px 16px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-light);
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    border-right: 1px solid var(--border);
+}
+
+.rating-tab:last-child {
+    border-right: none;
+}
+
+.rating-tab:hover {
+    background: var(--sidebar-bg);
+}
+
+.rating-tab.active {
+    background: var(--theme);
+    color: #fff;
+}
+
+/* ========== 年代分布颜色统一（与评级分布一致，使用 --theme） ========== */
+.stat-bar-fill.year {
+    background: var(--theme);
+}
