@@ -13,7 +13,8 @@ let settingsPageCache = null;
 
 // 专题状态
 let selectedSpecial = null;          // 当前选中的专题ID，null=概览页
-let specialPageCache = null;         // 缓存专题页面的 HTML+滚动位置
+let specialPageCache = null;         // 缓存专题内容页的 HTML+滚动位置
+let specialExpandedState = {};       // 记录概览页每个专题区块的展开状态
 
 let modeStates = {
     notes: {
@@ -73,7 +74,7 @@ const specialConfigs = [
     }
 ];
 
-// ========== 专题分类树（用于侧边栏渲染，与 categoryTree 格式一致） ==========
+// 专题分类树（用于侧边栏渲染）
 let specialCategoryTree = null;
 
 function buildSpecialCategoryTree() {
@@ -244,14 +245,18 @@ function renderSidebar() {
 }
 
 function onSidebarItemClick(catId) {
-    // 专题模式：点击已选中的专题 = 返回概览
+    // 专题模式
     if (currentMode === 'special') {
         if (selectedSpecial === catId) {
-            // 取消选中，回到概览页
+            // 点击已选中的专题 → 回到概览页
             selectedSpecial = null;
             currentCategoryId = null;
             currentSubId = null;
-            renderSidebar();
+            // 隐藏侧边栏
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (sidebar) sidebar.style.display = 'none';
+            if (toggle) toggle.style.display = 'none';
             renderSpecialOverview();
             return;
         }
@@ -363,7 +368,7 @@ function updateSearchUIForMode() {
         toggle.title = articleSearchMode === 'title' ? '当前：标题索引，点击切换为全字段索引' : '当前：全字段索引，点击切换为标题索引';
         tip.textContent = articleSearchMode === 'title' ? '文章搜索：标题索引（实时）' : '文章搜索：全字段索引（实时）';
     } else if (currentMode === 'special' || currentMode === 'settings') {
-        // 专题模式隐藏搜索栏，由 enterSpecial 控制
+        // 专题模式和设置模式隐藏搜索栏
     } else {
         select.classList.remove('hidden');
         toggle.classList.remove('hidden');
@@ -445,8 +450,6 @@ function onTabClick(target) {
                 currentIndex: currentArticleIndex,
                 searchKeyword: articleSearchKeyword
             };
-        } else if (currentMode === 'settings') {
-            // 从"我的"切过来，settingsReturnState 已有
         }
 
         // 进入专题模式
@@ -458,10 +461,13 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.add('hidden');
 
-        // 如果有缓存，恢复；否则渲染概览页
+        // 恢复缓存或显示概览页
         if (specialPageCache && selectedSpecial !== null) {
-            // 恢复内容页（包含侧边栏）
-            document.querySelector('.body-row')?.classList.remove('settings-mode');
+            // 恢复内容页（侧边栏显示）
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (sidebar) sidebar.style.display = '';
+            if (toggle) toggle.style.display = '';
             document.getElementById('app').innerHTML = specialPageCache.innerHTML;
             renderSidebar();
             requestAnimationFrame(() => {
@@ -473,29 +479,35 @@ function onTabClick(target) {
         } else {
             // 首次进入或已回到概览
             if (selectedSpecial !== null) {
-                // 应该恢复到之前选择的专题内容页
+                // 恢复内容页
+                const sidebar = document.getElementById('sidebar');
+                const toggle = document.getElementById('sidebarToggle');
+                if (sidebar) sidebar.style.display = '';
+                if (toggle) toggle.style.display = '';
                 renderSidebar();
                 renderSpecialContent();
             } else {
-                // 显示概览页
-                selectedSpecial = null;
-                currentCategoryId = null;
-                currentSubId = null;
-                renderSidebar();
+                // 显示概览页（侧边栏隐藏）
+                const sidebar = document.getElementById('sidebar');
+                const toggle = document.getElementById('sidebarToggle');
+                if (sidebar) sidebar.style.display = 'none';
+                if (toggle) toggle.style.display = 'none';
                 renderSpecialOverview();
             }
         }
         return;
     }
 
-    // ===== 暂未开放 =====
-    if (target === 'special') {
-        // 已处理
-        return;
-    }
-
     // ===== 退出设置模式 =====
     if (isSettingsMode) {
+        const appEl = document.getElementById('app');
+        const contentEl = document.querySelector('.content');
+        if (appEl) {
+            settingsPageCache = {
+                innerHTML: appEl.innerHTML,
+                scrollY: contentEl ? contentEl.scrollTop : 0
+            };
+        }
         isSettingsMode = false;
 
         const searchContainer = document.querySelector('.top-search-container');
@@ -747,17 +759,37 @@ function enterSettings() {
 
 function renderSpecialOverview() {
     const app = document.getElementById('app');
-    let html = `<div class="settings-page">`;
-    html += `<h2>专题</h2>`;
-    html += `<div class="special-overview-grid">`;
+    
+    // 隐藏侧边栏和折叠按钮
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (sidebar) sidebar.style.display = 'none';
+    if (toggleBtn) toggleBtn.style.display = 'none';
+
+    let html = `<div class="special-overview">`;
+    html += `<h2 class="special-overview-title">专题</h2>`;
 
     for (const config of specialConfigs) {
         const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
         const count = data ? data.length : 0;
-        html += `<div class="special-card" onclick="onSpecialCardClick('${config.id}')">`;
-        html += `<div class="special-card-name">${escapeHtml(config.name)}</div>`;
-        if (config.desc) html += `<div class="special-card-desc">${escapeHtml(config.desc)}</div>`;
-        html += `<div class="special-card-count">${count} 条数据</div>`;
+        const expanded = specialExpandedState[config.id] || false;
+        
+        html += `<div class="special-overview-section">`;
+        // 主标题（可点击展开/收起子分类）
+        html += `<div class="special-overview-header${expanded ? ' expanded' : ''}" onclick="toggleSpecialSection('${config.id}')">`;
+        html += `<span class="special-overview-name">${escapeHtml(config.name)}</span>`;
+        html += `<span class="special-overview-count">${count} 条数据</span>`;
+        html += `<span class="special-overview-arrow">▼</span>`;
+        html += `</div>`;
+        
+        // 子分类列表（展开/折叠动画）
+        html += `<div class="special-overview-children" id="special-children-${config.id}"${expanded ? '' : ' style="max-height:0;opacity:0;"'}>`;
+        for (const cat of config.categories) {
+            html += `<div class="special-overview-child" onclick="onSpecialChildClick('${config.id}', '${cat.id}'); event.stopPropagation();">`;
+            html += `${escapeHtml(cat.name)}`;
+            html += `</div>`;
+        }
+        html += `</div>`;
         html += `</div>`;
     }
 
@@ -765,25 +797,52 @@ function renderSpecialOverview() {
         html += `<div class="empty-colors-hint">暂无专题</div>`;
     }
 
-    html += `</div></div>`;
+    html += `</div>`;
     app.innerHTML = html;
-    requestAnimationFrame(() => {
-        app.classList.remove('content-enter');
-        void app.offsetWidth;
-        app.classList.add('content-enter');
-    });
+    
+    // 展开动画处理
+    for (const config of specialConfigs) {
+        if (specialExpandedState[config.id]) {
+            const el = document.getElementById('special-children-' + config.id);
+            if (el) {
+                el.style.maxHeight = el.scrollHeight + 'px';
+                el.style.opacity = '1';
+            }
+        }
+    }
 }
 
-function onSpecialCardClick(specialId) {
-    selectedSpecial = specialId;
-    const config = specialConfigs.find(c => c.id === specialId);
-    if (config && config.categories && config.categories.length > 0) {
-        currentCategoryId = specialId;
-        currentSubId = config.categories[0].id;
+function toggleSpecialSection(specialId) {
+    specialExpandedState[specialId] = !specialExpandedState[specialId];
+    const el = document.getElementById('special-children-' + specialId);
+    const header = el ? el.previousElementSibling : null;
+    
+    if (specialExpandedState[specialId]) {
+        if (el) {
+            el.style.maxHeight = el.scrollHeight + 'px';
+            el.style.opacity = '1';
+        }
+        if (header) header.classList.add('expanded');
     } else {
-        currentCategoryId = specialId;
-        currentSubId = null;
+        if (el) {
+            el.style.maxHeight = '0';
+            el.style.opacity = '0';
+        }
+        if (header) header.classList.remove('expanded');
     }
+}
+
+function onSpecialChildClick(specialId, categoryId) {
+    selectedSpecial = specialId;
+    currentCategoryId = specialId;
+    currentSubId = categoryId;
+    
+    // 恢复侧边栏显示
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (sidebar) sidebar.style.display = '';
+    if (toggleBtn) toggleBtn.style.display = '';
+    
     renderSidebar();
     renderSpecialContent();
 }
@@ -803,7 +862,7 @@ function renderSpecialContent() {
         return;
     }
 
-    // 根据 currentSubId 筛选数据
+    // 根据 currentSubId 筛选
     let filteredData = data;
     if (currentSubId && currentSubId !== 'all') {
         const catConfig = config.categories.find(c => c.id === currentSubId);
@@ -814,7 +873,7 @@ function renderSpecialContent() {
 
     const imgBase = config.imageBase;
 
-    // 按年份分组展示
+    // 按年份分组
     const yearGroups = {};
     for (const item of filteredData) {
         const y = item.year;
@@ -829,10 +888,10 @@ function renderSpecialContent() {
     if (currentSubId && currentSubId !== 'all') {
         const catConfig = config.categories.find(c => c.id === currentSubId);
         if (catConfig) {
-            html += `<p class="overview-header" style="margin-top:-8px;margin-bottom:12px;">${escapeHtml(catConfig.name)} · 共 ${filteredData.length} 项</p>`;
+            html += `<p style="margin-top:-8px;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(catConfig.name)} · 共 ${filteredData.length} 项</p>`;
         }
     } else {
-        html += `<p class="overview-header" style="margin-top:-8px;margin-bottom:12px;">共 ${filteredData.length} 项</p>`;
+        html += `<p style="margin-top:-8px;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">共 ${filteredData.length} 项</p>`;
     }
 
     for (const year of sortedYears) {
@@ -868,7 +927,7 @@ function renderSpecialContent() {
     });
 }
 
-// 专题大图弹窗（独立于主站弹窗，使用系统弹窗或简单实现）
+// 专题大图弹窗（复用主站弹窗）
 function openSpecialModal(imgSrc) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
