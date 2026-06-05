@@ -191,12 +191,6 @@ const hk_bocData = {
         {
             seriesName: "2018～至今版",
             year: "2018～至今",
-            readme: {
-                title: "中国银行（香港）2018年新版港币宣传片",
-                content: `<div style="text-align:center;">
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=27960164&bvid=BV19s411A7L7&cid=48298187&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>
-</div>`
-            },
             varieties: [
                 {
                     varietyName: "港币20元",
