@@ -1604,7 +1604,25 @@ body.modal-open {
     background: var(--theme);
 }
 
-/* ========== 价格列表展开高度缩减 ========== */
+/* 恢复价格列表展开高度 */
 .price-list-body.open {
-    max-height: 140px;
+    max-height: 420px;
+}
+
+/* 评级切换按钮在标题上方 */
+.rating-section-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.rating-section-header h3 {
+    margin-bottom: 0;
+    order: 2;  /* 标题排第二 */
+}
+
+.rating-section-header .rating-tabs {
+    order: 1;  /* 选项卡排第一 */
 }
