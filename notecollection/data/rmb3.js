@@ -61,7 +61,7 @@ const rmb3Data = {
                             year: 1962,
                             version: "",
                             bank: "中国人民银行",
-                            condition: "ACG00E",
+                            condition: "ACGE",
                             price: "",
                             purchaseDate: "",
                             krause: "",
