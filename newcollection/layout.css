@@ -163,9 +163,16 @@ body {
     position: relative;
 }
 
+/* 设置模式：侧边栏和折叠按钮收起（带动画） */
 .body-row.settings-mode .sidebar,
 .body-row.settings-mode .sidebar-toggle {
-    display: none;
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    opacity: 0;
+    border: none;
+    overflow: hidden;
+    pointer-events: none;
 }
 
 /* ========== 侧边栏 ========== */
@@ -178,7 +185,7 @@ body {
     overflow-x: hidden;
     padding: 8px 0;
     flex-shrink: 0;
-    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease;
+    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, border-width 0.3s ease;
 }
 
 .sidebar.collapsed {
@@ -202,11 +209,12 @@ body {
     justify-content: center;
     font-size: 0.55rem;
     color: var(--text-secondary);
-    transition: background 0.15s, border-color 0.3s ease, color 0.15s;
+    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, border-width 0.3s ease, background 0.15s, color 0.15s;
     padding: 0;
     flex-shrink: 0;
     writing-mode: vertical-lr;
     user-select: none;
+    overflow: hidden;
 }
 
 .sidebar-toggle:hover {
@@ -803,6 +811,7 @@ body.modal-open {
     cursor: pointer;
     border: 2px solid transparent;
     transition: border-color 0.15s, transform 0.15s;
+    flex-shrink: 0;
 }
 
 .theme-color:hover {
@@ -825,6 +834,7 @@ body.modal-open {
 .custom-color-row label {
     font-size: 0.85rem;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .custom-color-row input[type="color"] {
@@ -834,6 +844,79 @@ body.modal-open {
     border-radius: 4px;
     cursor: pointer;
     padding: 2px;
+    flex-shrink: 0;
+}
+
+.custom-color-row .add-color-btn {
+    padding: 4px 10px;
+    background: var(--theme);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.custom-color-row .add-color-btn:hover {
+    opacity: 0.85;
+}
+
+.saved-colors {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding: 8px;
+    background: var(--bg-light);
+    border-radius: 6px;
+    min-height: 40px;
+}
+
+.saved-color-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.saved-color-item .color-block {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: transform 0.15s;
+}
+
+.saved-color-item .color-block:hover {
+    transform: scale(1.1);
+}
+
+.saved-color-item .remove-color-btn {
+    width: 16px;
+    height: 16px;
+    background: rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.55rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+}
+
+.saved-color-item .remove-color-btn:hover {
+    background: #d92121;
+    color: #fff;
+}
+
+.empty-colors-hint {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin: 4px 0;
 }
 
 /* ========== 返回按钮 ========== */
