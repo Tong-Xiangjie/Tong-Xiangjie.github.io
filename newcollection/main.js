@@ -9,6 +9,7 @@ let scrollMemory = {};
 let isSettingsMode = false;
 let settingsReturnState = null;
 let isSidebarCollapsed = false;
+let settingsPageCache = null;  // 新增：缓存 settings 页面状态
 
 let modeStates = {
     notes: {
@@ -304,6 +305,16 @@ function onTabClick(target) {
     }
 
     if (isSettingsMode) {
+        // 离开设置页前，保存当前状态到缓存
+        const appEl = document.getElementById('app');
+        const contentEl = document.querySelector('.content');
+        if (appEl) {
+            settingsPageCache = {
+                innerHTML: appEl.innerHTML,
+                scrollY: contentEl ? contentEl.scrollTop : 0
+            };
+        }
+
         isSettingsMode = false;
 
         const searchContainer = document.querySelector('.top-search-container');
@@ -506,7 +517,28 @@ function enterSettings() {
     document.querySelector('.body-row')?.classList.add('settings-mode');
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
-    renderSettingsPage();
+
+    if (settingsPageCache) {
+        // 从缓存恢复页面，避免重新渲染丢失状态
+        document.getElementById('app').innerHTML = settingsPageCache.innerHTML;
+        // 重新绑定主题色点击事件
+        document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
+            el.addEventListener('click', function() {
+                const color = this.dataset.color;
+                updateSettingsPageTheme(color);
+                if (typeof setTheme === 'function') setTheme(color);
+            });
+        });
+        // 恢复滚动位置
+        requestAnimationFrame(() => {
+            const content = document.querySelector('.content');
+            if (content && settingsPageCache.scrollY) {
+                content.scrollTop = settingsPageCache.scrollY;
+            }
+        });
+    } else {
+        renderSettingsPage();
+    }
 }
 
 /* ==================== 统计功能 ==================== */
