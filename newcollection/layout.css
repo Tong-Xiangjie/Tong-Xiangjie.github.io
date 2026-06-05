@@ -1136,8 +1136,9 @@ body.modal-open {
 }
 
 .price-list-body.open {
-    max-height: 4000px;
+    max-height: 420px;
     opacity: 1;
+    overflow-y: auto;
 }
 
 .price-list-item {
