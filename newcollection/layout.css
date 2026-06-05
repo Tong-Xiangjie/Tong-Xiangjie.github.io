@@ -1292,3 +1292,23 @@ body.modal-open {
     color: var(--text-secondary);
     margin-top: 2px;
 }
+
+/* ========== 侧边栏一级分类加粗加大 ========== */
+.sidebar-item {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.sidebar-child {
+    font-size: 0.85rem;
+    font-weight: normal;
+}
+
+/* ========== 专题引导提示 ========== */
+.special-overview-hint {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
