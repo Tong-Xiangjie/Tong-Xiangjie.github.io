@@ -515,15 +515,215 @@ function enterSettings() {
     renderSettingsPage();
 }
 
+/* ==================== 新增：统计功能 ==================== */
+
+function collectAllCopies() {
+    const allCopies = [];
+    const processedKeys = new Set();
+
+    const dataSources = [
+        { map: window.DATA_MAP, keys: allDataKeys },
+        { map: window.COIN_DATA_MAP, keys: coinAllDataKeys }
+    ];
+
+    for (const source of dataSources) {
+        if (!source.map) continue;
+        for (const dataKey of source.keys) {
+            if (processedKeys.has(dataKey)) continue;
+            processedKeys.add(dataKey);
+            const data = source.map[dataKey];
+            if (!data || !data.series) continue;
+            for (let si = 0; si < data.series.length; si++) {
+                const series = data.series[si];
+                if (series.varieties) {
+                    for (let vi = 0; vi < series.varieties.length; vi++) {
+                        const variety = series.varieties[vi];
+                        if (!variety.copies) continue;
+                        for (let ci = 0; ci < variety.copies.length; ci++) {
+                            allCopies.push({
+                                copy: variety.copies[ci],
+                                seriesName: series.seriesName + ' - ' + variety.varietyName
+                            });
+                        }
+                    }
+                } else if (series.copies) {
+                    for (let ci = 0; ci < series.copies.length; ci++) {
+                        allCopies.push({
+                            copy: series.copies[ci],
+                            seriesName: series.seriesName
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return allCopies;
+}
+
+function computeStats() {
+    const allCopies = collectAllCopies();
+    const total = allCopies.length;
+
+    // 纸币/硬币分别计数
+    let notesCount = 0, coinsCount = 0;
+    if (window.DATA_MAP) {
+        for (const key of allDataKeys) {
+            const d = window.DATA_MAP[key];
+            if (d && d.series) {
+                for (const s of d.series) {
+                    if (s.varieties) for (const v of s.varieties) notesCount += (v.copies ? v.copies.length : 0);
+                    else if (s.copies) notesCount += s.copies.length;
+                }
+            }
+        }
+    }
+    if (window.COIN_DATA_MAP) {
+        for (const key of coinAllDataKeys) {
+            const d = window.COIN_DATA_MAP[key];
+            if (d && d.series) {
+                for (const s of d.series) {
+                    if (s.varieties) for (const v of s.varieties) coinsCount += (v.copies ? v.copies.length : 0);
+                    else if (s.copies) coinsCount += s.copies.length;
+                }
+            }
+        }
+    }
+
+    // 价格统计
+    let prices = [];
+    for (const item of allCopies) {
+        const ps = item.copy.price;
+        if (ps) {
+            const num = parseFloat(ps.replace(/[^0-9.]/g, ''));
+            if (!isNaN(num) && num > 0) {
+                prices.push({ value: num, name: item.seriesName });
+            }
+        }
+    }
+    const totalPrice = prices.reduce((s, p) => s + p.value, 0);
+    const avgPrice = prices.length > 0 ? Math.round(totalPrice / prices.length) : 0;
+    const maxPrice = prices.length > 0 ? prices.reduce((a, b) => a.value > b.value ? a : b) : null;
+    const minPrice = prices.length > 0 ? prices.reduce((a, b) => a.value < b.value ? a : b) : null;
+
+    // 评级分布
+    const gradeCounts = {};
+    let ungraded = 0;
+    for (const item of allCopies) {
+        const cond = item.copy.condition || item.copy.grade || '';
+        const match = cond.match(/(\d+)/);
+        if (match) {
+            const g = match[1];
+            gradeCounts[g] = (gradeCounts[g] || 0) + 1;
+        } else {
+            ungraded++;
+        }
+    }
+    const sortedGrades = Object.entries(gradeCounts).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+
+    // 年代分布
+    const yearCounts = {};
+    for (const item of allCopies) {
+        const y = item.copy.year;
+        if (y && typeof y === 'number') {
+            const decade = Math.floor(y / 10) * 10;
+            const key = decade + 's';
+            yearCounts[key] = (yearCounts[key] || 0) + 1;
+        }
+    }
+    const sortedYears = Object.entries(yearCounts).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+
+    return { total, notesCount, coinsCount, prices, totalPrice, avgPrice, maxPrice, minPrice, sortedGrades, ungraded, sortedYears };
+}
+
+/* ==================== 修改：renderSettingsPage ==================== */
+
 function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
     const customColors = getCustomColors();
+    const stats = computeStats();
 
     let html = `<div class="settings-page">`;
-    html += `<h2>设置</h2>`;
+    html += `<h2>我的</h2>`;
 
-    // 预设主题色
+    // 收藏概况
+    html += `<div class="settings-section">`;
+    html += `<h3>收藏概况</h3>`;
+    html += `<div class="stats-summary-cards">`;
+    html += `<div class="stat-card"><div class="stat-num">${stats.total}</div><div class="stat-label">藏品总数</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${stats.notesCount}</div><div class="stat-label">纸币</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${stats.coinsCount}</div><div class="stat-label">硬币</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${stats.prices.length}</div><div class="stat-label">已记录价格</div></div>`;
+    html += `</div>`;
+    html += `</div>`;
+
+    // 资金概况
+    html += `<div class="settings-section">`;
+    html += `<h3>资金概况</h3>`;
+    html += `<div class="stats-money">`;
+    html += `<div class="money-row"><span class="money-label">总投入</span><span class="money-value">${stats.totalPrice.toFixed(0)} 元</span></div>`;
+    html += `<div class="money-row"><span class="money-label">均价</span><span class="money-value">${stats.avgPrice} 元/件</span></div>`;
+    if (stats.maxPrice) {
+        html += `<div class="money-row"><span class="money-label">最贵</span><span class="money-value">${stats.maxPrice.value} 元（${escapeHtml(stats.maxPrice.name)}）</span></div>`;
+    }
+    if (stats.minPrice) {
+        html += `<div class="money-row"><span class="money-label">最低</span><span class="money-value">${stats.minPrice.value} 元（${escapeHtml(stats.minPrice.name)}）</span></div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+
+    // 评级分布
+    html += `<div class="settings-section">`;
+    html += `<h3>评级分布</h3>`;
+    html += `<div class="stats-bars">`;
+    const maxGradeCount = stats.sortedGrades.length > 0
+        ? Math.max(...stats.sortedGrades.map(g => g[1]), stats.ungraded)
+        : 1;
+    for (const [grade, count] of stats.sortedGrades) {
+        const pct = (count / maxGradeCount * 100).toFixed(0);
+        html += `<div class="stat-bar-row">`;
+        html += `<span class="stat-bar-label">${grade} 分</span>`;
+        html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
+        html += `<span class="stat-bar-count">${count} 件</span>`;
+        html += `</div>`;
+    }
+    if (stats.ungraded > 0) {
+        const pct = (stats.ungraded / maxGradeCount * 100).toFixed(0);
+        html += `<div class="stat-bar-row">`;
+        html += `<span class="stat-bar-label">未评级</span>`;
+        html += `<div class="stat-bar-track"><div class="stat-bar-fill ungraded" style="width:${pct}%"></div></div>`;
+        html += `<span class="stat-bar-count">${stats.ungraded} 件</span>`;
+        html += `</div>`;
+    }
+    if (stats.sortedGrades.length === 0 && stats.ungraded === 0) {
+        html += `<div class="empty-colors-hint">暂无评级数据</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+
+    // 年代分布
+    html += `<div class="settings-section">`;
+    html += `<h3>年代分布</h3>`;
+    html += `<div class="stats-bars">`;
+    const maxYearCount = stats.sortedYears.length > 0
+        ? Math.max(...stats.sortedYears.map(y => y[1]))
+        : 1;
+    for (const [decade, count] of stats.sortedYears) {
+        const pct = (count / maxYearCount * 100).toFixed(0);
+        const label = decade.replace('s', '0 年代');
+        html += `<div class="stat-bar-row">`;
+        html += `<span class="stat-bar-label">${label}</span>`;
+        html += `<div class="stat-bar-track"><div class="stat-bar-fill year" style="width:${pct}%"></div></div>`;
+        html += `<span class="stat-bar-count">${count} 件</span>`;
+        html += `</div>`;
+    }
+    if (stats.sortedYears.length === 0) {
+        html += `<div class="empty-colors-hint">暂无年代数据</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+
+    // 主题色设置（原有）
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
@@ -544,7 +744,7 @@ function renderSettingsPage() {
             const active = color === currentTheme ? ' active' : '';
             html += `<div class="saved-color-item">`;
             html += `<div class="color-block${active}" style="background:${color}" data-color="${color}" onclick="setTheme('${color}'); updateSettingsPageTheme('${color}')"></div>`;
-            html += `<button class="remove-color-btn" onclick="removeCustomColor(${i})">✕</button>`;
+            html += `<button class="remove-color-btn" onclick="removeCustomColor(${i})">x</button>`;
             html += `</div>`;
         }
     }
@@ -571,9 +771,7 @@ function renderSettingsPage() {
     });
 
     // 绑定自定义颜色输入
-    document.getElementById('settingsCustomColor').addEventListener('input', function() {
-        // 实时预览但不保存
-    });
+    document.getElementById('settingsCustomColor').addEventListener('input', function() {});
 }
 
 function updateSettingsPageTheme(color) {
