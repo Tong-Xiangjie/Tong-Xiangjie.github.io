@@ -1,0 +1,13 @@
+/* 仅包含 .input-panel 及相关元素 */
+.input-panel {
+    max-width: 640px; margin: 0 auto 30px; padding: 24px;
+    background: #fff; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+.input-item { margin-bottom: 16px; }
+.input-item label { display: block; margin-bottom: 6px; font-weight: 700; color: #1e293b; }
+.input-item input { 
+    width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1;
+    border-radius: 8px; font-size: 14px;
+}
+.btn-generate { /* ... */ }
+.btn-pdf { /* ... */ }
