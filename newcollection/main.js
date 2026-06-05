@@ -306,13 +306,11 @@ function onTabClick(target) {
     if (isSettingsMode) {
         isSettingsMode = false;
 
-        // 显示搜索栏
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
         document.querySelector('.body-row')?.classList.remove('settings-mode');
 
-        // 根据目标 Tab 切换模式
         if (target === 'articles') {
             currentMode = 'articles';
             currentArticleView = articleState.currentView;
@@ -336,9 +334,7 @@ function onTabClick(target) {
         }
 
         if (target === 'notes' || target === 'coins') {
-            // 恢复之前保存的状态，但切换到目标模式
             if (settingsReturnState) {
-                // 从之前保存的状态中恢复非模式相关的信息
                 currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
             }
             currentMode = target;
@@ -380,7 +376,6 @@ function onTabClick(target) {
             return;
         }
 
-        // 如果点了其他未知 target，恢复之前模式
         if (settingsReturnState) {
             currentMode = settingsReturnState.currentMode || 'notes';
             currentCategoryId = settingsReturnState.currentCategoryId;
@@ -505,7 +500,6 @@ function enterSettings() {
     currentSearchKeyword = '';
     articleSearchKeyword = '';
 
-    // 隐藏搜索栏（带动画）
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
@@ -515,23 +509,15 @@ function enterSettings() {
     renderSettingsPage();
 }
 
-/* ==================== 新增：统计功能 ==================== */
+/* ==================== 统计功能 ==================== */
 
 function collectAllCopies() {
     const allCopies = [];
-    const processedKeys = new Set();
 
-    const dataSources = [
-        { map: window.DATA_MAP, keys: allDataKeys },
-        { map: window.COIN_DATA_MAP, keys: coinAllDataKeys }
-    ];
-
-    for (const source of dataSources) {
-        if (!source.map) continue;
-        for (const dataKey of source.keys) {
-            if (processedKeys.has(dataKey)) continue;
-            processedKeys.add(dataKey);
-            const data = source.map[dataKey];
+    // 处理纸币 (DATA_MAP)
+    if (window.DATA_MAP) {
+        for (const dataKey of allDataKeys) {
+            const data = window.DATA_MAP[dataKey];
             if (!data || !data.series) continue;
             for (let si = 0; si < data.series.length; si++) {
                 const series = data.series[si];
@@ -557,6 +543,37 @@ function collectAllCopies() {
             }
         }
     }
+
+    // 处理硬币 (COIN_DATA_MAP)
+    if (window.COIN_DATA_MAP) {
+        for (const dataKey of coinAllDataKeys) {
+            const data = window.COIN_DATA_MAP[dataKey];
+            if (!data || !data.series) continue;
+            for (let si = 0; si < data.series.length; si++) {
+                const series = data.series[si];
+                if (series.varieties) {
+                    for (let vi = 0; vi < series.varieties.length; vi++) {
+                        const variety = series.varieties[vi];
+                        if (!variety.copies) continue;
+                        for (let ci = 0; ci < variety.copies.length; ci++) {
+                            allCopies.push({
+                                copy: variety.copies[ci],
+                                seriesName: series.seriesName + ' - ' + variety.varietyName
+                            });
+                        }
+                    }
+                } else if (series.copies) {
+                    for (let ci = 0; ci < series.copies.length; ci++) {
+                        allCopies.push({
+                            copy: series.copies[ci],
+                            seriesName: series.seriesName
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     return allCopies;
 }
 
@@ -596,14 +613,17 @@ function computeStats() {
         if (ps) {
             const num = parseFloat(ps.replace(/[^0-9.]/g, ''));
             if (!isNaN(num) && num > 0) {
-                prices.push({ value: num, name: item.seriesName });
+                prices.push({ value: num, name: item.seriesName, version: item.copy.version || '' });
+            } else {
+                prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true });
             }
+        } else {
+            prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true });
         }
     }
-    const totalPrice = prices.reduce((s, p) => s + p.value, 0);
-    const avgPrice = prices.length > 0 ? Math.round(totalPrice / prices.length) : 0;
-    const maxPrice = prices.length > 0 ? prices.reduce((a, b) => a.value > b.value ? a : b) : null;
-    const minPrice = prices.length > 0 ? prices.reduce((a, b) => a.value < b.value ? a : b) : null;
+    const totalPrice = prices.reduce((s, p) => s + (p.noPrice ? 0 : p.value), 0);
+    const pricedItems = prices.filter(p => !p.noPrice);
+    const avgPrice = pricedItems.length > 0 ? Math.round(totalPrice / pricedItems.length) : 0;
 
     // 评级分布
     const gradeCounts = {};
@@ -632,10 +652,10 @@ function computeStats() {
     }
     const sortedYears = Object.entries(yearCounts).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
 
-    return { total, notesCount, coinsCount, prices, totalPrice, avgPrice, maxPrice, minPrice, sortedGrades, ungraded, sortedYears };
+    return { total, notesCount, coinsCount, prices, totalPrice, avgPrice, sortedGrades, ungraded, sortedYears };
 }
 
-/* ==================== 修改：renderSettingsPage ==================== */
+/* ==================== 设置页 ==================== */
 
 function renderSettingsPage() {
     const app = document.getElementById('app');
@@ -653,22 +673,31 @@ function renderSettingsPage() {
     html += `<div class="stat-card"><div class="stat-num">${stats.total}</div><div class="stat-label">藏品总数</div></div>`;
     html += `<div class="stat-card"><div class="stat-num">${stats.notesCount}</div><div class="stat-label">纸币</div></div>`;
     html += `<div class="stat-card"><div class="stat-num">${stats.coinsCount}</div><div class="stat-label">硬币</div></div>`;
-    html += `<div class="stat-card"><div class="stat-num">${stats.prices.length}</div><div class="stat-label">已记录价格</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${stats.prices.filter(p => !p.noPrice).length}</div><div class="stat-label">已记录价格</div></div>`;
     html += `</div>`;
     html += `</div>`;
 
-    // 资金概况
+    // 资金概况 + 价格列表
     html += `<div class="settings-section">`;
     html += `<h3>资金概况</h3>`;
     html += `<div class="stats-money">`;
     html += `<div class="money-row"><span class="money-label">总投入</span><span class="money-value">${stats.totalPrice.toFixed(0)} 元</span></div>`;
     html += `<div class="money-row"><span class="money-label">均价</span><span class="money-value">${stats.avgPrice} 元/件</span></div>`;
-    if (stats.maxPrice) {
-        html += `<div class="money-row"><span class="money-label">最贵</span><span class="money-value">${stats.maxPrice.value} 元（${escapeHtml(stats.maxPrice.name)}）</span></div>`;
-    }
-    if (stats.minPrice) {
-        html += `<div class="money-row"><span class="money-label">最低</span><span class="money-value">${stats.minPrice.value} 元（${escapeHtml(stats.minPrice.name)}）</span></div>`;
-    }
+    html += `</div>`;
+
+    // 价格列表（折叠）
+    html += `<div class="price-list-wrapper">`;
+    html += `<div class="price-list-header" onclick="togglePriceList()">`;
+    html += `<span>价格列表</span>`;
+    html += `<select class="price-sort-select" onclick="event.stopPropagation()" onchange="changePriceSort(this.value)">`;
+    html += `<option value="desc">从高到低</option>`;
+    html += `<option value="asc">从低到高</option>`;
+    html += `</select>`;
+    html += `<span class="price-list-arrow" id="priceListArrow">▼</span>`;
+    html += `</div>`;
+    html += `<div class="price-list-body" id="priceListBody">`;
+    html += renderPriceListItems(stats.prices, 'desc');
+    html += `</div>`;
     html += `</div>`;
     html += `</div>`;
 
@@ -710,7 +739,7 @@ function renderSettingsPage() {
         : 1;
     for (const [decade, count] of stats.sortedYears) {
         const pct = (count / maxYearCount * 100).toFixed(0);
-        const label = decade.replace('s', '0 年代');
+        const label = decade.slice(0, -1) + '年代';
         html += `<div class="stat-bar-row">`;
         html += `<span class="stat-bar-label">${label}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill year" style="width:${pct}%"></div></div>`;
@@ -723,7 +752,7 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 主题色设置（原有）
+    // 主题色设置
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
@@ -734,7 +763,6 @@ function renderSettingsPage() {
     }
     html += `</div>`;
 
-    // 已保存的自定义颜色
     html += `<div class="saved-colors" id="savedColorsContainer">`;
     if (customColors.length === 0) {
         html += `<span class="empty-colors-hint">暂无自定义颜色</span>`;
@@ -750,9 +778,8 @@ function renderSettingsPage() {
     }
     html += `</div>`;
 
-    // 自定义颜色添加
     html += `<div class="custom-color-row">`;
-    html += `<label for="settingsCustomColor">自定义颜色：</label>`;
+    html += `<label for="settingsCustomColor">自定义颜色</label>`;
     html += `<input type="color" id="settingsCustomColor" value="${currentTheme}">`;
     html += `<button class="add-color-btn" onclick="addCurrentCustomColor()">添加</button>`;
     html += `</div>`;
@@ -761,7 +788,6 @@ function renderSettingsPage() {
     html += `</div>`;
     app.innerHTML = html;
 
-    // 绑定预设颜色点击
     document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
         el.addEventListener('click', function() {
             const color = this.dataset.color;
@@ -769,20 +795,51 @@ function renderSettingsPage() {
             if (typeof setTheme === 'function') setTheme(color);
         });
     });
+}
 
-    // 绑定自定义颜色输入
-    document.getElementById('settingsCustomColor').addEventListener('input', function() {});
+function renderPriceListItems(prices, order) {
+    const sorted = [...prices].sort((a, b) => {
+        if (order === 'desc') return b.value - a.value;
+        else return a.value - b.value;
+    });
+
+    let html = '';
+    for (let i = 0; i < sorted.length; i++) {
+        const p = sorted[i];
+        const displayPrice = p.noPrice ? '-' : p.value + ' 元';
+        const nameHtml = escapeHtml(p.name);
+        const versionHtml = p.version ? escapeHtml(p.version) : '';
+        html += `<div class="price-list-item">`;
+        html += `<span class="price-list-index">${i + 1}</span>`;
+        html += `<span class="price-list-name">${nameHtml}${versionHtml ? ' (' + versionHtml + ')' : ''}</span>`;
+        html += `<span class="price-list-value ${p.noPrice ? 'no-price' : ''}">${displayPrice}</span>`;
+        html += `</div>`;
+    }
+    return html;
+}
+
+function togglePriceList() {
+    const body = document.getElementById('priceListBody');
+    const arrow = document.getElementById('priceListArrow');
+    if (!body || !arrow) return;
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+}
+
+function changePriceSort(order) {
+    const body = document.getElementById('priceListBody');
+    if (!body) return;
+    const stats = computeStats();
+    body.innerHTML = renderPriceListItems(stats.prices, order);
 }
 
 function updateSettingsPageTheme(color) {
-    // 更新所有选中状态
     document.querySelectorAll('.theme-color, .color-block').forEach(el => {
         el.classList.remove('active');
         if (el.dataset.color === color) {
             el.classList.add('active');
         }
     });
-    // 更新颜色选择器的值
     const picker = document.getElementById('settingsCustomColor');
     if (picker) picker.value = color;
 }
@@ -792,9 +849,7 @@ function addCurrentCustomColor() {
     if (!picker) return;
     const color = picker.value;
     addCustomColor(color);
-    // 重新渲染设置页
     renderSettingsPage();
-    // 应用颜色
     if (typeof setTheme === 'function') setTheme(color);
 }
 
