@@ -1,0 +1,54 @@
+/* ===== 全局尺寸变量（集中管理所有魔数）===== */
+:root {
+    --page-width: 210mm;
+    --page-height: 297mm;
+    --page-top: 13mm;
+    --page-bottom: 13mm;
+    --page-left: 10mm;
+    --page-right: 10mm;
+
+    --block-width: 4.5mm;      /* 单个填涂块宽度 */
+    --block-step: 6.5mm;       /* 相邻块中心距 */
+    --option-height: 2.7mm;    /* 选项框高度 = block-width * 3/5 */
+
+    --outer-padding: 1.5mm;    /* 红框内边距 */
+    --inner-padding: 2.5mm;    /* 黑框内边距 */
+
+    --corner-size-w: 6.3mm;    /* 四角定位块宽 = block-width * 1.4 */
+    --corner-size-h: 4.5mm;    /* 四角定位块高 = block-width * 1.0 */
+
+    --choice-group-size: 5;    /* 每组题数 */
+    --choice-groups-per-row: 4;/* 每行组数 */
+    --line-gap: 1.845mm;       /* 选项行间距 */
+
+    --red: #d93025;
+    --black: #000;
+    --white: #fff;
+}
+
+/* 页壳：尺寸、定位块、顶部标记 */
+.answer-card { /* ... */ }
+.corner-mark { /* ... */ }
+.top-mark-container { /* ... */ }
+
+/* 标题、考生信息、注意事项 */
+.title-section { /* ... */ }
+.info-section { /* ... */ }
+.note-section { /* ... */ }
+
+/* 选择题区域 */
+.choice-section { /* ... */ }
+.choice-outer { /* ... */ }
+.choice-inner { /* ... */ }
+
+/* 非选择题区域 */
+.subject-outer { /* ... */ }
+.subject-inner-table { /* ... */ }
+
+/* 打印样式 */
+@media print {
+    @page { margin: 0; size: A4 portrait; }
+    .input-panel { display: none; }
+    .answer-card { box-shadow: none; margin: 0; page-break-after: always; }
+    .btn-pdf { display: none; }
+}
