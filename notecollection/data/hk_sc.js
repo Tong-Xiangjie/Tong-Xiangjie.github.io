@@ -241,7 +241,7 @@ const hk_scData = {
                             version: "BE308101",
                             bank: "渣打银行（香港）",
                             condition: "ACG66E",
-                            price: "124元",
+                            price: "123元",
                             purchaseDate: "2026年2月18日",
                             krause: "304b",
                             signature: "",
