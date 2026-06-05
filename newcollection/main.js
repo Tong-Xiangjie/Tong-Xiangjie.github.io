@@ -9,7 +9,11 @@ let scrollMemory = {};
 let isSettingsMode = false;
 let settingsReturnState = null;
 let isSidebarCollapsed = false;
-let settingsPageCache = null;  // 新增：缓存 settings 页面状态
+let settingsPageCache = null;
+
+// 专题状态
+let selectedSpecial = null;          // 当前选中的专题ID，null=概览页
+let specialPageCache = null;         // 缓存专题页面的 HTML+滚动位置
 
 let modeStates = {
     notes: {
@@ -48,11 +52,56 @@ let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
 
+// ========== 专题配置 ==========
+const specialConfigs = [
+    {
+        id: 'years',
+        name: '年份图鉴',
+        desc: '按年份展示纸币实拍图片',
+        dataKey: 'yearsData',
+        imageBase: '../funcollection/years/',
+        categories: [
+            { id: 'all', name: '全部纸币', filter: null },
+            { id: 'fec', name: '外汇兑换券', filter: function(item) { return item.name.includes('外汇兑换券'); } },
+            { id: 'rmb2', name: '第二套人民币', filter: function(item) { return item.name.includes('第二套人民币'); } },
+            { id: 'rmb3', name: '第三套人民币', filter: function(item) { return item.name.includes('第三套人民币'); } },
+            { id: 'commemorative', name: '纪念钞', filter: function(item) { return item.name.includes('纪念钞') || item.name.includes('贺岁'); } },
+            { id: 'war', name: '乌克兰战争纪念钞', filter: function(item) { return item.name.includes('俄乌战争'); } },
+            { id: 'gkq', name: '国库券', filter: function(item) { return item.name.includes('国库券'); } },
+            { id: 'republic', name: '民国纸币', filter: function(item) { return item.name.includes('交通银行') || item.name.includes('中国银行') || item.name.includes('中央银行') || item.name.includes('大洋票'); } }
+        ]
+    }
+];
+
+// ========== 专题分类树（用于侧边栏渲染，与 categoryTree 格式一致） ==========
+let specialCategoryTree = null;
+
+function buildSpecialCategoryTree() {
+    specialCategoryTree = [];
+    for (const config of specialConfigs) {
+        const children = [];
+        for (const cat of config.categories) {
+            children.push({ id: cat.id, name: cat.name, dataKey: config.id });
+        }
+        specialCategoryTree.push({
+            id: config.id,
+            name: config.name,
+            dataKey: config.id,
+            children: children
+        });
+    }
+}
+
 function getCategoryTree() {
+    if (currentMode === 'special') return specialCategoryTree;
     return currentMode === 'notes' ? categoryTree : coinCategoryTree;
 }
 
 function getImageBase() {
+    if (currentMode === 'special') {
+        const config = specialConfigs.find(c => c.id === selectedSpecial);
+        return config ? config.imageBase : '';
+    }
     return currentMode === 'notes' ? IMAGE_BASE : COIN_IMAGE_BASE;
 }
 
@@ -63,9 +112,12 @@ function getAllDataKeys() {
 function getData(dataKey) {
     if (currentMode === 'notes') {
         return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
-    } else {
+    } else if (currentMode === 'coins') {
         return window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey] ? window.COIN_DATA_MAP[dataKey] : null;
+    } else if (currentMode === 'special') {
+        return window.FUN_DATA_MAP && window.FUN_DATA_MAP[dataKey] ? window.FUN_DATA_MAP[dataKey] : null;
     }
+    return null;
 }
 
 function getSubCategoryMap() {
@@ -158,7 +210,16 @@ function renderSidebar() {
         return;
     }
 
-    const tree = getCategoryTree();
+    // 专题模式：使用专题分类树
+    let tree;
+    if (currentMode === 'special') {
+        tree = specialCategoryTree;
+    } else {
+        tree = getCategoryTree();
+    }
+
+    if (!tree) { sidebar.innerHTML = ''; return; }
+
     let html = '';
     for (const cat of tree) {
         const hasChildren = cat.children && cat.children.length > 0;
@@ -183,6 +244,33 @@ function renderSidebar() {
 }
 
 function onSidebarItemClick(catId) {
+    // 专题模式：点击已选中的专题 = 返回概览
+    if (currentMode === 'special') {
+        if (selectedSpecial === catId) {
+            // 取消选中，回到概览页
+            selectedSpecial = null;
+            currentCategoryId = null;
+            currentSubId = null;
+            renderSidebar();
+            renderSpecialOverview();
+            return;
+        }
+        // 选中新专题
+        selectedSpecial = catId;
+        const config = specialConfigs.find(c => c.id === catId);
+        if (config && config.categories && config.categories.length > 0) {
+            currentCategoryId = catId;
+            currentSubId = config.categories[0].id;
+        } else {
+            currentCategoryId = catId;
+            currentSubId = null;
+        }
+        renderSidebar();
+        renderSpecialContent();
+        return;
+    }
+
+    // 纸币/硬币模式（原有逻辑）
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === catId);
     if (!cat) return;
@@ -210,6 +298,16 @@ function onSidebarItemClick(catId) {
 }
 
 function onSidebarChildClick(parentId, subId) {
+    // 专题模式
+    if (currentMode === 'special') {
+        selectedSpecial = parentId;
+        currentCategoryId = parentId;
+        currentSubId = subId;
+        renderSidebar();
+        renderSpecialContent();
+        return;
+    }
+
     currentCategoryId = parentId;
     currentSubId = subId;
     currentView = 'category';
@@ -219,6 +317,12 @@ function onSidebarChildClick(parentId, subId) {
 
 function renderCurrentCategory() {
     if (!currentCategoryId) { renderOverview(); return; }
+
+    if (currentMode === 'special') {
+        renderSpecialContent();
+        return;
+    }
+
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); return; }
@@ -258,6 +362,8 @@ function updateSearchUIForMode() {
         toggle.textContent = articleSearchMode === 'title' ? '标' : '全';
         toggle.title = articleSearchMode === 'title' ? '当前：标题索引，点击切换为全字段索引' : '当前：全字段索引，点击切换为标题索引';
         tip.textContent = articleSearchMode === 'title' ? '文章搜索：标题索引（实时）' : '文章搜索：全字段索引（实时）';
+    } else if (currentMode === 'special' || currentMode === 'settings') {
+        // 专题模式隐藏搜索栏，由 enterSpecial 控制
     } else {
         select.classList.remove('hidden');
         toggle.classList.remove('hidden');
@@ -268,6 +374,7 @@ function updateSearchUIForMode() {
 }
 
 function onTabClick(target) {
+    // ===== 设置（"我的"） =====
     if (target === 'settings') {
         if (!isSettingsMode) {
             if (currentMode === 'articles') {
@@ -288,6 +395,13 @@ function onTabClick(target) {
                     expandedVarieties: expanded.expandedVarieties,
                     scrollY
                 };
+            } else if (currentMode === 'special') {
+                const appEl = document.getElementById('app');
+                const contentEl = document.querySelector('.content');
+                specialPageCache = {
+                    innerHTML: appEl ? appEl.innerHTML : '',
+                    scrollY: contentEl ? contentEl.scrollTop : 0
+                };
             }
             settingsReturnState = {
                 currentMode,
@@ -299,22 +413,89 @@ function onTabClick(target) {
         return;
     }
 
+    // ===== 专题 =====
     if (target === 'special') {
-        alert('暂未开放');
+        if (isSettingsMode) {
+            // 退出设置模式，保存缓存
+            const appEl = document.getElementById('app');
+            const contentEl = document.querySelector('.content');
+            if (appEl) {
+                settingsPageCache = {
+                    innerHTML: appEl.innerHTML,
+                    scrollY: contentEl ? contentEl.scrollTop : 0
+                };
+            }
+            isSettingsMode = false;
+            document.querySelector('.body-row')?.classList.remove('settings-mode');
+        } else if (currentMode === 'notes' || currentMode === 'coins') {
+            const content = document.querySelector('.content');
+            const scrollY = content ? content.scrollTop : 0;
+            const expanded = collectExpandedStates();
+            modeStates[currentMode] = {
+                currentCategoryId, currentSubId, currentView,
+                currentSearchKeyword: currentSearchKeyword || '',
+                expandedSeries: expanded.expandedSeries,
+                expandedVarieties: expanded.expandedVarieties,
+                scrollY
+            };
+        } else if (currentMode === 'articles') {
+            articleState = {
+                currentView: currentArticleView,
+                currentCategory: currentArticleCategory,
+                currentIndex: currentArticleIndex,
+                searchKeyword: articleSearchKeyword
+            };
+        } else if (currentMode === 'settings') {
+            // 从"我的"切过来，settingsReturnState 已有
+        }
+
+        // 进入专题模式
+        currentMode = 'special';
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        document.querySelector('.tab-item[data-target="special"]')?.classList.add('active');
+
+        // 隐藏搜索栏
+        const searchContainer = document.querySelector('.top-search-container');
+        if (searchContainer) searchContainer.classList.add('hidden');
+
+        // 如果有缓存，恢复；否则渲染概览页
+        if (specialPageCache && selectedSpecial !== null) {
+            // 恢复内容页（包含侧边栏）
+            document.querySelector('.body-row')?.classList.remove('settings-mode');
+            document.getElementById('app').innerHTML = specialPageCache.innerHTML;
+            renderSidebar();
+            requestAnimationFrame(() => {
+                const content = document.querySelector('.content');
+                if (content && specialPageCache.scrollY) {
+                    content.scrollTop = specialPageCache.scrollY;
+                }
+            });
+        } else {
+            // 首次进入或已回到概览
+            if (selectedSpecial !== null) {
+                // 应该恢复到之前选择的专题内容页
+                renderSidebar();
+                renderSpecialContent();
+            } else {
+                // 显示概览页
+                selectedSpecial = null;
+                currentCategoryId = null;
+                currentSubId = null;
+                renderSidebar();
+                renderSpecialOverview();
+            }
+        }
         return;
     }
 
-    if (isSettingsMode) {
-        // 离开设置页前，保存当前状态到缓存
-        const appEl = document.getElementById('app');
-        const contentEl = document.querySelector('.content');
-        if (appEl) {
-            settingsPageCache = {
-                innerHTML: appEl.innerHTML,
-                scrollY: contentEl ? contentEl.scrollTop : 0
-            };
-        }
+    // ===== 暂未开放 =====
+    if (target === 'special') {
+        // 已处理
+        return;
+    }
 
+    // ===== 退出设置模式 =====
+    if (isSettingsMode) {
         isSettingsMode = false;
 
         const searchContainer = document.querySelector('.top-search-container');
@@ -403,6 +584,7 @@ function onTabClick(target) {
         return;
     }
 
+    // ===== 文章 =====
     if (target === 'articles') {
         if (currentMode === 'notes' || currentMode === 'coins') {
             const content = document.querySelector('.content');
@@ -414,6 +596,13 @@ function onTabClick(target) {
                 expandedSeries: expanded.expandedSeries,
                 expandedVarieties: expanded.expandedVarieties,
                 scrollY
+            };
+        } else if (currentMode === 'special') {
+            const appEl = document.getElementById('app');
+            const contentEl = document.querySelector('.content');
+            specialPageCache = {
+                innerHTML: appEl ? appEl.innerHTML : '',
+                scrollY: contentEl ? contentEl.scrollTop : 0
             };
         }
 
@@ -435,6 +624,10 @@ function onTabClick(target) {
             si.addEventListener('input', doSearch);
         }
 
+        // 显示搜索栏
+        const searchContainer = document.querySelector('.top-search-container');
+        if (searchContainer) searchContainer.classList.remove('hidden');
+
         updateSearchUIForMode();
         renderSidebar();
         if (currentArticleView === 'list') renderArticleList();
@@ -442,6 +635,7 @@ function onTabClick(target) {
         return;
     }
 
+    // ===== 纸币/硬币 =====
     if (target === 'notes' || target === 'coins') {
         if (currentMode === 'articles') {
             articleState = {
@@ -461,6 +655,13 @@ function onTabClick(target) {
                 expandedVarieties: expanded.expandedVarieties,
                 scrollY
             };
+        } else if (currentMode === 'special') {
+            const appEl = document.getElementById('app');
+            const contentEl = document.querySelector('.content');
+            specialPageCache = {
+                innerHTML: appEl ? appEl.innerHTML : '',
+                scrollY: contentEl ? contentEl.scrollTop : 0
+            };
         }
 
         const newMode = target;
@@ -479,6 +680,10 @@ function onTabClick(target) {
                 inp.addEventListener('input', doSearch);
             }
         }
+
+        // 显示搜索栏
+        const searchContainer = document.querySelector('.top-search-container');
+        if (searchContainer) searchContainer.classList.remove('hidden');
 
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
@@ -519,9 +724,7 @@ function enterSettings() {
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
     if (settingsPageCache) {
-        // 从缓存恢复页面，避免重新渲染丢失状态
         document.getElementById('app').innerHTML = settingsPageCache.innerHTML;
-        // 重新绑定主题色点击事件
         document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
             el.addEventListener('click', function() {
                 const color = this.dataset.color;
@@ -529,7 +732,6 @@ function enterSettings() {
                 if (typeof setTheme === 'function') setTheme(color);
             });
         });
-        // 恢复滚动位置
         requestAnimationFrame(() => {
             const content = document.querySelector('.content');
             if (content && settingsPageCache.scrollY) {
@@ -539,6 +741,153 @@ function enterSettings() {
     } else {
         renderSettingsPage();
     }
+}
+
+/* ==================== 专题功能 ==================== */
+
+function renderSpecialOverview() {
+    const app = document.getElementById('app');
+    let html = `<div class="settings-page">`;
+    html += `<h2>专题</h2>`;
+    html += `<div class="special-overview-grid">`;
+
+    for (const config of specialConfigs) {
+        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
+        const count = data ? data.length : 0;
+        html += `<div class="special-card" onclick="onSpecialCardClick('${config.id}')">`;
+        html += `<div class="special-card-name">${escapeHtml(config.name)}</div>`;
+        if (config.desc) html += `<div class="special-card-desc">${escapeHtml(config.desc)}</div>`;
+        html += `<div class="special-card-count">${count} 条数据</div>`;
+        html += `</div>`;
+    }
+
+    if (specialConfigs.length === 0) {
+        html += `<div class="empty-colors-hint">暂无专题</div>`;
+    }
+
+    html += `</div></div>`;
+    app.innerHTML = html;
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
+}
+
+function onSpecialCardClick(specialId) {
+    selectedSpecial = specialId;
+    const config = specialConfigs.find(c => c.id === specialId);
+    if (config && config.categories && config.categories.length > 0) {
+        currentCategoryId = specialId;
+        currentSubId = config.categories[0].id;
+    } else {
+        currentCategoryId = specialId;
+        currentSubId = null;
+    }
+    renderSidebar();
+    renderSpecialContent();
+}
+
+function renderSpecialContent() {
+    if (!selectedSpecial) {
+        renderSpecialOverview();
+        return;
+    }
+
+    const config = specialConfigs.find(c => c.id === selectedSpecial);
+    if (!config) { renderSpecialOverview(); return; }
+
+    const data = getData(config.dataKey);
+    if (!data || data.length === 0) {
+        document.getElementById('app').innerHTML = '<div class="empty-state">暂无数据</div>';
+        return;
+    }
+
+    // 根据 currentSubId 筛选数据
+    let filteredData = data;
+    if (currentSubId && currentSubId !== 'all') {
+        const catConfig = config.categories.find(c => c.id === currentSubId);
+        if (catConfig && catConfig.filter) {
+            filteredData = data.filter(catConfig.filter);
+        }
+    }
+
+    const imgBase = config.imageBase;
+
+    // 按年份分组展示
+    const yearGroups = {};
+    for (const item of filteredData) {
+        const y = item.year;
+        if (!yearGroups[y]) yearGroups[y] = [];
+        yearGroups[y].push(item);
+    }
+    const sortedYears = Object.keys(yearGroups).sort((a, b) => b - a);
+
+    let html = `<div class="special-content">`;
+    html += `<h2>${escapeHtml(config.name)}</h2>`;
+
+    if (currentSubId && currentSubId !== 'all') {
+        const catConfig = config.categories.find(c => c.id === currentSubId);
+        if (catConfig) {
+            html += `<p class="overview-header" style="margin-top:-8px;margin-bottom:12px;">${escapeHtml(catConfig.name)} · 共 ${filteredData.length} 项</p>`;
+        }
+    } else {
+        html += `<p class="overview-header" style="margin-top:-8px;margin-bottom:12px;">共 ${filteredData.length} 项</p>`;
+    }
+
+    for (const year of sortedYears) {
+        const items = yearGroups[year];
+        html += `<div class="special-year-section">`;
+        html += `<div class="special-year-title">${year} 年 <span class="count">${items.length} 项</span></div>`;
+        html += `<div class="special-year-grid">`;
+        for (const item of items) {
+            const imgSrc = item.yearImg ? imgBase + item.yearImg : '';
+            html += `<div class="special-item-card" onclick="${imgSrc ? `openSpecialModal('${escapeHtml(imgSrc)}')` : ''}">`;
+            if (imgSrc) {
+                html += `<div class="special-item-img-wrapper">`;
+                html += `<img class="special-item-img" src="${imgSrc}" alt="${escapeHtml(item.name)}" loading="lazy">`;
+                html += `</div>`;
+            }
+            html += `<div class="special-item-info">`;
+            html += `<div class="special-item-name">${escapeHtml(item.name)}</div>`;
+            if (item.krause) html += `<div class="special-item-krause">${escapeHtml(item.krause)}</div>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
+        html += `</div>`;
+        html += `</div>`;
+    }
+
+    html += `</div>`;
+    document.getElementById('app').innerHTML = html;
+    requestAnimationFrame(() => {
+        const app = document.getElementById('app');
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
+}
+
+// 专题大图弹窗（独立于主站弹窗，使用系统弹窗或简单实现）
+function openSpecialModal(imgSrc) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    if (!modal || !modalImg) return;
+    modalImg.src = imgSrc;
+    modal.style.display = 'flex';
+
+    const container = document.getElementById('imageContainer');
+    if (container) {
+        container.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
+        currentScale = 1; currentX = 0; currentY = 0;
+    }
+
+    const scrollY = window.scrollY;
+    document.body.classList.add('modal-open');
+    document.body.style.top = `-${scrollY}px`;
+
+    modalImg.onload = function() { initPinchZoom(); };
+    if (modalImg.complete) initPinchZoom();
 }
 
 /* ==================== 统计功能 ==================== */
@@ -894,6 +1243,7 @@ function setupModalEvents() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    buildSpecialCategoryTree();
     renderSidebar();
     renderOverview();
 
