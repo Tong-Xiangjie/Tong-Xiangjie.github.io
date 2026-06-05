@@ -275,7 +275,7 @@ function renderArticleList() {
                 }
             }
             html += `</div>`;
-            html += `<div class="index-num">📄</div>`;
+            html += `<div class="index-num"></div>`;
             html += `</div>`;
         }
         html += `</div>`;
