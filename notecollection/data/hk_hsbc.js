@@ -231,10 +231,6 @@ const hk_hsbcData = {
         {
             seriesName: "2018～至今版",
             year: "2018～至今",
-            readme: {
-                title: "汇丰银行2018年新版港币宣传片",
-                content: `<div style="text-align:center;"><iframe src="//player.bilibili.com/player.html?isOutside=true&aid=28094946&bvid=BV19s411c7W3&cid=48551121&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:800px;height:450px;"></iframe>`
-            },
             varieties: [
                 {
                     varietyName: "港币20元 一家茶叙",
