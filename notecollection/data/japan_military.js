@@ -1,5 +1,5 @@
 const japanMilitaryData = {
-    name: "日本帝国政府军用手票",
+    name: "大日本帝国政府军用手票",
     icon: null,
     desc: "Japanese Imperial Government Military Note",
     detailFields: [
@@ -60,7 +60,7 @@ const japanMilitaryData = {
                             price: "78元",
                             purchaseDate: "2026年6月6日",
                             krause: "M29",
-                            print: "日本帝国印刷局",
+                            print: "大日本帝国印刷局",
                             issueDate: "",
                             withdrawnDate: "",
                             size: "",
