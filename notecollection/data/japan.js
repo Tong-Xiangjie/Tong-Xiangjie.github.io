@@ -25,31 +25,65 @@ const japanData = {
             year: "1946",
             varieties: [
                 {
-                    varietyName: "1946年 10銭 政府纸币",
+                    varietyName: "1946年 5銭 梅花",
                     copies: []
                 },
                 {
-                    varietyName: "1946年 5円 政府纸币",
-                    copies: []
+                    varietyName: "1947年 10銭 和平鸽",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1947,
+                            version: "18113",
+                            bank: "日本银行/Bank of Japan",
+                            condition: "ACG64E",
+                            price: "34元",
+                            purchaseDate: "2026年6月6日",
+                            krause: "84",
+                            print: "印刷局",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            wmk: "",
+                            remark: "",
+                            img1: "image/japan/18113-1.jpg",
+                            img2: "image/japan/18113-2.jpg"
+                        }
+                    ]
                 },
                 {
-                    varietyName: "1946年 10円 政府纸币",
-                    copies: []
-                },
-                {
-                    varietyName: "1946年 100円 圣德太子",
+                    varietyName: "1946年 50銭 板垣退助",
                     copies: []
                 },
                 {
                     varietyName: "1946年 1円 二宫尊德",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1946,
+                            version: "1114922",
+                            bank: "日本银行/Bank of Japan",
+                            condition: "ACG64E",
+                            price: "30元",
+                            purchaseDate: "2026年6月6日",
+                            krause: "85a.3",
+                            print: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            wmk: "",
+                            remark: "",
+                            img1: "image/japan/1114922-1.jpg",
+                            img2: "image/japan/1114922-2.jpg"
+                        }
+                    ]
+                },
+                {
+                    varietyName: "1946年 5円",
                     copies: []
                 },
                 {
-                    varietyName: "1946年 5円 一円兑换券",
-                    copies: []
-                },
-                {
-                    varietyName: "1946年 20円 政府纸币",
+                    varietyName: "1946年 10円 国会议事堂",
                     copies: []
                 },
                 {
