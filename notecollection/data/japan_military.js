@@ -23,11 +23,11 @@ const japanMilitaryData = {
             seriesName: "甲号券",
             year: "1937",
             varieties: [
-                { varietyName: "1937年 10钱 甲号军用手票", copies: [] },
-                { varietyName: "1937年 50钱 甲号军用手票", copies: [] },
-                { varietyName: "1937年 1圆 甲号军用手票", copies: [] },
-                { varietyName: "1937年 5圆 甲号军用手票", copies: [] },
-                { varietyName: "1937年 10圆 甲号军用手票", copies: [] }
+                { varietyName: "1937年 10钱", copies: [] },
+                { varietyName: "1937年 50钱", copies: [] },
+                { varietyName: "1937年 1圆", copies: [] },
+                { varietyName: "1937年 5圆", copies: [] },
+                { varietyName: "1937年 10圆", copies: [] }
             ]
         },
 
@@ -36,9 +36,9 @@ const japanMilitaryData = {
             seriesName: "乙号券",
             year: "1938",
             varieties: [
-                { varietyName: "1938年 5圆 乙号军用手票（本土水印版）", copies: [] },
-                { varietyName: "1938年 10圆 乙号军用手票（本土水印版）", copies: [] },
-                { varietyName: "1938年 100圆 乙号军用手票（本土水印版）", copies: [] }
+                { varietyName: "1938年 5圆", copies: [] },
+                { varietyName: "1938年 10圆", copies: [] },
+                { varietyName: "1938年 100圆", copies: [] }
             ]
         },
 
@@ -47,10 +47,10 @@ const japanMilitaryData = {
             seriesName: "丙号券",
             year: "1938",
             varieties: [
-                { varietyName: "1938年 1圆 丙号军用手票", copies: [] },
-                { varietyName: "1938年 5圆 丙号军用手票", copies: [] },
-                { varietyName: "1938年 10圆 丙号军用手票", copies: [] },
-                { varietyName: "1938年 100圆 丙号券", copies: [
+                { varietyName: "1938年 1圆", copies: [] },
+                { varietyName: "1938年 5圆", copies: [] },
+                { varietyName: "1938年 10圆", copies: [] },
+                { varietyName: "1938年 100圆", copies: [
                   {
                             copyId: 1,
                             year: 1938,
@@ -64,10 +64,10 @@ const japanMilitaryData = {
                             issueDate: "",
                             withdrawnDate: "",
                             size: "",
-                            wmk: "",
+                            wmk: "无水印/Without watermark",
                             remark: "",
-                            img1: "image/japan/1-1.jpg",
-                            img2: "image/japan/1-2.jpg"
+                            img1: "image/japan_military/1-1.jpg",
+                            img2: "image/japan_military/1-2.jpg"
                         }
                 ] }
             ]
@@ -78,10 +78,10 @@ const japanMilitaryData = {
             seriesName: "丁号券",
             year: "1939",
             varieties: [
-                { varietyName: "1939年 1圆 丁号龙凤军用手票", copies: [] },
-                { varietyName: "1939年 5圆 丁号龙凤军用手票", copies: [] },
-                { varietyName: "1939年 10圆 丁号龙凤军用手票", copies: [] },
-                { varietyName: "1939年 100圆 丁号龙凤军用手票", copies: [] }
+                { varietyName: "1939年 1圆", copies: [] },
+                { varietyName: "1939年 5圆", copies: [] },
+                { varietyName: "1939年 10圆", copies: [] },
+                { varietyName: "1939年 100圆", copies: [] }
             ]
         },
 
@@ -90,10 +90,10 @@ const japanMilitaryData = {
             seriesName: "戊号券",
             year: "1939",
             varieties: [
-                { varietyName: "1939年 1圆 戊号军用手票", copies: [] },
-                { varietyName: "1939年 5圆 戊号军用手票", copies: [] },
-                { varietyName: "1939年 10圆 戊号军用手票", copies: [] },
-                { varietyName: "1939年 100圆 戊号军用手票", copies: [] }
+                { varietyName: "1939年 1圆", copies: [] },
+                { varietyName: "1939年 5圆", copies: [] },
+                { varietyName: "1939年 10圆", copies: [] },
+                { varietyName: "1939年 100圆", copies: [] }
             ]
         }
     ]
