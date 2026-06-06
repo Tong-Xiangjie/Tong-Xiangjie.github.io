@@ -55,7 +55,7 @@ const japanMilitaryData = {
                             copyId: 1,
                             year: 1938,
                             version: "1",
-                            bank: "日本帝国政府",
+                            bank: "大日本帝国政府",
                             condition: "ACG65E",
                             price: "78元",
                             purchaseDate: "2026年6月6日",
