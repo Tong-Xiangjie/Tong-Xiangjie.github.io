@@ -61,14 +61,14 @@ const commemorativeData = {
                     purchaseDate: "2026年", 
                     price: "278元", 
                     bank: "中国人民银行", 
-                    version: "A000000B", 
+                    version: "M698194E", 
                     condition: "暂未评级", 
                     krause: "1990",
                     issueDate: "1999年6月",
                     issueQuantity: "3000万",
                     remark: "", 
-                    img1: "image/comm/-1.jpg", 
-                    img2: "image/comm/-2.jpg" 
+                    img1: "image/comm/M698194E-1.jpg", 
+                    img2: "image/comm/M698194E-2.jpg" 
                 }
             ] 
         },
