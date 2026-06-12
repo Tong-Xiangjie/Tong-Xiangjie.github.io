@@ -18,50 +18,80 @@ const republic_cbcData = {
     ],
     series: [
         {
-            seriesName: "1941年 10元",
+            seriesName: "1941年 美商保安版法币",
             year: "1941",
-            copies: [
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1941,
-                    version: "FJ772552",
-                    bank: "中央银行",
-                    print: "美商保安钞票公司/SBNC",
-                    issueDate: "",
-                    withdrawnDate: "",
-                    size: "79mm*162mm",
-                    condition: "ACG63E",
-                    price: "108元",
-                    purchaseDate: "2026年2月23日",
-                    krause: "239a",
-                    remark: "",
-                    img1: "image/republic_cbc/FJ772552-1.jpg",
-                    img2: "image/republic_cbc/FJ772552-2.jpg"
+                    varietyName: "10元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1941,
+                            version: "FJ772552",
+                            bank: "中央银行",
+                            print: "美商保安钞票公司/SBNC",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "79mm*162mm",
+                            condition: "ACG63E",
+                            price: "108元",
+                            purchaseDate: "2026年2月23日",
+                            krause: "239a",
+                            remark: "",
+                            img1: "image/republic_cbc/FJ772552-1.jpg",
+                            img2: "image/republic_cbc/FJ772552-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "100元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1941,
+                            version: "IO038655",
+                            bank: "中央银行",
+                            print: "美商保安钞票公司/SBNC",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "79mm*162mm",
+                            condition: "PMG65E",
+                            price: "298元",
+                            purchaseDate: "2026年2月25日",
+                            krause: "243a",
+                            remark: "",
+                            img1: "image/republic_cbc/IO038655-1.jpg",
+                            img2: "image/republic_cbc/IO038655-2.jpg"
+                        }
+                    ]
                 }
             ]
-        },
-        {
-            seriesName: "1941年 100元",
-            year: "1941",
-            copies: [
+        },{
+            seriesName: "1945～1948年 东北九省流通券",
+            year: "1945～1948",
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1941,
-                    version: "IO038655",
-                    bank: "中央银行",
-                    print: "美商保安钞票公司/SBNC",
-                    issueDate: "",
-                    withdrawnDate: "",
-                    size: "79mm*162mm",
-                    condition: "PMG65E",
-                    price: "298元",
-                    purchaseDate: "2026年2月25日",
-                    krause: "243a",
-                    remark: "",
-                    img1: "image/republic_cbc/IO038655-1.jpg",
-                    img2: "image/republic_cbc/IO038655-2.jpg"
+                    varietyName: "1945年 100元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1945,
+                            version: "WQ648448",
+                            bank: "中央银行",
+                            print: "中央印制厂上海厂/CPFS",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG62E",
+                            price: "68元",
+                            purchaseDate: "2026年6月11日",
+                            krause: "379.1",
+                            remark: "",
+                            img1: "image/republic_cbc/WQ648448-1.jpg",
+                            img2: "image/republic_cbc/WQ648448-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
     ]
-};
+}
