@@ -26,6 +26,7 @@ window.DATA_MAP = {
     republic_fbcData:   typeof republic_fbcData   !== 'undefined' ? republic_fbcData   : null,
     republic_kpbData:   typeof republic_kpbData   !== 'undefined' ? republic_kpbData   : null,
     republic_crbcData:  typeof republic_crbcData  !== 'undefined' ? republic_crbcData  : null,
+    republic_aibData:   typeof republic_aibData   !== 'undefined' ? republic_aibData   : null,
     japanMilitaryData:  typeof japanMilitaryData  !== 'undefined' ? japanMilitaryData  : null,
     japanData:          typeof japanData          !== 'undefined' ? japanData          : null,
     indonesiaData:      typeof indonesiaData      !== 'undefined' ? indonesiaData      : null,
