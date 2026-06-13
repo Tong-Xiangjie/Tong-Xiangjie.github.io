@@ -18,6 +18,33 @@ const republic_cbcData = {
     ],
     series: [
         {
+            seriesName: "1939年 永宁版法币",
+            year: "1939",
+            varieties: [
+                {
+                    varietyName: "1939年 1分",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1945,
+                            version: "B501637D",
+                            bank: "中央银行",
+                            print: "美商永宁有限公司/UPP",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG65E",
+                            price: "80元",
+                            purchaseDate: "2026年6月13日",
+                            krause: "224a",
+                            remark: "",
+                            img1: "image/republic_cbc/B501637D-1.jpg",
+                            img2: "image/republic_cbc/B501637D-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "1941年 美商保安版法币",
             year: "1941",
             varieties: [
