@@ -18,15 +18,42 @@ const republic_cbcData = {
     ],
     series: [
         {
-            seriesName: "1939年 永宁版法币",
-            year: "1939",
+            seriesName: "中华民国二十年（1931年） 中华书局版兑换券辅币券",
+            year: "1931",
             varieties: [
                 {
-                    varietyName: "1939年 1分",
+                    varietyName: "1939年 1角 孔庙杏坛",
                     copies: [
                         {
                             copyId: 1,
-                            year: 1945,
+                            year: 1939,
+                            version: "Y619524L",
+                            bank: "中央银行",
+                            print: "中华书局有限公司/CHB",
+                            issueDate: "民国二十年四月（1931）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG65E",
+                            price: "85元",
+                            purchaseDate: "2026年6月17日",
+                            krause: "202",
+                            remark: "",
+                            img1: "image/republic_cbc/Y619524L-1.jpg",
+                            img2: "image/republic_cbc/Y619524L-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国二十八年（1939年） 永宁版法币",
+            year: "1939",
+            varieties: [
+                {
+                    varietyName: "1939年 1分 南京革命烈士塔（灵谷塔）",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1939,
                             version: "B501637D",
                             bank: "中央银行",
                             print: "美商永宁有限公司/UPP",
@@ -45,7 +72,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "1941年 美商保安版法币",
+            seriesName: "中华民国三十年（1941年） 美商保安版法币",
             year: "1941",
             varieties: [
                 {
@@ -93,11 +120,11 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "1945～1948年 东北九省流通券",
+            seriesName: "中华民国三十四年（1945年） 上海版东北九省流通券",
             year: "1945～1948",
             varieties: [
                 {
-                    varietyName: "1945年 100元",
+                    varietyName: "1945年 100元 山海关",
                     copies: [
                         {
                             copyId: 1,
@@ -112,7 +139,7 @@ const republic_cbcData = {
                             price: "68元",
                             purchaseDate: "2026年6月11日",
                             krause: "379.1",
-                            remark: "",
+                            remark: "这里的“东北九省”指的是将原来的辽、吉、黑三省划分为辽宁、安东、辽北、吉林、松江、合江、黑龙江、嫩江以及兴安省九个省份。",
                             img1: "image/republic_cbc/WQ648448-1.jpg",
                             img2: "image/republic_cbc/WQ648448-2.jpg"
                         }
