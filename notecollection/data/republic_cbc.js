@@ -22,11 +22,11 @@ const republic_cbcData = {
             year: "1931",
             varieties: [
                 {
-                    varietyName: "1939年 1角 孔庙杏坛",
+                    varietyName: "1931年 1角 孔庙杏坛",
                     copies: [
                         {
                             copyId: 1,
-                            year: 1939,
+                            year: 1931,
                             version: "Y619524L",
                             bank: "中央银行",
                             print: "中华书局有限公司/CHB",
@@ -45,7 +45,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国二十八年（1939年） 永宁版法币",
+            seriesName: "中华民国二十八年（1939年） 永宁版法币券",
             year: "1939",
             varieties: [
                 {
@@ -72,7 +72,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国三十年（1941年） 美商保安版法币",
+            seriesName: "中华民国三十年（1941年） 美商保安版法币券",
             year: "1941",
             varieties: [
                 {
