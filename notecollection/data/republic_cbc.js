@@ -18,7 +18,7 @@ const republic_cbcData = {
     ],
     series: [
         {
-            seriesName: "中华民国二十年（1931年） 中华书局版兑换券辅币券",
+            seriesName: "中华民国二十年（1931年） 中华书局版 兑换券辅币券",
             year: "1931",
             varieties: [
                 {
@@ -66,11 +66,11 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国二十八年（1939年） 永宁版法币券",
+            seriesName: "中华民国二十八年（1939年） 永宁版 法币券",
             year: "1939",
             varieties: [
                 {
-                    varietyName: "1939年 1分 南京革命烈士塔（灵谷塔）",
+                    varietyName: "1939年 1分 灵谷塔",
                     copies: [
                         {
                             copyId: 1,
@@ -85,7 +85,7 @@ const republic_cbcData = {
                             price: "80元",
                             purchaseDate: "2026年6月13日",
                             krause: "224a",
-                            remark: "",
+                            remark: "坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
                             img1: "image/republic_cbc/B501637D-1.jpg",
                             img2: "image/republic_cbc/B501637D-2.jpg"
                         }
@@ -93,11 +93,11 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国三十年（1941年） 美商保安版法币券",
+            seriesName: "中华民国三十年（1941年） 美商保安版 法币券",
             year: "1941",
             varieties: [
                 {
-                    varietyName: "10元",
+                    varietyName: "1941年 10元",
                     copies: [
                         {
                             copyId: 1,
@@ -118,7 +118,7 @@ const republic_cbcData = {
                         }
                     ]
                 },{
-                    varietyName: "100元",
+                    varietyName: "1941年 100元",
                     copies: [
                         {
                             copyId: 1,
@@ -141,7 +141,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国三十四年（1945年） 上海版东北九省流通券",
+            seriesName: "中华民国三十四年（1945年） 上海版 东北九省流通券",
             year: "1945～1948",
             varieties: [
                 {
