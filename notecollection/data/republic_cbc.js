@@ -22,7 +22,7 @@ const republic_cbcData = {
             year: "1931",
             varieties: [
                 {
-                    varietyName: "1931年 1角 孔庙杏坛",
+                    varietyName: "1931年 1角 杏坛",
                     copies: [
                         {
                             copyId: 1,
@@ -37,9 +37,30 @@ const republic_cbcData = {
                             price: "85元",
                             purchaseDate: "2026年6月17日",
                             krause: "202",
-                            remark: "",
+                            remark: "杏坛，位于曲阜孔庙大成殿前，是孔子当年“设教讲学”的地方，亭内有金代石碑并植有古杏树，是儒家教育精神的象征。",
                             img1: "image/republic_cbc/Y619524L-1.jpg",
                             img2: "image/republic_cbc/Y619524L-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1931年 2角 洙水桥",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1931,
+                            version: "F616958Q",
+                            bank: "中央银行",
+                            print: "中华书局有限公司/CHB",
+                            issueDate: "民国二十年四月（1931）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG64E",
+                            price: "88元",
+                            purchaseDate: "2026年6月18日",
+                            krause: "203",
+                            remark: "洙水桥，坐落在曲阜孔林内，横跨洙水河，是通往孔子墓甬道的必经石桥，周围古柏森森，氛围肃穆庄严。",
+                            img1: "image/republic_cbc/F616958Q-1.jpg",
+                            img2: "image/republic_cbc/F616958Q-2.jpg"
                         }
                     ]
                 }
