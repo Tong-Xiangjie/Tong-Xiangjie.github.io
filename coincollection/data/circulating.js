@@ -38,7 +38,7 @@ const circulatingData = {
                     design: "",
                     grade: "MS68",
                     gradingCompany: "ACG",
-                    price: 18,
+                    price: "18元",
                     purchaseDate: "2026年6月19日",
                     catalogNumber: "",
                     remark: "发行分币的最后一年，关门币。",
