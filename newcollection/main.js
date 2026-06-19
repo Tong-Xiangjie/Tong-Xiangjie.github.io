@@ -1025,7 +1025,7 @@ function computeStats(typeFilter) {
     for (const item of filtered) {
         const ps = item.copy.price;
         if (ps) {
-            const num = parseFloat(ps.replace(/[^0-9.]/g, ''));
+            const num = parseFloat(String(ps).replace(/[^0-9.]/g, ''));
             if (!isNaN(num) && num > 0) {
                 prices.push({ value: num, name: item.seriesName, version: item.copy.version || '', dataKey: item.dataKey, type: item.type });
             } else {
