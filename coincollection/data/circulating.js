@@ -13,7 +13,6 @@ const circulatingData = {
         { key: "weight", label: "重量" },
         { key: "edge", label: "边齿" },
         { key: "design", label: "设计元素" },
-        { key: "mintage", label: "发行量" },
         { key: "gradingCompany", label: "评级公司" },
         { key: "grade", label: "评级分数" },
         { key: "price", label: "购入价格" },
@@ -23,29 +22,28 @@ const circulatingData = {
     series: [
         // 示例系列（请在此添加您的流通币藏品）
         {
-            seriesName: "示例流通币系列",
-            year: 2000,
+            seriesName: "1955～2018年 1分",
+            year: "1955～2018",
             copies: [
                 {
                     copyId: 1,
                     country: "中华人民共和国",
-                    year: 2000,
-                    issueDate: "2000年10月16日",
-                    mint: "南京造币厂",
-                    material: "钢芯镀镍",
-                    diameter: "25mm",
-                    weight: "6.05g",
+                    year: 2018,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "铝镁合金",
+                    diameter: "18mm",
+                    weight: "0.67g",
                     edge: "连续丝齿",
-                    design: "正面：国徽、国名、年号；背面：面额、花卉图案",
-                    mintage: "1000万",
-                    grade: "MS66",
-                    gradingCompany: "PCGS",
-                    price: 50,
-                    purchaseDate: "2026-04-01",
-                    catalogNumber: "SUN-001",
-                    remark: "示例备注",
-                    img1: "image/circulating/example_front.jpg",
-                    img2: "image/circulating/example_back.jpg"
+                    design: "",
+                    grade: "MS68",
+                    gradingCompany: "ACG",
+                    price: 18,
+                    purchaseDate: "2026年6月19日",
+                    catalogNumber: "",
+                    remark: "发行分币的最后一年，关门币。",
+                    img1: "image/circulating/2018-001.jpg",
+                    img2: "image/circulating/2018-001.jpg"
                 }
             ]
         }
