@@ -40,7 +40,7 @@ const gold_silverData = {
                     mintage: "30000",
                     grade: "PF69",
                     gradingCompany: "NGC",
-                    price: 4800,
+                    price: "",
                     purchaseDate: "2026-04-01",
                     catalogNumber: "SUN-001",
                     remark: "精制币，带证书",
