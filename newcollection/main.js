@@ -1488,9 +1488,9 @@ function renderSettingsPage() {
     html += `<span>价格列表</span>`;
     html += `<div class="price-list-controls">`;
     html += `<select class="price-sort-select" id="priceSortSelect" onclick="event.stopPropagation()" onchange="onPriceSortOrFilterChange()">`;
+    html += `<option value="default" selected>默认排序</option>`;
     html += `<option value="desc">从高到低</option>`;
     html += `<option value="asc">从低到高</option>`;
-    html += `<option value="default">默认排序</option>`;
     html += `</select>`;
     html += `<select class="price-filter-select" id="priceFilterSelect" onclick="event.stopPropagation()" onchange="onPriceSortOrFilterChange()">`;
     html += `<option value="all">全部藏品</option>`;
@@ -1504,7 +1504,7 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `<div class="price-list-summary" id="priceListSummary" style="display:none;"></div>`;
     html += `<div class="price-list-body" id="priceListBody">`;
-    html += renderPriceListItems(allStats.prices, 'desc', 'all', null);
+    html += renderPriceListItems(allStats.prices, 'default', 'all', null);
     html += `</div>`;
     html += `</div>`;
     html += `</div>`;
