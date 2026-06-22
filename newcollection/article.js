@@ -192,7 +192,7 @@ function renderArticleSidebar() {
         html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onArticleSidebarClick('${cat.id}')">`;
         html += `<span>${cat.name}</span>`;
         if (hasChildren) {
-            html += `<span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>`;
+            html += `<span class="expand-icon ${isExpanded ? 'expanded' : ''}">▸</span>`;
         }
         html += `</div>`;
         if (hasChildren) {
