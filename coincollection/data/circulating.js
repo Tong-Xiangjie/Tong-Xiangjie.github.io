@@ -42,8 +42,8 @@ const circulatingData = {
                     purchaseDate: "2026年6月19日",
                     catalogNumber: "",
                     remark: "发行分币的最后一年，关门币。",
-                    img1: "image/circulating/2018-001.jpg",
-                    img2: "image/circulating/2018-001.jpg"
+                    img1: "image/circulating/2018-001-1.jpg",
+                    img2: "image/circulating/2018-001-2.jpg"
                 }
             ]
         }
