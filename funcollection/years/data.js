@@ -59,3 +59,22 @@ const banknoteYears = [
     { year: 1949, name: "大洋票 10元", krause: "Pick# S2458", yearImg: "images/1949-dyp10.jpg" },
     { year: 1949, name: "大洋票 100元", krause: "Pick# S2459", yearImg: "images/1949-dyp100.jpg" } 
 ];
+
+// ========== 专题元信息 ==========
+const specialYearsMeta = {
+    id: 'years',
+    name: '年份图鉴',
+    desc: '按年份展示纸币实拍图片',
+    dataKey: 'yearsData',
+    imageBase: '../funcollection/years/',
+    categories: [
+        { id: 'all', name: '全部纸币', filter: null },
+        { id: 'fec', name: '外汇兑换券', filter: function(item) { return item.name.includes('外汇兑换券'); } },
+        { id: 'rmb2', name: '第二套人民币', filter: function(item) { return item.name.includes('第二套人民币'); } },
+        { id: 'rmb3', name: '第三套人民币', filter: function(item) { return item.name.includes('第三套人民币'); } },
+        { id: 'commemorative', name: '纪念钞', filter: function(item) { return item.name.includes('纪念钞') || item.name.includes('贺岁'); } },
+        { id: 'war', name: '乌克兰战争纪念钞', filter: function(item) { return item.name.includes('俄乌战争'); } },
+        { id: 'gkq', name: '国库券', filter: function(item) { return item.name.includes('国库券'); } },
+        { id: 'republic', name: '民国纸币', filter: function(item) { return item.name.includes('交通银行') || item.name.includes('中国银行') || item.name.includes('中央银行') || item.name.includes('大洋票'); } }
+    ]
+};
