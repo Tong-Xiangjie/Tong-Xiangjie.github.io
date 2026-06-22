@@ -55,9 +55,7 @@ let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
 
-/* ========== 删除了原来的硬编码 specialConfigs ========== */
-
-/* ========== 新增：从桥接文件读取专题配置 ========== */
+/* ========== 从桥接文件读取专题配置 ========== */
 function getSpecialConfigs() {
     return window.SPECIAL_CONFIGS || [];
 }
@@ -244,7 +242,7 @@ function onSidebarItemClick(catId) {
         const config = getSpecialConfigs().find(c => c.id === catId);
         if (config && config.categories && config.categories.length > 0) {
             currentCategoryId = catId;
-            currentSubId = config.categories[0].id;
+            currentSubId = null; // 不再自动选中第一个子分类
         } else {
             currentCategoryId = catId;
             currentSubId = null;
@@ -270,32 +268,14 @@ function onSidebarItemClick(catId) {
     currentCategoryId = catId;
     currentView = 'category';
 
-    if (cat.children) {
-        currentSubId = cat.children[0].id;
-    } else {
-        currentSubId = null;
-    }
+    // 有子分类时不再自动选中第一个
+    currentSubId = null;
 
     renderSidebar();
     renderCurrentCategory();
 }
 
-function onSidebarChildClick(parentId, subId) {
-    if (currentMode === 'special') {
-        selectedSpecial = parentId;
-        currentCategoryId = parentId;
-        currentSubId = subId;
-        renderSidebar();
-        renderSpecialContent();
-        return;
-    }
-
-    currentCategoryId = parentId;
-    currentSubId = subId;
-    currentView = 'category';
-    renderSidebar();
-    renderCurrentCategory();
-}
+/* ===== 改动点2：renderCurrentCategory 新增父分类合并展示逻辑 ===== */
 
 function renderCurrentCategory() {
     if (!currentCategoryId) { renderOverview(); return; }
@@ -308,6 +288,32 @@ function renderCurrentCategory() {
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); return; }
+
+    // 新增：处理有子分类的父分类（currentSubId 为 null 时）
+    if (cat.children && cat.children.length > 0 && !currentSubId) {
+        const subMap = getSubCategoryMap();
+        let allSeries = [];
+        let hasData = false;
+        for (const sub of cat.children) {
+            const subInfo = subMap[sub.id];
+            if (subInfo && subInfo.dataKey) {
+                const data = getData(subInfo.dataKey);
+                if (data && data.series) {
+                    allSeries = allSeries.concat(data.series);
+                    hasData = true;
+                }
+            }
+        }
+        if (hasData) {
+            const mergedData = {
+                name: cat.name,
+                desc: '全部系列',
+                series: allSeries
+            };
+            renderSeriesList(mergedData, cat.name);
+            return;
+        }
+    }
 
     let dataKey;
     const subMap = getSubCategoryMap();
@@ -329,6 +335,23 @@ function renderCurrentCategory() {
     const subName = currentSubId ? (subMap[currentSubId]?.name || '') : '';
     const title = subName ? subName : (cat.name || '');
     renderSeriesList(data, title);
+}
+
+function onSidebarChildClick(parentId, subId) {
+    if (currentMode === 'special') {
+        selectedSpecial = parentId;
+        currentCategoryId = parentId;
+        currentSubId = subId;
+        renderSidebar();
+        renderSpecialContent();
+        return;
+    }
+
+    currentCategoryId = parentId;
+    currentSubId = subId;
+    currentView = 'category';
+    renderSidebar();
+    renderCurrentCategory();
 }
 
 function updateSearchUIForMode() {
@@ -356,7 +379,6 @@ function updateSearchUIForMode() {
 }
 
 function onTabClick(target) {
-    // ===== 设置（"我的"） =====
     if (target === 'settings') {
         if (!isSettingsMode) {
             if (currentMode === 'articles') {
@@ -400,7 +422,6 @@ function onTabClick(target) {
         return;
     }
 
-    // ===== 专题 =====
     if (target === 'special') {
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -449,7 +470,7 @@ function onTabClick(target) {
         if (specialPageCache && specialPageCache.selectedSpecial !== null && specialPageCache.selectedSpecial !== undefined) {
             selectedSpecial = specialPageCache.selectedSpecial;
             const configs = getSpecialConfigs();
-            currentSubId = specialPageCache.currentSubId || (configs.find(c => c.id === selectedSpecial)?.categories[0]?.id);
+            currentSubId = specialPageCache.currentSubId || null;
             currentCategoryId = selectedSpecial;
             document.querySelector('.body-row')?.classList.remove('special-overview-mode');
             const toggleBtn = document.getElementById('sidebarToggle');
@@ -468,7 +489,6 @@ function onTabClick(target) {
         return;
     }
 
-    // ===== 退出设置模式 =====
     if (isSettingsMode) {
         const appEl = document.getElementById('app');
         const contentEl = document.querySelector('.content');
@@ -563,7 +583,7 @@ function onTabClick(target) {
             if (settingsReturnState && settingsReturnState.selectedSpecial) {
                 selectedSpecial = settingsReturnState.selectedSpecial;
                 currentCategoryId = settingsReturnState.selectedSpecial;
-                currentSubId = settingsReturnState.currentSubId;
+                currentSubId = settingsReturnState.currentSubId || null;
                 renderSidebar();
                 renderSpecialContent();
             } else {
@@ -588,7 +608,6 @@ function onTabClick(target) {
         return;
     }
 
-    // ===== 文章 =====
     if (target === 'articles') {
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -646,7 +665,6 @@ function onTabClick(target) {
         return;
     }
 
-    // ===== 纸币/硬币 =====
     if (target === 'notes' || target === 'coins') {
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -789,7 +807,7 @@ function onSpecialOverviewItemClick(specialId) {
     const config = getSpecialConfigs().find(c => c.id === specialId);
     if (config && config.categories && config.categories.length > 0) {
         currentCategoryId = specialId;
-        currentSubId = config.categories[0].id;
+        currentSubId = null; // 不再自动选中第一个子分类
     } else {
         currentCategoryId = specialId;
         currentSubId = null;
@@ -1292,7 +1310,6 @@ function renderSettingsPage() {
     let html = `<div class="settings-page">`;
     html += `<h2>我的</h2>`;
 
-    // 收藏概况
     html += `<div class="settings-section">`;
     html += `<h3>收藏概况</h3>`;
     html += `<div class="stats-summary-cards">`;
@@ -1303,7 +1320,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 资金概况 + 价格列表
     html += `<div class="settings-section">`;
     html += `<h3>资金概况</h3>`;
     html += `<div class="stats-money">`;
@@ -1336,7 +1352,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布
     html += `<div class="settings-section">`;
     html += `<div class="rating-section-header">`;
     html += `<div class="rating-tabs">`;
@@ -1350,7 +1365,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 年代分布
     html += `<div class="settings-section">`;
     html += `<h3>年代分布</h3>`;
     html += `<div id="yearSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
@@ -1358,7 +1372,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 主题色设置
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
