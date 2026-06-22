@@ -1236,6 +1236,7 @@ function getDataBySource(dataKey, source) {
     return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
 }
 
+/* ===== 修复：buildCategoryOrder 使用共享 index 方案 ===== */
 function buildCategoryOrder() {
     const order = {};
     let index = 0;
@@ -1243,11 +1244,14 @@ function buildCategoryOrder() {
     if (window.DATA_MAP) {
         for (const cat of categoryTree) {
             if (cat.children) {
+                let hasData = false;
                 for (const sub of cat.children) {
                     if (window.DATA_MAP[sub.dataKey] && window.DATA_MAP[sub.dataKey].series) {
-                        order[sub.dataKey] = index++;
+                        order[sub.dataKey] = index;
+                        hasData = true;
                     }
                 }
+                if (hasData) index++;
             } else if (cat.dataKey) {
                 if (window.DATA_MAP[cat.dataKey] && window.DATA_MAP[cat.dataKey].series) {
                     order[cat.dataKey] = index++;
