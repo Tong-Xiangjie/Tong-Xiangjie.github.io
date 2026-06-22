@@ -1237,6 +1237,7 @@ function getDataBySource(dataKey, source) {
 }
 
 /* ===== 修复：buildCategoryOrder 使用共享 index 方案 ===== */
+/* ===== 修复：buildCategoryOrder 使用共享 index 方案 ===== */
 function buildCategoryOrder() {
     const order = {};
     let index = 0;
