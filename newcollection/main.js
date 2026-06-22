@@ -1279,13 +1279,8 @@ function renderPriceListItems(prices, order, filter, filterInfo) {
     
     let sorted;
     if (order === 'default') {
-        const categoryOrder = buildCategoryOrder();
-        sorted = [...filteredPrices].sort((a, b) => {
-            const orderA = categoryOrder[a.dataKey] !== undefined ? categoryOrder[a.dataKey] : 999;
-            const orderB = categoryOrder[b.dataKey] !== undefined ? categoryOrder[b.dataKey] : 999;
-            if (orderA !== orderB) return orderA - orderB;
-            return b.value - a.value;
-        });
+        // 默认排序：保持数据文件的原始顺序（不排序）
+        sorted = [...filteredPrices];
     } else {
         sorted = [...filteredPrices].sort((a, b) => {
             if (order === 'desc') return b.value - a.value;
