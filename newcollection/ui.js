@@ -2,7 +2,7 @@
 function initPinchZoom() {
     const container = document.getElementById('imageContainer');
     if (!container) return;
-    if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
+    if (hammerManager) { hammerManager.destroy(); hammerManager = null; } 
     hammerManager = new Hammer.Manager(container);
     const pinch = new Hammer.Pinch();
     const pan = new Hammer.Pan();
