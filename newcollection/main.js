@@ -242,7 +242,7 @@ function onSidebarItemClick(catId) {
         const config = getSpecialConfigs().find(c => c.id === catId);
         if (config && config.categories && config.categories.length > 0) {
             currentCategoryId = catId;
-            currentSubId = null; // 不再自动选中第一个子分类
+            currentSubId = null;
         } else {
             currentCategoryId = catId;
             currentSubId = null;
@@ -256,7 +256,7 @@ function onSidebarItemClick(catId) {
     const cat = tree.find(c => c.id === catId);
     if (!cat) return;
 
-    if (currentCategoryId === catId) {
+    if (currentCategoryId === catId && currentSubId === null) {
         currentCategoryId = null;
         currentSubId = null;
         currentView = 'overview';
@@ -267,15 +267,13 @@ function onSidebarItemClick(catId) {
 
     currentCategoryId = catId;
     currentView = 'category';
-
-    // 有子分类时不再自动选中第一个
     currentSubId = null;
 
     renderSidebar();
     renderCurrentCategory();
 }
 
-/* ===== 改动点2：renderCurrentCategory 新增父分类合并展示逻辑 ===== */
+/* ===== 改动：renderCurrentCategory 父分类合并改用概览列表风格 ===== */
 
 function renderCurrentCategory() {
     if (!currentCategoryId) { renderOverview(); return; }
@@ -289,30 +287,10 @@ function renderCurrentCategory() {
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); return; }
 
-    // 新增：处理有子分类的父分类（currentSubId 为 null 时）
+    // 父分类：合并所有子分类的藏品，以概览列表风格展示
     if (cat.children && cat.children.length > 0 && !currentSubId) {
-        const subMap = getSubCategoryMap();
-        let allSeries = [];
-        let hasData = false;
-        for (const sub of cat.children) {
-            const subInfo = subMap[sub.id];
-            if (subInfo && subInfo.dataKey) {
-                const data = getData(subInfo.dataKey);
-                if (data && data.series) {
-                    allSeries = allSeries.concat(data.series);
-                    hasData = true;
-                }
-            }
-        }
-        if (hasData) {
-            const mergedData = {
-                name: cat.name,
-                desc: '全部系列',
-                series: allSeries
-            };
-            renderSeriesList(mergedData, cat.name);
-            return;
-        }
+        renderCategoryOverview(cat);
+        return;
     }
 
     let dataKey;
@@ -337,13 +315,136 @@ function renderCurrentCategory() {
     renderSeriesList(data, title);
 }
 
+/* ===== 新增：父分类概览列表 ===== */
+
+function renderCategoryOverview(cat) {
+    const app = document.getElementById('app');
+    const imgBase = getImageBase();
+    const subMap = getSubCategoryMap();
+
+    let allItems = [];
+    let globalIndex = 1;
+
+    for (const sub of cat.children) {
+        const subInfo = subMap[sub.id];
+        if (!subInfo || !subInfo.dataKey) continue;
+        const data = getData(subInfo.dataKey);
+        if (!data || !data.series) continue;
+
+        const catLabel = cat.name + ' - ' + sub.name;
+        for (let si = 0; si < data.series.length; si++) {
+            const series = data.series[si];
+            if (series.varieties) {
+                for (let vi = 0; vi < series.varieties.length; vi++) {
+                    const variety = series.varieties[vi];
+                    if (!variety.copies) continue;
+                    for (let ci = 0; ci < variety.copies.length; ci++) {
+                        allItems.push({
+                            catLabel, catId: cat.id, subId: sub.id,
+                            dataKey: subInfo.dataKey, si, vi, ci,
+                            series, variety, copy: variety.copies[ci],
+                            hasVarieties: true, globalIndex: globalIndex++
+                        });
+                    }
+                }
+            } else if (series.copies) {
+                for (let ci = 0; ci < series.copies.length; ci++) {
+                    allItems.push({
+                        catLabel, catId: cat.id, subId: sub.id,
+                        dataKey: subInfo.dataKey, si, vi: null, ci,
+                        series, variety: null, copy: series.copies[ci],
+                        hasVarieties: false, globalIndex: globalIndex++
+                    });
+                }
+            }
+        }
+    }
+
+    let html = `<div class="overview-header"><h2>${escapeHtml(cat.name)}</h2><p>共 ${allItems.length} 件藏品</p></div>`;
+    if (allItems.length === 0) {
+        html += '<div class="empty-state">暂无数据</div>';
+        app.innerHTML = html;
+        return;
+    }
+
+    // 按子分类分组
+    const grouped = {};
+    for (const item of allItems) {
+        if (!grouped[item.catLabel]) grouped[item.catLabel] = [];
+        grouped[item.catLabel].push(item);
+    }
+
+    for (const [label, items] of Object.entries(grouped)) {
+        html += `<div class="search-result-group">`;
+        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
+        for (const item of items) {
+            const c = item.copy;
+            const img1 = c.img1 ? imgBase + c.img1 : '';
+            const img2 = c.img2 ? imgBase + c.img2 : '';
+            const displayName = item.hasVarieties && item.variety
+                ? `${item.series.seriesName} - ${item.variety.varietyName}`
+                : item.series.seriesName;
+
+            const catalogNum = c.catalogNumber || c.krause || '';
+            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+
+            html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
+            html += `<div class="dual-thumb">`;
+            if (img1) html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+            if (img2) html += `<img class="mini-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
+            html += `</div>`;
+            html += `<div class="info">`;
+            html += `<div class="name">${escapeHtml(displayName)}</div>`;
+            html += `<div class="detail">`;
+            if (c.version) html += `${escapeHtml(c.version)} · `;
+            if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
+            if (c.year) html += `${c.year}年`;
+            if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
+            html += `</div></div>`;
+            html += `<div class="index-num">#${item.globalIndex}</div>`;
+            html += `</div>`;
+        }
+        html += `</div>`;
+    }
+
+    app.innerHTML = html;
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
+}
+
+/* ===== 改动：onSidebarChildClick 支持取消选中 ===== */
+
 function onSidebarChildClick(parentId, subId) {
+    // 专题模式
     if (currentMode === 'special') {
+        if (currentSubId === subId) {
+            // 取消选中，回到专题概览（所有数据）
+            currentSubId = null;
+            currentCategoryId = parentId;
+            renderSidebar();
+            renderSpecialContent();
+            return;
+        }
         selectedSpecial = parentId;
         currentCategoryId = parentId;
         currentSubId = subId;
         renderSidebar();
         renderSpecialContent();
+        return;
+    }
+
+    // 纸币/硬币模式
+    if (currentSubId === subId) {
+        // 取消选中，回到父分类概览列表
+        currentSubId = null;
+        currentCategoryId = parentId;
+        currentView = 'category';
+        renderSidebar();
+        renderCurrentCategory();
         return;
     }
 
@@ -807,7 +908,7 @@ function onSpecialOverviewItemClick(specialId) {
     const config = getSpecialConfigs().find(c => c.id === specialId);
     if (config && config.categories && config.categories.length > 0) {
         currentCategoryId = specialId;
-        currentSubId = null; // 不再自动选中第一个子分类
+        currentSubId = null;
     } else {
         currentCategoryId = specialId;
         currentSubId = null;
