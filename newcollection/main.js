@@ -338,6 +338,87 @@ function onSidebarChildClick(parentId, subId) {
     scrollToTop();
 }
 
+/* ===== 顶层概览页（纸币/硬币） ===== */
+function renderOverview() {
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
+    const tree = getCategoryTree();
+    const keys = getAllDataKeys();
+
+    // 统计各类数据
+    let totalItems = 0;
+    let categoryCount = 0;
+    const catStats = [];
+
+    for (const cat of tree) {
+        let catTotal = 0;
+        if (cat.children) {
+            for (const sub of cat.children) {
+                const data = getData(sub.dataKey);
+                if (data && data.series) {
+                    for (const series of data.series) {
+                        if (series.varieties) {
+                            for (const variety of series.varieties) {
+                                if (variety.copies) catTotal += variety.copies.length;
+                            }
+                        } else if (series.copies) {
+                            catTotal += series.copies.length;
+                        }
+                    }
+                }
+                categoryCount++;
+            }
+        } else if (cat.dataKey) {
+            const data = getData(cat.dataKey);
+            if (data && data.series) {
+                for (const series of data.series) {
+                    if (series.varieties) {
+                        for (const variety of series.varieties) {
+                            if (variety.copies) catTotal += variety.copies.length;
+                        }
+                    } else if (series.copies) {
+                        catTotal += series.copies.length;
+                    }
+                }
+            }
+            categoryCount++;
+        }
+        totalItems += catTotal;
+        catStats.push({ name: cat.name, count: catTotal });
+    }
+
+    let html = `<div class="overview-header">`;
+    html += `<h2>${modeLabel}收藏</h2>`;
+    html += `<p>共 ${categoryCount} 个分类 · ${totalItems} 件藏品</p>`;
+    html += `</div>`;
+
+    // 统计卡片
+    html += `<div class="stats-summary-cards" style="margin-bottom:16px;">`;
+    html += `<div class="stat-card"><div class="stat-num">${categoryCount}</div><div class="stat-label">分类</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${totalItems}</div><div class="stat-label">藏品</div></div>`;
+    html += `</div>`;
+
+    // 分类快速入口
+    for (const cat of tree) {
+        const catStat = catStats.find(s => s.name === cat.name);
+        const count = catStat ? catStat.count : 0;
+        html += `<div class="search-result-group">`;
+        html += `<div class="search-group-header" onclick="onSidebarItemClick('${cat.id}')" style="cursor:pointer;">`;
+        html += `${escapeHtml(cat.name)} <span class="count">${count}件 →</span>`;
+        html += `</div>`;
+        html += `</div>`;
+    }
+
+    app.innerHTML = html;
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
+}
+
 /* ===== renderCurrentCategory 增加父分类概览列表 ===== */
 function renderCurrentCategory() {
     if (!currentCategoryId) { renderOverview(); return; }
