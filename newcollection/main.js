@@ -1,5 +1,4 @@
 // ========== 文章状态 ==========
-let currentArticleView = 'list';
 let currentArticleCategory = 'all';
 let currentArticleIndex = -1;
 let collectedArticles = [];
