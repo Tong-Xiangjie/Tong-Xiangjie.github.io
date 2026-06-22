@@ -184,7 +184,7 @@ function toggleSidebar() {
     if (!sidebar || !toggle) return;
     isSidebarCollapsed = !isSidebarCollapsed;
     sidebar.classList.toggle('collapsed', isSidebarCollapsed);
-    toggle.textContent = isSidebarCollapsed ? '▶' : '◀';
+    toggle.textContent = isSidebarCollapsed ? '▸' : '◂';
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
 }
 
@@ -214,7 +214,7 @@ function renderSidebar() {
         html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onSidebarItemClick('${cat.id}')">`;
         html += `<span>${cat.name}</span>`;
         if (hasChildren) {
-            html += `<span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>`;
+            html += `<span class="expand-icon ${isExpanded ? 'expanded' : ''}">▸</span>`;
         }
         html += `</div>`;
         if (hasChildren) {
