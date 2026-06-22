@@ -245,7 +245,7 @@ function renderSidebar() {
     sidebar.innerHTML = html;
 }
 
-/* ===== 新增：滚动到顶部 ===== */
+/* ===== 滚动到顶部 ===== */
 function scrollToTop() {
     const content = document.querySelector('.content');
     if (content) content.scrollTop = 0;
@@ -264,7 +264,7 @@ function onSidebarItemClick(catId) {
         const config = specialConfigs.find(c => c.id === catId);
         if (config && config.categories && config.categories.length > 0) {
             currentCategoryId = catId;
-            currentSubId = config.categories[0].id;
+            currentSubId = null;
         } else {
             currentCategoryId = catId;
             currentSubId = null;
@@ -292,7 +292,7 @@ function onSidebarItemClick(catId) {
     currentView = 'category';
 
     if (cat.children) {
-        currentSubId = cat.children[0].id;
+        currentSubId = null;
     } else {
         currentSubId = null;
     }
@@ -302,13 +302,31 @@ function onSidebarItemClick(catId) {
     scrollToTop();
 }
 
+/* ===== onSidebarChildClick 支持取消选中 ===== */
 function onSidebarChildClick(parentId, subId) {
     if (currentMode === 'special') {
+        if (currentSubId === subId) {
+            currentSubId = null;
+            currentCategoryId = parentId;
+            renderSidebar();
+            renderSpecialContent();
+            return;
+        }
         selectedSpecial = parentId;
         currentCategoryId = parentId;
         currentSubId = subId;
         renderSidebar();
         renderSpecialContent();
+        return;
+    }
+
+    if (currentSubId === subId) {
+        currentSubId = null;
+        currentCategoryId = parentId;
+        currentView = 'category';
+        renderSidebar();
+        renderCurrentCategory();
+        scrollToTop();
         return;
     }
 
@@ -320,6 +338,7 @@ function onSidebarChildClick(parentId, subId) {
     scrollToTop();
 }
 
+/* ===== renderCurrentCategory 增加父分类概览列表 ===== */
 function renderCurrentCategory() {
     if (!currentCategoryId) { renderOverview(); return; }
 
@@ -331,6 +350,12 @@ function renderCurrentCategory() {
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); return; }
+
+    // 父分类：合并所有子分类，以概览列表风格展示
+    if (cat.children && cat.children.length > 0 && !currentSubId) {
+        renderCategoryOverview(cat);
+        return;
+    }
 
     let dataKey;
     const subMap = getSubCategoryMap();
@@ -352,6 +377,104 @@ function renderCurrentCategory() {
     const subName = currentSubId ? (subMap[currentSubId]?.name || '') : '';
     const title = subName ? subName : (cat.name || '');
     renderSeriesList(data, title);
+}
+
+/* ===== 新增：父分类概览列表 ===== */
+function renderCategoryOverview(cat) {
+    const app = document.getElementById('app');
+    const imgBase = getImageBase();
+    const subMap = getSubCategoryMap();
+
+    let allItems = [];
+    let globalIndex = 1;
+
+    for (const sub of cat.children) {
+        const subInfo = subMap[sub.id];
+        if (!subInfo || !subInfo.dataKey) continue;
+        const data = getData(subInfo.dataKey);
+        if (!data || !data.series) continue;
+
+        const catLabel = cat.name + ' - ' + sub.name;
+        for (let si = 0; si < data.series.length; si++) {
+            const series = data.series[si];
+            if (series.varieties) {
+                for (let vi = 0; vi < series.varieties.length; vi++) {
+                    const variety = series.varieties[vi];
+                    if (!variety.copies) continue;
+                    for (let ci = 0; ci < variety.copies.length; ci++) {
+                        allItems.push({
+                            catLabel, catId: cat.id, subId: sub.id,
+                            dataKey: subInfo.dataKey, si, vi, ci,
+                            series, variety, copy: variety.copies[ci],
+                            hasVarieties: true, globalIndex: globalIndex++
+                        });
+                    }
+                }
+            } else if (series.copies) {
+                for (let ci = 0; ci < series.copies.length; ci++) {
+                    allItems.push({
+                        catLabel, catId: cat.id, subId: sub.id,
+                        dataKey: subInfo.dataKey, si, vi: null, ci,
+                        series, variety: null, copy: series.copies[ci],
+                        hasVarieties: false, globalIndex: globalIndex++
+                    });
+                }
+            }
+        }
+    }
+
+    let html = `<div class="overview-header"><h2>${escapeHtml(cat.name)}</h2><p>共 ${allItems.length} 件藏品</p></div>`;
+    if (allItems.length === 0) {
+        html += '<div class="empty-state">暂无数据</div>';
+        app.innerHTML = html;
+        return;
+    }
+
+    const grouped = {};
+    for (const item of allItems) {
+        if (!grouped[item.catLabel]) grouped[item.catLabel] = [];
+        grouped[item.catLabel].push(item);
+    }
+
+    for (const [label, items] of Object.entries(grouped)) {
+        html += `<div class="search-result-group">`;
+        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
+        for (const item of items) {
+            const c = item.copy;
+            const img1 = c.img1 ? imgBase + c.img1 : '';
+            const img2 = c.img2 ? imgBase + c.img2 : '';
+            const displayName = item.hasVarieties && item.variety
+                ? `${item.series.seriesName} - ${item.variety.varietyName}`
+                : item.series.seriesName;
+            const catalogNum = c.catalogNumber || c.krause || '';
+            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+
+            html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
+            html += `<div class="dual-thumb">`;
+            if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+            if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
+            html += `</div>`;
+            html += `<div class="info">`;
+            html += `<div class="name">${escapeHtml(displayName)}</div>`;
+            html += `<div class="detail">`;
+            if (c.version) html += `${escapeHtml(c.version)} · `;
+            if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
+            if (c.year) html += `${c.year}年`;
+            if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
+            html += `</div></div>`;
+            html += `<div class="index-num">#${item.globalIndex}</div>`;
+            html += `</div>`;
+        }
+        html += `</div>`;
+    }
+
+    app.innerHTML = html;
+    requestAnimationFrame(() => {
+        app.classList.remove('content-enter');
+        void app.offsetWidth;
+        app.classList.add('content-enter');
+    });
 }
 
 function updateSearchUIForMode() {
@@ -471,7 +594,7 @@ function onTabClick(target) {
 
         if (specialPageCache && specialPageCache.selectedSpecial !== null && specialPageCache.selectedSpecial !== undefined) {
             selectedSpecial = specialPageCache.selectedSpecial;
-            currentSubId = specialPageCache.currentSubId || (specialConfigs.find(c => c.id === selectedSpecial)?.categories[0]?.id);
+            currentSubId = specialPageCache.currentSubId || null;
             currentCategoryId = selectedSpecial;
             document.querySelector('.body-row')?.classList.remove('special-overview-mode');
             const toggleBtn = document.getElementById('sidebarToggle');
@@ -811,7 +934,7 @@ function onSpecialOverviewItemClick(specialId) {
     const config = specialConfigs.find(c => c.id === specialId);
     if (config && config.categories && config.categories.length > 0) {
         currentCategoryId = specialId;
-        currentSubId = config.categories[0].id;
+        currentSubId = null;
     } else {
         currentCategoryId = specialId;
         currentSubId = null;
@@ -1113,7 +1236,6 @@ function getDataBySource(dataKey, source) {
     return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
 }
 
-/* ===== 新增：构建分类树顺序映射 ===== */
 function buildCategoryOrder() {
     const order = {};
     let index = 0;
@@ -1145,7 +1267,6 @@ function buildCategoryOrder() {
     return order;
 }
 
-/* ===== 修改：renderPriceListItems 增加"默认排序"支持 ===== */
 function renderPriceListItems(prices, order, filter, filterInfo) {
     let filteredPrices = prices;
     if (filter && filter !== 'all' && filterInfo) {
@@ -1348,7 +1469,6 @@ function buildYearHTML(stats) {
     return html;
 }
 
-/* ===== 修改：renderSettingsPage 增加"默认排序"选项 ===== */
 function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
