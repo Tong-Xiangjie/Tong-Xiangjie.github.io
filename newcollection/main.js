@@ -55,33 +55,19 @@ let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ========== 专题配置 ==========
-const specialConfigs = [
-    {
-        id: 'years',
-        name: '年份图鉴',
-        desc: '按年份展示纸币实拍图片',
-        dataKey: 'yearsData',
-        imageBase: '../funcollection/years/',
-        categories: [
-            { id: 'all', name: '全部纸币', filter: null },
-            { id: 'fec', name: '外汇兑换券', filter: function(item) { return item.name.includes('外汇兑换券'); } },
-            { id: 'rmb2', name: '第二套人民币', filter: function(item) { return item.name.includes('第二套人民币'); } },
-            { id: 'rmb3', name: '第三套人民币', filter: function(item) { return item.name.includes('第三套人民币'); } },
-            { id: 'commemorative', name: '纪念钞', filter: function(item) { return item.name.includes('纪念钞') || item.name.includes('贺岁'); } },
-            { id: 'war', name: '乌克兰战争纪念钞', filter: function(item) { return item.name.includes('俄乌战争'); } },
-            { id: 'gkq', name: '国库券', filter: function(item) { return item.name.includes('国库券'); } },
-            { id: 'republic', name: '民国纸币', filter: function(item) { return item.name.includes('交通银行') || item.name.includes('中国银行') || item.name.includes('中央银行') || item.name.includes('大洋票'); } }
-        ]
-    }
-];
+/* ========== 删除了原来的硬编码 specialConfigs ========== */
+
+/* ========== 新增：从桥接文件读取专题配置 ========== */
+function getSpecialConfigs() {
+    return window.SPECIAL_CONFIGS || [];
+}
 
 // 专题分类树
 let specialCategoryTree = null;
 
 function buildSpecialCategoryTree() {
     specialCategoryTree = [];
-    for (const config of specialConfigs) {
+    for (const config of getSpecialConfigs()) {
         const children = [];
         for (const cat of config.categories) {
             children.push({ id: cat.id, name: cat.name, dataKey: config.id });
@@ -102,7 +88,7 @@ function getCategoryTree() {
 
 function getImageBase() {
     if (currentMode === 'special') {
-        const config = specialConfigs.find(c => c.id === selectedSpecial);
+        const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
         return config ? config.imageBase : '';
     }
     return currentMode === 'notes' ? IMAGE_BASE : COIN_IMAGE_BASE;
@@ -255,7 +241,7 @@ function onSidebarItemClick(catId) {
             return;
         }
         selectedSpecial = catId;
-        const config = specialConfigs.find(c => c.id === catId);
+        const config = getSpecialConfigs().find(c => c.id === catId);
         if (config && config.categories && config.categories.length > 0) {
             currentCategoryId = catId;
             currentSubId = config.categories[0].id;
@@ -462,7 +448,8 @@ function onTabClick(target) {
 
         if (specialPageCache && specialPageCache.selectedSpecial !== null && specialPageCache.selectedSpecial !== undefined) {
             selectedSpecial = specialPageCache.selectedSpecial;
-            currentSubId = specialPageCache.currentSubId || (specialConfigs.find(c => c.id === selectedSpecial)?.categories[0]?.id);
+            const configs = getSpecialConfigs();
+            currentSubId = specialPageCache.currentSubId || (configs.find(c => c.id === selectedSpecial)?.categories[0]?.id);
             currentCategoryId = selectedSpecial;
             document.querySelector('.body-row')?.classList.remove('special-overview-mode');
             const toggleBtn = document.getElementById('sidebarToggle');
@@ -780,7 +767,7 @@ function renderSpecialOverview() {
     if (toggleBtn) toggleBtn.style.display = 'none';
 
     let html = '';
-    for (const config of specialConfigs) {
+    for (const config of getSpecialConfigs()) {
         const isActive = selectedSpecial === config.id;
         html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onSpecialOverviewItemClick('${config.id}')">`;
         html += `<span>${escapeHtml(config.name)}</span>`;
@@ -799,7 +786,7 @@ function onSpecialOverviewItemClick(specialId) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = '';
 
-    const config = specialConfigs.find(c => c.id === specialId);
+    const config = getSpecialConfigs().find(c => c.id === specialId);
     if (config && config.categories && config.categories.length > 0) {
         currentCategoryId = specialId;
         currentSubId = config.categories[0].id;
@@ -818,7 +805,7 @@ function renderSpecialContent() {
         return;
     }
 
-    const config = specialConfigs.find(c => c.id === selectedSpecial);
+    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) { renderSpecialOverview(); return; }
 
     const data = getData(config.dataKey);
@@ -1024,7 +1011,7 @@ function computeStats(typeFilter) {
     let prices = [];
     for (const item of filtered) {
         const ps = item.copy.price;
-        if (ps) {
+        if (ps !== undefined && ps !== null && ps !== '') {
             const num = parseFloat(String(ps).replace(/[^0-9.]/g, ''));
             if (!isNaN(num) && num > 0) {
                 prices.push({ value: num, name: item.seriesName, version: item.copy.version || '', dataKey: item.dataKey, type: item.type });
@@ -1349,7 +1336,7 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布（切换按钮在标题上方）
+    // 评级分布
     html += `<div class="settings-section">`;
     html += `<div class="rating-section-header">`;
     html += `<div class="rating-tabs">`;
