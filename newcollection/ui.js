@@ -121,7 +121,6 @@ function renderOverviewGroup(label, items) {
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
 
-        // 目录编号（兼容纸币 krause 和硬币 catalogNumber）
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
 
@@ -365,35 +364,57 @@ function closeModal() {
     if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
 }
 
+/* ===== 修复：initPinchZoom — 带边界限制，支持全屏显示 ===== */
 function initPinchZoom() {
     const container = document.getElementById('imageContainer');
     if (!container) return;
     if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
-    hammerManager = new Hammer(container);
-    hammerManager.get('pinch').set({ enable: true });
+    hammerManager = new Hammer.Manager(container);
+    const pinch = new Hammer.Pinch();
+    const pan = new Hammer.Pan();
+    hammerManager.add([pinch, pan]);
     let lastScale = 1, lastX = 0, lastY = 0;
-    hammerManager.on('pinchstart', function() { lastScale = currentScale; });
-    hammerManager.on('pinch', function(e) {
-        currentScale = Math.max(0.5, Math.min(5, lastScale * e.scale));
+
+    function resetTransform() {
+        currentScale = 1; currentX = 0; currentY = 0;
+        container.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
+    }
+
+    function clampTransform() {
+        const img = document.getElementById('modalImg');
+        if (!img) return;
+        const containerRect = container.parentElement.getBoundingClientRect();
+        const imgRect = img.getBoundingClientRect();
+        const scaledWidth = imgRect.width, scaledHeight = imgRect.height;
+        let maxX = 0, maxY = 0;
+        if (scaledWidth > containerRect.width) maxX = (scaledWidth - containerRect.width) / 2;
+        if (scaledHeight > containerRect.height) maxY = (scaledHeight - containerRect.height) / 2;
+        currentX = Math.min(maxX, Math.max(-maxX, currentX));
+        currentY = Math.min(maxY, Math.max(-maxY, currentY));
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+    }
+
+    hammerManager.on('pinchstart', function(e) { lastScale = currentScale; e.preventDefault(); });
+    hammerManager.on('pinchmove', function(e) {
+        let newScale = lastScale * e.scale;
+        newScale = Math.min(4, Math.max(1, newScale));
+        currentScale = newScale;
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        e.preventDefault();
     });
-    hammerManager.on('panstart', function() { lastX = currentX; lastY = currentY; });
-    hammerManager.on('pan', function(e) {
+    hammerManager.on('pinchend', function(e) { clampTransform(); e.preventDefault(); });
+    hammerManager.on('panstart', function(e) { lastX = currentX; lastY = currentY; });
+    hammerManager.on('panmove', function(e) {
         if (currentScale > 1) {
             currentX = lastX + e.deltaX;
             currentY = lastY + e.deltaY;
             container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
         }
+        e.preventDefault();
     });
-    hammerManager.on('doubletap', function() {
-        if (currentScale > 1) {
-            currentScale = 1; currentX = 0; currentY = 0;
-            container.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
-        } else {
-            currentScale = 2.5;
-            container.style.transform = `translate3d(0px, 0px, 0px) scale3d(2.5, 2.5, 1)`;
-        }
-    });
+    hammerManager.on('panend', function(e) { clampTransform(); });
+    container.addEventListener('dblclick', function(e) { resetTransform(); e.preventDefault(); });
+    resetTransform();
 }
 
 function toggleThemeModal() {}
