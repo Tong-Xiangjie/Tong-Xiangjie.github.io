@@ -1559,6 +1559,18 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
+    // ========== 数据导出 ==========
+    html += `<div class="settings-section">`;
+    html += `<h3>数据导出</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" onclick="exportJSON()">JSON 备份</button>`;
+    html += `<button class="export-btn" onclick="exportCSV()">CSV 表格</button>`;
+    html += `<button class="export-btn" onclick="exportMarkdown()">报告</button>`;
+    html += `<button class="export-btn" onclick="exportPriceList()">价格清单</button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点击按钮自动下载文件，可备份到本地或分享给藏友</p>`;
+    html += `</div>`;
+
     html += `</div>`;
     app.innerHTML = html;
 
@@ -1645,3 +1657,112 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof loadTheme === 'function') loadTheme();
 });
+
+/* ==================== 数据导出 ==================== */
+
+function exportJSON() {
+    const allCopies = collectAllCopies();
+    const stats = computeStats();
+    const exportData = {
+        exportDate: new Date().toISOString().split('T')[0],
+        totalCount: allCopies.length,
+        totalPrice: stats.totalPrice,
+        items: allCopies.map(item => ({
+            type: item.type === 'notes' ? '纸币' : '硬币',
+            dataKey: item.dataKey,
+            seriesName: item.seriesName,
+            version: item.copy.version || '',
+            year: item.copy.year || '',
+            grade: item.copy.condition || item.copy.grade || '',
+            gradingCompany: item.copy.gradingCompany || '',
+            catalogNumber: item.copy.catalogNumber || item.copy.krause || '',
+            price: item.copy.price || '',
+            purchaseDate: item.copy.purchaseDate || '',
+            material: item.copy.material || '',
+            remark: item.copy.remark || ''
+        }))
+    };
+    downloadFile(JSON.stringify(exportData, null, 2), 'coin-collection.json', 'application/json');
+}
+
+function exportCSV() {
+    const allCopies = collectAllCopies();
+    const headers = ['类型', '分类', '系列', '冠字号', '年份', '评级', '评级公司', '目录编号', '价格', '购买日期', '材质', '备注'];
+    let csv = '\uFEFF' + headers.join(',') + '\n';
+    for (const item of allCopies) {
+        const c = item.copy;
+        let catLabel = item.dataKey;
+        if (item.type === 'notes') {
+            for (const cat of categoryTree) {
+                if (cat.children) { for (const sub of cat.children) { if (sub.dataKey === item.dataKey) catLabel = cat.name + ' - ' + sub.name; } }
+                else if (cat.dataKey === item.dataKey) catLabel = cat.name;
+            }
+        } else {
+            for (const cat of coinCategoryTree) { if (cat.dataKey === item.dataKey) catLabel = cat.name; }
+        }
+        const row = [
+            item.type === 'notes' ? '纸币' : '硬币', catLabel, item.seriesName,
+            c.version || '', c.year || '', c.condition || c.grade || '',
+            c.gradingCompany || '', c.catalogNumber || c.krause || '',
+            c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''
+        ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
+        csv += row.join(',') + '\n';
+    }
+    downloadFile(csv, 'coin-collection.csv', 'text/csv;charset=utf-8');
+}
+
+function exportMarkdown() {
+    const allCopies = collectAllCopies();
+    const stats = computeStats();
+    let md = '# 收藏报告\n\n导出日期：' + new Date().toISOString().split('T')[0] + '\n\n';
+    md += '## 总览\n\n- 藏品总数：' + allCopies.length + ' 件\n';
+    md += '- 纸币：' + stats.notesCount + ' 件 | 硬币：' + stats.coinsCount + ' 件\n';
+    md += '- 已记录价格：' + stats.prices.filter(p => !p.noPrice).length + ' 件\n';
+    md += '- 总投入：' + stats.totalPrice.toFixed(0) + ' 元\n\n';
+    const groups = {};
+    for (const item of allCopies) {
+        let catLabel = item.dataKey;
+        if (item.type === 'notes') {
+            for (const cat of categoryTree) {
+                if (cat.children) { for (const sub of cat.children) { if (sub.dataKey === item.dataKey) catLabel = cat.name + ' - ' + sub.name; } }
+                else if (cat.dataKey === item.dataKey) catLabel = cat.name;
+            }
+        } else {
+            for (const cat of coinCategoryTree) { if (cat.dataKey === item.dataKey) catLabel = cat.name; }
+        }
+        if (!groups[catLabel]) groups[catLabel] = [];
+        groups[catLabel].push(item);
+    }
+    md += '## 按分类统计\n\n';
+    for (const [label, items] of Object.entries(groups)) {
+        md += '### ' + label + '\n\n- 数量：' + items.length + ' 件\n';
+        const total = items.reduce((s, i) => s + (parseFloat(i.copy.price) || 0), 0);
+        if (total > 0) md += '- 小计：' + total.toFixed(0) + ' 元\n';
+        md += '\n';
+    }
+    downloadFile(md, 'coin-collection-report.md', 'text/markdown;charset=utf-8');
+}
+
+function exportPriceList() {
+    const stats = computeStats();
+    const sorted = stats.prices.map((p, i) => ({ ...p, idx: i + 1 }))
+        .sort((a, b) => (b.noPrice ? 0 : b.value) - (a.noPrice ? 0 : a.value));
+    let text = '价格清单（从高到低）\n导出日期：' + new Date().toISOString().split('T')[0] + '\n\n';
+    for (const p of sorted) {
+        text += p.idx + '. ' + p.name + (p.version ? ' (' + p.version + ')' : '') + ' - ' + (p.noPrice ? '-' : p.value + ' 元') + '\n';
+    }
+    text += '\n合计：' + stats.totalPrice.toFixed(0) + ' 元 | 均价：' + stats.avgPrice + ' 元/件\n';
+    downloadFile(text, 'coin-collection-price-list.txt', 'text/plain;charset=utf-8');
+}
+
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
