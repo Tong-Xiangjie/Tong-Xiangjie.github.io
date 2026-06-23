@@ -174,8 +174,8 @@ function restoreExpandedStates(states) {
         }
     }
     
-    // 直接设置滚动位置，不延迟
-    if (states.scrollY) {
+    // 同步恢复滚动位置（不用 rAF）
+    if (states.scrollY && states.scrollY > 0) {
         const content = document.querySelector('.content');
         if (content) {
             content.scrollTop = states.scrollY;
@@ -534,13 +534,6 @@ function saveFullState() {
 function onTabClick(target) {
     // ===== 切出前统一保存完整状态 =====
     saveFullState();
-    
-    // ===== 切出前统一保存完整状态 =====
-    saveFullState();
-    
-    // ===== 切换前先复位滚动 =====
-    const contentEl = document.querySelector('.content');
-    if (contentEl) contentEl.scrollTop = 0;
 
     // ===== 设置（"我的"） =====
     if (target === 'settings') {
@@ -672,7 +665,11 @@ function onTabClick(target) {
             renderSidebar();
             if (currentView === 'overview') {
                 renderOverview();
-                restoreExpandedStates({ scrollY: saved.scrollY });
+                restoreExpandedStates({
+                    expandedSeries: saved.expandedSeries,
+                    expandedVarieties: saved.expandedVarieties,
+                    scrollY: saved.scrollY
+                });
             } else if (currentView === 'category') {
                 renderCurrentCategory();
                 restoreExpandedStates({
@@ -810,7 +807,11 @@ function onTabClick(target) {
         renderSidebar();
         if (currentView === 'overview') {
             renderOverview();
-            restoreExpandedStates({ scrollY: saved.scrollY });
+            restoreExpandedStates({
+                expandedSeries: saved.expandedSeries,
+                expandedVarieties: saved.expandedVarieties,
+                scrollY: saved.scrollY
+            });
         } else if (currentView === 'category') {
             renderCurrentCategory();
             restoreExpandedStates({
