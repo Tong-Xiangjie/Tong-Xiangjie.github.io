@@ -106,6 +106,13 @@ function renderOverview() {
         app.classList.remove('content-enter');
         void app.offsetWidth;
         app.classList.add('content-enter');
+        
+        // 恢复滚动位置
+        const savedY = modeStates?.[currentMode]?.scrollY || 0;
+        if (savedY > 0) {
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = savedY;
+        }
     });
 }
 
@@ -272,6 +279,13 @@ function renderSeriesList(data, title) {
         app.classList.remove('content-enter');
         void app.offsetWidth;
         app.classList.add('content-enter');
+        
+        // 恢复滚动位置
+        const savedY = modeStates?.[currentMode]?.scrollY || 0;
+        if (savedY > 0) {
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = savedY;
+        }
     });
 }
 
