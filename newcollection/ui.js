@@ -300,6 +300,10 @@ function renderCopiesList(copies) {
         if (c.gradingCompany) html += `<span class="meta">${escapeHtml(c.gradingCompany)}</span>`;
         if (c.year) html += `<span class="meta">${c.year}年</span>`;
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
+        if (c.price) {
+            const priceText = String(c.price).includes('元') ? c.price : c.price + '元';
+            html += `<span class="meta"> · 以${escapeHtml(priceText)}的价格购入</span>`;
+        }
         html += `</div>`;
         if (catalogDisplay) html += `<div class="meta">${escapeHtml(catalogDisplay)}</div>`;
         if (c.material) html += `<div class="meta">材质：${escapeHtml(c.material)}</div>`;
