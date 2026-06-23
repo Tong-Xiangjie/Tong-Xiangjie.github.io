@@ -154,6 +154,8 @@ function renderOverviewGroup(label, items) {
 }
 
 function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
+    saveFullState();  // ★ 新增：保存当前概览页滚动
+
     const tree = getCategoryTree();
     for (const cat of tree) {
         if (cat.children) {
