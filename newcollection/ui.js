@@ -103,8 +103,8 @@ function renderOverview() {
 
     app.innerHTML = html;
     
-    // 同步恢复滚动位置（在 rAF 之前执行，不会被浏览器渲染覆盖）
-    const savedY = modeStates?.[currentMode]?.scrollY || 0;
+    // ★【修改】读取 overviewScrollY，不与其他视图混淆
+    const savedY = modeStates?.[currentMode]?.overviewScrollY || 0;
     if (savedY > 0) {
         const content = document.querySelector('.content');
         if (content) content.scrollTop = savedY;
@@ -277,8 +277,8 @@ function renderSeriesList(data, title) {
     html += `</div>`;
     app.innerHTML = html;
     
-    // 同步恢复滚动位置（在 rAF 之前执行，不会被浏览器渲染覆盖）
-    const savedY = modeStates?.[currentMode]?.scrollY || 0;
+    // ★【修改】读取 categoryScrollY，不与其他视图混淆
+    const savedY = modeStates?.[currentMode]?.categoryScrollY || 0;
     if (savedY > 0) {
         const content = document.querySelector('.content');
         if (content) content.scrollTop = savedY;
