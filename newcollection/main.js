@@ -177,7 +177,6 @@ function restoreExpandedStates(states) {
             if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
         }
     }
-    // 滚动恢复已经由渲染函数内部同步完成了，这里不再需要设置
 }
 
 function toggleSidebar() {
@@ -238,6 +237,8 @@ function scrollToTop() {
 }
 
 function onSidebarItemClick(catId) {
+    saveFullState();  // ★ 新增：保存当前视图滚动
+
     if (currentMode === 'special') {
         if (selectedSpecial === catId) {
             selectedSpecial = null;
@@ -290,6 +291,8 @@ function onSidebarItemClick(catId) {
 
 /* ===== onSidebarChildClick 支持取消选中 ===== */
 function onSidebarChildClick(parentId, subId) {
+    saveFullState();  // ★ 新增：保存当前视图滚动
+
     if (currentMode === 'special') {
         if (currentSubId === subId) {
             currentSubId = null;
@@ -326,7 +329,11 @@ function onSidebarChildClick(parentId, subId) {
 
 /* ===== renderCurrentCategory 增加父分类概览列表 ===== */
 function renderCurrentCategory() {
-    if (!currentCategoryId) { renderOverview(); return; }
+    if (!currentCategoryId) {
+        saveFullState();  // ★ 新增：回退到概览前保存
+        renderOverview();
+        return;
+    }
 
     if (currentMode === 'special') {
         renderSpecialContent();
