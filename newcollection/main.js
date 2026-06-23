@@ -534,6 +534,13 @@ function saveFullState() {
 function onTabClick(target) {
     // ===== 切出前统一保存完整状态 =====
     saveFullState();
+    
+    // ===== 切出前统一保存完整状态 =====
+    saveFullState();
+    
+    // ===== 切换前先复位滚动 =====
+    const contentEl = document.querySelector('.content');
+    if (contentEl) contentEl.scrollTop = 0;
 
     // ===== 设置（"我的"） =====
     if (target === 'settings') {
