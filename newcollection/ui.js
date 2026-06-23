@@ -126,9 +126,9 @@ function renderOverviewGroup(label, items) {
 
         html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
         html += `<div class="dual-thumb">`;
-        if (img1) html += `<img class="mini-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        if (img2) html += `<img class="mini-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
+        if (img1) html += `<img class="mini-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img class="mini-thumb" src="${img2}" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">图片怎么不见力(╯︵╰,)</div>`;
         html += `</div>`;
         html += `<div class="info">`;
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
@@ -211,7 +211,7 @@ function renderSeriesList(data, title) {
     const app = document.getElementById('app');
     const imgBase = getImageBase();
     if (!data || !data.series || data.series.length === 0) {
-        app.innerHTML = '<div class="empty-state">暂无藏品</div>';
+        app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
         return;
     }
 
@@ -289,9 +289,9 @@ function renderCopiesList(copies) {
         const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
-        if (img1) html += `<img class="copy-thumb" src="${img1}" alt="正面" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        if (img2) html += `<img class="copy-thumb" src="${img2}" alt="背面" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        if (!img1 && !img2) html += `<div class="copy-thumb no-img">无图</div>`;
+        if (img1) html += `<img class="copy-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img class="copy-thumb" src="${img2}" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (!img1 && !img2) html += `<div class="copy-thumb no-img">我的图捏？？？</div>`;
         html += `</div>`;
         html += `<div class="copy-info">`;
         if (c.version) html += `<div class="version">${escapeHtml(c.version)}</div>`;
