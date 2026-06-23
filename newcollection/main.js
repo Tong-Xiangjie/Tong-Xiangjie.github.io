@@ -26,7 +26,8 @@ let modeStates = {
         currentSearchKeyword: '',
         expandedSeries: [],
         expandedVarieties: [],
-        scrollY: 0
+        overviewScrollY: 0,       // ★ 概览页专属
+        categoryScrollY: 0        // ★ 分类页专属
     },
     coins: {
         currentCategoryId: null,
@@ -35,7 +36,8 @@ let modeStates = {
         currentSearchKeyword: '',
         expandedSeries: [],
         expandedVarieties: [],
-        scrollY: 0
+        overviewScrollY: 0,       // ★ 概览页专属
+        categoryScrollY: 0        // ★ 分类页专属
     }
 };
 
@@ -482,13 +484,13 @@ function updateSearchUIForMode() {
     }
 }
 
-/* ===== 统一保存完整状态（切出Tab时调用） ===== */
 function saveFullState() {
     const content = document.querySelector('.content');
     const scrollY = content ? content.scrollTop : 0;
 
     if (currentMode === 'notes' || currentMode === 'coins') {
         const expanded = collectExpandedStates();
+        const prev = modeStates[currentMode] || {};
         modeStates[currentMode] = {
             currentCategoryId,
             currentSubId,
@@ -496,7 +498,9 @@ function saveFullState() {
             currentSearchKeyword: currentSearchKeyword || '',
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
-            scrollY
+            // ★ 按视图分别保存，互不覆盖
+            overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
+            categoryScrollY: currentView === 'category' ? scrollY : (prev.categoryScrollY || 0)
         };
     } else if (currentMode === 'articles') {
         articleState = {
@@ -660,14 +664,14 @@ function onTabClick(target) {
                 restoreExpandedStates({
                     expandedSeries: saved.expandedSeries,
                     expandedVarieties: saved.expandedVarieties,
-                    scrollY: saved.scrollY
+                    scrollY: saved.overviewScrollY    // ★
                 });
             } else if (currentView === 'category') {
                 renderCurrentCategory();
                 restoreExpandedStates({
                     expandedSeries: saved.expandedSeries,
                     expandedVarieties: saved.expandedVarieties,
-                    scrollY: saved.scrollY
+                    scrollY: saved.categoryScrollY    // ★
                 });
             } else if (currentView === 'search') {
                 if (currentSearchKeyword) {
@@ -802,14 +806,14 @@ function onTabClick(target) {
             restoreExpandedStates({
                 expandedSeries: saved.expandedSeries,
                 expandedVarieties: saved.expandedVarieties,
-                scrollY: saved.scrollY
+                scrollY: saved.overviewScrollY    // ★
             });
         } else if (currentView === 'category') {
             renderCurrentCategory();
             restoreExpandedStates({
                 expandedSeries: saved.expandedSeries,
                 expandedVarieties: saved.expandedVarieties,
-                scrollY: saved.scrollY
+                scrollY: saved.categoryScrollY    // ★
             });
         } else if (currentView === 'search') {
             if (currentSearchKeyword) {
