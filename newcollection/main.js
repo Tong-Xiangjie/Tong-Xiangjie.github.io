@@ -158,7 +158,6 @@ function collectExpandedStates() {
 function restoreExpandedStates(states) {
     if (!states) return;
     
-    // 恢复展开状态（同步执行）
     if (states.expandedSeries) {
         for (const id of states.expandedSeries) {
             const body = document.getElementById('body-' + id);
@@ -173,14 +172,7 @@ function restoreExpandedStates(states) {
             if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
         }
     }
-    
-    // 同步恢复滚动位置（不用 rAF）
-    if (states.scrollY && states.scrollY > 0) {
-        const content = document.querySelector('.content');
-        if (content) {
-            content.scrollTop = states.scrollY;
-        }
-    }
+    // 滚动恢复已经由渲染函数内部同步完成了，这里不再需要设置
 }
 
 function toggleSidebar() {
