@@ -52,14 +52,14 @@ const gkqData = {
                             copyId: 1,
                             year: 1982,
                             version: "ⅩⅦ813772",
-                            condition: "----",
-                            price: "裸票115元",
+                            condition: "评级中",
+                            price: "142元",
                             purchaseDate: "2026年5月2日",
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "image/gkq/-1.jpg",
-                            img2: "image/gkq/-2.jpg"
+                            img1: "image/gkq/ⅩⅦ813772-1.jpg",
+                            img2: "image/gkq/ⅩⅦ813772-2.jpg"
                         }
                     ]
                 }
@@ -75,16 +75,16 @@ const gkqData = {
                     copies: [
                         {
                             copyId: 1,
-                            year: 1989,  // 已修正
-                            version: "ⅢⅡ00000000",
-                            condition: "----",
-                            price: "裸票19元",
+                            year: 1989,
+                            version: "ⅢⅡ09191201",
+                            condition: "评级中",
+                            price: "46元",
                             purchaseDate: "2026年5月2日",
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "image/gkq/-1.jpg",
-                            img2: "image/gkq/-2.jpg"
+                            img1: "image/gkq/ⅢⅡ09191201-1.jpg",
+                            img2: "image/gkq/ⅢⅡ09191201-2.jpg"
                         }
                     ]
                 }
@@ -114,63 +114,20 @@ const gkqData = {
                     ]
                 },
                 {
-                    varietyName: "10元",
-                    copies: [
-                        {
-                            copyId: 1,
-                            year: 1991,
-                            version: "ⅩⅠ61258426",
-                            condition: "----",
-                            price: "裸票50元",
-                            purchaseDate: "2026年5月2日",
-                            krause: "Unlisted",
-                            wmk: "无水印/Without Watermark",
-                            remark: "",
-                            img1: "image/gkq/-1.jpg",
-                            img2: "image/gkq/-2.jpg"
-                        }
-                    ]
-                },
-                {
                     varietyName: "50元",
                     copies: [
                         {
                             copyId: 1,
                             year: 1991,
                             version: "ⅩⅠ40955834",
-                            condition: "----",
-                            price: "裸票188元",
+                            condition: "评级中",
+                            price: "215元",
                             purchaseDate: "2026年5月2日",
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "image/gkq/-1.jpg",
-                            img2: "image/gkq/-2.jpg"
-                        }
-                    ]
-                }
-            ]
-        },
-        // ==================== 1992年 ====================
-        {
-            seriesName: "1992年",
-            year: "1992",
-            varieties: [
-                {
-                    varietyName: "50元",
-                    copies: [
-                        {
-                            copyId: 1,
-                            year: 1992,  // 已修正
-                            version: "ⅩⅡ53007116",
-                            condition: "----",
-                            price: "裸票250元",
-                            purchaseDate: "2026年5月2日",
-                            krause: "Unlisted",
-                            wmk: "无水印/Without Watermark",
-                            remark: "",
-                            img1: "image/gkq/-1.jpg",
-                            img2: "image/gkq/-2.jpg"
+                            img1: "image/gkq/ⅩⅠ40955834-1.jpg",
+                            img2: "image/gkq/ⅩⅠ40955834-2.jpg"
                         }
                     ]
                 }
