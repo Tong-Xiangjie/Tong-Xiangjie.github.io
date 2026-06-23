@@ -13,7 +13,7 @@ let settingsPageCache = null;
 
 // 专题状态
 let selectedSpecial = null;
-let specialPageCache = null;
+let specialPageCaches = {};
 
 // 评级切换状态
 let ratingMode = 'notes';
@@ -26,8 +26,9 @@ let modeStates = {
         currentSearchKeyword: '',
         expandedSeries: [],
         expandedVarieties: [],
-        overviewScrollY: 0,       // ★ 概览页专属
-        categoryScrollY: 0        // ★ 分类页专属
+        overviewScrollY: 0,
+        categoryScrollY: 0,
+        searchScrollY: 0
     },
     coins: {
         currentCategoryId: null,
@@ -36,8 +37,9 @@ let modeStates = {
         currentSearchKeyword: '',
         expandedSeries: [],
         expandedVarieties: [],
-        overviewScrollY: 0,       // ★ 概览页专属
-        categoryScrollY: 0        // ★ 分类页专属
+        overviewScrollY: 0,
+        categoryScrollY: 0,
+        searchScrollY: 0
     }
 };
 
@@ -46,7 +48,8 @@ let articleState = {
     currentCategory: 'all',
     currentIndex: -1,
     searchKeyword: '',
-    scrollY: 0
+    listScrollY: 0,
+    readerScrollY: 0
 };
 
 let hammerManager = null;
@@ -484,6 +487,7 @@ function updateSearchUIForMode() {
     }
 }
 
+/* ===== 统一保存完整状态（切出Tab时调用） ===== */
 function saveFullState() {
     const content = document.querySelector('.content');
     const scrollY = content ? content.scrollTop : 0;
@@ -498,26 +502,29 @@ function saveFullState() {
             currentSearchKeyword: currentSearchKeyword || '',
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
-            // ★ 按视图分别保存，互不覆盖
             overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
-            categoryScrollY: currentView === 'category' ? scrollY : (prev.categoryScrollY || 0)
+            categoryScrollY: currentView === 'category' ? scrollY : (prev.categoryScrollY || 0),
+            searchScrollY: currentView === 'search' ? scrollY : (prev.searchScrollY || 0)
         };
     } else if (currentMode === 'articles') {
+        const prev = articleState;
         articleState = {
             currentView: currentArticleView,
             currentCategory: currentArticleCategory,
             currentIndex: currentArticleIndex,
             searchKeyword: articleSearchKeyword,
-            scrollY
+            listScrollY: currentArticleView === 'list' ? scrollY : (prev.listScrollY || 0),
+            readerScrollY: currentArticleView === 'reader' ? scrollY : (prev.readerScrollY || 0)
         };
     } else if (currentMode === 'special') {
         const appEl = document.getElementById('app');
-        specialPageCache = {
-            innerHTML: appEl ? appEl.innerHTML : '',
-            scrollY,
-            selectedSpecial: selectedSpecial,
-            currentSubId: currentSubId
-        };
+        if (selectedSpecial !== null && selectedSpecial !== undefined) {
+            specialPageCaches[selectedSpecial] = {
+                innerHTML: appEl ? appEl.innerHTML : '',
+                scrollY,
+                currentSubId: currentSubId
+            };
+        }
     } else if (currentMode === 'settings') {
         const appEl = document.getElementById('app');
         settingsPageCache = {
@@ -575,16 +582,19 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.add('hidden');
 
-        if (specialPageCache && specialPageCache.selectedSpecial !== null && specialPageCache.selectedSpecial !== undefined) {
-            selectedSpecial = specialPageCache.selectedSpecial;
-            currentSubId = specialPageCache.currentSubId || null;
+        if (selectedSpecial !== null && selectedSpecial !== undefined && specialPageCaches[selectedSpecial]) {
+            const cache = specialPageCaches[selectedSpecial];
+            currentSubId = cache.currentSubId || null;
             currentCategoryId = selectedSpecial;
             document.querySelector('.body-row')?.classList.remove('special-overview-mode');
             const toggleBtn = document.getElementById('sidebarToggle');
             if (toggleBtn) toggleBtn.style.display = '';
-            document.getElementById('app').innerHTML = specialPageCache.innerHTML;
+            document.getElementById('app').innerHTML = cache.innerHTML;
             renderSidebar();
-            restoreExpandedStates({ scrollY: specialPageCache.scrollY });
+            requestAnimationFrame(() => {
+                const content = document.querySelector('.content');
+                if (content) content.scrollTop = cache.scrollY || 0;
+            });
         } else {
             renderSpecialOverview();
         }
@@ -631,10 +641,10 @@ function onTabClick(target) {
             renderSidebar();
             if (currentArticleView === 'list') {
                 renderArticleList();
-                restoreExpandedStates({ scrollY: articleState.scrollY });
+                restoreExpandedStates({ scrollY: articleState.listScrollY });
             } else {
                 openArticleReader(currentArticleIndex);
-                restoreExpandedStates({ scrollY: articleState.scrollY });
+                restoreExpandedStates({ scrollY: articleState.readerScrollY });
             }
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
@@ -663,15 +673,13 @@ function onTabClick(target) {
                 renderOverview();
                 restoreExpandedStates({
                     expandedSeries: saved.expandedSeries,
-                    expandedVarieties: saved.expandedVarieties,
-                    scrollY: saved.overviewScrollY    // ★
+                    expandedVarieties: saved.expandedVarieties
                 });
             } else if (currentView === 'category') {
                 renderCurrentCategory();
                 restoreExpandedStates({
                     expandedSeries: saved.expandedSeries,
-                    expandedVarieties: saved.expandedVarieties,
-                    scrollY: saved.categoryScrollY    // ★
+                    expandedVarieties: saved.expandedVarieties
                 });
             } else if (currentView === 'search') {
                 if (currentSearchKeyword) {
@@ -699,7 +707,13 @@ function onTabClick(target) {
                 currentSubId = settingsReturnState.currentSubId;
                 renderSidebar();
                 renderSpecialContent();
-                restoreExpandedStates({ scrollY: specialPageCache?.scrollY || 0 });
+                const cache = specialPageCaches[selectedSpecial];
+                if (cache) {
+                    requestAnimationFrame(() => {
+                        const content = document.querySelector('.content');
+                        if (content) content.scrollTop = cache.scrollY || 0;
+                    });
+                }
             } else {
                 renderSpecialOverview();
             }
@@ -760,10 +774,10 @@ function onTabClick(target) {
         renderSidebar();
         if (currentArticleView === 'list') {
             renderArticleList();
-            restoreExpandedStates({ scrollY: articleState.scrollY });
+            restoreExpandedStates({ scrollY: articleState.listScrollY });
         } else {
             openArticleReader(currentArticleIndex);
-            restoreExpandedStates({ scrollY: articleState.scrollY });
+            restoreExpandedStates({ scrollY: articleState.readerScrollY });
         }
         return;
     }
@@ -805,15 +819,13 @@ function onTabClick(target) {
             renderOverview();
             restoreExpandedStates({
                 expandedSeries: saved.expandedSeries,
-                expandedVarieties: saved.expandedVarieties,
-                scrollY: saved.overviewScrollY    // ★
+                expandedVarieties: saved.expandedVarieties
             });
         } else if (currentView === 'category') {
             renderCurrentCategory();
             restoreExpandedStates({
                 expandedSeries: saved.expandedSeries,
-                expandedVarieties: saved.expandedVarieties,
-                scrollY: saved.categoryScrollY    // ★
+                expandedVarieties: saved.expandedVarieties
             });
         } else if (currentView === 'search') {
             if (currentSearchKeyword) {
@@ -1637,7 +1649,7 @@ function exportCSV() {
             c.version || '', c.year || '', c.condition || c.grade || '',
             c.gradingCompany || '', c.catalogNumber || c.krause || '',
             c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''
-        ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
+        ].map(v => '"' + String(v).replace(/\"/g, '""') + '"');
         csv += row.join(',') + '\n';
     }
     downloadFile(csv, 'coin-collection.csv', 'text/csv;charset=utf-8');
