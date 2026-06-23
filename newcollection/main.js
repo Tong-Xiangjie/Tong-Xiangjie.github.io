@@ -43,7 +43,8 @@ let articleState = {
     currentView: 'list',
     currentCategory: 'all',
     currentIndex: -1,
-    searchKeyword: ''
+    searchKeyword: '',
+    scrollY: 0
 };
 
 let hammerManager = null;
@@ -481,11 +482,58 @@ function updateSearchUIForMode() {
         toggle.classList.remove('hidden');
         toggle.textContent = searchMode === 'click' ? '□' : '■';
         toggle.title = '切换搜索模式';
-        tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${searchMode === 'click' ? '□' : '■'}"可切换`;
+        tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
+    }
+}
+
+/* ===== 统一保存滚动位置 ===== */
+function saveCurrentScroll() {
+    const content = document.querySelector('.content');
+    const scrollY = content ? content.scrollTop : 0;
+    
+    if (currentMode === 'notes' || currentMode === 'coins') {
+        modeStates[currentMode].scrollY = scrollY;
+    } else if (currentMode === 'articles') {
+        articleState.scrollY = scrollY;
+    } else if (currentMode === 'special') {
+        if (!specialPageCache) specialPageCache = {};
+        if (specialPageCache.selectedSpecial === undefined || specialPageCache.selectedSpecial === null) {
+            specialPageCache = { ...specialPageCache, scrollY };
+        } else {
+            specialPageCache.scrollY = scrollY;
+        }
+    } else if (currentMode === 'settings') {
+        if (!settingsPageCache) settingsPageCache = {};
+        settingsPageCache.scrollY = scrollY;
+    }
+}
+
+/* ===== 统一恢复滚动位置 ===== */
+function restoreCurrentScroll() {
+    let savedScrollY = 0;
+    
+    if (currentMode === 'notes' || currentMode === 'coins') {
+        savedScrollY = modeStates[currentMode]?.scrollY || 0;
+    } else if (currentMode === 'articles') {
+        savedScrollY = articleState.scrollY || 0;
+    } else if (currentMode === 'special') {
+        savedScrollY = specialPageCache?.scrollY || 0;
+    } else if (currentMode === 'settings') {
+        savedScrollY = settingsPageCache?.scrollY || 0;
+    }
+    
+    if (savedScrollY > 0) {
+        requestAnimationFrame(() => {
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = savedScrollY;
+        });
     }
 }
 
 function onTabClick(target) {
+    // ===== 切出前统一保存滚动位置 =====
+    saveCurrentScroll();
+
     // ===== 设置（"我的"） =====
     if (target === 'settings') {
         if (!isSettingsMode) {
@@ -494,25 +542,23 @@ function onTabClick(target) {
                     currentView: currentArticleView,
                     currentCategory: currentArticleCategory,
                     currentIndex: currentArticleIndex,
-                    searchKeyword: articleSearchKeyword
+                    searchKeyword: articleSearchKeyword,
+                    scrollY: articleState.scrollY
                 };
             } else if (currentMode === 'notes' || currentMode === 'coins') {
-                const content = document.querySelector('.content');
-                const scrollY = content ? content.scrollTop : 0;
                 const expanded = collectExpandedStates();
                 modeStates[currentMode] = {
+                    ...modeStates[currentMode],
                     currentCategoryId, currentSubId, currentView,
                     currentSearchKeyword: currentSearchKeyword || '',
                     expandedSeries: expanded.expandedSeries,
-                    expandedVarieties: expanded.expandedVarieties,
-                    scrollY
+                    expandedVarieties: expanded.expandedVarieties
                 };
             } else if (currentMode === 'special') {
                 const appEl = document.getElementById('app');
-                const contentEl = document.querySelector('.content');
                 specialPageCache = {
+                    ...specialPageCache,
                     innerHTML: appEl ? appEl.innerHTML : '',
-                    scrollY: contentEl ? contentEl.scrollTop : 0,
                     selectedSpecial: selectedSpecial,
                     currentSubId: currentSubId
                 };
@@ -550,18 +596,17 @@ function onTabClick(target) {
             isSettingsMode = false;
             document.querySelector('.body-row')?.classList.remove('settings-mode');
         } else if (currentMode === 'notes' || currentMode === 'coins') {
-            const content = document.querySelector('.content');
-            const scrollY = content ? content.scrollTop : 0;
             const expanded = collectExpandedStates();
             modeStates[currentMode] = {
+                ...modeStates[currentMode],
                 currentCategoryId, currentSubId, currentView,
                 currentSearchKeyword: currentSearchKeyword || '',
                 expandedSeries: expanded.expandedSeries,
-                expandedVarieties: expanded.expandedVarieties,
-                scrollY
+                expandedVarieties: expanded.expandedVarieties
             };
         } else if (currentMode === 'articles') {
             articleState = {
+                ...articleState,
                 currentView: currentArticleView,
                 currentCategory: currentArticleCategory,
                 currentIndex: currentArticleIndex,
@@ -585,12 +630,7 @@ function onTabClick(target) {
             if (toggleBtn) toggleBtn.style.display = '';
             document.getElementById('app').innerHTML = specialPageCache.innerHTML;
             renderSidebar();
-            requestAnimationFrame(() => {
-                const content = document.querySelector('.content');
-                if (content && specialPageCache.scrollY) {
-                    content.scrollTop = specialPageCache.scrollY;
-                }
-            });
+            restoreCurrentScroll();
         } else {
             renderSpecialOverview();
         }
@@ -635,8 +675,14 @@ function onTabClick(target) {
             }
             updateSearchUIForMode();
             renderSidebar();
-            if (currentArticleView === 'list') renderArticleList();
-            else openArticleReader(currentArticleIndex);
+            if (currentArticleView === 'list') {
+                renderArticleList();
+                restoreCurrentScroll();
+            }
+            else {
+                openArticleReader(currentArticleIndex);
+                restoreCurrentScroll();
+            }
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
             return;
@@ -662,6 +708,7 @@ function onTabClick(target) {
             renderSidebar();
             if (currentView === 'overview') {
                 renderOverview();
+                restoreCurrentScroll();
             } else if (currentView === 'category') {
                 renderCurrentCategory();
                 restoreExpandedStates({
@@ -695,6 +742,7 @@ function onTabClick(target) {
                 currentSubId = settingsReturnState.currentSubId;
                 renderSidebar();
                 renderSpecialContent();
+                restoreCurrentScroll();
             } else {
                 renderSpecialOverview();
             }
@@ -710,8 +758,14 @@ function onTabClick(target) {
         }
         updateSearchUIForMode();
         renderSidebar();
-        if (currentView === 'overview') renderOverview();
-        else renderCurrentCategory();
+        if (currentView === 'overview') {
+            renderOverview();
+            restoreCurrentScroll();
+        }
+        else {
+            renderCurrentCategory();
+            restoreCurrentScroll();
+        }
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
         return;
@@ -726,22 +780,19 @@ function onTabClick(target) {
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
         if (currentMode === 'notes' || currentMode === 'coins') {
-            const content = document.querySelector('.content');
-            const scrollY = content ? content.scrollTop : 0;
             const expanded = collectExpandedStates();
             modeStates[currentMode] = {
+                ...modeStates[currentMode],
                 currentCategoryId, currentSubId, currentView,
                 currentSearchKeyword: currentSearchKeyword || '',
                 expandedSeries: expanded.expandedSeries,
-                expandedVarieties: expanded.expandedVarieties,
-                scrollY
+                expandedVarieties: expanded.expandedVarieties
             };
         } else if (currentMode === 'special') {
             const appEl = document.getElementById('app');
-            const contentEl = document.querySelector('.content');
             specialPageCache = {
+                ...specialPageCache,
                 innerHTML: appEl ? appEl.innerHTML : '',
-                scrollY: contentEl ? contentEl.scrollTop : 0,
                 selectedSpecial: selectedSpecial,
                 currentSubId: currentSubId
             };
@@ -770,8 +821,14 @@ function onTabClick(target) {
 
         updateSearchUIForMode();
         renderSidebar();
-        if (currentArticleView === 'list') renderArticleList();
-        else openArticleReader(currentArticleIndex);
+        if (currentArticleView === 'list') {
+            renderArticleList();
+            restoreCurrentScroll();
+        }
+        else {
+            openArticleReader(currentArticleIndex);
+            restoreCurrentScroll();
+        }
         return;
     }
 
@@ -785,28 +842,26 @@ function onTabClick(target) {
 
         if (currentMode === 'articles') {
             articleState = {
+                ...articleState,
                 currentView: currentArticleView,
                 currentCategory: currentArticleCategory,
                 currentIndex: currentArticleIndex,
                 searchKeyword: articleSearchKeyword
             };
         } else if (currentMode === 'notes' || currentMode === 'coins') {
-            const content = document.querySelector('.content');
-            const scrollY = content ? content.scrollTop : 0;
             const expanded = collectExpandedStates();
             modeStates[currentMode] = {
+                ...modeStates[currentMode],
                 currentCategoryId, currentSubId, currentView,
                 currentSearchKeyword: currentSearchKeyword || '',
                 expandedSeries: expanded.expandedSeries,
-                expandedVarieties: expanded.expandedVarieties,
-                scrollY
+                expandedVarieties: expanded.expandedVarieties
             };
         } else if (currentMode === 'special') {
             const appEl = document.getElementById('app');
-            const contentEl = document.querySelector('.content');
             specialPageCache = {
+                ...specialPageCache,
                 innerHTML: appEl ? appEl.innerHTML : '',
-                scrollY: contentEl ? contentEl.scrollTop : 0,
                 selectedSpecial: selectedSpecial,
                 currentSubId: currentSubId
             };
@@ -839,6 +894,7 @@ function onTabClick(target) {
         renderSidebar();
         if (currentView === 'overview') {
             renderOverview();
+            restoreCurrentScroll();
         } else if (currentView === 'category') {
             renderCurrentCategory();
             restoreExpandedStates({
@@ -873,11 +929,13 @@ function enterSettings() {
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
     renderSettingsPage();
+    restoreCurrentScroll();
     
     const appEl = document.getElementById('app');
     const contentEl = document.querySelector('.content');
     if (appEl && contentEl) {
         settingsPageCache = {
+            ...settingsPageCache,
             innerHTML: appEl.innerHTML,
             scrollY: contentEl.scrollTop
         };
@@ -1619,45 +1677,6 @@ function setupModalEvents() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    buildSpecialCategoryTree();
-    renderSidebar();
-    renderOverview();
-
-    document.querySelectorAll('.tab-item').forEach(tab => {
-        tab.addEventListener('click', () => onTabClick(tab.dataset.target));
-    });
-
-    document.getElementById('searchBtn')?.addEventListener('click', doSearch);
-    document.getElementById('resetBtn')?.addEventListener('click', resetSearch);
-    document.getElementById('modeToggle')?.addEventListener('click', function() {
-        if (currentMode === 'articles') {
-            toggleArticleSearchMode();
-        } else {
-            toggleSearchMode();
-        }
-    });
-
-    document.getElementById('searchInput')?.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            if (currentMode === 'articles') {
-                doSearch();
-            } else if (searchMode === 'click') {
-                doSearch();
-            }
-        }
-    });
-
-    if (searchMode === 'realtime') {
-        document.getElementById('searchInput')?.addEventListener('input', doSearch);
-    }
-
-    setupModalEvents();
-    document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
-
-    if (typeof loadTheme === 'function') loadTheme();
-});
-
 /* ==================== 数据导出 ==================== */
 
 function exportJSON() {
@@ -1766,3 +1785,42 @@ function downloadFile(content, filename, mimeType) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    buildSpecialCategoryTree();
+    renderSidebar();
+    renderOverview();
+
+    document.querySelectorAll('.tab-item').forEach(tab => {
+        tab.addEventListener('click', () => onTabClick(tab.dataset.target));
+    });
+
+    document.getElementById('searchBtn')?.addEventListener('click', doSearch);
+    document.getElementById('resetBtn')?.addEventListener('click', resetSearch);
+    document.getElementById('modeToggle')?.addEventListener('click', function() {
+        if (currentMode === 'articles') {
+            toggleArticleSearchMode();
+        } else {
+            toggleSearchMode();
+        }
+    });
+
+    document.getElementById('searchInput')?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            if (currentMode === 'articles') {
+                doSearch();
+            } else if (searchMode === 'click') {
+                doSearch();
+            }
+        }
+    });
+
+    if (searchMode === 'realtime') {
+        document.getElementById('searchInput')?.addEventListener('input', doSearch);
+    }
+
+    setupModalEvents();
+    document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
+
+    if (typeof loadTheme === 'function') loadTheme();
+});
