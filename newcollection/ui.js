@@ -103,7 +103,7 @@ function renderOverview() {
 
     app.innerHTML = html;
     
-    // ★【修改】读取 overviewScrollY，不与其他视图混淆
+    // ★【修改】读取 overviewScrollY
     const savedY = modeStates?.[currentMode]?.overviewScrollY || 0;
     if (savedY > 0) {
         const content = document.querySelector('.content');
@@ -277,7 +277,7 @@ function renderSeriesList(data, title) {
     html += `</div>`;
     app.innerHTML = html;
     
-    // ★【修改】读取 categoryScrollY，不与其他视图混淆
+    // ★【修改】读取 categoryScrollY
     const savedY = modeStates?.[currentMode]?.categoryScrollY || 0;
     if (savedY > 0) {
         const content = document.querySelector('.content');
