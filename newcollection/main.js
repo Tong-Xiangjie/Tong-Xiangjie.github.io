@@ -486,83 +486,54 @@ function updateSearchUIForMode() {
     }
 }
 
-/* ===== 统一保存滚动位置 ===== */
-function saveCurrentScroll() {
+/* ===== 统一保存完整状态（切出Tab时调用） ===== */
+function saveFullState() {
     const content = document.querySelector('.content');
     const scrollY = content ? content.scrollTop : 0;
-    
-    if (currentMode === 'notes' || currentMode === 'coins') {
-        modeStates[currentMode].scrollY = scrollY;
-    } else if (currentMode === 'articles') {
-        articleState.scrollY = scrollY;
-    } else if (currentMode === 'special') {
-        if (!specialPageCache) specialPageCache = {};
-        if (specialPageCache.selectedSpecial === undefined || specialPageCache.selectedSpecial === null) {
-            specialPageCache = { ...specialPageCache, scrollY };
-        } else {
-            specialPageCache.scrollY = scrollY;
-        }
-    } else if (currentMode === 'settings') {
-        if (!settingsPageCache) settingsPageCache = {};
-        settingsPageCache.scrollY = scrollY;
-    }
-}
 
-/* ===== 统一恢复滚动位置 ===== */
-function restoreCurrentScroll() {
-    let savedScrollY = 0;
-    
     if (currentMode === 'notes' || currentMode === 'coins') {
-        savedScrollY = modeStates[currentMode]?.scrollY || 0;
+        const expanded = collectExpandedStates();
+        modeStates[currentMode] = {
+            currentCategoryId,
+            currentSubId,
+            currentView,
+            currentSearchKeyword: currentSearchKeyword || '',
+            expandedSeries: expanded.expandedSeries,
+            expandedVarieties: expanded.expandedVarieties,
+            scrollY
+        };
     } else if (currentMode === 'articles') {
-        savedScrollY = articleState.scrollY || 0;
+        articleState = {
+            currentView: currentArticleView,
+            currentCategory: currentArticleCategory,
+            currentIndex: currentArticleIndex,
+            searchKeyword: articleSearchKeyword,
+            scrollY
+        };
     } else if (currentMode === 'special') {
-        savedScrollY = specialPageCache?.scrollY || 0;
+        const appEl = document.getElementById('app');
+        specialPageCache = {
+            innerHTML: appEl ? appEl.innerHTML : '',
+            scrollY,
+            selectedSpecial: selectedSpecial,
+            currentSubId: currentSubId
+        };
     } else if (currentMode === 'settings') {
-        savedScrollY = settingsPageCache?.scrollY || 0;
-    }
-    
-    if (savedScrollY > 0) {
-        requestAnimationFrame(() => {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = savedScrollY;
-        });
+        const appEl = document.getElementById('app');
+        settingsPageCache = {
+            innerHTML: appEl ? appEl.innerHTML : '',
+            scrollY
+        };
     }
 }
 
 function onTabClick(target) {
-    // ===== 切出前统一保存滚动位置 =====
-    saveCurrentScroll();
+    // ===== 切出前统一保存完整状态 =====
+    saveFullState();
 
     // ===== 设置（"我的"） =====
     if (target === 'settings') {
         if (!isSettingsMode) {
-            if (currentMode === 'articles') {
-                articleState = {
-                    currentView: currentArticleView,
-                    currentCategory: currentArticleCategory,
-                    currentIndex: currentArticleIndex,
-                    searchKeyword: articleSearchKeyword,
-                    scrollY: articleState.scrollY
-                };
-            } else if (currentMode === 'notes' || currentMode === 'coins') {
-                const expanded = collectExpandedStates();
-                modeStates[currentMode] = {
-                    ...modeStates[currentMode],
-                    currentCategoryId, currentSubId, currentView,
-                    currentSearchKeyword: currentSearchKeyword || '',
-                    expandedSeries: expanded.expandedSeries,
-                    expandedVarieties: expanded.expandedVarieties
-                };
-            } else if (currentMode === 'special') {
-                const appEl = document.getElementById('app');
-                specialPageCache = {
-                    ...specialPageCache,
-                    innerHTML: appEl ? appEl.innerHTML : '',
-                    selectedSpecial: selectedSpecial,
-                    currentSubId: currentSubId
-                };
-            }
             settingsReturnState = {
                 currentMode: currentMode,
                 currentCategoryId: currentCategoryId,
@@ -595,23 +566,6 @@ function onTabClick(target) {
             }
             isSettingsMode = false;
             document.querySelector('.body-row')?.classList.remove('settings-mode');
-        } else if (currentMode === 'notes' || currentMode === 'coins') {
-            const expanded = collectExpandedStates();
-            modeStates[currentMode] = {
-                ...modeStates[currentMode],
-                currentCategoryId, currentSubId, currentView,
-                currentSearchKeyword: currentSearchKeyword || '',
-                expandedSeries: expanded.expandedSeries,
-                expandedVarieties: expanded.expandedVarieties
-            };
-        } else if (currentMode === 'articles') {
-            articleState = {
-                ...articleState,
-                currentView: currentArticleView,
-                currentCategory: currentArticleCategory,
-                currentIndex: currentArticleIndex,
-                searchKeyword: articleSearchKeyword
-            };
         }
 
         currentMode = 'special';
@@ -630,7 +584,7 @@ function onTabClick(target) {
             if (toggleBtn) toggleBtn.style.display = '';
             document.getElementById('app').innerHTML = specialPageCache.innerHTML;
             renderSidebar();
-            restoreCurrentScroll();
+            restoreExpandedStates({ scrollY: specialPageCache.scrollY });
         } else {
             renderSpecialOverview();
         }
@@ -677,11 +631,10 @@ function onTabClick(target) {
             renderSidebar();
             if (currentArticleView === 'list') {
                 renderArticleList();
-                restoreCurrentScroll();
-            }
-            else {
+                restoreExpandedStates({ scrollY: articleState.scrollY });
+            } else {
                 openArticleReader(currentArticleIndex);
-                restoreCurrentScroll();
+                restoreExpandedStates({ scrollY: articleState.scrollY });
             }
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
@@ -708,7 +661,7 @@ function onTabClick(target) {
             renderSidebar();
             if (currentView === 'overview') {
                 renderOverview();
-                restoreCurrentScroll();
+                restoreExpandedStates({ scrollY: saved.scrollY });
             } else if (currentView === 'category') {
                 renderCurrentCategory();
                 restoreExpandedStates({
@@ -742,7 +695,7 @@ function onTabClick(target) {
                 currentSubId = settingsReturnState.currentSubId;
                 renderSidebar();
                 renderSpecialContent();
-                restoreCurrentScroll();
+                restoreExpandedStates({ scrollY: specialPageCache?.scrollY || 0 });
             } else {
                 renderSpecialOverview();
             }
@@ -760,11 +713,10 @@ function onTabClick(target) {
         renderSidebar();
         if (currentView === 'overview') {
             renderOverview();
-            restoreCurrentScroll();
-        }
-        else {
+            restoreExpandedStates({ scrollY: 0 });
+        } else {
             renderCurrentCategory();
-            restoreCurrentScroll();
+            restoreExpandedStates({ scrollY: 0 });
         }
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
@@ -778,25 +730,6 @@ function onTabClick(target) {
             toggleBtn.style.display = '';
         }
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-
-        if (currentMode === 'notes' || currentMode === 'coins') {
-            const expanded = collectExpandedStates();
-            modeStates[currentMode] = {
-                ...modeStates[currentMode],
-                currentCategoryId, currentSubId, currentView,
-                currentSearchKeyword: currentSearchKeyword || '',
-                expandedSeries: expanded.expandedSeries,
-                expandedVarieties: expanded.expandedVarieties
-            };
-        } else if (currentMode === 'special') {
-            const appEl = document.getElementById('app');
-            specialPageCache = {
-                ...specialPageCache,
-                innerHTML: appEl ? appEl.innerHTML : '',
-                selectedSpecial: selectedSpecial,
-                currentSubId: currentSubId
-            };
-        }
 
         currentMode = 'articles';
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -823,11 +756,10 @@ function onTabClick(target) {
         renderSidebar();
         if (currentArticleView === 'list') {
             renderArticleList();
-            restoreCurrentScroll();
-        }
-        else {
+            restoreExpandedStates({ scrollY: articleState.scrollY });
+        } else {
             openArticleReader(currentArticleIndex);
-            restoreCurrentScroll();
+            restoreExpandedStates({ scrollY: articleState.scrollY });
         }
         return;
     }
@@ -839,33 +771,6 @@ function onTabClick(target) {
             toggleBtn.style.display = '';
         }
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-
-        if (currentMode === 'articles') {
-            articleState = {
-                ...articleState,
-                currentView: currentArticleView,
-                currentCategory: currentArticleCategory,
-                currentIndex: currentArticleIndex,
-                searchKeyword: articleSearchKeyword
-            };
-        } else if (currentMode === 'notes' || currentMode === 'coins') {
-            const expanded = collectExpandedStates();
-            modeStates[currentMode] = {
-                ...modeStates[currentMode],
-                currentCategoryId, currentSubId, currentView,
-                currentSearchKeyword: currentSearchKeyword || '',
-                expandedSeries: expanded.expandedSeries,
-                expandedVarieties: expanded.expandedVarieties
-            };
-        } else if (currentMode === 'special') {
-            const appEl = document.getElementById('app');
-            specialPageCache = {
-                ...specialPageCache,
-                innerHTML: appEl ? appEl.innerHTML : '',
-                selectedSpecial: selectedSpecial,
-                currentSubId: currentSubId
-            };
-        }
 
         const newMode = target;
         currentMode = newMode;
@@ -894,7 +799,7 @@ function onTabClick(target) {
         renderSidebar();
         if (currentView === 'overview') {
             renderOverview();
-            restoreCurrentScroll();
+            restoreExpandedStates({ scrollY: saved.scrollY });
         } else if (currentView === 'category') {
             renderCurrentCategory();
             restoreExpandedStates({
@@ -929,7 +834,7 @@ function enterSettings() {
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
     renderSettingsPage();
-    restoreCurrentScroll();
+    restoreExpandedStates({ scrollY: settingsPageCache?.scrollY || 0 });
     
     const appEl = document.getElementById('app');
     const contentEl = document.querySelector('.content');
