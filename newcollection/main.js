@@ -481,7 +481,7 @@ function updateSearchUIForMode() {
         toggle.classList.remove('hidden');
         toggle.textContent = searchMode === 'click' ? '□' : '■';
         toggle.title = '切换搜索模式';
-        tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
+        tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${searchMode === 'click' ? '□' : '■'}"可切换`;
     }
 }
 
