@@ -302,7 +302,7 @@ function renderCopiesList(copies) {
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
         if (c.price) {
             const priceText = String(c.price).includes('元') ? c.price : c.price + '元';
-            html += `<span class="meta"> · 以${escapeHtml(priceText)}的价格购入</span>`;
+            html += `<span class="meta">以${escapeHtml(priceText)}的价格购入</span>`;
         }
         html += `</div>`;
         if (catalogDisplay) html += `<div class="meta">${escapeHtml(catalogDisplay)}</div>`;
