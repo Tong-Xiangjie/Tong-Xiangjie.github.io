@@ -157,26 +157,30 @@ function collectExpandedStates() {
 
 function restoreExpandedStates(states) {
     if (!states) return;
-    requestAnimationFrame(() => {
-        if (states.expandedSeries) {
-            for (const id of states.expandedSeries) {
-                const body = document.getElementById('body-' + id);
-                const icon = document.getElementById('icon-' + id);
-                if (body) { body.classList.add('open'); if (icon) icon.classList.add('open'); }
-            }
+    
+    // 恢复展开状态（同步执行）
+    if (states.expandedSeries) {
+        for (const id of states.expandedSeries) {
+            const body = document.getElementById('body-' + id);
+            const icon = document.getElementById('icon-' + id);
+            if (body) { body.classList.add('open'); if (icon) icon.classList.add('open'); }
         }
-        if (states.expandedVarieties) {
-            for (const id of states.expandedVarieties) {
-                const list = document.getElementById('list-' + id);
-                const icon = document.getElementById('icon-' + id);
-                if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
-            }
+    }
+    if (states.expandedVarieties) {
+        for (const id of states.expandedVarieties) {
+            const list = document.getElementById('list-' + id);
+            const icon = document.getElementById('icon-' + id);
+            if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
         }
-        if (states.scrollY) {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = states.scrollY;
+    }
+    
+    // 直接设置滚动位置，不延迟
+    if (states.scrollY) {
+        const content = document.querySelector('.content');
+        if (content) {
+            content.scrollTop = states.scrollY;
         }
-    });
+    }
 }
 
 function toggleSidebar() {
