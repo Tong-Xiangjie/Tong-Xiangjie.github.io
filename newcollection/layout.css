@@ -268,7 +268,9 @@ body {
 }
 
 .sidebar-item .expand-icon {
-    font-size: 1.85rem;
+    font-size: 1rem;                 /* 回归正常字号 */
+    transform: scale(1.85);          /* 视觉放大1.85倍（跟你之前的感觉一致） */
+    display: inline-block;           /* scale 对 inline 元素无效，需要 inline-block */
     transition: transform 0.2s ease;
     color: var(--text-secondary);
     flex-shrink: 0;
