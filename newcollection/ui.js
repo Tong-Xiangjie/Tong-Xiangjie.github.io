@@ -102,17 +102,18 @@ function renderOverview() {
     }
 
     app.innerHTML = html;
+    
+    // 同步恢复滚动位置（在 rAF 之前执行，不会被浏览器渲染覆盖）
+    const savedY = modeStates?.[currentMode]?.scrollY || 0;
+    if (savedY > 0) {
+        const content = document.querySelector('.content');
+        if (content) content.scrollTop = savedY;
+    }
+    
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
         app.classList.add('content-enter');
-        
-        // 恢复滚动位置
-        const savedY = modeStates?.[currentMode]?.scrollY || 0;
-        if (savedY > 0) {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = savedY;
-        }
     });
 }
 
@@ -275,17 +276,18 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
+    
+    // 同步恢复滚动位置（在 rAF 之前执行，不会被浏览器渲染覆盖）
+    const savedY = modeStates?.[currentMode]?.scrollY || 0;
+    if (savedY > 0) {
+        const content = document.querySelector('.content');
+        if (content) content.scrollTop = savedY;
+    }
+    
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
         app.classList.add('content-enter');
-        
-        // 恢复滚动位置
-        const savedY = modeStates?.[currentMode]?.scrollY || 0;
-        if (savedY > 0) {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = savedY;
-        }
     });
 }
 
