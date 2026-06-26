@@ -9,43 +9,36 @@
 
 <center><img src="readmes/image/lecb/1960_fujian1yuan_0.jpg" width="80%"></center>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_2.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">1960年福建地方公债与1957年国家公债（去掉了息票）</span></center>
-<br>
+<center><span style="color:#555555; font-size:0.85rem;">1960年福建地方公债与1957年国家公债（去掉了息票）</span></center>
 
 <p>首先最打眼的是这一张主图，这其实是1958年3月建设的<strong>东圳水库</strong>，位于福建省莆田市区西北8公里许的延寿溪中游（莆田市城厢区常太镇东圳尾村）。东圳水库具有灌溉、防洪、发电、养殖、游览等作用。是福建省大型水库之一，是莆田市的“大水缸”和生命线工程。</p>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_3.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">这张主图还是比较漂亮的</span></center>
-<br>
+<center><span style="color:#555555; font-size:0.85rem;">这张主图还是比较漂亮的</span></center>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_4.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">这是在网上找到的拍摄角度最接近的一张图片。你甚至在这张图片上面还能找到票面上雕刻出来的那一座塔</span></center>
-<br>
+<center><span style="color:#555555; font-size:0.85rem;">这是在网上找到的拍摄角度最接近的一张图片。你甚至在这张图片上面还能找到票面上雕刻出来的那一座塔</span></center>
 
 <p>此外比较容易注意到的应该是四个角落上的那几个农林作物。左边两个还算比较好确认，一个是<strong>水稻</strong>，一个是<strong>香蕉</strong>。右边两个都是那些常见的圆圆的水果，可能第一眼不是好分辨出来；不过好在上面还有一些纹路供我们判断，看这些纹路我们可以辨认出来两个分别是<strong>龙眼</strong>和<strong>荔枝</strong>。这些都是福建省当地的地方特色农林作物。</p>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_5.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">左上角：水稻</span></center>
+<center><span style="color:#555555; font-size:0.85rem;">左上角：水稻</span></center>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_6.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">左下角：香蕉</span></center>
+<center><span style="color:#555555; font-size:0.85rem;">左下角：香蕉</span></center>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_7.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">右上角：龙眼</span></center>
+<center><span style="color:#555555; font-size:0.85rem;">右上角：龙眼</span></center>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_8.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">右下角：荔枝</span></center>
-<br>
+<center><span style="color:#555555; font-size:0.85rem;">右下角：荔枝</span></center>
 
 <p>（不过不得不说这几张图片画的还挺可爱……尤其是那两把香蕉，我比较喜欢：））</p>
 <br>
 
 <p>标题还是那种常见的电脑字体，1956年国家公债上就开始用了。</p>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_9.jpg" width="80%"></center>
-<br>
 
 <p>主图下面其实是有比较繁复的底纹的，比同期债券上面那种波浪条纹的底纹要复杂得多，不过颜色较浅，不容易看清楚。</p>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_10.jpg" width="80%"></center>
-<center><span style="color:#8b6b4f; font-size:0.85rem;">只能拍成这样了，将就着看吧ヽ（´ー｀）┌</span></center>
-<br>
+<center><span style="color:#555555; font-size:0.85rem;">只能拍成这样了，将就着看吧ヽ（´ー｀）┌</span></center>
 
 <p>下面是深蓝色的七位数号码，放的位置也与1957、1958年的全国债券一样，不过没有罗马冠号。根据号码的形态可以基本判断出这张应该是上海厂的作品。</p>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_1.jpg" width="80%"></center>
-<br>
 
 <p>背面就是条例，这是这个时期所有的公债上面都有的。值得注意的是福建背面的条例并不是每一年特定的，而是写了一个通用的版本。</p>
 <center><img src="readmes/image/lecb/1960_fujian1yuan_11.jpg" width="80%"></center>
