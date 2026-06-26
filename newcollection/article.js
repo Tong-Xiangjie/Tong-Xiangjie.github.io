@@ -15,14 +15,14 @@ let articleCategoryTree = [];
 function collectAllArticles() {
     collectedArticles = [];
     
-    // 遍历纸币数据源
+    // 遍历纸币数据
     for (const dataKey of allDataKeys) {
         const data = window.DATA_MAP && window.DATA_MAP[dataKey];
         if (!data || !data.series) continue;
         collectFromSource(data, dataKey, 'notes');
     }
     
-    // 遍历硬币数据源
+    // 遍历硬币数据
     for (const dataKey of coinAllDataKeys) {
         const data = window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey];
         if (!data || !data.series) continue;
@@ -33,7 +33,8 @@ function collectAllArticles() {
 }
 
 function collectFromSource(data, dataKey, sourceType) {
-    const catInfo = findArticleCategoryInfo(dataKey);
+    // 根据来源类型确定从哪个分类树查找
+    const catInfo = findArticleCategoryInfo(dataKey, sourceType);
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
@@ -73,7 +74,19 @@ function collectFromSource(data, dataKey, sourceType) {
     }
 }
 
-function findArticleCategoryInfo(dataKey) {
+function findArticleCategoryInfo(dataKey, sourceType) {
+    if (sourceType === 'coins') {
+        // 优先在硬币树中查找
+        for (const cat of coinCategoryTree) {
+            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+                }
+            }
+        }
+    }
+    // 在纸币树中查找
     for (const cat of categoryTree) {
         if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
         if (cat.children) {
@@ -82,11 +95,14 @@ function findArticleCategoryInfo(dataKey) {
             }
         }
     }
-    for (const cat of coinCategoryTree) {
-        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-        if (cat.children) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+    // 如果纸币树没找到且是硬币来源，再查一次硬币树
+    if (sourceType !== 'coins') {
+        for (const cat of coinCategoryTree) {
+            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+                }
             }
         }
     }
@@ -267,7 +283,6 @@ function renderArticleList() {
             const parentCat = articleCategoryTree.find(c => c.id === currentArticleCategory);
             if (parentCat && parentCat.children) {
                 const subKeys = parentCat.children.map(s => s.dataKey || s.id);
-                // 父分类：不区分来源，显示其子分类下所有文章
                 articles = collectedArticles.filter(a => subKeys.includes(a.dataKey));
             } else {
                 articles = [];
@@ -291,17 +306,17 @@ function renderArticleList() {
             }
 
             if (targetDataKey) {
-                // 确定当前分类的来源类型
+                // 根据点击的分类 id 确定来源类型（不用 dataKey，因为可能重名）
                 let targetSource = null;
-                // 先在纸币树中查找
+                // 在纸币树中找这个 id
                 for (const cat of categoryTree) {
-                    if (cat.dataKey === targetDataKey) {
+                    if (cat.id === currentArticleCategory) {
                         targetSource = 'notes';
                         break;
                     }
                     if (cat.children) {
                         for (const sub of cat.children) {
-                            if (sub.dataKey === targetDataKey) {
+                            if (sub.id === currentArticleCategory) {
                                 targetSource = 'notes';
                                 break;
                             }
@@ -309,10 +324,10 @@ function renderArticleList() {
                         if (targetSource) break;
                     }
                 }
-                // 再在硬币树中查找
+                // 在硬币树中找这个 id
                 if (!targetSource) {
                     for (const cat of coinCategoryTree) {
-                        if (cat.dataKey === targetDataKey) {
+                        if (cat.id === currentArticleCategory) {
                             targetSource = 'coins';
                             break;
                         }
