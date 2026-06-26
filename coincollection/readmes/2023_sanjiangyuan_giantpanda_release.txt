@@ -1,0 +1,102 @@
+<center>
+<b><span style="font-size:1.1em;">中国人民银行公告〔2023〕第12号</span></b>
+</center>
+<br>
+
+<center>
+<a href="javascript:void(0);" onclick="currentModalImg1='https://tong-xiangjie.github.io/notecollection/readmes/image/coin_comm/sanjiangyuan_giantpanda_release_0.png'; openModal(0);" style="color:#555555; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
+<a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2023年三江源国家公园、大熊猫国家公园纪念币发行公告：中国人民银行公告〔2023〕第12号，网页链接https://www.pbc.gov.cn/huobijinyinju/147948/147966/22e86a2326274765bd88f21906013487/index.html');alert('链接已复制到剪贴板');" style="color:#555555; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
+</center>
+<br>
+
+<p>中国人民银行定于2023年8月19日起陆续发行三江源国家公园、大熊猫国家公园纪念币。三江源国家公园、大熊猫国家公园纪念币共6枚，其中金质纪念币2枚，银质纪念币2枚，双色铜合金纪念币2枚。上述纪念币均为中华人民共和国法定货币。</p>
+
+<b>一、金银纪念币</b>
+<br>
+<b>（一）纪念币图案。</b>
+<br>
+<b>1.正面图案</b>
+<p>三江源国家公园、大熊猫国家公园金银纪念币正面图案均为中华人民共和国国徽，并刊国名、年号。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_1.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_2.png" width="80%"></center>
+<b>2.背面图案。</b>
+<p>三江源国家公园3克圆形金质纪念币背面图案为三江源国家公园自然景观，并刊“三江源国家公园”字样及面额。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_3.png" width="80%"></center>
+<p>大熊猫国家公园3克圆形金质纪念币背面图案为大熊猫国家公园自然景观，并刊“大熊猫国家公园”字样及面额。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_4.png" width="80%"></center>
+<p>三江源国家公园30克圆形银质纪念币背面图案为藏羚羊、绿绒蒿、点地梅等元素装饰组合设计，衬以三江源国家公园自然景观，并刊“三江源国家公园”字样及面额。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_5.png" width="80%"></center>
+<p>大熊猫国家公园30克圆形银质纪念币背面图案为大熊猫、小熊猫、珙桐等元素装饰组合设计，衬以大熊猫国家公园自然景观，并刊“大熊猫国家公园”字样及面额。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_6.png" width="80%"></center>
+<b>（二）纪念币规格和发行量。</b>
+<p>三江源国家公园、大熊猫国家公园3克圆形金质纪念币均为精制币，含纯金3克，直径18毫米，面额50元，成色99.9%，最大发行量各10000枚。</p>
+<p>三江源国家公园、大熊猫国家公园30克圆形银质纪念币均为精制币，含纯银30克，直径40毫米，面额10元，成色99.9%，最大发行量各60000枚。</p>
+<br>
+<b>（三）铸造单位及销售渠道。</b>
+<p>三江源国家公园金银纪念币分别由上海造币有限公司和沈阳造币有限公司铸造，大熊猫国家公园金银纪念币分别由上海造币有限公司和深圳国宝造币有限公司铸造，均由中国金币集团有限公司总经销。</p>
+<p>销售渠道详见中国金币网（www.chngc.net/qd）或“中国金币”微信公众号（chinagoldcoin_cgci）。</p>
+<br>
+<b>二、双色铜合金纪念币</b>
+<br>
+<b>（一）纪念币图案。</b>
+<br>
+<b>1.正面图案</b>
+<p>三江源国家公园、大熊猫国家公园双色铜合金纪念币正面图案均为中华人民共和国国徽，并刊国名、年号。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_7.png" width="80%"></center>
+<b>2.背面图案</b>
+<p>三江源国家公园双色铜合金纪念币背面主景图案为藏羚羊和三江源典型地貌等，辅以绿绒蒿、野牦牛、黑颈鹤等，并刊“三江源国家公园”字样及面额。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_8.png" width="80%"></center>
+<p>大熊猫国家公园双色铜合金纪念币背面主景图案为大熊猫母子和四姑娘山等，辅以绿尾虹雉、竹林等，并刊“大熊猫国家公园”字样及面额。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_9.png" width="80%"></center>
+<b>（二）纪念币面额、规格、材质和发行数量。</b>
+<p>三江源国家公园、大熊猫国家公园双色铜合金纪念币面额均为10元，直径27毫米，材质为双色铜合金，发行数量各8000万枚。各省、自治区、直辖市分配数量如下：</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_10.png" width="80%"></center>
+<b>（三）发行方式。</b>
+<p>三江源国家公园、大熊猫国家公园双色铜合金纪念币采取预约兑换方式发行。具体发行工作安排如下：</p>
+<p><b>1.承办预约兑换工作的银行业金融机构</b></p>
+<p>中国工商银行、中国农业银行、中国银行、中国建设银行、交通银行、中国邮政储蓄银行、华夏银行、浦发银行、平安银行、苏州银行、徽商银行、长沙银行、陕西省农村信用联合社（以下统称承办银行）共同承担三江源国家公园、大熊猫国家公园双色铜合金纪念币预约兑换工作。各地区具体安排如下：</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_11.png" width="80%"></center>
+<p><b>2.各地预约分配数量公布</b></p>
+<p>2023年8月21日前，中国人民银行分支机构向社会公告当地三江源国家公园、大熊猫国家公园双色铜合金纪念币分配数量等信息；承办银行在其官方网站公布三江源国家公园、大熊猫国家公园双色铜合金纪念币预约兑换网点和每个网点的可预约数量等信息。</p>
+<p><b>3.预约安排</b></p>
+<p>承办银行于2023年8月22日至8月24日办理三江源国家公园、大熊猫国家公园双色铜合金纪念币预约业务。公众可通过承办银行官方网站等线上渠道或在营业时间前往承办银行公布的预约兑换网点进行预约登记。</p>
+<p><b>4.预约核实期安排</b></p>
+<p>2023年8月27日至8月28日为预约核实期。预约核实期内，未通过核查的公众可持预约登记使用的第二代居民身份证原件，前往预约登记的承办银行网点办理撤销重复预约记录及保留兑换资格业务。具体办理流程见《中国人民银行公告》（〔2019〕第26号）。</p>
+<p><b>5.兑换安排</b></p>
+<p>承办银行于2023年8月29日至9月4日办理三江源国家公园、大熊猫国家公园双色铜合金纪念币兑换业务。公众可按照约定的时间，持在预约系统中登记的有效第二代居民身份证原件，前往约定的承办银行网点办理预约兑换业务。每人最多可代 5 人办理兑换业务。若本次预约未兑换，相关信息将被记录，并影响下一次普通纪念币兑换，请预约成功的公众按时办理兑换。</p>
+<p>中国人民银行各分支机构可根据实际延长三江源国家公园、大熊猫国家公园双色铜合金纪念币兑换期。</p>
+<p><b>6.预约兑换限额</b></p>
+<p>三江源国家公园、大熊猫国家公园双色铜合金纪念币以组为单位进行预约、兑换，每组包括三江源国家公园双色铜合金纪念币和大熊猫国家公园双色铜合金纪念币各1枚。每人预约、兑换限额为 20 组。</p>
+<p><b>7.身份证件要求</b></p>
+<p>三江源国家公园、大熊猫国家公园双色铜合金纪念币预约、兑换、核实的有效身份证件必须为第二代居民身份证原件。代他人办理的，须提供代办人和被代办人的有效第二代居民身份证原件。由于第二代居民身份证原件遗失、未成年人未办理第二代居民身份证等原因，无法出具第二代居民身份证原件的，可以使用户口簿、临时居民身份证办理。</p>
+<p><b>8.预约兑换信息公布</b></p>
+<p>中国人民银行、承办银行将在三江源国家公园、大熊猫国家公园双色铜合金纪念币预约和兑换期的每个工作日，在其官方网站公布全国各地区网上预约、现场预约及预约兑换进度。中国人民银行上海总部，各分行、营业管理部、省会（首府）城市中心支行、深圳市中心支行将在三江源国家公园、大熊猫国家公园双色铜合金纪念币预约和兑换期的每个工作日，在其官方网站公布辖区各地市网上预约、现场预约及预约兑换进度，在三江源国家公园、大熊猫国家公园双色铜合金纪念币发行期间公布全国各省（区、市）监督举报电话。欢迎公众查询并监督。</p>
+<b>（四）双色铜合金纪念币公众防伪特征。</b>
+<br>
+<b>1.三江源国家公园双色铜合金纪念币</b>
+<br>
+<b>（1）双金属结构和内芯复合材料</b>
+<p>硬币外环为黄铜合金，内芯为具有独特机读性能的镍带复合白铜材料。</p>
+<b>（2）斜全齿间隔半齿</b>
+<p>硬币外缘分布有交替排列的斜全齿与半齿。</p>
+<b>（3）隐形图文</b>
+<p>将硬币倾斜适当角度，在背面雪山图案右侧，可观察到字母“G”和“Y”构成的隐形图文。</p>
+<b>（4）微缩文字</b>
+<p>在硬币背面雪山山体中，可观察到微缩文字“S”“J”“Y”。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_12.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_13.png" width="80%"></center>
+<center><span style="color:#555555; font-size:0.85rem;">三江源国家公园双色铜合金纪念币防伪特征示意图</span></center>
+<b>2.大熊猫国家公园双色铜合金纪念币</b>
+<br>
+<b>（1）隐形图文</b>
+<p>将硬币倾斜适当角度，在背面山脉图案右侧，可观察到字母“G”和“Y”构成的隐形图文。</p>
+<b>（2）微缩文字</b>
+<p>在硬币背面山体中，可观察到微缩文字“D”“X”“M”。</p>
+<p>其他公众防伪特征与三江源国家公园双色铜合金纪念币相同。</p>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_14.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_15.png" width="80%"></center>
+<center><span style="color:#555555; font-size:0.85rem;">大熊猫国家公园双色铜合金纪念币防伪特征示意图</span></center>
+<b>（五）三江源国家公园、大熊猫国家公园双色铜合金纪念币与现行流通人民币职能相同，与同面额人民币等值流通。</b>
+<br>
+<div style="text-align:right;">中国人民银行</div>
+<div style="text-align:right;">2023年8月14日</div>
