@@ -15,14 +15,12 @@ let articleCategoryTree = [];
 function collectAllArticles() {
     collectedArticles = [];
     
-    // 遍历纸币数据
     for (const dataKey of allDataKeys) {
         const data = window.DATA_MAP && window.DATA_MAP[dataKey];
         if (!data || !data.series) continue;
         collectFromSource(data, dataKey, 'notes');
     }
     
-    // 遍历硬币数据
     for (const dataKey of coinAllDataKeys) {
         const data = window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey];
         if (!data || !data.series) continue;
@@ -32,8 +30,34 @@ function collectAllArticles() {
     buildArticleCategoryTree();
 }
 
+// ========== 获取完整分类路径 ==========
+function getFullPath(dataKey, sourceType) {
+    const tree = sourceType === 'coins' ? coinCategoryTree : categoryTree;
+    const topName = sourceType === 'coins' ? '硬币' : '纸币';
+    
+    function search(nodes, path) {
+        for (const node of nodes) {
+            if (node.dataKey === dataKey) {
+                return [...path, node.name];
+            }
+            if (node.children) {
+                const result = search(node.children, [...path, node.name]);
+                if (result) return result;
+            }
+        }
+        return null;
+    }
+    
+    const pathInTree = search(tree, []);
+    if (pathInTree) {
+        return [topName, ...pathInTree];
+    }
+    return [topName, dataKey];
+}
+
 function collectFromSource(data, dataKey, sourceType) {
-    const catInfo = findArticleCategoryInfo(dataKey, sourceType);
+    const catInfo = findArticleCategoryInfo(dataKey);
+    const fullPath = getFullPath(dataKey, sourceType);
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
@@ -46,6 +70,7 @@ function collectFromSource(data, dataKey, sourceType) {
                 parentCategory: catInfo.parentCategory,
                 dataKey,
                 sourceType,
+                fullPath,
                 seriesIndex: si,
                 varietyIndex: -1,
                 seriesName: series.seriesName
@@ -63,6 +88,7 @@ function collectFromSource(data, dataKey, sourceType) {
                         parentCategory: catInfo.parentCategory,
                         dataKey,
                         sourceType,
+                        fullPath,
                         seriesIndex: si,
                         varietyIndex: vi,
                         seriesName: series.seriesName
@@ -73,17 +99,7 @@ function collectFromSource(data, dataKey, sourceType) {
     }
 }
 
-function findArticleCategoryInfo(dataKey, sourceType) {
-    if (sourceType === 'coins') {
-        for (const cat of coinCategoryTree) {
-            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
-                }
-            }
-        }
-    }
+function findArticleCategoryInfo(dataKey) {
     for (const cat of categoryTree) {
         if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
         if (cat.children) {
@@ -92,13 +108,11 @@ function findArticleCategoryInfo(dataKey, sourceType) {
             }
         }
     }
-    if (sourceType !== 'coins') {
-        for (const cat of coinCategoryTree) {
-            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
-                }
+    for (const cat of coinCategoryTree) {
+        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+        if (cat.children) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
             }
         }
     }
@@ -109,7 +123,6 @@ function findArticleCategoryInfo(dataKey, sourceType) {
 function buildArticleCategoryTree() {
     articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
 
-    // 分别统计纸币和硬币的文章数量
     const notesArticles = collectedArticles.filter(a => a.sourceType === 'notes');
     const coinsArticles = collectedArticles.filter(a => a.sourceType === 'coins');
     
@@ -125,7 +138,6 @@ function buildArticleCategoryTree() {
         coinsCount[a.dataKey]++;
     }
 
-    // 纸币分类
     for (const cat of categoryTree) {
         if (cat.children) {
             const children = [];
@@ -155,7 +167,6 @@ function buildArticleCategoryTree() {
         }
     }
 
-    // 硬币分类
     for (const cat of coinCategoryTree) {
         const count = coinsCount[cat.dataKey] || 0;
         if (count > 0) {
@@ -242,9 +253,11 @@ function renderArticleSidebar() {
     let html = '';
     for (const cat of articleCategoryTree) {
         const hasChildren = cat.children && cat.children.length > 0;
-        const isActive = currentArticleCategory === cat.id;
-        // 展开条件：要么当前选中父分类，要么当前选中的子分类属于这个父分类
-        const isExpanded = (isActive && hasChildren) || (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
+        // 父分类高亮：直接选中或子分类被选中
+        const isActive = cat.id === currentArticleCategory || 
+            (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
+        const isExpanded = (isActive && hasChildren) || 
+            (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
         html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onArticleSidebarClick('${cat.id}')">`;
         html += `<span>${cat.name}</span>`;
         if (hasChildren) {
@@ -369,22 +382,27 @@ function renderArticleList() {
         return;
     }
 
+    // 使用完整路径分组
     const grouped = {};
     for (const article of articles) {
-        const key = article.parentCategory + ' - ' + article.category;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(article);
+        const pathStr = article.fullPath ? article.fullPath.join(' - ') : (article.parentCategory + ' - ' + article.category);
+        if (!grouped[pathStr]) grouped[pathStr] = [];
+        grouped[pathStr].push(article);
     }
 
-    for (const [label, group] of Object.entries(grouped)) {
+    for (const [pathLabel, group] of Object.entries(grouped)) {
         html += `<div class="search-result-group">`;
-        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${group.length}篇</span></div>`;
+        html += `<div class="search-group-header">${escapeHtml(pathLabel)} <span class="count">${group.length}篇</span></div>`;
         for (let i = 0; i < group.length; i++) {
             const article = group[i];
             const idx = collectedArticles.indexOf(article);
             html += `<div class="search-result-item" onclick="openArticleReader(${idx})">`;
             html += `<div class="info">`;
             html += `<div class="name">${highlightText(escapeHtml(article.title), articleSearchKeyword)}</div>`;
+            // 显示完整分类路径
+            if (article.fullPath) {
+                html += `<div class="article-category" style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0;">${escapeHtml(article.fullPath.join(' > '))}</div>`;
+            }
             html += `<div class="detail">${escapeHtml(article.seriesName)}</div>`;
             if (articleSearchKeyword && articleSearchMode === 'fulltext' && articlePlainTextCache[article.contentPath]) {
                 const snippet = getContextSnippet(articlePlainTextCache[article.contentPath], articleSearchKeyword);
