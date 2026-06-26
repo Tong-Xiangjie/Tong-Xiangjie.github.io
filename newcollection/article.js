@@ -37,7 +37,7 @@ function collectFromSource(data, dataKey, sourceType) {
         const series = data.series[si];
 
         if (series.readme && series.readme.title && series.readme.content) {
-            const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
+            const fullPath = buildFullPath(sourceType, catInfo);
             collectedArticles.push({
                 title: series.readme.title,
                 contentPath: series.readme.content,
@@ -56,7 +56,7 @@ function collectFromSource(data, dataKey, sourceType) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 if (variety.readme && variety.readme.title && variety.readme.content) {
-                    const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
+                    const fullPath = buildFullPath(sourceType, catInfo);
                     collectedArticles.push({
                         title: variety.readme.title,
                         contentPath: variety.readme.content,
@@ -75,16 +75,17 @@ function collectFromSource(data, dataKey, sourceType) {
     }
 }
 
-function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
+// 分类路径只保留到侧边栏的精度（不包含 seriesName 和 varietyName）
+function buildFullPath(sourceType, catInfo) {
     const top = sourceType === 'coins' ? '硬币' : '纸币';
     const parts = [top];
     
+    // 如果有父分类（如"人民币"），且不等于顶层分类名，则加入
     if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
         parts.push(catInfo.parentCategory);
     }
+    // 加入当前分类名
     parts.push(catInfo.category);
-    if (seriesName) parts.push(seriesName);
-    if (varietyName) parts.push(varietyName);
     
     return parts;
 }
@@ -128,7 +129,6 @@ function buildArticleCategoryTree() {
         coinsCount[a.dataKey]++;
     }
 
-    // 纸币分类
     for (const cat of categoryTree) {
         if (cat.children) {
             const children = [];
@@ -160,7 +160,6 @@ function buildArticleCategoryTree() {
         }
     }
 
-    // 硬币分类
     for (const cat of coinCategoryTree) {
         const count = coinsCount[cat.dataKey] || 0;
         if (count > 0) {
@@ -391,7 +390,7 @@ function renderArticleList() {
             html += `<div class="search-result-item" onclick="openArticleReader(${idx})">`;
             html += `<div class="info">`;
             html += `<div class="name">${highlightText(escapeHtml(article.title), articleSearchKeyword)}</div>`;
-            // 只保留带 > 的完整分类路径，删掉单独的 seriesName 行
+            // 显示分类路径（精度与侧边栏一致）
             if (article.fullPath && article.fullPath.length > 0) {
                 html += `<div class="article-category" style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0;">${escapeHtml(article.fullPath.join(' > '))}</div>`;
             }
