@@ -89,26 +89,69 @@ function findArticleCategoryInfo(dataKey) {
     return { category: dataKey, parentCategory: '其他' };
 }
 
+// ========== 动态构建文章分类树 ==========
 function buildArticleCategoryTree() {
-    const parentCats = {};
+    articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
+
+    // 统计每个 dataKey 有多少篇文章
+    const articleCount = {};
     for (const article of collectedArticles) {
-        const pc = article.parentCategory;
-        if (!parentCats[pc]) parentCats[pc] = {};
-        if (!parentCats[pc][article.category]) parentCats[pc][article.category] = 0;
-        parentCats[pc][article.category]++;
+        const key = article.dataKey;
+        if (!articleCount[key]) articleCount[key] = 0;
+        articleCount[key]++;
     }
 
-    articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
-    for (const [parentName, subCats] of Object.entries(parentCats)) {
-        const children = [];
-        for (const [subName, count] of Object.entries(subCats)) {
-            children.push({ id: subName, name: subName + '（' + count + '篇）', dataKey: subName });
+    // 纸币分类树
+    for (const cat of categoryTree) {
+        if (cat.children) {
+            const children = [];
+            for (const sub of cat.children) {
+                const count = articleCount[sub.dataKey] || 0;
+                if (count > 0) {
+                    children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
+                }
+            }
+            if (children.length > 0) {
+                articleCategoryTree.push({
+                    id: cat.id,
+                    name: cat.name,
+                    children: children
+                });
+            } else {
+                // 父分类本身也可能有文章（如 cat.dataKey 有值的情况）
+                const parentCount = cat.dataKey ? (articleCount[cat.dataKey] || 0) : 0;
+                if (parentCount > 0) {
+                    articleCategoryTree.push({
+                        id: cat.id,
+                        name: cat.name + '（' + parentCount + '篇）',
+                        children: null
+                    });
+                }
+            }
+        } else {
+            const count = articleCount[cat.dataKey] || 0;
+            if (count > 0) {
+                articleCategoryTree.push({
+                    id: cat.id,
+                    name: cat.name + '（' + count + '篇）',
+                    dataKey: cat.dataKey,
+                    children: null
+                });
+            }
         }
-        articleCategoryTree.push({
-            id: parentName,
-            name: parentName,
-            children: children
-        });
+    }
+
+    // 硬币分类树
+    for (const cat of coinCategoryTree) {
+        const count = articleCount[cat.dataKey] || 0;
+        if (count > 0) {
+            articleCategoryTree.push({
+                id: cat.id,
+                name: cat.name + '（' + count + '篇）',
+                dataKey: cat.dataKey,
+                children: null
+            });
+        }
     }
 }
 
@@ -163,10 +206,9 @@ function stripHtml(html) {
 function toggleArticleSearchMode() {
     if (articleSearchMode === 'title') {
         articleSearchMode = 'fulltext';
-        // 切换为实时搜索 + 预加载
         const input = document.getElementById('searchInput');
         if (input) {
-            input.removeEventListener('input', doSearch); // 避免重复绑定
+            input.removeEventListener('input', doSearch);
             input.addEventListener('input', doSearch);
         }
         preloadAllArticles().then(() => {
@@ -174,7 +216,6 @@ function toggleArticleSearchMode() {
         });
     } else {
         articleSearchMode = 'title';
-        // 保持实时搜索
         if (articleSearchKeyword) renderArticleList();
     }
     updateSearchUIForMode();
@@ -227,9 +268,45 @@ function renderArticleList() {
     if (currentArticleCategory === 'all') {
         articles = [...collectedArticles];
     } else {
-        articles = collectedArticles.filter(a =>
-            a.category === currentArticleCategory || a.parentCategory === currentArticleCategory
-        );
+        // 检查是否是父分类（有 children 的分类）
+        const isParent = articleCategoryTree.some(cat => cat.id === currentArticleCategory && cat.children && cat.children.length > 0);
+        
+        if (isParent) {
+            // 父分类：找出其下所有子分类的 dataKey
+            const parentCat = articleCategoryTree.find(c => c.id === currentArticleCategory);
+            if (parentCat && parentCat.children) {
+                const subKeys = parentCat.children.map(s => s.dataKey || s.id);
+                articles = collectedArticles.filter(a => subKeys.includes(a.dataKey));
+            } else {
+                articles = [];
+            }
+        } else {
+            // 叶子分类：找到对应的 dataKey
+            let targetDataKey = null;
+            for (const cat of articleCategoryTree) {
+                if (cat.id === currentArticleCategory) {
+                    targetDataKey = cat.dataKey || null;
+                    break;
+                }
+                if (cat.children) {
+                    for (const sub of cat.children) {
+                        if (sub.id === currentArticleCategory) {
+                            targetDataKey = sub.dataKey;
+                            break;
+                        }
+                    }
+                    if (targetDataKey) break;
+                }
+            }
+            
+            if (targetDataKey) {
+                articles = collectedArticles.filter(a => a.dataKey === targetDataKey);
+            } else {
+                articles = collectedArticles.filter(a =>
+                    a.category === currentArticleCategory || a.parentCategory === currentArticleCategory
+                );
+            }
+        }
     }
 
     if (articleSearchKeyword) {
