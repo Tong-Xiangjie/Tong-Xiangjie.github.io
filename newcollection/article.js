@@ -398,9 +398,9 @@ function renderArticleList() {
         });
     }
 
-    let html = `<div class="overview-header"><h2>文章</h2><p>共 ${articles.length} 篇</p></div>`;
+    let html = `<div class="overview-header"><h2>文章</h2><p>共${articles.length}篇</p></div>`;
     if (articles.length === 0) {
-        html += '<div class="empty-state">暂无文章</div>';
+        html += '<div class="empty-state">啥都木有(=ｘェｘ=)</div>';
         app.innerHTML = html;
         return;
     }
@@ -484,7 +484,7 @@ function openArticleReader(index) {
         return;
     }
 
-    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">加载中...</div>`;
+    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">全力加载中...</div>`;
     app.innerHTML = html;
 
     let filePath = article.contentPath;
@@ -492,7 +492,7 @@ function openArticleReader(index) {
 
     fetch('../notecollection/' + filePath)
         .then(response => {
-            if (!response.ok) throw new Error('加载失败');
+            if (!response.ok) throw new Error('加载失败，燃尽了(；ﾟ(OO)ﾟ)');
             return response.text();
         })
         .then(content => {
