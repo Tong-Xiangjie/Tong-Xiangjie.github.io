@@ -111,6 +111,10 @@ const commemorativeData = {
         { 
             seriesName: "迎接新世纪纪念钞",
             year: "2000",
+            readme: {
+                title: "跟着纸币游中国 | 中华世纪坛",
+                content: "file:readmes/20260625_zhonghuashijitan.txt"
+            },
             copies: [
                 { 
                     copyId: 1, 
