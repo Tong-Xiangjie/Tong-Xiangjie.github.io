@@ -33,7 +33,6 @@ function collectAllArticles() {
 }
 
 function collectFromSource(data, dataKey, sourceType) {
-    // 根据来源类型确定从哪个分类树查找
     const catInfo = findArticleCategoryInfo(dataKey, sourceType);
 
     for (let si = 0; si < data.series.length; si++) {
@@ -76,7 +75,6 @@ function collectFromSource(data, dataKey, sourceType) {
 
 function findArticleCategoryInfo(dataKey, sourceType) {
     if (sourceType === 'coins') {
-        // 优先在硬币树中查找
         for (const cat of coinCategoryTree) {
             if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
             if (cat.children) {
@@ -86,7 +84,6 @@ function findArticleCategoryInfo(dataKey, sourceType) {
             }
         }
     }
-    // 在纸币树中查找
     for (const cat of categoryTree) {
         if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
         if (cat.children) {
@@ -95,7 +92,6 @@ function findArticleCategoryInfo(dataKey, sourceType) {
             }
         }
     }
-    // 如果纸币树没找到且是硬币来源，再查一次硬币树
     if (sourceType !== 'coins') {
         for (const cat of coinCategoryTree) {
             if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
@@ -113,11 +109,20 @@ function findArticleCategoryInfo(dataKey, sourceType) {
 function buildArticleCategoryTree() {
     articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
 
-    const articleCount = {};
-    for (const article of collectedArticles) {
-        const key = article.dataKey;
-        if (!articleCount[key]) articleCount[key] = 0;
-        articleCount[key]++;
+    // 分别统计纸币和硬币的文章数量
+    const notesArticles = collectedArticles.filter(a => a.sourceType === 'notes');
+    const coinsArticles = collectedArticles.filter(a => a.sourceType === 'coins');
+    
+    const notesCount = {};
+    for (const a of notesArticles) {
+        if (!notesCount[a.dataKey]) notesCount[a.dataKey] = 0;
+        notesCount[a.dataKey]++;
+    }
+    
+    const coinsCount = {};
+    for (const a of coinsArticles) {
+        if (!coinsCount[a.dataKey]) coinsCount[a.dataKey] = 0;
+        coinsCount[a.dataKey]++;
     }
 
     // 纸币分类
@@ -125,7 +130,7 @@ function buildArticleCategoryTree() {
         if (cat.children) {
             const children = [];
             for (const sub of cat.children) {
-                const count = articleCount[sub.dataKey] || 0;
+                const count = notesCount[sub.dataKey] || 0;
                 if (count > 0) {
                     children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
                 }
@@ -138,7 +143,7 @@ function buildArticleCategoryTree() {
                 });
             }
         } else {
-            const count = articleCount[cat.dataKey] || 0;
+            const count = notesCount[cat.dataKey] || 0;
             if (count > 0) {
                 articleCategoryTree.push({
                     id: cat.id,
@@ -152,7 +157,7 @@ function buildArticleCategoryTree() {
 
     // 硬币分类
     for (const cat of coinCategoryTree) {
-        const count = articleCount[cat.dataKey] || 0;
+        const count = coinsCount[cat.dataKey] || 0;
         if (count > 0) {
             articleCategoryTree.push({
                 id: cat.id,
@@ -238,7 +243,8 @@ function renderArticleSidebar() {
     for (const cat of articleCategoryTree) {
         const hasChildren = cat.children && cat.children.length > 0;
         const isActive = currentArticleCategory === cat.id;
-        const isExpanded = isActive && hasChildren;
+        // 展开条件：要么当前选中父分类，要么当前选中的子分类属于这个父分类
+        const isExpanded = (isActive && hasChildren) || (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
         html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onArticleSidebarClick('${cat.id}')">`;
         html += `<span>${cat.name}</span>`;
         if (hasChildren) {
@@ -306,9 +312,7 @@ function renderArticleList() {
             }
 
             if (targetDataKey) {
-                // 根据点击的分类 id 确定来源类型（不用 dataKey，因为可能重名）
                 let targetSource = null;
-                // 在纸币树中找这个 id
                 for (const cat of categoryTree) {
                     if (cat.id === currentArticleCategory) {
                         targetSource = 'notes';
@@ -324,7 +328,6 @@ function renderArticleList() {
                         if (targetSource) break;
                     }
                 }
-                // 在硬币树中找这个 id
                 if (!targetSource) {
                     for (const cat of coinCategoryTree) {
                         if (cat.id === currentArticleCategory) {
