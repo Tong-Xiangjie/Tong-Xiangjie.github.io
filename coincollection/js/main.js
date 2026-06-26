@@ -41,6 +41,18 @@ let currentY = 0;
 let fromSearchResult = false;
 let lastSearchParams = null;
 
+// ========== [FIX] 新增：Readme 系统相关变量 ==========
+let currentReadmeBackInfo = null;
+
+// ========== [FIX] 新增：重置操作标志 ==========
+let isResetOperation = false;
+
+// ========== [FIX] 新增：进入搜索前的视图状态 ==========
+let preSearchView = null;
+
+// ========== [FIX] 新增：历史记录替换标志 ==========
+let isReplacingHistory = false;
+
 // 将数字转换为带圈数字
 function toCircledNumber(num) {
     const numStr = num.toString();
@@ -306,13 +318,30 @@ function performRealtimeSearch() {
     renderSearchResultPage(rawKeyword, type, true);
 }
 
+// ========== [FIX] 修复版 renderSearchResultPage ==========
 function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
-    const keyword = rawKeyword || '';
-    
-    const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
-    
-    currentView = 'searchResult';
+    // [FIX] 保存进入搜索前的视图状态（只在第一次进入搜索结果页时保存）
+    if (currentView !== 'searchResult') {
+        preSearchView = {
+            view: currentView,
+            categoryId: currentCategoryId,
+            series: currentSeries ? { 
+                cid: currentSeries.cid, 
+                si: currentSeries.si, 
+                vi: currentSeries.vi, 
+                ci: currentSeries.ci 
+            } : null,
+            scrollY: window.scrollY
+        };
+        isReplacingHistory = false;
+    } else {
+        isReplacingHistory = true;
+    }
 
+    const keyword = rawKeyword || '';
+    const isNewSearch = (currentSearchKeyword !== keyword || currentSearchType !== type);
+
+    // [FIX] 先保存滚动位置，再改变 currentView
     if (currentView === 'categories') {
         saveScroll("categories");
     } else if (currentView === 'seriesList' && currentCategoryId) {
@@ -320,8 +349,15 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     } else if (currentView === 'varietyList' && currentSeries) {
         saveScroll("varietyList_" + currentSeries.cid + "_" + currentSeries.si);
     } else if (currentView === 'copyList' && currentSeries) {
-        saveScroll("copyList_" + currentSeries.cid + "_" + currentSeries.si);
+        const key = currentSeries.vi !== undefined && currentSeries.vi !== null
+            ? "copyList_" + currentSeries.cid + "_" + currentSeries.si + "_" + currentSeries.vi
+            : "copyList_" + currentSeries.cid + "_" + currentSeries.si;
+        saveScroll(key);
     }
+
+    currentView = 'searchResult';
+    currentSearchKeyword = keyword;
+    currentSearchType = type;
 
     const results = performSearch(keyword, type, searchScope);
     const resultsHtml = renderResultsList(results);
@@ -348,7 +384,7 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击"<span style="color:#daa520;">${modeIcon}</span>"可切换</div>
         <div class="list-panel">
             <div class="panel-header">
                 <h2>搜索结果</h2>
@@ -380,99 +416,311 @@ function renderSearchResultPage(rawKeyword, type, autoFocus = true) {
     if (switchBtn) {
         switchBtn.style.display = 'none';
     }
+    
+    // [FIX] 处理历史记录（支持 replace）
+    if (isReplacingHistory) {
+        const currentViewInfo = {
+            view: currentView,
+            categoryId: currentCategoryId,
+            series: currentSeries ? { 
+                cid: currentSeries.cid, 
+                si: currentSeries.si, 
+                vi: currentSeries.vi, 
+                ci: currentSeries.ci 
+            } : null,
+            searchKeyword: currentSearchKeyword,
+            searchType: currentSearchType
+        };
+        if (viewHistoryStack.length > 0) {
+            viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        } else {
+            viewHistoryStack.push(currentViewInfo);
+        }
+        history.replaceState({ custom: true }, '');
+        isReplacingHistory = false;
+    } else {
+        pushViewToHistory(false);
+    }
 }
 
+// ========== [FIX] 修复版 backToPrevious ==========
 function backToPrevious() {
-    if (currentView === 'categories') {
-        renderCategories(true);
-    } else if (currentView === 'seriesList' && currentCategoryId) {
-        renderSeriesList(currentCategoryId, true);
-    } else if (currentView === 'varietyList' && currentSeries) {
-        renderVarietyList(currentSeries.cid, currentSeries.si, true);
+    history.back();
+}
+
+// ========== [FIX] 增强版重置函数 ==========
+function resetSearchAndStay() {
+    const currentType = currentSearchType;
+    
+    currentSearchKeyword = '';
+    delete scrollMemory["searchResult"];
+    fromSearchResult = false;
+    isResetOperation = true;
+    
+    const wasInSearchResult = (currentView === 'searchResult');
+    
+    if (currentView === 'seriesList' && currentCategoryId) {
+        renderSeriesList(currentCategoryId, false);
+    } else if (currentView === 'varietyList' && currentSeries && currentSeries.cid !== undefined && currentSeries.si !== undefined) {
+        renderVarietyList(currentSeries.cid, currentSeries.si, false);
     } else if (currentView === 'copyList' && currentSeries) {
         if (currentSeries.vi !== undefined && currentSeries.vi !== null) {
-            renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, true);
+            renderCopyListFromVariety(currentSeries.cid, currentSeries.si, currentSeries.vi, false);
         } else {
-            renderCopyList(currentSeries.cid, currentSeries.si, true);
+            renderCopyList(currentSeries.cid, currentSeries.si, false);
         }
-    } else {
-        renderCategories(true);
-    }
-}
-
-function resetSearchAndBack() {
-    currentSearchKeyword = '';
-    currentSearchType = 'all';
-    
-    delete scrollMemory["searchResult"];
-    delete scrollMemory["categories"];
-    
-    fromSearchResult = false;
-    
-    renderCategoriesWithoutRestore();
-}
-
-function renderCategoriesWithoutRestore() {
-    fromSearchResult = false;
-    searchScope = 'global';
-    currentView = "categories";
-    currentCategoryId = null;
-
-    const modeIcon = searchMode === 'click' ? '□' : '■';
-    const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
-    const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
-
-    let html = `
-        <div class="search-bar">
-            <select class="search-select" id="searchType">
-                <option value="all" ${currentSearchType === 'all' ? 'selected' : ''}>全字段搜索</option>
-                <option value="name" ${currentSearchType === 'name' ? 'selected' : ''}>按名称搜索</option>
-                <option value="grade" ${currentSearchType === 'grade' ? 'selected' : ''}>按评级搜索</option>
-                <option value="year" ${currentSearchType === 'year' ? 'selected' : ''}>按年份搜索</option>
-                <option value="company" ${currentSearchType === 'company' ? 'selected' : ''}>按评级公司搜索</option>
-            </select>
-            <input type="text" class="search-input" id="searchInput" placeholder="在全局搜索" value="${escapeHtml(displayValue)}" autocomplete="off">
-            <button class="search-btn" id="searchBtn">搜索</button>
-            <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
-            <button class="reset-btn" id="resetBtn">重置</button>
-        </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
-        <div class="category-grid">`;
-
-    for (let id of categoryOrder) {
-        const cat = coinsData[id];
-        if (!cat) continue;
-        let total = 0;
-        if (cat.series) {
-            for (let s of cat.series) {
-                if (s.varieties && s.varieties.length > 0) {
-                    for (let v of s.varieties) {
-                        total += v.copies ? v.copies.length : 0;
+    } else if (currentView === 'searchResult') {
+        if (preSearchView) {
+            currentSearchType = currentType;
+            switch (preSearchView.view) {
+                case 'seriesList':
+                    if (preSearchView.categoryId) {
+                        renderSeriesList(preSearchView.categoryId, false);
+                    } else {
+                        renderCategories(false);
                     }
-                } else {
-                    total += s.copies ? s.copies.length : 0;
-                }
+                    break;
+                case 'varietyList':
+                    if (preSearchView.series && preSearchView.categoryId) {
+                        renderVarietyList(preSearchView.categoryId, preSearchView.series.si, false);
+                    } else if (preSearchView.categoryId) {
+                        renderSeriesList(preSearchView.categoryId, false);
+                    } else {
+                        renderCategories(false);
+                    }
+                    break;
+                case 'copyList':
+                    if (preSearchView.series && preSearchView.categoryId) {
+                        if (preSearchView.series.vi !== undefined && preSearchView.series.vi !== null) {
+                            renderCopyListFromVariety(preSearchView.categoryId, preSearchView.series.si, preSearchView.series.vi, false);
+                        } else {
+                            renderCopyList(preSearchView.categoryId, preSearchView.series.si, false);
+                        }
+                    } else if (preSearchView.categoryId) {
+                        renderSeriesList(preSearchView.categoryId, false);
+                    } else {
+                        renderCategories(false);
+                    }
+                    break;
+                case 'categories':
+                default:
+                    renderCategories(false);
+                    break;
             }
+            if (preSearchView.scrollY !== undefined) {
+                setTimeout(() => {
+                    window.scrollTo(0, preSearchView.scrollY);
+                }, 0);
+            }
+            preSearchView = null;
+        } else {
+            renderCategories(false);
         }
-        const icon = (cat && cat.icon) ? cat.icon : toCircledNumber(categoryOrder.indexOf(id) + 1);
-        html += `
-            <div class="category-card" onclick="selectCategory('${id}')">
-                <div class="category-icon">${icon}</div>
-                <h3>${cat.name || id}</h3>
-                <p>${cat.desc || ''}</p>
-                <div class="count-badge"> ${total} 枚藏品</div>
-            </div>`;
+    } else if (currentView === 'categories') {
+        renderCategories(false);
+    } else {
+        if (currentCategoryId) {
+            renderSeriesList(currentCategoryId, false);
+        } else {
+            renderCategories(false);
+        }
     }
-    html += `</div>`;
+    
+    currentSearchType = currentType;
+    
+    setTimeout(() => {
+        isResetOperation = false;
+    }, 100);
+    
+    if (wasInSearchResult && preSearchView === null) {
+        const currentViewInfo = {
+            view: currentView,
+            categoryId: currentCategoryId,
+            series: currentSeries ? { 
+                cid: currentSeries.cid, 
+                si: currentSeries.si, 
+                vi: currentSeries.vi, 
+                ci: currentSeries.ci 
+            } : null,
+            searchKeyword: currentSearchKeyword,
+            searchType: currentSearchType
+        };
+        if (viewHistoryStack.length > 0) {
+            viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        }
+        history.replaceState({ custom: true }, '');
+    }
+    
+    setTimeout(() => {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+            searchInput.focus();
+            const len = searchInput.value.length;
+            searchInput.setSelectionRange(len, len);
+        }
+    }, 50);
+}
+
+// ========== [FIX] 新增 Readme 系统函数 ==========
+
+function generateReadmeCards(readmeData, type, cid, si, vi = null) {
+    if (!readmeData) return '';
+    let cardsHtml = '';
+    const items = Array.isArray(readmeData) ? readmeData : [readmeData];
+    for (let idx = 0; idx < items.length; idx++) {
+        const rm = items[idx];
+        const title = rm.title || 'Readme';
+        let onclickAttr = '';
+        if (type === 'varietyList') {
+            onclickAttr = `onclick="goToReadmeFromSeriesWithIndex('${cid}', ${si}, ${idx})"`;
+        } else if (type === 'copyListFromVariety') {
+            onclickAttr = `onclick="goToReadmeFromCopyListWithIndex('${cid}', ${si}, ${vi}, ${idx})"`;
+        } else {
+            onclickAttr = `onclick="goToReadmeFromCopyListWithIndex('${cid}', ${si}, null, ${idx})"`;
+        }
+        cardsHtml += `<div class="readme-card" ${onclickAttr}><div class="readme-title">${escapeHtml(title)}</div></div>`;
+    }
+    return cardsHtml;
+}
+
+function goToReadmeFromCategory(cid, readmeIndex) {
+    const cat = coinsData[cid];
+    if (!cat || !cat.readme) return;
+    const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
+    const readmeItem = readmeList[readmeIndex];
+    if (!readmeItem) return;
+    saveScroll("seriesList_" + cid);
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    renderReadmePage(readmeItem, 'seriesList', { cid: cid });
+}
+
+function goToReadmeFromSeriesWithIndex(cid, si, readmeIndex) {
+    const cat = coinsData[cid];
+    if (!cat || !cat.series[si]) return;
+    const series = cat.series[si];
+    const readmeList = series.readme;
+    if (!readmeList) return;
+    const readmeItem = Array.isArray(readmeList) ? readmeList[readmeIndex] : readmeList;
+    if (!readmeItem) return;
+    saveScroll("varietyList_" + cid + "_" + si);
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    renderReadmePage(readmeItem, 'varietyList', { cid: cid, si: si });
+}
+
+function goToReadmeFromCopyListWithIndex(cid, si, vi, readmeIndex) {
+    const cat = coinsData[cid];
+    if (!cat || !cat.series[si]) return;
+    let readmeList = null;
+    let viewType = 'copyList';
+    let params = {};
+    if (vi !== undefined && vi !== null) {
+        const variety = cat.series[si].varieties[vi];
+        readmeList = variety.readme;
+        params = { cid: cid, si: si, vi: vi };
+        saveScroll("copyList_" + cid + "_" + si + "_" + vi);
+    } else {
+        const series = cat.series[si];
+        readmeList = series.readme;
+        params = { cid: cid, si: si, vi: null };
+        saveScroll("copyList_" + cid + "_" + si);
+    }
+    if (!readmeList) return;
+    const readmeItem = Array.isArray(readmeList) ? readmeList[readmeIndex] : readmeList;
+    if (!readmeItem) return;
+    recordCurrentView();
+    history.pushState({ custom: true }, '');
+    renderReadmePage(readmeItem, viewType, params);
+}
+
+async function renderReadmePage(readmeItem, viewType, params) {
+    const title = readmeItem.title || 'Readme';
+    let content = readmeItem.content;
+    if (content && (content.startsWith('file:') || content.startsWith('LOAD:'))) {
+        content = await loadExternalContent(content) || '内容加载失败';
+    }
+    
+    currentReadmeBackInfo = { viewType: viewType, params: params };
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    
+    const scripts = tempDiv.querySelectorAll('script');
+    for (let i = 0; i < scripts.length; i++) {
+        const oldScript = scripts[i];
+        const newScript = document.createElement('script');
+        if (oldScript.src) {
+            newScript.src = oldScript.src;
+        }
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    }
+    const processedContent = tempDiv.innerHTML;
+    
+    const html = `
+        <div class="back-bar"><button class="back-btn" onclick="goBackFromReadme()">← 返回</button></div>
+        <div class="readme-detail-panel">
+            <div class="readme-detail-header"><h3>${escapeHtml(title)}</h3></div>
+            <div class="rich-content">${processedContent}</div>
+        </div>
+    `;
     document.getElementById("app").innerHTML = html;
-    bindSearchEvents();
+    
+    document.querySelectorAll('.rich-content img').forEach(img => {
+        img.style.cursor = 'pointer';
+        img.onclick = (e) => {
+            e.stopPropagation();
+            currentModalImg1 = img.src;
+            openModal(0);
+        };
+    });
+    
+    const allScripts = document.querySelectorAll('.rich-content script');
+    for (let i = 0; i < allScripts.length; i++) {
+        const oldScript = allScripts[i];
+        const newScript = document.createElement('script');
+        if (oldScript.src) {
+            newScript.src = oldScript.src;
+        }
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    }
+    
+    currentView = "readmePage";
     
     const switchBtn = document.getElementById('switchToBanknoteBtn');
-    if (switchBtn) {
-        switchBtn.style.display = 'inline-block';
+    if (switchBtn) switchBtn.style.display = 'none';
+}
+
+function goBackFromReadme() {
+    if (currentReadmeBackInfo) {
+        const info = currentReadmeBackInfo;
+        currentReadmeBackInfo = null;
+        switch (info.viewType) {
+            case 'seriesList':
+                renderSeriesList(info.params.cid, true);
+                break;
+            case 'varietyList':
+                renderVarietyList(info.params.cid, info.params.si, true);
+                break;
+            case 'copyList':
+                if (info.params.vi !== undefined && info.params.vi !== null) {
+                    renderCopyListFromVariety(info.params.cid, info.params.si, info.params.vi, true);
+                } else {
+                    renderCopyList(info.params.cid, info.params.si, true);
+                }
+                break;
+            default:
+                renderCategories(true);
+        }
+    } else {
+        history.back();
     }
 }
 
+// ========== [FIX] 修复版 bindSearchEvents ==========
 function bindSearchEvents() {
     const searchBtn = document.getElementById('searchBtn');
     const resetBtn = document.getElementById('resetBtn');
@@ -489,7 +737,30 @@ function bindSearchEvents() {
 
     let realtimeTimer = null;
 
+    // [FIX] 输入法合成状态
+    let isComposing = false;
+
+    // [FIX] 输入法合成事件处理
+    const compositionStartHandler = function() {
+        isComposing = true;
+    };
+
+    const compositionEndHandler = function() {
+        isComposing = false;
+        if (searchMode === 'realtime') {
+            if (realtimeTimer) clearTimeout(realtimeTimer);
+            performRealtimeSearch();
+        }
+    };
+
+    searchInput.removeEventListener('compositionstart', compositionStartHandler);
+    searchInput.removeEventListener('compositionend', compositionEndHandler);
+    searchInput.addEventListener('compositionstart', compositionStartHandler);
+    searchInput.addEventListener('compositionend', compositionEndHandler);
+
+    // [FIX] 实时搜索时增加输入法判断
     const handleRealtimeInput = function(e) {
+        if (isComposing) return;
         if (realtimeTimer) clearTimeout(realtimeTimer);
         realtimeTimer = setTimeout(() => {
             performRealtimeSearch();
@@ -551,24 +822,26 @@ function bindSearchEvents() {
             const modeText = searchMode === 'click' ? '点击搜索' : '实时搜索';
             newToggle.textContent = modeIcon;
             if (searchTip) {
-                searchTip.innerHTML = `当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换`;
+                searchTip.innerHTML = `当前模式：${modeText} | 点击"<span style="color:#daa520;">${modeIcon}</span>"可切换`;
             }
             bindSearchEvents();
         });
     }
 
+    // [FIX] 重置按钮绑定增强版函数
     if (resetBtn) {
         const newReset = resetBtn.cloneNode(true);
         resetBtn.parentNode.replaceChild(newReset, resetBtn);
         newReset.addEventListener('click', function() {
-            resetSearchAndBack();
+            resetSearchAndStay();
         });
     }
 }
 
+// ========== [FIX] 修复版 renderCategories ==========
 function renderCategories(restore = false) {
     fromSearchResult = false;
-    if (!restore) {
+    if (!restore && !isResetOperation) {
         window.scrollTo(0, 0);
     }
     searchScope = 'global';
@@ -593,7 +866,7 @@ function renderCategories(restore = false) {
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击"<span style="color:#daa520;">${modeIcon}</span>"可切换</div>
         <div class="category-grid">`;
 
     for (let id of categoryOrder) {
@@ -633,9 +906,10 @@ function renderCategories(restore = false) {
     }
 }
 
+// ========== [FIX] 修复版 renderSeriesList ==========
 function renderSeriesList(cid, restore = false) {
     fromSearchResult = false;
-    if (!restore) {
+    if (!restore && !isResetOperation) {
         window.scrollTo(0, 0);
     }
     searchScope = 'currentCategory';
@@ -650,6 +924,17 @@ function renderSeriesList(cid, restore = false) {
     const displayValue = getDisplayValue(currentSearchKeyword, currentSearchType);
 
     let items = `<div class="series-list">`;
+
+    // [FIX] 分类级别的 readme 卡片
+    if (cat.readme) {
+        const readmeList = Array.isArray(cat.readme) ? cat.readme : [cat.readme];
+        for (let idx = 0; idx < readmeList.length; idx++) {
+            const rm = readmeList[idx];
+            const title = rm.title || 'Readme';
+            items += `<div class="readme-card" onclick="goToReadmeFromCategory('${cid}', ${idx})"><div class="readme-title">${escapeHtml(title)}</div></div>`;
+        }
+    }
+
     for (let idx = 0; idx < cat.series.length; idx++) {
         const s = cat.series[idx];
         
@@ -689,7 +974,7 @@ function renderSeriesList(cid, restore = false) {
             <span id="modeToggle" style="cursor:pointer; font-size:1.2rem; padding:0 8px; color:#daa520;" title="切换搜索模式">${modeIcon}</span>
             <button class="reset-btn" id="resetBtn">重置</button>
         </div>
-        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击“<span style="color:#daa520;">${modeIcon}</span>”可切换</div>
+        <div class="search-tip" id="searchTip">当前模式：${modeText} | 点击"<span style="color:#daa520;">${modeIcon}</span>"可切换</div>
         <div class="list-panel">
             <div class="panel-header"><h2>${icon} ${cat.name || cid}</h2><p>点击版别查看详情</p></div>
             ${items}
@@ -721,9 +1006,10 @@ function selectSeriesOrVariety(cid, si) {
     }
 }
 
+// ========== [FIX] 修复版 renderVarietyList ==========
 function renderVarietyList(cid, si, restore = false) {
     fromSearchResult = false;
-    if (!restore) {
+    if (!restore && !isResetOperation) {
         window.scrollTo(0, 0);
     }
     currentView = "varietyList";
@@ -734,6 +1020,9 @@ function renderVarietyList(cid, si, restore = false) {
     if (!cat || !cat.series[si]) return;
     const series = cat.series[si];
     const varieties = series.varieties || [];
+
+    // [FIX] 系列级别的 readme 卡片
+    const readmeCardsHtml = generateReadmeCards(series.readme, 'varietyList', cid, si);
 
     let itemsHtml = `<div class="series-list">`;
     for (let vi = 0; vi < varieties.length; vi++) {
@@ -755,6 +1044,7 @@ function renderVarietyList(cid, si, restore = false) {
                 <h2>${escapeHtml(series.seriesName)}</h2>
                 <p>${formatYear(series.year)} · 共 ${varieties.length} 个品种</p>
             </div>
+            ${readmeCardsHtml}
             ${itemsHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -774,9 +1064,10 @@ function selectVariety(cid, si, vi) {
     renderCopyListFromVariety(cid, si, vi, false);
 }
 
+// ========== [FIX] 修复版 renderCopyListFromVariety ==========
 function renderCopyListFromVariety(cid, si, vi, restore = false) {
     fromSearchResult = false;
-    if (!restore) {
+    if (!restore && !isResetOperation) {
         window.scrollTo(0, 0);
     }
     currentView = "copyList";
@@ -788,6 +1079,9 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
     const series = cat.series[si];
     const variety = series.varieties[vi];
     const copies = variety.copies || [];
+
+    // [FIX] 品种级别的 readme 卡片
+    const readmeCardsHtml = generateReadmeCards(variety.readme, 'copyListFromVariety', cid, si, vi);
 
     let copiesHtml = `<div class="copy-list">`;
     for (let ci = 0; ci < copies.length; ci++) {
@@ -814,6 +1108,7 @@ function renderCopyListFromVariety(cid, si, vi, restore = false) {
                 <h2>${escapeHtml(variety.varietyName)}</h2>
                 <p>${formatYear(series.year)} · 共 ${copies.length} 枚</p>
             </div>
+            ${readmeCardsHtml}
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -959,9 +1254,10 @@ function backToSeriesList(cid) {
     }
 }
 
+// ========== [FIX] 修复版 renderCopyList ==========
 function renderCopyList(cid, si, restore = false) {
     fromSearchResult = false;
-    if (!restore) {
+    if (!restore && !isResetOperation) {
         window.scrollTo(0, 0);
     }
     currentView = "copyList";
@@ -972,6 +1268,9 @@ function renderCopyList(cid, si, restore = false) {
     if (!cat || !cat.series || !cat.series[si]) return;
     const series = cat.series[si];
     const copies = series.copies || [];
+
+    // [FIX] 系列级别的 readme 卡片
+    const readmeCardsHtml = generateReadmeCards(series.readme, 'copyList', cid, si);
 
     let copiesHtml = `<div class="copy-list">`;
     for (let ci = 0; ci < copies.length; ci++) {
@@ -998,6 +1297,7 @@ function renderCopyList(cid, si, restore = false) {
                 <h2>${escapeHtml(series.seriesName)}</h2>
                 <p>${formatYear(series.year)} · 共 ${copies.length} 枚</p>
             </div>
+            ${readmeCardsHtml}
             ${copiesHtml}
         </div>`;
     document.getElementById("app").innerHTML = full;
@@ -1363,6 +1663,10 @@ function goBackToPreviousView() {
                 renderCategories(true);
             }
             break;
+        // [FIX] 新增 readmePage 处理
+        case 'readmePage':
+            goBackFromReadme();
+            break;
         case 'searchResult':
             if (previousView.searchKeyword !== undefined) {
                 renderSearchResultPage(previousView.searchKeyword, previousView.searchType || 'all', false);
@@ -1396,11 +1700,37 @@ window.addEventListener('popstate', function(event) {
     }, 100);
 });
 
-function pushViewToHistory() {
+// ========== [FIX] 修复版 pushViewToHistory ==========
+function pushViewToHistory(replace = false) {
     if (isHandlingPopState) return;
     
-    recordCurrentView();
-    history.pushState({ custom: true }, '');
+    const currentViewInfo = {
+        view: currentView,
+        categoryId: currentCategoryId,
+        series: currentSeries ? { 
+            cid: currentSeries.cid, 
+            si: currentSeries.si,
+            vi: currentSeries.vi,
+            ci: currentSeries.ci
+        } : null,
+        searchKeyword: currentSearchKeyword,
+        searchType: currentSearchType
+    };
+    
+    if (replace || isReplacingHistory) {
+        if (viewHistoryStack.length > 0) {
+            viewHistoryStack[viewHistoryStack.length - 1] = currentViewInfo;
+        } else {
+            viewHistoryStack.push(currentViewInfo);
+        }
+        history.replaceState({ custom: true }, '');
+        isReplacingHistory = false;
+    } else {
+        viewHistoryStack.push(currentViewInfo);
+        history.pushState({ custom: true }, '');
+    }
+    
+    if (viewHistoryStack.length > 50) viewHistoryStack.shift();
 }
 
 const originalRenderCategories = renderCategories;
@@ -1415,7 +1745,7 @@ const originalRenderSearchResultPage = renderSearchResultPage;
 window.renderCategories = function(restore = false) {
     const result = originalRenderCategories(restore);
     if (!restore) {
-        pushViewToHistory();
+        pushViewToHistory(false);
     }
     return result;
 };
@@ -1423,7 +1753,7 @@ window.renderCategories = function(restore = false) {
 window.renderSeriesList = function(cid, restore = false) {
     const result = originalRenderSeriesList(cid, restore);
     if (!restore) {
-        pushViewToHistory();
+        pushViewToHistory(false);
     }
     return result;
 };
@@ -1431,7 +1761,7 @@ window.renderSeriesList = function(cid, restore = false) {
 window.renderVarietyList = function(cid, si, restore = false) {
     const result = originalRenderVarietyList(cid, si, restore);
     if (!restore) {
-        pushViewToHistory();
+        pushViewToHistory(false);
     }
     return result;
 };
@@ -1439,7 +1769,7 @@ window.renderVarietyList = function(cid, si, restore = false) {
 window.renderCopyList = function(cid, si, restore = false) {
     const result = originalRenderCopyList(cid, si, restore);
     if (!restore) {
-        pushViewToHistory();
+        pushViewToHistory(false);
     }
     return result;
 };
@@ -1447,26 +1777,26 @@ window.renderCopyList = function(cid, si, restore = false) {
 window.renderCopyListFromVariety = function(cid, si, vi, restore = false) {
     const result = originalRenderCopyListFromVariety(cid, si, vi, restore);
     if (!restore) {
-        pushViewToHistory();
+        pushViewToHistory(false);
     }
     return result;
 };
 
 window.renderDetail = function(cid, si, ci) {
     const result = originalRenderDetail(cid, si, ci);
-    pushViewToHistory();
+    pushViewToHistory(false);
     return result;
 };
 
 window.renderDetailFromVariety = function(cid, si, vi, ci) {
     const result = originalRenderDetailFromVariety(cid, si, vi, ci);
-    pushViewToHistory();
+    pushViewToHistory(false);
     return result;
 };
 
 window.renderSearchResultPage = function(rawKeyword, type, autoFocus = true) {
     const result = originalRenderSearchResultPage(rawKeyword, type, autoFocus);
-    pushViewToHistory();
+    // 历史记录由内部逻辑控制
     return result;
 };
 
@@ -1492,7 +1822,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('DOMContentLoaded', function() {
     viewHistoryStack = [];
-    pushViewToHistory();
+    pushViewToHistory(false);
     renderCategories(false);
     window.scrollTo(0, 0);
 });
