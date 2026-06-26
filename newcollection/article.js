@@ -31,13 +31,16 @@ function collectAllArticles() {
 }
 
 function collectFromSource(data, dataKey, sourceType) {
-    const catInfo = findArticleCategoryInfo(dataKey);
+    const catInfo = findArticleCategoryInfo(dataKey, sourceType);
+    // 低精度路径：只到分类树层级，用于分组标题
+    const groupPath = buildGroupPath(sourceType, catInfo);
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
 
         if (series.readme && series.readme.title && series.readme.content) {
-            const fullPath = buildFullPath(sourceType, catInfo);
+            // 高精度路径：包含系列名，用于卡片展示
+            const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
             collectedArticles.push({
                 title: series.readme.title,
                 contentPath: series.readme.content,
@@ -46,6 +49,7 @@ function collectFromSource(data, dataKey, sourceType) {
                 dataKey,
                 sourceType,
                 fullPath,
+                groupPath,
                 seriesIndex: si,
                 varietyIndex: -1,
                 seriesName: series.seriesName
@@ -56,7 +60,8 @@ function collectFromSource(data, dataKey, sourceType) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 if (variety.readme && variety.readme.title && variety.readme.content) {
-                    const fullPath = buildFullPath(sourceType, catInfo);
+                    // 高精度路径：包含系列名和品种名，用于卡片展示
+                    const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
                     collectedArticles.push({
                         title: variety.readme.title,
                         contentPath: variety.readme.content,
@@ -65,6 +70,7 @@ function collectFromSource(data, dataKey, sourceType) {
                         dataKey,
                         sourceType,
                         fullPath,
+                        groupPath,
                         seriesIndex: si,
                         varietyIndex: vi,
                         seriesName: series.seriesName
@@ -75,22 +81,45 @@ function collectFromSource(data, dataKey, sourceType) {
     }
 }
 
-// 分类路径只保留到侧边栏的精度（不包含 seriesName 和 varietyName）
-function buildFullPath(sourceType, catInfo) {
+// 高精度路径：包含系列名和品种名，用于卡片展示（用 > 连接）
+function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
     const top = sourceType === 'coins' ? '硬币' : '纸币';
     const parts = [top];
     
-    // 如果有父分类（如"人民币"），且不等于顶层分类名，则加入
     if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
         parts.push(catInfo.parentCategory);
     }
-    // 加入当前分类名
+    parts.push(catInfo.category);
+    if (seriesName) parts.push(seriesName);
+    if (varietyName) parts.push(varietyName);
+    
+    return parts;
+}
+
+// 低精度路径：只到分类树层级，用于分组标题（用 - 连接）
+function buildGroupPath(sourceType, catInfo) {
+    const top = sourceType === 'coins' ? '硬币' : '纸币';
+    const parts = [top];
+    
+    if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
+        parts.push(catInfo.parentCategory);
+    }
     parts.push(catInfo.category);
     
     return parts;
 }
 
-function findArticleCategoryInfo(dataKey) {
+function findArticleCategoryInfo(dataKey, sourceType) {
+    if (sourceType === 'coins') {
+        for (const cat of coinCategoryTree) {
+            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+                }
+            }
+        }
+    }
     for (const cat of categoryTree) {
         if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
         if (cat.children) {
@@ -99,11 +128,13 @@ function findArticleCategoryInfo(dataKey) {
             }
         }
     }
-    for (const cat of coinCategoryTree) {
-        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-        if (cat.children) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+    if (sourceType !== 'coins') {
+        for (const cat of coinCategoryTree) {
+            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+                }
             }
         }
     }
@@ -374,9 +405,10 @@ function renderArticleList() {
         return;
     }
 
+    // 使用低精度路径（groupPath）进行分组
     const grouped = {};
     for (const article of articles) {
-        const pathStr = article.fullPath ? article.fullPath.join(' - ') : (article.parentCategory + ' - ' + article.category);
+        const pathStr = article.groupPath ? article.groupPath.join(' - ') : (article.parentCategory + ' - ' + article.category);
         if (!grouped[pathStr]) grouped[pathStr] = [];
         grouped[pathStr].push(article);
     }
@@ -390,7 +422,7 @@ function renderArticleList() {
             html += `<div class="search-result-item" onclick="openArticleReader(${idx})">`;
             html += `<div class="info">`;
             html += `<div class="name">${highlightText(escapeHtml(article.title), articleSearchKeyword)}</div>`;
-            // 显示分类路径（精度与侧边栏一致）
+            // 使用高精度路径（fullPath）展示，用 > 连接
             if (article.fullPath && article.fullPath.length > 0) {
                 html += `<div class="article-category" style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0;">${escapeHtml(article.fullPath.join(' > '))}</div>`;
             }
