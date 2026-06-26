@@ -15,25 +15,25 @@ let articleCategoryTree = [];
 function collectAllArticles() {
     collectedArticles = [];
     
-    // 先遍历纸币数据
+    // 遍历纸币数据源
     for (const dataKey of allDataKeys) {
         const data = window.DATA_MAP && window.DATA_MAP[dataKey];
         if (!data || !data.series) continue;
-        collectFromData(data, dataKey, 'notes');
+        collectFromSource(data, dataKey, 'notes');
     }
     
-    // 再遍历硬币数据（独立遍历，避免重名被跳过）
+    // 遍历硬币数据源
     for (const dataKey of coinAllDataKeys) {
         const data = window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey];
         if (!data || !data.series) continue;
-        collectFromData(data, dataKey, 'coins');
+        collectFromSource(data, dataKey, 'coins');
     }
 
     buildArticleCategoryTree();
 }
 
-function collectFromData(data, dataKey, sourceType) {
-    const catInfo = findArticleCategoryInfo(dataKey, sourceType);
+function collectFromSource(data, dataKey, sourceType) {
+    const catInfo = findArticleCategoryInfo(dataKey);
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
@@ -45,6 +45,7 @@ function collectFromData(data, dataKey, sourceType) {
                 category: catInfo.category,
                 parentCategory: catInfo.parentCategory,
                 dataKey,
+                sourceType,
                 seriesIndex: si,
                 varietyIndex: -1,
                 seriesName: series.seriesName
@@ -61,6 +62,7 @@ function collectFromData(data, dataKey, sourceType) {
                         category: catInfo.category,
                         parentCategory: catInfo.parentCategory,
                         dataKey,
+                        sourceType,
                         seriesIndex: si,
                         varietyIndex: vi,
                         seriesName: series.seriesName
@@ -71,23 +73,20 @@ function collectFromData(data, dataKey, sourceType) {
     }
 }
 
-function findArticleCategoryInfo(dataKey, sourceType) {
-    if (sourceType === 'coins') {
-        for (const cat of coinCategoryTree) {
-            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
-                }
+function findArticleCategoryInfo(dataKey) {
+    for (const cat of categoryTree) {
+        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
+        if (cat.children) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
             }
         }
-    } else {
-        for (const cat of categoryTree) {
-            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
-                }
+    }
+    for (const cat of coinCategoryTree) {
+        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+        if (cat.children) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
             }
         }
     }
@@ -268,6 +267,7 @@ function renderArticleList() {
             const parentCat = articleCategoryTree.find(c => c.id === currentArticleCategory);
             if (parentCat && parentCat.children) {
                 const subKeys = parentCat.children.map(s => s.dataKey || s.id);
+                // 父分类：不区分来源，显示其子分类下所有文章
                 articles = collectedArticles.filter(a => subKeys.includes(a.dataKey));
             } else {
                 articles = [];
@@ -291,7 +291,39 @@ function renderArticleList() {
             }
 
             if (targetDataKey) {
-                articles = collectedArticles.filter(a => a.dataKey === targetDataKey);
+                // 确定当前分类的来源类型
+                let targetSource = null;
+                // 先在纸币树中查找
+                for (const cat of categoryTree) {
+                    if (cat.dataKey === targetDataKey) {
+                        targetSource = 'notes';
+                        break;
+                    }
+                    if (cat.children) {
+                        for (const sub of cat.children) {
+                            if (sub.dataKey === targetDataKey) {
+                                targetSource = 'notes';
+                                break;
+                            }
+                        }
+                        if (targetSource) break;
+                    }
+                }
+                // 再在硬币树中查找
+                if (!targetSource) {
+                    for (const cat of coinCategoryTree) {
+                        if (cat.dataKey === targetDataKey) {
+                            targetSource = 'coins';
+                            break;
+                        }
+                    }
+                }
+                
+                if (targetSource) {
+                    articles = collectedArticles.filter(a => a.dataKey === targetDataKey && a.sourceType === targetSource);
+                } else {
+                    articles = collectedArticles.filter(a => a.dataKey === targetDataKey);
+                }
             } else {
                 articles = collectedArticles.filter(a =>
                     a.category === currentArticleCategory || a.parentCategory === currentArticleCategory
