@@ -30,39 +30,14 @@ function collectAllArticles() {
     buildArticleCategoryTree();
 }
 
-// ========== 获取完整分类路径 ==========
-function getFullPath(dataKey, sourceType) {
-    const tree = sourceType === 'coins' ? coinCategoryTree : categoryTree;
-    const topName = sourceType === 'coins' ? '硬币' : '纸币';
-    
-    function search(nodes, path) {
-        for (const node of nodes) {
-            if (node.dataKey === dataKey) {
-                return [...path, node.name];
-            }
-            if (node.children) {
-                const result = search(node.children, [...path, node.name]);
-                if (result) return result;
-            }
-        }
-        return null;
-    }
-    
-    const pathInTree = search(tree, []);
-    if (pathInTree) {
-        return [topName, ...pathInTree];
-    }
-    return [topName, dataKey];
-}
-
 function collectFromSource(data, dataKey, sourceType) {
     const catInfo = findArticleCategoryInfo(dataKey);
-    const fullPath = getFullPath(dataKey, sourceType);
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
 
         if (series.readme && series.readme.title && series.readme.content) {
+            const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
             collectedArticles.push({
                 title: series.readme.title,
                 contentPath: series.readme.content,
@@ -81,6 +56,7 @@ function collectFromSource(data, dataKey, sourceType) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 if (variety.readme && variety.readme.title && variety.readme.content) {
+                    const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
                     collectedArticles.push({
                         title: variety.readme.title,
                         contentPath: variety.readme.content,
@@ -97,6 +73,24 @@ function collectFromSource(data, dataKey, sourceType) {
             }
         }
     }
+}
+
+function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
+    const top = sourceType === 'coins' ? '硬币' : '纸币';
+    const parts = [top];
+    
+    // 如果有 parentCategory（如"人民币"），且不等于顶层分类名，则加入
+    if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
+        parts.push(catInfo.parentCategory);
+    }
+    // 加入当前分类名
+    parts.push(catInfo.category);
+    // 加入系列名
+    if (seriesName) parts.push(seriesName);
+    // 加入品种名
+    if (varietyName) parts.push(varietyName);
+    
+    return parts;
 }
 
 function findArticleCategoryInfo(dataKey) {
@@ -253,7 +247,6 @@ function renderArticleSidebar() {
     let html = '';
     for (const cat of articleCategoryTree) {
         const hasChildren = cat.children && cat.children.length > 0;
-        // 父分类高亮：直接选中或子分类被选中
         const isActive = cat.id === currentArticleCategory || 
             (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
         const isExpanded = (isActive && hasChildren) || 
@@ -382,7 +375,6 @@ function renderArticleList() {
         return;
     }
 
-    // 使用完整路径分组
     const grouped = {};
     for (const article of articles) {
         const pathStr = article.fullPath ? article.fullPath.join(' - ') : (article.parentCategory + ' - ' + article.category);
@@ -399,8 +391,8 @@ function renderArticleList() {
             html += `<div class="search-result-item" onclick="openArticleReader(${idx})">`;
             html += `<div class="info">`;
             html += `<div class="name">${highlightText(escapeHtml(article.title), articleSearchKeyword)}</div>`;
-            // 显示完整分类路径
-            if (article.fullPath) {
+            // 显示完整路径
+            if (article.fullPath && article.fullPath.length > 0) {
                 html += `<div class="article-category" style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0;">${escapeHtml(article.fullPath.join(' > '))}</div>`;
             }
             html += `<div class="detail">${escapeHtml(article.seriesName)}</div>`;
@@ -455,12 +447,16 @@ function openArticleReader(index) {
 
     const app = document.getElementById('app');
 
+    // 先显示带返回按钮的加载状态
+    let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
+
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
         return;
     }
 
-    app.innerHTML = `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">加载中...</div>`;
+    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">加载中...</div>`;
+    app.innerHTML = html;
 
     let filePath = article.contentPath;
     if (filePath.startsWith('file:')) filePath = filePath.substring(5);
@@ -476,7 +472,8 @@ function openArticleReader(index) {
             renderArticleReader(article, content);
         })
         .catch(() => {
-            app.innerHTML = `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章加载失败</div>`;
+            // 加载失败，保留返回按钮，显示错误提示
+            app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
         });
 }
 
