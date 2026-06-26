@@ -267,6 +267,10 @@ const coincommData = {
             varieties: [
                 {
                     varietyName: "三江源国家公园",
+                    readme: {
+                        title: "发行公告",
+                        content: "file:readmes/2023_sanjiangyuan_giantpanda_release.txt"
+                    },
                     copies: [
                         {
                             copyId: 1,
@@ -293,6 +297,10 @@ const coincommData = {
                 },
                 {
                     varietyName: "大熊猫国家公园",
+                    readme: {
+                        title: "发行公告",
+                        content: "file:readmes/2023_sanjiangyuan_giantpanda_release.txt"
+                    },
                     copies: [
                         {
                             copyId: 1,
@@ -315,6 +323,33 @@ const coincommData = {
                             img1: "image/commemorative/2023pandaNP-1.jpg",
                             img2: "image/commemorative/2023pandaNP-2.jpg"
                         }
+                    ]
+                },{
+                    varietyName: "东北虎豹国家公园",
+                    readme: {
+                        title: "发行公告",
+                        content: "file:readmes/2024_northeast_tiger_leopard_release.txt"
+                    },
+                    copies: [
+                        
+                    ]
+                },{
+                    varietyName: "海南热带雨林国家公园",
+                    readme: {
+                        title: "发行公告",
+                        content: "file:readmes/2025_hainan_rainforest_release.txt"
+                    },
+                    copies: [
+                        
+                    ]
+                },{
+                    varietyName: "武夷山国家公园",
+                    readme: {
+                        title: "发行公告",
+                        content: "file:readmes/2026_wuyishan_release.txt"
+                    },
+                    copies: [
+                        
                     ]
                 }
             ]
