@@ -14,75 +14,80 @@ let articleCategoryTree = [];
 // ========== 文章收集 ==========
 function collectAllArticles() {
     collectedArticles = [];
-    const allPossibleKeys = [...allDataKeys, ...coinAllDataKeys];
-    const processedKeys = new Set();
-
-    for (const dataKey of allPossibleKeys) {
-        if (processedKeys.has(dataKey)) continue;
-        processedKeys.add(dataKey);
-
-        let data = null;
-        if (window.DATA_MAP && window.DATA_MAP[dataKey]) data = window.DATA_MAP[dataKey];
-        if (!data && window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey]) data = window.COIN_DATA_MAP[dataKey];
+    
+    // 先遍历纸币数据
+    for (const dataKey of allDataKeys) {
+        const data = window.DATA_MAP && window.DATA_MAP[dataKey];
         if (!data || !data.series) continue;
-
-        const catInfo = findArticleCategoryInfo(dataKey);
-
-        for (let si = 0; si < data.series.length; si++) {
-            const series = data.series[si];
-
-            // 检查 series 级别的 readme
-            if (series.readme && series.readme.title && series.readme.content) {
-                collectedArticles.push({
-                    title: series.readme.title,
-                    contentPath: series.readme.content,
-                    category: catInfo.category,
-                    parentCategory: catInfo.parentCategory,
-                    dataKey,
-                    seriesIndex: si,
-                    varietyIndex: -1,
-                    seriesName: series.seriesName
-                });
-            }
-
-            // 检查 varieties 级别的 readme
-            if (series.varieties && series.varieties.length > 0) {
-                for (let vi = 0; vi < series.varieties.length; vi++) {
-                    const variety = series.varieties[vi];
-                    if (variety.readme && variety.readme.title && variety.readme.content) {
-                        collectedArticles.push({
-                            title: variety.readme.title,
-                            contentPath: variety.readme.content,
-                            category: catInfo.category,
-                            parentCategory: catInfo.parentCategory,
-                            dataKey,
-                            seriesIndex: si,
-                            varietyIndex: vi,
-                            seriesName: series.seriesName
-                        });
-                    }
-                }
-            }
-        }
+        collectFromData(data, dataKey, 'notes');
+    }
+    
+    // 再遍历硬币数据（独立遍历，避免重名被跳过）
+    for (const dataKey of coinAllDataKeys) {
+        const data = window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey];
+        if (!data || !data.series) continue;
+        collectFromData(data, dataKey, 'coins');
     }
 
     buildArticleCategoryTree();
 }
 
-function findArticleCategoryInfo(dataKey) {
-    for (const cat of categoryTree) {
-        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
-        if (cat.children) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+function collectFromData(data, dataKey, sourceType) {
+    const catInfo = findArticleCategoryInfo(dataKey, sourceType);
+
+    for (let si = 0; si < data.series.length; si++) {
+        const series = data.series[si];
+
+        if (series.readme && series.readme.title && series.readme.content) {
+            collectedArticles.push({
+                title: series.readme.title,
+                contentPath: series.readme.content,
+                category: catInfo.category,
+                parentCategory: catInfo.parentCategory,
+                dataKey,
+                seriesIndex: si,
+                varietyIndex: -1,
+                seriesName: series.seriesName
+            });
+        }
+
+        if (series.varieties && series.varieties.length > 0) {
+            for (let vi = 0; vi < series.varieties.length; vi++) {
+                const variety = series.varieties[vi];
+                if (variety.readme && variety.readme.title && variety.readme.content) {
+                    collectedArticles.push({
+                        title: variety.readme.title,
+                        contentPath: variety.readme.content,
+                        category: catInfo.category,
+                        parentCategory: catInfo.parentCategory,
+                        dataKey,
+                        seriesIndex: si,
+                        varietyIndex: vi,
+                        seriesName: series.seriesName
+                    });
+                }
             }
         }
     }
-    for (const cat of coinCategoryTree) {
-        if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-        if (cat.children) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+}
+
+function findArticleCategoryInfo(dataKey, sourceType) {
+    if (sourceType === 'coins') {
+        for (const cat of coinCategoryTree) {
+            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+                }
+            }
+        }
+    } else {
+        for (const cat of categoryTree) {
+            if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
+                }
             }
         }
     }
@@ -93,7 +98,6 @@ function findArticleCategoryInfo(dataKey) {
 function buildArticleCategoryTree() {
     articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
 
-    // 统计每个 dataKey 有多少篇文章
     const articleCount = {};
     for (const article of collectedArticles) {
         const key = article.dataKey;
@@ -101,7 +105,7 @@ function buildArticleCategoryTree() {
         articleCount[key]++;
     }
 
-    // 纸币分类树
+    // 纸币分类
     for (const cat of categoryTree) {
         if (cat.children) {
             const children = [];
@@ -117,16 +121,6 @@ function buildArticleCategoryTree() {
                     name: cat.name,
                     children: children
                 });
-            } else {
-                // 父分类本身也可能有文章（如 cat.dataKey 有值的情况）
-                const parentCount = cat.dataKey ? (articleCount[cat.dataKey] || 0) : 0;
-                if (parentCount > 0) {
-                    articleCategoryTree.push({
-                        id: cat.id,
-                        name: cat.name + '（' + parentCount + '篇）',
-                        children: null
-                    });
-                }
             }
         } else {
             const count = articleCount[cat.dataKey] || 0;
@@ -141,7 +135,7 @@ function buildArticleCategoryTree() {
         }
     }
 
-    // 硬币分类树
+    // 硬币分类
     for (const cat of coinCategoryTree) {
         const count = articleCount[cat.dataKey] || 0;
         if (count > 0) {
@@ -268,11 +262,9 @@ function renderArticleList() {
     if (currentArticleCategory === 'all') {
         articles = [...collectedArticles];
     } else {
-        // 检查是否是父分类（有 children 的分类）
         const isParent = articleCategoryTree.some(cat => cat.id === currentArticleCategory && cat.children && cat.children.length > 0);
-        
+
         if (isParent) {
-            // 父分类：找出其下所有子分类的 dataKey
             const parentCat = articleCategoryTree.find(c => c.id === currentArticleCategory);
             if (parentCat && parentCat.children) {
                 const subKeys = parentCat.children.map(s => s.dataKey || s.id);
@@ -281,7 +273,6 @@ function renderArticleList() {
                 articles = [];
             }
         } else {
-            // 叶子分类：找到对应的 dataKey
             let targetDataKey = null;
             for (const cat of articleCategoryTree) {
                 if (cat.id === currentArticleCategory) {
@@ -298,7 +289,7 @@ function renderArticleList() {
                     if (targetDataKey) break;
                 }
             }
-            
+
             if (targetDataKey) {
                 articles = collectedArticles.filter(a => a.dataKey === targetDataKey);
             } else {
