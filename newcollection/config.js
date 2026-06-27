@@ -53,7 +53,7 @@ const categoryTree = [
         name: '外币',
         children: [
             { id: 'japan', name: '日本', dataKey: 'japanData' },
-            { id: 'indonesia', name: '印尼', dataKey: 'indonesiaData' },
+            { id: 'indonesia', name: '印度尼西亚', dataKey: 'indonesiaData' },
             { id: 'venezuela', name: '委内瑞拉', dataKey: 'venezuelaData' },
             { id: 'ukarine', name: '乌克兰', dataKey: 'ukarineData' },
             { id: 'russia', name: '俄罗斯', dataKey: 'russiaData' },
@@ -67,7 +67,7 @@ const categoryTree = [
             { id: 'republic_cbc', name: '中央银行', dataKey: 'republic_cbcData' },
             { id: 'republic_boc', name: '中国银行', dataKey: 'republic_bocData' },
             { id: 'republic_communications', name: '交通银行', dataKey: 'republic_communicationsData' },
-            { id: 'republic_fbc', name: '农民银行', dataKey: 'republic_fbcData' },
+            { id: 'republic_fbc', name: '中国农民银行', dataKey: 'republic_fbcData' },
             { id: 'republic_kpb', name: '广东省银行', dataKey: 'republic_kpbData' },
             { id: 'republic_crbc', name: '中央储备银行', dataKey: 'republic_crbcData' },
             { id: 'republic_aib', name: '厦门劝业银行', dataKey: 'republic_aibData' },
