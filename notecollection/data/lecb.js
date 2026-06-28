@@ -12,7 +12,10 @@ const lecbData = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "克劳斯目录编号" }
     ],
-
+    readme: {
+        title: "中华人民共和国地方经济建设公债条例",
+        content: "file:readmes/lecb_ordinance.txt"
+    },
     series: [
         // ==================== 四川省 1959年 ====================
         {
