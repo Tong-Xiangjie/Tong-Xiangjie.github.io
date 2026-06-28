@@ -230,7 +230,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.85rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
     transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, border-width 0.3s ease, background 0.15s, color 0.15s;
     padding: 0;
@@ -268,9 +268,9 @@ body {
 }
 
 .sidebar-item .expand-icon {
-    font-size: 1rem;                 /* 回归正常字号 */
-    transform: scale(1.85);          /* 视觉放大1.85倍（跟你之前的感觉一致） */
-    display: inline-block;           /* scale 对 inline 元素无效，需要 inline-block */
+    font-size: 1rem;
+    transform: scale(1.85);
+    display: inline-block;
     transition: transform 0.2s ease;
     color: var(--text-secondary);
     flex-shrink: 0;
@@ -281,7 +281,7 @@ body {
 }
 
 .sidebar-item .expand-icon.expanded {
-    transform: rotate(90deg);
+    transform: rotate(90deg) scale(1.85);
 }
 
 .sidebar-children {
@@ -527,8 +527,8 @@ body {
 
 .modal-img {
     display: block;
-    width: 80%;
-    height: 80%;
+    width: 80vw;
+    height: 80vh;
     object-fit: contain;
     pointer-events: none;
 }
