@@ -38,6 +38,9 @@ function resetSearch() {
         return;
     }
 
+    // ★【修复】在切换视图前保存搜索滚动位置
+    saveFullState();
+
     // 纸币/硬币模式
     currentView = currentCategoryId ? 'category' : 'overview';
     if (currentView === 'overview') {
@@ -261,6 +264,16 @@ function renderSearchResults(results, rawKeyword, type) {
     }
 
     app.innerHTML = html;
+
+    // ★【修复】恢复搜索结果的滚动位置
+    const savedY = modeStates?.[currentMode]?.searchScrollY || 0;
+    if (savedY > 0) {
+        requestAnimationFrame(() => {
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = savedY;
+        });
+    }
+
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -330,6 +343,9 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
 }
 
 function backFromSearch() {
+    // ★【修复】返回前保存搜索滚动位置
+    saveFullState();
+
     currentView = currentCategoryId ? 'category' : 'overview';
     currentSearchKeyword = '';
     if (currentView === 'overview') {
