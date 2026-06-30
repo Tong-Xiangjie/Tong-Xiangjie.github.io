@@ -17,18 +17,18 @@
 <br>
 <b>1.正面图案。</b>
 <p>武夷山国家公园双色铜合金纪念币正面图案为中华人民共和国国徽，并刊国名、年号。</p>
-<center><img src="coin_comm/wuyishan_release_1.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_1.jpg" width="80%"></center>
 <b>2.背面图案。</b>
 <p>背面主景图案为九曲溪、阔叶林、茶园等，辅以玉女峰、远山、金斑喙凤蝶、茶叶等，并刊“武夷山国家公园”字样及面额“10元”字样。</p>
-<center><img src="coin_comm/wuyishan_release_2.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_2.jpg" width="80%"></center>
 <b>（二）纪念币面额、规格、材质和发行数量。</b>
 <p>武夷山国家公园双色铜合金纪念币面额为10元，直径为27毫米，材质为双色铜合金，发行数量为5000万枚。各省、自治区、直辖市分配数量如下：</p>
-<center><img src="coin_comm/wuyishan_release_3.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_3.jpg" width="80%"></center>
 <b>（三）发行方式。</b>
 <p>武夷山国家公园双色铜合金纪念币采取预约兑换方式发行。具体工作安排如下：</p>
 <p><b>1.承办预约兑换工作的银行业金融机构。</b></p>
 <p>各地区承担武夷山国家公园双色铜合金纪念币预约兑换工作的银行业金融机构（以下统称承办银行）如下：</p>
-<center><img src="coin_comm/wuyishan_release_4.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_4.jpg" width="80%"></center>
 <p><b>2.各地预约分配数量公布</b></p>
 <p>2026年6月1日前，中国人民银行分支机构将向社会公告当地武夷山国家公园双色铜合金纪念币的分配数量等信息；承办银行将在其官方网站公布武夷山国家公园双色铜合金纪念币预约兑换网点和每个网点的可预约数量等信息。</p>
 <p><b>3.预约安排</b></p>
@@ -46,7 +46,7 @@
 <p>中国人民银行、承办银行将在武夷山国家公园双色铜合金纪念币集中预约兑换期的每个工作日，在其官方网站公布全国各地区预约兑换进度。中国人民银行上海总部、各省、自治区、直辖市及深圳市分行将在武夷山国家公园双色铜合金纪念币预约兑换期的每个工作日，在其官方网站公布辖区各地预约兑换进度，在武夷山国家公园双色铜合金纪念币发行期间公布全国各省（区、市）监督举报电话。欢迎公众查询并监督。</p>
 <b>（四）武夷山国家公园双色铜合金纪念币公众防伪特征。</b>
 <p>武夷山国家公园双色铜合金纪念币公众防伪特征整体效果见下图。</p>
-<center><img src="coin_comm/wuyishan_release_5.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_5.jpg" width="80%"></center>
 <center><span style="color:#555555; font-size:0.85rem;">武夷山国家公园双色铜合金纪念币防伪特征整体效果示意图</span></center>
 <b>（五）武夷山国家公园双色铜合金纪念币与现行流通人民币职能相同，与同面额人民币等值流通。</b>
 <br>
@@ -56,13 +56,13 @@
 <br>
 <b>1.正面图案。</b>
 <p>该套金银纪念币正面图案均为中华人民共和国国徽，并刊国名、年号。</p>
-<center><img src="coin_comm/wuyishan_release_6.jpg" width="80%"></center>
-<center><img src="coin_comm/wuyishan_release_7.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_6.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_7.jpg" width="80%"></center>
 <b>2.背面图案。</b>
 <p>3克圆形金质纪念币背面图案为武夷山国家公园自然景观，并刊“武夷山国家公园”字样及面额。</p>
-<center><img src="coin_comm/wuyishan_release_8.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_8.jpg" width="80%"></center>
 <p>30克圆形银质纪念币背面图案为黄腹角雉、金斑喙凤蝶、南方铁杉等元素装饰组合设计，衬以武夷山国家公园自然景观，并刊“武夷山国家公园”字样及面额。</p>
-<center><img src="coin_comm/wuyishan_release_9.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/wuyishan_release_9.jpg" width="80%"></center>
 <b>（二）金银纪念币规格和发行量。</b>
 <p>3克圆形金质纪念币为精制币，含纯金3克，直径18毫米，面额50元，成色99.9%，最大发行量10000枚。</p>
 <p>30克圆形银质纪念币为精制币，含纯银30克，直径40毫米，面额10元，成色99.9%，最大发行量30000枚。</p>
