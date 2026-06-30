@@ -38,10 +38,10 @@
 <br>
 <b>1.正面图案。</b>
 <p>东北虎豹国家公园双色铜合金纪念币正面图案为中华人民共和国国徽，国徽上方刊“中华人民共和国”国名，下方刊年号“2024”字样。</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_5.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_5.png" width="80%"></center>
 <b>2.背面图案。</b>
 <p>东北虎豹国家公园双色铜合金纪念币背面主景图案为东北虎、东北豹、红松等，辅以老爷岭、珲春河、梅花鹿等，并刊“东北虎豹国家公园”字样及面额“10元”字样。</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_6.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_6.png" width="80%"></center>
 <b>（二）纪念币面额、规格、材质和发行数量。</b>
 <p>东北虎豹国家公园双色铜合金纪念币面额为10元，直径27毫米，材质为双色铜合金，发行数量为6000万枚。各省、自治区、直辖市分配数量如下：</p>
 <center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_7.jpg" width="80%"></center>
@@ -69,20 +69,20 @@
 <br>
 <b>1.双金属结构和内芯复合材料。</b>
 <p>硬币外环为黄铜合金，内芯为具有独特机读性能的镍带复合白铜材料。内芯复合材料防伪特征效果如下：</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_9.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_9.png" width="80%"></center>
 <b>2.斜全齿间隔半齿。</b>
 <p>硬币外缘分布有交替排列的斜全齿与半齿。防伪特征效果如下：</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_10.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_10.png" width="80%"></center>
 <b>3.隐形图文。</b>
 <p>将硬币倾斜适当角度，在背面图案右侧，可观察到字母“G”和“Y”构成的隐形图文。防伪特征效果如下：</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_11.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_11.png" width="80%"></center>
 <b>4.微缩文字。</b>
 <p>在硬币背面山体中，可观察到微缩文字 “D”“B”“H”“B”。防伪特征效果如下：</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_12.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_12.png" width="80%"></center>
 <b>5.公众防伪特征效果。</b>
 <p>东北虎豹国家公园双色铜合金纪念币公众防伪特征整体效果如下：</p>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_13.jpg" width="80%"></center>
-<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_14.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_13.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/northeast_tiger_leopard_release_14.png" width="80%"></center>
 <center><span style="color:#555555; font-size:0.85rem;">东北虎豹国家公园双色铜合金纪念币防伪特征整体效果示意图</span></center>
 <b>（五）东北虎豹国家公园双色铜合金纪念币与现行流通人民币职能相同，与同面额人民币等值流通。</b>
 <br>
