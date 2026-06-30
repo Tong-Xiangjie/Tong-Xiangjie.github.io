@@ -1001,7 +1001,15 @@ function renderSpecialOverview() {
 
     document.querySelector('.body-row')?.classList.add('special-overview-mode');
 
-    if (toggleBtn) toggleBtn.style.display = 'none';
+    // ★ 修复：先展开侧边栏
+    if (sidebar) {
+        sidebar.classList.remove('collapsed');
+    }
+    if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+        toggleBtn.textContent = '◂';
+    }
+    isSidebarCollapsed = false;
 
     let html = '';
     for (const config of getSpecialConfigs()) {
@@ -1013,6 +1021,9 @@ function renderSpecialOverview() {
     sidebar.innerHTML = html;
 
     app.innerHTML = '';
+
+    // ★ 触发淡入动画
+    triggerViewAnimation();
 }
 
 function onSpecialOverviewItemClick(specialId) {
