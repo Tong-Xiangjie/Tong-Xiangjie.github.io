@@ -24,7 +24,7 @@ let modeStates = {
         currentSubId: null,
         currentView: 'overview',
         currentSearchKeyword: '',
-        currentSearchType: 'all',        // ★【修复】增加搜索类型保存
+        currentSearchType: 'all',
         expandedSeries: [],
         expandedVarieties: [],
         overviewScrollY: 0,
@@ -36,7 +36,7 @@ let modeStates = {
         currentSubId: null,
         currentView: 'overview',
         currentSearchKeyword: '',
-        currentSearchType: 'all',        // ★【修复】增加搜索类型保存
+        currentSearchType: 'all',
         expandedSeries: [],
         expandedVarieties: [],
         overviewScrollY: 0,
@@ -62,6 +62,29 @@ let currentModalImg1 = '';
 let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
+
+// ===== ★ 新增：超级简单的滚动存储，key = "notes_overview" / "notes_category" / "notes_search" =====
+const __scrollStore = {};
+
+/** ★ 在离开视图前调用，保存当前滚动位置 */
+function _saveScroll() {
+    const el = document.querySelector('.content');
+    if (!el) return;
+    __scrollStore[currentMode + '_' + currentView] = el.scrollTop;
+}
+
+/** ★ 在渲染完成后调用，恢复当前视图的滚动位置（用 rAF 多次尝试确保 DOM 就绪） */
+function _restoreScrollDelayed() {
+    const key = currentMode + '_' + currentView;
+    const target = __scrollStore[key] || 0;
+    if (target <= 0) return;
+    let tries = 0;
+    (function trySet() {
+        const el = document.querySelector('.content');
+        if (el) el.scrollTop = target;
+        if (++tries < 5) requestAnimationFrame(trySet);
+    })();
+}
 
 /* ========== 从桥接文件读取专题配置 ========== */
 function getSpecialConfigs() {
@@ -164,7 +187,6 @@ function collectExpandedStates() {
 
 function restoreExpandedStates(states) {
     if (!states) return;
-    
     if (states.expandedSeries) {
         for (const id of states.expandedSeries) {
             const body = document.getElementById('body-' + id);
@@ -232,24 +254,15 @@ function renderSidebar() {
     sidebar.innerHTML = html;
 }
 
-/* ===== 滚动到顶部 ===== */
+/* ===== 滚动到顶部（保留，但不再自动调用） ===== */
 function scrollToTop() {
     const content = document.querySelector('.content');
     if (content) content.scrollTop = 0;
 }
 
-// ★【修复】统一应用滚动位置（在展开状态恢复后调用）
-function applySavedScroll(scrollY) {
-    if (scrollY > 0) {
-        requestAnimationFrame(() => {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = scrollY;
-        });
-    }
-}
-
 function onSidebarItemClick(catId) {
-    saveFullState();
+    // ★ 保存当前视图滚动
+    _saveScroll();
 
     if (currentMode === 'special') {
         if (selectedSpecial === catId) {
@@ -283,11 +296,7 @@ function onSidebarItemClick(catId) {
         currentView = 'overview';
         renderSidebar();
         renderOverview();
-        // ★【修复】删除 scrollToTop()，改为恢复保存的滚动位置
-        const saved = modeStates[currentMode];
-        if (saved) {
-            applySavedScroll(saved.overviewScrollY);
-        }
+        // scrollToTop() 已删除 — renderOverview 开头会重置 scrollTop
         return;
     }
 
@@ -302,16 +311,12 @@ function onSidebarItemClick(catId) {
 
     renderSidebar();
     renderCurrentCategory();
-    // ★【修复】删除 scrollToTop()，改为恢复保存的滚动位置
-    const saved = modeStates[currentMode];
-    if (saved) {
-        applySavedScroll(saved.categoryScrollY);
-    }
+    // scrollToTop() 已删除 — renderSeriesList 开头会重置 scrollTop
 }
 
-/* ===== onSidebarChildClick 支持取消选中 ===== */
 function onSidebarChildClick(parentId, subId) {
-    saveFullState();
+    // ★ 保存当前视图滚动
+    _saveScroll();
 
     if (currentMode === 'special') {
         if (currentSubId === subId) {
@@ -335,11 +340,7 @@ function onSidebarChildClick(parentId, subId) {
         currentView = 'category';
         renderSidebar();
         renderCurrentCategory();
-        // ★【修复】删除 scrollToTop()
-        const saved = modeStates[currentMode];
-        if (saved) {
-            applySavedScroll(saved.categoryScrollY);
-        }
+        // scrollToTop() 已删除
         return;
     }
 
@@ -348,17 +349,13 @@ function onSidebarChildClick(parentId, subId) {
     currentView = 'category';
     renderSidebar();
     renderCurrentCategory();
-    // ★【修复】删除 scrollToTop()
-    const saved = modeStates[currentMode];
-    if (saved) {
-        applySavedScroll(saved.categoryScrollY);
-    }
+    // scrollToTop() 已删除
 }
 
-/* ===== renderCurrentCategory 增加父分类概览列表 ===== */
+/* ===== renderCurrentCategory ===== */
 function renderCurrentCategory() {
     if (!currentCategoryId) {
-        saveFullState();
+        _saveScroll();
         renderOverview();
         return;
     }
@@ -372,7 +369,6 @@ function renderCurrentCategory() {
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); return; }
 
-    // 父分类：合并所有子分类，以概览列表风格展示
     if (cat.children && cat.children.length > 0 && !currentSubId) {
         renderCategoryOverview(cat);
         return;
@@ -400,11 +396,15 @@ function renderCurrentCategory() {
     renderSeriesList(data, title);
 }
 
-/* ===== 新增：父分类概览列表 ===== */
+/* ===== renderCategoryOverview ===== */
 function renderCategoryOverview(cat) {
     const app = document.getElementById('app');
     const imgBase = getImageBase();
     const subMap = getSubCategoryMap();
+
+    // ★ 先重置 scrollTop = 0
+    const contentEl = document.querySelector('.content');
+    if (contentEl) contentEl.scrollTop = 0;
 
     let allItems = [];
     let globalIndex = 1;
@@ -448,6 +448,7 @@ function renderCategoryOverview(cat) {
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
+        _restoreScrollDelayed();
         return;
     }
 
@@ -491,6 +492,7 @@ function renderCategoryOverview(cat) {
     }
 
     app.innerHTML = html;
+    _restoreScrollDelayed();
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -535,7 +537,7 @@ function saveFullState() {
             currentSubId,
             currentView,
             currentSearchKeyword: currentSearchKeyword || '',
-            currentSearchType: currentSearchType || 'all',   // ★【修复】保存搜索类型
+            currentSearchType: currentSearchType || 'all',
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
             overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
@@ -570,43 +572,13 @@ function saveFullState() {
     }
 }
 
-/* ★【修复】统一：渲染 + 展开 + 恢复滚动 */
-function restoreNotesCoinsState(saved) {
-    if (currentView === 'overview') {
-        renderOverview();
-        restoreExpandedStates({
-            expandedSeries: saved.expandedSeries,
-            expandedVarieties: saved.expandedVarieties
-        });
-        // ★ 展开后重新恢复滚动（展开改变页面高度，必须后恢复）
-        applySavedScroll(saved.overviewScrollY);
-    } else if (currentView === 'category') {
-        renderCurrentCategory();
-        restoreExpandedStates({
-            expandedSeries: saved.expandedSeries,
-            expandedVarieties: saved.expandedVarieties
-        });
-        applySavedScroll(saved.categoryScrollY);
-    } else if (currentView === 'search') {
-        if (currentSearchKeyword) {
-            performSearchAndRender(currentSearchKeyword, currentSearchType);
-            // ★ 搜索结果滚动恢复已加在 renderSearchResults() 中
-        } else {
-            currentView = 'overview';
-            renderOverview();
-            restoreExpandedStates({
-                expandedSeries: saved.expandedSeries,
-                expandedVarieties: saved.expandedVarieties
-            });
-        }
-    }
-}
-
 function onTabClick(target) {
-    // ===== 切出前统一保存完整状态 =====
+    // ===== 切出前统一保存状态 =====
     saveFullState();
+    // ★ 同时用 __scrollStore 保存滚动
+    _saveScroll();
 
-    // ===== 设置（"我的"） =====
+    // ===== 设置 =====
     if (target === 'settings') {
         if (!isSettingsMode) {
             settingsReturnState = {
@@ -615,7 +587,7 @@ function onTabClick(target) {
                 currentSubId: currentSubId,
                 currentView: currentView,
                 currentSearchKeyword: currentSearchKeyword || '',
-                currentSearchType: currentSearchType || 'all',   // ★【修复】
+                currentSearchType: currentSearchType || 'all',
                 selectedSpecial: selectedSpecial
             };
         }
@@ -656,8 +628,8 @@ function onTabClick(target) {
             currentSubId = cache.currentSubId || null;
             currentCategoryId = selectedSpecial;
             document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            if (toggleBtn) toggleBtn.style.display = '';
+            const toggleBtn2 = document.getElementById('sidebarToggle');
+            if (toggleBtn2) toggleBtn2.style.display = '';
             document.getElementById('app').innerHTML = cache.innerHTML;
             renderSidebar();
             requestAnimationFrame(() => {
@@ -727,12 +699,15 @@ function onTabClick(target) {
             currentSubId = saved.currentSubId;
             currentView = saved.currentView;
             currentSearchKeyword = saved.currentSearchKeyword || '';
-            currentSearchType = saved.currentSearchType || 'all';  // ★【修复】
+            currentSearchType = saved.currentSearchType || 'all';
 
-            // ★【修复】恢复搜索框的值
             const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+            }
+            const typeSelect = document.getElementById('searchType');
+            if (typeSelect) {
+                typeSelect.value = currentSearchType;
             }
 
             if (searchMode === 'realtime') {
@@ -742,15 +717,36 @@ function onTabClick(target) {
                 }
             }
 
-            // ★【修复】恢复搜索类型的下拉框
-            const typeSelect = document.getElementById('searchType');
-            if (typeSelect) {
-                typeSelect.value = currentSearchType;
-            }
-
             updateSearchUIForMode();
             renderSidebar();
-            restoreNotesCoinsState(saved);
+            if (currentView === 'overview') {
+                renderOverview();
+                restoreExpandedStates({
+                    expandedSeries: saved.expandedSeries,
+                    expandedVarieties: saved.expandedVarieties
+                });
+                // 展开后重新恢复滚动（__scrollStore 中已经有展开前的值，_restoreScrollDelayed
+                // 会再补一次，但因为展开改变了页面高度，这里再额外补一个 rAF）
+                _restoreScrollDelayed();
+            } else if (currentView === 'category') {
+                renderCurrentCategory();
+                restoreExpandedStates({
+                    expandedSeries: saved.expandedSeries,
+                    expandedVarieties: saved.expandedVarieties
+                });
+                _restoreScrollDelayed();
+            } else if (currentView === 'search') {
+                if (currentSearchKeyword) {
+                    performSearchAndRender(currentSearchKeyword, currentSearchType);
+                } else {
+                    currentView = 'overview';
+                    renderOverview();
+                    restoreExpandedStates({
+                        expandedSeries: saved.expandedSeries,
+                        expandedVarieties: saved.expandedVarieties
+                    });
+                }
+            }
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
             return;
@@ -788,7 +784,7 @@ function onTabClick(target) {
             currentSubId = settingsReturnState.currentSubId;
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
-            currentSearchType = settingsReturnState.currentSearchType || 'all';  // ★【修复】
+            currentSearchType = settingsReturnState.currentSearchType || 'all';
         }
         updateSearchUIForMode();
         renderSidebar();
@@ -861,9 +857,8 @@ function onTabClick(target) {
         currentSubId = saved.currentSubId;
         currentView = saved.currentView;
         currentSearchKeyword = saved.currentSearchKeyword || '';
-        currentSearchType = saved.currentSearchType || 'all';   // ★【修复】
+        currentSearchType = saved.currentSearchType || 'all';
 
-        // ★【修复】恢复搜索框的值和类型下拉框
         const inp = document.getElementById('searchInput');
         if (inp) {
             inp.value = getDisplayValue(currentSearchKeyword, currentSearchType);
@@ -888,7 +883,32 @@ function onTabClick(target) {
 
         updateSearchUIForMode();
         renderSidebar();
-        restoreNotesCoinsState(saved);
+        if (currentView === 'overview') {
+            renderOverview();
+            restoreExpandedStates({
+                expandedSeries: saved.expandedSeries,
+                expandedVarieties: saved.expandedVarieties
+            });
+            _restoreScrollDelayed();
+        } else if (currentView === 'category') {
+            renderCurrentCategory();
+            restoreExpandedStates({
+                expandedSeries: saved.expandedSeries,
+                expandedVarieties: saved.expandedVarieties
+            });
+            _restoreScrollDelayed();
+        } else if (currentView === 'search') {
+            if (currentSearchKeyword) {
+                performSearchAndRender(currentSearchKeyword, currentSearchType);
+            } else {
+                currentView = 'overview';
+                renderOverview();
+                restoreExpandedStates({
+                    expandedSeries: saved.expandedSeries,
+                    expandedVarieties: saved.expandedVarieties
+                });
+            }
+        }
         return;
     }
 }
@@ -1257,7 +1277,6 @@ function getDataBySource(dataKey, source) {
     return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
 }
 
-/* ===== buildCategoryOrder：每个子分类独立索引 ===== */
 function buildCategoryOrder() {
     const order = {};
     let index = 0;
@@ -1316,7 +1335,6 @@ function renderPriceListItems(prices, order, filter, filterInfo) {
     
     let sorted;
     if (order === 'default') {
-        // 默认排序：保持数据文件的原始顺序（不排序）
         sorted = [...filteredPrices];
     } else {
         sorted = [...filteredPrices].sort((a, b) => {
