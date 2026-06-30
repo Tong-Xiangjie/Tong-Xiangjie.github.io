@@ -101,6 +101,20 @@ function switchViewContainer(key) {
     }
 }
 
+/** ★ 触发当前视图容器的入场动画 */
+function triggerViewAnimation() {
+    const containerKey = currentMode === 'articles' || currentMode === 'special' || currentMode === 'settings'
+        ? currentMode
+        : currentMode + '_' + currentView;
+    const el = getViewContainer(containerKey);
+    if (!el) return;
+    requestAnimationFrame(() => {
+        el.classList.remove('content-enter');
+        void el.offsetWidth;
+        el.classList.add('content-enter');
+    });
+}
+
 /** 获取当前视图的渲染目标元素 */
 function getViewContainer(key) {
     if (key === 'articles' || key === 'special' || key === 'settings') {
@@ -736,7 +750,6 @@ function onTabClick(target) {
                 }
             }
 
-            // 切换到对应的容器
             const containerKey = currentMode + '_' + currentView;
             switchViewContainer(containerKey);
 
@@ -768,6 +781,10 @@ function onTabClick(target) {
                     });
                 }
             }
+
+            // ★ 触发入场动画
+            triggerViewAnimation();
+
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
             return;
@@ -818,6 +835,10 @@ function onTabClick(target) {
             renderCurrentCategory();
             restoreExpandedStates({ scrollY: 0 });
         }
+
+        // ★ 触发入场动画
+        triggerViewAnimation();
+
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
         return;
@@ -902,7 +923,6 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
-        // 切换到对应的独立容器
         const containerKey = newMode + '_' + currentView;
         switchViewContainer(containerKey);
 
@@ -937,6 +957,10 @@ function onTabClick(target) {
                 });
             }
         }
+
+        // ★ 触发入场动画
+        triggerViewAnimation();
+
         return;
     }
 }
