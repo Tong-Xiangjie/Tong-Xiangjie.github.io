@@ -81,7 +81,7 @@ function ensureViewContainer(key) {
     return viewScrollContainers[key];
 }
 
-/** 切换到目标视图容器（隐藏其他所有容器，显示目标） */
+/** 切换到目标视图容器（隐藏所有容器，显示目标） */
 function switchViewContainer(key) {
     // 隐藏所有独立容器
     for (const k of Object.keys(viewScrollContainers)) {
@@ -91,13 +91,11 @@ function switchViewContainer(key) {
     const app = document.getElementById('app');
     if (app) app.style.display = 'none';
 
-    // 判断目标使用哪个容器
-    const appModeKeys = ['articles', 'special', 'settings'];
-    if (appModeKeys.includes(key)) {
-        // 使用 #app
+    if (key === 'articles' || key === 'special' || key === 'settings') {
+        // 这 3 个模式使用 #app 作为滚动容器
         if (app) app.style.display = 'block';
     } else {
-        // 使用独立滚动容器
+        // notes/coins 模式使用独立滚动容器
         const container = ensureViewContainer(key);
         container.style.display = 'block';
     }
@@ -105,32 +103,10 @@ function switchViewContainer(key) {
 
 /** 获取当前视图的渲染目标元素 */
 function getViewContainer(key) {
-    const appModeKeys = ['articles', 'special', 'settings'];
-    if (appModeKeys.includes(key)) {
+    if (key === 'articles' || key === 'special' || key === 'settings') {
         return document.getElementById('app');
     }
     return ensureViewContainer(key);
-}
-
-// ===== 旧的 _saveScroll / _restoreScrollDelayed 保留但不再使用 =====
-const __scrollStore = {};
-
-function _saveScroll() {
-    const el = document.querySelector('.content');
-    if (!el) return;
-    __scrollStore[currentMode + '_' + currentView] = el.scrollTop;
-}
-
-function _restoreScrollDelayed() {
-    const key = currentMode + '_' + currentView;
-    const target = __scrollStore[key] || 0;
-    if (target <= 0) return;
-    let tries = 0;
-    (function trySet() {
-        const el = document.querySelector('.content');
-        if (el) el.scrollTop = target;
-        if (++tries < 5) requestAnimationFrame(trySet);
-    })();
 }
 
 /* ========== 从桥接文件读取专题配置 ========== */
@@ -335,7 +311,7 @@ function onSidebarItemClick(catId) {
     if (!cat) return;
 
     if (currentCategoryId === catId) {
-        // ★ 返回概览
+        // 返回概览
         currentCategoryId = null;
         currentSubId = null;
         currentView = 'overview';
@@ -345,7 +321,7 @@ function onSidebarItemClick(catId) {
         return;
     }
 
-    // ★ 切换到分类
+    // 切换到分类
     currentCategoryId = catId;
     currentView = 'category';
     if (cat.children) {
@@ -675,8 +651,8 @@ function onTabClick(target) {
             document.getElementById('app').innerHTML = cache.innerHTML;
             renderSidebar();
             requestAnimationFrame(() => {
-                const content = document.querySelector('.content');
-                if (content) content.scrollTop = cache.scrollY || 0;
+                const appEl = document.getElementById('app');
+                if (appEl) appEl.scrollTop = cache.scrollY || 0;
             });
         } else {
             renderSpecialOverview();
@@ -760,7 +736,7 @@ function onTabClick(target) {
                 }
             }
 
-            // ★ 切换到对应的容器
+            // 切换到对应的容器
             const containerKey = currentMode + '_' + currentView;
             switchViewContainer(containerKey);
 
@@ -814,8 +790,8 @@ function onTabClick(target) {
                 const cache = specialPageCaches[selectedSpecial];
                 if (cache) {
                     requestAnimationFrame(() => {
-                        const content = document.querySelector('.content');
-                        if (content) content.scrollTop = cache.scrollY || 0;
+                        const appEl = document.getElementById('app');
+                        if (appEl) appEl.scrollTop = cache.scrollY || 0;
                     });
                 }
             } else {
@@ -926,7 +902,7 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
-        // ★ 切换到对应的独立容器
+        // 切换到对应的独立容器
         const containerKey = newMode + '_' + currentView;
         switchViewContainer(containerKey);
 
@@ -983,12 +959,11 @@ function enterSettings() {
     restoreExpandedStates({ scrollY: settingsPageCache?.scrollY || 0 });
     
     const appEl = document.getElementById('app');
-    const contentEl = document.querySelector('.content');
-    if (appEl && contentEl) {
+    if (appEl) {
         settingsPageCache = {
             ...settingsPageCache,
             innerHTML: appEl.innerHTML,
-            scrollY: contentEl.scrollTop
+            scrollY: appEl.scrollTop
         };
     }
 }
@@ -1838,13 +1813,21 @@ function downloadFile(content, filename, mimeType) {
 document.addEventListener('DOMContentLoaded', function() {
     buildSpecialCategoryTree();
     renderSidebar();
-    
+
     // ★ 让 .content 不滚动，由子容器负责滚动
     const contentEl = document.querySelector('.content');
     if (contentEl) {
         contentEl.style.overflow = 'hidden';
+        contentEl.style.height = '100%';
     }
-    
+
+    // ★ 让 #app 也能独立滚动（articles/special/settings 使用）
+    const appEl = document.getElementById('app');
+    if (appEl) {
+        appEl.style.height = '100%';
+        appEl.style.overflowY = 'auto';
+    }
+
     // ★ 切换到初始视图容器
     switchViewContainer(currentMode + '_' + currentView);
     renderOverview();
