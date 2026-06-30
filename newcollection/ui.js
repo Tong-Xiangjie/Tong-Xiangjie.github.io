@@ -3,9 +3,9 @@ function renderOverview() {
     const app = document.getElementById('app');
     currentView = 'overview';
 
-    // ===== ★ 先重置 scrollTop 为 0，彻底切断联动 =====
-    const content = document.querySelector('.content');
-    if (content) content.scrollTop = 0;
+    // ===== ★ 先重置 scrollTop = 0，彻底切断联动 =====
+    const contentEl = document.querySelector('.content');
+    if (contentEl) contentEl.scrollTop = 0;
 
     let allItems = [];
     let globalIndex = 1;
@@ -108,7 +108,7 @@ function renderOverview() {
 
     app.innerHTML = html;
 
-    // ★ 恢复概览滚动
+    // ★ 恢复概览滚动位置
     _restoreScrollDelayed();
 
     requestAnimationFrame(() => {
@@ -223,9 +223,9 @@ function renderSeriesList(data, title) {
     const app = document.getElementById('app');
     const imgBase = getImageBase();
 
-    // ===== ★ 先重置 scrollTop 为 0，彻底切断联动 =====
-    const content = document.querySelector('.content');
-    if (content) content.scrollTop = 0;
+    // ===== ★ 先重置 scrollTop = 0，彻底切断联动 =====
+    const contentEl = document.querySelector('.content');
+    if (contentEl) contentEl.scrollTop = 0;
 
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
@@ -287,7 +287,7 @@ function renderSeriesList(data, title) {
     html += `</div>`;
     app.innerHTML = html;
 
-    // ★ 恢复分类页滚动
+    // ★ 恢复分类页滚动位置
     _restoreScrollDelayed();
 
     requestAnimationFrame(() => {
