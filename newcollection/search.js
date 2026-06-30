@@ -16,10 +16,11 @@ function doSearch() {
         return;
     }
 
-    // 纸币/硬币搜索
+    // 纸币/硬币搜索 — 先保存当前视图滚动
+    _saveScroll();
+
     const typeSelect = document.getElementById('searchType');
     const type = typeSelect ? typeSelect.value : 'all';
-    saveScroll(currentView === 'overview' ? 'overview' : 'category');
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
     currentView = 'search';
@@ -31,17 +32,15 @@ function resetSearch() {
     if (input) input.value = '';
     currentSearchKeyword = '';
 
-    // 文章模式
     if (currentMode === 'articles') {
         articleSearchKeyword = '';
         renderArticleList();
         return;
     }
 
-    // ★【修复】在切换视图前保存搜索滚动位置
-    saveFullState();
+    // 保存搜索滚动
+    _saveScroll();
 
-    // 纸币/硬币模式
     currentView = currentCategoryId ? 'category' : 'overview';
     if (currentView === 'overview') {
         renderOverview();
@@ -202,6 +201,10 @@ function renderSearchResults(results, rawKeyword, type) {
     const imgBase = getImageBase();
     const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
 
+    // ===== ★ 先重置 scrollTop 为 0，切断联动 =====
+    const content = document.querySelector('.content');
+    if (content) content.scrollTop = 0;
+
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
     html += `<div class="panel-header"><h2>搜索结果（${modeLabel}）</h2>`;
     html += `<p>找到 ${results.length} 个匹配`;
@@ -211,6 +214,8 @@ function renderSearchResults(results, rawKeyword, type) {
     if (results.length === 0) {
         html += `<div class="empty-state">暂无匹配结果</div>`;
         app.innerHTML = html;
+        // 恢复搜索滚动
+        _restoreScrollDelayed();
         return;
     }
 
@@ -265,14 +270,8 @@ function renderSearchResults(results, rawKeyword, type) {
 
     app.innerHTML = html;
 
-    // ★【修复】恢复搜索结果的滚动位置
-    const savedY = modeStates?.[currentMode]?.searchScrollY || 0;
-    if (savedY > 0) {
-        requestAnimationFrame(() => {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = savedY;
-        });
-    }
+    // ★ 恢复搜索滚动（延迟执行，等 DOM 就绪）
+    _restoreScrollDelayed();
 
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
@@ -282,6 +281,9 @@ function renderSearchResults(results, rawKeyword, type) {
 }
 
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
+    // ★ 先保存搜索滚动
+    _saveScroll();
+
     const tree = getCategoryTree();
     for (const cat of tree) {
         if (cat.children) {
@@ -343,8 +345,8 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
 }
 
 function backFromSearch() {
-    // ★【修复】返回前保存搜索滚动位置
-    saveFullState();
+    // ★ 保存搜索滚动
+    _saveScroll();
 
     currentView = currentCategoryId ? 'category' : 'overview';
     currentSearchKeyword = '';
