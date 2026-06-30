@@ -110,10 +110,13 @@ function triggerViewAnimation() {
         : currentMode + '_' + currentView;
     const el = getViewContainer(containerKey);
     if (!el) return;
+    // 双重 rAF 确保 DOM 已渲染完毕
     requestAnimationFrame(() => {
-        el.classList.remove('content-enter');
-        void el.offsetWidth;
-        el.classList.add('content-enter');
+        requestAnimationFrame(() => {
+            el.classList.remove('content-enter');
+            void el.offsetWidth;
+            el.classList.add('content-enter');
+        });
     });
 }
 
