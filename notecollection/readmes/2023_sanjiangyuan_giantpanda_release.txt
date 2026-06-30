@@ -17,17 +17,17 @@
 <br>
 <b>1.正面图案</b>
 <p>三江源国家公园、大熊猫国家公园金银纪念币正面图案均为中华人民共和国国徽，并刊国名、年号。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_1.png" width="80%"></center>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_2.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_1.jpg" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_2.jpg" width="80%"></center>
 <b>2.背面图案。</b>
 <p>三江源国家公园3克圆形金质纪念币背面图案为三江源国家公园自然景观，并刊“三江源国家公园”字样及面额。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_3.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_3.jpg" width="80%"></center>
 <p>大熊猫国家公园3克圆形金质纪念币背面图案为大熊猫国家公园自然景观，并刊“大熊猫国家公园”字样及面额。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_4.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_4.jpg" width="80%"></center>
 <p>三江源国家公园30克圆形银质纪念币背面图案为藏羚羊、绿绒蒿、点地梅等元素装饰组合设计，衬以三江源国家公园自然景观，并刊“三江源国家公园”字样及面额。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_5.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_5.jpg" width="80%"></center>
 <p>大熊猫国家公园30克圆形银质纪念币背面图案为大熊猫、小熊猫、珙桐等元素装饰组合设计，衬以大熊猫国家公园自然景观，并刊“大熊猫国家公园”字样及面额。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_6.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_6.jpg" width="80%"></center>
 <b>（二）纪念币规格和发行量。</b>
 <p>三江源国家公园、大熊猫国家公园3克圆形金质纪念币均为精制币，含纯金3克，直径18毫米，面额50元，成色99.9%，最大发行量各10000枚。</p>
 <p>三江源国家公园、大熊猫国家公园30克圆形银质纪念币均为精制币，含纯银30克，直径40毫米，面额10元，成色99.9%，最大发行量各60000枚。</p>
@@ -42,12 +42,12 @@
 <br>
 <b>1.正面图案</b>
 <p>三江源国家公园、大熊猫国家公园双色铜合金纪念币正面图案均为中华人民共和国国徽，并刊国名、年号。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_7.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_7.jpg" width="80%"></center>
 <b>2.背面图案</b>
 <p>三江源国家公园双色铜合金纪念币背面主景图案为藏羚羊和三江源典型地貌等，辅以绿绒蒿、野牦牛、黑颈鹤等，并刊“三江源国家公园”字样及面额。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_8.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_8.jpg" width="80%"></center>
 <p>大熊猫国家公园双色铜合金纪念币背面主景图案为大熊猫母子和四姑娘山等，辅以绿尾虹雉、竹林等，并刊“大熊猫国家公园”字样及面额。</p>
-<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_9.png" width="80%"></center>
+<center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_9.jpg" width="80%"></center>
 <b>（二）纪念币面额、规格、材质和发行数量。</b>
 <p>三江源国家公园、大熊猫国家公园双色铜合金纪念币面额均为10元，直径27毫米，材质为双色铜合金，发行数量各8000万枚。各省、自治区、直辖市分配数量如下：</p>
 <center><img src="readmes/image/coin_comm/sanjiangyuan_giantpanda_release_10.png" width="80%"></center>
