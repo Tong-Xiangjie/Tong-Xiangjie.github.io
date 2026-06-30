@@ -3,6 +3,10 @@ function renderOverview() {
     const app = document.getElementById('app');
     currentView = 'overview';
 
+    // ===== ★ 先重置 scrollTop 为 0，彻底切断联动 =====
+    const content = document.querySelector('.content');
+    if (content) content.scrollTop = 0;
+
     let allItems = [];
     let globalIndex = 1;
     const tree = getCategoryTree();
@@ -79,6 +83,7 @@ function renderOverview() {
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
+        _restoreScrollDelayed();
         return;
     }
 
@@ -102,10 +107,10 @@ function renderOverview() {
     }
 
     app.innerHTML = html;
-    
-    // ★【修改】滚动恢复移至 onTabClick 中统一处理，此处不再恢复
-    // 滚动位置将在展开状态恢复后重新应用
-    
+
+    // ★ 恢复概览滚动
+    _restoreScrollDelayed();
+
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -150,7 +155,8 @@ function renderOverviewGroup(label, items) {
 }
 
 function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
-    saveFullState();
+    // ★ 保存概览滚动
+    _saveScroll();
 
     const tree = getCategoryTree();
     for (const cat of tree) {
@@ -216,8 +222,14 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
 function renderSeriesList(data, title) {
     const app = document.getElementById('app');
     const imgBase = getImageBase();
+
+    // ===== ★ 先重置 scrollTop 为 0，彻底切断联动 =====
+    const content = document.querySelector('.content');
+    if (content) content.scrollTop = 0;
+
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
+        _restoreScrollDelayed();
         return;
     }
 
@@ -274,9 +286,10 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
-    
-    // ★【修改】滚动恢复移至 onTabClick 中统一处理，此处不再恢复
-    
+
+    // ★ 恢复分类页滚动
+    _restoreScrollDelayed();
+
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
