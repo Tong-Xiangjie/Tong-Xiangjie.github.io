@@ -1,6 +1,5 @@
 // ========== 概览页渲染 ==========
 function renderOverview() {
-    // ★ 使用独立滚动容器
     const app = getViewContainer(currentMode + '_overview');
     currentView = 'overview';
 
@@ -80,11 +79,6 @@ function renderOverview() {
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
-        requestAnimationFrame(() => {
-            app.classList.remove('content-enter');
-            void app.offsetWidth;
-            app.classList.add('content-enter');
-        });
         return;
     }
 
@@ -108,14 +102,6 @@ function renderOverview() {
     }
 
     app.innerHTML = html;
-    
-    // ★ 不需要恢复滚动，容器自动保持 scrollTop
-    
-    requestAnimationFrame(() => {
-        app.classList.remove('content-enter');
-        void app.offsetWidth;
-        app.classList.add('content-enter');
-    });
 }
 
 function renderOverviewGroup(label, items) {
@@ -219,7 +205,6 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
 
 // ========== 分类内容页 ==========
 function renderSeriesList(data, title) {
-    // ★ 使用独立滚动容器
     const app = getViewContainer(currentMode + '_category');
     const imgBase = getImageBase();
 
@@ -281,14 +266,6 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
-    
-    // ★ 不需要恢复滚动，容器自动保持 scrollTop
-
-    requestAnimationFrame(() => {
-        app.classList.remove('content-enter');
-        void app.offsetWidth;
-        app.classList.add('content-enter');
-    });
 }
 
 // ========== 藏品列表 ==========
