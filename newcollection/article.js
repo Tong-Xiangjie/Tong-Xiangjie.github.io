@@ -35,6 +35,24 @@ function collectFromSource(data, dataKey, sourceType) {
     // 低精度路径：只到分类树层级，用于分组标题
     const groupPath = buildGroupPath(sourceType, catInfo);
 
+    // ★ 新增：检查数据层级的 readme（如 lecbData.readme）
+    if (data.readme && data.readme.title && data.readme.content) {
+        const fullPath = buildFullPath(sourceType, catInfo, null, null);
+        collectedArticles.push({
+            title: data.readme.title,
+            contentPath: data.readme.content,
+            category: catInfo.category,
+            parentCategory: catInfo.parentCategory,
+            dataKey,
+            sourceType,
+            fullPath,
+            groupPath,
+            seriesIndex: -1,
+            varietyIndex: -1,
+            seriesName: ''
+        });
+    }
+
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
 
