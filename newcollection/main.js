@@ -24,6 +24,7 @@ let modeStates = {
         currentSubId: null,
         currentView: 'overview',
         currentSearchKeyword: '',
+        currentSearchType: 'all',        // ★【修复】增加搜索类型保存
         expandedSeries: [],
         expandedVarieties: [],
         overviewScrollY: 0,
@@ -35,6 +36,7 @@ let modeStates = {
         currentSubId: null,
         currentView: 'overview',
         currentSearchKeyword: '',
+        currentSearchType: 'all',        // ★【修复】增加搜索类型保存
         expandedSeries: [],
         expandedVarieties: [],
         overviewScrollY: 0,
@@ -236,8 +238,18 @@ function scrollToTop() {
     if (content) content.scrollTop = 0;
 }
 
+// ★【修复】统一应用滚动位置（在展开状态恢复后调用）
+function applySavedScroll(scrollY) {
+    if (scrollY > 0) {
+        requestAnimationFrame(() => {
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = scrollY;
+        });
+    }
+}
+
 function onSidebarItemClick(catId) {
-    saveFullState();  // ★ 新增：保存当前视图滚动
+    saveFullState();
 
     if (currentMode === 'special') {
         if (selectedSpecial === catId) {
@@ -271,7 +283,11 @@ function onSidebarItemClick(catId) {
         currentView = 'overview';
         renderSidebar();
         renderOverview();
-        scrollToTop();
+        // ★【修复】删除 scrollToTop()，改为恢复保存的滚动位置
+        const saved = modeStates[currentMode];
+        if (saved) {
+            applySavedScroll(saved.overviewScrollY);
+        }
         return;
     }
 
@@ -286,12 +302,16 @@ function onSidebarItemClick(catId) {
 
     renderSidebar();
     renderCurrentCategory();
-    scrollToTop();
+    // ★【修复】删除 scrollToTop()，改为恢复保存的滚动位置
+    const saved = modeStates[currentMode];
+    if (saved) {
+        applySavedScroll(saved.categoryScrollY);
+    }
 }
 
 /* ===== onSidebarChildClick 支持取消选中 ===== */
 function onSidebarChildClick(parentId, subId) {
-    saveFullState();  // ★ 新增：保存当前视图滚动
+    saveFullState();
 
     if (currentMode === 'special') {
         if (currentSubId === subId) {
@@ -315,7 +335,11 @@ function onSidebarChildClick(parentId, subId) {
         currentView = 'category';
         renderSidebar();
         renderCurrentCategory();
-        scrollToTop();
+        // ★【修复】删除 scrollToTop()
+        const saved = modeStates[currentMode];
+        if (saved) {
+            applySavedScroll(saved.categoryScrollY);
+        }
         return;
     }
 
@@ -324,13 +348,17 @@ function onSidebarChildClick(parentId, subId) {
     currentView = 'category';
     renderSidebar();
     renderCurrentCategory();
-    scrollToTop();
+    // ★【修复】删除 scrollToTop()
+    const saved = modeStates[currentMode];
+    if (saved) {
+        applySavedScroll(saved.categoryScrollY);
+    }
 }
 
 /* ===== renderCurrentCategory 增加父分类概览列表 ===== */
 function renderCurrentCategory() {
     if (!currentCategoryId) {
-        saveFullState();  // ★ 新增：回退到概览前保存
+        saveFullState();
         renderOverview();
         return;
     }
@@ -507,6 +535,7 @@ function saveFullState() {
             currentSubId,
             currentView,
             currentSearchKeyword: currentSearchKeyword || '',
+            currentSearchType: currentSearchType || 'all',   // ★【修复】保存搜索类型
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
             overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
@@ -541,6 +570,38 @@ function saveFullState() {
     }
 }
 
+/* ★【修复】统一：渲染 + 展开 + 恢复滚动 */
+function restoreNotesCoinsState(saved) {
+    if (currentView === 'overview') {
+        renderOverview();
+        restoreExpandedStates({
+            expandedSeries: saved.expandedSeries,
+            expandedVarieties: saved.expandedVarieties
+        });
+        // ★ 展开后重新恢复滚动（展开改变页面高度，必须后恢复）
+        applySavedScroll(saved.overviewScrollY);
+    } else if (currentView === 'category') {
+        renderCurrentCategory();
+        restoreExpandedStates({
+            expandedSeries: saved.expandedSeries,
+            expandedVarieties: saved.expandedVarieties
+        });
+        applySavedScroll(saved.categoryScrollY);
+    } else if (currentView === 'search') {
+        if (currentSearchKeyword) {
+            performSearchAndRender(currentSearchKeyword, currentSearchType);
+            // ★ 搜索结果滚动恢复已加在 renderSearchResults() 中
+        } else {
+            currentView = 'overview';
+            renderOverview();
+            restoreExpandedStates({
+                expandedSeries: saved.expandedSeries,
+                expandedVarieties: saved.expandedVarieties
+            });
+        }
+    }
+}
+
 function onTabClick(target) {
     // ===== 切出前统一保存完整状态 =====
     saveFullState();
@@ -554,6 +615,7 @@ function onTabClick(target) {
                 currentSubId: currentSubId,
                 currentView: currentView,
                 currentSearchKeyword: currentSearchKeyword || '',
+                currentSearchType: currentSearchType || 'all',   // ★【修复】
                 selectedSpecial: selectedSpecial
             };
         }
@@ -665,37 +727,30 @@ function onTabClick(target) {
             currentSubId = saved.currentSubId;
             currentView = saved.currentView;
             currentSearchKeyword = saved.currentSearchKeyword || '';
+            currentSearchType = saved.currentSearchType || 'all';  // ★【修复】
+
+            // ★【修复】恢复搜索框的值
+            const inp = document.getElementById('searchInput');
+            if (inp) {
+                inp.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+            }
 
             if (searchMode === 'realtime') {
-                const inp = document.getElementById('searchInput');
                 if (inp) {
                     inp.removeEventListener('input', doSearch);
                     inp.addEventListener('input', doSearch);
                 }
             }
 
+            // ★【修复】恢复搜索类型的下拉框
+            const typeSelect = document.getElementById('searchType');
+            if (typeSelect) {
+                typeSelect.value = currentSearchType;
+            }
+
             updateSearchUIForMode();
             renderSidebar();
-            if (currentView === 'overview') {
-                renderOverview();
-                restoreExpandedStates({
-                    expandedSeries: saved.expandedSeries,
-                    expandedVarieties: saved.expandedVarieties
-                });
-            } else if (currentView === 'category') {
-                renderCurrentCategory();
-                restoreExpandedStates({
-                    expandedSeries: saved.expandedSeries,
-                    expandedVarieties: saved.expandedVarieties
-                });
-            } else if (currentView === 'search') {
-                if (currentSearchKeyword) {
-                    performSearchAndRender(currentSearchKeyword, currentSearchType);
-                } else {
-                    currentView = 'overview';
-                    renderOverview();
-                }
-            }
+            restoreNotesCoinsState(saved);
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
             return;
@@ -733,6 +788,7 @@ function onTabClick(target) {
             currentSubId = settingsReturnState.currentSubId;
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
+            currentSearchType = settingsReturnState.currentSearchType || 'all';  // ★【修复】
         }
         updateSearchUIForMode();
         renderSidebar();
@@ -805,9 +861,19 @@ function onTabClick(target) {
         currentSubId = saved.currentSubId;
         currentView = saved.currentView;
         currentSearchKeyword = saved.currentSearchKeyword || '';
+        currentSearchType = saved.currentSearchType || 'all';   // ★【修复】
+
+        // ★【修复】恢复搜索框的值和类型下拉框
+        const inp = document.getElementById('searchInput');
+        if (inp) {
+            inp.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+        }
+        const typeSelect = document.getElementById('searchType');
+        if (typeSelect) {
+            typeSelect.value = currentSearchType;
+        }
 
         if (searchMode === 'realtime') {
-            const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.removeEventListener('input', doSearch);
                 inp.addEventListener('input', doSearch);
@@ -822,26 +888,7 @@ function onTabClick(target) {
 
         updateSearchUIForMode();
         renderSidebar();
-        if (currentView === 'overview') {
-            renderOverview();
-            restoreExpandedStates({
-                expandedSeries: saved.expandedSeries,
-                expandedVarieties: saved.expandedVarieties
-            });
-        } else if (currentView === 'category') {
-            renderCurrentCategory();
-            restoreExpandedStates({
-                expandedSeries: saved.expandedSeries,
-                expandedVarieties: saved.expandedVarieties
-            });
-        } else if (currentView === 'search') {
-            if (currentSearchKeyword) {
-                performSearchAndRender(currentSearchKeyword, currentSearchType);
-            } else {
-                currentView = 'overview';
-                renderOverview();
-            }
-        }
+        restoreNotesCoinsState(saved);
         return;
     }
 }
@@ -1656,7 +1703,7 @@ function exportCSV() {
             c.version || '', c.year || '', c.condition || c.grade || '',
             c.gradingCompany || '', c.catalogNumber || c.krause || '',
             c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''
-        ].map(v => '"' + String(v).replace(/\"/g, '""') + '"');
+        ].map(v => '"' + String(v).replace(/\\"/g, '""') + '"');
         csv += row.join(',') + '\n';
     }
     downloadFile(csv, 'coin-collection.csv', 'text/csv;charset=utf-8');
