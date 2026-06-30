@@ -63,17 +63,64 @@ let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ===== ★ 新增：超级简单的滚动存储，key = "notes_overview" / "notes_category" / "notes_search" =====
+// ===== ★ 独立滚动容器系统：每个视图一个容器，浏览器原生隔离 scrollTop =====
+const viewScrollContainers = {};
+
+/** 获取或懒创建指定视图的滚动容器 */
+function ensureViewContainer(key) {
+    if (!viewScrollContainers[key]) {
+        const div = document.createElement('div');
+        div.className = 'view-scroll-container';
+        div.id = 'view-' + key;
+        div.style.cssText = 'height:100%;overflow-y:auto;display:none;';
+        const content = document.querySelector('.content');
+        const app = document.getElementById('app');
+        content.insertBefore(div, app);
+        viewScrollContainers[key] = div;
+    }
+    return viewScrollContainers[key];
+}
+
+/** 切换到目标视图容器（隐藏其他所有容器，显示目标） */
+function switchViewContainer(key) {
+    // 隐藏所有独立容器
+    for (const k of Object.keys(viewScrollContainers)) {
+        viewScrollContainers[k].style.display = 'none';
+    }
+    // 隐藏 #app
+    const app = document.getElementById('app');
+    if (app) app.style.display = 'none';
+
+    // 判断目标使用哪个容器
+    const appModeKeys = ['articles', 'special', 'settings'];
+    if (appModeKeys.includes(key)) {
+        // 使用 #app
+        if (app) app.style.display = 'block';
+    } else {
+        // 使用独立滚动容器
+        const container = ensureViewContainer(key);
+        container.style.display = 'block';
+    }
+}
+
+/** 获取当前视图的渲染目标元素 */
+function getViewContainer(key) {
+    const appModeKeys = ['articles', 'special', 'settings'];
+    if (appModeKeys.includes(key)) {
+        return document.getElementById('app');
+    }
+    return ensureViewContainer(key);
+}
+
+// ===== 旧的 _saveScroll / _restoreScrollDelayed 保留但不再使用 =====
 const __scrollStore = {};
 
-/** ★ 在离开视图前调用，保存当前滚动位置 */
 function _saveScroll() {
     const el = document.querySelector('.content');
     if (!el) return;
     __scrollStore[currentMode + '_' + currentView] = el.scrollTop;
 }
 
-/** ★ 在渲染完成后调用，恢复当前视图的滚动位置（用 rAF 多次尝试确保 DOM 就绪） */
 function _restoreScrollDelayed() {
     const key = currentMode + '_' + currentView;
     const target = __scrollStore[key] || 0;
@@ -254,16 +301,13 @@ function renderSidebar() {
     sidebar.innerHTML = html;
 }
 
-/* ===== 滚动到顶部（保留，但不再自动调用） ===== */
+/* ===== 滚动到顶部（保留但不再使用） ===== */
 function scrollToTop() {
     const content = document.querySelector('.content');
     if (content) content.scrollTop = 0;
 }
 
 function onSidebarItemClick(catId) {
-    // ★ 保存当前视图滚动
-    _saveScroll();
-
     if (currentMode === 'special') {
         if (selectedSpecial === catId) {
             selectedSpecial = null;
@@ -291,33 +335,30 @@ function onSidebarItemClick(catId) {
     if (!cat) return;
 
     if (currentCategoryId === catId) {
+        // ★ 返回概览
         currentCategoryId = null;
         currentSubId = null;
         currentView = 'overview';
+        switchViewContainer(currentMode + '_overview');
         renderSidebar();
         renderOverview();
-        // scrollToTop() 已删除 — renderOverview 开头会重置 scrollTop
         return;
     }
 
+    // ★ 切换到分类
     currentCategoryId = catId;
     currentView = 'category';
-
     if (cat.children) {
         currentSubId = null;
     } else {
         currentSubId = null;
     }
-
+    switchViewContainer(currentMode + '_category');
     renderSidebar();
     renderCurrentCategory();
-    // scrollToTop() 已删除 — renderSeriesList 开头会重置 scrollTop
 }
 
 function onSidebarChildClick(parentId, subId) {
-    // ★ 保存当前视图滚动
-    _saveScroll();
-
     if (currentMode === 'special') {
         if (currentSubId === subId) {
             currentSubId = null;
@@ -338,24 +379,24 @@ function onSidebarChildClick(parentId, subId) {
         currentSubId = null;
         currentCategoryId = parentId;
         currentView = 'category';
+        switchViewContainer(currentMode + '_category');
         renderSidebar();
         renderCurrentCategory();
-        // scrollToTop() 已删除
         return;
     }
 
     currentCategoryId = parentId;
     currentSubId = subId;
     currentView = 'category';
+    switchViewContainer(currentMode + '_category');
     renderSidebar();
     renderCurrentCategory();
-    // scrollToTop() 已删除
 }
 
 /* ===== renderCurrentCategory ===== */
 function renderCurrentCategory() {
     if (!currentCategoryId) {
-        _saveScroll();
+        switchViewContainer(currentMode + '_overview');
         renderOverview();
         return;
     }
@@ -387,7 +428,8 @@ function renderCurrentCategory() {
 
     const data = getData(dataKey);
     if (!data) {
-        document.getElementById('app').innerHTML = '<div class="empty-state">暂无数据</div>';
+        const app = getViewContainer(currentMode + '_category');
+        app.innerHTML = '<div class="empty-state">暂无数据</div>';
         return;
     }
 
@@ -398,13 +440,9 @@ function renderCurrentCategory() {
 
 /* ===== renderCategoryOverview ===== */
 function renderCategoryOverview(cat) {
-    const app = document.getElementById('app');
+    const app = getViewContainer(currentMode + '_category');
     const imgBase = getImageBase();
     const subMap = getSubCategoryMap();
-
-    // ★ 先重置 scrollTop = 0
-    const contentEl = document.querySelector('.content');
-    if (contentEl) contentEl.scrollTop = 0;
 
     let allItems = [];
     let globalIndex = 1;
@@ -448,7 +486,11 @@ function renderCategoryOverview(cat) {
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
-        _restoreScrollDelayed();
+        requestAnimationFrame(() => {
+            app.classList.remove('content-enter');
+            void app.offsetWidth;
+            app.classList.add('content-enter');
+        });
         return;
     }
 
@@ -492,7 +534,6 @@ function renderCategoryOverview(cat) {
     }
 
     app.innerHTML = html;
-    _restoreScrollDelayed();
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -575,8 +616,6 @@ function saveFullState() {
 function onTabClick(target) {
     // ===== 切出前统一保存状态 =====
     saveFullState();
-    // ★ 同时用 __scrollStore 保存滚动
-    _saveScroll();
 
     // ===== 设置 =====
     if (target === 'settings') {
@@ -591,6 +630,7 @@ function onTabClick(target) {
                 selectedSpecial: selectedSpecial
             };
         }
+        switchViewContainer('settings');
         enterSettings();
         return;
     }
@@ -622,6 +662,8 @@ function onTabClick(target) {
 
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.add('hidden');
+
+        switchViewContainer('special');
 
         if (selectedSpecial !== null && selectedSpecial !== undefined && specialPageCaches[selectedSpecial]) {
             const cache = specialPageCaches[selectedSpecial];
@@ -678,6 +720,7 @@ function onTabClick(target) {
                 si.removeEventListener('input', doSearch);
                 si.addEventListener('input', doSearch);
             }
+            switchViewContainer('articles');
             updateSearchUIForMode();
             renderSidebar();
             if (currentArticleView === 'list') {
@@ -717,6 +760,10 @@ function onTabClick(target) {
                 }
             }
 
+            // ★ 切换到对应的容器
+            const containerKey = currentMode + '_' + currentView;
+            switchViewContainer(containerKey);
+
             updateSearchUIForMode();
             renderSidebar();
             if (currentView === 'overview') {
@@ -725,21 +772,19 @@ function onTabClick(target) {
                     expandedSeries: saved.expandedSeries,
                     expandedVarieties: saved.expandedVarieties
                 });
-                // 展开后重新恢复滚动（__scrollStore 中已经有展开前的值，_restoreScrollDelayed
-                // 会再补一次，但因为展开改变了页面高度，这里再额外补一个 rAF）
-                _restoreScrollDelayed();
             } else if (currentView === 'category') {
                 renderCurrentCategory();
                 restoreExpandedStates({
                     expandedSeries: saved.expandedSeries,
                     expandedVarieties: saved.expandedVarieties
                 });
-                _restoreScrollDelayed();
             } else if (currentView === 'search') {
                 if (currentSearchKeyword) {
                     performSearchAndRender(currentSearchKeyword, currentSearchType);
                 } else {
                     currentView = 'overview';
+                    const newKey = currentMode + '_overview';
+                    switchViewContainer(newKey);
                     renderOverview();
                     restoreExpandedStates({
                         expandedSeries: saved.expandedSeries,
@@ -758,6 +803,7 @@ function onTabClick(target) {
             document.querySelector('.tab-item[data-target="special"]')?.classList.add('active');
             const searchContainer = document.querySelector('.top-search-container');
             if (searchContainer) searchContainer.classList.add('hidden');
+            switchViewContainer('special');
             
             if (settingsReturnState && settingsReturnState.selectedSpecial) {
                 selectedSpecial = settingsReturnState.selectedSpecial;
@@ -786,6 +832,7 @@ function onTabClick(target) {
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
             currentSearchType = settingsReturnState.currentSearchType || 'all';
         }
+        switchViewContainer(currentMode + '_' + currentView);
         updateSearchUIForMode();
         renderSidebar();
         if (currentView === 'overview') {
@@ -829,6 +876,7 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
+        switchViewContainer('articles');
         updateSearchUIForMode();
         renderSidebar();
         if (currentArticleView === 'list') {
@@ -878,6 +926,10 @@ function onTabClick(target) {
         const searchContainer = document.querySelector('.top-search-container');
         if (searchContainer) searchContainer.classList.remove('hidden');
 
+        // ★ 切换到对应的独立容器
+        const containerKey = newMode + '_' + currentView;
+        switchViewContainer(containerKey);
+
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
 
@@ -889,19 +941,19 @@ function onTabClick(target) {
                 expandedSeries: saved.expandedSeries,
                 expandedVarieties: saved.expandedVarieties
             });
-            _restoreScrollDelayed();
         } else if (currentView === 'category') {
             renderCurrentCategory();
             restoreExpandedStates({
                 expandedSeries: saved.expandedSeries,
                 expandedVarieties: saved.expandedVarieties
             });
-            _restoreScrollDelayed();
         } else if (currentView === 'search') {
             if (currentSearchKeyword) {
                 performSearchAndRender(currentSearchKeyword, currentSearchType);
             } else {
                 currentView = 'overview';
+                const newKey = newMode + '_overview';
+                switchViewContainer(newKey);
                 renderOverview();
                 restoreExpandedStates({
                     expandedSeries: saved.expandedSeries,
@@ -1786,6 +1838,15 @@ function downloadFile(content, filename, mimeType) {
 document.addEventListener('DOMContentLoaded', function() {
     buildSpecialCategoryTree();
     renderSidebar();
+    
+    // ★ 让 .content 不滚动，由子容器负责滚动
+    const contentEl = document.querySelector('.content');
+    if (contentEl) {
+        contentEl.style.overflow = 'hidden';
+    }
+    
+    // ★ 切换到初始视图容器
+    switchViewContainer(currentMode + '_' + currentView);
     renderOverview();
 
     document.querySelectorAll('.tab-item').forEach(tab => {
