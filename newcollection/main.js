@@ -25,6 +25,7 @@ let modeStates = {
         currentView: 'overview',
         currentSearchKeyword: '',
         currentSearchType: 'all',
+        isSidebarCollapsed: false,
         expandedSeries: [],
         expandedVarieties: [],
         overviewScrollY: 0,
@@ -37,6 +38,7 @@ let modeStates = {
         currentView: 'overview',
         currentSearchKeyword: '',
         currentSearchType: 'all',
+        isSidebarCollapsed: false,
         expandedSeries: [],
         expandedVarieties: [],
         overviewScrollY: 0,
@@ -248,6 +250,15 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed', isSidebarCollapsed);
     toggle.textContent = isSidebarCollapsed ? '▸' : '◂';
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
+
+    // ★ 同步保存到 modeStates
+    if (currentMode === 'notes' || currentMode === 'coins') {
+        const prev = modeStates[currentMode] || {};
+        modeStates[currentMode] = {
+            ...prev,
+            isSidebarCollapsed: isSidebarCollapsed
+        };
+    }
 }
 
 function renderSidebar() {
@@ -569,6 +580,7 @@ function saveFullState() {
             currentView,
             currentSearchKeyword: currentSearchKeyword || '',
             currentSearchType: currentSearchType || 'all',
+            isSidebarCollapsed: isSidebarCollapsed,
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
             overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
@@ -754,6 +766,25 @@ function onTabClick(target) {
             switchViewContainer(containerKey);
 
             updateSearchUIForMode();
+
+            // ★ 恢复侧边栏收起状态
+            if (saved.isSidebarCollapsed) {
+                const sidebar = document.getElementById('sidebar');
+                const toggle = document.getElementById('sidebarToggle');
+                if (sidebar && toggle) {
+                    sidebar.classList.add('collapsed');
+                    toggle.textContent = '▸';
+                    toggle.title = '展开侧边栏';
+                    isSidebarCollapsed = true;
+                }
+            } else {
+                const sidebar = document.getElementById('sidebar');
+                const toggle = document.getElementById('sidebarToggle');
+                if (sidebar) sidebar.classList.remove('collapsed');
+                if (toggle) { toggle.textContent = '◂'; toggle.title = '收起侧边栏'; }
+                isSidebarCollapsed = false;
+            }
+
             renderSidebar();
             if (currentView === 'overview') {
                 renderOverview();
@@ -930,6 +961,25 @@ function onTabClick(target) {
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
 
         updateSearchUIForMode();
+
+        // ★ 恢复侧边栏收起状态
+        if (saved.isSidebarCollapsed) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (sidebar && toggle) {
+                sidebar.classList.add('collapsed');
+                toggle.textContent = '▸';
+                toggle.title = '展开侧边栏';
+                isSidebarCollapsed = true;
+            }
+        } else {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (sidebar) sidebar.classList.remove('collapsed');
+            if (toggle) { toggle.textContent = '◂'; toggle.title = '收起侧边栏'; }
+            isSidebarCollapsed = false;
+        }
+
         renderSidebar();
         if (currentView === 'overview') {
             renderOverview();
@@ -1001,7 +1051,16 @@ function renderSpecialOverview() {
 
     document.querySelector('.body-row')?.classList.add('special-overview-mode');
 
-    // ★ 修复：先展开侧边栏
+    // ★ 先保存当前 sidebar 状态到 modeStates（以备回来时恢复）
+    if (currentMode === 'notes' || currentMode === 'coins') {
+        const prev = modeStates[currentMode] || {};
+        modeStates[currentMode] = {
+            ...prev,
+            isSidebarCollapsed: isSidebarCollapsed
+        };
+    }
+
+    // ★ 展开侧边栏
     if (sidebar) {
         sidebar.classList.remove('collapsed');
     }
