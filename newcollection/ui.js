@@ -103,12 +103,8 @@ function renderOverview() {
 
     app.innerHTML = html;
     
-    // ★【修改】读取 overviewScrollY
-    const savedY = modeStates?.[currentMode]?.overviewScrollY || 0;
-    if (savedY > 0) {
-        const content = document.querySelector('.content');
-        if (content) content.scrollTop = savedY;
-    }
+    // ★【修改】滚动恢复移至 onTabClick 中统一处理，此处不再恢复
+    // 滚动位置将在展开状态恢复后重新应用
     
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
@@ -154,7 +150,7 @@ function renderOverviewGroup(label, items) {
 }
 
 function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
-    saveFullState();  // ★ 新增：保存当前概览页滚动
+    saveFullState();
 
     const tree = getCategoryTree();
     for (const cat of tree) {
@@ -279,12 +275,7 @@ function renderSeriesList(data, title) {
     html += `</div>`;
     app.innerHTML = html;
     
-    // ★【修改】读取 categoryScrollY
-    const savedY = modeStates?.[currentMode]?.categoryScrollY || 0;
-    if (savedY > 0) {
-        const content = document.querySelector('.content');
-        if (content) content.scrollTop = savedY;
-    }
+    // ★【修改】滚动恢复移至 onTabClick 中统一处理，此处不再恢复
     
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
