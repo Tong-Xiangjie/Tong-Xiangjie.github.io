@@ -1,11 +1,8 @@
 // ========== 概览页渲染 ==========
 function renderOverview() {
-    const app = document.getElementById('app');
+    // ★ 使用独立滚动容器
+    const app = getViewContainer(currentMode + '_overview');
     currentView = 'overview';
-
-    // ===== ★ 先重置 scrollTop = 0，彻底切断联动 =====
-    const contentEl = document.querySelector('.content');
-    if (contentEl) contentEl.scrollTop = 0;
 
     let allItems = [];
     let globalIndex = 1;
@@ -83,7 +80,11 @@ function renderOverview() {
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
-        _restoreScrollDelayed();
+        requestAnimationFrame(() => {
+            app.classList.remove('content-enter');
+            void app.offsetWidth;
+            app.classList.add('content-enter');
+        });
         return;
     }
 
@@ -107,10 +108,9 @@ function renderOverview() {
     }
 
     app.innerHTML = html;
-
-    // ★ 恢复概览滚动位置
-    _restoreScrollDelayed();
-
+    
+    // ★ 不需要恢复滚动，容器自动保持 scrollTop
+    
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -155,9 +155,6 @@ function renderOverviewGroup(label, items) {
 }
 
 function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
-    // ★ 保存概览滚动
-    _saveScroll();
-
     const tree = getCategoryTree();
     for (const cat of tree) {
         if (cat.children) {
@@ -166,6 +163,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                     currentCategoryId = cat.id;
                     currentSubId = sub.id;
                     currentView = 'category';
+                    switchViewContainer(currentMode + '_category');
                     renderSidebar();
                     renderCurrentCategory();
                     setTimeout(() => {
@@ -193,6 +191,7 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
             currentCategoryId = cat.id;
             currentSubId = null;
             currentView = 'category';
+            switchViewContainer(currentMode + '_category');
             renderSidebar();
             renderCurrentCategory();
             setTimeout(() => {
@@ -220,16 +219,12 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
 
 // ========== 分类内容页 ==========
 function renderSeriesList(data, title) {
-    const app = document.getElementById('app');
+    // ★ 使用独立滚动容器
+    const app = getViewContainer(currentMode + '_category');
     const imgBase = getImageBase();
-
-    // ===== ★ 先重置 scrollTop = 0，彻底切断联动 =====
-    const contentEl = document.querySelector('.content');
-    if (contentEl) contentEl.scrollTop = 0;
 
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
-        _restoreScrollDelayed();
         return;
     }
 
@@ -286,9 +281,8 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
-
-    // ★ 恢复分类页滚动位置
-    _restoreScrollDelayed();
+    
+    // ★ 不需要恢复滚动，容器自动保持 scrollTop
 
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
