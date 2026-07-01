@@ -132,7 +132,6 @@
             gap: 0.6rem;
             margin-bottom: 0.8rem;
         }
-        /* 用于字符区域自然排列且占满一行 */
         .chars-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
@@ -205,6 +204,10 @@
             min-height: 2.5rem;
             font-weight: 500;
         }
+        /* 调试模式提示（绿色） */
+        .error-msg.debug-active {
+            color: #00ff88;
+        }
 
         .timer-block {
             text-align: center;
@@ -229,6 +232,23 @@
             letter-spacing: 0.5px;
             border-top: 1px dashed #2a3644;
             padding-top: 1rem;
+        }
+
+        /* DEBUG 标识 */
+        .debug-badge {
+            display: none;
+            font-size: 0.6rem;
+            color: #00ff88;
+            border: 1px solid #00ff8866;
+            border-radius: 1rem;
+            padding: 0.1rem 0.5rem;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+            letter-spacing: 1px;
+            opacity: 0.85;
+        }
+        .debug-badge.show {
+            display: inline-block;
         }
 
         .dashboard {
@@ -335,11 +355,11 @@
 <body>
 <div class="glass-panel" id="appRoot">
     <div class="content">
-        <!-- 页面1: 密码验证界面 自定义数字键盘（自动验证带延迟） -->
+        <!-- 页面1: 密码验证界面 -->
         <div id="lockZone">
             <div class="logo-area">
                 <img src="image/headphoto.png" class="logo-icon" alt="logo">
-                <h1>请验证后进入</h1>
+                <h1>请验证后进入 <span class="debug-badge" id="debugBadge">DEBUG</span></h1>
                 <div class="sub">VERIFICATION GATE</div>
             </div>
             <div class="password-section">
@@ -377,7 +397,7 @@
         <div id="twoFactorZone" style="display: none;">
             <div class="logo-area">
                 <img src="image/headphoto.png" class="logo-icon" alt="logo">
-                <h1>二次验证</h1>
+                <h1>二次验证 <span class="debug-badge" id="debugBadge2">DEBUG</span></h1>
                 <div class="sub">TWO-FACTOR VERIFICATION</div>
             </div>
             <div class="password-section">
@@ -416,7 +436,7 @@
 
 <script>
     (function(){
-        // ---------- 阶梯锁定配置 ----------
+        // ---------- 基础配置 ----------
         const VALID_CODES = new Set(["114514"]);
         const LOCK_STEPS = [30, 60, 120, 180, 300];
         const MAX_LOCK_SECONDS = 300;
@@ -433,9 +453,12 @@
 
         let timerInterval = null;
         let datetimeInterval = null;
-        let pendingVerifyTimeout = null;  // 用于延迟验证
+        let pendingVerifyTimeout = null;
 
-        // DOM 元素
+        /* ═══ 开发者调试模式 ═══ */
+        let debugModeActive = false;
+
+        // DOM 引用
         const lockZone = document.getElementById('lockZone');
         const twoFactorZone = document.getElementById('twoFactorZone');
         const dashboardZone = document.getElementById('dashboardZone');
@@ -450,8 +473,10 @@
         const twoFactorDatetimeEl = document.getElementById('twoFactorDatetime');
         const twoFactorInputDisplay = document.getElementById('twoFactorInputDisplay');
         const pinDotsContainer = document.getElementById('pinDotsContainer');
+        const debugBadge = document.getElementById('debugBadge');
+        const debugBadge2 = document.getElementById('debugBadge2');
 
-        // ---------- 辅助函数 ----------
+        // ---------- 工具函数 ----------
         function formatCurrentDateTime() {
             const now = new Date();
             return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
@@ -488,7 +513,18 @@
             captchaCodeEl.textContent = currentCaptcha;
         }
 
-        // 持久化存储
+        /* ═══ DEBUG 标识更新 ═══ */
+        function updateDebugBadge() {
+            if (debugModeActive) {
+                debugBadge.classList.add('show');
+                debugBadge2.classList.add('show');
+            } else {
+                debugBadge.classList.remove('show');
+                debugBadge2.classList.remove('show');
+            }
+        }
+
+        // ---------- 持久化 ----------
         const STORAGE_LOCK_UNTIL = 'lockUntilTimestamp';
         const STORAGE_LOCK_LEVEL = 'lockLevel';
         const STORAGE_HAS_EVER_LOCKED = 'hasEverLocked';
@@ -514,7 +550,7 @@
         function clearPersistedLock() { localStorage.removeItem(STORAGE_LOCK_UNTIL); localStorage.removeItem(STORAGE_LOCK_LEVEL); localStorage.removeItem(STORAGE_HAS_EVER_LOCKED); }
         function clearTimer() { if(timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
 
-        // 更新密码点阵
+        // ---------- UI 更新 ----------
         function updatePinDisplay() {
             const dots = document.querySelectorAll('.pin-dot');
             for(let i=0;i<dots.length;i++) {
@@ -522,14 +558,11 @@
                 else dots[i].classList.remove('active');
             }
         }
-        // 二次验证显示
         function updateTwoFactorDisplay() {
             let displayStr = currentTwoFactorInput.padEnd(4, '_');
             if(displayStr.length>4) displayStr = displayStr.slice(0,4);
             twoFactorInputDisplay.textContent = displayStr;
         }
-
-        // 取消待执行的自动验证
         function cancelPendingVerify() {
             if(pendingVerifyTimeout) {
                 clearTimeout(pendingVerifyTimeout);
@@ -537,10 +570,10 @@
             }
         }
 
-        // 密码键盘处理（带延迟验证）
+        // ---------- 键盘事件 ----------
         function handleNumericKey(key) {
             if(lockUntil > Date.now()) return;
-            cancelPendingVerify(); // 任何输入动作都取消之前的延迟验证
+            cancelPendingVerify();
             if(key === 'del') {
                 currentPassword = currentPassword.slice(0, -1);
                 updatePinDisplay();
@@ -551,7 +584,6 @@
                 if(currentPassword.length < 6) {
                     currentPassword += key;
                     updatePinDisplay();
-                    // 达到6位时，延迟0.1秒后验证
                     if(currentPassword.length === 6) {
                         pendingVerifyTimeout = setTimeout(() => {
                             pendingVerifyTimeout = null;
@@ -562,7 +594,7 @@
             }
         }
 
-        // 二次验证键盘构建 (清空、大小写、删除顺序)
+        // ---------- 二次验证键盘 ----------
         let twoFactorIsUpperCase = true;
         function rebuildTwoFactorKeyboard() {
             const container = document.getElementById('twoFactorKeyboardContainer');
@@ -575,10 +607,21 @@
                 for(let i=97;i<=122;i++) characters.push(String.fromCharCode(i));
             }
             let html = '';
-            html += `<div class="keyboard-row" style="margin-bottom: 0.8rem;">
-                        <div class="key-btn key-action" id="twoFactorBackActionBtn">返回</div>
-                        <div class="key-btn key-action" id="twoFactorVerifyActionBtn">验证</div>
-                    </div>`;
+
+            /* 调试模式下多一个「退出调试」按钮 */
+            if (debugModeActive) {
+                html += `<div class="keyboard-row" style="margin-bottom: 0.8rem;">
+                            <div class="key-btn key-action" id="twoFactorBackActionBtn">返回</div>
+                            <div class="key-btn key-action" id="twoFactorDebugExitBtn" style="background:#1a3a2a; border-color:#00cc77; color:#00ff88;">退出调试</div>
+                            <div class="key-btn key-action" id="twoFactorVerifyActionBtn">验证</div>
+                        </div>`;
+            } else {
+                html += `<div class="keyboard-row" style="margin-bottom: 0.8rem;">
+                            <div class="key-btn key-action" id="twoFactorBackActionBtn">返回</div>
+                            <div class="key-btn key-action" id="twoFactorVerifyActionBtn">验证</div>
+                        </div>`;
+            }
+
             html += `<div class="keyboard-row keyboard-switch-row">
                         <div class="key-btn key-clear" id="twoFactorClearBtn">清空</div>
                         <div class="key-btn key-special" id="caseToggleBtn">${twoFactorIsUpperCase ? '小写' : '大写'}</div>
@@ -609,6 +652,15 @@
             document.getElementById('twoFactorClearBtn')?.addEventListener('click', () => { if(lockUntil <= Date.now()) { currentTwoFactorInput = ""; updateTwoFactorDisplay(); } });
             document.getElementById('twoFactorDelBtn')?.addEventListener('click', () => { if(lockUntil <= Date.now()) { currentTwoFactorInput = currentTwoFactorInput.slice(0, -1); updateTwoFactorDisplay(); } });
             document.getElementById('caseToggleBtn')?.addEventListener('click', () => { if(lockUntil <= Date.now()) { twoFactorIsUpperCase = !twoFactorIsUpperCase; rebuildTwoFactorKeyboard(); } });
+
+            /* 调试模式专属：退出调试按钮 */
+            const debugExitBtn = document.getElementById('twoFactorDebugExitBtn');
+            if (debugExitBtn) {
+                debugExitBtn.addEventListener('click', () => {
+                    exitDebugMode();
+                });
+            }
+
             setKeyboardDisabledState(lockUntil > Date.now());
         }
 
@@ -625,7 +677,7 @@
             });
         }
 
-        // 锁定逻辑：非恢复场景使用（失败触发）
+        // ---------- 锁定机制 ----------
         function applyLockout(isFromTwoFactor = false) {
             const now = Date.now();
             const lockSeconds = getLockDuration(lockLevel);
@@ -637,7 +689,6 @@
             clearTimer();
             updateAllLockUI();
             setKeyboardDisabledState(true);
-            // 倒计时更新
             timerInterval = setInterval(() => {
                 const remaining = lockUntil - Date.now();
                 if(remaining <= 0) {
@@ -654,7 +705,7 @@
                     else { currentTwoFactorInput = ""; updateTwoFactorDisplay(); }
                 } else {
                     const secs = Math.ceil(remaining/1000);
-                    const msg = `验证失败次数过多，已锁定。<br>请${formatTime(secs)}后再试。`;
+                    const msg = `验证失败次数过多，已锁定。请${formatTime(secs)}后再试。`;
                     if(isFromTwoFactor && twoFactorZone.style.display === 'block') {
                         twoFactorTimerInfo.style.display = 'block';
                         twoFactorTimerInfo.innerHTML = msg;
@@ -666,7 +717,6 @@
             }, 200);
         }
 
-        // 恢复锁定（刷新后使用，不升级）
         function restoreLockout() {
             clearTimer();
             setKeyboardDisabledState(true);
@@ -702,7 +752,7 @@
         function updateAllLockUI() {
             const isLocked = lockUntil > Date.now();
             if(isLocked) errorMsgDiv.innerHTML = `账户暂时锁定，请稍后再试。`;
-            else if(failCount===0) errorMsgDiv.innerHTML = '';
+            else if(failCount===0 && !debugModeActive) errorMsgDiv.innerHTML = '';
             setKeyboardDisabledState(isLocked);
         }
 
@@ -721,7 +771,24 @@
             }
         }
 
+        /* ═══ 二次验证失败（调试模式不锁定） ═══ */
         function handleTwoFactorFail() {
+            if (debugModeActive) {
+                /* 调试模式：只提示，不锁定，刷新验证码方便继续测试 */
+                twoFactorErrorMsg.innerHTML = '验证码错误，请重试。';
+                twoFactorErrorMsg.className = 'error-msg debug-active';
+                currentTwoFactorInput = "";
+                updateTwoFactorDisplay();
+                refreshCaptcha();
+                setTimeout(() => {
+                    if (twoFactorErrorMsg.innerHTML === '验证码错误，请重试。') {
+                        twoFactorErrorMsg.innerHTML = '';
+                        twoFactorErrorMsg.className = 'error-msg';
+                    }
+                }, 2000);
+                return;
+            }
+            /* 正常模式：触发锁定 */
             if(lockUntil > Date.now()) { twoFactorErrorMsg.innerHTML = '系统锁定中，请等待倒计时结束。'; return; }
             twoFactorErrorMsg.innerHTML = `二次验证错误！系统锁定${formatTime(getLockDuration(lockLevel))}`;
             applyLockout(true);
@@ -739,9 +806,48 @@
             setKeyboardDisabledState(false);
         }
 
+        /* ═══ 主密码验证 ═══ */
+        function verifyPassword() {
+            cancelPendingVerify();
+            if(lockUntil > Date.now()) { errorMsgDiv.innerHTML = '锁定倒计时进行中，请耐心等待。'; return; }
+            if(currentPassword.length !== 6) {
+                errorMsgDiv.innerHTML = '请输入6位数字密码';
+                return;
+            }
+
+            /* 调试模式激活码：222222 */
+            if (currentPassword === "222222") {
+                debugModeActive = true;
+                updateDebugBadge();
+                currentPassword = "";
+                updatePinDisplay();
+                errorMsgDiv.innerHTML = '开发者模式已激活，请输入正确密码进入二次验证';
+                errorMsgDiv.className = 'error-msg debug-active';
+                setTimeout(() => {
+                    if (errorMsgDiv.innerHTML === '开发者模式已激活，请输入正确密码进入二次验证') {
+                        errorMsgDiv.innerHTML = '';
+                        errorMsgDiv.className = 'error-msg';
+                    }
+                }, 3000);
+                return;
+            }
+
+            if(VALID_CODES.has(currentPassword)) handlePrimarySuccess();
+            else handlePrimaryFail();
+        }
+
+        /* ═══ 主密码成功处理 ═══ */
         function handlePrimarySuccess() {
             clearTimer();
             lockUntil = 0; failCount = 0;
+
+            if (debugModeActive) {
+                /* 调试模式：直接进入二次验证，不清除调试状态 */
+                enterTwoFactorDebug();
+                return;
+            }
+
+            /* 正常流程 */
             if(hasEverLocked) {
                 pendingTwoFactor = true;
                 refreshCaptcha();
@@ -760,19 +866,45 @@
             }
         }
 
-        function verifyPassword() {
-            cancelPendingVerify();
-            if(lockUntil > Date.now()) { errorMsgDiv.innerHTML = '锁定倒计时进行中，请耐心等待。'; return; }
-            if(currentPassword.length !== 6) {
-                errorMsgDiv.innerHTML = '请输入6位数字密码';
-                return;
-            }
-            if(VALID_CODES.has(currentPassword)) handlePrimarySuccess();
-            else handlePrimaryFail();
+        /* ═══ 进入调试二次验证 ═══ */
+        function enterTwoFactorDebug() {
+            pendingTwoFactor = true;
+            refreshCaptcha();
+            currentTwoFactorInput = "";
+            updateTwoFactorDisplay();
+            twoFactorErrorMsg.innerHTML = '调试模式，您可多次尝试验证码';
+            twoFactorErrorMsg.className = 'error-msg debug-active';
+            setTimeout(() => {
+                if (twoFactorErrorMsg.innerHTML === '调试模式，您可多次尝试验证码') {
+                    twoFactorErrorMsg.innerHTML = '';
+                    twoFactorErrorMsg.className = 'error-msg';
+                }
+            }, 3000);
+            twoFactorTimerInfo.style.display = 'none';
+            lockZone.style.display = 'none';
+            twoFactorZone.style.display = 'block';
+            twoFactorIsUpperCase = true;
+            rebuildTwoFactorKeyboard();
+            updateAllLockUI();
+        }
+
+        /* ═══ 退出调试模式 ═══ */
+        function exitDebugMode() {
+            debugModeActive = false;
+            updateDebugBadge();
+            twoFactorZone.style.display = 'none';
+            lockZone.style.display = 'block';
+            pendingTwoFactor = false;
+            currentPassword = "";
+            updatePinDisplay();
+            currentTwoFactorInput = "";
+            errorMsgDiv.innerHTML = '';
+            errorMsgDiv.className = 'error-msg';
+            updateAllLockUI();
         }
 
         function verifyTwoFactor() {
-            if(lockUntil > Date.now()) { twoFactorErrorMsg.innerHTML = '锁定倒计时进行中，请耐心等待。'; return; }
+            if(lockUntil > Date.now()) { twoFactorErrorMsg.innerHTML = '系统锁定中，请等待倒计时结束。'; return; }
             if(currentTwoFactorInput.length !== 4) {
                 twoFactorErrorMsg.innerHTML = '请输入4位验证码';
                 return;
@@ -782,6 +914,11 @@
         }
 
         function resetToLock() {
+            /* 退出主控面板时关闭调试 */
+            if (debugModeActive) {
+                debugModeActive = false;
+                updateDebugBadge();
+            }
             dashboardZone.style.display = 'none';
             lockZone.style.display = 'block';
             twoFactorZone.style.display = 'none';
@@ -789,19 +926,27 @@
             currentPassword = "";
             updatePinDisplay();
             errorMsgDiv.innerHTML = '';
+            errorMsgDiv.className = 'error-msg';
             updateAllLockUI();
         }
 
         function backFromTwoFactor() {
+            /* 从二次验证返回时关闭调试 */
+            if (debugModeActive) {
+                debugModeActive = false;
+                updateDebugBadge();
+            }
             twoFactorZone.style.display = 'none';
             lockZone.style.display = 'block';
             pendingTwoFactor = false;
             currentPassword = "";
             updatePinDisplay();
             errorMsgDiv.innerHTML = '';
+            errorMsgDiv.className = 'error-msg';
             updateAllLockUI();
         }
 
+        // ---------- 初始化 ----------
         function init() {
             for(let i=0;i<6;i++) {
                 let dot = document.createElement('div');
@@ -817,7 +962,6 @@
 
             const hasLock = restoreLockState();
             if(hasLock && lockUntil > Date.now()) {
-                // 仅恢复锁定状态，不增加等级、不重置计时
                 restoreLockout();
             } else {
                 lockUntil = 0;
@@ -831,6 +975,7 @@
             dashboardZone.style.display = 'none';
             currentPassword = "";
             updatePinDisplay();
+            updateDebugBadge();
         }
         init();
         setInterval(() => {
