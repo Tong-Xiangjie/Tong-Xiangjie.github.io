@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>网站总入口</title>
     <style>
+        /* ═══ 自定义西文字体：OCR-B ═══ */
+        @font-face {
+            font-family: "OCRB10";
+            src: url('font/OCRB10PitchBT-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -16,7 +25,7 @@
         body {
             min-height: 100vh;
             background: #000000;
-            font-family: "Source Han Sans", "Noto Sans CJK SC", "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -100,7 +109,9 @@
             font-size: 1.8rem;
             font-weight: bold;
             letter-spacing: 8px;
-            font-family: monospace;
+            font-family: "OCRB10", monospace;
+            transform: scaleX(0.9);
+            transform-origin: center center;
             color: #c0f0ff;
             margin-bottom: 1rem;
             min-height: 70px;
@@ -139,11 +150,13 @@
             text-align: center;
             cursor: pointer;
             transition: 0.1s linear;
-            font-family: "Source Han Sans", "Noto Sans CJK SC", monospace;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", monospace;
+            transform: scaleX(0.9);
+            transform-origin: center center;
             width: 100%;
         }
         .key-btn:active {
-            transform: scale(0.96);
+            transform: scaleX(0.9) scale(0.96);
             background: #1f2c44;
         }
         .key-btn.disabled, .key-btn:disabled {
@@ -210,7 +223,9 @@
             margin-bottom: 0.5rem;
             font-size: 0.85rem;
             color: #5a6e8a;
-            font-family: monospace;
+            font-family: "OCRB10", monospace;
+            transform: scaleX(0.9);
+            transform-origin: center center;
             letter-spacing: 0.5px;
             border-top: 1px dashed #2a3644;
             padding-top: 1rem;
@@ -301,7 +316,9 @@
             font-size: 1.8rem;
             font-weight: bold;
             letter-spacing: 8px;
-            font-family: monospace;
+            font-family: "OCRB10", monospace;
+            transform: scaleX(0.9);
+            transform-origin: center center;
             color: #00aaff;
             margin-bottom: 1rem;
         }
@@ -387,7 +404,7 @@
             <div class="site-card"><span class="site-name">硬币收藏档案</span><a href="https://Tong-Xiangjie.github.io/coincollection/" class="site-link" target="_blank">coincollection ↗</a></div>
             <div class="site-card"><span class="site-name">钱币趣味收藏档案</span><a href="https://Tong-Xiangjie.github.io/funcollection/" class="site-link" target="_blank">funcollection ↗</a></div>
             <div class="site-card"><span class="site-name">无穹书院培养方案</span><a href="https://Tong-Xiangjie.github.io/wuqiongcourses/" class="site-link" target="_blank">courses ↗</a></div>
-            <div class="site-card"><span class="site-name">答题卡生成器</span><a href="https://Tong-Xiangjie.github.io/answersheet/" class="site-link" target="_blank">answersheet ↗</a></div>
+            <div class="site-card"><span class="site-name">答题卡生成器</span><a href="https://Tong-Xiangjie.github.io/newanswersheet/" class="site-link" target="_blank">answersheet ↗</a></div>
             <div class="site-card"><span class="site-name">全屏时钟</span><a href="https://Tong-Xiangjie.github.io/time/" class="site-link" target="_blank">time ↗</a></div>
             <div class="site-card" style="opacity: 0.7;"><span class="site-name">更多站点 (敬请期待)</span><span class="site-link" style="background:#11161f; cursor:default;">即将开放</span></div>
             <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
