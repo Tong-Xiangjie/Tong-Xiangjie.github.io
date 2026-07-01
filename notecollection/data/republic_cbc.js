@@ -109,7 +109,7 @@ const republic_cbcData = {
                             withdrawnDate: "",
                             size: "79mm*162mm",
                             condition: "ACG63E",
-                            price: "108元",
+                            price: "121元",
                             purchaseDate: "2026年2月23日",
                             krause: "239a",
                             remark: "",
