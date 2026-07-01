@@ -1349,7 +1349,7 @@ function computeStats(typeFilter) {
         }
         
         // 提取数字 + 可选的 E
-        const match = cond.match(/(\d+)(E)?/);
+        const match = cond.match(/(\d+)\+?(E)?/);
         if (match) {
             const displayGrade = match[1] + (match[2] || '');
             gradeCounts[displayGrade] = (gradeCounts[displayGrade] || 0) + 1;
