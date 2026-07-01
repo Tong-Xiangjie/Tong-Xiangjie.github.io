@@ -361,7 +361,7 @@
             const zhiIndex = (0 + offset) % 12;
             const ganzhi = gan[ganIndex] + zhi[zhiIndex];
             const leapPrefix = lunar.isLeap ? "闰" : "";
-            return `${ganzhi}年 ${leapPrefix}${monthName} ${dayName}`;
+            return `${ganzhi}年${leapPrefix}${monthName}${dayName}`;
         }
         
         // ---------- 12/24小时制状态 ----------
@@ -435,12 +435,12 @@
             const day = now.getDate();
             const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
             const weekday = weekdays[now.getDay()];
-            const gregorianText = `${year}年 ${month}月 ${day}日  ${weekday}`;
+            const gregorianText = `${year}年${month}月${day}日  ${weekday}`;
             document.getElementById('gregorianDate').textContent = gregorianText;
             
             // 农历日期
             const lunarStr = getLunarDateString(year, month, day);
-            document.getElementById('lunarDate').textContent = `农历 ${lunarStr}`;
+            document.getElementById('lunarDate').textContent = `农历${lunarStr}`;
         }
         
         // 切换主题模式（合并为一个按钮）
