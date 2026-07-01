@@ -32,32 +32,12 @@ function collectAllArticles() {
 
 function collectFromSource(data, dataKey, sourceType) {
     const catInfo = findArticleCategoryInfo(dataKey, sourceType);
-    // 低精度路径：只到分类树层级，用于分组标题
     const groupPath = buildGroupPath(sourceType, catInfo);
-
-    // ★ 新增：检查数据层级的 readme（如 lecbData.readme）
-    if (data.readme && data.readme.title && data.readme.content) {
-        const fullPath = buildFullPath(sourceType, catInfo, null, null);
-        collectedArticles.push({
-            title: data.readme.title,
-            contentPath: data.readme.content,
-            category: catInfo.category,
-            parentCategory: catInfo.parentCategory,
-            dataKey,
-            sourceType,
-            fullPath,
-            groupPath,
-            seriesIndex: -1,
-            varietyIndex: -1,
-            seriesName: ''
-        });
-    }
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
 
         if (series.readme && series.readme.title && series.readme.content) {
-            // 高精度路径：包含系列名，用于卡片展示
             const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
             collectedArticles.push({
                 title: series.readme.title,
@@ -78,7 +58,6 @@ function collectFromSource(data, dataKey, sourceType) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 if (variety.readme && variety.readme.title && variety.readme.content) {
-                    // 高精度路径：包含系列名和品种名，用于卡片展示
                     const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
                     collectedArticles.push({
                         title: variety.readme.title,
@@ -99,7 +78,6 @@ function collectFromSource(data, dataKey, sourceType) {
     }
 }
 
-// 高精度路径：包含系列名和品种名，用于卡片展示（用 > 连接）
 function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
     const top = sourceType === 'coins' ? '硬币' : '纸币';
     const parts = [top];
@@ -114,7 +92,6 @@ function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
     return parts;
 }
 
-// 低精度路径：只到分类树层级，用于分组标题（用 - 连接）
 function buildGroupPath(sourceType, catInfo) {
     const top = sourceType === 'coins' ? '硬币' : '纸币';
     const parts = [top];
@@ -416,14 +393,13 @@ function renderArticleList() {
         });
     }
 
-    let html = `<div class="overview-header"><h2>文章</h2><p>共${articles.length}篇</p></div>`;
+    let html = `<div class="overview-header"><h2>文章</h2><p>共 ${articles.length} 篇</p></div>`;
     if (articles.length === 0) {
-        html += '<div class="empty-state">啥都木有(=ｘェｘ=)</div>';
+        html += '<div class="empty-state">暂无文章</div>';
         app.innerHTML = html;
         return;
     }
 
-    // 使用低精度路径（groupPath）进行分组
     const grouped = {};
     for (const article of articles) {
         const pathStr = article.groupPath ? article.groupPath.join(' - ') : (article.parentCategory + ' - ' + article.category);
@@ -440,7 +416,6 @@ function renderArticleList() {
             html += `<div class="search-result-item" onclick="openArticleReader(${idx})">`;
             html += `<div class="info">`;
             html += `<div class="name">${highlightText(escapeHtml(article.title), articleSearchKeyword)}</div>`;
-            // 使用高精度路径（fullPath）展示，用 > 连接
             if (article.fullPath && article.fullPath.length > 0) {
                 html += `<div class="article-category" style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0;">${escapeHtml(article.fullPath.join(' > '))}</div>`;
             }
@@ -499,10 +474,13 @@ function openArticleReader(index) {
 
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
+        // 回到顶部
+        const content = document.querySelector('.content');
+        if (content) content.scrollTop = 0;
         return;
     }
 
-    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">全力加载中...</div>`;
+    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">加载中...</div>`;
     app.innerHTML = html;
 
     let filePath = article.contentPath;
@@ -510,13 +488,16 @@ function openArticleReader(index) {
 
     fetch('../notecollection/' + filePath)
         .then(response => {
-            if (!response.ok) throw new Error('加载失败，燃尽了(；ﾟ(OO)ﾟ)');
+            if (!response.ok) throw new Error('加载失败');
             return response.text();
         })
         .then(content => {
             articleContentCache[article.contentPath] = content;
             articlePlainTextCache[article.contentPath] = stripHtml(content);
             renderArticleReader(article, content);
+            // 回到顶部
+            const content = document.querySelector('.content');
+            if (content) content.scrollTop = 0;
         })
         .catch(() => {
             app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
