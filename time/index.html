@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>全屏时钟</title>
     <style>
+        /* ═══ 自定义西文字体：OCR-B ═══ */
+        @font-face {
+            font-family: "OCRB10";
+            src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,7 +21,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', 'Inter', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
             transition: background-color 0.3s ease, color 0.3s ease;
             min-height: 100vh;
             display: flex;
@@ -85,7 +94,9 @@
         .time-display {
             font-size: clamp(3.5rem, 15vw, 10rem);
             font-weight: 700;
-            font-family: 'Fira Code', 'Segoe UI', monospace;
+            font-family: "OCRB10", "Segoe UI", monospace;
+            transform: scaleX(0.9);
+            transform-origin: center center;
             letter-spacing: 0.02em;
             line-height: 1.2;
             margin-bottom: 1rem;
@@ -106,13 +117,14 @@
             opacity: 0.85;
             font-weight: 400;
             letter-spacing: 1px;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", sans-serif;
         }
 
         .lunar-date {
             font-size: 0.9rem;
             margin-top: 0.4rem;
             opacity: 0.7;
-            font-family: system-ui, 'Segoe UI', monospace;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", sans-serif;
         }
 
         /* 控制按钮区 */
@@ -146,7 +158,7 @@
         .footer {
             text-align: center;
             margin-top: 1rem;
-            font-family: system-ui, 'Segoe UI', monospace;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", sans-serif;
             transition: color 0.3s ease;
         }
 
@@ -221,16 +233,15 @@
 
     <!-- 模式切换按钮区 -->
     <div class="controls">
-        <button class="mode-btn" id="lightModeBtn">☀️ 浅色</button>
-        <button class="mode-btn" id="darkModeBtn">🌙 深色</button>
-        <button class="mode-btn" id="toggleFormatBtn">🕒 24小时制</button>
+        <button class="mode-btn" id="themeToggleBtn">深色模式</button>
+        <button class="mode-btn" id="toggleFormatBtn">12小时制</button>
     </div>
 </div>
 
 <!-- 三行脚注 -->
 <div class="footer">
     <div class="footer-line">网页建立时间：2026年4月5日</div>
-    <div class="footer-line">© 2026 铜香结 版权所有</div>
+    <div class="footer-line">&copy; 2026 铜香结 版权所有</div>
     <div class="footer-line">Powered by GitHub Pages</div>
 </div>
 
@@ -362,7 +373,7 @@
         // 更新按钮文字
         function updateToggleButtonText() {
             if (toggleBtn) {
-                toggleBtn.innerHTML = is24Hour ? "🕛 12小时制" : "🕒 24小时制";
+                toggleBtn.textContent = is24Hour ? "12小时制" : "24小时制";
             }
         }
         
@@ -432,17 +443,31 @@
             document.getElementById('lunarDate').textContent = `农历 ${lunarStr}`;
         }
         
-        // 切换主题模式
+        // 切换主题模式（合并为一个按钮）
+        let currentTheme = 'light';  // 'light' 或 'dark'
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        
         function setTheme(mode) {
             const body = document.body;
+            currentTheme = mode;
             if (mode === 'dark') {
                 body.classList.remove('light-mode');
                 body.classList.add('dark-mode');
+                themeToggleBtn.textContent = '浅色模式';
                 localStorage.setItem('clockTheme', 'dark');
             } else {
                 body.classList.remove('dark-mode');
                 body.classList.add('light-mode');
+                themeToggleBtn.textContent = '深色模式';
                 localStorage.setItem('clockTheme', 'light');
+            }
+        }
+        
+        function toggleTheme() {
+            if (currentTheme === 'light') {
+                setTheme('dark');
+            } else {
+                setTheme('light');
             }
         }
         
@@ -475,13 +500,8 @@
         
         // 事件绑定
         function bindEvents() {
-            const lightBtn = document.getElementById('lightModeBtn');
-            const darkBtn = document.getElementById('darkModeBtn');
-            if (lightBtn) {
-                lightBtn.addEventListener('click', () => setTheme('light'));
-            }
-            if (darkBtn) {
-                darkBtn.addEventListener('click', () => setTheme('dark'));
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', toggleTheme);
             }
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', toggleTimeFormat);
