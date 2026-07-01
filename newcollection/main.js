@@ -1336,19 +1336,33 @@ function computeStats(typeFilter) {
     const pricedItems = prices.filter(p => !p.noPrice);
     const avgPrice = pricedItems.length > 0 ? Math.round(totalPrice / pricedItems.length) : 0;
 
+    // ===== 评级统计（支持 EPQ/E 后缀及真品） =====
     const gradeCounts = {};
     let ungraded = 0;
     for (const item of filtered) {
         const cond = item.copy.condition || item.copy.grade || '';
-        const match = cond.match(/(\d+)/);
+        
+        // 处理"真品"
+        if (cond.includes('真品')) {
+            gradeCounts['真品'] = (gradeCounts['真品'] || 0) + 1;
+            continue;
+        }
+        
+        // 提取数字 + 可选的 E
+        const match = cond.match(/(\d+)(E)?/);
         if (match) {
-            const g = match[1];
-            gradeCounts[g] = (gradeCounts[g] || 0) + 1;
+            const displayGrade = match[1] + (match[2] || '');
+            gradeCounts[displayGrade] = (gradeCounts[displayGrade] || 0) + 1;
         } else {
             ungraded++;
         }
     }
-    const sortedGrades = Object.entries(gradeCounts).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+    // 排序：带E的比不带E的高0.5，真品视为-1（排最后）
+    const sortedGrades = Object.entries(gradeCounts).sort((a, b) => {
+        const aVal = a[0] === '真品' ? -1 : parseFloat(a[0].replace('E', '.5'));
+        const bVal = b[0] === '真品' ? -1 : parseFloat(b[0].replace('E', '.5'));
+        return bVal - aVal;
+    });
 
     const yearCounts = {};
     for (const item of filtered) {
@@ -1587,7 +1601,8 @@ function buildRatingHTML(stats) {
     for (const [grade, count] of stats.sortedGrades) {
         const pct = (count / maxGradeCount * 100).toFixed(0);
         html += `<div class="stat-bar-row">`;
-        html += `<span class="stat-bar-label">${grade} 分</span>`;
+        // 直接显示 grade 字符串，不附加"分"字
+        html += `<span class="stat-bar-label">${grade}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
         html += `<span class="stat-bar-count">${count} 件</span>`;
         html += `</div>`;
