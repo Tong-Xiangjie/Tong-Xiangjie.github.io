@@ -475,8 +475,8 @@ function openArticleReader(index) {
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
         // 回到顶部
-        const content = document.querySelector('.content');
-        if (content) content.scrollTop = 0;
+        const contentEl = document.querySelector('.content');
+        if (contentEl) contentEl.scrollTop = 0;
         return;
     }
 
@@ -496,8 +496,8 @@ function openArticleReader(index) {
             articlePlainTextCache[article.contentPath] = stripHtml(content);
             renderArticleReader(article, content);
             // 回到顶部
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = 0;
+            const contentEl = document.querySelector('.content');
+            if (contentEl) contentEl.scrollTop = 0;
         })
         .catch(() => {
             app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
