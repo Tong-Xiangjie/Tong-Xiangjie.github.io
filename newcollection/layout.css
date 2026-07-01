@@ -323,7 +323,7 @@ body {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
-    padding: 16px;
+    padding: 16px 8px 16px 16px;
     background: var(--bg);
     transition: background 0.2s ease, flex 0.3s ease, width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
 }
@@ -476,7 +476,13 @@ body {
 .series-header .series-desc { font-size: 0.85rem; color: var(--text-secondary); }
 
 /* ========== 文章阅读器 ========== */
-.article-reader { max-width: 800px; margin: 0 auto; padding: 10px 0; line-height: 1.8; font-size: 0.95rem; }
+.article-reader {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 8px 0;
+    line-height: 1.8;
+    font-size: 0.95rem;
+}
 .article-reader p { margin: 12px 0; }
 .article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; }
 .article-reader center { display: block; text-align: center; }
@@ -627,7 +633,14 @@ body.modal-open {
 .empty-colors-hint { color: var(--text-secondary); font-size: 0.8rem; margin: 4px 0; }
 
 /* ========== 返回按钮 ========== */
-.back-bar { margin-bottom: 10px; }
+.back-bar {
+    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 8px 0;
+}
 .back-btn { background: none; border: 1px solid var(--border); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: var(--text); transition: background 0.15s; }
 .back-btn:hover { background: var(--sidebar-bg); }
 
