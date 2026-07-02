@@ -20,9 +20,6 @@ let specialPageCaches = {};
 // 评级切换状态
 let ratingMode = 'notes';
 
-// 文章搜索索引模式（标题/全文），与实时/点击无关
-let articleSearchMode = 'title';
-
 let modeStates = {
     notes: {
         currentCategoryId: null,
@@ -698,45 +695,6 @@ function bindSearchInputHandler() {
     }
 }
 
-/* ===== 切换搜索模式（纸币/硬币专用） ===== */
-function toggleSearchMode() {
-    if (currentMode === 'articles') {
-        toggleArticleSearchMode();
-        return;
-    }
-    if (currentMode === 'special' || currentMode === 'settings') return;
-
-    const saved = modeStates[currentMode];
-    const currentModeValue = saved ? saved.searchMode : 'realtime';
-    const newMode = currentModeValue === 'realtime' ? 'click' : 'realtime';
-    searchMode = newMode;
-    // 保存到板块状态
-    if (saved) {
-        modeStates[currentMode] = { ...saved, searchMode: newMode };
-    }
-    // 重新绑定输入监听
-    bindSearchInputHandler();
-    updateSearchUIForMode();
-}
-
-/* ===== 文章切换索引模式 ===== */
-function toggleArticleSearchMode() {
-    articleSearchMode = articleSearchMode === 'title' ? 'full' : 'title';
-    bindSearchInputHandler();
-    updateSearchUIForMode();
-    // 根据当前模式重新触发搜索
-    const inp = document.getElementById('searchInput');
-    if (inp && inp.value.trim()) {
-        if (articleSearchMode === 'title') {
-            filterArticlesByTitle(inp.value.trim());
-        } else {
-            doSearch();
-        }
-    } else {
-        collectAndRenderAllArticles();
-    }
-}
-
 function onTabClick(target) {
     // ===== 切出前统一保存状态 =====
     saveFullState();
@@ -840,7 +798,7 @@ function onTabClick(target) {
             currentArticleIndex = articleState.currentIndex;
             articleSearchKeyword = articleState.searchKeyword;
             if (collectedArticles.length === 0) collectAllArticles();
-            // 文章搜索模式强制实时
+            // 文章搜索模式强制实时，由 bindSearchInputHandler 处理
             const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.value = articleSearchKeyword || '';
