@@ -648,8 +648,9 @@ function toggleSearchMode() {
 
     const toggle = document.getElementById('modeToggle');
     const tip = document.getElementById('searchTip');
-    if (toggle) toggle.textContent = newMode === 'click' ? '□' : '■';
-    if (tip) tip.textContent = `当前模式：${newMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
+    const toggleChar = newMode === 'click' ? '□' : '■';
+    if (toggle) toggle.textContent = toggleChar;
+    if (tip) tip.textContent = `当前模式：${newMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${toggleChar}"可切换`;
 
     const input = document.getElementById('searchInput');
     if (input) {
