@@ -253,7 +253,6 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed', isSidebarCollapsed);
     toggle.textContent = isSidebarCollapsed ? '▸' : '◂';
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
-
     // ★ 同步保存到 modeStates
     if (currentMode === 'notes' || currentMode === 'coins') {
         const prev = modeStates[currentMode] || {};
@@ -305,7 +304,6 @@ function renderSidebar() {
     sidebar.innerHTML = html;
 }
 
-/* ===== 滚动到顶部（保留但不再使用） ===== */
 function scrollToTop() {
     const content = document.querySelector('.content');
     if (content) content.scrollTop = 0;
@@ -618,6 +616,65 @@ function saveFullState() {
     }
 }
 
+/* ===== 恢复侧边栏状态（用于离开专题后还原） ===== */
+function restoreSidebarState() {
+    if (currentMode === 'notes' || currentMode === 'coins') {
+        const saved = modeStates[currentMode];
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('sidebarToggle');
+        if (!sidebar || !toggle) return;
+
+        const collapsed = saved ? saved.isSidebarCollapsed : false;
+        sidebar.classList.toggle('collapsed', collapsed);
+        toggle.textContent = collapsed ? '▸' : '◂';
+        toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
+        isSidebarCollapsed = collapsed;
+    }
+}
+
+// 保存搜索输入框的 input 事件函数引用，以便移除和重新绑定
+let currentInputHandler = null;
+
+function bindSearchInputHandler() {
+    const inp = document.getElementById('searchInput');
+    if (!inp) return;
+    // 移除旧监听
+    if (currentInputHandler) {
+        inp.removeEventListener('input', currentInputHandler);
+    }
+    if (currentMode === 'articles') {
+        if (articleSearchMode === 'title') {
+            currentInputHandler = function() {
+                const val = this.value.trim();
+                if (val) filterArticlesByTitle(val);
+                else collectAndRenderAllArticles();
+            };
+        } else {
+            currentInputHandler = doSearch;
+        }
+    } else if (currentMode === 'notes' || currentMode === 'coins') {
+        if (searchMode === 'realtime') {
+            currentInputHandler = function() {
+                const val = this.value.trim();
+                currentSearchKeyword = val;
+                if (val) {
+                    performSearchAndRender(val, currentSearchType);
+                } else {
+                    // 清空搜索词时回到总览
+                    currentView = 'overview';
+                    switchViewContainer(currentMode + '_overview');
+                    renderOverview();
+                }
+            };
+        } else {
+            currentInputHandler = null; // 点击模式下不需要实时
+        }
+    }
+    if (currentInputHandler) {
+        inp.addEventListener('input', currentInputHandler);
+    }
+}
+
 function onTabClick(target) {
     // ===== 切出前统一保存状态 =====
     saveFullState();
@@ -720,20 +777,20 @@ function onTabClick(target) {
             articleSearchKeyword = articleState.searchKeyword;
             if (collectedArticles.length === 0) collectAllArticles();
             searchMode = 'realtime';
-            const si = document.getElementById('searchInput');
-            if (si) {
-                si.removeEventListener('input', doSearch);
-                si.addEventListener('input', doSearch);
+            // 更新搜索输入框
+            const inp = document.getElementById('searchInput');
+            if (inp) {
+                inp.value = articleSearchKeyword || '';
+                bindSearchInputHandler();
             }
             switchViewContainer('articles');
             updateSearchUIForMode();
             renderSidebar();
             if (currentArticleView === 'list') {
                 renderArticleList();
-                restoreExpandedStates({ scrollY: articleState.listScrollY });
+                // 恢复到相应滚动位置
             } else {
                 openArticleReader(currentArticleIndex);
-                restoreExpandedStates({ scrollY: articleState.readerScrollY });
             }
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
@@ -743,50 +800,34 @@ function onTabClick(target) {
         if (target === 'notes' || target === 'coins') {
             currentMode = target;
             const saved = modeStates[target];
+            // 根据是否有搜索关键词决定视图
+            if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
+                currentView = saved.currentView;
+            } else {
+                currentView = 'overview'; // 无搜索词时强制总览
+                // 同时清空保存的搜索视图标记
+                modeStates[target].currentView = 'overview';
+            }
             currentCategoryId = saved.currentCategoryId;
             currentSubId = saved.currentSubId;
-            currentView = saved.currentView;
             currentSearchKeyword = saved.currentSearchKeyword || '';
             currentSearchType = saved.currentSearchType || 'all';
 
             const inp = document.getElementById('searchInput');
             if (inp) {
-                inp.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+                inp.value = currentSearchKeyword;
+                bindSearchInputHandler();
             }
             const typeSelect = document.getElementById('searchType');
             if (typeSelect) {
                 typeSelect.value = currentSearchType;
             }
 
-            if (searchMode === 'realtime') {
-                if (inp) {
-                    inp.removeEventListener('input', doSearch);
-                    inp.addEventListener('input', doSearch);
-                }
-            }
-
             const containerKey = currentMode + '_' + currentView;
             switchViewContainer(containerKey);
 
             updateSearchUIForMode();
-
-            // ★ 恢复侧边栏收起状态
-            if (saved.isSidebarCollapsed) {
-                const sidebar = document.getElementById('sidebar');
-                const toggle = document.getElementById('sidebarToggle');
-                if (sidebar && toggle) {
-                    sidebar.classList.add('collapsed');
-                    toggle.textContent = '▸';
-                    toggle.title = '展开侧边栏';
-                    isSidebarCollapsed = true;
-                }
-            } else {
-                const sidebar = document.getElementById('sidebar');
-                const toggle = document.getElementById('sidebarToggle');
-                if (sidebar) sidebar.classList.remove('collapsed');
-                if (toggle) { toggle.textContent = '◂'; toggle.title = '收起侧边栏'; }
-                isSidebarCollapsed = false;
-            }
+            restoreSidebarState();
 
             renderSidebar();
             if (currentView === 'overview') {
@@ -805,18 +846,14 @@ function onTabClick(target) {
                 if (currentSearchKeyword) {
                     performSearchAndRender(currentSearchKeyword, currentSearchType);
                 } else {
+                    // 防御：不应该发生
                     currentView = 'overview';
                     const newKey = currentMode + '_overview';
                     switchViewContainer(newKey);
                     renderOverview();
-                    restoreExpandedStates({
-                        expandedSeries: saved.expandedSeries,
-                        expandedVarieties: saved.expandedVarieties
-                    });
                 }
             }
 
-            // ★ 触发入场动画
             triggerViewAnimation();
 
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -870,7 +907,6 @@ function onTabClick(target) {
             restoreExpandedStates({ scrollY: 0 });
         }
 
-        // ★ 触发入场动画
         triggerViewAnimation();
 
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -898,10 +934,11 @@ function onTabClick(target) {
         articleSearchKeyword = articleState.searchKeyword;
 
         searchMode = 'realtime';
-        const si = document.getElementById('searchInput');
-        if (si) {
-            si.removeEventListener('input', doSearch);
-            si.addEventListener('input', doSearch);
+
+        const inp = document.getElementById('searchInput');
+        if (inp) {
+            inp.value = articleSearchKeyword || '';
+            bindSearchInputHandler();
         }
 
         const searchContainer = document.querySelector('.top-search-container');
@@ -912,10 +949,8 @@ function onTabClick(target) {
         renderSidebar();
         if (currentArticleView === 'list') {
             renderArticleList();
-            restoreExpandedStates({ scrollY: articleState.listScrollY });
         } else {
             openArticleReader(currentArticleIndex);
-            restoreExpandedStates({ scrollY: articleState.readerScrollY });
         }
         return;
     }
@@ -932,26 +967,29 @@ function onTabClick(target) {
         currentMode = newMode;
 
         const saved = modeStates[newMode];
+
+        // 判断是否保留搜索视图
+        if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
+            currentView = saved.currentView;
+        } else {
+            currentView = 'overview';
+            // 确保输入框清空
+            saved.currentView = 'overview';
+        }
+
         currentCategoryId = saved.currentCategoryId;
         currentSubId = saved.currentSubId;
-        currentView = saved.currentView;
         currentSearchKeyword = saved.currentSearchKeyword || '';
         currentSearchType = saved.currentSearchType || 'all';
 
         const inp = document.getElementById('searchInput');
         if (inp) {
-            inp.value = getDisplayValue(currentSearchKeyword, currentSearchType);
+            inp.value = currentSearchKeyword; // 直接赋值，不依赖未定义的函数
+            bindSearchInputHandler();
         }
         const typeSelect = document.getElementById('searchType');
         if (typeSelect) {
             typeSelect.value = currentSearchType;
-        }
-
-        if (searchMode === 'realtime') {
-            if (inp) {
-                inp.removeEventListener('input', doSearch);
-                inp.addEventListener('input', doSearch);
-            }
         }
 
         const searchContainer = document.querySelector('.top-search-container');
@@ -965,23 +1003,8 @@ function onTabClick(target) {
 
         updateSearchUIForMode();
 
-        // ★ 恢复侧边栏收起状态
-        if (saved.isSidebarCollapsed) {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            if (sidebar && toggle) {
-                sidebar.classList.add('collapsed');
-                toggle.textContent = '▸';
-                toggle.title = '展开侧边栏';
-                isSidebarCollapsed = true;
-            }
-        } else {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            if (sidebar) sidebar.classList.remove('collapsed');
-            if (toggle) { toggle.textContent = '◂'; toggle.title = '收起侧边栏'; }
-            isSidebarCollapsed = false;
-        }
+        // 恢复侧边栏
+        restoreSidebarState();
 
         renderSidebar();
         if (currentView === 'overview') {
@@ -1000,20 +1023,15 @@ function onTabClick(target) {
             if (currentSearchKeyword) {
                 performSearchAndRender(currentSearchKeyword, currentSearchType);
             } else {
+                // 防御
                 currentView = 'overview';
                 const newKey = newMode + '_overview';
                 switchViewContainer(newKey);
                 renderOverview();
-                restoreExpandedStates({
-                    expandedSeries: saved.expandedSeries,
-                    expandedVarieties: saved.expandedVarieties
-                });
             }
         }
 
-        // ★ 触发入场动画
         triggerViewAnimation();
-
         return;
     }
 }
@@ -1054,25 +1072,12 @@ function renderSpecialOverview() {
 
     document.querySelector('.body-row')?.classList.add('special-overview-mode');
 
-    // ★ 先保存当前 sidebar 状态到 modeStates（以备回来时恢复）
-    if (currentMode === 'notes' || currentMode === 'coins') {
-        const prev = modeStates[currentMode] || {};
-        modeStates[currentMode] = {
-            ...prev,
-            isSidebarCollapsed: isSidebarCollapsed
-        };
-    }
+    // ★ 不再修改 isSidebarCollapsed 全局变量，而是强制展开侧边栏（仅显示用途）
+    if (sidebar) sidebar.classList.remove('collapsed');
+    // 隐藏 toggle 按钮，因为专题概览不需要切换
+    if (toggleBtn) toggleBtn.style.display = 'none';
 
-    // ★ 展开侧边栏
-    if (sidebar) {
-        sidebar.classList.remove('collapsed');
-    }
-    if (toggleBtn) {
-        toggleBtn.style.display = 'none';
-        toggleBtn.textContent = '◂';
-    }
-    isSidebarCollapsed = false;
-
+    // 渲染专题列表作为侧边栏
     let html = '';
     for (const config of getSpecialConfigs()) {
         const isActive = selectedSpecial === config.id;
@@ -1083,7 +1088,6 @@ function renderSpecialOverview() {
     sidebar.innerHTML = html;
 
     app.innerHTML = '';
-
     // ★ 触发淡入动画
     triggerViewAnimation();
 }
@@ -1968,9 +1972,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    if (searchMode === 'realtime') {
-        document.getElementById('searchInput')?.addEventListener('input', doSearch);
-    }
+    // 初始绑定搜索输入监听
+    bindSearchInputHandler();
 
     setupModalEvents();
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
