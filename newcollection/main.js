@@ -744,7 +744,6 @@ function onTabClick(target) {
             articleSearchKeyword = articleState.searchKeyword;
             if (collectedArticles.length === 0) collectAllArticles();
             searchMode = 'realtime';
-            // 更新搜索输入框
             const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.value = articleSearchKeyword || '';
@@ -770,7 +769,6 @@ function onTabClick(target) {
             const saved = modeStates[target];
             // 恢复搜索模式
             searchMode = saved ? saved.searchMode : 'realtime';
-            // 根据是否有搜索关键词决定视图
             if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
                 currentView = saved.currentView;
             } else {
@@ -785,7 +783,6 @@ function onTabClick(target) {
             const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.value = currentSearchKeyword;
-                // 重新绑定搜索事件
                 inp.removeEventListener('input', doSearch);
                 if (searchMode === 'realtime') {
                     inp.addEventListener('input', doSearch);
@@ -868,7 +865,6 @@ function onTabClick(target) {
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
             currentSearchType = settingsReturnState.currentSearchType || 'all';
-            // 恢复搜索模式
             const saved = modeStates[currentMode];
             searchMode = saved ? saved.searchMode : 'realtime';
         }
@@ -949,7 +945,6 @@ function onTabClick(target) {
         // 恢复搜索模式
         searchMode = saved ? saved.searchMode : 'realtime';
 
-        // 判断是否保留搜索视图
         if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
             currentView = saved.currentView;
         } else {
@@ -965,7 +960,6 @@ function onTabClick(target) {
         const inp = document.getElementById('searchInput');
         if (inp) {
             inp.value = currentSearchKeyword;
-            // 重新绑定搜索事件
             inp.removeEventListener('input', doSearch);
             if (searchMode === 'realtime') {
                 inp.addEventListener('input', doSearch);
@@ -1952,6 +1946,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // 绑定实时搜索（与 search.js 的 toggleSearchMode 一致，使用 doSearch）
     if (searchMode === 'realtime') {
         document.getElementById('searchInput')?.addEventListener('input', doSearch);
     }
