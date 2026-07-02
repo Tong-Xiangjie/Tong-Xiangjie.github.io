@@ -4,7 +4,7 @@ let currentTab = 'notes';
 let currentCategoryId = null;
 let currentSubId = null;
 let currentView = 'overview';
-// ★[MOD] 删除全局 searchMode，改为从 modeStates 读取
+// ★ 删除全局 searchMode，改用 getEffectiveSearchMode() 从 modeStates 读取
 let currentSearchKeyword = '';
 let currentSearchType = 'all';
 let scrollMemory = {};
@@ -69,7 +69,7 @@ let currentModalImg2 = '';
 
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ★[MOD] 获取当前模式的独立搜索模式
+/** ★ 获取当前模式的独立搜索模式（纸币/硬币从modeStates读，文章强制实时） */
 function getEffectiveSearchMode() {
     if (currentMode === 'articles') return 'realtime';
     if (currentMode === 'notes' || currentMode === 'coins') {
@@ -108,10 +108,8 @@ function switchViewContainer(key) {
     if (app) app.style.display = 'none';
 
     if (key === 'articles' || key === 'special' || key === 'settings') {
-        // 这 3 个模式使用 #app 作为滚动容器
         if (app) app.style.display = 'block';
     } else {
-        // notes/coins 模式使用独立滚动容器
         const container = ensureViewContainer(key);
         container.style.display = 'block';
     }
@@ -124,7 +122,6 @@ function triggerViewAnimation() {
         : currentMode + '_' + currentView;
     const el = getViewContainer(containerKey);
     if (!el) return;
-    // 双重 rAF 确保 DOM 已渲染完毕
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             el.classList.remove('content-enter');
@@ -267,14 +264,9 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed', isSidebarCollapsed);
     toggle.textContent = '☰';
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
-    // ★ 同步保存到 modeStates
-    if (currentMode === 'notes' || currentMode === 'coins') {
-        const prev = modeStates[currentMode] || {};
-        modeStates[currentMode] = {
-            ...prev,
-            isSidebarCollapsed: isSidebarCollapsed
-        };
-    }
+    // ★ 不论当前什么模式，都同步更新 notes 和 coins 的 isSidebarCollapsed
+    if (modeStates.notes) modeStates.notes.isSidebarCollapsed = isSidebarCollapsed;
+    if (modeStates.coins) modeStates.coins.isSidebarCollapsed = isSidebarCollapsed;
 }
 
 function renderSidebar() {
@@ -352,7 +344,6 @@ function onSidebarItemClick(catId) {
     if (!cat) return;
 
     if (currentCategoryId === catId) {
-        // 返回概览
         currentCategoryId = null;
         currentSubId = null;
         currentView = 'overview';
@@ -363,7 +354,6 @@ function onSidebarItemClick(catId) {
         return;
     }
 
-    // 切换到分类
     currentCategoryId = catId;
     currentView = 'category';
     if (cat.children) {
@@ -558,7 +548,6 @@ function renderCategoryOverview(cat) {
     triggerViewAnimation();
 }
 
-// ★[MOD] 使用 getEffectiveSearchMode() 替代全局 searchMode
 function updateSearchUIForMode() {
     const select = document.getElementById('searchType');
     const toggle = document.getElementById('modeToggle');
@@ -577,24 +566,22 @@ function updateSearchUIForMode() {
         toggle.classList.add('hidden');
         tip.textContent = '';
     } else {
-        // ★[MOD] 纸币/硬币：从 modeStates 读取独立的搜索模式
-        const modeSearch = getEffectiveSearchMode();
         select.classList.remove('hidden');
         toggle.classList.remove('hidden');
+        const modeSearch = getEffectiveSearchMode();
         toggle.textContent = modeSearch === 'click' ? '□' : '■';
         toggle.title = '切换搜索模式';
         tip.textContent = `当前模式：${modeSearch === 'click' ? '点击搜索' : '实时搜索'} | 点击"${modeSearch === 'click' ? '□' : '■'}"可切换`;
     }
 }
 
-// ★[NEW] ========== 搜索核心功能（整合到 file0） ==========
+// ========== ★ 搜索核心函数（整合到main） ==========
 function doSearch() {
     const input = document.getElementById('searchInput');
     if (!input) return;
 
     const rawKeyword = input.value.trim();
 
-    // 文章模式搜索（强制实时）
     if (currentMode === 'articles') {
         saveScroll('articles');
         articleSearchKeyword = rawKeyword;
@@ -602,7 +589,6 @@ function doSearch() {
         return;
     }
 
-    // 纸币/硬币搜索
     const typeSelect = document.getElementById('searchType');
     const type = typeSelect ? typeSelect.value : 'all';
     currentSearchKeyword = rawKeyword;
@@ -632,7 +618,6 @@ function resetSearch() {
     }
 }
 
-// ★[NEW] 切换搜索模式（使用 modeStates 独立管理）
 function toggleSearchMode() {
     if (currentMode === 'articles') {
         if (typeof toggleArticleSearchMode === 'function') {
@@ -940,6 +925,7 @@ function backFromSearch() {
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
 }
+// ========== ★ 搜索函数结束 ==========
 
 /* ===== 统一保存完整状态（切出Tab时调用） ===== */
 function saveFullState() {
@@ -955,7 +941,6 @@ function saveFullState() {
             currentView,
             currentSearchKeyword: currentSearchKeyword || '',
             currentSearchType: currentSearchType || 'all',
-            // ★[MOD] 保存当前模式的独立 searchMode（已由 toggleSearchMode 写入 modeStates）
             searchMode: modeStates[currentMode] ? modeStates[currentMode].searchMode : 'realtime',
             isSidebarCollapsed: isSidebarCollapsed,
             expandedSeries: expanded.expandedSeries,
@@ -1110,7 +1095,7 @@ function onTabClick(target) {
             currentArticleIndex = articleState.currentIndex;
             articleSearchKeyword = articleState.searchKeyword;
             if (collectedArticles.length === 0) collectAllArticles();
-            // ★[MOD] 文章模式独立，不影响纸币/硬币的搜索模式
+            // 文章强制实时，不修改全局 searchMode
             const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.value = articleSearchKeyword || '';
@@ -1134,7 +1119,7 @@ function onTabClick(target) {
         if (target === 'notes' || target === 'coins') {
             currentMode = target;
             const saved = modeStates[target];
-            // ★[MOD] 从 modeStates 恢复独立搜索模式，不依赖全局变量
+            // 由 modeStates 管理搜索模式
             if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
                 currentView = saved.currentView;
             } else {
@@ -1150,7 +1135,6 @@ function onTabClick(target) {
             if (inp) {
                 inp.value = currentSearchKeyword;
                 inp.removeEventListener('input', doSearch);
-                // ★[MOD] 使用独立搜索模式
                 if (getEffectiveSearchMode() === 'realtime') {
                     inp.addEventListener('input', doSearch);
                 }
@@ -1232,7 +1216,7 @@ function onTabClick(target) {
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
             currentSearchType = settingsReturnState.currentSearchType || 'all';
-            // ★[MOD] 从 modeStates 恢复
+            // 由 modeStates 管理搜索模式
         }
         switchViewContainer(currentMode + '_' + currentView);
         updateSearchUIForMode();
@@ -1271,7 +1255,7 @@ function onTabClick(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
 
-        // ★[MOD] 文章模式独立，不设置全局 searchMode
+        // 文章强制实时，不修改全局 searchMode
 
         const inp = document.getElementById('searchInput');
         if (inp) {
@@ -1308,7 +1292,7 @@ function onTabClick(target) {
 
         const saved = modeStates[newMode];
 
-        // ★[MOD] 从 modeStates 恢复独立搜索模式，不设全局变量
+        // 由 modeStates 管理搜索模式
 
         if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
             currentView = saved.currentView;
@@ -1326,7 +1310,6 @@ function onTabClick(target) {
         if (inp) {
             inp.value = currentSearchKeyword;
             inp.removeEventListener('input', doSearch);
-            // ★[MOD] 使用独立搜索模式
             if (getEffectiveSearchMode() === 'realtime') {
                 inp.addEventListener('input', doSearch);
             }
@@ -1415,7 +1398,7 @@ function renderSpecialOverview() {
 
     document.querySelector('.body-row')?.classList.add('special-overview-mode');
 
-    // ★ 不再修改 isSidebarCollapsed 全局变量，而是强制展开侧边栏（仅显示用途）
+    // 专题概览强制展开侧边栏（仅UI），不影响 notes/coins 的存储状态
     if (sidebar) sidebar.classList.remove('collapsed');
     // 隐藏 toggle 按钮，因为专题概览不需要切换
     if (toggleBtn) toggleBtn.style.display = 'none';
@@ -1431,7 +1414,6 @@ function renderSpecialOverview() {
     sidebar.innerHTML = html;
 
     app.innerHTML = '';
-    // ★ 触发淡入动画
     triggerViewAnimation();
 }
 
@@ -1442,6 +1424,16 @@ function onSpecialOverviewItemClick(specialId) {
 
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = '';
+
+    // ★ 恢复 notes/coins 的侧边栏折叠状态
+    const savedNotes = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
+    const savedCoins = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
+    const shouldCollapse = savedNotes || savedCoins;
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed', shouldCollapse);
+    }
+    isSidebarCollapsed = shouldCollapse;
 
     const config = getSpecialConfigs().find(c => c.id === specialId);
     if (config && config.categories && config.categories.length > 0) {
@@ -1945,7 +1937,6 @@ function buildRatingHTML(stats) {
     for (const [grade, count] of stats.sortedGrades) {
         const pct = (count / maxGradeCount * 100).toFixed(0);
         html += `<div class="stat-bar-row">`;
-        // 直接显示 grade 字符串，不附加"分"字
         html += `<span class="stat-bar-label">${grade}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
         html += `<span class="stat-bar-count">${count} 件</span>`;
@@ -2308,14 +2299,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') {
             if (currentMode === 'articles') {
                 doSearch();
-            // ★[MOD] 使用独立搜索模式判断
             } else if (getEffectiveSearchMode() === 'click') {
                 doSearch();
             }
         }
     });
 
-    // ★[MOD] 使用独立搜索模式绑定初始实时搜索
+    // 绑定实时搜索（使用独立搜索模式）
     if (getEffectiveSearchMode() === 'realtime') {
         document.getElementById('searchInput')?.addEventListener('input', doSearch);
     }
