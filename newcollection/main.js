@@ -443,7 +443,7 @@ function renderCurrentCategory() {
     const data = getData(dataKey);
     if (!data) {
         const app = getViewContainer(currentMode + '_category');
-        app.innerHTML = '<div class="empty-state">暂无数据</div>';
+        app.innerHTML = '<div class="empty-state">啥都木有</div>';
         triggerViewAnimation();
         return;
     }
@@ -497,9 +497,9 @@ function renderCategoryOverview(cat) {
         }
     }
 
-    let html = `<div class="overview-header"><h2>${escapeHtml(cat.name)}</h2><p>共 ${allItems.length} 件藏品</p></div>`;
+    let html = `<div class="overview-header"><h2>${escapeHtml(cat.name)}</h2><p>共${allItems.length}件藏品</p></div>`;
     if (allItems.length === 0) {
-        html += '<div class="empty-state">暂无数据</div>';
+        html += '<div class="empty-state">啥都木有</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -513,7 +513,7 @@ function renderCategoryOverview(cat) {
 
     for (const [label, items] of Object.entries(grouped)) {
         html += `<div class="search-result-group">`;
-        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
+        html += `<div class="search-group-header">${escapeHtml(label)}<span class="count">${items.length}件</span></div>`;
         for (const item of items) {
             const c = item.copy;
             const img1 = c.img1 ? imgBase + c.img1 : '';
@@ -528,7 +528,7 @@ function renderCategoryOverview(cat) {
             html += `<div class="dual-thumb">`;
             if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
             if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
@@ -559,8 +559,8 @@ function updateSearchUIForMode() {
         select.classList.add('hidden');
         toggle.classList.remove('hidden');
         toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
-        toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前：标题索引，点击切换为全字段索引' : '当前：全字段索引，点击切换为标题索引';
-        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '文章搜索：标题索引（实时）' : '文章搜索：全字段索引（实时）';
+        toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击“标”字可以切换为全字段索引' : '当前为全字段索引，点击“全”字可以切换为按标题索引';
+        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索）' : '当前模式为全字段索引（实时搜索）';
     } else if (currentMode === 'special' || currentMode === 'settings') {
         select.classList.add('hidden');
         toggle.classList.add('hidden');
@@ -571,7 +571,7 @@ function updateSearchUIForMode() {
         const modeSearch = getEffectiveSearchMode();
         toggle.textContent = modeSearch === 'click' ? '□' : '■';
         toggle.title = '切换搜索模式';
-        tip.textContent = `当前模式：${modeSearch === 'click' ? '点击搜索' : '实时搜索'} | 点击"${modeSearch === 'click' ? '□' : '■'}"可切换`;
+        tip.textContent = `当前搜索模式为“${modeSearch === 'click' ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === 'click' ? '□' : '■'}”可切换至${modeSearch === 'click' ? '实时搜索' : '点击搜索'}模式～`;
     }
 }
 
@@ -635,7 +635,7 @@ function toggleSearchMode() {
     const tip = document.getElementById('searchTip');
     const toggleChar = newMode === 'click' ? '□' : '■';
     if (toggle) toggle.textContent = toggleChar;
-    if (tip) tip.textContent = `当前模式：${newMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${toggleChar}"可切换`;
+    if (tip) tip.textContent = `当前搜索模式为“${modeSearch === 'click' ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === 'click' ? '□' : '■'}”可切换至${modeSearch === 'click' ? '实时搜索' : '点击搜索'}模式～`;
 
     const input = document.getElementById('searchInput');
     if (input) {
@@ -777,13 +777,13 @@ function renderSearchResults(results, rawKeyword, type) {
     const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
-    html += `<div class="panel-header"><h2>搜索结果（${modeLabel}）</h2>`;
-    html += `<p>找到 ${results.length} 个匹配`;
-    if (rawKeyword) html += ` · 关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}`;
+    html += `<div class="panel-header"><h2>${modeLabel}板块搜索结果</h2>`;
+    html += `<p>共找到${results.length}件符合要求的藏品`;
+    if (rawKeyword) html += ` · 搜索关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}`;
     html += `</p></div>`;
 
     if (results.length === 0) {
-        html += `<div class="empty-state">暂无匹配结果</div>`;
+        html += '<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •`υ</div>';
         app.innerHTML = html;
         requestAnimationFrame(() => {
             app.classList.remove('content-enter');
@@ -825,7 +825,7 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `<div class="dual-thumb">`;
             if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
             if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
@@ -1524,16 +1524,16 @@ function renderSpecialContent() {
     if (currentSubId && currentSubId !== 'all') {
         const catConfig = config.categories.find(c => c.id === currentSubId);
         if (catConfig) {
-            html += `<p style="margin-top:-8px;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(catConfig.name)} · 共 ${filteredData.length} 项</p>`;
+            html += `<p style="margin-top:-8px;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(catConfig.name)} · 共${filteredData.length}项</p>`;
         }
     } else {
-        html += `<p style="margin-top:-8px;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">共 ${filteredData.length} 项</p>`;
+        html += `<p style="margin-top:-8px;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">共${filteredData.length}项</p>`;
     }
 
     for (const year of sortedYears) {
         const items = yearGroups[year];
         html += `<div class="special-year-section">`;
-        html += `<div class="special-year-title">${year} 年 <span class="count">${items.length} 项</span></div>`;
+        html += `<div class="special-year-title">${year} 年 <span class="count">${items.length}项</span></div>`;
         html += `<div class="special-year-grid">`;
         for (const item of items) {
             const imgSrc = item.yearImg ? imgBase + item.yearImg : '';
@@ -1865,7 +1865,7 @@ function renderPriceListItems(prices, order, filter, filterInfo) {
         html += `</div>`;
     }
     if (sorted.length === 0) {
-        html += `<div class="price-list-empty">无匹配结果</div>`;
+        html += `<div class="price-list-empty">啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
     }
     return html;
 }
@@ -1918,7 +1918,7 @@ function onPriceSortOrFilterChange() {
             const pricedItems = filteredPrices.filter(p => !p.noPrice);
             const avg = pricedItems.length > 0 ? Math.round(total / pricedItems.length) : 0;
             summaryEl.style.display = 'block';
-            summaryEl.innerHTML = `<div class="price-list-summary-row"><span>板块总投入</span><span>${total.toFixed(0)} 元</span></div><div class="price-list-summary-row"><span>板块均价</span><span>${avg} 元/件</span></div>`;
+            summaryEl.innerHTML = `<div class="price-list-summary-row"><span>该板块总投入</span><span>${total.toFixed(0)}元</span></div><div class="price-list-summary-row"><span>该板块藏品均价</span><span>${avg}元/件</span></div>`;
         } else {
             summaryEl.style.display = 'none';
         }
@@ -1974,7 +1974,7 @@ function buildRatingHTML(stats) {
         html += `<div class="stat-bar-row">`;
         html += `<span class="stat-bar-label">${grade}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
-        html += `<span class="stat-bar-count">${count} 件</span>`;
+        html += `<span class="stat-bar-count">${count}件</span>`;
         html += `</div>`;
     }
     if (stats.ungraded > 0) {
@@ -1982,11 +1982,11 @@ function buildRatingHTML(stats) {
         html += `<div class="stat-bar-row">`;
         html += `<span class="stat-bar-label">未评级</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill ungraded" style="width:${pct}%"></div></div>`;
-        html += `<span class="stat-bar-count">${stats.ungraded} 件</span>`;
+        html += `<span class="stat-bar-count">${stats.ungraded}件</span>`;
         html += `</div>`;
     }
     if (stats.sortedGrades.length === 0 && stats.ungraded === 0) {
-        html += `<div class="empty-colors-hint">暂无评级数据</div>`;
+        html += `<div class="empty-colors-hint">还没有评级数据鸭～</div>`;
     }
     html += `</div>`;
     return html;
@@ -1999,7 +1999,7 @@ function buildYearHTML(stats) {
     let html = `<div class="stats-bars">`;
     for (const [decade, count] of stats.sortedYears) {
         const pct = (count / maxYearCount * 100).toFixed(0);
-        const label = decade.slice(0, -1) + '年代';
+        const label = decade.slice(0, -1) + 's';
         html += `<div class="stat-bar-row">`;
         html += `<span class="stat-bar-label">${label}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
@@ -2007,7 +2007,7 @@ function buildYearHTML(stats) {
         html += `</div>`;
     }
     if (stats.sortedYears.length === 0) {
-        html += `<div class="empty-colors-hint">暂无年代数据</div>`;
+        html += `<div class="empty-colors-hint">还没有年代数据鸭～</div>`;
     }
     html += `</div>`;
     return html;
@@ -2025,21 +2025,21 @@ function renderSettingsPage() {
 
     // 收藏概况
     html += `<div class="settings-section">`;
-    html += `<h3>收藏概况</h3>`;
+    html += `<h3>藏品数量</h3>`;
     html += `<div class="stats-summary-cards">`;
-    html += `<div class="stat-card"><div class="stat-num">${allStats.total}</div><div class="stat-label">藏品总数</div></div>`;
-    html += `<div class="stat-card"><div class="stat-num">${allStats.notesCount}</div><div class="stat-label">纸币</div></div>`;
-    html += `<div class="stat-card"><div class="stat-num">${allStats.coinsCount}</div><div class="stat-label">硬币</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${allStats.total}</div><div class="stat-label">藏品总数量</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${allStats.notesCount}</div><div class="stat-label">纸币数量</div></div>`;
+    html += `<div class="stat-card"><div class="stat-num">${allStats.coinsCount}</div><div class="stat-label">硬币数量</div></div>`;
     html += `<div class="stat-card"><div class="stat-num">${allStats.prices.filter(p => !p.noPrice).length}</div><div class="stat-label">已记录价格</div></div>`;
     html += `</div>`;
     html += `</div>`;
 
     // 资金概况 + 价格列表
     html += `<div class="settings-section">`;
-    html += `<h3>资金概况</h3>`;
+    html += `<h3>资金投入</h3>`;
     html += `<div class="stats-money">`;
-    html += `<div class="money-row"><span class="money-label">总投入</span><span class="money-value">${allStats.totalPrice.toFixed(0)} 元</span></div>`;
-    html += `<div class="money-row"><span class="money-label">均价</span><span class="money-value">${allStats.avgPrice} 元/件</span></div>`;
+    html += `<div class="money-row"><span class="money-label">藏品总投入</span><span class="money-value">${allStats.totalPrice.toFixed(0)}元</span></div>`;
+    html += `<div class="money-row"><span class="money-label">藏品均价</span><span class="money-value">${allStats.avgPrice}元/件</span></div>`;
     html += `</div>`;
 
     html += `<div class="price-list-wrapper">`;
@@ -2075,7 +2075,7 @@ function renderSettingsPage() {
     html += `<span class="rating-tab ${ratingMode === 'notes' ? 'active' : ''}" data-mode="notes" onclick="switchRatingMode('notes')">纸币</span>`;
     html += `<span class="rating-tab ${ratingMode === 'coins' ? 'active' : ''}" data-mode="coins" onclick="switchRatingMode('coins')">硬币</span>`;
     html += `</div>`;
-    html += `<h3>评级分布</h3>`;
+    html += `<h3>评级得分统计</h3>`;
     html += `</div>`;
     html += `<div id="ratingSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
     html += buildRatingHTML(stats);
@@ -2084,7 +2084,7 @@ function renderSettingsPage() {
 
     // 年代分布
     html += `<div class="settings-section">`;
-    html += `<h3>年代分布</h3>`;
+    html += `<h3>藏品年代统计</h3>`;
     html += `<div id="yearSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
     html += buildYearHTML(stats);
     html += `</div>`;
@@ -2103,7 +2103,7 @@ function renderSettingsPage() {
 
     html += `<div class="saved-colors" id="savedColorsContainer">`;
     if (customColors.length === 0) {
-        html += `<span class="empty-colors-hint">暂无自定义颜色</span>`;
+        html += `<span class="empty-colors-hint">您还没有设定自定义颜色～</span>`;
     } else {
         for (let i = 0; i < customColors.length; i++) {
             const color = customColors[i];
@@ -2127,12 +2127,12 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<h3>数据导出</h3>`;
     html += `<div class="export-buttons">`;
-    html += `<button class="export-btn" onclick="exportJSON()">JSON 备份</button>`;
-    html += `<button class="export-btn" onclick="exportCSV()">CSV 表格</button>`;
-    html += `<button class="export-btn" onclick="exportMarkdown()">报告</button>`;
-    html += `<button class="export-btn" onclick="exportPriceList()">价格清单</button>`;
+    html += `<button class="export-btn" onclick="exportJSON()">数据备份.json</button>`;
+    html += `<button class="export-btn" onclick="exportCSV()">详细表格.csv</button>`;
+    html += `<button class="export-btn" onclick="exportMarkdown()">概览报告.md</button>`;
+    html += `<button class="export-btn" onclick="exportPriceList()">价格清单.txt</button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点击按钮自动下载文件，可备份到本地或分享给藏友</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点击按钮将会自动下载相应文件</p>`;
     html += `</div>`;
 
     html += `</div>`;
@@ -2207,12 +2207,13 @@ function exportJSON() {
             remark: item.copy.remark || ''
         }))
     };
-    downloadFile(JSON.stringify(exportData, null, 2), 'coin-collection.json', 'application/json');
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadFile(JSON.stringify(exportData, null, 2), `铜の币纪 | 藏品数据备份文件 | 导出日期${dateStr}.json`, 'application/json');
 }
 
 function exportCSV() {
     const allCopies = collectAllCopies();
-    const headers = ['类型', '分类', '系列', '冠字号', '年份', '评级', '评级公司', '目录编号', '价格', '购买日期', '材质', '备注'];
+    const headers = ['类型', '分类', '系列', '冠字号', '年份', '评级得分', '评级机构', '目录编号', '购入价格', '购买日期', '材质', '备注'];
     let csv = '\uFEFF' + headers.join(',') + '\n';
     for (const item of allCopies) {
         const c = item.copy;
@@ -2233,7 +2234,8 @@ function exportCSV() {
         ].map(v => '"' + String(v).replace(/\\"/g, '""') + '"');
         csv += row.join(',') + '\n';
     }
-    downloadFile(csv, 'coin-collection.csv', 'text/csv;charset=utf-8');
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadFile(csv, `铜の币纪 | 收藏品详细信息表格 | 导出日期${dateStr}.csv`, 'text/csv;charset=utf-8');
 }
 
 function exportMarkdown() {
@@ -2265,7 +2267,8 @@ function exportMarkdown() {
         if (total > 0) md += '- 小计：' + total.toFixed(0) + ' 元\n';
         md += '\n';
     }
-    downloadFile(md, 'coin-collection-report.md', 'text/markdown;charset=utf-8');
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadFile(md, `铜の币纪 | 收藏品概况报告 | 导出日期${dateStr}.md`, 'text/markdown;charset=utf-8');
 }
 
 function exportPriceList() {
@@ -2277,7 +2280,8 @@ function exportPriceList() {
         text += p.idx + '. ' + p.name + (p.version ? ' (' + p.version + ')' : '') + ' - ' + (p.noPrice ? '-' : p.value + ' 元') + '\n';
     }
     text += '\n合计：' + stats.totalPrice.toFixed(0) + ' 元 | 均价：' + stats.avgPrice + ' 元/件\n';
-    downloadFile(text, 'coin-collection-price-list.txt', 'text/plain;charset=utf-8');
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadFile(text, `铜の币纪 | 价格列表 | 导出日期${dateStr}.txt`, 'text/plain;charset=utf-8');
 }
 
 function downloadFile(content, filename, mimeType) {
