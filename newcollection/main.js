@@ -1001,7 +1001,7 @@ function restoreSidebarState() {
 
         const collapsed = saved ? saved.isSidebarCollapsed : false;
         sidebar.classList.toggle('collapsed', collapsed);
-        toggle.textContent = collapsed ? '▸' : '◂';
+        toggle.textContent = '☰';
         toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
         isSidebarCollapsed = collapsed;
     }
