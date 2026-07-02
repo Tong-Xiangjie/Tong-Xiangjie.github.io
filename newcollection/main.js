@@ -265,7 +265,7 @@ function toggleSidebar() {
     if (!sidebar || !toggle) return;
     isSidebarCollapsed = !isSidebarCollapsed;
     sidebar.classList.toggle('collapsed', isSidebarCollapsed);
-    toggle.textContent = isSidebarCollapsed ? '▸' : '◂';
+    toggle.textContent = '☰';
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
     // ★ 同步保存到 modeStates
     if (currentMode === 'notes' || currentMode === 'coins') {
