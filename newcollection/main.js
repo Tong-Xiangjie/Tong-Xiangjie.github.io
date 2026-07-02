@@ -27,7 +27,7 @@ let modeStates = {
         currentView: 'overview',
         currentSearchKeyword: '',
         currentSearchType: 'all',
-        searchMode: 'realtime',          // ★ 独立存储搜索模式
+        searchMode: 'realtime',          // ★ 新增：独立存储搜索模式
         isSidebarCollapsed: false,
         expandedSeries: [],
         expandedVarieties: [],
@@ -41,7 +41,7 @@ let modeStates = {
         currentView: 'overview',
         currentSearchKeyword: '',
         currentSearchType: 'all',
-        searchMode: 'realtime',          // ★ 独立存储搜索模式
+        searchMode: 'realtime',          // ★ 新增：独立存储搜索模式
         isSidebarCollapsed: false,
         expandedSeries: [],
         expandedVarieties: [],
@@ -348,7 +348,7 @@ function onSidebarItemClick(catId) {
         switchViewContainer(currentMode + '_overview');
         renderSidebar();
         renderOverview();
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 新增：触发动画
         return;
     }
 
@@ -363,7 +363,6 @@ function onSidebarItemClick(catId) {
     switchViewContainer(currentMode + '_category');
     renderSidebar();
     renderCurrentCategory();
-    triggerViewAnimation();
 }
 
 function onSidebarChildClick(parentId, subId) {
@@ -390,7 +389,7 @@ function onSidebarChildClick(parentId, subId) {
         switchViewContainer(currentMode + '_category');
         renderSidebar();
         renderCurrentCategory();
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 新增：触发动画
         return;
     }
 
@@ -400,7 +399,7 @@ function onSidebarChildClick(parentId, subId) {
     switchViewContainer(currentMode + '_category');
     renderSidebar();
     renderCurrentCategory();
-    triggerViewAnimation();
+    triggerViewAnimation(); // ★ 新增：触发动画
 }
 
 /* ===== renderCurrentCategory ===== */
@@ -408,7 +407,7 @@ function renderCurrentCategory() {
     if (!currentCategoryId) {
         switchViewContainer(currentMode + '_overview');
         renderOverview();
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 新增：触发动画
         return;
     }
 
@@ -419,7 +418,7 @@ function renderCurrentCategory() {
 
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === currentCategoryId);
-    if (!cat) { renderOverview(); triggerViewAnimation(); return; }
+    if (!cat) { renderOverview(); triggerViewAnimation(); return; } // ★ 新增：触发动画
 
     if (cat.children && cat.children.length > 0 && !currentSubId) {
         renderCategoryOverview(cat);
@@ -435,13 +434,13 @@ function renderCurrentCategory() {
         dataKey = cat.dataKey;
     }
 
-    if (!dataKey) { renderOverview(); triggerViewAnimation(); return; }
+    if (!dataKey) { renderOverview(); triggerViewAnimation(); return; } // ★ 新增：触发动画
 
     const data = getData(dataKey);
     if (!data) {
         const app = getViewContainer(currentMode + '_category');
         app.innerHTML = '<div class="empty-state">暂无数据</div>';
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 新增：触发动画
         return;
     }
 
@@ -498,7 +497,7 @@ function renderCategoryOverview(cat) {
     if (allItems.length === 0) {
         html += '<div class="empty-state">暂无数据</div>';
         app.innerHTML = html;
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 替换为统一函数
         return;
     }
 
@@ -542,7 +541,7 @@ function renderCategoryOverview(cat) {
     }
 
     app.innerHTML = html;
-    triggerViewAnimation();
+    triggerViewAnimation(); // ★ 替换为统一函数
 }
 
 function updateSearchUIForMode() {
@@ -566,12 +565,9 @@ function updateSearchUIForMode() {
     } else {
         select.classList.remove('hidden');
         toggle.classList.remove('hidden');
-        // ★ 从板块独立状态读取搜索模式
-        const saved = modeStates[currentMode];
-        const mode = saved ? saved.searchMode : 'realtime';
-        toggle.textContent = mode === 'click' ? '□' : '■';
+        toggle.textContent = searchMode === 'click' ? '□' : '■';
         toggle.title = '切换搜索模式';
-        tip.textContent = `当前模式：${mode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${mode === 'click' ? '□' : '■'}"可切换`;
+        tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"${searchMode === 'click' ? '□' : '■'}"可切换`;
     }
 }
 
@@ -589,7 +585,7 @@ function saveFullState() {
             currentView,
             currentSearchKeyword: currentSearchKeyword || '',
             currentSearchType: currentSearchType || 'all',
-            searchMode: searchMode,              // ★ 保存搜索模式
+            searchMode: searchMode,              // ★ 新增：保存搜索模式
             isSidebarCollapsed: isSidebarCollapsed,
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
@@ -651,9 +647,7 @@ function bindSearchInputHandler() {
     if (currentInputHandler) {
         inp.removeEventListener('input', currentInputHandler);
     }
-
     if (currentMode === 'articles') {
-        // 文章始终实时搜索
         if (articleSearchMode === 'title') {
             currentInputHandler = function() {
                 const val = this.value.trim();
@@ -664,32 +658,24 @@ function bindSearchInputHandler() {
             currentInputHandler = doSearch;
         }
     } else if (currentMode === 'notes' || currentMode === 'coins') {
-        // ★ 从板块独立状态读取搜索模式
-        const saved = modeStates[currentMode];
-        const mode = saved ? saved.searchMode : 'realtime';
-        if (mode === 'realtime') {
+        if (searchMode === 'realtime') {
             currentInputHandler = function() {
                 const val = this.value.trim();
                 currentSearchKeyword = val;
                 if (val) {
-                    currentView = 'search';
                     performSearchAndRender(val, currentSearchType);
                 } else {
                     // 清空搜索词时回到总览
                     currentView = 'overview';
                     switchViewContainer(currentMode + '_overview');
                     renderOverview();
-                    triggerViewAnimation();
+                    triggerViewAnimation(); // ★ 新增：触发动画
                 }
             };
         } else {
             currentInputHandler = null; // 点击模式下不需要实时
         }
-    } else {
-        // 专题/设置模式无搜索
-        currentInputHandler = null;
     }
-
     if (currentInputHandler) {
         inp.addEventListener('input', currentInputHandler);
     }
@@ -763,8 +749,7 @@ function onTabClick(target) {
         } else {
             renderSpecialOverview();
         }
-        // ★ 触发入场动画
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 新增：触发动画
         return;
     }
 
@@ -798,7 +783,8 @@ function onTabClick(target) {
             currentArticleIndex = articleState.currentIndex;
             articleSearchKeyword = articleState.searchKeyword;
             if (collectedArticles.length === 0) collectAllArticles();
-            // 文章搜索模式强制实时，由 bindSearchInputHandler 处理
+            searchMode = 'realtime';
+            // 更新搜索输入框
             const inp = document.getElementById('searchInput');
             if (inp) {
                 inp.value = articleSearchKeyword || '';
@@ -814,20 +800,21 @@ function onTabClick(target) {
             }
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-item[data-target="articles"]`)?.classList.add('active');
-            // ★ 触发入场动画
-            triggerViewAnimation();
+            triggerViewAnimation(); // ★ 新增：触发动画
             return;
         }
 
         if (target === 'notes' || target === 'coins') {
             currentMode = target;
             const saved = modeStates[target];
-            // ★ 恢复搜索模式
+            // ★ 新增：恢复搜索模式
             searchMode = saved ? saved.searchMode : 'realtime';
+            // 根据是否有搜索关键词决定视图
             if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
                 currentView = saved.currentView;
             } else {
-                currentView = 'overview';
+                currentView = 'overview'; // 无搜索词时强制总览
+                // 同时清空保存的搜索视图标记
                 modeStates[target].currentView = 'overview';
             }
             currentCategoryId = saved.currentCategoryId;
@@ -868,6 +855,7 @@ function onTabClick(target) {
                 if (currentSearchKeyword) {
                     performSearchAndRender(currentSearchKeyword, currentSearchType);
                 } else {
+                    // 防御：不应该发生
                     currentView = 'overview';
                     const newKey = currentMode + '_overview';
                     switchViewContainer(newKey);
@@ -906,7 +894,7 @@ function onTabClick(target) {
             } else {
                 renderSpecialOverview();
             }
-            triggerViewAnimation();
+            triggerViewAnimation(); // ★ 新增：触发动画
             return;
         }
 
@@ -917,7 +905,7 @@ function onTabClick(target) {
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
             currentSearchType = settingsReturnState.currentSearchType || 'all';
-            // ★ 恢复搜索模式
+            // ★ 新增：恢复搜索模式
             const saved = modeStates[currentMode];
             searchMode = saved ? saved.searchMode : 'realtime';
         }
@@ -958,7 +946,8 @@ function onTabClick(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
 
-        // 文章搜索模式强制实时，不修改 searchMode 全局变量
+        searchMode = 'realtime';
+
         const inp = document.getElementById('searchInput');
         if (inp) {
             inp.value = articleSearchKeyword || '';
@@ -976,8 +965,7 @@ function onTabClick(target) {
         } else {
             openArticleReader(currentArticleIndex);
         }
-        // ★ 触发入场动画
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 新增：触发动画
         return;
     }
 
@@ -994,13 +982,15 @@ function onTabClick(target) {
 
         const saved = modeStates[newMode];
 
-        // ★ 恢复搜索模式到全局变量
+        // ★ 新增：恢复搜索模式到全局变量
         searchMode = saved ? saved.searchMode : 'realtime';
 
+        // 判断是否保留搜索视图
         if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
             currentView = saved.currentView;
         } else {
             currentView = 'overview';
+            // 确保输入框清空
             saved.currentView = 'overview';
         }
 
@@ -1011,7 +1001,7 @@ function onTabClick(target) {
 
         const inp = document.getElementById('searchInput');
         if (inp) {
-            inp.value = currentSearchKeyword;
+            inp.value = currentSearchKeyword; // 直接赋值
             bindSearchInputHandler();
         }
         const typeSelect = document.getElementById('searchType');
@@ -1029,6 +1019,8 @@ function onTabClick(target) {
         document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
 
         updateSearchUIForMode();
+
+        // 恢复侧边栏
         restoreSidebarState();
 
         renderSidebar();
@@ -1048,6 +1040,7 @@ function onTabClick(target) {
             if (currentSearchKeyword) {
                 performSearchAndRender(currentSearchKeyword, currentSearchType);
             } else {
+                // 防御
                 currentView = 'overview';
                 const newKey = newMode + '_overview';
                 switchViewContainer(newKey);
@@ -1135,7 +1128,7 @@ function onSpecialOverviewItemClick(specialId) {
 
     renderSidebar();
     renderSpecialContent();
-    triggerViewAnimation();
+    triggerViewAnimation(); // ★ 新增：触发动画
 }
 
 function renderSpecialContent() {
@@ -1150,7 +1143,7 @@ function renderSpecialContent() {
     const data = getData(config.dataKey);
     if (!data || data.length === 0) {
         document.getElementById('app').innerHTML = '<div class="empty-state">暂无数据</div>';
-        triggerViewAnimation();
+        triggerViewAnimation(); // ★ 替换为统一函数
         return;
     }
 
@@ -1209,7 +1202,7 @@ function renderSpecialContent() {
 
     html += `</div>`;
     document.getElementById('app').innerHTML = html;
-    triggerViewAnimation();
+    triggerViewAnimation(); // ★ 替换为统一函数
 }
 
 function openSpecialModal(imgSrc) {
@@ -1626,6 +1619,7 @@ function buildRatingHTML(stats) {
     for (const [grade, count] of stats.sortedGrades) {
         const pct = (count / maxGradeCount * 100).toFixed(0);
         html += `<div class="stat-bar-row">`;
+        // 直接显示 grade 字符串，不附加"分"字
         html += `<span class="stat-bar-label">${grade}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
         html += `<span class="stat-bar-count">${count} 件</span>`;
