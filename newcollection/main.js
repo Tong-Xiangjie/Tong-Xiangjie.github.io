@@ -2347,6 +2347,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setupModalEvents();
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
+    // ★ 初始化侧边栏按钮文字为三条杠
+    const st = document.getElementById('sidebarToggle');
+    if (st) {
+        st.textContent = '☰';
+        st.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
+    }
 
     if (typeof loadTheme === 'function') loadTheme();
 });
