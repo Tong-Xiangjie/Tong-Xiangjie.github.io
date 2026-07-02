@@ -942,7 +942,7 @@ function saveFullState() {
             currentSearchKeyword: currentSearchKeyword || '',
             currentSearchType: currentSearchType || 'all',
             searchMode: modeStates[currentMode] ? modeStates[currentMode].searchMode : 'realtime',
-            isSidebarCollapsed: isSidebarCollapsed,
+            isSidebarCollapsed: isSidebarCollapsed, // ★ 已存在，确保保存
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
             overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
@@ -989,6 +989,20 @@ function restoreSidebarState() {
         sidebar.classList.toggle('collapsed', collapsed);
         toggle.textContent = '☰';
         toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
+        isSidebarCollapsed = collapsed;
+    }
+}
+
+// ★ 新增：强制确保侧边栏状态与 modeStates 一致（renderSidebar 之后调用）
+function applySidebarState() {
+    if (currentMode === 'notes' || currentMode === 'coins') {
+        const saved = modeStates[currentMode];
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('sidebarToggle');
+        if (!sidebar || !toggle) return;
+        const collapsed = saved ? saved.isSidebarCollapsed : false;
+        sidebar.classList.toggle('collapsed', collapsed);
+        toggle.textContent = '☰';
         isSidebarCollapsed = collapsed;
     }
 }
@@ -1054,6 +1068,14 @@ function onTabClick(target) {
             if (toggleBtn2) toggleBtn2.style.display = '';
             document.getElementById('app').innerHTML = cache.innerHTML;
             renderSidebar();
+            // ★ 恢复侧边栏状态
+            const savedN = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
+            const savedC = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
+            const collapse = savedN || savedC;
+            const sb = document.getElementById('sidebar');
+            if (sb) sb.classList.toggle('collapsed', collapse);
+            isSidebarCollapsed = collapse;
+            // ★ 恢复滚动位置
             requestAnimationFrame(() => {
                 const appEl = document.getElementById('app');
                 if (appEl) appEl.scrollTop = cache.scrollY || 0;
@@ -1151,6 +1173,9 @@ function onTabClick(target) {
             restoreSidebarState();
 
             renderSidebar();
+            // ★ 确保侧边栏状态在 renderSidebar 之后仍然生效
+            applySidebarState();
+
             if (currentView === 'overview') {
                 renderOverview();
                 restoreExpandedStates({
@@ -1195,6 +1220,13 @@ function onTabClick(target) {
                 currentSubId = settingsReturnState.currentSubId;
                 renderSidebar();
                 renderSpecialContent();
+                // ★ 恢复侧边栏状态
+                const savedN = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
+                const savedC = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
+                const collapse = savedN || savedC;
+                const sb = document.getElementById('sidebar');
+                if (sb) sb.classList.toggle('collapsed', collapse);
+                isSidebarCollapsed = collapse;
                 const cache = specialPageCaches[selectedSpecial];
                 if (cache) {
                     requestAnimationFrame(() => {
@@ -1334,6 +1366,9 @@ function onTabClick(target) {
         restoreSidebarState();
 
         renderSidebar();
+        // ★ 确保侧边栏状态在 renderSidebar 之后仍然生效
+        applySidebarState();
+
         if (currentView === 'overview') {
             renderOverview();
             restoreExpandedStates({
@@ -1425,7 +1460,7 @@ function onSpecialOverviewItemClick(specialId) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = '';
 
-    // ★ 恢复 notes/coins 的侧边栏折叠状态
+    // ★ 从 modeStates 恢复 notes/coins 的侧边栏状态
     const savedNotes = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
     const savedCoins = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
     const shouldCollapse = savedNotes || savedCoins;
