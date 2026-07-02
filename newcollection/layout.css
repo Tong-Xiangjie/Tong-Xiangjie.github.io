@@ -794,3 +794,23 @@ body.modal-open {
 .export-btn:hover {
     opacity: 0.85;
 }
+
+/* 侧边栏子分类展开动画 */
+.sidebar-children {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.sidebar-children.open {
+    max-height: 2000px; /* 足够大的值，实际高度不会超过 */
+}
+
+/* 入场动画 */
+.content-enter {
+    animation: contentFadeIn 0.2s ease;
+}
+
+@keyframes contentFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
