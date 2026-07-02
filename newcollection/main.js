@@ -635,7 +635,9 @@ function toggleSearchMode() {
     const tip = document.getElementById('searchTip');
     const toggleChar = newMode === 'click' ? '□' : '■';
     if (toggle) toggle.textContent = toggleChar;
-    if (tip) tip.textContent = `当前搜索模式为“${modeSearch === 'click' ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === 'click' ? '□' : '■'}”可切换至${modeSearch === 'click' ? '实时搜索' : '点击搜索'}模式～`;
+
+    // ★ 修复点：将未定义的 modeSearch 改为 newMode
+    if (tip) tip.textContent = `当前搜索模式为“${newMode === 'click' ? '点击搜索' : '实时搜索'}”，点击“${newMode === 'click' ? '□' : '■'}”可切换至${newMode === 'click' ? '实时搜索' : '点击搜索'}模式～`;
 
     const input = document.getElementById('searchInput');
     if (input) {
