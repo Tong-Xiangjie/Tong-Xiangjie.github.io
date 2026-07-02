@@ -814,3 +814,29 @@ body.modal-open {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ========== 侧边栏展开/收起动画 ========== */
+.sidebar-children {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.sidebar-children.open {
+    max-height: 2000px;
+}
+
+/* ========== 入场淡入动画 ========== */
+.content-enter {
+    animation: contentFadeIn 0.25s ease;
+}
+
+@keyframes contentFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
