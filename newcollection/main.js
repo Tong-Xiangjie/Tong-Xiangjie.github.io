@@ -4,7 +4,7 @@ let currentTab = 'notes';
 let currentCategoryId = null;
 let currentSubId = null;
 let currentView = 'overview';
-// 删除全局 searchMode，改用 getEffectiveSearchMode() 从 modeStates 读取
+// 删除全局 searchMode，改用 getEffectiveSearchMode() 从 modeStates 中读取
 let currentSearchKeyword = '';
 let currentSearchType = 'all';
 let scrollMemory = {};
