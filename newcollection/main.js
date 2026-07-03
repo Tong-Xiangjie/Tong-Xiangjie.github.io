@@ -547,7 +547,7 @@ function renderCategoryOverview(cat) {
     app.innerHTML = html;
     triggerViewAnimation();
 }
-
+// ========== ★ 修改后的 updateSearchUIForMode（已去～） ==========
 function updateSearchUIForMode() {
     const select = document.getElementById('searchType');
     const toggle = document.getElementById('modeToggle');
@@ -571,7 +571,8 @@ function updateSearchUIForMode() {
         const modeSearch = getEffectiveSearchMode();
         toggle.textContent = modeSearch === 'click' ? '□' : '■';
         toggle.title = '切换搜索模式';
-        tip.textContent = `当前搜索模式为“${modeSearch === 'click' ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === 'click' ? '□' : '■'}”可切换至${modeSearch === 'click' ? '实时搜索' : '点击搜索'}模式～`;
+        // ★ 已去掉末尾的“～”
+        tip.textContent = `当前搜索模式为“${modeSearch === 'click' ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === 'click' ? '□' : '■'}”可切换至${modeSearch === 'click' ? '实时搜索' : '点击搜索'}模式`;
     }
 }
 
@@ -618,6 +619,7 @@ function resetSearch() {
     }
 }
 
+// ========== ★ 修改后的 toggleSearchMode（已去～，修复变量） ==========
 function toggleSearchMode() {
     if (currentMode === 'articles') {
         if (typeof toggleArticleSearchMode === 'function') {
@@ -636,8 +638,8 @@ function toggleSearchMode() {
     const toggleChar = newMode === 'click' ? '□' : '■';
     if (toggle) toggle.textContent = toggleChar;
 
-    // ★ 修复点：将未定义的 modeSearch 改为 newMode
-    if (tip) tip.textContent = `当前搜索模式为“${newMode === 'click' ? '点击搜索' : '实时搜索'}”，点击“${newMode === 'click' ? '□' : '■'}”可切换至${newMode === 'click' ? '实时搜索' : '点击搜索'}模式～`;
+    // ★ 已去掉末尾的“～”，并正确使用 newMode
+    if (tip) tip.textContent = `当前搜索模式为“${newMode === 'click' ? '点击搜索' : '实时搜索'}”，点击“${newMode === 'click' ? '□' : '■'}”可切换至${newMode === 'click' ? '实时搜索' : '点击搜索'}模式`;
 
     const input = document.getElementById('searchInput');
     if (input) {
@@ -648,6 +650,7 @@ function toggleSearchMode() {
     }
 }
 
+// ===== 搜索辅助函数 =====
 function performSearchAndRender(rawKeyword, type) {
     const keyword = getActualKeyword(rawKeyword, type);
     const isEmptySearch = !keyword || keyword === '';
@@ -944,7 +947,7 @@ function saveFullState() {
             currentSearchKeyword: currentSearchKeyword || '',
             currentSearchType: currentSearchType || 'all',
             searchMode: modeStates[currentMode] ? modeStates[currentMode].searchMode : 'realtime',
-            isSidebarCollapsed: isSidebarCollapsed, // ★ 已存在，确保保存
+            isSidebarCollapsed: isSidebarCollapsed,
             expandedSeries: expanded.expandedSeries,
             expandedVarieties: expanded.expandedVarieties,
             overviewScrollY: currentView === 'overview' ? scrollY : (prev.overviewScrollY || 0),
@@ -1175,7 +1178,6 @@ function onTabClick(target) {
             restoreSidebarState();
 
             renderSidebar();
-            // ★ 确保侧边栏状态在 renderSidebar 之后仍然生效
             applySidebarState();
 
             if (currentView === 'overview') {
@@ -1250,7 +1252,6 @@ function onTabClick(target) {
             currentView = settingsReturnState.currentView;
             currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
             currentSearchType = settingsReturnState.currentSearchType || 'all';
-            // 由 modeStates 管理搜索模式
         }
         switchViewContainer(currentMode + '_' + currentView);
         updateSearchUIForMode();
@@ -1289,8 +1290,6 @@ function onTabClick(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
 
-        // 文章强制实时，不修改全局 searchMode
-
         const inp = document.getElementById('searchInput');
         if (inp) {
             inp.value = articleSearchKeyword || '';
@@ -1325,8 +1324,6 @@ function onTabClick(target) {
         currentMode = newMode;
 
         const saved = modeStates[newMode];
-
-        // 由 modeStates 管理搜索模式
 
         if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
             currentView = saved.currentView;
@@ -1364,11 +1361,9 @@ function onTabClick(target) {
 
         updateSearchUIForMode();
 
-        // 恢复侧边栏
         restoreSidebarState();
 
         renderSidebar();
-        // ★ 确保侧边栏状态在 renderSidebar 之后仍然生效
         applySidebarState();
 
         if (currentView === 'overview') {
@@ -1398,7 +1393,6 @@ function onTabClick(target) {
         return;
     }
 }
-
 function enterSettings() {
     isSettingsMode = true;
     currentSearchKeyword = '';
@@ -1435,12 +1429,9 @@ function renderSpecialOverview() {
 
     document.querySelector('.body-row')?.classList.add('special-overview-mode');
 
-    // 专题概览强制展开侧边栏（仅UI），不影响 notes/coins 的存储状态
     if (sidebar) sidebar.classList.remove('collapsed');
-    // 隐藏 toggle 按钮，因为专题概览不需要切换
     if (toggleBtn) toggleBtn.style.display = 'none';
 
-    // 渲染专题列表作为侧边栏
     let html = '';
     for (const config of getSpecialConfigs()) {
         const isActive = selectedSpecial === config.id;
@@ -1462,7 +1453,6 @@ function onSpecialOverviewItemClick(specialId) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = '';
 
-    // ★ 从 modeStates 恢复 notes/coins 的侧边栏状态
     const savedNotes = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
     const savedCoins = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
     const shouldCollapse = savedNotes || savedCoins;
@@ -1709,19 +1699,16 @@ function computeStats(typeFilter) {
     const pricedItems = prices.filter(p => !p.noPrice);
     const avgPrice = pricedItems.length > 0 ? Math.round(totalPrice / pricedItems.length) : 0;
 
-    // ===== 评级统计（支持 EPQ/E 后缀及真品） =====
     const gradeCounts = {};
     let ungraded = 0;
     for (const item of filtered) {
         const cond = item.copy.condition || item.copy.grade || '';
         
-        // 处理"真品"
         if (cond.includes('真品')) {
             gradeCounts['真品'] = (gradeCounts['真品'] || 0) + 1;
             continue;
         }
         
-        // 提取数字 + 可选的 E
         const match = cond.match(/(\d+)\+?(E)?/);
         if (match) {
             const displayGrade = match[1] + (match[2] || '');
@@ -1730,7 +1717,6 @@ function computeStats(typeFilter) {
             ungraded++;
         }
     }
-    // 排序：带E的比不带E的高0.5，真品视为-1（排最后）
     const sortedGrades = Object.entries(gradeCounts).sort((a, b) => {
         const aVal = a[0] === '真品' ? -1 : parseFloat(a[0].replace('E', '.5'));
         const bVal = b[0] === '真品' ? -1 : parseFloat(b[0].replace('E', '.5'));
@@ -2025,7 +2011,6 @@ function renderSettingsPage() {
     let html = `<div class="settings-page">`;
     html += `<h2>我的</h2>`;
 
-    // 收藏概况
     html += `<div class="settings-section">`;
     html += `<h3>藏品数量</h3>`;
     html += `<div class="stats-summary-cards">`;
@@ -2036,7 +2021,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 资金概况 + 价格列表
     html += `<div class="settings-section">`;
     html += `<h3>资金投入</h3>`;
     html += `<div class="stats-money">`;
@@ -2070,7 +2054,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 评级分布
     html += `<div class="settings-section">`;
     html += `<div class="rating-section-header">`;
     html += `<div class="rating-tabs">`;
@@ -2084,7 +2067,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 年代分布
     html += `<div class="settings-section">`;
     html += `<h3>藏品年代统计</h3>`;
     html += `<div id="yearSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
@@ -2092,7 +2074,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 主题色设置
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
@@ -2125,7 +2106,6 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // ========== 数据导出 ==========
     html += `<div class="settings-section">`;
     html += `<h3>数据导出</h3>`;
     html += `<div class="export-buttons">`;
@@ -2298,27 +2278,28 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
+// ========== ★ 修改后的 DOMContentLoaded（增加 updateSearchUIForMode() 调用） ==========
 document.addEventListener('DOMContentLoaded', function() {
     buildSpecialCategoryTree();
     renderSidebar();
 
-    // ★ 让 .content 不滚动，由子容器负责滚动
     const contentEl = document.querySelector('.content');
     if (contentEl) {
         contentEl.style.overflow = 'hidden';
         contentEl.style.height = '100%';
     }
 
-    // ★ 让 #app 也能独立滚动（articles/special/settings 使用）
     const appEl = document.getElementById('app');
     if (appEl) {
         appEl.style.height = '100%';
         appEl.style.overflowY = 'auto';
     }
 
-    // ★ 切换到初始视图容器
     switchViewContainer(currentMode + '_' + currentView);
     renderOverview();
+
+    // ★★★ 新增：初始化搜索 UI，确保显示正确状态 ★★★
+    updateSearchUIForMode();
 
     document.querySelectorAll('.tab-item').forEach(tab => {
         tab.addEventListener('click', () => onTabClick(tab.dataset.target));
@@ -2346,14 +2327,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 绑定实时搜索（使用独立搜索模式）
     if (getEffectiveSearchMode() === 'realtime') {
         document.getElementById('searchInput')?.addEventListener('input', doSearch);
     }
 
     setupModalEvents();
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
-    // ★ 初始化侧边栏按钮文字为三条杠
     const st = document.getElementById('sidebarToggle');
     if (st) {
         st.textContent = '☰';
