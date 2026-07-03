@@ -59,7 +59,7 @@ function toggleSearchMode() {
     const toggle = document.getElementById('modeToggle');
     const tip = document.getElementById('searchTip');
     if (toggle) toggle.textContent = searchMode === 'click' ? '□' : '■';
-    if (tip) tip.textContent = `当前模式：${searchMode === 'click' ? '点击搜索' : '实时搜索'} | 点击"□"可切换`;
+    if (tip) tip.textContent = `当前搜索模式为“${modeSearch === 'click' ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === 'click' ? '□' : '■'}”可切换至${modeSearch === 'click' ? '实时搜索' : '点击搜索'}模式`;
 
     const input = document.getElementById('searchInput');
     if (input) {
@@ -203,13 +203,13 @@ function renderSearchResults(results, rawKeyword, type) {
     const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
-    html += `<div class="panel-header"><h2>搜索结果（${modeLabel}）</h2>`;
-    html += `<p>找到 ${results.length} 个匹配`;
-    if (rawKeyword) html += ` · 关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}`;
+    html += `<div class="panel-header"><h2>${modeLabel}板块搜索结果</h2>`;
+    html += `<p>共找到${results.length}件符合要求的藏品`;
+    if (rawKeyword) html += ` · 搜索关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}`;
     html += `</p></div>`;
 
     if (results.length === 0) {
-        html += `<div class="empty-state">暂无匹配结果</div>`;
+        html += '<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •`υ</div>';
         app.innerHTML = html;
         requestAnimationFrame(() => {
             app.classList.remove('content-enter');
@@ -251,7 +251,7 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `<div class="dual-thumb">`;
             if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
             if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">无预览</div>`;
+            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
             html += `</div>`;
             html += `<div class="info">`;
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
