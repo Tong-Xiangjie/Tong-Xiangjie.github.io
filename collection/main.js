@@ -1,5 +1,5 @@
 // ==================== main.js ====================
-// 精简版：仅初始化与事件绑定
+// 精简版，仅初始化与事件绑定
 
 document.addEventListener('DOMContentLoaded', function() {
     buildSpecialCategoryTree();
