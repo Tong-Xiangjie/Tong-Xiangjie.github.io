@@ -18,7 +18,7 @@ const republic_cbcData = {
     ],
     series: [
         {
-            seriesName: "中华民国二十年（1931年） 中华书局版 兑换券辅币券",
+            seriesName: "中华民国二十年（1931年） 中华书局版 兑换券（辅币券）",
             year: "1931",
             varieties: [
                 {
@@ -88,6 +88,27 @@ const republic_cbcData = {
                             remark: "坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
                             img1: "image/republic_cbc/B501637D-1.jpg",
                             img2: "image/republic_cbc/B501637D-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1939年 5分 灵谷塔",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1939,
+                            version: "B695627G",
+                            bank: "中央银行",
+                            print: "美商永宁有限公司/UPP",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG66E",
+                            price: "55元",
+                            purchaseDate: "2026年7月6日",
+                            krause: "225a",
+                            remark: "这张真是好价，我拍下的时候已经有733人浏览、33人收藏、3人想要并且当时卖家好评率98%，信用也是极好可就是不知道为什么没有人拍。悲报是由于没有点进“聊一聊”而是直接拍的，导致原本可以用的小刀优惠没用上啊啊啊！（自我安慰：应该刀不了多少钱罢～）",
+                            img1: "image/republic_cbc/B695627G-1.jpg",
+                            img2: "image/republic_cbc/B695627G-2.jpg"
                         }
                     ]
                 }
