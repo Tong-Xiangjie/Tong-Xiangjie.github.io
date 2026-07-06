@@ -2,7 +2,7 @@
 // 分类内容渲染 + 图片弹窗
 
 function renderCurrentCategory() {
-    if (!currentCategoryId) {
+    if (!currentCategoryId) { 
         switchViewContainer(currentMode + '_' + VIEW.OVERVIEW);
         renderOverview();
         triggerViewAnimation();
