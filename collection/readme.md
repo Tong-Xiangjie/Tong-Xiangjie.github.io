@@ -60,7 +60,7 @@
 ### 2. 修复 search.js 与 main.js 的冲突
 - `search.js` 不再用 `let` 重复声明 `currentSearchKeyword` 和 `currentSearchType`
 - 变量统一在 `core.js` 中声明
-- 搜索逻辑只保留一套实现（在 `search.js` 中） 
+- 搜索逻辑只保留一套实现（在 `search.js` 中）
 ### 3. 修复文章阅读器硬币路径
 - 新增 `getArticleBasePath(sourceType)` 根据文章来源返回不同路径
 - 预加载和阅读器中都使用该函数
