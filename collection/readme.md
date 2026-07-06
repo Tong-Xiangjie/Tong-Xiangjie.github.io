@@ -1,7 +1,7 @@
 # 铜の币纪主站
 纸币与硬币收藏品管理系统。
 ## 目录结构
-/
+```text
 ├── index.html # 入口页面
 ├── layout.css # 样式
 ├── README.md # 本文件
@@ -33,7 +33,7 @@
 ├── ../notecollection/data/ # 纸币数据文件（旧站）
 ├── ../coincollection/data/ # 硬币数据文件（旧站）
 └── ../funcollection/years/ # 趣味收藏数据文件（旧站）
-
+```
 ## 加载顺序
 数据文件 → 桥接 → 配置 → 核心 → 功能模块（按依赖顺序） → main.js
 ## 核心常量
