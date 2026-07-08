@@ -58,9 +58,9 @@ const commemorativeData = {
                 { 
                     copyId: 2, 
                     year: 1999,
-                    purchaseDate: "2026年", 
+                    purchaseDate: "2026年4月1日", 
                     price: "57元", 
-                    bank: "中国人民银行", 
+                    bank: "台湾银行", 
                     version: "M698194E", 
                     condition: "ACG66E", 
                     krause: "1990",
