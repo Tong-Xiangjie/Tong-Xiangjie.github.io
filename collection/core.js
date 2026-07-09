@@ -89,10 +89,13 @@ function ensureViewContainer(key) {
     return viewScrollContainers[key];
 }
 
-/** 判断是否使用 #app 的全页模式（文章/专题/设置） */
+/**
+ * 判断是否使用 #app 的全页模式
+ * 只有专题和设置使用 #app，文章（列表/阅读器）和纸币/硬币都使用独立容器
+ */
 function isFullPageMode(key) {
-    if (key === MODE.ARTICLES || key === MODE.SPECIAL || key === MODE.SETTINGS) return true;
-    if (key.startsWith('articles_') || key.startsWith('special_') || key === 'settings') return true;
+    if (key === MODE.SPECIAL || key === MODE.SETTINGS) return true;
+    if (key.startsWith('special_') || key === 'settings') return true;
     return false;
 }
 
@@ -127,6 +130,7 @@ function switchToCurrentContainer() {
 
 /** 切换显示的容器（隐藏所有其他容器，显示目标） */
 function switchViewContainer(key) {
+    // 隐藏所有滚动容器
     for (const k of Object.keys(viewScrollContainers)) {
         viewScrollContainers[k].style.display = 'none';
     }
@@ -134,8 +138,10 @@ function switchViewContainer(key) {
     if (app) app.style.display = 'none';
 
     if (isFullPageMode(key)) {
+        // 专题和设置使用 #app
         if (app) app.style.display = 'block';
     } else {
+        // 纸币、硬币、文章都使用独立滚动容器
         const container = ensureViewContainer(key);
         container.style.display = 'block';
     }
@@ -150,7 +156,8 @@ function getRenderContainer() {
 
 /** 触发入场动画 */
 function triggerViewAnimation() {
-    const el = isFullPageMode(getContainerKey()) ? document.getElementById('app') : viewScrollContainers[getContainerKey()];
+    const key = getContainerKey();
+    const el = isFullPageMode(key) ? document.getElementById('app') : viewScrollContainers[key];
     if (!el) return;
     requestAnimationFrame(() => {
         el.classList.remove('content-enter');
@@ -289,9 +296,8 @@ function getDataBySource(dataKey, source) {
 
 // ========== 状态保存与恢复 ==========
 function saveFullState() {
-    const container = isFullPageMode(getContainerKey())
-        ? document.getElementById('app')
-        : viewScrollContainers[getContainerKey()];
+    const key = getContainerKey();
+    const container = isFullPageMode(key) ? document.getElementById('app') : viewScrollContainers[key];
     const scrollY = container ? container.scrollTop : 0;
 
     if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
@@ -309,6 +315,8 @@ function saveFullState() {
             categoryScrollY: currentView === VIEW.CATEGORY ? scrollY : (prev.categoryScrollY || 0),
             searchScrollY: currentView === VIEW.SEARCH ? scrollY : (prev.searchScrollY || 0)
         };
+        // 也同步保存到 scrollMemory，兼容旧代码
+        scrollMemory[currentMode + '-' + key] = scrollY;
     } else if (currentMode === MODE.ARTICLES) {
         const prev = articleState;
         articleState = {
@@ -319,6 +327,7 @@ function saveFullState() {
             listScrollY: currentArticleView === VIEW.LIST ? scrollY : (prev.listScrollY || 0),
             readerScrollY: 0
         };
+        scrollMemory['articles-' + key] = scrollY;
     } else if (currentMode === MODE.SPECIAL) {
         const appEl = document.getElementById('app');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
