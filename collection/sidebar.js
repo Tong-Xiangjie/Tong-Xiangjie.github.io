@@ -1,5 +1,4 @@
 // ==================== sidebar.js ====================
-// 侧边栏渲染
 
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
@@ -74,7 +73,7 @@ function onSidebarItemClick(catId) {
         currentCategoryId = null;
         currentSubId = null;
         currentView = VIEW.OVERVIEW;
-        switchViewContainer(currentMode + '_' + VIEW.OVERVIEW);
+        switchToCurrentContainer();
         renderSidebar();
         renderOverview();
         triggerViewAnimation();
@@ -84,7 +83,7 @@ function onSidebarItemClick(catId) {
     currentCategoryId = catId;
     currentView = VIEW.CATEGORY;
     currentSubId = null;
-    switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+    switchToCurrentContainer();
     renderSidebar();
     renderCurrentCategory();
     triggerViewAnimation();
@@ -113,7 +112,7 @@ function onSidebarChildClick(parentId, subId) {
         currentSubId = null;
         currentCategoryId = parentId;
         currentView = VIEW.CATEGORY;
-        switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+        switchToCurrentContainer();
         renderSidebar();
         renderCurrentCategory();
         triggerViewAnimation();
@@ -123,7 +122,7 @@ function onSidebarChildClick(parentId, subId) {
     currentCategoryId = parentId;
     currentSubId = subId;
     currentView = VIEW.CATEGORY;
-    switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+    switchToCurrentContainer();
     renderSidebar();
     renderCurrentCategory();
     triggerViewAnimation();
