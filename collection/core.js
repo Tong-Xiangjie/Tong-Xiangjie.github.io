@@ -70,11 +70,12 @@ let articleCategoryTree = [];
 // ========== 独立滚动容器系统 ==========
 const viewScrollContainers = {};
 
+/** 确保容器存在，返回它 */
 function ensureViewContainer(key) {
     if (!viewScrollContainers[key]) {
         const div = document.createElement('div');
         div.className = 'view-scroll-container';
-        div.id = 'view-' + key;
+        div.id = 'view-' + key.replace(/[^a-zA-Z0-9_\-]/g, '_');
         div.style.cssText = 'height:100%;overflow-y:auto;display:none;';
         const content = document.querySelector('.content');
         const app = document.getElementById('app');
@@ -84,40 +85,89 @@ function ensureViewContainer(key) {
     return viewScrollContainers[key];
 }
 
+/** 判断是否使用 #app 的全页模式（文章/专题/设置） */
+function isFullPageMode(key) {
+    if (key === MODE.ARTICLES || key === MODE.SPECIAL || key === MODE.SETTINGS) return true;
+    if (key.startsWith('articles_') || key.startsWith('special_') || key === 'settings') return true;
+    return false;
+}
+
+/** 根据当前状态获取正确的容器键名 */
+function getContainerKey() {
+    if (currentMode === MODE.ARTICLES) {
+        if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
+            return 'articles_reader_' + currentArticleIndex;
+        }
+        return 'articles_list';
+    }
+    if (currentMode === MODE.SPECIAL) return 'special_' + (selectedSpecial || 'overview');
+    if (currentMode === MODE.SETTINGS) return 'settings';
+    if (currentMode === MODE.NOTES) {
+        if (currentView === VIEW.SEARCH) return 'notes_search';
+        if (currentView === VIEW.CATEGORY) return 'notes_category_' + String(currentSubId || currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
+        return 'notes_overview';
+    }
+    if (currentMode === MODE.COINS) {
+        if (currentView === VIEW.SEARCH) return 'coins_search';
+        if (currentView === VIEW.CATEGORY) return 'coins_category_' + String(currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
+        return 'coins_overview';
+    }
+    return 'default';
+}
+
+/** 切换显示到当前状态的容器 */
+function switchToCurrentContainer() {
+    const key = getContainerKey();
+    switchViewContainer(key);
+}
+
+/** 切换显示的容器（隐藏所有其他容器，显示目标） */
 function switchViewContainer(key) {
+    // 隐藏所有滚动容器
     for (const k of Object.keys(viewScrollContainers)) {
         viewScrollContainers[k].style.display = 'none';
     }
+    // 隐藏 app
     const app = document.getElementById('app');
     if (app) app.style.display = 'none';
 
-    if (key === MODE.ARTICLES || key === MODE.SPECIAL || key === MODE.SETTINGS) {
+    if (isFullPageMode(key)) {
+        // 全页模式：使用 #app
         if (app) app.style.display = 'block';
     } else {
+        // 滚动容器模式
         const container = ensureViewContainer(key);
         container.style.display = 'block';
     }
 }
 
-function triggerViewAnimation() {
-    const containerKey = currentMode === MODE.ARTICLES || currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS
-        ? currentMode : currentMode + '_' + currentView;
-    const el = getViewContainer(containerKey);
-    if (!el) return;
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            el.classList.remove('content-enter');
-            void el.offsetWidth;
-            el.classList.add('content-enter');
-        });
-    });
+/** 获取当前状态的渲染目标容器 */
+function getRenderContainer() {
+    const key = getContainerKey();
+    if (isFullPageMode(key)) return document.getElementById('app');
+    return ensureViewContainer(key);
 }
 
-function getViewContainer(key) {
-    if (key === MODE.ARTICLES || key === MODE.SPECIAL || key === MODE.SETTINGS) {
-        return document.getElementById('app');
+/** 检查容器是否已有渲染内容 */
+function containerHasContent() {
+    const key = getContainerKey();
+    if (isFullPageMode(key)) {
+        const app = document.getElementById('app');
+        return app && app.children && app.children.length > 0 && app.innerHTML.trim().length > 10;
     }
-    return ensureViewContainer(key);
+    const container = viewScrollContainers[key];
+    return container && container.children && container.children.length > 0 && container.innerHTML.trim().length > 10;
+}
+
+/** 触发入场动画 */
+function triggerViewAnimation() {
+    const el = isFullPageMode(getContainerKey()) ? document.getElementById('app') : viewScrollContainers[getContainerKey()];
+    if (!el) return;
+    requestAnimationFrame(() => {
+        el.classList.remove('content-enter');
+        void el.offsetWidth;
+        el.classList.add('content-enter');
+    });
 }
 
 // ========== 数据读取函数 ==========
@@ -224,24 +274,6 @@ function collectExpandedStates() {
     return { expandedSeries, expandedVarieties };
 }
 
-function restoreExpandedStates(states) {
-    if (!states) return;
-    if (states.expandedSeries) {
-        for (const id of states.expandedSeries) {
-            const body = document.getElementById('body-' + id);
-            const icon = document.getElementById('icon-' + id);
-            if (body) { body.classList.add('open'); if (icon) icon.classList.add('open'); }
-        }
-    }
-    if (states.expandedVarieties) {
-        for (const id of states.expandedVarieties) {
-            const list = document.getElementById('list-' + id);
-            const icon = document.getElementById('icon-' + id);
-            if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
-        }
-    }
-}
-
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebarToggle');
@@ -268,8 +300,10 @@ function getDataBySource(dataKey, source) {
 
 // ========== 状态保存与恢复 ==========
 function saveFullState() {
-    const content = document.querySelector('.content');
-    const scrollY = content ? content.scrollTop : 0;
+    const container = isFullPageMode(getContainerKey())
+        ? document.getElementById('app')
+        : viewScrollContainers[getContainerKey()];
+    const scrollY = container ? container.scrollTop : 0;
 
     if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
         const expanded = collectExpandedStates();
@@ -317,19 +351,6 @@ function restoreSidebarState() {
         sidebar.classList.toggle('collapsed', collapsed);
         toggle.textContent = '☰';
         toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
-        isSidebarCollapsed = collapsed;
-    }
-}
-
-function applySidebarState() {
-    if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
-        const saved = modeStates[currentMode];
-        const sidebar = document.getElementById('sidebar');
-        const toggle = document.getElementById('sidebarToggle');
-        if (!sidebar || !toggle) return;
-        const collapsed = saved ? saved.isSidebarCollapsed : false;
-        sidebar.classList.toggle('collapsed', collapsed);
-        toggle.textContent = '☰';
         isSidebarCollapsed = collapsed;
     }
 }
