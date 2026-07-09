@@ -1,6 +1,4 @@
 // ==================== search.js ====================
-// 注意：currentSearchKeyword 和 currentSearchType 已在 core.js 中定义
-// 这里不再用 let 重复声明，避免 SyntaxError
 
 function updateSearchUIForMode() {
     const select = document.getElementById('searchType');
@@ -36,7 +34,7 @@ function doSearch() {
     const rawKeyword = input.value.trim();
 
     if (currentMode === MODE.ARTICLES) {
-        saveScroll(MODE.ARTICLES);
+        saveScroll('articles');
         articleSearchKeyword = rawKeyword;
         renderArticleList();
         return;
@@ -47,7 +45,7 @@ function doSearch() {
     currentSearchKeyword = rawKeyword;
     currentSearchType = type;
     currentView = VIEW.SEARCH;
-    switchViewContainer(currentMode + '_' + VIEW.SEARCH);
+    switchToCurrentContainer();
     performSearchAndRender(rawKeyword, type);
 }
 
@@ -63,7 +61,7 @@ function resetSearch() {
     }
 
     currentView = currentCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
-    switchViewContainer(currentMode + '_' + currentView);
+    switchToCurrentContainer();
     if (currentView === VIEW.OVERVIEW) {
         renderOverview();
     } else {
@@ -88,7 +86,6 @@ function toggleSearchMode() {
     const tip = document.getElementById('searchTip');
     const toggleChar = newMode === SEARCH_MODE.CLICK ? '□' : '■';
     if (toggle) toggle.textContent = toggleChar;
-
     if (tip) tip.textContent = `当前搜索模式为"${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}"，点击"${newMode === SEARCH_MODE.CLICK ? '□' : '■'}"可切换至${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
 
     const input = document.getElementById('searchInput');
@@ -226,7 +223,7 @@ function getDisplayValue(keyword, searchType) {
 }
 
 function renderSearchResults(results, rawKeyword, type) {
-    const app = getViewContainer(currentMode + '_' + VIEW.SEARCH);
+    const app = getRenderContainer();
     const imgBase = getImageBase();
     const modeLabel = currentMode === MODE.NOTES ? '纸币' : '硬币';
 
@@ -297,7 +294,6 @@ function renderSearchResults(results, rawKeyword, type) {
     }
 
     app.innerHTML = html;
-
     requestAnimationFrame(() => {
         app.classList.remove('content-enter');
         void app.offsetWidth;
@@ -311,10 +307,15 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
         if (cat.children) {
             for (const sub of cat.children) {
                 if (sub.dataKey === dataKey) {
+                    // 保存搜索容器滚动
+                    const searchKey = getContainerKey();
+                    const container = getRenderContainer();
+                    if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
+
                     currentCategoryId = cat.id;
                     currentSubId = sub.id;
                     currentView = VIEW.CATEGORY;
-                    switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+                    switchToCurrentContainer();
                     renderSidebar();
                     renderCurrentCategory();
                     setTimeout(() => {
@@ -324,7 +325,7 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
                             setTimeout(() => {
                                 toggleVariety(`v-${si}-${vi}`);
                                 setTimeout(() => {
-                                    const el = document.getElementById('list-' + 'v-' + si + '-' + vi);
+                                    const el = document.getElementById('list-v-' + si + '-' + vi);
                                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }, 100);
                             }, 50);
@@ -339,10 +340,14 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
                 }
             }
         } else if (cat.dataKey === dataKey) {
+            const searchKey = getContainerKey();
+            const container = getRenderContainer();
+            if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
+
             currentCategoryId = cat.id;
             currentSubId = null;
             currentView = VIEW.CATEGORY;
-            switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+            switchToCurrentContainer();
             renderSidebar();
             renderCurrentCategory();
             setTimeout(() => {
@@ -352,7 +357,7 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
                     setTimeout(() => {
                         toggleVariety(`v-${si}-${vi}`);
                         setTimeout(() => {
-                            const el = document.getElementById('list-' + 'v-' + si + '-' + vi);
+                            const el = document.getElementById('list-v-' + si + '-' + vi);
                             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }, 100);
                     }, 50);
@@ -370,7 +375,7 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
 
 function backFromSearch() {
     currentView = currentCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
-    switchViewContainer(currentMode + '_' + currentView);
+    switchToCurrentContainer();
     currentSearchKeyword = '';
     if (currentView === VIEW.OVERVIEW) {
         renderOverview();
