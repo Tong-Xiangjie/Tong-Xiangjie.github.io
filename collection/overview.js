@@ -1,8 +1,7 @@
 // ==================== overview.js ====================
-// 概览页渲染
 
 function renderOverview() {
-    const app = getViewContainer(currentMode + '_' + VIEW.OVERVIEW);
+    const app = getRenderContainer();
     currentView = VIEW.OVERVIEW;
 
     let allItems = [];
@@ -148,10 +147,17 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
         if (cat.children) {
             for (const sub of cat.children) {
                 if (sub.dataKey === dataKey) {
+                    // ★ 保存当前概览滚动
+                    const overviewKey = getContainerKey();
+                    const container = getRenderContainer();
+                    if (container) {
+                        scrollMemory[currentMode + '-' + overviewKey] = container.scrollTop;
+                    }
+
                     currentCategoryId = cat.id;
                     currentSubId = sub.id;
                     currentView = VIEW.CATEGORY;
-                    switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+                    switchToCurrentContainer();
                     renderSidebar();
                     renderCurrentCategory();
                     setTimeout(() => {
@@ -176,10 +182,16 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
                 }
             }
         } else if (cat.dataKey === dataKey) {
+            const overviewKey = getContainerKey();
+            const container = getRenderContainer();
+            if (container) {
+                scrollMemory[currentMode + '-' + overviewKey] = container.scrollTop;
+            }
+
             currentCategoryId = cat.id;
             currentSubId = null;
             currentView = VIEW.CATEGORY;
-            switchViewContainer(currentMode + '_' + VIEW.CATEGORY);
+            switchToCurrentContainer();
             renderSidebar();
             renderCurrentCategory();
             setTimeout(() => {
