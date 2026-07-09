@@ -75,9 +75,9 @@ function renderOverview() {
     }
 
     const modeLabel = currentMode === 'notes' ? '纸币' : '硬币';
-    let html = `<div class="overview-header"><h2>全部${modeLabel}</h2><p>共 ${allItems.length} 件藏品</p></div>`;
+    let html = `<div class="overview-header"><h2>全部${modeLabel}</h2><p>共${allItems.length}件藏品</p></div>`;
     if (allItems.length === 0) {
-        html += '<div class="empty-state">暂无数据</div>';
+        html += '<div class="empty-state">啥都木有</div>';
         app.innerHTML = html;
         return;
     }
@@ -117,20 +117,20 @@ function renderOverviewGroup(label, items) {
             : item.series.seriesName;
 
         const catalogNum = c.catalogNumber || c.krause || '';
-        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
 
         html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="mini-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
         if (img2) html += `<img class="mini-thumb" src="${img2}" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">图片怎么不见力(╯︵╰,)</div>`;
+        if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">图片它不见力(╯︵╰,)</div>`;
         html += `</div>`;
         html += `<div class="info">`;
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
         html += `<div class="detail">`;
         if (c.version) html += `${escapeHtml(c.version)} · `;
         if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
-        if (c.year) html += `${c.year}年`;
+        if (c.year) html += `${c.year}年发行`;
         if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
         html += `</div></div>`;
         html += `<div class="index-num">#${item.globalIndex}</div>`;
@@ -272,14 +272,14 @@ function renderSeriesList(data, title) {
 function renderCopiesList(copies) {
     const imgBase = getImageBase();
     if (!copies || copies.length === 0) {
-        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">暂无藏品</div>';
+        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
     }
     let html = '';
     for (const c of copies) {
         const img1 = c.img1 ? imgBase + c.img1 : '';
         const img2 = c.img2 ? imgBase + c.img2 : '';
         const catalogNum = c.catalogNumber || c.krause || '';
-        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
@@ -291,7 +291,7 @@ function renderCopiesList(copies) {
         html += `<div>`;
         if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
         if (c.gradingCompany) html += `<span class="meta">${escapeHtml(c.gradingCompany)}</span>`;
-        if (c.year) html += `<span class="meta">${c.year}年</span>`;
+        if (c.year) html += `<span class="meta">${c.year}年发行</span>`;
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
         if (c.price) {
             const priceText = String(c.price).includes('元') ? c.price : c.price + '元';
