@@ -73,6 +73,13 @@ function onSidebarItemClick(catId) {
         currentCategoryId = null;
         currentSubId = null;
         currentView = VIEW.OVERVIEW;
+        // 清理所有容器
+        for (const k of Object.keys(viewScrollContainers)) {
+            viewScrollContainers[k].style.display = 'none';
+            viewScrollContainers[k].innerHTML = '';
+        }
+        const appEl = document.getElementById('app');
+        if (appEl) { appEl.style.display = 'none'; appEl.innerHTML = ''; }
         switchToCurrentContainer();
         renderSidebar();
         renderOverview();
@@ -83,6 +90,13 @@ function onSidebarItemClick(catId) {
     currentCategoryId = catId;
     currentView = VIEW.CATEGORY;
     currentSubId = null;
+    // 清理所有容器
+    for (const k of Object.keys(viewScrollContainers)) {
+        viewScrollContainers[k].style.display = 'none';
+        viewScrollContainers[k].innerHTML = '';
+    }
+    const appEl = document.getElementById('app');
+    if (appEl) { appEl.style.display = 'none'; appEl.innerHTML = ''; }
     switchToCurrentContainer();
     renderSidebar();
     renderCurrentCategory();
@@ -112,6 +126,13 @@ function onSidebarChildClick(parentId, subId) {
         currentSubId = null;
         currentCategoryId = parentId;
         currentView = VIEW.CATEGORY;
+        // 清理所有容器
+        for (const k of Object.keys(viewScrollContainers)) {
+            viewScrollContainers[k].style.display = 'none';
+            viewScrollContainers[k].innerHTML = '';
+        }
+        const appEl = document.getElementById('app');
+        if (appEl) { appEl.style.display = 'none'; appEl.innerHTML = ''; }
         switchToCurrentContainer();
         renderSidebar();
         renderCurrentCategory();
@@ -122,6 +143,13 @@ function onSidebarChildClick(parentId, subId) {
     currentCategoryId = parentId;
     currentSubId = subId;
     currentView = VIEW.CATEGORY;
+    // 清理所有容器
+    for (const k of Object.keys(viewScrollContainers)) {
+        viewScrollContainers[k].style.display = 'none';
+        viewScrollContainers[k].innerHTML = '';
+    }
+    const appEl = document.getElementById('app');
+    if (appEl) { appEl.style.display = 'none'; appEl.innerHTML = ''; }
     switchToCurrentContainer();
     renderSidebar();
     renderCurrentCategory();
