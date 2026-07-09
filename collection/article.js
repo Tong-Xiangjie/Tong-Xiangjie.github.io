@@ -1,7 +1,5 @@
 // ==================== article.js ====================
-// 文章阅读器 
 
-// ========== 文章收集 ==========
 function collectAllArticles() {
     collectedArticles = [];
 
@@ -26,41 +24,25 @@ function collectFromSource(data, dataKey, sourceType) {
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
-
         if (series.readme && series.readme.title && series.readme.content) {
             const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
             collectedArticles.push({
-                title: series.readme.title,
-                contentPath: series.readme.content,
-                category: catInfo.category,
-                parentCategory: catInfo.parentCategory,
-                dataKey,
-                sourceType,
-                fullPath,
-                groupPath,
-                seriesIndex: si,
-                varietyIndex: -1,
-                seriesName: series.seriesName
+                title: series.readme.title, contentPath: series.readme.content,
+                category: catInfo.category, parentCategory: catInfo.parentCategory,
+                dataKey, sourceType, fullPath, groupPath,
+                seriesIndex: si, varietyIndex: -1, seriesName: series.seriesName
             });
         }
-
         if (series.varieties && series.varieties.length > 0) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 if (variety.readme && variety.readme.title && variety.readme.content) {
                     const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
                     collectedArticles.push({
-                        title: variety.readme.title,
-                        contentPath: variety.readme.content,
-                        category: catInfo.category,
-                        parentCategory: catInfo.parentCategory,
-                        dataKey,
-                        sourceType,
-                        fullPath,
-                        groupPath,
-                        seriesIndex: si,
-                        varietyIndex: vi,
-                        seriesName: series.seriesName
+                        title: variety.readme.title, contentPath: variety.readme.content,
+                        category: catInfo.category, parentCategory: catInfo.parentCategory,
+                        dataKey, sourceType, fullPath, groupPath,
+                        seriesIndex: si, varietyIndex: vi, seriesName: series.seriesName
                     });
                 }
             }
@@ -71,26 +53,22 @@ function collectFromSource(data, dataKey, sourceType) {
 function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
     const top = sourceType === MODE.COINS ? '硬币' : '纸币';
     const parts = [top];
-
     if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
         parts.push(catInfo.parentCategory);
     }
     parts.push(catInfo.category);
     if (seriesName) parts.push(seriesName);
     if (varietyName) parts.push(varietyName);
-
     return parts;
 }
 
 function buildGroupPath(sourceType, catInfo) {
     const top = sourceType === MODE.COINS ? '硬币' : '纸币';
     const parts = [top];
-
     if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
         parts.push(catInfo.parentCategory);
     }
     parts.push(catInfo.category);
-
     return parts;
 }
 
@@ -113,7 +91,6 @@ function findArticleCategoryInfo(dataKey, sourceType) {
             }
         }
     }
-    // 跨来源查找（纸币 dataKey 可能在硬币树中，反之亦然）
     if (sourceType !== MODE.COINS) {
         for (const cat of coinCategoryTree) {
             if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
@@ -127,24 +104,14 @@ function findArticleCategoryInfo(dataKey, sourceType) {
     return { category: dataKey, parentCategory: '其他' };
 }
 
-// ========== 动态构建文章分类树 ==========
 function buildArticleCategoryTree() {
     articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
-
     const notesArticles = collectedArticles.filter(a => a.sourceType === MODE.NOTES);
     const coinsArticles = collectedArticles.filter(a => a.sourceType === MODE.COINS);
-
     const notesCount = {};
-    for (const a of notesArticles) {
-        if (!notesCount[a.dataKey]) notesCount[a.dataKey] = 0;
-        notesCount[a.dataKey]++;
-    }
-
+    for (const a of notesArticles) { if (!notesCount[a.dataKey]) notesCount[a.dataKey] = 0; notesCount[a.dataKey]++; }
     const coinsCount = {};
-    for (const a of coinsArticles) {
-        if (!coinsCount[a.dataKey]) coinsCount[a.dataKey] = 0;
-        coinsCount[a.dataKey]++;
-    }
+    for (const a of coinsArticles) { if (!coinsCount[a.dataKey]) coinsCount[a.dataKey] = 0; coinsCount[a.dataKey]++; }
 
     for (const cat of categoryTree) {
         if (cat.children) {
@@ -153,69 +120,40 @@ function buildArticleCategoryTree() {
             for (const sub of cat.children) {
                 const count = notesCount[sub.dataKey] || 0;
                 parentTotal += count;
-                if (count > 0) {
-                    children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
-                }
+                if (count > 0) children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
             }
-            if (children.length > 0) {
-                articleCategoryTree.push({
-                    id: cat.id,
-                    name: cat.name + '（' + parentTotal + '篇）',
-                    children: children
-                });
-            }
+            if (children.length > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + parentTotal + '篇）', children });
         } else {
             const count = notesCount[cat.dataKey] || 0;
-            if (count > 0) {
-                articleCategoryTree.push({
-                    id: cat.id,
-                    name: cat.name + '（' + count + '篇）',
-                    dataKey: cat.dataKey,
-                    children: null
-                });
-            }
+            if (count > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + count + '篇）', dataKey: cat.dataKey, children: null });
         }
     }
 
     for (const cat of coinCategoryTree) {
         const count = coinsCount[cat.dataKey] || 0;
-        if (count > 0) {
-            articleCategoryTree.push({
-                id: cat.id,
-                name: cat.name + '（' + count + '篇）',
-                dataKey: cat.dataKey,
-                children: null
-            });
-        }
+        if (count > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + count + '篇）', dataKey: cat.dataKey, children: null });
     }
 }
 
-// ========== 获取文章内容的基础路径 ==========
 function getArticleBasePath(sourceType) {
     return sourceType === MODE.COINS ? '../coincollection/' : '../notecollection/';
 }
 
-// ========== 预加载全部文章 ==========
 async function preloadAllArticles() {
     if (isArticlePreloading) return;
     isArticlePreloading = true;
-
     const tip = document.getElementById('searchTip');
     if (tip) tip.textContent = '正在加载全文索引...';
-
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
-
     isArticlePreloading = false;
     if (tip) tip.textContent = '全文索引已就绪，可搜索正文内容';
 }
 
 async function preloadArticle(article) {
     if (articleContentCache[article.contentPath]) return;
-
     let filePath = article.contentPath;
     if (filePath.startsWith('file:')) filePath = filePath.substring(5);
-
     try {
         const basePath = getArticleBasePath(article.sourceType);
         const response = await fetch(basePath + filePath);
@@ -223,9 +161,7 @@ async function preloadArticle(article) {
         const html = await response.text();
         articleContentCache[article.contentPath] = html;
         articlePlainTextCache[article.contentPath] = stripHtml(html);
-    } catch (e) {
-        // 加载失败忽略
-    }
+    } catch (e) {}
 }
 
 function stripHtml(html) {
@@ -233,28 +169,17 @@ function stripHtml(html) {
     let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
     text = text.replace(/<[^>]+>/g, '');
-    text = text.replace(/&nbsp;/g, ' ');
-    text = text.replace(/&lt;/g, '<');
-    text = text.replace(/&gt;/g, '>');
-    text = text.replace(/&amp;/g, '&');
-    text = text.replace(/&quot;/g, '"');
-    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
     text = text.replace(/\s+/g, ' ').trim();
     return text;
 }
 
-// ========== 切换搜索模式 ==========
 function toggleArticleSearchMode() {
     if (articleSearchMode === 'title') {
         articleSearchMode = 'fulltext';
         const input = document.getElementById('searchInput');
-        if (input) {
-            input.removeEventListener('input', doSearch);
-            input.addEventListener('input', doSearch);
-        }
-        preloadAllArticles().then(() => {
-            if (articleSearchKeyword) renderArticleList();
-        });
+        if (input) { input.removeEventListener('input', doSearch); input.addEventListener('input', doSearch); }
+        preloadAllArticles().then(() => { if (articleSearchKeyword) renderArticleList(); });
     } else {
         articleSearchMode = 'title';
         if (articleSearchKeyword) renderArticleList();
@@ -262,22 +187,17 @@ function toggleArticleSearchMode() {
     updateSearchUIForMode();
 }
 
-// ========== 侧边栏渲染 ==========
 function renderArticleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
     let html = '';
     for (const cat of articleCategoryTree) {
         const hasChildren = cat.children && cat.children.length > 0;
-        const isActive = cat.id === currentArticleCategory ||
-            (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
-        const isExpanded = (isActive && hasChildren) ||
-            (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
+        const isActive = cat.id === currentArticleCategory || (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
+        const isExpanded = (isActive && hasChildren) || (hasChildren && cat.children.some(sub => sub.id === currentArticleCategory));
         html += `<div class="sidebar-item ${isActive ? 'active' : ''}" onclick="onArticleSidebarClick('${cat.id}')">`;
         html += `<span>${cat.name}</span>`;
-        if (hasChildren) {
-            html += `<span class="expand-icon ${isExpanded ? 'expanded' : ''}">▸</span>`;
-        }
+        if (hasChildren) html += `<span class="expand-icon ${isExpanded ? 'expanded' : ''}">▸</span>`;
         html += `</div>`;
         if (hasChildren) {
             html += `<div class="sidebar-children ${isExpanded ? 'open' : ''}">`;
@@ -292,88 +212,42 @@ function renderArticleSidebar() {
 }
 
 function onArticleSidebarClick(categoryId) {
-    if (currentArticleCategory === categoryId) {
-        currentArticleCategory = 'all';
-    } else {
-        currentArticleCategory = categoryId;
-    }
+    if (currentArticleCategory === categoryId) { currentArticleCategory = 'all'; }
+    else { currentArticleCategory = categoryId; }
     currentArticleView = VIEW.LIST;
     renderArticleList();
     renderArticleSidebar();
 }
 
-// ========== 文章列表 ==========
 function renderArticleList() {
-    const app = document.getElementById('app');
+    const app = getRenderContainer();
     currentArticleView = VIEW.LIST;
 
     let articles = [];
-    if (currentArticleCategory === 'all') {
-        articles = [...collectedArticles];
-    } else {
+    if (currentArticleCategory === 'all') { articles = [...collectedArticles]; }
+    else {
         const isParent = articleCategoryTree.some(cat => cat.id === currentArticleCategory && cat.children && cat.children.length > 0);
-
         if (isParent) {
             const parentCat = articleCategoryTree.find(c => c.id === currentArticleCategory);
-            if (parentCat && parentCat.children) {
-                const subKeys = parentCat.children.map(s => s.dataKey || s.id);
-                articles = collectedArticles.filter(a => subKeys.includes(a.dataKey));
-            } else {
-                articles = [];
-            }
+            const subKeys = parentCat && parentCat.children ? parentCat.children.map(s => s.dataKey || s.id) : [];
+            articles = collectedArticles.filter(a => subKeys.includes(a.dataKey));
         } else {
             let targetDataKey = null;
             for (const cat of articleCategoryTree) {
-                if (cat.id === currentArticleCategory) {
-                    targetDataKey = cat.dataKey || null;
-                    break;
-                }
-                if (cat.children) {
-                    for (const sub of cat.children) {
-                        if (sub.id === currentArticleCategory) {
-                            targetDataKey = sub.dataKey;
-                            break;
-                        }
-                    }
-                    if (targetDataKey) break;
-                }
+                if (cat.id === currentArticleCategory) { targetDataKey = cat.dataKey || null; break; }
+                if (cat.children) { for (const sub of cat.children) { if (sub.id === currentArticleCategory) { targetDataKey = sub.dataKey; break; } } if (targetDataKey) break; }
             }
-
             if (targetDataKey) {
                 let targetSource = null;
                 for (const cat of categoryTree) {
-                    if (cat.id === currentArticleCategory) {
-                        targetSource = MODE.NOTES;
-                        break;
-                    }
-                    if (cat.children) {
-                        for (const sub of cat.children) {
-                            if (sub.id === currentArticleCategory) {
-                                targetSource = MODE.NOTES;
-                                break;
-                            }
-                        }
-                        if (targetSource) break;
-                    }
+                    if (cat.id === currentArticleCategory) { targetSource = MODE.NOTES; break; }
+                    if (cat.children) { for (const sub of cat.children) { if (sub.id === currentArticleCategory) { targetSource = MODE.NOTES; break; } } if (targetSource) break; }
                 }
-                if (!targetSource) {
-                    for (const cat of coinCategoryTree) {
-                        if (cat.id === currentArticleCategory) {
-                            targetSource = MODE.COINS;
-                            break;
-                        }
-                    }
-                }
-
-                if (targetSource) {
-                    articles = collectedArticles.filter(a => a.dataKey === targetDataKey && a.sourceType === targetSource);
-                } else {
-                    articles = collectedArticles.filter(a => a.dataKey === targetDataKey);
-                }
+                if (!targetSource) { for (const cat of coinCategoryTree) { if (cat.id === currentArticleCategory) { targetSource = MODE.COINS; break; } } }
+                if (targetSource) { articles = collectedArticles.filter(a => a.dataKey === targetDataKey && a.sourceType === targetSource); }
+                else { articles = collectedArticles.filter(a => a.dataKey === targetDataKey); }
             } else {
-                articles = collectedArticles.filter(a =>
-                    a.category === currentArticleCategory || a.parentCategory === currentArticleCategory
-                );
+                articles = collectedArticles.filter(a => a.category === currentArticleCategory || a.parentCategory === currentArticleCategory);
             }
         }
     }
@@ -391,11 +265,7 @@ function renderArticleList() {
     }
 
     let html = `<div class="overview-header"><h2>文章</h2><p>共 ${articles.length} 篇</p></div>`;
-    if (articles.length === 0) {
-        html += '<div class="empty-state">暂无文章</div>';
-        app.innerHTML = html;
-        return;
-    }
+    if (articles.length === 0) { html += '<div class="empty-state">暂无文章</div>'; app.innerHTML = html; return; }
 
     const grouped = {};
     for (const article of articles) {
@@ -418,9 +288,7 @@ function renderArticleList() {
             }
             if (articleSearchKeyword && articleSearchMode === 'fulltext' && articlePlainTextCache[article.contentPath]) {
                 const snippet = getContextSnippet(articlePlainTextCache[article.contentPath], articleSearchKeyword);
-                if (snippet) {
-                    html += `<div class="article-snippet">${highlightText(escapeHtml(snippet), articleSearchKeyword)}</div>`;
-                }
+                if (snippet) html += `<div class="article-snippet">${highlightText(escapeHtml(snippet), articleSearchKeyword)}</div>`;
             }
             html += `</div>`;
             html += `<div class="index-num"></div>`;
@@ -430,11 +298,7 @@ function renderArticleList() {
     }
 
     app.innerHTML = html;
-    requestAnimationFrame(() => {
-        app.classList.remove('content-enter');
-        void app.offsetWidth;
-        app.classList.add('content-enter');
-    });
+    requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
 }
 
 function getContextSnippet(plainText, keyword) {
@@ -458,43 +322,61 @@ function highlightText(text, keyword) {
     return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
 }
 
-// ========== 文章阅读器 ==========
 function openArticleReader(index) {
+    // ★ 保存文章列表的滚动位置
+    const prevKey = getContainerKey();
+    const prevContainer = getRenderContainer();
+    if (prevContainer && prevKey !== 'articles_list') {
+        scrollMemory['articles-' + prevKey] = prevContainer.scrollTop;
+    }
+    // ★ 保存 list 滚动
+    const listContainer = viewScrollContainers['articles_list'];
+    if (listContainer) {
+        scrollMemory['articles-articles_list'] = listContainer.scrollTop;
+    }
+
     currentArticleIndex = index;
     currentArticleView = VIEW.READER;
     const article = collectedArticles[index];
     if (!article) return;
 
-    const app = document.getElementById('app');
+    // ★ 切换到文章的独立容器
+    switchToCurrentContainer();
+    const app = getRenderContainer();
 
-    let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
-
+    // 检查是否已有缓存内容
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
-        const contentEl = document.querySelector('.content');
-        if (contentEl) contentEl.scrollTop = 0;
+        const key = getContainerKey();
+        if (scrollMemory['articles-' + key] !== undefined) {
+            requestAnimationFrame(() => { app.scrollTop = scrollMemory['articles-' + key]; });
+        } else {
+            app.scrollTop = 0;
+        }
         return;
     }
 
+    // 加载中
+    let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
     html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">加载中...</div>`;
     app.innerHTML = html;
 
     let filePath = article.contentPath;
     if (filePath.startsWith('file:')) filePath = filePath.substring(5);
-
     const basePath = getArticleBasePath(article.sourceType);
 
     fetch(basePath + filePath)
-        .then(response => {
-            if (!response.ok) throw new Error('加载失败');
-            return response.text();
-        })
+        .then(response => { if (!response.ok) throw new Error('加载失败'); return response.text(); })
         .then(content => {
             articleContentCache[article.contentPath] = content;
             articlePlainTextCache[article.contentPath] = stripHtml(content);
             renderArticleReader(article, content);
-            const contentEl = document.querySelector('.content');
-            if (contentEl) contentEl.scrollTop = 0;
+            const key = getContainerKey();
+            if (scrollMemory['articles-' + key] !== undefined) {
+                requestAnimationFrame(() => { app.scrollTop = scrollMemory['articles-' + key]; });
+            } else {
+                app.scrollTop = 0;
+            }
         })
         .catch(() => {
             app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
@@ -502,28 +384,33 @@ function openArticleReader(index) {
 }
 
 function renderArticleReader(article, content) {
-    const app = document.getElementById('app');
+    const app = getRenderContainer();
     let htmlContent = content;
-
-    // 根据文章来源修复图片路径
     const imageBase = getArticleBasePath(article.sourceType) + 'readmes/image/';
-    // 匹配多种<img>写法：src="readmes/image/..."、src='readmes/image/...'、src=readmes/image/... 
     htmlContent = htmlContent.replace(/(src\s*=\s*["']?)\s*readmes\/image\//gi, '$1' + imageBase);
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
-    html += `<div class="article-reader">`;
-    html += htmlContent;
-    html += `</div>`;
-
+    html += `<div class="article-reader">${htmlContent}</div>`;
     app.innerHTML = html;
-    requestAnimationFrame(() => {
-        app.classList.remove('content-enter');
-        void app.offsetWidth;
-        app.classList.add('content-enter');
-    });
+    requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
 }
 
 function closeArticleReader() {
+    // ★ 保存当前文章容器滚动
+    const readerKey = getContainerKey();
+    const readerContainer = getRenderContainer();
+    if (readerContainer) {
+        scrollMemory['articles-' + readerKey] = readerContainer.scrollTop;
+    }
+
     currentArticleView = VIEW.LIST;
+    switchToCurrentContainer();
+
+    // 恢复列表滚动
+    const listContainer = getRenderContainer();
+    if (scrollMemory['articles-articles_list'] !== undefined) {
+        requestAnimationFrame(() => { listContainer.scrollTop = scrollMemory['articles-articles_list']; });
+    }
+
     renderArticleList();
 }
