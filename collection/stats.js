@@ -264,7 +264,7 @@ function renderPriceListItems(prices, order, filter, filterInfo) {
     let html = '';
     for (let i = 0; i < sorted.length; i++) {
         const p = sorted[i];
-        const displayPrice = p.noPrice ? '-' : p.value + ' 元';
+        const displayPrice = p.noPrice ? '-' : p.value + '元';
         const nameHtml = escapeHtml(p.name);
         const versionHtml = p.version ? escapeHtml(p.version) : '';
         html += `<div class="price-list-item">`;
@@ -412,7 +412,7 @@ function buildYearHTML(stats) {
         html += `<div class="stat-bar-row">`;
         html += `<span class="stat-bar-label">${label}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
-        html += `<span class="stat-bar-count">${count} 件</span>`;
+        html += `<span class="stat-bar-count">${count}件</span>`;
         html += `</div>`;
     }
     if (stats.sortedYears.length === 0) {
@@ -447,7 +447,7 @@ function exportJSON() {
         }))
     };
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(JSON.stringify(exportData, null, 2), `铜の币纪 | 藏品数据备份文件 | 导出日期${dateStr}.json`, 'application/json');
+    downloadFile(JSON.stringify(exportData, null, 2), `铜の币纪_藏品数据备份文件_导出日期${dateStr}.json`, 'application/json');
 }
 
 function exportCSV() {
@@ -474,7 +474,7 @@ function exportCSV() {
         csv += row.join(',') + '\n';
     }
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(csv, `铜の币纪 | 收藏品详细信息表格 | 导出日期${dateStr}.csv`, 'text/csv;charset=utf-8');
+    downloadFile(csv, `铜の币纪_收藏品详细信息表格_导出日期${dateStr}.csv`, 'text/csv;charset=utf-8');
 }
 
 function exportMarkdown() {
@@ -507,7 +507,7 @@ function exportMarkdown() {
         md += '\n';
     }
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(md, `铜の币纪 | 收藏品概况报告 | 导出日期${dateStr}.md`, 'text/markdown;charset=utf-8');
+    downloadFile(md, `铜の币纪_收藏品概况报告_导出日期${dateStr}.md`, 'text/markdown;charset=utf-8');
 }
 
 function exportPriceList() {
@@ -520,7 +520,7 @@ function exportPriceList() {
     }
     text += '\n合计：' + stats.totalPrice.toFixed(0) + ' 元 | 均价：' + stats.avgPrice + ' 元/件\n';
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(text, `铜の币纪 | 价格列表 | 导出日期${dateStr}.txt`, 'text/plain;charset=utf-8');
+    downloadFile(text, `铜の币纪_价格列表_导出日期${dateStr}.txt`, 'text/plain;charset=utf-8');
 }
 
 function downloadFile(content, filename, mimeType) {
