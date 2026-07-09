@@ -117,49 +117,9 @@ function leaveSettingsToTarget(target) {
         toggleBtn.style.display = '';
     }
 
+    // ★ 从设置切到文章：始终显示列表视图
     if (target === MODE.ARTICLES) {
-        currentMode = MODE.ARTICLES;
-        currentArticleView = articleState.currentView;
-        currentArticleCategory = articleState.currentCategory;
-        currentArticleIndex = articleState.currentIndex;
-        articleSearchKeyword = articleState.searchKeyword;
-        if (collectedArticles.length === 0) collectAllArticles();
-
-        const inp = document.getElementById('searchInput');
-        if (inp) {
-            inp.value = articleSearchKeyword || '';
-            inp.removeEventListener('input', doSearch);
-            inp.addEventListener('input', doSearch);
-        }
-
-        switchToCurrentContainer();
-        updateSearchUIForMode();
-        renderSidebar();
-
-        // 检查容器是否有内容
-        const container = getRenderContainer();
-        const hasContent = container && container.innerHTML.trim().length > 10;
-
-        if (!hasContent) {
-            if (currentArticleView === VIEW.LIST) {
-                renderArticleList();
-            } else {
-                openArticleReader(currentArticleIndex);
-            }
-        } else {
-            // 已有内容，恢复滚动
-            const key = getContainerKey();
-            const sk = 'articles-' + key;
-            if (scrollMemory[sk] !== undefined) {
-                requestAnimationFrame(() => {
-                    container.scrollTop = scrollMemory[sk];
-                });
-            }
-        }
-
-        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-        document.querySelector(`.tab-item[data-target="${MODE.ARTICLES}"]`)?.classList.add('active');
-        triggerViewAnimation();
+        enterArticlesTab();
         return;
     }
 
@@ -243,7 +203,6 @@ function restoreNotesCoinsFromSettings(target) {
     restoreSidebarState();
     renderSidebar();
 
-    // 检查容器是否有内容，有则跳过渲染
     const container = getRenderContainer();
     const hasContent = container && container.children.length > 0 && container.innerHTML.trim().length > 10;
 
@@ -260,9 +219,7 @@ function restoreNotesCoinsFromSettings(target) {
             renderOverview();
         }
     } else {
-        // 恢复展开状态
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        // 恢复滚动位置
         const key = getContainerKey();
         const sk = target + '-' + key;
         if (scrollMemory[sk] !== undefined) {
@@ -295,6 +252,7 @@ function restoreExpandedStates(states) {
     }
 }
 
+// ★ 进入文章板块：始终显示列表视图，保留滚动位置
 function enterArticlesTab() {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -308,10 +266,11 @@ function enterArticlesTab() {
 
     if (collectedArticles.length === 0) collectAllArticles();
 
-    currentArticleView = articleState.currentView;
-    currentArticleCategory = articleState.currentCategory;
-    currentArticleIndex = articleState.currentIndex;
-    articleSearchKeyword = articleState.searchKeyword;
+    // ★ 从其他板块切到文章时，始终显示列表视图
+    currentArticleView = VIEW.LIST;
+    currentArticleCategory = articleState.currentCategory || 'all';
+    currentArticleIndex = -1;
+    articleSearchKeyword = articleState.searchKeyword || '';
 
     const inp = document.getElementById('searchInput');
     if (inp) {
@@ -327,25 +286,13 @@ function enterArticlesTab() {
     updateSearchUIForMode();
     renderSidebar();
 
-    // 检查容器是否有内容
+    // ★ 总是重新渲染列表（保证最新内容），然后恢复滚动
+    renderArticleList();
     const container = getRenderContainer();
-    const hasContent = container && container.innerHTML.trim().length > 10;
-
-    if (!hasContent) {
-        if (currentArticleView === VIEW.LIST) {
-            renderArticleList();
-        } else {
-            openArticleReader(currentArticleIndex);
-        }
-    } else {
-        // 恢复滚动
-        const key = getContainerKey();
-        const sk = 'articles-' + key;
-        if (scrollMemory[sk] !== undefined) {
-            requestAnimationFrame(() => {
-                container.scrollTop = scrollMemory[sk];
-            });
-        }
+    if (articleState.listScrollY > 0) {
+        requestAnimationFrame(() => {
+            container.scrollTop = articleState.listScrollY;
+        });
     }
 
     triggerViewAnimation();
@@ -389,7 +336,6 @@ function enterNotesOrCoinsTab(target) {
     restoreSidebarState();
     renderSidebar();
 
-    // ★ 关键修复：检查容器是否已有内容，有则不重新渲染
     const container = getRenderContainer();
     const hasContent = container && container.children.length > 0 && container.innerHTML.trim().length > 10;
 
@@ -406,9 +352,7 @@ function enterNotesOrCoinsTab(target) {
             renderOverview();
         }
     } else {
-        // 恢复展开状态
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        // 恢复滚动位置
         const key = getContainerKey();
         const sk = newMode + '-' + key;
         if (scrollMemory[sk] !== undefined) {
