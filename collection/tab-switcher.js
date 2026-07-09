@@ -117,7 +117,6 @@ function leaveSettingsToTarget(target) {
         toggleBtn.style.display = '';
     }
 
-    // ★ 从设置切到文章：始终显示列表视图
     if (target === MODE.ARTICLES) {
         enterArticlesTab();
         return;
@@ -178,6 +177,7 @@ function leaveSettingsToTarget(target) {
     document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
 }
 
+// ★ 从设置回到纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
 function restoreNotesCoinsFromSettings(target) {
     currentMode = target;
     const saved = modeStates[target];
@@ -220,11 +220,13 @@ function restoreNotesCoinsFromSettings(target) {
         }
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        const key = getContainerKey();
-        const sk = target + '-' + key;
-        if (scrollMemory[sk] !== undefined) {
+        // ★ 从 modeStates 恢复滚动位置
+        const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
+            : currentView === VIEW.CATEGORY ? saved.categoryScrollY
+            : saved.searchScrollY;
+        if (scrollPos > 0) {
             requestAnimationFrame(() => {
-                container.scrollTop = scrollMemory[sk];
+                container.scrollTop = scrollPos;
             });
         }
     }
@@ -252,7 +254,7 @@ function restoreExpandedStates(states) {
     }
 }
 
-// ★ 进入文章板块：始终显示列表视图，保留滚动位置
+// ★ 进入文章：始终列表视图 + 从 articleState.listScrollY 恢复滚动
 function enterArticlesTab() {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -266,7 +268,7 @@ function enterArticlesTab() {
 
     if (collectedArticles.length === 0) collectAllArticles();
 
-    // ★ 从其他板块切到文章时，始终显示列表视图
+    // 从其他板块切到文章时，始终显示列表视图
     currentArticleView = VIEW.LIST;
     currentArticleCategory = articleState.currentCategory || 'all';
     currentArticleIndex = -1;
@@ -286,8 +288,10 @@ function enterArticlesTab() {
     updateSearchUIForMode();
     renderSidebar();
 
-    // ★ 总是重新渲染列表（保证最新内容），然后恢复滚动
+    // 渲染列表
     renderArticleList();
+
+    // ★ 恢复列表滚动位置
     const container = getRenderContainer();
     if (articleState.listScrollY > 0) {
         requestAnimationFrame(() => {
@@ -298,6 +302,7 @@ function enterArticlesTab() {
     triggerViewAnimation();
 }
 
+// ★ 切回纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
 function enterNotesOrCoinsTab(target) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -353,11 +358,13 @@ function enterNotesOrCoinsTab(target) {
         }
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        const key = getContainerKey();
-        const sk = newMode + '-' + key;
-        if (scrollMemory[sk] !== undefined) {
+        // ★ 从 modeStates 恢复滚动位置（不走 scrollMemory）
+        const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
+            : currentView === VIEW.CATEGORY ? saved.categoryScrollY
+            : saved.searchScrollY;
+        if (scrollPos > 0) {
             requestAnimationFrame(() => {
-                container.scrollTop = scrollMemory[sk];
+                container.scrollTop = scrollPos;
             });
         }
     }
