@@ -17,16 +17,31 @@ function renderCurrentCategory() {
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); triggerViewAnimation(); return; }
 
+    // 如果是纸币且有子分类但未选择子分类，显示分类概览
     if (cat.children && cat.children.length > 0 && !currentSubId) {
         renderCategoryOverview(cat);
         return;
     }
 
-    let dataKey;
+    let dataKey = null;
     const subMap = getSubCategoryMap();
+
     if (currentSubId) {
-        const subInfo = subMap[currentSubId];
-        if (subInfo) dataKey = subInfo.dataKey;
+        // 纸币有子分类时，通过 subCategoryMap 查找 dataKey
+        if (subMap && subMap[currentSubId]) {
+            dataKey = subMap[currentSubId].dataKey;
+        } else {
+            // 硬币没有 subCategoryMap，尝试直接从分类树子节点查找
+            if (cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.id === currentSubId) {
+                        dataKey = sub.dataKey;
+                        break;
+                    }
+                }
+            }
+            if (!dataKey) dataKey = cat.dataKey;
+        }
     } else if (cat.dataKey) {
         dataKey = cat.dataKey;
     }
@@ -41,49 +56,58 @@ function renderCurrentCategory() {
         return;
     }
 
-    const subName = currentSubId ? (subMap[currentSubId]?.name || '') : '';
+    const subName = currentSubId ? getSubName(cat, currentSubId) : '';
     const title = subName || (cat.name || '');
     renderSeriesList(data, title);
+}
+
+function getSubName(cat, subId) {
+    if (cat.children) {
+        for (const sub of cat.children) {
+            if (sub.id === subId) return sub.name;
+        }
+    }
+    return '';
 }
 
 function renderCategoryOverview(cat) {
     const app = getRenderContainer();
     const imgBase = getImageBase();
-    const subMap = getSubCategoryMap();
 
     let allItems = [];
     let globalIndex = 1;
 
-    for (const sub of cat.children) {
-        const subInfo = subMap[sub.id];
-        if (!subInfo || !subInfo.dataKey) continue;
-        const data = getData(subInfo.dataKey);
-        if (!data || !data.series) continue;
+    // 纸币子分类概览
+    if (cat.children && cat.children.length > 0) {
+        for (const sub of cat.children) {
+            const data = getData(sub.dataKey);
+            if (!data || !data.series) continue;
 
-        const catLabel = cat.name + ' - ' + sub.name;
-        for (let si = 0; si < data.series.length; si++) {
-            const series = data.series[si];
-            if (series.varieties) {
-                for (let vi = 0; vi < series.varieties.length; vi++) {
-                    const variety = series.varieties[vi];
-                    if (!variety.copies) continue;
-                    for (let ci = 0; ci < variety.copies.length; ci++) {
+            const catLabel = cat.name + ' - ' + sub.name;
+            for (let si = 0; si < data.series.length; si++) {
+                const series = data.series[si];
+                if (series.varieties) {
+                    for (let vi = 0; vi < series.varieties.length; vi++) {
+                        const variety = series.varieties[vi];
+                        if (!variety.copies) continue;
+                        for (let ci = 0; ci < variety.copies.length; ci++) {
+                            allItems.push({
+                                catLabel, catId: cat.id, subId: sub.id,
+                                dataKey: sub.dataKey, si, vi, ci,
+                                series, variety, copy: variety.copies[ci],
+                                hasVarieties: true, globalIndex: globalIndex++
+                            });
+                        }
+                    }
+                } else if (series.copies) {
+                    for (let ci = 0; ci < series.copies.length; ci++) {
                         allItems.push({
                             catLabel, catId: cat.id, subId: sub.id,
-                            dataKey: subInfo.dataKey, si, vi, ci,
-                            series, variety, copy: variety.copies[ci],
-                            hasVarieties: true, globalIndex: globalIndex++
+                            dataKey: sub.dataKey, si, vi: null, ci,
+                            series, variety: null, copy: series.copies[ci],
+                            hasVarieties: false, globalIndex: globalIndex++
                         });
                     }
-                }
-            } else if (series.copies) {
-                for (let ci = 0; ci < series.copies.length; ci++) {
-                    allItems.push({
-                        catLabel, catId: cat.id, subId: sub.id,
-                        dataKey: subInfo.dataKey, si, vi: null, ci,
-                        series, variety: null, copy: series.copies[ci],
-                        hasVarieties: false, globalIndex: globalIndex++
-                    });
                 }
             }
         }
@@ -114,7 +138,7 @@ function renderCategoryOverview(cat) {
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
             const catalogNum = c.catalogNumber || c.krause || '';
-            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
 
             html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
             html += `<div class="dual-thumb">`;
@@ -127,7 +151,7 @@ function renderCategoryOverview(cat) {
             html += `<div class="detail">`;
             if (c.version) html += `${escapeHtml(c.version)} · `;
             if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
-            if (c.year) html += `${c.year}年`;
+            if (c.year) html += `${c.year}年发行`;
             if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
             html += `</div></div>`;
             html += `<div class="index-num">#${item.globalIndex}</div>`;
@@ -207,14 +231,14 @@ function renderSeriesList(data, title) {
 function renderCopiesList(copies) {
     const imgBase = getImageBase();
     if (!copies || copies.length === 0) {
-        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">暂无藏品</div>';
+        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
     }
     let html = '';
     for (const c of copies) {
         const img1 = c.img1 ? imgBase + c.img1 : '';
         const img2 = c.img2 ? imgBase + c.img2 : '';
         const catalogNum = c.catalogNumber || c.krause || '';
-        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
@@ -226,7 +250,7 @@ function renderCopiesList(copies) {
         html += `<div>`;
         if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
         if (c.gradingCompany) html += `<span class="meta">${escapeHtml(c.gradingCompany)}</span>`;
-        if (c.year) html += `<span class="meta">${c.year}年</span>`;
+        if (c.year) html += `<span class="meta">${c.year}年发行</span>`;
         if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
         if (c.price) {
             const priceText = String(c.price).includes('元') ? c.price : c.price + '元';
