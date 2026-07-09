@@ -322,16 +322,12 @@ function highlightText(text, keyword) {
     return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
 }
 
+// ★ 打开文章阅读器：每次始终滚动到顶部
 function openArticleReader(index) {
-    // ★ 保存文章列表的滚动位置
-    const prevKey = getContainerKey();
-    const prevContainer = getRenderContainer();
-    if (prevContainer && prevKey !== 'articles_list') {
-        scrollMemory['articles-' + prevKey] = prevContainer.scrollTop;
-    }
-    // ★ 保存 list 滚动
+    // 保存文章列表的滚动位置
     const listContainer = viewScrollContainers['articles_list'];
     if (listContainer) {
+        articleState.listScrollY = listContainer.scrollTop;
         scrollMemory['articles-articles_list'] = listContainer.scrollTop;
     }
 
@@ -340,19 +336,15 @@ function openArticleReader(index) {
     const article = collectedArticles[index];
     if (!article) return;
 
-    // ★ 切换到文章的独立容器
+    // 切换到文章的独立容器
     switchToCurrentContainer();
     const app = getRenderContainer();
 
     // 检查是否已有缓存内容
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
-        const key = getContainerKey();
-        if (scrollMemory['articles-' + key] !== undefined) {
-            requestAnimationFrame(() => { app.scrollTop = scrollMemory['articles-' + key]; });
-        } else {
-            app.scrollTop = 0;
-        }
+        // ★ 始终滚动到顶部，不恢复之前的阅读位置
+        app.scrollTop = 0;
         return;
     }
 
@@ -371,12 +363,8 @@ function openArticleReader(index) {
             articleContentCache[article.contentPath] = content;
             articlePlainTextCache[article.contentPath] = stripHtml(content);
             renderArticleReader(article, content);
-            const key = getContainerKey();
-            if (scrollMemory['articles-' + key] !== undefined) {
-                requestAnimationFrame(() => { app.scrollTop = scrollMemory['articles-' + key]; });
-            } else {
-                app.scrollTop = 0;
-            }
+            // ★ 始终滚动到顶部
+            app.scrollTop = 0;
         })
         .catch(() => {
             app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
@@ -395,22 +383,20 @@ function renderArticleReader(article, content) {
     requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
 }
 
+// ★ 关闭阅读器回到列表：恢复列表滚动位置
 function closeArticleReader() {
-    // ★ 保存当前文章容器滚动
-    const readerKey = getContainerKey();
-    const readerContainer = getRenderContainer();
-    if (readerContainer) {
-        scrollMemory['articles-' + readerKey] = readerContainer.scrollTop;
-    }
+    // 不需要保存阅读器的滚动位置（每次打开文章都从头开始）
 
     currentArticleView = VIEW.LIST;
     switchToCurrentContainer();
 
-    // 恢复列表滚动
-    const listContainer = getRenderContainer();
-    if (scrollMemory['articles-articles_list'] !== undefined) {
-        requestAnimationFrame(() => { listContainer.scrollTop = scrollMemory['articles-articles_list']; });
-    }
-
     renderArticleList();
+
+    // 恢复列表滚动位置
+    const listContainer = getRenderContainer();
+    if (articleState.listScrollY > 0) {
+        requestAnimationFrame(() => {
+            listContainer.scrollTop = articleState.listScrollY;
+        });
+    }
 }
