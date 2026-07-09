@@ -1,9 +1,8 @@
 // ==================== category-view.js ====================
-// 分类内容渲染 + 图片弹窗
 
 function renderCurrentCategory() {
-    if (!currentCategoryId) { 
-        switchViewContainer(currentMode + '_' + VIEW.OVERVIEW);
+    if (!currentCategoryId) {
+        switchToCurrentContainer();
         renderOverview();
         triggerViewAnimation();
         return;
@@ -36,7 +35,7 @@ function renderCurrentCategory() {
 
     const data = getData(dataKey);
     if (!data) {
-        const app = getViewContainer(currentMode + '_' + VIEW.CATEGORY);
+        const app = getRenderContainer();
         app.innerHTML = '<div class="empty-state">啥都木有</div>';
         triggerViewAnimation();
         return;
@@ -48,7 +47,7 @@ function renderCurrentCategory() {
 }
 
 function renderCategoryOverview(cat) {
-    const app = getViewContainer(currentMode + '_' + VIEW.CATEGORY);
+    const app = getRenderContainer();
     const imgBase = getImageBase();
     const subMap = getSubCategoryMap();
 
@@ -142,7 +141,7 @@ function renderCategoryOverview(cat) {
 }
 
 function renderSeriesList(data, title) {
-    const app = getViewContainer(currentMode + '_' + VIEW.CATEGORY);
+    const app = getRenderContainer();
     const imgBase = getImageBase();
 
     if (!data || !data.series || data.series.length === 0) {
