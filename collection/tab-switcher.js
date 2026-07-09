@@ -1,5 +1,4 @@
 // ==================== tab-switcher.js ====================
-// Tab切换逻辑
 
 function enterSettings() {
     isSettingsMode = true;
@@ -16,12 +15,6 @@ function enterSettings() {
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
     renderSettingsPage();
-    restoreExpandedStates({ scrollY: settingsPageCache?.scrollY || 0 });
-
-    const appEl = document.getElementById('app');
-    if (appEl) {
-        settingsPageCache = { innerHTML: appEl.innerHTML, scrollY: appEl.scrollTop || 0 };
-    }
     triggerViewAnimation();
 }
 
@@ -39,7 +32,7 @@ function onTabClick(target) {
                 selectedSpecial
             };
         }
-        switchViewContainer(MODE.SETTINGS);
+        switchViewContainer('settings');
         enterSettings();
         return;
     }
@@ -77,11 +70,6 @@ function enterSpecialFromTab() {
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
     if (isSettingsMode) {
-        const appEl = document.getElementById('app');
-        const contentEl = document.querySelector('.content');
-        if (appEl) {
-            settingsPageCache = { innerHTML: appEl.innerHTML, scrollY: contentEl ? contentEl.scrollTop : 0 };
-        }
         isSettingsMode = false;
         document.querySelector('.body-row')?.classList.remove('settings-mode');
     }
@@ -93,7 +81,7 @@ function enterSpecialFromTab() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
-    switchViewContainer(MODE.SPECIAL);
+    switchToCurrentContainer();
 
     if (selectedSpecial !== null && selectedSpecial !== undefined && specialPageCaches[selectedSpecial]) {
         const cache = specialPageCaches[selectedSpecial];
@@ -104,12 +92,8 @@ function enterSpecialFromTab() {
         if (toggleBtn2) toggleBtn2.style.display = '';
         document.getElementById('app').innerHTML = cache.innerHTML;
         renderSidebar();
-        const savedN = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
-        const savedC = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
-        const collapse = savedN || savedC;
         const sb = document.getElementById('sidebar');
-        if (sb) sb.classList.toggle('collapsed', collapse);
-        isSidebarCollapsed = collapse;
+        if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
         requestAnimationFrame(() => {
             const appEl = document.getElementById('app');
             if (appEl) appEl.scrollTop = cache.scrollY || 0;
@@ -121,18 +105,12 @@ function enterSpecialFromTab() {
 }
 
 function leaveSettingsToTarget(target) {
-    const appEl = document.getElementById('app');
-    const contentEl = document.querySelector('.content');
-    if (appEl) {
-        settingsPageCache = { innerHTML: appEl.innerHTML, scrollY: contentEl ? contentEl.scrollTop : 0 };
-    }
     isSettingsMode = false;
+    document.querySelector('.body-row')?.classList.remove('settings-mode');
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.remove('hidden');
-
-    document.querySelector('.body-row')?.classList.remove('settings-mode');
-    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -146,20 +124,39 @@ function leaveSettingsToTarget(target) {
         currentArticleIndex = articleState.currentIndex;
         articleSearchKeyword = articleState.searchKeyword;
         if (collectedArticles.length === 0) collectAllArticles();
+
         const inp = document.getElementById('searchInput');
         if (inp) {
             inp.value = articleSearchKeyword || '';
             inp.removeEventListener('input', doSearch);
             inp.addEventListener('input', doSearch);
         }
-        switchViewContainer(MODE.ARTICLES);
+
+        switchToCurrentContainer();
         updateSearchUIForMode();
         renderSidebar();
-        if (currentArticleView === VIEW.LIST) {
-            renderArticleList();
+
+        // 检查容器是否有内容
+        const container = getRenderContainer();
+        const hasContent = container && container.innerHTML.trim().length > 10;
+
+        if (!hasContent) {
+            if (currentArticleView === VIEW.LIST) {
+                renderArticleList();
+            } else {
+                openArticleReader(currentArticleIndex);
+            }
         } else {
-            openArticleReader(currentArticleIndex);
+            // 已有内容，恢复滚动
+            const key = getContainerKey();
+            const sk = 'articles-' + key;
+            if (scrollMemory[sk] !== undefined) {
+                requestAnimationFrame(() => {
+                    container.scrollTop = scrollMemory[sk];
+                });
+            }
         }
+
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
         document.querySelector(`.tab-item[data-target="${MODE.ARTICLES}"]`)?.classList.add('active');
         triggerViewAnimation();
@@ -176,7 +173,7 @@ function leaveSettingsToTarget(target) {
         document.querySelector('.tab-item[data-target="special"]')?.classList.add('active');
         const searchContainer2 = document.querySelector('.top-search-container');
         if (searchContainer2) searchContainer2.classList.add('hidden');
-        switchViewContainer(MODE.SPECIAL);
+        switchToCurrentContainer();
 
         if (settingsReturnState && settingsReturnState.selectedSpecial) {
             selectedSpecial = settingsReturnState.selectedSpecial;
@@ -184,17 +181,13 @@ function leaveSettingsToTarget(target) {
             currentSubId = settingsReturnState.currentSubId;
             renderSidebar();
             renderSpecialContent();
-            const savedN = modeStates.notes ? modeStates.notes.isSidebarCollapsed : false;
-            const savedC = modeStates.coins ? modeStates.coins.isSidebarCollapsed : false;
-            const collapse = savedN || savedC;
             const sb = document.getElementById('sidebar');
-            if (sb) sb.classList.toggle('collapsed', collapse);
-            isSidebarCollapsed = collapse;
+            if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
             const cache = specialPageCaches[selectedSpecial];
             if (cache) {
                 requestAnimationFrame(() => {
-                    const appEl2 = document.getElementById('app');
-                    if (appEl2) appEl2.scrollTop = cache.scrollY || 0;
+                    const appEl = document.getElementById('app');
+                    if (appEl) appEl.scrollTop = cache.scrollY || 0;
                 });
             }
         } else {
@@ -212,15 +205,13 @@ function leaveSettingsToTarget(target) {
         currentSearchKeyword = settingsReturnState.currentSearchKeyword || '';
         currentSearchType = settingsReturnState.currentSearchType || SEARCH_TYPE.ALL;
     }
-    switchViewContainer(currentMode + '_' + currentView);
+    switchToCurrentContainer();
     updateSearchUIForMode();
     renderSidebar();
     if (currentView === VIEW.OVERVIEW) {
         renderOverview();
-        restoreExpandedStates({ scrollY: 0 });
     } else {
         renderCurrentCategory();
-        restoreExpandedStates({ scrollY: 0 });
     }
     triggerViewAnimation();
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -230,14 +221,9 @@ function leaveSettingsToTarget(target) {
 function restoreNotesCoinsFromSettings(target) {
     currentMode = target;
     const saved = modeStates[target];
-    if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
-        currentView = saved.currentView;
-    } else {
-        currentView = VIEW.OVERVIEW;
-        modeStates[target].currentView = VIEW.OVERVIEW;
-    }
     currentCategoryId = saved.currentCategoryId;
     currentSubId = saved.currentSubId;
+    currentView = saved.currentView || VIEW.OVERVIEW;
     currentSearchKeyword = saved.currentSearchKeyword || '';
     currentSearchType = saved.currentSearchType || SEARCH_TYPE.ALL;
 
@@ -250,34 +236,63 @@ function restoreNotesCoinsFromSettings(target) {
         }
     }
     const typeSelect = document.getElementById('searchType');
-    if (typeSelect) { typeSelect.value = currentSearchType; }
+    if (typeSelect) typeSelect.value = currentSearchType;
 
-    const containerKey = currentMode + '_' + currentView;
-    switchViewContainer(containerKey);
-
+    switchToCurrentContainer();
     updateSearchUIForMode();
     restoreSidebarState();
     renderSidebar();
-    applySidebarState();
 
-    if (currentView === VIEW.OVERVIEW) {
-        renderOverview();
-        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-    } else if (currentView === VIEW.CATEGORY) {
-        renderCurrentCategory();
-        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-    } else if (currentView === VIEW.SEARCH) {
-        if (currentSearchKeyword) {
+    // 检查容器是否有内容，有则跳过渲染
+    const container = getRenderContainer();
+    const hasContent = container && container.children.length > 0 && container.innerHTML.trim().length > 10;
+
+    if (!hasContent) {
+        if (currentView === VIEW.OVERVIEW) {
+            renderOverview();
+        } else if (currentView === VIEW.CATEGORY) {
+            renderCurrentCategory();
+        } else if (currentView === VIEW.SEARCH && currentSearchKeyword) {
             performSearchAndRender(currentSearchKeyword, currentSearchType);
         } else {
             currentView = VIEW.OVERVIEW;
-            switchViewContainer(currentMode + '_' + VIEW.OVERVIEW);
+            switchToCurrentContainer();
             renderOverview();
         }
+    } else {
+        // 恢复展开状态
+        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
+        // 恢复滚动位置
+        const key = getContainerKey();
+        const sk = target + '-' + key;
+        if (scrollMemory[sk] !== undefined) {
+            requestAnimationFrame(() => {
+                container.scrollTop = scrollMemory[sk];
+            });
+        }
     }
+
     triggerViewAnimation();
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
+}
+
+function restoreExpandedStates(states) {
+    if (!states) return;
+    if (states.expandedSeries) {
+        for (const id of states.expandedSeries) {
+            const body = document.getElementById('body-' + id);
+            const icon = document.getElementById('icon-' + id);
+            if (body) { body.classList.add('open'); if (icon) icon.classList.add('open'); }
+        }
+    }
+    if (states.expandedVarieties) {
+        for (const id of states.expandedVarieties) {
+            const list = document.getElementById('list-' + id);
+            const icon = document.getElementById('icon-' + id);
+            if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
+        }
+    }
 }
 
 function enterArticlesTab() {
@@ -308,14 +323,31 @@ function enterArticlesTab() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.remove('hidden');
 
-    switchViewContainer(MODE.ARTICLES);
+    switchToCurrentContainer();
     updateSearchUIForMode();
     renderSidebar();
-    if (currentArticleView === VIEW.LIST) {
-        renderArticleList();
+
+    // 检查容器是否有内容
+    const container = getRenderContainer();
+    const hasContent = container && container.innerHTML.trim().length > 10;
+
+    if (!hasContent) {
+        if (currentArticleView === VIEW.LIST) {
+            renderArticleList();
+        } else {
+            openArticleReader(currentArticleIndex);
+        }
     } else {
-        openArticleReader(currentArticleIndex);
+        // 恢复滚动
+        const key = getContainerKey();
+        const sk = 'articles-' + key;
+        if (scrollMemory[sk] !== undefined) {
+            requestAnimationFrame(() => {
+                container.scrollTop = scrollMemory[sk];
+            });
+        }
     }
+
     triggerViewAnimation();
 }
 
@@ -330,15 +362,9 @@ function enterNotesOrCoinsTab(target) {
     currentMode = newMode;
     const saved = modeStates[newMode];
 
-    if (saved.currentSearchKeyword && saved.currentSearchKeyword.trim() !== '') {
-        currentView = saved.currentView;
-    } else {
-        currentView = VIEW.OVERVIEW;
-        saved.currentView = VIEW.OVERVIEW;
-    }
-
     currentCategoryId = saved.currentCategoryId;
     currentSubId = saved.currentSubId;
+    currentView = saved.currentView || VIEW.OVERVIEW;
     currentSearchKeyword = saved.currentSearchKeyword || '';
     currentSearchType = saved.currentSearchType || SEARCH_TYPE.ALL;
 
@@ -351,35 +377,44 @@ function enterNotesOrCoinsTab(target) {
         }
     }
     const typeSelect = document.getElementById('searchType');
-    if (typeSelect) { typeSelect.value = currentSearchType; }
+    if (typeSelect) typeSelect.value = currentSearchType;
 
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.remove('hidden');
 
-    const containerKey = newMode + '_' + currentView;
-    switchViewContainer(containerKey);
-
+    switchToCurrentContainer();
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
-
     updateSearchUIForMode();
     restoreSidebarState();
     renderSidebar();
-    applySidebarState();
 
-    if (currentView === VIEW.OVERVIEW) {
-        renderOverview();
-        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-    } else if (currentView === VIEW.CATEGORY) {
-        renderCurrentCategory();
-        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-    } else if (currentView === VIEW.SEARCH) {
-        if (currentSearchKeyword) {
+    // ★ 关键修复：检查容器是否已有内容，有则不重新渲染
+    const container = getRenderContainer();
+    const hasContent = container && container.children.length > 0 && container.innerHTML.trim().length > 10;
+
+    if (!hasContent) {
+        if (currentView === VIEW.OVERVIEW) {
+            renderOverview();
+        } else if (currentView === VIEW.CATEGORY) {
+            renderCurrentCategory();
+        } else if (currentView === VIEW.SEARCH && currentSearchKeyword) {
             performSearchAndRender(currentSearchKeyword, currentSearchType);
         } else {
             currentView = VIEW.OVERVIEW;
-            switchViewContainer(newMode + '_' + VIEW.OVERVIEW);
+            switchToCurrentContainer();
             renderOverview();
+        }
+    } else {
+        // 恢复展开状态
+        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
+        // 恢复滚动位置
+        const key = getContainerKey();
+        const sk = newMode + '-' + key;
+        if (scrollMemory[sk] !== undefined) {
+            requestAnimationFrame(() => {
+                container.scrollTop = scrollMemory[sk];
+            });
         }
     }
     triggerViewAnimation();
