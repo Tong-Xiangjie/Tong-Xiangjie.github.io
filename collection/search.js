@@ -11,8 +11,8 @@ function updateSearchUIForMode() {
         select.classList.add('hidden');
         toggle.classList.remove('hidden');
         toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
-        toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击"标"字可以切换为全字段索引' : '当前为全字段索引，点击"全"字可以切换为按标题索引';
-        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索）' : '当前模式为全字段索引（实时搜索）';
+        toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击“标”字可以切换为全字段索引' : '当前为全字段索引，点击“全”字可以切换为按标题索引';
+        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索），点击“标”字可以切换为全字段索引' : '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，目前正在全力加载中……';
     } else if (currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS) {
         select.classList.add('hidden');
         toggle.classList.add('hidden');
@@ -23,7 +23,7 @@ function updateSearchUIForMode() {
         const modeSearch = getEffectiveSearchMode();
         toggle.textContent = modeSearch === SEARCH_MODE.CLICK ? '□' : '■';
         toggle.title = '切换搜索模式';
-        tip.textContent = `当前搜索模式为"${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}"，点击"${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}"可切换至${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
+        tip.textContent = `当前搜索模式为“${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
     }
 }
 
@@ -86,7 +86,7 @@ function toggleSearchMode() {
     const tip = document.getElementById('searchTip');
     const toggleChar = newMode === SEARCH_MODE.CLICK ? '□' : '■';
     if (toggle) toggle.textContent = toggleChar;
-    if (tip) tip.textContent = `当前搜索模式为"${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}"，点击"${newMode === SEARCH_MODE.CLICK ? '□' : '■'}"可切换至${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
+    if (tip) tip.textContent = `当前搜索模式为“${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
 
     const input = document.getElementById('searchInput');
     if (input) {
@@ -283,7 +283,7 @@ function renderSearchResults(results, rawKeyword, type) {
             html += `<div class="detail">`;
             if (copy.version) html += `${escapeHtml(copy.version)} · `;
             if (copy.condition || copy.grade) html += `${escapeHtml(copy.condition || copy.grade)} · `;
-            if (copy.year) html += `${copy.year}年`;
+            if (copy.year) html += `${copy.year}年发行`;
             if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
             html += `</div></div>`;
             html += `<div class="index-num">#${idx}</div>`;
