@@ -178,12 +178,18 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     currentSubId = foundSub ? foundSub.id : null;
     currentView = VIEW.CATEGORY;
 
-    // 强制先隐藏所有容器，再切换
-    for (const k of Object.keys(viewScrollContainers)) {
-        viewScrollContainers[k].style.display = 'none';
+    // 彻底清理：移除所有现有滚动容器的 display:block 并清空内容
+    const allKeys = Object.keys(viewScrollContainers);
+    for (const k of allKeys) {
+        const container = viewScrollContainers[k];
+        container.style.display = 'none';
+        container.innerHTML = '';
     }
     const appEl = document.getElementById('app');
-    if (appEl) appEl.style.display = 'none';
+    if (appEl) {
+        appEl.style.display = 'none';
+        appEl.innerHTML = '';
+    }
 
     // 切换到目标容器并渲染
     switchToCurrentContainer();
