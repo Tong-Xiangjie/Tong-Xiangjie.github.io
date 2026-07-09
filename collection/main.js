@@ -1,5 +1,5 @@
 // ==================== main.js ====================
-// 精简版，仅初始化与事件绑定
+// 精简版：仅初始化与事件绑定
 
 document.addEventListener('DOMContentLoaded', function() {
     buildSpecialCategoryTree();
@@ -17,9 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
         appEl.style.overflowY = 'auto';
     }
 
-    switchViewContainer(currentMode + '_' + currentView);
+    switchToCurrentContainer();
     renderOverview();
-
     updateSearchUIForMode();
 
     document.querySelectorAll('.tab-item').forEach(tab => {
@@ -30,9 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('resetBtn')?.addEventListener('click', resetSearch);
     document.getElementById('modeToggle')?.addEventListener('click', function() {
         if (currentMode === MODE.ARTICLES) {
-            if (typeof toggleArticleSearchMode === 'function') {
-                toggleArticleSearchMode();
-            }
+            if (typeof toggleArticleSearchMode === 'function') toggleArticleSearchMode();
         } else {
             toggleSearchMode();
         }
@@ -40,11 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('searchInput')?.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
-            if (currentMode === MODE.ARTICLES) {
-                doSearch();
-            } else if (getEffectiveSearchMode() === SEARCH_MODE.CLICK) {
-                doSearch();
-            }
+            if (currentMode === MODE.ARTICLES) { doSearch(); }
+            else if (getEffectiveSearchMode() === SEARCH_MODE.CLICK) { doSearch(); }
         }
     });
 
@@ -55,10 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupModalEvents();
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
     const st = document.getElementById('sidebarToggle');
-    if (st) {
-        st.textContent = '☰';
-        st.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
-    }
+    if (st) { st.textContent = '☰'; st.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'; }
 
     if (typeof loadTheme === 'function') loadTheme();
 });
