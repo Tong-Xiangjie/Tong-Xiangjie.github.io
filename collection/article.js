@@ -143,11 +143,11 @@ async function preloadAllArticles() {
     if (isArticlePreloading) return;
     isArticlePreloading = true;
     const tip = document.getElementById('searchTip');
-    if (tip) tip.textContent = '正在加载全文索引...';
+    if (tip) tip.textContent = '正在加载全文索引……';
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
     isArticlePreloading = false;
-    if (tip) tip.textContent = '全文索引已就绪，可搜索正文内容';
+    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索） | 全文索引已就绪，可根据标题和正文内容进行检索';
 }
 
 async function preloadArticle(article) {
@@ -157,7 +157,7 @@ async function preloadArticle(article) {
     try {
         const basePath = getArticleBasePath(article.sourceType);
         const response = await fetch(basePath + filePath);
-        if (!response.ok) throw new Error('加载失败');
+        if (!response.ok) throw new Error('加载失败ゞ◎Д◎ヾ检查一下文件还在不在或刷新一下试试');
         const html = await response.text();
         articleContentCache[article.contentPath] = html;
         articlePlainTextCache[article.contentPath] = stripHtml(html);
@@ -264,8 +264,8 @@ function renderArticleList() {
         });
     }
 
-    let html = `<div class="overview-header"><h2>文章</h2><p>共 ${articles.length} 篇</p></div>`;
-    if (articles.length === 0) { html += '<div class="empty-state">暂无文章</div>'; app.innerHTML = html; return; }
+    let html = `<div class="overview-header"><h2>文章</h2><p>共${articles.length}篇</p></div>`;
+    if (articles.length === 0) { html += '<div class="empty-state">还没有文章哦，赶快连夜肝一篇出来╮(╯▽╰)╭</div>'; app.innerHTML = html; return; }
 
     const grouped = {};
     for (const article of articles) {
@@ -350,7 +350,7 @@ function openArticleReader(index) {
 
     // 加载中
     let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
-    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">加载中...</div>`;
+    html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">全力加载中……</div>`;
     app.innerHTML = html;
 
     let filePath = article.contentPath;
@@ -358,7 +358,7 @@ function openArticleReader(index) {
     const basePath = getArticleBasePath(article.sourceType);
 
     fetch(basePath + filePath)
-        .then(response => { if (!response.ok) throw new Error('加载失败'); return response.text(); })
+        .then(response => { if (!response.ok) throw new Error('加载失败ゞ◎Д◎ヾ检查一下文件还在不在或刷新一下试试'); return response.text(); })
         .then(content => {
             articleContentCache[article.contentPath] = content;
             articlePlainTextCache[article.contentPath] = stripHtml(content);
