@@ -47,8 +47,12 @@ let modeStates = {
 };
 
 let articleState = {
-    currentView: VIEW.LIST, currentCategory: 'all', currentIndex: -1,
-    searchKeyword: '', listScrollY: 0, readerScrollY: 0
+    currentView: VIEW.LIST,
+    currentCategory: 'all',
+    currentIndex: -1,
+    searchKeyword: '',
+    listScrollY: 0,
+    readerScrollY: 0
 };
 
 // ========== 图片弹窗状态 ==========
@@ -123,19 +127,15 @@ function switchToCurrentContainer() {
 
 /** 切换显示的容器（隐藏所有其他容器，显示目标） */
 function switchViewContainer(key) {
-    // 隐藏所有滚动容器
     for (const k of Object.keys(viewScrollContainers)) {
         viewScrollContainers[k].style.display = 'none';
     }
-    // 隐藏 app
     const app = document.getElementById('app');
     if (app) app.style.display = 'none';
 
     if (isFullPageMode(key)) {
-        // 全页模式：使用 #app
         if (app) app.style.display = 'block';
     } else {
-        // 滚动容器模式
         const container = ensureViewContainer(key);
         container.style.display = 'block';
     }
@@ -146,17 +146,6 @@ function getRenderContainer() {
     const key = getContainerKey();
     if (isFullPageMode(key)) return document.getElementById('app');
     return ensureViewContainer(key);
-}
-
-/** 检查容器是否已有渲染内容 */
-function containerHasContent() {
-    const key = getContainerKey();
-    if (isFullPageMode(key)) {
-        const app = document.getElementById('app');
-        return app && app.children && app.children.length > 0 && app.innerHTML.trim().length > 10;
-    }
-    const container = viewScrollContainers[key];
-    return container && container.children && container.children.length > 0 && container.innerHTML.trim().length > 10;
 }
 
 /** 触发入场动画 */
@@ -323,10 +312,12 @@ function saveFullState() {
     } else if (currentMode === MODE.ARTICLES) {
         const prev = articleState;
         articleState = {
-            currentView: currentArticleView, currentCategory: currentArticleCategory,
-            currentIndex: currentArticleIndex, searchKeyword: articleSearchKeyword,
+            currentView: currentArticleView,
+            currentCategory: currentArticleCategory,
+            currentIndex: currentArticleIndex,
+            searchKeyword: articleSearchKeyword,
             listScrollY: currentArticleView === VIEW.LIST ? scrollY : (prev.listScrollY || 0),
-            readerScrollY: currentArticleView === VIEW.READER ? scrollY : (prev.readerScrollY || 0)
+            readerScrollY: 0
         };
     } else if (currentMode === MODE.SPECIAL) {
         const appEl = document.getElementById('app');
