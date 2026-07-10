@@ -17,24 +17,55 @@ const macau_bnuData = {
     ],
     series: [
         {
-            seriesName: "2020年版 澳门元10元",
-            year: "2020",
-            copies: [
+            seriesName: "1990～2003年版 澳门币",
+            year: "1990～2003",
+            "varieties": [
                 {
-                    copyId: 1,
-                    year: 2020,
-                    version: "AA109943",
-                    bank: "大西洋银行",
-                    condition: "ACG66E",
-                    price: "39.5元",
-                    purchaseDate: "2026年2月14日",
-                    krause: "90",
-                    signature: "董事会：António José Félix de Carvalho，José João de Deus Duarte",
-                    faceDate: "2020年5月18日",
-                    size: "138mm*69mm",
-                    remark: "",
-                    img1: "image/macau_bnu/AA109943-1.jpg",
-                    img2: "image/macau_bnu/AA109943-2.jpg"
+                    "varietyName": "20元",
+                    "copies": [
+                        {
+                            copyId: 1,
+                            year: 1996,
+                            version: "CB010224",
+                            bank: "大西洋银行",
+                            condition: "ACG67E",
+                            price: "43元",
+                            purchaseDate: "2026年7月11日",
+                            krause: "66",
+                            signature: "",
+                            faceDate: "1996年9月1日",
+                            size: "",
+                            remark: "",
+                            img1: "image/macau_bnu/CB010224-1.jpg",
+                            img2: "image/macau_bnu/CB010224-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "2020年版 澳门元",
+            year: "2020",
+            "varieties": [
+                {
+                    "varietyName": "10元",
+                    "copies": [
+                        {
+                            copyId: 1,
+                            year: 2020,
+                            version: "AA109943",
+                            bank: "大西洋银行",
+                            condition: "ACG66E",
+                            price: "39.5元",
+                            purchaseDate: "2026年2月14日",
+                            krause: "90",
+                            signature: "董事会：António José Félix de Carvalho，José João de Deus Duarte",
+                            faceDate: "2020年5月18日",
+                            size: "138mm*69mm",
+                            remark: "",
+                            img1: "image/macau_bnu/AA109943-1.jpg",
+                            img2: "image/macau_bnu/AA109943-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
