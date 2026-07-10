@@ -23,6 +23,15 @@ function onTabClick(target) {
 
     if (target === MODE.SETTINGS) {
         if (!isSettingsMode) {
+            // ★ 保存专题页面的完整状态（包括 innerHTML）
+            if (currentMode === MODE.SPECIAL && selectedSpecial !== null && selectedSpecial !== undefined) {
+                const appEl = document.getElementById('app');
+                specialPageCaches[selectedSpecial] = {
+                    innerHTML: appEl ? appEl.innerHTML : '',
+                    scrollY: appEl ? appEl.scrollTop : 0,
+                    currentSubId
+                };
+            }
             settingsReturnState = {
                 currentMode, currentCategoryId, currentSubId, currentView,
                 currentSearchKeyword: currentSearchKeyword || '',
@@ -60,6 +69,16 @@ function enterSpecialFromTab() {
     if (isSettingsMode) {
         isSettingsMode = false;
         document.querySelector('.body-row')?.classList.remove('settings-mode');
+    }
+
+    // ★ 从 settingsReturnState 恢复 selectedSpecial 和缓存
+    if (settingsReturnState && settingsReturnState.currentMode === MODE.SPECIAL) {
+        if (selectedSpecial === null || selectedSpecial === undefined) {
+            selectedSpecial = settingsReturnState.selectedSpecial;
+        }
+        if (currentCategoryId === null) {
+            currentCategoryId = settingsReturnState.currentCategoryId;
+        }
     }
 
     currentMode = MODE.SPECIAL;
@@ -108,8 +127,6 @@ function leaveSettingsToTarget(target) {
     isSettingsMode = false;
     document.querySelector('.body-row')?.classList.remove('settings-mode');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-
-    // ★ 清除 sidebar-hidden，确保侧边栏恢复
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
 
     const searchContainer = document.querySelector('.top-search-container');
@@ -131,6 +148,10 @@ function leaveSettingsToTarget(target) {
     }
 
     if (target === MODE.SPECIAL) {
+        // ★ 从 settingsReturnState 恢复 selectedSpecial
+        if (settingsReturnState && settingsReturnState.selectedSpecial !== undefined && settingsReturnState.selectedSpecial !== null) {
+            selectedSpecial = settingsReturnState.selectedSpecial;
+        }
         currentMode = MODE.SPECIAL;
         document.querySelector('.tab-item[data-target="special"]')?.classList.add('active');
         const searchContainer2 = document.querySelector('.top-search-container');
@@ -184,192 +205,4 @@ function leaveSettingsToTarget(target) {
     document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
 }
 
-function restoreNotesCoinsFromSettings(target) {
-    currentMode = target;
-    const saved = modeStates[target];
-    currentCategoryId = saved.currentCategoryId;
-    currentSubId = saved.currentSubId;
-    currentView = saved.currentView || VIEW.OVERVIEW;
-    currentSearchKeyword = saved.currentSearchKeyword || '';
-    currentSearchType = saved.currentSearchType || SEARCH_TYPE.ALL;
-
-    const inp = document.getElementById('searchInput');
-    if (inp) {
-        inp.value = currentSearchKeyword;
-        inp.removeEventListener('input', doSearch);
-        if (getEffectiveSearchMode() === SEARCH_MODE.REALTIME) {
-            inp.addEventListener('input', doSearch);
-        }
-    }
-    const typeSelect = document.getElementById('searchType');
-    if (typeSelect) typeSelect.value = currentSearchType;
-
-    switchToCurrentContainer();
-    updateSearchUIForMode();
-    restoreSidebarState();
-    renderSidebar();
-
-    const container = getRenderContainer();
-    const hasContent = container && container.children.length > 0 && container.innerHTML.trim().length > 10;
-
-    if (!hasContent) {
-        if (currentView === VIEW.OVERVIEW) {
-            renderOverview();
-        } else if (currentView === VIEW.CATEGORY) {
-            renderCurrentCategory();
-        } else if (currentView === VIEW.SEARCH && currentSearchKeyword) {
-            performSearchAndRender(currentSearchKeyword, currentSearchType);
-        } else {
-            currentView = VIEW.OVERVIEW;
-            switchToCurrentContainer();
-            renderOverview();
-        }
-    } else {
-        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
-            : currentView === VIEW.CATEGORY ? saved.categoryScrollY
-            : saved.searchScrollY;
-        if (scrollPos > 0) {
-            requestAnimationFrame(() => {
-                container.scrollTop = scrollPos;
-            });
-        }
-    }
-
-    triggerViewAnimation();
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
-}
-
-function restoreExpandedStates(states) {
-    if (!states) return;
-    if (states.expandedSeries) {
-        for (const id of states.expandedSeries) {
-            const body = document.getElementById('body-' + id);
-            const icon = document.getElementById('icon-' + id);
-            if (body) { body.classList.add('open'); if (icon) icon.classList.add('open'); }
-        }
-    }
-    if (states.expandedVarieties) {
-        for (const id of states.expandedVarieties) {
-            const list = document.getElementById('list-' + id);
-            const icon = document.getElementById('icon-' + id);
-            if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
-        }
-    }
-}
-
-function enterArticlesTab() {
-    const toggleBtn = document.getElementById('sidebarToggle');
-    if (toggleBtn && toggleBtn.style.display === 'none') {
-        toggleBtn.style.display = '';
-    }
-    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-    // ★ 清除 sidebar-hidden，确保侧边栏恢复
-    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
-
-    currentMode = MODE.ARTICLES;
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    document.querySelector('.tab-item[data-target="articles"]')?.classList.add('active');
-
-    if (collectedArticles.length === 0) collectAllArticles();
-
-    currentArticleView = VIEW.LIST;
-    currentArticleCategory = articleState.currentCategory || 'all';
-    currentArticleIndex = -1;
-    articleSearchKeyword = articleState.searchKeyword || '';
-
-    const inp = document.getElementById('searchInput');
-    if (inp) {
-        inp.value = articleSearchKeyword || '';
-        inp.removeEventListener('input', doSearch);
-        inp.addEventListener('input', doSearch);
-    }
-
-    const searchContainer = document.querySelector('.top-search-container');
-    if (searchContainer) searchContainer.classList.remove('hidden');
-
-    switchToCurrentContainer();
-    updateSearchUIForMode();
-    renderSidebar();
-
-    renderArticleList();
-
-    const container = getRenderContainer();
-    if (articleState.listScrollY > 0) {
-        requestAnimationFrame(() => {
-            container.scrollTop = articleState.listScrollY;
-        });
-    }
-
-    triggerViewAnimation();
-}
-
-function enterNotesOrCoinsTab(target) {
-    const toggleBtn = document.getElementById('sidebarToggle');
-    if (toggleBtn && toggleBtn.style.display === 'none') {
-        toggleBtn.style.display = '';
-    }
-    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-    // ★ 清除 sidebar-hidden，确保侧边栏恢复
-    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
-
-    const newMode = target;
-    currentMode = newMode;
-    const saved = modeStates[newMode];
-
-    currentCategoryId = saved.currentCategoryId;
-    currentSubId = saved.currentSubId;
-    currentView = saved.currentView || VIEW.OVERVIEW;
-    currentSearchKeyword = saved.currentSearchKeyword || '';
-    currentSearchType = saved.currentSearchType || SEARCH_TYPE.ALL;
-
-    const inp = document.getElementById('searchInput');
-    if (inp) {
-        inp.value = currentSearchKeyword;
-        inp.removeEventListener('input', doSearch);
-        if (getEffectiveSearchMode() === SEARCH_MODE.REALTIME) {
-            inp.addEventListener('input', doSearch);
-        }
-    }
-    const typeSelect = document.getElementById('searchType');
-    if (typeSelect) typeSelect.value = currentSearchType;
-
-    const searchContainer = document.querySelector('.top-search-container');
-    if (searchContainer) searchContainer.classList.remove('hidden');
-
-    switchToCurrentContainer();
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab-item[data-target="${target}"]`)?.classList.add('active');
-    updateSearchUIForMode();
-    restoreSidebarState();
-    renderSidebar();
-
-    const container = getRenderContainer();
-    const hasContent = container && container.children.length > 0 && container.innerHTML.trim().length > 10;
-
-    if (!hasContent) {
-        if (currentView === VIEW.OVERVIEW) {
-            renderOverview();
-        } else if (currentView === VIEW.CATEGORY) {
-            renderCurrentCategory();
-        } else if (currentView === VIEW.SEARCH && currentSearchKeyword) {
-            performSearchAndRender(currentSearchKeyword, currentSearchType);
-        } else {
-            currentView = VIEW.OVERVIEW;
-            switchToCurrentContainer();
-            renderOverview();
-        }
-    } else {
-        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
-            : currentView === VIEW.CATEGORY ? saved.categoryScrollY
-            : saved.searchScrollY;
-        if (scrollPos > 0) {
-            requestAnimationFrame(() => {
-                container.scrollTop = scrollPos;
-            });
-        }
-    }
-    triggerViewAnimation();
-}
+// ... 其余函数保持不变 ...
