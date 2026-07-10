@@ -6,28 +6,37 @@ function renderSpecialOverview() {
     currentView = VIEW.OVERVIEW;
 
     const configs = getSpecialConfigs();
+
+    // 隐藏侧边栏，内容全宽
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+    document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (toggleBtn) toggleBtn.style.display = 'none';
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.innerHTML = '';
+
     let html = `<div class="overview-header"><h2>专题收藏</h2><p>选择专题查看详情</p></div>`;
 
     if (!configs || configs.length === 0) {
-        html += '<div class="empty-state">暂无专题</div>';
+        html += '<div class="empty-state">还木有专题</div>';
         app.innerHTML = html;
+        triggerViewAnimation();
         return;
     }
 
+    html += `<div class="special-overview-grid">`;
     for (const config of configs) {
         const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.id];
         const count = data ? data.length || 0 : 0;
-        html += `<div class="special-card" onclick="onSpecialOverviewItemClick('${config.id}')">`;
-        html += `<div class="special-card-title">${escapeHtml(config.name)}</div>`;
-        html += `<div class="special-card-count">${count} 件</div>`;
+        html += `<div class="special-overview-card" onclick="onSpecialOverviewItemClick('${config.id}')">`;
+        html += `<div class="special-overview-card-title">${escapeHtml(config.name)}</div>`;
+        html += `<div class="special-overview-card-count">${count}件</div>`;
         html += `</div>`;
     }
+    html += `</div>`;
 
     app.innerHTML = html;
     triggerViewAnimation();
-
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.innerHTML = '';
 }
 
 function onSpecialOverviewItemClick(configId) {
@@ -36,15 +45,20 @@ function onSpecialOverviewItemClick(configId) {
     currentSubId = null;
     const config = getSpecialConfigs().find(c => c.id === configId);
 
+    // 移除全宽模式
+    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
     if (config && config.categories && config.categories.length > 0) {
-        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+        // 有子分类：显示侧边栏
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = '';
         renderSidebar();
         renderSpecialContent();
         triggerViewAnimation();
     } else {
-        document.querySelector('.body-row')?.classList.add('special-overview-mode');
+        // 无子分类：保持隐藏侧边栏
+        document.querySelector('.body-row')?.classList.add('sidebar-hidden');
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = 'none';
         renderSpecialContent();
@@ -63,14 +77,9 @@ function renderSpecialContent() {
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) { renderSpecialOverview(); return; }
 
-    let currentDataKey = config.id;
-    if (currentSubId) {
-        currentDataKey = config.id;
-    }
-
-    const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[currentDataKey];
+    const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.id];
     if (!data) {
-        app.innerHTML = '<div class="empty-state">暂无数据</div>';
+        app.innerHTML = '<div class="empty-state">啥都木有</div>';
         return;
     }
 
@@ -78,7 +87,7 @@ function renderSpecialContent() {
 
     const items = data.items || data;
     if (!items || items.length === 0) {
-        html += '<div class="empty-state">暂无数据</div>';
+        html += '<div class="empty-state">啥都木有</div>';
         app.innerHTML = html;
         return;
     }
