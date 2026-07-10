@@ -42,34 +42,33 @@ function renderSidebar() {
 }
 
 function onSidebarItemClick(catId) {
+    // ★ 专题模式
     if (currentMode === MODE.SPECIAL) {
         if (selectedSpecial === catId) {
+            // 点击已选中的专题：返回概览
             selectedSpecial = null;
             currentCategoryId = null;
             currentSubId = null;
             renderSpecialOverview();
             return;
         }
+        // 选中专题，清除年代筛选
         selectedSpecial = catId;
-        const config = getSpecialConfigs().find(c => c.id === catId);
-        if (config && config.categories && config.categories.length > 0) {
-            currentCategoryId = catId;
-            currentSubId = null;
-        } else {
-            currentCategoryId = catId;
-            currentSubId = null;
-        }
+        currentCategoryId = catId;
+        currentSubId = null;
         renderSidebar();
         renderSpecialContent();
         triggerViewAnimation();
         return;
     }
 
+    // ★ 纸币/硬币模式
     const tree = getCategoryTree();
     const cat = tree.find(c => c.id === catId);
     if (!cat) return;
 
     if (currentCategoryId === catId) {
+        // 点击已选中的分类：返回概览
         currentCategoryId = null;
         currentSubId = null;
         currentView = VIEW.OVERVIEW;
@@ -87,6 +86,7 @@ function onSidebarItemClick(catId) {
         return;
     }
 
+    // 进入分类
     currentCategoryId = catId;
     currentView = VIEW.CATEGORY;
     currentSubId = null;
@@ -104,8 +104,10 @@ function onSidebarItemClick(catId) {
 }
 
 function onSidebarChildClick(parentId, subId) {
+    // ★ 专题模式（按年代筛选）
     if (currentMode === MODE.SPECIAL) {
         if (currentSubId === subId) {
+            // 点击已选中的年代：取消筛选，显示全部
             currentSubId = null;
             currentCategoryId = parentId;
             renderSidebar();
@@ -113,6 +115,7 @@ function onSidebarChildClick(parentId, subId) {
             triggerViewAnimation();
             return;
         }
+        // 选中年代
         selectedSpecial = parentId;
         currentCategoryId = parentId;
         currentSubId = subId;
@@ -122,7 +125,9 @@ function onSidebarChildClick(parentId, subId) {
         return;
     }
 
+    // ★ 纸币/硬币子分类
     if (currentSubId === subId) {
+        // 点击已选中的子分类：返回父分类
         currentSubId = null;
         currentCategoryId = parentId;
         currentView = VIEW.CATEGORY;
@@ -140,6 +145,7 @@ function onSidebarChildClick(parentId, subId) {
         return;
     }
 
+    // 进入子分类
     currentCategoryId = parentId;
     currentSubId = subId;
     currentView = VIEW.CATEGORY;
