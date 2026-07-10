@@ -19,10 +19,8 @@ function enterSettings() {
 }
 
 function onTabClick(target) {
-    // 切出前统一保存状态
     saveFullState();
 
-    // ===== 设置 =====
     if (target === MODE.SETTINGS) {
         if (!isSettingsMode) {
             settingsReturnState = {
@@ -37,25 +35,21 @@ function onTabClick(target) {
         return;
     }
 
-    // ===== 专题 =====
     if (target === MODE.SPECIAL) {
         enterSpecialFromTab();
         return;
     }
 
-    // ===== 退出设置模式 =====
     if (isSettingsMode) {
         leaveSettingsToTarget(target);
         return;
     }
 
-    // ===== 文章 =====
     if (target === MODE.ARTICLES) {
         enterArticlesTab();
         return;
     }
 
-    // ===== 纸币/硬币 =====
     if (target === MODE.NOTES || target === MODE.COINS) {
         enterNotesOrCoinsTab(target);
         return;
@@ -75,7 +69,6 @@ function enterSpecialFromTab() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
-    // 如果未选中任何专题，隐藏侧边栏全宽显示
     if (selectedSpecial === null || selectedSpecial === undefined) {
         document.querySelector('.body-row')?.classList.add('sidebar-hidden');
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
@@ -87,7 +80,6 @@ function enterSpecialFromTab() {
         return;
     }
 
-    // 有选中专题
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
     switchToCurrentContainer();
@@ -116,6 +108,9 @@ function leaveSettingsToTarget(target) {
     isSettingsMode = false;
     document.querySelector('.body-row')?.classList.remove('settings-mode');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+
+    // ★ 清除 sidebar-hidden，确保侧边栏恢复
+    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
 
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.remove('hidden');
@@ -146,7 +141,6 @@ function leaveSettingsToTarget(target) {
             selectedSpecial = settingsReturnState.selectedSpecial;
             currentCategoryId = settingsReturnState.selectedSpecial;
             currentSubId = settingsReturnState.currentSubId;
-            // 移除 sidebar-hidden，显示侧边栏
             document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
             renderSidebar();
             renderSpecialContent();
@@ -160,7 +154,6 @@ function leaveSettingsToTarget(target) {
                 });
             }
         } else {
-            // 未选中专题，隐藏侧边栏
             document.querySelector('.body-row')?.classList.add('sidebar-hidden');
             const btn = document.getElementById('sidebarToggle');
             if (btn) btn.style.display = 'none';
@@ -191,7 +184,6 @@ function leaveSettingsToTarget(target) {
     document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
 }
 
-// 从设置回到纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
 function restoreNotesCoinsFromSettings(target) {
     currentMode = target;
     const saved = modeStates[target];
@@ -267,13 +259,14 @@ function restoreExpandedStates(states) {
     }
 }
 
-// 进入文章：始终列表视图 + 从 articleState.listScrollY 恢复滚动
 function enterArticlesTab() {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
         toggleBtn.style.display = '';
     }
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+    // ★ 清除 sidebar-hidden，确保侧边栏恢复
+    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
 
     currentMode = MODE.ARTICLES;
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -312,13 +305,14 @@ function enterArticlesTab() {
     triggerViewAnimation();
 }
 
-// 切回纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
 function enterNotesOrCoinsTab(target) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
         toggleBtn.style.display = '';
     }
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+    // ★ 清除 sidebar-hidden，确保侧边栏恢复
+    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
 
     const newMode = target;
     currentMode = newMode;
