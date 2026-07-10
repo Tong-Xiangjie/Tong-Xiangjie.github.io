@@ -17,7 +17,7 @@ const macau_bnuData = {
     ],
     series: [
         {
-            seriesName: "1990～2003年版 澳门币",
+            seriesName: "1990～2003年版",
             year: "1990～2003",
             "varieties": [
                 {
@@ -43,7 +43,7 @@ const macau_bnuData = {
                 }
             ]
         },{
-            seriesName: "2020年版 澳门元",
+            seriesName: "2020年版",
             year: "2020",
             "varieties": [
                 {
