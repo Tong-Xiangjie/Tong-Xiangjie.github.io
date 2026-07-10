@@ -50,13 +50,11 @@ function onSpecialOverviewItemClick(configId) {
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
-    // 动态构建年代分类
     if (config) {
         const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
         const items = data ? (data.items || data) : [];
         const decadeChildren = buildDecadeCategories(config, items);
 
-        // 更新 specialCategoryTree 中当前专题的子分类
         const specialTree = specialCategoryTree ? specialCategoryTree.find(c => c.id === configId) : null;
         if (specialTree) {
             if (decadeChildren && decadeChildren.length > 0) {
@@ -86,7 +84,6 @@ function onSpecialOverviewItemClick(configId) {
     }
 }
 
-// 根据数据中的年份动态生成年代子分类
 function buildDecadeCategories(config, items) {
     if (!items || items.length === 0) return null;
 
@@ -136,7 +133,6 @@ function renderSpecialContent() {
 
     specialItemsList = items;
 
-    // 根据 currentSubId 过滤年代
     let filteredItems = items;
     if (currentSubId) {
         const decadeStart = parseInt(currentSubId);
@@ -155,13 +151,12 @@ function renderSpecialContent() {
     }
     html += `</div>`;
 
-    // 按年份分组
     const yearGroups = {};
     for (let i = 0; i < filteredItems.length; i++) {
         const item = filteredItems[i];
         const year = item.year || '未知';
         if (!yearGroups[year]) yearGroups[year] = [];
-        yearGroups[year].push({ item, index: items.indexOf(item) }); // 用原始索引
+        yearGroups[year].push({ item, index: items.indexOf(item) });
     }
 
     const sortedYears = Object.keys(yearGroups).sort((a, b) => {
@@ -219,11 +214,12 @@ function openSpecialLightbox(index) {
     inner.className = 'special-lightbox-inner';
     inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
 
+    // ★ 关闭按钮：用 position:absolute + top/right 控制到右上角
     const closeBtn = document.createElement('div');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = 'position:absolute;top:8px;right:12px;font-size:1.5rem;cursor:pointer;color:var(--text-secondary);line-height:1;z-index:1;';
-    closeBtn.onmouseover = () => closeBtn.style.color = 'var(--text)';
-    closeBtn.onmouseout = () => closeBtn.style.color = 'var(--text-secondary)';
+    closeBtn.style.cssText = 'position:absolute;top:4px;right:16px;font-size:1.6rem;cursor:pointer;color:var(--text-secondary);line-height:1;z-index:10;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.15s,color 0.15s;';
+    closeBtn.onmouseover = () => { closeBtn.style.color = 'var(--text)'; closeBtn.style.background = 'var(--bg)'; };
+    closeBtn.onmouseout = () => { closeBtn.style.color = 'var(--text-secondary)'; closeBtn.style.background = 'transparent'; };
     closeBtn.onclick = (e) => { e.stopPropagation(); closeSpecialLightbox(); };
 
     const content = document.createElement('div');
@@ -255,17 +251,22 @@ function renderLightboxContent(contentEl, config, imgBase) {
 
     let html = '';
 
+    // ★ 导航按钮：始终显示，无上一张/下一张时变灰禁用
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
-    if (index > 0) {
-        html += `<button class="special-lightbox-nav" onclick="navigateLightbox(-1)" style="padding:4px 12px;background:var(--theme);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">← 上一张</button>`;
-    }
-    if (index < items.length - 1) {
-        html += `<button class="special-lightbox-nav" onclick="navigateLightbox(1)" style="padding:4px 12px;background:var(--theme);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">下一张 →</button>`;
-    }
+
+    // 上一张按钮
+    const prevDisabled = index <= 0;
+    html += `<button class="special-lightbox-nav" onclick="navigateLightbox(-1)" ${prevDisabled ? 'disabled' : ''} style="padding:5px 14px;border:none;border-radius:6px;cursor:${prevDisabled ? 'not-allowed' : 'pointer'};font-size:0.8rem;transition:opacity 0.15s;background:${prevDisabled ? 'var(--border)' : 'var(--theme)'};color:${prevDisabled ? 'var(--text-secondary)' : '#fff'};">← 上一张</button>`;
+
+    // 下一张按钮
+    const nextDisabled = index >= items.length - 1;
+    html += `<button class="special-lightbox-nav" onclick="navigateLightbox(1)" ${nextDisabled ? 'disabled' : ''} style="padding:5px 14px;border:none;border-radius:6px;cursor:${nextDisabled ? 'not-allowed' : 'pointer'};font-size:0.8rem;transition:opacity 0.15s;background:${nextDisabled ? 'var(--border)' : 'var(--theme)'};color:${nextDisabled ? 'var(--text-secondary)' : '#fff'};">下一张 →</button>`;
+
     html += `</div></div>`;
 
+    // 图片
     if (imgUrl) {
         html += `<div style="text-align:center;margin-bottom:14px;">`;
         html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:55vh;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
@@ -274,6 +275,7 @@ function renderLightboxContent(contentEl, config, imgBase) {
         html += `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
     }
 
+    // 详情
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || '')}</div>`;
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
