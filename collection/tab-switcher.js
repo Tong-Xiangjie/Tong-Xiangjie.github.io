@@ -63,12 +63,6 @@ function onTabClick(target) {
 }
 
 function enterSpecialFromTab() {
-    const toggleBtn = document.getElementById('sidebarToggle');
-    if (toggleBtn && toggleBtn.style.display === 'none') {
-        toggleBtn.style.display = '';
-    }
-    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-
     if (isSettingsMode) {
         isSettingsMode = false;
         document.querySelector('.body-row')?.classList.remove('settings-mode');
@@ -81,13 +75,27 @@ function enterSpecialFromTab() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
+    // 如果未选中任何专题，隐藏侧边栏全宽显示
+    if (selectedSpecial === null || selectedSpecial === undefined) {
+        document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+        const btn = document.getElementById('sidebarToggle');
+        if (btn) btn.style.display = 'none';
+        switchToCurrentContainer();
+        renderSpecialOverview();
+        triggerViewAnimation();
+        return;
+    }
+
+    // 有选中专题
+    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
     switchToCurrentContainer();
 
-    if (selectedSpecial !== null && selectedSpecial !== undefined && specialPageCaches[selectedSpecial]) {
+    if (specialPageCaches[selectedSpecial]) {
         const cache = specialPageCaches[selectedSpecial];
         currentSubId = cache.currentSubId || null;
         currentCategoryId = selectedSpecial;
-        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
         const toggleBtn2 = document.getElementById('sidebarToggle');
         if (toggleBtn2) toggleBtn2.style.display = '';
         document.getElementById('app').innerHTML = cache.innerHTML;
@@ -138,6 +146,8 @@ function leaveSettingsToTarget(target) {
             selectedSpecial = settingsReturnState.selectedSpecial;
             currentCategoryId = settingsReturnState.selectedSpecial;
             currentSubId = settingsReturnState.currentSubId;
+            // 移除 sidebar-hidden，显示侧边栏
+            document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
             renderSidebar();
             renderSpecialContent();
             const sb = document.getElementById('sidebar');
@@ -150,6 +160,10 @@ function leaveSettingsToTarget(target) {
                 });
             }
         } else {
+            // 未选中专题，隐藏侧边栏
+            document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+            const btn = document.getElementById('sidebarToggle');
+            if (btn) btn.style.display = 'none';
             renderSpecialOverview();
         }
         triggerViewAnimation();
@@ -177,7 +191,7 @@ function leaveSettingsToTarget(target) {
     document.querySelector(`.tab-item[data-target="${currentMode}"]`)?.classList.add('active');
 }
 
-// ★ 从设置回到纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
+// 从设置回到纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
 function restoreNotesCoinsFromSettings(target) {
     currentMode = target;
     const saved = modeStates[target];
@@ -220,7 +234,6 @@ function restoreNotesCoinsFromSettings(target) {
         }
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        // ★ 从 modeStates 恢复滚动位置
         const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
             : currentView === VIEW.CATEGORY ? saved.categoryScrollY
             : saved.searchScrollY;
@@ -254,7 +267,7 @@ function restoreExpandedStates(states) {
     }
 }
 
-// ★ 进入文章：始终列表视图 + 从 articleState.listScrollY 恢复滚动
+// 进入文章：始终列表视图 + 从 articleState.listScrollY 恢复滚动
 function enterArticlesTab() {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -268,7 +281,6 @@ function enterArticlesTab() {
 
     if (collectedArticles.length === 0) collectAllArticles();
 
-    // 从其他板块切到文章时，始终显示列表视图
     currentArticleView = VIEW.LIST;
     currentArticleCategory = articleState.currentCategory || 'all';
     currentArticleIndex = -1;
@@ -288,10 +300,8 @@ function enterArticlesTab() {
     updateSearchUIForMode();
     renderSidebar();
 
-    // 渲染列表
     renderArticleList();
 
-    // ★ 恢复列表滚动位置
     const container = getRenderContainer();
     if (articleState.listScrollY > 0) {
         requestAnimationFrame(() => {
@@ -302,7 +312,7 @@ function enterArticlesTab() {
     triggerViewAnimation();
 }
 
-// ★ 切回纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
+// 切回纸币/硬币：从 modeStates 恢复，用 saved.xxxScrollY
 function enterNotesOrCoinsTab(target) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -358,7 +368,6 @@ function enterNotesOrCoinsTab(target) {
         }
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        // ★ 从 modeStates 恢复滚动位置（不走 scrollMemory）
         const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
             : currentView === VIEW.CATEGORY ? saved.categoryScrollY
             : saved.searchScrollY;
