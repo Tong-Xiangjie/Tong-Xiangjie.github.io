@@ -825,6 +825,36 @@ body.modal-open {
     font-weight: bold;
 }
 
+/* ========== 专题详情浮层 ========== */
+.special-lightbox-inner {
+    animation: lightboxIn 0.2s ease;
+}
+
+@keyframes lightboxIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.special-lightbox-nav {
+    padding: 5px 14px;
+    background: var(--theme);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: opacity 0.15s;
+}
+
+.special-lightbox-nav:hover {
+    opacity: 0.85;
+}
 
 /* ========== 数据导出 ========== */
 .export-buttons {
