@@ -50,7 +50,28 @@ function onSpecialOverviewItemClick(configId) {
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
-    if (config && config.categories && config.categories.length > 0) {
+    // 动态构建年代分类
+    if (config) {
+        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
+        const items = data ? (data.items || data) : [];
+        const decadeChildren = buildDecadeCategories(config, items);
+
+        // 更新 specialCategoryTree 中当前专题的子分类
+        const specialTree = specialCategoryTree ? specialCategoryTree.find(c => c.id === configId) : null;
+        if (specialTree) {
+            if (decadeChildren && decadeChildren.length > 0) {
+                specialTree.children = decadeChildren;
+            } else {
+                specialTree.children = null;
+            }
+        }
+    }
+
+    const hasSub = config && specialCategoryTree
+        ? specialCategoryTree.find(c => c.id === configId)?.children?.length > 0
+        : false;
+
+    if (hasSub) {
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = '';
         renderSidebar();
@@ -63,6 +84,31 @@ function onSpecialOverviewItemClick(configId) {
         renderSpecialContent();
         triggerViewAnimation();
     }
+}
+
+// 根据数据中的年份动态生成年代子分类
+function buildDecadeCategories(config, items) {
+    if (!items || items.length === 0) return null;
+
+    const years = new Set();
+    for (const item of items) {
+        if (item.year) years.add(item.year);
+    }
+    if (years.size === 0) return null;
+
+    const decades = {};
+    for (const year of years) {
+        const decadeStart = Math.floor(year / 10) * 10;
+        const label = decadeStart + 's';
+        if (!decades[label]) decades[label] = [];
+        decades[label].push(year);
+    }
+
+    return Object.keys(decades).sort().map(decade => ({
+        id: decade,
+        name: decade,
+        dataKey: config.id
+    }));
 }
 
 function renderSpecialContent() {
@@ -84,23 +130,38 @@ function renderSpecialContent() {
 
     const items = data.items || data;
     if (!items || items.length === 0) {
-        html += '<div class="empty-state">啥都木有</div>';
-        app.innerHTML = html;
+        app.innerHTML = '<div class="empty-state">啥都木有</div>';
         return;
     }
 
     specialItemsList = items;
 
-    const imgBase = config.imageBase || '';
-    let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2></div>`;
+    // 根据 currentSubId 过滤年代
+    let filteredItems = items;
+    if (currentSubId) {
+        const decadeStart = parseInt(currentSubId);
+        if (!isNaN(decadeStart)) {
+            filteredItems = items.filter(item => {
+                const year = item.year;
+                return year && Math.floor(year / 10) * 10 === decadeStart;
+            });
+        }
+    }
 
-    // 按年份分组（如果数据中有 year 字段）
+    const imgBase = config.imageBase || '';
+    let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
+    if (currentSubId) {
+        html += `<p style="font-size:0.8rem;color:var(--theme);">当前筛选：${currentSubId}</p>`;
+    }
+    html += `</div>`;
+
+    // 按年份分组
     const yearGroups = {};
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+    for (let i = 0; i < filteredItems.length; i++) {
+        const item = filteredItems[i];
         const year = item.year || '未知';
         if (!yearGroups[year]) yearGroups[year] = [];
-        yearGroups[year].push({ item, index: i });
+        yearGroups[year].push({ item, index: items.indexOf(item) }); // 用原始索引
     }
 
     const sortedYears = Object.keys(yearGroups).sort((a, b) => {
@@ -130,6 +191,10 @@ function renderSpecialContent() {
         html += `</div></div>`;
     }
 
+    if (filteredItems.length === 0) {
+        html += '<div class="empty-state">该年代暂无藏品</div>';
+    }
+
     app.innerHTML = html;
     triggerViewAnimation();
 }
@@ -156,7 +221,7 @@ function openSpecialLightbox(index) {
 
     const closeBtn = document.createElement('div');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = 'position:absolute;top:8px;right:12px;font-size:1.5rem;cursor:pointer;color:var(--text-secondary);line-height:1;z-index:1;transition:color 0.15s;';
+    closeBtn.style.cssText = 'position:absolute;top:8px;right:12px;font-size:1.5rem;cursor:pointer;color:var(--text-secondary);line-height:1;z-index:1;';
     closeBtn.onmouseover = () => closeBtn.style.color = 'var(--text)';
     closeBtn.onmouseout = () => closeBtn.style.color = 'var(--text-secondary)';
     closeBtn.onclick = (e) => { e.stopPropagation(); closeSpecialLightbox(); };
@@ -190,7 +255,6 @@ function renderLightboxContent(contentEl, config, imgBase) {
 
     let html = '';
 
-    // 导航按钮
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
@@ -202,7 +266,6 @@ function renderLightboxContent(contentEl, config, imgBase) {
     }
     html += `</div></div>`;
 
-    // 图片
     if (imgUrl) {
         html += `<div style="text-align:center;margin-bottom:14px;">`;
         html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:55vh;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
@@ -211,7 +274,6 @@ function renderLightboxContent(contentEl, config, imgBase) {
         html += `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
     }
 
-    // 详情
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || '')}</div>`;
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
