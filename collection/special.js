@@ -26,7 +26,8 @@ function renderSpecialOverview() {
 
     html += `<div class="special-overview-grid">`;
     for (const config of configs) {
-        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.id];
+        // ★ 使用 config.dataKey 获取数据
+        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
         const count = data ? data.length || 0 : 0;
         html += `<div class="special-overview-card" onclick="onSpecialOverviewItemClick('${config.id}')">`;
         html += `<div class="special-overview-card-title">${escapeHtml(config.name)}</div>`;
@@ -45,19 +46,16 @@ function onSpecialOverviewItemClick(configId) {
     currentSubId = null;
     const config = getSpecialConfigs().find(c => c.id === configId);
 
-    // 移除全宽模式
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
     if (config && config.categories && config.categories.length > 0) {
-        // 有子分类：显示侧边栏
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = '';
         renderSidebar();
         renderSpecialContent();
         triggerViewAnimation();
     } else {
-        // 无子分类：保持隐藏侧边栏
         document.querySelector('.body-row')?.classList.add('sidebar-hidden');
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = 'none';
@@ -77,7 +75,8 @@ function renderSpecialContent() {
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) { renderSpecialOverview(); return; }
 
-    const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.id];
+    // ★ 使用 config.dataKey 获取数据
+    const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
     if (!data) {
         app.innerHTML = '<div class="empty-state">啥都木有</div>';
         return;
