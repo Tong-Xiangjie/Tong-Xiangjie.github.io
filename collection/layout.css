@@ -855,6 +855,28 @@ body.modal-open {
 .special-lightbox-nav:hover {
     opacity: 0.85;
 }
+/* ========== 专题详情浮层导航按钮 ========== */
+.special-lightbox-nav {
+    padding: 5px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    background: var(--theme);
+    color: #fff;
+    transition: opacity 0.15s;
+}
+
+.special-lightbox-nav:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.special-lightbox-nav:disabled {
+    background: var(--border);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
 
 /* ========== 数据导出 ========== */
 .export-buttons {
