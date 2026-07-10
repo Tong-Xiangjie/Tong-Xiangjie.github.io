@@ -220,8 +220,9 @@ function onArticleSidebarClick(categoryId) {
 }
 
 function renderArticleList() {
-    const app = getRenderContainer();
     currentArticleView = VIEW.LIST;
+    switchToCurrentContainer();
+    const app = getRenderContainer();
 
     let articles = [];
     if (currentArticleCategory === 'all') { articles = [...collectedArticles]; }
