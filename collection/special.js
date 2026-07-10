@@ -203,8 +203,6 @@ function openSpecialLightbox(index) {
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) return;
 
-    const imgBase = config.imageBase || '';
-
     const lightbox = document.createElement('div');
     lightbox.id = 'specialLightbox';
     lightbox.className = 'special-lightbox';
@@ -214,24 +212,24 @@ function openSpecialLightbox(index) {
     inner.className = 'special-lightbox-inner';
     inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
 
-    // ★ 关闭按钮：用 position:absolute + top/right 控制到右上角
+    // ★ 关闭按钮：右上角，不与导航按钮重叠
     const closeBtn = document.createElement('div');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = 'position:absolute;top:4px;right:16px;font-size:1.6rem;cursor:pointer;color:var(--text-secondary);line-height:1;z-index:10;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.15s,color 0.15s;';
-    closeBtn.onmouseover = () => { closeBtn.style.color = 'var(--text)'; closeBtn.style.background = 'var(--bg)'; };
-    closeBtn.onmouseout = () => { closeBtn.style.color = 'var(--text-secondary)'; closeBtn.style.background = 'transparent'; };
+    closeBtn.style.cssText = 'position:absolute;top:-8px;right:-8px;font-size:1.3rem;cursor:pointer;color:#fff;line-height:1;z-index:10;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,0.45);border:2px solid rgba(255,255,255,0.3);transition:background 0.15s;';
+    closeBtn.onmouseover = () => { closeBtn.style.background = 'rgba(0,0,0,0.7)'; };
+    closeBtn.onmouseout = () => { closeBtn.style.background = 'rgba(0,0,0,0.45)'; };
     closeBtn.onclick = (e) => { e.stopPropagation(); closeSpecialLightbox(); };
 
     const content = document.createElement('div');
     content.className = 'special-lightbox-content';
-    content.style.padding = '20px';
+    content.style.padding = '16px 20px 20px';
 
     inner.appendChild(closeBtn);
     inner.appendChild(content);
     lightbox.appendChild(inner);
     document.body.appendChild(lightbox);
 
-    renderLightboxContent(content, config, imgBase);
+    renderLightboxContent(content, config);
 
     lightbox.addEventListener('click', function(e) {
         if (e.target === lightbox) closeSpecialLightbox();
@@ -240,42 +238,39 @@ function openSpecialLightbox(index) {
     document.addEventListener('keydown', specialLightboxKeyHandler);
 }
 
-function renderLightboxContent(contentEl, config, imgBase) {
+function renderLightboxContent(contentEl, config) {
     const items = specialItemsList;
     const index = specialCurrentIndex;
 
     if (index < 0 || index >= items.length) return;
 
     const item = items[index];
+    const imgBase = config ? config.imageBase || '' : '';
     const imgUrl = item.yearImg ? imgBase + item.yearImg : '';
 
     let html = '';
 
-    // ★ 导航按钮：始终显示，无上一张/下一张时变灰禁用
-    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">`;
+    // ★ 导航按钮：不再用内联样式，使用 CSS class
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
 
-    // 上一张按钮
     const prevDisabled = index <= 0;
-    html += `<button class="special-lightbox-nav" onclick="navigateLightbox(-1)" ${prevDisabled ? 'disabled' : ''} style="padding:5px 14px;border:none;border-radius:6px;cursor:${prevDisabled ? 'not-allowed' : 'pointer'};font-size:0.8rem;transition:opacity 0.15s;background:${prevDisabled ? 'var(--border)' : 'var(--theme)'};color:${prevDisabled ? 'var(--text-secondary)' : '#fff'};">← 上一张</button>`;
+    html += `<button class="special-lightbox-nav" onclick="navigateLightbox(-1)" ${prevDisabled ? 'disabled' : ''}>← 上一张</button>`;
 
-    // 下一张按钮
     const nextDisabled = index >= items.length - 1;
-    html += `<button class="special-lightbox-nav" onclick="navigateLightbox(1)" ${nextDisabled ? 'disabled' : ''} style="padding:5px 14px;border:none;border-radius:6px;cursor:${nextDisabled ? 'not-allowed' : 'pointer'};font-size:0.8rem;transition:opacity 0.15s;background:${nextDisabled ? 'var(--border)' : 'var(--theme)'};color:${nextDisabled ? 'var(--text-secondary)' : '#fff'};">下一张 →</button>`;
+    html += `<button class="special-lightbox-nav" onclick="navigateLightbox(1)" ${nextDisabled ? 'disabled' : ''}>下一张 →</button>`;
 
     html += `</div></div>`;
 
-    // 图片
     if (imgUrl) {
-        html += `<div style="text-align:center;margin-bottom:14px;">`;
+        html += `<div style="text-align:center;margin-bottom:12px;">`;
         html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:55vh;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
         html += `</div>`;
     } else {
         html += `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
     }
 
-    // 详情
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || '')}</div>`;
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
@@ -288,9 +283,8 @@ function renderLightboxContent(contentEl, config, imgBase) {
 function navigateLightbox(direction) {
     specialCurrentIndex += direction;
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
-    const imgBase = config ? config.imageBase : '';
     const contentEl = document.querySelector('#specialLightbox .special-lightbox-content');
-    if (contentEl) renderLightboxContent(contentEl, config, imgBase);
+    if (contentEl) renderLightboxContent(contentEl, config);
 }
 
 function closeSpecialLightbox() {
