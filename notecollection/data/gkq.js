@@ -64,6 +64,31 @@ const gkqData = {
                     ]
                 }
             ]
+        }, 
+        // ==================== 1983年 ====================
+        {
+            seriesName: "1983年",
+            year: "1983",
+            varieties: [
+                {
+                    varietyName: "5元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1983,
+                            version: "ⅩⅦ9103374",
+                            condition: "暂未评级",
+                            price: "40元",
+                            purchaseDate: "2026年7月11日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/ⅩⅦ9103374-1.jpg",
+                            img2: "image/gkq/ⅩⅦ9103374-2.jpg"
+                        }
+                    ]
+                }
+            ]
         },
         // ==================== 1989年 ====================
         {
@@ -110,6 +135,23 @@ const gkqData = {
                             remark: "",
                             img1: "image/gkq/ⅩⅡ83410889-1.jpg",
                             img2: "image/gkq/ⅩⅡ83410889-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "10元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1991,
+                            version: "ⅩⅠ64357754",
+                            condition: "暂未评级",
+                            price: "40元",
+                            purchaseDate: "2026年7月11日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/ⅩⅠ64357754-1.jpg",
+                            img2: "image/gkq/ⅩⅠ64357754-2.jpg"
                         }
                     ]
                 },
