@@ -28,6 +28,8 @@ window.DATA_MAP = {
     republic_crbcData:  typeof republic_crbcData  !== 'undefined' ? republic_crbcData  : null,
     republic_aibData:   typeof republic_aibData   !== 'undefined' ? republic_aibData   : null,
     japanMilitaryData:  typeof japanMilitaryData  !== 'undefined' ? japanMilitaryData  : null,
+    republic_spbData:   typeof republic_spbData   !== 'undefined' ? republic_spbData   : null,
+    republic_mfrcData:  typeof republic_mfrcData  !== 'undefined' ? republic_mfrcData  : null,
     japanData:          typeof japanData          !== 'undefined' ? japanData          : null,
     indonesiaData:      typeof indonesiaData      !== 'undefined' ? indonesiaData      : null,
     venezuelaData:      typeof venezuelaData      !== 'undefined' ? venezuelaData      : null,
