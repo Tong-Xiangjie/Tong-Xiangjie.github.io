@@ -118,9 +118,26 @@ const japanData = {
                             withdrawnDate: "1974年8月1日",
                             size: "148mm*76mm",
                             wmk: "桐花图案&100/Turkey Oak Pattern&100",
-                            remark: "B号券，双字母冠字前缀。正面：板垣退助，背面：日本国会议事堂。",
+                            remark: "浅棕色纸张（Light Brown Paper）版本",
                             img1: "image/japan/XP807592G-1.jpg",
                             img2: "image/japan/XP807592G-2.jpg"
+                        },{
+                            copyId: 1,
+                            year: 1953,
+                            version: "ZP514663G",
+                            bank: "日本银行/Bank of Japan",
+                            condition: "ACG67E",
+                            price: "39元",
+                            purchaseDate: "2026年7月12日",
+                            krause: "90c",
+                            print: "大藏省印刷局",
+                            issueDate: "1953年12月1日",
+                            withdrawnDate: "1974年8月1日",
+                            size: "148mm*76mm",
+                            wmk: "桐花图案&100/Turkey Oak Pattern&100",
+                            remark: "白色纸张（White Paper）版本",
+                            img1: "image/japan/ZP514663G-1.jpg",
+                            img2: "image/japan/ZP514663G-2.jpg"
                         }
                     ]
                 },
