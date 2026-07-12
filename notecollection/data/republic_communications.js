@@ -18,11 +18,11 @@ const republic_communicationsData = {
     ],
 series: [
         {
-            seriesName: "中华民国三年（1914年） 美钞版国币券",
+            seriesName: "中华民国三年（1914年） 美钞版 国币券",
             year: "1914",
             varieties: [
                 {
-                    varietyName: "1914年 5元 火车头（橄色） 加盖黑上海",
+                    varietyName: "1914年 5元 火车头",
                     copies: [
                         {
                             copyId: 1,
@@ -37,13 +37,13 @@ series: [
                             price: "188元",
                             purchaseDate: "2026年2月4日",
                             krause: "117n",
-                            remark: "",
+                            remark: "火车头（橄色） 加盖黑上海",
                             img1: "image/republic_communications/SB648728R-1.jpg",
                             img2: "image/republic_communications/SB648728R-2.jpg"
                         }
                     ]
                 },{
-                    varietyName: "1914年 10元 大楼（红色） 加盖蓝上海",
+                    varietyName: "1914年 10元 大楼",
                     copies: [
                         {
                             copyId: 1,
@@ -56,7 +56,7 @@ series: [
                             krause: "118q",
                             print: "美国钞票公司/ABNC",
                             issueDate: "",
-                            withdrawnDate: "",
+                            withdrawnDate: "大楼（红色） 加盖蓝上海",
                             size: "79mm*162mm",
                             remark: "",
                             img1: "image/republic_communications/SB052887D-1.jpg",
