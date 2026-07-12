@@ -27,7 +27,7 @@ const republic_mfrcData = {
             },
             varieties: [
                 {
-                    varietyName: "1919年 1/2元",
+                    varietyName: "1919年 ½元",
                     copies: [
                         {
                             copyId: 1,
@@ -71,23 +71,7 @@ const republic_mfrcData = {
                 },{
                     varietyName: "1919年 5元",
                     copies: [
-                        {
-                            copyId: 1,
-                            year: 1919,
-                            version: "",
-                            bank: "中华民国财政部/Ministry of Finance of the Republic of China",
-                            print: "财政部印刷局/BEPP",
-                            issueDate: "1919年0月",
-                            withdrawnDate: "1920年0月",
-                            size: "",
-                            condition: "暂未评级",
-                            price: "530元",
-                            purchaseDate: "2026年7月11日",
-                            krause: "626a",
-                            remark: "",
-                            img1: "image/republic_mfrc/AK-1.jpg",
-                            img2: "image/republic_mfrc/AK-2.jpg"
-                        }
+                       
                     ]
                 }
             ]
