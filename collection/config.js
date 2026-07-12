@@ -57,7 +57,7 @@ const categoryTree = [
             { id: 'venezuela', name: '委内瑞拉', dataKey: 'venezuelaData' },
             { id: 'ukarine', name: '乌克兰', dataKey: 'ukarineData' },
             { id: 'russia', name: '俄罗斯', dataKey: 'russiaData' },
-            { id: 'vietnam', name: '越南', dataKey: 'vietnamData' }
+            //{ id: 'vietnam', name: '越南', dataKey: 'vietnamData' }
         ]
     },
     {
@@ -71,7 +71,9 @@ const categoryTree = [
             { id: 'republic_kpb', name: '广东省银行', dataKey: 'republic_kpbData' },
             { id: 'republic_crbc', name: '中央储备银行', dataKey: 'republic_crbcData' },
             { id: 'republic_aib', name: '厦门劝业银行', dataKey: 'republic_aibData' },
-            { id: 'japanMilitary', name: '大日本帝国政府军用手票', dataKey: 'japanMilitaryData' }
+            { id: 'japanMilitary', name: '大日本帝国政府军用手票', dataKey: 'japanMilitaryData' },
+            { id: 'republic_spb', name: '南方人民银行', dataKey: 'republic_spbData' },
+            { id: 'republic_mfrc', name: '中华民国财政部', dataKey: 'republic_mfrcData' }
         ]
     },
     {
