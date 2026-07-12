@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐺 AI 狼人杀</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { font-family: 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100%; overflow: hidden; }
+.container { display: flex; height: 100vh; overflow: hidden; }
+.sidebar { width: 300px; background: #16213e; border-right: 1px solid #0f3460; display: flex; flex-direction: column; flex-shrink: 0; height: 100vh; overflow: hidden; }
+.sidebar-header { padding: 16px 20px; text-align: center; background: linear-gradient(135deg,#0f3460,#533483); flex-shrink: 0; }
+.sidebar-header h1 { font-size: 18px; color: #fff; }
+.status-bar { display: flex; justify-content: space-between; padding: 10px 16px; background: #1a1a3e; border-bottom: 1px solid #0f3460; font-size: 12px; flex-shrink: 0; }
+.status-item { display: flex; align-items: center; gap: 4px; }
+.status-label { color: #888; }
+.status-value { color: #fff; font-weight: 600; }
+.phase-badge { background: #533483; color: #fff; padding: 2px 8px; border-radius: 8px; font-size: 11px; }
+.game-log { flex: 1; overflow-y: auto; padding: 10px; font-size: 12px; line-height: 1.5; background: #0d1b2a; }
+.log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a3e; }
+.main-content { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.phase-header { flex-shrink: 0; text-align: center; padding: 14px; background: linear-gradient(135deg,#0f3460,#533483); }
+.phase-header h2 { font-size: 20px; color: #fff; }
+.phase-header .round-info { color: #a0a0c0; font-size: 13px; margin-top: 2px; }
+.scrollable-content { flex: 1; overflow-y: auto; padding: 16px; }
+
+.setup-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; text-align: center; }
+.setup-screen h2 { font-size: 26px; margin-bottom: 8px; color: #fff; }
+.setup-screen p { color: #aaa; margin-bottom: 20px; }
+.config-grid, .role-grid { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+.card { width: 120px; padding: 12px 8px; background: #16213e; border: 2px solid #0f3460; border-radius: 10px; cursor: pointer; transition: all 0.3s; text-align: center; }
+.card:hover { border-color: #533483; transform: translateY(-2px); }
+.card.selected { border-color: #e94560; background: #1a1a3e; }
+.card h4 { color: #fff; font-size: 13px; margin-bottom: 2px; }
+.card p { color: #888; font-size: 11px; }
+.card .emoji { font-size: 26px; margin-bottom: 4px; }
+
+.btn { padding: 12px 36px; background: linear-gradient(135deg,#533483,#e94560); color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; font-weight: bold; }
+.btn:hover { opacity: 0.9; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-small { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
+
+textarea { width: 100%; height: 100px; padding: 10px; border-radius: 8px; border: 1px solid #0f3460; background: #0d1b2a; color: #fff; font-size: 14px; resize: vertical; font-family: inherit; }
+
+.speech-card { padding: 8px 12px; margin-bottom: 6px; background: #16213e; border-radius: 8px; border-left: 3px solid #533483; }
+.speech-card .meta { font-size: 11px; color: #888; }
+.speech-card .content { font-size: 13px; color: #e0e0e0; margin-top: 2px; }
+
+.option-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.option-btn { padding: 10px 18px; background: #16213e; border: 2px solid #533483; border-radius: 8px; color: #fff; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.option-btn:hover { background: #1a1a3e; border-color: #e94560; }
+.option-btn.danger { border-color: #e94560; }
+.option-btn.success { border-color: #4caf50; }
+.option-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: #16213e; border: 2px solid #533483; border-radius: 16px; padding: 28px; width: 460px; max-width: 92vw; box-shadow: 0 0 40px rgba(83,52,131,0.5); }
+.modal-box h2 { text-align: center; color: #fff; margin-bottom: 16px; }
+.modal-box label { color: #a0a0c0; font-size: 13px; display: block; margin-bottom: 4px; }
+.modal-box input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #0f3460; background: #0d1b2a; color: #fff; font-size: 14px; margin-bottom: 12px; }
+.modal-box input:focus { outline: none; border-color: #533483; }
+.error-msg { color: #e94560; text-align: center; font-size: 13px; display: none; margin-top: 8px; }
+
+.death-timeline { margin-bottom: 12px; padding: 10px; background: #0d1b2a; border-radius: 8px; border: 1px solid #0f3460; }
+.death-timeline h4 { color: #a0a0c0; margin-bottom: 6px; font-size: 13px; }
+.death-item { font-size: 12px; color: #ccc; padding: 2px 0; }
+
+#loadingIndicator { display: none; text-align: center; padding: 40px; }
+#loadingIndicator.show { display: block; }
+.spinner { border: 4px solid #333; border-top: 4px solid #e94560; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header"><h1>🐺 AI 狼人杀</h1></div>
+    <div class="status-bar">
+      <div class="status-item"><span class="status-label">回合</span><span class="status-value" id="roundDisplay">-</span></div>
+      <div class="status-item"><span class="status-label">存活</span><span class="status-value" id="aliveDisplay">0/0</span></div>
+      <div class="status-item"><span class="phase-badge" id="phaseDisplay">等待</span></div>
+    </div>
+    <div class="game-log" id="logContainer"></div>
+  </div>
+  
+  <!-- Main -->
+  <div class="main-content">
+    <div class="phase-header">
+      <h2 id="phaseTitle">🐺 AI 狼人杀</h2>
+      <div class="round-info" id="roundInfo">纯前端 · 浏览器直调 API</div>
+    </div>
+    <div class="scrollable-content" id="contentArea"></div>
+  </div>
+</div>
+
+<!-- Config Modal -->
+<div class="modal-overlay show" id="configModal">
+  <div class="modal-box">
+    <h2>⚙️ 连接配置</h2>
+    <p style="text-align:center;color:#a0a0c0;font-size:13px;margin-bottom:16px;">输入你的 API 信息（仅存浏览器内存中）</p>
+    <label>API 地址</label>
+    <input id="cfgBaseUrl" value="https://api.deepseek.com">
+    <label>API Key</label>
+    <input id="cfgApiKey" type="password" placeholder="sk-...">
+    <label>模型名称</label>
+    <input id="cfgModel" value="deepseek-v4-flash">
+    <button class="btn" onclick="saveConfig()" style="width:100%;">✅ 确认并开始</button>
+    <p class="error-msg" id="configError"></p>
+    <p style="text-align:center;color:#666;font-size:11px;margin-top:8px;">Key 仅存内存，刷新页面需重新输入</p>
+  </div>
+</div>
+
+<script>
+// ============================================
+// 数据模型
+// ============================================
+const Role = { VILLAGER:'villager', WEREWOLF:'werewolf', SEER:'seer', WITCH:'witch', HUNTER:'hunter', IDIOT:'idiot', GUARD:'guard' };
+const Phase = { NIGHT_WOLF:'night_wolf', NIGHT_SEER:'night_seer', NIGHT_WITCH:'night_witch', NIGHT_GUARD:'night_guard', DAY_ANNOUNCE:'day_announce', DAY_SPEECH:'day_speech', DAY_VOTE:'day_vote', DAY_REVOTE:'day_revote', GAME_OVER:'game_over' };
+const ROLE_NAMES = { villager:'平民', werewolf:'狼人', seer:'预言家', witch:'女巫', hunter:'猎人', idiot:'白痴', guard:'守卫' };
+const PHASE_NAMES = { night_wolf:'🌙 狼人行动', night_seer:'🌙 预言家验人', night_witch:'🌙 女巫行动', night_guard:'🌙 守卫守护', day_announce:'☀️ 天亮宣布', day_speech:'💬 发言阶段', day_vote:'🗳️ 投票处决', day_revote:'🗳️ 平票重投', game_over:'🏁 游戏结束' };
+
+const GAME_CONFIGS = {
+  '6人标准': { name:'6人标准局', num_players:6, roles:['werewolf','werewolf','seer','witch','villager','villager'], num_wolves:2 },
+  '6人极简': { name:'6人极简局', num_players:6, roles:['werewolf','werewolf','seer','villager','villager','villager'], num_wolves:2 },
+  '9人标准': { name:'9人标准局', num_players:9, roles:['werewolf','werewolf','werewolf','seer','witch','hunter','idiot','villager','villager'], num_wolves:3 },
+  '9人守卫': { name:'9人守卫局', num_players:9, roles:['werewolf','werewolf','werewolf','seer','witch','guard','villager','villager','villager'], num_wolves:3 },
+  '12人标准': { name:'12人标准局', num_players:12, roles:['werewolf','werewolf','werewolf','werewolf','seer','witch','hunter','idiot','villager','villager','villager','villager'], num_wolves:4 },
+  '12人守卫': { name:'12人守卫局', num_players:12, roles:['werewolf','werewolf','werewolf','werewolf','seer','witch','hunter','guard','villager','villager','villager','villager'], num_wolves:4 },
+};
+
+// ============================================
+// API 配置
+// ============================================
+let API_CONFIG = { base_url:'', api_key:'', model:'' };
+
+async function saveConfig() {
+  const baseUrl = document.getElementById('cfgBaseUrl').value.trim();
+  const apiKey = document.getElementById('cfgApiKey').value.trim();
+  const model = document.getElementById('cfgModel').value.trim();
+  if (!baseUrl || !apiKey || !model) {
+    document.getElementById('configError').textContent = '请填写所有字段';
+    document.getElementById('configError').style.display = 'block';
+    return;
+  }
+  // 简单测试连接
+  try {
+    const resp = await fetch(baseUrl + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+apiKey },
+      body: JSON.stringify({ model:model, messages:[{role:'user',content:'回复ok'}], max_tokens:10 })
+    });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+  } catch(e) {
+    document.getElementById('configError').textContent = '连接测试失败：'+e.message;
+    document.getElementById('configError').style.display = 'block';
+    return;
+  }
+  API_CONFIG = { base_url:baseUrl, api_key:apiKey, model:model };
+  document.getElementById('configModal').classList.remove('show');
+  showSetup();
+}
+
+async function callLLM(messages, temp=0.8, maxTokens=600) {
+  const body = { model:API_CONFIG.model, messages, temperature:temp, max_tokens:maxTokens };
+  const resp = await fetch(API_CONFIG.base_url + '/chat/completions', {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_CONFIG.api_key},
+    body:JSON.stringify(body)
+  });
+  if (!resp.ok) { const t=await resp.text(); throw new Error('API错误 '+resp.status+': '+t.slice(0,200)); }
+  const data = await resp.json();
+  return data.choices[0].message.content;
+}
+
+// ============================================
+// 游戏引擎
+// ============================================
+class Player { constructor(id, name, role, isHuman=false) { this.id=id; this.name=name; this.role=role; this.is_human=isHuman; this.is_alive=true; this.personality='balanced'; this.can_shoot=false; this.is_revealed=false; this.is_protected=false; } }
+class Speech { constructor(round, player_id, player_name, content) { this.round=round; this.player_id=player_id; this.player_name=player_name; this.content=content; } }
+class Vote { constructor(round, voter_id, target_id) { this.round=round; this.voter_id=voter_id; this.target_id=target_id; } }
+class NightAction { constructor(round) { this.round=round; this.wolf_target=null; this.seer_target=null; this.seer_result=null; this.witch_save=false; this.witch_poison_target=null; this.hunter_shoot_target=null; this.guard_target=null; } }
+class DeathRecord { constructor(round, player_id, cause, detail='') { this.round=round; this.player_id=player_id; this.cause=cause; this.detail=detail; } }
+
+const AI_PERSONALITIES = ['aggressive','cautious','analytical','deceptive','intuitive','balanced','skeptical','friendly','playful','serious','calm','energetic'];
+
+class GameEngine {
+  constructor() {
+    this.state = { game_id:'', players:[], phase:Phase.NIGHT_WOLF, round_num:1, speech_index:0, speeches:[], votes:[], night_actions:[], death_history:[], winner:null, human_player_id:1, vote_tie:false, game_config:null, scores:{}, vote_accuracy:{} };
+    this._witch_save_used=false; this._witch_poison_used=false; this._witch_has_antidote=true; this._last_guard_target=null; this._speech_order_cache={}; this._tied_candidates=[];
+  }
+
+  getPlayer(id) { return this.state.players.find(p=>p.id===id)||null; }
+  getAlivePlayers() { return this.state.players.filter(p=>p.is_alive); }
+  getDeadPlayers() { return this.state.players.filter(p=>!p.is_alive); }
+  getPlayersByRole(role) { return this.state.players.filter(p=>p.role===role); }
+  isAlive(id) { const p=this.getPlayer(id); return p&&p.is_alive; }
+
+  setupGame(humanRole='villager', configName='9人标准') {
+    const cfg = GAME_CONFIGS[configName] || GAME_CONFIGS['9人标准'];
+    this.state = { players:[], phase:Phase.NIGHT_WOLF, round_num:1, speech_index:0, speeches:[], votes:[], night_actions:[], death_history:[], winner:null, human_player_id:1, vote_tie:false, game_config:cfg, scores:{}, vote_accuracy:{} };
+    this._witch_save_used=false; this._witch_poison_used=false; this._witch_has_antidote=true; this._last_guard_target=null; this._speech_order_cache={}; this._tied_candidates=[];
+
+    let allRoles = [...cfg.roles];
+    shuffle(allRoles);
+    const roleMap = {'1':Role.VILLAGER,'2':Role.SEER,'3':Role.WITCH,'4':Role.WEREWOLF,'5':Role.HUNTER,'6':Role.IDIOT,'7':Role.GUARD};
+    let preferredRole = roleMap[humanRole] || Role.VILLAGER;
+    const idx = allRoles.indexOf(preferredRole);
+    if (idx>=0) allRoles.splice(idx,1);
+    else preferredRole = allRoles.pop() || Role.VILLAGER;
+
+    shuffle(AI_PERSONALITIES);
+    const allIds = Array.from({length:cfg.num_players},(_,i)=>i+1);
+    shuffle(allIds);
+    const humanId = allIds[0];
+    this.state.human_player_id = humanId;
+
+    const players = [];
+    const human = new Player(humanId, '你', preferredRole, true);
+    if (preferredRole===Role.HUNTER) human.can_shoot=true;
+    players.push(human);
+    const usedIds = new Set([humanId]);
+
+    for (const role of allRoles) {
+      let pid;
+      do { pid = Math.floor(Math.random()*cfg.num_players)+1; } while(usedIds.has(pid));
+      usedIds.add(pid);
+      const ai = new Player(pid, `玩家${pid}`, role, false);
+      ai.personality = AI_PERSONALITIES[(usedIds.size-2)%AI_PERSONALITIES.length];
+      if (role===Role.HUNTER) ai.can_shoot=true;
+      players.push(ai);
+    }
+    players.sort((a,b)=>a.id-b.id);
+    this.state.players = players;
+    for (const p of players) { this.state.scores[p.id]=0; this.state.vote_accuracy[p.id]=0; }
+    return this.state;
+  }
+
+  executeNight(na) {
+    na.round = this.state.round_num;
+    let actualKilled = na.wolf_target;
+    const guardId = na.guard_target || this._last_guard_target;
+    if (guardId) { const gp=this.getPlayer(guardId); if(gp) gp.is_protected=true; }
+    if (actualKilled && guardId===actualKilled) actualKilled=null;
+    if (actualKilled && na.witch_save && this._witch_has_antidote && !this._witch_save_used) { actualKilled=null; this._witch_save_used=true; this._witch_has_antidote=false; }
+    let poisonTarget = null;
+    if (na.witch_poison_target!==null && !this._witch_poison_used) { poisonTarget=na.witch_poison_target; this._witch_poison_used=true; const h=this.getPlayer(poisonTarget); if(h&&h.role===Role.HUNTER) h.can_shoot=false; }
+    if (actualKilled) {
+      this.state.death_history.push(new DeathRecord(this.state.round_num, actualKilled, 'werewolf', '被狼人杀害'));
+      const h=this.getPlayer(actualKilled);
+      if (h&&h.role===Role.HUNTER&&h.can_shoot&&na.hunter_shoot_target) { h.can_shoot=false; this.executeHunterShot(actualKilled, na.hunter_shoot_target); }
+    }
+    if (poisonTarget) this.state.death_history.push(new DeathRecord(this.state.round_num, poisonTarget, 'witch_poison', '被女巫毒死'));
+    this.state.night_actions.push(na);
+    const deaths = [];
+    if (actualKilled) deaths.push(actualKilled);
+    if (poisonTarget&&poisonTarget!==actualKilled) deaths.push(poisonTarget);
+    for (const pid of deaths) { const p=this.getPlayer(pid); if(p&&p.is_alive) p.is_alive=false; }
+    for (const p of this.state.players) p.is_protected=false;
+    this._last_guard_target = guardId;
+    return { round:this.state.round_num, killed_player_id:actualKilled, killed_by:actualKilled?'werewolf':'', has_last_words:true };
+  }
+
+  executeHunterShot(hunterId, targetId) {
+    const h=this.getPlayer(hunterId), t=this.getPlayer(targetId);
+    if (!h||!t||!t.is_alive||h.role!==Role.HUNTER) return false;
+    t.is_alive=false; h.can_shoot=false;
+    this.state.death_history.push(new DeathRecord(this.state.round_num, targetId, 'hunter_shot', `被猎人${hunterId}号开枪带走`));
+    return true;
+  }
+
+  processVotes(votes) {
+    let valid = votes.filter(v=>v.voter_id!==v.target_id&&this.isAlive(v.voter_id));
+    valid = valid.filter(v=>{const p=this.getPlayer(v.voter_id); return !(p&&p.role===Role.IDIOT&&p.is_revealed);});
+    const counts = {};
+    for (const v of valid) counts[v.target_id]=(counts[v.target_id]||0)+1;
+    if (Object.keys(counts).length===0) return [null, false];
+    const maxVotes = Math.max(...Object.values(counts));
+    let top = Object.entries(counts).filter(([pid,c])=>c===maxVotes&&this.isAlive(parseInt(pid))).map(([pid])=>parseInt(pid));
+    if (top.length===0) return [null, false];
+    if (top.length>1) { this._tied_candidates=top; return [null, true]; }
+    const eid = top[0];
+    const p = this.getPlayer(eid);
+    if (p&&p.role===Role.IDIOT&&!p.is_revealed) { p.is_revealed=true; this.state.death_history.push(new DeathRecord(this.state.round_num, eid, 'idiot_survive', '白痴翻牌')); return [eid, false]; }
+    if (p) { p.is_alive=false; this.state.death_history.push(new DeathRecord(this.state.round_num, eid, 'vote', '被投票处决')); }
+    return [eid, false];
+  }
+
+  resetVotesForRevote() {
+    this.state.votes = this.state.votes.filter(v=>v.round!==this.state.round_num);
+    this.state.phase = Phase.DAY_REVOTE;
+    this.state.speech_index = 0;
+  }
+
+  getTiedCandidates() { return this._tied_candidates||[]; }
+
+  checkWin() {
+    const alive = this.getAlivePlayers();
+    const roles = alive.map(p=>p.role);
+    const wolfCount = roles.filter(r=>r===Role.WEREWOLF).length;
+    const specialRoles = [Role.SEER, Role.WITCH, Role.HUNTER, Role.IDIOT, Role.GUARD];
+    const specialCount = roles.filter(r=>specialRoles.includes(r)).length;
+    const villagerCount = roles.filter(r=>r===Role.VILLAGER).length;
+    if (wolfCount===0) { this.state.winner='villager'; return 'villager'; }
+    if (specialCount===0&&wolfCount>0) { this.state.winner='werewolf'; return 'werewolf'; }
+    if (villagerCount===0&&wolfCount>0) { this.state.winner='werewolf'; return 'werewolf'; }
+    return null;
+  }
+
+  getSpeechOrder() {
+    const alive = this.getAlivePlayers().map(p=>p.id).sort((a,b)=>a-b);
+    const idiotRevealed = this.state.players.filter(p=>p.role===Role.IDIOT&&p.is_revealed&&!p.is_alive).map(p=>p.id);
+    const speech = [...new Set([...alive, ...idiotRevealed])];
+    if (speech.length===0) return [];
+    const rn = this.state.round_num;
+    if (!this._speech_order_cache[rn]) {
+      const shuffled = [...speech];
+      const seed = rn*100+speech.length;
+      seededShuffle(shuffled, seed);
+      this._speech_order_cache[rn] = shuffled;
+    }
+    return this._speech_order_cache[rn];
+  }
+
+  nextPhase() {
+    const order = [Phase.NIGHT_WOLF, Phase.NIGHT_SEER, Phase.NIGHT_WITCH, Phase.NIGHT_GUARD, Phase.DAY_ANNOUNCE, Phase.DAY_SPEECH, Phase.DAY_VOTE];
+    const idx = order.indexOf(this.state.phase);
+    if (idx<order.length-1) this.state.phase=order[idx+1];
+    else { this.state.round_num++; this.state.phase=Phase.NIGHT_WOLF; }
+    if (this.state.phase===Phase.DAY_SPEECH) this.state.speech_index=0;
+  }
+
+  getPublicContext() {
+    const causeNames = { werewolf:'被狼人杀害', witch_poison:'被女巫毒死', vote:'被投票处决', hunter_shot:'被猎人开枪带走', idiot_survive:'白痴翻牌' };
+    const alive = this.getAlivePlayers().map(p=>`${p.name}(#${p.id})`).join(', ');
+    const dead = this.getDeadPlayers().filter(p=>!(p.role===Role.IDIOT&&p.is_revealed)).map(p=>`${p.name}(#${p.id})`).join(', ');
+    const idiotRev = this.state.players.filter(p=>p.role===Role.IDIOT&&p.is_revealed).map(p=>`${p.name}(#${p.id})[白痴翻牌]`).join(', ');
+    
+    let ctx = `\n【游戏状态】\n  回合：第${this.state.round_num}轮\n  存活：${alive||'无'}\n  死亡：${dead||'无'}\n`;
+    if (idiotRev) ctx += `  翻牌：${idiotRev}\n`;
+    if (this.state.death_history.length>0) {
+      ctx += '\n【死亡时间线】\n';
+      for (const d of this.state.death_history) {
+        const p=this.getPlayer(d.player_id); const pname=p?p.name:`#${d.player_id}`;
+        ctx += `  第${d.round}轮 - ${pname}：${causeNames[d.cause]||d.cause}\n`;
+      }
+    }
+    const tied = this.getTiedCandidates();
+    if (tied.length>0) {
+      const names = tied.map(pid=>{const p=this.getPlayer(pid); return p?p.name:`#${pid}`;}).join('、');
+      ctx += `\n【平票重投】\n  候选人：${names}\n  只能投候选人\n`;
+    }
+    const recent = this.state.speeches.filter(s=>s.round===this.state.round_num).slice(-5);
+    if (recent.length>0) {
+      ctx += '\n【近期发言】\n';
+      for (const s of recent) ctx += `  ${s.player_name}：${s.content.slice(0,100)}...\n`;
+    }
+    const rv = this.state.votes.filter(v=>v.round===this.state.round_num);
+    if (rv.length>0) {
+      ctx += '\n【本轮投票】\n';
+      const vc={}; for(const v of rv) vc[v.target_id]=(vc[v.target_id]||0)+1;
+      for(const [pid,count] of Object.entries(vc)) { const p=this.getPlayer(parseInt(pid)); ctx+=`  ${p?p.name:'#'+pid}：${count}票\n`; }
+    }
+    return ctx;
+  }
+}
+
+// ============================================
+// 工具函数
+// ============================================
+function shuffle(arr) { for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+function seededShuffle(arr, seed) { let s=seed; for(let i=arr.length-1;i>0;i--){s=(s*9301+49297)%233280; const j=s%(i+1);[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+// ============================================
+// Prompt 模板
+// ============================================
+const COT_FRAMEWORK = `
+思考框架（每次行动前请按以下步骤）：
+第1步 - 观察：当前局势如何？谁说了什么？谁的行为可疑？
+第2步 - 分析：这些信息说明了什么？谁可能是狼人？谁可能是神职？
+第3步 - 策略：我下一步应该怎么做？应该说什么？应该激进还是保守？
+第4步 - 决策：基于分析，我的具体行动是什么？
+第5步 - 行动：使用合适的工具执行决策。
+`;
+
+function getRolePrompt(role, playerId, gameContext, teammateInfo='') {
+  const base = `# 狼人杀 - 你的身份：${ROLE_NAMES[role]||role}
+
+## 重要提醒
+你的编号是${playerId}号。**你是${playerId}号，不是其他编号！**
+发言时请以"我是${playerId}号玩家"开头。
+
+## 发言要求
+你的发言至少20个字。要分析局势、质疑别人、为自己辩护。
+
+## 投票规则
+**绝对不能投自己。**
+
+## 关键规则\n`;
+
+  const roleSpecific = {
+    werewolf: `- 你的目标是屠边——杀死所有神职或所有平民。
+- 你的狼人队友：${teammateInfo||'无'}
+- 夜晚和队友商量杀谁`,
+    seer: `- 每晚可以查验一名玩家的真实身份。
+- 谨慎暴露身份——狼人会优先杀你。`,
+    witch: `- 有一瓶解药和一瓶毒药，各只能用一次。
+- 第一晚建议救人，首夜可以自救。`,
+    hunter: `- 被狼人杀害或被投票放逐时，可以开枪带走一名玩家。
+- 被女巫毒死则不能开枪。`,
+    idiot: `- 被投票放逐时可以翻牌自证身份，之后不会死亡但失去投票权。
+- 被狼人杀害或女巫毒死仍会死亡。`,
+    guard: `- 每晚可以守护一名玩家，被守护的玩家当晚不会被狼人杀害。
+- 不能连续两晚守护同一个人。`,
+    villager: `- 没有特殊能力，靠逻辑和投票找出狼人。`
+  };
+
+  return base + (roleSpecific[role]||'') + `\n${COT_FRAMEWORK}\n## 当前游戏状态\n${gameContext}`;
+}
+
+// ============================================
+// AI 智能体
+// ============================================
+async function aiAct(engine, playerId, phaseInstruction) {
+  const player = engine.getPlayer(playerId);
+  if (!player||player.is_human) return '';
+  const ctx = engine.getPublicContext();
+  const wolves = engine.getPlayersByRole(Role.WEREWOLF);
+  const teammates = wolves.filter(w=>w.id!==playerId);
+  const teammateInfo = teammates.length>0 ? teammates.map(t=>`${t.name}(编号${t.id})`).join(',') : '';
+  const systemPrompt = getRolePrompt(player.role, playerId, ctx, teammateInfo);
+  
+  const messages = [
+    {role:'system', content:systemPrompt},
+    {role:'user', content:`## 当前阶段：${phaseInstruction}\n\n请逐步思考并使用合适的工具。记住：发言至少20个字，不能只说'X号玩家发言'。投票时绝对不能投自己。`}
+  ];
+  
+  try {
+    let content = await callLLM(messages, 0.8, 500);
+    return content || '';
+  } catch(e) {
+    console.error(`AI错误 玩家${playerId}:`, e);
+    return `[我观察局势，等待更多信息。大家觉得目前谁最可疑？]`;
+  }
+}
+
+async function aiVote(engine, playerId, phaseInstruction) {
+  let content = await aiAct(engine, playerId, phaseInstruction);
+  const m = content.match(/(\d+)号/);
+  if (m) return parseInt(m.group(1));
+  return null;
+}
+
+// ============================================
+// 游戏控制器
+// ============================================
+let G = { engine:null, running:false, waiting:false, actionType:null, pendingOptions:[], gameLog:[], witchVictimInfo:null, accusationData:[], currentAccusation:null };
+
+function addLog(text) {
+  G.gameLog.push(`[${new Date().toLocaleTimeString('zh-CN',{hour12:false})}] ${text}`);
+  if (G.gameLog.length>500) G.gameLog=G.gameLog.slice(-500);
+  renderLog();
+}
+
+async function advanceGame() {
+  if (!G.running||G.waiting) return;
+  const eng = G.engine;
+  const s = eng.state;
+  if (s.phase===Phase.GAME_OVER) { renderGame(); return; }
+  for (let i=0;i<200;i++) {
+    await runPhase();
+    if (G.waiting||s.phase===Phase.GAME_OVER) break;
+  }
+  renderGame();
+}
+
+async function runPhase() {
+  const eng = G.engine, s = eng.state;
+  const human = s.players.find(p=>p.is_human);
+  const humanAlive = human&&human.is_alive;
+
+  // 夜晚：狼人
+  if (s.phase===Phase.NIGHT_WOLF) {
+    addLog('--------- 天 黑 请 闭 眼 ---------');
+    const wolves = eng.getPlayersByRole(Role.WEREWOLF).filter(w=>w.is_alive);
+    if (wolves.length===0) { eng.nextPhase(); return; }
+    const humanWolf = human&&human.role===Role.WEREWOLF&&human.is_alive;
+    let proposal = null;
+    for (const w of wolves) {
+      if (!w.is_human) {
+        const r = await aiAct(eng, w.id, '夜晚阶段：决定今晚的击杀目标。');
+        const m = r.match(/(\d+)号/);
+        if (m) proposal = parseInt(m.group(1));
+      }
+    }
+    if (humanWolf) {
+      if (proposal) { const tp=eng.getPlayer(proposal); addLog(`【狼人】队友提议杀${tp?tp.name:'#'+proposal}`); }
+      const opts = eng.getAlivePlayers().filter(p=>p.id!==human.id&&p.role!==Role.WEREWOLF);
+      G.waiting=true; G.actionType='wolf_kill'; G.pendingOptions=opts.map(p=>({id:p.id,name:p.name}));
+      renderGame(); return;
+    } else {
+      let target = proposal;
+      if (!target) { const t=eng.getAlivePlayers().filter(p=>p.role!==Role.WEREWOLF); if(t.length>0) target=t[Math.floor(Math.random()*t.length)].id; }
+      if (target) {
+        let na = s.night_actions.find(a=>a.round===s.round_num);
+        if (!na) { na=new NightAction(s.round_num); s.night_actions.push(na); }
+        na.wolf_target = target;
+        const tp=eng.getPlayer(target); addLog(`【狼人】狼人决定杀 ${tp?tp.name:'#'+target}`);
+      }
+      eng.nextPhase();
+    }
+  }
+  // 夜晚：预言家
+  else if (s.phase===Phase.NIGHT_SEER) {
+    const seers = eng.getPlayersByRole(Role.SEER).filter(p=>p.is_alive);
+    if (seers.length===0) { eng.nextPhase(); return; }
+    if (human&&human.role===Role.SEER&&human.is_alive) {
+      const opts = eng.getAlivePlayers().filter(p=>p.id!==human.id);
+      G.waiting=true; G.actionType='seer'; G.pendingOptions=opts.map(p=>({id:p.id,name:p.name}));
+      renderGame(); return;
+    } else {
+      const seer = seers[0];
+      const r = await aiAct(eng, seer.id, '夜晚阶段：使用 investigate_seer() 查验一名玩家的身份。');
+      const m = r.match(/(\d+)号/);
+      if (m) {
+        const tid = parseInt(m.group(1));
+        let na = s.night_actions.find(a=>a.round===s.round_num);
+        if (!na) { na=new NightAction(s.round_num); s.night_actions.push(na); }
+        na.seer_target=tid; const tp=eng.getPlayer(tid);
+        if (tp) na.seer_result = tp.role===Role.WEREWOLF?'werewolf':'villager';
+      }
+      eng.nextPhase();
+    }
+  }
+  // 夜晚：女巫
+  else if (s.phase===Phase.NIGHT_WITCH) {
+    const witches = eng.getPlayersByRole(Role.WITCH).filter(p=>p.is_alive);
+    if (witches.length===0) { eng.nextPhase(); return; }
+    const na = s.night_actions.find(a=>a.round===s.round_num) || new NightAction(s.round_num);
+    if (!s.night_actions.find(a=>a.round===s.round_num)) s.night_actions.push(na);
+    const wt = na.wolf_target;
+    if (human&&human.role===Role.WITCH&&human.is_alive) {
+      const victim = wt?eng.getPlayer(wt):null;
+      if (eng._witch_has_antidote&&wt&&victim) { G.witchVictimInfo={id:wt,name:victim.name}; addLog(`【信息】今晚被狼人杀的是：${victim.name}`); }
+      else { G.witchVictimInfo=null; addLog('【信息】你已用完解药或无人被杀'); }
+      const opts = [];
+      if (wt&&victim&&!eng._witch_save_used&&!na.witch_save) opts.push({id:'save',name:`救 ${victim.name}`});
+      opts.push({id:'nosave',name:'不使用解药'});
+      if (!eng._witch_poison_used&&na.witch_poison_target===null) {
+        for (const po of eng.getAlivePlayers().filter(p=>p.id!==human.id&&p.id!==wt)) opts.push({id:`poison_${po.id}`,name:`毒死 ${po.name}`,isPoison:true});
+      }
+      G.waiting=true; G.actionType='witch'; G.pendingOptions=opts;
+      renderGame(); return;
+    } else {
+      const w = witches[0];
+      if (wt&&eng._witch_has_antidote) {
+        const r = await aiAct(eng, w.id, `夜晚阶段。今晚被杀的是#${wt}。使用解药或毒药。`);
+        if ((r.includes('救')||r.includes('save'))&&!eng._witch_save_used) { na.witch_save=true; addLog(`【女巫】${w.name}使用了解药`); }
+        const pm = r.match(/毒.*?(\d+)号/);
+        if (pm&&!eng._witch_poison_used) { const tid=parseInt(pm[1]); na.witch_poison_target=tid; const tp=eng.getPlayer(tid); addLog(`【女巫】${w.name}毒死了${tp?tp.name:'#'+tid}`); }
+      }
+      eng.nextPhase();
+    }
+  }
+  // 夜晚：守卫
+  else if (s.phase===Phase.NIGHT_GUARD) {
+    const guards = eng.getPlayersByRole(Role.GUARD).filter(p=>p.is_alive);
+    if (guards.length===0) { eng.nextPhase(); return; }
+    if (human&&human.role===Role.GUARD&&human.is_alive) {
+      let opts = eng.getAlivePlayers().filter(p=>p.id!==human.id);
+      if (eng._last_guard_target) opts = opts.filter(p=>p.id!==eng._last_guard_target);
+      G.waiting=true; G.actionType='guard'; G.pendingOptions=opts.map(p=>({id:p.id,name:p.name}));
+      renderGame(); return;
+    } else {
+      const g = guards[0];
+      const r = await aiAct(eng, g.id, '夜晚阶段：使用 guard_protect() 守护一名玩家。');
+      const m = r.match(/(\d+)号/);
+      if (m) {
+        const tid=parseInt(m.group(1));
+        if (tid!==eng._last_guard_target) {
+          let na = s.night_actions.find(a=>a.round===s.round_num);
+          if (!na) { na=new NightAction(s.round_num); s.night_actions.push(na); }
+          na.guard_target=tid; addLog(`【守卫】${g.name}守护了#${tid}`);
+        }
+      }
+      eng.nextPhase();
+    }
+  }
+  // 白天：天亮宣布
+  else if (s.phase===Phase.DAY_ANNOUNCE) {
+    const na = s.night_actions.find(a=>a.round===s.round_num);
+    if (na) {
+      const nr = eng.executeNight(na);
+      if (nr.killed_player_id) { const v=eng.getPlayer(nr.killed_player_id); addLog(`【死亡】${v?v.name:'#'+nr.killed_player_id}在昨晚被杀害！`); }
+      if (na.witch_poison_target&&na.witch_poison_target!==nr.killed_player_id) { const p2=eng.getPlayer(na.witch_poison_target); if(p2&&!p2.is_alive) addLog(`【死亡】${p2.name}被毒死了！`); }
+      if (!nr.killed_player_id&&!na.witch_poison_target) addLog('【平安夜】昨晚没有人死亡。');
+    } else addLog('【平安夜】昨晚没有人死亡。');
+    addLog(`【状态】${eng.getAlivePlayers().length}名玩家存活`);
+    if (eng.checkWin()) { s.phase=Phase.GAME_OVER; gameOver(); return; }
+    eng.nextPhase();
+  }
+  // 白天：发言
+  else if (s.phase===Phase.DAY_SPEECH) {
+    const order = eng.getSpeechOrder();
+    while (s.speech_index < order.length) {
+      const pid = order[s.speech_index]; s.speech_index++;
+      const pp = eng.getPlayer(pid);
+      if (!pp||(!pp.is_alive&&!(pp.role===Role.IDIOT&&pp.is_revealed))) continue;
+      if (pp.is_human&&(pp.is_alive||(pp.role===Role.IDIOT&&pp.is_revealed))) {
+        G.waiting=true; G.actionType='speech'; G.pendingOptions=[];
+        renderGame(); return;
+      } else if (pp.is_human) continue;
+      else {
+        const r = await aiAct(eng, pid, '白天发言阶段：发表你的看法。至少20字。');
+        const content = extractSpeech(r, pp);
+        s.speeches.push(new Speech(s.round_num, pid, pp.name, content));
+        addLog(`【发言】${pp.name}：${content.slice(0,60)}...`);
+      }
+    }
+    if (s.phase===Phase.DAY_SPEECH&&!G.waiting) {
+      await detectAccusations();
+    }
+  }
+  // 白天：投票
+  else if (s.phase===Phase.DAY_VOTE) {
+    const order = eng.getSpeechOrder();
+    for (const pid of order) {
+      const pp = eng.getPlayer(pid);
+      if (!pp||!pp.is_alive) { if(pp&&pp.role===Role.IDIOT&&pp.is_revealed) continue; continue; }
+      if (pp.is_human&&humanAlive) {
+        const opts = eng.getAlivePlayers().filter(p=>p.id!==pid);
+        G.waiting=true; G.actionType='vote'; G.pendingOptions=[{id:0,name:'弃权'},...opts.map(p=>({id:p.id,name:p.name}))];
+        renderGame(); return;
+      } else if (pp.is_human) continue;
+      else {
+        const target = await aiVote(eng, pid, '投票阶段：使用 vote() 工具投票。不能投自己。');
+        if (target&&target!==pid) { const tp=eng.getPlayer(target); if(tp&&(tp.is_alive||(tp.role===Role.IDIOT&&tp.is_revealed))) { s.votes.push(new Vote(s.round_num, pid, target)); addLog(`【投票】${pp.name}投给${tp.name}`); } }
+        else addLog(`【投票】${pp.name}弃权`);
+      }
+    }
+    if (!G.waiting) {
+      const allVotes = s.votes.filter(v=>v.round===s.round_num);
+      await processVoteResults(allVotes);
+    }
+  }
+  // 白天：平票重投
+  else if (s.phase===Phase.DAY_REVOTE) {
+    const tied = eng.getTiedCandidates();
+    if (tied.length===0) { s.round_num++; s.phase=Phase.NIGHT_WOLF; return; }
+    const order = eng.getSpeechOrder();
+    for (const pid of order) {
+      const pp = eng.getPlayer(pid);
+      if (!pp||!tied.includes(pid)) continue;
+      if (pp.is_human&&humanAlive) {
+        G.waiting=true; G.actionType='speech'; G.pendingOptions=[]; G.currentAccusation={reason:'你是平票候选人，请为自己辩护拉票'};
+        renderGame(); return;
+      } else if (pp.is_human) continue;
+      else {
+        const r = await aiAct(eng, pid, '平票重投：你是平票候选人，请用 speak() 工具为自己辩护拉票。');
+        const content = extractSpeech(r, pp);
+        s.speeches.push(new Speech(s.round_num, pid, `${pp.name}(PK发言)`, content));
+        addLog(`【PK发言】${pp.name}：${content.slice(0,60)}...`);
+      }
+    }
+    // 重投
+    for (const pid of order) {
+      const pp = eng.getPlayer(pid);
+      if (!pp||!pp.is_alive) continue;
+      if (pp.is_human&&humanAlive) {
+        const opts = tied.filter(t=>t!==pid).map(t=>{const p=eng.getPlayer(t); return {id:t,name:p?p.name:'#'+t};});
+        G.waiting=true; G.actionType='vote'; G.pendingOptions=[{id:0,name:'弃权（不允许）',disabled:true},...opts];
+        renderGame(); return;
+      } else if (pp.is_human) continue;
+      else {
+        const optStr = tied.map(t=>{const p=eng.getPlayer(t); return `${t}号(${p?p.name:''})`;}).join(', ');
+        const target = await aiVote(eng, pid, `平票重投：只能投票给平票候选人(${optStr})。不能投自己。`);
+        if (target&&tied.includes(target)&&target!==pid) { const tp=eng.getPlayer(target); if(tp) { s.votes.push(new Vote(s.round_num, pid, target)); addLog(`【投票】${pp.name}投给${tp.name}`); } }
+      }
+    }
+    const allVotes = s.votes.filter(v=>v.round===s.round_num);
+    await processRevoteResults(allVotes, tied);
+  }
+}
+
+function extractSpeech(raw, player) {
+  let content = raw.replace(/^说[：:]\s*/,'').trim();
+  if (content.length<10) content = raw.replace(/^我是\S+?号玩家[，,。.]?\s*/,'').trim();
+  if (content.length<10) content = `我是${player.name}。目前局势还需要观察，大家有什么看法？`;
+  return content;
+}
+
+async function detectAccusations() {
+  addLog('【系统】正在分析发言中的指控信息');
+  const sps = G.engine.state.speeches.filter(s=>s.round===G.engine.state.round_num);
+  const text = sps.map(s=>`${s.player_name}说：${s.content.slice(0,200)}`).join('\n');
+  const prompt = `你是一个狼人杀游戏裁判。以下是本轮所有玩家的发言记录。请检测是否有玩家被明确指控为可疑。
+
+指控标准：明确说某人"是狼人""像狼""有嫌疑""可疑""有问题"。
+**重要：如果一人指控多人，每人各输出一条记录。**
+
+发言记录：
+${text}
+
+输出JSON：{"accusations":[{"accused_id":编号,"accusers_ids":[指控者编号],"reason":"原因"}]}
+没有指控则输出：{"accusations":[]}`;
+
+  try {
+    const r = await callLLM([{role:'user',content:prompt}], 0.3, 400);
+    const jm = r.match(/\{.*\}/s);
+    if (jm) {
+      const data = JSON.parse(jm[0]);
+      G.accusationData = [];
+      for (const a of (data.accusations||[])) {
+        if (a.accused_id&&G.engine.isAlive(a.accused_id)) {
+          const acc = G.engine.getPlayer(a.accused_id);
+          G.accusationData.push({accused_id:a.accused_id, accused_name:acc?acc.name:'#'+a.accused_id, accusers:a.accusers_ids||[], reason:a.reason||''});
+          addLog(`【指控】${acc?acc.name:'#'+a.accused_id}被指控，原因是${a.reason}`);
+        }
+      }
+    }
+  } catch(e) { console.error('指控检测错误:',e); }
+
+  if (G.accusationData.length===0) { addLog('【系统】未检测到明确指控，进入投票阶段'); if(!G.waiting) G.engine.nextPhase(); return; }
+
+  for (const ac of G.accusationData) {
+    const pp = G.engine.getPlayer(ac.accused_id);
+    if (!pp||!pp.is_alive) continue;
+    if (pp.is_human) { G.waiting=true; G.actionType='defense'; G.currentAccusation=ac; G.pendingOptions=[]; renderGame(); return; }
+  }
+  for (const ac of G.accusationData) {
+    const pp = G.engine.getPlayer(ac.accused_id);
+    if (!pp||!pp.is_alive) continue;
+    const r = await aiAct(G.engine, ac.accused_id, `回应环节：你被指控为狼人。请用 speak() 工具为自己辩护。${'\n'}【对你的指控】${ac.reason}`);
+    const content = extractSpeech(r, pp);
+    G.engine.state.speeches.push(new Speech(G.engine.state.round_num, ac.accused_id, `${pp.name}(辩护)`, content));
+    addLog(`【辩护】${pp.name}：${content.slice(0,60)}...`);
+  }
+  G.accusationData = [];
+  if (!G.waiting) G.engine.nextPhase();
+}
+
+async function processVoteResults(allVotes) {
+  const [eid, tie] = G.engine.processVotes(allVotes);
+  if (tie) {
+    const tied = G.engine.getTiedCandidates();
+    const names = tied.map(pid=>{const p=G.engine.getPlayer(pid); return p?p.name:'#'+pid;}).join('、');
+    addLog(`【结果】平票！${names}票数相同`);
+    addLog('【系统】进入补充发言+重新投票环节');
+    G.engine.resetVotesForRevote();
+    const order = G.engine.getSpeechOrder();
+    for (const pid of order) {
+      const pp = G.engine.getPlayer(pid);
+      if (!pp||!tied.includes(pid)) continue;
+      if (pp.is_human) {
+        G.waiting=true; G.actionType='speech'; G.pendingOptions=[]; G.currentAccusation={reason:'你是平票候选人，请为自己辩护拉票'};
+        renderGame(); return;
+      } else {
+        const r = await aiAct(G.engine, pid, '平票重投：你是平票候选人，请用 speak() 工具为自己辩护拉票。');
+        const content = extractSpeech(r, pp);
+        G.engine.state.speeches.push(new Speech(G.engine.state.round_num, pid, `${pp.name}(PK发言)`, content));
+        addLog(`【PK发言】${pp.name}：${content.slice(0,60)}...`);
+      }
+    }
+    const order2 = G.engine.getSpeechOrder();
+    for (const pid of order2) {
+      const pp = G.engine.getPlayer(pid);
+      if (!pp||!pp.is_alive) continue;
+      if (pp.is_human) {
+        const opts = tied.filter(t=>t!==pid).map(t=>{const p=G.engine.getPlayer(t); return {id:t,name:p?p.name:'#'+t};});
+        G.waiting=true; G.actionType='vote'; G.pendingOptions=opts;
+        renderGame(); return;
+      } else {
+        const optStr = tied.map(t=>{const p=G.engine.getPlayer(t); return `${t}号(${p?p.name:''})`;}).join(', ');
+        const target = await aiVote(G.engine, pid, `平票重投：只能投给(${optStr})。不能投自己。`);
+        if (target&&tied.includes(target)&&target!==pid) { const tp=G.engine.getPlayer(target); if(tp) { G.engine.state.votes.push(new Vote(G.engine.state.round_num, pid, target)); addLog(`【投票】${pp.name}投给${tp.name}`); } }
+      }
+    }
+    const v2 = G.engine.state.votes.filter(v=>v.round===G.engine.state.round_num);
+    await processRevoteResults(v2, tied);
+    return;
+  }
+  if (eid) {
+    const ep = G.engine.getPlayer(eid);
+    if (ep&&ep.role===Role.IDIOT&&ep.is_revealed) addLog(`【结果】${ep.name}被投票处决，但白痴翻牌免死！`);
+    else {
+      addLog(`【结果】${ep?ep.name:'#'+eid}被投票处决！`);
+      if (ep&&ep.role===Role.HUNTER&&ep.can_shoot) {
+        if (ep.is_human) {
+          const opts = G.engine.getAlivePlayers().filter(p=>p.id!==eid);
+          G.waiting=true; G.actionType='hunter_shot'; G.pendingOptions=opts.map(p=>({id:p.id,name:p.name}));
+          addLog('【猎人】你被淘汰了！可以开枪带走一人');
+          renderGame(); return;
+        } else {
+          const r = await aiAct(G.engine, eid, '你被淘汰了！使用 hunter_shoot() 开枪带走一名玩家。');
+          const m = r.match(/(\d+)号/);
+          if (m) { const tid=parseInt(m[1]); if(tid!==eid) G.engine.executeHunterShot(eid, tid); }
+        }
+      }
+    }
+  }
+  if (G.engine.checkWin()) { G.engine.state.phase=Phase.GAME_OVER; gameOver(); return; }
+  G.engine.state.round_num++; G.engine.state.phase=Phase.NIGHT_WOLF;
+  addLog(`\n【系统】进入第${G.engine.state.round_num}轮`);
+  renderGame();
+}
+
+async function processRevoteResults(allVotes, tied) {
+  const [eid, tie] = G.engine.processVotes(allVotes);
+  if (tie) { addLog('【结果】重新投票仍然平票，无人被处决'); G.engine.state.round_num++; G.engine.state.phase=Phase.NIGHT_WOLF; addLog(`\n【系统】进入第${G.engine.state.round_num}轮`); renderGame(); return; }
+  if (eid) {
+    const ep = G.engine.getPlayer(eid);
+    if (ep&&ep.role===Role.IDIOT&&ep.is_revealed) addLog(`【结果】${ep.name}被投票处决，但白痴翻牌免死！`);
+    else {
+      addLog(`【结果】${ep?ep.name:'#'+eid}被投票处决！`);
+      if (ep&&ep.role===Role.HUNTER&&ep.can_shoot) {
+        if (ep.is_human) {
+          const opts = G.engine.getAlivePlayers().filter(p=>p.id!==eid);
+          G.waiting=true; G.actionType='hunter_shot'; G.pendingOptions=opts.map(p=>({id:p.id,name:p.name}));
+          addLog('【猎人】你被淘汰了！可以开枪带走一人');
+          renderGame(); return;
+        } else {
+          const r = await aiAct(G.engine, eid, '你被淘汰了！使用 hunter_shoot() 开枪带走一名玩家。');
+          const m = r.match(/(\d+)号/);
+          if (m) { const tid=parseInt(m[1]); if(tid!==eid) G.engine.executeHunterShot(eid, tid); }
+        }
+      }
+    }
+  }
+  if (G.engine.checkWin()) { G.engine.state.phase=Phase.GAME_OVER; gameOver(); return; }
+  G.engine.state.round_num++; G.engine.state.phase=Phase.NIGHT_WOLF;
+  addLog(`\n【系统】进入第${G.engine.state.round_num}轮`);
+  renderGame();
+}
+
+function gameOver() {
+  const w = G.engine.state.winner;
+  const wt = w==='werewolf'?'狼人阵营':'好人阵营';
+  addLog(`游戏结束，${wt}获胜！`);
+  for (const p of G.engine.state.players) addLog(`  ${p.name}(#${p.id})：${ROLE_NAMES[p.role]||'?'} ${p.is_alive?'存活':'死亡'}`);
+  G.waiting=false; G.running=false; renderGame();
+}
+
+// ============================================
+// 用户操作处理
+// ============================================
+async function handleHumanAction(at, value) {
+  const eng = G.engine, s = eng.state;
+  const hid = s.human_player_id;
+
+  if (at==='speech') {
+    const content = value.content||'';
+    if (!content.trim()) { alert('发言不能为空！'); return; }
+    s.speeches.push(new Speech(s.round_num, hid, '你', content));
+    addLog(`【发言】你说：${content.slice(0,60)}...`);
+    G.waiting=false; s.speech_index++;
+    await advanceGame();
+  }
+  else if (at==='defense') {
+    const content = value.content||'';
+    const pid = G.currentAccusation?.accused_id||hid;
+    const pname = eng.getPlayer(pid)?.name||'#'+pid;
+    s.speeches.push(new Speech(s.round_num, pid, `${pname}(辩护)`, content));
+    addLog(`【辩护】你回应：${content.slice(0,60)}`);
+    G.currentAccusation=null; G.waiting=false;
+    await advanceGame();
+  }
+  else if (at==='vote') {
+    const tid = value.target_id;
+    if (s.phase===Phase.DAY_REVOTE) {
+      const tied = eng.getTiedCandidates();
+      if (!tid||!tied.includes(tid)) { alert('只能投平票候选人'); return; }
+      if (tid===hid) { alert('不能投自己'); return; }
+      s.votes.push(new Vote(s.round_num, hid, tid));
+      const tp=eng.getPlayer(tid); addLog(`【重投】你投给了${tp?tp.name:'#'+tid}`);
+      G.waiting=false;
+      const allVotes = s.votes.filter(v=>v.round===s.round_num);
+      // 让剩余AI投票
+      const order = eng.getSpeechOrder();
+      for (const pid of order) {
+        const pp = eng.getPlayer(pid);
+        if (!pp||!pp.is_alive||pp.is_human) continue;
+        if (s.votes.some(v=>v.round===s.round_num&&v.voter_id===pid)) continue;
+        const optStr = tied.map(t=>{const p=eng.getPlayer(t); return `${t}号(${p?p.name:''})`;}).join(', ');
+        const target = await aiVote(eng, pid, `平票重投：只能投给(${optStr})。不能投自己。`);
+        if (target&&tied.includes(target)&&target!==pid) { const tp=eng.getPlayer(target); if(tp) { s.votes.push(new Vote(s.round_num, pid, target)); addLog(`【投票】${pp.name}投给${tp.name}`); } }
+      }
+      const v2 = s.votes.filter(v=>v.round===s.round_num);
+      await processRevoteResults(v2, tied);
+    } else {
+      if (tid===0) addLog('【投票】你选择弃权');
+      else if (tid===hid) { alert('不能投自己'); return; }
+      else { const tp=eng.getPlayer(tid); if(tp&&(tp.is_alive||(tp.role===Role.IDIOT&&tp.is_revealed))) { s.votes.push(new Vote(s.round_num, hid, tid)); addLog(`【投票】你投给了${tp.name}`); } }
+      G.waiting=false;
+      const order = eng.getSpeechOrder();
+      for (const pid of order) {
+        const pp = eng.getPlayer(pid);
+        if (!pp||!pp.is_alive||pp.is_human) continue;
+        if (s.votes.some(v=>v.round===s.round_num&&v.voter_id===pid)) continue;
+        const target = await aiVote(eng, pid, '投票阶段：使用 vote() 工具投票。不能投自己。');
+        if (target&&target!==pid) { const tp=eng.getPlayer(target); if(tp&&(tp.is_alive||(tp.role===Role.IDIOT&&tp.is_revealed))) { s.votes.push(new Vote(s.round_num, pid, target)); addLog(`【投票】${pp.name}投给${tp.name}`); } }
+        else addLog(`【投票】${pp.name}弃权`);
+      }
+      const allVotes = s.votes.filter(v=>v.round===s.round_num);
+      await processVoteResults(allVotes);
+    }
+  }
+  else if (at==='wolf_kill') {
+    const tid = value.target_id;
+    let na = s.night_actions.find(a=>a.round===s.round_num);
+    if (!na) { na=new NightAction(s.round_num); s.night_actions.push(na); }
+    na.wolf_target = tid;
+    addLog(`【狼人】你决定杀死 #${tid}`);
+    G.waiting=false; eng.nextPhase();
+    await advanceGame();
+  }
+  else if (at==='seer') {
+    const tid = value.target_id;
+    const tp = eng.getPlayer(tid);
+    const res = tp&&tp.role===Role.WEREWOLF?'狼人':'好人';
+    let na = s.night_actions.find(a=>a.round===s.round_num);
+    if (na) { na.seer_target=tid; na.seer_result=tp&&tp.role===Role.WEREWOLF?'werewolf':'villager'; }
+    addLog(`【验人】你查验 #${tid}：${res}`);
+    G.waiting=false; eng.nextPhase();
+    await advanceGame();
+  }
+  else if (at==='witch') {
+    const action = value.action;
+    let na = s.night_actions.find(a=>a.round===s.round_num);
+    if (!na) { na=new NightAction(s.round_num); s.night_actions.push(na); }
+    if (action==='save'&&!eng._witch_save_used) { na.witch_save=true; addLog('【女巫】你使用了解药'); }
+    else if (action==='nosave') addLog('【女巫】你选择不使用解药');
+    else if (action&&action.startsWith('poison_')) { const tid=parseInt(action.split('_')[1]); na.witch_poison_target=tid; addLog(`【女巫】你对#${tid}使用了毒药`); }
+    else addLog('【女巫】你选择什么都不做');
+    G.witchVictimInfo=null; G.waiting=false; eng.nextPhase();
+    await advanceGame();
+  }
+  else if (at==='hunter_shot') {
+    const tid = value.target_id;
+    if (tid&&tid!==hid) {
+      eng.executeHunterShot(hid, tid);
+      addLog(`【猎人】你开枪带走了#${tid}`);
+    }
+    G.waiting=false;
+    if (eng.checkWin()) { s.phase=Phase.GAME_OVER; gameOver(); }
+    else { eng.nextPhase(); await advanceGame(); }
+  }
+  else if (at==='guard') {
+    const tid = value.target_id;
+    let na = s.night_actions.find(a=>a.round===s.round_num);
+    if (!na) { na=new NightAction(s.round_num); s.night_actions.push(na); }
+    na.guard_target = tid;
+    const tp=eng.getPlayer(tid); addLog(`【守卫】你守护了${tp?tp.name:'#'+tid}`);
+    G.waiting=false; eng.nextPhase();
+    await advanceGame();
+  }
+  renderGame();
+}
+
+// ============================================
+// UI 渲染
+// ============================================
+function renderLog() {
+  const el = document.getElementById('logContainer');
+  el.innerHTML = G.gameLog.map(l=>`<div class="log-entry">${l}</div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderGame() {
+  const s = G.engine?.state;
+  if (!s) return;
+  
+  document.getElementById('roundDisplay').textContent = s.round_num||'-';
+  document.getElementById('aliveDisplay').textContent = `${G.engine.getAlivePlayers().length}/${s.players.length}`;
+  document.getElementById('phaseDisplay').textContent = s.phase===Phase.GAME_OVER?'已结束':(s.phase===Phase.NIGHT_WOLF?'🌙':(s.phase===Phase.DAY_SPEECH?'💬':'🗳️'));
+  document.getElementById('phaseTitle').textContent = PHASE_NAMES[s.phase]||'🐺 狼人杀';
+  document.getElementById('roundInfo').textContent = s.game_config?`${s.game_config.name} · 第${s.round_num}轮`:'';
+
+  const area = document.getElementById('contentArea');
+  
+  if (s.phase===Phase.GAME_OVER) {
+    const w = s.winner;
+    area.innerHTML = `
+      <div style="text-align:center;padding:40px;">
+        <h2 style="font-size:30px;color:#e94560;margin-bottom:10px;">🏆 游戏结束</h2>
+        <p style="font-size:20px;color:#fff;margin-bottom:20px;">${w==='werewolf'?'🐺 狼人阵营获胜！':'👑 好人阵营获胜！'}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:20px;">
+          ${s.players.map(p=>`
+            <div style="padding:10px 14px;background:#16213e;border-radius:8px;border:1px solid #0f3460;text-align:center;min-width:80px;">
+              <div style="font-size:12px;color:#888;">${p.name}</div>
+              <div style="font-size:14px;color:#fff;font-weight:bold;">${ROLE_NAMES[p.role]||'?'}</div>
+              <div style="font-size:11px;color:${p.is_alive?'#4caf50':'#e94560'}">${p.is_alive?'存活':'死亡'}</div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn" onclick="showSetup()">🔄 再来一局</button>
+      </div>`;
+    return;
+  }
+
+  if (G.waiting) {
+    renderHumanAction(area, s);
+    return;
+  }
+
+  let html = '';
+  // 状态
+  html += `<div style="margin-bottom:12px;">
+    <p>存活：${G.engine.getAlivePlayers().map(p=>`<span style="color:#4caf50;font-weight:bold;">${p.name}</span>`).join('、')||'无'}</p>
+    <p>死亡：${G.engine.getDeadPlayers().filter(p=>!(p.role===Role.IDIOT&&p.is_revealed)).map(p=>`<span style="color:#e94560;">${p.name}</span>`).join('、')||'无'}</p>
+  </div>`;
+  // 死亡时间线
+  if (s.death_history.length>0) {
+    html += `<div class="death-timeline"><h4>💀 死亡时间线</h4>`;
+    const causes = {werewolf:'被狼人杀害',witch_poison:'被女巫毒死',vote:'被投票处决',hunter_shot:'被猎人开枪带走',idiot_survive:'白痴翻牌'};
+    for (const d of s.death_history) {
+      const p = G.engine.getPlayer(d.player_id);
+      html += `<div class="death-item">第${d.round}轮 - ${p?p.name:'#'+d.player_id}：${causes[d.cause]||d.cause}</div>`;
+    }
+    html += `</div>`;
+  }
+  // 发言
+  const recent = s.speeches.slice(-15);
+  if (recent.length>0) {
+    html += `<h4 style="color:#a0a0c0;margin-bottom:6px;">💬 发言记录</h4>`;
+    for (const sp of recent) {
+      html += `<div class="speech-card"><div class="meta">${sp.player_name} <span style="color:#555;">第${sp.round}轮</span></div><div class="content">${sp.content}</div></div>`;
+    }
+  }
+  // 投票
+  const rv = s.votes.filter(v=>v.round===s.round_num);
+  if (rv.length>0) {
+    const vc={}; for(const v of rv) vc[v.target_id]=(vc[v.target_id]||0)+1;
+    html += `<div style="margin-bottom:12px;padding:10px;background:#0d1b2a;border-radius:8px;border:1px solid #0f3460;">
+      <h4 style="color:#a0a0c0;margin-bottom:4px;">🗳️ 本轮投票</h4>`;
+    for (const [pid,count] of Object.entries(vc)) {
+      const p = G.engine.getPlayer(parseInt(pid));
+      html += `<div style="font-size:13px;color:#ccc;">${p?p.name:'#'+pid}：${count}票</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `<p style="text-align:center;color:#888;margin-top:20px;">⏳ 等待其他玩家操作...</p>`;
+  area.innerHTML = html;
+}
+
+function renderHumanAction(area, s) {
+  const at = G.actionType;
+  const opts = G.pendingOptions||[];
+  const acc = G.currentAccusation;
+  let html = `<div style="max-width:500px;margin:0 auto;padding:20px;">`;
+
+  if (at==='speech') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">💬 请发言</h3>`;
+    if (acc&&acc.reason) html += `<div style="padding:10px;background:#3e1a1a;border-radius:8px;border:1px solid #e94560;margin-bottom:12px;font-size:13px;color:#e94560;">⚠️ ${acc.reason}</div>`;
+    html += `<textarea id="speechInput" placeholder="请输入你的发言..."></textarea>
+    <button class="btn" onclick="submitSpeech()" style="margin-top:10px;">📤 发送发言</button>`;
+  }
+  else if (at==='vote') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">🗳️ 请投票</h3>`;
+    if (s.phase===Phase.DAY_REVOTE) html += `<p style="color:#e94560;font-size:13px;margin-bottom:8px;">⚠️ 平票重投，只能投候选人</p>`;
+    html += `<div class="option-grid">`;
+    for (const o of opts) {
+      if (o.disabled) continue;
+      const label = o.id===0?'弃权':`${o.name}`;
+      const cls = o.id===0?'option-btn':'option-btn';
+      html += `<button class="${cls}" onclick="submitVote(${o.id})">${label}</button>`;
+    }
+    html += `</div>`;
+  }
+  else if (at==='wolf_kill') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">🐺 选择击杀目标</h3>`;
+    html += `<div class="option-grid">`;
+    for (const o of opts) html += `<button class="option-btn danger" onclick="submitWolfKill(${o.id})">🔪 ${o.name}</button>`;
+    html += `</div>`;
+  }
+  else if (at==='seer') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">🔮 选择查验目标</h3>`;
+    html += `<div class="option-grid">`;
+    for (const o of opts) html += `<button class="option-btn success" onclick="submitSeer(${o.id})">🔍 ${o.name}</button>`;
+    html += `</div>`;
+  }
+  else if (at==='witch') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">🧪 女巫行动</h3>`;
+    if (G.witchVictimInfo) html += `<p style="color:#e94560;font-size:13px;margin-bottom:8px;">今晚被杀：${G.witchVictimInfo.name}</p>`;
+    html += `<div class="option-grid">`;
+    for (const o of opts) {
+      const cls = o.isPoison?'option-btn danger':'option-btn success';
+      html += `<button class="${cls}" onclick="submitWitch('${o.id}')">${o.name}</button>`;
+    }
+    html += `</div>`;
+  }
+  else if (at==='hunter_shot') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">🏹 猎人开枪</h3>`;
+    html += `<p style="color:#e94560;font-size:13px;margin-bottom:8px;">你被淘汰了！选择开枪目标</p>`;
+    html += `<div class="option-grid">`;
+    for (const o of opts) html += `<button class="option-btn danger" onclick="submitHunterShot(${o.id})">🎯 ${o.name}</button>`;
+    html += `</div>`;
+  }
+  else if (at==='guard') {
+    html += `<h3 style="color:#fff;margin-bottom:12px;">🛡️ 选择守护目标</h3>`;
+    html += `<div class="option-grid">`;
+    for (const o of opts) html += `<button class="option-btn success" onclick="submitGuard(${o.id})">🛡️ ${o.name}</button>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+  area.innerHTML = html;
+}
+
+// ============================================
+// UI 操作绑定
+// ============================================
+function submitSpeech() {
+  const content = document.getElementById('speechInput')?.value?.trim();
+  if (!content) { alert('发言不能为空！'); return; }
+  handleHumanAction('speech', {content});
+}
+function submitVote(targetId) { handleHumanAction('vote', {target_id:targetId}); }
+function submitWolfKill(targetId) { handleHumanAction('wolf_kill', {target_id:targetId}); }
+function submitSeer(targetId) { handleHumanAction('seer', {target_id:targetId}); }
+function submitWitch(action) { handleHumanAction('witch', {action}); }
+function submitHunterShot(targetId) { handleHumanAction('hunter_shot', {target_id:targetId}); }
+function submitGuard(targetId) { handleHumanAction('guard', {target_id:targetId}); }
+
+// ============================================
+// 开始界面
+// ============================================
+function showSetup() {
+  G = { engine:null, running:false, waiting:false, actionType:null, pendingOptions:[], gameLog:[], witchVictimInfo:null, accusationData:[], currentAccusation:null };
+  document.getElementById('roundDisplay').textContent='-';
+  document.getElementById('aliveDisplay').textContent='0/0';
+  document.getElementById('phaseDisplay').textContent='等待';
+  document.getElementById('phaseTitle').textContent='🐺 AI 狼人杀';
+  document.getElementById('roundInfo').textContent='选择配置开始游戏';
+  document.getElementById('logContainer').innerHTML='';
+
+  const area = document.getElementById('contentArea');
+  area.innerHTML = `
+    <div class="setup-screen">
+      <h2>🐺 AI 狼人杀</h2>
+      <p>纯前端 · 浏览器直调 API · 支持 6/9/12 人局</p>
+      <div><h3 style="color:#a0a0c0;margin-bottom:8px;">📋 游戏配置</h3>
+        <div class="config-grid" id="configGrid"></div>
+      </div>
+      <div><h3 style="color:#a0a0c0;margin-bottom:8px;">🎭 你的角色</h3>
+        <div class="role-grid" id="roleGrid"></div>
+      </div>
+      <button class="btn" onclick="startGame()" id="btnStart">🎮 开始游戏</button>
+      <p style="color:#666;font-size:12px;margin-top:10px;"><a href="#" onclick="showConfigModal()" style="color:#533483;">重新配置 API</a></p>
+    </div>`;
+  
+  let selectedConfig = '9人标准';
+  let selectedRole = '1';
+  const cfgGrid = document.getElementById('configGrid');
+  cfgGrid.innerHTML = '';
+  for (const [key, c] of Object.entries(GAME_CONFIGS)) {
+    const card = document.createElement('div');
+    card.className = 'card'+(key===selectedConfig?' selected':'');
+    card.innerHTML = `<h4>${c.name}</h4><p>${c.num_players}人/${c.num_wolves}狼</p>`;
+    card.onclick = ()=>{ cfgGrid.querySelectorAll('.card').forEach(el=>el.classList.remove('selected')); card.classList.add('selected'); selectedConfig=key; };
+    cfgGrid.appendChild(card);
+  }
+  const roleGrid = document.getElementById('roleGrid');
+  roleGrid.innerHTML = '';
+  const roles = [
+    {id:'1',emoji:'👤',name:'平民'},{id:'2',emoji:'🔮',name:'预言家'},{id:'3',emoji:'🧪',name:'女巫'},
+    {id:'4',emoji:'🐺',name:'狼人'},{id:'5',emoji:'🏹',name:'猎人'},{id:'6',emoji:'🤡',name:'白痴'},{id:'7',emoji:'🛡️',name:'守卫'}
+  ];
+  for (const r of roles) {
+    const card = document.createElement('div');
+    card.className = 'card'+(r.id===selectedRole?' selected':'');
+    card.innerHTML = `<div class="emoji">${r.emoji}</div><h4>${r.name}</h4>`;
+    card.onclick = ()=>{ roleGrid.querySelectorAll('.card').forEach(el=>el.classList.remove('selected')); card.classList.add('selected'); selectedRole=r.id; };
+    roleGrid.appendChild(card);
+  }
+  window._startConfig = {getConfig:()=>selectedConfig, getRole:()=>selectedRole};
+}
+
+function showConfigModal() {
+  document.getElementById('configModal').classList.add('show');
+}
+
+async function startGame() {
+  const btn = document.getElementById('btnStart');
+  if (!btn) return;
+  btn.textContent='⏳ 开始中...'; btn.disabled=true;
+  const cfg = window._startConfig?.getConfig?.()||'9人标准';
+  const role = window._startConfig?.getRole?.()||'1';
+  try {
+    G.engine = new GameEngine();
+    G.engine.setupGame(role, cfg);
+    G.running = true;
+    G.gameLog = [];
+    const human = G.engine.state.players.find(p=>p.is_human);
+    addLog(`【系统】${G.engine.state.game_config.name} - 游戏开始！`);
+    addLog(`【系统】你的角色为【${ROLE_NAMES[human.role]}】`);
+    addLog(`【系统】你的编号为【${human.id}号】`);
+    addLog(`【系统】共${G.engine.state.players.length}名玩家，含${G.engine.state.game_config.num_wolves}狼人`);
+    if (human.role===Role.WEREWOLF) {
+      const mates = G.engine.getPlayersByRole(Role.WEREWOLF).filter(w=>w.id!==human.id);
+      if (mates.length>0) addLog(`【信息】你的狼人队友：${mates.map(m=>`${m.name}(#${m.id})`).join('、')}`);
+    }
+    renderGame();
+    await advanceGame();
+  } catch(e) {
+    console.error(e);
+    alert('游戏启动失败：'+e.message);
+    btn.textContent='🎮 开始游戏'; btn.disabled=false;
+  }
+}
+
+// ============================================
+// 初始化
+// ============================================
+document.addEventListener('DOMContentLoaded', ()=>{
+  // 检查 localStorage 中是否有配置
+  const saved = localStorage.getItem('werewolf_api_config');
+  if (saved) {
+    try {
+      const c = JSON.parse(saved);
+      API_CONFIG = c;
+      document.getElementById('configModal').classList.remove('show');
+      showSetup();
+    } catch(e) { /* 继续显示弹窗 */ }
+  }
+  // 修改 saveConfig 加入 localStorage 储存
+  const origSave = saveConfig;
+  saveConfig = async function() {
+    await origSave();
+    localStorage.setItem('werewolf_api_config', JSON.stringify(API_CONFIG));
+  };
+});
+</script>
+</body>
+</html>
