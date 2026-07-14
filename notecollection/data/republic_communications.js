@@ -22,7 +22,7 @@ series: [
             year: "1914",
             varieties: [
                 {
-                    varietyName: "1914年 5元 火车头",
+                    varietyName: "1914年 5元 正火车头 背上海大清邮政局",
                     copies: [
                         {
                             copyId: 1,
@@ -37,13 +37,13 @@ series: [
                             price: "188元",
                             purchaseDate: "2026年2月4日",
                             krause: "117n",
-                            remark: "火车头（橄色） 加盖黑上海",
+                            remark: "火车头（橄色） 加盖黑上海；关于背面建筑的考证，见https://zhuanlan.zhihu.com/p/578041345",
                             img1: "image/republic_communications/SB648728R-1.jpg",
                             img2: "image/republic_communications/SB648728R-2.jpg"
                         }
                     ]
                 },{
-                    varietyName: "1914年 10元 大楼",
+                    varietyName: "1914年 10元 正上海海关大楼 背轮船",
                     copies: [
                         {
                             copyId: 1,
