@@ -22,6 +22,24 @@ function collectFromSource(data, dataKey, sourceType) {
     const catInfo = findArticleCategoryInfo(dataKey, sourceType);
     const groupPath = buildGroupPath(sourceType, catInfo);
 
+    // ★ 新增：检查数据顶层的 readme（如 lecbData.readme）
+    if (data.readme && data.readme.title && data.readme.content) {
+        const fullPath = buildFullPath(sourceType, catInfo, data.name || '', null);
+        collectedArticles.push({
+            title: data.readme.title,
+            contentPath: data.readme.content,
+            category: catInfo.category,
+            parentCategory: catInfo.parentCategory,
+            dataKey,
+            sourceType,
+            fullPath,
+            groupPath,
+            seriesIndex: -1,
+            varietyIndex: -1,
+            seriesName: data.name || ''
+        });
+    }
+
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
         if (series.readme && series.readme.title && series.readme.content) {
@@ -147,7 +165,7 @@ async function preloadAllArticles() {
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
     isArticlePreloading = false;
-    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
+    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击"全"字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
 }
 
 async function preloadArticle(article) {
@@ -157,7 +175,7 @@ async function preloadArticle(article) {
     try {
         const basePath = getArticleBasePath(article.sourceType);
         const response = await fetch(basePath + filePath);
-        if (!response.ok) throw new Error('加载失败ゞ◎Д◎ヾ检查一下文件还在不在或刷新一下试试');
+        if (!response.ok) throw new Error('加载失败');
         const html = await response.text();
         articleContentCache[article.contentPath] = html;
         articlePlainTextCache[article.contentPath] = stripHtml(html);
@@ -323,9 +341,7 @@ function highlightText(text, keyword) {
     return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
 }
 
-// ★ 打开文章阅读器：每次始终滚动到顶部
 function openArticleReader(index) {
-    // 保存文章列表的滚动位置
     const listContainer = viewScrollContainers['articles_list'];
     if (listContainer) {
         articleState.listScrollY = listContainer.scrollTop;
@@ -337,19 +353,15 @@ function openArticleReader(index) {
     const article = collectedArticles[index];
     if (!article) return;
 
-    // 切换到文章的独立容器
     switchToCurrentContainer();
     const app = getRenderContainer();
 
-    // 检查是否已有缓存内容
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
-        // ★ 始终滚动到顶部，不恢复之前的阅读位置
         app.scrollTop = 0;
         return;
     }
 
-    // 加载中
     let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
     html += `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">全力加载中……</div>`;
     app.innerHTML = html;
@@ -359,12 +371,11 @@ function openArticleReader(index) {
     const basePath = getArticleBasePath(article.sourceType);
 
     fetch(basePath + filePath)
-        .then(response => { if (!response.ok) throw new Error('加载失败ゞ◎Д◎ヾ检查一下文件还在不在或刷新一下试试'); return response.text(); })
+        .then(response => { if (!response.ok) throw new Error('加载失败'); return response.text(); })
         .then(content => {
             articleContentCache[article.contentPath] = content;
             articlePlainTextCache[article.contentPath] = stripHtml(content);
             renderArticleReader(article, content);
-            // ★ 始终滚动到顶部
             app.scrollTop = 0;
         })
         .catch(() => {
@@ -384,16 +395,12 @@ function renderArticleReader(article, content) {
     requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
 }
 
-// ★ 关闭阅读器回到列表：恢复列表滚动位置
 function closeArticleReader() {
-    // 不需要保存阅读器的滚动位置（每次打开文章都从头开始）
-
     currentArticleView = VIEW.LIST;
     switchToCurrentContainer();
 
     renderArticleList();
 
-    // 恢复列表滚动位置
     const listContainer = getRenderContainer();
     if (articleState.listScrollY > 0) {
         requestAnimationFrame(() => {
