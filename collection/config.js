@@ -80,8 +80,10 @@ const categoryTree = [
         id: 'ticket',
         name: '票证',
         children: [
+            { id: 'pvpb', name: '人民胜利折实公债券', dataKey: 'pvpbData' },
             { id: 'nedb', name: '国家经济建设公债', dataKey: 'nedbData' },
             { id: 'lecb', name: '地方经济建设公债', dataKey: 'lecbData' },
+            { id: 'dscc', name: '复员军人兑取现金券', dataKey: 'dsccData' },
             { id: 'fec', name: '外汇兑换券', dataKey: 'fecData' },
             { id: 'gkq', name: '国库券', dataKey: 'gkqData' }
         ]
