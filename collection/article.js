@@ -24,7 +24,7 @@ function collectFromSource(data, dataKey, sourceType) {
 
     // ★ 新增：检查数据顶层的 readme（如 lecbData.readme）
     if (data.readme && data.readme.title && data.readme.content) {
-        const fullPath = buildFullPath(sourceType, catInfo, data.name || '', null);
+        const fullPath = buildFullPath(sourceType, catInfo, null, null);
         collectedArticles.push({
             title: data.readme.title,
             contentPath: data.readme.content,
