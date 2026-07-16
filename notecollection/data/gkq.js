@@ -112,6 +112,23 @@ const gkqData = {
                             img2: "image/gkq/ⅢⅡ09191201-2.jpg"
                         }
                     ]
+                },{
+                    varietyName: "10元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1989,
+                            version: "ⅡⅤ7501722",
+                            condition: "ACG62E",
+                            price: "70元",
+                            purchaseDate: "2026年7月16日",
+                            krause: "Unlisted",
+                            wmk: "无水印/Without Watermark",
+                            remark: "",
+                            img1: "image/gkq/ⅡⅤ7501722-1.jpg",
+                            img2: "image/gkq/ⅡⅤ7501722-2.jpg"
+                        }
+                    ]
                 }
             ]
         },
