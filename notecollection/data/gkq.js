@@ -183,10 +183,27 @@ const gkqData = {
                             price: "242元",
                             purchaseDate: "2026年5月2日",
                             krause: "Unlisted",
-                            wmk: "无水印/Without Watermark",
+                            wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             remark: "",
                             img1: "image/gkq/ⅩⅠ40955834-1.jpg",
                             img2: "image/gkq/ⅩⅠ40955834-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "100元",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1991,
+                            version: "ⅩⅠ38182121",
+                            condition: "暂未评级",
+                            price: "379元",
+                            purchaseDate: "2026年7月16日",
+                            krause: "Unlisted",
+                            wmk: "满版古币水印/Pu Coin(Pants&Coins)",
+                            remark: "",
+                            img1: "image/gkq/ⅩⅠ38182121-1.jpg",
+                            img2: "image/gkq/ⅩⅠ38182121-2.jpg"
                         }
                     ]
                 }
