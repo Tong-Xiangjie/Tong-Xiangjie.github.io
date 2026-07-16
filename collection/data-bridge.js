@@ -20,6 +20,8 @@ window.DATA_MAP = {
     gkqData:            typeof gkqData            !== 'undefined' ? gkqData            : null,
     nedbData:           typeof nedbData           !== 'undefined' ? nedbData           : null,
     lecbData:           typeof lecbData           !== 'undefined' ? lecbData           : null,
+    pvpbData:           typeof pvpbData           !== 'undefined' ? pvpbData           : null,
+    dsccData:           typeof dsccData           !== 'undefined' ? dsccData           : null,
     republic_cbcData:   typeof republic_cbcData   !== 'undefined' ? republic_cbcData   : null,
     republic_bocData:   typeof republic_bocData   !== 'undefined' ? republic_bocData   : null,
     republic_communicationsData: typeof republic_communicationsData !== 'undefined' ? republic_communicationsData : null,
