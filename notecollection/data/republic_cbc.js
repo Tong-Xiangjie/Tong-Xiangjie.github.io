@@ -66,6 +66,67 @@ const republic_cbcData = {
                 }
             ]
         },{
+            seriesName: "中华民国二十五年（1936年） 华德路版 法币券",
+            year: "1936",
+            varieties: [
+                {
+                    varietyName: "1936年 10元 曲阜孔庙大成殿/北京太和殿",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1936,
+                            version: "C/V 684686X",
+                            bank: "中央银行",
+                            print: "英国华德路公司/W&S",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG64E",
+                            price: "78元",
+                            purchaseDate: "2026年7月17日",
+                            krause: "218a",
+                            remark: "",
+                            img1: "image/republic_cbc/CV684686X-1.jpg",
+                            img2: "image/republic_cbc/CV684686X-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1936年 100元 曲阜孔庙大成殿/北京太和殿",
+                    copies: [
+                        {
+                            
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国二十五年（1936年） 德纳罗版 法币券",
+            year: "1936",
+            varieties: [
+                {
+                    varietyName: "1936年 1元 万古长春牌坊",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1936,
+                            version: "215191 P/H",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG63E",
+                            price: "78元",
+                            purchaseDate: "2026年7月17日",
+                            krause: "212a",
+                            remark: "",
+                            img1: "image/republic_cbc/215191PH-1.jpg",
+                            img2: "image/republic_cbc/215191PH-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国二十八年（1939年） 永宁版 法币券",
             year: "1939",
             varieties: [
