@@ -94,7 +94,21 @@ const republic_cbcData = {
                     varietyName: "1936年 100元 曲阜孔庙大成殿/北京太和殿",
                     copies: [
                         {
-                            
+                            copyId: 1,
+                            year: 1936,
+                            version: "C/P 840041C",
+                            bank: "中央银行",
+                            print: "英国华德路公司/W&S",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG63E",
+                            price: "228元",
+                            purchaseDate: "2026年7月17日",
+                            krause: "220a",
+                            remark: "",
+                            img1: "image/republic_cbc/CP840041C-1.jpg",
+                            img2: "image/republic_cbc/CP840041C-2.jpg"
                         }
                     ]
                 }
