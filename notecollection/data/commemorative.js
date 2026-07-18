@@ -19,22 +19,24 @@ const commemorativeData = {
         { 
             seriesName: "澳门格兰披治大奖赛35周年纪念钞",
             year: "1988",
-            copies: [{ 
-                copyId: 1, 
-                year: 1988,
-                purchaseDate: "2026年2月19日", 
-                price: "925元", 
-                bank: "大西洋银行", 
-                version: "KP04057", 
-                condition: "ACG65E", 
-                krause: "64",
-                issueDate: "1988年11月",
-                issueQuantity: "1.2万",
-                size:"135mm*70mm",
-                remark: "纪念钞的鼻祖，发行量最少的一张", 
-                img1: "image/comm/KP04057-1.jpg", 
-                img2: "image/comm/KP04057-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 1988,
+                    purchaseDate: "2026年2月19日", 
+                    price: "925元", 
+                    bank: "大西洋银行", 
+                    version: "KP04057", 
+                    condition: "ACG65E", 
+                    krause: "64",
+                    issueDate: "1988年11月",
+                    issueQuantity: "1.2万",
+                    size:"135mm*70mm",
+                    remark: "纪念钞的鼻祖，发行量最少的一张", 
+                    img1: "image/comm/KP04057-1.jpg", 
+                    img2: "image/comm/KP04057-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "新台币发行50周年纪念钞",
@@ -531,8 +533,8 @@ const commemorativeData = {
             seriesName: "人民币发行70周年纪念钞",
             year: "2018",
             readme: {
-                title: "发行公告",
-                content: "暂无"
+                title: "跟着纸币游中国 | 中国人民银行总行大楼",
+                content: "file:readmes/20260718_yanghangdalou.txt"
             },
             copies: [
                 { 
