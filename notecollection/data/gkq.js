@@ -28,7 +28,7 @@ const gkqData = {
             },
             varieties: [
                 {
-                    varietyName: "1元",
+                    varietyName: "1元 挖煤机",
                     copies: [
                         {
                             copyId: 1,
@@ -46,7 +46,7 @@ const gkqData = {
                     ]
                 },
                 {
-                    varietyName: "5元",
+                    varietyName: "5元 挖煤机",
                     copies: [
                         {
                             copyId: 1,
@@ -71,7 +71,7 @@ const gkqData = {
             year: "1983",
             varieties: [
                 {
-                    varietyName: "5元",
+                    varietyName: "5元 炼油厂",
                     copies: [
                         {
                             copyId: 1,
@@ -96,7 +96,7 @@ const gkqData = {
             year: "1989",
             varieties: [
                 {
-                    varietyName: "5元",
+                    varietyName: "5元 上海桑塔纳",
                     copies: [
                         {
                             copyId: 1,
@@ -113,7 +113,7 @@ const gkqData = {
                         }
                     ]
                 },{
-                    varietyName: "10元",
+                    varietyName: "10元 海南橡胶林",
                     copies: [
                         {
                             copyId: 1,
@@ -138,7 +138,7 @@ const gkqData = {
             year: "1991",
             varieties: [
                 {
-                    varietyName: "5元",
+                    varietyName: "5元 江南水乡",
                     copies: [
                         {
                             copyId: 1,
@@ -155,7 +155,7 @@ const gkqData = {
                         }
                     ]
                 },{
-                    varietyName: "10元",
+                    varietyName: "10元 云南石林",
                     copies: [
                         {
                             copyId: 1,
@@ -171,9 +171,13 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅠ64357754-2.jpg"
                         }
                     ]
-                },
-                {
-                    varietyName: "50元",
+                },{
+                    varietyName: "20元 黄果树瀑布",
+                    copies: [
+                        
+                    ]
+                },{
+                    varietyName: "50元 云南风光",
                     copies: [
                         {
                             copyId: 1,
@@ -190,7 +194,7 @@ const gkqData = {
                         }
                     ]
                 },{
-                    varietyName: "100元",
+                    varietyName: "100元 桂林山水",
                     copies: [
                         {
                             copyId: 1,
