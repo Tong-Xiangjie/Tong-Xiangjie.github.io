@@ -2,7 +2,7 @@
 <b><span style="font-size:1.1em;">中国人民银行公告〔2023〕第12号</span></b>
 </center>
 <br>
-
+ 
 <center>
 <a href="javascript:void(0);" onclick="currentModalImg1='https://tong-xiangjie.github.io/notecollection/readmes/image/coin_comm/sanjiangyuan_giantpanda_release_0.png'; openModal(0);" style="color:#555555; text-decoration:none; margin-right:30px;">查看原网站网页快照</a>
 <a href="javascript:void(0);" onclick="navigator.clipboard.writeText('2023年三江源国家公园、大熊猫国家公园纪念币发行公告：中国人民银行公告〔2023〕第12号，网页链接https://www.pbc.gov.cn/huobijinyinju/147948/147966/22e86a2326274765bd88f21906013487/index.html');alert('链接已复制到剪贴板');" style="color:#555555; text-decoration:none; margin-left:30px;">点此复制原网站链接</a>
