@@ -187,7 +187,7 @@ async function preloadAllArticles() {
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
     isArticlePreloading = false;
-    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击"全"字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
+    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
 }
 
 async function preloadArticle(article) {
