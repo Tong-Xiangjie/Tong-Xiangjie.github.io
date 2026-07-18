@@ -1,0 +1,99 @@
+<center>
+<b><span style="font-size:1.1em;">五、大面值国库券（1992-1994）</span></b>
+</center>
+<br>
+
+<p>92-94的国库券面值上了一个大台阶。92年为转换的一年，50、100、500、1000四种面值，93、94年取消了50元，降至100元起步，500、1000。94年继续发行了500、1000两期。</p>
+<p>高面值普遍改用凹印以及水印纸，92年开始，100元以上的国库券使用了更加精美的设计，之前的50和100元如果不算上设计精美的话（其实也就是个简单的胶印），那么大面值国库券的设计、印刷水平是达到了人民币的级别的。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_headphoto_5.avif" style="max-width:80%;border-radius:6px;display:inline-block;" alt="大面值国库券">
+</div>
+
+<h4>1992年</h4>
+<p>1992年是个承上启下的年份，保留50元，同时新印刷了500、1000元。1992年的一期和二期差别很大，首先是期限不一样，一期5年，二期3年。二期的年利率比一期还要低一点点，导致到期后本息合计差不多。我在想若是二期五年的利息还不如一期五年的话，估计也没人愿意买了。</p>
+<p>由于期限不同，很多人通过涂改一期和二期券的票面来套取高利息，即把一期改成二期。这不是我这里要讨论的问题，总之鉴别1992年二期券主要是看背面有没有蓝色的"第二期"字样。</p>
+<p>收藏上，1992年500元只有一期有发行，500元二期的市价远高于一期，是绝对的高档品。1992年的一期比二期的价格似乎都要便宜很多，百元、五百的珍稀度上都是二期远大于一期，千元券只有二期有印刷。</p>
+<p>1992年设计上有种过渡感，背面的设计简陋，价格也是蹭着大面值和早期国库券的热度上，设计确实不是92的特色。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_40.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="92年50元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">50元已经是最后的绝唱，和去年差不多的设计，差不多的地理主题</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_41.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="92年100元一期">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">一期，石化和港口</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_42.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="92年100元二期">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">二期，厂房，全张都有一种偏绿的感觉</div>
+
+<p>1992年仓库，以及500元之前的火车头、1000元之后的矿山都是不错的收藏选择。</p>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1992年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">50元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1200</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">2800</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">500元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">700</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">50元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">800</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">2000</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">500元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">约60</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">200</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h4>1993年</h4>
+<p>1993年只有三个面值，100，500，1000。使用GKQ水印纸，大面值采用了凹印。设计风格开始现代化。</p>
+<p>100元有蓝色和棕色两版，蓝色为三年期，棕色为五年期。500元和1000元都只有五年期一种。100元蓝色为最便宜的百元券，约1000元以内一张。棕色少一些，价格贵一些。500元两张价格都不算很贵，但已经算是高档品种了。1993年1000元有两张，都贵。加上1000元五星煤矿是名品，水印清晰漂亮，设计在中规中矩中透着些许有趣，价格是千元券里能接受的。</p>
+<p>补充：由于1993年通货膨胀极高，三年期国债的利率经保值贴补后达到了年化百分之十几的水平，五年期更是达到了惊人的百分之十五以上。这一年前后发行的国债都有很高的保值贴补率。所以这一年的国库券发行量显得就不低了，1993年高面值不算很少。所以收藏上1993年算是个大年，东西多，能收成套，又有高端品种。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_43.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="93一百元蓝棕对比">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">100元蓝棕，之间还有个色差分别</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_44.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="93五百炼油">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">93五百，炼油</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_45.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="93一千煤矿">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">五星煤矿，凹印</div>
+
+<h4>1994年</h4>
+<p>1994年国库券只有100、500、1000三种面值，分为两期，两期的图案一样，颜色不同。第一期偏红棕，第二期偏蓝灰。</p>
+<p>1994年100元两期印量都很大，很便宜。500元第二期为高档品种，少见，价格极贵，一年难得见一回，标价常年在3万以上。500元一期和1000元两期价格不算离谱，正常高价。</p>
+<p>注意鉴别100元时，94年和95年的类似设计。主要是年份不一样，95年的财政部印章下会有1995的年份数字。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_46.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="94一百和五百">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">100、500相同的设计元素</div>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1994年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">500元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">600</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">300</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">3000</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">500元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">约30</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">150</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">20210529 21:41</div>

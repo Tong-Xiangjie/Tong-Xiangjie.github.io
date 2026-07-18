@@ -1,0 +1,93 @@
+<center>
+<b><span style="font-size:1.1em;">二、早期的分析（1981-1984）</span></b>
+</center>
+<br>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_headphoto_2.webp" style="max-width:80%;border-radius:6px;display:inline-block;" alt="早期国库券">
+</div>
+
+<p>国库券1981-1984年间可以看作是第一阶段，这一阶段国库券的格式尚未完全定型，大小尺寸也是常有变化，可以说每一年都有不同之处。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_1.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1981年国库券">
+</div>
+
+<p>1981年国库券对公发行，里面的一万、十万这两个品种事实上可以被忽略，不仅少而且贵、并且有钱也极难买得到。</p>
+<p>10元双面胶印，旧票反而罕见，大多都是全新连号的形式存在，300-500左右的价格，事实上不值得这个价，有效留存量不少。</p>
+<p>100元和82-89年间的100元都不一样，虽然印刷量也挺小的，全品也就是在2500-3500左右。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_2.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1981年1000元流水号">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">见过的最大流水号，理论印刷量201.4万张，这张198万号，很接近</div>
+
+<p>1000元是国库券中的最大尺寸，边缘的团花印刷的繁复程度在中国印刷纸币中数一数二，这张同样没有想象中的贵，价格大概在6000-8000，甚至比不上后期的1992、1995版1000元。但是这张和十万元那张形制上是相同的，欣赏价值很大。</p>
+<p>万元和十万元实物票达到罕见的程度，这里不谈论。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_3.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="印刷数据">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">数据来源于印钞造币志，部分明显错误的数据经过了修正</div>
+
+<p>1982年只有四个面值，仍然采用横式的格局，包含一张唯一的一元，这一年的每个品种都在各自面值中都属于顶级品种。</p>
+<p>一元和五元冠号都有两种，二冠和三冠号，细字体，十元只有一种双冠号，苏式字体。十元的两位冠号加上六位冠号刚好一亿张，一元和五元是先印刷了二冠，再印刷了三冠号。一元的二冠1亿张、三冠2.1亿张。五元的二冠1亿张，再加上50个冠号约五千万张。也就是说五元三冠比较少，一元二冠比较少。</p>
+<p>注意，国库券都是一年之内发行，顶多跨年度印刷，不存在首发冠和末尾冠先后的问题。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_4.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="019冠号">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">019冠号，三冠号中的第九组，本组结束时是第1.54亿张，记载印刷量1.53亿，这很接近最后的冠号了，符合记载发行量</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_5.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="174冠号">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">1元的174冠号，本组发行完毕时是3.10亿张，记载印刷量3.12亿张，后面的148组应该印刷不满了</div>
+
+<p>100元这几年也见不到有几次货源了，印刷量不足百万，连一个冠号（百万张）都用不完，从这往后，国库券的冠号除了补号没啥好说的了。1983年起再也没有六位数的流水号，高面值的发行量低，基本上都是一个就够。低面值的发行量大增，并且冠号加流水号几乎可以直接视为总流水号。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_6.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="82版国库券背面">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">82版国库券背面是条例，这和50年代的公债是很相似的，不过印刷水平有所提升。前几年1元票还很便宜，我十块一张买了很多</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_7.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="最初的两张国库券">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">这是我2009年最初买的两张国库券，花了三十块钱，我将长期留着这两张也是作为纪念了</div>
+
+<p>1983-1984年的图案区别有三个，一是84年改用了简体字，二是84高面值号码全部使用了细字体，从此苏式字体再也没有用在国库券上。三是83版低面值共用一个图案，低值炼油厂、高值立交桥，84版每种主图都不同</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_8.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1983-1984小面值">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">这四种小面值我已经买了五十多张了，连号的也有一部分，还真找不到几张品相好的</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_9.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="新增图片">
+</div>
+
+<p>这两年的国库券奠定了往后近15年里国库券的一些形制。</p>
+<p>一是尺寸。1983版奠定了今后国库券的尺寸，只是在1985年以后全部不再使用竖式布局。即小面值（20元及以下）142×64，大面值（50元及以上）156×72，注意！小尺寸国库券大概是三版炼钢的尺寸，大尺寸国库券的尺寸大概是大团结的尺寸。</p>
+<p>二是文字。1984年修改了1981-1983国库券的繁体隶书字体，改为简体字，同时背面的财政部印章有所更改。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_10.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="繁体简体对比">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">繁体字和简体字的区别</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_11.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="83与84对比">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">左为83，右为84</div>
+
+<p>这两年总的来说是很相似，83年全面都比84年的贵一些，特别8350比8450还是高档很多的，83版多数面值的价格都在该面值中处于数一数二的地位。</p>
+<p>这两年的期限都是5-9年，即第五年开始抽签兑付，每年还一部分，第九年还清。九年之后都是按照72%的利息，再逾期就不计算利息了。个人购买的都是百分之八的年利率。在84之后，个人的国库券都是到期一次还本付息了。</p>
+<p>单位购买的国库券不使用实物券，因为通常金额较大，而采取国库券收款单的形式，并且利率直接缩水一半，只有百分之四。如下图：</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_12.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="单位国库券收款凭证示例">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">单位的国库券事实上延迟兑付，十年才还清......这也体现了我国始终还是以群众利益为重</div>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">20210416 20:22初稿未插图｜20210527 13:36暂发待改｜20210528 22:18三次修改｜20221017 16.46四次修改</div>
