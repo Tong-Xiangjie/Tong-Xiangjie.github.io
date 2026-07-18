@@ -3,117 +3,132 @@
 </center>
 <br>
 
-<p>最后三年的国库券，1995年改革最多的一年，取消了500元，增加了5000元。1996年设计水平达到顶峰，1997年在一阵不舍中给国库券画上句号。</p>
-
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_headphoto_6.avif" style="max-width:80%;border-radius:6px;display:inline-block;" alt="最后的国库券">
+  <img src="readmes/image/gkq/zhihu_headphoto_6.webp" style="max-width:80%;border-radius:6px;display:inline-block;" alt="最后三年国库券">
 </div>
 
-<h4>1995年</h4>
-<p>1995年国库券在设计中独树一帜，第一次使用了人民币的风景图案作为正面主图，而且是第五套人民币的布达拉宫提前亮相，大胆的用了1000元上。这一年，100元的设计也很不错，5000元上的东方明珠更是国库券中的珍品。</p>
-<p>1995年国库券是印刷数量最小的一年，只有100、1000、5000三种面值，5000元东方明珠极其罕见，是后期的绝对珍品。1000元布达拉宫是千元券中的设计之王，虽贵但值得。</p>
+<p>国库券的最后三年精品很多，有好几张一般人可望而不可及的品种，原因之一就是增加了五千元的面值，95年精品普遍、96分了两期，97价格尚可。这三年利率已经不高了，并且都是三年期。作为债券本身不像前几年那样复杂了。</p>
+
+<p>95年三种面值，虽然标注了第一期的字样实际上也就这么一期。</p><p>100元山东石臼港煤码头，码头这个主题在89100、87100都出现过，这张由于是低面值，比较便宜。</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_47.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95一百元">
+  <img src="readmes/image/gkq/zhihu_57.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95设计布局">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">95年一百元，紫红色调，图案是石油化工</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">95国库券的设计布局很是特别，还是我说好多次的结论，单数年份的设计都是很激进的</div>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_48.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95一千布达拉宫">
+  <img src="readmes/image/gkq/zhihu_58.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95100两张连号">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">布达拉宫，国库券设计之王</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">我好几年前买的两张连号，三百块</div>
+
+<p>1000元布达拉宫，国库券设计之冠，我感觉大概两万块，比前后的1000元都要贵，和921000差不多的水平，应比811000还要少。</p>
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_59.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="布达拉宫">
+</div>
+<p>5000元上海陆家嘴金融贸易区，这张价格得六位数。</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_49.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95五千东方明珠">
+  <img src="readmes/image/gkq/zhihu_60.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95五千东方明珠">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">东方明珠，极罕见</div>
+
+<p>1996国库券分为两期，利率也差不多，但是第二期普遍还是少一些，96100元二期是后期100元最贵的品种，得两千块左右，看流水号不小，但是存世量是很小，大都以全新的状态存在。</p><p>5000元攀钢、武汉港都达到罕见的水平，只能借票样图了。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_61.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96票样">
+</div>
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_62.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96五千武汉港">
+</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_63.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96一百元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">这张迟早要拿下的，印刷量还挺大，两千多万</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_64.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96两枚">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">我自己就这么两张，这两张图案还是很漂亮的。1996国库券开始使用了第四套人民币的号码样式，冠号分别从PA到PF</div>
 
 <div style="overflow-x:auto;margin:1rem 0;">
   <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
     <thead>
-      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1995年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">期数</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">100元</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1000元</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">5000元</th></tr>
     </thead>
     <tbody>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">2000</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">150</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">30</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">第一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">PA</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">PB</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">PC</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">第二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">PD</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">PE</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">PF</td></tr>
     </tbody>
   </table>
 </div>
 
-<h4>1996年</h4>
-<p>1996年国库券面值100、1000、5000三种，分为两期，两期图案不同。</p>
-<p>1996年一期设计清新，100元图案是沈阳鼓风机厂，1000元是内蒙古草原牧场，5000元是上海外滩。二期设计更显厚重，100元图案是北京西客站（未建成图），是九十年代最贵的百元券，1000元是海南椰林，5000元是上海南浦大桥。二期高值全是高档品种。</p>
-<p>1996年100元一期不贵，二期极贵。1996年一期千元较便宜，二期千元较贵。5000元两期都是珍品。</p>
+<p>从1993年以来的国库券都是每个品种一个专属冠号。</p><p>由于96国库券全部凹版印刷了，100元也出现了隐形面额数字</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_50.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96一期一百和一千">
+  <img src="readmes/image/gkq/zhihu_65.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96隐形面额数字">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">96一期，沈阳鼓风机厂与内蒙古草原</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">90年代中期中钞就在澳门币、港币上开始用隐形面额数字，最初的效果都是一般般</div>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_51.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96二期一百">
+  <img src="readmes/image/gkq/zhihu_66.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96荧光花">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">二期一百元北京西客站，极贵</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">96国库券的荧光改成了一朵花</div>
+
+<p>97年是国库券发行的最后一年，这一年发行量普遍较大，97年100见过好几次整刀的，补号JZ也不是极度罕见的品种了。1000元有不少大连号存在。5000元也不是高不可及，还是容易买到的，长期收藏这个目前看来是肯定跑不过通胀。</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_52.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96二期一千南浦">
+  <img src="readmes/image/gkq/zhihu_67.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97年藏品">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">二期一千元南浦大桥，价格也是天堑</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">一千八买的1000，150买的100，有两张100在路上，低端品种这样子的品相太惭愧了，是很久以前刚入门不挑食的时候入的</div>
 
-<div style="overflow-x:auto;margin:1rem 0;">
-  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-    <thead>
-      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1996年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
-    </thead>
-    <tbody>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">2000</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">160</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">200</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">50</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">约10</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">约10</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<h4>1997年</h4>
-<p>1997年是国库券发行的最后一年，100、1000、5000三种面值，各一张。</p>
-<p>1997年100元外高桥保税区，1000元京九铁路，5000元北京西站。这一年设计上回归简洁，色彩明快，主题都是当年的大事：外高桥开发、京九铁路通车、北京西站落成。因为这一年实物国库券退出历史舞台，所以这三张也就成为了绝唱。</p>
-<p>价格上前两者不算贵，1000元是最便宜的千元券，5000元价格较高但相比之前年份已是相当实惠。</p>
+<p>975000是我一直想要的东西，十年间错过了五六次了，实在太遗憾。</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_53.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97一百外高桥">
+  <img src="readmes/image/gkq/zhihu_68.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97三张">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">外高桥保税区</div>
+
+<p>97年的三幅主图都有很大的辨识度，国库券多年来经常用一些非特指的景物，或是工农业场景。像是93年、97年这样著名的主图是个例。</p>
+<p>97年的印刷不论胶版还是凹版质量都已经很高了。背面很少见的多色，之前的几乎都是单色底纹加上红色印章。</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_54.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97一千京九铁路">
+  <img src="readmes/image/gkq/zhihu_69.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97正面底纹">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">京九铁路</div>
+<p>正面的底纹质量看起来不高，在国库券中已属难得，毕竟整体水准就比人民币低很多。他设计出来又不是为了流通的，也不需要很高的防伪技术。</p>
 
 <div style="text-align:center;margin:1rem 0;">
-  <img src="readmes/image/gkq/zhihu_55.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97五千北京西站">
+  <img src="readmes/image/gkq/zhihu_70.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97隐形文字">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">北京西站，终章</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">继续用隐形文字，比96的好了一点点</div>
 
-<div style="overflow-x:auto;margin:1rem 0;">
-  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-    <thead>
-      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1997年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
-    </thead>
-    <tbody>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">70</td></tr>
-      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">10</td></tr>
-    </tbody>
-  </table>
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_71.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97荧光">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">荧光还是没变</div>
+
+<p>忘了说一点，95年以来的高面值国库券纸张不仅有荧光纤维，还有有色纤维。有色纤维这个技术在99版人民币上用了几年，05版取消了，也确实是用处不大。但是市场上还是有不少假的京九铁路存在的，印刷垃圾。国库券假票很容易识别，对于收藏没有很大风险。</p>
+
+<p>从1997之后，实物国库券就彻底消失了，1998年国库券网上有图片，但是没有发行。同样，1998年国库券又是个保守的设计，仍然没有脱离双数年份的风格。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_72.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1998国库券图片1">
+</div>
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_73.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1998国库券图片2">
+</div>
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_74.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1998国库券图片3">
 </div>
 
-<p>写到这里，国库券系列也就算写完了。从1981年到1997年，前后17年，实物国库券完成了它的历史使命。现在若是有幸还能见到它们，应该可以感受到那段经济改革和通货膨胀的历史印记。每一张国库券，可以说都是一段浓缩的当代中国经济史。</p>
-<p>谨以此文纪念已经退出历史舞台17年的实物国库券。</p>
+<p>从1999（？）开始，国库券收款凭证这个词语也没了，目前最传统的国债就是凭证式国债，一般来说要通过"凭证式国债收款凭证"的方式来发行，但是现实中大多还是电子记账的形式。这种凭证我见到的都是1999或者2000年印刷的，目前还没见到比较新的版本。<p></p>我也寻找了一张相对较早的凭证存根联的样本，2003年，还用手写，有点意思。下一次发凭证式国债的时候我也准备去弄一张留作纪念。</p>
 
-<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">20210530 12:46初稿｜20210615 23:26完稿</div>
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_75.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="2003凭证">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">这张利率只有2.63%了呵呵呵，比现在的还要低</div>
+
+<p>到此国库券逐年的分析就结束了，后面还会分析我比较感兴趣的一些设计，印刷量复核、最大流水号统计、基础资料表格还在完善中，以后会再补充。</p>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">20210601 20:30</div>
 
 <br>
 <h4>附录：各年份印刷量汇总表</h4>
