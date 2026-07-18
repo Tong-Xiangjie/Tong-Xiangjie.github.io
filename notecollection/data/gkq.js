@@ -12,31 +12,14 @@ const gkqData = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "克劳斯目录编号" }
     ],
-    // 新增：独立的 readme 字段，与 series 平级
-    readme: {
-        title: "一、概述和市场情况",
-        content: "file:readmes/gkq_1.txt"
-    },
-    readme: {
-        title: "二、早期的分析（1981-1984）",
-        content: "file:readmes/gkq_2.txt"
-    },
-    readme: {
-        title: "三、中期的分析（1985-1989）",
-        content: "file:readmes/gkq_3.txt"
-    },
-    readme: {
-        title: "四、后期（1990-1991）",
-        content: "file:readmes/gkq_4.txt"
-    },
-    readme: {
-        title: "五、大面值国库券（1992-1994）",
-        content: "file:readmes/gkq_5.txt"
-    },
-    readme: {
-        title: "六、最后的国库券（1995-1997）",
-        content: "file:readmes/gkq_6.txt"
-    },
+    readmes: [
+        { title: "一、概述和市场情况", content: "file:readmes/gkq_1.txt" },
+        { title: "二、早期的分析（1981-1984）", content: "file:readmes/gkq_2.txt" },
+        { title: "三、中期的分析（1985-1989）", content: "file:readmes/gkq_3.txt" },
+        { title: "四、后期（1990-1991）", content: "file:readmes/gkq_4.txt" },
+        { title: "五、大面值国库券（1992-1994）", content: "file:readmes/gkq_5.txt" },
+        { title: "六、最后的国库券（1995-1997）", content: "file:readmes/gkq_6.txt" }
+    ],
     series: [
         // ==================== 1982年 ====================
         {
