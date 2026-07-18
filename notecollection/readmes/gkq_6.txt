@@ -1,0 +1,159 @@
+<center>
+<b><span style="font-size:1.1em;">六、最后的国库券（1995-1997）</span></b>
+</center>
+<br>
+
+<p>最后三年的国库券，1995年改革最多的一年，取消了500元，增加了5000元。1996年设计水平达到顶峰，1997年在一阵不舍中给国库券画上句号。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_headphoto_6.avif" style="max-width:80%;border-radius:6px;display:inline-block;" alt="最后的国库券">
+</div>
+
+<h4>1995年</h4>
+<p>1995年国库券在设计中独树一帜，第一次使用了人民币的风景图案作为正面主图，而且是第五套人民币的布达拉宫提前亮相，大胆的用了1000元上。这一年，100元的设计也很不错，5000元上的东方明珠更是国库券中的珍品。</p>
+<p>1995年国库券是印刷数量最小的一年，只有100、1000、5000三种面值，5000元东方明珠极其罕见，是后期的绝对珍品。1000元布达拉宫是千元券中的设计之王，虽贵但值得。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_47.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95一百元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">95年一百元，紫红色调，图案是石油化工</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_48.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95一千布达拉宫">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">布达拉宫，国库券设计之王</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_49.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="95五千东方明珠">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">东方明珠，极罕见</div>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1995年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">2000</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">150</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">30</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h4>1996年</h4>
+<p>1996年国库券面值100、1000、5000三种，分为两期，两期图案不同。</p>
+<p>1996年一期设计清新，100元图案是沈阳鼓风机厂，1000元是内蒙古草原牧场，5000元是上海外滩。二期设计更显厚重，100元图案是北京西客站（未建成图），是九十年代最贵的百元券，1000元是海南椰林，5000元是上海南浦大桥。二期高值全是高档品种。</p>
+<p>1996年100元一期不贵，二期极贵。1996年一期千元较便宜，二期千元较贵。5000元两期都是珍品。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_50.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96一期一百和一千">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">96一期，沈阳鼓风机厂与内蒙古草原</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_51.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96二期一百">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">二期一百元北京西客站，极贵</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_52.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="96二期一千南浦">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">二期一千元南浦大桥，价格也是天堑</div>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1996年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">2000</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">160</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">200</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">50</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元一期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">约10</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元二期</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">约10</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h4>1997年</h4>
+<p>1997年是国库券发行的最后一年，100、1000、5000三种面值，各一张。</p>
+<p>1997年100元外高桥保税区，1000元京九铁路，5000元北京西站。这一年设计上回归简洁，色彩明快，主题都是当年的大事：外高桥开发、京九铁路通车、北京西站落成。因为这一年实物国库券退出历史舞台，所以这三张也就成为了绝唱。</p>
+<p>价格上前两者不算贵，1000元是最便宜的千元券，5000元价格较高但相比之前年份已是相当实惠。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_53.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97一百外高桥">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">外高桥保税区</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_54.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97一千京九铁路">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">京九铁路</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_55.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="97五千北京西站">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">北京西站，终章</div>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1997年 国库券</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">1000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">70</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5000元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">10</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p>写到这里，国库券系列也就算写完了。从1981年到1997年，前后17年，实物国库券完成了它的历史使命。现在若是有幸还能见到它们，应该可以感受到那段经济改革和通货膨胀的历史印记。每一张国库券，可以说都是一段浓缩的当代中国经济史。</p>
+<p>谨以此文纪念已经退出历史舞台17年的实物国库券。</p>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">20210530 12:46初稿｜20210615 23:26完稿</div>
+
+<br>
+<h4>附录：各年份印刷量汇总表</h4>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+    <thead>
+      <tr>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">年份</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">1元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">5元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">10元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">20元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">50元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">100元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">500元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">1000元</th>
+        <th style="border:1px solid var(--border);padding:0.3rem;background:var(--bg);">5000元</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1981</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">201</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">101</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">201</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1982</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">31205</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">10968</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">9606</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">60</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1983</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">29747</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">11145</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">173</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">82</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1984</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">47167</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">18229</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">207</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">159</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1985</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">51420</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">22035</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">406</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">106</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1986</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">46742</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">24175</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">838</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">210</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1987</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">37246</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">30001</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">503</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">195</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1988</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">48650</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">35128</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">2000</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">460</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1989</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">28000</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">14950</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1650</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">360</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1990</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">33780</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">37000</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">10000</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1250</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">630</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">1991</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">24600</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">22760</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">3230</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">727</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">360</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td><td style="border:1px solid var(--border);padding:0.3rem;text-align:center;">-</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">
+资料来源：<br>
+1. 中国印钞造币志（2005年版）<br>
+2. 中国人民银行国库券发行公告（1981-1997）<br>
+3. 各年财政年鉴<br>
+4. 本人收藏实物的冠号流水号统计
+</div>

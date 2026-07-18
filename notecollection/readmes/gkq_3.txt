@@ -1,0 +1,130 @@
+<center>
+<b><span style="font-size:1.1em;">三、中期的分析（1985-1989）</span></b>
+</center>
+<br>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_headphoto_3.avif" style="max-width:80%;border-radius:6px;display:inline-block;" alt="中期国库券">
+</div>
+
+<p>1985-1989是国库券形制最为整齐的一段，四种面值，延续8384两年的尺寸。发行方式上取消了抽签兑付，全部改为一次付清。</p>
+<p>这五年的高面值大多属于高档品种，除了88、89的50元，其余的五十元大多在五千元以上，一百元多在万元以上。我自己把这一区域称作国库券中期，90、91两年称作后期，92以后的每年都有区别，需要特别分析。</p>
+
+<p>先说85，整个85板块除了五元，其余面值都是国库券同面值中的高端，85的10、50、100价格比肩83年，全部超过84版。</p>
+<p>85版国库券期限五年，从此之后再没有了抽签还款这一说法。背面的说明94年还清，是设计时加上去的，实际被弃用，前几年的国库券发生过很多有人去兑换，由于未中签不能兑付，甚至引发对债券信用误解的问题，于是85年之后取消了这种做法。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_13.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="85国库券背面说明">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">国库券只有一年这样说明了，本意是想要按照旧的方式兑付</div>
+
+<p>85普遍比较贵且少的原因，一是回收率较高85年之后物价上涨确实快，1990年到期的时候仍然是物价不稳，这种情况群众去兑换的意愿都会加大。二是低面值发行多，这几年的国库券一度摊派任务发行，五元十元发在工资里就行，大面值买的人较少，单位购买也全面使用国库券收款单了，所以大面值没有必要印刷太多，反倒是85年5元印刷量达到了五亿张的巨大数量。三是到期时间早，85国库券由于取消抽签缩短了年限，到期时间比8384还要早。四是发行难度增加，从1981年之后年年发行国库券，越来越不好卖。这四个原因都造成85国库券大面值极为罕见的最终结果。</p>
+<p>85五元印刷量巨大，高低面值完全不是一种东西，印刷量存世量差距悬殊。</p>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1985 国库券面值</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">51420</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">10元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">22035</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">50元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">406</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">106</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p>85的设计改为横式，这成为了之后国库券最常见的样子，同时面值字体使用了第二版人民币上类似的字体，看起来更像是一张"钱"了。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_14.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="图片">
+</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_15.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="85五十元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">这是五十元中接近最贵的品种</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_16.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="85一百元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">红一百也不比83的紫红100弱多少</div>
+
+<p>86再次沿袭85的形制，部分色彩有所改变，百元黑色、十元棕色、五元绿色都是以前未用过的，只有五十元的蓝色得以保留。面额字体还是85的样式，右下角的团花布局，略像是第四套人民币中大面值的特色。</p>
+<p>86的低面值印刷量和85类似，高面值翻倍，这也是物价上涨的体现，虽然更大面值的国库券要六年后才发行。</p>
+
+<div style="overflow-x:auto;margin:1rem 0;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead>
+      <tr><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">1986国库券面值</th><th style="border:1px solid var(--border);padding:0.4rem;background:var(--bg);">印刷量（万张）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">5元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">46742</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">10元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">24175</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">50元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">838</td></tr>
+      <tr><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">100元</td><td style="border:1px solid var(--border);padding:0.4rem;text-align:center;">210</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p>86的五十元收割机是我比较喜欢的一个画面，农业生产主题在之后用得越来越少，多是建设场景、建筑、风景了。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_17.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="86五十元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">右边的浪花鲤鱼，金色稻穗，都说明了这张设计还算用心，相比之下贵得多的一百元就美观来说，逊色很多</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_18.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="86五元电化教育">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">再有一个五元需要说一下，这个主题叫做"电化教育"，图中的牌子是"电视大学"</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_19.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="86十元工人体育场">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">工人体育场</div>
+
+<p>1987年国库券的设计焕然一新，减去了绝大多数的雕刻风格花纹。全面以主图作为设计主题。从此已经可以初步看出，国库券的创新设计大多在单数年份，双数年份多是沿袭，风格普遍保守，两年后的89国库券更是第一次跳出了方框框的设计。</p>
+<p>并且这一年的主要图案质量也有提升。大都采用了较为独特的视角。</p>
+<p>收藏上来说，50元的档次越来越低，毕竟这一年80版50元纸币都已经发行了。100元还是同样的贵，但是出现频率也高于86之前的了。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_20.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="87五十元">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">50元是凹印，虽然风格看上去也像是平印</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_21.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="87一百元宝钢码头">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">宝钢码头，在百元国库券中算是比较漂亮的</div>
+
+<p>1988版国库券又回到了以前的条条框框，并且全部改成了胶印，并且没有水印，由于设计的原因，这一年的50和100元都成为了印刷最简陋的高面值国库券。</p>
+<p>1988年开始国库券发行金额大增，并且这一年开始国库券开放交易，因而，从此之后的国库券存世量逐步增加，五元十元还都是差不多的。8850元的印刷量在印钞造币志上极大，应该是有误的，应该也就是两三千万的级别。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_22.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="1988年四张国库券">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">四张除了尺寸印刷方式是一致的，总体给人一种廉价感</div>
+
+<p>终于到了我几乎是最喜欢的1989年版国库券，这一年和1987、1985类似，单数的年份带来了大胆的设计。题材上同样出色，5元的桑塔纳，10元的海南，50元的新客站，桑塔纳下线、海南建省、新客站落成，这些都有着普遍的社会记忆。</p>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_23.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="89五元桑塔纳">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">侧置竖直的多彩条纹，甚至看到了第五套人民币的影子</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_24.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="新客站老图片">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">附带一张新客站的老图片</div>
+
+<div style="text-align:center;margin:1rem 0;">
+  <img src="readmes/image/gkq/zhihu_25.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="89100湛江油码头">
+</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">89100湛江油码头，虽然是平印，但是和88100相比廉价感少了很多</div>
+
+<p>1985-1989这五年的低面值除了8510的绝品，都很便宜。高面值除了88、89的五十元，都是绝对的贵，相对低端品种也至少要和枣红比肩，这一区域和90年代高值，每一张都是一座大山，让人略感绝望，是国库券中的高端区域，收藏这一部分的小面值又太没成就感。</p>
+<p>国库券因此一定程度上降低了很多收藏乐趣，但是从另外一个角度来看，这些真正的收藏品是对精力、财力、眼力、运气、知识储备的综合考验，能得到的成就感也绝非现今流行的高分无47可以比拟的。</p>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">20210527 14:17初稿图片、附表待补充｜20210528 10:26暂发｜20210610 16.35修改</div>
