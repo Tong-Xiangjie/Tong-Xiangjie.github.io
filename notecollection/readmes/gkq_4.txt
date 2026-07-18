@@ -42,7 +42,7 @@
 <div style="text-align:center;margin:1rem 0;">
   <img src="readmes/image/gkq/zhihu_31.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="90一百元局部">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">右下角火炬状的小图案，以及下方运动图案倒是不错</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">右下角火炬状的小图案，以及下方运动图案倒是不错，让这张国库券看上去甚至像是一张纪念钞，只是到处都与整套格格不入</div>
 
 <p>下面说91版，91版虽说还是全平印，价格更低。我是很喜欢这一年的。是主题极为统一，全部是山水风光，并且易于入手。</p>
 
@@ -54,17 +54,17 @@
 <div style="text-align:center;margin:1rem 0;">
   <img src="readmes/image/gkq/zhihu_33.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="91一百元">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">一百元的色彩和图案都很平庸</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">一百元的色彩和图案都很平庸，100元的面值，在两年后就从最高面值变成最低面值了</div>
 
 <div style="text-align:center;margin:1rem 0;">
   <img src="readmes/image/gkq/zhihu_34.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="91字体对比">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">91国库券的字体和76版瑞士法郎</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">注意喔，91国库券的字体和76版瑞士法郎</div>
 
 <div style="text-align:center;margin:1rem 0;">
   <img src="readmes/image/gkq/zhihu_35.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="91与巴西纸币对比">
 </div>
-<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">右边是1987版巴西1000</div>
+<div style="text-align:center;font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">再注意喔，右边是1987版巴西1000，右边这个数字字体也即将用在1995年左右设计的第五套人民币上</div>
 
 <div style="text-align:center;margin:1rem 0;">
   <img src="readmes/image/gkq/zhihu_36.jpg" style="max-width:80%;border-radius:6px;display:inline-block;" alt="91云南风光">
