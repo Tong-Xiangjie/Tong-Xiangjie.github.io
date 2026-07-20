@@ -16,7 +16,10 @@ const rmb2Data = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "克劳斯目录编码" }
     ],
-
+    readme: {
+        title: "第二套人民币纸币暗记汇总",
+        content: "file:readmes/2nd_Series_RMB_Secret_Marks_Summary.txt"
+    },
     series: [
         // ==================== 1分系列 ====================
         {
@@ -59,7 +62,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "90mm*42.5mm",
                     krause: "860b.1",
-                    remark: "只有罗马冠字（三位或二位），无阿拉伯数字。按冠字大小分为小三冠(4mm)、大三冠(5mm)、大二冠。这一张为小三冠。",
+                    remark: "小三冠",
                     img1: "image/rmb2/722-1.jpg",
                     img2: "image/rmb2/722-2.jpg"
                 },{
@@ -75,7 +78,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "90mm*42.5mm",
                     krause: "860b.2",
-                    remark: "只有罗马冠字（三位或二位），无阿拉伯数字。按冠字大小分为小三冠(4mm)、大三冠(5mm)、大二冠。这一张为大三冠。",
+                    remark: "大三冠",
                     img1: "image/rmb2/122-1.jpg",
                     img2: "image/rmb2/122-2.jpg"
                 },{
@@ -91,7 +94,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "90mm*42.5mm",
                     krause: "860c",
-                    remark: "只有罗马冠字（三位或二位），无阿拉伯数字。按冠字大小分为小三冠(4mm)、大三冠(5mm)、大二冠。这一张为大二冠。",
+                    remark: "大二冠",
                     img1: "image/rmb2/50-1.jpg",
                     img2: "image/rmb2/50-2.jpg"
                 }
@@ -116,7 +119,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "95mm*45mm",
                     krause: "861a",
-                    remark: "三位罗马冠字+七位阿拉伯数字。暗记：正面飞机头有白点；背面右侧藏文下有党徽图案；背面行名字左方有倒斜'古'",
+                    remark: "暗记：正面飞机头有白点；背面右侧藏文下有党徽图案；背面行名字左方有倒斜'古'",
                     img1: "image/rmb2/741-7004155-1.jpg",
                     img2: "image/rmb2/741-7004155-2.jpg"
                 }
@@ -139,7 +142,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "95mm*45mm",
                     krause: "861c",
-                    remark: "三位罗马冠字，无阿拉伯数字。按冠字大小分为小三冠(4mm)和大三冠(5mm)：小三冠飞机头无白点，大三冠飞机头有白点。这一张为小三冠。",
+                    remark: "小三冠",
                     img1: "image/rmb2/212-1.jpg",
                     img2: "image/rmb2/212-2.jpg"
                 },{
@@ -155,7 +158,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "95mm*45mm",
                     krause: "861b",
-                    remark: "三位罗马冠字，无阿拉伯数字。按冠字大小分为小三冠(4mm)和大三冠(5mm)：小三冠飞机头无白点，大三冠飞机头有白点。这一张为小三冠。",
+                    remark: "小三冠",
                     img1: "image/rmb2/155-1.jpg",
                     img2: "image/rmb2/155-2.jpg"
                 }
@@ -203,7 +206,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "100mm*47.5mm",
                     krause: "862c",
-                    remark: "三位罗马冠字，无阿拉伯数字。按冠字大小分为小三冠(4mm)和大三冠(5mm)；底纹为橄榄绿色。这一张为小三冠。",
+                    remark: "小三冠",
                     img1: "image/rmb2/353-1.jpg",
                     img2: "image/rmb2/353-2.jpg"
                 },{
@@ -219,7 +222,7 @@ const rmb2Data = {
                     wmk: "无水印/Without Watermark",
                     size: "100mm*47.5mm",
                     krause: "862b",
-                    remark: "三位罗马冠字，无阿拉伯数字。按冠字大小分为小三冠(4mm)和大三冠(5mm)；底纹为橄榄绿色。这一张为小三冠。",
+                    remark: "大三冠",
                     img1: "image/rmb2/055-1.jpg",
                     img2: "image/rmb2/055-2.jpg"
                 }
