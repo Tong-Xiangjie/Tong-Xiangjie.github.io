@@ -17,7 +17,10 @@ const rmb3Data = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "克劳斯目录编号" }
     ],
-
+    readme: {
+        title: "第三套人民币纸币暗记汇总",
+        content: "file:readmes/3rd_Series_RMB_Secret_Marks_Summary.txt"
+    },
     series: [
         // ==================== 1角系列 ====================
         {
