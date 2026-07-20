@@ -56,9 +56,22 @@ const commemorativeData = {
                     remark: "", 
                     img1: "image/comm/A179021G-1.jpg", 
                     img2: "image/comm/A179021G-2.jpg" 
-                },
-                { 
+                },{ 
                     copyId: 2, 
+                    year: 1999,
+                    purchaseDate: "2026年7月17日", 
+                    price: "38元", 
+                    bank: "台湾银行", 
+                    version: "B957417F", 
+                    condition: "暂未评级", 
+                    krause: "1990",
+                    issueDate: "1999年6月",
+                    issueQuantity: "3000万",
+                    remark: "", 
+                    img1: "image/comm/B957417F-1.jpg", 
+                    img2: "image/comm/B957417F-2.jpg" 
+                },{ 
+                    copyId: 3, 
                     year: 1999,
                     purchaseDate: "2026年4月1日", 
                     price: "57元", 
@@ -215,21 +228,37 @@ const commemorativeData = {
         { 
             seriesName: "庆祝中华民国建国一百年纪念钞",
             year: "2011",
-            copies: [{ 
-                copyId: 1, 
-                year: 2011,
-                purchaseDate: "2025年10月12日", 
-                price: "61元", 
-                bank: "中央银行", 
-                version: "JP578968ZB", 
-                condition: "ACG67E", 
-                krause: "1998",
-                issueDate: "2011年1月6日",
-                issueQuantity: "4亿张",
-                remark: "", 
-                img1: "image/comm/JP578968ZB-1.jpg", 
-                img2: "image/comm/JP578968ZB-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2011,
+                    purchaseDate: "2025年10月12日", 
+                    price: "61元", 
+                    bank: "中央银行", 
+                    version: "JP578968ZB", 
+                    condition: "ACG67E", 
+                    krause: "1998",
+                    issueDate: "2011年1月6日",
+                    issueQuantity: "4亿张",
+                    remark: "", 
+                    img1: "image/comm/JP578968ZB-1.jpg", 
+                    img2: "image/comm/JP578968ZB-2.jpg" 
+                },{ 
+                    copyId: 2, 
+                    year: 2011,
+                    purchaseDate: "2026年7月18日", 
+                    price: "48元", 
+                    bank: "中央银行", 
+                    version: "CC036193LV", 
+                    condition: "暂未评级", 
+                    krause: "1998*",
+                    issueDate: "2011年1月6日",
+                    issueQuantity: "4亿张",
+                    remark: "补号", 
+                    img1: "image/comm/CC036193LV-1.jpg", 
+                    img2: "image/comm/CC036193LV-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "纪念中国银行成立100周年纪念钞（香港）",
