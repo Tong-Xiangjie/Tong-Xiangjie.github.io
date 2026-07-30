@@ -30,7 +30,7 @@
             align-items: center;
             justify-content: center;
             padding: 1.5rem;
-            touch-action: pan-y; /* 允许垂直滚动，防止拖拽时页面滚动 */
+            touch-action: pan-y;
         }
 
         .glass-panel {
@@ -123,7 +123,7 @@
             gap: 0.8rem;
             list-style: none;
             margin-bottom: 1.5rem;
-            min-height: 100px; /* 保证拖拽区域 */
+            min-height: 100px;
         }
 
         .site-card {
@@ -131,26 +131,44 @@
             border-radius: 1.8rem;
             padding: 0.7rem 1rem;
             border: 1px solid #2c3e55;
-            transition: border-color 0.2s, background 0.2s;
+            transition: border-color 0.2s, background 0.2s, opacity 0.2s;
             display: flex;
             align-items: center;
             gap: 0.5rem;
             cursor: default;
             position: relative;
-            touch-action: none; /* 禁止触摸滚动，由拖拽逻辑控制 */
+            touch-action: none;
+            will-change: transform;
         }
-        .site-card.dragging {
-            opacity: 0.5;
+        .site-card:hover {
+            border-color: #3c8dbc;
+        }
+        .site-card.dragging-source {
+            opacity: 0.3;
             border-color: #00aaff;
             background: #0a1420;
         }
-        .site-card.drag-over {
-            border-color: #66ccff;
-            box-shadow: 0 0 15px #00aaff40;
+        /* 拖拽时的克隆样式（浮动卡片） */
+        .dragging-clone {
+            border-radius: 1.8rem;
+            padding: 0.7rem 1rem;
+            background: #000000;
+            border: 2px solid #00aaff;
+            box-shadow: 0 0 30px rgba(0, 170, 255, 0.3);
+            pointer-events: none;
+            z-index: 1000;
+            transition: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            opacity: 0.95;
+            transform: scale(1.02);
         }
-        /* 移除浮动效果，只保留边框变化 */
-        .site-card:hover {
-            border-color: #3c8dbc;
+        .dragging-clone .site-name {
+            color: #fff;
+        }
+        .dragging-clone .site-link {
+            opacity: 0.7;
         }
 
         /* 左侧操作区 */
@@ -179,12 +197,12 @@
 
         .delete-btn {
             background: transparent;
-            border: 1px solid #3a4f6a;
-            color: #8ab3d6;
+            border: none; /* 去掉外圈 */
+            color: #5a7a9a; /* 与≡同色 */
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             cursor: pointer;
             transition: 0.2s;
             display: inline-flex;
@@ -195,8 +213,6 @@
             touch-action: manipulation;
         }
         .delete-btn:hover {
-            background: #ff3b3b20;
-            border-color: #ff3b3b;
             color: #ff6b6b;
         }
 
@@ -261,11 +277,11 @@
             color: #4a6080;
         }
         .add-form #siteNameInput {
-            flex: 0 1 130px; /* 名称框短一些 */
+            flex: 0 1 130px;
             min-width: 80px;
         }
         .add-form #siteUrlInput {
-            flex: 2 1 180px; /* 网址框拉长 */
+            flex: 2 1 180px;
             min-width: 120px;
         }
         .add-form .add-btn {
@@ -392,23 +408,9 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
         }
 
-        // ─── 拖拽排序核心 ───
         let sites = loadSites();
-        let dragState = null; // { element, index, startY, offsetY, clone? }
 
-        function getCardElements() {
-            return document.querySelectorAll('.site-card');
-        }
-
-        function getCardIndex(element) {
-            const items = getCardElements();
-            for (let i = 0; i < items.length; i++) {
-                if (items[i] === element) return i;
-            }
-            return -1;
-        }
-
-        // 重新渲染整个列表（保留当前sites数组）
+        // ─── 渲染函数 ───
         function render() {
             const container = document.getElementById('siteList');
             container.innerHTML = '';
@@ -422,16 +424,12 @@
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'card-actions';
 
-                // 拖动手柄 ≡
                 const handle = document.createElement('span');
                 handle.className = 'drag-handle';
                 handle.textContent = '≡';
                 handle.setAttribute('draggable', 'false');
-                handle.addEventListener('mousedown', onDragStart);
-                handle.addEventListener('touchstart', onDragStart, { passive: false });
                 actionsDiv.appendChild(handle);
 
-                // 删除按钮 ×
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
                 delBtn.textContent = '×';
@@ -441,12 +439,10 @@
                 });
                 actionsDiv.appendChild(delBtn);
 
-                // 中间名称
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'site-name';
                 nameSpan.textContent = site.name;
 
-                // 右侧链接
                 const linkA = document.createElement('a');
                 linkA.className = 'site-link';
                 linkA.href = site.url;
@@ -458,124 +454,157 @@
                 li.appendChild(linkA);
                 container.appendChild(li);
             });
-            // 更新索引 data 属性（用于拖拽时快速获取）
-            updateIndices();
         }
 
         function updateIndices() {
-            const cards = getCardElements();
+            const cards = document.querySelectorAll('.site-card');
             cards.forEach((card, idx) => {
                 card.dataset.index = idx;
             });
         }
 
-        // ─── 拖拽事件 ───
-        let dragData = null;
+        // ─── 拖拽逻辑 ───
+        let dragState = null; // { element, index, clone, offsetX, offsetY }
 
+        // 获取目标插入索引（基于鼠标Y坐标和排除自身）
+        function getTargetIndex(clientY, excludeElement) {
+            const container = document.getElementById('siteList');
+            const cards = Array.from(container.children).filter(c => c !== excludeElement);
+            if (cards.length === 0) return 0;
+
+            const firstRect = cards[0].getBoundingClientRect();
+            if (clientY < firstRect.top) return 0;
+
+            const lastRect = cards[cards.length - 1].getBoundingClientRect();
+            if (clientY > lastRect.bottom) return cards.length;
+
+            for (let i = 0; i < cards.length; i++) {
+                const rect = cards[i].getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (clientY < midY) {
+                    return i;
+                }
+            }
+            return cards.length;
+        }
+
+        // 移动透明占位到新位置，并更新sites数组
+        function movePlaceholderToIndex(targetIndex) {
+            const element = dragState.element;
+            const container = document.getElementById('siteList');
+            const children = Array.from(container.children);
+
+            // 如果目标索引就是当前索引，什么也不做
+            if (targetIndex === dragState.index) return;
+
+            // 从DOM移除
+            if (element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+
+            // 插入到目标位置
+            if (targetIndex >= children.length) {
+                container.appendChild(element);
+            } else {
+                // 注意：children 是移除前的集合，目标可能偏移，重新获取
+                const newChildren = Array.from(container.children);
+                if (targetIndex < newChildren.length) {
+                    container.insertBefore(element, newChildren[targetIndex]);
+                } else {
+                    container.appendChild(element);
+                }
+            }
+
+            // 更新sites数组
+            const movedSite = sites.splice(dragState.index, 1)[0];
+            let insertIdx = targetIndex;
+            if (targetIndex > dragState.index) insertIdx = targetIndex - 1;
+            sites.splice(insertIdx, 0, movedSite);
+            dragState.index = insertIdx;
+            updateIndices();
+        }
+
+        // 拖拽启动
         function onDragStart(e) {
-            e.preventDefault(); // 防止选择文本或默认拖拽
-            const handle = e.currentTarget;
+            const handle = e.target.closest('.drag-handle');
+            if (!handle) return;
+            e.preventDefault();
+
             const card = handle.closest('.site-card');
             if (!card) return;
             const index = parseInt(card.dataset.index, 10);
             if (isNaN(index)) return;
 
             const rect = card.getBoundingClientRect();
+            const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
             const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
 
-            dragData = {
-                card: card,
+            // 创建克隆
+            const clone = card.cloneNode(true);
+            clone.style.position = 'fixed';
+            clone.style.pointerEvents = 'none';
+            clone.style.zIndex = '1000';
+            clone.style.width = rect.width + 'px';
+            clone.style.height = rect.height + 'px';
+            clone.style.left = (clientX - (clientX - rect.left)) + 'px';
+            clone.style.top = (clientY - (clientY - rect.top)) + 'px';
+            clone.classList.add('dragging-clone');
+            // 去除克隆中的干扰事件
+            clone.querySelectorAll('button, a').forEach(el => {
+                el.style.pointerEvents = 'none';
+            });
+            document.body.appendChild(clone);
+
+            // 原卡片变透明占位
+            card.classList.add('dragging-source');
+
+            dragState = {
+                element: card,
                 index: index,
-                offsetY: clientY - rect.top,
-                startIndex: index,
-                clone: null,
-                moveHandler: null,
-                upHandler: null
+                clone: clone,
+                offsetX: clientX - rect.left,
+                offsetY: clientY - rect.top
             };
 
-            // 克隆一个占位元素用于跟随（可选），这里我们用原卡片跟随，其他卡片移位
-            card.classList.add('dragging');
-
-            // 记录鼠标/触摸移动和释放事件
+            // 绑定移动和释放事件
             const moveEvent = e.type === 'touchstart' ? 'touchmove' : 'mousemove';
             const upEvent = e.type === 'touchstart' ? 'touchend' : 'mouseup';
 
-            const onMove = function(ev) {
+            function onMove(ev) {
                 ev.preventDefault();
-                const clientY = ev.type === 'touchmove' ? ev.touches[0].clientY : ev.clientY;
-                const container = document.getElementById('siteList');
-                const cards = getCardElements();
-                // 计算当前应该插入的位置
-                let targetIndex = -1;
-                const cardRects = [];
-                cards.forEach((c, idx) => {
-                    if (c === dragData.card) return;
-                    const r = c.getBoundingClientRect();
-                    cardRects.push({ idx, rect: r });
-                });
-                // 找到最近的卡片
-                let minDist = Infinity;
-                for (let item of cardRects) {
-                    const centerY = item.rect.top + item.rect.height / 2;
-                    const dist = Math.abs(clientY - centerY);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        targetIndex = item.idx;
-                    }
-                }
-                // 如果拖到最上方或最下方
-                if (targetIndex === -1) {
-                    // 如果鼠标在第一个卡片上方，targetIndex = 0
-                    const first = cards[0];
-                    if (first && clientY < first.getBoundingClientRect().top) {
-                        targetIndex = 0;
-                    } else {
-                        const last = cards[cards.length - 1];
-                        if (last && clientY > last.getBoundingClientRect().bottom) {
-                            targetIndex = cards.length;
-                        }
-                    }
-                }
+                const cx = ev.type === 'touchmove' ? ev.touches[0].clientX : ev.clientX;
+                const cy = ev.type === 'touchmove' ? ev.touches[0].clientY : ev.clientY;
 
-                // 如果目标位置与当前索引不同，则调整数组顺序
-                const currentIndex = dragData.index;
-                if (targetIndex !== -1 && targetIndex !== currentIndex) {
-                    // 移动数组元素
-                    const moved = sites.splice(currentIndex, 1)[0];
-                    let insertIndex = targetIndex;
-                    if (targetIndex > currentIndex) insertIndex = targetIndex - 1; // 因为删除了一个
-                    sites.splice(insertIndex, 0, moved);
-                    // 更新索引
-                    dragData.index = insertIndex;
-                    // 重新渲染列表，保持拖动状态
-                    render();
-                    // 重新获取卡片并恢复拖动样式
-                    const newCards = getCardElements();
-                    const draggedCard = newCards[insertIndex];
-                    if (draggedCard) {
-                        draggedCard.classList.add('dragging');
-                        // 将拖动卡片滚动到可视区域（可选）
-                    }
-                    dragData.card = draggedCard;
-                    updateIndices();
-                }
-            };
+                // 更新克隆位置
+                dragState.clone.style.left = (cx - dragState.offsetX) + 'px';
+                dragState.clone.style.top = (cy - dragState.offsetY) + 'px';
 
-            const onUp = function(ev) {
-                // 清除拖动样式
-                document.querySelectorAll('.site-card.dragging').forEach(c => c.classList.remove('dragging'));
-                // 清理事件
+                // 计算目标索引
+                const targetIndex = getTargetIndex(cy, dragState.element);
+                if (targetIndex !== -1 && targetIndex !== dragState.index) {
+                    movePlaceholderToIndex(targetIndex);
+                }
+            }
+
+            function onUp(ev) {
+                // 移除克隆
+                if (dragState.clone && dragState.clone.parentNode) {
+                    dragState.clone.parentNode.removeChild(dragState.clone);
+                }
+                // 恢复原卡片
+                if (dragState.element) {
+                    dragState.element.classList.remove('dragging-source');
+                }
+                // 保存
+                saveSites(sites);
+                // 清理
                 document.removeEventListener(moveEvent, onMove);
                 document.removeEventListener(upEvent, onUp);
-                dragData = null;
-                // 保存数据
-                saveSites(sites);
-            };
+                dragState = null;
+            }
 
             document.addEventListener(moveEvent, onMove);
             document.addEventListener(upEvent, onUp);
-            dragData.moveHandler = onMove;
-            dragData.upHandler = onUp;
         }
 
         // ─── 操作函数 ───
@@ -619,11 +648,15 @@
 
         // ─── 初始化 ───
         function init() {
-            // 加载数据
             sites = loadSites();
             render();
 
-            // 添加按钮事件
+            // 拖拽事件委托（在整个列表上监听）
+            const list = document.getElementById('siteList');
+            list.addEventListener('mousedown', onDragStart);
+            list.addEventListener('touchstart', onDragStart, { passive: false });
+
+            // 添加按钮
             document.getElementById('addSiteBtn').addEventListener('click', function() {
                 const nameInput = document.getElementById('siteNameInput');
                 const urlInput = document.getElementById('siteUrlInput');
