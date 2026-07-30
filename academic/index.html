@@ -99,7 +99,12 @@
             align-items: center;
         }
 
-        .reset-btn {
+        .title-right-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .title-btn {
             background: transparent;
             border: 1px solid #3c5a7a;
             color: #8ab3d6;
@@ -110,11 +115,16 @@
             transition: 0.2s;
             font-family: inherit;
             touch-action: manipulation;
+            white-space: nowrap;
         }
-        .reset-btn:hover {
+        .title-btn:hover {
             background: #00aaff20;
             border-color: #00aaff;
             color: white;
+        }
+        .title-btn.manage-active {
+            border-color: #00aaff;
+            color: #66ccff;
         }
 
         .site-list {
@@ -171,7 +181,7 @@
             opacity: 0.7;
         }
 
-        /* 左侧操作区 */
+        /* 左侧操作区（仅管理模式可见） */
         .card-actions {
             display: flex;
             align-items: center;
@@ -197,8 +207,8 @@
 
         .delete-btn {
             background: transparent;
-            border: none; /* 去掉外圈 */
-            color: #5a7a9a; /* 与≡同色 */
+            border: none;
+            color: #5a7a9a;
             width: 28px;
             height: 28px;
             border-radius: 50%;
@@ -250,15 +260,19 @@
             border-color: #00aaff;
         }
 
-        /* 添加表单 */
+        /* 添加表单（默认隐藏，管理模式显示） */
         .add-form {
-            display: flex;
+            display: none;
             gap: 0.6rem;
             flex-wrap: wrap;
             margin: 1.2rem 0 1rem;
             border-top: 1px dashed #2a3644;
             padding-top: 1.5rem;
         }
+        .add-form.visible {
+            display: flex;
+        }
+
         .add-form input {
             background: #0b1422;
             border: 1px solid #2c3e55;
@@ -340,6 +354,8 @@
             .card-actions { order: 0; }
             .site-name { order: 1; }
             .site-link { order: 2; }
+            .title-right-buttons { gap: 0.3rem; }
+            .title-btn { font-size: 0.6rem; padding: 0.1rem 0.5rem; }
         }
     </style>
 </head>
@@ -355,12 +371,15 @@
 
             <div class="section-title">
                 <span>学术数据库</span>
-                <button class="reset-btn" id="resetDefaultBtn">↻ 恢复默认</button>
+                <div class="title-right-buttons">
+                    <button class="title-btn" id="manageBtn">站点管理</button>
+                    <button class="title-btn" id="resetDefaultBtn" style="display:none;">↻ 恢复默认</button>
+                </div>
             </div>
 
             <ul class="site-list" id="siteList"></ul>
 
-            <div class="add-form">
+            <div class="add-form" id="addForm">
                 <input type="text" id="siteNameInput" placeholder="站点名称" />
                 <input type="url" id="siteUrlInput" placeholder="网址" />
                 <button class="add-btn" id="addSiteBtn">＋ 添加</button>
@@ -368,7 +387,7 @@
 
             <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
             <div class="footer-note">
-                <a href="https://wallesspku.org" target="_blank">需要梯子？</a><br><br>
+                需要<a href="https://wallesspku.org" target="_blank">梯子</a>？<br><br>
                 网页建立时间：2026年7月30日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
             </div>
         </div>
@@ -386,6 +405,10 @@
         ];
 
         const STORAGE_KEY = 'customSites';
+
+        // ─── 状态 ───
+        let isAdmin = false;
+        let sites = [];
 
         // ─── 工具函数 ───
         function generateId() {
@@ -408,7 +431,7 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
         }
 
-        let sites = loadSites();
+        sites = loadSites();
 
         // ─── 渲染函数 ───
         function render() {
@@ -420,40 +443,62 @@
                 li.dataset.id = site.id;
                 li.dataset.index = index;
 
-                // 左侧操作区
+                // 左侧操作区（仅在管理模式显示）
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'card-actions';
+                if (isAdmin) {
+                    // 拖动手柄
+                    const handle = document.createElement('span');
+                    handle.className = 'drag-handle';
+                    handle.textContent = '≡';
+                    handle.setAttribute('draggable', 'false');
+                    actionsDiv.appendChild(handle);
 
-                const handle = document.createElement('span');
-                handle.className = 'drag-handle';
-                handle.textContent = '≡';
-                handle.setAttribute('draggable', 'false');
-                actionsDiv.appendChild(handle);
+                    // 删除按钮
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn';
+                    delBtn.textContent = '×';
+                    delBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        deleteSite(index);
+                    });
+                    actionsDiv.appendChild(delBtn);
+                }
+                li.appendChild(actionsDiv);
 
-                const delBtn = document.createElement('button');
-                delBtn.className = 'delete-btn';
-                delBtn.textContent = '×';
-                delBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    deleteSite(index);
-                });
-                actionsDiv.appendChild(delBtn);
-
+                // 中间名称
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'site-name';
                 nameSpan.textContent = site.name;
+                li.appendChild(nameSpan);
 
+                // 右侧链接
                 const linkA = document.createElement('a');
                 linkA.className = 'site-link';
                 linkA.href = site.url;
                 linkA.target = '_blank';
                 linkA.textContent = site.url.replace(/^https?:\/\//, '').replace(/\/$/, '') + ' ↗';
-
-                li.appendChild(actionsDiv);
-                li.appendChild(nameSpan);
                 li.appendChild(linkA);
+
                 container.appendChild(li);
             });
+            updateIndices();
+
+            // 控制添加表单和恢复默认按钮的显示
+            const addForm = document.getElementById('addForm');
+            const resetBtn = document.getElementById('resetDefaultBtn');
+            if (isAdmin) {
+                addForm.classList.add('visible');
+                resetBtn.style.display = '';
+            } else {
+                addForm.classList.remove('visible');
+                resetBtn.style.display = 'none';
+            }
+
+            // 管理按钮文本
+            const manageBtn = document.getElementById('manageBtn');
+            manageBtn.textContent = isAdmin ? '退出管理' : '站点管理';
+            manageBtn.classList.toggle('manage-active', isAdmin);
         }
 
         function updateIndices() {
@@ -463,10 +508,9 @@
             });
         }
 
-        // ─── 拖拽逻辑 ───
-        let dragState = null; // { element, index, clone, offsetX, offsetY }
+        // ─── 拖拽逻辑（只在管理模式有效） ───
+        let dragState = null;
 
-        // 获取目标插入索引（基于鼠标Y坐标和排除自身）
         function getTargetIndex(clientY, excludeElement) {
             const container = document.getElementById('siteList');
             const cards = Array.from(container.children).filter(c => c !== excludeElement);
@@ -488,25 +532,20 @@
             return cards.length;
         }
 
-        // 移动透明占位到新位置，并更新sites数组
         function movePlaceholderToIndex(targetIndex) {
             const element = dragState.element;
             const container = document.getElementById('siteList');
             const children = Array.from(container.children);
 
-            // 如果目标索引就是当前索引，什么也不做
             if (targetIndex === dragState.index) return;
 
-            // 从DOM移除
             if (element.parentNode) {
                 element.parentNode.removeChild(element);
             }
 
-            // 插入到目标位置
             if (targetIndex >= children.length) {
                 container.appendChild(element);
             } else {
-                // 注意：children 是移除前的集合，目标可能偏移，重新获取
                 const newChildren = Array.from(container.children);
                 if (targetIndex < newChildren.length) {
                     container.insertBefore(element, newChildren[targetIndex]);
@@ -515,7 +554,6 @@
                 }
             }
 
-            // 更新sites数组
             const movedSite = sites.splice(dragState.index, 1)[0];
             let insertIdx = targetIndex;
             if (targetIndex > dragState.index) insertIdx = targetIndex - 1;
@@ -524,8 +562,8 @@
             updateIndices();
         }
 
-        // 拖拽启动
         function onDragStart(e) {
+            if (!isAdmin) return; // 非管理模式禁止拖拽
             const handle = e.target.closest('.drag-handle');
             if (!handle) return;
             e.preventDefault();
@@ -539,7 +577,6 @@
             const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
             const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
 
-            // 创建克隆
             const clone = card.cloneNode(true);
             clone.style.position = 'fixed';
             clone.style.pointerEvents = 'none';
@@ -549,13 +586,11 @@
             clone.style.left = (clientX - (clientX - rect.left)) + 'px';
             clone.style.top = (clientY - (clientY - rect.top)) + 'px';
             clone.classList.add('dragging-clone');
-            // 去除克隆中的干扰事件
             clone.querySelectorAll('button, a').forEach(el => {
                 el.style.pointerEvents = 'none';
             });
             document.body.appendChild(clone);
 
-            // 原卡片变透明占位
             card.classList.add('dragging-source');
 
             dragState = {
@@ -566,7 +601,6 @@
                 offsetY: clientY - rect.top
             };
 
-            // 绑定移动和释放事件
             const moveEvent = e.type === 'touchstart' ? 'touchmove' : 'mousemove';
             const upEvent = e.type === 'touchstart' ? 'touchend' : 'mouseup';
 
@@ -575,11 +609,9 @@
                 const cx = ev.type === 'touchmove' ? ev.touches[0].clientX : ev.clientX;
                 const cy = ev.type === 'touchmove' ? ev.touches[0].clientY : ev.clientY;
 
-                // 更新克隆位置
                 dragState.clone.style.left = (cx - dragState.offsetX) + 'px';
                 dragState.clone.style.top = (cy - dragState.offsetY) + 'px';
 
-                // 计算目标索引
                 const targetIndex = getTargetIndex(cy, dragState.element);
                 if (targetIndex !== -1 && targetIndex !== dragState.index) {
                     movePlaceholderToIndex(targetIndex);
@@ -587,17 +619,13 @@
             }
 
             function onUp(ev) {
-                // 移除克隆
                 if (dragState.clone && dragState.clone.parentNode) {
                     dragState.clone.parentNode.removeChild(dragState.clone);
                 }
-                // 恢复原卡片
                 if (dragState.element) {
                     dragState.element.classList.remove('dragging-source');
                 }
-                // 保存
                 saveSites(sites);
-                // 清理
                 document.removeEventListener(moveEvent, onMove);
                 document.removeEventListener(upEvent, onUp);
                 dragState = null;
@@ -609,6 +637,7 @@
 
         // ─── 操作函数 ───
         function deleteSite(index) {
+            if (!isAdmin) return;
             if (sites.length <= 1) {
                 alert('请至少保留一个站点。');
                 return;
@@ -620,6 +649,7 @@
         }
 
         function addSite(name, url) {
+            if (!isAdmin) return false;
             name = name.trim();
             url = url.trim();
             if (!name || !url) {
@@ -640,10 +670,30 @@
         }
 
         function resetToDefault() {
-            if (!confirm('确认恢复默认吗？当前所有自定义修改将丢失。')) return;
+            if (!isAdmin) return;
+            if (!confirm('确认要恢复默认吗？当前所有自定义修改将丢失。')) return;
             sites = DEFAULT_SITES.map(s => ({ ...s }));
             saveSites(sites);
             render();
+        }
+
+        // ─── 切换管理模式 ───
+        function toggleAdmin() {
+            isAdmin = !isAdmin;
+            render();
+            // 如果退出管理，且当前有拖拽未完成，强制结束（但拖拽会在鼠标释放后结束）
+            if (!isAdmin && dragState) {
+                // 模拟结束
+                if (dragState.clone && dragState.clone.parentNode) {
+                    dragState.clone.parentNode.removeChild(dragState.clone);
+                }
+                if (dragState.element) {
+                    dragState.element.classList.remove('dragging-source');
+                }
+                dragState = null;
+                // 移除可能残留的事件监听（但这里无法轻易移除，不过释放鼠标时会自动清理）
+                // 也可以忽略，因为下次拖拽会重新绑定
+            }
         }
 
         // ─── 初始化 ───
@@ -651,10 +701,11 @@
             sites = loadSites();
             render();
 
-            // 拖拽事件委托（在整个列表上监听）
-            const list = document.getElementById('siteList');
-            list.addEventListener('mousedown', onDragStart);
-            list.addEventListener('touchstart', onDragStart, { passive: false });
+            // 管理按钮
+            document.getElementById('manageBtn').addEventListener('click', toggleAdmin);
+
+            // 恢复默认
+            document.getElementById('resetDefaultBtn').addEventListener('click', resetToDefault);
 
             // 添加按钮
             document.getElementById('addSiteBtn').addEventListener('click', function() {
@@ -672,7 +723,10 @@
                 if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addSiteBtn').click(); }
             });
 
-            document.getElementById('resetDefaultBtn').addEventListener('click', resetToDefault);
+            // 拖拽事件（委托）
+            const list = document.getElementById('siteList');
+            list.addEventListener('mousedown', onDragStart);
+            list.addEventListener('touchstart', onDragStart, { passive: false });
 
             // 时钟
             function formatCurrentDateTime() {
