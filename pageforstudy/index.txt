@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="manifest" href="../manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>学术搜索入口</title>
+    <style>
+        /* ═══ 自定义西文字体：OCR-B（路径调整至父级） ═══ */
+        @font-face {
+            font-family: "OCRB10";
+            src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #000000;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .glass-panel {
+            background: #000000;
+            border-radius: 2.5rem;
+            border: none;
+            box-shadow: none;
+            width: 100%;
+            max-width: 580px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .content {
+            padding: 2.2rem 2rem 2.5rem;
+        }
+
+        .logo-area {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-icon {
+            font-size: 3.2rem;
+            opacity: 0.9;
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 500;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #e6f3ff, #00aaff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-top: 0.5rem;
+        }
+
+        .sub {
+            font-size: 0.75rem;
+            color: #7e8a9e;
+            border-top: 1px dashed #2a3644;
+            display: inline-block;
+            margin-top: 0.6rem;
+            padding-top: 0.5rem;
+        }
+
+        .dashboard {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            border-left: 5px solid #00aaff;
+            padding-left: 1rem;
+            color: #e6f3ff;
+        }
+
+        .site-card {
+            background: #000000;
+            border-radius: 1.8rem;
+            margin-bottom: 1.2rem;
+            padding: 1rem 1.5rem;
+            border: 1px solid #2c3e55;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .site-card:hover {
+            border-color: #3c8dbc;
+            transform: translateX(6px);
+        }
+        .site-name {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #cde0ff;
+        }
+        .site-link {
+            background: #0b1422;
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.9rem;
+            text-decoration: none;
+            color: #00aaff;
+            border: 1px solid #2e5570;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .site-link:hover {
+            background: #00aaff20;
+            color: white;
+            border-color: #00aaff;
+        }
+
+        .datetime-display {
+            text-align: center;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: #5a6e8a;
+            font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", monospace;
+            transform: scaleX(0.9);
+            transform-origin: center center;
+            letter-spacing: 0.5px;
+            border-top: 1px dashed #2a3644;
+            padding-top: 1rem;
+        }
+
+        .footer-note {
+            margin-top: 1.5rem;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #3f506e;
+            border-top: 1px solid #1e2a3a;
+            padding-top: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .content { padding: 1.5rem; }
+            .site-card { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="glass-panel" id="appRoot">
+    <div class="content">
+        <!-- 直接显示门户面板 -->
+        <div class="dashboard">
+            <div class="logo-area" style="margin-bottom: 1rem;">
+                <!-- 图片路径调整至父级 -->
+                <img src="../image/headphoto.png" class="logo-icon" alt="logo">
+                <h1>学术搜索入口</h1>
+                <div class="sub">ACADEMIC SEARCH PORTAL</div>
+            </div>
+            <div class="section-title">学术数据库</div>
+
+            <!-- 四个学术站点 -->
+            <div class="site-card">
+                <span class="site-name">Google Scholar</span>
+                <a href="https://scholar.google.com/" class="site-link" target="_blank">scholar.google.com ↗</a>
+            </div>
+            <div class="site-card">
+                <span class="site-name">中国知网 (CNKI)</span>
+                <a href="http://www.cnki.net/" class="site-link" target="_blank">cnki.net ↗</a>
+            </div>
+            <div class="site-card">
+                <span class="site-name">读秀 (Duxiu)</span>
+                <a href="https://www.duxiu.com/" class="site-link" target="_blank">duxiu.com ↗</a>
+            </div>
+            <div class="site-card">
+                <span class="site-name">清华大学图书馆</span>
+                <a href="https://lib.tsinghua.edu.cn/" class="site-link" target="_blank">lib.tsinghua.edu.cn ↗</a>
+            </div>
+
+            <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
+            <div class="footer-note">网页建立时间：2026年4月4日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // 更新时间显示
+        function formatCurrentDateTime() {
+            const now = new Date();
+            return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        }
+        function updateDatetime() {
+            const el = document.getElementById('dashboardDatetime');
+            if (el) el.textContent = formatCurrentDateTime();
+        }
+        updateDatetime();
+        setInterval(updateDatetime, 1000);
+    })();
+</script>
+
+<!-- Service Worker 注册，路径调整至父级 -->
+<script>
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('../sw.js').catch(e=>console.log); }
+</script>
+</body>
+</html>
