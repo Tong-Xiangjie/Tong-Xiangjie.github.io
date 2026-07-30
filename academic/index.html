@@ -97,46 +97,163 @@
             border-left: 5px solid #00aaff;
             padding-left: 1rem;
             color: #e6f3ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid #3c5a7a;
+            color: #8ab3d6;
+            padding: 0.2rem 0.8rem;
+            border-radius: 2rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .reset-btn:hover {
+            background: #00aaff20;
+            border-color: #00aaff;
+            color: white;
+        }
+
+        .site-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            list-style: none;
+            margin-bottom: 1.5rem;
         }
 
         .site-card {
             background: #000000;
             border-radius: 1.8rem;
-            margin-bottom: 1.2rem;
-            padding: 1rem 1.5rem;
+            padding: 0.8rem 1.2rem;
             border: 1px solid #2c3e55;
             transition: all 0.2s;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
+            gap: 0.5rem;
         }
         .site-card:hover {
             border-color: #3c8dbc;
-            transform: translateX(6px);
+            transform: translateX(4px);
         }
+
+        .site-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            flex: 1 1 180px;
+        }
+
         .site-name {
             font-weight: 600;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #cde0ff;
+            word-break: break-word;
         }
+
         .site-link {
             background: #0b1422;
-            padding: 0.4rem 1rem;
+            padding: 0.3rem 0.9rem;
             border-radius: 2rem;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             text-decoration: none;
             color: #00aaff;
             border: 1px solid #2e5570;
             transition: 0.2s;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
+            white-space: nowrap;
         }
         .site-link:hover {
             background: #00aaff20;
             color: white;
             border-color: #00aaff;
+        }
+
+        .site-actions {
+            display: flex;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+
+        .site-actions button {
+            background: transparent;
+            border: 1px solid #3a4f6a;
+            color: #8ab3d6;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            line-height: 1;
+        }
+        .site-actions button:hover {
+            background: #00aaff20;
+            border-color: #00aaff;
+            color: white;
+        }
+        .site-actions .delete-btn:hover {
+            background: #ff3b3b20;
+            border-color: #ff3b3b;
+            color: #ff6b6b;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin: 1.2rem 0 1rem;
+            border-top: 1px dashed #2a3644;
+            padding-top: 1.5rem;
+        }
+        .add-form input {
+            background: #0b1422;
+            border: 1px solid #2c3e55;
+            border-radius: 2rem;
+            padding: 0.5rem 1rem;
+            color: #cde0ff;
+            font-family: inherit;
+            font-size: 0.9rem;
+            flex: 1 1 130px;
+            outline: none;
+            transition: 0.2s;
+        }
+        .add-form input:focus {
+            border-color: #00aaff;
+        }
+        .add-form input::placeholder {
+            color: #4a6080;
+        }
+        .add-form .add-btn {
+            background: #00aaff;
+            border: none;
+            border-radius: 2rem;
+            padding: 0.5rem 1.5rem;
+            color: #000;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            flex: 0 0 auto;
+        }
+        .add-form .add-btn:hover {
+            background: #66ccff;
+            transform: scale(1.02);
         }
 
         .datetime-display {
@@ -161,69 +278,276 @@
             border-top: 1px solid #1e2a3a;
             padding-top: 1rem;
         }
+        .footer-note a {
+            color: #00aaff;
+            text-decoration: none;
+        }
 
         @media (max-width: 480px) {
-            .content { padding: 1.5rem; }
-            .site-card { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+            .content { padding: 1.2rem; }
+            .site-card { flex-direction: column; align-items: stretch; }
+            .site-info { flex: 1 1 auto; }
+            .site-actions { justify-content: flex-end; }
+            .add-form input { flex: 1 1 100%; }
+            .add-form .add-btn { flex: 1 1 100%; }
         }
     </style>
 </head>
 <body>
 <div class="glass-panel" id="appRoot">
     <div class="content">
-        <!-- 直接显示门户面板 -->
         <div class="dashboard">
             <div class="logo-area" style="margin-bottom: 1rem;">
-                <!-- 图片路径调整至父级 -->
-                <img src="../image/headphoto.png" class="logo-icon" alt="logo">
+                <img src="../image/headphoto.png" class="logo-icon" alt="学术搜索门户图标">
                 <h1>学术搜索入口</h1>
                 <div class="sub">ACADEMIC SEARCH PORTAL</div>
             </div>
-            <div class="section-title">学术数据库</div>
 
-            <!-- 四个学术站点 -->
-            <div class="site-card">
-                <span class="site-name">Google Scholar</span>
-                <a href="https://scholar.google.com/" class="site-link" target="_blank">scholar.google.com ↗</a>
+            <div class="section-title">
+                <span>学术数据库</span>
+                <button class="reset-btn" id="resetDefaultBtn">↻ 恢复默认</button>
             </div>
-            <div class="site-card">
-                <span class="site-name">中国知网 (CNKI)</span>
-                <a href="http://www.cnki.net/" class="site-link" target="_blank">cnki.net ↗</a>
-            </div>
-            <div class="site-card">
-                <span class="site-name">读秀</span>
-                <a href="https://www.duxiu.com/" class="site-link" target="_blank">duxiu.com ↗</a>
-            </div>
-            <div class="site-card">
-                <span class="site-name">清华大学图书馆</span>
-                <a href="https://lib.tsinghua.edu.cn/" class="site-link" target="_blank">lib.tsinghua.edu.cn ↗</a>
+
+            <!-- 卡片列表容器 -->
+            <ul class="site-list" id="siteList"></ul>
+
+            <!-- 添加表单 -->
+            <div class="add-form">
+                <input type="text" id="siteNameInput" placeholder="站点名称 (如 arXiv)" />
+                <input type="url" id="siteUrlInput" placeholder="网址 (如 https://arxiv.org)" />
+                <button class="add-btn" id="addSiteBtn">＋ 添加</button>
             </div>
 
             <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
-            <div class="footer-note"><a href="https://wallesspku.org" target="_blank" style="color: #00aaff; text-decoration: none;">需要梯子？</a><br><br>网页建立时间：2026年7月30日<br>© 2026 铜香结<br>Powered by GitHub Pages</div>
+            <div class="footer-note">
+                <a href="https://wallesspku.org" target="_blank">需要梯子？</a><br><br>
+                网页建立时间：2026年7月30日<br>© 2026 铜香结<br>Powered by GitHub Pages
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     (function() {
-        // 更新时间显示
-        function formatCurrentDateTime() {
-            const now = new Date();
-            return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        // ═══ 默认站点数据 ═══
+        const DEFAULT_SITES = [
+            { id: 'default-1', name: 'Google Scholar', url: 'https://scholar.google.com/' },
+            { id: 'default-2', name: '中国知网(CNKI)', url: 'http://www.cnki.net/' },
+            { id: 'default-3', name: '读秀', url: 'https://www.duxiu.com/' },
+            { id: 'default-4', name: '清华大学图书馆', url: 'https://lib.tsinghua.edu.cn/' }
+        ];
+
+        const STORAGE_KEY = 'customSites';
+
+        // ─── 工具函数 ───
+        function generateId() {
+            return Date.now() + '-' + Math.random().toString(36).slice(2, 6);
         }
-        function updateDatetime() {
-            const el = document.getElementById('dashboardDatetime');
-            if (el) el.textContent = formatCurrentDateTime();
+
+        function loadSites() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed) && parsed.length) return parsed;
+                }
+            } catch (e) { /* ignore */ }
+            // 无数据或解析失败则写入默认并返回
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SITES));
+            return [...DEFAULT_SITES];
         }
-        updateDatetime();
-        setInterval(updateDatetime, 1000);
+
+        function saveSites(sites) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
+        }
+
+        // ─── 渲染 ───
+        function renderSites() {
+            const sites = loadSites();
+            const container = document.getElementById('siteList');
+            container.innerHTML = '';
+
+            sites.forEach((site, index) => {
+                const li = document.createElement('li');
+                li.className = 'site-card';
+                li.dataset.id = site.id;
+
+                // 信息区
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'site-info';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'site-name';
+                nameSpan.textContent = site.name;
+
+                const linkA = document.createElement('a');
+                linkA.className = 'site-link';
+                linkA.href = site.url;
+                linkA.target = '_blank';
+                linkA.textContent = site.url.replace(/^https?:\/\//, '').replace(/\/$/, '') + ' ↗';
+
+                infoDiv.appendChild(nameSpan);
+                infoDiv.appendChild(linkA);
+
+                // 操作按钮组
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'site-actions';
+
+                // 上移
+                const upBtn = document.createElement('button');
+                upBtn.innerHTML = '↑';
+                upBtn.title = '上移';
+                upBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    moveSite(index, -1);
+                });
+                // 下移
+                const downBtn = document.createElement('button');
+                downBtn.innerHTML = '↓';
+                downBtn.title = '下移';
+                downBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    moveSite(index, 1);
+                });
+                // 删除
+                const delBtn = document.createElement('button');
+                delBtn.innerHTML = '×';
+                delBtn.className = 'delete-btn';
+                delBtn.title = '删除';
+                delBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deleteSite(index);
+                });
+
+                actionsDiv.appendChild(upBtn);
+                actionsDiv.appendChild(downBtn);
+                actionsDiv.appendChild(delBtn);
+
+                li.appendChild(infoDiv);
+                li.appendChild(actionsDiv);
+                container.appendChild(li);
+            });
+        }
+
+        // ─── 操作函数 ───
+        function getCurrentSites() {
+            return loadSites();
+        }
+
+        function saveAndRender(sites) {
+            saveSites(sites);
+            renderSites();
+        }
+
+        function moveSite(index, direction) {
+            const sites = getCurrentSites();
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= sites.length) return;
+            // 交换
+            [sites[index], sites[newIndex]] = [sites[newIndex], sites[index]];
+            saveAndRender(sites);
+        }
+
+        function deleteSite(index) {
+            const sites = getCurrentSites();
+            if (sites.length <= 1) {
+                alert('至少保留一个站点！');
+                return;
+            }
+            if (!confirm(`确定要删除“${sites[index].name}”吗？`)) return;
+            sites.splice(index, 1);
+            saveAndRender(sites);
+        }
+
+        function addSite(name, url) {
+            name = name.trim();
+            url = url.trim();
+            if (!name || !url) {
+                alert('请输入站点名称和网址。');
+                return false;
+            }
+            // 简单 URL 格式校验
+            try {
+                new URL(url);
+            } catch (_) {
+                alert('请输入有效的网址！');
+                return false;
+            }
+            const sites = getCurrentSites();
+            const newSite = {
+                id: generateId(),
+                name: name,
+                url: url
+            };
+            sites.push(newSite);
+            saveAndRender(sites);
+            return true;
+        }
+
+        function resetToDefault() {
+            if (!confirm('确认恢复为默认站点列表吗？当前所有自定义修改将丢失。')) return;
+            saveSites(DEFAULT_SITES);
+            renderSites();
+        }
+
+        // ─── 初始化 ───
+        function init() {
+            // 渲染列表
+            renderSites();
+
+            // 添加按钮事件
+            document.getElementById('addSiteBtn').addEventListener('click', function() {
+                const nameInput = document.getElementById('siteNameInput');
+                const urlInput = document.getElementById('siteUrlInput');
+                if (addSite(nameInput.value, urlInput.value)) {
+                    nameInput.value = '';
+                    urlInput.value = '';
+                }
+            });
+            // 回车快捷添加（在输入框中按回车触发添加）
+            document.getElementById('siteNameInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('addSiteBtn').click();
+                }
+            });
+            document.getElementById('siteUrlInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('addSiteBtn').click();
+                }
+            });
+
+            // 恢复默认按钮
+            document.getElementById('resetDefaultBtn').addEventListener('click', resetToDefault);
+
+            // 时钟更新
+            function formatCurrentDateTime() {
+                const now = new Date();
+                return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+            }
+            function updateDatetime() {
+                const el = document.getElementById('dashboardDatetime');
+                if (el) el.textContent = formatCurrentDateTime();
+            }
+            updateDatetime();
+            setInterval(updateDatetime, 1000);
+        }
+
+        // 页面完全加载后执行
+        if (document.readyState === 'complete') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
     })();
 </script>
 
-<!-- Service Worker 注册，路径调整至父级 -->
+<!-- Service Worker 注册（保留） -->
 <script>
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('../sw.js').catch(e=>console.log); }
+if ('serviceWorker' in navigator) { 
+    navigator.serviceWorker.register('../sw.js').catch(e => console.warn('SW注册失败', e)); 
+}
 </script>
 </body>
 </html>
