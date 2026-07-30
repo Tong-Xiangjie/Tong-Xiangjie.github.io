@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>学术搜索入口</title>
     <style>
-        /* ═══ 自定义西文字体：OCR-B（路径调整至父级） ═══ */
+        /* ═══ 字体 ═══ */
         @font-face {
             font-family: "OCRB10";
             src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
@@ -30,16 +30,15 @@
             align-items: center;
             justify-content: center;
             padding: 1.5rem;
+            touch-action: pan-y; /* 允许垂直滚动，防止拖拽时页面滚动 */
         }
 
         .glass-panel {
             background: #000000;
             border-radius: 2.5rem;
             border: none;
-            box-shadow: none;
             width: 100%;
             max-width: 580px;
-            transition: all 0.3s ease;
             overflow: hidden;
         }
 
@@ -53,11 +52,10 @@
         }
 
         .logo-icon {
-            font-size: 3.2rem;
-            opacity: 0.9;
             width: 120px;
             height: 120px;
             object-fit: contain;
+            opacity: 0.9;
         }
 
         h1 {
@@ -81,7 +79,6 @@
         }
 
         .dashboard {
-            display: block;
             animation: fadeInUp 0.5s ease;
         }
 
@@ -112,6 +109,7 @@
             cursor: pointer;
             transition: 0.2s;
             font-family: inherit;
+            touch-action: manipulation;
         }
         .reset-btn:hover {
             background: #00aaff20;
@@ -125,40 +123,95 @@
             gap: 0.8rem;
             list-style: none;
             margin-bottom: 1.5rem;
+            min-height: 100px; /* 保证拖拽区域 */
         }
 
         .site-card {
             background: #000000;
             border-radius: 1.8rem;
-            padding: 0.8rem 1.2rem;
+            padding: 0.7rem 1rem;
             border: 1px solid #2c3e55;
-            transition: all 0.2s;
+            transition: border-color 0.2s, background 0.2s;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
             gap: 0.5rem;
+            cursor: default;
+            position: relative;
+            touch-action: none; /* 禁止触摸滚动，由拖拽逻辑控制 */
         }
+        .site-card.dragging {
+            opacity: 0.5;
+            border-color: #00aaff;
+            background: #0a1420;
+        }
+        .site-card.drag-over {
+            border-color: #66ccff;
+            box-shadow: 0 0 15px #00aaff40;
+        }
+        /* 移除浮动效果，只保留边框变化 */
         .site-card:hover {
             border-color: #3c8dbc;
-            transform: translateX(4px);
         }
 
-        .site-info {
+        /* 左侧操作区 */
+        .card-actions {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-            flex: 1 1 180px;
+            gap: 0.2rem;
+            flex-shrink: 0;
+        }
+        .drag-handle {
+            font-size: 1.4rem;
+            color: #5a7a9a;
+            cursor: grab;
+            padding: 0.2rem 0.2rem 0 0.2rem;
+            line-height: 1;
+            touch-action: none;
+            user-select: none;
+            transition: color 0.2s;
+        }
+        .drag-handle:hover {
+            color: #8ab3d6;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
         }
 
+        .delete-btn {
+            background: transparent;
+            border: 1px solid #3a4f6a;
+            color: #8ab3d6;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            line-height: 1;
+            touch-action: manipulation;
+        }
+        .delete-btn:hover {
+            background: #ff3b3b20;
+            border-color: #ff3b3b;
+            color: #ff6b6b;
+        }
+
+        /* 中间名称 */
         .site-name {
             font-weight: 600;
             font-size: 1.1rem;
             color: #cde0ff;
+            flex: 0 1 auto;
+            min-width: 60px;
             word-break: break-word;
+            margin-right: auto;
         }
 
+        /* 右侧链接 */
         .site-link {
             background: #0b1422;
             padding: 0.3rem 0.9rem;
@@ -172,6 +225,8 @@
             align-items: center;
             gap: 4px;
             white-space: nowrap;
+            touch-action: manipulation;
+            flex-shrink: 0;
         }
         .site-link:hover {
             background: #00aaff20;
@@ -179,39 +234,7 @@
             border-color: #00aaff;
         }
 
-        .site-actions {
-            display: flex;
-            gap: 0.3rem;
-            flex-shrink: 0;
-        }
-
-        .site-actions button {
-            background: transparent;
-            border: 1px solid #3a4f6a;
-            color: #8ab3d6;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-family: inherit;
-            line-height: 1;
-        }
-        .site-actions button:hover {
-            background: #00aaff20;
-            border-color: #00aaff;
-            color: white;
-        }
-        .site-actions .delete-btn:hover {
-            background: #ff3b3b20;
-            border-color: #ff3b3b;
-            color: #ff6b6b;
-        }
-
+        /* 添加表单 */
         .add-form {
             display: flex;
             gap: 0.6rem;
@@ -228,7 +251,6 @@
             color: #cde0ff;
             font-family: inherit;
             font-size: 0.9rem;
-            flex: 1 1 130px;
             outline: none;
             transition: 0.2s;
         }
@@ -237,6 +259,14 @@
         }
         .add-form input::placeholder {
             color: #4a6080;
+        }
+        .add-form #siteNameInput {
+            flex: 0 1 130px; /* 名称框短一些 */
+            min-width: 80px;
+        }
+        .add-form #siteUrlInput {
+            flex: 2 1 180px; /* 网址框拉长 */
+            min-width: 120px;
         }
         .add-form .add-btn {
             background: #00aaff;
@@ -250,6 +280,7 @@
             transition: 0.2s;
             font-family: inherit;
             flex: 0 0 auto;
+            touch-action: manipulation;
         }
         .add-form .add-btn:hover {
             background: #66ccff;
@@ -285,11 +316,14 @@
 
         @media (max-width: 480px) {
             .content { padding: 1.2rem; }
-            .site-card { flex-direction: column; align-items: stretch; }
-            .site-info { flex: 1 1 auto; }
-            .site-actions { justify-content: flex-end; }
-            .add-form input { flex: 1 1 100%; }
+            .add-form #siteNameInput { flex: 1 1 100%; }
+            .add-form #siteUrlInput { flex: 1 1 100%; }
             .add-form .add-btn { flex: 1 1 100%; }
+            .site-card { flex-wrap: wrap; gap: 0.3rem; }
+            .site-name { flex: 1 1 auto; margin-right: 0; }
+            .card-actions { order: 0; }
+            .site-name { order: 1; }
+            .site-link { order: 2; }
         }
     </style>
 </head>
@@ -308,12 +342,10 @@
                 <button class="reset-btn" id="resetDefaultBtn">↻ 恢复默认</button>
             </div>
 
-            <!-- 卡片列表容器 -->
             <ul class="site-list" id="siteList"></ul>
 
-            <!-- 添加表单 -->
             <div class="add-form">
-                <input type="text" id="siteNameInput" placeholder="站点名称 (如 arXiv)" />
+                <input type="text" id="siteNameInput" placeholder="名称 (如 arXiv)" />
                 <input type="url" id="siteUrlInput" placeholder="网址 (如 https://arxiv.org)" />
                 <button class="add-btn" id="addSiteBtn">＋ 添加</button>
             </div>
@@ -321,7 +353,7 @@
             <div class="datetime-display" id="dashboardDatetime">--年--月--日 --:--:--</div>
             <div class="footer-note">
                 <a href="https://wallesspku.org" target="_blank">需要梯子？</a><br><br>
-                网页建立时间：2026年7月30日<br>© 2026 铜香结<br>Powered by GitHub Pages
+                网页建立时间：2026年7月30日<br>© 2026 铜香结 版权所有<br>Powered by GitHub Pages
             </div>
         </div>
     </div>
@@ -329,10 +361,10 @@
 
 <script>
     (function() {
-        // ═══ 默认站点数据 ═══
+        // ═══ 默认站点 ═══
         const DEFAULT_SITES = [
             { id: 'default-1', name: 'Google Scholar', url: 'https://scholar.google.com/' },
-            { id: 'default-2', name: '中国知网(CNKI)', url: 'http://www.cnki.net/' },
+            { id: 'default-2', name: '中国知网（CNKI）', url: 'http://www.cnki.net/' },
             { id: 'default-3', name: '读秀', url: 'https://www.duxiu.com/' },
             { id: 'default-4', name: '清华大学图书馆', url: 'https://lib.tsinghua.edu.cn/' }
         ];
@@ -352,7 +384,6 @@
                     if (Array.isArray(parsed) && parsed.length) return parsed;
                 }
             } catch (e) { /* ignore */ }
-            // 无数据或解析失败则写入默认并返回
             localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SITES));
             return [...DEFAULT_SITES];
         }
@@ -361,102 +392,202 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
         }
 
-        // ─── 渲染 ───
-        function renderSites() {
-            const sites = loadSites();
+        // ─── 拖拽排序核心 ───
+        let sites = loadSites();
+        let dragState = null; // { element, index, startY, offsetY, clone? }
+
+        function getCardElements() {
+            return document.querySelectorAll('.site-card');
+        }
+
+        function getCardIndex(element) {
+            const items = getCardElements();
+            for (let i = 0; i < items.length; i++) {
+                if (items[i] === element) return i;
+            }
+            return -1;
+        }
+
+        // 重新渲染整个列表（保留当前sites数组）
+        function render() {
             const container = document.getElementById('siteList');
             container.innerHTML = '';
-
             sites.forEach((site, index) => {
                 const li = document.createElement('li');
                 li.className = 'site-card';
                 li.dataset.id = site.id;
+                li.dataset.index = index;
 
-                // 信息区
-                const infoDiv = document.createElement('div');
-                infoDiv.className = 'site-info';
+                // 左侧操作区
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'card-actions';
 
+                // 拖动手柄 ≡
+                const handle = document.createElement('span');
+                handle.className = 'drag-handle';
+                handle.textContent = '≡';
+                handle.setAttribute('draggable', 'false');
+                handle.addEventListener('mousedown', onDragStart);
+                handle.addEventListener('touchstart', onDragStart, { passive: false });
+                actionsDiv.appendChild(handle);
+
+                // 删除按钮 ×
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = '×';
+                delBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deleteSite(index);
+                });
+                actionsDiv.appendChild(delBtn);
+
+                // 中间名称
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'site-name';
                 nameSpan.textContent = site.name;
 
+                // 右侧链接
                 const linkA = document.createElement('a');
                 linkA.className = 'site-link';
                 linkA.href = site.url;
                 linkA.target = '_blank';
                 linkA.textContent = site.url.replace(/^https?:\/\//, '').replace(/\/$/, '') + ' ↗';
 
-                infoDiv.appendChild(nameSpan);
-                infoDiv.appendChild(linkA);
-
-                // 操作按钮组
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'site-actions';
-
-                // 上移
-                const upBtn = document.createElement('button');
-                upBtn.innerHTML = '↑';
-                upBtn.title = '上移';
-                upBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    moveSite(index, -1);
-                });
-                // 下移
-                const downBtn = document.createElement('button');
-                downBtn.innerHTML = '↓';
-                downBtn.title = '下移';
-                downBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    moveSite(index, 1);
-                });
-                // 删除
-                const delBtn = document.createElement('button');
-                delBtn.innerHTML = '×';
-                delBtn.className = 'delete-btn';
-                delBtn.title = '删除';
-                delBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    deleteSite(index);
-                });
-
-                actionsDiv.appendChild(upBtn);
-                actionsDiv.appendChild(downBtn);
-                actionsDiv.appendChild(delBtn);
-
-                li.appendChild(infoDiv);
                 li.appendChild(actionsDiv);
+                li.appendChild(nameSpan);
+                li.appendChild(linkA);
                 container.appendChild(li);
+            });
+            // 更新索引 data 属性（用于拖拽时快速获取）
+            updateIndices();
+        }
+
+        function updateIndices() {
+            const cards = getCardElements();
+            cards.forEach((card, idx) => {
+                card.dataset.index = idx;
             });
         }
 
+        // ─── 拖拽事件 ───
+        let dragData = null;
+
+        function onDragStart(e) {
+            e.preventDefault(); // 防止选择文本或默认拖拽
+            const handle = e.currentTarget;
+            const card = handle.closest('.site-card');
+            if (!card) return;
+            const index = parseInt(card.dataset.index, 10);
+            if (isNaN(index)) return;
+
+            const rect = card.getBoundingClientRect();
+            const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+
+            dragData = {
+                card: card,
+                index: index,
+                offsetY: clientY - rect.top,
+                startIndex: index,
+                clone: null,
+                moveHandler: null,
+                upHandler: null
+            };
+
+            // 克隆一个占位元素用于跟随（可选），这里我们用原卡片跟随，其他卡片移位
+            card.classList.add('dragging');
+
+            // 记录鼠标/触摸移动和释放事件
+            const moveEvent = e.type === 'touchstart' ? 'touchmove' : 'mousemove';
+            const upEvent = e.type === 'touchstart' ? 'touchend' : 'mouseup';
+
+            const onMove = function(ev) {
+                ev.preventDefault();
+                const clientY = ev.type === 'touchmove' ? ev.touches[0].clientY : ev.clientY;
+                const container = document.getElementById('siteList');
+                const cards = getCardElements();
+                // 计算当前应该插入的位置
+                let targetIndex = -1;
+                const cardRects = [];
+                cards.forEach((c, idx) => {
+                    if (c === dragData.card) return;
+                    const r = c.getBoundingClientRect();
+                    cardRects.push({ idx, rect: r });
+                });
+                // 找到最近的卡片
+                let minDist = Infinity;
+                for (let item of cardRects) {
+                    const centerY = item.rect.top + item.rect.height / 2;
+                    const dist = Math.abs(clientY - centerY);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        targetIndex = item.idx;
+                    }
+                }
+                // 如果拖到最上方或最下方
+                if (targetIndex === -1) {
+                    // 如果鼠标在第一个卡片上方，targetIndex = 0
+                    const first = cards[0];
+                    if (first && clientY < first.getBoundingClientRect().top) {
+                        targetIndex = 0;
+                    } else {
+                        const last = cards[cards.length - 1];
+                        if (last && clientY > last.getBoundingClientRect().bottom) {
+                            targetIndex = cards.length;
+                        }
+                    }
+                }
+
+                // 如果目标位置与当前索引不同，则调整数组顺序
+                const currentIndex = dragData.index;
+                if (targetIndex !== -1 && targetIndex !== currentIndex) {
+                    // 移动数组元素
+                    const moved = sites.splice(currentIndex, 1)[0];
+                    let insertIndex = targetIndex;
+                    if (targetIndex > currentIndex) insertIndex = targetIndex - 1; // 因为删除了一个
+                    sites.splice(insertIndex, 0, moved);
+                    // 更新索引
+                    dragData.index = insertIndex;
+                    // 重新渲染列表，保持拖动状态
+                    render();
+                    // 重新获取卡片并恢复拖动样式
+                    const newCards = getCardElements();
+                    const draggedCard = newCards[insertIndex];
+                    if (draggedCard) {
+                        draggedCard.classList.add('dragging');
+                        // 将拖动卡片滚动到可视区域（可选）
+                    }
+                    dragData.card = draggedCard;
+                    updateIndices();
+                }
+            };
+
+            const onUp = function(ev) {
+                // 清除拖动样式
+                document.querySelectorAll('.site-card.dragging').forEach(c => c.classList.remove('dragging'));
+                // 清理事件
+                document.removeEventListener(moveEvent, onMove);
+                document.removeEventListener(upEvent, onUp);
+                dragData = null;
+                // 保存数据
+                saveSites(sites);
+            };
+
+            document.addEventListener(moveEvent, onMove);
+            document.addEventListener(upEvent, onUp);
+            dragData.moveHandler = onMove;
+            dragData.upHandler = onUp;
+        }
+
         // ─── 操作函数 ───
-        function getCurrentSites() {
-            return loadSites();
-        }
-
-        function saveAndRender(sites) {
-            saveSites(sites);
-            renderSites();
-        }
-
-        function moveSite(index, direction) {
-            const sites = getCurrentSites();
-            const newIndex = index + direction;
-            if (newIndex < 0 || newIndex >= sites.length) return;
-            // 交换
-            [sites[index], sites[newIndex]] = [sites[newIndex], sites[index]];
-            saveAndRender(sites);
-        }
-
         function deleteSite(index) {
-            const sites = getCurrentSites();
             if (sites.length <= 1) {
-                alert('至少保留一个站点！');
+                alert('请至少保留一个站点。');
                 return;
             }
             if (!confirm(`确定要删除“${sites[index].name}”吗？`)) return;
             sites.splice(index, 1);
-            saveAndRender(sites);
+            saveSites(sites);
+            render();
         }
 
         function addSite(name, url) {
@@ -466,34 +597,31 @@
                 alert('请输入站点名称和网址。');
                 return false;
             }
-            // 简单 URL 格式校验
             try {
                 new URL(url);
             } catch (_) {
                 alert('请输入有效的网址！');
                 return false;
             }
-            const sites = getCurrentSites();
-            const newSite = {
-                id: generateId(),
-                name: name,
-                url: url
-            };
+            const newSite = { id: generateId(), name, url };
             sites.push(newSite);
-            saveAndRender(sites);
+            saveSites(sites);
+            render();
             return true;
         }
 
         function resetToDefault() {
-            if (!confirm('确认恢复为默认站点列表吗？当前所有自定义修改将丢失。')) return;
-            saveSites(DEFAULT_SITES);
-            renderSites();
+            if (!confirm('确认恢复默认吗？当前所有自定义修改将丢失。')) return;
+            sites = DEFAULT_SITES.map(s => ({ ...s }));
+            saveSites(sites);
+            render();
         }
 
         // ─── 初始化 ───
         function init() {
-            // 渲染列表
-            renderSites();
+            // 加载数据
+            sites = loadSites();
+            render();
 
             // 添加按钮事件
             document.getElementById('addSiteBtn').addEventListener('click', function() {
@@ -504,24 +632,16 @@
                     urlInput.value = '';
                 }
             });
-            // 回车快捷添加（在输入框中按回车触发添加）
             document.getElementById('siteNameInput').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('addSiteBtn').click();
-                }
+                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addSiteBtn').click(); }
             });
             document.getElementById('siteUrlInput').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('addSiteBtn').click();
-                }
+                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addSiteBtn').click(); }
             });
 
-            // 恢复默认按钮
             document.getElementById('resetDefaultBtn').addEventListener('click', resetToDefault);
 
-            // 时钟更新
+            // 时钟
             function formatCurrentDateTime() {
                 const now = new Date();
                 return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
@@ -534,7 +654,6 @@
             setInterval(updateDatetime, 1000);
         }
 
-        // 页面完全加载后执行
         if (document.readyState === 'complete') {
             init();
         } else {
@@ -543,10 +662,10 @@
     })();
 </script>
 
-<!-- Service Worker 注册（保留） -->
+<!-- Service Worker -->
 <script>
-if ('serviceWorker' in navigator) { 
-    navigator.serviceWorker.register('../sw.js').catch(e => console.warn('SW注册失败', e)); 
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('../sw.js').catch(e => console.warn('SW注册失败', e));
 }
 </script>
 </body>
