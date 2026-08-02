@@ -20,6 +20,10 @@ const hk_bocData = {
         {
             seriesName: "1994～2001年版",
             year: "1994～2001",
+            readme: {
+                title: "新时期中国银行纸币——港币",
+                content: "file:readmes/hk_boc_1994.txt"
+            },
             varieties: [
                 {
                     varietyName: "港币20元 中区及湾仔商业楼群",
