@@ -1,0 +1,129 @@
+<center>
+<b><span style="font-size:1.1em;">新时期中国银行纸币——港币</span></b><br>
+<span style="font-size:0.85em;">（转载自https://www.boc.cn/aboutboc/ab4/200812/t20081205_18410.html）</span>
+</center>
+<br>
+
+<p>1994-1999年，中国银行在香港分别发行了由托马斯德拉鲁(香港)有限公司、香港印钞有限公司印制面额为贰拾圆、伍拾圆、壹佰圆、伍佰圆、壹仟圆的港币。</p>
+
+<center><span style="color:#555555; font-size:0.85rem;">托马斯德拉鲁(香港)有限公司印制1994年版</span></center>
+<center><img src="readmes/image/lecb/hkboc_1994_1.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1994_2.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1994_3.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1994_4.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1994_5.jpg" width="80%"></center>
+
+<TABLE border=1 cellSpacing=0 cellPadding=3 width=500 align=center>
+<TBODY>
+<TR align=middle>
+<TD>券名</TD>
+<TD>面值</TD>
+<TD>图案</TD>
+<TD>主色</TD>
+<TD>票幅</TD>
+<TD>印刷</TD>
+<TD>年份</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>贰拾圆</TD>
+<TD>正面为中银大厦、水仙花、中行行标图；背面为中区及湾仔商业楼群图</TD>
+<TD>正反面为蓝色</TD>
+<TD>143×71.5</TD>
+<TD>托马斯德拉鲁（香港）有限公司</TD>
+<TD>正面为“一九九四年五月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>伍拾圆</TD>
+<TD>正面为中银大厦、菊花、中行行标图；背面为香港海底隧道图</TD>
+<TD>正反面为紫色</TD>
+<TD>148×74</TD>
+<TD>托马斯德拉鲁（香港）有限公司</TD>
+<TD>正面为“一九九四年五月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>壹佰圆</TD>
+<TD>正面为中银大厦、荷花、中行行标图；背面为九龙半岛景色图</TD>
+<TD>正反面为红色</TD>
+<TD>153×76.5</TD>
+<TD>托马斯德拉鲁（香港）有限公司</TD>
+<TD>正面为“一九九四年五月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>伍佰圆</TD>
+<TD>正面为中银大厦、牡丹花、中行行标图；背面为葵涌货柜码头图</TD>
+<TD>正反面为褐色</TD>
+<TD>158×79</TD>
+<TD>托马斯德拉鲁（香港）有限公司</TD>
+<TD>正面为“一九九四年五月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>壹仟圆</TD>
+<TD>正面为中银大厦、紫荆花、中行行标图；背面为中区金融中心图</TD>
+<TD>正反面为桔黄色</TD>
+<TD>163×81.5</TD>
+<TD>托马斯德拉鲁（香港）有限公司</TD>
+<TD>正面为“一九九四年五月一日”</TD></TR>
+<TR>
+<TD colSpan=7>中国银行发行的1994、1995年版港币由托马斯德拉鲁（香港）有限公司印刷，除正面签字人及发行年份不同外，其他要素均相同。</TD></TR>
+</TBODY></TABLE>
+
+<center><span style="color:#555555; font-size:0.85rem;">香港印钞有限公司印制1997年版</span></center>
+<center><img src="readmes/image/lecb/hkboc_1997_1.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1997_2.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1997_3.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1997_4.jpg" width="80%"></center>
+<center><img src="readmes/image/lecb/hkboc_1997_5.jpg" width="80%"></center>
+
+<TABLE border=1 cellSpacing=0 cellPadding=3 width=500 align=center>
+<TBODY>
+<TR align=middle>
+<TD>券名</TD>
+<TD>面值</TD>
+<TD>图案</TD>
+<TD>主色</TD>
+<TD>票幅</TD>
+<TD>印刷</TD>
+<TD>年份</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>贰拾圆</TD>
+<TD>正面为中银大厦、水仙花、中行行标图；背面为中区及湾仔商业楼群图</TD>
+<TD>正反面为蓝色</TD>
+<TD>143×71.5</TD>
+<TD>香港印钞有限公司</TD>
+<TD>正面为“一九九七年七月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>伍拾圆</TD>
+<TD>正面为中银大厦、菊花、中行行标图；背面为香港海底隧道图</TD>
+<TD>正反面为紫色</TD>
+<TD>148×74</TD>
+<TD>香港印钞有限公司</TD>
+<TD>正面为“一九九七年七月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>壹佰圆</TD>
+<TD>正面为中银大厦、荷花、中行行标图；背面为九龙半岛景色图</TD>
+<TD>正反面为红色</TD>
+<TD>153×76.5</TD>
+<TD>香港印钞有限公司</TD>
+<TD>正面为“一九九七年七月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>伍佰圆</TD>
+<TD>正面为中银大厦、牡丹花、中行行标图；背面为葵涌货柜码头图</TD>
+<TD>正反面为褐色</TD>
+<TD>158×79</TD>
+<TD>香港印钞有限公司</TD>
+<TD>正面为“一九九七年七月一日”</TD></TR>
+<TR>
+<TD>港币</TD>
+<TD>壹仟圆</TD>
+<TD>正面为中银大厦、紫荆花、中行行标图；背面为中区金融中心图</TD>
+<TD>正反面为桔黄色</TD>
+<TD>163×81.5</TD>
+<TD>香港印钞有限公司</TD>
+<TD>正面为“一九九七年七月一日”</TD></TR>
+<TR>
+<TD colSpan=7>中国银行发行的1997年版港币由香港印钞有限公司印刷，除正面签字人及发行年份不同外，其他要素均相同。</TD></TR>
+</TBODY></TABLE>
