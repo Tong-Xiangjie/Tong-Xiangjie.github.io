@@ -13,7 +13,7 @@
 <center><img src="readmes/image/hk_boc/hkboc_1994_4.jpg" width="80%"></center>
 <center><img src="readmes/image/hk_boc/hkboc_1994_5.jpg" width="80%"></center>
 
-<!-- ========== 改进后的表格1（1994年版） ========== -->
+<!-- ========== 修改后的表格1（1994年版） ========== -->
 <table border="1" cellspacing="0" cellpadding="10"
        style="border-collapse: collapse;
               margin: 20px auto;
@@ -22,65 +22,76 @@
               font-size: 14px;
               font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
               box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <!-- 新增 colgroup 控制列宽，券名、面值加宽，图案压缩，其他列保持合理宽度 -->
+    <colgroup>
+        <col style="width: 7%;">
+        <col style="width: 10%;">
+        <col style="width: 30%;">
+        <col style="width: 10%;">
+        <col style="width: 9%;">
+        <col style="width: 18%;">
+        <col style="width: 16%;">
+    </colgroup>
     <thead>
-        <tr style="background-color: #f5f7fa; font-weight: 600;">
-            <td>券名</td>
-            <td>面值</td>
-            <td>图案</td>
-            <td>主色</td>
-            <td>票幅</td>
-            <td>印刷</td>
-            <td>年份</td>
+        <!-- 将 td 改为 th，并添加 text-align:center 使表头居中 -->
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>券名</th>
+            <th>面值</th>
+            <th>图案</th>
+            <th>主色</th>
+            <th>票幅</th>
+            <th>印刷</th>
+            <th>年份</th>
         </tr>
     </thead>
     <tbody>
         <tr>
-            <td>港币</td>
-            <td>贰拾圆</td>
-            <td>正面为中银大厦、水仙花、中行行标图；背面为中区及湾仔商业楼群图</td>
-            <td>正反面为蓝色</td>
-            <td>143×71.5</td>
-            <td>托马斯德拉鲁（香港）有限公司</td>
-            <td>正面为“一九九四年五月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">贰拾圆</td>
+            <td style="text-align: center;">正面为中银大厦、水仙花、中行行标图；背面为中区及湾仔商业楼群图</td>
+            <td style="text-align: center;">正反面为蓝色</td>
+            <td style="text-align: center;">143×71.5</td>
+            <td style="text-align: center;">托马斯德拉鲁（香港）有限公司</td>
+            <td style="text-align: center;">正面为“一九九四年五月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>伍拾圆</td>
-            <td>正面为中银大厦、菊花、中行行标图；背面为香港海底隧道图</td>
-            <td>正反面为紫色</td>
-            <td>148×74</td>
-            <td>托马斯德拉鲁（香港）有限公司</td>
-            <td>正面为“一九九四年五月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">伍拾圆</td>
+            <td style="text-align: center;">正面为中银大厦、菊花、中行行标图；背面为香港海底隧道图</td>
+            <td style="text-align: center;">正反面为紫色</td>
+            <td style="text-align: center;">148×74</td>
+            <td style="text-align: center;">托马斯德拉鲁（香港）有限公司</td>
+            <td style="text-align: center;">正面为“一九九四年五月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>壹佰圆</td>
-            <td>正面为中银大厦、荷花、中行行标图；背面为九龙半岛景色图</td>
-            <td>正反面为红色</td>
-            <td>153×76.5</td>
-            <td>托马斯德拉鲁（香港）有限公司</td>
-            <td>正面为“一九九四年五月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">壹佰圆</td>
+            <td style="text-align: center;">正面为中银大厦、荷花、中行行标图；背面为九龙半岛景色图</td>
+            <td style="text-align: center;">正反面为红色</td>
+            <td style="text-align: center;">153×76.5</td>
+            <td style="text-align: center;">托马斯德拉鲁（香港）有限公司</td>
+            <td style="text-align: center;">正面为“一九九四年五月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>伍佰圆</td>
-            <td>正面为中银大厦、牡丹花、中行行标图；背面为葵涌货柜码头图</td>
-            <td>正反面为褐色</td>
-            <td>158×79</td>
-            <td>托马斯德拉鲁（香港）有限公司</td>
-            <td>正面为“一九九四年五月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">伍佰圆</td>
+            <td style="text-align: center;">正面为中银大厦、牡丹花、中行行标图；背面为葵涌货柜码头图</td>
+            <td style="text-align: center;">正反面为褐色</td>
+            <td style="text-align: center;">158×79</td>
+            <td style="text-align: center;">托马斯德拉鲁（香港）有限公司</td>
+            <td style="text-align: center;">正面为“一九九四年五月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>壹仟圆</td>
-            <td>正面为中银大厦、紫荆花、中行行标图；背面为中区金融中心图</td>
-            <td>正反面为桔黄色</td>
-            <td>163×81.5</td>
-            <td>托马斯德拉鲁（香港）有限公司</td>
-            <td>正面为“一九九四年五月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">壹仟圆</td>
+            <td style="text-align: center;">正面为中银大厦、紫荆花、中行行标图；背面为中区金融中心图</td>
+            <td style="text-align: center;">正反面为桔黄色</td>
+            <td style="text-align: center;">163×81.5</td>
+            <td style="text-align: center;">托马斯德拉鲁（香港）有限公司</td>
+            <td style="text-align: center;">正面为“一九九四年五月一日”</td>
         </tr>
         <tr>
-            <td colspan="7" style="padding: 14px 10px; background-color: #fafbfc; font-size: 13px; color: #444;">
+            <td colspan="7" style="padding: 14px 10px; background-color: #fafbfc; font-size: 13px; color: #444; text-align: center;">
                 中国银行发行的1994、1995年版港币由托马斯德拉鲁（香港）有限公司印刷，除正面签字人及发行年份不同外，其他要素均相同。
             </td>
         </tr>
@@ -96,7 +107,7 @@
 <center><img src="readmes/image/hk_boc/hkboc_1997_4.jpg" width="80%"></center>
 <center><img src="readmes/image/hk_boc/hkboc_1997_5.jpg" width="80%"></center>
 
-<!-- ========== 改进后的表格2（1997年版） ========== -->
+<!-- ========== 修改后的表格2（1997年版） ========== -->
 <table border="1" cellspacing="0" cellpadding="10"
        style="border-collapse: collapse;
               margin: 20px auto;
@@ -105,65 +116,74 @@
               font-size: 14px;
               font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
               box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 7%;">
+        <col style="width: 10%;">
+        <col style="width: 30%;">
+        <col style="width: 10%;">
+        <col style="width: 9%;">
+        <col style="width: 18%;">
+        <col style="width: 16%;">
+    </colgroup>
     <thead>
-        <tr style="background-color: #f5f7fa; font-weight: 600;">
-            <td>券名</td>
-            <td>面值</td>
-            <td>图案</td>
-            <td>主色</td>
-            <td>票幅</td>
-            <td>印刷</td>
-            <td>年份</td>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>券名</th>
+            <th>面值</th>
+            <th>图案</th>
+            <th>主色</th>
+            <th>票幅</th>
+            <th>印刷</th>
+            <th>年份</th>
         </tr>
     </thead>
     <tbody>
         <tr>
-            <td>港币</td>
-            <td>贰拾圆</td>
-            <td>正面为中银大厦、水仙花、中行行标图；背面为中区及湾仔商业楼群图</td>
-            <td>正反面为蓝色</td>
-            <td>143×71.5</td>
-            <td>香港印钞有限公司</td>
-            <td>正面为“一九九七年七月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">贰拾圆</td>
+            <td style="text-align: center;">正面为中银大厦、水仙花、中行行标图；背面为中区及湾仔商业楼群图</td>
+            <td style="text-align: center;">正反面为蓝色</td>
+            <td style="text-align: center;">143×71.5</td>
+            <td style="text-align: center;">香港印钞有限公司</td>
+            <td style="text-align: center;">正面为“一九九七年七月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>伍拾圆</td>
-            <td>正面为中银大厦、菊花、中行行标图；背面为香港海底隧道图</td>
-            <td>正反面为紫色</td>
-            <td>148×74</td>
-            <td>香港印钞有限公司</td>
-            <td>正面为“一九九七年七月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">伍拾圆</td>
+            <td style="text-align: center;">正面为中银大厦、菊花、中行行标图；背面为香港海底隧道图</td>
+            <td style="text-align: center;">正反面为紫色</td>
+            <td style="text-align: center;">148×74</td>
+            <td style="text-align: center;">香港印钞有限公司</td>
+            <td style="text-align: center;">正面为“一九九七年七月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>壹佰圆</td>
-            <td>正面为中银大厦、荷花、中行行标图；背面为九龙半岛景色图</td>
-            <td>正反面为红色</td>
-            <td>153×76.5</td>
-            <td>香港印钞有限公司</td>
-            <td>正面为“一九九七年七月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">壹佰圆</td>
+            <td style="text-align: center;">正面为中银大厦、荷花、中行行标图；背面为九龙半岛景色图</td>
+            <td style="text-align: center;">正反面为红色</td>
+            <td style="text-align: center;">153×76.5</td>
+            <td style="text-align: center;">香港印钞有限公司</td>
+            <td style="text-align: center;">正面为“一九九七年七月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>伍佰圆</td>
-            <td>正面为中银大厦、牡丹花、中行行标图；背面为葵涌货柜码头图</td>
-            <td>正反面为褐色</td>
-            <td>158×79</td>
-            <td>香港印钞有限公司</td>
-            <td>正面为“一九九七年七月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">伍佰圆</td>
+            <td style="text-align: center;">正面为中银大厦、牡丹花、中行行标图；背面为葵涌货柜码头图</td>
+            <td style="text-align: center;">正反面为褐色</td>
+            <td style="text-align: center;">158×79</td>
+            <td style="text-align: center;">香港印钞有限公司</td>
+            <td style="text-align: center;">正面为“一九九七年七月一日”</td>
         </tr>
         <tr>
-            <td>港币</td>
-            <td>壹仟圆</td>
-            <td>正面为中银大厦、紫荆花、中行行标图；背面为中区金融中心图</td>
-            <td>正反面为桔黄色</td>
-            <td>163×81.5</td>
-            <td>香港印钞有限公司</td>
-            <td>正面为“一九九七年七月一日”</td>
+            <td style="text-align: center;">港币</td>
+            <td style="text-align: center;">壹仟圆</td>
+            <td style="text-align: center;">正面为中银大厦、紫荆花、中行行标图；背面为中区金融中心图</td>
+            <td style="text-align: center;">正反面为桔黄色</td>
+            <td style="text-align: center;">163×81.5</td>
+            <td style="text-align: center;">香港印钞有限公司</td>
+            <td style="text-align: center;">正面为“一九九七年七月一日”</td>
         </tr>
         <tr>
-            <td colspan="7" style="padding: 14px 10px; background-color: #fafbfc; font-size: 13px; color: #444;">
+            <td colspan="7" style="padding: 14px 10px; background-color: #fafbfc; font-size: 13px; color: #444; text-align: center;">
                 中国银行发行的1997年版港币由香港印钞有限公司印刷，除正面签字人及发行年份不同外，其他要素均相同。
             </td>
         </tr>
