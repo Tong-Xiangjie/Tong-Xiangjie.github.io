@@ -18,25 +18,57 @@ const republic_bocData = {
     ],
     series: [
         {
-            seriesName: "1937年 10元",
+            seriesName: "中华民国二十六年（1937年） 德纳罗版 法币券 ",
             year: "1937",
-            copies: [
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1937,
-                    version: "AH799383",
-                    bank: "中国银行",
-                    print: "德纳罗印钞公司/TDLR",
-                    issueDate: "",
-                    withdrawnDate: "",
-                    size: "79mm*162mm",
-                    condition: "ACG64E",
-                    price: "90元",
-                    purchaseDate: "2026年1月24日",
-                    krause: "81",
-                    remark: "水印/Wmk：天坛祈年殿/Pagoda",
-                    img1: "image/republic_boc/AH799383-1.jpg",
-                    img2: "image/republic_boc/AH799383-2.jpg"
+                    varietyName: "1937年 10元 上海中国银行大楼",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1937,
+                            version: "AH799383",
+                            bank: "中国银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "79mm*162mm",
+                            condition: "ACG64E",
+                            price: "90元",
+                            purchaseDate: "2026年1月24日",
+                            krause: "81",
+                            remark: "双字轨；水印/Wmk：天坛祈年殿/Pagoda",
+                            img1: "image/republic_boc/AH799383-1.jpg",
+                            img2: "image/republic_boc/AH799383-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国二十九年（1940年） 美钞版 法币券 ",
+            year: "1940",
+            varieties: [
+                {
+                    varietyName: "1937年 10元 上海中国银行大楼",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1940,
+                            version: "Z636608B",
+                            bank: "中国银行",
+                            print: "美国钞票公司/ABNC",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG64E",
+                            price: "80元",
+                            purchaseDate: "2026年8月7日",
+                            krause: "85b",
+                            remark: "正背面双字轨",
+                            img1: "image/republic_boc/Z636608B-1.jpg",
+                            img2: "image/republic_boc/Z636608B-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
