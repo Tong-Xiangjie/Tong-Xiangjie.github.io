@@ -49,7 +49,7 @@ const republic_bocData = {
             year: "1940",
             varieties: [
                 {
-                    varietyName: "1937年 10元 上海中国银行大楼",
+                    varietyName: "1940年 10元 天坛",
                     copies: [
                         {
                             copyId: 1,
