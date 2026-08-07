@@ -1,4 +1,3 @@
-// data/gkq.js
 const gkqData = {
     name: "国库券",
     icon: null,
@@ -67,7 +66,7 @@ const gkqData = {
                     ]
                 }
             ]
-        }, 
+        },
         // ==================== 1983年 ====================
         {
             seriesName: "1983年",
@@ -115,7 +114,8 @@ const gkqData = {
                             img2: "image/gkq/ⅢⅡ09191201-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "10元 海南橡胶林",
                     copies: [
                         {
@@ -157,7 +157,8 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅡ83410889-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "10元 云南石林",
                     copies: [
                         {
@@ -174,12 +175,12 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅠ64357754-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "20元 黄果树瀑布",
-                    copies: [
-                        
-                    ]
-                },{
+                    copies: []
+                },
+                {
                     varietyName: "50元 云南风光",
                     copies: [
                         {
@@ -196,7 +197,8 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅠ40955834-2.jpg"
                         }
                     ]
-                },{
+                },
+                {
                     varietyName: "100元 桂林山水",
                     copies: [
                         {
@@ -213,7 +215,10 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅠ38182121-2.jpg"
                         }
                     ]
-                },// ==================== 1991年 ====================
+                }
+            ]
+        },
+        // ==================== 1993年 ====================
         {
             seriesName: "1993年",
             year: "1993",
