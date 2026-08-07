@@ -213,6 +213,32 @@ const gkqData = {
                             img2: "image/gkq/ⅩⅠ38182121-2.jpg"
                         }
                     ]
+                },// ==================== 1991年 ====================
+        {
+            seriesName: "1993年",
+            year: "1993",
+            readme: {
+                title: "跟着纸币游中国 | 深圳火车站",
+                content: "file:readmes/20260807_shenzhenzhan.txt"
+            },
+            varieties: [
+                {
+                    varietyName: "100元 三年期 深圳火车站",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1993,
+                            version: "ⅩⅠ30102812",
+                            condition: "暂未评级",
+                            price: "196元",
+                            purchaseDate: "2026年7月20日",
+                            krause: "Unlisted",
+                            wmk: "GKQ五星水印/Stars & Letters",
+                            remark: "",
+                            img1: "image/gkq/ⅩⅠ30102812-1.jpg",
+                            img2: "image/gkq/ⅩⅠ30102812-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
