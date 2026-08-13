@@ -1,6 +1,6 @@
 history.scrollRestoration = 'manual';
 
-// ========== 新增 CDN 基础路径 ==========
+// ========== 新增CDN基础路径 ==========
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/';
 
 // 侧滑返回历史记录管理
