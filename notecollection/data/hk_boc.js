@@ -40,8 +40,8 @@ const hk_bocData = {
                             signature: "香港分行总经理：周振兴",
                             faceDate: "1994年5月1日",
                             remark: "首发冠",
-                            img1: "image/hk_boc/AA775221-1.jpg",
-                            img2: "image/hk_boc/AA775221-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AA775221-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AA775221-2.jpg"
                         }
                     ]
                 },
@@ -59,9 +59,9 @@ const hk_bocData = {
                             krause: "330b",
                             signature: "香港分行总经理：羊子林",
                             faceDate: "1996年1月1日",
-                            remark: "红磡海底隧道连接九龙红磡与香港岛铜锣湾，于1969年9月动工，历时近3年完成。1972年8月2日，时任香督麦理浩爵士主持了通车典礼，并亲自为隧道剪彩，隧道于当日下午正式向公众开放。红磡海底隧道是香港现代繁华的“起跑线”，它让香港作为一个整体城市而非两个独立的城区来运行。",
-                            img1: "image/hk_boc/AF724347-1.jpg",
-                            img2: "image/hk_boc/AF724347-2.jpg"
+                            remark: "红磡海底隧道连接九龙红磡与香港岛铜锣湾，于1969年9月动工，历时近3年完成。1972年8月2日，时任香督麦理浩爵士主持了通车典礼，并亲自为隧道剪彩，隧道于当日下午正式向公众开放。红磡海底隧道是香港现代繁华的"起跑线"，它让香港作为一个整体城市而非两个独立的城区来运行。",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AF724347-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AF724347-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -75,8 +75,8 @@ const hk_bocData = {
                             signature: "香港分行总经理：刘金宝",
                             faceDate: "1999年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/AZ261561-1.jpg",
-                            img2: "image/hk_boc/AZ261561-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AZ261561-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AZ261561-2.jpg"
                         },
                         {
                             copyId: 3,
@@ -90,8 +90,8 @@ const hk_bocData = {
                             signature: "香港分行总经理：刘金宝",
                             faceDate: "2000年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/AT691569-1.jpg",
-                            img2: "image/hk_boc/AT691569-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AT691569-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AT691569-2.jpg"
                         }
                     ]
                 },
@@ -110,8 +110,8 @@ const hk_bocData = {
                             signature: "香港分行总经理：刘金宝",
                             faceDate: "2000年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/CA253979-1.jpg",
-                            img2: "image/hk_boc/CA253979-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/CA253979-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/CA253979-2.jpg"
                         }
                     ]
                 }
@@ -137,8 +137,8 @@ const hk_bocData = {
                             signature: "总裁：和广北",
                             faceDate: "2008年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/HB778596-1.jpg",
-                            img2: "image/hk_boc/HB778596-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/HB778596-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/HB778596-2.jpg"
                         }
                     ]
                 },
@@ -157,8 +157,8 @@ const hk_bocData = {
                             signature: "总裁：和广北",
                             faceDate: "2009年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/DB198972-1.jpg",
-                            img2: "image/hk_boc/DB198972-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/DB198972-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/DB198972-2.jpg"
                         }
                     ]
                 }
@@ -184,8 +184,8 @@ const hk_bocData = {
                             signature: "总裁：岳毅",
                             faceDate: "2015年7月1日",
                             remark: "",
-                            img1: "image/hk_boc/JF775298-1.jpg",
-                            img2: "image/hk_boc/JF775298-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/JF775298-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/JF775298-2.jpg"
                         }
                     ]
                 }
@@ -211,8 +211,8 @@ const hk_bocData = {
                             signature: "总裁：高迎欣",
                             faceDate: "2018年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/AW102222-1.jpg",
-                            img2: "image/hk_boc/AW102222-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AW102222-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AW102222-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -226,8 +226,8 @@ const hk_bocData = {
                             signature: "总裁：孙煜",
                             faceDate: "2021年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/FQ880098-1.jpg",
-                            img2: "image/hk_boc/FQ880098-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/FQ880098-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/FQ880098-2.jpg"
                         },
                         {
                             copyId: 3,
@@ -241,8 +241,8 @@ const hk_bocData = {
                             signature: "总裁：孙煜",
                             faceDate: "2023年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/JA601300-1.jpg",
-                            img2: "image/hk_boc/JA601300-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/JA601300-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/JA601300-2.jpg"
                         }
                     ]
                 },
@@ -261,8 +261,8 @@ const hk_bocData = {
                             signature: "总裁：孙煜",
                             faceDate: "2023年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/BR046520-1.jpg",
-                            img2: "image/hk_boc/BR046520-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/BR046520-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/BR046520-2.jpg"
                         }
                     ]
                 },
@@ -281,8 +281,8 @@ const hk_bocData = {
                             signature: "总裁：高迎欣",
                             faceDate: "2018年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/AA739695-1.jpg",
-                            img2: "image/hk_boc/AA739695-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AA739695-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AA739695-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -296,8 +296,8 @@ const hk_bocData = {
                             signature: "总裁：孙煜",
                             faceDate: "2023年1月1日",
                             remark: "",
-                            img1: "image/hk_boc/EX015191-1.jpg",
-                            img2: "image/hk_boc/EX015191-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/EX015191-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/EX015191-2.jpg"
                         }
                     ]
                 }
