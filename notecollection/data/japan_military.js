@@ -66,8 +66,8 @@ const japanMilitaryData = {
                             size: "",
                             wmk: "无水印/Without watermark",
                             remark: "",
-                            img1: "image/japan_military/1-1.jpg",
-                            img2: "image/japan_military/1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan_military/1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan_military/1-2.jpg"
                         }
                 ] }
             ]
@@ -85,7 +85,7 @@ const japanMilitaryData = {
             ]
         },
 
-        // 戊号【无红字“军用手票”、单凤：1/5/10/100圆】
+        // 戊号【无红字"军用手票"、单凤：1/5/10/100圆】
         {
             seriesName: "戊号券",
             year: "1939",
