@@ -38,8 +38,8 @@ series: [
                             purchaseDate: "2026年2月4日",
                             krause: "117n",
                             remark: "火车头（橄色） 加盖黑上海；关于背面建筑的考证，见https://zhuanlan.zhihu.com/p/578041345",
-                            img1: "image/republic_communications/SB648728R-1.jpg",
-                            img2: "image/republic_communications/SB648728R-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_communications/SB648728R-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_communications/SB648728R-2.jpg"
                         }
                     ]
                 },{
@@ -59,8 +59,8 @@ series: [
                             withdrawnDate: "大楼（红色） 加盖蓝上海",
                             size: "79mm*162mm",
                             remark: "",
-                            img1: "image/republic_communications/SB052887D-1.jpg",
-                            img2: "image/republic_communications/SB052887D-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_communications/SB052887D-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_communications/SB052887D-2.jpg"
                         }
                     ]
                 }
