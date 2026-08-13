@@ -35,8 +35,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "1975年3月31日",
                             remark: "",
-                            img1: "image/hk_hsbc/328397FY-1.jpg",
-                            img2: "image/hk_hsbc/328397FY-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/328397FY-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/328397FY-2.jpg"
                         }
                     ]
                 }
@@ -62,8 +62,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "1992年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/VG198217-1.jpg",
-                            img2: "image/hk_hsbc/VG198217-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/VG198217-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/VG198217-2.jpg"
                         }
                     ]
                 },
@@ -82,8 +82,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "1989年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/BL611954-1.jpg",
-                            img2: "image/hk_hsbc/BL611954-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/BL611954-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/BL611954-2.jpg"
                         }
                     ]
                 }
@@ -109,8 +109,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2002年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/SC888085-1.jpg",
-                            img2: "image/hk_hsbc/SC888085-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/SC888085-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/SC888085-2.jpg"
                         }
                     ]
                 }
@@ -136,8 +136,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2013年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/LB666960-1.jpg",
-                            img2: "image/hk_hsbc/LB666960-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/LB666960-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/LB666960-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -151,8 +151,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2014年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/PF188690-1.jpg",
-                            img2: "image/hk_hsbc/PF188690-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/PF188690-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/PF188690-2.jpg"
                         },
                         {
                             copyId: 3,
@@ -166,8 +166,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2016年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/YT555510-1.jpg",
-                            img2: "image/hk_hsbc/YT555510-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/YT555510-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/YT555510-2.jpg"
                         }
                     ]
                 },
@@ -186,8 +186,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2010年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/BB926286-1.jpg",
-                            img2: "image/hk_hsbc/BB926286-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/BB926286-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/BB926286-2.jpg"
                         }, {
                             copyId: 2,
                             year: 2013,
@@ -200,8 +200,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2013年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/DT006806-1.jpg",
-                            img2: "image/hk_hsbc/DT006806-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/DT006806-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/DT006806-2.jpg"
                         }
                     ]
                 },
@@ -220,8 +220,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2010年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/DC908607-1.jpg",
-                            img2: "image/hk_hsbc/DC908607-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/DC908607-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/DC908607-2.jpg"
                         }
                     ]
                 }
@@ -247,8 +247,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2018年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/GB308600-1.jpg",
-                            img2: "image/hk_hsbc/GB308600-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/GB308600-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/GB308600-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -262,8 +262,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2020年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/LW669689-1.jpg",
-                            img2: "image/hk_hsbc/LW669689-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/LW669689-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/LW669689-2.jpg"
                         }
                     ]
                 },
@@ -282,8 +282,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2020年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/CZ388408-1.jpg",
-                            img2: "image/hk_hsbc/CZ388408-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/CZ388408-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/CZ388408-2.jpg"
                         }
                     ]
                 },
@@ -302,8 +302,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2018年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/AE102558-1.jpg",
-                            img2: "image/hk_hsbc/AE102558-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/AE102558-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/AE102558-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -317,8 +317,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2022年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/HE180186-1.jpg",
-                            img2: "image/hk_hsbc/HE180186-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/HE180186-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/HE180186-2.jpg"
                         }
                     ]
                 },
@@ -337,8 +337,8 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "2023年1月1日",
                             remark: "",
-                            img1: "image/hk_hsbc/LB937620-1.jpg",
-                            img2: "image/hk_hsbc/LB937620-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/LB937620-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_hsbc/LB937620-2.jpg"
                         }
                     ]
                 }
