@@ -39,8 +39,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年3月1日",
                             krause: "S2452",
                             remark: "",
-                            img1: "image/republic_kpb/AK-1.jpg",
-                            img2: "image/republic_kpb/AK-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AK-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AK-2.jpg"
                         }
                     ]
                 },{
@@ -60,8 +60,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年2月28日",
                             krause: "S2453",
                             remark: "",
-                            img1: "image/republic_kpb/AJ-1.jpg",
-                            img2: "image/republic_kpb/AJ-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AJ-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AJ-2.jpg"
                         }
                     ]
                 },{
@@ -81,8 +81,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年2月1日",
                             krause: "S2454",
                             remark: "",
-                            img1: "image/republic_kpb/AU338113-1.jpg",
-                            img2: "image/republic_kpb/AU338113-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AU338113-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AU338113-2.jpg"
                         }
                     ]
                 },{
@@ -102,8 +102,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年2月1日",
                             krause: "S2455",
                             remark: "",
-                            img1: "image/republic_kpb/AB296519-1.jpg",
-                            img2: "image/republic_kpb/AB296519-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AB296519-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AB296519-2.jpg"
                         }
                     ]
                 },{
@@ -123,8 +123,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年1月8日",
                             krause: "S2456",
                             remark: "",
-                            img1: "image/republic_kpb/AS933975-1.jpg",
-                            img2: "image/republic_kpb/AS933975-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AS933975-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AS933975-2.jpg"
                         }
                     ]
                 },{
@@ -144,8 +144,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年1月24日",
                             krause: "S2457",
                             remark: "未正式发行",
-                            img1: "image/republic_kpb/AE184274-1.jpg",
-                            img2: "image/republic_kpb/AE184274-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AE184274-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AE184274-2.jpg"
                                 }
                     ]
                 },{
@@ -165,8 +165,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年2月1日",
                             krause: "S2458",
                             remark: "未正式发行",
-                            img1: "image/republic_kpb/AQ995712-1.jpg",
-                            img2: "image/republic_kpb/AQ995712-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AQ995712-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AQ995712-2.jpg"
                         }
                     ]
                 },{
@@ -186,8 +186,8 @@ const republic_kpbData = {
                             purchaseDate: "2026年2月5日",
                             krause: "S2459",
                             remark: "未正式发行",
-                            img1: "image/republic_kpb/AA147037-1.jpg",
-                            img2: "image/republic_kpb/AA147037-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AA147037-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AA147037-2.jpg"
                         }
                     ]
                 }
