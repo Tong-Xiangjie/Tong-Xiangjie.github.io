@@ -1,17 +1,6 @@
-// ==================== CDN 路径处理（新增） ====================
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/';
-
-function getImageUrl(path) {
-    if (!path) return '';
-    // 如果已经是完整 URL，直接返回
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-        return path;
-    }
-    // 否则提取文件名并拼接 CDN 前缀（无论路径是相对路径还是只含文件名）
-    const fileName = path.split('/').pop();
-    return CDN_BASE + fileName;
-}
-// ============================================================
+// ==================== 图片路径处理 ====================
+// 使用 core.js 中的全局 getImageUrl
+// =====================================================
 
 // ========== 概览页渲染 ==========
 function renderOverview() {
@@ -124,10 +113,10 @@ function renderOverviewGroup(label, items) {
     html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
     for (const item of items) {
         const c = item.copy;
-        // ---------- 修改点：使用 getImageUrl 代替 imgBase ----------
+        // ---------- 使用全局 getImageUrl ----------
         const img1 = getImageUrl(c.img1);
         const img2 = getImageUrl(c.img2);
-        // -------------------------------------------------------
+        // -----------------------------------------
         const displayName = item.hasVarieties && item.variety
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
@@ -291,10 +280,10 @@ function renderCopiesList(copies) {
     }
     let html = '';
     for (const c of copies) {
-        // ---------- 修改点：使用 getImageUrl 代替 imgBase ----------
+        // ---------- 使用全局 getImageUrl ----------
         const img1 = getImageUrl(c.img1);
         const img2 = getImageUrl(c.img2);
-        // -------------------------------------------------------
+        // -----------------------------------------
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
