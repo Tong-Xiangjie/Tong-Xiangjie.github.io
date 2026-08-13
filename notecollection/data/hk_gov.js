@@ -32,8 +32,8 @@ const hk_govData = {
                     signature: "财政司司长：梁锦松<br>金融管理专员：任志刚",
                     faceDate: "2002年7月1日",
                     remark: "",
-                    img1: "image/hk_gov/DD954229-1.jpg",
-                    img2: "image/hk_gov/DD954229-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/DD954229-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/DD954229-2.jpg"
                 }
             ]
         },
@@ -53,8 +53,8 @@ const hk_govData = {
                     signature: "财政司司长：梁锦松<br>金融管理专员：任志刚",
                     faceDate: "2003年1月1日",
                     remark: "占位，暂无藏品",
-                    img1: "image/hk_gov/-1.jpg",
-                    img2: "image/hk_gov/-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/-2.jpg"
                 }
             ]
         },
@@ -74,8 +74,8 @@ const hk_govData = {
                     signature: "财政司司长：唐英年<br>金融管理专员：任志刚",
                     faceDate: "2005年1月1日",
                     remark: "",
-                    img1: "image/hk_gov/SK706047-1.jpg",
-                    img2: "image/hk_gov/SK706047-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/SK706047-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/SK706047-2.jpg"
                 }
             ]
         },
@@ -95,8 +95,8 @@ const hk_govData = {
                     signature: "财政司司长：唐英年<br>金融管理专员：任志刚",
                     faceDate: "2007年4月1日",
                     remark: "占位，暂无藏品",
-                    img1: "image/hk_gov/-1.jpg",
-                    img2: "image/hk_gov/-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/-2.jpg"
                 }
             ]
         },
@@ -116,8 +116,8 @@ const hk_govData = {
                     signature: "财政司司长：曾俊华<br>金融管理专员：任志刚",
                     faceDate: "2007年10月1日",
                     remark: "",
-                    img1: "image/hk_gov/PG293444-1.jpg",
-                    img2: "image/hk_gov/PG293444-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/PG293444-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/PG293444-2.jpg"
                 }
             ]
         },
@@ -137,8 +137,8 @@ const hk_govData = {
                     signature: "财政司司长：曾俊华<br>金融管理专员：陈德霖",
                     faceDate: "2012年1月1日",
                     remark: "",
-                    img1: "image/hk_gov/UJ104777-1.jpg",
-                    img2: "image/hk_gov/UJ104777-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/UJ104777-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/UJ104777-2.jpg"
                 }
             ]
         },
@@ -158,8 +158,8 @@ const hk_govData = {
                     signature: "财政司司长：曾俊华<br>金融管理专员：陈德霖",
                     faceDate: "2014年1月1日",
                     remark: "",
-                    img1: "image/hk_gov/YR735333-1.jpg",
-                    img2: "image/hk_gov/YR735333-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/YR735333-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/YR735333-2.jpg"
                 }
             ]
         },
@@ -179,8 +179,8 @@ const hk_govData = {
                     signature: "财政司司长：陈茂波<br>金融管理专员：陈德霖",
                     faceDate: "2018年7月1日",
                     remark: "",
-                    img1: "image/hk_gov/DH136631-1.jpg",
-                    img2: "image/hk_gov/DH136631-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/DH136631-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/DH136631-2.jpg"
                 }
             ]
         },
@@ -200,8 +200,8 @@ const hk_govData = {
                     signature: "财政司司长：陈茂波<br>金融管理专员：余伟文",
                     faceDate: "2024年1月1日",
                     remark: "",
-                    img1: "image/hk_gov/HL395991-1.jpg",
-                    img2: "image/hk_gov/HL395991-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/HL395991-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_gov/HL395991-2.jpg"
                 }
             ]
         }
