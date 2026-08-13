@@ -1,17 +1,31 @@
 history.scrollRestoration = 'manual';
 
-// ========== 新增了 CDN 配置 ==========
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/';
-
-// 辅助函数：获取图片最终 URL（兼容相对路径和完整链接）
+// ============================================================
+//  强制图片路径清洗函数（解决任何路径问题）
+// ============================================================
 function getImageUrl(path) {
     if (!path) return '';
+
+    // 1. 如果路径中包含完整的 CDN 域名，直接提取干净的部分
+    const cdnMatch = path.match(/https:\/\/cdn\.jsdelivr\.net\/gh\/Tong-Xiangjie\/Tong-Xiangjie\.github\.io@main\/.+$/);
+    if (cdnMatch) return cdnMatch[0];
+
+    // 2. 如果已经是完整的 http/https 链接，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
-    return CDN_BASE + path;
+
+    // 3. 否则，清理路径并拼接正确的 CDN 前缀
+    let cleanPath = path
+        .replace(/^notecollection\//, '')   // 去掉可能的多余前缀
+        .replace(/^image\//, '');
+    // 确保最终路径以 comm/ 开头（如果缺失则补上）
+    if (!cleanPath.startsWith('comm/')) {
+        cleanPath = 'comm/' + cleanPath;
+    }
+    return `https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/${cleanPath}`;
 }
-// ==================================
+// ============================================================
 
 // 侧滑返回历史记录管理
 let isHandlingPopState = false;
@@ -971,7 +985,9 @@ function selectCopyFromVariety(cid, si, vi, ci) {
     renderDetailFromVariety(cid, si, vi, ci);
 }
 
-// ========== 修改后的 renderDetailFromVariety ==========
+// ============================================================
+// 修改后的 renderDetailFromVariety
+// ============================================================
 async function renderDetailFromVariety(cid, si, vi, ci) {
     currentView = "detail";
     currentCategoryId = cid;
@@ -982,7 +998,7 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
     const variety = series.varieties[vi];
     const cp = variety.copies[ci];
     if (!cp) return;
-    // 使用 getImageUrl 处理路径
+    // 使用强制清洗函数
     currentModalImg1 = getImageUrl(cp.img1);
     currentModalImg2 = getImageUrl(cp.img2);
     const detailFields = cat.detailFields || [
@@ -1038,7 +1054,9 @@ function renderCopyList(cid, si, restore = false) {
     if (switchBtn) switchBtn.style.display = 'none';
 }
 
-// ========== 修改后的 renderDetail ==========
+// ============================================================
+// 修改后的 renderDetail
+// ============================================================
 async function renderDetail(cid, si, ci) {
     currentView = "detail";
     currentCategoryId = cid;
@@ -1048,7 +1066,7 @@ async function renderDetail(cid, si, ci) {
     const series = cat.series[si];
     const cp = series.copies[ci];
     if (!cp) return;
-    // 使用 getImageUrl 处理路径
+    // 使用强制清洗函数
     currentModalImg1 = getImageUrl(cp.img1);
     currentModalImg2 = getImageUrl(cp.img2);
     const detailFields = cat.detailFields || [
