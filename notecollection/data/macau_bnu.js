@@ -36,8 +36,8 @@ const macau_bnuData = {
                             faceDate: "1996年9月1日",
                             size: "",
                             remark: "",
-                            img1: "image/macau_bnu/CB010224-1.jpg",
-                            img2: "image/macau_bnu/CB010224-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_bnu/CB010224-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_bnu/CB010224-2.jpg"
                         }
                     ]
                 }
@@ -62,8 +62,8 @@ const macau_bnuData = {
                             faceDate: "2020年5月18日",
                             size: "138mm*69mm",
                             remark: "",
-                            img1: "image/macau_bnu/AA109943-1.jpg",
-                            img2: "image/macau_bnu/AA109943-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_bnu/AA109943-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_bnu/AA109943-2.jpg"
                         }
                     ]
                 }
