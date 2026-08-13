@@ -36,8 +36,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "1981年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/CW609645-1.jpg",
-                            img2: "image/hk_sc/CW609645-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/CW609645-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/CW609645-2.jpg"
                         }
                     ]
                 }
@@ -63,8 +63,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "1995年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/CU891135-1.jpg",
-                            img2: "image/hk_sc/CU891135-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/CU891135-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/CU891135-2.jpg"
                         }
                     ]
                 },
@@ -83,8 +83,8 @@ const hk_scData = {
                             signature: "香港分行总经理：周振兴",
                             faceDate: "1995年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/AZ118002-1.jpg",
-                            img2: "image/hk_sc/AZ118002-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/AZ118002-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/AZ118002-2.jpg"
                         }
                     ]
                 },
@@ -103,8 +103,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "1994年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/B070293-1.jpg",
-                            img2: "image/hk_sc/B070293-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/B070293-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/B070293-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -118,8 +118,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "1995年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/G844653-1.jpg",
-                            img2: "image/hk_sc/G844653-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/G844653-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/G844653-2.jpg"
                         },
                         {
                             copyId: 3,
@@ -133,8 +133,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2001年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/AP720645-1.jpg",
-                            img2: "image/hk_sc/AP720645-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/AP720645-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/AP720645-2.jpg"
                         }
                     ]
                 }
@@ -160,8 +160,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2016年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/FK389601-1.jpg",
-                            img2: "image/hk_sc/FK389601-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/FK389601-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/FK389601-2.jpg"
                         }
                     ]
                 },
@@ -180,8 +180,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2010年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/AB131676-1.jpg",
-                            img2: "image/hk_sc/AB131676-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/AB131676-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/AB131676-2.jpg"
                         }
                     ]
                 }
@@ -207,8 +207,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2023年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/DL561100-1.jpg",
-                            img2: "image/hk_sc/DL561100-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/DL561100-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/DL561100-2.jpg"
                         }
                     ]
                 },
@@ -227,8 +227,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2023年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/BS603532-1.jpg",
-                            img2: "image/hk_sc/BS603532-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/BS603532-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/BS603532-2.jpg"
                         }
                     ]
                 },
@@ -247,8 +247,8 @@ const hk_scData = {
                             signature: "",
                             faceDate: "2020年1月1日",
                             remark: "",
-                            img1: "image/hk_sc/BE308101-1.jpg",
-                            img2: "image/hk_sc/BE308101-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/BE308101-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_sc/BE308101-2.jpg"
                         }
                     ]
                 }
