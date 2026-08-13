@@ -38,8 +38,8 @@ const republic_bocData = {
                             purchaseDate: "2026年1月24日",
                             krause: "81",
                             remark: "双字轨；水印/Wmk：天坛祈年殿/Pagoda",
-                            img1: "image/republic_boc/AH799383-1.jpg",
-                            img2: "image/republic_boc/AH799383-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/AH799383-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/AH799383-2.jpg"
                         }
                     ]
                 }
@@ -65,8 +65,8 @@ const republic_bocData = {
                             purchaseDate: "2026年8月7日",
                             krause: "85b",
                             remark: "正背面双字轨",
-                            img1: "image/republic_boc/Z636608B-1.jpg",
-                            img2: "image/republic_boc/Z636608B-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/Z636608B-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/Z636608B-2.jpg"
                         }
                     ]
                 }
