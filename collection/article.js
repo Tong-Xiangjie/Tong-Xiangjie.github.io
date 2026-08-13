@@ -405,11 +405,14 @@ function openArticleReader(index) {
         });
 }
 
+// ========== 修改点：文章图片也走 CDN ==========
 function renderArticleReader(article, content) {
     const app = getRenderContainer();
     let htmlContent = content;
-    const imageBase = getArticleBasePath(article.sourceType) + 'readmes/image/';
+    // 直接使用 CDN 路径（假设所有文章图片都在 notecollection/readmes/image/ 下）
+    const imageBase = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/readmes/image/';
     htmlContent = htmlContent.replace(/(src\s*=\s*["']?)\s*readmes\/image\//gi, '$1' + imageBase);
+    // ===============================================
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
     html += `<div class="article-reader">${htmlContent}</div>`;
