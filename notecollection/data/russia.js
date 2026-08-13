@@ -31,8 +31,8 @@ const russiaData = {
                     size: "65mm*150mm",
                     watermark: "滑雪运动员",
                     remark: "索契冬奥会纪念钞，冠号Aa",
-                    img1: "image/russia/Aa1851144-1.jpg",
-                    img2: "image/russia/Aa1851144-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/Aa1851144-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/Aa1851144-2.jpg"
                 }
             ]
         },
@@ -52,8 +52,8 @@ const russiaData = {
                     size: "65mm*150mm",
                     watermark: "克里米亚古迹/斯瓦洛格石",
                     remark: "克里米亚回归纪念钞",
-                    img1: "image/russia/KC9688098-1.jpg",
-                    img2: "image/russia/KC9688098-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/KC9688098-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/KC9688098-2.jpg"
                 }
             ]
         },
@@ -73,8 +73,8 @@ const russiaData = {
                     size: "65mm*150mm",
                     watermark: "足球运动员/守门员",
                     remark: "2018年世界杯纪念钞",
-                    img1: "image/russia/AB005500088-1.jpg",
-                    img2: "image/russia/AB005500088-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/AB005500088-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/AB005500088-2.jpg"
                 }
             ]
         }
