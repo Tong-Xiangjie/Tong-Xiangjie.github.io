@@ -1,5 +1,8 @@
 history.scrollRestoration = 'manual';
 
+// ========== 新增 CDN 基础路径 ==========
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/';
+
 // 侧滑返回历史记录管理
 let isHandlingPopState = false;
 let viewHistoryStack = [];
@@ -968,8 +971,10 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
     const variety = series.varieties[vi];
     const cp = variety.copies[ci];
     if (!cp) return;
-    currentModalImg1 = cp.img1 || '';
-    currentModalImg2 = cp.img2 || '';
+    // ========== 修改点：拼接 CDN 前缀 ==========
+    currentModalImg1 = cp.img1 ? CDN_BASE + cp.img1 : '';
+    currentModalImg2 = cp.img2 ? CDN_BASE + cp.img2 : '';
+    // ==========================================
     const detailFields = cat.detailFields || [
         { key: "version", label: "冠字号码" }, { key: "bank", label: "发行银行" }, { key: "year", label: "发行年份" },
         { key: "condition", label: "评级分数" }, { key: "price", label: "购入价格" }, { key: "purchaseDate", label: "购入日期" },
@@ -990,7 +995,7 @@ async function renderDetailFromVariety(cid, si, vi, ci) {
         const remarkContent = await processRemarkContent(cp.remark);
         if (remarkContent) remarkHtml = `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${remarkContent}</div></div>`;
     }
-    const detailHtml = `<div class="back-bar"><button class="back-btn" onclick="backToCopyListFromVariety()">← 返回藏品列表</button></div><div class="detail-panel"><div class="detail-header"><h3>${escapeHtml(series.seriesName)} - ${escapeHtml(variety.varietyName)}</h3><div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div></div><div class="img-pair"><div class="img-box"><img src="${cp.img1}" alt="正面" onclick="openModal(0)"></div><div class="img-box"><img src="${cp.img2}" alt="背面" onclick="openModal(1)"></div></div><div class="detail-grid">${detailGridHtml}</div>${remarkHtml}</div>`;
+    const detailHtml = `<div class="back-bar"><button class="back-btn" onclick="backToCopyListFromVariety()">← 返回藏品列表</button></div><div class="detail-panel"><div class="detail-header"><h3>${escapeHtml(series.seriesName)} - ${escapeHtml(variety.varietyName)}</h3><div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div></div><div class="img-pair"><div class="img-box"><img src="${currentModalImg1}" alt="正面" onclick="openModal(0)"></div><div class="img-box"><img src="${currentModalImg2}" alt="背面" onclick="openModal(1)"></div></div><div class="detail-grid">${detailGridHtml}</div>${remarkHtml}</div>`;
     document.getElementById("app").innerHTML = detailHtml;
     window.scrollTo(0, 0);
     const switchBtn = document.getElementById('switchToCoinsBtn');
@@ -1032,8 +1037,10 @@ async function renderDetail(cid, si, ci) {
     const series = cat.series[si];
     const cp = series.copies[ci];
     if (!cp) return;
-    currentModalImg1 = cp.img1 || '';
-    currentModalImg2 = cp.img2 || '';
+    // ========== 修改点：拼接 CDN 前缀 ==========
+    currentModalImg1 = cp.img1 ? CDN_BASE + cp.img1 : '';
+    currentModalImg2 = cp.img2 ? CDN_BASE + cp.img2 : '';
+    // ==========================================
     const detailFields = cat.detailFields || [
         { key: "version", label: "冠字号码" }, { key: "bank", label: "发行银行" }, { key: "year", label: "发行年份" },
         { key: "condition", label: "评级分数" }, { key: "price", label: "购入价格" }, { key: "purchaseDate", label: "购入日期" },
@@ -1054,7 +1061,7 @@ async function renderDetail(cid, si, ci) {
         const remarkContent = await processRemarkContent(cp.remark);
         if (remarkContent) remarkHtml = `<div class="remark-box"><label style="font-size:0.8rem; color:#9a7a5b; font-weight:bold;">备注</label><div style="margin-top:0.4rem; font-size:0.9rem; line-height:1.6;">${remarkContent}</div></div>`;
     }
-    const detailHtml = `<div class="back-bar"><button class="back-btn" onclick="backToCopyList()">← 返回藏品列表</button></div><div class="detail-panel"><div class="detail-header"><h3>${escapeHtml(series.seriesName)}</h3><div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div></div><div class="img-pair"><div class="img-box"><img src="${cp.img1}" alt="正面" onclick="openModal(0)"></div><div class="img-box"><img src="${cp.img2}" alt="背面" onclick="openModal(1)"></div></div><div class="detail-grid">${detailGridHtml}</div>${remarkHtml}</div>`;
+    const detailHtml = `<div class="back-bar"><button class="back-btn" onclick="backToCopyList()">← 返回藏品列表</button></div><div class="detail-panel"><div class="detail-header"><h3>${escapeHtml(series.seriesName)}</h3><div style="color:#8b6b4f; font-size:0.9rem;">${escapeHtml(cp.version || '无冠号')}</div></div><div class="img-pair"><div class="img-box"><img src="${currentModalImg1}" alt="正面" onclick="openModal(0)"></div><div class="img-box"><img src="${currentModalImg2}" alt="背面" onclick="openModal(1)"></div></div><div class="detail-grid">${detailGridHtml}</div>${remarkHtml}</div>`;
     document.getElementById("app").innerHTML = detailHtml;
     window.scrollTo(0, 0);
     const switchBtn = document.getElementById('switchToCoinsBtn');
