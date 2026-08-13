@@ -8,7 +8,7 @@ const ukarineData = {
 
         { key: "bank", label: "发行银行" },
         { key: "year", label: "发行年份" }, 
- { key: "watermark", label: "水印" },
+        { key: "watermark", label: "水印" },
 
         { key: "size", label: "标准尺寸" },
         { key: "condition", label: "评级分数" },
@@ -32,8 +32,8 @@ const ukarineData = {
                     krause: "133",
                     size: "80mm*165mm",
                     remark: "发行量30万张。",
-                    img1: "image/ukarine/0230855-1.jpg",
-                    img2: "image/ukarine/0230855-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0230855-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0230855-2.jpg"
                 }
             ]
         },
@@ -52,8 +52,8 @@ const ukarineData = {
                     krause: "134",
                     size: "80mm*165mm",
                     remark: "发行量30万张。",
-                    img1: "image/ukarine/0244876-1.jpg",
-                    img2: "image/ukarine/0244876-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0244876-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0244876-2.jpg"
                 }
             ]
         }
