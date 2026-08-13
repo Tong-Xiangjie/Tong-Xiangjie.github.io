@@ -31,8 +31,8 @@ const venezuelaData = {
                     size: "",
                     watermark: "",
                     remark: "",
-                    img1: "image/venezuela/D16911198-1.jpg",
-                    img2: "image/venezuela/D16911198-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/venezuela/D16911198-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/venezuela/D16911198-2.jpg"
                 }
             ]
         },
@@ -52,8 +52,8 @@ const venezuelaData = {
                     size: "",
                     watermark: "",
                     remark: "",
-                    img1: "image/venezuela/B91918681-1.jpg",
-                    img2: "image/venezuela/B91918681-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/venezuela/B91918681-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/venezuela/B91918681-2.jpg"
                 }
             ]
         }
