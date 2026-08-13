@@ -72,7 +72,6 @@ function getSubName(cat, subId) {
 
 function renderCategoryOverview(cat) {
     const app = getRenderContainer();
-    const imgBase = getImageBase();
 
     let allItems = [];
     let globalIndex = 1;
@@ -132,8 +131,10 @@ function renderCategoryOverview(cat) {
         html += `<div class="search-group-header">${escapeHtml(label)}<span class="count">${items.length}件</span></div>`;
         for (const item of items) {
             const c = item.copy;
-            const img1 = c.img1 ? imgBase + c.img1 : '';
-            const img2 = c.img2 ? imgBase + c.img2 : '';
+            // ========== 修改点：使用 getImageUrl ==========
+            const img1 = getImageUrl(c.img1);
+            const img2 = getImageUrl(c.img2);
+            // ============================================
             const displayName = item.hasVarieties && item.variety
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
@@ -166,7 +167,6 @@ function renderCategoryOverview(cat) {
 
 function renderSeriesList(data, title) {
     const app = getRenderContainer();
-    const imgBase = getImageBase();
 
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
@@ -228,15 +228,17 @@ function renderSeriesList(data, title) {
     app.innerHTML = html;
 }
 
+// ========== 藏品列表渲染（内部函数） ==========
 function renderCopiesList(copies) {
-    const imgBase = getImageBase();
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
     }
     let html = '';
     for (const c of copies) {
-        const img1 = c.img1 ? imgBase + c.img1 : '';
-        const img2 = c.img2 ? imgBase + c.img2 : '';
+        // ========== 修改点：使用 getImageUrl ==========
+        const img1 = getImageUrl(c.img1);
+        const img2 = getImageUrl(c.img2);
+        // ============================================
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
@@ -266,6 +268,7 @@ function renderCopiesList(copies) {
     return html;
 }
 
+// ========== 展开/折叠 ==========
 function toggleSeries(id) {
     const body = document.getElementById('body-' + id);
     const icon = document.getElementById('icon-' + id);
