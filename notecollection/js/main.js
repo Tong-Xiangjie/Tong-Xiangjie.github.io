@@ -1,6 +1,6 @@
 history.scrollRestoration = 'manual';
 
-// ========== 新增 CDN 配置 ==========
+// ========== 新增了 CDN 配置 ==========
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/';
 
 // 辅助函数：获取图片最终 URL（兼容相对路径和完整链接）
