@@ -224,7 +224,6 @@ function getDisplayValue(keyword, searchType) {
 
 function renderSearchResults(results, rawKeyword, type) {
     const app = getRenderContainer();
-    const imgBase = getImageBase();
     const modeLabel = currentMode === MODE.NOTES ? '纸币' : '硬币';
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
@@ -264,8 +263,10 @@ function renderSearchResults(results, rawKeyword, type) {
 
         for (const item of group) {
             const copy = item.copy;
-            const img1 = copy.img1 ? imgBase + copy.img1 : '';
-            const img2 = copy.img2 ? imgBase + copy.img2 : '';
+            // ========== 使用 getImageUrl 替代 imgBase ==========
+            const img1 = getImageUrl(copy.img1);
+            const img2 = getImageUrl(copy.img2);
+            // ==================================================
             const displayName = item.hasVarieties
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
