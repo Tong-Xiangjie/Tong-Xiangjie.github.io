@@ -38,8 +38,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年6月17日",
                             krause: "202",
                             remark: "杏坛，位于曲阜孔庙大成殿前，是孔子当年“设教讲学”的地方，亭内有金代石碑并植有古杏树，是儒家教育精神的象征。",
-                            img1: "image/republic_cbc/Y619524L-1.jpg",
-                            img2: "image/republic_cbc/Y619524L-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/Y619524L-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/Y619524L-2.jpg"
                         }
                     ]
                 },{
@@ -59,8 +59,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年6月18日",
                             krause: "203",
                             remark: "洙水桥，坐落在曲阜孔林内，横跨洙水河，是通往孔子墓甬道的必经石桥，周围古柏森森，氛围肃穆庄严。",
-                            img1: "image/republic_cbc/F616958Q-1.jpg",
-                            img2: "image/republic_cbc/F616958Q-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/F616958Q-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/F616958Q-2.jpg"
                         }
                     ]
                 }
@@ -86,8 +86,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年7月17日",
                             krause: "218a",
                             remark: "",
-                            img1: "image/republic_cbc/CV684686X-1.jpg",
-                            img2: "image/republic_cbc/CV684686X-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/CV684686X-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/CV684686X-2.jpg"
                         }
                     ]
                 },{
@@ -107,8 +107,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年7月17日",
                             krause: "220a",
                             remark: "",
-                            img1: "image/republic_cbc/CP840041C-1.jpg",
-                            img2: "image/republic_cbc/CP840041C-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/CP840041C-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/CP840041C-2.jpg"
                         }
                     ]
                 }
@@ -134,8 +134,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年7月17日",
                             krause: "212a",
                             remark: "",
-                            img1: "image/republic_cbc/215191PH-1.jpg",
-                            img2: "image/republic_cbc/215191PH-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/215191PH-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/215191PH-2.jpg"
                         }
                     ]
                 }
@@ -161,8 +161,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年6月13日",
                             krause: "224a",
                             remark: "坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
-                            img1: "image/republic_cbc/B501637D-1.jpg",
-                            img2: "image/republic_cbc/B501637D-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/B501637D-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/B501637D-2.jpg"
                         }
                     ]
                 },{
@@ -182,8 +182,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年7月6日",
                             krause: "225a",
                             remark: "这张真是好价，我拍下的时候已经有733人浏览、33人收藏、3人想要并且当时卖家好评率98%，信用也是极好可就是不知道为什么没有人拍。悲报是由于没有点进“聊一聊”而是直接拍的，导致原本可以用的小刀优惠没用上啊啊啊！（自我安慰：应该刀不了多少钱罢～）",
-                            img1: "image/republic_cbc/B695627G-1.jpg",
-                            img2: "image/republic_cbc/B695627G-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/B695627G-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/B695627G-2.jpg"
                         }
                     ]
                 }
@@ -209,8 +209,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年2月23日",
                             krause: "239a",
                             remark: "",
-                            img1: "image/republic_cbc/FJ772552-1.jpg",
-                            img2: "image/republic_cbc/FJ772552-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/FJ772552-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/FJ772552-2.jpg"
                         }
                     ]
                 },{
@@ -230,8 +230,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年2月25日",
                             krause: "243a",
                             remark: "",
-                            img1: "image/republic_cbc/IO038655-1.jpg",
-                            img2: "image/republic_cbc/IO038655-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/IO038655-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/IO038655-2.jpg"
                         }
                     ]
                 }
@@ -257,12 +257,12 @@ const republic_cbcData = {
                             purchaseDate: "2026年6月11日",
                             krause: "379.1",
                             remark: "这里的“东北九省”指的是将原来的辽、吉、黑三省划分为辽宁、安东、辽北、吉林、松江、合江、黑龙江、嫩江以及兴安省九个省份。",
-                            img1: "image/republic_cbc/WQ648448-1.jpg",
-                            img2: "image/republic_cbc/WQ648448-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/WQ648448-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/WQ648448-2.jpg"
                         }
                     ]
                 }
             ]
         }
     ]
-}
+};
