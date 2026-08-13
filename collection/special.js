@@ -144,7 +144,9 @@ function renderSpecialContent() {
         }
     }
 
-    const imgBase = config.imageBase || '';
+    // 专题图片子目录（假设为 'special'，如实际不同请修改）
+    const SPECIAL_SUB_DIR = 'special';
+
     let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
     if (currentSubId) {
         html += `<p style="font-size:0.8rem;color:var(--theme);">当前筛选：${currentSubId}</p>`;
@@ -171,7 +173,9 @@ function renderSpecialContent() {
         html += `<div class="special-year-title">${year}年 <span class="count">${group.length}件</span></div>`;
         html += `<div class="special-year-grid">`;
         for (const { item, index } of group) {
-            const imgUrl = item.yearImg ? imgBase + item.yearImg : '';
+            // ---------- 使用 getImageUrl 处理专题图片 ----------
+            const imgUrl = getImageUrl(item.yearImg, SPECIAL_SUB_DIR);
+            // ---------------------------------------------------
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
                 html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.name || '')}" loading="lazy"></div>`;
@@ -245,8 +249,12 @@ function renderLightboxContent(contentEl, config) {
     if (index < 0 || index >= items.length) return;
 
     const item = items[index];
-    const imgBase = config ? config.imageBase || '' : '';
-    const imgUrl = item.yearImg ? imgBase + item.yearImg : '';
+    // 专题图片子目录（与上面保持一致）
+    const SPECIAL_SUB_DIR = 'special';
+
+    // ---------- 使用 getImageUrl 处理专题图片 ----------
+    const imgUrl = getImageUrl(item.yearImg, SPECIAL_SUB_DIR);
+    // ---------------------------------------------------
 
     let html = '';
 
