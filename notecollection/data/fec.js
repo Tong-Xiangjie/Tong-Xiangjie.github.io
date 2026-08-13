@@ -33,8 +33,8 @@ const fecData = {
                             krause: "FX1s",
                             wmk: "五星火炬/Star&Torch",
                             remark: "",
-                            img1: "image/fec/17458-1.jpg",
-                            img2: "image/fec/17458-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/17458-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/17458-2.jpg"
                         }
                     ]
                 },
@@ -52,8 +52,8 @@ const fecData = {
                             krause: "FX1a",
                             wmk: "五星/Stars",
                             remark: "无荧光",
-                            img1: "image/fec/AI172872-1.jpg",
-                            img2: "image/fec/AI172872-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/AI172872-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/AI172872-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -66,8 +66,8 @@ const fecData = {
                             krause: "FX1a",
                             wmk: "五星/Stars",
                             remark: "有荧光",
-                            img1: "image/fec/DL832836-1.jpg",
-                            img2: "image/fec/DL832836-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/DL832836-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/DL832836-2.jpg"
                         }
                     ]
                 }
@@ -88,8 +88,8 @@ const fecData = {
                     krause: "FX2",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
-                    img1: "image/fec/ZN611794-1.jpg",
-                    img2: "image/fec/ZN611794-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/ZN611794-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/ZN611794-2.jpg"
                 }
             ]
         },
@@ -108,8 +108,8 @@ const fecData = {
                     krause: "FX3",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
-                    img1: "image/fec/DN598149-1.jpg",
-                    img2: "image/fec/DN598149-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/DN598149-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/DN598149-2.jpg"
                 }
             ]
         },
@@ -128,8 +128,8 @@ const fecData = {
                     krause: "FX4",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
-                    img1: "image/fec/ZZ756837-1.jpg",
-                    img2: "image/fec/ZZ756837-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/ZZ756837-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/ZZ756837-2.jpg"
                 }
             ]
         },
@@ -148,8 +148,8 @@ const fecData = {
                     krause: "FX5s",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
-                    img1: "image/fec/19589-1.jpg",
-                    img2: "image/fec/19589-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/19589-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/19589-2.jpg"
                 }
             ]
         },
@@ -168,8 +168,8 @@ const fecData = {
                     krause: "FX6s",
                     wmk: "国徽/National Badge",
                     remark: "",
-                    img1: "image/fec/17376-1.jpg",
-                    img2: "image/fec/17376-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/17376-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/17376-2.jpg"
                 }
             ]
         },
@@ -188,8 +188,8 @@ const fecData = {
                     krause: "FX7s",
                     wmk: "国徽/National Badge",
                     remark: "",
-                    img1: "image/fec/11376-1.jpg",
-                    img2: "image/fec/11376-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/11376-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/fec/11376-2.jpg"
                 }
             ]
         }
