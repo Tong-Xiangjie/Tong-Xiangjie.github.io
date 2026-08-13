@@ -33,8 +33,8 @@ const rmb4Data = {
                     wmk: "无水印/Without watermark",
                     issueDate: "1988年9月22日",
                     remark: "",
-                    img1: "image/rmb4/SE11609515-1.jpg",
-                    img2: "image/rmb4/SE11609515-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609515-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609515-2.jpg"
                 },{
                     copyId: 2,
                     year: 1980,
@@ -47,8 +47,8 @@ const rmb4Data = {
                     wmk: "无水印/Without watermark",
                     issueDate: "1988年9月22日",
                     remark: "",
-                    img1: "image/rmb4/SE11609551-1.jpg",
-                    img2: "image/rmb4/SE11609551-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609551-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609551-2.jpg"
                 }
             ]
         },
@@ -69,8 +69,8 @@ const rmb4Data = {
                     wmk: "无水印/Without watermark",
                     issueDate: "1988年5月10日",
                     remark: "",
-                    img1: "image/rmb4/AS29332232-1.jpg",
-                    img2: "image/rmb4/AS29332232-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AS29332232-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AS29332232-2.jpg"
                 },
                 {
                     copyId: 2,
@@ -84,8 +84,8 @@ const rmb4Data = {
                     wmk: "无水印/Without watermark",
                     issueDate: "1988年5月10日",
                     remark: "幼线体",
-                    img1: "image/rmb4/TC61307820-1.jpg",
-                    img2: "image/rmb4/TC61307820-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TC61307820-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TC61307820-2.jpg"
                 }
             ]
         },
@@ -106,8 +106,8 @@ const rmb4Data = {
                     wmk: "无水印/Without watermark",
                     issueDate: "1987年4月27日",
                     remark: "",
-                    img1: "image/rmb4/AM11901126-1.jpg",
-                    img2: "image/rmb4/AM11901126-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AM11901126-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AM11901126-2.jpg"
                 }
             ]
         },
@@ -131,8 +131,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1988年5月10日",
                             remark: "",
-                            img1: "image/rmb4/GZ93445496-1.jpg",
-                            img2: "image/rmb4/GZ93445496-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/GZ93445496-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/GZ93445496-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -146,8 +146,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1988年5月10日",
                             remark: "",
-                            img1: "image/rmb4/JT98150594-1.jpg",
-                            img2: "image/rmb4/JT98150594-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-2.jpg"
                         }
                     ]
                 },
@@ -166,8 +166,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1995年3月1日",
                             remark: "",
-                            img1: "image/rmb4/WO00026774-1.jpg",
-                            img2: "image/rmb4/WO00026774-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WO00026774-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WO00026774-2.jpg"
                         }
                     ]
                 },
@@ -186,8 +186,8 @@ const rmb4Data = {
                             wmk: "满版五星水印/Stars",
                             issueDate: "1997年4月1日",
                             remark: "",
-                            img1: "image/rmb4/QE99989731-1.jpg",
-                            img2: "image/rmb4/QE99989731-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/QE99989731-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/QE99989731-2.jpg"
                         }
                     ]
                 }
@@ -213,8 +213,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1988年5月10日",
                             remark: "",
-                            img1: "image/rmb4/AR82501713-1.jpg",
-                            img2: "image/rmb4/AR82501713-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AR82501713-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AR82501713-2.jpg"
                         }
                     ]
                 },
@@ -233,8 +233,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1996年4月10日",
                             remark: "",
-                            img1: "image/rmb4/UB35002347-1.jpg",
-                            img2: "image/rmb4/UB35002347-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/UB35002347-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/UB35002347-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -248,8 +248,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1996年4月10日",
                             remark: "",
-                            img1: "image/rmb4/HR62925341-1.jpg",
-                            img2: "image/rmb4/HR62925341-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/HR62925341-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/HR62925341-2.jpg"
                         },
                         {
                             copyId: 3,
@@ -263,8 +263,8 @@ const rmb4Data = {
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             issueDate: "1996年4月10日",
                             remark: "",
-                            img1: "image/rmb4/WG11911933-1.jpg",
-                            img2: "image/rmb4/WG11911933-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WG11911933-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WG11911933-2.jpg"
                         }
                     ]
                 }
@@ -287,8 +287,8 @@ const rmb4Data = {
                     wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                     issueDate: "1988年9月22日",
                     remark: "",
-                    img1: "image/rmb4/EN36556458-1.jpg",
-                    img2: "image/rmb4/EN36556458-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/EN36556458-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/EN36556458-2.jpg"
                 }
             ]
         },
@@ -309,8 +309,8 @@ const rmb4Data = {
                     wmk: "人像/Man's Head",
                     issueDate: "1988年9月22日",
                     remark: "",
-                    img1: "image/rmb4/YF23802314-1.jpg",
-                    img2: "image/rmb4/YF23802314-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/YF23802314-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/YF23802314-2.jpg"
                 }
             ]
         },
@@ -340,8 +340,8 @@ const rmb4Data = {
                             wmk: "炼钢工人/Steel Worker",
                             issueDate: "1992年8月20日",
                             remark: "",
-                            img1: "image/rmb4/TG17299637-1.jpg",
-                            img2: "image/rmb4/TG17299637-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TG17299637-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TG17299637-2.jpg"
                         }
                     ]
                 }
@@ -373,8 +373,8 @@ const rmb4Data = {
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
                             issueDate: "1992年8月20日",
                             remark: "",
-                            img1: "image/rmb4/XF29286837-1.jpg",
-                            img2: "image/rmb4/XF29286837-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/XF29286837-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/XF29286837-2.jpg"
                         }
                     ]
                 }
