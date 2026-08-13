@@ -40,8 +40,8 @@ const lecbData = {
                             purchaseDate: "2026年4月24日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/lecb/ⅠⅡⅢ06173849-1.jpg",
-                            img2: "image/lecb/ⅠⅡⅢ06173849-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/%E2%85%A0%E2%85%A1%E2%85%A206173849-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/%E2%85%A0%E2%85%A1%E2%85%A206173849-2.jpg"
                         }
                     ]
                 }
@@ -75,8 +75,8 @@ const lecbData = {
                             purchaseDate: "2026年6月1日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/lecb/1566062-1.jpg",
-                            img2: "image/lecb/1566062-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566062-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566062-2.jpg"
                         },{
                             copyId: 2,
                             year: 1960,
@@ -87,8 +87,8 @@ const lecbData = {
                             purchaseDate: "2026年6月1日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/lecb/1566063-1.jpg",
-                            img2: "image/lecb/1566063-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566063-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566063-2.jpg"
                         },{
                             copyId: 3,
                             year: 1960,
@@ -99,8 +99,8 @@ const lecbData = {
                             purchaseDate: "2026年6月1日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/lecb/1566064-1.jpg",
-                            img2: "image/lecb/1566064-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566064-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566064-2.jpg"
                         },{
                             copyId: 4,
                             year: 1960,
@@ -111,8 +111,8 @@ const lecbData = {
                             purchaseDate: "2026年6月1日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/lecb/1566065-1.jpg",
-                            img2: "image/lecb/1566065-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566065-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/lecb/1566065-2.jpg"
                         }
                     ]
                 }
