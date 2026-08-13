@@ -1,5 +1,5 @@
 // ==================== special.js ====================
-// 专题功能
+// 专题
 
 let specialItemsList = [];
 let specialCurrentIndex = -1;
