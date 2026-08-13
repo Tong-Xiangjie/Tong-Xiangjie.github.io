@@ -26,8 +26,8 @@ const republic_crbcData = {
                             purchaseDate: "2026年6月27日",
                             krause: "J3a",
                             remark: "也许是特别的缘分，这是我买的第一张中央储备银行的纸币，一开始用中央银行的一张一角纸币（1931年杏坛）来占位，那张纸币的号码是619524，结果这一张号码刚好也是由这6个数字组成的，二者面值还一样，背面设计也是如此相似，真的算得上是双胞胎了。并且我是拍下后才发现这个关系的。",
-                            img1: "image/republic_crbc/S165294D-1.jpg",
-                            img2: "image/republic_crbc/S165294D-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/S165294D-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/S165294D-2.jpg"
                         }
                     ]
                 },{
@@ -47,8 +47,8 @@ const republic_crbcData = {
                             purchaseDate: "2026年7月8日",
                             krause: "J10e",
                             remark: "【版别：红签名】这张还算好价（正常价）吧，至少比一些品相更差且号码无规律的纸币还要便宜，买回来至少应该不至于亏一半，况且还是PMG的。不过，红签名版本的红5元怎么这么多E/T A冠号的……",
-                            img1: "image/republic_crbc/ET444887A-1.jpg",
-                            img2: "image/republic_crbc/ET444887A-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/ET444887A-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/ET444887A-2.jpg"
                         }
                     ]
                 }
