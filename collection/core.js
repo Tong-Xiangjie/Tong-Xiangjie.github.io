@@ -6,7 +6,7 @@ const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year'
 const SEARCH_MODE = { CLICK: 'click', REALTIME: 'realtime' };
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ========== CDN 图片路径处理（支持子目录） ==========
+// ========== CDN 图片路径处理（智能识别子目录） ==========
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/';
 
 function getImageUrl(path, subDir = 'comm') {
@@ -14,10 +14,22 @@ function getImageUrl(path, subDir = 'comm') {
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
-    // 提取文件名（去掉可能的前缀和路径）
-    const fileName = path.split('/').pop();
-    return CDN_BASE + subDir + '/' + fileName;
+
+    let relative = path;
+    // 如果以 'image/' 开头，去掉这个前缀
+    if (relative.startsWith('image/')) {
+        relative = relative.substring(6);
+    }
+
+    // 如果 relative 包含 '/'，说明有子目录，直接拼接
+    if (relative.includes('/')) {
+        return CDN_BASE + relative;
+    }
+
+    // 纯文件名，使用传入的 subDir（默认 'comm'）
+    return CDN_BASE + subDir + '/' + relative;
 }
+// =========================================================
 
 // ========== 全局状态 ==========
 let currentMode = MODE.NOTES;
