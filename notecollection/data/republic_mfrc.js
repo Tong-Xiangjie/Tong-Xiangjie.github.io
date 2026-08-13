@@ -42,9 +42,9 @@ const republic_mfrcData = {
                             price: "530元",
                             purchaseDate: "2026年7月11日",
                             krause: "626a",
-                            remark: "印刷机构“BEPP”是Bureau of Engraving and Printing, Peking (China)的缩写；定期有利国库券的英文全称是Interest Bearing Treasury Note",
-                            img1: "image/republic_mfrc/1479029-1.jpg",
-                            img2: "image/republic_mfrc/1479029-2.jpg"
+                            remark: "印刷机构"BEPP"是Bureau of Engraving and Printing, Peking (China)的缩写；定期有利国库券的英文全称是Interest Bearing Treasury Note",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_mfrc/1479029-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_mfrc/1479029-2.jpg"
                         }
                     ]
                 },{
@@ -64,8 +64,8 @@ const republic_mfrcData = {
                             purchaseDate: "2026年7月11日",
                             krause: "627a",
                             remark: "",
-                            img1: "image/republic_mfrc/1152926-1.jpg",
-                            img2: "image/republic_mfrc/1152926-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_mfrc/1152926-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_mfrc/1152926-2.jpg"
                         }
                     ]
                 },{
