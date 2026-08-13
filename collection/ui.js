@@ -1,3 +1,18 @@
+// ==================== CDN 路径处理（新增） ====================
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/';
+
+function getImageUrl(path) {
+    if (!path) return '';
+    // 如果已经是完整 URL，直接返回
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+    // 否则提取文件名并拼接 CDN 前缀（无论路径是相对路径还是只含文件名）
+    const fileName = path.split('/').pop();
+    return CDN_BASE + fileName;
+}
+// ============================================================
+
 // ========== 概览页渲染 ==========
 function renderOverview() {
     const app = getViewContainer(currentMode + '_overview');
@@ -6,7 +21,7 @@ function renderOverview() {
     let allItems = [];
     let globalIndex = 1;
     const tree = getCategoryTree();
-    const imgBase = getImageBase();
+    const imgBase = getImageBase();  // 保留但不再用于图片路径
 
     for (const cat of tree) {
         if (cat.children) {
@@ -105,13 +120,14 @@ function renderOverview() {
 }
 
 function renderOverviewGroup(label, items) {
-    const imgBase = getImageBase();
     let html = `<div class="search-result-group">`;
     html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
     for (const item of items) {
         const c = item.copy;
-        const img1 = c.img1 ? imgBase + c.img1 : '';
-        const img2 = c.img2 ? imgBase + c.img2 : '';
+        // ---------- 修改点：使用 getImageUrl 代替 imgBase ----------
+        const img1 = getImageUrl(c.img1);
+        const img2 = getImageUrl(c.img2);
+        // -------------------------------------------------------
         const displayName = item.hasVarieties && item.variety
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
@@ -270,14 +286,15 @@ function renderSeriesList(data, title) {
 
 // ========== 藏品列表 ==========
 function renderCopiesList(copies) {
-    const imgBase = getImageBase();
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
     }
     let html = '';
     for (const c of copies) {
-        const img1 = c.img1 ? imgBase + c.img1 : '';
-        const img2 = c.img2 ? imgBase + c.img2 : '';
+        // ---------- 修改点：使用 getImageUrl 代替 imgBase ----------
+        const img1 = getImageUrl(c.img1);
+        const img2 = getImageUrl(c.img2);
+        // -------------------------------------------------------
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
         html += `<div class="copy-item">`;
