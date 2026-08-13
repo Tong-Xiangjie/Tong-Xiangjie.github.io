@@ -42,8 +42,8 @@ const rmb5Data = {
                             size: "130mm*63mm",
                             wmk: "兰花/Orchid",
                             remark: "",
-                            img1: "image/rmb5/OH11117778-1.jpg",
-                            img2: "image/rmb5/OH11117778-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/OH11117778-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/OH11117778-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -60,8 +60,8 @@ const rmb5Data = {
                             size: "130mm*63mm",
                             wmk: "兰花/Orchid",
                             remark: "大叶兰",
-                            img1: "image/rmb5/DN02216986-1.jpg",
-                            img2: "image/rmb5/DN02216986-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/DN02216986-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/DN02216986-2.jpg"
                         }
                     ]
                 },
@@ -83,8 +83,8 @@ const rmb5Data = {
                             size: "130mm*63mm",
                             wmk: "兰花/Orchid",
                             remark: "",
-                            img1: "image/rmb5/FA42054438-1.jpg",
-                            img2: "image/rmb5/FA42054438-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/FA42054438-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/FA42054438-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -101,8 +101,8 @@ const rmb5Data = {
                             size: "130mm*63mm",
                             wmk: "兰花/Orchid",
                             remark: "BJ/BD/BF/CH/EH/FQ/FS/GE/HA/QD33333454",
-                            img1: "image/rmb5/33333454-1.jpg",
-                            img2: "image/rmb5/33333454-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/33333454-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/33333454-2.jpg"
                         }
                     ]
                 }
@@ -131,8 +131,8 @@ const rmb5Data = {
                             size: "135mm*63mm",
                             wmk: "水仙花/Narcissus",
                             remark: "",
-                            img1: "image/rmb5/PF93563125-1.jpg",
-                            img2: "image/rmb5/PF93563125-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/PF93563125-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/PF93563125-2.jpg"
                         }
                     ]
                 },
@@ -154,8 +154,8 @@ const rmb5Data = {
                             size: "135mm*63mm",
                             wmk: "水仙花/Narcissus",
                             remark: "",
-                            img1: "image/rmb5/IO88888767-1.jpg",
-                            img2: "image/rmb5/IO88888767-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/IO88888767-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/IO88888767-2.jpg"
                         }
                     ]
                 },
@@ -177,8 +177,8 @@ const rmb5Data = {
                             size: "135mm*63mm",
                             wmk: "水仙花/Narcissus",
                             remark: "",
-                            img1: "image/rmb5/AH58603088-1.jpg",
-                            img2: "image/rmb5/AH58603088-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/AH58603088-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/AH58603088-2.jpg"
                         }
                     ]
                 }
@@ -207,8 +207,8 @@ const rmb5Data = {
                             size: "140mm*70mm",
                             wmk: "月季花/Chinese Rose",
                             remark: "小圆水",
-                            img1: "image/rmb5/TB96818893-1.jpg",
-                            img2: "image/rmb5/TB96818893-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/TB96818893-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/TB96818893-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -225,8 +225,8 @@ const rmb5Data = {
                             size: "140mm*70mm",
                             wmk: "月季花/Chinese Rose",
                             remark: "宽水",
-                            img1: "image/rmb5/YG89660155-1.jpg",
-                            img2: "image/rmb5/YG89660155-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/YG89660155-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/YG89660155-2.jpg"
                         }
                     ]
                 },
@@ -248,8 +248,8 @@ const rmb5Data = {
                             size: "140mm*70mm",
                             wmk: "月季花/Chinese Rose",
                             remark: "",
-                            img1: "image/rmb5/UL00089069-1.jpg",
-                            img2: "image/rmb5/UL00089069-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/UL00089069-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/UL00089069-2.jpg"
                         }
                     ]
                 },
@@ -271,8 +271,8 @@ const rmb5Data = {
                             size: "140mm*70mm",
                             wmk: "月季花/Chinese Rose",
                             remark: "",
-                            img1: "image/rmb5/TF19999669-1.jpg",
-                            img2: "image/rmb5/TF19999669-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/TF19999669-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/TF19999669-2.jpg"
                         }
                     ]
                 }
@@ -301,8 +301,8 @@ const rmb5Data = {
                             size: "145mm*70mm",
                             wmk: "荷花/Lotus",
                             remark: "",
-                            img1: "image/rmb5/JF22966632-1.jpg",
-                            img2: "image/rmb5/JF22966632-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/JF22966632-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/JF22966632-2.jpg"
                         }
                     ]
                 },
@@ -324,8 +324,8 @@ const rmb5Data = {
                             size: "145mm*70mm",
                             wmk: "荷花/Lotus",
                             remark: "",
-                            img1: "image/rmb5/PY44444484-1.jpg",
-                            img2: "image/rmb5/PY44444484-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/PY44444484-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/PY44444484-2.jpg"
                         }
                     ]
                 },
@@ -347,8 +347,8 @@ const rmb5Data = {
                             size: "145mm*70mm",
                             wmk: "荷花/Lotus",
                             remark: "",
-                            img1: "image/rmb5/JE19999669-1.jpg",
-                            img2: "image/rmb5/JE19999669-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/JE19999669-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/JE19999669-2.jpg"
                         }
                     ]
                 }
@@ -377,8 +377,8 @@ const rmb5Data = {
                             size: "150mm*70mm",
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
                             remark: "",
-                            img1: "image/rmb5/BB31832995-1.jpg",
-                            img2: "image/rmb5/BB31832995-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/BB31832995-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/BB31832995-2.jpg"
                         }
                     ]
                 },
@@ -400,8 +400,8 @@ const rmb5Data = {
                             size: "150mm*70mm",
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
                             remark: "",
-                            img1: "image/rmb5/XY08981095-1.jpg",
-                            img2: "image/rmb5/XY08981095-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/XY08981095-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/XY08981095-2.jpg"
                         }
                     ]
                 },
@@ -436,8 +436,8 @@ const rmb5Data = {
                             size: "155mm*77mm",
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
                             remark: "",
-                            img1: "image/rmb5/QQ16191321-1.jpg",
-                            img2: "image/rmb5/QQ16191321-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/QQ16191321-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/QQ16191321-2.jpg"
                         }
                     ]
                 },
@@ -459,8 +459,8 @@ const rmb5Data = {
                             size: "155mm*77mm",
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
                             remark: "",
-                            img1: "image/rmb5/OX12345659-1.jpg",
-                            img2: "image/rmb5/OX12345659-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/OX12345659-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/OX12345659-2.jpg"
                         }
                     ]
                 },
@@ -482,8 +482,8 @@ const rmb5Data = {
                             size: "155mm*77mm",
                             wmk: "毛泽东肖像/Mao(M.Zedong,Z.Mao)",
                             remark: "",
-                            img1: "image/rmb5/B000S00055-1.jpg",
-                            img2: "image/rmb5/B000S00055-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/B000S00055-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/B000S00055-2.jpg"
                         }
                     ]
                 }
