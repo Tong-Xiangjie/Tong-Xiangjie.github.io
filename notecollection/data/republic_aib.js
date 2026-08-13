@@ -35,8 +35,8 @@ const republic_aibData = {
                     purchaseDate: "2026年6月11日",
                     krause: "S1655",
                     remark: "",
-                    img1: "image/republic_aib/1940-0.01-1.jpg",
-                    img2: "image/republic_aib/1940-0.01-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_aib/1940-0.01-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_aib/1940-0.01-2.jpg"
                 }
             ]
         }
