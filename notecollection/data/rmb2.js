@@ -40,8 +40,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860a",
                     remark: "三位罗马冠字+七位阿拉伯数字，有'儿'版和无'儿'版两种暗记",
-                    img1: "image/rmb2/-1.jpg",
-                    img2: "image/rmb2/-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-2.jpg"
                 }
             ]
         },
@@ -63,8 +63,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860b.1",
                     remark: "小三冠",
-                    img1: "image/rmb2/722-1.jpg",
-                    img2: "image/rmb2/722-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/722-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/722-2.jpg"
                 },{
                     copyId: 2,
                     year: 1953,
@@ -79,8 +79,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860b.2",
                     remark: "大三冠",
-                    img1: "image/rmb2/122-1.jpg",
-                    img2: "image/rmb2/122-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/122-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/122-2.jpg"
                 },{
                     copyId: 3,
                     year: 1953,
@@ -95,8 +95,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860c",
                     remark: "大二冠",
-                    img1: "image/rmb2/50-1.jpg",
-                    img2: "image/rmb2/50-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/50-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/50-2.jpg"
                 }
             ]
         },
@@ -120,8 +120,8 @@ const rmb2Data = {
                     size: "95mm*45mm",
                     krause: "861a",
                     remark: "暗记：正面飞机头有白点；背面右侧藏文下有党徽图案；背面行名字左方有倒斜'古'",
-                    img1: "image/rmb2/741-7004155-1.jpg",
-                    img2: "image/rmb2/741-7004155-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/741-7004155-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/741-7004155-2.jpg"
                 }
             ]
         },
@@ -143,8 +143,8 @@ const rmb2Data = {
                     size: "95mm*45mm",
                     krause: "861c",
                     remark: "小三冠",
-                    img1: "image/rmb2/212-1.jpg",
-                    img2: "image/rmb2/212-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/212-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/212-2.jpg"
                 },{
                     copyId: 2,
                     year: 1953,
@@ -159,8 +159,8 @@ const rmb2Data = {
                     size: "95mm*45mm",
                     krause: "861b",
                     remark: "小三冠",
-                    img1: "image/rmb2/155-1.jpg",
-                    img2: "image/rmb2/155-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/155-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/155-2.jpg"
                 }
             ]
         },
@@ -184,8 +184,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862a",
                     remark: "三位罗马冠字+七位阿拉伯数字。暗记：正面轮船尾部有字母'P'和'H'；底纹偏浅草绿色",
-                    img1: "image/rmb2/-1.jpg",
-                    img2: "image/rmb2/-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-2.jpg"
                 }
             ]
         },
@@ -207,8 +207,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862c",
                     remark: "小三冠",
-                    img1: "image/rmb2/353-1.jpg",
-                    img2: "image/rmb2/353-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/353-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/353-2.jpg"
                 },{
                     copyId: 2,
                     year: 1953,
@@ -223,8 +223,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862b",
                     remark: "大三冠",
-                    img1: "image/rmb2/055-1.jpg",
-                    img2: "image/rmb2/055-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/055-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/055-2.jpg"
                 }
             ]
         }
