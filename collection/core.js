@@ -6,17 +6,17 @@ const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year'
 const SEARCH_MODE = { CLICK: 'click', REALTIME: 'realtime' };
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ========== CDN 图片路径处理 ==========
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/';
+// ========== CDN 图片路径处理（支持子目录） ==========
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/';
 
-function getImageUrl(path) {
+function getImageUrl(path, subDir = 'comm') {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
-    // 提取文件名（去掉可能的前缀）
+    // 提取文件名（去掉可能的前缀和路径）
     const fileName = path.split('/').pop();
-    return CDN_BASE + fileName;
+    return CDN_BASE + subDir + '/' + fileName;
 }
 
 // ========== 全局状态 ==========
