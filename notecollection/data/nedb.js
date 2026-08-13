@@ -37,8 +37,8 @@ const nedbData = {
                             purchaseDate: "2026年5月29日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1954-10000-1.jpg",
-                            img2: "image/nedb/1954-10000-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-10000-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-10000-2.jpg"
                         }
                     ]
                 },
@@ -55,8 +55,8 @@ const nedbData = {
                             purchaseDate: "2026年6月1日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/41497032-1.jpg",
-                            img2: "image/nedb/41497032-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/41497032-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/41497032-2.jpg"
                         },{
                             copyId: 2,
                             year: 1954,
@@ -67,8 +67,8 @@ const nedbData = {
                             purchaseDate: "2026年5月29日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1954-20000-1.jpg",
-                            img2: "image/nedb/1954-20000-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-20000-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-20000-2.jpg"
                         }
                     ]
                 },
@@ -85,8 +85,8 @@ const nedbData = {
                             purchaseDate: "2026年6月1日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/37985231-1.jpg",
-                            img2: "image/nedb/37985231-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/37985231-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/37985231-2.jpg"
                         },{
                             copyId: 2,
                             year: 1954,
@@ -97,8 +97,8 @@ const nedbData = {
                             purchaseDate: "2026年5月29日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1954-50000-1.jpg",
-                            img2: "image/nedb/1954-50000-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-50000-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-50000-2.jpg"
                         }
                     ]
                 },
@@ -115,8 +115,8 @@ const nedbData = {
                             purchaseDate: "2026年5月29日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1954-100000-1.jpg",
-                            img2: "image/nedb/1954-100000-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-100000-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-100000-2.jpg"
                         }
                     ]
                 },
@@ -133,8 +133,8 @@ const nedbData = {
                             purchaseDate: "2026年5月29日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1954-500000-1.jpg",
-                            img2: "image/nedb/1954-500000-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-500000-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1954-500000-2.jpg"
                         }
                     ]
                 }
@@ -162,8 +162,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-10000-1-1.jpg",
-                            img2: "image/nedb/1955-10000-1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-10000-1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-10000-1-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -175,8 +175,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-10000-2-1.jpg",
-                            img2: "image/nedb/1955-10000-2-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-10000-2-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-10000-2-2.jpg"
                         }
                     ]
                 },
@@ -193,8 +193,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-20000-1-1.jpg",
-                            img2: "image/nedb/1955-20000-1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-20000-1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-20000-1-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -206,8 +206,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-20000-2-1.jpg",
-                            img2: "image/nedb/1955-20000-2-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-20000-2-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-20000-2-2.jpg"
                         }
                     ]
                 },
@@ -224,8 +224,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-50000-1-1.jpg",
-                            img2: "image/nedb/1955-50000-1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-50000-1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-50000-1-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -237,8 +237,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-50000-2-1.jpg",
-                            img2: "image/nedb/1955-50000-2-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-50000-2-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-50000-2-2.jpg"
                         }
                     ]
                 },
@@ -255,8 +255,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-100000-1-1.jpg",
-                            img2: "image/nedb/1955-100000-1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-100000-1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-100000-1-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -268,8 +268,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-100000-2-1.jpg",
-                            img2: "image/nedb/1955-100000-2-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-100000-2-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-100000-2-2.jpg"
                         }
                     ]
                 },
@@ -286,8 +286,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-500000-1-1.jpg",
-                            img2: "image/nedb/1955-500000-1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-500000-1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-500000-1-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -299,8 +299,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-500000-2-1.jpg",
-                            img2: "image/nedb/1955-500000-2-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-500000-2-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-500000-2-2.jpg"
                         }
                     ]
                 },
@@ -317,8 +317,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-1000000-1-1.jpg",
-                            img2: "image/nedb/1955-1000000-1-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-1000000-1-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-1000000-1-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -330,8 +330,8 @@ const nedbData = {
                             purchaseDate: "2026年4月30日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/nedb/1955-1000000-2-1.jpg",
-                            img2: "image/nedb/1955-1000000-2-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-1000000-2-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/1955-1000000-2-2.jpg"
                         }
                     ]
                 }
@@ -361,8 +361,8 @@ const nedbData = {
                             krause: "Unlisted",
                             // 原来的 remark 文件已移到 series 级别的 readme 中
                             remark: "",
-                            img1: "image/nedb/ⅢⅩⅩ3307203-1.jpg",
-                            img2: "image/nedb/ⅢⅩⅩ3307203-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/%E2%85%A2%E2%85%A9%E2%85%A93307203-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/nedb/%E2%85%A2%E2%85%A9%E2%85%A93307203-2.jpg"
                         }
                     ]
                 }
