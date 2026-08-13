@@ -33,8 +33,8 @@ const commemorativeData = {
                     issueQuantity: "1.2万",
                     size:"135mm*70mm",
                     remark: "纪念钞的鼻祖，发行量最少的一张", 
-                    img1: "notecollection/image/comm/KP04057-1.jpg", 
-                    img2: "notecollection/image/comm/KP04057-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-2.jpg" 
                 }
             ] 
         },
@@ -54,9 +54,10 @@ const commemorativeData = {
                     issueDate: "1999年6月",
                     issueQuantity: "3000万",
                     remark: "", 
-                    img1: "notecollection/image/comm/A179021G-1.jpg", 
-                    img2: "notecollection/image/comm/A179021G-2.jpg" 
-                },{ 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/A179021G-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/A179021G-2.jpg" 
+                },
+                { 
                     copyId: 2, 
                     year: 1999,
                     purchaseDate: "2026年7月17日", 
@@ -68,9 +69,10 @@ const commemorativeData = {
                     issueDate: "1999年6月",
                     issueQuantity: "3000万",
                     remark: "", 
-                    img1: "notecollection/image/comm/B957417F-1.jpg", 
-                    img2: "notecollection/image/comm/B957417F-2.jpg" 
-                },{ 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/B957417F-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/B957417F-2.jpg" 
+                },
+                { 
                     copyId: 3, 
                     year: 1999,
                     purchaseDate: "2026年4月1日", 
@@ -82,8 +84,8 @@ const commemorativeData = {
                     issueDate: "1999年6月",
                     issueQuantity: "3000万",
                     remark: "", 
-                    img1: "notecollection/image/comm/M698194E-1.jpg", 
-                    img2: "notecollection/image/comm/M698194E-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/M698194E-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/M698194E-2.jpg" 
                 }
             ] 
         },
@@ -103,8 +105,8 @@ const commemorativeData = {
                     issueDate: "1999年9月20日",
                     issueQuantity: "6000万",
                     remark: "刚好是我的生日号", 
-                    img1: "notecollection/image/comm/J07529257-1.jpg", 
-                    img2: "notecollection/image/comm/J07529257-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J07529257-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J07529257-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -118,8 +120,8 @@ const commemorativeData = {
                     issueDate: "1999年9月20日",
                     issueQuantity: "6000万",
                     remark: "顺子号", 
-                    img1: "notecollection/image/comm/J51665987-1.jpg", 
-                    img2: "notecollection/image/comm/J51665987-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-2.jpg" 
                 }
             ] 
         },
@@ -143,8 +145,8 @@ const commemorativeData = {
                     issueDate: "2000年11月28日",
                     issueQuantity: "1000万",
                     remark: "普通冠号", 
-                    img1: "notecollection/image/comm/J00344985-1.jpg", 
-                    img2: "notecollection/image/comm/J00344985-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J00344985-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J00344985-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -158,67 +160,73 @@ const commemorativeData = {
                     issueDate: "2000年11月28日",
                     issueQuantity: "1000万",
                     remark: "补号", 
-                    img1: "notecollection/image/comm/I00181114-1.jpg", 
-                    img2: "notecollection/image/comm/I00181114-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/I00181114-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/I00181114-2.jpg" 
                 }
             ] 
         },
         { 
             seriesName: "第29届奥林匹克运动会纪念钞",
             year: "2008",
-            copies: [{ 
-                copyId: 1, 
-                year: 2008,
-                purchaseDate: "2025年10月12日", 
-                price: "2360元", 
-                bank: "中国人民银行", 
-                version: "J04266645", 
-                condition: "PMG67E", 
-                krause: "908",
-                issueDate: "2008年7月8日",
-                issueQuantity: "600万",
-                remark: "钞王！传家宝级别", 
-                img1: "notecollection/image/comm/J04266645-1.jpg", 
-                img2: "notecollection/image/comm/J04266645-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2008,
+                    purchaseDate: "2025年10月12日", 
+                    price: "2360元", 
+                    bank: "中国人民银行", 
+                    version: "J04266645", 
+                    condition: "PMG67E", 
+                    krause: "908",
+                    issueDate: "2008年7月8日",
+                    issueQuantity: "600万",
+                    remark: "钞王！传家宝级别", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "第29届奥林匹克运动会纪念钞（香港）",
             year: "2008",
-            copies: [{ 
-                copyId: 1, 
-                year: 2008,
-                purchaseDate: "2025年10月7日", 
-                price: "176元", 
-                bank: "中国银行（香港）", 
-                version: "762965", 
-                condition: "ACG66E", 
-                krause: "340b",
-                issueDate: "2008年7月",
-                issueQuantity: "400万张",
-                remark: "", 
-                img1: "notecollection/image/comm/762965-1.jpg", 
-                img2: "notecollection/image/comm/762965-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2008,
+                    purchaseDate: "2025年10月7日", 
+                    price: "176元", 
+                    bank: "中国银行（香港）", 
+                    version: "762965", 
+                    condition: "ACG66E", 
+                    krause: "340b",
+                    issueDate: "2008年7月",
+                    issueQuantity: "400万张",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/762965-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/762965-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "第29届奥林匹克运动会纪念钞（澳门）",
             year: "2008",
-            copies: [{ 
-                copyId: 1, 
-                year: 2008,
-                purchaseDate: "2025年10月7日", 
-                price: "245元", 
-                bank: "中国银行", 
-                version: "MO239989", 
-                condition: "ACG66E", 
-                krause: "107a",
-                issueDate: "2008年7月",
-                issueQuantity: "400万张",
-                remark: "", 
-                img1: "notecollection/image/comm/MO239989-1.jpg", 
-                img2: "notecollection/image/comm/MO239989-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2008,
+                    purchaseDate: "2025年10月7日", 
+                    price: "245元", 
+                    bank: "中国银行", 
+                    version: "MO239989", 
+                    condition: "ACG66E", 
+                    krause: "107a",
+                    issueDate: "2008年7月",
+                    issueQuantity: "400万张",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MO239989-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MO239989-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "渣打银行成立150周年纪念钞",
@@ -241,9 +249,10 @@ const commemorativeData = {
                     issueDate: "2011年1月6日",
                     issueQuantity: "4亿张",
                     remark: "", 
-                    img1: "notecollection/image/comm/JP578968ZB-1.jpg", 
-                    img2: "notecollection/image/comm/JP578968ZB-2.jpg" 
-                },{ 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/JP578968ZB-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/JP578968ZB-2.jpg" 
+                },
+                { 
                     copyId: 2, 
                     year: 2011,
                     purchaseDate: "2026年7月18日", 
@@ -255,48 +264,52 @@ const commemorativeData = {
                     issueDate: "2011年1月6日",
                     issueQuantity: "4亿张",
                     remark: "补号", 
-                    img1: "notecollection/image/comm/CC036193LV-1.jpg", 
-                    img2: "notecollection/image/comm/CC036193LV-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/CC036193LV-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/CC036193LV-2.jpg" 
                 }
             ] 
         },
         { 
             seriesName: "纪念中国银行成立100周年纪念钞（香港）",
             year: "2012",
-            copies: [{ 
-                copyId: 1, 
-                year: 2012,
-                purchaseDate: "2026年1月30日", 
-                price: "198元", 
-                bank: "中国银行（香港）", 
-                version: "357185", 
-                condition: "ACG67E", 
-                krause: "346",
-                issueDate: "2012年2月",
-                issueQuantity: "200万张",
-                remark: "", 
-                img1: "notecollection/image/comm/357185-1.jpg", 
-                img2: "notecollection/image/comm/357185-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2012,
+                    purchaseDate: "2026年1月30日", 
+                    price: "198元", 
+                    bank: "中国银行（香港）", 
+                    version: "357185", 
+                    condition: "ACG67E", 
+                    krause: "346",
+                    issueDate: "2012年2月",
+                    issueQuantity: "200万张",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/357185-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/357185-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "纪念中国银行成立100周年纪念钞（澳门）",
             year: "2012",
-            copies: [{ 
-                copyId: 1, 
-                year: 2012,
-                purchaseDate: "2025年12月5日", 
-                price: "458元", 
-                bank: "中国银行", 
-                version: "AA709609", 
-                condition: "PMG66E", 
-                krause: "114",
-                issueDate: "2012年2月",
-                issueQuantity: "200万张",
-                remark: "传说中的最美荷花钞", 
-                img1: "notecollection/image/comm/AA709609-1.jpg", 
-                img2: "notecollection/image/comm/AA709609-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2012,
+                    purchaseDate: "2025年12月5日", 
+                    price: "458元", 
+                    bank: "中国银行", 
+                    version: "AA709609", 
+                    condition: "PMG66E", 
+                    krause: "114",
+                    issueDate: "2012年2月",
+                    issueQuantity: "200万张",
+                    remark: "传说中的最美荷花钞", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA709609-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA709609-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "澳门生肖钞",
@@ -318,9 +331,10 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/09610321-1.jpg",
-                            "img2": "notecollection/image/comm/09610321-2.jpg"
-                        },{
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09610321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09610321-2.jpg"
+                        },
+                        {
                             "copyId": 2,
                             "year": 2014,
                             "purchaseDate": "2026年5月30日",
@@ -333,8 +347,8 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/06686321-1.jpg",
-                            "img2": "notecollection/image/comm/06686321-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/06686321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/06686321-2.jpg"
                         }
                     ]
                 },
@@ -354,9 +368,10 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/02265321-1.jpg",
-                            "img2": "notecollection/image/comm/02265321-2.jpg"
-                        },{
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/02265321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/02265321-2.jpg"
+                        },
+                        {
                             "copyId": 2,
                             "year": 2015,
                             "purchaseDate": "2026年5月30日",
@@ -369,8 +384,8 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/11501321-1.jpg",
-                            "img2": "notecollection/image/comm/11501321-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11501321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11501321-2.jpg"
                         }
                     ]
                 },
@@ -390,9 +405,10 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/13298321-1.jpg",
-                            "img2": "notecollection/image/comm/13298321-2.jpg"
-                        },{
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/13298321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/13298321-2.jpg"
+                        },
+                        {
                             "copyId": 2,
                             "year": 2016,
                             "purchaseDate": "2026年5月30日",
@@ -405,8 +421,8 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/09608321-1.jpg",
-                            "img2": "notecollection/image/comm/09608321-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09608321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09608321-2.jpg"
                         }
                     ]
                 },
@@ -426,8 +442,8 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/16011321-1.jpg",
-                            "img2": "notecollection/image/comm/16011321-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-2.jpg"
                         }
                     ]
                 },
@@ -447,9 +463,10 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/11860321-1.jpg",
-                            "img2": "notecollection/image/comm/11860321-2.jpg"
-                        },{
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11860321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11860321-2.jpg"
+                        },
+                        {
                             "copyId": 2,
                             "year": 2018,
                             "purchaseDate": "2026年5月30日",
@@ -462,8 +479,8 @@ const commemorativeData = {
                             "issueQuantity": "2000万对",
                             "size":"138mm*69mm",
                             "remark": "",
-                            "img1": "notecollection/image/comm/00651321-1.jpg",
-                            "img2": "notecollection/image/comm/00651321-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/00651321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/00651321-2.jpg"
                         }
                     ]
                 }
@@ -485,8 +502,8 @@ const commemorativeData = {
                     issueDate: "2015年11月26日",
                     issueQuantity: "3亿",
                     remark: "普通荧光", 
-                    img1: "notecollection/image/comm/J8301922333-1.jpg", 
-                    img2: "notecollection/image/comm/J8301922333-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J8301922333-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J8301922333-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -500,8 +517,8 @@ const commemorativeData = {
                     issueDate: "2015年11月26日",
                     issueQuantity: "3亿",
                     remark: "宇宙之眼", 
-                    img1: "notecollection/image/comm/J5252197777-1.jpg", 
-                    img2: "notecollection/image/comm/J5252197777-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J5252197777-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J5252197777-2.jpg" 
                 },
                 { 
                     copyId: 3, 
@@ -515,48 +532,52 @@ const commemorativeData = {
                     issueDate: "2015年11月26日",
                     issueQuantity: "3亿",
                     remark: "流浪地球", 
-                    img1: "notecollection/image/comm/J9069497791-1.jpg", 
-                    img2: "notecollection/image/comm/J9069497791-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J9069497791-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J9069497791-2.jpg" 
                 }
             ] 
         },
         { 
             seriesName: "汇丰银行成立150周年纪念钞",
             year: "2015",
-            copies: [{ 
-                copyId: 1, 
-                year: 2015,
-                purchaseDate: "2026年1月8日", 
-                price: "285元", 
-                bank: "香港上海汇丰银行", 
-                version: "AB140236", 
-                condition: "ACG67E", 
-                krause: "217d",
-                issueDate: "2015年3月",
-                issueQuantity: "200万张",
-                remark: "补号", 
-                img1: "notecollection/image/comm/AB140236-1.jpg", 
-                img2: "notecollection/image/comm/AB140236-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2015,
+                    purchaseDate: "2026年1月8日", 
+                    price: "285元", 
+                    bank: "香港上海汇丰银行", 
+                    version: "AB140236", 
+                    condition: "ACG67E", 
+                    krause: "217d",
+                    issueDate: "2015年3月",
+                    issueQuantity: "200万张",
+                    remark: "补号", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AB140236-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AB140236-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "中国银行在港服务100周年纪念钞",
             year: "2017",
-            copies: [{ 
-                copyId: 1, 
-                year: 2017,
-                purchaseDate: "2026年2月18日", 
-                price: "192元", 
-                bank: "中国银行（香港）", 
-                version: "HY583251", 
-                condition: "ACG67E", 
-                krause: "347",
-                issueDate: "2017年9月",
-                issueQuantity: "500万张",
-                remark: "HY = Hundred Years百年", 
-                img1: "notecollection/image/comm/HY583251-1.jpg", 
-                img2: "notecollection/image/comm/HY583251-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2017,
+                    purchaseDate: "2026年2月18日", 
+                    price: "192元", 
+                    bank: "中国银行（香港）", 
+                    version: "HY583251", 
+                    condition: "ACG67E", 
+                    krause: "347",
+                    issueDate: "2017年9月",
+                    issueQuantity: "500万张",
+                    remark: "HY = Hundred Years百年", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/HY583251-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/HY583251-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "人民币发行70周年纪念钞",
@@ -578,8 +599,8 @@ const commemorativeData = {
                     issueDate: "2018年11月23日",
                     issueQuantity: "1.2亿",
                     remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", 
-                    img1: "notecollection/image/comm/J000009987-1.jpg", 
-                    img2: "notecollection/image/comm/J000009987-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J000009987-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J000009987-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -593,8 +614,8 @@ const commemorativeData = {
                     issueDate: "2018年11月23日",
                     issueQuantity: "1.2亿",
                     remark: "补号，虽然PMG没有特殊标注", 
-                    img1: "notecollection/image/comm/J191756567-1.jpg", 
-                    img2: "notecollection/image/comm/J191756567-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J191756567-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J191756567-2.jpg" 
                 }
             ] 
         },
@@ -617,8 +638,8 @@ const commemorativeData = {
                             "issueDate": "2019年7月",
                             "issueQuantity": "500万对",
                             "remark": "",
-                            "img1": "notecollection/image/comm/MA3518209-1.jpg",
-                            "img2": "notecollection/image/comm/MA3518209-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA3518209-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA3518209-2.jpg"
                         }
                     ]
                 },
@@ -637,8 +658,8 @@ const commemorativeData = {
                             "issueDate": "2019年7月",
                             "issueQuantity": "500万对",
                             "remark": "算不算是半个生日号？总感觉这张与我挺有缘的",
-                            "img1": "notecollection/image/comm/MA0500209-1.jpg",
-                            "img2": "notecollection/image/comm/MA0500209-2.jpg"
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA0500209-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA0500209-2.jpg"
                         }
                     ]
                 }
@@ -647,21 +668,23 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
-            copies: [{ 
-                copyId: 1, 
-                year: 2022,
-                purchaseDate: "2025年11月7日", 
-                price: "40元", 
-                bank: "中国人民银行", 
-                version: "J180000183", 
-                condition: "ACG68E", 
-                krause: "916a",
-                issueDate: "2021年12月21日",
-                issueQuantity: "2亿对",
-                remark: "", 
-                img1: "notecollection/image/comm/J180000183-1.jpg", 
-                img2: "notecollection/image/comm/J180000183-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2022,
+                    purchaseDate: "2025年11月7日", 
+                    price: "40元", 
+                    bank: "中国人民银行", 
+                    version: "J180000183", 
+                    condition: "ACG68E", 
+                    krause: "916a",
+                    issueDate: "2021年12月21日",
+                    issueQuantity: "2亿对",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J180000183-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J180000183-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
@@ -679,8 +702,8 @@ const commemorativeData = {
                     issueDate: "2021年12月21日",
                     issueQuantity: "2亿对",
                     remark: "普通版本", 
-                    img1: "notecollection/image/comm/J333686866-1.jpg", 
-                    img2: "notecollection/image/comm/J333686866-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J333686866-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J333686866-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -694,8 +717,8 @@ const commemorativeData = {
                     issueDate: "2021年12月21日",
                     issueQuantity: "2亿对",
                     remark: "绿奥之星", 
-                    img1: "notecollection/image/comm/J208213254-1.jpg", 
-                    img2: "notecollection/image/comm/J208213254-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J208213254-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J208213254-2.jpg" 
                 },
                 { 
                     copyId: 3, 
@@ -709,8 +732,8 @@ const commemorativeData = {
                     issueDate: "2021年12月21日",
                     issueQuantity: "2亿对",
                     remark: "绿奥之王", 
-                    img1: "notecollection/image/comm/J207861101-1.jpg", 
-                    img2: "notecollection/image/comm/J207861101-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J207861101-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J207861101-2.jpg" 
                 }
             ] 
         },
@@ -730,8 +753,8 @@ const commemorativeData = {
                     issueDate: "2021年12月",
                     issueQuantity: "200万张",
                     remark: "这张的号码其实非常值得玩味", 
-                    img1: "notecollection/image/comm/545654-1.jpg", 
-                    img2: "notecollection/image/comm/545654-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/545654-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/545654-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -745,29 +768,31 @@ const commemorativeData = {
                     issueDate: "2021年12月",
                     issueQuantity: "200万张",
                     remark: "", 
-                    img1: "notecollection/image/comm/AA537379-1.jpg", 
-                    img2: "notecollection/image/comm/AA537379-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA537379-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA537379-2.jpg" 
                 }
             ] 
         },
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
             year: "2022",
-            copies: [{ 
-                copyId: 1, 
-                year: 2022,
-                purchaseDate: "2025年10月26日", 
-                price: "69元", 
-                bank: "中国银行", 
-                version: "BC0838287", 
-                condition: "ACG66E", 
-                krause: "124a",
-                issueDate: "2021年12月",
-                issueQuantity: "200万张",
-                remark: "", 
-                img1: "notecollection/image/comm/BC0838287-1.jpg", 
-                img2: "notecollection/image/comm/BC0838287-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2022,
+                    purchaseDate: "2025年10月26日", 
+                    price: "69元", 
+                    bank: "中国银行", 
+                    version: "BC0838287", 
+                    condition: "ACG66E", 
+                    krause: "124a",
+                    issueDate: "2021年12月",
+                    issueQuantity: "200万张",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/BC0838287-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/BC0838287-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "龙年贺岁纪念钞",
@@ -776,21 +801,23 @@ const commemorativeData = {
                 title: "发行公告",
                 content: "file:notecollection/readmes/dragon_release.txt"
             },
-            copies: [{ 
-                copyId: 1, 
-                year: 2024,
-                purchaseDate: "2026年1月21日", 
-                price: "158元", 
-                bank: "中国人民银行", 
-                version: "J005003567", 
-                condition: "ACG67E", 
-                krause: "920",
-                issueDate: "2024年1月",
-                issueQuantity: "1亿",
-                remark: "", 
-                img1: "notecollection/image/comm/J005003567-1.jpg", 
-                img2: "notecollection/image/comm/J005003567-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2024,
+                    purchaseDate: "2026年1月21日", 
+                    price: "158元", 
+                    bank: "中国人民银行", 
+                    version: "J005003567", 
+                    condition: "ACG67E", 
+                    krause: "920",
+                    issueDate: "2024年1月",
+                    issueQuantity: "1亿",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005003567-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005003567-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "蛇年贺岁纪念钞",
@@ -799,21 +826,23 @@ const commemorativeData = {
                 title: "发行公告",
                 content: "file:notecollection/readmes/snake_release.txt"
             },
-            copies: [{ 
-                copyId: 1, 
-                year: 2025,
-                purchaseDate: "2026年1月22日", 
-                price: "60元", 
-                bank: "中国人民银行", 
-                version: "J006206654", 
-                condition: "ACG67E", 
-                krause: "921",
-                issueDate: "2024年12月",
-                issueQuantity: "1亿",
-                remark: "", 
-                img1: "notecollection/image/comm/J006206654-1.jpg", 
-                img2: "notecollection/image/comm/J006206654-2.jpg" 
-            }] 
+            copies: [
+                { 
+                    copyId: 1, 
+                    year: 2025,
+                    purchaseDate: "2026年1月22日", 
+                    price: "60元", 
+                    bank: "中国人民银行", 
+                    version: "J006206654", 
+                    condition: "ACG67E", 
+                    krause: "921",
+                    issueDate: "2024年12月",
+                    issueQuantity: "1亿",
+                    remark: "", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J006206654-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J006206654-2.jpg" 
+                }
+            ] 
         },
         { 
             seriesName: "马年贺岁纪念钞",
@@ -835,8 +864,8 @@ const commemorativeData = {
                     issueDate: "2026年1月20日",
                     issueQuantity: "1亿",
                     remark: "就是凑个品种，太丑了", 
-                    img1: "notecollection/image/comm/J005516765-1.jpg", 
-                    img2: "notecollection/image/comm/J005516765-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005516765-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005516765-2.jpg" 
                 },
                 { 
                     copyId: 2, 
@@ -850,8 +879,8 @@ const commemorativeData = {
                     issueDate: "2026年1月20日",
                     issueQuantity: "1亿",
                     remark: "", 
-                    img1: "notecollection/image/comm/J037241561-70-1.jpg", 
-                    img2: "notecollection/image/comm/J037241561-70-2.jpg" 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J037241561-70-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J037241561-70-2.jpg" 
                 }
             ] 
         }
