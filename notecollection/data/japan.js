@@ -46,8 +46,8 @@ const japanData = {
                             size: "",
                             wmk: "",
                             remark: "",
-                            img1: "image/japan/18113-1.jpg",
-                            img2: "image/japan/18113-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/18113-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/18113-2.jpg"
                         }
                     ]
                 },
@@ -73,8 +73,8 @@ const japanData = {
                             size: "",
                             wmk: "",
                             remark: "",
-                            img1: "image/japan/1114922-1.jpg",
-                            img2: "image/japan/1114922-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/1114922-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/1114922-2.jpg"
                         }
                     ]
                 },
@@ -119,8 +119,8 @@ const japanData = {
                             size: "148mm*76mm",
                             wmk: "桐花图案&100/Turkey Oak Pattern&100",
                             remark: "浅棕色纸张（Light Brown Paper）版本",
-                            img1: "image/japan/XP807592G-1.jpg",
-                            img2: "image/japan/XP807592G-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/XP807592G-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/XP807592G-2.jpg"
                         },{
                             copyId: 1,
                             year: 1953,
@@ -136,8 +136,8 @@ const japanData = {
                             size: "148mm*76mm",
                             wmk: "桐花图案&100/Turkey Oak Pattern&100",
                             remark: "白色纸张（White Paper）版本",
-                            img1: "image/japan/ZP514663G-1.jpg",
-                            img2: "image/japan/ZP514663G-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/ZP514663G-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/ZP514663G-2.jpg"
                         }
                     ]
                 },
@@ -235,8 +235,8 @@ const japanData = {
                             size: "150mm*76mm",
                             wmk: "北里柴三郎肖像/S.Kitasato",
                             remark: "F号券，新版纸币。正面：北里柴三郎（细菌学家），背面：神奈川冲浪里（葛饰北斋画作）。",
-                            img1: "image/japan/AA229466RM-1.jpg",
-                            img2: "image/japan/AA229466RM-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/AA229466RM-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/AA229466RM-2.jpg"
                         }
                     ]
                 },
@@ -271,8 +271,8 @@ const japanData = {
                             size: "154mm*76mm",
                             wmk: "守礼门/Shureimon Gate",
                             remark: "D号券，为纪念第26届八国集团首脑会议和千禧年发行。正面：守礼门，背面：源氏物语绘卷与紫式部。2003年后未再印制。",
-                            img1: "image/japan/SA586830V-1.jpg",
-                            img2: "image/japan/SA586830V-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/SA586830V-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/SA586830V-2.jpg"
                         }
                     ]
                 }
