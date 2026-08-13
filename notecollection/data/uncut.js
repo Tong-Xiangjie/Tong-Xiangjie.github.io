@@ -33,8 +33,8 @@ const uncutData = {
                             purchaseDate: "2026年4月8日",
                             krause: "",
                             remark: "",
-                            img1: "image/uncut/DQ67898397-1.jpg",
-                            img2: "image/uncut/DQ67898397-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/DQ67898397-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/DQ67898397-2.jpg"
                         }
                     ]
                 },
@@ -52,8 +52,8 @@ const uncutData = {
                             purchaseDate: "2026年4月8日",
                             krause: "",
                             remark: "",
-                            img1: "image/uncut/BH002468397-1.jpg",
-                            img2: "image/uncut/BH002468397-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/BH002468397-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/BH002468397-2.jpg"
                         }
                     ]
                 },
@@ -71,8 +71,8 @@ const uncutData = {
                             purchaseDate: "2026年4月8日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "image/uncut/048397-1.jpg",
-                            img2: "image/uncut/048397-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/048397-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/048397-2.jpg"
                         }
                     ]
                 }
@@ -94,8 +94,8 @@ const uncutData = {
                     purchaseDate: "2026年4月1日",
                     krause: "",
                     remark: "",
-                    img1: "image/uncut/JQ47754456ZA-1.jpg",
-                    img2: "image/uncut/JQ47754456ZA-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/JQ47754456ZA-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/JQ47754456ZA-2.jpg"
                 }
             ]
         },{
@@ -113,8 +113,8 @@ const uncutData = {
                     purchaseDate: "2026年5月25日",
                     krause: "346a",
                     remark: "",
-                    img1: "image/uncut/54565788-1.jpg",
-                    img2: "image/uncut/54565788-2.jpg"
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/54565788-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/uncut/54565788-2.jpg"
                 }
             ]
         }
