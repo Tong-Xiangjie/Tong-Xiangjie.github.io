@@ -32,8 +32,8 @@ const taiwanData = {
                             purchaseDate: "2026年7月18日",
                             krause: "1935",
                             remark: "",
-                            img1: "image/taiwan/AU972508-1.jpg",
-                            img2: "image/taiwan/AU972508-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/AU972508-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/AU972508-2.jpg"
                         }
                     ]
                 },{
@@ -49,8 +49,8 @@ const taiwanData = {
                             purchaseDate: "2026年7月11日",
                             krause: "1937",
                             remark: "",
-                            img1: "image/taiwan/CA609471-1.jpg",
-                            img2: "image/taiwan/CA609471-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/CA609471-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/CA609471-2.jpg"
                         }
                     ]
                 }
@@ -73,8 +73,8 @@ const taiwanData = {
                             krause: "1971a",
                             print:"台湾银行印刷所/PFBT",
                             remark: "中央水印",
-                            img1: "image/taiwan/H310826F-1.jpg",
-                            img2: "image/taiwan/H310826F-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/H310826F-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/H310826F-2.jpg"
                         },{
                             copyId: 1,
                             year: 1961,
@@ -86,8 +86,8 @@ const taiwanData = {
                             krause: "1971a",
                             print:"台湾银行印刷所/PFBT",
                             remark: "无水印",
-                            img1: "image/taiwan/K435010S-1.jpg",
-                            img2: "image/taiwan/K435010S-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/K435010S-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/K435010S-2.jpg"
                         },{
                             copyId: 1,
                             year: 1961,
@@ -99,8 +99,8 @@ const taiwanData = {
                             krause: "1971b",
                             print:"台湾银行印刷所/PFBT",
                             remark: "有“H”记；平版印刷，辅币荒期间（1970～1973）发行",
-                            img1: "image/taiwan/G823517F-1.jpg",
-                            img2: "image/taiwan/G823517F-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/G823517F-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/G823517F-2.jpg"
                         }
                     ]
                 },{
@@ -117,8 +117,8 @@ const taiwanData = {
                             krause: "1972",
                             print:"中央印制厂/CEPP",
                             remark: "平3版，布币水印",
-                            img1: "image/taiwan/N482792K-1.jpg",
-                            img2: "image/taiwan/N482792K-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/N482792K-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/N482792K-2.jpg"
                         },{
                             copyId: 1,
                             year: 1961,
@@ -130,8 +130,8 @@ const taiwanData = {
                             krause: "1972",
                             print:"中央印制厂/CEPP",
                             remark: "圆3版，布币水印",
-                            img1: "image/taiwan/V136765K-1.jpg",
-                            img2: "image/taiwan/V136765K-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/V136765K-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/V136765K-2.jpg"
                         }
                     ]
                 },{
@@ -148,8 +148,8 @@ const taiwanData = {
                             krause: "1970",
                             print:"",
                             remark: "",
-                            img1: "image/taiwan/Z565788R-1.jpg",
-                            img2: "image/taiwan/Z565788R-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/Z565788R-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/Z565788R-2.jpg"
                         }
                     ]
                 }
@@ -172,8 +172,8 @@ const taiwanData = {
                             krause: "1979a",
                             print: "中央印制厂/CEPP",
                             remark: "正常版式",
-                            img1: "image/taiwan/E348986F-1.jpg",
-                            img2: "image/taiwan/E348986F-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/E348986F-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/E348986F-2.jpg"
                         }
                     ]
                 },{
@@ -189,8 +189,8 @@ const taiwanData = {
                             purchaseDate: "2026年7月18日",
                             krause: "1980",
                             remark: "",
-                            img1: "image/taiwan/K606546R-1.jpg",
-                            img2: "image/taiwan/K606546R-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/K606546R-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/K606546R-2.jpg"
                         }
                     ]
                 }
@@ -212,8 +212,8 @@ const taiwanData = {
                             purchaseDate: "2026年3月1日",
                             krause: "1984",
                             remark: "",
-                            img1: "image/taiwan/SW377511AN-1.jpg",
-                            img2: "image/taiwan/SW377511AN-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/SW377511AN-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/SW377511AN-2.jpg"
                         }
                     ]
                 },{
@@ -229,8 +229,8 @@ const taiwanData = {
                             purchaseDate: "2026年7月18日",
                             krause: "1982",
                             remark: "组记D字",
-                            img1: "image/taiwan/H296773C-1.jpg",
-                            img2: "image/taiwan/H296773C-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/H296773C-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/H296773C-2.jpg"
                         }
                     ]
                 },{
@@ -246,8 +246,8 @@ const taiwanData = {
                             purchaseDate: "2026年3月1日",
                             krause: "1983",
                             remark: "组记G字",
-                            img1: "image/taiwan/X587444W-1.jpg",
-                            img2: "image/taiwan/X587444W-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/X587444W-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/X587444W-2.jpg"
                         }
                     ]
                 }
@@ -269,8 +269,8 @@ const taiwanData = {
                             purchaseDate: "2025年10月13日",
                             krause: "1991",
                             remark: "",
-                            img1: "image/taiwan/XC501317PW-1.jpg",
-                            img2: "image/taiwan/XC501317PW-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/XC501317PW-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/XC501317PW-2.jpg"
                         },{
                             copyId: 2,
                             year: 2000,
@@ -281,8 +281,8 @@ const taiwanData = {
                             purchaseDate: "2026年7月18日",
                             krause: "1991*",
                             remark: "补号",
-                            img1: "image/taiwan/BB494156NZ-1.jpg",
-                            img2: "image/taiwan/BB494156NZ-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/BB494156NZ-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/BB494156NZ-2.jpg"
                         }
                     ]
                 },{
@@ -298,8 +298,8 @@ const taiwanData = {
                             purchaseDate: "2026年1月7日",
                             krause: "1992",
                             remark: "",
-                            img1: "image/taiwan/EP007165YC-1.jpg",
-                            img2: "image/taiwan/EP007165YC-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/EP007165YC-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/EP007165YC-2.jpg"
                         }
                     ]
                 },{
@@ -315,8 +315,8 @@ const taiwanData = {
                             purchaseDate: "2026年2月14日",
                             krause: "1993",
                             remark: "",
-                            img1: "image/taiwan/JP677873VB-1.jpg",
-                            img2: "image/taiwan/JP677873VB-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/JP677873VB-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/JP677873VB-2.jpg"
                         }
                     ]
                 },{
@@ -332,8 +332,8 @@ const taiwanData = {
                             purchaseDate: "2026年3月1日",
                             krause: "1996",
                             remark: "新版500元，正面为棒球运动图案，背面为梅花鹿。",
-                            img1: "image/taiwan/HN723051XB-1.jpg",
-                            img2: "image/taiwan/HN723051XB-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/HN723051XB-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/HN723051XB-2.jpg"
                         }
                     ]
                 },{
@@ -349,8 +349,8 @@ const taiwanData = {
                             purchaseDate: "2026年2月14日",
                             krause: "1994",
                             remark: "",
-                            img1: "image/taiwan/BR727635YJ-1.jpg",
-                            img2: "image/taiwan/BR727635YJ-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/BR727635YJ-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/BR727635YJ-2.jpg"
                         }
                     ]
                 },{
@@ -366,8 +366,8 @@ const taiwanData = {
                             purchaseDate: "2026年3月1日",
                             krause: "1997",
                             remark: "",
-                            img1: "image/taiwan/WJ052676RZ-1.jpg",
-                            img2: "image/taiwan/WJ052676RZ-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/WJ052676RZ-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/WJ052676RZ-2.jpg"
                         }
                     ]
                 },{
@@ -383,8 +383,8 @@ const taiwanData = {
                             purchaseDate: "2026年3月1日",
                             krause: "1995",
                             remark: "",
-                            img1: "image/taiwan/BQ899363YE-1.jpg",
-                            img2: "image/taiwan/BQ899363YE-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/BQ899363YE-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/BQ899363YE-2.jpg"
                         }
                     ]
                 }
@@ -407,8 +407,8 @@ const taiwanData = {
                             krause: "R101",
                             print:"中央印制厂/CEPP",
                             remark: "平3版（可惜了这张的冠号没带3）",
-                            img1: "image/taiwan/A779086K-1.jpg",
-                            img2: "image/taiwan/A779086K-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/A779086K-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/A779086K-2.jpg"
                         }
                     ]
                 }
@@ -431,8 +431,8 @@ const taiwanData = {
                             krause: "R120",
                             print:"中央印制厂/CEPP",
                             remark: "英文前后字轨版",
-                            img1: "image/taiwan/A795950C-1.jpg",
-                            img2: "image/taiwan/A795950C-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/A795950C-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/taiwan/A795950C-2.jpg"
                         }
                     ]
                 }
