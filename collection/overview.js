@@ -7,7 +7,6 @@ function renderOverview() {
     let allItems = [];
     let globalIndex = 1;
     const tree = getCategoryTree();
-    const imgBase = getImageBase();
 
     for (const cat of tree) {
         if (cat.children && cat.children.length > 0) {
@@ -106,13 +105,14 @@ function renderOverview() {
 }
 
 function renderOverviewGroup(label, items) {
-    const imgBase = getImageBase();
     let html = `<div class="search-result-group">`;
     html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
     for (const item of items) {
         const c = item.copy;
-        const img1 = c.img1 ? imgBase + c.img1 : '';
-        const img2 = c.img2 ? imgBase + c.img2 : '';
+        // ---------- 使用全局 getImageUrl 替代 imgBase ----------
+        const img1 = getImageUrl(c.img1);
+        const img2 = getImageUrl(c.img2);
+        // -------------------------------------------------------
         const displayName = item.hasVarieties && item.variety
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
