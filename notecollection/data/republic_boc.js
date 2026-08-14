@@ -25,7 +25,23 @@ const republic_bocData = {
                     varietyName: "1937年 10元 上海中国银行大楼",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18171906,
+                            year: 1937,
+                            version: "R612749",
+                            bank: "中国银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "79mm*162mm",
+                            condition: "ACG64E",
+                            price: "88元",
+                            purchaseDate: "2026年8月14日",
+                            krause: "81",
+                            remark: "单字轨；水印/Wmk：天坛祈年殿/Pagoda",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/R612749-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/R612749-2.jpg"
+                        },{
+                            copyId: 26072296,
                             year: 1937,
                             version: "AH799383",
                             bank: "中国银行",
