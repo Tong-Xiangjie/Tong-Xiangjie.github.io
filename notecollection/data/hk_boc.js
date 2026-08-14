@@ -59,7 +59,7 @@ const hk_bocData = {
                             krause: "330b",
                             signature: "香港分行总经理：羊子林",
                             faceDate: "1996年1月1日",
-                            remark: "红磡海底隧道连接九龙红磡与香港岛铜锣湾，于1969年9月动工，历时近3年完成。1972年8月2日，时任香督麦理浩爵士主持了通车典礼，并亲自为隧道剪彩，隧道于当日下午正式向公众开放。红磡海底隧道是香港现代繁华的"起跑线"，它让香港作为一个整体城市而非两个独立的城区来运行。",
+                            remark: "红磡海底隧道连接九龙红磡与香港岛铜锣湾，于1969年9月动工，历时近3年完成。1972年8月2日，时任香督麦理浩爵士主持了通车典礼，并亲自为隧道剪彩，隧道于当日下午正式向公众开放。红磡海底隧道是香港现代繁华的“起跑线”，它让香港作为一个整体城市而非两个独立的城区来运行。",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AF724347-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/hk_boc/AF724347-2.jpg"
                         },
