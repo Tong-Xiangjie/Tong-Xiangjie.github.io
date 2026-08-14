@@ -101,11 +101,14 @@ function buildDecadeCategories(config, items) {
         decades[label].push(year);
     }
 
-    return Object.keys(decades).sort().map(decade => ({
-        id: decade,
-        name: decade,
-        dataKey: config.id
-    }));
+    // 倒序：2020s → 1910s
+    return Object.keys(decades)
+        .sort((a, b) => parseInt(b) - parseInt(a))
+        .map(decade => ({
+            id: decade,
+            name: decade,
+            dataKey: config.id
+        }));
 }
 
 function renderSpecialContent() {
@@ -131,8 +134,7 @@ function renderSpecialContent() {
         return;
     }
 
-    specialItemsList = items;
-
+    // 年代筛选（若有）
     let filteredItems = items;
     if (currentSubId) {
         const decadeStart = parseInt(currentSubId);
@@ -144,36 +146,44 @@ function renderSpecialContent() {
         }
     }
 
-    // 专题图片直接调用 getImageUrl 自动识别子目录
-    let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
-    if (currentSubId) {
-        html += `<p style="font-size:0.8rem;color:var(--theme);">当前筛选：${currentSubId}</p>`;
-    }
-    html += `</div>`;
-
+    // 按年代分组
     const yearGroups = {};
     for (let i = 0; i < filteredItems.length; i++) {
         const item = filteredItems[i];
         const year = item.year || '未知';
         if (!yearGroups[year]) yearGroups[year] = [];
-        yearGroups[year].push({ item, index: items.indexOf(item) });
+        yearGroups[year].push(item);
     }
 
+    // 年份倒序（未知放最后）
     const sortedYears = Object.keys(yearGroups).sort((a, b) => {
         if (a === '未知') return 1;
         if (b === '未知') return -1;
         return parseInt(b) - parseInt(a);
     });
 
+    // ★ 灯箱列表 = 展示顺序（年份倒序 + 组内数据序），保证翻页与页面一致
+    specialItemsList = [];
+    for (const year of sortedYears) {
+        for (const item of yearGroups[year]) {
+            specialItemsList.push(item);
+        }
+    }
+
+    let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
+    if (currentSubId) {
+        html += `<p style="font-size:0.8rem;color:var(--theme);">当前筛选：${currentSubId}</p>`;
+    }
+    html += `</div>`;
+
     for (const year of sortedYears) {
         const group = yearGroups[year];
         html += `<div class="special-year-section">`;
         html += `<div class="special-year-title">${year}年 <span class="count">${group.length}件</span></div>`;
         html += `<div class="special-year-grid">`;
-        for (const { item, index } of group) {
-            // ---------- 使用 getImageUrl 自动识别子目录 ----------
+        for (const item of group) {
+            const index = specialItemsList.indexOf(item);
             const imgUrl = getImageUrl(item.yearImg);
-            // ---------------------------------------------------
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
                 html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.name || '')}" loading="lazy"></div>`;
@@ -247,13 +257,11 @@ function renderLightboxContent(contentEl, config) {
     if (index < 0 || index >= items.length) return;
 
     const item = items[index];
-    // ---------- 使用 getImageUrl 自动识别子目录 ----------
     const imgUrl = getImageUrl(item.yearImg);
-    // ---------------------------------------------------
 
     let html = '';
 
-    // ★ 导航按钮：不再用内联样式，使用 CSS class
+    // ★ 导航按钮
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
