@@ -106,6 +106,15 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
+    // ★ 新增：图片缓存管理
+    html += `<div class="settings-section">`;
+    html += `<h3>图片缓存</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" onclick="clearImageCache()">清除图片缓存</button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片由 Service Worker 缓存到本地，可离线查看。更新图片后若仍显示旧图，点击此按钮清除缓存并刷新页面。</p>`;
+    html += `</div>`;
+
     html += `<div class="settings-section">`;
     html += `<h3>数据导出</h3>`;
     html += `<div class="export-buttons">`;
@@ -155,4 +164,21 @@ function addCurrentCustomColor() {
     addCustomColor(color);
     renderSettingsPage();
     if (typeof setTheme === 'function') setTheme(color);
+}
+
+// ★ 清除图片缓存（直接走 Cache API）
+async function clearImageCache() {
+    if (!('caches' in window)) {
+        alert('当前浏览器不支持 Cache API');
+        return;
+    }
+    try {
+        const keys = await caches.keys();
+        await Promise.all(
+            keys.filter(k => k.startsWith('collection-images')).map(k => caches.delete(k))
+        );
+        alert('图片缓存已清除，刷新页面后生效');
+    } catch (e) {
+        alert('清除失败：' + e.message);
+    }
 }
