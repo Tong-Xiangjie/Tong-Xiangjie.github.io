@@ -990,3 +990,18 @@ body.modal-open {
 .detail-row:last-child { border-bottom: none; }
 .detail-label { color: var(--text-secondary); flex-shrink: 0; margin-right: 12px; }
 .detail-value { color: var(--text); text-align: right; word-break: break-all; }
+
+/* ========== 数据加载中提示 ========== */
+.data-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    animation: dataLoadingPulse 1.2s ease-in-out infinite;
+}
+@keyframes dataLoadingPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
