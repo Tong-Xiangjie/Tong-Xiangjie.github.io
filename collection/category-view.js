@@ -131,15 +131,14 @@ function renderCategoryOverview(cat) {
         html += `<div class="search-group-header">${escapeHtml(label)}<span class="count">${items.length}件</span></div>`;
         for (const item of items) {
             const c = item.copy;
-            // ========== 修改点：使用 getImageUrl ==========
             const img1 = getImageUrl(c.img1);
             const img2 = getImageUrl(c.img2);
-            // ============================================
             const displayName = item.hasVarieties && item.variety
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
+
             const catalogNum = c.catalogNumber || c.krause || '';
-            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+            const catalogDisplay = formatCatalogNumber(catalogNum);
 
             html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
             html += `<div class="dual-thumb">`;
@@ -235,12 +234,10 @@ function renderCopiesList(copies) {
     }
     let html = '';
     for (const c of copies) {
-        // ========== 修改点：使用 getImageUrl ==========
         const img1 = getImageUrl(c.img1);
         const img2 = getImageUrl(c.img2);
-        // ============================================
         const catalogNum = c.catalogNumber || c.krause || '';
-        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+        const catalogDisplay = formatCatalogNumber(catalogNum);
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
