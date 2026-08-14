@@ -176,7 +176,10 @@ function buildArticleCategoryTree() {
 }
 
 function getArticleBasePath(sourceType) {
-    // 直接使用 CDN 路径，所有 readme 都在 notecollection/readmes/ 下
+    if (sourceType === MODE.COINS) {
+        return 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/coincollection/';
+    }
+    // 纸币（MODE.NOTES）和其他情况
     return 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/';
 }
 
