@@ -1,10 +1,20 @@
 // ==================== main.js ====================
 // 精简版：仅初始化与事件绑定
 
-document.addEventListener('DOMContentLoaded', function() {
-    // 注册 Service Worker：图片本地缓存，可离线看图
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+document.addEventListener('DOMContentLoaded', async function() {
+    // ★ 数据加载中提示（等待数据文件动态加载完成）
+    const loadingApp = document.getElementById('app');
+    if (loadingApp) {
+        loadingApp.innerHTML = '<div class="data-loading">数据正火速赶来中，请稍候ε=ε=(ノ≧∇≦)ノ</div>';
+    }
+
+    // ★ 等待所有数据文件加载并桥接
+    try {
+        if (typeof loadAllData === 'function') await loadAllData();
+    } catch (e) {
+        const appEl0 = document.getElementById('app');
+        if (appEl0) appEl0.innerHTML = '<div class="empty-state">数据加载失败：' + escapeHtml(e.message) + '</div>';
+        return;
     }
 
     buildSpecialCategoryTree();
