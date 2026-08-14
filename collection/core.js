@@ -9,10 +9,16 @@ const KRAUSE_PREFIX = 'Pick# ';
 // ========== 目录编号格式化（统一规则） ==========
 // 规则：值中已含 '#'（如 KM# 555、Pick# 123、SUN# 456）→ 原样返回；
 //       不含 '#' 的纯编号（如 888）→ 默认补 'Pick# ' 前缀。
+//       若包含 'Unlisted'（不区分大小写）→ 返回空字符串（不显示）
 function formatCatalogNumber(num) {
     if (!num) return '';
-    const s = String(num);
-    return s.includes('#') ? s : 'Pick# ' + s;
+    const s = String(num).trim();
+    // Unlisted / Pick# Unlisted 等 → 不显示编号（搜索仍按原始值命中）
+    if (/unlisted/i.test(s)) return '';
+    // 已带前缀（Pick# / KM# / SUN# / Sun- 等）→ 原样返回
+    if (s.includes('#') || /^sun[-#]/i.test(s)) return s;
+    // 纯编号 → 默认补 Pick#
+    return 'Pick# ' + s;
 }
 
 // ========== CDN 图片路径处理（智能识别子目录） ==========
@@ -362,7 +368,8 @@ function saveFullState() {
             readerScrollY: 0
         };
         scrollMemory['articles-' + key] = scrollY;
-    } else if (currentMode === MODE.SPECIAL) {
+    } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
+        // ★ 设置模式下不覆盖专题缓存（避免专题缓存被设置页覆盖）
         const appEl = document.getElementById('app');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             specialPageCaches[selectedSpecial] = {
