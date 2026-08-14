@@ -1,6 +1,26 @@
 // ==================== stats.js ====================
 // 统计与导出
- 
+
+// ========== 硬币评级前缀解析 ==========
+// 双字母在前、单字母在后，避免 F 与 XF/VF/PF/FR 误配
+const COIN_PREFIXES = ['MS', 'PF', 'AU', 'XF', 'VF', 'VG', 'AG', 'FR', 'PO', 'F', 'G'];
+
+function parseGrade(cond) {
+    let s = cond.trim();
+    let prefix = '';
+    for (const p of COIN_PREFIXES) {
+        if (s.startsWith(p)) {
+            prefix = p;
+            s = s.substring(p.length);
+            break;
+        }
+    }
+    const m = s.match(/^(\d+)\+?(E)?/);
+    if (!m) return null;
+    return { prefix, score: m[1] + (m[2] || '') };
+}
+// ============================================
+
 function collectAllCopies() {
     const allCopies = [];
 
@@ -127,29 +147,42 @@ function computeStats(typeFilter) {
     const pricedItems = prices.filter(p => !p.noPrice);
     const avgPrice = pricedItems.length > 0 ? Math.round(totalPrice / pricedItems.length) : 0;
 
-    const gradeCounts = {};
+    // ========== 评级统计（支持 MS/PF/AU 等前缀分组） ==========
+    const gradeMap = {};
     let ungraded = 0;
     for (const item of filtered) {
         const cond = item.copy.condition || item.copy.grade || '';
 
+        // 处理「真品」特殊情况
         if (cond.includes('真品')) {
-            gradeCounts['真品'] = (gradeCounts['真品'] || 0) + 1;
+            if (!gradeMap['真品']) gradeMap['真品'] = { prefixes: new Set(['']), count: 0 };
+            gradeMap['真品'].count++;
             continue;
         }
 
-        const match = cond.match(/(\d+)\+?(E)?/);
-        if (match) {
-            const displayGrade = match[1] + (match[2] || '');
-            gradeCounts[displayGrade] = (gradeCounts[displayGrade] || 0) + 1;
-        } else {
+        const parsed = parseGrade(cond);
+        if (!parsed) {
             ungraded++;
+            continue;
         }
+
+        // 按分数（含 E 后缀）分组，记录出现过的前缀
+        if (!gradeMap[parsed.score]) gradeMap[parsed.score] = { prefixes: new Set(), count: 0 };
+        gradeMap[parsed.score].prefixes.add(parsed.prefix);
+        gradeMap[parsed.score].count++;
     }
-    const sortedGrades = Object.entries(gradeCounts).sort((a, b) => {
-        const aVal = a[0] === '真品' ? -1 : parseFloat(a[0].replace('E', '.5'));
-        const bVal = b[0] === '真品' ? -1 : parseFloat(b[0].replace('E', '.5'));
-        return bVal - aVal;
-    });
+
+    // 生成标签：同分多前缀用 / 合并（如 MS/PF69）；排序按分数，不再被标签文字干扰
+    const sortedGrades = Object.entries(gradeMap)
+        .map(([score, g]) => {
+            const prefixes = [...g.prefixes].filter(Boolean).sort();
+            const label = score === '真品' ? '真品'
+                : (prefixes.length ? prefixes.join('/') + score : score);
+            const sortVal = score === '真品' ? -1 : parseFloat(score.replace('E', '.5'));
+            return [label, g.count, sortVal];
+        })
+        .sort((a, b) => b[2] - a[2])
+        .map(e => [e[0], e[1]]);
 
     const yearCounts = {};
     for (const item of filtered) {
@@ -381,7 +414,7 @@ function buildRatingHTML(stats) {
     for (const [grade, count] of stats.sortedGrades) {
         const pct = (count / maxGradeCount * 100).toFixed(0);
         html += `<div class="stat-bar-row">`;
-        html += `<span class="stat-bar-label">${grade}</span>`;
+        html += `<span class="stat-bar-label">${escapeHtml(grade)}</span>`;
         html += `<div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
         html += `<span class="stat-bar-count">${count}件</span>`;
         html += `</div>`;
