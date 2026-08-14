@@ -79,7 +79,7 @@ const republic_crbcData = {
             year: "1940",
             varieties: [
                 {
-                    varietyName: "1943年 1元 华成版 南京中山陵",
+                    varietyName: "1943年 1元 南京中山陵",
                     copies: [
                         {
                             copyId: 1,
