@@ -42,8 +42,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A3%E2%85%A91%E4%B8%8948437-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A3%E2%85%A91%E4%B8%8948437-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅣⅩ148437-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅣⅩ148437-2.jpg"
                         }
                     ]
                 },
@@ -60,8 +60,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A68%E4%B8%8913772-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A68%E4%B8%8913772-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅦ813772-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅦ813772-2.jpg"
                         }
                     ]
                 }
@@ -85,8 +85,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A69%E4%B8%89103374-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A69%E4%B8%89103374-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅦ9103374-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅦ9103374-2.jpg"
                         }
                     ]
                 }
@@ -110,8 +110,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A2%E2%85%A10%E4%B8%899191201-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A2%E2%85%A10%E4%B8%899191201-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅢⅡ09191201-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅢⅡ09191201-2.jpg"
                         }
                     ]
                 },
@@ -128,8 +128,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A1%E2%85%A47%E4%B8%89501722-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A1%E2%85%A47%E4%B8%89501722-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅡⅤ7501722-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅡⅤ7501722-2.jpg"
                         }
                     ]
                 }
@@ -153,8 +153,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A18%E4%B8%893410889-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A18%E4%B8%893410889-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅡ83410889-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅡ83410889-2.jpg"
                         }
                     ]
                 },
@@ -171,8 +171,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A16%E4%B8%894357754-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A16%E4%B8%894357754-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ64357754-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ64357754-2.jpg"
                         }
                     ]
                 },
@@ -193,8 +193,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A14%E4%B8%890955834-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A14%E4%B8%890955834-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ40955834-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ40955834-2.jpg"
                         }
                     ]
                 },
@@ -211,8 +211,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A13%E4%B8%898182121-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A13%E4%B8%898182121-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ38182121-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ38182121-2.jpg"
                         }
                     ]
                 }
@@ -240,8 +240,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "GKQ五星水印/Stars & Letters",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A13%E4%B8%890102812-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/%E2%85%A9%E2%85%A13%E4%B8%890102812-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ30102812-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/gkq/ⅩⅠ30102812-2.jpg"
                         }
                     ]
                 }
