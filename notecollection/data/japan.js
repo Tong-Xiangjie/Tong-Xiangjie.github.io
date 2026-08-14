@@ -19,7 +19,36 @@ const japanData = {
     ],
 
     series: [
-        // ==================== A序列 ====================
+        // ==================== 政府纸币 ====================
+        {
+            seriesName: "政府纸币",
+            year: "1946",
+            varieties: [
+                {
+                    varietyName: "1945年 50銭 靖国神社",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1947,
+                            version: "{51}",
+                            bank: "日本帝国政府/The Japanese Imperial Government",
+                            condition: "ACG66E",
+                            price: "58元",
+                            purchaseDate: "2026年8月14日",
+                            krause: "60a",
+                            print: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            wmk: "无水印/Without Wmk",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/1945-50-51-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/1945-50-51-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },// ==================== A序列 ====================
         {
             seriesName: "A序列",
             year: "1946",
