@@ -192,7 +192,8 @@ function renderSpecialContent() {
             }
             html += `<div class="special-item-info">`;
             html += `<div class="special-item-name">${escapeHtml(item.name || '')}</div>`;
-            if (item.krause) html += `<div class="special-item-krause">${escapeHtml(item.krause)}</div>`;
+            // ★ 隐藏 Unlisted 编号
+            if (item.krause && !/unlisted/i.test(item.krause)) html += `<div class="special-item-krause">${escapeHtml(item.krause)}</div>`;
             html += `</div></div>`;
         }
         html += `</div></div>`;
@@ -285,7 +286,8 @@ function renderLightboxContent(contentEl, config) {
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || '')}</div>`;
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
-    if (item.krause) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
+    // ★ 隐藏 Unlisted 编号
+    if (item.krause && !/unlisted/i.test(item.krause)) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
     html += `</div>`;
 
     contentEl.innerHTML = html;
