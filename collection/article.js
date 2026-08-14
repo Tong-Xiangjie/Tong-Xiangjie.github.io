@@ -145,7 +145,8 @@ function findArticleCategoryInfo(dataKey, sourceType) {
 }
 
 function buildArticleCategoryTree() {
-    articleCategoryTree = [{ id: 'all', name: '全部文章', children: null }];
+    // ★ 去掉「全部文章」节点，与纸币/硬币侧边栏行为一致
+    articleCategoryTree = [];
     const notesArticles = collectedArticles.filter(a => a.sourceType === MODE.NOTES);
     const coinsArticles = collectedArticles.filter(a => a.sourceType === MODE.COINS);
     const notesCount = {};
@@ -401,11 +402,16 @@ function openArticleReader(index) {
         .then(content => {
             articleContentCache[article.contentPath] = content;
             articlePlainTextCache[article.contentPath] = stripHtml(content);
-            renderArticleReader(article, content);
-            app.scrollTop = 0;
+            // ★ 若用户已返回列表（或切到别的文章）：只在后台缓存，不再抢回阅读器
+            if (currentArticleView === VIEW.READER && currentArticleIndex === index) {
+                renderArticleReader(article, content);
+                app.scrollTop = 0;
+            }
         })
         .catch(() => {
-            app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
+            if (currentArticleView === VIEW.READER && currentArticleIndex === index) {
+                app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
+            }
         });
 }
 
