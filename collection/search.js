@@ -34,7 +34,6 @@ function doSearch() {
     const rawKeyword = input.value.trim();
 
     if (currentMode === MODE.ARTICLES) {
-        saveScroll('articles');
         articleSearchKeyword = rawKeyword;
         renderArticleList();
         return;
@@ -214,14 +213,6 @@ function getActualKeyword(inputValue, searchType) {
     return inputValue.trim();
 }
 
-function getDisplayValue(keyword, searchType) {
-    if (searchType === SEARCH_TYPE.KRAUSE) {
-        if (!keyword || keyword === '') return KRAUSE_PREFIX;
-        if (!keyword.startsWith(KRAUSE_PREFIX)) return KRAUSE_PREFIX + keyword;
-    }
-    return keyword || '';
-}
-
 function renderSearchResults(results, rawKeyword, type) {
     const app = getRenderContainer();
     const modeLabel = currentMode === MODE.NOTES ? '纸币' : '硬币';
@@ -263,15 +254,14 @@ function renderSearchResults(results, rawKeyword, type) {
 
         for (const item of group) {
             const copy = item.copy;
-            // ========== 使用 getImageUrl 替代 imgBase ==========
             const img1 = getImageUrl(copy.img1);
             const img2 = getImageUrl(copy.img2);
-            // ==================================================
             const displayName = item.hasVarieties
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
+
             const catalogNum = copy.catalogNumber || copy.krause || '';
-            const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('KM#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+            const catalogDisplay = formatCatalogNumber(catalogNum);
 
             html += `<div class="search-result-item" onclick="navigateToCopy('${item.dataKey}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : 'null'}, ${item.cIdx}, ${item.hasVarieties})">`;
             html += `<div class="dual-thumb">`;
