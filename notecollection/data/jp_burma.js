@@ -19,7 +19,7 @@ const jp_burmaData = {
 
   series: [
         {
-            seriesName: "1944年 100卢比（Rupees）",
+            seriesName: "1944年 100卢比（Rupees） 佛塔",
             year: "1944",
             copies: [
                 {
