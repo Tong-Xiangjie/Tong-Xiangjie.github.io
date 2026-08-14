@@ -6,6 +6,15 @@ const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year'
 const SEARCH_MODE = { CLICK: 'click', REALTIME: 'realtime' };
 const KRAUSE_PREFIX = 'Pick# ';
 
+// ========== 目录编号格式化（统一规则） ==========
+// 规则：值中已含 '#'（如 KM# 555、Pick# 123、SUN# 456）→ 原样返回；
+//       不含 '#' 的纯编号（如 888）→ 默认补 'Pick# ' 前缀。
+function formatCatalogNumber(num) {
+    if (!num) return '';
+    const s = String(num);
+    return s.includes('#') ? s : 'Pick# ' + s;
+}
+
 // ========== CDN 图片路径处理（智能识别子目录） ==========
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/';
 
