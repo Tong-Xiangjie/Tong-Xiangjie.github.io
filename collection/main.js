@@ -2,6 +2,11 @@
 // 精简版：仅初始化与事件绑定
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 注册 Service Worker：图片本地缓存，可离线看图
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
     buildSpecialCategoryTree();
     renderSidebar();
 
