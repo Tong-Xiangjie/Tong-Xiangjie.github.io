@@ -130,7 +130,7 @@ const commemorativeData = {
             year: "2000",
             readme: {
                 title: "跟着纸币游中国 | 中华世纪坛",
-                content: "file:notecollection/readmes/20260625_zhonghuashijitan.txt"
+                content: "file:readmes/20260625_zhonghuashijitan.txt"
             },
             copies: [
                 { 
@@ -584,7 +584,7 @@ const commemorativeData = {
             year: "2018",
             readme: {
                 title: "跟着纸币游中国 | 中国人民银行总行大楼",
-                content: "file:notecollection/readmes/20260718_yanghangdalou.txt"
+                content: "file:readmes/20260718_yanghangdalou.txt"
             },
             copies: [
                 { 
@@ -799,7 +799,7 @@ const commemorativeData = {
             year: "2024",
             readme: {
                 title: "发行公告",
-                content: "file:notecollection/readmes/dragon_release.txt"
+                content: "file:readmes/dragon_release.txt"
             },
             copies: [
                 { 
@@ -824,7 +824,7 @@ const commemorativeData = {
             year: "2025",
             readme: {
                 title: "发行公告",
-                content: "file:notecollection/readmes/snake_release.txt"
+                content: "file:readmes/snake_release.txt"
             },
             copies: [
                 { 
@@ -849,7 +849,7 @@ const commemorativeData = {
             year: "2026",
             readme: {
                 title: "发行公告",
-                content: "file:notecollection/readmes/horse_release.txt"
+                content: "file:readmes/horse_release.txt"
             },
             copies: [
                 { 
