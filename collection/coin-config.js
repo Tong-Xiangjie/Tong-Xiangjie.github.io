@@ -4,6 +4,8 @@ const coinCategoryTree = [
         id: 'commemorative_coins',
         name: '纪念币',
         dataKey: 'commemorativeData',
+        // ★ 硬币纪念币的全局变量名是 coincommData（与纸币纪念钞 commemorativeData 不同名）
+        dataVar: 'coincommData',
         dataFile: '../coincollection/data/commemorative_coins.js',
         children: null
     },
