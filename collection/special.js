@@ -192,7 +192,7 @@ function renderSpecialContent() {
             }
             html += `<div class="special-item-info">`;
             html += `<div class="special-item-name">${escapeHtml(item.name || '')}</div>`;
-            // ★ 隐藏 Unlisted 编号
+            // 隐藏 Unlisted 编号
             if (item.krause && !/unlisted/i.test(item.krause)) html += `<div class="special-item-krause">${escapeHtml(item.krause)}</div>`;
             html += `</div></div>`;
         }
@@ -225,19 +225,18 @@ function openSpecialLightbox(index) {
     inner.className = 'special-lightbox-inner';
     inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
 
-    // ★ 关闭按钮：右上角，不与导航按钮重叠
+    // ★ 关闭按钮：使用通用 lightbox-close
     const closeBtn = document.createElement('div');
+    closeBtn.className = 'lightbox-close';
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = 'position:absolute;top:-8px;right:-8px;font-size:1.3rem;cursor:pointer;color:#fff;line-height:1;z-index:10;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,0.45);border:2px solid rgba(255,255,255,0.3);transition:background 0.15s;';
-    closeBtn.onmouseover = () => { closeBtn.style.background = 'rgba(0,0,0,0.7)'; };
-    closeBtn.onmouseout = () => { closeBtn.style.background = 'rgba(0,0,0,0.45)'; };
+    closeBtn.title = '关闭';
     closeBtn.onclick = (e) => { e.stopPropagation(); closeSpecialLightbox(); };
+    inner.appendChild(closeBtn);
 
     const content = document.createElement('div');
     content.className = 'special-lightbox-content';
     content.style.padding = '16px 20px 20px';
 
-    inner.appendChild(closeBtn);
     inner.appendChild(content);
     lightbox.appendChild(inner);
     document.body.appendChild(lightbox);
@@ -262,8 +261,8 @@ function renderLightboxContent(contentEl, config) {
 
     let html = '';
 
-    // ★ 导航按钮
-    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">`;
+    // ★ 导航行右侧留白避开关闭按钮
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-right:36px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
 
@@ -286,7 +285,7 @@ function renderLightboxContent(contentEl, config) {
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || '')}</div>`;
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
-    // ★ 隐藏 Unlisted 编号
+    // 隐藏 Unlisted 编号
     if (item.krause && !/unlisted/i.test(item.krause)) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
     html += `</div>`;
 
