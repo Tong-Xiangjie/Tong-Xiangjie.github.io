@@ -109,16 +109,14 @@ function renderOverviewGroup(label, items) {
     html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${items.length}件</span></div>`;
     for (const item of items) {
         const c = item.copy;
-        // ---------- 使用全局 getImageUrl 替代 imgBase ----------
         const img1 = getImageUrl(c.img1);
         const img2 = getImageUrl(c.img2);
-        // -------------------------------------------------------
         const displayName = item.hasVarieties && item.variety
             ? `${item.series.seriesName} - ${item.variety.varietyName}`
             : item.series.seriesName;
 
         const catalogNum = c.catalogNumber || c.krause || '';
-        const catalogDisplay = catalogNum ? (catalogNum.startsWith('Pick#') ? catalogNum : (catalogNum.startsWith('SUN#') ? catalogNum : 'Pick# ' + catalogNum)) : '';
+        const catalogDisplay = formatCatalogNumber(catalogNum);
 
         html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
         html += `<div class="dual-thumb">`;
