@@ -926,3 +926,86 @@ body.modal-open {
         transform: translateY(0);
     }
 }
+
+/* ========== 灯箱通用关闭按钮：极简 ✕ ========== */
+.lightbox-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: color 0.15s, background 0.15s;
+    z-index: 10;
+    user-select: none;
+}
+.lightbox-close:hover {
+    color: var(--theme);
+    background: rgba(0, 0, 0, 0.06);
+}
+
+/* ========== 分类页条目「详细信息」入口 ========== */
+.copy-detail-link {
+    color: var(--theme);
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+.copy-detail-link:hover { text-decoration: underline; }
+
+/* ========== 详细信息卡片 ========== */
+.info-lightbox {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: contentFadeIn 0.2s ease;
+}
+.info-lightbox-inner {
+    background: var(--card-bg);
+    border-radius: 12px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+.info-lightbox-content { padding: 16px 20px 20px; }
+.info-lightbox-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 10px;
+    padding-right: 36px;          /* 避开关闭按钮 */
+}
+.info-lightbox-imgs { display: flex; gap: 8px; margin-bottom: 12px; }
+.info-lightbox-imgs img {
+    width: 48%;
+    border-radius: 6px;
+    cursor: zoom-in;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 0.85rem;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: var(--text-secondary); flex-shrink: 0; margin-right: 12px; }
+.detail-value { color: var(--text); text-align: right; word-break: break-all; }
