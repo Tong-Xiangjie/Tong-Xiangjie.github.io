@@ -51,6 +51,54 @@ const republic_crbcData = {
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/ET444887A-2.jpg"
                         }
                     ]
+                },{
+                    varietyName: "1940年 10元 南京中山陵",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1940,
+                            version: "W/Y 706147E",
+                            bank: "中央储备银行",
+                            print: "未知",
+                            issueDate: "民国二十九年（1940年）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG63E",
+                            price: "109元",
+                            purchaseDate: "2026年8月14日",
+                            krause: "J12h",
+                            remark: "【版别：蓝签名】",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/WY706147E-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/WY706147E-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国三十二年（1943年） 中储券",
+            year: "1940",
+            varieties: [
+                {
+                    varietyName: "1943年 1元 华成版 南京中山陵",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1940,
+                            version: "AB446413",
+                            bank: "中央储备银行",
+                            print: "",
+                            issueDate: "民国三十二年（1943年）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG65E",
+                            price: "158元",
+                            purchaseDate: "2026年8月14日",
+                            krause: "J19",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/AB446413-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/AB446413-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
