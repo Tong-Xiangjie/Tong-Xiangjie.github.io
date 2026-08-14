@@ -400,6 +400,9 @@ function setupModalEvents() {
     const modal = document.getElementById('imageModal');
     if (!modal) return;
     modal.addEventListener('click', function(e) {
-        if (e.target === modal) closeModal();
+        const t = e.target;
+        // 点击图片本身或关闭按钮 → 不关闭；其余任意空白/留白/提示区 → 关闭
+        if (t && (t.id === 'modalImg' || t.classList.contains('modal-close'))) return;
+        closeModal();
     });
 }
