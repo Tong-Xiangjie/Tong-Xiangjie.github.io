@@ -70,7 +70,7 @@ const republic_cbcData = {
             year: "1936",
             varieties: [
                 {
-                    varietyName: "1936年 10元 曲阜孔庙大成殿/北京太和殿",
+                    varietyName: "1936年 10元 北京太和殿",
                     copies: [
                         {
                             copyId: 1,
@@ -91,7 +91,7 @@ const republic_cbcData = {
                         }
                     ]
                 },{
-                    varietyName: "1936年 100元 曲阜孔庙大成殿/北京太和殿",
+                    varietyName: "1936年 100元 北京太和殿",
                     copies: [
                         {
                             copyId: 1,
@@ -189,6 +189,33 @@ const republic_cbcData = {
                 }
             ]
         },{
+            seriesName: "中华民国三十年（1941年） 德纳罗版·背黄鹤楼 法币券",
+            year: "1941",
+            varieties: [
+                {
+                    varietyName: "1941年 5元 黄鹤楼",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1941,
+                            version: "CL802418",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG65E",
+                            price: "109元",
+                            purchaseDate: "2026年8月14日",
+                            krause: "235a.1",
+                            remark: "细号码版",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/CL802418-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/CL802418-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国三十年（1941年） 美商保安版 法币券",
             year: "1941",
             varieties: [
@@ -259,6 +286,33 @@ const republic_cbcData = {
                             remark: "这里的“东北九省”指的是将原来的辽、吉、黑三省划分为辽宁、安东、辽北、吉林、松江、合江、黑龙江、嫩江以及兴安省九个省份。",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/WQ648448-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/WQ648448-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国三十五至三十八年（1946～1949年） 德纳罗版 金圆券",
+            year: "1945～1948",
+            varieties: [
+                {
+                    varietyName: "1946年 1角 安庆振风塔",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1945,
+                            version: "6D838457",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG66E",
+                            price: "198元",
+                            purchaseDate: "2026年8月14日",
+                            krause: "395a",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/6D838457-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/6D838457-2.jpg"
                         }
                     ]
                 }
