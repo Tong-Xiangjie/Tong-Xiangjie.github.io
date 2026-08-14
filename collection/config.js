@@ -71,12 +71,13 @@ const categoryTree = [
             { id: 'republic_boc', name: '中国银行', dataKey: 'republic_bocData', dataFile: '../notecollection/data/republic_boc.js' },
             { id: 'republic_communications', name: '交通银行', dataKey: 'republic_communicationsData', dataFile: '../notecollection/data/republic_communications.js' },
             { id: 'republic_fbc', name: '中国农民银行', dataKey: 'republic_fbcData', dataFile: '../notecollection/data/republic_fbc.js' },
-            { id: 'republic_kpb', name: '广东省银行', dataKey: 'republic_kpbData', dataFile: '../notecollection/data/republic_kpb.js' },
             { id: 'republic_crbc', name: '中央储备银行', dataKey: 'republic_crbcData', dataFile: '../notecollection/data/republic_crbc.js' },
+            { id: 'republic_kpb', name: '广东省银行', dataKey: 'republic_kpbData', dataFile: '../notecollection/data/republic_kpb.js' },
+            { id: 'republic_pbkc', name: '贵州省银行', dataKey: 'republic_pbkcData', dataFile: '../notecollection/data/republic_pbkc.js' },
             { id: 'republic_aib', name: '厦门劝业银行', dataKey: 'republic_aibData', dataFile: '../notecollection/data/republic_aib.js' },
-            { id: 'japanMilitary', name: '大日本帝国政府军用手票', dataKey: 'japanMilitaryData', dataFile: '../notecollection/data/japan_military.js' },
             { id: 'republic_spb', name: '南方人民银行', dataKey: 'republic_spbData', dataFile: '../notecollection/data/republic_spb.js' },
-            { id: 'republic_mfrc', name: '中华民国财政部', dataKey: 'republic_mfrcData', dataFile: '../notecollection/data/republic_mfrc.js' }
+            { id: 'republic_mfrc', name: '中华民国财政部', dataKey: 'republic_mfrcData', dataFile: '../notecollection/data/republic_mfrc.js' },
+            { id: 'japanMilitary', name: '大日本帝国政府军用手票', dataKey: 'japanMilitaryData', dataFile: '../notecollection/data/japan_military.js' }
         ]
     },
     {
