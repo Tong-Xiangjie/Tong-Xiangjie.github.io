@@ -284,7 +284,14 @@ body {
     transform: rotate(90deg) scale(1.85);
 }
 
-/* 重复的 .sidebar-children 定义已删除，保留底部统一版本 */
+.sidebar-children {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.sidebar-children.open {
+    max-height: 2000px;
+}
 
 .sidebar-child {
     padding: 6px 16px 6px 28px;
@@ -324,6 +331,21 @@ body {
 @keyframes appFadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+.content-enter {
+    animation: contentFadeIn 0.25s ease;
+}
+
+@keyframes contentFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ========== 概览页 ========== */
@@ -852,21 +874,6 @@ body.modal-open {
     transition: opacity 0.15s;
 }
 
-.special-lightbox-nav:hover {
-    opacity: 0.85;
-}
-/* ========== 专题详情浮层导航按钮 ========== */
-.special-lightbox-nav {
-    padding: 5px 14px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    background: var(--theme);
-    color: #fff;
-    transition: opacity 0.15s;
-}
-
 .special-lightbox-nav:hover:not(:disabled) {
     opacity: 0.85;
 }
@@ -899,32 +906,6 @@ body.modal-open {
 
 .export-btn:hover {
     opacity: 0.85;
-}
-
-/* ========== 侧边栏展开/收起动画 ========== */
-.sidebar-children {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-}
-.sidebar-children.open {
-    max-height: 2000px;
-}
-
-/* ========== 入场淡入动画 ========== */
-.content-enter {
-    animation: contentFadeIn 0.25s ease;
-}
-
-@keyframes contentFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* ========== 灯箱通用关闭按钮：极简 ✕ ========== */
@@ -989,7 +970,7 @@ body.modal-open {
     font-weight: bold;
     color: var(--text);
     margin-bottom: 10px;
-    padding-right: 36px;          /* 避开关闭按钮 */
+    padding-right: 36px;
 }
 .info-lightbox-imgs { display: flex; gap: 8px; margin-bottom: 12px; }
 .info-lightbox-imgs img {
