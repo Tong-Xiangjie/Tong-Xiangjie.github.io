@@ -25,7 +25,7 @@ const japanData = {
             year: "1946",
             varieties: [
                 {
-                    varietyName: "1945年 50銭 靖国神社",
+                    varietyName: "昭和20年（1945年） 50銭（Sen） 靖国神社",
                     copies: [
                         {
                             copyId: 1,
@@ -54,11 +54,11 @@ const japanData = {
             year: "1946",
             varieties: [
                 {
-                    varietyName: "1946年 5銭 梅花",
+                    varietyName: "昭和21年（1946年） 5銭（Sen） 梅花",
                     copies: []
                 },
                 {
-                    varietyName: "1947年 10銭 和平鸽",
+                    varietyName: "昭和22年（1947年） 10銭（Sen） 和平鸽",
                     copies: [
                         {
                             copyId: 1,
@@ -81,11 +81,11 @@ const japanData = {
                     ]
                 },
                 {
-                    varietyName: "1946年 50銭 板垣退助",
+                    varietyName: "昭和21年（1946年） 50銭（Sen） 板垣退助",
                     copies: []
                 },
                 {
-                    varietyName: "1946年 1円 二宫尊德",
+                    varietyName: "昭和21年（1946年） 1円（Yen） 二宫尊德",
                     copies: [
                         {
                             copyId: 1,
@@ -108,15 +108,15 @@ const japanData = {
                     ]
                 },
                 {
-                    varietyName: "1946年 5円",
+                    varietyName: "昭和21年（1946年） 5円（Yen）",
                     copies: []
                 },
                 {
-                    varietyName: "1946年 10円 国会议事堂",
+                    varietyName: "昭和21年（1946年） 10円（Yen） 国会议事堂",
                     copies: []
                 },
                 {
-                    varietyName: "1946年 100円 圣德太子",
+                    varietyName: "昭和21年（1946年） 100円（Yen） 圣德太子",
                     copies: []
                 }
             ]
@@ -127,11 +127,11 @@ const japanData = {
             year: "1950～1953",
             varieties: [
                 {
-                    varietyName: "1951年 50円 高桥是清",
+                    varietyName: "昭和26年（1951年） 50円（Yen） 高桥是清",
                     copies: []
                 },
                 {
-                    varietyName: "1953年 100円 板垣退助",
+                    varietyName: "昭和28年（1953年） 100円（Yen） 板垣退助",
                     copies: [
                         {
                             copyId: 1,
@@ -171,11 +171,11 @@ const japanData = {
                     ]
                 },
                 {
-                    varietyName: "1951年 500円 岩仓具视",
+                    varietyName: "昭和26年（1951年） 500円（Yen） 岩仓具视",
                     copies: []
                 },
                 {
-                    varietyName: "1950年 1000円 圣德太子",
+                    varietyName: "昭和25年（1950年） 1000円（Yen） 圣德太子",
                     copies: []
                 }
             ]
@@ -186,19 +186,19 @@ const japanData = {
             year: "1957～1963",
             varieties: [
                 {
-                    varietyName: "1957年 500円 岩仓具视",
+                    varietyName: "昭和32年（1957年） 500円（Yen） 岩仓具视",
                     copies: []
                 },
                 {
-                    varietyName: "1963年 1000円 伊藤博文",
+                    varietyName: "昭和38年（1963年） 1000円（Yen） 伊藤博文",
                     copies: []
                 },
                 {
-                    varietyName: "1957年 5000円 圣德太子",
+                    varietyName: "昭和32年（1957年） 5000円（Yen） 圣德太子",
                     copies: []
                 },
                 {
-                    varietyName: "1958年 10000円 圣德太子",
+                    varietyName: "昭和33年（1958年） 10000円（Yen） 圣德太子",
                     copies: []
                 }
             ]
@@ -209,15 +209,15 @@ const japanData = {
             year: "1984",
             varieties: [
                 {
-                    varietyName: "1984年 1000円 夏目漱石",
+                    varietyName: "昭和59年（1984年） 1000円（Yen） 夏目漱石",
                     copies: []
                 },
                 {
-                    varietyName: "1984年 5000円 新渡户稻造",
+                    varietyName: "昭和59年（1984年） 5000円（Yen） 新渡户稻造",
                     copies: []
                 },
                 {
-                    varietyName: "1984年 10000円 福泽谕吉",
+                    varietyName: "昭和59年（1984年） 10000円（Yen） 福泽谕吉",
                     copies: []
                 }
             ]
@@ -228,15 +228,15 @@ const japanData = {
             year: "2004",
             varieties: [
                 {
-                    varietyName: "2004年 1000円 野口英世",
+                    varietyName: "平成16年（2004年） 1000円（Yen） 野口英世",
                     copies: []
                 },
                 {
-                    varietyName: "2004年 5000円 樋口一叶",
+                    varietyName: "平成16年（2004年） 5000円（Yen） 樋口一叶",
                     copies: []
                 },
                 {
-                    varietyName: "2004年 10000円 福泽谕吉",
+                    varietyName: "平成16年（2004年） 10000円（Yen） 福泽谕吉",
                     copies: []
                 }
             ]
@@ -247,7 +247,7 @@ const japanData = {
             year: "2024",
             varieties: [
                 {
-                    varietyName: "2024年 1000円 北里柴三郎",
+                    varietyName: "令和6年（2024年） 1000円（Yen） 北里柴三郎",
                     copies: [
                         {
                             copyId: 1,
@@ -270,11 +270,11 @@ const japanData = {
                     ]
                 },
                 {
-                    varietyName: "2024年 5000円 津田梅子",
+                    varietyName: "令和6年（2024年） 5000円（Yen） 津田梅子",
                     copies: []
                 },
                 {
-                    varietyName: "2024年 10000円 涩泽荣一",
+                    varietyName: "令和6年（2024年） 10000円（Yen） 涩泽荣一",
                     copies: []
                 }
             ]
@@ -283,7 +283,7 @@ const japanData = {
             year: "2000",
             varieties: [
                 {
-                    varietyName: "D序列 2000年 2000円 守礼门",
+                    varietyName: "平成12年（2000年） 2000円（Yen） 守礼门",
                     copies: [
                         {
                             copyId: 1,
