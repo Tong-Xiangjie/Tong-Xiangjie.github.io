@@ -15,7 +15,8 @@ function parseGrade(cond) {
             break;
         }
     }
-    const m = s.match(/^(\d+)\+?(E)?/);
+    // ★ 去掉 ^ 锚点：兼容 ACG65E 这类“公司前缀 + 数字”的纸币评级
+    const m = s.match(/(\d+)\+?(E)?/);
     if (!m) return null;
     return { prefix, score: m[1] + (m[2] || '') };
 }
