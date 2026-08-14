@@ -1,5 +1,7 @@
 // ==================== category-view.js ====================
 
+let copyDetailList = []; // 当前分类页已渲染的 copy 元信息，供详细信息卡片使用
+
 function renderCurrentCategory() {
     if (!currentCategoryId) {
         switchToCurrentContainer();
@@ -166,6 +168,7 @@ function renderCategoryOverview(cat) {
 
 function renderSeriesList(data, title) {
     const app = getRenderContainer();
+    copyDetailList = []; // 重置详细信息列表
 
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
@@ -211,12 +214,12 @@ function renderSeriesList(data, title) {
                 html += `<span class="variety-expand-icon" id="icon-${uid}">▼</span>`;
                 html += `</span></div>`;
                 html += `<div class="copy-list" id="list-${uid}">`;
-                html += renderCopiesList(copies);
+                html += renderCopiesList(copies, data.detailFields, `${series.seriesName} - ${variety.varietyName}`);
                 html += `</div></div>`;
             }
         } else if (series.copies && series.copies.length > 0) {
             html += `<div class="copy-list open" id="copies-${seriesId}" style="max-height:none;opacity:1;">`;
-            html += renderCopiesList(series.copies);
+            html += renderCopiesList(series.copies, data.detailFields, series.seriesName);
             html += `</div>`;
         }
 
@@ -228,16 +231,20 @@ function renderSeriesList(data, title) {
 }
 
 // ========== 藏品列表渲染（内部函数） ==========
-function renderCopiesList(copies) {
+function renderCopiesList(copies, detailFields, displayName) {
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
     }
     let html = '';
     for (const c of copies) {
+        const idx = copyDetailList.length;
+        copyDetailList.push({ copy: c, name: displayName || '', detailFields: detailFields || [] });
+
         const img1 = getImageUrl(c.img1);
         const img2 = getImageUrl(c.img2);
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = formatCatalogNumber(catalogNum);
+
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
@@ -245,7 +252,14 @@ function renderCopiesList(copies) {
         if (!img1 && !img2) html += `<div class="copy-thumb no-img">我的图捏？？？</div>`;
         html += `</div>`;
         html += `<div class="copy-info">`;
-        if (c.version) html += `<div class="version">${escapeHtml(c.version)}</div>`;
+
+        // 第一行：版本号 + 「详细信息」入口（无版本号则入口单独一行）
+        if (c.version) {
+            html += `<div class="version">${escapeHtml(c.version)}<span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
+        } else {
+            html += `<div class="version"><span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
+        }
+
         html += `<div>`;
         if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
         if (c.gradingCompany) html += `<span class="meta">${escapeHtml(c.gradingCompany)}</span>`;
@@ -369,4 +383,91 @@ function initPinchZoom() {
     hammerManager.on('panend', function(e) { clampTransform(); });
     container.addEventListener('dblclick', function(e) { resetTransform(); e.preventDefault(); });
     resetTransform();
+}
+
+// ========== 详细信息卡片 ==========
+function openCopyDetail(idx) {
+    const info = copyDetailList[idx];
+    if (!info) return;
+    const { copy, name, detailFields } = info;
+
+    const old = document.getElementById('copyDetailLightbox');
+    if (old) old.remove();
+
+    const lightbox = document.createElement('div');
+    lightbox.id = 'copyDetailLightbox';
+    lightbox.className = 'info-lightbox';
+
+    const inner = document.createElement('div');
+    inner.className = 'info-lightbox-inner';
+
+    // 关闭按钮（与专题灯箱同款极简 ✕）
+    const closeBtn = document.createElement('div');
+    closeBtn.className = 'lightbox-close';
+    closeBtn.textContent = '×';
+    closeBtn.title = '关闭';
+    closeBtn.onclick = (e) => { e.stopPropagation(); closeCopyDetail(); };
+    inner.appendChild(closeBtn);
+
+    // 名称（不带「名称：」前缀）
+    let html = '';
+    if (name) html += `<div class="info-lightbox-title">${escapeHtml(name)}</div>`;
+
+    // 图片（点击放大，复用 openModal）
+    const img1 = getImageUrl(copy.img1);
+    const img2 = getImageUrl(copy.img2);
+    if (img1 || img2) {
+        html += `<div class="info-lightbox-imgs">`;
+        if (img1) html += `<img src="${img1}" alt="" onclick="openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img src="${img2}" alt="" onclick="openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        html += `</div>`;
+    }
+
+    // detailFields 逐行（空值/占位自动隐藏，目录编号走 formatCatalogNumber）
+    const rows = [];
+    for (const f of detailFields) {
+        let val = copy[f.key];
+        if (val === undefined || val === null) continue;
+        val = String(val);
+        if (val === '' || val === '---') continue;
+        if (f.key === 'krause' || f.key === 'catalogNumber') {
+            val = formatCatalogNumber(val);
+            if (!val) continue; // Unlisted 不显示
+        }
+        rows.push({ label: f.label || f.key, value: val });
+    }
+    // 备注若不在 detailFields 中，固定补一行
+    if (copy.remark && !detailFields.some(f => f.key === 'remark')) {
+        rows.push({ label: '备注', value: String(copy.remark) });
+    }
+
+    if (rows.length > 0) {
+        html += `<div class="info-lightbox-body">`;
+        for (const r of rows) {
+            html += `<div class="detail-row"><span class="detail-label">${escapeHtml(r.label)}</span><span class="detail-value">${escapeHtml(r.value)}</span></div>`;
+        }
+        html += `</div>`;
+    }
+
+    const content = document.createElement('div');
+    content.className = 'info-lightbox-content';
+    content.innerHTML = html;
+    inner.appendChild(content);
+    lightbox.appendChild(inner);
+    document.body.appendChild(lightbox);
+
+    lightbox.addEventListener('click', function(e) {
+        if (e.target === lightbox) closeCopyDetail();
+    });
+    document.addEventListener('keydown', copyDetailKeyHandler);
+}
+
+function closeCopyDetail() {
+    const overlay = document.getElementById('copyDetailLightbox');
+    if (overlay) overlay.remove();
+    document.removeEventListener('keydown', copyDetailKeyHandler);
+}
+
+function copyDetailKeyHandler(e) {
+    if (e.key === 'Escape') closeCopyDetail();
 }
