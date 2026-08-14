@@ -274,12 +274,14 @@ function renderLightboxContent(contentEl, config) {
 
     html += `</div></div>`;
 
+    // ★ 图片容器固定高度 55vh，避免切换时跳动
     if (imgUrl) {
-        html += `<div style="text-align:center;margin-bottom:12px;">`;
-        html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:55vh;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
+        html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;">`;
+        html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
         html += `</div>`;
     } else {
-        html += `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
+        // 无图占位也保持同样高度，避免切换时跳动
+        html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
     }
 
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
