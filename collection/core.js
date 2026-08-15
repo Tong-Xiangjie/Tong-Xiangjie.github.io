@@ -406,3 +406,65 @@ function setupModalEvents() {
         closeModal();
     });
 }
+
+// ============================================================
+// ★★★★★★★ 图片重试：收集加载失败的图片，一键重新加载 ★★★★★★★
+// ============================================================
+let failedImages = new Set();
+let retryFab = null;
+
+function setupImageRetry() {
+    // 捕获阶段监听：任何 <img> 加载失败都记录下来
+    document.addEventListener('error', (e) => {
+        const t = e.target;
+        if (t && t.tagName === 'IMG') {
+            failedImages.add(t);
+            updateRetryFab();
+        }
+    }, true);
+
+    // 加载成功则从列表移除
+    document.addEventListener('load', (e) => {
+        const t = e.target;
+        if (t && t.tagName === 'IMG') {
+            if (failedImages.delete(t)) updateRetryFab();
+        }
+    }, true);
+
+    // 右下角悬浮重试按钮（默认隐藏）
+    retryFab = document.createElement('div');
+    retryFab.id = 'imgRetryFab';
+    retryFab.className = 'img-retry-fab';
+    retryFab.innerHTML = '⟳';
+    retryFab.onclick = () => {
+        const n = retryFailedImages();
+        if (n > 0) alert('已重新加载 ' + n + ' 张图片，仍失败的会保留按钮供再次重试');
+    };
+    document.body.appendChild(retryFab);
+    updateRetryFab();
+}
+
+function updateRetryFab() {
+    if (!retryFab) return;
+    const has = failedImages.size > 0;
+    retryFab.style.display = has ? 'flex' : 'none';
+    if (has) retryFab.title = '重新加载未显示的图片（' + failedImages.size + ' 张）';
+}
+
+function retryFailedImages() {
+    const list = [...failedImages];
+    failedImages.clear();
+    updateRetryFab();
+    let count = 0;
+    for (const img of list) {
+        if (!img.isConnected) continue; // 已不在页面上的跳过
+        let src = img.getAttribute('src') || img.src;
+        if (!src) continue;
+        // 加时间戳参数强制重新请求（绕开旧失败状态）
+        const sep = src.includes('?') ? '&' : '?';
+        img.src = src + sep + 'retry=' + Date.now() + Math.random().toString(36).slice(2, 6);
+        count++;
+    }
+    return count;
+}
+// ★★★★★★★ 图片重试功能结束 ★★★★★★★
