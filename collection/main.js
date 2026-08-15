@@ -62,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     setupModalEvents();
+    // ★★★ 图片重试功能初始化 ★★★
+    setupImageRetry();
+
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
     const st = document.getElementById('sidebarToggle');
     if (st) { st.textContent = '☰'; st.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'; }
