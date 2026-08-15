@@ -1005,3 +1005,25 @@ body.modal-open {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
 }
+
+/* ========== ★★★ 图片重试悬浮按钮 ★★★ ========== */
+.img-retry-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 72px;               /* 避开底部 Tab 栏 */
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--theme);
+    color: #fff;
+    font-size: 1.1rem;
+    display: none;              /* 默认隐藏，有失败图片才出现 */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 900;
+    transition: transform 0.15s;
+    user-select: none;
+}
+.img-retry-fab:hover { transform: scale(1.08); }
