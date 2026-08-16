@@ -1104,22 +1104,22 @@ body.modal-open {
     text-align: center;
 }
 
-/* ========== 方寸山河地图（六点调整版） ========== */
+/* ========== 方寸山河地图（五点调整版） ========== */
 .shanhe-map-wrap {
     margin-top: 12px;
     background: transparent;
-    position: relative;                 /* 供港澳放大图定位 */
+    position: relative;
 }
 .shanhe-map-wrap svg {
     width: 100%;
-    max-width: 960px;                   /* ★ 约1.5倍放大 */
+    max-width: 880px;              /* ★ 880px */
     height: auto;
     display: block;
     margin: 0 auto;
     background: transparent;
 }
 .shanhe-map-wrap .state {
-    stroke: var(--border);              /* ★ 边界线可见 */
+    stroke: var(--border);
     stroke-width: 1;
     stroke-linejoin: round;
     transition: fill 0.15s;
@@ -1128,27 +1128,31 @@ body.modal-open {
     fill: var(--theme) !important;
 }
 .shanhe-map-wrap .shanhe-label {
-    font-size: 12px;                    /* 字号统一 */
-    font-weight: bold;                  /* ★ 省份文字加粗 */
+    font-size: var(--label-size, 12px);   /* ★ 基础字号由 JS 换算 */
+    font-weight: bold;
     fill: #444;
     pointer-events: none;
+    paint-order: stroke;                  /* ★ 描边画在文字后面 */
 }
 .shanhe-map-wrap .shanhe-label-count {
     font-weight: bold;
     fill: var(--theme);
 }
 .shanhe-map-wrap .shanhe-label.active {
-    font-size: 14px;
-    fill: #fff;                         /* ★ 高亮时文字变白，不被遮盖 */
+    font-size: calc(var(--label-size, 12px) * 1.2);
+    fill: #fff;
+    stroke: #000;                         /* ★ 高亮黑色描边 */
+    stroke-width: 1.5;
 }
 .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
 
-/* ★ 港澳放大图（右下角叠加，直角风格） */
+/* ★ 港澳放大图：往左上移、加大 */
 .shanhe-map-inset {
     position: absolute;
-    right: 10px;
-    bottom: 10px;
-    width: 150px;
+    right: 36px;                          /* 往左 */
+    bottom: 110px;                        /* 往上 */
+    width: 480px;                         /* ★ 3.2倍 */
+    max-width: 92%;
     background: #fff;
     border: 1px solid var(--border);
     padding: 4px;
@@ -1161,9 +1165,17 @@ body.modal-open {
 }
 .shanhe-map-inset-title {
     text-align: center;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-secondary);
     padding: 2px 0 4px;
+}
+/* 窄屏：放大图改为普通流式（字号仍按实际宽度自动换算） */
+@media (max-width: 760px) {
+    .shanhe-map-inset {
+        position: static;
+        width: 100%;
+        margin: 12px auto 0;
+    }
 }
 .shanhe-map-loading {
     padding: 40px;
