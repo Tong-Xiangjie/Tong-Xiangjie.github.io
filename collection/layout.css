@@ -1010,14 +1010,14 @@ body.modal-open {
 .img-retry-fab {
     position: fixed;
     right: 16px;
-    bottom: 72px;               /* 避开底部 Tab 栏 */
+    bottom: 72px;
     width: 40px;
     height: 40px;
     border-radius: 50%;
     background: var(--theme);
     color: #fff;
     font-size: 1.1rem;
-    display: none;              /* 默认隐藏，有失败图片才出现 */
+    display: none;               /* 默认隐藏，有失败图片才出现 */
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1027,3 +1027,32 @@ body.modal-open {
     user-select: none;
 }
 .img-retry-fab:hover { transform: scale(1.08); }
+
+.img-retry-fab .fab-icon { font-size: 1.1rem; line-height: 1; }
+
+/* 数量角标：浅色背景，叠在 ⟳ 右上角，不撑大按钮 */
+.img-retry-fab .fab-count {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 2px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.92);   /* 浅色背景 */
+    color: var(--theme);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ========== 清除缓存按钮固定宽度 ========== */
+#clearCacheBtn {
+    width: 132px;
+    padding: 6px 0;
+    text-align: center;
+    opacity: 1;
+}
