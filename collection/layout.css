@@ -1117,10 +1117,12 @@ body.modal-open {
     background: transparent;
 }
 .shanhe-map-wrap > svg {
-    width: auto;              /* 宽高自动，保持比例 */
+    flex: 1 1 auto;      /* ★ 占满剩余宽度（与右侧港澳框同排时） */
+    width: auto;
     height: auto;
-    max-width: 120%;          /* 横向不超容器 */
-    max-height: 120vh;         /* 纵向上限90vh，不产生滚动 */
+    min-width: 0;        /* 允许收缩，不把港澳框挤下去 */
+    max-width: 100%;
+    max-height: 95vh;    /* ★ 超高时自动回缩宽度，保持比例 */
     background: transparent;
 }
 .shanhe-map-wrap .state {
