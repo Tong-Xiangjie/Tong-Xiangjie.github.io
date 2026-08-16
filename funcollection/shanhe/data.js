@@ -3,53 +3,39 @@
 // scene/denom/year 为示例，请替换为真实纸币主景；img 为占位路径，请填真实图片 URL
 const shanheScenes = [
     // ===== 直辖市 =====
-    { province: 'beijing',   city: '北京', scene: '人民大会堂', denom: '100元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-1.jpg' },
-    { province: 'beijing',   city: '北京', scene: '天坛祈年殿', denom: '外汇券1元', year: 1988, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
-    { province: 'tianjin',   city: '天津', scene: '海河解放桥', denom: '20元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/tianjin-1.jpg' },
-    { province: 'shanghai',  city: '上海', scene: '外滩万国建筑', denom: '50元', year: 1980, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/shanghai-1.jpg' },
-    { province: 'chongqing', city: '重庆', scene: '瞿塘峡', denom: '10元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/chongqing-1.jpg' },
+    { province: 'beijing',   city: '朝阳区', scene: '国家体育场（鸟巢）', denom: '奥运纪念钞', year: 2008, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-1.jpg' },
+    { province: 'beijing',   city: '朝阳区', scene: '国家速滑馆（冰丝带）', denom: '冬奥纪念钞（澳门）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
+    { province: 'beijing',   city: '朝阳区', scene: '国家游泳中心（冰立方）', denom: '冬奥纪念钞（冰上运动）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
+    { province: 'beijing',   city: '海淀区', scene: '中华世纪坛', denom: '迎接新世纪纪念钞', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
+    { province: 'beijing',   city: '西城区', scene: '中国人民银行总部', denom: '人民币发行70周年纪念钞', year: 2018, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
 
     // ===== 华北 =====
-    { province: 'hebei',     city: '张家口', scene: '长城', denom: '1元', year: 1980, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hebei-1.jpg' },
-    { province: 'shanxi',    city: '大同', scene: '云冈石窟', denom: '5元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/shanxi-1.jpg' },
-    { province: 'neimenggu', city: '呼伦贝尔', scene: '呼伦贝尔草原', denom: '10元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/neimenggu-1.jpg' },
+    { province: 'hebei',     city: '秦皇岛（冀C）', scene: '山海关', denom: '东北九省流通券100元', year: 1945, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hebei-1.jpg' },
+    { province: 'hebei',     city: '张家口（冀G）', scene: '国家跳台滑雪中心（雪如意）', denom: '冬奥纪念钞（雪上运动）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hebei-1.jpg' },
+    { province: 'shandong',  city: '济宁（鲁H）', scene: '杏坛', denom: '中央银行1角', year: 1931, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hebei-1.jpg' },
+    { province: 'shandong',  city: '济宁（鲁H）', scene: '洙水桥', denom: '中央银行2角', year: 1931, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hebei-1.jpg' },
+    
 
     // ===== 东北 =====
-    { province: 'liaoning',  city: '沈阳', scene: '沈阳故宫', denom: '50元', year: 1980, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/liaoning-1.jpg' },
-    { province: 'jilin',     city: '延边', scene: '长白山天池', denom: '5元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jilin-1.jpg' },
-    { province: 'heilongjiang', city: '哈尔滨', scene: '圣索菲亚教堂', denom: '20元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/heilongjiang-1.jpg' },
+    
 
     // ===== 华东 =====
-    { province: 'jiangsu',   city: '南京', scene: '南京长江大桥', denom: '1元', year: 1972, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jiangsu-1.jpg' },
-    { province: 'zhejiang',  city: '杭州', scene: '西湖三潭印月', denom: '1元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zhejiang-1.jpg' },
-    { province: 'anhui',     city: '黄山', scene: '黄山迎客松', denom: '外汇券10元', year: 1988, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/anhui-1.jpg' },
-    { province: 'fujian',    city: '武夷山', scene: '武夷山玉女峰', denom: '20元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/fujian-1.jpg' },
-    { province: 'jiangxi',   city: '吉安', scene: '井冈山', denom: '1角', year: 1980, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jiangxi-1.jpg' },
-    { province: 'shandong',  city: '泰安', scene: '泰山', denom: '5元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/shandong-1.jpg' },
+    { province: 'jiangxi',   city: '吉安（赣D）', scene: '井冈山', denom: '第四套人民币100元', year: "1980/1990", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jiangxi-1.jpg' },
 
     // ===== 华中 =====
-    { province: 'henan',     city: '洛阳', scene: '龙门石窟', denom: '10元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/henan-1.jpg' },
-    { province: 'hubei',     city: '宜昌', scene: '长江三峡', denom: '10元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hubei-1.jpg' },
-    { province: 'hunan',     city: '岳阳', scene: '岳阳楼', denom: '20元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hunan-1.jpg' },
+
 
     // ===== 华南 =====
-    { province: 'guangdong', city: '广州', scene: '珠江新城', denom: '10元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/guangdong-1.jpg' },
-    { province: 'guangxi',   city: '桂林', scene: '桂林山水', denom: '20元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/guangxi-1.jpg' },
-    { province: 'guangxi',   city: '桂林', scene: '漓江渔火', denom: '外汇券5元', year: 1988, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/guangxi-2.jpg' },
-    { province: 'hainan',    city: '三亚', scene: '南天一柱', denom: '2角', year: 1980, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hainan-1.jpg' },
+
+    { province: 'guangxi',   city: '桂林（桂C）', scene: '象鼻山', denom: '外汇兑换券50元', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/guangxi-1.jpg' },
+
 
     // ===== 西南 =====
-    { province: 'sichuan',   city: '乐山', scene: '乐山大佛', denom: '5元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/sichuan-1.jpg' },
-    { province: 'guizhou',   city: '安顺', scene: '黄果树瀑布', denom: '20元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/guizhou-1.jpg' },
-    { province: 'xizang',    city: '拉萨', scene: '布达拉宫', denom: '50元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xizang-1.jpg' },
+    { province: 'guizhou',   city: '安顺（贵G）', scene: '黄果树瀑布', denom: '外汇兑换券1角', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/guizhou-1.jpg' },
+    { province: 'xizang',    city: '拉萨（藏A）', scene: '布达拉宫', denom: '第五套人民币50元', year: "1999/2005", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xizang-1.jpg' },
 
     // ===== 西北 =====
-    { province: 'shanxiHZ',  city: '延安', scene: '延安宝塔山', denom: '1元', year: 1953, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/shanxiHZ-1.jpg' },
-    { province: 'shanxiHZ',  city: '西安', scene: '大雁塔', denom: '外汇券2元', year: 1988, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/shanxiHZ-2.jpg' },
-    { province: 'gansu',     city: '敦煌', scene: '敦煌莫高窟', denom: '10元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/gansu-1.jpg' },
-    { province: 'qinghai',   city: '西宁', scene: '青海湖', denom: '5元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/qinghai-1.jpg' },
-    { province: 'ningxia',   city: '中卫', scene: '沙坡头', denom: '1元', year: 2005, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/ningxia-1.jpg' },
-    { province: 'xinjiang',  city: '伊犁', scene: '天山牧场', denom: '1元', year: 1962, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xinjiang-1.jpg' },
+
 
     // ===== 港澳台 =====
     { province: 'xianggang', city: '香港', scene: '维多利亚港', denom: '港币20元', year: 2003, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xianggang-1.jpg' },
