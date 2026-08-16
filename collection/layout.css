@@ -1104,6 +1104,50 @@ body.modal-open {
     text-align: center;
 }
 
+/* ========== 方寸山河：地图视图样式 ========== */
+.shanhe-map-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 8px 0;
+}
+.shanhe-map-wrap svg {
+    width: 100%;
+    height: auto;
+    background: var(--bg-light);
+}
+.shanhe-map-wrap .state {
+    fill: #e5e7eb;
+    stroke: #9ca3af;
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: fill 0.2s ease;
+}
+.shanhe-map-wrap .state.has-scenes {
+    fill: #bfdbfe;
+}
+.shanhe-map-wrap .state.has-scenes:hover {
+    fill: var(--theme);
+}
+.shanhe-map-wrap .state-label {
+    font-size: 14px;
+    fill: var(--text-secondary);
+    pointer-events: none;
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-weight: 500;
+}
+.shanhe-map-loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
 /* ========== 移动端：搜索栏强制单行 ========== */
 @media (max-width: 520px) {
     .search-bar {
