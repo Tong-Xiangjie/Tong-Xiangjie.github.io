@@ -2,7 +2,6 @@
 // 精简版：初始化与事件绑定
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // ★ 数据加载提示（含进度条 + 当前文件）
     const loadingApp = document.getElementById('app');
     if (loadingApp) {
         loadingApp.innerHTML =
@@ -13,7 +12,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             '</div>';
     }
 
-    // ★ 进度更新函数：显示当前文件名 + 百分比
     function updateLoadingProgress(p) {
         const fileEl = document.getElementById('dataLoadingFile');
         const fillEl = document.getElementById('dataLoadingFill');
@@ -30,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    // ★ 等待所有数据文件加载并桥接（传入进度回调）
     try {
         if (typeof loadAllData === 'function') await loadAllData(updateLoadingProgress);
     } catch (e) {
@@ -39,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    // ★ 加载完成后清空 #app，防止加载提示残留
     const appEl = document.getElementById('app');
     if (appEl) appEl.innerHTML = '';
 
