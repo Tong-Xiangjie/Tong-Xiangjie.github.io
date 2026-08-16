@@ -364,7 +364,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互（六点调整版） ==========
+// ========== 方寸山河：地图交互（五点调整版） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -404,10 +404,14 @@ async function renderShanheContent(config) {
             const removeLoad = app.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
 
-            // 主图：给每个省份着色 + 事件 + 标注
+            // ★ 主图：给每个省份着色 + 事件 + 标注（港澳除外，交给放大图）
             svg.querySelectorAll('.state').forEach(el => {
                 const cls = el.getAttribute('class') || '';
                 const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
+                if (pid === 'xianggang' || pid === 'aomen') {
+                    el.style.display = 'none';   // ★ 大图不显示港澳
+                    return;
+                }
                 setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg);
             });
 
@@ -431,13 +435,15 @@ function fillForCount(count, maxCount, themeLightRGB) {
 }
 
 // 创建省份标注（名称 + 件数），返回 text 元素
-function createShanheLabel(svg, x, y, name, count) {
+function createShanheLabel(svg, x, y, name, count, baseSize) {
     const NS = 'http://www.w3.org/2000/svg';
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', x);
     text.setAttribute('y', y);
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('class', 'shanhe-label' + (count > 0 ? ' has-count' : ''));
+    // ★ 基础字号通过 CSS 变量控制（放大图按比例换算，保证屏幕字号与大图一致）
+    text.style.setProperty('--label-size', (baseSize || 12) + 'px');
     const tName = document.createElementNS(NS, 'tspan');
     tName.textContent = name;
     text.appendChild(tName);
@@ -452,7 +458,7 @@ function createShanheLabel(svg, x, y, name, count) {
 }
 
 // 给省份元素绑定着色 + 点击 + 悬浮联动（主图与放大图共用）
-function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg) {
+function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, baseSize) {
     const name = shanheProvinceNames[pid] || pid;
     el.style.fill = fillForCount(count, maxCount, themeLightRGB);
     el.style.cursor = count > 0 ? 'pointer' : 'default';
@@ -464,13 +470,13 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg) 
     let bbox = null;
     try { bbox = el.getBBox(); } catch (e) {}
     if (!bbox) return null;
-    const text = createShanheLabel(svg, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, name, count);
+    const text = createShanheLabel(svg, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, name, count, baseSize);
     el.addEventListener('mouseenter', () => text.classList.add('active'));
     el.addEventListener('mouseleave', () => text.classList.remove('active'));
     return text;
 }
 
-// ★ 港澳局部放大图：右下角叠加一个缩略图
+// ★ 港澳局部放大图：右下角叠加一个缩略图（480px，字号与大图一致）
 function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, config) {
     const ids = ['xianggang', 'aomen'];
     const els = [];
@@ -492,7 +498,7 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
 
     const wrap = document.createElement('div');
     wrap.className = 'shanhe-map-inset';
-    wrap.innerHTML = '<div class="shanhe-map-inset-title">港澳放大</div>';
+    wrap.innerHTML = '<div class="shanhe-map-inset-title">香港、澳门地区局部放大</div>';
 
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
@@ -500,13 +506,19 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     wrap.appendChild(svg);
 
     const mapWrap = mainSvg.closest('.shanhe-map-wrap');
-    if (mapWrap) mapWrap.appendChild(wrap);   // 先挂进 DOM，getBBox 才能取到
+    if (mapWrap) mapWrap.appendChild(wrap);   // 先挂进 DOM 才能取渲染宽度
+
+    // ★ 字号与大图一致：按"实际渲染宽度 / viewBox宽度"的比例换算
+    const mainVbW = (mainSvg.viewBox && mainSvg.viewBox.baseVal) ? mainSvg.viewBox.baseVal.width : 595.28;
+    const mainScale = mainSvg.getBoundingClientRect().width / mainVbW;
+    const insetScale = svg.getBoundingClientRect().width / (maxX - minX);
+    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale : 12;
 
     for (const { id, el } of els) {
         const clone = el.cloneNode(true);
         clone.removeAttribute('style');
-        svg.appendChild(clone);               // 先挂载再取 bbox
-        setupShanheState(clone, id, countByProvince[id] || 0, maxCount, themeLightRGB, config, svg);
+        svg.appendChild(clone);
+        setupShanheState(clone, id, countByProvince[id] || 0, maxCount, themeLightRGB, config, svg, baseSize);
     }
 }
 
