@@ -110,11 +110,11 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // ★ 图片缓存管理（按钮加 id）
+    // ★ 图片缓存管理（按钮文字包在 span 里）
     html += `<div class="settings-section">`;
     html += `<h3>图片缓存</h3>`;
     html += `<div class="export-buttons">`;
-    html += `<button class="export-btn" id="clearCacheBtn" onclick="clearImageCache()">清除图片缓存</button>`;
+    html += `<button class="export-btn" id="clearCacheBtn" onclick="clearImageCache()"><span id="clearCacheText">清除图片缓存</span></button>`;
     html += `</div>`;
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片由 Service Worker 缓存到本地，可离线查看。更新图片后若仍显示旧图，点击此按钮清除缓存并刷新页面。</p>`;
     html += `</div>`;
@@ -170,19 +170,21 @@ function addCurrentCustomColor() {
     if (typeof setTheme === 'function') setTheme(color);
 }
 
-// ★ 新的清除图片缓存（确认态，无弹窗）
-function clearImageCache() {
-    const btn = document.getElementById('clearCacheBtn');
-    if (!btn) return;
+// ============================================================
+// ★★★★★★★ 清除图片缓存（文字动画仅限 span，按钮本体不动） ★★★★★★★
+// ============================================================
+let cacheConfirmPending = false;
+let cacheConfirmTimer = null;
 
+function clearImageCache() {
     // 第一次点击：进入确认状态（防误触）
     if (!cacheConfirmPending) {
         cacheConfirmPending = true;
-        fadeText(btn, '确 定 吗 ？');
-        // 3 秒无操作自动还原，避免一直停在确认态
+        fadeText('确 定 吗 ？');
+        // 3 秒无操作自动还原
         cacheConfirmTimer = setTimeout(() => {
             cacheConfirmPending = false;
-            fadeText(btn, '清除图片缓存');
+            fadeText('清除图片缓存');
         }, 3000);
         return;
     }
@@ -190,10 +192,10 @@ function clearImageCache() {
     // 第二次点击：真正执行清空
     clearTimeout(cacheConfirmTimer);
     cacheConfirmPending = false;
-    performClearImageCache(btn);
+    performClearImageCache();
 }
 
-async function performClearImageCache(btn) {
+async function performClearImageCache() {
     try {
         if (!('caches' in window)) throw new Error('浏览器不支持 Cache API');
         const keys = await caches.keys();
@@ -201,21 +203,23 @@ async function performClearImageCache(btn) {
             keys.filter(k => k.startsWith('collection-images')).map(k => caches.delete(k))
         );
         // 显示「已 清 空」1 秒后还原，不弹窗
-        fadeText(btn, '已 清 空');
-        setTimeout(() => fadeText(btn, '清除图片缓存'), 1000);
+        fadeText('已 清 空');
+        setTimeout(() => fadeText('清除图片缓存'), 1000);
     } catch (e) {
-        // 失败也以按钮文字反馈，不弹窗
-        fadeText(btn, '失 败');
-        setTimeout(() => fadeText(btn, '清除图片缓存'), 1000);
+        fadeText('缓存清空失败');
+        setTimeout(() => fadeText('清除图片缓存'), 1000);
     }
 }
 
-// 淡出 → 换字 → 淡入
-function fadeText(btn, text) {
-    btn.style.transition = 'opacity 0.15s ease';
-    btn.style.opacity = '0';
+// ★ 只对文字做淡出 → 换字 → 淡入，按钮本体完全不动
+function fadeText(text) {
+    const span = document.getElementById('clearCacheText');
+    if (!span) return;
+    span.style.transition = 'opacity 0.15s ease';
+    span.style.opacity = '0';
     setTimeout(() => {
-        btn.textContent = text;
-        btn.style.opacity = '1';
+        span.textContent = text;
+        span.style.opacity = '1';
     }, 150);
 }
+// ★★★★★★★ 清除图片缓存功能结束 ★★★★★★★
