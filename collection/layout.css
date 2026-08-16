@@ -1120,7 +1120,7 @@ body.modal-open {
     width: auto;              /* 宽高自动，保持比例 */
     height: auto;
     max-width: 100%;          /* 横向不超容器 */
-    max-height: 90vh;         /* 纵向上限90vh，不产生滚动 */
+    max-height: 95vh;         /* 纵向上限90vh，不产生滚动 */
     background: transparent;
 }
 .shanhe-map-wrap .state {
