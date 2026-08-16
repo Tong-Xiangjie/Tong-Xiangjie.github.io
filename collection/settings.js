@@ -198,7 +198,7 @@ async function performClearImageCache() {
         fadeText('已 清 空');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
     } catch (e) {
-        fadeText('失 败');
+        fadeText('缓存清空失败');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
     }
 }
