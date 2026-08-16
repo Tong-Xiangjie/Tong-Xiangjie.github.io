@@ -369,7 +369,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互（左右排列版） ==========
+// ========== 方寸山河：地图交互（1144px + 粤港澳切片版） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -424,7 +424,7 @@ async function renderShanheContent(config) {
                 setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, undefined, isGangAo);
             });
 
-            // ★ 港澳局部放大图
+            // ★ 港澳局部放大图 = 粤港澳切片
             buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
 
             triggerViewAnimation();
@@ -514,29 +514,35 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
     return text;
 }
 
-// ★ 港澳局部放大图
+// ★ 港澳放大图 = 大地图的一部分切片（含广东），逻辑照抄大地图，字号略小
 function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, config) {
-    const ids = ['xianggang', 'aomen'];
-    const els = [];
-    for (const id of ids) {
-        const el = mainSvg.querySelector('.state.' + id);
-        if (el) els.push({ id, el });
-    }
-    if (els.length === 0) return;
-
-    // 合并 bbox
+    // 切片区域：广东 + 香港 + 澳门（+留白）
+    const regionIds = ['guangdong', 'xianggang', 'aomen'];
     let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-    for (const { el } of els) {
+    for (const id of regionIds) {
+        const el = mainSvg.querySelector('.state.' + id);
+        if (!el) continue;
         const b = el.getBBox();
         minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x + b.width);
         minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + b.height);
     }
-    const pad = 10;
+    if (minX === 1e9) return;
+    const pad = 12;
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+    // 截取与该区域相交的所有省份（就像大地图的一部分）
+    const inRegion = [];
+    mainSvg.querySelectorAll('.state').forEach(el => {
+        const b = el.getBBox();
+        if (b.x < maxX && b.x + b.width > minX && b.y < maxY && b.y + b.height > minY) {
+            inRegion.push(el);
+        }
+    });
+    if (inRegion.length === 0) return;
 
     const wrap = document.createElement('div');
     wrap.className = 'shanhe-map-inset';
-    wrap.innerHTML = '<div class="shanhe-map-inset-title">香港、澳门地区局部放大</div>';
+    wrap.innerHTML = '<div class="shanhe-map-inset-title">粤港澳地区局部放大</div>';
 
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
@@ -544,20 +550,22 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     wrap.appendChild(svg);
 
     const mapWrap = mainSvg.closest('.shanhe-map-wrap');
-    if (mapWrap) mapWrap.appendChild(wrap);
+    if (mapWrap) mapWrap.appendChild(wrap);   // 先挂 DOM 再取渲染宽度
 
-    // ★ 字号与大图一致
+    // ★ 字号：与大图同屏一致后，再调小一点（×0.75）
     const mainVbW = (mainSvg.viewBox && mainSvg.viewBox.baseVal) ? mainSvg.viewBox.baseVal.width : 595.28;
     const mainScale = mainSvg.getBoundingClientRect().width / mainVbW;
     const insetScale = svg.getBoundingClientRect().width / (maxX - minX);
-    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale : 12;
+    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * 0.75 : 12;
 
-    for (const { id, el } of els) {
+    for (const el of inRegion) {
+        const cls = el.getAttribute('class') || '';
+        const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
         const clone = el.cloneNode(true);
         clone.removeAttribute('style');
         svg.appendChild(clone);
-        // ★ 放大图正常显示标签（不传 noLabel）
-        setupShanheState(clone, id, countByProvince[id] || 0, maxCount, themeLightRGB, config, svg, baseSize);
+        // ★ 放大图里所有省份都正常标注（含港澳），不传 noLabel
+        setupShanheState(clone, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, baseSize);
     }
 }
 
