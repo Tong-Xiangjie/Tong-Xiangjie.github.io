@@ -1056,3 +1056,36 @@ body.modal-open {
     text-align: center;
     opacity: 1;
 }
+
+/* ========== 移动端：搜索栏强制单行 ========== */
+@media (max-width: 520px) {
+    .search-bar {
+        flex-wrap: nowrap;          /* 强制一行，不换行 */
+        gap: 4px;
+    }
+    .search-select {
+        flex-shrink: 0;
+        max-width: 74px;            /* 收窄下拉框，文字溢出自动截断 */
+        min-width: 0;
+        font-size: 0.7rem;
+        padding: 4px 2px;
+    }
+    .search-input {
+        flex: 1 1 auto;
+        min-width: 0;               /* ★ 关键：允许输入框收缩，别被 min-width 撑爆 */
+        font-size: 0.8rem;
+        padding: 6px 6px;
+    }
+    .search-btn,
+    .reset-btn,
+    .mode-toggle {
+        flex-shrink: 0;             /* 按钮保持自身宽度，不被压缩 */
+        white-space: nowrap;
+        padding: 6px 8px;
+        font-size: 0.78rem;
+    }
+    .mode-toggle {
+        width: auto;
+        padding: 0 4px;
+    }
+}
