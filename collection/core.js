@@ -6,7 +6,7 @@ const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year'
 const SEARCH_MODE = { CLICK: 'click', REALTIME: 'realtime' };
 const KRAUSE_PREFIX = 'Pick# ';
 
-// ========== 目录编号格式化（统一规则） ==========
+// ========== 目录编号格式化 ==========
 function formatCatalogNumber(num) {
     if (!num) return '';
     const s = String(num).trim();
@@ -15,24 +15,17 @@ function formatCatalogNumber(num) {
     return 'Pick# ' + s;
 }
 
-// ========== CDN 图片路径处理 ==========
+// ========== CDN 图片路径 ==========
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/';
 
 function getImageUrl(path, subDir = 'comm') {
     if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-        return path;
-    }
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
     let relative = path;
-    if (relative.startsWith('image/')) {
-        relative = relative.substring(6);
-    }
-    if (relative.includes('/')) {
-        return CDN_BASE + relative;
-    }
+    if (relative.startsWith('image/')) relative = relative.substring(6);
+    if (relative.includes('/')) return CDN_BASE + relative;
     return CDN_BASE + subDir + '/' + relative;
 }
-// =========================================================
 
 // ========== 全局状态 ==========
 let currentMode = MODE.NOTES;
@@ -377,7 +370,7 @@ function setupModalEvents() {
 }
 
 // ============================================================
-// ★★★★★★★ 图片重试：收集加载失败的图片，一键重新加载 ★★★★★★★
+// 图片重试：收集加载失败的图片，一键重新加载
 // ============================================================
 let failedImages = new Set();
 let retryFab = null;
@@ -398,12 +391,11 @@ function setupImageRetry() {
         }
     }, true);
 
-    // 右下角悬浮按钮：⟳ + 右上角数量角标
     retryFab = document.createElement('div');
     retryFab.id = 'imgRetryFab';
     retryFab.className = 'img-retry-fab';
     retryFab.innerHTML = '<span class="fab-icon">⟳</span><span class="fab-count" id="imgRetryCount"></span>';
-    retryFab.onclick = () => { retryFailedImages(); };   // ★ 不再弹窗
+    retryFab.onclick = () => { retryFailedImages(); };
     document.body.appendChild(retryFab);
     updateRetryFab();
 }
@@ -415,9 +407,8 @@ function updateRetryFab() {
     if (has) {
         const count = failedImages.size;
         const countEl = retryFab.querySelector('.fab-count');
-        // 压缩：超 99 显示 99+；字号随位数自适应
-        countEl.textContent = count > 99 ? '99+' : String(count);
-        countEl.style.fontSize = count > 99 ? '8px' : (count > 9 ? '10px' : '12px');
+        countEl.textContent = count > 999 ? '999+' : String(count);
+        countEl.style.fontSize = count > 999 ? '8px' : (count > 99 ? '9px' : (count > 9 ? '10px' : '12px'));
         retryFab.title = '重新加载未显示的图片（' + count + ' 张）';
     }
 }
@@ -434,4 +425,3 @@ function retryFailedImages() {
         img.src = src + sep + 'retry=' + Date.now() + Math.random().toString(36).slice(2, 6);
     }
 }
-// ★★★★★★★ 图片重试功能结束 ★★★★★★★
