@@ -1104,48 +1104,55 @@ body.modal-open {
     text-align: center;
 }
 
-/* ========== 方寸山河：地图视图样式 ========== */
+/* ========== 方寸山河地图（升级版） ========== */
 .shanhe-map-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 8px 0;
+    margin-top: 12px;
+    background: transparent;               /* 省外透明 */
 }
 .shanhe-map-wrap svg {
     width: 100%;
+    max-width: 640px;
     height: auto;
-    background: var(--bg-light);
+    display: block;
+    margin: 0 auto;
+    background: transparent;               /* 省外透明 */
 }
 .shanhe-map-wrap .state {
-    fill: #e5e7eb;
-    stroke: #9ca3af;
-    stroke-width: 1.5;
-    cursor: pointer;
-    transition: fill 0.2s ease;
+    stroke: #fff;
+    stroke-width: 0.8;
+    transition: fill 0.15s;
+    cursor: default;
 }
-.shanhe-map-wrap .state.has-scenes {
-    fill: #bfdbfe;
+.shanhe-map-wrap .state:hover {
+    fill: var(--theme) !important;         /* 悬浮主题色高亮 */
 }
-.shanhe-map-wrap .state.has-scenes:hover {
+.shanhe-map-wrap .shanhe-label {
+    font-size: 12px;                       /* 字号统一 */
+    fill: #555;
+    font-weight: normal;
+    pointer-events: none;
+}
+.shanhe-map-wrap .shanhe-label.has-count { fill: #333; }
+.shanhe-map-wrap .shanhe-label-count {
+    font-weight: bold;
+    fill: var(--theme);                    /* 件数显眼：主题色加粗 */
+}
+.shanhe-map-wrap .shanhe-label.active {
+    font-size: 14px;                       /* 悬浮时字变大 */
     fill: var(--theme);
 }
-.shanhe-map-wrap .state-label {
-    font-size: 14px;
-    fill: var(--text-secondary);
+.shanhe-map-wrap .shanhe-leader {
+    stroke: var(--theme-light);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    opacity: 0.7;
     pointer-events: none;
-    text-anchor: middle;
-    dominant-baseline: central;
-    font-weight: 500;
 }
 .shanhe-map-loading {
+    padding: 40px;
     text-align: center;
-    padding: 60px 20px;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 /* ========== 移动端：搜索栏强制单行 ========== */
