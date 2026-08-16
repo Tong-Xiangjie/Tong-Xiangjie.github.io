@@ -782,6 +782,7 @@ body.modal-open {
 .special-item-info { padding: 8px 10px; }
 .special-item-name { font-size: 0.8rem; font-weight: bold; color: var(--text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .special-item-krause { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+
 /* ========== 侧边栏完全隐藏（专题概览全宽页面） ========== */
 .body-row.sidebar-hidden .sidebar {
     width: 0;
@@ -994,12 +995,34 @@ body.modal-open {
 /* ========== 数据加载中提示 ========== */
 .data-loading {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
-    font-size: 0.9rem;
+    gap: 12px;
     color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.data-loading-text {
     animation: dataLoadingPulse 1.2s ease-in-out infinite;
+}
+.data-loading-file {
+    font-size: 0.75rem;
+    opacity: 0.85;
+}
+.data-loading-bar {
+    width: 220px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+.data-loading-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: var(--theme);
+    transition: width 0.3s ease;
 }
 @keyframes dataLoadingPulse {
     0%, 100% { opacity: 1; }
@@ -1017,7 +1040,7 @@ body.modal-open {
     background: var(--theme);
     color: #fff;
     font-size: 1.1rem;
-    display: none;               /* 默认隐藏，有失败图片才出现 */
+    display: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1039,7 +1062,7 @@ body.modal-open {
     height: 20px;
     padding: 0 2px;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.92);   /* 浅色背景 */
+    background: rgba(255, 255, 255, 0.92);
     color: var(--theme);
     font-weight: bold;
     display: flex;
@@ -1054,32 +1077,31 @@ body.modal-open {
     width: 132px;
     padding: 6px 0;
     text-align: center;
-    opacity: 1;
 }
 
 /* ========== 移动端：搜索栏强制单行 ========== */
 @media (max-width: 520px) {
     .search-bar {
-        flex-wrap: nowrap;          /* 强制一行，不换行 */
+        flex-wrap: nowrap;
         gap: 4px;
     }
     .search-select {
         flex-shrink: 0;
-        max-width: 74px;            /* 收窄下拉框，文字溢出自动截断 */
+        max-width: 74px;
         min-width: 0;
         font-size: 0.7rem;
         padding: 4px 2px;
     }
     .search-input {
         flex: 1 1 auto;
-        min-width: 0;               /* ★ 关键：允许输入框收缩，别被 min-width 撑爆 */
+        min-width: 0;
         font-size: 0.8rem;
         padding: 6px 6px;
     }
     .search-btn,
     .reset-btn,
     .mode-toggle {
-        flex-shrink: 0;             /* 按钮保持自身宽度，不被压缩 */
+        flex-shrink: 0;
         white-space: nowrap;
         padding: 6px 8px;
         font-size: 0.78rem;
