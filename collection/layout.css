@@ -1104,49 +1104,66 @@ body.modal-open {
     text-align: center;
 }
 
-/* ========== 方寸山河地图（升级版） ========== */
+/* ========== 方寸山河地图（六点调整版） ========== */
 .shanhe-map-wrap {
     margin-top: 12px;
-    background: transparent;               /* 省外透明 */
+    background: transparent;
+    position: relative;                 /* 供港澳放大图定位 */
 }
 .shanhe-map-wrap svg {
     width: 100%;
-    max-width: 640px;
+    max-width: 960px;                   /* ★ 约1.5倍放大 */
     height: auto;
     display: block;
     margin: 0 auto;
-    background: transparent;               /* 省外透明 */
+    background: transparent;
 }
 .shanhe-map-wrap .state {
-    stroke: #fff;
-    stroke-width: 0.8;
+    stroke: var(--border);              /* ★ 边界线可见 */
+    stroke-width: 1;
+    stroke-linejoin: round;
     transition: fill 0.15s;
-    cursor: default;
 }
 .shanhe-map-wrap .state:hover {
-    fill: var(--theme) !important;         /* 悬浮主题色高亮 */
+    fill: var(--theme) !important;
 }
 .shanhe-map-wrap .shanhe-label {
-    font-size: 12px;                       /* 字号统一 */
-    fill: #555;
-    font-weight: normal;
+    font-size: 12px;                    /* 字号统一 */
+    font-weight: bold;                  /* ★ 省份文字加粗 */
+    fill: #444;
     pointer-events: none;
 }
-.shanhe-map-wrap .shanhe-label.has-count { fill: #333; }
 .shanhe-map-wrap .shanhe-label-count {
     font-weight: bold;
-    fill: var(--theme);                    /* 件数显眼：主题色加粗 */
-}
-.shanhe-map-wrap .shanhe-label.active {
-    font-size: 14px;                       /* 悬浮时字变大 */
     fill: var(--theme);
 }
-.shanhe-map-wrap .shanhe-leader {
-    stroke: var(--theme-light);
-    stroke-width: 1;
-    stroke-dasharray: 2 2;
-    opacity: 0.7;
-    pointer-events: none;
+.shanhe-map-wrap .shanhe-label.active {
+    font-size: 14px;
+    fill: #fff;                         /* ★ 高亮时文字变白，不被遮盖 */
+}
+.shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
+
+/* ★ 港澳放大图（右下角叠加，直角风格） */
+.shanhe-map-inset {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    width: 150px;
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.shanhe-map-inset svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+.shanhe-map-inset-title {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 2px 0 4px;
 }
 .shanhe-map-loading {
     padding: 40px;
