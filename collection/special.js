@@ -4,6 +4,61 @@
 let specialItemsList = [];
 let specialCurrentIndex = -1;
 
+// ========== 面额排序：分<角<元<万元<亿元<其他(音序) ==========
+const DENOM_FRACTIONS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3 };
+
+function denomSortValue(s) {
+    s = String(s || '').trim();
+    if (!s) return [99, 0, ''];
+    let num = NaN;
+    const numMatch = s.match(/\d+(?:\.\d+)?/);
+    if (numMatch) {
+        num = parseFloat(numMatch[0]);
+        const after = s.substring(numMatch[0].length);
+        const fm = after.match(/[½¼¾⅓⅔]/);
+        if (fm) num += DENOM_FRACTIONS[fm[0]];
+    } else {
+        const fm = s.match(/[½¼¾⅓⅔]/);
+        if (fm) num = DENOM_FRACTIONS[fm[0]];
+    }
+    if (isNaN(num)) num = 0;
+    let unit = '';
+    const uMatch = s.match(/([^\d\s½¼¾⅓⅔.]+)$/);
+    if (uMatch) unit = uMatch[1];
+    let prio = 6;
+    if (unit === '分') prio = 1;
+    else if (unit === '角') prio = 2;
+    else if (unit === '元') prio = 3;
+    else if (unit === '万元') prio = 4;
+    else if (unit === '亿元') prio = 5;
+    return [prio, num, unit];
+}
+
+function compareDenom(a, b) {
+    const va = denomSortValue(a);
+    const vb = denomSortValue(b);
+    if (va[0] !== vb[0]) return va[0] - vb[0];
+    if (va[0] === 6) {
+        if (va[2] !== vb[2]) return va[2].localeCompare(vb[2], 'zh');
+        return va[1] - vb[1];
+    }
+    return va[1] - vb[1];
+}
+
+// ========== 通用分组 ==========
+function buildGroupCategories(config, items, groupBy) {
+    if (!items || items.length === 0) return null;
+    const set = new Set();
+    for (const item of items) {
+        const val = item[groupBy];
+        if (val) set.add(val);
+    }
+    if (set.size === 0) return null;
+    const sortFn = groupBy === 'denom' ? compareDenom : (a, b) => parseInt(b) - parseInt(a);
+    return [...set].sort(sortFn).map(g => ({ id: g, name: g, dataKey: config.id }));
+}
+
+// ========== 专题概览 ==========
 function renderSpecialOverview() {
     const app = document.getElementById('app');
     currentView = VIEW.OVERVIEW;
@@ -26,17 +81,14 @@ function renderSpecialOverview() {
         return;
     }
 
-    // ★ 循环：有 slogan 则渲染长条，否则渲染卡片
     html += `<div class="special-overview-grid">`;
     for (const config of configs) {
         if (config.slogan) {
-            // ★ 长条样式：一行、无件数、带标语
             html += `<div class="special-overview-bar" onclick="onSpecialOverviewItemClick('${config.id}')">`;
             html += `<span class="special-overview-bar-title">${escapeHtml(config.name)}</span>`;
             html += `<span class="special-overview-bar-slogan">${escapeHtml(config.slogan)}</span>`;
             html += `</div>`;
         } else {
-            // 卡片样式（默认）：显示件数
             const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
             const count = data ? data.length || 0 : 0;
             html += `<div class="special-overview-card" onclick="onSpecialOverviewItemClick('${config.id}')">`;
@@ -51,11 +103,25 @@ function renderSpecialOverview() {
     triggerViewAnimation();
 }
 
+// ========== 点击专题项 ==========
 function onSpecialOverviewItemClick(configId) {
     selectedSpecial = configId;
     currentCategoryId = configId;
     currentSubId = null;
     const config = getSpecialConfigs().find(c => c.id === configId);
+
+    // 地图视图：整页地图，无侧边栏
+    if (config && config.view === 'map') {
+        document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
+        document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        if (toggleBtn) toggleBtn.style.display = 'none';
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.innerHTML = '';
+        renderShanheContent();
+        triggerViewAnimation();
+        return;
+    }
 
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
@@ -63,15 +129,12 @@ function onSpecialOverviewItemClick(configId) {
     if (config) {
         const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
         const items = data ? (data.items || data) : [];
-        const decadeChildren = buildDecadeCategories(config, items);
+        const groupBy = config.groupBy || 'year';
+        const groupChildren = buildGroupCategories(config, items, groupBy);
 
         const specialTree = specialCategoryTree ? specialCategoryTree.find(c => c.id === configId) : null;
         if (specialTree) {
-            if (decadeChildren && decadeChildren.length > 0) {
-                specialTree.children = decadeChildren;
-            } else {
-                specialTree.children = null;
-            }
+            specialTree.children = (groupChildren && groupChildren.length > 0) ? groupChildren : null;
         }
     }
 
@@ -94,33 +157,7 @@ function onSpecialOverviewItemClick(configId) {
     }
 }
 
-function buildDecadeCategories(config, items) {
-    if (!items || items.length === 0) return null;
-
-    const years = new Set();
-    for (const item of items) {
-        if (item.year) years.add(item.year);
-    }
-    if (years.size === 0) return null;
-
-    const decades = {};
-    for (const year of years) {
-        const decadeStart = Math.floor(year / 10) * 10;
-        const label = decadeStart + 's';
-        if (!decades[label]) decades[label] = [];
-        decades[label].push(year);
-    }
-
-    // 倒序：2020s → 1910s
-    return Object.keys(decades)
-        .sort((a, b) => parseInt(b) - parseInt(a))
-        .map(decade => ({
-            id: decade,
-            name: decade,
-            dataKey: config.id
-        }));
-}
-
+// ========== 渲染专题内容 ==========
 function renderSpecialContent() {
     const app = document.getElementById('app');
 
@@ -131,6 +168,12 @@ function renderSpecialContent() {
 
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) { renderSpecialOverview(); return; }
+
+    // 地图视图跳转
+    if (config.view === 'map') {
+        renderShanheContent();
+        return;
+    }
 
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
     if (!data) {
@@ -144,38 +187,29 @@ function renderSpecialContent() {
         return;
     }
 
-    // 年代筛选（若有）
+    const groupBy = config.groupBy || 'year';
     let filteredItems = items;
     if (currentSubId) {
-        const decadeStart = parseInt(currentSubId);
-        if (!isNaN(decadeStart)) {
-            filteredItems = items.filter(item => {
-                const year = item.year;
-                return year && Math.floor(year / 10) * 10 === decadeStart;
-            });
-        }
+        filteredItems = items.filter(item => String(item[groupBy]) === currentSubId);
     }
 
-    // 按年代分组
-    const yearGroups = {};
-    for (let i = 0; i < filteredItems.length; i++) {
-        const item = filteredItems[i];
-        const year = item.year || '未知';
-        if (!yearGroups[year]) yearGroups[year] = [];
-        yearGroups[year].push(item);
+    const groups = {};
+    for (const item of filteredItems) {
+        const key = item[groupBy] || '未知';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(item);
     }
 
-    // 年份倒序（未知放最后）
-    const sortedYears = Object.keys(yearGroups).sort((a, b) => {
+    const sortFn = groupBy === 'denom' ? compareDenom : (a, b) => {
         if (a === '未知') return 1;
         if (b === '未知') return -1;
         return parseInt(b) - parseInt(a);
-    });
+    };
+    const sortedKeys = Object.keys(groups).sort(sortFn);
 
-    // 灯箱列表 = 展示顺序（年份倒序 + 组内数据序），保证翻页与页面一致
     specialItemsList = [];
-    for (const year of sortedYears) {
-        for (const item of yearGroups[year]) {
+    for (const key of sortedKeys) {
+        for (const item of groups[key]) {
             specialItemsList.push(item);
         }
     }
@@ -186,14 +220,15 @@ function renderSpecialContent() {
     }
     html += `</div>`;
 
-    for (const year of sortedYears) {
-        const group = yearGroups[year];
+    const groupLabel = groupBy === 'year' ? '年' : '';
+    for (const key of sortedKeys) {
+        const group = groups[key];
         html += `<div class="special-year-section">`;
-        html += `<div class="special-year-title">${year}年 <span class="count">${group.length}件</span></div>`;
+        html += `<div class="special-year-title">${key}${groupLabel} <span class="count">${group.length}件</span></div>`;
         html += `<div class="special-year-grid">`;
         for (const item of group) {
             const index = specialItemsList.indexOf(item);
-            const imgUrl = getImageUrl(item.yearImg);
+            const imgUrl = getImageUrl(item.yearImg || item.img);
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
                 html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.name || '')}" loading="lazy"></div>`;
@@ -202,21 +237,23 @@ function renderSpecialContent() {
             }
             html += `<div class="special-item-info">`;
             html += `<div class="special-item-name">${escapeHtml(item.name || '')}</div>`;
-            // 隐藏 Unlisted 编号
-            if (item.krause && !/unlisted/i.test(item.krause)) html += `<div class="special-item-krause">${escapeHtml(item.krause)}</div>`;
+            if (item.krause && !/unlisted/i.test(item.krause)) {
+                html += `<div class="special-item-krause">${escapeHtml(item.krause)}</div>`;
+            }
             html += `</div></div>`;
         }
         html += `</div></div>`;
     }
 
     if (filteredItems.length === 0) {
-        html += '<div class="empty-state">该年代暂无藏品</div>';
+        html += '<div class="empty-state">该分组暂无藏品</div>';
     }
 
     app.innerHTML = html;
     triggerViewAnimation();
 }
 
+// ========== 灯箱 ==========
 function openSpecialLightbox(index) {
     specialCurrentIndex = index;
 
@@ -235,7 +272,6 @@ function openSpecialLightbox(index) {
     inner.className = 'special-lightbox-inner';
     inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
 
-    // 关闭按钮：使用通用 lightbox-close
     const closeBtn = document.createElement('div');
     closeBtn.className = 'lightbox-close';
     closeBtn.textContent = '×';
@@ -267,11 +303,10 @@ function renderLightboxContent(contentEl, config) {
     if (index < 0 || index >= items.length) return;
 
     const item = items[index];
-    const imgUrl = getImageUrl(item.yearImg);
+    const imgUrl = getImageUrl(item.yearImg || item.img);
 
     let html = '';
 
-    // 导航行右侧留白避开关闭按钮
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-right:36px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
@@ -284,21 +319,24 @@ function renderLightboxContent(contentEl, config) {
 
     html += `</div></div>`;
 
-    // 图片容器固定高度 55vh，避免切换时跳动
     if (imgUrl) {
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;">`;
         html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
         html += `</div>`;
     } else {
-        // 无图占位也保持同样高度，避免切换时跳动
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
     }
 
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || '')}</div>`;
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
-    // 隐藏 Unlisted 编号
-    if (item.krause && !/unlisted/i.test(item.krause)) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
+    if (item.denom) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">面额：${escapeHtml(item.denom)}</div>`;
+    if (item.plate) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">车牌：${escapeHtml(item.plate)}</div>`;
+    if (item.city) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">城市：${escapeHtml(item.city)}</div>`;
+    if (item.scene) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">主景：${escapeHtml(item.scene)}</div>`;
+    if (item.krause && !/unlisted/i.test(item.krause)) {
+        html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
+    }
     html += `</div>`;
 
     contentEl.innerHTML = html;
@@ -321,4 +359,142 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'Escape') closeSpecialLightbox();
     if (e.key === 'ArrowLeft') navigateLightbox(-1);
     if (e.key === 'ArrowRight') navigateLightbox(1);
+}
+
+// ========== 方寸山河：地图视图 ==========
+let shanheItems = null;
+let shanheProvinceMap = {};
+
+function renderShanheContent() {
+    const app = document.getElementById('app');
+
+    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    if (!config) { renderSpecialOverview(); return; }
+
+    const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
+    if (!data) {
+        app.innerHTML = '<div class="empty-state">数据加载失败</div>';
+        return;
+    }
+    shanheItems = data.items || data;
+
+    // 构建省份→场景列表映射
+    shanheProvinceMap = {};
+    for (const item of shanheItems) {
+        const p = item.province;
+        if (!shanheProvinceMap[p]) shanheProvinceMap[p] = [];
+        shanheProvinceMap[p].push(item);
+    }
+
+    // 加载地图 SVG
+    const mapFile = config.mapFile || 'collection/china_map.svg';
+    fetch(mapFile)
+        .then(res => {
+            if (!res.ok) throw new Error('地图加载失败');
+            return res.text();
+        })
+        .then(svgText => {
+            renderShanheMap(app, svgText, config);
+        })
+        .catch(err => {
+            app.innerHTML = `<div class="empty-state">地图加载失败：${err.message}</div>`;
+        });
+}
+
+function renderShanheMap(app, svgText, config) {
+    let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
+    if (config.slogan) html += `<p style="font-size:0.8rem;color:var(--text-secondary);">${escapeHtml(config.slogan)}</p>`;
+    html += `<button class="back-btn" onclick="backFromShanheMap()" style="margin-top:6px;">← 返回专题列表</button>`;
+    html += `</div>`;
+
+    html += `<div class="shanhe-map-wrap">`;
+    html += svgText;
+    html += `</div>`;
+
+    app.innerHTML = html;
+    triggerViewAnimation();
+
+    // 绑定省份点击事件：根据 class 识别省份
+    const svg = app.querySelector('svg');
+    if (!svg) return;
+
+    const allPaths = svg.querySelectorAll('.state');
+    for (const path of allPaths) {
+        const classes = path.getAttribute('class') || '';
+        const match = classes.match(/(?:^|\s)([a-z]+)(?:\s|$)/);
+        if (match) {
+            const prov = match[1];
+            if (shanheProvinceMap[prov] && shanheProvinceMap[prov].length > 0) {
+                path.classList.add('has-scenes');
+            }
+            path.style.cursor = 'pointer';
+            path.addEventListener('click', () => {
+                if (shanheProvinceMap[prov] && shanheProvinceMap[prov].length > 0) {
+                    renderShanheProvince(prov);
+                }
+            });
+        }
+    }
+}
+
+function renderShanheProvince(province) {
+    const app = document.getElementById('app');
+    const items = shanheProvinceMap[province] || [];
+
+    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+
+    // 按车牌分组
+    const groups = {};
+    for (const item of items) {
+        const key = item.plate || '未知';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(item);
+    }
+    const sortedKeys = Object.keys(groups).sort();
+
+    // 构建展示列表
+    specialItemsList = [];
+    for (const key of sortedKeys) {
+        for (const item of groups[key]) {
+            specialItemsList.push(item);
+        }
+    }
+
+    let html = `<div class="overview-header">`;
+    html += `<button class="back-btn" onclick="renderShanheContent()">← 返回地图</button>`;
+    html += `<h2 style="margin-top:8px;">${escapeHtml(province)} · ${items.length}处场景</h2>`;
+    html += `</div>`;
+
+    const provinceNames = window.SHANHE_PROVINCE_NAMES || {};
+    const provinceChinese = provinceNames[province] || province;
+
+    for (const key of sortedKeys) {
+        const group = groups[key];
+        html += `<div class="special-year-section">`;
+        html += `<div class="special-year-title">${key} <span class="count">${group.length}件</span></div>`;
+        html += `<div class="special-year-grid">`;
+        for (const item of group) {
+            const index = specialItemsList.indexOf(item);
+            const imgUrl = getImageUrl(item.img);
+            html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
+            if (imgUrl) {
+                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.scene || '')}" loading="lazy"></div>`;
+            } else {
+                html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">暂无图片</div>`;
+            }
+            html += `<div class="special-item-info">`;
+            html += `<div class="special-item-name">${escapeHtml(item.scene || item.name || '')}</div>`;
+            if (item.denom) html += `<div class="special-item-krause">${escapeHtml(item.denom)}</div>`;
+            html += `</div></div>`;
+        }
+        html += `</div></div>`;
+    }
+
+    app.innerHTML = html;
+    triggerViewAnimation();
+}
+
+function backFromShanheMap() {
+    selectedSpecial = null;
+    renderSpecialOverview();
 }
