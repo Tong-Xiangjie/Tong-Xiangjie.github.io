@@ -373,8 +373,11 @@ async function renderShanheContent(config) {
     shanheProvinceNames = window.SHANHE_PROVINCE_NAMES || {};
 
     if (!currentSubId) {
-        // ★ 地图视图
-        app.innerHTML = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div><div class="shanhe-map-loading">地图加载中…</div>`;
+        // ★ 地图视图（加载中 / 加载完成都有返回按钮）
+        app.innerHTML =
+            `<div class="back-bar"><button class="back-btn" onclick="backFromShanheToOverview()">← 返回专题</button></div>` +
+            `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div>` +
+            `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
         try {
             const res = await fetch(mapFile);
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -477,6 +480,14 @@ async function renderShanheContent(config) {
     } else {
         renderShanheProvince(config);
     }
+}
+
+// ★ 返回专题概览（地图专用）
+function backFromShanheToOverview() {
+    selectedSpecial = null;
+    currentCategoryId = null;
+    currentSubId = null;
+    renderSpecialOverview();
 }
 
 // 读取 CSS 变量颜色 → [r,g,b]
