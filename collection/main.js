@@ -2,13 +2,13 @@
 // 精简版：仅初始化与事件绑定
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // ★ 数据加载中提示（等待数据文件动态加载完成）
+    // 数据加载中提示
     const loadingApp = document.getElementById('app');
     if (loadingApp) {
         loadingApp.innerHTML = '<div class="data-loading">数据正火速赶来中，请稍候ε=ε=(ノ≧∇≦)ノ</div>';
     }
 
-    // ★ 等待所有数据文件加载并桥接
+    // 等待所有数据文件加载并桥接
     try {
         if (typeof loadAllData === 'function') await loadAllData();
     } catch (e) {
@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (appEl0) appEl0.innerHTML = '<div class="empty-state">数据加载失败：' + escapeHtml(e.message) + '</div>';
         return;
     }
+
+    // ★ 加载完成后清空 #app，防止加载提示残留（后续渲染会填充）
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.innerHTML = '';
 
     buildSpecialCategoryTree();
     renderSidebar();
@@ -26,7 +30,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         contentEl.style.height = '100%';
     }
 
-    const appEl = document.getElementById('app');
     if (appEl) {
         appEl.style.height = '100%';
         appEl.style.overflowY = 'auto';
@@ -62,7 +65,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     setupModalEvents();
-    // ★★★ 图片重试功能初始化 ★★★
     setupImageRetry();
 
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
