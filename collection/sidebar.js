@@ -63,6 +63,7 @@ function onSidebarItemClick(catId) {
         currentSubId = null;
         renderSidebar();
         renderSpecialContent();
+        applySpecialLayout();      // ★ 从侧边栏进入河山也强制全屏
         triggerViewAnimation();
         return;
     }
