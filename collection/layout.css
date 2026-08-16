@@ -1113,7 +1113,7 @@ body.modal-open {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding-right: 64px;      /* 整体再左移一点 */
+    padding-right: 80px;      /* 整体再左移一点 */
     background: transparent;
 }
 .shanhe-map-wrap > svg {
@@ -1122,7 +1122,7 @@ body.modal-open {
     height: auto;
     min-width: 0;        /* 允许收缩，不把港澳框挤下去 */
     max-width: 100%;
-    max-height: 95vh;    /* ★ 超高时自动回缩宽度，保持比例 */
+    max-height: 85vh;    /* ★ 超高时自动回缩宽度，保持比例 */
     background: transparent;
 }
 .shanhe-map-wrap .state {
