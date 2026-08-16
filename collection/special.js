@@ -369,7 +369,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互（自适应视口 + 比例描边） ==========
+// ========== 方寸山河：地图交互（自适应视口 + 比例描边 + 微调） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -567,11 +567,11 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     const mapWrap = mainSvg.closest('.shanhe-map-wrap');
     if (mapWrap) mapWrap.appendChild(wrap);   // 先挂 DOM 再取渲染宽度
 
-    // ★ 字号：与大图同屏一致后，再调小一点（×0.75）
+    // ★ 字号：与大图同屏一致后，再调小一点（×0.55）
     const mainVbW = (mainSvg.viewBox && mainSvg.viewBox.baseVal) ? mainSvg.viewBox.baseVal.width : 595.28;
     const mainScale = mainSvg.getBoundingClientRect().width / mainVbW;
     const insetScale = svg.getBoundingClientRect().width / (maxX - minX);
-    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * 0.75 : 12;
+    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * 0.55 : 12;
     // ★ 边界线/描边按比例反算，避免放大后过粗
     const strokeScale = mainScale / insetScale;
 
