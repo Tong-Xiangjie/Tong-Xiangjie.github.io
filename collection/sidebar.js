@@ -11,6 +11,11 @@ function renderSidebar() {
 
     let tree;
     if (currentMode === MODE.SPECIAL) {
+        // ★ 渲染前同步分组，保证任何入口进来侧边栏都是数据驱动的年代/面额
+        if (typeof syncSpecialGroupChildren === 'function') {
+            const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+            if (cfg) syncSpecialGroupChildren(cfg);
+        }
         tree = specialCategoryTree;
     } else {
         tree = getCategoryTree();
