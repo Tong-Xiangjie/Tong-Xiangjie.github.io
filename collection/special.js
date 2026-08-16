@@ -26,14 +26,24 @@ function renderSpecialOverview() {
         return;
     }
 
+    // ★ 循环：有 slogan 则渲染长条，否则渲染卡片
     html += `<div class="special-overview-grid">`;
     for (const config of configs) {
-        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
-        const count = data ? data.length || 0 : 0;
-        html += `<div class="special-overview-card" onclick="onSpecialOverviewItemClick('${config.id}')">`;
-        html += `<div class="special-overview-card-title">${escapeHtml(config.name)}</div>`;
-        html += `<div class="special-overview-card-count">${count}件</div>`;
-        html += `</div>`;
+        if (config.slogan) {
+            // ★ 长条样式：一行、无件数、带标语
+            html += `<div class="special-overview-bar" onclick="onSpecialOverviewItemClick('${config.id}')">`;
+            html += `<span class="special-overview-bar-title">${escapeHtml(config.name)}</span>`;
+            html += `<span class="special-overview-bar-slogan">${escapeHtml(config.slogan)}</span>`;
+            html += `</div>`;
+        } else {
+            // 卡片样式（默认）：显示件数
+            const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
+            const count = data ? data.length || 0 : 0;
+            html += `<div class="special-overview-card" onclick="onSpecialOverviewItemClick('${config.id}')">`;
+            html += `<div class="special-overview-card-title">${escapeHtml(config.name)}</div>`;
+            html += `<div class="special-overview-card-count">${count}件</div>`;
+            html += `</div>`;
+        }
     }
     html += `</div>`;
 
@@ -162,7 +172,7 @@ function renderSpecialContent() {
         return parseInt(b) - parseInt(a);
     });
 
-    // ★ 灯箱列表 = 展示顺序（年份倒序 + 组内数据序），保证翻页与页面一致
+    // 灯箱列表 = 展示顺序（年份倒序 + 组内数据序），保证翻页与页面一致
     specialItemsList = [];
     for (const year of sortedYears) {
         for (const item of yearGroups[year]) {
@@ -225,7 +235,7 @@ function openSpecialLightbox(index) {
     inner.className = 'special-lightbox-inner';
     inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
 
-    // ★ 关闭按钮：使用通用 lightbox-close
+    // 关闭按钮：使用通用 lightbox-close
     const closeBtn = document.createElement('div');
     closeBtn.className = 'lightbox-close';
     closeBtn.textContent = '×';
@@ -261,7 +271,7 @@ function renderLightboxContent(contentEl, config) {
 
     let html = '';
 
-    // ★ 导航行右侧留白避开关闭按钮
+    // 导航行右侧留白避开关闭按钮
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-right:36px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
@@ -274,7 +284,7 @@ function renderLightboxContent(contentEl, config) {
 
     html += `</div></div>`;
 
-    // ★ 图片容器固定高度 55vh，避免切换时跳动
+    // 图片容器固定高度 55vh，避免切换时跳动
     if (imgUrl) {
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;">`;
         html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
