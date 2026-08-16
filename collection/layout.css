@@ -771,7 +771,7 @@ body.modal-open {
 /* ========== 专题内容页样式 ========== */
 .special-content h2 { font-size: 1.3rem; margin-bottom: 4px; }
 .special-year-section { margin: 18px 0; }
-.special-year-title { font-size: 1.1rem; font-weight: bold; color: var(--theme); padding: 8px 10px; background: var(--bg-light); border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--theme); }
+.special-year-title { font-size: 1.1rem; font-weight: bold; color: var(--theme); padding: 8px 10px; background: var(--bg-light); border-radius: 0; margin-bottom: 8px; border-left: 3px solid var(--theme); }
 .special-year-title .count { font-weight: normal; font-size: 0.8rem; color: var(--text-secondary); margin-left: 8px; }
 .special-year-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .special-item-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease; }
@@ -846,6 +846,31 @@ body.modal-open {
     font-size: 0.85rem;
     color: var(--theme);
     font-weight: bold;
+}
+
+/* ========== 专题概览：长条样式（带标语的专题） ========== */
+.special-overview-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--card-bg);
+    border-left: 4px solid var(--theme);
+    cursor: pointer;
+}
+.special-overview-bar-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text);
+    flex-shrink: 0;
+}
+.special-overview-bar-slogan {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ========== 专题详情浮层 ========== */
@@ -1110,36 +1135,4 @@ body.modal-open {
         width: auto;
         padding: 0 4px;
     }
-}
-/* ========== 专题概览：长条样式（带标语的专题） ========== */
-.special-overview-bar {
-    grid-column: 1 / -1;          /* 占满整行 */
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    padding: 14px 18px;
-    background: var(--card-bg);
-    border-radius: 10px;
-    border-left: 4px solid var(--theme);   /* 左侧主题色竖条 */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.special-overview-bar:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-}
-.special-overview-bar-title {
-    font-size: 1rem;
-    font-weight: bold;
-    color: var(--text);
-    flex-shrink: 0;
-}
-.special-overview-bar-slogan {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;          /* 窄屏时标语截断，不换行撑破 */
 }
