@@ -77,6 +77,18 @@ function buildGroupCategories(config, items) {
         .map(d => ({ id: d, name: d, dataKey: config.id }));
 }
 
+// ★ 确保专题侧边栏分组与数据一致（按 groupBy 生成，覆盖 config.categories 旧数据）
+function syncSpecialGroupChildren(config) {
+    if (!config || config.view === 'map') return;   // 地图专题无侧边栏
+    const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
+    const items = data ? (data.items || data) : [];
+    const groupChildren = buildGroupCategories(config, items);
+    const specialTree = specialCategoryTree ? specialCategoryTree.find(c => c.id === config.id) : null;
+    if (specialTree) {
+        specialTree.children = (groupChildren && groupChildren.length > 0) ? groupChildren : null;
+    }
+}
+
 // ========== 专题概览 ==========
 function renderSpecialOverview() {
     const app = document.getElementById('app');
@@ -143,15 +155,9 @@ function onSpecialOverviewItemClick(configId) {
         return;
     }
 
+    // ★ 同步分组（数据驱动侧边栏）
     if (config) {
-        const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
-        const items = data ? (data.items || data) : [];
-        const groupChildren = buildGroupCategories(config, items);
-
-        const specialTree = specialCategoryTree ? specialCategoryTree.find(c => c.id === configId) : null;
-        if (specialTree) {
-            specialTree.children = (groupChildren && groupChildren.length > 0) ? groupChildren : null;
-        }
+        syncSpecialGroupChildren(config);
     }
 
     const hasSub = config && specialCategoryTree
