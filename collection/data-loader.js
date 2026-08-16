@@ -1,10 +1,11 @@
 // ==================== data-loader.js ====================
 // 从分类树收集数据文件 → 动态加载 → 自动桥接到 DATA_MAP / COIN_DATA_MAP
+// 数据文件保持 const 声明不动，用间接 eval 解析全局变量
 
 function walkTree(cats, out) {
     for (const cat of cats) {
-        if (cat.dataKey && cat.file) {
-            out.push({ key: cat.dataKey, file: cat.file, var: cat.var || cat.dataKey });
+        if (cat.dataKey && cat.dataFile) {
+            out.push({ key: cat.dataKey, file: cat.dataFile, var: cat.dataVar || cat.dataKey });
         }
         if (cat.children) walkTree(cat.children, out);
     }
@@ -22,22 +23,23 @@ function loadScript(file) {
     });
 }
 
+// 间接 eval：读取顶层 const 声明的全局变量（const 不会挂到 window 上）
 function resolveGlobal(name) {
     try { return (0, eval)(name); } catch (e) { return null; }
 }
 
 let dataReadyPromise = null;
-
 function loadAllData(onProgress) {
     if (dataReadyPromise) return dataReadyPromise;
     dataReadyPromise = (async () => {
         const noteSources = walkTree(categoryTree, []);
         const coinSources = walkTree(coinCategoryTree, []);
 
+        // 按文件去重，收集实际要加载的列表
         const files = [];
         const seen = new Set();
         for (const s of [...noteSources, ...coinSources]) {
-            if (!s.file || seen.has(s.file)) continue;
+            if (!s.file || seen.has(s.file)) continue;   // ★ 空路径直接跳过
             seen.add(s.file);
             files.push(s.file);
         }
@@ -57,7 +59,7 @@ function loadAllData(onProgress) {
         if (onProgress) onProgress({ loaded: files.length, total, current: '' });
 
         if (failed.length > 0) {
-            console.warn('[data-loader] 共 ' + failed.length + ' 个文件加载失败:', failed);
+            console.warn('[data-loader] 共 ' + failed.length + ' 个文件加载失败（对应分类将显示为空）:', failed);
             window.__dataLoadFailures = failed;
         }
 
