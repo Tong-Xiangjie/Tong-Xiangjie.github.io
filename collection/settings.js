@@ -1,7 +1,7 @@
 // ==================== settings.js ====================
 // 设置页渲染
 
-// ★ 清除缓存确认状态变量
+// ★ 唯一声明
 let cacheConfirmPending = false;
 let cacheConfirmTimer = null;
 
@@ -110,7 +110,7 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // ★ 图片缓存管理（按钮文字包在 span 里）
+    // 图片缓存（按钮文字包裹 span）
     html += `<div class="settings-section">`;
     html += `<h3>图片缓存</h3>`;
     html += `<div class="export-buttons">`;
@@ -173,23 +173,16 @@ function addCurrentCustomColor() {
 // ============================================================
 // ★★★★★★★ 清除图片缓存（文字动画仅限 span，按钮本体不动） ★★★★★★★
 // ============================================================
-let cacheConfirmPending = false;
-let cacheConfirmTimer = null;
-
 function clearImageCache() {
-    // 第一次点击：进入确认状态（防误触）
     if (!cacheConfirmPending) {
         cacheConfirmPending = true;
         fadeText('确 定 吗 ？');
-        // 3 秒无操作自动还原
         cacheConfirmTimer = setTimeout(() => {
             cacheConfirmPending = false;
             fadeText('清除图片缓存');
         }, 3000);
         return;
     }
-
-    // 第二次点击：真正执行清空
     clearTimeout(cacheConfirmTimer);
     cacheConfirmPending = false;
     performClearImageCache();
@@ -202,16 +195,14 @@ async function performClearImageCache() {
         await Promise.all(
             keys.filter(k => k.startsWith('collection-images')).map(k => caches.delete(k))
         );
-        // 显示「已 清 空」1 秒后还原，不弹窗
         fadeText('已 清 空');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
     } catch (e) {
-        fadeText('缓存清空失败');
+        fadeText('失 败');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
     }
 }
 
-// ★ 只对文字做淡出 → 换字 → 淡入，按钮本体完全不动
 function fadeText(text) {
     const span = document.getElementById('clearCacheText');
     if (!span) return;
