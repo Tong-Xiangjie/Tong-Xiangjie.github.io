@@ -364,7 +364,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互（修改版） ==========
+// ========== 方寸山河：地图交互（六点调整版） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -373,7 +373,7 @@ async function renderShanheContent(config) {
     shanheProvinceNames = window.SHANHE_PROVINCE_NAMES || {};
 
     if (!currentSubId) {
-        // ★ 地图视图（加载中 / 加载完成都有返回按钮）
+        // ★ 地图视图
         app.innerHTML =
             `<div class="back-bar"><button class="back-btn" onclick="backFromShanheToOverview()">← 返回专题</button></div>` +
             `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div>` +
@@ -399,79 +399,20 @@ async function renderShanheContent(config) {
                 if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
             }
 
-            // 主题色（hex → RGB）
-            const themeRGB = getCssColor('--theme', [22, 119, 255]);
             const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
-            const WHITE = [255, 255, 255];
 
             const removeLoad = app.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
 
-            const states = svg.querySelectorAll('.state');
-            states.forEach(el => {
+            // 主图：给每个省份着色 + 事件 + 标注
+            svg.querySelectorAll('.state').forEach(el => {
                 const cls = el.getAttribute('class') || '';
                 const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
-                const name = shanheProvinceNames[pid] || pid;
-                const count = countByProvince[pid] || 0;
-
-                // ★ 按件数渐变着色：0→白，最多→主题浅色
-                const ratio = maxCount > 0 ? count / maxCount : 0;
-                const fill = ratio > 0 ? mixColor(WHITE, themeLightRGB, ratio) : 'rgb(255,255,255)';
-                el.style.setProperty('--fill', fill);
-                el.style.fill = fill;
-
-                // 点击：有主景才可进入
-                el.style.cursor = count > 0 ? 'pointer' : 'default';
-                el.addEventListener('click', () => {
-                    if (count === 0) return;
-                    currentSubId = pid;
-                    renderShanheContent(config);
-                });
-
-                // 标注：省份名 + 件数（放在 bbox 中心，小省份用引线指出去）
-                let bbox = null;
-                try { bbox = el.getBBox(); } catch (e) {}
-                if (!bbox) return;
-
-                const cx = bbox.x + bbox.width / 2;
-                const cy = bbox.y + bbox.height / 2;
-                const small = ['xianggang', 'aomen', 'shanghai', 'beijing', 'tianjin', 'chongqing', 'hainan', 'ningxia', 'taiwan'].includes(pid)
-                    || bbox.width < 36 || bbox.height < 28;
-
-                let tx = cx, ty = cy;
-                if (small) {
-                    // 引线方向：左半图向右，右半图向左
-                    const vbW = svg.viewBox ? parseFloat(svg.viewBox.baseVal.width) : 595;
-                    tx = cx < vbW / 2 ? cx + 24 : cx - 24;
-                    ty = cy - 3;
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
-                    line.setAttribute('x2', tx); line.setAttribute('y2', ty);
-                    line.setAttribute('class', 'shanhe-leader');
-                    svg.appendChild(line);
-                }
-
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('x', tx);
-                text.setAttribute('y', ty);
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('class', 'shanhe-label' + (count > 0 ? ' has-count' : ''));
-
-                const tName = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-                tName.textContent = name;
-                text.appendChild(tName);
-                if (count > 0) {
-                    const tCount = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-                    tCount.setAttribute('class', 'shanhe-label-count');
-                    tCount.textContent = ' ' + count;
-                    text.appendChild(tCount);
-                }
-                svg.appendChild(text);
-
-                // ★ 悬浮联动：省份高亮 + 文字变大
-                el.addEventListener('mouseenter', () => text.classList.add('active'));
-                el.addEventListener('mouseleave', () => text.classList.remove('active'));
+                setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg);
             });
+
+            // ★ 港澳局部放大图
+            buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
 
             triggerViewAnimation();
         } catch (e) {
@@ -479,6 +420,93 @@ async function renderShanheContent(config) {
         }
     } else {
         renderShanheProvince(config);
+    }
+}
+
+// 着色：0件→白，件数越多越接近主题浅色
+function fillForCount(count, maxCount, themeLightRGB) {
+    if (count <= 0) return 'rgb(255,255,255)';
+    const ratio = maxCount > 0 ? count / maxCount : 0;
+    return mixColor([255, 255, 255], themeLightRGB, ratio);
+}
+
+// 创建省份标注（名称 + 件数），返回 text 元素
+function createShanheLabel(svg, x, y, name, count) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const text = document.createElementNS(NS, 'text');
+    text.setAttribute('x', x);
+    text.setAttribute('y', y);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('class', 'shanhe-label' + (count > 0 ? ' has-count' : ''));
+    const tName = document.createElementNS(NS, 'tspan');
+    tName.textContent = name;
+    text.appendChild(tName);
+    if (count > 0) {
+        const tCount = document.createElementNS(NS, 'tspan');
+        tCount.setAttribute('class', 'shanhe-label-count');
+        tCount.textContent = ' ' + count;
+        text.appendChild(tCount);
+    }
+    svg.appendChild(text);
+    return text;
+}
+
+// 给省份元素绑定着色 + 点击 + 悬浮联动（主图与放大图共用）
+function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg) {
+    const name = shanheProvinceNames[pid] || pid;
+    el.style.fill = fillForCount(count, maxCount, themeLightRGB);
+    el.style.cursor = count > 0 ? 'pointer' : 'default';
+    el.addEventListener('click', () => {
+        if (count === 0) return;
+        currentSubId = pid;
+        renderShanheContent(config);
+    });
+    let bbox = null;
+    try { bbox = el.getBBox(); } catch (e) {}
+    if (!bbox) return null;
+    const text = createShanheLabel(svg, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, name, count);
+    el.addEventListener('mouseenter', () => text.classList.add('active'));
+    el.addEventListener('mouseleave', () => text.classList.remove('active'));
+    return text;
+}
+
+// ★ 港澳局部放大图：右下角叠加一个缩略图
+function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, config) {
+    const ids = ['xianggang', 'aomen'];
+    const els = [];
+    for (const id of ids) {
+        const el = mainSvg.querySelector('.state.' + id);
+        if (el) els.push({ id, el });
+    }
+    if (els.length === 0) return;
+
+    // 合并 bbox
+    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    for (const { el } of els) {
+        const b = el.getBBox();
+        minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x + b.width);
+        minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + b.height);
+    }
+    const pad = 10;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'shanhe-map-inset';
+    wrap.innerHTML = '<div class="shanhe-map-inset-title">港澳放大</div>';
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+    wrap.appendChild(svg);
+
+    const mapWrap = mainSvg.closest('.shanhe-map-wrap');
+    if (mapWrap) mapWrap.appendChild(wrap);   // 先挂进 DOM，getBBox 才能取到
+
+    for (const { id, el } of els) {
+        const clone = el.cloneNode(true);
+        clone.removeAttribute('style');
+        svg.appendChild(clone);               // 先挂载再取 bbox
+        setupShanheState(clone, id, countByProvince[id] || 0, maxCount, themeLightRGB, config, svg);
     }
 }
 
