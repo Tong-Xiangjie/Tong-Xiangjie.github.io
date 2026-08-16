@@ -369,7 +369,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互（自适应宽度 + 粤港澳切片） ==========
+// ========== 方寸山河：地图交互（自适应视口 + 比例描边） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -444,7 +444,7 @@ function fillForCount(count, maxCount, themeLightRGB) {
 }
 
 // 创建省份标注（名称 + 件数），返回 text 元素
-function createShanheLabel(svg, x, y, name, count, baseSize) {
+function createShanheLabel(svg, x, y, name, count, baseSize, strokeScale) {
     const NS = 'http://www.w3.org/2000/svg';
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', x);
@@ -452,6 +452,10 @@ function createShanheLabel(svg, x, y, name, count, baseSize) {
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('class', 'shanhe-label' + (count > 0 ? ' has-count' : ''));
     text.style.setProperty('--label-size', (baseSize || 12) + 'px');
+    // ★ 放大图：文字黑边按比例调细
+    if (strokeScale && strokeScale !== 1) {
+        text.style.setProperty('--label-stroke', (1.5 * strokeScale) + 'px');
+    }
     const tName = document.createElementNS(NS, 'tspan');
     tName.textContent = name;
     text.appendChild(tName);
@@ -481,10 +485,14 @@ function isPointInPolygon(el, x, y) {
 }
 
 // 给省份元素绑定着色 + 点击 + 悬浮联动（主图与放大图共用）
-function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, baseSize, noLabel) {
+function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, baseSize, noLabel, strokeScale) {
     const name = shanheProvinceNames[pid] || pid;
     el.style.fill = fillForCount(count, maxCount, themeLightRGB);
     el.style.cursor = count > 0 ? 'pointer' : 'default';
+    // ★ 放大图：边界线按比例调细
+    if (strokeScale && strokeScale !== 1) {
+        el.style.strokeWidth = (1 * strokeScale) + 'px';
+    }
     el.addEventListener('click', () => {
         if (count === 0) return;
         currentSubId = pid;
@@ -508,7 +516,7 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
         }
     }
 
-    const text = createShanheLabel(svg, lx, ly, name, count, baseSize);
+    const text = createShanheLabel(svg, lx, ly, name, count, baseSize, strokeScale);
     el.addEventListener('mouseenter', () => text.classList.add('active'));
     el.addEventListener('mouseleave', () => text.classList.remove('active'));
     return text;
@@ -564,6 +572,8 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     const mainScale = mainSvg.getBoundingClientRect().width / mainVbW;
     const insetScale = svg.getBoundingClientRect().width / (maxX - minX);
     const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * 0.75 : 12;
+    // ★ 边界线/描边按比例反算，避免放大后过粗
+    const strokeScale = mainScale / insetScale;
 
     for (const el of inRegion) {
         const cls = el.getAttribute('class') || '';
@@ -571,8 +581,7 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
         const clone = el.cloneNode(true);
         clone.removeAttribute('style');
         svg.appendChild(clone);
-        // ★ 放大图里所有省份都正常标注（含港澳），不传 noLabel
-        setupShanheState(clone, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, baseSize);
+        setupShanheState(clone, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, baseSize, undefined, strokeScale);
     }
 }
 
