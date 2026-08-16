@@ -1216,3 +1216,56 @@ body.modal-open {
         padding: 0 4px;
     }
 }
+
+/* ========== 方寸山河地图（左右排列） ========== */
+.shanhe-map-wrap {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: row;        /* ★ 左右排列 */
+    flex-wrap: wrap;            /* 窄屏自动换行 */
+    align-items: center;
+    justify-content: center;    /* ★ 整体居中 */
+    gap: 16px;
+    background: transparent;
+}
+.shanhe-map-wrap > svg {
+    width: auto;
+    max-width: 880px;
+    flex: 0 1 auto;
+    background: transparent;
+}
+.shanhe-map-wrap .state {
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-linejoin: round;
+    transition: fill 0.15s;
+}
+.shanhe-map-wrap .state:hover { fill: var(--theme) !important; }
+.shanhe-map-wrap .shanhe-label {
+    font-size: var(--label-size, 12px);
+    font-weight: bold;
+    fill: #444;
+    pointer-events: none;
+    paint-order: stroke;
+}
+.shanhe-map-wrap .shanhe-label-count { font-weight: bold; fill: var(--theme); }
+.shanhe-map-wrap .shanhe-label.active {
+    font-size: calc(var(--label-size, 12px) * 1.2);
+    fill: #fff;
+    stroke: #000;
+    stroke-width: 1.5;
+}
+.shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
+
+/* ★ 港澳放大图：右侧、240px */
+.shanhe-map-inset {
+    width: 240px;
+    max-width: 100%;
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.shanhe-map-inset svg { width: 100%; height: auto; display: block; }
+.shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
+.shanhe-map-loading { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
