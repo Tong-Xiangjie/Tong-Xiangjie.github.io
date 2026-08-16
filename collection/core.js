@@ -7,21 +7,15 @@ const SEARCH_MODE = { CLICK: 'click', REALTIME: 'realtime' };
 const KRAUSE_PREFIX = 'Pick# ';
 
 // ========== 目录编号格式化（统一规则） ==========
-// 规则：值中已含 '#'（如 KM# 555、Pick# 123、SUN# 456）→ 原样返回；
-//       不含 '#' 的纯编号（如 888）→ 默认补 'Pick# ' 前缀。
-//       若包含 'Unlisted'（不区分大小写）→ 返回空字符串（不显示）
 function formatCatalogNumber(num) {
     if (!num) return '';
     const s = String(num).trim();
-    // Unlisted / Pick# Unlisted 等 → 不显示编号（搜索仍按原始值命中）
     if (/unlisted/i.test(s)) return '';
-    // 已带前缀（Pick# / KM# / SUN# / Sun- 等）→ 原样返回
     if (s.includes('#') || /^sun[-#]/i.test(s)) return s;
-    // 纯编号 → 默认补 Pick#
     return 'Pick# ' + s;
 }
 
-// ========== CDN 图片路径处理（智能识别子目录） ==========
+// ========== CDN 图片路径处理 ==========
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/';
 
 function getImageUrl(path, subDir = 'comm') {
@@ -29,19 +23,13 @@ function getImageUrl(path, subDir = 'comm') {
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
-
     let relative = path;
-    // 如果以 'image/' 开头，去掉这个前缀
     if (relative.startsWith('image/')) {
         relative = relative.substring(6);
     }
-
-    // 如果 relative 包含 '/'，说明有子目录，直接拼接
     if (relative.includes('/')) {
         return CDN_BASE + relative;
     }
-
-    // 纯文件名，使用传入的 subDir（默认 'comm'）
     return CDN_BASE + subDir + '/' + relative;
 }
 // =========================================================
@@ -61,12 +49,10 @@ let isSidebarCollapsed = false;
 let settingsPageCache = null;
 let isArticlePreloading = false;
 
-// 专题状态
 let selectedSpecial = null;
 let specialPageCaches = {};
 let specialCategoryTree = null;
 
-// 评级切换状态
 let ratingMode = MODE.NOTES;
 
 let modeStates = {
@@ -100,7 +86,7 @@ let hammerManager = null;
 let currentScale = 1, currentX = 0, currentY = 0;
 let currentModalImg1 = '', currentModalImg2 = '';
 
-// ========== 文章状态（article.js 共享） ==========
+// ========== 文章状态 ==========
 let currentArticleView = VIEW.LIST;
 let currentArticleCategory = 'all';
 let currentArticleIndex = -1;
@@ -114,7 +100,6 @@ let articleCategoryTree = [];
 // ========== 独立滚动容器系统 ==========
 const viewScrollContainers = {};
 
-/** 确保容器存在，返回它 */
 function ensureViewContainer(key) {
     if (!viewScrollContainers[key]) {
         const div = document.createElement('div');
@@ -122,24 +107,18 @@ function ensureViewContainer(key) {
         div.id = 'view-' + key.replace(/[^a-zA-Z0-9_\-]/g, '_');
         div.style.cssText = 'height:100%;overflow-y:auto;display:none;';
         const content = document.querySelector('.content');
-        const app = document.getElementById('app');
-        content.insertBefore(div, app);
+        content.insertBefore(div, document.getElementById('app'));
         viewScrollContainers[key] = div;
     }
     return viewScrollContainers[key];
 }
 
-/**
- * 判断是否使用 #app 的全页模式
- * 只有专题和设置使用 #app，文章（列表/阅读器）和纸币/硬币都使用独立容器
- */
 function isFullPageMode(key) {
     if (key === MODE.SPECIAL || key === MODE.SETTINGS) return true;
     if (key.startsWith('special_') || key === 'settings') return true;
     return false;
 }
 
-/** 根据当前状态获取正确的容器键名 */
 function getContainerKey() {
     if (currentMode === MODE.ARTICLES) {
         if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
@@ -162,15 +141,12 @@ function getContainerKey() {
     return 'default';
 }
 
-/** 切换显示到当前状态的容器 */
 function switchToCurrentContainer() {
     const key = getContainerKey();
     switchViewContainer(key);
 }
 
-/** 切换显示的容器（隐藏所有其他容器，显示目标） */
 function switchViewContainer(key) {
-    // 隐藏所有滚动容器
     for (const k of Object.keys(viewScrollContainers)) {
         viewScrollContainers[k].style.display = 'none';
     }
@@ -178,23 +154,19 @@ function switchViewContainer(key) {
     if (app) app.style.display = 'none';
 
     if (isFullPageMode(key)) {
-        // 专题和设置使用 #app
         if (app) app.style.display = 'block';
     } else {
-        // 纸币、硬币、文章都使用独立滚动容器
         const container = ensureViewContainer(key);
         container.style.display = 'block';
     }
 }
 
-/** 获取当前状态的渲染目标容器 */
 function getRenderContainer() {
     const key = getContainerKey();
     if (isFullPageMode(key)) return document.getElementById('app');
     return ensureViewContainer(key);
 }
 
-/** 触发入场动画 */
 function triggerViewAnimation() {
     const key = getContainerKey();
     const el = isFullPageMode(key) ? document.getElementById('app') : viewScrollContainers[key];
@@ -355,7 +327,6 @@ function saveFullState() {
             categoryScrollY: currentView === VIEW.CATEGORY ? scrollY : (prev.categoryScrollY || 0),
             searchScrollY: currentView === VIEW.SEARCH ? scrollY : (prev.searchScrollY || 0)
         };
-        // 也同步保存到 scrollMemory，兼容旧代码
         scrollMemory[currentMode + '-' + key] = scrollY;
     } else if (currentMode === MODE.ARTICLES) {
         const prev = articleState;
@@ -369,7 +340,6 @@ function saveFullState() {
         };
         scrollMemory['articles-' + key] = scrollY;
     } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
-        // ★ 设置模式下不覆盖专题缓存（避免专题缓存被设置页覆盖）
         const appEl = document.getElementById('app');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             specialPageCaches[selectedSpecial] = {
@@ -401,7 +371,6 @@ function setupModalEvents() {
     if (!modal) return;
     modal.addEventListener('click', function(e) {
         const t = e.target;
-        // 点击图片本身或关闭按钮 → 不关闭；其余任意空白/留白/提示区 → 关闭
         if (t && (t.id === 'modalImg' || t.classList.contains('modal-close'))) return;
         closeModal();
     });
@@ -414,7 +383,6 @@ let failedImages = new Set();
 let retryFab = null;
 
 function setupImageRetry() {
-    // 捕获阶段监听：任何 <img> 加载失败都记录下来
     document.addEventListener('error', (e) => {
         const t = e.target;
         if (t && t.tagName === 'IMG') {
@@ -423,7 +391,6 @@ function setupImageRetry() {
         }
     }, true);
 
-    // 加载成功则从列表移除
     document.addEventListener('load', (e) => {
         const t = e.target;
         if (t && t.tagName === 'IMG') {
@@ -431,15 +398,12 @@ function setupImageRetry() {
         }
     }, true);
 
-    // 右下角悬浮重试按钮（默认隐藏）
+    // 右下角悬浮按钮：⟳ + 右上角数量角标
     retryFab = document.createElement('div');
     retryFab.id = 'imgRetryFab';
     retryFab.className = 'img-retry-fab';
-    retryFab.innerHTML = '⟳';
-    retryFab.onclick = () => {
-        const n = retryFailedImages();
-        if (n > 0) alert('已重新加载 ' + n + ' 张图片，仍失败的会保留按钮供再次重试');
-    };
+    retryFab.innerHTML = '<span class="fab-icon">⟳</span><span class="fab-count" id="imgRetryCount"></span>';
+    retryFab.onclick = () => { retryFailedImages(); };   // ★ 不再弹窗
     document.body.appendChild(retryFab);
     updateRetryFab();
 }
@@ -448,23 +412,26 @@ function updateRetryFab() {
     if (!retryFab) return;
     const has = failedImages.size > 0;
     retryFab.style.display = has ? 'flex' : 'none';
-    if (has) retryFab.title = '重新加载未显示的图片（' + failedImages.size + ' 张）';
+    if (has) {
+        const count = failedImages.size;
+        const countEl = retryFab.querySelector('.fab-count');
+        // 压缩：超 99 显示 99+；字号随位数自适应
+        countEl.textContent = count > 99 ? '99+' : String(count);
+        countEl.style.fontSize = count > 99 ? '8px' : (count > 9 ? '10px' : '12px');
+        retryFab.title = '重新加载未显示的图片（' + count + ' 张）';
+    }
 }
 
 function retryFailedImages() {
     const list = [...failedImages];
     failedImages.clear();
     updateRetryFab();
-    let count = 0;
     for (const img of list) {
-        if (!img.isConnected) continue; // 已不在页面上的跳过
+        if (!img.isConnected) continue;
         let src = img.getAttribute('src') || img.src;
         if (!src) continue;
-        // 加时间戳参数强制重新请求（绕开旧失败状态）
         const sep = src.includes('?') ? '&' : '?';
         img.src = src + sep + 'retry=' + Date.now() + Math.random().toString(36).slice(2, 6);
-        count++;
     }
-    return count;
 }
 // ★★★★★★★ 图片重试功能结束 ★★★★★★★
