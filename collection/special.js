@@ -369,7 +369,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互（1144px + 粤港澳切片版） ==========
+// ========== 方寸山河：地图交互（自适应宽度 + 粤港澳切片） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -424,7 +424,7 @@ async function renderShanheContent(config) {
                 setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, undefined, isGangAo);
             });
 
-            // ★ 港澳局部放大图 = 粤港澳切片
+            // ★ 港澳局部放大图 = 粤港澳切片（缩小范围）
             buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
 
             triggerViewAnimation();
@@ -514,12 +514,11 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
     return text;
 }
 
-// ★ 港澳放大图 = 大地图的一部分切片（含广东），逻辑照抄大地图，字号略小
+// ★ 港澳放大图 = 切片（以港澳为主体，广东只露一小条）
 function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, config) {
-    // 切片区域：广东 + 香港 + 澳门（+留白）
-    const regionIds = ['guangdong', 'xianggang', 'aomen'];
+    // ★ 切片区域：以港澳为主体，向广东方向露出一小条（不要求完整省份）
     let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-    for (const id of regionIds) {
+    for (const id of ['xianggang', 'aomen']) {
         const el = mainSvg.querySelector('.state.' + id);
         if (!el) continue;
         const b = el.getBBox();
@@ -527,10 +526,18 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
         minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + b.height);
     }
     if (minX === 1e9) return;
-    const pad = 12;
+    const pad = 6;
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
 
-    // 截取与该区域相交的所有省份（就像大地图的一部分）
+    // ★ 向广东方向扩一点：上边界切到广东中下段、左边界到广东中段，只露广东南部一小条
+    const gd = mainSvg.querySelector('.state.guangdong');
+    if (gd) {
+        const gb = gd.getBBox();
+        minY = Math.min(minY, gb.y + gb.height * 0.55);
+        minX = Math.min(minX, gb.x + gb.width * 0.45);
+    }
+
+    // 截取与该区域相交的所有省份
     const inRegion = [];
     mainSvg.querySelectorAll('.state').forEach(el => {
         const b = el.getBBox();
