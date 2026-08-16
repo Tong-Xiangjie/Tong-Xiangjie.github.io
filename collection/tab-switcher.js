@@ -107,27 +107,34 @@ function enterSpecialFromTab() {
     const key = getContainerKey();
     switchViewContainer(key);
 
-    // ★ 强制恢复缓存内容
-    if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+    const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+
+    // ★ 地图专题：不走缓存（防 SVG 事件丢失），重新渲染 + 全屏
+    if (specialCfg && specialCfg.view === 'map') {
+        if (specialPageCaches[selectedSpecial]) {
+            currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
+        }
+        renderSpecialContent();
+        applySpecialLayout();
+    } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+        // ★ 强制恢复缓存内容
         const cache = specialPageCaches[selectedSpecial];
         currentSubId = cache.currentSubId || null;
         currentCategoryId = selectedSpecial;
         const appEl = document.getElementById('app');
         if (appEl) {
             appEl.innerHTML = cache.innerHTML;
-            requestAnimationFrame(() => {
-                appEl.scrollTop = cache.scrollY || 0;
-            });
+            requestAnimationFrame(() => { appEl.scrollTop = cache.scrollY || 0; });
         }
-        const toggleBtn2 = document.getElementById('sidebarToggle');
-        if (toggleBtn2) toggleBtn2.style.display = '';
         renderSidebar();
         const sb = document.getElementById('sidebar');
         if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
+        applySpecialLayout();
     } else {
         // ★ 无缓存时重新渲染
         renderSpecialContent();
         renderSidebar();
+        applySpecialLayout();
     }
     triggerViewAnimation();
 }
@@ -172,24 +179,29 @@ function leaveSettingsToTarget(target) {
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             const key = getContainerKey();
             switchViewContainer(key);
+            const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
 
-            if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+            if (specialCfg && specialCfg.view === 'map') {
+                if (specialPageCaches[selectedSpecial]) {
+                    currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
+                }
+                renderSpecialContent();
+                applySpecialLayout();
+            } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
                 const cache = specialPageCaches[selectedSpecial];
-                document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
                 const appEl = document.getElementById('app');
                 if (appEl) {
                     appEl.innerHTML = cache.innerHTML;
-                    requestAnimationFrame(() => {
-                        appEl.scrollTop = cache.scrollY || 0;
-                    });
+                    requestAnimationFrame(() => { appEl.scrollTop = cache.scrollY || 0; });
                 }
                 renderSidebar();
                 const sb = document.getElementById('sidebar');
                 if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
+                applySpecialLayout();
             } else {
-                document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
                 renderSidebar();
                 renderSpecialContent();
+                applySpecialLayout();
             }
         } else {
             document.querySelector('.body-row')?.classList.add('sidebar-hidden');
