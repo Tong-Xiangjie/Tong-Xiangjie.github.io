@@ -364,7 +364,7 @@ function specialLightboxKeyHandler(e) {
     if (e.key === 'ArrowRight') navigateLightbox(1);
 }
 
-// ========== 方寸山河：地图交互 ==========
+// ========== 方寸山河：地图交互（修改版） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -374,10 +374,6 @@ async function renderShanheContent(config) {
 
     if (!currentSubId) {
         // ★ 地图视图
-        const countByProvince = {};
-        for (const item of items) {
-            if (item.province) countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
-        }
         app.innerHTML = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div><div class="shanhe-map-loading">地图加载中…</div>`;
         try {
             const res = await fetch(mapFile);
@@ -386,35 +382,124 @@ async function renderShanheContent(config) {
             const wrap = document.createElement('div');
             wrap.className = 'shanhe-map-wrap';
             wrap.innerHTML = svgText;
+            app.appendChild(wrap);
 
-            wrap.querySelectorAll('.state').forEach(el => {
+            const svg = wrap.querySelector('svg');
+            if (!svg) throw new Error('SVG中未找到<svg>');
+
+            // 件数统计 + 最大件数
+            const countByProvince = {};
+            let maxCount = 0;
+            for (const item of items) {
+                if (!item.province) continue;
+                countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
+                if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
+            }
+
+            // 主题色（hex → RGB）
+            const themeRGB = getCssColor('--theme', [22, 119, 255]);
+            const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
+            const WHITE = [255, 255, 255];
+
+            const removeLoad = app.querySelector('.shanhe-map-loading');
+            if (removeLoad) removeLoad.remove();
+
+            const states = svg.querySelectorAll('.state');
+            states.forEach(el => {
                 const cls = el.getAttribute('class') || '';
                 const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
                 const name = shanheProvinceNames[pid] || pid;
                 const count = countByProvince[pid] || 0;
-                el.title = name + (count > 0 ? '（' + count + '个主景）' : '（暂无主景）');
-                if (count > 0) el.classList.add('has-scenes');
+
+                // ★ 按件数渐变着色：0→白，最多→主题浅色
+                const ratio = maxCount > 0 ? count / maxCount : 0;
+                const fill = ratio > 0 ? mixColor(WHITE, themeLightRGB, ratio) : 'rgb(255,255,255)';
+                el.style.setProperty('--fill', fill);
+                el.style.fill = fill;
+
+                // 点击：有主景才可进入
                 el.style.cursor = count > 0 ? 'pointer' : 'default';
                 el.addEventListener('click', () => {
                     if (count === 0) return;
                     currentSubId = pid;
                     renderShanheContent(config);
                 });
+
+                // 标注：省份名 + 件数（放在 bbox 中心，小省份用引线指出去）
+                let bbox = null;
+                try { bbox = el.getBBox(); } catch (e) {}
+                if (!bbox) return;
+
+                const cx = bbox.x + bbox.width / 2;
+                const cy = bbox.y + bbox.height / 2;
+                const small = ['xianggang', 'aomen', 'shanghai', 'beijing', 'tianjin', 'chongqing', 'hainan', 'ningxia', 'taiwan'].includes(pid)
+                    || bbox.width < 36 || bbox.height < 28;
+
+                let tx = cx, ty = cy;
+                if (small) {
+                    // 引线方向：左半图向右，右半图向左
+                    const vbW = svg.viewBox ? parseFloat(svg.viewBox.baseVal.width) : 595;
+                    tx = cx < vbW / 2 ? cx + 24 : cx - 24;
+                    ty = cy - 3;
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+                    line.setAttribute('x2', tx); line.setAttribute('y2', ty);
+                    line.setAttribute('class', 'shanhe-leader');
+                    svg.appendChild(line);
+                }
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', tx);
+                text.setAttribute('y', ty);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('class', 'shanhe-label' + (count > 0 ? ' has-count' : ''));
+
+                const tName = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                tName.textContent = name;
+                text.appendChild(tName);
+                if (count > 0) {
+                    const tCount = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                    tCount.setAttribute('class', 'shanhe-label-count');
+                    tCount.textContent = ' ' + count;
+                    text.appendChild(tCount);
+                }
+                svg.appendChild(text);
+
+                // ★ 悬浮联动：省份高亮 + 文字变大
+                el.addEventListener('mouseenter', () => text.classList.add('active'));
+                el.addEventListener('mouseleave', () => text.classList.remove('active'));
             });
 
-            const loadEl = app.querySelector('.shanhe-map-loading');
-            if (loadEl) loadEl.remove();
-            app.appendChild(wrap);
             triggerViewAnimation();
         } catch (e) {
             app.innerHTML = `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
         }
     } else {
-        // ★ 省份主景视图
         renderShanheProvince(config);
     }
 }
 
+// 读取 CSS 变量颜色 → [r,g,b]
+function getCssColor(prop, fallback) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
+    if (!v) return fallback;
+    const hex = v.replace('#', '');
+    if (hex.length === 3) return [parseInt(hex[0] + hex[0], 16), parseInt(hex[1] + hex[1], 16), parseInt(hex[2] + hex[2], 16)];
+    if (hex.length === 6) return [parseInt(hex.substring(0, 2), 16), parseInt(hex.substring(2, 4), 16), parseInt(hex.substring(4, 6), 16)];
+    const m = v.match(/\d+(?:\.\d+)?/g);
+    if (m && m.length >= 3) return [parseInt(m[0]), parseInt(m[1]), parseInt(m[2])];
+    return fallback;
+}
+
+// 颜色插值：c1 为起点、c2 为终点，t∈[0,1]
+function mixColor(c1, c2, t) {
+    return 'rgb(' +
+        Math.round(c1[0] + (c2[0] - c1[0]) * t) + ',' +
+        Math.round(c1[1] + (c2[1] - c1[1]) * t) + ',' +
+        Math.round(c1[2] + (c2[2] - c1[2]) * t) + ')';
+}
+
+// ========== 省份主景视图（保持不变） ==========
 function renderShanheProvince(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
