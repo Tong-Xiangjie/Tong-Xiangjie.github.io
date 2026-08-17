@@ -571,7 +571,10 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     const mainVbW = (mainSvg.viewBox && mainSvg.viewBox.baseVal) ? mainSvg.viewBox.baseVal.width : 595.28;
     const mainScale = mainSvg.getBoundingClientRect().width / mainVbW;
     const insetScale = svg.getBoundingClientRect().width / (maxX - minX);
-    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * 0.55 : 12;
+    // ★ 移动端（≤760px）港澳字号与大图一致；桌面端保持略小（×0.55）
+    const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+    const fontFactor = isMobile ? 1 : 0.55;
+    const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * fontFactor : 12;
     // ★ 边界线/描边按比例反算，避免放大后过粗
     const strokeScale = mainScale / insetScale;
 
