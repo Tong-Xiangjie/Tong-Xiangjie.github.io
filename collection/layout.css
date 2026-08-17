@@ -1113,7 +1113,7 @@ body.modal-open {
     align-items: center;
     justify-content: center;
     gap: 0px;
-    padding-right: 350px;      /* 整体再左移一点 */
+    padding-right: 320px;      /* 整体再左移一点 */
     background: transparent;
 }
 .shanhe-map-wrap > svg {
