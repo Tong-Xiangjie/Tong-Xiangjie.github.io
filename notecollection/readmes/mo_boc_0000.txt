@@ -1,0 +1,162 @@
+<center>
+    <b><span style="font-size:1.1em;">新时期中国银行纸币——澳门币</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bank-of-china.com/aboutboc/ab4/200812/t20081205_18415.html" target="_blank">https://www.bank-of-china.com/aboutboc/ab4/200812/t20081205_18415.html</a>）</span>
+</center>
+<br>
+
+<p>1995、1996、1999、2001年，中国银行在澳门分别发行了由中国印钞造币总公司印制面额为拾圆、贰拾圆、伍拾圆、壹佰圆、伍佰圆、壹仟圆的澳门币。</p>
+
+<p align="center"><b>1995年版</b></p>
+
+<!-- 1995年版图片，无图注，图片之间空行 -->
+<center><img src="readmes/image/macau_boc/moboc_01.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_02.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_03.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_04.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<p align="center"><b>1996年版</b></p>
+
+<center><img src="readmes/image/macau_boc/moboc_05.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<p align="center"><b>1999年版</b></p>
+
+<center><img src="readmes/image/macau_boc/moboc_06.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_07.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_08.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_09.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_10.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<p align="center"><b>2001版</b></p>
+
+<center><img src="readmes/image/macau_boc/moboc_11.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<!-- 表格：面值、图案、主色、票幅、印刷、年份 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 10%;">
+        <col style="width: 10%;">
+        <col style="width: 28%;">
+        <col style="width: 12%;">
+        <col style="width: 10%;">
+        <col style="width: 14%;">
+        <col style="width: 16%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>券名</th>
+            <th>面值</th>
+            <th>图案</th>
+            <th>主色</th>
+            <th>票幅</th>
+            <th>印刷</th>
+            <th>年份</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">拾圆</td>
+            <td style="text-align: center;">正面为东望洋灯塔、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为褐色</td>
+            <td style="text-align: center;">138×69</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“一九九五年十月十六日”</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">伍拾圆</td>
+            <td style="text-align: center;">正面为澳门大学、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为深褐色</td>
+            <td style="text-align: center;">148×74</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“一九九五年十月十六日”</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">壹佰圆</td>
+            <td style="text-align: center;">正面为外港新客运码头、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为蓝色</td>
+            <td style="text-align: center;">153×76.5</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“一九九五年十月十六日”</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">伍佰圆</td>
+            <td style="text-align: center;">正面为友谊大桥、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为绿色</td>
+            <td style="text-align: center;">158×79</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“一九九五年十月十六日”</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">壹仟圆</td>
+            <td style="text-align: center;">正面为澳门西湾、紫荆花、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为桔黄色</td>
+            <td style="text-align: center;">163×81.5</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“一九九五年十月十六日”</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">贰拾圆</td>
+            <td style="text-align: center;">正面为妈阁庙、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为紫色</td>
+            <td style="text-align: center;">143×71.5</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“一九九六年九月一日”</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">澳门币</td>
+            <td style="text-align: center;">拾圆</td>
+            <td style="text-align: center;">正面为东望洋灯塔、中行行标图；背面为澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">正反面为红色</td>
+            <td style="text-align: center;">138×69</td>
+            <td style="text-align: center;">中国印钞造币总公司</td>
+            <td style="text-align: center;">正面为“二零零一年一月八日”</td>
+        </tr>
+    </tbody>
+</table>
+
+<br>
+
+<p align="center"><b>2008版</b></p>
+
+<p>根据澳门特别行政区第20/2008号行政法规，2009年1月中国银行获准发行1000元、500元、100元、50元、20元、10元澳门元新版钞票。新版钞票以澳门世界文化遗产为主题，充分体现澳门中西文化融合的特点，在钞票用纸、印制工艺、防伪特征等方面都采用了当今最先进的技术。</p>
+<p>中国银行澳门元新版钞票正面主景图案选自澳门世界文化遗产名录中的景点，展示澳门几百年来形成的中西融合的建筑风采，展现了澳门多元共存、和谐交融的文化精髓。10元、20元、50元、100元、500元、1000元六种面值的主景图案按历史脉络编排，分别是妈阁庙、大三巴牌坊、岗顶剧院、东望洋炮台、郑家大屋和民政总署大楼。钞票背面以澳门中国银行大厦为主景图案，衬景选取澳门四座大桥形象，寓意澳门在中西方文化交流中和澳门元在澳门经济发展中具有的桥梁作用。新版钞票票面设计采用了现代构成的组合形式，多角度表现同一主题，让票面承载更多信息，具有强烈的时代感。新版澳门元钞票票面尺寸、色调与现行流通中的中国银行澳门元钞票一致。</p>
+
+<!-- 2008版图片，无图注，图片之间空行 -->
+<center><img src="readmes/image/macau_boc/moboc_12.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_13.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_14.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_15.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_16.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<br>
+<center><img src="readmes/image/macau_boc/moboc_17.jpg" style="width:80%; display:block; margin:0 auto;"></center>
