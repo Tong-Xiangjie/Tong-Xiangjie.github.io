@@ -4,25 +4,59 @@
 </center>
 <br>
 
-<p>中国银行澳门元(2020版)钞票正面都采用“南狮”作为主景，呈现澳门蕴含的中华岭南文化中开放包容、醒狮般奋发进取和民族团结的人文精神。背面则采用不同的澳门特色建筑物或标志作为主景，通过多样化的主题呈现出澳门深厚的历史底蕴、丰富的文化内涵、包容的社会特质和独特的城市魅力。</p>
+<p>中国银行澳门元（2020版）钞票正面都采用“南狮”作为主景，呈现澳门蕴含的中华岭南文化中开放包容、醒狮般奋发进取和民族团结的人文精神。背面则采用不同的澳门特色建筑物或标志作为主景，通过多样化的主题呈现出澳门深厚的历史底蕴、丰富的文化内涵、包容的社会特质和独特的城市魅力。</p>
 
 <p><b>钞票样本：</b></p>
 
-<!-- 图片组：按出现顺序编号，每张图片下方标注“正面”或“背面” -->
-<center><img src="readmes/image/macau_boc/moboc_2020_01.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_02.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_03.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_04.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_05.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_06.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_07.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_08.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_09.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_10.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_11.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_12.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_13.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
-<center><img src="readmes/image/macau_boc/moboc_2020_14.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<!-- 图片组：12张，注释紧贴图片 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_01.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">正面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_02.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">背面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_03.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">正面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_04.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">背面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_05.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">正面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_06.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">背面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_07.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">正面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_08.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">背面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_09.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">正面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_10.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">背面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_11.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">正面</span>
+</div>
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/macau_boc/moboc_2020_12.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">背面</span>
+</div>
 
 <br>
 
@@ -88,8 +122,6 @@
     </tbody>
 </table>
 
-<br>
-
 <!-- 表格二：防伪特征 -->
 <table border="1" cellspacing="0" cellpadding="10"
        style="border-collapse: collapse;
@@ -136,8 +168,6 @@
         </tr>
     </tbody>
 </table>
-
-<br>
 
 <!-- 表格三：无障碍特征 -->
 <table border="1" cellspacing="0" cellpadding="10"
