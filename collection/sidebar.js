@@ -17,19 +17,20 @@ function fitSidebarLabels() {
             - (parseFloat(cs.paddingLeft) || 0)
             - (parseFloat(cs.paddingRight) || 0)
             - iconW
-            - 4;   // 图标与文字间的间距
+            - 4;
 
-        // 量文字自然宽度：临时放开 overflow，避免被裁影响 scrollWidth
-        const prevOverflow = text.style.overflow;
+        // 量文字自然宽度（临时放开 overflow）
         text.style.overflow = 'visible';
         const full = text.scrollWidth;
-        text.style.overflow = prevOverflow || 'hidden';
 
         if (full > avail && avail > 0) {
             const ratio = avail / full;
             text.style.transformOrigin = 'left center';
             text.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
         }
+        // ★ 关键：压缩后文字正好容纳，保持 visible，不再恢复 hidden
+        //（overflow:hidden + scaleX 会先裁剪再缩放，导致文字被切）
+        text.style.overflow = 'visible';
     });
 }
 
