@@ -153,11 +153,11 @@
             <td style="text-align: center;">钞票正面上方，在强光下倾斜票面，可见莲花图案及银码数字。</td>
         </tr>
         <tr>
-            <td style="text-align: center;">凹印微缩文字</td>
+            <td style="text-align: center;">凹印缩微文字</td>
             <td style="text-align: center;">钞票正、背面右下角，用放大镜观察可见连串"MACAU"和银码。</td>
         </tr>
         <tr>
-            <td style="text-align: center;">胶印微缩文字</td>
+            <td style="text-align: center;">胶印缩微文字</td>
             <td style="text-align: center;">钞票背面胶印图纹中，用放大镜观察可见连串"MACAU"和银码。</td>
         </tr>
     </tbody>
