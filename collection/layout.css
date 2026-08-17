@@ -1126,7 +1126,7 @@ body.modal-open {
     background: transparent;
 }
 .shanhe-map-wrap .state {
-    stroke: var(--border);
+    stroke: #999;
     stroke-width: 1;
     stroke-linejoin: round;
     transition: fill 0.15s;
