@@ -7,8 +7,8 @@
 <p>钞票样本：</p>
 
 <!-- 图片区：按顺序显示3张图片 -->
-<center><img src="readmes/image/macau_boc/moboc_2002_01.jpg" style="width:80%; display:block; margin:0 auto;"></center>
-<center><img src="readmes/image/macau_boc/moboc_2002_02.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2002_01.jpg" style="width:80%; display:block; margin:0 auto;"></center><br>
+<center><img src="readmes/image/macau_boc/moboc_2002_02.jpg" style="width:80%; display:block; margin:0 auto;"></center><br>
 <center><img src="readmes/image/macau_boc/moboc_2002_03.jpg" style="width:80%; display:block; margin:0 auto;"></center>
 
 <br>
