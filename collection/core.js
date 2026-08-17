@@ -292,6 +292,9 @@ function toggleSidebar() {
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
     if (modeStates.notes) modeStates.notes.isSidebarCollapsed = isSidebarCollapsed;
     if (modeStates.coins) modeStates.coins.isSidebarCollapsed = isSidebarCollapsed;
+
+    // ★ 宽度变化后重新做文字比例压缩
+    if (typeof fitSidebarLabels === 'function') fitSidebarLabels();
 }
 
 function scrollToTop() {
@@ -304,26 +307,6 @@ function getDataBySource(dataKey, source) {
         return window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey] ? window.COIN_DATA_MAP[dataKey] : null;
     }
     return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
-}
-
-// ★ 根据当前专题应用正确布局：地图/无子分类 → 全屏无侧边栏
-function applySpecialLayout() {
-    const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
-    const bodyRow = document.querySelector('.body-row');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    const isMap = !!(cfg && cfg.view === 'map');
-    const tree = specialCategoryTree ? specialCategoryTree.find(c => c.id === selectedSpecial) : null;
-    const hasSub = !isMap && !!(tree && tree.children && tree.children.length > 0);
-
-    if (isMap || !hasSub) {
-        bodyRow?.classList.add('sidebar-hidden');
-        bodyRow?.classList.remove('special-overview-mode');
-        if (toggleBtn) toggleBtn.style.display = 'none';
-    } else {
-        bodyRow?.classList.remove('sidebar-hidden');
-        bodyRow?.classList.remove('special-overview-mode');
-        if (toggleBtn) toggleBtn.style.display = '';
-    }
 }
 
 // ========== 状态保存与恢复 ==========
@@ -362,15 +345,9 @@ function saveFullState() {
     } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
         const appEl = document.getElementById('app');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
-            const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
-            if (cfg && cfg.view === 'map') {
-                // 地图专题只存 currentSubId，HTML 不缓存（体积大且恢复时事件会丢失）
-                specialPageCaches[selectedSpecial] = { currentSubId };
-            } else {
-                specialPageCaches[selectedSpecial] = {
-                    innerHTML: appEl ? appEl.innerHTML : '', scrollY, currentSubId
-                };
-            }
+            specialPageCaches[selectedSpecial] = {
+                innerHTML: appEl ? appEl.innerHTML : '', scrollY, currentSubId
+            };
         }
     } else if (currentMode === MODE.SETTINGS) {
         const appEl = document.getElementById('app');
@@ -389,6 +366,8 @@ function restoreSidebarState() {
         toggle.textContent = '☰';
         toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
         isSidebarCollapsed = collapsed;
+        // ★ 恢复折叠状态后同步压缩
+        if (typeof fitSidebarLabels === 'function') fitSidebarLabels();
     }
 }
 
@@ -429,7 +408,7 @@ function setupImageRetry() {
     retryFab.id = 'imgRetryFab';
     retryFab.className = 'img-retry-fab';
     retryFab.innerHTML = '<span class="fab-icon">⟳</span><span class="fab-count" id="imgRetryCount"></span>';
-    retryFab.onclick = () => { retryFailedImages(); };
+    retryFab.onclick = () => { retryFailedImages(); };   // 不再弹窗
     document.body.appendChild(retryFab);
     updateRetryFab();
 }
@@ -441,6 +420,7 @@ function updateRetryFab() {
     if (has) {
         const count = failedImages.size;
         const countEl = retryFab.querySelector('.fab-count');
+        // ★ 压缩：超 999 显示 999+；字号随位数自适应
         countEl.textContent = count > 999 ? '999+' : String(count);
         countEl.style.fontSize = count > 999 ? '8px' : (count > 99 ? '9px' : (count > 9 ? '10px' : '12px'));
         retryFab.title = '重新加载未显示的图片（' + count + ' 张）';
