@@ -15,7 +15,10 @@ const macau_bocData = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "克劳斯目录编号" }
     ],
-
+    readme: {
+        title: "新时期中国银行纸币——澳门币",
+        content: "file:readmes/mo_boc_0000.txt"
+    },
     series: [
         // ==================== 1995～2003年版 ====================
         {
@@ -23,13 +26,13 @@ const macau_bocData = {
             year: "1995～2003",
                 readmes: [
                 { title: "中国银行1995版澳门元钞票", content: "file:readmes/mo_boc_1995.txt" },
+                { title: "中国银行1995版澳门元钞票（10元面值，不流通）", content: "file:readmes/mo_boc_1995_10.txt" },
                 { title: "中国银行1996版澳门元钞票", content: "file:readmes/mo_boc_1996.txt" },
                 { title: "中国银行1997版澳门元钞票", content: "file:readmes/mo_boc_1997.txt" },
                 { title: "中国银行1999版澳门元钞票", content: "file:readmes/mo_boc_1999.txt" },
                 { title: "中国银行2001版澳门元钞票", content: "file:readmes/mo_boc_2001.txt" },
                 { title: "中国银行2002版澳门元钞票", content: "file:readmes/mo_boc_2002.txt" },
-                { title: "中国银行2003版澳门元钞票", content: "file:readmes/mo_boc_2003.txt" },
-                { title: "中国银行1995版澳门元钞票（10元面值，不流通）", content: "file:readmes/mo_boc_1995_10.txt" }
+                { title: "中国银行2003版澳门元钞票", content: "file:readmes/mo_boc_2003.txt" }
             ],
             varieties: [
                 {
