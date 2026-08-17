@@ -4,6 +4,7 @@
 let specialItemsList = [];
 let specialCurrentIndex = -1;
 let shanheProvinceNames = {}; // 方寸山河：省份拼音 → 中文名
+let shanheMapCache = null;   // ★ 缓存已构建好的地图 DOM
 
 // ========== 面额排序：分<角<元<万元<亿元<其他(音序) ==========
 const DENOM_FRACTIONS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3 };
@@ -390,6 +391,16 @@ async function renderShanheContent(config) {
             `<div class="back-bar"><button class="back-btn" onclick="backFromShanheToOverview()">← 返回专题</button></div>` +
             `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div>` +
             `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
+
+        // ★ 已有缓存：直接复用，不再 fetch/重建
+        if (shanheMapCache && shanheMapCache.wrap) {
+            const removeLoad = app.querySelector('.shanhe-map-loading');
+            if (removeLoad) removeLoad.remove();
+            app.appendChild(shanheMapCache.wrap);
+            triggerViewAnimation();
+            return;
+        }
+
         try {
             const res = await fetch(mapFile);
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -426,6 +437,9 @@ async function renderShanheContent(config) {
 
             // ★ 港澳局部放大图 = 粤港澳切片（缩小范围）
             buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
+
+            // ★ 构建完成，存入缓存
+            shanheMapCache = { wrap };
 
             triggerViewAnimation();
         } catch (e) {
