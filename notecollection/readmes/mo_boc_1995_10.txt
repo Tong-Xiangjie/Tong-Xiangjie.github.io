@@ -1,0 +1,13 @@
+<center>
+    <b><span style="font-size:1.1em;">中国银行1995版澳门元钞票（10元面值）</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab42/202309/t20230901_23680367.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab42/202309/t20230901_23680367.html</a>）</span>
+</center>
+<br>
+
+<p>中国银行1995版澳门元钞票十元纸币的回收期已于2018年5月26日结束，并不再回收有关纸币。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片区 -->
+<center><img src="readmes/image/macau_boc/moboc_1995_01_10.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">注：此纸币已不再流通。</span></center>
