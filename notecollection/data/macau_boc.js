@@ -80,6 +80,10 @@ const macau_bocData = {
         {
             seriesName: "2008～2017年版",
             year: "2008～2017",
+            readme: {
+                title: "中国银行2008版澳门元钞票",
+                content: "file:readmes/mo_boc_2008.txt"
+            },
             varieties: [
                 {
                     varietyName: "澳门币10元",
@@ -145,6 +149,10 @@ const macau_bocData = {
         {
             seriesName: "2020年版",
             year: "2020",
+            readme: {
+                title: "中国银行2020版澳门元钞票",
+                content: "file:readmes/mo_boc_2020.txt"
+            },
             varieties: [
                 {
                     varietyName: "澳门元20元",
