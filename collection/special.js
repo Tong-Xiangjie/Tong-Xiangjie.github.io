@@ -396,6 +396,8 @@ async function renderShanheContent(config) {
         if (shanheMapCache && shanheMapCache.wrap) {
             const removeLoad = app.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
+            // ★ 清除残留悬浮态（返回时被点省份的文字不再保持放大+黑边）
+            shanheMapCache.wrap.querySelectorAll('.shanhe-label.active').forEach(t => t.classList.remove('active'));
             app.appendChild(shanheMapCache.wrap);
             triggerViewAnimation();
             return;
