@@ -256,6 +256,7 @@ body {
     font-weight: bold;
     transition: background 0.15s, color 0.15s;
     white-space: nowrap;
+    overflow: hidden;
 }
 
 .sidebar-item:hover {
@@ -265,6 +266,14 @@ body {
 .sidebar-item.active {
     background: var(--theme);
     color: #fff;
+}
+
+/* ★ 标题文字：可收缩到可用宽度（不再用省略号，改由 JS 做比例压缩） */
+.sidebar-item > span:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .sidebar-item .expand-icon {
@@ -1104,6 +1113,18 @@ body.modal-open {
     text-align: center;
 }
 
+#clearArticleCacheBtn {
+    width: 132px;
+    padding: 6px 0;
+    text-align: center;
+}
+
+#purgeCdnBtn {
+    width: 132px;
+    padding: 6px 0;
+    text-align: center;
+}
+
 /* ========== 方寸山河地图（最终微调版：max-height:90vh + padding-right:64px） ========== */
 .shanhe-map-wrap {
     margin-top: 12px;
@@ -1209,64 +1230,4 @@ body.modal-open {
         width: auto;
         padding: 0 4px;
     }
-}
-
-#clearArticleCacheBtn {
-    width: 132px;
-    padding: 6px 0;
-    text-align: center;
-}
-
-#purgeCdnBtn {
-    width: 132px;
-    padding: 6px 0;
-    text-align: center;
-}
-
-/* ========== 侧边栏菜单项 ========== */
-.sidebar-item {
-    padding: 8px 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 1rem;
-    font-weight: bold;
-    transition: background 0.15s, color 0.15s;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.sidebar-item:hover {
-    background: rgba(0,0,0,0.05);
-}
-
-.sidebar-item.active {
-    background: var(--theme);
-    color: #fff;
-}
-
-/* ★ 标题文字：可收缩到可用宽度（不再用省略号，改由 JS 做比例压缩） */
-.sidebar-item > span:first-child {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-}
-
-.sidebar-item .expand-icon {
-    font-size: 1rem;
-    transform: scale(1.85);
-    display: inline-block;
-    transition: transform 0.2s ease;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-}
-
-.sidebar-item.active .expand-icon {
-    color: #fff;
-}
-
-.sidebar-item .expand-icon.expanded {
-    transform: rotate(90deg) scale(1.85);
 }
