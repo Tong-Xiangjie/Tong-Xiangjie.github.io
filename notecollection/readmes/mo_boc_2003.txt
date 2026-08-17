@@ -1,0 +1,133 @@
+<center>
+    <b><span style="font-size:1.1em;">中国银行2003版澳门元钞票</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab41/200911/t20091117_933830.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab41/200911/t20091117_933830.html</a>）</span>
+</center>
+<br>
+
+<p>中国银行2003版澳门元钞票分别于2004及2005年在澳门发行流通。该版钞票的主图案、颜色和大小与旧版基本相同，并增加了一些先进的防伪特征。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片区：按顺序显示5张图片 -->
+<center><img src="readmes/image/macau_boc/moboc_2003_01.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2003_02.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2003_03.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2003_04.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2003_05.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<!-- 表格一：面值、图案说明、主色、发行日期、签字人 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 12%;">
+        <col style="width: 32%;">
+        <col style="width: 14%;">
+        <col style="width: 20%;">
+        <col style="width: 22%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>面值</th>
+            <th>钞票图案说明</th>
+            <th>主色</th>
+            <th>发行日期</th>
+            <th>签字人</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">壹仟圆</td>
+            <td style="text-align: center;">正面：中国银行行标、澳门西湾部分景致<br>背面：澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">橙黄色</td>
+            <td style="text-align: center;" rowspan="5">2003年12月8日</td>
+            <td style="text-align: center;" rowspan="5">张鸿义</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">伍佰圆</td>
+            <td style="text-align: center;">正面：中国银行行标、友谊大桥<br>背面：澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">绿色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">壹佰圆</td>
+            <td style="text-align: center;">正面：中国银行行标、外港新客运码头<br>背面：澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">蓝色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">贰拾圆</td>
+            <td style="text-align: center;">正面：中国银行行标、妈阁庙<br>背面：澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">紫蓝色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">壹拾圆</td>
+            <td style="text-align: center;">正面：中国银行行标、东望洋灯塔<br>背面：澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">褐红色及深橙色</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- 表格二：新增防伪特征 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 30%;">
+        <col style="width: 70%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>新增防伪特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">磁性微文字安全线</td>
+            <td style="text-align: center;">原磁性安全线对光透视，正背面均可看到有一行透光的中银标志及银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">全息开窗安全线</td>
+            <td style="text-align: center;">一条3毫米宽附有全息图案的开窗安全线交织穿梭在钞票正面，对光斜看时，会显现"BANK OF CHINA"字样或中银标志。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">白水印</td>
+            <td style="text-align: center;">手持钞票对光透视，可见到高透光度的水印银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印手感线</td>
+            <td style="text-align: center;">钞票正面左上角有一组凹印手感线，用手触摸有明显凹凸感。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">钞票编号</td>
+            <td style="text-align: center;">钞票正面印有两个相同的钞票编号：位于左方有一组由小到大异形号码，位于右下方有一组大小对称渐变异形双色接线号码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">荧光纤维</td>
+            <td style="text-align: center;">在紫外光下可看到黄、蓝两色纤维不规则地分布在钞纸上。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">变色反光油墨印刷银码<br>（此特征乃100元、500元和1000元面值钞票专有）</td>
+            <td style="text-align: center;">从不同角度斜看钞票背面右下角时，钞票银码呈紫红、绿两色相互交替。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">反光图案<br>（此特征乃100元、500元和1000元面值钞票专有）</td>
+            <td style="text-align: center;">在强光下斜看钞票背面时，会看到一个反光莲花图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印对印<br>（此特征乃10元和20元面值钞票专有）</td>
+            <td style="text-align: center;">手持钞票对光透视，可看到正背面图纹对接组成一个完整的莲花图案和面额数字。正面图纹用手触摸有凹凸感。</td>
+        </tr>
+    </tbody>
+</table>
