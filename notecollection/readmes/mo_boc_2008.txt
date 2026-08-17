@@ -1,0 +1,164 @@
+<center>
+    <b><span style="font-size:1.1em;">中国银行2008版澳门元钞票</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab41/200911/t20091117_933831.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab41/200911/t20091117_933831.html</a>）</span>
+</center>
+<br>
+
+<p>中国银行于二○○八年八月八日发行的澳门元新版钞票，共六种面值，即：壹仟元、伍佰元、壹佰元、伍拾元、贰拾元、壹拾元。</p>
+<p>中国银行澳门元（2008版）钞票正面主景图案选自澳门世界文化遗产名录中的景点，展示澳门几百年来形成的中西融合建筑风采，展现了澳门多元共存、和谐交融的文化精髓。六种面值的主景图案按历史脉络编排，分别为：妈阁庙、大三巴牌坊、岗顶剧院、东望洋炮台、郑家大屋、民政总署大楼。钞票背面采用澳门中国银行大厦为主景图案，衬景选取澳门四座大桥形象，寓意澳门在中西方文化交流中和澳门元在澳门经济发展中具有的桥梁作用。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片区：按顺序显示6张图片 -->
+<center><img src="readmes/image/macau_boc/moboc_2008_01.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2008_02.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2008_03.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2008_04.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2008_05.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+<center><img src="readmes/image/macau_boc/moboc_2008_06.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<!-- 表格一：面值、图案说明、主色、发行日期、签字人 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 12%;">
+        <col style="width: 32%;">
+        <col style="width: 14%;">
+        <col style="width: 20%;">
+        <col style="width: 22%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>面值</th>
+            <th>钞票图案说明</th>
+            <th>主色</th>
+            <th>发行日期</th>
+            <th>签字人</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">壹仟圆</td>
+            <td style="text-align: center;">正面：民政总署大楼<br>背面：澳门中银大厦、友谊大桥</td>
+            <td style="text-align: center;">橙黄色</td>
+            <td style="text-align: center;" rowspan="6">2008年8月8日</td>
+            <td style="text-align: center;" rowspan="6">叶一新</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">伍佰圆</td>
+            <td style="text-align: center;">正面：郑家大屋<br>背面：澳门中银大厦、嘉乐庇将军大桥</td>
+            <td style="text-align: center;">绿色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">壹佰圆</td>
+            <td style="text-align: center;">正面：东望洋炮台<br>背面：澳门中银大厦、西湾大桥</td>
+            <td style="text-align: center;">深蓝色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">伍拾圆</td>
+            <td style="text-align: center;">正面：岗顶剧院<br>背面：澳门中银大厦、嘉乐庇将军大桥</td>
+            <td style="text-align: center;">深啡色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">贰拾圆</td>
+            <td style="text-align: center;">正面：大三巴牌坊<br>背面：澳门中银大厦、莲花大桥</td>
+            <td style="text-align: center;">蓝紫色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">壹拾圆</td>
+            <td style="text-align: center;">正面：妈阁庙<br>背面：澳门中国银行大厦、友谊大桥</td>
+            <td style="text-align: center;">棕红色</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- 表格二：防伪特征 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 75%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>防伪特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">胶印对印</td>
+            <td style="text-align: center;">钞票正面左上方、背面右上方，透光可见对印银码数字。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">水印图案</td>
+            <td style="text-align: center;">钞票正面左边，钞纸中透光可见莲花图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">白水印</td>
+            <td style="text-align: center;">钞票正面左边，钞纸中透光可见高透光度的水印银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">OVMI ® 图案</td>
+            <td style="text-align: center;">钞票正面左下方，倾斜晃动纸面莲花图案颜色有滚动变化的立体效果。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">有色荧光图纹</td>
+            <td style="text-align: center;">钞票背面部分胶印图纹在紫外光下呈荧光黄色。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">全息镂空开窗安全线</td>
+            <td style="text-align: center;">钞票背面左侧，由上至下，对光斜视，安全线中交替呈现"BANK OF CHINA"和中国银行行徽。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印图文</td>
+            <td style="text-align: center;">钞票正背面主景、中国银行行徽和行名、银码、票面主要说明文字等均采用凹版印刷，用手触摸有明显的凹凸感。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印手感线</td>
+            <td style="text-align: center;">钞票正面左右两侧，用手触摸有明显凹凸感。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">异型双色磁性号码</td>
+            <td style="text-align: center;">钞票正面右下方，号码呈由小变大的规律异形排列，由红、黑两种颜色组成。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">磁性安全线</td>
+            <td style="text-align: center;">钞票背面右侧，透光可见连续银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">无色荧光纤维</td>
+            <td style="text-align: center;">在紫外光下可见黄色和蓝色两种荧光纤维不规则地分布在钞纸上。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">无色荧光银码</td>
+            <td style="text-align: center;">钞票正面下方，在紫外光下可见黄色荧光银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">反光图案</td>
+            <td style="text-align: center;">钞票正面上方，在强光下倾斜票面，可见莲花图案及银码数字。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印缩微文字</td>
+            <td style="text-align: center;">钞票正、背面右下角，用放大镜观察可见连串"MACAU"和银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">胶印缩微文字</td>
+            <td style="text-align: center;">钞票背面胶印图纹中，用放大镜观察可见连串"MACAU"和银码。</td>
+        </tr>
+    </tbody>
+</table>
