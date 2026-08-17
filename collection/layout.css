@@ -1210,3 +1210,15 @@ body.modal-open {
         padding: 0 4px;
     }
 }
+
+#clearArticleCacheBtn {
+    width: 132px;
+    padding: 6px 0;
+    text-align: center;
+}
+
+#purgeCdnBtn {
+    width: 132px;
+    padding: 6px 0;
+    text-align: center;
+}
