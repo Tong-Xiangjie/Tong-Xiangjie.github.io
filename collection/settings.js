@@ -5,6 +5,14 @@
 let cacheConfirmPending = false;
 let cacheConfirmTimer = null;
 
+// ★ 文章缓存防误触状态
+let articleCacheConfirmPending = false;
+let articleCacheConfirmTimer = null;
+
+// ★ CDN purge 防误触状态
+let purgeCdnConfirmPending = false;
+let purgeCdnConfirmTimer = null;
+
 function renderSettingsPage() {
     const app = document.getElementById('app');
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
@@ -123,9 +131,18 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<h3>文章缓存</h3>`;
     html += `<div class="export-buttons">`;
-    html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()">清除文章缓存</button>`;
+    html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()"><span id="clearArticleCacheText">清除文章缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中；更新文章后若仍显示旧内容，可点击清除后重新打开。若仍为旧版，则需在 jsDelivr 处 purge 或改文件名（CDN 缓存问题）。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中，更新文章后若仍显示旧内容，请点击清除后重新打开。</p>`;
+    html += `</div>`;
+
+    // ★ CDN 缓存
+    html += `<div class="settings-section">`;
+    html += `<h3>CDN 缓存</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" id="purgeCdnBtn" onclick="purgeCdnCache()"><span id="purgeCdnText">清除CDN缓存</span></button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">清除 jsDelivr CDN 缓存（GitHub 更新后最长 12 小时内生效，purge 后可立即看到新内容）。提交后请稍候几秒再刷新页面。</p>`;
     html += `</div>`;
 
     html += `<div class="settings-section">`;
@@ -224,13 +241,83 @@ function fadeText(text) {
 }
 // ★★★★★★★ 清除图片缓存功能结束 ★★★★★★★
 
-// ★ 清除文章缓存（内存缓存）
+// ============================================================
+// ★★★★★★★ 清除文章缓存（防误触版） ★★★★★★★
+// ============================================================
 function clearArticleCache() {
+    const btn = document.getElementById('clearArticleCacheBtn');
+    if (!btn) return;
+
+    // 第一次点击：进入确认状态
+    if (!articleCacheConfirmPending) {
+        articleCacheConfirmPending = true;
+        fadeArticleText('确 定 吗 ？');
+        articleCacheConfirmTimer = setTimeout(() => {
+            articleCacheConfirmPending = false;
+            fadeArticleText('清除文章缓存');
+        }, 3000);
+        return;
+    }
+
+    // 第二次点击：真正清空
+    clearTimeout(articleCacheConfirmTimer);
+    articleCacheConfirmPending = false;
     articleContentCache = {};
     articlePlainTextCache = {};
-    const btn = document.getElementById('clearArticleCacheBtn');
-    if (btn) {
-        btn.textContent = '已清除';
-        setTimeout(() => { btn.textContent = '清除文章缓存'; }, 1000);
-    }
+    fadeArticleText('已 清 除');
+    setTimeout(() => fadeArticleText('清除文章缓存'), 1000);
 }
+
+function fadeArticleText(text) {
+    const span = document.getElementById('clearArticleCacheText');
+    if (!span) return;
+    span.style.transition = 'opacity 0.15s ease';
+    span.style.opacity = '0';
+    setTimeout(() => {
+        span.textContent = text;
+        span.style.opacity = '1';
+    }, 150);
+}
+// ★★★★★★★ 清除文章缓存功能结束 ★★★★★★★
+
+// ============================================================
+// ★★★★★★★ 清除 CDN 缓存（jsDelivr Purge API） ★★★★★★★
+// ============================================================
+function purgeCdnCache() {
+    const btn = document.getElementById('purgeCdnBtn');
+    if (!btn) return;
+
+    if (!purgeCdnConfirmPending) {
+        purgeCdnConfirmPending = true;
+        fadePurgeText('确 定 吗 ？');
+        purgeCdnConfirmTimer = setTimeout(() => {
+            purgeCdnConfirmPending = false;
+            fadePurgeText('清除CDN缓存');
+        }, 3000);
+        return;
+    }
+
+    clearTimeout(purgeCdnConfirmTimer);
+    purgeCdnConfirmPending = false;
+
+    // ★ 触发 jsDelivr purge（no-cors 只发请求、不读响应，无跨域问题）
+    const purgeUrl = 'https://purge.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main';
+    try {
+        fetch(purgeUrl, { mode: 'no-cors' }).catch(() => {});
+    } catch (e) {}
+
+    fadePurgeText('已 提 交');
+    setTimeout(() => fadePurgeText('清除CDN缓存'), 1500);
+}
+
+function fadePurgeText(text) {
+    const span = document.getElementById('purgeCdnText');
+    if (!span) return;
+    span.style.transition = 'opacity 0.15s ease';
+    span.style.opacity = '0';
+    setTimeout(() => {
+        span.textContent = text;
+        span.style.opacity = '1';
+    }, 150);
+}
+// ★★★★★★★ 清除 CDN 缓存功能结束 ★★★★★★★
