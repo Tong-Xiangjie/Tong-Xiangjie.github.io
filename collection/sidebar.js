@@ -1,15 +1,34 @@
 // ==================== sidebar.js ====================
 
-// ★ Word式文字比例压缩：文字超长时横向压扁，不换行、不省略、字号不变
+// ★ Word式文字比例压缩：超长横向压扁，不省略、不换行、字号不变
 function fitSidebarLabels() {
-    document.querySelectorAll('.sidebar-item > span:first-child').forEach(el => {
-        el.style.transform = '';
-        const w = el.clientWidth;
-        const sw = el.scrollWidth;
-        if (sw > w) {
-            const ratio = w / sw;
-            el.style.transformOrigin = 'left center';
-            el.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        const text = item.children[0];
+        if (!text) return;
+
+        // 复位上一次的压缩
+        text.style.transform = '';
+
+        // 可用宽度 = 条目宽 - 左右 padding - 图标宽 - 间距
+        const cs = getComputedStyle(item);
+        const icon = item.querySelector('.expand-icon');
+        const iconW = icon ? icon.offsetWidth : 0;
+        const avail = item.clientWidth
+            - (parseFloat(cs.paddingLeft) || 0)
+            - (parseFloat(cs.paddingRight) || 0)
+            - iconW
+            - 4;   // 图标与文字间的间距
+
+        // 量文字自然宽度：临时放开 overflow，避免被裁影响 scrollWidth
+        const prevOverflow = text.style.overflow;
+        text.style.overflow = 'visible';
+        const full = text.scrollWidth;
+        text.style.overflow = prevOverflow || 'hidden';
+
+        if (full > avail && avail > 0) {
+            const ratio = avail / full;
+            text.style.transformOrigin = 'left center';
+            text.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
         }
     });
 }
@@ -184,11 +203,14 @@ function onSidebarChildClick(parentId, subId) {
     renderCurrentCategory();
     triggerViewAnimation();
 }
+
 // ★ 窗口大小变化时重新计算侧边栏文字比例
 let sidebarResizeTimer = null;
 window.addEventListener('resize', () => {
     clearTimeout(sidebarResizeTimer);
     sidebarResizeTimer = setTimeout(() => {
-        fitSidebarLabels();
+        if (typeof fitSidebarLabels === 'function') {
+            fitSidebarLabels();
+        }
     }, 200);
 });
