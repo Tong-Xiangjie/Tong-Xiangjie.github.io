@@ -13,7 +13,7 @@ const shanheScenes = [
     { province: 'beijing',   city: '朝阳区', scene: '国家速滑馆（冰丝带）', denom: '冬奥纪念钞（澳门）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/bsd-2022am.jpg' },
     { province: 'beijing',   city: '朝阳区', scene: '国家游泳中心（冰立方）', denom: '冬奥纪念钞（冰上运动）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
     { province: 'beijing',   city: '海淀区', scene: '中华世纪坛', denom: '迎接新世纪纪念钞', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zhsjt-2000.jpg' },
-    { province: 'beijing',   city: '西城区', scene: '中国人民银行总部大楼', denom: '人民币发行70周年纪念钞', year: 2018, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/beijing-2.jpg' },
+    { province: 'beijing',   city: '西城区', scene: '中国人民银行总部大楼', denom: '人民币发行70周年纪念钞', year: 2018, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zgrmyh-2018.jpg' },
     { province: 'beijing',   city: '延庆区', scene: '万里长城', denom: '外汇兑换券100元', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/cc-fec100.jpg' },
     { province: 'beijing',   city: '延庆区', scene: '万里长城', denom: '第四套人民币1元', year: "1980/1990/1996", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/cc-961.jpg' },
 
