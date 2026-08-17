@@ -92,7 +92,7 @@
             <td style="text-align: center;">在紫外光下，图案的颜色会有荧光反应。</td>
         </tr>
         <tr>
-            <td style="text-align: center;">凹印缩微文字</td>
+            <td style="text-align: center;">凹印微缩文字</td>
             <td style="text-align: center;">钞票正背面的上方位置用放大镜观察时可看到一串银码。</td>
         </tr>
     </tbody>
