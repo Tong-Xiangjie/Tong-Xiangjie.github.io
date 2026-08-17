@@ -83,7 +83,7 @@ function collectFromSource(data, dataKey, sourceType) {
             });
         }
 
-        // ★ 新增：系列的 readmes（数组）
+        // ★ 系列的 readmes（数组）
         if (series.readmes && Array.isArray(series.readmes)) {
             for (const rm of series.readmes) {
                 if (rm.title && rm.content) {
@@ -127,7 +127,7 @@ function collectFromSource(data, dataKey, sourceType) {
                     });
                 }
 
-                // ★ 新增：品种的 readmes（数组）
+                // ★ 品种的 readmes（数组）
                 if (variety.readmes && Array.isArray(variety.readmes)) {
                     for (const rm of variety.readmes) {
                         if (rm.title && rm.content) {
@@ -460,7 +460,8 @@ function openArticleReader(index) {
     if (filePath.startsWith('file:')) filePath = filePath.substring(5);
     const basePath = getArticleBasePath(article.sourceType);
 
-    fetch(basePath + filePath)
+    // ★ 添加 cache: 'no-store' 绕过浏览器 HTTP 缓存
+    fetch(basePath + filePath, { cache: 'no-store' })
         .then(response => { if (!response.ok) throw new Error('加载失败'); return response.text(); })
         .then(content => {
             articleContentCache[article.contentPath] = content;
@@ -485,7 +486,11 @@ function renderArticleReader(article, content) {
     const imageBase = getArticleBasePath(article.sourceType) + 'readmes/image/';
     htmlContent = htmlContent.replace(/(src\s*=\s*["']?)\s*readmes\/image\//gi, '$1' + imageBase);
 
-    let html = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div>`;
+    // ★ back-bar 增加「⟳ 重新加载」按钮
+    let html = `<div class="back-bar">`;
+    html += `<button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button>`;
+    html += `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">⟳ 重新加载</button>`;
+    html += `</div>`;
     html += `<div class="article-reader">${htmlContent}</div>`;
     app.innerHTML = html;
     requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
@@ -503,4 +508,13 @@ function closeArticleReader() {
             listContainer.scrollTop = articleState.listScrollY;
         });
     }
+}
+
+// ★ 重新加载当前文章：清内存缓存后重新拉取（配合 fetch no-store 绕过浏览器缓存）
+function reloadArticle() {
+    const article = collectedArticles[currentArticleIndex];
+    if (!article) return;
+    delete articleContentCache[article.contentPath];
+    delete articlePlainTextCache[article.contentPath];
+    openArticleReader(currentArticleIndex);
 }
