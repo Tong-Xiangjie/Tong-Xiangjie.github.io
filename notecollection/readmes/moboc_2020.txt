@@ -1,0 +1,171 @@
+<center>
+    <b><span style="font-size:1.1em;">中国银行2020版澳门元钞票</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab41/202311/t20231103_23994388.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab41/202311/t20231103_23994388.html</a>）</span>
+</center>
+<br>
+
+<p>中国银行澳门元(2020版)钞票正面都采用“南狮”作为主景，呈现澳门蕴含的中华岭南文化中开放包容、醒狮般奋发进取和民族团结的人文精神。背面则采用不同的澳门特色建筑物或标志作为主景，通过多样化的主题呈现出澳门深厚的历史底蕴、丰富的文化内涵、包容的社会特质和独特的城市魅力。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片组：按出现顺序编号，每张图片下方标注“正面”或“背面” -->
+<center><img src="readmes/image/macau_boc/moboc_2020_01.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_02.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_03.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_04.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_05.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_06.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_07.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_08.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_09.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_10.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_11.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_12.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_13.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">正面</span></center>
+<center><img src="readmes/image/macau_boc/moboc_2020_14.jpg" width="80%"><br><span style="color:#555555; font-size:0.85rem;">背面</span></center>
+
+<br>
+
+<!-- 表格一：面值、图案说明、主色、发行日期、签字人 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 12%;">
+        <col style="width: 32%;">
+        <col style="width: 14%;">
+        <col style="width: 20%;">
+        <col style="width: 22%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>面值</th>
+            <th>钞票图案说明</th>
+            <th>主色</th>
+            <th>发行日期</th>
+            <th>签字人</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">壹仟圆</td>
+            <td style="text-align: center;">正面：中国银行澳门分行大厦、“南狮”<br>背面：商船</td>
+            <td style="text-align: center;">橙黄色</td>
+            <td style="text-align: center;" rowspan="6">2020年5月18日</td>
+            <td style="text-align: center;" rowspan="4">范耀胜</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">伍佰圆</td>
+            <td style="text-align: center;">正面：中国银行澳门分行大厦、“南狮”<br>背面：妈阁庙</td>
+            <td style="text-align: center;">绿色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">壹佰圆</td>
+            <td style="text-align: center;">正面：中国银行澳门分行大厦、“南狮”<br>背面：同善堂历史档案陈列馆</td>
+            <td style="text-align: center;">深蓝色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">伍拾圆</td>
+            <td style="text-align: center;">正面：中国银行澳门分行大厦、“南狮”<br>背面：镜湖医院历史纪念馆</td>
+            <td style="text-align: center;">深啡色</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">贰拾圆</td>
+            <td style="text-align: center;">正面：中国银行澳门分行大厦、“南狮”<br>背面：澳门科学馆展览中心和天文馆</td>
+            <td style="text-align: center;">蓝紫色</td>
+            <td style="text-align: center;" rowspan="2">李光</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">壹拾圆</td>
+            <td style="text-align: center;">正面：中国银行澳门分行大厦、“南狮”<br>背面：澳门旅游塔观景台</td>
+            <td style="text-align: center;">棕红色<br>深橙色</td>
+        </tr>
+    </tbody>
+</table>
+
+<br>
+
+<!-- 表格二：防伪特征 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 75%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>防伪特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">动感光亮图案</td>
+            <td style="text-align: center;">钞票正面正面右上方, 当倾斜及转动钞票时，南狮图案颜色在紫红色与绿色之间变化，并可见环形亮光带晃动</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">开窗安全线</td>
+            <td style="text-align: center;">钞票正面中部左方，当倾斜及转动钞票时，金属安全线颜色在紫红色与绿色之间变化，且背光观察可见发钞银行英文简称“BOC”及面额数字</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">水印</td>
+            <td style="text-align: center;">钞票正面左方，背光观察可见“金莲花”图案和面额数字。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">对印图案</td>
+            <td style="text-align: center;">钞票正面左下方，背面右下方, 背光观察可见正、背面的图案组成一个完整的面额数字图案</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">双色荧光</td>
+            <td style="text-align: center;">钞票背面右下方，在紫外光下呈现两种不同的荧光颜色。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹凸手感数字</td>
+            <td style="text-align: center;">钞票正面左上方及右下方, 当触摸钞票面额数字时，会有凹凸手感。</td>
+        </tr>
+    </tbody>
+</table>
+
+<br>
+
+<!-- 表格三：无障碍特征 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 75%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>无障碍特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">手感线</td>
+            <td style="text-align: center;">钞票正面左、右方边缘位置。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">点字</td>
+            <td style="text-align: center;">钞票正面左下方。</td>
+        </tr>
+    </tbody>
+</table>
