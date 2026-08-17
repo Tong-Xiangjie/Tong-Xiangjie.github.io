@@ -1,0 +1,99 @@
+<center>
+    <b><span style="font-size:1.1em;">中国银行2001版澳门元钞票</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab41/200911/t20091117_933828.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab41/200911/t20091117_933828.html</a>）</span>
+</center>
+<br>
+
+<p>钞票样本：</p>
+
+<!-- 图片区：按顺序显示1张图片 -->
+<center><img src="readmes/image/macau_boc/moboc_2001_01.jpg" style="width:80%; display:block; margin:0 auto;"></center>
+
+<br>
+
+<!-- 表格一：面值、图案说明、主色、发行日期、签字人 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 12%;">
+        <col style="width: 32%;">
+        <col style="width: 14%;">
+        <col style="width: 20%;">
+        <col style="width: 22%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>面值</th>
+            <th>钞票图案说明</th>
+            <th>主色</th>
+            <th>发行日期</th>
+            <th>签字人</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">壹拾圆</td>
+            <td style="text-align: center;">正面：中国银行行标、东望洋灯塔<br>背面：澳门中银大厦、莲花图案</td>
+            <td style="text-align: center;">褐红色及深橙色</td>
+            <td style="text-align: center;">2001年1月8日</td>
+            <td style="text-align: center;">朱赤</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- 表格二：防伪特征 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 75%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>防伪特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">水印</td>
+            <td style="text-align: center;">正背面对光透视均可见莲花图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">隐形银码</td>
+            <td style="text-align: center;">钞票正面右上角花边中对光斜看钞票时，可见隐形银码。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹版印刷</td>
+            <td style="text-align: center;">在触摸钞票表面时，可感觉到表面的浮雕效果。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">胶印对印</td>
+            <td style="text-align: center;">正背面完全吻合，对光透视可见【M】字形。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">荧光银码</td>
+            <td style="text-align: center;">在紫外光下即会显现钞票银码字样。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">有色荧光</td>
+            <td style="text-align: center;">在紫外光下，图案的颜色会有荧光反应。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印缩微文字</td>
+            <td style="text-align: center;">钞票正背面的上方位置用放大镜观察时可看到一串银码。</td>
+        </tr>
+    </tbody>
+</table>
