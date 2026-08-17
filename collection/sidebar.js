@@ -1,5 +1,19 @@
 // ==================== sidebar.js ====================
 
+// ★ Word式文字比例压缩：文字超长时横向压扁，不换行、不省略、字号不变
+function fitSidebarLabels() {
+    document.querySelectorAll('.sidebar-item > span:first-child').forEach(el => {
+        el.style.transform = '';
+        const w = el.clientWidth;
+        const sw = el.scrollWidth;
+        if (sw > w) {
+            const ratio = w / sw;
+            el.style.transformOrigin = 'left center';
+            el.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
+        }
+    });
+}
+
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -44,6 +58,9 @@ function renderSidebar() {
         }
     }
     sidebar.innerHTML = html;
+
+    // ★ 比例压缩
+    fitSidebarLabels();
 }
 
 function onSidebarItemClick(catId) {
@@ -167,3 +184,11 @@ function onSidebarChildClick(parentId, subId) {
     renderCurrentCategory();
     triggerViewAnimation();
 }
+// ★ 窗口大小变化时重新计算侧边栏文字比例
+let sidebarResizeTimer = null;
+window.addEventListener('resize', () => {
+    clearTimeout(sidebarResizeTimer);
+    sidebarResizeTimer = setTimeout(() => {
+        fitSidebarLabels();
+    }, 200);
+});
