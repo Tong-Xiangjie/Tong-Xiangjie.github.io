@@ -1162,6 +1162,20 @@ body.modal-open {
 .shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
 .shanhe-map-loading { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
 
+/* ========== 移动端：地图占满全宽 ========== */
+@media (max-width: 760px) {
+    .shanhe-map-wrap {
+        padding-right: 0;          /* ★ 关键：手机端不左移，地图吃满全宽 */
+        gap: 10px;
+    }
+    .shanhe-map-wrap > svg {
+        max-height: 60vh;          /* 可选：手机上略压高度，省得占满整屏 */
+    }
+    .shanhe-map-inset {
+        width: 85%;                /* 放大图换行到下方后居中，给大一点 */
+    }
+}
+
 /* ========== 移动端：搜索栏强制单行 ========== */
 @media (max-width: 520px) {
     .search-bar {
