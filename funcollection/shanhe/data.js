@@ -6,7 +6,7 @@ const shanheScenes = [
     { province: 'anhui',      city: '黄山（皖J）', scene: '黄山', denom: '外汇兑换券5元', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hs-fec5.jpg' },
 
     // ===== 澳门 =====
-    { province: 'aomen',     city: '澳门', scene: '镜湖医院历史纪念馆', denom: '2020版澳门元50元', year: 2020, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jhyy-am50.jpg' },
+    { province: 'aomen',     city: '大堂区', scene: '镜湖医院历史纪念馆', denom: '2020版澳门元50元', year: 2020, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jhyy-am50.jpg' },
 
     // ===== 北京 =====
     { province: 'beijing',   city: '朝阳区', scene: '国家体育场（鸟巢）', denom: '奥运纪念钞', year: 2008, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/nc-2008ay.jpg' },
