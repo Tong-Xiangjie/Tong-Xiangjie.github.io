@@ -22,7 +22,7 @@ function collectFromSource(data, dataKey, sourceType) {
     const catInfo = findArticleCategoryInfo(dataKey, sourceType);
     const groupPath = buildGroupPath(sourceType, catInfo);
 
-    // 检查数据顶层的 readme（如 lecbData.readme）
+    // 数据顶层的 readme（对象）
     if (data.readme && data.readme.title && data.readme.content) {
         const fullPath = buildFullPath(sourceType, catInfo, null, null);
         collectedArticles.push({
@@ -40,7 +40,7 @@ function collectFromSource(data, dataKey, sourceType) {
         });
     }
 
-    // 新增：检查数据顶层的 readmes 数组
+    // 数据顶层的 readmes（数组）
     if (data.readmes && Array.isArray(data.readmes)) {
         for (const rm of data.readmes) {
             if (rm.title && rm.content) {
@@ -64,26 +64,89 @@ function collectFromSource(data, dataKey, sourceType) {
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
+
+        // 系列的 readme（对象）
         if (series.readme && series.readme.title && series.readme.content) {
             const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
             collectedArticles.push({
-                title: series.readme.title, contentPath: series.readme.content,
-                category: catInfo.category, parentCategory: catInfo.parentCategory,
-                dataKey, sourceType, fullPath, groupPath,
-                seriesIndex: si, varietyIndex: -1, seriesName: series.seriesName
+                title: series.readme.title,
+                contentPath: series.readme.content,
+                category: catInfo.category,
+                parentCategory: catInfo.parentCategory,
+                dataKey,
+                sourceType,
+                fullPath,
+                groupPath,
+                seriesIndex: si,
+                varietyIndex: -1,
+                seriesName: series.seriesName
             });
         }
+
+        // ★ 新增：系列的 readmes（数组）
+        if (series.readmes && Array.isArray(series.readmes)) {
+            for (const rm of series.readmes) {
+                if (rm.title && rm.content) {
+                    const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, null);
+                    collectedArticles.push({
+                        title: rm.title,
+                        contentPath: rm.content,
+                        category: catInfo.category,
+                        parentCategory: catInfo.parentCategory,
+                        dataKey,
+                        sourceType,
+                        fullPath,
+                        groupPath,
+                        seriesIndex: si,
+                        varietyIndex: -1,
+                        seriesName: series.seriesName
+                    });
+                }
+            }
+        }
+
         if (series.varieties && series.varieties.length > 0) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
+
+                // 品种的 readme（对象）
                 if (variety.readme && variety.readme.title && variety.readme.content) {
                     const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
                     collectedArticles.push({
-                        title: variety.readme.title, contentPath: variety.readme.content,
-                        category: catInfo.category, parentCategory: catInfo.parentCategory,
-                        dataKey, sourceType, fullPath, groupPath,
-                        seriesIndex: si, varietyIndex: vi, seriesName: series.seriesName
+                        title: variety.readme.title,
+                        contentPath: variety.readme.content,
+                        category: catInfo.category,
+                        parentCategory: catInfo.parentCategory,
+                        dataKey,
+                        sourceType,
+                        fullPath,
+                        groupPath,
+                        seriesIndex: si,
+                        varietyIndex: vi,
+                        seriesName: series.seriesName
                     });
+                }
+
+                // ★ 新增：品种的 readmes（数组）
+                if (variety.readmes && Array.isArray(variety.readmes)) {
+                    for (const rm of variety.readmes) {
+                        if (rm.title && rm.content) {
+                            const fullPath = buildFullPath(sourceType, catInfo, series.seriesName, variety.varietyName);
+                            collectedArticles.push({
+                                title: rm.title,
+                                contentPath: rm.content,
+                                category: catInfo.category,
+                                parentCategory: catInfo.parentCategory,
+                                dataKey,
+                                sourceType,
+                                fullPath,
+                                groupPath,
+                                seriesIndex: si,
+                                varietyIndex: vi,
+                                seriesName: series.seriesName
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -192,7 +255,7 @@ async function preloadAllArticles() {
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
     isArticlePreloading = false;
-    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
+    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击"全"字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
 }
 
 async function preloadArticle(article) {
