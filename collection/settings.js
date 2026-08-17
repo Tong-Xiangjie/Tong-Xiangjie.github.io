@@ -119,6 +119,15 @@ function renderSettingsPage() {
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片由 Service Worker 缓存到本地，可离线查看。更新图片后若仍显示旧图，点击此按钮清除缓存并刷新页面。</p>`;
     html += `</div>`;
 
+    // ★ 文章缓存
+    html += `<div class="settings-section">`;
+    html += `<h3>文章缓存</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()">清除文章缓存</button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中；更新文章后若仍显示旧内容，可点击清除后重新打开。若仍为旧版，则需在 jsDelivr 处 purge 或改文件名（CDN 缓存问题）。</p>`;
+    html += `</div>`;
+
     html += `<div class="settings-section">`;
     html += `<h3>数据导出</h3>`;
     html += `<div class="export-buttons">`;
@@ -214,3 +223,14 @@ function fadeText(text) {
     }, 150);
 }
 // ★★★★★★★ 清除图片缓存功能结束 ★★★★★★★
+
+// ★ 清除文章缓存（内存缓存）
+function clearArticleCache() {
+    articleContentCache = {};
+    articlePlainTextCache = {};
+    const btn = document.getElementById('clearArticleCacheBtn');
+    if (btn) {
+        btn.textContent = '已清除';
+        setTimeout(() => { btn.textContent = '清除文章缓存'; }, 1000);
+    }
+}
