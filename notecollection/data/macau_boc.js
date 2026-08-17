@@ -21,6 +21,16 @@ const macau_bocData = {
         {
             seriesName: "1995～2003年版",
             year: "1995～2003",
+                readmes: [
+                { title: "中国银行1995版澳门元钞票", content: "file:readmes/mo_boc_1995.txt" },
+                { title: "中国银行1996版澳门元钞票", content: "file:readmes/mo_boc_1996.txt" },
+                { title: "中国银行1997版澳门元钞票", content: "file:readmes/mo_boc_1997.txt" },
+                { title: "中国银行1999版澳门元钞票", content: "file:readmes/mo_boc_1999.txt" },
+                { title: "中国银行2001版澳门元钞票", content: "file:readmes/mo_boc_2001.txt" },
+                { title: "中国银行2002版澳门元钞票", content: "file:readmes/mo_boc_2002.txt" },
+                { title: "中国银行2003版澳门元钞票", content: "file:readmes/mo_boc_2003.txt" },
+                { title: "中国银行1995版澳门元钞票（10元面值，不流通）", content: "file:readmes/mo_boc_1995_10.txt" }
+            ],
             varieties: [
                 {
                     varietyName: "澳门币10元",
