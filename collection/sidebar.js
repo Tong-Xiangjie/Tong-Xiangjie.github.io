@@ -37,6 +37,18 @@ function fitSidebarLabelsDelayed() {
     setTimeout(fitSidebarLabels, 350);
 }
 
+// ★ 侧边栏宽度变化（折叠/展开/从隐藏状态进入）时自动重新做文字比例压缩
+function watchSidebarFit() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    if (window.__sidebarFitRO) window.__sidebarFitRO.disconnect();
+    const ro = new ResizeObserver(() => {
+        if (typeof fitSidebarLabels === 'function') fitSidebarLabels();
+    });
+    ro.observe(sidebar);
+    window.__sidebarFitRO = ro;
+}
+
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -208,7 +220,7 @@ function onSidebarChildClick(parentId, subId) {
     triggerViewAnimation();
 }
 
-// ★ 窗口大小变化时重新计算侧边栏文字比例
+// ★ 窗口大小变化时重新计算侧边栏文字比例（延迟版，RO 也会触发，但保留作为备用）
 let sidebarResizeTimer = null;
 window.addEventListener('resize', () => {
     clearTimeout(sidebarResizeTimer);
