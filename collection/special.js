@@ -470,8 +470,8 @@ function shanheHeaderHtml(config) {
     html += `<div class="overview-header shanhe-header-row">`;
     html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div>`;
     html += `<div class="shanhe-view-toggle">`;
-    html += `<button class="shanhe-view-btn ${shanheCurrentView === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">🗺️ 地图</button>`;
-    html += `<button class="shanhe-view-btn ${shanheCurrentView === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">🖼️ 列表</button>`;
+    html += `<button class="shanhe-view-btn ${shanheCurrentView === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地 图</button>`;
+    html += `<button class="shanhe-view-btn ${shanheCurrentView === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
     html += `</div>`;
     html += `</div>`;
     return html;
