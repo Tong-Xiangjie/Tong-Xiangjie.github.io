@@ -7,6 +7,11 @@ let shanheProvinceNames = {}; // 方寸山河：省份拼音 → 中文名
 let shanheMapCache = null;   // ★ 缓存已构建好的地图 DOM
 let shanheViewMode = 'map';  // ★ 当前视图：'map' 或 'list'（仅根视图有效）
 
+// ★ 省份标注手动微调（SVG 用户单位，正值向下、负值向上）
+const SHANHE_LABEL_OFFSETS = {
+    hebei: 10      // 河北下移；以后想调别的省就加一行
+};
+
 // ★ 列表视图 ResizeObserver 相关
 let shanheListRO = null;
 let shanheListLastCols = 0;
@@ -709,6 +714,11 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
             const yy = bbox.y + bbox.height * (0.5 + step);
             if (isPointInPolygon(el, lx, yy)) { ly = yy; break; }
         }
+    }
+
+    // ★ 应用手动微调（河北下移）
+    if (SHANHE_LABEL_OFFSETS && SHANHE_LABEL_OFFSETS[pid]) {
+        ly += SHANHE_LABEL_OFFSETS[pid];
     }
 
     const text = createShanheLabel(svg, lx, ly, name, count, baseSize, strokeScale);
