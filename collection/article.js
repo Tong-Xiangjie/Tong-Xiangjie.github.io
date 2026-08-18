@@ -318,9 +318,9 @@ function renderArticleSidebar() {
     }
     sidebar.innerHTML = html;
 
-    // ★ 比例压缩（全局函数，定义在 sidebar.js）
-    if (typeof fitSidebarLabels === 'function') {
-        fitSidebarLabels();
+    // ★ 比例压缩（立即+延迟，覆盖过渡动画场景）
+    if (typeof fitSidebarLabelsDelayed === 'function') {
+        fitSidebarLabelsDelayed();
     }
 }
 
