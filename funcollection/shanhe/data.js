@@ -20,7 +20,7 @@ const shanheScenes = [
     { province: 'beijing',   city: '西城区', scene: '人民大会堂', denom: '第五套人民币100元', year: 2015, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/rmdht-15100.jpg' },
     { province: 'beijing',   city: '西城区', scene: '中国人民银行总部大楼', denom: '人民币发行70周年纪念钞', year: 2018, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zgrmyh-2018.jpg' },
     { province: 'beijing',   city: '东城区', scene: '天坛祈年殿', denom: '中国银行法币10元', year: 1940, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/tt-zgyh1940-10.jpg' },
-    { province: 'beijing',   city: '东城区', scene: '天坛祈年殿', denom: '外汇兑换券5角', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/tt-fec5.jpg' },
+    { province: 'beijing',   city: '东城区', scene: '天坛祈年殿', denom: '外汇兑换券5角', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/tt-fec05.jpg' },
     { province: 'beijing',   city: '延庆区', scene: '万里长城', denom: '外汇兑换券100元', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/cc-fec100.jpg' },
     { province: 'beijing',   city: '延庆区', scene: '万里长城', denom: '第四套人民币1元', year: "1980/1990/1996", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/cc-961.jpg' },
 
