@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (loadingApp) {
         loadingApp.innerHTML =
             '<div class="data-loading">' +
-            '<div class="data-loading-text">数据正火速赶来中，请稍候ε=ε=(ノ≧∇≦)ノ</div>' +
+            '<div class="data-loading-text">数据火速赶来中，请稍候ε=ε=(ノ≧∇≦)ノ</div>' +
             '<div class="data-loading-file" id="dataLoadingFile">正在准备…</div>' +
             '<div class="data-loading-bar"><div class="data-loading-fill" id="dataLoadingFill"></div></div>' +
             '</div>';
