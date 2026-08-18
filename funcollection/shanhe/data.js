@@ -49,13 +49,13 @@ const shanheScenes = [
     { province: 'shanxiHZ',  city: '延安（陕J）', scene: '壶口瀑布-西岸', denom: '第四套人民币50元', year: "1980/1990", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkpb-9050.jpg' },
 
     // ===== 台湾 =====
-    { province: 'taiwan',    city: '台北', scene: '台北总统府', denom: '台湾1960年10元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/ztf-1960-10.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾1969年10元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1969-10.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾1970年50元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1970-50.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾2000年100元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-5-100.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾1972年50元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1972-50.jpg' },
+    { province: 'taiwan',    city: '台北', scene: '台北总统府', denom: '台湾1960年10元', year: 1960, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/ztf-1960-10.jpg' },
+    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾1969年10元', year: 1969, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1969-10.jpg' },
+    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾1970年50元', year: 1970, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1970-50.jpg' },
+    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾2000年100元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-5-100.jpg' },
+    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾1972年50元', year: 1972, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1972-50.jpg' },
     { province: 'taiwan',    city: '台北', scene: '台湾中央银行大楼', denom: '新台币发行50周年纪念钞', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zyyh-1999.jpg' },
-    { province: 'taiwan',    city: '云林县-彰化县', scene: '西螺大桥（浊水溪大桥）', denom: '台湾1960年10元', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xldq-1960-10.jpg' },
+    { province: 'taiwan',    city: '云林县-彰化县', scene: '西螺大桥（浊水溪大桥）', denom: '台湾1960年10元', year: 1960, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xldq-1960-10.jpg' },
 
 
     // ===== 西藏 =====
@@ -66,7 +66,7 @@ const shanheScenes = [
     { province: 'shandong',  city: '济宁（鲁H）', scene: '洙水桥', denom: '中央银行1931年兑换券2角', year: 1931, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsq-zyyh02.jpg' },
 
     // ===== 上海 =====
-    { province: 'shanghai',  city: '黄浦区', scene: '上海中国银行总行大厦', denom: '中国银行1937年法币10元', year: 1991, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zgyhdl-1937-10.jpg' },
+    { province: 'shanghai',  city: '黄浦区', scene: '上海中国银行总行大厦', denom: '中国银行1937年法币10元', year: 1937, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zgyhdl-1937-10.jpg' },
 
     // ===== 云南 =====
     { province: 'yunnan',    city: '昆明（云A）', scene: '云南石林', denom: '1991年国库券10元', year: 1991, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/ynsl-10.jpg' }
