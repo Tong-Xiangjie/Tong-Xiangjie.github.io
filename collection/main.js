@@ -94,4 +94,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (st) { st.textContent = '☰'; st.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'; }
 
     if (typeof loadTheme === 'function') loadTheme();
+
+    // ★ 启动侧边栏宽度监听（ResizeObserver），从隐藏状态进入时自动重新压缩
+    if (typeof watchSidebarFit === 'function') watchSidebarFit();
 });
