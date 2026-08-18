@@ -1231,3 +1231,81 @@ body.modal-open {
         padding: 0 4px;
     }
 }
+
+/* ========== 方寸山河：视图切换 + 列表视图 ========== */
+.shanhe-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.shanhe-header-row h2 { margin: 0; }
+
+.shanhe-view-toggle {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.shanhe-view-btn {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.shanhe-view-btn:hover {
+    background: var(--sidebar-bg);
+}
+.shanhe-view-btn.active {
+    background: var(--theme);
+    color: #fff;
+    border-color: var(--theme);
+}
+
+.shanhe-list-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+.shanhe-list-row {
+    display: grid;
+    gap: 6px;
+    align-items: start;
+}
+.shanhe-list-strip {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text);
+    padding: 4px 6px;
+    background: var(--bg-light);
+    border-left: 3px solid var(--theme);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.shanhe-list-cell {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    cursor: pointer;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+.shanhe-list-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.shanhe-list-cell .no-img {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
