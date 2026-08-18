@@ -1318,3 +1318,21 @@ body.modal-open {
     font-size: 0.65rem;
     color: var(--text-secondary);
 }
+
+/* ========== 列表图片悬浮放大 ========== */
+.shanhe-list-cell {
+    transition: transform 0.2s ease;
+}
+.shanhe-list-cell:hover {
+    transform: scale(1.08);
+    z-index: 1;
+}
+
+/* ★ 山河视图切换动画 */
+.shanhe-view-enter {
+    animation: shanheViewFade 0.25s ease;
+}
+@keyframes shanheViewFade {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
