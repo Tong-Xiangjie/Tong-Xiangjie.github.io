@@ -486,7 +486,7 @@ function exportJSON() {
 
 function exportCSV() {
     const allCopies = collectAllCopies();
-    const headers = ['类型', '分类', '系列', '冠字号', '年份', '评级得分', '评级机构', '目录编号', '购入价格', '购买日期', '材质', '备注'];
+    const headers = ['类型', '板块', '品类', '冠字号', '发行年份', '评级得分', '评级机构', '目录编号', '购入价格', '购买日期', '材质', '备注'];
     let csv = '\uFEFF' + headers.join(',') + '\n';
     for (const item of allCopies) {
         const c = item.copy;
@@ -514,7 +514,7 @@ function exportCSV() {
 function exportMarkdown() {
     const allCopies = collectAllCopies();
     const stats = computeStats();
-    let md = '# 收藏报告\n\n导出日期：' + new Date().toISOString().split('T')[0] + '\n\n';
+    let md = '# 藏品报告\n\n导出日期：' + new Date().toISOString().split('T')[0] + '\n\n';
     md += '## 总览\n\n- 藏品总数：' + allCopies.length + ' 件\n';
     md += '- 纸币：' + stats.notesCount + ' 件 | 硬币：' + stats.coinsCount + ' 件\n';
     md += '- 已记录价格：' + stats.prices.filter(p => !p.noPrice).length + ' 件\n';
