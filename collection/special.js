@@ -508,15 +508,15 @@ async function renderShanheContent(config) {
     // ★★★ 结构关键：根视图（未点省份） vs 省份详情（已点省份）★★★
     if (!currentSubId) {
         // ===== 根视图：地图 / 列表 二选一 =====
-        // ★ 列表视图（只在根视图判断！）
         if (shanheViewMode === 'list') {
             renderShanheList(config);
             return;
         }
 
-        // ===== 地图视图 =====
+        // ===== 地图视图：记录占位元素引用 =====
         app.innerHTML = shanheHeaderHtml(config) +
             `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
+        const loadEl = app.querySelector('.shanhe-map-loading');   // ★ 占位标记
 
         // ★ 已有缓存：直接复用，不再 fetch/重建
         if (shanheMapCache && shanheMapCache.wrap) {
@@ -534,18 +534,12 @@ async function renderShanheContent(config) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const svgText = await res.text();
 
-            // ★ 防串台：加载期间若已切走，丢弃本次结果，不再往当前页面追加
-            if (currentMode !== MODE.SPECIAL ||
-                selectedSpecial !== config.id ||
-                currentSubId !== null ||
-                shanheViewMode !== 'map') {
-                return;
-            }
+            // ★ 防串台：fetch 期间视图已被替换（占位元素不在 #app 里了）→ 直接丢弃
+            if (!app.contains(loadEl)) return;
 
             const wrap = document.createElement('div');
             wrap.className = 'shanhe-map-wrap';
             wrap.innerHTML = svgText;
-            app.appendChild(wrap);
 
             const svg = wrap.querySelector('svg');
             if (!svg) throw new Error('SVG中未找到<svg>');
@@ -561,6 +555,9 @@ async function renderShanheContent(config) {
 
             const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
 
+            // ★ 追加前再确认一次（双保险）
+            if (!app.contains(loadEl)) return;
+
             const removeLoad = app.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
 
@@ -575,16 +572,15 @@ async function renderShanheContent(config) {
             // ★ 港澳局部放大图 = 粤港澳切片（缩小范围）
             buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
 
+            app.appendChild(wrap);
+
             // ★ 构建完成，存入缓存
             shanheMapCache = { wrap };
 
             triggerViewAnimation();
         } catch (e) {
-            // ★ 防串台：出错时同样检查当前状态
-            if (currentMode === MODE.SPECIAL &&
-                selectedSpecial === config.id &&
-                currentSubId === null &&
-                shanheViewMode === 'map') {
+            // 报错也只在还是当前视图时才展示
+            if (app.contains(loadEl)) {
                 app.innerHTML = shanheHeaderHtml(config) +
                     `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
             }
