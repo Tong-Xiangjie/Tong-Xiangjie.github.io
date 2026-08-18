@@ -30,6 +30,13 @@ function fitSidebarLabels() {
     });
 }
 
+// ★ 立即 + 等宽度过渡结束再各算一次（覆盖折叠/切换页面等所有场景）
+function fitSidebarLabelsDelayed() {
+    if (typeof fitSidebarLabels !== 'function') return;
+    fitSidebarLabels();
+    setTimeout(fitSidebarLabels, 350);
+}
+
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -75,8 +82,8 @@ function renderSidebar() {
     }
     sidebar.innerHTML = html;
 
-    // ★ 比例压缩
-    fitSidebarLabels();
+    // ★ 比例压缩（立即+延迟，覆盖过渡动画场景）
+    fitSidebarLabelsDelayed();
 }
 
 function onSidebarItemClick(catId) {
@@ -206,8 +213,8 @@ let sidebarResizeTimer = null;
 window.addEventListener('resize', () => {
     clearTimeout(sidebarResizeTimer);
     sidebarResizeTimer = setTimeout(() => {
-        if (typeof fitSidebarLabels === 'function') {
-            fitSidebarLabels();
+        if (typeof fitSidebarLabelsDelayed === 'function') {
+            fitSidebarLabelsDelayed();
         }
     }, 200);
 });
