@@ -7,6 +7,10 @@ let shanheProvinceNames = {}; // 方寸山河：省份拼音 → 中文名
 let shanheMapCache = null;   // ★ 缓存已构建好的地图 DOM
 let shanheViewMode = 'map';  // ★ 当前视图：'map' 或 'list'（仅根视图有效）
 
+// ★ 列表视图 ResizeObserver 相关
+let shanheListRO = null;
+let shanheListLastCols = 0;
+
 // ========== 面额排序：分<角<元<万元<亿元<其他(音序) ==========
 const DENOM_FRACTIONS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3 };
 
@@ -383,8 +387,17 @@ function specialLightboxKeyHandler(e) {
 function shanheSwitchView(view) {
     if (shanheViewMode === view) return;
     shanheViewMode = view;
+    currentSubId = null;
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
-    if (config) renderShanheContent(config);
+    if (!config) return;
+
+    const app = document.getElementById('app');
+    if (app) {
+        app.classList.remove('shanhe-view-enter');
+        void app.offsetWidth;              // ★ 强制重排，保证动画每次都能重放
+        app.classList.add('shanhe-view-enter');
+    }
+    renderShanheContent(config);
 }
 
 // ★ 返回专题概览（地图/列表专用）
@@ -393,7 +406,15 @@ function backFromShanheToOverview() {
     currentCategoryId = null;
     currentSubId = null;
     shanheMapCache = null; // ★ 离开时清缓存，下次重新加载确保数据最新
+    if (shanheListRO) { shanheListRO.disconnect(); shanheListRO = null; }
     renderSpecialOverview();
+}
+
+// ★ 列表列数计算
+function shanheListCols(app) {
+    const GAP = 8, MIN_CELL = 140;
+    const appW = app.clientWidth || window.innerWidth || 600;
+    return Math.max(1, Math.floor((appW + GAP) / (MIN_CELL + GAP)));
 }
 
 // ★ 列表视图：长条和图片分行渲染
@@ -431,10 +452,9 @@ function renderShanheList(config) {
         return;
     }
 
-    // ★ 列数自适应：按容器宽度估算（约140px一格），桌面≈4列、手机自动变少
-    const GAP = 8, MIN_CELL = 140;
-    const appW = app.clientWidth || window.innerWidth || 600;
-    const colCount = Math.max(1, Math.floor((appW + GAP) / (MIN_CELL + GAP)));
+    // ★ 列数自适应
+    const colCount = shanheListCols(app);
+    shanheListLastCols = colCount;
 
     html += `<div class="shanhe-list-rows">`;
     for (let i = 0; i < flat.length; i += colCount) {
@@ -475,6 +495,16 @@ function renderShanheList(config) {
 
     app.innerHTML = html;
     triggerViewAnimation();
+
+    // ★ 容器宽度变化时（含从侧边栏页面进入的过渡期），列数变了就自动重排
+    if (shanheListRO) shanheListRO.disconnect();
+    shanheListRO = new ResizeObserver(() => {
+        if (currentMode !== MODE.SPECIAL || selectedSpecial !== config.id ||
+            currentSubId !== null || shanheViewMode !== 'list') return;
+        const cols = shanheListCols(app);
+        if (cols !== shanheListLastCols) renderShanheList(config);
+    });
+    shanheListRO.observe(app);
 }
 
 // ★ 地图/列表视图头部的 HTML（不含 emoji）
