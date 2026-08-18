@@ -1125,7 +1125,7 @@ body.modal-open {
     text-align: center;
 }
 
-/* ========== 方寸山河地图（最终微调版：max-height:90vh + padding-right:64px） ========== */
+/* ========== 方寸山河地图 ========== */
 .shanhe-map-wrap {
     margin-top: 12px;
     display: flex;
@@ -1134,16 +1134,16 @@ body.modal-open {
     align-items: center;
     justify-content: center;
     gap: 0px;
-    padding-right: 320px;      /* 整体再左移一点 */
+    padding-right: 320px;
     background: transparent;
 }
 .shanhe-map-wrap > svg {
-    flex: 1 1 auto;      /* ★ 占满剩余宽度（与右侧港澳框同排时） */
+    flex: 1 1 auto;
     width: auto;
     height: auto;
-    min-width: 0;        /* 允许收缩，不把港澳框挤下去 */
+    min-width: 0;
     max-width: 100%;
-    max-height: 75vh;    /* ★ 超高时自动回缩宽度，保持比例 */
+    max-height: 75vh;
     background: transparent;
 }
 .shanhe-map-wrap .state {
@@ -1178,7 +1178,7 @@ body.modal-open {
     padding: 4px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
-    margin-left: -200px;   /* ★ 负值：往地图方向拉近/可轻微压边 */
+    margin-left: -200px;
 }
 .shanhe-map-inset svg { width: 100%; height: auto; display: block; }
 .shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
@@ -1187,14 +1187,14 @@ body.modal-open {
 /* ========== 移动端：地图占满全宽 ========== */
 @media (max-width: 760px) {
     .shanhe-map-wrap {
-        padding-right: 0;          /* ★ 关键：手机端不左移，地图吃满全宽 */
+        padding-right: 0;
         gap: 10px;
     }
     .shanhe-map-wrap > svg {
-        max-height: 60vh;          /* 可选：手机上略压高度，省得占满整屏 */
+        max-height: 60vh;
     }
     .shanhe-map-inset {
-        width: 85%;                /* 放大图换行到下方后居中，给大一点 */
+        width: 85%;
         margin-left: 0;
     }
 }
@@ -1272,11 +1272,19 @@ body.modal-open {
     gap: 8px;
     margin-top: 12px;
 }
-.shanhe-list-row {
+
+.shanhe-list-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.shanhe-list-strips,
+.shanhe-list-images {
     display: grid;
     gap: 6px;
-    align-items: start;
 }
+
 .shanhe-list-strip {
     font-size: 0.8rem;
     font-weight: bold;
@@ -1288,6 +1296,7 @@ body.modal-open {
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+
 .shanhe-list-cell {
     aspect-ratio: 1 / 1;
     overflow: hidden;
