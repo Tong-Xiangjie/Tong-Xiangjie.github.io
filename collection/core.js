@@ -1,5 +1,5 @@
 // ==================== core.js ====================
-// 常量
+// 常量定义
 const MODE = { NOTES: 'notes', COINS: 'coins', SPECIAL: 'special', ARTICLES: 'articles', SETTINGS: 'settings' };
 const VIEW = { OVERVIEW: 'overview', CATEGORY: 'category', SEARCH: 'search', LIST: 'list', READER: 'reader' };
 const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year', AGENCY: 'agency', KRAUSE: 'krause' };
@@ -294,7 +294,10 @@ function toggleSidebar() {
     if (modeStates.coins) modeStates.coins.isSidebarCollapsed = isSidebarCollapsed;
 
     // ★ 宽度变化后重新做文字比例压缩
-    if (typeof fitSidebarLabels === 'function') fitSidebarLabels();
+    if (typeof fitSidebarLabels === 'function') {
+        fitSidebarLabels();                 // 立即（折叠时宽度还够，直接压）
+        setTimeout(fitSidebarLabels, 350);  // ★ 等 0.3s 宽度过渡结束再算（展开时关键）
+    }
 }
 
 function scrollToTop() {
@@ -366,8 +369,10 @@ function restoreSidebarState() {
         toggle.textContent = '☰';
         toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
         isSidebarCollapsed = collapsed;
-        // ★ 恢复折叠状态后同步压缩
-        if (typeof fitSidebarLabels === 'function') fitSidebarLabels();
+        // ★ 恢复折叠状态后同步压缩（等过渡结束再算）
+        if (typeof fitSidebarLabels === 'function') {
+            setTimeout(fitSidebarLabels, 350);
+        }
     }
 }
 
