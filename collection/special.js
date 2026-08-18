@@ -540,44 +540,40 @@ async function renderShanheContent(config) {
             const wrap = document.createElement('div');
             wrap.className = 'shanhe-map-wrap';
             wrap.innerHTML = svgText;
+            app.appendChild(wrap);                    // ★ 先挂载
 
             const svg = wrap.querySelector('svg');
             if (!svg) throw new Error('SVG中未找到<svg>');
 
-            // 件数统计 + 最大件数
-            const countByProvince = {};
-            let maxCount = 0;
-            for (const item of items) {
-                if (!item.province) continue;
-                countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
-                if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
-            }
-
-            const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
-
-            // ★ 追加前再确认一次（双保险）
-            if (!app.contains(loadEl)) return;
-
             const removeLoad = app.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
-
-            // ★ 主图：给省份着色 + 事件 + 标注（港澳保留形状，只是不写标签）
-            svg.querySelectorAll('.state').forEach(el => {
-                const cls = el.getAttribute('class') || '';
-                const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
-                const isGangAo = (pid === 'xianggang' || pid === 'aomen');
-                setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, undefined, isGangAo);
-            });
-
-            // ★ 港澳局部放大图 = 粤港澳切片（缩小范围）
-            buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
-
-            app.appendChild(wrap);
-
-            // ★ 构建完成，存入缓存
             shanheMapCache = { wrap };
 
-            triggerViewAnimation();
+            // ★ 关键：等一帧让布局稳定，再读 getBBox（避免全0 → 文字叠成一团）
+            requestAnimationFrame(() => {
+                // 件数统计 + 最大件数
+                const countByProvince = {};
+                let maxCount = 0;
+                for (const item of items) {
+                    if (!item.province) continue;
+                    countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
+                    if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
+                }
+                const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
+
+                // ★ 主图（港澳不写字）
+                svg.querySelectorAll('.state').forEach(el => {
+                    const cls = el.getAttribute('class') || '';
+                    const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
+                    const isGangAo = (pid === 'xianggang' || pid === 'aomen');
+                    setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, undefined, isGangAo);
+                });
+
+                // ★ 港澳放大图
+                buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
+
+                triggerViewAnimation();
+            });
         } catch (e) {
             // 报错也只在还是当前视图时才展示
             if (app.contains(loadEl)) {
@@ -669,7 +665,8 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
 
     let bbox = null;
     try { bbox = el.getBBox(); } catch (e) {}
-    if (!bbox) return null;
+    // ★ 无效 bbox：只着色/可点，不写标签（防叠字）
+    if (!bbox || bbox.width <= 0 || bbox.height <= 0) return null;
 
     // ★ 不写标签（港澳）：只做着色/点击，跳过文字与悬浮放大
     if (noLabel) return null;
@@ -698,6 +695,8 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
         const el = mainSvg.querySelector('.state.' + id);
         if (!el) continue;
         const b = el.getBBox();
+        // ★ 跳过无效 bbox
+        if (!b || b.width <= 0 || b.height <= 0) continue;
         minX = Math.min(minX, b.x); maxX = Math.max(maxX, b.x + b.width);
         minY = Math.min(minY, b.y); maxY = Math.max(maxY, b.y + b.height);
     }
@@ -709,14 +708,17 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     const gd = mainSvg.querySelector('.state.guangdong');
     if (gd) {
         const gb = gd.getBBox();
-        minY = Math.min(minY, gb.y + gb.height * 0.55);
-        minX = Math.min(minX, gb.x + gb.width * 0.45);
+        if (gb && gb.width > 0 && gb.height > 0) {
+            minY = Math.min(minY, gb.y + gb.height * 0.55);
+            minX = Math.min(minX, gb.x + gb.width * 0.45);
+        }
     }
 
     // 截取与该区域相交的所有省份
     const inRegion = [];
     mainSvg.querySelectorAll('.state').forEach(el => {
         const b = el.getBBox();
+        if (!b || b.width <= 0 || b.height <= 0) return;
         if (b.x < maxX && b.x + b.width > minX && b.y < maxY && b.y + b.height > minY) {
             inRegion.push(el);
         }
