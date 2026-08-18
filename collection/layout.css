@@ -1297,6 +1297,7 @@ body.modal-open {
     text-overflow: ellipsis;
 }
 
+/* ★ 列表图片：隐形相框（相框固定，图片在内部放大） */
 .shanhe-list-cell {
     aspect-ratio: 1 / 1;
     overflow: hidden;
@@ -1304,12 +1305,19 @@ body.modal-open {
     background: #f5f5f5;
     border-radius: 4px;
 }
+
 .shanhe-list-cell img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    transition: transform 0.25s ease;
 }
+
+.shanhe-list-cell:hover img {
+    transform: scale(1.12);
+}
+
 .shanhe-list-cell .no-img {
     display: flex;
     align-items: center;
@@ -1317,15 +1325,6 @@ body.modal-open {
     height: 100%;
     font-size: 0.65rem;
     color: var(--text-secondary);
-}
-
-/* ========== 列表图片悬浮放大 ========== */
-.shanhe-list-cell {
-    transition: transform 0.2s ease;
-}
-.shanhe-list-cell:hover {
-    transform: scale(1.08);
-    z-index: 1;
 }
 
 /* ★ 山河视图切换动画 */
