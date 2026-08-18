@@ -5,7 +5,7 @@ let specialItemsList = [];
 let specialCurrentIndex = -1;
 let shanheProvinceNames = {}; // 方寸山河：省份拼音 → 中文名
 let shanheMapCache = null;   // ★ 缓存已构建好的地图 DOM
-let shanheCurrentView = 'map'; // ★ 当前视图：'map' 或 'list'
+let shanheViewMode = 'map';  // ★ 当前视图：'map' 或 'list'（仅根视图有效）
 
 // ========== 面额排序：分<角<元<万元<亿元<其他(音序) ==========
 const DENOM_FRACTIONS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3 };
@@ -152,7 +152,7 @@ function onSpecialOverviewItemClick(configId) {
         document.querySelector('.body-row')?.classList.add('sidebar-hidden');
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = 'none';
-        shanheCurrentView = 'map'; // ★ 默认地图视图
+        shanheViewMode = 'map'; // ★ 默认地图视图
         renderShanheContent(config);
         triggerViewAnimation();
         return;
@@ -344,10 +344,17 @@ function renderLightboxContent(contentEl, config) {
 
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || item.scene || '')}</div>`;
+
+    // ★ 字段显示：年份、来源/面额、城市、编号、备注（山河专属）
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
-    if (item.denom) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">面额：${escapeHtml(item.denom)}</div>`;
+    if (item.denom) {
+        const label = (config && config.view === 'map') ? '来源' : '面额';
+        html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">${label}：${escapeHtml(item.denom)}</div>`;
+    }
     if (item.city) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">城市：${escapeHtml(item.city)}</div>`;
     if (item.krause && !/unlisted/i.test(item.krause)) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
+    if (item.remark) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">备注：${escapeHtml(item.remark)}</div>`;
+
     html += `</div>`;
 
     contentEl.innerHTML = html;
@@ -374,8 +381,8 @@ function specialLightboxKeyHandler(e) {
 
 // ========== 方寸山河：视图切换 ==========
 function shanheSwitchView(view) {
-    if (shanheCurrentView === view) return;
-    shanheCurrentView = view;
+    if (shanheViewMode === view) return;
+    shanheViewMode = view;
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (config) renderShanheContent(config);
 }
@@ -464,20 +471,20 @@ function renderShanheList(config) {
     triggerViewAnimation();
 }
 
-// ★ 地图视图头部的 HTML
+// ★ 地图/列表视图头部的 HTML（不含 emoji）
 function shanheHeaderHtml(config) {
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromShanheToOverview()">← 返回专题</button></div>`;
     html += `<div class="overview-header shanhe-header-row">`;
     html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div>`;
     html += `<div class="shanhe-view-toggle">`;
-    html += `<button class="shanhe-view-btn ${shanheCurrentView === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地 图</button>`;
-    html += `<button class="shanhe-view-btn ${shanheCurrentView === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
+    html += `<button class="shanhe-view-btn ${shanheViewMode === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地图</button>`;
+    html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列表</button>`;
     html += `</div>`;
     html += `</div>`;
     return html;
 }
 
-// ========== 方寸山河：地图交互 ==========
+// ========== 方寸山河：地图交互（根视图 + 省份详情视图） ==========
 async function renderShanheContent(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -492,69 +499,78 @@ async function renderShanheContent(config) {
     const sidebarEl = document.getElementById('sidebar');
     if (sidebarEl) sidebarEl.innerHTML = '';
 
-    // ★ 列表视图分支
-    if (shanheCurrentView === 'list') {
-        renderShanheList(config);
-        return;
-    }
-
-    // ★ 地图视图
-    app.innerHTML = shanheHeaderHtml(config) + `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
-
-    // ★ 已有缓存：直接复用，不再 fetch/重建
-    if (shanheMapCache && shanheMapCache.wrap) {
-        const removeLoad = app.querySelector('.shanhe-map-loading');
-        if (removeLoad) removeLoad.remove();
-        // ★ 清除残留悬浮态（返回时被点省份的文字不再保持放大+黑边）
-        shanheMapCache.wrap.querySelectorAll('.shanhe-label.active').forEach(t => t.classList.remove('active'));
-        app.appendChild(shanheMapCache.wrap);
-        triggerViewAnimation();
-        return;
-    }
-
-    try {
-        const res = await fetch(mapFile);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const svgText = await res.text();
-        const wrap = document.createElement('div');
-        wrap.className = 'shanhe-map-wrap';
-        wrap.innerHTML = svgText;
-        app.appendChild(wrap);
-
-        const svg = wrap.querySelector('svg');
-        if (!svg) throw new Error('SVG中未找到<svg>');
-
-        // 件数统计 + 最大件数
-        const countByProvince = {};
-        let maxCount = 0;
-        for (const item of items) {
-            if (!item.province) continue;
-            countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
-            if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
+    // ★★★ 结构关键：根视图（未点省份） vs 省份详情（已点省份）★★★
+    if (!currentSubId) {
+        // ===== 根视图：地图 / 列表 二选一 =====
+        // ★ 列表视图（只在根视图判断！）
+        if (shanheViewMode === 'list') {
+            renderShanheList(config);
+            return;
         }
 
-        const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
+        // ===== 地图视图 =====
+        app.innerHTML = shanheHeaderHtml(config) +
+            `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
 
-        const removeLoad = app.querySelector('.shanhe-map-loading');
-        if (removeLoad) removeLoad.remove();
+        // ★ 已有缓存：直接复用，不再 fetch/重建
+        if (shanheMapCache && shanheMapCache.wrap) {
+            const removeLoad = app.querySelector('.shanhe-map-loading');
+            if (removeLoad) removeLoad.remove();
+            // ★ 清除残留悬浮态
+            shanheMapCache.wrap.querySelectorAll('.shanhe-label.active').forEach(t => t.classList.remove('active'));
+            app.appendChild(shanheMapCache.wrap);
+            triggerViewAnimation();
+            return;
+        }
 
-        // ★ 主图：给省份着色 + 事件 + 标注（港澳保留形状，只是不写标签）
-        svg.querySelectorAll('.state').forEach(el => {
-            const cls = el.getAttribute('class') || '';
-            const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
-            const isGangAo = (pid === 'xianggang' || pid === 'aomen');
-            setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, undefined, isGangAo);
-        });
+        try {
+            const res = await fetch(mapFile);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const svgText = await res.text();
+            const wrap = document.createElement('div');
+            wrap.className = 'shanhe-map-wrap';
+            wrap.innerHTML = svgText;
+            app.appendChild(wrap);
 
-        // ★ 港澳局部放大图 = 粤港澳切片（缩小范围）
-        buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
+            const svg = wrap.querySelector('svg');
+            if (!svg) throw new Error('SVG中未找到<svg>');
 
-        // ★ 构建完成，存入缓存
-        shanheMapCache = { wrap };
+            // 件数统计 + 最大件数
+            const countByProvince = {};
+            let maxCount = 0;
+            for (const item of items) {
+                if (!item.province) continue;
+                countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
+                if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
+            }
 
-        triggerViewAnimation();
-    } catch (e) {
-        app.innerHTML = `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
+            const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
+
+            const removeLoad = app.querySelector('.shanhe-map-loading');
+            if (removeLoad) removeLoad.remove();
+
+            // ★ 主图：给省份着色 + 事件 + 标注（港澳保留形状，只是不写标签）
+            svg.querySelectorAll('.state').forEach(el => {
+                const cls = el.getAttribute('class') || '';
+                const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
+                const isGangAo = (pid === 'xianggang' || pid === 'aomen');
+                setupShanheState(el, pid, countByProvince[pid] || 0, maxCount, themeLightRGB, config, svg, undefined, isGangAo);
+            });
+
+            // ★ 港澳局部放大图 = 粤港澳切片（缩小范围）
+            buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
+
+            // ★ 构建完成，存入缓存
+            shanheMapCache = { wrap };
+
+            triggerViewAnimation();
+        } catch (e) {
+            app.innerHTML = shanheHeaderHtml(config) +
+                `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
+        }
+    } else {
+        // ===== 省份详情视图：与视图模式无关，永远走这里 =====
+        renderShanheProvince(config);
     }
 }
 
@@ -618,7 +634,8 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
     el.addEventListener('click', () => {
         if (count === 0) return;
         // ★ 点击省份 → 切换到列表视图并自动滚动到该省份
-        shanheCurrentView = 'list';
+        shanheViewMode = 'list';
+        currentSubId = pid;
         renderShanheContent(config);
         // 滚动到对应省份
         setTimeout(() => {
@@ -742,7 +759,7 @@ function mixColor(c1, c2, t) {
         Math.round(c1[2] + (c2[2] - c1[2]) * t) + ')';
 }
 
-// ========== 省份主景视图（按城市分组） ==========
+// ========== 省份详情视图（按城市分组列表） ==========
 function renderShanheProvince(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -787,8 +804,17 @@ function renderShanheProvince(config) {
             }
             html += `<div class="special-item-info">`;
             html += `<div class="special-item-name">${escapeHtml(item.scene || item.name || '')}</div>`;
-            // ★ 副信息：城市 · 面额 · 年份
-            const sub = [item.city, item.denom, item.year ? item.year + '年' : ''].filter(Boolean).join(' · ');
+            // ★ 副信息：城市 · 来源（原为面额） · 年份
+            const subParts = [];
+            if (item.city) subParts.push(item.city);
+            if (item.denom) subParts.push(item.denom);
+            if (item.year) subParts.push(item.year + '年');
+            const label = (config && config.view === 'map') ? '来源' : '面额';
+            // 将 denom 替换为 label 前缀
+            let sub = subParts.join(' · ');
+            if (sub && item.denom && config.view === 'map') {
+                sub = sub.replace(item.denom, '来源：' + item.denom);
+            }
             if (sub) html += `<div class="special-item-krause">${escapeHtml(sub)}</div>`;
             html += `</div></div>`;
         }
@@ -801,7 +827,7 @@ function renderShanheProvince(config) {
 
 function backFromShanheMap() {
     currentSubId = null;
-    shanheCurrentView = 'map';
+    shanheViewMode = 'map';
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (config) renderShanheContent(config);
 }
