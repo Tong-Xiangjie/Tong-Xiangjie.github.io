@@ -23,6 +23,27 @@ const republic_thnbData = {
             year: "1949",
             varieties: [
                 {
+                    varietyName: "1949年 2分",
+                    copies: [
+                        {
+                            copyId: 19159951,
+                            year: 1949,
+                            version: "AA",
+                            bank: "海南银行/The Hainan Bank",
+                            print: "香港印字馆印务有限公司/HKPA",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG67E",
+                            price: "46元",
+                            purchaseDate: "2026年8月15日",
+                            krause: "S1452",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_thnb/1949-002-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_thnb/1949-002-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "1949年 5分",
                     copies: [
                         {
