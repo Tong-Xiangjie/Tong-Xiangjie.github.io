@@ -396,7 +396,7 @@ function backFromShanheToOverview() {
     renderSpecialOverview();
 }
 
-// ★ 列表视图：列数自适应 + 行首按城市占列分配长条宽度
+// ★ 列表视图：长条和图片分行渲染
 function renderShanheList(config) {
     const app = document.getElementById('app');
     const data = window.FUN_DATA_MAP && window.FUN_DATA_MAP[config.dataKey];
@@ -440,7 +440,7 @@ function renderShanheList(config) {
     for (let i = 0; i < flat.length; i += colCount) {
         const chunk = flat.slice(i, i + colCount);
 
-        // 行首长条：按本行内各城市图片数合并，宽度 = 占列数
+        // 长条行：按本行内各城市图片数合并，宽度 = 占列数
         const strips = [];
         for (const f of chunk) {
             if (strips.length > 0 && strips[strips.length - 1].group === f.group) {
@@ -450,11 +450,16 @@ function renderShanheList(config) {
             }
         }
 
-        html += `<div class="shanhe-list-row" style="grid-template-columns: repeat(${colCount}, 1fr);">`;
+        html += `<div class="shanhe-list-block">`;
+        // ★ 第一行：长条
+        html += `<div class="shanhe-list-strips" style="grid-template-columns: repeat(${colCount}, 1fr);">`;
         for (const s of strips) {
             const provinceName = shanheProvinceNames[s.group.province] || s.group.province;
             html += `<div class="shanhe-list-strip" style="grid-column: span ${s.count};">${escapeHtml(provinceName)} - ${escapeHtml(s.group.city)}</div>`;
         }
+        html += `</div>`;
+        // ★ 第二行：图片
+        html += `<div class="shanhe-list-images" style="grid-template-columns: repeat(${colCount}, 1fr);">`;
         for (const { item } of chunk) {
             const idx = specialItemsList.indexOf(item);
             const imgUrl = getImageUrl(item.img || item.yearImg);
@@ -463,6 +468,7 @@ function renderShanheList(config) {
             else html += `<span class="no-img">暂无图片</span>`;
             html += `</div>`;
         }
+        html += `</div>`;
         html += `</div>`;
     }
     html += `</div>`;
@@ -527,6 +533,15 @@ async function renderShanheContent(config) {
             const res = await fetch(mapFile);
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const svgText = await res.text();
+
+            // ★ 防串台：加载期间若已切走，丢弃本次结果，不再往当前页面追加
+            if (currentMode !== MODE.SPECIAL ||
+                selectedSpecial !== config.id ||
+                currentSubId !== null ||
+                shanheViewMode !== 'map') {
+                return;
+            }
+
             const wrap = document.createElement('div');
             wrap.className = 'shanhe-map-wrap';
             wrap.innerHTML = svgText;
@@ -565,8 +580,14 @@ async function renderShanheContent(config) {
 
             triggerViewAnimation();
         } catch (e) {
-            app.innerHTML = shanheHeaderHtml(config) +
-                `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
+            // ★ 防串台：出错时同样检查当前状态
+            if (currentMode === MODE.SPECIAL &&
+                selectedSpecial === config.id &&
+                currentSubId === null &&
+                shanheViewMode === 'map') {
+                app.innerHTML = shanheHeaderHtml(config) +
+                    `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
+            }
         }
     } else {
         // ===== 省份详情视图：与视图模式无关，永远走这里 =====
@@ -809,12 +830,7 @@ function renderShanheProvince(config) {
             if (item.city) subParts.push(item.city);
             if (item.denom) subParts.push(item.denom);
             if (item.year) subParts.push(item.year + '年');
-            const label = (config && config.view === 'map') ? '来源' : '面额';
-            // 将 denom 替换为 label 前缀
             let sub = subParts.join(' · ');
-            if (sub && item.denom && config.view === 'map') {
-                sub = sub.replace(item.denom, '来源：' + item.denom);
-            }
             if (sub) html += `<div class="special-item-krause">${escapeHtml(sub)}</div>`;
             html += `</div></div>`;
         }
