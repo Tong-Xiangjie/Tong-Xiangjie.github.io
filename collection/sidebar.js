@@ -6,10 +6,6 @@ function fitSidebarLabels() {
         const text = item.children[0];
         if (!text) return;
 
-        // 复位上一次的压缩
-        text.style.transform = '';
-
-        // 可用宽度 = 条目宽 - 左右 padding - 图标宽 - 间距
         const cs = getComputedStyle(item);
         const icon = item.querySelector('.expand-icon');
         const iconW = icon ? icon.offsetWidth : 0;
@@ -19,18 +15,18 @@ function fitSidebarLabels() {
             - iconW
             - 4;
 
-        // 量文字自然宽度（临时放开 overflow）
+        // ★ 宽度不可用（折叠过渡中≈0）时直接跳过，保留旧压缩状态，不清 transform
+        if (avail <= 0) return;
+
+        text.style.transform = '';
         text.style.overflow = 'visible';
         const full = text.scrollWidth;
 
-        if (full > avail && avail > 0) {
+        if (full > avail) {
             const ratio = avail / full;
             text.style.transformOrigin = 'left center';
             text.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
         }
-        // ★ 关键：压缩后文字正好容纳，保持 visible，不再恢复 hidden
-        //（overflow:hidden + scaleX 会先裁剪再缩放，导致文字被切）
-        text.style.overflow = 'visible';
     });
 }
 
