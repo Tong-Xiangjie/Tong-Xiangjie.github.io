@@ -1,0 +1,63 @@
+<center>
+    <b><span style="font-size:1.1em;">庆祝澳门回归祖国二十周年主题钞票</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab43/202309/t20230904_23687798.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab43/202309/t20230904_23687798.html</a>）</span>
+</center>
+<br>
+
+<p>根据第9/2019号行政法规，中国银行发行庆祝澳门回归祖国二十周年的面额为澳门元贰拾圆的钞票，借此庆祝澳门回归祖国二十周年的重要时刻。</p>
+<p>钞票的主色调为蓝紫色，正面以“莲花”雕塑为主景，象征澳门永远繁荣昌盛。雕塑旁矗立着发钞银行的大楼，体现出与澳门共同成长，支持澳门经济的健康发展。</p>
+<p>钞票背面以港珠澳大桥为主景，寓意澳门与中国内地经济、文化等各领域上的友好沟通。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片1：正面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/am20hg-01.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">（正面）</span>
+</div>
+
+<!-- 图片2：背面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/am20hg-02.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">（背面）</span>
+</div>
+
+<br>
+
+<p><b>钞票防伪特征介绍：</b></p>
+
+<!-- 防伪特征表格 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 50%;">
+        <col style="width: 50%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>钞票正面</th>
+            <th>钞票背面</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: left; vertical-align: top; padding-left: 20px;">
+                ① 水印<br>
+                ② 开窗安全线<br>
+                ③ 对印图案<br>
+                ④ 动感光亮图案<br>
+                ⑤ 隐藏图像
+            </td>
+            <td style="text-align: left; vertical-align: top; padding-left: 20px;">
+                ① 双色荧光<br>
+                ② 水印
+            </td>
+        </tr>
+    </tbody>
+</table>
