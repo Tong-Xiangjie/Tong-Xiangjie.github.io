@@ -248,7 +248,7 @@ function renderSpecialContent() {
     for (const key of sortedKeys) for (const item of groups[key]) specialItemsList.push(item);
 
     let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
-    if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">当前筛选：${escapeHtml(currentSubId)}</p>`;
+    if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">当前您选择查看${escapeHtml(currentSubId)}</p>`;
     html += `</div>`;
 
     for (const key of sortedKeys) {
@@ -263,7 +263,7 @@ function renderSpecialContent() {
             if (imgUrl) {
                 html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.name || item.scene || '')}" loading="lazy"></div>`;
             } else {
-                html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">暂无图片</div>`;
+                html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">还木有图片</div>`;
             }
             html += `<div class="special-item-info">`;
             html += `<div class="special-item-name">${escapeHtml(item.name || item.scene || '')}</div>`;
@@ -273,7 +273,7 @@ function renderSpecialContent() {
         html += `</div></div>`;
     }
 
-    if (filteredItems.length === 0) html += '<div class="empty-state">该分组暂无藏品</div>';
+    if (filteredItems.length === 0) html += '<div class="empty-state">啊哦，啥都木有……</div>';
     app.innerHTML = html;
     triggerViewAnimation();
 }
@@ -455,7 +455,7 @@ function renderShanheList(config) {
 
     let html = shanheHeaderHtml(config);
     if (flat.length === 0) {
-        html += '<div class="empty-state">该专题暂无主景</div>';
+        html += '<div class="empty-state">还……还没有风景(╥_╥)</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -494,7 +494,7 @@ function renderShanheList(config) {
             const imgUrl = getImageUrl(item.img || item.yearImg);
             html += `<div class="shanhe-list-cell" onclick="openSpecialLightbox(${idx})" title="${escapeHtml(item.scene || item.name || '')}">`;
             if (imgUrl) html += `<img src="${imgUrl}" alt="" loading="lazy">`;
-            else html += `<span class="no-img">暂无图片</span>`;
+            else html += `<span class="no-img">还木有图片</span>`;
             html += `</div>`;
         }
         html += `</div>`;
@@ -524,10 +524,10 @@ function renderShanheList(config) {
 function shanheHeaderHtml(config) {
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromShanheToOverview()">← 返回专题</button></div>`;
     html += `<div class="overview-header shanhe-header-row">`;
-    html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击省份查看对应的纸币主景</p></div>`;
+    html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击省份 查看壮阔山河</p></div>`;
     html += `<div class="shanhe-view-toggle">`;
-    html += `<button class="shanhe-view-btn ${shanheViewMode === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地图</button>`;
-    html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列表</button>`;
+    html += `<button class="shanhe-view-btn ${shanheViewMode === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地 图</button>`;
+    html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
     html += `</div>`;
     html += `</div>`;
     return html;
@@ -622,7 +622,7 @@ async function renderShanheContent(config) {
             // 报错也只在还是当前视图时才展示
             if (app.contains(loadEl)) {
                 app.innerHTML = shanheHeaderHtml(config) +
-                    `<div class="empty-state">地图加载失败：${escapeHtml(e.message)}</div>`;
+                    `<div class="empty-state">地图不见力(╥_╥)（报错信息：${escapeHtml(e.message)}）</div>`;
             }
         }
     } else {
@@ -776,7 +776,7 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
 
     const wrap = document.createElement('div');
     wrap.className = 'shanhe-map-inset';
-    wrap.innerHTML = '<div class="shanhe-map-inset-title">粤港澳地区局部放大</div>';
+    wrap.innerHTML = '<div class="shanhe-map-inset-title">粤港澳地区局部放大图</div>';
 
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
@@ -843,10 +843,10 @@ function renderShanheProvince(config) {
     }
 
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromShanheMap()">← 返回地图</button></div>`;
-    html += `<div class="overview-header"><h2>${escapeHtml(provinceName)}</h2><p>共${items.length}个主景</p></div>`;
+    html += `<div class="overview-header"><h2>${escapeHtml(provinceName)}</h2><p>共${items.length}个景观图</p></div>`;
 
     if (items.length === 0) {
-        html += '<div class="empty-state">该省份暂无主景</div>';
+        html += '<div class="empty-state">这么近，那么美，可这儿没有我的一席之地……</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -868,7 +868,7 @@ function renderShanheProvince(config) {
             if (imgUrl) {
                 html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.scene || item.name || '')}" loading="lazy"></div>`;
             } else {
-                html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">暂无图片</div>`;
+                html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">还木有图片</div>`;
             }
             html += `<div class="special-item-info">`;
             html += `<div class="special-item-name">${escapeHtml(item.scene || item.name || '')}</div>`;
