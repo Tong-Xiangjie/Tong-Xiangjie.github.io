@@ -23,15 +23,18 @@ function onTabClick(target) {
 
     if (target === MODE.SETTINGS) {
         if (!isSettingsMode) {
-            // ★ 进入设置前，强制保存专题页面的完整状态
+            // ★ 进入设置前，强制保存专题页面的完整状态（山河不缓存 HTML）
             if (currentMode === MODE.SPECIAL && selectedSpecial !== null && selectedSpecial !== undefined) {
-                const appEl = document.getElementById('app');
-                if (appEl) {
-                    specialPageCaches[selectedSpecial] = {
-                        innerHTML: appEl.innerHTML,
-                        scrollY: appEl.scrollTop || 0,
-                        currentSubId: currentSubId
-                    };
+                const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+                if (!(cfg && cfg.view === 'map')) {
+                    const appEl = document.getElementById('app');
+                    if (appEl) {
+                        specialPageCaches[selectedSpecial] = {
+                            innerHTML: appEl.innerHTML,
+                            scrollY: appEl.scrollTop || 0,
+                            currentSubId: currentSubId
+                        };
+                    }
                 }
             }
             settingsReturnState = {
@@ -100,15 +103,19 @@ function enterSpecialFromTab() {
         return;
     }
 
-    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
-    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+    // ★ 判断是否为地图专题
+    const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    const isMapSpecial = specialCfg && specialCfg.view === 'map';
 
-    // ★ 切换到专题容器
-    const key = getContainerKey();
-    switchViewContainer(key);
-
-    // ★ 强制恢复缓存内容
-    if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+    if (isMapSpecial) {
+        // ★ 地图专题：不走缓存，重新渲染 + 全屏
+        if (specialPageCaches[selectedSpecial]) {
+            currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
+        }
+        renderSpecialContent();
+        applySpecialLayout();
+    } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+        // ★ 非地图专题：走缓存
         const cache = specialPageCaches[selectedSpecial];
         currentSubId = cache.currentSubId || null;
         currentCategoryId = selectedSpecial;
@@ -119,16 +126,17 @@ function enterSpecialFromTab() {
                 appEl.scrollTop = cache.scrollY || 0;
             });
         }
-        const toggleBtn2 = document.getElementById('sidebarToggle');
-        if (toggleBtn2) toggleBtn2.style.display = '';
         renderSidebar();
         const sb = document.getElementById('sidebar');
         if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
+        applySpecialLayout();
     } else {
-        // ★ 无缓存时重新渲染
+        // ★ 无缓存：正常渲染
         renderSpecialContent();
         renderSidebar();
+        applySpecialLayout();
     }
+
     triggerViewAnimation();
 }
 
@@ -170,10 +178,17 @@ function leaveSettingsToTarget(target) {
         }
 
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
-            const key = getContainerKey();
-            switchViewContainer(key);
+            const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+            const isMapSpecial = specialCfg && specialCfg.view === 'map';
 
-            if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+            if (isMapSpecial) {
+                // ★ 地图专题：重新渲染 + 全屏
+                if (specialPageCaches[selectedSpecial]) {
+                    currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
+                }
+                renderSpecialContent();
+                applySpecialLayout();
+            } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
                 const cache = specialPageCaches[selectedSpecial];
                 document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
                 const appEl = document.getElementById('app');
@@ -186,10 +201,12 @@ function leaveSettingsToTarget(target) {
                 renderSidebar();
                 const sb = document.getElementById('sidebar');
                 if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
+                applySpecialLayout();
             } else {
                 document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
                 renderSidebar();
                 renderSpecialContent();
+                applySpecialLayout();
             }
         } else {
             document.querySelector('.body-row')?.classList.add('sidebar-hidden');
@@ -412,4 +429,17 @@ function enterNotesOrCoinsTab(target) {
         }
     }
     triggerViewAnimation();
+}
+
+// ★ 专题全屏布局（地图专题专用）
+function applySpecialLayout() {
+    const bodyRow = document.querySelector('.body-row');
+    if (bodyRow) {
+        bodyRow.classList.add('sidebar-hidden');
+        bodyRow.classList.remove('special-overview-mode');
+    }
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (toggleBtn) toggleBtn.style.display = 'none';
+    const sidebarEl = document.getElementById('sidebar');
+    if (sidebarEl) sidebarEl.innerHTML = '';
 }
