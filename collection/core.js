@@ -347,9 +347,15 @@ function saveFullState() {
     } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
         const appEl = document.getElementById('app');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
-            specialPageCaches[selectedSpecial] = {
-                innerHTML: appEl ? appEl.innerHTML : '', scrollY, currentSubId
-            };
+            const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+            if (cfg && cfg.view === 'map') {
+                // ★ 山河不缓存 HTML，只保留 currentSubId
+                specialPageCaches[selectedSpecial] = { currentSubId };
+            } else {
+                specialPageCaches[selectedSpecial] = {
+                    innerHTML: appEl ? appEl.innerHTML : '', scrollY, currentSubId
+                };
+            }
         }
     } else if (currentMode === MODE.SETTINGS) {
         const appEl = document.getElementById('app');
