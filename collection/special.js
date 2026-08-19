@@ -393,6 +393,10 @@ function shanheSwitchView(view) {
     if (shanheViewMode === view) return;
     shanheViewMode = view;
     currentSubId = null;
+
+    // ★ 离开列表视图时断开 ResizeObserver，防止后续误触发
+    if (shanheListRO) { shanheListRO.disconnect(); shanheListRO = null; }
+
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) return;
 
@@ -504,8 +508,12 @@ function renderShanheList(config) {
     // ★ 容器宽度变化时（含从侧边栏页面进入的过渡期），列数变了就自动重排
     if (shanheListRO) shanheListRO.disconnect();
     shanheListRO = new ResizeObserver(() => {
-        if (currentMode !== MODE.SPECIAL || selectedSpecial !== config.id ||
-            currentSubId !== null || shanheViewMode !== 'list') return;
+        // ★ 守卫补上 isSettingsMode：设置页渲染进 #app 会触发 RO，不能重排列表
+        if (isSettingsMode ||
+            currentMode !== MODE.SPECIAL ||
+            selectedSpecial !== config.id ||
+            currentSubId !== null ||
+            shanheViewMode !== 'list') return;
         const cols = shanheListCols(app);
         if (cols !== shanheListLastCols) renderShanheList(config);
     });
@@ -882,6 +890,8 @@ function renderShanheProvince(config) {
 function backFromShanheMap() {
     currentSubId = null;
     shanheViewMode = 'map';
+    // ★ 返回地图时断开 ResizeObserver
+    if (shanheListRO) { shanheListRO.disconnect(); shanheListRO = null; }
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (config) renderShanheContent(config);
 }
