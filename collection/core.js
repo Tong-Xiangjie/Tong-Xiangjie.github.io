@@ -451,3 +451,33 @@ function retryFailedImages() {
     }
 }
 // ★★★★★★★ 图片重试功能结束 ★★★★★★★
+
+// ========== 专题全屏布局（地图专题专用，含分组同步） ==========
+function applySpecialLayout() {
+    const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
+
+    // ★ 先同步分组（年份→年代、面额→面额），确保 hasSub 判断基于最新 children
+    if (cfg && typeof syncSpecialGroupChildren === 'function') {
+        syncSpecialGroupChildren(cfg);
+    }
+
+    const bodyRow = document.querySelector('.body-row');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const isMap = !!(cfg && cfg.view === 'map');
+    const tree = specialCategoryTree ? specialCategoryTree.find(c => c.id === selectedSpecial) : null;
+    const hasSub = !isMap && !!(tree && tree.children && tree.children.length > 0);
+
+    if (isMap || !hasSub) {
+        if (bodyRow) {
+            bodyRow.classList.add('sidebar-hidden');
+            bodyRow.classList.remove('special-overview-mode');
+        }
+        if (toggleBtn) toggleBtn.style.display = 'none';
+    } else {
+        if (bodyRow) {
+            bodyRow.classList.remove('sidebar-hidden');
+            bodyRow.classList.remove('special-overview-mode');
+        }
+        if (toggleBtn) toggleBtn.style.display = '';
+    }
+}
