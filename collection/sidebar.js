@@ -60,10 +60,12 @@ function renderSidebar() {
 
     let tree;
     if (currentMode === MODE.SPECIAL) {
-        // ★ 渲染前同步分组，保证任何入口进来侧边栏都是数据驱动的年代/面额
+        // ★ 同步所有专题的分组（年份→年代、面额→面额、山河→跳过），保证每个有分组的都显示 ▸
         if (typeof syncSpecialGroupChildren === 'function') {
-            const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
-            if (cfg) syncSpecialGroupChildren(cfg);
+            const configs = getSpecialConfigs();
+            for (const cfg of configs) {
+                syncSpecialGroupChildren(cfg);
+            }
         }
         tree = specialCategoryTree;
     } else {
@@ -220,7 +222,7 @@ function onSidebarChildClick(parentId, subId) {
     triggerViewAnimation();
 }
 
-// ★ 窗口大小变化时重新计算侧边栏文字比例（延迟版，RO 也会触发，但保留作为备用）
+// ★ 窗口大小变化时重新计算侧边栏文字比例
 let sidebarResizeTimer = null;
 window.addEventListener('resize', () => {
     clearTimeout(sidebarResizeTimer);
