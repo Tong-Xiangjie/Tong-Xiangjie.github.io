@@ -1,0 +1,86 @@
+<center>
+    <b><span style="font-size:1.1em;">纪念中国银行成立一百周年澳门币</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab43/201202/t20120207_1697627.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab43/201202/t20120207_1697627.html</a>）</span>
+</center>
+<br>
+
+<p>为庆祝中国银行百年华诞，中国银行于二零一二年二月发行“纪念中国银行成立一百周年澳门币”新纸币，面值为壹佰圆。</p>
+<p>新纸币正面主色调为金色，主景图案为由美籍华人世界著名建筑设计大师贝聿铭先生设计的中国银行总行大厦，衬景为雄伟的万里长城及中国银行成立当时的新闻报道，彰显历史悠久的中国银行始终秉承追求卓越的精神、稳健经营的理念、客户至上的宗旨、诚信为本的品质。票面正中中国书法体“100”字样，与纪念主题相呼应，“00”以“∞”符号表现，寓意中国银行具有无限广阔的发展前景。</p>
+<p>新纸币背面主色调为绿色，为中国水墨莲花图。莲花是澳门特别行政区的区花，她根深而叶茂，是圣洁、祥和、宁静、太平的象征，寓意澳门特别行政区和谐安宁、繁荣昌盛。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片1：正面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/amhhc-01.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">（正面）</span>
+</div>
+
+<!-- 图片2：背面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/amhhc-02.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">（背面）</span>
+</div>
+
+<br>
+
+<p><b>新纸币的防伪特征：</b></p>
+
+<!-- 防伪特征表格 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 75%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>防伪特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">多层次水印</td>
+            <td style="text-align: center;">使用特殊工艺制成的固定多层次水印防伪特征，透光观察可见莲花图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">白水印</td>
+            <td style="text-align: center;">使用特殊工艺制成的白水印防伪特征，透光观察可见与纸底区分明显的“100”字样。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印手感图案</td>
+            <td style="text-align: center;">使用凹印印刷的防伪特征。用手触摸，有极强的凹凸感。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">丝印SPARK®</td>
+            <td style="text-align: center;">使用OVMI®油墨印刷的防伪特征。通过倾斜或转动角度观察正面左下角莲花图案，观察者在不同角度可看到莲花图案产生由金变绿的滚动效果。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">无色荧光图案</td>
+            <td style="text-align: center;">使用无色荧光油墨印刷的防伪特征。在紫外光下，呈现黄色荧光图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">有色荧光图案</td>
+            <td style="text-align: center;">使用荧光油墨印刷的防伪特征。正面胶印图纹，在紫外光下可见黄色、绿色荧光颜色。背面胶印图纹，在紫外光下可见绿色荧光颜色。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印微缩文字</td>
+            <td style="text-align: center;">使用凹印印刷的防伪特征。正面左上角数字“100”右侧的竖条图案在放大镜下观察，可见清晰的微缩“100”字样。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">双色异型磁性号码</td>
+            <td style="text-align: center;">横号码使用红色荧光与黑色磁性号码油墨配对的防伪特征，表现为红黑两色接线，其中黑色号码可磁性机读。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">MOTION®开窗安全线</td>
+            <td style="text-align: center;">在安全线上采用微透镜技术形成的动感图案，通过倾斜或转动角度观察，可看到图案产生上下左右移动效果。</td>
+        </tr>
+    </tbody>
+</table>
