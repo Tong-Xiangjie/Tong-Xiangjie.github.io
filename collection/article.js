@@ -318,9 +318,9 @@ function renderArticleSidebar() {
     }
     sidebar.innerHTML = html;
 
-    // ★ 比例压缩（立即+延迟，覆盖过渡动画场景）
-    if (typeof fitSidebarLabelsDelayed === 'function') {
-        fitSidebarLabelsDelayed();
+    // ★ 比例压缩（全局函数，定义在 sidebar.js）
+    if (typeof fitSidebarLabels === 'function') {
+        fitSidebarLabels();
     }
 }
 
@@ -436,7 +436,8 @@ function highlightText(text, keyword) {
     return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
 }
 
-function openArticleReader(index) {
+// ★ 增加 restoreScroll 参数，支持恢复阅读位置
+function openArticleReader(index, restoreScroll) {
     const listContainer = viewScrollContainers['articles_list'];
     if (listContainer) {
         articleState.listScrollY = listContainer.scrollTop;
@@ -453,7 +454,7 @@ function openArticleReader(index) {
 
     if (articleContentCache[article.contentPath]) {
         renderArticleReader(article, articleContentCache[article.contentPath]);
-        app.scrollTop = 0;
+        app.scrollTop = restoreScroll ? (articleState.readerScrollY || 0) : 0;
         return;
     }
 
@@ -474,7 +475,7 @@ function openArticleReader(index) {
             // ★ 若用户已返回列表（或切到别的文章）：只在后台缓存，不再抢回阅读器
             if (currentArticleView === VIEW.READER && currentArticleIndex === index) {
                 renderArticleReader(article, content);
-                app.scrollTop = 0;
+                app.scrollTop = restoreScroll ? (articleState.readerScrollY || 0) : 0;
             }
         })
         .catch(() => {
@@ -521,5 +522,5 @@ function reloadArticle() {
     if (!article) return;
     delete articleContentCache[article.contentPath];
     delete articlePlainTextCache[article.contentPath];
-    openArticleReader(currentArticleIndex);
+    openArticleReader(currentArticleIndex); // 不带 restoreScroll，每次从顶部开始
 }
