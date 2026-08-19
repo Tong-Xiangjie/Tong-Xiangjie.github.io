@@ -107,34 +107,27 @@ function enterSpecialFromTab() {
     const key = getContainerKey();
     switchViewContainer(key);
 
-    const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
-
-    // ★ 地图专题：不走缓存（防 SVG 事件丢失），重新渲染 + 全屏
-    if (specialCfg && specialCfg.view === 'map') {
-        if (specialPageCaches[selectedSpecial]) {
-            currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
-        }
-        renderSpecialContent();
-        applySpecialLayout();
-    } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
-        // ★ 强制恢复缓存内容
+    // ★ 强制恢复缓存内容
+    if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
         const cache = specialPageCaches[selectedSpecial];
         currentSubId = cache.currentSubId || null;
         currentCategoryId = selectedSpecial;
         const appEl = document.getElementById('app');
         if (appEl) {
             appEl.innerHTML = cache.innerHTML;
-            requestAnimationFrame(() => { appEl.scrollTop = cache.scrollY || 0; });
+            requestAnimationFrame(() => {
+                appEl.scrollTop = cache.scrollY || 0;
+            });
         }
+        const toggleBtn2 = document.getElementById('sidebarToggle');
+        if (toggleBtn2) toggleBtn2.style.display = '';
         renderSidebar();
         const sb = document.getElementById('sidebar');
         if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
-        applySpecialLayout();
     } else {
         // ★ 无缓存时重新渲染
         renderSpecialContent();
         renderSidebar();
-        applySpecialLayout();
     }
     triggerViewAnimation();
 }
@@ -179,29 +172,24 @@ function leaveSettingsToTarget(target) {
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             const key = getContainerKey();
             switchViewContainer(key);
-            const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
 
-            if (specialCfg && specialCfg.view === 'map') {
-                if (specialPageCaches[selectedSpecial]) {
-                    currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
-                }
-                renderSpecialContent();
-                applySpecialLayout();
-            } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
+            if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
                 const cache = specialPageCaches[selectedSpecial];
+                document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
                 const appEl = document.getElementById('app');
                 if (appEl) {
                     appEl.innerHTML = cache.innerHTML;
-                    requestAnimationFrame(() => { appEl.scrollTop = cache.scrollY || 0; });
+                    requestAnimationFrame(() => {
+                        appEl.scrollTop = cache.scrollY || 0;
+                    });
                 }
                 renderSidebar();
                 const sb = document.getElementById('sidebar');
                 if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
-                applySpecialLayout();
             } else {
+                document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
                 renderSidebar();
                 renderSpecialContent();
-                applySpecialLayout();
             }
         } else {
             document.querySelector('.body-row')?.classList.add('sidebar-hidden');
@@ -323,9 +311,11 @@ function enterArticlesTab() {
 
     if (collectedArticles.length === 0) collectAllArticles();
 
-    currentArticleView = VIEW.LIST;
+    // ★ 恢复上次的文章状态（阅读器/列表 + 搜索词），不再强制重置
+    currentArticleView = articleState.currentView || VIEW.LIST;
     currentArticleCategory = articleState.currentCategory || 'all';
-    currentArticleIndex = -1;
+    currentArticleIndex = (articleState.currentIndex !== undefined && articleState.currentIndex >= 0)
+        ? articleState.currentIndex : -1;
     articleSearchKeyword = articleState.searchKeyword || '';
 
     const inp = document.getElementById('searchInput');
@@ -342,13 +332,15 @@ function enterArticlesTab() {
     updateSearchUIForMode();
     renderSidebar();
 
-    renderArticleList();
-
-    const container = getRenderContainer();
-    if (articleState.listScrollY > 0) {
-        requestAnimationFrame(() => {
-            container.scrollTop = articleState.listScrollY;
-        });
+    if (currentArticleIndex >= 0 && currentArticleView === VIEW.READER) {
+        // ★ 恢复阅读器（内容在 articleContentCache 里则秒开，不重新请求）
+        openArticleReader(currentArticleIndex);
+    } else {
+        renderArticleList();
+        const container = getRenderContainer();
+        if (articleState.listScrollY > 0) {
+            requestAnimationFrame(() => { container.scrollTop = articleState.listScrollY; });
+        }
     }
 
     triggerViewAnimation();
