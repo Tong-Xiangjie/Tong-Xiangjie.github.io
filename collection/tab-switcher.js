@@ -430,16 +430,3 @@ function enterNotesOrCoinsTab(target) {
     }
     triggerViewAnimation();
 }
-
-// ★ 专题全屏布局（地图专题专用）
-function applySpecialLayout() {
-    const bodyRow = document.querySelector('.body-row');
-    if (bodyRow) {
-        bodyRow.classList.add('sidebar-hidden');
-        bodyRow.classList.remove('special-overview-mode');
-    }
-    const toggleBtn = document.getElementById('sidebarToggle');
-    if (toggleBtn) toggleBtn.style.display = 'none';
-    const sidebarEl = document.getElementById('sidebar');
-    if (sidebarEl) sidebarEl.innerHTML = '';
-}
