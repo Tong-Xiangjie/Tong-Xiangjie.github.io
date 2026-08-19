@@ -317,7 +317,8 @@ function saveFullState() {
     const container = isFullPageMode(key) ? document.getElementById('app') : viewScrollContainers[key];
     const scrollY = container ? container.scrollTop : 0;
 
-    if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
+    // ★ 设置模式下不重复保存（容器可能 display:none，读 scrollTop 会返回 0 覆盖掉正确值）
+    if ((currentMode === MODE.NOTES || currentMode === MODE.COINS) && !isSettingsMode) {
         const expanded = collectExpandedStates();
         const prev = modeStates[currentMode] || {};
         modeStates[currentMode] = {
@@ -333,7 +334,7 @@ function saveFullState() {
             searchScrollY: currentView === VIEW.SEARCH ? scrollY : (prev.searchScrollY || 0)
         };
         scrollMemory[currentMode + '-' + key] = scrollY;
-    } else if (currentMode === MODE.ARTICLES) {
+    } else if (currentMode === MODE.ARTICLES && !isSettingsMode) {
         const prev = articleState;
         articleState = {
             currentView: currentArticleView,
