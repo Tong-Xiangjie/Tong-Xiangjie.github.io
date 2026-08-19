@@ -1,0 +1,90 @@
+<center>
+    <b><span style="font-size:1.1em;">中国银行猪年生肖贺岁钞</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab43/202309/t20230908_23719982.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab43/202309/t20230908_23719982.html</a>）</span>
+</center>
+<br>
+
+<p>中国银行生肖贺岁钞，面值为澳门币壹拾圆，于二○一二年元月开始发行。</p>
+<p>生肖贺岁钞主色调为红色，寓意喜庆吉祥。正面主景是列入《人类非物质文化遗产代表作名录》的中国剪纸，体现十二生肖的形态，以及中国春节民间张贴的“福”字图，展现迎春接福的习俗；衬景选用地支表并以象征团圆的灯笼为衬托。背面主景图案为中国银行澳门分行大厦，衬景选用列入《世界历史遗产名录》的澳门妈阁庙与中国传统的百子吉庆图。</p>
+<p>相互呼应的正背面主衬景图案，还有贯穿钞票两面的莲花水印和叠映生肖图案，充分表达澳门像一朵盛世莲花的地域特征和吉庆祥和的贺岁主题，蕴含着中华民族深厚的历史文化内涵。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片1：正面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/amsx_2019_01.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">猪年生肖贺岁钞正面</span>
+</div>
+
+<!-- 图片2：背面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/amsx_2019_02.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">猪年生肖贺岁钞背面</span>
+</div>
+
+<br>
+
+<p><b>防伪特征：</b></p>
+
+<!-- 防伪特征表格 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 75%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>防伪特征</th>
+            <th>介绍</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: center;">多层次水印</td>
+            <td style="text-align: center;">使用特殊工艺制成的固定多层次水印防伪特征，透光观察可见莲花图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">白水印</td>
+            <td style="text-align: center;">使用特殊工艺制成的白水印防伪特征，透光观察可见与纸底区分明显的“10”字样。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">金属油墨图案</td>
+            <td style="text-align: center;">票面正面右上方菱形“福”字图案，采用雕刻凹印金属油墨印刷，与普通油墨相比，色彩独特、亮丽，在光照下，具有明显的金属闪烁性。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印手感图案</td>
+            <td style="text-align: center;">使用凹印印刷的防伪特征。用手触摸，有极强的凹凸感。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">丝印SPARK®</td>
+            <td style="text-align: center;">使用OVMI®油墨印刷的防伪特征。通过倾斜或转动角度观察上面的数字“10”，观察者在不同角度可看到数字“10”产生由金变绿的滚动效果。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">SD凹印对印图案</td>
+            <td style="text-align: center;">采用凹印正背面图案对应设计，正背面凹印同时印刷的防伪特征。透光观察时，可见图案完全重合、图案互补等效果。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">无色荧光图案</td>
+            <td style="text-align: center;">使用无色荧光油墨印刷的防伪特征。在紫外光下，呈现黄色荧光图案。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">凹印微缩文字</td>
+            <td style="text-align: center;">使用凹印印刷的防伪特征。正面中部“澳门币拾圆”上方的横条图案在放大镜下观察，可见清晰的微缩“MACAU10”字样。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">液晶光变开窗安全线</td>
+            <td style="text-align: center;">使用特殊工艺制成的光变开窗安全线防伪特征，在与票面垂直角度观察时为紫红色，倾斜一定角度为绿色。透光观察，可见“10”字样。</td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">有色荧光图案</td>
+            <td style="text-align: center;">使用荧光油墨印刷的防伪特征。背面胶印图纹，在紫外光下可见黄色荧光颜色。</td>
+        </tr>
+    </tbody>
+</table>
