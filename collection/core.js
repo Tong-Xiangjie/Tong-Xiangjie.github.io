@@ -341,7 +341,7 @@ function saveFullState() {
             currentIndex: currentArticleIndex,
             searchKeyword: articleSearchKeyword,
             listScrollY: currentArticleView === VIEW.LIST ? scrollY : (prev.listScrollY || 0),
-            readerScrollY: 0
+            readerScrollY: currentArticleView === VIEW.READER ? scrollY : (prev.readerScrollY || 0)
         };
         scrollMemory['articles-' + key] = scrollY;
     } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
