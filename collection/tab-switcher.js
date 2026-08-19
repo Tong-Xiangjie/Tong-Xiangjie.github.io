@@ -333,8 +333,8 @@ function enterArticlesTab() {
     renderSidebar();
 
     if (currentArticleIndex >= 0 && currentArticleView === VIEW.READER) {
-        // ★ 恢复阅读器（内容在 articleContentCache 里则秒开，不重新请求）
-        openArticleReader(currentArticleIndex);
+        // ★ 恢复阅读器并恢复滚动位置
+        openArticleReader(currentArticleIndex, true);
     } else {
         renderArticleList();
         const container = getRenderContainer();
