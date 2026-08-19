@@ -32,7 +32,7 @@ const commemorativeData = {
                     issueDate: "1988年11月",
                     issueQuantity: "1.2万",
                     size:"135mm*70mm",
-                    remark: "纪念钞的鼻祖，发行量最少的一张", 
+                    remark: "我国纪念钞的鼻祖，发行量最少的一张", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-1.jpg", 
                     img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-2.jpg" 
                 }
@@ -180,7 +180,7 @@ const commemorativeData = {
                     krause: "908",
                     issueDate: "2008年7月8日",
                     issueQuantity: "600万",
-                    remark: "钞王！传家宝级别", 
+                    remark: "曾经的奥运钞王", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-1.jpg", 
                     img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-2.jpg" 
                 }
@@ -210,6 +210,9 @@ const commemorativeData = {
         { 
             seriesName: "第29届奥林匹克运动会纪念钞（澳门）",
             year: "2008",
+            readmes: [
+                { title: "奥林匹克运动会澳门元纪念钞", content: "file:readmes/macau_aoyun2008.txt" }
+            ],
             copies: [
                 { 
                     copyId: 1, 
@@ -293,6 +296,9 @@ const commemorativeData = {
         { 
             seriesName: "纪念中国银行成立100周年纪念钞（澳门）",
             year: "2012",
+            readmes: [
+                { title: "纪念中国银行成立一百周年澳门币", content: "file:readmes/macau_boc100years.txt" }
+            ],
             copies: [
                 { 
                     copyId: 1, 
@@ -312,11 +318,30 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "澳门生肖钞",
+            seriesName: "澳门生肖贺岁钞",
             year: "2012～2023",
             "varieties": [
                 {
+                    "varietyName": "2012 龙年",
+                    readmes: [
+                        { title: "中国银行龙年生肖贺岁钞", content: "file:readmes/amsx_2012.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },{
+                    "varietyName": "2013 蛇年",
+                    readmes: [
+                        { title: "中国银行蛇年生肖贺岁钞", content: "file:readmes/amsx_2013.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },{
                     "varietyName": "2014 马年",
+                    readmes: [
+                        { title: "中国银行马年生肖贺岁钞", content: "file:readmes/amsx_2014.txt" }
+                    ],
                     "copies": [
                         {
                             "copyId": 1,
@@ -354,6 +379,9 @@ const commemorativeData = {
                 },
                 {
                     "varietyName": "2015 羊年",
+                    readmes: [
+                        { title: "中国银行羊年生肖贺岁钞", content: "file:readmes/amsx_2015.txt" }
+                    ],
                     "copies": [
                         {
                             "copyId": 1,
@@ -391,6 +419,9 @@ const commemorativeData = {
                 },
                 {
                     "varietyName": "2016 猴年",
+                    readmes: [
+                        { title: "中国银行猴年生肖贺岁钞", content: "file:readmes/amsx_2016.txt" }
+                    ],
                     "copies": [
                         {
                             "copyId": 1,
@@ -428,6 +459,9 @@ const commemorativeData = {
                 },
                 {
                     "varietyName": "2017 鸡年",
+                    readmes: [
+                        { title: "中国银行鸡年生肖贺岁钞", content: "file:readmes/amsx_2017.txt" }
+                    ],
                     "copies": [
                         {
                             "copyId": 1,
@@ -449,6 +483,9 @@ const commemorativeData = {
                 },
                 {
                     "varietyName": "2018 狗年",
+                    readmes: [
+                        { title: "中国银行狗年生肖贺岁钞", content: "file:readmes/amsx_2018.txt" }
+                    ],
                     "copies": [
                         {
                             "copyId": 1,
@@ -483,7 +520,48 @@ const commemorativeData = {
                             "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/00651321-2.jpg"
                         }
                     ]
-                }
+                },
+                {
+                    "varietyName": "2019 猪年",
+                    readmes: [
+                        { title: "中国银行猪年生肖贺岁钞", content: "file:readmes/amsx_2019.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },{
+                    "varietyName": "2020 鼠年",
+                    readmes: [
+                        { title: "中国银行鼠年生肖贺岁钞", content: "file:readmes/amsx_2020.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },{
+                    "varietyName": "2021 牛年",
+                    readmes: [
+                        { title: "中国银行牛年生肖贺岁钞", content: "file:readmes/amsx_2021.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },{
+                    "varietyName": "2022 虎年",
+                    readmes: [
+                        { title: "中国银行虎年生肖贺岁钞", content: "file:readmes/amsx_2022.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },{
+                    "varietyName": "2023 兔年",
+                    readmes: [
+                        { title: "中国银行兔年生肖贺岁钞", content: "file:readmes/amsx_2023.txt" }
+                    ],
+                    "copies": [
+                        
+                    ]
+                },
             ]  
         },
         { 
@@ -620,11 +698,14 @@ const commemorativeData = {
             ] 
         },
         {
-            "seriesName": "澳门回归20周年纪念钞",
+            "seriesName": "庆祝澳门回归祖国20周年纪念钞",
             "year": "2019",
             "varieties": [
                 {
                     "varietyName": "中国银行",
+                    readmes: [
+                        { title: "庆祝澳门回归祖国二十周年主题钞票", content: "file:readmes/macau_huigui20.txt" }
+                    ],
                     "copies": [
                         {
                             "copyId": 1,
@@ -776,6 +857,9 @@ const commemorativeData = {
         { 
             seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
             year: "2022",
+            readmes: [
+                { title: "庆祝第24届冬季奥林匹克运动会主题钞票", content: "file:readmes/macau_dongao.txt" }
+            ],
             copies: [
                 { 
                     copyId: 1, 
@@ -798,7 +882,7 @@ const commemorativeData = {
             seriesName: "龙年贺岁纪念钞",
             year: "2024",
             readme: {
-                title: "发行公告",
+                title: "龙年贺岁纪念钞发行公告",
                 content: "file:readmes/dragon_release.txt"
             },
             copies: [
@@ -823,7 +907,7 @@ const commemorativeData = {
             seriesName: "蛇年贺岁纪念钞",
             year: "2025",
             readme: {
-                title: "发行公告",
+                title: "蛇年贺岁纪念钞发行公告",
                 content: "file:readmes/snake_release.txt"
             },
             copies: [
@@ -848,7 +932,7 @@ const commemorativeData = {
             seriesName: "马年贺岁纪念钞",
             year: "2026",
             readme: {
-                title: "发行公告",
+                title: "马年贺岁纪念钞发行公告",
                 content: "file:readmes/horse_release.txt"
             },
             copies: [
