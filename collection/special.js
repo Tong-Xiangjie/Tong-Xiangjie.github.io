@@ -541,8 +541,9 @@ async function renderShanheContent(config) {
     const mapFile = config.mapFile || 'china_map.svg';
     shanheProvinceNames = window.SHANHE_PROVINCE_NAMES || {};
 
-    // ★ 河山恒为全屏：强制隐藏侧边栏
+    // ★ 河山恒为全屏：任何视图（地图/列表/省份详情）都强制隐藏侧边栏
     document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+    document.querySelector('.body-row')?.classList.remove('special-overview-mode');
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = 'none';
     const sidebarEl = document.getElementById('sidebar');
