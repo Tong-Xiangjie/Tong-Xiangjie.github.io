@@ -480,7 +480,14 @@ function openArticleReader(index, restoreScroll) {
         })
         .catch(() => {
             if (currentArticleView === VIEW.READER && currentArticleIndex === index) {
-                app.innerHTML = `<div class="back-bar"><button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button></div><div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div><div class="empty-state">文章不见了哦~</div>`;
+                // ★ 报错页也加「⟳ 重新加载」按钮
+                app.innerHTML =
+                    `<div class="back-bar">` +
+                    `<button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button>` +
+                    `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">⟳ 重新加载</button>` +
+                    `</div>` +
+                    `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div>` +
+                    `<div class="empty-state">文章不见了哦~</div>`;
             }
         });
 }
@@ -522,5 +529,5 @@ function reloadArticle() {
     if (!article) return;
     delete articleContentCache[article.contentPath];
     delete articlePlainTextCache[article.contentPath];
-    openArticleReader(currentArticleIndex); // 不带 restoreScroll，每次从顶部开始
+    openArticleReader(currentArticleIndex);   // 不带 restoreScroll，从顶部开始
 }
