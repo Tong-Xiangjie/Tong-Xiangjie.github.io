@@ -29,6 +29,9 @@ const shanheScenes = [
     { province: 'chongqing', city: '奉节县', scene: '长江三峡-夔门', denom: '第五套人民币10元', year: "1999/2005", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/sx-9910.jpg' },
     { province: 'chongqing', city: '奉节县', scene: '长江三峡-夔门', denom: '第五套人民币10元', year: 2019, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/sx-1910.jpg' },
 
+    // ===== 福建 =====
+    { province: 'fujian',    city: '莆田市（闽B）', scene: '东圳水库', denom: '地方经济建设公债1元', year: 1960, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/dzsk-1960-1.jpg' },
+
     // ===== 广东 =====
     { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票1角', year: 1949, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsjnt-dyp01.jpg' },
     { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票5角', year: 1949, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsjnt-dyp05.jpg' },
