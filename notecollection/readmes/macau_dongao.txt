@@ -1,0 +1,63 @@
+<center>
+    <b><span style="font-size:1.1em;">庆祝第24届冬季奥林匹克运动会主题钞票</span></b><br>
+    <span style="font-size:0.85em;">（转载自<a href="https://www.bankofchina.com/mo/aboutus/ab4/ab43/202309/t20230904_23687800.html" target="_blank">https://www.bankofchina.com/mo/aboutus/ab4/ab43/202309/t20230904_23687800.html</a>）</span>
+</center>
+<br>
+
+<p>为庆祝第24届冬季奥林匹克运动会2022年在北京举行，中国银行作为2022年第24届冬奥会的官方授权银行合作伙伴，根据第13/2021号行政法规，获许可发行面额澳门元贰拾圆的第24届冬季奥林匹克运动会钞票。</p>
+<p>钞票正面以中国银行澳门分行大厦、雪花图案及星星图案组成，体现冬季奥林匹克运动会的季节特征和北京冬奥精神的巨大凝聚力。</p>
+<p>钞票背面采用竖式设计，以短道速滑运动员、国家速滑馆为主要图案，配以短道速滑跑道和澳门大三巴牌坊为背景图案，表现奥运精神与澳门多元、包容的文化精神共鸣。</p>
+
+<p><b>钞票样本：</b></p>
+
+<!-- 图片1：正面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/amda_01.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">（正面）</span>
+</div>
+
+<!-- 图片2：背面，有图注 -->
+<div style="text-align: center; margin-bottom: 12px;">
+    <img src="readmes/image/comm/amda_02.jpg" style="width:80%; display:block; margin:0 auto;">
+    <span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">（背面）</span>
+</div>
+
+<br>
+
+<p><b>钞票防伪特征介绍：</b></p>
+
+<!-- 防伪特征表格 -->
+<table border="1" cellspacing="0" cellpadding="10"
+       style="border-collapse: collapse;
+              margin: 20px auto;
+              width: 92%;
+              max-width: 880px;
+              font-size: 14px;
+              font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <colgroup>
+        <col style="width: 50%;">
+        <col style="width: 50%;">
+    </colgroup>
+    <thead>
+        <tr style="background-color: #f5f7fa; font-weight: 600; text-align: center;">
+            <th>钞票正面</th>
+            <th>钞票背面</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="text-align: left; vertical-align: top; padding-left: 20px;">
+                ① 水印<br>
+                ② 开窗安全线<br>
+                ③ 动感光亮图案<br>
+                ④ 珠光<br>
+                ⑤ 隐形图像
+            </td>
+            <td style="text-align: left; vertical-align: top; padding-left: 20px;">
+                ① 凹印缩微文字<br>
+                ② 水印
+            </td>
+        </tr>
+    </tbody>
+</table>
