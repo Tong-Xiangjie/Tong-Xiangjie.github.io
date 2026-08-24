@@ -11,6 +11,7 @@ const republic_cbcData = {
         { key: "issueDate", label: "发行日期" },
         { key: "withdrawnDate", label: "停止流通日期" },
         { key: "size", label: "标准尺寸" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
@@ -18,11 +19,11 @@ const republic_cbcData = {
     ],
     series: [
         {
-            seriesName: "中华民国十九年（1930年） 美钞版 海关金单位兑换券（关金券）",
+            seriesName: "中华民国十九年（1930年） 美钞版·上海地名 海关金单位兑换券（关金券）",
             year: "1930",
             varieties: [
                 {
-                    varietyName: "1930年 20元 上海地名 上海海关大楼",
+                    varietyName: "1930年 20元 上海海关大楼",
                     copies: [
                         {
                             copyId: 18542301,
@@ -45,7 +46,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国二十年（1931年） 中华书局版 兑换券（辅币券）",
+            seriesName: "中华民国二十年（1931年） 中华书局版 兑换券·辅币券",
             year: "1931",
             varieties: [
                 {
