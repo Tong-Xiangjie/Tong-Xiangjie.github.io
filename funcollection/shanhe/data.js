@@ -46,14 +46,19 @@ const shanheScenes = [
     { province: 'guangxi',   city: '桂林（桂C）', scene: '桂林山水', denom: '国库券100元', year: 1991, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/glss-100.jpg' },
 
     // ===== 贵州 =====
+    { province: 'guizhou',   city: '贵阳（贵A）', scene: '贵州省银行旧址', denom: '贵州省银行银元辅币券1分', year: 1949, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/gzsyh-1949-001.jpg' },
     { province: 'guizhou',   city: '安顺（贵G）', scene: '黄果树瀑布', denom: '外汇兑换券1角', year: 1979, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hgspb-fec01.jpg' },
 
     // ===== 河北 =====
     { province: 'hebei',     city: '秦皇岛（冀C）', scene: '山海关', denom: '中央银行东北九省流通券100元', year: 1945, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/shg-dbjs100.jpg' },
     { province: 'hebei',     city: '张家口（冀G）', scene: '国家跳台滑雪中心（雪如意）', denom: '冬奥纪念钞（雪上运动）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xry-2022xsyd.jpg' },
 
+    // ===== 湖北 =====
+    { province: 'hubei',     city: '武汉（鄂A）', scene: '黄鹤楼', denom: '中央银行法币券5元', year: 1936, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zyyh-hhl-5.jpg', remark: "另有说法认为图中是湖南岳阳楼或现已损毁的重庆（原四川万县）钟鼓楼（望江楼）。" },
+
     // ===== 江苏 =====
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币1角', year: 1940, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/njzsl-1940-01.jpg' },
+    { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1940, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/njzsl-1940-10.jpg' },
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币1元', year: 1943, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/njzsl-1943-1.jpg' },
 
     // ===== 江西 =====
@@ -72,6 +77,8 @@ const shanheScenes = [
     { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾省100元', year: 2000, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-5-100.jpg' },
     { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾省50元', year: 1972, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsl-1972-50.jpg' },
     { province: 'taiwan',    city: '台北', scene: '台湾中央银行大楼', denom: '新台币发行50周年纪念钞', year: 1999, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zyyh-1999.jpg' },
+    { province: 'taiwan',    city: '花莲县', scene: '象鼻隧道', denom: '台湾省1元', year: 1961, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xbsd-1961-1.jpg', remark: "象鼻隧道位于旧苏花公路（台9丁线）的姑姑子断崖上，属于清水断崖的最北段，行政区划上隶属于花莲县秀林乡。该路段因1971年和平隧道开通后废弃，现属高风险区域。" },
+    { province: 'taiwan',    city: '云林县', scene: '北港净水厂', denom: '台湾省5元', year: 1961, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/bgjsc-1961-5.jpg', remark: "准确来说是云林县北港镇自来水厂（北港净水厂）水塔建筑。"},
     { province: 'taiwan',    city: '云林县-彰化县', scene: '西螺大桥（浊水溪大桥）', denom: '台湾省10元', year: 1960, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xldq-1960-10.jpg' },
 
 
