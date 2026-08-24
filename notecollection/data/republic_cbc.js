@@ -18,6 +18,33 @@ const republic_cbcData = {
     ],
     series: [
         {
+            seriesName: "中华民国十九年（1930年） 美钞版 海关金单位兑换券（关金券）",
+            year: "1930",
+            varieties: [
+                {
+                    varietyName: "1930年 20元 上海地名 上海海关大楼",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1930,
+                            version: "YF758914",
+                            bank: "中央银行",
+                            print: "美国钞票公司/ABNC",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG63E",
+                            price: "69元",
+                            purchaseDate: "2026年8月24日",
+                            krause: "328",
+                            remark: "双字轨版",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/YF758914-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/YF758914-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国二十年（1931年） 中华书局版 兑换券（辅币券）",
             year: "1931",
             varieties: [
@@ -136,6 +163,27 @@ const republic_cbcData = {
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/215191PH-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/215191PH-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1936年 5元 万古长春牌坊",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1936,
+                            version: "V136249 X/A",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG63E",
+                            price: "59元",
+                            purchaseDate: "2026年8月24日",
+                            krause: "213a",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/V136249XA-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/V136249XA-2.jpg"
                         }
                     ]
                 }

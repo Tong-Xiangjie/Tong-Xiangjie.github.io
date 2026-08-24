@@ -13,7 +13,7 @@ const republic_crbcData = {
                     varietyName: "1940年 1角 华成版 南京中山陵",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22515535,
                             year: 1940,
                             version: "S165294D",
                             bank: "中央储备银行",
@@ -34,7 +34,7 @@ const republic_crbcData = {
                     varietyName: "1940年 5元 南京中山陵",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: "2139471-077",
                             year: 1940,
                             version: "E/T 444887A",
                             bank: "中央储备银行",
@@ -55,7 +55,7 @@ const republic_crbcData = {
                     varietyName: "1940年 10元 南京中山陵",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21972876,
                             year: 1940,
                             version: "W/Y 706147E",
                             bank: "中央储备银行",
@@ -82,8 +82,8 @@ const republic_crbcData = {
                     varietyName: "1943年 1元 南京中山陵",
                     copies: [
                         {
-                            copyId: 1,
-                            year: 1940,
+                            copyId: 18815480,
+                            year: 1943,
                             version: "AB446413",
                             bank: "中央储备银行",
                             print: "",
@@ -97,6 +97,27 @@ const republic_crbcData = {
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/AB446413-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/AB446413-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1943年 10元 梅花 南京中山陵",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1943,
+                            version: "〔17〕",
+                            bank: "中央储备银行",
+                            print: "",
+                            issueDate: "民国三十二年（1943年）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "186元",
+                            purchaseDate: "2026年8月24日",
+                            krause: "J20a",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/1943-10-17-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_crbc/1943-10-17-2.jpg"
                         }
                     ]
                 }
