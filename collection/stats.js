@@ -199,33 +199,58 @@ function computeStats(typeFilter) {
     return { total, notesCount, coinsCount, prices, totalPrice, avgPrice, sortedGrades, ungraded, sortedYears };
 }
 
+// ============================================================
+// ★ 修改：价格列表分类筛选下拉菜单，显示层级结构
+// ============================================================
 function buildPriceFilterCategories() {
     const cats = [];
+    
+    // ========== 纸币分类 ==========
     if (window.DATA_MAP) {
         for (const cat of categoryTree) {
             if (cat.children) {
+                // 有子分类：显示 "父分类 - 子分类"
                 for (const sub of cat.children) {
                     const data = window.DATA_MAP[sub.dataKey];
                     if (data && data.series && data.series.length > 0) {
-                        cats.push({ id: 'notes_' + sub.id, name: '纸币 - ' + sub.name, dataKey: sub.dataKey, source: 'notes' });
+                        cats.push({
+                            id: 'notes_' + sub.id,
+                            name: cat.name + ' - ' + sub.name,
+                            dataKey: sub.dataKey,
+                            source: 'notes'
+                        });
                     }
                 }
             } else if (cat.dataKey) {
+                // 无子分类（顶层分类）：直接显示分类名
                 const data = window.DATA_MAP[cat.dataKey];
                 if (data && data.series && data.series.length > 0) {
-                    cats.push({ id: 'notes_' + cat.id, name: '纸币 - ' + cat.name, dataKey: cat.dataKey, source: 'notes' });
+                    cats.push({
+                        id: 'notes_' + cat.id,
+                        name: cat.name,
+                        dataKey: cat.dataKey,
+                        source: 'notes'
+                    });
                 }
             }
         }
     }
+
+    // ========== 硬币分类 ==========
     if (window.COIN_DATA_MAP) {
         for (const cat of coinCategoryTree) {
             const data = window.COIN_DATA_MAP[cat.dataKey];
             if (data && data.series && data.series.length > 0) {
-                cats.push({ id: 'coins_' + cat.id, name: '硬币 - ' + cat.name, dataKey: cat.dataKey, source: 'coins' });
+                cats.push({
+                    id: 'coins_' + cat.id,
+                    name: cat.name,
+                    dataKey: cat.dataKey,
+                    source: 'coins'
+                });
             }
         }
     }
+
     return cats;
 }
 

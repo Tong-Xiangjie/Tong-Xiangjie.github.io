@@ -1,3 +1,38 @@
+/* ============================================================
+   1. 字体导入（放在最顶部，确保优先加载）
+   ============================================================ */
+@font-face {
+  font-family: 'CourierPrime';
+  src: url('../font/Courier_Prime/CourierPrime-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CourierPrime';
+  src: url('../font/Courier_Prime/CourierPrime-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CourierPrime';
+  src: url('../font/Courier_Prime/CourierPrime-Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CourierPrime';
+  src: url('../font/Courier_Prime/CourierPrime-BoldItalic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ============================================================
+   2. CSS 变量（原有样式不变）
+   ============================================================ */
 :root {
     --theme: #1677ff;
     --bg: #eef4ff;
@@ -268,7 +303,6 @@ body {
     color: #fff;
 }
 
-/* ★ 标题文字：可收缩到可用宽度（不再用省略号，改由 JS 做比例压缩） */
 .sidebar-item > span:first-child {
     flex: 1 1 auto;
     min-width: 0;
@@ -486,8 +520,25 @@ body {
 .copy-thumb.no-img { display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: var(--text-secondary); background: var(--thumb-bg); }
 
 .copy-info { flex: 1; min-width: 0; font-size: 0.8rem; line-height: 1.5; }
-.copy-info .version { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--text); }
-.copy-info .condition { display: inline-block; background: var(--thumb-bg); padding: 0 6px; border-radius: 3px; font-size: 0.7rem; margin-right: 4px; color: var(--text); }
+
+/* ============================================================
+   ★★★ 冠字号字体（使用本地 Courier Prime 等宽字体） ★★★
+   ============================================================ */
+.copy-info .version {
+    font-family: 'CourierPrime', 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: var(--text);
+}
+
+.copy-info .condition {
+    display: inline-block;
+    background: var(--thumb-bg);
+    padding: 0 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    margin-right: 4px;
+    color: var(--text);
+}
 .copy-info .meta { color: var(--text-secondary); font-size: 0.75rem; }
 
 /* ========== 系列标题 ========== */
@@ -774,7 +825,6 @@ body.modal-open {
 .rating-tab:hover { background: var(--sidebar-bg); }
 .rating-tab.active { background: var(--theme); color: #fff; }
 
-/* ========== 评级/年代区域切换动画 ========== */
 #ratingSection, #yearSection { transition: opacity 0.15s ease, transform 0.15s ease; }
 
 /* ========== 专题内容页样式 ========== */
@@ -792,7 +842,7 @@ body.modal-open {
 .special-item-name { font-size: 0.8rem; font-weight: bold; color: var(--text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .special-item-krause { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
 
-/* ========== 侧边栏完全隐藏（专题概览全宽页面） ========== */
+/* ========== 侧边栏完全隐藏 ========== */
 .body-row.sidebar-hidden .sidebar {
     width: 0;
     min-width: 0;
@@ -857,7 +907,6 @@ body.modal-open {
     font-weight: bold;
 }
 
-/* ========== 专题概览：长条样式（带标语的专题） ========== */
 .special-overview-bar {
     grid-column: 1 / -1;
     display: flex;
@@ -943,7 +992,7 @@ body.modal-open {
     opacity: 0.85;
 }
 
-/* ========== 灯箱通用关闭按钮：极简 ✕ ========== */
+/* ========== 灯箱通用关闭按钮 ========== */
 .lightbox-close {
     position: absolute;
     top: 10px;
@@ -1063,7 +1112,7 @@ body.modal-open {
     50% { opacity: 0.55; }
 }
 
-/* ========== ★★★ 图片重试悬浮按钮 ★★★ ========== */
+/* ========== 图片重试悬浮按钮 ========== */
 .img-retry-fab {
     position: fixed;
     right: 16px;
@@ -1087,7 +1136,6 @@ body.modal-open {
 
 .img-retry-fab .fab-icon { font-size: 1.1rem; line-height: 1; }
 
-/* 数量角标：浅色背景，叠在 ⟳ 右上角，不撑大按钮 */
 .img-retry-fab .fab-count {
     position: absolute;
     top: -3px;
@@ -1106,7 +1154,6 @@ body.modal-open {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-/* ========== 清除缓存按钮固定宽度 ========== */
 #clearCacheBtn {
     width: 132px;
     padding: 6px 0;
@@ -1169,7 +1216,6 @@ body.modal-open {
 }
 .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
 
-/* ★ 粤港澳放大图（切片，右侧，字号略小） */
 .shanhe-map-inset {
     width: 240px;
     max-width: 100%;
@@ -1184,7 +1230,6 @@ body.modal-open {
 .shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
 .shanhe-map-loading { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
 
-/* ========== 移动端：地图占满全宽 ========== */
 @media (max-width: 760px) {
     .shanhe-map-wrap {
         padding-right: 0;
@@ -1199,7 +1244,6 @@ body.modal-open {
     }
 }
 
-/* ========== 移动端：搜索栏强制单行 ========== */
 @media (max-width: 520px) {
     .search-bar {
         flex-wrap: nowrap;
@@ -1232,7 +1276,6 @@ body.modal-open {
     }
 }
 
-/* ========== 方寸山河：视图切换 + 列表视图 ========== */
 .shanhe-header-row {
     display: flex;
     align-items: center;
@@ -1297,7 +1340,6 @@ body.modal-open {
     text-overflow: ellipsis;
 }
 
-/* ★ 列表图片：隐形相框（相框固定，图片在内部放大） */
 .shanhe-list-cell {
     aspect-ratio: 1 / 1;
     overflow: hidden;
@@ -1327,7 +1369,6 @@ body.modal-open {
     color: var(--text-secondary);
 }
 
-/* ★ 山河视图切换动画 */
 .shanhe-view-enter {
     animation: shanheViewFade 0.25s ease;
 }
