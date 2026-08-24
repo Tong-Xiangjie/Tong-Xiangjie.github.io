@@ -25,7 +25,7 @@ const republic_cbcData = {
                     varietyName: "1930年 20元 上海地名 上海海关大楼",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18542301,
                             year: 1930,
                             version: "YF758914",
                             bank: "中央银行",
@@ -52,7 +52,7 @@ const republic_cbcData = {
                     varietyName: "1931年 1角 杏坛",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19532111,
                             year: 1931,
                             version: "Y619524L",
                             bank: "中央银行",
@@ -73,7 +73,7 @@ const republic_cbcData = {
                     varietyName: "1931年 2角 洙水桥",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22661868,
                             year: 1931,
                             version: "F616958Q",
                             bank: "中央银行",
@@ -100,7 +100,7 @@ const republic_cbcData = {
                     varietyName: "1936年 10元 北京太和殿",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21315726,
                             year: 1936,
                             version: "C/V 684686X",
                             bank: "中央银行",
@@ -121,7 +121,7 @@ const republic_cbcData = {
                     varietyName: "1936年 100元 北京太和殿",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19968343,
                             year: 1936,
                             version: "C/P 840041C",
                             bank: "中央银行",
@@ -148,7 +148,7 @@ const republic_cbcData = {
                     varietyName: "1936年 1元 万古长春牌坊",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26830418,
                             year: 1936,
                             version: "215191 P/H",
                             bank: "中央银行",
@@ -169,7 +169,7 @@ const republic_cbcData = {
                     varietyName: "1936年 5元 万古长春牌坊",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18542256,
                             year: 1936,
                             version: "V136249 X/A",
                             bank: "中央银行",
@@ -196,7 +196,7 @@ const republic_cbcData = {
                     varietyName: "1939年 1分 灵谷塔",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 10326949,
                             year: 1939,
                             version: "B501637D",
                             bank: "中央银行",
@@ -217,7 +217,7 @@ const republic_cbcData = {
                     varietyName: "1939年 5分 灵谷塔",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 10332712,
                             year: 1939,
                             version: "B695627G",
                             bank: "中央银行",
@@ -244,7 +244,7 @@ const republic_cbcData = {
                     varietyName: "1941年 5元 黄鹤楼",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19915272,
                             year: 1941,
                             version: "CL802418",
                             bank: "中央银行",
@@ -271,7 +271,7 @@ const republic_cbcData = {
                     varietyName: "1941年 10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19006336,
                             year: 1941,
                             version: "FJ772552",
                             bank: "中央银行",
@@ -292,7 +292,7 @@ const republic_cbcData = {
                     varietyName: "1941年 100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: "2325770-029",
                             year: 1941,
                             version: "IO038655",
                             bank: "中央银行",
@@ -319,7 +319,7 @@ const republic_cbcData = {
                     varietyName: "1945年 100元 山海关",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22501795,
                             year: 1945,
                             version: "WQ648448",
                             bank: "中央银行",
@@ -346,7 +346,7 @@ const republic_cbcData = {
                     varietyName: "1946年 1角 安庆振风塔",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 16956910,
                             year: 1945,
                             version: "6D838457",
                             bank: "中央银行",
