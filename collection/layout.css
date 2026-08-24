@@ -1,12 +1,6 @@
 /* ============================================================
    1. 字体导入（放在最顶部，确保优先加载）
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
-
-body {
-    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-}
-
 @font-face {
   font-family: 'CourierPrime';
   src: url('../font/Courier_Prime/CourierPrime-Regular.ttf') format('truetype');
@@ -36,6 +30,22 @@ body {
   font-display: swap;
 }
 
+/* ========== ★ 新增思源黑体 ========== */
+@font-face {
+  font-family: 'SourceHanSansSC';
+  src: url('../font/SourceHanSansSC/SourceHanSansSC-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SourceHanSansSC';
+  src: url('../font/SourceHanSansSC/SourceHanSansSC-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ============================================================
    2. CSS 变量（原有样式不变）
    ============================================================ */
@@ -58,8 +68,9 @@ body {
     box-sizing: border-box;
 }
 
+/* ========== ★ 修改 body 字体优先使用思源黑体 ========== */
 body {
-    font-family: 'Noto Sans CJK SC', 'Source Han Sans SC', 'Noto Sans', sans-serif;
+    font-family: 'SourceHanSansSC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'Noto Sans', sans-serif;
     background: var(--bg);
     color: var(--text);
 }
