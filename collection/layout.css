@@ -1,6 +1,12 @@
 /* ============================================================
    1. 字体导入（放在最顶部，确保优先加载）
    ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+
+body {
+    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
 @font-face {
   font-family: 'CourierPrime';
   src: url('../font/Courier_Prime/CourierPrime-Regular.ttf') format('truetype');
