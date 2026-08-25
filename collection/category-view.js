@@ -253,12 +253,13 @@ function renderCopiesList(copies, detailFields, displayName) {
         html += `</div>`;
         html += `<div class="copy-info">`;
 
-        // 第一行：版本号 + 「详细信息」入口（无版本号则入口单独一行）
+        // ===== 修改开始：冠字号用 .version-text 包裹 =====
         if (c.version) {
-            html += `<div class="version">${escapeHtml(c.version)}<span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
+            html += `<div class="version"><span class="version-text">${escapeHtml(c.version)}</span><span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
         } else {
             html += `<div class="version"><span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
         }
+        // ===== 修改结束 =====
 
         html += `<div>`;
         if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
