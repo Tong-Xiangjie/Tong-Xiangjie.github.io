@@ -14,6 +14,7 @@ function enterSettings() {
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
     document.querySelector('.tab-item[data-target="settings"]')?.classList.add('active');
 
+    switchToCurrentContainer();
     renderSettingsPage();
     triggerViewAnimation();
 }
@@ -23,15 +24,13 @@ function onTabClick(target) {
 
     if (target === MODE.SETTINGS) {
         if (!isSettingsMode) {
-            // ★ 进入设置前，强制保存专题页面的完整状态（山河不缓存 HTML）
             if (currentMode === MODE.SPECIAL && selectedSpecial !== null && selectedSpecial !== undefined) {
                 const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
                 if (!(cfg && cfg.view === 'map')) {
-                    const appEl = document.getElementById('app');
-                    if (appEl) {
+                    const container = getRenderContainer();
+                    if (container) {
                         specialPageCaches[selectedSpecial] = {
-                            innerHTML: appEl.innerHTML,
-                            scrollY: appEl.scrollTop || 0,
+                            scrollY: container.scrollTop || 0,
                             currentSubId: currentSubId
                         };
                     }
@@ -44,7 +43,7 @@ function onTabClick(target) {
                 selectedSpecial
             };
         }
-        switchViewContainer('settings');
+        switchToCurrentContainer();
         enterSettings();
         return;
     }
@@ -76,7 +75,6 @@ function enterSpecialFromTab() {
         document.querySelector('.body-row')?.classList.remove('settings-mode');
     }
 
-    // ★ 从 settingsReturnState 恢复专题选择状态
     if (settingsReturnState && settingsReturnState.currentMode === MODE.SPECIAL) {
         if (selectedSpecial === null || selectedSpecial === undefined) {
             selectedSpecial = settingsReturnState.selectedSpecial;
@@ -92,50 +90,33 @@ function enterSpecialFromTab() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
+    switchToCurrentContainer();
+
     if (selectedSpecial === null || selectedSpecial === undefined) {
         document.querySelector('.body-row')?.classList.add('sidebar-hidden');
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
         const btn = document.getElementById('sidebarToggle');
         if (btn) btn.style.display = 'none';
-        switchToCurrentContainer();
         renderSpecialOverview();
         triggerViewAnimation();
         return;
     }
 
-    // ★ 判断是否为地图专题
     const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
-    const isMapSpecial = specialCfg && specialCfg.view === 'map';
-
-    if (isMapSpecial) {
-        // ★ 地图专题：不走缓存，重新渲染 + 全屏
-        if (specialPageCaches[selectedSpecial]) {
-            currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
-        }
-        renderSpecialContent();
-        applySpecialLayout();
-    } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
-        // ★ 非地图专题：走缓存
-        const cache = specialPageCaches[selectedSpecial];
-        currentSubId = cache.currentSubId || null;
-        currentCategoryId = selectedSpecial;
-        const appEl = document.getElementById('app');
-        if (appEl) {
-            appEl.innerHTML = cache.innerHTML;
-            requestAnimationFrame(() => {
-                appEl.scrollTop = cache.scrollY || 0;
-            });
-        }
-        renderSidebar();
-        const sb = document.getElementById('sidebar');
-        if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
-        applySpecialLayout();
-    } else {
-        // ★ 无缓存：正常渲染
-        renderSpecialContent();
-        renderSidebar();
-        applySpecialLayout();
+    if (!specialCfg) {
+        renderSpecialOverview();
+        triggerViewAnimation();
+        return;
     }
+
+    // ★ 不要手动清空容器，由渲染函数覆盖内容
+    if (specialCfg.view === 'map') {
+        renderShanheContent(specialCfg);
+    } else {
+        renderSpecialContent();
+    }
+    renderSidebar();
+    applySpecialLayout();
 
     triggerViewAnimation();
 }
@@ -170,44 +151,30 @@ function leaveSettingsToTarget(target) {
         const searchContainer2 = document.querySelector('.top-search-container');
         if (searchContainer2) searchContainer2.classList.add('hidden');
 
-        // ★ 从 settingsReturnState 恢复 selectedSpecial
         if (settingsReturnState && settingsReturnState.selectedSpecial !== undefined && settingsReturnState.selectedSpecial !== null) {
             selectedSpecial = settingsReturnState.selectedSpecial;
             currentCategoryId = settingsReturnState.selectedSpecial;
             currentSubId = settingsReturnState.currentSubId;
         }
 
+        switchToCurrentContainer();
+
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             const specialCfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
-            const isMapSpecial = specialCfg && specialCfg.view === 'map';
-
-            if (isMapSpecial) {
-                // ★ 地图专题：重新渲染 + 全屏
-                if (specialPageCaches[selectedSpecial]) {
-                    currentSubId = specialPageCaches[selectedSpecial].currentSubId || null;
-                }
-                renderSpecialContent();
-                applySpecialLayout();
-            } else if (specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].innerHTML) {
-                const cache = specialPageCaches[selectedSpecial];
-                document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
-                const appEl = document.getElementById('app');
-                if (appEl) {
-                    appEl.innerHTML = cache.innerHTML;
-                    requestAnimationFrame(() => {
-                        appEl.scrollTop = cache.scrollY || 0;
-                    });
-                }
-                renderSidebar();
-                const sb = document.getElementById('sidebar');
-                if (sb) sb.classList.toggle('collapsed', isSidebarCollapsed);
-                applySpecialLayout();
-            } else {
-                document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
-                renderSidebar();
-                renderSpecialContent();
-                applySpecialLayout();
+            if (!specialCfg) {
+                renderSpecialOverview();
+                triggerViewAnimation();
+                return;
             }
+
+            // ★ 不要手动清空容器
+            if (specialCfg.view === 'map') {
+                renderShanheContent(specialCfg);
+            } else {
+                renderSpecialContent();
+            }
+            renderSidebar();
+            applySpecialLayout();
         } else {
             document.querySelector('.body-row')?.classList.add('sidebar-hidden');
             const btn = document.getElementById('sidebarToggle');
@@ -328,7 +295,6 @@ function enterArticlesTab() {
 
     if (collectedArticles.length === 0) collectAllArticles();
 
-    // ★ 恢复上次的文章状态（阅读器/列表 + 搜索词），不再强制重置
     currentArticleView = articleState.currentView || VIEW.LIST;
     currentArticleCategory = articleState.currentCategory || 'all';
     currentArticleIndex = (articleState.currentIndex !== undefined && articleState.currentIndex >= 0)
@@ -350,7 +316,6 @@ function enterArticlesTab() {
     renderSidebar();
 
     if (currentArticleIndex >= 0 && currentArticleView === VIEW.READER) {
-        // ★ 恢复阅读器并恢复滚动位置
         openArticleReader(currentArticleIndex, true);
     } else {
         renderArticleList();

@@ -1,20 +1,17 @@
 // ==================== settings.js ====================
 // 设置页渲染
 
-// ★ 唯一声明
 let cacheConfirmPending = false;
 let cacheConfirmTimer = null;
 
-// ★ 文章缓存防误触状态
 let articleCacheConfirmPending = false;
 let articleCacheConfirmTimer = null;
 
-// ★ CDN purge 防误触状态
 let purgeCdnConfirmPending = false;
 let purgeCdnConfirmTimer = null;
 
 function renderSettingsPage() {
-    const app = document.getElementById('app');
+    const app = getRenderContainer();
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
     const customColors = getCustomColors();
     const allStats = computeStats();
@@ -118,7 +115,7 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    // 图片缓存（按钮文字包裹 span）
+    // 图片缓存
     html += `<div class="settings-section">`;
     html += `<h3>图片缓存</h3>`;
     html += `<div class="export-buttons">`;
@@ -127,7 +124,7 @@ function renderSettingsPage() {
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片由 Service Worker 缓存到本地，可离线查看。更新图片后若仍显示旧图，点击此按钮清除缓存并刷新页面。</p>`;
     html += `</div>`;
 
-    // ★ 文章缓存
+    // 文章缓存
     html += `<div class="settings-section">`;
     html += `<h3>文章缓存</h3>`;
     html += `<div class="export-buttons">`;
@@ -136,7 +133,7 @@ function renderSettingsPage() {
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中，更新文章后若仍显示旧内容，请点击清除后重新打开。</p>`;
     html += `</div>`;
 
-    // ★ CDN 缓存
+    // CDN 缓存
     html += `<div class="settings-section">`;
     html += `<h3>CDN 缓存</h3>`;
     html += `<div class="export-buttons">`;
@@ -158,6 +155,13 @@ function renderSettingsPage() {
 
     html += `</div>`;
     app.innerHTML = html;
+
+    // ★ 延迟恢复滚动
+    if (settingsPageCache && settingsPageCache.scrollY) {
+        setTimeout(() => {
+            app.scrollTop = settingsPageCache.scrollY || 0;
+        }, 50);
+    }
 
     document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
         el.addEventListener('click', function() {
@@ -196,9 +200,7 @@ function addCurrentCustomColor() {
     if (typeof setTheme === 'function') setTheme(color);
 }
 
-// ============================================================
-// ★★★★★★★ 清除图片缓存（文字动画仅限 span，按钮本体不动） ★★★★★★★
-// ============================================================
+// ========== 清除图片缓存 ==========
 function clearImageCache() {
     if (!cacheConfirmPending) {
         cacheConfirmPending = true;
@@ -221,8 +223,17 @@ async function performClearImageCache() {
         await Promise.all(
             keys.filter(k => k.startsWith('collection-images')).map(k => caches.delete(k))
         );
-        fadeText('已 清 空');
-        setTimeout(() => fadeText('清除图片缓存'), 1000);
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+                await registration.update();
+                if (registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+            }
+        }
+        fadeText('已清空，请刷新页面');
+        setTimeout(() => fadeText('清除图片缓存'), 2000);
     } catch (e) {
         fadeText('缓存清空失败');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
@@ -239,16 +250,9 @@ function fadeText(text) {
         span.style.opacity = '1';
     }, 150);
 }
-// ★★★★★★★ 清除图片缓存功能结束 ★★★★★★★
 
-// ============================================================
-// ★★★★★★★ 清除文章缓存（防误触版） ★★★★★★★
-// ============================================================
+// ========== 清除文章缓存 ==========
 function clearArticleCache() {
-    const btn = document.getElementById('clearArticleCacheBtn');
-    if (!btn) return;
-
-    // 第一次点击：进入确认状态
     if (!articleCacheConfirmPending) {
         articleCacheConfirmPending = true;
         fadeArticleText('确 定 吗 ？');
@@ -258,8 +262,6 @@ function clearArticleCache() {
         }, 3000);
         return;
     }
-
-    // 第二次点击：真正清空
     clearTimeout(articleCacheConfirmTimer);
     articleCacheConfirmPending = false;
     articleContentCache = {};
@@ -278,15 +280,9 @@ function fadeArticleText(text) {
         span.style.opacity = '1';
     }, 150);
 }
-// ★★★★★★★ 清除文章缓存功能结束 ★★★★★★★
 
-// ============================================================
-// ★★★★★★★ 清除 CDN 缓存（jsDelivr Purge API） ★★★★★★★
-// ============================================================
+// ========== 清除 CDN 缓存 ==========
 function purgeCdnCache() {
-    const btn = document.getElementById('purgeCdnBtn');
-    if (!btn) return;
-
     if (!purgeCdnConfirmPending) {
         purgeCdnConfirmPending = true;
         fadePurgeText('确 定 吗 ？');
@@ -296,11 +292,9 @@ function purgeCdnCache() {
         }, 3000);
         return;
     }
-
     clearTimeout(purgeCdnConfirmTimer);
     purgeCdnConfirmPending = false;
 
-    // ★ 触发 jsDelivr purge（no-cors 只发请求、不读响应，无跨域问题）
     const purgeUrl = 'https://purge.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main';
     try {
         fetch(purgeUrl, { mode: 'no-cors' }).catch(() => {});
@@ -320,4 +314,3 @@ function fadePurgeText(text) {
         span.style.opacity = '1';
     }, 150);
 }
-// ★★★★★★★ 清除 CDN 缓存功能结束 ★★★★★★★

@@ -177,8 +177,11 @@ function matchCopy(copy, series, variety, keyword, type, isEmpty) {
             return String(copy.year).toLowerCase().includes(keyword);
         case SEARCH_TYPE.AGENCY:
             return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.KRAUSE:
-            return (copy.catalogNumber || copy.krause || '').toLowerCase().includes(keyword);
+        case SEARCH_TYPE.KRAUSE: {
+            const raw = (copy.catalogNumber || copy.krause || '');
+            const formatted = formatCatalogNumber(raw);
+            return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
+        }
     }
     return false;
 }
@@ -197,8 +200,11 @@ function matchCopyFlat(copy, series, keyword, type, isEmpty) {
             return String(copy.year).toLowerCase().includes(keyword);
         case SEARCH_TYPE.AGENCY:
             return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.KRAUSE:
-            return (copy.catalogNumber || copy.krause || '').toLowerCase().includes(keyword);
+        case SEARCH_TYPE.KRAUSE: {
+            const raw = (copy.catalogNumber || copy.krause || '');
+            const formatted = formatCatalogNumber(raw);
+            return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
+        }
     }
     return false;
 }
@@ -298,7 +304,6 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
         if (cat.children) {
             for (const sub of cat.children) {
                 if (sub.dataKey === dataKey) {
-                    // 保存搜索容器滚动
                     const searchKey = getContainerKey();
                     const container = getRenderContainer();
                     if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;

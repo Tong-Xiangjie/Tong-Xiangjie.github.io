@@ -95,6 +95,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     if (typeof loadTheme === 'function') loadTheme();
 
-    // ★ 启动侧边栏宽度监听（ResizeObserver），从隐藏状态进入时自动重新压缩
+    // ★ 启动侧边栏宽度监听
     if (typeof watchSidebarFit === 'function') watchSidebarFit();
+
+    // ★ 强制更新 Service Worker（确保最新缓存策略）
+    if ('serviceWorker' in navigator) {
+        try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const reg of registrations) {
+                await reg.update();
+            }
+        } catch (e) {
+            // 静默失败，不影响正常使用
+        }
+    }
 });

@@ -59,8 +59,7 @@ const categoryTree = [
             { id: 'indonesia', name: '印度尼西亚', dataKey: 'indonesiaData', dataFile: '../notecollection/data/indonesia.js' },
             { id: 'venezuela', name: '委内瑞拉', dataKey: 'venezuelaData', dataFile: '../notecollection/data/venezuela.js' },
             { id: 'ukarine', name: '乌克兰', dataKey: 'ukarineData', dataFile: '../notecollection/data/ukarine.js' },
-            { id: 'russia', name: '俄罗斯', dataKey: 'russiaData', dataFile: '../notecollection/data/russia.js' },
-            //{ id: 'vietnam', name: '越南', dataKey: 'vietnamData', dataFile: '../notecollection/data/vietnam.js' }
+            { id: 'russia', name: '俄罗斯', dataKey: 'russiaData', dataFile: '../notecollection/data/russia.js' }
         ]
     },
     {
@@ -79,14 +78,16 @@ const categoryTree = [
             { id: 'republic_spb', name: '南方人民银行', dataKey: 'republic_spbData', dataFile: '../notecollection/data/republic_spb.js' },
             { id: 'republic_mfrc', name: '中华民国财政部', dataKey: 'republic_mfrcData', dataFile: '../notecollection/data/republic_mfrc.js' }
         ]
-    },{
+    },
+    {
         id: 'military',
         name: '军票',
         children: [
             { id: 'japanMilitary', name: '日占中国', dataKey: 'japanMilitaryData', dataFile: '../notecollection/data/japan_military.js' },
             { id: 'jp_burma', name: '日占缅甸', dataKey: 'jp_burmaData', dataFile: '../notecollection/data/jp_burma.js' }
         ]
-    },{
+    },
+    {
         id: 'ticket',
         name: '票证',
         children: [
@@ -130,8 +131,8 @@ const allDataKeys = [];
     }
 })();
 
-// 图片路径前缀（旧站图片相对于新站的位置）
-const IMAGE_BASE = '../notecollection/';
+// ★ 图片路径由 CDN_BASE 统一处理（core.js 中定义）
+// IMAGE_BASE 已废弃删除
 
 // 获取数据（通过 DATA_MAP 桥接）
 function getData(dataKey) {

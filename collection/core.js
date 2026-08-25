@@ -107,27 +107,36 @@ function ensureViewContainer(key) {
         div.id = 'view-' + key.replace(/[^a-zA-Z0-9_\-]/g, '_');
         div.style.cssText = 'height:100%;overflow-y:auto;display:none;';
         const content = document.querySelector('.content');
+        if (!content) {
+            console.error('Content element not found');
+            return null;
+        }
         content.insertBefore(div, document.getElementById('app'));
         viewScrollContainers[key] = div;
     }
     return viewScrollContainers[key];
 }
 
+// ★ 所有模式都使用独立容器，#app 不再用于渲染
 function isFullPageMode(key) {
-    if (key === MODE.SPECIAL || key === MODE.SETTINGS) return true;
-    if (key.startsWith('special_') || key === 'settings') return true;
     return false;
 }
 
 function getContainerKey() {
+    // ★ 优先判断：如果正在设置页，直接返回设置容器 key
+    if (isSettingsMode) {
+        return 'settings_container';
+    }
+
     if (currentMode === MODE.ARTICLES) {
         if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
             return 'articles_reader_' + currentArticleIndex;
         }
         return 'articles_list';
     }
-    if (currentMode === MODE.SPECIAL) return 'special_' + (selectedSpecial || 'overview');
-    if (currentMode === MODE.SETTINGS) return 'settings';
+    if (currentMode === MODE.SPECIAL) {
+        return 'special_container';
+    }
     if (currentMode === MODE.NOTES) {
         if (currentView === VIEW.SEARCH) return 'notes_search';
         if (currentView === VIEW.CATEGORY) return 'notes_category_' + String(currentSubId || currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
@@ -147,29 +156,30 @@ function switchToCurrentContainer() {
 }
 
 function switchViewContainer(key) {
+    // 1. 隐藏所有容器
     for (const k of Object.keys(viewScrollContainers)) {
         viewScrollContainers[k].style.display = 'none';
     }
+    // 2. 隐藏 #app
     const app = document.getElementById('app');
     if (app) app.style.display = 'none';
 
-    if (isFullPageMode(key)) {
-        if (app) app.style.display = 'block';
-    } else {
-        const container = ensureViewContainer(key);
-        container.style.display = 'block';
-    }
+    // 3. 获取或创建目标容器
+    const container = ensureViewContainer(key);
+    if (!container) return;
+
+    // ★ 不要清空内容，不要重置滚动，由各渲染函数自行处理
+    container.style.display = 'block';
 }
 
 function getRenderContainer() {
     const key = getContainerKey();
-    if (isFullPageMode(key)) return document.getElementById('app');
     return ensureViewContainer(key);
 }
 
 function triggerViewAnimation() {
     const key = getContainerKey();
-    const el = isFullPageMode(key) ? document.getElementById('app') : viewScrollContainers[key];
+    const el = viewScrollContainers[key];
     if (!el) return;
     requestAnimationFrame(() => {
         el.classList.remove('content-enter');
@@ -203,11 +213,7 @@ function getCategoryTree() {
 }
 
 function getImageBase() {
-    if (currentMode === MODE.SPECIAL) {
-        const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
-        return config ? config.imageBase : '';
-    }
-    return currentMode === MODE.NOTES ? IMAGE_BASE : COIN_IMAGE_BASE;
+    return '';
 }
 
 function getAllDataKeys() {
@@ -293,7 +299,6 @@ function toggleSidebar() {
     if (modeStates.notes) modeStates.notes.isSidebarCollapsed = isSidebarCollapsed;
     if (modeStates.coins) modeStates.coins.isSidebarCollapsed = isSidebarCollapsed;
 
-    // ★ 宽度变化后重新做文字比例压缩（使用延迟版，覆盖过渡动画）
     if (typeof fitSidebarLabelsDelayed === 'function') {
         fitSidebarLabelsDelayed();
     }
@@ -314,10 +319,19 @@ function getDataBySource(dataKey, source) {
 // ========== 状态保存与恢复 ==========
 function saveFullState() {
     const key = getContainerKey();
-    const container = isFullPageMode(key) ? document.getElementById('app') : viewScrollContainers[key];
+    const container = viewScrollContainers[key];
     const scrollY = container ? container.scrollTop : 0;
 
-    // ★ 设置模式下不重复保存（容器可能 display:none，读 scrollTop 会返回 0 覆盖掉正确值）
+    // ★ 优先保存设置页状态（如果正处于设置模式）
+    if (isSettingsMode) {
+        const container = viewScrollContainers['settings_container'];
+        settingsPageCache = {
+            scrollY: container ? container.scrollTop || 0 : 0
+        };
+        // 设置页不保存其他状态，直接返回
+        return;
+    }
+
     if ((currentMode === MODE.NOTES || currentMode === MODE.COINS) && !isSettingsMode) {
         const expanded = collectExpandedStates();
         const prev = modeStates[currentMode] || {};
@@ -346,21 +360,17 @@ function saveFullState() {
         };
         scrollMemory['articles-' + key] = scrollY;
     } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
-        const appEl = document.getElementById('app');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
             if (cfg && cfg.view === 'map') {
-                // ★ 山河不缓存 HTML，只保留 currentSubId
                 specialPageCaches[selectedSpecial] = { currentSubId };
             } else {
                 specialPageCaches[selectedSpecial] = {
-                    innerHTML: appEl ? appEl.innerHTML : '', scrollY, currentSubId
+                    scrollY: container ? container.scrollTop || 0 : 0,
+                    currentSubId: currentSubId
                 };
             }
         }
-    } else if (currentMode === MODE.SETTINGS) {
-        const appEl = document.getElementById('app');
-        settingsPageCache = { innerHTML: appEl ? appEl.innerHTML : '', scrollY };
     }
 }
 
@@ -375,7 +385,6 @@ function restoreSidebarState() {
         toggle.textContent = '☰';
         toggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
         isSidebarCollapsed = collapsed;
-        // ★ 恢复折叠状态后同步压缩（使用延迟版，覆盖过渡动画）
         if (typeof fitSidebarLabelsDelayed === 'function') {
             fitSidebarLabelsDelayed();
         }
@@ -393,7 +402,7 @@ function setupModalEvents() {
 }
 
 // ============================================================
-// ★★★★★★★ 图片重试：收集加载失败的图片，一键重新加载 ★★★★★★★
+// ★★★★★★★ 图片重试 ★★★★★★★
 // ============================================================
 let failedImages = new Set();
 let retryFab = null;
@@ -414,12 +423,11 @@ function setupImageRetry() {
         }
     }, true);
 
-    // 右下角悬浮按钮：⟳ + 右上角数量角标
     retryFab = document.createElement('div');
     retryFab.id = 'imgRetryFab';
     retryFab.className = 'img-retry-fab';
     retryFab.innerHTML = '<span class="fab-icon">⟳</span><span class="fab-count" id="imgRetryCount"></span>';
-    retryFab.onclick = () => { retryFailedImages(); };   // 不再弹窗
+    retryFab.onclick = () => { retryFailedImages(); };
     document.body.appendChild(retryFab);
     updateRetryFab();
 }
@@ -431,7 +439,6 @@ function updateRetryFab() {
     if (has) {
         const count = failedImages.size;
         const countEl = retryFab.querySelector('.fab-count');
-        // ★ 压缩：超 999 显示 999+；字号随位数自适应
         countEl.textContent = count > 999 ? '999+' : String(count);
         countEl.style.fontSize = count > 999 ? '8px' : (count > 99 ? '9px' : (count > 9 ? '10px' : '12px'));
         retryFab.title = '重新加载未显示的图片（' + count + ' 张）';
@@ -450,13 +457,11 @@ function retryFailedImages() {
         img.src = src + sep + 'retry=' + Date.now() + Math.random().toString(36).slice(2, 6);
     }
 }
-// ★★★★★★★ 图片重试功能结束 ★★★★★★★
 
-// ========== 专题全屏布局（地图专题专用，含分组同步） ==========
+// ========== 专题全屏布局 ==========
 function applySpecialLayout() {
     const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
 
-    // ★ 先同步分组（年份→年代、面额→面额），确保 hasSub 判断基于最新 children
     if (cfg && typeof syncSpecialGroupChildren === 'function') {
         syncSpecialGroupChildren(cfg);
     }

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>铜の币纪主站</title>
     <link rel="stylesheet" href="layout.css">
-    <!-- Hammer.js 手势库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 </head>
 <body>
@@ -62,18 +61,10 @@
     <div class="modal-tip">双指缩放 | 拖动查看 | 点击背景关闭</div>
 </div>
 
-<!-- ========== 趣味收藏数据文件（专题） ========== -->
-<script src="../funcollection/years/data.js"></script>
-<!-- ★ 新增：面额大观 -->
-<script src="../funcollection/denom/data.js"></script>
-<!-- ★ 新增：方寸山河 -->
-<script src="../funcollection/shanhe/data.js"></script>
-<script src="fun-data-bridge.js"></script>
-<script src="special-bridge.js"></script>
-
-<!-- ========== 配置 + 数据加载器（顺序固定） ========== -->
+<!-- ========== 配置 + 桥接 ========== -->
 <script src="config.js"></script>
 <script src="coin-config.js"></script>
+<script src="special-bridge.js"></script>
 <script src="data-loader.js"></script>
 
 <!-- ========== 核心 + 工具 ========== -->

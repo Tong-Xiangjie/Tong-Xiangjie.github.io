@@ -2,6 +2,26 @@
 
 let copyDetailList = []; // 当前分类页已渲染的 copy 元信息，供详细信息卡片使用
 
+// ========== 通过分类树查找 dataKey（纸币/硬币统一） ==========
+function findDataKeyByCategory(categoryId, subId) {
+    const tree = getCategoryTree();
+    for (const cat of tree) {
+        if (cat.id === categoryId) {
+            if (subId && cat.children) {
+                for (const sub of cat.children) {
+                    if (sub.id === subId) {
+                        return sub.dataKey;
+                    }
+                }
+                return null; // 子分类不存在
+            }
+            // 无子分类或未指定子分类，返回自身 dataKey
+            return cat.dataKey || null;
+        }
+    }
+    return null;
+}
+
 function renderCurrentCategory() {
     if (!currentCategoryId) {
         switchToCurrentContainer();
@@ -19,32 +39,18 @@ function renderCurrentCategory() {
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); triggerViewAnimation(); return; }
 
-    // 如果是纸币且有子分类但未选择子分类，显示分类概览
+    // 如果有子分类但未选择子分类，显示分类概览
     if (cat.children && cat.children.length > 0 && !currentSubId) {
         renderCategoryOverview(cat);
         return;
     }
 
+    // ★ 统一使用 findDataKeyByCategory，不再依赖 subCategoryMap
     let dataKey = null;
-    const subMap = getSubCategoryMap();
-
     if (currentSubId) {
-        // 纸币有子分类时，通过 subCategoryMap 查找 dataKey
-        if (subMap && subMap[currentSubId]) {
-            dataKey = subMap[currentSubId].dataKey;
-        } else {
-            // 硬币没有 subCategoryMap，尝试直接从分类树子节点查找
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (sub.id === currentSubId) {
-                        dataKey = sub.dataKey;
-                        break;
-                    }
-                }
-            }
-            if (!dataKey) dataKey = cat.dataKey;
-        }
-    } else if (cat.dataKey) {
+        dataKey = findDataKeyByCategory(cat.id, currentSubId);
+    }
+    if (!dataKey && cat.dataKey) {
         dataKey = cat.dataKey;
     }
 
@@ -78,7 +84,6 @@ function renderCategoryOverview(cat) {
     let allItems = [];
     let globalIndex = 1;
 
-    // 纸币子分类概览
     if (cat.children && cat.children.length > 0) {
         for (const sub of cat.children) {
             const data = getData(sub.dataKey);
@@ -230,7 +235,6 @@ function renderSeriesList(data, title) {
     app.innerHTML = html;
 }
 
-// ========== 藏品列表渲染（内部函数） ==========
 function renderCopiesList(copies, detailFields, displayName) {
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
@@ -253,13 +257,11 @@ function renderCopiesList(copies, detailFields, displayName) {
         html += `</div>`;
         html += `<div class="copy-info">`;
 
-        // ===== 修改开始：冠字号用 .version-text 包裹 =====
         if (c.version) {
             html += `<div class="version"><span class="version-text">${escapeHtml(c.version)}</span><span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
         } else {
             html += `<div class="version"><span class="copy-detail-link" onclick="openCopyDetail(${idx})">详细信息</span></div>`;
         }
-        // ===== 修改结束 =====
 
         html += `<div>`;
         if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
@@ -280,7 +282,6 @@ function renderCopiesList(copies, detailFields, displayName) {
     return html;
 }
 
-// ========== 展开/折叠 ==========
 function toggleSeries(id) {
     const body = document.getElementById('body-' + id);
     const icon = document.getElementById('icon-' + id);
@@ -402,7 +403,6 @@ function openCopyDetail(idx) {
     const inner = document.createElement('div');
     inner.className = 'info-lightbox-inner';
 
-    // 关闭按钮（与专题灯箱同款极简 ✕）
     const closeBtn = document.createElement('div');
     closeBtn.className = 'lightbox-close';
     closeBtn.textContent = '×';
@@ -410,11 +410,9 @@ function openCopyDetail(idx) {
     closeBtn.onclick = (e) => { e.stopPropagation(); closeCopyDetail(); };
     inner.appendChild(closeBtn);
 
-    // 名称（不带「名称：」前缀）
     let html = '';
     if (name) html += `<div class="info-lightbox-title">${escapeHtml(name)}</div>`;
 
-    // 图片（点击放大，复用 openModal）
     const img1 = getImageUrl(copy.img1);
     const img2 = getImageUrl(copy.img2);
     if (img1 || img2) {
@@ -424,7 +422,6 @@ function openCopyDetail(idx) {
         html += `</div>`;
     }
 
-    // detailFields 逐行（空值/占位自动隐藏，目录编号走 formatCatalogNumber）
     const rows = [];
     for (const f of detailFields) {
         let val = copy[f.key];
@@ -433,11 +430,10 @@ function openCopyDetail(idx) {
         if (val === '' || val === '---') continue;
         if (f.key === 'krause' || f.key === 'catalogNumber') {
             val = formatCatalogNumber(val);
-            if (!val) continue; // Unlisted 不显示
+            if (!val) continue;
         }
         rows.push({ label: f.label || f.key, value: val });
     }
-    // 备注若不在 detailFields 中，固定补一行
     if (copy.remark && !detailFields.some(f => f.key === 'remark')) {
         rows.push({ label: '备注', value: String(copy.remark) });
     }
