@@ -39,6 +39,9 @@ function doSearch() {
         return;
     }
 
+    // ★ 在切换到搜索视图之前，保存当前状态（包括展开状态）
+    saveFullState();
+
     const typeSelect = document.getElementById('searchType');
     const type = typeSelect ? typeSelect.value : SEARCH_TYPE.ALL;
     currentSearchKeyword = rawKeyword;
@@ -50,8 +53,10 @@ function doSearch() {
 
 function resetSearch() {
     const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-    currentSearchKeyword = '';
+    if (!input) return;
+
+    input.value = '';
+    input.focus();
 
     if (currentMode === MODE.ARTICLES) {
         articleSearchKeyword = '';
@@ -59,13 +64,15 @@ function resetSearch() {
         return;
     }
 
-    currentView = currentCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
-    switchToCurrentContainer();
-    if (currentView === VIEW.OVERVIEW) {
-        renderOverview();
-    } else {
-        renderCurrentCategory();
+    // 如果当前在搜索结果视图，回到之前的视图（并保留展开状态）
+    if (currentView === VIEW.SEARCH) {
+        backFromSearch();
+        return;
     }
+
+    // 否则（在 overview 或 category 视图），只清空搜索框，不重新渲染
+    currentSearchKeyword = '';
+    updateSearchUIForMode();
 }
 
 function toggleSearchMode() {
@@ -177,11 +184,10 @@ function matchCopy(copy, series, variety, keyword, type, isEmpty) {
             return String(copy.year).toLowerCase().includes(keyword);
         case SEARCH_TYPE.AGENCY:
             return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.KRAUSE: {
+        case SEARCH_TYPE.KRAUSE:
             const raw = (copy.catalogNumber || copy.krause || '');
             const formatted = formatCatalogNumber(raw);
             return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
-        }
     }
     return false;
 }
@@ -200,11 +206,10 @@ function matchCopyFlat(copy, series, keyword, type, isEmpty) {
             return String(copy.year).toLowerCase().includes(keyword);
         case SEARCH_TYPE.AGENCY:
             return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.KRAUSE: {
+        case SEARCH_TYPE.KRAUSE:
             const raw = (copy.catalogNumber || copy.krause || '');
             const formatted = formatCatalogNumber(raw);
             return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
-        }
     }
     return false;
 }
@@ -304,6 +309,7 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
         if (cat.children) {
             for (const sub of cat.children) {
                 if (sub.dataKey === dataKey) {
+                    // 保存搜索容器滚动
                     const searchKey = getContainerKey();
                     const container = getRenderContainer();
                     if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
@@ -370,14 +376,33 @@ function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
 }
 
 function backFromSearch() {
-    currentView = currentCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
+    // 保存搜索视图的滚动位置
+    saveFullState();
+
+    const prevCategoryId = currentCategoryId;
+
+    // 切换回原来的视图（概览或分类）
+    currentView = prevCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
     switchToCurrentContainer();
     currentSearchKeyword = '';
+    const input = document.getElementById('searchInput');
+    if (input) input.value = '';
+
     if (currentView === VIEW.OVERVIEW) {
         renderOverview();
     } else {
+        // 重新渲染分类
         renderCurrentCategory();
+        // ★ 从 modeStates 恢复展开状态（延迟足够长确保 DOM 渲染完成）
+        const saved = modeStates[currentMode];
+        if (saved && (saved.expandedSeries?.length > 0 || saved.expandedVarieties?.length > 0)) {
+            setTimeout(() => {
+                restoreExpandedStates({
+                    expandedSeries: saved.expandedSeries || [],
+                    expandedVarieties: saved.expandedVarieties || []
+                });
+            }, 100);
+        }
     }
-    const input = document.getElementById('searchInput');
-    if (input) input.value = '';
+    updateSearchUIForMode();
 }

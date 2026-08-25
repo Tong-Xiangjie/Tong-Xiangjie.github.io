@@ -2,18 +2,10 @@
 // 精简版：初始化与事件绑定
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // ★ 数据加载提示（含进度条 + 当前文件）
-    const loadingApp = document.getElementById('app');
-    if (loadingApp) {
-        loadingApp.innerHTML =
-            '<div class="data-loading">' +
-            '<div class="data-loading-text">数据火速赶来中，请稍候ε=ε=(ノ≧∇≦)ノ</div>' +
-            '<div class="data-loading-file" id="dataLoadingFile">正在准备…</div>' +
-            '<div class="data-loading-bar"><div class="data-loading-fill" id="dataLoadingFill"></div></div>' +
-            '</div>';
-    }
+    const loadingContainer = document.getElementById('loadingContainer');
+    const appEl = document.getElementById('app');
 
-    // ★ 进度更新函数：显示当前文件名 + 百分比
+    // ★ 进度更新函数
     function updateLoadingProgress(p) {
         const fileEl = document.getElementById('dataLoadingFile');
         const fillEl = document.getElementById('dataLoadingFill');
@@ -30,19 +22,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    // ★ 等待所有数据文件加载并桥接（传入进度回调）
+    // ★ 等待所有数据文件加载
     try {
         if (typeof loadAllData === 'function') await loadAllData(updateLoadingProgress);
     } catch (e) {
-        const appEl0 = document.getElementById('app');
-        if (appEl0) appEl0.innerHTML = '<div class="empty-state">数据加载失败：' + escapeHtml(e.message) + '</div>';
+        loadingContainer.innerHTML = '<div class="empty-state">数据加载失败：' + escapeHtml(e.message) + '</div>';
         return;
     }
 
-    // ★ 加载完成后清空 #app，防止加载提示残留
-    const appEl = document.getElementById('app');
-    if (appEl) appEl.innerHTML = '';
+    // ★ 加载完成：隐藏进度条，显示 #app
+    loadingContainer.style.display = 'none';
+    appEl.style.display = 'block';
+    appEl.innerHTML = '';
 
+    // 初始化
     buildSpecialCategoryTree();
     renderSidebar();
 
@@ -61,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderOverview();
     updateSearchUIForMode();
 
+    // 事件绑定
     document.querySelectorAll('.tab-item').forEach(tab => {
         tab.addEventListener('click', () => onTabClick(tab.dataset.target));
     });
@@ -95,18 +89,5 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     if (typeof loadTheme === 'function') loadTheme();
 
-    // ★ 启动侧边栏宽度监听
     if (typeof watchSidebarFit === 'function') watchSidebarFit();
-
-    // ★ 强制更新 Service Worker（确保最新缓存策略）
-    if ('serviceWorker' in navigator) {
-        try {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const reg of registrations) {
-                await reg.update();
-            }
-        } catch (e) {
-            // 静默失败，不影响正常使用
-        }
-    }
 });
