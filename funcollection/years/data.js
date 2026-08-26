@@ -65,7 +65,7 @@ const specialYearsMeta = {
     id: 'years',
     name: '年份图鉴',
     desc: '按年份展示纸币实拍图片',
-    slogan: '一钞一年号，一纸一春秋。年号是时代的刻度，收藏是历史的回望。',
+    slogan: '年号是时代的刻度，收藏是历史的回望。',
     dataKey: 'yearsData',
     imageBase: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/years/',
     categories: [

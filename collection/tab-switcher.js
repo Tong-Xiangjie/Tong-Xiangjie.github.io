@@ -70,27 +70,38 @@ function onTabClick(target) {
 }
 
 function enterSpecialFromTab() {
+    // ★ 关键：记录进入函数时是否正处于“设置页”模式
+    const isLeavingSettings = isSettingsMode;
+
     if (isSettingsMode) {
         isSettingsMode = false;
         document.querySelector('.body-row')?.classList.remove('settings-mode');
     }
 
-    // 判断是否从「设置页」返回专题
-    const isRestoringFromSettings = settingsReturnState && settingsReturnState.currentMode === MODE.SPECIAL;
+    // ★ 只有“刚从设置页返回”且“进入设置前就在专题里”时，才去恢复专题的内部筛选状态
+    const isRestoringFromSettings = isLeavingSettings && 
+                                    settingsReturnState && 
+                                    settingsReturnState.currentMode === MODE.SPECIAL;
 
     if (isRestoringFromSettings) {
-        // 从设置页恢复：保留专题原有的子分类筛选状态
+        // 从设置页返回，且之前在专题里：恢复专题本身的选中状态，并保留专题内部的筛选（如“2020s”）
         if (selectedSpecial === null || selectedSpecial === undefined) {
             selectedSpecial = settingsReturnState.selectedSpecial;
             currentCategoryId = settingsReturnState.currentCategoryId;
             currentSubId = settingsReturnState.currentSubId || null;
         }
+        // ★ 关键：状态用完后立即清空，防止下次切换标签时误用
+        settingsReturnState = null;
     } else {
-        // ★ 从纸币/硬币/文章切换过来：清空残留的无效子分类 ID
+        // ★ 其他所有情况（从纸币/硬币/文章切过来，或从设置返回但之前不在专题里）：
+        // 强制清空任何可能残留的、来自其他板块的子分类 ID
         currentSubId = null;
-        // ★ 关键修复：将当前分类 ID 指向选中的专题，确保侧边栏能正确展开
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             currentCategoryId = selectedSpecial;
+        }
+        // 如果是从设置页返回但之前不在专题里，也把状态清掉
+        if (isLeavingSettings) {
+            settingsReturnState = null;
         }
     }
 

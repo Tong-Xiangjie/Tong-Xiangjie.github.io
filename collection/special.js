@@ -738,13 +738,20 @@ function isPointInPolygon(el, x, y) {
 
 function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, baseSize, noLabel, strokeScale) {
     const name = shanheProvinceNames[pid] || pid;
+
+    // 填充颜色仍然根据数量变化（0 件为白色）
     el.style.fill = fillForCount(count, maxCount, themeLightRGB);
-    el.style.cursor = count > 0 ? 'pointer' : 'default';
+
+    // ★ 修改：所有省份都显示为可点击指针
+    el.style.cursor = 'pointer';
+
     if (strokeScale && strokeScale !== 1) {
         el.style.strokeWidth = (1 * strokeScale) + 'px';
     }
+
+    // ★ 移除 count === 0 的返回，让所有省份都能点击
     el.addEventListener('click', () => {
-        if (count === 0) return;
+        // 切换到列表视图并设置当前省份
         shanheViewMode = 'list';
         currentSubId = pid;
         renderShanheContent(config);
@@ -760,6 +767,7 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
         }, 200);
     });
 
+    // 以下是标签生成逻辑（不变）
     let bbox = null;
     try { bbox = el.getBBox(); } catch (e) {}
     if (!bbox || bbox.width <= 0 || bbox.height <= 0) return null;

@@ -4,7 +4,7 @@ window.SPECIAL_CONFIGS = [
     {
         id: 'years',
         name: '年份图鉴',
-        slogan: '岁月如梭，纸币如歌',
+        slogan: '一钞一年号，一纸一春秋',
         dataKey: 'yearsData',
         dataFile: '../funcollection/years/data.js',
         dataVar: 'banknoteYears',
@@ -22,7 +22,7 @@ window.SPECIAL_CONFIGS = [
     {
         id: 'shanhe',
         name: '方寸山河',
-        slogan: '一枚纸币，千里江山',
+        slogan: '方寸纸币，山河万里',
         dataKey: 'shanheData',
         dataFile: '../funcollection/shanhe/data.js',
         dataVar: 'shanheScenes',

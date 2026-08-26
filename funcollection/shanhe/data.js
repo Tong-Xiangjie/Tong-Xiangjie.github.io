@@ -117,7 +117,7 @@ window.SHANHE_PROVINCE_NAMES = {
 const specialShanheMeta = {
     id: 'shanhe',
     name: '方寸山河',
-    slogan: '方寸纸币，山河万里',
+    slogan: '一枚纸币，千里江山',
     dataKey: 'shanheData',
     view: 'map',
     mapFile: 'china_map.svg',
