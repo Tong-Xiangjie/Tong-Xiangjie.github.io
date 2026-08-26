@@ -61,9 +61,15 @@ function loadTheme() {
     applyTheme(saved);
 }
 
+// ★ 修改：切换主题后主动刷新地图颜色
 function setTheme(color) {
     applyTheme(color);
     localStorage.setItem('app-theme', color);
+
+    // 若地图颜色刷新函数已定义，则调用它
+    if (typeof window.refreshShanheColors === 'function') {
+        window.refreshShanheColors();
+    }
 }
 
 // ========== 自定义颜色管理 ==========
@@ -78,9 +84,7 @@ function getCustomColors() {
 
 function addCustomColor(color) {
     const colors = getCustomColors();
-    // 去重：不添加已存在的颜色
     if (colors.includes(color)) return;
-    // 限制最多20个自定义颜色
     if (colors.length >= 20) {
         alert('自定义颜色最多20个');
         return;
@@ -94,7 +98,6 @@ function removeCustomColor(index) {
     if (index < 0 || index >= colors.length) return;
     colors.splice(index, 1);
     localStorage.setItem('custom-theme-colors', JSON.stringify(colors));
-    // 刷新设置页
     if (typeof renderSettingsPage === 'function') {
         renderSettingsPage();
     }

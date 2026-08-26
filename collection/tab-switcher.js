@@ -75,11 +75,22 @@ function enterSpecialFromTab() {
         document.querySelector('.body-row')?.classList.remove('settings-mode');
     }
 
-    if (settingsReturnState && settingsReturnState.currentMode === MODE.SPECIAL) {
+    // 判断是否从「设置页」返回专题
+    const isRestoringFromSettings = settingsReturnState && settingsReturnState.currentMode === MODE.SPECIAL;
+
+    if (isRestoringFromSettings) {
+        // 从设置页恢复：保留专题原有的子分类筛选状态
         if (selectedSpecial === null || selectedSpecial === undefined) {
             selectedSpecial = settingsReturnState.selectedSpecial;
             currentCategoryId = settingsReturnState.currentCategoryId;
-            currentSubId = settingsReturnState.currentSubId;
+            currentSubId = settingsReturnState.currentSubId || null;
+        }
+    } else {
+        // ★ 从纸币/硬币/文章切换过来：清空残留的无效子分类 ID
+        currentSubId = null;
+        // ★ 关键修复：将当前分类 ID 指向选中的专题，确保侧边栏能正确展开
+        if (selectedSpecial !== null && selectedSpecial !== undefined) {
+            currentCategoryId = selectedSpecial;
         }
     }
 
@@ -109,7 +120,6 @@ function enterSpecialFromTab() {
         return;
     }
 
-    // ★ 不要手动清空容器，由渲染函数覆盖内容
     if (specialCfg.view === 'map') {
         renderShanheContent(specialCfg);
     } else {

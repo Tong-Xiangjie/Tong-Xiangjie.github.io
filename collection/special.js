@@ -266,7 +266,6 @@ function renderSpecialContent() {
     if (filteredItems.length === 0) html += '<div class="empty-state">啊哦，啥都木有……</div>';
     app.innerHTML = html;
 
-    // ★ 延迟恢复滚动
     if (selectedSpecial && specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].scrollY) {
         setTimeout(() => {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
@@ -489,7 +488,6 @@ function renderShanheList(config) {
 
     app.innerHTML = html;
 
-    // ★ 延迟恢复滚动
     if (selectedSpecial && specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].scrollY) {
         setTimeout(() => {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
@@ -652,10 +650,8 @@ async function renderShanheContent(config) {
 
         try {
             if (isFileProtocol) {
-                // ★ file:// 协议：使用 <object> 标签加载
                 await loadShanheViaObject(app, config, items, mapFile);
             } else {
-                // ★ http:// 或 https:// 协议：使用 fetch 加载
                 const currentRequestId = ++shanheRequestId;
                 const res = await fetch(mapFile);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -935,3 +931,53 @@ function backFromShanheMap() {
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (config) renderShanheContent(config);
 }
+
+// ========== ★ 新增：主题切换时刷新地图颜色（只改 fill，不重建 DOM） ==========
+window.refreshShanheColors = function() {
+    // 仅在专题模式、且当前是山河地图视图时生效
+    if (currentMode !== MODE.SPECIAL) return;
+
+    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    if (!config || config.view !== 'map') return;
+    if (currentSubId !== null) return;          // 省份详情页不刷新地图主体
+    if (shanheViewMode !== 'map') return;       // 列表视图不需要刷新颜色
+
+    const wrap = shanheMapCache?.wrap;
+    if (!wrap) return;
+    const svg = wrap.querySelector('svg');
+    if (!svg) return;
+
+    // 重新统计各省份的藏品数量
+    const data = getData(config.dataKey);
+    const items = data ? (data.items || data) : [];
+
+    const countByProvince = {};
+    let maxCount = 0;
+    for (const item of items) {
+        if (!item.province) continue;
+        countByProvince[item.province] = (countByProvince[item.province] || 0) + 1;
+        if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
+    }
+
+    // 获取更新后的主题浅色（已由 applyTheme 更新）
+    const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
+
+    // 更新路径颜色的核心函数
+    const updatePaths = (targetSvg) => {
+        targetSvg.querySelectorAll('.state').forEach(el => {
+            const cls = el.getAttribute('class') || '';
+            const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
+            const count = countByProvince[pid] || 0;
+            el.style.fill = fillForCount(count, maxCount, themeLightRGB);
+        });
+    };
+
+    // 更新主地图
+    updatePaths(svg);
+
+    // 更新粤港澳局部放大图（如果存在）
+    const inset = wrap.querySelector('.shanhe-map-inset svg');
+    if (inset) {
+        updatePaths(inset);
+    }
+};
