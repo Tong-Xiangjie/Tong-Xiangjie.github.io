@@ -5,11 +5,14 @@ const commemorativeData = {
     // 详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
+        { key: "denomination", label: "面值" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "issueQuantity", label: "发行量" },
         { key: "size", label: "标准尺寸" },
+        { key: "wmk", label: "水印" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
@@ -21,7 +24,7 @@ const commemorativeData = {
             year: "1988",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26626154, 
                     year: 1988,
                     purchaseDate: "2026年2月19日", 
                     price: "925元", 
@@ -34,7 +37,9 @@ const commemorativeData = {
                     size:"135mm*70mm",
                     remark: "我国纪念钞的鼻祖，发行量最少的一张", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/KP04057-2.jpg",
+                    denomination: "澳门币10元",
+                    wmk: "无水印/Without Watermark"
                 }
             ] 
         },
@@ -43,7 +48,7 @@ const commemorativeData = {
             year: "1999",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011878, 
                     year: 1999,
                     purchaseDate: "2025年10月2日", 
                     price: "56元", 
@@ -55,10 +60,13 @@ const commemorativeData = {
                     issueQuantity: "3000万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/A179021G-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/A179021G-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/A179021G-2.jpg",
+                    denomination: "新台币50元",
+                    wmk: "无水印/Without Watermark",
+                    size: ""
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 00000000, 
                     year: 1999,
                     purchaseDate: "2026年7月17日", 
                     price: "38元", 
@@ -70,10 +78,13 @@ const commemorativeData = {
                     issueQuantity: "3000万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/B957417F-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/B957417F-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/B957417F-2.jpg",
+                    denomination: "新台币50元",
+                    wmk: "无水印/Without Watermark",
+                    size: ""
                 },
                 { 
-                    copyId: 3, 
+                    copyId: 26992535, 
                     year: 1999,
                     purchaseDate: "2026年4月1日", 
                     price: "57元", 
@@ -85,7 +96,10 @@ const commemorativeData = {
                     issueQuantity: "3000万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/M698194E-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/M698194E-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/M698194E-2.jpg",
+                    denomination: "新台币50元",
+                    wmk: "无水印/Without Watermark",
+                    size: ""
                 }
             ] 
         },
@@ -94,7 +108,7 @@ const commemorativeData = {
             year: "1999",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011873, 
                     year: 1999,
                     purchaseDate: "2025年8月30日", 
                     price: "203元", 
@@ -106,10 +120,13 @@ const commemorativeData = {
                     issueQuantity: "6000万",
                     remark: "刚好是我的生日号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J07529257-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J07529257-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J07529257-2.jpg",
+                    denomination: "50元",
+                    wmk: "天安门城楼/Tian'anmen",
+                    size: "165mm*80mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 25399800, 
                     year: 1999,
                     purchaseDate: "2026年2月1日", 
                     price: "278元", 
@@ -121,7 +138,10 @@ const commemorativeData = {
                     issueQuantity: "6000万",
                     remark: "顺子号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-2.jpg",
+                    denomination: "50元",
+                    wmk: "天安门城楼/Tian'anmen",
+                    size: "165mm*80mm"
                 }
             ] 
         },
@@ -134,7 +154,7 @@ const commemorativeData = {
             },
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011874, 
                     year: 2000,
                     purchaseDate: "2025年9月25日", 
                     price: "1225元", 
@@ -146,10 +166,13 @@ const commemorativeData = {
                     issueQuantity: "1000万",
                     remark: "普通冠号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J00344985-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J00344985-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J00344985-2.jpg",
+                    denomination: "100元",
+                    wmk: "数字“2000”/2000",
+                    size: "165mm*80mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: "2333338-071", 
                     year: 2000,
                     purchaseDate: "2025年11月1日", 
                     price: "2050元", 
@@ -161,7 +184,10 @@ const commemorativeData = {
                     issueQuantity: "1000万",
                     remark: "补号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/I00181114-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/I00181114-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/I00181114-2.jpg",
+                    denomination: "100元",
+                    wmk: "数字“2000”/2000",
+                    size: "165mm*80mm"
                 }
             ] 
         },
@@ -170,7 +196,7 @@ const commemorativeData = {
             year: "2008",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: "2229343-045", 
                     year: 2008,
                     purchaseDate: "2025年10月12日", 
                     price: "2360元", 
@@ -182,7 +208,10 @@ const commemorativeData = {
                     issueQuantity: "600万",
                     remark: "曾经的奥运钞王", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J04266645-2.jpg",
+                    denomination: "10元",
+                    wmk: "国家体育场（鸟巢）/Stadium",
+                    size: "148.5mm*72mm"
                 }
             ] 
         },
@@ -191,7 +220,7 @@ const commemorativeData = {
             year: "2008",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011875, 
                     year: 2008,
                     purchaseDate: "2025年10月7日", 
                     price: "176元", 
@@ -200,10 +229,13 @@ const commemorativeData = {
                     condition: "ACG66E", 
                     krause: "340b",
                     issueDate: "2008年7月",
-                    issueQuantity: "400万张",
+                    issueQuantity: "400万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/762965-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/762965-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/762965-2.jpg",
+                    denomination: "",
+                    wmk: "国家体育场（鸟巢）/Stadium",
+                    size: "143mm*71.5mm"
                 }
             ] 
         },
@@ -215,7 +247,7 @@ const commemorativeData = {
             ],
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011876, 
                     year: 2008,
                     purchaseDate: "2025年10月7日", 
                     price: "245元", 
@@ -224,10 +256,13 @@ const commemorativeData = {
                     condition: "ACG66E", 
                     krause: "107a",
                     issueDate: "2008年7月",
-                    issueQuantity: "400万张",
+                    issueQuantity: "400万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MO239989-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MO239989-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MO239989-2.jpg",
+                    denomination: "",
+                    wmk: "国家体育场（鸟巢）/Stadium",
+                    size: "143mm*71.5mm"
                 }
             ] 
         },
@@ -241,7 +276,7 @@ const commemorativeData = {
             year: "2011",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011880, 
                     year: 2011,
                     purchaseDate: "2025年10月12日", 
                     price: "61元", 
@@ -250,13 +285,16 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "1998",
                     issueDate: "2011年1月6日",
-                    issueQuantity: "4亿张",
+                    issueQuantity: "4亿",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/JP578968ZB-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/JP578968ZB-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/JP578968ZB-2.jpg",
+                    denomination: "新台币100元",
+                    wmk: "梅花 & 数字“100”/Flowers(Plum Blossom) & 100",
+                    size: "145mm*70mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 00000000, 
                     year: 2011,
                     purchaseDate: "2026年7月18日", 
                     price: "48元", 
@@ -265,10 +303,13 @@ const commemorativeData = {
                     condition: "暂未评级", 
                     krause: "1998*",
                     issueDate: "2011年1月6日",
-                    issueQuantity: "4亿张",
+                    issueQuantity: "4亿",
                     remark: "补号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/CC036193LV-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/CC036193LV-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/CC036193LV-2.jpg",
+                    denomination: "新台币100元",
+                    wmk: "梅花 & 数字“100”/Flowers(Plum Blossom) & 100",
+                    size: "145mm*70mm"
                 }
             ] 
         },
@@ -277,7 +318,7 @@ const commemorativeData = {
             year: "2012",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 20342901, 
                     year: 2012,
                     purchaseDate: "2026年1月30日", 
                     price: "198元", 
@@ -286,10 +327,13 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "346",
                     issueDate: "2012年2月",
-                    issueQuantity: "200万张",
+                    issueQuantity: "200万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/357185-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/357185-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/357185-2.jpg",
+                    denomination: "港币100元",
+                    wmk: "紫荆花 & 数字“100”/Flower & 100",
+                    size: "153mm*76.5mm"
                 }
             ] 
         },
@@ -301,7 +345,7 @@ const commemorativeData = {
             ],
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: "2135806-009", 
                     year: 2012,
                     purchaseDate: "2025年12月5日", 
                     price: "458元", 
@@ -310,10 +354,13 @@ const commemorativeData = {
                     condition: "PMG66E", 
                     krause: "114",
                     issueDate: "2012年2月",
-                    issueQuantity: "200万张",
+                    issueQuantity: "200万",
                     remark: "传说中的最美荷花钞", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA709609-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA709609-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA709609-2.jpg",
+                    denomination: "澳门币100元",
+                    wmk: "莲花/Lotus Blossom",
+                    size: "153mm*76.5mm"
                 }
             ] 
         },
@@ -344,7 +391,7 @@ const commemorativeData = {
                     ],
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 22780038,
                             "year": 2014,
                             "purchaseDate": "2026年5月30日",
                             "price": "42元",
@@ -357,10 +404,12 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09610321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09610321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09610321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         },
                         {
-                            "copyId": 2,
+                            "copyId": 22780039,
                             "year": 2014,
                             "purchaseDate": "2026年5月30日",
                             "price": "42元",
@@ -373,7 +422,9 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/06686321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/06686321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/06686321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         }
                     ]
                 },
@@ -384,7 +435,7 @@ const commemorativeData = {
                     ],
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 22780040,
                             "year": 2015,
                             "purchaseDate": "2026年5月30日",
                             "price": "42元",
@@ -397,10 +448,12 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/02265321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/02265321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/02265321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         },
                         {
-                            "copyId": 2,
+                            "copyId": 22589968,
                             "year": 2015,
                             "purchaseDate": "2026年5月30日",
                             "price": "32元",
@@ -413,7 +466,9 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11501321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11501321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11501321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         }
                     ]
                 },
@@ -424,7 +479,7 @@ const commemorativeData = {
                     ],
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 23228984,
                             "year": 2016,
                             "purchaseDate": "2026年5月30日",
                             "price": "42元",
@@ -437,10 +492,12 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/13298321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/13298321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/13298321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         },
                         {
-                            "copyId": 2,
+                            "copyId": 22780043,
                             "year": 2016,
                             "purchaseDate": "2026年5月30日",
                             "price": "42元",
@@ -453,7 +510,9 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09608321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09608321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/09608321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         }
                     ]
                 },
@@ -464,7 +523,24 @@ const commemorativeData = {
                     ],
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 25393190,
+                            "year": 2017,
+                            "purchaseDate": "2026年5月30日",
+                            "price": "42元",
+                            "bank": "中国银行",
+                            "version": "丁酉11650321",
+                            "condition": "ACG67E",
+                            "krause": "120",
+                            "issueDate": "2016年5月9日",
+                            "issueQuantity": "2000万对",
+                            "size":"138mm*69mm",
+                            "remark": "",
+                            "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-1.jpg",
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
+                        },{
+                            "copyId": 22780044,
                             "year": 2017,
                             "purchaseDate": "2026年5月30日",
                             "price": "42元",
@@ -477,7 +553,9 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/16011321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         }
                     ]
                 },
@@ -488,7 +566,7 @@ const commemorativeData = {
                     ],
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 25393192,
                             "year": 2018,
                             "purchaseDate": "2026年5月30日",
                             "price": "32元",
@@ -501,10 +579,12 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11860321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11860321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/11860321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         },
                         {
-                            "copyId": 2,
+                            "copyId": 22589971,
                             "year": 2018,
                             "purchaseDate": "2026年5月30日",
                             "price": "32元",
@@ -517,7 +597,9 @@ const commemorativeData = {
                             "size":"138mm*69mm",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/00651321-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/00651321-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/00651321-2.jpg",
+                            denomination: "澳门币10元",
+                            wmk: "莲花/Lotus Blossom"
                         }
                     ]
                 },
@@ -569,7 +651,7 @@ const commemorativeData = {
             year: "2015",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 11765551, 
                     year: 2015,
                     purchaseDate: "2025年12月1日", 
                     price: "160元", 
@@ -581,10 +663,13 @@ const commemorativeData = {
                     issueQuantity: "3亿",
                     remark: "普通荧光", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J8301922333-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J8301922333-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J8301922333-2.jpg",
+                    denomination: "100元",
+                    wmk: "“东方红”卫星/Satellite",
+                    size: "155mm*77mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 25340524, 
                     year: 2015,
                     purchaseDate: "2026年2月18日", 
                     price: "218元", 
@@ -596,10 +681,13 @@ const commemorativeData = {
                     issueQuantity: "3亿",
                     remark: "宇宙之眼", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J5252197777-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J5252197777-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J5252197777-2.jpg",
+                    denomination: "100元",
+                    wmk: "“东方红”卫星/Satellite",
+                    size: "155mm*77mm"
                 },
                 { 
-                    copyId: 3, 
+                    copyId: "1837881-028", 
                     year: 2015,
                     purchaseDate: "2025年11月7日",
                     price: "134元", 
@@ -611,7 +699,10 @@ const commemorativeData = {
                     issueQuantity: "3亿",
                     remark: "流浪地球", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J9069497791-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J9069497791-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J9069497791-2.jpg",
+                    denomination: "100元",
+                    wmk: "“东方红”卫星/Satellite",
+                    size: "155mm*77mm"
                 }
             ] 
         },
@@ -620,7 +711,7 @@ const commemorativeData = {
             year: "2015",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26288342, 
                     year: 2015,
                     purchaseDate: "2026年1月8日", 
                     price: "285元", 
@@ -629,10 +720,13 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "217d",
                     issueDate: "2015年3月",
-                    issueQuantity: "200万张",
+                    issueQuantity: "200万",
                     remark: "补号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AB140236-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AB140236-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AB140236-2.jpg",
+                    denomination: "港币150元",
+                    wmk: "狮子头/Lion's Head",
+                    size: "158mm*79mm"
                 }
             ] 
         },
@@ -641,7 +735,7 @@ const commemorativeData = {
             year: "2017",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26626173, 
                     year: 2017,
                     purchaseDate: "2026年2月18日", 
                     price: "192元", 
@@ -650,10 +744,13 @@ const commemorativeData = {
                     condition: "ACG67E", 
                     krause: "347",
                     issueDate: "2017年9月",
-                    issueQuantity: "500万张",
+                    issueQuantity: "500万",
                     remark: "HY = Hundred Years百年", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/HY583251-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/HY583251-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/HY583251-2.jpg",
+                    denomination: "港币100元",
+                    wmk: "长城 & 数字“100”/Great Wall & 100",
+                    size: "153mm*76.5mm"
                 }
             ] 
         },
@@ -666,7 +763,7 @@ const commemorativeData = {
             },
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: "1840028-029", 
                     year: 2018,
                     purchaseDate: "2025年12月1日", 
                     price: "798元", 
@@ -678,10 +775,13 @@ const commemorativeData = {
                     issueQuantity: "1.2亿",
                     remark: "最引以为傲的一张藏品之一了，大开门号+顺子号，号码清晰漂亮。这也开创了我配号的新思路：尾顺子", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J000009987-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J000009987-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J000009987-2.jpg",
+                    denomination: "50元",
+                    wmk: "长城/Great Wall",
+                    size: "150mm*70mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 26011871, 
                     year: 2018,
                     purchaseDate: "2025年8月5日", 
                     price: "79元", 
@@ -693,12 +793,15 @@ const commemorativeData = {
                     issueQuantity: "1.2亿",
                     remark: "补号，虽然PMG没有特殊标注", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J191756567-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J191756567-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J191756567-2.jpg",
+                    denomination: "50元",
+                    wmk: "长城/Great Wall",
+                    size: "150mm*70mm"
                 }
             ] 
         },
         {
-            "seriesName": "庆祝澳门回归祖国20周年纪念钞",
+            "seriesName": "庆祝澳门回归祖国二十周年纪念钞",
             "year": "2019",
             "varieties": [
                 {
@@ -708,7 +811,7 @@ const commemorativeData = {
                     ],
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 16038132,
                             "year": 2019,
                             "purchaseDate": "2025年12月5日",
                             "price": "34元",
@@ -720,7 +823,10 @@ const commemorativeData = {
                             "issueQuantity": "500万对",
                             "remark": "",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA3518209-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA3518209-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA3518209-2.jpg",
+                            denomination: "澳门元20元",
+                            wmk: "莲花/Lotus Blossom",
+                            size: "143mm*71.5mm"
                         }
                     ]
                 },
@@ -728,7 +834,7 @@ const commemorativeData = {
                     "varietyName": "大西洋银行",
                     "copies": [
                         {
-                            "copyId": 1,
+                            "copyId": 16038398,
                             "year": 2019,
                             "purchaseDate": "2025年12月5日",
                             "price": "34元",
@@ -740,7 +846,10 @@ const commemorativeData = {
                             "issueQuantity": "500万对",
                             "remark": "算不算是半个生日号？总感觉这张与我挺有缘的",
                             "img1": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA0500209-1.jpg",
-                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA0500209-2.jpg"
+                            "img2": "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/MA0500209-2.jpg",
+                            denomination: "澳门元20元",
+                            wmk: "莲花/Lotus Blossom",
+                            size: "143mm*71.5mm"
                         }
                     ]
                 }
@@ -751,7 +860,7 @@ const commemorativeData = {
             year: "2022",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 56515288, 
                     year: 2022,
                     purchaseDate: "2025年11月7日", 
                     price: "40元", 
@@ -763,7 +872,10 @@ const commemorativeData = {
                     issueQuantity: "2亿对",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J180000183-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J180000183-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J180000183-2.jpg",
+                    denomination: "20元",
+                    wmk: "无水印/Without Watermark",
+                    size: "145mm*70mm"
                 }
             ] 
         },
@@ -772,7 +884,7 @@ const commemorativeData = {
             year: "2022",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 90099069, 
                     year: 2022,
                     purchaseDate: "2025年11月16日", 
                     price: "120元", 
@@ -784,10 +896,13 @@ const commemorativeData = {
                     issueQuantity: "2亿对",
                     remark: "普通版本", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J333686866-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J333686866-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J333686866-2.jpg",
+                    denomination: "20元",
+                    wmk: "冰墩墩/Panda Snowboarding(Panda, Panda & 20)",
+                    size: "145mm*70mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 18505632, 
                     year: 2022,
                     purchaseDate: "2026年3月6日", 
                     price: "32元", 
@@ -799,10 +914,13 @@ const commemorativeData = {
                     issueQuantity: "2亿对",
                     remark: "绿奥之星", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J208213254-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J208213254-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J208213254-2.jpg",
+                    denomination: "20元",
+                    wmk: "冰墩墩/Panda Snowboarding(Panda, Panda & 20)",
+                    size: "145mm*70mm"
                 },
                 { 
-                    copyId: 3, 
+                    copyId: 18515928, 
                     year: 2022,
                     purchaseDate: "2025年11月16日",
                     price: "45元", 
@@ -814,7 +932,10 @@ const commemorativeData = {
                     issueQuantity: "2亿对",
                     remark: "绿奥之王", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J207861101-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J207861101-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J207861101-2.jpg",
+                    denomination: "20元",
+                    wmk: "冰墩墩/Panda Snowboarding(Panda, Panda & 20)",
+                    size: "145mm*70mm"
                 }
             ] 
         },
@@ -823,7 +944,7 @@ const commemorativeData = {
             year: "2022",
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 90077064, 
                     year: 2022,
                     purchaseDate: "2026年2月21日", 
                     price: "170元", 
@@ -832,13 +953,16 @@ const commemorativeData = {
                     condition: "ACG68E", 
                     krause: "353a",
                     issueDate: "2021年12月",
-                    issueQuantity: "200万张",
+                    issueQuantity: "200万",
                     remark: "这张的号码其实非常值得玩味", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/545654-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/545654-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/545654-2.jpg",
+                    denomination: "港币20元",
+                    wmk: "雪花 & 数字“20”/Snowflake & 20",
+                    size: "143mm*71.5mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 90077427, 
                     year: 2022,
                     purchaseDate: "2026年2月17日", 
                     price: "188元", 
@@ -847,10 +971,13 @@ const commemorativeData = {
                     condition: "ACG68E", 
                     krause: "353b",
                     issueDate: "2021年12月",
-                    issueQuantity: "200万张",
+                    issueQuantity: "200万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA537379-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA537379-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/AA537379-2.jpg",
+                    denomination: "港币20元",
+                    wmk: "雪花 & 数字“20”/Snowflake & 20",
+                    size: "143mm*71.5mm"
                 }
             ] 
         },
@@ -862,7 +989,7 @@ const commemorativeData = {
             ],
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26011877, 
                     year: 2022,
                     purchaseDate: "2025年10月26日", 
                     price: "69元", 
@@ -871,10 +998,13 @@ const commemorativeData = {
                     condition: "ACG66E", 
                     krause: "124a",
                     issueDate: "2021年12月",
-                    issueQuantity: "200万张",
+                    issueQuantity: "200万",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/BC0838287-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/BC0838287-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/BC0838287-2.jpg",
+                    denomination: "澳门元20元",
+                    wmk: "雪花 & 数字“20”/Snowflake & 20(Snowflake)",
+                    size: "143mm*71.5mm"
                 }
             ] 
         },
@@ -887,7 +1017,7 @@ const commemorativeData = {
             },
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 25118321, 
                     year: 2024,
                     purchaseDate: "2026年1月21日", 
                     price: "158元", 
@@ -899,7 +1029,10 @@ const commemorativeData = {
                     issueQuantity: "1亿",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005003567-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005003567-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005003567-2.jpg",
+                    denomination: "20元",
+                    wmk: "无水印/Without Watermark",
+                    size: "145mm*70mm"
                 }
             ] 
         },
@@ -912,7 +1045,7 @@ const commemorativeData = {
             },
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 93128994, 
                     year: 2025,
                     purchaseDate: "2026年1月22日", 
                     price: "60元", 
@@ -924,7 +1057,10 @@ const commemorativeData = {
                     issueQuantity: "1亿",
                     remark: "", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J006206654-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J006206654-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J006206654-2.jpg",
+                    denomination: "20元",
+                    wmk: "无水印/Without Watermark",
+                    size: "145mm*70mm"
                 }
             ] 
         },
@@ -937,7 +1073,7 @@ const commemorativeData = {
             },
             copies: [
                 { 
-                    copyId: 1, 
+                    copyId: 26370888, 
                     year: 2026,
                     purchaseDate: "2026年2月26日", 
                     price: "88元", 
@@ -949,10 +1085,13 @@ const commemorativeData = {
                     issueQuantity: "1亿",
                     remark: "就是凑个品种，太丑了", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005516765-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005516765-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J005516765-2.jpg",
+                    denomination: "20元",
+                    wmk: "无水印/Without Watermark",
+                    size: "145mm*70mm"
                 },
                 { 
-                    copyId: 2, 
+                    copyId: 26288329, 
                     year: 2026,
                     purchaseDate: "2026年1月20日",
                     price: "272元", 
@@ -962,9 +1101,12 @@ const commemorativeData = {
                     krause: "922",
                     issueDate: "2026年1月20日",
                     issueQuantity: "1亿",
-                    remark: "", 
+                    remark: "约到的另外一组是J037241571-80，同样是爱藏评级68分，不过2026年7月14日最终以290元的价格出手去换更好看的藏品了。", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J037241561-70-1.jpg", 
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J037241561-70-2.jpg" 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J037241561-70-2.jpg",
+                    denomination: "20元",
+                    wmk: "无水印/Without Watermark",
+                    size: "145mm*70mm"
                 }
             ] 
         }

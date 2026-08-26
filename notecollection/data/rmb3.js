@@ -12,6 +12,7 @@ const rmb3Data = {
         { key: "withdrawnDate", label: "停止流通日期" },
         { key: "wmk", label: "水印" },
         { key: "size", label: "标准尺寸" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
@@ -43,8 +44,8 @@ const rmb3Data = {
                             issueDate: "1962年4月20日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "114×52mm",
-                            remark: "第三套人民币首发品种",
+                            size: "114mm*52mm",
+                            remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
                         }
@@ -72,7 +73,7 @@ const rmb3Data = {
                             issueDate: "1966年1月10日",
                             depositOnlyDate: "1967年12月",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -95,7 +96,7 @@ const rmb3Data = {
                             issueDate: "1966年10月1日",
                             depositOnlyDate: "1967年12月",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -118,7 +119,7 @@ const rmb3Data = {
                             issueDate: "1967年12月15日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -141,7 +142,7 @@ const rmb3Data = {
                             issueDate: "1967年12月15日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -152,7 +153,7 @@ const rmb3Data = {
                     varietyName: "红二冠凸版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 16800528,
                             year: 1962,
                             version: "ⅤⅡ08686382",
                             bank: "中国人民银行",
@@ -164,7 +165,7 @@ const rmb3Data = {
                             issueDate: "",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/52-08686382-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/52-08686382-2.jpg"
@@ -175,7 +176,7 @@ const rmb3Data = {
                     varietyName: "红二冠平版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19968839,
                             year: 1962,
                             version: "ⅨⅦ86510421",
                             bank: "中国人民银行",
@@ -187,7 +188,7 @@ const rmb3Data = {
                             issueDate: "",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/97-86510421-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/97-86510421-2.jpg"
@@ -198,7 +199,7 @@ const rmb3Data = {
                     varietyName: "蓝三冠",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19766594,
                             year: 1962,
                             version: "ⅣⅦⅣ6018867",
                             bank: "中国人民银行",
@@ -210,7 +211,7 @@ const rmb3Data = {
                             issueDate: "",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/474-6018867-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/474-6018867-2.jpg"
@@ -221,7 +222,7 @@ const rmb3Data = {
                     varietyName: "蓝二冠",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 13609460,
                             year: 1962,
                             version: "ⅢⅧ86989663",
                             bank: "中国人民银行",
@@ -233,7 +234,7 @@ const rmb3Data = {
                             issueDate: "",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "105×50mm",
+                            size: "105mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-86989663-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-86989663-2.jpg"
@@ -264,7 +265,7 @@ const rmb3Data = {
                             issueDate: "1964年4月15日",
                             depositOnlyDate: "1967年12月",
                             withdrawnDate: "2000年7月1日",
-                            size: "110×50mm",
+                            size: "110mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -287,7 +288,7 @@ const rmb3Data = {
                             issueDate: "1964年4月15日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "110×50mm",
+                            size: "110mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -298,7 +299,7 @@ const rmb3Data = {
                     varietyName: "二冠平版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 20255723,
                             year: 1962,
                             version: "ⅢⅧ52000924",
                             bank: "中国人民银行",
@@ -310,7 +311,7 @@ const rmb3Data = {
                             issueDate: "",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "110×50mm",
+                            size: "110mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-52000924-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-52000924-2.jpg"
@@ -329,7 +330,7 @@ const rmb3Data = {
                     varietyName: "凸版水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 13064581,
                             year: 1972,
                             version: "ⅧⅩⅡ1621789",
                             bank: "中国人民银行",
@@ -341,7 +342,7 @@ const rmb3Data = {
                             issueDate: "1974年1月5日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "115×50mm",
+                            size: "115mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/802-1621789-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/802-1621789-2.jpg"
@@ -364,7 +365,7 @@ const rmb3Data = {
                             issueDate: "1974年1月5日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "115×50mm",
+                            size: "115mm*50mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -375,7 +376,24 @@ const rmb3Data = {
                     varietyName: "平版无水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 13181146,
+                            year: 1972,
+                            version: "ⅡⅣⅥ8111376",
+                            bank: "中国人民银行",
+                            condition: "ACG68E",
+                            price: "60元",
+                            purchaseDate: "2026年8月26日",
+                            krause: "880c",
+                            wmk: "无水印/Without Watermark",
+                            issueDate: "1974年1月5日",
+                            depositOnlyDate: "",
+                            withdrawnDate: "2000年7月1日",
+                            size: "115mm*50mm",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/246-8111376-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/246-8111376-2.jpg"
+                        },{
+                            copyId: 18251707,
                             year: 1972,
                             version: "ⅤⅨⅡ1923455",
                             bank: "中国人民银行",
@@ -387,8 +405,8 @@ const rmb3Data = {
                             issueDate: "1974年1月5日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "115×50mm",
-                            remark: "",
+                            size: "115mm*50mm",
+                            remark: "冠号变体：长码（类似于8002的幼线体）。",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/592-1923455-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/592-1923455-2.jpg"
                         }
@@ -418,7 +436,7 @@ const rmb3Data = {
                             issueDate: "1969年10月20日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "131×57mm",
+                            size: "131mm*57mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -441,7 +459,7 @@ const rmb3Data = {
                             issueDate: "1969年10月20日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "131×57mm",
+                            size: "131mm*57mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -452,7 +470,7 @@ const rmb3Data = {
                     varietyName: "二冠",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 15708164,
                             year: 1960,
                             version: "ⅥⅨ34050009",
                             bank: "中国人民银行",
@@ -464,7 +482,7 @@ const rmb3Data = {
                             issueDate: "1969年10月20日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
-                            size: "131×57mm",
+                            size: "131mm*57mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/69-34050009-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/69-34050009-2.jpg"
@@ -495,7 +513,7 @@ const rmb3Data = {
                             issueDate: "1964年4月15日",
                             depositOnlyDate: "1991年3月1日",
                             withdrawnDate: "2000年7月1日",
-                            size: "135×57mm",
+                            size: "135mm*57mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -518,7 +536,7 @@ const rmb3Data = {
                             issueDate: "1964年4月15日",
                             depositOnlyDate: "1991年3月1日",
                             withdrawnDate: "2000年7月1日",
-                            size: "135×57mm",
+                            size: "135mm*57mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -549,7 +567,7 @@ const rmb3Data = {
                             issueDate: "1969年10月20日",
                             depositOnlyDate: "1991年3月1日",
                             withdrawnDate: "2000年7月1日",
-                            size: "142×63mm",
+                            size: "142mm*63mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -572,7 +590,7 @@ const rmb3Data = {
                             issueDate: "1969年10月20日",
                             depositOnlyDate: "1991年3月1日",
                             withdrawnDate: "2000年7月1日",
-                            size: "142×63mm",
+                            size: "142mm*63mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -603,7 +621,7 @@ const rmb3Data = {
                             issueDate: "1966年1月10日",
                             depositOnlyDate: "1996年3月1日",
                             withdrawnDate: "2000年7月1日",
-                            size: "157×72mm",
+                            size: "157mm*72mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
@@ -626,7 +644,7 @@ const rmb3Data = {
                             issueDate: "1966年1月10日",
                             depositOnlyDate: "1996年3月1日",
                             withdrawnDate: "2000年7月1日",
-                            size: "157×72mm",
+                            size: "157mm*72mm",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"

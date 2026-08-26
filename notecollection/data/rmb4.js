@@ -9,7 +9,11 @@ const rmb4Data = {
         { key: "bank", label: "发行银行" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
+        { key: "depositOnlyDate", label: "只收不付日期" },
+        { key: "withdrawnDate", label: "停止流通日期" },
         { key: "wmk", label: "水印" },
+        { key: "size", label: "标准尺寸" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
@@ -22,7 +26,7 @@ const rmb4Data = {
             year: "1980",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 22668751,
                     year: 1980,
                     version: "SE11609515",
                     bank: "中国人民银行",
@@ -34,9 +38,12 @@ const rmb4Data = {
                     issueDate: "1988年9月22日",
                     remark: "",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609515-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609515-2.jpg"
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609515-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "115mm*52mm"
                 },{
-                    copyId: 2,
+                    copyId: 22668708,
                     year: 1980,
                     version: "SE11609551",
                     bank: "中国人民银行",
@@ -48,7 +55,10 @@ const rmb4Data = {
                     issueDate: "1988年9月22日",
                     remark: "",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609551-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609551-2.jpg"
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/SE11609551-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "115mm*52mm"
                 }
             ]
         },
@@ -58,7 +68,7 @@ const rmb4Data = {
             year: "1980",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 25523922,
                     year: 1980,
                     version: "AS29332232",
                     bank: "中国人民银行",
@@ -70,10 +80,29 @@ const rmb4Data = {
                     issueDate: "1988年5月10日",
                     remark: "",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AS29332232-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AS29332232-2.jpg"
-                },
-                {
-                    copyId: 2,
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AS29332232-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "120mm*55mm"
+                },{
+                    copyId: 11638246,
+                    year: 1980,
+                    version: "PA23311571",
+                    bank: "中国人民银行",
+                    condition: "ACG68E",
+                    price: "18元",
+                    purchaseDate: "2026年8月26日",
+                    krause: "882",
+                    wmk: "无水印/Without watermark",
+                    issueDate: "1988年5月10日",
+                    remark: "所谓的“精制币”。PA冠是“精制币”的首发冠。个人偏向于认为这个版别是瞎扯，但是经受不住这张价格便宜啊。",
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/PA23311571-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/PA23311571-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "120mm*55mm"
+                },{
+                    copyId: 15689571,
                     year: 1980,
                     version: "TC61307820",
                     bank: "中国人民银行",
@@ -85,7 +114,10 @@ const rmb4Data = {
                     issueDate: "1988年5月10日",
                     remark: "幼线体",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TC61307820-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TC61307820-2.jpg"
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TC61307820-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "120mm*55mm"
                 }
             ]
         },
@@ -95,7 +127,7 @@ const rmb4Data = {
             year: "1980",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 23311100,
                     year: 1980,
                     version: "AM11901126",
                     bank: "中国人民银行",
@@ -107,7 +139,10 @@ const rmb4Data = {
                     issueDate: "1987年4月27日",
                     remark: "",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AM11901126-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AM11901126-2.jpg"
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AM11901126-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "125mm*58mm"
                 }
             ]
         },
@@ -120,7 +155,7 @@ const rmb4Data = {
                     varietyName: "1980年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 20087625,
                             year: 1980,
                             version: "GZ93445496",
                             bank: "中国人民银行",
@@ -132,10 +167,13 @@ const rmb4Data = {
                             issueDate: "1988年5月10日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/GZ93445496-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/GZ93445496-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/GZ93445496-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "140mm*63mm"
                         },
                         {
-                            copyId: 2,
+                            copyId: 90264622,
                             year: 1980,
                             version: "JT98150594",
                             bank: "中国人民银行",
@@ -147,7 +185,10 @@ const rmb4Data = {
                             issueDate: "1988年5月10日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "140mm*63mm"
                         }
                     ]
                 },
@@ -155,7 +196,7 @@ const rmb4Data = {
                     varietyName: "1990年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18176465,
                             year: 1990,
                             version: "WO00026774",
                             bank: "中国人民银行",
@@ -167,7 +208,10 @@ const rmb4Data = {
                             issueDate: "1995年3月1日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WO00026774-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WO00026774-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WO00026774-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "140mm*63mm"
                         }
                     ]
                 },
@@ -175,7 +219,7 @@ const rmb4Data = {
                     varietyName: "1996年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18874917,
                             year: 1996,
                             version: "QE99989731",
                             bank: "中国人民银行",
@@ -187,7 +231,10 @@ const rmb4Data = {
                             issueDate: "1997年4月1日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/QE99989731-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/QE99989731-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/QE99989731-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "140mm*63mm"
                         }
                     ]
                 }
@@ -202,7 +249,7 @@ const rmb4Data = {
                     varietyName: "1980年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 12599866,
                             year: 1980,
                             version: "AR82501713",
                             bank: "中国人民银行",
@@ -214,7 +261,10 @@ const rmb4Data = {
                             issueDate: "1988年5月10日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AR82501713-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AR82501713-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/AR82501713-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "145mm*63mm"
                         }
                     ]
                 },
@@ -222,7 +272,7 @@ const rmb4Data = {
                     varietyName: "1990年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 15034026,
                             year: 1990,
                             version: "UB35002347",
                             bank: "中国人民银行",
@@ -234,10 +284,13 @@ const rmb4Data = {
                             issueDate: "1996年4月10日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/UB35002347-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/UB35002347-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/UB35002347-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "145mm*63mm"
                         },
                         {
-                            copyId: 2,
+                            copyId: "1780137-041",
                             year: 1990,
                             version: "HR62925341",
                             bank: "中国人民银行",
@@ -249,10 +302,13 @@ const rmb4Data = {
                             issueDate: "1996年4月10日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/HR62925341-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/HR62925341-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/HR62925341-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "145mm*63mm"
                         },
                         {
-                            copyId: 3,
+                            copyId: "2346059-033",
                             year: 1990,
                             version: "WG11911933",
                             bank: "中国人民银行",
@@ -264,7 +320,10 @@ const rmb4Data = {
                             issueDate: "1996年4月10日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WG11911933-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WG11911933-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/WG11911933-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "145mm*63mm"
                         }
                     ]
                 }
@@ -276,7 +335,7 @@ const rmb4Data = {
             year: "1980",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 13109618,
                     year: 1980,
                     version: "EN36556458",
                     bank: "中国人民银行",
@@ -288,7 +347,27 @@ const rmb4Data = {
                     issueDate: "1988年9月22日",
                     remark: "",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/EN36556458-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/EN36556458-2.jpg"
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/EN36556458-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "150mm*70mm"
+                },{
+                    copyId: 20015345,
+                    year: 1980,
+                    version: "JX93021274",
+                    bank: "中国人民银行",
+                    condition: "ACG66E",
+                    price: "39元",
+                    purchaseDate: "2026年8月26日",
+                    krause: "886*",
+                    wmk: "满版古币水印/Pu Coin(Pants&Coins)",
+                    issueDate: "1988年9月22日",
+                    remark: "补号",
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JX93021274-1.jpg",
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JX93021274-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "150mm*70mm"
                 }
             ]
         },
@@ -298,7 +377,7 @@ const rmb4Data = {
             year: "1980",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 22814778,
                     year: 1980,
                     version: "YF23802314",
                     bank: "中国人民银行",
@@ -310,7 +389,10 @@ const rmb4Data = {
                     issueDate: "1988年9月22日",
                     remark: "",
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/YF23802314-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/YF23802314-2.jpg"
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/YF23802314-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "155mm*70mm"
                 }
             ]
         },
@@ -329,7 +411,7 @@ const rmb4Data = {
                     varietyName: "1990年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22085905,
                             year: 1990,
                             version: "TG17299637",
                             bank: "中国人民银行",
@@ -341,7 +423,10 @@ const rmb4Data = {
                             issueDate: "1992年8月20日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TG17299637-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TG17299637-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/TG17299637-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "160mm*77mm"
                         }
                     ]
                 }
@@ -362,7 +447,7 @@ const rmb4Data = {
                     varietyName: "1990年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26086874,
                             year: 1990,
                             version: "XF29286837",
                             bank: "中国人民银行",
@@ -374,7 +459,10 @@ const rmb4Data = {
                             issueDate: "1992年8月20日",
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/XF29286837-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/XF29286837-2.jpg"
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/XF29286837-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "165mm*77mm"
                         }
                     ]
                 }
