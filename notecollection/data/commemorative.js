@@ -16,7 +16,7 @@ const commemorativeData = {
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "krause", label: "克劳斯目录编号" }
+        { key: "krause", label: "纸币目录编号" }
     ],
     series: [
         { 
@@ -44,7 +44,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "新台币发行50周年纪念钞",
+            seriesName: "新台币发行五十周年纪念钞",
             year: "1999",
             copies: [
                 { 
@@ -63,7 +63,7 @@ const commemorativeData = {
                     img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/A179021G-2.jpg",
                     denomination: "新台币50元",
                     wmk: "无水印/Without Watermark",
-                    size: ""
+                    size: "166mm*72mm"
                 },
                 { 
                     copyId: 00000000, 
@@ -81,7 +81,7 @@ const commemorativeData = {
                     img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/B957417F-2.jpg",
                     denomination: "新台币50元",
                     wmk: "无水印/Without Watermark",
-                    size: ""
+                    size: "166mm*72mm"
                 },
                 { 
                     copyId: 26992535, 
@@ -99,7 +99,7 @@ const commemorativeData = {
                     img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/M698194E-2.jpg",
                     denomination: "新台币50元",
                     wmk: "无水印/Without Watermark",
-                    size: ""
+                    size: "166mm*72mm"
                 }
             ] 
         },

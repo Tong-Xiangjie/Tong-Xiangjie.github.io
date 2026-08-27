@@ -170,7 +170,7 @@ const hk_bocData = {
             year: "2010～2015",
             varieties: [
                 {
-                    varietyName: "港币20元",
+                    varietyName: "港币20元 浅水湾",
                     copies: [
                         {
                             copyId: 1,

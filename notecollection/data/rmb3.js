@@ -378,7 +378,7 @@ const rmb3Data = {
                         {
                             copyId: 13181146,
                             year: 1972,
-                            version: "ⅡⅣⅥ8111376",
+                            version: "ⅡⅣⅦ8111376",
                             bank: "中国人民银行",
                             condition: "ACG68E",
                             price: "60元",
@@ -390,8 +390,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "115mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/246-8111376-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/246-8111376-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/247-8111376-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/247-8111376-2.jpg"
                         },{
                             copyId: 18251707,
                             year: 1972,
