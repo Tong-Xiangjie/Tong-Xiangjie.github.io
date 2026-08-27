@@ -161,6 +161,14 @@ function computeStats(typeFilter) {
             continue;
         }
 
+        // ★ 新增：处理「UNC」特殊情况（如 "ACG UNC"）
+        if (cond.includes('UNC') && !cond.match(/\d/)) {
+            // 只处理不包含数字的 UNC（避免把 "UNC 65" 也抓进来，虽然这种情况较少）
+            if (!gradeMap['UNC']) gradeMap['UNC'] = { prefixes: new Set(['']), count: 0 };
+            gradeMap['UNC'].count++;
+            continue;
+        }
+
         const parsed = parseGrade(cond);
         if (!parsed) {
             ungraded++;
@@ -178,8 +186,18 @@ function computeStats(typeFilter) {
         .map(([score, g]) => {
             const prefixes = [...g.prefixes].filter(Boolean).sort();
             const label = score === '真品' ? '真品'
+                : score === 'UNC' ? 'UNC'
                 : (prefixes.length ? prefixes.join('/') + score : score);
-            const sortVal = score === '真品' ? -1 : parseFloat(score.replace('E', '.5'));
+            
+            // ★ 排序值计算
+            let sortVal;
+            if (score === '真品') {
+                sortVal = -1;
+            } else if (score === 'UNC') {
+                sortVal = 0;  // 排在数字分数之后、真品之前
+            } else {
+                sortVal = parseFloat(score.replace('E', '.5'));
+            }
             return [label, g.count, sortVal];
         })
         .sort((a, b) => b[2] - a[2])

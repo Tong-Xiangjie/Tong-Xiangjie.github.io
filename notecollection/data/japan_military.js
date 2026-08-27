@@ -56,7 +56,7 @@ const japanMilitaryData = {
                             year: 1938,
                             version: "1",
                             bank: "大日本帝国政府",
-                            condition: "ACG65E",
+                            condition: "ACG 65E",
                             price: "78元",
                             purchaseDate: "2026年6月6日",
                             krause: "M29",

@@ -34,7 +34,7 @@ const republic_pbkcData = {
                             issueDate: "",
                             withdrawnDate: "",
                             size: "",
-                            condition: "ACG66E",
+                            condition: "ACG 66E",
                             price: "150元",
                             purchaseDate: "2026年8月13日",
                             krause: "S2461",

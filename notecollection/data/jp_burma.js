@@ -31,7 +31,7 @@ const jp_burmaData = {
                     issueDate: "",
                     withdrawnDate: "",
                     size: "",
-                    condition: "ACG66E",
+                    condition: "ACG 66E",
                     price: "58元",
                     purchaseDate: "2026年8月14日",
                     krause: "17b",

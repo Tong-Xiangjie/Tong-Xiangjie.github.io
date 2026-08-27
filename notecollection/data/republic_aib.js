@@ -30,7 +30,7 @@ const republic_aibData = {
                     issueDate: "",
                     withdrawnDate: "",
                     size: "",
-                    condition: "ACG66E",
+                    condition: "ACG 66E",
                     price: "28元",
                     purchaseDate: "2026年6月11日",
                     krause: "S1655",

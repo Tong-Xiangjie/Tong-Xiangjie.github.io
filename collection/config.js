@@ -98,6 +98,13 @@ const categoryTree = [
             { id: 'fec', name: '外汇兑换券', dataKey: 'fecData', dataFile: '../notecollection/data/fec.js' },
             { id: 'gkq', name: '国库券', dataKey: 'gkqData', dataFile: '../notecollection/data/gkq.js' }
         ]
+    },
+    {
+        id: 'test_note',
+        name: '纪念券',
+        dataKey: 'test_noteData',
+        dataFile: '../notecollection/data/test_note.js',
+        children: null
     }
 ];
 
