@@ -22,6 +22,27 @@ const republic_bocData = {
             year: "1937",
             varieties: [
                 {
+                    varietyName: "1937年 5元 上海中国银行大楼",
+                    copies: [
+                        {
+                            copyId: 16141227,
+                            year: 1937,
+                            version: "AU849858",
+                            bank: "中国银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 63E",
+                            price: "56.5元",
+                            purchaseDate: "2026年8月29日",
+                            krause: "80",
+                            remark: "双字轨；水印/Wmk：天坛祈年殿/Pagoda",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/AU849858-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_boc/AU849858-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "1937年 10元 上海中国银行大楼",
                     copies: [
                         {

@@ -130,22 +130,22 @@ const rmb3Data = {
                     varietyName: "红三冠平版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 90020191,
                             year: 1962,
-                            version: "",
+                            version: "ⅩⅩⅦ6238600",
                             bank: "中国人民银行",
-                            condition: "ACGE",
-                            price: "",
-                            purchaseDate: "",
-                            krause: "",
+                            condition: "ACG 66E",
+                            price: "40元",
+                            purchaseDate: "2026年8月29日",
+                            krause: "877h",
                             wmk: "无水印/Without Watermark",
                             issueDate: "1967年12月15日",
                             depositOnlyDate: "",
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/007-6238600-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/007-6238600-2.jpg"
                         }
                     ]
                 },
