@@ -28,5 +28,12 @@ window.SPECIAL_CONFIGS = [
         dataVar: 'shanheScenes',
         view: 'map',
         mapFile: 'china_map.svg'
+    },
+    // ===== 新增：币海拾年 · 时间轴 =====
+    {
+        id: 'timeline',
+        name: '币海拾年',
+        slogan: '入坑这么久，你的眼光变了多少？',
+        view: 'timeline'
     }
 ];

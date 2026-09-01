@@ -495,7 +495,6 @@ body {
 
 .copy-info { flex: 1; min-width: 0; font-size: 0.8rem; line-height: 1.5; }
 
-/* ===== 冠字号行：容器 + 文本（新增样式） ===== */
 .copy-info .version {
     display: flex;
     align-items: center;
@@ -830,7 +829,7 @@ body.modal-open {
 .special-item-name { font-size: 0.8rem; font-weight: bold; color: var(--text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .special-item-krause { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
 
-/* ========== 侧边栏完全隐藏（专题概览全宽页面） ========== */
+/* ========== 侧边栏完全隐藏 ========== */
 .body-row.sidebar-hidden .sidebar {
     width: 0;
     min-width: 0;
@@ -895,7 +894,7 @@ body.modal-open {
     font-weight: bold;
 }
 
-/* ========== 专题概览：长条样式（带标语的专题） ========== */
+/* ========== 专题概览：长条样式 ========== */
 .special-overview-bar {
     grid-column: 1 / -1;
     display: flex;
@@ -981,7 +980,7 @@ body.modal-open {
     opacity: 0.85;
 }
 
-/* ========== 灯箱通用关闭按钮：极简 ✕ ========== */
+/* ========== 灯箱通用关闭按钮 ========== */
 .lightbox-close {
     position: absolute;
     top: 10px;
@@ -1101,7 +1100,7 @@ body.modal-open {
     50% { opacity: 0.55; }
 }
 
-/* ========== ★★★ 图片重试悬浮按钮 ★★★ ========== */
+/* ========== 图片重试悬浮按钮 ========== */
 .img-retry-fab {
     position: fixed;
     right: 16px;
@@ -1125,7 +1124,6 @@ body.modal-open {
 
 .img-retry-fab .fab-icon { font-size: 1.1rem; line-height: 1; }
 
-/* 数量角标：浅色背景，叠在 ⟳ 右上角，不撑大按钮 */
 .img-retry-fab .fab-count {
     position: absolute;
     top: -3px;
@@ -1207,7 +1205,6 @@ body.modal-open {
 }
 .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
 
-/* ★ 粤港澳放大图（切片，右侧，字号略小） */
 .shanhe-map-inset {
     width: 240px;
     max-width: 100%;
@@ -1222,7 +1219,6 @@ body.modal-open {
 .shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
 .shanhe-map-loading { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
 
-/* ========== 移动端：地图占满全宽 ========== */
 @media (max-width: 760px) {
     .shanhe-map-wrap {
         padding-right: 0;
@@ -1335,7 +1331,6 @@ body.modal-open {
     text-overflow: ellipsis;
 }
 
-/* ★ 列表图片：隐形相框（相框固定，图片在内部放大） */
 .shanhe-list-cell {
     aspect-ratio: 1 / 1;
     overflow: hidden;
@@ -1365,7 +1360,6 @@ body.modal-open {
     color: var(--text-secondary);
 }
 
-/* ★ 山河视图切换动画 */
 .shanhe-view-enter {
     animation: shanheViewFade 0.25s ease;
 }
@@ -1374,9 +1368,270 @@ body.modal-open {
     to   { opacity: 1; transform: none; }
 }
 
-/* ========== 隐藏 #app，使用独立容器 ========== */
+/* ========== 隐藏 #app ========== */
 #app {
     display: none !important;
     height: 0;
     overflow: hidden;
+}
+
+/* ================================================================
+   ★★★★★ 币海拾年 · 时间轴 ★★★★★
+   ================================================================ */
+
+/* -------- 顶部操作栏（返回 + 件数 + 筛选 + 排序） -------- */
+.timeline-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0 10px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+}
+.timeline-top-bar .back-btn {
+    background: none;
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text);
+    transition: background 0.15s;
+}
+.timeline-top-bar .back-btn:hover {
+    background: var(--sidebar-bg);
+}
+.timeline-top-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.timeline-top-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* -------- 筛选下拉框 -------- */
+.timeline-filter-select {
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    background: var(--card-bg);
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    height: 28px;
+}
+.timeline-filter-select:hover {
+    border-color: var(--theme);
+}
+.timeline-filter-select:focus {
+    border-color: var(--theme);
+}
+
+/* -------- 排序按钮 -------- */
+.timeline-sort-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+    border-radius: 4px;
+}
+.timeline-sort-btn:hover {
+    background: var(--sidebar-bg);
+}
+.timeline-sort-btn.active {
+    background: var(--theme);
+    color: #fff;
+    border-color: var(--theme);
+}
+
+/* -------- 时间轴头部（标题 + slogan） -------- */
+.timeline-header {
+    margin-bottom: 16px;
+}
+.timeline-header h2 {
+    font-size: 1.4rem;
+    font-weight: bold;
+}
+.timeline-slogan {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 4px 0 0;
+}
+
+/* -------- 时间轴主体 -------- */
+.timeline-body {
+    display: flex;
+    flex-direction: column;
+    padding-left: 12px;
+}
+
+/* -------- 日期分组标题（日期主题色加粗 + 灰色小字） -------- */
+.timeline-date-header {
+    display: flex;
+    align-items: baseline;
+    padding: 10px 0 6px 0;
+    border-bottom: 2px solid var(--border);
+    margin-top: 10px;
+}
+.timeline-date-header:first-of-type {
+    margin-top: 0;
+}
+.timeline-date-label {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--theme);
+}
+.timeline-date-spent {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: normal;
+    margin-left: 4px;
+}
+
+/* -------- 时间轴条目 -------- */
+.timeline-item {
+    display: flex;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+.timeline-item:last-child {
+    border-bottom: none;
+}
+
+/* -------- 时间轴左侧：竖线 + 圆点 -------- */
+.timeline-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 80px;
+    flex-shrink: 0;
+    padding-top: 4px;
+    position: relative;
+}
+/* 竖线 */
+.timeline-left::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    bottom: -6px;
+    left: 50%;
+    width: 2px;
+    background: var(--border);
+    transform: translateX(-50%);
+}
+.timeline-item:last-child .timeline-left::after {
+    display: none;
+}
+/* 圆点 */
+.timeline-dot {
+    width: 12px;
+    height: 12px;
+    background: var(--theme);
+    border-radius: 50%;
+    flex-shrink: 0;
+    z-index: 1;
+    border: 2px solid var(--bg);
+}
+
+/* -------- 时间轴卡片 -------- */
+.timeline-card {
+    flex: 1;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 4px 0;
+}
+.timeline-images {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.timeline-img {
+    width: 80px;
+    height: 60px;
+    object-fit: contain;
+    background: var(--thumb-bg);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+.timeline-img:hover {
+    opacity: 0.7;
+}
+.timeline-no-img {
+    width: 80px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--thumb-bg);
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.timeline-info {
+    flex: 1;
+    min-width: 0;
+}
+.timeline-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+.timeline-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* -------- 移动端适配 -------- */
+@media (max-width: 600px) {
+    .timeline-item {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .timeline-left {
+        width: 100%;
+        flex-direction: row;
+        gap: 10px;
+        justify-content: flex-start;
+        padding-top: 0;
+    }
+    .timeline-left::after {
+        display: none;
+    }
+    .timeline-dot {
+        margin-top: 0;
+    }
+    .timeline-card {
+        flex-direction: column;
+    }
+    .timeline-img {
+        width: 100%;
+        height: auto;
+        max-height: 160px;
+    }
+    .timeline-top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    .timeline-top-right {
+        justify-content: flex-end;
+    }
 }

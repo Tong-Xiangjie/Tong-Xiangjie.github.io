@@ -88,7 +88,7 @@ const indonesiaData = {
                     bank: "印度尼西亚银行/Bank Indonesia",
                     condition: "ACG 66E",
                     price: "76元",
-                    purchaseDate: "2025年5月12日",
+                    purchaseDate: "2026年5月12日",
                     krause: "162a",
                     size: "",
                     watermark: "",

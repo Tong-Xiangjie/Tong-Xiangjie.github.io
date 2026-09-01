@@ -7,6 +7,12 @@ let shanheProvinceNames = {};
 let shanheMapCache = null;
 let shanheViewMode = 'map';
 
+// ★ 时间轴排序状态
+let timelineSortOrder = 'desc';
+// ★ 时间轴筛选状态
+let timelineFilterYear = '全部';
+let timelineFilterMonth = '全部';
+
 const SHANHE_LABEL_OFFSETS = {
     hebei: 10
 };
@@ -87,7 +93,7 @@ function buildGroupCategories(config, items) {
 }
 
 function syncSpecialGroupChildren(config) {
-    if (!config || config.view === 'map') return;
+    if (!config || config.view === 'timeline' || config.view === 'map' || !config.dataKey) return;
     const data = getData(config.dataKey);
     const items = data ? (data.items || data) : [];
     const groupChildren = buildGroupCategories(config, items);
@@ -152,12 +158,16 @@ function onSpecialOverviewItemClick(configId) {
     document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
-    if (config && config.view === 'map') {
+    if (config && (config.view === 'map' || config.view === 'timeline')) {
         document.querySelector('.body-row')?.classList.add('sidebar-hidden');
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = 'none';
-        shanheViewMode = 'map';
-        renderShanheContent(config);
+        if (config.view === 'map') {
+            shanheViewMode = 'map';
+            renderShanheContent(config);
+        } else {
+            renderTimelineContent(config);
+        }
         triggerViewAnimation();
         return;
     }
@@ -192,6 +202,11 @@ function renderSpecialContent() {
     if (!selectedSpecial) { renderSpecialOverview(); return; }
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) { renderSpecialOverview(); return; }
+
+    if (config.view === 'timeline') {
+        renderTimelineContent(config);
+        return;
+    }
 
     const data = getData(config.dataKey);
     if (!data) { app.innerHTML = '<div class="empty-state">啥都木有</div>'; return; }
@@ -330,13 +345,10 @@ function renderLightboxContent(contentEl, config) {
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-right:36px;">`;
     html += `<div style="font-size:0.8rem;color:var(--text-secondary);">${index + 1} / ${items.length}</div>`;
     html += `<div style="display:flex;gap:8px;">`;
-
     const prevDisabled = index <= 0;
     html += `<button class="special-lightbox-nav" onclick="navigateLightbox(-1)" ${prevDisabled ? 'disabled' : ''}>← 上一张</button>`;
-
     const nextDisabled = index >= items.length - 1;
     html += `<button class="special-lightbox-nav" onclick="navigateLightbox(1)" ${nextDisabled ? 'disabled' : ''}>下一张 →</button>`;
-
     html += `</div></div>`;
 
     if (imgUrl) {
@@ -349,7 +361,6 @@ function renderLightboxContent(contentEl, config) {
 
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;
     html += `<div style="font-size:1rem;font-weight:bold;color:var(--text);margin-bottom:4px;">${escapeHtml(item.name || item.scene || '')}</div>`;
-
     if (item.year) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">年份：${item.year}年</div>`;
     if (item.denom) {
         const label = (config && config.view === 'map') ? '来源' : '面额';
@@ -358,7 +369,6 @@ function renderLightboxContent(contentEl, config) {
     if (item.city) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">城市：${escapeHtml(item.city)}</div>`;
     if (item.krause && !/unlisted/i.test(item.krause)) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">编号：${escapeHtml(item.krause)}</div>`;
     if (item.remark) html += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px;">备注：${escapeHtml(item.remark)}</div>`;
-
     html += `</div>`;
 
     contentEl.innerHTML = html;
@@ -523,7 +533,6 @@ function shanheHeaderHtml(config) {
 // ========== 方寸山河：地图 ==========
 let shanheRequestId = 0;
 
-// ★ 公共渲染逻辑（提取出来，供 fetch 和 object 两种方式共用）
 function applyShanheStyling(svg, items, config) {
     const countByProvince = {};
     let maxCount = 0;
@@ -544,7 +553,6 @@ function applyShanheStyling(svg, items, config) {
     buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
 }
 
-// ★ 通过 <object> 标签加载 SVG（专门用于 file:// 协议）
 function loadShanheViaObject(app, config, items, mapFile) {
     return new Promise((resolve, reject) => {
         const loadEl = app.querySelector('.shanhe-map-loading');
@@ -631,7 +639,6 @@ async function renderShanheContent(config) {
             `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
         const loadEl = app.querySelector('.shanhe-map-loading');
 
-        // 检查缓存
         if (shanheMapCache && shanheMapCache.wrap) {
             const removeLoad = app.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
@@ -738,20 +745,14 @@ function isPointInPolygon(el, x, y) {
 
 function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, baseSize, noLabel, strokeScale) {
     const name = shanheProvinceNames[pid] || pid;
-
-    // 填充颜色仍然根据数量变化（0 件为白色）
     el.style.fill = fillForCount(count, maxCount, themeLightRGB);
-
-    // ★ 修改：所有省份都显示为可点击指针
     el.style.cursor = 'pointer';
 
     if (strokeScale && strokeScale !== 1) {
         el.style.strokeWidth = (1 * strokeScale) + 'px';
     }
 
-    // ★ 移除 count === 0 的返回，让所有省份都能点击
     el.addEventListener('click', () => {
-        // 切换到列表视图并设置当前省份
         shanheViewMode = 'list';
         currentSubId = pid;
         renderShanheContent(config);
@@ -767,7 +768,6 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
         }, 200);
     });
 
-    // 以下是标签生成逻辑（不变）
     let bbox = null;
     try { bbox = el.getBBox(); } catch (e) {}
     if (!bbox || bbox.width <= 0 || bbox.height <= 0) return null;
@@ -940,22 +940,19 @@ function backFromShanheMap() {
     if (config) renderShanheContent(config);
 }
 
-// ========== ★ 新增：主题切换时刷新地图颜色（只改 fill，不重建 DOM） ==========
+// ========== ★ 主题切换刷新地图颜色 ==========
 window.refreshShanheColors = function() {
-    // 仅在专题模式、且当前是山河地图视图时生效
     if (currentMode !== MODE.SPECIAL) return;
-
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config || config.view !== 'map') return;
-    if (currentSubId !== null) return;          // 省份详情页不刷新地图主体
-    if (shanheViewMode !== 'map') return;       // 列表视图不需要刷新颜色
+    if (currentSubId !== null) return;
+    if (shanheViewMode !== 'map') return;
 
     const wrap = shanheMapCache?.wrap;
     if (!wrap) return;
     const svg = wrap.querySelector('svg');
     if (!svg) return;
 
-    // 重新统计各省份的藏品数量
     const data = getData(config.dataKey);
     const items = data ? (data.items || data) : [];
 
@@ -967,10 +964,8 @@ window.refreshShanheColors = function() {
         if (countByProvince[item.province] > maxCount) maxCount = countByProvince[item.province];
     }
 
-    // 获取更新后的主题浅色（已由 applyTheme 更新）
     const themeLightRGB = getCssColor('--theme-light', [94, 160, 255]);
 
-    // 更新路径颜色的核心函数
     const updatePaths = (targetSvg) => {
         targetSvg.querySelectorAll('.state').forEach(el => {
             const cls = el.getAttribute('class') || '';
@@ -980,12 +975,367 @@ window.refreshShanheColors = function() {
         });
     };
 
-    // 更新主地图
     updatePaths(svg);
-
-    // 更新粤港澳局部放大图（如果存在）
     const inset = wrap.querySelector('.shanhe-map-inset svg');
     if (inset) {
         updatePaths(inset);
     }
 };
+
+// ===================================================================
+//  ★★★★★ 币海拾年 · 时间轴 ★★★★★
+// ===================================================================
+
+// ---------- 中文日期解析器 ----------
+function parseChineseDate(dateStr) {
+    if (!dateStr) return null;
+    const trimmed = String(dateStr).trim();
+    const standard = new Date(trimmed);
+    if (!isNaN(standard.getTime())) return standard;
+    const match = trimmed.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+    if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+    }
+    return null;
+}
+
+// ---------- 获取分类路径（不含顶层「纸币/硬币」） ----------
+function getCategoryPath(dataKey, type) {
+    let tree;
+    if (type === 'notes') {
+        tree = typeof categoryTree !== 'undefined' ? categoryTree : [];
+    } else if (type === 'coins') {
+        tree = typeof coinCategoryTree !== 'undefined' ? coinCategoryTree : [];
+    } else {
+        return '';
+    }
+
+    for (const cat of tree) {
+        if (cat.children && cat.children.length > 0) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) {
+                    return cat.name + ' - ' + sub.name;
+                }
+            }
+        } else {
+            if (cat.dataKey === dataKey) {
+                return cat.name;
+            }
+        }
+    }
+    return '';
+}
+
+// ---------- 排序切换 ----------
+function setTimelineOrder(order) {
+    if (timelineSortOrder === order) return;
+    timelineSortOrder = order;
+    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    if (config) renderTimelineContent(config);
+}
+
+// ---------- 筛选变更 ----------
+function onTimelineFilterChange() {
+    const yearSelect = document.getElementById('timelineYearFilter');
+    const monthSelect = document.getElementById('timelineMonthFilter');
+    if (yearSelect) timelineFilterYear = yearSelect.value;
+    if (monthSelect) timelineFilterMonth = monthSelect.value;
+    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    if (config) renderTimelineContent(config);
+}
+
+// ---------- 返回专题概览 ----------
+function backFromTimeline() {
+    selectedSpecial = null;
+    currentCategoryId = null;
+    currentSubId = null;
+    renderSpecialOverview();
+}
+
+// ---------- 核心渲染 ----------
+function renderTimelineContent(config) {
+    const app = getRenderContainer();
+
+    const items = [];
+
+    // ===== 纸币数据 =====
+    if (window.DATA_MAP) {
+        const entries = Object.entries(window.DATA_MAP);
+        for (const [dataKey, data] of entries) {
+            if (!data || !data.series) continue;
+            for (let si = 0; si < data.series.length; si++) {
+                try {
+                    const series = data.series[si];
+                    if (!series) continue;
+
+                    if (series.varieties && Array.isArray(series.varieties)) {
+                        for (let vi = 0; vi < series.varieties.length; vi++) {
+                            const variety = series.varieties[vi];
+                            if (!variety || !variety.copies || !Array.isArray(variety.copies)) continue;
+                            for (let ci = 0; ci < variety.copies.length; ci++) {
+                                const copy = variety.copies[ci];
+                                if (copy && copy.purchaseDate) {
+                                    const date = parseChineseDate(copy.purchaseDate);
+                                    if (date) {
+                                        items.push({
+                                            copy: copy,
+                                            type: 'notes',
+                                            dataKey: dataKey,
+                                            seriesName: series.seriesName + ' - ' + variety.varietyName,
+                                            date: date,
+                                            dateStr: copy.purchaseDate
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } else if (series.copies && Array.isArray(series.copies)) {
+                        for (let ci = 0; ci < series.copies.length; ci++) {
+                            const copy = series.copies[ci];
+                            if (copy && copy.purchaseDate) {
+                                const date = parseChineseDate(copy.purchaseDate);
+                                if (date) {
+                                    items.push({
+                                        copy: copy,
+                                        type: 'notes',
+                                        dataKey: dataKey,
+                                        seriesName: series.seriesName,
+                                        date: date,
+                                        dateStr: copy.purchaseDate
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[时间轴] 纸币数据遍历出错（已跳过）:', e);
+                }
+            }
+        }
+    }
+
+    // ===== 硬币数据 =====
+    if (window.COIN_DATA_MAP) {
+        const entries = Object.entries(window.COIN_DATA_MAP);
+        for (const [dataKey, data] of entries) {
+            if (!data || !data.series) continue;
+            for (let si = 0; si < data.series.length; si++) {
+                try {
+                    const series = data.series[si];
+                    if (!series) continue;
+
+                    if (series.varieties && Array.isArray(series.varieties)) {
+                        for (let vi = 0; vi < series.varieties.length; vi++) {
+                            const variety = series.varieties[vi];
+                            if (!variety || !variety.copies || !Array.isArray(variety.copies)) continue;
+                            for (let ci = 0; ci < variety.copies.length; ci++) {
+                                const copy = variety.copies[ci];
+                                if (copy && copy.purchaseDate) {
+                                    const date = parseChineseDate(copy.purchaseDate);
+                                    if (date) {
+                                        items.push({
+                                            copy: copy,
+                                            type: 'coins',
+                                            dataKey: dataKey,
+                                            seriesName: series.seriesName + ' - ' + variety.varietyName,
+                                            date: date,
+                                            dateStr: copy.purchaseDate
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } else if (series.copies && Array.isArray(series.copies)) {
+                        for (let ci = 0; ci < series.copies.length; ci++) {
+                            const copy = series.copies[ci];
+                            if (copy && copy.purchaseDate) {
+                                const date = parseChineseDate(copy.purchaseDate);
+                                if (date) {
+                                    items.push({
+                                        copy: copy,
+                                        type: 'coins',
+                                        dataKey: dataKey,
+                                        seriesName: series.seriesName,
+                                        date: date,
+                                        dateStr: copy.purchaseDate
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[时间轴] 硬币数据遍历出错（已跳过）:', e);
+                }
+            }
+        }
+    }
+
+    // 过滤无效日期
+    const validItems = items.filter(it => it.date && !isNaN(it.date.getTime()));
+
+    // ★★ 按年份/月份筛选 ★★
+    let filteredItems = validItems;
+    if (timelineFilterYear !== '全部') {
+        filteredItems = filteredItems.filter(it => {
+            return it.date.getFullYear().toString() === timelineFilterYear;
+        });
+    }
+    if (timelineFilterMonth !== '全部') {
+        filteredItems = filteredItems.filter(it => {
+            const month = String(it.date.getMonth() + 1).padStart(2, '0');
+            return month === timelineFilterMonth;
+        });
+    }
+
+    filteredItems.sort((a, b) => {
+        const tA = a.date.getTime();
+        const tB = b.date.getTime();
+        return timelineSortOrder === 'desc' ? tB - tA : tA - tB;
+    });
+
+    // 按日期分组
+    const grouped = {};
+    for (const item of filteredItems) {
+        const key = item.dateStr;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+    }
+    const sortedDates = Object.keys(grouped).sort((a, b) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return timelineSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    // ★★ 提取所有可用年份（供下拉框使用） ★★
+    const availableYears = ['全部'];
+    const yearSet = new Set();
+    for (const item of validItems) {
+        yearSet.add(item.date.getFullYear().toString());
+    }
+    for (const y of [...yearSet].sort()) {
+        availableYears.push(y);
+    }
+
+    // ---- 渲染 HTML ----
+    let html = `<div class="timeline-top-bar">`;
+    html += `<button class="back-btn" onclick="backFromTimeline()">← 返回专题</button>`;
+    html += `<div class="timeline-top-right">`;
+    html += `<span class="timeline-top-count">共 ${filteredItems.length} 件</span>`;
+
+    // 年份下拉
+    html += `<select class="timeline-filter-select" id="timelineYearFilter" onchange="onTimelineFilterChange()">`;
+    for (const y of availableYears) {
+        const selected = y === timelineFilterYear ? 'selected' : '';
+        const label = y === '全部' ? '全部年份' : y + '年';
+        html += `<option value="${y}" ${selected}>${label}</option>`;
+    }
+    html += `</select>`;
+
+    // 月份下拉
+    html += `<select class="timeline-filter-select" id="timelineMonthFilter" onchange="onTimelineFilterChange()">`;
+    const months = ['全部', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    for (const m of months) {
+        const selected = m === timelineFilterMonth ? 'selected' : '';
+        const label = m === '全部' ? '全部月份' : m + '月';
+        html += `<option value="${m}" ${selected}>${label}</option>`;
+    }
+    html += `</select>`;
+
+    const descActive = timelineSortOrder === 'desc' ? 'active' : '';
+    const ascActive = timelineSortOrder === 'asc' ? 'active' : '';
+    html += `<button class="timeline-sort-btn ${descActive}" onclick="setTimelineOrder('desc')">最新优先</button>`;
+    html += `<button class="timeline-sort-btn ${ascActive}" onclick="setTimelineOrder('asc')">最早优先</button>`;
+    html += `</div>`;
+    html += `</div>`;
+
+    html += `<div class="timeline-header">`;
+    html += `<h2>${escapeHtml(config.name)}</h2>`;
+    html += `<p class="timeline-slogan">${escapeHtml(config.slogan)}</p>`;
+    html += `</div>`;
+
+    if (filteredItems.length === 0) {
+        html += '<div class="empty-state">没有符合条件的购入记录哦～</div>';
+        app.innerHTML = html;
+        triggerViewAnimation();
+        return;
+    }
+
+    html += `<div class="timeline-body">`;
+    for (const dateKey of sortedDates) {
+        const groupItems = grouped[dateKey];
+
+        let dayTotal = 0;
+        let hasPrice = false;
+        for (const item of groupItems) {
+            const price = parseFloat(String(item.copy.price || '').replace(/[^0-9.]/g, ''));
+            if (!isNaN(price) && price > 0) {
+                dayTotal += price;
+                hasPrice = true;
+            }
+        }
+        const totalSpentText = hasPrice ? dayTotal.toFixed(0) + '元' : '0元';
+
+        html += `<div class="timeline-date-header">`;
+        html += `<span class="timeline-date-label">${escapeHtml(dateKey)}</span>`;
+        html += `<span class="timeline-date-spent"> 这一天你一共花了${totalSpentText}</span>`;
+        html += `</div>`;
+
+        for (const item of groupItems) {
+            try {
+                const c = item.copy;
+                const img1 = getImageUrl(c.img1);
+                const img2 = getImageUrl(c.img2);
+                const priceText = c.price ? (String(c.price).includes('元') ? c.price : c.price + '元') : '—';
+                const version = c.version || '—';
+                const grade = c.condition || c.grade || '—';
+                const gradingCompany = c.gradingCompany || '';
+
+                const categoryPath = getCategoryPath(item.dataKey, item.type);
+                let fullName = categoryPath ? categoryPath + ' - ' + item.seriesName : item.seriesName;
+
+                let metaParts = [];
+                if (item.type === 'notes') {
+                    metaParts.push('冠字号：' + version);
+                    metaParts.push('评级得分：' + grade);
+                } else {
+                    if (gradingCompany && gradingCompany !== '') {
+                        metaParts.push('评级机构：' + gradingCompany);
+                    }
+                    metaParts.push('评级得分：' + grade);
+                }
+                metaParts.push('购入价格：' + priceText);
+                const metaStr = metaParts.join('\u00A0\u00A0\u00A0\u00A0');
+
+                html += `<div class="timeline-item">`;
+                html += `<div class="timeline-left">`;
+                html += `<div class="timeline-dot"></div>`;
+                html += `</div>`;
+                html += `<div class="timeline-card">`;
+                html += `<div class="timeline-images">`;
+                if (img1) {
+                    // ★ 复用纸币/硬币板块的 openModal（支持捏合缩放）
+                    html += `<img class="timeline-img" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+                }
+                if (img2) {
+                    html += `<img class="timeline-img" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+                }
+                if (!img1 && !img2) {
+                    html += `<div class="timeline-no-img">无图</div>`;
+                }
+                html += `</div>`;
+                html += `<div class="timeline-info">`;
+                html += `<div class="timeline-name">${escapeHtml(fullName)}</div>`;
+                html += `<div class="timeline-meta">${escapeHtml(metaStr)}</div>`;
+                html += `</div>`;
+                html += `</div>`;
+                html += `</div>`;
+            } catch (e) {
+                console.warn('[时间轴] 渲染单个条目出错（已跳过）:', e);
+            }
+        }
+    }
+    html += `</div>`;
+
+    app.innerHTML = html;
+    triggerViewAnimation();
+}
