@@ -5,17 +5,18 @@ const rmb5Data = {
     desc: "Fifth Series of the Renminbi",
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "depositOnlyDate", label: "只收不付日期" },
-        { key: "withdrawnDate", label: "退出流通日期" },
-        { key: "size", label: "标准尺寸" },
+        { key: "withdrawnDate", label: "停止流通日期" },
         { key: "wmk", label: "水印" },
+        { key: "size", label: "标准尺寸" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "krause", label: "克劳斯目录编号" }
+        { key: "krause", label: "纸币目录编号" }
     ],
 
     series: [
@@ -147,15 +148,49 @@ const rmb5Data = {
                             condition: "ACG 67E",
                             price: "63元",
                             purchaseDate: "2025年10月8日",
-                            krause: "903a",
+                            krause: "903a.1",
                             issueDate: "2005年8月31日",
                             depositOnlyDate: "正在流通",
                             withdrawnDate: "正在流通",
                             size: "135mm*63mm",
                             wmk: "水仙花/Narcissus",
-                            remark: "",
+                            remark: "二冠",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/IO88888767-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/IO88888767-2.jpg"
+                        },{
+                            copyId: 15343311,
+                            year: 2005,
+                            version: "X5E2236134",
+                            bank: "中国人民银行",
+                            condition: "ACG 66E",
+                            price: "13元",
+                            purchaseDate: "2026年8月31日",
+                            krause: "903a.2",
+                            issueDate: "2005年8月31日",
+                            depositOnlyDate: "正在流通",
+                            withdrawnDate: "正在流通",
+                            size: "135mm*63mm",
+                            wmk: "水仙花/Narcissus",
+                            remark: "三冠",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/X5E2236134-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/X5E2236134-2.jpg"
+                        },{
+                            copyId: 1,
+                            year: 2005,
+                            version: "H0W1062819",
+                            bank: "中国人民银行",
+                            condition: "暂未评级",
+                            price: "7元",
+                            purchaseDate: "2026年8月31日",
+                            krause: "903a.2*",
+                            issueDate: "2005年8月31日",
+                            depositOnlyDate: "正在流通",
+                            withdrawnDate: "正在流通",
+                            size: "135mm*63mm",
+                            wmk: "水仙花/Narcissus",
+                            remark: "三冠补号",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/H0W1062819-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/H0W1062819-2.jpg"
                         }
                     ]
                 },
@@ -163,6 +198,23 @@ const rmb5Data = {
                     varietyName: "2020年版",
                     copies: [
                         {
+                            copyId: 1,
+                            year: 2020,
+                            version: "FB00016111",
+                            bank: "中国人民银行",
+                            condition: "ACG 68E",
+                            price: "35元",
+                            purchaseDate: "2026年8月31日",
+                            krause: "913",
+                            issueDate: "2020年11月5日",
+                            depositOnlyDate: "正在流通",
+                            withdrawnDate: "正在流通",
+                            size: "135mm*63mm",
+                            wmk: "水仙花/Narcissus",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/FB00016111-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb5/FB00016111-2.jpg"
+                        },{
                             copyId: 1,
                             year: 2020,
                             version: "AH58603088",

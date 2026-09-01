@@ -6,7 +6,7 @@ const rmb4Data = {
     // 四版币板块的详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "depositOnlyDate", label: "只收不付日期" },
@@ -17,7 +17,7 @@ const rmb4Data = {
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "krause", label: "克劳斯目录编号" }
+        { key: "krause", label: "纸币目录编号" }
     ],
     series: [
         // ==================== 1角（只有1980年，无varieties层） ====================
@@ -186,6 +186,24 @@ const rmb4Data = {
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/JT98150594-2.jpg",
+                            depositOnlyDate: "",
+                            withdrawnDate: "",
+                            size: "140mm*63mm"
+                        },
+                        {
+                            copyId: 13377736,
+                            year: 1980,
+                            version: "FX23290858",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "20元",
+                            purchaseDate: "2026年8月30日",
+                            krause: "884",
+                            wmk: "满版古币水印/Pu Coin(Pants&Coins)",
+                            issueDate: "1988年5月10日",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/FX23290858-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb4/FX23290858-2.jpg",
                             depositOnlyDate: "",
                             withdrawnDate: "",
                             size: "140mm*63mm"

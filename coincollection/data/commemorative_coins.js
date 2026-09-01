@@ -111,6 +111,40 @@ const coincommData = {
                 }
             ]
         },
+        // ==================== 伟人系列（5层，有多品种） ====================
+        {
+            seriesName: "伟人系列普通纪念币",
+            year: 1993,
+            varieties: [
+                {
+                    varietyName: "朱德诞辰110周年",
+                    copies: [
+                        {
+                            copyId: 15777876,
+                            country: "中华人民共和国",
+                            year: 1996,
+                            issueDate: "1996年",
+                            mint: "",
+                            material: "钢芯镀镍",
+                            diameter: "25mm",
+                            weight: "6.05g",
+                            edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
+                            design: "",
+                            mintage: "1000万",
+                            grade: "MS66",
+                            gradingCompany: "ACG",
+                            price: "30元",
+                            purchaseDate: "2026年8月26日",
+                            catalogNumber: "",
+                            remark: "",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/coincollection/image/commemorative/1996zd-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/coincollection/image/commemorative/1996zd-2.jpg"
+                        }
+                    ]
+                }
+                // 可继续添加：金丝猴、白鳍豚、华南虎等
+            ]
+        },
         // ==================== 珍稀动物系列（5层，有多品种） ====================
         {
             seriesName: "珍稀动物普通纪念币",
