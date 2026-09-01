@@ -15,7 +15,7 @@ const republic_cbcData = {
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "krause", label: "克劳斯目录编码" }
+        { key: "krause", label: "纸币目录编号" }
     ],
     series: [
         {

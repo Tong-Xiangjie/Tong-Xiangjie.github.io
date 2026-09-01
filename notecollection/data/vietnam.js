@@ -15,6 +15,7 @@ const vietnamData = {
         { key: "krause", label: "克劳斯目录编号" }
     ],
     series: [
+        /*
         {
             seriesName: "2016年 100越南盾 越南国家银行成立65周年纪念钞",
             year: "2016",
@@ -36,5 +37,6 @@ const vietnamData = {
                 }
             ]
         }
+        */
     ]
 };

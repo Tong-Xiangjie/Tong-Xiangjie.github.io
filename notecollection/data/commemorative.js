@@ -124,8 +124,7 @@ const commemorativeData = {
                     denomination: "50元",
                     wmk: "天安门城楼/Tian'anmen",
                     size: "165mm*80mm"
-                },
-                { 
+                },{ 
                     copyId: 25399800, 
                     year: 1999,
                     purchaseDate: "2026年2月1日", 
@@ -139,6 +138,23 @@ const commemorativeData = {
                     remark: "顺子号", 
                     img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-1.jpg", 
                     img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J51665987-2.jpg",
+                    denomination: "50元",
+                    wmk: "天安门城楼/Tian'anmen",
+                    size: "165mm*80mm"
+                },{ 
+                    copyId: "1843785-048", 
+                    year: 1999,
+                    purchaseDate: "2026年9月1日", 
+                    price: "280元", 
+                    bank: "中国人民银行", 
+                    version: "J59588448", 
+                    condition: "PMG UNC", 
+                    krause: "891",
+                    issueDate: "1999年9月20日",
+                    issueQuantity: "6000万",
+                    remark: "签名版本+超级大号", 
+                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J59588448-1.jpg", 
+                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/comm/J59588448-2.jpg",
                     denomination: "50元",
                     wmk: "天安门城楼/Tian'anmen",
                     size: "165mm*80mm"
