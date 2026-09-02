@@ -346,6 +346,22 @@ function enterArticlesTab() {
         }
     }
 
+    // ★★★ 修复：首次进入文章 Tab 且为全字段索引模式时，主动触发预加载 ★★★
+    if (articleSearchMode === 'fulltext') {
+        // 延迟一点启动，不阻塞首次渲染
+        setTimeout(() => {
+            // 如果 preloadAllArticles 尚未执行（或正在执行），调用它
+            if (typeof preloadAllArticles === 'function') {
+                preloadAllArticles().then(() => {
+                    // 如果当前仍在文章列表且没有搜索词，刷新列表以更新提示状态（加载完成提示）
+                    if (currentMode === MODE.ARTICLES && currentArticleView === VIEW.LIST && !articleSearchKeyword) {
+                        renderArticleList();
+                    }
+                }).catch(() => {});
+            }
+        }, 100);
+    }
+
     triggerViewAnimation();
 }
 

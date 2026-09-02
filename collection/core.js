@@ -370,6 +370,11 @@ function saveFullState() {
                     currentSubId: currentSubId
                 };
             }
+        } else {
+            // 保存概览滚动
+            specialPageCaches['__overview__'] = {
+                scrollY: scrollY
+            };
         }
     }
 }
@@ -435,13 +440,15 @@ function setupImageRetry() {
 function updateRetryFab() {
     if (!retryFab) return;
     const has = failedImages.size > 0;
-    retryFab.style.display = has ? 'flex' : 'none';
     if (has) {
+        retryFab.classList.add('show');
         const count = failedImages.size;
         const countEl = retryFab.querySelector('.fab-count');
         countEl.textContent = count > 999 ? '999+' : String(count);
         countEl.style.fontSize = count > 999 ? '8px' : (count > 99 ? '9px' : (count > 9 ? '10px' : '12px'));
         retryFab.title = '重新加载未显示的图片（' + count + ' 张）';
+    } else {
+        retryFab.classList.remove('show');
     }
 }
 

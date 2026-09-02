@@ -9,7 +9,6 @@ let shanheViewMode = 'map';
 
 // ★ 时间轴排序状态
 let timelineSortOrder = 'desc';
-// ★ 时间轴筛选状态
 let timelineFilterYear = '全部';
 let timelineFilterMonth = '全部';
 
@@ -123,6 +122,12 @@ function renderSpecialOverview() {
         html += '<div class="empty-state">还木有专题</div>';
         app.innerHTML = html;
         triggerViewAnimation();
+        // ★★★ 恢复概览滚动 ★★★
+        if (specialPageCaches['__overview__']?.scrollY !== undefined) {
+            setTimeout(() => {
+                app.scrollTop = specialPageCaches['__overview__'].scrollY || 0;
+            }, 50);
+        }
         return;
     }
 
@@ -146,6 +151,12 @@ function renderSpecialOverview() {
 
     app.innerHTML = html;
     triggerViewAnimation();
+    // ★★★ 恢复概览滚动 ★★★
+    if (specialPageCaches['__overview__']?.scrollY !== undefined) {
+        setTimeout(() => {
+            app.scrollTop = specialPageCaches['__overview__'].scrollY || 0;
+        }, 50);
+    }
 }
 
 // ========== 点击专题 ==========
@@ -281,7 +292,8 @@ function renderSpecialContent() {
     if (filteredItems.length === 0) html += '<div class="empty-state">啊哦，啥都木有……</div>';
     app.innerHTML = html;
 
-    if (selectedSpecial && specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].scrollY) {
+    // ★★★ 恢复专题滚动（从缓存中） ★★★
+    if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
         setTimeout(() => {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
         }, 50);
@@ -396,6 +408,8 @@ function specialLightboxKeyHandler(e) {
 // ========== 方寸山河：视图切换 ==========
 function shanheSwitchView(view) {
     if (shanheViewMode === view) return;
+    // ★★★ 保存当前视图状态 ★★★
+    saveFullState();
     shanheViewMode = view;
     currentSubId = null;
 
@@ -414,6 +428,7 @@ function shanheSwitchView(view) {
 }
 
 function backFromShanheToOverview() {
+    saveFullState(); // 保存当前专题滚动
     selectedSpecial = null;
     currentCategoryId = null;
     currentSubId = null;
@@ -498,7 +513,8 @@ function renderShanheList(config) {
 
     app.innerHTML = html;
 
-    if (selectedSpecial && specialPageCaches[selectedSpecial] && specialPageCaches[selectedSpecial].scrollY) {
+    // ★★★ 恢复专题滚动（列表视图） ★★★
+    if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
         setTimeout(() => {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
         }, 50);
@@ -556,7 +572,9 @@ function applyShanheStyling(svg, items, config) {
 function loadShanheViaObject(app, config, items, mapFile) {
     return new Promise((resolve, reject) => {
         const loadEl = app.querySelector('.shanhe-map-loading');
-        if (loadEl) loadEl.textContent = '正在加载地图（本地模式）…';
+        // ★★★ 保留进度条，只更新文字 ★★★
+        const textEl = loadEl?.querySelector('.loading-text');
+        if (textEl) textEl.textContent = '正在加载地图（本地模式）……';
 
         const obj = document.createElement('object');
         obj.data = mapFile;
@@ -590,7 +608,7 @@ function loadShanheViaObject(app, config, items, mapFile) {
 
                 shanheMapCache = { wrap };
 
-                if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY) {
+                if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
                     setTimeout(() => {
                         app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
                     }, 50);
@@ -635,8 +653,12 @@ async function renderShanheContent(config) {
             return;
         }
 
+        // ★★★ 构建带脉冲条的加载提示 ★★★
         app.innerHTML = shanheHeaderHtml(config) +
-            `<div class="shanhe-map-loading">且待万里山河在你面前徐徐展开</div>`;
+            `<div class="shanhe-map-loading">
+                <div class="loading-text">且待万里山河在你面前徐徐展开</div>
+                <div class="shanhe-map-loading-bar"><div class="fill"></div></div>
+             </div>`;
         const loadEl = app.querySelector('.shanhe-map-loading');
 
         if (shanheMapCache && shanheMapCache.wrap) {
@@ -644,7 +666,7 @@ async function renderShanheContent(config) {
             if (removeLoad) removeLoad.remove();
             shanheMapCache.wrap.querySelectorAll('.shanhe-label.active').forEach(t => t.classList.remove('active'));
             app.appendChild(shanheMapCache.wrap);
-            if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY) {
+            if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
                 setTimeout(() => {
                     app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
                 }, 50);
@@ -681,7 +703,7 @@ async function renderShanheContent(config) {
 
                 applyShanheStyling(svg, items, config);
 
-                if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY) {
+                if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
                     setTimeout(() => {
                         app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
                     }, 50);
@@ -691,7 +713,7 @@ async function renderShanheContent(config) {
         } catch (e) {
             if (app.contains(loadEl)) {
                 app.innerHTML = shanheHeaderHtml(config) +
-                    `<div class="empty-state">地图不见力(╥_╥)<br><span style="font-size:0.75rem;color:var(--text-secondary);">${escapeHtml(e.message)}</span></div>`;
+                    `<div class="empty-state">地图……它……它不见力(╥_╥)<br><span style="font-size:0.75rem;color:var(--text-secondary);">报错信息：${escapeHtml(e.message)}</span></div>`;
             }
         }
     } else {
@@ -752,7 +774,9 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
         el.style.strokeWidth = (1 * strokeScale) + 'px';
     }
 
+    // ★★★ 点击省份时保存当前地图状态 ★★★
     el.addEventListener('click', () => {
+        saveFullState(); // 保存滚动和当前省份
         shanheViewMode = 'list';
         currentSubId = pid;
         renderShanheContent(config);
@@ -892,7 +916,7 @@ function renderShanheProvince(config) {
     html += `<div class="overview-header"><h2>${escapeHtml(provinceName)}</h2><p>共${items.length}个景观图</p></div>`;
 
     if (items.length === 0) {
-        html += '<div class="empty-state">这么近，那么美，可这儿没有我的一席之地……</div>';
+        html += '<div class="empty-state">这么近，那么美，可这儿却没有我的一席之地……</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -929,10 +953,17 @@ function renderShanheProvince(config) {
     }
 
     app.innerHTML = html;
+    // ★★★ 恢复省份列表滚动（此时专题缓存中保存了滚动，直接恢复） ★★★
+    if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
+        setTimeout(() => {
+            app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
+        }, 50);
+    }
     triggerViewAnimation();
 }
 
 function backFromShanheMap() {
+    saveFullState(); // 保存省份列表滚动
     currentSubId = null;
     shanheViewMode = 'map';
     if (shanheListRO) { shanheListRO.disconnect(); shanheListRO = null; }
@@ -1046,6 +1077,7 @@ function onTimelineFilterChange() {
 
 // ---------- 返回专题概览 ----------
 function backFromTimeline() {
+    saveFullState(); // 保存时间轴滚动
     selectedSpecial = null;
     currentCategoryId = null;
     currentSubId = null;
@@ -1173,7 +1205,7 @@ function renderTimelineContent(config) {
     // 过滤无效日期
     const validItems = items.filter(it => it.date && !isNaN(it.date.getTime()));
 
-    // ★★ 按年份/月份筛选 ★★
+    // 按年份/月份筛选
     let filteredItems = validItems;
     if (timelineFilterYear !== '全部') {
         filteredItems = filteredItems.filter(it => {
@@ -1206,7 +1238,6 @@ function renderTimelineContent(config) {
         return timelineSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
 
-    // ★★ 提取所有可用年份（供下拉框使用） ★★
     const availableYears = ['全部'];
     const yearSet = new Set();
     for (const item of validItems) {
@@ -1216,13 +1247,11 @@ function renderTimelineContent(config) {
         availableYears.push(y);
     }
 
-    // ---- 渲染 HTML ----
     let html = `<div class="timeline-top-bar">`;
     html += `<button class="back-btn" onclick="backFromTimeline()">← 返回专题</button>`;
     html += `<div class="timeline-top-right">`;
-    html += `<span class="timeline-top-count">共 ${filteredItems.length} 件</span>`;
+    html += `<span class="timeline-top-count">共${filteredItems.length}件</span>`;
 
-    // 年份下拉
     html += `<select class="timeline-filter-select" id="timelineYearFilter" onchange="onTimelineFilterChange()">`;
     for (const y of availableYears) {
         const selected = y === timelineFilterYear ? 'selected' : '';
@@ -1231,7 +1260,6 @@ function renderTimelineContent(config) {
     }
     html += `</select>`;
 
-    // 月份下拉
     html += `<select class="timeline-filter-select" id="timelineMonthFilter" onchange="onTimelineFilterChange()">`;
     const months = ['全部', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
     for (const m of months) {
@@ -1254,7 +1282,7 @@ function renderTimelineContent(config) {
     html += `</div>`;
 
     if (filteredItems.length === 0) {
-        html += '<div class="empty-state">没有符合条件的购入记录哦～</div>';
+        html += '<div class="empty-state">显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -1277,7 +1305,7 @@ function renderTimelineContent(config) {
 
         html += `<div class="timeline-date-header">`;
         html += `<span class="timeline-date-label">${escapeHtml(dateKey)}</span>`;
-        html += `<span class="timeline-date-spent"> 这一天你一共花了${totalSpentText}</span>`;
+        html += `<span class="timeline-date-spent">  这天，你一共花了${totalSpentText}</span>`;
         html += `</div>`;
 
         for (const item of groupItems) {
@@ -1313,7 +1341,6 @@ function renderTimelineContent(config) {
                 html += `<div class="timeline-card">`;
                 html += `<div class="timeline-images">`;
                 if (img1) {
-                    // ★ 复用纸币/硬币板块的 openModal（支持捏合缩放）
                     html += `<img class="timeline-img" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
                 }
                 if (img2) {
@@ -1337,5 +1364,11 @@ function renderTimelineContent(config) {
     html += `</div>`;
 
     app.innerHTML = html;
+    // ★★★ 恢复时间轴滚动（使用专题缓存） ★★★
+    if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
+        setTimeout(() => {
+            app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
+        }, 50);
+    }
     triggerViewAnimation();
 }
