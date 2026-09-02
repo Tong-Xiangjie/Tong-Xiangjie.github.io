@@ -252,7 +252,7 @@ const rmb2Data = {
                     price: "290元",
                     purchaseDate: "2026年9月1日",
                     issueDate: "1955年3月1日",
-                    withdrawnDate: "2007年4月1日",
+                    withdrawnDate: "1999年1月1日",
                     wmk: "空心五角星水印/Open Star",
                     size: "125mm*57.5mm",
                     krause: "865a",

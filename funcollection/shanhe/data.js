@@ -56,6 +56,9 @@ const shanheScenes = [
     // ===== 湖北 =====
     { province: 'hubei',     city: '武汉（鄂A）', scene: '黄鹤楼', denom: '中央银行法币券5元', year: 1936, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zyyh-hhl-5.jpg', remark: "另有说法认为图中是湖南岳阳楼或现已损毁的重庆（原四川万县）钟鼓楼（望江楼）。" },
 
+    // ===== 吉林 =====
+    { province: 'jilin',   city: '吉林（吉B）', scene: '丰满水电站', denom: '第二套人民币5角', year: 1953, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/fmsdz-1953-05.jpg', remark: "币面上为老坝，于2018年12月开始爆破拆除，现仅遗留有老坝左右岸各一段坝体作为历史遗迹永久矗立在原址。" },
+    
     // ===== 江苏 =====
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币1角', year: 1940, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/njzsl-1940-01.jpg' },
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1940, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/njzsl-1940-10.jpg' },
