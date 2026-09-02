@@ -98,7 +98,7 @@ const republic_cbcData = {
             year: "1936",
             varieties: [
                 {
-                    varietyName: "1936年 10元 北京太和殿",
+                    varietyName: "1936年 10元 曲阜孔庙大成殿",
                     copies: [
                         {
                             copyId: 21315726,
@@ -119,7 +119,7 @@ const republic_cbcData = {
                         }
                     ]
                 },{
-                    varietyName: "1936年 100元 北京太和殿",
+                    varietyName: "1936年 100元 曲阜孔庙大成殿",
                     copies: [
                         {
                             copyId: 19968343,

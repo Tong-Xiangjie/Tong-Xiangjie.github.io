@@ -10,7 +10,12 @@ const shanheScenes = [
     { province: 'aomen',     city: '风顺堂区', scene: '妈祖阁', denom: '中国银行澳门币10元', year: "2008/2013", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/mzg-am20.jpg' },
     { province: 'aomen',     city: '大堂区', scene: '澳门科学馆', denom: '中国银行澳门元20元', year: 2020, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/amkxg-am20.jpg' },
     { province: 'aomen',     city: '大堂区', scene: '镜湖医院历史纪念馆', denom: '中国银行澳门元50元', year: 2020, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/jhyy-am50.jpg' },
-
+    { province: 'aomen',     city: '望德堂区', scene: '东望洋灯塔', denom: '大西洋银行澳门币10元', year: 1981, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/dwydt-ambnu10.jpg' },
+    { province: 'aomen',     city: '望德堂区', scene: '东望洋灯塔', denom: '中国银行澳门币10元', year: 1995, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/dwydt-amboc10.jpg' },
+    { province: 'aomen',     city: '望德堂区', scene: '国父纪念馆', denom: '大西洋银行澳门币10元', year: 2001, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/szsjng-ambnu10.jpg' },
+    { province: 'aomen',     city: '花地玛堂区', scene: '外港客运码头', denom: '中国银行澳门币100元', year: "1995/2003", img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/wgmt-am100.jpg' },
+    { province: 'aomen',     city: '大堂区-嘉模堂区', scene: '嘉乐庇总督大桥（澳氹大桥）', denom: '大西洋银行澳门币10元', year: 2001, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/addq-ambnu10.jpg' },
+    
     // ===== 北京 =====
     { province: 'beijing',   city: '朝阳区', scene: '国家体育场（鸟巢）', denom: '奥运纪念钞', year: 2008, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/nc-2008ay.jpg' },
     { province: 'beijing',   city: '朝阳区', scene: '国家速滑馆（冰丝带）', denom: '冬奥纪念钞（澳门）', year: 2022, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/bsd-2022am.jpg' },
@@ -92,11 +97,20 @@ const shanheScenes = [
     // ===== 山东 =====
     { province: 'shandong',  city: '济宁（鲁H）', scene: '杏坛', denom: '中央银行兑换券1角', year: 1931, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/xt-zyyh01.jpg' },
     { province: 'shandong',  city: '济宁（鲁H）', scene: '洙水桥', denom: '中央银行兑换券2角', year: 1931, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zsq-zyyh02.jpg' },
+    { province: 'shandong',  city: '济宁（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券100元', year: 1936, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/kmdcd-zyyh1936-100.jpg' },
     { province: 'shandong',  city: '泰安（鲁J）', scene: '泰山', denom: '第五套人民币5元', year: 2020, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/ts-205.jpg' },
 
     // ===== 上海 =====
     { province: 'shanghai',  city: '黄浦区', scene: '上海中国银行总行大厦', denom: '中国银行法币10元', year: 1937, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/zgyhdl-1937-10.jpg' },
-
+    
+    // ===== 香港 =====
+    { province: 'xianggang', city: '南区', scene: '浅水湾', denom: '中国银行港币20元', year: 2010, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkboc-qsw-20.jpg' },
+    { province: 'xianggang', city: '中西区', scene: '凌霄阁', denom: '中国银行港币20元', year: 2003, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkboc-lxg-20.jpg' },
+    { province: 'xianggang', city: '油尖旺区', scene: '红磡海底隧道（九龙入口）', denom: '中国银行港币50元', year: 1994, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkboc-hksd-50.jpg' },
+    { province: 'xianggang', city: '油尖旺区', scene: '九龙半岛', denom: '中国银行港币100元', year: 1994, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkboc-jlbd-100.jpg' },
+    { province: 'xianggang', city: '油尖旺区', scene: '香港文化中心', denom: '中国银行港币50元', year: 2003, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkboc-xgwhzx-50.jpg' },
+    { province: 'xianggang', city: '中西区-湾仔区', scene: '中区及湾仔商业楼群', denom: '中国银行港币20元', year: 1994, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/hkboc-wdlyg-20.jpg' },
+    
     // ===== 云南 =====
     { province: 'yunnan',    city: '昆明（云A）', scene: '云南石林', denom: '国库券10元', year: 1991, img: 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/funcollection/shanhe/images/ynsl-10.jpg' },
 
