@@ -537,7 +537,7 @@ function renderShanheList(config) {
 function shanheHeaderHtml(config) {
     let html = `<div class="back-bar"><button class="back-btn" onclick="backFromShanheToOverview()">← 返回专题</button></div>`;
     html += `<div class="overview-header shanhe-header-row">`;
-    html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击省份 查看壮阔山河</p></div>`;
+    html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击查看山河壮阔</p></div>`;
     html += `<div class="shanhe-view-toggle">`;
     html += `<button class="shanhe-view-btn ${shanheViewMode === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地 图</button>`;
     html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
