@@ -22,32 +22,6 @@ const gold_silverData = {
     ],
     series: [
         // 示例系列（请在此添加您的金银币藏品）
-        {
-            seriesName: "示例金银币系列",
-            year: 2020,
-            copies: [
-                {
-                    copyId: 1,
-                    country: "中华人民共和国",
-                    year: 2020,
-                    issueDate: "2020年8月3日",
-                    mint: "深圳国宝造币厂",
-                    material: "999足金",
-                    diameter: "22mm",
-                    weight: "8g",
-                    edge: "连续丝齿",
-                    design: "正面：国徽、国名、年号；背面：生肖图案、面额",
-                    mintage: "30000",
-                    grade: "PF69",
-                    gradingCompany: "NGC",
-                    price: "",
-                    purchaseDate: "2026-04-01",
-                    catalogNumber: "SUN-001",
-                    remark: "精制币，带证书",
-                    img1: "image/gold_silver/example_front.jpg",
-                    img2: "image/gold_silver/example_back.jpg"
-                }
-            ]
-        }
+        
     ]
 };

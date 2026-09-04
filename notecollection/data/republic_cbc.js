@@ -5,7 +5,7 @@ const republic_cbcData = {
     desc: "The Central Bank of China",
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "print", label: "印刷机构" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
@@ -19,6 +19,33 @@ const republic_cbcData = {
     ],
     series: [
         {
+            seriesName: "中华民国十七年（1928年） 美钞版 兑换券·大洋券",
+            year: "1928",
+            varieties: [
+                {
+                    varietyName: "1928年 10元",
+                    copies: [
+                        {
+                            copyId: 18171874,
+                            year: 1928,
+                            version: "SX975747QJ",
+                            bank: "汉口中央银行",
+                            print: "美国钞票公司/ABNC",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 65E",
+                            price: "100元",
+                            purchaseDate: "2026年9月4日",
+                            krause: "197h",
+                            remark: "单面号码；绿色签名",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/SX975747QJ-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/SX975747QJ-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国十九年（1930年） 美钞版·上海地名 海关金单位兑换券（关金券）",
             year: "1930",
             varieties: [

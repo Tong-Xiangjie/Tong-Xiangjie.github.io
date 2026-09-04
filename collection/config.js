@@ -63,6 +63,13 @@ const categoryTree = [
         ]
     },
     {
+        id: 'prcAidPrinted',
+        name: '中国代印系列',
+        children: [
+            { id: 'albania', name: '阿尔巴尼亚', dataKey: 'albaniaData', dataFile: '../notecollection/data/albania.js' },
+        ]
+    },
+    {
         id: 'republic',
         name: '民国纸币',
         children: [

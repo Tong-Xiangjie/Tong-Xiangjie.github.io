@@ -23,7 +23,7 @@ const republic_fbcData = {
             year: "1949",
             varieties: [
                 {
-                    varietyName: "1937年 1角",
+                    varietyName: "1937年 1角 《雍正耕织图》之“入仓”",
                     copies: [
                         {
                             copyId: 17236602,
