@@ -73,15 +73,22 @@ const categoryTree = [
         id: 'republic',
         name: '民国纸币',
         children: [
+            // —— 国家银行 ——
             { id: 'republic_cbc', name: '中央银行', dataKey: 'republic_cbcData', dataFile: '../notecollection/data/republic_cbc.js' },
             { id: 'republic_boc', name: '中国银行', dataKey: 'republic_bocData', dataFile: '../notecollection/data/republic_boc.js' },
             { id: 'republic_communications', name: '交通银行', dataKey: 'republic_communicationsData', dataFile: '../notecollection/data/republic_communications.js' },
             { id: 'republic_fbc', name: '中国农民银行', dataKey: 'republic_fbcData', dataFile: '../notecollection/data/republic_fbc.js' },
+            // —— 伪政权银行（按成立时间排序） ——
+            { id: 'republic_cbm', name: '满洲中央银行', dataKey: 'republic_cbmData', dataFile: '../notecollection/data/republic_cbm.js' },
+            { id: 'republic_tmb', name: '蒙疆银行', dataKey: 'republic_tmbData', dataFile: '../notecollection/data/republic_tmb.js' },
+            { id: 'republic_frbc', name: '中国联合准备银行', dataKey: 'republic_frbcData', dataFile: '../notecollection/data/republic_frbc.js' },
+            { id: 'republic_aib', name: '厦门劝业银行', dataKey: 'republic_aibData', dataFile: '../notecollection/data/republic_aib.js' },
             { id: 'republic_crbc', name: '中央储备银行', dataKey: 'republic_crbcData', dataFile: '../notecollection/data/republic_crbc.js' },
+            // —— 省级银行 ——
             { id: 'republic_kpb', name: '广东省银行', dataKey: 'republic_kpbData', dataFile: '../notecollection/data/republic_kpb.js' },
             { id: 'republic_pbkc', name: '贵州省银行', dataKey: 'republic_pbkcData', dataFile: '../notecollection/data/republic_pbkc.js' },
             { id: 'republic_thnb', name: '海南银行', dataKey: 'republic_thnbData', dataFile: '../notecollection/data/republic_thnb.js' },
-            { id: 'republic_aib', name: '厦门劝业银行', dataKey: 'republic_aibData', dataFile: '../notecollection/data/republic_aib.js' },
+            // —— 特殊/其他 ——
             { id: 'republic_spb', name: '南方人民银行', dataKey: 'republic_spbData', dataFile: '../notecollection/data/republic_spb.js' },
             { id: 'republic_mfrc', name: '中华民国财政部', dataKey: 'republic_mfrcData', dataFile: '../notecollection/data/republic_mfrc.js' }
         ]

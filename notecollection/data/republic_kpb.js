@@ -5,12 +5,15 @@ const republic_kpbData = {
     desc: "The Kuangtung Provincial Bank",
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "print", label: "印刷机构" },
+        { key: "signature1", label: "签名1"},
+        { key: "signature2", label: "签名2"},
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "withdrawnDate", label: "停止流通日期" },
         { key: "size", label: "标准尺寸" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
@@ -26,11 +29,13 @@ const republic_kpbData = {
                     varietyName: "1949年 1分",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23598256,
                             year: 1949,
                             version: "AK",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
                             print: "中华书局股份有限公司/CHB",
+                            signature1: "无",
+                            signature2: "无",
                             issueDate: "1949年6月30日",
                             withdrawnDate: "1949年10月12日",
                             size: "95mm*45mm",
@@ -47,11 +52,13 @@ const republic_kpbData = {
                     varietyName: "1949年 5分",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21100676,
                             year: 1949,
                             version: "AJ",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
                             print: "中华书局股份有限公司/CHB",
+                            signature1: "无",
+                            signature2: "无",
                             issueDate: "1949年6月30日",
                             withdrawnDate: "1949年10月12日",
                             size: "95mm*45mm",
@@ -68,11 +75,13 @@ const republic_kpbData = {
                     varietyName: "1949年 1角 广州中山纪念堂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22686190,
                             year: 1949,
                             version: "AU338113",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
                             print: "中华书局股份有限公司/CHB",
+                            signature1: "",
+                            signature2: "",
                             issueDate: "1949年6月6日",
                             withdrawnDate: "1949年10月12日",
                             size: "100mm*48mm",
@@ -89,7 +98,7 @@ const republic_kpbData = {
                     varietyName: "1949年 5角 广州中山纪念堂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 15940367,
                             year: 1949,
                             version: "AB296519",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
@@ -110,7 +119,7 @@ const republic_kpbData = {
                     varietyName: "1949年 1元 广州中山纪念堂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 16189636,
                             year: 1949,
                             version: "AS933975",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
@@ -131,7 +140,7 @@ const republic_kpbData = {
                     varietyName: "1949年 5元 广州中山纪念堂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19272435,
                             year: 1949,
                             version: "AE184274",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
@@ -143,16 +152,16 @@ const republic_kpbData = {
                             price: "77元",
                             purchaseDate: "2026年1月24日",
                             krause: "S2457",
-                            remark: "未正式发行",
+                            remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AE184274-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AE184274-2.jpg"
-                                }
+                        }
                     ]
                 },{
                     varietyName: "1949年 10元 广州中山纪念堂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18005011,
                             year: 1949,
                             version: "AQ995712",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
@@ -164,7 +173,7 @@ const republic_kpbData = {
                             price: "96元",
                             purchaseDate: "2026年2月1日",
                             krause: "S2458",
-                            remark: "未正式发行",
+                            remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AQ995712-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AQ995712-2.jpg"
                         }
@@ -173,7 +182,7 @@ const republic_kpbData = {
                     varietyName: "1949年 100元 广州中山纪念堂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19186411,
                             year: 1949,
                             version: "AA147037",
                             bank: "广东省银行/The Kuangtung Provincial Bank",
@@ -185,7 +194,7 @@ const republic_kpbData = {
                             price: "230元",
                             purchaseDate: "2026年2月5日",
                             krause: "S2459",
-                            remark: "未正式发行",
+                            remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AA147037-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_kpb/AA147037-2.jpg"
                         }
