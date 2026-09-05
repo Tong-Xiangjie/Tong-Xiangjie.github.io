@@ -90,4 +90,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (typeof loadTheme === 'function') loadTheme();
 
     if (typeof watchSidebarFit === 'function') watchSidebarFit();
+
+    // ★ 初始化特殊字符面板
+    if (typeof initSymbolPicker === 'function') {
+        initSymbolPicker();
+    }
 });
