@@ -431,7 +431,7 @@ function setupImageRetry() {
     retryFab = document.createElement('div');
     retryFab.id = 'imgRetryFab';
     retryFab.className = 'img-retry-fab';
-    retryFab.innerHTML = '<span class="fab-icon">⟳</span><span class="fab-count" id="imgRetryCount"></span>';
+    retryFab.innerHTML = '<span class="fab-icon">↻</span><span class="fab-count" id="imgRetryCount"></span>';
     retryFab.onclick = () => { retryFailedImages(); };
     document.body.appendChild(retryFab);
     updateRetryFab();

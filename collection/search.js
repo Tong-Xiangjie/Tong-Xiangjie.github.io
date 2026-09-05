@@ -12,7 +12,7 @@ function updateSearchUIForMode() {
         toggle.classList.remove('hidden');
         toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
         toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击“标”字可以切换为全字段索引' : '当前为全字段索引，点击“全”字可以切换为按标题索引';
-        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索），点击“标”字可以切换为全字段索引' : '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，目前正在全力加载中……';
+        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索），点击“标”字可以切换为全字段索引' : '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，我们正在全力加载……';
     } else if (currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS) {
         select.classList.add('hidden');
         toggle.classList.add('hidden');

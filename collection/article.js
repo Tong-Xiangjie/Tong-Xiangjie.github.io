@@ -251,7 +251,7 @@ async function preloadAllArticles() {
     if (isArticlePreloading) return;
     isArticlePreloading = true;
     const tip = document.getElementById('searchTip');
-    if (tip) tip.textContent = '正在加载全文索引……';
+    if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，我们正在全力加载……';
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
     isArticlePreloading = false;
@@ -480,11 +480,11 @@ function openArticleReader(index, restoreScroll) {
         })
         .catch(() => {
             if (currentArticleView === VIEW.READER && currentArticleIndex === index) {
-                // ★ 报错页也加「⟳ 重新加载」按钮
+                // ★ 报错页也加「↻ 重新加载」按钮
                 app.innerHTML =
                     `<div class="back-bar">` +
                     `<button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button>` +
-                    `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">⟳ 重新加载</button>` +
+                    `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">↻ 重新加载</button>` +
                     `</div>` +
                     `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div>` +
                     `<div class="empty-state">文章不见了哦~</div>`;
@@ -499,10 +499,10 @@ function renderArticleReader(article, content) {
     const imageBase = getArticleBasePath(article.sourceType) + 'readmes/image/';
     htmlContent = htmlContent.replace(/(src\s*=\s*["']?)\s*readmes\/image\//gi, '$1' + imageBase);
 
-    // ★ back-bar 增加「⟳ 重新加载」按钮
+    // ★ back-bar 增加「↻ 重新加载」按钮
     let html = `<div class="back-bar">`;
     html += `<button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button>`;
-    html += `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">⟳ 重新加载</button>`;
+    html += `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">↻ 重新加载</button>`;
     html += `</div>`;
     html += `<div class="article-reader">${htmlContent}</div>`;
     app.innerHTML = html;

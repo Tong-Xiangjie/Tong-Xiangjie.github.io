@@ -1148,11 +1148,7 @@ body.modal-open {
 .img-retry-fab:hover {
     transform: scale(1.08);
 }
-.img-retry-fab .fab-icon {
-    font-family: Arial, Helvetica, "Segoe UI Symbol", sans-serif;
-    font-size: 1.5rem;
-    line-height: 1;
-}
+.img-retry-fab .fab-icon { font-size: 1.1rem; line-height: 1; }
 .img-retry-fab .fab-count {
     position: absolute;
     top: -3px;
@@ -1436,7 +1432,7 @@ body.modal-open {
     background: var(--bg);
     z-index: 10;
 }
-.back-btn {
+.timeline-top-bar .back-btn {
     background: none;
     border: 1px solid var(--border);
     padding: 4px 12px;
@@ -1445,7 +1441,6 @@ body.modal-open {
     font-size: 0.8rem;
     color: var(--text);
     transition: background 0.15s;
-    font-family: Arial, Helvetica, "Segoe UI Symbol", "Noto Sans CJK SC", sans-serif;
 }
 .timeline-top-bar .back-btn:hover {
     background: var(--sidebar-bg);
