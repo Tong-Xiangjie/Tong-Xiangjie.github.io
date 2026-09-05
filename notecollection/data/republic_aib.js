@@ -19,7 +19,7 @@ const republic_aibData = {
     ],
     series: [
         {
-            seriesName: "中华民国二十六年（1937年） 德纳罗版 法币券 ",
+            seriesName: "中华民国二十九年（1940年） 日伪纸币 ",
             year: "1940",
             varieties: [
                 {

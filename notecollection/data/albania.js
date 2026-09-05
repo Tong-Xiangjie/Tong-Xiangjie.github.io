@@ -18,6 +18,10 @@ const albaniaData = {
         { key: "krause", label: "纸币目录编号" }
     ],
 
+    readme: {
+        title: "中国代印之阿尔巴尼亚列克",
+        content: "file:readmes/albania_zhihu_Haneda_Leonn.html"
+    },
     series: [
         {
             seriesName: "第二批（1976年版）",
