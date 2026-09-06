@@ -12,13 +12,24 @@ function ensureSearchStaticHeader(container) {
   if (!header) {
     header = document.createElement('div');
     header.className = 'search-static-header';
+    // ★ 关键样式：sticky 固定，背景色，减小间距
+    header.style.cssText = `
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg);
+      padding: 2px 0 4px 0;
+      margin: 0;
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    `;
     header.innerHTML = `
-      <div class="back-bar">
-        <button class="back-btn" onclick="backFromSearch()">← 返回</button>
+      <div class="back-bar" style="margin:0; padding:2px 0;">
+        <button class="back-btn" onclick="backFromSearch()" style="padding:2px 10px; font-size:0.8rem;">← 返回</button>
       </div>
-      <div class="panel-header">
-        <h2 id="searchModeLabel">${currentMode === MODE.NOTES ? '纸币' : '硬币'}板块搜索结果</h2>
-        <p id="resultMeta">共找到0件符合要求的藏品</p>
+      <div class="panel-header" style="margin:0; padding:0 0 2px 0;">
+        <h2 id="searchModeLabel" style="margin:0; font-size:1.1rem;">${currentMode === MODE.NOTES ? '纸币' : '硬币'}板块搜索结果</h2>
+        <p id="resultMeta" style="margin:2px 0 0 0; font-size:0.8rem;">共找到0件符合要求的藏品</p>
       </div>
     `;
     container.prepend(header);
@@ -141,9 +152,9 @@ function renderItemElement(data) {
 }
 
 // ---------- FLIP 协调 ----------
-function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
-  // 清理残留的绝对定位节点
-  const absNodes = wrapper.querySelectorAll('[style*="position: absolute"]');
+function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
+  // 清理残留的绝对定位节点（如果有）
+  const absNodes = container.querySelectorAll('.search-delete-anim');
   for (const node of absNodes) node.remove();
 
   // 记录旧位置
@@ -159,27 +170,32 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
   const retainKeys = oldKeys.filter(k => newKeySet.has(k));
 
   const deleteElements = [];
+  const containerRect = container.getBoundingClientRect();
 
-  // 处理删除节点：移到 body 并播放滑出动画
+  // 处理删除节点：移到 container 并播放滑出动画
   for (const key of deleteKeys) {
     const el = oldKeyMap.get(key);
     if (!el) continue;
     const oldRect = oldRects.get(key);
     if (!oldRect) continue;
 
+    // 从 wrapper 移除
     el.remove();
-    document.body.appendChild(el);
 
-    el.style.position = 'fixed';
-    el.style.left = oldRect.left + 'px';
-    el.style.top = oldRect.top + 'px';
+    // 添加到 container，用绝对定位固定在原位置
+    el.classList.add('search-delete-anim');
+    el.style.position = 'absolute';
+    el.style.left = (oldRect.left - containerRect.left) + 'px';
+    el.style.top = (oldRect.top - containerRect.top) + 'px';
     el.style.width = oldRect.width + 'px';
     el.style.margin = '0';
     el.style.pointerEvents = 'none';
-    el.style.zIndex = '100';
+    el.style.zIndex = '5'; // 低于搜索栏（若搜索栏有定位会覆盖）
     el.style.transition = 'none';
     el.style.transform = 'translate(0,0)';
     el.style.opacity = '1';
+
+    container.appendChild(el);
 
     void el.offsetHeight;
 
@@ -200,7 +216,7 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
     wrapper.innerHTML = '';
     setTimeout(() => {
       wrapper.innerHTML = `<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
-      // 确保所有删除节点被清理（transitionend 已处理，但以防万一）
+      // 清理残留的删除节点
       for (const el of deleteElements) {
         if (el.parentNode) el.remove();
       }
@@ -215,16 +231,19 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
     if (oldKeyMap.has(item.key)) {
       el = oldKeyMap.get(item.key);
       el.innerHTML = item.type === 'group' ? renderGroupElement(item.data) : renderItemElement(item.data);
+      // 清除可能残留的样式
       el.style.position = '';
-      el.style.top = '';
       el.style.left = '';
+      el.style.top = '';
       el.style.width = '';
-      el.style.pointerEvents = '';
       el.style.margin = '';
+      el.style.pointerEvents = '';
       el.style.zIndex = '';
       el.style.transform = '';
       el.style.opacity = '';
       el.style.transition = '';
+      // 移除可能添加的类
+      el.classList.remove('search-delete-anim');
     } else {
       el = document.createElement('div');
       el.dataset.key = item.key;
@@ -245,13 +264,17 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
   }
 
   wrapper.innerHTML = '';
-  for (const el of finalNodes) wrapper.appendChild(el);
+  for (const el of finalNodes) {
+    wrapper.appendChild(el);
+  }
 
   // 记录新位置（保留节点）
   const newRects = new Map();
   for (const key of retainKeys) {
     const el = oldKeyMap.get(key);
-    if (el && el.parentNode) newRects.set(key, el.getBoundingClientRect());
+    if (el && el.parentNode) {
+      newRects.set(key, el.getBoundingClientRect());
+    }
   }
 
   // FLIP：保留节点平滑位移
@@ -288,8 +311,6 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
 
   // 清理删除节点（以防 transitionend 未触发）
   setTimeout(() => {
-    wrapper.style.overflowX = 'hidden';
-    wrapper.style.overflowY = 'hidden';
     for (const el of deleteElements) {
       if (el.parentNode) el.remove();
     }
@@ -301,6 +322,8 @@ function applySearchResultsDiff(newResults, keyword) {
   const container = getRenderContainer();
   if (!container) return;
 
+  // ★ 让容器成为定位参考，并隐藏溢出
+  container.style.position = 'relative';
   container.style.overflowX = 'hidden';
   container.style.overflowY = 'auto';
   container.style.boxSizing = 'border-box';
@@ -313,18 +336,14 @@ function applySearchResultsDiff(newResults, keyword) {
   wrapper.style.overflowX = 'hidden';
   wrapper.style.overflowY = 'hidden';
 
-  // 构建旧映射
   const oldKeyMap = new Map();
   for (const child of wrapper.children) {
     const key = child.dataset.key;
     if (key) oldKeyMap.set(key, child);
   }
 
-  // 构建新列表（可能为空）
   const newFlatList = buildNewFlatList(newResults, keyword);
-
-  // 统一交给 reconcileWithFLIP 处理
-  reconcileWithFLIP(wrapper, oldKeyMap, newFlatList);
+  reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container);
 }
 
 // ---------- 重写 performSearchAndRender ----------
