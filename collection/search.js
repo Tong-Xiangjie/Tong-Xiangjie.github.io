@@ -455,9 +455,21 @@ function performSearchAndRender(rawKeyword, type) {
 // ============================================================
 
 function updateSearchUIForMode() {
+  const input = document.getElementById('searchInput');
   const select = document.getElementById('searchType');
   const toggle = document.getElementById('modeToggle');
   const tip = document.getElementById('searchTip');
+
+  // ★ 根据当前板块动态修改搜索框占位文字
+  if (input) {
+    if (currentMode === MODE.ARTICLES) {
+      input.placeholder = '您正在选定的板块内搜索';
+    } else if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
+      input.placeholder = '您正在全局范围内搜索';
+    } else {
+      input.placeholder = '搜索功能已禁用';
+    }
+  }
 
   if (!select || !toggle || !tip) return;
 
