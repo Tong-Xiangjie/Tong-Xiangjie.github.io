@@ -332,7 +332,7 @@ const republic_cbcData = {
                             signature2: "协理（Asst. General Manager）：田亦民（Y.M. Dien）",
                             issueDate: "",
                             withdrawnDate: "",
-                            size: "79mm*162mm",
+                            size: "150mm*77mm",
                             condition: "ACG 63E",
                             price: "121元",
                             purchaseDate: "2026年2月23日",
@@ -340,6 +340,29 @@ const republic_cbcData = {
                             remark: "",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/FJ772552-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/FJ772552-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1941年 20元",
+                    copies: [
+                        {
+                            copyId: 26707523,
+                            year: 1941,
+                            version: "IZ359076",
+                            bank: "中央银行",
+                            print: "美商保安钞票公司/SBNC",
+                            signature1: "总经理（General Manager）：李骏耀（Lee Chun-yiu）",
+                            signature2: "协理（Asst. General Manager）：李耀功（Y.K. Lee）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "153mm*80mm",
+                            condition: "ACG 62E",
+                            price: "228元",
+                            purchaseDate: "2026年9月6日",
+                            krause: "240c",
+                            remark: "红章、棕色签名版本",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/IZ359076-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_cbc/IZ359076-2.jpg"
                         }
                     ]
                 },{
@@ -355,7 +378,7 @@ const republic_cbcData = {
                             signature2: "协理（Asst. General Manager）：李耀功（Y.K. Lee）",
                             issueDate: "",
                             withdrawnDate: "",
-                            size: "79mm*162mm",
+                            size: "160mm*82mm",
                             condition: "PMG 65E",
                             price: "298元",
                             purchaseDate: "2026年2月25日",
