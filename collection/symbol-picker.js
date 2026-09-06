@@ -1,14 +1,14 @@
 // ==================== symbol-picker.js ====================
-// 特殊字符面板：面板打开时，点击任何地方关闭面板都保持输入框焦点
+// 特殊字符面板
 
 const SYMBOL_CATEGORIES = [
     {
         name: '特殊字符',
-        chars: '{}〈〉★*'
+        chars: '{}〈〉〔〕★*'
     },
     {
         name: '罗马数字',
-        chars: 'ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ'
+        chars: 'ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ'
     },
     {
         name: '分数',
@@ -16,11 +16,11 @@ const SYMBOL_CATEGORIES = [
     },
     {
         name: '西里尔字母（大写）',
-        chars: 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'
+        chars: 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯҐЄІЇЎ'
     },
     {
         name: '西里尔字母（小写）',
-        chars: 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
+        chars: 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяґєіїў'
     },
     {
         name: '希腊字母（大写）',
@@ -36,6 +36,8 @@ const SYMBOL_CATEGORIES = [
     }
 ];
 
+let panelOpen = false;
+
 function initSymbolPicker() {
     const toggleBtn = document.getElementById('symbolToggle');
     const panel = document.getElementById('symbolPanel');
@@ -43,39 +45,62 @@ function initSymbolPicker() {
 
     if (!toggleBtn || !panel || !input) return;
 
-    // 判断面板是否打开
-    function isPanelOpen() {
-        return panel.classList.contains('open');
-    }
+    // 透明遮罩层
+    const overlay = document.createElement('div');
+    overlay.id = 'symbolOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 49;
+        background: transparent;
+        pointer-events: none;
+        display: none;
+    `;
+    document.body.appendChild(overlay);
 
-    // 构建面板内容
+    // 构建面板
     let html = '';
     for (const cat of SYMBOL_CATEGORIES) {
         html += `<div class="symbol-category">`;
         html += `<div class="symbol-category-title">${cat.name}</div>`;
         html += `<div class="symbol-grid">`;
         for (const ch of cat.chars) {
-            const escaped = ch.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
+            const escaped = ch.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
             html += `<span class="symbol-char" data-char="${escaped}">${escaped}</span>`;
         }
         html += `</div></div>`;
     }
     panel.innerHTML = html;
+    panel.style.zIndex = '50';
 
-    // 切换面板
+    function openPanel() {
+        panel.classList.add('open');
+        overlay.style.display = 'block';
+        overlay.style.pointerEvents = 'auto';
+        panelOpen = true;
+        input.focus();
+    }
+
+    function closePanel() {
+        panel.classList.remove('open');
+        overlay.style.display = 'none';
+        overlay.style.pointerEvents = 'none';
+        panelOpen = false;
+    }
+
+    window.closeSymbolPanel = function() {
+        if (panelOpen) closePanel();
+    };
+
     toggleBtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        panel.classList.toggle('open');
-        // 打开面板后，输入框保持焦点
-        input.focus();
+        if (panelOpen) closePanel();
+        else openPanel();
     });
 
-    // 点击符号：插入到光标位置，触发搜索，保持面板打开
     panel.addEventListener('click', function(e) {
         const target = e.target.closest('.symbol-char');
         if (!target) return;
@@ -84,51 +109,23 @@ function initSymbolPicker() {
 
         const start = input.selectionStart || 0;
         const end = input.selectionEnd || 0;
-        const value = input.value;
-        const newValue = value.substring(0, start) + char + value.substring(end);
-        input.value = newValue;
-
-        const newPos = start + char.length;
-        input.setSelectionRange(newPos, newPos);
+        input.value = input.value.substring(0, start) + char + input.value.substring(end);
+        input.setSelectionRange(start + char.length, start + char.length);
         input.focus();
-
-        // 触发 input 事件（适配实时搜索和点击搜索）
         input.dispatchEvent(new Event('input', { bubbles: true }));
-
-        // 不关闭面板，让用户连续输入多个符号
     });
 
-    // 点击面板空白区域：阻止失焦
-    panel.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    overlay.addEventListener('mousedown', function(e) {
+        if (panelOpen) {
+            e.stopPropagation();
+            e.preventDefault();
+            closePanel();
+        }
     });
 
-    // ★ 关键：点击任何地方，只要面板开着，关闭面板后都要保持输入框焦点
-    document.addEventListener('mousedown', function(e) {
-        // 如果面板没打开，不做任何干预
-        if (!isPanelOpen()) return;
-
-        // 如果点击的是面板内部 或 toggle 按钮，不处理（面板内部由上面的逻辑处理）
-        if (panel.contains(e.target) || e.target === toggleBtn) return;
-
-        // ★ 点击外部任何地方：关闭面板，然后强制保持输入框焦点
-        panel.classList.remove('open');
-
-        // 阻止浏览器默认的焦点转移行为
-        e.preventDefault();
-
-        // 手动将焦点还给输入框（用 setTimeout 确保在所有事件处理完成后执行）
-        setTimeout(function() {
-            input.focus();
-        }, 0);
-    });
-
-    // ESC 键关闭并保持焦点
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && isPanelOpen()) {
-            panel.classList.remove('open');
-            input.focus();
+        if (e.key === 'Escape' && panelOpen) {
+            closePanel();
             e.preventDefault();
         }
     });
