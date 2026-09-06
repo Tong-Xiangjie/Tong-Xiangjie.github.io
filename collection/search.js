@@ -1,408 +1,642 @@
 // ==================== search.js ====================
+// 最终版：增量渲染 + FLIP 动画 + 极致紧凑 + 图片恢复正常
+
+// ---------- 全局状态 ----------
+let prevSearchResults = null;
+let prevSearchKeyword = '';
+let isFirstSearch = true;
+
+// ---------- 静态头部 ----------
+function ensureSearchStaticHeader(container) {
+  let header = container.querySelector('.search-static-header');
+  if (!header) {
+    header = document.createElement('div');
+    header.className = 'search-static-header';
+    header.innerHTML = `
+      <div class="back-bar">
+        <button class="back-btn" onclick="backFromSearch()">← 返回</button>
+      </div>
+      <div class="panel-header">
+        <h2 id="searchModeLabel">${currentMode === MODE.NOTES ? '纸币' : '硬币'}板块搜索结果</h2>
+        <p id="resultMeta">共找到0件符合要求的藏品</p>
+      </div>
+    `;
+    container.prepend(header);
+  }
+  return header;
+}
+
+function updateSearchMeta(count, keyword) {
+  const meta = document.getElementById('resultMeta');
+  if (meta) {
+    let text = `共找到${count}件符合要求的藏品`;
+    if (keyword) text += ` · 搜索关键词：${escapeHtml(keyword)}`;
+    meta.textContent = text;
+  }
+}
+
+// ---------- 动态包装器 ----------
+function ensureDynamicWrapper(container) {
+  let wrapper = container.querySelector('.search-dynamic-wrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.className = 'search-dynamic-wrapper';
+    wrapper.style.cssText = 'position: relative; width: 100%; height: auto; max-height: none; overflow: visible;';
+    container.appendChild(wrapper);
+  }
+  return wrapper;
+}
+
+// ---------- 构建扁平列表 ----------
+function buildNewFlatList(results, keyword) {
+  const groupMap = new Map();
+  for (const item of results) {
+    if (!groupMap.has(item.dataKey)) groupMap.set(item.dataKey, []);
+    groupMap.get(item.dataKey).push(item);
+  }
+
+  const flatList = [];
+  const allKeys = getAllDataKeys();
+  for (const dataKey of allKeys) {
+    const items = groupMap.get(dataKey);
+    if (!items || items.length === 0) continue;
+
+    const first = items[0];
+    const label = first.parentName ? `${first.parentName} - ${first.catName}` : first.catName;
+    flatList.push({
+      key: `group|${dataKey}`,
+      type: 'group',
+      data: { label, count: items.length, dataKey }
+    });
+
+    for (const item of items) {
+      flatList.push({
+        key: getItemKey(item),
+        type: 'item',
+        data: { item, index: results.indexOf(item) + 1, keyword }
+      });
+    }
+  }
+  return flatList;
+}
+
+function getItemKey(item) {
+  if (item.hasVarieties) {
+    return `${item.dataKey}|s${item.sIdx}|v${item.vIdx}|c${item.cIdx}`;
+  } else {
+    return `${item.dataKey}|s${item.sIdx}|c${item.cIdx}`;
+  }
+}
+
+// ---------- 渲染元素（极致紧凑，图片正常） ----------
+function renderGroupElement(data) {
+  return `<div class="search-result-group" data-key="group|${data.dataKey}" style="margin: 0 !important; padding: 0 !important; width: 100%;">
+    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 1px 6px !important; background:var(--sidebar-bg); border-radius:4px; font-size:0.8rem; font-weight:bold; margin: 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
+      <span>${escapeHtml(data.label)}</span>
+      <span class="count" style="font-weight:normal; color:var(--text-secondary); margin-left:auto; font-size:0.7rem;">${data.count}件</span>
+    </div>
+  </div>`;
+}
+
+function renderItemElement(data) {
+  const item = data.item;
+  const copy = item.copy;
+  const img1 = getImageUrl(copy.img1);
+  const img2 = getImageUrl(copy.img2);
+  const displayName = item.hasVarieties
+    ? `${item.series.seriesName} - ${item.variety.varietyName}`
+    : item.series.seriesName;
+  const catalogNum = copy.catalogNumber || copy.krause || '';
+  const catalogDisplay = formatCatalogNumber(catalogNum);
+
+  let detailParts = [];
+  if (copy.version) detailParts.push(escapeHtml(copy.version));
+  if (copy.condition || copy.grade) detailParts.push(escapeHtml(copy.condition || copy.grade));
+  if (copy.year) detailParts.push(copy.year + '年发行');
+  if (catalogDisplay) detailParts.push(escapeHtml(catalogDisplay));
+  const detailHtml = detailParts.join(' · ');
+
+  // ★ 恢复缩略图，由 CSS 控制尺寸（.mini-thumb 默认 36x26）
+  let thumbHtml = '';
+  if (img1) thumbHtml += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+  if (img2) thumbHtml += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+  if (!img1 && !img2) thumbHtml += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
+
+  const dataKey = item.dataKey;
+  const si = item.sIdx;
+  const vi = item.hasVarieties ? item.vIdx : 'null';
+  const ci = item.cIdx;
+  const hasVarieties = item.hasVarieties;
+
+  return `<div class="search-result-item" data-key="${getItemKey(item)}"
+            onclick="navigateToCopy('${dataKey}', ${si}, ${vi}, ${ci}, ${hasVarieties})"
+            style="display: flex; align-items: center; gap: 4px !important; width: 100% !important; box-sizing: border-box; cursor: pointer; padding: 2px 6px !important; margin: 0 !important; background: transparent; border-radius: 3px; transition: background 0.15s; border: none; outline: none;">
+    <div class="dual-thumb" style="flex-shrink: 0; display:flex; gap:2px;">${thumbHtml}</div>
+    <div class="info" style="flex: 1 1 0; min-width: 0; overflow: hidden; line-height:1.3;">
+      <div class="name" style="font-weight: bold; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin:0;">${escapeHtml(displayName)}</div>
+      <div class="detail" style="font-size: 0.7rem; color: var(--text-secondary); line-height:1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin:0;">${detailHtml}</div>
+    </div>
+    <div class="index-num" style="flex-shrink: 0; margin-left: auto; padding-left: 6px; font-size: 0.65rem; color: var(--text-secondary); text-align: right; line-height:1;">#${data.index}</div>
+  </div>`;
+}
+
+// ---------- FLIP 协调 ----------
+function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList) {
+  // 清理残留的绝对定位节点
+  const absNodes = wrapper.querySelectorAll('[style*="position: absolute"]');
+  for (const node of absNodes) node.remove();
+
+  // 记录旧位置
+  const oldRects = new Map();
+  for (const child of wrapper.children) {
+    const key = child.dataset.key;
+    if (key) oldRects.set(key, child.getBoundingClientRect());
+  }
+
+  const newKeySet = new Set(newFlatList.map(item => item.key));
+  const oldKeys = Array.from(oldKeyMap.keys());
+  const deleteKeys = oldKeys.filter(k => !newKeySet.has(k));
+  const retainKeys = oldKeys.filter(k => newKeySet.has(k));
+
+  const deleteElements = [];
+
+  // 处理删除节点：移到 body 并播放滑出动画
+  for (const key of deleteKeys) {
+    const el = oldKeyMap.get(key);
+    if (!el) continue;
+    const oldRect = oldRects.get(key);
+    if (!oldRect) continue;
+
+    el.remove();
+    document.body.appendChild(el);
+
+    el.style.position = 'fixed';
+    el.style.left = oldRect.left + 'px';
+    el.style.top = oldRect.top + 'px';
+    el.style.width = oldRect.width + 'px';
+    el.style.margin = '0';
+    el.style.pointerEvents = 'none';
+    el.style.zIndex = '100';
+    el.style.transition = 'none';
+    el.style.transform = 'translate(0,0)';
+    el.style.opacity = '1';
+
+    void el.offsetHeight;
+
+    el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    el.style.transform = 'translateX(40px)';
+    el.style.opacity = '0';
+
+    const onFinish = () => {
+      el.removeEventListener('transitionend', onFinish);
+      if (el.parentNode) el.remove();
+    };
+    el.addEventListener('transitionend', onFinish);
+    deleteElements.push(el);
+  }
+
+  // 如果新列表为空：清空 wrapper，延迟显示空状态
+  if (newFlatList.length === 0) {
+    wrapper.innerHTML = '';
+    setTimeout(() => {
+      wrapper.innerHTML = `<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
+      // 确保所有删除节点被清理（transitionend 已处理，但以防万一）
+      for (const el of deleteElements) {
+        if (el.parentNode) el.remove();
+      }
+    }, 400);
+    return;
+  }
+
+  // 新列表非空：构建新节点
+  const finalNodes = [];
+  for (const item of newFlatList) {
+    let el;
+    if (oldKeyMap.has(item.key)) {
+      el = oldKeyMap.get(item.key);
+      el.innerHTML = item.type === 'group' ? renderGroupElement(item.data) : renderItemElement(item.data);
+      el.style.position = '';
+      el.style.top = '';
+      el.style.left = '';
+      el.style.width = '';
+      el.style.pointerEvents = '';
+      el.style.margin = '';
+      el.style.zIndex = '';
+      el.style.transform = '';
+      el.style.opacity = '';
+      el.style.transition = '';
+    } else {
+      el = document.createElement('div');
+      el.dataset.key = item.key;
+      if (item.type === 'group') {
+        el.className = 'search-result-group';
+        el.innerHTML = renderGroupElement(item.data);
+        el.style.opacity = '1';
+        el.style.transform = '';
+      } else {
+        el.className = 'search-result-item';
+        el.innerHTML = renderItemElement(item.data);
+        el.style.transition = 'none';
+        el.style.transform = 'translateX(40px)';
+        el.style.opacity = '0';
+      }
+    }
+    finalNodes.push(el);
+  }
+
+  wrapper.innerHTML = '';
+  for (const el of finalNodes) wrapper.appendChild(el);
+
+  // 记录新位置（保留节点）
+  const newRects = new Map();
+  for (const key of retainKeys) {
+    const el = oldKeyMap.get(key);
+    if (el && el.parentNode) newRects.set(key, el.getBoundingClientRect());
+  }
+
+  // FLIP：保留节点平滑位移
+  for (const key of retainKeys) {
+    const el = oldKeyMap.get(key);
+    if (!el || !el.parentNode) continue;
+    const oldRect = oldRects.get(key);
+    const newRect = newRects.get(key);
+    if (!oldRect || !newRect) continue;
+    const dx = oldRect.left - newRect.left;
+    const dy = oldRect.top - newRect.top;
+    if (dx === 0 && dy === 0) continue;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    el.style.opacity = '1';
+    void el.offsetHeight;
+    el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    el.style.transform = '';
+    el.style.opacity = '1';
+  }
+
+  // 新增条目从右侧滑入
+  for (const item of newFlatList) {
+    if (!oldKeyMap.has(item.key) && item.type === 'item') {
+      const el = wrapper.querySelector(`[data-key="${item.key}"]`);
+      if (el) {
+        void el.offsetHeight;
+        el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        el.style.transform = '';
+        el.style.opacity = '1';
+      }
+    }
+  }
+
+  // 清理删除节点（以防 transitionend 未触发）
+  setTimeout(() => {
+    wrapper.style.overflowX = 'hidden';
+    wrapper.style.overflowY = 'hidden';
+    for (const el of deleteElements) {
+      if (el.parentNode) el.remove();
+    }
+  }, 400);
+}
+
+// ---------- 应用搜索结果 ----------
+function applySearchResultsDiff(newResults, keyword) {
+  const container = getRenderContainer();
+  if (!container) return;
+
+  container.style.overflowX = 'hidden';
+  container.style.overflowY = 'auto';
+  container.style.boxSizing = 'border-box';
+  container.style.width = '100%';
+
+  ensureSearchStaticHeader(container);
+  updateSearchMeta(newResults.length, keyword);
+
+  const wrapper = ensureDynamicWrapper(container);
+  wrapper.style.overflowX = 'hidden';
+  wrapper.style.overflowY = 'hidden';
+
+  // 构建旧映射
+  const oldKeyMap = new Map();
+  for (const child of wrapper.children) {
+    const key = child.dataset.key;
+    if (key) oldKeyMap.set(key, child);
+  }
+
+  // 构建新列表（可能为空）
+  const newFlatList = buildNewFlatList(newResults, keyword);
+
+  // 统一交给 reconcileWithFLIP 处理
+  reconcileWithFLIP(wrapper, oldKeyMap, newFlatList);
+}
+
+// ---------- 重写 performSearchAndRender ----------
+function performSearchAndRender(rawKeyword, type) {
+  const keyword = getActualKeyword(rawKeyword, type);
+  const isEmptySearch = !keyword || keyword === '';
+  const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
+  let results = [];
+  const keys = getAllDataKeys();
+
+  for (const dataKey of keys) {
+    const data = getData(dataKey);
+    if (!data || !data.series) continue;
+
+    let catName = dataKey, parentName = '';
+    const tree = getCategoryTree();
+    for (const cat of tree) {
+      if (cat.dataKey === dataKey) { catName = cat.name; break; }
+      if (cat.children) {
+        for (const sub of cat.children) {
+          if (sub.dataKey === dataKey) { catName = sub.name; parentName = cat.name; break; }
+        }
+      }
+    }
+
+    for (let si = 0; si < data.series.length; si++) {
+      const series = data.series[si];
+      if (series.varieties) {
+        for (let vi = 0; vi < series.varieties.length; vi++) {
+          const variety = series.varieties[vi];
+          if (!variety.copies) continue;
+          for (let ci = 0; ci < variety.copies.length; ci++) {
+            const copy = variety.copies[ci];
+            if (matchCopy(copy, series, variety, lowerKeyword, type, isEmptySearch)) {
+              results.push({ dataKey, catName, parentName, sIdx: si, vIdx: vi, cIdx: ci,
+                series, variety, copy, hasVarieties: true });
+            }
+          }
+        }
+      } else if (series.copies) {
+        for (let ci = 0; ci < series.copies.length; ci++) {
+          const copy = series.copies[ci];
+          if (matchCopyFlat(copy, series, lowerKeyword, type, isEmptySearch)) {
+            results.push({ dataKey, catName, parentName, sIdx: si, cIdx: ci,
+              series, copy, hasVarieties: false });
+          }
+        }
+      }
+    }
+  }
+
+  applySearchResultsDiff(results, keyword);
+  prevSearchResults = results;
+  prevSearchKeyword = keyword;
+  isFirstSearch = false;
+}
+
+// ============================================================
+// 以下为原有函数（保持不变）
+// ============================================================
 
 function updateSearchUIForMode() {
-    const select = document.getElementById('searchType');
-    const toggle = document.getElementById('modeToggle');
-    const tip = document.getElementById('searchTip');
+  const select = document.getElementById('searchType');
+  const toggle = document.getElementById('modeToggle');
+  const tip = document.getElementById('searchTip');
 
-    if (!select || !toggle || !tip) return;
+  if (!select || !toggle || !tip) return;
 
-    if (currentMode === MODE.ARTICLES) {
-        select.classList.add('hidden');
-        toggle.classList.remove('hidden');
-        toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
-        toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击“标”字可以切换为全字段索引' : '当前为全字段索引，点击“全”字可以切换为按标题索引';
-        tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索），点击“标”字可以切换为全字段索引' : '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，我们正在全力加载……';
-    } else if (currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS) {
-        select.classList.add('hidden');
-        toggle.classList.add('hidden');
-        tip.textContent = '';
-    } else {
-        select.classList.remove('hidden');
-        toggle.classList.remove('hidden');
-        const modeSearch = getEffectiveSearchMode();
-        toggle.textContent = modeSearch === SEARCH_MODE.CLICK ? '□' : '■';
-        toggle.title = '切换搜索模式';
-        tip.textContent = `当前搜索模式为“${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
-    }
+  if (currentMode === MODE.ARTICLES) {
+    select.classList.add('hidden');
+    toggle.classList.remove('hidden');
+    toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
+    toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击“标”字可以切换为全字段索引' : '当前为全字段索引，点击“全”字可以切换为按标题索引';
+    tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索），点击“标”字可以切换为全字段索引' : '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，我们正在全力加载……';
+  } else if (currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS) {
+    select.classList.add('hidden');
+    toggle.classList.add('hidden');
+    tip.textContent = '';
+  } else {
+    select.classList.remove('hidden');
+    toggle.classList.remove('hidden');
+    const modeSearch = getEffectiveSearchMode();
+    toggle.textContent = modeSearch === SEARCH_MODE.CLICK ? '□' : '■';
+    toggle.title = '切换搜索模式';
+    tip.textContent = `当前搜索模式为“${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
+  }
 }
 
 function doSearch() {
-    const input = document.getElementById('searchInput');
-    if (!input) return;
+  const input = document.getElementById('searchInput');
+  if (!input) return;
 
-    const rawKeyword = input.value.trim();
+  const rawKeyword = input.value.trim();
 
-    if (currentMode === MODE.ARTICLES) {
-        articleSearchKeyword = rawKeyword;
-        renderArticleList();
-        return;
-    }
+  if (currentMode === MODE.ARTICLES) {
+    articleSearchKeyword = rawKeyword;
+    renderArticleList();
+    return;
+  }
 
-    // ★ 在切换到搜索视图之前，保存当前状态（包括展开状态）
-    saveFullState();
+  saveFullState();
 
-    const typeSelect = document.getElementById('searchType');
-    const type = typeSelect ? typeSelect.value : SEARCH_TYPE.ALL;
-    currentSearchKeyword = rawKeyword;
-    currentSearchType = type;
-    currentView = VIEW.SEARCH;
-    switchToCurrentContainer();
-    performSearchAndRender(rawKeyword, type);
+  const typeSelect = document.getElementById('searchType');
+  const type = typeSelect ? typeSelect.value : SEARCH_TYPE.ALL;
+  currentSearchKeyword = rawKeyword;
+  currentSearchType = type;
+  currentView = VIEW.SEARCH;
+  switchToCurrentContainer();
+  performSearchAndRender(rawKeyword, type);
 }
 
 function resetSearch() {
-    const input = document.getElementById('searchInput');
-    if (!input) return;
+  const input = document.getElementById('searchInput');
+  if (!input) return;
 
-    input.value = '';
-    input.focus();
+  input.value = '';
+  input.focus();
 
-    if (currentMode === MODE.ARTICLES) {
-        articleSearchKeyword = '';
-        renderArticleList();
-        return;
-    }
+  if (currentMode === MODE.ARTICLES) {
+    articleSearchKeyword = '';
+    renderArticleList();
+    return;
+  }
 
-    // 如果当前在搜索结果视图，回到之前的视图（并保留展开状态）
-    if (currentView === VIEW.SEARCH) {
-        backFromSearch();
-        return;
-    }
+  if (currentView === VIEW.SEARCH) {
+    backFromSearch();
+    return;
+  }
 
-    // 否则（在 overview 或 category 视图），只清空搜索框，不重新渲染
-    currentSearchKeyword = '';
-    updateSearchUIForMode();
+  currentSearchKeyword = '';
+  updateSearchUIForMode();
 }
 
 function toggleSearchMode() {
-    if (currentMode === MODE.ARTICLES) {
-        if (typeof toggleArticleSearchMode === 'function') {
-            toggleArticleSearchMode();
-        }
-        return;
+  if (currentMode === MODE.ARTICLES) {
+    if (typeof toggleArticleSearchMode === 'function') {
+      toggleArticleSearchMode();
     }
-    if (currentMode !== MODE.NOTES && currentMode !== MODE.COINS) return;
+    return;
+  }
+  if (currentMode !== MODE.NOTES && currentMode !== MODE.COINS) return;
 
-    const current = modeStates[currentMode].searchMode;
-    const newMode = current === SEARCH_MODE.CLICK ? SEARCH_MODE.REALTIME : SEARCH_MODE.CLICK;
-    modeStates[currentMode].searchMode = newMode;
+  const current = modeStates[currentMode].searchMode;
+  const newMode = current === SEARCH_MODE.CLICK ? SEARCH_MODE.REALTIME : SEARCH_MODE.CLICK;
+  modeStates[currentMode].searchMode = newMode;
 
-    const toggle = document.getElementById('modeToggle');
-    const tip = document.getElementById('searchTip');
-    const toggleChar = newMode === SEARCH_MODE.CLICK ? '□' : '■';
-    if (toggle) toggle.textContent = toggleChar;
-    if (tip) tip.textContent = `当前搜索模式为“${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
+  const toggle = document.getElementById('modeToggle');
+  const tip = document.getElementById('searchTip');
+  const toggleChar = newMode === SEARCH_MODE.CLICK ? '□' : '■';
+  if (toggle) toggle.textContent = toggleChar;
+  if (tip) tip.textContent = `当前搜索模式为“${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
 
-    const input = document.getElementById('searchInput');
-    if (input) {
-        input.removeEventListener('input', doSearch);
-        if (newMode === SEARCH_MODE.REALTIME) {
-            input.addEventListener('input', doSearch);
-        }
+  const input = document.getElementById('searchInput');
+  if (input) {
+    input.removeEventListener('input', doSearch);
+    if (newMode === SEARCH_MODE.REALTIME) {
+      input.addEventListener('input', doSearch);
     }
-}
-
-function performSearchAndRender(rawKeyword, type) {
-    const keyword = getActualKeyword(rawKeyword, type);
-    const isEmptySearch = !keyword || keyword === '';
-    const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
-    let results = [];
-    const keys = getAllDataKeys();
-
-    for (const dataKey of keys) {
-        const data = getData(dataKey);
-        if (!data || !data.series) continue;
-
-        let catName = dataKey;
-        let parentName = '';
-        const tree = getCategoryTree();
-        for (const cat of tree) {
-            if (cat.dataKey === dataKey) {
-                catName = cat.name;
-                break;
-            }
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (sub.dataKey === dataKey) {
-                        catName = sub.name;
-                        parentName = cat.name;
-                        break;
-                    }
-                }
-            }
-        }
-
-        for (let si = 0; si < data.series.length; si++) {
-            const series = data.series[si];
-            if (series.varieties && series.varieties.length > 0) {
-                for (let vi = 0; vi < series.varieties.length; vi++) {
-                    const variety = series.varieties[vi];
-                    if (!variety.copies) continue;
-                    for (let ci = 0; ci < variety.copies.length; ci++) {
-                        const copy = variety.copies[ci];
-                        if (matchCopy(copy, series, variety, lowerKeyword, type, isEmptySearch)) {
-                            results.push({
-                                dataKey, catName, parentName,
-                                sIdx: si, vIdx: vi, cIdx: ci,
-                                series, variety, copy,
-                                hasVarieties: true
-                            });
-                        }
-                    }
-                }
-            } else if (series.copies) {
-                for (let ci = 0; ci < series.copies.length; ci++) {
-                    const copy = series.copies[ci];
-                    if (matchCopyFlat(copy, series, lowerKeyword, type, isEmptySearch)) {
-                        results.push({
-                            dataKey, catName, parentName,
-                            sIdx: si, cIdx: ci,
-                            series, copy,
-                            hasVarieties: false
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    renderSearchResults(results, rawKeyword, type);
+  }
 }
 
 function matchCopy(copy, series, variety, keyword, type, isEmpty) {
-    if (isEmpty) return true;
-    switch(type) {
-        case SEARCH_TYPE.ALL:
-            const text = `${series.seriesName} ${variety.varietyName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
-            return text.includes(keyword);
-        case SEARCH_TYPE.NAME:
-            return series.seriesName.toLowerCase().includes(keyword) || variety.varietyName.toLowerCase().includes(keyword);
-        case SEARCH_TYPE.VERSION:
-            return (copy.version || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.YEAR:
-            return String(copy.year).toLowerCase().includes(keyword);
-        case SEARCH_TYPE.AGENCY:
-            return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.KRAUSE:
-            const raw = (copy.catalogNumber || copy.krause || '');
-            const formatted = formatCatalogNumber(raw);
-            return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
-    }
-    return false;
+  if (isEmpty) return true;
+  switch(type) {
+    case SEARCH_TYPE.ALL:
+      const text = `${series.seriesName} ${variety.varietyName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
+      return text.includes(keyword);
+    case SEARCH_TYPE.NAME:
+      return series.seriesName.toLowerCase().includes(keyword) || variety.varietyName.toLowerCase().includes(keyword);
+    case SEARCH_TYPE.VERSION:
+      return (copy.version || '').toLowerCase().includes(keyword);
+    case SEARCH_TYPE.YEAR:
+      return String(copy.year).toLowerCase().includes(keyword);
+    case SEARCH_TYPE.AGENCY:
+      return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
+    case SEARCH_TYPE.KRAUSE:
+      const raw = (copy.catalogNumber || copy.krause || '');
+      const formatted = formatCatalogNumber(raw);
+      return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
+  }
+  return false;
 }
 
 function matchCopyFlat(copy, series, keyword, type, isEmpty) {
-    if (isEmpty) return true;
-    switch(type) {
-        case SEARCH_TYPE.ALL:
-            const text = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
-            return text.includes(keyword);
-        case SEARCH_TYPE.NAME:
-            return series.seriesName.toLowerCase().includes(keyword);
-        case SEARCH_TYPE.VERSION:
-            return (copy.version || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.YEAR:
-            return String(copy.year).toLowerCase().includes(keyword);
-        case SEARCH_TYPE.AGENCY:
-            return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-        case SEARCH_TYPE.KRAUSE:
-            const raw = (copy.catalogNumber || copy.krause || '');
-            const formatted = formatCatalogNumber(raw);
-            return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
-    }
-    return false;
+  if (isEmpty) return true;
+  switch(type) {
+    case SEARCH_TYPE.ALL:
+      const text = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
+      return text.includes(keyword);
+    case SEARCH_TYPE.NAME:
+      return series.seriesName.toLowerCase().includes(keyword);
+    case SEARCH_TYPE.VERSION:
+      return (copy.version || '').toLowerCase().includes(keyword);
+    case SEARCH_TYPE.YEAR:
+      return String(copy.year).toLowerCase().includes(keyword);
+    case SEARCH_TYPE.AGENCY:
+      return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
+    case SEARCH_TYPE.KRAUSE:
+      const raw = (copy.catalogNumber || copy.krause || '');
+      const formatted = formatCatalogNumber(raw);
+      return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
+  }
+  return false;
 }
 
 function getActualKeyword(inputValue, searchType) {
-    if (searchType === SEARCH_TYPE.KRAUSE) {
-        if (inputValue.startsWith(KRAUSE_PREFIX)) {
-            return inputValue.substring(KRAUSE_PREFIX.length).trim();
-        }
-        return inputValue.trim();
+  if (searchType === SEARCH_TYPE.KRAUSE) {
+    if (inputValue.startsWith(KRAUSE_PREFIX)) {
+      return inputValue.substring(KRAUSE_PREFIX.length).trim();
     }
     return inputValue.trim();
-}
-
-function renderSearchResults(results, rawKeyword, type) {
-    const app = getRenderContainer();
-    const modeLabel = currentMode === MODE.NOTES ? '纸币' : '硬币';
-
-    let html = `<div class="back-bar"><button class="back-btn" onclick="backFromSearch()">← 返回</button></div>`;
-    html += `<div class="panel-header"><h2>${modeLabel}板块搜索结果</h2>`;
-    html += `<p>共找到${results.length}件符合要求的藏品`;
-    if (rawKeyword) html += ` · 搜索关键词：${escapeHtml(getActualKeyword(rawKeyword, type))}`;
-    html += `</p></div>`;
-
-    if (results.length === 0) {
-        html += '<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •`υ</div>';
-        app.innerHTML = html;
-        requestAnimationFrame(() => {
-            app.classList.remove('content-enter');
-            void app.offsetWidth;
-            app.classList.add('content-enter');
-        });
-        return;
-    }
-
-    const grouped = {};
-    for (const item of results) {
-        const key = item.dataKey;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(item);
-    }
-
-    let idx = 1;
-    const keys = getAllDataKeys();
-    for (const dataKey of keys) {
-        const group = grouped[dataKey];
-        if (!group || group.length === 0) continue;
-        const first = group[0];
-        const label = first.parentName ? `${first.parentName} - ${first.catName}` : first.catName;
-
-        html += `<div class="search-result-group">`;
-        html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${group.length}件</span></div>`;
-
-        for (const item of group) {
-            const copy = item.copy;
-            const img1 = getImageUrl(copy.img1);
-            const img2 = getImageUrl(copy.img2);
-            const displayName = item.hasVarieties
-                ? `${item.series.seriesName} - ${item.variety.varietyName}`
-                : item.series.seriesName;
-
-            const catalogNum = copy.catalogNumber || copy.krause || '';
-            const catalogDisplay = formatCatalogNumber(catalogNum);
-
-            html += `<div class="search-result-item" onclick="navigateToCopy('${item.dataKey}', ${item.sIdx}, ${item.hasVarieties ? item.vIdx : 'null'}, ${item.cIdx}, ${item.hasVarieties})">`;
-            html += `<div class="dual-thumb">`;
-            if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-            if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
-            if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
-            html += `</div>`;
-            html += `<div class="info">`;
-            html += `<div class="name">${escapeHtml(displayName)}</div>`;
-            html += `<div class="detail">`;
-            if (copy.version) html += `${escapeHtml(copy.version)} · `;
-            if (copy.condition || copy.grade) html += `${escapeHtml(copy.condition || copy.grade)} · `;
-            if (copy.year) html += `${copy.year}年发行`;
-            if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;
-            html += `</div></div>`;
-            html += `<div class="index-num">#${idx}</div>`;
-            html += `</div>`;
-            idx++;
-        }
-        html += `</div>`;
-    }
-
-    app.innerHTML = html;
-    requestAnimationFrame(() => {
-        app.classList.remove('content-enter');
-        void app.offsetWidth;
-        app.classList.add('content-enter');
-    });
+  }
+  return inputValue.trim();
 }
 
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
-    const tree = getCategoryTree();
-    for (const cat of tree) {
-        if (cat.children) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) {
-                    // 保存搜索容器滚动
-                    const searchKey = getContainerKey();
-                    const container = getRenderContainer();
-                    if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
+  const tree = getCategoryTree();
+  for (const cat of tree) {
+    if (cat.children) {
+      for (const sub of cat.children) {
+        if (sub.dataKey === dataKey) {
+          const searchKey = getContainerKey();
+          const container = getRenderContainer();
+          if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
 
-                    currentCategoryId = cat.id;
-                    currentSubId = sub.id;
-                    currentView = VIEW.CATEGORY;
-                    switchToCurrentContainer();
-                    renderSidebar();
-                    renderCurrentCategory();
-                    setTimeout(() => {
-                        const seriesId = `series-${si}`;
-                        toggleSeries(seriesId);
-                        if (hasVarieties && vi !== null) {
-                            setTimeout(() => {
-                                toggleVariety(`v-${si}-${vi}`);
-                                setTimeout(() => {
-                                    const el = document.getElementById('list-v-' + si + '-' + vi);
-                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 100);
-                            }, 50);
-                        } else {
-                            setTimeout(() => {
-                                const el = document.getElementById('copies-' + seriesId);
-                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 100);
-                        }
-                    }, 50);
-                    return;
-                }
+          currentCategoryId = cat.id;
+          currentSubId = sub.id;
+          currentView = VIEW.CATEGORY;
+          switchToCurrentContainer();
+          renderSidebar();
+          renderCurrentCategory();
+          setTimeout(() => {
+            const seriesId = `series-${si}`;
+            toggleSeries(seriesId);
+            if (hasVarieties && vi !== null) {
+              setTimeout(() => {
+                toggleVariety(`v-${si}-${vi}`);
+                setTimeout(() => {
+                  const el = document.getElementById('list-v-' + si + '-' + vi);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+              }, 50);
+            } else {
+              setTimeout(() => {
+                const el = document.getElementById('copies-' + seriesId);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 100);
             }
-        } else if (cat.dataKey === dataKey) {
-            const searchKey = getContainerKey();
-            const container = getRenderContainer();
-            if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
-
-            currentCategoryId = cat.id;
-            currentSubId = null;
-            currentView = VIEW.CATEGORY;
-            switchToCurrentContainer();
-            renderSidebar();
-            renderCurrentCategory();
-            setTimeout(() => {
-                const seriesId = `series-${si}`;
-                toggleSeries(seriesId);
-                if (hasVarieties && vi !== null) {
-                    setTimeout(() => {
-                        toggleVariety(`v-${si}-${vi}`);
-                        setTimeout(() => {
-                            const el = document.getElementById('list-v-' + si + '-' + vi);
-                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 100);
-                    }, 50);
-                } else {
-                    setTimeout(() => {
-                        const el = document.getElementById('copies-' + seriesId);
-                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 100);
-                }
-            }, 50);
-            return;
+          }, 50);
+          return;
         }
+      }
+    } else if (cat.dataKey === dataKey) {
+      const searchKey = getContainerKey();
+      const container = getRenderContainer();
+      if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
+
+      currentCategoryId = cat.id;
+      currentSubId = null;
+      currentView = VIEW.CATEGORY;
+      switchToCurrentContainer();
+      renderSidebar();
+      renderCurrentCategory();
+      setTimeout(() => {
+        const seriesId = `series-${si}`;
+        toggleSeries(seriesId);
+        if (hasVarieties && vi !== null) {
+          setTimeout(() => {
+            toggleVariety(`v-${si}-${vi}`);
+            setTimeout(() => {
+              const el = document.getElementById('list-v-' + si + '-' + vi);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          }, 50);
+        } else {
+          setTimeout(() => {
+            const el = document.getElementById('copies-' + seriesId);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      }, 50);
+      return;
     }
+  }
 }
 
 function backFromSearch() {
-    // 保存搜索视图的滚动位置
-    saveFullState();
+  saveFullState();
+  prevSearchResults = null;
+  prevSearchKeyword = '';
+  isFirstSearch = true;
 
-    const prevCategoryId = currentCategoryId;
+  const prevCategoryId = currentCategoryId;
+  currentView = prevCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
+  switchToCurrentContainer();
+  currentSearchKeyword = '';
+  const input = document.getElementById('searchInput');
+  if (input) input.value = '';
 
-    // 切换回原来的视图（概览或分类）
-    currentView = prevCategoryId ? VIEW.CATEGORY : VIEW.OVERVIEW;
-    switchToCurrentContainer();
-    currentSearchKeyword = '';
-    const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-
-    if (currentView === VIEW.OVERVIEW) {
-        renderOverview();
-    } else {
-        // 重新渲染分类
-        renderCurrentCategory();
-        // ★ 从 modeStates 恢复展开状态（延迟足够长确保 DOM 渲染完成）
-        const saved = modeStates[currentMode];
-        if (saved && (saved.expandedSeries?.length > 0 || saved.expandedVarieties?.length > 0)) {
-            setTimeout(() => {
-                restoreExpandedStates({
-                    expandedSeries: saved.expandedSeries || [],
-                    expandedVarieties: saved.expandedVarieties || []
-                });
-            }, 100);
-        }
+  if (currentView === VIEW.OVERVIEW) {
+    renderOverview();
+  } else {
+    renderCurrentCategory();
+    const saved = modeStates[currentMode];
+    if (saved && (saved.expandedSeries?.length > 0 || saved.expandedVarieties?.length > 0)) {
+      setTimeout(() => {
+        restoreExpandedStates({
+          expandedSeries: saved.expandedSeries || [],
+          expandedVarieties: saved.expandedVarieties || []
+        });
+      }, 100);
     }
-    updateSearchUIForMode();
+  }
+  updateSearchUIForMode();
 }

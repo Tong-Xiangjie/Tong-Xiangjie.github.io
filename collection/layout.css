@@ -1541,3 +1541,34 @@ body.modal-open {
     }
     .mode-toggle { width: auto; padding: 0 4px; }
 }
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+  font-size: 0.8rem;
+}
+.search-result-item .info {
+  flex: 1 1 0;          /* 占据剩余空间，但允许收缩 */
+  min-width: 0;          /* 防止内容溢出 */
+}
+.search-result-item .index-num {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  flex-shrink: 0;        /* 永远不被压缩 */
+  margin-left: auto;     /* 推到最右侧 */
+  padding-left: 8px;
+  text-align: right;
+}
+
+.search-result-group {
+  margin-bottom: 4px !important;
+}
+.search-group-header {
+  margin-bottom: 0px !important;
+  padding: 4px 10px !important;
+}
