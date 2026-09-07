@@ -40,8 +40,8 @@ const japanData = {
                             issueDate: "",
                             withdrawnDate: "",
                             size: "",
-                            wmk: "无水印/Without Wmk",
-                            remark: "",
+                            wmk: "",
+                            remark: "这张居然有水印！我还是买回来快一个月才偶然发现的。",
                             img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/1945-50-51-1.jpg",
                             img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan/1945-50-51-2.jpg"
                         }

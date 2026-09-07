@@ -11,3 +11,13 @@
 <!-- 图片区 -->
 <center><img src="readmes/image/macau_boc/moboc_1995_01_10.jpg" style="width:80%; display:block; margin:0 auto;"></center>
 <center><span style="display:block; font-size:0.85rem; color:#555555; margin-top:2px;">注：此纸币已不再流通。</span></center>
+
+<div style="background:var(--bg);border-left:3px solid var(--theme);padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem;">
+据网上信息，1997年推行的硬币化政策是澳门中国银行1995年版10元纸币停止流通的主要原因。小红书上一篇帖子如是写道：
+<h4><center>死于意外的澳门10元纸币</center></h4>
+<p>1991大西洋和1995中银的10元纸币，在1997年澳门打算发10元硬币替换掉纸币，于是下了一个强制纸币作废两款纸币的的法令，打算强推硬币化。</p>
+<p>结果几年之后老百姓不买账这10元硬币，最后2001年又灰溜溜的把10元纸币换了个色又端回来了。</p>
+<p>于是棕色的纸币作废了，10元硬币也再不发行了。</p>
+<p>之后10元纸币全走了红色色调。</p>
+<p>（作者还在评论区说道：香港一样硬币化失败了，不过香港没那么极端，强制作废纸币来推硬币。）</p>
+</div>
