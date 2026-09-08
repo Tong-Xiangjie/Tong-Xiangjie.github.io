@@ -181,11 +181,16 @@ function triggerViewAnimation() {
     const key = getContainerKey();
     const el = viewScrollContainers[key];
     if (!el) return;
-    requestAnimationFrame(() => {
-        el.classList.remove('content-enter');
-        void el.offsetWidth;
-        el.classList.add('content-enter');
-    });
+
+    // ★ 强制重置动画：先移除动画，强制回流，再恢复
+    el.style.animation = 'none';
+    void el.offsetHeight;          // 强制回流
+    el.style.animation = '';
+
+    // ★ 正常触发 content-enter 类动画
+    el.classList.remove('content-enter');
+    void el.offsetHeight;          // 再次强制回流，确保类移除生效
+    el.classList.add('content-enter');
 }
 
 // ========== 数据读取函数 ==========

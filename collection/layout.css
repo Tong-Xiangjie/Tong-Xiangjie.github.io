@@ -436,6 +436,11 @@ body {
     font-weight: bold;
     background: rgba(0, 0, 0, 0.04);
 }
+.sidebar-child .child-text {
+    display: inline-block;
+    white-space: nowrap;
+    max-width: 100%; /* 保证不溢出父容器 */
+}
 
 /* ========== 内容区 ========== */
 .content {

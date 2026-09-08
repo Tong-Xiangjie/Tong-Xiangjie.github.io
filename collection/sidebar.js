@@ -1,9 +1,10 @@
 // ==================== sidebar.js ====================
 
-// ★ Word式文字比例压缩：超长横向压扁，不省略、不换行、字号不变
+// ★ Word式文字比例压缩：同时处理父级（.sidebar-item）和子级（.sidebar-child）
 function fitSidebarLabels() {
+    // 1. 父级分类（.sidebar-item）
     document.querySelectorAll('.sidebar-item').forEach(item => {
-        const text = item.children[0];
+        const text = item.children[0]; // 第一个子元素是文字 span
         if (!text) return;
 
         const cs = getComputedStyle(item);
@@ -13,9 +14,31 @@ function fitSidebarLabels() {
             - (parseFloat(cs.paddingLeft) || 0)
             - (parseFloat(cs.paddingRight) || 0)
             - iconW
-            - 4;
+            - 4; // 与右侧图标间距
 
-        // ★ 宽度不可用（折叠过渡中≈0）时直接跳过，保留旧压缩状态，不清 transform
+        if (avail <= 0) return;
+
+        text.style.transform = '';
+        text.style.overflow = 'visible';
+        const full = text.scrollWidth;
+
+        if (full > avail) {
+            const ratio = avail / full;
+            text.style.transformOrigin = 'left center';
+            text.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
+        }
+    });
+
+    // 2. 子分类（.sidebar-child），需匹配内部的 .child-text
+    document.querySelectorAll('.sidebar-child').forEach(child => {
+        const text = child.querySelector('.child-text');
+        if (!text) return;
+
+        const cs = getComputedStyle(child);
+        const avail = child.clientWidth
+            - (parseFloat(cs.paddingLeft) || 0)
+            - (parseFloat(cs.paddingRight) || 0);
+
         if (avail <= 0) return;
 
         text.style.transform = '';
@@ -89,7 +112,8 @@ function renderSidebar() {
             html += `<div class="sidebar-children ${isExpanded ? 'open' : ''}" id="children-${cat.id}">`;
             for (const sub of cat.children) {
                 const subActive = currentSubId === sub.id;
-                html += `<div class="sidebar-child ${subActive ? 'active' : ''}" onclick="onSidebarChildClick('${cat.id}', '${sub.id}'); event.stopPropagation();">${sub.name}</div>`;
+                // ★ 子项文字用 .child-text 包裹以便压缩
+                html += `<div class="sidebar-child ${subActive ? 'active' : ''}" onclick="onSidebarChildClick('${cat.id}', '${sub.id}'); event.stopPropagation();"><span class="child-text">${sub.name}</span></div>`;
             }
             html += `</div>`;
         }

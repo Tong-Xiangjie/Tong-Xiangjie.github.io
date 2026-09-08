@@ -306,7 +306,8 @@ function renderArticleSidebar() {
       html += `<div class="sidebar-children ${isExpanded ? 'open' : ''}">`;
       for (const sub of cat.children) {
         const subActive = currentArticleCategory === sub.id;
-        html += `<div class="sidebar-child ${subActive ? 'active' : ''}" onclick="onArticleSidebarClick('${sub.id}'); event.stopPropagation();">${sub.name}</div>`;
+        // ★ 关键修改：用 .child-text 包裹子项文字
+        html += `<div class="sidebar-child ${subActive ? 'active' : ''}" onclick="onArticleSidebarClick('${sub.id}'); event.stopPropagation();"><span class="child-text">${sub.name}</span></div>`;
       }
       html += `</div>`;
     }
@@ -318,11 +319,71 @@ function renderArticleSidebar() {
 }
 
 function onArticleSidebarClick(categoryId) {
-  if (currentArticleCategory === categoryId) { currentArticleCategory = 'all'; }
-  else { currentArticleCategory = categoryId; }
-  currentArticleView = VIEW.LIST;
-  renderArticleList();
-  renderArticleSidebar();
+    // 1. 判断点击的是父分类还是子分类
+    let isParent = false;
+    let parentId = null;
+    let targetCat = null;
+
+    for (const cat of articleCategoryTree) {
+        if (cat.id === categoryId) {
+            isParent = true;
+            targetCat = cat;
+            break;
+        }
+        if (cat.children) {
+            for (const sub of cat.children) {
+                if (sub.id === categoryId) {
+                    isParent = false;
+                    parentId = cat.id;
+                    targetCat = sub;
+                    break;
+                }
+            }
+            if (targetCat) break;
+        }
+    }
+
+    if (!targetCat) return;
+
+    // 2. 点击的是子分类
+    if (!isParent) {
+        if (currentArticleCategory === categoryId) {
+            // 已选中子分类 → 取消选中，回到父分类（显示该父分类下所有文章）
+            currentArticleCategory = parentId;
+            renderArticleList();
+            renderArticleSidebar();
+            return;
+        }
+        // 未选中 → 选中该子分类
+        currentArticleCategory = categoryId;
+        renderArticleList();
+        renderArticleSidebar();
+        return;
+    }
+
+    // 3. 点击的是父分类
+    const parentCat = targetCat;
+
+    // ★ 如果当前选中了这个父分类下的某个子分类 → 关闭父分类，显示全部文章
+    if (parentCat.children && parentCat.children.some(sub => sub.id === currentArticleCategory)) {
+        currentArticleCategory = 'all';
+        renderArticleList();
+        renderArticleSidebar();
+        return;
+    }
+
+    // 如果当前选中的就是这个父分类 → 切换到全部文章
+    if (currentArticleCategory === parentCat.id) {
+        currentArticleCategory = 'all';
+        renderArticleList();
+        renderArticleSidebar();
+        return;
+    }
+
+    // 否则进入该父分类
+    currentArticleCategory = parentCat.id;
+    renderArticleList();
+    renderArticleSidebar();
 }
 
 // ========== 增量渲染辅助函数 ==========
@@ -722,7 +783,6 @@ function renderArticleList() {
   container.style.boxSizing = 'border-box';
   container.style.width = '100%';
 
-  // 重置滚动位置
   container.scrollTop = 0;
   void container.offsetHeight;
 
@@ -735,11 +795,10 @@ function renderArticleList() {
   wrapper.style.overflowX = 'hidden';
   wrapper.style.overflowY = 'hidden';
 
-  const oldKeyMap = new Map();
-  for (const child of wrapper.children) {
-    const key = child.dataset.key;
-    if (key) oldKeyMap.set(key, child);
-  }
+  // ★★★ 关键修复：强制清空容器，使所有条目被视为“新增” ★★★
+  // 这样每次切换回文章列表，所有条目都会从右侧滑入
+  wrapper.innerHTML = '';
+  const oldKeyMap = new Map(); // 空 Map，无旧节点
 
   const newFlatList = buildArticleFlatList(articles, articleSearchKeyword);
 
