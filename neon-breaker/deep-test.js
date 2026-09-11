@@ -5,7 +5,7 @@ const fs = require('fs');
 function run(src){
   /* ---------------- 假 DOM ---------------- */
   const MODULES = ['document','window','localStorage','devicePixelRatio','addEventListener',
-                   'requestAnimationFrame','performance','AudioContext','webkitAudioContext','$GAME','__NB_DEBUG'];
+                   'requestAnimationFrame','performance','AudioContext','webkitAudioContext','$GAME','__NB_DEBUG','VP'];
   const saved = {};
   for (const k of MODULES) saved[k] = global[k];
 
@@ -20,14 +20,24 @@ function run(src){
       setLineDash(){},
     };
   }
+  // 挂在 global 上：harness 与垫片（位于 eval 出来的全局作用域）共享同一个可变视口
+  const VP = global.VP = { w: 1600, h: 1000 };
   const canvas = {
-    width: 0, height: 0, tabIndex: 0, style: {},
+    width: 0, height: 0, tabIndex: 0, style: {}, textContent: '',
     getContext(){ if(!this._c){ this._c = fakeCtx(); this._c.canvas = this; } return this._c; },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 960, height: 600 }),
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: VP.w, height: VP.h }),
     addEventListener(){}, focus(){}, appendChild(){},
   };
   const store = {};
-  global.document = { getElementById: id => (id === 'cv' ? canvas : null), createElement: () => canvas, body:{appendChild(){}} };
+  global.document = {
+    getElementById: id => (id === 'cv' || id === 'fsBtn') ? canvas : null,
+    createElement: () => canvas,
+    body: { appendChild(){} },
+    addEventListener(){},
+    fullscreenElement: null,
+    documentElement: { requestFullscreen(){ global.__fsReq = (global.__fsReq||0)+1; global.document.fullscreenElement = {}; return { catch(){} }; } },
+    exitFullscreen(){ global.__fsExit = (global.__fsExit||0)+1; global.document.fullscreenElement = null; return { catch(){} }; },
+  };
   global.window = global;
   global.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k,v) => { store[k] = String(v); } };
   global.devicePixelRatio = 2;
@@ -60,6 +70,9 @@ globalThis.$GAME = {
   newGame, launch, loadLevel, applyPower, POWERS, pattern, spawnDrops, makeBall, damage,
   startSelect, startLevel, selectKey, selectHitTest, selectItems, saveBest,
   setInfinite: v => { G.infinite = v; },
+  view, toWorld, toggleFullscreen, isFullscreen, pointerMove,
+  pointerTarget: () => pointerTarget,
+  setViewport: (w, h) => { globalThis.VP.w = w; globalThis.VP.h = h; resize(); },
 };
 `);
     const $ = global.$GAME;
@@ -528,6 +541,66 @@ globalThis.$GAME = {
 
       // 收尾：回到普通模式开局
       $.setInfinite(false);
+      $.newGame();
+    }
+    /* ================ 11. 视口铺满 / 全屏 ================ */
+    section('视口铺满与全屏');
+    {
+      // 16:10 视口：正好铺满，无留边
+      $.setViewport(1600, 1000);
+      let v = $.view;
+      check('16:10 视口铺满且无留边', Math.abs(v.ox) < .01 && Math.abs(v.oy) < .01 && Math.abs(v.scale - 1600/960) < 1e-6,
+            `scale=${v.scale.toFixed(4)} ox=${v.ox.toFixed(1)} oy=${v.oy.toFixed(1)}`);
+
+      // 逻辑四角必须映射到画布四角
+      const tl = $.toWorld(0, 0), br = $.toWorld(1600, 1000);
+      check('左上空点映射到逻辑 (0,0)', Math.abs(tl.x) < 1e-6 && Math.abs(tl.y) < 1e-6, `(${tl.x},${tl.y})`);
+      check('右下空点映射到逻辑 (960,600)', Math.abs(br.x - 960) < 1e-6 && Math.abs(br.y - 600) < 1e-6, `(${br.x},${br.y})`);
+      check('画布范围内的点都判为场内', tl.inside && br.inside);
+      check('画布内任意点都要求指针留在游戏区内', (() => {
+        for (const [x, y] of [[0,0],[800,500],[1599,999],[1600,1000]]){
+          if (!$.toWorld(x, y).inside) return false;
+        }
+        return true;
+      })());
+
+      // 更宽的视口（21:9）：左右留边，指针落在边上应判为场外
+      $.setViewport(2100, 1000);
+      v = $.view;
+      check('超宽视口产生左右留边', v.ox > 1 && Math.abs(v.oy) < .01, `ox=${v.ox.toFixed(1)} oy=${v.oy.toFixed(1)}`);
+      check('等比缩放，画面完整可见（不裁切）', Math.abs(v.scale * 960 - 1600) < 1e-6 && v.scale * 600 <= 1000 + 1e-6,
+            `画面=${(v.scale*960).toFixed(0)}x${(v.scale*600).toFixed(0)}`);
+      const pad = $.toWorld(10, 500);                   // 左侧留边里
+      check('留边里的点判为场外', pad.inside === false, `x=${pad.x.toFixed(1)} inside=${pad.inside}`);
+      const mid = $.toWorld(2100/2, 500);
+      check('画面中心的点判为场内', mid.inside === true, `x=${mid.x.toFixed(1)}`);
+
+      // 指针事件走 toWorld，水平位置要正确对应
+      $.setViewport(1600, 1000);
+      $.newGame();
+      const pm = $.pointerMove, tgt = () => $.pointerTarget();
+      pm(1200, 500);                                     // 1200/1600 = 0.75 -> 逻辑 x=720
+      check('指针位置正确映射到挡板目标', Math.abs(tgt() - 720) < 1e-6, 'target=' + tgt());
+      check('指针在画面内时 onField=true', $.snap().mouse.onField === true);
+
+      // 指针移到留边：挡板目标被夹在边界内，且准星标记为场外
+      $.setViewport(2100, 1000);
+      pm(5, 500);
+      check('指针进左留边时目标夹到左边界', tgt() === 0, 'target=' + tgt());
+      check('指针进留边时 onField=false（准星变暗）', $.snap().mouse.onField === false);
+      pm(2095, 500);
+      check('指针进右留边时目标夹到右边界', tgt() === 960, 'target=' + tgt());
+
+      // 全屏切换
+      global.__fsReq = 0; global.__fsExit = 0;
+      check('初始不在全屏', $.isFullscreen() === false);
+      $.toggleFullscreen();
+      check('请求进入全屏', global.__fsReq === 1 && $.isFullscreen() === true, `req=${global.__fsReq}`);
+      $.toggleFullscreen();
+      check('再次调用退出全屏', global.__fsExit === 1 && $.isFullscreen() === false, `exit=${global.__fsExit}`);
+
+      // 恢复默认视口，避免影响后续用例
+      $.setViewport(1600, 1000);
       $.newGame();
     }
   } catch (e){

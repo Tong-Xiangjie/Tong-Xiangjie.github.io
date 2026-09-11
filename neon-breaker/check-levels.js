@@ -16,7 +16,15 @@ function run(gameSrc){
   const canvas = { width:0, height:0, style:{}, getContext(){ return fakeCtx(); },
     getBoundingClientRect: () => ({ left:0, top:0, width:960, height:600 }), addEventListener(){}, focus(){} };
   const store = {};
-  global.document = { getElementById: id => (id === 'cv' ? canvas : null), createElement: () => canvas, body:{appendChild(){}} };
+  global.document = {
+    getElementById: id => (id === 'cv' || id === 'fsBtn') ? canvas : null,
+    createElement: () => canvas,
+    body: { appendChild(){} },
+    addEventListener(){},
+    fullscreenElement: null,
+    documentElement: { requestFullscreen(){ return { catch(){} }; } },
+    exitFullscreen(){ return { catch(){} }; },
+  };
   global.window = global;
   global.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k,v) => { store[k] = v; } };
   global.devicePixelRatio = 1;

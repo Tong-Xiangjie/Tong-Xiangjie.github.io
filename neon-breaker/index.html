@@ -18,38 +18,45 @@
     background:radial-gradient(120% 90% at 50% 0%,#131a4a 0%,var(--bg1) 38%,var(--bg0) 100%);
     color:var(--txt);
     font-family:"Segoe UI",-apple-system,"Microsoft YaHei",system-ui,sans-serif;
-    display:flex;align-items:center;justify-content:center;
     -webkit-tap-highlight-color:transparent;
     user-select:none;
   }
-  #stage{
-    position:relative;
-    width:min(96vw,900px);
-    aspect-ratio:16/10;
-    max-height:96vh;
-  }
+  /* 画布铺满整个视口：逻辑 16:10 的画面在里面等比缩放居中，
+     多出来的部分在画布内部留边 —— 这样鼠标永远在游戏区内 */
+  #stage{position:fixed;inset:0}
   canvas{
     position:absolute;inset:0;width:100%;height:100%;
-    border-radius:16px;
+    display:block;
     background:#04050d;
-    box-shadow:0 0 0 1px rgba(49,242,255,.25),
-               0 0 40px rgba(49,242,255,.12),
-               0 0 120px rgba(255,62,165,.10),
-               inset 0 0 80px rgba(0,0,0,.9);
     touch-action:none;
     cursor:none;
   }
+  #fsBtn{
+    position:absolute;top:12px;right:12px;z-index:5;
+    width:36px;height:36px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;line-height:1;
+    color:rgba(223,246,255,.6);
+    border:1px solid rgba(49,242,255,.32);
+    background:rgba(6,10,26,.55);
+    cursor:pointer;
+    transition:color .15s,border-color .15s,box-shadow .15s;
+    -webkit-user-select:none;user-select:none;
+  }
+  #fsBtn:hover{color:#dff6ff;border-color:#31f2ff;box-shadow:0 0 14px rgba(49,242,255,.35)}
   #hint{
-    position:absolute;left:50%;bottom:-30px;transform:translateX(-50%);
+    position:absolute;left:50%;bottom:8px;transform:translateX(-50%);
+    z-index:5;pointer-events:none;
     font-size:12px;letter-spacing:.14em;color:rgba(223,246,255,.35);white-space:nowrap;
   }
-  @media (max-width:640px){#hint{display:none}}
+  @media (max-width:720px){#hint{display:none}}
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="cv"></canvas>
-  <div id="hint">← → / 鼠标移动 = 挡板 &nbsp;·&nbsp; 空格 = 发射 / 继续 &nbsp;·&nbsp; P = 暂停 &nbsp;·&nbsp; M = 静音</div>
+  <div id="fsBtn" title="全屏 (F)">⛶</div>
+  <div id="hint">← → / 鼠标 = 挡板 &nbsp;·&nbsp; 空格 = 发射 &nbsp;·&nbsp; P = 暂停 &nbsp;·&nbsp; C = 选关 &nbsp;·&nbsp; F = 全屏</div>
 </div>
 <script>
 "use strict";
@@ -65,18 +72,66 @@
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 
-/* ---------- 逻辑分辨率（16:10），用 DPR 缩放保证清晰 ---------- */
+/* ---------- 视口与坐标映射 ----------
+   画布铺满整个视口，逻辑画面固定 16:10（W×H）等比缩放居中，
+   多出来的部分由 drawBackground 画成暗色留边。
+   这样鼠标指针永远落在 canvas 上，不会"移出框"。 */
 const W = 960, H = 600;
+const view = { w: W, h: H, scale: 1, ox: 0, oy: 0, dpr: 1 };
+let cssW = W, cssH = H;
 
 function resize(){
   const r = cv.getBoundingClientRect();
+  cssW = Math.max(1, Math.round(r.width));
+  cssH = Math.max(1, Math.round(r.height));
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width  = Math.round(r.width  * dpr);
-  cv.height = Math.round(r.height * dpr);
-  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
-  ctx.imageSmoothingEnabled = true;
+  cv.width  = Math.round(cssW * dpr);
+  cv.height = Math.round(cssH * dpr);
+
+  view.dpr   = dpr;
+  view.w     = cssW;
+  view.h     = cssH;
+  view.scale = Math.min(cssW / W, cssH / H);          // 等比，保证整幅画面可见
+  view.ox    = (cssW - W * view.scale) / 2;
+  view.oy    = (cssH - H * view.scale) / 2;
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);             // CSS 像素坐标系
+  setFrameTransform();
 }
+
+// 把逻辑坐标 (960×600) 映射到当前视口
+function setFrameTransform(){
+  ctx.setTransform(view.dpr * view.scale, 0, 0, view.dpr * view.scale,
+                   view.dpr * view.ox, view.dpr * view.oy);
+}
+
+function toggleFullscreen(){
+  const el = document.documentElement;
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!fsEl){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { const p = req.call(el); if (p && p.catch) p.catch(() => {}); }
+  } else {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { const p = ex.call(document); if (p && p.catch) p.catch(() => {}); }
+  }
+}
+function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+// 全屏状态变化后布局尺寸会变，等一帧再量
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']){
+  document.addEventListener(ev, () => { requestAnimationFrame(resize); }, false);
+}
+
+// 屏幕坐标 -> 逻辑坐标（超出 0..W / 0..H 说明指针落在留边上）
+function toWorld(clientX, clientY){
+  const r = cv.getBoundingClientRect();
+  const x = (clientX - r.left - view.ox) / view.scale;
+  const y = (clientY - r.top  - view.oy) / view.scale;
+  return { x, y, inside: x >= 0 && x <= W && y >= 0 && y <= H };
+}
+
 addEventListener('resize', resize);
+addEventListener('orientationchange', resize);
 
 /* ============================ 音效 ============================ */
 const Sound = (() => {
@@ -345,7 +400,7 @@ const keys = Object.create(null);
 let pointerTarget = null;
 // 自绘准星状态：canvas 上设了 cursor:none（挡板就是光标），所以必须自己画一个，
 // 否则游戏区里完全看不见鼠标。用鼠标操作时显示，键盘操作/指针离开时隐藏。
-const mouse = { x: W/2, y: H/2, hasPointer: false };
+const mouse = { x: W/2, y: H/2, hasPointer: false, onField: true };
 
 // 选关界面：把屏幕点击 / 触摸映射到卡片（返回 true 表示已处理）
 function selectHitTest(px, py){
@@ -381,6 +436,7 @@ addEventListener('keydown', e => {
   Sound.unlock();
 
   if (e.key === 'm' || e.key === 'M'){ const m = Sound.toggle(); toast(m ? '静音' : '声音开'); return; }
+  if (e.key === 'f' || e.key === 'F'){ toggleFullscreen(); return; }
 
   // 练习/选关界面：吃掉所有按键
   if (G.state === S.SELECT){ selectKey(e.key); return; }
@@ -410,26 +466,30 @@ addEventListener('blur', () => {
   if (G.state === S.PLAY) G.state = S.PAUSE;
 });
 
-// 鼠标 / 触摸：挡板跟随 + 准星定位
+// 鼠标 / 触摸：挡板跟随 + 准星定位（坐标经 toWorld 反向映射，自动处理留边）
 function pointerMove(clientX, clientY){
-  const r = cv.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  pointerTarget = clamp((clientX - r.left) / r.width * W, 0, W);
-  if (clientY !== undefined) mouse.y = clamp((clientY - r.top) / r.height * H, 0, H);
+  if (!cssW || !cssH) return;
+  const w = toWorld(clientX, clientY);
+  pointerTarget = clamp(w.x, 0, W);
+  mouse.y = clamp(w.y, 0, H);
   mouse.x = pointerTarget;
+  mouse.onField = w.inside;
   mouse.hasPointer = true;
 }
 cv.addEventListener('mousemove', e => pointerMove(e.clientX, e.clientY));
 cv.addEventListener('mouseleave', () => { mouse.hasPointer = false; });
+cv.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') pointerMove(e.clientX, e.clientY); });
+// 整个视口都在 canvas 里，pointerleave 基本不会触发；留着以防嵌入 iframe
+cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') mouse.hasPointer = false; });
 cv.addEventListener('touchstart', e => { Sound.unlock(); pointerMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
 cv.addEventListener('touchmove',  e => { pointerMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
 cv.addEventListener('touchend',   () => { mouse.hasPointer = false; }, { passive:true });
 cv.addEventListener('touchcancel',() => { mouse.hasPointer = false; }, { passive:true });
 cv.addEventListener('pointerdown', e => {
   Sound.unlock();
+  const w = toWorld(e.clientX, e.clientY);
   if (G.state === S.SELECT){           // 点卡片直接进关
-    const r = cv.getBoundingClientRect();
-    selectHitTest((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H);
+    selectHitTest(w.x, w.y);
     return;
   }
   if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN) newGame();
@@ -1307,10 +1367,13 @@ function drawSelect(){
 }
 
 // 自绘准星：细十字 + 中心点 + 外圈虚线 + 一道光晕（因为原生光标被 cursor:none 隐藏了）
+// 全屏后指针始终在画布内；若落在上下/左右的留边上，准星变暗表示"这里不控制挡板"
 function drawReticle(){
   if (!mouse.hasPointer) return;
-  const x = mouse.x, y = mouse.y;
-  const pulse = 0.85 + 0.15 * Math.sin(G.time * 4.5);
+  const x = clamp(mouse.x, 14, W - 14);
+  const y = clamp(mouse.y, 14, H - 14);
+  const dim = mouse.onField === false ? 0.35 : 1;
+  const pulse = (0.85 + 0.15 * Math.sin(G.time * 4.5)) * dim;
   ctx.save();
   ctx.shadowColor = '#31f2ff';
   ctx.shadowBlur = 10;
@@ -1348,7 +1411,7 @@ function drawReticle(){
 
   // 指向挡板的引导虚线（挡板跟鼠标走，给一点"连起来了"的反馈）
   ctx.save();
-  ctx.globalAlpha = 0.16;
+  ctx.globalAlpha = 0.16 * dim;
   ctx.strokeStyle = '#31f2ff';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 8]);
@@ -1361,7 +1424,11 @@ function drawReticle(){
 }
 
 function render(){
-  ctx.clearRect(0, 0, W, H);
+  // 先按 CSS 像素清空整个画布（含留边），再切回逻辑坐标系绘制
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.clearRect(0, 0, view.w, view.h);
+  setFrameTransform();
+
   ctx.save();
   if (G.shake > .2){
     ctx.translate(rnd(-G.shake, G.shake) * .35, rnd(-G.shake, G.shake) * .35);
@@ -1404,6 +1471,18 @@ function frame(now){
 }
 
 /* ============================ 启动 ============================ */
+// 全屏按钮（鼠标用户不用记快捷键）
+const fsBtn = document.getElementById('fsBtn');
+if (fsBtn){
+  fsBtn.addEventListener('click', e => { e.stopPropagation(); toggleFullscreen(); });
+  fsBtn.addEventListener('pointerdown', e => { e.stopPropagation(); }, { passive:true });
+}
+function syncFsBtn(){
+  if (fsBtn) fsBtn.textContent = isFullscreen() ? '⤡' : '⛶';
+}
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, syncFsBtn, false);
+syncFsBtn();
+
 resize();
 paddle = makePaddle();
 balls = [ makeBall(W/2, paddle.y - 8, 0, 0) ];
