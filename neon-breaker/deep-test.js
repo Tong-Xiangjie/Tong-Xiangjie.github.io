@@ -306,7 +306,57 @@ globalThis.$GAME = {
     check('还有命时回到 READY 而不是 OVER', $.snap().G.state === S_READY, 'state=' + $.snap().G.state);
     check('掉命后生命 3->2', $.snap().G.lives === 2);
     check('掉命后重发球且贴板', $.snap().balls.length === 1 && $.snap().balls[0].stuck === true);
-    check('掉命后挡板宽度重置', $.snap().paddle.w === 130);
+
+    // 掉命不应收走已吃到的道具：加宽/变窄都要保留
+    // （否则玩家会觉得"刚吃的 W 白吃了"，而且三球/减速在掉命后本来也不重置）
+    check('掉命后挡板宽度保持默认（未吃道具时）', $.snap().paddle.w === 130, 'w=' + $.snap().paddle.w);
+    {
+      $.newGame(); $.launch(); frames(3, {});
+      $.applyPower(P('wide'));
+      const widened = $.snap().paddle.w;
+      check('吃 W 后挡板确实变宽', widened > 130, 'w=' + widened);
+      $.snap().G.lives = 3;
+      $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+      frames(2, {});
+      check('掉命后加宽的挡板宽度被保留', $.snap().paddle.w === widened,
+            `${$.snap().paddle.w} vs ${widened}`);
+      check('保留宽度后没有越界', (() => {
+        const pd = $.snap().paddle;
+        return pd.x >= 23.999 && pd.x + pd.w <= 936.001;
+      })(), 'x=' + $.snap().paddle.x.toFixed(1) + ' w=' + $.snap().paddle.w);
+      // 连掉多条命也一直保留
+      for (let i = 0; i < 2; i++){
+        $.snap().G.lives = 3;
+        $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+        frames(2, {});
+      }
+      check('连续掉命后宽度依旧保留', $.snap().paddle.w === widened, 'w=' + $.snap().paddle.w);
+    }
+    {
+      // 变窄是负面效果，同样不应被"重置"悄悄洗掉（保持规则一致）
+      $.newGame(); $.launch(); frames(3, {});
+      $.applyPower(P('narrow'));
+      const narrowed = $.snap().paddle.w;
+      check('吃 N 后挡板变窄', narrowed < 130, 'w=' + narrowed);
+      $.snap().G.lives = 3;
+      $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+      frames(2, {});
+      check('掉命后变窄的挡板同样保持（规则一致）', $.snap().paddle.w === narrowed,
+            `${$.snap().paddle.w} vs ${narrowed}`);
+    }
+    {
+      // 练习模式重发球也走同一条规则
+      $.startSelect();
+      if (!$.snap().G.infinite) $.selectKey('i');
+      $.selectKey('1');
+      $.launch(); frames(3, {});
+      $.applyPower(P('wide'));
+      const w0 = $.snap().paddle.w;
+      $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+      frames(2, {});
+      check('练习模式重发球也保留宽度', $.snap().paddle.w === w0, `${$.snap().paddle.w} vs ${w0}`);
+      $.setInfinite(false); $.newGame();
+    }
 
     /* ================ 6. 长时间完整对局（压力测试） ================ */
     section('长时间自动对局 (7200 帧 / 120 秒，含防卡死机制收敛)');

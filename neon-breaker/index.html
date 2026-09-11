@@ -1082,8 +1082,8 @@ function loseLife(){
     G.shake = 6;
     Sound.lose();
     resetBall();
-    paddle.w = 130;
-    clampPaddle();
+    // 挡板宽度保持不变：其他道具效果（三球、减速）在掉命后也不重置，
+    // 单独把宽度打回 130 会让玩家觉得"吃的 W 白吃了"。
     G.state = S.READY;
     G.msg = '无限生命 · 重发球';
     G.msgTimer = 1.2;
@@ -1101,10 +1101,9 @@ function loseLife(){
   }
   Sound.lose();
   resetBall();
-  paddle.w = 130;
-  clampPaddle();
+  // 同上：掉命不重置挡板宽度，否则刚吃到的加宽道具会被无声收回
   G.state = S.READY;
-  G.msg = '剩余 ' + G.lives + ' 条命';
+  G.msg = '剩余 ' + G.lives + ' 条命' + (paddle.w > 130 ? ' · 挡板加宽保留' : '');
   G.msgTimer = 1.4;
   saveProgress(false);      // 掉命也是关键节点
 }
