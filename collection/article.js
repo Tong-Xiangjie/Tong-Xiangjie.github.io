@@ -1,5 +1,6 @@
 // ==================== article.js ====================
 // 完整重构版：增量渲染 + FLIP 动画，保留高亮
+// 修改：子分类压缩、父分类点击行为、列表重建保留滚动
 
 // ---------- 收集文章 ----------
 function collectAllArticles() {
@@ -281,10 +282,10 @@ function toggleArticleSearchMode() {
     articleSearchMode = 'fulltext';
     const input = document.getElementById('searchInput');
     if (input) { input.removeEventListener('input', doSearch); input.addEventListener('input', doSearch); }
-    preloadAllArticles().then(() => { if (articleSearchKeyword) renderArticleList(); });
+    preloadAllArticles().then(() => { if (articleSearchKeyword) renderArticleList(true); });
   } else {
     articleSearchMode = 'title';
-    if (articleSearchKeyword) renderArticleList();
+    if (articleSearchKeyword) renderArticleList(true);
   }
   updateSearchUIForMode();
 }
@@ -306,7 +307,7 @@ function renderArticleSidebar() {
       html += `<div class="sidebar-children ${isExpanded ? 'open' : ''}">`;
       for (const sub of cat.children) {
         const subActive = currentArticleCategory === sub.id;
-        // ★ 关键修改：用 .child-text 包裹子项文字
+        // ★ 关键修改：用 .child-text 包裹子项文字，支持压缩
         html += `<div class="sidebar-child ${subActive ? 'active' : ''}" onclick="onArticleSidebarClick('${sub.id}'); event.stopPropagation();"><span class="child-text">${sub.name}</span></div>`;
       }
       html += `</div>`;
@@ -318,72 +319,73 @@ function renderArticleSidebar() {
   }
 }
 
+// ★ 修正：父分类点击行为同纸币/硬币
 function onArticleSidebarClick(categoryId) {
-    // 1. 判断点击的是父分类还是子分类
-    let isParent = false;
-    let parentId = null;
-    let targetCat = null;
+  // 判断点击的是父分类还是子分类
+  let isParent = false;
+  let parentId = null;
+  let targetCat = null;
 
-    for (const cat of articleCategoryTree) {
-        if (cat.id === categoryId) {
-            isParent = true;
-            targetCat = cat;
-            break;
+  for (const cat of articleCategoryTree) {
+    if (cat.id === categoryId) {
+      isParent = true;
+      targetCat = cat;
+      break;
+    }
+    if (cat.children) {
+      for (const sub of cat.children) {
+        if (sub.id === categoryId) {
+          isParent = false;
+          parentId = cat.id;
+          targetCat = sub;
+          break;
         }
-        if (cat.children) {
-            for (const sub of cat.children) {
-                if (sub.id === categoryId) {
-                    isParent = false;
-                    parentId = cat.id;
-                    targetCat = sub;
-                    break;
-                }
-            }
-            if (targetCat) break;
-        }
+      }
+      if (targetCat) break;
     }
+  }
 
-    if (!targetCat) return;
+  if (!targetCat) return;
 
-    // 2. 点击的是子分类
-    if (!isParent) {
-        if (currentArticleCategory === categoryId) {
-            // 已选中子分类 → 取消选中，回到父分类（显示该父分类下所有文章）
-            currentArticleCategory = parentId;
-            renderArticleList();
-            renderArticleSidebar();
-            return;
-        }
-        // 未选中 → 选中该子分类
-        currentArticleCategory = categoryId;
-        renderArticleList();
-        renderArticleSidebar();
-        return;
+  // 点击的是子分类
+  if (!isParent) {
+    if (currentArticleCategory === categoryId) {
+      // 已选中子分类 → 取消选中，回到父分类
+      currentArticleCategory = parentId;
+      renderArticleList(true);
+      renderArticleSidebar();
+      return;
     }
-
-    // 3. 点击的是父分类
-    const parentCat = targetCat;
-
-    // ★ 如果当前选中了这个父分类下的某个子分类 → 关闭父分类，显示全部文章
-    if (parentCat.children && parentCat.children.some(sub => sub.id === currentArticleCategory)) {
-        currentArticleCategory = 'all';
-        renderArticleList();
-        renderArticleSidebar();
-        return;
-    }
-
-    // 如果当前选中的就是这个父分类 → 切换到全部文章
-    if (currentArticleCategory === parentCat.id) {
-        currentArticleCategory = 'all';
-        renderArticleList();
-        renderArticleSidebar();
-        return;
-    }
-
-    // 否则进入该父分类
-    currentArticleCategory = parentCat.id;
-    renderArticleList();
+    // 未选中 → 选中该子分类
+    currentArticleCategory = categoryId;
+    renderArticleList(true);
     renderArticleSidebar();
+    return;
+  }
+
+  // 点击的是父分类
+  const parentCat = targetCat;
+
+  // 如果当前选中了这个父分类下的某个子分类 → 关闭父分类，显示全部文章
+  if (parentCat.children && parentCat.children.some(sub => sub.id === currentArticleCategory)) {
+    currentArticleCategory = 'all';
+    renderArticleList(true);
+    renderArticleSidebar();
+    return;
+  }
+
+  // 如果当前选中的就是这个父分类 → 切换到全部文章
+  if (currentArticleCategory === parentCat.id) {
+    currentArticleCategory = 'all';
+    renderArticleList(true);
+    renderArticleSidebar();
+    return;
+  }
+
+  // 否则进入该父分类
+  currentArticleCategory = parentCat.id;
+  renderArticleList(true);
+  renderArticleSidebar();
 }
 
 // ========== 增量渲染辅助函数 ==========
@@ -432,7 +434,6 @@ function ensureArticleDynamicWrapper(container) {
   return wrapper;
 }
 
-// ★★★★★ 关键修改：移除 .sort()，分组按首次出现顺序（config/收集顺序）排列 ★★★★★
 function buildArticleFlatList(articles, keyword) {
   const groupMap = new Map();
   for (const article of articles) {
@@ -442,8 +443,7 @@ function buildArticleFlatList(articles, keyword) {
   }
 
   const flatList = [];
-  // ★ 不要按字符串排序：分组按首次出现顺序展示（纸币→硬币，与 config / 收集顺序一致）
-  const sortedGroups = Array.from(groupMap.keys());  // 移除 .sort()
+  const sortedGroups = Array.from(groupMap.keys());
   for (const groupName of sortedGroups) {
     const items = groupMap.get(groupName);
     flatList.push({
@@ -500,18 +500,15 @@ function renderArticleItemElement(data) {
   </div>`;
 }
 
-// ★ 使用 getBoundingClientRect + 仅可视区条目做 FLIP
 function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
   // 清理残留的删除节点
   const absNodes = document.querySelectorAll('.article-delete-anim');
   for (const node of absNodes) node.remove();
 
-  // ★ 强制重置滚动：记录旧位置前
   container.scrollTop = 0;
   void container.offsetHeight;
   const containerRect = container.getBoundingClientRect();
 
-  // 记录旧位置
   const oldRects = new Map();
   for (const child of wrapper.children) {
     const key = child.dataset.key;
@@ -533,7 +530,6 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
 
   const deleteElements = [];
 
-  // 处理删除节点
   for (const key of deleteKeys) {
     const el = oldKeyMap.get(key);
     if (!el) continue;
@@ -622,11 +618,9 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
     wrapper.appendChild(el);
   }
 
-  // ★ 第二次强制重置：重建后，RAF 之前
   container.scrollTop = 0;
   void container.offsetHeight;
 
-  // ★ 第三次：RAF 内部再次强制重置
   requestAnimationFrame(() => {
     container.scrollTop = 0;
     void container.offsetHeight;
@@ -644,7 +638,6 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
       }
     }
 
-    // ★ 关键修改：只对删除前在可视区内的条目做 FLIP 位移
     const clientH = container.clientHeight || container.offsetHeight;
     const fadeDelay = '0.22s';
 
@@ -662,7 +655,6 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
       if (dx === 0 && dy === 0) continue;
 
       if (!wasVisible) {
-        // ★ 旧位置在首屏以下：不播超长位移，落到新位置后延迟淡入
         el.style.transition = 'none';
         el.style.transform = '';
         el.style.opacity = '0';
@@ -679,7 +671,6 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
         continue;
       }
 
-      // 旧位置可见：正常 FLIP
       el.style.transition = 'none';
       el.style.transform = `translate(${dx}px, ${dy}px)`;
       el.style.opacity = '1';
@@ -771,8 +762,8 @@ function getFilteredArticles() {
   return articles;
 }
 
-// ========== 主渲染函数 ==========
-function renderArticleList() {
+// ========== 主渲染函数（支持滚动保留） ==========
+function renderArticleList(resetScroll = false) {
   currentArticleView = VIEW.LIST;
   switchToCurrentContainer();
 
@@ -783,8 +774,8 @@ function renderArticleList() {
   container.style.boxSizing = 'border-box';
   container.style.width = '100%';
 
-  container.scrollTop = 0;
-  void container.offsetHeight;
+  // ★ 保存当前滚动位置，若重置则置为0
+  const savedScrollTop = resetScroll ? 0 : container.scrollTop;
 
   ensureArticleStaticHeader(container);
 
@@ -795,14 +786,20 @@ function renderArticleList() {
   wrapper.style.overflowX = 'hidden';
   wrapper.style.overflowY = 'hidden';
 
-  // ★★★ 关键修复：强制清空容器，使所有条目被视为“新增” ★★★
-  // 这样每次切换回文章列表，所有条目都会从右侧滑入
+  // ★ 强制清空，使所有条目被视为“新增”，触发滑入动画
   wrapper.innerHTML = '';
-  const oldKeyMap = new Map(); // 空 Map，无旧节点
+  const oldKeyMap = new Map();
 
   const newFlatList = buildArticleFlatList(articles, articleSearchKeyword);
 
   reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container);
+
+  // ★ 在FLIP动画完成后恢复滚动位置
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      container.scrollTop = savedScrollTop;
+    });
+  });
 }
 
 // ========== 其他原有函数 ==========
@@ -897,8 +894,9 @@ function renderArticleReader(article, content) {
 
 function closeArticleReader() {
   currentArticleView = VIEW.LIST;
+  // 切换到列表时不重置滚动（保留原有位置）
   switchToCurrentContainer();
-  renderArticleList();
+  renderArticleList(false); // 不重置滚动
   const listContainer = getRenderContainer();
   if (articleState.listScrollY > 0) {
     requestAnimationFrame(() => {

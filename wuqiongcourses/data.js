@@ -2,7 +2,7 @@
  * 无穹书院 人工智能专业本科培养方案 - 课程数据
  *
  * 使用说明：
- * - 录入成绩：将 score 字段从 "未修" 改为绩点数值（如 4.0, 3.7, 3.3）
+ * - 录入成绩：将 score 字段从 "未修" 改为绩点数值（如 4.0, 3.6, 3.3）
  * - "已选课"：表示已选课但尚未获得成绩
  * - 多选一课程：只保留所选课程的数据行，为其填入成绩即可
  * - 通识选修课：在 generalEducation 的四个课组中填入所选课程名称与成绩
@@ -12,7 +12,7 @@ var curriculumData = {
   meta: {
     title: "无穹书院<br>人工智能专业本科培养方案",
     version: "2025级",
-    lastUpdated: "2026-05-25"
+    lastUpdated: "2026-09-11"
   },
 
   student: {
@@ -62,14 +62,14 @@ var curriculumData = {
         courses: [
           { name: "人工智能伦理与社会", credits: 3, score: "未修", remark: "" },
           { name: "实验室科研探究（1）", credits: 1, score: "P", remark: "" },
-          { name: "实验室科研探究（2）", credits: 1, score: "已选课", remark: "" }
+          { name: "实验室科研探究（2）", credits: 1, score: "P", remark: "" }
         ]
       },
       {
         name: "艺术",
         required: 2,
         courses: [
-          { name: "电影音乐鉴赏", credits: 2, score: "已选课", remark: "" }
+          { name: "电影音乐鉴赏", credits: 2, score: "4.0", remark: "" }
         ]
       },
       {
@@ -107,7 +107,7 @@ var curriculumData = {
         { id: "10421324", name: "线性代数", credits: 4, category: "数学基础", score: "3.6", remark: "" },
         { id: "10680053", name: "思想道德与法治", credits: 3, category: "思想政治理论课", score: "4.0", remark: "" },
         { id: "10680101", name: "形势与政策(1)-秋", credits: 1, category: "思想政治理论课", score: "P", remark: "" },
-        { id: "14201002", name: "英语(1)", credits: 2, category: "外语", score: "免修", remark: "" },
+        { id: "14201002", name: "英语(1)", credits: 2, category: "外语", score: "EX", remark: "" },
         { id: "10720011", name: "体育(1)", credits: 1, category: "体育", score: "2.6", remark: "" }
       ]
     },
@@ -116,15 +116,15 @@ var curriculumData = {
       season: "春季学期",
       note: "建议修读学分: 21",
       courses: [
-        { id: "30420105", name: "微积分A(2)", credits: 5, category: "数学基础", score: "已选课", remark: "另可选：高等微积分(2)" },
-        { id: "30240532", name: "面向对象程序设计基础", credits: 2, category: "信息基础", score: "已选课", remark: "另可选：34100362 面向对象程序设计基础" },
-        { id: "10880012", name: "概率论", credits: 2, category: "数学基础", score: "已选课", remark: "" },
-        { id: "10430934", name: "大学物理A(1)", credits: 4, category: "科学基础", score: "已选课", remark: "AI专业方向可选；另可选：大学物理B(1)、大学物理(1)英" },
-        { id: "10610193", name: "中国近现代史纲要", credits: 3, category: "思想政治理论课", score: "已选课", remark: "" },
-        { id: "10680131", name: "形势与政策(2)-春", credits: 1, category: "思想政治理论课", score: "已选课", remark: "" },
-        { id: "14201012", name: "英语(2)", credits: 2, category: "外语", score: "免修", remark: "" },
-        { id: "10691342", name: "写作与沟通", credits: 2, category: "写作与沟通", score: "已选课", remark: "" },
-        { id: "10720021", name: "体育(2)", credits: 1, category: "体育", score: "已选课", remark: "" }
+        { id: "30420105", name: "微积分A(2)", credits: 5, category: "数学基础", score: "3.0", remark: "另可选：高等微积分(2)" },
+        { id: "30240532", name: "面向对象程序设计基础", credits: 2, category: "信息基础", score: "4.0", remark: "另可选：34100362 面向对象程序设计基础" },
+        { id: "10880012", name: "概率论", credits: 2, category: "数学基础", score: "3.6", remark: "" },
+        { id: "10430934", name: "大学物理A(1)", credits: 4, category: "科学基础", score: "3.6", remark: "AI专业方向可选；另可选：大学物理B(1)、大学物理(1)英" },
+        { id: "10610193", name: "中国近现代史纲要", credits: 3, category: "思想政治理论课", score: "4.0", remark: "" },
+        { id: "10680131", name: "形势与政策(2)-春", credits: 1, category: "思想政治理论课", score: "P", remark: "" },
+        { id: "14201012", name: "英语(2)", credits: 2, category: "外语", score: "EX", remark: "" },
+        { id: "10691342", name: "写作与沟通", credits: 2, category: "写作与沟通", score: "4.0", remark: "" },
+        { id: "10720021", name: "体育(2)", credits: 1, category: "体育", score: "2.6", remark: "" }
       ]
     },
     {

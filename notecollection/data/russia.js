@@ -38,8 +38,8 @@ const russiaData = {
                             size: "65mm*150mm",
                             watermark: "索契冬奥会标识和奥运五环/Sochi.RU & Olympic Rings",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/Aa1851144-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/Aa1851144-2.jpg",
+                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/aa9503828-1.jpg",
+                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/aa9503828-2.jpg",
                             issueDate: "",
                             issueQuantity: ""
                         },{

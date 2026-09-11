@@ -121,5 +121,112 @@
 <script src="search.js"></script>
 <script src="article.js"></script>
 
+<!-- ===== 网站迁移提示（插入到 </body> 之前） ===== -->
+<div class="migrate-mask" id="migrateMask" role="dialog" aria-modal="true" aria-labelledby="migrateTitle">
+    <div class="migrate-card">
+        <h3 class="migrate-icon">公　告</h3>
+        <h3 class="migrate-title" id="migrateTitle">本站已停止维护</h3>
+        <p class="migrate-text">
+            感谢您一路相伴。本站内容已停止更新，后续更新将迁移至新站，欢迎前往新站访问。新站链接如下：
+        </p>
+        <a class="migrate-link" href="https://tong-xiangjie.github.io/collection/">
+            https://tong-xiangjie.github.io/collection/
+        </a>
+        <div class="migrate-actions">
+            <button type="button" class="migrate-btn ghost" id="migrateStay">仍要浏览旧站</button>
+            <a class="migrate-btn primary" href="https://tong-xiangjie.github.io/collection/">前往新站 →</a>
+        </div>
+        <div class="migrate-foot">公告日期：2026年9月11日</div>
+    </div>
+</div>
+
+<style>
+.migrate-mask{
+    position:fixed; inset:0; z-index:99999;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    background:rgba(15,18,24,.62);
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    opacity:1; transition:opacity .22s ease;
+    animation:migrateIn .25s ease;
+}
+@keyframes migrateIn{from{opacity:0}to{opacity:1}}
+.migrate-mask.hide{opacity:0; pointer-events:none;}
+
+.migrate-card{
+    width:100%; max-width:400px; box-sizing:border-box;
+    background:var(--card-bg,#fff); color:var(--text-color,#222);
+    border-radius:18px; padding:26px 22px 18px;
+    text-align:center;
+    box-shadow:0 18px 50px rgba(0,0,0,.28);
+    animation:migrateUp .28s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes migrateUp{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}
+
+.migrate-icon{font-size:30px; line-height:1; margin-bottom:10px;}
+.migrate-title{margin:0 0 10px; font-size:18px; font-weight:700;}
+.migrate-text{margin:0 0 14px; font-size:14px; line-height:1.7; opacity:.8;}
+.migrate-link{
+    display:block; margin-bottom:18px; padding:9px 12px;
+    font-size:13px; word-break:break-all; text-decoration:none;
+    color:#3b82f6; background:rgba(59,130,246,.10); border-radius:10px;
+}
+.migrate-link:hover{text-decoration:underline;}
+
+.migrate-actions{display:flex; gap:10px;}
+.migrate-btn{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    height:42px; border:none; border-radius:11px;
+    font-size:14px; font-weight:600; text-decoration:none;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+    transition:transform .12s ease, opacity .12s ease;
+}
+.migrate-btn:active{transform:scale(.97);}
+.migrate-btn.ghost{background:rgba(128,128,128,.14); color:inherit;}
+.migrate-btn.primary{background:#3b82f6; color:#fff; box-shadow:0 6px 16px rgba(59,130,246,.35);}
+
+.migrate-foot{margin-top:12px; font-size:12px; opacity:.5;}
+
+body.migrate-lock{overflow:hidden;}
+
+@media (max-width:360px){
+    .migrate-actions{flex-direction:column;}
+}
+</style>
+
+<script>
+(function () {
+    var KEY  = 'migrate_notice_dismissed';
+    var mask = document.getElementById('migrateMask');
+    if (!mask) return;
+
+    /* 若希望「每次打开都弹窗」，删掉下面这段判断即可 */
+    //try {
+    //    if (sessionStorage.getItem(KEY) === '1') { mask.remove(); return; }
+    //} catch (e) {}
+
+    document.body.classList.add('migrate-lock');
+
+    function close() {
+        mask.classList.add('hide');
+        document.body.classList.remove('migrate-lock');
+        try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+        setTimeout(function () { mask.style.display = 'none'; }, 240);
+    }
+
+    document.getElementById('migrateStay').addEventListener('click', close);
+
+    /* 点击遮罩空白处关闭 */
+    mask.addEventListener('click', function (e) {
+        if (e.target === mask) close();
+    });
+
+    /* ESC 关闭 */
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') close();
+    });
+})();
+</script>
+
 </body>
 </html>
