@@ -51,8 +51,8 @@ const macau_bocData = {
                             faceDate: "1995年10月16日",
                             size: "138mm*69mm",
                             remark: "正面：东望洋灯塔；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AK09086-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AK09086-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AK09086-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AK09086-2.jpg"
                         }
                     ]
                 },
@@ -72,8 +72,8 @@ const macau_bocData = {
                             faceDate: "2003年12月8日",
                             size: "153mm*76.5mm",
                             remark: "正面：外港客运码头；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/HB11154-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/HB11154-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/HB11154-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/HB11154-2.jpg"
                         }
                     ]
                 }
@@ -104,8 +104,8 @@ const macau_bocData = {
                             faceDate: "2013年7月1日",
                             size: "138mm*69mm",
                             remark: "正面：妈阁庙；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/BA118169-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/BA118169-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/BA118169-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/BA118169-2.jpg"
                         }
                     ]
                 },
@@ -125,8 +125,8 @@ const macau_bocData = {
                             faceDate: "2008年8月8日",
                             size: "140mm*69mm",
                             remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AR921648-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AR921648-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AR921648-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AR921648-2.jpg"
                         },
                         {
                             copyId: 2,
@@ -141,8 +141,8 @@ const macau_bocData = {
                             faceDate: "2013年7月1日",
                             size: "140mm*69mm",
                             remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AJ008699-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AJ008699-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AJ008699-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AJ008699-2.jpg"
                         }
                     ]
                 }
@@ -173,8 +173,8 @@ const macau_bocData = {
                             faceDate: "2020年5月18日",
                             size: "143mm*71.5mm",
                             remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AN090100-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AN090100-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AN090100-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AN090100-2.jpg"
                         }
                     ]
                 },
@@ -194,8 +194,8 @@ const macau_bocData = {
                             faceDate: "2020年5月18日",
                             size: "148mm*74mm",
                             remark: "正面：岗顶剧院；背面：澳门中银大厦、莲花图案",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AB235738-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/macau_boc/AB235738-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AB235738-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AB235738-2.jpg"
                         }
                     ]
                 }

@@ -45,8 +45,8 @@ const albaniaData = {
                             size: "110mm*60mm",
                             wmk: "银行名称首字母/Bank Initials",
                             remark: "共印刷3975万张。",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/albania/JU677775-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/albania/JU677775-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/albania/JU677775-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/albania/JU677775-2.jpg"
                         }
                     ]
                 }

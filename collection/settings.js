@@ -7,9 +7,6 @@ let cacheConfirmTimer = null;
 let articleCacheConfirmPending = false;
 let articleCacheConfirmTimer = null;
 
-let purgeCdnConfirmPending = false;
-let purgeCdnConfirmTimer = null;
-
 function renderSettingsPage() {
     const app = getRenderContainer();
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
@@ -131,15 +128,6 @@ function renderSettingsPage() {
     html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()"><span id="clearArticleCacheText">清除文章缓存</span></button>`;
     html += `</div>`;
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中，更新文章后若仍显示旧内容，请点击清除后重新打开。</p>`;
-    html += `</div>`;
-
-    // CDN 缓存
-    html += `<div class="settings-section">`;
-    html += `<h3>CDN 缓存</h3>`;
-    html += `<div class="export-buttons">`;
-    html += `<button class="export-btn" id="purgeCdnBtn" onclick="purgeCdnCache()"><span id="purgeCdnText">清除CDN缓存</span></button>`;
-    html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">清除 jsDelivr CDN 缓存（GitHub 更新后最长 12 小时内生效，purge 后可立即看到新内容）。提交后请稍候几秒再刷新页面。</p>`;
     html += `</div>`;
 
     // 离线预缓存
@@ -298,36 +286,9 @@ function fadeArticleText(text) {
     }, 150);
 }
 
-// ========== 清除 CDN 缓存 ==========
-function purgeCdnCache() {
-    if (!purgeCdnConfirmPending) {
-        purgeCdnConfirmPending = true;
-        fadePurgeText('确 定 吗 ？');
-        purgeCdnConfirmTimer = setTimeout(() => {
-            purgeCdnConfirmPending = false;
-            fadePurgeText('清除CDN缓存');
-        }, 3000);
-        return;
-    }
-    clearTimeout(purgeCdnConfirmTimer);
-    purgeCdnConfirmPending = false;
-
-    const purgeUrl = 'https://purge.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main';
-    try {
-        fetch(purgeUrl, { mode: 'no-cors' }).catch(() => {});
-    } catch (e) {}
-
-    fadePurgeText('已 提 交');
-    setTimeout(() => fadePurgeText('清除CDN缓存'), 1500);
-}
-
-function fadePurgeText(text) {
-    const span = document.getElementById('purgeCdnText');
-    if (!span) return;
-    span.style.transition = 'opacity 0.15s ease';
-    span.style.opacity = '0';
-    setTimeout(() => {
-        span.textContent = text;
-        span.style.opacity = '1';
-    }, 150);
-}
+// ========== 清除 CDN 缓存（已移除） ==========
+// 原先这里调用 jsDelivr purge 接口。现已移除，原因：
+//   本仓库体积远超 jsDelivr 的 50MB 包上限，purge 会让 jsDelivr 无法重建缓存，
+//   所有图片被 302 到 raw.githubusercontent.com（非 CDN、严格限流、明显更慢），
+//   且这种状态无法自行恢复。图片现已改为 GitHub Pages 同源直出，jsDelivr 不再参与，
+//   更新图片时用上方的「清除图片缓存」清掉本地 SW 缓存即可。

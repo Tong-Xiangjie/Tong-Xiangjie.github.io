@@ -46,8 +46,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "114mm*52mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 }
@@ -75,8 +75,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -98,8 +98,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -121,8 +121,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -144,8 +144,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/007-6238600-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/007-6238600-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/007-6238600-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/007-6238600-2.jpg"
                         }
                     ]
                 },
@@ -167,8 +167,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/52-08686382-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/52-08686382-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/52-08686382-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/52-08686382-2.jpg"
                         }
                     ]
                 },
@@ -190,8 +190,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/97-86510421-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/97-86510421-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/97-86510421-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/97-86510421-2.jpg"
                         }
                     ]
                 },
@@ -213,8 +213,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/474-6018867-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/474-6018867-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/474-6018867-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/474-6018867-2.jpg"
                         }
                     ]
                 },
@@ -236,8 +236,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "105mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-86989663-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-86989663-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/38-86989663-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/38-86989663-2.jpg"
                         }
                     ]
                 }
@@ -267,8 +267,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "110mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -290,8 +290,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "110mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -313,8 +313,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "110mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-52000924-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/38-52000924-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/38-52000924-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/38-52000924-2.jpg"
                         }
                     ]
                 }
@@ -344,8 +344,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "115mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/802-1621789-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/802-1621789-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/802-1621789-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/802-1621789-2.jpg"
                         }
                     ]
                 },
@@ -367,8 +367,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "115mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -390,8 +390,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "115mm*50mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/247-8111376-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/247-8111376-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/247-8111376-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/247-8111376-2.jpg"
                         },{
                             copyId: 18251707,
                             year: 1972,
@@ -407,8 +407,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "115mm*50mm",
                             remark: "冠号变体：长码（类似于8002的幼线体）。",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/592-1923455-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/592-1923455-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/592-1923455-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/592-1923455-2.jpg"
                         }
                     ]
                 }
@@ -438,8 +438,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "131mm*57mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -461,8 +461,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "131mm*57mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -484,8 +484,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "131mm*57mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/69-34050009-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/69-34050009-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/69-34050009-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/69-34050009-2.jpg"
                         }
                     ]
                 }
@@ -515,8 +515,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "135mm*57mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -538,8 +538,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "135mm*57mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 }
@@ -569,8 +569,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "142mm*63mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -592,8 +592,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "142mm*63mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 }
@@ -623,8 +623,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "157mm*72mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 },
@@ -646,8 +646,8 @@ const rmb3Data = {
                             withdrawnDate: "2000年7月1日",
                             size: "157mm*72mm",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb3/-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                         }
                     ]
                 }

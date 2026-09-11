@@ -51,7 +51,7 @@
 - **文章列表** — 全部分类或当前分类下的文章，按来源分组显示，可看到文章路径
 - **全文搜索** — 支持**按标题索引**（实时匹配标题）和**全字段索引**（需预加载后，可搜索正文内容，带上下文片段预览）
 - **内容高亮** — 搜索结果中的关键词在标题和正文片段中高亮标记
-- **阅读器** — 点开文章后每次从顶部开始阅读；正文与图片按币种分别从 `notecollection` / `coincollection` 的 CDN 加载
+- **阅读器** — 点开文章后每次从顶部开始阅读；正文与图片按币种分别从 `notecollection` / `coincollection` 同源加载
 - **后台加载** — 加载较慢时返回列表，内容会在后台继续缓存，**加载完成后不会抢回阅读器**
 - **独立容器** — 每篇文章独立容器，返回列表时列表滚动位置保留
 
@@ -142,15 +142,15 @@
 
 ### 12. 图片缓存（离线可用）
 
-通过 Service Worker（`collection/sw.js`）将 CDN 图片缓存到本地，由 `index.html` 末尾注册（scope 为 `/collection/`）：
+通过 Service Worker（`collection/sw.js`）将藏品图片缓存到本地，由 `index.html` 末尾注册（scope 为 `/collection/`）：
 
 - 首次访问后，图片秒开且**离线可看图**
 - 采用 stale-while-revalidate 策略：先读本地缓存，同时后台静默更新
-- **只缓存 `cdn.jsdelivr.net` 上的图片**（按扩展名判定），不缓存数据文件与页面，避免数据更新被缓存卡住
-- **兼容 `<img>` 的跨域 no-cors 请求**：这类响应是 opaque（`ok === false`、`status === 0`），`sw.js` 同时接受 `response.ok` 与 `response.type === 'opaque'`，否则图片永远存不进缓存、离线看图会静默失效
+- **只缓存本站的藏品图片目录**（`/notecollection/image/`、`/coincollection/image/`、`/funcollection/*/images/`，按扩展名 + 路径双重判定），不缓存数据文件、页面与 `china_map.svg`，避免数据 / 地图更新被缓存卡住
+- 缓存版本为 `collection-images-v2`；升版本号会让 activate 自动清掉上一版（v1 里存的是旧的 jsDelivr 跨域条目）
 - 用 `file://` 直接打开页面时不注册（Service Worker 需要安全上下文），此时无缓存能力但不影响其它功能
 - 「我的 → 图片缓存 → 清除图片缓存」可手动清空 `collection-images-*` 缓存，解决更新后看到旧图的问题
-- 更新图片的最佳实践：更换文件名（新 URL 自动绕过缓存），或使用 jsDelivr purge 接口强制刷新
+- 更新图片的最佳实践：更换文件名（新 URL 自动绕过缓存），或点上面的清除按钮
 - 注意第 13 节的「图片重试」会给 URL 追加 `?retry=时间戳`，该 URL 会作为新条目写入缓存；要彻底清理请用上面的清除按钮
 - 只想缓存「真正被浏览过」的图片；想让**没滚到的图也能离线看**，见第 15 节**离线预缓存**
 
@@ -166,8 +166,8 @@
 
 - **阅读器「⟳ 重新加载」**：清除该篇内存缓存并以 `no-store` 重新拉取（绕过浏览器缓存）
 - **我的 → 文章缓存**：防误触按钮（点一次确认、再点清空），清空全部文章内存缓存
-- **我的 → CDN 缓存**：调用 jsDelivr purge 接口清 GitHub 分支缓存（防误触），解决更新后 CDN 最长 12 小时旧内容的问题
-- **缓存三板斧**：内存缓存（按钮）→ 浏览器缓存（no-store）→ CDN 缓存（purge），文章/图片更新后旧内容可彻底解决
+- ~~我的 → CDN 缓存~~：**已移除**，原因见第 17 节（本仓库远超 jsDelivr 的 50 MB 上限，purge 会让图片全部退回 `raw.githubusercontent.com` 且无法自行恢复）
+- **缓存两层**：内存缓存（按钮）→ 浏览器 / Service Worker 缓存（清除按钮 + 换文件名），图片更新后可彻底解决
 
 ### 15. 离线预缓存
 
@@ -200,11 +200,43 @@
 - **懒加载**：上述列表 / 网格位全部带 `loading="lazy" decoding="async"`，首屏只请求可见的十几张，滚动时再加载
 - **灯箱秒开**：点开大图时**先用已在缓存里的缩略图瞬间占位**，原图在后台静默加载、到货后无缝替换（`openModal` 内用 token 防止快速连续点击时旧结果覆盖新图）；缩略图加载失败自动回退原图
 
-> **关于「中图」档（长边 1280px、JPEG q75，实测平均约 230KB）**：可把灯箱大图从平均 745KB 降到约 230KB（3.2x），但需要新增约 **180MB** 仓库文件。当前仓库已达 3.19GB（`.git` 2.10GB，工作区 1.09GB），**既超过 GitHub 推荐的 1GB，工作区也超过 GitHub Pages 的 1GB 站点上限**，因此暂不采用。若日后要做，建议先把图片拆到独立仓库或改用 Git LFS 承载，避免把主仓库推过平台限制。
+> **关于「中图」档（长边 1280px、JPEG q75，实测平均约 230KB）**：可把灯箱大图从平均 745KB 降到约 230KB（3.2x），但需要新增约 **180MB** 仓库文件。当前仓库已达 3.19GB（`.git` 2.10GB，工作区 1.09GB），**既超过 GitHub 推荐的 1GB，工作区也超过 GitHub Pages 的 1GB 站点上限**，因此暂不采用。
+>
+> 注意 **Git LFS 在此场景不可用**：jsDelivr 与 GitHub Pages 都不解析 LFS 指针文件，图片会变成无法显示的占位符。图片托管的现状与限制见第 17 节。
 
 > **新增图片后请重新生成**：`powershell -ExecutionPolicy Bypass -File collection/tools/make-thumbs.ps1`（执行策略允许时也可直接 `.\collection\tools\make-thumbs.ps1`）。忘了跑也不会坏图，只是那些图会回退到原图。
 
-> 校验遗留问题：数据里引用了 **55 张仓库中并不存在的图片**（`taiwan` 28、`gkq` 8、`republic_mfrc` 4、`comm` 4 等）。它们在原站 / CDN 上同样是 404，与本次改动无关，需要补图或清理数据。
+> 校验遗留问题：数据里引用了 **55 张仓库中并不存在的图片**（`taiwan` 28、`gkq` 8、`republic_mfrc` 4、`comm` 4 等）。它们同样是 404，与本次改动无关，需要补图或清理数据。
+
+### 17. 图片托管（重要）
+
+**图片不再走 jsDelivr，改为与站点同源的 GitHub Pages 直出。**
+
+原因：jsDelivr 有 **50 MB 的包体积上限**，而本仓库工作区约 1.09 GB（`.git` 约 2.10 GB），远超上限。实测其元数据接口直接拒绝：
+
+```
+GET https://data.jsdelivr.com/v1/packages/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main
+→ 403 { "message": "Package size exceeded the configured limit of 50 MB." }
+```
+
+超限后，jsDelivr 会把文件请求 **302 到 `raw.githubusercontent.com`** —— 那不是 CDN：没有边缘缓存、限流严格、国内访问尤其慢。缩略图虽然把字节数降了 56 倍，但传输通道换成 raw 之后依然很慢，**这才是"图片慢"的真正原因**。
+
+**当前做法**：数据文件里的图片 URL 统一为站点绝对地址
+
+```
+https://tong-xiangjie.github.io/notecollection/image/<子目录>/<文件名>
+```
+
+`core.js` 的 `SITE_BASE` / `IMAGE_BASE`、`article.js` 的 `getArticleBasePath()`、`notecollection/js/main.js` 都以此为准。图片与页面同源，因此 Service Worker 缓存到的是 `basic` 响应（`ok === true`），比缓存跨域 opaque 响应更可靠。
+
+**注意事项**
+
+- ⚠️ **不要再调用 jsDelivr 的 purge**。对超限仓库 purge 之后 jsDelivr 无法重建缓存，图片会全部退回 `raw.githubusercontent.com` 且**无法自行恢复**。为此「我的 → 清除CDN缓存」按钮已移除。
+- ⚠️ **发布体积**：图片留在 `main` 分支意味着已发布站点约 1.09 GB，**略超 GitHub Pages 的 1 GB 上限**（官方口径：「已发布的 GitHub Pages 站点大小不得超过 1 GB」，超出可能被停服或收到提醒邮件）。要压下去只有两条路：压缩原图（目前未采纳，以保留档案分辨率）或改用外部图床。
+- 图片仍全部在仓库里，`notecollection/readmes/image/`（文章配图，约 152 MB）与其它图片一样同源直出。
+- 离线能力不受影响：第 12～15 节的图片缓存与预缓存照常工作。
+
+> 历史：曾短暂把图片迁到 `images` 分支并推送，但该分支同样约 790 MB、一样超过 50 MB 上限，**换分支并不能解决速度问题**，故已废弃删除。
 
 ---
 
@@ -235,7 +267,7 @@
 | 硬币 | 硬币收藏品概览、分类浏览、搜索 |
 | 专题 | 专题展示（年份图鉴 / 面额大观 / 方寸山河（地图/列表双视图）/ 币海拾年时间轴） |
 | 文章 | 文章阅读、全文搜索、文章缓存重载 |
-| 我的 | 统计概览、价格列表、评级/年代统计、主题色、图片缓存、文章缓存、CDN 缓存、离线预缓存、数据导出 |
+| 我的 | 统计概览、价格列表、评级/年代统计、主题色、图片缓存、文章缓存、离线预缓存、数据导出 |
 
 ---
 
@@ -252,7 +284,7 @@
 **数据文件约定**（保持与旧站兼容，新站自动适配）：
 
 - 每个文件顶层声明 `const xxxData = {...}`，包含 `name`、`desc`、`detailFields`、`series[]` 等
-- 图片字段 `img1/img2` 填写完整 CDN URL（或带子目录的相对路径），由 `getImageUrl` 自动识别
+- 图片字段 `img1/img2` 填写完整站点 URL（`https://tong-xiangjie.github.io/...`，见第 17 节）或带子目录的相对路径，由 `getImageUrl` 自动识别
 - 文章通过顶层 `readmes[]` 或 `series[].readme` 声明，正文 txt 放在对应 `readmes/` 目录
 - 分类树中每个叶子节点需声明 `dataFile`；若数据文件全局变量名与 `dataKey` 不一致，需补 `dataVar`（如硬币纪念币为 `coincommData`）
 
@@ -292,7 +324,7 @@ const hangSengData = {
 完事。加载、桥接、侧边栏、概览、搜索、统计、文章全部自动生效，不用改 `index.html` 和任何桥接文件。
 
 **配套约定：**
-- 图片放 `notecollection/image/hang_seng/`，数据里填完整 CDN URL（或相对路径），`getImageUrl` 自动识别子目录
+- 图片放 `notecollection/image/hang_seng/`，数据里填完整站点 URL（`https://tong-xiangjie.github.io/notecollection/image/hang_seng/xxx.jpg`）或相对路径，`getImageUrl` 自动识别子目录
 - 文章正文 txt 放 `notecollection/readmes/`，数据里 `content: "file:readmes/xxx.txt"`
 - 若数据文件全局变量名 ≠ dataKey（罕见情况），叶子节点补 `dataVar` 字段
 
@@ -322,7 +354,7 @@ const hangSengData = {
 ```js
 // 数据数组：每项含 year（数字）、name、krause、yearImg
 const xxxItems = [
-    { year: 2000, name: "xxx 1元", krause: "Pick# 100", yearImg: "https://cdn.jsdelivr.net/gh/.../funcollection/xxx/images/2000-1.jpg" }
+    { year: 2000, name: "xxx 1元", krause: "Pick# 100", yearImg: "https://tong-xiangjie.github.io/funcollection/xxx/images/2000-1.jpg" }
 ];
 ```
 
@@ -346,7 +378,7 @@ window.SPECIAL_CONFIGS.push({
 
 **专题字段约定：**
 - `year`（数字）：存在时自动生成年代筛选侧边栏（倒序 2020s → 1910s），详情页按年份倒序分组；无 `year` 则无侧边栏，直接展示全部
-- `yearImg`：完整 CDN URL 或带子目录相对路径，自动识别
+- `yearImg`：完整站点 URL 或带子目录相对路径，自动识别
 - `krause`：灯箱内显示，`Unlisted` 自动隐藏
 - 专题图片放 `funcollection/xxx/images/`
 - 若要做成地图型专题（如「方寸山河」）：meta 加 `view: 'map'` 与 `mapFile: 'china_map.svg'`，数据项字段为 `province`（SVG class 拼音）/ `city` / `scene` / `denom` / `year` / `remark` / `img`

@@ -1089,7 +1089,7 @@ body.modal-open {
 }
 
 /* ========== 缓存按钮固定宽度 ========== */
-#clearCacheBtn, #clearArticleCacheBtn, #purgeCdnBtn {
+#clearCacheBtn, #clearArticleCacheBtn {
     width: 132px;
     padding: 6px 0;
     text-align: center;

@@ -237,9 +237,9 @@ function buildArticleCategoryTree() {
 
 function getArticleBasePath(sourceType) {
   if (sourceType === MODE.COINS) {
-    return 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/coincollection/';
+    return SITE_BASE + 'coincollection/';
   }
-  return 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/';
+  return SITE_BASE + 'notecollection/';
 }
 
 async function preloadAllArticles() {

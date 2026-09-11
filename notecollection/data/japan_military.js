@@ -66,8 +66,8 @@ const japanMilitaryData = {
                             size: "",
                             wmk: "无水印/Without watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan_military/1-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/japan_military/1-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/japan_military/1-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/japan_military/1-2.jpg"
                         }
                 ] }
             ]

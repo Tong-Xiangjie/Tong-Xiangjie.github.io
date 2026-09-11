@@ -37,8 +37,8 @@ const ukarineData = {
                             krause: "133",
                             size: "165mm*80mm",
                             remark: "PMG评级标签上Wmk字段的“Arms”并非“手臂”之意，而是“Coat of Arms”（国徽）的缩写",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0230855-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0230855-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/ukarine/0230855-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/ukarine/0230855-2.jpg",
                             issueDate: "2023年2月23日",
                             issueQuantity: "30万",
                             watermark: "葡萄、叶子底纹之上的电印国徽（三叉戟）/Electrotype coat of arms on leaves and grapes"
@@ -60,8 +60,8 @@ const ukarineData = {
                             krause: "134",
                             size: "165mm*80mm",
                             remark: "草台班子爱藏，这张标签上漏了“Commemorative”标识。冠号“ЄС”的转写，PMG为“YES”，爱藏为“ES”。",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0244876-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/ukarine/0244876-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/ukarine/0244876-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/ukarine/0244876-2.jpg",
                             issueDate: "2024年2月23日",
                             issueQuantity: "30万",
                             watermark: "交握双手/Joined Hands"

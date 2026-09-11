@@ -38,8 +38,8 @@ const russiaData = {
                             size: "65mm*150mm",
                             watermark: "索契冬奥会标识和奥运五环/Sochi.RU & Olympic Rings",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/aa9503828-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/aa9503828-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/russia/aa9503828-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/russia/aa9503828-2.jpg",
                             issueDate: "",
                             issueQuantity: ""
                         },{
@@ -54,8 +54,8 @@ const russiaData = {
                             size: "65mm*150mm",
                             watermark: "索契冬奥会标识和奥运五环/Sochi.RU & Olympic Rings",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/Aa1851144-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/Aa1851144-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/russia/Aa1851144-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/russia/Aa1851144-2.jpg",
                             issueDate: "",
                             issueQuantity: ""
                         }
@@ -77,8 +77,8 @@ const russiaData = {
                             size: "65mm*150mm",
                             watermark: "凯瑟琳大帝（俄国女皇叶卡捷琳娜二世）/Catherine Ⅱ",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/KC9688098-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/KC9688098-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/russia/KC9688098-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/russia/KC9688098-2.jpg",
                             issueDate: "",
                             issueQuantity: ""
                         }
@@ -100,8 +100,8 @@ const russiaData = {
                             size: "65mm*150mm",
                             watermark: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/AA009838674-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/AA009838674-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/russia/AA009838674-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/russia/AA009838674-2.jpg",
                             issueDate: "",
                             issueQuantity: ""
                         },{
@@ -116,8 +116,8 @@ const russiaData = {
                             size: "65mm*150mm",
                             watermark: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/AB005500088-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/russia/AB005500088-2.jpg",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/russia/AB005500088-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/russia/AB005500088-2.jpg",
                             issueDate: "",
                             issueQuantity: ""
                         }

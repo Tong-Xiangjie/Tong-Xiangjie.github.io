@@ -42,8 +42,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860a",
                     remark: "",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -66,8 +66,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860b.1",
                     remark: "小三冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/722-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/722-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/722-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/722-2.jpg",
                     depositOnlyDate: ""
                 },{
                     copyId: 20183338,
@@ -83,8 +83,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860b.2",
                     remark: "大三冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/122-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/122-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-2.jpg",
                     depositOnlyDate: ""
                 },{
                     copyId: 17046959,
@@ -100,8 +100,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860c",
                     remark: "大二冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/50-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/50-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/50-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/50-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -126,8 +126,8 @@ const rmb2Data = {
                     size: "95mm*45mm",
                     krause: "861a",
                     remark: "",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/741-7004155-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/741-7004155-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/741-7004155-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/741-7004155-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -150,8 +150,8 @@ const rmb2Data = {
                     size: "95mm*45mm",
                     krause: "861c",
                     remark: "小三冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/212-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/212-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/212-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/212-2.jpg",
                     depositOnlyDate: ""
                 },{
                     copyId: 12882224,
@@ -167,8 +167,8 @@ const rmb2Data = {
                     size: "95mm*45mm",
                     krause: "861b",
                     remark: "大三冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/155-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/155-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/155-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/155-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -193,8 +193,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862a",
                     remark: "",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -217,8 +217,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862c",
                     remark: "小三冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/353-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/353-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/353-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/353-2.jpg",
                     depositOnlyDate: ""
                 },{
                     copyId: 10788285,
@@ -234,8 +234,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862b",
                     remark: "大三冠",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/055-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/055-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/055-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/055-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -257,8 +257,8 @@ const rmb2Data = {
                     size: "125mm*57.5mm",
                     krause: "865a",
                     remark: "浅水坝。这张价格还不错，发布24～48小时内拍下的。",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/712-8905794-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/rmb2/712-8905794-2.jpg",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-2.jpg",
                     depositOnlyDate: ""
                 }
             ]

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     为 collection 站生成图片缩略图。
 
@@ -23,22 +23,29 @@
     缩略图加载失败时会自动回退到原图，所以漏生成不会导致图片显示不出来。
 
 .EXAMPLE
-    pwsh -File collection/tools/make-thumbs.ps1
-    pwsh -File collection/tools/make-thumbs.ps1 -Force
-    pwsh -File collection/tools/make-thumbs.ps1 -Limit 20      # 试跑前 20 张
+    powershell -ExecutionPolicy Bypass -File collection/tools/make-thumbs.ps1
+    powershell -ExecutionPolicy Bypass -File collection/tools/make-thumbs.ps1 -Force
+    powershell -ExecutionPolicy Bypass -File collection/tools/make-thumbs.ps1 -Limit 20   # 试跑前 20 张
+    # 默认以脚本所在仓库为根（脚本位于 <仓库>/collection/tools/）；要处理别的目录用 -RepoRoot：
+    powershell -ExecutionPolicy Bypass -File collection/tools/make-thumbs.ps1 -RepoRoot D:\somewhere
 #>
 param(
     [int]$Width = 320,
     [int]$Quality = 80,
     [switch]$Force,
     [int]$Limit = 0,
-    [switch]$Quiet
+    [switch]$Quiet,
+    [string]$RepoRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+if ($RepoRoot) {
+    $repoRoot = (Resolve-Path $RepoRoot).Path
+} else {
+    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+}
 
 # ---------- 发现图片根目录 ----------
 $imageRoots = @()

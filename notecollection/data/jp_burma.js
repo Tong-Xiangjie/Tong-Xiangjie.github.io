@@ -36,8 +36,8 @@ const jp_burmaData = {
                     purchaseDate: "2026年8月14日",
                     krause: "17b",
                     remark: "版别：无水印，窄字母。草台班子爱藏把这张标成了日占菲律宾……",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/jp_burma/1944-100-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/jp_burma/1944-100-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/jp_burma/1944-100-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/jp_burma/1944-100-2.jpg"
                 }
             ]
         }

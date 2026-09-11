@@ -39,8 +39,8 @@ const republic_pbkcData = {
                             purchaseDate: "2026年8月13日",
                             krause: "S2461",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_pbkc/A338842-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_pbkc/A338842-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_pbkc/A338842-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_pbkc/A338842-2.jpg"
                         }
                     ]
                 }

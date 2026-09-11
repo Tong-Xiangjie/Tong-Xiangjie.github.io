@@ -39,8 +39,8 @@ const republic_thnbData = {
                             purchaseDate: "2026年8月15日",
                             krause: "S1452",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_thnb/1949-002-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_thnb/1949-002-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_thnb/1949-002-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_thnb/1949-002-2.jpg"
                         }
                     ]
                 },{
@@ -60,8 +60,8 @@ const republic_thnbData = {
                             purchaseDate: "2026年8月14日",
                             krause: "S1453",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_thnb/1949-005-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_thnb/1949-005-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_thnb/1949-005-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_thnb/1949-005-2.jpg"
                         }
                     ]
                 }

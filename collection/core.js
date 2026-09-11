@@ -15,22 +15,32 @@ function formatCatalogNumber(num) {
     return 'Pick# ' + s;
 }
 
-// ========== CDN 图片路径处理 ==========
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/';
+// ========== 图片路径处理 ==========
+// ★ 图片已不再走 jsDelivr。本仓库体积远超 jsDelivr 的 50MB 包上限：
+//   data.jsdelivr.com 对 @main 返回 403 "Package size exceeded the configured limit of 50 MB"，
+//   于是 jsDelivr 把所有请求 302 到 raw.githubusercontent.com（非 CDN、严格限流、国内很慢）。
+//   现改为与站点同源的 GitHub Pages 直出 —— 图片本就在仓库里、也早已被 Pages 发布。
+//   数据文件里存的是完整站点 URL（https://tong-xiangjie.github.io/...），
+//   所以 getImageUrl 通常原样返回；下面的相对路径分支仅作兼容。
+const SITE_BASE = 'https://tong-xiangjie.github.io/';
+const IMAGE_BASE = SITE_BASE + 'notecollection/image/';
 
 function getImageUrl(path, subDir = 'comm') {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
+    if (path.startsWith('/')) {
+        return path;                       // 根绝对路径：同源直出
+    }
     let relative = path;
     if (relative.startsWith('image/')) {
         relative = relative.substring(6);
     }
     if (relative.includes('/')) {
-        return CDN_BASE + relative;
+        return IMAGE_BASE + relative;
     }
-    return CDN_BASE + subDir + '/' + relative;
+    return IMAGE_BASE + subDir + '/' + relative;
 }
 
 // ========== 缩略图路径处理 ==========
@@ -39,20 +49,20 @@ function getImageUrl(path, subDir = 'comm') {
 //   缩略图 <图片根目录>/thumb/<相对路径>.jpg
 // 由 tools/make-thumbs.ps1 生成（宽度 320px / JPEG q80，实测约 13KB/张）。
 // 映射不上的一律回退原图，因此漏生成只会多耗流量，不会导致图片显示不出来。
-const THUMB_ROOT_RE = /^(https?:\/\/cdn\.jsdelivr\.net\/gh\/Tong-Xiangjie\/Tong-Xiangjie\.github\.io@[^/]+\/)(notecollection\/image|coincollection\/image|funcollection\/[^/]+\/images)\/(.+)$/i;
+const IMAGE_ROOT_RE = /^(?:https?:\/\/tong-xiangjie\.github\.io)?\/(notecollection\/image|coincollection\/image|funcollection\/[^/]+\/images)\/(.+)$/i;
 
 function getThumbUrl(path, subDir = 'comm') {
     const full = getImageUrl(path, subDir);
     if (!full) return '';
-    const m = full.match(THUMB_ROOT_RE);
+    const m = full.match(IMAGE_ROOT_RE);
     if (!m) return full;                       // 未知目录 / 外部 URL → 回退原图
-    const rel = m[3];
+    const rel = m[2];
     if (/\.svg$/i.test(rel)) return full;      // 矢量图不做缩略图
     const slash = rel.lastIndexOf('/');
     const dir = slash >= 0 ? rel.substring(0, slash + 1) : '';
     const name = slash >= 0 ? rel.substring(slash + 1) : rel;
     const stem = name.replace(/\.[^./]+$/, '');
-    return m[1] + m[2] + '/thumb/' + dir + stem + '.jpg';
+    return SITE_BASE + m[1] + '/thumb/' + dir + stem + '.jpg';
 }
 
 // 缩略图加载失败时回退原图：返回可直接拼进 <img ...> 的 onerror 属性片段

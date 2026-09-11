@@ -38,8 +38,8 @@ const test_noteData = {
                     purchaseDate: "2026年8月27日",
                     krause: "Unlisted",
                     remark: "入手的第一张纪念券，设计似乎还不错，比较喜欢上面的人民币元素，但是最主要的是价格非常合适。当然还是那句话，纪念券没有面值保底，投资有风险，不要盲目购入！这一品类还有多种连体钞，不过都完全没有购入的必要。",
-                    img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/test_note/CGCI82147528-1.jpg",
-                    img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/test_note/CGCI82147528-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/test_note/CGCI82147528-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/test_note/CGCI82147528-2.jpg"
                 }
             ]
         }

@@ -6,16 +6,13 @@ history.scrollRestoration = 'manual';
 function getImageUrl(path) {
     if (!path) return '';
 
-    // 1. 如果路径中包含完整的 CDN 域名，直接提取干净的部分
-    const cdnMatch = path.match(/https:\/\/cdn\.jsdelivr\.net\/gh\/Tong-Xiangjie\/Tong-Xiangjie\.github\.io@main\/.+$/);
-    if (cdnMatch) return cdnMatch[0];
-
-    // 2. 如果已经是完整的 http/https 链接，直接返回
+    // 1. 已经是完整链接（https://tong-xiangjie.github.io/...）→ 直接返回
+    //    （原先这里还有一段 jsDelivr 专用正则；图片改为站点同源直出后已无必要）
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
 
-    // 3. 否则，清理路径并拼接正确的 CDN 前缀
+    // 2. 否则，清理路径并拼接站点前缀
     let cleanPath = path
         .replace(/^notecollection\//, '')   // 去掉可能的多余前缀
         .replace(/^image\//, '');
@@ -23,7 +20,7 @@ function getImageUrl(path) {
     if (!cleanPath.startsWith('comm/')) {
         cleanPath = 'comm/' + cleanPath;
     }
-    return `https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/${cleanPath}`;
+    return `https://tong-xiangjie.github.io/notecollection/image/${cleanPath}`;
 }
 // ============================================================
 

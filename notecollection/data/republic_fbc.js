@@ -44,8 +44,8 @@ const republic_fbcData = {
                             purchaseDate: "2026年9月1日",
                             krause: "461",
                             remark: "",
-                            img1: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_fbc/MP024556-1.jpg",
-                            img2: "https://cdn.jsdelivr.net/gh/Tong-Xiangjie/Tong-Xiangjie.github.io@main/notecollection/image/republic_fbc/MP024556-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/MP024556-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/MP024556-2.jpg"
                         }
                     ]
                 }
