@@ -296,7 +296,8 @@ function toggleSeries(id) {
     const body = document.getElementById('body-' + id);
     const icon = document.getElementById('icon-' + id);
     if (!body) return;
-    body.classList.toggle('open');
+    // 用精确高度过渡，避免固定 max-height 造成的"弹开后空跑"
+    animateAccordion(body, !body.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
 }
 
@@ -304,7 +305,7 @@ function toggleVariety(id) {
     const list = document.getElementById('list-' + id);
     const icon = document.getElementById('icon-' + id);
     if (!list) return;
-    list.classList.toggle('open');
+    animateAccordion(list, !list.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
 }
 

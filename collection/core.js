@@ -94,6 +94,31 @@ function scrollIntoViewSmooth(el, block) {
     });
 }
 
+// 精确高度的手风琴展开 / 收起。
+// 为什么不用 CSS 里写死的 max-height：浏览器按时间线性插值 max-height，而元素实际
+// 可视高度 = min(内容高度, 插值)。于是短面板几十毫秒就展完、剩下的时间全在空跑
+// （观感是"啪一下弹开然后静止"），长面板则"冲得飞快然后戛然而止"。
+// 这里先量出内容真实高度再过渡，动画速度就与内容长度无关；过渡结束后把高度限制
+// 解除为 none，这样图片后加载导致的内容增长不会被裁掉。
+function animateAccordion(el, open) {
+    if (!el) return;
+    clearTimeout(el._accTimer);
+    const reduced = prefersReducedMotion();
+    if (open) {
+        el.style.maxHeight = el.scrollHeight + 'px';
+        el.classList.add('open');
+        if (reduced) { el.style.maxHeight = 'none'; return; }
+        el._accTimer = setTimeout(function() {
+            if (el.classList.contains('open')) el.style.maxHeight = 'none';
+        }, 280);
+    } else {
+        el.style.maxHeight = el.scrollHeight + 'px';
+        void el.offsetHeight;          // 先把当前高度固定下来，作为过渡起点
+        el.classList.remove('open');
+        el.style.maxHeight = '';       // 交回 CSS 的 max-height: 0
+    }
+}
+
 // ========== 全局状态 ==========
 let currentMode = MODE.NOTES;
 let currentTab = MODE.NOTES;

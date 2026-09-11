@@ -9,6 +9,18 @@
     --border: #d5dce8;
     --thumb-bg: #dce6f0;
     --theme-light: #4096ff;
+
+    /* ===== 动效 token =====
+       三档时长 + 四条曲线，替代原来"处处 0.2s ease"的单调感。
+       --ease-out  进入（快进慢停）  --ease-in  退出（慢起快出）
+       --ease-inout 状态互变         --ease-spring 强调性出现（带轻微回弹） */
+    --dur-1: 0.14s;   /* 微反馈：hover / 按压 / 图标旋转 */
+    --dur-2: 0.22s;   /* 小面板：手风琴、下拉、提示 */
+    --dur-3: 0.3s;    /* 视图切换、弹层、侧边栏 */
+    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+    --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ===== OCRB 字体 ===== */
@@ -45,7 +57,10 @@ body {
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border-color 0.3s ease;
+    transition: max-height var(--dur-3) var(--ease-inout),
+                opacity var(--dur-3) var(--ease-out),
+                padding var(--dur-3) var(--ease-inout),
+                border-color var(--dur-3) var(--ease-out);
     max-height: 100px;
     overflow: visible;
 }
@@ -335,7 +350,14 @@ body {
     overflow-x: hidden;
     padding: 8px 0;
     flex-shrink: 0;
-    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, border-width 0.3s ease;
+    /* 折叠是"宽度变化 → 内容列重新布局"，这一步无法避免（除非改成 transform 抽屉）。
+       能去掉的都去掉了：border-width 从不变化（纯空转）、padding 变化只影响侧栏内部
+       （被 overflow:hidden 裁掉，几乎看不见）却要额外重排。
+       时长从 0.3s 收到 0.22s —— 重排持续的时间越短，掉帧窗口越小，也更利落。 */
+    transition: width var(--dur-2) var(--ease-inout),
+                min-width var(--dur-2) var(--ease-inout),
+                opacity var(--dur-2) var(--ease-out),
+                border-right-color var(--dur-2) var(--ease-out);
 }
 .sidebar.collapsed {
     width: 0;
@@ -357,7 +379,9 @@ body {
     justify-content: center;
     font-size: 0.85rem;
     color: var(--text-secondary);
-    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, border-width 0.3s ease, background 0.15s, color 0.15s;
+    /* 折叠时这个按钮的 width / min-width / padding / opacity / border 都不会变化，
+       原先给它们加过渡纯属空转，只保留实际会变的 hover 背景与文字色。 */
+    transition: background var(--dur-1) ease, color var(--dur-1) ease;
     padding: 0;
     flex-shrink: 0;
     writing-mode: vertical-lr;
@@ -398,7 +422,7 @@ body {
     font-size: 1rem;
     transform: scale(1.85);
     display: inline-block;
-    transition: transform 0.2s ease;
+    transition: transform var(--dur-2) var(--ease-out);
     color: var(--text-secondary);
     flex-shrink: 0;
 }
@@ -412,10 +436,13 @@ body {
 .sidebar-children {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease;
+    /* 注意：这个过渡实际上不会触发 —— renderSidebar() 每次整体重建 innerHTML，
+       新元素一出现就带着 .open，没有"从 0 到有"的过程。保留是为了语义完整
+       （若日后改成增量更新侧边栏，这里就能直接生效）。 */
+    transition: max-height var(--dur-2) var(--ease-inout);
 }
 .sidebar-children.open {
-    max-height: 2000px;
+    max-height: 2000px;   /* 最多约 14 个子项 ≈ 420px，余量充足，不会裁剪 */
 }
 
 .sidebar-child {
@@ -449,7 +476,10 @@ body {
     overflow-y: auto;
     padding: 16px 8px 16px 16px;
     background: var(--bg);
-    transition: background 0.2s ease, flex 0.3s ease, width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    /* 只留背景色过渡（主题切换时淡入）；width / min-width / flex / padding / opacity
+       在这里都是空转 —— 内容列是用 flex:1 分配宽度的，没有显式 width 可插值，
+       而且它本来就跟着侧栏的宽度逐帧变化，再叠一层过渡只会互相打架。 */
+    transition: background var(--dur-2) ease;
 }
 
 #app {
@@ -459,12 +489,15 @@ body {
 }
 
 /* 视图容器进入动画（#app 已不再用于渲染，原 #app.content-enter / appFadeIn 是死代码，已删除） */
+/* 视图切换：纯交叉淡入，不做位移。
+   以前这里是 translateY(10px) 的"向上淡入"，而视图切换是全站最高频的动效，
+   导致「处处向上淡入」的观感。纯淡入没有方向感，正好适合"同一位置换内容"。 */
 .content-enter {
-    animation: contentFadeIn 0.25s ease;
+    animation: contentFadeIn var(--dur-2) var(--ease-out);
 }
 @keyframes contentFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 /* ========== 概览页 ========== */
@@ -528,15 +561,17 @@ body {
 .series-year-header:hover { background: var(--sidebar-bg); }
 .series-name-label { font-weight: bold; font-size: 1rem; flex: 1; min-width: 0; }
 .series-count-badge { background: var(--theme); color: #fff; font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; margin-right: 8px; flex-shrink: 0; }
-.series-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform 0.2s ease; flex-shrink: 0; }
+.series-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform var(--dur-2) var(--ease-out); flex-shrink: 0; }
 .series-expand-icon.open { transform: rotate(180deg); }
 .series-body {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.2s ease, opacity 0.2s ease;
+    transition: max-height var(--dur-2) var(--ease-inout), opacity var(--dur-2) var(--ease-out);
     opacity: 0;
 }
-.series-body.open { max-height: 4000px; opacity: 1; }
+/* 展开时不写死 max-height：由 animateAccordion() 量出内容真实高度再过渡（原因见 core.js）。
+   这里写 none 只是 JS 未介入时的兜底（例如 restoreExpandedStates 直接加类）。 */
+.series-body.open { max-height: none; opacity: 1; }
 
 .variety-row { border-top: 1px solid var(--border); }
 .variety-header {
@@ -551,16 +586,16 @@ body {
 .variety-name { font-weight: bold; font-size: 0.9rem; flex: 1; min-width: 0; }
 .variety-summary { display: flex; align-items: center; gap: 12px; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
 .variety-summary .count { color: var(--theme); font-weight: bold; }
-.variety-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform 0.2s ease; margin-left: 8px; flex-shrink: 0; }
+.variety-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform var(--dur-2) var(--ease-out); margin-left: 8px; flex-shrink: 0; }
 .variety-expand-icon.open { transform: rotate(180deg); }
 
 .copy-list {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.2s ease, opacity 0.2s ease;
+    transition: max-height var(--dur-2) var(--ease-inout), opacity var(--dur-2) var(--ease-out);
     opacity: 0;
 }
-.copy-list.open { max-height: 3000px; opacity: 1; }
+.copy-list.open { max-height: none; opacity: 1; }
 
 /* ========== 藏品项 ========== */
 .copy-item {
@@ -723,7 +758,7 @@ body.modal-open {
 
 /* 大图共享元素过渡：从缩略图位置生长到全屏（关闭时缩回）
    飞行层是独立元素，不使用 #imageContainer，因此不会干扰 Hammer 的捏合缩放。 */
-.modal.modal-show { animation: modalBackdropIn 0.22s ease; }
+.modal.modal-show { animation: modalBackdropIn var(--dur-2) var(--ease-out); }
 @keyframes modalBackdropIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -851,14 +886,16 @@ body.modal-open {
     cursor: pointer;
     max-width: 100px;
 }
-.price-list-arrow { font-size: 0.7rem; color: var(--text-secondary); transition: transform 0.2s ease; }
+.price-list-arrow { font-size: 0.7rem; color: var(--text-secondary); transition: transform var(--dur-2) var(--ease-out); }
 .price-list-arrow.open { transform: rotate(180deg); }
 .price-list-body {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
+    transition: max-height var(--dur-3) var(--ease-inout), opacity var(--dur-3) var(--ease-out);
     opacity: 0;
 }
+/* 这里的 420px 是有意的：价格列表本身就是"固定高度 + 内部滚动"的面板，
+   内容通常远超 420px，所以不存在手风琴那种"插值跑空"的问题。 */
 .price-list-body.open { max-height: 420px; opacity: 1; overflow-y: auto; }
 .price-list-item {
     display: flex;
@@ -916,10 +953,10 @@ body.modal-open {
 }
 .lightbox-close:hover { color: var(--theme); background: rgba(0, 0, 0, 0.06); }
 
-.special-lightbox-inner { animation: lightboxIn 0.2s ease; }
+.special-lightbox-inner { animation: lightboxIn var(--dur-2) var(--ease-out); }
 @keyframes lightboxIn {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: none; }
 }
 .special-lightbox-nav {
     padding: 5px 14px;
@@ -1025,7 +1062,7 @@ body.modal-open {
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     z-index: 900;
-    transition: transform 0.15s, opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform var(--dur-1) var(--ease-out), opacity var(--dur-3) var(--ease-spring);
     user-select: none;
     opacity: 0;
     transform: translateY(20px) scale(0.9);
@@ -1077,7 +1114,7 @@ body.modal-open {
     z-index: 900;
     opacity: 0;
     transform: translateY(12px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
     pointer-events: none;
     user-select: none;
 }
@@ -1267,9 +1304,16 @@ body.modal-open {
     font-size: 0.65rem;
     color: var(--text-secondary);
 }
-.shanhe-view-enter { animation: shanheViewFade 0.25s ease; }
-@keyframes shanheViewFade {
-    from { opacity: 0; transform: translateY(10px); }
+/* 地图 ⇄ 列表 是有方向感的切换，用横向滑动表达方向（而不是又一次"向上淡入"）。
+   两个类定义在 .content-enter 之后，因此会覆盖它的动画声明。 */
+.shanhe-view-enter-right { animation: shanheEnterRight var(--dur-3) var(--ease-out); }
+.shanhe-view-enter-left  { animation: shanheEnterLeft  var(--dur-3) var(--ease-out); }
+@keyframes shanheEnterRight {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes shanheEnterLeft {
+    from { opacity: 0; transform: translateX(-18px); }
     to { opacity: 1; transform: none; }
 }
 

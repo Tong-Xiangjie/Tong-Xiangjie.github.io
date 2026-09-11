@@ -424,9 +424,10 @@ function shanheSwitchView(view) {
 
     const app = getRenderContainer();
     if (app) {
-        app.classList.remove('shanhe-view-enter');
+        // 进入方向：去列表从右侧滑入，回地图从左侧滑入（有方向感，而不是又一次"向上淡入"）
+        app.classList.remove('shanhe-view-enter', 'shanhe-view-enter-left', 'shanhe-view-enter-right');
         void app.offsetWidth;
-        app.classList.add('shanhe-view-enter');
+        app.classList.add(view === 'list' ? 'shanhe-view-enter-right' : 'shanhe-view-enter-left');
     }
     renderShanheContent(config);
 }
