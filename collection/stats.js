@@ -501,78 +501,98 @@ function buildYearHTML(stats) {
 
 // ==================== 数据导出 ====================
 
+// 导出用的时间戳。
+// ★ 用本地时间：原来的 new Date().toISOString() 是 UTC，在东八区晚上导出会显示成前一天。
+function exportStamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    const date = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    return {
+        date: date,
+        time: p(d.getHours()) + ':' + p(d.getMinutes()),
+        // 文件名里不能出现冒号（Windows 非法字符），所以用下划线 + 时分
+        fileStamp: date + '_' + p(d.getHours()) + p(d.getMinutes())
+    };
+}
+
+// 把内部 dataKey 映射成人能读的分类路径（纸币要带上父分类）。
+// 原先 JSON / CSV / MD 各写了一遍同样的循环，这里统一成一处。
+function categoryLabelOf(dataKey, type) {
+    const tree = (type === 'coins') ? coinCategoryTree : categoryTree;
+    for (const cat of tree) {
+        if (cat.children && cat.children.length > 0) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) return cat.name + ' - ' + sub.name;
+            }
+        } else if (cat.dataKey === dataKey) {
+            return cat.name;
+        }
+    }
+    return dataKey;   // 找不到就退回键名，至少不丢信息
+}
+
 function exportJSON() {
     const allCopies = collectAllCopies();
     const stats = computeStats();
+    const stamp = exportStamp();
     const exportData = {
-        exportDate: new Date().toISOString().split('T')[0],
+        exportDate: stamp.date,
+        exportTime: stamp.time,
         totalCount: allCopies.length,
         totalPrice: stats.totalPrice,
         items: allCopies.map(item => ({
+            // ★ 原始字段全量展开 —— 这才是"备份"该有的样子：
+            //   img1/img2 图片地址、copyId，以及各板块特有字段（国库券的 wmk、
+            //   港币的 bank/signature/faceDate、流通币的直径重量边齿等）。
+            //   原来只挑 12 个字段，图片地址和这些特有字段全都丢了。
+            ...item.copy,
+            // 以下是原始字段之外补充的规范化字段，便于直接查看与统计
             type: item.type === 'notes' ? '纸币' : '硬币',
+            category: categoryLabelOf(item.dataKey, item.type),
             dataKey: item.dataKey,
             seriesName: item.seriesName,
-            version: item.copy.version || '',
-            year: item.copy.year || '',
             grade: item.copy.condition || item.copy.grade || '',
-            gradingCompany: item.copy.gradingCompany || '',
-            catalogNumber: item.copy.catalogNumber || item.copy.krause || '',
-            price: item.copy.price || '',
-            purchaseDate: item.copy.purchaseDate || '',
-            material: item.copy.material || '',
-            remark: item.copy.remark || ''
+            catalogNumber: item.copy.catalogNumber || item.copy.krause || ''
         }))
     };
-    const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(JSON.stringify(exportData, null, 2), `铜の币纪_藏品数据备份文件_导出日期${dateStr}.json`, 'application/json');
+    downloadFile(JSON.stringify(exportData, null, 2),
+        `铜の币纪_藏品数据备份_导出时间${stamp.fileStamp}.json`, 'application/json');
 }
 
 function exportCSV() {
     const allCopies = collectAllCopies();
+    const stamp = exportStamp();
     const headers = ['类型', '板块', '品类', '冠字号', '发行年份', '评级得分', '评级机构', '目录编号', '购入价格', '购买日期', '材质', '备注'];
-    let csv = '\uFEFF' + headers.join(',') + '\n';
+    // ★ CSV 转义：字段内部的引号必须写成两个引号。
+    //   原写法 /\\"/g 匹配的是「反斜杠 + 引号」，等于压根没转义裸引号，
+    //   备注里只要出现一个 " 就会让整行错位（Excel 打开串行）。
+    const esc = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+    let csv = '\uFEFF' + headers.map(esc).join(',') + '\n';
     for (const item of allCopies) {
         const c = item.copy;
-        let catLabel = item.dataKey;
-        if (item.type === 'notes') {
-            for (const cat of categoryTree) {
-                if (cat.children) { for (const sub of cat.children) { if (sub.dataKey === item.dataKey) catLabel = cat.name + ' - ' + sub.name; } }
-                else if (cat.dataKey === item.dataKey) catLabel = cat.name;
-            }
-        } else {
-            for (const cat of coinCategoryTree) { if (cat.dataKey === item.dataKey) catLabel = cat.name; }
-        }
         const row = [
-            item.type === 'notes' ? '纸币' : '硬币', catLabel, item.seriesName,
+            item.type === 'notes' ? '纸币' : '硬币', categoryLabelOf(item.dataKey, item.type), item.seriesName,
             c.version || '', c.year || '', c.condition || c.grade || '',
             c.gradingCompany || '', c.catalogNumber || c.krause || '',
             c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''
-        ].map(v => '"' + String(v).replace(/\\"/g, '""') + '"');
+        ].map(esc);
         csv += row.join(',') + '\n';
     }
-    const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(csv, `铜の币纪_收藏品详细信息表格_导出日期${dateStr}.csv`, 'text/csv;charset=utf-8');
+    downloadFile(csv, `铜の币纪_收藏品详细信息表格_导出时间${stamp.fileStamp}.csv`, 'text/csv;charset=utf-8');
 }
 
 function exportMarkdown() {
     const allCopies = collectAllCopies();
     const stats = computeStats();
-    let md = '# 藏品报告\n\n导出日期：' + new Date().toISOString().split('T')[0] + '\n\n';
+    const stamp = exportStamp();
+    let md = '# 藏品报告\n\n导出时间：' + stamp.date + ' ' + stamp.time + '\n\n';
     md += '## 总览\n\n- 藏品总数：' + allCopies.length + ' 件\n';
     md += '- 纸币：' + stats.notesCount + ' 件 | 硬币：' + stats.coinsCount + ' 件\n';
     md += '- 已记录价格：' + stats.prices.filter(p => !p.noPrice).length + ' 件\n';
     md += '- 总投入：' + stats.totalPrice.toFixed(0) + ' 元\n\n';
     const groups = {};
     for (const item of allCopies) {
-        let catLabel = item.dataKey;
-        if (item.type === 'notes') {
-            for (const cat of categoryTree) {
-                if (cat.children) { for (const sub of cat.children) { if (sub.dataKey === item.dataKey) catLabel = cat.name + ' - ' + sub.name; } }
-                else if (cat.dataKey === item.dataKey) catLabel = cat.name;
-            }
-        } else {
-            for (const cat of coinCategoryTree) { if (cat.dataKey === item.dataKey) catLabel = cat.name; }
-        }
+        const catLabel = categoryLabelOf(item.dataKey, item.type);
         if (!groups[catLabel]) groups[catLabel] = [];
         groups[catLabel].push(item);
     }
@@ -583,21 +603,22 @@ function exportMarkdown() {
         if (total > 0) md += '- 小计：' + total.toFixed(0) + ' 元\n';
         md += '\n';
     }
-    const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(md, `铜の币纪_收藏品概况报告_导出日期${dateStr}.md`, 'text/markdown;charset=utf-8');
+    downloadFile(md, `铜の币纪_收藏品概况报告_导出时间${stamp.fileStamp}.md`, 'text/markdown;charset=utf-8');
 }
 
 function exportPriceList() {
     const stats = computeStats();
-    const sorted = stats.prices.map((p, i) => ({ ...p, idx: i + 1 }))
+    const stamp = exportStamp();
+    // ★ 先排序、后编号。原来是先 map 出 idx、再 sort，idx 记的是"排序前的位置"，
+    //   打印出来序号会乱跳（2. / 4. / 3. / 1. / 5.）。
+    const sorted = [...stats.prices]
         .sort((a, b) => (b.noPrice ? 0 : b.value) - (a.noPrice ? 0 : a.value));
-    let text = '价格清单（从高到低）\n导出日期：' + new Date().toISOString().split('T')[0] + '\n\n';
-    for (const p of sorted) {
-        text += p.idx + '. ' + p.name + (p.version ? ' (' + p.version + ')' : '') + ' - ' + (p.noPrice ? '-' : p.value + ' 元') + '\n';
-    }
+    let text = '价格清单（从高到低）\n导出时间：' + stamp.date + ' ' + stamp.time + '\n\n';
+    sorted.forEach((p, i) => {
+        text += (i + 1) + '. ' + p.name + (p.version ? ' (' + p.version + ')' : '') + ' - ' + (p.noPrice ? '-' : p.value + ' 元') + '\n';
+    });
     text += '\n合计：' + stats.totalPrice.toFixed(0) + ' 元 | 均价：' + stats.avgPrice + ' 元/件\n';
-    const dateStr = new Date().toISOString().split('T')[0];
-    downloadFile(text, `铜の币纪_价格列表_导出日期${dateStr}.txt`, 'text/plain;charset=utf-8');
+    downloadFile(text, `铜の币纪_价格列表_导出时间${stamp.fileStamp}.txt`, 'text/plain;charset=utf-8');
 }
 
 function downloadFile(content, filename, mimeType) {
