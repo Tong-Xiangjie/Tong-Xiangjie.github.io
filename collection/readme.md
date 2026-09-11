@@ -265,6 +265,7 @@ https://tong-xiangjie.github.io/notecollection/image/<子目录>/<文件名>
 - **手风琴精确高度** — `animateAccordion()` 先量内容真实高度再过渡。原先写死 `max-height: 4000px` 时，浏览器的插值会让短面板几十毫秒就展完、剩余时间空跑（观感是"啪一下弹开然后静止"）；现在动画速度与内容长度无关，过渡结束后把限制解除为 `none`，图片后加载也不会被裁
 - **侧边栏折叠减负** — 去掉 `border-width`（从不变化）、`padding`（被 `overflow:hidden` 裁掉却要额外重排）等空转过渡，时长 0.3s → 0.22s，缩短重排窗口。注：折叠本身是"宽度变化 → 内容列重排"，这一点无法避免，除非改成 transform 抽屉（会改变视觉）
 - **列表懒加载** — 概览 / 分类页图片 `loading="lazy"`，首屏请求数从 600+ 降到十几个，缺口由后台预缓存补齐
+- **文章列表增量 FLIP** — 与搜索列表同一套做法：按 `data-key` 复用已有节点，保留项位移、删除项飞出、新增项滑入。原先每次渲染都 `wrapper.innerHTML = ''`（整表被当作「新增」、全列表重播滑入动画），现在改为真正的增量更新，**滚动位置全程保持**（`reconcileArticleWithFLIP` 内用 `keepScroll()` 在每次重建前后拉回，`container.scrollTop = 0` 已移除）
 - **Hammer.js 手势库** — 图片查看器支持捏合缩放和拖拽平移
 - **间接 eval 桥接** — 兼容旧站 `const` 声明的数据全局变量（数据文件无需改动）
 - **侧边栏长标题文字比例压缩** — 超长标题按 Word 式横向压扁（`scaleX`），无省略号、不换行、`▸` 恒在右侧，宽度变化自动重算（ResizeObserver）

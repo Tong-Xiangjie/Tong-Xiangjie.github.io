@@ -240,6 +240,8 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
     if (oldKeyMap.has(item.key)) {
       el = oldKeyMap.get(item.key);
       el.innerHTML = item.type === 'group' ? renderGroupElement(item.data) : renderItemElement(item.data);
+      // 增量更新会重建节点；缓存命中的图立即标为已加载，避免每次输入都重新淡入
+      if (typeof sweepLoadedImages === 'function') sweepLoadedImages(el);
       el.style.position = '';
       el.style.left = '';
       el.style.top = '';

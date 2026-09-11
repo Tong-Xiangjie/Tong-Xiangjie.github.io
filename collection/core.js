@@ -521,8 +521,9 @@ function markImageLoaded(img) {
     }
 }
 
-function sweepLoadedImages() {
-    document.querySelectorAll('img:not(.img-loaded)').forEach(function (img) {
+function sweepLoadedImages(root) {
+    const scope = (root && root.querySelectorAll) ? root : document;
+    scope.querySelectorAll('img:not(.img-loaded)').forEach(function (img) {
         // complete 且 naturalWidth 为 0 表示加载失败；也必须标上，否则会一直隐形
         if (img.complete) img.classList.add('img-loaded');
     });

@@ -500,12 +500,19 @@ function renderArticleItemElement(data) {
   </div>`;
 }
 
-function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
+function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container, savedScrollTop) {
   // 清理残留的删除节点
   const absNodes = document.querySelectorAll('.article-delete-anim');
   for (const node of absNodes) node.remove();
 
-  container.scrollTop = 0;
+  // ★ 不再把滚动强制归零 —— 那是配合旧做法（整表清空、全部当作新增）的。
+  //   现在做真正的增量 FLIP：保留项位移、删除项飞出、新增项滑入，滚动位置必须全程保持，
+  //   否则前后两次测量的基准不一致，用户正在阅读的位置也会丢。
+  //   重建 DOM 会让浏览器重置/锚定滚动，统一在这里拉回。
+  const keepScroll = function () {
+    if (container.scrollTop !== savedScrollTop) container.scrollTop = savedScrollTop;
+  };
+  keepScroll();
   void container.offsetHeight;
   const containerRect = container.getBoundingClientRect();
 
@@ -583,6 +590,8 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
     if (oldKeyMap.has(item.key)) {
       el = oldKeyMap.get(item.key);
       el.innerHTML = item.type === 'group' ? renderArticleGroupElement(item.data) : renderArticleItemElement(item.data);
+      // 增量更新会重建节点；缓存命中的图立即标为已加载，避免每次输入都重新淡入
+      if (typeof sweepLoadedImages === 'function') sweepLoadedImages(el);
       el.style.position = '';
       el.style.left = '';
       el.style.top = '';
@@ -618,11 +627,11 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
     wrapper.appendChild(el);
   }
 
-  container.scrollTop = 0;
+  keepScroll();
   void container.offsetHeight;
 
   requestAnimationFrame(() => {
-    container.scrollTop = 0;
+    keepScroll();
     void container.offsetHeight;
     const containerRect2 = container.getBoundingClientRect();
 
@@ -786,18 +795,22 @@ function renderArticleList(resetScroll = false) {
   wrapper.style.overflowX = 'hidden';
   wrapper.style.overflowY = 'hidden';
 
-  // ★ 强制清空，使所有条目被视为“新增”，触发滑入动画
-  wrapper.innerHTML = '';
+  // ★ 增量 FLIP：按 data-key 复用已有节点，让保留项位移、删除项飞出、新增项滑入
+  //   —— 与搜索列表同一套做法（原来这里整表清空，导致每次渲染全列表重播滑入动画）。
   const oldKeyMap = new Map();
+  for (const child of wrapper.children) {
+    const key = child.dataset.key;
+    if (key) oldKeyMap.set(key, child);
+  }
 
   const newFlatList = buildArticleFlatList(articles, articleSearchKeyword);
 
-  reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container);
+  reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container, savedScrollTop);
 
-  // ★ 在FLIP动画完成后恢复滚动位置
+  // ★ 兜底恢复滚动位置（reconcile 内部已全程保持，这里再确认一次）
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      container.scrollTop = savedScrollTop;
+      if (container.scrollTop !== savedScrollTop) container.scrollTop = savedScrollTop;
     });
   });
 }
