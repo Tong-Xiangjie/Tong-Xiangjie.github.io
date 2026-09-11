@@ -13,20 +13,24 @@
 import {
   ACTION,
   AFFINITY_KEYS,
-  ATTR_MAX,
   BRANCH_BY_AFFINITY,
+  BUILDING_LEVEL_SOFT_CAP,
   BUILDING_MAP,
+  COMFORT_MAX,
   EVOLUTION_BRANCHES,
-  EVOLUTION_REQUIREMENTS,
   ITEM_MAP,
   RARITY,
   RECIPES,
   SAVE_VERSION,
-  STAGES,
   STAGE_MAP,
-  STAT_MAX,
+  STAGES,
+  STAT_OVERFLOW_CAP,
   ZONES,
+  buildCostForLevel,
+  evolutionRequirement,
   expForLevel,
+  stageById,
+  stageDefForLevel,
 } from './data.js';
 import { dayIndex, now } from './time.js';
 
@@ -211,26 +215,58 @@ function emit() {
 /* 规则函数                                                            */
 /* ------------------------------------------------------------------ */
 
-/** 读取某个状态条（已 clamp） */
+/**
+ * 读取某个状态条
+ *
+ * 注意：状态条**不是硬上限 100**。100 是"舒适线"，超过之后进入"溢出区"
+ * （最多 COMFORT_MAX + STAT_OVERFLOW_CAP），离线时会先消耗溢出部分。
+ */
 export function getStat(state, key) {
-  return clamp(state.pet.stats[key] ?? 0, 0, STAT_MAX);
+  return Math.max(0, Number(state.pet.stats[key]) || 0);
 }
 
-/** 修改状态条，返回实际变化量 */
+/** 状态条的绝对上限（舒适线 + 溢出区） */
+export const STAT_ABSOLUTE_MAX = COMFORT_MAX + STAT_OVERFLOW_CAP;
+
+/**
+ * 按"先吃溢出、再吃本体"的顺序扣除状态
+ *
+ * 因为状态可以超过舒适线 100，超出的部分就是留给离线的缓冲：
+ * 先把 100 以上的部分吃掉，再动 100 以下的核心值，最多扣到 floor 为止。
+ *
+ * @param {object} state
+ * @param {string} key
+ * @param {number} amount 想要扣除的量（正数）
+ * @param {number} [floor] 核心值的最低保留线
+ * @returns {number} 实际扣掉的量
+ */
+export function absorbStat(state, key, amount, floor = 0) {
+  if (!(amount > 0)) return 0;
+  const current = getStat(state, key);
+  const target = Math.max(floor, current - amount);
+  state.pet.stats[key] = target;
+  return current - target;
+}
+
+/** 修改状态条，返回实际变化量（上限为绝对上限，不是 100） */
 export function addStat(state, key, delta) {
   const before = getStat(state, key);
-  state.pet.stats[key] = clamp(before + delta, 0, STAT_MAX);
+  state.pet.stats[key] = clamp(before + delta, 0, STAT_ABSOLUTE_MAX);
   return state.pet.stats[key] - before;
 }
 
-/** 修改成长属性（上限 ATTR_MAX） */
+/**
+ * 修改成长属性（**无上限**）
+ *
+ * 属性可以一直涨，用来支撑"无上限养成"。它只影响展示与稀有掉落加成。
+ */
 export function addAttr(state, key, delta) {
-  const before = clamp(state.pet.attrs[key] ?? 0, 0, ATTR_MAX);
-  state.pet.attrs[key] = clamp(before + delta, 0, ATTR_MAX);
+  const before = Math.max(0, Number(state.pet.attrs[key]) || 0);
+  state.pet.attrs[key] = Math.max(0, before + delta);
   return state.pet.attrs[key] - before;
 }
 
-/** 增加倾向值 */
+/** 增加倾向值（无上限） */
 export function addAffinity(state, tendency, amount = 1) {
   if (!tendency) return;
   for (const [key, value] of Object.entries(tendency)) {
@@ -243,35 +279,40 @@ export function buildingLevel(state, id) {
   return state.buildings?.[id] ?? 0;
 }
 
-/** 取建筑在指定等级下的效果值 */
+/**
+ * 取建筑在指定等级下的效果值
+ *
+ * effects 表只覆盖前几级；超出后用"最后两档的正向增量"继续线性外推，
+ * 保证"等级越高效果越好"这条性质永远不会被破坏（哪怕最后一档是递减的
+ * 布尔/递减序列，也会退化为按 +1 增长）。
+ */
 export function buildingEffect(state, id, effectKey) {
   const def = BUILDING_MAP[id];
   const level = buildingLevel(state, id);
   const table = def?.effects?.[effectKey];
-  if (!table) return 0;
-  return table[Math.min(level, table.length - 1)] ?? 0;
+  if (!table || table.length === 0) return 0;
+  if (level < table.length) return table[level] ?? 0;
+
+  const last = table[table.length - 1] ?? 0;
+  const prev = table.length >= 2 ? table[table.length - 2] ?? 0 : 0;
+  // 增量必须为正，否则"升级反而变差"
+  let step = last - prev;
+  if (!(step > 0)) step = typeof last === 'number' && last > 0 ? Math.max(1, Math.round(last * 0.5)) : 1;
+  return last + step * (level - table.length + 1);
 }
 
 /** 行动点上限 */
 export function maxActionPoints(state) {
-  return ACTION.baseMax + (buildingEffect(state, 'nursery', 'apBonus') || 0);
-}
-
-/** 进化阶段（根据 level 推导，但允许存档记录更保守的阶段） */
-export function stageForLevel(level) {
-  let stage = STAGES[0].id;
-  for (const s of STAGES) if (level >= s.level) stage = s.id;
-  return stage;
+  return Math.round(ACTION.baseMax + (buildingEffect(state, 'nursery', 'apBonus') || 0));
 }
 
 /** 进化是否可用；返回 { ok, reasons, next } */
 export function checkEvolution(state) {
   const level = state.pet.level;
-  const next = stageForLevel(level);
+  const next = stageDefForLevel(level).id;
   if (next === state.pet.stage) return { ok: false, reasons: [], next: null };
-  const req = EVOLUTION_REQUIREMENTS[next];
+  const req = evolutionRequirement(next);
   const reasons = [];
-  if (!req) return { ok: false, reasons: [], next: null };
   if (level < req.level) reasons.push(`等级不足（需要 ${req.level} 级）`);
   if (getStat(state, 'intimacy') < req.intimacy) reasons.push(`亲密不足（需要 ${req.intimacy}）`);
   if (req.item && (state.inventory[req.item.id] ?? 0) < req.item.amount) {
@@ -309,12 +350,13 @@ export function evolve(state) {
   if (!ok || !next) {
     return { ok: false, message: reasons[0] ?? '现在还不到进化的时候。' };
   }
-  const req = EVOLUTION_REQUIREMENTS[next];
+  const req = evolutionRequirement(next);
   if (req.item) {
     state.inventory[req.item.id] = (state.inventory[req.item.id] ?? 0) - req.item.amount;
+    if (state.inventory[req.item.id] <= 0) delete state.inventory[req.item.id];
   }
   state.pet.stage = next;
-  const stageDef = STAGE_MAP[next];
+  const stageDef = STAGE_MAP[next] ?? stageById(next);
   let branchMsg = '';
   if (next === 'adult') {
     const branch = decideBranch(state);
@@ -328,11 +370,13 @@ export function evolve(state) {
   if (next === 'guardian') {
     state.codex.encounters['evolution_guardian'] = true;
   }
+  // 记一笔"形态"图鉴，让无上限的进化也能被收集
+  discoverEncounter(state, `stage_${next}`);
   return {
     ok: true,
     stage: next,
     branch: state.pet.branch,
-    message: `星兽进化了：${stageDef.name}。${branchMsg}`,
+    message: `星兽进化了：${stageDef?.name ?? next}。${branchMsg}`,
   };
 }
 
@@ -477,12 +521,14 @@ export function applyDailyReset(state, ts = now()) {
   state.actionPoints = clamp(before + ACTION.base * days, 0, max);
   state.lastApReset = ts;
 
-  // 苔藓花园每日产出
+  // 苔藓花园每日产出（等级无上限，走 buildingEffect 的外推，而不是直接查表）
   const gardenItems = [];
   const gardenLevel = buildingLevel(state, 'garden');
   if (gardenLevel > 0) {
-    const moss = state.pet ? (BUILDING_MAP.garden.effects.dailyMoss[gardenLevel] ?? 0) * days : 0;
-    const intimacy = (BUILDING_MAP.garden.effects.dailyIntimacy[gardenLevel] ?? 0) * days;
+    const perDayMoss = buildingEffect(state, 'garden', 'dailyMoss');
+    const perDayIntimacy = buildingEffect(state, 'garden', 'dailyIntimacy');
+    const moss = perDayMoss * days;
+    const intimacy = perDayIntimacy * days;
     if (moss > 0) {
       addItem(state, 'moss_ball', moss);
       gardenItems.push({ id: 'moss_ball', amount: moss });
@@ -552,7 +598,7 @@ export function careAction(state, kind, itemId = null) {
   const careBonus = 1 + (branch?.bonus?.careGain ?? 0);
 
   if (kind === 'feed') {
-    if (getStat(state, 'hunger') >= STAT_MAX) return { ok: false, message: '它已经很饱了，再吃要撑到。' };
+    if (getStat(state, 'hunger') >= STAT_ABSOLUTE_MAX) return { ok: false, message: '它已经撑到极限了，别再喂了。' };
     const food = itemId ? ITEM_MAP[itemId] : null;
     if (itemId) {
       if (!food || !food.use?.hunger) return { ok: false, message: '这个不能吃。' };
@@ -578,7 +624,7 @@ export function careAction(state, kind, itemId = null) {
   }
 
   if (kind === 'clean') {
-    if (getStat(state, 'mood') >= STAT_MAX) return { ok: false, message: '它现在心情好得不需要安慰了。' };
+    if (getStat(state, 'mood') >= STAT_ABSOLUTE_MAX) return { ok: false, message: '它现在开心得快溢出来了。' };
     const applied = {
       mood: Math.round(ACTION.gain.clean.mood * careBonus),
       intimacy: Math.round(ACTION.gain.clean.intimacy * careBonus),
@@ -658,22 +704,35 @@ export function craft(state, recipeId) {
 }
 
 /**
- * 升级建筑
+ * 建筑升级所需星尘（等级无上限）
+ * @param {string} buildingId
+ * @param {number} targetLevel 目标等级
+ */
+export function buildingUpgradeCost(buildingId, targetLevel) {
+  const def = BUILDING_MAP[buildingId];
+  if (!def) return Infinity;
+  return buildCostForLevel(def, Math.max(1, targetLevel));
+}
+
+/**
+ * 升级建筑（最多可升到 BUILDING_LEVEL_SOFT_CAP，实际上等于没有上限）
  * @returns {{ok: boolean, message: string}}
  */
 export function upgradeBuilding(state, buildingId) {
   const def = BUILDING_MAP[buildingId];
   if (!def) return { ok: false, message: '建筑不存在。' };
   const level = buildingLevel(state, buildingId);
-  if (level >= def.maxLevel) return { ok: false, message: '已经是最高等级了。' };
-  const cost = def.cost[level - 1] ?? def.cost[def.cost.length - 1];
+  if (level >= BUILDING_LEVEL_SOFT_CAP) {
+    return { ok: false, message: `已经到 ${BUILDING_LEVEL_SOFT_CAP} 级了，再高会把岛压沉。` };
+  }
+  const cost = buildingUpgradeCost(buildingId, level + 1);
   if ((state.inventory.stardust ?? 0) < cost) return { ok: false, message: `星尘不足（需要 ${cost}）。` };
   removeItem(state, 'stardust', cost);
   state.buildings[buildingId] = level + 1;
   addExp(state, 10);
   return {
     ok: true,
-    message: `「${def.name}」升到 ${level + 1} 级。${def.effectText[level - 1] ?? ''}`,
+    message: `「${def.name}」升到 ${level + 1} 级。${def.effectText[level] ?? ''}`,
   };
 }
 

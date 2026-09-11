@@ -8,7 +8,7 @@
  * - 作用域被限制在游戏目录（scope: ./），不会影响同域下的其他站点。
  */
 
-const CACHE_NAME = 'stardust-migration-v1';
+const CACHE_NAME = 'stardust-migration-v2';
 
 /** 需要预缓存的静态资源（全部使用相对路径） */
 const PRECACHE = [

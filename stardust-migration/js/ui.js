@@ -11,8 +11,11 @@ import {
   ACHIEVEMENTS,
   AFFINITY_KEYS,
   ATTR_KEYS,
+  BUILDING_LEVEL_SOFT_CAP,
   BUILDINGS,
+  COMFORT_MAX,
   EVENTS,
+  EVOLUTION_BRANCHES,
   ITEM_MAP,
   ITEMS,
   ITEM_TYPE_LABEL,
@@ -20,15 +23,15 @@ import {
   SAVE_VERSION,
   STAGE_MAP,
   STAT_KEYS,
-  STAT_MAX,
   TASKS,
   ZONES,
+  buildCostForLevel,
   expForLevel,
   getItem,
   getTask,
   getZone,
+  stageById,
 } from './data.js';
-import { EVOLUTION_BRANCHES } from './data.js';
 import {
   careAction,
   cancelTask,
@@ -196,16 +199,87 @@ function flashSaveChip(text) {
 /* 主界面                                                              */
 /* ------------------------------------------------------------------ */
 
+/** 所有可能的"状态 class"，渲染前需要先清掉 */
+const PET_MOOD_CLASSES = ['mood-normal', 'mood-hungry', 'mood-sad', 'mood-sleepy', 'mood-loved'];
+
+/**
+ * 计算星兽当前应该长什么样
+ *
+ * 形象由两部分叠加：
+ *  1. 阶段 emoji（幼体按等级再细分，成体看分支，守护体有无穷形态）
+ *  2. 状态表情覆盖（饿 / 低落 / 睡着 / 亲密）
+ *
+ * @param {object} pet state.pet
+ * @param {object} stage 阶段定义（来自 STAGE_MAP / stageById）
+ * @returns {{emoji: string, mood: string, moodLabel: string, tip: string}}
+ */
+export function petLook(pet, stage) {
+  const stats = pet?.stats ?? {};
+  const hunger = stats.hunger ?? 0;
+  const moodValue = stats.mood ?? 0;
+  const energy = stats.energy ?? 0;
+  const intimacy = stats.intimacy ?? 0;
+  const level = pet?.level ?? 1;
+
+  // ---- 阶段形象 ----
+  let base = stage?.emoji ?? '🥚';
+  if (stage?.id === 'larva') {
+    // 幼体内部再分两段，避免一直是一个蛋
+    base = level >= 5 ? '🐣' : '🥚';
+  } else if (stage?.id === 'adult') {
+    base = { traveler: '🦅', scholar: '🦉', gardener: '🐢' }[pet?.branch] ?? '🐉';
+  }
+
+  // ---- 状态覆盖（优先级：睡着 > 饿 > 低落 > 亲密 > 正常）----
+  let mood = 'normal';
+  let moodLabel = '状态不错';
+  let emoji = base;
+  let tip = '';
+
+  if (energy <= 20) {
+    mood = 'sleepy';
+    moodLabel = '困得不行';
+    emoji = '😴';
+    tip = '精力见底了，安排一次「休息」吧。';
+  } else if (hunger <= 25) {
+    mood = 'hungry';
+    moodLabel = '饿扁了';
+    emoji = '🥺';
+    tip = '饱食很低，喂点东西，不然出任务会掉状态。';
+  } else if (moodValue <= 25) {
+    mood = 'sad';
+    moodLabel = '有点低落';
+    emoji = '🫠';
+    tip = '心情不太好，清洁或抚摸一下它。';
+  } else if (intimacy >= 70) {
+    mood = 'loved';
+    moodLabel = '很黏你';
+    emoji = base;
+    tip = '它已经很信任你了。';
+  }
+
+  return { emoji, mood, moodLabel, tip };
+}
+
 function renderHome(state) {
   const pet = state.pet;
-  const stage = STAGE_MAP[pet.stage] ?? STAGE_MAP.larva;
+  const stage = STAGE_MAP[pet.stage] ?? stageById(pet.stage) ?? STAGE_MAP.larva;
   const branch = pet.branch ? EVOLUTION_BRANCHES[pet.branch] : null;
 
-  $('petEmoji').textContent = stage.emoji;
+  // 形象：阶段 + 状态联动
+  const look = petLook(pet, stage);
+  $('petEmoji').textContent = look.emoji;
+
+  // mood class 用增删而不是重置 className，避免覆盖掉 is-happy / is-away
+  const avatar = $('petAvatar');
+  for (const name of PET_MOOD_CLASSES) avatar.classList.remove(name);
+  avatar.classList.add(`mood-${look.mood}`);
+  avatar.classList.toggle('is-away', Boolean(state.task.active));
+  $('petMood').textContent = look.tip ? `${look.moodLabel} · ${look.tip}` : look.moodLabel;
+
   $('petName').textContent = pet.name;
   $('petStage').textContent = `${stage.name} · ${branch ? `${branch.emoji} ${branch.name}` : '分支未定'}`;
   $('petLevel').textContent = String(pet.level);
-  $('petAvatar').classList.toggle('is-away', Boolean(state.task.active));
 
   // 经验条
   const need = expForLevel(pet.level);
@@ -213,29 +287,36 @@ function renderHome(state) {
   $('expFill').style.width = `${(ratio * 100).toFixed(1)}%`;
   $('expText').textContent = `${Math.floor(pet.exp)} / ${need}`;
 
-  // 状态条
+  // 状态条：100 是"舒适线"，超过的部分显示为溢出加成
   $('statBars').innerHTML = STAT_KEYS.map((key) => {
-    const value = clamp(state.pet.stats[key.id] ?? 0, 0, STAT_MAX);
+    const value = Math.max(0, state.pet.stats[key.id] ?? 0);
     const low = value <= 25;
+    const overflow = Math.max(0, value - COMFORT_MAX);
+    // 条形图只画到舒适线；溢出时整条填满并加一条"溢出"标记
+    const fillPct = clamp((value / COMFORT_MAX) * 100, 0, 100);
     return `
       <div class="stat${low ? ' is-low' : ''}">
         <span class="stat__label">${key.emoji} ${esc(key.name)}</span>
         <span class="bar"><span class="bar__fill bar__fill--${key.id}${
           low ? ' is-low' : ''
-        }" style="width:${value}%"></span></span>
-        <span class="stat__value">${Math.round(value)}</span>
+        }${overflow > 0 ? ' is-full' : ''}" style="width:${fillPct.toFixed(1)}%"></span></span>
+        <span class="stat__value">${Math.round(value)}${
+          overflow > 0 ? `<em class="stat__overflow">+${Math.round(overflow)}</em>` : ''
+        }</span>
       </div>`;
   }).join('');
 
-  // 成长属性
-  $('attrList').innerHTML = ATTR_KEYS.map(
-    (key) => `
+  // 成长属性（无上限，数值大时自动缩短显示）
+  $('attrList').innerHTML = ATTR_KEYS.map((key) => {
+    const raw = Math.max(0, state.pet.attrs[key.id] ?? 0);
+    const value = raw >= 10000 ? `${(raw / 1000).toFixed(1)}k` : String(Math.round(raw));
+    return `
       <div class="attr">
         <span class="attr__icon">${key.emoji}</span>
         <span class="attr__name">${esc(key.name)}</span>
-        <span class="attr__value">${Math.round(state.pet.attrs[key.id] ?? 0)}</span>
-      </div>`,
-  ).join('');
+        <span class="attr__value">${value}</span>
+      </div>`;
+  }).join('');
 
   // 当前安排
   const box = $('homeTaskBox');
@@ -314,7 +395,7 @@ function renderEvolutionEntry(state) {
     <button class="btn ${check.ok ? 'btn--primary' : 'is-disabled'} btn--block" data-action="evolve" ${
       check.ok ? '' : 'disabled'
     }>
-      🌟 进化到「${esc(STAGE_MAP[check.next]?.name ?? check.next)}」${check.ok ? '' : '（条件不足）'}
+      🌟 进化到「${esc(stageById(check.next)?.name ?? check.next)}」${check.ok ? '' : '（条件不足）'}
     </button>
     ${
       check.ok
@@ -636,23 +717,31 @@ function visitorName(id) {
 function renderSettings(state, save) {
   // 本地存储不可用时给出明确警告（file:// 下的 Firefox / Safari，或隐私模式）
   const persistenceWarning = !isPersistentStorage();
-  $('buildingList').innerHTML = BUILDINGS.map((b) => {    const level = state.buildings[b.id] ?? 0;
-    const maxed = level >= b.maxLevel;
-    const cost = maxed ? 0 : b.cost[level - 1] ?? b.cost[b.cost.length - 1];
-    const affordable = (state.inventory.stardust ?? 0) >= cost;
-    const nextEffect = maxed ? null : b.effectText[level] ?? b.effectText[b.effectText.length - 1];
+  const stardust = state.inventory.stardust ?? 0;
+
+  $('buildingList').innerHTML = BUILDINGS.map((b) => {
+    const level = state.buildings[b.id] ?? 0;
+    const capped = level >= BUILDING_LEVEL_SOFT_CAP;
+    const cost = capped ? 0 : buildCostForLevel(b, level + 1);
+    const affordable = !capped && stardust >= cost;
+    // 效果文案：表内有就用表内，超出后说明"继续按每级递增"
+    const nextEffect = capped
+      ? null
+      : b.effectText[level] ?? '效果继续按每级递增（等级无上限）';
+    const progress = Math.min(100, (level / BUILDING_LEVEL_SOFT_CAP) * 100);
     return `
       <div class="building">
         <div class="building__head">
           <span class="building__emoji">${b.emoji}</span>
           <span class="building__name">${esc(b.name)}</span>
-          <span class="building__level">Lv.${level}/${b.maxLevel}</span>
+          <span class="building__level">Lv.${level}</span>
         </div>
+        <div class="building__bar"><span style="width:${progress.toFixed(1)}%"></span></div>
         <p class="building__desc">${esc(b.desc)}</p>
         ${
-          maxed
-            ? `<p class="building__effect">已达最高等级</p>`
-            : `<p class="building__next">下一级：${esc(nextEffect ?? '')}</p>
+          capped
+            ? `<p class="building__effect">已达 ${BUILDING_LEVEL_SOFT_CAP} 级（软上限）</p>`
+            : `<p class="building__next">下一级（Lv.${level + 1}）：${esc(nextEffect ?? '')}</p>
                <button class="btn btn--sm ${affordable ? 'btn--primary' : 'is-disabled'}" data-action="upgrade" data-building="${
                  b.id
                }" ${affordable ? '' : 'disabled'}>升级（✨${cost}）</button>`
@@ -863,18 +952,20 @@ function actionEvolve() {
     toast(result.message, 'bad');
     return;
   }
+  const evolvedStage = stageById(result.stage) ?? STAGE_MAP.larva;
   openModal({
     title: '🌟 进化',
     body: `
       <div class="event__banner">
-        <span class="event__emoji">${STAGE_MAP[result.stage]?.emoji ?? '🌟'}</span>
+        <span class="event__emoji">${evolvedStage.emoji}</span>
         <div>
-          <div class="event__title">${esc(STAGE_MAP[result.stage]?.name ?? '')}</div>
-          <div class="event__sub">${esc(STAGE_MAP[result.stage]?.desc ?? '')}</div>
+          <div class="event__title">${esc(evolvedStage.name)}</div>
+          <div class="event__sub">${esc(evolvedStage.desc ?? '')}</div>
         </div>
       </div>
       ${branch ? `<p class="event__text">它选择了「${esc(branch.name)}」的道路。<br />${esc(branch.desc)}</p>
         <p class="muted small">${esc(branch.bonusText)}</p>` : '<p class="event__text">它还小，但光已经开始稳稳地亮着。</p>'}
+      ${evolvedStage.infinite ? '<p class="muted small">形态还没有尽头 —— 它可以一直长下去。</p>' : ''}
     `,
     foot: `<button class="btn btn--primary btn--block" data-close-modal>继续</button>`,
   });
@@ -1239,7 +1330,7 @@ function handleImportText(text) {
     title: '🛰️ 胶囊预览',
     body: `
       <div class="event__banner">
-        <span class="event__emoji">${STAGE_MAP[incoming.data.pet.stage]?.emoji ?? '🌟'}</span>
+        <span class="event__emoji">${stageById(incoming.data.pet.stage)?.emoji ?? '🌟'}</span>
         <div>
           <div class="event__title">${esc(incoming.data.pet.name)} · Lv.${incoming.data.pet.level}</div>
           <div class="event__sub">来自设备 ${esc(String(incoming.deviceId).slice(0, 14))}… · 存档 v${incoming.v}</div>
@@ -1610,8 +1701,8 @@ export function checkAndShowEvolution() {
     body: `
       <p class="event__text">
         你能感觉到它体内那点光正在重新排列。
-        现在可以让它进化到「<b>${esc(STAGE_MAP[check.next]?.name ?? '')}</b>」——
-        ${esc(STAGE_MAP[check.next]?.desc ?? '')}
+        现在可以让它进化到「<b>${esc(stageById(check.next)?.name ?? '')}</b>」——
+        ${esc(stageById(check.next)?.desc ?? '')}
       </p>
       <p class="muted small">进化会消耗满足条件的物品，并根据这段时间的照顾与探索方式决定分支。</p>
     `,

@@ -522,9 +522,23 @@ export function getEvent(id) {
 }
 
 /**
+ * 建筑等级的"软上限"
+ *
+ * 严格来说建筑可以无限升（消耗按 1.55 倍递推增长），但为了避免数字失控
+ * 到 10^9 这种量级，在 30 级做了一个软性收尾。30 级需要约 1.1 亿星尘，
+ * 正常玩法不可能碰到。
+ */
+export const BUILDING_LEVEL_SOFT_CAP = 30;
+
+/**
  * 建筑（5 个）
- * - maxLevel 固定 3 级；cost 为升到目标等级的星尘消耗
- * - effectText / effects 描述等级收益
+ *
+ * **建筑等级无上限**：`effects` 里给出的只是前几级的效果表，
+ * 超出表长后由 buildingEffect() 按"最后一档 + 固定增量"继续线性增长；
+ * 升级消耗由 buildCostForLevel() 递推，越升越贵但永远能升。
+ *
+ * - effects 数组下标 = 等级（index 0 表示未建造）
+ * - effectText 数组下标 = "升到第 n+1 级"的说明
  */
 export const BUILDINGS = [
   {
@@ -532,61 +546,80 @@ export const BUILDINGS = [
     name: '孵化舱',
     emoji: '🛖',
     desc: '星兽休息的地方，决定行动力上限与休息效率。',
-    maxLevel: 3,
-    cost: [20, 55],
-    requires: {},
-    effects: { apBonus: [0, 1, 2], restBonus: [0, 0.15, 0.35] },
-    effectText: ['行动力上限 +1、休息恢复 +15%', '行动力上限 +2、休息恢复 +35%'],
+    baseCost: 20,
+    effects: { apBonus: [0, 1, 2, 3], restBonus: [0, 0.15, 0.35, 0.5] },
+    effectText: ['行动力上限 +1、休息恢复 +15%', '行动力上限 +2、休息恢复 +35%', '行动力上限 +3、休息恢复 +50%'],
   },
   {
     id: 'kitchen',
     name: '潮汐厨房',
     emoji: '🍳',
     desc: '把生材料做成料理，食物恢复效果更好。',
-    maxLevel: 3,
-    cost: [30, 70],
-    requires: {},
-    effects: { foodBonus: [0, 0.2, 0.45], unlockCook: [false, true, true] },
-    effectText: ['解锁料理「星辉汤」', '食物恢复效果 +45%'],
+    baseCost: 30,
+    effects: { foodBonus: [0, 0.2, 0.45, 0.7], unlockCook: [false, true, true, true] },
+    effectText: ['解锁料理「星辉汤」', '食物恢复效果 +45%', '食物恢复效果 +70%'],
   },
   {
     id: 'workshop',
     name: '星尘工作台',
     emoji: '🛠️',
-    desc: '制作礼物与关键道具，也是成就「工匠」的来源。',
-    maxLevel: 3,
-    cost: [45, 95],
-    requires: {},
-    effects: { recipes: [0, 1, 2], craftDiscount: [0, 0.1, 0.2] },
-    effectText: ['解锁「梦珊瑚枕」配方、合成费用 -10%', '解锁「星光吊坠」配方、合成费用 -20%'],
+    desc: '制作礼物与关键道具，等级越高合成越便宜。',
+    baseCost: 45,
+    effects: { recipes: [0, 1, 2, 3], craftDiscount: [0, 0.1, 0.2, 0.3] },
+    effectText: ['解锁「梦珊瑚枕」配方、合成费用 -10%', '解锁「星光吊坠」配方、合成费用 -20%', '合成费用 -30%'],
   },
   {
     id: 'observatory',
     name: '观星台',
     emoji: '🔭',
     desc: '研究图鉴、提升学习效率，2 级后可前往碎星遗迹。',
-    maxLevel: 3,
-    cost: [50, 110],
-    requires: {},
-    effects: { researchBonus: [0, 0.25, 0.5], unlockZone: [null, 'ruins', 'ruins'] },
-    effectText: ['解锁探索区域「碎星遗迹」', '研究产出 +50%'],
+    baseCost: 50,
+    effects: { researchBonus: [0, 0.25, 0.5, 0.8], unlockZone: [null, 'ruins', 'ruins', 'ruins'] },
+    effectText: ['解锁探索区域「碎星遗迹」', '研究产出 +50%', '研究产出 +80%'],
   },
   {
     id: 'garden',
     name: '苔藓花园',
     emoji: '🌱',
-    desc: '每天产出一次苔藓，并缓慢提升亲密。',
-    maxLevel: 3,
-    cost: [25, 60],
-    requires: {},
-    effects: { dailyMoss: [0, 2, 5], dailyIntimacy: [0, 1, 2] },
-    effectText: ['每天产出 2 份苔藓团、亲密 +1', '每天产出 5 份苔藓团、亲密 +2'],
+    desc: '每天产出一次苔藓，并缓慢提升亲密。等级越高产出越多。',
+    baseCost: 25,
+    effects: { dailyMoss: [0, 2, 5, 9], dailyIntimacy: [0, 1, 2, 3] },
+    effectText: ['每天产出 2 份苔藓团、亲密 +1', '每天产出 5 份苔藓团、亲密 +2', '每天产出 9 份苔藓团、亲密 +3'],
   },
 ];
 
 export const BUILDING_MAP = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 export function getBuilding(id) {
   return BUILDING_MAP[id];
+}
+
+/**
+ * 升到 `level` 级所需的星尘（level 无上限）
+ *
+ * 递推：cost(1) = baseCost，之后 cost(n) = round(cost(n-1) * 1.55) + 8
+ * 越往后越贵，但永远升得动（花园/厨房不需要星尘以外的材料）。
+ *
+ * @param {{baseCost: number}} def
+ * @param {number} level 目标等级（>= 1）
+ */
+export function buildCostForLevel(def, level) {
+  let cost = def.baseCost;
+  for (let n = 2; n <= level; n++) {
+    cost = Math.round(cost * 1.55) + 8;
+  }
+  return cost;
+}
+
+/**
+ * 建筑效果的"基础表"（不含无限延伸部分）
+ * @param {string} id
+ * @param {string} effectKey
+ * @param {number} level
+ */
+export function buildingEffectBase(id, effectKey, level) {
+  const table = BUILDING_MAP[id]?.effects?.[effectKey];
+  if (!table) return 0;
+  return table[Math.min(level, table.length - 1)] ?? 0;
 }
 
 /**
@@ -695,22 +728,146 @@ export const BRANCH_BY_AFFINITY = Object.fromEntries(
   Object.values(EVOLUTION_BRANCHES).map((b) => [b.affinity, b]),
 );
 
-/** 进化阶段定义 */
-export const STAGES = [
-  { id: 'larva', name: '幼体', emoji: '🥚', level: 1, desc: '刚在数据海里点亮的一小团光，什么都好奇。' },
-  { id: 'adult', name: '成体', emoji: '🐉', level: 10, desc: '已经能独自走过浅滩和遗迹，开始在意外面的世界。' },
-  { id: 'guardian', name: '守护体', emoji: '🌟', level: 22, desc: '光从它的脊背一直连到岛的边缘，小岛终于有了守望者。' },
+/* ------------------------------------------------------------------ */
+/* 进化阶段：基础三段 + 无限延伸的守护体形态                            */
+/* ------------------------------------------------------------------ */
+
+/** 中文数字（1~99），用于"第二形态""第三形态"…… 可以无限往后命名 */
+const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+function cnNumber(n) {
+  if (n < 10) return CN_DIGITS[n];
+  if (n < 20) return `十${n % 10 ? CN_DIGITS[n % 10] : ''}`;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return `${CN_DIGITS[tens]}十${ones ? CN_DIGITS[ones] : ''}`;
+}
+
+/** 守护体之后的形态配色（循环使用） */
+const GUARDIAN_THEMES = [
+  { emoji: '🌟', tint: 'gold' },
+  { emoji: '💫', tint: 'violet' },
+  { emoji: '🌠', tint: 'cyan' },
+  { emoji: '🔆', tint: 'rose' },
+  { emoji: '🌌', tint: 'deep' },
 ];
+
+/** 基础三段：幼体 → 成体 → 守护体 */
+export const BASE_STAGES = [
+  {
+    id: 'larva',
+    name: '幼体',
+    emoji: '🥚',
+    level: 1,
+    desc: '刚在数据海里点亮的一小团光，什么都好奇。',
+  },
+  {
+    id: 'adult',
+    name: '成体',
+    emoji: '🐉',
+    level: 10,
+    desc: '已经能独自走过浅滩和遗迹，开始在意外面的世界。',
+  },
+  {
+    id: 'guardian',
+    name: '守护体',
+    emoji: '🌟',
+    level: 22,
+    desc: '光从它的脊背一直连到岛的边缘，小岛终于有了守望者。',
+  },
+];
+
+/** 守护体之后的阶段只有编号，没有终点（"无上限"） */
+export const INFINITE_STAGE_MIN_LEVEL = 35;
+
+/**
+ * 生成第 n 个形态（n >= 4）
+ * Lv.35 起每 13 级一个形态，可以一直长下去。
+ */
+export function guardianForm(n) {
+  const theme = GUARDIAN_THEMES[(n - 4) % GUARDIAN_THEMES.length];
+  const cycle = Math.floor((n - 4) / GUARDIAN_THEMES.length);
+  return {
+    id: `guardian_${n}`,
+    name: `守护体·${cnNumber(n)}`,
+    emoji: theme.emoji,
+    tint: theme.tint,
+    level: INFINITE_STAGE_MIN_LEVEL + (n - 4) * 13,
+    infinite: true,
+    desc:
+      cycle === 0
+        ? `第 ${cnNumber(n)}形态。它开始把岛上的光一点点收拢、再重新撒出去。`
+        : `第 ${cnNumber(n)}形态。光在它身上绕了 ${cycle} 圈，还没有要停下的意思。`,
+  };
+}
+
+/** 阶段表（幼体 → 成体 → 守护体 → 无数形态），按等级升序 */
+export const STAGES = [
+  ...BASE_STAGES,
+  ...Array.from({ length: 20 }, (_, i) => guardianForm(i + 4)),
+];
+
+/**
+ * 按等级取阶段定义（内部使用；对外请用 stageForLevel / stageById）
+ * @param {number} level
+ * @returns {object} 阶段定义
+ */
+export function stageDefForLevel(level) {
+  let stage = STAGES[0];
+  for (const s of STAGES) {
+    if (level >= s.level) stage = s;
+    else break;
+  }
+  return stage;
+}
+
+/** 按 id 取阶段；查不到时回退到按等级推导（兼容旧存档里的 guardian_7 之类） */
+export function stageById(id) {
+  const found = STAGES.find((s) => s.id === id);
+  if (found) return found;
+  const m = /^guardian_(\d+)$/.exec(String(id ?? ''));
+  if (m) return guardianForm(Number(m[1]));
+  return null;
+}
 
 export const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.id, s]));
 
 /**
- * 进化条件
- * 成体只需等级 + 亲密；守护体额外需要一个星辰晶核
+ * 进化条件（无限）
+ *
+ * - 成体：Lv.10 + 亲密 45
+ * - 守护体：Lv.22 + 亲密 70 + 星辰晶核 ×1
+ * - 之后每一个新形态：等级门槛逐级 +13，亲密门槛逐级 +15，
+ *   星辰晶核的需求量随形态递增；从第 8 形态起还需要「星种」。
+ *   没有终点。
+ *
+ * @param {string} stageId
+ * @returns {{level:number, intimacy:number, item:{id:string,amount:number}|null}}
  */
+export function evolutionRequirement(stageId) {
+  if (stageId === 'adult') return { level: 10, intimacy: 45, item: null };
+  if (stageId === 'guardian') return { level: 22, intimacy: 70, item: { id: 'star_crystal_core', amount: 1 } };
+
+  const m = /^guardian_(\d+)$/.exec(String(stageId ?? ''));
+  if (!m) return { level: 1, intimacy: 0, item: null };
+
+  const n = Number(m[1]);
+  const overflow = n - 3; // 守护体是第 3 形态，之后从 1 开始递增
+  // 第 8 形态起，晶核越来越难找，改用稀有的「星种」
+  const item = n >= 8
+    ? { id: 'starseed', amount: n - 7 }
+    : { id: 'star_crystal_core', amount: overflow };
+
+  return {
+    level: INFINITE_STAGE_MIN_LEVEL + (n - 4) * 13,
+    intimacy: 70 + overflow * 15,
+    item,
+  };
+}
+
+/** 兼容旧调用：前三段的固定需求 */
 export const EVOLUTION_REQUIREMENTS = {
-  adult: { level: 10, intimacy: 45, item: null, bonus: { researchYield: 0.1 } },
-  guardian: { level: 22, intimacy: 70, item: { id: 'star_crystal_core', amount: 1 }, bonus: {} },
+  adult: evolutionRequirement('adult'),
+  guardian: evolutionRequirement('guardian'),
 };
 
 /** 状态条的字段与中文名 */
@@ -741,9 +898,21 @@ export function expForLevel(level) {
   return 40 + (level - 1) * 18;
 }
 
-/** 状态与属性的显示上限（超出即按上限显示） */
-export const STAT_MAX = 100;
-export const ATTR_MAX = 99;
+/**
+ * 状态条的"舒适线"
+ *
+ * 注意：这不是硬上限。饱食/心情/亲密可以超过 100，超出的部分在 UI 上显示为
+ * 「溢出加成」，并在离线结算时作为缓冲先被消耗掉 —— 也就是说：
+ * 把它喂得饱饱的再下线，回来时状态不会那么难看。
+ *
+ * 只有达到舒适线时才拒绝继续喂食/清洁（避免浪费行动点）。
+ */
+export const COMFORT_MAX = 100;
+/** 舒适线以上的部分最多能存多少（超过就真的浪费了） */
+export const STAT_OVERFLOW_CAP = 200;
+
+/** 参数占位：属性无上限，这里只保留一个用于 UI 分档显示的参考值 */
+export const ATTR_REFERENCE = 50;
 
 /** 离线结算相关参数 */
 export const OFFLINE = {

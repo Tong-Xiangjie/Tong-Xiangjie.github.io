@@ -448,16 +448,89 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
   cursor: pointer;
 }
 
+/* --------------------------------------------------------------------------
+   星兽形象：状态联动
+   形象只有 emoji 一个字符，所以"状态"靠颜色、光晕与动作来强化：
+     mood-normal 正常 / mood-hungry 饿 / mood-sad 低落 / mood-sleepy 困
+     mood-loved  亲密（额外一圈粉色光晕）
+   -------------------------------------------------------------------------- */
+
 .pet__emoji {
+  position: relative;
   font-size: 54px;
   line-height: 1;
   filter: drop-shadow(0 0 14px rgba(127, 212, 255, 0.55));
   animation: breathe 3.4s ease-in-out infinite;
-  transition: transform 0.18s ease;
+  transition: transform 0.18s ease, filter 0.5s ease;
+}
+
+/* 顶上的一小团星光，让 emoji 看起来属于这个世界
+   注意：颜色必须显式给，不能依赖 currentColor —— emoji 是彩色字形，
+   currentColor 在这种情况下可能解析成继承来的奇怪颜色（曾渲染成橙色糊块）。 */
+.pet__emoji::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--pet-glow, rgba(127, 212, 255, 0.5)) 0%, transparent 68%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 正常：柔和的星尘蓝 */
+.pet.mood-normal {
+  --pet-glow: rgba(127, 212, 255, 0.45);
+}
+.pet.mood-normal .pet__emoji {
+  filter: drop-shadow(0 0 16px rgba(127, 212, 255, 0.6));
+}
+
+/* 饿：发黄、轻微发暗、呼吸变快像在喘气 */
+.pet.mood-hungry {
+  --pet-glow: rgba(255, 196, 107, 0.45);
+}
+.pet.mood-hungry .pet__emoji {
+  filter: drop-shadow(0 0 12px rgba(255, 196, 107, 0.55)) saturate(0.85);
+  animation: breathe 1.5s ease-in-out infinite;
+}
+
+/* 低落：去饱和、下沉、几乎不动 */
+.pet.mood-sad {
+  --pet-glow: rgba(160, 175, 210, 0.3);
+}
+.pet.mood-sad .pet__emoji {
+  filter: drop-shadow(0 0 8px rgba(160, 175, 210, 0.35)) grayscale(0.55);
+  animation: mope 4.6s ease-in-out infinite;
+}
+
+/* 困：变蓝紫，身体慢慢往下沉 */
+.pet.mood-sleepy {
+  --pet-glow: rgba(183, 156, 255, 0.4);
+}
+.pet.mood-sleepy .pet__emoji {
+  filter: drop-shadow(0 0 10px rgba(183, 156, 255, 0.45));
+  animation: doze 5.2s ease-in-out infinite;
+}
+
+/* 亲密：粉色光晕 + 缓慢的彩色漂移 */
+.pet.mood-loved {
+  --pet-glow: rgba(255, 158, 199, 0.55);
+}
+.pet.mood-loved .pet__emoji {
+  filter: drop-shadow(0 0 20px rgba(255, 158, 199, 0.75)) drop-shadow(0 0 34px rgba(183, 156, 255, 0.4));
+  animation: breathe 3.6s ease-in-out infinite, glowShift 6s ease-in-out infinite;
 }
 
 .pet.is-happy .pet__emoji { animation: bounce 0.55s ease 2; }
-.pet.is-away .pet__emoji { opacity: 0.4; filter: grayscale(0.4); }
+.pet.is-away .pet__emoji {
+  opacity: 0.42;
+  filter: grayscale(0.5) drop-shadow(0 0 8px rgba(127, 212, 255, 0.3));
+  animation: breathe 5.5s ease-in-out infinite;
+}
 
 @keyframes breathe {
   0%, 100% { transform: translateY(0) scale(1); }
@@ -469,6 +542,36 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
   40% { transform: translateY(-16px) scale(1.1); }
 }
 
+/* 低落：缓慢地缩着 */
+@keyframes mope {
+  0%, 100% { transform: translateY(3px) scale(0.96); }
+  50% { transform: translateY(5px) scale(0.95); }
+}
+
+/* 困：上下点头 */
+@keyframes doze {
+  0%, 100% { transform: translateY(0) rotate(-3deg) scale(1); }
+  50% { transform: translateY(4px) rotate(3deg) scale(0.98); }
+}
+
+@keyframes glowShift {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(255, 158, 199, 0.75)); }
+  50% { filter: drop-shadow(0 0 20px rgba(183, 156, 255, 0.8)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet__emoji { animation: none !important; }
+}
+
+/* 状态说明文字 */
+.pet-mood {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.pet-mood:empty { display: none; }
+
 .pet__shadow {
   position: absolute;
   bottom: -8px;
@@ -477,6 +580,34 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.45);
   filter: blur(4px);
+}
+
+/* 状态条溢出标记（>100 的缓冲） */
+.stat__overflow {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.bar__fill.is-full {
+  box-shadow: 0 0 10px rgba(127, 212, 255, 0.65);
+}
+
+/* 建筑等级进度 */
+.building__bar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 4px 0 6px;
+}
+
+.building__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
 .pet-head {
@@ -1124,6 +1255,8 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
               <span class="pet-level__value" id="petLevel">1</span>
             </div>
           </div>
+
+          <p class="pet-mood" id="petMood">状态不错</p>
 
           <div class="expbar" id="expBar">
             <div class="expbar__fill" id="expFill"></div>
@@ -2008,9 +2141,23 @@ function getEvent(id) {
 }
 
 /**
+ * 建筑等级的"软上限"
+ *
+ * 严格来说建筑可以无限升（消耗按 1.55 倍递推增长），但为了避免数字失控
+ * 到 10^9 这种量级，在 30 级做了一个软性收尾。30 级需要约 1.1 亿星尘，
+ * 正常玩法不可能碰到。
+ */
+const BUILDING_LEVEL_SOFT_CAP = 30;
+
+/**
  * 建筑（5 个）
- * - maxLevel 固定 3 级；cost 为升到目标等级的星尘消耗
- * - effectText / effects 描述等级收益
+ *
+ * **建筑等级无上限**：`effects` 里给出的只是前几级的效果表，
+ * 超出表长后由 buildingEffect() 按"最后一档 + 固定增量"继续线性增长；
+ * 升级消耗由 buildCostForLevel() 递推，越升越贵但永远能升。
+ *
+ * - effects 数组下标 = 等级（index 0 表示未建造）
+ * - effectText 数组下标 = "升到第 n+1 级"的说明
  */
 const BUILDINGS = [
   {
@@ -2018,61 +2165,80 @@ const BUILDINGS = [
     name: '孵化舱',
     emoji: '🛖',
     desc: '星兽休息的地方，决定行动力上限与休息效率。',
-    maxLevel: 3,
-    cost: [20, 55],
-    requires: {},
-    effects: { apBonus: [0, 1, 2], restBonus: [0, 0.15, 0.35] },
-    effectText: ['行动力上限 +1、休息恢复 +15%', '行动力上限 +2、休息恢复 +35%'],
+    baseCost: 20,
+    effects: { apBonus: [0, 1, 2, 3], restBonus: [0, 0.15, 0.35, 0.5] },
+    effectText: ['行动力上限 +1、休息恢复 +15%', '行动力上限 +2、休息恢复 +35%', '行动力上限 +3、休息恢复 +50%'],
   },
   {
     id: 'kitchen',
     name: '潮汐厨房',
     emoji: '🍳',
     desc: '把生材料做成料理，食物恢复效果更好。',
-    maxLevel: 3,
-    cost: [30, 70],
-    requires: {},
-    effects: { foodBonus: [0, 0.2, 0.45], unlockCook: [false, true, true] },
-    effectText: ['解锁料理「星辉汤」', '食物恢复效果 +45%'],
+    baseCost: 30,
+    effects: { foodBonus: [0, 0.2, 0.45, 0.7], unlockCook: [false, true, true, true] },
+    effectText: ['解锁料理「星辉汤」', '食物恢复效果 +45%', '食物恢复效果 +70%'],
   },
   {
     id: 'workshop',
     name: '星尘工作台',
     emoji: '🛠️',
-    desc: '制作礼物与关键道具，也是成就「工匠」的来源。',
-    maxLevel: 3,
-    cost: [45, 95],
-    requires: {},
-    effects: { recipes: [0, 1, 2], craftDiscount: [0, 0.1, 0.2] },
-    effectText: ['解锁「梦珊瑚枕」配方、合成费用 -10%', '解锁「星光吊坠」配方、合成费用 -20%'],
+    desc: '制作礼物与关键道具，等级越高合成越便宜。',
+    baseCost: 45,
+    effects: { recipes: [0, 1, 2, 3], craftDiscount: [0, 0.1, 0.2, 0.3] },
+    effectText: ['解锁「梦珊瑚枕」配方、合成费用 -10%', '解锁「星光吊坠」配方、合成费用 -20%', '合成费用 -30%'],
   },
   {
     id: 'observatory',
     name: '观星台',
     emoji: '🔭',
     desc: '研究图鉴、提升学习效率，2 级后可前往碎星遗迹。',
-    maxLevel: 3,
-    cost: [50, 110],
-    requires: {},
-    effects: { researchBonus: [0, 0.25, 0.5], unlockZone: [null, 'ruins', 'ruins'] },
-    effectText: ['解锁探索区域「碎星遗迹」', '研究产出 +50%'],
+    baseCost: 50,
+    effects: { researchBonus: [0, 0.25, 0.5, 0.8], unlockZone: [null, 'ruins', 'ruins', 'ruins'] },
+    effectText: ['解锁探索区域「碎星遗迹」', '研究产出 +50%', '研究产出 +80%'],
   },
   {
     id: 'garden',
     name: '苔藓花园',
     emoji: '🌱',
-    desc: '每天产出一次苔藓，并缓慢提升亲密。',
-    maxLevel: 3,
-    cost: [25, 60],
-    requires: {},
-    effects: { dailyMoss: [0, 2, 5], dailyIntimacy: [0, 1, 2] },
-    effectText: ['每天产出 2 份苔藓团、亲密 +1', '每天产出 5 份苔藓团、亲密 +2'],
+    desc: '每天产出一次苔藓，并缓慢提升亲密。等级越高产出越多。',
+    baseCost: 25,
+    effects: { dailyMoss: [0, 2, 5, 9], dailyIntimacy: [0, 1, 2, 3] },
+    effectText: ['每天产出 2 份苔藓团、亲密 +1', '每天产出 5 份苔藓团、亲密 +2', '每天产出 9 份苔藓团、亲密 +3'],
   },
 ];
 
 const BUILDING_MAP = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 function getBuilding(id) {
   return BUILDING_MAP[id];
+}
+
+/**
+ * 升到 `level` 级所需的星尘（level 无上限）
+ *
+ * 递推：cost(1) = baseCost，之后 cost(n) = round(cost(n-1) * 1.55) + 8
+ * 越往后越贵，但永远升得动（花园/厨房不需要星尘以外的材料）。
+ *
+ * @param {{baseCost: number}} def
+ * @param {number} level 目标等级（>= 1）
+ */
+function buildCostForLevel(def, level) {
+  let cost = def.baseCost;
+  for (let n = 2; n <= level; n++) {
+    cost = Math.round(cost * 1.55) + 8;
+  }
+  return cost;
+}
+
+/**
+ * 建筑效果的"基础表"（不含无限延伸部分）
+ * @param {string} id
+ * @param {string} effectKey
+ * @param {number} level
+ */
+function buildingEffectBase(id, effectKey, level) {
+  const table = BUILDING_MAP[id]?.effects?.[effectKey];
+  if (!table) return 0;
+  return table[Math.min(level, table.length - 1)] ?? 0;
 }
 
 /**
@@ -2181,22 +2347,146 @@ const BRANCH_BY_AFFINITY = Object.fromEntries(
   Object.values(EVOLUTION_BRANCHES).map((b) => [b.affinity, b]),
 );
 
-/** 进化阶段定义 */
-const STAGES = [
-  { id: 'larva', name: '幼体', emoji: '🥚', level: 1, desc: '刚在数据海里点亮的一小团光，什么都好奇。' },
-  { id: 'adult', name: '成体', emoji: '🐉', level: 10, desc: '已经能独自走过浅滩和遗迹，开始在意外面的世界。' },
-  { id: 'guardian', name: '守护体', emoji: '🌟', level: 22, desc: '光从它的脊背一直连到岛的边缘，小岛终于有了守望者。' },
+/* ------------------------------------------------------------------ */
+/* 进化阶段：基础三段 + 无限延伸的守护体形态                            */
+/* ------------------------------------------------------------------ */
+
+/** 中文数字（1~99），用于"第二形态""第三形态"…… 可以无限往后命名 */
+const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+function cnNumber(n) {
+  if (n < 10) return CN_DIGITS[n];
+  if (n < 20) return `十${n % 10 ? CN_DIGITS[n % 10] : ''}`;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return `${CN_DIGITS[tens]}十${ones ? CN_DIGITS[ones] : ''}`;
+}
+
+/** 守护体之后的形态配色（循环使用） */
+const GUARDIAN_THEMES = [
+  { emoji: '🌟', tint: 'gold' },
+  { emoji: '💫', tint: 'violet' },
+  { emoji: '🌠', tint: 'cyan' },
+  { emoji: '🔆', tint: 'rose' },
+  { emoji: '🌌', tint: 'deep' },
 ];
+
+/** 基础三段：幼体 → 成体 → 守护体 */
+const BASE_STAGES = [
+  {
+    id: 'larva',
+    name: '幼体',
+    emoji: '🥚',
+    level: 1,
+    desc: '刚在数据海里点亮的一小团光，什么都好奇。',
+  },
+  {
+    id: 'adult',
+    name: '成体',
+    emoji: '🐉',
+    level: 10,
+    desc: '已经能独自走过浅滩和遗迹，开始在意外面的世界。',
+  },
+  {
+    id: 'guardian',
+    name: '守护体',
+    emoji: '🌟',
+    level: 22,
+    desc: '光从它的脊背一直连到岛的边缘，小岛终于有了守望者。',
+  },
+];
+
+/** 守护体之后的阶段只有编号，没有终点（"无上限"） */
+const INFINITE_STAGE_MIN_LEVEL = 35;
+
+/**
+ * 生成第 n 个形态（n >= 4）
+ * Lv.35 起每 13 级一个形态，可以一直长下去。
+ */
+function guardianForm(n) {
+  const theme = GUARDIAN_THEMES[(n - 4) % GUARDIAN_THEMES.length];
+  const cycle = Math.floor((n - 4) / GUARDIAN_THEMES.length);
+  return {
+    id: `guardian_${n}`,
+    name: `守护体·${cnNumber(n)}`,
+    emoji: theme.emoji,
+    tint: theme.tint,
+    level: INFINITE_STAGE_MIN_LEVEL + (n - 4) * 13,
+    infinite: true,
+    desc:
+      cycle === 0
+        ? `第 ${cnNumber(n)}形态。它开始把岛上的光一点点收拢、再重新撒出去。`
+        : `第 ${cnNumber(n)}形态。光在它身上绕了 ${cycle} 圈，还没有要停下的意思。`,
+  };
+}
+
+/** 阶段表（幼体 → 成体 → 守护体 → 无数形态），按等级升序 */
+const STAGES = [
+  ...BASE_STAGES,
+  ...Array.from({ length: 20 }, (_, i) => guardianForm(i + 4)),
+];
+
+/**
+ * 按等级取阶段定义（内部使用；对外请用 stageForLevel / stageById）
+ * @param {number} level
+ * @returns {object} 阶段定义
+ */
+function stageDefForLevel(level) {
+  let stage = STAGES[0];
+  for (const s of STAGES) {
+    if (level >= s.level) stage = s;
+    else break;
+  }
+  return stage;
+}
+
+/** 按 id 取阶段；查不到时回退到按等级推导（兼容旧存档里的 guardian_7 之类） */
+function stageById(id) {
+  const found = STAGES.find((s) => s.id === id);
+  if (found) return found;
+  const m = /^guardian_(\d+)$/.exec(String(id ?? ''));
+  if (m) return guardianForm(Number(m[1]));
+  return null;
+}
 
 const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.id, s]));
 
 /**
- * 进化条件
- * 成体只需等级 + 亲密；守护体额外需要一个星辰晶核
+ * 进化条件（无限）
+ *
+ * - 成体：Lv.10 + 亲密 45
+ * - 守护体：Lv.22 + 亲密 70 + 星辰晶核 ×1
+ * - 之后每一个新形态：等级门槛逐级 +13，亲密门槛逐级 +15，
+ *   星辰晶核的需求量随形态递增；从第 8 形态起还需要「星种」。
+ *   没有终点。
+ *
+ * @param {string} stageId
+ * @returns {{level:number, intimacy:number, item:{id:string,amount:number}|null}}
  */
+function evolutionRequirement(stageId) {
+  if (stageId === 'adult') return { level: 10, intimacy: 45, item: null };
+  if (stageId === 'guardian') return { level: 22, intimacy: 70, item: { id: 'star_crystal_core', amount: 1 } };
+
+  const m = /^guardian_(\d+)$/.exec(String(stageId ?? ''));
+  if (!m) return { level: 1, intimacy: 0, item: null };
+
+  const n = Number(m[1]);
+  const overflow = n - 3; // 守护体是第 3 形态，之后从 1 开始递增
+  // 第 8 形态起，晶核越来越难找，改用稀有的「星种」
+  const item = n >= 8
+    ? { id: 'starseed', amount: n - 7 }
+    : { id: 'star_crystal_core', amount: overflow };
+
+  return {
+    level: INFINITE_STAGE_MIN_LEVEL + (n - 4) * 13,
+    intimacy: 70 + overflow * 15,
+    item,
+  };
+}
+
+/** 兼容旧调用：前三段的固定需求 */
 const EVOLUTION_REQUIREMENTS = {
-  adult: { level: 10, intimacy: 45, item: null, bonus: { researchYield: 0.1 } },
-  guardian: { level: 22, intimacy: 70, item: { id: 'star_crystal_core', amount: 1 }, bonus: {} },
+  adult: evolutionRequirement('adult'),
+  guardian: evolutionRequirement('guardian'),
 };
 
 /** 状态条的字段与中文名 */
@@ -2227,9 +2517,21 @@ function expForLevel(level) {
   return 40 + (level - 1) * 18;
 }
 
-/** 状态与属性的显示上限（超出即按上限显示） */
-const STAT_MAX = 100;
-const ATTR_MAX = 99;
+/**
+ * 状态条的"舒适线"
+ *
+ * 注意：这不是硬上限。饱食/心情/亲密可以超过 100，超出的部分在 UI 上显示为
+ * 「溢出加成」，并在离线结算时作为缓冲先被消耗掉 —— 也就是说：
+ * 把它喂得饱饱的再下线，回来时状态不会那么难看。
+ *
+ * 只有达到舒适线时才拒绝继续喂食/清洁（避免浪费行动点）。
+ */
+const COMFORT_MAX = 100;
+/** 舒适线以上的部分最多能存多少（超过就真的浪费了） */
+const STAT_OVERFLOW_CAP = 200;
+
+/** 参数占位：属性无上限，这里只保留一个用于 UI 分档显示的参考值 */
+const ATTR_REFERENCE = 50;
 
 /** 离线结算相关参数 */
 const OFFLINE = {
@@ -2506,26 +2808,58 @@ function emit() {
 /* 规则函数                                                            */
 /* ------------------------------------------------------------------ */
 
-/** 读取某个状态条（已 clamp） */
+/**
+ * 读取某个状态条
+ *
+ * 注意：状态条**不是硬上限 100**。100 是"舒适线"，超过之后进入"溢出区"
+ * （最多 COMFORT_MAX + STAT_OVERFLOW_CAP），离线时会先消耗溢出部分。
+ */
 function getStat(state, key) {
-  return clamp(state.pet.stats[key] ?? 0, 0, STAT_MAX);
+  return Math.max(0, Number(state.pet.stats[key]) || 0);
 }
 
-/** 修改状态条，返回实际变化量 */
+/** 状态条的绝对上限（舒适线 + 溢出区） */
+const STAT_ABSOLUTE_MAX = COMFORT_MAX + STAT_OVERFLOW_CAP;
+
+/**
+ * 按"先吃溢出、再吃本体"的顺序扣除状态
+ *
+ * 因为状态可以超过舒适线 100，超出的部分就是留给离线的缓冲：
+ * 先把 100 以上的部分吃掉，再动 100 以下的核心值，最多扣到 floor 为止。
+ *
+ * @param {object} state
+ * @param {string} key
+ * @param {number} amount 想要扣除的量（正数）
+ * @param {number} [floor] 核心值的最低保留线
+ * @returns {number} 实际扣掉的量
+ */
+function absorbStat(state, key, amount, floor = 0) {
+  if (!(amount > 0)) return 0;
+  const current = getStat(state, key);
+  const target = Math.max(floor, current - amount);
+  state.pet.stats[key] = target;
+  return current - target;
+}
+
+/** 修改状态条，返回实际变化量（上限为绝对上限，不是 100） */
 function addStat(state, key, delta) {
   const before = getStat(state, key);
-  state.pet.stats[key] = clamp(before + delta, 0, STAT_MAX);
+  state.pet.stats[key] = clamp(before + delta, 0, STAT_ABSOLUTE_MAX);
   return state.pet.stats[key] - before;
 }
 
-/** 修改成长属性（上限 ATTR_MAX） */
+/**
+ * 修改成长属性（**无上限**）
+ *
+ * 属性可以一直涨，用来支撑"无上限养成"。它只影响展示与稀有掉落加成。
+ */
 function addAttr(state, key, delta) {
-  const before = clamp(state.pet.attrs[key] ?? 0, 0, ATTR_MAX);
-  state.pet.attrs[key] = clamp(before + delta, 0, ATTR_MAX);
+  const before = Math.max(0, Number(state.pet.attrs[key]) || 0);
+  state.pet.attrs[key] = Math.max(0, before + delta);
   return state.pet.attrs[key] - before;
 }
 
-/** 增加倾向值 */
+/** 增加倾向值（无上限） */
 function addAffinity(state, tendency, amount = 1) {
   if (!tendency) return;
   for (const [key, value] of Object.entries(tendency)) {
@@ -2538,35 +2872,40 @@ function buildingLevel(state, id) {
   return state.buildings?.[id] ?? 0;
 }
 
-/** 取建筑在指定等级下的效果值 */
+/**
+ * 取建筑在指定等级下的效果值
+ *
+ * effects 表只覆盖前几级；超出后用"最后两档的正向增量"继续线性外推，
+ * 保证"等级越高效果越好"这条性质永远不会被破坏（哪怕最后一档是递减的
+ * 布尔/递减序列，也会退化为按 +1 增长）。
+ */
 function buildingEffect(state, id, effectKey) {
   const def = BUILDING_MAP[id];
   const level = buildingLevel(state, id);
   const table = def?.effects?.[effectKey];
-  if (!table) return 0;
-  return table[Math.min(level, table.length - 1)] ?? 0;
+  if (!table || table.length === 0) return 0;
+  if (level < table.length) return table[level] ?? 0;
+
+  const last = table[table.length - 1] ?? 0;
+  const prev = table.length >= 2 ? table[table.length - 2] ?? 0 : 0;
+  // 增量必须为正，否则"升级反而变差"
+  let step = last - prev;
+  if (!(step > 0)) step = typeof last === 'number' && last > 0 ? Math.max(1, Math.round(last * 0.5)) : 1;
+  return last + step * (level - table.length + 1);
 }
 
 /** 行动点上限 */
 function maxActionPoints(state) {
-  return ACTION.baseMax + (buildingEffect(state, 'nursery', 'apBonus') || 0);
-}
-
-/** 进化阶段（根据 level 推导，但允许存档记录更保守的阶段） */
-function stageForLevel(level) {
-  let stage = STAGES[0].id;
-  for (const s of STAGES) if (level >= s.level) stage = s.id;
-  return stage;
+  return Math.round(ACTION.baseMax + (buildingEffect(state, 'nursery', 'apBonus') || 0));
 }
 
 /** 进化是否可用；返回 { ok, reasons, next } */
 function checkEvolution(state) {
   const level = state.pet.level;
-  const next = stageForLevel(level);
+  const next = stageDefForLevel(level).id;
   if (next === state.pet.stage) return { ok: false, reasons: [], next: null };
-  const req = EVOLUTION_REQUIREMENTS[next];
+  const req = evolutionRequirement(next);
   const reasons = [];
-  if (!req) return { ok: false, reasons: [], next: null };
   if (level < req.level) reasons.push(`等级不足（需要 ${req.level} 级）`);
   if (getStat(state, 'intimacy') < req.intimacy) reasons.push(`亲密不足（需要 ${req.intimacy}）`);
   if (req.item && (state.inventory[req.item.id] ?? 0) < req.item.amount) {
@@ -2604,12 +2943,13 @@ function evolve(state) {
   if (!ok || !next) {
     return { ok: false, message: reasons[0] ?? '现在还不到进化的时候。' };
   }
-  const req = EVOLUTION_REQUIREMENTS[next];
+  const req = evolutionRequirement(next);
   if (req.item) {
     state.inventory[req.item.id] = (state.inventory[req.item.id] ?? 0) - req.item.amount;
+    if (state.inventory[req.item.id] <= 0) delete state.inventory[req.item.id];
   }
   state.pet.stage = next;
-  const stageDef = STAGE_MAP[next];
+  const stageDef = STAGE_MAP[next] ?? stageById(next);
   let branchMsg = '';
   if (next === 'adult') {
     const branch = decideBranch(state);
@@ -2623,11 +2963,13 @@ function evolve(state) {
   if (next === 'guardian') {
     state.codex.encounters['evolution_guardian'] = true;
   }
+  // 记一笔"形态"图鉴，让无上限的进化也能被收集
+  discoverEncounter(state, `stage_${next}`);
   return {
     ok: true,
     stage: next,
     branch: state.pet.branch,
-    message: `星兽进化了：${stageDef.name}。${branchMsg}`,
+    message: `星兽进化了：${stageDef?.name ?? next}。${branchMsg}`,
   };
 }
 
@@ -2772,12 +3114,14 @@ function applyDailyReset(state, ts = now()) {
   state.actionPoints = clamp(before + ACTION.base * days, 0, max);
   state.lastApReset = ts;
 
-  // 苔藓花园每日产出
+  // 苔藓花园每日产出（等级无上限，走 buildingEffect 的外推，而不是直接查表）
   const gardenItems = [];
   const gardenLevel = buildingLevel(state, 'garden');
   if (gardenLevel > 0) {
-    const moss = state.pet ? (BUILDING_MAP.garden.effects.dailyMoss[gardenLevel] ?? 0) * days : 0;
-    const intimacy = (BUILDING_MAP.garden.effects.dailyIntimacy[gardenLevel] ?? 0) * days;
+    const perDayMoss = buildingEffect(state, 'garden', 'dailyMoss');
+    const perDayIntimacy = buildingEffect(state, 'garden', 'dailyIntimacy');
+    const moss = perDayMoss * days;
+    const intimacy = perDayIntimacy * days;
     if (moss > 0) {
       addItem(state, 'moss_ball', moss);
       gardenItems.push({ id: 'moss_ball', amount: moss });
@@ -2847,7 +3191,7 @@ function careAction(state, kind, itemId = null) {
   const careBonus = 1 + (branch?.bonus?.careGain ?? 0);
 
   if (kind === 'feed') {
-    if (getStat(state, 'hunger') >= STAT_MAX) return { ok: false, message: '它已经很饱了，再吃要撑到。' };
+    if (getStat(state, 'hunger') >= STAT_ABSOLUTE_MAX) return { ok: false, message: '它已经撑到极限了，别再喂了。' };
     const food = itemId ? ITEM_MAP[itemId] : null;
     if (itemId) {
       if (!food || !food.use?.hunger) return { ok: false, message: '这个不能吃。' };
@@ -2873,7 +3217,7 @@ function careAction(state, kind, itemId = null) {
   }
 
   if (kind === 'clean') {
-    if (getStat(state, 'mood') >= STAT_MAX) return { ok: false, message: '它现在心情好得不需要安慰了。' };
+    if (getStat(state, 'mood') >= STAT_ABSOLUTE_MAX) return { ok: false, message: '它现在开心得快溢出来了。' };
     const applied = {
       mood: Math.round(ACTION.gain.clean.mood * careBonus),
       intimacy: Math.round(ACTION.gain.clean.intimacy * careBonus),
@@ -2953,22 +3297,35 @@ function craft(state, recipeId) {
 }
 
 /**
- * 升级建筑
+ * 建筑升级所需星尘（等级无上限）
+ * @param {string} buildingId
+ * @param {number} targetLevel 目标等级
+ */
+function buildingUpgradeCost(buildingId, targetLevel) {
+  const def = BUILDING_MAP[buildingId];
+  if (!def) return Infinity;
+  return buildCostForLevel(def, Math.max(1, targetLevel));
+}
+
+/**
+ * 升级建筑（最多可升到 BUILDING_LEVEL_SOFT_CAP，实际上等于没有上限）
  * @returns {{ok: boolean, message: string}}
  */
 function upgradeBuilding(state, buildingId) {
   const def = BUILDING_MAP[buildingId];
   if (!def) return { ok: false, message: '建筑不存在。' };
   const level = buildingLevel(state, buildingId);
-  if (level >= def.maxLevel) return { ok: false, message: '已经是最高等级了。' };
-  const cost = def.cost[level - 1] ?? def.cost[def.cost.length - 1];
+  if (level >= BUILDING_LEVEL_SOFT_CAP) {
+    return { ok: false, message: `已经到 ${BUILDING_LEVEL_SOFT_CAP} 级了，再高会把岛压沉。` };
+  }
+  const cost = buildingUpgradeCost(buildingId, level + 1);
   if ((state.inventory.stardust ?? 0) < cost) return { ok: false, message: `星尘不足（需要 ${cost}）。` };
   removeItem(state, 'stardust', cost);
   state.buildings[buildingId] = level + 1;
   addExp(state, 10);
   return {
     ok: true,
-    message: `「${def.name}」升到 ${level + 1} 级。${def.effectText[level - 1] ?? ''}`,
+    message: `「${def.name}」升到 ${level + 1} 级。${def.effectText[level] ?? ''}`,
   };
 }
 
@@ -3263,18 +3620,19 @@ function resolveTask(state, opts) {
   const drain = TASK_DRAIN_PER_HOUR[taskDef.id] ?? TASK_DRAIN_PER_HOUR.gather;
   const deltas = {};
   for (const [key, perHour] of Object.entries(drain)) {
-    let raw = perHour * effectiveHours;
     if (perHour > 0) {
-      // 消耗类：不会跌破安全下限
-      const room = Math.max(0, state.pet.stats[key] - STAT_FLOOR[key]);
-      raw = -Math.min(raw, room);
+      // 消耗类：先吃溢出区（>100 的缓冲），再动核心值，不跌破 STAT_FLOOR
+      const real = Math.round(absorbStat(state, key, perHour * effectiveHours, STAT_FLOOR[key]));
+      if (real !== 0) deltas[key] = -real;
+    } else if (perHour < 0) {
+      // 负数表示恢复（休息）
+      let gain = -perHour * effectiveHours;
+      // 休息额外加成来自孵化舱
+      if (taskDef.tags?.includes('rest')) {
+        gain *= 1 + (state.buildings.nursery >= 2 ? 0.25 : 0);
+      }
+      if (gain !== 0) deltas[key] = Math.round(gain);
     }
-    if (raw !== 0) deltas[key] = Math.round(raw);
-  }
-  // 休息额外加成来自孵化舱
-  if (taskDef.tags?.includes('rest')) {
-    const restBonus = 1 + (state.buildings.nursery >= 2 ? 0.25 : 0);
-    if (deltas.energy) deltas.energy = Math.round(deltas.energy * restBonus);
   }
   const appliedDeltas = applyDeltas(state, deltas);
 
@@ -3578,17 +3936,20 @@ function applyIdleTime(state, ms, randomSeed, baseTs, report) {
   const hours = ms / 3600000;
   if (hours <= 0) return;
 
-  // 1. 状态消耗（不会跌破安全下限，避免上线就看到一只快饿死的星兽）
-  const deltas = {};
+  // 1. 状态消耗
+  //    状态可以超过舒适线 100，超出的部分就是留给你离线的缓冲：
+  //    先吃溢出，再动核心值，最多扣到 IDLE_FLOOR 为止。
+  const applied = {};
   for (const [key, perHour] of Object.entries(IDLE_DRAIN_PER_HOUR)) {
-    let raw = perHour * hours;
-    if (perHour > 0) {
-      const room = Math.max(0, state.pet.stats[key] - IDLE_FLOOR[key]);
-      raw = -Math.min(raw, room);
+    if (perHour <= 0) {
+      // 负数表示恢复（目前没有这种项，保留以兼容将来调整）
+      const gained = applyDeltas(state, { [key]: Math.round(-perHour * hours) });
+      Object.assign(applied, gained);
+      continue;
     }
-    if (raw !== 0) deltas[key] = Math.round(raw);
+    const real = Math.round(absorbStat(state, key, perHour * hours, IDLE_FLOOR[key]));
+    if (real !== 0) applied[key] = -real;
   }
-  const applied = applyDeltas(state, deltas);
   report.idleDeltas = applied;
 
   // 2. 事件：按时间片数量决定最多触发几次
@@ -3853,8 +4214,16 @@ function fillDefaults(save) {
 
   data.pet = data.pet ?? {};
   data.pet.name = str(data.pet.name, base.pet.name);
+  // 状态条：允许超过 100（溢出区），所以这里只做"非负 + 数值化"，不截断
   data.pet.stats = { ...base.pet.stats, ...(isPlainObject(data.pet.stats) ? data.pet.stats : {}) };
+  for (const [key, value] of Object.entries(data.pet.stats)) {
+    data.pet.stats[key] = Math.max(0, num(value, 0));
+  }
+  // 成长属性：**无上限**，只保证非负
   data.pet.attrs = { ...base.pet.attrs, ...(isPlainObject(data.pet.attrs) ? data.pet.attrs : {}) };
+  for (const [key, value] of Object.entries(data.pet.attrs)) {
+    data.pet.attrs[key] = Math.max(0, num(value, 0));
+  }
   data.pet.level = Math.max(1, Math.floor(num(data.pet.level, 1)));
   data.pet.exp = Math.max(0, num(data.pet.exp, 0));
   data.pet.stage = str(data.pet.stage, base.pet.stage);
@@ -4460,7 +4829,6 @@ function summarizeSave(save) {  if (!save) return null;
 
 
 
-
 /* ------------------------------------------------------------------ */
 /* 小工具                                                              */
 /* ------------------------------------------------------------------ */
@@ -4596,16 +4964,87 @@ function flashSaveChip(text) {
 /* 主界面                                                              */
 /* ------------------------------------------------------------------ */
 
+/** 所有可能的"状态 class"，渲染前需要先清掉 */
+const PET_MOOD_CLASSES = ['mood-normal', 'mood-hungry', 'mood-sad', 'mood-sleepy', 'mood-loved'];
+
+/**
+ * 计算星兽当前应该长什么样
+ *
+ * 形象由两部分叠加：
+ *  1. 阶段 emoji（幼体按等级再细分，成体看分支，守护体有无穷形态）
+ *  2. 状态表情覆盖（饿 / 低落 / 睡着 / 亲密）
+ *
+ * @param {object} pet state.pet
+ * @param {object} stage 阶段定义（来自 STAGE_MAP / stageById）
+ * @returns {{emoji: string, mood: string, moodLabel: string, tip: string}}
+ */
+function petLook(pet, stage) {
+  const stats = pet?.stats ?? {};
+  const hunger = stats.hunger ?? 0;
+  const moodValue = stats.mood ?? 0;
+  const energy = stats.energy ?? 0;
+  const intimacy = stats.intimacy ?? 0;
+  const level = pet?.level ?? 1;
+
+  // ---- 阶段形象 ----
+  let base = stage?.emoji ?? '🥚';
+  if (stage?.id === 'larva') {
+    // 幼体内部再分两段，避免一直是一个蛋
+    base = level >= 5 ? '🐣' : '🥚';
+  } else if (stage?.id === 'adult') {
+    base = { traveler: '🦅', scholar: '🦉', gardener: '🐢' }[pet?.branch] ?? '🐉';
+  }
+
+  // ---- 状态覆盖（优先级：睡着 > 饿 > 低落 > 亲密 > 正常）----
+  let mood = 'normal';
+  let moodLabel = '状态不错';
+  let emoji = base;
+  let tip = '';
+
+  if (energy <= 20) {
+    mood = 'sleepy';
+    moodLabel = '困得不行';
+    emoji = '😴';
+    tip = '精力见底了，安排一次「休息」吧。';
+  } else if (hunger <= 25) {
+    mood = 'hungry';
+    moodLabel = '饿扁了';
+    emoji = '🥺';
+    tip = '饱食很低，喂点东西，不然出任务会掉状态。';
+  } else if (moodValue <= 25) {
+    mood = 'sad';
+    moodLabel = '有点低落';
+    emoji = '🫠';
+    tip = '心情不太好，清洁或抚摸一下它。';
+  } else if (intimacy >= 70) {
+    mood = 'loved';
+    moodLabel = '很黏你';
+    emoji = base;
+    tip = '它已经很信任你了。';
+  }
+
+  return { emoji, mood, moodLabel, tip };
+}
+
 function renderHome(state) {
   const pet = state.pet;
-  const stage = STAGE_MAP[pet.stage] ?? STAGE_MAP.larva;
+  const stage = STAGE_MAP[pet.stage] ?? stageById(pet.stage) ?? STAGE_MAP.larva;
   const branch = pet.branch ? EVOLUTION_BRANCHES[pet.branch] : null;
 
-  $('petEmoji').textContent = stage.emoji;
+  // 形象：阶段 + 状态联动
+  const look = petLook(pet, stage);
+  $('petEmoji').textContent = look.emoji;
+
+  // mood class 用增删而不是重置 className，避免覆盖掉 is-happy / is-away
+  const avatar = $('petAvatar');
+  for (const name of PET_MOOD_CLASSES) avatar.classList.remove(name);
+  avatar.classList.add(`mood-${look.mood}`);
+  avatar.classList.toggle('is-away', Boolean(state.task.active));
+  $('petMood').textContent = look.tip ? `${look.moodLabel} · ${look.tip}` : look.moodLabel;
+
   $('petName').textContent = pet.name;
   $('petStage').textContent = `${stage.name} · ${branch ? `${branch.emoji} ${branch.name}` : '分支未定'}`;
   $('petLevel').textContent = String(pet.level);
-  $('petAvatar').classList.toggle('is-away', Boolean(state.task.active));
 
   // 经验条
   const need = expForLevel(pet.level);
@@ -4613,29 +5052,36 @@ function renderHome(state) {
   $('expFill').style.width = `${(ratio * 100).toFixed(1)}%`;
   $('expText').textContent = `${Math.floor(pet.exp)} / ${need}`;
 
-  // 状态条
+  // 状态条：100 是"舒适线"，超过的部分显示为溢出加成
   $('statBars').innerHTML = STAT_KEYS.map((key) => {
-    const value = clamp(state.pet.stats[key.id] ?? 0, 0, STAT_MAX);
+    const value = Math.max(0, state.pet.stats[key.id] ?? 0);
     const low = value <= 25;
+    const overflow = Math.max(0, value - COMFORT_MAX);
+    // 条形图只画到舒适线；溢出时整条填满并加一条"溢出"标记
+    const fillPct = clamp((value / COMFORT_MAX) * 100, 0, 100);
     return `
       <div class="stat${low ? ' is-low' : ''}">
         <span class="stat__label">${key.emoji} ${esc(key.name)}</span>
         <span class="bar"><span class="bar__fill bar__fill--${key.id}${
           low ? ' is-low' : ''
-        }" style="width:${value}%"></span></span>
-        <span class="stat__value">${Math.round(value)}</span>
+        }${overflow > 0 ? ' is-full' : ''}" style="width:${fillPct.toFixed(1)}%"></span></span>
+        <span class="stat__value">${Math.round(value)}${
+          overflow > 0 ? `<em class="stat__overflow">+${Math.round(overflow)}</em>` : ''
+        }</span>
       </div>`;
   }).join('');
 
-  // 成长属性
-  $('attrList').innerHTML = ATTR_KEYS.map(
-    (key) => `
+  // 成长属性（无上限，数值大时自动缩短显示）
+  $('attrList').innerHTML = ATTR_KEYS.map((key) => {
+    const raw = Math.max(0, state.pet.attrs[key.id] ?? 0);
+    const value = raw >= 10000 ? `${(raw / 1000).toFixed(1)}k` : String(Math.round(raw));
+    return `
       <div class="attr">
         <span class="attr__icon">${key.emoji}</span>
         <span class="attr__name">${esc(key.name)}</span>
-        <span class="attr__value">${Math.round(state.pet.attrs[key.id] ?? 0)}</span>
-      </div>`,
-  ).join('');
+        <span class="attr__value">${value}</span>
+      </div>`;
+  }).join('');
 
   // 当前安排
   const box = $('homeTaskBox');
@@ -4714,7 +5160,7 @@ function renderEvolutionEntry(state) {
     <button class="btn ${check.ok ? 'btn--primary' : 'is-disabled'} btn--block" data-action="evolve" ${
       check.ok ? '' : 'disabled'
     }>
-      🌟 进化到「${esc(STAGE_MAP[check.next]?.name ?? check.next)}」${check.ok ? '' : '（条件不足）'}
+      🌟 进化到「${esc(stageById(check.next)?.name ?? check.next)}」${check.ok ? '' : '（条件不足）'}
     </button>
     ${
       check.ok
@@ -5036,23 +5482,31 @@ function visitorName(id) {
 function renderSettings(state, save) {
   // 本地存储不可用时给出明确警告（file:// 下的 Firefox / Safari，或隐私模式）
   const persistenceWarning = !isPersistentStorage();
-  $('buildingList').innerHTML = BUILDINGS.map((b) => {    const level = state.buildings[b.id] ?? 0;
-    const maxed = level >= b.maxLevel;
-    const cost = maxed ? 0 : b.cost[level - 1] ?? b.cost[b.cost.length - 1];
-    const affordable = (state.inventory.stardust ?? 0) >= cost;
-    const nextEffect = maxed ? null : b.effectText[level] ?? b.effectText[b.effectText.length - 1];
+  const stardust = state.inventory.stardust ?? 0;
+
+  $('buildingList').innerHTML = BUILDINGS.map((b) => {
+    const level = state.buildings[b.id] ?? 0;
+    const capped = level >= BUILDING_LEVEL_SOFT_CAP;
+    const cost = capped ? 0 : buildCostForLevel(b, level + 1);
+    const affordable = !capped && stardust >= cost;
+    // 效果文案：表内有就用表内，超出后说明"继续按每级递增"
+    const nextEffect = capped
+      ? null
+      : b.effectText[level] ?? '效果继续按每级递增（等级无上限）';
+    const progress = Math.min(100, (level / BUILDING_LEVEL_SOFT_CAP) * 100);
     return `
       <div class="building">
         <div class="building__head">
           <span class="building__emoji">${b.emoji}</span>
           <span class="building__name">${esc(b.name)}</span>
-          <span class="building__level">Lv.${level}/${b.maxLevel}</span>
+          <span class="building__level">Lv.${level}</span>
         </div>
+        <div class="building__bar"><span style="width:${progress.toFixed(1)}%"></span></div>
         <p class="building__desc">${esc(b.desc)}</p>
         ${
-          maxed
-            ? `<p class="building__effect">已达最高等级</p>`
-            : `<p class="building__next">下一级：${esc(nextEffect ?? '')}</p>
+          capped
+            ? `<p class="building__effect">已达 ${BUILDING_LEVEL_SOFT_CAP} 级（软上限）</p>`
+            : `<p class="building__next">下一级（Lv.${level + 1}）：${esc(nextEffect ?? '')}</p>
                <button class="btn btn--sm ${affordable ? 'btn--primary' : 'is-disabled'}" data-action="upgrade" data-building="${
                  b.id
                }" ${affordable ? '' : 'disabled'}>升级（✨${cost}）</button>`
@@ -5263,18 +5717,20 @@ function actionEvolve() {
     toast(result.message, 'bad');
     return;
   }
+  const evolvedStage = stageById(result.stage) ?? STAGE_MAP.larva;
   openModal({
     title: '🌟 进化',
     body: `
       <div class="event__banner">
-        <span class="event__emoji">${STAGE_MAP[result.stage]?.emoji ?? '🌟'}</span>
+        <span class="event__emoji">${evolvedStage.emoji}</span>
         <div>
-          <div class="event__title">${esc(STAGE_MAP[result.stage]?.name ?? '')}</div>
-          <div class="event__sub">${esc(STAGE_MAP[result.stage]?.desc ?? '')}</div>
+          <div class="event__title">${esc(evolvedStage.name)}</div>
+          <div class="event__sub">${esc(evolvedStage.desc ?? '')}</div>
         </div>
       </div>
       ${branch ? `<p class="event__text">它选择了「${esc(branch.name)}」的道路。<br />${esc(branch.desc)}</p>
         <p class="muted small">${esc(branch.bonusText)}</p>` : '<p class="event__text">它还小，但光已经开始稳稳地亮着。</p>'}
+      ${evolvedStage.infinite ? '<p class="muted small">形态还没有尽头 —— 它可以一直长下去。</p>' : ''}
     `,
     foot: `<button class="btn btn--primary btn--block" data-close-modal>继续</button>`,
   });
@@ -5639,7 +6095,7 @@ function handleImportText(text) {
     title: '🛰️ 胶囊预览',
     body: `
       <div class="event__banner">
-        <span class="event__emoji">${STAGE_MAP[incoming.data.pet.stage]?.emoji ?? '🌟'}</span>
+        <span class="event__emoji">${stageById(incoming.data.pet.stage)?.emoji ?? '🌟'}</span>
         <div>
           <div class="event__title">${esc(incoming.data.pet.name)} · Lv.${incoming.data.pet.level}</div>
           <div class="event__sub">来自设备 ${esc(String(incoming.deviceId).slice(0, 14))}… · 存档 v${incoming.v}</div>
@@ -6010,8 +6466,8 @@ function checkAndShowEvolution() {
     body: `
       <p class="event__text">
         你能感觉到它体内那点光正在重新排列。
-        现在可以让它进化到「<b>${esc(STAGE_MAP[check.next]?.name ?? '')}</b>」——
-        ${esc(STAGE_MAP[check.next]?.desc ?? '')}
+        现在可以让它进化到「<b>${esc(stageById(check.next)?.name ?? '')}</b>」——
+        ${esc(stageById(check.next)?.desc ?? '')}
       </p>
       <p class="muted small">进化会消耗满足条件的物品，并根据这段时间的照顾与探索方式决定分支。</p>
     `,

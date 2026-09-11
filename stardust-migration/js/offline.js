@@ -15,7 +15,7 @@
 import { OFFLINE, TASK_MAP } from './data.js';
 import { autoResolveEvent, pickEventForZone } from './events.js';
 import { createRng, hash32 } from './rng.js';
-import { addExp, addItem, applyDeltas, checkAutoAchievements, store, syncZoneUnlocks } from './state.js';
+import { addExp, addItem, applyDeltas, absorbStat, checkAutoAchievements, store, syncZoneUnlocks } from './state.js';
 import { resolveTask } from './tasks.js';
 import { formatDuration, now as currentTime } from './time.js';
 import { describeItems, mergeItems } from './utils.js';
@@ -181,17 +181,20 @@ function applyIdleTime(state, ms, randomSeed, baseTs, report) {
   const hours = ms / 3600000;
   if (hours <= 0) return;
 
-  // 1. 状态消耗（不会跌破安全下限，避免上线就看到一只快饿死的星兽）
-  const deltas = {};
+  // 1. 状态消耗
+  //    状态可以超过舒适线 100，超出的部分就是留给你离线的缓冲：
+  //    先吃溢出，再动核心值，最多扣到 IDLE_FLOOR 为止。
+  const applied = {};
   for (const [key, perHour] of Object.entries(IDLE_DRAIN_PER_HOUR)) {
-    let raw = perHour * hours;
-    if (perHour > 0) {
-      const room = Math.max(0, state.pet.stats[key] - IDLE_FLOOR[key]);
-      raw = -Math.min(raw, room);
+    if (perHour <= 0) {
+      // 负数表示恢复（目前没有这种项，保留以兼容将来调整）
+      const gained = applyDeltas(state, { [key]: Math.round(-perHour * hours) });
+      Object.assign(applied, gained);
+      continue;
     }
-    if (raw !== 0) deltas[key] = Math.round(raw);
+    const real = Math.round(absorbStat(state, key, perHour * hours, IDLE_FLOOR[key]));
+    if (real !== 0) applied[key] = -real;
   }
-  const applied = applyDeltas(state, deltas);
   report.idleDeltas = applied;
 
   // 2. 事件：按时间片数量决定最多触发几次

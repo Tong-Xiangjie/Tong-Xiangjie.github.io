@@ -13,6 +13,7 @@ import {
   addAttr,
   addExp,
   addItem,
+  absorbStat,
   applyDeltas,
   checkAutoAchievements,
   markZoneVisited,
@@ -138,18 +139,19 @@ export function resolveTask(state, opts) {
   const drain = TASK_DRAIN_PER_HOUR[taskDef.id] ?? TASK_DRAIN_PER_HOUR.gather;
   const deltas = {};
   for (const [key, perHour] of Object.entries(drain)) {
-    let raw = perHour * effectiveHours;
     if (perHour > 0) {
-      // 消耗类：不会跌破安全下限
-      const room = Math.max(0, state.pet.stats[key] - STAT_FLOOR[key]);
-      raw = -Math.min(raw, room);
+      // 消耗类：先吃溢出区（>100 的缓冲），再动核心值，不跌破 STAT_FLOOR
+      const real = Math.round(absorbStat(state, key, perHour * effectiveHours, STAT_FLOOR[key]));
+      if (real !== 0) deltas[key] = -real;
+    } else if (perHour < 0) {
+      // 负数表示恢复（休息）
+      let gain = -perHour * effectiveHours;
+      // 休息额外加成来自孵化舱
+      if (taskDef.tags?.includes('rest')) {
+        gain *= 1 + (state.buildings.nursery >= 2 ? 0.25 : 0);
+      }
+      if (gain !== 0) deltas[key] = Math.round(gain);
     }
-    if (raw !== 0) deltas[key] = Math.round(raw);
-  }
-  // 休息额外加成来自孵化舱
-  if (taskDef.tags?.includes('rest')) {
-    const restBonus = 1 + (state.buildings.nursery >= 2 ? 0.25 : 0);
-    if (deltas.energy) deltas.energy = Math.round(deltas.energy * restBonus);
   }
   const appliedDeltas = applyDeltas(state, deltas);
 

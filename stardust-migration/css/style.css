@@ -432,16 +432,89 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
   cursor: pointer;
 }
 
+/* --------------------------------------------------------------------------
+   星兽形象：状态联动
+   形象只有 emoji 一个字符，所以"状态"靠颜色、光晕与动作来强化：
+     mood-normal 正常 / mood-hungry 饿 / mood-sad 低落 / mood-sleepy 困
+     mood-loved  亲密（额外一圈粉色光晕）
+   -------------------------------------------------------------------------- */
+
 .pet__emoji {
+  position: relative;
   font-size: 54px;
   line-height: 1;
   filter: drop-shadow(0 0 14px rgba(127, 212, 255, 0.55));
   animation: breathe 3.4s ease-in-out infinite;
-  transition: transform 0.18s ease;
+  transition: transform 0.18s ease, filter 0.5s ease;
+}
+
+/* 顶上的一小团星光，让 emoji 看起来属于这个世界
+   注意：颜色必须显式给，不能依赖 currentColor —— emoji 是彩色字形，
+   currentColor 在这种情况下可能解析成继承来的奇怪颜色（曾渲染成橙色糊块）。 */
+.pet__emoji::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--pet-glow, rgba(127, 212, 255, 0.5)) 0%, transparent 68%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 正常：柔和的星尘蓝 */
+.pet.mood-normal {
+  --pet-glow: rgba(127, 212, 255, 0.45);
+}
+.pet.mood-normal .pet__emoji {
+  filter: drop-shadow(0 0 16px rgba(127, 212, 255, 0.6));
+}
+
+/* 饿：发黄、轻微发暗、呼吸变快像在喘气 */
+.pet.mood-hungry {
+  --pet-glow: rgba(255, 196, 107, 0.45);
+}
+.pet.mood-hungry .pet__emoji {
+  filter: drop-shadow(0 0 12px rgba(255, 196, 107, 0.55)) saturate(0.85);
+  animation: breathe 1.5s ease-in-out infinite;
+}
+
+/* 低落：去饱和、下沉、几乎不动 */
+.pet.mood-sad {
+  --pet-glow: rgba(160, 175, 210, 0.3);
+}
+.pet.mood-sad .pet__emoji {
+  filter: drop-shadow(0 0 8px rgba(160, 175, 210, 0.35)) grayscale(0.55);
+  animation: mope 4.6s ease-in-out infinite;
+}
+
+/* 困：变蓝紫，身体慢慢往下沉 */
+.pet.mood-sleepy {
+  --pet-glow: rgba(183, 156, 255, 0.4);
+}
+.pet.mood-sleepy .pet__emoji {
+  filter: drop-shadow(0 0 10px rgba(183, 156, 255, 0.45));
+  animation: doze 5.2s ease-in-out infinite;
+}
+
+/* 亲密：粉色光晕 + 缓慢的彩色漂移 */
+.pet.mood-loved {
+  --pet-glow: rgba(255, 158, 199, 0.55);
+}
+.pet.mood-loved .pet__emoji {
+  filter: drop-shadow(0 0 20px rgba(255, 158, 199, 0.75)) drop-shadow(0 0 34px rgba(183, 156, 255, 0.4));
+  animation: breathe 3.6s ease-in-out infinite, glowShift 6s ease-in-out infinite;
 }
 
 .pet.is-happy .pet__emoji { animation: bounce 0.55s ease 2; }
-.pet.is-away .pet__emoji { opacity: 0.4; filter: grayscale(0.4); }
+.pet.is-away .pet__emoji {
+  opacity: 0.42;
+  filter: grayscale(0.5) drop-shadow(0 0 8px rgba(127, 212, 255, 0.3));
+  animation: breathe 5.5s ease-in-out infinite;
+}
 
 @keyframes breathe {
   0%, 100% { transform: translateY(0) scale(1); }
@@ -453,6 +526,36 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
   40% { transform: translateY(-16px) scale(1.1); }
 }
 
+/* 低落：缓慢地缩着 */
+@keyframes mope {
+  0%, 100% { transform: translateY(3px) scale(0.96); }
+  50% { transform: translateY(5px) scale(0.95); }
+}
+
+/* 困：上下点头 */
+@keyframes doze {
+  0%, 100% { transform: translateY(0) rotate(-3deg) scale(1); }
+  50% { transform: translateY(4px) rotate(3deg) scale(0.98); }
+}
+
+@keyframes glowShift {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(255, 158, 199, 0.75)); }
+  50% { filter: drop-shadow(0 0 20px rgba(183, 156, 255, 0.8)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet__emoji { animation: none !important; }
+}
+
+/* 状态说明文字 */
+.pet-mood {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.pet-mood:empty { display: none; }
+
 .pet__shadow {
   position: absolute;
   bottom: -8px;
@@ -461,6 +564,34 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.45);
   filter: blur(4px);
+}
+
+/* 状态条溢出标记（>100 的缓冲） */
+.stat__overflow {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.bar__fill.is-full {
+  box-shadow: 0 0 10px rgba(127, 212, 255, 0.65);
+}
+
+/* 建筑等级进度 */
+.building__bar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 4px 0 6px;
+}
+
+.building__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
 .pet-head {

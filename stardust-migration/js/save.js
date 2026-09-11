@@ -160,8 +160,16 @@ export function fillDefaults(save) {
 
   data.pet = data.pet ?? {};
   data.pet.name = str(data.pet.name, base.pet.name);
+  // 状态条：允许超过 100（溢出区），所以这里只做"非负 + 数值化"，不截断
   data.pet.stats = { ...base.pet.stats, ...(isPlainObject(data.pet.stats) ? data.pet.stats : {}) };
+  for (const [key, value] of Object.entries(data.pet.stats)) {
+    data.pet.stats[key] = Math.max(0, num(value, 0));
+  }
+  // 成长属性：**无上限**，只保证非负
   data.pet.attrs = { ...base.pet.attrs, ...(isPlainObject(data.pet.attrs) ? data.pet.attrs : {}) };
+  for (const [key, value] of Object.entries(data.pet.attrs)) {
+    data.pet.attrs[key] = Math.max(0, num(value, 0));
+  }
   data.pet.level = Math.max(1, Math.floor(num(data.pet.level, 1)));
   data.pet.exp = Math.max(0, num(data.pet.exp, 0));
   data.pet.stage = str(data.pet.stage, base.pet.stage);
