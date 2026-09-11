@@ -78,6 +78,22 @@ function thumbFallbackAttr(originalUrl) {
 }
 // =========================================================
 
+// ========== 动效偏好 ==========
+// 尊重系统的"减少动态效果"设置：动画与平滑滚动都应能关闭。
+function prefersReducedMotion() {
+    return typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// 平滑滚动（reduced-motion 时改为瞬时跳转）
+function scrollIntoViewSmooth(el, block) {
+    if (!el || typeof el.scrollIntoView !== 'function') return;
+    el.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: block || 'center'
+    });
+}
+
 // ========== 全局状态 ==========
 let currentMode = MODE.NOTES;
 let currentTab = MODE.NOTES;
@@ -453,6 +469,73 @@ function setupModalEvents() {
         if (t && (t.id === 'modalImg' || t.classList.contains('modal-close'))) return;
         closeModal();
     });
+
+    // ★ 记录最近被点击的缩略图，供大图"从缩略图位置生长出来"的共享元素动画使用。
+    //   用捕获阶段的全局监听（而不是改 15 处内联 onclick），新增图片位时自动生效。
+    document.addEventListener('click', function(e) {
+        const t = e.target;
+        if (t && t.tagName === 'IMG' && !(t.closest && t.closest('#imageModal'))) {
+            lastModalSourceImg = t;
+        }
+    }, true);
+}
+
+let lastModalSourceImg = null;
+
+// ============================================================
+// ★★★★★★★ 图片加载淡入 ★★★★★★★
+// ============================================================
+// CSS 让网格图片在未加载完时保持透明（opacity:0），加载完成后加 .img-loaded 淡入，
+// 避免"色块 → 图片"的硬切。三重保障确保任何图片都不会加载完了却一直不显示：
+//   ① load 事件（含懒加载后到达的图）
+//   ② MutationObserver：插入时就已 complete 的图不会触发 load，需主动补标
+//   ③ 定时兜底清扫（先做一次极廉价的 querySelector 短路检查）
+function markImageLoaded(img) {
+    if (img && img.tagName === 'IMG' && !img.classList.contains('img-loaded')) {
+        img.classList.add('img-loaded');
+    }
+}
+
+function sweepLoadedImages() {
+    document.querySelectorAll('img:not(.img-loaded)').forEach(function (img) {
+        // complete 且 naturalWidth 为 0 表示加载失败；也必须标上，否则会一直隐形
+        if (img.complete) img.classList.add('img-loaded');
+    });
+}
+
+function setupImageFadeIn() {
+    document.addEventListener('load', function(e) {
+        if (e.target && e.target.tagName === 'IMG') markImageLoaded(e.target);
+    }, true);
+
+    try {
+        const mo = new MutationObserver(function(muts) {
+            for (const m of muts) {
+                for (const n of m.addedNodes) {
+                    if (!n || n.nodeType !== 1) continue;
+                    if (n.tagName === 'IMG') {
+                        if (n.complete) markImageLoaded(n);
+                    } else if (n.querySelectorAll) {
+                        n.querySelectorAll('img').forEach(function(i) {
+                            if (i.complete) markImageLoaded(i);
+                        });
+                    }
+                }
+            }
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+    } catch (e) {
+        // 环境不支持 MutationObserver 时由定时兜底接管
+    }
+
+    // 兜底清扫：只在启动后的一分钟内做有限次数。
+    // 之后 load 事件 + MutationObserver 已能覆盖（晚到的懒加载图会触发 load，
+    // 插入时就 complete 的图会被 MutationObserver 捕获），无需长期轮询。
+    let sweeps = 0;
+    const sweepTimer = setInterval(function() {
+        if (++sweeps > 30) { clearInterval(sweepTimer); return; }
+        sweepLoadedImages();
+    }, 2000);
 }
 
 // ============================================================

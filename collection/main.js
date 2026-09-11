@@ -30,29 +30,44 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    // ★ 加载完成：隐藏进度条，显示 #app
-    loadingContainer.style.display = 'none';
-    appEl.style.display = 'block';
-    appEl.innerHTML = '';
+    // ★ 加载完成：进度条先淡出，再渲染并让内容淡入（不再硬切）
+    function revealContent() {
+        loadingContainer.style.display = 'none';
+        appEl.style.display = 'block';
+        appEl.innerHTML = '';
 
-    // 初始化
-    buildSpecialCategoryTree();
-    renderSidebar();
+        // 初始化
+        buildSpecialCategoryTree();
+        renderSidebar();
 
-    const contentEl = document.querySelector('.content');
-    if (contentEl) {
-        contentEl.style.overflow = 'hidden';
-        contentEl.style.height = '100%';
-    }
+        const contentEl = document.querySelector('.content');
+        if (contentEl) {
+            contentEl.style.overflow = 'hidden';
+            contentEl.style.height = '100%';
+        }
 
-    if (appEl) {
         appEl.style.height = '100%';
         appEl.style.overflowY = 'auto';
+
+        switchToCurrentContainer();
+        renderOverview();
+        updateSearchUIForMode();
+
+        // 首屏也走一次进入动画（renderOverview 自身不触发）
+        triggerViewAnimation();
+        // 首屏里"插入时就已加载完"的图需要补标，否则会一直保持透明
+        requestAnimationFrame(sweepLoadedImages);
     }
 
-    switchToCurrentContainer();
-    renderOverview();
-    updateSearchUIForMode();
+    if (prefersReducedMotion()) {
+        revealContent();
+    } else {
+        let revealed = false;
+        const once = function () { if (revealed) return; revealed = true; revealContent(); };
+        loadingContainer.classList.add('loading-fade-out');
+        loadingContainer.addEventListener('animationend', once, { once: true });
+        setTimeout(once, 320);   // 兜底：动画被打断时也要继续，绝不能卡在加载页
+    }
 
     // 事件绑定
     document.querySelectorAll('.tab-item').forEach(tab => {
@@ -82,6 +97,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     setupModalEvents();
     setupImageRetry();
+    setupImageFadeIn();
 
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
     const st = document.getElementById('sidebarToggle');

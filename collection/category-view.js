@@ -311,8 +311,66 @@ function toggleVariety(id) {
 // ========== 图片弹窗 ==========
 // ★ 秒开策略：先用缩略图占位 —— 它通常已经在缓存里（网格刚显示过），可以瞬间出图；
 //   原图在后台静默加载，到货后再无缝替换。避免点开后对着黑屏等 1MB 下载。
+// ★ 共享元素过渡：从被点击的缩略图位置"生长"到全屏，关闭时缩回。
+//   缩略图是原图的等比缩放，所以「缩略图矩形」与「全屏 contain 矩形」宽高比一致，
+//   于是可以只用 translate + 均匀 scale 完成 —— 无畸变、全程 GPU 合成、
+//   且完全不去碰 Hammer 的捏合缩放（它操作 #imageContainer，这里操作独立的飞行图层）。
 let modalOriginalUrl = '';
 let modalLoadToken = 0;
+let modalFlightEl = null;
+let modalFlightTimer = null;
+
+const MODAL_FLIGHT_MS = 320;
+const MODAL_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';
+
+// 视口内「按 contain 铺满」的矩形
+function modalContainRect(ar) {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let w = vw, h = vw / ar;
+    if (h > vh) { h = vh; w = vh * ar; }
+    return { left: (vw - w) / 2, top: (vh - h) / 2, width: w, height: h };
+}
+
+function cancelModalFlight() {
+    if (modalFlightTimer) { clearTimeout(modalFlightTimer); modalFlightTimer = null; }
+    if (modalFlightEl) {
+        if (modalFlightEl.parentNode) modalFlightEl.remove();
+        modalFlightEl = null;
+    }
+}
+
+// 从 fromRect 飞到 toRect（元素最终落在 toRect，靠 transform 反向偏移回到起点）
+function startModalFlight(fromRect, toRect, srcUrl, onDone) {
+    cancelModalFlight();
+    const el = document.createElement('img');
+    el.className = 'modal-flight';
+    el.src = srcUrl;
+    el.style.left = toRect.left + 'px';
+    el.style.top = toRect.top + 'px';
+    el.style.width = toRect.width + 'px';
+    el.style.height = toRect.height + 'px';
+    const s = fromRect.width / toRect.width;
+    const dx = (fromRect.left + fromRect.width / 2) - (toRect.left + toRect.width / 2);
+    const dy = (fromRect.top + fromRect.height / 2) - (toRect.top + toRect.height / 2);
+    el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + s + ')';
+    document.body.appendChild(el);
+    modalFlightEl = el;
+
+    void el.offsetWidth;   // 先落到起始状态，再启动过渡
+    el.style.transition = 'transform ' + MODAL_FLIGHT_MS + 'ms ' + MODAL_FLIGHT_EASE;
+    el.style.transform = 'none';
+
+    let done = false;
+    const finish = function () {
+        if (done) return;
+        done = true;
+        if (modalFlightTimer) { clearTimeout(modalFlightTimer); modalFlightTimer = null; }
+        if (onDone) onDone();
+    };
+    el.addEventListener('transitionend', finish, { once: true });
+    // 兜底：过渡未触发（元素被隐藏等）也必须收尾，否则弹窗会卡在半透明状态
+    modalFlightTimer = setTimeout(finish, MODAL_FLIGHT_MS + 80);
+}
 
 function openModal(imgSrc1, imgSrc2) {
     currentModalImg1 = imgSrc1;
@@ -325,6 +383,14 @@ function openModal(imgSrc1, imgSrc2) {
     const token = ++modalLoadToken;
     const previewUrl = getThumbUrl(imgSrc1) || imgSrc1;
 
+    // 来源缩略图必须就是这一张，否则不做生长动画（例如从别处调用 openModal）
+    const sourceEl = lastModalSourceImg;
+    const canFly = !prefersReducedMotion() && sourceEl && sourceEl.isConnected &&
+        typeof sourceEl.getBoundingClientRect === 'function' &&
+        sourceEl.getAttribute('src') === previewUrl;
+
+    cancelModalFlight();
+
     // 缩略图万一没有 → 回退原图
     modalImg.onerror = function () {
         modalImg.onerror = null;
@@ -333,6 +399,8 @@ function openModal(imgSrc1, imgSrc2) {
         }
     };
     modalImg.src = previewUrl;
+    modalImg.style.opacity = canFly ? '0' : '';   // 飞行期间先藏着真图，落地后再显形
+    modal.classList.add('modal-show');
     modal.style.display = 'flex';
 
     const container = document.getElementById('imageContainer');
@@ -347,6 +415,23 @@ function openModal(imgSrc1, imgSrc2) {
 
     modalImg.onload = function() { initPinchZoom(); };
     if (modalImg.complete) initPinchZoom();
+
+    let flying = false;
+    if (canFly) {
+        const from = sourceEl.getBoundingClientRect();
+        if (from.width >= 8 && from.height >= 8) {
+            // 缩略图与原图等比，直接用缩略图的宽高比即可
+            startModalFlight(from, modalContainRect(from.width / from.height),
+                sourceEl.currentSrc || sourceEl.src,
+                function () {
+                    if (token !== modalLoadToken) return;
+                    cancelModalFlight();
+                    modalImg.style.opacity = '';
+                });
+            flying = true;
+        }
+    }
+    if (!flying) modalImg.style.opacity = '';
 
     // 后台拉原图，到货后替换（用 detached Image，避免干扰弹窗自身的 onload/onerror）
     if (previewUrl !== imgSrc1) {
@@ -368,14 +453,37 @@ function openModal(imgSrc1, imgSrc2) {
 function closeModal() {
     const modal = document.getElementById('imageModal');
     if (!modal) return;
-    modal.style.display = 'none';
-    const scrollY = parseInt(document.body.style.top || '0') * -1;
-    document.body.classList.remove('modal-open');
-    document.body.style.top = '';
-    if (scrollY) window.scrollTo(0, scrollY);
+
+    const finish = function () {
+        cancelModalFlight();
+        modal.style.display = 'none';
+        modal.classList.remove('modal-show');
+        const img = document.getElementById('modalImg');
+        if (img) { img.src = ''; img.style.opacity = ''; }
+        const scrollY = parseInt(document.body.style.top || '0') * -1;
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        if (scrollY) window.scrollTo(0, scrollY);
+        if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
+    };
+
+    // 关闭：缩回原缩略图位置（前提是那张缩略图还在、且仍在视口内且没被滚走）
+    const src = lastModalSourceImg;
     const modalImg = document.getElementById('modalImg');
-    if (modalImg) modalImg.src = '';
-    if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
+    let flown = false;
+    if (!prefersReducedMotion() && src && src.isConnected && modalImg &&
+        typeof src.getBoundingClientRect === 'function') {
+        const to = src.getBoundingClientRect();
+        const onScreen = to.bottom > 0 && to.top < window.innerHeight &&
+                         to.right > 0 && to.left < window.innerWidth;
+        if (onScreen && to.width >= 8 && to.height >= 8) {
+            modalImg.style.opacity = '0';
+            startModalFlight(modalContainRect(to.width / to.height), to,
+                modalImg.currentSrc || modalImg.src, finish);
+            flown = true;
+        }
+    }
+    if (!flown) finish();
 }
 
 function initPinchZoom() {
