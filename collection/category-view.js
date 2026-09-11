@@ -325,6 +325,8 @@ let modalCloseTimer = null;
 const MODAL_FLIGHT_MS = 320;
 const MODAL_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';
 const MODAL_HIDE_MS = 300;   // 与 CSS 的 --dur-3 保持一致（蒙版淡出时长）
+// 最大放大倍率：触摸双指与桌面滚轮共用同一个上限，保证两端手感一致
+const MODAL_MAX_SCALE = 8;
 
 // ★ 取「图片真实内容」在视口中的矩形，而不是元素框。
 //   网格里的缩略图元素框是固定尺寸（.mini-thumb 36×26、.copy-thumb 56×40、
@@ -562,7 +564,7 @@ function initPinchZoom() {
     hammerManager.on('pinchstart', function(e) { lastScale = currentScale; e.preventDefault(); });
     hammerManager.on('pinchmove', function(e) {
         let newScale = lastScale * e.scale;
-        newScale = Math.min(4, Math.max(1, newScale));
+        newScale = Math.min(MODAL_MAX_SCALE, Math.max(1, newScale));
         currentScale = newScale;
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
         e.preventDefault();
@@ -592,7 +594,7 @@ function initPinchZoom() {
     // = 视口中心 + (currentX, currentY)；令锚点在缩放前后重合即可解出新的平移量。
     function zoomAt(clientX, clientY, factor) {
         const prev = currentScale;
-        const next = Math.min(4, Math.max(1, prev * factor));
+        const next = Math.min(MODAL_MAX_SCALE, Math.max(1, prev * factor));
         if (next === prev) return;
         const vw = window.innerWidth, vh = window.innerHeight;
         const cx = vw / 2 + currentX, cy = vh / 2 + currentY;

@@ -493,7 +493,9 @@ function updateSearchUIForMode() {
     const modeSearch = getEffectiveSearchMode();
     toggle.textContent = modeSearch === SEARCH_MODE.CLICK ? '□' : '■';
     toggle.title = '切换搜索模式';
-    tip.textContent = `现在是「${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」——${modeSearch === SEARCH_MODE.CLICK ? '打完按回车，或点右边的按钮' : '边打边搜'}，点“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
+    // ★ 两种模式的提示严格对齐：模式名(4) + 括号说明(4) + 切换字符(1) + 目标模式(4)，
+    //   两边总字数完全一致，切换时文字不会跳动。（对标文章板块的做法）
+    tip.textContent = `现在是「${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」（${modeSearch === SEARCH_MODE.CLICK ? '打完回车' : '边打边搜'}），点“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
   }
 }
 
@@ -559,7 +561,8 @@ function toggleSearchMode() {
   const tip = document.getElementById('searchTip');
   const toggleChar = newMode === SEARCH_MODE.CLICK ? '□' : '■';
   if (toggle) toggle.textContent = toggleChar;
-  if (tip) tip.textContent = `现在是「${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」——${newMode === SEARCH_MODE.CLICK ? '打完按回车，或点右边的按钮' : '边打边搜'}，点“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
+  // 与 updateSearchUIForMode 保持同一套对齐结构
+  if (tip) tip.textContent = `现在是「${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」（${newMode === SEARCH_MODE.CLICK ? '打完回车' : '边打边搜'}），点“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
 
   const input = document.getElementById('searchInput');
   if (input) {
