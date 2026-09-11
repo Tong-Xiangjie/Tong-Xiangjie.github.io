@@ -500,23 +500,6 @@ function restoreSidebarState() {
     }
 }
 
-// 是否为"精确指针"设备（鼠标 / 触控笔）——与 CSS 里的 (hover/pointer) 判断保持一致
-function isFinePointer() {
-    return typeof window.matchMedia === 'function' &&
-        window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-}
-
-// 视口坐标是否落在大图"实际渲染出来的内容区域"里。
-// 注意 #modalImg 是 100vw×100vh + object-fit:contain，元素框远大于图片本身，
-// 所以只能用 imageContentRect() 算出的内容矩形判断，不能看元素框。
-function pointInModalImage(x, y) {
-    if (typeof imageContentRect !== 'function') return false;
-    const img = document.getElementById('modalImg');
-    if (!img || !img.naturalWidth) return false;
-    const r = imageContentRect(img);
-    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-}
-
 function setupModalEvents() {
     const modal = document.getElementById('imageModal');
     if (!modal) return;
@@ -543,10 +526,9 @@ function setupModalEvents() {
         }
         downTime = 0;
 
-        // 鼠标设备：图片本身是缩放 / 拖动 / 双击还原的操作区，点它不关闭
-        //（双击还原要成立，单击图片就不能关）。触摸设备保持"点哪儿都关"。
-        if (isFinePointer() && pointInModalImage(e.clientX, e.clientY)) return;
-
+        // 点哪儿都关（鼠标与触摸行为一致，包括点图片本身）。
+        // 代价是"双击还原"不可用 —— 双击的第一下就已经把弹窗关了；
+        // 缩放还原改用滚轮向下 / 双指捏合缩回 1 倍。
         closeModal();
     });
 

@@ -587,7 +587,6 @@ function initPinchZoom() {
     // 先摘掉上一次的监听：initPinchZoom 每次打开弹窗（以及 modalImg.onload）都会调用，
     // 不摘会不断累积监听器。
     if (container._wheelZoom) container.removeEventListener('wheel', container._wheelZoom);
-    if (container._dblclickReset) container.removeEventListener('dblclick', container._dblclickReset);
 
     // 以视口坐标 (clientX, clientY) 为锚点缩放 —— 让光标下的那个点保持不动。
     // 变换是 translate(x,y) scale(s) 且 origin 为元素中心，所以图片的视觉中心
@@ -611,10 +610,10 @@ function initPinchZoom() {
         e.preventDefault();
         zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
     };
-    container._dblclickReset = function(e) { resetTransform(); e.preventDefault(); };
+    // 注：不再绑定 dblclick 还原 —— 现在"点哪儿都关"，双击的第一下就已经关掉弹窗了，
+    // 还原动作永远不会触发。缩回 1 倍用滚轮向下 / 双指捏合即可。
 
     container.addEventListener('wheel', container._wheelZoom, { passive: false });
-    container.addEventListener('dblclick', container._dblclickReset);
     resetTransform();
 }
 
