@@ -393,7 +393,9 @@ globalThis.$GAME = {
           ' 最长停滞=' + maxStir.toFixed(1) + 's 引导生效帧=' + assistSamples);
       check('7200 帧无异常抛出', err === 0, errList.slice(0,3).join(' | '));
       check('7200 帧无物理越界', viol === 0, errList.slice(0,3).join(' | '));
-      check('飞行球速不超过设计上限 1000', minSpeed > 230 && maxSpeed <= 1000.5, `${Math.round(minSpeed)}~${Math.round(maxSpeed)}`);
+      // slow 是可叠加的（×0.68 连乘），所以下界不能按"单次 slow"来卡；
+      // 这里只验证安全性：速度不会趋近 0（不会卡死），也不会突破 1000 上限
+      check('飞行球速安全区间 (40~1000)', minSpeed > 40 && maxSpeed <= 1000.5, `${Math.round(minSpeed)}~${Math.round(maxSpeed)}`);
       check('120 秒内至少过关一次（防卡死生效）', levelUps >= 1, '过关次数=' + levelUps + ' level=' + (G.level+1));
       check('产生了得分', G.score > 0);
       check('触发了连击', maxCombo >= 2, 'combo=' + maxCombo);
@@ -1339,6 +1341,115 @@ globalThis.$GAME = {
       }
 
       // 收尾
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+    }
+    /* ================ 18. 关卡提示文案 ================ */
+    section('关卡提示：显示第几关必须正确');
+    {
+      // 用户报的问题：第 4 关开局显示"第 3 关"（用了 0 基关卡号 n）
+      for (let i = 0; i < $.selectItems.length; i++){
+        $.startSelect();
+        $.selectKey(String(i + 1));                 // 数字键直选第 i+1 项
+        const S = $.snap();
+        const want = S.G.level + 1;                 // 1 基关卡号
+        // 第 1 关有意显示上手说明（新人更需要它），其余关卡显示关卡号
+        const okText = S.G.msg.includes('第 ' + want + ' 关') || (want === 1 && S.G.msg.includes('SPACE'));
+        check(`选第 ${i + 1} 项后关卡提示正确（第 ${want} 关）`, okText, `msg="${S.G.msg}" level=${S.G.level}`);
+        check(`选第 ${i + 1} 项后不出现错误的第 ${want - 1} 关`,
+              want === 1 || !S.G.msg.includes('第 ' + (want - 1) + ' 关'), `msg="${S.G.msg}"`);
+      }
+      // 数字与提示必须一一对应（第 4 项 -> 第 4 关）
+      $.startSelect();
+      $.selectKey('4');
+      check('数字键 4 进入的是第 4 关且提示为第 4 关',
+            $.snap().G.level === 3 && $.snap().G.msg.includes('第 4 关'),
+            `level=${$.snap().G.level} msg="${$.snap().G.msg}"`);
+
+      // 过关推进后提示也要对
+      $.startSelect(); $.selectKey('1');
+      $.launch(); frames(2, {});
+      $.snap().bricks.forEach(b => { if (!b.solid) b.dead = true; });
+      frames(2, {});
+      check('清关后进入 LEVEL 态', $.snap().G.state === 4);
+      $.loadLevel(++$.snap().G.level);              // = nextLevel() 的行为
+      check('进入第 2 关时提示为第 2 关',
+            $.snap().G.level === 1 && $.snap().G.msg.includes('第 2 关'),
+            `level=${$.snap().G.level} msg="${$.snap().G.msg}"`);
+
+      // 第 1 关保留上手说明，但不得出现"第 0 关"
+      $.newGame();
+      check('第 1 关显示上手说明且不出现"第 0 关"',
+            $.snap().G.msg.length > 0 && !/第 0 关/.test($.snap().G.msg), `msg="${$.snap().G.msg}"`);
+
+      // 读档后提示的关卡号也要对（loadProgress 会再调一次 loadLevel）
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+      $.loadLevel(3); $.snap().G.level = 3;
+      $.snap().G.state = 2;
+      $.saveProgress(false);
+      const raw = store[$.SAVE_KEY];
+      $.loadLevel(6);
+      store[$.SAVE_KEY] = raw;
+      $.loadProgress();
+      check('读档后提示的关卡号正确',
+            $.snap().G.level === 3 && $.snap().G.msg.includes('第 4 关'),
+            `level=${$.snap().G.level} msg="${$.snap().G.msg}"`);
+      // "已还原"是有用的：读档回来时说明击破的砖是从存档恢复的，而不是这关重开了
+      check('读档提示标注状态（已读档/已还原）',
+            /已读档|已还原/.test($.snap().G.msg), `msg="${$.snap().G.msg}"`);
+    }
+
+    /* ================ 19. 提示语纯净度 ================ */
+    section('提示语保持简短（不解释机制）');
+    {
+      const dropBall = () => {
+        $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+        frames(2, {});
+      };
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame(); $.launch(); frames(3, {});
+      $.snap().G.lives = 3;
+      dropBall();
+      check('掉命提示只有"剩余 N 条命"', $.snap().G.msg === '剩余 2 条命', `msg="${$.snap().G.msg}"`);
+      check('掉命提示不含"挡板加宽保留"等说明', !$.snap().G.msg.includes('保留'), `msg="${$.snap().G.msg}"`);
+
+      $.newGame(); $.launch(); frames(3, {});
+      $.applyPower(P('wide'));
+      $.snap().G.lives = 3;
+      dropBall();
+      check('加宽后掉命，提示仍然简短（宽度照旧保留）',
+            $.snap().G.msg === '剩余 2 条命' && $.snap().paddle.w > 130,
+            `msg="${$.snap().G.msg}" w=${$.snap().paddle.w}`);
+
+      // 练习模式重发球提示
+      $.startSelect();
+      if (!$.snap().G.infinite) $.selectKey('i');
+      $.selectKey('1');
+      $.launch(); frames(3, {});
+      dropBall();
+      check('练习模式重发球提示简短', $.snap().G.msg === '重新发球', `msg="${$.snap().G.msg}"`);
+      check('练习模式重发球提示不含"无限生命"',
+            !$.snap().G.msg.includes('无限生命'), `msg="${$.snap().G.msg}"`);
+      $.setInfinite(false);
+
+      // 选关进入某关时，提示里不该再堆"随机生成/关卡名/无限生命"这些后缀
+      $.startSelect(); $.selectKey('6');
+      check('随机关提示不含"随机生成"后缀', !$.snap().G.msg.includes('随机生成'), `msg="${$.snap().G.msg}"`);
+      $.startSelect(); $.selectKey('4');
+      check('设计关卡提示不含关卡名后缀', !$.snap().G.msg.includes('要塞'), `msg="${$.snap().G.msg}"`);
+
+      // 吃道具时不该在顶部再弹一条：挡板上方已经有道具名的浮动字了
+      $.newGame(); $.launch(); frames(3, {});
+      {
+        $.snap().G.msg = '';                       // 清掉开局提示干扰
+        const nFloat = $.snap().floats.length;
+        $.applyPower(P('wide'));
+        check('吃道具只出浮动字，不再重复弹顶部提示',
+              $.snap().G.msg === '' && $.snap().floats.length > nFloat,
+              `msg="${$.snap().G.msg}" floats=${$.snap().floats.length}`);
+      }
+
       for (const k of Object.keys(store)) delete store[k];
       $.newGame();
     }

@@ -373,7 +373,11 @@ function loadLevel(n, gridOverride){
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !b.solid && !b.dead).length;
-  G.msg = gridOverride ? `第 ${n} 关 · 已还原` : (p.msg || `第 ${n} 关`);
+  // 关卡提示只在这里生成，且统一用 1 基关卡号。
+  // 之前用 0 基的 n，导致进第 4 关却显示"第 3 关"；
+  // 而且调用方各自再写一次 G.msg，会互相覆盖（读档时尤其乱）。
+  G.msg = gridOverride ? `第 ${n + 1} 关 · 已还原`
+                       : (p.msg ? p.msg : `第 ${n + 1} 关`);
   G.msgTimer = 1.8;
   resetBall();
   G.state = S.READY;
@@ -422,9 +426,7 @@ function startLevel(idx){
   G.shake = 0; G.flash = 0;
   G.playTime = 0;
   paddle = makePaddle();
-  loadLevel(it.level);
-  G.msg = `第 ${it.level + 1} 关${it.kind === 'random' ? ' · 随机生成' : ' · ' + it.name}${G.infinite ? ' · 无限生命' : ''}`;
-  G.msgTimer = 2.2;
+  loadLevel(it.level);      // 关卡提示由 loadLevel 统一生成（用 1 基关卡号），这里不再覆盖
   autoSaveArmed = true;
   saveProgress(false);
 }
@@ -682,7 +684,7 @@ function loadProgress(){
   G.confirmNew = false;              // 读档即退出"开新局"确认态
   G.state = (d.state === S.PLAY && balls.some(b => !b.stuck)) ? S.PLAY : S.READY;
   G.msg = '已读档 · 第 ' + (G.level + 1) + ' 关';
-  G.msgTimer = 2.2;
+  G.msgTimer = 1.8;
   Sound.win();
   return true;
 }
@@ -1006,7 +1008,7 @@ function applyPower(p){
     }
   }
   floats.push({ x: paddle.x + paddle.w/2, y: paddle.y - 26, text: p.name, color: p.c, life: 1.1, vy: -34 });
-  toast(p.name);
+  // 不再额外 toast：挡板上方已经有道具名的浮动字，顶部再来一条是重复的噪声
 }
 
 // 距离 (x,y) 最近的、还能被打掉的砖（用于卡死时的柔性引导）
@@ -1085,7 +1087,7 @@ function loseLife(){
     // 挡板宽度保持不变：其他道具效果（三球、减速）在掉命后也不重置，
     // 单独把宽度打回 130 会让玩家觉得"吃的 W 白吃了"。
     G.state = S.READY;
-    G.msg = '无限生命 · 重发球';
+    G.msg = '重新发球';
     G.msgTimer = 1.2;
     return;
   }
@@ -1103,7 +1105,7 @@ function loseLife(){
   resetBall();
   // 同上：掉命不重置挡板宽度，否则刚吃到的加宽道具会被无声收回
   G.state = S.READY;
-  G.msg = '剩余 ' + G.lives + ' 条命' + (paddle.w > 130 ? ' · 挡板加宽保留' : '');
+  G.msg = '剩余 ' + G.lives + ' 条命';
   G.msgTimer = 1.4;
   saveProgress(false);      // 掉命也是关键节点
 }
