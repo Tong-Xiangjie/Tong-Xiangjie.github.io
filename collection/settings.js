@@ -137,11 +137,12 @@ function renderSettingsPage() {
     html += `<h3>离线预缓存</h3>`;
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" onclick="togglePrecacheAuto()"><span id="precacheAutoText">${precacheAutoLabel}</span></button>`;
-    html += `<button class="export-btn" onclick="runPrecacheSpecial()">预缓存专题图片</button>`;
-    html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部图片</span></button>`;
+    html += `<button class="export-btn" onclick="runPrecacheThumbs()">预缓存全部缩略图</button>`;
+    html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部（含原图）</span></button>`;
     html += `</div>`;
     html += `<p class="export-hint" id="precacheStatus" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">本地已缓存 0 张图片</p>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">专题页图片是懒加载的，没滚到的不会被下载、也就无法离线查看。开启自动预缓存后会在后台低并发补齐（不阻塞浏览；左下角显示进度，可随时点 × 停止）；省流量模式或 2G/3G 网络下不会自动触发。「预缓存全部图片」会下载全部数据引用图及其缩略图（约 1600 个文件、约 775MB），请按需使用。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">专题页图片是懒加载的，没滚到的不会被下载、也就无法离线查看。开启自动预缓存后会在后台低并发补齐当前页面（不阻塞浏览；左下角显示进度，可随时点 × 停止）；省流量模式或 2G/3G 网络下不会自动触发。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">「预缓存全部缩略图」约 <b>14MB</b>，离线时网格完整可看（灯箱显示低清占位）。「预缓存全部（含原图）」约 <b>775MB</b>，会消耗本站的 GitHub Pages 带宽配额（软限 100GB/月），<b>请勿反复点击</b>；原图在你正常点开大图时会被自动缓存，通常并不需要它。</p>`;
     html += `</div>`;
 
     html += `<div class="settings-section">`;

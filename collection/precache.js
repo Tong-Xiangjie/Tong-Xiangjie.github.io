@@ -260,6 +260,14 @@ function precacheCancel() {
 }
 
 // ========== 收集图片 URL ==========
+// ★ 判断是否为「本站藏品图片」。刻意**不写死域名** —— 图片托管已经换过一次
+//   （jsDelivr → GitHub Pages 同源），写死域名会让整套过滤条件静默失效。
+const PRECACHE_IMAGE_RE = /^https?:\/\/[^/]+\/(?:(?:notecollection|coincollection)\/(?:readmes\/)?image\/|funcollection\/[^/]+\/images\/)[^"'\s>)]+\.(?:jpg|jpeg|png|gif|webp|avif|bmp|ico)$/i;
+
+function isPrecacheableImage(u) {
+    return !!u && PRECACHE_IMAGE_RE.test(u);
+}
+
 // 当前视图容器里已渲染的图片（懒加载的 <img> 也有 src，只是没被请求）
 function precacheCollectFromCurrentView() {
     if (typeof getContainerKey !== 'function' || typeof viewScrollContainers === 'undefined') return [];
@@ -269,25 +277,29 @@ function precacheCollectFromCurrentView() {
     const urls = new Set();
     container.querySelectorAll('img[src]').forEach(function (img) {
         const src = img.getAttribute('src') || '';
-        if (src.indexOf('cdn.jsdelivr.net') === -1) return;
+        if (!isPrecacheableImage(src)) return;
         urls.add(src);
     });
     return [...urls];
 }
 
-// 数据里引用的图片。scope: 'special'（只专题，即懒加载的那批） | 'all'（全部）
+// 数据里引用的图片。scope:
+//   'thumbs'  —— 只缩略图（约 14MB；离线时网格完整可看，灯箱显示低清占位）
+//   'special' —— 专题相关（缩略图 + 原图）
+//   'all'     —— 全部（缩略图 + 原图 + 已加载文章的配图，约 775MB）
 function precacheCollectUrls(scope) {
     const urls = new Set();
+    const withOriginals = (scope === 'all' || scope === 'special');
     const add = function (v) {
         if (!v) return;
-        const u = (typeof getImageUrl === 'function') ? getImageUrl(v) : v;
-        if (u && u.indexOf('cdn.jsdelivr.net') !== -1) urls.add(u);
-        // ★ 网格里实际显示的是缩略图，缩略图必须一并缓存；
-        //   原图也保留，这样灯箱大图同样能离线看
+        // ★ 网格里实际显示的是缩略图，优先缓存它
         if (typeof getThumbUrl === 'function') {
             const t = getThumbUrl(v);
-            if (t && t.indexOf('cdn.jsdelivr.net') !== -1) urls.add(t);
+            if (t && t.indexOf('/thumb/') !== -1 && isPrecacheableImage(t)) urls.add(t);
         }
+        if (!withOriginals) return;
+        const u = (typeof getImageUrl === 'function') ? getImageUrl(v) : v;
+        if (isPrecacheableImage(u)) urls.add(u);
     };
     const walkMap = function (map) {
         if (!map) return;
@@ -317,7 +329,9 @@ function precacheCollectUrls(scope) {
         }
     };
 
-    if (scope === 'all') {
+    // 覆盖范围：'special' 只关心趣味专题（懒加载的那批）；
+    // 'thumbs' / 'all' 覆盖纸币 + 硬币 + 专题全部数据
+    if (scope !== 'special') {
         walkMap(window.DATA_MAP);
         walkMap(window.COIN_DATA_MAP);
     }
@@ -335,10 +349,10 @@ function precacheCollectUrls(scope) {
             const html = articleContentCache[path] || '';
             const base = getArticleBasePath(sourceByPath[path]);
             const reRel = /src\s*=\s*["']?(readmes\/image\/[^"'\s>)]+)/gi;
-            const reAbs = /src\s*=\s*["'](https:\/\/cdn\.jsdelivr\.net[^"'\s>)]+)/gi;
+            const reAbs = /src\s*=\s*["'](https?:\/\/[^"'\s>)]+)/gi;
             let m;
             while ((m = reRel.exec(html)) !== null) urls.add(base + m[1]);
-            while ((m = reAbs.exec(html)) !== null) urls.add(m[1]);
+            while ((m = reAbs.exec(html)) !== null) { if (isPrecacheableImage(m[1])) urls.add(m[1]); }
         }
     }
 
@@ -363,8 +377,9 @@ function togglePrecacheAuto() {
     precacheRefreshStatus();
 }
 
-function runPrecacheSpecial() {
-    precacheEnqueue(precacheCollectUrls('special'), { verbose: true });
+// 只缓存缩略图（约 14MB）：离线时网格完整可看，灯箱显示低清占位
+function runPrecacheThumbs() {
+    precacheEnqueue(precacheCollectUrls('thumbs'), { verbose: true });
 }
 
 let precacheAllConfirm = false;
@@ -381,11 +396,14 @@ function runPrecacheAll() {
             return;
         }
         precacheAllConfirm = true;
-        const mb = Math.round(urls.length * 0.98);
-        if (label) label.textContent = '共 ' + urls.length + ' 张 · 约 ' + mb + 'MB，确定？';
+        // 缩略图约 18KB、原图约 0.96MB，分开估算才不会把总体积报成两倍
+        let thumbCount = 0;
+        for (const u of urls) { if (u.indexOf('/thumb/') !== -1) thumbCount++; }
+        const mb = Math.round(thumbCount * 0.018 + (urls.length - thumbCount) * 0.96);
+        if (label) label.textContent = '共 ' + urls.length + ' 个文件 · 约 ' + mb + 'MB，确定？';
         precacheAllTimer = setTimeout(function () {
             precacheAllConfirm = false;
-            if (label) label.textContent = '预缓存全部图片';
+            if (label) label.textContent = '预缓存全部（含原图）';
         }, 4000);
         return;
     }

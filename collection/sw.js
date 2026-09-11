@@ -1,14 +1,14 @@
 // ==================== sw.js ====================
 // Service Worker：图片本地持久缓存（可离线）
 // 策略：stale-while-revalidate（缓存优先 + 后台更新）
-// 只缓存 CDN 上的图片；数据文件与页面一律走网络，避免更新被缓存卡住
+// 只缓存本站藏品图片；数据文件、页面与 china_map.svg 一律走网络，避免更新被缓存卡住
 //
 // 注册位置：collection/index.html 末尾（scope 为 /collection/）
 
 const CACHE_NAME = 'collection-images-v2';   // v2：图片改同源直出，旧的 jsDelivr 缓存会被 activate 清掉
 // 只缓存本站的藏品图片目录，避免把 china_map.svg、页面资源等也缓存住。
 const IMAGE_RE = /\.(jpg|jpeg|png|gif|webp|avif|bmp|ico)$/i;
-const IMAGE_PATH_RE = /^\/(?:notecollection|coincollection)\/image\/|^\/funcollection\/[^/]+\/images\//;
+const IMAGE_PATH_RE = /^\/(?:(?:notecollection|coincollection)\/(?:readmes\/)?image\/|funcollection\/[^/]+\/images\/)/;
 
 function shouldCache(request) {
     if (!request || request.method !== 'GET') return false;
