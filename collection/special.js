@@ -318,7 +318,7 @@ function openSpecialLightbox(index) {
     const lightbox = document.createElement('div');
     lightbox.id = 'specialLightbox';
     lightbox.className = 'special-lightbox';
-    lightbox.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:20px;animation:contentFadeIn 0.2s ease;';
+    lightbox.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:20px;animation:contentFadeIn var(--dur-2) var(--ease-out);';
 
     const inner = document.createElement('div');
     inner.className = 'special-lightbox-inner';

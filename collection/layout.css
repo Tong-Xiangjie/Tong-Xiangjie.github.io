@@ -986,7 +986,7 @@ body.modal-open {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    animation: contentFadeIn 0.2s ease;
+    animation: contentFadeIn var(--dur-2) var(--ease-out);
 }
 .info-lightbox-inner {
     background: var(--card-bg);
