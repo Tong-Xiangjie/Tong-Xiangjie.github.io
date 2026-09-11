@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192" role="img" aria-label="星尘迁徙">
+  <defs>
+    <radialGradient id="bg192" cx="50%" cy="32%" r="78%">
+      <stop offset="0%" stop-color="#1c2758"/>
+      <stop offset="100%" stop-color="#05070f"/>
+    </radialGradient>
+    <radialGradient id="star192" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="52%" stop-color="#8fd8ff"/>
+      <stop offset="100%" stop-color="#b79cff" stop-opacity="0.12"/>
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg192)"/>
+  <g fill="#ffffff">
+    <circle cx="44" cy="40" r="2.6" opacity="0.85"/>
+    <circle cx="146" cy="52" r="2.2" opacity="0.7"/>
+    <circle cx="158" cy="126" r="2.4" opacity="0.65"/>
+    <circle cx="34" cy="132" r="2" opacity="0.6"/>
+    <circle cx="96" cy="26" r="1.8" opacity="0.55"/>
+  </g>
+  <path d="M20 142c24-12 48-12 72 0s52 12 80 0" fill="none" stroke="#6fd0ff" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round"/>
+  <path d="M28 162c24-12 48-12 72 0s48 12 64-4" fill="none" stroke="#7fd4ff" stroke-opacity="0.3" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="96" cy="90" r="34" fill="url(#star192)"/>
+  <path d="M96 48l7.8 25.2L129 81l-25.2 7.8L96 114l-7.8-25.2L63 81l25.2-7.8z" fill="#ffffff" opacity="0.94"/>
+</svg>

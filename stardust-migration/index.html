@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0e1f" />
+  <meta name="description" content="星尘迁徙 Stardust Migration —— 在数据海的小岛上养一只星兽，离线时间胶囊结算的纯静态养成游戏。" />
+  <title>星尘迁徙 · Stardust Migration</title>
+
+  <!-- 所有资源均使用相对路径，可直接部署到 GitHub Pages 的任意子目录 -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.svg" />
+</head>
+<body>
+  <!-- 星空 / 数据海背景 -->
+  <div class="sky" aria-hidden="true">
+    <div class="sky-stars"></div>
+    <div class="sky-glow sky-glow--a"></div>
+    <div class="sky-glow sky-glow--b"></div>
+  </div>
+
+  <div class="app" id="app">
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <div class="topbar__title">
+        <span class="topbar__logo" aria-hidden="true">✦</span>
+        <div>
+          <h1>星尘迁徙</h1>
+          <p class="topbar__sub">Stardust Migration</p>
+        </div>
+      </div>
+      <div class="topbar__resources">
+        <div class="chip" id="chipAp" title="行动点：每天自动恢复">
+          <span class="chip__icon">⚡</span><span class="chip__value" id="chipApValue">--</span>
+        </div>
+        <div class="chip" id="chipStardust" title="星尘：通用资源">
+          <span class="chip__icon">✨</span><span class="chip__value" id="chipStardustValue">--</span>
+        </div>
+        <div class="chip chip--muted" id="chipSave" title="本地自动存档状态">
+          <span class="chip__icon">💾</span><span class="chip__value" id="chipSaveValue">未存档</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主体：五个面板 -->
+    <main class="main" id="main">
+      <!-- ① 主界面 -->
+      <section class="panel is-active" id="panel-home" data-panel="home">
+        <div class="island" id="island">
+          <div class="island__platform">
+            <div class="pet" id="petAvatar" title="点一下星兽">
+              <span class="pet__emoji" id="petEmoji">🥚</span>
+              <span class="pet__shadow"></span>
+            </div>
+          </div>
+          <div class="island__sea"></div>
+        </div>
+
+        <div class="card card--pet">
+          <div class="pet-head">
+            <div>
+              <h2 class="pet-name" id="petName">未命名星兽</h2>
+              <p class="pet-stage" id="petStage">幼体 · 未定分支</p>
+            </div>
+            <div class="pet-level">
+              <span class="pet-level__label">Lv.</span>
+              <span class="pet-level__value" id="petLevel">1</span>
+            </div>
+          </div>
+
+          <div class="expbar" id="expBar">
+            <div class="expbar__fill" id="expFill"></div>
+            <span class="expbar__text" id="expText">0 / 40</span>
+          </div>
+
+          <div class="stats" id="statBars"></div>
+          <div class="attrs" id="attrList"></div>
+
+          <div class="care-row">
+            <button class="btn btn--care" data-action="care" data-kind="feed" id="btnFeed">
+              <span>🍚</span>喂食<em>1⚡</em>
+            </button>
+            <button class="btn btn--care" data-action="care" data-kind="clean" id="btnClean">
+              <span>🧼</span>清洁<em>1⚡</em>
+            </button>
+            <button class="btn btn--care" data-action="care" data-kind="touch" id="btnTouch">
+              <span>🤲</span>抚摸<em>1⚡</em>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>当前安排</h3>
+            <button class="btn btn--ghost btn--sm" data-nav="explore">去安排 →</button>
+          </div>
+          <div id="homeTaskBox" class="taskbox"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>时间胶囊</h3>
+            <button class="btn btn--ghost btn--sm" data-action="open-report" id="btnLastReport">最近报告</button>
+          </div>
+          <p class="muted small" id="lastAwayText">星兽还没有离开过。</p>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>星兽的记忆</h3>
+          </div>
+          <ul class="memory" id="memoryList"></ul>
+        </div>
+      </section>
+
+      <!-- ② 探索 -->
+      <section class="panel" id="panel-explore" data-panel="explore">
+        <div class="card">
+          <div class="card__head"><h3>探索区域</h3></div>
+          <div class="zones" id="zoneList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>安排下一次探索</h3>
+            <span class="muted small" id="taskHint">选择任务类型</span>
+          </div>
+          <div class="tasks" id="taskList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>星兽状态</h3></div>
+          <div class="activeTask" id="activeTaskBox"></div>
+        </div>
+      </section>
+
+      <!-- ③ 背包 -->
+      <section class="panel" id="panel-bag" data-panel="bag">
+        <div class="card">
+          <div class="card__head">
+            <h3>背包</h3>
+            <span class="muted small" id="bagSummary">0 种物品</span>
+          </div>
+          <div class="filter-row" id="bagFilters"></div>
+          <div class="items" id="bagList"></div>
+        </div>
+
+        <div class="card" id="craftCard">
+          <div class="card__head">
+            <h3>星尘工作台</h3>
+            <span class="muted small">制作物品</span>
+          </div>
+          <div class="recipes" id="recipeList"></div>
+        </div>
+      </section>
+
+      <!-- ④ 图鉴 -->
+      <section class="panel" id="panel-codex" data-panel="codex">
+        <div class="card">
+          <div class="card__head">
+            <h3>星海图鉴</h3>
+            <span class="muted small" id="codexProgress">0 / 0</span>
+          </div>
+          <div class="filter-row" id="codexTabs"></div>
+          <div class="codex" id="codexList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>成就</h3><span class="muted small" id="achProgress">0 / 5</span></div>
+          <div class="achievements" id="achievementList"></div>
+        </div>
+      </section>
+
+      <!-- ⑤ 设置 -->
+      <section class="panel" id="panel-settings" data-panel="settings">
+        <div class="card">
+          <div class="card__head"><h3>迁徙胶囊</h3><span class="muted small">导出 / 导入存档</span></div>
+          <p class="muted small">
+            导出等于把星兽封入胶囊；导入等于在新的星门唤醒它。
+            换设备、清缓存前，请先封一枚胶囊。
+          </p>
+          <div class="btn-row">
+            <button class="btn btn--primary" data-action="export-file" id="btnExportFile">📦 封入胶囊（下载文件）</button>
+            <button class="btn" data-action="export-code" id="btnExportCode">🔗 生成存档码</button>
+            <button class="btn" data-action="import-open" id="btnImportOpen">🚀 在新星门唤醒（导入）</button>
+          </div>
+          <p class="muted small" id="settingsSaveInfo"></p>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>小岛建筑</h3><span class="muted small">消耗星尘升级</span></div>
+          <div class="buildings" id="buildingList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>星兽设定</h3></div>
+          <div class="field">
+            <label for="inputPetName">名字</label>
+            <div class="field-row">
+              <input type="text" id="inputPetName" maxlength="12" placeholder="给星兽起个名字" />
+              <button class="btn btn--primary" data-action="rename-pet">改名</button>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" data-action="open-stats">📊 查看统计</button>
+            <button class="btn btn--ghost" data-action="new-game">🌑 放弃这座岛，重新开始</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>关于</h3></div>
+          <p class="muted small">
+            纯静态网页游戏：没有服务器、没有后台、没有云函数。
+            关掉网页后游戏逻辑完全停止，星兽不会在后台运行；
+            再次打开时按离线时长一次性结算探索报告。
+          </p>
+          <p class="muted small">
+            离线收益上限 12 小时；存档保存在本地浏览器中，通过「迁徙胶囊」跨设备携带。
+          </p>
+          <p class="muted small" id="aboutVersion"></p>
+        </div>
+      </section>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav class="tabbar" id="tabbar">
+      <button class="tab is-active" data-nav="home"><span>🏝️</span>主界面</button>
+      <button class="tab" data-nav="explore"><span>🧭</span>探索</button>
+      <button class="tab" data-nav="bag"><span>🎒</span>背包</button>
+      <button class="tab" data-nav="codex"><span>📖</span>图鉴</button>
+      <button class="tab" data-nav="settings"><span>⚙️</span>设置</button>
+    </nav>
+  </div>
+
+  <!-- 弹窗层 -->
+  <div class="modal-layer" id="modalLayer" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal" id="modal" role="dialog" aria-modal="true">
+      <div class="modal__head">
+        <h2 id="modalTitle">标题</h2>
+        <button class="modal__close" data-close-modal aria-label="关闭">✕</button>
+      </div>
+      <div class="modal__body" id="modalBody"></div>
+      <div class="modal__foot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <!-- 轻提示 -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

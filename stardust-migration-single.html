@@ -1,0 +1,6303 @@
+<!DOCTYPE html>
+<!--
+  星尘迁徙 · 单文件版（自动生成，请勿直接编辑）
+  源码在 stardust-migration/ 目录，修改后运行： node tools/build-single.mjs
+  这一版不含 PWA（manifest / Service Worker），但双击即可玩。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0e1f" />
+  <meta name="description" content="星尘迁徙 Stardust Migration —— 在数据海的小岛上养一只星兽，离线时间胶囊结算的纯静态养成游戏。" />
+  <title>星尘迁徙 · Stardust Migration</title>
+
+  <!-- 所有资源均使用相对路径，可直接部署到 GitHub Pages 的任意子目录 -->
+  <style>
+/* ==========================================================================
+   星尘迁徙 · Stardust Migration
+   风格：深空 + 数据海；移动端优先；全部图形用 CSS / emoji 绘制，不依赖外部图片
+   ========================================================================== */
+
+:root {
+  --bg-deep: #06080f;
+  --bg-panel: rgba(20, 26, 48, 0.72);
+  --bg-panel-solid: #141a30;
+  --bg-soft: rgba(255, 255, 255, 0.05);
+  --border: rgba(150, 175, 255, 0.16);
+  --border-strong: rgba(150, 175, 255, 0.34);
+
+  --text: #e8ecff;
+  --text-dim: #9aa6cc;
+  --text-faint: #69739a;
+
+  --accent: #7fd4ff;
+  --accent-2: #b79cff;
+  --accent-3: #ffd98a;
+  --good: #6ee7a8;
+  --warn: #ffb86b;
+  --bad: #ff8b9a;
+
+  --rarity-common: #9fb0d9;
+  --rarity-rare: #6fd0ff;
+  --rarity-epic: #d59bff;
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 60px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC",
+    "Noto Sans CJK SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* --------------------------------------------------------------------------
+   背景：星空 + 数据海光晕
+   -------------------------------------------------------------------------- */
+
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 50% 110%, #12224a 0%, rgba(8, 12, 26, 0) 60%),
+    linear-gradient(180deg, #05070e 0%, #080c1a 45%, #0a1024 100%);
+}
+
+/* 用重复径向渐变模拟星点，不需要图片 */
+.sky-stars {
+  position: absolute;
+  inset: -10%;
+  background-image:
+    radial-gradient(1.6px 1.6px at 20% 30%, rgba(255, 255, 255, 0.85), transparent 60%),
+    radial-gradient(1.3px 1.3px at 70% 15%, rgba(200, 220, 255, 0.8), transparent 60%),
+    radial-gradient(1.1px 1.1px at 45% 65%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(1.8px 1.8px at 85% 55%, rgba(190, 210, 255, 0.75), transparent 60%),
+    radial-gradient(1.2px 1.2px at 12% 80%, rgba(255, 255, 255, 0.65), transparent 60%),
+    radial-gradient(1.4px 1.4px at 60% 85%, rgba(210, 225, 255, 0.7), transparent 60%);
+  background-size: 240px 240px, 320px 320px, 200px 200px, 380px 380px, 280px 280px, 340px 340px;
+  opacity: 0.9;
+  animation: drift 120s linear infinite;
+}
+
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-120px, 80px, 0); }
+}
+
+.sky-glow {
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.35;
+}
+
+.sky-glow--a {
+  top: -20vw;
+  left: -10vw;
+  background: radial-gradient(circle, rgba(127, 212, 255, 0.5), transparent 65%);
+}
+
+.sky-glow--b {
+  bottom: -25vw;
+  right: -15vw;
+  background: radial-gradient(circle, rgba(183, 156, 255, 0.5), transparent 65%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-stars { animation: none; }
+}
+
+/* --------------------------------------------------------------------------
+   布局骨架
+   -------------------------------------------------------------------------- */
+
+.app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 10px;
+  background: linear-gradient(180deg, rgba(6, 8, 15, 0.92), rgba(6, 8, 15, 0.55));
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.topbar__logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(140deg, rgba(127, 212, 255, 0.3), rgba(183, 156, 255, 0.3));
+  border: 1px solid var(--border-strong);
+  color: #fff;
+  font-size: 17px;
+}
+
+.topbar h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.topbar__sub {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.topbar__resources {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chip__icon { font-size: 12px; }
+.chip__value { font-variant-numeric: tabular-nums; }
+.chip--muted { color: var(--text-dim); }
+.chip.is-flash { animation: chipFlash 0.6s ease; }
+.chip.is-low { color: var(--warn); border-color: rgba(255, 184, 107, 0.4); }
+
+@keyframes chipFlash {
+  0% { background: rgba(127, 212, 255, 0.35); }
+  100% { background: var(--bg-soft); }
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 14px calc(var(--tabbar-h) + 22px + var(--safe-bottom));
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.panel { display: none; }
+.panel.is-active { display: block; animation: panelIn 0.24s ease; }
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   卡片 / 通用元素
+   -------------------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card__head h3 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* 星兽主卡：加一点柔和的星光底色，和其它卡片区分开 */
+.card--pet {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(127, 212, 255, 0.12), transparent 62%),
+    var(--bg-panel);
+}
+
+/* 状态条低于 25 时整体变暗提示 */
+.stat.is-low .stat__label { color: var(--warn); }
+
+.muted { color: var(--text-dim); }
+.small { font-size: 12px; }
+.tiny { font-size: 11px; }
+.center { text-align: center; }
+.grow { flex: 1; }
+
+/* 按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:active { transform: scale(0.96); }
+.btn:hover { border-color: var(--border-strong); }
+
+.btn:disabled,
+.btn.is-disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, rgba(127, 212, 255, 0.28), rgba(183, 156, 255, 0.3));
+  border-color: var(--border-strong);
+  font-weight: 600;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.btn--danger { color: var(--bad); border-color: rgba(255, 139, 154, 0.35); }
+.btn--sm { padding: 6px 11px; font-size: 12px; }
+.btn--block { width: 100%; }
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 输入 */
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  outline: none;
+}
+
+input[type="text"]:focus,
+textarea:focus { border-color: var(--border-strong); }
+
+textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
+.field-row { display: flex; gap: 8px; }
+.field-row .btn { white-space: nowrap; }
+
+/* 筛选行 */
+.filter-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.filter-row::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+  flex: none;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.filter-chip.is-active {
+  background: linear-gradient(135deg, rgba(127, 212, 255, 0.28), rgba(183, 156, 255, 0.28));
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* --------------------------------------------------------------------------
+   主界面：小岛与星兽
+   -------------------------------------------------------------------------- */
+
+.island {
+  position: relative;
+  height: 210px;
+  margin-bottom: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: radial-gradient(90% 80% at 50% 100%, rgba(127, 212, 255, 0.13), transparent 70%);
+  overflow: hidden;
+}
+
+.island__platform {
+  position: relative;
+  width: 210px;
+  height: 74px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(140, 170, 255, 0.22), rgba(20, 26, 48, 0.1));
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5), inset 0 -10px 25px rgba(127, 212, 255, 0.12);
+  margin-top: 60px;
+}
+
+/* 数据海：用重复线性渐变做出流动的横纹 */
+.island__sea {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -70px;
+  height: 120px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(127, 212, 255, 0.16) 0 2px,
+    transparent 2px 14px
+  );
+  mask-image: linear-gradient(180deg, transparent, #000 45%, #000);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 45%, #000);
+  animation: seaFlow 6s linear infinite;
+}
+
+@keyframes seaFlow {
+  from { transform: translateX(0); }
+  to { transform: translateX(14px); }
+}
+
+.pet {
+  position: absolute;
+  top: -62px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 90px;
+  height: 90px;
+  cursor: pointer;
+}
+
+.pet__emoji {
+  font-size: 54px;
+  line-height: 1;
+  filter: drop-shadow(0 0 14px rgba(127, 212, 255, 0.55));
+  animation: breathe 3.4s ease-in-out infinite;
+  transition: transform 0.18s ease;
+}
+
+.pet.is-happy .pet__emoji { animation: bounce 0.55s ease 2; }
+.pet.is-away .pet__emoji { opacity: 0.4; filter: grayscale(0.4); }
+
+@keyframes breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.04); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-16px) scale(1.1); }
+}
+
+.pet__shadow {
+  position: absolute;
+  bottom: -8px;
+  width: 52px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  filter: blur(4px);
+}
+
+.pet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pet-name { font-size: 18px; font-weight: 600; }
+.pet-stage { font-size: 12px; color: var(--text-dim); }
+
+.pet-level {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(127, 212, 255, 0.14);
+  border: 1px solid var(--border-strong);
+}
+
+.pet-level__label { font-size: 10px; color: var(--text-dim); }
+.pet-level__value { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.expbar {
+  position: relative;
+  height: 14px;
+  margin: 10px 0 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.expbar__fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.4s ease;
+}
+
+.expbar__text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* 状态条 */
+.stats { display: grid; gap: 7px; }
+
+.stat {
+  display: grid;
+  grid-template-columns: 58px 1fr 38px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.stat__label { color: var(--text-dim); }
+.stat__value { text-align: right; font-variant-numeric: tabular-nums; }
+
+.bar {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.bar__fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.bar__fill--hunger { background: linear-gradient(90deg, #ffc46b, #ffe6a8); }
+.bar__fill--mood { background: linear-gradient(90deg, #ff9ec7, #ffd0e6); }
+.bar__fill--energy { background: linear-gradient(90deg, #6ee7a8, #b8ffd9); }
+.bar__fill--intimacy { background: linear-gradient(90deg, #b79cff, #e2d4ff); }
+.bar__fill.is-low { background: linear-gradient(90deg, #ff8b9a, #ffc2c9); }
+
+/* 成长属性 */
+.attrs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.attr {
+  text-align: center;
+  padding: 7px 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.attr__icon { font-size: 14px; }
+.attr__name { display: block; font-size: 10px; color: var(--text-dim); }
+.attr__value { display: block; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 照顾按钮 */
+.care-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn--care {
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.btn--care span { font-size: 19px; }
+.btn--care em { font-style: normal; font-size: 10px; color: var(--text-faint); }
+
+/* 记忆列表 */
+.memory { list-style: none; display: grid; gap: 6px; font-size: 12.5px; }
+.memory li { display: flex; gap: 8px; color: var(--text-dim); }
+.memory li b { color: var(--text); font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   探索
+   -------------------------------------------------------------------------- */
+
+.zones { display: grid; gap: 8px; }
+
+.zone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.zone.is-locked { opacity: 0.5; }
+.zone.is-active { border-color: var(--accent); background: rgba(127, 212, 255, 0.12); }
+.zone__emoji { font-size: 24px; }
+.zone__body { flex: 1; min-width: 0; }
+.zone__name { font-size: 13.5px; font-weight: 600; }
+.zone__desc { font-size: 11.5px; color: var(--text-dim); }
+.zone__tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.tasks { display: grid; gap: 8px; }
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.task:disabled { opacity: 0.45; }
+.task.is-active { border-color: var(--accent-3); background: rgba(255, 217, 138, 0.1); }
+.task__emoji { font-size: 22px; }
+.task__body { flex: 1; min-width: 0; }
+.task__name { font-size: 13.5px; font-weight: 600; }
+.task__desc { font-size: 11.5px; color: var(--text-dim); }
+.task__meta { font-size: 11px; color: var(--text-faint); text-align: right; white-space: nowrap; }
+
+/* 当前任务卡片 */
+.taskbox,
+.activeTask { display: grid; gap: 8px; }
+
+.progress {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progress__fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent-3), #fff2cd);
+  transition: width 0.6s linear;
+}
+
+.task-live {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.task-live__time { font-variant-numeric: tabular-nums; color: var(--accent-3); }
+
+.empty {
+  padding: 18px 10px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+/* --------------------------------------------------------------------------
+   背包
+   -------------------------------------------------------------------------- */
+
+.items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.item {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.item:hover { border-color: var(--border-strong); }
+.item__emoji { font-size: 22px; }
+.item__name { font-size: 11.5px; }
+.item__count {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.item--rare { border-color: rgba(111, 208, 255, 0.42); }
+.item--epic { border-color: rgba(213, 155, 255, 0.5); box-shadow: 0 0 14px rgba(213, 155, 255, 0.14); }
+.item--usable::after {
+  content: "可用";
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 9px;
+  color: var(--accent);
+}
+
+.recipes { display: grid; gap: 8px; }
+
+.recipe {
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.recipe__head { display: flex; align-items: center; gap: 8px; }
+.recipe__emoji { font-size: 20px; }
+.recipe__name { flex: 1; font-size: 13.5px; font-weight: 600; }
+.recipe__desc { font-size: 11.5px; color: var(--text-dim); margin: 4px 0 8px; }
+.recipe__cost { font-size: 11.5px; color: var(--text-faint); }
+.recipe.is-locked { opacity: 0.55; }
+
+/* --------------------------------------------------------------------------
+   图鉴 / 成就
+   -------------------------------------------------------------------------- */
+
+.codex {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.codex-cell {
+  display: grid;
+  gap: 2px;
+  padding: 9px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  text-align: center;
+  font-size: 11.5px;
+}
+
+.codex-cell.is-locked { opacity: 0.4; }
+.codex-cell__emoji { font-size: 21px; }
+.codex-cell__sub { font-size: 10px; color: var(--text-faint); }
+
+.achievements { display: grid; gap: 8px; }
+
+.achievement {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.achievement.is-locked { opacity: 0.45; }
+.achievement__emoji { font-size: 20px; }
+.achievement__name { font-size: 13px; font-weight: 600; }
+.achievement__desc { font-size: 11.5px; color: var(--text-dim); }
+
+/* --------------------------------------------------------------------------
+   设置 / 建筑
+   -------------------------------------------------------------------------- */
+
+.buildings { display: grid; gap: 8px; }
+
+.building {
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.building__head { display: flex; align-items: center; gap: 8px; }
+.building__emoji { font-size: 20px; }
+.building__name { flex: 1; font-size: 13.5px; font-weight: 600; }
+.building__level { font-size: 11px; color: var(--accent-3); }
+.building__desc { font-size: 11.5px; color: var(--text-dim); margin: 4px 0 8px; }
+.building__next { font-size: 11.5px; color: var(--text-faint); margin-bottom: 8px; }
+.building__effect { font-size: 11.5px; color: var(--good); }
+
+/* --------------------------------------------------------------------------
+   底部导航
+   -------------------------------------------------------------------------- */
+
+.tabbar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: rgba(6, 8, 15, 0.92);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  transition: color 0.2s ease;
+}
+
+.tab span { font-size: 18px; line-height: 1.1; }
+.tab.is-active { color: var(--accent); }
+.tab.is-active span { filter: drop-shadow(0 0 8px rgba(127, 212, 255, 0.6)); }
+
+/* --------------------------------------------------------------------------
+   弹窗
+   -------------------------------------------------------------------------- */
+
+.modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.modal-layer[hidden] { display: none; }
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 5, 12, 0.72);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #161d38, #101529);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: modalIn 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  overflow: hidden;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal__head h2 { font-size: 15.5px; font-weight: 600; }
+
+.modal__close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--text-dim);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.modal__body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.modal__foot:empty { display: none; }
+
+/* 报告样式 */
+.report__lead { font-size: 13.5px; margin-bottom: 6px; }
+.report__meta { font-size: 11.5px; color: var(--text-faint); margin-bottom: 12px; }
+
+.report__section { margin-bottom: 14px; }
+.report__section h4 {
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.report__line {
+  font-size: 12.8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(127, 212, 255, 0.07);
+  border-left: 3px solid rgba(127, 212, 255, 0.5);
+  line-height: 1.6;
+}
+
+.report__line--warn {
+  background: rgba(255, 184, 107, 0.1);
+  border-left-color: var(--warn);
+}
+
+.reward-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.reward {
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+
+.reward--plus { color: var(--good); }
+.reward--minus { color: var(--bad); }
+
+/* 事件选择 */
+.event__banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(183, 156, 255, 0.18), rgba(127, 212, 255, 0.14));
+  border: 1px solid var(--border-strong);
+  margin-bottom: 12px;
+}
+
+.event__emoji { font-size: 30px; }
+.event__title { font-size: 14.5px; font-weight: 600; }
+.event__sub { font-size: 11px; color: var(--text-dim); }
+.event__text { font-size: 13.2px; line-height: 1.7; margin-bottom: 14px; }
+.event__option-hint { font-size: 11px; color: var(--text-faint); margin-bottom: 6px; }
+
+.option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  transition: transform 0.12s ease, border-color 0.2s ease;
+}
+
+.option:hover { border-color: var(--border-strong); }
+.option:active { transform: scale(0.98); }
+.option__tag { display: block; font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+
+/* 冲突对比表 */
+.compare { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0 12px; }
+.compare th,
+.compare td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.compare th { color: var(--text-faint); font-weight: 500; }
+.compare td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.compare tr.is-newer td { color: var(--accent); }
+
+/* 统计表 */
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12.5px; }
+.kv dt { color: var(--text-dim); }
+.kv dd { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   轻提示
+   -------------------------------------------------------------------------- */
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-h) + 26px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 80;
+  display: grid;
+  gap: 6px;
+  width: min(92vw, 420px);
+  pointer-events: none;
+}
+
+.toast {
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(20, 26, 48, 0.95);
+  border: 1px solid var(--border-strong);
+  font-size: 12.5px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  animation: toastIn 0.24s ease;
+}
+
+.toast--good { border-color: rgba(110, 231, 168, 0.45); color: #d6ffe9; }
+.toast--bad { border-color: rgba(255, 139, 154, 0.45); color: #ffe0e4; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.toast.is-out { animation: toastOut 0.3s ease forwards; }
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(-6px); }
+}
+
+/* --------------------------------------------------------------------------
+   宽屏适配
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 560px) {
+  .island { height: 240px; }
+  .items, .codex { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
+
+  </style>
+</head>
+<body>
+  <!-- 星空 / 数据海背景 -->
+  <div class="sky" aria-hidden="true">
+    <div class="sky-stars"></div>
+    <div class="sky-glow sky-glow--a"></div>
+    <div class="sky-glow sky-glow--b"></div>
+  </div>
+
+  <div class="app" id="app">
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <div class="topbar__title">
+        <span class="topbar__logo" aria-hidden="true">✦</span>
+        <div>
+          <h1>星尘迁徙</h1>
+          <p class="topbar__sub">Stardust Migration</p>
+        </div>
+      </div>
+      <div class="topbar__resources">
+        <div class="chip" id="chipAp" title="行动点：每天自动恢复">
+          <span class="chip__icon">⚡</span><span class="chip__value" id="chipApValue">--</span>
+        </div>
+        <div class="chip" id="chipStardust" title="星尘：通用资源">
+          <span class="chip__icon">✨</span><span class="chip__value" id="chipStardustValue">--</span>
+        </div>
+        <div class="chip chip--muted" id="chipSave" title="本地自动存档状态">
+          <span class="chip__icon">💾</span><span class="chip__value" id="chipSaveValue">未存档</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主体：五个面板 -->
+    <main class="main" id="main">
+      <!-- ① 主界面 -->
+      <section class="panel is-active" id="panel-home" data-panel="home">
+        <div class="island" id="island">
+          <div class="island__platform">
+            <div class="pet" id="petAvatar" title="点一下星兽">
+              <span class="pet__emoji" id="petEmoji">🥚</span>
+              <span class="pet__shadow"></span>
+            </div>
+          </div>
+          <div class="island__sea"></div>
+        </div>
+
+        <div class="card card--pet">
+          <div class="pet-head">
+            <div>
+              <h2 class="pet-name" id="petName">未命名星兽</h2>
+              <p class="pet-stage" id="petStage">幼体 · 未定分支</p>
+            </div>
+            <div class="pet-level">
+              <span class="pet-level__label">Lv.</span>
+              <span class="pet-level__value" id="petLevel">1</span>
+            </div>
+          </div>
+
+          <div class="expbar" id="expBar">
+            <div class="expbar__fill" id="expFill"></div>
+            <span class="expbar__text" id="expText">0 / 40</span>
+          </div>
+
+          <div class="stats" id="statBars"></div>
+          <div class="attrs" id="attrList"></div>
+
+          <div class="care-row">
+            <button class="btn btn--care" data-action="care" data-kind="feed" id="btnFeed">
+              <span>🍚</span>喂食<em>1⚡</em>
+            </button>
+            <button class="btn btn--care" data-action="care" data-kind="clean" id="btnClean">
+              <span>🧼</span>清洁<em>1⚡</em>
+            </button>
+            <button class="btn btn--care" data-action="care" data-kind="touch" id="btnTouch">
+              <span>🤲</span>抚摸<em>1⚡</em>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>当前安排</h3>
+            <button class="btn btn--ghost btn--sm" data-nav="explore">去安排 →</button>
+          </div>
+          <div id="homeTaskBox" class="taskbox"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>时间胶囊</h3>
+            <button class="btn btn--ghost btn--sm" data-action="open-report" id="btnLastReport">最近报告</button>
+          </div>
+          <p class="muted small" id="lastAwayText">星兽还没有离开过。</p>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>星兽的记忆</h3>
+          </div>
+          <ul class="memory" id="memoryList"></ul>
+        </div>
+      </section>
+
+      <!-- ② 探索 -->
+      <section class="panel" id="panel-explore" data-panel="explore">
+        <div class="card">
+          <div class="card__head"><h3>探索区域</h3></div>
+          <div class="zones" id="zoneList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>安排下一次探索</h3>
+            <span class="muted small" id="taskHint">选择任务类型</span>
+          </div>
+          <div class="tasks" id="taskList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>星兽状态</h3></div>
+          <div class="activeTask" id="activeTaskBox"></div>
+        </div>
+      </section>
+
+      <!-- ③ 背包 -->
+      <section class="panel" id="panel-bag" data-panel="bag">
+        <div class="card">
+          <div class="card__head">
+            <h3>背包</h3>
+            <span class="muted small" id="bagSummary">0 种物品</span>
+          </div>
+          <div class="filter-row" id="bagFilters"></div>
+          <div class="items" id="bagList"></div>
+        </div>
+
+        <div class="card" id="craftCard">
+          <div class="card__head">
+            <h3>星尘工作台</h3>
+            <span class="muted small">制作物品</span>
+          </div>
+          <div class="recipes" id="recipeList"></div>
+        </div>
+      </section>
+
+      <!-- ④ 图鉴 -->
+      <section class="panel" id="panel-codex" data-panel="codex">
+        <div class="card">
+          <div class="card__head">
+            <h3>星海图鉴</h3>
+            <span class="muted small" id="codexProgress">0 / 0</span>
+          </div>
+          <div class="filter-row" id="codexTabs"></div>
+          <div class="codex" id="codexList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>成就</h3><span class="muted small" id="achProgress">0 / 5</span></div>
+          <div class="achievements" id="achievementList"></div>
+        </div>
+      </section>
+
+      <!-- ⑤ 设置 -->
+      <section class="panel" id="panel-settings" data-panel="settings">
+        <div class="card">
+          <div class="card__head"><h3>迁徙胶囊</h3><span class="muted small">导出 / 导入存档</span></div>
+          <p class="muted small">
+            导出等于把星兽封入胶囊；导入等于在新的星门唤醒它。
+            换设备、清缓存前，请先封一枚胶囊。
+          </p>
+          <div class="btn-row">
+            <button class="btn btn--primary" data-action="export-file" id="btnExportFile">📦 封入胶囊（下载文件）</button>
+            <button class="btn" data-action="export-code" id="btnExportCode">🔗 生成存档码</button>
+            <button class="btn" data-action="import-open" id="btnImportOpen">🚀 在新星门唤醒（导入）</button>
+          </div>
+          <p class="muted small" id="settingsSaveInfo"></p>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>小岛建筑</h3><span class="muted small">消耗星尘升级</span></div>
+          <div class="buildings" id="buildingList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>星兽设定</h3></div>
+          <div class="field">
+            <label for="inputPetName">名字</label>
+            <div class="field-row">
+              <input type="text" id="inputPetName" maxlength="12" placeholder="给星兽起个名字" />
+              <button class="btn btn--primary" data-action="rename-pet">改名</button>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" data-action="open-stats">📊 查看统计</button>
+            <button class="btn btn--ghost" data-action="new-game">🌑 放弃这座岛，重新开始</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><h3>关于</h3></div>
+          <p class="muted small">
+            纯静态网页游戏：没有服务器、没有后台、没有云函数。
+            关掉网页后游戏逻辑完全停止，星兽不会在后台运行；
+            再次打开时按离线时长一次性结算探索报告。
+          </p>
+          <p class="muted small">
+            离线收益上限 12 小时；存档保存在本地浏览器中，通过「迁徙胶囊」跨设备携带。
+          </p>
+          <p class="muted small" id="aboutVersion"></p>
+        </div>
+      </section>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav class="tabbar" id="tabbar">
+      <button class="tab is-active" data-nav="home"><span>🏝️</span>主界面</button>
+      <button class="tab" data-nav="explore"><span>🧭</span>探索</button>
+      <button class="tab" data-nav="bag"><span>🎒</span>背包</button>
+      <button class="tab" data-nav="codex"><span>📖</span>图鉴</button>
+      <button class="tab" data-nav="settings"><span>⚙️</span>设置</button>
+    </nav>
+  </div>
+
+  <!-- 弹窗层 -->
+  <div class="modal-layer" id="modalLayer" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal" id="modal" role="dialog" aria-modal="true">
+      <div class="modal__head">
+        <h2 id="modalTitle">标题</h2>
+        <button class="modal__close" data-close-modal aria-label="关闭">✕</button>
+      </div>
+      <div class="modal__body" id="modalBody"></div>
+      <div class="modal__foot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <!-- 轻提示 -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script type="module">
+/* ==================== js/time.js ==================== */
+/**
+ * time.js —— 时间工具
+ *
+ * 设计要点：
+ * 1. 所有"当前时间"都通过 now() 获取，方便测试时注入假时钟。
+ * 2. 结算逻辑（离线胶囊、任务）只依赖"时间戳差值"，不依赖 setInterval，
+ *    因此关掉网页后游戏逻辑完全停止，不会在后台运行。
+ */
+
+/** 一天的毫秒数 */
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** 一小时 */
+const HOUR_MS = 60 * 60 * 1000;
+/** 一分钟 */
+const MINUTE_MS = 60 * 1000;
+
+/** 可注入的时钟（默认取系统时间） */
+let clock = () => Date.now();
+
+/** 当前时间戳（ms） */
+function now() {
+  return clock();
+}
+
+/**
+ * 替换时钟（仅用于自动化测试 / 调试）
+ * @param {() => number} fn
+ */
+function setClock(fn) {
+  clock = typeof fn === 'function' ? fn : () => Date.now();
+}
+
+/** 当前时间戳的秒级版本，用于生成随机种子 */
+function nowSeconds() {
+  return Math.floor(now() / 1000);
+}
+
+/**
+ * 自然日序号（按本地时区），用于"每天恢复行动点"
+ * @param {number} [ts]
+ */
+function dayIndex(ts = now()) {
+  const d = new Date(ts);
+  // 使用本地 0 点作为分界，避免跨时区 UTC 偏移造成体感错乱
+  return Math.floor((ts - d.getTimezoneOffset() * MINUTE_MS) / DAY_MS);
+}
+
+/** 距离下一个自然日 0 点还有多少毫秒 */
+function msUntilNextDay(ts = now()) {
+  const d = new Date(ts);
+  const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+  return Math.max(0, next.getTime() - ts);
+}
+
+/**
+ * 把毫秒格式化为中文可读时长，例如 "3 小时 12 分钟"
+ * @param {number} ms
+ */
+function formatDuration(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  if (total < 60) return `${total} 秒`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = Math.floor(minutes / 60);
+  const restMin = minutes % 60;
+  if (hours < 24) return restMin ? `${hours} 小时 ${restMin} 分钟` : `${hours} 小时`;
+  const days = Math.floor(hours / 24);
+  const restHour = hours % 24;
+  return restHour ? `${days} 天 ${restHour} 小时` : `${days} 天`;
+}
+
+/**
+ * 把时间戳格式化为 "MM-DD HH:mm"
+ * @param {number} ts
+ */
+function formatClock(ts) {
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/* ==================== js/rng.js ==================== */
+/**
+ * rng.js —— 确定性随机数
+ *
+ * 目标：同一份存档 + 同一段离线时间 + 同一个任务 => 结算结果永远一致。
+ * 做法：把（randomSeed, 任务开始时间, 时间片序号, 用途标签）哈希成 32 位种子，
+ *      再用 mulberry32 生成序列。不使用 Math.random，因此刷新页面结果不变。
+ */
+
+/**
+ * 字符串 / 数字混合哈希（FNV-1a 变体），返回 32 位无符号整数
+ * @param {...(string|number)} parts
+ * @returns {number}
+ */
+function hash32(...parts) {
+  let h = 0x811c9dc5;
+  const text = parts.map((p) => String(p)).join('|');
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  // 再混一次，避免短字符串低位规律过强
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x2545f491);
+  h ^= h >>> 13;
+  return h >>> 0;
+}
+
+/**
+ * 由种子创建随机数发生器
+ * @param {number} seed
+ * @returns {{next: () => number, int: (min:number,max:number)=>number, pick: (arr:any[])=>any, chance: (p:number)=>boolean, weighted: (list:any[], weightOf?:(item:any)=>number)=>any}}
+ */
+function createRng(seed) {
+  let a = (seed >>> 0) || 0x9e3779b9;
+
+  /** 返回 [0,1) */
+  function next() {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  /** [min, max] 闭区间整数 */
+  function int(min, max) {
+    if (max < min) [min, max] = [max, min];
+    return min + Math.floor(next() * (max - min + 1));
+  }
+
+  /** 从数组里等概率取一个 */
+  function pick(arr) {
+    if (!Array.isArray(arr) || arr.length === 0) return undefined;
+    return arr[Math.floor(next() * arr.length)];
+  }
+
+  /** 以概率 p 返回 true */
+  function chance(p) {
+    return next() < p;
+  }
+
+  /** 按权重抽取 */
+  function weighted(list, weightOf = (item) => item.weight ?? 1) {
+    const items = (list || []).filter((it) => weightOf(it) > 0);
+    if (items.length === 0) return undefined;
+    const total = items.reduce((sum, it) => sum + weightOf(it), 0);
+    let roll = next() * total;
+    for (const it of items) {
+      roll -= weightOf(it);
+      if (roll <= 0) return it;
+    }
+    return items[items.length - 1];
+  }
+
+  /** 洗牌（返回新数组，不修改入参） */
+  function shuffle(arr) {
+    const out = [...(arr || [])];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(next() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  return { next, int, pick, chance, weighted, shuffle };
+}
+
+/**
+ * 便捷函数：直接根据若干标签创建一个确定性 rng
+ * @param {...(string|number)} parts
+ */
+function rngFrom(...parts) {
+  return createRng(hash32(...parts));
+}
+
+/* ==================== js/data.js ==================== */
+/**
+ * data.js —— 静态配置表
+ *
+ * 这里只放"不随存档变化"的静态数据：物品、区域、任务、事件、建筑、成就、进化分支。
+ * 存档里只保存 id 与数量，读取时通过索引表还原，避免存档体积膨胀。
+ */
+
+const SAVE_VERSION = 1;
+const GAME_NAME = '星尘迁徙';
+const GAME_NAME_EN = 'Stardust Migration';
+
+/** 稀有度定义（颜色交给 CSS 处理） */
+const RARITY = {
+  common: { key: 'common', label: '普通', order: 0 },
+  rare: { key: 'rare', label: '稀有', order: 1 },
+  epic: { key: 'epic', label: '史诗', order: 2 },
+};
+
+/** 物品类型 */
+const ITEM_TYPE_LABEL = {
+  currency: '货币',
+  material: '材料',
+  food: '食物',
+  gift: '礼物',
+  key: '关键物',
+  relic: '遗物',
+  blueprint: '配方',
+};
+
+/**
+ * 物品表（MVP 共 20 种）
+ * - use: 可在背包中使用，{ hunger, mood, energy, intimacy } 为恢复量；plus 为特殊说明
+ * - gifts: 是否可作为礼物送给星兽
+ * - tags: 供成就与配方判断
+ */
+const ITEMS = [
+  { id: 'stardust', name: '星尘', emoji: '✨', type: 'currency', rarity: 'common', price: 1, desc: '数据海里最基础的微粒，是一切建造与合成的燃料。' },
+  { id: 'moss_ball', name: '苔藓团', emoji: '🟢', type: 'food', rarity: 'common', price: 3, desc: '微光浅滩的柔软苔藓，星兽的主食。', use: { hunger: 26 }, tags: ['food', 'basic'] },
+  { id: 'crystal_shard', name: '晶体碎片', emoji: '💎', type: 'material', rarity: 'common', price: 6, desc: '凝固的星尘结晶，升级小屋的必需品。' },
+  { id: 'shell', name: '潮汐贝壳', emoji: '🐚', type: 'relic', rarity: 'common', price: 8, desc: '贴着耳朵能听到潮汐数据流动的声音。' },
+  { id: 'bolt', name: '漂流螺栓', emoji: '🔩', type: 'material', rarity: 'common', price: 5, desc: '来自旧时代浮空器的零件，锈迹里有故事。' },
+  { id: 'algae', name: '星藻', emoji: '🌿', type: 'material', rarity: 'common', price: 7, desc: '会缓慢发光的藻类，是料理与药剂的基底。' },
+  { id: 'mint_berry', name: '薄荷果', emoji: '🫐', type: 'food', rarity: 'common', price: 6, desc: '咬开是清凉的星尘味，星兽很喜欢。', use: { hunger: 12, mood: 8 }, tags: ['food'] },
+  { id: 'glow_moss', name: '发光苔藓', emoji: '🍀', type: 'material', rarity: 'rare', price: 18, desc: '在无光处自行亮起的苔藓，可用于照明与装饰。' },
+  { id: 'echo_scale', name: '回声鳞片', emoji: '🐟', type: 'material', rarity: 'rare', price: 20, desc: '会重复播放附近声音的透明鳞片。' },
+  { id: 'star_iron', name: '碎星铁', emoji: '🪨', type: 'material', rarity: 'rare', price: 22, desc: '碎星遗迹的金属残骸，沉重而温热。' },
+  { id: 'rune_tablet', name: '符文石板', emoji: '🪧', type: 'relic', rarity: 'rare', price: 30, desc: '刻着旧文明符号的石板，学者型星兽会盯着看很久。' },
+  { id: 'dream_dust', name: '梦珊瑚粉', emoji: '🪸', type: 'material', rarity: 'rare', price: 26, desc: '安神材料的原料，闻起来像很浅的睡眠。' },
+  { id: 'starmap_fragment', name: '星图残页', emoji: '🗺️', type: 'key', rarity: 'rare', price: 40, desc: '记录了另一片海域的坐标，可解锁新的探索区域。' },
+  { id: 'star_vein_stone', name: '星脉石', emoji: '🔷', type: 'key', rarity: 'rare', price: 45, desc: '内部有缓慢流动的光脉，是观星台升级的关键。' },
+  { id: 'ancient_circuit', name: '古旧电路', emoji: '🧩', type: 'material', rarity: 'epic', price: 55, desc: '仍在微弱运转的旧电路，藏着一段未说完的话。' },
+  { id: 'star_crystal_core', name: '星辰晶核', emoji: '💠', type: 'material', rarity: 'epic', price: 70, desc: '高密度星尘凝聚体，是守护体阶段的钥匙。' },
+  { id: 'luminous_soup', name: '星辉汤', emoji: '🍲', type: 'food', rarity: 'rare', price: 35, desc: '用发光苔藓熬成的汤，喝下去连影子都会亮一会儿。', use: { hunger: 40, mood: 15, energy: 10 }, tags: ['food', 'cooked'] },
+  { id: 'dream_pillow', name: '梦珊瑚枕', emoji: '🛏️', type: 'gift', rarity: 'rare', price: 45, desc: '睡上去会做关于迁徙的梦。', use: { energy: 35 }, gifts: true, tags: ['furniture'] },
+  { id: 'starlight_pendant', name: '星光吊坠', emoji: '📿', type: 'gift', rarity: 'epic', price: 90, desc: '把一小片星空封在晶体里，贴身佩戴。', use: { intimacy: 12, mood: 18 }, gifts: true },
+  { id: 'starseed', name: '星种', emoji: '🌱', type: 'key', rarity: 'epic', price: 120, desc: '传说中能把荒岛重新长成星港的种子。' },
+];
+
+/** id -> 物品 的索引 */
+const ITEM_MAP = Object.fromEntries(ITEMS.map((it) => [it.id, it]));
+
+/** 便捷查询 */
+function getItem(id) {
+  return ITEM_MAP[id];
+}
+function itemName(id) {
+  return ITEM_MAP[id]?.name ?? id;
+}
+function itemEmoji(id) {
+  return ITEM_MAP[id]?.emoji ?? '❔';
+}
+
+/**
+ * 探索区域（至少 2 个）
+ * - drops: 基础产出，amount 为 [min, max]，随任务时长线性放大
+ * - rare: 概率额外掉落
+ * - events: 该区域可触发的事件 id
+ * - story: 收获时用于报告叙事的碎片
+ */
+const ZONES = [
+  {
+    id: 'shallow',
+    name: '微光浅滩',
+    emoji: '🌊',
+    desc: '数据海最浅的一片水域，浪花里全是细碎星光，适合新手星兽练习呼吸。',
+    unlock: null,
+    danger: 1,
+    drops: [
+      { id: 'moss_ball', amount: [1, 3] },
+      { id: 'crystal_shard', amount: [1, 2] },
+      { id: 'bolt', amount: [0, 2] },
+      { id: 'shell', amount: [0, 1] },
+    ],
+    rare: [
+      { id: 'glow_moss', chance: 0.16 },
+      { id: 'echo_scale', chance: 0.12 },
+      { id: 'algae', chance: 0.22 },
+      { id: 'mint_berry', chance: 0.2 },
+    ],
+    events: ['e01', 'e02', 'e03', 'e04', 'e05', 'e06', 'e10'],
+    story: [
+      '星兽在浅滩上踩出一串发光的脚印，过了一会儿才慢慢暗下去。',
+      '它把脸埋进水里又抬起来，鼻尖挂着一颗不肯掉的小水珠。',
+      '浅滩的浪推来一枚贝壳，它听了很久，然后郑重地放进口袋。',
+      '它对着自己的倒影练习了三次打招呼，第三次才满意。',
+    ],
+  },
+  {
+    id: 'ruins',
+    name: '碎星遗迹',
+    emoji: '🛕',
+    desc: '一片沉在数据海深处的旧文明残骸，金属会记住走过的人。',
+    unlock: { item: 'starmap_fragment', building: { id: 'observatory', level: 2 }, hint: '需要「星图残页」，或把观星台升到 2 级' },
+    danger: 2,
+    drops: [
+      { id: 'star_iron', amount: [1, 3] },
+      { id: 'bolt', amount: [1, 3] },
+      { id: 'rune_tablet', amount: [0, 1] },
+      { id: 'crystal_shard', amount: [1, 3] },
+    ],
+    rare: [
+      { id: 'ancient_circuit', chance: 0.14 },
+      { id: 'star_vein_stone', chance: 0.12 },
+      { id: 'dream_dust', chance: 0.18 },
+      { id: 'starmap_fragment', chance: 0.08 },
+      { id: 'star_crystal_core', chance: 0.04 },
+    ],
+    events: ['e03', 'e06', 'e07', 'e08', 'e09', 'e02', 'e05'],
+    story: [
+      '遗迹的走廊里，星兽的脚步被墙体重复了很多遍才还回来。',
+      '它在断墙下发现一台还在待机的旧机器，屏幕只亮着一句「欢迎回来」。',
+      '它绕着一根倾斜的柱子转了三圈，像在确认它明天还在不在。',
+      '它把爪子按在冰冷的金属上，金属慢慢有了体温。',
+    ],
+  },
+];
+
+const ZONE_MAP = Object.fromEntries(ZONES.map((z) => [z.id, z]));
+function getZone(id) {
+  return ZONE_MAP[id];
+}
+
+/**
+ * 任务类型（下线前安排的那一件事）
+ * - duration: 基础时长（分钟），完成后任务结束
+ * - zone: 是否必须选择探索区域
+ * - cost: 启动消耗（行动点）
+ */
+const TASKS = [
+  {
+    id: 'gather',
+    name: '采集',
+    emoji: '🧺',
+    desc: '在浅滩或遗迹里收集基础材料，最稳妥的收益。',
+    duration: 120,
+    cost: 2,
+    zone: true,
+    gains: [
+      { stat: 'perception', amount: 1 },
+      { stat: 'agility', amount: 1 },
+    ],
+    tags: ['explore', 'gather'],
+  },
+  {
+    id: 'explore',
+    name: '探险',
+    emoji: '🧭',
+    desc: '深入未知区域，稀有掉落与随机事件都更多，消耗也更大。',
+    duration: 180,
+    cost: 3,
+    zone: true,
+    danger: true,
+    gains: [
+      { stat: 'agility', amount: 2 },
+      { stat: 'perception', amount: 1 },
+      { stat: 'physique', amount: 1 },
+    ],
+    tags: ['explore'],
+  },
+  {
+    id: 'study',
+    name: '学习',
+    emoji: '📖',
+    desc: '在观星台研读残页与石板，稳步提升智慧。',
+    duration: 120,
+    cost: 2,
+    zone: false,
+    gains: [
+      { stat: 'wisdom', amount: 3 },
+      { stat: 'perception', amount: 1 },
+    ],
+    tags: ['study'],
+  },
+  {
+    id: 'rest',
+    name: '休息',
+    emoji: '💤',
+    desc: '什么都不做，只是睡一觉。恢复精力，但几乎不带回资源。',
+    duration: 240,
+    cost: 1,
+    zone: false,
+    gains: [{ stat: 'physique', amount: 1 }],
+    tags: ['rest'],
+  },
+];
+
+const TASK_MAP = Object.fromEntries(TASKS.map((t) => [t.id, t]));
+function getTask(id) {
+  return TASK_MAP[id];
+}
+
+/**
+ * 随机事件（10 个，均为二选一）
+ * check 用于判定该选项在当前状态下是否可用（可选）
+ * outcome 可以是函数：({ rng, zone }) => ({ text, items, stats, tendency, flags })
+ */
+const EVENTS = [
+  {
+    id: 'e01',
+    name: '发光苔藓',
+    emoji: '🍀',
+    text: '星兽在礁石背面发现一片会呼吸般明灭的苔藓。它回头看你的方向，等你决定。',
+    options: [
+      {
+        text: '轻轻采下一些',
+        outcome: (ctx) => ({
+          text: ctx.zoneId === 'ruins'
+            ? '它小心地剥下苔藓，顺手把根部的碎铁也捡了回来。'
+            : '它用爪子一圈圈绕开根系，只取走最外层的部分。',
+          items: [
+            { id: 'glow_moss', amount: 1 },
+            ...(ctx.rng.chance(0.5) ? [{ id: 'algae', amount: 1 }] : []),
+          ],
+          stats: { perception: 1 },
+          tendency: { care: 1 },
+        }),
+      },
+      {
+        text: '坐下来陪它看一会儿',
+        outcome: () => ({
+          text: '你们看了很久。苔藓的光慢慢暗下去时，它的心情却亮了起来。',
+          items: [],
+          stats: { wisdom: 1 },
+          delta: { mood: 8, energy: 2 },
+          tendency: { care: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e02',
+    name: '潮汐礼物',
+    emoji: '🐚',
+    text: '退潮后，浅滩上躺着一串回声鳞片，边缘还在重复几分钟前的浪声。',
+    options: [
+      {
+        text: '收进背包',
+        outcome: (ctx) => ({
+          text: '鳞片一路都在小声说话，星兽偶尔应一句。',
+          items: [{ id: 'echo_scale', amount: ctx.rng.int(1, 2) }],
+          stats: {},
+          tendency: { explore: 1 },
+        }),
+      },
+      {
+        text: '留在原处，只做个记号',
+        outcome: (ctx) => ({
+          text: '它把鳞片摆正，用石头围了个圈。第二天路过时，那里多了三枚。',
+          items: ctx.rng.chance(0.55) ? [{ id: 'shell', amount: 2 }] : [],
+          stats: { wisdom: 1 },
+          delta: { intimacy: 2 },
+          tendency: { care: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e03',
+    name: '数据潮汐',
+    emoji: '🌊',
+    text: '一阵异常的数据潮汐涌来，海水在瞬间变成了竖着的墙。星兽的毛全竖起来了。',
+    options: [
+      {
+        text: '让它冲过去',
+        outcome: (ctx) => ({
+          text: ctx.rng.chance(0.65)
+            ? '它贴着浪壁穿了过去，回来时爪子里多了一块晶核碎屑。'
+            : '它被浪推得翻了个跟头，爬起来先检查背包还在不在。',
+          items: ctx.rng.chance(0.65) ? [{ id: 'crystal_shard', amount: 2 }, { id: 'star_iron', amount: 1 }] : [],
+          delta: { energy: -12, mood: -4, intimacy: 2 },
+          stats: { physique: 2, agility: 1 },
+          tendency: { explore: 2 },
+        }),
+      },
+      {
+        text: '先退回岸边',
+        outcome: () => ({
+          text: '它有点不服气，但很听话。你们一起等潮汐退去，顺手捡了些浮上来的东西。',
+          items: [{ id: 'moss_ball', amount: 1 }, { id: 'bolt', amount: 1 }],
+          stats: { wisdom: 1 },
+          delta: { intimacy: 3, mood: -2 },
+          tendency: { care: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e04',
+    name: '迷路的小水母',
+    emoji: '🎐',
+    text: '一只几乎透明的数据水母搁浅在礁石缝里，还在微弱地闪。',
+    options: [
+      {
+        text: '引水把它送回去',
+        outcome: () => ({
+          text: '它把水母托在背上，慢慢走回深处。水母临走时在它额头上留了一点光。',
+          items: [{ id: 'glow_moss', amount: 1 }],
+          delta: { intimacy: 3, energy: -5, hunger: -6 },
+          stats: { wisdom: 1, perception: 1 },
+          tendency: { care: 2 },
+        }),
+      },
+      {
+        text: '先拍照记录，再想办法',
+        outcome: (ctx) => ({
+          text: '它认真记录下水母的闪烁频率，并把这段数据带回了观星台。',
+          items: [],
+          delta: { hunger: -4 },
+          stats: { wisdom: 2 },
+          research: ctx.rng.chance(0.35) ? 1 : 0,
+          tendency: { study: 2 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e05',
+    name: '星兽的低语',
+    emoji: '🌌',
+    text: '星兽忽然停下来，对着空无一物的海面轻声叫了几下，像在回应什么。',
+    options: [
+      {
+        text: '蹲下来问它怎么了',
+        outcome: () => ({
+          text: '它把额头抵在你手心上。你什么都没听懂，但你们都很安心。',
+          items: [],
+          delta: { intimacy: 5, mood: 6 },
+          stats: { perception: 1 },
+          tendency: { care: 2 },
+        }),
+      },
+      {
+        text: '什么都不说，只是陪着',
+        outcome: () => ({
+          text: '你们并排坐了一会儿。海面上的光一点点聚过来，又散开。',
+          items: [{ id: 'dream_dust', amount: 1 }],
+          delta: { mood: 3, energy: -2 },
+          stats: { wisdom: 1 },
+          tendency: { care: 1, explore: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e06',
+    name: '旧端口的呼唤',
+    emoji: '📡',
+    text: '遗迹里一个旧端口亮起，屏幕上滚动着一段无法解析的邀请。',
+    options: [
+      {
+        text: '接入看看',
+        outcome: (ctx) => ({
+          text: ctx.rng.chance(0.7)
+            ? '数据流灌进来，星兽愣了几秒，然后开始用爪子在地上画奇怪的符号。'
+            : '端口过热，星兽被烫得缩回爪子，但顺手掰下了一块电路。',
+          items: ctx.rng.chance(0.7) ? [{ id: 'rune_tablet', amount: 1 }] : [{ id: 'ancient_circuit', amount: 1 }],
+          delta: { energy: -14, hunger: -6 },
+          stats: { wisdom: 2 },
+          research: 1,
+          tendency: { study: 2 },
+        }),
+      },
+      {
+        text: '断开端口，绕路走',
+        outcome: () => ({
+          text: '它记住了这条路。绕行时你们发现了一条更安静、也更安全的通道。',
+          items: [{ id: 'star_iron', amount: 2 }],
+          delta: { intimacy: 2 },
+          stats: { agility: 2 },
+          tendency: { explore: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e07',
+    name: '碎星坠落',
+    emoji: '☄️',
+    text: '一小块陨石砸在遗迹中央，坑里冒着蓝色的热气，边缘的金属开始融化。',
+    options: [
+      {
+        text: '趁热去取',
+        outcome: (ctx) => ({
+          text: ctx.rng.chance(0.6)
+            ? '它用爪子把还没冷却的金属拨出来，爪垫上留了个浅印。'
+            : '它退得很快，只捡到边缘的碎块。烫是烫，收获还是有的。',
+          items:
+            ctx.rng.chance(0.6)
+              ? [{ id: 'star_crystal_core', amount: 1 }, { id: 'star_iron', amount: 2 }]
+              : [{ id: 'star_iron', amount: 2 }, { id: 'crystal_shard', amount: 1 }],
+          delta: { energy: -10, mood: -6 },
+          stats: { physique: 2 },
+          tendency: { explore: 2 },
+        }),
+      },
+      {
+        text: '等冷却后慢慢挖',
+        outcome: () => ({
+          text: '你们等了很久。挖出来的东西不多，但它学会了怎么判断金属的温度。',
+          items: [{ id: 'star_iron', amount: 1 }, { id: 'star_vein_stone', amount: 1 }],
+          delta: { energy: -4 },
+          stats: { wisdom: 1, perception: 2 },
+          tendency: { study: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e08',
+    name: '遗迹守卫',
+    emoji: '🗿',
+    text: '一尊半塌的守卫雕像忽然亮起单眼，缓缓转向星兽，但没有立刻攻击。',
+    options: [
+      {
+        text: '正面应对',
+        outcome: (ctx) => ({
+          text: ctx.rng.chance(0.55)
+            ? '它绕着雕像的关节走了两圈，找到了老旧的活动间隙。守卫的扫描灯慢慢暗了下去。'
+            : '雕像只是扫描了一下，便退回墙里。它记下了星兽的编号。',
+          items: [{ id: 'ancient_circuit', amount: 1 }, { id: 'rune_tablet', amount: 1 }],
+          delta: { energy: -18, mood: -5 },
+          stats: { physique: 2, agility: 2 },
+          flags: ['met_guardian'],
+          tendency: { explore: 3 },
+        }),
+      },
+      {
+        text: '悄悄绕开',
+        outcome: () => ({
+          text: '它贴着墙根一点点挪过去，连呼吸都放轻了，进门后才敢喘气。',
+          items: [{ id: 'dream_dust', amount: 1 }],
+          delta: { energy: -8, mood: 2 },
+          stats: { agility: 3 },
+          tendency: { explore: 1, care: 1 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e09',
+    name: '星尘风暴',
+    emoji: '🌪️',
+    text: '星尘浓度在几分钟内翻了几倍，视野里全是发亮的颗粒，方向感开始失效。',
+    options: [
+      {
+        text: '打开灯塔，标定方向',
+        outcome: (ctx) => ({
+          text: '你带着它一点点挪回灯塔的光柱里。风停之前，你们谁都没松手。',
+          items: [{ id: 'stardust', amount: ctx.rng.int(8, 16) }],
+          delta: { hunger: -8, energy: -6, intimacy: 4 },
+          stats: { perception: 2 },
+          tendency: { care: 2 },
+        }),
+      },
+      {
+        text: '迎着风收集星尘',
+        outcome: (ctx) => ({
+          text: '它张开前肢在风里站了很久，回来时整只兽都在发光，背包也鼓了。',
+          items: [{ id: 'stardust', amount: ctx.rng.int(14, 26) }, { id: 'crystal_shard', amount: 1 }],
+          delta: { energy: -20, mood: -8, hunger: -10 },
+          stats: { physique: 2, agility: 1 },
+          tendency: { explore: 3 },
+        }),
+      },
+    ],
+  },
+  {
+    id: 'e10',
+    name: '访客：拾荒商人',
+    emoji: '🐾',
+    text: '一只背着巨大壳的拾荒商人慢慢爬上小岛，壳上挂着乱七八糟的东西。',
+    options: [
+      {
+        text: '交换物资',
+        outcome: (ctx) => ({
+          text: `你用一些星尘换来了它的存货。它走的时候还留下一句「下次带更好的」。`,
+          cost: { stardust: ctx.rng.int(6, 10) },
+          items: [{ id: 'shell', amount: 2 }, { id: 'glow_moss', amount: 1 }],
+          stats: {},
+          tendency: { explore: 1 },
+        }),
+      },
+      {
+        text: '请它休息，听听外面的消息',
+        outcome: () => ({
+          text: '商人讲了很多别的岛的事。星兽全程趴在你脚边，一句话都没漏听。',
+          items: [{ id: 'starmap_fragment', amount: 1 }],
+          delta: { mood: 6, intimacy: 2 },
+          stats: { wisdom: 1, perception: 1 },
+          research: 1,
+          visited: ['scavenger'],
+          tendency: { study: 1, care: 1 },
+        }),
+      },
+    ],
+  },
+];
+
+const EVENT_MAP = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
+function getEvent(id) {
+  return EVENT_MAP[id];
+}
+
+/**
+ * 建筑（5 个）
+ * - maxLevel 固定 3 级；cost 为升到目标等级的星尘消耗
+ * - effectText / effects 描述等级收益
+ */
+const BUILDINGS = [
+  {
+    id: 'nursery',
+    name: '孵化舱',
+    emoji: '🛖',
+    desc: '星兽休息的地方，决定行动力上限与休息效率。',
+    maxLevel: 3,
+    cost: [20, 55],
+    requires: {},
+    effects: { apBonus: [0, 1, 2], restBonus: [0, 0.15, 0.35] },
+    effectText: ['行动力上限 +1、休息恢复 +15%', '行动力上限 +2、休息恢复 +35%'],
+  },
+  {
+    id: 'kitchen',
+    name: '潮汐厨房',
+    emoji: '🍳',
+    desc: '把生材料做成料理，食物恢复效果更好。',
+    maxLevel: 3,
+    cost: [30, 70],
+    requires: {},
+    effects: { foodBonus: [0, 0.2, 0.45], unlockCook: [false, true, true] },
+    effectText: ['解锁料理「星辉汤」', '食物恢复效果 +45%'],
+  },
+  {
+    id: 'workshop',
+    name: '星尘工作台',
+    emoji: '🛠️',
+    desc: '制作礼物与关键道具，也是成就「工匠」的来源。',
+    maxLevel: 3,
+    cost: [45, 95],
+    requires: {},
+    effects: { recipes: [0, 1, 2], craftDiscount: [0, 0.1, 0.2] },
+    effectText: ['解锁「梦珊瑚枕」配方、合成费用 -10%', '解锁「星光吊坠」配方、合成费用 -20%'],
+  },
+  {
+    id: 'observatory',
+    name: '观星台',
+    emoji: '🔭',
+    desc: '研究图鉴、提升学习效率，2 级后可前往碎星遗迹。',
+    maxLevel: 3,
+    cost: [50, 110],
+    requires: {},
+    effects: { researchBonus: [0, 0.25, 0.5], unlockZone: [null, 'ruins', 'ruins'] },
+    effectText: ['解锁探索区域「碎星遗迹」', '研究产出 +50%'],
+  },
+  {
+    id: 'garden',
+    name: '苔藓花园',
+    emoji: '🌱',
+    desc: '每天产出一次苔藓，并缓慢提升亲密。',
+    maxLevel: 3,
+    cost: [25, 60],
+    requires: {},
+    effects: { dailyMoss: [0, 2, 5], dailyIntimacy: [0, 1, 2] },
+    effectText: ['每天产出 2 份苔藓团、亲密 +1', '每天产出 5 份苔藓团、亲密 +2'],
+  },
+];
+
+const BUILDING_MAP = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
+function getBuilding(id) {
+  return BUILDING_MAP[id];
+}
+
+/**
+ * 配方（由星尘工作台解锁）
+ * cost 为星尘消耗（会应用 craftDiscount）
+ */
+const RECIPES = [
+  {
+    id: 'r_luminous_soup',
+    name: '星辉汤',
+    emoji: '🍲',
+    building: 'kitchen',
+    level: 1,
+    cost: 4,
+    inputs: [{ id: 'glow_moss', amount: 1 }, { id: 'algae', amount: 2 }, { id: 'moss_ball', amount: 1 }],
+    output: { id: 'luminous_soup', amount: 1 },
+    desc: '把发光苔藓和星藻熬在一起，冷了也会发亮。',
+  },
+  {
+    id: 'r_dream_pillow',
+    name: '梦珊瑚枕',
+    emoji: '🛏️',
+    building: 'workshop',
+    level: 1,
+    cost: 8,
+    inputs: [{ id: 'dream_dust', amount: 2 }, { id: 'algae', amount: 2 }],
+    output: { id: 'dream_pillow', amount: 1 },
+    desc: '用梦珊瑚粉填充的枕头，睡一整晚精力全满。',
+  },
+  {
+    id: 'r_starlight_pendant',
+    name: '星光吊坠',
+    emoji: '📿',
+    building: 'workshop',
+    level: 2,
+    cost: 15,
+    inputs: [
+      { id: 'star_crystal_core', amount: 1 },
+      { id: 'echo_scale', amount: 2 },
+      { id: 'crystal_shard', amount: 3 },
+    ],
+    output: { id: 'starlight_pendant', amount: 1 },
+    desc: '把一小片星空封进晶体，是最高级的礼物。',
+  },
+];
+
+const RECIPE_MAP = Object.fromEntries(RECIPES.map((r) => [r.id, r]));
+
+/**
+ * 成就（5 个）
+ */
+const ACHIEVEMENTS = [
+  { id: 'first_light', name: '第一缕星尘', emoji: '✨', desc: '完成第一次探索任务。' },
+  { id: 'device_drifter', name: '迁徙者', emoji: '🛰️', desc: '至少在两台设备上唤醒过星兽（导入过 1 次胶囊）。' },
+  { id: 'collector', name: '收藏家', emoji: '📦', desc: '图鉴中记录 15 种不同的物品。' },
+  { id: 'archivist', name: '见闻记录者', emoji: '🪶', desc: '见证 5 个不同的随机事件。' },
+  { id: 'guardian_born', name: '守护体诞生', emoji: '🌟', desc: '让星兽进化到守护体阶段。' },
+];
+
+const ACHIEVEMENT_MAP = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
+
+/**
+ * 进化分支
+ * - affinity 指定该分支由哪一种倾向值决定（explore / study / care）
+ * - requirements.affinity 为该倾向的最低门槛
+ * - 亲和度由 state.progress.affinity 累计（来自探索、研究、照料三类行为）
+ */
+const EVOLUTION_BRANCHES = {
+  traveler: {
+    id: 'traveler',
+    affinity: 'explore',
+    name: '旅者',
+    emoji: '🧭',
+    title: '风与坐标的收藏者',
+    desc: '它把每一次离开都当成回家的一部分。它记得所有去过的海域的名字。',
+    requirements: { affinity: { explore: 12 } },
+    bonus: { exploreSpeed: 0.12 },
+    bonusText: '探索类任务时长 -12%',
+  },
+  scholar: {
+    id: 'scholar',
+    affinity: 'study',
+    name: '学者',
+    emoji: '📚',
+    title: '把星图读成故事的人',
+    desc: '它会对着石板发呆很久，然后忽然用爪子在地上画出一段公式。',
+    requirements: { affinity: { study: 12 } },
+    bonus: { researchYield: 0.2 },
+    bonusText: '研究与学习产出 +20%',
+  },
+  gardener: {
+    id: 'gardener',
+    affinity: 'care',
+    name: '园丁',
+    emoji: '🌷',
+    title: '在海面上种花的人',
+    desc: '它学会了自己养苔藓，并把最亮的一小丛留给你。',
+    requirements: { affinity: { care: 12 } },
+    bonus: { careGain: 0.25 },
+    bonusText: '喂食 / 清洁 / 抚摸效果 +25%',
+  },
+};
+
+/** 倾向 id -> 分支。用于把玩家的照顾方式映射到进化分支 */
+const BRANCH_BY_AFFINITY = Object.fromEntries(
+  Object.values(EVOLUTION_BRANCHES).map((b) => [b.affinity, b]),
+);
+
+/** 进化阶段定义 */
+const STAGES = [
+  { id: 'larva', name: '幼体', emoji: '🥚', level: 1, desc: '刚在数据海里点亮的一小团光，什么都好奇。' },
+  { id: 'adult', name: '成体', emoji: '🐉', level: 10, desc: '已经能独自走过浅滩和遗迹，开始在意外面的世界。' },
+  { id: 'guardian', name: '守护体', emoji: '🌟', level: 22, desc: '光从它的脊背一直连到岛的边缘，小岛终于有了守望者。' },
+];
+
+const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.id, s]));
+
+/**
+ * 进化条件
+ * 成体只需等级 + 亲密；守护体额外需要一个星辰晶核
+ */
+const EVOLUTION_REQUIREMENTS = {
+  adult: { level: 10, intimacy: 45, item: null, bonus: { researchYield: 0.1 } },
+  guardian: { level: 22, intimacy: 70, item: { id: 'star_crystal_core', amount: 1 }, bonus: {} },
+};
+
+/** 状态条的字段与中文名 */
+const STAT_KEYS = [
+  { id: 'hunger', name: '饱食', emoji: '🍚' },
+  { id: 'mood', name: '心情', emoji: '🎵' },
+  { id: 'energy', name: '精力', emoji: '⚡' },
+  { id: 'intimacy', name: '亲密', emoji: '💗' },
+];
+
+/** 成长属性 */
+const ATTR_KEYS = [
+  { id: 'physique', name: '体质', emoji: '💪' },
+  { id: 'agility', name: '敏捷', emoji: '🌀' },
+  { id: 'wisdom', name: '智慧', emoji: '🧠' },
+  { id: 'perception', name: '感知', emoji: '👁️' },
+];
+
+/** 亲和倾向（决定进化分支） */
+const AFFINITY_KEYS = [
+  { id: 'explore', name: '探索', emoji: '🧭' },
+  { id: 'study', name: '研究', emoji: '📖' },
+  { id: 'care', name: '照料', emoji: '💗' },
+];
+
+/** 升级所需经验（等级 -> 经验） */
+function expForLevel(level) {
+  return 40 + (level - 1) * 18;
+}
+
+/** 状态与属性的显示上限（超出即按上限显示） */
+const STAT_MAX = 100;
+const ATTR_MAX = 99;
+
+/** 离线结算相关参数 */
+const OFFLINE = {
+  /** 分段长度（30 分钟），让报告能按时段叙事 */
+  sliceMs: 30 * 60 * 1000,
+  /** 收益封顶时长：12 小时 */
+  capMs: 12 * 60 * 60 * 1000,
+  /** 超过封顶部分只给 5% 保底收益 */
+  beyondRate: 0.05,
+  /** 单个时间片最多触发的事件数 */
+  eventChancePerSlice: 0.16,
+  /** 报告最多列出的叙事条目 */
+  maxNarratives: 12,
+  /** 时间倒退时的保底收益 */
+  rewind: {
+    stardust: [1, 3],
+    items: [{ id: 'moss_ball', amount: 1 }],
+  },
+};
+
+/** 行动点参数 */
+const ACTION = {
+  base: 8,
+  baseMax: 12,
+  /** 每次喂食 / 清洁 / 抚摸消耗 */
+  cost: { feed: 1, clean: 1, touch: 1 },
+  /** 基础恢复量 */
+  gain: {
+    feed: { hunger: 30, mood: 6 },
+    clean: { mood: 12, intimacy: 2 },
+    touch: { mood: 8, intimacy: 4 },
+  },
+};
+
+/* ==================== js/utils.js ==================== */
+/**
+ * utils.js —— 跨模块共用的小工具
+ *
+ * 这里放"多个模块都需要、且不属于任何单一业务"的纯函数。
+ * 单独成文件的好处：tasks.js / offline.js / ui.js 都能直接用，
+ * 不需要为了解决一处重复定义而互相 import 出循环依赖。
+ */
+
+
+/**
+ * 合并同名物品
+ * @param {Array<{id: string, amount: number}>} list
+ * @returns {Array<{id: string, amount: number}>}
+ */
+function mergeItems(list) {
+  const map = new Map();
+  for (const it of list ?? []) {
+    if (!it?.id || !it.amount) continue;
+    map.set(it.id, (map.get(it.id) ?? 0) + it.amount);
+  }
+  return [...map.entries()].map(([id, amount]) => ({ id, amount }));
+}
+
+/**
+ * 物品列表转可读文本，例如 "🟢苔藓团×3、✨星尘×5"
+ * @param {Array<{id: string, amount: number}>} list
+ */
+function describeItems(list) {
+  return (list ?? [])
+    .map((it) => `${ITEM_MAP[it.id]?.emoji ?? '❔'}${ITEM_MAP[it.id]?.name ?? it.id}×${it.amount}`)
+    .join('、');
+}
+
+/**
+ * 状态变化转可读文本，只显示真正发生变化的项
+ * @param {Record<string, number>} deltas
+ */
+function describeDeltas(deltas) {
+  const labels = { hunger: '饱食', mood: '心情', energy: '精力', intimacy: '亲密' };
+  return Object.entries(deltas ?? {})
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${labels[k] ?? k} ${v > 0 ? '+' : ''}${v}`)
+    .join('、');
+}
+
+/* ==================== js/state.js ==================== */
+/**
+ * state.js —— 游戏状态与规则
+ *
+ * 职责：
+ * 1. 定义 GameState 结构与初始状态（createDefaultState）
+ * 2. 提供全局 store（store.get / store.set / store.subscribe），
+ *    所有变更走 store.set，便于自动存档与 UI 重绘挂接
+ * 3. 实现纯规则函数：行动点、喂食/清洁/抚摸、好感与经验、进化判定、区域解锁
+ *
+ * 注意：本模块不做任何 IO（不读写 localStorage），IO 全部在 save.js。
+ */
+
+
+
+/** 生成一个足够随机的设备标识（首次启动时写入存档） */
+function makeDeviceId() {
+  return `dev_${randomHex(8)}`;
+}
+
+/** 生成 32 位随机种子（只在开新档时用一次，之后由存档固定，保证结算可复现） */
+function makeRandomSeed() {
+  const bytes = new Uint8Array(4);
+  fillRandom(bytes);
+  return ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+}
+
+/** 用 crypto 填充随机字节；不可用时退回 Math.random（仅用于开新档，不影响结算确定性） */
+function fillRandom(bytes) {
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+    return;
+  }
+  for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+}
+
+/** 随机十六进制串 */
+function randomHex(byteLength) {
+  const bytes = new Uint8Array(byteLength);
+  fillRandom(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** 深拷贝（存档需要的结构都是 JSON 安全的） */
+function deepClone(value) {
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value);
+    } catch {
+      /* 回退到 JSON 方案 */
+    }
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+/** 把数值限制在 [min, max] */
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * 创建一份全新的游戏状态
+ * @param {{ name?: string, ts?: number }} [opts]
+ */
+function createDefaultState({ name = '未命名星兽', ts = now() } = {}) {
+  return {
+    /** 星兽本体 */
+    pet: {
+      name,
+      /** 状态条 0-100 */
+      stats: { hunger: 72, mood: 70, energy: 80, intimacy: 10 },
+      /** 成长属性 0-99 */
+      attrs: { physique: 1, agility: 1, wisdom: 1, perception: 1 },
+      level: 1,
+      exp: 0,
+      /** 进化阶段与分支 */
+      stage: STAGES[0].id,
+      branch: null,
+      /** 记忆：上次离开多久、换过几台设备、去过哪些区域 */
+      memory: {
+        lastAwayMs: 0,
+        lastAwayAt: 0,
+        deviceCount: 1,
+        /** 去过的区域 id，顺序即首次到访顺序 */
+        zonesVisited: [],
+        /** 累计探索次数 */
+        totalExplorations: 0,
+        /** 见过的访客 id */
+        visitors: [],
+        /** 一次性剧情标记 */
+        flags: [],
+      },
+      bornAt: ts,
+    },
+    /** 资源与物品：id -> 数量 */
+    inventory: { stardust: 24, moss_ball: 3, crystal_shard: 1 },
+    /** 房屋等级 */
+    buildings: { nursery: 1, kitchen: 1, workshop: 1, observatory: 1, garden: 0 },
+    /** 行动点 */
+    actionPoints: ACTION.base,
+    lastApReset: ts,
+    /** 已解锁的探索区域 */
+    unlockedZones: ['shallow'],
+    /** 当前编排中的任务（离线也只保留这一条时间戳） */
+    task: {
+      active: null,
+      startedAt: 0,
+      endsAt: 0,
+      zoneId: null,
+      /** 已领取过结算结果的任务终点时间，用于防止重复领取 */
+      consumedEndsAt: 0,
+    },
+    /** 图鉴（永久合并，导入存档时也合并） */
+    codex: {
+      items: {},
+      encounters: {},
+      visitors: {},
+      recipes: {},
+    },
+    /** 成就 */
+    achievements: {},
+    /** 倾向与统计 */
+    progress: {
+      affinity: { explore: 0, study: 0, care: 0 },
+      careCounts: { feed: 0, clean: 0, touch: 0 },
+      researchPoints: 0,
+      eventsSeen: {},
+    },
+    /** 导入历史（多设备识别） */
+    imports: { count: 0, lastAt: 0, lastSourceDevice: null, history: [] },
+    /** 上次"离开"的时间（用于报告里的"你离开的第 N 小时"） */
+    lastSeen: ts,
+    version: SAVE_VERSION,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 全局 store                                                          */
+/* ------------------------------------------------------------------ */
+
+/** 内部持有完整存档对象 Save，而不是裸的 GameState */
+let currentSave = null;
+const listeners = new Set();
+
+const store = {
+  /** 当前存档（含 v / savedAt / deviceId / lastSettleTime / data） */
+  get save() {
+    return currentSave;
+  },
+  /** 当前游戏状态 */
+  get state() {
+    return currentSave?.data;
+  },
+  /** 覆盖整个存档（导入时使用） */
+  replaceSave(save) {
+    currentSave = save;
+    emit();
+  },
+  /**
+   * 修改状态：回调直接改 state，之后统一通知订阅者
+   * @param {(state: any) => void} mutator
+   */
+  set(mutator) {
+    if (!currentSave) throw new Error('store 尚未初始化');
+    mutator(currentSave.data);
+    emit();
+  },
+  /** 仅通知（例如领取离线报告后） */
+  notify() {
+    emit();
+  },
+  /**
+   * 订阅变更
+   * @param {(save: any) => void} fn
+   * @returns {() => void} 取消订阅
+   */
+  subscribe(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  },
+};
+
+function emit() {
+  for (const fn of listeners) {
+    try {
+      fn(currentSave);
+    } catch (err) {
+      console.error('[store] 订阅者执行出错：', err);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 规则函数                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 读取某个状态条（已 clamp） */
+function getStat(state, key) {
+  return clamp(state.pet.stats[key] ?? 0, 0, STAT_MAX);
+}
+
+/** 修改状态条，返回实际变化量 */
+function addStat(state, key, delta) {
+  const before = getStat(state, key);
+  state.pet.stats[key] = clamp(before + delta, 0, STAT_MAX);
+  return state.pet.stats[key] - before;
+}
+
+/** 修改成长属性（上限 ATTR_MAX） */
+function addAttr(state, key, delta) {
+  const before = clamp(state.pet.attrs[key] ?? 0, 0, ATTR_MAX);
+  state.pet.attrs[key] = clamp(before + delta, 0, ATTR_MAX);
+  return state.pet.attrs[key] - before;
+}
+
+/** 增加倾向值 */
+function addAffinity(state, tendency, amount = 1) {
+  if (!tendency) return;
+  for (const [key, value] of Object.entries(tendency)) {
+    state.progress.affinity[key] = (state.progress.affinity[key] ?? 0) + value * amount;
+  }
+}
+
+/** 建筑等级 */
+function buildingLevel(state, id) {
+  return state.buildings?.[id] ?? 0;
+}
+
+/** 取建筑在指定等级下的效果值 */
+function buildingEffect(state, id, effectKey) {
+  const def = BUILDING_MAP[id];
+  const level = buildingLevel(state, id);
+  const table = def?.effects?.[effectKey];
+  if (!table) return 0;
+  return table[Math.min(level, table.length - 1)] ?? 0;
+}
+
+/** 行动点上限 */
+function maxActionPoints(state) {
+  return ACTION.baseMax + (buildingEffect(state, 'nursery', 'apBonus') || 0);
+}
+
+/** 进化阶段（根据 level 推导，但允许存档记录更保守的阶段） */
+function stageForLevel(level) {
+  let stage = STAGES[0].id;
+  for (const s of STAGES) if (level >= s.level) stage = s.id;
+  return stage;
+}
+
+/** 进化是否可用；返回 { ok, reasons, next } */
+function checkEvolution(state) {
+  const level = state.pet.level;
+  const next = stageForLevel(level);
+  if (next === state.pet.stage) return { ok: false, reasons: [], next: null };
+  const req = EVOLUTION_REQUIREMENTS[next];
+  const reasons = [];
+  if (!req) return { ok: false, reasons: [], next: null };
+  if (level < req.level) reasons.push(`等级不足（需要 ${req.level} 级）`);
+  if (getStat(state, 'intimacy') < req.intimacy) reasons.push(`亲密不足（需要 ${req.intimacy}）`);
+  if (req.item && (state.inventory[req.item.id] ?? 0) < req.item.amount) {
+    reasons.push(`缺少「${ITEM_MAP[req.item.id]?.name ?? req.item.id}」×${req.item.amount}`);
+  }
+  return { ok: reasons.length === 0, reasons, next };
+}
+
+/**
+ * 根据倾向选出进化分支
+ * 取倾向值最高的那一项；若最高值同时达到多个分支的门槛，按
+ * EVOLUTION_BRANCHES 的声明顺序（旅者 → 学者 → 园丁）取第一个。
+ * @returns {object|null} 满足条件的分支；都不满足则返回 null
+ */
+function decideBranch(state) {
+  const affinity = state.progress.affinity ?? {};
+  const candidates = AFFINITY_KEYS.map((k) => ({ id: k.id, value: affinity[k.id] ?? 0 })).sort(
+    (a, b) => b.value - a.value,
+  );
+  for (const candidate of candidates) {
+    const branch = BRANCH_BY_AFFINITY[candidate.id];
+    if (!branch) continue;
+    const req = branch.requirements.affinity[candidate.id] ?? 0;
+    if (candidate.value >= req && req > 0) return branch;
+  }
+  return null;
+}
+
+/**
+ * 执行进化（由 UI 调用）
+ * @returns {{ok: boolean, message: string, stage?: string, branch?: any}}
+ */
+function evolve(state) {
+  const { ok, reasons, next } = checkEvolution(state);
+  if (!ok || !next) {
+    return { ok: false, message: reasons[0] ?? '现在还不到进化的时候。' };
+  }
+  const req = EVOLUTION_REQUIREMENTS[next];
+  if (req.item) {
+    state.inventory[req.item.id] = (state.inventory[req.item.id] ?? 0) - req.item.amount;
+  }
+  state.pet.stage = next;
+  const stageDef = STAGE_MAP[next];
+  let branchMsg = '';
+  if (next === 'adult') {
+    const branch = decideBranch(state);
+    if (branch) {
+      state.pet.branch = branch.id;
+      branchMsg = ` 它选择了「${branch.name}」的道路 —— ${branch.title}。`;
+    } else {
+      branchMsg = ' 它还没有想清楚自己要走哪条路（提升某种倾向值就能确定分支）。';
+    }
+  }
+  if (next === 'guardian') {
+    state.codex.encounters['evolution_guardian'] = true;
+  }
+  return {
+    ok: true,
+    stage: next,
+    branch: state.pet.branch,
+    message: `星兽进化了：${stageDef.name}。${branchMsg}`,
+  };
+}
+
+/** 增加经验并处理升级，返回升级次数 */
+function addExp(state, amount) {
+  if (amount <= 0) return 0;
+  state.pet.exp += amount;
+  let ups = 0;
+  // 经验曲线随等级增长，单次可能连升多级（离线久时会发生）
+  let guard = 0;
+  while (state.pet.exp >= expForLevel(state.pet.level) && guard < 100) {
+    state.pet.exp -= expForLevel(state.pet.level);
+    state.pet.level += 1;
+    ups += 1;
+    guard += 1;
+  }
+  return ups;
+}
+
+/**
+ * 添加物品（带数量限制与图鉴记录）
+ * @returns {number} 实际添加数量
+ */
+function addItem(state, id, amount = 1) {
+  if (!id || amount <= 0) return 0;
+  if (!ITEM_MAP[id]) return 0;
+  const before = state.inventory[id] ?? 0;
+  const after = before + Math.floor(amount);
+  state.inventory[id] = after;
+  // 图鉴：记录曾经见过（数量 > 0 即算发现）
+  if (after > 0) discoverItem(state, id);
+  return after - before;
+}
+
+/** 扣除物品，数量不足返回 false */
+function removeItem(state, id, amount = 1) {
+  const have = state.inventory[id] ?? 0;
+  if (have < amount) return false;
+  state.inventory[id] = have - amount;
+  if (state.inventory[id] <= 0) delete state.inventory[id];
+  return true;
+}
+
+/** 图鉴：记录物品 */
+function discoverItem(state, id) {
+  if (!state.codex.items[id]) state.codex.items[id] = { firstAt: now() };
+}
+
+/** 图鉴：记录见闻 / 访客 / 配方 */
+function discoverEncounter(state, id) {
+  if (!state.codex.encounters[id]) state.codex.encounters[id] = { firstAt: now() };
+}
+
+function discoverRecipe(state, id) {
+  if (!state.codex.recipes[id]) state.codex.recipes[id] = { firstAt: now() };
+}
+
+function discoverVisitor(state, id) {
+  if (!state.codex.visitors[id]) state.codex.visitors[id] = { firstAt: now() };
+  if (!state.pet.memory.visitors.includes(id)) state.pet.memory.visitors.push(id);
+}
+
+/** 记录去过的区域 */
+function markZoneVisited(state, zoneId) {
+  if (!zoneId) return;
+  if (!state.pet.memory.zonesVisited.includes(zoneId)) {
+    state.pet.memory.zonesVisited.push(zoneId);
+  }
+}
+
+/** 记录剧情标记（去重） */
+function setFlag(state, flag) {
+  if (!flag) return;
+  if (!state.pet.memory.flags.includes(flag)) state.pet.memory.flags.push(flag);
+}
+
+function hasFlag(state, flag) {
+  return state.pet.memory.flags.includes(flag);
+}
+
+/** 授予成就，返回新解锁的成就 id 数组 */
+function grantAchievements(state, ids) {
+  const unlocked = [];
+  for (const id of ids) {
+    if (!id || state.achievements[id]) continue;
+    state.achievements[id] = { at: now() };
+    unlocked.push(id);
+  }
+  return unlocked;
+}
+
+/** 每次状态变更后检查一遍"可由数据推导"的成就 */
+function checkAutoAchievements(state) {
+  const ids = [];
+  if (state.pet.memory.totalExplorations >= 1) ids.push('first_light');
+  if ((state.imports?.count ?? 0) >= 1) ids.push('device_drifter');
+  if (Object.keys(state.codex.items).length >= 15) ids.push('collector');
+  if (Object.keys(state.codex.encounters).length >= 5) ids.push('archivist');
+  if (state.pet.stage === 'guardian') ids.push('guardian_born');
+  return grantAchievements(state, ids);
+}
+
+/** 区域是否解锁 */
+function isZoneUnlocked(state, zone) {
+  if (state.unlockedZones.includes(zone.id)) return true;
+  if (!zone.unlock) return true;
+  const needBuilding = zone.unlock.building;
+  if (needBuilding) {
+    if (buildingLevel(state, needBuilding.id) >= needBuilding.level) return true;
+  }
+  const needItem = zone.unlock.item;
+  if (needItem && (state.inventory[needItem] ?? 0) > 0) return true;
+  return false;
+}
+
+/**
+ * 区域解锁检查：满足条件时写回 unlockedZones
+ * @returns {string[]} 本次新解锁的区域 id
+ */
+function syncZoneUnlocks(state) {
+  const unlocked = [];
+  for (const zone of ZONES) {
+    if (state.unlockedZones.includes(zone.id)) continue;
+    if (isZoneUnlocked(state, zone)) {
+      state.unlockedZones.push(zone.id);
+      unlocked.push(zone.id);
+    }
+  }
+  return unlocked;
+}
+
+/** 每日刷新：行动点恢复、花园产出 */
+function applyDailyReset(state, ts = now()) {
+  const today = dayIndex(ts);
+  if (state.lastApReset && dayIndex(state.lastApReset) === today) return { apGained: 0, gardenItems: [] };
+
+  // 行动点按"跨过的自然日数量"恢复，离线多天也能补，但受上限约束
+  const days = Math.max(1, today - dayIndex(state.lastApReset ?? ts));
+  const max = maxActionPoints(state);
+  const before = state.actionPoints;
+  const gained = Math.min(max, before + ACTION.base * days) - before;
+  state.actionPoints = clamp(before + ACTION.base * days, 0, max);
+  state.lastApReset = ts;
+
+  // 苔藓花园每日产出
+  const gardenItems = [];
+  const gardenLevel = buildingLevel(state, 'garden');
+  if (gardenLevel > 0) {
+    const moss = state.pet ? (BUILDING_MAP.garden.effects.dailyMoss[gardenLevel] ?? 0) * days : 0;
+    const intimacy = (BUILDING_MAP.garden.effects.dailyIntimacy[gardenLevel] ?? 0) * days;
+    if (moss > 0) {
+      addItem(state, 'moss_ball', moss);
+      gardenItems.push({ id: 'moss_ball', amount: moss });
+    }
+    if (intimacy > 0) addStat(state, 'intimacy', intimacy);
+  }
+
+  return { apGained: gained, gardenItems, days };
+}
+
+/**
+ * 安排一次任务（消耗行动点）
+ * @returns {{ok: boolean, message: string, task?: any}}
+ */
+function startTask(state, taskDef, zoneId, ts = now()) {
+  if (!taskDef) return { ok: false, message: '任务不存在。' };
+  if (state.task.active) return { ok: false, message: '星兽已经在执行任务了，先等它回来。' };
+  if (getStat(state, 'energy') < (taskDef.danger ? 15 : 8)) {
+    return { ok: false, message: '星兽精力不足，先让它休息一会儿吧。' };
+  }
+  if (taskDef.zone && !zoneId) return { ok: false, message: '请选择一个探索区域。' };
+  if (state.actionPoints < taskDef.cost) {
+    return { ok: false, message: `行动点不足（需要 ${taskDef.cost} 点）。` };
+  }
+  state.actionPoints -= taskDef.cost;
+  const duration = taskDuration(state, taskDef);
+  state.task.active = taskDef.id;
+  state.task.startedAt = ts;
+  state.task.endsAt = ts + duration;
+  state.task.zoneId = taskDef.zone ? zoneId : null;
+  if (taskDef.zone) markZoneVisited(state, zoneId);
+  return { ok: true, message: `已安排「${taskDef.name}」，预计 ${Math.round(duration / 60000)} 分钟。`, task: state.task };
+}
+
+/** 取消任务（不退还行动点，但返还一半） */
+function cancelTask(state) {
+  if (!state.task.active) return { ok: false, message: '当前没有任务。' };
+  const def = state.task.active;
+  state.task.active = null;
+  state.task.startedAt = 0;
+  state.task.endsAt = 0;
+  state.task.zoneId = null;
+  return { ok: true, message: `已召回星兽，任务「${def}」取消。` };
+}
+
+/** 计算任务实际时长（考虑建筑与分支加成） */
+function taskDuration(state, taskDef) {
+  let duration = taskDef.duration * 60 * 1000;
+  const branch = state.pet.branch ? EVOLUTION_BRANCHES[state.pet.branch] : null;
+  if (branch?.bonus?.exploreSpeed && taskDef.tags?.includes('explore')) {
+    duration *= 1 - branch.bonus.exploreSpeed;
+  }
+  return Math.max(30 * 60 * 1000, Math.round(duration));
+}
+
+/**
+ * 喂食 / 清洁 / 抚摸
+ * @param {'feed'|'clean'|'touch'} kind
+ * @param {string} [itemId] 喂食时指定的食物
+ */
+function careAction(state, kind, itemId = null) {
+  const cost = ACTION.cost[kind] ?? 1;
+  if (state.actionPoints < cost) return { ok: false, message: `行动点不足（需要 ${cost} 点）。` };
+  if (state.task.active) return { ok: false, message: '星兽正在任务中，等它回来再照顾它吧。' };
+
+  const branch = state.pet.branch ? EVOLUTION_BRANCHES[state.pet.branch] : null;
+  const careBonus = 1 + (branch?.bonus?.careGain ?? 0);
+
+  if (kind === 'feed') {
+    if (getStat(state, 'hunger') >= STAT_MAX) return { ok: false, message: '它已经很饱了，再吃要撑到。' };
+    const food = itemId ? ITEM_MAP[itemId] : null;
+    if (itemId) {
+      if (!food || !food.use?.hunger) return { ok: false, message: '这个不能吃。' };
+      if (!removeItem(state, itemId, 1)) return { ok: false, message: '背包里没有这个食物。' };
+    }
+    const kitchenBonus = 1 + (buildingEffect(state, 'kitchen', 'foodBonus') || 0);
+    const baseHunger = food ? food.use.hunger : ACTION.gain.feed.hunger;
+    const baseMood = (food?.use?.mood ?? 0) + ACTION.gain.feed.mood;
+    const baseEnergy = food?.use?.energy ?? 0;
+    const baseIntimacy = food?.use?.intimacy ?? 0;
+    const applied = {
+      hunger: Math.round(baseHunger * kitchenBonus * careBonus),
+      mood: Math.round(baseMood * careBonus),
+      energy: Math.round(baseEnergy * careBonus),
+      intimacy: Math.round(baseIntimacy * careBonus) + 1,
+    };
+    applyDeltas(state, applied);
+    state.progress.careCounts.feed += 1;
+    addAffinity(state, { care: 1 });
+    state.actionPoints -= cost;
+    addExp(state, 4);
+    return { ok: true, message: `喂了${food ? `「${food.name}」` : '一份苔藓团'}，它吃得很认真。`, deltas: applied };
+  }
+
+  if (kind === 'clean') {
+    if (getStat(state, 'mood') >= STAT_MAX) return { ok: false, message: '它现在心情好得不需要安慰了。' };
+    const applied = {
+      mood: Math.round(ACTION.gain.clean.mood * careBonus),
+      intimacy: Math.round(ACTION.gain.clean.intimacy * careBonus),
+    };
+    applyDeltas(state, applied);
+    state.progress.careCounts.clean += 1;
+    addAffinity(state, { care: 1 });
+    state.actionPoints -= cost;
+    addExp(state, 4);
+    return { ok: true, message: '替它梳理了数据绒毛，掉下来的星尘都收进瓶子里了。', deltas: applied };
+  }
+
+  // touch
+  const applied = {
+    mood: Math.round(ACTION.gain.touch.mood * careBonus),
+    intimacy: Math.round(ACTION.gain.touch.intimacy * careBonus),
+  };
+  applyDeltas(state, applied);
+  state.progress.careCounts.touch += 1;
+  addAffinity(state, { care: 1 });
+  state.actionPoints -= cost;
+  addExp(state, 3);
+  return { ok: true, message: '你摸了摸它的额头，它的光晕慢慢变成了暖色。', deltas: applied };
+}
+
+/** 批量应用状态变化，返回实际生效的量 */
+function applyDeltas(state, deltas) {
+  const actual = {};
+  for (const [key, value] of Object.entries(deltas || {})) {
+    if (!value) continue;
+    const real = addStat(state, key, value);
+    if (real !== 0) actual[key] = real;
+  }
+  return actual;
+}
+
+/** 是否已解锁某个配方（需要对应建筑等级） */
+function isRecipeUnlocked(state, recipe) {
+  return buildingLevel(state, recipe.building) >= recipe.level;
+}
+
+/** 当前可制作的配方列表 */
+function availableRecipes(state) {
+  return RECIPES.filter((r) => isRecipeUnlocked(state, r));
+}
+
+/** 合成费用（含工作台折扣） */
+function recipeCost(state, recipe) {
+  const discount = buildingEffect(state, 'workshop', 'craftDiscount') || 0;
+  return Math.max(0, Math.round(recipe.cost * (1 - discount)));
+}
+
+/**
+ * 制作物品
+ * @returns {{ok: boolean, message: string}}
+ */
+function craft(state, recipeId) {
+  const recipe = RECIPES.find((r) => r.id === recipeId);
+  if (!recipe) return { ok: false, message: '配方不存在。' };
+  if (!isRecipeUnlocked(state, recipe)) {
+    const def = BUILDING_MAP[recipe.building];
+    return { ok: false, message: `需要「${def?.name ?? recipe.building}」达到 ${recipe.level} 级。` };
+  }
+  const cost = recipeCost(state, recipe);
+  if ((state.inventory.stardust ?? 0) < cost) return { ok: false, message: `星尘不足（需要 ${cost}）。` };
+  for (const input of recipe.inputs) {
+    if ((state.inventory[input.id] ?? 0) < input.amount) {
+      return { ok: false, message: `缺少「${ITEM_MAP[input.id]?.name ?? input.id}」×${input.amount}。` };
+    }
+  }
+  removeItem(state, 'stardust', cost);
+  for (const input of recipe.inputs) removeItem(state, input.id, input.amount);
+  addItem(state, recipe.output.id, recipe.output.amount);
+  discoverRecipe(state, recipe.id);
+  addExp(state, 8);
+  return { ok: true, message: `制作完成：${ITEM_MAP[recipe.output.id].name} ×${recipe.output.amount}` };
+}
+
+/**
+ * 升级建筑
+ * @returns {{ok: boolean, message: string}}
+ */
+function upgradeBuilding(state, buildingId) {
+  const def = BUILDING_MAP[buildingId];
+  if (!def) return { ok: false, message: '建筑不存在。' };
+  const level = buildingLevel(state, buildingId);
+  if (level >= def.maxLevel) return { ok: false, message: '已经是最高等级了。' };
+  const cost = def.cost[level - 1] ?? def.cost[def.cost.length - 1];
+  if ((state.inventory.stardust ?? 0) < cost) return { ok: false, message: `星尘不足（需要 ${cost}）。` };
+  removeItem(state, 'stardust', cost);
+  state.buildings[buildingId] = level + 1;
+  addExp(state, 10);
+  return {
+    ok: true,
+    message: `「${def.name}」升到 ${level + 1} 级。${def.effectText[level - 1] ?? ''}`,
+  };
+}
+
+/** 使用物品（食物 / 礼物） */
+function useItem(state, itemId) {
+  const item = ITEM_MAP[itemId];
+  if (!item) return { ok: false, message: '物品不存在。' };
+  if (item.use?.hunger) return careAction(state, 'feed', itemId);
+  if (item.use) {
+    if (!removeItem(state, itemId, 1)) return { ok: false, message: '背包里没有这个物品。' };
+    const actual = applyDeltas(state, { mood: item.use.mood ?? 0, energy: item.use.energy ?? 0, intimacy: item.use.intimacy ?? 0 });
+    addAffinity(state, { care: 1 });
+    addExp(state, 5);
+    return { ok: true, message: `使用了「${item.name}」。`, deltas: actual };
+  }
+  return { ok: false, message: '这个物品现在用不上。' };
+}
+
+/** 稀有度排序值（用于背包排序） */
+function rarityOrder(id) {
+  const rarity = ITEM_MAP[id]?.rarity ?? 'common';
+  return RARITY[rarity]?.order ?? 0;
+}
+
+/* ==================== js/events.js ==================== */
+/**
+ * events.js —— 随机事件
+ *
+ * 事件的抽取与结算全部由"确定性随机"驱动：
+ * 只要传入相同的 rng（同一个存档 + 同一段时间 + 同一个任务），结果就完全一致。
+ */
+
+
+
+
+/**
+ * 该区域可触发的事件 id 列表
+ * @param {string|null} zoneId
+ * @returns {string[]}
+ */
+function zoneEventIds(zoneId) {
+  const zone = zoneId ? ZONE_MAP[zoneId] : null;
+  if (zone?.events?.length) return zone.events;
+  return EVENTS.map((e) => e.id);
+}
+
+/**
+ * 按区域挑选一个可触发的事件（确定性）
+ * @param {any} rng
+ * @param {string|null} zoneId
+ */
+function pickEventForZone(rng, zoneId) {
+  const poolIds = zoneEventIds(zoneId);
+  if (poolIds.length === 0) return null;
+  const id = rng.pick(poolIds);
+  return EVENT_MAP[id] ?? null;
+}
+
+/**
+ * 结算玩家在事件中的二选一
+ * @param {object} state
+ * @param {object} event 事件定义
+ * @param {number} optionIndex
+ * @param {{ rng: any, zoneId: string|null, ts?: number }} ctx
+ * @returns {{ok: boolean, message: string, detail: object}}
+ */
+function resolveEventOption(state, event, optionIndex, ctx) {
+  const option = event?.options?.[optionIndex];
+  if (!option) return { ok: false, message: '选项不存在。', detail: {} };
+
+  const { rng, zoneId = null, ts = now() } = ctx;
+  const outcome =
+    typeof option.outcome === 'function' ? option.outcome({ rng, zoneId, ts }) : option.outcome ?? {};
+
+  // 1. 需要支付的代价（例如用星尘交换）
+  const paid = [];
+  if (outcome.cost) {
+    for (const [id, amount] of Object.entries(outcome.cost)) {
+      if ((state.inventory[id] ?? 0) < amount) {
+        return {
+          ok: false,
+          message: `资源不足，暂时无法选择这一项（需要 ${ITEM_MAP[id]?.name ?? id} ×${amount}）。`,
+          detail: {},
+        };
+      }
+    }
+    for (const [id, amount] of Object.entries(outcome.cost)) {
+      removeItem(state, id, amount);
+      paid.push({ id, amount });
+    }
+  }
+
+  // 2. 物品收获
+  const gained = [];
+  for (const drop of outcome.items ?? []) {
+    const real = addItem(state, drop.id, drop.amount);
+    if (real > 0) gained.push({ id: drop.id, amount: real });
+  }
+
+  // 3. 状态变化（applyDeltas 返回"实际生效量"，避免报告里出现无效数字）
+  const applied = applyDeltas(state, outcome.delta ?? {});
+
+  // 4. 成长属性
+  for (const [key, value] of Object.entries(outcome.stats ?? {})) addAttr(state, key, value);
+
+  // 5. 倾向 / 研究点 / 剧情标记 / 访客 / 区域解锁
+  addAffinity(state, outcome.tendency);
+  if (outcome.research) state.progress.researchPoints += outcome.research;
+  for (const flag of outcome.flags ?? []) setFlag(state, flag);
+  for (const visitor of outcome.visited ?? []) discoverVisitor(state, visitor);
+  for (const zone of outcome.unlockZones ?? []) {
+    if (!state.unlockedZones.includes(zone)) state.unlockedZones.push(zone);
+  }
+
+  // 6. 经验与图鉴
+  addExp(state, 6);
+  discoverEncounter(state, event.id);
+  state.progress.eventsSeen[event.id] = (state.progress.eventsSeen[event.id] ?? 0) + 1;
+
+  const unlockedAchievements = [
+    ...grantAchievements(state, outcome.achievements ?? []),
+    ...checkAutoAchievements(state),
+  ];
+
+  return {
+    ok: true,
+    message: outcome.text ?? option.text,
+    detail: {
+      eventId: event.id,
+      eventName: event.name,
+      eventEmoji: event.emoji,
+      optionText: option.text,
+      text: outcome.text ?? '',
+      items: gained,
+      cost: paid,
+      deltas: applied,
+      achievements: unlockedAchievements,
+    },
+  };
+}
+
+/**
+ * 离线结算用：让星兽自己做决定（确定性）
+ * 离线时玩家不在场，因此由随机替它选择，保证同一段离线时间结果恒定。
+ * @returns {{ok: boolean, detail: object, message: string}}
+ */
+function autoResolveEvent(state, rng, zoneId, ts = now()) {
+  const event = pickEventForZone(rng, zoneId);
+  if (!event) return { ok: false, detail: {}, message: '' };
+  const index = rng.int(0, event.options.length - 1);
+  const result = resolveEventOption(state, event, index, { rng, zoneId, ts });
+  return { ok: result.ok, detail: result.detail, message: result.message };
+}
+
+/** 事件可能产出的物品（图鉴页展示用） */
+function eventItemPreview(event) {
+  const ids = new Set();
+  for (const option of event.options ?? []) {
+    const outcome = typeof option.outcome === 'function' ? null : option.outcome;
+    for (const drop of outcome?.items ?? []) ids.add(drop.id);
+  }
+  return [...ids].map((id) => ITEMS.find((it) => it.id === id)).filter(Boolean);
+}
+
+/* ==================== js/tasks.js ==================== */
+/**
+ * tasks.js —— 探索与任务的结算
+ *
+ * 一次任务结算 = 基础产出 + 稀有掉落 + 随机事件 + 状态消耗 + 成长经验
+ * 所有随机都来自确定性 rng，因此"刷新页面结果不变"。
+ */
+
+
+
+
+
+
+
+/** 任务类型对"基础产出量"的倍率 */
+const TASK_YIELD = {
+  gather: { base: 1, rare: 0.8, stardust: 0.7 },
+  explore: { base: 0.8, rare: 1.9, stardust: 0.9 },
+  study: { base: 0.2, rare: 0.4, stardust: 1.5 },
+  rest: { base: 0.05, rare: 0.1, stardust: 0.2 },
+};
+
+/** 每小时经验（按任务类型区分，学习最高） */
+const TASK_EXP_PER_HOUR = { gather: 18, explore: 26, study: 34, rest: 8 };
+
+/** 每小时状态消耗（休息是恢复，单独处理） */
+const TASK_DRAIN_PER_HOUR = {
+  gather: { hunger: 7, mood: 2.5, energy: 9 },
+  explore: { hunger: 9, mood: 4.5, energy: 14 },
+  study: { hunger: 5, mood: 1.8, energy: 8 },
+  rest: { hunger: 3.5, mood: 0, energy: -26 },
+};
+
+/** 状态安全下限：低于该值时星兽会自行"放弃"消耗，避免变成负值 */
+const STAT_FLOOR = { hunger: 12, mood: 8, energy: 6 };
+
+/**
+ * 计算一次任务的实际时长（毫秒）
+ * @param {object} taskDef
+ * @param {number} hours 实际经过的时长（离线结算时可能超过任务时长）
+ */
+function elapsedForTask(taskDef, hours) {
+  return Math.max(0, hours * 60 * 60 * 1000);
+}
+
+/**
+ * 生成区域采集产出
+ * @param {any} rng
+ * @param {string|null} zoneId
+ * @param {object} taskDef
+ * @param {number} hours 实际耗时（小时）
+ * @param {object} state
+ * @returns {{items: Array<{id:string, amount:number}>, rareFound: Array<{id:string, amount:number}>}}
+ */
+function rollZoneDrops(rng, zoneId, taskDef, hours, state) {
+  const zone = zoneId ? ZONE_MAP[zoneId] : null;
+  if (!zone) return { items: [], rareFound: [] };
+
+  const yieldCfg = TASK_YIELD[taskDef.id] ?? TASK_YIELD.gather;
+  // 时长倍率：以 1 小时为 1 份产出；额外部分收益递减，避免长挂机收益爆炸
+  const hoursFactor = hours <= 1 ? hours : 1 + (hours - 1) * 0.65;
+
+  const items = [];
+  for (const drop of zone.drops) {
+    const [min, max] = drop.amount;
+    const base = rng.int(min, max);
+    const amount = Math.round(base * yieldCfg.base * hoursFactor);
+    if (amount > 0) items.push({ id: drop.id, amount });
+  }
+
+  // 稀有掉落：每个稀有项独立判定，探险类有额外加成
+  const rareFound = [];
+  const rareBonus = branchRareBonus(state);
+  for (const rare of zone.rare) {
+    const times = Math.max(1, Math.round(hours));
+    let got = 0;
+    for (let i = 0; i < times; i++) {
+      if (rng.chance(Math.min(0.9, rare.chance * yieldCfg.rare * rareBonus))) got += 1;
+    }
+    if (got > 0) rareFound.push({ id: rare.id, amount: got });
+  }
+
+  // 星尘：所有任务都会带一点回来
+  const stardust = Math.round((1.5 + hours * 2.2) * yieldCfg.stardust * rng.int(80, 120) / 100);
+  if (stardust > 0) items.push({ id: 'stardust', amount: stardust });
+
+  return { items, rareFound };
+}
+
+/** 进化分支带来的稀有掉落加成 */
+function branchRareBonus(state) {
+  const branch = state.pet.branch ? EVOLUTION_BRANCHES[state.pet.branch] : null;
+  return 1 + (branch?.bonus?.researchYield ?? 0);
+}
+
+/**
+ * 结算一次任务（在线完成 或 离线补算，使用同一套代码）
+ * @param {object} state
+ * @param {{ taskId?: string, zoneId?: string|null, startedAt?: number, endsAt?: number, now?: number, rng: any }} opts
+ */
+function resolveTask(state, opts) {
+  const ts = opts.now ?? now();
+  const taskDef = getTask(opts.taskId);
+  if (!taskDef) return { ok: false, reason: 'unknown-task' };
+
+  const startedAt = opts.startedAt ?? state.task.startedAt ?? ts;
+  const endsAt = opts.endsAt ?? state.task.endsAt ?? ts;
+  const zoneId = taskDef.zone ? (opts.zoneId ?? state.task.zoneId ?? null) : null;
+
+  // 任务实际经过的时长（可能因为离线很久而超过原计划）
+  const hours = Math.max(0, Math.min(24, (ts - startedAt) / 3600000));
+  // 计划时长，用于计算"完成度"
+  const plannedHours = taskDef.duration / 60;
+  const overtime = Math.max(0, hours - plannedHours);
+  const effectiveHours = Math.min(hours, plannedHours) + overtime * 0.35;
+
+  const rng = opts.rng;
+  const { items, rareFound } = rollZoneDrops(rng, zoneId, taskDef, hours, state);
+
+  // 1. 发放产出
+  const gainedItems = [];
+  for (const drop of [...items, ...rareFound]) {
+    const real = addItem(state, drop.id, drop.amount);
+    if (real > 0) gainedItems.push({ id: drop.id, amount: real });
+  }
+
+  // 2. 状态消耗 / 休息恢复
+  const drain = TASK_DRAIN_PER_HOUR[taskDef.id] ?? TASK_DRAIN_PER_HOUR.gather;
+  const deltas = {};
+  for (const [key, perHour] of Object.entries(drain)) {
+    let raw = perHour * effectiveHours;
+    if (perHour > 0) {
+      // 消耗类：不会跌破安全下限
+      const room = Math.max(0, state.pet.stats[key] - STAT_FLOOR[key]);
+      raw = -Math.min(raw, room);
+    }
+    if (raw !== 0) deltas[key] = Math.round(raw);
+  }
+  // 休息额外加成来自孵化舱
+  if (taskDef.tags?.includes('rest')) {
+    const restBonus = 1 + (state.buildings.nursery >= 2 ? 0.25 : 0);
+    if (deltas.energy) deltas.energy = Math.round(deltas.energy * restBonus);
+  }
+  const appliedDeltas = applyDeltas(state, deltas);
+
+  // 3. 成长属性
+  const attrGain = {};
+  for (const gain of taskDef.gains) {
+    const amount = Math.max(1, Math.round(gain.amount * Math.max(0.6, effectiveHours)));
+    addAttr(state, gain.stat, amount);
+    attrGain[gain.stat] = (attrGain[gain.stat] ?? 0) + amount;
+  }
+
+  // 4. 经验与升级
+  const exp = Math.round((TASK_EXP_PER_HOUR[taskDef.id] ?? 20) * Math.max(0.5, effectiveHours));
+  const levelUps = addExp(state, exp);
+
+  // 5. 倾向
+  addAffinity(state, taskDef.tags?.includes('study') ? { study: 2 } : { explore: 2 });
+
+  // 6. 随机事件（离线补算时按时间片多次判定）
+  const events = [];
+  const sliceHours = OFFLINE.sliceMs / 3600000;
+  const slices = Math.max(1, Math.min(Math.ceil(hours / sliceHours), 48));
+  for (let i = 0; i < slices; i++) {
+    if (!rng.chance(OFFLINE.eventChancePerSlice)) continue;
+    const result = autoResolveEvent(state, rng, zoneId, startedAt + i * OFFLINE.sliceMs);
+    if (result.ok) events.push(result.detail);
+  }
+
+  // 7. 记忆与统计
+  state.pet.memory.totalExplorations += 1;
+  if (zoneId) markZoneVisited(state, zoneId);
+  if (taskDef.tags?.includes('study')) state.progress.researchPoints += 2;
+
+  // 8. 成就与区域解锁
+  const unlockedAchievements = checkAutoAchievements(state);
+  const newZones = syncZoneUnlocks(state);
+
+  // 9. 叙事：优先使用区域故事碎片，其次用事件文本
+  const zone = zoneId ? ZONE_MAP[zoneId] : null;
+  const story = zone?.story?.length ? rng.pick(zone.story) : '星兽按你留下的坐标走完了路线，带回一身星尘味。';
+
+  return {
+    ok: true,
+    taskId: taskDef.id,
+    taskName: taskDef.name,
+    zoneId,
+    zoneName: zone?.name ?? '小岛周边',
+    hours,
+    items: gainedItems,
+    deltas: appliedDeltas,
+    attrs: attrGain,
+    exp,
+    levelUps,
+    events,
+    story,
+    newZones,
+    achievements: unlockedAchievements,
+  };
+}
+
+/**
+ * 在线完成当前任务（由一个 tick 触发）
+ * rng 由存档固定种子 + 任务起点时间推导，因此同一任务的结算结果恒定。
+ * @param {object} state
+ * @param {number} [ts]
+ * @param {number} [seed] 存档随机种子
+ */
+function completeActiveTask(state, ts = now(), seed = 0) {
+  if (!state.task.active) return { ok: false, reason: 'no-active-task' };
+  const rng = rngFrom(seed, state.task.active, state.task.startedAt, state.task.zoneId ?? 'none', 'complete');
+  const result = resolveTask(state, {
+    taskId: state.task.active,
+    zoneId: state.task.zoneId,
+    startedAt: state.task.startedAt,
+    endsAt: state.task.endsAt,
+    now: ts,
+    rng,
+  });
+  state.task.active = null;
+  state.task.startedAt = 0;
+  state.task.endsAt = 0;
+  state.task.zoneId = null;
+  return result;
+}
+
+/** 已解锁的区域列表 */
+function unlockedZoneList(state) {
+  return ZONES.filter((z) => state.unlockedZones.includes(z.id));
+}
+
+/** 在 store 上执行一次任务（供 UI 调用），失败时返回提示信息 */
+function runCompleteActiveTask() {
+  let output = { ok: false, message: '没有进行中的任务。' };
+  store.set((state) => {
+    const result = completeActiveTask(state, now(), store.save?.randomSeed ?? 0);
+    output = result.ok
+      ? {
+          ok: true,
+          message: `「${result.taskName}」完成！带回：${describeItems(result.items) || '一点星尘'}`,
+          result,
+        }
+      : { ok: false, message: '任务结算失败。' };
+  });
+  return output;
+}
+
+/** 计算剩余时间（毫秒） */
+function taskRemainingMs(state, ts = now()) {
+  if (!state.task.active) return 0;
+  return Math.max(0, state.task.endsAt - ts);
+}
+
+/** 任务进度 0~1 */
+function taskProgress(state, ts = now()) {
+  if (!state.task.active) return 0;
+  const total = state.task.endsAt - state.task.startedAt;
+  if (total <= 0) return 1;
+  return Math.min(1, Math.max(0, (ts - state.task.startedAt) / total));
+}
+
+/* ==================== js/offline.js ==================== */
+/**
+ * offline.js —— 离线"时间胶囊"结算
+ *
+ * 世界观：你离开小岛后，星兽不会在后台运行。
+ *       再次上线时，所有本该发生的事被压缩成一段"探索报告"，一次性结算。
+ *
+ * 关键设计：
+ * 1. 只用时间戳：now - lastSettleTime，没有任何定时器 / Service Worker 参与。
+ * 2. 确定性随机：种子 = randomSeed + 任务开始时间 + 任务类型 + 时间片序号。
+ *    同一份存档、同一段离线时间、同一个任务，刷新页面结果完全一致。
+ * 3. 收益封顶：12 小时以内正常，超出部分按 5% 保底，避免改系统时间无限刷。
+ * 4. 时间倒退：now < lastSettleTime 时只给保底收益，并提示"星兽时差晕眩"。
+ */
+
+
+
+
+
+
+
+
+/** 空闲（没安排任务）时的每小时状态变化 */
+const IDLE_DRAIN_PER_HOUR = { hunger: 3.4, mood: 1.3, energy: -4.5 };
+/** 状态安全下限：低于该值星兽会优先照顾自己，不再继续掉 */
+const IDLE_FLOOR = { hunger: 18, mood: 10, energy: 12 };
+
+/**
+ * 主入口：结算离线时间
+ *
+ * @param {object} state 游戏状态
+ * @param {{ lastSettleTime: number, randomSeed: number }} save 存档元信息
+ * @param {number} [ts] 当前时间戳
+ * @returns {object} 离线报告（纯数据，UI 负责渲染）
+ */
+function settleOffline(state, save, ts = currentTime()) {
+  const lastSettleTime = Number(save?.lastSettleTime) || ts;
+  const randomSeed = Number(save?.randomSeed) || 0;
+  const rawDelta = ts - lastSettleTime;
+
+  const report = {
+    at: ts,
+    from: lastSettleTime,
+    rawElapsedMs: rawDelta,
+    countedElapsedMs: 0,
+    capMs: OFFLINE.capMs,
+    overflowCounted: false,
+    rewound: rawDelta < 0,
+    apGained: 0,
+    task: null,
+    items: [],
+    events: [],
+    timeline: [],
+    story: [],
+    evolutions: [],
+    achievements: [],
+    newZones: [],
+    notes: [],
+    stats: null,
+  };
+
+  /* ---------- 情况 A：时间倒退（改过系统时间 / 换了时区） ---------- */
+  if (rawDelta < 0) {
+    const rng = createRng(hash32(randomSeed, 'rewind', ts));
+    const stardust = rng.int(OFFLINE.rewind.stardust[0], OFFLINE.rewind.stardust[1]);
+    const gain = [{ id: 'stardust', amount: stardust }, ...OFFLINE.rewind.items];
+    for (const it of gain) addItem(state, it.id, it.amount);
+    report.items = mergeItems(gain);
+    report.notes.push('星兽时差晕眩：检测到时间倒退，本次只结算了保底收益。');
+    report.timeline.push({
+      at: ts,
+      title: '时差晕眩',
+      text: '它分不清现在是哪一天，只是把爪子搭在你手上，等你确认时间。',
+      emoji: '😵‍💫',
+    });
+    finishReport(state, report, ts);
+    return report;
+  }
+
+  const counted = Math.min(rawDelta, OFFLINE.capMs);
+  const overflow = Math.max(0, rawDelta - OFFLINE.capMs);
+  report.countedElapsedMs = counted;
+  report.overflowCounted = overflow > 0;
+
+  const hours = counted / 3600000;
+
+  /* ---------- 情况 B：有安排任务 -> 走完整的任务结算 ---------- */
+  if (state.task.active && state.task.startedAt) {
+    const taskDef = TASK_MAP[state.task.active];
+    // 任务完成时刻；离线很久时任务早已结束，剩余时间算作空闲
+    const taskDoneAt = Math.min(ts, state.task.startedAt + Math.max(1, state.task.endsAt - state.task.startedAt));
+    const taskElapsed = Math.max(0, taskDoneAt - state.task.startedAt);
+
+    // 确定性随机：同一存档 + 同一任务起点 => 完全一致的结算
+    const taskRng = createRng(
+      hash32(randomSeed, state.task.active, state.task.startedAt, state.task.zoneId ?? 'none', 'offline'),
+    );
+
+    const result = resolveTask(state, {
+      taskId: state.task.active,
+      zoneId: state.task.zoneId,
+      startedAt: state.task.startedAt,
+      endsAt: state.task.endsAt,
+      now: taskDoneAt,
+      rng: taskRng,
+    });
+
+    if (result.ok) {
+      report.task = {
+        id: result.taskId,
+        name: result.taskName,
+        emoji: taskDef?.emoji ?? '🔭',
+        zoneId: result.zoneId,
+        zoneName: result.zoneName,
+        hours: result.hours,
+        exp: result.exp,
+        levelUps: result.levelUps,
+      };
+      report.items = mergeItems(result.items);
+      report.events = result.events ?? [];
+      report.achievements.push(...(result.achievements ?? []));
+      report.newZones.push(...(result.newZones ?? []));
+      report.timeline.push({
+        at: taskDoneAt,
+        title: `${taskDef?.name ?? '任务'}完成`,
+        text: result.story,
+        emoji: taskDef?.emoji ?? '🔭',
+        items: report.items,
+      });
+    }
+
+    // 任务结束后剩余的空闲时间：继续消耗状态，并可能触发事件
+    const idleMs = Math.max(0, ts - taskDoneAt);
+    if (idleMs > 0) {
+      applyIdleTime(state, idleMs, randomSeed, taskDoneAt, report);
+    }
+
+    // 任务结束，状态回到空闲
+    state.task.active = null;
+    state.task.startedAt = 0;
+    state.task.endsAt = 0;
+    state.task.zoneId = null;
+  } else {
+    /* ---------- 情况 C：没安排任务 -> 只是空等 ---------- */
+    applyIdleTime(state, counted, randomSeed, lastSettleTime, report);
+  }
+
+  /* ---------- 超出 12 小时的部分：保底收益 ---------- */
+  if (overflow > 0) {
+    const rng = createRng(hash32(randomSeed, 'overflow', Math.floor(overflow / 60000)));
+    const bonusHours = overflow / 3600000;
+    const stardust = Math.max(1, Math.round(1.5 * bonusHours * OFFLINE.beyondRate));
+    const gain = [{ id: 'stardust', amount: stardust }];
+    if (rng.chance(0.35)) gain.push({ id: 'moss_ball', amount: 1 });
+    for (const it of gain) addItem(state, it.id, it.amount);
+    report.items = mergeItems([...report.items, ...gain]);
+    report.notes.push(
+      `离线超过 ${formatDuration(OFFLINE.capMs)}（共 ${formatDuration(rawDelta)}），超出的时间只结算了少量保底星尘。`,
+    );
+    report.timeline.push({
+      at: ts,
+      title: '余波',
+      text: '太久没回来，岛上的时间自己折叠了几次。它把这些折痕都收进了口袋。',
+      emoji: '⏳',
+    });
+  }
+
+  finishReport(state, report, ts);
+  return report;
+}
+
+/**
+ * 空闲时间结算：状态消耗 + 触发随机事件
+ * @param {object} state
+ * @param {number} ms
+ * @param {number} randomSeed
+ * @param {number} baseTs
+ * @param {object} report
+ */
+function applyIdleTime(state, ms, randomSeed, baseTs, report) {
+  const hours = ms / 3600000;
+  if (hours <= 0) return;
+
+  // 1. 状态消耗（不会跌破安全下限，避免上线就看到一只快饿死的星兽）
+  const deltas = {};
+  for (const [key, perHour] of Object.entries(IDLE_DRAIN_PER_HOUR)) {
+    let raw = perHour * hours;
+    if (perHour > 0) {
+      const room = Math.max(0, state.pet.stats[key] - IDLE_FLOOR[key]);
+      raw = -Math.min(raw, room);
+    }
+    if (raw !== 0) deltas[key] = Math.round(raw);
+  }
+  const applied = applyDeltas(state, deltas);
+  report.idleDeltas = applied;
+
+  // 2. 事件：按时间片数量决定最多触发几次
+  const slices = Math.min(Math.floor(ms / OFFLINE.sliceMs), 64);
+  let triggered = 0;
+  const rng = createRng(hash32(randomSeed, 'idle', baseTs, 'events'));
+  const zoneId = state.unlockedZones[state.unlockedZones.length - 1] ?? 'shallow';
+
+  for (let i = 0; i < slices; i++) {
+    if (triggered >= 3) break; // 一次上线最多 3 个离线事件，避免报告刷屏
+    if (!rng.chance(OFFLINE.eventChancePerSlice * 1.6)) continue;
+    const sliceAt = baseTs + i * OFFLINE.sliceMs;
+    const event = pickEventForZone(rng, zoneId);
+    if (!event) continue;
+    const result = autoResolveEvent(state, rng, zoneId, sliceAt);
+    if (!result.ok) continue;
+    triggered += 1;
+    report.events.push(result.detail);
+    report.achievements.push(...(result.detail.achievements ?? []));
+    report.timeline.push({
+      at: sliceAt,
+      title: `${event.emoji} ${event.name}`,
+      text: result.detail.text || event.text,
+      emoji: event.emoji,
+      items: mergeItems(result.detail.items ?? []),
+    });
+  }
+
+  // 3. 空闲也会慢慢积累经验（很少）
+  const exp = Math.round(hours * 3);
+  if (exp > 0) addExp(state, exp);
+}
+
+/**
+ * 收尾：行动点恢复、成就、区域解锁、记忆写入、状态快照
+ */
+function finishReport(state, report, ts) {
+  // 星兽记忆：上次离开多久
+  state.pet.memory.lastAwayMs = report.rawElapsedMs > 0 ? report.rawElapsedMs : 0;
+  state.pet.memory.lastAwayAt = ts;
+  state.lastSeen = ts;
+
+  report.achievements = [...new Set([...report.achievements, ...checkAutoAchievements(state)])];
+  report.newZones = [...new Set([...report.newZones, ...syncZoneUnlocks(state)])];
+  report.stats = { ...state.pet.stats };
+  report.level = state.pet.level;
+  report.items = mergeItems(report.items);
+
+  // 叙事：把 timeline 精简到上限条数
+  report.timeline = report.timeline
+    .sort((a, b) => a.at - b.at)
+    .slice(0, OFFLINE.maxNarratives);
+  report.story = report.timeline.map((entry) => {
+    const offsetH = Math.max(0, (entry.at - report.from) / 3600000);
+    return { ...entry, hour: offsetH, line: narrativeLine(entry, offsetH) };
+  });
+}
+
+/**
+ * 生成世界观化的报告句子
+ * 例如："你离开的第 3 小时，星兽发现了一片发光苔藓。"
+ */
+function narrativeLine(entry, hour) {
+  const hourText = hour < 1 ? '刚离开不久' : `你离开的第 ${formatHour(hour)}`;
+  const prefix = entry.emoji ? `${entry.emoji} ` : '';
+  const itemText = entry.items?.length ? ` 带回：${describeItems(entry.items)}。` : '';
+  const head = entry.title ? `【${entry.title}】` : '';
+  return `${prefix}${hourText}，${head}${entry.text}${itemText}`;
+}
+
+/** 小时数格式化：3.5 -> "3.5"，3 -> "3" */
+function formatHour(hour) {
+  const rounded = Math.round(hour * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded} 小时` : `${rounded.toFixed(1)} 小时`;
+}
+
+/** 报告里是否有"值得弹窗"的内容 */
+function hasContent(report) {
+  return Boolean(
+    report &&
+      (report.task ||
+        report.events?.length ||
+        report.items?.length ||
+        report.rewound ||
+        report.overflowCounted ||
+        report.newZones?.length),
+  );
+}
+
+/**
+ * 便捷方法：从 store 读取存档并结算（UI 使用）
+ * @returns {{report: object, hasContent: boolean}}
+ */
+function settleFromStore(ts = currentTime()) {
+  let report = null;
+  store.set((state) => {
+    report = settleOffline(state, store.save, ts);
+    if (store.save) store.save.lastSettleTime = ts;
+  });
+  return { report, hasContent: hasContent(report) };
+}
+
+/* ==================== js/save.js ==================== */
+/**
+ * save.js —— 本地存档 / 版本迁移 / 迁徙胶囊（导出导入）
+ *
+ * 存档结构（与需求一致）：
+ *   type Save = {
+ *     v: number;              // 存档版本，从 1 开始
+ *     savedAt: number;        // 保存时间
+ *     deviceId: string;       // 设备标识
+ *     lastSettleTime: number; // 上次结算时间
+ *     randomSeed: number;     // 确定性随机种子（额外字段，用于"刷新结果不变"）
+ *     data: GameState;        // 所有游戏状态
+ *   }
+ *
+ * 安全要点：
+ * - 自动保存 debounce 500ms；visibilitychange / pagehide 立即保存。
+ * - 不把 beforeunload 当作唯一保存方式。
+ * - 导入时 try/catch + 白名单校验 + 剥离 __proto__ / constructor / prototype，防原型污染。
+ * - migrateSave 逐版本升级，以后加字段不会坏旧档。
+ */
+
+
+
+
+/** localStorage 键名（加版本前缀，方便以后替换存储方案） */
+const STORAGE_KEY = 'stardust-migration:save:v1';
+/** 备份键：导入前自动留一份，防止误覆盖 */
+const BACKUP_KEY = 'stardust-migration:backup:v1';
+/** 自动保存防抖时间 */
+const AUTOSAVE_DEBOUNCE = 500;
+
+/** 危险键名（原型污染防护） */
+const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+/* ------------------------------------------------------------------ */
+/* 基础工具                                                            */
+/* ------------------------------------------------------------------ */
+
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** 递归剥离危险键，返回新对象（不修改入参） */
+function sanitize(value, depth = 0) {
+  if (depth > 24) return null;
+  if (Array.isArray(value)) return value.map((v) => sanitize(v, depth + 1));
+  if (!isPlainObject(value)) return value;
+  const out = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (FORBIDDEN_KEYS.includes(key)) continue;
+    out[key] = sanitize(val, depth + 1);
+  }
+  return out;
+}
+
+/** 安全的数值读取 */
+function num(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** 安全的字符串读取 */
+function str(value, fallback = '') {
+  return typeof value === 'string' ? value : fallback;
+}
+
+/* ------------------------------------------------------------------ */
+/* 创建 / 校验 / 迁移                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 创建一份全新存档
+ * @param {{ name?: string, ts?: number }} [opts]
+ */
+function createNewSave({ name = '未命名星兽', ts = now() } = {}) {
+  return {
+    v: SAVE_VERSION,
+    savedAt: ts,
+    deviceId: makeDeviceId(),
+    lastSettleTime: ts,
+    randomSeed: makeRandomSeed(),
+    data: createDefaultState({ name, ts }),
+  };
+}
+
+/**
+ * 把任意来源的对象补全成合法存档（不做版本迁移，只做结构补齐）
+ * @param {any} raw
+ * @returns {object|null}
+ */
+function normalizeSave(raw) {
+  if (!isPlainObject(raw)) return null;
+  const clean = sanitize(raw);
+  const data = isPlainObject(clean.data) ? clean.data : null;
+  if (!data) return null;
+
+  const save = {
+    v: Math.max(1, Math.floor(num(clean.v, 1))),
+    savedAt: num(clean.savedAt, num(clean.data?.savedAt, now())),
+    deviceId: str(clean.deviceId, 'unknown-device'),
+    lastSettleTime: num(clean.lastSettleTime, num(clean.savedAt, now())),
+    randomSeed: Math.floor(num(clean.randomSeed, 0)) >>> 0,
+    data,
+  };
+  if (!save.randomSeed) save.randomSeed = makeRandomSeed();
+  return save;
+}
+
+/**
+ * 版本迁移
+ *
+ * 规则：MIGRATIONS[n] 负责把 v = n 的存档升级到 v = n + 1。
+ * 以后新增字段时，只需要加一个 MIGRATIONS 条目，旧档就能平滑升级。
+ *
+ * @param {object} save 已经过 normalizeSave 的存档
+ * @returns {{save: object, migrated: boolean, from: number, to: number}}
+ */
+function migrateSave(save) {
+  const from = save.v;
+  let current = save;
+  let guard = 0;
+  while (current.v < SAVE_VERSION && guard < 50) {
+    const migrate = MIGRATIONS[current.v];
+    if (typeof migrate !== 'function') {
+      // 没有对应的迁移函数：直接把版本号提到当前，后续由 fillDefaults 补齐字段
+      console.warn(`[save] 缺少 v${current.v} 的迁移函数，将直接补齐默认字段。`);
+      current.v = SAVE_VERSION;
+      break;
+    }
+    current = migrate(current);
+    current.v += 1;
+    guard += 1;
+  }
+  if (current.v > SAVE_VERSION) {
+    // 来自更新版本的存档：保守处理，只提示不破坏数据
+    current.v = SAVE_VERSION;
+  }
+  return { save: current, migrated: from !== current.v, from, to: current.v };
+}
+
+/**
+ * 版本迁移表
+ * 示例：MIGRATIONS[1] = (save) => { save.data.newField = ...; return save; }  // v1 -> v2
+ * 目前只有 v1，因此表为空；保留结构以便将来扩展。
+ */
+const MIGRATIONS = {
+  // 1: (save) => {
+  //   save.data.progress.dailyStreak = 0; // 例如 v2 新增字段
+  //   return save;
+  // },
+};
+
+/**
+ * 用默认值补齐缺失字段（对旧档 / 手改档都安全）
+ * 只补结构，不覆盖已有数值。
+ */
+function fillDefaults(save) {
+  const base = createDefaultState({ name: save?.data?.pet?.name ?? '未命名星兽', ts: save.savedAt });
+  const data = save.data;
+
+  data.pet = data.pet ?? {};
+  data.pet.name = str(data.pet.name, base.pet.name);
+  data.pet.stats = { ...base.pet.stats, ...(isPlainObject(data.pet.stats) ? data.pet.stats : {}) };
+  data.pet.attrs = { ...base.pet.attrs, ...(isPlainObject(data.pet.attrs) ? data.pet.attrs : {}) };
+  data.pet.level = Math.max(1, Math.floor(num(data.pet.level, 1)));
+  data.pet.exp = Math.max(0, num(data.pet.exp, 0));
+  data.pet.stage = str(data.pet.stage, base.pet.stage);
+  data.pet.branch = data.pet.branch ? str(data.pet.branch, null) : null;
+  data.pet.bornAt = num(data.pet.bornAt, base.pet.bornAt);
+  data.pet.memory = { ...base.pet.memory, ...(isPlainObject(data.pet.memory) ? data.pet.memory : {}) };
+  data.pet.memory.zonesVisited = Array.isArray(data.pet.memory.zonesVisited) ? data.pet.memory.zonesVisited : [];
+  data.pet.memory.visitors = Array.isArray(data.pet.memory.visitors) ? data.pet.memory.visitors : [];
+  data.pet.memory.flags = Array.isArray(data.pet.memory.flags) ? data.pet.memory.flags : [];
+
+  data.inventory = isPlainObject(data.inventory) ? data.inventory : { ...base.inventory };
+  for (const [id, amount] of Object.entries(data.inventory)) {
+    data.inventory[id] = Math.max(0, Math.floor(num(amount, 0)));
+  }
+
+  data.buildings = { ...base.buildings, ...(isPlainObject(data.buildings) ? data.buildings : {}) };
+  for (const [id, level] of Object.entries(data.buildings)) {
+    data.buildings[id] = Math.max(0, Math.floor(num(level, 0)));
+  }
+
+  data.actionPoints = Math.max(0, num(data.actionPoints, base.actionPoints));
+  data.lastApReset = num(data.lastApReset, base.lastApReset);
+
+  data.task = { ...base.task, ...(isPlainObject(data.task) ? data.task : {}) };
+  data.task.active = data.task.active ? str(data.task.active, null) : null;
+
+  data.codex = { ...base.codex, ...(isPlainObject(data.codex) ? data.codex : {}) };
+  for (const key of ['items', 'encounters', 'visitors', 'recipes']) {
+    data.codex[key] = isPlainObject(data.codex[key]) ? data.codex[key] : {};
+  }
+
+  data.achievements = isPlainObject(data.achievements) ? data.achievements : {};
+
+  data.progress = { ...base.progress, ...(isPlainObject(data.progress) ? data.progress : {}) };
+  data.progress.affinity = { ...base.progress.affinity, ...(isPlainObject(data.progress.affinity) ? data.progress.affinity : {}) };
+  data.progress.careCounts = { ...base.progress.careCounts, ...(isPlainObject(data.progress.careCounts) ? data.progress.careCounts : {}) };
+  data.progress.eventsSeen = isPlainObject(data.progress.eventsSeen) ? data.progress.eventsSeen : {};
+
+  data.unlockedZones = Array.isArray(data.unlockedZones) && data.unlockedZones.length
+    ? [...new Set(data.unlockedZones.map((z) => str(z)).filter(Boolean))]
+    : [...base.unlockedZones];
+
+  data.imports = { ...base.imports, ...(isPlainObject(data.imports) ? data.imports : {}) };
+  data.imports.history = Array.isArray(data.imports.history) ? data.imports.history : [];
+
+  data.lastSeen = num(data.lastSeen, base.lastSeen);
+  data.version = SAVE_VERSION;
+  return save;
+}
+
+/**
+ * 校验一份存档是否可用
+ * @returns {{ok: boolean, reasons: string[]}}
+ */
+function validateSave(save) {
+  const reasons = [];
+  if (!isPlainObject(save)) reasons.push('存档不是一个对象。');
+  else {
+    if (!isPlainObject(save.data)) reasons.push('缺少 data 字段。');
+    if (!isPlainObject(save.data?.pet)) reasons.push('缺少星兽数据（data.pet）。');
+    if (num(save.v, 0) < 1) reasons.push('版本号非法。');
+  }
+  return { ok: reasons.length === 0, reasons };
+}
+
+/** 完整流程：校验 -> 归一化 -> 迁移 -> 补齐默认值 */
+function loadFromObject(raw) {
+  const normalized = normalizeSave(raw);
+  if (!normalized) return { ok: false, reasons: ['存档格式无法识别。'] };
+  const check = validateSave(normalized);
+  if (!check.ok) return { ok: false, reasons: check.reasons };
+  const { save, migrated, from, to } = migrateSave(normalized);
+  fillDefaults(save);
+  return { ok: true, save, migrated, from, to };
+}
+
+/* ------------------------------------------------------------------ */
+/* localStorage 读写                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 内存兜底存储
+ *
+ * 场景：某些浏览器在 file:// 协议下会禁用 localStorage（Firefox / Safari 会直接抛
+ * SecurityError）。这时游戏必须还能玩，只是存档不会持久化——我们会明确提示玩家
+ * 用「迁徙胶囊」保存进度。
+ */
+const memoryStore = new Map();
+
+/** 探测 localStorage 是否真的可用 */
+function probeLocalStorage() {
+  try {
+    const ls = globalThis.localStorage;
+    if (!ls) return false;
+    const probe = '__stardust_probe__';
+    ls.setItem(probe, '1');
+    ls.removeItem(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let persistent = null; // 惰性探测结果
+
+/** 当前存储是否持久化（false = 只存在内存里，刷新就丢） */
+function isPersistentStorage() {
+  if (persistent === null) persistent = probeLocalStorage();
+  return persistent;
+}
+
+/** 重置探测缓存（例如从持久化切到内存模式后想让 UI 重新判断） */
+function resetStorageProbe() {
+  persistent = null;
+}
+
+/** 统一读取 */
+function readRaw(key) {
+  if (isPersistentStorage()) {
+    try {
+      return globalThis.localStorage.getItem(key);
+    } catch {
+      return memoryStore.get(key) ?? null;
+    }
+  }
+  return memoryStore.get(key) ?? null;
+}
+
+/** 统一写入，返回是否真正持久化成功 */
+function writeRaw(key, value) {
+  memoryStore.set(key, value);
+  if (!isPersistentStorage()) return false;
+  try {
+    globalThis.localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    // 配额满 / 被禁用：退回内存模式，本局仍可继续玩
+    console.error('[save] 写入本地存储失败，本局进度只在内存中：', err);
+    persistent = false;
+    return false;
+  }
+}
+
+/** 统一删除 */
+function removeRaw(key) {
+  memoryStore.delete(key);
+  if (!isPersistentStorage()) return;
+  try {
+    globalThis.localStorage.removeItem(key);
+  } catch {
+    /* 忽略 */
+  }
+}
+
+/** 读取最近自动存档 */
+function readLocalSave() {
+  let text = null;
+  try {
+    text = readRaw(STORAGE_KEY);
+  } catch (err) {
+    return { ok: false, reasons: ['读取本地存档失败：' + err.message] };
+  }
+  if (!text) return { ok: false, reasons: ['本地还没有存档。'], empty: true };
+  let raw = null;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, reasons: ['本地存档已损坏（JSON 解析失败）。'], corrupted: true };
+  }
+  return loadFromObject(raw);
+}
+
+/** 写入本地存档 */
+function writeLocalSave(save) {
+  try {
+    save.savedAt = now();
+    writeRaw(STORAGE_KEY, JSON.stringify(save));
+    return true;
+  } catch (err) {
+    console.error('[save] 写入失败：', err);
+    return false;
+  }
+}
+
+/** 删除本地存档（默认保留备份） */
+function clearLocalSave({ keepBackup = true } = {}) {
+  try {
+    if (keepBackup) {
+      const current = readRaw(STORAGE_KEY);
+      if (current) writeRaw(BACKUP_KEY, current);
+    }
+    removeRaw(STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 读取自动备份 */
+function readBackup() {
+  const text = readRaw(BACKUP_KEY);
+  if (!text) return { ok: false, reasons: ['没有备份。'] };
+  try {
+    return loadFromObject(JSON.parse(text));
+  } catch {
+    return { ok: false, reasons: ['备份已损坏。'] };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 自动保存（debounce + 立即保存）                                      */
+/* ------------------------------------------------------------------ */
+
+let autosaveTimer = null;
+let unsubscribe = null;
+
+/** 立即保存（用于 visibilitychange / pagehide） */
+function saveNow() {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  const save = store.save;
+  if (!save) return false;
+  return writeLocalSave(save);
+}
+
+/** debounce 保存 */
+function scheduleAutosave(delay = AUTOSAVE_DEBOUNCE) {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null;
+    const save = store.save;
+    if (save) writeLocalSave(save);
+  }, delay);
+}
+
+/**
+ * 启动自动存档：状态一变就安排一次 debounce 写入
+ * @returns {() => void} 停止函数
+ */
+function startAutosave() {
+  stopAutosave();
+  unsubscribe = store.subscribe(() => scheduleAutosave());
+  return stopAutosave;
+}
+
+function stopAutosave() {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = null;
+  if (unsubscribe) unsubscribe();
+  unsubscribe = null;
+}
+
+/**
+ * 绑定页面生命周期事件（不使用 beforeunload 作为唯一手段）
+ *
+ * 说明：这里优先使用 window，而不是 globalThis。
+ * 浏览器里两者等价，但显式写 window 更清楚，也方便在无 DOM 环境（测试 / SSR）中跳过。
+ *
+ * @param {{ onSaved?: () => void }} [hooks]
+ * @returns {() => boolean} 手动保存函数
+ */
+function bindLifecycle({ onSaved } = {}) {
+  const flush = (reason) => {
+    const ok = saveNow();
+    if (ok && onSaved) onSaved(reason);
+    return ok;
+  };
+
+  if (typeof document !== 'undefined') {
+    // 切到后台 / 锁屏：立即保存
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush('visibilitychange');
+    });
+  }
+
+  const win = typeof window !== 'undefined' ? window : null;
+  if (win?.addEventListener) {
+    // 页面被卸载 / 进入往返缓存：立即保存
+    win.addEventListener('pagehide', () => flush('pagehide'));
+    // 失去焦点（切到别的 App）：顺手保存一次
+    win.addEventListener('blur', () => flush('blur'));
+    // 移动端常见：被系统直接冻结前最后一搏（不作为唯一手段）
+    win.addEventListener('beforeunload', () => flush('beforeunload'));
+  }
+
+  return () => flush('manual');
+}
+
+/* ------------------------------------------------------------------ */
+/* 迁徙胶囊：导出 / 导入 / 合并                                         */
+/* ------------------------------------------------------------------ */
+
+/** 胶囊文件格式标识 */
+const CAPSULE_KIND = 'stardust-migration-capsule';
+
+/**
+ * 生成"迁徙胶囊"对象
+ * @param {object} save
+ */
+function buildCapsule(save) {
+  return {
+    kind: CAPSULE_KIND,
+    game: GAME_NAME,
+    gameEn: GAME_NAME_EN,
+    v: save.v,
+    exportedAt: now(),
+    /** 简短的世界观文案，导出文件本身也是一份纪念品 */
+    note: '这是一枚迁徙胶囊。把它带到新的星门，星兽就会在那里醒来。',
+    save: deepClone(save),
+  };
+}
+
+/**
+ * 导出为可下载文件
+ * @param {object} save
+ * @param {{ pretty?: boolean }} [opts]
+ * @returns {{filename: string, text: string}}
+ */
+function exportCapsuleFile(save, { pretty = true } = {}) {
+  const capsule = buildCapsule(save);
+  const text = JSON.stringify(capsule, null, pretty ? 2 : 0);
+  const stamp = new Date(now()).toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const petName = save?.data?.pet?.name || '星兽';
+  const safeName = petName.replace(/[\\/:*?"<>|\s]/g, '_').slice(0, 12);
+  return { filename: `迁徙胶囊_${safeName}_${stamp}.json`, text };
+}
+
+/** 触发浏览器下载 */
+function downloadText(filename, text, mime = 'application/json') {
+  const blob = new Blob([text], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/**
+ * Base64 存档码（UTF-8 安全）
+ * @param {object} save
+ */
+function encodeCapsuleCode(save) {
+  const json = JSON.stringify(buildCapsule(save));
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/**
+ * 解析 Base64 存档码
+ * @param {string} code
+ */
+function decodeCapsuleCode(code) {
+  const clean = String(code || '').replace(/\s+/g, '');
+  if (!clean) throw new Error('存档码为空。');
+  const binary = atob(clean);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  const json = new TextDecoder().decode(bytes);
+  return JSON.parse(json);
+}
+
+/**
+ * 从任意来源解析胶囊 / 裸存档
+ *
+ * 兼容三种输入：
+ * 1. 胶囊 JSON（导出文件的内容）
+ * 2. 裸存档 JSON（早期手写的存档）
+ * 3. Base64 存档码（"生成存档码"按钮产出的那串字符）
+ *
+ * @param {string} text
+ * @returns {{ok: boolean, reasons?: string[], save?: object, migrated?: boolean, from?: number, to?: number}}
+ */
+function parseCapsuleText(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return { ok: false, reasons: ['内容为空。'] };
+
+  let data = null;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    // 不是 JSON，尝试当作 Base64 存档码
+    try {
+      data = decodeCapsuleCode(raw);
+    } catch (err) {
+      return { ok: false, reasons: ['无法解析：既不是 JSON，也不是有效的存档码。（' + err.message + '）'] };
+    }
+  }
+
+  const candidate = isPlainObject(data?.save) ? data.save : data;
+  return loadFromObject(candidate);
+}
+
+/**
+ * 合并两份存档的"可合并部分"，资源与进度只取一份（避免刷档）
+ *
+ * 规则：
+ * - 主档（base）：资源、状态、任务、行动点 —— 全部保留
+ * - 副档（incoming）：只贡献 图鉴 / 成就 / 星兽记忆（去过的区域、访客、换设备次数）
+ *
+ * @param {object} base 保留的那一份
+ * @param {object} incoming 被合并进来的那一份
+ * @returns {object} 合并后的 base（原地修改）
+ */
+function mergeCodex(base, incoming) {
+  const a = base.data;
+  const b = incoming.data;
+
+  // 图鉴：合并条目，首次发现时间取更早的
+  for (const key of ['items', 'encounters', 'visitors', 'recipes']) {
+    for (const [id, meta] of Object.entries(b.codex?.[key] ?? {})) {
+      const existing = a.codex[key][id];
+      if (!existing) {
+        a.codex[key][id] = { ...meta };
+      } else if (num(meta?.firstAt, Infinity) < num(existing.firstAt, Infinity)) {
+        existing.firstAt = meta.firstAt;
+      }
+    }
+  }
+
+  // 成就：取并集
+  for (const [id, meta] of Object.entries(b.achievements ?? {})) {
+    if (!a.achievements[id]) a.achievements[id] = { ...meta };
+  }
+
+  // 星兽记忆：去过的区域、访客、换设备次数
+  const az = new Set(a.pet.memory.zonesVisited);
+  for (const z of b.pet.memory.zonesVisited ?? []) az.add(z);
+  a.pet.memory.zonesVisited = [...az];
+
+  const av = new Set(a.pet.memory.visitors);
+  for (const v of b.pet.memory.visitors ?? []) av.add(v);
+  a.pet.memory.visitors = [...av];
+
+  a.pet.memory.deviceCount = Math.max(num(a.pet.memory.deviceCount, 1), num(b.pet.memory.deviceCount, 1));
+
+  // 解锁区域取并集（导入的档如果解锁过遗迹，主档也能去）
+  const au = new Set([...(a.unlockedZones ?? []), ...(b.unlockedZones ?? [])]);
+  a.unlockedZones = [...au];
+
+  // 见闻计数取较大值
+  for (const [id, count] of Object.entries(b.progress?.eventsSeen ?? {})) {
+    a.progress.eventsSeen[id] = Math.max(num(a.progress.eventsSeen[id], 0), num(count, 0));
+  }
+
+  return base;
+}
+
+/**
+ * 导入结果类型
+ * @typedef {{ok: boolean, reasons?: string[], save?: object, migrated?: boolean, conflict?: object, needsChoice?: boolean}}
+ */
+
+/**
+ * 准备导入：解析文本、与当前存档比较、判断是否需要玩家选择
+ *
+ * @param {string} text 文件或存档码内容
+ * @param {object|null} currentSave 当前存档
+ * @returns {import('./save.js').ImportPreview}
+ */
+function prepareImport(text, currentSave) {
+  let parsed;
+  try {
+    parsed = parseCapsuleText(text);
+  } catch (err) {
+    return { ok: false, reasons: ['无法解析：' + err.message] };
+  }
+  if (!parsed.ok) return { ok: false, reasons: parsed.reasons };
+
+  const incoming = parsed.save;
+  if (!currentSave) {
+    return { ok: true, save: incoming, migrated: parsed.migrated, from: parsed.from, to: parsed.to };
+  }
+
+  const currentSettle = num(currentSave.lastSettleTime, 0);
+  const incomingSettle = num(incoming.lastSettleTime, 0);
+  const newer = incomingSettle === currentSettle
+    ? num(incoming.savedAt, 0) >= num(currentSave.savedAt, 0)
+      ? 'incoming'
+      : 'current'
+    : incomingSettle > currentSettle
+      ? 'incoming'
+      : 'current';
+
+  return {
+    ok: true,
+    save: incoming,
+    migrated: parsed.migrated,
+    from: parsed.from,
+    to: parsed.to,
+    conflict: {
+      newer,
+      currentDevice: currentSave.deviceId,
+      incomingDevice: incoming.deviceId,
+      currentSettle,
+      incomingSettle,
+      currentSavedAt: num(currentSave.savedAt, 0),
+      incomingSavedAt: num(incoming.savedAt, 0),
+      currentLevel: num(currentSave.data?.pet?.level, 1),
+      incomingLevel: num(incoming.data?.pet?.level, 1),
+      currentItems: Object.keys(currentSave.data?.codex?.items ?? {}).length,
+      incomingItems: Object.keys(incoming.data?.codex?.items ?? {}).length,
+    },
+    needsChoice: true,
+  };
+}
+
+/**
+ * 应用导入
+ * @param {object} incoming 已校验的存档
+ * @param {'replace'|'merge'|'keep'} mode
+ * @param {object|null} currentSave
+ * @returns {{save: object, message: string}}
+ */
+function applyImport(incoming, mode, currentSave) {
+  const importStamp = now();
+  const next = deepClone(incoming);
+  fillDefaults(next);
+  next.deviceId = makeDeviceId();
+  next.lastSettleTime = importStamp;
+  next.savedAt = importStamp;
+  next.data.imports = next.data.imports ?? { count: 0, lastAt: 0, lastSourceDevice: null, history: [] };
+  next.data.imports.count = num(next.data.imports.count, 0) + 1;
+  next.data.imports.lastAt = importStamp;
+  next.data.imports.lastSourceDevice = incoming.deviceId;
+  next.data.imports.history = [
+    ...(next.data.imports.history ?? []).slice(-9),
+    { at: importStamp, sourceDevice: incoming.deviceId, mode },
+  ];
+  next.data.pet.memory.deviceCount = Math.max(num(next.data.pet.memory.deviceCount, 1), num(currentSave?.data?.pet?.memory?.deviceCount, 1)) + (currentSave ? 1 : 0);
+
+  if (mode === 'merge' && currentSave) {
+    mergeCodex(currentSave, next);
+    // 合并结果以主档的时间线继续，避免"领取离线收益"被重置
+    currentSave.data.pet.memory.deviceCount = next.data.pet.memory.deviceCount;
+    currentSave.data.imports = next.data.imports;
+    return { save: currentSave, message: '已合并图鉴与成就，资源与进度保留当前星门这一份。' };
+  }
+
+  return {
+    save: next,
+    message: mode === 'keep' ? '已保留当前存档（导入内容未应用）。' : '已在新星门唤醒星兽。',
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 导入预览类型注释（供 IDE 提示）                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * @typedef {object} ImportPreview
+ * @property {boolean} ok
+ * @property {string[]} [reasons]
+ * @property {object} [save]
+ * @property {boolean} [migrated]
+ * @property {number} [from]
+ * @property {number} [to]
+ * @property {object} [conflict]
+ * @property {boolean} [needsChoice]
+ */
+
+/** 存档摘要（设置页展示用） */
+function summarizeSave(save) {  if (!save) return null;
+  return {
+    petName: save.data?.pet?.name ?? '未知',
+    level: save.data?.pet?.level ?? 1,
+    stage: save.data?.pet?.stage ?? 'larva',
+    stardust: save.data?.inventory?.stardust ?? 0,
+    items: Object.keys(save.data?.codex?.items ?? {}).length,
+    achievements: Object.keys(save.data?.achievements ?? {}).length,
+    deviceId: save.deviceId,
+    savedAt: save.savedAt,
+    lastSettleTime: save.lastSettleTime,
+    savedAtText: formatClock(num(save.savedAt, now())),
+    version: save.v,
+  };
+}
+
+/* ==================== js/ui.js ==================== */
+/**
+ * ui.js —— 全部界面渲染与交互
+ *
+ * 设计原则：
+ * 1. 渲染函数只读 store.state，不做业务判断；业务判断交给 state.js / tasks.js。
+ * 2. 所有点击通过 data-action 委托处理，避免为动态列表反复绑定事件。
+ * 3. 弹窗使用一个通用 modal + 栈式管理，方便"报告 -> 事件 -> 进化"连续弹出。
+ */
+
+
+
+
+
+
+
+
+
+
+
+/* ------------------------------------------------------------------ */
+/* 小工具                                                              */
+/* ------------------------------------------------------------------ */
+
+const $ = (id) => document.getElementById(id);
+const esc = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const itemChip = (id, amount) =>
+  `<span class="reward">${esc(ITEM_MAP[id]?.emoji ?? '❔')} ${esc(ITEM_MAP[id]?.name ?? id)}${
+    amount ? ` ×${amount}` : ''
+  }</span>`;
+
+/** 界面局部状态（不写入存档） */
+const view = {
+  panel: 'home',
+  bagFilter: 'all',
+  codexTab: 'items',
+  lastReport: null,
+  pendingReport: null,
+  eventQueue: [],
+  saveFlashTimer: null,
+};
+
+/** 当前正在展示的选择上下文（探索页选区域用） */
+let pendingZoneChoice = { taskId: null, zoneId: null, from: 'explore' };
+
+/* ------------------------------------------------------------------ */
+/* Toast                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 轻提示
+ * @param {string} message
+ * @param {'info'|'good'|'bad'} [kind]
+ */
+function toast(message, kind = 'info') {
+  const box = $('toasts');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = `toast${kind === 'info' ? '' : ` toast--${kind}`}`;
+  el.textContent = message;
+  box.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('is-out');
+    setTimeout(() => el.remove(), 320);
+  }, 2400);
+}
+
+/* ------------------------------------------------------------------ */
+/* 弹窗栈                                                              */
+/* ------------------------------------------------------------------ */
+
+/** 当前弹窗上下文 */
+let modalContext = null;
+
+/**
+ * 打开弹窗
+ * @param {{ title: string, body: string, foot?: string, onMount?: (root: HTMLElement) => void, onClose?: () => void }} opts
+ */
+function openModal(opts) {
+  modalContext = { ...opts };
+  const layer = $('modalLayer');
+  $('modalTitle').innerHTML = opts.title;
+  $('modalBody').innerHTML = opts.body;
+  $('modalFoot').innerHTML = opts.foot ?? '';
+  layer.hidden = false;
+  // 打开弹窗时禁止背景滚动
+  $('main').style.overflow = 'hidden';
+  opts.onMount?.($('modal'));
+}
+
+/** 关闭弹窗；若事件队列里还有内容则自动弹下一个 */
+function closeModal({ silent = false } = {}) {
+  const ctx = modalContext;
+  modalContext = null;
+  $('modalLayer').hidden = true;
+  $('modalBody').innerHTML = '';
+  $('modalFoot').innerHTML = '';
+  $('main').style.overflow = '';
+  if (!silent) ctx?.onClose?.();
+  if (view.eventQueue.length > 0) {
+    const next = view.eventQueue.shift();
+    setTimeout(() => showEventModal(next), 260);
+  }
+}
+
+/** 是否已有弹窗打开 */
+function isModalOpen() {
+  return !$('modalLayer').hidden;
+}
+
+/** 便捷：只有确认按钮的提示框 */
+function alertModal(title, bodyHtml, buttonText = '知道了') {
+  openModal({
+    title,
+    body: bodyHtml,
+    foot: `<button class="btn btn--primary btn--block" data-close-modal>${esc(buttonText)}</button>`,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 顶部资源栏                                                          */
+/* ------------------------------------------------------------------ */
+
+function renderHeader(state) {
+  const maxAp = maxActionPoints(state);
+  $('chipApValue').textContent = `${Math.floor(state.actionPoints)}/${maxAp}`;
+  $('chipStardustValue').textContent = String(state.inventory.stardust ?? 0);
+  // 行动点见底时给个视觉提示
+  $('chipAp').classList.toggle('is-low', state.actionPoints <= 1);
+}
+
+/** 存档状态提示 */
+function flashSaveChip(text) {
+  const chip = $('chipSave');
+  $('chipSaveValue').textContent = text;
+  chip.classList.remove('is-flash');
+  void chip.offsetWidth;
+  chip.classList.add('is-flash');
+  if (view.saveFlashTimer) clearTimeout(view.saveFlashTimer);
+  view.saveFlashTimer = setTimeout(() => {
+    $('chipSaveValue').textContent = '已存档';
+  }, 2200);
+}
+
+/* ------------------------------------------------------------------ */
+/* 主界面                                                              */
+/* ------------------------------------------------------------------ */
+
+function renderHome(state) {
+  const pet = state.pet;
+  const stage = STAGE_MAP[pet.stage] ?? STAGE_MAP.larva;
+  const branch = pet.branch ? EVOLUTION_BRANCHES[pet.branch] : null;
+
+  $('petEmoji').textContent = stage.emoji;
+  $('petName').textContent = pet.name;
+  $('petStage').textContent = `${stage.name} · ${branch ? `${branch.emoji} ${branch.name}` : '分支未定'}`;
+  $('petLevel').textContent = String(pet.level);
+  $('petAvatar').classList.toggle('is-away', Boolean(state.task.active));
+
+  // 经验条
+  const need = expForLevel(pet.level);
+  const ratio = clamp(pet.exp / need, 0, 1);
+  $('expFill').style.width = `${(ratio * 100).toFixed(1)}%`;
+  $('expText').textContent = `${Math.floor(pet.exp)} / ${need}`;
+
+  // 状态条
+  $('statBars').innerHTML = STAT_KEYS.map((key) => {
+    const value = clamp(state.pet.stats[key.id] ?? 0, 0, STAT_MAX);
+    const low = value <= 25;
+    return `
+      <div class="stat${low ? ' is-low' : ''}">
+        <span class="stat__label">${key.emoji} ${esc(key.name)}</span>
+        <span class="bar"><span class="bar__fill bar__fill--${key.id}${
+          low ? ' is-low' : ''
+        }" style="width:${value}%"></span></span>
+        <span class="stat__value">${Math.round(value)}</span>
+      </div>`;
+  }).join('');
+
+  // 成长属性
+  $('attrList').innerHTML = ATTR_KEYS.map(
+    (key) => `
+      <div class="attr">
+        <span class="attr__icon">${key.emoji}</span>
+        <span class="attr__name">${esc(key.name)}</span>
+        <span class="attr__value">${Math.round(state.pet.attrs[key.id] ?? 0)}</span>
+      </div>`,
+  ).join('');
+
+  // 当前安排
+  const box = $('homeTaskBox');
+  if (state.task.active) {
+    const def = getTask(state.task.active);
+    const zone = state.task.zoneId ? getZone(state.task.zoneId) : null;
+    const remain = taskRemainingMs(state);
+    const ratio = taskProgress(state) * 100;
+    box.innerHTML = `
+      <div class="task-live">
+        <span>${def?.emoji ?? '🔭'} ${esc(def?.name ?? state.task.active)}${
+          zone ? ` · ${esc(zone.emoji)} ${esc(zone.name)}` : ''
+        }</span>
+        <span class="task-live__time" data-task-countdown>${esc(formatDuration(remain))}</span>
+      </div>
+      <div class="progress"><div class="progress__fill" data-task-progress style="width:${ratio.toFixed(1)}%"></div></div>
+      <button class="btn btn--ghost btn--sm" data-action="task-cancel">召回星兽</button>
+    `;
+  } else {
+    box.innerHTML = `<p class="muted small">星兽现在在岛上休息。安排一次探索，它才会带回东西。</p>
+      <button class="btn btn--primary btn--sm" data-nav="explore">安排探索 →</button>`;
+  }
+
+  // 时间胶囊摘要
+  const awayMs = state.pet.memory.lastAwayMs ?? 0;
+  $('lastAwayText').innerHTML =
+    awayMs > 0
+      ? `上次你离开了 <b>${esc(formatDuration(awayMs))}</b>（${esc(formatClock(state.pet.memory.lastAwayAt))} 回来）。离线收益按时间胶囊一次性结算，上限 12 小时。`
+      : '星兽还没有离开过。关掉网页后，它会自己待着，等你回来结算。';
+
+  // 记忆列表
+  const zonesVisited = (state.pet.memory.zonesVisited ?? [])
+    .map((id) => ZONE_LABEL(id))
+    .filter(Boolean);
+  $('memoryList').innerHTML = `
+    <li>🕰️ 上次离开：<b>${awayMs > 0 ? esc(formatDuration(awayMs)) : '还没有'}</b></li>
+    <li>🛰️ 设备迁徙：<b>${state.pet.memory.deviceCount ?? 1} 台</b>（导入过 ${state.imports?.count ?? 0} 次胶囊）</li>
+    <li>🗺️ 去过的地方：<b>${zonesVisited.length ? esc(zonesVisited.join('、')) : '还没有出过门'}</b></li>
+    <li>🧭 累计探索：<b>${state.pet.memory.totalExplorations ?? 0} 次</b></li>
+    <li>🐾 见过的访客：<b>${
+      (state.pet.memory.visitors ?? []).length ? esc(state.pet.memory.visitors.length + ' 位') : '还没有'
+    }</b></li>
+  `;
+
+  // 进化按钮（满足条件时出现在状态卡下方）
+  renderEvolutionEntry(state);
+}
+
+function ZONE_LABEL(id) {
+  const zone = getZone(id);
+  return zone ? `${zone.emoji}${zone.name}` : null;
+}
+
+/** 进化入口 */
+function renderEvolutionEntry(state) {
+  const card = $('petStage')?.closest('.card');
+  if (!card) return;
+  card.querySelector('.evolve-row')?.remove();
+  const check = checkEvolution(state);
+  const branch = state.pet.branch ? EVOLUTION_BRANCHES[state.pet.branch] : null;
+
+  if (!check.next) {
+    if (branch) {
+      const row = document.createElement('p');
+      row.className = 'muted small evolve-row';
+      row.style.marginTop = '12px';
+      row.innerHTML = `${branch.emoji} <b>${esc(branch.name)}</b>：${esc(branch.bonusText)}`;
+      card.appendChild(row);
+    }
+    return;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'btn-row evolve-row';
+  row.innerHTML = `
+    <button class="btn ${check.ok ? 'btn--primary' : 'is-disabled'} btn--block" data-action="evolve" ${
+      check.ok ? '' : 'disabled'
+    }>
+      🌟 进化到「${esc(STAGE_MAP[check.next]?.name ?? check.next)}」${check.ok ? '' : '（条件不足）'}
+    </button>
+    ${
+      check.ok
+        ? ''
+        : `<p class="muted tiny" style="width:100%">${check.reasons.map(esc).join('；')}</p>`
+    }
+  `;
+  card.appendChild(row);
+}
+
+/* ------------------------------------------------------------------ */
+/* 探索页                                                              */
+/* ------------------------------------------------------------------ */
+
+function renderExplore(state) {
+  // 区域
+  $('zoneList').innerHTML = ZONES.map((zone) => {
+    const unlocked = isZoneUnlocked(state, zone);
+    const visited = (state.pet.memory.zonesVisited ?? []).includes(zone.id);
+    const active = pendingZoneChoice.zoneId === zone.id;
+    return `
+      <button class="zone ${unlocked ? '' : 'is-locked'} ${active ? 'is-active' : ''}"
+              data-action="pick-zone" data-zone="${zone.id}" ${unlocked ? '' : 'disabled'}>
+        <span class="zone__emoji">${zone.emoji}</span>
+        <span class="zone__body">
+          <span class="zone__name">${esc(zone.name)} ${visited ? '· 已去过' : ''}</span>
+          <span class="zone__desc">${esc(zone.desc)}</span>
+          ${
+            unlocked
+              ? ''
+              : `<span class="zone__desc" style="color:var(--warn)">🔒 ${esc(zone.unlock?.hint ?? '尚未解锁')}</span>`
+          }
+        </span>
+        <span class="zone__tag">危险 ${zone.danger}</span>
+      </button>`;
+  }).join('');
+
+  // 任务
+  const active = state.task.active;
+  const energy = state.pet.stats.energy ?? 0;
+  $('taskList').innerHTML = TASKS.map((task) => {
+    const affordable = state.actionPoints >= task.cost;
+    const enoughEnergy = energy >= (task.danger ? 15 : 8);
+    const disabled = Boolean(active) || !affordable || !enoughEnergy;
+    return `
+      <button class="task ${active === task.id ? 'is-active' : ''}" data-action="start-task" data-task="${task.id}" ${
+        disabled ? 'disabled' : ''
+      }>
+        <span class="task__emoji">${task.emoji}</span>
+        <span class="task__body">
+          <span class="task__name">${esc(task.name)}</span>
+          <span class="task__desc">${esc(task.desc)}</span>
+        </span>
+        <span class="task__meta">${Math.round(task.duration / 60)} 分钟<br />${task.cost} ⚡</span>
+      </button>`;
+  }).join('');
+
+  $('taskHint').textContent = active ? '星兽外出中' : '选择任务类型';
+
+  // 当前任务
+  const box = $('activeTaskBox');
+  if (active) {
+    const def = getTask(active);
+    const zone = state.task.zoneId ? getZone(state.task.zoneId) : null;
+    box.innerHTML = `
+      <div class="task-live">
+        <span>${def?.emoji ?? '🔭'} <b>${esc(def?.name ?? active)}</b>${
+          zone ? ` · ${zone.emoji}${esc(zone.name)}` : ''
+        }</span>
+        <span class="task-live__time" data-task-countdown>${esc(formatDuration(taskRemainingMs(state)))}</span>
+      </div>
+      <div class="progress"><div class="progress__fill" data-task-progress style="width:${(
+        taskProgress(state) * 100
+      ).toFixed(1)}%"></div></div>
+      <p class="muted tiny">任务完成后奖励会在你下次上线时作为离线报告结算；如果你现在就在线上，它会自动结算。</p>
+      <button class="btn btn--ghost btn--sm" data-action="task-cancel">召回星兽（不退还行动点）</button>
+    `;
+  } else {
+    box.innerHTML = `<p class="muted small">没有进行中的任务。上线时安排一次，然后关掉网页去忙别的吧。</p>`;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 背包页                                                              */
+/* ------------------------------------------------------------------ */
+
+const BAG_FILTERS = [
+  { id: 'all', name: '全部' },
+  { id: 'material', name: '材料' },
+  { id: 'food', name: '食物' },
+  { id: 'gift', name: '礼物' },
+  { id: 'key', name: '关键物' },
+  { id: 'relic', name: '遗物' },
+  { id: 'blueprint', name: '配方' },
+];
+
+function renderBag(state) {
+  const owned = Object.entries(state.inventory).filter(([, amount]) => amount > 0);
+  const totalKinds = owned.length;
+  $('bagSummary').textContent = `${totalKinds} 种物品`;
+
+  $('bagFilters').innerHTML = BAG_FILTERS.map(
+    (f) =>
+      `<button class="filter-chip ${view.bagFilter === f.id ? 'is-active' : ''}" data-action="bag-filter" data-filter="${
+        f.id
+      }">${esc(f.name)}</button>`,
+  ).join('');
+
+  const list = owned
+    .filter(([id]) => view.bagFilter === 'all' || ITEM_MAP[id]?.type === view.bagFilter)
+    .sort((a, b) => {
+      const ra = ITEM_MAP[a[0]]?.rarity ?? 'common';
+      const rb = ITEM_MAP[b[0]]?.rarity ?? 'common';
+      if (ra !== rb) return ra === 'epic' ? -1 : rb === 'epic' ? 1 : ra === 'rare' ? -1 : 1;
+      return (ITEM_MAP[a[0]]?.price ?? 0) - (ITEM_MAP[b[0]]?.price ?? 0);
+    });
+
+  $('bagList').innerHTML = list.length
+    ? list
+        .map(([id, amount]) => {
+          const item = ITEM_MAP[id];
+          const usable = Boolean(item?.use);
+          return `
+            <button class="item item--${item?.rarity ?? 'common'} ${usable ? 'item--usable' : ''}"
+                    data-action="item-detail" data-item="${id}">
+              <span class="item__count">×${amount}</span>
+              <span class="item__emoji">${item?.emoji ?? '❔'}</span>
+              <span class="item__name">${esc(item?.name ?? id)}</span>
+            </button>`;
+        })
+        .join('')
+    : `<p class="empty center grow">这一类还没有东西。安排一次探索就能带回来。</p>`;
+
+  // 工作台
+  $('recipeList').innerHTML = RECIPES.map((recipe) => {
+    const unlocked = isRecipeUnlocked(state, recipe);
+    const cost = recipeCost(state, recipe);
+    const inputs = recipe.inputs
+      .map((input) => {
+        const have = state.inventory[input.id] ?? 0;
+        const ok = have >= input.amount;
+        return `<span class="reward" style="${ok ? '' : 'color:var(--bad)'}">${esc(
+          ITEM_MAP[input.id]?.name ?? input.id,
+        )} ${have}/${input.amount}</span>`;
+      })
+      .join('');
+    const canCraft =
+      unlocked &&
+      (state.inventory.stardust ?? 0) >= cost &&
+      recipe.inputs.every((i) => (state.inventory[i.id] ?? 0) >= i.amount);
+    return `
+      <div class="recipe ${unlocked ? '' : 'is-locked'}">
+        <div class="recipe__head">
+          <span class="recipe__emoji">${recipe.emoji}</span>
+          <span class="recipe__name">${esc(recipe.name)}</span>
+          ${
+            unlocked
+              ? ''
+              : `<span class="zone__tag">需 ${esc(BUILDINGS.find((b) => b.id === recipe.building)?.name ?? '')} Lv.${recipe.level}</span>`
+          }
+        </div>
+        <p class="recipe__desc">${esc(recipe.desc)}</p>
+        <div class="reward-list">${inputs}</div>
+        <p class="recipe__cost" style="margin-top:6px">消耗 ✨${cost}</p>
+        <button class="btn btn--sm ${canCraft ? 'btn--primary' : 'is-disabled'}" data-action="craft" data-recipe="${
+          recipe.id
+        }" ${canCraft ? '' : 'disabled'}>制作</button>
+      </div>`;
+  }).join('');
+}
+
+/** 物品详情弹窗 */
+function showItemModal(itemId) {
+  const item = getItem(itemId);
+  if (!item) return;
+  const amount = store.state.inventory[itemId] ?? 0;
+  const canUse = Boolean(item.use);
+  const body = `
+    <div class="event__banner">
+      <span class="event__emoji">${item.emoji}</span>
+      <div>
+        <div class="event__title">${esc(item.name)}</div>
+        <div class="event__sub">${esc(ITEM_TYPE_LABEL[item.type] ?? item.type)} · ${
+          { common: '普通', rare: '稀有', epic: '史诗' }[item.rarity]
+        } · 持有 ×${amount}</div>
+      </div>
+    </div>
+    <p class="event__text">${esc(item.desc ?? '')}</p>
+    ${
+      item.use
+        ? `<p class="muted small">使用效果：${[
+            item.use.hunger ? `饱食 +${item.use.hunger}` : '',
+            item.use.mood ? `心情 +${item.use.mood}` : '',
+            item.use.energy ? `精力 +${item.use.energy}` : '',
+            item.use.intimacy ? `亲密 +${item.use.intimacy}` : '',
+          ]
+            .filter(Boolean)
+            .join('、')}</p>`
+        : ''
+    }
+  `;
+  openModal({
+    title: `${item.emoji} ${esc(item.name)}`,
+    body,
+    foot: `${canUse ? `<button class="btn btn--primary btn--block" data-action="use-item" data-item="${itemId}">使用一个</button>` : ''}`,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 图鉴页                                                              */
+/* ------------------------------------------------------------------ */
+
+const CODEX_TABS = [
+  { id: 'items', name: '物品' },
+  { id: 'encounters', name: '见闻' },
+  { id: 'visitors', name: '访客' },
+  { id: 'recipes', name: '配方' },
+];
+
+function renderCodex(state) {
+  $('codexTabs').innerHTML = CODEX_TABS.map(
+    (tab) =>
+      `<button class="filter-chip ${view.codexTab === tab.id ? 'is-active' : ''}" data-action="codex-tab" data-tab="${
+        tab.id
+      }">${esc(tab.name)}</button>`,
+  ).join('');
+
+  const box = $('codexList');
+  let total = 0;
+  let found = 0;
+
+  if (view.codexTab === 'items') {
+    total = ITEMS.length;
+    found = ITEMS.filter((it) => state.codex.items[it.id]).length;
+    box.innerHTML = ITEMS.map((it) => {
+      const known = Boolean(state.codex.items[it.id]);
+      return `
+        <div class="codex-cell ${known ? '' : 'is-locked'}">
+          <span class="codex-cell__emoji">${known ? it.emoji : '❔'}</span>
+          <span>${known ? esc(it.name) : '未发现'}</span>
+          <span class="codex-cell__sub">${
+            known ? esc(ITEM_TYPE_LABEL[it.type] ?? '') : `持有 ${state.inventory[it.id] ?? 0}`
+          }</span>
+        </div>`;
+    }).join('');
+  } else if (view.codexTab === 'encounters') {
+    total = EVENTS.length;
+    found = EVENTS.filter((e) => state.codex.encounters[e.id]).length;
+    box.innerHTML = EVENTS.map((e) => {
+      const known = Boolean(state.codex.encounters[e.id]);
+      return `
+        <div class="codex-cell ${known ? '' : 'is-locked'}">
+          <span class="codex-cell__emoji">${known ? e.emoji : '❔'}</span>
+          <span>${known ? esc(e.name) : '未经历'}</span>
+          <span class="codex-cell__sub">${
+            known ? `遇见 ${state.progress.eventsSeen?.[e.id] ?? 1} 次` : '随机事件'
+          }</span>
+        </div>`;
+    }).join('');
+  } else if (view.codexTab === 'visitors') {
+    const visitors = Object.keys(state.codex.visitors);
+    total = visitors.length || 1;
+    found = visitors.length;
+    box.innerHTML = visitors.length
+      ? visitors
+          .map(
+            (id) => `
+        <div class="codex-cell">
+          <span class="codex-cell__emoji">🐾</span>
+          <span>${esc(visitorName(id))}</span>
+          <span class="codex-cell__sub">首次 ${esc(formatClock(state.codex.visitors[id].firstAt ?? now()))}</span>
+        </div>`,
+          )
+          .join('')
+      : `<p class="empty">还没有访客来过。小岛安静的时候，拾荒商人才会路过。</p>`;
+  } else {
+    total = RECIPES.length;
+    found = RECIPES.filter((r) => state.codex.recipes[r.id]).length;
+    box.innerHTML = RECIPES.map((r) => {
+      const known = Boolean(state.codex.recipes[r.id]);
+      return `
+        <div class="codex-cell ${known ? '' : 'is-locked'}">
+          <span class="codex-cell__emoji">${known ? r.emoji : '❔'}</span>
+          <span>${known ? esc(r.name) : '未掌握'}</span>
+          <span class="codex-cell__sub">${known ? '已制作' : '制作一次即记录'}</span>
+        </div>`;
+    }).join('');
+  }
+
+  $('codexProgress').textContent = `${found} / ${total}`;
+
+  // 成就
+  const unlockedCount = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length;
+  $('achProgress').textContent = `${unlockedCount} / ${ACHIEVEMENTS.length}`;
+  $('achievementList').innerHTML = ACHIEVEMENTS.map((a) => {
+    const got = Boolean(state.achievements[a.id]);
+    return `
+      <div class="achievement ${got ? '' : 'is-locked'}">
+        <span class="achievement__emoji">${got ? a.emoji : '🔒'}</span>
+        <div>
+          <div class="achievement__name">${esc(a.name)}</div>
+          <div class="achievement__desc">${esc(a.desc)}${
+            got ? ` · ${esc(formatClock(state.achievements[a.id].at))}` : ''
+          }</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function visitorName(id) {
+  const map = { scavenger: '拾荒商人', guardian: '遗迹守卫' };
+  return map[id] ?? id;
+}
+
+/* ------------------------------------------------------------------ */
+/* 设置页                                                              */
+/* ------------------------------------------------------------------ */
+
+function renderSettings(state, save) {
+  // 本地存储不可用时给出明确警告（file:// 下的 Firefox / Safari，或隐私模式）
+  const persistenceWarning = !isPersistentStorage();
+  $('buildingList').innerHTML = BUILDINGS.map((b) => {    const level = state.buildings[b.id] ?? 0;
+    const maxed = level >= b.maxLevel;
+    const cost = maxed ? 0 : b.cost[level - 1] ?? b.cost[b.cost.length - 1];
+    const affordable = (state.inventory.stardust ?? 0) >= cost;
+    const nextEffect = maxed ? null : b.effectText[level] ?? b.effectText[b.effectText.length - 1];
+    return `
+      <div class="building">
+        <div class="building__head">
+          <span class="building__emoji">${b.emoji}</span>
+          <span class="building__name">${esc(b.name)}</span>
+          <span class="building__level">Lv.${level}/${b.maxLevel}</span>
+        </div>
+        <p class="building__desc">${esc(b.desc)}</p>
+        ${
+          maxed
+            ? `<p class="building__effect">已达最高等级</p>`
+            : `<p class="building__next">下一级：${esc(nextEffect ?? '')}</p>
+               <button class="btn btn--sm ${affordable ? 'btn--primary' : 'is-disabled'}" data-action="upgrade" data-building="${
+                 b.id
+               }" ${affordable ? '' : 'disabled'}>升级（✨${cost}）</button>`
+        }
+      </div>`;
+  }).join('');
+
+  const summary = {
+    savedAtText: formatClock(save.savedAt),
+    deviceId: save.deviceId,
+    version: save.v,
+    lastSettleText: formatClock(save.lastSettleTime),
+  };
+  $('settingsSaveInfo').innerHTML = `
+    本地存档：v${summary.version} · 最后保存 ${esc(summary.savedAtText)} · 上次结算 ${esc(
+      summary.lastSettleText,
+    )}<br />设备标识：<code>${esc(summary.deviceId)}</code>
+    ${
+      persistenceWarning
+        ? `<br /><span style="color:var(--warn)">⚠️ 当前环境无法写入浏览器本地存储，进度只保存在内存里，刷新会丢失。请用「封入胶囊」保存进度。</span>`
+        : ''
+    }
+  `;
+
+  $('inputPetName').value = state.pet.name;
+  $('aboutVersion').textContent = `存档版本 v${SAVE_VERSION} · 游戏版本 MVP 1.0`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 战斗（tick）时的高频更新：任务倒计时                                 */
+/* ------------------------------------------------------------------ */
+
+function renderTaskTicker() {
+  const state = store.state;
+  if (!state?.task.active) return;
+  const remain = taskRemainingMs(state);
+  const ratio = taskProgress(state) * 100;
+  for (const el of document.querySelectorAll('[data-task-countdown]')) {
+    el.textContent = formatDuration(remain);
+  }
+  for (const el of document.querySelectorAll('[data-task-progress]')) {
+    el.style.width = `${ratio.toFixed(1)}%`;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 总渲染                                                              */
+/* ------------------------------------------------------------------ */
+
+function renderAll() {
+  const state = store.state;
+  const save = store.save;
+  if (!state || !save) return;
+  renderHeader(state);
+  switch (view.panel) {
+    case 'home':
+      renderHome(state);
+      break;
+    case 'explore':
+      renderExplore(state);
+      break;
+    case 'bag':
+      renderBag(state);
+      break;
+    case 'codex':
+      renderCodex(state);
+      break;
+    case 'settings':
+      renderSettings(state, save);
+      break;
+  }
+}
+
+/** 切换面板 */
+function switchPanel(name) {
+  if (!['home', 'explore', 'bag', 'codex', 'settings'].includes(name)) return;
+  view.panel = name;
+  for (const panel of document.querySelectorAll('.panel')) {
+    panel.classList.toggle('is-active', panel.dataset.panel === name);
+  }
+  for (const tab of document.querySelectorAll('.tab')) {
+    tab.classList.toggle('is-active', tab.dataset.nav === name);
+  }
+  $('main').scrollTop = 0;
+  renderAll();
+}
+
+/* ------------------------------------------------------------------ */
+/* 业务动作                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 安排任务（需要区域时先提示选区域） */
+function actionStartTask(taskId) {
+  const state = store.state;
+  const def = getTask(taskId);
+  if (!def) return;
+  if (state.task.active) {
+    toast('星兽还在外面，先等它回来。', 'bad');
+    return;
+  }
+  if (def.zone) {
+    const zone = pendingZoneChoice.zoneId ? getZone(pendingZoneChoice.zoneId) : null;
+    if (!zone || !isZoneUnlocked(state, zone.id)) {
+      toast('请先在上方选择一个探索区域。', 'bad');
+      return;
+    }
+    runStart(def, zone.id);
+  } else {
+    runStart(def, null);
+  }
+}
+
+function runStart(def, zoneId) {
+  let result = { ok: false, message: '' };
+  store.set((state) => {
+    result = startTask(state, def, zoneId, now());
+  });
+  toast(result.message, result.ok ? 'good' : 'bad');
+  if (result.ok) {
+    renderAll();
+    switchPanel('home');
+  }
+}
+
+/** 照顾动作 */
+function actionCare(kind) {
+  const state = store.state;
+  if (kind === 'feed') {
+    // 有苔藓团就直接喂，否则打开食物选择
+    const foods = Object.keys(state.inventory).filter((id) => ITEM_MAP[id]?.use?.hunger && state.inventory[id] > 0);
+    if (foods.length === 0) {
+      toast('背包里没有食物了。让星兽去「采集」一趟吧。', 'bad');
+      return;
+    }
+    if (foods.length === 1) {
+      doCare('feed', foods[0]);
+      return;
+    }
+    openModal({
+      title: '🍚 喂什么？',
+      body: foods
+        .map((id) => {
+          const item = ITEM_MAP[id];
+          return `<button class="option" data-action="feed-with" data-item="${id}">
+            ${item.emoji} <b>${esc(item.name)}</b> ×${state.inventory[id]}
+            <span class="option__tag">饱食 +${item.use.hunger}${
+              item.use.mood ? ` · 心情 +${item.use.mood}` : ''
+            }${item.use.energy ? ` · 精力 +${item.use.energy}` : ''}</span>
+          </button>`;
+        })
+        .join(''),
+      foot: `<button class="btn btn--ghost btn--block" data-close-modal>算了</button>`,
+    });
+    return;
+  }
+  doCare(kind, null);
+}
+
+function doCare(kind, itemId) {
+  let result = { ok: false, message: '' };
+  store.set((state) => {
+    result = careAction(state, kind, itemId);
+  });
+  toast(result.message, result.ok ? 'good' : 'bad');
+  if (result.ok) {
+    $('petAvatar').classList.add('is-happy');
+    setTimeout(() => $('petAvatar')?.classList.remove('is-happy'), 1300);
+  }
+}
+
+/** 升级建筑 */
+function actionUpgrade(buildingId) {
+  let result = { ok: false, message: '' };
+  store.set((state) => {
+    result = upgradeBuilding(state, buildingId);
+  });
+  toast(result.message, result.ok ? 'good' : 'bad');
+}
+
+/** 制作 */
+function actionCraft(recipeId) {
+  let result = { ok: false, message: '' };
+  store.set((state) => {
+    result = craft(state, recipeId);
+  });
+  toast(result.message, result.ok ? 'good' : 'bad');
+}
+
+/** 使用物品 */
+function actionUseItem(itemId) {
+  let result = { ok: false, message: '' };
+  store.set((state) => {
+    result = useItem(state, itemId);
+  });
+  toast(result.message, result.ok ? 'good' : 'bad');
+  if (result.ok) closeModal();
+}
+
+/** 进化 */
+function actionEvolve() {
+  let result = { ok: false, message: '' };
+  let branch = null;
+  store.set((state) => {
+    result = evolve(state);
+    branch = result.branch ? EVOLUTION_BRANCHES[result.branch] : null;
+  });
+  if (!result.ok) {
+    toast(result.message, 'bad');
+    return;
+  }
+  openModal({
+    title: '🌟 进化',
+    body: `
+      <div class="event__banner">
+        <span class="event__emoji">${STAGE_MAP[result.stage]?.emoji ?? '🌟'}</span>
+        <div>
+          <div class="event__title">${esc(STAGE_MAP[result.stage]?.name ?? '')}</div>
+          <div class="event__sub">${esc(STAGE_MAP[result.stage]?.desc ?? '')}</div>
+        </div>
+      </div>
+      ${branch ? `<p class="event__text">它选择了「${esc(branch.name)}」的道路。<br />${esc(branch.desc)}</p>
+        <p class="muted small">${esc(branch.bonusText)}</p>` : '<p class="event__text">它还小，但光已经开始稳稳地亮着。</p>'}
+    `,
+    foot: `<button class="btn btn--primary btn--block" data-close-modal>继续</button>`,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 离线报告                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 弹出离线报告
+ * @param {object} report settleOffline 的返回值
+ * @param {{ countOfflineTime?: boolean }} [opts]
+ */
+function showReportModal(report, opts = {}) {
+  if (!report) {
+    alertModal('📭 没有新的报告', '<p class="muted">星兽这段时间没什么特别的事要说。</p>');
+    return;
+  }
+  view.lastReport = report;
+
+  const from = formatClock(report.from);
+  const to = formatClock(report.at);
+  const elapsed = formatDuration(Math.max(0, report.rawElapsedMs));
+
+  const lines = (report.story ?? [])
+    .map((entry) => {
+      const cls = entry.title === '时差晕眩' || entry.title === '余波' ? ' report__line--warn' : '';
+      return `<div class="report__line${cls}">${esc(entry.line)}</div>`;
+    })
+    .join('');
+
+  const items = mergeItems(report.items ?? []);
+  const rewards = items.length
+    ? items.map((it) => `<span class="reward reward--plus">${itemChip(it.id, it.amount)}</span>`).join('')
+    : '<span class="muted small">这次没有带回物品。</span>';
+
+  const deltas = describeDeltas(report.idleDeltas);
+  const events = (report.events ?? []).length
+    ? `<div class="report__section"><h4>随机事件</h4>${report.events
+        .map(
+          (e) =>
+            `<div class="report__line">${e.eventEmoji ?? ''} <b>${esc(e.eventName ?? '')}</b>：${esc(
+              e.optionText ?? '',
+            )}<br /><span class="muted small">${esc(e.text ?? '')}</span></div>`,
+        )
+        .join('')}</div>`
+    : '';
+
+  const notes = (report.notes ?? []).length
+    ? `<div class="report__section"><h4>提示</h4>${report.notes
+        .map((n) => `<div class="report__line report__line--warn">${esc(n)}</div>`)
+        .join('')}</div>`
+    : '';
+
+  const achievements = (report.achievements ?? []).length
+    ? `<div class="report__section"><h4>解锁</h4><div class="reward-list">${report.achievements
+        .map((id) => {
+          const a = ACHIEVEMENTS.find((x) => x.id === id);
+          return `<span class="reward reward--plus">${a?.emoji ?? '🏆'} ${esc(a?.name ?? id)}</span>`;
+        })
+        .join('')}</div></div>`
+    : '';
+
+  const zones = (report.newZones ?? []).length
+    ? `<div class="report__section"><h4>新区域</h4><div class="reward-list">${report.newZones
+        .map((id) => `<span class="reward reward--plus">🗺️ ${esc(getZone(id)?.name ?? id)}</span>`)
+        .join('')}</div></div>`
+    : '';
+
+  const body = `
+    <p class="report__lead">
+      ${
+        report.rewound
+          ? '⚠️ 检测到时间倒退，本次只结算了保底收益。'
+          : `你离开了 <b>${esc(elapsed)}</b>，星兽在这座小岛上做完了它自己的事。`
+      }
+    </p>
+    <p class="report__meta">${esc(from)} → ${esc(to)} · 结算上限 ${esc(formatDuration(report.capMs ?? 0))}${
+      report.task ? ` · 任务「${esc(report.task.name)}」` : ' · 这段时间没有安排任务'
+    }</p>
+    <div class="report__section"><h4>时间轴</h4>${
+      lines || '<div class="report__line">它安静地待着，把海面的光数了很多遍。</div>'
+    }</div>
+    <div class="report__section"><h4>收获</h4><div class="reward-list">${rewards}</div></div>
+    ${deltas ? `<div class="report__section"><h4>状态变化</h4><p class="muted small">${esc(deltas)}</p></div>` : ''}
+    ${events}
+    ${zones}
+    ${achievements}
+    ${notes}
+  `;
+
+  openModal({
+    title: '🛰️ 离线探索报告',
+    body,
+    foot: `
+      <button class="btn btn--primary btn--block" data-action="claim-report">领取并继续</button>
+      <button class="btn btn--ghost btn--block" data-close-modal>稍后再看</button>
+    `,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 事件弹窗                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 展示一个随机事件（二选一）
+ * @param {object} event
+ * @param {{ zoneId?: string|null, ts?: number, source?: string }} [ctx]
+ */
+function showEventModal(event, ctx = {}) {
+  if (!event) return;
+  const state = store.state;
+  const zoneId = ctx.zoneId ?? state.task.zoneId ?? null;
+  const ts = ctx.ts ?? now();
+
+  openModal({
+    title: '✨ 随机事件',
+    body: `
+      <div class="event__banner">
+        <span class="event__emoji">${event.emoji}</span>
+        <div>
+          <div class="event__title">${esc(event.name)}</div>
+          <div class="event__sub">${zoneId ? esc(getZone(zoneId)?.name ?? '') : '小岛周边'}${
+            ctx.source === 'offline' ? ' · 离线补算' : ''
+          }</div>
+        </div>
+      </div>
+      <p class="event__text">${esc(event.text)}</p>
+      <p class="event__option-hint">选择星兽的做法：</p>
+      ${event.options
+        .map(
+          (opt, index) => `
+        <button class="option" data-action="event-option" data-index="${index}">
+          ${esc(opt.text)}
+          <span class="option__tag">${optionTag(opt, state)}</span>
+        </button>`,
+        )
+        .join('')}
+    `,
+    onMount: (root) => {
+      root.dataset.eventId = event.id;
+      root.dataset.eventZone = zoneId ?? '';
+      root.dataset.eventTs = String(ts);
+    },
+  });
+}
+
+/** 选项的模糊提示：不算精确数值，但告诉玩家倾向 */
+function optionTag(option, state) {
+  const outcome = typeof option.outcome === 'function' ? null : option.outcome;
+  const tags = [];
+  if (outcome?.delta) {
+    if ((outcome.delta.mood ?? 0) > 0) tags.push('心情↑');
+    if ((outcome.delta.mood ?? 0) < 0) tags.push('心情↓');
+    if ((outcome.delta.energy ?? 0) < 0) tags.push('精力↓');
+    if ((outcome.delta.intimacy ?? 0) > 0) tags.push('亲密↑');
+    if ((outcome.delta.hunger ?? 0) < 0) tags.push('饱食↓');
+  }
+  if (outcome?.cost) {
+    for (const [id, amount] of Object.entries(outcome.cost)) {
+      const have = state.inventory[id] ?? 0;
+      tags.push(`消耗 ${ITEM_MAP[id]?.name ?? id}×${amount}（持有 ${have}）`);
+    }
+  }
+  if (outcome?.stats) {
+    for (const [key, value] of Object.entries(outcome.stats)) {
+      const attr = ATTR_KEYS.find((a) => a.id === key);
+      tags.push(`${attr?.name ?? key}+${value}`);
+    }
+  }
+  if (!outcome) tags.push('结果未知');
+  return tags.join(' · ') || '结果未知';
+}
+
+/** 处理事件选项 */
+function actionEventOption(index) {
+  const root = $('modal');
+  const eventId = root.dataset.eventId;
+  const zoneId = root.dataset.eventZone || null;
+  const ts = Number(root.dataset.eventTs) || now();
+  const event = EVENTS.find((e) => e.id === eventId);
+  if (!event) {
+    closeModal();
+    return;
+  }
+
+  const save = store.save;
+  const rng = rngFrom(save.randomSeed, eventId, ts, 'player', zoneId ?? 'none');
+  let result = { ok: false, message: '', detail: {} };
+  store.set((state) => {
+    result = resolveEventOption(state, event, index, { rng, zoneId, ts });
+  });
+
+  if (!result.ok) {
+    toast(result.message, 'bad');
+    return;
+  }
+
+  const detail = result.detail;
+  const itemLine = (detail.items ?? []).length
+    ? `<div class="reward-list">${detail.items
+        .map((it) => `<span class="reward reward--plus">${itemChip(it.id, it.amount)}</span>`)
+        .join('')}</div>`
+    : '';
+  // 消耗掉的物资也列出来，让玩家清楚代价
+  const costLine = (detail.cost ?? []).length
+    ? `<div class="reward-list">${detail.cost
+        .map((it) => `<span class="reward reward--minus">−${itemChip(it.id, it.amount)}</span>`)
+        .join('')}</div>`
+    : '';
+  const deltaLine = describeDeltas(detail.deltas);
+
+  openModal({
+    title: `${detail.eventEmoji ?? '✨'} ${esc(detail.eventName ?? '')}`,
+    body: `
+      <p class="muted small">你的选择：${esc(detail.optionText ?? '')}</p>
+      <p class="event__text">${esc(detail.text ?? '')}</p>
+      ${itemLine}
+      ${costLine}
+      ${deltaLine ? `<p class="muted small">状态变化：${esc(deltaLine)}</p>` : ''}
+      ${
+        (detail.achievements ?? []).length
+          ? `<p class="muted small">🏆 解锁成就：${esc(
+              detail.achievements.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.name ?? id).join('、'),
+            )}</p>`
+          : ''
+      }
+    `,
+    foot: `<button class="btn btn--primary btn--block" data-action="close-and-check">继续</button>`,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 迁徙胶囊：导出 / 导入                                                */
+/* ------------------------------------------------------------------ */
+
+function actionExportFile() {
+  const { filename, text } = exportCapsuleFile(store.save);
+  downloadText(filename, text);
+  toast('胶囊已封好，开始下载。', 'good');
+}
+
+function actionExportCode() {
+  let code = '';
+  try {
+    code = encodeCapsuleCode(store.save);
+  } catch (err) {
+    toast('生成存档码失败：' + err.message, 'bad');
+    return;
+  }
+  const kb = (code.length / 1024).toFixed(1);
+  openModal({
+    title: '🔗 存档码',
+    body: `
+      <p class="muted small">把下面的存档码复制到新设备即可唤醒星兽（约 ${kb} KB，适合小存档）。</p>
+      <textarea id="capsuleCode" rows="6" readonly>${esc(code)}</textarea>
+    `,
+    foot: `
+      <button class="btn btn--primary btn--block" data-action="copy-code">复制存档码</button>
+      <button class="btn btn--ghost btn--block" data-action="download-code">下载为文件</button>
+    `,
+  });
+}
+
+function actionCopyCode() {
+  const area = $('capsuleCode');
+  if (!area) return;
+  area.select();
+  const done = () => toast('已复制。', 'good');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(area.value).then(done).catch(() => {
+      try {
+        document.execCommand('copy');
+        done();
+      } catch {
+        toast('复制失败，请手动长按选择。', 'bad');
+      }
+    });
+  } else {
+    try {
+      document.execCommand('copy');
+      done();
+    } catch {
+      toast('复制失败，请手动长按选择。', 'bad');
+    }
+  }
+}
+
+function actionDownloadCode() {
+  const area = $('capsuleCode');
+  if (!area) return;
+  downloadText('迁徙胶囊_存档码.txt', area.value, 'text/plain');
+}
+
+function actionImportOpen() {
+  openModal({
+    title: '🚀 在新星门唤醒',
+    body: `
+      <p class="muted small">
+        导入会替换或合并当前存档。<b>建议先「封入胶囊」备份一次</b>，避免误覆盖丢档。
+      </p>
+      <div class="btn-row">
+        <button class="btn btn--primary btn--block" data-action="import-file">📂 选择胶囊文件（.json）</button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label for="importText">或粘贴存档码 / 存档 JSON</label>
+        <textarea id="importText" rows="5" placeholder="粘贴「生成存档码」得到的 Base64 字符，或直接贴 json 内容"></textarea>
+      </div>
+      <p class="muted tiny">Base64 存档码与 JSON 都可以，二选一即可。</p>
+      <button class="btn btn--block" data-action="import-text">解析这段文本</button>
+      <p class="muted tiny" style="margin-top:10px">
+        导入时会自动校验、修补缺失字段，并执行版本迁移；损坏的存档会被拒绝，不会污染本地数据。
+      </p>
+    `,
+  });
+}
+
+/** 解析并弹出导入预览 */
+function handleImportText(text) {
+  const preview = prepareImport(text, store.save);
+  if (!preview.ok) {
+    importPreview = null;
+    alertModal('⚠️ 无法导入', `<p class="muted">${preview.reasons?.map(esc).join('<br />') ?? '未知错误'}</p>`);
+    return;
+  }
+  importPreview = preview;
+  const incoming = preview.save;
+  const conflict = preview.conflict;
+
+  const migrationNote = preview.migrated
+    ? `<p class="report__line">检测到旧版本存档（v${preview.from} → v${preview.to}），已自动迁移。</p>`
+    : '';
+
+  const compareTable = conflict
+    ? `
+      <table class="compare">
+        <tr><th>项目</th><th>当前星门</th><th>胶囊</th></tr>
+        <tr class="${conflict.newer === 'current' ? 'is-newer' : ''}">
+          <td>上次结算</td><td class="num">${esc(formatClock(conflict.currentSettle))}</td>
+          <td class="num">${esc(formatClock(conflict.incomingSettle))}</td>
+        </tr>
+        <tr class="${conflict.newer === 'incoming' ? 'is-newer' : ''}">
+          <td>最后保存</td><td class="num">${esc(formatClock(conflict.currentSavedAt))}</td>
+          <td class="num">${esc(formatClock(conflict.incomingSavedAt))}</td>
+        </tr>
+        <tr><td>星兽等级</td><td class="num">Lv.${conflict.currentLevel}</td><td class="num">Lv.${conflict.incomingLevel}</td></tr>
+        <tr><td>图鉴条目</td><td class="num">${conflict.currentItems}</td><td class="num">${conflict.incomingItems}</td></tr>
+        <tr><td>设备</td><td class="num tiny">${esc(conflict.currentDevice.slice(0, 12))}…</td><td class="num tiny">${esc(
+          conflict.incomingDevice.slice(0, 12),
+        )}…</td></tr>
+      </table>
+      <p class="muted small">
+        更“新”的一份是：<b>${conflict.newer === 'incoming' ? '迁徙胶囊' : '当前星门'}</b>。
+        资源与进度只能保留一份（避免刷档）；图鉴、成就、去过的区域可以合并。
+      </p>
+    `
+    : '<p class="muted small">当前没有本地存档，直接唤星兽即可。</p>';
+
+  openModal({
+    title: '🛰️ 胶囊预览',
+    body: `
+      <div class="event__banner">
+        <span class="event__emoji">${STAGE_MAP[incoming.data.pet.stage]?.emoji ?? '🌟'}</span>
+        <div>
+          <div class="event__title">${esc(incoming.data.pet.name)} · Lv.${incoming.data.pet.level}</div>
+          <div class="event__sub">来自设备 ${esc(String(incoming.deviceId).slice(0, 14))}… · 存档 v${incoming.v}</div>
+        </div>
+      </div>
+      ${migrationNote}
+      ${compareTable}
+    `,
+    foot: `
+      ${
+        conflict
+          ? `<button class="btn btn--primary btn--block" data-action="import-apply" data-mode="${
+              conflict.newer === 'incoming' ? 'replace' : 'merge'
+            }">按建议导入（${
+              conflict.newer === 'incoming' ? '替换为胶囊' : '合并图鉴成就'
+            }）</button>
+             <button class="btn btn--block" data-action="import-apply" data-mode="replace">强制用胶囊替换</button>
+             <button class="btn btn--block" data-action="import-apply" data-mode="merge">只合并图鉴 / 成就</button>`
+          : `<button class="btn btn--primary btn--block" data-action="import-apply" data-mode="replace">唤醒星兽</button>`
+      }
+      <button class="btn btn--ghost btn--block" data-close-modal>取消</button>
+    `,
+  });
+}
+
+/** 应用导入 */
+function actionImportApply(mode) {
+  const preview = importPreview;
+  if (!preview?.ok) {
+    toast('导入信息已失效，请重新选择文件。', 'bad');
+    return;
+  }
+  if (mode === 'keep') {
+    closeModal();
+    return;
+  }
+  // 覆盖前自动留一份本地备份
+  saveNow();
+  const { save, message } = applyImport(preview.save, mode, store.save);
+  store.replaceSave(save);
+  saveNow();
+  importPreview = null;
+  closeModal({ silent: true });
+  renderAll();
+  switchPanel('home');
+  toast(message, 'good');
+
+  // 导入后立即结算一次（等价于"在新星门唤醒"）
+  const { report } = settleFromStore(now());
+  saveNow();
+  if (report && (report.items.length || report.timeline.length)) {
+    setTimeout(() => showReportModal(report), 300);
+  }
+}
+
+/** 从文件导入 */
+function actionImportFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,.sav,application/json,text/plain';
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => handleImportText(String(reader.result ?? ''));
+    reader.onerror = () => toast('读取文件失败。', 'bad');
+    reader.readAsText(file, 'utf-8');
+  });
+  input.click();
+}
+
+/* ------------------------------------------------------------------ */
+/* 统计与重置                                                          */
+/* ------------------------------------------------------------------ */
+
+function actionOpenStats() {
+  const state = store.state;
+  const save = store.save;
+  const affinity = AFFINITY_KEYS.map(
+    (k) =>
+      `<span class="reward">${k.emoji} ${esc(k.name)} ${Math.round(
+        state.progress.affinity[k.id] ?? 0,
+      )}</span>`,
+  ).join('');
+  openModal({
+    title: '📊 统计',
+    body: `
+      <dl class="kv">
+        <dt>设备标识</dt><dd>${esc(save.deviceId)}</dd>
+        <dt>换设备次数</dt><dd>${state.pet.memory.deviceCount ?? 1}</dd>
+        <dt>导入胶囊次数</dt><dd>${state.imports?.count ?? 0}</dd>
+        <dt>累计探索</dt><dd>${state.pet.memory.totalExplorations ?? 0} 次</dd>
+        <dt>喂食 / 清洁 / 抚摸</dt><dd>${state.progress.careCounts.feed} / ${state.progress.careCounts.clean} / ${
+          state.progress.careCounts.touch
+        }</dd>
+        <dt>研究点数</dt><dd>${Math.round(state.progress.researchPoints)}</dd>
+        <dt>图鉴 / 见闻</dt><dd>${Object.keys(state.codex.items).length} / ${
+          Object.keys(state.codex.encounters).length
+        }</dd>
+        <dt>出生时间</dt><dd>${esc(formatClock(state.pet.bornAt))}</dd>
+        <dt>存档版本</dt><dd>v${save.v}</dd>
+      </dl>
+      <div class="report__section" style="margin-top:12px"><h4>亲和倾向</h4>
+        <div class="reward-list">${affinity}</div>
+        <p class="muted tiny" style="margin-top:6px">倾向值决定成体时的进化分支（需要 12 点以上）。</p>
+      </div>
+    `,
+    foot: `<button class="btn btn--primary btn--block" data-close-modal>关闭</button>`,
+  });
+}
+
+function actionNewGame() {
+  openModal({
+    title: '🌑 重新开始',
+    body: `
+      <p class="muted">
+        这会放弃当前小岛上的全部进度（星兽、图鉴、成就、建筑），并且<b>无法撤销</b>。
+        当前存档会自动留一份备份，但你更需要的是先封一枚迁徙胶囊。
+      </p>
+    `,
+    foot: `
+      <button class="btn btn--danger btn--block" data-action="new-game-confirm">我确定，重新开始</button>
+      <button class="btn btn--block" data-action="export-file">先导出胶囊再决定</button>
+      <button class="btn btn--ghost btn--block" data-close-modal>取消</button>
+    `,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 事件委托                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 导入预览（模块内暂存，操作完成后清空） */
+let importPreview = null;
+
+function bindActions({ onRestart } = {}) {
+  document.addEventListener('click', (ev) => {
+    const target = ev.target.closest('[data-action], [data-nav], [data-close-modal]');
+    if (!target) return;
+
+    if (target.hasAttribute('data-close-modal')) {
+      closeModal();
+      return;
+    }
+
+    if (target.dataset.nav) {
+      switchPanel(target.dataset.nav);
+      return;
+    }
+
+    const action = target.dataset.action;
+    switch (action) {
+      case 'care':
+        actionCare(target.dataset.kind);
+        break;
+      case 'feed-with':
+        doCare('feed', target.dataset.item);
+        closeModal({ silent: true });
+        break;
+      case 'use-item':
+        actionUseItem(target.dataset.item);
+        break;
+      case 'item-detail':
+        showItemModal(target.dataset.item);
+        break;
+      case 'start-task':
+        actionStartTask(target.dataset.task);
+        break;
+      case 'task-cancel': {
+        let result = { ok: false, message: '' };
+        store.set((state) => {
+          result = cancelTask(state);
+        });
+        toast(result.message, result.ok ? 'good' : 'bad');
+        break;
+      }
+      case 'pick-zone':
+        pendingZoneChoice = { taskId: pendingZoneChoice.taskId, zoneId: target.dataset.zone, from: 'explore' };
+        renderAll();
+        break;
+      case 'craft':
+        actionCraft(target.dataset.recipe);
+        break;
+      case 'upgrade':
+        actionUpgrade(target.dataset.building);
+        break;
+      case 'evolve':
+        actionEvolve();
+        break;
+      case 'bag-filter':
+        view.bagFilter = target.dataset.filter;
+        renderBag(store.state);
+        break;
+      case 'codex-tab':
+        view.codexTab = target.dataset.tab;
+        renderCodex(store.state);
+        break;
+      case 'event-option':
+        actionEventOption(Number(target.dataset.index));
+        break;
+      case 'close-and-check':
+        closeModal({ silent: true });
+        checkAndShowEvolution();
+        break;
+      case 'open-report':
+        if (view.pendingReport) {
+          const report = view.pendingReport;
+          view.pendingReport = null;
+          showReportModal(report);
+        } else if (view.lastReport) {
+          showReportModal(view.lastReport);
+        } else {
+          toast('还没有报告，先去安排一次探索吧。', 'bad');
+        }
+        break;
+      case 'claim-report':
+        closeModal({ silent: true });
+        toast('报告已领取，资源已入库。', 'good');
+        checkAndShowEvolution();
+        break;
+      case 'export-file':
+        actionExportFile();
+        break;
+      case 'export-code':
+        actionExportCode();
+        break;
+      case 'copy-code':
+        actionCopyCode();
+        break;
+      case 'download-code':
+        actionDownloadCode();
+        break;
+      case 'import-open':
+        actionImportOpen();
+        break;
+      case 'import-file':
+        actionImportFile();
+        break;
+      case 'import-text': {
+        const area = $('importText');
+        if (!area?.value.trim()) {
+          toast('请先粘贴存档码或 JSON。', 'bad');
+          break;
+        }
+        handleImportText(area.value.trim());
+        break;
+      }
+      case 'import-apply':
+        actionImportApply(target.dataset.mode);
+        break;
+      case 'rename-pet': {
+        const input = $('inputPetName');
+        const name = input?.value.trim().slice(0, 12);
+        if (!name) {
+          toast('名字不能为空。', 'bad');
+          break;
+        }
+        store.set((state) => {
+          state.pet.name = name;
+        });
+        toast(`它现在叫「${name}」。`, 'good');
+        break;
+      }
+      case 'open-stats':
+        actionOpenStats();
+        break;
+      case 'new-game':
+        actionNewGame();
+        break;
+      case 'new-game-confirm':
+        closeModal({ silent: true });
+        onRestart?.();
+        break;
+      default:
+        break;
+    }
+  });
+
+  // 点击星兽：随机小反应
+  $('petAvatar')?.addEventListener('click', () => {
+    const state = store.state;
+    const lines = [
+      '它歪了歪头，光晕晃了一下。',
+      '它把爪子搭在你手上，又收回去。',
+      '它盯着一颗不存在的星星看了一会儿。',
+      '它打了个小喷嚏，周围浮起几点星尘。',
+    ];
+    if (state.task.active) {
+      toast('星兽不在岛上，它在外面忙着。');
+      return;
+    }
+    const line = lines[Math.floor(Math.random() * lines.length)];
+    toast(line);
+    $('petAvatar').classList.add('is-happy');
+    setTimeout(() => $('petAvatar')?.classList.remove('is-happy'), 1300);
+  });
+
+  // 面板切换后按需重绘
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchPanel(tab.dataset.nav));
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* 事件 / 进化 检查                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 上线时：若当前任务已完成，补一次结算（在线完成）
+ */
+function tickTaskCompletion() {
+  const state = store.state;
+  if (!state?.task.active) return null;
+  if (now() < state.task.endsAt) return null;
+
+  let result = { ok: false, message: '' };
+  store.set((s) => {
+    result = completeActiveTask(s, now(), store.save?.randomSeed ?? 0);
+  });
+  if (!result.ok) return null;
+
+  openModal({
+    title: '🔭 星兽回来了',
+    body: `
+      <div class="event__banner">
+        <span class="event__emoji">${getTask(result.taskId)?.emoji ?? '🔭'}</span>
+        <div>
+          <div class="event__title">${esc(result.taskName)} · ${esc(result.zoneName)}</div>
+          <div class="event__sub">耗时 ${esc(formatDuration(result.hours * 3600000))} · 经验 +${result.exp}${
+            result.levelUps ? ` · 升级 ×${result.levelUps}` : ''
+          }</div>
+        </div>
+      </div>
+      <p class="event__text">${esc(result.story)}</p>
+      <div class="reward-list">${
+        (result.items ?? []).length
+          ? result.items.map((it) => `<span class="reward reward--plus">${itemChip(it.id, it.amount)}</span>`).join('')
+          : '<span class="muted small">这次没带回什么。</span>'
+      }</div>
+      ${
+        describeDeltas(result.deltas)
+          ? `<p class="muted small" style="margin-top:8px">状态变化：${esc(describeDeltas(result.deltas))}</p>`
+          : ''
+      }
+    `,
+    foot: `<button class="btn btn--primary btn--block" data-action="close-and-check">好</button>`,
+  });
+
+  // 完成后的事件排队
+  for (const detail of result.events ?? []) {
+    queueEventDetail(detail);
+  }
+  return result;
+}
+
+function queueEventDetail(detail) {
+  if (!detail?.eventId) return;
+  const event = EVENTS.find((e) => e.id === detail.eventId);
+  if (event) view.eventQueue.push(event);
+}
+
+/** 进化条件达成时主动询问 */
+function checkAndShowEvolution() {
+  const check = checkEvolution(store.state);
+  if (!check.ok || !check.next) return;
+  openModal({
+    title: '🌟 星兽在发光',
+    body: `
+      <p class="event__text">
+        你能感觉到它体内那点光正在重新排列。
+        现在可以让它进化到「<b>${esc(STAGE_MAP[check.next]?.name ?? '')}</b>」——
+        ${esc(STAGE_MAP[check.next]?.desc ?? '')}
+      </p>
+      <p class="muted small">进化会消耗满足条件的物品，并根据这段时间的照顾与探索方式决定分支。</p>
+    `,
+    foot: `
+      <button class="btn btn--primary btn--block" data-action="evolve">现在进化</button>
+      <button class="btn btn--ghost btn--block" data-close-modal>再等等</button>
+    `,
+  });
+}
+
+/** 设置待展示的离线报告（由 main.js 调用） */
+function setPendingReport(report) {
+  view.pendingReport = report;
+  if (report) view.lastReport = report;
+}
+
+/** 供 main.js 判断是否有未读报告 */
+function hasPendingReport() {
+  return Boolean(view.pendingReport);
+}
+
+/** 首次进入：给星兽起名 */
+function showNamingModal(onDone) {
+  openModal({
+    title: '✦ 它醒过来了',
+    body: `
+      <p class="event__text">
+        数据海的浅滩上漂来一枚胶囊。你打开它，一团还不太稳定的光落在你的手心里。
+        它需要先有一个名字，才能知道自己是谁。
+      </p>
+      <div class="field">
+        <label for="newPetName">给它起个名字（最多 12 个字）</label>
+        <input type="text" id="newPetName" maxlength="12" placeholder="例如：小满、星九、阿尘" />
+      </div>
+      <div class="reward-list">
+        ${['小满', '星九', '阿尘', '潮生', '拾光']
+          .map((n) => `<button class="reward" data-action="pick-name" data-name="${n}">${n}</button>`)
+          .join('')}
+      </div>
+    `,
+    foot: `<button class="btn btn--primary btn--block" data-action="confirm-name">就是这个名字</button>`,
+    onMount: (root) => {
+      root.querySelectorAll('[data-action="pick-name"]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const input = $('newPetName');
+          if (input) input.value = btn.dataset.name;
+        });
+      });
+    },
+  });
+  // 命名确认的动作需要一次性回调
+  const handler = (ev) => {
+    const btn = ev.target.closest('[data-action="confirm-name"]');
+    if (!btn) return;
+    const name = $('newPetName')?.value.trim().slice(0, 12) || '星九';
+    document.removeEventListener('click', handler, true);
+    closeModal({ silent: true });
+    onDone?.(name);
+  };
+  document.addEventListener('click', handler, true);
+}
+
+/* ==================== js/main.js ==================== */
+/**
+ * main.js —— 引导与生命周期
+ *
+ * 流程：
+ * 1. 读取本地存档（没有就新建）
+ * 2. 绑定自动保存与页面生命周期（visibilitychange / pagehide 立即保存）
+ * 3. 上线时结算离线时间胶囊 -> 弹出探索报告
+ * 4. 启动 1 秒心跳：任务倒计时、任务完成、行动点每日恢复
+ *
+ * 注意：这里没有任何"后台运行"的机制。
+ * setInterval 只在页面打开时存在；关掉网页后逻辑完全停止，只留下时间戳。
+ */
+
+
+
+
+
+
+/** 心跳间隔（毫秒） */
+const TICK_MS = 1000;
+/** 低频整页重绘间隔（心跳次数） */
+const FULL_RENDER_EVERY = 15;
+
+/** 是否为新档（第一次进入需要命名） */
+let isFreshSave = false;
+
+/**
+ * 启动游戏
+ */
+function boot() {
+  // 1. 读取存档
+  const loaded = readLocalSave();
+  let save;
+  if (loaded.ok) {
+    save = loaded.save;
+    if (loaded.migrated) {
+      console.info(`[main] 存档已从 v${loaded.from} 迁移到 v${loaded.to}`);
+    }
+  } else {
+    save = createNewSave();
+    isFreshSave = true;
+    if (!loaded.empty) {
+      console.warn('[main] 本地存档不可用：', loaded.reasons);
+      toast('本地存档读取失败，已新建一座小岛。', 'bad');
+    }
+    writeLocalSave(save);
+  }
+
+  store.replaceSave(save);
+
+  // 2. 自动保存 + 生命周期
+  startAutosave();
+  bindLifecycle({
+    onSaved: (reason) => {
+      if (!['visibilitychange', 'pagehide', 'blur'].includes(reason)) return;
+      const chip = document.getElementById('chipSaveValue');
+      if (chip) chip.textContent = '已存档';
+    },
+  });
+
+  // 3. 交互绑定（"重新开始"也复用同一条路径）
+  bindActions({
+    onRestart: () => {
+      saveNow();
+      clearLocalSave({ keepBackup: true });
+      const fresh = createNewSave();
+      writeLocalSave(fresh);
+      store.replaceSave(fresh);
+      isFreshSave = true;
+      switchPanel('home');
+      renderAll();
+      toast('新的小岛已经生成，旧存档留在备份里。', 'good');
+      askNameIfNeeded();
+    },
+  });
+
+  // 4. 首次渲染
+  switchPanel('home');
+  renderAll();
+  flashSaveChip('已存档');
+
+  // 5. 新档命名
+  askNameIfNeeded();
+
+  // 6. 存储不可用时给出明确提示（file:// 下的 Firefox / Safari，或隐私模式）
+  if (!isPersistentStorage()) {
+    setTimeout(
+      () => toast('⚠️ 当前环境无法保存进度（只在内存中），请用「封入胶囊」保存。', 'bad'),
+      1400,
+    );
+  }
+
+  // 7. 离线时间胶囊结算
+  settleOnBoot();
+}
+
+/** 新档时询问名字 */
+function askNameIfNeeded() {
+  if (!isFreshSave) return;
+  showNamingModal((name) => {
+    isFreshSave = false;
+    store.set((state) => {
+      state.pet.name = name;
+      state.pet.bornAt = now();
+    });
+    saveNow();
+    toast(`「${name}」记住了自己的名字。`, 'good');
+  });
+}
+
+/**
+ * 上线结算：整个"离线时间胶囊"的入口
+ */
+function settleOnBoot() {
+  const elapsed = now() - store.save.lastSettleTime;
+
+  // 先处理"每天都该恢复的行动点"
+  let apGained = 0;
+  store.set((state) => {
+    const result = applyDailyReset(state, now());
+    apGained = result.apGained;
+  });
+
+  const { report } = settleFromStore(now());
+  saveNow();
+  if (!report) return;
+
+  // 离开不足 1 分钟且没有异常时静默处理
+  const significant = Math.abs(elapsed) > 60 * 1000 || report.rewound || report.overflowCounted;
+  setPendingReport(report);
+
+  if (significant) {
+    setTimeout(() => {
+      if (hasPendingReport()) showReportModal(report);
+    }, 420);
+  }
+
+  if (apGained > 0) {
+    setTimeout(
+      () => toast(`行动点恢复 +${apGained}（上限 ${maxActionPoints(store.state)}）。`, 'good'),
+      900,
+    );
+  }
+}
+
+/**
+ * 心跳：每秒一次，只在页面打开时运行
+ */
+function startTick() {
+  let lastMinute = null;
+  let ticks = 0;
+
+  setInterval(() => {
+    const ts = now();
+    ticks += 1;
+
+    // 1. 任务倒计时（高频但轻量，不整页重绘）
+    renderTaskTicker();
+
+    // 2. 任务完成检查
+    const completed = tickTaskCompletion();
+    if (completed) {
+      // 任务完成后可能满足进化条件
+      setTimeout(() => checkAndShowEvolution(), 600);
+    }
+
+    // 3. 每分钟检查一次"行动点每日恢复"
+    const minuteKey = Math.floor(ts / 60000);
+    if (lastMinute !== minuteKey) {
+      lastMinute = minuteKey;
+      let apGained = 0;
+      let days = 0;
+      store.set((state) => {
+        const result = applyDailyReset(state, ts);
+        apGained = result.apGained;
+        days = result.days ?? 0;
+      });
+      if (apGained > 0) {
+        toast(days > 1 ? `过了 ${days} 天，行动点恢复 +${apGained}。` : `新的一天，行动点 +${apGained}。`, 'good');
+      }
+    }
+
+    // 4. 低频整页重绘（保证进度条与状态条不会长期失真）
+    if (ticks % FULL_RENDER_EVERY === 0) renderAll();
+  }, TICK_MS);
+
+  console.info(
+    `[星尘迁徙] 启动完成 · 设备 ${store.save.deviceId} · 存档 v${store.save.v} · ${
+      store.save.data.pet.name
+    } Lv.${store.save.data.pet.level} · 上次结算距今 ${formatDuration(now() - store.save.lastSettleTime)}`,
+  );
+}
+
+/** DOM 就绪后启动 */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    boot();
+    startTick();
+  });
+} else {
+  boot();
+  startTick();
+}
+
+/**
+ * 注册 Service Worker（可选能力）
+ *
+ * 只用于"缓存 + 可安装"，让游戏离线也能打开。
+ * 它不参与任何游戏逻辑：离线结算完全由 offline.js 在页面打开时一次性完成。
+ * 注意：file:// 协议下无法注册，直接跳过。
+ */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol === 'file:') return; // 本地双击打开时不注册，避免报错
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).then(
+      () => console.info('[星尘迁徙] Service Worker 已注册（仅用于缓存，不做后台模拟）。'),
+      (err) => console.warn('[星尘迁徙] Service Worker 注册失败：', err),
+    );
+  });
+}
+
+registerServiceWorker();
+  </script>
+</body>
+</html>

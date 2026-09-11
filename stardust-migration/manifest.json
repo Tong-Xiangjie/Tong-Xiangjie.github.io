@@ -1,0 +1,35 @@
+{
+  "name": "星尘迁徙 · Stardust Migration",
+  "short_name": "星尘迁徙",
+  "description": "在数据海的小岛上养一只星兽。关掉网页后逻辑停止，再次打开时按离线时长结算探索报告。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06080f",
+  "theme_color": "#0a0e1f",
+  "id": "stardust-migration",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

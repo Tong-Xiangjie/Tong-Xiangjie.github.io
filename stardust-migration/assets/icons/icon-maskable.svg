@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="星尘迁徙">
+  <!-- maskable：图形集中在中间 60% 安全区内 -->
+  <defs>
+    <radialGradient id="bgm" cx="50%" cy="40%" r="80%">
+      <stop offset="0%" stop-color="#1c2758"/>
+      <stop offset="100%" stop-color="#05070f"/>
+    </radialGradient>
+    <radialGradient id="starm" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="52%" stop-color="#8fd8ff"/>
+      <stop offset="100%" stop-color="#b79cff" stop-opacity="0.12"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bgm)"/>
+  <circle cx="256" cy="256" r="76" fill="url(#starm)"/>
+  <path d="M256 172l17 55 55 17-55 17-17 55-17-55-55-17 55-17z" fill="#ffffff" opacity="0.94"/>
+  <path d="M120 348c48-22 96-22 136 0s96 22 136 0" fill="none" stroke="#6fd0ff" stroke-opacity="0.5" stroke-width="12" stroke-linecap="round"/>
+</svg>
