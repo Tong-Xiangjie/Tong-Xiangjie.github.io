@@ -320,9 +320,11 @@ let modalOriginalUrl = '';
 let modalLoadToken = 0;
 let modalFlightEl = null;
 let modalFlightTimer = null;
+let modalCloseTimer = null;
 
 const MODAL_FLIGHT_MS = 320;
 const MODAL_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';
+const MODAL_HIDE_MS = 300;   // 与 CSS 的 --dur-3 保持一致（蒙版淡出时长）
 
 // ★ 取「图片真实内容」在视口中的矩形，而不是元素框。
 //   网格里的缩略图元素框是固定尺寸（.mini-thumb 36×26、.copy-thumb 56×40、
@@ -412,6 +414,9 @@ function openModal(imgSrc1, imgSrc2) {
         sourceEl.getAttribute('src') === previewUrl;
 
     cancelModalFlight();
+    // 关键：带 forwards 的 .modal-hide 若残留，弹窗会一直不可见
+    if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
+    modal.classList.remove('modal-hide');
 
     // 缩略图万一没有 → 回退原图
     modalImg.onerror = function () {
@@ -476,10 +481,22 @@ function closeModal() {
     const modal = document.getElementById('imageModal');
     if (!modal) return;
 
+    // ★ 蒙版淡出（原来是 finish() 里直接 display:none，所以"啪"地一下就没了）。
+    //   注意 .modal 同时包含蒙版与图片，所以这里是整体不透明度淡出：
+    //     · 走回缩动画时，飞行图层在 modal 之外（z-index 更高）→ 只有蒙版在淡，
+    //       图片仍然清晰地飞回原缩略图位置
+    //     · 不走回缩时，整个查看器一起淡出
+    modal.classList.remove('modal-show');
+    modal.classList.add('modal-hide');
+
+    let done = false;
     const finish = function () {
+        if (done) return;
+        done = true;
+        if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
         cancelModalFlight();
         modal.style.display = 'none';
-        modal.classList.remove('modal-show');
+        modal.classList.remove('modal-show', 'modal-hide');
         const img = document.getElementById('modalImg');
         if (img) { img.src = ''; img.style.opacity = ''; }
         const scrollY = parseInt(document.body.style.top || '0') * -1;
@@ -505,7 +522,12 @@ function closeModal() {
             flown = true;
         }
     }
-    if (!flown) finish();
+
+    // 兜底：无论是否回缩，蒙版淡出结束后都必须真正隐藏。
+    // （回缩动画的 finish 会先触发，done 保证只执行一次）
+    const hideMs = prefersReducedMotion() ? 0 : MODAL_HIDE_MS;
+    if (modalCloseTimer) clearTimeout(modalCloseTimer);
+    modalCloseTimer = setTimeout(finish, (flown ? MODAL_FLIGHT_MS : 0) + hideMs + 80);
 }
 
 function initPinchZoom() {
@@ -637,7 +659,7 @@ function openCopyDetail(idx) {
 
 function closeCopyDetail() {
     const overlay = document.getElementById('copyDetailLightbox');
-    if (overlay) overlay.remove();
+    if (overlay) fadeOutAndRemove(overlay, 240);   // 先淡出再移除，避免硬切
     document.removeEventListener('keydown', copyDetailKeyHandler);
 }
 

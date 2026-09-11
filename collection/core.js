@@ -94,6 +94,20 @@ function scrollIntoViewSmooth(el, block) {
     });
 }
 
+// 关闭弹层时先淡出再移除（专题灯箱、详细信息卡片都用它）。
+// 原来这些地方是直接 overlay.remove()，蒙版会"啪"地一下消失。
+function fadeOutAndRemove(el, ms) {
+    if (!el || !el.parentNode) return false;
+    if (el._fadeTimer) clearTimeout(el._fadeTimer);
+    el.classList.add('lightbox-hide');
+    const delay = prefersReducedMotion() ? 0 : (ms || 260);
+    el._fadeTimer = setTimeout(function() {
+        el._fadeTimer = null;
+        if (el.parentNode) el.remove();
+    }, delay + 40);
+    return true;
+}
+
 // 精确高度的手风琴展开 / 收起。
 // 为什么不用 CSS 里写死的 max-height：浏览器按时间线性插值 max-height，而元素实际
 // 可视高度 = min(内容高度, 插值)。于是短面板几十毫秒就展完、剩下的时间全在空跑

@@ -399,7 +399,7 @@ function navigateLightbox(direction) {
 
 function closeSpecialLightbox() {
     const overlay = document.getElementById('specialLightbox');
-    if (overlay) overlay.remove();
+    if (overlay) fadeOutAndRemove(overlay, 240);   // 先淡出再移除，避免硬切
     document.removeEventListener('keydown', specialLightboxKeyHandler);
 }
 

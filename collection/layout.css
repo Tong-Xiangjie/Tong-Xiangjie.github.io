@@ -763,6 +763,21 @@ body.modal-open {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+/* 关闭时蒙版淡出（用 --ease-in：退出用"慢起快出"，与进入的 --ease-out 形成方向感）。
+   forwards 保持住终态 opacity:0 —— 否则动画结束到 JS 真正 display:none 之间会闪一下。 */
+.modal.modal-hide { animation: modalBackdropOut var(--dur-3) var(--ease-in) forwards; }
+@keyframes modalBackdropOut {
+    to { opacity: 0; }
+}
+/* 通用弹层淡出（专题灯箱、详细信息卡片）。
+   !important 是为了盖掉它们原本内联或样式表里的"进入"动画声明。 */
+.lightbox-hide {
+    animation: lightboxFadeOut var(--dur-2) var(--ease-in) forwards !important;
+    pointer-events: none;
+}
+@keyframes lightboxFadeOut {
+    to { opacity: 0; }
+}
 .modal-flight {
     position: fixed;
     z-index: 1002;              /* 高于 .modal(1000) 与 .modal-close/.modal-tip(1001) */
