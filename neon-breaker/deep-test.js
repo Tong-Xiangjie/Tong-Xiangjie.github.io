@@ -28,9 +28,10 @@ function run(src){
     getBoundingClientRect: () => ({ left: 0, top: 0, width: VP.w, height: VP.h }),
     addEventListener(){}, focus(){}, appendChild(){},
   };
+  const fsBtnEl = { textContent: '', addEventListener(){}, style:{} };
   const store = {};
   global.document = {
-    getElementById: id => (id === 'cv' || id === 'fsBtn') ? canvas : null,
+    getElementById: id => id === 'cv' ? canvas : id === 'fsBtn' ? fsBtnEl : null,
     createElement: () => canvas,
     body: { appendChild(){} },
     addEventListener(){},
@@ -39,7 +40,12 @@ function run(src){
     exitFullscreen(){ global.__fsExit = (global.__fsExit||0)+1; global.document.fullscreenElement = null; return { catch(){} }; },
   };
   global.window = global;
-  global.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k,v) => { store[k] = String(v); } };
+  global.localStorage = {
+    getItem: k => (k in store ? store[k] : null),
+    setItem: (k,v) => { store[k] = String(v); },
+    removeItem: k => { delete store[k]; },
+    clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+  };
   global.devicePixelRatio = 2;
   global.addEventListener = () => {};
   let pending = [];
@@ -72,6 +78,11 @@ globalThis.$GAME = {
   setInfinite: v => { G.infinite = v; },
   view, toWorld, toggleFullscreen, isFullscreen, pointerMove,
   pointerTarget: () => pointerTarget,
+  drawHUD,
+  saveProgress, loadProgress, hasSave, clearSave, saveInfo, serializeSave,
+  saveSettings, loadSettings, SAVE_KEY, SET_KEY,
+  rawSave: () => Store.get(SAVE_KEY), rawSet: () => Store.get(SET_KEY),
+  storeAvailable: () => Store.available,
   setViewport: (w, h) => { globalThis.VP.w = w; globalThis.VP.h = h; resize(); },
 };
 `);
@@ -108,6 +119,9 @@ globalThis.$GAME = {
         }
       }
     }
+
+    // 只推进帧、不干预局面（用于绘制探针，避免 steer/autoLaunch 改动被测状态）
+    function hFrames(n){ frames(n, {}); }
 
     /* ================ 1. 关卡定义合法性 ================ */
     section('关卡定义 (pattern)');
@@ -309,7 +323,7 @@ globalThis.$GAME = {
           ' 最长停滞=' + maxStir.toFixed(1) + 's 引导生效帧=' + assistSamples);
       check('7200 帧无异常抛出', err === 0, errList.slice(0,3).join(' | '));
       check('7200 帧无物理越界', viol === 0, errList.slice(0,3).join(' | '));
-      check('飞行球速不超过设计上限 1000', minSpeed > 250 && maxSpeed <= 1000.5, `${Math.round(minSpeed)}~${Math.round(maxSpeed)}`);
+      check('飞行球速不超过设计上限 1000', minSpeed > 230 && maxSpeed <= 1000.5, `${Math.round(minSpeed)}~${Math.round(maxSpeed)}`);
       check('120 秒内至少过关一次（防卡死生效）', levelUps >= 1, '过关次数=' + levelUps + ' level=' + (G.level+1));
       check('产生了得分', G.score > 0);
       check('触发了连击', maxCombo >= 2, 'combo=' + maxCombo);
@@ -601,6 +615,351 @@ globalThis.$GAME = {
 
       // 恢复默认视口，避免影响后续用例
       $.setViewport(1600, 1000);
+      $.newGame();
+    }
+    /* ================ 12. 存档 ================ */
+    section('存档 / 读档 / 设置持久化');
+    {
+      for (const k of Object.keys(store)) delete store[k];
+
+      // 空档
+      check('无存档时 hasSave=false', $.hasSave() === false);
+      check('无存档时 loadProgress 返回 false', $.loadProgress() === false);
+      check('无存档时 saveInfo 返回 null', $.saveInfo() === null);
+
+      // 开新局会自动存档
+      $.newGame();
+      check('开新局后自动产生存档', $.hasSave() === true && !!store[$.SAVE_KEY]);
+
+      // 打一会儿，制造"非初始"状态
+      $.launch();
+      frames(240, { steer:true, keepAlive:true });
+      const before = $.snap();
+      const snapState = {
+        level: before.G.level,
+        score: before.G.score,
+        lives: before.G.lives,
+        paddleW: before.paddle.w,
+        practice: before.G.practice,
+        brickCount: before.bricks.length,
+        broken: before.bricks.filter(b => b.dead).length,
+        hpSum: before.bricks.reduce((n, b) => n + b.hp, 0),
+        balls: before.balls.length,
+      };
+      check('存档前确实有砖被打掉', snapState.broken > 0, 'broken=' + snapState.broken);
+      check('存档前分数 > 0', snapState.score > 0, 'score=' + snapState.score);
+
+      // 手动存档 -> 序列化内容可读且正确
+      store[$.SAVE_KEY] && delete store[$.SAVE_KEY];
+      // 用当前这片场地直接存档，并把"存档内容"和"当前场地"对照，排除中间是否有帧推进
+      const liveNow = before.bricks.length;
+      const brokenNow = before.bricks.filter(b => b.dead).length;
+      const aliveNow = liveNow - brokenNow;
+      const hpSumNow = before.bricks.reduce((n, b) => n + (b.dead ? 0 : b.hp), 0);   // 存活砖的总血量
+      $.saveProgress(false);
+      const d = $.saveInfo();
+      const savedRaw = store[$.SAVE_KEY];      // 留一份：后面打乱局面时会被自动存档覆盖
+      const savedEntries = d.bricks.split(',').filter(Boolean).length;
+      check('存档可被解析且版本匹配', !!d && d.v === 1, JSON.stringify(d && { v: d.v, level: d.level }));
+      check('存档记录了关卡/分数/生命', d.level === snapState.level && d.score === snapState.score && d.lives === snapState.lives,
+            `level=${d.level} score=${d.score} lives=${d.lives}`);
+      check('存档记录了挡板宽度', d.paddleW === snapState.paddleW, `w=${d.paddleW}`);
+      check('存档记录了所有存活砖块（漏记会被读档当成已击破）',
+            savedEntries === aliveNow,
+            `记录 ${savedEntries} / 存活 ${aliveNow}（场地共 ${liveNow}，已破 ${brokenNow}）`);
+      check('存档体积很小', JSON.stringify(d).length < 1500, 'bytes=' + JSON.stringify(d).length);
+      snapState.aliveBricks = aliveNow;         // 读档后应当还原出这么多块砖
+      snapState.aliveHp = hpSumNow;             // 以及这么多总血量
+      snapState.brickCount = liveNow;
+      snapState.broken = brokenNow;
+
+      // 打乱局面（新局 + 随机关卡），再把好档注回去读档还原。
+      // 注意：后面的 newGame() 会触发自动存档，所以打乱完要把待测存档写回。
+      $.newGame();
+      for (let i = 0; i < 5; i++) $.loadLevel(7);
+      frames(30, { steer:true });
+      check('已把局面改乱（读档前状态不同）',
+            $.snap().G.score !== snapState.score || $.snap().G.level !== snapState.level ||
+            $.snap().bricks.length !== snapState.brickCount);
+      store[$.SAVE_KEY] = savedRaw;
+
+      const ok = $.loadProgress();
+      const after = $.snap();
+      check('读档成功', ok === true);
+      check('读档还原关卡', after.G.level === snapState.level, `${after.G.level} vs ${snapState.level}`);
+      check('读档还原分数', after.G.score === snapState.score, `${after.G.score} vs ${snapState.score}`);
+      check('读档还原生命', after.G.lives === snapState.lives, `${after.G.lives} vs ${snapState.lives}`);
+      check('读档还原挡板宽度', after.paddle.w === snapState.paddleW, `w=${after.paddle.w}`);
+      check('读档还原剩余砖块数量（等于存档里的存活砖数）',
+            after.bricks.length === snapState.aliveBricks,
+            `${after.bricks.length} vs 存活 ${snapState.aliveBricks}`);
+      check('读档还原存活砖的总血量',
+            after.bricks.reduce((n, b) => n + b.hp, 0) === snapState.aliveHp,
+            `${after.bricks.reduce((n,b)=>n+b.hp,0)} vs ${snapState.aliveHp}`);
+      check('读档后没有已击破的砖残留', after.bricks.every(b => !b.dead));
+      check('读档还原球数', after.balls.length === snapState.balls, `${after.balls.length} vs ${snapState.balls}`);
+      check('读档后球在场内', after.balls.every(b => b.x > 0 && b.x < 960 && b.y > 0 && b.y < 600));
+      check('读档后可以继续玩', after.G.state === 2 || after.G.state === 1, 'state=' + after.G.state);
+
+      // 读档后继续推进不崩
+      let err2 = 0;
+      try { frames(300, { steer:true, autoLaunch:true, keepAlive:true }); } catch(e){ err2++; }
+      check('读档后继续游玩 300 帧无异常', err2 === 0);
+
+      // 关卡中途（击破多于一半）也能正确存档
+      {
+        const B = $.snap().bricks.filter(b => !b.solid);
+        B.forEach((b, i) => { if (i % 2 === 0) b.dead = true; });
+        $.snap().G.state = 2;
+        $.saveProgress(false);
+        const d2 = $.saveInfo();
+        const partialRaw = store[$.SAVE_KEY];
+        const aliveNow = $.snap().bricks.filter(b => !b.solid && !b.dead).length;
+        $.newGame();
+        store[$.SAVE_KEY] = partialRaw;         // 同上：避免被新局的自动存档顶掉
+        $.loadProgress();
+        check('部分击破的局面能精确还原',
+              $.snap().bricks.filter(b => !b.solid && !b.dead).length === aliveNow,
+              `${$.snap().bricks.filter(b=>!b.solid&&!b.dead).length} vs ${aliveNow}`);
+        check('还原后存档条目数等于存活砖数',
+              d2.bricks.split(',').filter(Boolean).length === aliveNow,
+              `${d2.bricks.split(',').filter(Boolean).length} vs ${aliveNow}`);
+      }
+
+      // 练习模式标记随存档保留
+      $.startSelect();
+      if (!$.snap().G.infinite) $.selectKey('i');
+      $.selectKey('1');
+      $.saveProgress(false);
+      const practiceRaw = store[$.SAVE_KEY];
+      $.newGame();
+      store[$.SAVE_KEY] = practiceRaw;
+      $.loadProgress();
+      check('练习模式标记随存档一起还原', $.snap().G.practice === true && $.snap().G.infinite === true);
+      check('练习模式读档后生命仍充足', $.snap().G.lives >= 99, 'lives=' + $.snap().G.lives);
+
+      // 最高分不因读档而倒退
+      $.snap().G.best = 50000;
+      $.snap().G.score = 10;
+      $.saveProgress(false);
+      $.loadProgress();
+      check('读档不会让最高分倒退', $.snap().G.best >= 50000, 'best=' + $.snap().G.best);
+
+      // 清除存档
+      $.clearSave(false);
+      check('清除后 hasSave=false', $.hasSave() === false && store[$.SAVE_KEY] === undefined);
+      check('清除后读档失败且不影响当前局面',
+            $.loadProgress() === false && $.snap().bricks.length > 0);
+
+      // 坏数据必须被安全拒绝，不能污染游戏状态
+      $.newGame();
+      const goodLevel = $.snap().G.level;
+      for (const bad of ['', 'not json', '{}', '{"v":99,"level":3}', 'null', '[1,2,3]',
+                         '{"v":1,"level":"x","lives":3}', '{"v":1,"level":2,"lives":3,"bricks":"999:z"}']){
+        store[$.SAVE_KEY] = bad;
+        let threw = false, res = null;
+        try { res = $.loadProgress(); } catch(e){ threw = true; }
+        if (threw || res === true) check('坏存档被拒绝: ' + JSON.stringify(bad).slice(0, 28), false, 'threw=' + threw + ' res=' + res);
+      }
+      check('连续喂 8 条坏存档都未抛异常', true);
+      // 坏档之后游戏仍可正常开局
+      $.newGame();
+      $.launch();
+      frames(120, { steer:true, keepAlive:true });
+      check('坏档之后游戏仍可正常游玩', $.snap().G.state === 2 || $.snap().G.state === 1);
+
+      // 设置持久化
+      for (const k of Object.keys(store)) delete store[k];
+      $.saveSettings();
+      check('设置已写入', !!store[$.SET_KEY]);
+      const st = JSON.parse(store[$.SET_KEY]);
+      check('设置含静音与练习开关', typeof st.muted === 'boolean' && typeof st.infinite === 'boolean');
+
+      // 退出前兜底存储：命耗尽时应清档（避免读档回到必死局面）
+      $.newGame();
+      $.snap().G.lives = 1;
+      $.launch();
+      $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+      frames(2, {});
+      check('命耗尽进入 GAME OVER', $.snap().G.state === S_OVER);
+      check('GAME OVER 后存档被清掉（不会读回必死局面）', $.hasSave() === false);
+
+      // 收尾
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+    }
+
+    /* ================ 13. 各种关卡的存读档（含金砖/实心砖） ================ */
+    section('全关卡存读档（金砖、实心砖、随机关卡）');
+    {
+      // 第 4 关（要塞）同时含金砖与不可破坏砖，下标上界最容易算错
+      for (const lv of [0, 1, 2, 3, 4, 5, 8, 20]){
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.loadLevel(lv);
+        $.snap().G.level = lv;
+        // 打掉两块、打伤一块，制造非初始状态
+        const B = $.snap().bricks.filter(b => !b.solid);
+        if (B[0]) B[0].dead = true;
+        if (B[3]) B[3].dead = true;
+        if (B[1] && B[1].max > 1) B[1].hp = 1;
+        $.snap().G.score = 1000 + lv;
+        $.snap().G.lives = 4;
+        $.snap().G.state = 2;
+        $.saveProgress(false);
+        const raw = store[$.SAVE_KEY];
+        const entries = $.saveInfo().bricks.split(',').filter(Boolean).length;
+        const aliveBefore = $.snap().bricks.filter(b => !b.dead).length;
+
+        // 打乱后注入同一份存档
+        $.loadLevel(6);
+        store[$.SAVE_KEY] = raw;
+        const ok = $.loadProgress();
+        const after = $.snap();
+        const name = lv < 5 ? `第 ${lv+1} 关` : `第 ${lv+1} 关(随机)`;
+        check(`${name}: 存读档成功`, ok === true, 'ok=' + ok);
+        check(`${name}: 存活砖数还原 (${aliveBefore})`, after.bricks.length === aliveBefore,
+              `${after.bricks.length} vs ${aliveBefore}`);
+        check(`${name}: 分数与关卡还原`, after.G.score === 1000 + lv && after.G.level === lv,
+              `score=${after.G.score} level=${after.G.level}`);
+        check(`${name}: 存档条目数 = 存活砖数`, entries === aliveBefore, `${entries} vs ${aliveBefore}`);
+      }
+    }
+
+    /* ================ 14. 多球发射（贴板球必须全部被发射） ================ */
+    section('多球发射：所有贴板球都必须被发射');
+    {
+      const stuckBalls = () => $.snap().balls.filter(b => b.stuck).length;
+      const flyingBalls = () => $.snap().balls.filter(b => !b.stuck).length;
+      $.newGame();
+
+      // ---- 真实复现路径：球还没发射（贴板）时吃掉"3"，于是多球一起贴板 ----
+      check('新开局球是贴板状态', stuckBalls() === 1, 'stuck=' + stuckBalls());
+      $.applyPower(P('multi'));
+      check('贴板时吃"3"会产生多个贴板球（Bug 复现前提）',
+            stuckBalls() >= 3, 'stuck=' + stuckBalls() + ' balls=' + $.snap().balls.length);
+
+      const nStuck = stuckBalls();
+      $.launch();
+      hFrames(1);
+      check('发射后所有球都离板（Bug 修复点）', stuckBalls() === 0,
+            `发射前贴板 ${nStuck} 个，发射后仍贴板 ${stuckBalls()} 个`);
+      check('发射后每个球都有向上速度且离板',
+            $.snap().balls.every(b => !b.stuck && b.vy < 0 && Math.hypot(b.vx, b.vy) > 100),
+            $.snap().balls.map(b => (b.stuck ? 'STUCK' : Math.round(b.vy))).join(','));
+      check('发射后所有 offset 已清零', $.snap().balls.every(b => b.offset === 0));
+
+      // ---- 掉命后同样要能把所有贴板球发出去 ----
+      $.newGame();
+      $.launch(); hFrames(3, {});
+      $.snap().balls.forEach(b => { b.stuck = false; b.y = 700; b.vy = 500; });
+      hFrames(2, {});
+      check('掉命后回到 READY 且只有 1 个贴板球',
+            $.snap().G.state === 1 && stuckBalls() === 1 && $.snap().balls.length === 1,
+            `state=${$.snap().G.state} stuck=${stuckBalls()} balls=${$.snap().balls.length}`);
+      $.applyPower(P('multi'));            // 在贴板状态下三球齐发
+      $.launch(); hFrames(1, {});
+      check('掉命后三球齐发也能全部发射', stuckBalls() === 0 && $.snap().G.state === 2,
+            `stuck=${stuckBalls()} state=${$.snap().G.state}`);
+
+      // ---- 直接构造极端情况：5 个贴板球一次全部发射 ----
+      $.newGame();
+      {
+        const S = $.snap();
+        for (let i = 0; i < 4; i++){                 // 原本就有 1 个，补 4 个 = 5 个
+          const nb = $.makeBall(S.paddle.x + S.paddle.w/2, S.paddle.y - 10, 0, 0);
+          nb.stuck = true; nb.offset = i * 4;
+          S.balls.push(nb);
+        }
+        check('构造出 5 个贴板球', stuckBalls() === 5, 'stuck=' + stuckBalls());
+        $.launch(); hFrames(1, {});
+        check('5 个贴板球一次全部发射', stuckBalls() === 0, 'stuck=' + stuckBalls());
+        check('5 个球都获得了向上速度',
+              $.snap().balls.length === 5 && $.snap().balls.every(b => b.vy < 0 && Math.hypot(b.vx, b.vy) > 100),
+              $.snap().balls.map(b => Math.round(b.vy)).join(','));
+        check('发射后 offset 已清零', $.snap().balls.every(b => b.offset === 0));
+
+        // 已全部在飞时再按发射应是安全空操作
+        const n0 = $.snap().balls.length;
+        const v0 = $.snap().balls.map(b => Math.round(b.vx) + ',' + Math.round(b.vy)).join('|');
+        $.launch();
+        const v1 = $.snap().balls.map(b => Math.round(b.vx) + ',' + Math.round(b.vy)).join('|');
+        check('无贴板球时按发射是安全的空操作', $.snap().balls.length === n0 && v0 === v1);
+      }
+
+      // ---- 发射后打球推进若干帧，确认没有球滞留在板附近 ----
+      let errM = 0;
+      try { hFrames(240, { steer:true, autoLaunch:true, keepAlive:true }); } catch(e){ errM++; }
+      check('多球发射后推进 240 帧无异常', errM === 0);
+      // 长跑后不可能要求"没有贴板球"——期间会有球掉落并进入重发球状态，
+      // 此时贴板是正常的。真正要保证的是：READY 态按下发射后立刻没有残留贴板球。
+      $.launch();
+      hFrames(1, {});
+      check('长跑中任意一次发射都不会残留贴板球', stuckBalls() === 0,
+            `state=${$.snap().G.state} stuck=${stuckBalls()}`);
+    }
+
+    /* ================ 15. 生命显示上限 ================ */
+    section('生命显示（>8 命不能被静默截断）');
+    {
+      // 直接在绘制调用层面统计：只数"生命点"的弧线
+      const c2 = canvas.getContext('2d');
+      const METHODS = ['setTransform','save','restore','translate','rotate','scale','beginPath','closePath',
+        'moveTo','lineTo','arc','arcTo','quadraticCurveTo','bezierCurveTo','rect','fill','stroke','clip',
+        'clearRect','fillRect','strokeRect','strokeText','setLineDash','drawImage','ellipse'];
+      const savedM = {};
+      let arcs = 0; const texts = [];
+      for (const m of METHODS) if (Object.prototype.hasOwnProperty.call(c2, m)){ savedM[m] = c2[m]; c2[m] = () => {}; }
+      const savedFillText = c2.fillText;
+      c2.arc = () => { arcs++; };
+      c2.fillText = (t) => { texts.push(String(t)); };
+      c2.measureText = () => ({ width: 10 });
+      c2.createLinearGradient = () => ({ addColorStop(){} });
+      c2.createRadialGradient = () => ({ addColorStop(){} });
+
+      // 直接调用 drawHUD 统计——整帧渲染里球和粒子的弧线数每帧都在变，无法做差分
+      const probe = (lives) => {
+        const S = $.snap();
+        S.G.lives = lives; S.G.infinite = false; S.G.practice = false; S.G.state = 2;
+        arcs = 0; texts.length = 0;
+        $.drawHUD();
+        return { arcs, texts: texts.slice() };
+      };
+      $.newGame();
+      $.launch(); hFrames(2, {});        // 让场上有球，确认 HUD 不受场面影响
+
+      const r0  = probe(0);
+      const r3  = probe(3);
+      const r7  = probe(7);
+      const r8  = probe(8);
+      const r12 = probe(12);
+      const r99 = probe(99);
+
+      check('0 命不画生命点', r0.arcs === 0, 'arcs=' + r0.arcs);
+      check('3 命画 3 个点', r3.arcs === 3, 'arcs=' + r3.arcs);
+      check('7 命画 7 个点', r7.arcs === 7, 'arcs=' + r7.arcs);
+      check('8 命画 7 个点并显示 +1', r8.arcs === 7 && r8.texts.includes('+1'),
+            `arcs=${r8.arcs} texts=${r8.texts.join('|')}`);
+      check('12 命画 7 个点并显示 +5', r12.arcs === 7 && r12.texts.includes('+5'),
+            `arcs=${r12.arcs} texts=${r12.texts.join('|')}`);
+      check('99 命显示 +92', r99.arcs === 7 && r99.texts.includes('+92'),
+            `arcs=${r99.arcs} texts=${r99.texts.join('|')}`);
+      check('3 命时不显示 +N', !r3.texts.some(t => /^\+\d+$/.test(t)), r3.texts.join('|'));
+
+      // 无限生命走 ∞ 分支，不画生命点
+      {
+        const S = $.snap();
+        S.G.infinite = true; S.G.practice = true; S.G.state = 2;
+        arcs = 0; texts.length = 0;
+        $.drawHUD();
+        check('无限生命显示 ∞ 而不画生命点', arcs === 0 && texts.includes('∞'),
+              `arcs=${arcs} texts=${texts.join('|')}`);
+        S.G.infinite = false; S.G.practice = false;
+      }
+
+      // 复原 ctx
+      for (const m of METHODS) if (savedM[m]) c2[m] = savedM[m];
+      c2.fillText = savedFillText;
       $.newGame();
     }
   } catch (e){

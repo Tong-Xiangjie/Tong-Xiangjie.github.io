@@ -17,7 +17,7 @@ function run(gameSrc){
     getBoundingClientRect: () => ({ left:0, top:0, width:960, height:600 }), addEventListener(){}, focus(){} };
   const store = {};
   global.document = {
-    getElementById: id => (id === 'cv' || id === 'fsBtn') ? canvas : null,
+    getElementById: id => id === 'cv' ? canvas : (id === 'fsBtn' ? { textContent:'', addEventListener(){}, style:{} } : null),
     createElement: () => canvas,
     body: { appendChild(){} },
     addEventListener(){},

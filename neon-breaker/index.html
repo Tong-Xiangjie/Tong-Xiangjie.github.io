@@ -159,7 +159,8 @@ const Sound = (() => {
   }
   return {
     unlock(){ ac(); },
-    toggle(){ muted = !muted; return muted; },
+    toggle(){ muted = !muted; saveSettings(); return muted; },
+    setMuted(v){ muted = !!v; },
     get muted(){ return muted; },
     paddle(){ tone(240, .05, 'square', .04); },
     wall(){ tone(380, .04, 'triangle', .03); },
@@ -297,11 +298,14 @@ const G = {
   msg: '',
   msgTimer: 0,
   flash: 0,
-  slowFx: 0
+  slowFx: 0,
+  playTime: 0             // 本局累计游玩秒数（存进存档）
 };
 
 let paddle, balls, bricks, drops, particles, floats;
 let brickW, brickH, brickTop, cols = 10;
+let autoSaveArmed = false;      // 本局是否需要自动存档（开局/读档后开启）
+let autoSaveTimer = 0;          // 距上次自动存档的秒数
 
 function makePaddle(){
   return { w: 130, h: 14, x: W/2 - 65, y: H - 46, vx: 0 };
@@ -329,9 +333,9 @@ function resetBall(){
   balls[0].stuck = true;
 }
 
-function loadLevel(n){
-  const p = pattern(n);
-  const grid = p.grid;
+// 按二维网格铺砖。网格既可以来自 pattern()，也可以来自存档
+// （随机关卡每次生成的地图不同，只存砖块下标是不可靠的，必须把地图本身存下来）
+function buildFromGrid(grid){
   cols = 10;
   brickW = (W - 120) / cols;
   brickH = 26;
@@ -357,21 +361,45 @@ function loadLevel(n){
       });
     });
   });
+}
+
+function loadLevel(n, gridOverride){
+  const num = Math.round(Number(n));
+  n = Number.isFinite(num) ? Math.max(0, num) : 0;   // 防御：非法关卡号一律退回第 1 关
+  const p = pattern(n);
+  const grid = gridOverride || p.grid;
+  buildFromGrid(grid);
   drops = []; particles = []; floats = [];
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !b.solid && !b.dead).length;
-  G.msg = p.msg || `第 ${n} 关`;
-  G.msgTimer = p.msg ? 2.6 : 1.6;
+  G.msg = gridOverride ? `第 ${n} 关 · 已还原` : (p.msg || `第 ${n} 关`);
+  G.msgTimer = 1.8;
   resetBall();
   G.state = S.READY;
+}
+
+// 回到标题/选关界面时把场地清空，否则半透明遮罩下会透出残局砖块
+function clearBoard(){
+  bricks = [];
+  balls = [ makeBall(paddle.x + paddle.w/2, paddle.y - 8, 0, 0) ];
+  balls[0].stuck = true;
+  drops = []; particles = []; floats = [];
+  G.combo = 0; G.comboTimer = 0;
+  G.stuckTimer = 0;
+  G.shake = 0; G.flash = 0; G.slowFx = 0;
+  G.msgTimer = 0;
 }
 
 function newGame(){
   G.level = 0; G.score = 0; G.lives = 3; G.shake = 0; G.flash = 0;
   G.practice = false;
+  G.infinite = false;     // 普通模式必须显式关掉无限生命，否则会从选关界面"泄漏"进来
+  G.playTime = 0;
   paddle = makePaddle();
   loadLevel(0);
+  autoSaveArmed = true;
+  saveProgress(false);
 }
 
 // 练习模式：从选关界面开始，无限生命，分数不计入最高分
@@ -379,6 +407,7 @@ function startSelect(){
   G.infinite = false;
   G.selectIdx = 0;
   G.selectHint = 0;
+  clearBoard();
   G.state = S.SELECT;
 }
 
@@ -389,10 +418,199 @@ function startLevel(idx){
   G.practice = G.infinite;
   G.lives = G.infinite ? 99 : 3;
   G.shake = 0; G.flash = 0;
+  G.playTime = 0;
   paddle = makePaddle();
   loadLevel(it.level);
   G.msg = `第 ${it.level + 1} 关${it.kind === 'random' ? ' · 随机生成' : ' · ' + it.name}${G.infinite ? ' · 无限生命' : ''}`;
   G.msgTimer = 2.2;
+  autoSaveArmed = true;
+  saveProgress(false);
+}
+
+/* ============================ 存档 ============================ */
+const SAVE_KEY = 'neon-breaker-save-v1';
+const SET_KEY  = 'neon-breaker-settings-v1';
+const SAVE_VERSION = 1;
+
+// localStorage 可能被禁用（隐私模式等），统一走安全包装
+const Store = (() => {
+  let ok = true;
+  try { localStorage.setItem('__nb_t', '1'); localStorage.removeItem('__nb_t'); }
+  catch (e){ ok = false; }
+  const mem = {};
+  return {
+    get available(){ return ok; },
+    get(k){
+      try { const v = ok ? localStorage.getItem(k) : mem[k]; return v === undefined ? null : v; }
+      catch (e){ return null; }
+    },
+    set(k, v){ try { if (ok) localStorage.setItem(k, v); else mem[k] = String(v); } catch (e){} },
+    del(k){ try { if (ok) localStorage.removeItem(k); else delete mem[k]; } catch (e){} },
+  };
+})();
+
+// 紧凑编码：砖块只存"存活砖的 下标:剩余血量(36进制)"，球只存位置与速度
+// 注意：必须记录所有还活着的砖（含满血砖），否则读档时缺项会被当成"已击破"
+const b36 = n => Math.round(n).toString(36);
+
+function serializeSave(){
+  const st = bricks.map((b, i) => b.dead ? null : i + ':' + b36(b.hp))
+                   .filter(Boolean).join(',');
+  // 存下当前实际地图（每行一个字符串，非空格用 36 进制数字），
+  // 否则随机关卡读档时会重新随机，砖块下标对不上
+  const gri = bricks.reduce((rows, b) => {
+    if (!rows[b.row]) rows[b.row] = Array(10).fill('0');
+    rows[b.row][b.col] = b.type === -1 ? '-' : b36(b.type);
+    return rows;
+  }, []).map(r => (r || Array(10).fill('0')).join(''));
+  const bl = balls.filter(b => isFinite(b.x) && isFinite(b.y))
+                  .map(b => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy),
+                             b.stuck ? 1 : 0, +(b.offset || 0).toFixed(2)]);
+  return {
+    v: SAVE_VERSION,
+    ts: Date.now(),
+    level: G.level,
+    score: Math.round(G.score),
+    best: G.best,
+    lives: G.lives,
+    infinite: !!G.infinite,
+    practice: !!G.practice,
+    paddleW: paddle.w,
+    playTime: Math.round(G.playTime),
+    state: G.state,
+    bricks: st,
+    grid: gri,
+    balls: bl
+  };
+}
+
+function saveProgress(manual){
+  const data = serializeSave();
+  try { Store.set(SAVE_KEY, JSON.stringify(data)); }
+  catch (e){ if (manual) toast('存档失败：空间不足'); return false; }
+  autoSaveTimer = 0;
+  if (manual) toast('已存档 · 第 ' + (data.level + 1) + ' 关');
+  return true;
+}
+
+function saveInfo(){
+  const raw = Store.get(SAVE_KEY);
+  if (!raw) return null;
+  try {
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== 'object' || d.v !== SAVE_VERSION) return null;
+    // 关卡号必须是有限整数，否则 loadLevel 会生成空局面
+    if (!Number.isFinite(d.level) || Math.round(d.level) !== d.level || d.level < 0) return null;
+    if (!Number.isFinite(d.lives) || d.lives < 1) return null;
+    if (!Number.isFinite(d.score) || !Number.isFinite(d.paddleW)) return null;
+    if (typeof d.bricks !== 'string') return null;
+    if (!Array.isArray(d.balls)) return null;
+    if (d.grid !== undefined && !Array.isArray(d.grid)) return null;
+    return d;
+  } catch (e){ return null; }
+}
+
+function hasSave(){ return saveInfo() !== null; }
+
+function clearSave(announce){
+  Store.del(SAVE_KEY);
+  if (announce) toast('存档已清除');
+}
+
+// 从存档恢复。返回 false 表示存档无效
+function loadProgress(){
+  const d = saveInfo();
+  if (!d) return false;
+
+  // 优先用存档里的地图还原（随机关卡必须如此），并据此确定下标上界
+  let grid = null;
+  if (Array.isArray(d.grid)){
+    grid = d.grid.map(row => String(row).split('').map(ch => ch === '-' ? -1 : parseInt(ch, 36)));
+    const okShape = grid.length > 0 && grid.length <= 40 && grid.every(r => r.length === 10 && r.every(Number.isFinite));
+    if (!okShape) grid = null;
+  }
+  // bricks 数组包含所有非空格（普通砖 + 金砖 + 实心砖）
+  let cells = 0;
+  (grid || pattern(d.level).grid).forEach(row => row.forEach(v => { if (v !== 0) cells++; }));
+
+  // 第一遍：只校验，不动任何游戏状态
+  const alive = new Set();
+  const hpMap = new Map();
+  for (const part of String(d.bricks).split(',')){
+    if (!part) continue;
+    const [is, hs] = part.split(':');
+    const i = parseInt(is, 10);
+    const hp = parseInt(hs, 36);
+    if (!Number.isInteger(i) || i < 0 || i >= cells) return false;   // 下标必须在本关范围内
+    if (!Number.isFinite(hp) || hp < 1) return false;
+    if (hpMap.has(i) && hpMap.get(i) !== hp) return false;           // 同一下标冲突
+    hpMap.set(i, hp);
+  }
+  // 第二遍：数值都干净，才真正落地
+  G.level = d.level;
+  G.practice = !!d.practice;
+  G.infinite = !!d.infinite;
+  paddle = makePaddle();
+  loadLevel(d.level, grid);                 // 会重置砖块/球/粒子并进入 READY
+  G.level = d.level;
+
+  hpMap.forEach((hp, i) => {
+    const b = bricks[i];
+    if (!b) return;
+    b.hp = clamp(hp, 1, b.max);
+    b.dead = false;
+    alive.add(i);
+  });
+  // 存档里没提到的可破坏砖 = 已击破
+  bricks = bricks.filter((b, i) => b.solid || alive.has(i));
+
+  G.score = Math.max(0, Math.round(d.score));
+  G.best = Math.max(G.best, Math.round(d.best) || 0);
+  G.lives = clamp(Math.round(d.lives), 1, 999);
+  paddle.w = clamp(Math.round(d.paddleW), 60, 260);
+  clampPaddle();
+  G.playTime = Math.max(0, Math.round(d.playTime) || 0);
+
+  balls = d.balls.map(a => {
+    const b = makeBall(Number(a[0]) || W/2, Number(a[1]) || paddle.y - 8,
+                       Number(a[2]) || 0, Number(a[3]) || 0);
+    b.stuck = !!a[4];
+    b.offset = Number(a[5]) || 0;
+    return b;
+  });
+  if (!balls.length) resetBall();
+  // 球掉了但还没结算的状态，读档后先给一个安全的贴板球
+  if (balls.every(b => b.y > H + 40)) resetBall();
+
+  drops = []; particles = []; floats = [];
+  G.combo = 0; G.comboTimer = 0;
+  G.stuckTimer = 0;
+  G.lastBricks = bricks.filter(b => !b.solid && !b.dead).length;
+  G.shake = 0; G.flash = 0; G.slowFx = 0;
+  G.state = (d.state === S.PLAY && balls.some(b => !b.stuck)) ? S.PLAY : S.READY;
+  G.msg = '已读档 · 第 ' + (G.level + 1) + ' 关';
+  G.msgTimer = 2.2;
+  Sound.win();
+  return true;
+}
+
+/* ---------- 设置持久化 ---------- */
+function saveSettings(){
+  Store.set(SET_KEY, JSON.stringify({
+    v: SAVE_VERSION,
+    muted: Sound.muted,
+    infinite: !!G.infinite,
+  }));
+}
+function loadSettings(){
+  const raw = Store.get(SET_KEY);
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || s.v !== SAVE_VERSION) return;
+    if (s.muted) Sound.setMuted(true);
+    G.infinite = !!s.infinite;
+  } catch (e){}
 }
 
 /* ============================ 输入 ============================ */
@@ -421,8 +639,8 @@ function selectKey(k){
   if (k === 'ArrowUp')   { G.selectIdx = (G.selectIdx - 1 + selectItems.length) % selectItems.length; G.selectHint = 0; return true; }
   if (k === 'ArrowDown') { G.selectIdx = (G.selectIdx + 1) % selectItems.length; G.selectHint = 0; return true; }
   if (k === 'Enter' || k === ' ') { startLevel(G.selectIdx); return true; }
-  if (k === 'i' || k === 'I'){ G.infinite = !G.infinite; G.selectHint = 2.0; return true; }
-  if (k === 'Escape' || k === 'c' || k === 'C'){ G.state = S.TITLE; G.selectHint = 0; return true; }
+  if (k === 'i' || k === 'I'){ G.infinite = !G.infinite; G.selectHint = 2.0; saveSettings(); return true; }
+  if (k === 'Escape' || k === 'c' || k === 'C'){ clearBoard(); G.state = S.TITLE; G.selectHint = 0; return true; }
   const num = '1234567'.indexOf(k);
   if (num >= 0 && num < selectItems.length){ G.selectIdx = num; startLevel(num); return true; }
   if (k === 'r' || k === 'R'){ G.selectIdx = 5; startLevel(5); return true; }
@@ -431,12 +649,37 @@ function selectKey(k){
 
 addEventListener('keydown', e => {
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+  if (e.key === 'F5' || e.key === 'F9') e.preventDefault();   // 占用来存/读档，别刷新页面
   keys[e.key] = true;
   mouse.hasPointer = false;            // 一按键盘就交还控制权，准星隐去
   Sound.unlock();
 
   if (e.key === 'm' || e.key === 'M'){ const m = Sound.toggle(); toast(m ? '静音' : '声音开'); return; }
   if (e.key === 'f' || e.key === 'F'){ toggleFullscreen(); return; }
+
+  // R = 继续存档（标题页最显眼的位置就是这个）
+  if (e.key === 'r' || e.key === 'R'){
+    if (G.state === S.TITLE || G.state === S.PAUSE || G.state === S.OVER || G.state === S.WIN){
+      if (hasSave() && loadProgress()) autoSaveArmed = true;
+      else toast('没有找到存档');
+      return;
+    }
+  }
+
+  // 存 / 读 / 删档
+  if (e.key === 'F5'){
+    if (G.state === S.TITLE || G.state === S.SELECT) toast('先开始一局才能存档');
+    else saveProgress(true);
+    return;
+  }
+  if (e.key === 'F9'){
+    if (!hasSave()){ toast('没有找到存档'); return; }
+    if (loadProgress()) autoSaveArmed = true;
+    return;
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace'){
+    if (hasSave()){ clearSave(true); return; }
+  }
 
   // 练习/选关界面：吃掉所有按键
   if (G.state === S.SELECT){ selectKey(e.key); return; }
@@ -499,13 +742,19 @@ cv.addEventListener('pointerdown', e => {
 
 /* ============================ 动作 ============================ */
 function launch(){
-  const b = balls[0];
-  if (!b) return;
-  b.stuck = false;
-  const speed = 460;
-  const ang = rnd(-0.5, 0.5) + (-Math.PI/2);
-  b.vx = Math.cos(ang) * speed;
-  b.vy = Math.sin(ang) * speed;
+  if (!balls.length) return;
+  // 必须释放所有贴板的球：吃过"3"（三球齐发）后掉命，会有一批球一起贴板，
+  // 只发射 balls[0] 的话其余的会永远粘在挡板上。
+  const stuck = balls.filter(b => b.stuck);
+  if (!stuck.length) return;
+  for (const b of stuck){
+    b.stuck = false;
+    b.offset = 0;
+    const speed = 460;
+    const ang = rnd(-0.5, 0.5) + (-Math.PI/2);   // 每个球各自带一点角度差
+    b.vx = Math.cos(ang) * speed;
+    b.vy = Math.sin(ang) * speed;
+  }
   G.state = S.PLAY;
   Sound.wall();
 }
@@ -513,6 +762,7 @@ function launch(){
 function nextLevel(){
   G.level++;
   loadLevel(G.level);
+  saveProgress(false);        // 新一关刚铺好，是个干净的存档点
 }
 
 function toast(text){ G.msg = text; G.msgTimer = 1.6; }
@@ -633,9 +883,11 @@ function damage(b, bx, by){  if (b.solid){
 }
 
 function loseLife(){
-  if (G.infinite){
-    // 练习模式：不扣命、不结束，直接重发球
+  if (G.practice){
+    // 本局是练习模式：不扣命、不结束，直接重发球
+    // 只认 practice（而不是选关开关 infinite），避免开关状态影响普通模式
     G.combo = 0;
+    G.shake = 6;
     Sound.lose();
     resetBall();
     paddle.w = 130;
@@ -651,6 +903,8 @@ function loseLife(){
   if (G.lives <= 0){
     G.state = S.OVER;
     Sound.over();
+    clearSave(false);       // 命耗尽了：存档作废，避免读档回到必死局面
+    autoSaveArmed = false;
     return;
   }
   Sound.lose();
@@ -660,6 +914,7 @@ function loseLife(){
   G.state = S.READY;
   G.msg = '剩余 ' + G.lives + ' 条命';
   G.msgTimer = 1.4;
+  saveProgress(false);      // 掉命也是关键节点
 }
 
 /* ============================ 更新 ============================ */
@@ -670,6 +925,13 @@ function update(dt){
   if (G.slowFx > 0) G.slowFx = Math.max(0, G.slowFx - dt);
   if (G.msgTimer > 0) G.msgTimer = Math.max(0, G.msgTimer - dt);
   if (G.comboTimer > 0){ G.comboTimer -= dt; if (G.comboTimer <= 0) G.combo = 0; }
+
+  // 自动存档：游玩中每 60 秒写一次（只在真正在打的时候计时）
+  if (autoSaveArmed && G.state === S.PLAY){
+    G.playTime += dt;
+    autoSaveTimer += dt;
+    if (autoSaveTimer >= 60) saveProgress(false);
+  }
 
   // 进度停滞计时：长时间没打掉砖块 -> 反弹时会逐渐加扰动（见挡板碰撞处）
   const remain = bricks.reduce((n, b) => n + (b.solid || b.dead ? 0 : 1), 0);
@@ -880,6 +1142,8 @@ function update(dt){
     G.msgTimer = 3;
     Sound.win();
     for (let i = 0; i < 60; i++) addParticles(rnd(60, W-60), rnd(80, 360), ['#31f2ff','#ff3ea5','#ffd93d','#4dff9e'][i%4], 1, 1.2);
+    // 不在这里存档：此刻砖块全空，存档会正好落在"待进下一关"的瞬间。
+    // 存档点放在 nextLevel() 里（新一关刚铺好）。
   }
 }
 
@@ -1105,7 +1369,10 @@ function drawHUD(){
     ctx.fillText('无限生命', W - 40, 68);
     ctx.restore();
   } else {
-    for (let i = 0; i < Math.min(G.lives, 8); i++){
+    // 最多画 7 个点，多出来的用 "+N" 表示，避免生命很多时被静默截断
+    const MAXDOTS = 7;
+    const dots = Math.min(G.lives, MAXDOTS);
+    for (let i = 0; i < dots; i++){
       ctx.save();
       ctx.shadowColor = '#ff3ea5'; ctx.shadowBlur = 12;
       ctx.fillStyle = '#ff3ea5';
@@ -1114,9 +1381,21 @@ function drawHUD(){
       ctx.fill();
       ctx.restore();
     }
+    if (G.lives > MAXDOTS){
+      ctx.save();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.font = 'bold 13px Segoe UI, sans-serif';
+      ctx.fillStyle = '#ff3ea5';
+      ctx.shadowColor = '#ff3ea5'; ctx.shadowBlur = 10;
+      ctx.fillText('+' + (G.lives - MAXDOTS), W - 42 - dots*22 - 4, 48);
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     ctx.font = '11px Segoe UI, sans-serif';
     ctx.fillStyle = 'rgba(223,246,255,.45)';
     ctx.fillText('LEVEL ' + (G.level + 1), W - 40, 68);
+    ctx.restore();
   }
 
   // 连击
@@ -1198,18 +1477,28 @@ function drawOverlay(){
     ctx.restore();
 
     centerText([
-      { text: '最高分  ' + G.best, y: H/2 + 20, font: '14px Segoe UI, sans-serif', color: 'rgba(223,246,255,.6)', blur: 0 },
-      { text: '← →  或  鼠标移动   控制挡板', y: H/2 + 62, font: '15px Segoe UI, sans-serif', color: '#9fe8ff', blur: 6 },
-      { text: '吃到道具会变强 —— 但小心红色的', y: H/2 + 88, font: '15px Segoe UI, sans-serif', color: '#9fe8ff', blur: 6 },
-      { text: '游戏区里那个十字准星就是你的鼠标', y: H/2 + 114, font: '13px Segoe UI, sans-serif', color: 'rgba(159,232,255,.55)', blur: 0 },
-      { text: '按 C 进入「练习 / 选关」—— 可开无限生命，分数不计入最高分', y: H/2 + 140, font: '13px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
+      { text: '最高分  ' + G.best, y: H/2 + 14, font: '14px Segoe UI, sans-serif', color: 'rgba(223,246,255,.6)', blur: 0 },
+      { text: '← →  或  鼠标移动   控制挡板', y: H/2 + 52, font: '15px Segoe UI, sans-serif', color: '#9fe8ff', blur: 6 },
+      { text: '吃到道具会变强 —— 但小心红色的', y: H/2 + 76, font: '15px Segoe UI, sans-serif', color: '#9fe8ff', blur: 6 },
+      { text: '游戏区里那个十字准星就是你的鼠标', y: H/2 + 100, font: '13px Segoe UI, sans-serif', color: 'rgba(159,232,255,.55)', blur: 0 },
+      { text: '按 C 进入「练习 / 选关」—— 可开无限生命，分数不计入最高分', y: H/2 + 124, font: '13px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
     ]);
 
-    const blink = .55 + .45*Math.sin(t * 4);
+    // 存档提示：有存档时把「继续」放在最显眼的位置
+    const si = saveInfo();
     ctx.save();
-    ctx.globalAlpha = blink;
-    centerText([{ text: '按 空格 开始', y: H/2 + 190, font: 'bold 24px Segoe UI, sans-serif', color: '#ffd93d' }]);
+    ctx.globalAlpha = .6 + .4*Math.sin(t * 4);
+    if (si){
+      centerText([{ text: '按 R 继续存档  ·  第 ' + (si.level + 1) + ' 关 · ' + si.score + ' 分 · ' +
+                          (si.infinite ? '练习' : si.lives + ' 命'),
+                    y: H/2 + 158, font: 'bold 18px Segoe UI, sans-serif', color: '#4dff9e' }]);
+    }
     ctx.restore();
+
+    centerText([
+      { text: (si ? '空格 开新局' : '按 空格 开始'),
+        y: H/2 + 194, font: 'bold 24px Segoe UI, sans-serif', color: '#ffd93d' },
+    ]);
     return;
   }
 
@@ -1219,9 +1508,10 @@ function drawOverlay(){
     ctx.fillRect(0,0,W,H);
     ctx.restore();
     centerText([
-      { text: '暂 停', y: H/2 - 20, font: '900 56px Segoe UI, sans-serif', color: '#31f2ff' },
-      { text: 'P / ESC 继续', y: H/2 + 40, font: '16px Segoe UI, sans-serif', color: 'rgba(223,246,255,.75)' },
-      { text: 'C 进入练习 / 选关', y: H/2 + 68, font: '14px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
+      { text: '暂 停', y: H/2 - 30, font: '900 56px Segoe UI, sans-serif', color: '#31f2ff' },
+      { text: 'P / ESC 继续', y: H/2 + 30, font: '16px Segoe UI, sans-serif', color: 'rgba(223,246,255,.75)' },
+      { text: 'C 练习 / 选关        F5 存档        F9 读档',
+        y: H/2 + 58, font: '14px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
     ]);
     return;
   }
@@ -1482,6 +1772,11 @@ function syncFsBtn(){
 }
 for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, syncFsBtn, false);
 syncFsBtn();
+
+// 恢复设置（静音 / 练习模式开关）
+loadSettings();
+// 退出前兜底存一次，避免关标签页丢进度
+addEventListener('beforeunload', () => { if (autoSaveArmed && G.state !== S.OVER) saveProgress(false); });
 
 resize();
 paddle = makePaddle();
