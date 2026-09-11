@@ -324,12 +324,33 @@ let modalFlightTimer = null;
 const MODAL_FLIGHT_MS = 320;
 const MODAL_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';
 
+// ★ 取「图片真实内容」在视口中的矩形，而不是元素框。
+//   网格里的缩略图元素框是固定尺寸（.mini-thumb 36×26、.copy-thumb 56×40、
+//   .timeline-img 80×60），图片靠 object-fit 内接，所以元素框的比例（约 4:3）
+//   ≠ 图片本身的比例（纸币普遍约 1.7:1）。直接拿元素框当飞行起点，图片会带着
+//   错误比例起飞、看起来像被拉伸。这里按真实宽高比算出内接矩形。
+function imageContentRect(el) {
+    const box = el.getBoundingClientRect();
+    const nw = el.naturalWidth || 0, nh = el.naturalHeight || 0;
+    if (!nw || !nh || box.width <= 0 || box.height <= 0) return box;
+    const ar = nw / nh;
+    // contain 内接（over：铺满并溢出，可见部分被框裁掉；这里统一取不溢出的内接矩形）
+    let w = box.width, h = w / ar;
+    if (h > box.height) { h = box.height; w = h * ar; }
+    const left = box.left + (box.width - w) / 2;
+    const top = box.top + (box.height - h) / 2;
+    // 注意：必须带上 right / bottom —— closeModal 用它们判断缩略图是否还在视口内，
+    // 缺了就会导致「关闭时缩回」这一步永远不触发。
+    return { left: left, top: top, width: w, height: h, right: left + w, bottom: top + h };
+}
+
 // 视口内「按 contain 铺满」的矩形
 function modalContainRect(ar) {
     const vw = window.innerWidth, vh = window.innerHeight;
     let w = vw, h = vw / ar;
     if (h > vh) { h = vh; w = vh * ar; }
-    return { left: (vw - w) / 2, top: (vh - h) / 2, width: w, height: h };
+    const left = (vw - w) / 2, top = (vh - h) / 2;
+    return { left: left, top: top, width: w, height: h, right: left + w, bottom: top + h };
 }
 
 function cancelModalFlight() {
@@ -419,7 +440,7 @@ function openModal(imgSrc1, imgSrc2) {
 
     let flying = false;
     if (canFly) {
-        const from = sourceEl.getBoundingClientRect();
+        const from = imageContentRect(sourceEl);
         if (from.width >= 8 && from.height >= 8) {
             // 缩略图与原图等比，直接用缩略图的宽高比即可
             startModalFlight(from, modalContainRect(from.width / from.height),
@@ -474,7 +495,7 @@ function closeModal() {
     let flown = false;
     if (!prefersReducedMotion() && src && src.isConnected && modalImg &&
         typeof src.getBoundingClientRect === 'function') {
-        const to = src.getBoundingClientRect();
+        const to = imageContentRect(src);
         const onScreen = to.bottom > 0 && to.top < window.innerHeight &&
                          to.right > 0 && to.left < window.innerWidth;
         if (onScreen && to.width >= 8 && to.height >= 8) {
