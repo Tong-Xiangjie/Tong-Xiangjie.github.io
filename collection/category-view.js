@@ -140,6 +140,8 @@ function renderCategoryOverview(cat) {
             const c = item.copy;
             const img1 = getImageUrl(c.img1);
             const img2 = getImageUrl(c.img2);
+            const thumb1 = getThumbUrl(c.img1);
+            const thumb2 = getThumbUrl(c.img2);
             const displayName = item.hasVarieties && item.variety
                 ? `${item.series.seriesName} - ${item.variety.varietyName}`
                 : item.series.seriesName;
@@ -149,8 +151,8 @@ function renderCategoryOverview(cat) {
 
             html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
             html += `<div class="dual-thumb">`;
-            if (img1) html += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-            if (img2) html += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+            if (img1) html += `<img class="mini-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+            if (img2) html += `<img class="mini-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
             if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
             html += `</div>`;
             html += `<div class="info">`;
@@ -246,13 +248,15 @@ function renderCopiesList(copies, detailFields, displayName) {
 
         const img1 = getImageUrl(c.img1);
         const img2 = getImageUrl(c.img2);
+        const thumb1 = getThumbUrl(c.img1);
+        const thumb2 = getThumbUrl(c.img2);
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = formatCatalogNumber(catalogNum);
 
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
-        if (img1) html += `<img class="copy-thumb" src="${img1}" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        if (img2) html += `<img class="copy-thumb" src="${img2}" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (img1) html += `<img class="copy-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img class="copy-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
         if (!img1 && !img2) html += `<div class="copy-thumb no-img">我的图捏？？？</div>`;
         html += `</div>`;
         html += `<div class="copy-info">`;
@@ -415,10 +419,13 @@ function openCopyDetail(idx) {
 
     const img1 = getImageUrl(copy.img1);
     const img2 = getImageUrl(copy.img2);
+    // 卡片里用缩略图（48% 宽度约 300px），点开大图才加载原图
+    const thumb1 = getThumbUrl(copy.img1);
+    const thumb2 = getThumbUrl(copy.img2);
     if (img1 || img2) {
         html += `<div class="info-lightbox-imgs">`;
-        if (img1) html += `<img src="${img1}" alt="" onclick="openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        if (img2) html += `<img src="${img2}" alt="" onclick="openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (img1) html += `<img src="${thumb1}"${thumbFallbackAttr(img1)} alt="" onclick="openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img src="${thumb2}"${thumbFallbackAttr(img2)} alt="" onclick="openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
         html += `</div>`;
     }
 

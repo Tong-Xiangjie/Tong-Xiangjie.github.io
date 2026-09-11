@@ -142,6 +142,20 @@ function renderSettingsPage() {
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">清除 jsDelivr CDN 缓存（GitHub 更新后最长 12 小时内生效，purge 后可立即看到新内容）。提交后请稍候几秒再刷新页面。</p>`;
     html += `</div>`;
 
+    // 离线预缓存
+    const precacheAutoLabel = (typeof precacheAutoEnabled === 'function' && precacheAutoEnabled())
+        ? '自动预缓存：开' : '自动预缓存：关';
+    html += `<div class="settings-section">`;
+    html += `<h3>离线预缓存</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" onclick="togglePrecacheAuto()"><span id="precacheAutoText">${precacheAutoLabel}</span></button>`;
+    html += `<button class="export-btn" onclick="runPrecacheSpecial()">预缓存专题图片</button>`;
+    html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部图片</span></button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" id="precacheStatus" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">本地已缓存 0 张图片</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">专题页图片是懒加载的，没滚到的不会被下载、也就无法离线查看。开启自动预缓存后会在后台低并发补齐（不阻塞浏览；左下角显示进度，可随时点 × 停止）；省流量模式或 2G/3G 网络下不会自动触发。「预缓存全部图片」会下载全部数据引用图及其缩略图（约 1600 个文件、约 775MB），请按需使用。</p>`;
+    html += `</div>`;
+
     html += `<div class="settings-section">`;
     html += `<h3>数据导出</h3>`;
     html += `<div class="export-buttons">`;
@@ -170,6 +184,9 @@ function renderSettingsPage() {
             if (typeof setTheme === 'function') setTheme(color);
         });
     });
+
+    // ★ 异步刷新离线预缓存的已缓存张数
+    if (typeof precacheRefreshStatus === 'function') precacheRefreshStatus();
 }
 
 function togglePriceList() {

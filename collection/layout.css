@@ -1045,6 +1045,49 @@ body.modal-open {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
+/* ========== 离线预缓存指示器 ========== */
+/* 放在左下角，避开右下角的图片重试按钮（.img-retry-fab） */
+.precache-chip {
+    position: fixed;
+    left: 16px;
+    bottom: 72px;
+    max-width: 60vw;
+    padding: 6px 10px;
+    border-radius: 16px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    font-size: 0.72rem;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 900;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+    user-select: none;
+}
+.precache-chip.show {
+    opacity: 0.95;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.precache-chip-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.precache-chip-cancel {
+    flex-shrink: 0;
+    cursor: pointer;
+    color: var(--theme);
+    font-weight: bold;
+    padding: 0 2px;
+}
+
 /* ========== 缓存按钮固定宽度 ========== */
 #clearCacheBtn, #clearArticleCacheBtn, #purgeCdnBtn {
     width: 132px;

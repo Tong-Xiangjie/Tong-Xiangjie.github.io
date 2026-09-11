@@ -113,6 +113,8 @@ function renderItemElement(data) {
   const copy = item.copy;
   const img1 = getImageUrl(copy.img1);
   const img2 = getImageUrl(copy.img2);
+  const thumb1 = getThumbUrl(copy.img1);
+  const thumb2 = getThumbUrl(copy.img2);
   const displayName = item.hasVarieties
     ? `${item.series.seriesName} - ${item.variety.varietyName}`
     : item.series.seriesName;
@@ -127,8 +129,8 @@ function renderItemElement(data) {
   const detailHtml = detailParts.join(' · ');
 
   let thumbHtml = '';
-  if (img1) thumbHtml += `<img class="mini-thumb" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-  if (img2) thumbHtml += `<img class="mini-thumb" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+  if (img1) thumbHtml += `<img class="mini-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+  if (img2) thumbHtml += `<img class="mini-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
   if (!img1 && !img2) thumbHtml += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
 
   const dataKey = item.dataKey;

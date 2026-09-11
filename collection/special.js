@@ -275,9 +275,10 @@ function renderSpecialContent() {
         for (const item of group) {
             const index = specialItemsList.indexOf(item);
             const imgUrl = getImageUrl(item.yearImg || item.img);
+            const thumbUrl = getThumbUrl(item.yearImg || item.img);
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
-                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.name || item.scene || '')}" loading="lazy"></div>`;
+                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${thumbUrl}"${thumbFallbackAttr(imgUrl)} alt="${escapeHtml(item.name || item.scene || '')}" loading="lazy"></div>`;
             } else {
                 html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">还木有图片</div>`;
             }
@@ -299,6 +300,9 @@ function renderSpecialContent() {
         }, 50);
     }
     triggerViewAnimation();
+
+    // ★ 专题页图片是懒加载的，渲染完成后在后台补齐（见 precache.js）
+    if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
 // ========== 灯箱 ==========
@@ -501,8 +505,9 @@ function renderShanheList(config) {
         for (const { item } of chunk) {
             const idx = specialItemsList.indexOf(item);
             const imgUrl = getImageUrl(item.img || item.yearImg);
+            const thumbUrl = getThumbUrl(item.img || item.yearImg);
             html += `<div class="shanhe-list-cell" onclick="openSpecialLightbox(${idx})" title="${escapeHtml(item.scene || item.name || '')}">`;
-            if (imgUrl) html += `<img src="${imgUrl}" alt="" loading="lazy">`;
+            if (imgUrl) html += `<img src="${thumbUrl}"${thumbFallbackAttr(imgUrl)} alt="" loading="lazy">`;
             else html += `<span class="no-img">还木有图片</span>`;
             html += `</div>`;
         }
@@ -532,6 +537,9 @@ function renderShanheList(config) {
         if (cols !== shanheListLastCols) renderShanheList(config);
     });
     shanheListRO.observe(app);
+
+    // ★ 列表视图图片是懒加载的，渲染完成后在后台补齐（见 precache.js）
+    if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
 function shanheHeaderHtml(config) {
@@ -933,9 +941,10 @@ function renderShanheProvince(config) {
         for (const item of list) {
             const index = specialItemsList.indexOf(item);
             const imgUrl = getImageUrl(item.img || item.yearImg);
+            const thumbUrl = getThumbUrl(item.img || item.yearImg);
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
-                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${imgUrl}" alt="${escapeHtml(item.scene || item.name || '')}" loading="lazy"></div>`;
+                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${thumbUrl}"${thumbFallbackAttr(imgUrl)} alt="${escapeHtml(item.scene || item.name || '')}" loading="lazy"></div>`;
             } else {
                 html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">还木有图片</div>`;
             }
@@ -960,6 +969,9 @@ function renderShanheProvince(config) {
         }, 50);
     }
     triggerViewAnimation();
+
+    // ★ 省份页图片是懒加载的，渲染完成后在后台补齐（见 precache.js）
+    if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
 function backFromShanheMap() {
@@ -1313,6 +1325,8 @@ function renderTimelineContent(config) {
                 const c = item.copy;
                 const img1 = getImageUrl(c.img1);
                 const img2 = getImageUrl(c.img2);
+                const thumb1 = getThumbUrl(c.img1);
+                const thumb2 = getThumbUrl(c.img2);
                 const priceText = c.price ? (String(c.price).includes('元') ? c.price : c.price + '元') : '—';
                 const version = c.version || '—';
                 const grade = c.condition || c.grade || '—';
@@ -1341,10 +1355,10 @@ function renderTimelineContent(config) {
                 html += `<div class="timeline-card">`;
                 html += `<div class="timeline-images">`;
                 if (img1) {
-                    html += `<img class="timeline-img" src="${img1}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+                    html += `<img class="timeline-img" src="${thumb1}"${thumbFallbackAttr(img1)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
                 }
                 if (img2) {
-                    html += `<img class="timeline-img" src="${img2}" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+                    html += `<img class="timeline-img" src="${thumb2}"${thumbFallbackAttr(img2)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
                 }
                 if (!img1 && !img2) {
                     html += `<div class="timeline-no-img">无图</div>`;

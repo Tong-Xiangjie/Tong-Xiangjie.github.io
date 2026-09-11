@@ -32,6 +32,40 @@ function getImageUrl(path, subDir = 'comm') {
     }
     return CDN_BASE + subDir + '/' + relative;
 }
+
+// ========== 缩略图路径处理 ==========
+// 缩略图与原图同构，放在图片根目录的 thumb/ 子目录下，且统一为 .jpg：
+//   原图   <图片根目录>/<相对路径>.<ext>
+//   缩略图 <图片根目录>/thumb/<相对路径>.jpg
+// 由 tools/make-thumbs.ps1 生成（宽度 320px / JPEG q80，实测约 13KB/张）。
+// 映射不上的一律回退原图，因此漏生成只会多耗流量，不会导致图片显示不出来。
+const THUMB_ROOT_RE = /^(https?:\/\/cdn\.jsdelivr\.net\/gh\/Tong-Xiangjie\/Tong-Xiangjie\.github\.io@[^/]+\/)(notecollection\/image|coincollection\/image|funcollection\/[^/]+\/images)\/(.+)$/i;
+
+function getThumbUrl(path, subDir = 'comm') {
+    const full = getImageUrl(path, subDir);
+    if (!full) return '';
+    const m = full.match(THUMB_ROOT_RE);
+    if (!m) return full;                       // 未知目录 / 外部 URL → 回退原图
+    const rel = m[3];
+    if (/\.svg$/i.test(rel)) return full;      // 矢量图不做缩略图
+    const slash = rel.lastIndexOf('/');
+    const dir = slash >= 0 ? rel.substring(0, slash + 1) : '';
+    const name = slash >= 0 ? rel.substring(slash + 1) : rel;
+    const stem = name.replace(/\.[^./]+$/, '');
+    return m[1] + m[2] + '/thumb/' + dir + stem + '.jpg';
+}
+
+// 缩略图加载失败时回退原图：返回可直接拼进 <img ...> 的 onerror 属性片段
+function thumbFallbackAttr(originalUrl) {
+    if (!originalUrl) return '';
+    const safe = String(originalUrl)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '%22')
+        .replace(/'/g, '%27');
+    return ` onerror="this.onerror=null;this.src='${safe}'"`;
+}
 // =========================================================
 
 // ========== 全局状态 ==========

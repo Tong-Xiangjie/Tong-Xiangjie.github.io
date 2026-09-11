@@ -57,7 +57,7 @@
 
 ### 5. 专题收藏
 
-通过 `fun-data-bridge.js` 与 `special-bridge.js` 接入趣味收藏数据，当前内置三个专题：
+专题元信息在 `special-bridge.js` 中以 `window.SPECIAL_CONFIGS` 声明（含 `dataFile` / `dataKey` / `dataVar`），数据文件由 `data-loader.js` 在启动时统一动态加载并桥接到 `window.FUN_DATA_MAP`，**无需在 `index.html` 里写 `<script>`**。当前内置四个专题：
 
 - **年份图鉴** — 按年代分组展示，侧边栏年代筛选（倒序 2020s → 1910s）
 - **面额大观** — 按面额分组（分→角→元→万元→亿元→其他按音序，支持 ½¼¾ 等分数），侧边栏面额筛选
@@ -66,6 +66,10 @@
   - **列表视图**：全量主景一览，省份按音序排序，长条（省份-城市）+ 连续图片流展示，图片在隐形相框内悬浮放大
   - **粤港澳切片**：独立放大框（含广东边缘），可点击进入港澳主景
   - 标题右侧「地图/列表」切换，带淡入过渡动画
+- **币海拾年** — 时间轴专题：自动汇集纸币/硬币数据里所有带 `purchaseDate` 的藏品（兼容 `2026年1月15日` 与标准日期格式），按日期分组沿时间轴展示
+  - 顶部工具条：年份下拉 + 月份下拉 + 「最新优先 / 最早优先」排序，右上角显示当前筛选结果件数
+  - 每条显示分类路径全名、冠字号（硬币显示评级机构）、评级得分、购入价格；日期分组头部汇总「这天，你一共花了 N 元」
+  - 没有 `dataFile`：数据在渲染时从 `window.DATA_MAP` / `window.COIN_DATA_MAP` 现算，不额外加载文件
 
 通用特性：
 
@@ -131,19 +135,24 @@
 - 加载完成后自动桥接到 `window.DATA_MAP` / `window.COIN_DATA_MAP`（数据文件保持 `const` 声明不变，loader 通过间接 eval 解析全局变量）
 - **新增一个分类（如银行）只需两步**：新建数据文件 + 分类树加一个带 `dataFile` 的节点，无需改动 `index.html` 或任何桥接文件
 - 启动时显示加载提示（「数据火速赶来中，请稍候……」），加载失败会给出具体报错
-- 趣味收藏（专题）数据仍通过 `fun-data-bridge.js` 与 `special-bridge.js` 静态接入
+- 专题数据同样由 loader 动态加载：`special-bridge.js` 中声明了 `dataFile` 的专题会随启动流程一起载入并桥接到 `window.FUN_DATA_MAP`；无 `dataFile` 的专题（如「币海拾年」）在渲染时从纸币/硬币数据现算
+- 趣味收藏（专题）只需要写**元信息 + 数据文件路径**，加载与桥接全部由 loader 完成
 
-> 旧版 `data-bridge.js` / `coin-data-bridge.js` 已被 `data-loader.js` 取代，可删除；`ui.js` 为未加载的旧版残留，也可删除。
+> 旧版 `data-bridge.js` / `coin-data-bridge.js` / `fun-data-bridge.js` 与 `ui.js` 均已被 `data-loader.js` 及现有模块取代，`collection/` 目录下已不存在这些文件；旧文档里若仍提到它们属残留描述。
 
 ### 12. 图片缓存（离线可用）
 
-通过 Service Worker（`sw.js`）将 CDN 图片缓存到本地：
+通过 Service Worker（`collection/sw.js`）将 CDN 图片缓存到本地，由 `index.html` 末尾注册（scope 为 `/collection/`）：
 
 - 首次访问后，图片秒开且**离线可看图**
 - 采用 stale-while-revalidate 策略：先读本地缓存，同时后台静默更新
-- **只缓存图片**，不缓存数据文件与页面，避免数据更新被缓存卡住
-- 「我的 → 图片缓存 → 清除图片缓存」可手动清空，解决更新后看到旧图的问题
+- **只缓存 `cdn.jsdelivr.net` 上的图片**（按扩展名判定），不缓存数据文件与页面，避免数据更新被缓存卡住
+- **兼容 `<img>` 的跨域 no-cors 请求**：这类响应是 opaque（`ok === false`、`status === 0`），`sw.js` 同时接受 `response.ok` 与 `response.type === 'opaque'`，否则图片永远存不进缓存、离线看图会静默失效
+- 用 `file://` 直接打开页面时不注册（Service Worker 需要安全上下文），此时无缓存能力但不影响其它功能
+- 「我的 → 图片缓存 → 清除图片缓存」可手动清空 `collection-images-*` 缓存，解决更新后看到旧图的问题
 - 更新图片的最佳实践：更换文件名（新 URL 自动绕过缓存），或使用 jsDelivr purge 接口强制刷新
+- 注意第 13 节的「图片重试」会给 URL 追加 `?retry=时间戳`，该 URL 会作为新条目写入缓存；要彻底清理请用上面的清除按钮
+- 只想缓存「真正被浏览过」的图片；想让**没滚到的图也能离线看**，见第 15 节**离线预缓存**
 
 ### 13. 图片重试
 
@@ -160,6 +169,40 @@
 - **我的 → CDN 缓存**：调用 jsDelivr purge 接口清 GitHub 分支缓存（防误触），解决更新后 CDN 最长 12 小时旧内容的问题
 - **缓存三板斧**：内存缓存（按钮）→ 浏览器缓存（no-store）→ CDN 缓存（purge），文章/图片更新后旧内容可彻底解决
 
+### 15. 离线预缓存
+
+第 12 节的图片缓存只覆盖**真正被请求过**的图片；而专题页的图片是 `loading="lazy"`，没滚到的不会被请求，也就无法离线查看。预缓存（`precache.js`）专门补齐这个缺口：
+
+- **只补懒加载缺口**：自动预缓存只挂在三个懒加载渲染点上（专题内容页、山河列表视图、山河省份页）。概览 / 搜索 / 分类页的图片本来就是 eager 加载，浏览时就会被浏览器请求、顺带写入缓存，因此不主动重复下载
+- **单队列 + 幂等**：按 URL 去重，并在入队前先查 Cache Storage，已缓存 / 已排队的一律跳过；跨页面、跨会话重复触发都不会重复下载
+- **低并发、不阻塞**：并发 3，在 `requestIdleCallback` 里启动给首屏让路；左下角显示「离线预缓存 n/m」进度，点 × 可随时停止
+- **省流量保护**：`navigator.connection.saveData` 为真、或网络为 2G/3G 时不自动触发
+- **SW 就绪门控**：页面未被 Service Worker 接管时不预缓存（请求不会被拦截、也就写不进缓存，纯属白耗流量）；此时手动按钮会提示「图片缓存不可用（需要 https 且 Service Worker 已就绪）」
+- **手动入口**：「我的 → 离线预缓存」提供自动开关（localStorage 持久化）、「预缓存专题图片」（约 170 张，正好覆盖懒加载缺口）、「预缓存全部图片」（约 800 张 / 近 780MB，两段式确认），并显示本地已缓存张数
+- 预缓存失败的图片会从去重表移除，下次触发自动重试；失败张数会在进度提示里报出
+- **缩略图与原图一起缓存**：网格里显示的是缩略图（见第 16 节），但原图也一并缓存，这样灯箱大图同样能离线看
+
+> **为什么不让图片全部改成 eager 加载？** 实测平均单图约 0.98 MB，而纸币概览页一次性渲染 632 张（≈600 MB，且它本来就没有懒加载）。取消懒加载只会把专题页从 35~70 MB 抬到同一量级——既不能把全部图片都缓存下来，又拖垮首屏。真正的解法是第 16 节的**缩略图**（已实现：纸币概览页从 ≈619 MB 降到 ≈11 MB）。
+
+### 16. 图片缩略图
+
+列表 / 网格里的图片全部改用缩略图，**灯箱大图仍用原图**。实测平均单图 0.98 MB、缩略图约 18 KB，**压缩比约 56:1**（792 张原图 760 MB → 缩略图 14 MB）。
+
+- **生成工具**：`collection/tools/make-thumbs.ps1`（纯 GDI+，**不需要任何 npm 依赖**）
+  - 输出 `<图片根目录>/thumb/<相对路径>.jpg`，宽度 320px、JPEG 质量 80（`-Width` / `-Quality` 可调）
+  - **增量**：缩略图不比原图旧就跳过；`-Force` 强制重建；可反复运行（自动跳过 `thumb/` 自身）
+  - 按 **EXIF Orientation 纠正方向** —— 浏览器看 `<img>` 会纠正、GDI+ 不会，不处理会让缩略图相对原图"躺着"
+  - 跳过 `.svg`（矢量图不需要缩略图）；PNG 透明通道会铺白底，避免转 JPEG 后变黑
+  - 全量 792 张约 2.5 分钟；`-Limit N` 可先试跑
+- **前端映射**：`core.js` 的 `getThumbUrl()` 从原图 URL 推导缩略图 URL（在图片根目录后插入 `thumb/`、扩展名统一为 `.jpg`）；映射不上的一律回退原图
+- **容错**：每个图片位都带 `thumbFallbackAttr()` 生成的 `onerror` 回退原图，所以**漏生成缩略图只会多耗流量，不会导致图片显示不出来**
+- **用缩略图**：概览页、分类概览、分类内容页藏品图、搜索结果、专题内容页、山河列表 / 省份页、时间轴、详细信息卡片
+- **用原图**：所有灯箱 / 大图查看器（点缩略图才加载原图）
+
+> **新增图片后请重新生成**：`powershell -ExecutionPolicy Bypass -File collection/tools/make-thumbs.ps1`（执行策略允许时也可直接 `.\collection\tools\make-thumbs.ps1`）。忘了跑也不会坏图，只是那些图会回退到原图。
+
+> 校验遗留问题：数据里引用了 **55 张仓库中并不存在的图片**（`taiwan` 28、`gkq` 8、`republic_mfrc` 4、`comm` 4 等）。它们在原站 / CDN 上同样是 404，与本次改动无关，需要补图或清理数据。
+
 ---
 
 ## 技术特性
@@ -169,6 +212,8 @@
 - **懒加载渲染** — 切换到已有容器的视图时，检测到已有内容则跳过重新渲染，仅恢复滚动位置和展开状态
 - **动态数据加载** — `data-loader.js` 按分类树自动加载数据文件并桥接，新增分类零桥接改动
 - **Service Worker 图片缓存** — 图片本地持久缓存，离线可用
+- **离线预缓存** — 单队列、并发 3、`requestIdleCallback` 启动，补齐懒加载没请求到的图片，让「没滚到的图也能离线看」
+- **图片缩略图** — 列表 / 网格统一用 320px 缩略图（压缩比约 56:1），只有灯箱才加载原图；URL 由 `getThumbUrl()` 推导，漏生成自动回退原图
 - **Hammer.js 手势库** — 图片查看器支持捏合缩放和拖拽平移
 - **间接 eval 桥接** — 兼容旧站 `const` 声明的数据全局变量（数据文件无需改动）
 - **侧边栏长标题文字比例压缩** — 超长标题按 Word 式横向压扁（`scaleX`），无省略号、不换行、`▸` 恒在右侧，宽度变化自动重算（ResizeObserver）
@@ -183,9 +228,9 @@
 |---|---|
 | 纸币 | 纸币收藏品概览、分类浏览、搜索 |
 | 硬币 | 硬币收藏品概览、分类浏览、搜索 |
-| 专题 | 专题展示（年份图鉴 / 面额大观 / 方寸山河，地图/列表双视图） |
+| 专题 | 专题展示（年份图鉴 / 面额大观 / 方寸山河（地图/列表双视图）/ 币海拾年时间轴） |
 | 文章 | 文章阅读、全文搜索、文章缓存重载 |
-| 我的 | 统计概览、价格列表、评级/年代统计、主题色、图片缓存、文章缓存、CDN 缓存、数据导出 |
+| 我的 | 统计概览、价格列表、评级/年代统计、主题色、图片缓存、文章缓存、CDN 缓存、离线预缓存、数据导出 |
 
 ---
 
@@ -195,7 +240,9 @@
 
 - `../notecollection/` — 纸币数据（纪念钞、连体钞、人民币、港币、澳门币、台币、外币、民国纸币、票证等）
 - `../coincollection/` — 硬币数据（纪念币、流通币、金银币）
-- `../funcollection/` — 趣味收藏数据
+- `../funcollection/` — 趣味收藏数据（`years/`、`denom/`、`shanhe/`）
+
+> `notecollection/data/` 下曾有两个**未被任何页面引用**的遗留文件：`hk.js`（含演示数据 `AB123456`）、`macau.js`（空 `series: []`），已被 `hk_boc.js` / `hk_hsbc.js` / `hk_sc.js` / `hk_gov.js` 与 `macau_boc.js` / `macau_bnu.js` 取代，现已删除。**注意 `vietnam.js` 仍在被旧站（`notecollection` / `newcollection`）使用，不要删** —— 新版 `collection` 的分类树暂未配置「越南」。
 
 **数据文件约定**（保持与旧站兼容，新站自动适配）：
 
@@ -263,45 +310,34 @@ const hangSengData = {
 
 ### 新增一个专题（如「某某图鉴」）
 
-**① 新建数据文件** `funcollection/xxx/data.js`，声明**数据数组**和**专题元信息**：
+只需两步：
+
+**① 新建数据数组** `funcollection/xxx/data.js`（只需声明一个全局变量，loader 通过它取值）：
 
 ```js
 // 数据数组：每项含 year（数字）、name、krause、yearImg
 const xxxItems = [
     { year: 2000, name: "xxx 1元", krause: "Pick# 100", yearImg: "https://cdn.jsdelivr.net/gh/.../funcollection/xxx/images/2000-1.jpg" }
 ];
+```
 
-// 专题元信息
-const specialXXXMeta = {
+**② `special-bridge.js`** 往 `window.SPECIAL_CONFIGS` 里加一项：
+
+```js
+window.SPECIAL_CONFIGS.push({
     id: 'xxx',
     name: '某某图鉴',
+    slogan: '一句话标语（有 slogan 时概览页显示长条卡片）',
     dataKey: 'xxxData',
-    categories: [] // 预留字段；当前侧边栏按 year 自动生成年代筛选，可留空
-};
+    dataFile: '../funcollection/xxx/data.js',
+    dataVar: 'xxxItems',   // 数据文件里的全局变量名；与 dataKey 一致时可省略
+    groupBy: 'year'        // 'year' 按年代分组；'denom' 按面额分组（数据需带 denom）
+});
 ```
 
-**② `fun-data-bridge.js`** 注册数据：
+完事。`data-loader.js` 会遍历 `SPECIAL_CONFIGS`，按 `dataFile` 自动加载并桥接到 `window.FUN_DATA_MAP[dataKey]`，概览卡片、侧边栏分组、内容页、灯箱全部自动生效，**不需要改 `index.html`**。
 
-```js
-window.FUN_DATA_MAP = {
-    yearsData: typeof banknoteYears !== 'undefined' ? banknoteYears : null,
-    xxxData: typeof xxxItems !== 'undefined' ? xxxItems : null
-};
-```
-
-**③ `special-bridge.js`** 注册专题：
-
-```js
-if (typeof specialXXXMeta !== 'undefined') {
-    window.SPECIAL_CONFIGS.push(specialXXXMeta);
-}
-```
-
-**④ `index.html`** 加载数据文件（专题数据为静态加载，插在 fun 数据区）：
-
-```html
-<script src="../funcollection/xxx/data.js"></script>
-```
+> 特殊专题类型：`view: 'map'`（SVG 地图，需配 `mapFile`，数据项字段见下方约定）、`view: 'timeline'`（时间轴，不写 `dataFile`，数据由纸币/硬币的 `purchaseDate` 现算）。
 
 **专题字段约定：**
 - `year`（数字）：存在时自动生成年代筛选侧边栏（倒序 2020s → 1910s），详情页按年份倒序分组；无 `year` 则无侧边栏，直接展示全部

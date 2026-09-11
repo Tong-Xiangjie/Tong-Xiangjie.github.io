@@ -94,11 +94,25 @@
 <script src="settings.js"></script>
 <script src="article.js"></script>
 
+<!-- ========== 离线预缓存 ========== -->
+<script src="precache.js"></script>
+
 <!-- ========== ★ 特殊字符面板 ========== -->
 <script src="symbol-picker.js"></script>
 
 <!-- ========== 入口 ========== -->
 <script src="main.js"></script>
+
+<!-- ========== 图片本地缓存（离线可用） ========== -->
+<script>
+// 注册图片缓存 Service Worker（scope 为 /collection/）
+// file:// 直接打开时不注册：Service Worker 需要安全上下文（https / localhost）
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(function (e) {
+        console.warn('[sw] 图片缓存注册失败：', e);
+    });
+}
+</script>
 
 </body>
 </html>
