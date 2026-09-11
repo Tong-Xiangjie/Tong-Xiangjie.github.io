@@ -578,7 +578,41 @@ function initPinchZoom() {
         e.preventDefault();
     });
     hammerManager.on('panend', function(e) { clampTransform(); });
-    container.addEventListener('dblclick', function(e) { resetTransform(); e.preventDefault(); });
+
+    // ---- 桌面端：滚轮缩放 ----
+    // Hammer 的 pinch 只在触摸双指时生效，鼠标本身没有缩放手段，于是灯箱在桌面上
+    // 完全没法放大（而底部的鼠标操作提示写着"滚轮缩放"，所以这里必须真的实现）。
+    // 先摘掉上一次的监听：initPinchZoom 每次打开弹窗（以及 modalImg.onload）都会调用，
+    // 不摘会不断累积监听器。
+    if (container._wheelZoom) container.removeEventListener('wheel', container._wheelZoom);
+    if (container._dblclickReset) container.removeEventListener('dblclick', container._dblclickReset);
+
+    // 以视口坐标 (clientX, clientY) 为锚点缩放 —— 让光标下的那个点保持不动。
+    // 变换是 translate(x,y) scale(s) 且 origin 为元素中心，所以图片的视觉中心
+    // = 视口中心 + (currentX, currentY)；令锚点在缩放前后重合即可解出新的平移量。
+    function zoomAt(clientX, clientY, factor) {
+        const prev = currentScale;
+        const next = Math.min(4, Math.max(1, prev * factor));
+        if (next === prev) return;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const cx = vw / 2 + currentX, cy = vh / 2 + currentY;
+        const k = next / prev;
+        currentX = clientX - k * (clientX - cx) - vw / 2;
+        currentY = clientY - k * (clientY - cy) - vh / 2;
+        currentScale = next;
+        container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
+        clampTransform();
+    }
+
+    container._wheelZoom = function(e) {
+        if (e.ctrlKey) return;                    // Ctrl+滚轮是浏览器自己的缩放，不抢
+        e.preventDefault();
+        zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    };
+    container._dblclickReset = function(e) { resetTransform(); e.preventDefault(); };
+
+    container.addEventListener('wheel', container._wheelZoom, { passive: false });
+    container.addEventListener('dblclick', container._dblclickReset);
     resetTransform();
 }
 

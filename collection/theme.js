@@ -84,11 +84,9 @@ function getCustomColors() {
 
 function addCustomColor(color) {
     const colors = getCustomColors();
-    if (colors.includes(color)) return;
-    if (colors.length >= 20) {
-        alert('自定义颜色最多20个');
-        return;
-    }
+    if (colors.includes(color)) return;   // 已经有了就当作无事发生（幂等）
+    // 不设数量上限：本站就自己用，几个色块而已。
+    // （原先上限 20 个、超了弹 alert()，既打断操作又和全站风格断裂，已去掉）
     colors.push(color);
     localStorage.setItem('custom-theme-colors', JSON.stringify(colors));
 }

@@ -264,7 +264,7 @@ function renderSpecialContent() {
     for (const key of sortedKeys) for (const item of groups[key]) specialItemsList.push(item);
 
     let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
-    if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">当前您选择查看${escapeHtml(currentSubId)}</p>`;
+    if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">正在看：${escapeHtml(currentSubId)}</p>`;
     html += `</div>`;
 
     for (const key of sortedKeys) {
@@ -583,7 +583,7 @@ function loadShanheViaObject(app, config, items, mapFile) {
         const loadEl = app.querySelector('.shanhe-map-loading');
         // ★★★ 保留进度条，只更新文字 ★★★
         const textEl = loadEl?.querySelector('.loading-text');
-        if (textEl) textEl.textContent = '正在加载地图（本地模式）……';
+        if (textEl) textEl.textContent = '正在把地图搬过来（本地模式）……';
 
         const obj = document.createElement('object');
         obj.data = mapFile;

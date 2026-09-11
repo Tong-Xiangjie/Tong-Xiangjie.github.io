@@ -22,7 +22,7 @@
                 <option value="krause">按目录编号搜索</option>
             </select>
             <div class="search-input-wrapper">
-                <input type="text" class="search-input" id="searchInput" placeholder="初始化加载期间搜索功能暂不可用，请您耐心等待" autocomplete="off">
+                <input type="text" class="search-input" id="searchInput" placeholder="数据还在路上，先让它跑一会儿～" autocomplete="off">
                 <span class="symbol-trigger" id="symbolToggle" title="特殊字符">Ω</span>
             </div>
             <button class="search-btn" id="searchBtn">搜索</button>
@@ -31,7 +31,7 @@
             <!-- ★ 面板放在这里，作为 .search-bar 的直接子元素 -->
             <div class="symbol-panel" id="symbolPanel"></div>
         </div>
-        <div class="search-tip" id="searchTip">当前搜索模式为“实时搜索”，点击“■”可切换至点击搜索模式</div>
+        <div class="search-tip" id="searchTip">现在是「实时搜索」——边打边搜，点“■”能换成「点击搜索」</div>
     </div>
 
     <div class="body-row">
@@ -70,7 +70,10 @@
             <img id="modalImg" class="modal-img" src="" alt="预览图">
         </div>
     </div>
-    <div class="modal-tip">双指缩放 | 拖动查看 | 单击关闭</div>
+    <div class="modal-tip">
+        <span class="tip-touch">双指缩放 | 拖动查看 | 单击关闭</span>
+        <span class="tip-mouse">滚轮缩放 | 拖动查看 | 双击还原 | 点击空白关闭</span>
+    </div>
 </div>
 
 <!-- ========== 配置 + 桥接 ========== -->

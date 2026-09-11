@@ -246,11 +246,11 @@ async function preloadAllArticles() {
   if (isArticlePreloading) return;
   isArticlePreloading = true;
   const tip = document.getElementById('searchTip');
-  if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，我们正在全力加载……';
+  if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
   const promises = collectedArticles.map(article => preloadArticle(article));
   await Promise.allSettled(promises);
   isArticlePreloading = false;
-  if (tip) tip.textContent = '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 全文索引已就绪，可根据标题和正文内容进行检索';
+  if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文索引准备好啦，标题和正文都能搜';
 }
 
 async function preloadArticle(article) {

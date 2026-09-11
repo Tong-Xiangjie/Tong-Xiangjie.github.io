@@ -755,6 +755,13 @@ body.modal-open {
     pointer-events: none;
     z-index: 1001;
 }
+/* 提示语按指针类型区分：触摸设备讲手势，鼠标设备讲鼠标操作。
+   用 (hover/pointer) 而不是屏幕宽度判断 —— 触屏笔记本插上鼠标也能得到正确文案。 */
+.modal-tip .tip-mouse { display: none; }
+@media (hover: hover) and (pointer: fine) {
+    .modal-tip .tip-touch { display: none; }
+    .modal-tip .tip-mouse { display: inline; }
+}
 
 /* 大图共享元素过渡：从缩略图位置生长到全屏（关闭时缩回）
    飞行层是独立元素，不使用 #imageContainer，因此不会干扰 Hammer 的捏合缩放。 */

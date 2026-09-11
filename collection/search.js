@@ -467,11 +467,11 @@ function updateSearchUIForMode() {
   // ★ 根据当前板块动态修改搜索框占位文字
   if (input) {
     if (currentMode === MODE.ARTICLES) {
-      input.placeholder = '您正在选定的板块内搜索';
+      input.placeholder = '只在当前板块里翻哦';
     } else if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
-      input.placeholder = '您正在全局范围内搜索';
+      input.placeholder = '全站范围都能搜哦';
     } else {
-      input.placeholder = '搜索功能已禁用';
+      input.placeholder = '这页没搜索功能啦';
     }
   }
 
@@ -481,8 +481,8 @@ function updateSearchUIForMode() {
     select.classList.add('hidden');
     toggle.classList.remove('hidden');
     toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
-    toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前为按标题索引，点击“标”字可以切换为全字段索引' : '当前为全字段索引，点击“全”字可以切换为按标题索引';
-    tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '当前模式为按标题索引（实时搜索），点击“标”字可以切换为全字段索引' : '当前模式为全字段索引（实时搜索），点击“全”字可以切换为按标题索引 | 请先等待全文搜索准备就绪，我们正在全力加载……';
+    toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '现在是按标题找，点“标”字能切到全文索引' : '现在是全文索引，点“全”字能切回按标题找';
+    tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '现在是按标题找（边打边搜），点“标”字能切到全文索引' : '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
   } else if (currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS) {
     select.classList.add('hidden');
     toggle.classList.add('hidden');
@@ -493,7 +493,7 @@ function updateSearchUIForMode() {
     const modeSearch = getEffectiveSearchMode();
     toggle.textContent = modeSearch === SEARCH_MODE.CLICK ? '□' : '■';
     toggle.title = '切换搜索模式';
-    tip.textContent = `当前搜索模式为“${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
+    tip.textContent = `现在是「${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」——${modeSearch === SEARCH_MODE.CLICK ? '打完按回车，或点右边的按钮' : '边打边搜'}，点“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
   }
 }
 
@@ -559,7 +559,7 @@ function toggleSearchMode() {
   const tip = document.getElementById('searchTip');
   const toggleChar = newMode === SEARCH_MODE.CLICK ? '□' : '■';
   if (toggle) toggle.textContent = toggleChar;
-  if (tip) tip.textContent = `当前搜索模式为“${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}”，点击“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”可切换至${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}模式`;
+  if (tip) tip.textContent = `现在是「${newMode === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」——${newMode === SEARCH_MODE.CLICK ? '打完按回车，或点右边的按钮' : '边打边搜'}，点“${newMode === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${newMode === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
 
   const input = document.getElementById('searchInput');
   if (input) {

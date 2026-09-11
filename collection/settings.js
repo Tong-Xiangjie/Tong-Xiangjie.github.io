@@ -83,7 +83,22 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
-    const presetColors = ['#1677ff', '#d92121', '#00b42a', '#ff7d00', '#722ed1'];
+    // 预设主题色：按色相绕一圈排（蓝 → 靛 → 紫 → 玫红 → 红 → 酒红 → 铜 → 金 → 橙 → 绿 → 墨绿 → 青碧）
+    // 「铜」是呼应站名「铜の币纪」特意加的。
+    const presetColors = [
+        '#1677ff', // 蓝（默认）
+        '#2f54eb', // 靛蓝
+        '#722ed1', // 紫
+        '#eb2f96', // 玫红
+        '#d92121', // 红
+        '#820014', // 酒红
+        '#b87333', // 铜
+        '#ad8b00', // 金
+        '#ff7d00', // 橙
+        '#00b42a', // 绿
+        '#237804', // 墨绿
+        '#08979c'  // 青碧
+    ];
     for (const color of presetColors) {
         const active = color === currentTheme ? ' active' : '';
         html += `<div class="theme-color${active}" style="background:${color}" data-color="${color}"></div>`;
@@ -92,7 +107,7 @@ function renderSettingsPage() {
 
     html += `<div class="saved-colors" id="savedColorsContainer">`;
     if (customColors.length === 0) {
-        html += `<span class="empty-colors-hint">您还没有设定自定义颜色～</span>`;
+        html += `<span class="empty-colors-hint">还没攒下自定义颜色～</span>`;
     } else {
         for (let i = 0; i < customColors.length; i++) {
             const color = customColors[i];
@@ -118,7 +133,7 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="clearCacheBtn" onclick="clearImageCache()"><span id="clearCacheText">清除图片缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片由 Service Worker 缓存到本地，可离线查看。更新图片后若仍显示旧图，点击此按钮清除缓存并刷新页面。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片会被 Service Worker 存到本地，离线也能看。换了图还显示旧图的话，点它清一下再刷新～</p>`;
     html += `</div>`;
 
     // 文章缓存
@@ -127,7 +142,7 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()"><span id="clearArticleCacheText">清除文章缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中，更新文章后若仍显示旧内容，请点击清除后重新打开。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文存在内存里，改了文章还看到旧内容，点它清掉再打开一次就好～</p>`;
     html += `</div>`;
 
     // 离线预缓存
@@ -141,8 +156,8 @@ function renderSettingsPage() {
     html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部（含原图）</span></button>`;
     html += `</div>`;
     html += `<p class="export-hint" id="precacheStatus" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">本地已缓存 0 张图片</p>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">专题页图片是懒加载的，没滚到的不会被下载、也就无法离线查看。开启自动预缓存后会在后台低并发补齐当前页面（不阻塞浏览；左下角显示进度，可随时点 × 停止）；省流量模式或 2G/3G 网络下不会自动触发。</p>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">「预缓存全部缩略图」约 <b>14MB</b>，离线时网格完整可看（灯箱显示低清占位）。「预缓存全部（含原图）」约 <b>775MB</b>，会消耗本站的 GitHub Pages 带宽配额（软限 100GB/月），<b>请勿反复点击</b>；原图在你正常点开大图时会被自动缓存，通常并不需要它。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">专题页的图是懒加载的：没滚到的不会下载、离线就看不到。开着自动预缓存的话，它会在后台慢慢把当前页补齐（不影响浏览；左下角有进度，点 × 能停）。省流量模式或 2G/3G 下不会自己跑。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">「预缓存全部缩略图」约 <b>14MB</b>，离线时网格能完整看（灯箱只有低清占位）。「预缓存全部（含原图）」约 <b>775MB</b>，会吃掉本站的 GitHub Pages 带宽（软限 100GB/月），<b>别反复点</b>；原图在你点开大图时会自动存下来，一般用不着它。</p>`;
     html += `</div>`;
 
     html += `<div class="settings-section">`;
@@ -153,7 +168,7 @@ function renderSettingsPage() {
     html += `<button class="export-btn" onclick="exportMarkdown()">概览报告.md</button>`;
     html += `<button class="export-btn" onclick="exportPriceList()">价格清单.txt</button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点击按钮将会自动下载相应文件</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点一下就自动下载啦～</p>`;
     html += `</div>`;
 
     html += `</div>`;
@@ -238,10 +253,10 @@ async function performClearImageCache() {
                 }
             }
         }
-        fadeText('已清空，请刷新页面');
+        fadeText('清好啦，刷新看看～');
         setTimeout(() => fadeText('清除图片缓存'), 2000);
     } catch (e) {
-        fadeText('缓存清空失败');
+        fadeText('没清掉…再试一次？');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
     }
 }
