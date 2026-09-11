@@ -129,8 +129,8 @@ function renderItemElement(data) {
   const detailHtml = detailParts.join(' · ');
 
   let thumbHtml = '';
-  if (img1) thumbHtml += `<img class="mini-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-  if (img2) thumbHtml += `<img class="mini-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+  if (img1) thumbHtml += `<img class="mini-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+  if (img2) thumbHtml += `<img class="mini-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
   if (!img1 && !img2) thumbHtml += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
 
   const dataKey = item.dataKey;

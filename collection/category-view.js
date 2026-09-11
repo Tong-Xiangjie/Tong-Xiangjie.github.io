@@ -151,8 +151,8 @@ function renderCategoryOverview(cat) {
 
             html += `<div class="search-result-item" onclick="navigateFromOverview('${item.dataKey}', ${item.si}, ${item.hasVarieties ? item.vi : 'null'}, ${item.ci}, ${item.hasVarieties})">`;
             html += `<div class="dual-thumb">`;
-            if (img1) html += `<img class="mini-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-            if (img2) html += `<img class="mini-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+            if (img1) html += `<img class="mini-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+            if (img2) html += `<img class="mini-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
             if (!img1 && !img2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">O_O</div>`;
             html += `</div>`;
             html += `<div class="info">`;
@@ -171,6 +171,9 @@ function renderCategoryOverview(cat) {
 
     app.innerHTML = html;
     triggerViewAnimation();
+
+    // ★ 分类概览图片是懒加载的，渲染完成后在后台补齐
+    if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
 function renderSeriesList(data, title) {
@@ -235,6 +238,9 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
+
+    // ★ 藏品列表图片是懒加载的，渲染完成后在后台补齐
+    if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
 function renderCopiesList(copies, detailFields, displayName) {
@@ -255,8 +261,8 @@ function renderCopiesList(copies, detailFields, displayName) {
 
         html += `<div class="copy-item">`;
         html += `<div class="dual-thumb">`;
-        if (img1) html += `<img class="copy-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
-        if (img2) html += `<img class="copy-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+        if (img1) html += `<img class="copy-thumb" src="${thumb1}"${thumbFallbackAttr(img1)} loading="lazy" decoding="async" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+        if (img2) html += `<img class="copy-thumb" src="${thumb2}"${thumbFallbackAttr(img2)} loading="lazy" decoding="async" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
         if (!img1 && !img2) html += `<div class="copy-thumb no-img">我的图捏？？？</div>`;
         html += `</div>`;
         html += `<div class="copy-info">`;
@@ -303,13 +309,30 @@ function toggleVariety(id) {
 }
 
 // ========== 图片弹窗 ==========
+// ★ 秒开策略：先用缩略图占位 —— 它通常已经在缓存里（网格刚显示过），可以瞬间出图；
+//   原图在后台静默加载，到货后再无缝替换。避免点开后对着黑屏等 1MB 下载。
+let modalOriginalUrl = '';
+let modalLoadToken = 0;
+
 function openModal(imgSrc1, imgSrc2) {
     currentModalImg1 = imgSrc1;
     currentModalImg2 = imgSrc2;
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
-    if (!modal || !modalImg) return;
-    modalImg.src = imgSrc1;
+    if (!modal || !modalImg || !imgSrc1) return;
+
+    modalOriginalUrl = imgSrc1;
+    const token = ++modalLoadToken;
+    const previewUrl = getThumbUrl(imgSrc1) || imgSrc1;
+
+    // 缩略图万一没有 → 回退原图
+    modalImg.onerror = function () {
+        modalImg.onerror = null;
+        if (modalOriginalUrl && modalImg.src !== modalOriginalUrl) {
+            modalImg.src = modalOriginalUrl;
+        }
+    };
+    modalImg.src = previewUrl;
     modal.style.display = 'flex';
 
     const container = document.getElementById('imageContainer');
@@ -324,6 +347,22 @@ function openModal(imgSrc1, imgSrc2) {
 
     modalImg.onload = function() { initPinchZoom(); };
     if (modalImg.complete) initPinchZoom();
+
+    // 后台拉原图，到货后替换（用 detached Image，避免干扰弹窗自身的 onload/onerror）
+    if (previewUrl !== imgSrc1) {
+        const full = new Image();
+        full.onload = function () {
+            if (token !== modalLoadToken) return;   // 已切到别的图，丢弃这次结果
+            modalImg.onerror = null;
+            modalImg.src = imgSrc1;
+            const c = document.getElementById('imageContainer');
+            if (c) {
+                c.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
+                currentScale = 1; currentX = 0; currentY = 0;
+            }
+        };
+        full.src = imgSrc1;
+    }
 }
 
 function closeModal() {
