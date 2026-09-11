@@ -264,8 +264,7 @@ const POWERS = [
 const S = { TITLE:0, READY:1, PLAY:2, PAUSE:3, LEVEL:4, DEAD:5, OVER:6, WIN:7, SELECT:8 };
 
 // 练习 / 选关：5 个设计关卡 + 2 个随机关卡入口
-const LEVEL_NAMES  = ['上手关', '菱形', '交错条纹', '要塞', '金字塔'];
-const LEVEL_NOTES  = ['三行整排，无实心砖', '菱形空洞，中心三血砖', '砖最少洞最多，球路活',
+const LEVEL_NAMES  = ['上手关', '菱形', '交错条纹', '要塞', '金字塔'];const LEVEL_NOTES  = ['三行整排，无实心砖', '菱形空洞，中心三血砖', '砖最少洞最多，球路活',
                       '十块实心砖围成要塞', '金字塔，五血砖最密'];
 const SELECT_MARKS = ['1', '2', '3', '4', '5', '6', '7'];
 const selectItems = LEVEL_NAMES.map((name, i) => ({
@@ -295,6 +294,7 @@ const G = {
   practice: false,        // 本局是否练习模式（练习分数不计入最高分）
   selectIdx: 0,
   selectHint: 0,
+  confirmNew: false,      // "开新局会覆盖存档"的二次确认
   msg: '',
   msgTimer: 0,
   flash: 0,
@@ -396,6 +396,7 @@ function newGame(){
   G.practice = false;
   G.infinite = false;     // 普通模式必须显式关掉无限生命，否则会从选关界面"泄漏"进来
   G.playTime = 0;
+  G.confirmNew = false;
   paddle = makePaddle();
   loadLevel(0);
   autoSaveArmed = true;
@@ -407,6 +408,7 @@ function startSelect(){
   G.infinite = false;
   G.selectIdx = 0;
   G.selectHint = 0;
+  G.confirmNew = false;
   clearBoard();
   G.state = S.SELECT;
 }
@@ -482,6 +484,96 @@ function serializeSave(){
     grid: gri,
     balls: bl
   };
+}
+
+/* ---------- 跨设备：存档码 ----------
+   没有服务器，localStorage 不会自己同步。这里把存档压成一段可复制的文本，
+   用聊天工具/备忘录传过去，在另一台设备粘贴导入即可。 */
+const SHARE_PREFIX = 'NB1';
+
+function checksum(str){
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36).slice(0, 4).padStart(4, '0');
+}
+
+function b64encode(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk){
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+function b64decode(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+// 返回存档码（形如 NB1-ab12-<base64>），失败返回 null
+function encodeShareCode(){
+  try {
+    const json = JSON.stringify(serializeSave());
+    return SHARE_PREFIX + '-' + checksum(json) + '-' + b64encode(json);
+  } catch (e){ return null; }
+}
+
+// 解析存档码。失败返回 { error: '原因' }
+function decodeShareCode(text){
+  const raw = String(text || '').replace(/\s+/g, '');      // 容忍换行/空格
+  if (!raw) return { error: '内容为空' };
+  const parts = raw.split('-');
+  if (parts.length < 3) return { error: '格式不对（应以 NB1- 开头）' };
+  if (parts[0] !== SHARE_PREFIX) return { error: '版本不符（' + parts[0] + '）' };
+  const sum = parts[1];
+  const body = parts.slice(2).join('-');                    // base64 里可能有 '-'？标准表没有，保险起见拼回去
+  let json;
+  try { json = b64decode(body); }
+  catch (e){ return { error: '编码损坏，复制时可能少了字符' }; }
+  if (checksum(json) !== sum) return { error: '校验失败，多半是复制不完整' };
+  let data;
+  try { data = JSON.parse(json); }
+  catch (e){ return { error: '内容不是合法存档' }; }
+  try { Store.set(SAVE_KEY, JSON.stringify(data)); }
+  catch (e){ return { error: '写入存档失败（空间不足）' }; }
+  const info = saveInfo();
+  if (!info) { Store.del(SAVE_KEY); return { error: '存档校验未通过，已丢弃' }; }
+  return { ok: true, info };
+}
+
+/* ---------- 导入界面状态 ---------- */
+const importUI = { active: false, text: '', msg: '', ok: false };
+
+function openImport(){
+  importUI.active = true;
+  importUI.text = '';
+  importUI.msg = '把存档码粘贴进来（Ctrl+V），或直接手输';
+  importUI.ok = false;
+  G.confirmNew = false;
+}
+function closeImport(){
+  importUI.active = false;
+  importUI.text = '';
+  importUI.msg = '';
+}
+function tryImport(text){
+  const res = decodeShareCode(text);
+  if (res.ok){
+    importUI.ok = true;
+    importUI.msg = '导入成功：第 ' + (res.info.level + 1) + ' 关 · ' + res.info.score + ' 分';
+    Sound.win();
+    loadProgress();
+    autoSaveArmed = true;
+    setTimeout(closeImport, 700);
+    return true;
+  }
+  importUI.ok = false;
+  importUI.msg = '导入失败：' + res.error;
+  Sound.bad();
+  return false;
 }
 
 function saveProgress(manual){
@@ -587,6 +679,7 @@ function loadProgress(){
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !b.solid && !b.dead).length;
   G.shake = 0; G.flash = 0; G.slowFx = 0;
+  G.confirmNew = false;              // 读档即退出"开新局"确认态
   G.state = (d.state === S.PLAY && balls.some(b => !b.stuck)) ? S.PLAY : S.READY;
   G.msg = '已读档 · 第 ' + (G.level + 1) + ' 关';
   G.msgTimer = 2.2;
@@ -613,9 +706,40 @@ function loadSettings(){
   } catch (e){}
 }
 
-/* ============================ 输入 ============================ */
+/* ---------- 存档码导出界面 ---------- */
+const shareUI = { active: false, code: '', copied: false, msg: '' };
+
+function openShare(){
+  const code = encodeShareCode();
+  if (!code){ toast('没有可导出的存档'); return; }
+  shareUI.active = true;
+  shareUI.code = code;
+  shareUI.copied = false;
+  shareUI.msg = '这段文本就是你的存档，复制到另一台设备后按 I 导入';
+  G.confirmNew = false;
+  // 尽量顺手复制到剪贴板（本地文件或非安全上下文下可能被拒绝，所以界面里也会显示全文）
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(() => {
+        shareUI.copied = true;
+        shareUI.msg = '已复制到剪贴板 —— 发到另一台设备，在那里按 I 粘贴导入';
+      }, () => {});
+    }
+  } catch (e){}
+}
+function closeShare(){ shareUI.active = false; shareUI.code = ''; shareUI.msg = ''; }
+
+// 把长代码按固定宽度切成多行（canvas 不能自动换行）
+function wrapCode(code, perLine){
+  const out = [];
+  for (let i = 0; i < code.length; i += perLine) out.push(code.slice(i, i + perLine));
+  return out;
+}
+
+
 const keys = Object.create(null);
 let pointerTarget = null;
+/* ============================ 输入 ============================ */
 // 自绘准星状态：canvas 上设了 cursor:none（挡板就是光标），所以必须自己画一个，
 // 否则游戏区里完全看不见鼠标。用鼠标操作时显示，键盘操作/指针离开时隐藏。
 const mouse = { x: W/2, y: H/2, hasPointer: false, onField: true };
@@ -654,16 +778,50 @@ addEventListener('keydown', e => {
   mouse.hasPointer = false;            // 一按键盘就交还控制权，准星隐去
   Sound.unlock();
 
+  // ---- 模态输入界面必须最先拦截，否则 m / f / r 这类单键会被下面的快捷键吃掉 ----
+  if (importUI.active){
+    if (e.key === 'Enter'){ tryImport(importUI.text); return; }
+    if (e.key === 'Escape'){ closeImport(); return; }
+    if (e.key === 'Backspace'){
+      importUI.text = importUI.text.slice(0, -1);
+      importUI.msg = importUI.text ? '长度 ' + importUI.text.length + ' · 回车导入 · Esc 取消'
+                                   : '把存档码粘贴进来（Ctrl+V），或直接手输';
+      importUI.ok = false;
+      return;
+    }
+    // 允许手输的字符（存档码是 base64 + 数字字母短横线）
+    if (e.key.length === 1 && /[A-Za-z0-9+/=_-]/.test(e.key)){
+      if (importUI.text.length < 20000) importUI.text += e.key;
+      importUI.msg = '长度 ' + importUI.text.length + ' · 回车导入 · Esc 取消';
+      importUI.ok = false;
+    }
+    return;
+  }
+
+  // ---- 导出存档码界面 ----
+  if (shareUI.active){
+    if (['Escape','e','E','Enter','r','R'].includes(e.key)){ closeShare(); return; }
+    return;                                  // 界面打开时吞掉其余按键
+  }
+
   if (e.key === 'm' || e.key === 'M'){ const m = Sound.toggle(); toast(m ? '静音' : '声音开'); return; }
   if (e.key === 'f' || e.key === 'F'){ toggleFullscreen(); return; }
 
   // R = 继续存档（标题页最显眼的位置就是这个）
   if (e.key === 'r' || e.key === 'R'){
     if (G.state === S.TITLE || G.state === S.PAUSE || G.state === S.OVER || G.state === S.WIN){
+      G.confirmNew = false;              // 继续存档即取消"开新局"的确认
       if (hasSave() && loadProgress()) autoSaveArmed = true;
       else toast('没有找到存档');
       return;
     }
+  }
+
+  // 确认开新局期间按了别的键：先取消确认，再让该按键正常生效
+  // （而不是把按键整个吞掉——否则想按 C 进选关会"按了没反应"）
+  if (G.confirmNew && e.key !== ' ' && e.key !== 'Enter'){
+    G.confirmNew = false;
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') return;   // 这两个只用于取消
   }
 
   // 存 / 读 / 删档
@@ -675,6 +833,13 @@ addEventListener('keydown', e => {
   if (e.key === 'F9'){
     if (!hasSave()){ toast('没有找到存档'); return; }
     if (loadProgress()) autoSaveArmed = true;
+    return;
+  }
+  // E / I：导出、导入存档码（跨设备就靠这个）
+  if (e.key === 'e' || e.key === 'E'){ openShare(); return; }
+  if (e.key === 'i' || e.key === 'I'){
+    if (G.state === S.SELECT){ selectKey(e.key); return; }   // 选关界面里 I 是无限生命开关
+    openImport();
     return;
   }
   if (e.key === 'Delete' || e.key === 'Backspace'){
@@ -693,17 +858,27 @@ addEventListener('keydown', e => {
     return;
   }
   if (e.key === ' '){
-    if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN){ newGame(); return; }
+    if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN){ requestNewGame(); return; }
     if (G.state === S.READY){ launch(); return; }
     if (G.state === S.LEVEL){ nextLevel(); return; }
   }
   if (e.key === 'Enter'){
-    if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN) newGame();
+    if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN) requestNewGame();
     else if (G.state === S.READY) launch();
     else if (G.state === S.LEVEL) nextLevel();
   }
 });
 addEventListener('keyup', e => { keys[e.key] = false; });
+// 导入时直接支持 Ctrl+V 粘贴
+addEventListener('paste', e => {
+  if (!importUI.active) return;
+  const t = (e.clipboardData && e.clipboardData.getData) ? e.clipboardData.getData('text') : '';
+  if (!t) return;
+  if (e.preventDefault) e.preventDefault();
+  importUI.text = t.trim();
+  importUI.msg = '已粘贴 ' + importUI.text.length + ' 个字符 · 回车导入 · Esc 取消';
+  importUI.ok = false;
+});
 addEventListener('blur', () => {
   for (const k in keys) keys[k] = false;
   if (G.state === S.PLAY) G.state = S.PAUSE;
@@ -735,12 +910,29 @@ cv.addEventListener('pointerdown', e => {
     selectHitTest(w.x, w.y);
     return;
   }
-  if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN) newGame();
+  if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN) requestNewGame();
   else if (G.state === S.READY) launch();
   else if (G.state === S.LEVEL) nextLevel();
 });
 
 /* ============================ 动作 ============================ */
+// 开新局要防误触：有存档时按一次只是"请求"，再按一次才真的开始
+// （否则一个手滑的空格就把存档覆盖了）
+function requestNewGame(){
+  if (hasSave() && !G.confirmNew){
+    G.confirmNew = true;
+    Sound.hard();
+    return;
+  }
+  G.confirmNew = false;
+  newGame();
+}
+
+function cancelConfirm(){
+  if (G.confirmNew){ G.confirmNew = false; return true; }
+  return false;
+}
+
 function launch(){
   if (!balls.length) return;
   // 必须释放所有贴板的球：吃过"3"（三球齐发）后掉命，会有一批球一起贴板，
@@ -1482,22 +1674,38 @@ function drawOverlay(){
       { text: '吃到道具会变强 —— 但小心红色的', y: H/2 + 76, font: '15px Segoe UI, sans-serif', color: '#9fe8ff', blur: 6 },
       { text: '游戏区里那个十字准星就是你的鼠标', y: H/2 + 100, font: '13px Segoe UI, sans-serif', color: 'rgba(159,232,255,.55)', blur: 0 },
       { text: '按 C 进入「练习 / 选关」—— 可开无限生命，分数不计入最高分', y: H/2 + 124, font: '13px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
+      { text: 'E 导出存档码（可发到别的设备）· I 导入存档码', y: H/2 + 146, font: '13px Segoe UI, sans-serif', color: 'rgba(77,255,158,.75)', blur: 0 },
     ]);
 
     // 存档提示：有存档时把「继续」放在最显眼的位置
     const si = saveInfo();
-    ctx.save();
-    ctx.globalAlpha = .6 + .4*Math.sin(t * 4);
-    if (si){
+    if (si && !G.confirmNew){
+      ctx.save();
+      ctx.globalAlpha = .6 + .4*Math.sin(t * 4);
       centerText([{ text: '按 R 继续存档  ·  第 ' + (si.level + 1) + ' 关 · ' + si.score + ' 分 · ' +
                           (si.infinite ? '练习' : si.lives + ' 命'),
-                    y: H/2 + 158, font: 'bold 18px Segoe UI, sans-serif', color: '#4dff9e' }]);
+                    y: H/2 + 170, font: 'bold 18px Segoe UI, sans-serif', color: '#4dff9e' }]);
+      ctx.restore();
     }
-    ctx.restore();
+
+    if (G.confirmNew){
+      // 二次确认：明确告知会覆盖存档，并给出退路
+      centerText([
+        { text: '开新局会覆盖当前存档', y: H/2 + 158, font: 'bold 20px Segoe UI, sans-serif', color: '#ff9f1c' },
+        { text: '第 ' + (si.level + 1) + ' 关 · ' + si.score + ' 分 将被清除',
+          y: H/2 + 182, font: '13px Segoe UI, sans-serif', color: 'rgba(255,159,28,.75)', blur: 0 },
+      ]);
+      ctx.save();
+      ctx.globalAlpha = .55 + .45*Math.sin(t * 6);
+      centerText([{ text: '再按一次 空格 / 点击  确认    ·    Esc 或 R 取消',
+                    y: H/2 + 212, font: 'bold 17px Segoe UI, sans-serif', color: '#ff5b5b' }]);
+      ctx.restore();
+      return;
+    }
 
     centerText([
-      { text: (si ? '空格 开新局' : '按 空格 开始'),
-        y: H/2 + 194, font: 'bold 24px Segoe UI, sans-serif', color: '#ffd93d' },
+      { text: (si ? '空格 开新局（会覆盖存档）' : '按 空格 开始'),
+        y: H/2 + 202, font: 'bold 24px Segoe UI, sans-serif', color: '#ffd93d' },
     ]);
     return;
   }
@@ -1508,10 +1716,12 @@ function drawOverlay(){
     ctx.fillRect(0,0,W,H);
     ctx.restore();
     centerText([
-      { text: '暂 停', y: H/2 - 30, font: '900 56px Segoe UI, sans-serif', color: '#31f2ff' },
-      { text: 'P / ESC 继续', y: H/2 + 30, font: '16px Segoe UI, sans-serif', color: 'rgba(223,246,255,.75)' },
+      { text: '暂 停', y: H/2 - 40, font: '900 56px Segoe UI, sans-serif', color: '#31f2ff' },
+      { text: 'P / ESC 继续', y: H/2 + 14, font: '16px Segoe UI, sans-serif', color: 'rgba(223,246,255,.75)' },
       { text: 'C 练习 / 选关        F5 存档        F9 读档',
-        y: H/2 + 58, font: '14px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
+        y: H/2 + 42, font: '14px Segoe UI, sans-serif', color: 'rgba(255,217,61,.7)', blur: 0 },
+      { text: 'E 导出存档码（跨设备）        I 导入存档码',
+        y: H/2 + 68, font: '14px Segoe UI, sans-serif', color: 'rgba(77,255,158,.85)', blur: 0 },
     ]);
     return;
   }
@@ -1656,6 +1866,80 @@ function drawSelect(){
                 color: 'rgba(223,246,255,.4)', blur: 0 }]);
 }
 
+// 存档码导出界面：把代码按行铺开，方便手抄/截图/复制
+function drawShareScreen(){
+  ctx.save();
+  ctx.fillStyle = '#04050d';   // 不透明：避免透出后面的 HUD/关卡
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  centerText([{ text: '存 档 码', y: 62, font: '900 36px Segoe UI, sans-serif', color: '#31f2ff' }]);
+  centerText([{ text: shareUI.msg, y: 98, font: '13px Segoe UI, sans-serif',
+                color: shareUI.copied ? '#4dff9e' : 'rgba(223,246,255,.65)', blur: 0 }]);
+
+  const lines = wrapCode(shareUI.code, 44);
+  const top = 132, lh = 19;
+  ctx.save();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold 15px Consolas, "Courier New", monospace';
+  ctx.fillStyle = '#dff6ff';
+  ctx.shadowColor = '#31f2ff'; ctx.shadowBlur = 6;
+  // 用暗色底衬出选区，方便三击选中整段
+  const bw = Math.min(44, ...lines.map(l => l.length)) * 9.1 + 24;
+  ctx.globalAlpha = .5;
+  ctx.fillStyle = 'rgba(49,242,255,.10)';
+  roundRect(60, top - 16, W - 120, lines.length * lh + 20, 10);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#dff6ff';
+  lines.forEach((l, i) => ctx.fillText(l, 74, top + i * lh));
+  ctx.restore();
+
+  centerText([
+    { text: '同一台设备的备份：按 F9 读档即可恢复', y: H - 96, font: '13px Segoe UI, sans-serif',
+      color: 'rgba(223,246,255,.5)', blur: 0 },
+    { text: '换设备：把上面整段发过去（聊天/备忘录都行），在那台设备打开游戏后按 I 粘贴导入',
+      y: H - 70, font: '14px Segoe UI, sans-serif', color: '#9fe8ff', blur: 6 },
+    { text: 'Esc / Enter 关闭', y: H - 38, font: 'bold 15px Segoe UI, sans-serif', color: '#ffd93d' },
+  ]);
+}
+
+// 存档码导入界面
+function drawImportScreen(){
+  ctx.save();
+  ctx.fillStyle = '#04050d';   // 不透明：避免透出后面的 HUD/关卡
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  centerText([{ text: '导 入 存 档', y: 92, font: '900 36px Segoe UI, sans-serif', color: '#4dff9e' }]);
+  centerText([{ text: importUI.msg, y: 130, font: '14px Segoe UI, sans-serif',
+                color: importUI.ok ? '#4dff9e' : (importUI.text ? '#ff9f1c' : 'rgba(223,246,255,.7)'), blur: 0 }]);
+
+  // 输入框
+  ctx.save();
+  ctx.strokeStyle = importUI.ok ? '#4dff9e' : 'rgba(49,242,255,.5)';
+  ctx.lineWidth = 2;
+  if (importUI.ok){ ctx.shadowColor = '#4dff9e'; ctx.shadowBlur = 12; }
+  roundRect(70, 168, W - 140, 132, 12);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.font = 'bold 14px Consolas, "Courier New", monospace';
+  ctx.fillStyle = importUI.text ? '#dff6ff' : 'rgba(223,246,255,.3)';
+  const shown = importUI.text || '（在这里 Ctrl+V 粘贴存档码…）';
+  wrapCode(shown, 52).slice(0, 6).forEach((l, i) => ctx.fillText(l, 88, 186 + i * 19));
+  ctx.restore();
+
+  centerText([
+    { text: 'Ctrl+V 粘贴   ·   回车 导入   ·   Esc 取消', y: H - 108, font: 'bold 16px Segoe UI, sans-serif', color: '#ffd93d' },
+    { text: '存档码来自另一台设备的「E 导出」', y: H - 76, font: '13px Segoe UI, sans-serif',
+      color: 'rgba(223,246,255,.5)', blur: 0 },
+    { text: '导入会覆盖本机当前存档', y: H - 46, font: '13px Segoe UI, sans-serif', color: 'rgba(255,91,91,.75)', blur: 0 },
+  ]);
+}
+
 // 自绘准星：细十字 + 中心点 + 外圈虚线 + 一道光晕（因为原生光标被 cursor:none 隐藏了）
 // 全屏后指针始终在画布内；若落在上下/左右的留边上，准星变暗表示"这里不控制挡板"
 function drawReticle(){
@@ -1746,6 +2030,9 @@ function render(){
     drawHUD();
     drawOverlay();
   }
+  // 存档码界面压在最上层（可能从任意状态唤起）
+  if (shareUI.active) drawShareScreen();
+  else if (importUI.active) drawImportScreen();
   drawReticle();          // 最后画，保证浮在所有覆盖层之上
 }
 

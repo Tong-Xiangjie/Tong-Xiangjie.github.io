@@ -47,7 +47,25 @@ function run(src){
     clear: () => { for (const k of Object.keys(store)) delete store[k]; },
   };
   global.devicePixelRatio = 2;
-  global.addEventListener = () => {};
+  const keydownHandlers = [];
+  const pasteHandlers = [];
+  global.addEventListener = (type, fn) => {
+    if (type === 'keydown') keydownHandlers.push(fn);
+    if (type === 'paste') pasteHandlers.push(fn);
+  };
+  const pressKey = (key) => {
+    const ev = { key, preventDefault(){}, stopPropagation(){} };
+    for (const fn of keydownHandlers) fn(ev);
+  };
+  const pasteText = (text) => {
+    const ev = {
+      clipboardData: { getData: (t) => (t === 'text' || !t ? text : '') },
+      preventDefault(){},
+    };
+    for (const fn of pasteHandlers) fn(ev);
+  };
+  global.pressKey = pressKey;      // 垫片在 eval 出的全局作用域执行，需要从 global 取
+  global.__paste = pasteText;
   let pending = [];
   global.requestAnimationFrame = cb => { pending.push(cb); return pending.length; };
   global.performance = { now: () => 0 };
@@ -78,7 +96,9 @@ globalThis.$GAME = {
   setInfinite: v => { G.infinite = v; },
   view, toWorld, toggleFullscreen, isFullscreen, pointerMove,
   pointerTarget: () => pointerTarget,
-  drawHUD,
+  drawHUD, requestNewGame, cancelConfirm, pressKey: globalThis.pressKey,
+  encodeShareCode, decodeShareCode, openShare, closeShare, openImport, closeImport,
+  tryImport, shareUI, importUI,
   saveProgress, loadProgress, hasSave, clearSave, saveInfo, serializeSave,
   saveSettings, loadSettings, SAVE_KEY, SET_KEY,
   rawSave: () => Store.get(SAVE_KEY), rawSet: () => Store.get(SET_KEY),
@@ -960,6 +980,316 @@ globalThis.$GAME = {
       // 复原 ctx
       for (const m of METHODS) if (savedM[m]) c2[m] = savedM[m];
       c2.fillText = savedFillText;
+      $.newGame();
+    }
+    /* ================ 16. 开新局二次确认（防误触） ================ */
+    section('开新局二次确认（空格不会误删存档）');
+    {
+      for (const k of Object.keys(store)) delete store[k];
+
+      // ---- 有存档时的确认流程 ----
+      $.newGame();
+      $.launch();
+      frames(120, { steer:true, keepAlive:true });
+      const saveScore = $.snap().G.score;
+      const saveLevel = $.snap().G.level;
+      const savedRaw = store[$.SAVE_KEY];
+      check('已有存档（前置条件）', $.hasSave() === true && saveScore > 0, 'score=' + saveScore);
+
+      // 回到标题页
+      $.snap().G.state = 0;
+
+      // 第一次请求：只进入确认态，绝不动存档
+      $.requestNewGame();
+      check('第一次按空格只进入确认态', $.snap().G.confirmNew === true);
+      check('确认态下存档原封不动', store[$.SAVE_KEY] === savedRaw,
+            '存档被改动了');
+      check('确认态下没有开新局（分数/关卡未变）',
+            $.snap().G.score === saveScore && $.snap().G.level === saveLevel,
+            `score=${$.snap().G.score} level=${$.snap().G.level}`);
+      check('确认态下 state 仍是标题页', $.snap().G.state === 0, 'state=' + $.snap().G.state);
+
+      // 可以取消
+      $.cancelConfirm();
+      check('取消后退出确认态且存档完好', $.snap().G.confirmNew === false && store[$.SAVE_KEY] === savedRaw);
+
+      // 再请求一次，然后确认
+      $.requestNewGame();
+      check('可再次进入确认态', $.snap().G.confirmNew === true);
+      $.requestNewGame();
+      check('第二次确认后才真的开新局', $.snap().G.confirmNew === false && $.snap().G.state === 1,
+            `confirm=${$.snap().G.confirmNew} state=${$.snap().G.state}`);
+      check('新局分数归零、生命重置', $.snap().G.score === 0 && $.snap().G.lives === 3,
+            `score=${$.snap().G.score} lives=${$.snap().G.lives}`);
+      check('存档已换成新局的', store[$.SAVE_KEY] !== savedRaw && $.saveInfo().score === 0);
+
+      // ---- 无存档时不应有确认步骤（第一次就开局） ----
+      for (const k of Object.keys(store)) delete store[k];
+      $.snap().G.state = 0;
+      check('无存档时 hasSave=false', $.hasSave() === false);
+      $.requestNewGame();
+      check('无存档时一次按键直接开局', $.snap().G.confirmNew === false && $.snap().G.state === 1,
+            `confirm=${$.snap().G.confirmNew} state=${$.snap().G.state}`);
+
+      // ---- 过关态/结束态也不能绕过确认 ----
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+      $.launch();
+      frames(60, { steer:true, keepAlive:true });
+      const raw2 = store[$.SAVE_KEY];
+      $.snap().G.state = S_OVER;
+      $.requestNewGame();
+      check('GAME OVER 界面按空格同样先确认', $.snap().G.confirmNew === true && store[$.SAVE_KEY] === raw2,
+            'confirm=' + $.snap().G.confirmNew);
+      $.requestNewGame();
+      check('确认后从 GAME OVER 开新局', $.snap().G.state === 1 && $.snap().G.confirmNew === false);
+
+      // ---- 读到存档后确认态必须清掉，避免误开局 ----
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+      $.launch();
+      frames(60, { steer:true, keepAlive:true });
+      const raw3 = store[$.SAVE_KEY];
+      $.snap().G.state = 0;
+      $.requestNewGame();
+      check('进入确认态', $.snap().G.confirmNew === true);
+      store[$.SAVE_KEY] = raw3;
+      $.loadProgress();
+      check('读档后确认态被清除', $.snap().G.confirmNew === false);
+      check('读档后 state 不是标题页（不会被误当成开局）', $.snap().G.state !== 0, 'state=' + $.snap().G.state);
+
+      // ---- 选关界面会清掉确认态 ----
+      $.newGame();
+      $.snap().G.state = 0;
+      $.requestNewGame();
+      $.startSelect();
+      check('进入选关界面后确认态被清除', $.snap().G.confirmNew === false);
+
+      // ---- 通过真实 keydown 事件走一遍分发逻辑（内部函数单测覆盖不到这里） ----
+      {
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.launch();
+        frames(90, { steer:true, keepAlive:true });
+        const rawK = store[$.SAVE_KEY];
+        $.snap().G.state = 0;                      // 标题页
+        const titleState = () => $.snap().G.state;
+
+        // 空格的分布：第一次请求确认、第二次真开局
+        $.pressKey(' ');
+        check('[键盘] 第一次空格进入确认态且未开局',
+              $.snap().G.confirmNew === true && titleState() === 0 && store[$.SAVE_KEY] === rawK,
+              `confirm=${$.snap().G.confirmNew} state=${titleState()}`);
+        $.pressKey('Escape');
+        check('[键盘] Esc 取消确认，且没有把标题页切走',
+              $.snap().G.confirmNew === false && titleState() === 0,
+              `confirm=${$.snap().G.confirmNew} state=${titleState()}`);
+
+        $.pressKey(' ');
+        check('[键盘] 再次空格重新进入确认态', $.snap().G.confirmNew === true);
+        $.pressKey('r');
+        check('[键盘] R 取消确认并读档（不会误开局）',
+              $.snap().G.confirmNew === false && titleState() !== 0,
+              `confirm=${$.snap().G.confirmNew} state=${titleState()}`);
+
+        // 回到标题页，用空格确认开局；第二次空格前先验证存档未被改
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.launch();
+        frames(90, { steer:true, keepAlive:true });
+        const rawK2 = store[$.SAVE_KEY];
+        $.snap().G.state = 0;
+        $.pressKey(' ');
+        check('[键盘] 确认态下存档未被提前覆盖', store[$.SAVE_KEY] === rawK2);
+        $.pressKey(' ');
+        check('[键盘] 第二次空格真正开新局',
+              $.snap().G.confirmNew === false && titleState() === 1 && $.snap().G.score === 0,
+              `confirm=${$.snap().G.confirmNew} state=${titleState()} score=${$.snap().G.score}`);
+
+        // 其他按键应当取消确认（避免带着确认状态跳走）
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.launch(); frames(60, { steer:true, keepAlive:true });
+        $.snap().G.state = 0;
+        $.pressKey(' ');
+        $.pressKey('c');                           // C 会进选关，同时应清掉确认
+        check('[键盘] 按 C 进选关时确认态被清掉',
+              $.snap().G.confirmNew === false && $.snap().G.state === 8,
+              `confirm=${$.snap().G.confirmNew} state=${$.snap().G.state}`);
+        $.snap().G.state = 0;
+
+        // Enter 与空格同源，也必须确认
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.launch(); frames(60, { steer:true, keepAlive:true });
+        $.snap().G.state = 0;
+        $.pressKey('Enter');
+        check('[键盘] Enter 同样先确认不直接开局',
+              $.snap().G.confirmNew === true && titleState() === 0, 'state=' + titleState());
+        $.pressKey('Enter');
+        check('[键盘] Enter 二次确认后开局', titleState() === 1 && $.snap().G.score === 0);
+      }
+
+      // 收尾
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+    }
+    /* ================ 17. 存档码（跨设备） ================ */
+    section('存档码：导出 / 导入 / 抗损坏');
+    {
+      for (const k of Object.keys(store)) delete store[k];
+
+      // ---- 造一局有特征的局面 ----
+      $.newGame();
+      $.launch();
+      frames(200, { steer:true, keepAlive:true });
+      $.snap().G.level = 3; $.loadLevel(3); $.snap().G.level = 3;
+      $.snap().G.score = 7777; $.snap().G.lives = 4;
+      const B = $.snap().bricks.filter(b => !b.solid);
+      B[0].dead = true; B[2].dead = true;
+      if (B[1] && B[1].max > 1) B[1].hp = 2;
+      frames(2, { steer:true });
+
+      // ---- 导出（expect 必须紧贴导出时刻取值，中间不能再推进帧） ----
+      const src = $.snap();
+      const brokenNow = src.bricks.filter(b => b.dead).length;
+      const expect = {
+        level: src.G.level, score: src.G.score, lives: src.G.lives,
+        broken: brokenNow,
+        // 被击破的砖不会进存档，读档后只还原存活砖
+        bricks: src.bricks.length - brokenNow,
+        hp: src.bricks.reduce((n,b)=> n + (b.dead ? 0 : b.hp), 0),
+        paddleW: src.paddle.w,
+      };
+      check('导出前确实有砖被击破（否则覆盖不到这个分支）', brokenNow > 0, 'broken=' + brokenNow);
+      const code = $.encodeShareCode();
+      check('能导出行存档码', typeof code === 'string' && code.length > 20, 'len=' + (code || '').length);
+      check('存档码带版本前缀与校验段', /^NB1-[0-9a-z]{4}-[A-Za-z0-9+/=]+$/.test(code), code ? code.slice(0, 24) + '…' : 'null');
+      check('存档码只含可安全传输的字符', /^[A-Za-z0-9+/=_-]+$/.test(code), '含异常字符');
+      check('存档码长度适中（便于聊天工具传输）', code.length < 8000, 'len=' + code.length);
+
+      // 导出不应改动当前局面
+      {
+        const now = $.snap();
+        check('导出是只读操作，不改变局面',
+              now.G.score === expect.score &&
+              now.bricks.length - now.bricks.filter(b => b.dead).length === expect.bricks,
+              `score=${now.G.score} 存活=${now.bricks.length - now.bricks.filter(b=>b.dead).length}`);
+      }
+
+      // ---- 模拟"另一台设备"：清空本机存档，再导入 ----
+      for (const k of Object.keys(store)) delete store[k];
+      check('清空后本机没有存档', $.hasSave() === false);
+
+      const res = $.decodeShareCode(code);
+      check('导入成功', res.ok === true, JSON.stringify(res));
+      check('导入后本机有了存档', $.hasSave() === true);
+
+      const ok2 = $.loadProgress();
+      const got = $.snap();
+      check('导入的存档可以正常读档', ok2 === true);
+      check('跨设备后关卡一致', got.G.level === expect.level, `${got.G.level} vs ${expect.level}`);
+      check('跨设备后分数一致', got.G.score === expect.score, `${got.G.score} vs ${expect.score}`);
+      check('跨设备后生命一致', got.G.lives === expect.lives, `${got.G.lives} vs ${expect.lives}`);
+      check('跨设备后挡板宽度一致', got.paddle.w === expect.paddleW, `${got.paddle.w} vs ${expect.paddleW}`);
+      check('跨设备后剩余砖块数一致', got.bricks.length === expect.bricks, `${got.bricks.length} vs ${expect.bricks}`);
+      check('跨设备后受损砖血量一致', got.bricks.reduce((n,b)=>n+b.hp,0) === expect.hp,
+            `${got.bricks.reduce((n,b)=>n+b.hp,0)} vs ${expect.hp}`);
+
+      // ---- 真实粘贴流程：走 keydown 与 paste 事件 ----
+      {
+        const code2 = $.encodeShareCode();
+        for (const k of Object.keys(store)) delete store[k];
+        $.pressKey('i');
+        check('[键盘] I 打开导入界面', $.importUI.active === true);
+        check('导入界面初始为空', $.importUI.text === '');
+        // 模拟粘贴
+        global.__paste(code2);
+        check('粘贴后内容进入输入框', $.importUI.text === code2, 'len=' + $.importUI.text.length);
+        $.pressKey('Enter');
+        check('回车完成导入', $.hasSave() === true);
+        $.loadProgress();
+        check('粘贴导入后局面正确', $.snap().G.score === expect.score && $.snap().G.level === expect.level,
+              `score=${$.snap().G.score} level=${$.snap().G.level}`);
+      }
+
+      // ---- 手动逐字符输入 ----
+      {
+        const code3 = $.encodeShareCode();
+        for (const k of Object.keys(store)) delete store[k];
+        $.openImport();
+        for (const ch of code3) $.pressKey(ch);
+        check('逐字符手输能凑齐存档码', $.importUI.text === code3, `len=${$.importUI.text.length} vs ${code3.length}`);
+        $.pressKey('Backspace');
+        check('退格能删除一个字符', $.importUI.text.length === code3.length - 1);
+        for (const ch of code3.slice(-1)) $.pressKey(ch);
+        $.pressKey('Enter');
+        check('手输导入成功', $.hasSave() === true);
+        $.loadProgress();
+        check('手输导入后局面正确', $.snap().G.score === expect.score);
+      }
+
+      // ---- E 打开导出界面 ----
+      {
+        $.newGame();
+        check('有存档时 E 能打开导出界面（返回非空代码）', (() => {
+          const c = $.encodeShareCode();
+          $.openShare();
+          const opened = $.shareUI.active && $.shareUI.code.length > 0;
+          $.closeShare();
+          return opened && c.length > 0;
+        })());
+        check('导出界面关闭后状态复位', $.shareUI.active === false && $.shareUI.code === '');
+      }
+
+      // ---- 抗损坏：各种坏存档码都必须被拒绝，且不破坏本机存档 ----
+      $.newGame();
+      const goodRaw = store[$.SAVE_KEY];
+      const c0 = $.encodeShareCode();
+      const badCodes = [
+        ['空字符串', ''],
+        ['纯空白', '   \n  '],
+        ['随机文字', 'hello world'],
+        ['前缀不对', 'NB2-abcd-' + c0.split('-').slice(2).join('-')],
+        ['缺校验段', 'NB1-' + c0.split('-').slice(2).join('-')],
+        ['校验错', 'NB1-zzzz-' + c0.split('-').slice(2).join('-')],
+        ['body 被截断', c0.slice(0, Math.floor(c0.length * 0.7))],
+        ['body 被改字符', c0.slice(0, c0.length - 6) + 'AAAAAA'],
+        ['校验段乱改', 'NB1-' + (c0.split('-')[1] === 'aaaa' ? 'bbbb' : 'aaaa') + '-' + c0.split('-').slice(2).join('-')],
+      ];
+      let rejected = 0;
+      for (const [name, bad] of badCodes){
+        let r, threw = false;
+        try { r = $.decodeShareCode(bad); } catch(e){ threw = true; }
+        const good = !threw && r && r.ok !== true && typeof r.error === 'string';
+        if (good) rejected++;
+        else check(`坏存档码应被拒绝: ${name}`, false, `threw=${threw} res=${JSON.stringify(r)}`);
+      }
+      check(`9 种坏存档码全部被安全拒绝`, rejected === badCodes.length, `rejected=${rejected}/${badCodes.length}`);
+      check('喂坏存档码后本机存档未被破坏', store[$.SAVE_KEY] === goodRaw);
+
+      // 导入失败后仍可正常游玩
+      $.launch();
+      frames(60, { steer:true, keepAlive:true });
+      check('坏存档码之后游戏仍可正常游玩', $.snap().G.state === 2 || $.snap().G.state === 1);
+
+      // ---- 存档码必须包含校验，单字符改动就能发现 ----
+      {
+        const c = $.encodeShareCode();
+        let caught = 0;
+        for (let i = 0; i < 12; i++){
+          const pos = Math.floor(c.length * (0.15 + 0.7 * i / 12));
+          const ch = c[pos];
+          const alt = ch === 'A' ? 'B' : 'A';
+          const mutated = c.slice(0, pos) + alt + c.slice(pos + 1);
+          const r = $.decodeShareCode(mutated);
+          if (!r.ok) caught++;
+        }
+        check('12 处随机单字符损坏全部被检出', caught === 12, `检出 ${caught}/12`);
+      }
+
+      // 收尾
+      for (const k of Object.keys(store)) delete store[k];
       $.newGame();
     }
   } catch (e){
