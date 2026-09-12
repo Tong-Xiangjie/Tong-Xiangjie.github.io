@@ -1,0 +1,6 @@
+# _shot 是"用 headless Chrome 打开真实 index.html 来出图"的工具链。
+# 这里的 html/ 全是**每次运行都会重新生成**的中间产物：
+#   html/*.html      = 注入驱动后的整页（便于用浏览器直接打开排查）
+#   html/profile/    = Chrome 的 --user-data-dir（8MB+ 的浏览器缓存，纯垃圾）
+# 都不该进版本库。
+html/

@@ -393,7 +393,7 @@ function topUpRows(P){
    关卡图案与存档共用一套小整数编码（存档走 36 进制，天然覆盖 0..35）：
      0 空 · 1..5 普通砖(血量) · -1 实心砖 · 9 金砖
      6 裂纹砖 · 10~13 转弯砖(上/右/下/左) · 20/21 传送门 A/B
-     14 棕色软砖（实心砖被炸开后的形态） · 15 炸药砖 · 16 磁铁砖（击破后留下引力井）
+     14 棕色软砖（实心砖被炸开后的形态） · 15 炸药砖 · 16 磁铁砖（击破它的球获得 10 秒磁力）
    14/15/16 落在 6~13 之后、20 之前，和既有编码不冲突；
    存档写的是 b36(type)，所以 14 -> 'e'、15 -> 'f'、16 -> 'g'，格式不用改版本号。  */
 const T = { EMPTY:0, SOLID:-1, CRACK:6, GOLD:9,
@@ -483,6 +483,208 @@ function fixPortals(P){
   P.forEach((row, r) => row.forEach((v, c) => { if (isPortalTile(v)) cells.push([r, c, v]); }));
   if (cells.length === 2) return;
   for (const [r, c] of cells) P[r][c] = 1;
+}
+
+/* ---------------- 可达性：哪些格子球真的够得到 ----------------
+   这是"卡关"的根因所在，值得把几何讲清楚：
+
+   砖格是 84×33，但砖本身只有 78×26 —— 于是相邻两列之间留 6px 水平缝，
+   相邻两行之间留 7px 垂直缝。而球的**直径是 14px**。
+   一个直径 14px 的圆，无论以什么角度，都不可能穿过 6px 或 7px 的缝。
+   结论：**球只能从"空着的整格"进出，钻不过砖缝**。
+
+   所以"够得到"可以离散化成四连通洪水填充：
+     · 实心砖（-1）是永久的墙（只有炸药砖能软化它，不能指望）；
+     · 其它一切（空位、普通砖、裂纹砖、软砖、炸药砖、磁铁砖、传送门）都不算墙 ——
+       除了实心砖，别的砖都打得掉，打掉之后那格就能进，所以它们"可通行"。
+     · 砖区四周都是开阔地：上方 66px 净空、左右各 36px 竖井、下方是主战场。
+       所以贴着砖区边界、且本身不是实心砖的格子，球一定够得到 → 拿来当种子。
+     · 传送门是"直达"：一扇门够得到，另一扇也就够得到了（球会被送过去），
+       哪怕另一扇在封闭口袋里 —— 所以门要额外传播一次。
+   注：**故意不把炸药砖算作"能拆墙"**。炸药砖确实能把实心砖炸成软砖，但那是
+   玩家的操作、还要求炸药砖本身够得到。这里按"只能靠实心砖以外的手段"保守估计 ——
+   保守只会偶尔多开一道门（无害），漏判则会留下永远打不通的关卡（致命）。 */
+function reachableCells(P){
+  const R = P.length, C = P[0].length;
+  const open = (r, c) => r >= 0 && r < R && c >= 0 && c < C && P[r][c] !== T.SOLID;
+  const seen = Array.from({ length: R }, () => new Array(C).fill(false));
+  const q = [];
+  const seed = (r, c) => { if (open(r, c) && !seen[r][c]){ seen[r][c] = true; q.push([r, c]); } };
+  for (let r = 0; r < R; r++){ seed(r, 0); seed(r, C - 1); }
+  for (let c = 0; c < C; c++){ seed(0, c); seed(R - 1, c); }
+  // 两轮：第一轮灌满场地，第二轮处理"另一扇门在口袋里"的情况
+  for (let round = 0; round < 2; round++){
+    while (q.length){
+      const [r, c] = q.pop();
+      seed(r - 1, c); seed(r + 1, c); seed(r, c - 1); seed(r, c + 1);
+    }
+    const ps = [];
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) if (isPortalTile(P[r][c])) ps.push([r, c]);
+    if (ps.length !== 2) break;
+    const aIn = seen[ps[0][0]][ps[0][1]], bIn = seen[ps[1][0]][ps[1][1]];
+    if (aIn === bIn) break;
+    const far = aIn ? ps[1] : ps[0];
+    seed(far[0], far[1]);
+  }
+  return seen;
+}
+
+// 收尾：保证**每一块可破坏砖都真的够得到**。
+//
+// 为什么必须有这一步：实心砖不可破坏，而球钻不过 6/7px 的砖缝 —— 于是一块可破坏砖
+// 如果四正交邻居全是实心砖，它就被彻底封死了。这种盘面会出现（随机关卡的实心砖
+// 概率高达 22%，四面包围是小概率但必然发生的组合），后果是**这一关永远通不了**：
+//   · 防卡死引导会一直把球朝它引，但球每次都撞在实心砖上弹回来；
+//   · 40 秒强制重发只是换个角度重发，角度再换也进不去。
+// 实测：这种盘面跑满 300 秒自动驾驶（18000 帧），中心砖一次都没被打到，过关 0 次。
+//
+// 修法：把**封住它的那块实心砖改成普通砖**，相当于在墙上开一道门。
+//   · 为什么不改成空格：关卡门限（总数 ≥42 / 每行 ≥6）数的是"非空格子"，
+//     砸成空格会直接冲掉门限。改成普通砖则格子仍非空，门限不受影响。
+//   · 为什么不改成软砖：软砖有"生成器不得产出"的既有约束（只来自实心砖被炸开）。
+//   · 改成普通砖还顺带保住了内容：原本打不到的那块砖现在真的能打了，而不是被删掉。
+// 优先挑一块**自己已经贴着连通区**的实心砖（改它一次就通了）；口袋里层那块
+// 可能四个邻居都在口袋里，所以是先扫出"有实心邻居"的那块再动手。
+// 每轮至少把一块实心砖变成普通砖（实心砖数严格减少），所以一定收敛。
+// trappedFixCount 只是统计用：让测试能证明"这个坑确实会出现"，
+// 而不是让"修复后 0 例"变成一句空转的断言。
+let trappedFixCount = 0;
+// `changed` 是可选的出参：把"这次开了哪几道门"的格子坐标收集起来。
+// 关卡生成时用不上，但**传送门用尽次数后**要在场地中途补一次修复，
+// 那次必须把改动落到场上的砖对象上（见 repairAfterPortalLoss）。
+function openTrappedBricks(P, changed){
+  const R = P.length, C = P[0].length;
+  const inside = (r, c) => r >= 0 && r < R && c >= 0 && c < C;
+  for (let guard = 0; guard < R * C; guard++){
+    const seen = reachableCells(P);
+    const trapped = [];
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++)
+      if (tileBreakable(P[r][c]) && !seen[r][c]) trapped.push([r, c]);
+    if (!trapped.length) return;
+    // 只处理"有实心砖邻居"的那块：改它的实心邻居才开得出门，
+    // 而且这样绝不会让任何一行失去最后一块可破坏砖。
+    const nbrsOf = ([r, c]) => [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]
+      .filter(([nr, nc]) => inside(nr, nc) && P[nr][nc] === T.SOLID);
+    let host = null, wall = null;
+    for (const t of trapped){
+      const ns = nbrsOf(t);
+      if (!ns.length) continue;
+      host = t;
+      // 优先挑一块自己就贴着连通区的实心砖 —— 只改它一块门就开了
+      wall = ns.find(([nr, nc]) => [[nr-1,nc],[nr+1,nc],[nr,nc-1],[nr,nc+1]]
+        .some(([ar, ac]) => inside(ar, ac) && seen[ar][ac])) || ns[0];
+      break;
+    }
+    if (!host){                       // 极端兜底：整片口袋连一块实心边界都没有（理论上不可能）
+      P[trapped[0][0]][trapped[0][1]] = T.SOLID;
+      continue;
+    }
+    P[wall[0]][wall[1]] = 1;          // 实心砖 -> 普通砖（1 血，最小改动）
+    if (changed) changed.push([wall[0], wall[1]]);
+    trappedFixCount++;                // 统计用：本次开局一共开了几道门
+  }
+}
+
+/* ── 收尾 2：把"只有一条一格宽的缝"的洞放宽 ──────────────────────────────
+   第 78 关的存档（玩家发来的分享码）就是这个形状：两块可破坏砖蹲在一格宽的洞里，
+   入口只有右边竖井里的一条缝 —— 球心窗口只有 26px，还必须带着"向左"的速度。
+   这不是"够不到"（洪水填充判定它够得到），所以 openTrappedBricks 一声不吭，
+   而玩家在那儿"弹来弹去、40 秒重置一次"。
+
+   判据 `mouthBand`：球心穿过一条缝时能用的**净空**（只把实心砖当障碍，
+   可破坏砖算"打得掉、不挡路" —— 和 reachableCells 是同一个模型）：
+     · 一格高的横缝 = 33*2 - 26 - 14 = **26px**（第 78 关那条）
+     · 两格高       = 33*3 - 26 - 14 = **59px**
+     · 一格宽的竖缝 = 84*2 - 78 - 14 = **76px**（竖直方向天生就宽）
+   净空 < `NARROW_BAND`(45px) 就算"过窄"。
+
+   修法沿用开门的同一套约定：把**卡住这条缝的那块实心砖改成普通砖（1 血）**。
+     · 为什么不直接砸成空格：门限（总数 ≥42 / 每行 ≥6）数的是"非空格子"，
+       砸成空格会冲掉门限 —— 和 openTrappedBricks 同一个理由。
+     · 新砖自己贴着连通区、只有 1 血，所以很快会被打掉；它一掉，
+       这条缝就从"一格高"变成"两格高"（26px → 59px）。
+     · 优先挑**自己已经贴着连通区**的那块（改它一次就够），和 openTrappedBricks 一致。
+   一次修复只开一格：判据把可破坏砖当"不挡路"，所以开完这一格缝隙就达标了，
+   不会把整面墙拆光（`narrowFixCount` 是给测试用的统计，证明这条规则真的会触发）。 */
+const NARROW_BAND = 45;              // px：球心净空小于这个数就算"过窄"
+const CELL_X = 84, CELL_Y = 33;      // 格距
+const BRICK_W = 78, BRICK_H = 26;    // 砖的实际尺寸
+let narrowFixCount = 0;
+
+// 球心从 (r,c) 穿过 (dr,dc) 那一面时能用的净空（px）
+function mouthBand(P, r, c, dr, dc, radius){
+  const R = P.length, C = P[0].length;
+  const solid = (rr, cc) => (rr < 0 || rr >= R || cc < 0 || cc >= C) ? false : (P[rr][cc] === T.SOLID);
+  if (dr !== 0){                       // 上/下两个面：障碍在这一行与邻行的左右两侧
+    let cl = -1, cr = C;
+    for (let cc = c - 1; cc >= 0; cc--) if (solid(r, cc) || solid(r + dr, cc)){ cl = cc; break; }
+    for (let cc = c + 1; cc < C; cc++) if (solid(r, cc) || solid(r + dr, cc)){ cr = cc; break; }
+    return CELL_X * (cr - cl) - BRICK_W - 2 * radius;
+  }
+  // 左/右两个面：障碍在这一列与邻列的上下两侧
+  const c2 = c + dc;
+  let a = -1, b = R;
+  for (let rr = r - 1; rr >= 0; rr--) if (solid(rr, c) || solid(rr, c2)){ a = rr; break; }
+  for (let rr = r + 1; rr < R; rr++) if (solid(rr, c) || solid(rr, c2)){ b = rr; break; }
+  return CELL_Y * (b - a) - BRICK_H - 2 * radius;
+}
+
+// 卡住 (r,c) 朝 (dr,dc) 这条缝的那两块实心砖（返回优先改的那一块）
+function narrowBottleneck(P, seen, r, c, dr, dc){
+  const R = P.length, C = P[0].length;
+  const inside = (rr, cc) => rr >= 0 && rr < R && cc >= 0 && cc < C;
+  const solid = (rr, cc) => inside(rr, cc) && P[rr][cc] === T.SOLID;
+  const cand = [];
+  if (dr !== 0){
+    for (let cc = c - 1; cc >= 0; cc--) if (solid(r, cc) || solid(r + dr, cc)){ if (solid(r, cc)) cand.push([r, cc]); if (solid(r + dr, cc)) cand.push([r + dr, cc]); break; }
+    for (let cc = c + 1; cc < C; cc++) if (solid(r, cc) || solid(r + dr, cc)){ if (solid(r, cc)) cand.push([r, cc]); if (solid(r + dr, cc)) cand.push([r + dr, cc]); break; }
+  } else {
+    const c2 = c + dc;
+    for (let rr = r - 1; rr >= 0; rr--) if (solid(rr, c) || solid(rr, c2)){ if (solid(rr, c)) cand.push([rr, c]); if (solid(rr, c2)) cand.push([rr, c2]); break; }
+    for (let rr = r + 1; rr < R; rr++) if (solid(rr, c) || solid(rr, c2)){ if (solid(rr, c)) cand.push([rr, c]); if (solid(rr, c2)) cand.push([rr, c2]); break; }
+  }
+  // 优先"自己贴着连通区"的那块：改成普通砖之后立刻就能打，不必再拆第二块
+  const touches = ([rr, cc]) => [[rr-1,cc],[rr+1,cc],[rr,cc-1],[rr,cc+1]]
+    .some(([ar, ac]) => inside(ar, ac) && seen[ar][ac]);
+  return cand.find(touches) || cand[0] || null;
+}
+
+function widenNarrowPockets(P, changed){
+  const R = P.length, C = P[0].length;
+  const inside = (r, c) => r >= 0 && r < R && c >= 0 && c < C;
+  const tried = Object.create(null);          // 找不到实心瓶颈的砖，别反复看它
+  for (let guard = 0; guard < R * C; guard++){
+    const seen = reachableCells(P);
+    let fix = null;
+    for (let r = 0; r < R && !fix; r++) for (let c = 0; c < C && !fix; c++){
+      if (!tileBreakable(P[r][c]) || !seen[r][c]) continue;   // 只修"够得到但缝太窄"的
+      if (tried[r * C + c]) continue;
+      const doors = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]
+        .filter(([dr, dc]) => inside(dr, dc) && P[dr][dc] === 0);
+      if (!doors.length) continue;                            // 四个邻居全是砖 -> 归 openTrappedBricks 管
+      let ok = false, narrow = null;
+      for (const [dr, dc] of doors){
+        for (const [fr, fc] of [[-1,0],[1,0],[0,-1],[0,1]]){    // 洞口格的四个面
+          const nr = dr + fr, nc = dc + fc;
+          if (nr === r && nc === c) continue;                   // 朝着这块砖自己的那一面
+          if (inside(nr, nc) && P[nr][nc] !== 0) continue;       // 那一面外面是砖/实心 -> 不是口
+          const band = mouthBand(P, dr, dc, fr, fc, 7);
+          if (band >= NARROW_BAND){ ok = true; break; }
+          if (!narrow || band > narrow.band) narrow = { r: dr, c: dc, fr, fc, band };
+        }
+        if (ok) break;
+      }
+      if (ok) continue;
+      if (!narrow){ tried[r * C + c] = 1; continue; }
+      const wall = narrowBottleneck(P, seen, narrow.r, narrow.c, narrow.fr, narrow.fc);
+      if (!wall){ tried[r * C + c] = 1; continue; }
+      fix = wall;
+    }
+    if (!fix) return;
+    P[fix[0]][fix[1]] = 1;        // 实心砖 -> 普通砖（1 血，最小改动）
+    if (changed) changed.push(fix);
+    narrowFixCount++;
+  }
 }
 
 function pattern(n){
@@ -598,7 +800,7 @@ function pattern(n){
         for (const [r, c] of pickNormalCells(P, nBomb))
           P[r][c] = T.BOMB;
       }
-      // 磁铁砖（第 17 关起）：被打掉后留下引力井，是唯一"打掉会改变地形"的砖
+      // 磁铁砖（第 17 关起）：打掉它的那颗球获得 10 秒磁力（球变色、会自己找砖）
       if (n >= 17){
         const nMagnet = Math.min(3, 1 + Math.floor((n - 17) / 6));
         for (const [r, c] of pickNormalCells(P, nMagnet))
@@ -630,6 +832,12 @@ function pattern(n){
         P[r][c] = rollHp(w);
       }
     }
+
+    // 最后一道、也是唯一的"可通关"保证：每一块可破坏砖都要够得到。
+    // 必须放在最后 —— 上面每一步都可能新放进一块砖（包括刚补的那块兜底砖），
+    // 而只有这一步会看"球到底进不进得去"。见 openTrappedBricks 的注释。
+    openTrappedBricks(P);
+    widenNarrowPockets(P);          // 收尾 2：够得到、但只有一条一格宽的缝 -> 放宽
   }
   return { grid:P, msg:null };
 }
@@ -697,9 +905,12 @@ let paddle, balls, bricks, drops, particles, floats;
 // 爆炸波（炸药砖触发；冲击波道具以后复用同一套）——纯表现层，不存档。
 // explodingDepth > 0 表示"当前正在结算一波爆炸"，用来阻断炸药砖的无限连锁。
 let shockwaves = [], explodingDepth = 0;
-// 引力井（磁铁砖击破后留下）——纯表现层 + 物理扰动，不存档。
-let wells = [];
 let portalA = null, portalB = null;   // 传送门配对（每关最多一对）
+// 传送门的**共享**使用次数（A/B 不分家：一对门一共能用 PORTAL_MAX_USES 次）。
+// 放在这里而不是砖上，是因为它和 portalA/portalB 同生命周期 —— 每关 loadLevel 重置。
+let portalUses = 0;
+const PORTAL_MAX_USES = 10;
+let levelGrid = null;                 // 本关的格子快照（loadLevel 时拍，见 repairAfterPortalLoss）
 let brickW, brickH, brickTop, cols = 10;
 let autoSaveArmed = false;      // 本局是否需要自动存档（开局/读档后开启）
 let autoSaveTimer = 0;          // 距上次自动存档的秒数
@@ -722,7 +933,15 @@ function makeBall(x, y, vx, vy){
     stuck: false,
     offset: 0,
     vTimer: 0,       // 近乎纯竖直运动的累计时长（防死循环）
-    portalCd: 0      // 传送门冷却：刚穿出来时不再立刻被传回去
+    portalCd: 0,     // 传送门冷却：刚穿出来时不再立刻被传回去
+    magnet: 0,       // 磁力剩余秒数（打中磁铁砖获得；>0 时球变黄绿并自己找砖）
+    magTarget: null, // 磁力这一帧真正在瞄的那块砖的中心（画绿色引导线用）
+    aimTarget: null, // 防卡死引导真正在瞄的那块砖的中心（画琥珀色引导线用）
+    turnLock: 0,     // 刚被转弯砖改过向的"让路窗口"（秒）：这段时间角度触发不介入
+    deadBounces: 0,  // 连续几次反射都没碰到可破坏砖（保险 4 的计数）
+    aimMute: 0,      // "转个圈"之后的静默期（秒）：这段时间护送先别瞄
+    assistFx: 0,     // 视觉残留：防卡死引导刚掰过这颗球的轨迹
+    magnetFx: 0      // 视觉残留：刚拿到磁力时的强调
   };
 }
 
@@ -740,6 +959,7 @@ function buildFromGrid(grid){
   brickTop = 90;
   bricks = [];
   portalA = null; portalB = null;
+  portalUses = 0;                      // 新的一关，传送门次数重新给满
   grid.forEach((row, r) => {
     row.forEach((v, c) => {
       if (v === 0 || v === undefined || v === null) return;   // 空位
@@ -816,13 +1036,79 @@ function portalAt(x, y){
   return null;
 }
 
+/* 传送门用满次数后**两扇门一起消失**。
+
+   两扇一起消失是设计决定：它们是一对装置，只剩一扇门既进不去也出不来，
+   留着只会变成一个画着圆环的空格子。次数也是**一对共享**的（不分 A/B）——
+   "传过去再传回来"各算一次，用满 10 次之后就没了。
+
+   消失之后必须**重新算一次可达性**：`openTrappedBricks` 的注释里写明了，
+   "口袋里有一扇门"是被当作可达的（见 reachableCells 的第二轮传播）。
+   门没了，那条判定就作废了 —— 如果口袋里还有没打掉的可破坏砖，
+   这一关就变成了永远打不通的死局。所以这里补跑一次同一套"开门"逻辑。 */
+function expirePortals(){
+  if (!portalA && !portalB) return;
+  const spots = [];
+  for (const p of [portalA, portalB]){
+    if (!p || p.dead) continue;
+    spots.push([p.x + p.w/2, p.y + p.h/2]);
+    p.dead = true;
+    addParticles(p.x + p.w/2, p.y + p.h/2, '#8b5cf6', 22, 1.2);
+  }
+  const [mx, my] = spots[0] || [W/2, 200];
+  floats.push({ x: mx, y: my - 18, text: `传送门已耗尽`, color: '#c4b5fd', life: 1.6, vy: -34 });
+  portalA = null; portalB = null;
+  G.shake = Math.max(G.shake, 6);
+  repairAfterPortalLoss();
+}
+
+/* 门没了之后的可达性补修复。
+   只在"真的又出现够不到的可破坏砖"时才动手（平时一次都不改），
+   而且复用同一套 `openTrappedBricks` —— 不另写一份判定，避免两处漂移。 */
+function repairAfterPortalLoss(){
+  if (!levelGrid) return;
+  const P = levelGrid.map(r => r.slice());
+  // 门已经没了：把门格显式清成空位。空位和门在可达性里本来都算"能通行"，
+  // 但这里必须清掉，否则 reachableCells 会继续用"另一扇门直达"那条规则。
+  for (let r = 0; r < P.length; r++) for (let c = 0; c < P[r].length; c++)
+    if (isPortalTile(P[r][c])) P[r][c] = 0;
+  const changed = [];
+  openTrappedBricks(P, changed);
+  widenNarrowPockets(P, changed);       // 同一套收尾（幂等：修过就什么都不做）
+  if (!changed.length) return;
+  // 把"新开的那道门"落到场上的砖对象上：实心砖 -> 普通砖
+  for (const [r, c] of changed){
+    const br = bricks.find(b => b.row === r && b.col === c);
+    if (br && !br.dead && br.solid){
+      br.solid = false;
+      br.type = 1;
+      br.hp = br.max = 1;
+      br.golden = false;
+      addParticles(br.x + br.w/2, br.y + br.h/2, '#4dff9e', 14, 1);
+    }
+    levelGrid[r][c] = 1;            // 快照同步，保证再调一次是幂等的
+  }
+  floats.push({ x: W/2, y: 150, text: '传送门没了，墙上开了一道门', color: '#4dff9e', life: 2.0, vy: -26 });
+}
+
 function loadLevel(n, gridOverride){
   const num = Math.round(Number(n));
   n = Number.isFinite(num) ? Math.max(0, num) : 0;   // 防御：非法关卡号一律退回第 1 关
   const p = pattern(n);
-  const grid = gridOverride || p.grid;
+  // 就地改盘面前先复制一份：下面的收尾修复会写盘面，**不能回头改调用方的数组**
+  // （存档码解出来的数组、测试里当夹具用的常量盘面，调用方都还要接着用）。
+  const grid = (gridOverride || p.grid).map(r => r.slice());
+  // 单一收口点：不管是设计关卡、随机关卡、存档码还是导入的关卡码，都从 loadLevel 进来，
+  // 所以"够不到的可破坏砖"必须在这里再兜一次 —— 分享出去的关卡码、旧存档里的盘面
+  // 都可能带着封闭口袋，而那种盘面是**永远打不通**的（详见 openTrappedBricks）。
+  // pattern() 里已经修过一次，这里是幂等的第二道（修过就什么都不做）。
+  // 紧接着的第二道收尾同理：只有"一条一格宽的缝"的洞也要放宽 ——
+  // 玩家发来的第 78 关存档正是这种（详见 widenNarrowPockets）。
+  openTrappedBricks(grid);
+  widenNarrowPockets(grid);
   buildFromGrid(grid);
-  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
+  levelGrid = grid.map(r => r.slice());   // 快照：传送门用尽后补修复时要拿它重算可达性
+  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0;
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !isFurniture(b) && !b.dead).length;
@@ -841,7 +1127,7 @@ function clearBoard(){
   bricks = [];
   balls = [ makeBall(paddle.x + paddle.w/2, paddle.y - 8, 0, 0) ];
   balls[0].stuck = true;
-  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
+  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0;
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.shake = 0; G.flash = 0; G.slowFx = 0;
@@ -1129,7 +1415,7 @@ function loadProgress(){
   // 球掉了但还没结算的状态，读档后先给一个安全的贴板球
   if (balls.every(b => b.y > H + 40)) resetBall();
 
-  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
+  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0;
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !isFurniture(b) && !b.dead).length;
@@ -1497,15 +1783,467 @@ function applyPower(p, bonus = 0){
 }
 
 // 距离 (x,y) 最近的、还能被打掉的砖（用于卡死时的柔性引导）
-function nearestBrick(x, y){
-  let best = null, bd = Infinity;
+/* ---- 反弹瞬间的一次性拨正 ----
+   只在**墙/砖反射发生的那一帧**调用。出射角正常就完全不动；
+   落在危险角度（或残局里停滞够久）才拨一次，然后撒手 ——
+   两帧之间绝不介入，所以球在两块砖之间的航程是纯净的反射。
+
+   exclude：刚撞上的那块砖。它如果没被打碎，按距离算仍然是"最近的活砖"，
+   瞄准它的砖心等于瞄准砖的内部，球会立刻再撞一次 —— 必须排除。
+
+   返回是否真的拨了（供测试与审计统计）。 */
+function reflectNudge(b, exclude){
+  if (b.turnLock > 0) return false;              // 刚被转弯砖改过向，让路
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp <= 1) return false;
+  if (!flatAngle(b.vx, b.vy)) return false;      // 出射角正常（含贴竖直）-> 不引导
+
+  /* ★ 贴水平的**下行**球也必须管。这是玩家实测报上来的漏洞。
+     这里原来是第一行判据 `if (b.vy > 0) return false;`，注释写的是
+     "正在下落 = 该回挡板，别抢玩家的球"。那句话对**正常斜着下落**的球完全正确，
+     对**贴水平下落**的球却是错的：它不是"在回挡板"，它是在左右两面墙之间来回滑。
+     实测（第 20 关跑满 300 秒）：
+       · 贴水平帧占全部帧的 17.0%（3067 / 18000）；
+       · 其中 2976 帧是下行、只有 91 帧上行；
+       · 最长的一段**连续 2406 帧 = 40.1 秒**谁都碰不到；
+       · 58 个"贴水平的反射瞬间"里有 38 个死在 `vy > 0` 这一条上。
+     也就是说：这条判据把**绝大多数**真正的卡关样本原样放过了。
+     修法：下行的贴水平球**只把下滑角掰陡、水平方向一动不动** ——
+     它本来就要回挡板，我们并没有把它从玩家手里抢走（不需要转向朝上的砖），
+     只是不让它在墙上滑 40 秒。正常斜着下落（离水平 30° 以上）的球依旧完全不碰。 */
+  const descending = b.vy > 0;
+  const cur = Math.atan2(b.vy, b.vx);
+  let na, aim;
+
+  if (descending){
+    // 角度突变：一次掰到 45°，水平分量方向保持原样（该往左还是往左）
+    const minFH = 45 * Math.PI / 180;
+    const sx = b.vx < 0 ? -1 : 1;
+    na = Math.atan2(Math.sin(minFH), sx * Math.cos(minFH));
+    // 引导线指向"按新航向落到挡板高度"的那个点 —— 诚实地说"我把它送下来了"
+    const tFall = (paddle.y - b.y) / (Math.sin(minFH) * sp);
+    aim = { x: clamp(b.x + Math.cos(na) * sp * tFall, 24 + b.r, W - 24 - b.r),
+            y: paddle.y };
+  } else {
+    const tgt = nearestAimBrick(b.x, b.y, true, exclude);
+    if (!tgt) return false;
+    const cx = tgt.x + tgt.w / 2, cy = tgt.y + tgt.h / 2;
+    const want = Math.atan2(cy - b.y, cx - b.x);
+    const diff = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
+    // 单次事件就该一次拨够：按比例直接拨向目标砖，残局里再乘规则 2 的加强倍率。
+    let level = 0.5 * (assistGate() ? assistBoost() : 1);
+    level = clamp(level, 0, 1);
+    na = cur + diff * level;
+    // ★ 兜底：**拨完不许又落回贴水平**。
+    //   实测过没这一条会怎样（第 1 关 300 秒）：拨了 4 次，4 次全部落在贴水平上
+    //   （最浅 4.4°），而且那些贴水平航向的射线前面**什么都没有** —— 也就是说
+    //   这条规则当时在**制造它自己要修的那个问题**。原因是"最近的砖"常常就在
+    //   球自己这一行上，瞄它等于瞄水平。
+    //   （残局的停滞护送不设这条：那时故意瞄同一行的砖才是对的，
+    //     那正是打到最后几块砖的办法 —— 它走的是另一个函数。）
+    const minFH = ANG_FLAT + 5 * Math.PI / 180;   // 至少离水平 35°
+    const fh = Math.abs(Math.atan2(Math.abs(Math.sin(na)), Math.abs(Math.cos(na))));
+    if (fh < minFH){
+      const sx = Math.cos(na) < 0 ? -1 : 1;
+      const sy = Math.sin(na) > 0 ? 1 : -1;       // 保持原来的上下倾向
+      na = Math.atan2(sy * Math.sin(minFH), sx * Math.cos(minFH));
+    }
+    aim = { x: cx, y: cy };                       // 画线和拨的必须是同一个目标
+  }
+
+  b.vx = Math.cos(na) * sp;
+  b.vy = Math.sin(na) * sp;
+  b.assistFx = .2;                               // 视觉标记：这一下被拨正了
+  b.aimTarget = aim;
+  return true;
+}
+
+/* 保险 3：连续 5 秒近乎纯竖直弹跳 -> 强制纠偏（17°~43° 的随机偏角），
+   避免"球沿一条竖线上下弹、永远碰不到旁边的砖"的无限死循环。
+   这条**不是**规则 1 的引导：它不看目标砖、也不管出射角贴不贴水平，
+   纯粹是"竖直太久了就踹一脚"。抽成函数是为了让审计脚本能把它数出来 ——
+   否则审计会把它误判成"规则 1 在两帧之间偷偷介入"。 */
+function verticalNudge(b, dt){
+  if (b.stuck) return false;
+  const sp = Math.hypot(b.vx, b.vy) || 1;
+  if (Math.abs(b.vx) / sp < 0.10) b.vTimer += dt;
+  else b.vTimer = 0;
+  if (b.vTimer <= 5) return false;
+  b.vTimer = 0;
+  const dir = Math.random() < .5 ? -1 : 1;
+  const ang = dir * (0.30 + Math.random() * 0.45);         // 17°~43°
+  b.vx = Math.sin(ang) * sp;
+  b.vy = Math.sign(b.vy || -1) * Math.abs(Math.cos(ang) * sp);
+  addParticles(b.x, b.y, '#ffd93d', 10, .8);
+  if (window.__NB_DEBUG) window.__NB_DEBUG.nudges = (window.__NB_DEBUG.nudges || 0) + 1;
+  return true;
+}
+
+/* 残局的"停滞护送"：**每帧**把速度朝目标活砖转一点点（`assistTurn()` = 4°/帧 × 规则 2 倍率）。
+
+   它和角度规则（`reflectNudge`，反弹瞬间的一次性事件）是**两件不同的事**：
+     · 角度规则修的是"这一趟航向不对"，一次拨正就够，然后必须撒手；
+     · 护送修的是"球还没到那个够不到的地方"，绕过实心砖进到口袋里**需要连续修正**，
+       只在反射那一帧拨一次会来回蹭却进不去（实测：端到端断言开始偶发失败）。
+   触发只有残局（≤3 块可破坏砖）+ 停滞 > 5 秒，所以中局横幅不会因此常亮。
+
+   `fallback=true` 保住「卡关」修复 —— 残局里所有活砖都被死砖挡着时，
+   退回"最近的活砖"：球要绕进口袋，直线是被挡着的。
+
+   返回是否真的转了（供测试与审计统计）。 */
+function escortToBricks(b){
+  if (b.stuck) return false;
+  if (G.state !== S.PLAY) return false;
+  if (b.aimMute > 0) return false;               // 刚"转了个圈"，先让它飞完这一趟
+  if (!assistGate() || G.stuckTimer <= 5) return false;
+  const spot = escortSpot(b);
+  if (!spot) return false;
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp <= 1) return false;
+  const cur = Math.atan2(b.vy, b.vx);
+  const want = Math.atan2(spot.y - b.y, spot.x - b.x);
+  const diff = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
+  const level = clamp((G.stuckTimer - 5) / 25, 0, 1);      // 5 秒起爬升，30 秒满
+  const cap = clamp(level * assistBoost(), 0, 1) * assistTurn();
+  const turn = clamp(diff, -cap, cap);
+  if (!turn) return false;
+  const na = cur + turn;
+  b.vx = Math.cos(na) * sp;
+  b.vy = Math.sin(na) * sp;
+  b.assistFx = .2;                               // 视觉标记：轨迹正在被掰弯
+  b.aimTarget = { x: spot.x, y: spot.y };
+  return true;
+}
+
+/* 护送这一帧该把球往哪儿带？—— 分两跳问，这就是"绕过去"的能力。
+
+   只瞄"最近的活砖"是不够的：如果最后几块砖躺在一个**死砖口袋**里
+   （三面被围、只留一格开口），"球 -> 砖"的直线一定穿过死砖，
+   于是球一次次撞在死砖上弹回来 —— 这恰恰是引导自己造成的死循环。
+
+   所以：
+     ① 有"直线打得着"的活砖 -> 直接瞄它（和以前一样，绝大多数情况走这条）；
+     ② 一块都打不着 -> 找一块活砖，再找一个**中转空格**：
+        球能直线飞到那格、从那一格又能直线打到那块砖。瞄中转格。
+        （砖是格状的，所以绕路只需要两跳：球 -> 门口 -> 砖。）
+
+   返回 { x, y, brick } 或 null（连中转格都找不到时不瞄，交给保险 4 去转个圈）。 */
+function escortSpot(b){
+  const direct = nearestAimBrick(b.x, b.y, false);
+  if (direct) return { x: direct.x + direct.w/2, y: direct.y + direct.h/2, brick: direct };
+  // 直线够得着的"门口"（洞口那一面的中点）：飞过去就会穿进洞里
+  let gate = null, gd = Infinity;
+  for (const g of pocketGates()){
+    const d = (g.x - b.x) * (g.x - b.x) + (g.y - b.y) * (g.y - b.y);
+    if (d >= gd) continue;
+    if (lineBlockedBySolidPad(b.x, b.y, g.x, g.y, b.r)) continue;
+    gd = d; gate = g;
+  }
+  if (gate) return { x: gate.x, y: gate.y, brick: gate.brick, gate: true };
+  // 直线够不着：借一次墙（球心入射方向只有墙能精确控制）
+  const bank = bankAim(b);
+  if (bank) return bank;
+  // 再不行退回"两跳绕路"（门口那一格的中心）
+  const blocked = nearestBrick(b.x, b.y);
+  if (!blocked) return null;
+  const wp = waypointTo(b, blocked);
+  return wp ? { x: wp.x, y: wp.y, brick: blocked } : null;
+}
+
+/* "门口"到底该瞄哪一个点：**不是门口那一格的中心，而是那一格朝着开阔地的那一面中点。**
+   球要进洞，得从那一面**穿过去** —— 洞的入口是一扇"门"，不是一个"房间"。
+
+   第 78 关的存档把这件事量出来了：最后两块砖在 (2,8)/(3,8)，唯一入口是右边
+   那一格 (3,9)，而它朝外的那一面在 x=897（洞口边界），中心却深到 x=855。
+   瞄准"格子中心"会让球在进洞前先蹭到洞口的砖角（实测 99-lv78 里
+   球真正进洞的帧只占 0.3%）。瞄"面中点"才对得上球真正要走的那条缝。
+
+   返回 [{x, y, brick}]：每块活砖的每个"空位邻居"，它朝外的每一面（不含朝着这块砖
+   的那一面），且那一面外面确实没有砖挡着。 */
+function pocketGates(){
+  const COLS = 10;
+  let rows = 0;
+  const occ = Object.create(null);
+  for (const br of bricks){
+    if (br.dead) continue;
+    const c = Math.round((br.x - 60) / 84), r = Math.round((br.y - 90) / 33);
+    if (r < 0 || c < 0 || c >= COLS) continue;
+    occ[r * COLS + c] = br;
+    if (r + 1 > rows) rows = r + 1;
+  }
+  const free = (r, c) => (r < 0 || c < 0 || c >= COLS || r >= rows) ? true : !occ[r * COLS + c];
+  const out = [];
   for (const br of bricks){
     if (br.dead || isFurniture(br)) continue;
+    const r = Math.round((br.y - 90) / 33), c = Math.round((br.x - 60) / 84);
+    if (r < 0 || c < 0 || c >= COLS) continue;
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+      const r2 = r + dr, c2 = c + dc;
+      if (!free(r2, c2)) continue;                       // 这一面外面是砖，进不去
+      const cx2 = 99 + 84 * c2, cy2 = 103 + 33 * r2;     // 门口那一格的中心
+      const faces = [
+        { x: cx2, y: cy2 - 16.5, nr: r2 - 1, nc: c2 },   // 上表面
+        { x: cx2, y: cy2 + 16.5, nr: r2 + 1, nc: c2 },   // 下表面
+        { x: cx2 - 42, y: cy2, nr: r2, nc: c2 - 1 },     // 左表面
+        { x: cx2 + 42, y: cy2, nr: r2, nc: c2 + 1 }      // 右表面
+      ];
+      for (const f of faces){
+        if (f.nr === r && f.nc === c) continue;          // 就是朝着这块砖的那一面
+        if (!free(f.nr, f.nc)) continue;                 // 那一面外面也被砖堵着
+        out.push({ x: f.x, y: f.y, brick: br });
+      }
+    }
+  }
+  return out;
+}
+
+/* 借一次墙（台球里的一库解）。玩家第 78 关的存档暴露了这个缺口：
+
+   那关最后只剩 2 块砖，上下叠在 (2,8) / (3,8)，周围全是死砖，唯一入口是
+   右边那一格 (3,9) —— 一个**只有一格宽的洞**。实测（`node shots.cjs 99-lv78`）：
+   600 秒只过关 4 次（平均 150 秒一关），球真正进洞的帧只占 0.3%。
+
+   为什么"门口"那一跳救不了它：瞄门口只是赌球**正好沿着"门口 -> 砖"那条线飞进去**。
+   球从别处飞到门口时入射方向是错的，穿过门口也打不到砖。
+   能精确控制入射方向的只有墙：撞墙时速度分量精确取反。
+
+   做法：把砖心对墙做镜像，球到镜像点的那条线穿过墙面的那个点就是该撞的位置，
+   反弹之后球的方向**正好**指向砖心。瞄准点直接取墙面上那一点 ——
+   它和镜像点同一个方向，但画得出来（辅助线指向墙上），也不会指到屏幕外。
+   两跳都不被死砖挡住才用，取最近的一个。下面没有墙（是挡板），所以只考虑三面。 */
+function bankAim(b){
+  const pts = [];
+  for (const br of bricks){
+    if (br.dead || isFurniture(br)) continue;
+    pts.push({ x: br.x + br.w / 2, y: br.y + br.h / 2, brick: br });
+  }
+  // "门口"也是可以借墙进去的目标（第 78 关那种"只有一格宽的洞"就靠这个）
+  for (const g of pocketGates()) pts.push(g);
+  const planes = [
+    { v: true,  at: 24 },        // 左墙（球心的反弹面）
+    { v: true,  at: W - 24 },    // 右墙
+    { v: false, at: 24 }         // 顶墙
+  ];
+  let best = null, bd = Infinity;
+  for (const pt of pts){
+    const cx = pt.x, cy = pt.y, br = pt.brick;
+    for (const pl of planes){
+      const mx = pl.v ? 2 * pl.at - cx : cx;          // 目标点的镜像点
+      const my = pl.v ? cy : 2 * pl.at - cy;
+      const dx = mx - b.x, dy = my - b.y;
+      const den = pl.v ? dx : dy;
+      if (Math.abs(den) < 1e-6) continue;             // 与这面墙平行，撞不上
+      const t = (pl.at - (pl.v ? b.x : b.y)) / den;
+      if (t <= 0.02 || t >= 0.98) continue;           // 交点必须落在"球 -> 镜像点"这一段上
+      const qx = pl.v ? pl.at : b.x + t * dx;
+      const qy = pl.v ? b.y + t * dy : pl.at;
+      if (pl.v){ if (qy < 24 || qy > H - 8) continue; }        // 撞点要落在墙面范围内
+      else     { if (qx < 24 || qx > W - 24) continue; }
+      const d = (qx - b.x) * (qx - b.x) + (qy - b.y) * (qy - b.y);
+      if (d < 3600 || d >= bd) continue;              // 太近（<60px）不算"借墙"
+      if (lineBlockedBySolidPad(b.x, b.y, qx, qy, b.r)) continue;  // 先撞死砖就到不了墙
+      if (lineBlockedBySolidPad(qx, qy, cx, cy, b.r)) continue;    // 反弹后那一跳也过不去
+      bd = d; best = { x: qx, y: qy, brick: br, bank: true, tx: cx, ty: cy };
+    }
+  }
+  return best;
+}
+
+/* 两跳绕路：在网格里找一个**空格**，使得
+     · 球 -> 空格中心 这条线不被死砖挡住（第一跳飞得过去），
+     · 空格中心 -> 目标砖中心 这条线不被死砖挡住（第二跳打得到）。
+   取离球最近的那个。除了死砖之外挡在路上的砖不用管 —— 打掉它们本来就是进展。 */
+function waypointTo(b, tgt){
+  const cx = tgt.x + tgt.w / 2, cy = tgt.y + tgt.h / 2;
+  const COLS = 10;
+  let rows = 0;
+  const occ = Object.create(null);
+  for (const br of bricks){
+    if (br.dead) continue;
+    const c = Math.round((br.x - 60) / 84), r = Math.round((br.y - 90) / 33);
+    if (r < 0 || c < 0 || c >= COLS) continue;
+    occ[r * COLS + c] = br;
+    if (r + 1 > rows) rows = r + 1;
+  }
+  let best = null, bd = Infinity;
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < COLS; c++){
+      if (occ[r * COLS + c]) continue;                   // 这一格有砖，不是空格
+      const px = 60 + c * 84 + 39, py = 90 + r * 33 + 13;
+      const dx = px - b.x, dy = py - b.y;
+      const d = dx*dx + dy*dy;
+      if (d >= bd) continue;
+      if (lineBlockedBySolid(b.x, b.y, px, py)) continue;  // 第一跳被死砖挡住
+      if (lineBlockedBySolid(px, py, cx, cy)) continue;    // 第二跳被死砖挡住
+      bd = d; best = { x: px, y: py };
+    }
+  }
+  return best;
+}
+
+/* ---------- 保险 4：连续砸了 N 次墙就"转个圈再瞄准"（玩家提的）----------
+
+   为什么需要它：护送的逻辑是"把球往目标砖掰"，**可如果最后几块砖躺在一个
+   死砖口袋（三面被围、只留一格小开口）里，瞄它这件事本身就是无效的** ——
+   球到砖的直线一定穿过死砖，球只会一次次撞在死砖上弹回来，然后被再瞄一次。
+
+   实测（手搭盘面：三面死砖 + 右边一格开口，残局只剩口袋里那一块）：
+     · 300 秒**一次都没过关**；
+     · 最长的"没碰到任何可破坏砖"= 211.6 秒；
+     · 连续死反弹（撞墙/撞死砖）最长 1188 次；
+     · 护送 95.4% 的帧，瞄的都是"直线被死砖挡着"的那块砖 —— 这就是"瞄死砖"。
+   玩家看到的原话就是"一直在撞死砖循环了好几个 40 秒"。
+
+   破法（玩家原话："连续砸墙 10 次就转个圈再瞄准"）：
+     · **转个圈**：优先换一块"直线打得着"的砖来瞄（换目标就是换轨道）；
+       一块都打不着（砖全在口袋里）时，就大幅转向（±70°~110°）换一条完全不同的轨道；
+     · **再瞄准**：转完设 `aimMute = CYCLE_MUTE` 秒。这段时间护送**先别瞄** ——
+       否则它会在 9 帧内把球掰回原来那条死路上（单帧上限 9°），"转个圈"就白转了。
+       静默期一过，护送自动恢复，从那时的位置/角度重新瞄。
+
+   只在残局门控打开时启用：这也是玩家说的"有瞄准辅助的时候"。
+   中局它一次都不会介入 —— 中局玩家自己在控球（审计里的 freeTurns 恒为 0 就是这条的守卫）。 */
+const CYCLE_N = 10;                              // 连续砸墙/砸死砖的次数
+const CYCLE_MUTE = 1.0;                          // 转完之后"先别瞄"的秒数
+const CYCLE_TURN_MIN = 70 * Math.PI / 180;       // 无目标可瞄时的转向幅度
+const CYCLE_TURN_MAX = 110 * Math.PI / 180;
+
+function cycleBreak(b){
+  if (b.deadBounces < CYCLE_N) return false;
+  if (!assistGate()) return false;               // 只在有瞄准辅助的时候（残局）
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp <= 1) return false;
+  b.deadBounces = 0;
+  b.aimMute = CYCLE_MUTE;
+  // 1) 能不能换一块"直线打得着"的砖？能就直接换目标（这就是"再瞄准"）
+  const tgt = nearestAimBrick(b.x, b.y, false);
+  const cur = Math.atan2(b.vy, b.vx);
+  let na, aim;
+  if (tgt){
+    const cx = tgt.x + tgt.w / 2, cy = tgt.y + tgt.h / 2;
+    na = Math.atan2(cy - b.y, cx - b.x);
+    aim = { x: cx, y: cy };
+  } else {
+    // 2) 一块都打不着（都在死砖口袋里）-> 转个圈：换一条完全不同的轨道
+    const turn = CYCLE_TURN_MIN + Math.random() * (CYCLE_TURN_MAX - CYCLE_TURN_MIN);
+    na = cur + (Math.random() < 0.5 ? turn : -turn);
+    aim = null;                                  // 这一趟没有目标，只有"换个方向"
+  }
+  b.vx = Math.cos(na) * sp;
+  b.vy = Math.sin(na) * sp;
+  b.assistFx = .35;                              // 比拨正亮一点：这一下是"整条轨道换掉"
+  b.aimTarget = aim;
+  addParticles(b.x, b.y, '#ffd93d', 14, .9);
+  if (window.__NB_DEBUG) window.__NB_DEBUG.cycleBreaks = (window.__NB_DEBUG.cycleBreaks || 0) + 1;
+  return true;
+}
+
+function nearestBrick(x, y, exclude){
+  let best = null, bd = Infinity;
+  for (const br of bricks){
+    if (br.dead || isFurniture(br) || br === exclude) continue;
     const dx = br.x + br.w/2 - x, dy = br.y + br.h/2 - y;
     const d = dx*dx + dy*dy;
     if (d < bd){ bd = d; best = br; }
   }
   return best;
+}
+
+/* 线段与矩形是否相交（Liang-Barsky 裁剪，pad 是向外扩的余量）。
+   用来问一个很具体的问题：**球到目标砖之间，有没有隔着一块死砖？** */
+function segHitsRect(x0, y0, x1, y1, rx, ry, rw, rh, pad){
+  const xmin = rx - pad, xmax = rx + rw + pad;
+  const ymin = ry - pad, ymax = ry + rh + pad;
+  const dx = x1 - x0, dy = y1 - y0;
+  let t0 = 0, t1 = 1;
+  const clip = (p, q) => {                       // 约束 p·t <= q
+    if (Math.abs(p) < 1e-9) return q >= 0;       // 平行：落在区间外就整段裁掉
+    const t = q / p;
+    if (p < 0){ if (t > t1) return false; if (t > t0) t0 = t; }
+    else      { if (t < t0) return false; if (t < t1) t1 = t; }
+    return true;
+  };
+  return clip(-dx, x0 - xmin) && clip(dx, xmax - x0) &&
+         clip(-dy, y0 - ymin) && clip(dy, ymax - y0) && t0 <= t1;
+}
+function lineBlockedBySolid(x0, y0, x1, y1){ return lineBlockedBySolidPad(x0, y0, x1, y1, 2); }
+function lineBlockedBySolidPad(x0, y0, x1, y1, pad){
+  for (const br of bricks){
+    if (br.dead || !br.solid) continue;
+    if (segHitsRect(x0, y0, x1, y1, br.x, br.y, br.w, br.h, pad)) return true;
+  }
+  return false;
+}
+
+/* 只瞄**直线打得着**的活砖。
+   磁力和防卡死引导都是"把球往目标掰"，可 nearestBrick 只看距离 ——
+   目标如果隔着一块死砖，球就只会一次次撞在死砖上弹回来。
+   玩家看到的现象就是"引导在瞄死砖"（玩家反馈原话）。
+   fallback=true 时，如果所有活砖都被挡着（比如封闭口袋里那几块），
+   退回原来的"最近的活砖" —— 残局兜底和「卡关」修复都依赖这个回退。 */
+function nearestAimBrick(x, y, fallback, exclude){
+  let best = null, bd = Infinity;
+  for (const br of bricks){
+    if (br.dead || isFurniture(br) || br === exclude) continue;
+    const cx = br.x + br.w/2, cy = br.y + br.h/2;
+    const d = (cx - x)*(cx - x) + (cy - y)*(cy - y);
+    if (d >= bd) continue;                       // 比当前最好还远，连视线都不用测
+    if (lineBlockedBySolid(x, y, cx, cy)) continue;
+    bd = d; best = br;
+  }
+  return best || (fallback ? nearestBrick(x, y, exclude) : null);
+}
+
+/* ---------- 防卡死引导的开关 ----------
+ * 引导要解决的是"最后几块砖某些角度永远打不到"，**不是**"玩家打得慢"。
+ * 所以它只在残局启用：场上还剩的可破坏砖 ≤ ASSIST_MAX_BRICKS。
+ *
+ * 全程陪伴的代价是玩家会觉得"球不受控"。实测（同构驱动、每关 300 秒、鼠标追球）：
+ *    第 1 关  ：引导开启 13.3% 的帧，4.2% 的挡板反弹被改写（平均改写 57.9°）
+ *    第 20 关：引导开启 39.3% 的帧，20.1% 的挡板反弹被改写（平均改写 74.7°）
+ * 关掉引导后，出射角偏离游戏自己规则的程度从 16.9° 掉到 1.0°、超过 15° 的从
+ * 20.1% 掉到 0%。而且它每帧最多转 4°（≈240°/秒），注释里"几乎感知不到"是错的。
+ * 残局之外完全不介入，玩家看到的轨迹就都是真正的反射。
+ */
+const ASSIST_MAX_BRICKS = 3;
+function breakableLeft(){
+  let n = 0;
+  for (const br of bricks) if (!br.dead && !isFurniture(br)) n++;
+  return n;
+}
+function assistGate(){ return breakableLeft() <= ASSIST_MAX_BRICKS; }
+
+/* ---------------- 引导强度与"贴水平角度"（用户提的三条规则） ----------------
+   规则 1：角度过小就主动引导  —— 后来玩家收窄为：**只管贴水平，竖直的没问题**。
+   规则 2：最后几块砖，引导加强。
+   规则 3：磁力球用引导的 2~3 倍加强版。
+
+   规则 1 的演变（三轮反馈，都记在 DESIGN-next.md 第 10 节）：
+     ① 最初写成"离水平**或竖直**不到 30°"，并且只在残局生效；
+     ② 玩家说"小角度还是没有掰弯" -> 把角度触发从残局门控放出来、全程有效；
+     ③ 玩家看到引导线一直在，追问之后自己收窄："只用管水平角度过小，竖直的没问题"。
+   ③ 是对的，理由在数据里：挡板模型是 `rel × 60°` 偏离竖直，所以"离竖直 30° 以内"
+   覆盖了正常打法的一大半（第 1 关 91% 的帧）—— 把竖直也算成"角度不对"，
+   等于全程自动瞄准。而贴水平是真正病态的那种：球在左右墙之间横着弹，
+   永远落不到挡板，玩家完全没法干预。 */
+
+// 规则 2：砖越少，引导越强。3 块 = 1.0 倍，2 块 = 1.625，1 块 = 2.25 倍。
+function assistBoost(){
+  const left = clamp(breakableLeft(), 1, ASSIST_MAX_BRICKS);
+  return 1 + (ASSIST_MAX_BRICKS - left) * 0.625;
+}
+// 规则 2 的每帧额度：4°/帧 × 倍率。**只给残局的停滞护送用**（见 escortToBricks）——
+// 角度规则已经改成"反弹瞬间的一次性拨正"，没有"每帧几度"这回事了。
+const ASSIST_TURN_BASE = 4 * Math.PI / 180;
+function assistTurn(){ return ASSIST_TURN_BASE * assistBoost(); }   // 4°/帧 → 9°/帧
+
+// 规则 1（收窄后）：航向离**水平**不到 30° 才算"角度不对"。
+//   贴竖直**不再**触发 —— 它是正常打法，不是需要纠正的角度。
+const ANG_FLAT = 30 * Math.PI / 180;
+function flatAngle(vx, vy){
+  if (!vx && !vy) return false;
+  const fromHoriz = Math.abs(Math.atan2(Math.abs(vy), Math.abs(vx)));   // 0=水平 · 90°=竖直
+  return fromHoriz < ANG_FLAT;
 }
 
 function addParticles(x, y, color, n = 12, power = 1){
@@ -1629,113 +2367,70 @@ function updateShockwaves(dt){
   }
 }
 
-// 引力井（磁铁砖被打掉后留下）—— 本文档里唯一"打掉的砖会改变地形"的机制：
-// 砖不只是消失，而是原地留下一个有寿命的引力源。
+// ============================ 磁力 buff ============================
+// 打中磁铁砖的那颗球会被磁化 MAGNET_LIFE 秒，期间主动朝最近的活砖修正航向。
 //
-// 三条硬约束（都是为了让防卡死系统仍然成立）：
-//   1. **只弯不抓**：引力是横向加速度，量级远小于球速（400~1000），
-//      球会被弯出一道弧线，而不是被拽停。
-//   2. **硬性时长**：WELL_LIFE = 8s，到点必消失。井不会永久存在。
-//   3. **速度守恒**：施加后把速度夹回施加前的量级（详见 applyWellPull）。
+// 这一版是**刻意替换掉引力井**的。旧版"打掉磁铁砖 -> 原地留一个引力井"有两个
+// 实测出来的死穴：
+//   · 井的偏转只有 1~6°（球越快越小，而球每次撞挡板都加速 1.2%），玩家根本感受不到；
+//   · 实测 5 分钟真实对局里，球落在井半径内的时间只占 **0.2%~0.6% 的帧**。
+//     因为井开在砖区（磁铁砖原地），而球大部分时间在中下部飞，井只活 8 秒。
+// 结果就是"看不见的装饰"。现在改成把状态**挂在球身上**：效果跟球走，玩家一眼
+// 能看见球变色、能看见球拐弯去找砖。
 //
-// 半径/强度是**实测调出来的**，不是拍脑袋：用同构驱动跑 40 局/组、
-// 关卡 1~5 轮换，比较"清关率 + 清关用时中位"：
-//     R=150 强度=480 -> 清关率 48%，中位 120s（常常卡到超时）
-//     R=120 强度=300 -> 清关率 45%，中位 120s
-//     R=100 强度=240 -> 清关率 65%，中位 84s   <-- 选它
-//     R= 90 强度=220 -> 清关率 68%，中位 98s
-// 再往上调半径会让"球被困在井附近慢慢磨"，清关率断崖式下降，
-// 玩家体感就是"球被吸住了，怎么都打不完"。所以宁可小一点、弱一点。
-const WELL_R = 100, WELL_DRAW_R = 140, WELL_STRENGTH = 240;
-const WELL_LIFE = 8;
-const MAX_WELLS = 4;
-// 通过 WELL_TUNE 可覆盖上面几个参数（只用于测试调参；正常运行不设置这个对象）。
-const WT = () => (typeof WELL_TUNE === 'object' && WELL_TUNE) || null;
-const wellR = () => { const t = WT(); return t && t.r || WELL_R; };
-const wellStrength = () => { const t = WT(); return t && t.strength || WELL_STRENGTH; };
-const WELL_MIN_SEP = 120;                    // 两个井心的最小间距，防止叠在一起
-const WELL_MAX_GROW = 1.004;                 // 每帧允许的速度增幅上限（≈ +0.4%）
-const WELL_MIN_SPEED = 120;                  // 下限天花板：引力最多把球速托回这个值
+// 磁力买的是**操作量的减免**：磁力期间玩家只要保证球别掉下去，瞄准交给球自己。
+// 两条硬约束：
+//   1. **只在上行时修正**（vy < 0）。球往下掉时若还朝砖修正，它就永远回不到
+//      挡板、也就永远不会掉 —— 等于把游戏唯一的失败条件删掉了。
+//   2. **只转方向、不改速率**。在速度矢量上做纯旋转，速率原样保留，所以磁力
+//      既不会凭空加速、也不会减速，1000 的速率上限不受影响。
+const MAGNET_LIFE = 10;                        // 磁力持续 10 秒
+// 规则 3：磁力球用引导的加强版。基准取引导的**残局基准**（4°/帧），乘 2.5
+// -> 10°/帧 ≈ 600°/s。这个量级下球约 9 帧（0.15 秒）就能转过 90°，
+// 视觉上就是"被磁铁吸着走"，和"这段时间球自己会找砖"的承诺一致。
+// 磁力**不**受残局门控约束 —— 它是打掉磁铁砖换来的奖励，本来就该一直有效。
+const MAGNET_BOOST = 2.5;
+const MAGNET_TURN = ASSIST_TURN_BASE * MAGNET_BOOST;
 
-// 放一个引力井。两件事必须处理：
-//   1. **数量上限**：超出就挤掉最旧的
-//   2. **最小间距**：绝不能和已有的井叠在一起。这不是美观问题 ——
-//      两个井心重合时，球在井心受到的"指向两个井心"的力方向相反、完全抵消，
-//      而速度夹取又让加速度趋近 0，于是球**永久冻在井心**（实测 4 个球全部停在
-//      同一点、速度 3~5px/s，既不动也不掉，防卡死也救不回来）。
-//      所以这里强制拉开距离：太近就替换掉最近的那个。
-function addWell(x, y){
-  let closest = null, closestD = Infinity;
-  for (const w of wells){
-    const d = Math.hypot(w.x - x, w.y - y);
-    if (d < closestD){ closestD = d; closest = w; }
-  }
-  if (wells.length && closestD < WELL_MIN_SEP){
-    // 离得太近：换掉最近的那个（相当于"磁铁砖又打掉一块，旧井被顶替"）
-    if (closest) wells.splice(wells.indexOf(closest), 1);
-  } else if (wells.length >= MAX_WELLS){
-    wells.shift();
-  }
-  wells.push({ x, y, t: 0, r: wellR(), spin: Math.random() * TAU });
-  addParticles(x, y, '#a3e635', 18, 1.1);
-  G.flash = Math.max(G.flash, .28);
-  Sound.power();
+// 给球挂上磁力（打中磁铁砖时调用）。
+function grantMagnet(ball){
+  if (!ball) return;
+  ball.magnet = MAGNET_LIFE;
+  // 磁力是"球自己会找砖"，所以反馈打在球上：一圈绿环从球上炸开
+  addParticles(ball.x, ball.y, '#a3e635', 16, 1.0);
 }
 
-function updateWells(dt){
-  for (let i = wells.length - 1; i >= 0; i--){
-    wells[i].t += dt;
-    wells[i].spin += dt * 1.6;
-    if (wells[i].t >= WELL_LIFE){ wells.splice(i, 1); return; }   // 到点必消失
-  }
-}
-
-// 在球的子步循环里调用：给球加一个指向井心的加速度。
-// 用子步时长 sdt 累积，所以和子步数无关（一帧总冲量恒定）。
-//
-// 力的大小取 **正比于归一化距离**（`d/R`），而不是常见的 `1/d²` / 常数：
-//   · 井心处力 = 0 —— 没有中心奇点，球不会被"钉"在井心
-//   · 井边处力最大 —— 进入范围时手感最强，符合"靠近才被吸"的直觉
-//   · 全程有界，永远不会出现数值爆炸
-function applyWellPull(b, sdt){
-  if (!wells.length) return;
-  const sp0 = Math.hypot(b.vx, b.vy);           // 施加前的量级
-  let touched = false;
-  for (const w of wells){
-    const dx = w.x - b.x, dy = w.y - b.y;
-    const d = Math.hypot(dx, dy);
-    if (d > w.r || d < 1e-3) continue;
-    const k = (d / w.r) / d;                    // 力 ∝ d/R，方向指向井心
-    b.vx += dx * k * wellStrength() * sdt;
-    b.vy += dy * k * wellStrength() * sdt;
-    touched = true;
-  }
-  if (!touched) return;
-  // 速度处理。目标：**引力只转向，绝不改能量**。
-  //
-  // 只设上限会有一个真实的坑：球低速穿过井时，井心那点向心加速度对慢球来说
-  // 反而是"过强"的，数值积分会把速度一点点吃光，球最终定格在井心附近
-  // （实测 19px/s -> 3px/s，然后以 0.14px/s 的速度往外爬，等于卡死）。
-  // 所以再加一个**下限，但它恒不超过施加前的速度**：
-  //     floor = min(sp0, WELL_MIN_SPEED)
-  // 慢球最多被拉回施加前的速度（不会凭空加速，也就不可能出现"把逃走的球
-  // 加速送走"），快球则完全不受下限影响。上限同时把速度锁在 sp0 附近，
-  // 于是整个过程速度基本守恒，只有方向被弯。
-  //
-  // 上下限都按子步数缩放，保证结果与一帧切几个子步无关。
-  const grown = sp0 * Math.pow(WELL_MAX_GROW, sdt * 60);
-  const cap = Math.min(grown, 1000);
-  const floor = Math.min(sp0, WELL_MIN_SPEED);
+// 每帧对一颗球调用一次：消耗磁力时长，并在上行时把速度矢量朝最近的活砖旋转。
+// 返回本帧是否真的转了方向（供视觉标记使用）。
+function applyMagnet(b, dt){
+  if (!(b.magnet > 0)) return false;
+  // 递减必须夹到**精确的 0**：浮点累积会留下 ~1e-18 的正残渣，
+  // 那样 b.magnet > 0 会多成立一帧（球多绿一帧、还多转一次方向）。
+  b.magnet -= dt;
+  if (b.magnet < 1e-6) b.magnet = 0;
+  if (b.magnet === 0) return false;
+  if (b.vy >= 0) return false;                 // 只在上行时修正，见上面的约束 1
+  // 只瞄**直线打得着**的砖（nearestAimBrick 会跳过被死砖挡住的目标）。
+  // 这里**不回退**：磁力是奖励，宁可这一帧不掰，也不能把球往死砖上送。
+  const tgt = nearestAimBrick(b.x, b.y, false);
+  // 记下这一帧真正瞄的是哪块砖，画引导线时直接用它 ——
+  // 画的和掰的必须是同一个目标，否则那条线就是在骗玩家。
+  b.magTarget = tgt ? { x: tgt.x + tgt.w/2, y: tgt.y + tgt.h/2 } : null;
+  if (!tgt) return false;
   const sp = Math.hypot(b.vx, b.vy);
-  if (sp > 1e-3){
-    let s = 1;
-    if (sp > cap) s = cap / sp;
-    else if (sp < floor) s = floor / sp;
-    if (s !== 1){ b.vx *= s; b.vy *= s; }
-  }
+  if (sp <= 1) return false;
+  const cur = Math.atan2(b.vy, b.vx);
+  const want = Math.atan2(tgt.y + tgt.h / 2 - b.y, tgt.x + tgt.w / 2 - b.x);
+  const diff = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
+  const turn = clamp(diff, -MAGNET_TURN, MAGNET_TURN);
+  if (!turn) return false;
+  const na = cur + turn;
+  b.vx = Math.cos(na) * sp;                    // 纯旋转：速率原样保留
+  b.vy = Math.sin(na) * sp;
+  return true;
 }
 
-function damage(b, bx, by){
+function damage(b, bx, by, ball){
   if (isFurniture(b)){
     // 实心砖与传送门都打不掉（传送门在碰撞循环里已单独处理，这里只是兜底）
     Sound.hard();
@@ -1743,6 +2438,15 @@ function damage(b, bx, by){
     G.shake = Math.max(G.shake, b.portal ? 3 : 5);
     return;
   }
+  // 只要**打中**就重置停滞计时，不是只有打碎才算。
+  // 这是防卡死引导的关键前提：引导要解决的是"球永远碰不到剩下的砖"，
+  // 而不是"玩家打得慢"。旧版按"砖数变化"重置，于是对着 5 血砖连敲 5 下、
+  // 只要超过阈值引导就开，实测第 20 关有 39% 的帧处于引导状态。
+  //
+  // 注意上面 furniture 的早退**故意**在重置之前：撞实心砖不算"有进展"。
+  // 如果撞实心砖也清零，那么球被夹在实心砖之间来回弹时会永远不清零，
+  // 引导和 40 秒强制重发**双双失效** —— 那才是真正的死循环。
+  G.stuckTimer = 0;
   b.hp--; b.hit = 1;
   if (b.hp > 0){
     Sound.brick(b.row);
@@ -1773,18 +2477,18 @@ function damage(b, bx, by){
     return;
   }
   if (b.magnet){
-    // 磁铁砖：被打掉后原地留下一个引力井（唯一"打掉的砖会变成地形"的机制）。
-    // 注意它和其它砖一样正常加分/掉道具 —— 引力井是额外赠品，不是替代品。
+    // 磁铁砖：打掉它的那颗球获得 10 秒磁力（球自己会去找砖），球会变色。
+    // 注意它和其它砖一样正常加分/掉道具 —— 磁力是额外赠品，不是替代品。
     const cx = b.x + b.w/2, cy = b.y + b.h/2;
     G.combo++; G.comboTimer = 2.2;
     const mult = 1 + Math.min(G.combo - 1, 9) * .25;
     const gain = Math.round((20 + (b.max - 1) * 15) * mult);
     G.score += gain;
     saveBest();
-    floats.push({ x: cx, y: cy, text: '+' + gain + ' 引力井', color: '#a3e635', life: .9, vy: -46 });
+    floats.push({ x: cx, y: cy, text: '+' + gain + ' 磁力', color: '#a3e635', life: .9, vy: -46 });
     addParticles(cx, cy, '#a3e635', 20, 1.1);
     Sound.brick(b.row);
-    addWell(cx, cy);
+    grantMagnet(ball);
     spawnDrops(cx, cy);
     return;
   }
@@ -1918,14 +2622,19 @@ function update(dt){
       const steps = clamp(Math.ceil(speed * dt / 6), 1, 8);
       const sdt = dt / steps;
       for (let s = 0; s < steps; s++){
-        applyWellPull(b, sdt);          // 引力井：在积分前施加，保证子步内一致
         b.x += b.vx * sdt;
         b.y += b.vy * sdt;
 
         // 墙
-        if (b.x - b.r < 24){ b.x = 24 + b.r; b.vx = Math.abs(b.vx); Sound.wall(); addParticles(b.x, b.y, '#31f2ff', 4, .4); }
-        if (b.x + b.r > W - 24){ b.x = W - 24 - b.r; b.vx = -Math.abs(b.vx); Sound.wall(); addParticles(b.x, b.y, '#31f2ff', 4, .4); }
-        if (b.y - b.r < 24){ b.y = 24 + b.r; b.vy = Math.abs(b.vy); Sound.wall(); addParticles(b.x, b.y, '#31f2ff', 4, .4); }
+        let hitWall = false;
+        if (b.x - b.r < 24){ b.x = 24 + b.r; b.vx = Math.abs(b.vx); hitWall = true; Sound.wall(); addParticles(b.x, b.y, '#31f2ff', 4, .4); }
+        if (b.x + b.r > W - 24){ b.x = W - 24 - b.r; b.vx = -Math.abs(b.vx); hitWall = true; Sound.wall(); addParticles(b.x, b.y, '#31f2ff', 4, .4); }
+        if (b.y - b.r < 24){ b.y = 24 + b.r; b.vy = Math.abs(b.vy); hitWall = true; Sound.wall(); addParticles(b.x, b.y, '#31f2ff', 4, .4); }
+        if (hitWall){
+          // 保险 4：撞墙也算一次"死反弹"（没碰到任何可破坏砖）
+          b.deadBounces++;
+          if (!cycleBreak(b)) reflectNudge(b, null);   // 转个圈优先于拨正
+        }
 
         // 挡板
         if (b.vy > 0 &&
@@ -1939,20 +2648,34 @@ function update(dt){
           const MINA = 0.2095;                         // 12°
           let ang = rel * (Math.PI/3);
           if (Math.abs(ang) < MINA) ang = (rel < 0 ? -MINA : MINA);
-          // 防卡死：长时间没打掉砖块 -> 反弹角加随机扰动，并朝最近的活砖柔性引导，
-          // 否则某些角度组合会让最后几块砖永远打不到。
-          const assist = clamp((G.stuckTimer - 8) / 17, 0, 1);   // 8s 开始，25s 满强度
+          // 防卡死：**只在残局**（可破坏砖 ≤3）时介入，否则某些角度组合会让最后几块砖
+          // 永远打不到。触发只有停滞计时器一条（8 秒开始爬升，25 秒满强度）。
+          //
+          // 这里**没有**"出射角贴水平就当场拨"那条分支：挡板模型的出射角是
+          // `rel × 60°` 偏离竖直（|rel| ≤ 1，另有 12° 最小偏角），也就是
+          // 离水平 **30°~78°** —— 永远不可能 < 30°。所以挡板弹射这一侧
+          // 由构造决定不会产生"贴水平"，检查它是死代码。贴水平只可能来自
+          // 墙/砖反射，那两种在 reflectNudge 里处理。
+          let assist = assistGate() ? clamp((G.stuckTimer - 8) / 17, 0, 1) : 0;
+          // 规则 2：最后几块砖加强（砖越少，同样 assist 值改得越狠）
+          assist = clamp(assist * assistBoost(), 0, 1);
           if (assist > 0){
+            b.assistFx = .2;                       // 视觉标记：这球正在被引导
             ang += (Math.random() * 2 - 1) * assist * 0.5;
             ang = clamp(ang, -1.45, 1.45);
-            const tgt = nearestBrick(b.x, b.y);
+            // 和"每帧引导"、"磁力"统一：一律瞄砖心（原来这里瞄的是砖的左上角）。
+            // fallback=true 保住「卡关」修复 —— 口袋里的砖直线是被挡着的。
+            const tgt = nearestAimBrick(b.x, b.y, true);
             if (tgt){
-              const want = Math.atan2(tgt.y - b.y, tgt.x - b.x) + (Math.random() - 0.5) * 0.3;
+              const cx = tgt.x + tgt.w / 2, cy = tgt.y + tgt.h / 2;
+              const want = Math.atan2(cy - b.y, cx - b.x) + (Math.random() - 0.5) * 0.3;
               const cur = Math.atan2(-Math.abs(Math.cos(ang)), Math.sin(ang));  // 反弹后的实际方向
               let diff = want - cur;
               diff = Math.atan2(Math.sin(diff), Math.cos(diff));
               const na = cur + diff * assist;          // 满强度时直接指向目标砖
               ang = Math.atan2(Math.sin(na), -Math.abs(Math.cos(na)));
+              // 记下真正瞄的点，否则引导线会画到上一次（或根本没有）的目标上
+              b.aimTarget = { x: cx, y: cy };
             }
           }
           b.vx = Math.sin(ang) * sp + paddle.vx * .10;
@@ -1977,6 +2700,13 @@ function update(dt){
             b.trail.length = 0;           // 清拖尾，否则会画出一条横跨全屏的线
             addParticles(b.x, b.y, '#8b5cf6', 16, 1);
             Sound.power();
+            // ★ 次数是**一对门共享**的（不分 A/B）：每成功传送一次就少一次，
+            //   用满 PORTAL_MAX_USES (10) 次之后**两扇门一起消失**。
+            //   为什么共享而不是各算各的：门是"一对装置"，玩家在门之间来回穿，
+            //   按 A/B 各算 10 次会让一对门实际能用 20 次，和"传送门是有限资源"
+            //   这个设计意图不符。门上显示的数字就是**剩余次数**（见 drawPortalBrick）。
+            portalUses++;
+            if (portalUses >= PORTAL_MAX_USES) expirePortals();
           }
         }
 
@@ -1996,7 +2726,10 @@ function update(dt){
             b.vy = -b.vy;
             b.y += (b.y < br.y + br.h/2) ? -(oy + .5) : (oy + .5);
           }
-          damage(br, b.x, b.y);
+          damage(br, b.x, b.y, b);
+          // 保险 4 的计数：撞死砖 = 死反弹；打到可破坏砖 = 有进展，计数清零
+          if (br.solid) b.deadBounces++;
+          else b.deadBounces = 0;
           // 转弯砖：先按正常反弹离开砖面，再按砖上的箭头改写方向
           // （先反弹再改向，避免球被送进砖块内部）
           if (br.turn && br.dir){
@@ -2006,54 +2739,66 @@ function update(dt){
             b.vx = Math.cos(a) * s2;
             b.vy = Math.sin(a) * s2;
             b.vTimer = 0;
+            // 转弯砖给的是**设计者指定的方向**，不是"卡住的角度"。
+            // 规则 1 的角度触发如果不让路，就会在下一帧把它原样掰回去
+            // （最近的那块砖往往就是刚撞的这块），转弯砖在残局里等于废掉。
+            // 所以给一个短暂的"让路窗口"：这段时间里只有停滞计时器能触发引导。
+            b.turnLock = 0.35;
             addParticles(b.x, b.y, '#e2e8f0', 8, .8);
           }
+          // 撞砖瞬间的拨正：出射角不对就一次拨正（刚被转弯砖改过向时 turnLock 会让路）
+          // 死砖上的"连续砸了 10 次"由保险 4 接管（它转完就不必再拨了）
+          if (!(br.solid && cycleBreak(b))) reflectNudge(b, br);
           break;
         }
       }
     }
 
-    // 保险 2：长时间打不到砖 -> 每帧把速度朝最近的活砖转一点点。
-    // 单帧最大约 4°，正常玩法几乎感知不到，但足以让"打不到的循环"收敛。
-    if (!b.stuck && G.state === S.PLAY && G.stuckTimer > 5){
-      const tgt = nearestBrick(b.x, b.y);
-      if (tgt){
-        const sp = Math.hypot(b.vx, b.vy);
-        if (sp > 1){
-          const cur = Math.atan2(b.vy, b.vx);
-          const want = Math.atan2(tgt.y + tgt.h/2 - b.y, tgt.x + tgt.w/2 - b.x);
-          let diff = want - cur;
-          diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-          const maxTurn = clamp((G.stuckTimer - 5) / 25, 0, 1) * (4 * Math.PI/180);
-          const turn = clamp(diff, -maxTurn, maxTurn);
-          if (turn){
-            const na = cur + turn;
-            b.vx = Math.cos(na) * sp;
-            b.vy = Math.sin(na) * sp;
-          }
-        }
-      }
-    }
+    // 磁力 buff：打中磁铁砖的球在 10 秒内会主动朝最近的活砖修正航向
+    // （只在上行时，见 applyMagnet 的约束）。它是**可见且刻意**的：球会变色，
+    // 玩家能一眼看出"这一段时间球自己会去找砖"，于是可以把注意力全放在别掉球上。
+    if (applyMagnet(b, dt)) b.magnetFx = 1;
+
+    // 保险 2：**反弹瞬间的一次性拨正**（玩家反馈："如果拨正了就不要一直管了，
+    //   只有检测到某次反弹的瞬间角度不对就引导一下，否则不引导"）。
+    //
+    // 这条取代了原来的"每帧朝目标转一点点"。区别很关键：
+    //   · 旧版是**过程**——只要航向落在危险角度里就每帧都掰，实测介入 10.6% 的帧、
+    //     相邻介入间隔中位数只有 1 帧，于是 0.2 秒的视觉残留被不停续上，
+    //     屏幕上就是一条"一直在"的引导线（等于持续自动瞄准）；
+    //   · 新版是**事件**——只在墙/砖/挡板反射发生的那一帧判断出射角，
+    //     不对就一次拨正、然后**撒手**。两帧之间球走的是**纯净的反射**。
+    // 触发条件是**贴水平**（规则 1 收窄后不再含竖直）。
+    // 强度：一次到位（按比例直接拨向目标砖），不再受"每帧最多几度"的限制 ——
+    //   既然是单次事件，就该一下拨够；残局里仍按规则 2 乘加强倍率。
+    if (b.turnLock > 0) b.turnLock = Math.max(0, b.turnLock - dt);
+    // 保险 4 的"转个圈"静默期：这段时间护送先别瞄，让新轨道真的走出去
+    if (b.aimMute > 0) b.aimMute = Math.max(0, b.aimMute - dt);
+
+    // 保险 2b：**残局的停滞护送** —— 这一条仍然是**每帧**的。
+    //
+    // 为什么它不能跟着一起改成事件：它的活是"把球弄进那个被实心砖围住的口袋"，
+    // 而**绕过障碍进到某个位置**本质上需要连续修正 —— 只在反射那一帧拨一次，
+    // 球会在口袋里被弹开、下一次反射又拨回来，来回蹭却进不去。
+    // 实测代价：改成一事件制之后，"被实心砖封死的盘面 300 秒内过关 ≥1 次"
+    // 这条端到端断言开始**偶发失败**（12 次里有 2 次读到「过关 0 次」）。
+    //
+    // 它和角度规则的分工很清楚：
+    //   · 角度规则管"这一趟航向不对"——一次拨正就够，而且必须撒手（玩家要求）；
+    //   · 护送管"球还没到那个够不到的地方"——是一件要持续做的事，停不下来。
+    // 触发仍然只有残局（`assistGate()`）+ 停滞 > 5 秒，所以中局不会因此常亮。
+    escortToBricks(b);
+
+    // 视觉标记衰减（磁力本身用 b.magnet 计时，这里只是给绘制用的残留计时）
+    if (b.assistFx > 0) b.assistFx = Math.max(0, b.assistFx - dt);
+    if (b.magnetFx > 0) b.magnetFx = Math.max(0, b.magnetFx - dt * 2.5);
 
     // 拖尾
     b.trail.push({ x: b.x, y: b.y });
     if (b.trail.length > 14) b.trail.shift();
 
-    // 保险：连续 5 秒近乎纯竖直弹跳 -> 强制纠偏，避免无限竖直死循环
-    if (!b.stuck){
-      const sp = Math.hypot(b.vx, b.vy) || 1;
-      if (Math.abs(b.vx) / sp < 0.10) b.vTimer += dt;
-      else b.vTimer = 0;
-      if (b.vTimer > 5){
-        b.vTimer = 0;
-        const s = sp, dir = Math.random() < .5 ? -1 : 1;
-        const ang = dir * (0.30 + Math.random() * 0.45);   // 17°~43°
-        b.vx = Math.sin(ang) * s;
-        b.vy = Math.sign(b.vy || -1) * Math.abs(Math.cos(ang) * s);
-        addParticles(b.x, b.y, '#ffd93d', 10, .8);
-        if (window.__NB_DEBUG) window.__NB_DEBUG.nudges = (window.__NB_DEBUG.nudges || 0) + 1;
-      }
-    }
+    // 保险 3：连续 5 秒近乎纯竖直弹跳 -> 强制纠偏，避免无限竖直死循环
+    verticalNudge(b, dt);
 
     // 掉落
     if (b.y - b.r > H + 20){
@@ -2079,8 +2824,6 @@ function update(dt){
 
   /* ---- 爆炸波（炸药砖）---- */
   updateShockwaves(dt);
-  /* ---- 引力井（磁铁砖）---- */
-  updateWells(dt);
 
   /* ---- 通关判定 ---- */
   if (G.state === S.PLAY && bricks.every(b => b.dead || isFurniture(b))){
@@ -2167,7 +2910,14 @@ function drawCrackLines(b){
   }
 }
 
-// 传送门：黑洞本体 + 旋转能量环 + A/B 标记
+// 传送门：黑洞本体 + 旋转能量环 + **剩余次数**
+//
+// 门上标的是"这对门还能用几次"（`PORTAL_MAX_USES - portalUses`）。
+// 原来标的是 A/B 字母，现在换掉了，两个原因：
+//   · 次数是**一对共享**的（不分 A/B），两端显示同一个数字 —— 字母本来就是为了
+//     区分两端，既然次数不分家，"哪个是 A"对玩家已经没有任何用处；
+//   · 剩下几次是玩家真正需要的信息（它决定了要不要现在就用掉这扇门）。
+// 快用完（≤3）时数字转成琥珀色，并在门内圈出一道剩余量的弧。
 function drawPortalBrick(b){
   const cx = b.x + b.w/2, cy = b.y + b.h/2;
   const rr = Math.min(b.w, b.h) * 0.52;
@@ -2189,12 +2939,24 @@ function drawPortalBrick(b){
   ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.arc(cx, cy, rr * 0.55, 0, TAU); ctx.stroke();
 
+  // 剩余次数（一对共享，所以两端显示的是同一个数）
+  const left = Math.max(0, PORTAL_MAX_USES - portalUses);
+  const low = left <= 3;
+  const ink = low ? '#ffd93d' : '#e9d5ff';
+  // 剩余量弧：和数字同义，但一眼能看出"还剩多少比例"
+  ctx.globalAlpha = .9;
+  ctx.strokeStyle = low ? '#ffd93d' : '#a78bfa';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rr - 1.5, -Math.PI/2, -Math.PI/2 + TAU * (left / PORTAL_MAX_USES));
+  ctx.stroke();
+
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
-  ctx.fillStyle = '#e9d5ff';
+  ctx.fillStyle = ink;
   ctx.font = 'bold 11px Segoe UI, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(b.portalId === 1 ? 'A' : 'B', cx, cy + 1);
+  ctx.fillText(String(left), cx, cy + 1);
   ctx.restore();
 }
 
@@ -2343,39 +3105,6 @@ function drawShockwaves(){
   ctx.restore();
 }
 
-function drawWells(){
-  if (!wells.length) return;
-  ctx.save();
-  for (const w of wells){
-    const age = w.t / WELL_LIFE;
-    // 快消失时整体淡出，让"到点就没了"这件事看得出来
-    const fade = age > 0.75 ? clamp((1 - age) / 0.25, 0, 1) : 1;
-    // 三个向内收缩的环：越往里越亮，读起来像"被吸进去"
-    ctx.shadowColor = '#a3e635';
-    ctx.shadowBlur = 14;
-    for (let i = 0; i < 3; i++){
-      const k = ((w.spin * 0.35 + i / 3) % 1);            // 0 -> 1 循环
-      const r = WELL_DRAW_R * (1 - k);
-      ctx.globalAlpha = fade * (0.10 + k * 0.42);
-      ctx.strokeStyle = '#a3e635';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.arc(w.x, w.y, Math.max(r, 1), 0, TAU);
-      ctx.stroke();
-    }
-    // 井心：一个亮核
-    ctx.globalAlpha = fade * 0.9;
-    const grad = ctx.createRadialGradient(w.x, w.y, 1, w.x, w.y, 16);
-    grad.addColorStop(0, '#f2ffd6');
-    grad.addColorStop(1, 'rgba(163,230,53,0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(w.x, w.y, 16, 0, TAU);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 function drawPaddle(){
   const grad = ctx.createLinearGradient(paddle.x, 0, paddle.x + paddle.w, 0);
   grad.addColorStop(0,   '#31f2ff');
@@ -2390,15 +3119,31 @@ function drawPaddle(){
   ctx.restore();
 }
 
+// 球的外观。磁力会整体变色，所以抽成一个函数：绘制和测试共用同一份定义，
+// 不会出现"测试以为变色了、实际画的时候没变"。
+function ballStyle(b){
+  return b.magnet > 0
+    ? { edge: '#a3e635', core: '#f2ffd6', glow: '#a3e635', blur: 26 }   // 磁化：黄绿
+    : { edge: '#31f2ff', core: '#ffffff', glow: '#ffffff', blur: 20 };  // 平常：青白
+}
+
 function drawBalls(){
   for (const b of balls){
+    const mag = b.magnet > 0;
+    // 球的外观要能一眼读出两件事：
+    //   · 磁力（b.magnet > 0）  -> 整个球变黄绿，拖尾也变黄绿
+    //   · 防卡死引导正在掰弯它  -> 外面加一圈琥珀色虚线环 + 一条指向目标砖的虚线
+    // 这两件事玩家都"看不见原因"（一个是 buff，一个是系统介入），所以必须画出来，
+    // 否则玩家只会觉得"球莫名其妙拐弯了"。
+    const st = ballStyle(b);
+
     // 拖尾
     ctx.save();
     for (let i = 0; i < b.trail.length; i++){
       const t = b.trail[i];
       const k = i / b.trail.length;
       ctx.globalAlpha = k * .38;
-      ctx.fillStyle = '#31f2ff';
+      ctx.fillStyle = st.edge;
       ctx.beginPath();
       ctx.arc(t.x, t.y, b.r * k * .95, 0, TAU);
       ctx.fill();
@@ -2406,16 +3151,75 @@ function drawBalls(){
     ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 20;
+    ctx.shadowColor = st.glow;
+    ctx.shadowBlur = st.blur;
     const grad = ctx.createRadialGradient(b.x - 2, b.y - 2, 1, b.x, b.y, b.r + 2);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(1, '#31f2ff');
+    grad.addColorStop(0, st.core);
+    grad.addColorStop(1, st.edge);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, TAU);
     ctx.fill();
     ctx.restore();
+
+    // 磁力：外面套一个脉冲环，让"球正被磁化"一眼可见
+    if (mag){
+      ctx.save();
+      ctx.globalAlpha = .55 + .35 * Math.sin(G.time * 9);
+      ctx.strokeStyle = '#a3e635';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r + 4.5, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+
+      // 磁力引导线：绿色虚线环 + 指向"它正在瞄的那块砖"的虚线，和琥珀色的
+      // 防卡死引导同构 —— 两种机制用颜色区分，玩家一眼能认出是谁在掰球。
+      // 目标直接取 applyMagnet 这一帧真正用的 b.magTarget，画的和掰的保证是同一个，
+      // 否则这条线就是在骗玩家。只在上行时画：球往下掉时磁力本来就不介入。
+      const mt = b.magTarget;
+      if (mt && b.vy < 0){
+        ctx.save();
+        ctx.globalAlpha = .8;
+        ctx.strokeStyle = '#a3e635';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r + 8.5, 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = .5;
+        ctx.setLineDash([5, 6]);
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(mt.x, mt.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 防卡死引导：琥珀色虚线环 + 指向目标砖的虚线，说明球为什么在拐弯。
+    // 目标用引导这一帧真正瞄的 b.aimTarget，**不重新算** ——
+    // 否则屏幕上那条线和球实际被掰的方向可能不是同一块砖。
+    if (b.assistFx > 0){
+      ctx.save();
+      ctx.globalAlpha = clamp(b.assistFx / .2, 0, 1) * .95;
+      ctx.strokeStyle = '#ffd93d';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r + 7, 0, TAU);
+      ctx.stroke();
+      const tgt = b.aimTarget;
+      if (tgt){
+        ctx.globalAlpha *= .55;
+        ctx.setLineDash([5, 6]);
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(tgt.x, tgt.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 }
 
@@ -2962,7 +3766,6 @@ function render(){
   }
   drawBackground();
   drawBricks();
-  drawWells();            // 引力井画在砖之上：它是"场"，砖在它里面
   drawShockwaves();       // 爆炸波画在砖之上：砖被炸开时环是压在砖面上的
   drawDrops();
   drawPaddle();
@@ -3024,7 +3827,7 @@ resize();
 paddle = makePaddle();
 balls = [ makeBall(W/2, paddle.y - 8, 0, 0) ];
 balls[0].stuck = true;
-bricks = []; drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
+bricks = []; drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0;
 requestAnimationFrame(frame);
 
 // 让 canvas 一开始就拿到键盘焦点

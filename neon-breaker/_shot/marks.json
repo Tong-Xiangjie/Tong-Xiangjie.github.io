@@ -1,0 +1,906 @@
+{
+ "03-bricks": {
+  "ball": null,
+  "vel": null,
+  "trail": [],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": null,
+  "breakable": 14,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": [
+   699,
+   245
+  ],
+  "stuck": 0,
+  "portalLeft": 10,
+  "portalDots": [
+   [
+    699,
+    381
+   ],
+   [
+    845,
+    381
+   ]
+  ],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": null,
+  "shock": [],
+  "alive": 17,
+  "dead": 0,
+  "probe": []
+ },
+ "01-title": {
+  "ball": [
+   480,
+   546
+  ],
+  "vel": [
+   0,
+   0
+  ],
+  "trail": [],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 0,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": null,
+  "shock": [],
+  "alive": 0,
+  "dead": 0,
+  "probe": []
+ },
+ "02-gameplay": {
+  "ball": [
+   842.8,
+   414.9
+  ],
+  "vel": [
+   -99.2,
+   -466.3
+  ],
+  "trail": [
+   [
+    864.3,
+    515.9
+   ],
+   [
+    862.6,
+    508.1
+   ],
+   [
+    860.9,
+    500.4
+   ],
+   [
+    859.3,
+    492.6
+   ],
+   [
+    857.6,
+    484.8
+   ],
+   [
+    856,
+    477
+   ],
+   [
+    854.3,
+    469.3
+   ],
+   [
+    852.7,
+    461.5
+   ],
+   [
+    851,
+    453.7
+   ],
+   [
+    849.4,
+    446
+   ],
+   [
+    847.7,
+    438.2
+   ],
+   [
+    846.1,
+    430.4
+   ],
+   [
+    844.4,
+    422.6
+   ],
+   [
+    842.8,
+    414.9
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 32,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 1.05,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": true,
+  "magnetTarget": [
+   687,
+   235
+  ],
+  "shock": [],
+  "alive": 32,
+  "dead": 2,
+  "probe": []
+ },
+ "04-powers": {
+  "ball": null,
+  "vel": null,
+  "trail": [],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": null,
+  "breakable": 0,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": null,
+  "shock": [],
+  "alive": 0,
+  "dead": 0,
+  "probe": []
+ },
+ "05-effects": {
+  "ball": [
+   607.6,
+   530.2
+  ],
+  "vel": [
+   -214.3,
+   425.9
+  ],
+  "trail": [
+   [
+    654,
+    437.9
+   ],
+   [
+    650.5,
+    445
+   ],
+   [
+    646.9,
+    452.1
+   ],
+   [
+    643.3,
+    459.2
+   ],
+   [
+    639.7,
+    466.3
+   ],
+   [
+    636.2,
+    473.4
+   ],
+   [
+    632.6,
+    480.5
+   ],
+   [
+    629,
+    487.6
+   ],
+   [
+    625.5,
+    494.7
+   ],
+   [
+    621.9,
+    501.8
+   ],
+   [
+    618.3,
+    508.9
+   ],
+   [
+    614.7,
+    516
+   ],
+   [
+    611.2,
+    523.1
+   ],
+   [
+    607.6,
+    530.2
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 21,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.05,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": [
+   687,
+   202
+  ],
+  "shock": [
+   [
+    474.3,
+    175.9,
+    124
+   ]
+  ],
+  "alive": 21,
+  "dead": 4,
+  "probe": []
+ },
+ "06-well": {
+  "ball": [
+   536,
+   354.2
+  ],
+  "vel": [
+   465.7,
+   -39.5
+  ],
+  "trail": [
+   [
+    433.9,
+    359.6
+   ],
+   [
+    441.8,
+    359.5
+   ],
+   [
+    449.6,
+    359.2
+   ],
+   [
+    457.4,
+    359
+   ],
+   [
+    465.3,
+    358.6
+   ],
+   [
+    473.2,
+    358.3
+   ],
+   [
+    481.1,
+    357.9
+   ],
+   [
+    489,
+    357.5
+   ],
+   [
+    496.8,
+    357
+   ],
+   [
+    504.7,
+    356.5
+   ],
+   [
+    512.6,
+    356
+   ],
+   [
+    520.4,
+    355.4
+   ],
+   [
+    528.2,
+    354.8
+   ],
+   [
+    536,
+    354.2
+   ]
+  ],
+  "wells": [
+   [
+    480,
+    300,
+    3
+   ]
+  ],
+  "shock": [],
+  "alive": 34,
+  "dead": 0,
+  "probe": []
+ },
+ "07-select": {
+  "ball": [
+   480,
+   546
+  ],
+  "vel": [
+   0,
+   0
+  ],
+  "trail": [],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 0,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": null,
+  "shock": [],
+  "alive": 0,
+  "dead": 0,
+  "probe": []
+ },
+ "08-clear": {
+  "ball": [
+   480,
+   546
+  ],
+  "vel": [
+   0,
+   0
+  ],
+  "trail": [],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 39,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": [
+   435,
+   400
+  ],
+  "shock": [],
+  "alive": 39,
+  "dead": 0,
+  "probe": []
+ },
+ "06-magnet": {
+  "ball": [
+   762.5,
+   432.5
+  ],
+  "vel": [
+   -401.1,
+   -224.6
+  ],
+  "trail": [
+   [
+    827.8,
+    498.6
+   ],
+   [
+    827.8,
+    491
+   ],
+   [
+    826.5,
+    483.4
+   ],
+   [
+    823.8,
+    476.2
+   ],
+   [
+    820,
+    469.6
+   ],
+   [
+    815.1,
+    463.7
+   ],
+   [
+    809.2,
+    458.8
+   ],
+   [
+    802.6,
+    454.9
+   ],
+   [
+    795.9,
+    451.2
+   ],
+   [
+    789.2,
+    447.5
+   ],
+   [
+    782.5,
+    443.7
+   ],
+   [
+    775.9,
+    440
+   ],
+   [
+    769.2,
+    436.2
+   ],
+   [
+    762.5,
+    432.5
+   ]
+  ],
+  "magnet": 7.13,
+  "assistFx": 0,
+  "style": {
+   "edge": "#a3e635",
+   "core": "#f2ffd6",
+   "glow": "#a3e635",
+   "blur": 26
+  },
+  "breakable": 15,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": [
+   267,
+   136
+  ],
+  "stuck": 0.27,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": [
+   351,
+   202
+  ],
+  "aimLine": null,
+  "ascending": true,
+  "magnetTarget": [
+   351,
+   202
+  ],
+  "shock": [],
+  "alive": 15,
+  "dead": 0,
+  "probe": []
+ },
+ "09-assist": {
+  "ball": [
+   926.5,
+   291.3
+  ],
+  "vel": [
+   -300.3,
+   -265
+  ],
+  "trail": [
+   [
+    846.7,
+    297.7
+   ],
+   [
+    853.3,
+    297.3
+   ],
+   [
+    860,
+    297
+   ],
+   [
+    866.7,
+    296.7
+   ],
+   [
+    873.3,
+    296.3
+   ],
+   [
+    880,
+    296
+   ],
+   [
+    886.7,
+    295.7
+   ],
+   [
+    893.3,
+    295.3
+   ],
+   [
+    900,
+    295
+   ],
+   [
+    906.7,
+    294.7
+   ],
+   [
+    913.3,
+    294.3
+   ],
+   [
+    920,
+    294
+   ],
+   [
+    926.7,
+    293.7
+   ],
+   [
+    926.5,
+    291.3
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0.183,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 2,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.33,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": [
+   771,
+   103
+  ],
+  "ascending": true,
+  "magnetTarget": [
+   771,
+   103
+  ],
+  "shock": [],
+  "alive": 2,
+  "dead": 0,
+  "probe": []
+ },
+ "97-audit": {
+  "ball": [
+   120.9,
+   446.3
+  ],
+  "vel": [
+   -565.8,
+   -335.7
+  ],
+  "trail": [
+   [
+    243.5,
+    519
+   ],
+   [
+    234.1,
+    513.4
+   ],
+   [
+    224.7,
+    507.8
+   ],
+   [
+    215.3,
+    502.2
+   ],
+   [
+    205.8,
+    496.6
+   ],
+   [
+    196.4,
+    491
+   ],
+   [
+    187,
+    485.4
+   ],
+   [
+    177.5,
+    479.9
+   ],
+   [
+    168.1,
+    474.3
+   ],
+   [
+    158.7,
+    468.7
+   ],
+   [
+    149.2,
+    463.1
+   ],
+   [
+    139.8,
+    457.5
+   ],
+   [
+    130.4,
+    451.9
+   ],
+   [
+    120.9,
+    446.3
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 1,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.02,
+  "magLine": null,
+  "aimLine": null,
+  "ascending": true,
+  "magnetTarget": [
+   183,
+   169
+  ],
+  "shock": [],
+  "alive": 13,
+  "dead": 55,
+  "probe": []
+ },
+ "10-portal": {
+  "ball": [
+   342,
+   103
+  ],
+  "vel": [
+   420,
+   0
+  ],
+  "trail": [
+   [
+    307,
+    103
+   ],
+   [
+    314,
+    103
+   ],
+   [
+    321,
+    103
+   ],
+   [
+    328,
+    103
+   ],
+   [
+    335,
+    103
+   ],
+   [
+    342,
+    103
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 8,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.1,
+  "portalLeft": 1,
+  "portalDots": [
+   [
+    99,
+    103
+   ],
+   [
+    855,
+    103
+   ]
+  ],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": [
+   267,
+   136
+  ],
+  "shock": [],
+  "alive": 10,
+  "dead": 0,
+  "probe": []
+ },
+ "98-flat": {},
+ "11-flat": {
+  "ball": [
+   31,
+   300.9
+  ],
+  "vel": [
+   297.6,
+   297.6
+  ],
+  "trail": [
+   [
+    35,
+    300.5
+   ],
+   [
+    31,
+    300.9
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0.183,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 16,
+  "assistOn": false,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.03,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": [
+   284.1,
+   554
+  ],
+  "ascending": false,
+  "magnetTarget": [
+   99,
+   169
+  ],
+  "shock": [],
+  "alive": 16,
+  "dead": 0,
+  "probe": []
+ },
+ "12-nest": {
+  "ball": [
+   699,
+   423.3
+  ],
+  "vel": [
+   -121.8,
+   -385.7
+  ],
+  "trail": [
+   [
+    699,
+    423.3
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0.183,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 1,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 20.02,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": [
+   561,
+   169
+  ],
+  "ascending": true,
+  "magnetTarget": [
+   435,
+   169
+  ],
+  "shock": [],
+  "alive": 8,
+  "dead": 0,
+  "probe": []
+ }
+}
