@@ -180,6 +180,12 @@ function renderSeriesList(data, title) {
     const app = getRenderContainer();
     copyDetailList = []; // 重置详细信息列表
 
+    // ★ 注意：pendingReveal 只对"这一次渲染"有效。无论下面走哪个分支都必须消费掉，
+    //   否则空数据提前 return 时它会残留下来，污染下一次无关的分类渲染。
+    const reveal = (pendingReveal && pendingReveal.catId === String(currentSubId || currentCategoryId || ''))
+        ? pendingReveal : null;
+    pendingReveal = null;
+
     if (!data || !data.series || data.series.length === 0) {
         app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
         return;
@@ -197,6 +203,8 @@ function renderSeriesList(data, title) {
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
         const seriesId = seriesScopeId(accScope, si);
+        // 本系列是否要在本次渲染里直接展开
+        const openSeries = !!(reveal && reveal.sIdx === si);
 
         let seriesTotal = 0;
         if (series.varieties) {
@@ -206,27 +214,29 @@ function renderSeriesList(data, title) {
         }
 
         html += `<div class="series-year-row">`;
-        html += `<div class="series-year-header" onclick="toggleSeries('${seriesId}')">`;
+        html += `<div class="series-year-header" onclick="toggleSeries('${seriesId}', this)">`;
         html += `<span class="series-name-label">${escapeHtml(series.seriesName)}</span>`;
         html += `<span class="series-count-badge">${seriesTotal}件</span>`;
-        html += `<span class="series-expand-icon" id="icon-${seriesId}">▼</span>`;
+        html += `<span class="series-expand-icon${openSeries ? ' open' : ''}" id="icon-${seriesId}">▼</span>`;
         html += `</div>`;
-        html += `<div class="series-body" id="body-${seriesId}">`;
+        html += `<div class="series-body${openSeries ? ' open' : ''}" id="body-${seriesId}"${openSeries ? ' style="max-height:none;"' : ''}>`;
 
         if (series.varieties && series.varieties.length > 0) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 const copies = variety.copies || [];
                 const uid = varietyScopeId(accScope, si, vi);
+                // 目标品种：仅在目标系列内部才认，避免在别的系列里误展开同序号品种
+                const openVariety = !!(openSeries && reveal.vIdx === vi);
 
                 html += `<div class="variety-row">`;
-                html += `<div class="variety-header" onclick="toggleVariety('${uid}')">`;
+                html += `<div class="variety-header" onclick="toggleVariety('${uid}', this)">`;
                 html += `<span class="variety-name">${escapeHtml(variety.varietyName)}</span>`;
                 html += `<span class="variety-summary">`;
                 html += `<span class="count">${copies.length}件</span>`;
-                html += `<span class="variety-expand-icon" id="icon-${uid}">▼</span>`;
+                html += `<span class="variety-expand-icon${openVariety ? ' open' : ''}" id="icon-${uid}">▼</span>`;
                 html += `</span></div>`;
-                html += `<div class="copy-list" id="list-${uid}" data-acc-v="${vi}">`;
+                html += `<div class="copy-list${openVariety ? ' open' : ''}" id="list-${uid}" data-acc-v="${vi}"${openVariety ? ' style="max-height:none;opacity:1;"' : ''}>`;
                 html += renderCopiesList(copies, data.detailFields, `${series.seriesName} - ${variety.varietyName}`, vi);
                 html += `</div></div>`;
             }
@@ -301,21 +311,29 @@ function renderCopiesList(copies, detailFields, displayName, accV) {
     return html;
 }
 
-function toggleSeries(id) {
-    // ★ 在活动容器内查找（原来用 document.getElementById，会命中隐藏容器里
-    //   文档序更靠前的同名节点 —— 审查报告 B7 / repro-accordion-id-collision.mjs）
-    const body = scopeAccordionLookup('body-' + id);
-    const icon = scopeAccordionLookup('icon-' + id);
-    if (!body) return;
+// hintEl：被点击的那个头部元素（onclick 里传 this）。
+// ★ 用它反查"节点实际所在的视图容器"，比靠 currentMode/currentCategoryId 现算容器可靠 ——
+//   后者一旦漂移，查找落空、这里就静默什么都不做，用户看到的就是"点了没反应"。
+function toggleSeries(id, hintEl) {
+    const body = scopeAccordionLookup('body-' + id, hintEl);
+    const icon = scopeAccordionLookup('icon-' + id, hintEl);
+    if (!body) {
+        // 真找不到才报错：能帮助定位"渲染用的 id"与"onclick 里的 id"不一致这类问题
+        console.warn('[accordion] 找不到系列体:', 'body-' + id);
+        return;
+    }
     // 用精确高度过渡，避免固定 max-height 造成的"弹开后空跑"
     animateAccordion(body, !body.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
 }
 
-function toggleVariety(id) {
-    const list = scopeAccordionLookup('list-' + id);
-    const icon = scopeAccordionLookup('icon-' + id);
-    if (!list) return;
+function toggleVariety(id, hintEl) {
+    const list = scopeAccordionLookup('list-' + id, hintEl);
+    const icon = scopeAccordionLookup('icon-' + id, hintEl);
+    if (!list) {
+        console.warn('[accordion] 找不到品种列表:', 'list-' + id);
+        return;
+    }
     animateAccordion(list, !list.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
 }

@@ -275,6 +275,19 @@ async function applyRoute(hash, opts) {
         }
 
         // ---------- 纸币 / 硬币 ----------
+        // ★ 定位信息要在 enter* **之前**登记：enter* 内部的 renderSeriesList()
+        //   会消费它并直接生成已展开的标记（见 core.js 的 pendingReveal 注释）。
+        //   主流程的 enter* 走 modeStates 里的 expandedSeries/expandedVarieties，
+        //   这里单独给"路由指定的那一条"再补一次，保证它一定展开。
+        if (route.view === VIEW.CATEGORY && route.sIdx !== undefined) {
+            pendingReveal = {
+                // 与 category-view.js 里 renderSeriesList 的匹配口径一致
+                catId: String(route.subId || route.catId || ''),
+                sIdx: route.sIdx,
+                vIdx: (route.vIdx === undefined) ? null : route.vIdx,
+                cIdx: (route.cIdx === undefined) ? null : route.cIdx
+            };
+        }
         if (typeof enterNotesOrCoinsTab === 'function') enterNotesOrCoinsTab(route.mode);
 
         // 搜索视图：enter* 内部会按 saved.currentSearchKeyword 渲染，通常已够；

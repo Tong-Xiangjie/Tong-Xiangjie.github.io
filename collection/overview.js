@@ -169,10 +169,6 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
 
     if (!foundCat) return;
 
-    const overviewContainer = getRenderContainer();
-    if (overviewContainer) {
-        }
-
     // 设置新状态
     currentCategoryId = foundCat.id;
     currentSubId = foundSub ? foundSub.id : null;
@@ -190,6 +186,17 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
         appEl.style.display = 'none';
         appEl.innerHTML = '';
     }
+
+    // ★ 登记"待展开条目"：必须在 renderCurrentCategory() **之前**，
+    //   renderSeriesList() 会消费它并直接生成已展开的标记。
+    //   原来只靠下面的 setTimeout 去补开，一条异步链上任何一环落空就静默失败
+    //   （用户报的"概览跳转点不开"）。
+    pendingReveal = {
+        catId: String(currentSubId || currentCategoryId || ''),
+        sIdx: si,
+        vIdx: (hasVarieties && vi !== null && vi !== undefined && vi !== 'null') ? vi : null,
+        cIdx: (ci === null || ci === undefined) ? null : ci
+    };
 
     // 切换到目标容器并渲染
     switchToCurrentContainer();

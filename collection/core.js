@@ -221,6 +221,16 @@ let specialCategoryTree = null;
 
 let ratingMode = MODE.NOTES;
 
+// ★ 「待展开条目」：从概览/搜索结果跳进分类页时，目标系列与品种应当在**渲染的那一刻**
+//   就带 open 类和 max-height，而不是渲染完再靠 setTimeout 去 DOM 里找节点补开。
+//   原因：后者是一条异步链（waitFor → 取节点 → toggleSeries → animateAccordion），
+//   任何一环落空（节点还没生成、活动容器漂移、这次渲染的目标分类与作用域不一致）
+//   都会静默失败 —— 表现就是用户报的"概览跳转点不开"，且不报错、无法排查。
+//   改成渲染时生成后：展开与否是渲染的**输入**，不再依赖查找结果。
+//   catId 参与匹配（取 currentSubId || currentCategoryId），确保这份待展开状态
+//   确实属于正在渲染的那个分类，切分类时不会误展同序号系列。
+let pendingReveal = null;   // { catId, sIdx, vIdx, cIdx }
+
 let modeStates = {
     notes: {
         currentCategoryId: null, currentSubId: null, currentView: VIEW.OVERVIEW,
@@ -366,43 +376,116 @@ function varietyScopeId(scope, si, vi) { return scope + '-v' + si + '-' + vi; }
 function closeAllAccordions() {
     const container = getRenderContainer();
     if (!container) return;
-    container.querySelectorAll('.series-body.open, .copy-list.open').forEach(el => {
+    $$('.series-body.open, .copy-list.open', container).forEach(el => {
         el.classList.remove('open');
         el.style.maxHeight = '';
     });
-    container.querySelectorAll('.series-expand-icon.open, .variety-expand-icon.open').forEach(el => {
+    $$('.series-expand-icon.open, .variety-expand-icon.open', container).forEach(el => {
         el.classList.remove('open');
     });
 }
 
-// 在活动容器内查元素；容器里找不到再退化为全局查（兼容尚未加前缀的历史调用）
-function scopeAccordionLookup(domId) {
-    const container = getRenderContainer();
-    if (container) {
-        const el = container.querySelector('[id="' + String(domId).replace(/"/g, '\\"') + '"]');
-        if (el) return el;
+// ★ 拿到某个节点所属的「视图容器根」。
+//   被点击的节点自己知道它在哪个容器里 —— 这比"猜当前活动容器"可靠得多。
+function getViewRootOf(el) {
+    let n = el;
+    while (n) {
+        if (n.classList && n.classList.contains('view-scroll-container')) return n;
+        n = n.parentNode;
     }
-    return document.getElementById(domId);
+    return null;
 }
 
-// 当前活动容器里、所有属于某分类作用域的展开态。
-// ★ 只查活动容器、且只认本作用域前缀 —— 这样"收集到的状态"与"待恢复的目标"必然对得上。
+// ★ 两个查询原语：把"在哪个范围里找"集中到一处。
+//   root 可以是任意元素（含视图容器）；传 null 表示全局查。
+//   不能假定 root 一定是视图容器 —— 从被点节点往上找可能只到 .series-container，
+//   这时用 root.querySelectorAll 依然正确（范围更小、不会漏）。
+function $$(sel, root) {
+    root = root || document;
+    if (typeof root.querySelectorAll === 'function') return [...root.querySelectorAll(sel)];
+    return [];
+}
+function $(sel, root) {
+    root = root || document;
+    if (typeof root.querySelector === 'function') return root.querySelector(sel);
+    return null;
+}
+
+// 在可能的位置里查手风琴节点。
+// ★ 为什么不像一开始那样"只查活动容器"：
+//   活动容器是由 getContainerKey() 现算的，它依赖 currentMode / currentCategoryId /
+//   currentSubId / currentView / isSettingsMode 这一串可变状态。只要其中任何一项在
+//   "渲染时"和"点击时"之间发生漂移（切板块、深链接回填、设置页往返、画质开关作废
+//   容器、路由应用中途……），查询就会落空；而 toggleSeries 里是 `if (!body) return;`
+//   —— 静默什么都不做，用户看到的就是"点了没反应"。
+//   现在改成按可靠性由高到低逐级下探，任何一级命中即可：
+//     ① 被点元素自己所在的视图容器（最可靠：节点在哪就查哪）
+//     ② 当前活动容器
+//     ③ 任意已存在的视图容器
+//     ④ 全局（id 已带分类作用域、全局唯一，不会串台）
+function scopeAccordionLookup(domId, hintEl) {
+    const id = String(domId);
+    const sel = '[id="' + id.replace(/"/g, '\\"') + '"]';
+
+    // ① 被点节点所在的容器
+    if (hintEl) {
+        const root = getViewRootOf(hintEl) || hintEl.parentNode;
+        const hit = $(sel, root);
+        if (hit) return hit;
+    }
+    // ② 当前活动容器
+    const active = getRenderContainer();
+    if (active) {
+        const hit = $(sel, active);
+        if (hit) return hit;
+    }
+    // ③ 其它已渲染的视图容器
+    for (const k of Object.keys(viewScrollContainers)) {
+        const c = viewScrollContainers[k];
+        if (!c || c === active) continue;
+        const hit = $(sel, c);
+        if (hit) return hit;
+    }
+    // ④ 全局兜底
+    return document.getElementById(id);
+}
+
+// 收集展开态。
+// ★ 按「作用域前缀」过滤，而不是按「活动容器」过滤。
+//   id 形如 body-notes_category_rmb3-s0，前缀本身就唯一确定了分类。
+//   只查活动容器时，一旦活动容器为空或发生漂移，就会收集到"空状态"，
+//   恢复阶段再把用户原本开着的系列全关掉 —— 表现为"展开状态莫名丢失"。
+//   改成按前缀收集后：既不串台（前缀不同），也不丢状态（不依赖活动容器）。
 function collectScopedExpanded() {
-    const container = getRenderContainer();
     const scope = getCategoryScope();
+    const seriesPrefix = 'body-' + scope + '-s';
+    const varietyPrefix = 'list-' + scope + '-v';
     const expandedSeries = [];
     const expandedVarieties = [];
-    if (!container) return { expandedSeries, expandedVarieties };
-    container.querySelectorAll('.series-body.open').forEach(el => {
-        const id = el.id || '';
-        const prefix = 'body-' + scope + '-s';
-        if (id.startsWith(prefix)) expandedSeries.push(id.slice('body-'.length));
-    });
-    container.querySelectorAll('.copy-list.open').forEach(el => {
-        const id = el.id || '';
-        const prefix = 'list-' + scope + '-v';
-        if (id.startsWith(prefix)) expandedVarieties.push(id.slice('list-'.length));
-    });
+    const seenSeries = new Set();
+    const seenVarieties = new Set();
+
+    const scan = (root) => {
+        $$('.series-body.open', root).forEach(el => {
+            const id = el.id || '';
+            if (id.startsWith(seriesPrefix) && !seenSeries.has(id)) {
+                seenSeries.add(id);
+                expandedSeries.push(id.slice('body-'.length));
+            }
+        });
+        $$('.copy-list.open', root).forEach(el => {
+            const id = el.id || '';
+            if (id.startsWith(varietyPrefix) && !seenVarieties.has(id)) {
+                seenVarieties.add(id);
+                expandedVarieties.push(id.slice('list-'.length));
+            }
+        });
+    };
+    for (const k of Object.keys(viewScrollContainers)) {
+        if (viewScrollContainers[k]) scan(viewScrollContainers[k]);
+    }
+    scan(document);   // 全局兜底（前缀已保证不串台）
+
     return { expandedSeries, expandedVarieties };
 }
 
