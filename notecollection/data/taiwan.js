@@ -5,9 +5,10 @@ const taiwanData = {
     desc: "Taiwan Currency",
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "year", label: "发行年份" },
         { key: "print", label: "印刷机构" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },

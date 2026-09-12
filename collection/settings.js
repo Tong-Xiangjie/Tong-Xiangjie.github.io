@@ -129,8 +129,9 @@ function renderSettingsPage() {
     // 网格画质
     html += `<div class="settings-section">`;
     html += `<h3>网格画质</h3>`;
-    html += renderToggleRow('gridOriginalSwitch', '网格直接用原图', gridUseOriginal(), 'toggleGridOriginal()');
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">默认缩略图：冷启动一个板块 1~2MB，开原图要 40~100MB。缓存热了两者一样快。</p>`;
+    html += renderToggleRow('gridOriginalSwitch', '网格直接用原图',
+        '默认缩略图：冷启动一个板块 1~2MB，开原图要 40~100MB。缓存热了两者一样快。',
+        gridUseOriginal(), 'toggleGridOriginal()');
     html += `</div>`;
 
     // 图片缓存
@@ -155,13 +156,15 @@ function renderSettingsPage() {
     const precacheAutoOn = (typeof precacheAutoEnabled === 'function' && precacheAutoEnabled());
     html += `<div class="settings-section">`;
     html += `<h3>离线预缓存</h3>`;
-    html += renderToggleRow('precacheAutoSwitch', '自动预缓存', precacheAutoOn, 'togglePrecacheAuto()');
+    html += renderToggleRow('precacheAutoSwitch', '自动预缓存',
+        '后台补齐当前页没滚到的图（左下角有进度，点 × 能停）；省流量或 2G/3G 不跑。',
+        precacheAutoOn, 'togglePrecacheAuto()');
+    html += `<div class="actions-caption">手动预缓存</div>`;
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" onclick="runPrecacheThumbs()">预缓存全部缩略图</button>`;
     html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部（含原图）</span></button>`;
     html += `</div>`;
     html += `<p class="export-hint" id="precacheStatus" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">本地已缓存 0 张图片</p>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">专题页的图是懒加载的，没滚到的离线看不到；自动预缓存会在后台补齐当前页（左下角有进度，点 × 能停）。省流量或 2G/3G 不跑。</p>`;
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">缩略图约 <b>14MB</b>；含原图约 <b>775MB</b>，会吃 Pages 带宽（软限 100GB/月），别反复点 —— 点开大图时原图会自动存下来。</p>`;
     html += `</div>`;
 
@@ -198,12 +201,17 @@ function renderSettingsPage() {
     if (typeof precacheRefreshStatus === 'function') precacheRefreshStatus();
 }
 
-// ========== 开关行（自动预缓存 / 网格画质共用） ==========
-function renderToggleRow(id, label, on, onclickExpr) {
-    return `<div class="toggle-row" onclick="${onclickExpr}">`
+// ========== 开关卡片（自动预缓存 / 网格画质共用） ==========
+// 浅色卡片 = "状态/设置项"；主题色实心按钮 = "立即执行的动作"。两套语言分开，
+// 也避免把开关和按钮排在同一行（之前那样看着很乱）。
+function renderToggleRow(id, label, desc, on, onclickExpr) {
+    return `<div class="toggle-card" onclick="${onclickExpr}">`
+        + `<div class="toggle-card-top">`
         + `<span class="toggle-label">${label}</span>`
         + `<span class="switch${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on ? 'true' : 'false'}">`
         + `<span class="switch-knob"></span></span>`
+        + `</div>`
+        + (desc ? `<div class="toggle-desc">${desc}</div>` : '')
         + `</div>`;
 }
 

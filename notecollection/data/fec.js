@@ -6,13 +6,14 @@ const fecData = {
     // 详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "year", label: "发行年份" },
         { key: "wmk", label: "水印" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "krause", label: "克劳斯目录编号" }
+        { key: "krause", label: "纸币目录编号" }
     ],
     series: [
         {

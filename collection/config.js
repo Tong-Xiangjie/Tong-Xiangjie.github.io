@@ -155,7 +155,7 @@ const allDataKeys = [];
 // ★ 图片路径由 CDN_BASE 统一处理（core.js 中定义）
 // IMAGE_BASE 已废弃删除
 
-// 获取数据（通过 DATA_MAP 桥接）
-function getData(dataKey) {
-    return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
-}
+// ★ getData 统一放在 core.js 里（那份是按当前模式查 DATA_MAP / COIN_DATA_MAP / FUN_DATA_MAP 的）。
+//   这里以前还有一份只查 DATA_MAP 的实现，因为它后面才加载、会被 core.js 静默覆盖，
+//   所以那份从来没生效过，而且对硬币本来就是错的 —— 已删除，别再往回加。
+//   查顶层重名：node collection/tools/check-data.mjs

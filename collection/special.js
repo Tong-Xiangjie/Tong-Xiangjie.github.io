@@ -283,7 +283,7 @@ function renderSpecialContent() {
             const gImg = gridImg(item.yearImg || item.img);
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
-                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${escapeAttr(gImg.src)}"${thumbFallbackAttr(gImg.fallback)} alt="${escapeHtml(item.name || item.scene || '')}" loading="lazy"></div>`;
+                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${escapeAttr(gImg.src)}"${thumbFallbackAttr(gImg.fallback)} alt="${escapeAttr(item.name || item.scene || '')}" loading="lazy"></div>`;
             } else {
                 html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">还木有图片</div>`;
             }
@@ -374,7 +374,7 @@ function renderLightboxContent(contentEl, config) {
 
     if (imgUrl) {
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;">`;
-        html += `<img src="${imgUrl}" alt="${escapeHtml(item.name || item.scene || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
+        html += `<img src="${imgUrl}" alt="${escapeAttr(item.name || item.scene || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
         html += `</div>`;
     } else {
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
@@ -512,7 +512,7 @@ function renderShanheList(config) {
             const idx = specialItemsList.indexOf(item);
             const imgUrl = getImageUrl(item.img || item.yearImg);
             const gImg = gridImg(item.img || item.yearImg);
-            html += `<div class="shanhe-list-cell" onclick="openSpecialLightbox(${idx})" title="${escapeHtml(item.scene || item.name || '')}">`;
+            html += `<div class="shanhe-list-cell" onclick="openSpecialLightbox(${idx})" title="${escapeAttr(item.scene || item.name || '')}">`;
             if (imgUrl) html += `<img src="${escapeAttr(gImg.src)}"${thumbFallbackAttr(gImg.fallback)} alt="" loading="lazy">`;
             else html += `<span class="no-img">还木有图片</span>`;
             html += `</div>`;
@@ -950,7 +950,7 @@ function renderShanheProvince(config) {
             const gImg = gridImg(item.img || item.yearImg);
             html += `<div class="special-item-card" onclick="openSpecialLightbox(${index})">`;
             if (imgUrl) {
-                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${escapeAttr(gImg.src)}"${thumbFallbackAttr(gImg.fallback)} alt="${escapeHtml(item.scene || item.name || '')}" loading="lazy"></div>`;
+                html += `<div class="special-item-img-wrapper"><img class="special-item-img" src="${escapeAttr(gImg.src)}"${thumbFallbackAttr(gImg.fallback)} alt="${escapeAttr(item.scene || item.name || '')}" loading="lazy"></div>`;
             } else {
                 html += `<div class="special-item-img-wrapper" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-secondary);">还木有图片</div>`;
             }
@@ -1048,32 +1048,8 @@ function parseChineseDate(dateStr) {
     return null;
 }
 
-// ---------- 获取分类路径（不含顶层「纸币/硬币」） ----------
-function getCategoryPath(dataKey, type) {
-    let tree;
-    if (type === 'notes') {
-        tree = typeof categoryTree !== 'undefined' ? categoryTree : [];
-    } else if (type === 'coins') {
-        tree = typeof coinCategoryTree !== 'undefined' ? coinCategoryTree : [];
-    } else {
-        return '';
-    }
-
-    for (const cat of tree) {
-        if (cat.children && cat.children.length > 0) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) {
-                    return cat.name + ' - ' + sub.name;
-                }
-            }
-        } else {
-            if (cat.dataKey === dataKey) {
-                return cat.name;
-            }
-        }
-    }
-    return '';
-}
+// ---------- 分类路径 ----------
+// getCategoryPath() 已统一到 core.js（stats.js 的导出与这里的时间轴共用一份）。
 
 // ---------- 排序切换 ----------
 function setTimelineOrder(order) {
@@ -1361,10 +1337,10 @@ function renderTimelineContent(config) {
                 html += `<div class="timeline-card">`;
                 html += `<div class="timeline-images">`;
                 if (img1) {
-                    html += `<img class="timeline-img" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img1)}', '${escapeHtml(img2 || img1)}')">`;
+                    html += `<img class="timeline-img" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
                 }
                 if (img2) {
-                    html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} alt="" onclick="event.stopPropagation(); openModal('${escapeHtml(img2)}', '${escapeHtml(img1 || img2)}')">`;
+                    html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
                 }
                 if (!img1 && !img2) {
                     html += `<div class="timeline-no-img">无图</div>`;

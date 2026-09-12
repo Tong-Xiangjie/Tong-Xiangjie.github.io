@@ -14,6 +14,7 @@ const coincommData = {
         { key: "edge", label: "边齿" },
         { key: "mintage", label: "发行量" },
         { key: "gradingCompany", label: "评级公司" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "grade", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },

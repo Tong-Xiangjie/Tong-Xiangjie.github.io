@@ -5,7 +5,7 @@ const republic_spbData = {
     desc: "Southern People's Bank",
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行银行" },
+        { key: "bank", label: "发行方" },
         { key: "print", label: "印刷机构" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },

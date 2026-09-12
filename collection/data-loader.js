@@ -56,16 +56,28 @@ function loadAllData(onProgress) {
 
         const total = files.length;
         const failed = [];
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (onProgress) onProgress({ loaded: i, total, current: file });
-            try {
-                await loadScript(file);
-            } catch (err) {
-                console.warn('[data-loader] 跳过加载失败的文件:', file, err);
-                failed.push(file);
+        // ★ 并发加载（原来是一个个 await）。
+        //   50 个数据文件合计只有 465KB，串行却要付 50 次网络往返 —— 按 100ms RTT
+        //   算就是约 5 秒纯粹耗在排队上，手机上更久。并发 6 路后只剩约 9 次往返。
+        //   各数据文件互相独立（各自只定义自己的那个变量），加载顺序无所谓。
+        const CONCURRENCY = 6;
+        let done = 0;
+        let next = 0;
+        async function worker() {
+            while (next < files.length) {
+                const file = files[next++];
+                if (onProgress) onProgress({ loaded: done, total, current: file });
+                try {
+                    await loadScript(file);
+                } catch (err) {
+                    console.warn('[data-loader] 跳过加载失败的文件:', file, err);
+                    failed.push(file);
+                }
+                done++;
+                if (onProgress) onProgress({ loaded: done, total, current: file });
             }
         }
+        await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker));
         if (onProgress) onProgress({ loaded: files.length, total, current: '' });
 
         if (failed.length > 0) {

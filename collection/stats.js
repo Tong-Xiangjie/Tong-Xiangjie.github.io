@@ -516,19 +516,10 @@ function exportStamp() {
 }
 
 // 把内部 dataKey 映射成人能读的分类路径（纸币要带上父分类）。
-// 原先 JSON / CSV / MD 各写了一遍同样的循环，这里统一成一处。
-function categoryLabelOf(dataKey, type) {
-    const tree = (type === 'coins') ? coinCategoryTree : categoryTree;
-    for (const cat of tree) {
-        if (cat.children && cat.children.length > 0) {
-            for (const sub of cat.children) {
-                if (sub.dataKey === dataKey) return cat.name + ' - ' + sub.name;
-            }
-        } else if (cat.dataKey === dataKey) {
-            return cat.name;
-        }
-    }
-    return dataKey;   // 找不到就退回键名，至少不丢信息
+// ★ 实现已统一到 core.js 的 getCategoryPath()，这里不再重复一份。
+//   导出时找不到分类名就退回 dataKey，至少不丢信息。
+function exportCategoryLabel(item) {
+    return getCategoryPath(item.dataKey, item.type) || item.dataKey;
 }
 
 function exportJSON() {
@@ -548,7 +539,7 @@ function exportJSON() {
             ...item.copy,
             // 以下是原始字段之外补充的规范化字段，便于直接查看与统计
             type: item.type === 'notes' ? '纸币' : '硬币',
-            category: categoryLabelOf(item.dataKey, item.type),
+            category: exportCategoryLabel(item),
             dataKey: item.dataKey,
             seriesName: item.seriesName,
             grade: item.copy.condition || item.copy.grade || '',
@@ -571,7 +562,7 @@ function exportCSV() {
     for (const item of allCopies) {
         const c = item.copy;
         const row = [
-            item.type === 'notes' ? '纸币' : '硬币', categoryLabelOf(item.dataKey, item.type), item.seriesName,
+            item.type === 'notes' ? '纸币' : '硬币', exportCategoryLabel(item), item.seriesName,
             c.version || '', c.year || '', c.condition || c.grade || '',
             c.gradingCompany || '', c.catalogNumber || c.krause || '',
             c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''
@@ -592,7 +583,7 @@ function exportMarkdown() {
     md += '- 总投入：' + stats.totalPrice.toFixed(0) + ' 元\n\n';
     const groups = {};
     for (const item of allCopies) {
-        const catLabel = categoryLabelOf(item.dataKey, item.type);
+        const catLabel = exportCategoryLabel(item);
         if (!groups[catLabel]) groups[catLabel] = [];
         groups[catLabel].push(item);
     }

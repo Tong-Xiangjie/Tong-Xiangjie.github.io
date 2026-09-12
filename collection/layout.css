@@ -663,7 +663,7 @@ body {
     font-size: 0.95rem;
 }
 .article-reader p { margin: 12px 0; }
-.article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; }
+.article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); }
 .article-reader center { display: block; text-align: center; }
 
 .article-snippet {
@@ -862,19 +862,43 @@ body.modal-open {
 .export-btn { padding: 8px 16px; background: var(--theme); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: background-color 0.2s ease, opacity 0.15s; }
 .export-btn:hover { opacity: 0.85; }
 
-/* ========== 开关（自动预缓存 / 网格画质） ========== */
-.toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 0;
+/* ========== 开关卡片（自动预缓存 / 网格画质） ==========
+   设计约定：浅色卡片 = "状态/设置项"，主题色实心按钮 = "立即执行的动作"。
+   两者的视觉语言分开，且不排在同一行 —— 之前开关裸着、下面紧跟一排实心按钮，
+   看着像两套东西硬凑在一起。 */
+.toggle-card {
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
+    transition: border-color var(--dur-2) var(--ease-out);
 }
-.toggle-row + .toggle-row { border-top: 1px solid var(--border); }
-.toggle-label { font-size: 0.85rem; color: var(--text); }
+.toggle-card:hover { border-color: var(--theme-light); }
+.toggle-card + .toggle-card { margin-top: 8px; }
+.toggle-card-top {
+    display: flex;
+    align-items: center;
+    /* ★ 不用 space-between：设置页有 500px 宽，拉到两头后开关离标签太远。
+       紧挨着标签反而一眼能看出这开关是管哪一项的。 */
+    justify-content: flex-start;
+    gap: 10px;
+}
+.toggle-label { font-size: 0.85rem; font-weight: 500; color: var(--text); }
+.toggle-desc {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 4px;
+}
+/* 动作区的分组小标题（把"开关"和"按钮"在视觉上分开） */
+.actions-caption {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 12px 0 6px;
+}
 .switch {
     flex: none;
     position: relative;
@@ -898,7 +922,7 @@ body.modal-open {
 }
 .switch.on .switch-knob { transform: translateX(20px); }
 @media (prefers-reduced-motion: reduce) {
-    .switch, .switch-knob { transition: none; }
+    .switch, .switch-knob, .toggle-card { transition: none; }
 }
 
 /* ========== 统计样式 ========== */
@@ -1647,13 +1671,13 @@ body.modal-open {
 
     @font-face {
         font-family: 'SourceHanSansSC';
-        src: url('../font/SourceHanSansSC/SourceHanSansSC-Regular.otf') format('opentype');
+        src: url('../font/SourceHanSansSC/SourceHanSansSC-Regular.subset.woff2') format('woff2');
         font-weight: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'SourceHanSansSC';
-        src: url('../font/SourceHanSansSC/SourceHanSansSC-Bold.otf') format('opentype');
+        src: url('../font/SourceHanSansSC/SourceHanSansSC-Bold.subset.woff2') format('woff2');
         font-weight: bold;
         font-display: swap;
     }

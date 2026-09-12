@@ -5,8 +5,9 @@ const nedbData = {
     desc: "State Economic Construction Bonds",
     detailFields: [
         { key: "version", label: "冠字号码" },
-        { key: "bank", label: "发行部门" },
+        { key: "bank", label: "发行方" },
         { key: "year", label: "发行年份" },
+        { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },

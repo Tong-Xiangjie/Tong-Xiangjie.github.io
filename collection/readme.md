@@ -115,7 +115,8 @@
 导出相关的三个约定（都在 `stats.js`）：
 
 - `exportStamp()` —— 统一时间戳。**用本地时间**，不用 `toISOString()`（那是 UTC，东八区晚上导出会显示成前一天）；文件名里不能出现冒号，所以是 `日期_时分`。
-- `categoryLabelOf(dataKey, type)` —— 把内部 `dataKey` 映射成人能读的分类路径（如 `rmb3Data` → `中国 - 第三套人民币`）。JSON / CSV / Markdown 三处共用，不要再各写一遍循环。
+- `getCategoryPath(dataKey, type)`（在 `core.js`）—— 把内部 `dataKey` 映射成人能读的分类路径（如 `rmb3Data` → `中国 - 第三套人民币`）。**全站只此一份**，导出（`stats.js` 的 `exportCategoryLabel()`）和时间轴（`special.js`）都用它，不要再各写一遍循环；找不到时返回 `''`，导出侧再回退成 `dataKey`。
+- 属性位置（`alt=` / `title=` / `openModal('...')` 的 JS 串参数）一律用 `escapeAttr()`，**不要用 `escapeHtml()`** —— 后者只转义 `& < >`，不处理引号，属性会被提前截断。
 - `exportPriceList()` 必须**先排序、后编号**。旧写法先 `map` 出 `idx` 再 `sort`，`idx` 记的是排序前的位置，打印出来序号会乱跳。
 
 
@@ -147,6 +148,10 @@
 - 启动时显示加载提示（「数据火速赶来中，请稍候……」），加载失败会给出具体报错
 - 专题数据同样由 loader 动态加载：`special-bridge.js` 中声明了 `dataFile` 的专题会随启动流程一起载入并桥接到 `window.FUN_DATA_MAP`；无 `dataFile` 的专题（如「币海拾年」）在渲染时从纸币/硬币数据现算
 - 趣味收藏（专题）只需要写**元信息 + 数据文件路径**，加载与桥接全部由 loader 完成
+- **并发加载（并发 6）**：原来是 `for` + `await` 一个个来，50 个数据文件合计只有 465KB，却要付 50 次网络往返（按 100ms RTT 算约 5 秒纯排队，手机上更久）。改成 6 路并发后只剩约 9 次往返；进度按「已完成数」报，语义不变。各数据文件互相独立，加载顺序无所谓
+- **`dataVar` 可选**：数据文件里的全局变量名默认等于 `dataKey`，不一致时用 `dataVar` 显式指定（专题数据就是这么用的：`yearsData` → `banknoteYears`）
+
+> ⚠️ **改 `data-loader.js` 时注意一个 vm/浏览器差异**：浏览器里多个 `<script>` 共享全局**词法**环境，所以顶层 `const xxxData = {...}` 也能被别的脚本/间接 `eval` 看到；而在 Node `vm` 里，**每次 `runInContext` 是独立脚本作用域，只有 `var` 会挂到全局对象上**。所以用脚本检查数据时（如 `tools/check-data.mjs`），加载数据和读取变量**必须在同一个脚本里完成**，否则 `const` 声明的数据会整片变成 `null` —— 这个坑已经踩过一次。
 
 > 旧版 `data-bridge.js` / `coin-data-bridge.js` / `fun-data-bridge.js` 与 `ui.js` 均已被 `data-loader.js` 及现有模块取代，`collection/` 目录下已不存在这些文件；旧文档里若仍提到它们属残留描述。
 
@@ -258,11 +263,38 @@ https://tong-xiangjie.github.io/notecollection/image/<子目录>/<文件名>
 **注意事项**
 
 - ⚠️ **不要再调用 jsDelivr 的 purge**。对超限仓库 purge 之后 jsDelivr 无法重建缓存，图片会全部退回 `raw.githubusercontent.com` 且**无法自行恢复**。为此「我的 → 清除CDN缓存」按钮已移除。
-- ⚠️ **发布体积**：图片留在 `main` 分支意味着已发布站点约 1.09 GB，**略超 GitHub Pages 的 1 GB 上限**（官方口径：「已发布的 GitHub Pages 站点大小不得超过 1 GB」，超出可能被停服或收到提醒邮件）。要压下去只有两条路：压缩原图（目前未采纳，以保留档案分辨率）或改用外部图床。
+- ⚠️ **发布体积**：**当前约 978 MB，已回到 1 GB 以内**。这个数字是 2026-09 做手机端字体子集化之后的结果（见第 18 节）：删掉 5 个没用到的思源黑体字重（−78 MB）、把用到的 2 个字重从 31.9 MB 裁成 1.3 MB（−30.6 MB），合计减掉约 109 MB。**再往里塞东西之前先算账**，超了 Pages 会停发。
 - 图片仍全部在仓库里，`notecollection/readmes/image/`（文章配图，约 152 MB）与其它图片一样同源直出。
 - 离线能力不受影响：第 12～15 节的图片缓存与预缓存照常工作。
 
 > 历史：曾短暂把图片迁到 `images` 分支并推送，但该分支同样约 790 MB、一样超过 50 MB 上限，**换分支并不能解决速度问题**，故已废弃删除。
+
+### 18. 手机端字体（子集化）
+
+手机端（`@media (max-width: 768px)`）用思源黑体显示正文，`@font-face` 就写在那个媒体查询里 —— 桌面端不下字体。
+
+- **只声明 2 个字重**：`Regular` + `Bold`（`SourceHanSansSC-Regular/Bold.subset.woff2`，各约 0.6 MB）
+- **为什么必须子集化**：完整的思源黑体一个字重 15.76 MB，两个字重 31.9 MB —— 比整站缩略图（14 MB）还大一倍多。而全站文本（前端代码 + 数据 + 61 篇 readme 文章）去重后只有 **2225 个字符**，裁完 **1.3 MB**，小 25 倍
+- **生成工具**：`python collection/tools/subset-font.py`（依赖 `pip install fonttools brotli`）
+  - 自己扫描全站文本收集字符集，调用 fontTools 裁切，并**校验**：源字体里有的字，子集里必须都有；源字体本身没有的（如西里尔字母 `ЄІЇ`、分数 `⅓⅔`、`☰`，共 31 个）会明确报出来，它们走字体栈后面的 `Noto Sans CJK SC` / `PingFang SC`
+  - `--dry-run` 只看体积；`--extra-chars` 可补字
+  - **新增藏品或文章后请重跑一次**。忘了跑也不会坏：新字走系统字体，只是字形不一致
+- **原始 OTF 已从仓库移除**（7 个字重 110 MB）。要重新子集化可以从 git 历史取回：
+  `git checkout <旧提交> -- font/SourceHanSansSC`，或用 `--src-dir` 指向别处的思源黑体（OFL 授权）
+
+> ⚠️ **别把字体移出媒体查询**。字体只给手机端用是有意的：桌面端有系统字体，没必要多下 0.6 MB。
+
+### 19. 工具
+
+`collection/tools/` 下三个脚本，都不需要改代码就能跑：
+
+| 工具 | 用途 |
+|---|---|
+| `make-thumbs.ps1` | 生成缩略图（GDI+，无依赖，增量） |
+| `check-data.mjs` | **数据体检**：图片引用是否存在（含「文件名是空的」这类坏路径）、`detailFields` 声明与数据是否对得上、同一个 key 用了多种标签、同一标签对应多个 key、`dataKey` 与分类树是否对得上、前端脚本顶层重名（共享全局作用域，重名会静默覆盖）。`node collection/tools/check-data.mjs`，有 ERROR 时退出码 1 |
+| `subset-font.py` | 手机端字体子集化（见第 18 节） |
+
+**新增图片、改完数据之后跑一次 `check-data.mjs`**。它已经抓出过：`getData` 顶层重名（config.js 那份是死代码）、`bank` 一个 key 四种标签、23 个文件有 `copyId` 数据却在界面看不到、40 处图片路径文件名是空的。
 
 ---
 

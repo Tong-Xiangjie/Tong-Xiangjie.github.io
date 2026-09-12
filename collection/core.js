@@ -385,6 +385,28 @@ function getSubCategoryMap() {
     return currentMode === MODE.NOTES ? subCategoryMap : {};
 }
 
+// 把内部 dataKey 映射成人能读的分类路径（纸币要带上父分类，如 rmb3Data → 中国 - 第三套人民币）。
+// ★ 全站只此一份：导出（stats.js）与时间轴（special.js）都用它。
+//   以前 stats.js 里抄了三份同样的循环、special.js 里还有一份 getCategoryPath，已合并到这里。
+//   找不到时返回 ''（调用方自己决定要不要回退成 dataKey）。
+function getCategoryPath(dataKey, type) {
+    let tree;
+    if (type === 'notes') tree = typeof categoryTree !== 'undefined' ? categoryTree : null;
+    else if (type === 'coins') tree = typeof coinCategoryTree !== 'undefined' ? coinCategoryTree : null;
+    else return '';
+    if (!tree) return '';
+    for (const cat of tree) {
+        if (cat.children && cat.children.length > 0) {
+            for (const sub of cat.children) {
+                if (sub.dataKey === dataKey) return cat.name + ' - ' + sub.name;
+            }
+        } else if (cat.dataKey === dataKey) {
+            return cat.name;
+        }
+    }
+    return '';
+}
+
 function getEffectiveSearchMode() {
     if (currentMode === MODE.ARTICLES) return SEARCH_MODE.REALTIME;
     if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
