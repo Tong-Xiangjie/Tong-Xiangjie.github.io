@@ -584,6 +584,15 @@ function shanheHeaderHtml(config) {
     html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
     html += `</div>`;
     html += `</div>`;
+    // ★ 图例：原来地图完全没有说明"颜色深浅代表什么"，
+    //   加上深色模式曾经把渐变方向弄反（没数据的省份最亮），
+    //   颜色语义就更猜不出来了。这条渐变条直接复用 --bg-light → --theme-light，
+    //   所以它和地图用的是同一套颜色，明暗切换都自洽。
+    html += `<div class="shanhe-map-legend">`;
+    html += `<span class="shanhe-legend-label">藏品数量</span>`;
+    html += `<span class="shanhe-legend-bar"></span>`;
+    html += `<span class="shanhe-legend-label">少 → 多</span>`;
+    html += `</div>`;
     return html;
 }
 
@@ -762,7 +771,22 @@ async function renderShanheContent(config) {
     }
 }
 
+// 地图省份填色。
+//
+// ★ 深色模式必须**把渐变方向反过来**，否则热力图语义整体倒置：
+//   亮色下 --bg 是白的，空省填白 = 自然的"留白"（对比 1.11:1），
+//   深色下 --bg 接近纯黑，同一行"空省填白"就变成 20.2:1 的刺眼白光 ——
+//   结果是**没有藏品的省份最抢眼**，有数据的反而暗，图读起来是反的。
+//   所以深色下改成：空省 = --bg-light（跟底色走），有数据 = 越多数越亮。
 function fillForCount(count, maxCount, themeLightRGB) {
+    const dark = (typeof isDarkScheme === 'function') && isDarkScheme();
+    if (dark) {
+        const base = getCssColor('--bg-light', [26, 30, 37]);
+        if (count <= 0) return mixColor(base, base, 0);
+        // 起点给 0.25 而不是 0：只差一件也要能一眼看出"这省有东西"
+        const ratio = maxCount > 0 ? count / maxCount : 0;
+        return mixColor(base, themeLightRGB, 0.25 + 0.75 * ratio);
+    }
     if (count <= 0) return 'rgb(255,255,255)';
     const ratio = maxCount > 0 ? count / maxCount : 0;
     return mixColor([255, 255, 255], themeLightRGB, ratio);
@@ -809,6 +833,17 @@ function isPointInPolygon(el, x, y) {
 function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, baseSize, noLabel, strokeScale) {
     const name = shanheProvinceNames[pid] || pid;
     el.style.fill = fillForCount(count, maxCount, themeLightRGB);
+    // ★ 把数量写在元素上：地图配色是 JS 按 (count, maxCount, 主题) 算出来的，
+    //   有了这个属性就能一眼看出"这块颜色对应几件藏品"，
+    //   也让配色测试不必再去反推数据源（pid 在 class 里，但空数组时容易搞错 dataKey）。
+    el.setAttribute('data-count', String(count));
+    el.setAttribute('data-pid', pid);
+    // ★ 描边走主题变量，并且用**内联**写：
+    //   layout.css 里虽然也有 `.state { stroke: var(--border) }`，但 SVG 里
+    //   `.state:hover { fill: ... !important }` 那条规则的存在说明这条链上
+    //   优先级很微妙；内联最直接，也保证"刷新主题"时能被重新计算到。
+    //   （旧值 #999 是写死的，换主题/明暗都不变。）
+    el.style.stroke = 'var(--border, #999)';
     el.style.cursor = 'pointer';
 
     if (strokeScale && strokeScale !== 1) {
@@ -1033,8 +1068,12 @@ window.refreshShanheColors = function() {
     if (currentMode !== MODE.SPECIAL) return;
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config || config.view !== 'map') return;
-    if (currentSubId !== null) return;
-    if (shanheViewMode !== 'map') return;
+    // ★ 这里**故意不再**提前 return（原来在省份详情页 / 列表视图下会直接放弃）。
+    //   原因：shanheMapCache 里的地图节点是复用的，用户在省份详情页或列表视图下
+    //   切明暗/换主题时，那几个 guard 会让配色留在旧主题上，返回地图就看到
+    //   上一个主题的颜色（实测可复现）。更新缓存节点的 fill 很廉价，
+    //   而且这正是"缓存里那棵树永远跟当前主题一致"的保证。
+    //   真正需要判断的只有"有没有可刷新的节点"。
 
     const wrap = shanheMapCache?.wrap;
     if (!wrap) return;
@@ -1060,6 +1099,8 @@ window.refreshShanheColors = function() {
             const pid = cls.split(/\s+/).filter(c => c && c !== 'state')[0] || '';
             const count = countByProvince[pid] || 0;
             el.style.fill = fillForCount(count, maxCount, themeLightRGB);
+            // 描边也跟着主题走（它现在是 var(--border)，重新赋值让新主题生效）
+            el.style.stroke = 'var(--border, #999)';
         });
     };
 

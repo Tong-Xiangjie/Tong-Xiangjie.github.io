@@ -41,10 +41,10 @@ function renderCurrentCategory() {
     //     focusOwner 与渲染时机解耦，所以只看它。
     const nowScope = getCategoryScope();
     if (focusOwner !== null && focusOwner !== nowScope) {
-        focusSeries = null;
-        focusVariety = null;
+        focusSeries = [];
+        focusVariety = [];
         const st = modeStates[currentMode];
-        if (st) { st.focusSeries = null; st.focusVariety = null; }
+        if (st) { st.focusSeries = []; st.focusVariety = []; }
     }
     focusOwner = nowScope;
     focusScope = nowScope;
@@ -217,27 +217,46 @@ function renderSeriesList(data, title) {
     //   所以 focusOwner/focusScope 取本分类作用域必然正确。
     //   为什么不放在 applyRoute / enter* 里定：那两处都可能早于容器建立
     //   （getContainerKey() 还不代表目标分类），而且这一路上 syncRoute() 会被调用多次，
-    //   归属一旦填错，buildRoute() 就会把 s0/v1 丢掉甚至写成别的分类的序号。
+    //   归属一旦填错，buildRoute() 就会把序号丢掉甚至写成别的分类的序号。
     //   放在"真正渲染这个分类"的唯一出口上，比在调用链里补更稳。
     focusOwner = accScope;
     focusScope = accScope;
-    // ★ 但**序号**不能无条件继承：只有"本次渲染确实展开了某个系列"才保留定位。
+    // ★ 但序号不能无条件继承：只有"本次渲染确实展开了某些系列"才保留展开态。
     //   反例（实测）：在 rmb3 展开 s1/v0 → 去搜索 → 再点侧边栏回到 rmb3。
     //   这条路径既没走 applyRoute（没有 pendingReveal），也没走"能恢复展开态"的
-    //   enterNotesOrCoinsTab，于是界面上一个系列都没展开，而 focus 还把 s1/v0 留着，
+    //   enterNotesOrCoinsTab，于是界面上一个系列都没展开，而 focus 还留着 s1/v0，
     //   buildRoute() 就写出 …/s1/v0 —— URL 声称的位置和眼前所见不一致，复制出去是错的。
     //   没有 reveal 指令 = 本次不是"定位跳转"，那就以"什么都没展开"为准。
+    //
+    //   ★ 归一成数组：reveal 可能来自深链接（列表）或概览/搜索（单值），
+    //     统一在这里转成集合，下面按集合判定，两条来源就不会各写一套逻辑。
+    const wantSeries = new Set();
+    const wantVarieties = new Set();
+    if (reveal) {
+        const sList = (reveal.sIdxList && reveal.sIdxList.length)
+            ? reveal.sIdxList
+            : ((reveal.sIdx === undefined || reveal.sIdx === null) ? [] : [reveal.sIdx]);
+        for (const n of sList) if (Number.isFinite(n)) wantSeries.add(n);
+        // 新链接的品种用 si.vi 对表达（能跨系列）；旧的单值 vIdx 归属同一个 s
+        for (const pair of (reveal.vPairList || [])) {
+            if (Number.isFinite(pair[0]) && Number.isFinite(pair[1])) wantVarieties.add(pair[0] + '.' + pair[1]);
+        }
+        if (reveal.vIdx !== undefined && reveal.vIdx !== null && Number.isFinite(reveal.vIdx)) {
+            const host = sList.length ? sList[0] : 0;
+            wantVarieties.add(host + '.' + reveal.vIdx);
+        }
+    }
     if (!reveal) {
-        focusSeries = null;
-        focusVariety = null;
+        focusSeries = [];
+        focusVariety = [];
     }
     const st = modeStates[currentMode];
     if (st) {
         st.focusOwner = accScope;
         st.focusScope = accScope;
-        // 序号一并落档：切板块再回来时靠它还原地址栏
-        st.focusSeries = (focusSeries === undefined) ? null : focusSeries;
-        st.focusVariety = (focusVariety === undefined) ? null : focusVariety;
+        // 展开态一并落档：切板块再回来时靠它还原地址栏
+        st.focusSeries = focusSeries.slice();
+        st.focusVariety = focusVariety.slice();
     }
 
     let html = `<div class="series-header">`;
@@ -269,7 +288,7 @@ function renderSeriesList(data, title) {
         }
 
         // 本系列是否要在本次渲染里直接展开
-        const openSeries = !!(reveal && reveal.sIdx === si);
+        const openSeries = wantSeries.has(si);
 
         let seriesTotal = 0;
         if (series.varieties) {
@@ -292,7 +311,8 @@ function renderSeriesList(data, title) {
                 const copies = variety.copies || [];
                 const uid = varietyScopeId(accScope, si, vi);
                 // 目标品种：仅在目标系列内部才认，避免在别的系列里误展开同序号品种
-                const openVariety = !!(openSeries && reveal.vIdx === vi);
+                // ★ 用 si.vi 复合键：新品种段能跨系列（v1.0,3.2），只比 vi 会串台
+                const openVariety = openSeries && wantVarieties.has(si + '.' + vi);
 
                 html += `<div class="variety-row">`;
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}', this)">`;

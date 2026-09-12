@@ -236,14 +236,18 @@ let ratingMode = MODE.NOTES;
 //   确实属于正在渲染的那个分类，切分类时不会误展同序号系列。
 let pendingReveal = null;   // { catId, sIdx, vIdx, cIdx }
 
-// ★ 「当前位置」（用于把展开状态编码进地址栏，让分类页的链接精确到系列/品种）。
+// ★ 「展开状态」（用于把展开的手风琴编码进地址栏，让分类页的链接精确还原）。
 //   与 pendingReveal 的区别很重要：
 //     · pendingReveal 是**一次性指令** —— 渲染时消费掉立刻置 null，只负责"这次要展什么"；
-//     · 下面这几个是**持续状态** —— 反映"用户此刻停留在哪个系列/品种"，
-//       buildRoute() 要靠它生成 #notes/rmb3/s0/v1 这种精确链接。
+//     · 下面这几个是**持续状态** —— 反映"用户此刻展开了哪些系列/品种"，
+//       buildRoute() 要靠它生成 #notes/rmb3/s1,3/v1.0,3.2 这种精确链接。
+//
+//   ★ 用**列表**而不是单个值：手风琴本来就允许同时展开多个，地址栏只记一条的话，
+//     用户展开了 3 个系列、分享出去只剩最上面那个（实测报告的问题）。
+//     （命名里的 focus* 是历史遗留，实际语义是"已展开集合"。）
 //
 //   ★ 为什么 scope 要分成两个变量（这是踩过的坑）：
-//     focusOwner —— focusSeries/focusVariety 这两个序号**属于哪个分类**（buildRoute 校验它）。
+//     focusOwner —— 下面这些序号**属于哪个分类**（buildRoute 校验它）。
 //     focusScope —— 最近一次写入的容器作用域（与 owner 分开，避免渲染时序污染）。
 //   二者在稳定状态下相等，但**渲染分类页的那一刻会短暂不等**：
 //   renderSeriesList() 会把 focusScope 写成新分类的 scope，而序号还是旧分类的。
@@ -252,8 +256,11 @@ let pendingReveal = null;   // { catId, sIdx, vIdx, cIdx }
 //   拆开之后，"归属校验"只看 focusOwner，与渲染时机的先后无关。
 let focusOwner = null;      // 序号所属分类的作用域；null 表示"序号不可信"
 let focusScope = null;      // 最近写入的作用域（= getCategoryScope()）
-let focusSeries = null;     // 当前系列的 si
-let focusVariety = null;    // 当前品种的 vi（系列没展开时为 null）
+let focusSeries = [];       // 已展开的系列 si 列表（升序）
+// 已展开的品种，扁平化为 "si.vi" 字符串列表（如 ['1.0','3.2']）。
+// ★ 扁平化是有意的：buildRoute 要写成 v1.0,3.2 这种紧凑形式，
+//   解析回来也是一层数组；如果用 [{si,vi}] 则处处要拆装，反而容易错。
+let focusVariety = [];
 
 let modeStates = {
     notes: {
@@ -261,7 +268,7 @@ let modeStates = {
         currentSearchKeyword: '', currentSearchType: SEARCH_TYPE.ALL,
         searchMode: SEARCH_MODE.REALTIME, isSidebarCollapsed: false,
         expandedSeries: [], expandedVarieties: [],
-        focusOwner: null, focusScope: null, focusSeries: null, focusVariety: null,
+        focusOwner: null, focusScope: null, focusSeries: [], focusVariety: [],
         overviewScrollY: 0, categoryScrollY: 0, searchScrollY: 0
     },
     coins: {
@@ -269,7 +276,7 @@ let modeStates = {
         currentSearchKeyword: '', currentSearchType: SEARCH_TYPE.ALL,
         searchMode: SEARCH_MODE.REALTIME, isSidebarCollapsed: false,
         expandedSeries: [], expandedVarieties: [],
-        focusOwner: null, focusScope: null, focusSeries: null, focusVariety: null,
+        focusOwner: null, focusScope: null, focusSeries: [], focusVariety: [],
         overviewScrollY: 0, categoryScrollY: 0, searchScrollY: 0
     }
 };
@@ -568,16 +575,15 @@ function collectScopedExpanded() {
     return { expandedSeries, expandedVarieties };
 }
 
-// ★ 从**真实 DOM** 反推"当前位置"，写进 focusOwner / focusScope / focusSeries / focusVariety。
+// ★ 从**真实 DOM** 反推"已展开集合"，写进 focusOwner / focusScope / focusSeries / focusVariety。
 //
 //   为什么读 DOM 而不是让 toggleSeries 自己记账：
-//   手风琴允许同时开多个系列、多个品种，而地址栏只能表达一条路径。
 //   与其在点击处维护一套可能与 DOM 不同步的变量，不如在点击后（DOM 已是最终状态）
-//   直接读出"当前开着的第一个系列 / 它的第一个开着的品种"。这样：
-//     · 与界面所见严格一致，不会出现"URL 说开着、界面没开"
-//     · 用户点右上角那块区域（系统标题栏的关闭按钮）不经过我们的代码，也不影响
-//   「第一个」即文档序最靠前的那个，结果确定；多开时 URL 只承诺能还原其中一条，
-//   这是有意的取舍（写全部展开态会让链接长且脆弱）。
+//   直接读出真实展开态。这样地址栏与界面所见严格一致，
+//   不会出现"URL 说开着、界面没开"。
+//
+//   ★ 采集**全部**展开项（早期版本只取第一条，导致多开时链接丢失其余条目 —— 用户报告）。
+//     顺序按文档序，结果稳定；同一系列内的品种按文档序。
 function focusFromDom() {
     const container = (typeof getRenderContainer === 'function') ? getRenderContainer() : null;
     if (!container) return;
@@ -589,26 +595,33 @@ function focusFromDom() {
     //   用 computed 判定等于没判。
     if (!container.style || container.style.display !== 'block') return;
     // ★ 用 getCategoryScope() 而不是 getContainerKey()：必须与 renderSeriesList()
-    //   写入的 accScope 是同一个口径，否则 buildRoute 的归属校验永远为假、s<i> 被静默丢掉。
+    //   写入的 accScope 是同一个口径，否则 buildRoute 的归属校验永远为假、序号段被静默丢掉。
     focusScope = (typeof getCategoryScope === 'function') ? getCategoryScope() : null;
     focusOwner = focusScope;    // 刚采集到的序号就属于此刻这个分类
-    focusSeries = null;
-    focusVariety = null;
+    focusSeries = [];
+    focusVariety = [];
 
-    const openBody = container.querySelector('.series-body.open');
-    if (!openBody) return;                       // 没有展开的系列 → 路径只到分类级
-
-    const m = /-s(\d+)$/.exec(openBody.id || '');
-    if (!m) return;
-    focusSeries = parseInt(m[1], 10);
-    if (!Number.isFinite(focusSeries)) { focusSeries = null; return; }
-
-    const openList = openBody.querySelector('.copy-list.open');
-    if (!openList) return;                       // 系列展开但品种都关着
-    const mv = /-v\d+-(\d+)$/.exec(openList.id || '');
-    if (!mv) return;
-    const vi = parseInt(mv[1], 10);
-    focusVariety = Number.isFinite(vi) ? vi : null;
+    const bodies = container.querySelectorAll('.series-body.open');
+    for (const body of bodies) {
+        const m = /-s(\d+)$/.exec(body.id || '');
+        if (!m) continue;
+        const si = parseInt(m[1], 10);
+        if (!Number.isFinite(si)) continue;
+        focusSeries.push(si);
+        // 这一系列里开着的品种列表
+        for (const list of body.querySelectorAll('.copy-list.open')) {
+            const mv = /-v\d+-(\d+)$/.exec(list.id || '');
+            if (!mv) continue;
+            const vi = parseInt(mv[1], 10);
+            if (Number.isFinite(vi)) focusVariety.push(si + '.' + vi);
+        }
+    }
+    // 稳定排序（DOM 序理应已升序，这里只是保证不依赖浏览器实现细节）
+    focusSeries.sort((a, b) => a - b);
+    focusVariety.sort((a, b) => {
+        const [as, av] = a.split('.').map(Number), [bs, bv] = b.split('.').map(Number);
+        return (as - bs) || (av - bv);
+    });
 }
 
 // ★ 作废所有已渲染视图的 DOM。
@@ -780,8 +793,11 @@ function saveFullState() {
             expandedVarieties: expanded.expandedVarieties,
             focusOwner: focusOwner,
             focusScope: focusScope,
-            focusSeries: focusSeries,
-            focusVariety: focusVariety,
+            // ★ 存副本：focusSeries/focusVariety 是数组，直接存引用的话，
+            //   之后 focusFromDom() 里 push/sort 会连带改到"已保存的快照"，
+            //   快照就不再是"保存那一刻的展开态"了（切板块还原时表现诡异）。
+            focusSeries: focusSeries.slice(),
+            focusVariety: focusVariety.slice(),
             overviewScrollY: currentView === VIEW.OVERVIEW ? scrollY : (prev.overviewScrollY || 0),
             categoryScrollY: currentView === VIEW.CATEGORY ? scrollY : (prev.categoryScrollY || 0),
             searchScrollY: currentView === VIEW.SEARCH ? scrollY : (prev.searchScrollY || 0)

@@ -1370,24 +1370,66 @@ body.modal-open {
     background: transparent;
 }
 .shanhe-map-wrap .state {
-    stroke: #999;
+    /* ★ 描边走主题变量（旧值是写死的 #999，换主题/明暗都不变） */
+    stroke: var(--border);
     stroke-width: 1;
     stroke-linejoin: round;
     transition: fill 0.2s ease;
 }
+/* ★ SVG 文件自带 37 条独立的白色描边层（fill="none" stroke="#FFFFFF"），
+   它们**没有** .state class，所以 JS 的 applyShanheStyling / refreshShanheColors
+   （都只遍历 .state）永远碰不到它们 —— 深色下就是一张永远发光的白轮廓网。
+   不去改那个 1.76MB 的 SVG（改了要重新导出，还容易被下次导出覆盖），
+   在 CSS 里收掉即可：表现属性(attribute)的优先级低于任何样式表规则。
+   ★ 只改 stroke，**绝不碰 fill**：这些层是靠 fill="none" 维持"纯描边"的，
+     一旦给它们填色就会在地图上糊出一片实心块（实测确认它们全都 fill="none"）。 */
+.shanhe-map-wrap svg polygon:not(.state),
+.shanhe-map-wrap svg path:not(.state) {
+    stroke: var(--border);
+}
+/* ★ 另外有 3 个没有 class 的 fill="#BFBFBF" 实心小块（崇明岛一带），
+   没有任何 JS 管它们，深色下永远是灰块 —— 按主题底色收掉。
+   用 fill-rule 属性把它们和上面那批"fill=none 的描边层"区分开。 */
+.shanhe-map-wrap svg polygon:not(.state)[fill-rule] {
+    fill: var(--bg-light);
+}
 .shanhe-map-wrap .state:hover { fill: var(--theme) !important; }
+/* ★ 深色下 --theme 常是深蓝/墨绿，压在接近纯黑的 --bg 上几乎看不出变化，
+   悬停反馈就丢了。换亮一档的 --theme-light。
+   ★ 这个 !important 必须保留：它压的是 special.js 写的**内联** style.fill，
+     删掉 hover 效果直接失效。所以深色覆盖只能用"更高特异性 + 同样 !important"。 */
+html[data-color-scheme="dark"] .shanhe-map-wrap .state:hover {
+    fill: var(--theme-light, var(--theme)) !important;
+}
 .shanhe-map-wrap .shanhe-label {
     font-size: var(--label-size, 12px);
     font-weight: bold;
-    fill: #444;
+    /* ★ 旧值 #444 在深色 --bg 上只有 2.08:1，基本看不见；
+       改走 --text（亮 #000 / 暗 #e8eaed）。
+       ★ stroke 垫底不是可选项：标签是压在省份色块上的，
+       --text 在满色省份（--theme-light）上只有约 2:1，
+       必须靠"跟着底色走的描边"在字周围开出一圈底色环才同时覆盖深浅两种省色。
+       paint-order: stroke 让描边画在文字下面而不是糊住笔画。 */
+    fill: var(--text);
+    stroke: var(--bg);
+    stroke-width: var(--label-stroke, 2px);
+    stroke-linejoin: round;
     pointer-events: none;
     paint-order: stroke;
 }
-.shanhe-map-wrap .shanhe-label-count { font-weight: bold; fill: var(--theme); }
+/* 计数数字：旧值 --theme 压在满色省份上，五种预设主题色全部低于 3:1
+   （橙主题最差 1.36:1，等于消失）。同样靠描边垫底解决。 */
+.shanhe-map-wrap .shanhe-label-count {
+    font-weight: bold;
+    fill: var(--theme);
+    stroke: var(--bg);
+    stroke-width: var(--label-stroke, 2px);
+    paint-order: stroke;
+}
 .shanhe-map-wrap .shanhe-label.active {
     font-size: calc(var(--label-size, 12px) * 1.2);
     fill: #fff;
-    stroke: #000;
+    stroke: var(--bg);
     stroke-width: var(--label-stroke, 1.5);
 }
 .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
@@ -1402,8 +1444,30 @@ body.modal-open {
     flex-shrink: 0;
     margin-left: -200px;
 }
+/* ★ 深色底上纯黑 10% 投影几乎不可见，卡片与地图底失去层次
+   （深色下 --card-bg 与 --bg 只差 1.02–1.07:1，全靠 1px border 分界）。 */
+html[data-color-scheme="dark"] .shanhe-map-inset {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
 .shanhe-map-inset svg { width: 100%; height: auto; display: block; }
-.shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
+/* 图例：与地图用同一套变量，明暗切换都自洽。
+   深色下地图是"越多数越亮"，亮色下是"越多数越蓝"，
+   所以这条渐变条两端就是 --bg-light 与 --theme-light —— 与 fillForCount 的端点一致。 */
+.shanhe-map-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0 2px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.shanhe-legend-bar {
+    width: 120px;
+    height: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: linear-gradient(to right, var(--bg-light), var(--theme-light));
+}.shanhe-map-inset-title { text-align: center; font-size: 12px; color: var(--text-secondary); padding: 2px 0 4px; }
 .shanhe-map-loading { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
 .shanhe-map-loading-bar {
     width: 240px;

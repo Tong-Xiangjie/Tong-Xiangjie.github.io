@@ -204,10 +204,12 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     };
 
     // ★ 同一份信息也登记进"持续状态"，否则渲染完 pendingReveal 就被置 null，
-    //   之后 buildRoute() 不知道"定位到了哪"，会把刚写好的定位段抹掉。
+    //   之后 buildRoute() 不知道"定位到了哪"，会把刚写好的展开段抹掉。
     //   focusOwner 由 renderSeriesList() 在渲染该分类时确定（这里还取不到正确 scope）。
-    focusSeries = si;
-    focusVariety = wantVariety ? vi : null;
+    //   ★ 这两个是**列表**（可能同时展开多个系列）：概览跳转一次只定位一条，
+    //     所以这里是单元素列表；写成标量会让 buildRoute 的 .length 判断失效。
+    focusSeries = [si];
+    focusVariety = wantVariety ? [si + '.' + vi] : [];
     focusOwner = null;
     focusScope = null;
 

@@ -252,10 +252,14 @@ function restoreNotesCoinsFromSettings(target) {
     currentSearchKeyword = saved.currentSearchKeyword || '';
     currentSearchType = saved.currentSearchType || SEARCH_TYPE.ALL;
     // ★ 恢复"当前位置"（从设置页返回时，地址栏要重新写出 …/s0/v1）
+    //   ★ 归一成数组：focusSeries/focusVariety 现在是列表；同时兼容快照里
+    //     可能残留的旧标量形式（老会话切板块前存下的），否则 .length 会取到 undefined。
     focusOwner = saved.focusOwner || null;
     focusScope = saved.focusScope || null;
-    focusSeries = (saved.focusSeries === undefined) ? null : saved.focusSeries;
-    focusVariety = (saved.focusVariety === undefined) ? null : saved.focusVariety;
+    focusSeries = Array.isArray(saved.focusSeries) ? saved.focusSeries.slice()
+        : (Number.isFinite(saved.focusSeries) ? [saved.focusSeries] : []);
+    focusVariety = Array.isArray(saved.focusVariety) ? saved.focusVariety.slice()
+        : (Number.isFinite(saved.focusVariety) ? [saved.focusVariety] : []);
 
     const inp = document.getElementById('searchInput');
     if (inp) {
@@ -410,12 +414,14 @@ function enterNotesOrCoinsTab(target) {
     currentView = saved.currentView || VIEW.OVERVIEW;
     currentSearchKeyword = saved.currentSearchKeyword || '';
     currentSearchType = saved.currentSearchType || SEARCH_TYPE.ALL;
-    // ★ 恢复"当前位置"：focusOwner 是随分类一起存的，所以切板块回来时
-    //   (owner, 系列, 品种) 三者仍然自洽，能被 buildRoute 直接写进地址栏。
+    // ★ 恢复"展开态"：focusOwner 是随分类一起存的，所以切板块回来时
+    //   (owner, 系列列表, 品种列表) 仍然自洽，能被 buildRoute 直接写进地址栏。
     focusOwner = saved.focusOwner || null;
     focusScope = saved.focusScope || null;
-    focusSeries = (saved.focusSeries === undefined) ? null : saved.focusSeries;
-    focusVariety = (saved.focusVariety === undefined) ? null : saved.focusVariety;
+    focusSeries = Array.isArray(saved.focusSeries) ? saved.focusSeries.slice()
+        : (Number.isFinite(saved.focusSeries) ? [saved.focusSeries] : []);
+    focusVariety = Array.isArray(saved.focusVariety) ? saved.focusVariety.slice()
+        : (Number.isFinite(saved.focusVariety) ? [saved.focusVariety] : []);
 
     const inp = document.getElementById('searchInput');
     if (inp) {
