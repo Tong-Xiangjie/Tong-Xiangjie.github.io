@@ -104,6 +104,11 @@ globalThis.$GAME = {
   rawSave: () => Store.get(SAVE_KEY), rawSet: () => Store.get(SET_KEY),
   storeAvailable: () => Store.available,
   setViewport: (w, h) => { globalThis.VP.w = w; globalThis.VP.h = h; resize(); },
+  // 特殊砖块 / 配色相关
+  brickColor, BRICK_COLORS, POWER_SCORE, T, isFurniture, tilePreviewColor,
+  portals: () => ({ a: portalA, b: portalB }),
+  portalAt, isTurnTile, isPortalTile, isCrackTile, tileBreakable,
+  drawBricks, drawDrops,
 };
 `);
     const $ = global.$GAME;
@@ -151,10 +156,10 @@ globalThis.$GAME = {
       grid.forEach((row, r) => {
         if (row.length !== 10) bad.push(`第${r}行长度=${row.length}`);
         row.forEach((v, c) => {
-          if (![-1,0,1,2,3,4,5,9].includes(v) || Number.isNaN(v)) bad.push(`非法砖值 ${v} @${r},${c}`);
+          if (![-1,0,1,2,3,4,5,6,9,10,11,12,13,20,21].includes(v) || Number.isNaN(v)) bad.push(`非法砖值 ${v} @${r},${c}`);
         });
       });
-      const breakable = grid.some(row => row.some(v => v > 0));
+      const breakable = grid.some(row => row.some(v => (v >= 1 && v <= 5) || v === 6 || (v >= 10 && v <= 13)));
       check(`第 ${n+1} 关结构合法且可通关`, bad.length === 0 && breakable, bad.slice(0,3).join('; ') || '没有可破坏砖');
     }
 
@@ -276,14 +281,14 @@ globalThis.$GAME = {
     }
     $.newGame(); frames(2, {});
     {
-      $.snap().bricks.forEach(b => { if (!b.solid) b.dead = true; });
+      $.snap().bricks.forEach(b => { if (!b.solid && !b.portal) b.dead = true; });
       $.snap().G.state = S_PLAY;
       frames(2, {});
       check('清空可破坏砖后进入 LEVEL 态', $.snap().G.state === S_LEVEL, 'state=' + $.snap().G.state);
     }
     $.newGame(); $.loadLevel(3);
     {
-      $.snap().bricks.forEach(b => { if (!b.solid) b.dead = true; });
+      $.snap().bricks.forEach(b => { if (!b.solid && !b.portal) b.dead = true; });
       check('要塞关清空后仍有实心砖残留', $.snap().bricks.some(b => !b.dead && b.solid));
       $.snap().G.state = S_PLAY;
       frames(2, {});
@@ -619,7 +624,7 @@ globalThis.$GAME = {
       $.selectKey('1');
       $.launch();
       frames(30, { steer:true, keepAlive:true });
-      $.snap().bricks.forEach(b => { if (!b.solid) b.dead = true; });
+      $.snap().bricks.forEach(b => { if (!b.solid && !b.portal) b.dead = true; });
       frames(2, {});
       check('练习模式清关后照常进入过关态', $.snap().G.state === S_LEVEL, 'state=' + $.snap().G.state);
       $.loadLevel(++$.snap().G.level);
@@ -780,19 +785,19 @@ globalThis.$GAME = {
 
       // 关卡中途（击破多于一半）也能正确存档
       {
-        const B = $.snap().bricks.filter(b => !b.solid);
+        const B = $.snap().bricks.filter(b => !b.solid && !b.portal);
         B.forEach((b, i) => { if (i % 2 === 0) b.dead = true; });
         $.snap().G.state = 2;
         $.saveProgress(false);
         const d2 = $.saveInfo();
         const partialRaw = store[$.SAVE_KEY];
-        const aliveNow = $.snap().bricks.filter(b => !b.solid && !b.dead).length;
+        const aliveNow = $.snap().bricks.filter(b => !b.solid && !b.portal && !b.dead).length;
         $.newGame();
         store[$.SAVE_KEY] = partialRaw;         // 同上：避免被新局的自动存档顶掉
         $.loadProgress();
         check('部分击破的局面能精确还原',
-              $.snap().bricks.filter(b => !b.solid && !b.dead).length === aliveNow,
-              `${$.snap().bricks.filter(b=>!b.solid&&!b.dead).length} vs ${aliveNow}`);
+              $.snap().bricks.filter(b => !b.solid && !b.portal && !b.dead).length === aliveNow,
+              `${$.snap().bricks.filter(b=>!b.solid && !b.portal&&!b.dead).length} vs ${aliveNow}`);
         check('还原后存档条目数等于存活砖数',
               d2.bricks.split(',').filter(Boolean).length === aliveNow,
               `${d2.bricks.split(',').filter(Boolean).length} vs ${aliveNow}`);
@@ -871,7 +876,7 @@ globalThis.$GAME = {
         $.loadLevel(lv);
         $.snap().G.level = lv;
         // 打掉两块、打伤一块，制造非初始状态
-        const B = $.snap().bricks.filter(b => !b.solid);
+        const B = $.snap().bricks.filter(b => !b.solid && !b.portal);
         if (B[0]) B[0].dead = true;
         if (B[3]) B[3].dead = true;
         if (B[1] && B[1].max > 1) B[1].hp = 1;
@@ -1197,7 +1202,7 @@ globalThis.$GAME = {
       frames(200, { steer:true, keepAlive:true });
       $.snap().G.level = 3; $.loadLevel(3); $.snap().G.level = 3;
       $.snap().G.score = 7777; $.snap().G.lives = 4;
-      const B = $.snap().bricks.filter(b => !b.solid);
+      const B = $.snap().bricks.filter(b => !b.solid && !b.portal);
       B[0].dead = true; B[2].dead = true;
       if (B[1] && B[1].max > 1) B[1].hp = 2;
       frames(2, { steer:true });
@@ -1369,7 +1374,7 @@ globalThis.$GAME = {
       // 过关推进后提示也要对
       $.startSelect(); $.selectKey('1');
       $.launch(); frames(2, {});
-      $.snap().bricks.forEach(b => { if (!b.solid) b.dead = true; });
+      $.snap().bricks.forEach(b => { if (!b.solid && !b.portal) b.dead = true; });
       frames(2, {});
       check('清关后进入 LEVEL 态', $.snap().G.state === 4);
       $.loadLevel(++$.snap().G.level);              // = nextLevel() 的行为
@@ -1451,6 +1456,321 @@ globalThis.$GAME = {
       }
 
       for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+    }
+    /* ================ 20. 特殊砖块与配色 ================ */
+    section('特殊砖块：传送门 / 转弯砖 / 裂纹砖');
+    {
+      // 造一个受控场面：清掉球，放一个指定位置速度的球
+      const setBall = (x, y, vx, vy) => {
+        const S = $.snap();
+        S.balls.length = 0;
+        const b = $.makeBall(x, y, vx, vy);
+        S.balls.push(b);
+        S.G.state = 2;
+        return b;
+      };
+      const mk = (o) => Object.assign(
+        { hp:1, max:1, solid:false, golden:false, turn:false, crack:false, portal:false, dir:null }, o);
+
+      // ---------- 传送门 ----------
+      {
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.loadLevel(0, [
+          [20, 0, 0, 0, 0, 0, 0, 0, 0, 21],
+          [ 1, 1, 1, 1, 1, 1, 1, 1, 1,  1]
+        ]);
+        const P = $.portals();
+        check('传送门成对识别（A/B）', !!P.a && !!P.b && P.a.portalId === 1 && P.b.portalId === 2);
+        check('传送门不可破坏', P.a.solid === false && !!P.a.portal);
+        const acx = P.a.x + P.a.w/2, acy = P.a.y + P.a.h/2;
+        const bcx = P.b.x + P.b.w/2, bcy = P.b.y + P.b.h/2;
+
+        const b = setBall(acx, acy, 600, 0);
+        hFrames(1);
+        check('球进入 A 门后从 B 门穿出',
+              Math.hypot(b.x - bcx, b.y - bcy) < 30,
+              `球(${b.x.toFixed(0)},${b.y.toFixed(0)}) B门(${bcx.toFixed(0)},${bcy.toFixed(0)})`);
+        check('传送不改变速度方向（是穿越不是反弹）', b.vx > 0, 'vx=' + b.vx.toFixed(0));
+        check('传送后拖尾里没有 A 门附近的残留（不会拉出横线）',
+              !b.trail.some(t => Math.abs(t.x - acx) < 200),
+              'trail=' + JSON.stringify(b.trail.map(t => Math.round(t.x))));
+        let backEarly = false;
+        for (let i = 0; i < 3; i++){ hFrames(1); if (Math.abs(b.x - acx) < 40) backEarly = true; }
+        check('冷却期内不会被立刻传回 A 门', !backEarly);
+
+        // 落单的门（没有配对）不应该传送
+        $.loadLevel(0, [
+          [20, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ]);
+        const lone = $.snap().bricks.find(x => x.portal);
+        const b2 = setBall(lone.x + lone.w/2, lone.y + lone.h/2, 300, 0);
+        const x0 = b2.x;
+        hFrames(1);
+        check('落单的传送门不传送，球照常穿过', b2.x > x0 && isFinite(b2.x), 'x=' + b2.x.toFixed(0));
+
+        // 传送门不阻碍通关
+        $.loadLevel(0, [[20, 1, 0, 0, 0, 0, 0, 0, 0, 21]]);
+        $.snap().bricks.filter(x => !x.portal).forEach(x => { x.dead = true; });
+        $.snap().G.state = 2;
+        hFrames(2);
+        check('只清掉可破坏砖即可通关（传送门不算）', $.snap().G.state === 4, 'state=' + $.snap().G.state);
+      }
+
+      // ---------- 转弯砖 ----------
+      {
+        const DIRS = [[10, [0,-1], '上'], [11, [1,0], '右'], [12, [0,1], '下'], [13, [-1,0], '左']];
+        for (const [code, dir, name] of DIRS){
+          $.newGame();
+          $.loadLevel(0, [[0, code, 0, 0, 0, 0, 0, 0, 0, 0]]);
+          const br = $.snap().bricks[0];
+          check(`转弯砖(${name})方向向量正确`, Array.isArray(br.dir) && br.dir[0] === dir[0] && br.dir[1] === dir[1]);
+          check(`转弯砖(${name})有耐久且可破坏`, br.turn === true && br.hp >= 1 && !br.solid && !br.portal);
+          // 从砖块正下方往上撞
+          const b = setBall(br.x + br.w/2, br.y + br.h + 9, 0, -300);
+          hFrames(4);
+          const ang = Math.atan2(b.vy, b.vx);
+          const want = Math.atan2(dir[1], dir[0]);
+          let diff = ang - want;
+          diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+          check(`转弯砖(${name})把球改成箭头方向`, Math.abs(diff) < 0.25,
+                `实际角度=${(ang*180/Math.PI).toFixed(0)}° 期望=${(want*180/Math.PI).toFixed(0)}°`);
+        }
+      }
+
+      // ---------- 裂纹砖 ----------
+      {
+        $.newGame();
+        $.loadLevel(0, [[6, 0, 0, 0, 0, 0, 0, 0, 0, 0]]);
+        const cb = $.snap().bricks[0];
+        check('裂纹砖耐久 5、阈值 3', cb.hp === 5 && cb.max === 5 && cb.crackAt === 3 && cb.crack === true);
+        check('裂纹砖可破坏（要清掉才能通关）', !cb.solid && !cb.portal);
+
+        const S0 = $.snap();
+        const score0 = S0.G.score, combo0 = S0.G.combo;
+        $.damage(cb, cb.x + 2, cb.y + 2);
+        check('打一下不会立刻碎', !cb.dead && cb.hp === 4, 'hp=' + cb.hp);
+        check('裂纹砖不掉道具', $.snap().drops.length === 0);
+        for (let i = 0; i < 4; i++) $.damage(cb, cb.x + 2, cb.y + 2);
+        check('打满 5 下后消失', cb.dead === true);
+        check('裂纹砖完全不加分', $.snap().G.score === score0, `${score0} -> ${$.snap().G.score}`);
+        check('裂纹砖不累计连击', $.snap().G.combo === combo0, `${combo0} -> ${$.snap().G.combo}`);
+
+        // 必须打掉才能通关
+        $.loadLevel(0, [[6, 0, 0, 0, 0, 0, 0, 0, 0, 0]]);
+        $.snap().G.state = 2;
+        for (let i = 0; i < 5; i++) $.damage($.snap().bricks[0], 0, 0);
+        hFrames(2);
+        check('裂纹砖被打掉后正常通关', $.snap().G.state === 4, 'state=' + $.snap().G.state);
+      }
+
+      // ---------- 配色分离 ----------
+      {
+        const hpCols = [1,2,3,4,5].map(hp => $.brickColor(mk({ hp })));
+        const solidCol = $.brickColor(mk({ solid:true }));
+        const goldCol  = $.brickColor(mk({ golden:true }));
+        const turnCol  = $.brickColor(mk({ turn:true, dir:[0,-1] }));
+        const crackCol = $.brickColor(mk({ crack:true, hp:5, crackAt:3 }));
+        const portalCol= $.brickColor(mk({ portal:true }));
+        const multiC   = $.POWERS.find(p => p.k === 'multi').c;
+
+        check('五角星砖不再和「3」道具同色', goldCol !== multiC, `星=${goldCol} 3=${multiC}`);
+        check('五角星砖不再和三血砖同色', goldCol !== hpCols[2], `星=${goldCol} 三血=${hpCols[2]}`);
+        const brickSet = new Set([...hpCols, solidCol, goldCol, turnCol, crackCol, portalCol]);
+        const clash = $.POWERS.filter(p => brickSet.has(p.c));
+        check('没有任何道具配色与砖块相同', clash.length === 0,
+              clash.map(p => `${p.ch}:${p.c}`).join(' '));
+        check('道具之间配色互不重复', new Set($.POWERS.map(p => p.c)).size === $.POWERS.length);
+        const allBrickCols = [...hpCols, solidCol, goldCol, turnCol, crackCol, portalCol];
+        check('每种砖块的配色互不重复（5 血量 + 实心 + 金 + 转弯 + 裂纹 + 传送门 = 10）',
+              new Set(allBrickCols).size === allBrickCols.length && allBrickCols.length === 10,
+              allBrickCols.join(' '));
+      }
+    }
+
+    /* ================ 21. 道具刷新与奖励 ================ */
+    section('道具刷新策略与拾取奖励');
+    {
+      const wideP = $.POWERS.find(p => p.k === 'wide');
+      const narrowP = $.POWERS.find(p => p.k === 'narrow');
+
+      // 挡板已最长时不应再刷 W
+      $.newGame();
+      for (let i = 0; i < 10; i++) $.applyPower(wideP);
+      check('挡板已到最长（260）', $.snap().paddle.w >= 260, 'w=' + $.snap().paddle.w);
+      $.snap().drops.length = 0;
+      for (let i = 0; i < 500; i++) $.spawnDrops(300, 200);
+      const kinds1 = $.snap().drops.map(d => d.p.k);
+      check('挡板最长时不再刷出 W（避免无效掉落）', !kinds1.includes('wide'),
+            '刷出 ' + kinds1.length + ' 个: ' + [...new Set(kinds1)].join(','));
+      check('挡板最长时仍然会刷其他道具', kinds1.length > 10, 'n=' + kinds1.length);
+
+      // 挡板已最短时不应再刷 N
+      $.newGame();
+      for (let i = 0; i < 10; i++) $.applyPower(narrowP);
+      check('挡板已到最短（60）', $.snap().paddle.w <= 60, 'w=' + $.snap().paddle.w);
+      $.snap().drops.length = 0;
+      for (let i = 0; i < 500; i++) $.spawnDrops(300, 200);
+      const kinds2 = $.snap().drops.map(d => d.p.k);
+      check('挡板最短时不再刷出 N', !kinds2.includes('narrow'), [...new Set(kinds2)].join(','));
+
+      // 未到边界时 W 照常出现
+      $.newGame();
+      for (let i = 0; i < 2; i++) $.applyPower(narrowP);   // 压到 62 左右，未到 60
+      $.snap().drops.length = 0;
+      for (let i = 0; i < 500; i++) $.spawnDrops(300, 200);
+      const kinds3 = $.snap().drops.map(d => d.p.k);
+      check('未到边界时 W 仍会正常刷出', kinds3.includes('wide'), [...new Set(kinds3)].join(','));
+      check('刷出的道具全部落在合法集合内',
+            kinds3.every(k => $.POWERS.some(p => p.k === k)), [...new Set(kinds3)].join(','));
+
+      // 接到道具给奖励分（走真实拾取路径）
+      $.newGame();
+      {
+        const S = $.snap();
+        S.balls.length = 0;
+        S.balls.push($.makeBall(480, 480, 0, 0));    // 静止球，避免顺手打砖加分
+        S.drops.length = 0;
+        S.G.state = 2;
+        const slowP = $.POWERS.find(p => p.k === 'slow');
+        S.drops.push({ x: S.paddle.x + S.paddle.w/2, y: S.paddle.y - 4, v: 150, p: slowP, t: 0 });
+        const s0 = S.G.score, n0 = S.drops.length;
+        hFrames(2);
+        check('道具被挡板接住', $.snap().drops.length === n0 - 1);
+        check('接到道具加奖励分', $.snap().G.score === s0 + $.POWER_SCORE,
+              `${s0} -> ${$.snap().G.score}（期望 +${$.POWER_SCORE}）`);
+        check('奖励分与道具名合成一条浮动字',
+              $.snap().floats.some(f => f.text.includes('+' + $.POWER_SCORE)),
+              $.snap().floats.map(f => f.text).join('|'));
+      }
+    }
+
+    /* ================ 22. 特殊砖块的存档往返 ================ */
+    section('特殊砖块存档往返');
+    {
+      for (const k of Object.keys(store)) delete store[k];
+      const grid = [
+        [20, 1, 6, 11, 0, 0, 0, 0, 0, 21],
+        [ 3, 3, 0,  0, 13, 0, 0, 3, 3,  3]
+      ];
+      $.newGame(); $.loadLevel(0, grid);
+      $.snap().G.state = 2; $.snap().G.score = 1234;
+      const count = () => ({
+        len: $.snap().bricks.length,
+        portal: $.snap().bricks.filter(b => b.portal).length,
+        turn: $.snap().bricks.filter(b => b.turn).length,
+        crack: $.snap().bricks.filter(b => b.crack).length,
+      });
+      const before = count();
+      check('自定义关卡铺出了传送门/转弯/裂纹',
+            before.portal === 2 && before.turn === 2 && before.crack === 1,
+            JSON.stringify(before));
+
+      $.saveProgress(false);
+      const raw = store[$.SAVE_KEY];
+      const savedGrid = JSON.parse(raw).grid.join('');
+      check('存档地图用 36 进制字符编码了特殊砖（k/l=传送门 a-d=转弯 6=裂纹）',
+            /k/.test(savedGrid) && /l/.test(savedGrid) && /a|b|c|d/.test(savedGrid) && /6/.test(savedGrid),
+            savedGrid);
+
+      $.loadLevel(3);                       // 先打乱
+      store[$.SAVE_KEY] = raw;
+      const ok = $.loadProgress();
+      const after = count();
+      check('读档还原特殊砖块种类与数量', ok && JSON.stringify(before) === JSON.stringify(after),
+            `${JSON.stringify(before)} vs ${JSON.stringify(after)}`);
+      check('读档还原分数', $.snap().G.score === 1234, 'score=' + $.snap().G.score);
+      const P2 = $.portals();
+      check('读档后传送门配对依然有效', !!P2.a && !!P2.b && P2.a.portalId === 1 && P2.b.portalId === 2);
+      const t2 = $.snap().bricks.find(b => b.turn);
+      check('读档后转弯砖方向有效', Array.isArray(t2.dir) && t2.dir.length === 2, JSON.stringify(t2.dir));
+      const c2 = $.snap().bricks.find(b => b.crack);
+      check('读档后裂纹砖阈值有效', c2.crackAt >= 1 && c2.hp >= c2.crackAt);
+
+      // 跨设备存档码同样要带上特殊砖
+      {
+        const code = $.encodeShareCode();
+        for (const k of Object.keys(store)) delete store[k];
+        const res = $.decodeShareCode(code);
+        check('存档码能携带特殊砖块', res.ok === true, JSON.stringify(res));
+        $.loadProgress();
+        check('从存档码还原后特殊砖数量一致', JSON.stringify(count()) === JSON.stringify(before),
+              `${JSON.stringify(before)} vs ${JSON.stringify(count())}`);
+      }
+
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+    }
+    /* ================ 23. 特殊砖块的绘制特征 ================ */
+    section('特殊砖块绘制：真的画出了各自的特征');
+    {
+      const c2 = canvas.getContext('2d');
+      const METHODS = ['setTransform','save','restore','translate','rotate','scale','beginPath','closePath',
+        'moveTo','lineTo','arc','arcTo','quadraticCurveTo','bezierCurveTo','rect','fill','stroke','clip',
+        'clearRect','fillRect','strokeRect','strokeText','setLineDash','drawImage','ellipse'];
+      const savedM = {};
+      let arcs = 0, strokes = 0, fills = 0;
+      const texts = [];
+      for (const m of METHODS) if (Object.prototype.hasOwnProperty.call(c2, m)){ savedM[m] = c2[m]; c2[m] = () => {}; }
+      c2.arc = () => { arcs++; };
+      c2.stroke = () => { strokes++; };
+      c2.fill = () => { fills++; };
+      c2.fillText = (t) => { texts.push(String(t)); };
+      c2.measureText = () => ({ width: 10 });
+      c2.createLinearGradient = () => ({ addColorStop(){} });
+      c2.createRadialGradient = () => ({ addColorStop(){} });
+
+      const drawProbe = (grid, mutate) => {
+        arcs = 0; strokes = 0; fills = 0; texts.length = 0;
+        $.newGame();
+        $.loadLevel(0, grid);
+        if (mutate) mutate();
+        $.drawBricks();
+        return { arcs, strokes, fills, texts: texts.slice() };
+      };
+      const row = (cells) => [cells.concat(Array(10 - cells.length).fill(0))];
+
+      // 传送门：画成圆弧（不是方块），并标 A / B
+      const rPortal = drawProbe(row([20, 0, 0, 0, 0, 0, 0, 0, 0, 21]));
+      check('传送门用圆弧绘制（不是方块）', rPortal.arcs > 0, 'arcs=' + rPortal.arcs);
+      check('传送门标出 A / B 两个门', rPortal.texts.includes('A') && rPortal.texts.includes('B'),
+            rPortal.texts.join(''));
+
+      // 转弯砖：四个方向各有箭头
+      const rTurn = drawProbe(row([10, 11, 12, 13]));
+      check('转弯砖画出 ▲▶▼◀ 四个方向箭头',
+            ['▲','▶','▼','◀'].every(a => rTurn.texts.includes(a)),
+            rTurn.texts.join(''));
+
+      // 金砖：五角星 + 额外的亮边描边
+      const rGold  = drawProbe(row([9]));
+      const rPlain = drawProbe(row([1]));
+      check('金砖画出五角星', rGold.texts.includes('★'), rGold.texts.join(''));
+      check('金砖额外描一圈亮边（描边数多于普通砖）', rGold.strokes > rPlain.strokes,
+            `金=${rGold.strokes} 普通=${rPlain.strokes}`);
+
+      // 裂纹砖：裂开后多画裂纹线
+      const rIntact  = drawProbe(row([6]));
+      const rCracked = drawProbe(row([6]), () => { $.snap().bricks[0].hp = 2; });
+      check('裂纹砖裂开后多画裂纹线', rCracked.strokes > rIntact.strokes,
+            `完好=${rIntact.strokes} 裂开=${rCracked.strokes}`);
+      check('裂纹砖显示剩余耐久数字', rIntact.texts.includes('5'), rIntact.texts.join(''));
+
+      // 道具胶囊：深色主体 + 彩色描边 + 白色字符
+      {
+        const p0 = $.POWERS.find(p => p.k === 'multi');
+        const S = $.snap();
+        S.drops.length = 0;
+        S.drops.push({ x: 300, y: 200, v: 0, p: p0, t: 0 });
+        arcs = 0; strokes = 0; fills = 0; texts.length = 0;
+        $.drawDrops();
+        check('道具画成深色胶囊 + 描边 + 字符', fills >= 1 && strokes >= 1 && texts.includes(p0.ch),
+              `fill=${fills} stroke=${strokes} text=${texts.join('')}`);
+      }
+
+      for (const m of METHODS) if (savedM[m]) c2[m] = savedM[m];
       $.newGame();
     }
   } catch (e){
