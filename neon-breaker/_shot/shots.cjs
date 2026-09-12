@@ -427,6 +427,184 @@ render = function (){
 };
 `;
 
+// 13/14. 玩家第 78 关的存档：收尾 2（生成期放宽过窄的缝）的"改前 / 改后"对图
+// 这两张图上的数字不是写死的：场景用游戏自己的 mouthBand() 算出来，再塞进 __probe，
+// 由 probe-px.mjs 断言（26px / 59px）。图上标的和代码算的必须是同一个数。
+SCENES['13-lv78'] = `
+newGame(); G.level = 78; G.time = 1.0;
+loadLevel(78, [
+  [ 0,-1, 0, 0,-1, 0, 0, 0, 0, 0],
+  [ 0, 0, 0,-1, 0, 0, 0, 0,-1, 0],
+  [-1,-1, 0, 0, 0, 0,-1, 0, 6,-1],
+  [-1,-1, 0,-1, 0, 0, 0,-1, 6, 0],
+  [ 0, 0, 0, 0,-1, 0, 0, 0,-1,-1]
+]);
+// 收尾 2 会把这关那条 26px 的缝放宽；这张图要画玩家发来的**原盘面**，先堵回去。
+// 两处都要改回来：bricks 是画面，levelGrid 是生成器留下的格子快照（收尾 2 写的是它），
+// 只改一处就会出现"画面是原盘面、判据算出来却是放宽后"的错位。
+// （G.lastBricks 也要同步：主循环靠它判断"有没有进展"。）
+(function(){
+  var w = null, i;
+  for (i = 0; i < bricks.length; i++) if (bricks[i].row === 2 && bricks[i].col === 9) w = bricks[i];
+  if (w && !w.solid){ w.solid = true; w.type = -1; w.hp = w.max = 1; w.golden = false; }
+  levelGrid[2][9] = T.SOLID;
+  G.lastBricks = breakableLeft();
+})();
+// 护送先关掉（stuckTimer=0）：这两张图讲的是"缝有多宽"的几何，
+// 不想让琥珀引导线抢戏（引导本身的图在 12-nest / 09-assist / 11-flat）。
+G.state = S.PLAY; G.stuckTimer = 0; G.score = 91230; G.best = 604046; G.lives = 9;
+balls = [ makeBall(912, 340, -60, -300) ];
+simRaw(3);
+window.__probe = [ ['band26', mouthBand(levelGrid, 3, 9, 0, -1, 7)] ];
+
+function bx(x, y, w, h, col, dash){
+  ctx.save(); setFrameTransform();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  if (dash) ctx.setLineDash([6, 5]);
+  ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  ctx.restore();
+}
+// 竖直双箭头 + 数字（画在竖井里，数字带深色底板，压到砖上也看得清）
+function vBar(x, y1, y2, col, txt){
+  ctx.save(); setFrameTransform();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x - 5, y1 + 9); ctx.lineTo(x + 5, y1 + 9); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x, y2); ctx.lineTo(x - 5, y2 - 9); ctx.lineTo(x + 5, y2 - 9); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  tag(txt, x, (y1 + y2) / 2, col, 14);
+}
+var __R = render;
+render = function(){
+  __R();
+  heading('玩家第 78 关的存档（原盘面）', 42, '#ffd93d', 22);
+  // 通关就看这两块裂纹砖（4 血）
+  bx(732, 156, 78, 26, '#a9744a'); bx(732, 189, 78, 26, '#a9744a');
+  bx(816, 189, 78, 26, '#ffd93d', true);
+  vBar(915, 189, 215, '#ffd93d', '26px');
+  tag('两块裂纹砖：通关就看它俩', 500, 170, '#e8b88a', 13.5);
+  tag('唯一的入口 (3,9)', 520, 240, '#ffd93d', 13.5);
+  note('17 块砖 = 15 块实心 + 2 块裂纹；(3,8) 唯一能打到的面在右边那格 (3,9)', 400, 'rgba(198,224,255,.92)', 14);
+  note('(2,9)/(4,9) 都是实心砖 —— 球心从竖井横穿进去只有 26px 的余量（球直径 14px）', 430, 'rgba(198,224,255,.92)', 14);
+  note('砖缝只有 6~7px，球钻不过砖缝，只能走整格：所以"洞口开在哪儿"就是一切', 460, 'rgba(198,224,255,.72)', 13.5);
+};
+`;
+
+SCENES['14-widened'] = `
+newGame(); G.level = 78; G.time = 1.0;
+loadLevel(78, [
+  [ 0,-1, 0, 0,-1, 0, 0, 0, 0, 0],
+  [ 0, 0, 0,-1, 0, 0, 0, 0,-1, 0],
+  [-1,-1, 0, 0, 0, 0,-1, 0, 6,-1],
+  [-1,-1, 0,-1, 0, 0, 0,-1, 6, 0],
+  [ 0, 0, 0, 0,-1, 0, 0, 0,-1,-1]
+]);
+// 这一张**不堵回去**：loadLevel 跑的是真实代码，收尾 2 已经把 (2,9) 放宽了
+// （护送同样先关掉，见 13-lv78 的注释）
+G.state = S.PLAY; G.stuckTimer = 0; G.score = 91230; G.best = 604046; G.lives = 9;
+balls = [ makeBall(912, 340, -60, -300) ];
+simRaw(3);
+var __w29 = bricks.filter(function(b){ return b.row === 2 && b.col === 9; })[0];
+window.__probe = [ ['band59', mouthBand(levelGrid, 3, 9, 0, -1, 7)],
+                   ['cell29', __w29 ? (__w29.solid ? 'solid' : ('hp' + __w29.hp)) : 'missing'] ];
+
+function bx(x, y, w, h, col, dash){
+  ctx.save(); setFrameTransform();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  if (dash) ctx.setLineDash([6, 5]);
+  ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  ctx.restore();
+}
+function vBar(x, y1, y2, col, txt){
+  ctx.save(); setFrameTransform();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x - 5, y1 + 9); ctx.lineTo(x + 5, y1 + 9); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x, y2); ctx.lineTo(x - 5, y2 - 9); ctx.lineTo(x + 5, y2 - 9); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  tag(txt, x, (y1 + y2) / 2, col, 14);
+}
+var __R = render;
+render = function(){
+  __R();
+  heading('收尾 2：生成期把过窄的缝放宽之后', 42, '#4dff9e', 22);
+  bx(732, 156, 78, 26, '#a9744a'); bx(732, 189, 78, 26, '#a9744a');
+  bx(816, 156, 78, 26, '#4dff9e');
+  vBar(915, 156, 215, '#4dff9e', '59px');
+  ctx.save(); setFrameTransform();
+  // 从被放宽的那一格指向它的"来历"：实心砖 -> 1 血普通砖
+  ctx.strokeStyle = '#4dff9e'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(816, 169); ctx.lineTo(716, 169); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(716, 169); ctx.lineTo(726, 164); ctx.lineTo(726, 174); ctx.closePath();
+  ctx.fillStyle = '#4dff9e'; ctx.fill();
+  ctx.restore();
+  tag('这块实心砖 -> 1 血普通砖', 600, 140, '#4dff9e', 13.5);
+  note('判据把"可破坏砖"当成打得掉、不挡路 —— 所以改完这一格，缝立刻算 59px（一格变两格）', 400, 'rgba(198,224,255,.92)', 14);
+  note('真把它打掉之后，球心能走的竖直范围就是这 59px：推进去的那条缝从 26px 变成 59px', 430, 'rgba(198,224,255,.92)', 14);
+  note('只开一格就收敛（不砸成空格：密度门限 ≥42/每行 ≥6 与存档下标映射都不能坏）', 460, 'rgba(198,224,255,.72)', 13.5);
+};
+`;
+
+// 15. 判据的几何：一格高的横缝 26px、两格高 59px、一格宽的竖缝 76px
+SCENES['15-mouth'] = `
+newGame(); G.level = 5; G.time = 1.0;
+clearField();                                // 必须**在 newGame() 之后**清场：
+                                             // 反过来的话 newGame 会把第 1 关的砖重新铺上，
+                                             // 我的图鉴砖就叠在一堆无关的砖上面了
+window.__out = [];
+function put(v, r, c, dx, dy){
+  var b = mkBrick(v);
+  b.row = r; b.col = c;
+  b.x = 60 + 84 * c + dx; b.y = 90 + 33 * r + dy;
+  bricks.push(b);
+  return b;
+}
+// A：一格高的横缝（上下各一排实心砖）  B：两格高  C：一格宽的竖缝（左右各一列实心砖）
+var A = [[-1,-1,-1],[0,0,0],[-1,-1,-1]];
+var B = [[-1,-1,-1],[0,0,0],[0,0,0],[-1,-1,-1]];
+var C = [[-1,0,-1],[-1,0,-1],[-1,0,-1]];
+[0, 2].forEach(function(r){ for (var c = 0; c < 3; c++) put(-1, r, c, -40, 60); });
+[0, 3].forEach(function(r){ for (var c = 0; c < 3; c++) put(-1, r, c, 280, 40); });
+[0, 1, 2].forEach(function(r){ put(-1, r, 0, 560, 60); put(-1, r, 2, 560, 60); });
+function hBar(y, x1, x2, col, txt){
+  ctx.save(); setFrameTransform();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 + 9, y - 5); ctx.lineTo(x1 + 9, y + 5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x2, y); ctx.lineTo(x2 - 9, y - 5); ctx.lineTo(x2 - 9, y + 5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  tag(txt, (x1 + x2) / 2, y - 20, col, 14);
+}
+function vBar(x, y1, y2, col, txt){
+  ctx.save(); setFrameTransform();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x - 5, y1 + 9); ctx.lineTo(x + 5, y1 + 9); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x, y2); ctx.lineTo(x - 5, y2 - 9); ctx.lineTo(x + 5, y2 - 9); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  tag(txt, x, (y1 + y2) / 2, col, 14);
+}
+window.__probe = [ ['bands', mouthBand(A, 1, 1, 0, -1, 7), mouthBand(B, 1, 1, 0, -1, 7), mouthBand(C, 2, 1, -1, 0, 7)] ];
+var __R = render;
+render = function(){
+  __R();
+  heading('判据：球心穿过一条缝时能用的净空', 38, '#31f2ff', 21);
+  tag('一格高的横缝', 158, 118, '#ff6b6b', 13.5);
+  tag('两格高的横缝', 470, 98, '#4dff9e', 13.5);
+  tag('一格宽的竖缝', 760, 118, '#4dff9e', 13.5);
+  vBar(292, 183, 209, '#ff6b6b', '26px');
+  vBar(604, 163, 222, '#4dff9e', '59px');
+  hBar(268, 705, 781, '#4dff9e', '76px');
+  note('同一个判据（mouthBand）：只把实心砖当障碍 —— 可破坏砖"打得掉、不挡路"。', 380, 'rgba(198,224,255,.92)', 14);
+  note('砖 78 < 格距 84、砖高 26 < 格距 33，所以横缝天然更窄：一格高只有 26px，一格宽的竖缝有 76px。', 410, 'rgba(198,224,255,.92)', 14);
+  note('门限 NARROW_BAND = 45px 就卡在"一格高"和"两格高"之间：小于它就叫过窄，生成期把卡住它的实心砖改成普通砖。', 440, 'rgba(198,224,255,.72)', 13.5);
+};
+`;
+
 // 7. 选关
 SCENES['07-select'] = `G.state = S.SELECT; G.selectIdx = 1; G.best = 48250; G.time = 1.0;
 render();

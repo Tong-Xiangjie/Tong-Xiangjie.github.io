@@ -902,5 +902,152 @@
   "alive": 8,
   "dead": 0,
   "probe": []
+ },
+ "13-lv78": {
+  "ball": [
+   909,
+   325
+  ],
+  "vel": [
+   -60,
+   -300
+  ],
+  "trail": [
+   [
+    911,
+    335
+   ],
+   [
+    910,
+    330
+   ],
+   [
+    909,
+    325
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 2,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.05,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": true,
+  "magnetTarget": [
+   771,
+   202
+  ],
+  "shock": [],
+  "alive": 17,
+  "dead": 0,
+  "probe": [
+   [
+    "band26",
+    26
+   ]
+  ]
+ },
+ "14-widened": {
+  "ball": [
+   909,
+   325
+  ],
+  "vel": [
+   -60,
+   -300
+  ],
+  "trail": [
+   [
+    911,
+    335
+   ],
+   [
+    910,
+    330
+   ],
+   [
+    909,
+    325
+   ]
+  ],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": {
+   "edge": "#31f2ff",
+   "core": "#ffffff",
+   "glow": "#ffffff",
+   "blur": 20
+  },
+  "breakable": 3,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0.05,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": true,
+  "magnetTarget": [
+   855,
+   169
+  ],
+  "shock": [],
+  "alive": 17,
+  "dead": 0,
+  "probe": [
+   [
+    "band59",
+    59
+   ],
+   [
+    "cell29",
+    "hp1"
+   ]
+  ]
+ },
+ "15-mouth": {
+  "ball": null,
+  "vel": null,
+  "trail": [],
+  "magnet": 0,
+  "assistFx": 0,
+  "style": null,
+  "breakable": 0,
+  "assistOn": true,
+  "magTurnDeg": 10,
+  "assistTurnDeg": 4,
+  "magnetBrick": null,
+  "stuck": 0,
+  "portalLeft": 10,
+  "portalDots": [],
+  "magLine": null,
+  "aimLine": null,
+  "ascending": false,
+  "magnetTarget": null,
+  "shock": [],
+  "alive": 18,
+  "dead": 0,
+  "probe": [
+   [
+    "bands",
+    26,
+    59,
+    76
+   ]
+  ]
  }
 }

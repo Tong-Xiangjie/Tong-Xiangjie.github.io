@@ -433,3 +433,97 @@ console.log('\n########## 05-effects.png ##########');
   console.log(`波心橙色粒子 最近像素=(${near.bestPx}) 距 #ff6b35=${near.best.toFixed(0)} ${near.best < 90 ? '粒子OK' : '粒子!!'}`);
   console.log(`爆炸真的炸掉了砖：dead=${m.dead} ${m.dead > 0 ? 'OK' : '!!'}`);
 }
+
+// ---- 13/14：玩家第 78 关存档的"改前 / 改后"对图 ----------------------------
+// 这两张图的价值全在"同一个洞口，一个 26px 一个 59px"，所以要同时验三件事：
+// ① 图上标的数字来自游戏自己的 mouthBand()（场景塞进 __probe 的那个数）；
+// ② 那个洞口的缝是真的（改前 (2,9) 是实心砖色，改后是 1 血砖色）；
+// ③ 标注文字真的画上去了。
+const brickHue = (img, x, y) => {
+  const body = img.patch(x + 5, y + 7, BRICK_W - 10, 4);
+  const { h, s } = hsl(body);
+  return { hue: h, s, body };
+};
+const cell29 = { x: 60 + 84 * 9, y: 90 + 33 * 2 };     // (行2,列9)：被收尾 2 动过的那一格
+
+console.log('\n########## 13-lv78.png ##########');
+{
+  const img = load('13-lv78.png');
+  const m = MARKS['13-lv78'] || {};
+  const band = (m.probe && m.probe[0]) ? m.probe[0][1] : NaN;
+  console.log(`场景用 mouthBand() 算出洞口净空 = ${band}px ${band === 26 ? '"一格高" OK' : '判据对不上 !!'}`);
+  const s29 = brickHue(img, cell29.x, cell29.y);
+  const okSolid = hueDiff(s29.hue, NOMINAL['#6b7fa8']) < 22 && s29.s < 0.45;
+  console.log(`(2,9) 实测 hue=${s29.hue.toFixed(0)} sat=${s29.s.toFixed(2)} ${okSolid ? '是实心砖（原盘面）OK' : '不是实心砖色 !!'}`);
+  const s28 = brickHue(img, 60 + 84 * 8, 90 + 33 * 2);
+  console.log(`(2,8) 实测 hue=${s28.hue.toFixed(0)} ${hueDiff(s28.hue, NOMINAL['#a9744a']) < 25 ? '是裂纹砖 OK' : '裂纹砖色 !!'}`);
+  const amber = nearestIn(img, 900, 189, 36, 30, hex2rgb('#ffd93d'));
+  console.log(`洞口那一格 (3,9) 附近最近 #ffd93d 距离=${amber.best.toFixed(0)} ${amber.best < 40 ? '标了 26px 的框和箭头 OK' : '没标出来 !!'}`);
+  for (const ly of [400, 430, 460]) {
+    const p = img.patch(120, ly - 12, 720, 24);
+    console.log(`标注 y=${ly} 最亮=${p.max.toFixed(0)} ${p.max > 140 ? '文字OK' : '文字!!'}`);
+  }
+}
+
+console.log('\n########## 14-widened.png ##########');
+{
+  const img = load('14-widened.png');
+  const m = MARKS['14-widened'] || {};
+  const band = (m.probe && m.probe[0]) ? m.probe[0][1] : NaN;
+  const cell = (m.probe && m.probe[1]) ? m.probe[1][1] : '?';
+  console.log(`场景用 mouthBand() 算出洞口净空 = ${band}px ${band === 59 ? '"两格高" OK（一格变两格）' : '判据对不上 !!'}`);
+  console.log(`被放宽的那一格 = ${cell} ${cell === 'hp1' ? '实心砖 -> 1 血普通砖 OK' : '改法不对 !!'}`);
+  const s29 = brickHue(img, cell29.x, cell29.y);
+  const okCyan = hueDiff(s29.hue, NOMINAL['#31f2ff']) < 22 && s29.s > 0.15;
+  console.log(`(2,9) 实测 hue=${s29.hue.toFixed(0)} sat=${s29.s.toFixed(2)} ${okCyan ? '画成了 1 血普通砖（青色）OK' : '还是实心砖色 !!'}`);
+  const green = nearestIn(img, cell29.x, cell29.y, BRICK_W, BRICK_H + 20, hex2rgb('#4dff9e'));
+  console.log(`(2,9) 那一格附近最近 #4dff9e 距离=${green.best.toFixed(0)} ${green.best < 40 ? '标了"这块被放宽"的框和箭头 OK' : '没标出来 !!'}`);
+  for (const ly of [400, 430, 460]) {
+    const p = img.patch(120, ly - 12, 720, 24);
+    console.log(`标注 y=${ly} 最亮=${p.max.toFixed(0)} ${p.max > 140 ? '文字OK' : '文字!!'}`);
+  }
+}
+
+// ---- 15：判据本身的几何（26 / 59 / 76） ------------------------------------
+console.log('\n########## 15-mouth.png ##########');
+{
+  const img = load('15-mouth.png');
+  const m = MARKS['15-mouth'] || {};
+  const bands = (m.probe && m.probe[0]) ? m.probe[0].slice(1) : [];
+  const want = [26, 59, 76];
+  const okBands = bands.length === 3 && bands.every((v, i) => v === want[i]);
+  console.log(`三种缝的净空 = ${JSON.stringify(bands)} 期望 ${JSON.stringify(want)} ${okBands ? 'OK' : '判据对不上 !!'}`);
+  // 三个布局里的实心砖真的画出来了（A/B 各一排，C 两列）
+  const A = [[20, 150], [104, 150], [188, 216]];
+  const B = [[340, 130], [424, 130], [508, 229]];
+  const C = [[620, 150], [620, 183], [788, 216]];
+  let bad = 0;
+  for (const [x, y] of A.concat(B, C)) {
+    const s = brickHue(img, x, y);
+    if (!(hueDiff(s.hue, NOMINAL['#6b7fa8']) < 22 && s.s < 0.45)) {
+      bad++;
+      console.log(`  !! (${x},${y}) 实测 hue=${s.hue.toFixed(0)} sat=${s.s.toFixed(2)} 应该是一块实心砖`);
+    }
+  }
+  console.log(`三个布局的实心砖（9 块抽样）色相不对的 ${bad} 块 ${bad === 0 ? 'OK' : '!!'}`);
+  // 缝里必须是**空的**（这正是"净空"的物理含义）
+  const empty = [[104, 183], [424, 163], [508, 196], [704, 183]];
+  let solidIn = 0;
+  for (const [x, y] of empty) {
+    const p = img.patch(x, y, 20, 20);
+    if (p.max > 120) {
+      solidIn++;
+      console.log(`  !! (${x},${y}) 最亮=${p.max.toFixed(0)} —— 缝里不该有东西`);
+    }
+  }
+  console.log(`缝里被画上东西的格 ${solidIn}/4 ${solidIn === 0 ? '缝是空的 OK' : '缝里不该有砖 !!'}`);
+  const a1 = nearestIn(img, 292, 196, 30, 40, hex2rgb('#ff6b6b'));
+  const a2 = nearestIn(img, 604, 192, 30, 70, hex2rgb('#4dff9e'));
+  const a3 = nearestIn(img, 743, 268, 90, 30, hex2rgb('#4dff9e'));
+  console.log(`三处箭头/数字：26px 距 #ff6b6b=${a1.best.toFixed(0)}  59px 距 #4dff9e=${a2.best.toFixed(0)}  76px 距 #4dff9e=${a3.best.toFixed(0)} ` +
+    `${a1.best < 40 && a2.best < 40 && a3.best < 40 ? 'OK' : '!!'}`);
+  for (const ly of [380, 410, 440]) {
+    const p = img.patch(120, ly - 12, 720, 24);
+    console.log(`标注 y=${ly} 最亮=${p.max.toFixed(0)} ${p.max > 140 ? '文字OK' : '文字!!'}`);
+  }
+}
