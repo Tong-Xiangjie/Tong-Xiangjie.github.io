@@ -6,7 +6,7 @@
 //   用 History API 时刷新 /collection/notes/rmb3 会直接 404（除非再维护一份 404.html
 //   跳转页）。hash 不需要任何服务端配合，刷新、直接粘贴、收藏、后退全部天然可用。
 //
-// 为什么集中在这里而不是把 pushState 散落到各处：
+// 为什么集中在这里而不是把 URL 写入散落到各处：
 //   全站的导航入口很多（顶部 Tab、侧栏父/子项、搜索结果跳转、文章列表、专题分组…），
 //   在每一处都插一次写 URL 极易漏、也极易在后续改动中失效。
 //   这里的做法是反过来的：**从当前状态生成 URL**（buildRoute），在几个关键入口调用
@@ -27,6 +27,13 @@
 //
 // 页面内锚点（搜索结果里的 #item-... 之类）不受影响：本路由器只认上面这些前缀，
 // 认不出来的 hash 一律忽略（不报错、不改状态），避免将来加锚点时互相打断。
+//
+// ★ 历史记录策略：全程只用 replaceState，**不新增任何历史记录**。
+//   本站的浏览方式是"连续点很多分类/条目"，若每次跳转都 push 一条历史，
+//   用户要退出本站得按几十次后退键 —— 后退键被站点绑架了。
+//   现在整个浏览过程只占一条历史记录，后退直接回到进入本站之前的页面。
+//   地址栏依然实时反映当前位置，所以分享、收藏、刷新还原都不受影响。
+//   细节见 syncRoute() 的注释。
 
 // ========== 路由状态 ==========
 let routerReady = false;
@@ -391,8 +398,18 @@ function applySpecialSubView(route) {
 
 // ========== 写入地址栏 ==========
 // 由各导航入口在完成跳转后调用。
-//   replace = true  → replaceState（不新增历史记录，用于搜索关键词变化这类高频更新）
-//   replace = false → 新增一条历史记录（用户"跳转"语义）
+//
+// ★ 历史记录策略：**只用 replaceState，永不 pushState**。
+//   原因：浏览这个站点的自然方式是"连续点很多个分类/条目"，而每次跳转都 push 一条
+//   历史的话，用户按一次后退只能退回上一个分类，要退出站点得按几十次
+//   —— 浏览器后退键被这个站"绑架"了，回到别的网站变得非常烦人。
+//   改成 replaceState 后：
+//     · 地址栏仍然实时反映当前位置（#notes/rmb3 可分享、可收藏、刷新可还原）
+//     · 整个浏览过程只占**一条**历史记录
+//     · 后退键直接回到进入本站之前的那个页面（符合用户预期）
+//
+//   replace 形参保留是为了不动 16 处调用点，但它现在**不再影响行为** ——
+//   历史上 replace=false 表示 pushState（"跳转"语义），那个语义已被废弃。
 function syncRoute(replace) {
     if (applyingRoute) return;     // 正在应用路由，不要回写
     const route = buildRoute();
@@ -400,11 +417,11 @@ function syncRoute(replace) {
     lastRoute = route;
     const url = location.pathname + location.search + (route ? '#' + route : '');
     try {
-        if (replace) history.replaceState({ route }, '', url);
-        else history.pushState({ route }, '', url);
+        history.replaceState({ route }, '', url);
     } catch (e) {
-        // file:// 或某些受限环境下 pushState 会抛错，退回直接改 hash（不新增历史也没关系）
-        try { location.hash = route; } catch { /* 彻底不可用就静默放弃 */ }
+        // file:// 或某些受限环境下 replaceState 会抛错。
+        // ★ 注意不能用 `location.hash = route` 兜底 —— 改 hash 会**新增**一条历史记录，
+        //   正好违背这里的目的。宁可不写地址栏（功能不受影响），也不要污染历史。
     }
 }
 
@@ -428,13 +445,13 @@ function initRouter() {
 
     // ★ 首次进入：把初始状态写进地址栏，这样从"无 hash"打开也能得到可分享的 URL。
     //   有 hash 时由 main.js 在数据就绪后调用 applyInitialRoute()。
-    if (!location.hash) syncRoute(true);
+    if (!location.hash) syncRoute();
 }
 
 // 数据加载完成、界面渲染好之后调用；把 URL 里的深链接状态应用上去。
 function applyInitialRoute() {
     const hash = location.hash;
-    if (!hash) { syncRoute(true); return; }
+    if (!hash) { syncRoute(); return; }
     const parsed = parseRoute(hash);
     if (!parsed) return;                 // 认不出来就别动，保持默认首页
     lastRoute = null;                    // 强制本次同步一定写一次

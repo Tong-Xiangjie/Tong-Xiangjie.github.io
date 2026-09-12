@@ -519,10 +519,10 @@ function updateSearchUIForMode() {
 
 function doSearch(opts) {
   // ★ try/finally 收口写 URL。
-  //   历史记录策略很关键：边打边搜的 input 事件每敲一个字符都会走这里，
-  //   若一律 pushState，后退键就要按几十次才能离开搜索页（实测这是最恼人的体验问题）。
-  //   所以：input 事件 → replaceState（只更新当前这条）；
-  //         点"搜索"按钮 / 回车 / 点击模式 → pushState（真的新增一步，可后退回上一组结果）。
+  //   搜索曾经是全站唯一会 pushState 的地方：边打边搜时每个字符都改 URL，
+  //   若留着 pushState，后退键要按几十次才能离开搜索页。
+  //   现在 router.js 统一改成"全程 replaceState"，这里不再需要区分 replace ——
+  //   传参保留仅为兼容调用点，不再影响行为。
   const replace = !!(opts && opts.replace);
   try {
     doSearchInner();
@@ -774,11 +774,13 @@ function getActualKeyword(inputValue, searchType) {
 }
 
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
-  // ★ try/finally 收口写 URL：这是"跳转"语义，pushState 新增一条历史记录
+  // ★ try/finally 收口写 URL：跳转完成后把当前位置同步到地址栏。
+  //   注意 syncRoute 只用 replaceState（不新增历史记录），传参已不影响行为 ——
+  //   见 router.js 顶部「历史记录策略」。
   try {
     navigateToCopyInner(dataKey, si, vi, ci, hasVarieties);
   } finally {
-    if (typeof syncRoute === 'function') syncRoute(false);
+    if (typeof syncRoute === 'function') syncRoute();
   }
 }
 

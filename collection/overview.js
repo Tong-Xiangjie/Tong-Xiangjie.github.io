@@ -203,6 +203,12 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     renderSidebar();
     renderCurrentCategory();
 
+    // ★ 把"当前所在位置"同步进地址栏。
+    //   navigateToCopy()（搜索结果跳转）一直有这一步，概览跳转却漏了，
+    //   于是从概览点进分类后地址栏还停留在旧位置，深链接不可分享。
+    //   syncRoute 内部只做 replaceState，不会新增历史记录。
+    if (typeof syncRoute === 'function') syncRoute();
+
     // 展开并滚动到目标条目。
     // ★ 改为复用 router.js 的 revealCopyInCategory()，不再自己拼 DOM id：
     //   原实现用 `series-${si}` / `v-${si}-${vi}`（无分类作用域）配合
