@@ -243,6 +243,54 @@ button {
 .panel { display: none; }
 .panel.is-active { display: block; animation: panelIn 0.24s ease; }
 
+/* 宽屏时把卡片排成多列，而不是拉成一条超宽的横条 */
+@media (min-width: 900px) {
+  .panel.is-active {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  /* 卡片之间改用 gap 控制间距，去掉下边距避免双倍留白 */
+  .panel.is-active > .card,
+  .panel.is-active > .island {
+    margin-bottom: 0;
+  }
+  /* 小岛作为整行横幅，但不占满整屏高度，否则卡片会被挤到折叠线以下 */
+  .panel.is-active > .island {
+    grid-column: 1 / -1;
+    height: 190px;
+  }
+  .panel.is-active > .island .island__platform {
+    margin-top: 34px;
+  }
+  .panel.is-active > .island .pet {
+    top: -50px;
+  }
+  /* 星兽主卡左侧固定宽度，剩下的卡片在右列自然堆叠 */
+  .panel.is-active > .card--pet {
+    grid-column: 1;
+  }
+  /* 状态条在宽屏下排成两列更好读 */
+  .panel.is-active > .card--pet .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .panel.is-active {
+    grid-template-columns: 420px repeat(2, minmax(0, 1fr));
+  }
+  .panel.is-active > .island {
+    grid-column: 1 / -1;
+  }
+  .panel.is-active > .card--pet {
+    grid-column: 1;
+    grid-row: span 3;
+  }
+}
+
 @keyframes panelIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
@@ -1195,6 +1243,18 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, m
 @media (min-width: 560px) {
   .island { height: 240px; }
   .items, .codex { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
+
+/* 电脑上不再留两条空白列：逐级放宽容器，并把卡片排成多列 */
+@media (min-width: 900px) {
+  .app { max-width: 1080px; }
+  .main { padding-left: 22px; padding-right: 22px; }
+  .items, .codex { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .toasts { bottom: calc(var(--tabbar-h) + 30px); }
+}
+
+@media (min-width: 1180px) {
+  .app { max-width: 1400px; }
 }
 
   </style>
@@ -3841,12 +3901,33 @@ function settleOffline(state, save, ts = currentTime()) {
 
   const hours = counted / 3600000;
 
-  /* ---------- 情况 B：有安排任务 -> 走完整的任务结算 ---------- */
+  /* ---------- 情况 B0：任务还没结束 ---------- */
+  // 玩家在任务跑完之前就回来了（刷新页面、切回来看看、只是关了一小会儿）。
+  // 这时**绝对不能**判完成、发奖励、清任务 —— 否则一次刷新就等于把任务
+  // 提前结算掉，剩下的时间白丢。正确做法是：
+  //   · 只结算"已过去这段时间"的状态消耗与随机事件
+  //   · 任务原样保留，上线后由心跳继续倒计时，到点再按在线路径结算
+  if (state.task.active && state.task.startedAt && ts < state.task.endsAt) {
+    if (counted > 0) {
+      applyIdleTime(state, counted, randomSeed, lastSettleTime, report);
+    }
+    report.task = null;
+    report.notes.push('任务还在进行中，回来后由岛上的时钟继续计时。');
+    report.timeline.push({
+      at: ts,
+      title: '任务进行中',
+      text: `${TASK_MAP[state.task.active]?.name ?? '任务'}还没结束，它还在外面。`,
+      emoji: TASK_MAP[state.task.active]?.emoji ?? '🔭',
+    });
+    finishReport(state, report, ts);
+    return report;
+  }
+
+  /* ---------- 情况 B：任务已经跑完 -> 走完整的任务结算 ---------- */
   if (state.task.active && state.task.startedAt) {
     const taskDef = TASK_MAP[state.task.active];
     // 任务完成时刻；离线很久时任务早已结束，剩余时间算作空闲
     const taskDoneAt = Math.min(ts, state.task.startedAt + Math.max(1, state.task.endsAt - state.task.startedAt));
-    const taskElapsed = Math.max(0, taskDoneAt - state.task.startedAt);
 
     // 确定性随机：同一存档 + 同一任务起点 => 完全一致的结算
     const taskRng = createRng(

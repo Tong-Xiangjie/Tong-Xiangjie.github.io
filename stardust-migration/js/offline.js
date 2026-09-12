@@ -84,12 +84,33 @@ export function settleOffline(state, save, ts = currentTime()) {
 
   const hours = counted / 3600000;
 
-  /* ---------- 情况 B：有安排任务 -> 走完整的任务结算 ---------- */
+  /* ---------- 情况 B0：任务还没结束 ---------- */
+  // 玩家在任务跑完之前就回来了（刷新页面、切回来看看、只是关了一小会儿）。
+  // 这时**绝对不能**判完成、发奖励、清任务 —— 否则一次刷新就等于把任务
+  // 提前结算掉，剩下的时间白丢。正确做法是：
+  //   · 只结算"已过去这段时间"的状态消耗与随机事件
+  //   · 任务原样保留，上线后由心跳继续倒计时，到点再按在线路径结算
+  if (state.task.active && state.task.startedAt && ts < state.task.endsAt) {
+    if (counted > 0) {
+      applyIdleTime(state, counted, randomSeed, lastSettleTime, report);
+    }
+    report.task = null;
+    report.notes.push('任务还在进行中，回来后由岛上的时钟继续计时。');
+    report.timeline.push({
+      at: ts,
+      title: '任务进行中',
+      text: `${TASK_MAP[state.task.active]?.name ?? '任务'}还没结束，它还在外面。`,
+      emoji: TASK_MAP[state.task.active]?.emoji ?? '🔭',
+    });
+    finishReport(state, report, ts);
+    return report;
+  }
+
+  /* ---------- 情况 B：任务已经跑完 -> 走完整的任务结算 ---------- */
   if (state.task.active && state.task.startedAt) {
     const taskDef = TASK_MAP[state.task.active];
     // 任务完成时刻；离线很久时任务早已结束，剩余时间算作空闲
     const taskDoneAt = Math.min(ts, state.task.startedAt + Math.max(1, state.task.endsAt - state.task.startedAt));
-    const taskElapsed = Math.max(0, taskDoneAt - state.task.startedAt);
 
     // 确定性随机：同一存档 + 同一任务起点 => 完全一致的结算
     const taskRng = createRng(
