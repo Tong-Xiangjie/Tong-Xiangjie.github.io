@@ -597,6 +597,18 @@ body {
 .series-count-badge { background: var(--theme); color: #fff; font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; margin-right: 8px; flex-shrink: 0; }
 .series-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform var(--dur-2) var(--ease-out); flex-shrink: 0; }
 .series-expand-icon.open { transform: rotate(180deg); }
+/* 空系列：数据里既没有品种也没有条目。这种行**不给**可展开的样子 ——
+   没有三角形、不显示手型光标，否则点下去三角形会转、但里面没有内容可长开，
+   用户看到的就是「点了没反应」（详见 category-view.js 的 isEmptySeries 分支）。 */
+.series-year-row-empty { background: transparent; }
+.series-year-header-empty { cursor: default; }
+.series-year-header-empty:hover { background: transparent; }
+.series-name-label-empty { color: var(--text-secondary); font-weight: normal; }
+.series-empty-badge {
+    font-size: 0.75rem; color: var(--text-secondary);
+    border: 1px dashed var(--border); border-radius: 12px;
+    padding: 2px 10px; flex-shrink: 0;
+}
 .series-body {
     max-height: 0;
     overflow: hidden;

@@ -203,6 +203,25 @@ function renderSeriesList(data, title) {
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
         const seriesId = seriesScopeId(accScope, si);
+
+        // ★ 空系列：既没有品种，也没有条目。这种系列**不能**渲染成可点击的头 ——
+        //   点下去三角形会转（open 类加上了），但系列体里什么都没有，scrollHeight=0，
+        //   视觉上就是「点了没反应」。用户报的"概览跳转点不开"最终定位到这里：
+        //   数据里曾把「啥都木有」这句占位提示直接写成了 seriesName。
+        //   改为输出一行不可展开的占位行，不再给三角形这个假交互。
+        const varieties = series.varieties || [];
+        const copies = series.copies || [];
+        const isEmptySeries = varieties.length === 0 && copies.length === 0;
+
+        if (isEmptySeries) {
+            html += `<div class="series-year-row series-year-row-empty">`;
+            html += `<div class="series-year-header series-year-header-empty">`;
+            html += `<span class="series-name-label series-name-label-empty">${escapeHtml(series.seriesName)}</span>`;
+            html += `<span class="series-empty-badge">暂无藏品</span>`;
+            html += `</div></div>`;
+            continue;
+        }
+
         // 本系列是否要在本次渲染里直接展开
         const openSeries = !!(reveal && reveal.sIdx === si);
 
@@ -237,6 +256,9 @@ function renderSeriesList(data, title) {
                 html += `<span class="variety-expand-icon${openVariety ? ' open' : ''}" id="icon-${uid}">▼</span>`;
                 html += `</span></div>`;
                 html += `<div class="copy-list${openVariety ? ' open' : ''}" id="list-${uid}" data-acc-v="${vi}"${openVariety ? ' style="max-height:none;opacity:1;"' : ''}>`;
+                // ★ 有品种但品种里没条目时（例如 japan 的 C/D/E 序列：品种名是真实资料，
+                //   只是还没上图），仍然渲染出「啥都木有」这一行 —— 保证展开后**有内容**，
+                //   否则同样会出现"三角形转了但不展开"。
                 html += renderCopiesList(copies, data.detailFields, `${series.seriesName} - ${variety.varietyName}`, vi);
                 html += `</div></div>`;
             }
@@ -312,11 +334,13 @@ function renderCopiesList(copies, detailFields, displayName, accV) {
 }
 
 // hintEl：被点击的那个头部元素（onclick 里传 this）。
-// ★ 用它反查"节点实际所在的视图容器"，比靠 currentMode/currentCategoryId 现算容器可靠 ——
-//   后者一旦漂移，查找落空、这里就静默什么都不做，用户看到的就是"点了没反应"。
+// ★ 就地解析目标节点（accordionTargetOf），不再按 id 全文档查找 ——
+//   理由见 core.js 里 accordionTargetOf 的注释：容器复用时同 id 节点可能不止一个，
+//   按 id 查有可能把图标和系列体解析到**不同**的节点上，表现就是"三角形转了但不展开"。
+//   now 从被点元素本身出发按 DOM 结构就近取，图标与 body 必然来自同一行、同一批节点。
 function toggleSeries(id, hintEl) {
-    const body = scopeAccordionLookup('body-' + id, hintEl);
-    const icon = scopeAccordionLookup('icon-' + id, hintEl);
+    const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
+    const icon = accordionTargetOf(hintEl, 'icon-' + id, '.series-expand-icon');
     if (!body) {
         // 真找不到才报错：能帮助定位"渲染用的 id"与"onclick 里的 id"不一致这类问题
         console.warn('[accordion] 找不到系列体:', 'body-' + id);
@@ -328,8 +352,8 @@ function toggleSeries(id, hintEl) {
 }
 
 function toggleVariety(id, hintEl) {
-    const list = scopeAccordionLookup('list-' + id, hintEl);
-    const icon = scopeAccordionLookup('icon-' + id, hintEl);
+    const list = accordionTargetOf(hintEl, 'list-' + id, '.copy-list');
+    const icon = accordionTargetOf(hintEl, 'icon-' + id, '.variety-expand-icon');
     if (!list) {
         console.warn('[accordion] 找不到品种列表:', 'list-' + id);
         return;

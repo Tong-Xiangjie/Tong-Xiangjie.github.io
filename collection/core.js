@@ -188,9 +188,14 @@ function animateAccordion(el, open) {
     clearTimeout(el._accTimer);
     const reduced = prefersReducedMotion();
     if (open) {
-        el.style.maxHeight = el.scrollHeight + 'px';
+        const h = el.scrollHeight;
+        el.style.maxHeight = h + 'px';
         el.classList.add('open');
-        if (reduced) { el.style.maxHeight = 'none'; return; }
+        // ★ 兜底：scrollHeight 量到 0 说明此刻量不出内容高度（元素或其祖先尚未完成布局，
+        //   例如刚 display 出来的容器、图片还没撑开）。若照原样把 max-height 钉成 0px，
+        //   就会出现「三角形转了、系列体一点没长开」——用户看到的就是点了没反应。
+        //   这时直接解除高度限制，宁可没有过渡动画，也不能让它停在 0。
+        if (reduced || h === 0) { el.style.maxHeight = 'none'; return; }
         el._accTimer = setTimeout(function() {
             if (el.classList.contains('open')) el.style.maxHeight = 'none';
         }, 280);
@@ -448,6 +453,50 @@ function scopeAccordionLookup(domId, hintEl) {
     }
     // ④ 全局兜底
     return document.getElementById(id);
+}
+
+// ★ 点击路径专用：**就地解析**手风琴目标，而不是按 id 全文档查找。
+//
+//   为什么还需要这个（scopeAccordionLookup 不够吗）：
+//   scopeAccordionLookup 的第 ① 级是"在 hintEl 所属的**视图容器**里按 id 查"。
+//   视图容器粒度太粗 —— B7 的根因正是"跨板块切换只切 display、容器里的旧 DOM 全留着"，
+//   于是同 id 节点可能在不同时刻存在于同一个视图容器内。第 ①/② 级一旦命中**另一个**
+//   节点（旧批量残留、或隐藏容器的同 id 残留），点击就会作用在看不见的节点上：
+//   用户看到三角形转了（图标恰好解析对了），系列体却纹丝不动。这就是
+//   "点了没反应 / 必须切一下板块再回来才好"的成因。
+//
+//   而点击时的 DOM 结构是**确定**的，根本不用查 id：
+//     .series-year-row      = hintEl.parentNode           → 里面必有 .series-body
+//     .variety-row          = hintEl.parentNode           → 里面必有 .copy-list
+//     .copy-list            = hintEl.nextElementSibling   → 条目列表就是它的下一个兄弟
+//   所以先只在这几个节点里找；找不到再逐级放宽到视图容器、全局。
+//   顺序是"由近及远"：结构越近，越不可能串台。
+function accordionTargetOf(hintEl, domId, localSel) {
+    const id = String(domId);
+    const idSel = '[id="' + id.replace(/"/g, '\\"') + '"]';
+    const match = (root) => {
+        if (!root || typeof root.querySelector !== 'function') return null;
+        if (localSel) {
+            // 就地找：本地选择器 + id 双重确认，防止相邻的兄弟被误认成目标
+            const local = root.querySelector(localSel);
+            if (local && local.id === id) return local;
+        }
+        return root.querySelector(idSel);
+    };
+    if (!hintEl) return scopeAccordionLookup(domId, hintEl);
+    // ① 就地：被点节点的父节点（即它在 DOM 里天然所属的那个行容器）
+    const parent = hintEl.parentNode;
+    const near = match(parent);
+    if (near) return near;
+    // ② 就地：被点节点的下一个兄弟（品种行 → .copy-list 就是紧邻的下一个兄弟）
+    const next = hintEl.nextElementSibling;
+    if (next && next.id === id) return next;
+    // ③ 放宽到被点节点所属的视图容器
+    const viewRoot = getViewRootOf(hintEl);
+    const inView = match(viewRoot);
+    if (inView) return inView;
+    // ④ 最后才用原来的多级查找 / 全局兜底
+    return scopeAccordionLookup(domId, hintEl);
 }
 
 // 收集展开态。

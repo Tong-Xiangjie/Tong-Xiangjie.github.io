@@ -20,13 +20,8 @@ const republic_frbcData = {
         { key: "krause", label: "纸币目录编号" }
     ],
 
-    series: [
-        {
-            seriesName: "啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶",
-            year: "",
-            varieties: [
-                
-            ]
-        }
-    ]
+    // ★ 本分类暂无藏品。不要在这里放「啥都木有」这类占位文字 —— 那个字符串会被
+    //   当成真实系列名，渲染出一个可点击却点不开的系列头（详见 category-view.js
+    //   的空系列处理）。留空数组即可：渲染层会显示统一的空状态提示。
+    series: []
 };
