@@ -307,6 +307,21 @@ function getRenderContainer() {
     return ensureViewContainer(key);
 }
 
+// ★ 作废所有已渲染视图的 DOM。
+//   视图容器的 DOM 是复用的 —— switchViewContainer 特意"不清空、不重置滚动"，
+//   返回时也只在"容器里没有内容"时才重渲染（见 tab-switcher 的 restoreNotesCoinsFromSettings）。
+//   所以凡是会改变所有 <img src> 的全局设置（如「网格画质」），改完必须主动作废，
+//   否则要刷新页面才生效。清空之后各视图会自然走"没内容 → 重新渲染"那条路径。
+function invalidateRenderedViews() {
+    for (const k of Object.keys(viewScrollContainers)) {
+        if (k === 'settings_container') continue;   // 设置页自己不用动
+        const el = viewScrollContainers[k];
+        if (el) el.innerHTML = '';
+    }
+    // 山河地图把渲染好的节点缓存在 special.js 里复用，光清容器不够
+    if (typeof dropShanheMapCache === 'function') dropShanheMapCache();
+}
+
 function triggerViewAnimation() {
     const key = getContainerKey();
     const el = viewScrollContainers[key];

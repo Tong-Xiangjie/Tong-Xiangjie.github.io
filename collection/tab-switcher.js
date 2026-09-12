@@ -264,6 +264,8 @@ function restoreNotesCoinsFromSettings(target) {
             switchToCurrentContainer();
             renderOverview();
         }
+        // ★ 重渲染会丢掉手风琴的展开状态（「网格画质」开关作废容器后也走这条路），补回来
+        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
         const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
@@ -412,6 +414,8 @@ function enterNotesOrCoinsTab(target) {
             switchToCurrentContainer();
             renderOverview();
         }
+        // ★ 重渲染会丢掉手风琴的展开状态（「网格画质」开关作废容器后也走这条路），补回来
+        restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
         const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY

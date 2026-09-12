@@ -5,6 +5,11 @@ let specialItemsList = [];
 let specialCurrentIndex = -1;
 let shanheProvinceNames = {};
 let shanheMapCache = null;
+
+// 「网格画质」这类全局设置改动后会调 invalidateRenderedViews() 清空视图容器，
+// 但山河地图的节点被缓存在 shanheMapCache 里复用 —— 不清掉它，下次会把旧节点
+// （里面是旧的 img src）原样塞回容器。
+function dropShanheMapCache() { shanheMapCache = null; }
 let shanheViewMode = 'map';
 
 // ★ 时间轴排序状态

@@ -372,8 +372,7 @@ function schedulePrecacheCurrentView() {
 // ========== 「我的」页面交互 ==========
 function togglePrecacheAuto() {
     setPrecacheAuto(!precacheAutoEnabled());
-    const el = document.getElementById('precacheAutoText');
-    if (el) el.textContent = '自动预缓存：' + (precacheAutoEnabled() ? '开' : '关');
+    if (typeof setSwitchState === 'function') setSwitchState('precacheAutoSwitch', precacheAutoEnabled());
     precacheRefreshStatus();
 }
 

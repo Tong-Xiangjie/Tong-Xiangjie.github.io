@@ -189,7 +189,7 @@
 - **低并发、不阻塞**：并发 3，在 `requestIdleCallback` 里启动给首屏让路；左下角显示「离线预缓存 n/m」进度，点 × 可随时停止
 - **省流量保护**：`navigator.connection.saveData` 为真、或网络为 2G/3G 时不自动触发
 - **SW 就绪门控**：页面未被 Service Worker 接管时不预缓存（请求不会被拦截、也就写不进缓存，纯属白耗流量）；此时手动按钮会提示「图片缓存不可用（需要 https 且 Service Worker 已就绪）」
-- **手动入口**：「我的 → 离线预缓存」提供自动开关（localStorage 持久化）、「预缓存全部缩略图」（约 14MB，离线时网格完整可看、灯箱显示低清占位）、「预缓存全部（含原图）」（约 775MB，两段式确认并显示实际文件数与体积），并显示本地已缓存张数
+- **手动入口**：「我的 → 离线预缓存」提供「自动预缓存」开关（开关组件，localStorage 持久化）、「预缓存全部缩略图」（约 14MB，离线时网格完整可看、灯箱显示低清占位）、「预缓存全部（含原图）」（约 775MB，两段式确认并显示实际文件数与体积），并显示本地已缓存张数
 - **⚠️ 带宽注意**：图片改为同源直出后，图片流量计入 **GitHub Pages 的带宽配额（软限 100GB/月）**。「预缓存全部（含原图）」一次约 775MB，**不要反复点**；原图在你正常点开大图时会被自动缓存，通常并不需要它
 - 预缓存失败的图片会从去重表移除，下次触发自动重试；失败张数会在进度提示里报出
 - **缩略图与原图一起缓存**（仅「含原图」档）：网格里显示的是缩略图（见第 16 节），原图一并缓存后灯箱大图也能离线看
@@ -210,10 +210,18 @@
 - **容错**：每个图片位都带 `thumbFallbackAttr()` 生成的 `onerror` 回退原图，所以**漏生成缩略图只会多耗流量，不会导致图片显示不出来**
 - **用缩略图**：概览页、分类概览、分类内容页藏品图、搜索结果、专题内容页、山河列表 / 省份页、时间轴、详细信息卡片 —— 这些位置**统一走 `core.js` 的 `gridImg()`，不要在调用点直接调 `getThumbUrl()`**
 - **`gridImg()` 返回 `{ src, fallback }`**：`fallback` 交给 `thumbFallbackAttr()`（空字符串时它返回空，不会留下悬空的 `onerror`）；用原图时 `fallback` 为空 —— 原图都加载不出来，缩略图更不可能有（缩略图就是从原图生成的）
-- **可切换成原图**：「我的 → 网格画质 → 网格直接用原图」，存 localStorage 的 `collection-grid-original`。**默认关**，因为冷启动一个板块的原图合计可达 **40~100MB**（纪念钞 92 张 = 98.5MB，第五套 42 张 = 44MB），缩略图只要 1~2MB；而且原图要解码进 36×26 / 56×40 的小格子
+- **可切换成原图**：「我的 → 网格画质 → 网格直接用原图」开关，存 localStorage 的 `collection-grid-original`。**默认关**，因为冷启动一个板块的原图合计可达 **40~100MB**（纪念钞 92 张 = 98.5MB，第五套 42 张 = 44MB），缩略图只要 1~2MB；而且原图要解码进 36×26 / 56×40 的小格子
   - 之所以还是给这个开关：Service Worker 会把浏览过的图全部缓存（stale-while-revalidate），**缓存热了之后两者速度完全一样** —— "原图也不卡"的体感正是这么来的。所以它是留给"缓存已热、不差流量、就想要清晰"的场景
   - 冷启动想亲自验：DevTools → Application → Storage → Clear site data，硬刷新后进「纪念钞」
   - 开了它之后想离线看网格，要用「预缓存全部（含原图）」，「预缓存全部缩略图」那档就不再有意义
+
+> **⚠️ 改全局图片设置后必须 `invalidateRenderedViews()`**
+> 视图容器的 DOM 是**复用**的：`switchViewContainer()` 特意「不清空、不重置滚动」，从设置页返回时也只在「容器里没内容」时才重渲染（见 `tab-switcher.js` 里两处 `restoreNotesCoinsFromSettings` / `enterNotesOrCoinsTab` 的 `hasContent` 判断）。
+> 所以任何会改变所有 `<img src>` 的全局开关，改完都要调 `invalidateRenderedViews()`（`core.js`）主动作废，否则**要按 F5 才生效**（这正是「网格直接用原图」第一次实现的 bug）。
+> 它会清空除 `settings_container` 以外的所有视图容器，并调 `dropShanheMapCache()`（山河地图把渲染好的节点缓存在 `shanheMapCache` 里复用，光清容器不够）。
+> 配套地，`tab-switcher.js` 的「重渲染」分支也补上了 `restoreExpandedStates()`，这样作废重建后手风琴的展开状态不会丢。
+
+> **开关组件**：`settings.js` 的 `renderToggleRow(id, label, on, onclick)` 生成 `.toggle-row` + `.switch`（关闭灰、开启 `var(--theme)`，见 `layout.css`），`setSwitchState(id, on)` 只翻转类名与 `aria-checked`、不重渲染整页。开关状态存在 localStorage，页面重渲染时由 `renderToggleRow` 的 `on` 参数带回。
 - **懒加载**：上述列表 / 网格位全部带 `loading="lazy" decoding="async"`，首屏只请求可见的十几张，滚动时再加载
 - **灯箱直接上原图**：`openModal` 一开始就把 `#modalImg.src` 设为原图，缩略图只当背景垫底（见第 3 节），**没有**"先缩略图 → 到货再换"的两段式与 detached `Image` 预热；生长动画的飞行图层仍然用缩略图（已在缓存里、无需额外下载），所以动画依旧秒起，落地时主图往往已经解码完成
 - **动画兼容**：`openModal` 判断"来源图能不能飞"时**同时接受缩略图与原图**两种 `src`（网格若改成直接用原图，动画不会失效）
