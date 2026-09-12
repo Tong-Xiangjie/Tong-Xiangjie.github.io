@@ -344,8 +344,17 @@ async function revealCopyInCategory(route) {
                 }, 120);
             }, 80);
         } else {
+            // ★ 无品种系列（series 直接带 copies）：它的条目列表是**永久展开**的，
+            //   这里只负责滚动到位。但仍显式确保它是开的 —— 单靠渲染时的 open 类不够稳，
+            //   因为跳转流程会在渲染后调用 closeAllAccordions()，
+            //   一旦它被收起，系列体的 scrollHeight 就会变成 0（"三角形转了但不展开"）。
             tick(() => {
                 const el = scopeAccordionLookup('copies-' + seriesId);
+                if (el && el.classList && !el.classList.contains('open')) {
+                    el.classList.add('open');
+                    el.style.maxHeight = 'none';
+                    el.style.opacity = '1';
+                }
                 if (el && typeof scrollIntoViewSmooth === 'function') scrollIntoViewSmooth(el, 'center');
             }, 120);
         }

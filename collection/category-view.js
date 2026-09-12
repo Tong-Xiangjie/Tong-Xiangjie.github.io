@@ -263,7 +263,11 @@ function renderSeriesList(data, title) {
                 html += `</div></div>`;
             }
         } else if (series.copies && series.copies.length > 0) {
-            html += `<div class="copy-list open" id="copies-${seriesId}" data-acc-series="${si}" data-acc-v="-1" style="max-height:none;opacity:1;">`;
+            // ★ data-acc-permanent：无品种系列的条目列表没有对应的"品种头"可以再点开，
+            //   所以它必须**永久展开**，不能让 closeAllAccordions() 收起来
+            //   （否则系列体唯一的子元素高度为 0，系列体的 scrollHeight 也变成 0，
+            //   表现为"三角形转了但什么都不展开"）。详见 core.js 的 closeAllAccordions()。
+            html += `<div class="copy-list open" id="copies-${seriesId}" data-acc-series="${si}" data-acc-v="-1" data-acc-permanent="1" style="max-height:none;opacity:1;">`;
             html += renderCopiesList(series.copies, data.detailFields, series.seriesName, -1);
             html += `</div>`;
         }

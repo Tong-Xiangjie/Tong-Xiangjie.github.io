@@ -378,10 +378,19 @@ function varietyScopeId(scope, si, vi) { return scope + '-v' + si + '-' + vi; }
 // 收起活动容器里的全部手风琴（系列 + 品种）。
 // 深链接/搜索结果跳转前先收干净，避免一次性播放十几个展开动画。
 // ★ 只动活动容器：隐藏容器里的状态保留着，用户切回去还是原样。
+//
+// ★★ 必须跳过 [data-acc-permanent]：
+//   无品种（series 直接带 copies）的系列，它的条目列表是**永久展开**的 ——
+//   没有对应的品种头可以再点开，一旦被收起就再也打不开。
+//   历史 bug：概览跳转的流程是「渲染时展开 → 50ms 后 closeAllAccordions() →
+//   revealCopyInCategory() 只按 vIdx 重开品种」，而这类系列的 vIdx 恒为 null，
+//   于是 copy-list 被关掉后无人重开 → max-height 锁死在 0 → 系列体的
+//   scrollHeight 变成 0 → 表现为「三角形转了但什么都不展开」。
 function closeAllAccordions() {
     const container = getRenderContainer();
     if (!container) return;
     $$('.series-body.open, .copy-list.open', container).forEach(el => {
+        if (el.hasAttribute && el.hasAttribute('data-acc-permanent')) return;   // 永久展开，不参与收起
         el.classList.remove('open');
         el.style.maxHeight = '';
     });
