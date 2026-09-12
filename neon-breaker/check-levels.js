@@ -38,13 +38,18 @@ function run(gameSrc){
     (0, eval)(gameSrc + '\nglobalThis.$GAME = { pattern, loadLevel, newGame, snap: () => ({ bricks, G }) };');
     const $ = global.$GAME;
 
-    /* 砖块类型：0 空 · 1..5 普通 · -1 实心 · 6 裂纹 · 10~13 转弯 · 20/21 传送门 · 9 金砖 */
-    const LEGAL = [-1, 0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 20, 21];
-    const isBreak  = v => (v >= 1 && v <= 5) || v === 6 || (v >= 10 && v <= 13);
+    /* 砖块类型：0 空 · 1..5 普通 · -1 实心 · 6 裂纹 · 10~13 转弯
+       · 20/21 传送门 · 9 金砖 · 14 棕色软砖 · 15 炸药砖 · 16 磁铁砖 */
+    const LEGAL = [-1, 0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 20, 21];
+    const isBreak  = v => (v >= 1 && v <= 5) || v === 6 || (v >= 10 && v <= 13) || v === 14 || v === 15 || v === 16;
     const isCrack  = v => v === 6;
     const isTurn   = v => v >= 10 && v <= 13;
     const isPortal = v => v === 20 || v === 21;
-    const GLYPH = { '-1':'x', '0':'·', '6':'c', '9':'★', '10':'▲', '11':'▶', '12':'▼', '13':'◀', '20':'P', '21':'Q' };
+    const isBomb   = v => v === 15;
+    const isSoft   = v => v === 14;
+    const isMagnet = v => v === 16;
+    const GLYPH = { '-1':'x', '0':'·', '6':'c', '9':'★', '10':'▲', '11':'▶', '12':'▼', '13':'◀',
+                    '14':'s', '15':'B', '16':'m', '20':'P', '21':'Q' };
     const glyph = v => GLYPH[String(v)] !== undefined ? GLYPH[String(v)] : String(v);
 
     console.log('关卡图案校验（1-5 血量 · x 实心 · ★ 金砖 · c 裂纹 · ▲▶▼◀ 转弯 · P/Q 传送门 · · 空位）');
@@ -60,12 +65,16 @@ function run(gameSrc){
         crack: flat.filter(isCrack).length,
         turn: flat.filter(isTurn).length,
         portal: flat.filter(isPortal).length,
+        bomb: flat.filter(isBomb).length,
+        soft: flat.filter(isSoft).length,
+        magnet: flat.filter(isMagnet).length,
       };
       // 传送门必须成对出现，落单的门是死的
       const portalOk = cnt.portal === 0 || cnt.portal === 2;
       const ok = w.size === 1 && w.has(10) && illegal.length === 0 && cnt.breakable > 0 && portalOk;
       if (!ok) bad++;
-      const extra = [cnt.crack && `裂纹${cnt.crack}`, cnt.turn && `转弯${cnt.turn}`, cnt.portal && `门${cnt.portal}`]
+      const extra = [cnt.crack && `裂纹${cnt.crack}`, cnt.turn && `转弯${cnt.turn}`, cnt.portal && `门${cnt.portal}`,
+                     cnt.bomb && `炸药${cnt.bomb}`, cnt.soft && `软${cnt.soft}`, cnt.magnet && `磁铁${cnt.magnet}`]
                       .filter(Boolean).join(' ');
       console.log(`  关卡${String(n+1).padStart(2)}: ${String(g.length).padStart(2)}行 宽${[...w].join('/')} ` +
                   `可破坏${String(cnt.breakable).padStart(3)} 实心${String(cnt.solid).padStart(2)} 金砖${String(cnt.gold).padStart(2)}` +
@@ -84,11 +93,18 @@ function run(gameSrc){
       const realPortal = bricks.filter(b => b.portal).length;
       const realTurn   = bricks.filter(b => b.turn).length;
       const realCrack  = bricks.filter(b => b.crack).length;
+      const realBomb   = bricks.filter(b => b.bomb).length;
+      const realSoft   = bricks.filter(b => b.soft).length;
+      const realMagnet = bricks.filter(b => b.magnet).length;
       // 传送门必须成对，落单的门是死的
       const portalPairOk = realPortal === 0 || realPortal === 2;
       // 转弯砖必须有合法方向向量；裂纹砖必须有合理阈值
       const badTurn  = bricks.filter(b => b.turn && !(Array.isArray(b.dir) && b.dir.length === 2)).length;
       const badCrack = bricks.filter(b => b.crack && !(b.crackAt >= 1 && b.hp >= b.crackAt)).length;
+      // 软砖/炸药砖/磁铁砖必须拿到自己的耐久，而不是掉进 buildFromGrid 的 `: v` 分支（会变成 14/15/16 血）
+      const badSoft  = bricks.filter(b => b.soft && b.hp !== 2).length;
+      const badBomb  = bricks.filter(b => b.bomb && b.hp !== 1).length;
+      const badMag   = bricks.filter(b => b.magnet && b.hp !== 2).length;
 
       let gridInfo = '', gridOk = true;
       if (designed){
@@ -99,11 +115,13 @@ function run(gameSrc){
         gridOk = bricks.length === cells && realSolid === gridSolid && realPortal === gridPortal;
         gridInfo = `期望${String(cells).padStart(3)}块 实心${realSolid}/${gridSolid} 门${realPortal}/${gridPortal}`;
       } else {
-        gridInfo = `实际${String(bricks.length).padStart(3)}块 实心${String(realSolid).padStart(2)} 门${realPortal} 转弯${realTurn} 裂纹${realCrack}`;
+        gridInfo = `实际${String(bricks.length).padStart(3)}块 实心${String(realSolid).padStart(2)} 门${realPortal} 转弯${realTurn} 裂纹${realCrack}` +
+                   `${realBomb ? ' 炸药' + realBomb : ''}${realSoft ? ' 软' + realSoft : ''}${realMagnet ? ' 磁铁' + realMagnet : ''}`;
       }
-      const ok = nan === 0 && bricks.length > 0 && portalPairOk && badTurn === 0 && badCrack === 0 && gridOk;
+      const ok = nan === 0 && bricks.length > 0 && portalPairOk && badTurn === 0 && badCrack === 0 &&
+                 badSoft === 0 && badBomb === 0 && badMag === 0 && gridOk;
       if (!ok) bad++;
-      console.log(`  关卡${String(n+1).padStart(2)}: ${gridInfo} 坏转弯${badTurn} 坏裂纹${badCrack} NaN=${nan}` +
+      console.log(`  关卡${String(n+1).padStart(2)}: ${gridInfo} 坏转弯${badTurn} 坏裂纹${badCrack} 坏软${badSoft} 坏炸药${badBomb} 坏磁铁${badMag} NaN=${nan}` +
                   `${portalPairOk ? '' : ' 传送门不成对'} ${ok ? 'ok' : 'FAIL'}`);
     }
   } finally {

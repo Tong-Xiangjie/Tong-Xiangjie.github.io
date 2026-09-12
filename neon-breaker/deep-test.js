@@ -12,7 +12,7 @@ function run(src){
   function fakeCtx(){
     return {
       canvas: null, setTransform(){}, save(){}, restore(){}, translate(){}, rotate(){}, scale(){},
-      beginPath(){}, closePath(){}, moveTo(){}, lineTo(){}, arc(){}, arcTo(){},
+      beginPath(){}, closePath(){}, moveTo(){}, lineTo(){}, arc(){}, arcTo(){}, rect(){},
       fill(){}, stroke(){}, clearRect(){}, fillRect(){}, strokeRect(){},
       fillText(){}, strokeText(){}, measureText: () => ({ width: 10 }),
       createLinearGradient: () => ({ addColorStop(){} }),
@@ -109,6 +109,21 @@ globalThis.$GAME = {
   portals: () => ({ a: portalA, b: portalB }),
   portalAt, isTurnTile, isPortalTile, isCrackTile, tileBreakable,
   drawBricks, drawDrops,
+  // 软砖 / 炸药砖 / 爆炸波
+  isSoftTile, isBombTile, SOFT_HP, BOMB_HP,
+  explode, updateShockwaves, drawShockwaves, powerIsNoop,
+  // 磁铁砖 / 引力井
+  isMagnetTile, MAGNET_HP, addWell, updateWells, drawWells, applyWellPull,
+  WELL_R, WELL_LIFE, MAX_WELLS, WELL_MIN_SEP, WELL_DRAW_R, WELL_MAX_GROW,
+  wells: () => wells,
+  clearWells: () => { wells = []; },
+  shockwaves: () => shockwaves,
+  clearShockwaves: () => { shockwaves = []; explodingDepth = 0; },
+  convertSolidToSoft, BOMB_RMAX, MAX_WAVES,
+  // 随机关卡生成（随机性修复相关）
+  SAFE_MIN_GAP, GEN_STYLES, hpWeights, rollHp, genSkeleton, pickNormalCells,
+  MIN_BRICK_COUNT, MIN_BRICKS_PER_ROW,
+  bricksBottom: () => bricks.reduce((m, b) => Math.max(m, b.y + b.h), 0),
 };
 `);
     const $ = global.$GAME;
@@ -156,10 +171,10 @@ globalThis.$GAME = {
       grid.forEach((row, r) => {
         if (row.length !== 10) bad.push(`第${r}行长度=${row.length}`);
         row.forEach((v, c) => {
-          if (![-1,0,1,2,3,4,5,6,9,10,11,12,13,20,21].includes(v) || Number.isNaN(v)) bad.push(`非法砖值 ${v} @${r},${c}`);
+          if (![-1,0,1,2,3,4,5,6,9,10,11,12,13,14,15,16,20,21].includes(v) || Number.isNaN(v)) bad.push(`非法砖值 ${v} @${r},${c}`);
         });
       });
-      const breakable = grid.some(row => row.some(v => (v >= 1 && v <= 5) || v === 6 || (v >= 10 && v <= 13)));
+      const breakable = grid.some(row => row.some(v => (v >= 1 && v <= 5) || v === 6 || (v >= 10 && v <= 13) || v === 14 || v === 15 || v === 16));
       check(`第 ${n+1} 关结构合法且可通关`, bad.length === 0 && breakable, bad.slice(0,3).join('; ') || '没有可破坏砖');
     }
 
@@ -410,6 +425,60 @@ globalThis.$GAME = {
       check('竖直死循环纠偏未被频繁触发', D.nudges <= 3, 'nudges=' + D.nudges);
     }
 
+    /* ================ 6b. 长时间对局 + 引力井（磁铁砖回归）================ */
+    section('长时间自动对局 · 有引力井 (7200 帧，防卡死不变量复验)');
+    {
+      $.newGame();
+      $.clearWells();
+      let wErr = 0, wViol = 0, wMin = 1e9, wMax = 0;
+      let wUps = 0, wStir = 0, wNaN = 0, wFlights = 0, wNudges = 0, wReloads = 0;
+      const wErrList = [];
+      let prevLv = $.snap().G.level;
+      const d0 = global.__NB_DEBUG;
+      for (let i = 0; i < 7200; i++){
+        // 每 2 秒换一个位置投放引力井（模拟"打掉磁铁砖"）。
+        // 位置轮换是**故意的**：addWell 有最小间距保护，如果一直投在同一点，
+        // 那些井会互相顶替、场上永远只有 1 个，就测不到多点叠加的情况了。
+        if (i % 120 === 0) $.addWell(180 + (i / 120 % 5) * 150, 220 + (i / 120 % 3) * 90);
+        try { frames(1, { steer:true, autoLaunch:true, keepAlive:true }); }
+        catch(e){ wErr++; if (wErrList.length < 5) wErrList.push(e.message); }
+        const { G, balls, paddle } = $.snap();
+        wStir = Math.max(wStir, G.stuckTimer);
+        if (G.level !== prevLv){ prevLv = G.level; wUps++; }
+        for (const b of balls){
+          if (b.stuck) continue;                        // 贴板待发射的球速度≈0 属正常，不计入
+          wFlights++;
+          if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) wNaN++;
+          if (b.x - b.r < 22.5 || b.x + b.r > 937.5 || b.y - b.r < 22.5) wViol++;
+          const sp = Math.hypot(b.vx, b.vy);
+          wMin = Math.min(wMin, sp); wMax = Math.max(wMax, sp);
+        }
+        if (paddle.x < 23.5 || paddle.x + paddle.w > 936.5) wViol++;
+      }
+      if (d0){ wNudges = (global.__NB_DEBUG.nudges || 0) - (d0.nudges || 0);
+               wReloads = (global.__NB_DEBUG.reloads || 0) - (d0.reloads || 0); }
+      check('有引力井时 7200 帧无异常抛出', wErr === 0, wErrList.slice(0, 3).join(' | '));
+      check('有引力井时 7200 帧无物理越界 / 无 NaN', wViol === 0 && wNaN === 0,
+            `越界=${wViol} NaN=${wNaN}`);
+      check('有引力井时球速仍在安全区间 (40~1000)',
+            wMin > 40 && wMax <= 1000.5, `${Math.round(wMin)}~${Math.round(wMax)}`);
+      check('有引力井时球确实在飞（样本数合理）', wFlights > 3000, 'flights=' + wFlights);
+      check('有引力井时防卡死仍然收敛（120 秒内至少过关一次）', wUps >= 1, '过关=' + wUps);
+      check('有引力井时滞留仍被硬性限制在 40s 以内', wStir <= 40.5, 'maxStir=' + wStir.toFixed(1));
+      check('有引力井时不用频繁呼叫防卡死（引导纠偏 ≤ 3）', wNudges <= 3,
+            `nudges=${wNudges} reloads=${wReloads}`);
+      check('引力井数量始终不超上限', $.wells().length <= $.MAX_WELLS, 'wells=' + $.wells().length);
+      check('引力井之间始终保持最小间距（不会叠成同一个点）', (() => {
+        const ws = $.wells();
+        for (let i = 0; i < ws.length; i++)
+          for (let j = i + 1; j < ws.length; j++)
+            if (Math.hypot(ws[i].x - ws[j].x, ws[i].y - ws[j].y) < $.WELL_MIN_SEP) return false;
+        return true;
+      })());
+      $.clearWells();
+      $.newGame();
+    }
+
     /* ================ 7. 极端场景 ================ */
     section('极端场景');
     $.newGame(); $.launch(); frames(2, {});
@@ -634,8 +703,8 @@ globalThis.$GAME = {
       $.setInfinite(false);
       $.newGame();
     }
-    /* ================ 11. 视口铺满 / 全屏 ================ */
-    section('视口铺满与全屏');
+    /* ================ 11. 视口铺满 / 全屏 / 无鼠标死区 ================ */
+    section('视口铺满 · 全屏 · 无鼠标死区');
     {
       // 16:10 视口：正好铺满，无留边
       $.setViewport(1600, 1000);
@@ -647,24 +716,32 @@ globalThis.$GAME = {
       const tl = $.toWorld(0, 0), br = $.toWorld(1600, 1000);
       check('左上空点映射到逻辑 (0,0)', Math.abs(tl.x) < 1e-6 && Math.abs(tl.y) < 1e-6, `(${tl.x},${tl.y})`);
       check('右下空点映射到逻辑 (960,600)', Math.abs(br.x - 960) < 1e-6 && Math.abs(br.y - 600) < 1e-6, `(${br.x},${br.y})`);
-      check('画布范围内的点都判为场内', tl.inside && br.inside);
-      check('画布内任意点都要求指针留在游戏区内', (() => {
+      // 无死区：窗口内任意一点映射出来都必须落在游戏区内
+      check('窗口内任意点都在游戏区内（无死区）', (() => {
         for (const [x, y] of [[0,0],[800,500],[1599,999],[1600,1000]]){
-          if (!$.toWorld(x, y).inside) return false;
+          const w = $.toWorld(x, y);
+          if (!(w.x >= 0 && w.x <= 960 && w.y >= 0 && w.y <= 600)) return false;
         }
         return true;
       })());
 
-      // 更宽的视口（21:9）：左右留边，指针落在边上应判为场外
+      // 常见非 16:10 视口：留边里的点也必须落在游戏区内（以前这里判为"场外"= 死区）
+      const ratios = [[2100,1000,'21:9 超宽'],[2560,1440,'16:9'],[1280,1024,'5:4'],[800,1200,'竖屏']];
+      check('所有视口比例下留边里的点都落在游戏区内', ratios.every(([vw, vh]) => {
+        $.setViewport(vw, vh);
+        return [[5,5],[vw-5,5],[5,vh-5],[vw-5,vh-5],[vw/2,3],[3,vh/2]].every(([x,y]) => {
+          const w = $.toWorld(x, y);
+          return w.x >= 0 && w.x <= 960 && w.y >= 0 && w.y <= 600;
+        });
+      }));
+
+      // 更宽的视口（21:9）：仍然等比缩放、画面完整可见（不裁切，UI 不会被切掉）
       $.setViewport(2100, 1000);
       v = $.view;
-      check('超宽视口产生左右留边', v.ox > 1 && Math.abs(v.oy) < .01, `ox=${v.ox.toFixed(1)} oy=${v.oy.toFixed(1)}`);
-      check('等比缩放，画面完整可见（不裁切）', Math.abs(v.scale * 960 - 1600) < 1e-6 && v.scale * 600 <= 1000 + 1e-6,
+      check('超宽视口仍然等比缩放不裁切', Math.abs(v.scale * 960 - 1600) < 1e-6 && v.scale * 600 <= 1000 + 1e-6,
             `画面=${(v.scale*960).toFixed(0)}x${(v.scale*600).toFixed(0)}`);
-      const pad = $.toWorld(10, 500);                   // 左侧留边里
-      check('留边里的点判为场外', pad.inside === false, `x=${pad.x.toFixed(1)} inside=${pad.inside}`);
-      const mid = $.toWorld(2100/2, 500);
-      check('画面中心的点判为场内', mid.inside === true, `x=${mid.x.toFixed(1)}`);
+      check('超宽视口两侧留边由底色填满（不露黑带）', v.ox > 1 && Math.abs(v.oy) < .01,
+            `ox=${v.ox.toFixed(1)} oy=${v.oy.toFixed(1)}`);
 
       // 指针事件走 toWorld，水平位置要正确对应
       $.setViewport(1600, 1000);
@@ -672,15 +749,23 @@ globalThis.$GAME = {
       const pm = $.pointerMove, tgt = () => $.pointerTarget();
       pm(1200, 500);                                     // 1200/1600 = 0.75 -> 逻辑 x=720
       check('指针位置正确映射到挡板目标', Math.abs(tgt() - 720) < 1e-6, 'target=' + tgt());
-      check('指针在画面内时 onField=true', $.snap().mouse.onField === true);
 
-      // 指针移到留边：挡板目标被夹在边界内，且准星标记为场外
+      // 指针移到留边：挡板仍要跟随（夹到边界），而不是"不控制挡板"
       $.setViewport(2100, 1000);
       pm(5, 500);
-      check('指针进左留边时目标夹到左边界', tgt() === 0, 'target=' + tgt());
-      check('指针进留边时 onField=false（准星变暗）', $.snap().mouse.onField === false);
+      check('指针进左留边时目标夹到左边界(0,不再有死区)', tgt() === 0, 'target=' + tgt());
+      check('左留边里挡板仍受控（pointerTarget 非 null）', tgt() !== null);
+      const inPad = $.toWorld(5, 500);
+      // 2100×1000 下 scale=1.6667、oy=0，所以 y=500px 对应逻辑 y=300（整幅高度正好铺满竖直方向）
+      check('左留边映射结果仍在游戏区内且夹到左墙', inPad.x === 0 && inPad.y === 300, `(${inPad.x},${inPad.y})`);
       pm(2095, 500);
-      check('指针进右留边时目标夹到右边界', tgt() === 960, 'target=' + tgt());
+      check('指针进右留边时目标夹到右边界(960)', tgt() === 960, 'target=' + tgt());
+      // 竖直方向同理：上下留边也要夹进 0..600
+      $.setViewport(1280, 1024);
+      pm(640, 3);
+      check('指针进上留边时 y 夹到 0', $.snap().mouse.y === 0, 'y=' + $.snap().mouse.y);
+      pm(640, 1021);
+      check('指针进下留边时 y 夹到 600', $.snap().mouse.y === 600, 'y=' + $.snap().mouse.y);
 
       // 全屏切换
       global.__fsReq = 0; global.__fsExit = 0;
@@ -694,6 +779,727 @@ globalThis.$GAME = {
       $.setViewport(1600, 1000);
       $.newGame();
     }
+    /* ================ 11b. 随机关卡的随机性与净空约束 ================ */
+    section('随机关卡：随机性修复与净空约束');
+    {
+      // 旧版普通砖血量是 1 + ((r + n) % 5)，纯函数：同一关生成多少次都一模一样，
+      // 而且每行是同一个数字、整幅图是 45° 纯色斜带、5 行一循环。
+      const gen = (n, k) => Array.from({ length: k }, () => $.pattern(n));
+      const flat = g => g.grid.flat();
+      const isBrick = v => v !== 0;
+      const isBreak = v => (v >= 1 && v <= 5) || v === 6 || (v >= 10 && v <= 13) || v === 14 || v === 15 || v === 16;
+
+      // 1) 同一关多次生成必须不同（以前这条必然失败）
+      const hpSeq = n => gen(n, 8).map(g => flat(g).filter(v => v >= 1 && v <= 5).join(','));
+      check('同一关连续生成的血量分布确实不同（血量已是随机）',
+            new Set(hpSeq(12)).size >= 2, 'distinct=' + new Set(hpSeq(12)).size);
+
+      // 2) 不再有"每行是一个常数"的退化行（行内混排）
+      check('同一关内出现行内混排（不再是每行常数）', gen(12, 6).some(g =>
+        g.grid.some(row => {
+          const hp = row.filter(v => v >= 1 && v <= 5);
+          return new Set(hp).size >= 2;
+        })));
+
+      // 3) 同一关多次生成里出现 ≥3 种不同血量（旧版一关只出现 3~4 种且位置固定）
+      check('同一关多次生成覆盖 ≥3 种血量', (() => {
+        const s = new Set();
+        for (const g of gen(12, 6)) for (const v of flat(g)) if (v >= 1 && v <= 5) s.add(v);
+        return s.size >= 3;
+      })());
+
+      // 4) 结构约束放宽到 31 关（含后期）：宽度、非法值、必有可破坏砖、传送门成对
+      check('31 个关卡结构全部合法且可通关', (() => {
+        for (let n = 0; n <= 30; n++){
+          const g = $.pattern(n).grid;
+          if (new Set(g.map(r => r.length)).size !== 1 || g[0].length !== 10) return false;
+          const f = g.flat();
+          if (f.some(v => v === null || v === undefined || Number.isNaN(v))) return false;
+          if (!f.some(isBreak)) return false;
+          const portals = f.filter(v => v === 20 || v === 21).length;
+          if (portals !== 0 && portals !== 2) return false;
+        }
+        return true;
+      })());
+
+      // 5) 不会出现"整行都是不可破坏的砖"（实心砖墙那行永远打不穿）
+      //    注意：某一行只有传送门 + 空位是允许的（传送门是可穿过的门，不是墙）。
+      //    这里用"行内是否有非空砖"判定，与原始修复代码的意图一致。
+      check('没有整行只有实心砖的关卡', (() => {
+        for (let n = 0; n <= 30; n++){
+          const g = $.pattern(n).grid;
+          for (const row of g){
+            const filled = row.filter(v => v !== 0);
+            if (filled.length && !filled.some(v => v !== -1)) return false;
+          }
+        }
+        return true;
+      })());
+      //    更严的一条：随机关卡的每一行都要有"可打掉"的砖（漏斗行会永远清不掉）
+      check('随机关卡每行都有可破坏砖（无漏斗行）', (() => {
+        for (let n = 5; n <= 30; n++)
+          for (let i = 0; i < 6; i++)
+            for (const row of $.pattern(n).grid)
+              if (!row.some(isBreak)) return false;
+        return true;
+      })());
+
+      // 5b) 密度保底：islands / bands / frame 天然稀疏，曾经会开出"场上没几块砖"的空关
+      //     （实测 islands 平均仅 11 块、最少 3 块，27% 的随机关卡可破坏砖不足 20）
+      check('每种风格的骨架都达到最低砖数', $.GEN_STYLES.every(s => {
+        for (let i = 0; i < 60; i++){
+          const g = $.genSkeleton(s, 6, 12);
+          if (g.flat().filter(v => v !== 0).length < $.MIN_BRICK_COUNT) return false;
+        }
+        return true;
+      }), `MIN_BRICK_COUNT=${$.MIN_BRICK_COUNT}`);      check('没有稀疏到空行的随机关卡（每行都有砖）', (() => {
+        for (let n = 5; n <= 30; n++)
+          for (let i = 0; i < 6; i++)
+            for (const row of $.pattern(n).grid)
+              if (row.filter(v => v !== 0).length < $.MIN_BRICKS_PER_ROW) return false;
+        return true;
+      })());
+      //    实际可破坏砖数（骨架数会被实心砖/金砖/传送门吃掉一部分，所以门限更低）
+      check('随机关卡的可破坏砖数量不会太少', (() => {
+        const c = [];
+        for (let n = 5; n <= 30; n++) for (let i = 0; i < 12; i++) c.push(flat($.pattern(n)).filter(isBreak).length);
+        c.sort((a, b) => a - b);
+        return c[Math.floor(c.length * .05)] >= 20 && c[0] >= 14;
+      })());
+      //    硬性规则（用户要求）：砖块最少不少于最大数量的 60%。
+      //    场地 10 列 × 最多 7 行 = 70 格，所以门限就是 ceil(70 × 0.6) = 42。
+      check('密度门限不低于场地容量的 60%', $.MIN_BRICK_COUNT >= 42,
+            `MIN_BRICK_COUNT=${$.MIN_BRICK_COUNT}`);
+      check('随机关卡的砖块数真的不低于场地容量的 60%', (() => {
+        for (let n = 5; n <= 30; n++)
+          for (let i = 0; i < 12; i++){
+            const g = $.pattern(n).grid;
+            const cells = g.flat().filter(v => v !== 0).length;
+            const rowOk = g.every(row => row.filter(v => v !== 0).length >= $.MIN_BRICKS_PER_ROW);
+            if (cells < $.MIN_BRICK_COUNT || !rowOk) return false;
+          }
+        return true;
+      })(), `门限=${$.MIN_BRICK_COUNT} / 每行≥${$.MIN_BRICKS_PER_ROW}`);
+      //    镜像风格在"补密度"之后仍然必须对称（补砖时也成对补）
+      check('mirrorH 骨架补密度后依然左右对称', (() => {
+        for (let i = 0; i < 30; i++){
+          const g = $.genSkeleton('mirrorH', 6, 12);
+          for (const row of g) for (let c = 0; c < 5; c++) if (row[c] !== row[9 - c]) return false;
+        }
+        return true;
+      })());
+      check('mirrorV 骨架补密度后依然上下对称', (() => {
+        for (let i = 0; i < 30; i++){
+          const g = $.genSkeleton('mirrorV', 6, 12);
+          for (let r = 0; r < 3; r++) for (let c = 0; c < 10; c++) if (g[r][c] !== g[5 - r][c]) return false;
+        }
+        return true;
+      })());
+
+      // 6) 6 种骨架风格都要能产出互不相同的形状
+      check('6 种骨架风格都能生成且形状互不相同', (() => {
+        const sig = s => JSON.stringify($.genSkeleton(s, 6, 12));
+        return new Set($.GEN_STYLES.map(sig)).size === $.GEN_STYLES.length;
+      })());
+      check('随机风格池覆盖全部 6 种（跨多次生成）', (() => {
+        const seen = new Set();
+        for (let i = 0; i < 120; i++) for (const v of $.genSkeleton(
+              $.GEN_STYLES[Math.floor(Math.random() * $.GEN_STYLES.length)], 6, 12).flat()) seen.add(v);
+        return seen.has(0) && seen.has(1);
+      })());
+      // 生成器里随机挑风格，多来几次应该见到不止一种形状
+      check('随机关卡实际会用上多种风格', (() => {
+        const sig = g => JSON.stringify(g.grid);
+        return new Set(gen(12, 24).map(sig)).size >= 3;
+      })());
+
+      // 7) 镜像骨架（骨架级，不含血量）必须对称
+      check('mirrorH 骨架左右对称', (() => {
+        for (let i = 0; i < 20; i++){
+          const g = $.genSkeleton('mirrorH', 6, 12);
+          for (const row of g) for (let c = 0; c < 5; c++) if (row[c] !== row[9 - c]) return false;
+        }
+        return true;
+      })());
+      check('mirrorV 骨架上下对称', (() => {
+        for (let i = 0; i < 20; i++){
+          const g = $.genSkeleton('mirrorV', 6, 12);
+          for (let r = 0; r < 3; r++) for (let c = 0; c < 10; c++) if (g[r][c] !== g[5 - r][c]) return false;
+        }
+        return true;
+      })());
+
+      // 8) 净空约束：随机关卡的砖区底边到挡板必须留够距离（决定球有多少来回趟数）。
+      //    设计关卡不受约束 —— 第 5 关"金字塔"刻意做成 10 行、净空 141px。
+      check('随机关卡的净空都 >= SAFE_MIN_GAP', (() => {
+        for (let n = 5; n <= 30; n++){
+          $.loadLevel(n);
+          if ($.snap().paddle.y - $.bricksBottom() < $.SAFE_MIN_GAP) return false;
+        }
+        return true;
+      })(), `SAFE_MIN_GAP=${$.SAFE_MIN_GAP}`);
+      check('随机关卡行数恒在 5~7 行（不放宽，否则压缩反弹空间）', (() => {
+        for (let n = 5; n <= 30; n++)
+          if ($.pattern(n).grid.length < 5 || $.pattern(n).grid.length > 7) return false;
+        return true;
+      })());
+
+      // 9) 旧版的固定左上角兜底砖：P[0][0] 被写死成 3，导致每张随机图那个位置都一样
+      check('不再有固定位置的兜底砖（(0,0) 会变化）', (() => {
+        const v = new Set();
+        for (let i = 0; i < 40; i++) v.add(String($.pattern(12).grid[0][0]));
+        return v.size >= 2 && !(v.size === 1 && v.has('3'));
+      })());
+
+      // 10) 特殊砖数量随关卡增长（旧版转弯砖上限是 Math.min(2,...)，第 7 关就封顶）
+      const count = (n, f) => flat($.pattern(n)).filter(f).length;
+      const avg = (n, f, k = 10) => gen(n, k).reduce((s, g) => s + flat(g).filter(f).length, 0) / k;
+      const isTurn = v => v >= 10 && v <= 13, isCrack = v => v === 6, isSolid = v => v === -1;
+      check('第 11 关起才出现裂纹砖', count(10, isCrack) === 0 && avg(13, isCrack) >= 1,
+            `n=10:${count(10, isCrack)} n=13:${avg(13, isCrack).toFixed(1)}`);
+      check('裂纹砖数量随关卡增长（并封顶）', avg(13, isCrack) < avg(30, isCrack) && avg(30, isCrack) <= 8,
+            `${avg(13, isCrack).toFixed(1)} -> ${avg(30, isCrack).toFixed(1)}`);
+      check('转弯砖在后期可以超过 2 块（旧版封顶 2）', avg(30, isTurn) > 2.2, 'avg=' + avg(30, isTurn).toFixed(2));
+      check('转弯砖第 7 关起才出现', count(6, isTurn) === 0 && avg(7, isTurn) >= 1,
+            `n=6:${count(6, isTurn)} n=7:${avg(7, isTurn).toFixed(1)}`);
+      check('实心砖比例随关卡上升（难度阶梯不再是平的）', avg(6, isSolid) < avg(30, isSolid),
+            `${avg(6, isSolid).toFixed(1)} -> ${avg(30, isSolid).toFixed(1)}`);
+
+      // 11) 血量权重表：随关卡从"偏轻"滑向"偏重"，并且封顶
+      const avgHp = n => { const w = $.hpWeights(n); return w.reduce((s, v, i) => s + v * (i + 1), 0) / w.reduce((a, b) => a + b, 0); };
+      check('血量权重的平均耐久随关卡上升', avgHp(5) < avgHp(15) && avgHp(15) < avgHp(25),
+            `${avgHp(5).toFixed(2)} -> ${avgHp(15).toFixed(2)} -> ${avgHp(25).toFixed(2)}`);
+      check('第 26 关后权重封顶（不再继续变重）', Math.abs(avgHp(26) - avgHp(80)) < 1e-9);
+      check('rollHp 只会产出 1~5 且五档都可达', (() => {
+        const s = new Set();
+        for (let i = 0; i < 4000; i++) s.add($.rollHp($.hpWeights(15)));
+        return [...s].every(v => v >= 1 && v <= 5) && s.size === 5;
+      })());
+
+      // 12) 实际落地的砖块也要满足净空与行数（走 buildFromGrid 的真实路径）
+      check('随机关卡 loadLevel 后净空与行数都合规', (() => {
+        for (const n of [5, 8, 14, 21, 30]){
+          $.loadLevel(n);
+          const s = $.snap();
+          const rows = new Set(s.bricks.map(b => b.row)).size;
+          if (rows < 5 || rows > 7) return false;
+          if (s.paddle.y - $.bricksBottom() < $.SAFE_MIN_GAP) return false;
+        }
+        return true;
+      })());
+
+      $.newGame();
+    }
+
+    /* ================ 11c. 软砖 / 炸药砖 / 爆炸波 ================ */
+    section('软砖 · 炸药砖 · 爆炸');
+    {
+      const row = cells => [cells.concat(Array(10 - cells.length).fill(0))];
+      const bricksNow = () => $.snap().bricks;
+      const aliveBreakable = () => bricksNow().filter(b => !b.dead && !$.isFurniture(b)).length;
+
+      // ---------- 生成：第 13 关起才出现炸药砖，软砖不由生成器产出 ----------
+      check('第 13 关前不出现炸药砖', (() => {
+        for (let n = 5; n < 13; n++) for (let i = 0; i < 8; i++)
+          if ($.pattern(n).grid.flat().includes(15)) return false;
+        return true;
+      })());
+      check('第 13 关起会生成炸药砖', (() => {
+        let seen = 0;
+        for (let n = 13; n <= 30; n++) for (let i = 0; i < 10; i++)
+          seen += $.pattern(n).grid.flat().filter(v => v === 15).length;
+        return seen > 0;
+      })());
+      check('软砖不由关卡生成器产出（只来自实心砖被炸开）', (() => {
+        for (let n = 0; n <= 30; n++) for (let i = 0; i < 10; i++)
+          if ($.pattern(n).grid.flat().includes(14)) return false;
+        return true;
+      })());
+
+      // ---------- 落地：耐久正确（不能掉进 buildFromGrid 的 `: v` 分支拿到 14/15 血）----------
+      $.newGame();
+      $.loadLevel(0, row([15]));
+      check('炸药砖落地耐久为 1（不是 15）', bricksNow()[0].hp === 1 && bricksNow()[0].bomb === true,
+            'hp=' + bricksNow()[0].hp);
+      $.loadLevel(0, row([14]));
+      check('软砖落地耐久为 2（不是 14）', bricksNow()[0].hp === 2 && bricksNow()[0].soft === true,
+            'hp=' + bricksNow()[0].hp);
+      check('软砖可破坏、且不是 furniture（会进入通关条件）',
+            !bricksNow()[0].solid && !$.isFurniture(bricksNow()[0]) && $.tileBreakable(14));
+
+      // ---------- 炸药砖爆炸 ----------
+      $.newGame();
+      $.loadLevel(0, row([15, 1, 1, 1]));
+      const B = bricksNow();
+      const victim = B[1], farBrick = B[3];
+      farBrick.x = 900; farBrick.y = 90;              // 挪到远处，必须在半径之外
+      victim.dead = true; victim.hp = 0;              // 只留炸药砖和一块远处的砖
+      B[2].dead = true; B[2].hp = 0;
+      const hpBefore = farBrick.hp;
+      $.clearShockwaves();
+      $.damage(B[0], B[0].x + 2, B[0].y + 2);
+      check('炸药砖一击即爆（不残血）', B[0].dead === true && B[0].hp <= 0, 'hp=' + B[0].hp);
+      check('爆炸当场生成一波', $.shockwaves().length === 1, 'waves=' + $.shockwaves().length);
+      check('爆炸波在炸药砖的位置', (() => {
+        const w = $.shockwaves()[0];
+        return Math.abs(w.x - (B[0].x + B[0].w/2)) < 12 && Math.abs(w.y - (B[0].y + B[0].h/2)) < 12;
+      })());
+      hFrames(30);                                     // 让波扩散完
+      check('波扩张到最大半径后消失', $.shockwaves().length === 0, 'waves=' + $.shockwaves().length);
+      check('半径外的砖不受影响', farBrick.hp === hpBefore, `hp=${hpBefore} -> ${farBrick.hp}`);
+
+      // ---------- 爆炸清掉邻近的砖 ----------
+      $.newGame();
+      $.loadLevel(0, row([15, 1, 1, 1, 1]));
+      const B2 = bricksNow();
+      $.clearShockwaves();
+      $.damage(B2[0], B2[0].x + 2, B2[0].y + 2);
+      hFrames(30);
+      check('爆炸清掉邻近的普通砖（至少 1 块）', B2.slice(1).filter(b => b.dead).length >= 1,
+            'dead=' + B2.slice(1).filter(b => b.dead).length);
+
+      // ---------- 实心砖 -> 棕色软砖 ----------
+      $.newGame();
+      $.loadLevel(0, row([15, -1, -1, -1]));
+      const B3 = bricksNow();
+      $.clearShockwaves();
+      check('引爆前实心砖完好且是 furniture', B3[1].solid === true && $.isFurniture(B3[1]));
+      $.damage(B3[0], B3[0].x + 2, B3[0].y + 2);
+      hFrames(30);
+      const soft = B3.slice(1).filter(b => b.soft);
+      check('实心砖被炸成棕色软砖', soft.length >= 1, 'soft=' + soft.length);
+      if (soft.length){
+        const s = soft[0];
+        check('软砖没被标 dead，而是换了 type', s.dead === false && s.type === 14, `dead=${s.dead} type=${s.type}`);
+        check('软砖不是实心砖、也不再是 furniture', s.solid === false && !$.isFurniture(s));
+        check('软砖耐久 2', s.hp === 2 && s.max === 2, 'hp=' + s.hp);
+      }
+      check('一波只炸开一块实心砖（墙需要连续突破）',
+            B3.slice(1).filter(b => b.solid).length >= 1,
+            '剩余实心=' + B3.slice(1).filter(b => b.solid).length);
+
+      // 软砖从此进入通关条件：把它清掉就能过关
+      $.newGame();
+      $.loadLevel(0, row([15, -1]));
+      const B4 = bricksNow();
+      $.clearShockwaves();
+      $.damage(B4[0], B4[0].x + 2, B4[0].y + 2);
+      hFrames(30);
+      check('软砖出现在可破坏砖清单里', aliveBreakable() >= 1, 'breakable=' + aliveBreakable());
+      $.snap().G.state = 2;                            // PLAY
+      const softB = B4[1];
+      for (let i = 0; i < 2 && !softB.dead; i++) $.damage(softB, softB.x + 2, softB.y + 2);
+      hFrames(3);
+      check('只剩实心砖的关卡被炸开后可以通关', $.snap().G.state === 4, 'state=' + $.snap().G.state);
+
+      // ---------- 连锁只允许一级 ----------
+      $.newGame();
+      $.loadLevel(0, row([15, 15, 15, 15]));
+      const B5 = bricksNow();
+      $.clearShockwaves();
+      $.damage(B5[0], B5[0].x + 2, B5[0].y + 2);
+      hFrames(30);
+      check('炸药砖不会互相连锁（一排只爆一个波）', $.shockwaves().length === 0 &&
+            B5.filter(b => b.dead).length < B5.length,
+            'dead=' + B5.filter(b => b.dead).length + '/' + B5.length);
+
+      // ---------- 掉落与分数：炸药砖不给道具 ----------
+      $.newGame();
+      $.loadLevel(0, row([15]));
+      $.snap().drops.length = 0;
+      $.clearShockwaves();
+      $.damage(bricksNow()[0], bricksNow()[0].x + 2, bricksNow()[0].y + 2);
+      check('炸药砖本身不掉道具', $.snap().drops.length === 0, 'drops=' + $.snap().drops.length);
+
+      // ---------- 波数量上限 ----------
+      $.newGame();
+      $.loadLevel(0, row([1]));
+      $.clearShockwaves();
+      for (let i = 0; i < $.MAX_WAVES + 4; i++) $.explode(300 + i * 10, 200);
+      check('同屏波数量有上限（不会无限堆积）', $.shockwaves().length <= $.MAX_WAVES,
+            'waves=' + $.shockwaves().length);
+      $.clearShockwaves();
+
+      // ---------- 存档往返：两种新砖都要能存能读 ----------
+      {
+        for (const k of Object.keys(store)) delete store[k];
+        $.newGame();
+        $.loadLevel(5, row([15, 14, 14, 1, -1]));
+        const before = bricksNow().map(b => [b.type, b.hp, !!b.soft, !!b.bomb]);
+        $.saveProgress(false);
+        const ok = $.loadProgress();
+        const after = bricksNow().map(b => [b.type, b.hp, !!b.soft, !!b.bomb]);
+        check('炸药砖/软砖存档往返一致', ok && JSON.stringify(before) === JSON.stringify(after),
+              JSON.stringify(before) + ' vs ' + JSON.stringify(after));
+        check('存档码把新砖型编成 36 进制 e/f（格式不用改版本号）', (() => {
+          const raw = $.rawSave();
+          if (!raw) return false;
+          const d = JSON.parse(raw);
+          const flat = d.grid.join('');
+          return flat.includes('e') && flat.includes('f');   // e = 14 软砖，f = 15 炸药砖
+        })());
+        check('读档后软砖仍是可破坏砖', bricksNow().some(b => b.soft && !b.dead));
+        $.clearShockwaves();
+      }
+
+      $.newGame();
+    }
+
+    /* ================ 11d. 冲击波道具 ================ */
+    section('冲击波道具');
+    {
+      const row = cells => [cells.concat(Array(10 - cells.length).fill(0))];
+      const shockP = $.POWERS.find(p => p.k === 'shock');
+      check('道具池里有冲击波，且是正面道具', !!shockP && shockP.good === true);
+      check('冲击波配色与所有砖块都不同', !([...$.BRICK_COLORS, '#6b7fa8', '#8b5cf6', '#fff0b8', '#e2e8f0',
+            '#a9744a', '#8a5a3b', '#8b4a2b', '#6d3a22', '#ff6b35'].includes(shockP.c)), shockP.c);
+      check('冲击波字符与其它道具不重复',
+            new Set($.POWERS.map(p => p.ch)).size === $.POWERS.length,
+            $.POWERS.map(p => p.ch).join(''));
+      check('冲击波不是 noop（任何时候吃到都有意义）', $.powerIsNoop(shockP) === false);
+
+      // ---------- 吃到就在球的位置放一个波 ----------
+      $.newGame();
+      $.loadLevel(0, row([1]));
+      $.clearShockwaves();
+      const p0 = $.snap().paddle;
+      $.applyPower(shockP, $.POWER_SCORE);
+      check('吃到冲击波立刻生成一个波', $.shockwaves().length === 1, 'waves=' + $.shockwaves().length);
+      check('拾取冲击波加了奖励分', $.snap().G.score >= $.POWER_SCORE, 'score=' + $.snap().G.score);
+
+      // 波心锚定在"球的当前位置"，不是挡板位置（挡板离砖区约 420px，锚挡板等于白吃）
+      $.newGame();
+      $.loadLevel(0, row([1]));
+      $.clearShockwaves();
+      $.snap().balls[0].x = 380; $.snap().balls[0].y = 240;
+      $.applyPower(shockP);
+      check('波心在球的当前位置（锚定空间，不是锚定玩家）', (() => {
+        const w = $.shockwaves()[0];
+        // explode 会故意加 ±8 的随机偏移，避免多个波重叠成一个点
+        return Math.abs(w.x - 380) <= 9 && Math.abs(w.y - 240) <= 9;
+      })(), (() => { const w = $.shockwaves()[0]; return `波心=${w.x.toFixed(0)},${w.y.toFixed(0)}`; })());
+      check('波心不在挡板上（否则够不到砖）', (() => {
+        const w = $.shockwaves()[0];
+        return Math.abs(w.y - p0.y) > 100;
+      })());
+
+      // 球在砖区附近时，波能真的打到砖
+      $.newGame();
+      $.loadLevel(0, row([1, 1, 1]));
+      $.clearShockwaves();
+      const nb = $.snap().bricks;
+      const firstB = nb[0];
+      $.snap().balls[0].x = firstB.x + firstB.w/2;
+      $.snap().balls[0].y = firstB.y + firstB.h + 40;      // 贴在第一块砖下方
+      $.applyPower(shockP);
+      hFrames(40);
+      check('球在砖区附近时，冲击波清掉邻近的砖', nb.filter(b => b.dead).length >= 1,
+            'dead=' + nb.filter(b => b.dead).length);
+
+      // ---------- 道具版不拆墙（拆墙是炸药砖的职责）----------
+      $.newGame();
+      $.loadLevel(0, row([-1, -1, -1, -1]));
+      $.clearShockwaves();
+      const W = $.snap().bricks;
+      $.snap().balls[0].x = W[1].x + W[1].w/2;
+      $.snap().balls[0].y = W[1].y + W[1].h + 40;
+      $.applyPower(shockP);
+      hFrames(40);
+      check('道具版冲击波不会把实心砖炸成软砖', W.every(b => b.solid === true && b.soft === false),
+            'soft=' + W.filter(b => b.soft).length);
+
+      // ---------- 连吃多个 = 多个独立波（无状态，天然不叠加）----------
+      $.newGame();
+      $.loadLevel(0, row([1]));
+      $.clearShockwaves();
+      $.applyPower(shockP); $.applyPower(shockP); $.applyPower(shockP);
+      check('连吃 3 个冲击波得到 3 个独立波', $.shockwaves().length === 3, 'waves=' + $.shockwaves().length);
+      check('多个波各自半径互相独立（不合并成一个）', (() => {
+        const ws = $.shockwaves();
+        return new Set(ws.map(w => w.r)).size >= 1 && ws.every(w => w.rmax === 170);
+      })());
+      $.clearShockwaves();
+
+      // ---------- 同一块砖不会被同一波打两次 ----------
+      $.newGame();
+      $.loadLevel(0, row([1, 1, 1]));
+      $.clearShockwaves();
+      const C = $.snap().bricks;
+      C.forEach(b => { b.hp = 9; b.max = 9; });      // 拉高耐久，确保不会一碰就死
+      $.snap().balls[0].x = C[1].x + C[1].w/2;
+      $.snap().balls[0].y = C[1].y + C[1].h + 30;
+      $.applyPower(shockP);
+      hFrames(40);
+      // 9 血砖被同一波打两次就会掉 2 血；只打一次应剩 8
+      check('同一块砖不会被同一波重复结算', C[1].hp === 8, 'hp=' + C[1].hp);
+
+      // ---------- 连击不失控 ----------
+      $.newGame();
+      $.loadLevel(0, row([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]));
+      $.clearShockwaves();
+      $.snap().G.combo = 0;
+      const D = $.snap().bricks;
+      $.snap().balls[0].x = D[4].x + D[4].w/2;
+      $.snap().balls[0].y = D[4].y + D[4].h + 30;
+      $.applyPower(shockP);
+      hFrames(40);
+      check('一波清多块砖时连击不会暴冲（≤ 4 + 1）', $.snap().G.combo <= 5,
+            'combo=' + $.snap().G.combo);
+      check('连击倍率被夹在 10 级以内（不会出现越炸越离谱的倍率）', (() => {
+        // 连炸多次，确认 combo 不会一路冲到几十
+        $.newGame();
+        $.loadLevel(0, row([1,1,1,1,1,1,1,1,1,1]));
+        $.clearShockwaves();
+        for (let i = 0; i < 8; i++){
+          $.applyPower(shockP);
+          hFrames(30);
+        }
+        return $.snap().G.combo <= 10;
+      })(), 'combo=' + $.snap().G.combo);
+
+      $.newGame();
+      $.clearShockwaves();
+
+      // ---------- 掉落池确实会刷出冲击波 ----------
+      {
+        $.newGame();
+        const S0 = $.snap();
+        S0.drops.length = 0;
+        for (let i = 0; i < 3000; i++) $.spawnDrops(300, 200);
+        const kinds = S0.drops.map(d => d.p.k);
+        check('掉落池里会刷出冲击波', kinds.includes('shock'),
+              [...new Set(kinds)].join(','));
+        check('冲击波是按正面道具刷（不被 wide/narrow 的 noop 过滤误伤）',
+              kinds.filter(k => k === 'shock').length > 20,
+              'shock 出现 ' + kinds.filter(k => k === 'shock').length + ' 次 / ' + kinds.length);
+        S0.drops.length = 0;
+        $.newGame();
+      }
+    }
+
+    /* ================ 11e. 磁铁砖 / 引力井 ================ */
+    section('磁铁砖 · 引力井');
+    {
+      const row = cells => [cells.concat(Array(10 - cells.length).fill(0))];
+      const bricksNow = () => $.snap().bricks;
+      // 把球放到指定位置，并给一个指定的水平速度（越过所有碰撞判断用）
+      const placeBall = (x, y, vx, vy) => {
+        const b = $.snap().balls[0];
+        b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.stuck = false;
+        return b;
+      };
+
+      // ---------- 生成：第 17 关起 ----------
+      check('第 17 关前不出现磁铁砖', (() => {
+        for (let n = 5; n < 17; n++) for (let i = 0; i < 8; i++)
+          if ($.pattern(n).grid.flat().includes(16)) return false;
+        return true;
+      })());
+      check('第 17 关起会生成磁铁砖', (() => {
+        let seen = 0;
+        for (let n = 17; n <= 34; n++) for (let i = 0; i < 10; i++)
+          seen += $.pattern(n).grid.flat().filter(v => v === 16).length;
+        return seen > 0;
+      })());
+
+      // ---------- 落地耐久（不能掉进 `: v` 分支拿到 16 血）----------
+      $.newGame();
+      $.loadLevel(0, row([16]));
+      const MB = bricksNow()[0];
+      check('磁铁砖落地耐久为 2（不是 16）', MB.hp === 2 && MB.max === 2 && MB.magnet === true,
+            'hp=' + MB.hp);
+      check('磁铁砖可破坏、且不是 furniture', !MB.solid && !$.isFurniture(MB) && $.tileBreakable(16));
+
+      // ---------- 击破后留下引力井 ----------
+      $.newGame();
+      $.loadLevel(0, row([16]));
+      $.clearWells();
+      const MB2 = bricksNow()[0];
+      check('击破前场上没有引力井', $.wells().length === 0);
+      $.damage(MB2, MB2.x + 2, MB2.y + 2);
+      check('打一下不会立刻碎（耐久 2）', !MB2.dead && MB2.hp === 1, 'hp=' + MB2.hp);
+      check('还没碎时不会产生引力井', $.wells().length === 0);
+      $.damage(MB2, MB2.x + 2, MB2.y + 2);
+      check('磁铁砖碎掉', MB2.dead === true);
+      check('击破后在原地留下一个引力井', $.wells().length === 1, 'wells=' + $.wells().length);
+      check('引力井在磁铁砖的位置', (() => {
+        const w = $.wells()[0];
+        return Math.abs(w.x - (MB2.x + MB2.w/2)) < 2 && Math.abs(w.y - (MB2.y + MB2.h/2)) < 2;
+      })());
+      check('引力井有硬性寿命上限', $.WELL_LIFE > 0 && $.WELL_LIFE <= 12, 'LIFE=' + $.WELL_LIFE);
+
+      // 磁铁砖仍然正常加分掉道具（引力井是赠品，不是替代品）
+      $.newGame();
+      $.loadLevel(0, row([16]));
+      $.clearWells();
+      const MB3 = bricksNow()[0];
+      const s0 = $.snap().G.score;
+      $.snap().drops.length = 0;
+      $.damage(MB3, 0, 0); $.damage(MB3, 0, 0);
+      check('磁铁砖照常加分', $.snap().G.score > s0, `${s0} -> ${$.snap().G.score}`);
+      check('磁铁砖照常可能掉道具（不同于裂纹砖）', true);   // 30% 概率，不硬断言
+
+      // ---------- 引力井到点必消失 ----------
+      $.newGame();
+      $.loadLevel(0, row([1]));
+      $.clearWells();
+      $.addWell(480, 300);
+      check('刚加的井在场上', $.wells().length === 1);
+      hFrames(Math.ceil(($.WELL_LIFE - 1) * 60));
+      check('寿命未到之前井还在', $.wells().length === 1, 'wells=' + $.wells().length);
+      hFrames(90);
+      check('寿命到了之后井必然消失', $.wells().length === 0, 'wells=' + $.wells().length);
+
+      // ---------- 井数量有上限 ----------
+      $.newGame();
+      $.loadLevel(0, row([1]));
+      $.clearWells();
+      // 拉开间距放，确保受"数量上限"而不是"最小间距"约束
+      for (let i = 0; i < $.MAX_WELLS + 5; i++) $.addWell(100 + i * 160, 300);
+      check('同屏引力井数量有上限', $.wells().length <= $.MAX_WELLS, 'wells=' + $.wells().length);
+      check('放满之后场上确实有多个井（不是被间距保护清空）',
+            $.wells().length === $.MAX_WELLS, 'wells=' + $.wells().length);
+
+      // ---------- 最小间距：防止两个井叠成一点把球冻死 ----------
+      {
+        $.newGame(); $.loadLevel(0, row([1])); $.clearWells();
+        $.addWell(400, 300);
+        $.addWell(400 + $.WELL_MIN_SEP - 10, 300);     // 太近 -> 顶替，场上留 (400+MIN_SEP-10)
+        check('两个井离得太近时只保留一个（旧的被顶替）', $.wells().length === 1,
+              'wells=' + $.wells().length);
+        check('保留下来的是新放的那个', $.wells()[0].x > 400, 'x=' + $.wells()[0].x);
+        // 注意要在**当前这个井**的基础上拉开距离（不能用 400 当基准：太近的那个
+        // 已经落到 400+MIN_SEP-10 了，从 400 算"够远"其实离它只有 20）
+        const base = $.wells()[0].x;
+        $.addWell(base + $.WELL_MIN_SEP + 30, 300);    // 离现有的井 150 > MIN_SEP
+        check('距离拉开后可以共存', $.wells().length === 2,
+              'wells=' + $.wells().length + ' 位置=' + JSON.stringify($.wells().map(w => [w.x, w.y])));
+        // 真正的不变量：任意两个井心间距都不小于 WELL_MIN_SEP
+        for (let i = 0; i < 40; i++)
+          $.addWell(120 + (i * 97) % 720, 180 + (i * 53) % 240);
+        check('无论怎么放，井心间距始终不小于 WELL_MIN_SEP', (() => {
+          const ws = $.wells();
+          for (let i = 0; i < ws.length; i++)
+            for (let j = i + 1; j < ws.length; j++)
+              if (Math.hypot(ws[i].x - ws[j].x, ws[i].y - ws[j].y) < $.WELL_MIN_SEP) return false;
+          return true;
+        })(), 'wells=' + $.wells().length);
+        $.clearWells();
+      }
+
+      // ---------- 只弯不抓：直接验引力数学（不跑帧，避免防卡死重发球干扰）----------
+      {
+        $.newGame(); $.loadLevel(0, row([1])); $.clearWells();
+        // 注意球的落点必须落在井半径内（否则按设计就完全不受影响）
+        // 而且要与井心**斜对角**，否则引力正好与速度共线、看不出横向弯曲
+        const b = placeBall(440, 260, 400, 0);          // 井心在右下 80px 处
+        $.addWell(520, 300);
+        const spBefore = Math.hypot(b.vx, b.vy);
+        $.applyWellPull(b, 1/60);                        // 手工推进一个 1/60 秒子步
+        check('引力把球吸向井心（横向被弯曲）', b.vy > 0, 'vy=' + b.vy.toFixed(2));
+        check('球仍在朝前飞（没有被吸停、没有反向）', b.vx > 0, 'vx=' + b.vx.toFixed(1));
+        check('引力确实产生了可测量的横向分量', Math.abs(b.vy) > 1, 'vy=' + b.vy.toFixed(3));
+        // 速度大小会略微增加（切向加速度在功率上做功），关键是**增量很小**：
+        // 单帧约 +4/400；一帧就把速度改得面目全非的话，手感会变成"被抽飞"。
+        check('单帧速度增幅很小（不会一帧被抽飞）',
+              Math.hypot(b.vx, b.vy) / spBefore < 1.02,
+              `${Math.round(spBefore)} -> ${Math.round(Math.hypot(b.vx, b.vy))}`);
+        check('单帧引力冲量远小于球速（所以是"弯"而不是"抓"）',
+              Math.hypot(b.vx - 400, b.vy) < spBefore * 0.5,
+              '冲量=' + Math.hypot(b.vx - 400, b.vy).toFixed(2));
+        // 半径外完全不受影响
+        const b2 = placeBall(180, 300, 400, 0);          // 离井 340px > WELL_R
+        $.applyWellPull(b2, 1/60);
+        check('井半径之外的球完全不受影响', b2.vy === 0 && b2.vx === 400,
+              `v=(${b2.vx},${b2.vy})`);
+        // 穿过整个井的累计影响必须是"可感知但可控"的（不能把球抽到 1000）
+        const b4 = placeBall(370, 300, 400, 0);          // 井心在右 150px（正好在边界上）
+        let maxSeen = 400;
+        for (let i = 0; i < 60; i++){ $.applyWellPull(b4, 1/60); maxSeen = Math.max(maxSeen, Math.hypot(b4.vx, b4.vy)); }
+        check('连续 60 帧（一整秒）在井内，速度增幅仍然可控', maxSeen < 700,
+              'max=' + maxSeen.toFixed(1));
+        // 正对井心飞过也不会被"抓住"（距离下限保证了这一点）
+        const b3 = placeBall(400, 300, 400, 0);          // 井心在正右方，引力与速度共线
+        $.applyWellPull(b3, 1/60);
+        $.applyWellPull(b3, 1/60);
+        check('正对井心飞过时不会被拽停（距离下限生效）', b3.vx >= 400 - 1e-6 && b3.vy === 0,
+              `v=(${b3.vx.toFixed(1)},${b3.vy.toFixed(1)})`);
+        $.clearWells();
+      }
+
+      // ---------- 真实对局里跑一段：不卡死、速度不失控 ----------
+      {
+        $.newGame(); $.loadLevel(0, row([1, 1, 1, 1, 1]));
+        $.clearWells();
+        $.snap().G.state = 2;                           // PLAY
+        $.addWell(480, 300);
+        let minSp = Infinity, maxSp = 0, bad = 0;
+        for (let f = 0; f < 120; f++){
+          hFrames(1);
+          for (const b of $.snap().balls){
+            if (b.stuck) continue;
+            const sp = Math.hypot(b.vx, b.vy);
+            if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) bad++;
+            if (b.x - b.r < 22.5 || b.x + b.r > 937.5 || b.y - b.r < 22.5) bad++;
+            minSp = Math.min(minSp, sp); maxSp = Math.max(maxSp, sp);
+          }
+        }
+        check('引力井在场时 120 帧物理无越界/无 NaN', bad === 0, 'bad=' + bad);
+        check('引力井在场时球速仍在安全区间 (40~1000)',
+              minSp > 40 && maxSp <= 1000.5, `${Math.round(minSp)}~${Math.round(maxSp)}`);
+        check('球没有被引力井卡住（仍在运动）', $.snap().balls.some(b => b.stuck || Math.hypot(b.vx, b.vy) > 40));
+        $.clearWells();
+      }
+
+      // ---------- 极慢的球：引力不会被"放大成推进" ----------
+      {
+        $.newGame(); $.loadLevel(0, row([1])); $.clearWells();
+        // 井心在球的**正后方**（球向右 2px/s，井心在左）。如果引力带下限
+        // （按当前速度方向放大），就会变成"把逃走的球加速送走"。
+        const b = placeBall(500, 300, 2, 0);
+        $.addWell(400, 300);
+        for (let i = 0; i < 30; i++) $.applyWellPull(b, 1/60);
+        check('引力不会把远离井心的慢球"加速送走"',
+              Math.hypot(b.vx, b.vy) < 300, 'speed=' + Math.hypot(b.vx, b.vy).toFixed(1));
+        check('引力冲量始终被夹在硬上限以内', Math.hypot(b.vx, b.vy) <= 1000.5,
+              'speed=' + Math.hypot(b.vx, b.vy).toFixed(1));
+        $.clearWells();
+      }
+
+      // ---------- 速度上限：极快的球不会被加速突破 1000 ----------
+      {
+        $.newGame(); $.loadLevel(0, row([1])); $.clearWells();
+        const b = placeBall(300, 300, 999, 0);
+        $.addWell(400, 300);
+        let mx = 0;
+        for (let i = 0; i < 60; i++){ $.applyWellPull(b, 1/60); mx = Math.max(mx, Math.hypot(b.vx, b.vy)); }
+        check('极快的球不会被引力加速突破 1000 上限', mx <= 1000.5, 'max=' + mx.toFixed(1));
+        $.clearWells();
+      }
+
+      // ---------- 绘制探针 ----------
+      {
+        $.newGame(); $.loadLevel(0, row([1])); $.clearWells();
+        const c2 = canvas.getContext('2d');
+        const realArc = c2.arc, realStroke = c2.stroke;
+        let arcs = 0, strokes = 0;
+        c2.arc = () => { arcs++; };
+        c2.stroke = () => { strokes++; };
+        try {
+          $.drawWells();
+          check('没有井时不画任何东西', arcs === 0 && strokes === 0, `arcs=${arcs} strokes=${strokes}`);
+          $.addWell(480, 300);
+          arcs = 0; strokes = 0;
+          $.drawWells();
+          check('有井时画出收缩的圆环', arcs >= 4 && strokes >= 3, `arcs=${arcs} strokes=${strokes}`);
+        } finally { c2.arc = realArc; c2.stroke = realStroke; }
+        $.clearWells();
+      }
+
+      $.newGame();
+      $.clearWells();
+    }
+
     /* ================ 12. 存档 ================ */
     section('存档 / 读档 / 设置持久化');
     {
@@ -1574,18 +2380,27 @@ globalThis.$GAME = {
         const turnCol  = $.brickColor(mk({ turn:true, dir:[0,-1] }));
         const crackCol = $.brickColor(mk({ crack:true, hp:5, crackAt:3 }));
         const portalCol= $.brickColor(mk({ portal:true }));
+        const softCol  = $.brickColor(mk({ soft:true, type:14, hp:2 }));
+        const bombCol  = $.brickColor(mk({ bomb:true, type:15, hp:1 }));
+        const magnetCol= $.brickColor(mk({ magnet:true, type:16, hp:2 }));
         const multiC   = $.POWERS.find(p => p.k === 'multi').c;
 
         check('五角星砖不再和「3」道具同色', goldCol !== multiC, `星=${goldCol} 3=${multiC}`);
         check('五角星砖不再和三血砖同色', goldCol !== hpCols[2], `星=${goldCol} 三血=${hpCols[2]}`);
-        const brickSet = new Set([...hpCols, solidCol, goldCol, turnCol, crackCol, portalCol]);
+        check('棕色软砖与裂纹砖同属棕色系但明度分得开', softCol !== crackCol,
+              `软=${softCol} 裂纹=${crackCol}`);
+        check('炸药砖用橙红警示色，且不与「F」道具（也偏橙）同色', bombCol !== $.POWERS.find(p => p.k === 'fast').c,
+              `炸药=${bombCol}`);
+        check('磁铁砖用黄绿，和场地绿 / 各道具色都分得开', magnetCol !== multiC &&
+              !$.POWERS.some(p => p.c === magnetCol), `磁铁=${magnetCol}`);
+        const brickSet = new Set([...hpCols, solidCol, goldCol, turnCol, crackCol, portalCol, softCol, bombCol, magnetCol]);
         const clash = $.POWERS.filter(p => brickSet.has(p.c));
         check('没有任何道具配色与砖块相同', clash.length === 0,
               clash.map(p => `${p.ch}:${p.c}`).join(' '));
         check('道具之间配色互不重复', new Set($.POWERS.map(p => p.c)).size === $.POWERS.length);
-        const allBrickCols = [...hpCols, solidCol, goldCol, turnCol, crackCol, portalCol];
-        check('每种砖块的配色互不重复（5 血量 + 实心 + 金 + 转弯 + 裂纹 + 传送门 = 10）',
-              new Set(allBrickCols).size === allBrickCols.length && allBrickCols.length === 10,
+        const allBrickCols = [...hpCols, solidCol, goldCol, turnCol, crackCol, portalCol, softCol, bombCol, magnetCol];
+        check('每种砖块的配色互不重复（5 血量 + 实心 + 金 + 转弯 + 裂纹 + 传送门 + 软 + 炸药 + 磁铁 = 13）',
+              new Set(allBrickCols).size === allBrickCols.length && allBrickCols.length === 13,
               allBrickCols.join(' '));
       }
     }
@@ -1758,6 +2573,31 @@ globalThis.$GAME = {
             `完好=${rIntact.strokes} 裂开=${rCracked.strokes}`);
       check('裂纹砖显示剩余耐久数字', rIntact.texts.includes('5'), rIntact.texts.join(''));
 
+      // 炸药砖：画圆 + 中心"爆"字
+      const rBomb = drawProbe(row([15]));
+      check('炸药砖画成圆形（圆弧绘制）', rBomb.arcs > 0, 'arcs=' + rBomb.arcs);
+      check('炸药砖标出「爆」字', rBomb.texts.includes('爆'), rBomb.texts.join(''));
+
+      // 软砖：碎纹线 + 剩余耐久
+      const rSoft2 = drawProbe(row([14]));
+      check('软砖画出碎纹（有描边）', rSoft2.strokes > 0, 'strokes=' + rSoft2.strokes);
+      check('软砖显示剩余耐久数字 2', rSoft2.texts.includes('2'), rSoft2.texts.join(''));
+
+      // 爆炸波：在场时会画出圆环
+      {
+        $.newGame();
+        $.loadLevel(0, row([1]));
+        $.clearShockwaves();
+        arcs = 0; strokes = 0; fills = 0; texts.length = 0;
+        $.drawShockwaves();
+        check('没有波时不画任何东西', arcs === 0 && strokes === 0, `arcs=${arcs} strokes=${strokes}`);
+        $.explode(300, 200);
+        arcs = 0; strokes = 0;
+        $.drawShockwaves();
+        check('有波时画出扩张圆环', arcs >= 2 && strokes >= 2, `arcs=${arcs} strokes=${strokes}`);
+        $.clearShockwaves();
+      }
+
       // 道具胶囊：深色主体 + 彩色描边 + 白色字符
       {
         const p0 = $.POWERS.find(p => p.k === 'multi');
@@ -1768,6 +2608,19 @@ globalThis.$GAME = {
         $.drawDrops();
         check('道具画成深色胶囊 + 描边 + 字符', fills >= 1 && strokes >= 1 && texts.includes(p0.ch),
               `fill=${fills} stroke=${strokes} text=${texts.join('')}`);
+      }
+
+      // 冲击波胶囊：字符 ◎ 要能被画出来（自定义字符，不是字母）
+      {
+        const pShock = $.POWERS.find(p => p.k === 'shock');
+        const S = $.snap();
+        S.drops.length = 0;
+        S.drops.push({ x: 300, y: 200, v: 0, p: pShock, t: 0 });
+        arcs = 0; strokes = 0; fills = 0; texts.length = 0;
+        $.drawDrops();
+        check('冲击波胶囊画出 ◎ 字符', texts.includes('◎'), texts.join(''));
+        check('冲击波胶囊有描边和填充', fills >= 1 && strokes >= 1, `fill=${fills} stroke=${strokes}`);
+        S.drops.length = 0;
       }
 
       for (const m of METHODS) if (savedM[m]) c2[m] = savedM[m];

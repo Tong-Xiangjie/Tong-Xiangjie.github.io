@@ -82,9 +82,16 @@ let cssW = W, cssH = H;
 
 function resize(){
   const r = cv.getBoundingClientRect();
-  cssW = Math.max(1, Math.round(r.width));
-  cssH = Math.max(1, Math.round(r.height));
+  const nextW = Math.max(1, Math.round(r.width));
+  const nextH = Math.max(1, Math.round(r.height));
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  // 尺寸没变就不要重设 size：设置 canvas.width 会清空整块位图，
+  // 在"改的是 devicePixelRatio 而不是尺寸"这类 resize 里会白白闪一下黑屏。
+  if (nextW === cssW && nextH === cssH && dpr === view.dpr) return;
+
+  cssW = nextW;
+  cssH = nextH;
   cv.width  = Math.round(cssW * dpr);
   cv.height = Math.round(cssH * dpr);
 
@@ -122,12 +129,15 @@ for (const ev of ['fullscreenchange', 'webkitfullscreenchange']){
   document.addEventListener(ev, () => { requestAnimationFrame(resize); }, false);
 }
 
-// 屏幕坐标 -> 逻辑坐标（超出 0..W / 0..H 说明指针落在留边上）
+// 屏幕坐标 -> 逻辑坐标。结果一律夹取到 0..W / 0..H：
+// 视口比例不是 16:10 时，画面四周会多出一条留边，如果指针进了留边就"不控制挡板"，
+// 那这条留边就是个死区 —— 鼠标移过去挡板不动、准星还隐掉，看起来像卡住了。
+// 夹取之后整个窗口的每一个像素都能控制挡板，指针永远不会"丢"。
 function toWorld(clientX, clientY){
   const r = cv.getBoundingClientRect();
   const x = (clientX - r.left - view.ox) / view.scale;
   const y = (clientY - r.top  - view.oy) / view.scale;
-  return { x, y, inside: x >= 0 && x <= W && y >= 0 && y <= H };
+  return { x: clamp(x, 0, W), y: clamp(y, 0, H) };
 }
 
 addEventListener('resize', resize);
@@ -179,29 +189,240 @@ const rnd  = (a,b) => a + Math.random()*(b-a);
 const clamp= (v,a,b) => v<a?a:v>b?b:v;
 const TAU  = Math.PI*2;
 
+/* ---------- 随机关卡的生成参数 ----------
+   行数固定 5~7 行：不是随便定的。砖区底边 = brickTop + 行数*行距 + brickH，
+   而挡板在 paddle.y。这个"净空"决定了球从砖底弹回挡板的来回趟数，
+   行数放宽到 10 行时净空只剩 141px（约一个球径 + 两倍砖高），玩家来不及反应。
+   所以 SAFE_MIN_GAP 只管随机关卡；设计关卡不受它约束 —— 第 5 关"金字塔"
+   是刻意做成 10 行、底边距挡板 141px 的（越往下越窄，是它自己的玩法）。 */
+const SAFE_MIN_GAP = 180;                 // 随机关卡砖区底边到挡板的最小净空（px）
+
+// 随机关卡的密度保底：形状风格（islands / bands / frame）天然稀疏，
+// 不保底会开出"场上没几块砖"的空关。
+// 门限按"不少于最大砖数的 60%"定：场地是 10 列 × 最多 7 行 = 70 格，
+// 实测随机关卡最多 60 块砖，60% 即 42 块。每行至少 6 块（5 行时合计 30，
+// 由全局门限 42 兜住；6~7 行时逐行门限独立生效）。
+// 注意这两个数保的是"骨架格子数"，而骨架铺成实体时会有约 10%~22% 的格子
+// 变成实心砖/金砖（不增加可破坏砖），所以落地后还会再补一次 —— 见 topUpRows。
+const MIN_BRICKS_PER_ROW = 6;             // 每一行至少这么多块砖
+const MIN_BRICK_COUNT    = 42;            // 整关至少这么多块砖
+
+// 普通砖血量权重：随关卡从"偏轻"滑向"偏重"。
+// 权重做成曲线而不是硬编码表，便于以后调"哪一关开始变难"。
+const HP_W_LIGHT = [30, 26, 20, 14, 10];  // 第 1 档：平均耐久 2.5
+const HP_W_HEAVY = [ 4, 10, 16, 28, 42];  // 最高档：平均耐久 3.9
+function hpWeights(n){
+  const t = clamp((n - 5) / 20, 0, 1);    // 第 6 关起生效，第 26 关后封顶
+  return HP_W_LIGHT.map((v, i) => v + (HP_W_HEAVY[i] - v) * t);
+}
+// 按权重取一个 1..5 的血量
+function rollHp(w){
+  let total = 0;
+  for (const v of w) total += v;
+  let x = Math.random() * total;
+  for (let i = 0; i < w.length; i++){ x -= w[i]; if (x <= 0) return i + 1; }
+  return w.length;
+}
+
+// 图案骨架：让随机关卡有"可读的形状"，而不是一片噪点
+const GEN_STYLES = ['noise', 'mirrorH', 'mirrorV', 'bands', 'frame', 'islands'];
+
+function genNoise(nr, n){ return Array.from({length: nr}, () => Array(10).fill(1)); }
+
+// 左右镜像：右半来自左半，形状一眼看得出是"设计过的"
+function genMirrorH(nr){
+  const g = Array.from({length: nr}, () => Array(10).fill(0));
+  for (let r = 0; r < nr; r++)
+    for (let c = 0; c < 5; c++){
+      const on = Math.random() < .78 ? 1 : 0;
+      g[r][c] = on; g[r][9 - c] = on;
+    }
+  return g;
+}
+
+function genMirrorV(nr){
+  const g = Array.from({length: nr}, () => Array(10).fill(0));
+  const half = Math.ceil(nr / 2);
+  for (let r = 0; r < half; r++)
+    for (let c = 0; c < 10; c++){
+      const on = Math.random() < .78 ? 1 : 0;
+      g[r][c] = on;
+      if (nr - 1 - r !== r) g[nr - 1 - r][c] = on;
+    }
+  return g;
+}
+
+// 斜带：相位随机，所以每一关的斜纹位置都不同（旧版是 (r+n)%5，5 行一循环）
+function genBands(nr){
+  const g = Array.from({length: nr}, () => Array(10).fill(0));
+  const slope = Math.random() < .5 ? 1 : -1;
+  const period = 3 + Math.floor(Math.random() * 3);      // 3..5
+  const phase = Math.random() * period;
+  for (let r = 0; r < nr; r++)
+    for (let c = 0; c < 10; c++){
+      const t = ((c + slope * r * 1.5 + phase) % period + period) % period;
+      g[r][c] = t < 1.6 ? 1 : 0;
+    }
+  return g;
+}
+
+function genFrame(nr){
+  const g = Array.from({length: nr}, () => Array(10).fill(0));
+  for (let r = 0; r < nr; r++)
+    for (let c = 0; c < 10; c++){
+      const edge = (r === 0 || r === nr - 1 || c === 0 || c === 9);
+      const inner = (r === 1 || r === nr - 2 || c === 1 || c === 8);
+      g[r][c] = edge ? 1 : (inner && Math.random() < .2 ? 1 : 0);
+    }
+  return g;
+}
+
+// 块状聚集：先撒几颗种子再向邻居蔓延，形成"岛"而不是逐格独立噪点
+function genIslands(nr){
+  const g = Array.from({length: nr}, () => Array(10).fill(0));
+  const seeds = 3 + Math.floor(Math.random() * 3);
+  const target = Math.round(nr * 10 * (0.55 + Math.random() * 0.3));
+  let filled = 0, guard = 0;
+  if (!seeds) return g;
+  const queue = [];
+  for (let i = 0; i < seeds; i++){
+    const r = Math.floor(Math.random() * nr), c = Math.floor(Math.random() * 10);
+    if (!g[r][c]){ g[r][c] = 1; filled++; queue.push([r, c]); }
+  }
+  while (filled < target && queue.length && guard++ < 4000){
+    const i = Math.floor(Math.random() * queue.length);
+    const [r, c] = queue.splice(i, 1)[0];
+    const nbrs = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+    const [nr2, nc2] = nbrs[Math.floor(Math.random() * nbrs.length)];
+    if (nr2 < 0 || nr2 >= nr || nc2 < 0 || nc2 >= 10) continue;
+    if (g[nr2][nc2]) continue;
+    g[nr2][nc2] = 1; filled++; queue.push([nr2, nc2]);
+  }
+  return g;
+}
+
+function genSkeleton(style, nr, n){
+  let skel;
+  if (style === 'mirrorH')      skel = genMirrorH(nr);
+  else if (style === 'mirrorV') skel = genMirrorV(nr);
+  else if (style === 'bands')   skel = genBands(nr);
+  else if (style === 'frame')   skel = genFrame(nr);
+  else if (style === 'islands') skel = genIslands(nr);
+  else                          skel = genNoise(nr, n);
+  return fillSkeleton(skel, style);
+}
+
+// 对称骨架补砖时必须"成对"补，否则补出来的格子是单边的，对称性就废了。
+// mirrorH 补左右镜像，mirrorV 补上下镜像；其他风格没有对称约束，返回自身。
+function mirrorCells(style, nr, nc, r, c){
+  if (style === 'mirrorH') return [[r, nc - 1 - c]];
+  if (style === 'mirrorV') return [[nr - 1 - r, c]];
+  return [];
+}
+// 用"成对补砖"把一行填到至少 MIN_BRICKS_PER_ROW（计数只算这一行，但补的格子可能落在镜像行）
+function fillRowMirrored(g, style, nr, nc, r){
+  let inRow = 0;
+  for (const v of g[r]) if (v) inRow++;
+  let guard = 0;
+  while (inRow < MIN_BRICKS_PER_ROW && guard++ < nc * 4){
+    const c = Math.floor(Math.random() * nc);
+    if (g[r][c]) continue;
+    g[r][c] = 1; inRow++;
+    for (const [r2, c2] of mirrorCells(style, nr, nc, r, c))
+      if (!g[r2][c2]) g[r2][c2] = 1;
+  }
+}
+
+// 密度保底：islands / bands / frame 这些"有形状"的风格天然稀疏
+// （实测 islands 平均只有 11 块砖、最少 3 块，还有 24% 的整行为空），
+// 于是玩家会开到"场上没几块砖"的空关。这里保证每个骨架都达到最低密度：
+// 先逐行补够 MIN_BRICKS_PER_ROW，再整体补到 MIN_BRICK_COUNT。
+// 只填空位、不重建任何已有结构，所以图案形状不会被打乱。
+function fillSkeleton(g, style){
+  const nr = g.length, nc = g[0] ? g[0].length : 10;
+  let count = 0;
+  for (const row of g) for (const v of row) if (v) count++;
+
+  // 1) 逐行：太稀疏的行先补起来（空行尤其致命，球会直接穿过去）
+  for (let r = 0; r < nr; r++) fillRowMirrored(g, style, nr, nc, r);
+
+  // 2) 整体：补到最低砖数（同样成对补，保持对称）
+  count = 0;
+  for (const row of g) for (const v of row) if (v) count++;
+  let guard = 0;
+  while (count < MIN_BRICK_COUNT && guard++ < nr * nc * 10){
+    const r = Math.floor(Math.random() * nr), c = Math.floor(Math.random() * nc);
+    if (g[r][c]) continue;
+    g[r][c] = 1; count++;
+    for (const [r2, c2] of mirrorCells(style, nr, nc, r, c))
+      if (!g[r2][c2]){ g[r2][c2] = 1; count++; }
+  }
+  return g;
+}
+
+// 铺完特殊砖之后，逐行再补一次密度（并满足整关门限）。
+// 原因：传送门/裂纹/转弯砖都是"替换"某个普通砖格，不新增格子 —— 一扇门落进
+// 本来就刚够底的某一行，那一行就会掉到门限以下，于是又出现稀疏行。
+// 只填空位，不碰任何已有格子，所以传送门配对不会被破坏（配对由 fixPortals 收尾）。
+function topUpRows(P){
+  const nr = P.length, nc = P[0] ? P[0].length : 10;
+  const cellCount = () => { let n = 0; for (const row of P) for (const v of row) if (v) n++; return n; };
+  let guard = 0;
+  // 1) 逐行门限
+  for (let r = 0; r < nr; r++){
+    let inRow = 0;
+    for (const v of P[r]) if (v) inRow++;
+    while (inRow < MIN_BRICKS_PER_ROW && guard++ < nr * nc * 4){
+      const c = Math.floor(Math.random() * nc);
+      if (P[r][c]) continue;
+      P[r][c] = 1; inRow++;
+    }
+  }
+  // 2) 整关门限：特殊砖替换 + 骨架阶段"格子数 vs 可破坏砖数"的差额都在这一步补齐
+  guard = 0;
+  while (cellCount() < MIN_BRICK_COUNT && guard++ < nr * nc * 6){
+    const r = Math.floor(Math.random() * nr), c = Math.floor(Math.random() * nc);
+    if (!P[r][c]) P[r][c] = 1;
+  }
+}
+
 /* ============================ 关卡 ============================ */
 // 0 = 空, 1..5 = 普通砖(耐久=类型值), -1 = 不可破坏, 9 = 金砖(必掉道具)
 // 每行必须正好 10 个字符；空位一律写 0，不要写 '.'（Number('.') === NaN）
 /* ============================ 砖块类型编码 ============================
    关卡图案与存档共用一套小整数编码（存档走 36 进制，天然覆盖 0..35）：
      0 空 · 1..5 普通砖(血量) · -1 实心砖 · 9 金砖
-     6 裂纹砖 · 10~13 转弯砖(上/右/下/左) · 20/21 传送门 A/B          */
+     6 裂纹砖 · 10~13 转弯砖(上/右/下/左) · 20/21 传送门 A/B
+     14 棕色软砖（实心砖被炸开后的形态） · 15 炸药砖 · 16 磁铁砖（击破后留下引力井）
+   14/15/16 落在 6~13 之后、20 之前，和既有编码不冲突；
+   存档写的是 b36(type)，所以 14 -> 'e'、15 -> 'f'、16 -> 'g'，格式不用改版本号。  */
 const T = { EMPTY:0, SOLID:-1, CRACK:6, GOLD:9,
             TURN_U:10, TURN_R:11, TURN_D:12, TURN_L:13,
+            SOFT:14, BOMB:15, MAGNET:16,
             PORTAL_A:20, PORTAL_B:21 };
 const TURN_DIRS  = { 10:[0,-1], 11:[1,0], 12:[0,1], 13:[-1,0] };
 const TURN_ARROW = { 10:'▲', 11:'▶', 12:'▼', 13:'◀' };
 const CRACK_HP = 5;     // 裂纹砖总耐久
 const CRACK_AT = 3;     // 剩余耐久降到这个值开始显裂纹
 const TURN_HP  = 2;     // 转弯砖耐久（做成可破坏：否则两两相对时球会永久弹射）
+const SOFT_HP  = 2;     // 棕色软砖耐久（与 TURN_HP 同档：软化不等于白送）
+const BOMB_HP  = 1;     // 炸药砖一击即爆
+const MAGNET_HP = 2;    // 磁铁砖耐久（和转弯/软砖同档）
 // 图案里可用的字符：. 空   - 实心   * 金砖   c 裂纹   u/r/d/l 转弯   p/q 传送门
+//   软砖/炸药砖/磁铁砖只由随机生成和"实心砖被炸开"产生，不给图案字符（写不出来）
 const TILE_CH = { '.':0, '-':-1, '*':9, 'c':6, 'u':10, 'r':11, 'd':12, 'l':13, 'p':20, 'q':21 };
 
 const isTurnTile    = (v) => v >= 10 && v <= 13;
 const isPortalTile  = (v) => v === 20 || v === 21;
 const isCrackTile   = (v) => v === 6;
-// 可被打掉的砖（计入通关条件）
-const tileBreakable = (v) => (v >= 1 && v <= 5) || isCrackTile(v) || isTurnTile(v);
+const isSoftTile    = (v) => v === 14;
+const isBombTile    = (v) => v === 15;
+const isMagnetTile  = (v) => v === 16;
+// 可被打掉的砖（计入通关条件）。软砖必须算进来：实心砖被炸成软砖后
+// 就不再是 furniture 了，通关判定 'every(b => b.dead || isFurniture(b))'
+// 会自动要求把它清掉 —— 这正是"墙被炸开、现在必须拆掉"该有的效果。
+const tileBreakable = (v) => (v >= 1 && v <= 5) || isCrackTile(v) || isTurnTile(v) ||
+                              isSoftTile(v) || isBombTile(v) || isMagnetTile(v);
 // 不可破坏、也不计入通关条件的"场景砖"（实心砖、传送门）
 const isFurniture   = (b) => b.solid || b.portal;
 
@@ -214,6 +435,54 @@ function pickNormalCells(P, k){
     const tmp = spots[i]; spots[i] = spots[j]; spots[j] = tmp;
   }
   return spots.slice(0, Math.max(0, k));
+}
+
+// 逐行保底：一行里至少要有一块"可打掉"的砖，否则球会像穿过漏斗一样从那一行溜走，
+// 而且那一行永远清不掉。骨架级调用能修掉"整行实心砖"，特殊砖铺完后的调用
+// 还能修掉"pickNormalCells 把某行最后一块普通砖换成了传送门"这种情况。
+//   · 只"补"砖，不删传送门 —— 删掉一扇门会让配对失效（死门）。
+//   · 优先补在空格上。空格补砖既修好了这一行，又不会覆盖任何东西，
+//     所以绝不会拆散传送门配对（也就不会逼 fixPortals 去删门）。
+//     只有当这一行一个空格都没有时，才退化成覆盖一个非传送门的格子。
+function repairRows(P, w){
+  for (const row of P){
+    if (row.some(v => tileBreakable(v))) continue;          // 这行已经能打通
+    const empties = [], fills = [];
+    row.forEach((v, c) => {
+      if (v === 0) empties.push(c);
+      else if (!isPortalTile(v)) fills.push(c);
+    });
+    const pool = empties.length ? empties : fills;
+    if (!pool.length) continue;                             // 只剩传送门，无从下手（保持配对优先）
+    row[pool[Math.floor(Math.random() * pool.length)]] = rollHp(w);
+  }
+}
+
+// 密度保底：把空格补成普通砖，直到总数达到门限（找不到空格就停手）。
+function pickEmptyCells(P, want){
+  const empties = [];
+  P.forEach((row, r) => row.forEach((v, c) => { if (v === 0) empties.push([r, c]); }));
+  for (let i = empties.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = empties[i]; empties[i] = empties[j]; empties[j] = tmp;
+  }
+  return empties.slice(0, Math.max(0, want));
+}
+function addBricksToDensity(P){
+  const count = () => { let n = 0; for (const row of P) for (const v of row) if (v) n++; return n; };
+  const short = MIN_BRICK_COUNT - count();
+  if (short <= 0) return;
+  for (const [r, c] of pickEmptyCells(P, short)) P[r][c] = 1;
+}
+
+// 传送门必须成对：portalA / portalB 是单例，map 里也是靠这两个值配对。
+// 成对（2 扇）就放过；只剩 1 扇就是"死门"（球进去什么都不发生）→ 清掉它，
+// 但必须在同一格补一块普通砖：否则这一关会凭空少一块砖，密度门限就守不住了。
+function fixPortals(P){
+  const cells = [];
+  P.forEach((row, r) => row.forEach((v, c) => { if (isPortalTile(v)) cells.push([r, c, v]); }));
+  if (cells.length === 2) return;
+  for (const [r, c] of cells) P[r][c] = 1;
 }
 
 function pattern(n){
@@ -267,46 +536,99 @@ function pattern(n){
       "0000400000"
     ]);
   } else {
-    // 无限生成：随机但保证可通关（必有可破坏砖，且不会整行不可破坏）
+    /* 无限生成：随机但保证可通关（必有可破坏砖，且不会整行不可破坏）
+       旧版这里普通砖写的是 1 + ((r + n) % 5) —— 血量的纯函数，零随机：
+       每行是一个常数，整幅图是 45° 纯色斜带，而且 5 行一循环（%5），
+       所以第 6 关和第 30 关在纹理上根本是同一张图。
+       现在改成：先随机挑一个骨架风格造形状，再逐格独立按权重抽血量。 */
     const nr = 5 + (n % 3);
+    const style = n >= 3
+      ? GEN_STYLES[Math.floor(Math.random() * GEN_STYLES.length)]
+      : 'noise';
+    const skel = genSkeleton(style, nr, n);
+
+    // 骨架 -> 实体：实心砖概率随关卡从 10% 涨到 22%（旧版恒为 10%，难度阶梯是平的）
+    const solidP = Math.min(.10 + (n - 5) * .006, .22);
+    const goldP  = 0.08;
+    const w = hpWeights(n);
     for (let r = 0; r < nr; r++){
       const line = [];
       for (let c = 0; c < 10; c++){
+        if (!skel[r][c]){ line.push(0); continue; }       // 骨架之外是空位
         const roll = Math.random();
-        if (roll < .10)      line.push(-1);
-        else if (roll < .18) line.push(9);
-        else                 line.push(1 + ((r + n) % 5));   // 恒在 1..5，与颜色表对齐
+        if (roll < solidP)           line.push(-1);
+        else if (roll < solidP + goldP) line.push(9);
+        else                         line.push(rollHp(w));  // 逐格独立，行内可混排
       }
       P.push(line);
     }
-    P.forEach(row => { if (row.every(v => v === -1)) row[Math.floor(Math.random()*10)] = 3; });
 
-    // 后方关卡（第 6 关起）随机撒一些特殊砖块
+    // 骨架可能整行都是实心砖或空位，那样这行永远打不穿 -> 逐行保底一块可破坏砖
+    repairRows(P, w);
+
+    // 后方关卡随机撒一些特殊砖块。数量随关卡增长，并且封顶值要够高 ——
+    // 旧版转弯砖写成 Math.min(2, ...)，从第 7 关起就永远钉死在 2 块，等于没有成长。
     if (n >= 5){
       const lv = n - 4;                                    // 1,2,3… 越往后越多
-      // 传送门必须成对才有意义
-      if (Math.random() < Math.min(.25 + lv * .08, .8)){
+      // 传送门必须成对才有意义。注意：引擎只支持"一对" —— portalA / portalB 是单例，
+      // 编码里也只有 20/21 两个值，所以这里不能生成多于一对（多对需要改 portalAt
+      // 与存档编码，属于引擎改动，不在随机性修复范围内）。
+      if (Math.random() < Math.min(.35 + lv * .06, .8)){
         const two = pickNormalCells(P, 2);
         if (two.length === 2){
           P[two[0][0]][two[0][1]] = T.PORTAL_A;
           P[two[1][0]][two[1][1]] = T.PORTAL_B;
         }
       }
-      // 转弯砖
-      const nTurn = Math.min(2, Math.floor(lv / 2) + (Math.random() < .5 ? 1 : 0));
-      for (const [r, c] of pickNormalCells(P, nTurn))
-        P[r][c] = T.TURN_U + Math.floor(Math.random() * 4);
-      // 裂纹砖（更靠后的关卡才出现，且不加分，属于纯障碍）
-      if (n >= 7)
-        for (const [r, c] of pickNormalCells(P, Math.min(4, 1 + Math.floor(lv / 2))))
+      // 转弯砖（第 7 关起）
+      if (n >= 7){
+        const nTurn = Math.min(6, 1 + Math.floor((n - 7) / 3));
+        for (const [r, c] of pickNormalCells(P, nTurn))
+          P[r][c] = T.TURN_U + Math.floor(Math.random() * 4);
+      }
+      // 裂纹砖（第 11 关起，不加分，属于纯障碍）
+      if (n >= 11){
+        const nCrack = Math.min(8, 2 + Math.floor((n - 11) / 3));
+        for (const [r, c] of pickNormalCells(P, nCrack))
           P[r][c] = T.CRACK;
+      }
+      // 炸药砖（第 13 关起）：一击即爆，能清邻砖、也能把实心砖炸成软砖
+      if (n >= 13){
+        const nBomb = Math.min(4, 1 + Math.floor((n - 13) / 5));
+        for (const [r, c] of pickNormalCells(P, nBomb))
+          P[r][c] = T.BOMB;
+      }
+      // 磁铁砖（第 17 关起）：被打掉后留下引力井，是唯一"打掉会改变地形"的砖
+      if (n >= 17){
+        const nMagnet = Math.min(3, 1 + Math.floor((n - 17) / 6));
+        for (const [r, c] of pickNormalCells(P, nMagnet))
+          P[r][c] = T.MAGNET;
+      }
     }
 
-    // 兜底：必须至少有一块可打掉的砖，否则这关无法通过
+    // 特殊砖铺完后收拾（顺序有讲究，前一步都在处理后一步可能带进来的问题）：
+    //   1. repairRows          —— 消掉"漏斗行"（整行没有可破坏砖）。
+    //      它优先补空格，所以不会拆散传送门配对。
+    //   2. fixPortals          —— 万一还是落了单门，清掉并就地补一块普通砖
+    //      （不补砖会凭空少一块，密度门限就守不住了）。
+    //   3. addBricksToDensity  —— 最后兜一次总砖数门限。放在最后是因为
+    //      第 2 步之后可能还有格子被改动，这里是唯一的"最终保证"。
+    //      注意它只填空格、只加不减，所以不会再引入需要修复的东西。
+    repairRows(P, w);
+    topUpRows(P);
+    fixPortals(P);
+    addBricksToDensity(P);
+
+    // 兜底：必须至少有一块可打掉的砖，否则这关无法通过。
+    // 旧版这里把 P[0][0] 写死成 3，于是"随机"关卡永远有一个固定的左上角砖，
+    // 而且不看那格原本是不是空位。改成真随机挑一格。
     if (!P.some(row => row.some(v => tileBreakable(v)))){
-      const sp = pickNormalCells(P, 1);
-      P[0][0] = 3;
-      if (sp.length) P[sp[0][0]][sp[0][1]] = 3;
+      const spots = [];
+      P.forEach((row, r) => row.forEach((v, c) => { if (v !== -1) spots.push([r, c]); }));
+      if (spots.length){
+        const [r, c] = spots[Math.floor(Math.random() * spots.length)];
+        P[r][c] = rollHp(w);
+      }
     }
   }
   return { grid:P, msg:null };
@@ -320,6 +642,10 @@ const POWERS = [
   { k:'multi', c:'#c084fc', ch:'3', good:true,  name:'三球齐发' },
   { k:'slow',  c:'#93c5fd', ch:'S', good:true,  name:'时间变慢' },
   { k:'life',  c:'#ff8fab', ch:'+', good:true,  name:'额外生命' },
+  // 冲击波：唯一的"瞬发"道具 —— 没有持续时间、没有状态，吃到就在挡板位置放一圈波。
+  // 正因为无状态，连吃 3 个天然就是 3 次独立爆发，不需要任何叠加/进化逻辑；
+  // 效果锚定在"空间"（挡板当前位置）而不是锚定在"玩家属性"上，所以也不会互相冲突。
+  { k:'shock', c:'#38bdf8', ch:'◎', good:true,  name:'冲击波' },
   { k:'narrow',c:'#ff4d4d', ch:'N', good:false, name:'挡板变窄' },
   { k:'fast',  c:'#fb923c', ch:'F', good:false, name:'球速暴涨' }
 ];
@@ -368,6 +694,11 @@ const G = {
 };
 
 let paddle, balls, bricks, drops, particles, floats;
+// 爆炸波（炸药砖触发；冲击波道具以后复用同一套）——纯表现层，不存档。
+// explodingDepth > 0 表示"当前正在结算一波爆炸"，用来阻断炸药砖的无限连锁。
+let shockwaves = [], explodingDepth = 0;
+// 引力井（磁铁砖击破后留下）——纯表现层 + 物理扰动，不存档。
+let wells = [];
 let portalA = null, portalB = null;   // 传送门配对（每关最多一对）
 let brickW, brickH, brickTop, cols = 10;
 let autoSaveArmed = false;      // 本局是否需要自动存档（开局/读档后开启）
@@ -416,11 +747,18 @@ function buildFromGrid(grid){
       const turn = isTurnTile(v);
       const portal = isPortalTile(v);
       const crack = isCrackTile(v);
+      const soft = isSoftTile(v);
+      const bomb = isBombTile(v);
+      const magnet = isMagnetTile(v);
       // 各类砖的耐久：实心/金砖/传送门一击即"碎"（但前两者分别不可破/必掉道具），
-      // 裂纹砖与转弯砖有自己的耐久
+      // 裂纹砖/转弯砖/软砖/炸药砖/磁铁砖有自己的耐久。
+      // 注意软砖必须显式列出来：否则会掉进最后的 `: v` 分支拿到 hp=14。
       const hp = (v === -1 || v === 9 || portal) ? 1
                : crack ? CRACK_HP
                : turn  ? TURN_HP
+               : soft  ? SOFT_HP
+               : bomb  ? BOMB_HP
+               : magnet ? MAGNET_HP
                : v;
       const b = {
         x: 60 + c*brickW,
@@ -436,6 +774,9 @@ function buildFromGrid(grid){
         turn,
         dir: turn ? TURN_DIRS[v] : null,
         portal,
+        soft,
+        bomb,
+        magnet,
         portalId: v === T.PORTAL_A ? 1 : v === T.PORTAL_B ? 2 : 0,
         hit: 0,
         dead: false
@@ -447,6 +788,22 @@ function buildFromGrid(grid){
       if (v === T.PORTAL_B) portalB = b;
     });
   });
+  assertClearance();
+}
+
+// 铺完砖后校验"净空"：随机关卡的砖区底边到挡板必须留够距离，否则球从砖底弹回挡板的
+// 来回趟数不足，玩家来不及反应（行数放宽到 10 行时就只剩 141px）。
+// 这个耦合以前是隐式的（brickTop / 行距 / 行数三处散落），加一道显式检查，
+// 以后有人调其中任何一个都能立刻发现，而不是靠手感。
+// 只管随机关卡（level >= 5）：设计关卡由人摆，第 5 关"金字塔"本来就是紧凑布局。
+function assertClearance(){
+  if (!bricks.length || !paddle) return;
+  if (G.level < 5) return;
+  let bottom = 0;
+  for (const b of bricks) if (b.y + b.h > bottom) bottom = b.y + b.h;
+  const gap = paddle.y - bottom;
+  if (gap < SAFE_MIN_GAP && typeof console !== 'undefined' && console.warn)
+    console.warn(`[neon-breaker] 第 ${G.level + 1} 关净空不足：${gap.toFixed(0)}px < SAFE_MIN_GAP ${SAFE_MIN_GAP}px`);
 }
 
 // 取 (x,y) 所在的传送门（球心判定）
@@ -465,7 +822,7 @@ function loadLevel(n, gridOverride){
   const p = pattern(n);
   const grid = gridOverride || p.grid;
   buildFromGrid(grid);
-  drops = []; particles = []; floats = [];
+  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !isFurniture(b) && !b.dead).length;
@@ -484,7 +841,7 @@ function clearBoard(){
   bricks = [];
   balls = [ makeBall(paddle.x + paddle.w/2, paddle.y - 8, 0, 0) ];
   balls[0].stuck = true;
-  drops = []; particles = []; floats = [];
+  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.shake = 0; G.flash = 0; G.slowFx = 0;
@@ -772,7 +1129,7 @@ function loadProgress(){
   // 球掉了但还没结算的状态，读档后先给一个安全的贴板球
   if (balls.every(b => b.y > H + 40)) resetBall();
 
-  drops = []; particles = []; floats = [];
+  drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
   G.combo = 0; G.comboTimer = 0;
   G.stuckTimer = 0;
   G.lastBricks = bricks.filter(b => !isFurniture(b) && !b.dead).length;
@@ -840,7 +1197,7 @@ let pointerTarget = null;
 /* ============================ 输入 ============================ */
 // 自绘准星状态：canvas 上设了 cursor:none（挡板就是光标），所以必须自己画一个，
 // 否则游戏区里完全看不见鼠标。用鼠标操作时显示，键盘操作/指针离开时隐藏。
-const mouse = { x: W/2, y: H/2, hasPointer: false, onField: true };
+const mouse = { x: W/2, y: H/2, hasPointer: false };
 
 // 选关界面：把屏幕点击 / 触摸映射到卡片（返回 true 表示已处理）
 function selectHitTest(px, py){
@@ -982,14 +1339,15 @@ addEventListener('blur', () => {
   if (G.state === S.PLAY) G.state = S.PAUSE;
 });
 
-// 鼠标 / 触摸：挡板跟随 + 准星定位（坐标经 toWorld 反向映射，自动处理留边）
+// 鼠标 / 触摸：挡板跟随 + 准星定位。
+// toWorld 已把坐标夹进游戏区，所以这里不需要再夹一次 ——
+// 窗口内任何位置（含画面留边）都能控制挡板，没有死区。
 function pointerMove(clientX, clientY){
   if (!cssW || !cssH) return;
   const w = toWorld(clientX, clientY);
-  pointerTarget = clamp(w.x, 0, W);
-  mouse.y = clamp(w.y, 0, H);
-  mouse.x = pointerTarget;
-  mouse.onField = w.inside;
+  pointerTarget = w.x;
+  mouse.x = w.x;
+  mouse.y = w.y;
   mouse.hasPointer = true;
 }
 cv.addEventListener('mousemove', e => pointerMove(e.clientX, e.clientY));
@@ -1097,6 +1455,25 @@ function applyPower(p, bonus = 0){
     Sound.bad();
   }
   if (p.k === 'life'){ G.lives++; Sound.power(); }
+  if (p.k === 'shock'){
+    // 波心在**球的当前位置**引爆，不是挡板位置。
+    // 两个原因：
+    //   1. 砖区在顶部、挡板在底部，相距约 420px —— 锚在挡板上的话，
+    //      150~170px 的波永远够不到任何一块砖，等于白吃。
+    //   2. 这个道具的定位是"球快掉了那一瞬间的救命手段"，锚在球上才成立：
+    //      球靠近砖时吃到 = 清一片；球快落底时吃到 = 把球周围的砖掀掉、改变弹道。
+    // 多个球时取最靠近砖区的那个 —— 那才是玩家此刻关注的位置。
+    const src = balls.reduce((best, b) => {
+      if (!best) return b;
+      return (b.y < best.y) ? b : best;                 // y 越小越靠上
+    }, null);
+    const cx = src ? src.x : paddle.x + paddle.w/2;
+    const cy = src ? src.y : paddle.y - 6;
+    // forceSolids:false —— 道具版负责清场，不负责拆墙：拆墙是炸药砖的职责，
+    // 两者分工不同，否则冲击波会变成一把万能钥匙。
+    explode(cx, cy, { forceSolids:false, rmax:170, speed:700 });
+    Sound.power();
+  }
   if (p.k === 'multi'){
     Sound.power();
     const src = balls[0];
@@ -1148,6 +1525,11 @@ function brickColor(b){
   if (b.portal) return '#8b5cf6';                       // 传送门画成圆环，见 drawBricks
   if (b.golden) return '#fff0b8';                       // 浅金：和三血砖的 #ffd93d 明确区分
   if (b.turn)   return '#e2e8f0';                       // 银白：箭头看得最清楚
+  if (b.bomb)   return '#ff6b35';                       // 橙红：危险信号
+  if (b.magnet) return '#a3e635';                       // 黄绿：和场地绿 #4dff9e 拉开
+  // 软砖用深棕，刻意比裂纹砖的 #a9744a 更暗更红：两者都是"棕色系"，
+  // 但裂纹砖是"旧的、有裂缝的"，软砖是"被炸开、变脆了"，靠明度分得开。
+  if (b.soft)   return b.hp <= 1 ? '#6d3a22' : '#8b4a2b';
   if (b.crack)  return b.hp <= (b.crackAt || CRACK_AT) ? '#8a5a3b' : '#a9744a';
   return BRICK_COLORS[clamp(b.hp - 1, 0, 4)];
 }
@@ -1156,6 +1538,9 @@ function brickColor(b){
 function tilePreviewColor(v){
   if (v === T.SOLID)    return 'rgba(122,146,190,.85)';
   if (v === T.GOLD)     return '#fff0b8';
+  if (v === T.SOFT)     return '#8b4a2b';
+  if (v === T.BOMB)     return '#ff6b35';
+  if (v === T.MAGNET)   return '#a3e635';
   if (isPortalTile(v))  return '#8b5cf6';
   if (isTurnTile(v))    return '#e2e8f0';
   if (isCrackTile(v))   return '#a9744a';
@@ -1168,6 +1553,185 @@ function saveBest(){
   if (G.score > G.best){
     G.best = G.score;
     localStorage.setItem('neon-breaker-best', String(G.best));
+  }
+}
+
+// 实心砖被炸开 -> 变成棕色软砖。
+// 注意是"就地换一个 type"，不是标 dead：软砖的可破坏，所以它自动进入通关条件
+// （通关判定是 every(b => b.dead || isFurniture(b))，软砖既没死也不是 furniture）。
+// 每块实心砖只会被炸开一次（炸过之后 solid 就是 false 了）。
+function convertSolidToSoft(b){
+  b.type = T.SOFT;
+  b.solid = false;
+  b.soft = true;
+  b.hp = SOFT_HP;
+  b.max = SOFT_HP;
+  b.hit = 1;
+  addParticles(b.x + b.w/2, b.y + b.h/2, '#8b4a2b', 14, 1);
+  floats.push({ x: b.x + b.w/2, y: b.y + b.h/2, text: '炸开了', color: '#c98a5a', life: .9, vy: -46 });
+}
+
+// 爆炸（炸药砖被打掉时触发）—— 缓释环：
+// 波前随时间向外扩张，碰到砖才结算，所以视觉和因果是一致的
+// （如果吃到瞬间一次性算完，那个环就只是事后动画）。
+// 每块砖对同一波最多结算一次（hit 数组按砖对象引用去重）。
+const BOMB_R0 = 12, BOMB_RMAX = 150, BOMB_SPEED = 680, MAX_WAVES = 6;
+function explode(x, y, opts){
+  opts = opts || {};
+  // 炸药砖在关卡里不会只出现一块：旧版把它们全生成在同一个位置，
+  // 环会重叠成一个点，所以给一点偏移。
+  const cx = x + rnd(-8, 8), cy = y + rnd(-8, 8);
+  if (shockwaves.length >= MAX_WAVES) shockwaves.shift();
+  shockwaves.push({
+    x: cx, y: cy, r: BOMB_R0, rmax: opts.rmax || BOMB_RMAX,
+    speed: opts.speed || BOMB_SPEED,
+    forceSolids: opts.forceSolids !== false,   // 是否把实心砖炸成软砖
+    hit: [], done: false, t: 0
+  });
+  G.flash = Math.max(G.flash, .45);
+  G.shake = Math.max(G.shake, 13);
+  addParticles(cx, cy, '#ff6b35', 22, 1.2);
+  Sound.hard();
+}
+
+// 一圈波打碎了一堆砖，连击不能就这么无限涨上去：
+// 单次最多推进 COMBO_PER_EXPLOSION 级（与设计文档里的 min(hits,4) 对齐），
+// 否则"一炸 15 块"会让倍率直接冲到 3 倍以上，后面的分数全乱。
+const COMBO_PER_EXPLOSION = 4, COMBO_CAP = 10;
+function splashDamage(b, x, y){
+  const before = G.combo;
+  if (before >= COMBO_CAP) { damage(b, x, y); G.combo = before; return; }
+  damage(b, x, y);
+  if (G.combo - before > COMBO_PER_EXPLOSION) G.combo = before + COMBO_PER_EXPLOSION;
+}
+
+function updateShockwaves(dt){
+  for (let i = shockwaves.length - 1; i >= 0; i--){
+    const w = shockwaves[i];
+    w.t += dt;
+    w.r += w.speed * dt;
+    explodingDepth++;                 // 波内的炸药砖不再自行爆炸（只连锁一级）
+    for (const b of bricks){
+      if (b.dead || b.portal) continue;
+      if (w.hit.includes(b)) continue;
+      const dx = b.x + b.w/2 - w.x, dy = b.y + b.h/2 - w.y;
+      if (dx*dx + dy*dy > w.r * w.r) continue;
+      w.hit.push(b);
+      if (b.solid){
+        // 每块实心砖只被炸开一次，不反复消耗同一块
+        if (w.forceSolids && !w.softened) { convertSolidToSoft(b); w.softened = true; }
+      } else {
+        splashDamage(b, b.x + b.w/2, b.y + b.h/2);
+      }
+    }
+    explodingDepth--;
+    if (w.r >= w.rmax) shockwaves.splice(i, 1);
+  }
+}
+
+// 引力井（磁铁砖被打掉后留下）—— 本文档里唯一"打掉的砖会改变地形"的机制：
+// 砖不只是消失，而是原地留下一个有寿命的引力源。
+//
+// 三条硬约束（都是为了让防卡死系统仍然成立）：
+//   1. **只弯不抓**：引力是横向加速度，量级远小于球速（400~1000），
+//      球会被弯出一道弧线，而不是被拽停。
+//   2. **硬性时长**：WELL_LIFE = 8s，到点必消失。井不会永久存在。
+//   3. **速度守恒**：施加后把速度夹回施加前的量级（详见 applyWellPull）。
+//
+// 半径/强度是**实测调出来的**，不是拍脑袋：用同构驱动跑 40 局/组、
+// 关卡 1~5 轮换，比较"清关率 + 清关用时中位"：
+//     R=150 强度=480 -> 清关率 48%，中位 120s（常常卡到超时）
+//     R=120 强度=300 -> 清关率 45%，中位 120s
+//     R=100 强度=240 -> 清关率 65%，中位 84s   <-- 选它
+//     R= 90 强度=220 -> 清关率 68%，中位 98s
+// 再往上调半径会让"球被困在井附近慢慢磨"，清关率断崖式下降，
+// 玩家体感就是"球被吸住了，怎么都打不完"。所以宁可小一点、弱一点。
+const WELL_R = 100, WELL_DRAW_R = 140, WELL_STRENGTH = 240;
+const WELL_LIFE = 8;
+const MAX_WELLS = 4;
+// 通过 WELL_TUNE 可覆盖上面几个参数（只用于测试调参；正常运行不设置这个对象）。
+const WT = () => (typeof WELL_TUNE === 'object' && WELL_TUNE) || null;
+const wellR = () => { const t = WT(); return t && t.r || WELL_R; };
+const wellStrength = () => { const t = WT(); return t && t.strength || WELL_STRENGTH; };
+const WELL_MIN_SEP = 120;                    // 两个井心的最小间距，防止叠在一起
+const WELL_MAX_GROW = 1.004;                 // 每帧允许的速度增幅上限（≈ +0.4%）
+const WELL_MIN_SPEED = 120;                  // 下限天花板：引力最多把球速托回这个值
+
+// 放一个引力井。两件事必须处理：
+//   1. **数量上限**：超出就挤掉最旧的
+//   2. **最小间距**：绝不能和已有的井叠在一起。这不是美观问题 ——
+//      两个井心重合时，球在井心受到的"指向两个井心"的力方向相反、完全抵消，
+//      而速度夹取又让加速度趋近 0，于是球**永久冻在井心**（实测 4 个球全部停在
+//      同一点、速度 3~5px/s，既不动也不掉，防卡死也救不回来）。
+//      所以这里强制拉开距离：太近就替换掉最近的那个。
+function addWell(x, y){
+  let closest = null, closestD = Infinity;
+  for (const w of wells){
+    const d = Math.hypot(w.x - x, w.y - y);
+    if (d < closestD){ closestD = d; closest = w; }
+  }
+  if (wells.length && closestD < WELL_MIN_SEP){
+    // 离得太近：换掉最近的那个（相当于"磁铁砖又打掉一块，旧井被顶替"）
+    if (closest) wells.splice(wells.indexOf(closest), 1);
+  } else if (wells.length >= MAX_WELLS){
+    wells.shift();
+  }
+  wells.push({ x, y, t: 0, r: wellR(), spin: Math.random() * TAU });
+  addParticles(x, y, '#a3e635', 18, 1.1);
+  G.flash = Math.max(G.flash, .28);
+  Sound.power();
+}
+
+function updateWells(dt){
+  for (let i = wells.length - 1; i >= 0; i--){
+    wells[i].t += dt;
+    wells[i].spin += dt * 1.6;
+    if (wells[i].t >= WELL_LIFE){ wells.splice(i, 1); return; }   // 到点必消失
+  }
+}
+
+// 在球的子步循环里调用：给球加一个指向井心的加速度。
+// 用子步时长 sdt 累积，所以和子步数无关（一帧总冲量恒定）。
+//
+// 力的大小取 **正比于归一化距离**（`d/R`），而不是常见的 `1/d²` / 常数：
+//   · 井心处力 = 0 —— 没有中心奇点，球不会被"钉"在井心
+//   · 井边处力最大 —— 进入范围时手感最强，符合"靠近才被吸"的直觉
+//   · 全程有界，永远不会出现数值爆炸
+function applyWellPull(b, sdt){
+  if (!wells.length) return;
+  const sp0 = Math.hypot(b.vx, b.vy);           // 施加前的量级
+  let touched = false;
+  for (const w of wells){
+    const dx = w.x - b.x, dy = w.y - b.y;
+    const d = Math.hypot(dx, dy);
+    if (d > w.r || d < 1e-3) continue;
+    const k = (d / w.r) / d;                    // 力 ∝ d/R，方向指向井心
+    b.vx += dx * k * wellStrength() * sdt;
+    b.vy += dy * k * wellStrength() * sdt;
+    touched = true;
+  }
+  if (!touched) return;
+  // 速度处理。目标：**引力只转向，绝不改能量**。
+  //
+  // 只设上限会有一个真实的坑：球低速穿过井时，井心那点向心加速度对慢球来说
+  // 反而是"过强"的，数值积分会把速度一点点吃光，球最终定格在井心附近
+  // （实测 19px/s -> 3px/s，然后以 0.14px/s 的速度往外爬，等于卡死）。
+  // 所以再加一个**下限，但它恒不超过施加前的速度**：
+  //     floor = min(sp0, WELL_MIN_SPEED)
+  // 慢球最多被拉回施加前的速度（不会凭空加速，也就不可能出现"把逃走的球
+  // 加速送走"），快球则完全不受下限影响。上限同时把速度锁在 sp0 附近，
+  // 于是整个过程速度基本守恒，只有方向被弯。
+  //
+  // 上下限都按子步数缩放，保证结果与一帧切几个子步无关。
+  const grown = sp0 * Math.pow(WELL_MAX_GROW, sdt * 60);
+  const cap = Math.min(grown, 1000);
+  const floor = Math.min(sp0, WELL_MIN_SPEED);
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp > 1e-3){
+    let s = 1;
+    if (sp > cap) s = cap / sp;
+    else if (sp < floor) s = floor / sp;
+    if (s !== 1){ b.vx *= s; b.vy *= s; }
   }
 }
 
@@ -1192,6 +1756,36 @@ function damage(b, bx, by){
     // 但必须清掉才能通关，所以要付出击打次数作为代价。
     addParticles(b.x + b.w/2, b.y + b.h/2, '#8a5a3b', 18, 1.1);
     Sound.hard();
+    return;
+  }
+  if (b.bomb){
+    // 炸药砖：一击即爆，在它自己的位置放一圈爆炸。
+    // 爆炸能清掉邻近的砖、也能把实心砖炸成软砖；但"炸药砖引爆炸药砖"
+    // 只允许连一级，否则一排炸药砖会连锁掉半屏，分数和连击都失控。
+    const cx = b.x + b.w/2, cy = b.y + b.h/2;
+    addParticles(cx, cy, '#ff6b35', 20, 1.2);
+    G.combo++; G.comboTimer = 2.2;
+    G.score += 60;
+    saveBest();
+    floats.push({ x: cx, y: cy, text: '爆炸', color: '#ff6b35', life: .9, vy: -46 });
+    Sound.hard();
+    if (!explodingDepth) explode(cx, cy);
+    return;
+  }
+  if (b.magnet){
+    // 磁铁砖：被打掉后原地留下一个引力井（唯一"打掉的砖会变成地形"的机制）。
+    // 注意它和其它砖一样正常加分/掉道具 —— 引力井是额外赠品，不是替代品。
+    const cx = b.x + b.w/2, cy = b.y + b.h/2;
+    G.combo++; G.comboTimer = 2.2;
+    const mult = 1 + Math.min(G.combo - 1, 9) * .25;
+    const gain = Math.round((20 + (b.max - 1) * 15) * mult);
+    G.score += gain;
+    saveBest();
+    floats.push({ x: cx, y: cy, text: '+' + gain + ' 引力井', color: '#a3e635', life: .9, vy: -46 });
+    addParticles(cx, cy, '#a3e635', 20, 1.1);
+    Sound.brick(b.row);
+    addWell(cx, cy);
+    spawnDrops(cx, cy);
     return;
   }
   G.combo++; G.comboTimer = 2.2;
@@ -1324,6 +1918,7 @@ function update(dt){
       const steps = clamp(Math.ceil(speed * dt / 6), 1, 8);
       const sdt = dt / steps;
       for (let s = 0; s < steps; s++){
+        applyWellPull(b, sdt);          // 引力井：在积分前施加，保证子步内一致
         b.x += b.vx * sdt;
         b.y += b.vy * sdt;
 
@@ -1482,6 +2077,11 @@ function update(dt){
     }
   }
 
+  /* ---- 爆炸波（炸药砖）---- */
+  updateShockwaves(dt);
+  /* ---- 引力井（磁铁砖）---- */
+  updateWells(dt);
+
   /* ---- 通关判定 ---- */
   if (G.state === S.PLAY && bricks.every(b => b.dead || isFurniture(b))){
     G.score += 250 + G.level * 100;
@@ -1508,7 +2108,24 @@ function roundRect(x, y, w, h, r){
   ctx.closePath();
 }
 
+// 把整个画布（含 16:10 之外多出来的留边）填成和游戏内一致的底色。
+// 以前留边是"清空后的透明"，露出 body 的 CSS 渐变，于是画面上有一条明显的黑带，
+// 看起来像"游戏没铺满、鼠标会跑出去"。填上之后整个窗口是一块完整的画面。
+// 注意：这里在 CSS 像素坐标系里画（调用点已 setTransform(dpr,...)），所以用 view.w/h。
+function fillWholeCanvas(){
+  ctx.save();
+  const g = ctx.createLinearGradient(0, 0, 0, view.h);
+  g.addColorStop(0, '#0b1030');
+  g.addColorStop(1, '#05060f');
+  ctx.fillStyle = g;
+  // 多画 2px：画面被屏幕震动平移时不会在边缘露出未填充的一线
+  ctx.fillRect(-1, -1, view.w + 2, view.h + 2);
+  ctx.restore();
+}
+
 function drawBackground(){
+  fillWholeCanvas();
+
   // 网格
   ctx.save();
   ctx.strokeStyle = 'rgba(49,242,255,.065)';
@@ -1626,6 +2243,22 @@ function drawBricks(){
         ctx.lineTo(b.x + b.w*i/4, b.y + b.h - 5);
         ctx.stroke();
       }
+    } else if (b.bomb){
+      // 炸药砖：实心圆 + 引线火花，中心一个"爆"字提示
+      const cx = b.x + b.w/2, cy = b.y + b.h/2;
+      ctx.fillStyle = 'rgba(40,14,4,.85)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.min(b.w, b.h) * 0.30, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = '#ffd9a0';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.min(b.w, b.h) * 0.30, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = '#ffe8c8';
+      ctx.font = 'bold 12px Segoe UI, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('爆', cx, cy + 1);
     } else if (b.turn){
       // 转弯砖：大大的方向箭头（箭头决定球被打中后往哪飞）
       ctx.fillStyle = 'rgba(18,24,44,.9)';
@@ -1637,6 +2270,36 @@ function drawBricks(){
       ctx.font = 'bold 14px Segoe UI, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('★', b.x + b.w/2, b.y + b.h/2 + 1);
+    } else if (b.magnet){
+      // 磁铁砖：一个"磁"字 + 一道马蹄弧，远远就能认出来
+      const cx = b.x + b.w/2, cy = b.y + b.h/2;
+      ctx.strokeStyle = 'rgba(20,34,8,.85)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 1, Math.min(b.w, b.h) * 0.24, Math.PI, 0);   // 马蹄的弯
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(20,34,8,.9)';
+      ctx.font = 'bold 11px Segoe UI, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('磁', cx, cy + 4);
+    } else if (b.soft){
+      // 软砖：深棕 + 几道"碎纹"，提醒它是被炸脆的（区别于裂纹砖的竖裂缝）
+      ctx.strokeStyle = 'rgba(255,214,170,.30)';
+      ctx.lineWidth = 1.2;
+      const sx = b.x + b.w/2, sy = b.y + b.h/2;
+      for (let i = -1; i <= 1; i++){
+        ctx.beginPath();
+        ctx.moveTo(sx + i * b.w * 0.22 - 4, sy - 6);
+        ctx.lineTo(sx + i * b.w * 0.22 + 3, sy + 1);
+        ctx.lineTo(sx + i * b.w * 0.22 - 2, sy + 7);
+        ctx.stroke();
+      }
+      if (b.hp > 1){
+        ctx.fillStyle = 'rgba(255,225,200,.75)';
+        ctx.font = 'bold 13px Segoe UI, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(b.hp, sx, sy + 1);
+      }
     } else if (b.crack){
       // 裂纹砖：打到阈值后显出裂纹，并把剩余耐久写在中间
       if (b.hp <= (b.crackAt || CRACK_AT)) drawCrackLines(b);
@@ -1652,6 +2315,65 @@ function drawBricks(){
     }
     ctx.restore();
   }
+}
+
+function drawShockwaves(){
+  if (!shockwaves.length) return;
+  ctx.save();
+  for (const w of shockwaves){
+    const k = clamp(w.r / w.rmax, 0, 1);
+    ctx.shadowColor = '#ff6b35';
+    ctx.shadowBlur = 16;
+    // 外圈：主波前。注意每画一个圆都要重新 beginPath ——
+    // 否则两个 arc 会挂进同一条路径，stroke 时被连成一条线。
+    ctx.globalAlpha = (1 - k) * 0.85;
+    ctx.strokeStyle = '#ffb066';
+    ctx.lineWidth = 3 * (1 - k) + 1;
+    ctx.beginPath();
+    ctx.arc(w.x, w.y, w.r, 0, TAU);
+    ctx.stroke();
+    // 内圈跟在后面，制造"冲击"的层次感
+    ctx.globalAlpha = (1 - k) * 0.4;
+    ctx.strokeStyle = '#ff8a4a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(w.x, w.y, w.r * 0.62, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawWells(){
+  if (!wells.length) return;
+  ctx.save();
+  for (const w of wells){
+    const age = w.t / WELL_LIFE;
+    // 快消失时整体淡出，让"到点就没了"这件事看得出来
+    const fade = age > 0.75 ? clamp((1 - age) / 0.25, 0, 1) : 1;
+    // 三个向内收缩的环：越往里越亮，读起来像"被吸进去"
+    ctx.shadowColor = '#a3e635';
+    ctx.shadowBlur = 14;
+    for (let i = 0; i < 3; i++){
+      const k = ((w.spin * 0.35 + i / 3) % 1);            // 0 -> 1 循环
+      const r = WELL_DRAW_R * (1 - k);
+      ctx.globalAlpha = fade * (0.10 + k * 0.42);
+      ctx.strokeStyle = '#a3e635';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, Math.max(r, 1), 0, TAU);
+      ctx.stroke();
+    }
+    // 井心：一个亮核
+    ctx.globalAlpha = fade * 0.9;
+    const grad = ctx.createRadialGradient(w.x, w.y, 1, w.x, w.y, 16);
+    grad.addColorStop(0, '#f2ffd6');
+    grad.addColorStop(1, 'rgba(163,230,53,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(w.x, w.y, 16, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawPaddle(){
@@ -2172,13 +2894,13 @@ function drawImportScreen(){
 }
 
 // 自绘准星：细十字 + 中心点 + 外圈虚线 + 一道光晕（因为原生光标被 cursor:none 隐藏了）
-// 全屏后指针始终在画布内；若落在上下/左右的留边上，准星变暗表示"这里不控制挡板"
+// 坐标已由 toWorld 夹进游戏区，所以准星永远可见、永远指向挡板实际会去的位置。
+// 这里不再有"变暗"分支 —— 变暗窗口存在的前提是"有区域不控制挡板"，而我们已经消除了那种区域。
 function drawReticle(){
   if (!mouse.hasPointer) return;
   const x = clamp(mouse.x, 14, W - 14);
   const y = clamp(mouse.y, 14, H - 14);
-  const dim = mouse.onField === false ? 0.35 : 1;
-  const pulse = (0.85 + 0.15 * Math.sin(G.time * 4.5)) * dim;
+  const pulse = 0.85 + 0.15 * Math.sin(G.time * 4.5);
   ctx.save();
   ctx.shadowColor = '#31f2ff';
   ctx.shadowBlur = 10;
@@ -2216,7 +2938,7 @@ function drawReticle(){
 
   // 指向挡板的引导虚线（挡板跟鼠标走，给一点"连起来了"的反馈）
   ctx.save();
-  ctx.globalAlpha = 0.16 * dim;
+  ctx.globalAlpha = 0.16;
   ctx.strokeStyle = '#31f2ff';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 8]);
@@ -2240,6 +2962,8 @@ function render(){
   }
   drawBackground();
   drawBricks();
+  drawWells();            // 引力井画在砖之上：它是"场"，砖在它里面
+  drawShockwaves();       // 爆炸波画在砖之上：砖被炸开时环是压在砖面上的
   drawDrops();
   drawPaddle();
   drawBalls();
@@ -2300,7 +3024,7 @@ resize();
 paddle = makePaddle();
 balls = [ makeBall(W/2, paddle.y - 8, 0, 0) ];
 balls[0].stuck = true;
-bricks = []; drops = []; particles = []; floats = [];
+bricks = []; drops = []; particles = []; floats = []; shockwaves = []; explodingDepth = 0; wells = [];
 requestAnimationFrame(frame);
 
 // 让 canvas 一开始就拿到键盘焦点
