@@ -30,6 +30,25 @@ function renderCurrentCategory() {
         return;
     }
 
+    // ★ 归属校验（"当前位置"失效就丢弃）。
+    //   focusSeries/focusVariety 是**序号**，只在同一个分类内才有意义。
+    //   用户在 A 分类展开了系列 3，再切到只有 2 个系列的 B 分类 —— 若不丢弃，
+    //   buildRoute() 会写出 B/s3 这种指向不存在系列的链接，别人点开会看到错误页面。
+    //   ★ 判定条件是"序号所属分类**变了**"，不是"当前 scope 不等于本分类"：
+    //     后者有时序漏洞 —— renderSeriesList() 会把 focusScope 提前写成新分类的 scope，
+    //     而序号还是旧分类的，此时"等于当前"成立，旧序号就被当成新分类的写进 URL
+    //     （实测：从 rmb3 切到纪念钞，地址栏变成 #notes/commemorative/s1/v0）。
+    //     focusOwner 与渲染时机解耦，所以只看它。
+    const nowScope = getCategoryScope();
+    if (focusOwner !== null && focusOwner !== nowScope) {
+        focusSeries = null;
+        focusVariety = null;
+        const st = modeStates[currentMode];
+        if (st) { st.focusSeries = null; st.focusVariety = null; }
+    }
+    focusOwner = nowScope;
+    focusScope = nowScope;
+
     if (currentMode === MODE.SPECIAL) {
         renderSpecialContent();
         return;
@@ -194,6 +213,33 @@ function renderSeriesList(data, title) {
     // ★ 本分类的作用域（用于给手风琴 id 加前缀，避免跨分类撞名 —— 审查报告 B7）
     const accScope = getCategoryScope();
 
+    // ★ 此刻才最终确定"当前位置"的归属：这里渲染的一定是目标分类，
+    //   所以 focusOwner/focusScope 取本分类作用域必然正确。
+    //   为什么不放在 applyRoute / enter* 里定：那两处都可能早于容器建立
+    //   （getContainerKey() 还不代表目标分类），而且这一路上 syncRoute() 会被调用多次，
+    //   归属一旦填错，buildRoute() 就会把 s0/v1 丢掉甚至写成别的分类的序号。
+    //   放在"真正渲染这个分类"的唯一出口上，比在调用链里补更稳。
+    focusOwner = accScope;
+    focusScope = accScope;
+    // ★ 但**序号**不能无条件继承：只有"本次渲染确实展开了某个系列"才保留定位。
+    //   反例（实测）：在 rmb3 展开 s1/v0 → 去搜索 → 再点侧边栏回到 rmb3。
+    //   这条路径既没走 applyRoute（没有 pendingReveal），也没走"能恢复展开态"的
+    //   enterNotesOrCoinsTab，于是界面上一个系列都没展开，而 focus 还把 s1/v0 留着，
+    //   buildRoute() 就写出 …/s1/v0 —— URL 声称的位置和眼前所见不一致，复制出去是错的。
+    //   没有 reveal 指令 = 本次不是"定位跳转"，那就以"什么都没展开"为准。
+    if (!reveal) {
+        focusSeries = null;
+        focusVariety = null;
+    }
+    const st = modeStates[currentMode];
+    if (st) {
+        st.focusOwner = accScope;
+        st.focusScope = accScope;
+        // 序号一并落档：切板块再回来时靠它还原地址栏
+        st.focusSeries = (focusSeries === undefined) ? null : focusSeries;
+        st.focusVariety = (focusVariety === undefined) ? null : focusVariety;
+    }
+
     let html = `<div class="series-header">`;
     html += `<h2>${escapeHtml(title || data.name || '')}</h2>`;
     if (data.desc) html += `<div class="series-desc">${escapeHtml(data.desc)}</div>`;
@@ -342,6 +388,17 @@ function renderCopiesList(copies, detailFields, displayName, accV) {
 //   理由见 core.js 里 accordionTargetOf 的注释：容器复用时同 id 节点可能不止一个，
 //   按 id 查有可能把图标和系列体解析到**不同**的节点上，表现就是"三角形转了但不展开"。
 //   now 从被点元素本身出发按 DOM 结构就近取，图标与 body 必然来自同一行、同一批节点。
+//
+// ★ 末尾的 syncFocusAndRoute()：手风琴的开关也是"位置变化"，要让地址栏跟着走
+//   （展开第 2 个系列 → #notes/rmb3/s2）。不这么做的话，地址栏会停留在进入分类时的
+//   状态，用户此时复制链接得到的是错的。
+function syncFocusAndRoute() {
+    // animateAccordion 是同步加/去 open 类的，所以此刻 DOM 已是最终状态。
+    if (typeof focusFromDom === 'function') focusFromDom();
+    // syncRoute 内部只做 replaceState —— 不会新增历史记录（见 router.js 顶部说明）。
+    if (typeof syncRoute === 'function') syncRoute();
+}
+
 function toggleSeries(id, hintEl) {
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
     const icon = accordionTargetOf(hintEl, 'icon-' + id, '.series-expand-icon');
@@ -353,6 +410,7 @@ function toggleSeries(id, hintEl) {
     // 用精确高度过渡，避免固定 max-height 造成的"弹开后空跑"
     animateAccordion(body, !body.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
+    syncFocusAndRoute();
 }
 
 function toggleVariety(id, hintEl) {
@@ -364,6 +422,7 @@ function toggleVariety(id, hintEl) {
     }
     animateAccordion(list, !list.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
+    syncFocusAndRoute();
 }
 
 // ========== 图片弹窗 ==========

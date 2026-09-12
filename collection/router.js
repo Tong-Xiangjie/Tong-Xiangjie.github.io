@@ -100,6 +100,24 @@ function buildRoute() {
     if (currentView === VIEW.CATEGORY && currentCategoryId) {
         seg.push(String(currentCategoryId));
         if (currentSubId) seg.push(String(currentSubId));
+
+        // ★ 定位段：把"用户此刻停在哪个系列/品种"也编进 URL，让分类页链接可精确分享。
+        //   写出的形态与 parseRoute 解析的形态严格对齐：<mode>/<catId>[/<subId>]/s<i>[/v<j>]
+        //   （格式本来就支持，只是以前 buildRoute 从不写 —— 于是概览跳转后地址栏只到分类级）。
+        //
+        //   ★ 归属用 focusOwner 校验，不用 focusScope：
+        //     focusScope 是"最近写入的作用域"，渲染分类页那一刻会被提前改成新分类，
+        //     而 focusSeries 还是旧分类的 —— 那时用 focusScope 校验会误判为合法
+        //     （实测：从 rmb3 切到纪念钞，地址栏一度变成 #notes/commemorative/s1/v0）。
+        //     focusOwner 只在"确定序号归属"时写入，与渲染时机无关。
+        //   focusVariety 只在系列也有效时才写 —— 单独一个 v1 没有意义（解析出来也定不了位）。
+        if (focusOwner === getCategoryScope() &&
+            focusSeries !== null && focusSeries !== undefined) {
+            seg.push('s' + focusSeries);
+            if (focusVariety !== null && focusVariety !== undefined) {
+                seg.push('v' + focusVariety);
+            }
+        }
     }
     return seg.join('/');
 }
@@ -223,6 +241,10 @@ async function applyRoute(hash, opts) {
                 currentSearchType: SEARCH_TYPE.ALL,
                 expandedSeries: [],
                 expandedVarieties: [],
+                focusOwner: null,
+                focusScope: null,
+                focusSeries: null,
+                focusVariety: null,
                 overviewScrollY: 0,
                 categoryScrollY: 0,
                 searchScrollY: 0
@@ -235,6 +257,16 @@ async function applyRoute(hash, opts) {
                 blank.currentView = VIEW.CATEGORY;
                 blank.currentCategoryId = route.catId || null;
                 blank.currentSubId = route.subId || null;
+                // ★ 定位段的序号必须**在这里**就写进快照。
+                //   enterNotesOrCoinsTab() 是从 modeStates[mode] 恢复全局 focus* 的，
+                //   而 renderSeriesList() 又是在 enter* **内部**跑的。
+                //   若等到 enter* 之后再设全局，renderSeriesList() 看到的还是 null ——
+                //   实测正是如此：它把 modeStates 里的序号又写回了 null，URL 定位段被抹掉。
+                //   （focusOwner/scope 留空，由 renderSeriesList() 在渲染时补上。）
+                if (route.sIdx !== undefined) {
+                    blank.focusSeries = route.sIdx;
+                    blank.focusVariety = (route.vIdx === undefined) ? null : route.vIdx;
+                }
             }
             modeStates[route.mode] = Object.assign({}, modeStates[route.mode] || {}, blank);
         } else if (route.mode === 'articles') {

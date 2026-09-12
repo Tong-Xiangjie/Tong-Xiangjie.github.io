@@ -187,6 +187,11 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
         appEl.innerHTML = '';
     }
 
+    // ★ hasVarieties 是唯一权威：概览条目的 vi 对"无品种系列"也填了值（数据里一律是 0），
+    //   那是 series 内部的条目序号，不是品种序号。若不加这个门控就会写出
+    //   …/s0/v0 这种指向不存在品种的链接（实测），别人点开只会看到一个空展开。
+    const wantVariety = !!(hasVarieties && vi !== null && vi !== undefined && vi !== 'null');
+
     // ★ 登记"待展开条目"：必须在 renderCurrentCategory() **之前**，
     //   renderSeriesList() 会消费它并直接生成已展开的标记。
     //   原来只靠下面的 setTimeout 去补开，一条异步链上任何一环落空就静默失败
@@ -194,9 +199,17 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     pendingReveal = {
         catId: String(currentSubId || currentCategoryId || ''),
         sIdx: si,
-        vIdx: (hasVarieties && vi !== null && vi !== undefined && vi !== 'null') ? vi : null,
+        vIdx: wantVariety ? vi : null,
         cIdx: (ci === null || ci === undefined) ? null : ci
     };
+
+    // ★ 同一份信息也登记进"持续状态"，否则渲染完 pendingReveal 就被置 null，
+    //   之后 buildRoute() 不知道"定位到了哪"，会把刚写好的定位段抹掉。
+    //   focusOwner 由 renderSeriesList() 在渲染该分类时确定（这里还取不到正确 scope）。
+    focusSeries = si;
+    focusVariety = wantVariety ? vi : null;
+    focusOwner = null;
+    focusScope = null;
 
     // 切换到目标容器并渲染
     switchToCurrentContainer();
