@@ -316,7 +316,6 @@ function toggleVariety(id) {
 //   缩略图是原图的等比缩放，所以「缩略图矩形」与「全屏 contain 矩形」宽高比一致，
 //   于是可以只用 translate + 均匀 scale 完成 —— 无畸变、全程 GPU 合成、
 //   且完全不去碰 Hammer 的捏合缩放（它操作 #imageContainer，这里操作独立的飞行图层）。
-let modalOriginalUrl = '';
 let modalLoadToken = 0;
 let modalFlightEl = null;
 let modalFlightTimer = null;
@@ -405,29 +404,39 @@ function openModal(imgSrc1, imgSrc2) {
     const modalImg = document.getElementById('modalImg');
     if (!modal || !modalImg || !imgSrc1) return;
 
-    modalOriginalUrl = imgSrc1;
     const token = ++modalLoadToken;
-    const previewUrl = getThumbUrl(imgSrc1) || imgSrc1;
+    // ★ 弹窗主图直接就是原图，不再走「先缩略图占位、再后台换原图」的两段式。
+    //   缩略图改当 #modalImg 自己的背景垫底：#modalImg 是 100vw/100vh + object-fit:contain，
+    //   背景同样按 contain 铺在同一个盒子里，所以两者完全同框同形、像素级对齐。
+    //   于是原图解码完成前看到的就是同一张图的低清版（不会空白），解码完成后原图
+    //   不透明、正好盖住背景 —— 连交叉淡入都不需要，也没有"先糊后清"的跳变。
+    const thumbUrl = getThumbUrl(imgSrc1);
+    const backdropUrl = (thumbUrl && thumbUrl !== imgSrc1) ? thumbUrl : '';
 
     // 来源缩略图必须就是这一张，否则不做生长动画（例如从别处调用 openModal）
     const sourceEl = lastModalSourceImg;
+    const sourceSrc = (sourceEl && typeof sourceEl.getAttribute === 'function')
+        ? sourceEl.getAttribute('src') : '';
     const canFly = !prefersReducedMotion() && sourceEl && sourceEl.isConnected &&
         typeof sourceEl.getBoundingClientRect === 'function' &&
-        sourceEl.getAttribute('src') === previewUrl;
+        // 来源可能挂在缩略图上，也可能（网格若直接用原图）挂在原图上，两种都认
+        (sourceSrc === imgSrc1 || (!!backdropUrl && sourceSrc === backdropUrl));
 
     cancelModalFlight();
     // 关键：带 forwards 的 .modal-hide 若残留，弹窗会一直不可见
     if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
     modal.classList.remove('modal-hide');
 
-    // 缩略图万一没有 → 回退原图
+    // 原图缺失时退到缩略图（数据里确实存在"引用了但图没上传"的图）
     modalImg.onerror = function () {
         modalImg.onerror = null;
-        if (modalOriginalUrl && modalImg.src !== modalOriginalUrl) {
-            modalImg.src = modalOriginalUrl;
-        }
+        if (backdropUrl && modalImg.src !== backdropUrl) modalImg.src = backdropUrl;
     };
-    modalImg.src = previewUrl;
+    modalImg.style.backgroundImage = backdropUrl ? 'url("' + backdropUrl + '")' : '';
+    modalImg.style.backgroundSize = 'contain';
+    modalImg.style.backgroundPosition = 'center';
+    modalImg.style.backgroundRepeat = 'no-repeat';
+    modalImg.src = imgSrc1;
     modalImg.style.opacity = canFly ? '0' : '';   // 飞行期间先藏着真图，落地后再显形
     modal.classList.add('modal-show');
     modal.style.display = 'flex';
@@ -461,22 +470,6 @@ function openModal(imgSrc1, imgSrc2) {
         }
     }
     if (!flying) modalImg.style.opacity = '';
-
-    // 后台拉原图，到货后替换（用 detached Image，避免干扰弹窗自身的 onload/onerror）
-    if (previewUrl !== imgSrc1) {
-        const full = new Image();
-        full.onload = function () {
-            if (token !== modalLoadToken) return;   // 已切到别的图，丢弃这次结果
-            modalImg.onerror = null;
-            modalImg.src = imgSrc1;
-            const c = document.getElementById('imageContainer');
-            if (c) {
-                c.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
-                currentScale = 1; currentX = 0; currentY = 0;
-            }
-        };
-        full.src = imgSrc1;
-    }
 }
 
 function closeModal() {
@@ -500,7 +493,7 @@ function closeModal() {
         modal.style.display = 'none';
         modal.classList.remove('modal-show', 'modal-hide');
         const img = document.getElementById('modalImg');
-        if (img) { img.src = ''; img.style.opacity = ''; }
+        if (img) { img.src = ''; img.style.opacity = ''; img.style.backgroundImage = ''; }
         const scrollY = parseInt(document.body.style.top || '0') * -1;
         document.body.classList.remove('modal-open');
         document.body.style.top = '';
