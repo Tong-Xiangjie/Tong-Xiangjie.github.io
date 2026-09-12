@@ -23,6 +23,23 @@
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ===== 暗色底（JS 跑起来之前的临时底色）=====
+   真正的暗色调色板是 theme.js 的 applyTheme() 按主题色算出来写在内联样式上的
+   （内联优先级更高，会覆盖这里）。这一块只负责"别闪白"：head 里的内联脚本会先
+   打上 data-color-scheme，页面首次绘制就已是深色。 */
+html[data-color-scheme="dark"] {
+    --bg: #0f1115;
+    --bg-light: #171a20;
+    --sidebar-bg: #14171c;
+    --card-bg: #1b1f26;
+    --text: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --border: #2c313a;
+    --thumb-bg: #23272e;
+    color-scheme: dark;
+}
+html[data-color-scheme="light"] { color-scheme: light; }
+
 /* ===== OCRB 字体 ===== */
 @font-face {
     font-family: 'OCRB10PitchBT-Regular';
@@ -84,7 +101,7 @@ body {
     padding: 4px 8px;
     border: 1px solid var(--border);
     border-radius: 4px;
-    background: #fff;
+    background: var(--card-bg);
     font-size: 0.8rem;
     color: var(--text);
     max-width: 120px;
@@ -114,7 +131,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 0.85rem;
-    background: #fff;
+    background: var(--card-bg);
     color: var(--text);
     outline: none;
 }
@@ -663,7 +680,7 @@ body {
     font-size: 0.95rem;
 }
 .article-reader p { margin: 12px 0; }
-.article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); }
+.article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); cursor: zoom-in; }
 .article-reader center { display: block; text-align: center; }
 
 .article-snippet {
@@ -735,6 +752,38 @@ body {
     transition: background 0.15s;
 }
 .modal-close:hover { background: rgba(0, 0, 0, 0.8); }
+
+/* 正反面切换：圆形按钮，只有两张不同的图时才显示（JS 给 .modal 加 .multi-img） */
+.modal-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 3px;          /* ‹ › 的视觉居中微调 */
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 1001;
+    user-select: none;
+    backdrop-filter: blur(4px);
+    transition: background var(--dur-1) var(--ease-out);
+}
+.modal-nav:hover { background: rgba(0, 0, 0, 0.75); }
+.modal-nav-prev { left: 16px; }
+.modal-nav-next { right: 16px; }
+.modal.multi-img .modal-nav { display: flex; }
+@media (max-width: 600px) {
+    .modal-nav { width: 40px; height: 40px; font-size: 21px; }
+    .modal-nav-prev { left: 8px; }
+    .modal-nav-next { right: 8px; }
+}
 body.modal-open {
     position: fixed;
     top: 0;
@@ -762,6 +811,11 @@ body.modal-open {
     .modal-tip .tip-touch { display: none; }
     .modal-tip .tip-mouse { display: inline; }
 }
+/* 原图还没加载完：提示语换成"原图加载中…"（此时缩放/拖动被禁用，见 initPinchZoom） */
+.modal-tip .tip-loading { display: none; }
+.modal.modal-loading .modal-tip .tip-touch,
+.modal.modal-loading .modal-tip .tip-mouse { display: none; }
+.modal.modal-loading .modal-tip .tip-loading { display: inline; }
 
 /* 大图共享元素过渡：从缩略图位置生长到全屏（关闭时缩回）
    飞行层是独立元素，不使用 #imageContainer，因此不会干扰 Hammer 的捏合缩放。 */
@@ -899,6 +953,33 @@ body.modal-open {
     color: var(--text-secondary);
     margin: 12px 0 6px;
 }
+/* 三态分段控件（跟随系统 / 亮 / 暗） */
+.segmented {
+    display: flex;
+    gap: 2px;
+    margin-top: 8px;
+    padding: 2px;
+    background: var(--thumb-bg);
+    border-radius: 8px;
+}
+.seg-btn {
+    flex: 1;
+    padding: 6px 4px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color var(--dur-2) var(--ease-inout), color var(--dur-2) var(--ease-inout);
+}
+.seg-btn:hover { color: var(--text); }
+.seg-btn.active {
+    background: var(--theme);
+    color: #fff;
+    font-weight: 500;
+}
 .switch {
     flex: none;
     position: relative;
@@ -965,7 +1046,7 @@ body.modal-open {
     border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 0.75rem;
-    background: #fff;
+    background: var(--card-bg);
     color: var(--text);
     outline: none;
     cursor: pointer;
@@ -1275,7 +1356,7 @@ body.modal-open {
 .shanhe-map-inset {
     width: 240px;
     max-width: 100%;
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     padding: 4px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
@@ -1370,7 +1451,7 @@ body.modal-open {
     aspect-ratio: 1 / 1;
     overflow: hidden;
     cursor: pointer;
-    background: #f5f5f5;
+    background: var(--thumb-bg);
     border-radius: 4px;
 }
 .shanhe-list-cell img {

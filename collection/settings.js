@@ -80,6 +80,15 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
+    // 外观（三态：跟随系统 / 亮 / 暗）
+    html += `<div class="settings-section">`;
+    html += `<h3>外观</h3>`;
+    html += renderSegmented('colorSchemeSeg', '明暗', [
+        ['system', '跟随系统'], ['light', '亮'], ['dark', '暗']
+    ], getColorSchemeMode(), 'setColorSchemeMode');
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">暗色下强调色不变（改了会让主题色按钮上的白字看不清），底色是按主题色压暗算出来的。</p>`;
+    html += `</div>`;
+
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
@@ -220,6 +229,33 @@ function setSwitchState(id, on) {
     if (!el) return;
     el.classList.toggle('on', !!on);
     el.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+
+// 三态分段控件（如「明暗：跟随系统 / 亮 / 暗」）。
+// options 是 [[值, 文案], ...]；onPickName 是全局函数名，点一下调 onPickName(值)。
+function renderSegmented(id, label, options, current, onPickName) {
+    let html = `<div class="toggle-card">`;
+    if (label) html += `<div class="toggle-label">${label}</div>`;
+    html += `<div class="segmented" id="${id}" role="radiogroup">`;
+    for (const [value, text] of options) {
+        const active = value === current ? ' active' : '';
+        html += `<button type="button" class="seg-btn${active}" data-value="${value}"`
+            + ` role="radio" aria-checked="${value === current ? 'true' : 'false'}"`
+            + ` onclick="${onPickName}('${value}'); updateSegmented('${id}', '${value}')">${text}</button>`;
+    }
+    html += `</div></div>`;
+    return html;
+}
+
+// 点完立刻更新高亮，不等整页重渲染
+function updateSegmented(id, value) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.querySelectorAll('.seg-btn').forEach(function (btn) {
+        const on = btn.dataset.value === value;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
 }
 
 // ========== 网格画质：缩略图 / 原图 ==========

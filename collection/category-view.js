@@ -320,6 +320,8 @@ let modalLoadToken = 0;
 let modalFlightEl = null;
 let modalFlightTimer = null;
 let modalCloseTimer = null;
+let currentModalSide = 1;      // 当前看的是哪一面：1 = 正面(img1)，2 = 反面(img2)
+let modalFullReady = false;    // 原图是否已解码完成 —— 完成前禁止缩放/拖动
 
 const MODAL_FLIGHT_MS = 320;
 const MODAL_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';
@@ -397,62 +399,125 @@ function startModalFlight(fromRect, toRect, srcUrl, onDone) {
     modalFlightTimer = setTimeout(finish, MODAL_FLIGHT_MS + 80);
 }
 
-function openModal(imgSrc1, imgSrc2) {
-    currentModalImg1 = imgSrc1;
-    currentModalImg2 = imgSrc2;
+// 当前这一面要显示的图（1 = 正面 img1，2 = 反面 img2）
+function currentModalSrc() {
+    return (currentModalSide === 2 && currentModalImg2) ? currentModalImg2 : currentModalImg1;
+}
+
+// 当前这一面的缩略图，用来在 #modalImg 背景上垫底。skip = true 时返回空：
+// 调用方已确认"这张图就是屏幕上那张已加载完的图"，不需要垫底。
+function currentModalBackdrop(skip) {
+    if (skip) return '';
+    const full = currentModalSrc();
+    const t = getThumbUrl(full);
+    return (t && t !== full) ? t : '';
+}
+
+function resetModalZoom() {
+    const container = document.getElementById('imageContainer');
+    if (container) container.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
+    currentScale = 1; currentX = 0; currentY = 0;
+}
+
+// 把「当前这一面」装进弹窗，返回本次加载的 token。
+// ★ 主图直接请求原图，缩略图只当 #modalImg 自己的背景垫底：#modalImg 是
+//   100vw/100vh + object-fit:contain，背景同样按 contain 铺在同一个盒子里，
+//   两者完全同框同形、像素级对齐 —— 原图解码完成前看到的是同一张图的低清版
+//   （不会空白），解码完成后原图不透明正好盖住背景，没有"先糊后清"的跳变。
+// ★ 原图解码完成前**禁止缩放/拖动**（画面还只是低清垫底图）：用 modalFullReady
+//   卡住 Hammer 与滚轮，并给弹窗挂 .modal-loading 把提示语换成"原图加载中…"。
+function loadModalImage(opts) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
-    if (!modal || !modalImg || !imgSrc1) return;
+    if (!modal || !modalImg) return 0;
 
+    const full = currentModalSrc();
+    if (!full) return 0;
     const token = ++modalLoadToken;
-    // ★ 弹窗主图直接就是原图，不再走「先缩略图占位、再后台换原图」的两段式。
-    //   缩略图改当 #modalImg 自己的背景垫底：#modalImg 是 100vw/100vh + object-fit:contain，
-    //   背景同样按 contain 铺在同一个盒子里，所以两者完全同框同形、像素级对齐。
-    //   于是原图解码完成前看到的就是同一张图的低清版（不会空白），解码完成后原图
-    //   不透明、正好盖住背景 —— 连交叉淡入都不需要，也没有"先糊后清"的跳变。
-    const thumbUrl = getThumbUrl(imgSrc1);
-    const backdropUrl = (thumbUrl && thumbUrl !== imgSrc1) ? thumbUrl : '';
+    const backdropUrl = currentModalBackdrop(!!(opts && opts.skipBackdrop));
 
-    // 来源缩略图必须就是这一张，否则不做生长动画（例如从别处调用 openModal）
-    const sourceEl = lastModalSourceImg;
-    const sourceSrc = (sourceEl && typeof sourceEl.getAttribute === 'function')
-        ? sourceEl.getAttribute('src') : '';
-    const canFly = !prefersReducedMotion() && sourceEl && sourceEl.isConnected &&
-        typeof sourceEl.getBoundingClientRect === 'function' &&
-        // 来源可能挂在缩略图上，也可能（网格若直接用原图）挂在原图上，两种都认
-        (sourceSrc === imgSrc1 || (!!backdropUrl && sourceSrc === backdropUrl));
-
-    cancelModalFlight();
-    // 关键：带 forwards 的 .modal-hide 若残留，弹窗会一直不可见
-    if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
-    modal.classList.remove('modal-hide');
+    modalFullReady = false;
+    modal.classList.add('modal-loading');
 
     // 原图缺失时退到缩略图（数据里确实存在"引用了但图没上传"的图）
     modalImg.onerror = function () {
         modalImg.onerror = null;
         if (backdropUrl && modalImg.src !== backdropUrl) modalImg.src = backdropUrl;
     };
+    modalImg.onload = function () {
+        if (token !== modalLoadToken) return;   // 已经翻到另一面了，丢弃这次结果
+        modalFullReady = true;
+        modal.classList.remove('modal-loading');
+    };
     modalImg.style.backgroundImage = backdropUrl ? 'url("' + backdropUrl + '")' : '';
     modalImg.style.backgroundSize = 'contain';
     modalImg.style.backgroundPosition = 'center';
     modalImg.style.backgroundRepeat = 'no-repeat';
-    modalImg.src = imgSrc1;
+    modalImg.src = full;
+    // 命中缓存时 load 事件可能已经错过（complete 同步就是 true）
+    if (modalImg.complete) {
+        modalFullReady = true;
+        modal.classList.remove('modal-loading');
+    }
+    resetModalZoom();
+    return token;
+}
+
+// 正反面切换（圆形 ‹ › 按钮 / 左右方向键）
+function modalFlip(dir) {
+    if (!currentModalImg2) return false;
+    currentModalSide = (currentModalSide === 1) ? 2 : 1;
+    // 翻面不做生长动画：来源缩略图在网格的另一处，飞过去没有意义；
+    // 同时清掉来源引用，免得关闭时"缩回"到另一面的缩略图上。
+    lastModalSourceImg = null;
+    loadModalImage({});
+    const img = document.getElementById('modalImg');
+    if (img) img.style.opacity = '';
+    return true;
+}
+
+function openModal(imgSrc1, imgSrc2) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    if (!modal || !modalImg || !imgSrc1) return;
+
+    currentModalImg1 = imgSrc1;
+    // 正反面是同一张时（文章配图、专题灯箱就是这么调用的）不显示翻面按钮
+    currentModalImg2 = (imgSrc2 && imgSrc2 !== imgSrc1) ? imgSrc2 : '';
+    currentModalSide = 1;
+    imageModalOpen = true;
+    modal.classList.toggle('multi-img', !!currentModalImg2);
+
+    // 来源图必须就是这一张，否则不做生长动画（例如从别处调用 openModal）
+    const sourceEl = lastModalSourceImg;
+    const sourceSrc = (sourceEl && typeof sourceEl.getAttribute === 'function')
+        ? sourceEl.getAttribute('src') : '';
+    // 来源本身就是"要显示的原图"且已加载完（文章配图）：连垫底图都不用，
+    // 顺带省掉一次注定 404 的缩略图请求（文章配图没有生成缩略图）
+    const sourceIsFull = !!sourceEl && sourceEl.tagName === 'IMG' && sourceEl.complete === true &&
+        (sourceEl.currentSrc || sourceSrc) === imgSrc1;
+    const backdrop = currentModalBackdrop(sourceIsFull);
+    const canFly = !prefersReducedMotion() && !!sourceEl && sourceEl.isConnected &&
+        typeof sourceEl.getBoundingClientRect === 'function' &&
+        // 来源可能挂在缩略图上，也可能直接是原图，两种都认
+        (sourceSrc === imgSrc1 || (!!backdrop && sourceSrc === backdrop));
+
+    cancelModalFlight();
+    // 关键：带 forwards 的 .modal-hide 若残留，弹窗会一直不可见
+    if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
+    modal.classList.remove('modal-hide');
+
+    const token = loadModalImage({ skipBackdrop: sourceIsFull });
     modalImg.style.opacity = canFly ? '0' : '';   // 飞行期间先藏着真图，落地后再显形
     modal.classList.add('modal-show');
     modal.style.display = 'flex';
-
-    const container = document.getElementById('imageContainer');
-    if (container) {
-        container.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
-        currentScale = 1; currentX = 0; currentY = 0;
-    }
 
     const scrollY = window.scrollY;
     document.body.classList.add('modal-open');
     document.body.style.top = `-${scrollY}px`;
 
-    modalImg.onload = function() { initPinchZoom(); };
-    if (modalImg.complete) initPinchZoom();
+    // Hammer / 滚轮只绑一次即可，具体是否响应由 modalFullReady 把关
+    initPinchZoom();
 
     let flying = false;
     if (canFly) {
@@ -491,7 +556,9 @@ function closeModal() {
         if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
         cancelModalFlight();
         modal.style.display = 'none';
-        modal.classList.remove('modal-show', 'modal-hide');
+        modal.classList.remove('modal-show', 'modal-hide', 'modal-loading', 'multi-img');
+        imageModalOpen = false;
+        modalFullReady = false;
         const img = document.getElementById('modalImg');
         if (img) { img.src = ''; img.style.opacity = ''; img.style.backgroundImage = ''; }
         const scrollY = parseInt(document.body.style.top || '0') * -1;
@@ -554,17 +621,30 @@ function initPinchZoom() {
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
     }
 
-    hammerManager.on('pinchstart', function(e) { lastScale = currentScale; e.preventDefault(); });
+    // ★ 以下手势一律要求 modalFullReady：原图还没解码完时画面只是低清垫底图，
+    //   此时放大/拖动没有意义（而且拖的是那张垫底图，等原图盖上来位置就错位了）。
+    hammerManager.on('pinchstart', function(e) {
+        if (!modalFullReady) return;
+        lastScale = currentScale; e.preventDefault();
+    });
     hammerManager.on('pinchmove', function(e) {
+        if (!modalFullReady) return;
         let newScale = lastScale * e.scale;
         newScale = Math.min(MODAL_MAX_SCALE, Math.max(1, newScale));
         currentScale = newScale;
         container.style.transform = `translate3d(${currentX}px, ${currentY}px, 0px) scale3d(${currentScale}, ${currentScale}, 1)`;
         e.preventDefault();
     });
-    hammerManager.on('pinchend', function(e) { clampTransform(); e.preventDefault(); });
-    hammerManager.on('panstart', function(e) { lastX = currentX; lastY = currentY; });
+    hammerManager.on('pinchend', function(e) {
+        if (!modalFullReady) return;
+        clampTransform(); e.preventDefault();
+    });
+    hammerManager.on('panstart', function(e) {
+        if (!modalFullReady) return;
+        lastX = currentX; lastY = currentY;
+    });
     hammerManager.on('panmove', function(e) {
+        if (!modalFullReady) return;
         if (currentScale > 1) {
             currentX = lastX + e.deltaX;
             currentY = lastY + e.deltaY;
@@ -572,7 +652,10 @@ function initPinchZoom() {
         }
         e.preventDefault();
     });
-    hammerManager.on('panend', function(e) { clampTransform(); });
+    hammerManager.on('panend', function(e) {
+        if (!modalFullReady) return;
+        clampTransform();
+    });
 
     // ---- 桌面端：滚轮缩放 ----
     // Hammer 的 pinch 只在触摸双指时生效，鼠标本身没有缩放手段，于是灯箱在桌面上
@@ -600,6 +683,7 @@ function initPinchZoom() {
 
     container._wheelZoom = function(e) {
         if (e.ctrlKey) return;                    // Ctrl+滚轮是浏览器自己的缩放，不抢
+        if (!modalFullReady) return;              // 原图没解码完，先别缩
         e.preventDefault();
         zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
     };

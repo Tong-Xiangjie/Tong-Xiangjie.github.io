@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>铜の币纪主站</title>
+    <script>
+        // ★ 在任何样式/绘制之前先把明暗与主题色定下来，否则暗色下会先闪一下白屏。
+        //   （配色细节由 theme.js 的 applyTheme() 随后补全，这里只做"别闪"这一步）
+        (function () {
+            try {
+                var el = document.documentElement;
+                var mode = localStorage.getItem('collection-color-scheme') || 'system';
+                var dark = mode === 'dark' || (mode === 'system' &&
+                    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                el.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
+                el.style.colorScheme = dark ? 'dark' : 'light';
+                var t = localStorage.getItem('app-theme');
+                if (t) el.style.setProperty('--theme', t);
+            } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
+        })();
+    </script>
     <link rel="stylesheet" href="layout.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 </head>
@@ -73,7 +89,10 @@
     <div class="modal-tip">
         <span class="tip-touch">双指缩放 | 拖动查看 | 单击关闭</span>
         <span class="tip-mouse">滚轮缩放 | 拖动查看 | 单击关闭</span>
+        <span class="tip-loading">原图加载中…</span>
     </div>
+    <div class="modal-nav modal-nav-prev" id="modalNavPrev" onclick="modalFlip(-1)" title="看另一面（←）">‹</div>
+    <div class="modal-nav modal-nav-next" id="modalNavNext" onclick="modalFlip(1)" title="看另一面（→）">›</div>
 </div>
 
 <!-- ========== 配置 + 桥接 ========== -->

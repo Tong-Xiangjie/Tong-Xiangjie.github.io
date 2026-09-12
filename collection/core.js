@@ -585,7 +585,8 @@ function setupModalEvents() {
 
     modal.addEventListener('click', function(e) {
         const t = e.target;
-        if (t && t.classList.contains('modal-close')) return;
+        // 关闭按钮与翻面按钮都长在蒙版里，点它们不能被"点哪儿都关"顺手关掉弹窗
+        if (t && t.classList && (t.classList.contains('modal-close') || t.classList.contains('modal-nav'))) return;
 
         // 拖动结束的那一下不算点击（8px 容差，避免手抖误判）
         if (downTime && Date.now() - downTime < 800) {
@@ -608,9 +609,37 @@ function setupModalEvents() {
             lastModalSourceImg = t;
         }
     }, true);
+
+    // ★ 文章阅读器里的配图也可以点开看大图。
+    //   用文档级委托，不依赖渲染时机（文章正文是异步取回后 innerHTML 进去的）。
+    //   文章配图没有生成缩略图，所以正反面传同一张 —— openModal 会自动跳过垫底图，
+    //   也就不会去请求一个注定 404 的缩略图。
+    document.addEventListener('click', function(e) {
+        const t = e.target;
+        if (!t || t.tagName !== 'IMG') return;
+        if (!t.closest || !t.closest('.article-reader')) return;
+        if (t.closest('#imageModal')) return;
+        const src = t.currentSrc || t.src;
+        if (src) openModal(src, src);
+    });
+
+    // ★ 键盘：Esc 关弹窗、左右方向键翻正反面。
+    //   stopImmediatePropagation 是必要的：专题灯箱也监听左右方向键（切换景观图），
+    //   详情卡片也监听 Esc（关自己）。本处理器在页面加载时就注册了，比它们都早，
+    //   因此抢先生效之后可以拦住它们 —— 弹窗开着时，这些键只归弹窗管。
+    document.addEventListener('keydown', function(e) {
+        if (!imageModalOpen) return;
+        if (e.key === 'Escape') { e.stopImmediatePropagation(); closeModal(); return; }
+        if (e.key === 'ArrowLeft') { e.stopImmediatePropagation(); e.preventDefault(); modalFlip(-1); return; }
+        if (e.key === 'ArrowRight') { e.stopImmediatePropagation(); e.preventDefault(); modalFlip(1); }
+    });
 }
 
 let lastModalSourceImg = null;
+// 图片弹窗是否正开着。详情卡片 / 专题灯箱也监听 Esc，需要靠它做"分层关闭"：
+// 弹窗开在它们上面时，Esc 只该关掉最上面那一层。
+let imageModalOpen = false;
+function isImageModalOpen() { return imageModalOpen; }
 
 // ============================================================
 // ★★★★★★★ 图片加载淡入 ★★★★★★★
