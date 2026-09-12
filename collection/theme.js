@@ -119,8 +119,13 @@ function applyTheme(color) {
         el.style.setProperty('--bg', darkenColor(color, 0.94));
         el.style.setProperty('--bg-light', darkenColor(color, 0.90));
         el.style.setProperty('--sidebar-bg', darkenColor(color, 0.92));
-        el.style.setProperty('--card-bg', darkenColor(color, 0.90));
-        el.style.setProperty('--border', darkenColor(color, 0.70));
+        // ★ 卡片/次级底：比 --bg 亮一档，否则卡片和背景对比度只有 1.03:1（几乎分不开）
+        el.style.setProperty('--card-bg', darkenColor(color, 0.86));
+        // ★ 边界色：纯乘法压暗会把 --border 压到和 --bg 只差 1.3:1（11 个预设色全部如此），
+        //   输入框、卡片、返回按钮的边框在暗色下全部"消失"。
+        //   实测：darken(0.70) 后再提亮 0.30，全色板才够 WCAG 1.4.11 要求的 3:1
+        //   （只提亮 0.18 只有 2.0~2.6:1，仍不达标）。
+        el.style.setProperty('--border', lightenColor(darkenColor(color, 0.70), 0.30));
         el.style.setProperty('--thumb-bg', darkenColor(color, 0.80));
         el.style.setProperty('--text', '#e8eaed');
         el.style.setProperty('--text-secondary', '#9aa0a6');

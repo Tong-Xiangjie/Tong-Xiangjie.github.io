@@ -185,6 +185,9 @@ function renderSeriesList(data, title) {
         return;
     }
 
+    // ★ 本分类的作用域（用于给手风琴 id 加前缀，避免跨分类撞名 —— 审查报告 B7）
+    const accScope = getCategoryScope();
+
     let html = `<div class="series-header">`;
     html += `<h2>${escapeHtml(title || data.name || '')}</h2>`;
     if (data.desc) html += `<div class="series-desc">${escapeHtml(data.desc)}</div>`;
@@ -193,7 +196,7 @@ function renderSeriesList(data, title) {
 
     for (let si = 0; si < data.series.length; si++) {
         const series = data.series[si];
-        const seriesId = `series-${si}`;
+        const seriesId = seriesScopeId(accScope, si);
 
         let seriesTotal = 0;
         if (series.varieties) {
@@ -214,7 +217,7 @@ function renderSeriesList(data, title) {
             for (let vi = 0; vi < series.varieties.length; vi++) {
                 const variety = series.varieties[vi];
                 const copies = variety.copies || [];
-                const uid = `v-${si}-${vi}`;
+                const uid = varietyScopeId(accScope, si, vi);
 
                 html += `<div class="variety-row">`;
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}')">`;
@@ -223,13 +226,13 @@ function renderSeriesList(data, title) {
                 html += `<span class="count">${copies.length}件</span>`;
                 html += `<span class="variety-expand-icon" id="icon-${uid}">▼</span>`;
                 html += `</span></div>`;
-                html += `<div class="copy-list" id="list-${uid}">`;
-                html += renderCopiesList(copies, data.detailFields, `${series.seriesName} - ${variety.varietyName}`);
+                html += `<div class="copy-list" id="list-${uid}" data-acc-v="${vi}">`;
+                html += renderCopiesList(copies, data.detailFields, `${series.seriesName} - ${variety.varietyName}`, vi);
                 html += `</div></div>`;
             }
         } else if (series.copies && series.copies.length > 0) {
-            html += `<div class="copy-list open" id="copies-${seriesId}" style="max-height:none;opacity:1;">`;
-            html += renderCopiesList(series.copies, data.detailFields, series.seriesName);
+            html += `<div class="copy-list open" id="copies-${seriesId}" data-acc-series="${si}" data-acc-v="-1" style="max-height:none;opacity:1;">`;
+            html += renderCopiesList(series.copies, data.detailFields, series.seriesName, -1);
             html += `</div>`;
         }
 
@@ -243,13 +246,19 @@ function renderSeriesList(data, title) {
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
-function renderCopiesList(copies, detailFields, displayName) {
+function renderCopiesList(copies, detailFields, displayName, accV) {
     if (!copies || copies.length === 0) {
         return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
     }
+    // ★ accV：本条列表属于哪个品种（无品种层时传 -1）。
+    //   data-copy-index 是 **全局** 序号（openCopyDetail 需要它去 copyDetailList 取数据），
+    //   data-copy-vindex 才是**品种内**序号 —— 深链接里的 cIdx 指的是后者。
+    const vAttr = (accV === undefined || accV === null) ? '' : ` data-acc-v="${accV}"`;
     let html = '';
+    let vIndex = 0;
     for (const c of copies) {
         const idx = copyDetailList.length;
+        const curVIndex = vIndex++;
         copyDetailList.push({ copy: c, name: displayName || '', detailFields: detailFields || [] });
 
         const img1 = getImageUrl(c.img1);
@@ -259,7 +268,7 @@ function renderCopiesList(copies, detailFields, displayName) {
         const catalogNum = c.catalogNumber || c.krause || '';
         const catalogDisplay = formatCatalogNumber(catalogNum);
 
-        html += `<div class="copy-item">`;
+        html += `<div class="copy-item" data-copy-vindex="${curVIndex}"${vAttr}>`;
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
         if (img2) html += `<img class="copy-thumb" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
@@ -293,8 +302,10 @@ function renderCopiesList(copies, detailFields, displayName) {
 }
 
 function toggleSeries(id) {
-    const body = document.getElementById('body-' + id);
-    const icon = document.getElementById('icon-' + id);
+    // ★ 在活动容器内查找（原来用 document.getElementById，会命中隐藏容器里
+    //   文档序更靠前的同名节点 —— 审查报告 B7 / repro-accordion-id-collision.mjs）
+    const body = scopeAccordionLookup('body-' + id);
+    const icon = scopeAccordionLookup('icon-' + id);
     if (!body) return;
     // 用精确高度过渡，避免固定 max-height 造成的"弹开后空跑"
     animateAccordion(body, !body.classList.contains('open'));
@@ -302,8 +313,8 @@ function toggleSeries(id) {
 }
 
 function toggleVariety(id) {
-    const list = document.getElementById('list-' + id);
-    const icon = document.getElementById('icon-' + id);
+    const list = scopeAccordionLookup('list-' + id);
+    const icon = scopeAccordionLookup('icon-' + id);
     if (!list) return;
     animateAccordion(list, !list.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
@@ -351,7 +362,13 @@ function imageContentRect(el) {
 
 // 视口内「按 contain 铺满」的矩形
 function modalContainRect(ar) {
-    const vw = window.innerWidth, vh = window.innerHeight;
+    // ★ 之前这里用 window.innerWidth/innerHeight，而 .modal-img 的盒子是 CSS 的 100vw/100dvh
+    //   —— 两套坐标系在移动端并不相等（地址栏展开时 innerHeight 明显小于 dvh），
+    //   会导致共享元素飞行动画的落点偏移。
+    //   现在直接量 .modal-content 的实际盒子，让 JS 与 CSS 共用同一个来源，天然不会漂移。
+    const box = document.querySelector('.modal-content')?.getBoundingClientRect();
+    const vw = (box && box.width) || window.innerWidth;
+    const vh = (box && box.height) || window.innerHeight;
     let w = vw, h = vw / ar;
     if (h > vh) { h = vh; w = vh * ar; }
     const left = (vw - w) / 2, top = (vh - h) / 2;
@@ -596,6 +613,9 @@ function initPinchZoom() {
     const container = document.getElementById('imageContainer');
     if (!container) return;
     if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
+    // ★ Hammer 走 CDN + defer；若被拦截/离线导致未加载，这里静默降级为"无捏合缩放"，
+    //   而不是让 openModal 整条链路抛 ReferenceError（灯箱仍可看大图）。
+    if (typeof Hammer === 'undefined') return;
     hammerManager = new Hammer.Manager(container);
     const pinch = new Hammer.Pinch();
     const pan = new Hammer.Pan();

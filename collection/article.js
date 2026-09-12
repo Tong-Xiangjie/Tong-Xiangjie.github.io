@@ -281,7 +281,7 @@ function toggleArticleSearchMode() {
   if (articleSearchMode === 'title') {
     articleSearchMode = 'fulltext';
     const input = document.getElementById('searchInput');
-    if (input) { input.removeEventListener('input', doSearch); input.addEventListener('input', doSearch); }
+    if (input) { input.removeEventListener('input', onSearchInput); input.addEventListener('input', onSearchInput); }
     preloadAllArticles().then(() => { if (articleSearchKeyword) renderArticleList(true); });
   } else {
     articleSearchMode = 'title';
@@ -842,7 +842,6 @@ function openArticleReader(index, restoreScroll) {
   const listContainer = viewScrollContainers['articles_list'];
   if (listContainer) {
     articleState.listScrollY = listContainer.scrollTop;
-    scrollMemory['articles-articles_list'] = listContainer.scrollTop;
   }
 
   currentArticleIndex = index;
@@ -906,6 +905,15 @@ function renderArticleReader(article, content) {
 }
 
 function closeArticleReader() {
+  // ★ 收口写 URL（返回列表 → 地址栏回到 #articles）
+  try {
+    closeArticleReaderInner();
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute();
+  }
+}
+
+function closeArticleReaderInner() {
   currentArticleView = VIEW.LIST;
   // 切换到列表时不重置滚动（保留原有位置）
   switchToCurrentContainer();

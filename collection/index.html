@@ -21,7 +21,10 @@
         })();
     </script>
     <link rel="stylesheet" href="layout.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <!-- ★ Hammer.js 只服务于灯箱的双指缩放（category-view.js initPinchZoom，打开弹窗时才调用）。
+         这是全站唯一的跨域请求，原先在 <head> 同步加载会阻塞首屏渲染（跨域 DNS + TLS），
+         加 defer 后不阻塞解析；若 CDN 挂掉也不会让灯箱逻辑抛错（调用处有守卫）。 -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 </head>
 <body>
 
@@ -36,6 +39,7 @@
                 <option value="year">按年份搜索</option>
                 <option value="agency">按评级机构搜索</option>
                 <option value="krause">按目录编号搜索</option>
+                <option value="copyid">按评级编号搜索</option>
             </select>
             <div class="search-input-wrapper">
                 <input type="text" class="search-input" id="searchInput" placeholder="数据还在路上，先让它跑一会儿～" autocomplete="off">
@@ -121,6 +125,9 @@
 
 <!-- ========== ★ 特殊字符面板 ========== -->
 <script src="symbol-picker.js"></script>
+
+<!-- ========== ★ 深链接路由（hash，无需服务端配合） ========== -->
+<script src="router.js"></script>
 
 <!-- ========== 入口 ========== -->
 <script src="main.js"></script>

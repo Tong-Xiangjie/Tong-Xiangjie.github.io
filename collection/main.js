@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         triggerViewAnimation();
         // 首屏里"插入时就已加载完"的图需要补标，否则会一直保持透明
         requestAnimationFrame(sweepLoadedImages);
+
+        // ★ 深链接：数据与首屏都就绪后再应用 URL 里的路由（顺序很重要 ——
+        //   数据没加载完时 applyRoute 会读到空的 DATA_MAP）。
+        if (typeof applyInitialRoute === 'function') applyInitialRoute();
     }
 
     if (prefersReducedMotion()) {
@@ -73,6 +77,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.querySelectorAll('.tab-item').forEach(tab => {
         tab.addEventListener('click', () => onTabClick(tab.dataset.target));
     });
+
+    // ★ 深链接：初始化路由（注册 popstate / hashchange 监听，并把初始状态写进地址栏）
+    if (typeof initRouter === 'function') initRouter();
 
     document.getElementById('searchBtn')?.addEventListener('click', doSearch);
     document.getElementById('resetBtn')?.addEventListener('click', resetSearch);
@@ -92,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     if (getEffectiveSearchMode() === SEARCH_MODE.REALTIME) {
-        document.getElementById('searchInput')?.addEventListener('input', doSearch);
+        document.getElementById('searchInput')?.addEventListener('input', onSearchInput);
     }
 
     setupModalEvents();

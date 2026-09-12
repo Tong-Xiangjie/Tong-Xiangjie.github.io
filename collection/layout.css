@@ -10,6 +10,16 @@
     --thumb-bg: #dce6f0;
     --theme-light: #4096ff;
 
+    /* ===== 安全区域 token =====
+       index.html 声明了 viewport-fit=cover，让页面铺满刘海屏（配合暗色底不出现白边）。
+       但"铺满"之后，底部 Tab、左侧栏、内容右侧就会压到刘海 / Home Indicator 底下。
+       这里把四个安全区内边距收成 token，只在真正贴边的容器上使用；
+       桌面端 env() 恒为 0，行为与改动前完全一致。 */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+
     /* ===== 动效 token =====
        三档时长 + 四条曲线，替代原来"处处 0.2s ease"的单调感。
        --ease-out  进入（快进慢停）  --ease-in  退出（慢起快出）
@@ -29,9 +39,9 @@
    打上 data-color-scheme，页面首次绘制就已是深色。 */
 html[data-color-scheme="dark"] {
     --bg: #0f1115;
-    --bg-light: #171a20;
-    --sidebar-bg: #14171c;
-    --card-bg: #1b1f26;
+    --bg-light: #1a1e25;
+    --sidebar-bg: #171b22;
+    --card-bg: #22262e;
     --text: #e8eaed;
     --text-secondary: #9aa0a6;
     --border: #2c313a;
@@ -64,13 +74,17 @@ body {
 .app-layout {
     display: flex;
     flex-direction: column;
+    /* 100vh 在移动端是"地址栏收起时"的大视口，地址栏一展开底部 Tab 就被推出屏幕。
+       先写 100vh 兜底，再用 100dvh（动态视口）覆盖；不支持 dvh 的浏览器忽略第二行。 */
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
 }
 
 /* ========== 搜索栏 ========== */
 .top-search-container {
-    padding: 8px 14px;
+    /* 横屏刘海在左/右时，搜索框会压到传感器区，这里让出安全区 */
+    padding: 8px calc(14px + var(--sar)) 8px calc(14px + var(--sal));
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
@@ -365,7 +379,9 @@ body {
     border-right: 1px solid var(--border);
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 8px 0;
+    /* 左内边距让出安全区（横屏刘海）；加在滚动容器自身而非内容上，
+       这样滚动时整块列表一起平移，不会出现"文字滑到刘海下面" */
+    padding: 8px 0 8px var(--sal);
     flex-shrink: 0;
     /* 折叠是"宽度变化 → 内容列重新布局"，这一步无法避免（除非改成 transform 抽屉）。
        能去掉的都去掉了：border-width 从不变化（纯空转）、padding 变化只影响侧栏内部
@@ -491,7 +507,8 @@ body {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
-    padding: 16px 8px 16px 16px;
+    /* 左右各让出安全区（横屏刘海），上下由父级 app-layout 的 dvh 与 tabbar 处理 */
+    padding: 16px calc(8px + var(--sar)) 16px calc(16px + var(--sal));
     background: var(--bg);
     /* 只留背景色过渡（主题切换时淡入）；width / min-width / flex / padding / opacity
        在这里都是空转 —— 内容列是用 flex:1 分配宽度的，没有显式 width 可插值，
@@ -715,7 +732,9 @@ body {
     position: relative;
     cursor: default;
     max-width: 100vw;
+    /* 与 .modal-img 保持一致，否则灯箱在移动端会比视口高出一截 */
     max-height: 100vh;
+    max-height: 100dvh;
 }
 .image-container {
     display: flex;
@@ -728,13 +747,17 @@ body {
     display: block;
     width: 100vw;
     height: 100vh;
+    /* dvh 覆盖：地址栏展开/收起时图片不会溢出或留黑边 */
+    height: 100dvh;
     object-fit: contain;
     pointer-events: none;
 }
 .modal-close {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    /* 让出安全区：横屏时刘海在左/右、竖屏时顶部有传感器区，
+       关闭按钮原本固定 20px，贴边的机型会压到刘海下面点不到 */
+    top: calc(20px + var(--sat));
+    right: calc(20px + var(--sar));
     width: 30px;
     height: 30px;
     background: rgba(0, 0, 0, 0.6);
@@ -857,6 +880,10 @@ body.modal-open {
     flex-shrink: 0;
     position: relative;
     z-index: 100;
+    /* ★ Home Indicator 会让出：底部 Tab 是"贴底"元素，加了这个内边距后
+       5 个 Tab 才不会被 iPhone 底部横条压住 / 误触。
+       桌面端与不支持 env() 的浏览器取 0，视觉零变化。 */
+    padding-bottom: var(--sab);
 }
 .tab-item {
     flex: 1;
@@ -1387,7 +1414,10 @@ body.modal-open {
     100% { transform: translateX(200%); width: 40%; }
 }
 
-@media (max-width: 760px) {
+/* ★ 断点集中在文件末尾的说明里；此处与 .sidebar 的 768px 对齐。
+   原来这里是 760px，而 .sidebar 用 768px、special.js 的 isMobile 也用 760px，
+   在 760~768px 这段窄平板宽度上会出现"侧栏按手机收窄、山河图却按桌面排版"的错配。 */
+@media (max-width: 768px) {
     .shanhe-map-wrap { padding-right: 0; gap: 10px; }
     .shanhe-map-wrap > svg { max-height: 60vh; }
     .shanhe-map-inset { width: 85%; margin-left: 0; }
@@ -1876,6 +1906,43 @@ body.modal-open {
 }
 
 /* ============================================================
+   ★ 键盘焦点可见（无障碍 / WCAG 2.4.7）
+   背景：全站有 5 处 `outline: none`（.search-select、.search-input、
+   .symbol-trigger、.price-sort-select/.price-filter-select、.timeline-filter-select）
+   把浏览器默认焦点环去掉了，却没有补上替代样式 —— 结果是纯键盘用户
+   （Tab / Shift+Tab 导航）看不到自己现在停在哪个控件上，无法使用。
+   这里统一补一个可见焦点环：
+     · 用 :focus-visible 而不是 :focus —— 鼠标点击、触屏点按不会出现焦点环
+       （这也是原来那些 outline:none 想达到的效果），只有键盘操作才出现。
+     · 颜色取主题色，暗色下用 --theme-light（applyTheme 会按对比度调整它）。
+     · 用 outline + outline-offset 而不是 box-shadow：不受元素 overflow/圆角裁剪，
+       也不会改变布局（outline 不占空间，不会引起重排）。
+   ============================================================ */
+:focus-visible {
+    outline: 2px solid var(--theme);
+    outline-offset: 2px;
+}
+/* 暗色主题下 --theme 可能在深色底上偏暗，用浅一档的主题色更清楚 */
+html[data-color-scheme="dark"] :focus-visible {
+    outline-color: var(--theme-light, var(--theme));
+}
+/* 不支持 :focus-visible 的旧浏览器（Safari < 15.4 / Firefox < 85）：
+   这些浏览器会直接忽略上面两条规则，等于没有焦点环。
+   下面的后半段选择器（:focus:not(:focus-visible)）在**支持**的浏览器里把
+   鼠标点击的焦点环去掉，在不支持的浏览器里整条规则失效（不会误删键盘焦点环）。 */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+/* 输入类控件本身已有 border-color 变化作为焦点反馈，再叠一个 2px 外环略重，
+   改成内描边式的细环，既清楚又不显得笨重。 */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--theme);
+    outline-offset: 1px;
+}
+
+/* ============================================================
    ★ 减少动态效果（无障碍）
    尊重系统设置：动效与平滑滚动全部降为瞬时。
    ============================================================ */
@@ -1887,3 +1954,13 @@ body.modal-open {
         scroll-behavior: auto !important;
     }
 }
+
+/* ============================================================
+   ★ 响应式断点约定（改动前请先看这里）
+   全站只保留三档，按"内容放不下才收"来分，不要新增临时数字：
+     768px —— 平板/大屏手机：侧栏收窄到 25%、方寸山河图改竖排、山河内嵌图字号放大
+     600px —— 竖屏手机：时间轴改纵向堆叠、灯箱左右箭头加大
+     520px —— 窄屏手机：顶部搜索栏改单行挤压
+   special.js 里 `isMobile` 的 matchMedia 判断也必须是 768px，否则会出现
+   "CSS 按手机排版、JS 按桌面排版"的错配（历史上 760/768 混用过）。
+   ============================================================ */

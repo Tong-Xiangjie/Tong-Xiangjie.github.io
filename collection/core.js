@@ -2,9 +2,30 @@
 // 常量定义
 const MODE = { NOTES: 'notes', COINS: 'coins', SPECIAL: 'special', ARTICLES: 'articles', SETTINGS: 'settings' };
 const VIEW = { OVERVIEW: 'overview', CATEGORY: 'category', SEARCH: 'search', LIST: 'list', READER: 'reader' };
-const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year', AGENCY: 'agency', KRAUSE: 'krause' };
+const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year', AGENCY: 'agency', KRAUSE: 'krause', COPYID: 'copyid' };
 const SEARCH_MODE = { CLICK: 'click', REALTIME: 'realtime' };
-const KRAUSE_PREFIX = 'Pick# ';
+// ★ 目录编号前缀归一化。
+//   实测各数据文件 catalogNumber/krause 的原始形态只有三类：
+//     ① 纯编号（324 条，如 "41a" / "130"）——不带前缀
+//     ② "KM# 130"（5 条，克劳斯硬币目录）——目录名 + '#' + 空格
+//     ③ "Sun-J2a1"（1 条）——"Sun" 是**编号本身的一部分**，不是可省的前缀
+//         （下方 formatCatalogNumber 也专门用 /^sun[-#]/i 保留它，可互相印证）
+//   以前只把 'Pick# ' 当特例剥掉，于是 ② 搜不到（审查报告 B3）。
+//   ★ 刻意**不**把 sun / 裸 krause 当作前缀：那会把 ③ 剥成 "J2a1"，造成真实回归。
+const CATALOG_PREFIX_RE = /^(?:pick|km)\s*[-#]\s*/i;
+
+// 搜索用字符串归一化：NFKC（全角→半角，ＫＭ＃→KM#）→ 去掉所有空白 → 小写。
+// 这样 'KM# 130' / 'KM#130' / 'ＫＭ＃130' 会被视为同一个串。
+function normalizeForSearch(v) {
+    if (v === undefined || v === null) return '';
+    return String(v).normalize('NFKC').replace(/[\s\u3000\u00a0]+/g, '').toLowerCase();
+}
+
+// 剥掉目录编号前缀（不区分大小写、不区分空白与全角）
+function stripCatalogPrefix(v) {
+    if (v === undefined || v === null) return '';
+    return String(v).normalize('NFKC').replace(CATALOG_PREFIX_RE, '');
+}
 
 // ========== 目录编号格式化（统一规则） ==========
 function formatCatalogNumber(num) {
@@ -25,8 +46,23 @@ function formatCatalogNumber(num) {
 const SITE_BASE = 'https://tong-xiangjie.github.io/';
 const IMAGE_BASE = SITE_BASE + 'notecollection/image/';
 
+// ★ 坏文件名占位符：数据里有一批写成 ".../rmb3/-1.jpg" 的引用 —— URL 前缀齐全、
+//   但文件名是空的（只有 -1 / -2 这种编号），磁盘上当然不存在，必然 404。
+//   实测 38 处 / 19 件（rmb3.js 30、rmb2.js 4、hk_gov.js 4）。
+//   这里统一归一化成空串，让调用方直接走"无图"分支（分类卡片显示「我的图捏？？？」、
+//   概览/时间轴显示「无图」），比修 38 处数据更稳：以后录数据再犯同样的错也不会破图，
+//   而且不会再往 failedImages 里灌 404 → 顶部「图片加载失败」角标不会一直挂着。
+//   注意：这是**渲染层**归一化，数据文件保持原样（check-data.mjs 仍会把这些列为
+//   "文件名是空的" WARN，作为数据待补清单，这是有意保留的）。
+const PLACEHOLDER_IMG_RE = /^-\d+\.[a-z0-9]+$/i;
+
 function getImageUrl(path, subDir = 'comm') {
     if (!path) return '';
+    // ★ 占位符判定必须放在最前面 —— 数据里的 img1/img2 写的是**完整绝对 URL**
+    //   （如 https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg），
+    //   放在 http:// 分支之后就永远走不到了。这里只看 basename，所以对
+    //   722-1.jpg / 1943-10-17-1.jpg 这类正常带连字符的文件名不会误判。
+    if (PLACEHOLDER_IMG_RE.test(path.substring(path.lastIndexOf('/') + 1))) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
@@ -117,6 +153,8 @@ function prefersReducedMotion() {
 }
 
 // 平滑滚动（reduced-motion 时改为瞬时跳转）
+// ★ 保留：跳转到搜索结果时用它把目标手风琴滚到视野中央
+//   （此前它一度是"零调用"的死代码，现已接入 navigateToCopy）
 function scrollIntoViewSmooth(el, block) {
     if (!el || typeof el.scrollIntoView !== 'function') return;
     el.scrollIntoView({
@@ -166,13 +204,11 @@ function animateAccordion(el, open) {
 
 // ========== 全局状态 ==========
 let currentMode = MODE.NOTES;
-let currentTab = MODE.NOTES;
 let currentCategoryId = null;
 let currentSubId = null;
 let currentView = VIEW.OVERVIEW;
 let currentSearchKeyword = '';
 let currentSearchType = SEARCH_TYPE.ALL;
-let scrollMemory = {};
 let isSettingsMode = false;
 let settingsReturnState = null;
 let isSidebarCollapsed = false;
@@ -248,10 +284,6 @@ function ensureViewContainer(key) {
 }
 
 // ★ 所有模式都使用独立容器，#app 不再用于渲染
-function isFullPageMode(key) {
-    return false;
-}
-
 function getContainerKey() {
     // ★ 优先判断：如果正在设置页，直接返回设置容器 key
     if (isSettingsMode) {
@@ -305,6 +337,73 @@ function switchViewContainer(key) {
 function getRenderContainer() {
     const key = getContainerKey();
     return ensureViewContainer(key);
+}
+
+// ========== ★ 手风琴（系列 / 品种）ID 的作用域处理 ==========
+// 问题（审查报告 B7，复现脚本 repro-accordion-id-collision.mjs）：
+//   系列与品种的 DOM id 是 `series-${si}` / `v-${si}-${vi}`，**没有分类前缀**。
+//   而视图容器的 DOM 是复用的（switchViewContainer 只改 display，不清空），
+//   于是隐藏容器里旧分类的 body-series-0 仍然留在文档中。
+//   document.getElementById('body-series-0') 返回的是**文档序第一个**，
+//   结果是"在 A 分类展开的系列，切到 B 分类后被恢复到了 A 的隐藏节点上"。
+// 修法（两道保险）：
+//   ① ID 带上分类作用域前缀 → 不同分类之间不可能再撞名；
+//   ② 查询一律限定在**当前活动容器**内（scopeAccordionLookup）→
+//      即使还有别的历史节点残留在文档里也不会被误命中。
+
+// 当前分类的作用域标识。用 getContainerKey() 保证与"哪个滚动容器"一一对应
+// （所以设置页、搜索结果、文章等非分类视图不会与分类页冲突）。
+function getCategoryScope() {
+    return getContainerKey().replace(/[^a-zA-Z0-9_\-]/g, '_');
+}
+
+function seriesScopeId(scope, si) { return scope + '-s' + si; }
+function varietyScopeId(scope, si, vi) { return scope + '-v' + si + '-' + vi; }
+
+// 收起活动容器里的全部手风琴（系列 + 品种）。
+// 深链接/搜索结果跳转前先收干净，避免一次性播放十几个展开动画。
+// ★ 只动活动容器：隐藏容器里的状态保留着，用户切回去还是原样。
+function closeAllAccordions() {
+    const container = getRenderContainer();
+    if (!container) return;
+    container.querySelectorAll('.series-body.open, .copy-list.open').forEach(el => {
+        el.classList.remove('open');
+        el.style.maxHeight = '';
+    });
+    container.querySelectorAll('.series-expand-icon.open, .variety-expand-icon.open').forEach(el => {
+        el.classList.remove('open');
+    });
+}
+
+// 在活动容器内查元素；容器里找不到再退化为全局查（兼容尚未加前缀的历史调用）
+function scopeAccordionLookup(domId) {
+    const container = getRenderContainer();
+    if (container) {
+        const el = container.querySelector('[id="' + String(domId).replace(/"/g, '\\"') + '"]');
+        if (el) return el;
+    }
+    return document.getElementById(domId);
+}
+
+// 当前活动容器里、所有属于某分类作用域的展开态。
+// ★ 只查活动容器、且只认本作用域前缀 —— 这样"收集到的状态"与"待恢复的目标"必然对得上。
+function collectScopedExpanded() {
+    const container = getRenderContainer();
+    const scope = getCategoryScope();
+    const expandedSeries = [];
+    const expandedVarieties = [];
+    if (!container) return { expandedSeries, expandedVarieties };
+    container.querySelectorAll('.series-body.open').forEach(el => {
+        const id = el.id || '';
+        const prefix = 'body-' + scope + '-s';
+        if (id.startsWith(prefix)) expandedSeries.push(id.slice('body-'.length));
+    });
+    container.querySelectorAll('.copy-list.open').forEach(el => {
+        const id = el.id || '';
+        const prefix = 'list-' + scope + '-v';
+        if (id.startsWith(prefix)) expandedVarieties.push(id.slice('list-'.length));
+    });
+    return { expandedSeries, expandedVarieties };
 }
 
 // ★ 作废所有已渲染视图的 DOM。
@@ -362,10 +461,6 @@ function getCategoryTree() {
     return currentMode === MODE.NOTES ? categoryTree : coinCategoryTree;
 }
 
-function getImageBase() {
-    return '';
-}
-
 function getAllDataKeys() {
     return currentMode === MODE.NOTES ? allDataKeys : coinAllDataKeys;
 }
@@ -379,10 +474,6 @@ function getData(dataKey) {
         return window.FUN_DATA_MAP && window.FUN_DATA_MAP[dataKey] ? window.FUN_DATA_MAP[dataKey] : null;
     }
     return null;
-}
-
-function getSubCategoryMap() {
-    return currentMode === MODE.NOTES ? subCategoryMap : {};
 }
 
 // 把内部 dataKey 映射成人能读的分类路径（纸币要带上父分类，如 rmb3Data → 中国 - 第三套人民币）。
@@ -427,37 +518,10 @@ function escapeHtml(str) {
     });
 }
 
-function saveScroll(key) {
-    const content = document.querySelector('.content');
-    if (content) scrollMemory[currentMode + '-' + key] = content.scrollTop;
-}
-
-function restoreScroll(key) {
-    const sk = currentMode + '-' + key;
-    if (scrollMemory[sk] !== undefined) {
-        requestAnimationFrame(() => {
-            const content = document.querySelector('.content');
-            if (content) content.scrollTop = scrollMemory[sk];
-        });
-    }
-}
-
 function collectExpandedStates() {
-    const expandedSeries = [];
-    const expandedVarieties = [];
-    document.querySelectorAll('.series-body.open').forEach(el => {
-        const id = el.id;
-        if (id && id.startsWith('body-series-')) {
-            expandedSeries.push(id.replace('body-', ''));
-        }
-    });
-    document.querySelectorAll('.copy-list.open').forEach(el => {
-        const id = el.id;
-        if (id && (id.startsWith('list-v-') || id.startsWith('list-s-'))) {
-            expandedVarieties.push(id.replace('list-', ''));
-        }
-    });
-    return { expandedSeries, expandedVarieties };
+    // ★ 改为"只收集当前活动容器里、本分类作用域下"的展开态（原来是无差别全文档扫描，
+    //   会把隐藏容器里其它分类的节点也算进来 —— 见文件上方 getCategoryScope 的说明）。
+    return collectScopedExpanded();
 }
 
 function toggleSidebar() {
@@ -468,24 +532,15 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed', isSidebarCollapsed);
     toggle.textContent = '☰';
     toggle.title = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
+    // ★ 这里**有意**同时写两个板块的状态（不是笔误）：折叠是"想让内容区更宽"的界面偏好，
+    //   不随板块切换而变，否则会出现"纸币折叠着、切到硬币又自己展开"的跳变。
+    //   readme 第 9 节曾误写成"两个板块独立保存"，已按此实现更正文档。
     if (modeStates.notes) modeStates.notes.isSidebarCollapsed = isSidebarCollapsed;
     if (modeStates.coins) modeStates.coins.isSidebarCollapsed = isSidebarCollapsed;
 
     if (typeof fitSidebarLabelsDelayed === 'function') {
         fitSidebarLabelsDelayed();
     }
-}
-
-function scrollToTop() {
-    const content = document.querySelector('.content');
-    if (content) content.scrollTop = 0;
-}
-
-function getDataBySource(dataKey, source) {
-    if (source === 'coins') {
-        return window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey] ? window.COIN_DATA_MAP[dataKey] : null;
-    }
-    return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
 }
 
 // ========== 状态保存与恢复 ==========
@@ -519,7 +574,6 @@ function saveFullState() {
             categoryScrollY: currentView === VIEW.CATEGORY ? scrollY : (prev.categoryScrollY || 0),
             searchScrollY: currentView === VIEW.SEARCH ? scrollY : (prev.searchScrollY || 0)
         };
-        scrollMemory[currentMode + '-' + key] = scrollY;
     } else if (currentMode === MODE.ARTICLES && !isSettingsMode) {
         const prev = articleState;
         articleState = {
@@ -530,7 +584,6 @@ function saveFullState() {
             listScrollY: currentArticleView === VIEW.LIST ? scrollY : (prev.listScrollY || 0),
             readerScrollY: currentArticleView === VIEW.READER ? scrollY : (prev.readerScrollY || 0)
         };
-        scrollMemory['articles-' + key] = scrollY;
     } else if (currentMode === MODE.SPECIAL && !isSettingsMode) {
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             const cfg = getSpecialConfigs().find(c => c.id === selectedSpecial);
@@ -639,7 +692,6 @@ let lastModalSourceImg = null;
 // 图片弹窗是否正开着。详情卡片 / 专题灯箱也监听 Esc，需要靠它做"分层关闭"：
 // 弹窗开在它们上面时，Esc 只该关掉最上面那一层。
 let imageModalOpen = false;
-function isImageModalOpen() { return imageModalOpen; }
 
 // ============================================================
 // ★★★★★★★ 图片加载淡入 ★★★★★★★

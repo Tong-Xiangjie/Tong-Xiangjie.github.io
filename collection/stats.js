@@ -272,61 +272,27 @@ function buildPriceFilterCategories() {
     return cats;
 }
 
-function buildCategoryOrder() {
-    const order = {};
-    let index = 0;
+// ★ 原 buildCategoryOrder() 已删除：全站零调用。
+//   分类顺序现在直接由 getAllDataKeys() 给出。
 
-    if (window.DATA_MAP) {
-        for (const cat of categoryTree) {
-            if (cat.children) {
-                for (const sub of cat.children) {
-                    if (window.DATA_MAP[sub.dataKey]) {
-                        order[sub.dataKey] = index++;
-                    }
-                }
-            } else if (cat.dataKey) {
-                if (window.DATA_MAP[cat.dataKey]) {
-                    order[cat.dataKey] = index++;
-                }
-            }
-        }
-    }
-
-    if (window.COIN_DATA_MAP) {
-        for (const cat of coinCategoryTree) {
-            if (window.COIN_DATA_MAP[cat.dataKey]) {
-                order[cat.dataKey] = index++;
-            }
-        }
-    }
-
-    return order;
+// ★ 按分类筛选价格列表。
+//   原来这里是 `allowedNames.includes(p.name)` —— 按**名称字符串**比对，两个问题：
+//     ① 同名系列散落在两个 dataKey 里时会互相串入（价格列表与顶部汇总数字对不上）；
+//     ② 每渲染一次都要把整个分类的所有名称拼成一个数组再 O(n) 线性查找，纯浪费。
+//   现在直接按 (dataKey, source) 筛选：prices 条目本身已带 dataKey 与 type 字段。
+//   ★ 注意 dataKey **不是全局唯一**：纸币的纪念钞与硬币的纪念币都叫 'commemorativeData'
+//     （硬币那条用 dataVar: 'coincommData' 区分变量名）。二者被分别放进 DATA_MAP 与
+//     COIN_DATA_MAP，所以必须连 source 一起比，只比 dataKey 会把两者混在一起。
+function filterPricesByCategory(prices, filterInfo) {
+    if (!filterInfo || !filterInfo.dataKey) return prices;
+    const wantKey = filterInfo.dataKey;
+    const wantSource = filterInfo.source;
+    return prices.filter(p => p.dataKey === wantKey && (!wantSource || p.type === wantSource));
 }
 
 function renderPriceListItems(prices, order, filter, filterInfo) {
-    let filteredPrices = prices;
-    if (filter && filter !== 'all' && filterInfo) {
-        const data = getDataBySource(filterInfo.dataKey, filterInfo.source);
-        if (data && data.series) {
-            const allowedNames = [];
-            for (const series of data.series) {
-                if (series.varieties) {
-                    for (const v of series.varieties) {
-                        if (v.copies) {
-                            for (const c of v.copies) {
-                                allowedNames.push(series.seriesName + ' - ' + v.varietyName);
-                            }
-                        }
-                    }
-                } else if (series.copies) {
-                    for (const c of series.copies) {
-                        allowedNames.push(series.seriesName);
-                    }
-                }
-            }
-            filteredPrices = prices.filter(p => allowedNames.includes(p.name));
-        }
-    }
+    // prices 已由调用方按分类筛好（避免这里再筛一次导致汇总与列表不同源）
+    const filteredPrices = prices;
 
     let sorted;
     if (order === 'default') {
@@ -375,26 +341,10 @@ function onPriceSortOrFilterChange() {
         const matchedCat = filterCats.find(c => c.id === filter);
         if (matchedCat) {
             filterInfo = { dataKey: matchedCat.dataKey, source: matchedCat.source };
-            const data = getDataBySource(matchedCat.dataKey, matchedCat.source);
-            if (data && data.series) {
-                const allowedNames = [];
-                for (const series of data.series) {
-                    if (series.varieties) {
-                        for (const v of series.varieties) {
-                            if (v.copies) {
-                                for (const c of v.copies) {
-                                    allowedNames.push(series.seriesName + ' - ' + v.varietyName);
-                                }
-                            }
-                        }
-                    } else if (series.copies) {
-                        for (const c of series.copies) {
-                            allowedNames.push(series.seriesName);
-                        }
-                    }
-                }
-                filteredPrices = stats.prices.filter(p => allowedNames.includes(p.name));
-            }
+            // ★ 用同一个函数筛，然后把这个结果同时交给汇总与列表 —— 
+            //   以前汇总用 allowedNames 筛、列表却在 renderPriceListItems 内部再筛一遍，
+            //   两套逻辑一旦有差异就会"汇总数字和下面列表对不上"。
+            filteredPrices = filterPricesByCategory(stats.prices, filterInfo);
         }
     }
 
@@ -410,14 +360,9 @@ function onPriceSortOrFilterChange() {
         }
     }
 
-    bodyEl.innerHTML = renderPriceListItems(stats.prices, order, filter, filterInfo);
+    bodyEl.innerHTML = renderPriceListItems(filteredPrices, order, filter, filterInfo);
 }
 
-function changePriceSort(order) {
-    const sortSelect = document.getElementById('priceSortSelect');
-    if (sortSelect) sortSelect.value = order;
-    onPriceSortOrFilterChange();
-}
 
 function switchRatingMode(mode) {
     ratingMode = mode;

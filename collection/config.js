@@ -122,21 +122,10 @@ const categoryTree = [
     }
 ];
 
-// 子分类查找映射
-const subCategoryMap = {};
-(function buildMap() {
-    for (const cat of categoryTree) {
-        if (cat.children) {
-            for (const sub of cat.children) {
-                subCategoryMap[sub.id] = {
-                    parentId: cat.id,
-                    name: sub.name,
-                    dataKey: sub.dataKey
-                };
-            }
-        }
-    }
-})();
+// ★ 原 subCategoryMap（子分类查找映射）已删除：
+//   它只被 core.js:getSubCategoryMap() 使用，而那个函数全站零调用；
+//   而且 coin-config.js 里从来没有对应定义，一旦在硬币模式下被调用就是 ReferenceError。
+//   category-view.js 早已改用 findDataKeyByCategory()，这里不再需要第二份索引。
 
 // 所有 dataKey 列表
 const allDataKeys = [];

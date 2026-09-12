@@ -166,6 +166,15 @@ function renderSpecialOverview() {
 
 // ========== 点击专题 ==========
 function onSpecialOverviewItemClick(configId) {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        onSpecialOverviewItemClickInner(configId);
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function onSpecialOverviewItemClickInner(configId) {
     selectedSpecial = configId;
     currentCategoryId = configId;
     currentSubId = null;
@@ -416,6 +425,15 @@ function specialLightboxKeyHandler(e) {
 
 // ========== 方寸山河：视图切换 ==========
 function shanheSwitchView(view) {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        shanheSwitchViewInner(view);
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function shanheSwitchViewInner(view) {
     if (shanheViewMode === view) return;
     // ★★★ 保存当前视图状态 ★★★
     saveFullState();
@@ -438,6 +456,15 @@ function shanheSwitchView(view) {
 }
 
 function backFromShanheToOverview() {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        backFromShanheToOverviewInner();
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function backFromShanheToOverviewInner() {
     saveFullState(); // 保存当前专题滚动
     selectedSpecial = null;
     currentCategoryId = null;
@@ -879,7 +906,10 @@ function buildShanheInset(mainSvg, countByProvince, maxCount, themeLightRGB, con
     const mainVbW = (mainSvg.viewBox && mainSvg.viewBox.baseVal) ? mainSvg.viewBox.baseVal.width : 595.28;
     const mainScale = mainSvg.getBoundingClientRect().width / mainVbW;
     const insetScale = svg.getBoundingClientRect().width / (maxX - minX);
-    const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+    // ★ 断点必须与 layout.css 一致（768px）。原来是 760px，而 CSS 里 .sidebar 的
+    //   收窄断点也是 768px，于是 760~768px 这段宽度会出现「侧栏按手机收窄、
+    //   山河图却按桌面字号排版」的错配。
+    const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
     const fontFactor = isMobile ? 1 : 0.55;
     const baseSize = insetScale > 0 ? 12 * mainScale / insetScale * fontFactor : 12;
     const strokeScale = mainScale / insetScale;
@@ -981,6 +1011,15 @@ function renderShanheProvince(config) {
 }
 
 function backFromShanheMap() {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        backFromShanheMapInner();
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function backFromShanheMapInner() {
     saveFullState(); // 保存省份列表滚动
     currentSubId = null;
     shanheViewMode = 'map';
@@ -1053,6 +1092,15 @@ function parseChineseDate(dateStr) {
 
 // ---------- 排序切换 ----------
 function setTimelineOrder(order) {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        setTimelineOrderInner(order);
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function setTimelineOrderInner(order) {
     if (timelineSortOrder === order) return;
     timelineSortOrder = order;
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
@@ -1061,6 +1109,15 @@ function setTimelineOrder(order) {
 
 // ---------- 筛选变更 ----------
 function onTimelineFilterChange() {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        onTimelineFilterChangeInner();
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function onTimelineFilterChangeInner() {
     const yearSelect = document.getElementById('timelineYearFilter');
     const monthSelect = document.getElementById('timelineMonthFilter');
     if (yearSelect) timelineFilterYear = yearSelect.value;
@@ -1071,6 +1128,15 @@ function onTimelineFilterChange() {
 
 // ---------- 返回专题概览 ----------
 function backFromTimeline() {
+    // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
+    try {
+        backFromTimelineInner();
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function backFromTimelineInner() {
     saveFullState(); // 保存时间轴滚动
     selectedSpecial = null;
     currentCategoryId = null;
@@ -1337,10 +1403,10 @@ function renderTimelineContent(config) {
                 html += `<div class="timeline-card">`;
                 html += `<div class="timeline-images">`;
                 if (img1) {
-                    html += `<img class="timeline-img" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
+                    html += `<img class="timeline-img" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
                 }
                 if (img2) {
-                    html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
+                    html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
                 }
                 if (!img1 && !img2) {
                     html += `<div class="timeline-no-img">无图</div>`;
@@ -1360,6 +1426,8 @@ function renderTimelineContent(config) {
     html += `</div>`;
 
     app.innerHTML = html;
+    // ★ 时间轴曾漏了这一步（其它专题页都有），导致本页图片从不进入预缓存队列
+    if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
     // ★★★ 恢复时间轴滚动（使用专题缓存） ★★★
     if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
         setTimeout(() => {

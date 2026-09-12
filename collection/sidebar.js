@@ -125,6 +125,15 @@ function renderSidebar() {
 }
 
 function onSidebarItemClick(catId) {
+    // ★ try/finally 统一收口写 URL（本函数有 5 个提前 return 分支）
+    try {
+        onSidebarItemClickInner(catId);
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function onSidebarItemClickInner(catId) {
     // ★ 专题模式
     if (currentMode === MODE.SPECIAL) {
         if (selectedSpecial === catId) {
@@ -188,6 +197,15 @@ function onSidebarItemClick(catId) {
 }
 
 function onSidebarChildClick(parentId, subId) {
+    // ★ try/finally 统一收口写 URL（本函数有 4 个提前 return 分支）
+    try {
+        onSidebarChildClickInner(parentId, subId);
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function onSidebarChildClickInner(parentId, subId) {
     // ★ 专题模式（按年代筛选）
     if (currentMode === MODE.SPECIAL) {
         if (currentSubId === subId) {

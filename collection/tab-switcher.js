@@ -1,6 +1,15 @@
 // ==================== tab-switcher.js ====================
 
 function enterSettings() {
+    // ★ 收口写 URL（onTabClick 已在外层同步，但本函数也会被路由/其它入口直接调用）
+    try {
+        enterSettingsInner();
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function enterSettingsInner() {
     isSettingsMode = true;
     currentSearchKeyword = '';
     articleSearchKeyword = '';
@@ -20,6 +29,16 @@ function enterSettings() {
 }
 
 function onTabClick(target) {
+    // ★ try/finally 统一收口写 URL：这个函数有 6 个提前 return 分支，
+    //   在每个分支里各插一次 syncRoute 太容易漏（后续新增分支也会忘）。
+    try {
+        onTabClickInner(target);
+    } finally {
+        if (typeof syncRoute === 'function') syncRoute();
+    }
+}
+
+function onTabClickInner(target) {
     saveFullState();
 
     // ★ 切换版块时关闭特殊字符面板
@@ -236,9 +255,9 @@ function restoreNotesCoinsFromSettings(target) {
     const inp = document.getElementById('searchInput');
     if (inp) {
         inp.value = currentSearchKeyword;
-        inp.removeEventListener('input', doSearch);
+        inp.removeEventListener('input', onSearchInput);
         if (getEffectiveSearchMode() === SEARCH_MODE.REALTIME) {
-            inp.addEventListener('input', doSearch);
+            inp.addEventListener('input', onSearchInput);
         }
     }
     const typeSelect = document.getElementById('searchType');
@@ -285,17 +304,26 @@ function restoreNotesCoinsFromSettings(target) {
 
 function restoreExpandedStates(states) {
     if (!states) return;
+    // ★ 两道保险（审查报告 B7）：
+    //   ① 只恢复**当前分类作用域**下的 id —— 存下来的 id 形如 "notes_category_rmb5-s0"，
+    //      前缀就是 getCategoryScope()。没有这个判断时，A 分类的展开态会被套用到
+    //      B 分类的同序号系列上（两侧 si 都从 0 开始）。
+    //   ② 查询走 scopeAccordionLookup()，只认活动容器内的节点 ——
+    //      避免命中隐藏容器里残留的历史 DOM。
+    const scopePrefix = getCategoryScope() + '-';
     if (states.expandedSeries) {
         for (const id of states.expandedSeries) {
-            const body = document.getElementById('body-' + id);
-            const icon = document.getElementById('icon-' + id);
+            if (!String(id).startsWith(scopePrefix)) continue;
+            const body = scopeAccordionLookup('body-' + id);
+            const icon = scopeAccordionLookup('icon-' + id);
             if (body) { body.classList.add('open'); if (icon) icon.classList.add('open'); }
         }
     }
     if (states.expandedVarieties) {
         for (const id of states.expandedVarieties) {
-            const list = document.getElementById('list-' + id);
-            const icon = document.getElementById('icon-' + id);
+            if (!String(id).startsWith(scopePrefix)) continue;
+            const list = scopeAccordionLookup('list-' + id);
+            const icon = scopeAccordionLookup('icon-' + id);
             if (list) { list.classList.add('open'); if (icon) icon.classList.add('open'); }
         }
     }
@@ -324,8 +352,8 @@ function enterArticlesTab() {
     const inp = document.getElementById('searchInput');
     if (inp) {
         inp.value = articleSearchKeyword || '';
-        inp.removeEventListener('input', doSearch);
-        inp.addEventListener('input', doSearch);
+        inp.removeEventListener('input', onSearchInput);
+        inp.addEventListener('input', onSearchInput);
     }
 
     const searchContainer = document.querySelector('.top-search-container');
@@ -381,9 +409,9 @@ function enterNotesOrCoinsTab(target) {
     const inp = document.getElementById('searchInput');
     if (inp) {
         inp.value = currentSearchKeyword;
-        inp.removeEventListener('input', doSearch);
+        inp.removeEventListener('input', onSearchInput);
         if (getEffectiveSearchMode() === SEARCH_MODE.REALTIME) {
-            inp.addEventListener('input', doSearch);
+            inp.addEventListener('input', onSearchInput);
         }
     }
     const typeSelect = document.getElementById('searchType');

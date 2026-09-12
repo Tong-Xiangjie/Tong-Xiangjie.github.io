@@ -6,9 +6,14 @@
  * - 绝对不做任何后台模拟 / 定时任务 / 推送。
  * - 所有离线结算逻辑都在页面打开时由 offline.js 一次性完成。
  * - 作用域被限制在游戏目录（scope: ./），不会影响同域下的其他站点。
+ *   ⚠️ 但注意：**Cache Storage 是按源（per-origin）隔离的，不是按 scope**。
+ *      因此 activate 里的缓存清理必须用 CACHE_PREFIX 前缀限定，
+ *      否则会删掉同源其它应用（如 /collection/）的离线缓存。
  */
 
-const CACHE_NAME = 'stardust-migration-v2';
+const CACHE_NAME = 'stardust-migration-v3';   // v3：缓存前缀隔离（同源 SW 互删缓存）修复后的整体刷新
+// ★ 本 SW 自己的缓存前缀，activate 只清理带此前缀的旧版本
+const CACHE_PREFIX = 'stardust-migration-';
 
 /** 需要预缓存的静态资源（全部使用相对路径） */
 const PRECACHE = [
@@ -55,7 +60,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
-      await Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)));
+      // ★ 只清理本 SW 自己的旧版本（前缀限定），不碰同源其它应用的缓存
+      await Promise.all(
+        names.filter((n) => n.startsWith(CACHE_PREFIX) && n !== CACHE_NAME)
+          .map((n) => caches.delete(n)),
+      );
       await self.clients.claim();
     })(),
   );

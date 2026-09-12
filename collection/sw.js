@@ -5,7 +5,19 @@
 //
 // 注册位置：collection/index.html 末尾（scope 为 /collection/）
 
-const CACHE_NAME = 'collection-images-v2';   // v2：图片改同源直出，旧的 jsDelivr 缓存会被 activate 清掉
+const CACHE_NAME = 'collection-images-v3';   // v3：缓存前缀隔离（B12）上线后的一次整体刷新
+// ★ 关于版本号什么时候该 +1：
+//   activate 只删除「带本前缀且 != CACHE_NAME」的旧缓存，所以改 CACHE_NAME 会让
+//   全部已缓存的图片作废、下次访问重新下载（实测这套图约 780MB）。
+//   因此：**只在图片内容或缓存策略本身变化时才 +1**，纯代码结构调整不要动它。
+//   v2：图片改同源直出（清掉旧的 jsDelivr 缓存）
+//   v3：修复同源 SW 互删缓存（改为前缀隔离）后的首次整体刷新
+// ★ 本 SW 自己的缓存前缀，activate 只允许清理带这个前缀的旧缓存。
+// 原因：Cache Storage 是 **按源（per-origin）** 隔离的，不是按 scope！
+// 同源的 stardust-migration/sw.js 也在用它自己的 activate 清缓存，
+// 若这里写成「删掉所有 != CACHE_NAME 的缓存」，两个应用会互相清空对方的离线缓存
+//（而且不报错，只是缓存没了）。所以两边都必须按各自前缀限定。
+const CACHE_PREFIX = 'collection-images-';
 // 只缓存本站的藏品图片目录，避免把 china_map.svg、页面资源等也缓存住。
 const IMAGE_RE = /\.(jpg|jpeg|png|gif|webp|avif|bmp|ico)$/i;
 const IMAGE_PATH_RE = /^\/(?:(?:notecollection|coincollection)\/(?:readmes\/)?image\/|funcollection\/[^/]+\/images\/)/;
@@ -42,7 +54,9 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(
-                keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+                // ★ 只清理本 SW 自己的旧版本（前缀限定），绝不碰同源其它应用的缓存
+                keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME)
+                    .map(k => caches.delete(k))
             ))
             .then(() => self.clients.claim())
     );

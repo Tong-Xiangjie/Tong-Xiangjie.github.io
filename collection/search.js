@@ -152,14 +152,28 @@ function renderItemElement(data) {
 }
 
 // ---------- ★ FLIP 协调（仅可视区条目做位移） ----------
-function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
+// keptScroll：本次重建前用户的滚动位置。传进来就全程保持不变
+//   （FLIP 的位移量是"同一滚动状态下 旧位置 - 新位置"，与绝对 scrollTop 无关，
+//    所以保持不动反而更简单、也不会闪）。
+function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScroll) {
   // 清理残留的删除节点
   const absNodes = document.querySelectorAll('.search-delete-anim');
   for (const node of absNodes) node.remove();
 
-  // ★ 强制重置滚动：记录旧位置前，确保 scrollTop = 0
-  container.scrollTop = 0;
-  void container.offsetHeight;
+  // ★ 保留用户滚动位置（审查报告 A5 / 你的第 4 点）
+  //   以前这里强制 scrollTop = 0，导致"边打边搜"时每敲一个字符列表就跳回顶部，
+  //   翻到第 3 屏想再细化关键词基本没法用（配合 search.js 里另外三处归零一起放大）。
+  //   现在改为：重建前后都停在原位置。
+  // 临时关掉浏览器滚动锚定：重建会大改 DOM 高度，锚定会自行"纠正"滚动位置，干扰保留
+  const prevAnchor = container.style.overflowAnchor;
+  container.style.overflowAnchor = 'none';
+  const restoreScroll = () => {
+    container.style.overflowAnchor = prevAnchor;
+    if (typeof keptScroll === 'number' && container.scrollTop !== keptScroll) {
+      container.scrollTop = keptScroll;
+    }
+  };
+
   const containerRect = container.getBoundingClientRect();
 
   // 记录旧位置（相对于容器视口）
@@ -277,14 +291,13 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container) {
     wrapper.appendChild(el);
   }
 
-  // ★ 第二次强制重置：重建 DOM 后，在 RAF 之前确保滚动归零
-  container.scrollTop = 0;
+  // ★ 重建 DOM 后不再强制滚动归零：保持在 keptScroll，下面 RAF 里量到的
+  //   新位置与上面的旧位置处于同一滚动状态，FLIP 位移量因此依然正确。
   void container.offsetHeight;
 
-  // ★ 第三次：在 RAF 内部再次强制重置，然后记录新位置
+  // 在 RAF 内部记录新位置（此时布局已稳定）
   requestAnimationFrame(() => {
-    container.scrollTop = 0;
-    void container.offsetHeight;
+    restoreScroll();
     const containerRect2 = container.getBoundingClientRect();
 
     // 记录新位置
@@ -372,9 +385,12 @@ function applySearchResultsDiff(newResults, keyword) {
   const container = getRenderContainer();
   if (!container) return;
 
-  // 重置滚动位置
-  container.scrollTop = 0;
-  void container.offsetHeight;
+  // ★ 保留滚动位置（你的第 4 点 / 审查报告 A5）
+  //   这里原来会强制 container.scrollTop = 0。配合 reconcileWithFLIP 里另外三处归零，
+  //   结果是"边打边搜"每敲一个字符、以及点"搜索"时，列表都跳回顶部：
+  //   翻到第 3 屏想再细化关键词就没法用了。
+  //   keptScroll === null 表示这是该视图第一次渲染 → 首次搜索仍从顶部开始（符合预期）。
+  const keptScroll = container.dataset.searchRendered === '1' ? container.scrollTop : null;
 
   container.style.position = 'relative';
   container.style.overflowX = 'hidden';
@@ -396,14 +412,16 @@ function applySearchResultsDiff(newResults, keyword) {
   }
 
   const newFlatList = buildNewFlatList(newResults, keyword);
-  reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container);
+  reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScroll);
+  container.dataset.searchRendered = '1';
 }
 
 // ---------- performSearchAndRender ----------
 function performSearchAndRender(rawKeyword, type) {
   const keyword = getActualKeyword(rawKeyword, type);
   const isEmptySearch = !keyword || keyword === '';
-  const lowerKeyword = isEmptySearch ? '' : keyword.toLowerCase();
+  // ★ 关键词的归一化形态只算一次，由所有副本共用（原来每条副本各自构造匹配串）
+  const plan = makeSearchPlan(keyword, type);
   let results = [];
   const keys = getAllDataKeys();
 
@@ -430,7 +448,7 @@ function performSearchAndRender(rawKeyword, type) {
           if (!variety.copies) continue;
           for (let ci = 0; ci < variety.copies.length; ci++) {
             const copy = variety.copies[ci];
-            if (matchCopy(copy, series, variety, lowerKeyword, type, isEmptySearch)) {
+            if (matchEntry(copy, series, variety, plan, type, isEmptySearch)) {
               results.push({ dataKey, catName, parentName, sIdx: si, vIdx: vi, cIdx: ci,
                 series, variety, copy, hasVarieties: true });
             }
@@ -439,7 +457,7 @@ function performSearchAndRender(rawKeyword, type) {
       } else if (series.copies) {
         for (let ci = 0; ci < series.copies.length; ci++) {
           const copy = series.copies[ci];
-          if (matchCopyFlat(copy, series, lowerKeyword, type, isEmptySearch)) {
+          if (matchEntry(copy, series, null, plan, type, isEmptySearch)) {
             results.push({ dataKey, catName, parentName, sIdx: si, cIdx: ci,
               series, copy, hasVarieties: false });
           }
@@ -499,7 +517,21 @@ function updateSearchUIForMode() {
   }
 }
 
-function doSearch() {
+function doSearch(opts) {
+  // ★ try/finally 收口写 URL。
+  //   历史记录策略很关键：边打边搜的 input 事件每敲一个字符都会走这里，
+  //   若一律 pushState，后退键就要按几十次才能离开搜索页（实测这是最恼人的体验问题）。
+  //   所以：input 事件 → replaceState（只更新当前这条）；
+  //         点"搜索"按钮 / 回车 / 点击模式 → pushState（真的新增一步，可后退回上一组结果）。
+  const replace = !!(opts && opts.replace);
+  try {
+    doSearchInner();
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute(replace);
+  }
+}
+
+function doSearchInner() {
   const input = document.getElementById('searchInput');
   if (!input) return;
 
@@ -522,7 +554,23 @@ function doSearch() {
   performSearchAndRender(rawKeyword, type);
 }
 
+// 边打边搜的 input 事件处理器。
+// ★ 必须是具名函数而不是内联箭头：各板块切换时要用 removeEventListener 把它摘掉，
+//   匿名函数摘不掉（原代码传的就是 doSearch 本身，这里保持同样的可摘除性）。
+function onSearchInput() {
+  doSearch({ replace: true });
+}
+
 function resetSearch() {
+  // ★ try/finally 收口写 URL
+  try {
+    resetSearchInner();
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute(true);
+  }
+}
+
+function resetSearchInner() {
   const input = document.getElementById('searchInput');
   if (!input) return;
 
@@ -566,139 +614,220 @@ function toggleSearchMode() {
 
   const input = document.getElementById('searchInput');
   if (input) {
-    input.removeEventListener('input', doSearch);
+    input.removeEventListener('input', onSearchInput);
     if (newMode === SEARCH_MODE.REALTIME) {
-      input.addEventListener('input', doSearch);
+      input.addEventListener('input', onSearchInput);
     }
   }
 }
 
-function matchCopy(copy, series, variety, keyword, type, isEmpty) {
-  if (isEmpty) return true;
-  switch(type) {
-    case SEARCH_TYPE.ALL:
-      const text = `${series.seriesName} ${variety.varietyName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
-      return text.includes(keyword);
-    case SEARCH_TYPE.NAME:
-      return series.seriesName.toLowerCase().includes(keyword) || variety.varietyName.toLowerCase().includes(keyword);
-    case SEARCH_TYPE.VERSION:
-      return (copy.version || '').toLowerCase().includes(keyword);
-    case SEARCH_TYPE.YEAR:
-      return String(copy.year).toLowerCase().includes(keyword);
-    case SEARCH_TYPE.AGENCY:
-      return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-    case SEARCH_TYPE.KRAUSE:
-      const raw = (copy.catalogNumber || copy.krause || '');
-      const formatted = formatCatalogNumber(raw);
-      return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
+// ★ key → 中文 label 的反向表，直接从各数据文件的 detailFields 收集。
+//   ★ 必须**惰性构建**：脚本加载时数据还没 fetch 完，那时建表会得到空 Map。
+//   缓存随 invalidateRenderedViews() 失效（数据/设置变化时重建）。
+let detailFieldLabels = null;
+
+function ensureDetailFieldLabels() {
+  if (detailFieldLabels) return detailFieldLabels;
+  const map = new Map();
+  const saved = currentMode;
+  try {
+    for (const mode of [MODE.NOTES, MODE.COINS]) {
+      currentMode = mode;
+      for (const dataKey of getAllDataKeys()) {
+        const data = getData(dataKey);
+        if (!data || !Array.isArray(data.detailFields)) continue;
+        for (const f of data.detailFields) {
+          if (f && f.key && f.label && !map.has(f.key)) map.set(f.key, f.label);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[搜索] 构建字段标签表失败（不影响搜索）:', e);
+  } finally {
+    currentMode = saved;
   }
-  return false;
+  detailFieldLabels = map;
+  return map;
 }
 
-function matchCopyFlat(copy, series, keyword, type, isEmpty) {
+// ★「全字段搜索」= 数据文件在 detailFields 里声明的**全部字段**，
+//   而不是只搜固定的那 7 个。各板块字段差异很大（纸币有 issueDate / withdrawnDate /
+//   wmk / print / signature1 / signature2 / depositOnlyDate，硬币有 country / mint /
+//   material / diameter / weight / edge / design / gradingCompany / grade / mintage），
+//   原来写死 7 个字段让"全字段"名不副实（审查报告 B4）。
+// ★ 图片字段不参与"全字段搜索"：img1/img2 的值是完整图片 URL，
+//   并入后搜 "jpg" / "tong-xiangjie" 会把几乎全部条目命中，纯属噪声（实测 347 条）。
+//   判定用 /^img/i 而不是写死 img1/img2，这样 yearImg / 未来新增的 imgN 也一起排除。
+//   注意：remark 里偶尔含真实链接（如知乎考证链接），那是**正文内容**，保留可搜是正确的。
+const SEARCH_IMAGE_KEY_RE = /^img/i;
+
+function isSearchableField(key) {
+  if (SEARCH_IMAGE_KEY_RE.test(key)) return false;
+  if (key === 'readme' || key === 'detailFields' || key === 'author') return false;
+  return true;
+}
+
+function collectSearchFields(copy, series, variety) {
+  const parts = [series.seriesName];
+  if (variety) parts.push(variety.varietyName);
+  for (const [k, v] of Object.entries(copy)) {
+    if (!isSearchableField(k)) continue;
+    if (v === null || v === undefined || v === '') continue;
+    const t = typeof v;
+    // 只取标量；数组/对象（author、detailFields 等）跳过
+    if (t !== 'string' && t !== 'number' && t !== 'boolean') continue;
+    parts.push(String(v));
+  }
+  return parts;
+}
+
+// 一次搜索只算一次的关键词形态（避免逐条副本重复归一化）
+function makeSearchPlan(keyword, type) {
+  const plan = {
+    keyword: keyword,
+    norm: normalizeForSearch(stripCatalogPrefix(keyword))
+  };
+  if (type === SEARCH_TYPE.AGENCY) {
+    // 允许按中文字段名搜（如输入"评级公司"）
+    const labels = ensureDetailFieldLabels();
+    plan.agencyLabels = ['condition', 'grade', 'gradingCompany']
+      .map(k => labels.get(k) || '')
+      .filter(Boolean)
+      .join(' ');
+  }
+  return plan;
+}
+
+function matchEntry(copy, series, variety, plan, type, isEmpty) {
   if (isEmpty) return true;
-  switch(type) {
-    case SEARCH_TYPE.ALL:
-      const text = `${series.seriesName} ${copy.version || ''} ${copy.year} ${copy.condition || copy.grade || ''} ${copy.catalogNumber || copy.krause || ''} ${copy.material || ''}`.toLowerCase();
-      return text.includes(keyword);
+  const keyword = plan.keyword;
+
+  switch (type) {
+    case SEARCH_TYPE.ALL: {
+      const joined = collectSearchFields(copy, series, variety).join(' ');
+      const lower = joined.toLowerCase();
+      if (lower.includes(keyword)) return true;
+      // 支持目录编号的前缀/空格差异，以及全角输入
+      if (plan.norm) {
+        if (lower.includes(plan.norm)) return true;
+        if (normalizeForSearch(joined).includes(plan.norm)) return true;
+      }
+      // ★ 刻意不把 detailFields 的中文 label 并入全字段匹配：
+      //   label 是**字段名**不是字段值，并入后输入"评级分数"会把所有条目都命中，
+      //   反而把"全字段"变成"全部命中"。按字段名搜由上方的下拉选项负责。
+      return false;
+    }
+
     case SEARCH_TYPE.NAME:
-      return series.seriesName.toLowerCase().includes(keyword);
+      return series.seriesName.toLowerCase().includes(keyword) ||
+             (variety ? variety.varietyName.toLowerCase().includes(keyword) : false);
+
     case SEARCH_TYPE.VERSION:
-      return (copy.version || '').toLowerCase().includes(keyword);
+      return String(copy.version || '').toLowerCase().includes(keyword);
+
     case SEARCH_TYPE.YEAR:
-      return String(copy.year).toLowerCase().includes(keyword);
-    case SEARCH_TYPE.AGENCY:
-      return (copy.condition || copy.grade || '').toLowerCase().includes(keyword);
-    case SEARCH_TYPE.KRAUSE:
-      const raw = (copy.catalogNumber || copy.krause || '');
+      return String(copy.year || '').toLowerCase().includes(keyword);
+
+    case SEARCH_TYPE.AGENCY: {
+      // "评级机构"既可能是公司名（硬币 gradingCompany），也可能是分数（纸币 condition）
+      const text = [copy.condition, copy.grade, copy.gradingCompany]
+        .map(v => (v === null || v === undefined ? '' : String(v))).join(' ');
+      if (text.toLowerCase().includes(keyword)) return true;
+      return !!(plan.agencyLabels && plan.agencyLabels.includes(keyword));
+    }
+
+    case SEARCH_TYPE.KRAUSE: {
+      const raw = String(copy.catalogNumber || copy.krause || '');
       const formatted = formatCatalogNumber(raw);
-      return raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword);
+      // ① 原样包含（与旧行为一致，保证不回归）
+      if (raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword)) return true;
+      // ② 前缀/空白/全角无关：'KM#130'、'km# 130'、'ＫＭ＃130' 互相都能命中
+      //    （此前只认 'Pick# ' 这一种写法，KM#/SUN# 一律搜不到 —— 审查报告 B3）
+      if (!plan.norm) return false;
+      const normRaw = normalizeForSearch(raw);
+      const normFmt = normalizeForSearch(formatted);
+      if (normRaw.includes(plan.norm) || normFmt.includes(plan.norm)) return true;
+      // ③ 关键词自带前缀时（如输入 "KM#130"），用原始关键词再试一次：
+      //    plan.norm 已被 stripCatalogPrefix 剥过，单独比较原始形态能覆盖更多写法
+      const normKw = normalizeForSearch(keyword);
+      return !!normKw && (normRaw.includes(normKw) || normFmt.includes(normKw));
+    }
+
+    case SEARCH_TYPE.COPYID: {
+      // ★ 评级证书编号（copyId，detailFields 里的 label 正是"评级证书编号"）
+      const id = String(copy.copyId || '');
+      if (!id) return false;
+      if (id.toLowerCase().includes(keyword)) return true;
+      return !!plan.norm && normalizeForSearch(id).includes(plan.norm);
+    }
   }
   return false;
 }
 
 function getActualKeyword(inputValue, searchType) {
+  // ★ 前缀剥除统一交给 stripCatalogPrefix()：它同时处理 Pick# / KM# / SUN# / Krause
+  //   以及全角与空格（原来只认硬编码的 'Pick# ' 一种写法）。
   if (searchType === SEARCH_TYPE.KRAUSE) {
-    if (inputValue.startsWith(KRAUSE_PREFIX)) {
-      return inputValue.substring(KRAUSE_PREFIX.length).trim();
-    }
-    return inputValue.trim();
+    return stripCatalogPrefix(inputValue).trim();
   }
   return inputValue.trim();
 }
 
 function navigateToCopy(dataKey, si, vi, ci, hasVarieties) {
+  // ★ try/finally 收口写 URL：这是"跳转"语义，pushState 新增一条历史记录
+  try {
+    navigateToCopyInner(dataKey, si, vi, ci, hasVarieties);
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute(false);
+  }
+}
+
+function navigateToCopyInner(dataKey, si, vi, ci, hasVarieties) {
   const tree = getCategoryTree();
+
+  // 找到这个 dataKey 属于哪个分类（带子分类的优先匹配子项）
+  let targetCat = null, targetSub = null;
   for (const cat of tree) {
     if (cat.children) {
-      for (const sub of cat.children) {
-        if (sub.dataKey === dataKey) {
-          const searchKey = getContainerKey();
-          const container = getRenderContainer();
-          if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
-
-          currentCategoryId = cat.id;
-          currentSubId = sub.id;
-          currentView = VIEW.CATEGORY;
-          switchToCurrentContainer();
-          renderSidebar();
-          renderCurrentCategory();
-          setTimeout(() => {
-            const seriesId = `series-${si}`;
-            toggleSeries(seriesId);
-            if (hasVarieties && vi !== null) {
-              setTimeout(() => {
-                toggleVariety(`v-${si}-${vi}`);
-                setTimeout(() => {
-                  const el = document.getElementById('list-v-' + si + '-' + vi);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
-              }, 50);
-            } else {
-              setTimeout(() => {
-                const el = document.getElementById('copies-' + seriesId);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 100);
-            }
-          }, 50);
-          return;
-        }
-      }
+      const sub = cat.children.find(s => s.dataKey === dataKey);
+      if (sub) { targetCat = cat; targetSub = sub; break; }
     } else if (cat.dataKey === dataKey) {
-      const searchKey = getContainerKey();
-      const container = getRenderContainer();
-      if (container) scrollMemory[currentMode + '-' + searchKey] = container.scrollTop;
-
-      currentCategoryId = cat.id;
-      currentSubId = null;
-      currentView = VIEW.CATEGORY;
-      switchToCurrentContainer();
-      renderSidebar();
-      renderCurrentCategory();
-      setTimeout(() => {
-        const seriesId = `series-${si}`;
-        toggleSeries(seriesId);
-        if (hasVarieties && vi !== null) {
-          setTimeout(() => {
-            toggleVariety(`v-${si}-${vi}`);
-            setTimeout(() => {
-              const el = document.getElementById('list-v-' + si + '-' + vi);
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-          }, 50);
-        } else {
-          setTimeout(() => {
-            const el = document.getElementById('copies-' + seriesId);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
-        }
-      }, 50);
-      return;
+      targetCat = cat; targetSub = null; break;
     }
+  }
+  if (!targetCat) return;
+
+  currentCategoryId = targetCat.id;
+  currentSubId = targetSub ? targetSub.id : null;
+  currentView = VIEW.CATEGORY;
+  switchToCurrentContainer();
+  renderSidebar();
+  renderCurrentCategory();
+
+  // 展开并滚动到目标条目。
+  // ★ 这段逻辑原本在这里重复写了两份（一个 dataKey 在子分类下 / 在顶层分类下各一份），
+  //   现在统一复用 router.js 的 revealCopyInCategory()：深链接与"从搜索结果跳过来"
+  //   共用同一套 DOM 约定（body-series-<si> / list-v-<si>-<vi> / copies-series-<si>），
+  //   以后改 id 规则只需要改一处。
+  if (typeof revealCopyInCategory === 'function') {
+    revealCopyInCategory({
+      sIdx: si,
+      vIdx: (hasVarieties && vi !== null && vi !== undefined) ? vi : undefined,
+      cIdx: (ci === null || ci === undefined) ? undefined : ci
+    }).catch(function () { /* 展开失败不影响已完成的跳转 */ });
   }
 }
 
 function backFromSearch() {
+  // ★ 收口写 URL（离开搜索视图 → 回到概览或分类）
+  try {
+    backFromSearchInner();
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute();
+  }
+}
+
+function backFromSearchInner() {
   saveFullState();
   prevSearchResults = null;
   prevSearchKeyword = '';

@@ -169,12 +169,9 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
 
     if (!foundCat) return;
 
-    // 保存概览页滚动位置
-    const overviewKey = getContainerKey();
     const overviewContainer = getRenderContainer();
     if (overviewContainer) {
-        scrollMemory[currentMode + '-' + overviewKey] = overviewContainer.scrollTop;
-    }
+        }
 
     // 设置新状态
     currentCategoryId = foundCat.id;
@@ -199,24 +196,18 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     renderSidebar();
     renderCurrentCategory();
 
-    // 展开并滚动到目标条目
+    // 展开并滚动到目标条目。
+    // ★ 改为复用 router.js 的 revealCopyInCategory()，不再自己拼 DOM id：
+    //   原实现用 `series-${si}` / `v-${si}-${vi}`（无分类作用域）配合
+    //   document.getElementById，会命中隐藏容器里其它分类的同序号节点（审查报告 B7）。
+    //   顺带把"只展开不折叠其它"改成"先折叠其它再展开目标"，避免深链接打开时
+    //   一堆系列同时播放展开动画。
     setTimeout(() => {
-        const seriesId = `series-${si}`;
-        toggleSeries(seriesId);
-
-        if (hasVarieties && vi !== null && vi !== undefined && vi !== 'null') {
-            setTimeout(() => {
-                toggleVariety(`v-${si}-${vi}`);
-                setTimeout(() => {
-                    const el = document.getElementById('list-v-' + si + '-' + vi);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
-            }, 50);
-        } else {
-            setTimeout(() => {
-                const el = document.getElementById('copies-' + seriesId);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-        }
+        closeAllAccordions();
+        revealCopyInCategory({
+            sIdx: si,
+            vIdx: (hasVarieties && vi !== null && vi !== undefined && vi !== 'null') ? vi : null,
+            cIdx: null
+        });
     }, 50);
 }
