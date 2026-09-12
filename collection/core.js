@@ -65,16 +65,47 @@ function getThumbUrl(path, subDir = 'comm') {
     return SITE_BASE + m[1] + '/thumb/' + dir + stem + '.jpg';
 }
 
-// 缩略图加载失败时回退原图：返回可直接拼进 <img ...> 的 onerror 属性片段
-function thumbFallbackAttr(originalUrl) {
-    if (!originalUrl) return '';
-    const safe = String(originalUrl)
+// 属性值转义：URL 直接拼进 src="..." 时，引号会截断属性
+function escapeAttr(url) {
+    if (!url) return '';
+    return String(url)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '%22')
         .replace(/'/g, '%27');
-    return ` onerror="this.onerror=null;this.src='${safe}'"`;
+}
+
+// 缩略图加载失败时回退原图：返回可直接拼进 <img ...> 的 onerror 属性片段
+function thumbFallbackAttr(originalUrl) {
+    if (!originalUrl) return '';
+    return ` onerror="this.onerror=null;this.src='${escapeAttr(originalUrl)}'"`;
+}
+
+// ========== 网格图片源：缩略图 / 原图可切换 ==========
+// 默认用缩略图。冷启动时一个板块的原图合计可达 98MB（缩略图约 1.4MB，约 70 倍），
+// 而且原图要解码进 36×26 / 56×40 这种小格子，手机上很浪费。
+// 但 Service Worker 会把浏览过的图都缓存下来（stale-while-revalidate），缓存热了
+// 之后两者一样快 —— 想在缓存热的时候要更清晰的画质，就在设置里打开这个开关。
+const GRID_ORIGINAL_KEY = 'collection-grid-original';
+
+function gridUseOriginal() {
+    try { return localStorage.getItem(GRID_ORIGINAL_KEY) === '1'; } catch (e) { return false; }
+}
+
+function setGridUseOriginal(on) {
+    try { localStorage.setItem(GRID_ORIGINAL_KEY, on ? '1' : '0'); } catch (e) {}
+}
+
+// 网格 / 列表里的所有图片位统一走这里。
+// 返回 { src, fallback }：fallback 交给 thumbFallbackAttr()，用原图时为空
+// （原图都加载不出来，缩略图更不可能有 —— 缩略图就是从原图生成的）。
+function gridImg(path, subDir = 'comm') {
+    const full = getImageUrl(path, subDir);
+    if (!full) return { src: '', fallback: '' };
+    if (gridUseOriginal()) return { src: full, fallback: '' };
+    const thumb = getThumbUrl(path, subDir) || full;
+    return { src: thumb, fallback: thumb === full ? '' : full };
 }
 // =========================================================
 

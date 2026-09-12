@@ -126,6 +126,16 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
+    // 网格画质
+    html += `<div class="settings-section">`;
+    html += `<h3>网格画质</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" onclick="toggleGridOriginal()"><span id="gridOriginalText">${gridOriginalLabel()}</span></button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">默认用缩略图（平均约 18KB）。切成原图确实清楚一点，但冷启动一个板块可能要下 <b>40~100MB</b>（缩略图只要 1~2MB），所以默认不开。Service Worker 会把看过的图都存到本地，缓存热了之后两者一样快 —— 这个开关是留给"不差流量、就想要清晰"的时候。改完回到列表/概览就生效。</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">开了它之后还想离线能看网格，请用下面「预缓存全部（含原图）」，别再点「预缓存全部缩略图」了。</p>`;
+    html += `</div>`;
+
     // 图片缓存
     html += `<div class="settings-section">`;
     html += `<h3>图片缓存</h3>`;
@@ -190,6 +200,21 @@ function renderSettingsPage() {
 
     // ★ 异步刷新离线预缓存的已缓存张数
     if (typeof precacheRefreshStatus === 'function') precacheRefreshStatus();
+}
+
+// ========== 网格画质：缩略图 / 原图 ==========
+// 默认缩略图（冷启动一个板块约 1~2MB，原图要 40~100MB）；
+// 缓存热了之后两者速度一样，所以给个开关让"想要更清晰"的时候自己开。
+function gridOriginalLabel() {
+    return (typeof gridUseOriginal === 'function' && gridUseOriginal())
+        ? '网格直接用原图：开' : '网格直接用原图：关';
+}
+
+function toggleGridOriginal() {
+    const next = !(typeof gridUseOriginal === 'function' && gridUseOriginal());
+    setGridUseOriginal(next);
+    const span = document.getElementById('gridOriginalText');
+    if (span) span.textContent = next ? '网格直接用原图：开' : '网格直接用原图：关';
 }
 
 function togglePriceList() {
