@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     为 collection 站生成图片缩略图。
 
