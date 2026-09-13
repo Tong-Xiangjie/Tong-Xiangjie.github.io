@@ -585,8 +585,8 @@ function currentModalSrc() {
     return (currentModalSide === 2 && currentModalImg2) ? currentModalImg2 : currentModalImg1;
 }
 
-// 当前这一面的缩略图，用来在 #modalImg 背景上垫底。skip = true 时返回空：
-// 调用方已确认"这张图就是屏幕上那张已加载完的图"，不需要垫底。
+// 当前这一面的缩略图，用来给「垫底层」#modalImgOverlay 当低清占位。
+// skip = true 时返回空：调用方已确认"这张图就是屏幕上那张已加载完的图"，不需要垫底。
 function currentModalBackdrop(skip) {
     if (skip) return '';
     const full = currentModalSrc();
@@ -600,36 +600,69 @@ function resetModalZoom() {
     currentScale = 1; currentX = 0; currentY = 0;
     // 翻面浮层可能还残留着"收起"动画的 forwards 终态（压扁 + 半透明），
     // 这里连同动画类一起清掉，避免它挡住图片。
+    // ★ 但**不能**把它永久关掉：它接下来还要当"原图解码完成前的垫底缩略图层"。
+    //   所以清完之后，垫底身份由 beginModalBackdrop() 恢复（幂等）。
     clearModalFlipLayer();
+    beginModalBackdrop();
+}
+
+// 让 #modalImgOverlay 进入「垫底缩略图层」状态（幂等）。
+// 与主图同框同形，且 DOM 里在主图之后 → 天然盖在主图上层。
+// 主图原图就绪后 opacity 0→1 淡入把它盖住，随后由 loadModalImage 撤掉。
+function beginModalBackdrop() {
+    const overlay = document.getElementById('modalImgOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('flip-out', 'flip-in');
+    overlay.style.animation = 'none';
+    overlay.style.display = '';
+    overlay.style.transform = '';
+    overlay.style.opacity = '';
+    overlay.classList.add('backdrop-layer');
 }
 
 // 清掉翻面浮层上的动画状态与图片。幂等，可随时调用。
 // keepTransform 省略/false：连内联 transform、opacity 一起清（关闭弹窗时用）。
 // keepTransform = true：只清"上一半动画"的残留（src / 动画类），
 //   但保留当前内联 transform，好让下一半从同一个压扁状态接着展开。
-function clearModalFlipLayer(keepTransform) {
+// hide = true：顺手把浮层设为 display:none。翻面动画全程用它 ——
+//   浮层此时不承担任何可见职责（主图自己就能完成压扁/展开），
+//   而它的 CSS 基态是个 6% 宽、0.25 不透明的盒子，留着就会在屏幕中间
+//   画出一条细竖带（实测残留 526 像素）。
+// ★ 例外：浮层带着 .backdrop-layer 时直接返回 —— 那说明它正被当作
+//   "原图解码完成前的垫底缩略图"用，是画面本身，不能清。
+function clearModalFlipLayer(keepTransform, hide) {
     const overlay = document.getElementById('modalImgOverlay');
     if (!overlay) return;
+    // ★ 正在当「垫底缩略图层」用时（.backdrop-layer），这里什么都不能动：
+    //   它此刻扛着原图解码完成前要显示的那张缩略图，是画面本身。
+    //   调用方要撤掉它，得先自己摘掉那个类（closeModal 就是这么做的）。
+    if (overlay.classList.contains('backdrop-layer')) return;
     overlay.classList.remove('flip-out', 'flip-in');
     overlay.style.animation = 'none';
     if (!keepTransform) {
         overlay.style.transform = '';
         overlay.style.opacity = '';
     }
+    overlay.style.display = hide ? 'none' : '';
     // ★ 必须清 src：这个 <img> 带着 .modal-img-overlay 的动画类残留时
     //   如果还挂着上一张图，会在下次翻面／关闭时一闪而过。
     overlay.removeAttribute('src');
 }
 
 // 把「当前这一面」装进弹窗，返回本次加载的 token。
-// ★ 主图直接请求原图，缩略图只当 #modalImg 自己的背景垫底：#modalImg 是
-//   100vw/100vh + object-fit:contain，背景同样按 contain 铺在同一个盒子里，
-//   两者完全同框同形、像素级对齐 —— 原图解码完成前看到的是同一张图的低清版
-//   （不会空白），解码完成后原图不透明正好盖住背景，没有"先糊后清"的跳变。
+// ★ 主图直接请求原图；缩略图由**独立的垫底层** #modalImgOverlay 承担
+//   （给它挂 .backdrop-layer）。两层同框同形，垫底层在 DOM 里靠后，
+//   所以它盖在主图之上 —— 原图解码完成前看到的就是同一张图的低清版，
+//   原图就绪后撤掉垫底层即可（见 dropModalBackdrop）。
+//   历史：垫底图原本铺在 #modalImg 的 background-image 上，靠"原图不透明直接
+//   盖住背景"来工作；那样无法单独控制它的显隐，所以改成了独立图层。
 // ★ 原图解码完成前**禁止缩放/拖动**（画面还只是低清垫底图）：用 modalFullReady
 //   卡住 Hammer 与滚轮，并给弹窗挂 .modal-loading 把提示语换成"原图加载中…"。
 // ★ opts.onReady：原图**解码就绪或彻底失败**时回调一次。翻面动画靠它决定
 //   "什么时候展开新面" —— 用固定定时器会在慢网下展开出空白（见 modalFlip）。
+// ★ 主图的 opacity 全程由 closeModal（关闭时置 '0'）与 finish()（收尾时清空）
+//   管理，本函数不再碰它 —— 否则会出现"某次关闭留下的 opacity:'0' 被下一次
+//   打开继承"的状态泄漏，主图永远不显形。
 function loadModalImage(opts) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
@@ -639,6 +672,8 @@ function loadModalImage(opts) {
     if (!full) return 0;
     const token = ++modalLoadToken;
     const backdropUrl = currentModalBackdrop(!!(opts && opts.skipBackdrop));
+    const backdrop = document.getElementById('modalImgOverlay');
+    const backdropSrc = backdropUrl || '';
     const onReady = (opts && typeof opts.onReady === 'function') ? opts.onReady : null;
     let readyFired = false;
     const fireReady = function () {
@@ -654,33 +689,78 @@ function loadModalImage(opts) {
     modalFullReady = false;
     modal.classList.add('modal-loading');
 
+    modalFullReady = false;
+    modal.classList.add('modal-loading');
+
     // 原图缺失时退到缩略图（数据里确实存在"引用了但图没上传"的图）
     modalImg.onerror = function () {
         modalImg.onerror = null;
-        if (backdropUrl && modalImg.src !== backdropUrl) modalImg.src = backdropUrl;
+        if (backdropUrl && modalImg.src !== backdropUrl) {
+            modalImg.src = backdropUrl;
+            // 退成缩略图后主图自己就是"画面本身"，垫底层不必再留一份
+            if (backdrop) {
+                backdrop.classList.remove('backdrop-layer');
+                backdrop.style.display = 'none';
+                backdrop.removeAttribute('src');
+            }
+        }
         fireReady();   // 失败也要放行，让翻面动画能收尾
     };
+    // 主图就绪 → 撤掉垫底层。
+    // ★ 这里**不**去动 modalImg 的 opacity：主图全程保持可见。
+    //   曾经的做法是"把主图藏起来、只显示垫底层，等原图就绪再把主图淡入"，
+    //   那个模型很脆：opacity 是跨次打开继承的内联状态，一旦某次关闭留下
+    //   opacity:'0'，下一次打开主图就再也不显形（垫底缩略图会一直停在屏幕上，
+    //   看起来就像"新图加载不出来"）。
+    //   现在改成：垫底层只是主图**下面**的一张低清图，主图就绪后把它撤掉即可，
+    //   不涉及任何 opacity 状态机。
     modalImg.onload = function () {
         if (token !== modalLoadToken) return;   // 已经翻到另一面了，丢弃这次结果
         modalFullReady = true;
         modal.classList.remove('modal-loading');
         if (readyTimer) { clearTimeout(readyTimer); readyTimer = null; }
+        dropModalBackdrop(token);
         fireReady();
     };
-    modalImg.style.backgroundImage = backdropUrl ? 'url("' + backdropUrl + '")' : '';
-    modalImg.style.backgroundSize = 'contain';
-    modalImg.style.backgroundPosition = 'center';
-    modalImg.style.backgroundRepeat = 'no-repeat';
+    // ★ 垫底缩略图由独立的「垫底层」承担（#modalImgOverlay + .backdrop-layer），
+    //   而不是给 #modalImg 铺 background-image。原因：background-image 与 src
+    //   抢同一个盒子、且无法单独控制显隐；独立图层能清晰地"在原图就绪时撤掉"。
+    //   垫底层的身份由 beginModalBackdrop() 建立，这里只负责给它换 src。
+    //   注意：**不要**先 removeAttribute('src') 再赋值 —— 那会让垫底层先空一帧，
+    //   而它此刻可能正是画面上唯一可见的东西（"上一个缩略图闪一下"就是这么来的）。
+    if (backdrop) {
+        if (backdropSrc) {
+            if (!backdrop.classList.contains('backdrop-layer')) beginModalBackdrop();
+            if (backdrop.getAttribute('src') !== backdropSrc) backdrop.src = backdropSrc;
+        } else {
+            // 来源本身就是已加载好的原图（文章配图）：连垫底图都不用，
+            // 顺带省掉一次注定 404 的缩略图请求
+            backdrop.classList.remove('backdrop-layer');
+            backdrop.style.display = 'none';
+            backdrop.removeAttribute('src');
+        }
+    }
     modalImg.src = full;
     // 命中缓存时 load 事件可能已经错过（complete 同步就是 true）
     if (modalImg.complete) {
         modalFullReady = true;
         modal.classList.remove('modal-loading');
         if (readyTimer) { clearTimeout(readyTimer); readyTimer = null; }
+        dropModalBackdrop(token);
         fireReady();
     }
     resetModalZoom();
     return token;
+}
+
+// 撤掉垫底缩略图层。token 用来作废"已经翻到另一面/已关闭"的迟到调用。
+function dropModalBackdrop(token) {
+    if (token !== undefined && token !== modalLoadToken) return;
+    const overlay = document.getElementById('modalImgOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('backdrop-layer');
+    overlay.style.display = 'none';
+    overlay.removeAttribute('src');
 }
 
 // 正反面切换（圆形 ‹ › 按钮 / 左右方向键）
@@ -713,9 +793,6 @@ function modalFlip(dir) {
         loadModalImage({});
         return true;
     }
-
-    const overlay = document.getElementById('modalImgOverlay');
-    const fromSrc = modalImg.currentSrc || modalImg.src;
 
     const finishHalf = function () {
         // ★ 用"翻面动画还在不在进行"兜底，挡住重复调用；真正的归属判断在
@@ -764,12 +841,24 @@ function modalFlip(dir) {
 
     modalFlipBusy = true;
     modal.classList.add('modal-flipping');
-    // 新面在第一半动画期间后台解码（回到前半段结束时时通常已经好了）
-    if (overlay) {
-        overlay.src = fromSrc;
-        overlay.classList.remove('flip-in');
-        overlay.classList.add('flip-out');
-    }
+    // ★ 浮层（#modalImgOverlay）**不参与翻面动画**。
+    //   它当初的用途是"前半段显示旧图、主图在底下换源"，但现在主图自己是
+    //   100vw/100dvh + object-fit:contain 的整屏盒子，JS 又直接换它的 src，
+    //   所以主图**独自**就能完成"压扁旧图 → 换源 → 从压扁展开新图"。
+    //   让浮层也一起压扁的后果（实测逐像素对比，浮层开/关两版截图）：
+    //     · t=0 差异 73.6% 的像素 —— 浮层满幅不透明，把主图整个盖住，
+    //       两张同尺寸的图叠在一起；
+    //     · 之后 0.25%~0.5% —— 半透明浮层给正在变淡的主图叠了一层亮度。
+    //   观感就是"动画中间会多出一张横向压扁的图"。
+    //   另外它自己那条 flip-out 曾经还被内联 animation:none 压掉（见下），
+    //   于是干脆静止糊一张压扁旧图 —— 现已一并去掉。
+    //   保留浮层元素本身：关闭/生长动画的收尾仍会调用 clearModalFlipLayer()，
+    //   那个函数会清掉它的 src 与内联样式。
+    //   还必须在翻面期间让它**彻底不渲染**：它的 CSS 基态是
+    //   transform: scale3d(0.06,1,1) + opacity: .25 —— 即使没有 src，
+    //   一个 6% 宽、半透明的盒子仍会在屏幕中间画出一条细竖带
+    //   （实测残留 526 像素、最大色差 101）。display:none 才是真正的"不画"。
+    clearModalFlipLayer(true, true);
     modalImg.classList.remove('flip-in');
     modalImg.classList.add('flip-out');
 
@@ -809,9 +898,14 @@ function openModal(imgSrc1, imgSrc2) {
     modal.classList.remove('modal-hide');
 
     const token = loadModalImage({ skipBackdrop: sourceIsFull });
-    modalImg.style.opacity = canFly ? '0' : '';   // 飞行期间先藏着真图，落地后再显形
-    modal.classList.add('modal-show');
+    // 生长动画期间先把主图藏起来，只留飞行图层在飞，避免两者重影；
+    // 飞行落地（见下面的 startModalFlight 回调）后立即恢复。
+    // ★ 注意：主图的 opacity 是一个"进进出出"的状态，必须成对设置。
+    //   曾经把这里改成"索性不清零"，结果飞行落地时没人恢复它 —— 主图永久停在
+    //   上次关闭留下的 opacity:'0' 上，画面上只剩垫底缩略图，看起来像新图加载不出来。
+    modalImg.style.opacity = canFly ? '0' : '';
     modal.style.display = 'flex';
+    modal.classList.add('modal-show');
 
     const scrollY = window.scrollY;
     document.body.classList.add('modal-open');
@@ -835,11 +929,12 @@ function openModal(imgSrc1, imgSrc2) {
         pre.src = currentModalImg2;
     }
 
-    let flying = false;
     if (canFly) {
         const from = imageContentRect(sourceEl);
         if (from.width >= 8 && from.height >= 8) {
             // 缩略图与原图等比，直接用缩略图的宽高比即可
+            // ★ 落地后必须把主图的 opacity 恢复（上面刚设成 '0'）。
+            //   与 closeModal 里那次 '0' 成对：谁设谁负责恢复。
             startModalFlight(from, modalContainRect(from.width / from.height),
                 sourceEl.currentSrc || sourceEl.src,
                 function () {
@@ -847,10 +942,8 @@ function openModal(imgSrc1, imgSrc2) {
                     cancelModalFlight();
                     modalImg.style.opacity = '';
                 });
-            flying = true;
         }
     }
-    if (!flying) modalImg.style.opacity = '';
 }
 
 function closeModal() {
@@ -902,10 +995,19 @@ function closeModal() {
         modalFullReady = false;
         modalFlipBusy = false;
         if (modalFlipTimer) { clearTimeout(modalFlipTimer); modalFlipTimer = null; }
+        // ★ 先摘掉垫底层的身份，再交给 clearModalFlipLayer 去清。
+        //   带着 .backdrop-layer 时那个函数会直接返回（它在保护"正在当垫底图的浮层"）。
+        const bd = document.getElementById('modalImgOverlay');
+        if (bd) {
+            bd.classList.remove('backdrop-layer');
+            bd.style.display = 'none';
+        }
         clearModalFlipLayer();
         const img = document.getElementById('modalImg');
         if (img) {
-            img.src = '';
+            // 用 removeAttribute 而不是 src='' —— 后者在某些浏览器里会被解析成
+            // "当前页面地址"，白白发起一次指向文档本身的请求。
+            img.removeAttribute('src');
             img.style.opacity = '';
             img.style.backgroundImage = '';
             // ★ 必须连翻面动画的残留一起清干净：内联 animation / transform

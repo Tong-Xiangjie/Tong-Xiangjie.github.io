@@ -763,6 +763,13 @@ body {
     height: 100dvh;
     object-fit: contain;
     pointer-events: none;
+    /* ★ 必须让主图参与层叠并压在垫底层之上。
+       #modalImgOverlay 是 position:fixed + z-index，会自成一个层叠层级；
+       而 #modalImg 原本是静态定位、z-index:auto，实测会被垫底图盖住
+       （注入纯色图做像素判定：屏幕中心读到的是垫底层的颜色）。
+       这里显式给主图定位与层级，保证"原图永远盖在垫底缩略图上"。 */
+    position: relative;
+    z-index: 2;
 }
 
 /* ========== 正反面翻面动画 ==========
@@ -785,7 +792,15 @@ body {
     backface-visibility: hidden;
 }
 .modal-img-overlay {
-    /* 与 .modal-img 同框同形，翻面时压在上面（DOM 里在它之后） */
+    /* 与 .modal-img 同框同形，DOM 里在它之后 —— 所以它天然盖在主图上面。
+       但主图会在原图就绪后淡入（见上），那时它会盖住这一层。
+       这一层有两个用途，互不冲突：
+         1. 垫底缩略图：原图解码完成前，它扛着同一张图的 320px 缩略图，
+            原图就绪后由主图淡入盖住 → 没有"低清直接跳高清"的硬切。
+         2. 翻面动画的旧面（历史用途）—— 现已停用，见 category-view.js 的 modalFlip()。
+       基态（下方 transform/opacity）是给翻面 keyframes 当插值起点用的静默态：
+       没有 src 时它什么都不画，但**仍会占一个 6% 宽、0.25 不透明的盒子**，
+       所以不用它时必须 display:none（clearModalFlipLayer 的 hide 参数负责）。 */
     position: fixed;
     left: 0;
     top: 0;
@@ -798,6 +813,26 @@ body {
     z-index: 2;
     transform: scale3d(0.06, 1, 1);
     opacity: 0.25;
+}
+/* 当「垫底缩略图层」用时：满幅、不透明、无压缩，并且**压在主图下面**，
+   让主图解码完成后淡入盖住它（配合 .modal-img 的 opacity transition）。
+   选择器比 .modal-img-overlay 多一个类，权重更高，所以能盖过上面的基态。
+   z-index 必须显式设成 -1：#modalImgOverlay 在 DOM 里位于 #modalImg **之后**，
+   默认会盖在主图上方；垫底场景需要它在下。实测（注入纯色图做像素判定：
+   垫底=洋红、主图=青，读屏幕中心像素）：
+     z-index: 1 或 0  → 读到洋红，主图被完全盖住（青色像素数 0）
+     z-index: -1      → 读到青色，正确
+   0/1 都不行是因为 #modalImg 的 z-index(2) 落在 flex 子项的层叠顺序里，
+   垫底层必须降到主图所在层叠层之下。-1 不会跑到 .modal 外面：
+   .modal 自己有 z-index:1000，是个层叠上下文，负值只在它内部生效。
+   翻面动画时用不到它（modalFlip 会把它 display:none），所以这个 z-index
+   不会影响翻面。 */
+.modal-img-overlay.backdrop-layer {
+    display: block;
+    z-index: -1;
+    transform: none;
+    opacity: 1;
+    transition: opacity 110ms var(--ease-out);
 }
 
 /* 收起（旧面被压扁带出） */
