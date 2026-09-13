@@ -70,14 +70,33 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
+          # ---- Diagnostics: enough context to pinpoint a failure without guessing ----
+          Write-Host "repo=$env:GITHUB_REPOSITORY branch=$env:BRANCH event=$env:GITHUB_EVENT_NAME"
+          Write-Host "token present: $([bool]$env:GITHUB_TOKEN)"
+          $remoteUrl = git remote get-url origin
+          Write-Host "origin = $remoteUrl"
+          if ($remoteUrl -match 'x-access-token') {
+            Write-Host 'WARNING: token is already embedded in the remote URL; do not embed it twice.'
+          }
+
           # Fail fast with an actionable message if the token cannot write.
           # A repo whose "Workflow permissions" is set to read-only gets a
           # read-only token here, and `git push` would fail with a cryptic 403.
-          # Checking the API first turns that into a one-line explanation.
-          $perm = (Invoke-RestMethod -Uri "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY" `
-            -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; 'User-Agent' = 'thumbs-workflow' }).permissions
-          if (-not $perm.push) {
-            Write-Host '::error::GITHUB_TOKEN has no push permission. Set Settings -> Actions -> General -> Workflow permissions to "Read and write permissions".'
+          $permJson = '(query failed)'
+          $canPush = $false
+          try {
+            $resp = Invoke-RestMethod -Uri "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY" `
+              -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; 'User-Agent' = 'thumbs-workflow' }
+            $permJson = ($resp.permissions | ConvertTo-Json -Compress)
+            $canPush = [bool]$resp.permissions.push
+          } catch {
+            Write-Host "WARNING: could not read token permissions: $($_.Exception.Message)"
+            Write-Host 'Continuing anyway; git push will report the real error if this is a permission problem.'
+            $canPush = $true
+          }
+          Write-Host "token permissions = $permJson"
+          if (-not $canPush) {
+            Write-Host '::error::GITHUB_TOKEN has no push permission. Fix: Settings -> Actions -> General -> Workflow permissions -> "Read and write permissions".'
             exit 1
           }
 
@@ -102,14 +121,27 @@ jobs:
           git add -- $spec
           # [skip ci] keeps this commit from triggering the workflow again
           git commit -m 'chore: auto-generate image thumbnails [skip ci]'
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host '::error::git commit failed.'
+            exit 1
+          }
 
           # Rebase first in case someone pushed while we were generating
           git pull --rebase --autostash origin $env:BRANCH
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host '::error::git pull --rebase failed (see output above).'
+            exit 1
+          }
 
           $local = git rev-parse HEAD
-          git push origin "HEAD:$env:BRANCH"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host '::error::git push failed (see output above).'
+          Write-Host "pushing $local to $env:BRANCH ..."
+          # Capture first, then print: piping git straight into ForEach-Object can
+          # leave $LASTEXITCODE unreliable, and we depend on it for the check below.
+          $pushOut = git push origin "HEAD:$env:BRANCH" 2>&1
+          $pushExit = $LASTEXITCODE
+          $pushOut | ForEach-Object { Write-Host $_ }
+          if ($pushExit -ne 0) {
+            Write-Host '::error::git push failed. If this is a 403, set Settings -> Actions -> General -> Workflow permissions to "Read and write permissions".'
             exit 1
           }
 
