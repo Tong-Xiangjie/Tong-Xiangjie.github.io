@@ -784,6 +784,21 @@ function openModal(imgSrc1, imgSrc2) {
     // Hammer / 滚轮只绑一次即可，具体是否响应由 modalFullReady 把关
     initPinchZoom();
 
+    // ★ 预热「另一面」的原图。
+    //   翻面的第二半要等新面**解码就绪**才展开（见 modalFlip）。不预热的话，
+    //   用户第一次点翻面时那张原图才刚开始下载——这里的原图动辄 3700×2100，
+    //   实测冷缓存下光下载就要 800ms 上下，再叠加解码就可能压过 1200ms 兜底，
+    //   于是纸币会长时间卡在"压扁"状态，看着像卡死。
+    //   打开时顺手取一次，等用户真去翻的时候就在 HTTP 缓存里了。
+    //   放在弹窗显示之后：不跟正面那张抢首屏，也不影响生长动画。
+    //   失败无所谓（数据里确实有"引用了但没上传"的图），忽略即可。
+    if (currentModalImg2) {
+        const pre = new Image();
+        pre.decoding = 'async';
+        pre.onerror = function () { this.onerror = null; };
+        pre.src = currentModalImg2;
+    }
+
     let flying = false;
     if (canFly) {
         const from = imageContentRect(sourceEl);
