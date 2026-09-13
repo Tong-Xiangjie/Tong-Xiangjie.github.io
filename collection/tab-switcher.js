@@ -339,6 +339,12 @@ function restoreExpandedStates(states) {
 }
 
 function enterArticlesTab() {
+    // ★ 同 enterNotesOrCoinsTab：点的是当前已经在的版块就直接返回，
+    //   否则入场淡入会无缘无故再播一遍。
+    //   同样必须放行"从设置页返回"和"路由正在施加 URL 状态"两种情况，
+    //   详见 enterNotesOrCoinsTab 里的说明。
+    if (!isSettingsMode && !applyingRoute && currentMode === MODE.ARTICLES) return;
+
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
         toggleBtn.style.display = '';
@@ -398,6 +404,21 @@ function enterArticlesTab() {
 }
 
 function enterNotesOrCoinsTab(target) {
+    // ★ 点的是**当前已经在的**这个版块：什么都不用做。
+    //   不加这个守卫时，点「纸币」而当前正是纸币，会走完整套重渲染并再次调用
+    //   triggerViewAnimation()，于是入场淡入无缘无故又播一遍 —— 观感是"页面闪一下"。
+    //   入场动画只在**真的换版块**时才有意义（用户明确提出的诉求）。
+    //
+    // ★ 两个必须放行的例外，否则后果比"多播一次动画"严重得多：
+    //   · isSettingsMode：那是"从设置页返回"，必须真的恢复原视图。
+    //   · applyingRoute：路由正在施加 URL 里的状态（深链接/刷新/前进后退），
+    //     必须照常恢复。**这个尤其致命** —— currentMode 的初值就是 MODE.NOTES
+    //     （见 core.js），而刷新时最常见的深链也正是 #notes/...：模式相同，
+    //     守卫会把 applyRoute 里这次调用整个吞掉，URL 里的分类/系列永不恢复，
+    //     随后 syncFocusAndRoute() 再把 hash 规范化成 #notes，链接就"自己废了"。
+    //     实测症状：概览界面不出现、hash 从 #notes/rmb/rmb3/s1/v0 变成 #notes。
+    if (!isSettingsMode && !applyingRoute && currentMode === target) return;
+
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
         toggleBtn.style.display = '';

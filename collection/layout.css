@@ -27,10 +27,27 @@
     --dur-1: 0.14s;   /* 微反馈：hover / 按压 / 图标旋转 */
     --dur-2: 0.22s;   /* 小面板：手风琴、下拉、提示 */
     --dur-3: 0.3s;    /* 视图切换、弹层、侧边栏 */
+    /* 展开/收起专用时长。比 --dur-2 略长：手风琴要展开的是一整块列表，
+       0.22s 在低端机上只摊得到 ~9 帧，掉帧全落在起步最显眼的位置；
+       0.28s 实测帧数 9→16、最长帧间隔 84ms→40ms，卡顿感消失。
+       同样不直接动 --dur-2（它还被侧边栏宽度/搜索框等 20 多处使用）。 */
+    --dur-accordion: 0.28s;
+    /* 视图入场淡入。比 --dur-2 慢：换版块是全屏内容整体替换，
+       0.22s 淡完显得"闪一下"、来不及看清过渡，实测反馈偏短。
+       单独开一个变量，避免为了改它而连带拖慢手风琴/下拉那些小面板。 */
+    --dur-enter: 0.36s;
     --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
     --ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
     --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* ★ 展开/收起（手风琴）专用缓动。
+       不能直接借用 --ease-inout：它最陡的一段紧贴起点，对"收起"这种反向动画
+       来说等于第一步就把大半位移走完，剩下的时间几乎不动 —— 实测收起时
+       25% 时间点已完成 81%，观感是"猛地一收、然后卡住"。
+       这条在起点附近更平缓，把位移均摊到全程（实测 25%→29%、50%→74%）。
+       只给 max-height 类手风琴用，别动 --ease-inout 本身：它还管着
+       .switch / .switch-knob / .seg-btn / 顶部搜索框 / 侧边栏宽度等一堆控件。 */
+    --ease-accordion: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 /* ===== 暗色底（JS 跑起来之前的临时底色）=====
@@ -469,13 +486,19 @@ body {
 .sidebar-children {
     max-height: 0;
     overflow: hidden;
-    /* 注意：这个过渡实际上不会触发 —— renderSidebar() 每次整体重建 innerHTML，
-       新元素一出现就带着 .open，没有"从 0 到有"的过程。保留是为了语义完整
-       （若日后改成增量更新侧边栏，这里就能直接生效）。 */
-    transition: max-height var(--dur-2) var(--ease-inout);
+    /* ★ 展开/收起过渡由 sidebar.js 的 syncSidebarAccordion() +
+       setSidebarPanelOpen() 驱动。renderSidebar() 会整体重建 innerHTML，
+       新面板一出现就带着 .open，单靠 CSS 永远等不到"从 0 到有"的过程
+       （本注释历史上据此认定这条过渡"不会触发"）。现在那边做状态差分，
+       并用内容真实高度驱动 max-height，过渡因此真正生效且不会拖尾。 */
+    transition: max-height var(--dur-accordion) var(--ease-accordion);
 }
 .sidebar-children.open {
-    max-height: 2000px;   /* 最多约 14 个子项 ≈ 420px，余量充足，不会裁剪 */
+    /* 这个 2000px 只是"展开态"的语义上限，过渡区间不靠它 ——
+       sidebar.js 的 setSidebarPanelOpen() 会量出内容真实高度作为起止值，
+       动画结束后把 inline max-height 清掉，此处的值便不再参与渲染。
+       留着是为了让"没有 JS 参与"时展开态仍然成立。 */
+    max-height: 2000px;
 }
 
 .sidebar-child {
@@ -527,7 +550,7 @@ body {
    以前这里是 translateY(10px) 的"向上淡入"，而视图切换是全站最高频的动效，
    导致「处处向上淡入」的观感。纯淡入没有方向感，正好适合"同一位置换内容"。 */
 .content-enter {
-    animation: contentFadeIn var(--dur-2) var(--ease-out);
+    animation: contentFadeIn var(--dur-enter) var(--ease-out);
 }
 @keyframes contentFadeIn {
     from { opacity: 0; }
@@ -612,7 +635,7 @@ body {
 .series-body {
     max-height: 0;
     overflow: hidden;
-    transition: max-height var(--dur-2) var(--ease-inout), opacity var(--dur-2) var(--ease-out);
+    transition: max-height var(--dur-accordion) var(--ease-accordion), opacity var(--dur-accordion) var(--ease-out);
     opacity: 0;
 }
 /* 展开时不写死 max-height：由 animateAccordion() 量出内容真实高度再过渡（原因见 core.js）。
@@ -638,7 +661,7 @@ body {
 .copy-list {
     max-height: 0;
     overflow: hidden;
-    transition: max-height var(--dur-2) var(--ease-inout), opacity var(--dur-2) var(--ease-out);
+    transition: max-height var(--dur-accordion) var(--ease-accordion), opacity var(--dur-accordion) var(--ease-out);
     opacity: 0;
 }
 .copy-list.open { max-height: none; opacity: 1; }
