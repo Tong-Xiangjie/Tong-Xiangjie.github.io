@@ -831,6 +831,20 @@ function closeModal() {
     modalFlipBusy = false;
     modalLoadToken++;
     modal.classList.remove('modal-flipping');
+    // ★ 必须在这里就把主图上的翻面动画摘干净。
+    //   .modal-img.flip-in { animation: modalFlipIn 90ms … forwards } —— forwards 让
+    //   动画结束后**永久保持终态**，而终态里含 opacity:1。
+    //   CSS 动画的优先级**高于内联样式**，所以下面那行 modalImg.style.opacity = '0'
+    //   会被 flip-in 的 opacity:1 完全压掉：缩回动画照常播，但一张**全尺寸的反面大图
+    //   会原地静止不动**，直到 finish() 里 remove('flip-in') 才消失 —— 这就是
+    //   "翻面后退出，缩回动画上多一张静止大图，动画结束才消失"的根因。
+    //   摘掉动画的同时连内联 animation/transform 一起复位，避免下次打开第一眼是压扁的。
+    const closingImg = document.getElementById('modalImg');
+    if (closingImg) {
+        closingImg.classList.remove('flip-out', 'flip-in');
+        closingImg.style.animation = '';
+        closingImg.style.transform = '';
+    }
 
     // ★ 蒙版淡出（原来是 finish() 里直接 display:none，所以"啪"地一下就没了）。
     //   注意 .modal 同时包含蒙版与图片，所以这里是整体不透明度淡出：
