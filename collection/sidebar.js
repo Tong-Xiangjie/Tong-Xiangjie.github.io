@@ -1,9 +1,15 @@
 // ==================== sidebar.js ====================
 
-// 上一次 renderSidebar() 结束后，各分类子面板的展开态（catId → true/false）。
-// null 表示"还没渲染过"（首次渲染不做动画，避免首屏无谓地展开一下）。
+// 上一次 renderSidebar() 结束后，各子面板的展开态（"模式|面板序号" → true/false）。
+// 空对象表示"还没渲染过"（首次渲染不做动画，避免首屏无谓地展开一下）。
 // 这个映射是"重建 innerHTML"与"CSS 过渡"之间的桥梁，详见 syncSidebarAccordion()。
-let sidebarAccordionState = null;
+//
+// ★ 必须按**模式**分区（key 前缀就是 currentMode）。原因：面板序号是它在该模式
+//   侧边栏里的位置，而不同模式的分类数量互不相同（纸币 8 个子面板、文章 6 个、
+//   专题 2 个）。共用一个命名空间的话，切版块时"新模式的第 N 个面板"会被拿去和
+//   "旧模式的第 N 个面板"做差分，等于把上一个版块的展开状态套到这一个上 ——
+//   实测症状就是用户报的"不同 tab 的侧边栏父类展开情况相互影响"。
+let sidebarAccordionState = {};
 
 // ★ Word式文字比例压缩：同时处理父级（.sidebar-item）和子级（.sidebar-child）
 function fitSidebarLabels() {
@@ -230,25 +236,33 @@ function setSidebarPanelOpen(panel, open) {
 function syncSidebarAccordion() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-    const prev = sidebarAccordionState;
+    // 展开态按模式分区，切版块时互不干扰（见 sidebarAccordionState 的注释）
+    const scope = (typeof currentMode === 'string' && currentMode) ? currentMode : 'default';
+    const prev = (sidebarAccordionState && typeof sidebarAccordionState === 'object')
+        ? sidebarAccordionState[scope] : null;
 
+    // ★ 子面板一律从 DOM 结构推导，不用 id、也不用解析 onclick。
+    //   约定（各处渲染器都遵守）：分类项 .sidebar-item 后面紧跟着它的
+    //   .sidebar-children 面板（没有子项时不渲染面板）。
+    //   为什么不按 id 找：文章模式有自己的渲染器 renderArticleSidebar()，
+    //   它生成的面板**没有 id**，靠 getElementById('children-'+catId) 会全部漏掉；
+    //   而给文章面板补 id 又有撞名风险（两个渲染器各自命名空间独立，
+    //   id 是全局的）。按兄弟关系推导则天然唯一，且各渲染器无需额外属性。
+    //   注意：没有面板的分类项，nextElementSibling 会是下一个 .sidebar-item，需校验类名。
     const panels = [];
     sidebar.querySelectorAll('.sidebar-item').forEach(function (item) {
-        const onclickAttr = item.getAttribute('onclick') || '';
-        const m = /onSidebarItemClick\('([^']+)'\)/.exec(onclickAttr);
-        if (!m) return;
-        const catId = m[1];
-        const panel = document.getElementById('children-' + catId);
-        if (!panel) return;   // 该分类没有子项
-        panels.push({ catId: catId, panel: panel, isOpen: panel.classList.contains('open') });
+        const panel = item.nextElementSibling;
+        if (!panel || !panel.classList.contains('sidebar-children')) return;   // 该分类没有子项
+        // 用 DOM 中的出现序号当键：跨模式唯一（再叠加 scope 前缀），且不依赖分类 id 的命名。
+        panels.push({ key: 'p' + panels.length, panel: panel, isOpen: panel.classList.contains('open') });
     });
 
     const next = {};
     const changes = [];
     panels.forEach(function (p) {
-        const wasOpen = prev ? !!prev[p.catId] : p.isOpen;   // 首次渲染：视为"本来就是目标态"
+        const wasOpen = prev ? !!prev[p.key] : p.isOpen;   // 首次渲染：视为"本来就是目标态"
         if (wasOpen !== p.isOpen) changes.push(p);
-        next[p.catId] = p.isOpen;
+        next[p.key] = p.isOpen;
     });
 
     if (changes.length) {
@@ -266,7 +280,8 @@ function syncSidebarAccordion() {
         });
     }
 
-    sidebarAccordionState = next;
+    if (!sidebarAccordionState || typeof sidebarAccordionState !== 'object') sidebarAccordionState = {};
+    sidebarAccordionState[scope] = next;
 }
 
 function onSidebarItemClick(catId) {

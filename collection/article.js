@@ -314,6 +314,13 @@ function renderArticleSidebar() {
     }
   }
   sidebar.innerHTML = html;
+  // ★ 展开/收起要带动画：和纸币/硬币/专题走同一套差分逻辑
+  //   （见 sidebar.js 的 syncSidebarAccordion）。不调用的话，文章侧边栏因为
+  //   每次整体重建 innerHTML、新面板一出现就带着 .open，切换分类是硬切没有过渡。
+  //   这里的面板没有 id 也没关系 —— 那边按 .sidebar-item 的相邻兄弟推导。
+  if (typeof syncSidebarAccordion === 'function') {
+    syncSidebarAccordion();
+  }
   if (typeof fitSidebarLabels === 'function') {
     fitSidebarLabels();
   }

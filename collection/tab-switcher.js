@@ -39,6 +39,23 @@ function onTabClick(target) {
 }
 
 function onTabClickInner(target) {
+    // ★ 点的是**当前所在的那个 tab**：什么都不做。
+    //
+    // 放在这里按"tab 身份"统一判断，而不是散在各个 enter* 里：
+    //   · onTabClick 只由 tab 的 click 事件触发（见 main.js 的绑定），
+    //     路由/深链接走的是 enterSettings() / enterNotesOrCoinsTab() 等函数，
+    //     不经过这里 —— 所以在这里提前返回不会影响 URL 恢复。
+    //   · 之前只在 enterNotesOrCoinsTab / enterArticlesTab 里加守卫，
+    //     而 MODE.SPECIAL 和 MODE.SETTINGS 两个分支在函数中更靠前，
+    //     等于从没被覆盖到：点正在看的「专题」「我的」，入场淡入照样重播。
+    //
+    // MODE.SETTINGS 那一支只能靠 isSettingsMode 判断：currentMode 永远不等于
+    // 'settings'（全文件没有这个赋值，进设置页只翻 isSettingsMode、currentMode
+    // 保持原样），拿 currentMode 去比会漏判，点「我的」就会重播动画。
+    const clickingCurrentTab = (isSettingsMode && target === MODE.SETTINGS)
+        || (!isSettingsMode && currentMode === target);
+    if (clickingCurrentTab) return;
+
     saveFullState();
 
     // ★ 切换版块时关闭特殊字符面板
@@ -339,11 +356,13 @@ function restoreExpandedStates(states) {
 }
 
 function enterArticlesTab() {
-    // ★ 同 enterNotesOrCoinsTab：点的是当前已经在的版块就直接返回，
-    //   否则入场淡入会无缘无故再播一遍。
-    //   同样必须放行"从设置页返回"和"路由正在施加 URL 状态"两种情况，
-    //   详见 enterNotesOrCoinsTab 里的说明。
-    if (!isSettingsMode && !applyingRoute && currentMode === MODE.ARTICLES) return;
+    // ★ 这里**故意不放**"点当前 tab 就直接返回"的守卫。
+    //   去重统一由上层 onTabClickInner 负责（它知道点击的 tab 身份）；
+    //   而本函数还会被"从设置页返回"(leaveSettingsToTarget) 和路由
+    //   (applyRoute) 直接调用 —— 那两种情况下 currentMode 早就等于
+    //   MODE.ARTICLES 了（进设置页不改 currentMode），任何形如
+    //   `currentMode === MODE.ARTICLES` 的早退都会把它们一起吞掉。
+    //   实测症状：「文章 → 我的 → 文章」之后停在设置页，activeTab 还写着「我的」。
 
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
@@ -381,6 +400,21 @@ function enterArticlesTab() {
     if (currentArticleIndex >= 0 && currentArticleView === VIEW.READER) {
         openArticleReader(currentArticleIndex, true);
     } else {
+        // ★ 进入文章版块时清掉列表 DOM，强制走"全部当作新增"的路径。
+        //   为什么需要：reconcileArticleWithFLIP 只给 oldKeyMap 里没有的条目挂
+        //   translateX(40px) 的滑入动画（见 article.js 里 el.style.transform 那两处）。
+        //   首次进入时列表为空、所有条目都算新增，所以有滑入；第二次进入时节点被
+        //   增量复用，滑入就没了 —— 只剩 triggerViewAnimation() 的淡入，观感是
+        //   "第一次划入、之后变成淡入"。清空后每次进入都能保持划入。
+        //   只清 wrapper，不动滚动位置：下面 renderArticleList() 会按
+        //   articleState.listScrollY 恢复。搜索过滤等其它调用方不受影响
+        //   （它们照旧走增量复用，不会每次输入都重播滑入）。
+        //   wrapper 由 ensureArticleDynamicWrapper() 创建，用类名定位（它没有 id）；
+        //   此时可能还没被创建过，getElementById/querySelector 取不到就跳过，
+        //   那种情况列表本来就是空的，自然会全部滑入。
+        const listRc = getRenderContainer();
+        const listWrapper = listRc ? listRc.querySelector('.article-dynamic-wrapper') : null;
+        if (listWrapper) listWrapper.innerHTML = '';
         renderArticleList();
         const container = getRenderContainer();
         if (articleState.listScrollY > 0) {
@@ -404,20 +438,19 @@ function enterArticlesTab() {
 }
 
 function enterNotesOrCoinsTab(target) {
-    // ★ 点的是**当前已经在的**这个版块：什么都不用做。
-    //   不加这个守卫时，点「纸币」而当前正是纸币，会走完整套重渲染并再次调用
-    //   triggerViewAnimation()，于是入场淡入无缘无故又播一遍 —— 观感是"页面闪一下"。
-    //   入场动画只在**真的换版块**时才有意义（用户明确提出的诉求）。
-    //
-    // ★ 两个必须放行的例外，否则后果比"多播一次动画"严重得多：
-    //   · isSettingsMode：那是"从设置页返回"，必须真的恢复原视图。
-    //   · applyingRoute：路由正在施加 URL 里的状态（深链接/刷新/前进后退），
-    //     必须照常恢复。**这个尤其致命** —— currentMode 的初值就是 MODE.NOTES
-    //     （见 core.js），而刷新时最常见的深链也正是 #notes/...：模式相同，
-    //     守卫会把 applyRoute 里这次调用整个吞掉，URL 里的分类/系列永不恢复，
-    //     随后 syncFocusAndRoute() 再把 hash 规范化成 #notes，链接就"自己废了"。
-    //     实测症状：概览界面不出现、hash 从 #notes/rmb/rmb3/s1/v0 变成 #notes。
-    if (!isSettingsMode && !applyingRoute && currentMode === target) return;
+    // ★ 这里**故意不放**"点当前版块就直接返回"的守卫 —— 与 enterArticlesTab 同理。
+    //   去重由上层 onTabClickInner 负责（在 tab 身份这一层判断，最准确）；
+    //   而本函数还会被"从设置页返回"(leaveSettingsToTarget) 与路由
+    //   (applyRoute) 直接调用，这两种情况下 currentMode **早就等于** target：
+    //   · 路由：currentMode 的初值就是 MODE.NOTES（见 core.js），刷新时的
+    //     常见深链又正是 #notes/...，守卫会把 applyRoute 的调用整个吞掉，
+    //     URL 里的分类/系列永不恢复，随后 syncFocusAndRoute() 再把 hash
+    //     规范化成 #notes —— 链接就"自己废了"。
+    //   · 从设置页返回：进设置页不改 currentMode，所以回来时 currentMode
+    //     已经等于目标版块，守卫同样会吞掉这次恢复。注意 isSettingsMode 在这里
+    //     **不是**有效的例外 —— leaveSettingsToTarget() 在调用本函数之前就把它
+    //     置成 false 了，挡不住。实测症状：「文章 → 我的 → 文章」停在设置页、
+    //     activeTab 还写着「我的」（硬币同理）。
 
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn && toggleBtn.style.display === 'none') {
