@@ -779,7 +779,7 @@ function getFilteredArticles() {
 }
 
 // ========== 主渲染函数（支持滚动保留） ==========
-function renderArticleList(resetScroll = false) {
+function renderArticleList(resetScroll = false, keepScroll = null) {
   currentArticleView = VIEW.LIST;
   switchToCurrentContainer();
 
@@ -790,8 +790,11 @@ function renderArticleList(resetScroll = false) {
   container.style.boxSizing = 'border-box';
   container.style.width = '100%';
 
-  // ★ 保存当前滚动位置，若重置则置为0
-  const savedScrollTop = resetScroll ? 0 : container.scrollTop;
+  // ★ 保存当前滚动位置，若重置则置为0。
+  //   keepScroll 用于"列表 DOM 已被调用方清空/重建"的情况（见 enterArticlesTab）：
+  //   那时 container.scrollTop 已经被清空成 0，直接读会把要恢复的位置丢掉，
+  //   所以由调用方把清空**之前**量到的位置传进来。
+  const savedScrollTop = resetScroll ? 0 : (keepScroll !== null ? keepScroll : container.scrollTop);
 
   ensureArticleStaticHeader(container);
 

@@ -406,20 +406,20 @@ function enterArticlesTab() {
         //   首次进入时列表为空、所有条目都算新增，所以有滑入；第二次进入时节点被
         //   增量复用，滑入就没了 —— 只剩 triggerViewAnimation() 的淡入，观感是
         //   "第一次划入、之后变成淡入"。清空后每次进入都能保持划入。
-        //   只清 wrapper，不动滚动位置：下面 renderArticleList() 会按
-        //   articleState.listScrollY 恢复。搜索过滤等其它调用方不受影响
-        //   （它们照旧走增量复用，不会每次输入都重播滑入）。
+        //   只清 wrapper，不动滚动位置：下面 renderArticleList() 会按量到的位置
+        //   恢复。搜索过滤等其它调用方不受影响（它们照旧走增量复用，
+        //   不会每次输入都重播滑入）。
         //   wrapper 由 ensureArticleDynamicWrapper() 创建，用类名定位（它没有 id）；
-        //   此时可能还没被创建过，getElementById/querySelector 取不到就跳过，
-        //   那种情况列表本来就是空的，自然会全部滑入。
+        //   此时可能还没被创建过，querySelector 取不到就跳过 —— 那种情况列表本来
+        //   就是空的，自然会全部滑入。
+        //   注意必须在清空前量好滚动位置：清空后容器高度归零、scrollTop 会被
+        //   浏览器夹到 0，再读就已经丢了。量到的值显式传给 renderArticleList()
+        //   （它内部的 keepScroll/双 rAF 兜底都靠这个值恢复）。
         const listRc = getRenderContainer();
+        const listScrollY = listRc ? listRc.scrollTop : 0;
         const listWrapper = listRc ? listRc.querySelector('.article-dynamic-wrapper') : null;
         if (listWrapper) listWrapper.innerHTML = '';
-        renderArticleList();
-        const container = getRenderContainer();
-        if (articleState.listScrollY > 0) {
-            requestAnimationFrame(() => { container.scrollTop = articleState.listScrollY; });
-        }
+        renderArticleList(false, listScrollY);
     }
 
     if (articleSearchMode === 'fulltext') {
