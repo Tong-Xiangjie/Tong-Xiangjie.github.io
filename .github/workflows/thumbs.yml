@@ -11,6 +11,12 @@
 # 为什么用 windows-latest：make-thumbs.ps1 依赖 System.Drawing（GDI+）读图、
 # 按 EXIF 纠正方向、编码 JPEG。System.Drawing 是 Windows 专有实现，
 # 在 ubuntu 上需要额外装 libgdiplus 且行为不完全一致，没必要绕。
+#
+# ★ 下面所有 run: 的脚本正文都刻意只用 ASCII。
+#   GitHub Actions 会把 run 内容写成临时脚本文件；若某个环节用 Windows PowerShell
+#   5.1 且脚本是 UTF-8 无 BOM，5.1 会按 ANSI(GBK) 解码，中文字符串里的引号会被
+#   截断成非法 token（本仓库的 make-thumbs.ps1 就踩过这个坑）。
+#   pwsh 7 没这个问题，但没必要赌 —— 说明写在 YAML 注释里，正文保持 ASCII。
 name: 生成缩略图
 
 on:
@@ -52,9 +58,9 @@ jobs:
 
       - name: 生成缩略图
         # 脚本本身是"增量"的：缩略图已存在且不比原图旧就跳过，可重复运行。
-        # continue-on-error：个别图生成失败时不中断整个 workflow，
-        # 让下一步把**已经成功生成**的缩略图先提交上去；失败项在日志里以 Warning 列出。
-        # 脚本在所有图片都失败时以 exit 1 结束，故用 continue-on-error 而不是忽略。
+        # continue-on-error：个别图生成失败时不中断整个 workflow，让下一步把
+        # 已经成功生成的缩略图先提交上去；失败项在日志里以 Warning 列出。
+        # 脚本在所有图都失败时会 exit 1，所以才需要它，而不是直接忽略退出码。
         continue-on-error: true
         shell: pwsh
         run: ./collection/tools/make-thumbs.ps1
@@ -64,28 +70,28 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
-          # ★ pathspec 必须用 :(glob) magic —— 普通 pathspec 里的 '*' 不跨 '/',
-          #   写成 '*/image/thumb' 会一个都匹配不到（实测选中 0 项）。
-          #   仓库里有两套缩略图布局：
-          #     notecollection/image/thumb/**、coincollection/image/thumb/**
-          #     funcollection/<名>/images/thumb/**
+          # pathspec MUST use the :(glob) magic. In a plain pathspec '*' does not
+          # cross '/', so '*/image/thumb' matches nothing at all (verified: 0 hits).
+          # This repo has two thumbnail layouts, hence two patterns:
+          #   notecollection/image/thumb/** and coincollection/image/thumb/**
+          #   funcollection/<name>/images/thumb/**
           $spec = @(':(glob)**/image/thumb/**', ':(glob)**/images/thumb/**')
 
           $changed = git status --porcelain -- $spec
           if (-not $changed) {
-            Write-Host '没有新增或更新的缩略图，跳过提交。'
+            Write-Host 'No new or updated thumbnails; nothing to commit.'
             exit 0
           }
 
-          Write-Host '本次新增/更新的缩略图：'
+          Write-Host 'New or updated thumbnails:'
           $changed | ForEach-Object { Write-Host "  $_" }
 
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- $spec
-          # [skip ci] 防止这次提交再次触发本 workflow
-          git commit -m 'chore: 自动生成图片缩略图 [skip ci]'
+          # [skip ci] keeps this commit from triggering the workflow again
+          git commit -m 'chore: auto-generate image thumbnails [skip ci]'
 
-          # 期间若有人推了新提交，先 rebase 再推，避免 push 被拒
+          # Rebase first in case someone pushed while we were generating
           git pull --rebase --autostash origin $env:BRANCH
           git push origin "HEAD:$env:BRANCH"
