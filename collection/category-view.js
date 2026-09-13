@@ -728,16 +728,22 @@ function loadModalImage(opts) {
     //   垫底层的身份由 beginModalBackdrop() 建立，这里只负责给它换 src。
     //   注意：**不要**先 removeAttribute('src') 再赋值 —— 那会让垫底层先空一帧，
     //   而它此刻可能正是画面上唯一可见的东西（"上一个缩略图闪一下"就是这么来的）。
+    //
+    // ★ opts.flyFromThumb：本次打开正在跑「缩略图飞向全屏」的生长动画。
+    //   那种情况下**先不要显示垫底层** —— 飞行图层已经扛着同一张缩略图从格子
+    //   起飞，垫底层从同一位置显示同一张图等于画了两遍，观感是"立刻出现一张
+    //   放大的缩略图当背景，同时又在播放大动画"。
+    //   落地时若原图仍未就绪，再由 openModal 的落地回调把垫底层补上
+    //   （见 restoreModalBackdrop），这样"飞行中"和"飞行后"两段都不缺画面。
     if (backdrop) {
         if (backdropSrc) {
             if (!backdrop.classList.contains('backdrop-layer')) beginModalBackdrop();
             if (backdrop.getAttribute('src') !== backdropSrc) backdrop.src = backdropSrc;
+            if (opts && opts.flyFromThumb) backdrop.style.display = 'none';
         } else {
             // 来源本身就是已加载好的原图（文章配图）：连垫底图都不用，
             // 顺带省掉一次注定 404 的缩略图请求
-            backdrop.classList.remove('backdrop-layer');
-            backdrop.style.display = 'none';
-            backdrop.removeAttribute('src');
+            dropModalBackdrop();
         }
     }
     modalImg.src = full;
@@ -750,6 +756,12 @@ function loadModalImage(opts) {
         fireReady();
     }
     resetModalZoom();
+    // ★ 抑制垫底层必须放在 resetModalZoom() **之后**：那个函数会调
+    //   beginModalBackdrop()，把 display 复位成 ''（垫底身份要求它可见）。
+    //   放在前面会被它覆盖掉 —— 实测过，顺序反了这条就失效。
+    if (opts && opts.flyFromThumb && backdrop && backdropSrc) {
+        backdrop.style.display = 'none';
+    }
     return token;
 }
 
@@ -761,6 +773,24 @@ function dropModalBackdrop(token) {
     overlay.classList.remove('backdrop-layer');
     overlay.style.display = 'none';
     overlay.removeAttribute('src');
+}
+
+// 生长动画落地时调用：如果原图**还没**就绪，就把垫底缩略图补上。
+// 生长动画期间垫底层是被刻意藏起来的（见 loadModalImage 的 flyFromThumb），
+// 因为飞行图层已经扛着同一张缩略图在飞。落地之后画面得有人接：
+//   · 原图已就绪 → 主图直接显形（loadModalImage 的 onload 已经处理）
+//   · 原图未就绪 → 主图还是 opacity:0（openModal 为了不重影而设的），
+//                  这里把垫底层补上，否则会空一段
+// 已经是垫底身份（或已就绪）时不重复动作。
+function restoreModalBackdrop() {
+    if (modalFullReady) return;
+    const overlay = document.getElementById('modalImgOverlay');
+    if (!overlay || !overlay.getAttribute('src')) return;
+    if (overlay.classList.contains('backdrop-layer')) {
+        overlay.style.display = '';
+        return;
+    }
+    beginModalBackdrop();
 }
 
 // 正反面切换（圆形 ‹ › 按钮 / 左右方向键）
@@ -897,7 +927,7 @@ function openModal(imgSrc1, imgSrc2) {
     if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
     modal.classList.remove('modal-hide');
 
-    const token = loadModalImage({ skipBackdrop: sourceIsFull });
+    const token = loadModalImage({ skipBackdrop: sourceIsFull, flyFromThumb: canFly });
     // 生长动画期间先把主图藏起来，只留飞行图层在飞，避免两者重影；
     // 飞行落地（见下面的 startModalFlight 回调）后立即恢复。
     // ★ 注意：主图的 opacity 是一个"进进出出"的状态，必须成对设置。
@@ -935,13 +965,20 @@ function openModal(imgSrc1, imgSrc2) {
             // 缩略图与原图等比，直接用缩略图的宽高比即可
             // ★ 落地后必须把主图的 opacity 恢复（上面刚设成 '0'）。
             //   与 closeModal 里那次 '0' 成对：谁设谁负责恢复。
+            //   同时补上垫底层 —— 生长动画期间它是被藏起来的（见下面 restoreModalBackdrop）。
             startModalFlight(from, modalContainRect(from.width / from.height),
                 sourceEl.currentSrc || sourceEl.src,
                 function () {
                     if (token !== modalLoadToken) return;
                     cancelModalFlight();
                     modalImg.style.opacity = '';
+                    restoreModalBackdrop();
                 });
+        } else {
+            // 来源格子太小，不做生长动画 —— 那也就没有飞行图层承担画面，
+            // 必须立刻把垫底层放出来，否则主图 opacity:'0' + 无垫底 = 全空。
+            modalImg.style.opacity = '';
+            restoreModalBackdrop();
         }
     }
 }
