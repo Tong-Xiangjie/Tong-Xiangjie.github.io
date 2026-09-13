@@ -70,6 +70,17 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
+          # Fail fast with an actionable message if the token cannot write.
+          # A repo whose "Workflow permissions" is set to read-only gets a
+          # read-only token here, and `git push` would fail with a cryptic 403.
+          # Checking the API first turns that into a one-line explanation.
+          $perm = (Invoke-RestMethod -Uri "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY" `
+            -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; 'User-Agent' = 'thumbs-workflow' }).permissions
+          if (-not $perm.push) {
+            Write-Host '::error::GITHUB_TOKEN has no push permission. Set Settings -> Actions -> General -> Workflow permissions to "Read and write permissions".'
+            exit 1
+          }
+
           # pathspec MUST use the :(glob) magic. In a plain pathspec '*' does not
           # cross '/', so '*/image/thumb' matches nothing at all (verified: 0 hits).
           # This repo has two thumbnail layouts, hence two patterns:
@@ -94,4 +105,18 @@ jobs:
 
           # Rebase first in case someone pushed while we were generating
           git pull --rebase --autostash origin $env:BRANCH
+
+          $local = git rev-parse HEAD
           git push origin "HEAD:$env:BRANCH"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host '::error::git push failed (see output above).'
+            exit 1
+          }
+
+          # Verify the push actually landed instead of trusting the exit code.
+          $remote = git ls-remote origin "refs/heads/$env:BRANCH"
+          if (-not $remote.StartsWith($local)) {
+            Write-Host "::error::push did not land: local $local but remote is $remote"
+            exit 1
+          }
+          Write-Host "Pushed thumbnails commit $local to $env:BRANCH."
