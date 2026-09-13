@@ -487,6 +487,43 @@ function imageContentRect(el) {
     return { left: left, top: top, width: w, height: h, right: left + w, bottom: top + h };
 }
 
+// 在网格 / 概览 / 搜索结果里找出「某个原图 URL」对应的缩略图元素。
+// 用途：翻到反面后关闭时，要让图缩回**它自己那一面**所在的格子，
+//       而不是用户最初点进来的那个格子（否则图上飞的是反面、落点却是正面，
+//       错位一个格，动画结束还会从反面硬切到反面）。
+//
+// 为什么不能直接比对 el.src：网格按设置里的开关可能用缩略图、也可能用原图，
+// 所以**两个方向都要比** —— 原图 URL 与"由它推导出的缩略图 URL"，
+// 两边的元素 src 也同样两种形态都试一次。
+// 只取 .mini-thumb / .copy-thumb：那两类才是 openModal 的入口，
+// .copy-thumb 里还有一版占位用的 <div>（没有 src），比对时天然被跳过。
+function gridThumbForUrl(url) {
+    if (!url) return null;
+    const t = (typeof getThumbUrl === 'function') ? getThumbUrl(url) : '';
+    const want = (t && t !== url) ? [url, t] : [url];
+    const els = document.querySelectorAll('img.mini-thumb, img.copy-thumb');
+    for (let i = 0; i < els.length; i++) {
+        const el = els[i];
+        if (!el.isConnected) continue;
+        const s = el.currentSrc || el.getAttribute('src') || '';
+        if (!s) continue;
+        // 元素 src 也是原图/缩略图两种形态都可能，所以它自己再推导一次来比
+        const st = (typeof getThumbUrl === 'function') ? getThumbUrl(s) : '';
+        for (let k = 0; k < want.length; k++) {
+            if (want[k] === s || (st && want[k] === st)) return el;
+        }
+    }
+    return null;
+}
+
+// 关闭：缩回那张图的缩略图位置（前提是它在、仍在视口内且没被滚走）
+function modalShrinkTarget(to) {
+    const onScreen = to && to.bottom > 0 && to.top < window.innerHeight &&
+                     to.right > 0 && to.left < window.innerWidth &&
+                     to.width >= 8 && to.height >= 8;
+    return onScreen ? to : null;
+}
+
 // 视口内「按 contain 铺满」的矩形
 function modalContainRect(ar) {
     // ★ 之前这里用 window.innerWidth/innerHeight，而 .modal-img 的盒子是 CSS 的 100vw/100dvh
@@ -655,11 +692,10 @@ function loadModalImage(opts) {
 //
 // ★ 这里**不动 lastModalSourceImg**（原来会置空，那正是"翻面后退出没有动画"
 //   的根因：置空之后 closeModal 里"缩回缩略图"那条路径整段被跳过，只剩整体淡出）。
-//   保持不动是有意的：它记的是**用户点进来时的那张缩略图**，
-//   于是"生长出来 / 缩回去"始终是同一对端点，翻面不改变弹窗的来处。
-//   代价：停在反面关闭时会缩回正面的缩略图。这是刻意取舍 ——
-//   反面那张缩略图常常根本不在视口里（同一张图的正反面在网格里是两个格子），
-//   强行指向它反而会被 closeModal 的 onScreen 判定拦下、退化成淡出，更不稳定。
+//   它记的是**用户点进来时的那张缩略图**，作为缩回时的**兜底**端点。
+// ★ 缩回的**首选**端点不是它，而是"当前这一面"所在的格子 —— 见 closeModal 里的
+//   gridThumbForUrl()。停在反面关闭时会缩回反面自己的格子，飞行终点与落点格子里
+//   的缩略图是同一张图，能无缝接上；只有当那个格子找不到/被滚出视口时，才回退到这里。
 const MODAL_FLIP_HALF_MS = 90;
 function modalFlip(dir) {
     if (!currentModalImg2) return false;
@@ -885,16 +921,26 @@ function closeModal() {
         if (hammerManager) { hammerManager.destroy(); hammerManager = null; }
     };
 
-    // 关闭：缩回原缩略图位置（前提是那张缩略图还在、且仍在视口内且没被滚走）
-    const src = lastModalSourceImg;
+    // 关闭：缩回缩略图位置（前提是那张缩略图还在、且仍在视口内且没被滚走）
+    //
+    // ★ 落点优先取「当前正在显示的这一面」所在的格子，而不是用户最初点进来的那个。
+    //   翻过面之后两者不是同一个格子（同一张图的正反面在网格里是两个格子），
+    //   而缩回图层里飞的是 currentModalSrc()（= 当前面）。若仍落在点进来的那个格子：
+    //     · 图上飞的是反面、落点却是正面的格子 → 错位一个格
+    //     · 落点格子里显示的其实是反面的缩略图 → 动画结束那一刻从反面硬切到反面，
+    //       观感就是"图层突然消失、恢复正常"
+    //   改成落在自己那一面之后，飞行终点与落点格子里的缩略图是同一张图，能无缝接上。
+    //   找不到 / 不在视口内 / 尺寸过小时，回退到最初点进来的格子 ——
+    //   于是"反面格子被滚出视口"这类情况仍然保有原来的稳健行为（而不是退化成整体淡出）。
+    const fallbackSrc = lastModalSourceImg;
+    const faceUrl = currentModalSrc();
+    const src = gridThumbForUrl(faceUrl) || fallbackSrc;
     const modalImg = document.getElementById('modalImg');
     let flown = false;
     if (!prefersReducedMotion() && src && src.isConnected && modalImg &&
         typeof src.getBoundingClientRect === 'function') {
-        const to = imageContentRect(src);
-        const onScreen = to.bottom > 0 && to.top < window.innerHeight &&
-                         to.right > 0 && to.left < window.innerWidth;
-        if (onScreen && to.width >= 8 && to.height >= 8) {
+        const to = modalShrinkTarget(imageContentRect(src));
+        if (to) {
             modalImg.style.opacity = '0';
             startModalFlight(modalContainRect(to.width / to.height), to,
                 modalImg.currentSrc || modalImg.src, finish);
