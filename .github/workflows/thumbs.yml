@@ -1,0 +1,91 @@
+# 自动生成 collection 站点的图片缩略图。
+#
+# 背景：缩略图不是运行时生成的，而是预先批量生成的静态文件
+#   <图片根目录>/<相对路径>.<ext>  →  <图片根目录>/thumb/<相对路径>.jpg
+# 前端 collection/core.js 的 getThumbUrl() 按这个约定推导路径。漏生成不会导致
+# 图片显示不出来（会自动回退原图），只是多耗流量 —— 所以这是个"能自动就自动"的活儿。
+#
+# 这个 workflow 做的事：图片有变动时，在 Windows runner 上跑 make-thumbs.ps1，
+# 把新生成的缩略图提交回仓库。这样新增纸币就只剩"放图 + 填数据"两步。
+#
+# 为什么用 windows-latest：make-thumbs.ps1 依赖 System.Drawing（GDI+）读图、
+# 按 EXIF 纠正方向、编码 JPEG。System.Drawing 是 Windows 专有实现，
+# 在 ubuntu 上需要额外装 libgdiplus 且行为不完全一致，没必要绕。
+name: 生成缩略图
+
+on:
+  push:
+    branches: [main]
+    # 只有"可能影响缩略图"的改动才触发，避免每次改代码都跑一遍。
+    # 注意：仓库根就是 tong-xiangjie.github.io，所以路径从仓库根起算。
+    paths:
+      - 'notecollection/image/**'
+      - 'coincollection/image/**'
+      - 'funcollection/*/images/**'
+      - 'collection/tools/make-thumbs.ps1'
+      # 本 workflow 自身改动时也跑一次，便于验证改动是否可用
+      - '.github/workflows/thumbs.yml'
+  # 允许在 Actions 页面手动触发（补跑历史遗漏的缩略图很有用）
+  workflow_dispatch:
+
+# 只有拿到写权限才能把缩略图提交回仓库。
+# 若仓库 Settings → Actions → General 里 Workflow permissions 选的是
+# "Read repository contents permission"，这里的写权限会被拒（403），
+# 需要改成 "Read and write permissions"。
+permissions:
+  contents: write
+
+# 同一分支的多次推送只保留最新一次，避免两次运行同时写仓库产生冲突。
+concurrency:
+  group: thumbs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  thumbs:
+    runs-on: windows-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth 0：提交历史完整，push 回本仓库不会因浅克隆被拒
+          fetch-depth: 0
+
+      - name: 生成缩略图
+        # 脚本本身是"增量"的：缩略图已存在且不比原图旧就跳过，可重复运行。
+        # continue-on-error：个别图生成失败时不中断整个 workflow，
+        # 让下一步把**已经成功生成**的缩略图先提交上去；失败项在日志里以 Warning 列出。
+        # 脚本在所有图片都失败时以 exit 1 结束，故用 continue-on-error 而不是忽略。
+        continue-on-error: true
+        shell: pwsh
+        run: ./collection/tools/make-thumbs.ps1
+
+      - name: 提交新缩略图
+        shell: pwsh
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # ★ pathspec 必须用 :(glob) magic —— 普通 pathspec 里的 '*' 不跨 '/',
+          #   写成 '*/image/thumb' 会一个都匹配不到（实测选中 0 项）。
+          #   仓库里有两套缩略图布局：
+          #     notecollection/image/thumb/**、coincollection/image/thumb/**
+          #     funcollection/<名>/images/thumb/**
+          $spec = @(':(glob)**/image/thumb/**', ':(glob)**/images/thumb/**')
+
+          $changed = git status --porcelain -- $spec
+          if (-not $changed) {
+            Write-Host '没有新增或更新的缩略图，跳过提交。'
+            exit 0
+          }
+
+          Write-Host '本次新增/更新的缩略图：'
+          $changed | ForEach-Object { Write-Host "  $_" }
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- $spec
+          # [skip ci] 防止这次提交再次触发本 workflow
+          git commit -m 'chore: 自动生成图片缩略图 [skip ci]'
+
+          # 期间若有人推了新提交，先 rebase 再推，避免 push 被拒
+          git pull --rebase --autostash origin $env:BRANCH
+          git push origin "HEAD:$env:BRANCH"
