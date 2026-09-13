@@ -456,6 +456,8 @@ let modalLoadToken = 0;
 let modalFlightEl = null;
 let modalFlightTimer = null;
 let modalCloseTimer = null;
+let modalFlipBusy = false;     // 翻面动画进行中（防止连点叠加成闪烁）
+let modalFlipTimer = null;
 let currentModalSide = 1;      // 当前看的是哪一面：1 = 正面(img1)，2 = 反面(img2)
 let modalFullReady = false;    // 原图是否已解码完成 —— 完成前禁止缩放/拖动
 
@@ -559,6 +561,27 @@ function resetModalZoom() {
     const container = document.getElementById('imageContainer');
     if (container) container.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1)';
     currentScale = 1; currentX = 0; currentY = 0;
+    // 翻面浮层可能还残留着"收起"动画的 forwards 终态（压扁 + 半透明），
+    // 这里连同动画类一起清掉，避免它挡住图片。
+    clearModalFlipLayer();
+}
+
+// 清掉翻面浮层上的动画状态与图片。幂等，可随时调用。
+// keepTransform 省略/false：连内联 transform、opacity 一起清（关闭弹窗时用）。
+// keepTransform = true：只清"上一半动画"的残留（src / 动画类），
+//   但保留当前内联 transform，好让下一半从同一个压扁状态接着展开。
+function clearModalFlipLayer(keepTransform) {
+    const overlay = document.getElementById('modalImgOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('flip-out', 'flip-in');
+    overlay.style.animation = 'none';
+    if (!keepTransform) {
+        overlay.style.transform = '';
+        overlay.style.opacity = '';
+    }
+    // ★ 必须清 src：这个 <img> 带着 .modal-img-overlay 的动画类残留时
+    //   如果还挂着上一张图，会在下次翻面／关闭时一闪而过。
+    overlay.removeAttribute('src');
 }
 
 // 把「当前这一面」装进弹窗，返回本次加载的 token。
@@ -568,6 +591,8 @@ function resetModalZoom() {
 //   （不会空白），解码完成后原图不透明正好盖住背景，没有"先糊后清"的跳变。
 // ★ 原图解码完成前**禁止缩放/拖动**（画面还只是低清垫底图）：用 modalFullReady
 //   卡住 Hammer 与滚轮，并给弹窗挂 .modal-loading 把提示语换成"原图加载中…"。
+// ★ opts.onReady：原图**解码就绪或彻底失败**时回调一次。翻面动画靠它决定
+//   "什么时候展开新面" —— 用固定定时器会在慢网下展开出空白（见 modalFlip）。
 function loadModalImage(opts) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImg');
@@ -577,6 +602,17 @@ function loadModalImage(opts) {
     if (!full) return 0;
     const token = ++modalLoadToken;
     const backdropUrl = currentModalBackdrop(!!(opts && opts.skipBackdrop));
+    const onReady = (opts && typeof opts.onReady === 'function') ? opts.onReady : null;
+    let readyFired = false;
+    const fireReady = function () {
+        if (readyFired) return;
+        readyFired = true;
+        if (onReady) onReady(token);
+    };
+    // 兜底：图加载不出来（数据里确实有"引用了但没上传"的图）也必须让翻面收尾，
+    // 否则第二次点击永远不会到来，"正反切换"会卡死在压扁状态。
+    let readyTimer = null;
+    if (onReady) readyTimer = setTimeout(fireReady, 1200);
 
     modalFullReady = false;
     modal.classList.add('modal-loading');
@@ -585,11 +621,14 @@ function loadModalImage(opts) {
     modalImg.onerror = function () {
         modalImg.onerror = null;
         if (backdropUrl && modalImg.src !== backdropUrl) modalImg.src = backdropUrl;
+        fireReady();   // 失败也要放行，让翻面动画能收尾
     };
     modalImg.onload = function () {
         if (token !== modalLoadToken) return;   // 已经翻到另一面了，丢弃这次结果
         modalFullReady = true;
         modal.classList.remove('modal-loading');
+        if (readyTimer) { clearTimeout(readyTimer); readyTimer = null; }
+        fireReady();
     };
     modalImg.style.backgroundImage = backdropUrl ? 'url("' + backdropUrl + '")' : '';
     modalImg.style.backgroundSize = 'contain';
@@ -600,21 +639,105 @@ function loadModalImage(opts) {
     if (modalImg.complete) {
         modalFullReady = true;
         modal.classList.remove('modal-loading');
+        if (readyTimer) { clearTimeout(readyTimer); readyTimer = null; }
+        fireReady();
     }
     resetModalZoom();
     return token;
 }
 
 // 正反面切换（圆形 ‹ › 按钮 / 左右方向键）
+//
+// ★ 这是"把卡片翻过来"，所以做两半的压缩/展开动画（详见 layout.css 里
+//   .modal-img-overlay 上方那段注释，说明了为什么用 scaleX 而不是 rotateY）。
+// ★ 时序必须由图片**解码就绪**驱动，不能用固定定时器：新面没解码完就展开，
+//   用户会看到半张空白，反而比不做动画更糟。
+//
+// ★ 这里**不动 lastModalSourceImg**（原来会置空，那正是"翻面后退出没有动画"
+//   的根因：置空之后 closeModal 里"缩回缩略图"那条路径整段被跳过，只剩整体淡出）。
+//   保持不动是有意的：它记的是**用户点进来时的那张缩略图**，
+//   于是"生长出来 / 缩回去"始终是同一对端点，翻面不改变弹窗的来处。
+//   代价：停在反面关闭时会缩回正面的缩略图。这是刻意取舍 ——
+//   反面那张缩略图常常根本不在视口里（同一张图的正反面在网格里是两个格子），
+//   强行指向它反而会被 closeModal 的 onScreen 判定拦下、退化成淡出，更不稳定。
+const MODAL_FLIP_HALF_MS = 90;
 function modalFlip(dir) {
     if (!currentModalImg2) return false;
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    if (!modal || !modalImg) return false;
+    // 动画进行中不再受理：连点会把两半动画叠加成闪烁（键盘长按很容易触发）
+    if (modalFlipBusy) return false;
+
+    // 换到另一面。src 要等第一半动画结束时才真正替换（见下），
+    // 所以这里只动"当前是哪一面"这个状态，让 currentModalSrc() 先指向新面。
     currentModalSide = (currentModalSide === 1) ? 2 : 1;
-    // 翻面不做生长动画：来源缩略图在网格的另一处，飞过去没有意义；
-    // 同时清掉来源引用，免得关闭时"缩回"到另一面的缩略图上。
-    lastModalSourceImg = null;
-    loadModalImage({});
-    const img = document.getElementById('modalImg');
-    if (img) img.style.opacity = '';
+
+    if (prefersReducedMotion()) {
+        loadModalImage({});
+        return true;
+    }
+
+    const overlay = document.getElementById('modalImgOverlay');
+    const fromSrc = modalImg.currentSrc || modalImg.src;
+
+    const finishHalf = function () {
+        // ★ 用"翻面动画还在不在进行"兜底，挡住重复调用；真正的归属判断在
+        //   下面 onReady 里用 token 做（翻面自己会推进 token，不能拿旧值比）。
+        if (!modalFlipBusy) return;
+        modal.classList.remove('modal-flipping');
+        clearModalFlipLayer(true);
+        modalImg.classList.remove('flip-out', 'flip-in');
+        // 保留"压扁"终态，好让下一半从同一个形状接着展开
+        modalImg.style.animation = 'none';
+        modalImg.style.transform = 'scale3d(0.06, 1, 1)';
+        modalImg.style.opacity = '0.25';
+        // ★ modalFlipBusy 必须一直保持到"第二半的画面就位"为止，不能在这里先清掉。
+        //   loadModalImage 末尾有一条"命中缓存 ⇒ complete 同步为真 ⇒ 立刻
+        //   fireReady()"的分支，它会在本函数还没返回时就把 onReady 叫起来；
+        //   要是这里先清了 busy，onReady 里的兜底判断就会误判成"已经又翻了一次"
+        //   而直接退出，flip-in 永远挂不上 —— 命中缓存的翻面会卡死在压扁态。
+        // ★ token 必须在**调用之前**就占好并闭包捕获：onReady 有可能在
+        //   loadModalImage 返回之前就被同步叫起来（就是上面那条分支），
+        //   那时才去接返回值只会拿到 undefined / 抛 TDZ。
+        //   loadModalImage 内部是 `++modalLoadToken`，所以预占的值就是它将要用的值。
+        const flipToken = modalLoadToken + 1;
+        loadModalImage({
+            onReady: function (token) {
+                // 弹窗已关 / 这已经是另一次加载了：作废，交给后来者
+                if (!modalFlipBusy || token !== modalLoadToken) return;
+                modalFlipBusy = false;
+                modal.classList.remove('modal-flipping');
+                modalImg.style.animation = '';
+                modalImg.style.transform = '';
+                modalImg.style.opacity = '';
+                modalImg.classList.remove('flip-out', 'flip-in');
+                void modalImg.offsetWidth;   // 让展开动画从"压扁"这一帧重新起算
+                modalImg.classList.add('flip-in');
+            }
+        });
+        if (flipToken !== modalLoadToken) {
+            // loadModalImage 没能开始（缺图/元素丢失），别把"翻面中"永远留着
+            modalFlipBusy = false;
+            modal.classList.remove('modal-flipping');
+            modalImg.style.animation = '';
+            modalImg.style.transform = '';
+            modalImg.style.opacity = '';
+        }
+    };
+
+    modalFlipBusy = true;
+    modal.classList.add('modal-flipping');
+    // 新面在第一半动画期间后台解码（回到前半段结束时时通常已经好了）
+    if (overlay) {
+        overlay.src = fromSrc;
+        overlay.classList.remove('flip-in');
+        overlay.classList.add('flip-out');
+    }
+    modalImg.classList.remove('flip-in');
+    modalImg.classList.add('flip-out');
+
+    modalFlipTimer = setTimeout(finishHalf, MODAL_FLIP_HALF_MS + 40);
     return true;
 }
 
@@ -683,6 +806,17 @@ function closeModal() {
     const modal = document.getElementById('imageModal');
     if (!modal) return;
 
+    // ★ 翻面动画可能正跑到一半就点了关闭。先把"进行中"标记与定时器收掉，
+    //   否则那个 90ms 的收尾回调会在弹窗关掉之后触发，
+    //   把 modalFlipBusy 卡在 true —— 下次打开图片就再也翻不了面。
+    //   （transform / 浮层的实际清理统一放在 finish() 里，避免两处各清一半。）
+    //   同时推进 modalLoadToken：让在途的 loadModalImage 回调（含翻面第二半的
+    //   收尾）整体作废，不会再往已经关掉的弹窗上写 transform。
+    if (modalFlipTimer) { clearTimeout(modalFlipTimer); modalFlipTimer = null; }
+    modalFlipBusy = false;
+    modalLoadToken++;
+    modal.classList.remove('modal-flipping');
+
     // ★ 蒙版淡出（原来是 finish() 里直接 display:none，所以"啪"地一下就没了）。
     //   注意 .modal 同时包含蒙版与图片，所以这里是整体不透明度淡出：
     //     · 走回缩动画时，飞行图层在 modal 之外（z-index 更高）→ 只有蒙版在淡，
@@ -698,11 +832,23 @@ function closeModal() {
         if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
         cancelModalFlight();
         modal.style.display = 'none';
-        modal.classList.remove('modal-show', 'modal-hide', 'modal-loading', 'multi-img');
+        modal.classList.remove('modal-show', 'modal-hide', 'modal-loading', 'multi-img', 'modal-flipping');
         imageModalOpen = false;
         modalFullReady = false;
+        modalFlipBusy = false;
+        if (modalFlipTimer) { clearTimeout(modalFlipTimer); modalFlipTimer = null; }
+        clearModalFlipLayer();
         const img = document.getElementById('modalImg');
-        if (img) { img.src = ''; img.style.opacity = ''; img.style.backgroundImage = ''; }
+        if (img) {
+            img.src = '';
+            img.style.opacity = '';
+            img.style.backgroundImage = '';
+            // ★ 必须连翻面动画的残留一起清干净：内联 animation / transform
+            //   会盖住 .modal-show 的进入动画、也会让下次打开第一眼是压扁的。
+            img.style.animation = '';
+            img.style.transform = '';
+            img.classList.remove('flip-out', 'flip-in');
+        }
         const scrollY = parseInt(document.body.style.top || '0') * -1;
         document.body.classList.remove('modal-open');
         document.body.style.top = '';

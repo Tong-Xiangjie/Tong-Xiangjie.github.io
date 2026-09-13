@@ -764,6 +764,64 @@ body {
     object-fit: contain;
     pointer-events: none;
 }
+
+/* ========== 正反面翻面动画 ==========
+   做法：把"翻过去"拆成两半，两半都跑在同一套 keyframes 上，靠 container
+   animation-name 切换方向 —— 这样只用两个动画名就能拿到四个阶段
+   （收起/展开 × 正面/反面）。
+
+   为什么用 scaleX 压缩而不是 rotateY：
+   ★ #modalImg 是 100vw × 100dvh + object-fit: contain，图片只占视口中间一条
+     （纸币约 1.7:1），元素盒子远大于图片本身。rotateY 会绕**盒子中心**转，
+     观感是"图片绕着屏幕上某个点自转"，而不是"这张纸币翻过来"。
+   ★ scaleX 只压宽度，轴线天然落在屏幕中线上 —— 与纸币自身的竖轴重合，
+     任何宽高比都成立。
+   时序（由 JS 驱动）：
+     前半 90ms：当前面 scaleX 1→0，新面把 src 换好并保持压扁隐藏
+     后半 90ms：新面 scaleX 0→1
+   合计 180ms —— 比共享元素飞行（320ms）短，符合"轻量二次操作"的节奏。 */
+.modal-img, .modal-img-overlay {
+    transform-origin: center center;
+    backface-visibility: hidden;
+}
+.modal-img-overlay {
+    /* 与 .modal-img 同框同形，翻面时压在上面（DOM 里在它之后） */
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 2;
+    transform: scale3d(0.06, 1, 1);
+    opacity: 0.25;
+}
+
+/* 收起（旧面被压扁带出） */
+.modal-img.flip-out, .modal-img-overlay.flip-out {
+    animation: modalFlipOut 90ms var(--ease-in) forwards;
+}
+/* 展开（新面从压扁状态展开） */
+.modal-img.flip-in, .modal-img-overlay.flip-in {
+    animation: modalFlipIn 90ms var(--ease-out) forwards;
+}
+@keyframes modalFlipOut {
+    from { transform: scale3d(1, 1, 1); opacity: 1; }
+    to   { transform: scale3d(0.06, 1, 1); opacity: 0.25; }
+}
+@keyframes modalFlipIn {
+    from { transform: scale3d(0.06, 1, 1); opacity: 0.25; }
+    to   { transform: scale3d(1, 1, 1); opacity: 1; }
+}
+/* 翻面动画进行中：把实时缩放（Hammer / 滚轮写在 #imageContainer 上的 transform）
+   压回 1 倍。否则用户放大到 3 倍时翻面，被压扁的是"放大后的容器"，
+   收起来的位置和展开后的位置对不上，看起来像闪一下。
+   直接归零到 1 比"保持缩放一起翻"更简单，也不会让动画脱离视口。 */
+.modal.modal-flipping #imageContainer { transform: none !important; }
+
 .modal-close {
     position: fixed;
     /* 让出安全区：横屏时刘海在左/右、竖屏时顶部有传感器区，

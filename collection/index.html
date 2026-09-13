@@ -89,6 +89,11 @@
         <div class="image-container" id="imageContainer">
             <img id="modalImg" class="modal-img" src="" alt="预览图">
         </div>
+        <!-- 翻面动画用的浮层：翻面时它负责"把当前这一面压扁带出"，
+             真正的 #modalImg 在同一时间从压扁状态展开成另一面。
+             两半动画都跑在 #modalImg 之外的独立元素上，所以完全不碰
+             Hammer 的捏合缩放（它操作 #imageContainer）。 -->
+        <img id="modalImgOverlay" class="modal-img-overlay" src="" alt="">
     </div>
     <div class="modal-tip">
         <span class="tip-touch">双指缩放 | 拖动查看 | 单击关闭</span>
