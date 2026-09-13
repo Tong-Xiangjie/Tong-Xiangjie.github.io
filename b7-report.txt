@@ -1,0 +1,28 @@
+=== 1. 作用域 ID 不再跨分类撞名 ===
+  ✓ 两个分类的作用域标识不同  notes_category_rmb5 vs notes_category_commemorative
+  ✓ 同序号系列( si=0 )在两类下 ID 不同
+  ✓ notes 分类作用域形态符合预期  notes_category_rmb5
+
+=== 2. 复现场景：A 分类展开后切到 B 分类，B 不应被误展开 ===
+  ✓ ① A 分类的展开态被正确收集（带作用域）  ["notes_category_rmb5-s0"]
+  ✓ ② A 分类容器已被隐藏但 DOM 仍在（这正是冲突前提）  display=none
+  ✓ ③ B 分类未被 A 的展开态误展开（修复前会命中错误节点）  B open=false
+  ✓ ④ A 分类自身的展开态保持不变  A open=true
+
+=== 3. 同分类返回时能正确恢复 ===
+  ✓ ⑤ 切回 A 分类后展开态恢复  open=true
+
+=== 4. 品种层同样不串台 ===
+  ✓ ⑥ 品种展开态带作用域收集  ["notes_category_rmb3-v0-1"]
+  ✓ ⑦ 硬币板块未被纸币的品种展开态误展开（跨 mode 也不串）
+
+=== 5. toggleSeries 只动活动容器里的节点 ===
+  ✓ 前置：两个分类的容器/作用域不同  notes_category_rmb1 vs notes_category_rmb2
+  ✓ ⑧ 隐藏容器里的同序号节点未被误改  before=false after=false
+  ✓ ⑨ 活动容器里的目标节点被正确展开  open=true
+
+=== 6. closeAllAccordions 只清活动容器 ===
+  ✓ ⑩ 活动容器的展开被收起
+  ✓ ⑪ 隐藏容器的展开状态被保留（用户切回去还是原样）
+
+✅ B7 全部验证通过

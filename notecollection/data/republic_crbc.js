@@ -69,6 +69,24 @@ const republic_crbcData = {
                             remark: "【版别：红签名】这张还算好价（正常价）吧，至少比一些品相更差且号码无规律的纸币还要便宜，买回来至少应该不至于亏一半，况且还是PMG的。不过，红签名版本的红5元怎么这么多E/T A冠号的……",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/ET444887A-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/ET444887A-2.jpg"
+                        },{
+                            copyId: 10208857,
+                            year: 1940,
+                            version: "B/T 304431B",
+                            bank: "中央储备银行",
+                            print: "未知",
+                            signature1: "总裁（Governor）：周佛海（F.H. Chow）",
+                            signature2: "副总裁（Vice Governor）：钱大櫆（T.K. Chien）",
+                            issueDate: "民国二十九年（1940年）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 65E",
+                            price: "100元",
+                            purchaseDate: "2026年9月13日",
+                            krause: "J10e",
+                            remark: "【版别：红签名】据我观察，红签名版的中央储备银行红5元冠号最后一位字母只有A，B两种。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/BT304431B-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/BT304431B-2.jpg"
                         }
                     ]
                 },{

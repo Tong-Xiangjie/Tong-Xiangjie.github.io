@@ -23,7 +23,7 @@ const republic_aibData = {
             year: "1940",
             varieties: [
                 {
-                    varietyName: "1940年 1分 南普陀园林亭阁",
+                    varietyName: "1940年 1分 厦门中山公园湖光阁楼",
                     copies: [
                         {
                             copyId: 19272268,
@@ -38,13 +38,34 @@ const republic_aibData = {
                             price: "28元",
                             purchaseDate: "2026年6月11日",
                             krause: "S1655",
-                            remark: "",
+                            remark: "纸币上的湖光阁楼今为厦门中山公园思衡厅。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/1940-0.01-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/1940-0.01-2.jpg"
                         }
                     ]
                 },{
-                    varietyName: "1940年 5角 南普陀大雄宝殿",
+                    varietyName: "1940年 2角 厦门中山公园南门纪念碑",
+                    copies: [
+                        {
+                            copyId: 21901032,
+                            year: 1940,
+                            version: "A146896A",
+                            bank: "厦门劝业银行",
+                            print: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 66E",
+                            price: "98元",
+                            purchaseDate: "2026年9月13日",
+                            krause: "S1657Aa",
+                            remark: "纸币上的湖光阁楼今为厦门中山公园思衡厅。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A146896A-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A146896A-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1940年 5角 南普陀寺天王殿",
                     copies: [
                         {
                             copyId: 22607840,
@@ -58,7 +79,7 @@ const republic_aibData = {
                             condition: "ACG 66E",
                             price: "58元",
                             purchaseDate: "2026年9月4日",
-                            krause: "S1658",
+                            krause: "S1658a",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A101459C-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A101459C-2.jpg"

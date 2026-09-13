@@ -1,0 +1,60 @@
+=== 1. parseRoute 解析 ===
+  ✓ parseRoute(#notes)  {"mode":"notes","view":"overview"}
+  ✓ parseRoute(#coins)  {"mode":"coins","view":"overview"}
+  ✓ parseRoute(#notes/rmb3)  {"mode":"notes","view":"category","catId":"rmb3","subId":null}
+  ✓ parseRoute(#notes/hk/boc)  {"mode":"notes","view":"category","catId":"hk","subId":"boc"}
+  ✓ parseRoute(#notes/rmb3/s0/v1/c2)  {"mode":"notes","view":"category","catId":"rmb3","subId":null,"sIdxList":[0],"vPairList":[],"vBareList":[1],"cIdx":2,"sIdx":0,"vIdx":1}
+  ✓ parseRoute(#notes/search)  {"mode":"notes","view":"search","searchType":"all","searchKeyword":""}
+  ✓ parseRoute(#notes/search/krause/KM%23130)  {"mode":"notes","view":"search","searchType":"krause","searchKeyword":"KM#130"}
+  ✓ parseRoute(#notes/search/copyid/1843785)  {"mode":"notes","view":"search","searchType":"copyid","searchKeyword":"1843785"}
+  ✓ parseRoute(#notes/search/%E6%B0%B4%E5%8D%B0)  {"mode":"notes","view":"search","searchType":"all","searchKeyword":"水印"}
+  ✓ parseRoute(#articles)  {"mode":"articles","articleIndex":-1}
+  ✓ parseRoute(#articles/12)  {"mode":"articles","articleIndex":12}
+  ✓ parseRoute(#settings)  {"mode":"settings"}
+  ✓ parseRoute(#special)  {"mode":"special","configId":null}
+  ✓ parseRoute(#special/shanhe)  {"mode":"special","configId":"shanhe"}
+  ✓ parseRoute(#special/shanhe/view-list)  {"mode":"special","configId":"shanhe","shanheView":"list"}
+  ✓ parseRoute(#special/timeline/order-asc/y-2020)  {"mode":"special","configId":"timeline","timelineOrder":"asc","timelineYear":"2020"}
+
+=== 2. 无效 hash 必须被忽略（不能抛错/改状态）===
+  ✓ parseRoute("#") → null  null
+  ✓ parseRoute("#/") → null  null
+  ✓ parseRoute("#item-3") → null  null
+  ✓ parseRoute("#some-anchor") → null  null
+  ✓ parseRoute("#unknown/thing") → null  null
+  ✓ parseRoute("") → null  null
+
+=== 3. buildRoute → parseRoute 往返一致 ===
+  ✓ notes overview  →  #notes
+  ✓ coins overview  →  #coins
+  ✓ category no sub  →  #notes/rmb3
+  ✓ category with sub  →  #notes/hk/boc
+  ✓ search all  →  #notes/search/%E6%B0%B4%E5%8D%B0
+  ✓ search krause  →  #coins/search/krause/KM%23130
+  ✓ search copyid  →  #notes/search/copyid/1843785-048
+  ✓ articles list  →  #articles
+  ✓ articles reader  →  #articles/7
+  ✓ settings  →  #settings
+  ✓ special overview  →  #special
+  ✓ special shanhe map  →  #special/shanhe
+  ✓ special shanhe list  →  #special/shanhe/view-list
+  ✓ special timeline asc  →  #special/timeline/order-asc
+
+=== 4. 生成/解析幂等（避免地址栏抖动）===
+  ✓ 含 # 的关键词往返不丢字符  {"mode":"notes","view":"search","searchType":"krause","searchKeyword":"KM#130"}
+
+=== 5. syncRoute 历史记录策略 ===
+  · initRouter 后：replace=1 push=0
+  ✓ 边打边搜 5 次 → 只 replaceState 5 次、不新增历史  replace=5 push=0
+  ✓ 两次显式搜索 → 只 replaceState 2 次、不新增历史（不污染后退键）  replace=2 push=0
+  ✓ 状态未变时重复 syncRoute 不写历史（去重生效）  replace=0 push=0
+  ✓ applyRoute 期间 syncRoute 被抑制（不回声写）  replace=0 push=0
+
+=== 6. applyRoute 真的改了状态 ===
+  ✓ applyRoute(#notes/rmb4) → 分类
+  ✓ applyRoute(#coins/commemorative_coins) → 硬币分类
+  ✓ applyRoute(#notes/search/krause/KM%23130) → 搜索状态写进 modeStates
+  ✓ applyRoute(#settings) → 设置页
+  ✓ applyRoute(#articles) → 文章板块
+
+✅ 路由验证全部通过
