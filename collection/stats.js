@@ -483,7 +483,7 @@ function exportJSON() {
             //   原来只挑 12 个字段，图片地址和这些特有字段全都丢了。
             ...item.copy,
             // 以下是原始字段之外补充的规范化字段，便于直接查看与统计
-            type: item.type === 'notes' ? '纸币' : '硬币',
+            type: (typeof modeLabel === 'function') ? modeLabel(item.type) : item.type,
             category: exportCategoryLabel(item),
             dataKey: item.dataKey,
             seriesName: item.seriesName,
@@ -507,7 +507,7 @@ function exportCSV() {
     for (const item of allCopies) {
         const c = item.copy;
         const row = [
-            item.type === 'notes' ? '纸币' : '硬币', exportCategoryLabel(item), item.seriesName,
+            (typeof modeLabel === 'function') ? modeLabel(item.type) : item.type, exportCategoryLabel(item), item.seriesName,
             c.version || '', c.year || '', c.condition || c.grade || '',
             c.gradingCompany || '', c.catalogNumber || c.krause || '',
             c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''

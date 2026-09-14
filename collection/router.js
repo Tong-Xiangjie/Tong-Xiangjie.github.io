@@ -83,8 +83,11 @@ function buildRoute() {
         return seg.join('/');
     }
 
-    if (currentMode === MODE.COINS) seg.push('coins');
-    else seg.push('notes');   // 默认纸币
+    // ★ 兜底：纸币/硬币（以及将来任何同类板块）的段名从注册表取，
+    //   原来是 `if (currentMode === MODE.COINS) seg.push('coins'); else seg.push('notes');`
+    //   —— 那种写法新增板块会被静默当成纸币写进地址栏。
+    const curDef = (typeof getModeDef === 'function') ? getModeDef() : null;
+    seg.push((curDef && curDef.urlSegment) || currentMode);
 
     // ---------- 视图 ----------
     if (currentView === VIEW.SEARCH) {
@@ -175,12 +178,21 @@ function parseRoute(hash) {
 
     const head = parts[0];
 
-    if (head === 'settings') return { mode: 'settings' };
-    if (head === 'articles') {
+    // ★ 段名 → 板块统一由注册表解析（core.js 的 MODE_URL_SEGMENTS）。
+    //   这里只留每个板块**特有的**子段解析：settings 没有、articles 带文章序号、
+    //   special 带专题 id 与视图/排序/筛选段。
+    //   原来每个板块各写一条 `head === 'xxx'`，新增板块时如果忘了回这里加，
+    //   就会出现"页面上能切过去、但地址栏认不出来"这种最难查的半坏状态。
+    const headMode = (typeof modeFromUrlSegment === 'function') ? modeFromUrlSegment(head) : null;
+
+    if (headMode === MODE.SETTINGS) return { mode: 'settings' };
+
+    if (headMode === MODE.ARTICLES) {
         const idx = parts.length > 1 ? parseInt(parts[1], 10) : NaN;
         return { mode: 'articles', articleIndex: Number.isFinite(idx) ? idx : -1 };
     }
-    if (head === 'special') {
+
+    if (headMode === MODE.SPECIAL) {
         const r = { mode: 'special', configId: parts.length > 1 ? safeDecode(parts[1]) : null };
         // 余下片段是专题子视图参数：view-list / order-asc / y-2020 / m-5
         for (const p of parts.slice(2)) {
@@ -191,8 +203,13 @@ function parseRoute(hash) {
         }
         return r;
     }
-    if (head === 'notes' || head === 'coins') {
-        const mode = head;
+    // ★ 这一段是"分类树型板块"（纸币/硬币，以及将来任何同类板块）的通用解析：
+    //   段名 → 板块由注册表解析，所以新增板块只要在 core.js 的 MODE_URL_SEGMENTS
+    //   里加一行，深链接就能用，不必回这里加 `head === 'xxx'`。
+    //   下面 rest 的解析（search / 分类 / s,v,c 展开段）对这些板块是同一套语义。
+    const collectionMode = (typeof modeFromUrlSegment === 'function') ? modeFromUrlSegment(head) : null;
+    if (collectionMode && (typeof isCollectionMode !== 'function' || isCollectionMode(collectionMode))) {
+        const mode = collectionMode;
         // 余下片段：可能什么都有，逐段判定
         const rest = parts.slice(1);
 

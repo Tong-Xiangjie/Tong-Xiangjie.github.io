@@ -27,7 +27,7 @@ function ensureSearchStaticHeader(container) {
         <button class="back-btn" onclick="backFromSearch()" style="padding:2px 10px; font-size:0.8rem;">← 返回</button>
       </div>
       <div class="panel-header" style="margin:0; padding:0 0 2px 0;">
-        <h2 id="searchModeLabel" style="margin:0; font-size:1.1rem;">${currentMode === MODE.NOTES ? '纸币' : '硬币'}板块搜索结果</h2>
+        <h2 id="searchModeLabel" style="margin:0; font-size:1.1rem;">${modeLabel()}板块搜索结果</h2>
         <p id="resultMeta" style="margin:2px 0 0 0; font-size:0.8rem;">共找到0件符合要求的藏品</p>
       </div>
     `;
@@ -482,39 +482,45 @@ function updateSearchUIForMode() {
   const toggle = document.getElementById('modeToggle');
   const tip = document.getElementById('searchTip');
 
-  // ★ 根据当前板块动态修改搜索框占位文字
-  if (input) {
-    if (currentMode === MODE.ARTICLES) {
-      input.placeholder = '只在当前板块里翻哦';
-    } else if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
-      input.placeholder = '全站范围都能搜哦';
-    } else {
-      input.placeholder = '这页没搜索功能啦';
-    }
+  // ★ 整段由板块注册表驱动（core.js 的 MODE_REGISTRY.search / searchUi）。
+  //   原来这里是三层嵌套 if：先按 currentMode 猜占位文字，再按 currentMode
+  //   分三支配置搜索栏 —— 新增板块必须回来加分支，漏了就显示成别的板块的文案。
+  //   现在"这个板块有没有搜索、长什么样"写在注册表里。
+  const def = (typeof getModeDef === 'function') ? getModeDef() : null;
+  const ui = {};
+
+  if (def && typeof def.searchUi === 'function') {
+    // 板块自带搜索栏配置（文章板块）
+    def.searchUi(ui);
+  } else if (def && def.search === 'full') {
+    // 通用搜索栏（纸币/硬币）：占位文字 + 点击/实时切换
+    const modeSearch = getEffectiveSearchMode();
+    const isClick = modeSearch === SEARCH_MODE.CLICK;
+    ui.placeholder = '全站范围都能搜哦';
+    ui.selectHidden = false;
+    ui.toggleHidden = false;
+    ui.toggleText = isClick ? '□' : '■';
+    ui.toggleTitle = '切换搜索模式';
+    // ★ 两种模式的提示严格对齐：模式名(4) + 括号说明(4) + 切换字符(1) + 目标模式(4)，
+    //   两边总字数完全一致，切换时文字不会跳动。（对标文章板块的做法）
+    ui.tip = `现在是「${isClick ? '点击搜索' : '实时搜索'}」（${isClick ? '打完回车' : '边打边搜'}），点“${isClick ? '□' : '■'}”能换成「${isClick ? '实时搜索' : '点击搜索'}」`;
+  } else {
+    // 没有搜索的板块（专题/设置，以及将来任何 search:'none' 的新板块）
+    ui.placeholder = '这页没搜索功能啦';
+    ui.selectHidden = true;
+    ui.toggleHidden = true;
+    ui.tip = '';
   }
+
+  if (input) input.placeholder = ui.placeholder;
 
   if (!select || !toggle || !tip) return;
 
-  if (currentMode === MODE.ARTICLES) {
-    select.classList.add('hidden');
-    toggle.classList.remove('hidden');
-    toggle.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '标' : '全';
-    toggle.title = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '现在是按标题找，点“标”字能切到全文索引' : '现在是全文索引，点“全”字能切回按标题找';
-    tip.textContent = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title') ? '现在是按标题找（边打边搜），点“标”字能切到全文索引' : '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
-  } else if (currentMode === MODE.SPECIAL || currentMode === MODE.SETTINGS) {
-    select.classList.add('hidden');
-    toggle.classList.add('hidden');
-    tip.textContent = '';
-  } else {
-    select.classList.remove('hidden');
-    toggle.classList.remove('hidden');
-    const modeSearch = getEffectiveSearchMode();
-    toggle.textContent = modeSearch === SEARCH_MODE.CLICK ? '□' : '■';
-    toggle.title = '切换搜索模式';
-    // ★ 两种模式的提示严格对齐：模式名(4) + 括号说明(4) + 切换字符(1) + 目标模式(4)，
-    //   两边总字数完全一致，切换时文字不会跳动。（对标文章板块的做法）
-    tip.textContent = `现在是「${modeSearch === SEARCH_MODE.CLICK ? '点击搜索' : '实时搜索'}」（${modeSearch === SEARCH_MODE.CLICK ? '打完回车' : '边打边搜'}），点“${modeSearch === SEARCH_MODE.CLICK ? '□' : '■'}”能换成「${modeSearch === SEARCH_MODE.CLICK ? '实时搜索' : '点击搜索'}」`;
-  }
+  select.classList.toggle('hidden', !!ui.selectHidden);
+  toggle.classList.toggle('hidden', !!ui.toggleHidden);
+  if (ui.toggleText !== undefined) toggle.textContent = ui.toggleText;
+  if (ui.toggleTitle !== undefined) toggle.title = ui.toggleTitle;
+  tip.textContent = ui.tip || '';
 }
 
 function doSearch(opts) {

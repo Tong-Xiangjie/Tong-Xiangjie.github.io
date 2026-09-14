@@ -151,7 +151,7 @@ function collectFromSource(data, dataKey, sourceType) {
 }
 
 function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
-  const top = sourceType === MODE.COINS ? '硬币' : '纸币';
+  const top = sourceModeName(sourceType);
   const parts = [top];
   if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
     parts.push(catInfo.parentCategory);
@@ -163,7 +163,7 @@ function buildFullPath(sourceType, catInfo, seriesName, varietyName) {
 }
 
 function buildGroupPath(sourceType, catInfo) {
-  const top = sourceType === MODE.COINS ? '硬币' : '纸币';
+  const top = sourceModeName(sourceType);
   const parts = [top];
   if (catInfo.parentCategory && catInfo.parentCategory !== top && catInfo.parentCategory !== catInfo.category) {
     parts.push(catInfo.parentCategory);
@@ -172,35 +172,42 @@ function buildGroupPath(sourceType, catInfo) {
   return parts;
 }
 
-function findArticleCategoryInfo(dataKey, sourceType) {
-  if (sourceType === MODE.COINS) {
-    for (const cat of coinCategoryTree) {
-      if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-      if (cat.children) {
-        for (const sub of cat.children) {
-          if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
-        }
-      }
-    }
-  }
-  for (const cat of categoryTree) {
-    if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '纸币' };
+// ★ 板块中文名与分类树统一从注册表取，不再写 `=== MODE.COINS ? '硬币' : '纸币'`。
+//   那种二元写法在出现第三个数据板块时会静默显示错名字。
+//   注意：局部变量不叫 modeLabel，避免遮蔽 core.js 里的同名注册表取值函数。
+function sourceModeName(sourceType) {
+  return (typeof modeLabel === 'function') ? modeLabel(sourceType) : (sourceType || '');
+}
+function sourceTreeOf(sourceType) {
+  const def = (typeof getModeDef === 'function') ? getModeDef(sourceType) : null;
+  return (def && typeof def.tree === 'function') ? (def.tree() || null) : null;
+}
+
+// 在某一棵树里按 dataKey 找分类信息；找不到返回 null。
+// 顶层命中时 parentCategory 用分类自己的名字（保持原行为：顶层分类自成一级）。
+function findInTree(tree, dataKey) {
+  if (!tree) return null;
+  for (const cat of tree) {
+    if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: cat.name };
     if (cat.children) {
       for (const sub of cat.children) {
         if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
       }
     }
   }
-  if (sourceType !== MODE.COINS) {
-    for (const cat of coinCategoryTree) {
-      if (cat.dataKey === dataKey) return { category: cat.name, parentCategory: '硬币' };
-      if (cat.children) {
-        for (const sub of cat.children) {
-          if (sub.dataKey === dataKey) return { category: sub.name, parentCategory: cat.name };
-        }
-      }
-    }
-  }
+  return null;
+}
+
+function findArticleCategoryInfo(dataKey, sourceType) {
+  // 先在来源板块自己的树里找；找不到再退到"另一个数据板块"的树
+  // （历史行为：文章里的藏品可能标着纸币的 dataKey 却挂在硬币来源下，反之亦然）。
+  const primary = findInTree(sourceTreeOf(sourceType), dataKey);
+  if (primary) return primary;
+
+  const otherType = (sourceType === MODE.COINS) ? MODE.NOTES : MODE.COINS;
+  const secondary = findInTree(sourceTreeOf(otherType), dataKey);
+  if (secondary) return secondary;
+
   return { category: dataKey, parentCategory: '其他' };
 }
 

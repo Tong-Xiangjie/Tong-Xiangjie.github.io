@@ -28,6 +28,50 @@ function enterSettingsInner() {
     triggerViewAnimation();
 }
 
+// ==================== tab 分派表 ====================
+//
+// ★ 存在的理由：原来 onTabClickInner / leaveSettingsToTarget 里各写一遍
+//   `if (target === MODE.ARTICLES) … if (target === MODE.NOTES || target === MODE.COINS) …`
+//   这种穷举。加一个新 tab 就得回来把两处的 if 链都补一遍，漏一处就出现
+//   "从设置页能进去、从 tab 直接点却不行"这类半坏状态。
+//   现在"点这个 tab 走哪套流程"由 core.js 注册表的 tabAction 字段说明，
+//   这里只按名字取一个处理函数 —— **加板块不用再来改这个文件**。
+//
+// ★ 各个处理函数写成 function 声明（有提升），所以这个表可以放在文件任意位置。
+//   这里用的都是**已有的函数名**（enterSpecialFromTab 还被 router.js 直接调用，
+//   所以不改名，避免为了重构而去动路由那条链路）。
+const TAB_ACTIONS = {
+    collection: function (target) { enterNotesOrCoinsTab(target); },
+    articles: function () { enterArticlesTab(); },
+    special: function () { enterSpecialFromTab(); }
+};
+
+// 从设置页返回时用的分派表。
+// ★ 与 TAB_ACTIONS 只差 collection 这一项，但**必须分开**：
+//   设置页返回这条路的既有实现是 restoreNotesCoinsFromSettings()，里面除了
+//   还原定位/展开态，还额外做了"容器内容失效时重渲染 + 滚动位置复位"。
+//   实测：把它换成 enterNotesOrCoinsTab 会让 verify-roundtrip 的
+//   「返回后定位保住 / 系列仍展开 / 品种仍展开」三项全灭
+//   （hash 从 #notes/rmb/rmb3/s1/v1.0 退化成 #notes/rmb/rmb3）。
+//   所以这里按"从哪来"分表，而不是指望一个函数兼顾两种语境。
+const TAB_ACTIONS_FROM_SETTINGS = {
+    collection: function (target) { restoreNotesCoinsFromSettings(target); },
+    articles: function () { enterArticlesTab(); },
+    special: function () { enterSpecialFromTab(); }
+};
+
+// 按注册表分派；返回 true 表示已处理。
+// fromSettings=true 时用"设置页返回"那张表。
+function dispatchTabAction(target, fromSettings) {
+    const def = (typeof getModeDef === 'function') ? getModeDef(target) : null;
+    const action = def && def.tabAction;
+    const table = fromSettings ? TAB_ACTIONS_FROM_SETTINGS : TAB_ACTIONS;
+    const fn = action && table[action];
+    if (typeof fn !== 'function') return false;
+    fn(target);
+    return true;
+}
+
 function onTabClick(target) {
     // ★ try/finally 统一收口写 URL：这个函数有 6 个提前 return 分支，
     //   在每个分支里各插一次 syncRoute 太容易漏（后续新增分支也会忘）。
@@ -99,15 +143,11 @@ function onTabClickInner(target) {
         return;
     }
 
-    if (target === MODE.ARTICLES) {
-        enterArticlesTab();
-        return;
-    }
-
-    if (target === MODE.NOTES || target === MODE.COINS) {
-        enterNotesOrCoinsTab(target);
-        return;
-    }
+    // ★ 其余交给注册表分派（纸币/硬币 → collection，文章 → articles）。
+    //   原来是两条穷举 if：`target === MODE.ARTICLES` 和
+    //   `target === MODE.NOTES || target === MODE.COINS`。
+    //   新增板块只要在注册表里写对 tabAction，这里不用动。
+    dispatchTabAction(target);
 }
 
 function enterSpecialFromTab() {
@@ -190,16 +230,11 @@ function leaveSettingsToTarget(target) {
         toggleBtn.style.display = '';
     }
 
-    if (target === MODE.ARTICLES) {
-        enterArticlesTab();
-        return;
-    }
-
-    if (target === MODE.NOTES || target === MODE.COINS) {
-        restoreNotesCoinsFromSettings(target);
-        return;
-    }
-
+    // ★ 文章与纸币/硬币从设置页返回，就是"正常进入那个板块"，与 tab 直接点完全同一套流程
+    //   （enterArticlesTab / restoreNotesCoinsFromSettings 都不依赖设置页状态），
+    //   所以走注册表分派，不再在这里穷举板块名。
+    //   注意：必须在下面的 special 分支**之后**才轮到它 —— special 那条要额外
+    //   还原 settingsReturnState.selectedSpecial，不能由通用分派代劳。
     if (target === MODE.SPECIAL) {
         currentMode = MODE.SPECIAL;
         document.querySelector('.tab-item[data-target="special"]')?.classList.add('active');
@@ -236,6 +271,22 @@ function leaveSettingsToTarget(target) {
             renderSpecialOverview();
         }
         triggerViewAnimation();
+        return;
+    }
+
+    // ★ 顺序很重要：**先按注册表分派**，下面的 settingsReturnState 只作为兜底。
+    //
+    //   踩过的坑：一开始我把分派放成 `if (settingsReturnState) {...} else if (分派)`，
+    //   结果设置页返回纸币时"定位与展开态全丢"。原因是 settingsReturnState 只要
+    //   点过「我的」就一定有值（进设置时必被写入），所以 else 分支**永远不进**；
+    //   而紧跟着的兜底分支只还原 currentCategoryId/currentView 这五项定位，
+    //   **不碰 focusSeries / focusVariety / expandedSeries / expandedVarieties**，
+    //   也不调用 restoreNotesCoinsFromSettings 的容器重渲染 + 滚动复位。
+    //   原来这段兜底是"文章/专题之外的其它"专用，纸币/硬币在它**之前**就 return 了。
+    //
+    //   现在：纸币/硬币 → restoreNotesCoinsFromSettings（既有实现，一字不改），
+    //   文章 → enterArticlesTab；两者都 return，不会掉进兜底。
+    if (dispatchTabAction(target, true)) {
         return;
     }
 

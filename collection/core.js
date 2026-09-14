@@ -290,6 +290,180 @@ let articleState = {
     readerScrollY: 0
 };
 
+// ==================== 板块注册表（mode registry）====================
+//
+// ★ 存在的理由：以前"一个板块是什么"这件事散在 9 个文件、53 处
+//   `currentMode === MODE.xxx` 的判断里 —— 加一个新 tab（比如将来的邮票）
+//   要同时改 core.js / tab-switcher.js / router.js / search.js / overview.js
+//   好几个文件、八九处分支，漏掉任何一处都会出现"能进去但搜索没反应"
+//   "标签写错板块名""地址栏还原不了"这类半坏状态。
+//   现在把这些差异集中到这一张表：新增板块 = 加一条注册表条目 + 一个渲染函数。
+//
+// ★ 每一项的字段（全部可选，缺失时走安全默认值）：
+//     kind       'collection'（纸币/硬币这种"分类树+取数+搜索"的板块）
+//                | 'special' | 'articles' | 'settings'，供 tab 分派与搜索三态判断用
+//     urlSegment 地址栏里的板块标识段（#notes/rmb/rmb3 里的 "notes"）。
+//                路由的"段名 → 板块"解析由它驱动，所以新板块只要写这一个字段，
+//                深链接就能用，不用回 router.js 加 if。
+//     tabAction  'collection' | 'articles' | 'special'，tab-switcher 据此决定
+//                "点这个 tab 该走哪套进入流程"。**新增板块只要在这里写对这一个词，
+//                就不用回 tab-switcher.js 加分支**（原来那里写的是
+//                `target === MODE.NOTES || target === MODE.COINS` 这种穷举）
+//     label      这个板块的中文名，用 modeLabel() 取。所有界面文案都从这儿出，
+//                不再写 `currentMode === MODE.NOTES ? '纸币' : '硬币'` 这种二元假设
+//                （那种写法一旦有第三个板块就会显示错名字）
+//     tree       分类树（函数形式 → 惰性求值，避免加载顺序问题）
+//     allDataKeys 该板块的全部 dataKey（函数形式）
+//     map        全局数据表名（DATA_MAP / COIN_DATA_MAP / FUN_DATA_MAP）
+//     containerKey 函数，返回该板块当前应显示的滚动容器 key
+//     search     搜索能力三态：'full'（有完整搜索）| 'own'（自己一套搜索）
+//                | 'none'（没搜索）。搜索框占位文案、下拉框显隐都由它决定
+//     searchUi   函数（可选）。有它就用它来配置搜索栏（文章板块的切换按钮
+//                文案与提示语和纸币/硬币不同，所以单独提供）；
+//                没有它就按 search 走默认：'full' → 通用搜索栏，'none' → 只给占位文字
+//     searcher   'collection' | 'articles'（点搜索按钮时该走哪套实现）
+//
+// ★ 为什么 tree/map 用函数而不是直接写变量：core.js 在 coin-config.js 之前加载，
+//   直接写 `coinCategoryTree` 会在加载期抛 ReferenceError。函数惰性求值天然避开。
+const MODE_REGISTRY = {
+    [MODE.NOTES]: {
+        kind: 'collection',
+        label: '纸币',
+        tree: function () { return typeof categoryTree !== 'undefined' ? categoryTree : null; },
+        allDataKeys: function () { return typeof allDataKeys !== 'undefined' ? allDataKeys : []; },
+        map: 'DATA_MAP',
+        urlSegment: 'notes',
+        containerKey: function () {
+            if (currentView === VIEW.SEARCH) return 'notes_search';
+            if (currentView === VIEW.CATEGORY) {
+                return 'notes_category_' + String(currentSubId || currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
+            }
+            return 'notes_overview';
+        },
+        search: 'full',
+        searcher: 'collection',
+        tabAction: 'collection'
+    },
+    [MODE.COINS]: {
+        kind: 'collection',
+        label: '硬币',
+        tree: function () { return typeof coinCategoryTree !== 'undefined' ? coinCategoryTree : null; },
+        allDataKeys: function () { return typeof coinAllDataKeys !== 'undefined' ? coinAllDataKeys : []; },
+        map: 'COIN_DATA_MAP',
+        urlSegment: 'coins',
+        containerKey: function () {
+            if (currentView === VIEW.SEARCH) return 'coins_search';
+            if (currentView === VIEW.CATEGORY) {
+                return 'coins_category_' + String(currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
+            }
+            return 'coins_overview';
+        },
+        search: 'full',
+        searcher: 'collection',
+        tabAction: 'collection'
+    },
+    [MODE.SPECIAL]: {
+        kind: 'special',
+        label: '专题',
+        tree: function () { return specialCategoryTree; },
+        allDataKeys: function () {
+            const configs = (typeof getSpecialConfigs === 'function') ? getSpecialConfigs() : [];
+            return configs.map(function (c) { return c.dataKey; }).filter(Boolean);
+        },
+        map: 'FUN_DATA_MAP',
+        urlSegment: 'special',
+        containerKey: function () { return 'special_container'; },
+        search: 'none',
+        searcher: null,
+        tabAction: 'special'
+    },
+    [MODE.ARTICLES]: {
+        kind: 'articles',
+        label: '文章',
+        tree: null,
+        allDataKeys: function () { return []; },
+        map: null,
+        containerKey: function () {
+            if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
+                return 'articles_reader_' + currentArticleIndex;
+            }
+            return 'articles_list';
+        },
+        search: 'own',
+        searcher: 'articles',
+        tabAction: 'articles',
+        urlSegment: 'articles',
+        // 文章板块的搜索栏与纸币/硬币不同：一个"标/全"按钮在标题搜索与全文索引之间切，
+        // 所以整段交给它自己配置（文案与 search.js 里原实现逐字一致）。
+        searchUi: function (ui) {
+            const titleMode = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title');
+            ui.placeholder = '只在当前板块里翻哦';
+            ui.selectHidden = false;
+            ui.toggleHidden = false;
+            ui.toggleText = titleMode ? '标' : '全';
+            ui.toggleTitle = titleMode ? '现在是按标题找，点“标”字能切到全文索引' : '现在是全文索引，点“全”字能切回按标题找';
+            ui.tip = titleMode
+                ? '现在是按标题找（边打边搜），点“标”字能切到全文索引'
+                : '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
+        }
+    },
+    [MODE.SETTINGS]: {
+        kind: 'settings',
+        label: '我的',
+        tree: null,
+        allDataKeys: function () { return []; },
+        map: null,
+        urlSegment: 'settings',
+        // 设置页不是"一个板块"：它是盖在任意板块之上的浮层，走哪个容器由当前板块决定。
+        // 这个函数只是兜底（正常路径由 getContainerKey 里的 isSettingsMode 分支先接管）。
+        containerKey: function () { return 'settings_container'; },
+        search: 'none',
+        searcher: null
+    }
+};
+
+// 取某个板块的注册信息；moduleOrMode 省略时取当前板块。
+// 未注册的板块返回 null —— 调用方自己决定怎么退化（**绝不**默认成硬币，
+// 那样新板块会被静默当成硬币板块，正是旧代码 `=== NOTES ? a : b` 的坑）。
+function getModeDef(mode) {
+    const key = (mode === undefined || mode === null) ? currentMode : mode;
+    return MODE_REGISTRY[key] || null;
+}
+
+// 板块中文名。界面文案统一走这里，不再用二元三元表达式。
+// 未注册时的兜底：拿不到名字就用 mode 字符串本身（比"显示成硬币"诚实）。
+function modeLabel(mode) {
+    const def = getModeDef(mode);
+    if (def && def.label) return def.label;
+    const key = (mode === undefined || mode === null) ? currentMode : mode;
+    return key || '';
+}
+
+// 是不是"分类树 + 取数 + 搜索"型的数据板块（纸币/硬币这一族）。
+// ★ 用能力（kind）判断，而不是穷举 `=== MODE.NOTES || === MODE.COINS`：
+//   后者在新增一个同类板块（比如将来的邮票）时，每一处都要回去补名字，
+//   漏一处就出现"能看不能存状态/侧边栏不还原"这类半坏状态。
+function isCollectionMode(mode) {
+    const def = getModeDef(mode);
+    return !!(def && def.kind === 'collection');
+}
+
+// 地址栏段名 → 板块。路由解析用它，所以新增板块不用回 router.js 加 if。
+// ★ 用显式映射表而不是遍历 MODE_REGISTRY 找 urlSegment：这样"两个板块抢同一个
+//   段名"是代码里一眼可见的重复 key，而不是运行时的静默覆盖。
+const MODE_URL_SEGMENTS = {
+    'notes': MODE.NOTES,
+    'coins': MODE.COINS,
+    'special': MODE.SPECIAL,
+    'articles': MODE.ARTICLES,
+    'settings': MODE.SETTINGS
+};
+
+// 段名没用/认不出来时返回 null（调用方决定怎么退化，**不要**默认成某个板块）
+function modeFromUrlSegment(seg) {
+    return MODE_URL_SEGMENTS[seg] || null;
+}
+
 // ========== 图片弹窗状态 ==========
 let hammerManager = null;
 let currentScale = 1, currentX = 0, currentY = 0;
@@ -329,29 +503,17 @@ function ensureViewContainer(key) {
 // ★ 所有模式都使用独立容器，#app 不再用于渲染
 function getContainerKey() {
     // ★ 优先判断：如果正在设置页，直接返回设置容器 key
+    //   （设置页是盖在任意板块之上的浮层，不是"一个板块"，所以不走注册表查表）
     if (isSettingsMode) {
         return 'settings_container';
     }
 
-    if (currentMode === MODE.ARTICLES) {
-        if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
-            return 'articles_reader_' + currentArticleIndex;
-        }
-        return 'articles_list';
-    }
-    if (currentMode === MODE.SPECIAL) {
-        return 'special_container';
-    }
-    if (currentMode === MODE.NOTES) {
-        if (currentView === VIEW.SEARCH) return 'notes_search';
-        if (currentView === VIEW.CATEGORY) return 'notes_category_' + String(currentSubId || currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
-        return 'notes_overview';
-    }
-    if (currentMode === MODE.COINS) {
-        if (currentView === VIEW.SEARCH) return 'coins_search';
-        if (currentView === VIEW.CATEGORY) return 'coins_category_' + String(currentCategoryId || 'overview').replace(/[^a-zA-Z0-9_\-]/g, '_');
-        return 'coins_overview';
-    }
+    // ★ 其余全部交给板块注册表。
+    //   以前这里是 5 个 if 分支硬编码（ARTICLES / SPECIAL / NOTES / COINS / default），
+    //   新增板块必须回来加一条 —— 漏了就静默落到 'default' 容器，
+    //   表现为"能切过去但内容是空的"。现在注册表里写清楚就不用来改这里。
+    const def = getModeDef();
+    if (def && typeof def.containerKey === 'function') return def.containerKey();
     return 'default';
 }
 
@@ -675,23 +837,22 @@ function buildSpecialCategoryTree() {
 }
 
 function getCategoryTree() {
-    if (currentMode === MODE.SPECIAL) return specialCategoryTree;
-    return currentMode === MODE.NOTES ? categoryTree : coinCategoryTree;
+    const def = getModeDef();
+    if (!def || typeof def.tree !== 'function') return null;
+    return def.tree() || null;
 }
 
 function getAllDataKeys() {
-    return currentMode === MODE.NOTES ? allDataKeys : coinAllDataKeys;
+    const def = getModeDef();
+    if (!def || typeof def.allDataKeys !== 'function') return [];
+    return def.allDataKeys() || [];
 }
 
 function getData(dataKey) {
-    if (currentMode === MODE.NOTES) {
-        return window.DATA_MAP && window.DATA_MAP[dataKey] ? window.DATA_MAP[dataKey] : null;
-    } else if (currentMode === MODE.COINS) {
-        return window.COIN_DATA_MAP && window.COIN_DATA_MAP[dataKey] ? window.COIN_DATA_MAP[dataKey] : null;
-    } else if (currentMode === MODE.SPECIAL) {
-        return window.FUN_DATA_MAP && window.FUN_DATA_MAP[dataKey] ? window.FUN_DATA_MAP[dataKey] : null;
-    }
-    return null;
+    const def = getModeDef();
+    if (!def || !def.map) return null;
+    const m = window[def.map];
+    return (m && m[dataKey]) ? m[dataKey] : null;
 }
 
 // 把内部 dataKey 映射成人能读的分类路径（纸币要带上父分类，如 rmb3Data → 中国 - 第三套人民币）。
@@ -717,8 +878,11 @@ function getCategoryPath(dataKey, type) {
 }
 
 function getEffectiveSearchMode() {
-    if (currentMode === MODE.ARTICLES) return SEARCH_MODE.REALTIME;
-    if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
+    // ★ "这个板块有没有自己的搜索模式开关"由注册表的 search 字段说明：
+    //   'full'（纸币/硬币，用户可在点击/实时之间切）与 'own'（文章，固定实时）
+    //   走 modeStates；'none'（专题/设置）没有搜索，返回实时只是占位值。
+    const def = getModeDef();
+    if (def && def.search === 'full') {
         const st = modeStates[currentMode];
         return (st && st.searchMode) || SEARCH_MODE.REALTIME;
     }
@@ -777,7 +941,7 @@ function saveFullState() {
         return;
     }
 
-    if ((currentMode === MODE.NOTES || currentMode === MODE.COINS) && !isSettingsMode) {
+    if (isCollectionMode() && !isSettingsMode) {
         const expanded = collectExpandedStates();
         const prev = modeStates[currentMode] || {};
         // ★ 顺带刷新"当前位置"：这里 DOM 一定是最终状态，是最省事也最准的采集时机。
@@ -833,7 +997,7 @@ function saveFullState() {
 }
 
 function restoreSidebarState() {
-    if (currentMode === MODE.NOTES || currentMode === MODE.COINS) {
+    if (isCollectionMode()) {
         const saved = modeStates[currentMode];
         const sidebar = document.getElementById('sidebar');
         const toggle = document.getElementById('sidebarToggle');

@@ -74,8 +74,11 @@ function renderOverview() {
         }
     }
 
-    const modeLabel = currentMode === MODE.NOTES ? '纸币' : '硬币';
-    let html = `<div class="overview-header"><h2>全部${modeLabel}</h2><p>共${allItems.length}件藏品</p></div>`;
+    // ★ 板块中文名从注册表取（原来是 `=== MODE.NOTES ? '纸币' : '硬币'` ——
+    //   一旦有第三个板块，硬币分支就会被错误地复用给新板块）。
+    //   局部变量故意不叫 modeLabel，避免遮蔽 core.js 里的同名函数。
+    const modeName = modeLabel();
+    let html = `<div class="overview-header"><h2>全部${modeName}</h2><p>共${allItems.length}件藏品</p></div>`;
     if (allItems.length === 0) {
         html += '<div class="empty-state">啥都木有</div>';
         app.innerHTML = html;
