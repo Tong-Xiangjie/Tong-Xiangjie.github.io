@@ -467,6 +467,64 @@ const MODAL_HIDE_MS = 300;   // 与 CSS 的 --dur-3 保持一致（蒙版淡出�
 // 最大放大倍率：触摸双指与桌面滚轮共用同一个上限，保证两端手感一致
 const MODAL_MAX_SCALE = 8;
 
+// ---------- 飞行图层在 Tab 栏处收边 ----------
+//
+// 背景（用户报的问题）：飞行图层 z-index 1002，压在整个页面之上。当缩略图只有
+// 一部分露出可视范围时，飞行过程中它必然要跨过底部 Tab 栏顶线，于是出现
+// "图片压在 Tab 上"。放大后的终态不受影响（那时它已经在 Tab 栏以上了）。
+//
+// ★ 做法：把飞行图层放进一个**静止的裁剪层** —— 该层固定占据"Tab 栏以上"的
+//   整个视口，overflow:hidden。元素在该层内部照常做 transform 过渡，越界的
+//   部分由布局天然裁掉，露出来的是底下已经画好的 Tab 栏。
+//
+// ★ 为什么不用"每帧重算 clip-path / mask"：那两条路都得让裁剪值跟上元素的
+//   动画几何，而 rAF/事件回调都拿不到"当前这一帧的精确几何"，必然存在 1~2 帧
+//   相位差。实测（probe-flight-clip2 / probe-flight-exit）：
+//     · 放大方向单帧位移约 8~10px，滞后 ≈ 8px；
+//     · 缩回方向单帧位移约 40px，滞后 ≈ 8px 且跨线帧更多。
+//   而静止裁剪层没有这个问题 —— 裁剪边界由布局给出，与 transform 同一帧生效。
+//   另外 mask-image + mask-position 负偏移实测行为不可预测（会把元素在 Tab 线
+//   **上方**的部分一起抹掉），已弃用。
+const FLIGHT_CLIP_LAYER_ID = 'modalFlightClipLayer';
+
+function getFlightClipLayer() {
+    let layer = document.getElementById(FLIGHT_CLIP_LAYER_ID);
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = FLIGHT_CLIP_LAYER_ID;
+        // position:fixed + top:0 + bottom:var(--tabbar-h) → 恰好盖住"Tab 栏以上"。
+        // overflow:hidden 让子元素越界即被裁；自身不接收指针事件。
+        layer.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:var(--tabbar-h,41px);'
+            + 'overflow:hidden;pointer-events:none;z-index:1002;';
+        document.body.appendChild(layer);
+    }
+    return layer;
+}
+
+// 测试钩子：只读地汇报裁剪层与飞行图层的几何关系，供探针断言（不靠截图猜）。
+window.getModalFlightClipInfo = function () {
+    const layer = document.getElementById(FLIGHT_CLIP_LAYER_ID);
+    const tb = document.querySelector('.bottom-tabbar');
+    const tbTop = tb ? tb.getBoundingClientRect().top : window.innerHeight;
+    const info = { hasFlight: !!modalFlightEl, hasLayer: !!layer, tabbarTop: tbTop };
+    if (layer) {
+        const lr = layer.getBoundingClientRect();
+        const cs = getComputedStyle(layer);
+        info.layerTop = lr.top;
+        info.layerBottom = lr.bottom;
+        info.layerOverflow = cs.overflow;
+    }
+    if (modalFlightEl) {
+        const r = modalFlightEl.getBoundingClientRect();
+        info.rectTop = r.top;
+        info.rectBottom = r.bottom;
+        info.rectHeight = r.height;
+        // 元素是否确实在这个裁剪层里（而不是还在 body 上）—— 这是收边是否生效的前提
+        info.parentIsLayer = modalFlightEl.parentNode === layer;
+    }
+    return info;
+};
+
 // ★ 取「图片真实内容」在视口中的矩形，而不是元素框。
 //   网格里的缩略图元素框是固定尺寸（.mini-thumb 36×26、.copy-thumb 56×40、
 //   .timeline-img 80×60），图片靠 object-fit 内接，所以元素框的比例（约 4:3）
@@ -604,6 +662,9 @@ function cancelModalFlight() {
         if (modalFlightEl.parentNode) modalFlightEl.remove();
         modalFlightEl = null;
     }
+    // 裁剪层本身留着无所谓（空层不影响任何东西），但顺手清掉更干净
+    const layer = document.getElementById(FLIGHT_CLIP_LAYER_ID);
+    if (layer && layer.childNodes.length === 0 && layer.parentNode) layer.remove();
 }
 
 // 从 fromRect 飞到 toRect（元素最终落在 toRect，靠 transform 反向偏移回到起点）
@@ -620,7 +681,9 @@ function startModalFlight(fromRect, toRect, srcUrl, onDone) {
     const dx = (fromRect.left + fromRect.width / 2) - (toRect.left + toRect.width / 2);
     const dy = (fromRect.top + fromRect.height / 2) - (toRect.top + toRect.height / 2);
     el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + s + ')';
-    document.body.appendChild(el);
+    // ★ 挂进静止裁剪层（而不是 document.body）：该层只覆盖"Tab 栏以上"，
+    //   越界部分由布局裁掉，动画过程中图片不会压到 Tab 上。
+    getFlightClipLayer().appendChild(el);
     modalFlightEl = el;
 
     void el.offsetWidth;   // 先落到起始状态，再启动过渡

@@ -401,7 +401,11 @@ const MODE_REGISTRY = {
         searchUi: function (ui) {
             const titleMode = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title');
             ui.placeholder = '只在当前板块里翻哦';
-            ui.selectHidden = false;
+            // ★ 必须为 true：文章板块要**藏掉**那个"全字段搜索"下拉框。
+            //   原实现是 `select.classList.add('hidden')`；重构时误写成 false，
+            //   结果文章页左上角多出一个"全字段搜索"选择框（用户报的回归）。
+            //   这里保留原语义，别改成 false。
+            ui.selectHidden = true;
             ui.toggleHidden = false;
             ui.toggleText = titleMode ? '标' : '全';
             ui.toggleTitle = titleMode ? '现在是按标题找，点“标”字能切到全文索引' : '现在是全文索引，点“全”字能切回按标题找';
