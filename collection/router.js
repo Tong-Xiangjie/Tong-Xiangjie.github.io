@@ -21,8 +21,11 @@
 //   #notes/search/watermark/水印   按下拉选项搜 water 字段…（见下方 type 段）
 //   #articles                     文章列表
 //   #articles/12                  第 12 篇文章
+//   #articles/c-notes-rmb         文章列表 + 定位到某个侧边栏分类/子分类
+//   #articles/12/c-notes-rmb      文章 + 分类同时定位
 //   #special                      方寸之间概览
 //   #special/<configId>           某个专题
+//   #special/<configId>/g<分组>    专题 + 定位到侧边栏子类（面额/年代…）
 //   #settings                     设置
 //
 // 页面内锚点（搜索结果里的 #item-... 之类）不受影响：本路由器只认上面这些前缀，
@@ -57,6 +60,13 @@ function buildRoute() {
         if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
             seg.push(String(currentArticleIndex));
         }
+        // ★ 侧边栏选中的分类/子分类也要进 URL，否则文章深链接"不灵敏"：
+        //   同一个 #articles/12 会因为侧边栏停在不同分类而显示不同的列表，
+        //   点开某分类后复制链接给别人，对方看到的却是全部分类。
+        //   用 c- 前缀避免和纯数字的文章序号混淆，值编码后写进去。
+        if (currentArticleCategory && currentArticleCategory !== 'all') {
+            seg.push('c-' + encodeURIComponent(currentArticleCategory));
+        }
         return seg.join('/');
     }
 
@@ -65,6 +75,14 @@ function buildRoute() {
         seg.push('special');
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             seg.push(String(selectedSpecial));
+            // ★ 侧边栏子类（面额/年代…）：currentSubId 就是被选中的那一项。
+            //   编号是通用的 —— 面额专题的 "10000元"、年份专题的 "1990s"、
+            //   以及**将来任何按 groupBy 自动分组的专题**都用同一个变量，
+            //   所以这里不必认识任何具体专题，新增专题自动获得精确深链接。
+            //   用 g 前缀与 view-/order-/y-/m- 等子视图段区分开。
+            if (currentSubId !== null && currentSubId !== undefined && currentSubId !== '') {
+                seg.push('g' + encodeURIComponent(String(currentSubId)));
+            }
             // 山河专题的两个视图
             if (typeof shanheViewMode === 'string' && shanheViewMode !== 'map') {
                 seg.push('view-' + shanheViewMode);
@@ -188,15 +206,23 @@ function parseRoute(hash) {
     if (headMode === MODE.SETTINGS) return { mode: 'settings' };
 
     if (headMode === MODE.ARTICLES) {
-        const idx = parts.length > 1 ? parseInt(parts[1], 10) : NaN;
-        return { mode: 'articles', articleIndex: Number.isFinite(idx) ? idx : -1 };
+        // ★ 序号段与分类段可以任意顺序出现，所以逐段判定而不是写死 parts[1]/parts[2]：
+        //   #articles/12、#articles/c-xxx、#articles/12/c-xxx 三种都认。
+        const r = { mode: 'articles', articleIndex: -1, categoryId: null };
+        for (const p of parts.slice(1)) {
+            if (p.startsWith('c-')) { r.categoryId = safeDecode(p.slice(2)); continue; }
+            const idx = parseInt(p, 10);
+            if (Number.isFinite(idx)) r.articleIndex = idx;
+        }
+        return r;
     }
 
     if (headMode === MODE.SPECIAL) {
         const r = { mode: 'special', configId: parts.length > 1 ? safeDecode(parts[1]) : null };
-        // 余下片段是专题子视图参数：view-list / order-asc / y-2020 / m-5
+        // 余下片段是专题子视图参数：view-list / order-asc / y-2020 / m-5 / g<子类>
         for (const p of parts.slice(2)) {
-            if (p.startsWith('view-')) r.shanheView = p.slice(5);
+            if (p.startsWith('g')) r.groupId = safeDecode(p.slice(1));
+            else if (p.startsWith('view-')) r.shanheView = p.slice(5);
             else if (p.startsWith('order-')) r.timelineOrder = p.slice(6);
             else if (p.startsWith('y-')) r.timelineYear = safeDecode(p.slice(2));
             else if (p.startsWith('m-')) r.timelineMonth = safeDecode(p.slice(2));
@@ -360,6 +386,9 @@ async function applyRoute(hash, opts) {
             articleState = Object.assign({}, articleState, {
                 currentView: route.articleIndex >= 0 ? VIEW.READER : VIEW.LIST,
                 currentIndex: route.articleIndex >= 0 ? route.articleIndex : -1,
+                // ★ 分类也要吃进快照：enterArticlesTab 是从 articleState 恢复
+                //   currentArticleCategory 的，不写的话链接里的分类段无效。
+                currentCategory: route.categoryId || 'all',
                 searchKeyword: '',
                 listScrollY: 0,
                 readerScrollY: 0
@@ -388,11 +417,12 @@ async function applyRoute(hash, opts) {
             if (route.configId && route.configId !== 'overview') {
                 await waitFor(() => typeof onSpecialOverviewItemClick === 'function');
                 tick(() => {
-                    try { onSpecialOverviewItemClick(route.configId); }
+                    try { onSpecialOverviewItemClick(route.configId, route.groupId || null); }
                     catch (e) { console.warn('[router] 打开专题失败:', route.configId, e); }
                 }, 80);
                 // 子视图参数（山河列表视图 / 时间轴排序与筛选）
-                if (route.shanheView || route.timelineOrder || route.timelineYear || route.timelineMonth) {
+                // ★ 有 groupId 时也要等，因为分组是异步（数据/树）就绪后才建出来的。
+                if (route.shanheView || route.timelineOrder || route.timelineYear || route.timelineMonth || route.groupId) {
                     await waitFor(() => selectedSpecial === route.configId, 1500);
                     tick(() => applySpecialSubView(route), 160);
                 }
@@ -580,6 +610,28 @@ function findCopyElement(vIdx, cIdx) {
 // 应用专题的子视图参数（山河列表/地图、时间轴排序与筛选）。
 // 都通过调用原有的切换函数来生效，而不是直接改变量 —— 那些函数还要重建视图与动画。
 function applySpecialSubView(route) {
+    // ★ 侧边栏子类（面额/年代…）的还原。
+    //   为什么放在这里、而不是在点开专题时直接传进去：专题内容与分组列表都是
+    //   异步就绪的，点开那一刻 specialCategoryTree 可能还没有 children，
+    //   早设会被随后的渲染覆盖掉（与本文件顶部"等布局稳定"的既有做法一致）。
+    //   这里不硬编码任何专题 —— 只要专题在配置里给了 dataKey/groupBy，
+    //   syncSpecialGroupChildren() 就会为它建出 children，本段对新增专题自动生效。
+    if (route.groupId !== undefined && route.groupId !== null && route.groupId !== '') {
+        if (typeof selectedSpecial !== 'undefined' && selectedSpecial) {
+            const tree = (typeof specialCategoryTree !== 'undefined' && specialCategoryTree) ? specialCategoryTree : [];
+            const node = tree.find(c => c.id === selectedSpecial);
+            if (node && node.children && node.children.length) {
+                const hit = node.children.find(sub => String(sub.id) === String(route.groupId));
+                const want = hit ? hit.id : null;
+                if (want !== null && currentSubId !== want) {
+                    currentSubId = want;
+                    if (typeof renderSpecialContent === 'function') renderSpecialContent();
+                    if (typeof renderSidebar === 'function') renderSidebar();
+                    if (typeof triggerViewAnimation === 'function') triggerViewAnimation();
+                }
+            }
+        }
+    }
     if (route.shanheView && typeof shanheViewMode === 'string' && shanheViewMode !== route.shanheView) {
         if (typeof shanheSwitchView === 'function') shanheSwitchView(route.shanheView);
     }

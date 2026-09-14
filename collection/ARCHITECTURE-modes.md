@@ -89,6 +89,26 @@
 | `'map'` | 中国地图（方寸山河那种） | `mapFile: 'china_map.svg'` |
 | 想要全新样式 | 自己写一个渲染函数 | 见下面第 4 节 |
 
+### 2.1 侧边栏子类的深链接也是零代码的
+
+只要写了 `groupBy`，侧边栏子类（面额、年代…）就会由
+`special.js` 的 `buildGroupCategories()` 自动生成，**深链接也一并自动生效**：
+
+```
+#special/denom                    面额专题
+#special/denom/g10000元           面额专题 + 侧边栏选中「10000元」
+#special/denom/g1角               中文/特殊字符会做 URL 编码
+```
+
+为什么新增专题不用改路由：`currentSubId` 是**通用**变量（专题里放面额/年代，
+纸币硬币里放子分类），`router.js` 只是把它原样写进 / 读出一个 `g` 段，
+它不需要认识任何具体专题。已实测：运行时注入一个全新的 `groupBy: 'denom'`
+专题，点子类照样写出 `#special/<新id>/g...`，冷开也能还原。
+
+> 唯一的例外是 `view: 'timeline'` / `view: 'map'`：这两类没有侧边栏
+> （`syncSpecialGroupChildren` 会直接 return），它们的子视图参数另有约定
+> （`view-list` / `order-asc` / `y-2020` / `m-5`）。
+
 ---
 
 ## 3. 加一个顶栏 tab（改 2 个文件）

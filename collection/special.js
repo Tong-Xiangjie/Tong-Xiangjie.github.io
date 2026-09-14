@@ -171,16 +171,20 @@ function renderSpecialOverview() {
 }
 
 // ========== 点击专题 ==========
-function onSpecialOverviewItemClick(configId) {
+function onSpecialOverviewItemClick(configId, initialGroup) {
     // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
     try {
-        onSpecialOverviewItemClickInner(configId);
+        onSpecialOverviewItemClickInner(configId, initialGroup);
     } finally {
         if (typeof syncRoute === 'function') syncRoute();
     }
 }
 
-function onSpecialOverviewItemClickInner(configId) {
+// ★ initialGroup：深链接要还原的侧边栏子类（面额/年代…），没有就传 null。
+//   用可选入参而不是新增一个入口函数，是为了让路由与"用户手动点专题卡片"
+//   继续走**同一条代码路径**（见 router.js 顶部"模拟点击"的说明），
+//   否则两条路径的副作用很容易长歪。
+function onSpecialOverviewItemClickInner(configId, initialGroup) {
     selectedSpecial = configId;
     currentCategoryId = configId;
     currentSubId = null;
@@ -211,11 +215,29 @@ function onSpecialOverviewItemClickInner(configId) {
         ? specialCategoryTree.find(c => c.id === configId)?.children?.length > 0
         : false;
 
+    // ★ 深链接要还原侧边栏子类。必须在 syncSpecialGroupChildren() **之后**做 ——
+    //   这一步才把 children 建出来，提前设会被随后的渲染覆盖。
+    //   校验用 children 里的真实 id（而不是直接用 URL 里那串），
+    //   这样链接里写了已删除的子类时会安静地退回"全部"，不会卡在一个空列表上。
+    //   本条对**任何**按 groupBy 自动分组的专题都成立（面额、年代、以及将来新增的），
+    //   因为 children 是 buildGroupCategories() 按配置统一生成的。
+    let restoredGroup = false;
+    if (hasSub && initialGroup !== null && initialGroup !== undefined && initialGroup !== '') {
+        const node = specialCategoryTree.find(c => c.id === configId);
+        const hit = node && node.children
+            ? node.children.find(sub => String(sub.id) === String(initialGroup))
+            : null;
+        if (hit) { currentSubId = hit.id; restoredGroup = true; }
+    }
+
     if (hasSub) {
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = '';
         renderSidebar();
         renderSpecialContent();
+        // ★ 侧边栏是按 currentSubId 打高亮的，而上面 renderSidebar() 已经跑过一次；
+        //   还原了子类就再渲染一次，否则"内容是子类、高亮却是全部"。
+        if (restoredGroup) renderSidebar();
         triggerViewAnimation();
     } else {
         document.querySelector('.body-row')?.classList.add('sidebar-hidden');

@@ -339,7 +339,18 @@ function renderArticleSidebar() {
 }
 
 // ★ 修正：父分类点击行为同纸币/硬币
+// ★ try/finally 统一收口写 URL（本函数有 6 个提前 return 分支）。
+//   之前这里**没有** syncRoute()，所以点文章侧边栏的分类/子分类完全不改地址栏，
+//   深链接"不灵敏"的观感就来自这里（加上 openArticleReader 也漏了）。
 function onArticleSidebarClick(categoryId) {
+  try {
+    onArticleSidebarClickInner(categoryId);
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute();
+  }
+}
+
+function onArticleSidebarClickInner(categoryId) {
   // 判断点击的是父分类还是子分类
   let isParent = false;
   let parentId = null;
@@ -870,6 +881,11 @@ function openArticleReader(index, restoreScroll) {
   currentArticleView = VIEW.READER;
   const article = collectedArticles[index];
   if (!article) return;
+
+  // ★ 写 URL（深链接）：打开文章是这个板块最主要的导航动作，之前**漏了**这一步，
+  //   所以点进文章地址栏仍停在 #articles（"深链接不灵敏"的直接原因）。
+  //   放在越界检查之后：index 非法时上面已经 return，不会写出一个指向不存在文章的链接。
+  syncRoute();
 
   switchToCurrentContainer();
   const app = getRenderContainer();
