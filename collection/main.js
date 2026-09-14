@@ -105,6 +105,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupModalEvents();
     setupImageRetry();
     setupImageFadeIn();
+    // ★ 实测底部 Tab 栏高度写入 --tabbar-h（弹窗图片盒子靠它停在 Tab 栏之上）。
+    //   放在这里而不是 revealContent 里：Tab 栏是静态 DOM，此刻已可测量，
+    //   而且要在任何一次 openModal 之前完成。
+    setupTabbarMetrics();
 
     document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
     const st = document.getElementById('sidebarToggle');

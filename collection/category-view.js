@@ -960,6 +960,12 @@ function openModal(imgSrc1, imgSrc2) {
     const modalImg = document.getElementById('modalImg');
     if (!modal || !modalImg || !imgSrc1) return;
 
+    // ★ 打开前补量一次底部 Tab 栏高度：--tabbar-h 决定 .modal-content /
+    //   .modal-img 的高度，也就是图片盒子的下边界。用户改了浏览器默认字号
+    //   之后 Chrome 不一定派发 resize，只靠初始化那一次会用到过期的值，
+    //   图片盒子就会越过 Tab 栏顶。这里再量一次，成本只是一次几何读取。
+    if (typeof measureTabbarHeight === 'function') measureTabbarHeight();
+
     currentModalImg1 = imgSrc1;
     // 正反面是同一张时（文章配图、专题灯箱就是这么调用的）不显示翻面按钮
     currentModalImg2 = (imgSrc2 && imgSrc2 !== imgSrc1) ? imgSrc2 : '';

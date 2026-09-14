@@ -984,6 +984,64 @@ function setupImageFadeIn() {
 let failedImages = new Set();
 let retryFab = null;
 
+// ==================== 底部 Tab 栏高度测量 ====================
+//
+// ★ 为什么必须实测而不能写死：Tab 栏高度由 .tab-item 的 rem 字号决定，而 rem
+//   跟着浏览器「默认字号」与「文字缩放」走。按 10px 内边距 + 0.85rem 行盒 +
+//   1px 边框估算出来的 41px 只在根字号 16px 时成立，实测：
+//     根字号 16px → 41px    根字号 24px → 51px
+//     根字号 20px → 46px    根字号 28px → 56px    文字缩放 200% → 61px
+//   这个值被 .modal-img / .modal-img-overlay / .modal-content 用来"把弹窗图片
+//   盒子停在 Tab 栏之上"，一旦偏小，图片内容就会重新画到 5 个 Tab 上。
+//
+// ★ 为什么优先用 getBoundingClientRect 而不是 offsetHeight：
+//   offsetHeight 会取整；用 rect 保留小数，边界能压得更准。
+//   rect.height 已经包含 .bottom-tabbar 自己的 padding-bottom: var(--sab)
+//   （Home Indicator 让位），所以不需要再加一次 safe-area。
+//
+// ★ 兜底值从 16px 临时量一次，而不是读 --tabbar-h 的当前值：后者可能已经被
+//   上一轮测量写成内联属性，直接读会把自己套进去（越量越大）。
+function measureTabbarHeight() {
+    const tb = document.querySelector('.bottom-tabbar');
+    if (!tb) return;
+    let h = 0;
+    try {
+        if (typeof tb.getBoundingClientRect === 'function') h = tb.getBoundingClientRect().height;
+    } catch (e) { h = 0; }
+    if (!(h > 0)) h = tb.offsetHeight || 0;      // 极少数环境下 rect 可能拿不到
+    if (!(h > 0)) h = 41;                         // 元素还没布局出来时的最终兜底
+    document.documentElement.style.setProperty('--tabbar-h', h + 'px');
+}
+
+// 绑定一次即可：初始化时量一次，之后由 ResizeObserver 盯着 Tab 栏自身。
+//
+// ★ 为什么必须用 ResizeObserver 而不是只靠 window.resize：
+//   Tab 栏高度会因"浏览器默认字号 / 文字缩放"而变（见 measureTabbarHeight 的
+//   实测表），但这类变化 **Chrome 不派发 window.resize** —— 实测把根字号从
+//   16px 改到 28px，Tab 栏从 41px 变成 56px，resize 监听一次都没触发，
+//   --tabbar-h 一直停在 41px，弹窗图片盒子因此越过 Tab 栏 15px。
+//   ResizeObserver 直接观测元素盒子的变化，与"为什么变"无关，是这里唯一可靠的。
+//   另外保留 resize / orientationchange / visualViewport 兜底：
+//   横竖屏切换、地址栏收展这类场景它们更早触发。
+function setupTabbarMetrics() {
+    measureTabbarHeight();
+    window.addEventListener('resize', measureTabbarHeight);
+    window.addEventListener('orientationchange', measureTabbarHeight);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', measureTabbarHeight);
+    if (typeof ResizeObserver === 'function') {
+        const tb = document.querySelector('.bottom-tabbar');
+        if (tb) {
+            if (window.__tabbarRO) window.__tabbarRO.disconnect();
+            window.__tabbarRO = new ResizeObserver(measureTabbarHeight);
+            window.__tabbarRO.observe(tb);
+        }
+    }
+    // 字体真正就绪后再量一次：Web 字体换入可能改变行盒高度
+    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+        document.fonts.ready.then(measureTabbarHeight).catch(function () {});
+    }
+}
+
 function setupImageRetry() {
     document.addEventListener('error', (e) => {
         const t = e.target;

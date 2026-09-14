@@ -21,11 +21,20 @@
     --sar: env(safe-area-inset-right, 0px);
 
     /* ===== 底部 Tab 高度 =====
-       41px = 5 个 .tab-item 的 10px 上下内边距 + 字号 0.85rem 的行盒 + 1px 上边框；
-       再加上 --sab 才是贴底时的实际占位（.bottom-tabbar 自己用 padding-bottom 让出
-       Home Indicator）。桌面端 --sab 为 0，所以就是 41px。
-       弹窗图片盒子要减掉它，见 .modal-img 的注释。 */
-    --tabbar-h: calc(41px + var(--sab));
+       ★ 这个值由 JS 实测写入（core.js 的 measureTabbarHeight），不要写死。
+       为什么不能硬编码：Tab 栏的高度由 .tab-item 的 rem 字号决定，而 rem 跟着
+       浏览器「默认字号」和「文字缩放」走。按 10px 内边距 + 0.85rem 行盒 +
+       1px 边框估算出的 41px 只在根字号 16px 时成立，实测偏差：
+         根字号 16px → Tab 栏 41px（吻合）
+         根字号 20px → Tab 栏 46px
+         根字号 24px → Tab 栏 51px
+         根字号 28px → Tab 栏 56px
+         文字缩放 200% → Tab 栏 61px
+       一旦失配，弹窗图片盒子（高度 = 视口 - 这个值）的下边界就会越过 Tab 栏
+       顶部，图片内容重新画到 5 个 Tab 上 —— 正是"文章/其他大图还是会覆盖 tab"。
+       这里保留的 41px 只是 CSS 侧的兜底（JS 尚未执行时的首帧），
+       JS 会把实测值写成内联属性覆盖它。 */
+    --tabbar-h: 41px;
 
     /* ===== 动效 token =====
        三档时长 + 四条曲线，替代原来"处处 0.2s ease"的单调感。
@@ -1011,8 +1020,8 @@ body.modal-open {
     position: fixed;
     /* ★ 让出底部 Tab 栏：底边正好停在 Tab 栏上沿。
        原来是 bottom: 20px，移动端实测底边落在 y=840，而 Tab 栏从 819 开始 ——
-       提示文字会压进 Tab 栏。加上 --tabbar-h 后底边 = 视口高 - 41，
-       与 .modal-content 的下边界（= .modal-img 的下边界）对齐在同一条线上。 */
+       提示文字会压进 Tab 栏。加上 --tabbar-h 后底边与 .modal-content 的下边界
+       （= .modal-img 的下边界）对齐在同一条线上。 */
     bottom: calc(20px + var(--tabbar-h));
     left: 0;
     right: 0;
