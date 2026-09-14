@@ -20,6 +20,13 @@
     --sal: env(safe-area-inset-left, 0px);
     --sar: env(safe-area-inset-right, 0px);
 
+    /* ===== 底部 Tab 高度 =====
+       41px = 5 个 .tab-item 的 10px 上下内边距 + 字号 0.85rem 的行盒 + 1px 上边框；
+       再加上 --sab 才是贴底时的实际占位（.bottom-tabbar 自己用 padding-bottom 让出
+       Home Indicator）。桌面端 --sab 为 0，所以就是 41px。
+       弹窗图片盒子要减掉它，见 .modal-img 的注释。 */
+    --tabbar-h: calc(41px + var(--sab));
+
     /* ===== 动效 token =====
        三档时长 + 四条曲线，替代原来"处处 0.2s ease"的单调感。
        --ease-out  进入（快进慢停）  --ease-in  退出（慢起快出）
@@ -417,6 +424,23 @@ body {
     border-right-color: transparent;
 }
 
+/* 侧边栏的入场动画容器。
+   渲染时每个 .sidebar-item / .sidebar-children 都被套在这一层里，由 JS
+   （sidebar.js replaySidebarEnter）给它挂 sidebarEnter 动画。
+   为什么需要单独一层：.sidebar 自己用 transition 管着 opacity（折叠态 .collapsed
+   靠它淡出），而 CSS 动画优先级高于 transition 的目标值 —— 在 .sidebar 上挂
+   opacity 关键帧会把折叠淡出整个盖掉。
+   为什么不用 .content-enter/contentFadeIn：那套是给 viewScrollContainers 的
+   滚动容器用的，侧边栏要的是"从左侧滑入"以呼应它是左侧栏的身份。 */
+.sidebar-inner {
+    display: block;
+    width: 100%;
+}
+@keyframes sidebarEnter {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: none; }
+}
+
 .sidebar-toggle {
     width: 18px;
     min-width: 18px;
@@ -759,17 +783,43 @@ body {
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    /* ★ 把底部 Tab 栏的高度从"可用高度"里让出去。
+       .modal 是全屏蒙版（要铺满整屏，所以背景仍覆盖 Tab 栏），
+       但里面的内容盒子（.modal-content）只在"Tab 栏以上"这块区域里居中，
+       这样它的边界正好压在 Tab 栏上沿，放大拖动时图片不会露到 Tab 上。
+       这也让裁切容器的位置不再受"视口居中"的影响。 */
+    padding-bottom: var(--tabbar-h);
+    /* 注意：这里**不能**放裁切。实测把 overflow: hidden / overflow: clip /
+       contain: paint / clip-path: inset(0) 加在 .modal 上（430×860 移动视口，
+       图片 2.5 倍 + 下移 300px），底部 41px 的 Tab 栏条带里仍有 95.6% 的像素是
+       图片内容，四种写法一个都挡不住 —— 因为缩放图层 #imageContainer 被
+       translate3d 提升成了独立合成层，祖先的裁切对它不生效。
+       真正有效的裁切容器是 .modal-content（见该规则）。 */
 }
 .modal-content {
     display: flex;
     justify-content: center;
     align-items: center;
+    /* ★ 盒子必须精确地"从视口顶到 Tab 栏上沿"。
+       如果只给高度、交给 .modal 的 flex 居中，盒子会在整个视口里居中：
+       430×860 视口、height = 860-41 = 819 时盒子落在 21~840 —— 而 Tab 栏从
+       819 开始，多出的 21px 与 Tab 栏重叠，放大拖动时图片仍能从这 21px 里露到
+       Tab 上（实测底部 41px 条带里 46.8% 是图片内容）。
+       所以 .modal 加了 padding-bottom: var(--tabbar-h)，让居中在"Tab 栏以上"
+       的区域里进行：可用高度 = 860-41 = 819，盒子正好落在 0~819，与 Tab 栏
+       严丝合缝（实测该比例降到 0.0%）。
+       这里保留 max-height 是为了 dvh 不被支持时的回退，height 才是实际生效值。 */
     position: relative;
     cursor: default;
     max-width: 100vw;
-    /* 与 .modal-img 保持一致，否则灯箱在移动端会比视口高出一截 */
-    max-height: 100vh;
-    max-height: 100dvh;
+    margin: auto;
+    max-height: calc(100vh - var(--tabbar-h));
+    height: calc(100dvh - var(--tabbar-h));
+    /* ★ 这里同时是整条链路上**唯一有效**的裁切容器：overflow: hidden 加在
+       .modal-content 上时，缩放平移的 #imageContainer（高度可达 2048px）会被
+       真正裁在它的边界内；同样的声明加在父级 .modal 上则完全无效
+       （实测见 .modal 的注释）。 */
+    overflow: hidden;
 }
 .image-container {
     display: flex;
@@ -781,13 +831,21 @@ body {
 .modal-img {
     display: block;
     width: 100vw;
-    height: 100vh;
+    /* ★ 高度必须**减掉底部 Tab 栏**，否则图片盒子会一直铺到屏幕最底下，
+       而 object-fit: contain 会把图片内容也排到那儿 —— 用户看到的就是
+       "图片放大/缩小时出现在下面 5 个 tab 之上"。
+       实测（430×860 移动视口，只给 #modalImg 设纯品红背景，统计底部 41px
+       的 Tab 栏条带里品红像素占比）：不减 Tab 栏时该条带 100% 落在图片盒子内，
+       减掉之后不缩放与缩放平移两种情况都是 0.0%。
+       注意蒙版（.modal 自己的 rgba 背景）**仍然铺满整屏** —— 弹窗打开时
+       底部 Tab 依然被压暗、不可点，只是不再被图片内容盖住。 */
+    height: calc(100vh - var(--tabbar-h));
     /* dvh 覆盖：地址栏展开/收起时图片不会溢出或留黑边 */
-    height: 100dvh;
+    height: calc(100dvh - var(--tabbar-h));
     object-fit: contain;
     pointer-events: none;
     /* ★ 必须让主图参与层叠并压在垫底层之上。
-       #modalImgOverlay 是 position:fixed + z-index，会自成一个层叠层级；
+       #modalImgOverlay 带 z-index，会自成一个层叠层级；
        而 #modalImg 原本是静态定位、z-index:auto，实测会被垫底图盖住
        （注入纯色图做像素判定：屏幕中心读到的是垫底层的颜色）。
        这里显式给主图定位与层级，保证"原图永远盖在垫底缩略图上"。 */
@@ -824,13 +882,18 @@ body {
        基态（下方 transform/opacity）是给翻面 keyframes 当插值起点用的静默态：
        没有 src 时它什么都不画，但**仍会占一个 6% 宽、0.25 不透明的盒子**，
        所以不用它时必须 display:none（clearModalFlipLayer 的 hide 参数负责）。 */
-    position: fixed;
+    position: absolute;
     left: 0;
     top: 0;
     display: block;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
+    width: 100%;
+    /* 与 .modal-img 严格同框同形，所以要一起减掉底部 Tab 栏的高度，
+       否则垫底缩略图会比主图多出下面一条，翻面/淡入时露馅。
+       ★ 这里必须是 position: absolute 而**不是** fixed：fixed 会让这一层
+       相对视口定位、脱离 .modal-content，于是 .modal-content 的
+       overflow: hidden 对它无效，它就还能画到下面 5 个 Tab 上。
+       改成 absolute 后它被钉在 .modal-content 内，和主图一起受裁切。 */
+    height: 100%;
     object-fit: contain;
     pointer-events: none;
     z-index: 2;
@@ -946,7 +1009,11 @@ body.modal-open {
 }
 .modal-tip {
     position: fixed;
-    bottom: 20px;
+    /* ★ 让出底部 Tab 栏：底边正好停在 Tab 栏上沿。
+       原来是 bottom: 20px，移动端实测底边落在 y=840，而 Tab 栏从 819 开始 ——
+       提示文字会压进 Tab 栏。加上 --tabbar-h 后底边 = 视口高 - 41，
+       与 .modal-content 的下边界（= .modal-img 的下边界）对齐在同一条线上。 */
+    bottom: calc(20px + var(--tabbar-h));
     left: 0;
     right: 0;
     text-align: center;

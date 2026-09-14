@@ -106,7 +106,13 @@ function renderSidebar() {
         tree = getCategoryTree();
     }
 
-    if (!tree) { sidebar.innerHTML = ''; return; }
+    if (!tree) {
+        sidebar.innerHTML = '';
+        // 专题概览这条路会把侧边栏清空 —— 没有内容可动画，但**必须**记下
+        // "本次属于这个板块"，否则切回来时判定不出版块变化，动画就漏了。
+        markSidebarEnterScope();
+        return;
+    }
 
     let html = '';
     for (const cat of tree) {
@@ -129,13 +135,71 @@ function renderSidebar() {
             html += `</div>`;
         }
     }
-    sidebar.innerHTML = html;
+    sidebar.innerHTML = '<div class="sidebar-inner">' + html + '</div>';
+
+    replaySidebarEnter(sidebar);
 
     // ★ 让分类子面板的展开/收起真正走过渡（见函数注释）
     syncSidebarAccordion();
 
     // ★ 比例压缩（立即+延迟，覆盖过渡动画场景）
     fitSidebarLabelsDelayed();
+}
+
+// 侧边栏的入场动画。
+//
+// ★ 为什么需要：triggerViewAnimation()（core.js）只给 viewScrollContainers 里
+//   那几个滚动容器加 .content-enter，**侧边栏不在其中** —— 所以切换 tab 时
+//   内容区是淡入、侧边栏却是硬切，观感就是"侧边栏没有入场动画，直接变化"。
+//
+// ★ 只在**板块切换**时播，而不是每次 renderSidebar() 都播：
+//   renderSidebar() 有近 20 个调用点，绝大多数是用户点侧边栏本身触发的导航
+//   （选分类 / 选系列 / 选专题 / 取消筛选 / 返回概览）。那些时候侧边栏内容
+//   只是换了个高亮，若整块再滑入一次会显得多余又晃眼 —— 用户对入场动画的
+//   既有偏好也是"只在真的换版块时才有意义"（见 tab-switcher 里的同类判断）。
+//   判定方式见下方 markSidebarEnterScope 的注释。
+//
+// ★ 为什么动画加在 .sidebar-inner 而不是 .sidebar 上：
+//   .sidebar 自己已经用 transition 管着 opacity（折叠态 .collapsed 靠它淡出），
+//   CSS 动画的优先级**高于** transition 的目标值，在 .sidebar 上挂 opacity 关键帧
+//   会把"折叠淡出"直接盖掉。所以渲染时套一层 .sidebar-inner 专门承载入场动画，
+//   .sidebar 继续只负责折叠过渡。
+//
+// ★ 用"每次重建 innerHTML"来重播：容器是全新节点，动画自动从头开始，
+//   不需要像 triggerViewAnimation() 那样手动 remove → 回流 → add。
+//
+// 这块不参与 syncSidebarAccordion() 的展开态计算：那边的面板都挂在
+// .sidebar-item 的 nextElementSibling 上，多套一层不影响兄弟关系。
+//
+// ★ "上次渲染属于哪个板块"存在 #sidebar 自己的 dataset 上，不用模块级变量。
+//   原因：专题概览会绕过 renderSidebar()、直接 sidebar.innerHTML = '' 把侧边栏
+//   清空（见 special.js renderSpecialOverview）。用模块级变量时那条路不会更新
+//   记录，等从专题切回纸币时判定"板块没变"就不播动画了。
+//   存在 DOM 上则"侧边栏被清空"和"记录被清空"是同一件事，不会脱节；
+//   而且这样 replaySidebarEnter 里可以直接和 dataset 比，不必先写后比。
+const SIDEBAR_SCOPE_ATTR = 'data-enter-scope';
+function sidebarScope() {
+    return (typeof currentMode === 'string' && currentMode) ? currentMode : 'default';
+}
+function markSidebarEnterScope(sidebar) {
+    const el = sidebar || document.getElementById('sidebar');
+    if (el) el.setAttribute(SIDEBAR_SCOPE_ATTR, sidebarScope());
+}
+// 只有"板块真的换了"才播入场动画；侧边栏内部导航（选分类/系列/专题/取消筛选）
+// 不重播 —— 那些时候只是换了个高亮，整块再滑入会显得多余又晃眼。
+function replaySidebarEnter(sidebar) {
+    if (!sidebar) return;
+    const scope = sidebarScope();
+    const prev = sidebar.getAttribute(SIDEBAR_SCOPE_ATTR);
+    markSidebarEnterScope(sidebar);   // 先落记录：早退的分支也不会漏
+    if (scope === prev) return;
+
+    const inner = sidebar.querySelector('.sidebar-inner');
+    if (!inner) return;
+    // 尊重"减少动态效果"：CSS 的 @media (prefers-reduced-motion) 只覆盖了
+    // .switch / .switch-knob / .toggle-card，手风琴与侧边栏入场都得自己判。
+    if (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) return;
+    inner.style.animation = 'sidebarEnter var(--dur-enter) var(--ease-out)';
 }
 
 // 切换一个分类子面板的展开态，并让它走过渡。

@@ -119,7 +119,13 @@ function renderSpecialOverview() {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = 'none';
     const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.innerHTML = '';
+    if (sidebar) {
+        sidebar.innerHTML = '';
+        // ★ 这条路绕过了 renderSidebar()，所以侧边栏的"上次渲染板块"记录
+        //   必须在这里补一笔。否则从专题切回纸币时会被判成"板块没变"，
+        //   侧边栏的入场动画就漏播了（见 sidebar.js replaySidebarEnter）。
+        if (typeof markSidebarEnterScope === 'function') markSidebarEnterScope(sidebar);
+    }
 
     let html = `<div class="overview-header"><h2>专题收藏</h2><p>选择专题查看详情</p></div>`;
 
@@ -695,7 +701,11 @@ async function renderShanheContent(config) {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = 'none';
     const sidebarEl = document.getElementById('sidebar');
-    if (sidebarEl) sidebarEl.innerHTML = '';
+    if (sidebarEl) {
+        sidebarEl.innerHTML = '';
+        // 同 renderSpecialOverview：这条路也不经过 renderSidebar()，补记板块记录。
+        if (typeof markSidebarEnterScope === 'function') markSidebarEnterScope(sidebarEl);
+    }
 
     if (!currentSubId) {
         if (shanheViewMode === 'list') {

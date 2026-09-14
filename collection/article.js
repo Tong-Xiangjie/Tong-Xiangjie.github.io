@@ -313,7 +313,12 @@ function renderArticleSidebar() {
       html += `</div>`;
     }
   }
-  sidebar.innerHTML = html;
+  sidebar.innerHTML = '<div class="sidebar-inner">' + html + '</div>';
+  // ★ 入场动画：与纸币/硬币/专题共用同一套（见 sidebar.js 的 replaySidebarEnter）。
+  //   容器每次都是新建的，动画自动从头播。
+  if (typeof replaySidebarEnter === 'function') {
+    replaySidebarEnter(sidebar);
+  }
   // ★ 展开/收起要带动画：和纸币/硬币/专题走同一套差分逻辑
   //   （见 sidebar.js 的 syncSidebarAccordion）。不调用的话，文章侧边栏因为
   //   每次整体重建 innerHTML、新面板一出现就带着 .open，切换分类是硬切没有过渡。

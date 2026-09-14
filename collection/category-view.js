@@ -495,25 +495,84 @@ function imageContentRect(el) {
 // 为什么不能直接比对 el.src：网格按设置里的开关可能用缩略图、也可能用原图，
 // 所以**两个方向都要比** —— 原图 URL 与"由它推导出的缩略图 URL"，
 // 两边的元素 src 也同样两种形态都试一次。
-// 只取 .mini-thumb / .copy-thumb：那两类才是 openModal 的入口，
-// .copy-thumb 里还有一版占位用的 <div>（没有 src），比对时天然被跳过。
+//
+// ★ 这里的候选元素是**按类名显式列举**的，必须覆盖 openModal 的每一个入口。
+//   漏掉哪一类，那一类的"翻面后退出/详情卡片退出"就会退化成 fallbackSrc
+//   （= 最初点进来的那张），落点错位。历史教训：
+//     · 只列了 .mini-thumb / .copy-thumb 时，专题时间线的 .timeline-img 漏网
+//       → 币海拾年翻面后缩回的是**原来那张**的位置（用户报告的 bug）
+//     · 详情卡片里的 .info-lightbox-imgs img 也漏网
+//       → 从详情卡片点开大图，退出缩回的是网格里那张的位置而不是卡片里那张
+//   .info-lightbox-imgs img 没有类名，只能靠祖先类名定位。
+//   非 <img> 元素（如 .copy-thumb 的占位 <div>）天然没有 src，比对时会被跳过。
+//
+// ★ 同一个 URL 在页面上常常有**多份**，取哪一份决定动画落点，所以按
+//   DOM 序先后就是优先级，列表顺序即优先级顺序，不要随便调换：
+//     1. .info-lightbox-imgs img  —— 详情卡片里的那两张（"详细信息"弹出后）
+//     2. .timeline-img            —— 专题/币海拾年时间线
+//     3. img.mini-thumb           —— 网格缩略图
+//     4. img.copy-thumb           —— 分类视图明细行的缩略图
+//   为什么卡片必须排第一：在分类视图里同一张图会同时出现在「明细行 .copy-thumb」
+//   和「详情卡片 .info-lightbox-imgs img」里。用户是从卡片里点开大图的，
+//   而卡片浮在明细行之上、面积也大得多；若先命中 .copy-thumb，
+//   缩回动画就会飞到下面那张小缩略图 —— 正是用户报告的
+//   "退出缩小的位置是原先概览图所在的地方而不是弹窗处"。
+//   （详情卡片打开时，网格被浮层盖住，此时它才是"用户看到的那一份"。）
+//
+// ★ 但"第一个匹配"并不等于"用户看到的那一份"：同一个 URL 的元素可能存在于
+//   **已隐藏的视图容器**里。实测（搜索态）：querySelector 命中的第一份
+//   .mini-thumb 属于另一个 viewScrollContainers 容器，getBoundingClientRect()
+//   是 0×0，于是 closeModal 里 modalShrinkTarget() 判为"不在视口内"，
+//   整个缩回飞行被跳过 —— 观感就是用户报告的
+//   "搜索结果的图片退出是直接淡化，没有缩回动画"（入场正常，因为入场用的是
+//   lastModalSourceImg 直接量到的被点元素）。
+//   所以这里按"有没有真实尺寸 / 在不在视口内"挑最优候选，而不是取第一个。
+//   注意不能简单地把 0×0 的直接丢掉：网格里被滚出视口的那份仍有尺寸，
+//   它正是 closeModal 的 fallback 要用的（"反面格子被滚出视口"仍然缩回原位）。
 function gridThumbForUrl(url) {
     if (!url) return null;
+    // ★ 选择器表放在函数内部，不用模块级常量。
+    //   本仓库的校验脚本会按标记把 category-view.js 切成几段、再拼成
+    //   category-view.modal.js 跑（见 verify-flip-state.mjs 的 getModalSource），
+    //   模块级的 const 有可能落在切片之外，于是运行时报
+    //   "URL_CANDIDATE_SELECTORS is not defined" —— 真实页面不会（整文件加载），
+    //   但校验脚本会。放在函数内既避开这个坑，也让这张表跟着函数一起走。
+    //   代价是每次调用新建一个 4 元素数组（closeModal / 翻面时才各调一次），
+    //   可以忽略。顺序即优先级，理由见上方注释。
+    const URL_CANDIDATE_SELECTORS = [
+        '.info-lightbox-imgs img',
+        'img.timeline-img',
+        'img.mini-thumb',
+        'img.copy-thumb'
+    ];
     const t = (typeof getThumbUrl === 'function') ? getThumbUrl(url) : '';
     const want = (t && t !== url) ? [url, t] : [url];
-    const els = document.querySelectorAll('img.mini-thumb, img.copy-thumb');
-    for (let i = 0; i < els.length; i++) {
-        const el = els[i];
-        if (!el.isConnected) continue;
-        const s = el.currentSrc || el.getAttribute('src') || '';
-        if (!s) continue;
-        // 元素 src 也是原图/缩略图两种形态都可能，所以它自己再推导一次来比
-        const st = (typeof getThumbUrl === 'function') ? getThumbUrl(s) : '';
-        for (let k = 0; k < want.length; k++) {
-            if (want[k] === s || (st && want[k] === st)) return el;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let fallback = null;   // 有尺寸但不在视口内
+    for (let c = 0; c < URL_CANDIDATE_SELECTORS.length; c++) {
+        const els = document.querySelectorAll(URL_CANDIDATE_SELECTORS[c]);
+        for (let i = 0; i < els.length; i++) {
+            const el = els[i];
+            if (!el.isConnected) continue;
+            const s = el.currentSrc || el.getAttribute('src') || '';
+            if (!s) continue;
+            // 元素 src 也是原图/缩略图两种形态都可能，所以它自己再推导一次来比
+            const st = (typeof getThumbUrl === 'function') ? getThumbUrl(s) : '';
+            let hit = false;
+            for (let k = 0; k < want.length; k++) {
+                if (want[k] === s || (st && want[k] === st)) { hit = true; break; }
+            }
+            if (!hit) continue;
+            const r = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
+            // 完全没渲染出来（隐藏容器里的那份）→ 直接跳过，它只会让动画落空
+            if (!r || r.width <= 0 || r.height <= 0) continue;
+            // 在视口内 → 就是它
+            if (r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw) return el;
+            // 有尺寸但被滚出去了 → 留作兜底，继续找视口内的
+            if (!fallback) fallback = el;
         }
     }
-    return null;
+    return fallback;
 }
 
 // 关闭：缩回那张图的缩略图位置（前提是它在、仍在视口内且没被滚走）
