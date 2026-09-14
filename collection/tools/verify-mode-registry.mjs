@@ -270,7 +270,21 @@ if (offenders.length === 0) {
     offenders.forEach(o => console.log('      ' + o));
 }
 
-console.log('\n=== 5. 硬编码分支数量（信息性，不进判定） ===');
+console.log('\n=== 5. 操作手册必须还在 ===');
+
+// 加板块的步骤写在 ARCHITECTURE-modes.md 里。它一旦被删/被改名，
+// 后来的人就只能靠读源码猜 —— 那正是这套重构要消灭的东西。
+try {
+    const doc = readFileSync(path.join(DIR, 'ARCHITECTURE-modes.md'), 'utf8');
+    chk(doc.includes('MODE_REGISTRY'), 'ARCHITECTURE-modes.md 存在且讲了注册表');
+    chk(/## 3\. 加一个顶栏 tab/.test(doc), 'ARCHITECTURE-modes.md 含「加一个顶栏 tab」章节');
+    chk(doc.includes('verify-mode-registry.mjs'), 'ARCHITECTURE-modes.md 指到了本脚本');
+    chk(/## 5\. 加图片动画/.test(doc), 'ARCHITECTURE-modes.md 含「加图片动画」章节');
+} catch (e) {
+    bad('读不到 collection/ARCHITECTURE-modes.md（加板块的操作手册）: ' + e.message);
+}
+
+console.log('\n=== 6. 硬编码分支数量（信息性，不进判定） ===');
 let total = 0;
 const perFile = {};
 for (const f of files) {

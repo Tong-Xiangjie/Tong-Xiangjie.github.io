@@ -292,6 +292,9 @@ let articleState = {
 
 // ==================== 板块注册表（mode registry）====================
 //
+// ★ 要加分类 / 专题 / tab / 图片动画？先看 collection/ARCHITECTURE-modes.md，
+//   那份文档按"你要加什么"给了逐步步骤和需要跑的验证命令。
+//
 // ★ 存在的理由：以前"一个板块是什么"这件事散在 9 个文件、53 处
 //   `currentMode === MODE.xxx` 的判断里 —— 加一个新 tab（比如将来的邮票）
 //   要同时改 core.js / tab-switcher.js / router.js / search.js / overview.js
