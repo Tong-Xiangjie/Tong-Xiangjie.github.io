@@ -260,3 +260,36 @@ node verify-roundtrip.mjs
 3. **容器 key 要按"视图"细分。** 搜索页和分类页必须是不同容器
    （`xxx_search` / `xxx_category_…` / `xxx_overview`），
    否则"搜索→返回"会丢滚动位置（历史 bug）。
+
+---
+
+## 8. 深链接速查（`collection/router.js`）
+
+方向是**从状态生成 URL**（`buildRoute`），所以新增功能只要保证状态变量正确、
+并在动作收口处调一次 `syncRoute()`，地址栏就自动跟上。不需要逐处手写 URL。
+
+| URL | 含义 |
+|---|---|
+| `#notes` / `#coins` | 概览 |
+| `#notes/rmb3` | 分类 |
+| `#notes/hk/boc` | 分类 + 子分类 |
+| `#notes/rmb3/s1,3/v1.0,3.2` | 展开的系列 / 品种（定位到具体条目） |
+| `#notes/search/krause/KM%23130` | 搜索（类型 + 关键词） |
+| `#articles` | 文章列表 |
+| `#articles/12` | 第 12 篇文章 |
+| `#articles/c-coins` | 文章列表 + 侧边栏分类 |
+| `#articles/q-水印/sm-fulltext` | 文章搜索（关键词 + 标/全模式） |
+| `#special` | 专题概览 |
+| `#special/denom` | 某个专题 |
+| `#special/denom/g10000元` | 专题 + 侧边栏子类 |
+| `#special/shanhe/view-list` | 专题子视图（`view-` / `order-` / `y-` / `m-`） |
+| `#settings` | 设置 |
+
+**两个容易漏的地方：**
+
+- **"搜索了但没点进去"也要进 URL。** 关键词和搜索模式都要带 —— 只带关键词的话，
+  别人打开会停在自己的模式上，而"标/全"下同一个词的结果集完全不同。
+- **全文搜索的深链接必须先等正文索引。** `getFilteredArticles()` 在 `fulltext` 下
+  查的是 `articlePlainTextCache`，索引没建好就渲染会得到空列表，用户会以为链接坏了。
+  `applyRoute` 里已经 `await preloadAllArticles()`；注意那个函数返回的是**同一个
+  Promise**（重复调用不会立刻 resolve），否则 `await` 会在索引没建好时就往下走。

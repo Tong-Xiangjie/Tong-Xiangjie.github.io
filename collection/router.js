@@ -22,7 +22,8 @@
 //   #articles                     文章列表
 //   #articles/12                  第 12 篇文章
 //   #articles/c-notes-rmb         文章列表 + 定位到某个侧边栏分类/子分类
-//   #articles/12/c-notes-rmb      文章 + 分类同时定位
+//   #articles/q-水印/sm-title      文章列表 + 标题搜索"水印"
+//   #articles/12/c-notes-rmb      文章 + 分类同时定位（各段可任意顺序）
 //   #special                      方寸之间概览
 //   #special/<configId>           某个专题
 //   #special/<configId>/g<分组>    专题 + 定位到侧边栏子类（面额/年代…）
@@ -66,6 +67,14 @@ function buildRoute() {
         //   用 c- 前缀避免和纯数字的文章序号混淆，值编码后写进去。
         if (currentArticleCategory && currentArticleCategory !== 'all') {
             seg.push('c-' + encodeURIComponent(currentArticleCategory));
+        }
+        // ★ 搜索了但还没点进文章的那种状态也要能分享（用户报："搜索了东西但是没有
+        //   点击进去的，确实可以加上深链接"）。关键词与搜索模式都要带上 ——
+        //   只带关键词的话，别人打开会停在自己的模式上，而"标/全"下同一个词的
+        //   结果集完全不同。
+        if (articleSearchKeyword) {
+            seg.push('q-' + encodeURIComponent(articleSearchKeyword));
+            seg.push('sm-' + (articleSearchMode === 'fulltext' ? 'fulltext' : 'title'));
         }
         return seg.join('/');
     }
@@ -206,11 +215,18 @@ function parseRoute(hash) {
     if (headMode === MODE.SETTINGS) return { mode: 'settings' };
 
     if (headMode === MODE.ARTICLES) {
-        // ★ 序号段与分类段可以任意顺序出现，所以逐段判定而不是写死 parts[1]/parts[2]：
-        //   #articles/12、#articles/c-xxx、#articles/12/c-xxx 三种都认。
-        const r = { mode: 'articles', articleIndex: -1, categoryId: null };
+        // ★ 序号段 / 分类段 / 搜索段可以任意顺序出现，所以逐段判定而不是写死
+        //   parts[1]/parts[2]：#articles/12、#articles/c-xxx、#articles/q-水印/sm-title
+        //   以及它们的任意组合都认。
+        const r = { mode: 'articles', articleIndex: -1, categoryId: null, searchKeyword: undefined, searchMode: null };
         for (const p of parts.slice(1)) {
             if (p.startsWith('c-')) { r.categoryId = safeDecode(p.slice(2)); continue; }
+            if (p.startsWith('q-')) { r.searchKeyword = safeDecode(p.slice(2)); continue; }
+            if (p.startsWith('sm-')) {
+                const m = p.slice(3);
+                if (m === 'title' || m === 'fulltext') r.searchMode = m;
+                continue;
+            }
             const idx = parseInt(p, 10);
             if (Number.isFinite(idx)) r.articleIndex = idx;
         }
@@ -383,13 +399,20 @@ async function applyRoute(hash, opts) {
             }
             modeStates[route.mode] = Object.assign({}, modeStates[route.mode] || {}, blank);
         } else if (route.mode === 'articles') {
+            // ★ 搜索关键词与搜索模式也要还原（搜索了但没点进文章的那种状态）：
+            //   交给 enterArticlesTab 走 articleState 恢复，与分类/序号同一条路径。
+            //   全文字搜索必须先等 preloadAllArticles() 把正文索引建好，
+            //   否则过滤会得到空列表 —— 那段在下面 applyRoute 的文章分支里做。
+            if (route.searchKeyword !== undefined && route.searchKeyword !== null) {
+                articleState = Object.assign({}, articleState, { searchKeyword: route.searchKeyword });
+            }
+            if (route.searchMode) articleSearchMode = route.searchMode;
             articleState = Object.assign({}, articleState, {
                 currentView: route.articleIndex >= 0 ? VIEW.READER : VIEW.LIST,
                 currentIndex: route.articleIndex >= 0 ? route.articleIndex : -1,
                 // ★ 分类也要吃进快照：enterArticlesTab 是从 articleState 恢复
                 //   currentArticleCategory 的，不写的话链接里的分类段无效。
                 currentCategory: route.categoryId || 'all',
-                searchKeyword: '',
                 listScrollY: 0,
                 readerScrollY: 0
             });
@@ -407,7 +430,22 @@ async function applyRoute(hash, opts) {
 
         // ---------- 文章 ----------
         if (route.mode === 'articles') {
+            // ★ 全文模式必须先等正文索引就绪：getFilteredArticles() 在 fulltext 下
+            //   查的是 articlePlainTextCache，索引没建好就过滤会得到空列表
+            //   （用户会以为"链接坏了"）。title 模式只比标题，不必等。
+            if (route.searchKeyword && route.searchMode === 'fulltext'
+                && typeof preloadAllArticles === 'function') {
+                try { await preloadAllArticles(); } catch (e) { /* 索引失败就退化成标题模式的结果 */ }
+            }
             if (typeof enterArticlesTab === 'function') await enterArticlesTab();
+            // ★ 搜索框要回填成链接里的关键词，否则界面显示"空搜索框 + 有结果的列表"。
+            if (route.searchKeyword) {
+                const inp = document.getElementById('searchInput');
+                if (inp && inp.value !== route.searchKeyword) inp.value = route.searchKeyword;
+                if (typeof renderArticleList === 'function') renderArticleList(true);
+            }
+            // 搜索模式的按钮文案（"标"/"全"）也要跟上
+            if (route.searchMode && typeof updateSearchUIForMode === 'function') updateSearchUIForMode();
             return true;
         }
 

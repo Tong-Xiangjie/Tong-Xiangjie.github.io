@@ -249,15 +249,32 @@ function getArticleBasePath(sourceType) {
   return SITE_BASE + 'notecollection/';
 }
 
+// ★ 正在进行的预加载（Promise）。存在的理由：
+//   原来是 `if (isArticlePreloading) return;` —— 第二次调用**立刻 resolve**，
+//   于是 `await preloadAllArticles()` 会在索引其实还没建好时就继续往下走。
+//   深链接还原全文搜索时正好踩这个：applyRoute 先启动预热，enterArticlesTab
+//   里再 await 一次，拿到的却是"已经在加载中"的立即返回 → 过滤出空列表，
+//   用户看到"链接打开了但没有结果"。
+//   现在重复调用会拿到**同一个 Promise**，await 它一定等到真正建好。
+let articlePreloadPromise = null;
+
 async function preloadAllArticles() {
-  if (isArticlePreloading) return;
+  if (articlePreloadPromise) return articlePreloadPromise;
+  articlePreloadPromise = (async () => {
+    const tip = document.getElementById('searchTip');
+    if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
+    const promises = collectedArticles.map(article => preloadArticle(article));
+    await Promise.allSettled(promises);
+    if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文索引准备好啦，标题和正文都能搜';
+    isArticlePreloading = false;
+  })();
   isArticlePreloading = true;
-  const tip = document.getElementById('searchTip');
-  if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
-  const promises = collectedArticles.map(article => preloadArticle(article));
-  await Promise.allSettled(promises);
-  isArticlePreloading = false;
-  if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文索引准备好啦，标题和正文都能搜';
+  try {
+    return await articlePreloadPromise;
+  } finally {
+    // 失败也要放掉，否则一次网络抖动会让全文搜索永久失效
+    if (isArticlePreloading) { isArticlePreloading = false; articlePreloadPromise = null; }
+  }
 }
 
 async function preloadArticle(article) {
@@ -284,7 +301,18 @@ function stripHtml(html) {
   return text;
 }
 
+// ★ 收口写 URL：搜索模式是深链接的一部分（sm-title / sm-fulltext），
+//   切模式后地址栏必须跟着变 —— 否则分享出去的链接还带着旧的模式，
+//   而"标/全"下同一个词的结果集完全不同。
 function toggleArticleSearchMode() {
+  try {
+    toggleArticleSearchModeInner();
+  } finally {
+    if (typeof syncRoute === 'function') syncRoute();
+  }
+}
+
+function toggleArticleSearchModeInner() {
   if (articleSearchMode === 'title') {
     articleSearchMode = 'fulltext';
     const input = document.getElementById('searchInput');
@@ -509,7 +537,14 @@ function renderArticleItemElement(data) {
   const pathHtml = article.fullPath ? escapeHtml(article.fullPath.join(' > ')) : '';
 
   let snippetHtml = '';
-  if (keyword && articlePlainTextCache[article.contentPath]) {
+  // ★ 正文摘要**只在全文模式下**出现（用户报的问题）。
+  //   原来的条件是 `keyword && articlePlainTextCache[...]` —— 没看搜索模式，
+  //   于是标题搜索里，只要后台 preloadAllArticles() 恰好把这篇的正文缓存好了，
+  //   就会冒出一行"内容匹配"摘要（那是全文搜索的样式），
+  //   而且这一行还会随预加载进度忽隐忽现。
+  //   现在口径与 getFilteredArticles() 的过滤口径一致：标题模式只认标题，
+  //   摘要这一行只在 fulltext 下出现。
+  if (keyword && articleSearchMode === 'fulltext' && articlePlainTextCache[article.contentPath]) {
     const snippet = getContextSnippet(articlePlainTextCache[article.contentPath], keyword);
     if (snippet) {
       snippetHtml = `<div class="article-snippet" style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px; padding:2px 6px; background:var(--bg-light); border-radius:3px; border-left:2px solid var(--theme-light); line-height:1.3;">${highlightText(escapeHtml(snippet), keyword)}</div>`;
