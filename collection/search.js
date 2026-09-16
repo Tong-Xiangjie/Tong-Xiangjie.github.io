@@ -36,8 +36,18 @@ function ensureSearchStaticHeader(container) {
   return header;
 }
 
-function updateSearchMeta(count, keyword) {
-  const meta = document.getElementById('resultMeta');
+// ★ 必须按"当前渲染容器"去查，**不能用全局 document.getElementById('resultMeta')**：
+//   每个板块的搜索容器各自 prepend 了一个 .search-static-header（见 ensureSearchStaticHeader），
+//   里面都带 id="resultMeta" —— id 在文档里是重复的，全局查找永远只命中**文档中第一个**，
+//   也就是"最先被创建的那个板块"的头部。于是：
+//     先在硬币搜索 → 硬币容器先建，之后无论切到纸币搜什么，计数都被写进**硬币**的头部；
+//     纸币自己的头部从创建起就停在初始文案"共找到0件符合要求的藏品"。
+//   表现就是"某个板块搜索界面上永远显示 0 件"（用户报的问题），而且切来切去时
+//   到底是哪个板块显示 0，取决于两个容器谁先被创建 —— 这解释了"一会儿纸币、一会儿硬币"。
+//   注意：两个容器的**条目数是各自正确的**，所以搜索功能本身看起来完全正常。
+function updateSearchMeta(count, keyword, container) {
+  const root = container || (typeof getRenderContainer === 'function' ? getRenderContainer() : null) || document;
+  const meta = root.querySelector('#resultMeta') || root.querySelector('.search-static-header p');
   if (meta) {
     let text = `共找到${count}件符合要求的藏品`;
     if (keyword) text += ` · 搜索关键词：${escapeHtml(keyword)}`;
@@ -399,7 +409,7 @@ function applySearchResultsDiff(newResults, keyword) {
   container.style.width = '100%';
 
   ensureSearchStaticHeader(container);
-  updateSearchMeta(newResults.length, keyword);
+  updateSearchMeta(newResults.length, keyword, container);
 
   const wrapper = ensureDynamicWrapper(container);
   wrapper.style.overflowX = 'hidden';
@@ -430,7 +440,7 @@ function performSearchAndRender(rawKeyword, type) {
     if (!data || !data.series) continue;
 
     let catName = dataKey, parentName = '';
-    const tree = getCategoryTree();
+    const tree = getCategoryTree() || [];
     for (const cat of tree) {
       if (cat.dataKey === dataKey) { catName = cat.name; break; }
       if (cat.children) {
@@ -440,6 +450,14 @@ function performSearchAndRender(rawKeyword, type) {
       }
     }
 
+    // ★ 这一组副本共用的分类元数据，只算一次（逐条算等于把分类树查找做上千遍）。
+    //   含"上级分类名 + 分类名 + 集合描述"，用来让**侧边栏上写着的名字也能搜到**。
+    //   刻意**不含**集合自身的 name（如硬币的"纪念币"）：那个词在其它上下文里太通用，
+    //   并进去会让"搜纪念币"从 19 件变成"整个板块全部命中"。
+    const metaText = [parentName, catName, data.desc]
+      .filter(v => v === null || v === undefined ? false : String(v).trim() !== '')
+      .join(' ');
+
     for (let si = 0; si < data.series.length; si++) {
       const series = data.series[si];
       if (series.varieties) {
@@ -448,7 +466,7 @@ function performSearchAndRender(rawKeyword, type) {
           if (!variety.copies) continue;
           for (let ci = 0; ci < variety.copies.length; ci++) {
             const copy = variety.copies[ci];
-            if (matchEntry(copy, series, variety, plan, type, isEmptySearch)) {
+            if (matchEntry(copy, series, variety, plan, type, isEmptySearch, metaText)) {
               results.push({ dataKey, catName, parentName, sIdx: si, vIdx: vi, cIdx: ci,
                 series, variety, copy, hasVarieties: true });
             }
@@ -457,7 +475,7 @@ function performSearchAndRender(rawKeyword, type) {
       } else if (series.copies) {
         for (let ci = 0; ci < series.copies.length; ci++) {
           const copy = series.copies[ci];
-          if (matchEntry(copy, series, null, plan, type, isEmptySearch)) {
+          if (matchEntry(copy, series, null, plan, type, isEmptySearch, metaText)) {
             results.push({ dataKey, catName, parentName, sIdx: si, cIdx: ci,
               series, copy, hasVarieties: false });
           }
@@ -673,9 +691,17 @@ function isSearchableField(key) {
   return true;
 }
 
-function collectSearchFields(copy, series, variety) {
+// ★ extraText：集合名/分类名这类**元数据**，由调用方按"当前 mode 的分类树"算好传进来。
+//   为什么不在这里取：这一个函数被"全字段匹配"和"归一化匹配"各调一次，
+//   而分类树查找是 O(树)，放在这里会被每条副本重复算一遍（上千条就是上千次）。
+//   为什么必须带上它：搜索原来只看 series/copy 的字段，于是**侧边栏上明明写着的
+//   分类名反而搜不到** —— 硬币板块搜"流通币""金银币"得 0 件（用户报的问题），
+//   而"纪念币"能搜到只是因为碰巧有藏品的正文里出现了这三个字。
+//   代价是"搜某个分类名"会返回该分类下的全部藏品 —— 这正是用户的预期行为。
+function collectSearchFields(copy, series, variety, extraText) {
   const parts = [series.seriesName];
   if (variety) parts.push(variety.varietyName);
+  if (extraText) parts.push(extraText);
   for (const [k, v] of Object.entries(copy)) {
     if (!isSearchableField(k)) continue;
     if (v === null || v === undefined || v === '') continue;
@@ -704,13 +730,16 @@ function makeSearchPlan(keyword, type) {
   return plan;
 }
 
-function matchEntry(copy, series, variety, plan, type, isEmpty) {
+// metaText：当前 mode 下这一条所属的"分类名 / 上级分类名"（见 collectSearchFields 的注释）。
+//   只参与"全字段"匹配 —— 其它几种搜索类型语义明确（按系列名/版别/年份/评级机构/目录号），
+//   把分类名并进去会让"按年份搜"这种精确搜索也命中整片分类，属于改错。
+function matchEntry(copy, series, variety, plan, type, isEmpty, metaText) {
   if (isEmpty) return true;
   const keyword = plan.keyword;
 
   switch (type) {
     case SEARCH_TYPE.ALL: {
-      const joined = collectSearchFields(copy, series, variety).join(' ');
+      const joined = collectSearchFields(copy, series, variety, metaText).join(' ');
       const lower = joined.toLowerCase();
       if (lower.includes(keyword)) return true;
       // 支持目录编号的前缀/空格差异，以及全角输入
