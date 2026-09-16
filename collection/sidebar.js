@@ -318,7 +318,10 @@ function syncSidebarAccordion() {
         const panel = item.nextElementSibling;
         if (!panel || !panel.classList.contains('sidebar-children')) return;   // 该分类没有子项
         // 用 DOM 中的出现序号当键：跨模式唯一（再叠加 scope 前缀），且不依赖分类 id 的命名。
-        panels.push({ key: 'p' + panels.length, panel: panel, isOpen: panel.classList.contains('open') });
+        // ★ 连带记下这一项的箭头：它必须和面板在**同一帧**切换 class，
+        //   否则旋转和展开会各走各的（见下面的说明）。
+        panels.push({ key: 'p' + panels.length, panel: panel, isOpen: panel.classList.contains('open'),
+                      icon: item.querySelector('.expand-icon') });
     });
 
     const next = {};
@@ -334,12 +337,22 @@ function syncSidebarAccordion() {
         changes.forEach(function (p) {
             p.panel.style.transition = 'none';
             p.panel.classList.toggle('open', !p.isOpen);
+            if (p.icon) p.icon.classList.toggle('expanded', !p.isOpen);
         });
         // ② 下一帧恢复过渡并切到目标状态
         requestAnimationFrame(function () {
             changes.forEach(function (p) {
                 p.panel.style.transition = '';
                 setSidebarPanelOpen(p.panel, p.isOpen);
+                // ★ 箭头必须在这里跟着切，不能交给 renderSidebar() 渲染时写死 class。
+                //   原因：renderSidebar() 每次都整体重建 innerHTML，新节点**一出现就
+                //   已经带着目标 class**（展开时带 .expanded）。CSS 过渡需要"先有个
+                //   不同起点的旧值"，节点一诞生就是终态 → 旋转永远不触发。
+                //   表现为：只有"从别的分类切进来"那一下的旋转动画会丢，
+                //   展开一个分类时箭头是瞬间跳过去的。
+                //   所以渲染时写的 class 只当"首帧兜底"，真正的切换在这里统一做，
+                //   且和面板在同一帧 —— 两者时长/缓动一致，观感才是同步的。
+                if (p.icon) p.icon.classList.toggle('expanded', p.isOpen);
             });
         });
     }
