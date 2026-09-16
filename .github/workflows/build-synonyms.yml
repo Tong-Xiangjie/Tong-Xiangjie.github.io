@@ -1,0 +1,152 @@
+# 构建期生成文章搜索的同义词表（collection/data/synonyms.json）。
+#
+# 背景：文章板块要支持「央行 → 中国人民银行」「荷花钞 → 莲花」这类模糊搜索。
+# 实测过在浏览器里跑语义模型（bge-small-zh-v1.5 / bge-large-zh-v1.5）：
+#   · 小模型不具备"央行 = 中国人民银行"这类世界知识，挖出来的扩张词全是
+#     「银行」这种泛词，检索被淹没；
+#   · 大模型知道，但运行期要下载 312 MB，且语料同质化严重（435 对随机文章
+#     平均相似度 0.648），文档级向量检索排不出正确结果。
+# 所以改成**构建期用 LLM 把同义关系离线算好**，写成一张小表提交进仓库；
+# 运行期只做纯词法匹配 + 查表扩展 —— 零下载、零外部请求、命中原因可解释。
+#
+# 首次全量、之后增量：脚本比对本仓库已有的表，只把"新出现的术语"发给 LLM，
+# 不会每次全量重跑（省钱、也省时间）。
+name: 生成文章搜索同义词表
+
+on:
+  push:
+    branches: [main]
+    # 只有"可能改变术语集合"的改动才触发：
+    #   · 文章正文（readmes/**）新增或修改
+    #   · 纸币/硬币的分类配置（config.js / coin-config.js）—— 它决定哪些文章被收录
+    #     以及分类名，而分类名本身也是搜索术语的来源之一
+    paths:
+      - 'notecollection/readmes/**'
+      - 'coincollection/readmes/**'
+      - 'funcollection/*/readmes/**'
+      - 'collection/config.js'
+      - 'collection/coin-config.js'
+      - 'collection/tools/build-synonyms.mjs'
+      - '.github/workflows/build-synonyms.yml'
+  # ★ 刻意**不**接受 pull_request 触发：这个 workflow 要写仓库、要花 API 额度，
+  #   不能因为任何人提 PR 就跑起来。只能 push 到 main 或手动触发。
+  workflow_dispatch:
+    inputs:
+      full:
+        description: '全量重建（勾选后忽略已有表，把所有术语重发一遍。改过提示词或换模型时才需要）'
+        type: boolean
+        default: false
+
+# 要把生成的表提交回仓库，必须有写权限。
+# 若仓库 Settings → Actions → General → Workflow permissions 选的是
+# "Read repository contents permission"，这里的写权限会被拒（403），
+# 需要改成 "Read and write permissions"。
+permissions:
+  contents: write
+
+# 同一分支的多次推送只保留最新一次，避免两次运行同时写仓库产生冲突。
+concurrency:
+  group: synonyms-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-synonyms:
+    runs-on: ubuntu-latest
+    # 全量约 580 次请求、并发 4，通常十几分钟；给足余量但不无限等。
+    timeout-minutes: 90
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth 0：提交历史完整，push 回本仓库不会因浅克隆被拒
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 决定全量还是增量
+        id: mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          FORCE_FULL="${{ inputs.full }}"
+          if [ "$FORCE_FULL" = "true" ]; then
+            echo "手动指定全量重建。"
+            echo "args=--full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # 表不存在、还是种子表（source 不是 llm:）、或读不出 source → 全量
+          SRC="$(node -e '
+            try {
+              const j = require("./collection/data/synonyms.json");
+              process.stdout.write(String(j.source || ""));
+            } catch (e) { process.stdout.write(""); }
+          ')"
+          case "$SRC" in
+            llm:*) echo "已有 LLM 生成的表（source=$SRC），走增量。" ; echo "args=" >> "$GITHUB_OUTPUT" ;;
+            *)     echo "尚无 LLM 生成的表（source='${SRC}'），走全量。" ; echo "args=--full" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: 生成同义词表
+        # ★ DEEPSEEK_API_KEY 通过 env 传入脚本，脚本只把它放进请求头，
+        #   绝不打印、绝不写进任何输出文件。日志里唯一可能出现密钥的地方
+        #   是"echo 环境变量"，本 workflow 全程没有这种写法。
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+            echo "::error::仓库没有配置 DEEPSEEK_API_KEY。请在 Settings → Secrets and variables → Actions → New repository secret 里加一个名为 DEEPSEEK_API_KEY 的密钥。"
+            exit 1
+          fi
+          echo "API key 已注入（长度 ${#DEEPSEEK_API_KEY}，不显示内容）"
+          node collection/tools/build-synonyms.mjs ${{ steps.mode.outputs.args }}
+
+      - name: 提交新表
+        shell: bash
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "repo=$GITHUB_REPOSITORY branch=$BRANCH event=$GITHUB_EVENT_NAME"
+
+          # 只提交这两个生成物，绝不 git add -A（仓库里可能有别的手工改动）
+          SPEC=(collection/data/synonyms.json collection/data/synonyms-version.js)
+
+          if [ -z "$(git status --porcelain -- "${SPEC[@]}")" ]; then
+            echo "同义词表没有变化，无需提交。"
+            exit 0
+          fi
+
+          echo "本次变化："
+          git status --porcelain -- "${SPEC[@]}"
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${SPEC[@]}"
+          # [skip ci]：防止这次提交把 workflow 自己再触发一遍
+          git commit -m 'chore: 自动更新文章搜索同义词表 [skip ci]'
+
+          # 生成期间若有人推送，先 rebase 再推
+          git pull --rebase --autostash origin "$BRANCH"
+
+          LOCAL="$(git rev-parse HEAD)"
+          echo "pushing $LOCAL to $BRANCH ..."
+          set +e
+          git push origin "HEAD:$BRANCH" 2>&1 | tee /tmp/push.log
+          PUSH_EXIT=${PIPESTATUS[0]}
+          set -e
+          if [ "$PUSH_EXIT" -ne 0 ]; then
+            echo "::error::git push 失败。若是 403，请把 Settings → Actions → General → Workflow permissions 设为 \"Read and write permissions\"。"
+            exit 1
+          fi
+
+          # 不轻信退出码，确认真落到远端了
+          REMOTE="$(git ls-remote origin "refs/heads/$BRANCH")"
+          case "$REMOTE" in
+            "$LOCAL"*) echo "已推送 $LOCAL 到 $BRANCH。" ;;
+            *) echo "::error::push 未落地：本地 $LOCAL，远端 $REMOTE"; exit 1 ;;
+          esac
