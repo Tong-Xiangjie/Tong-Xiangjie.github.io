@@ -114,6 +114,20 @@ function applyTheme(color) {
     // 悬停/描边用的浅强调色，暗色下要更亮才看得见
     el.style.setProperty('--theme-light', dark ? lightenColor(color, 0.35) : lightenColor(color, 0.4));
 
+    // ★ "整行悬停底色"必须按模式**反着来**：浅色加深、深色提亮。
+    //   原来 CSS 里统一写 rgba(0,0,0,0.04~0.05)，深色下等于
+    //   rgb(1,7,15) → rgb(0,6,14)，实测对比度 1.005 —— 完全没有反馈。
+    //
+    //   这里是**半透明 overlay**而不是按主题色派生的实色，原因是实测出来的：
+    //   实色是按某一个基色（如 --bg）算出来的，铺到别的底色上变化会变小 ——
+    //   按 --bg 派生的实色在页面上有 1.40，落到侧边栏底色上只剩 1.11。
+    //   半透明 overlay 铺在四种真实底色（--bg / --bg-light / --sidebar-bg /
+    //   --card-bg）上的实测对比度：
+    //     深色 白色 0.14 → 1.39 ~ 1.47
+    //     浅色 黑色 0.10 → 1.25 ~ 1.25
+    //   四种底色几乎一致，所以不需要按元素分别算，也不需要跟着主题色重算。
+    el.style.setProperty('--row-hover-bg', dark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.10)');
+
     if (dark) {
         // 暗色：底色往黑里压（保留主题色倾向），文字反过来
         el.style.setProperty('--bg', darkenColor(color, 0.94));

@@ -10,6 +10,24 @@
     --thumb-bg: #dce6f0;
     --theme-light: #4096ff;
 
+    /* ===== 行悬停底色 token =====
+       "整行可点"的元素（搜索结果行、侧边栏分类/子分类、系列年份、品种表头）
+       悬停时要有一个看得出来的背景变化。
+
+       ★ 两个坑，都踩过：
+       ① 原来统一写 rgba(0,0,0,0.04~0.05)（黑色蒙层）—— 深色下就是
+          rgb(1,7,15) → rgb(0,6,14)，实测对比度 1.005，等于没有反馈。
+          方向必须反过来：浅色加深、深色**提亮**。
+       ② 一开始按"页面底色派生一个实色"来做（深色 lighten 0.14）。
+          在页面底色上是 1.40 很好看，但铺到侧边栏底色上只剩 1.11 ——
+          因为 token 是按 --bg 算的，而侧边栏底色本来就更亮，
+          同一个实色落上去变化就小了。
+          → 改成**半透明 overlay**：同一透明度铺在 --bg / --bg-light /
+            --sidebar-bg / --card-bg 四种真实底色上，实测深色 0.14 得到
+            1.39~1.47、浅色 0.10 得到 1.25，四种底色几乎一致。
+       所以这里用 rgba 而不是实色，主题切换只需换颜色方向，不用重算。 */
+    --row-hover-bg: rgba(0, 0, 0, 0.10);
+
     /* ===== 安全区域 token =====
        index.html 声明了 viewport-fit=cover，让页面铺满刘海屏（配合暗色底不出现白边）。
        但"铺满"之后，底部 Tab、左侧栏、内容右侧就会压到刘海 / Home Indicator 底下。
@@ -70,6 +88,14 @@
    真正的暗色调色板是 theme.js 的 applyTheme() 按主题色算出来写在内联样式上的
    （内联优先级更高，会覆盖这里）。这一块只负责"别闪白"：head 里的内联脚本会先
    打上 data-color-scheme，页面首次绘制就已是深色。 */
+
+/* 行悬停底色：深色方向反过来。
+   实测（铺在 --bg / --bg-light / --sidebar-bg / --card-bg 四种真实底色上）：
+     白色 0.14 → 对比度 1.39 ~ 1.47
+   同一透明度在四种底色上几乎一致，所以不需要按底色分别算。 */
+html[data-color-scheme="dark"] {
+    --row-hover-bg: rgba(255, 255, 255, 0.14);
+}
 html[data-color-scheme="dark"] {
     --bg: #0f1115;
     --bg-light: #1a1e25;
@@ -489,7 +515,7 @@ body {
     overflow: hidden;
 }
 .sidebar-item:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--row-hover-bg);
 }
 .sidebar-item.active {
     background: var(--theme);
@@ -544,13 +570,15 @@ body {
     white-space: nowrap;
 }
 .sidebar-child:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--row-hover-bg);
     color: var(--text);
 }
 .sidebar-child.active {
     color: var(--theme);
     font-weight: bold;
-    background: rgba(0, 0, 0, 0.04);
+    /* ★ 这里原来也是 rgba(0,0,0,0.04)：深色下选中项的背景和普通项一模一样
+       （对比度 1.00），"当前选中"只靠文字变色撑着。换成同一个 token。 */
+    background: var(--row-hover-bg);
 }
 .sidebar-child .child-text {
     display: inline-block;
@@ -625,7 +653,7 @@ body {
     transition: background 0.15s;
     font-size: 0.8rem;
 }
-.search-result-item:hover { background: rgba(0, 0, 0, 0.04); }
+.search-result-item:hover { background: var(--row-hover-bg); }
 .search-result-item .info { flex: 1; min-width: 0; }
 .search-result-item .info .name { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
 .search-result-item .info .detail { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
@@ -648,7 +676,11 @@ body {
     background: var(--bg-light);
     transition: background 0.15s;
 }
-.series-year-header:hover { background: var(--sidebar-bg); }
+/* ★ 原来这里是 var(--sidebar-bg)：它是"侧边栏的底色"，比这一行的 --bg-light
+   还要**暗**，所以悬停时不是提亮而是压暗 —— 深色下实测 rgb(3,17,36) →
+   rgb(2,10,20)，对比度 1.051，等于把这一行按了下去，观感也不对。
+   统一改用行悬停 token（深色提亮 / 浅色加深）。 */
+.series-year-header:hover { background: var(--row-hover-bg); }
 .series-name-label { font-weight: bold; font-size: 1rem; flex: 1; min-width: 0; }
 .series-count-badge { background: var(--theme); color: #fff; font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; margin-right: 8px; flex-shrink: 0; }
 .series-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform var(--dur-2) var(--ease-out); flex-shrink: 0; }
@@ -684,7 +716,7 @@ body {
     user-select: none;
     transition: background 0.15s;
 }
-.variety-header:hover { background: rgba(0, 0, 0, 0.02); }
+.variety-header:hover { background: var(--row-hover-bg); }
 .variety-name { font-weight: bold; font-size: 0.9rem; flex: 1; min-width: 0; }
 .variety-summary { display: flex; align-items: center; gap: 12px; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
 .variety-summary .count { color: var(--theme); font-weight: bold; }
