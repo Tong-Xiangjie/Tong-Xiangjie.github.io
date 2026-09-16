@@ -84,7 +84,7 @@ const republic_crbcData = {
                             price: "100元",
                             purchaseDate: "2026年9月13日",
                             krause: "J10e",
-                            remark: "【版别：红签名】据我观察，红签名版的中央储备银行红5元冠号最后一位字母只有A，B两种。",
+                            remark: "【版别：红签名】据我观察，红签名版的中央储备银行红5元冠号最后一位字母只有A、B、S、Z四种。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/BT304431B-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/BT304431B-2.jpg"
                         }

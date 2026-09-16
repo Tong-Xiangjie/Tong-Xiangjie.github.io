@@ -17,8 +17,10 @@ const denomItems = [
   { year: 1979, denom: '1角', name: '1979年外汇兑换券', krause: 'Pick# FX1', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/01-fec.jpg' },
   
   { year: 1931, denom: '2角', name: '中央银行1931年兑换券', krause: 'Pick# 203', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/02-zyyh1931.jpg' },
+  { year: 1940, denom: '2角', name: '厦门劝业银行1940年', krause: 'Pick# S1657', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/02-aib1940.jpg' },
   { year: 1980, denom: '2角', name: '第四套人民币', krause: 'Pick# 882', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/02-rmb4.jpg' },
   
+  { year: 1940, denom: '5角', name: '厦门劝业银行1940年', krause: 'Pick# S1658', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/05-aib1940.jpg' },
   { year: 1949, denom: '5角', name: '广东省银行1949年大洋票', krause: 'Pick# S2455', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/05-kpb1949.jpg' },
   
   { year: 1936, denom: '1元', name: '中央银行1936年法币券（德纳罗版）', krause: 'Pick# 212', yearImg: 'https://tong-xiangjie.github.io/funcollection/denom/images/1-zyyh1936-tdlr.jpg' },
