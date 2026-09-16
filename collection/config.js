@@ -119,6 +119,15 @@ const categoryTree = [
         dataKey: 'test_noteData',
         dataFile: '../notecollection/data/test_note.js',
         children: null
+    },{
+        id: 'packaging_label',
+        name: '纸币包装标签',
+        children: [
+            { id: 'brick_label', name: '捆签', dataKey: 'brick_labelData', dataFile: '../notecollection/data/brick_label.js' },
+            { id: 'packet_label', name: '封包单', dataKey: 'packet_labelData', dataFile: '../notecollection/data/packet_label.js' },
+            { id: 'box_label', name: '封箱单', dataKey: 'box_labelData', dataFile: '../notecollection/data/box_label.js' },
+            { id: 'box_manifest', name: '箱券明细表', dataKey: 'box_manifestData', dataFile: '../notecollection/data/box_manifest.js' }
+        ]
     }
 ];
 
