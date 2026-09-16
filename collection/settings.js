@@ -135,6 +135,16 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
+    // 文章搜索（模糊搜索 / 同义扩展）
+    // ★ 从搜索栏搬过来的。放在「我的」是因为它是一条**偏好**（默认关、存 localStorage、
+    //   不进 URL），和「网格直接用原图」「自动预缓存」同类，而不是一次搜索的状态。
+    html += `<div class="settings-section">`;
+    html += `<h3>文章搜索</h3>`;
+    html += renderToggleRow('articleFuzzySwitch', '模糊搜索',
+        '开启后「央行」「荷花钞」这类俗称、简称也能搜到正式名称的文章。代价是会多召回一些相关但不精确的结果，且只作用于文章板块。默认关闭。',
+        articleFuzzyOn(), 'toggleArticleFuzzy()');
+    html += `</div>`;
+
     // 网格画质
     html += `<div class="settings-section">`;
     html += `<h3>网格画质</h3>`;

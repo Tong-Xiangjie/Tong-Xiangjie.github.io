@@ -1190,9 +1190,12 @@ body.modal-open {
 .toggle-card-top {
     display: flex;
     align-items: center;
-    /* ★ 不用 space-between：设置页有 500px 宽，拉到两头后开关离标签太远。
-       紧挨着标签反而一眼能看出这开关是管哪一项的。 */
-    justify-content: flex-start;
+    /* ★ 开关一律靠右（用户要求：「我的」界面的开关按键全部居右）。
+       设置页有 500px 宽，开关贴着标签放左边时，几行开关的竖排位置参差不齐；
+       拉到右端后所有开关对齐成一条竖线，也更接近系统设置的观感。
+       注意：这条是**用户明确要求**改的，早期注释里"紧挨着标签更好"的说法已作废，
+       别改回 flex-start。 */
+    justify-content: space-between;
     gap: 10px;
 }
 .toggle-label { font-size: 0.85rem; font-weight: 500; color: var(--text); }

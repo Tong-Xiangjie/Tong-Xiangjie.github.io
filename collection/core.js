@@ -409,9 +409,11 @@ const MODE_REGISTRY = {
             ui.toggleHidden = false;
             ui.toggleText = titleMode ? '标' : '全';
             ui.toggleTitle = titleMode ? '现在是按标题找，点“标”字能切到全文索引' : '现在是全文索引，点“全”字能切回按标题找';
-            ui.tip = titleMode
-                ? '现在是按标题找（边打边搜），点“标”字能切到全文索引'
-                : '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
+            // ★ 提示文字的唯一来源在 article.js 的 articleSearchTip() ——
+            //   preloadAllArticles() 里有「全文加载中/已就绪」两种文案，也走它。
+            ui.tip = (typeof articleSearchTip === 'function')
+                ? articleSearchTip()
+                : ('现在是按标题找（边打边搜），点“标”字能切到全文索引');
         }
     },
     [MODE.SETTINGS]: {

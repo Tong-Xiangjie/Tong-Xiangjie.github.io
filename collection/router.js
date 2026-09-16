@@ -227,6 +227,10 @@ function parseRoute(hash) {
                 if (m === 'title' || m === 'fulltext') r.searchMode = m;
                 continue;
             }
+            // ★ fz-on / fz-off 是老版本的模糊开关段，现在模糊改成了「我的」里的
+            //   持久化设置（不再是每条链接都带的状态），这里**照旧吞掉不报错**，
+            //   免得老链接落到 parseInt 上被当成文章序号。
+            if (p.startsWith('fz-')) continue;
             const idx = parseInt(p, 10);
             if (Number.isFinite(idx)) r.articleIndex = idx;
         }

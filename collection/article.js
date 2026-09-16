@@ -2,6 +2,191 @@
 // 完整重构版：增量渲染 + FLIP 动画，保留高亮
 // 修改：子分类压缩、父分类点击行为、列表重建保留滚动
 
+// ==================== 模糊搜索（同义扩展）====================
+// 让「央行」「荷花钞」「生肖钞」这类俗称/缩写也能搜到正式名称的文章。
+//
+// ★ 为什么同义词表是仓库里的静态 json，而不是在浏览器里跑语义模型：
+//   实测过 bge-small-zh-v1.5 与 bge-large-zh-v1.5。小模型不具备
+//   「央行 = 中国人民银行」这类世界知识 —— cos(央行,中国银行)=0.740 反而
+//   高于 cos(央行,中国人民银行)=0.691，排序是**错的**，所以拿它挖出来的
+//   扩张词里全是「银行」这种泛词，检索被淹没。
+//   大模型知道（0.858 > 0.794），但运行期要下载 312 MB；而且语料同质化严重
+//   （435 对随机文章平均相似度 0.648），文档级向量检索排不出正确结果。
+//   结论：把同义关系在**构建期**用 LLM 离线算好，写成一张小表；运行期只做
+//   「纯词法匹配 + 查表扩展」。零下载、零外部请求、命中原因可解释。
+//
+// ★ 这一整套状态只作用于文章板块，纸币/硬币的搜索逻辑一个字都没动。
+
+let articleSynonymTable = null;      // { generatedAt, source, terms: { 词: [扩张词…] } }
+let articleSynonymPromise = null;    // 加载 Promise（重复调用拿到同一个，避免重复请求）
+
+// ★ 模糊搜索（同义扩展）开关。默认**关**（用户要求：默认为关闭）。
+//   它现在是「我的 → 文章搜索」里的一个设置项，与「网格直接用原图」「自动预缓存」
+//   同类，所以两条约定都向那两项看齐：
+//     ① 不进 URL —— URL 只描述"在看什么"（板块/分类/关键词/标全），不描述偏好；
+//        明暗、网格画质、预缓存这些设置项同样不在 URL 里。
+//     ② 存 localStorage —— 开了之后刷新、重开都还记得。
+//   状态只有 localStorage 这一个来源，不再另设全局变量，避免两处打架。
+const ARTICLE_FUZZY_KEY = 'collection-article-fuzzy';
+
+function articleFuzzyOn() {
+  try { return localStorage.getItem(ARTICLE_FUZZY_KEY) === '1'; } catch (e) { return false; }
+}
+
+function setArticleFuzzy(on) {
+  try { localStorage.setItem(ARTICLE_FUZZY_KEY, on ? '1' : '0'); } catch (e) {}
+}
+
+// 同义扩展最多取多少个：扩张词越多召回越广，但打分噪声也越大。
+// 表本身已经由构建期筛过（禁泛词），这里再兜一道，防止极端表把结果冲烂。
+const ARTICLE_MAX_EXPANSIONS = 12;
+
+// 同义词表的候选 URL 列表，按优先级排列。
+// 带 ?v=<generatedAt> 是为了让构建期重新生成的表立刻生效，不被 CDN/浏览器缓存住。
+// 版本号由 workflow 生成的 data/synonyms-version.js 提供；那个文件不存在时
+// 自动退化成不带版本号（不影响功能）。
+//
+// ★ 为什么 file:// 下要多一个绝对线上地址作后备：
+//   文章正文走的是 getArticleBasePath() → SITE_BASE + 'notecollection/'，
+//   也就是**无论用什么协议打开，正文都从线上取**，file:// 下这恰好让它能正常工作。
+//   而同义词表若只有相对路径 'data/synonyms.json'，在 file:// 页面里会被解析成
+//   file:///.../data/synonyms.json，浏览器以「origin 为 null」的 CORS 策略拦掉
+//   （控制台报 "Access to fetch at 'file:///…' from origin 'null' has been blocked"），
+//   于是表加载失败、静默降级成纯词法 —— 表现就是"本地打开时模糊搜索没作用"。
+//   所以 file:// 下追加一个 SITE_BASE 的绝对地址作后备，和正文用同一套基址。
+//   顺序仍是"相对优先"：若浏览器允许本地文件访问（--allow-file-access-from-files），
+//   用的就是**本仓库里最新的表**，而不是线上那份可能还没部署的。
+function articleSynonymUrls() {
+  const v = (typeof window !== 'undefined' && window.__SYNONYMS_VERSION) ? window.__SYNONYMS_VERSION : '';
+  const qs = v ? '?v=' + encodeURIComponent(v) : '';
+  const rel = 'data/synonyms.json' + qs;
+  const urls = [rel];
+  try {
+    if (typeof location !== 'undefined' && location.protocol === 'file:' && typeof SITE_BASE === 'string') {
+      urls.push(SITE_BASE + 'collection/' + rel);
+    }
+  } catch (e) { /* SITE_BASE 还没求值就只用相对路径 */ }
+  return urls;
+}
+
+// 加载同义词表。
+// ★ 任何失败都**静默降级**：只留一条 console.warn，绝不抛错、绝不弹窗、
+//   绝不让搜索不可用 —— 表没加载出来时下面 getArticleExpansions() 返回空数组，
+//   getFilteredArticles() 就退化成纯词法匹配，也就是现在线上的行为。
+function loadArticleSynonyms() {
+  if (articleSynonymPromise) return articleSynonymPromise;
+  articleSynonymPromise = (async () => {
+    try {
+      // 按 articleSynonymUrls() 的顺序逐个试，第一个成功的就用它。
+      const urls = articleSynonymUrls();
+      let json = null, lastErr = null;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url, { cache: 'no-cache' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          json = await res.json();
+          break;
+        } catch (e) { lastErr = e; }
+      }
+      if (!json) throw (lastErr || new Error('无法获取同义词表'));
+      const terms = (json && json.terms && typeof json.terms === 'object') ? json.terms : null;
+      if (!terms) throw new Error('表结构不对（缺少 terms）');
+      // ★ 预建索引：完整表有 6000+ 个键，若每次击键都对全部键做 toLowerCase()
+      //   会白白产生几千次字符串分配。这里在加载时算一次。
+      const entries = Object.keys(terms).map(k => ({ k, kl: k.toLowerCase(), v: terms[k] }));
+      const byKey = new Map(entries.map(e => [e.kl, e.v]));
+      articleSynonymTable = {
+        generatedAt: json.generatedAt || '',
+        source: json.source || '',
+        terms,
+        entries,
+        byKey
+      };
+    } catch (e) {
+      console.warn('[article] 同义词表加载失败，模糊搜索退化为纯词法匹配：', e && e.message);
+      articleSynonymTable = null;
+    }
+    return articleSynonymTable;
+  })();
+  return articleSynonymPromise;
+}
+
+// 查表拿扩张词。返回 [] 表示「没有可用扩展」，三种正常情况：
+//   ① 模糊开关关着  ② 表没加载成功  ③ 这个查询词不在表里（表只覆盖语料术语）
+//
+// ★ 查表顺序：**精确命中优先**。
+//   完整表有 6000+ 个键，如果按插入顺序边扫边收，搜「中国人民银行」时短的
+//   包含键（「人民」「银行」之类）可能先命中、把 12 个额度占满，真正的精确键
+//   反而挤不进去。所以先取精确键的扩展，再用包含键补齐。
+//
+// 包含匹配的两种方向（都要求键 >= 3 字，避免「银行」这种两字常用词一匹配一大片）：
+//   · 查询词包含表键：搜「荷花钞价格」也能用上「荷花钞」的扩展
+//   · 表键包含查询词：搜「人民银行」也能用上「中国人民银行」的扩展
+// 字形重叠是允许的 ——「编号/号码」「储备/中央储备银行」本来就共用汉字，
+// 早先加的「排除字形重叠」过滤器是矫枉过正，已废弃。
+function getArticleExpansions(keyword) {
+  if (!articleFuzzyOn()) return [];
+  if (!articleSynonymTable || !articleSynonymTable.terms) return [];
+  const kw = (keyword || '').trim().toLowerCase();
+  if (!kw) return [];
+
+  const out = [];
+  const seen = new Set([kw]);
+  const pushList = (list) => {
+    if (!Array.isArray(list)) return;
+    for (const t of list) {
+      if (typeof t !== 'string' || !t) continue;
+      const tl = t.toLowerCase();
+      if (seen.has(tl)) continue;
+      seen.add(tl);
+      out.push(t);
+      if (out.length >= ARTICLE_MAX_EXPANSIONS) return;
+    }
+  };
+
+  // ① 精确命中（O(1)：加载时已建好小写键 → 扩展 的 Map）
+  if (articleSynonymTable.byKey) {
+    pushList(articleSynonymTable.byKey.get(kw));
+  }
+
+  // ② 包含命中补齐（键 >= 3 字）
+  if (out.length < ARTICLE_MAX_EXPANSIONS) {
+    const entries = articleSynonymTable.entries || [];
+    for (const e of entries) {
+      if (out.length >= ARTICLE_MAX_EXPANSIONS) break;
+      if (e.kl.length < 3 || e.kl === kw) continue;
+      if (kw.includes(e.kl) || e.kl.includes(kw)) pushList(e.v);
+    }
+  }
+  return out;
+}
+
+// ★ 由「我的 → 文章搜索」里的那个开关调用（settings.js 的 toggle-card）。
+//   不再写 URL：这是偏好而非"在看什么"，切换后同步开关外观并重算当前列表即可。
+function toggleArticleFuzzy() {
+  const next = !articleFuzzyOn();
+  setArticleFuzzy(next);
+  if (typeof setSwitchState === 'function') setSwitchState('articleFuzzySwitch', next);
+  // 开关在「我的」页面上，点它的时候通常不在文章列表里；万一在，立刻重算一次。
+  if (typeof currentMode !== 'undefined' && currentMode === MODE.ARTICLES && articleSearchKeyword) {
+    renderArticleList(true);
+  }
+}
+
+// 文章板块搜索提示文字的**唯一来源**（core.js 的 searchUi 与 preloadAllArticles 都走它）。
+// fulltextState: undefined | 'loading' | 'ready'
+// ★ 文案与重构前逐字一致（含"未传状态时也给加载中那句"这个旧行为）——
+//   这是搜索栏 UI 的一部分，模糊开关移走后不该顺手改文案。
+function articleSearchTip(fulltextState) {
+  if (articleSearchMode === 'title') {
+    return '现在是按标题找（边打边搜），点“标”字能切到全文索引';
+  }
+  if (fulltextState === 'ready') {
+    return '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文索引准备好啦，标题和正文都能搜';
+  }
+  return '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
+}
+
 // ---------- 收集文章 ----------
 function collectAllArticles() {
   collectedArticles = [];
@@ -258,15 +443,60 @@ function getArticleBasePath(sourceType) {
 //   现在重复调用会拿到**同一个 Promise**，await 它一定等到真正建好。
 let articlePreloadPromise = null;
 
+// 等文章列表就绪。
+//
+// ★ 为什么必须等：collectedArticles 是由数据文件（<script> 加载）汇总出来的，
+//   在页面很早期还是空数组。此时直接 map，promises 是**空数组**，这个 IIFE 会
+//   "成功"完成并把 isArticlePreloading 置 false；于是下面 finally 里那句
+//   "失败也要放掉"的兜底**不会触发**，articlePreloadPromise 就被永久钉死成
+//   "索引已建好"，而 articlePlainTextCache 其实是空的 —— 正文索引再也建不起来。
+//   实测踩到的路径：① 深链接直接进全文搜索；② 切到全文模式后刷新页面（模式会被
+//   记住，恢复时立刻触发预热）。表现是全文搜索只剩标题命中，正文里的词搜不到。
+function waitForArticleList(timeoutMs) {
+  const ready = () => (typeof collectedArticles !== 'undefined' && collectedArticles.length > 0);
+  if (ready()) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const t0 = Date.now();
+    (function tick() {
+      if (ready()) return resolve(true);
+      if (Date.now() - t0 >= timeoutMs) return resolve(false);   // 站点真的没有文章时不至于卡死
+      setTimeout(tick, 50);
+    })();
+  });
+}
+
 async function preloadAllArticles() {
   if (articlePreloadPromise) return articlePreloadPromise;
   articlePreloadPromise = (async () => {
     const tip = document.getElementById('searchTip');
-    if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
+    if (tip) tip.textContent = articleSearchTip('loading');
+    // ★ 文章列表还没收集过就先收集。
+    //   为什么会出现"还没收集"：collectAllArticles() 全仓库只有一个调用点，在
+    //   tab-switcher.js 的 enterArticlesTab() 里；而 router.applyRoute() 的顺序是
+    //   「先 await preloadAllArticles()，再 await enterArticlesTab()」——
+    //   预热跑在收集**之前**，collectedArticles 还是空数组，map 出来是空的。
+    //   深链接直进全文搜索、以及切到全文后刷新页面（模式被记住）都会踩到，
+    //   表现是正文索引永远建不起来、全文搜索只剩标题命中。
+    if (typeof collectedArticles !== 'undefined' && collectedArticles.length === 0
+        && typeof collectAllArticles === 'function') {
+      collectAllArticles();
+    }
+    // 兜底：万一数据还没到（理论上 applyInitialRoute 在 loadAllData 之后，
+    // 不该发生），短暂等一下，不要用空数组去建索引。
+    await waitForArticleList(3000);
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
-    if (tip) tip.textContent = '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文索引准备好啦，标题和正文都能搜';
+    if (tip) tip.textContent = articleSearchTip('ready');
     isArticlePreloading = false;
+    // ★ 索引建好后必须重渲染一次。首次渲染可能发生在索引就绪之前（那时只有标题
+    //   命中），不补这一次，深链接进来的用户会一直停在"空列表 / 结果不全"的界面上，
+    //   而 articleResultMeta 却已经是新数字。renderArticleList 不会反过来调用
+    //   preloadAllArticles，所以这里不会形成循环。
+    if (typeof renderArticleList === 'function' && articleSearchKeyword
+        && articleSearchMode === 'fulltext'
+        && typeof currentArticleView !== 'undefined' && currentArticleView === VIEW.LIST) {
+      renderArticleList(true);
+    }
   })();
   isArticlePreloading = true;
   try {
@@ -274,6 +504,12 @@ async function preloadAllArticles() {
   } finally {
     // 失败也要放掉，否则一次网络抖动会让全文搜索永久失效
     if (isArticlePreloading) { isArticlePreloading = false; articlePreloadPromise = null; }
+    // ★ 再兜一道：一篇正文都没索引到，说明这次是在数据就绪前跑的（或者整批网络失败）。
+    //   上一条 `if (isArticlePreloading)` 在这种情况下判断为 false（IIFE 成功完成时
+    //   已经把标志置 false），所以单靠它拦不住"空索引被记成已建好"。
+    if (articlePreloadPromise && Object.keys(articlePlainTextCache).length === 0) {
+      articlePreloadPromise = null;
+    }
   }
 }
 
@@ -492,39 +728,83 @@ function ensureArticleDynamicWrapper(container) {
   return wrapper;
 }
 
-function buildArticleFlatList(articles, keyword) {
-  const groupMap = new Map();
-  for (const article of articles) {
-    const key = article.groupPath ? article.groupPath.join(' - ') : '未分类';
-    if (!groupMap.has(key)) groupMap.set(key, []);
-    groupMap.get(key).push(article);
-  }
+// entries: getFilteredArticles() 返回的「条目数组」（含 matchType）。
+// ★ 分组呈现：模糊开、且确实存在「同义扩展命中」时，先「精确匹配」再
+//   「同义扩展命中」两块；否则与改动前**完全一样**（只按分类分组，不出现
+//   任何新标题），所以模糊关掉时观感与原来逐像素一致。
+//   这也是「号码」用例能被搜到的关键：gkq_1 只在正文里有「冠号」而标题里
+//   既无「号码」也无「冠号」，字面组里没有它，但它是扩展组第 1 名。
+function buildArticleFlatList(entries, keyword) {
+  const literal = entries.filter(e => e.matchType !== 'expanded');
+  const expanded = entries.filter(e => e.matchType === 'expanded');
+  const twoGroups = expanded.length > 0;
 
   const flatList = [];
-  const sortedGroups = Array.from(groupMap.keys());
-  for (const groupName of sortedGroups) {
-    const items = groupMap.get(groupName);
-    flatList.push({
-      key: `group|${groupName}`,
-      type: 'group',
-      data: { label: groupName, count: items.length }
-    });
-    for (const article of items) {
+
+  const pushPartition = (partition, label, list) => {
+    if (!list.length) return;
+    if (twoGroups) {
       flatList.push({
-        key: `article|${collectedArticles.indexOf(article)}`,
-        type: 'item',
-        data: { article, keyword }
+        key: `group|${partition}|__partition__`,
+        type: 'group',
+        data: { label, count: list.length, isPartition: true }
       });
     }
-  }
+    const groupMap = new Map();
+    for (const e of list) {
+      const key = e.article.groupPath ? e.article.groupPath.join(' - ') : '未分类';
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key).push(e);
+    }
+    for (const groupName of groupMap.keys()) {
+      const items = groupMap.get(groupName);
+      flatList.push({
+        key: `group|${partition}|${groupName}`,
+        type: 'group',
+        data: { label: groupName, count: items.length, isPartition: false, indent: twoGroups }
+      });
+      for (const e of items) {
+        flatList.push({
+          // ★ 键仍是 article|<序号>，与改动前一致 —— FLIP 的复用/位移动画不受影响。
+          //   字面组与扩展组互斥（扩展组定义上不含查询词），所以键不会撞。
+          key: `article|${collectedArticles.indexOf(e.article)}`,
+          type: 'item',
+          data: {
+            article: e.article,
+            keyword,
+            matchType: e.matchType,
+            matchedTerms: e.matchedTerms,
+            matchedField: e.matchedField
+          }
+        });
+      }
+    }
+  };
+
+  pushPartition('literal', '精确匹配', literal);
+  pushPartition('expanded', '同义扩展命中', expanded);
   return flatList;
 }
 
 function renderArticleGroupElement(data) {
-  return `<div class="search-result-group" data-key="group|${data.label}" style="margin: 0 !important; padding: 0 !important; width: 100%;">
-    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 1px 6px !important; background:var(--sidebar-bg); border-radius:4px; font-size:0.8rem; font-weight:bold; margin: 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
+  const countHtml = `<span class="count" style="font-weight:normal; color:var(--text-secondary); margin-left:auto; font-size:0.7rem;">${data.count}篇</span>`;
+
+  // 顶层分区标题（精确匹配 / 同义扩展命中）：左侧加一道主题色竖条区分开
+  if (data.isPartition) {
+    return `<div class="search-result-group" data-key="group|partition" style="margin: 0 !important; padding: 0 !important; width: 100%;">
+    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 2px 6px !important; background:var(--bg-light); border-left:3px solid var(--theme-light); border-radius:4px; font-size:0.78rem; font-weight:bold; margin: 2px 0 1px 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
       <span>${escapeHtml(data.label)}</span>
-      <span class="count" style="font-weight:normal; color:var(--text-secondary); margin-left:auto; font-size:0.7rem;">${data.count}篇</span>
+      ${countHtml}
+    </div>
+  </div>`;
+  }
+
+  // 分类标题（原有样式）。两块分区并列时缩进一点，体现层级。
+  const indentStyle = data.indent ? 'padding-left:12px !important;' : '';
+  return `<div class="search-result-group" data-key="group|${escapeHtml(data.label)}" style="margin: 0 !important; padding: 0 !important; width: 100%;">
+    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 1px 6px !important; ${indentStyle} background:var(--sidebar-bg); border-radius:4px; font-size:0.8rem; font-weight:bold; margin: 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
+      <span>${escapeHtml(data.label)}</span>
+      ${countHtml}
     </div>
   </div>`;
 }
@@ -532,7 +812,14 @@ function renderArticleGroupElement(data) {
 function renderArticleItemElement(data) {
   const article = data.article;
   const keyword = data.keyword || '';
-  const titleHtml = highlightText(escapeHtml(article.title), keyword);
+  const isExpanded = data.matchType === 'expanded';
+  const terms = Array.isArray(data.matchedTerms) ? data.matchedTerms : [];
+
+  // 标题高亮：字面命中高亮查询词；同义扩展命中高亮**命中的那个同义词**，
+  // 这样用户一眼能看出"为什么这条会出现"（标题里并没有他打的字）。
+  const titleHtml = (isExpanded && terms.length)
+    ? highlightAny(escapeHtml(article.title), terms)
+    : highlightText(escapeHtml(article.title), keyword);
 
   const pathHtml = article.fullPath ? escapeHtml(article.fullPath.join(' > ')) : '';
 
@@ -544,11 +831,27 @@ function renderArticleItemElement(data) {
   //   而且这一行还会随预加载进度忽隐忽现。
   //   现在口径与 getFilteredArticles() 的过滤口径一致：标题模式只认标题，
   //   摘要这一行只在 fulltext 下出现。
+  //   （同义扩展命中沿用同一口径：探针换成"在正文里命中的那个同义词"。）
   if (keyword && articleSearchMode === 'fulltext' && articlePlainTextCache[article.contentPath]) {
-    const snippet = getContextSnippet(articlePlainTextCache[article.contentPath], keyword);
-    if (snippet) {
-      snippetHtml = `<div class="article-snippet" style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px; padding:2px 6px; background:var(--bg-light); border-radius:3px; border-left:2px solid var(--theme-light); line-height:1.3;">${highlightText(escapeHtml(snippet), keyword)}</div>`;
+    const plain = articlePlainTextCache[article.contentPath];
+    const probe = isExpanded
+      ? (terms.find(t => plain.toLowerCase().includes(t.toLowerCase())) || '')
+      : keyword;
+    if (probe) {
+      const snippet = getContextSnippet(plain, probe);
+      if (snippet) {
+        const body = isExpanded ? highlightAny(escapeHtml(snippet), terms) : highlightText(escapeHtml(snippet), keyword);
+        snippetHtml = `<div class="article-snippet" style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px; padding:2px 6px; background:var(--bg-light); border-radius:3px; border-left:2px solid var(--theme-light); line-height:1.3;">${body}</div>`;
+      }
     }
+  }
+
+  // 同义扩展命中的条目：加一行小字说明命中了哪个同义词
+  let synonymHtml = '';
+  if (isExpanded && terms.length) {
+    const shown = terms.slice(0, 3).map(t => escapeHtml(t)).join('、');
+    const more = terms.length > 3 ? ` 等${terms.length}个` : '';
+    synonymHtml = `<div class="article-synonym-hit" style="font-size:0.68rem; color:var(--text-secondary); margin-top:1px;">同义命中：${shown}${more}</div>`;
   }
 
   const idx = collectedArticles.indexOf(article);
@@ -559,6 +862,7 @@ function renderArticleItemElement(data) {
     <div class="info" style="flex: 1 1 0; min-width: 0; overflow: hidden; line-height:1.3;">
       <div class="name" style="font-weight: bold; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin:0;">${titleHtml}</div>
       <div class="article-category" style="font-size:0.7rem; color:var(--text-secondary); margin:0;">${pathHtml}</div>
+      ${synonymHtml}
       ${snippetHtml}
     </div>
     <div class="index-num" style="flex-shrink: 0; margin-left: auto; padding-left: 6px; font-size: 0.65rem; color: var(--text-secondary); text-align: right; line-height:1;">#${idx + 1}</div>
@@ -822,24 +1126,62 @@ function getFilteredArticles() {
     }
   }
 
-  if (articleSearchKeyword) {
-    const kw = articleSearchKeyword.toLowerCase();
-    articles = articles.filter(a => {
-      if (a.title.toLowerCase().includes(kw)) return true;
-      if (articleSearchMode === 'fulltext') {
-        const plainText = articlePlainTextCache[a.contentPath] || '';
-        if (plainText.toLowerCase().includes(kw)) return true;
-      }
-      return false;
-    });
+  // ★ 返回值从「文章数组」变成「条目数组」：每条多带 matchType / matchedTerms /
+  //   matchedField，供列表按「精确匹配 / 同义扩展命中」两组呈现。
+  //   没有一个关键词时全部当作 literal（不分组，观感与改动前完全一致）。
+  if (!articleSearchKeyword) {
+    return articles.map(a => ({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'title' }));
   }
-  return articles;
+
+  const kw = articleSearchKeyword.toLowerCase();
+  const useBody = (articleSearchMode === 'fulltext');
+  // 扩展词里剔除与查询词同形的，避免同一条被算两次
+  const expansions = getArticleExpansions(articleSearchKeyword).filter(t => t.toLowerCase() !== kw);
+
+  const literal = [];
+  const expanded = [];
+  for (const a of articles) {
+    const title = (a.title || '').toLowerCase();
+    const body = useBody ? (articlePlainTextCache[a.contentPath] || '').toLowerCase() : '';
+
+    // 字面命中（含标题 / 含正文），优先级最高
+    if (title.includes(kw)) { literal.push({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'title' }); continue; }
+    if (useBody && body.includes(kw)) { literal.push({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'body' }); continue; }
+
+    // 同义扩展命中：不含查询词本身，但含它的同义词
+    if (!expansions.length) continue;
+    const hits = [];
+    let inTitle = false;
+    for (const t of expansions) {
+      const tl = t.toLowerCase();
+      if (title.includes(tl)) { hits.push(t); inTitle = true; }
+      else if (useBody && body.includes(tl)) { hits.push(t); }
+    }
+    if (hits.length) {
+      expanded.push({ article: a, matchType: 'expanded', matchedTerms: hits, matchedField: inTitle ? 'title' : 'body' });
+    }
+  }
+
+  // 扩展组按命中同义词的个数排序 —— 同义词命中越多越相关。
+  // （实测「生肖钞」：同时含生肖+贺岁+贺岁钞的 amsx_* 系列因此排在只含贺岁的
+  //   龙年/蛇年贺岁公告前面，这个顺序是对的。）
+  expanded.sort((x, y) => y.matchedTerms.length - x.matchedTerms.length);
+
+  return literal.concat(expanded);
 }
 
 // ========== 主渲染函数（支持滚动保留） ==========
 function renderArticleList(resetScroll = false, keepScroll = null) {
   currentArticleView = VIEW.LIST;
   switchToCurrentContainer();
+
+  // ★ 同义词表在进文章板块时就后台拉一次（文件很小，失败静默降级）。
+  //   拉到之后如果用户已经在搜了，补一次渲染，让「同义扩展命中」立刻出现 ——
+  //   否则第一次搜索会因为没有表而退化成纯词法，用户以为功能没生效。
+  //   articleSynonymPromise 是记忆化的，所以失败后不会反复重试、也不会递归。
+  if (!articleSynonymPromise) {
+    loadArticleSynonyms().then(() => { if (articleSearchKeyword && currentArticleView === VIEW.LIST) renderArticleList(); });
+  }
 
   const container = getRenderContainer();
   container.style.position = 'relative';
@@ -903,6 +1245,19 @@ function highlightText(text, keyword) {
   if (!keyword) return text;
   const escapedKw = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp('(' + escapedKw + ')', 'gi');
+  return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
+}
+
+// 一次高亮多个词（同义扩展命中时用：标题里出现的是同义词，不是用户打的查询词）。
+// 长的排前面，避免「中国人民银行」被「银行」先切碎。
+function highlightAny(text, terms) {
+  if (!text || !terms || !terms.length) return text;
+  const escaped = terms
+    .filter(t => typeof t === 'string' && t)
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a, b) => b.length - a.length);
+  if (!escaped.length) return text;
+  const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
   return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
 }
 
