@@ -1,3 +1,3 @@
-// 由 collection/tools/build-synonyms.mjs 自动生成，请勿手改。
-// 用途：给 data/synonyms.json 提供 URL 版本号（?v=...），避免 CDN/浏览器缓存旧表。
-window.__SYNONYMS_VERSION = "20260916T135219Z";
+// 自动生成，请勿手改。构建脚本：collection/tools/build-synonyms.mjs
+// 前端的取表地址带 ?v=<这个值>，用来在表更新后让访客拿到新表。
+window.__SYNONYMS_VERSION = '20260917T051810Z';

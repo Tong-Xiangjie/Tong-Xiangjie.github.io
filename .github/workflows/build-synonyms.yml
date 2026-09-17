@@ -1,16 +1,18 @@
-# 构建期生成文章搜索的同义词表（collection/data/synonyms.json）。
+# 构建期生成文章搜索的同义扩展表（collection/data/synonyms.json）。
 #
-# 背景：文章板块要支持「央行 → 中国人民银行」「荷花钞 → 莲花」这类模糊搜索。
+# 背景：文章板块要支持「生肖钞 → 十二生肖」「荷花钞 → 莲花」这类模糊搜索。
 # 实测过在浏览器里跑语义模型（bge-small-zh-v1.5 / bge-large-zh-v1.5）：
-#   · 小模型不具备"央行 = 中国人民银行"这类世界知识，挖出来的扩张词全是
-#     「银行」这种泛词，检索被淹没；
+#   · 小模型不具备这类世界知识，挖出来的扩张词全是「银行」这种泛词，检索被淹没；
 #   · 大模型知道，但运行期要下载 312 MB，且语料同质化严重（435 对随机文章
 #     平均相似度 0.648），文档级向量检索排不出正确结果。
-# 所以改成**构建期用 LLM 把同义关系离线算好**，写成一张小表提交进仓库；
-# 运行期只做纯词法匹配 + 查表扩展 —— 零下载、零外部请求、命中原因可解释。
+# 也试过构建期调 LLM 现编同义词：产量大但质量不可控，产出里混着「息图」
+# （从"全息图案"切出来的残片）这种根本不是词的碎片。
 #
-# 首次全量、之后增量：脚本比对本仓库已有的表，只把"新出现的术语"发给 LLM，
-# 不会每次全量重跑（省钱、也省时间）。
+# ★ 现在的做法：构建期查《哈工大同义词词林扩展版》（人工编纂、带编码层级），
+#   用田久乐 2010 的相似度算法把同义关系离线算好，写成一张小表提交进仓库；
+#   运行期只做纯词法匹配 + 查表扩展 —— 零下载、零外部请求、命中原因可解释。
+#   全程离线：不需要任何 API Key、不花钱、结果确定可复现。
+#   算法与词典见 collection/tools/cilin.mjs 与 collection/tools/cilin_ex.txt。
 name: 生成文章搜索同义词表
 
 on:
@@ -27,19 +29,16 @@ on:
       - 'collection/config.js'
       - 'collection/coin-config.js'
       - 'collection/tools/build-synonyms.mjs'
+      - 'collection/tools/cilin.mjs'
+      - 'collection/tools/cilin_ex.txt'
       - '.github/workflows/build-synonyms.yml'
-  # ★ 刻意**不**接受 pull_request 触发：这个 workflow 要写仓库、要花 API 额度，
+  # ★ 刻意**不**接受 pull_request 触发：这个 workflow 要写仓库，
   #   不能因为任何人提 PR 就跑起来。只能 push 到 main 或手动触发。
   workflow_dispatch:
-    inputs:
-      full:
-        description: '全量重建（勾选后忽略已有表，把所有术语重发一遍。改过提示词或换模型时才需要）'
-        type: boolean
-        default: false
 
 # 要把生成的表提交回仓库，必须有写权限。
 # 若仓库 Settings → Actions → General → Workflow permissions 选的是
-# "Read repository contents permission"，这里的写权限会被拒（403），
+# "Read repository content permission"，这里的写权限会被拒（403），
 # 需要改成 "Read and write permissions"。
 permissions:
   contents: write
@@ -52,8 +51,8 @@ concurrency:
 jobs:
   build-synonyms:
     runs-on: ubuntu-latest
-    # 全量约 580 次请求、并发 4，通常十几分钟；给足余量但不无限等。
-    timeout-minutes: 90
+    # 纯查表，本地实测不到 1 秒；给足余量是因为 checkout/commit 可能慢。
+    timeout-minutes: 15
     steps:
       - name: 检出仓库
         uses: actions/checkout@v4
@@ -66,44 +65,37 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 决定全量还是增量
-        id: mode
+      # ★ 这一步不是形式：cilin.mjs 是参考实现（PyPI WordSimilarity 0.0.3）
+      #   的逐行移植，词典文件哪天被换掉，移植就可能对不上。
+      #   这里做一次自检 —— 词林的编码层级和几个已知相似度必须成立，
+      #   否则说明词典或解析坏了，宁可让 workflow 红，也不要提交一张坏表。
+      - name: 自检词林解析
         shell: bash
         run: |
           set -euo pipefail
-          FORCE_FULL="${{ inputs.full }}"
-          if [ "$FORCE_FULL" = "true" ]; then
-            echo "手动指定全量重建。"
-            echo "args=--full" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # 表不存在、还是种子表（source 不是 llm:）、或读不出 source → 全量
-          SRC="$(node -e '
-            try {
-              const j = require("./collection/data/synonyms.json");
-              process.stdout.write(String(j.source || ""));
-            } catch (e) { process.stdout.write(""); }
-          ')"
-          case "$SRC" in
-            llm:*) echo "已有 LLM 生成的表（source=$SRC），走增量。" ; echo "args=" >> "$GITHUB_OUTPUT" ;;
-            *)     echo "尚无 LLM 生成的表（source='${SRC}'），走全量。" ; echo "args=--full" >> "$GITHUB_OUTPUT" ;;
-          esac
+          # 用 --input-type=module：cilin.mjs 是 ESM，require() 在 Node 20 上会 ERR_REQUIRE_ESM
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { loadCilin, similarity } from "./collection/tools/cilin.mjs";
+            const t = loadCilin(readFileSync("collection/tools/cilin_ex.txt", "utf8"));
+            const expect = [
+              ["人民", "国民", 1],
+              ["人民", "群众", 0.9576614882494312],
+              ["抄袭", "克隆", 0.585642777645155],
+            ];
+            for (const [a, b, want] of expect) {
+              const got = similarity(t, a, b);
+              if (got !== want) {
+                console.error(`::error::词林自检失败 ${a}/${b}: 得到 ${got}，期望 ${want}`);
+                process.exit(1);
+              }
+            }
+            console.log(`词林自检通过：${t.codes.size} 词 / ${t.lines.length} 行`);
+          '
 
       - name: 生成同义词表
-        # ★ DEEPSEEK_API_KEY 通过 env 传入脚本，脚本只把它放进请求头，
-        #   绝不打印、绝不写进任何输出文件。日志里唯一可能出现密钥的地方
-        #   是"echo 环境变量"，本 workflow 全程没有这种写法。
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-            echo "::error::仓库没有配置 DEEPSEEK_API_KEY。请在 Settings → Secrets and variables → Actions → New repository secret 里加一个名为 DEEPSEEK_API_KEY 的密钥。"
-            exit 1
-          fi
-          echo "API key 已注入（长度 ${#DEEPSEEK_API_KEY}，不显示内容）"
-          node collection/tools/build-synonyms.mjs ${{ steps.mode.outputs.args }}
+        run: node collection/tools/build-synonyms.mjs
 
       - name: 提交新表
         shell: bash

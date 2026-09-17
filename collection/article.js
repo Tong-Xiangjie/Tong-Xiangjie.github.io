@@ -149,13 +149,23 @@ function getArticleExpansions(keyword) {
     pushList(articleSynonymTable.byKey.get(kw));
   }
 
-  // ② 包含命中补齐（键 >= 3 字）
+  // ② 包含命中补齐
+  //    · 键 >= 3 字：双向包含都认 —— 查询词里含键，或**键里含查询词**。
+  //      后者管的是「奥运」借键「奥运会」的扩展拿到「奥林匹克」这类情形。
+  //    · 键 == 2 字：只认"是查询词的前缀、且占查询词一半以上"。
+  //      2 字键若放任双向包含，「中国人民银行」会被「中国/人民/银行」这类泛词冲垮；
+  //      可「生肖钞 → 生肖 → 十二生肖」「荷花钞 → 荷花 → 莲花」这种复合词
+  //      又恰恰只有 2 字键才连得上，所以按"前缀 + 占一半以上"放行。
   if (out.length < ARTICLE_MAX_EXPANSIONS) {
     const entries = articleSynonymTable.entries || [];
     for (const e of entries) {
       if (out.length >= ARTICLE_MAX_EXPANSIONS) break;
-      if (e.kl.length < 3 || e.kl === kw) continue;
-      if (kw.includes(e.kl) || e.kl.includes(kw)) pushList(e.v);
+      if (e.kl === kw) continue;
+      if (e.kl.length >= 3) {
+        if (kw.includes(e.kl) || e.kl.includes(kw)) pushList(e.v);
+      } else if (e.kl.length === 2 && e.kl.length * 2 >= kw.length && kw.startsWith(e.kl)) {
+        pushList(e.v);
+      }
     }
   }
   return out;
@@ -728,81 +738,115 @@ function ensureArticleDynamicWrapper(container) {
   return wrapper;
 }
 
-// entries: getFilteredArticles() 返回的「条目数组」（含 matchType）。
-// ★ 分组呈现：模糊开、且确实存在「同义扩展命中」时，先「精确匹配」再
-//   「同义扩展命中」两块；否则与改动前**完全一样**（只按分类分组，不出现
-//   任何新标题），所以模糊关掉时观感与原来逐像素一致。
-//   这也是「号码」用例能被搜到的关键：gkq_1 只在正文里有「冠号」而标题里
-//   既无「号码」也无「冠号」，字面组里没有它，但它是扩展组第 1 名。
-function buildArticleFlatList(entries, keyword) {
-  const literal = entries.filter(e => e.matchType !== 'expanded');
-  const expanded = entries.filter(e => e.matchType === 'expanded');
-  const twoGroups = expanded.length > 0;
+// ========== 相关性打分（只在模糊开启时使用） ==========
+// ★ 用户要求：「模糊搜索下，请仅按照相关性排序……也不要求按照默认顺序，只按照相关性。」
+//   所以模糊开时列表是**单一列表、纯相关性顺序** —— 不分「精确匹配 / 同义扩展命中」，
+//   也不按分类分组（分类分组会把相关性顺序打断）。
+//   打分**只决定顺序**，不决定"是否命中"：命中与否仍由词表扩展决定，
+//   不在这里引入新的召回（宁可召回宽一点，让排序把不相关的压下去）。
+//   权重取法：
+//     · 查询词本身命中 ≫ 同义扩展命中（10 : 1）
+//     · 标题命中 > 正文命中（×3）—— 标题里的词才是这篇的主题
+//     · 词越长越特异（× 词长）—— 「中国银行成立一百周年」比「钞」有信息量得多
+//     · 出现次数越多越相关（1 + log2(1+tf)）—— 用 log 压一下，避免长文靠堆词刷分
+const ARTICLE_QUERY_WEIGHT = 10;
 
+function countOccurrences(hay, needle) {
+  if (!hay || !needle) return 0;
+  let n = 0, i = 0;
+  for (;;) {
+    const p = hay.indexOf(needle, i);
+    if (p < 0) return n;
+    n++;
+    i = p + needle.length;
+  }
+}
+
+function articleRelevanceScore(title, body, kw, expansions) {
+  const tfWeight = (n) => 1 + Math.log2(1 + n);
+  let score = 0;
+
+  const titleTf = countOccurrences(title, kw);
+  const bodyTf = countOccurrences(body, kw);
+  if (titleTf) score += ARTICLE_QUERY_WEIGHT * 3 * kw.length * tfWeight(titleTf);
+  else if (bodyTf) score += ARTICLE_QUERY_WEIGHT * kw.length * tfWeight(bodyTf);
+
+  const hits = [];
+  let hitInTitle = false;
+  for (const t of expansions) {
+    const tl = t.toLowerCase();
+    const a = countOccurrences(title, tl);
+    const b = countOccurrences(body, tl);
+    if (!a && !b) continue;
+    hits.push(t);
+    if (a) hitInTitle = true;
+    score += (a ? 3 : 1) * tl.length * tfWeight(a + b);
+  }
+  return { score, hits, hitInTitle };
+}
+
+// entries: getFilteredArticles() 返回的条目数组。
+// ★ 模糊开（条目带 score）→ **单一列表，只按相关性排序**，不分组。
+// ★ 模糊关（条目不谈 score）→ 与改动前**完全一样**：按分类分组、保持默认顺序，
+//   所以关掉模糊时观感与原来逐像素一致。
+function buildArticleFlatList(entries, keyword) {
   const flatList = [];
 
-  const pushPartition = (partition, label, list) => {
-    if (!list.length) return;
-    if (twoGroups) {
+  if (entries.length && entries.every(e => typeof e.score === 'number')) {
+    for (const e of entries) {
       flatList.push({
-        key: `group|${partition}|__partition__`,
-        type: 'group',
-        data: { label, count: list.length, isPartition: true }
+        // ★ 键仍是 article|<序号>，与改动前一致 —— FLIP 的复用/位移动画不受影响。
+        key: `article|${collectedArticles.indexOf(e.article)}`,
+        type: 'item',
+        data: {
+          article: e.article,
+          keyword,
+          matchType: e.matchType,
+          matchedTerms: e.matchedTerms,
+          matchedField: e.matchedField
+        }
       });
     }
-    const groupMap = new Map();
-    for (const e of list) {
-      const key = e.article.groupPath ? e.article.groupPath.join(' - ') : '未分类';
-      if (!groupMap.has(key)) groupMap.set(key, []);
-      groupMap.get(key).push(e);
-    }
-    for (const groupName of groupMap.keys()) {
-      const items = groupMap.get(groupName);
-      flatList.push({
-        key: `group|${partition}|${groupName}`,
-        type: 'group',
-        data: { label: groupName, count: items.length, isPartition: false, indent: twoGroups }
-      });
-      for (const e of items) {
-        flatList.push({
-          // ★ 键仍是 article|<序号>，与改动前一致 —— FLIP 的复用/位移动画不受影响。
-          //   字面组与扩展组互斥（扩展组定义上不含查询词），所以键不会撞。
-          key: `article|${collectedArticles.indexOf(e.article)}`,
-          type: 'item',
-          data: {
-            article: e.article,
-            keyword,
-            matchType: e.matchType,
-            matchedTerms: e.matchedTerms,
-            matchedField: e.matchedField
-          }
-        });
-      }
-    }
-  };
+    return flatList;
+  }
 
-  pushPartition('literal', '精确匹配', literal);
-  pushPartition('expanded', '同义扩展命中', expanded);
+  const groupMap = new Map();
+  for (const e of entries) {
+    const key = e.article.groupPath ? e.article.groupPath.join(' - ') : '未分类';
+    if (!groupMap.has(key)) groupMap.set(key, []);
+    groupMap.get(key).push(e);
+  }
+  for (const groupName of groupMap.keys()) {
+    const items = groupMap.get(groupName);
+    flatList.push({
+      key: `group|${groupName}`,
+      type: 'group',
+      data: { label: groupName, count: items.length }
+    });
+    for (const e of items) {
+      flatList.push({
+        key: `article|${collectedArticles.indexOf(e.article)}`,
+        type: 'item',
+        data: {
+          article: e.article,
+          keyword,
+          matchType: e.matchType,
+          matchedTerms: e.matchedTerms,
+          matchedField: e.matchedField
+        }
+      });
+    }
+  }
   return flatList;
 }
 
 function renderArticleGroupElement(data) {
   const countHtml = `<span class="count" style="font-weight:normal; color:var(--text-secondary); margin-left:auto; font-size:0.7rem;">${data.count}篇</span>`;
 
-  // 顶层分区标题（精确匹配 / 同义扩展命中）：左侧加一道主题色竖条区分开
-  if (data.isPartition) {
-    return `<div class="search-result-group" data-key="group|partition" style="margin: 0 !important; padding: 0 !important; width: 100%;">
-    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 2px 6px !important; background:var(--bg-light); border-left:3px solid var(--theme-light); border-radius:4px; font-size:0.78rem; font-weight:bold; margin: 2px 0 1px 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
-      <span>${escapeHtml(data.label)}</span>
-      ${countHtml}
-    </div>
-  </div>`;
-  }
-
-  // 分类标题（原有样式）。两块分区并列时缩进一点，体现层级。
-  const indentStyle = data.indent ? 'padding-left:12px !important;' : '';
+  // 分类标题。模糊开启时列表是纯相关性顺序、不会有分类标题；
+  // 只有模糊关闭时才走到这里（与改动前完全一致）。
   return `<div class="search-result-group" data-key="group|${escapeHtml(data.label)}" style="margin: 0 !important; padding: 0 !important; width: 100%;">
-    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 1px 6px !important; ${indentStyle} background:var(--sidebar-bg); border-radius:4px; font-size:0.8rem; font-weight:bold; margin: 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
+    <div class="search-group-header" style="display:flex; align-items:center; gap:4px; padding: 1px 6px !important; background:var(--sidebar-bg); border-radius:4px; font-size:0.8rem; font-weight:bold; margin: 0 !important; width:100%; box-sizing:border-box; line-height:1.4;">
       <span>${escapeHtml(data.label)}</span>
       ${countHtml}
     </div>
@@ -1126,9 +1170,9 @@ function getFilteredArticles() {
     }
   }
 
-  // ★ 返回值从「文章数组」变成「条目数组」：每条多带 matchType / matchedTerms /
-  //   matchedField，供列表按「精确匹配 / 同义扩展命中」两组呈现。
-  //   没有一个关键词时全部当作 literal（不分组，观感与改动前完全一致）。
+  // ★ 返回值是「条目数组」：每条带 matchType / matchedTerms / matchedField。
+  //   模糊开启时额外带 score，列表据此**只按相关性排序**（见 buildArticleFlatList）；
+  //   模糊关闭 / 没关键词时不带 score，顺序就是默认顺序（与改动前一致）。
   if (!articleSearchKeyword) {
     return articles.map(a => ({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'title' }));
   }
@@ -1137,37 +1181,39 @@ function getFilteredArticles() {
   const useBody = (articleSearchMode === 'fulltext');
   // 扩展词里剔除与查询词同形的，避免同一条被算两次
   const expansions = getArticleExpansions(articleSearchKeyword).filter(t => t.toLowerCase() !== kw);
+  const ranked = articleFuzzyOn();
 
-  const literal = [];
-  const expanded = [];
+  const out = [];
   for (const a of articles) {
     const title = (a.title || '').toLowerCase();
     const body = useBody ? (articlePlainTextCache[a.contentPath] || '').toLowerCase() : '';
 
-    // 字面命中（含标题 / 含正文），优先级最高
-    if (title.includes(kw)) { literal.push({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'title' }); continue; }
-    if (useBody && body.includes(kw)) { literal.push({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'body' }); continue; }
+    const literalInTitle = title.includes(kw);
+    const literalInBody = useBody && body.includes(kw);
+    const r = articleRelevanceScore(title, body, kw, expansions);
 
-    // 同义扩展命中：不含查询词本身，但含它的同义词
-    if (!expansions.length) continue;
-    const hits = [];
-    let inTitle = false;
-    for (const t of expansions) {
-      const tl = t.toLowerCase();
-      if (title.includes(tl)) { hits.push(t); inTitle = true; }
-      else if (useBody && body.includes(tl)) { hits.push(t); }
-    }
-    if (hits.length) {
-      expanded.push({ article: a, matchType: 'expanded', matchedTerms: hits, matchedField: inTitle ? 'title' : 'body' });
-    }
+    // 命中与否：查询词本身，或它的同义扩展词（模糊关时 expansions 为空 → 纯字面）
+    if (!literalInTitle && !literalInBody && !r.hits.length) continue;
+
+    const isLiteral = literalInTitle || literalInBody;
+    out.push({
+      article: a,
+      matchType: isLiteral ? 'literal' : 'expanded',
+      matchedTerms: isLiteral ? [] : r.hits,
+      matchedField: isLiteral ? (literalInTitle ? 'title' : 'body') : (r.hitInTitle ? 'title' : 'body'),
+      score: ranked ? r.score : undefined
+    });
   }
 
-  // 扩展组按命中同义词的个数排序 —— 同义词命中越多越相关。
-  // （实测「生肖钞」：同时含生肖+贺岁+贺岁钞的 amsx_* 系列因此排在只含贺岁的
-  //   龙年/蛇年贺岁公告前面，这个顺序是对的。）
-  expanded.sort((x, y) => y.matchedTerms.length - x.matchedTerms.length);
+  // 模糊开：**只按相关性**排。分数并列时用命中词数、再退到默认顺序 ——
+  // 只是为了结果稳定可复现，不代表"要求默认顺序"。
+  if (ranked) {
+    out.sort((x, y) => (y.score - x.score)
+      || (y.matchedTerms.length - x.matchedTerms.length)
+      || (collectedArticles.indexOf(x.article) - collectedArticles.indexOf(y.article)));
+  }
 
-  return literal.concat(expanded);
+  return out;
 }
 
 // ========== 主渲染函数（支持滚动保留） ==========
@@ -1176,7 +1222,7 @@ function renderArticleList(resetScroll = false, keepScroll = null) {
   switchToCurrentContainer();
 
   // ★ 同义词表在进文章板块时就后台拉一次（文件很小，失败静默降级）。
-  //   拉到之后如果用户已经在搜了，补一次渲染，让「同义扩展命中」立刻出现 ——
+  //   拉到之后如果用户已经在搜了，补一次渲染，让扩展词立刻参与召回与排序 ——
   //   否则第一次搜索会因为没有表而退化成纯词法，用户以为功能没生效。
   //   articleSynonymPromise 是记忆化的，所以失败后不会反复重试、也不会递归。
   if (!articleSynonymPromise) {
