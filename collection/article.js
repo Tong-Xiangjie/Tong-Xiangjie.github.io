@@ -913,7 +913,17 @@ function renderArticleItemElement(data) {
   </div>`;
 }
 
+// ★ 渲染世代号：每重建一次列表就自增，供异步回调判断自己是否已过期。
+//   与 search.js 里 `searchRenderGeneration` 是同一类问题的同一套收口方式：
+//   空状态的 400ms 定时器 + FLIP 的 requestAnimationFrame 都可能被更新的渲染抢先，
+//   旧回调一旦落地就会覆盖新结果、或按旧位置表去改新 DOM。
+//   （复现路径：搜「2222」无结果 → 快速连删两个 2 回到「222」有 10 条 →
+//     旧的"还没有文章哦"定时器醒来把 10 条抹掉。）
+let articleRenderGeneration = 0;
+
 function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container, savedScrollTop) {
+  const generation = ++articleRenderGeneration;
+
   // 清理残留的删除节点
   const absNodes = document.querySelectorAll('.article-delete-anim');
   for (const node of absNodes) node.remove();
@@ -989,6 +999,8 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container, sa
   if (newFlatList.length === 0) {
     wrapper.innerHTML = '';
     setTimeout(() => {
+      // ★ 过期就直接放弃（详见上面 articleRenderGeneration 的说明）
+      if (generation !== articleRenderGeneration) return;
       wrapper.innerHTML = `<div class="empty-state">还没有文章哦，赶快连夜肝一篇出来╮(╯▽╰)╭</div>`;
       for (const el of deleteElements) {
         if (el.parentNode) el.remove();
@@ -1044,6 +1056,9 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container, sa
   void container.offsetHeight;
 
   requestAnimationFrame(() => {
+    // ★ 同一类竞态：这一帧之前若又重建过，下面的 oldRects/oldKeyMap 描述的是
+    //   **上一版** DOM 的位置，照着它给现在的节点加位移会让条目乱飞。交给最新那一代。
+    if (generation !== articleRenderGeneration) return;
     keepScroll();
     void container.offsetHeight;
     const containerRect2 = container.getBoundingClientRect();

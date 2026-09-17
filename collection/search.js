@@ -165,7 +165,21 @@ function renderItemElement(data) {
 // keptScroll：本次重建前用户的滚动位置。传进来就全程保持不变
 //   （FLIP 的位移量是"同一滚动状态下 旧位置 - 新位置"，与绝对 scrollTop 无关，
 //    所以保持不动反而更简单、也不会闪）。
+// ★ 渲染世代号：每重建一次列表就自增。
+//   用途是让**异步回调**能判断自己是不是已经过期了。
+//   起因（用户报的 bug）：搜「2222」没有结果 → 进下面的空状态分支 → 排一个
+//   400ms 的定时器去写"空空如也"。此时**快速**连删两个 2 回到「222」（有 10 条），
+//   新结果同步渲染好了，可那个旧定时器随后醒来，一句
+//   `wrapper.innerHTML = 空状态` 把刚渲染出来的 10 条整个抹掉。
+//   键位稍慢一点就不会触发（定时器已经跑完了），所以症状是"快速连续删才复现"。
+//   同理，FLIP 的 requestAnimationFrame 也会被更新的渲染抢先 —— 它按**旧**的
+//   位置表去改**新**的 DOM，让条目乱飞。
+//   两者都用"捕获自己那一代、醒来时对不上就什么都不做"来收口。
+let searchRenderGeneration = 0;
+
 function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScroll) {
+  const generation = ++searchRenderGeneration;
+
   // 清理残留的删除节点
   const absNodes = document.querySelectorAll('.search-delete-anim');
   for (const node of absNodes) node.remove();
@@ -175,10 +189,14 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScrol
   //   翻到第 3 屏想再细化关键词基本没法用（配合 search.js 里另外三处归零一起放大）。
   //   现在改为：重建前后都停在原位置。
   // 临时关掉浏览器滚动锚定：重建会大改 DOM 高度，锚定会自行"纠正"滚动位置，干扰保留
-  const prevAnchor = container.style.overflowAnchor;
+  // ★ 恢复成 ''（即"不设内联值"）而不是"渲染开始时读到的那个值"。
+  //   全仓只有这一处会写 overflowAnchor，所以 '' 就是它该有的正常态。
+  //   之所以不能按渲染时刻捕获：边打边搜时同一帧内可能连着渲染 A、B 两次，
+  //   B 读到的 prevAnchor 正是 A 设下的 'none'，B 的 rAF 再把它"恢复"成 'none'，
+  //   滚动锚定就被永久禁用了。写死 '' 对嵌套渲染天然幂等。
   container.style.overflowAnchor = 'none';
   const restoreScroll = () => {
-    container.style.overflowAnchor = prevAnchor;
+    container.style.overflowAnchor = '';
     if (typeof keptScroll === 'number' && container.scrollTop !== keptScroll) {
       container.scrollTop = keptScroll;
     }
@@ -248,7 +266,14 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScrol
   // 如果新列表为空
   if (newFlatList.length === 0) {
     wrapper.innerHTML = '';
+    // ★ 这条分支**提前 return，不会注册 rAF**，所以滚动锚定必须在这里就恢复掉：
+    //   否则"非空渲染 A → 空渲染 B"时，A 的 rAF 会因为世代过期而直接退出，
+    //   overflowAnchor 就永远停在 'none' 没人还原了。
+    restoreScroll();
     setTimeout(() => {
+      // ★ 这 400ms 里用户可能已经又打字了。若期间发生过任何一次重建，
+      //   本次的"空空如也"就是过期结论，写下去会把新结果覆盖掉 —— 直接放弃。
+      if (generation !== searchRenderGeneration) return;
       wrapper.innerHTML = `<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
       for (const el of deleteElements) {
         if (el.parentNode) el.remove();
@@ -307,6 +332,9 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScrol
 
   // 在 RAF 内部记录新位置（此时布局已稳定）
   requestAnimationFrame(() => {
+    // ★ 同一类竞态：这一帧之前若又重建过，oldRects/oldKeyMap 描述的都是**上一版**
+    //   DOM 的位置，照着它给现在的节点加位移会让条目乱飞。交给最新那一代的 rAF 处理。
+    if (generation !== searchRenderGeneration) return;
     restoreScroll();
     const containerRect2 = container.getBoundingClientRect();
 
