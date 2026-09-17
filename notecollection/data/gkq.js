@@ -34,7 +34,7 @@ const gkqData = {
                     varietyName: "1元 挖煤机",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19859839,
                             year: 1982,
                             version: "ⅣⅩ148437",
                             condition: "ACG 65E",
@@ -52,7 +52,7 @@ const gkqData = {
                     varietyName: "5元 挖煤机",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992538,
                             year: 1982,
                             version: "ⅩⅦ813772",
                             condition: "ACG 63E",
@@ -77,7 +77,7 @@ const gkqData = {
                     varietyName: "5元 炼油厂",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104068,
                             year: 1983,
                             version: "ⅩⅦ9103374",
                             condition: "暂未评级",
@@ -102,7 +102,7 @@ const gkqData = {
                     varietyName: "5元 上海桑塔纳",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992536,
                             year: 1989,
                             version: "ⅢⅡ09191201",
                             condition: "ACG 62E",
@@ -120,7 +120,7 @@ const gkqData = {
                     varietyName: "10元 海南橡胶林",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 25315373,
                             year: 1989,
                             version: "ⅡⅤ7501722",
                             condition: "ACG 62E",
@@ -145,7 +145,7 @@ const gkqData = {
                     varietyName: "5元 江南水乡",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 17258767,
                             year: 1991,
                             version: "ⅩⅡ83410889",
                             condition: "ACG 65E",
@@ -163,7 +163,7 @@ const gkqData = {
                     varietyName: "10元 云南石林",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104069,
                             year: 1991,
                             version: "ⅩⅠ64357754",
                             condition: "暂未评级",
@@ -185,7 +185,7 @@ const gkqData = {
                     varietyName: "50元 云南风光",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992537,
                             year: 1991,
                             version: "ⅩⅠ40955834",
                             condition: "ACG 60E",
@@ -203,7 +203,7 @@ const gkqData = {
                     varietyName: "100元 桂林山水",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104070,
                             year: 1991,
                             version: "ⅩⅠ38182121",
                             condition: "暂未评级",
@@ -232,7 +232,7 @@ const gkqData = {
                     varietyName: "100元 三年期 深圳火车站",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104071,
                             year: 1993,
                             version: "ⅩⅠ30102812",
                             condition: "暂未评级",

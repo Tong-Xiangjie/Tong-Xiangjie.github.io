@@ -66,7 +66,7 @@ const commemorativeData = {
                     size: "166mm*72mm"
                 },
                 { 
-                    copyId: 00000000, 
+                    copyId: 27104081, 
                     year: 1999,
                     purchaseDate: "2026年7月17日", 
                     price: "38元", 
@@ -310,7 +310,7 @@ const commemorativeData = {
                     size: "145mm*70mm"
                 },
                 { 
-                    copyId: 00000000, 
+                    copyId: 27104085, 
                     year: 2011,
                     purchaseDate: "2026年7月18日", 
                     price: "48元", 

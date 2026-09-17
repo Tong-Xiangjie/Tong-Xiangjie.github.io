@@ -141,7 +141,7 @@ const rmb5Data = {
                     varietyName: "2005年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 12836845,
                             year: 2005,
                             version: "IO88888767",
                             bank: "中国人民银行",
@@ -175,7 +175,7 @@ const rmb5Data = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/rmb5/X5E2236134-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb5/X5E2236134-2.jpg"
                         },{
-                            copyId: 1,
+                            copyId: 27104067,
                             year: 2005,
                             version: "H0W1062819",
                             bank: "中国人民银行",
@@ -198,7 +198,7 @@ const rmb5Data = {
                     varietyName: "2020年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 15343311,
                             year: 2020,
                             version: "FB00016111",
                             bank: "中国人民银行",
@@ -215,7 +215,7 @@ const rmb5Data = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/rmb5/FB00016111-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb5/FB00016111-2.jpg"
                         },{
-                            copyId: 1,
+                            copyId: 22368829,
                             year: 2020,
                             version: "AH58603088",
                             bank: "中国人民银行",

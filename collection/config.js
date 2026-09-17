@@ -121,7 +121,7 @@ const categoryTree = [
         children: null
     },{
         id: 'packaging_label',
-        name: '纸币包装标签',
+        name: '纸币包装封签',
         children: [
             { id: 'brick_label', name: '捆签', dataKey: 'brick_labelData', dataFile: '../notecollection/data/brick_label.js' },
             { id: 'packet_label', name: '封包单', dataKey: 'packet_labelData', dataFile: '../notecollection/data/packet_label.js' },

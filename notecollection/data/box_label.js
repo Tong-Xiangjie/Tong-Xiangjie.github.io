@@ -2,7 +2,7 @@
 const box_labelData = {
     name: "封箱单",
     icon: null,
-    desc: "box Label",
+    desc: "Box Label",
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行方" },
@@ -19,7 +19,7 @@ const box_labelData = {
     ],
     series: [
         {
-            seriesName: "纪念钞封箱单",
+            seriesName: "纪念钞",
             year: "",
             varieties: [
                 {

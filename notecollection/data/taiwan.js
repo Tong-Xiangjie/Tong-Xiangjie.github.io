@@ -24,7 +24,7 @@ const taiwanData = {
                     varietyName: "第一批 中华民国三十五年（1946年） 1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104086,
                             year: 1946,
                             version: "AU972508",
                             bank: "台湾银行",
@@ -41,7 +41,7 @@ const taiwanData = {
                     varietyName: "第一批 中华民国三十五年（1946年） 10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104087,
                             year: 1946,
                             version: "CA609471",
                             bank: "台湾银行",
@@ -64,7 +64,7 @@ const taiwanData = {
                     varietyName: "中华民国五十年（1961年） 1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104074,
                             year: 1961,
                             version: "H310826F",
                             bank: "台湾银行",
@@ -77,7 +77,7 @@ const taiwanData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/H310826F-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/H310826F-2.jpg"
                         },{
-                            copyId: 1,
+                            copyId: 27104075,
                             year: 1961,
                             version: "K435010S",
                             bank: "台湾银行",
@@ -90,7 +90,7 @@ const taiwanData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/K435010S-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/K435010S-2.jpg"
                         },{
-                            copyId: 1,
+                            copyId: 27104076,
                             year: 1961,
                             version: "G823517F",
                             bank: "台湾银行",
@@ -108,7 +108,7 @@ const taiwanData = {
                     varietyName: "中华民国五十年（1961年） 5元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104077,
                             year: 1961,
                             version: "N482792K",
                             bank: "台湾银行",
@@ -121,7 +121,7 @@ const taiwanData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/N482792K-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/N482792K-2.jpg"
                         },{
-                            copyId: 1,
+                            copyId: 27104078,
                             year: 1961,
                             version: "V136765K",
                             bank: "台湾银行",
@@ -139,7 +139,7 @@ const taiwanData = {
                     varietyName: "中华民国四十九年（1960年） 红10元 中华民国五十七年（1968年）发行",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104079,
                             year: 1968,
                             version: "Z565788R",
                             bank: "台湾银行",
@@ -163,7 +163,7 @@ const taiwanData = {
                     varietyName: "中华民国五十八年（1969年） 10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104080,
                             year: 1969,
                             version: "E348986F",
                             bank: "台湾银行",
@@ -181,7 +181,7 @@ const taiwanData = {
                     varietyName: "中华民国五十九年（1970年） 50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104082,
                             year: 1970,
                             version: "K606546R",
                             bank: "台湾银行",
@@ -204,7 +204,7 @@ const taiwanData = {
                     varietyName: "中华民国六十五年（1976年） 10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626181,
                             year: 1976,
                             version: "SW377511AN",
                             bank: "台湾银行",
@@ -221,7 +221,7 @@ const taiwanData = {
                     varietyName: "中华民国六十一年（1972年） 50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104083,
                             year: 1972,
                             version: "H296773C",
                             bank: "台湾银行",
@@ -238,7 +238,7 @@ const taiwanData = {
                     varietyName: "中华民国六十一年（1972年） 100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626182,
                             year: 1972,
                             version: "X587444W",
                             bank: "台湾银行",
@@ -261,7 +261,7 @@ const taiwanData = {
                     varietyName: "中华民国八十九年（2000年） 100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26011879,
                             year: 2000,
                             version: "XC501317PW",
                             bank: "中央银行",
@@ -273,7 +273,7 @@ const taiwanData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/XC501317PW-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/XC501317PW-2.jpg"
                         },{
-                            copyId: 2,
+                            copyId: 27104084,
                             year: 2000,
                             version: "BB494156NZ",
                             bank: "中央银行",
@@ -290,7 +290,7 @@ const taiwanData = {
                     varietyName: "中华民国九十年（2001年） 200元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26288335,
                             year: 2001,
                             version: "EP007165YC",
                             bank: "中央银行",
@@ -307,7 +307,7 @@ const taiwanData = {
                     varietyName: "中华民国八十九年（2000年） 安一版 500元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626176,
                             year: 2000,
                             version: "JP677873VB",
                             bank: "中央银行",
@@ -324,7 +324,7 @@ const taiwanData = {
                     varietyName: "中华民国九十三年（2004年） 安二版 500元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626177,
                             year: 2004,
                             version: "HN723051XB",
                             bank: "中央银行",
@@ -341,7 +341,7 @@ const taiwanData = {
                     varietyName: "中华民国八十八年（1999年） 安一版 1000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626179,
                             year: 1999,
                             version: "BR727635YJ",
                             bank: "中央银行",
@@ -358,7 +358,7 @@ const taiwanData = {
                     varietyName: "中华民国九十三年（2004年） 安二版 1000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626178,
                             year: 2004,
                             version: "WJ052676RZ",
                             bank: "中央银行",
@@ -375,7 +375,7 @@ const taiwanData = {
                     varietyName: "中华民国九十年（2001年） 2000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626180,
                             year: 2001,
                             version: "BQ899363YE",
                             bank: "中央银行",
@@ -398,7 +398,7 @@ const taiwanData = {
                     varietyName: "中华民国三十八年（1949年） 1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104072,
                             year: 1949,
                             version: "A779086K",
                             bank: "台湾银行",
@@ -422,7 +422,7 @@ const taiwanData = {
                     varietyName: "中华民国四十三年（1954年） 1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104073,
                             year: 1949,
                             version: "A795950C",
                             bank: "台湾银行",
