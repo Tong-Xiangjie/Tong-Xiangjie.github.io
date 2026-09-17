@@ -45,7 +45,14 @@ const has = (name) => argv.includes('--' + name);
 //   ~0.9 = 同一词群（第 4 层相同）→ 近义词
 //   0.5  = 同一原子词群但标记 '#'  → "同类词"，组可以大到上百个（奥运 那组有 119 个
 //          「…会」，全是会议名），放进来会把结果冲垮，所以阈值 0.9 正好把它们挡在外面
-const THRESHOLD = parseFloat(flag('threshold', '0.9'));
+//
+// ★ 默认取 1.0（纯同义词），这是**发布口径**，别再改回 0.9：
+//   CI 跑的就是本脚本的默认值（workflow 不传 --threshold），默认值一旦和生产口径
+//   不一致，机器人就会把另一版表提交上去 —— 这坑真踩过一次（2026-09-17：
+//   默认 0.9 而仓库里放的是 1.0，workflow 一跑就把表换成了 0.9 那版）。
+//   实测 0.9 与 1.0 在五用例上的结果**完全相同**，但 0.9 多 10,300 条约 229 KB、
+//   且带回「大会」「生命线」这类词群兄弟的噪音，所以 1.0 更划算。
+const THRESHOLD = parseFloat(flag('threshold', '1'));
 const MAX_SYNONYMS_PER_TERM = parseInt(flag('max', '8'), 10);
 const MIN_LEN = 2;
 const MAX_LEN = 8;              // 词林里最长的是「奥林匹克运动会」这类，8 字足够
