@@ -99,10 +99,24 @@ function collectCorpus() {
   return files.map(f => {
     let raw = '';
     try { raw = readFileSync(f, 'utf8'); } catch { }
+    const text = stripHtmlLike(raw);
     return {
       file: path.relative(ROOT, f).replace(/\\/g, '/'),
-      text: stripHtmlLike(raw),
-      hash: createHash('sha1').update(raw).digest('hex').slice(0, 16)
+      text,
+      // ★ 指纹算在"真正决定词表的文本"上（去 HTML 标签后的正文、去掉全部空白），
+      //   **不是**原始字节。原因是原始字节在不同平台/不同检出配置下根本不一致：
+      //   本仓库里一部分 readme 以 CRLF 存、一部分以 LF 存，而 Windows 的
+      //   core.autocrlf 又会在检出时把 LF 那批转成 CRLF。于是
+      //     · 仓库存 CRLF 的文件：工作区字节 == 仓库字节
+      //     · 仓库存 LF   的文件：工作区字节 == 仓库字节再转 CRLF
+      //   任何"单一换行归一"都无法同时对上这两种情况（实测过：CRLF→LF 归一
+      //   后本地仍得到 ccb28ab1…，而 CI 是 138e627e…）。
+      //   这个指纹参与"内容逐字没变就不重写文件"的比较（见下面 strip()），
+      //   跨平台不一致会让 CI **每一次**都认为表变了 → 重写表 → 刷新 generatedAt
+      //   → 把全部访客的缓存冲掉，机器人还会反复提交、来回换表。
+      //   去掉空白后换行差异消失，且词表本来就是从"纯汉字 n-gram"抽的，
+      //   空白对结果毫无影响 —— 所以这才是与产物真正对应的指纹。
+      hash: createHash('sha1').update(text.replace(/\s+/g, '')).digest('hex').slice(0, 16)
     };
   }).filter(a => a.text.trim());
 }
