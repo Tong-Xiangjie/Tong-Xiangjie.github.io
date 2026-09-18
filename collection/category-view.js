@@ -685,7 +685,7 @@ function beginModalBackdrop() {
 //   但保留当前内联 transform，好让下一半从同一个压扁状态接着展开。
 // hide = true：顺手把浮层设为 display:none。翻面动画全程用它 ——
 //   浮层此时不承担任何可见职责（主图自己就能完成压扁/展开），
-//   而它的 CSS 基态是个 6% 宽、0.25 不透明的盒子，留着就会在屏幕中间
+//   而它的 CSS 基态是个极窄（--flip-collapse）且 0.25 不透明的盒子，留着就会在屏幕中间
 //   画出一条细竖带（实测残留 526 像素）。
 // ★ 例外：浮层带着 .backdrop-layer 时直接返回 —— 那说明它正被当作
 //   "原图解码完成前的垫底缩略图"用，是画面本身，不能清。
@@ -866,6 +866,12 @@ function restoreModalBackdrop() {
 //   gridThumbForUrl()。停在反面关闭时会缩回反面自己的格子，飞行终点与落点格子里
 //   的缩略图是同一张图，能无缝接上；只有当那个格子找不到/被滚出视口时，才回退到这里。
 const MODAL_FLIP_HALF_MS = 90;
+
+// 左右滑动翻面的判据（只在"触摸 + 未放大 + 双面图"时才用得上，见 handleSwipeFlip）
+const SWIPE_MIN_DIST = 60;          // 最小横向位移（px）—— 低于这个算手抖
+const SWIPE_MIN_VELOCITY = 0.25;    // 最小横向速度（px/ms）—— 慢慢拖是"拖动查看"
+const SWIPE_HORIZONTAL_BIAS = 1.5;  // |dx| 至少是 |dy| 的多少倍，才算"横向滑动"
+
 function modalFlip(dir) {
     if (!currentModalImg2) return false;
     const modal = document.getElementById('imageModal');
@@ -891,8 +897,11 @@ function modalFlip(dir) {
         clearModalFlipLayer(true);
         modalImg.classList.remove('flip-out', 'flip-in');
         // 保留"压扁"终态，好让下一半从同一个形状接着展开
+        // ★ 值必须和 CSS 里 modalFlipOut 的 to / modalFlipIn 的 from 完全一致，
+        //   否则"收起来的位置"和"展开的起点"对不上，中间会闪一下。
+        //   所以直接引用 CSS 变量 --flip-collapse，不在 JS 里写死数字。
         modalImg.style.animation = 'none';
-        modalImg.style.transform = 'scale3d(0.06, 1, 1)';
+        modalImg.style.transform = 'scale3d(var(--flip-collapse), 1, 1)';
         modalImg.style.opacity = '0.25';
         // ★ modalFlipBusy 必须一直保持到"第二半的画面就位"为止，不能在这里先清掉。
         //   loadModalImage 末尾有一条"命中缓存 ⇒ complete 同步为真 ⇒ 立刻
@@ -944,8 +953,8 @@ function modalFlip(dir) {
     //   保留浮层元素本身：关闭/生长动画的收尾仍会调用 clearModalFlipLayer()，
     //   那个函数会清掉它的 src 与内联样式。
     //   还必须在翻面期间让它**彻底不渲染**：它的 CSS 基态是
-    //   transform: scale3d(0.06,1,1) + opacity: .25 —— 即使没有 src，
-    //   一个 6% 宽、半透明的盒子仍会在屏幕中间画出一条细竖带
+    //   transform: scale3d(var(--flip-collapse),1,1) + opacity: .25 —— 即使没有 src，
+    //   一个极窄的半透明盒子仍会在屏幕中间画出一条细竖带
     //   （实测残留 526 像素、最大色差 101）。display:none 才是真正的"不画"。
     clearModalFlipLayer(true, true);
     modalImg.classList.remove('flip-in');
@@ -1171,6 +1180,8 @@ function initPinchZoom() {
     const pan = new Hammer.Pan();
     hammerManager.add([pinch, pan]);
     let lastScale = 1, lastX = 0, lastY = 0;
+    // 弹窗本体：滑动翻面要判断"弹窗是不是真的开着"（见下面的 handleSwipeFlip）
+    const modalEl = document.getElementById('imageModal');
 
     function resetTransform() {
         currentScale = 1; currentX = 0; currentY = 0;
@@ -1223,9 +1234,49 @@ function initPinchZoom() {
         e.preventDefault();
     });
     hammerManager.on('panend', function(e) {
+        // ★ 先判"滑动翻面"，再走缩放收口：前者不依赖 modalFullReady
+        //   （原图没解码完也能翻，和左右两个按钮的行为一致），后者依赖。
+        if (handleSwipeFlip(e)) return;
         if (!modalFullReady) return;
         clampTransform();
     });
+
+    // ---- 触摸：左右滑动翻面 ----
+    // ★ 为什么不用 Hammer.Swipe，而是在 panend 里自己判：
+    //   实测它在这个组合里**永远不触发**。用 CDP 派发真实触摸并插桩的结果是：
+    //     Hammer 收到了 input(pointerType=touch) → panstart(dx-19,vx-0.61)
+    //     → panmove×7 → panend(dx-150,vx-0.58)，一切正常，
+    //     但 swipe / swipeleft / swiperight 一次都没有。
+    //   （Hammer 2.0.8 的 Swipe 与 Pan 同挂一个 Manager 时的状态机行为，
+    //     与其去猜，不如直接用已经在稳定工作的 pan 管道自己判 ——
+    //     判据还能写得更明白：位移 + 横向占比 + 速度。）
+    //   触发条件（缺一不可）：
+    //     · 弹窗确实开着 —— 关闭淡出期间 modal-show 已经被摘掉（见 closeModal），
+    //       那时候再滑不该又翻一次。
+    //     · 是触摸。桌面上横向拖动归"拖动查看"，而且鼠标拖完浏览器会补发一次
+    //       click，跟"点哪儿都关"纠缠不清；桌面继续用左右两个按钮就好。
+    //       触屏笔记本走的是触摸分支，照样能滑。
+    //     · 当前没放大 —— 放大后横向拖动是"看图片的另一部分"，不是翻面。
+    //     · 这张图确实有另一面 —— 单面图无面可翻，滑了也不该有反应。
+    //     · 没在翻面中 —— 连滑不叠加动画。
+    //     · 位移够 + 明显偏横向 + 够快（慢慢拖过去是"拖动查看"，不是"翻页"）。
+    function handleSwipeFlip(e) {
+        if (!modalEl || !modalEl.classList.contains('modal-show')) return false;
+        if (e.pointerType !== 'touch') return false;
+        if (currentScale > 1) return false;
+        if (!currentModalImg2) return false;
+        if (modalFlipBusy) return false;
+
+        const dx = e.deltaX, dy = e.deltaY;
+        if (Math.abs(dx) < SWIPE_MIN_DIST) return false;
+        if (Math.abs(dx) < Math.abs(dy) * SWIPE_HORIZONTAL_BIAS) return false;
+        if (Math.abs(e.velocityX) < SWIPE_MIN_VELOCITY) return false;
+
+        // 手指向左 → 看另一面（"下一页"的语义）；向右 → 反过来。
+        // 只有正反两面，所以方向只影响语义，动画本身是对称的。
+        modalFlip(dx < 0 ? 1 : -1);
+        return true;
+    }
 
     // ---- 桌面端：滚轮缩放 ----
     // Hammer 的 pinch 只在触摸双指时生效，鼠标本身没有缩放手段，于是灯箱在桌面上

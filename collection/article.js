@@ -102,9 +102,11 @@ function loadArticleSynonyms() {
         entries,
         byKey
       };
+      articleExpansionsCache.clear();   // 表换了，记忆化结果作废
     } catch (e) {
       console.warn('[article] 同义词表加载失败，模糊搜索退化为纯词法匹配：', e && e.message);
       articleSynonymTable = null;
+      articleExpansionsCache.clear();
     }
     return articleSynonymTable;
   })();
@@ -124,11 +126,19 @@ function loadArticleSynonyms() {
 //   · 表键包含查询词：搜「人民银行」也能用上「中国人民银行」的扩展
 // 字形重叠是允许的 ——「编号/号码」「储备/中央储备银行」本来就共用汉字，
 // 早先加的「排除字形重叠」过滤器是矫枉过正，已废弃。
+// ★ 记忆化。下面 ② 那段"包含命中补齐"要遍历整张表（一万多条键），
+//   而多关键词分词会对**每个候选子串**各问一次（一次搜索几十次），
+//   不缓存的话边打边搜会明显卡顿。表在加载完成/失败时清一次缓存（见 loadArticleSynonyms）。
+//   ⚠ 返回的是**共享数组**，调用方只读、不要原地修改（现有调用方都先 filter/map，安全）。
+let articleExpansionsCache = new Map();
+
 function getArticleExpansions(keyword) {
   if (!articleFuzzyOn()) return [];
   if (!articleSynonymTable || !articleSynonymTable.terms) return [];
   const kw = (keyword || '').trim().toLowerCase();
   if (!kw) return [];
+  const cached = articleExpansionsCache.get(kw);
+  if (cached) return cached;
 
   const out = [];
   const seen = new Set([kw]);
@@ -168,6 +178,7 @@ function getArticleExpansions(keyword) {
       }
     }
   }
+  articleExpansionsCache.set(kw, out);
   return out;
 }
 
@@ -785,6 +796,231 @@ function articleRelevanceScore(title, body, kw, expansions) {
   return { score, hits, hitInTitle };
 }
 
+// ========== 多关键词：无空格分词 + 兜底阶梯 ==========
+// ★ 用户要求：「尽量不要空格就能搜，例如输入澳门荷花也可以搜出来」，
+//   并且「输入澳门荷花666 也要能搜出来，因为 666 是无关的」。
+//
+// 核心设计（**零新增数据文件**，词表就是语料本身）：
+//   一个候选词能不能成立，就看它在当前范围（标题/全文）里命中几篇 —— df。
+//   候选词只有两类：
+//     · 汉字子串，2..8 字
+//     · **完整的非汉字连续段**（"2002" 整段算一个候选，不允许切成 "20"+"02"）
+//       这一条是修掉"数字被乱切"的关键。
+//   然后用 DP 在查询串上选一条"最像人话"的切分：长度权重压倒性优先
+//   （偏好少而长的词），df 做微调，切不动的字符直接忽略。
+//
+// ★★ 最重要的性质：整条逻辑**只在整串搜索 0 条时才介入**（见 getFilteredArticles）。
+//    所以现在能用的搜索一次都不会被碰到 —— 功能只可能"多搜出来"，不可能变差。
+const ARTICLE_SEG_MAX_HAN = 8;      // 候选汉字词最长字数
+const ARTICLE_SEG_SKIP = 0.6;       // 忽略一个字符的代价
+const ARTICLE_SEG_LEN_W = 10;       // 长度权重（压倒性优先：偏好"少而长"的词）
+const ARTICLE_SEG_DF_W = 0.5;       // 语料支撑权重（微调）
+const ARTICLE_SEG_MIN_NONHAN = 2;   // 非汉字连续段至少这么长才算候选
+
+function articleIsHanChar(c) {
+  return /[\u4e00-\u9fa5]/.test(c);
+}
+
+// 这个词在语料里"算不算命中" —— 与搜索口径一致：字面命中，或（模糊开时）同义扩展命中。
+// hay 是预先把 title/body 转小写的数组（避免每个候选词都对整篇正文重复 toLowerCase）。
+function articleTermHitsHay(h, kwLower, expsLower) {
+  if (h.title.includes(kwLower) || h.body.includes(kwLower)) return true;
+  for (const e of expsLower) {
+    if (h.title.includes(e) || h.body.includes(e)) return true;
+  }
+  return false;
+}
+
+// 把查询串切成"能在语料里命中的词"。返回 [{ t, w, han }]。
+function articleSegmentQuery(q, hay) {
+  const n = q.length;
+  if (!n) return [];
+
+  const dfCache = new Map();
+  const dfOf = (t) => {
+    const k = t.toLowerCase();
+    if (dfCache.has(k)) return dfCache.get(k);
+    const exps = getArticleExpansions(t).map(e => e.toLowerCase()).filter(e => e !== k);
+    let count = 0;
+    for (const h of hay) if (articleTermHitsHay(h, k, exps)) count++;
+    dfCache.set(k, count);
+    return count;
+  };
+  const weightOf = (t, df) => ARTICLE_SEG_LEN_W * (t.length - 1) + ARTICLE_SEG_DF_W * Math.log2(1 + df);
+
+  // 位置 i 能取到的候选词
+  const candidatesAt = (i) => {
+    const out = [];
+    if (articleIsHanChar(q[i])) {
+      for (let len = 2; len <= ARTICLE_SEG_MAX_HAN && i + len <= n; len++) {
+        const t = q.slice(i, i + len);
+        if (![...t].every(articleIsHanChar)) break;   // 汉字词不跨到非汉字
+        const df = dfOf(t);
+        if (df > 0) out.push({ t, df, han: true });
+      }
+    } else {
+      // ★ 非汉字：只允许在**一段连续非汉字的开头**取候选，而且整段算一个词。
+      //   两条都是必须的：
+      //     · 整段算一个词 → "2002" 不会被切成 "20"+"02"
+      //     · 只从段首起头 → "澳门荷花666" 不会在中间起出 "66" 这种半截词
+      //       （否则 "66" 会混进词表，万一某篇正好同时含澳门/荷花/66，
+      //         第 ① 步就会只返回那一篇，反而把结果收窄了）
+      if (i > 0 && !articleIsHanChar(q[i - 1])) return out;
+      let len = 0;
+      while (i + len < n && !articleIsHanChar(q[i + len])) len++;
+      if (len >= ARTICLE_SEG_MIN_NONHAN) {
+        const t = q.slice(i, i + len);
+        const df = dfOf(t);
+        if (df > 0) out.push({ t, df, han: false });
+      }
+    }
+    return out;
+  };
+
+  const best = new Array(n + 1).fill(null);
+  best[0] = { score: 0, terms: [] };
+  for (let i = 0; i < n; i++) {
+    const cur = best[i];
+    if (!cur) continue;
+    // ① 忽略一个字符（匹配不到的部分，比如 666 这种尾巴）
+    const skip = { score: cur.score - ARTICLE_SEG_SKIP, terms: cur.terms };
+    if (!best[i + 1] || skip.score > best[i + 1].score) best[i + 1] = skip;
+    // ② 取一个候选词
+    for (const c of candidatesAt(i)) {
+      const w = weightOf(c.t, c.df);
+      const cand = { score: cur.score + w, terms: cur.terms.concat([{ t: c.t, w, han: c.han }]) };
+      const at = i + c.t.length;
+      if (!best[at] || cand.score > best[at].score) best[at] = cand;
+    }
+  }
+  const r = best[n];
+  if (!r) return [];
+  // 同一个词被切出两次时只留一个
+  const seen = new Set(), out = [];
+  for (const x of r.terms) {
+    const k = x.t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(x);
+  }
+  return out;
+}
+
+// 用一组词去搜。requireAll=true 是 AND（每个词都要命中），false 是 OR。
+// ★ terms 长度为 1 时，行为与改动前的整串搜索**逐字节一致**：
+//   matchType / matchedTerms / matchedField / score 的取法全部照旧，
+//   排序里多出来的 covered 在单词时恒为 1，不影响顺序。
+function articleSearchWithTerms(articles, terms, useBody, ranked, requireAll) {
+  const prepared = terms.map(t => {
+    const kw = t.toLowerCase();
+    return { kw, exps: getArticleExpansions(t).filter(e => e.toLowerCase() !== kw) };
+  });
+
+  const out = [];
+  for (const a of articles) {
+    const title = (a.title || '').toLowerCase();
+    const body = useBody ? (articlePlainTextCache[a.contentPath] || '').toLowerCase() : '';
+
+    let score = 0, covered = 0, hitInTitle = false, literalAny = false, literalInTitle = false;
+    const hits = [];
+    // ★ 高亮用：每个真正命中的词，连同"是精准命中还是同义命中"一起记下来，
+    //   这样"澳门荷花666"这种查询也能把「澳门」「荷花」按精准色高亮出来。
+    const hl = [];
+
+    for (const p of prepared) {
+      const litT = title.includes(p.kw);
+      const litB = useBody && body.includes(p.kw);
+      const r = articleRelevanceScore(title, body, p.kw, p.exps);
+      if (!litT && !litB && !r.hits.length) continue;
+
+      covered++;
+      score += r.score;
+      if (litT || litB) {
+        literalAny = true;
+        if (litT) literalInTitle = true;
+        hl.push({ t: p.kw, exact: true });
+      } else {
+        for (const h of r.hits) hl.push({ t: h, exact: false });
+      }
+      if (litT || r.hitInTitle) hitInTitle = true;
+      for (const h of r.hits) hits.push(h);
+    }
+
+    if (!covered) continue;
+    if (requireAll && covered < prepared.length) continue;
+
+    const isLiteral = literalAny;
+    out.push({
+      article: a,
+      matchType: isLiteral ? 'literal' : 'expanded',
+      matchedTerms: isLiteral ? [] : [...new Set(hits)],
+      matchedField: isLiteral ? (literalInTitle ? 'title' : 'body') : (hitInTitle ? 'title' : 'body'),
+      score: ranked ? score : undefined,
+      covered,
+      highlightTerms: hl
+    });
+  }
+
+  // 模糊开：**只按相关性**排。多词时先按"命中了几个词"（覆盖率），再按相关性；
+  // 分数并列时用命中词数、再退到默认顺序 —— 只是为了结果稳定可复现。
+  if (ranked) {
+    out.sort((x, y) => (y.covered - x.covered)
+      || (y.score - x.score)
+      || (y.matchedTerms.length - x.matchedTerms.length)
+      || (collectedArticles.indexOf(x.article) - collectedArticles.indexOf(y.article)));
+  }
+
+  return out;
+}
+
+// ★ 兜底阶梯。**只在整串搜索 0 条时**才走这里。
+//   每一步都先试更精确的，所以结果只可能变好：
+//     ① 全部词 AND                → 最精确（"澳门荷花" → 澳门 AND 荷花）
+//     ② 丢掉全部非汉字词再 AND     → ★ "澳门荷花666" / "生肖钞999" 的尾巴在这里被丢掉
+//     ③ 按权重从低到高逐个丢汉字词再 AND
+//     ④ 都不行 → OR 全部词（覆盖率 + 相关性排序）
+function articleSegmentedSearch(articles, useBody, ranked) {
+  const q = (articleSearchKeyword || '').trim();
+  if (!q) return null;
+
+  // 预算一次小写正文，供 df 计算复用（否则每个候选词都要对整篇正文 toLowerCase）
+  const hay = articles.map(a => ({
+    title: (a.title || '').toLowerCase(),
+    body: useBody ? (articlePlainTextCache[a.contentPath] || '').toLowerCase() : ''
+  }));
+
+  const seg = articleSegmentQuery(q, hay);
+  if (!seg.length) return null;
+
+  const and = (list) => articleSearchWithTerms(articles, list.map(x => x.t), useBody, ranked, true);
+
+  // ① 全部词 AND
+  let r = and(seg);
+  if (r.length) return r;
+
+  const han = seg.filter(x => x.han);
+  const nonHan = seg.filter(x => !x.han);
+
+  // ② 丢掉全部非汉字词再 AND
+  if (nonHan.length && han.length) {
+    r = and(han);
+    if (r.length) return r;
+  }
+
+  // ③ 按权重从低到高逐个丢词再 AND（丢到只剩一个为止）
+  const cur = (han.length ? han : seg).slice();
+  while (cur.length > 1) {
+    let low = 0;
+    for (let i = 1; i < cur.length; i++) if (cur[i].w < cur[low].w) low = i;
+    cur.splice(low, 1);
+    r = and(cur);
+    if (r.length) return r;
+  }
+
+  // ④ 兜底：OR 全部词
+  return articleSearchWithTerms(articles, seg.map(x => x.t), useBody, ranked, false);
+}
+
 // entries: getFilteredArticles() 返回的条目数组。
 // ★ 模糊开（条目带 score）→ **单一列表，只按相关性排序**，不分组。
 // ★ 模糊关（条目不谈 score）→ 与改动前**完全一样**：按分类分组、保持默认顺序，
@@ -803,7 +1039,10 @@ function buildArticleFlatList(entries, keyword) {
           keyword,
           matchType: e.matchType,
           matchedTerms: e.matchedTerms,
-          matchedField: e.matchedField
+          matchedField: e.matchedField,
+          // ★ 每个真正命中的词 + "精准还是同义"，供标题/摘要高亮按词上色。
+          //   多关键词（分词兜底）时它和 keyword 不是一个东西，所以必须单独传。
+          highlightTerms: e.highlightTerms
         }
       });
     }
@@ -832,7 +1071,10 @@ function buildArticleFlatList(entries, keyword) {
           keyword,
           matchType: e.matchType,
           matchedTerms: e.matchedTerms,
-          matchedField: e.matchedField
+          matchedField: e.matchedField,
+          // ★ 每个真正命中的词 + "精准还是同义"，供标题/摘要高亮按词上色。
+          //   多关键词（分词兜底）时它和 keyword 不是一个东西，所以必须单独传。
+          highlightTerms: e.highlightTerms
         }
       });
     }
@@ -858,12 +1100,16 @@ function renderArticleItemElement(data) {
   const keyword = data.keyword || '';
   const isExpanded = data.matchType === 'expanded';
   const terms = Array.isArray(data.matchedTerms) ? data.matchedTerms : [];
+  // ★ 高亮用的词表：[{ t, exact }]。由 getFilteredArticles 给出 ——
+  //   单关键词时它就等价于原来的"精准用 keyword、同义用 matchedTerms"，
+  //   多关键词（分词兜底）时 keyword 是"澳门荷花666"这种整串、根本匹配不上，
+  //   所以必须按**实际命中的那几个词**来高亮，且各自带自己的颜色。
+  const hlTerms = Array.isArray(data.highlightTerms) && data.highlightTerms.length ? data.highlightTerms : null;
 
-  // 标题高亮：字面命中高亮查询词（金色）；同义扩展命中高亮**命中的那个同义词**
-  // （同色系浅一档，见 HL_SYNONYM_STYLE），这样用户一眼能看出"为什么这条会出现"
-  // （标题里并没有他打的字）。
-  const titleHtml = (isExpanded && terms.length)
-    ? highlightAny(escapeHtml(article.title), terms, keyword)
+  // 标题高亮：精准命中金色；同义命中同色系浅一档（见 HL_SYNONYM_STYLE），
+  // 这样用户一眼能看出"为什么这条会出现"（标题里并没有他打的字）。
+  const titleHtml = hlTerms
+    ? highlightAny(escapeHtml(article.title), hlTerms, keyword)
     : highlightText(escapeHtml(article.title), keyword);
 
   const pathHtml = article.fullPath ? escapeHtml(article.fullPath.join(' > ')) : '';
@@ -876,22 +1122,23 @@ function renderArticleItemElement(data) {
   //   而且这一行还会随预加载进度忽隐忽现。
   //   现在口径与 getFilteredArticles() 的过滤口径一致：标题模式只认标题，
   //   摘要这一行只在 fulltext 下出现。
-  //   （同义扩展命中沿用同一口径：探针换成"在正文里命中的那个同义词"。）
+  //   （同义/多词命中沿用同一口径：探针换成"在正文里命中的那个词"。）
   if (keyword && articleSearchMode === 'fulltext' && articlePlainTextCache[article.contentPath]) {
     const plain = articlePlainTextCache[article.contentPath];
+    const probes = hlTerms ? hlTerms.map(x => x.t) : terms;
     const probe = isExpanded
-      ? (terms.find(t => plain.toLowerCase().includes(t.toLowerCase())) || '')
+      ? (probes.find(t => t && plain.toLowerCase().includes(t.toLowerCase())) || '')
       : keyword;
     if (probe) {
       const snippet = getContextSnippet(plain, probe);
       if (snippet) {
-        const body = isExpanded ? highlightAny(escapeHtml(snippet), terms, keyword) : highlightText(escapeHtml(snippet), keyword);
+        const body = hlTerms ? highlightAny(escapeHtml(snippet), hlTerms, keyword) : highlightText(escapeHtml(snippet), keyword);
         snippetHtml = `<div class="article-snippet" style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px; padding:2px 6px; background:var(--bg-light); border-radius:3px; border-left:2px solid var(--theme-light); line-height:1.3;">${body}</div>`;
       }
     }
   }
 
-  // ★ 这里原本有一行「同义命中：xxx」的小字，用来解释"这条为什么会出现"。
+  // ★ 这里原本有一行小字，把命中的同义词列出来解释"这条为什么会出现"。
   //   已按用户要求删掉：**不要把实际按什么搜的告诉用户**。
   //   同理，多关键词/分词/放宽这类机制以后也不要加任何说明性文案 ——
   //   列表就只呈现结果本身。
@@ -1189,40 +1436,21 @@ function getFilteredArticles() {
     return articles.map(a => ({ article: a, matchType: 'literal', matchedTerms: [], matchedField: 'title' }));
   }
 
-  const kw = articleSearchKeyword.toLowerCase();
   const useBody = (articleSearchMode === 'fulltext');
-  // 扩展词里剔除与查询词同形的，避免同一条被算两次
-  const expansions = getArticleExpansions(articleSearchKeyword).filter(t => t.toLowerCase() !== kw);
   const ranked = articleFuzzyOn();
 
-  const out = [];
-  for (const a of articles) {
-    const title = (a.title || '').toLowerCase();
-    const body = useBody ? (articlePlainTextCache[a.contentPath] || '').toLowerCase() : '';
+  // 整串搜索 —— 与改动前**逐字节一致**的那条路径（单词、AND 退化为单条件）。
+  let out = articleSearchWithTerms(articles, [articleSearchKeyword], useBody, ranked, true);
 
-    const literalInTitle = title.includes(kw);
-    const literalInBody = useBody && body.includes(kw);
-    const r = articleRelevanceScore(title, body, kw, expansions);
-
-    // 命中与否：查询词本身，或它的同义扩展词（模糊关时 expansions 为空 → 纯字面）
-    if (!literalInTitle && !literalInBody && !r.hits.length) continue;
-
-    const isLiteral = literalInTitle || literalInBody;
-    out.push({
-      article: a,
-      matchType: isLiteral ? 'literal' : 'expanded',
-      matchedTerms: isLiteral ? [] : r.hits,
-      matchedField: isLiteral ? (literalInTitle ? 'title' : 'body') : (r.hitInTitle ? 'title' : 'body'),
-      score: ranked ? r.score : undefined
-    });
-  }
-
-  // 模糊开：**只按相关性**排。分数并列时用命中词数、再退到默认顺序 ——
-  // 只是为了结果稳定可复现，不代表"要求默认顺序"。
-  if (ranked) {
-    out.sort((x, y) => (y.score - x.score)
-      || (y.matchedTerms.length - x.matchedTerms.length)
-      || (collectedArticles.indexOf(x.article) - collectedArticles.indexOf(y.article)));
+  // ★ 兜底阶梯：**只在整串搜索 0 条时**才介入。
+  //   这条判断是整个改动的安全阀：现在能用的搜索一次都不会被碰到，
+  //   功能只可能"多搜出来"，不可能变差。
+  //   用户的两个例子：
+  //     「澳门荷花」    → 切成 澳门 + 荷花，AND → 命中
+  //     「澳门荷花666」 → 666 匹配不到，被当成尾巴丢掉 → 澳门 AND 荷花 → 命中
+  if (!out.length) {
+    const fb = articleSegmentedSearch(articles, useBody, ranked);
+    if (fb && fb.length) out = fb;
   }
 
   return out;
@@ -1316,20 +1544,30 @@ function highlightText(text, keyword) {
   return text.replace(regex, (m) => `<mark class="article-hl-exact" style="${HL_EXACT_STYLE}">${m}</mark>`);
 }
 
-// 一次高亮多个词（同义扩展命中时用：标题里出现的是同义词，不是用户打的查询词）。
+// 一次高亮多个词（同义 / 多关键词命中时用：标题里出现的不是用户打的整串）。
 // 长的排前面，避免「中国人民银行」被「银行」先切碎。
+//
+// terms 支持两种元素：
+//   · 字符串        —— 是否用精准色由"它是否等于 keyword"自动判定（原来的用法）
+//   · { t, exact }  —— 显式指定颜色。多关键词时用户打的是「澳门荷花666」这种整串，
+//                      实际命中的是「澳门」「荷花」两个词，靠字符串比较判不出精准，
+//                      必须由 getFilteredArticles 逐个标好。
 function highlightAny(text, terms, keyword) {
   if (!text || !terms || !terms.length) return text;
   const kwLower = (keyword || '').toLowerCase();
-  const escaped = terms
-    .filter(t => typeof t === 'string' && t)
-    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .sort((a, b) => b.length - a.length);
-  if (!escaped.length) return text;
-  const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
-  // 命中的那个词若恰好就是用户打的原词，仍然用精准色（不因为它落在扩展列表里就被降级）
+  const colorOf = new Map();     // 小写词 → 是否精准色
+  for (const x of terms) {
+    const t = (typeof x === 'string') ? x : (x && x.t);
+    if (typeof t !== 'string' || !t) continue;
+    const k = t.toLowerCase();
+    if (colorOf.has(k)) continue;
+    colorOf.set(k, (typeof x === 'string') ? !!(kwLower && k === kwLower) : !!x.exact);
+  }
+  const keys = [...colorOf.keys()].sort((a, b) => b.length - a.length);
+  if (!keys.length) return text;
+  const regex = new RegExp('(' + keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
   return text.replace(regex, (m) => {
-    const isExact = kwLower && m.toLowerCase() === kwLower;
+    const isExact = colorOf.get(m.toLowerCase());
     return isExact
       ? `<mark class="article-hl-exact" style="${HL_EXACT_STYLE}">${m}</mark>`
       : `<mark class="article-hl-synonym" style="${HL_SYNONYM_STYLE}">${m}</mark>`;

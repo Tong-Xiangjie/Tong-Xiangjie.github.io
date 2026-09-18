@@ -902,7 +902,18 @@ body {
      前半 90ms：当前面 scaleX 1→0，新面把 src 换好并保持压扁隐藏
      后半 90ms：新面 scaleX 0→1
    合计 180ms —— 比共享元素飞行（320ms）短，符合"轻量二次操作"的节奏。 */
+/* ★ 翻面"压扁"终态的宽度比例 —— **唯一来源**。
+   翻面动画有四个地方要写同一个值：CSS 基态、modalFlipOut 的 to、
+   modalFlipIn 的 from、以及 JS 在前后半之间钉住终态用的内联 transform。
+   四处各写一遍数字，改一处漏一处就会让"收起来的位置"和"展开的起点"对不上，
+   中间闪一下。所以抽成变量，JS 那边也直接引用 var()。
+
+   取值：0.004（万分之四）。原因是用户反馈——原先的 0.06 在一半处会留下一根
+   6% 宽、整幅高的窄条，看起来像"一个细长的长方形"，而不是"纸币转到了侧面"。
+   0.004 在 400px 宽的屏上约 1.6px，配合 0.25 不透明度基本不可见，
+   也就真的像翻到侧面了。想调就改这一个数。 */
 .modal-img, .modal-img-overlay {
+    --flip-collapse: 0.004;
     transform-origin: center center;
     backface-visibility: hidden;
 }
@@ -914,7 +925,7 @@ body {
             原图就绪后由主图淡入盖住 → 没有"低清直接跳高清"的硬切。
          2. 翻面动画的旧面（历史用途）—— 现已停用，见 category-view.js 的 modalFlip()。
        基态（下方 transform/opacity）是给翻面 keyframes 当插值起点用的静默态：
-       没有 src 时它什么都不画，但**仍会占一个 6% 宽、0.25 不透明的盒子**，
+       没有 src 时它什么都不画，但**仍会占一个 --flip-collapse 宽（0.4%）、0.25 不透明的盒子**，
        所以不用它时必须 display:none（clearModalFlipLayer 的 hide 参数负责）。 */
     position: absolute;
     left: 0;
@@ -931,7 +942,7 @@ body {
     object-fit: contain;
     pointer-events: none;
     z-index: 2;
-    transform: scale3d(0.06, 1, 1);
+    transform: scale3d(var(--flip-collapse), 1, 1);
     opacity: 0.25;
 }
 /* 当「垫底缩略图层」用时：满幅、不透明、无压缩，并且**压在主图下面**，
@@ -965,10 +976,10 @@ body {
 }
 @keyframes modalFlipOut {
     from { transform: scale3d(1, 1, 1); opacity: 1; }
-    to   { transform: scale3d(0.06, 1, 1); opacity: 0.25; }
+    to   { transform: scale3d(var(--flip-collapse), 1, 1); opacity: 0.25; }
 }
 @keyframes modalFlipIn {
-    from { transform: scale3d(0.06, 1, 1); opacity: 0.25; }
+    from { transform: scale3d(var(--flip-collapse), 1, 1); opacity: 0.25; }
     to   { transform: scale3d(1, 1, 1); opacity: 1; }
 }
 /* 翻面动画进行中：把实时缩放（Hammer / 滚轮写在 #imageContainer 上的 transform）
