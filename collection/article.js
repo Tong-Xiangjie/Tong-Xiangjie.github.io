@@ -859,10 +859,11 @@ function renderArticleItemElement(data) {
   const isExpanded = data.matchType === 'expanded';
   const terms = Array.isArray(data.matchedTerms) ? data.matchedTerms : [];
 
-  // 标题高亮：字面命中高亮查询词；同义扩展命中高亮**命中的那个同义词**，
-  // 这样用户一眼能看出"为什么这条会出现"（标题里并没有他打的字）。
+  // 标题高亮：字面命中高亮查询词（金色）；同义扩展命中高亮**命中的那个同义词**
+  // （同色系浅一档，见 HL_SYNONYM_STYLE），这样用户一眼能看出"为什么这条会出现"
+  // （标题里并没有他打的字）。
   const titleHtml = (isExpanded && terms.length)
-    ? highlightAny(escapeHtml(article.title), terms)
+    ? highlightAny(escapeHtml(article.title), terms, keyword)
     : highlightText(escapeHtml(article.title), keyword);
 
   const pathHtml = article.fullPath ? escapeHtml(article.fullPath.join(' > ')) : '';
@@ -884,19 +885,16 @@ function renderArticleItemElement(data) {
     if (probe) {
       const snippet = getContextSnippet(plain, probe);
       if (snippet) {
-        const body = isExpanded ? highlightAny(escapeHtml(snippet), terms) : highlightText(escapeHtml(snippet), keyword);
+        const body = isExpanded ? highlightAny(escapeHtml(snippet), terms, keyword) : highlightText(escapeHtml(snippet), keyword);
         snippetHtml = `<div class="article-snippet" style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px; padding:2px 6px; background:var(--bg-light); border-radius:3px; border-left:2px solid var(--theme-light); line-height:1.3;">${body}</div>`;
       }
     }
   }
 
-  // 同义扩展命中的条目：加一行小字说明命中了哪个同义词
-  let synonymHtml = '';
-  if (isExpanded && terms.length) {
-    const shown = terms.slice(0, 3).map(t => escapeHtml(t)).join('、');
-    const more = terms.length > 3 ? ` 等${terms.length}个` : '';
-    synonymHtml = `<div class="article-synonym-hit" style="font-size:0.68rem; color:var(--text-secondary); margin-top:1px;">同义命中：${shown}${more}</div>`;
-  }
+  // ★ 这里原本有一行「同义命中：xxx」的小字，用来解释"这条为什么会出现"。
+  //   已按用户要求删掉：**不要把实际按什么搜的告诉用户**。
+  //   同理，多关键词/分词/放宽这类机制以后也不要加任何说明性文案 ——
+  //   列表就只呈现结果本身。
 
   const idx = collectedArticles.indexOf(article);
 
@@ -906,7 +904,6 @@ function renderArticleItemElement(data) {
     <div class="info" style="flex: 1 1 0; min-width: 0; overflow: hidden; line-height:1.3;">
       <div class="name" style="font-weight: bold; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin:0;">${titleHtml}</div>
       <div class="article-category" style="font-size:0.7rem; color:var(--text-secondary); margin:0;">${pathHtml}</div>
-      ${synonymHtml}
       ${snippetHtml}
     </div>
     <div class="index-num" style="flex-shrink: 0; margin-left: auto; padding-left: 6px; font-size: 0.65rem; color: var(--text-secondary); text-align: right; line-height:1;">#${idx + 1}</div>
@@ -1302,24 +1299,41 @@ function getContextSnippet(plainText, keyword) {
   return snippet;
 }
 
+// ★ 高亮的两种颜色。
+//   用户要求：非精准（同义）命中的高亮要能区分出来，但"不要太大的视觉差异"。
+//   所以只用**同一色系里更浅的一档**，形状、内边距、字色完全一致 ——
+//   远看是一类东西，近看能分辨。
+//   精准命中 = 金色（原样未动）；同义命中 = 同色系浅一档。
+//   另挂 class 作为钩子，方便验收脚本分别数出两类高亮各有几个。
+const HL_EXACT_STYLE = 'background:#ffd700;padding:0 2px;border-radius:2px;color:#000;';
+const HL_SYNONYM_STYLE = 'background:#ffe9a0;padding:0 2px;border-radius:2px;color:#000;';
+
 function highlightText(text, keyword) {
   if (!keyword) return text;
   const escapedKw = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp('(' + escapedKw + ')', 'gi');
-  return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
+  // 用函数式替换而不是 '$1'：替换串里的 $ 不会被二次解释，更安全
+  return text.replace(regex, (m) => `<mark class="article-hl-exact" style="${HL_EXACT_STYLE}">${m}</mark>`);
 }
 
 // 一次高亮多个词（同义扩展命中时用：标题里出现的是同义词，不是用户打的查询词）。
 // 长的排前面，避免「中国人民银行」被「银行」先切碎。
-function highlightAny(text, terms) {
+function highlightAny(text, terms, keyword) {
   if (!text || !terms || !terms.length) return text;
+  const kwLower = (keyword || '').toLowerCase();
   const escaped = terms
     .filter(t => typeof t === 'string' && t)
     .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .sort((a, b) => b.length - a.length);
   if (!escaped.length) return text;
   const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
-  return text.replace(regex, '<mark style="background:#ffd700;padding:0 2px;border-radius:2px;color:#000;">$1</mark>');
+  // 命中的那个词若恰好就是用户打的原词，仍然用精准色（不因为它落在扩展列表里就被降级）
+  return text.replace(regex, (m) => {
+    const isExact = kwLower && m.toLowerCase() === kwLower;
+    return isExact
+      ? `<mark class="article-hl-exact" style="${HL_EXACT_STYLE}">${m}</mark>`
+      : `<mark class="article-hl-synonym" style="${HL_SYNONYM_STYLE}">${m}</mark>`;
+  });
 }
 
 function openArticleReader(index, restoreScroll) {
