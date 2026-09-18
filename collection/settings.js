@@ -86,7 +86,6 @@ function renderSettingsPage() {
     html += renderSegmented('colorSchemeSeg', '明暗', [
         ['system', '跟随系统'], ['light', '亮'], ['dark', '暗']
     ], getColorSchemeMode(), 'setColorSchemeMode');
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">暗色下强调色不变（改了会让主题色按钮上的白字看不清），底色是按主题色压暗算出来的。</p>`;
     html += `</div>`;
 
     html += `<div class="settings-section">`;
@@ -115,14 +114,14 @@ function renderSettingsPage() {
 
     html += `<div class="saved-colors" id="savedColorsContainer">`;
     if (customColors.length === 0) {
-        html += `<span class="empty-colors-hint">还没攒下自定义颜色～</span>`;
+        html += `<span class="empty-colors-hint">还没添加自定义颜色哦～</span>`;
     } else {
         for (let i = 0; i < customColors.length; i++) {
             const color = customColors[i];
             const active = color === currentTheme ? ' active' : '';
             html += `<div class="saved-color-item">`;
             html += `<div class="color-block${active}" style="background:${color}" data-color="${color}" onclick="setTheme('${color}'); updateSettingsPageTheme('${color}')"></div>`;
-            html += `<button class="remove-color-btn" onclick="removeCustomColor(${i})">x</button>`;
+            html += `<button class="remove-color-btn" onclick="removeCustomColor(${i})">×</button>`;
             html += `</div>`;
         }
     }
@@ -139,17 +138,15 @@ function renderSettingsPage() {
     // ★ 从搜索栏搬过来的。放在「我的」是因为它是一条**偏好**（默认关、存 localStorage、
     //   不进 URL），和「网格直接用原图」「自动预缓存」同类，而不是一次搜索的状态。
     html += `<div class="settings-section">`;
-    html += `<h3>文章搜索</h3>`;
+    html += `<h3>文章搜索模式偏好</h3>`;
     html += renderToggleRow('articleFuzzySwitch', '模糊搜索',
-        '开启后「央行」「荷花钞」这类俗称、简称也能搜到正式名称的文章。代价是会多召回一些相关但不精确的结果，且只作用于文章板块。默认关闭。',
         articleFuzzyOn(), 'toggleArticleFuzzy()');
     html += `</div>`;
 
     // 网格画质
     html += `<div class="settings-section">`;
-    html += `<h3>网格画质</h3>`;
-    html += renderToggleRow('gridOriginalSwitch', '网格直接用原图',
-        '默认缩略图：冷启动一个板块 1~2MB，开原图要 40~100MB。缓存热了两者一样快。',
+    html += `<h3>网格图片画质</h3>`;
+    html += renderToggleRow('gridOriginalSwitch', '使用原图',
         gridUseOriginal(), 'toggleGridOriginal()');
     html += `</div>`;
 
@@ -159,7 +156,7 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="clearCacheBtn" onclick="clearImageCache()"><span id="clearCacheText">清除图片缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片会被 Service Worker 存到本地，离线也能看。换了图还显示旧图的话，点它清一下再刷新～</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片将被Service Worker缓存到本地，支持离线查看。若图片更换后依旧显示旧图，请点击此按钮并刷新网页</p>`;
     html += `</div>`;
 
     // 文章缓存
@@ -168,23 +165,21 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()"><span id="clearArticleCacheText">清除文章缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文存在内存里，改了文章还看到旧内容，点它清掉再打开一次就好～</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中。若文章修改后依旧显示旧内容，请点击此按钮并刷新网页</p>`;
     html += `</div>`;
 
     // 离线预缓存
     const precacheAutoOn = (typeof precacheAutoEnabled === 'function' && precacheAutoEnabled());
     html += `<div class="settings-section">`;
-    html += `<h3>离线预缓存</h3>`;
-    html += renderToggleRow('precacheAutoSwitch', '自动预缓存',
-        '后台补齐当前页没滚到的图（左下角有进度，点 × 能停）；省流量或 2G/3G 不跑。',
+    html += `<h3>图片离线预缓存</h3>`;
+    html += renderToggleRow('precacheAutoSwitch', '自动缓存',
         precacheAutoOn, 'togglePrecacheAuto()');
-    html += `<div class="actions-caption">手动预缓存</div>`;
+    html += `<div class="actions-caption">手动缓存</div>`;
     html += `<div class="export-buttons">`;
-    html += `<button class="export-btn" onclick="runPrecacheThumbs()">预缓存全部缩略图</button>`;
-    html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部（含原图）</span></button>`;
+    html += `<button class="export-btn" onclick="runPrecacheThumbs()">预缓存缩略图</button>`;
+    html += `<button class="export-btn" onclick="runPrecacheAll()"><span id="precacheAllText">预缓存全部图片</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" id="precacheStatus" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">本地已缓存 0 张图片</p>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">缩略图约 <b>14MB</b>；含原图约 <b>775MB</b>，会吃 Pages 带宽（软限 100GB/月），别反复点 —— 点开大图时原图会自动存下来。</p>`;
+    html += `<p class="export-hint" id="precacheStatus" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">本地已缓存0张图片</p>`;
     html += `</div>`;
 
     html += `<div class="settings-section">`;
@@ -195,7 +190,7 @@ function renderSettingsPage() {
     html += `<button class="export-btn" onclick="exportMarkdown()">概览报告.md</button>`;
     html += `<button class="export-btn" onclick="exportPriceList()">价格清单.txt</button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点一下就自动下载啦～</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点击即可下载相应文件</p>`;
     html += `</div>`;
 
     html += `</div>`;
@@ -220,17 +215,23 @@ function renderSettingsPage() {
     if (typeof precacheRefreshStatus === 'function') precacheRefreshStatus();
 }
 
-// ========== 开关卡片（自动预缓存 / 网格画质共用） ==========
+// ========== 开关卡片（自动预缓存 / 网格画质 / 文章搜索共用） ==========
 // 浅色卡片 = "状态/设置项"；主题色实心按钮 = "立即执行的动作"。两套语言分开，
 // 也避免把开关和按钮排在同一行（之前那样看着很乱）。
-function renderToggleRow(id, label, desc, on, onclickExpr) {
+//
+// 参数：(id, label, on, onclickExpr)
+//   id          —— 给 .switch 元素的 id，用于 setSwitchState(id, on) 局部刷新
+//   label       —— 显示文案
+//   on          —— 当前是否开启（布尔）
+//   onclickExpr —— 点击整张卡片时执行的全局函数表达式字符串
+function renderToggleRow(id, label, on, onclickExpr) {
+    const checked = !!on;
     return `<div class="toggle-card" onclick="${onclickExpr}">`
         + `<div class="toggle-card-top">`
         + `<span class="toggle-label">${label}</span>`
-        + `<span class="switch${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on ? 'true' : 'false'}">`
+        + `<span class="switch${checked ? ' on' : ''}" id="${id}" role="switch" aria-checked="${checked ? 'true' : 'false'}">`
         + `<span class="switch-knob"></span></span>`
         + `</div>`
-        + (desc ? `<div class="toggle-desc">${desc}</div>` : '')
         + `</div>`;
 }
 
@@ -339,10 +340,10 @@ async function performClearImageCache() {
                 }
             }
         }
-        fadeText('清好啦，刷新看看～');
+        fadeText('已 清 除');
         setTimeout(() => fadeText('清除图片缓存'), 2000);
     } catch (e) {
-        fadeText('没清掉…再试一次？');
+        fadeText('清除失败！');
         setTimeout(() => fadeText('清除图片缓存'), 1000);
     }
 }
