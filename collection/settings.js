@@ -374,6 +374,16 @@ function clearArticleCache() {
     articleCacheConfirmPending = false;
     articleContentCache = {};
     articlePlainTextCache = {};
+    // ★ 索引没了，"建索引"这件事也必须一起重置（否则会有两个后果）：
+    //   ① articlePreloadPromise 还钉在那个"已经跑完"的旧 Promise 上，
+    //      之后切到全文 / 再进文章板块都只会拿到它、**不会真的重建**，
+    //      于是全文搜索静默退化成只搜标题，而且再也恢复不了（只能刷新页面）。
+    //   ② 提示词会一直停在"全文还在加载中"（状态永远回不到 ready）。
+    //   清掉这三样之后，下次进文章板块（tab-switcher 在全文模式下会调
+    //   preloadAllArticles）就会真的重建，提示词也会重新走一遍加载中 → 准备好啦。
+    articlePreloadPromise = null;
+    isArticlePreloading = false;
+    articleFulltextState = 'idle';
     fadeArticleText('已 清 除');
     setTimeout(() => fadeArticleText('清除文章缓存'), 1000);
 }

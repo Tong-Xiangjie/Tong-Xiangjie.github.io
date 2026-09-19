@@ -205,8 +205,25 @@ function toggleArticleFuzzy() {
 //   不会再写第二次文案。现在把状态提到模块级，谁重建搜索栏都能拿到正确的那句。
 let articleFulltextState = 'idle';   // 'idle' | 'loading' | 'ready'
 
+// 全文索引**现在**是否真的可用。
+// ★ 为什么不能只看上面那个标志位（用户报的第二个问题）：
+//   标志位是"记"下来的，一旦置成 'ready' 就再也不会自己变回去；
+//   而「我的 → 清除文章缓存」会把 articlePlainTextCache 清空 ——
+//   此时索引明明没了，提示词却还在说"加载完成"，即"只要成功过一次就无条件说加载好了"。
+//   所以这里补一道"缓存真的还在"的检查：
+//     · 标志位负责"确实跑完过一次"（容忍个别正文加载失败 —— 那种情况索引仍然可用）
+//     · 缓存非空负责"而且还没被清掉"
+//   两者都成立才算就绪。这样清缓存之后提示词会自动变回"加载中"，不需要谁记得去改状态。
+function articleFulltextReady() {
+  if (articleFulltextState !== 'ready') return false;
+  if (!articlePlainTextCache || typeof articlePlainTextCache !== 'object') return false;
+  return Object.keys(articlePlainTextCache).length > 0;
+}
+
 function articleSearchTip(fulltextState) {
-  const st = (fulltextState === undefined) ? articleFulltextState : fulltextState;
+  const st = (fulltextState === undefined)
+    ? (articleFulltextReady() ? 'ready' : 'loading')
+    : fulltextState;
   if (articleSearchMode === 'title') {
     return '现在是按标题找（边打边搜），点“标”字能切到全文索引';
   }
