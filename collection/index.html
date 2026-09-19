@@ -15,8 +15,59 @@
                     window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 el.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
                 el.style.colorScheme = dark ? 'dark' : 'light';
+
+                // ★ 这里必须把 applyTheme() 会写的**整套**变量都预置上，不能只设 --theme。
+                //   只设 --theme 的后果（实测铜色 #b87333）：
+                //     亮色：--bg #eef4ff → #f9f4ef、--sidebar-bg #e4edf8 → #f5ebe2、
+                //           --border #d5dce8 → #efe0d2、--theme-light #4096ff → #d4ab85
+                //     暗色：--bg #0f1115 → #0b0703、--card-bg #22262e → #1a1007、
+                //           --border #2c313a → #736557、--theme-light #4096ff → #d1a47a
+                //   也就是**整页背景**会先闪一次"默认蓝那一套"，再跳成主题色那一套；
+                //   首屏的 .mode-toggle、各处 hover 边框、山河图例渐变也都先蓝一下。
+                //   注意 layout.css 里 html[data-color-scheme] 那份兜底是"按默认蓝算的"，
+                //   所以它只挡得住白屏/黑屏，挡不住"闪蓝"。
+                //
+                //   下面的算式与 theme.js 的 applyTheme()/lightenColor()/darkenColor()
+                //   一一对应（含 --border 那种"先压暗再提亮"的两步取整）。
+                //   这是**有意的重复**：head 脚本必须在 theme.js 之前同步跑完，没法 import，
+                //   换成外链文件反而要多一次阻塞请求、更慢。两份实现不许漂移 ——
+                //   verify-theme-init.mjs 会把 theme.js 拦掉量出这里的值，再和 theme.js
+                //   算出的值**逐变量**比对（11 个预设色 × 明暗两模式），对不上就失败。
+                //   只认 #rgb / #rrggbb（app-theme 只会被 setTheme 写成这个格式）；
+                //   其它格式不预置，退回 CSS 默认 —— 和改动前一样，不会更差。
                 var t = localStorage.getItem('app-theme');
-                if (t) el.style.setProperty('--theme', t);
+                if (t && /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(t)) {
+                    var h = t.slice(1);
+                    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+                    var R = parseInt(h.substr(0, 2), 16),
+                        G = parseInt(h.substr(2, 2), 16),
+                        B = parseInt(h.substr(4, 2), 16);
+                    var up = function (v, r) { return Math.round(v + (255 - v) * r); };  // lightenColor
+                    var dn = function (v, r) { return Math.round(v * (1 - r)); };        // darkenColor
+                    var hx = function (r, g, b) {
+                        var p = function (v) { return ('0' + v.toString(16)).slice(-2); };
+                        return '#' + p(r) + p(g) + p(b);
+                    };
+                    var L = function (r) { return hx(up(R, r), up(G, r), up(B, r)); };    // lightenColor(t, r)
+                    var D = function (r) { return hx(dn(R, r), dn(G, r), dn(B, r)); };    // darkenColor(t, r)
+                    // --border = lightenColor(darkenColor(t, 0.70), 0.30)，两步都要取整
+                    var bd0 = [dn(R, 0.70), dn(G, 0.70), dn(B, 0.70)];
+                    var border = hx(up(bd0[0], 0.30), up(bd0[1], 0.30), up(bd0[2], 0.30));
+                    var vars = dark ? {
+                        '--theme': t, '--theme-light': L(0.35),
+                        '--row-hover-bg': 'rgba(255, 255, 255, 0.14)',
+                        '--bg': D(0.94), '--bg-light': D(0.90), '--sidebar-bg': D(0.92),
+                        '--card-bg': D(0.86), '--border': border, '--thumb-bg': D(0.80),
+                        '--text': '#e8eaed', '--text-secondary': '#9aa0a6'
+                    } : {
+                        '--theme': t, '--theme-light': L(0.4),
+                        '--row-hover-bg': 'rgba(0, 0, 0, 0.10)',
+                        '--bg': L(0.92), '--bg-light': L(0.96), '--sidebar-bg': L(0.86),
+                        '--card-bg': '#ffffff', '--border': L(0.78), '--thumb-bg': L(0.82),
+                        '--text': '#000000', '--text-secondary': '#666666'
+                    };
+                    for (var k in vars) el.style.setProperty(k, vars[k]);
+                }
             } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
         })();
     </script>
