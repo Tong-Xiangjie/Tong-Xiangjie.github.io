@@ -53,7 +53,7 @@ const japanMilitaryData = {
                 { varietyName: "1938年 10圆", copies: [] },
                 { varietyName: "1938年 100圆", copies: [
                   {
-                            copyId: 1,
+                            copyId: 19733319,
                             year: 1938,
                             version: "1",
                             bank: "大日本帝国政府",

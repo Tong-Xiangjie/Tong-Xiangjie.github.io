@@ -21,7 +21,7 @@ const venezuelaData = {
             year: "2018",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 25364488,
                     year: 2018,
                     version: "D16911198",
                     bank: "委内瑞拉中央银行/Central Bank of Venezuela",
@@ -42,7 +42,7 @@ const venezuelaData = {
             year: "2017",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 25282376,
                     year: 2017,
                     version: "B91918681",
                     bank: "委内瑞拉中央银行/Central Bank of Venezuela",

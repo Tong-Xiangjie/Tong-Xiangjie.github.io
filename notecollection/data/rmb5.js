@@ -29,7 +29,7 @@ const rmb5Data = {
                     varietyName: "1999年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 25793257,
                             year: 1999,
                             version: "OH11117778",
                             bank: "中国人民银行",
@@ -47,7 +47,7 @@ const rmb5Data = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb5/OH11117778-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 25117788,
                             year: 1999,
                             version: "DN02216986",
                             bank: "中国人民银行",
@@ -70,7 +70,7 @@ const rmb5Data = {
                     varietyName: "2019年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21192942,
                             year: 2019,
                             version: "FA42054438",
                             bank: "中国人民银行",
@@ -88,7 +88,7 @@ const rmb5Data = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb5/FA42054438-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26011881,
                             year: 2019,
                             version: "(33333454)",
                             bank: "中国人民银行",
@@ -118,7 +118,7 @@ const rmb5Data = {
                     varietyName: "1999年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 11554414,
                             year: 1999,
                             version: "PF93563125",
                             bank: "中国人民银行",
@@ -245,7 +245,7 @@ const rmb5Data = {
                     varietyName: "1999年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23839609,
                             year: 1999,
                             version: "TB96818893",
                             bank: "中国人民银行",
@@ -263,7 +263,7 @@ const rmb5Data = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb5/TB96818893-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 21208389,
                             year: 1999,
                             version: "YG89660155",
                             bank: "中国人民银行",
@@ -286,7 +286,7 @@ const rmb5Data = {
                     varietyName: "2005年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23682601,
                             year: 2005,
                             version: "UL00089069",
                             bank: "中国人民银行",
@@ -309,7 +309,7 @@ const rmb5Data = {
                     varietyName: "2019年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23682633,
                             year: 2019,
                             version: "TF19999669",
                             bank: "中国人民银行",
@@ -339,7 +339,7 @@ const rmb5Data = {
                     varietyName: "1999年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 16657208,
                             year: 1999,
                             version: "JF22966632",
                             bank: "中国人民银行",
@@ -362,7 +362,7 @@ const rmb5Data = {
                     varietyName: "2005年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 16936872,
                             year: 2005,
                             version: "PY44444484",
                             bank: "中国人民银行",
@@ -385,7 +385,7 @@ const rmb5Data = {
                     varietyName: "2019年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23682699,
                             year: 2019,
                             version: "JE19999669",
                             bank: "中国人民银行",
@@ -415,7 +415,7 @@ const rmb5Data = {
                     varietyName: "1999年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22288171,
                             year: 1999,
                             version: "BB31832995",
                             bank: "中国人民银行",
@@ -438,7 +438,7 @@ const rmb5Data = {
                     varietyName: "2005年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 25511804,
                             year: 2005,
                             version: "XY08981095",
                             bank: "中国人民银行",
@@ -474,7 +474,7 @@ const rmb5Data = {
                     varietyName: "1999年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23173639,
                             year: 1999,
                             version: "QQ16191321",
                             bank: "中国人民银行",
@@ -497,7 +497,7 @@ const rmb5Data = {
                     varietyName: "2005年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23742019,
                             year: 2005,
                             version: "OX12345659",
                             bank: "中国人民银行",
@@ -520,7 +520,7 @@ const rmb5Data = {
                     varietyName: "2015年版",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23765407,
                             year: 2015,
                             version: "B000S00055",
                             bank: "中国人民银行",

@@ -29,7 +29,7 @@ const japanData = {
                     varietyName: "昭和20年（1945年） 50銭（Sen） 靖国神社",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19968729,
                             year: 1947,
                             version: "{51}",
                             bank: "日本帝国政府/The Japanese Imperial Government",
@@ -62,7 +62,7 @@ const japanData = {
                     varietyName: "昭和22年（1947年） 10銭（Sen） 和平鸽",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19935859,
                             year: 1947,
                             version: "18113",
                             bank: "日本银行/Bank of Japan",
@@ -89,7 +89,7 @@ const japanData = {
                     varietyName: "昭和21年（1946年） 1円（Yen） 二宫尊德",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19935864,
                             year: 1946,
                             version: "1114922",
                             bank: "日本银行/Bank of Japan",
@@ -135,7 +135,7 @@ const japanData = {
                     varietyName: "昭和28年（1953年） 100円（Yen） 板垣退助",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626183,
                             year: 1953,
                             version: "XP807592G",
                             bank: "日本银行/Bank of Japan",
@@ -152,7 +152,7 @@ const japanData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/japan/XP807592G-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/japan/XP807592G-2.jpg"
                         },{
-                            copyId: 1,
+                            copyId: 21280642,
                             year: 1953,
                             version: "ZP514663G",
                             bank: "日本银行/Bank of Japan",
@@ -251,7 +251,7 @@ const japanData = {
                     varietyName: "令和6年（2024年） 1000円（Yen） 北里柴三郎",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26288330,
                             year: 2024,
                             version: "AA229466RM",
                             bank: "日本银行/Bank of Japan",
@@ -287,7 +287,7 @@ const japanData = {
                     varietyName: "平成12年（2000年） 2000円（Yen） 守礼门",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626184,
                             year: 2000,
                             version: "SA586830V",
                             bank: "日本银行/Bank of Japan",

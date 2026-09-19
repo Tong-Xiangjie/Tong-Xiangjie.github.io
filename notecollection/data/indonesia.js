@@ -21,7 +21,7 @@ const indonesiaData = {
             year: "2016",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 25791711,
                     year: 2016,
                     version: "FPK115111",
                     bank: "印度尼西亚银行/Bank Indonesia",
@@ -42,7 +42,7 @@ const indonesiaData = {
             year: "2017",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 26626185,
                     year: 2017,
                     version: "FBK599997",
                     bank: "印度尼西亚银行/Bank Indonesia",
@@ -63,7 +63,7 @@ const indonesiaData = {
             year: "2024",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 26626186,
                     year: 2024,
                     version: "ORE322444",
                     bank: "印度尼西亚银行/Bank Indonesia",
@@ -83,7 +83,7 @@ const indonesiaData = {
             year: "2022",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 25255504,
                     year: 2024,
                     version: "KAO088999",
                     bank: "印度尼西亚银行/Bank Indonesia",
@@ -104,7 +104,7 @@ const indonesiaData = {
             year: "2020",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 15153898,
                     year: 2020,
                     version: "AAA829876",
                     bank: "印度尼西亚银行/Bank Indonesia",

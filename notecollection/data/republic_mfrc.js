@@ -31,7 +31,7 @@ const republic_mfrcData = {
                     varietyName: "1919年 ½元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104092,
                             year: 1919,
                             version: "1479029",
                             bank: "中华民国财政部/Ministry of Finance of the Republic of China",
@@ -52,7 +52,7 @@ const republic_mfrcData = {
                     varietyName: "1919年 1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104091,
                             year: 1919,
                             version: "1152926",
                             bank: "中华民国财政部/Ministry of Finance of the Republic of China",
