@@ -908,12 +908,14 @@ body {
    四处各写一遍数字，改一处漏一处就会让"收起来的位置"和"展开的起点"对不上，
    中间闪一下。所以抽成变量，JS 那边也直接引用 var()。
 
-   取值：0.004（万分之四）。原因是用户反馈——原先的 0.06 在一半处会留下一根
-   6% 宽、整幅高的窄条，看起来像"一个细长的长方形"，而不是"纸币转到了侧面"。
-   0.004 在 400px 宽的屏上约 1.6px，配合 0.25 不透明度基本不可见，
-   也就真的像翻到侧面了。想调就改这一个数。 */
+   取值：0（完全压扁）。原因是用户反馈——原先的 0.06 在一半处会留下一根
+   6% 宽、整幅高的窄条，看起来像"一个细长的长方形"，而不是"纸币转到了侧面"；
+   先改成 0.004 后用户仍觉得不够，直接压到 0 最干净。
+   scale3d(0,1,1) 会让元素在横向上退化成零宽，配合 0.25 不透明度完全看不见，
+   而 transform-origin: center center 保证它是"从中间收成一条线"而不是缩到一边。
+   想调就改这一个数。 */
 .modal-img, .modal-img-overlay {
-    --flip-collapse: 0.004;
+    --flip-collapse: 0;
     transform-origin: center center;
     backface-visibility: hidden;
 }
@@ -925,7 +927,7 @@ body {
             原图就绪后由主图淡入盖住 → 没有"低清直接跳高清"的硬切。
          2. 翻面动画的旧面（历史用途）—— 现已停用，见 category-view.js 的 modalFlip()。
        基态（下方 transform/opacity）是给翻面 keyframes 当插值起点用的静默态：
-       没有 src 时它什么都不画，但**仍会占一个 --flip-collapse 宽（0.4%）、0.25 不透明的盒子**，
+       没有 src 时它什么都不画，但**仍会占一个 --flip-collapse 宽（现在是 0）、0.25 不透明的盒子**，
        所以不用它时必须 display:none（clearModalFlipLayer 的 hide 参数负责）。 */
     position: absolute;
     left: 0;
@@ -1153,7 +1155,7 @@ body.modal-open {
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 0.9rem; }
 
 /* ========== 设置页 ========== */
-.settings-page { max-width: 500px; margin: 0 auto; }
+.settings-page { max-width: 800px; margin: 0 auto; }
 .settings-page h2 { font-size: 1.3rem; margin-bottom: 20px; }
 .settings-section { margin-bottom: 24px; }
 .settings-section h3 { font-size: 1rem; color: var(--text-secondary); margin-bottom: 10px; }
@@ -2118,7 +2120,26 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     .timeline-left::after { display: none; }
     .timeline-dot { margin-top: 0; }
     .timeline-card { flex-direction: column; }
-    .timeline-img { width: 100%; height: auto; max-height: 160px; }
+    /* ★ 手机上图片必须能收缩（用户报的「币海拾年图片宽度超出手机屏幕」）。
+       原来这里只有 `.timeline-img { width: 100%; }`，但：
+         · 父级 .timeline-images 是 `display:flex; flex-shrink:0`（不允许收缩）
+         · .timeline-card 在手机上变成 `flex-direction: column`，
+           而它的 `align-items: flex-start` 会让子项按**内容宽度**排
+       于是 .timeline-images 的宽度要按"内容的最大宽度"算，而 `width:100%` 的图片
+       其最大宽度恰恰就是**图片自身的固有宽度**（大图上千 px）—— 两者互相撑，
+       整行就直接超出屏幕宽度。
+       现在：容器显式占满整行并允许收缩，图片按 flex 均分剩余宽度、绝不超出。
+       注意 width:100% 必须写，因为 align-items:flex-start 不会替它撑满。 */
+    .timeline-images { width: 100%; flex-shrink: 1; align-items: flex-start; }
+    .timeline-img {
+        width: auto;
+        flex: 1 1 0;
+        min-width: 0;          /* flex 子项默认 min-width:auto，不置 0 就不肯收缩 */
+        max-width: 100%;
+        height: auto;
+        max-height: 160px;
+        object-fit: contain;
+    }
     .timeline-top-bar { flex-direction: column; align-items: stretch; gap: 6px; }
     .timeline-top-right { justify-content: flex-end; }
 }

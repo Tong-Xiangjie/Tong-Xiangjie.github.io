@@ -196,13 +196,21 @@ function toggleArticleFuzzy() {
 
 // 文章板块搜索提示文字的**唯一来源**（core.js 的 searchUi 与 preloadAllArticles 都走它）。
 // fulltextState: undefined | 'loading' | 'ready'
-// ★ 文案与重构前逐字一致（含"未传状态时也给加载中那句"这个旧行为）——
-//   这是搜索栏 UI 的一部分，模糊开关移走后不该顺手改文案。
+//
+// ★ 为什么不传参时不能一律当成"加载中"（用户报的 bug）：
+//   core.js 重建搜索栏时会调 articleSearchTip()，而**它拿不到 preloadAllArticles 里
+//   那个局部状态**。旧写法是"不传参 → 走加载中那一支"，于是只要搜索栏被重建一次
+//   （切去「我的」页再回来、开关卡片等都会重建），索引明明早就建好了，提示词却又变回
+//   「全文还在加载中」，而且**再也不会变** —— 因为 preloadAllArticles 已经跑完，
+//   不会再写第二次文案。现在把状态提到模块级，谁重建搜索栏都能拿到正确的那句。
+let articleFulltextState = 'idle';   // 'idle' | 'loading' | 'ready'
+
 function articleSearchTip(fulltextState) {
+  const st = (fulltextState === undefined) ? articleFulltextState : fulltextState;
   if (articleSearchMode === 'title') {
     return '现在是按标题找（边打边搜），点“标”字能切到全文索引';
   }
-  if (fulltextState === 'ready') {
+  if (st === 'ready') {
     return '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文索引准备好啦，标题和正文都能搜';
   }
   return '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
@@ -489,6 +497,7 @@ function waitForArticleList(timeoutMs) {
 async function preloadAllArticles() {
   if (articlePreloadPromise) return articlePreloadPromise;
   articlePreloadPromise = (async () => {
+    articleFulltextState = 'loading';
     const tip = document.getElementById('searchTip');
     if (tip) tip.textContent = articleSearchTip('loading');
     // ★ 文章列表还没收集过就先收集。
@@ -507,7 +516,12 @@ async function preloadAllArticles() {
     await waitForArticleList(3000);
     const promises = collectedArticles.map(article => preloadArticle(article));
     await Promise.allSettled(promises);
-    if (tip) tip.textContent = articleSearchTip('ready');
+    // ★ 状态先落地，再写文案；而且**重新取一次** tip 元素 ——
+    //   建索引这段时间里用户可能切过板块，「我的」页返回都会重建搜索栏，
+    //   上面抓到的那个 tip 节点可能已经脱离文档，写它等于白写。
+    articleFulltextState = 'ready';
+    const tipNow = document.getElementById('searchTip');
+    if (tipNow) tipNow.textContent = articleSearchTip('ready');
     isArticlePreloading = false;
     // ★ 索引建好后必须重渲染一次。首次渲染可能发生在索引就绪之前（那时只有标题
     //   命中），不补这一次，深链接进来的用户会一直停在"空列表 / 结果不全"的界面上，
