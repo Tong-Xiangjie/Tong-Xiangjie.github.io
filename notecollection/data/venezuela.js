@@ -17,44 +17,53 @@ const venezuelaData = {
     ],
     series: [
         {
-            seriesName: "2018年版 50玻利瓦尔",
-            year: "2018",
-            copies: [
+            seriesName: "2007～2017年 强势玻利瓦尔",
+            year: "2007～2017",
+            varieties: [
                 {
-                    copyId: 25364488,
-                    year: 2018,
-                    version: "D16911198",
-                    bank: "委内瑞拉中央银行/Central Bank of Venezuela",
-                    condition: "ACG 67E",
-                    price: "25元",
-                    purchaseDate: "2026年4月1日",
-                    krause: "105",
-                    size: "",
-                    watermark: "",
-                    remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/D16911198-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/D16911198-2.jpg"
+                    varietyName: "10000玻利瓦尔（Bolivares）",
+                    copies: [
+                        {
+                            copyId: 25282376,
+                            year: 2017,
+                            version: "B91918681",
+                            bank: "委内瑞拉中央银行/Central Bank of Venezuela",
+                            condition: "ACG 67E",
+                            price: "22元",
+                            purchaseDate: "2026年4月18日",
+                            krause: "98b",
+                            size: "",
+                            watermark: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/B91918681-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/B91918681-2.jpg"
+                        }
+                    ]
                 }
             ]
-        },
-        {
-            seriesName: "2017年版 10000玻利瓦尔",
-            year: "2017",
-            copies: [
+        },{
+            seriesName: "2018～2017年 主权玻利瓦尔",
+            year: "2018～2017",
+            varieties: [
                 {
-                    copyId: 25282376,
-                    year: 2017,
-                    version: "B91918681",
-                    bank: "委内瑞拉中央银行/Central Bank of Venezuela",
-                    condition: "ACG 67E",
-                    price: "22元",
-                    purchaseDate: "2026年4月18日",
-                    krause: "98b",
-                    size: "",
-                    watermark: "",
-                    remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/B91918681-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/B91918681-2.jpg"
+                    varietyName: "50玻利瓦尔（Bolivares）",
+                    copies: [
+                        {
+                            copyId: 25364488,
+                            year: 2018,
+                            version: "D16911198",
+                            bank: "委内瑞拉中央银行/Central Bank of Venezuela",
+                            condition: "ACG 67E",
+                            price: "25元",
+                            purchaseDate: "2026年4月1日",
+                            krause: "105",
+                            size: "",
+                            watermark: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/D16911198-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/D16911198-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
