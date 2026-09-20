@@ -30,7 +30,7 @@ const hk_bocData = {
                     varietyName: "港币20元 中区及湾仔商业楼群",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26214014,
                             year: 1994,
                             version: "AA775221",
                             bank: "中国银行",
@@ -50,7 +50,7 @@ const hk_bocData = {
                     varietyName: "港币50元 红磡海底隧道",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18708646,
                             year: 1996,
                             version: "AF724347",
                             bank: "中国银行",
@@ -65,7 +65,7 @@ const hk_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_boc/AF724347-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 11645188,
                             year: 1999,
                             version: "AZ261561",
                             bank: "中国银行",
@@ -80,7 +80,7 @@ const hk_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_boc/AZ261561-2.jpg"
                         },
                         {
-                            copyId: 3,
+                            copyId: 11645189,
                             year: 2000,
                             version: "AT691569",
                             bank: "中国银行",
@@ -100,7 +100,7 @@ const hk_bocData = {
                     varietyName: "港币100元 九龙半岛",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 11645190,
                             year: 2000,
                             version: "CA253979",
                             bank: "中国银行",
@@ -127,7 +127,7 @@ const hk_bocData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626161,
                             year: 2008,
                             version: "HB778596",
                             bank: "中国银行（香港）",
@@ -147,7 +147,7 @@ const hk_bocData = {
                     varietyName: "港币50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626162,
                             year: 2009,
                             version: "DB198972",
                             bank: "中国银行（香港）",
@@ -174,7 +174,7 @@ const hk_bocData = {
                     varietyName: "港币20元 浅水湾",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626160,
                             year: 2015,
                             version: "JF775298",
                             bank: "中国银行（香港）",
@@ -201,7 +201,7 @@ const hk_bocData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 25560891,
                             year: 2018,
                             version: "AW102222",
                             bank: "中国银行（香港）",
@@ -216,7 +216,7 @@ const hk_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_boc/AW102222-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 25236152,
                             year: 2021,
                             version: "FQ880098",
                             bank: "中国银行（香港）",
@@ -231,7 +231,7 @@ const hk_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_boc/FQ880098-2.jpg"
                         },
                         {
-                            copyId: 3,
+                            copyId: 26288339,
                             year: 2023,
                             version: "JA601300",
                             bank: "中国银行（香港）",
@@ -251,7 +251,7 @@ const hk_bocData = {
                     varietyName: "港币50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626165,
                             year: 2023,
                             version: "BR046520",
                             bank: "中国银行（香港）",
@@ -271,7 +271,7 @@ const hk_bocData = {
                     varietyName: "港币100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626170,
                             year: 2018,
                             version: "AA739695",
                             bank: "中国银行（香港）",
@@ -286,7 +286,7 @@ const hk_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_boc/AA739695-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26626169,
                             year: 2023,
                             version: "EX015191",
                             bank: "中国银行（香港）",

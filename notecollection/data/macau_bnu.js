@@ -25,7 +25,7 @@ const macau_bnuData = {
                     "varietyName": "20元",
                     "copies": [
                         {
-                            copyId: 1,
+                            copyId: 26680031,
                             year: 1996,
                             version: "CB010224",
                             bank: "大西洋银行",
@@ -51,7 +51,7 @@ const macau_bnuData = {
                     "varietyName": "10元",
                     "copies": [
                         {
-                            copyId: 1,
+                            copyId: 26626158,
                             year: 2020,
                             version: "AA109943",
                             bank: "大西洋银行",

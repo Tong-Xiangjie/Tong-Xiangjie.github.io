@@ -42,8 +42,8 @@ const venezuelaData = {
                 }
             ]
         },{
-            seriesName: "2018～2017年 主权玻利瓦尔",
-            year: "2018～2017",
+            seriesName: "2018～2019年 主权玻利瓦尔",
+            year: "2018～2019",
             varieties: [
                 {
                     varietyName: "50玻利瓦尔（Bolivares）",

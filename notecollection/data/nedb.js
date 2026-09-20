@@ -29,7 +29,7 @@ const nedbData = {
                     varietyName: "10000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992545,
                             year: 1954,
                             version: "00000000 08241",
                             bank: "中央人民政府财政部",
@@ -47,7 +47,7 @@ const nedbData = {
                     varietyName: "20000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992549,
                             year: 1954,
                             version: "41497032",
                             bank: "中央人民政府财政部",
@@ -59,7 +59,7 @@ const nedbData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/41497032-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/41497032-2.jpg"
                         },{
-                            copyId: 2,
+                            copyId: 26992548,
                             year: 1954,
                             version: "00000000 08241",
                             bank: "中央人民政府财政部",
@@ -77,7 +77,7 @@ const nedbData = {
                     varietyName: "50000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992561,
                             year: 1954,
                             version: "37985231",
                             bank: "中央人民政府财政部",
@@ -89,7 +89,7 @@ const nedbData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/37985231-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/37985231-2.jpg"
                         },{
-                            copyId: 2,
+                            copyId: 26992560,
                             year: 1954,
                             version: "00000000 08241",
                             bank: "中央人民政府财政部",
@@ -107,7 +107,7 @@ const nedbData = {
                     varietyName: "100000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992562,
                             year: 1954,
                             version: "〈ⅠⅡⅢ〉0000000 08241",
                             bank: "中央人民政府财政部",
@@ -125,7 +125,7 @@ const nedbData = {
                     varietyName: "500000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992563,
                             year: 1954,
                             version: "〈ⅠⅡⅢ〉0000000 08241",
                             bank: "中央人民政府财政部",
@@ -154,7 +154,7 @@ const nedbData = {
                     varietyName: "10000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992546,
                             year: 1955,
                             version: "00000000 00887",
                             bank: "中华人民共和国财政部",
@@ -167,7 +167,7 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/1955-10000-1-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26992547,
                             year: 1955,
                             version: "00887",
                             bank: "中华人民共和国财政部",
@@ -185,7 +185,7 @@ const nedbData = {
                     varietyName: "20000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992550,
                             year: 1955,
                             version: "00000000 00887",
                             bank: "中华人民共和国财政部",
@@ -198,7 +198,7 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/1955-20000-1-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26992551,
                             year: 1955,
                             version: "00887",
                             bank: "中华人民共和国财政部",
@@ -216,7 +216,7 @@ const nedbData = {
                     varietyName: "50000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992552,
                             year: 1955,
                             version: "00000000 00887",
                             bank: "中华人民共和国财政部",
@@ -229,7 +229,7 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/1955-50000-1-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26992553,
                             year: 1955,
                             version: "00887",
                             bank: "中华人民共和国财政部",
@@ -247,7 +247,7 @@ const nedbData = {
                     varietyName: "100000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992554,
                             year: 1955,
                             version: "〈123〉00000000 00887",
                             bank: "中华人民共和国财政部",
@@ -260,7 +260,7 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/1955-100000-1-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26992555,
                             year: 1955,
                             version: "00887",
                             bank: "中华人民共和国财政部",
@@ -278,7 +278,7 @@ const nedbData = {
                     varietyName: "500000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992556,
                             year: 1955,
                             version: "〈123〉00000000 00887",
                             bank: "中华人民共和国财政部",
@@ -291,7 +291,7 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/1955-500000-1-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26992557,
                             year: 1955,
                             version: "00887",
                             bank: "中华人民共和国财政部",
@@ -309,7 +309,7 @@ const nedbData = {
                     varietyName: "1000000元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992558,
                             year: 1955,
                             version: "〈123〉00000000 00887",
                             bank: "中华人民共和国财政部",
@@ -322,7 +322,7 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/1955-1000000-1-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 26992559,
                             year: 1955,
                             version: "00887",
                             bank: "中华人民共和国财政部",
@@ -352,7 +352,7 @@ const nedbData = {
                     varietyName: "1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19996831,
                             year: 1957,
                             version: "ⅢⅩⅩ3307203",
                             bank: "中华人民共和国财政部",

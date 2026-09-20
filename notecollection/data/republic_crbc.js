@@ -145,7 +145,7 @@ const republic_crbcData = {
                     varietyName: "1943年 10元 梅花 南京中山陵",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 27104090,
                             year: 1943,
                             version: "〔17〕",
                             bank: "中央储备银行",

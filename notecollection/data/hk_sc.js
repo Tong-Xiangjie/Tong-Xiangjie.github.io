@@ -26,7 +26,7 @@ const hk_scData = {
                     varietyName: "港币10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21398684,
                             year: 1981,
                             version: "CW609645",
                             bank: "香港渣打银行",
@@ -53,7 +53,7 @@ const hk_scData = {
                     varietyName: "港币10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22134907,
                             year: 1995,
                             version: "CU891135",
                             bank: "香港渣打银行",
@@ -73,7 +73,7 @@ const hk_scData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 19723813,
                             year: 1995,
                             version: "AZ118002",
                             bank: "香港渣打银行",
@@ -93,7 +93,7 @@ const hk_scData = {
                     varietyName: "港币50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 18708654,
                             year: 1994,
                             version: "B070293",
                             bank: "香港渣打银行",
@@ -108,7 +108,7 @@ const hk_scData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_sc/B070293-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 16140174,
                             year: 1995,
                             version: "G844653",
                             bank: "香港渣打银行",
@@ -123,7 +123,7 @@ const hk_scData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_sc/G844653-2.jpg"
                         },
                         {
-                            copyId: 3,
+                            copyId: 11645194,
                             year: 2001,
                             version: "AP720645",
                             bank: "香港渣打银行",
@@ -150,7 +150,7 @@ const hk_scData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26288337,
                             year: 2016,
                             version: "FK389601",
                             bank: "渣打银行（香港）",
@@ -170,7 +170,7 @@ const hk_scData = {
                     varietyName: "港币100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626172,
                             year: 2010,
                             version: "AB131676",
                             bank: "渣打银行（香港）",
@@ -197,7 +197,7 @@ const hk_scData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26288340,
                             year: 2023,
                             version: "DL561100",
                             bank: "渣打银行（香港）",
@@ -217,7 +217,7 @@ const hk_scData = {
                     varietyName: "港币50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626164,
                             year: 2023,
                             version: "BS603532",
                             bank: "渣打银行（香港）",
@@ -237,7 +237,7 @@ const hk_scData = {
                     varietyName: "港币100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626171,
                             year: 2020,
                             version: "BE308101",
                             bank: "渣打银行（香港）",

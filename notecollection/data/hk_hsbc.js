@@ -25,7 +25,7 @@ const hk_hsbcData = {
                     varietyName: "港币5元 咖啡妹",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22155885,
                             year: 1975,
                             version: "328397FY",
                             bank: "香港上海汇丰银行",
@@ -52,7 +52,7 @@ const hk_hsbcData = {
                     varietyName: "港币10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26288336,
                             year: 1992,
                             version: "VG198217",
                             bank: "香港上海汇丰银行",
@@ -72,7 +72,7 @@ const hk_hsbcData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21885641,
                             year: 1989,
                             version: "BL611954",
                             bank: "香港上海汇丰银行",
@@ -83,8 +83,9 @@ const hk_hsbcData = {
                             signature: "",
                             faceDate: "1989年1月1日",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/BL611954-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/BL611954-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/BL611954-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/BL611954-1.jpg"
+                            // 图片取名的时候写反了，将错就错吧
                         }
                     ]
                 }
@@ -99,7 +100,7 @@ const hk_hsbcData = {
                     varietyName: "港币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22340013,
                             year: 2002,
                             version: "SC888085",
                             bank: "香港上海汇丰银行",
@@ -126,7 +127,7 @@ const hk_hsbcData = {
                     varietyName: "港币20元 中秋",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26010305,
                             year: 2013,
                             version: "LB666960",
                             bank: "香港上海汇丰银行",
@@ -141,7 +142,7 @@ const hk_hsbcData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/LB666960-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 19765425,
                             year: 2014,
                             version: "PF188690",
                             bank: "香港上海汇丰银行",
@@ -156,7 +157,7 @@ const hk_hsbcData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/PF188690-2.jpg"
                         },
                         {
-                            copyId: 3,
+                            copyId: 26288338,
                             year: 2016,
                             version: "YT555510",
                             bank: "香港上海汇丰银行",
@@ -176,7 +177,7 @@ const hk_hsbcData = {
                     varietyName: "港币50元 元宵",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626166,
                             year: 2010,
                             version: "BB926286",
                             bank: "香港上海汇丰银行",
@@ -190,7 +191,7 @@ const hk_hsbcData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/BB926286-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/BB926286-2.jpg"
                         }, {
-                            copyId: 2,
+                            copyId: 19760991,
                             year: 2013,
                             version: "DT006806",
                             bank: "香港上海汇丰银行",
@@ -210,7 +211,7 @@ const hk_hsbcData = {
                     varietyName: "港币100元 回归",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626168,
                             year: 2010,
                             version: "DC908607",
                             bank: "香港上海汇丰银行",
@@ -237,7 +238,7 @@ const hk_hsbcData = {
                     varietyName: "港币20元 一家茶叙",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26288341,
                             year: 2018,
                             version: "GB308600",
                             bank: "香港上海汇丰银行",
@@ -252,7 +253,7 @@ const hk_hsbcData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/GB308600-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 99810671,
                             year: 2020,
                             version: "LW669689",
                             bank: "香港上海汇丰银行",
@@ -272,7 +273,7 @@ const hk_hsbcData = {
                     varietyName: "港币50元 蝶舞花间",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626163,
                             year: 2020,
                             version: "CZ388408",
                             bank: "香港上海汇丰银行",
@@ -292,7 +293,7 @@ const hk_hsbcData = {
                     varietyName: "港币100元 梨园粤韵",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626167,
                             year: 2018,
                             version: "AE102558",
                             bank: "香港上海汇丰银行",
@@ -307,7 +308,7 @@ const hk_hsbcData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/hk_hsbc/AE102558-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 25906700,
                             year: 2022,
                             version: "HE180186",
                             bank: "香港上海汇丰银行",
@@ -327,7 +328,7 @@ const hk_hsbcData = {
                     varietyName: "港币500元 六角岩柱",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626175,
                             year: 2023,
                             version: "LB937620",
                             bank: "香港上海汇丰银行",

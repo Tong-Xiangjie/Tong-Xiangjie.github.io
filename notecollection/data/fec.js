@@ -24,7 +24,7 @@ const fecData = {
                     varietyName: "五星火炬水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26685745,
                             year: 1979,
                             purchaseDate: "2026年5月30日",
                             price: "255元",
@@ -43,7 +43,7 @@ const fecData = {
                     varietyName: "五星水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26011870,
                             year: 1979,
                             purchaseDate: "2025年10月20日",
                             price: "76元",
@@ -57,7 +57,7 @@ const fecData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/fec/AI172872-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 21989222,
                             year: 1979,
                             purchaseDate: "2025年12月31日",
                             price: "66元",
@@ -79,7 +79,7 @@ const fecData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 19328781,
                     year: 1979,
                     purchaseDate: "2025年12月31日",
                     price: "67元",
@@ -99,7 +99,7 @@ const fecData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 21989306,
                     year: 1979,
                     purchaseDate: "2025年12月31日",
                     price: "67元",
@@ -119,7 +119,7 @@ const fecData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 13775740,
                     year: 1979,
                     purchaseDate: "2025年12月31日",
                     price: "168元",
@@ -139,7 +139,7 @@ const fecData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: "2056960-089",
                     year: 1979,
                     purchaseDate: "2025年11月16日",
                     price: "650元",
@@ -159,7 +159,7 @@ const fecData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 16865470,
                     year: 1979,
                     purchaseDate: "2025年12月31日",
                     price: "850元",
@@ -179,7 +179,7 @@ const fecData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 16865473,
                     year: 1979,
                     purchaseDate: "2025年12月31日",
                     price: "850元",

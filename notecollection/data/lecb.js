@@ -32,7 +32,7 @@ const lecbData = {
                     varietyName: "1元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992544,
                             year: 1959,
                             version: "ⅠⅡⅢ06173849",
                             bank: "四川省人民委员会",
@@ -67,7 +67,7 @@ const lecbData = {
                     },
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26992540,
                             year: 1960,
                             version: "1566062",
                             bank: "福建省人民委员会",
@@ -79,7 +79,7 @@ const lecbData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-2.jpg"
                         },{
-                            copyId: 2,
+                            copyId: 26992541,
                             year: 1960,
                             version: "1566063",
                             bank: "福建省人民委员会",
@@ -91,7 +91,7 @@ const lecbData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-2.jpg"
                         },{
-                            copyId: 3,
+                            copyId: 26992542,
                             year: 1960,
                             version: "1566064",
                             bank: "福建省人民委员会",
@@ -103,7 +103,7 @@ const lecbData = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-2.jpg"
                         },{
-                            copyId: 4,
+                            copyId: 26992543,
                             year: 1960,
                             version: "1566065",
                             bank: "福建省人民委员会",

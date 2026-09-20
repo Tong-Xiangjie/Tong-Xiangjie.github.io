@@ -40,7 +40,7 @@ const macau_bocData = {
                     varietyName: "澳门币10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22792421,
                             year: 1995,
                             version: "AK09086",
                             bank: "中国银行",
@@ -61,7 +61,7 @@ const macau_bocData = {
                     varietyName: "澳门币100元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23155101,
                             year: 2003,
                             version: "HB11154",
                             bank: "中国银行",
@@ -93,7 +93,7 @@ const macau_bocData = {
                     varietyName: "澳门币10元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22308022,
                             year: 2013,
                             version: "BA118169",
                             bank: "中国银行",
@@ -114,7 +114,7 @@ const macau_bocData = {
                     varietyName: "澳门币20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 26626159,
                             year: 2008,
                             version: "AR921648",
                             bank: "中国银行",
@@ -130,7 +130,7 @@ const macau_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AR921648-2.jpg"
                         },
                         {
-                            copyId: 2,
+                            copyId: 21885475,
                             year: 2013,
                             version: "AJ008699",
                             bank: "中国银行",
@@ -162,7 +162,7 @@ const macau_bocData = {
                     varietyName: "澳门元20元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 22583754,
                             year: 2020,
                             version: "AN090100",
                             bank: "中国银行",
@@ -183,7 +183,7 @@ const macau_bocData = {
                     varietyName: "澳门元50元",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 23978672,
                             year: 2020,
                             version: "AB235738",
                             bank: "中国银行",
