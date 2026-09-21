@@ -22,7 +22,7 @@ const macau_bnuData = {
             year: "1990～2003",
             "varieties": [
                 {
-                    "varietyName": "20元",
+                    "varietyName": "澳门币20元",
                     "copies": [
                         {
                             copyId: 26680031,
@@ -48,7 +48,7 @@ const macau_bnuData = {
             year: "2020",
             "varieties": [
                 {
-                    "varietyName": "10元",
+                    "varietyName": "澳门元10元",
                     "copies": [
                         {
                             copyId: 26626158,

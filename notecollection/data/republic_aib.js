@@ -44,7 +44,28 @@ const republic_aibData = {
                         }
                     ]
                 },{
-                    varietyName: "1940年 2角 厦门中山公园南门纪念碑",
+                    varietyName: "1940年 1角 厦门中山公园南门",
+                    copies: [
+                        {
+                            copyId: 19532097,
+                            year: 1940,
+                            version: "A232432B",
+                            bank: "厦门劝业银行",
+                            print: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 65E",
+                            price: "50元",
+                            purchaseDate: "2026年9月21日",
+                            krause: "S1657a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A232432B-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A232432B-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1940年 2角 厦门中山公园纪念碑",
                     copies: [
                         {
                             copyId: 21901032,
@@ -59,7 +80,7 @@ const republic_aibData = {
                             price: "98元",
                             purchaseDate: "2026年9月13日",
                             krause: "S1657Aa",
-                            remark: "纸币上的湖光阁楼今为厦门中山公园思衡厅。",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A146896A-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A146896A-2.jpg"
                         }

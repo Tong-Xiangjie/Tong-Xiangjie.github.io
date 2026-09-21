@@ -36,7 +36,7 @@ const shanheScenes = [
 
     // ===== 福建 =====
     { province: 'fujian',    city: '厦门市（闽A）', scene: '中山公园湖光阁楼', denom: '厦门劝业银行日伪纸币1分', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hggg-aib1940.jpg', remark:"纸币上的湖光阁楼已不复存在，今为厦门中山公园思衡厅。" },
-    { province: 'fujian',    city: '厦门市（闽A）', scene: '中山公园南门纪念碑', denom: '厦门劝业银行日伪纸币2角', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnb-aib1940.jpg' },
+    { province: 'fujian',    city: '厦门市（闽A）', scene: '中山公园纪念碑', denom: '厦门劝业银行日伪纸币2角', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnb-aib1940.jpg' },
     { province: 'fujian',    city: '厦门市（闽A）', scene: '南普陀寺天王殿', denom: '厦门劝业银行日伪纸币5角', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/twd-aib1940.jpg' },
     { province: 'fujian',    city: '莆田市（闽B）', scene: '东圳水库', denom: '地方经济建设公债1元', year: 1960, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/dzsk-1960-1.jpg' },
 
