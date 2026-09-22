@@ -234,7 +234,8 @@ function renderSettingsPage() {
 //   on          —— 当前是否开启（布尔）
 //   onclickExpr —— 点击整张卡片时执行的全局函数表达式字符串
 //   desc        —— 可选：开关下方的一行补充说明（.toggle-desc，0.72rem 次要色）。
-//                  放在卡片内部，所以点说明文字也会切换开关（整张卡片是一个点击区）。
+//                  ★ 放在卡片**外面**（用户要求："放在按钮下面"）：卡片整块是一个
+//                  点击区，说明放里面就变成"点文字也会切换开关"。
 function renderToggleRow(id, label, on, onclickExpr, desc) {
     const checked = !!on;
     return `<div class="toggle-card" onclick="${onclickExpr}">`
@@ -243,8 +244,8 @@ function renderToggleRow(id, label, on, onclickExpr, desc) {
         + `<span class="switch${checked ? ' on' : ''}" id="${id}" role="switch" aria-checked="${checked ? 'true' : 'false'}">`
         + `<span class="switch-knob"></span></span>`
         + `</div>`
-        + (desc ? `<div class="toggle-desc">${desc}</div>` : '')
-        + `</div>`;
+        + `</div>`
+        + (desc ? `<div class="toggle-desc">${desc}</div>` : '');
 }
 
 function setSwitchState(id, on) {

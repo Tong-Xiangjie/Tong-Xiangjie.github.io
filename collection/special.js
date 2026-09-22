@@ -612,15 +612,21 @@ function shanheHeaderHtml(config) {
     html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
     html += `</div>`;
     html += `</div>`;
-    // ★ 图例：原来地图完全没有说明"颜色深浅代表什么"，
-    //   加上深色模式曾经把渐变方向弄反（没数据的省份最亮），
-    //   颜色语义就更猜不出来了。这条渐变条直接复用 --bg-light → --theme-light，
-    //   所以它和地图用的是同一套颜色，明暗切换都自洽。
-    html += `<div class="shanhe-map-legend">`;
-    html += `<span class="shanhe-legend-label">藏品数量</span>`;
-    html += `<span class="shanhe-legend-bar"></span>`;
-    html += `<span class="shanhe-legend-label">少 → 多</span>`;
-    html += `</div>`;
+    // ★ 图例只在地图视图显示：这条色阶说明的是"省份颜色越深 = 藏品越多"，
+    //   而列表视图里省份根本没有上色，摆在那里只是一行无意义的说明
+    //   （用户要求：山河的列表那里不用显示"藏品数量 / 少 → 多"）。
+    //   原来是列表和地图共用这个头部，所以两个视图都会出现。
+    if (shanheViewMode === 'map') {
+        // ★ 图例：原来地图完全没有说明"颜色深浅代表什么"，
+        //   加上深色模式曾经把渐变方向弄反（没数据的省份最亮），
+        //   颜色语义就更猜不出来了。这条渐变条直接复用 --bg-light → --theme-light，
+        //   所以它和地图用的是同一套颜色，明暗切换都自洽。
+        html += `<div class="shanhe-map-legend">`;
+        html += `<span class="shanhe-legend-label">藏品数量</span>`;
+        html += `<span class="shanhe-legend-bar"></span>`;
+        html += `<span class="shanhe-legend-label">少 → 多</span>`;
+        html += `</div>`;
+    }
     return html;
 }
 

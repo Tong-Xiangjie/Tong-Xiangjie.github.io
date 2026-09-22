@@ -1230,12 +1230,17 @@ body.modal-open {
     gap: 10px;
 }
 .toggle-label { font-size: 0.85rem; font-weight: 500; color: var(--text); }
+/* ★ 开关下方的补充说明。放在卡片**外面**（用户要求："放在按钮下面"）——
+   卡片整块是点击区，说明放里面会变成"点文字也跟着切开关"。
+   左边距对齐卡片内容（卡片 padding 12px + 1px 边框 = 13px）。 */
 .toggle-desc {
     font-size: 0.72rem;
     color: var(--text-secondary);
     line-height: 1.5;
-    margin-top: 4px;
+    margin: 6px 0 0 13px;
 }
+/* 说明把两张卡片隔开了，.toggle-card + .toggle-card 就选不中，间距改由这里给 */
+.toggle-desc + .toggle-card { margin-top: 8px; }
 /* 动作区的分组小标题（把"开关"和"按钮"在视觉上分开） */
 .actions-caption {
     font-size: 0.75rem;
