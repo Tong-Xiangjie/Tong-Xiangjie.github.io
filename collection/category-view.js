@@ -58,6 +58,10 @@ function renderCurrentCategory() {
     const cat = tree.find(c => c.id === currentCategoryId);
     if (!cat) { renderOverview(); triggerViewAnimation(); return; }
 
+    // ★ 滚动记忆的归属判定：currentCategoryId 在子分类里指向的是**父分类**，
+    //   所以"进出子分类"不会被误判成换了板块；只有真的换了顶级分类才作废旧记忆。
+    if (typeof noteCategoryOwner === 'function') noteCategoryOwner(cat.id);
+
     // 如果有子分类但未选择子分类，显示分类概览
     if (cat.children && cat.children.length > 0 && !currentSubId) {
         renderCategoryOverview(cat);
@@ -190,6 +194,9 @@ function renderCategoryOverview(cat) {
 
     app.innerHTML = html;
     triggerViewAnimation();
+
+    // ★ 分类概览页：把离开前记住的滚动位置放回去（同板块内往返才有效，见 core.js）
+    if (typeof restoreCategoryScroll === 'function') restoreCategoryScroll();
 
     // ★ 分类概览图片是懒加载的，渲染完成后在后台补齐
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
@@ -343,6 +350,9 @@ function renderSeriesList(data, title) {
 
     html += `</div>`;
     app.innerHTML = html;
+
+    // ★ 分类页（系列列表）：同样把离开前记住的滚动位置放回去
+    if (typeof restoreCategoryScroll === 'function') restoreCategoryScroll();
 
     // ★ 藏品列表图片是懒加载的，渲染完成后在后台补齐
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();

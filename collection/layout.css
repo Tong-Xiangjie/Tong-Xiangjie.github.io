@@ -706,6 +706,18 @@ body {
 /* 展开时不写死 max-height：由 animateAccordion() 量出内容真实高度再过渡（原因见 core.js）。
    这里写 none 只是 JS 未介入时的兜底（例如 restoreExpandedStates 直接加类）。 */
 .series-body.open { max-height: none; opacity: 1; }
+/* ★ 第一条分割线画在 .series-body 自己身上，而不是它的第一个 .variety-row 上。
+   原因（用户报的 ③「小标题与图片之间的分割线消失」）：
+   .series-body 是 overflow:hidden + opacity 过渡 —— 也就是一个会被合成的裁剪容器。
+   第一个 .variety-row 的 border-top 正好落在它的裁剪边界（容器 padding box 的第一行）上，
+   容器顶部与边框又常常落在分数设备像素上；此时裁剪矩形取整 + 合成层光栅化会把这一行
+   像素吃掉，表现为"那条线没了"，而且展开得越多越容易撞上、位置还没规律。
+   元素**自身**的边框不受自身 overflow 裁剪，所以挪上来就绕开了这个边界。
+   视觉完全等价：同色、同 1px、同一位置（.series-body 无 padding，第一个 .variety-row
+   的 border-top 本来就在它的顶边上）。
+   :has(> .variety-row) 是为了让"没有品种层、只有条目列表"的系列保持原样（不加这条线）。 */
+.series-body.open:has(> .variety-row) { border-top: 1px solid var(--border); }
+.series-body.open > .variety-row:first-child { border-top: none; }
 
 .variety-row { border-top: 1px solid var(--border); }
 .variety-header {
@@ -730,6 +742,12 @@ body {
     opacity: 0;
 }
 .copy-list.open { max-height: none; opacity: 1; }
+/* ★ 同理（见上面 .series-body 那段）：第一条 .copy-item 的分割线挪到 .copy-list 自己身上。
+   这条正是用户举例的那一处 ——「"50元 云南风光"与下面那一条具体条目之间」，
+   即某个品种的第一条藏品项，它的 border-top 原本正好压在 .copy-list 的裁剪边界上。
+   :has(> .copy-item) 让"啥都木有"的空品种保持原样（那里本来就没有这条线）。 */
+.copy-list.open:has(> .copy-item) { border-top: 1px solid var(--border); }
+.copy-list.open > .copy-item:first-child { border-top: none; }
 
 /* ========== 藏品项 ========== */
 .copy-item {

@@ -504,9 +504,79 @@ function ensureViewContainer(key) {
             return null;
         }
         content.insertBefore(div, document.getElementById('app'));
+        // ★ 分类页滚动位置的采集点。
+        //   为什么挂在容器上、而不是在各导航入口手动保存：导航入口散在 sidebar / overview /
+        //   router / search 好几处，漏一处就变成"有时候能记住有时候不能"，极难排查。
+        //   容器是唯一必经之路，挂这里一次就全覆盖。
+        div.addEventListener('scroll', function () {
+            rememberCategoryScroll(key, div);
+        }, { passive: true });
         viewScrollContainers[key] = div;
     }
     return viewScrollContainers[key];
+}
+
+// ========== 分类页滚动位置的记忆 ==========
+// 用户要求（原话）：
+//   「全局和含有子类的板块的"概览页"应该保留滚动状态；全局的可以一直保留；
+//     板块（例如"人民币"）的，在不切换板块浏览的前提下也应该保留，
+//     切换后再次进入就是从头开始了。」
+// 落实成两条规则：
+//   · 全局概览（#notes / #coins，容器 notes_overview / coins_overview）：
+//     滚动位置**一直**保留。它本来就成立 —— 切 tab 不清空概览容器的 DOM，
+//     scrollTop 自然还在，所以这里不碰它。
+//   · 分类页（含"含子类的分类"的概览页，如人民币 / 票证；容器 notes_category_xxx）：
+//     停留在该分类内浏览（含进出它的子分类）时保留；一旦进了**别的顶级分类**，
+//     再回到它就从顶部开始。
+// 为什么必须单独记：视图容器虽然按分类分开（notes_category_<id>），但每次进入都要
+//   重渲染 innerHTML —— 容器 scrollHeight 一归零，浏览器立刻把 scrollTop 钳到 0，
+//   容器自身根本保不住位置。
+// 记的是"容器 key → 位置"，归属则是**顶级分类 id**（currentCategoryId 在子分类里
+//   指向的就是父分类），所以进出子分类不会误判成"换了板块"。
+const categoryScrollMemory = { notes: {}, coins: {} };
+const categoryScrollOwner = { notes: null, coins: null };
+
+// 容器 key 前缀 → 板块。用它而不是 currentMode：scroll 事件可能在切板块的过程中
+// 才派发，那时 currentMode 已经不是这个容器所属的板块了。
+function modeOfContainerKey(key) {
+    if (key.indexOf('notes') === 0) return 'notes';
+    if (key.indexOf('coins') === 0) return 'coins';
+    return null;
+}
+
+function rememberCategoryScroll(key, el) {
+    const mode = modeOfContainerKey(key);
+    if (!mode || !el) return;
+    // ★ 内容不足一屏（含"刚被 innerHTML='' 清空"这一瞬间）说明这是滚动被钳位，
+    //   不是用户在滚动 —— 此时绝不能覆盖已记住的位置，否则每次离开都把记忆抹成 0。
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+    categoryScrollMemory[mode][key] = el.scrollTop || 0;
+}
+
+// 进入某个顶级分类时调用：换了顶级分类 → 旧记忆全部作废（"切换后再次进入从头开始"）。
+function noteCategoryOwner(catId) {
+    const mode = currentMode;
+    if (!categoryScrollMemory[mode]) return;
+    if (categoryScrollOwner[mode] === catId) return;
+    categoryScrollMemory[mode] = {};
+    categoryScrollOwner[mode] = catId;
+}
+
+// 分类页渲染完调用：把记住的位置放回去。
+function restoreCategoryScroll() {
+    if (!isCollectionMode() || isSettingsMode) return;
+    if (currentView !== VIEW.CATEGORY) return;
+    const mode = currentMode;
+    const key = getContainerKey();
+    const mem = categoryScrollMemory[mode];
+    const y = mem ? mem[key] : 0;
+    if (!(y > 0)) return;
+    const el = viewScrollContainers[key];
+    if (!el) return;
+    // 等一帧：innerHTML 刚写完，浏览器还没算完布局，此刻设 scrollTop 会被钳回 0。
+    requestAnimationFrame(function () {
+        if (el.scrollTop !== y) el.scrollTop = y;
+    });
 }
 
 // ★ 所有模式都使用独立容器，#app 不再用于渲染

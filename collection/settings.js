@@ -7,6 +7,14 @@ let cacheConfirmTimer = null;
 let articleCacheConfirmPending = false;
 let articleCacheConfirmTimer = null;
 
+// ★ 价格列表的展开状态。
+//   以前这个状态只挂在 DOM 的 class 上（togglePriceList 直接 classList.toggle），
+//   而「我的」页每次 renderSettingsPage() 都会整体重建 innerHTML —— 切板块、切评级页签、
+//   加自定义颜色都会触发 —— 于是重建后展开态必然丢失（用户报的"切换板块后无法保持"）。
+//   改成模块级变量：同一次会话内（含切板块往返、切页签）保持；刷新页面回到默认收起。
+//   不写 localStorage：这是一次浏览里的临时开合，和主题、模糊搜索那种"偏好"不同类。
+let priceListOpen = false;
+
 function renderSettingsPage() {
     const app = getRenderContainer();
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
@@ -51,10 +59,10 @@ function renderSettingsPage() {
     }
     html += `</select>`;
     html += `</div>`;
-    html += `<span class="price-list-arrow" id="priceListArrow">▼</span>`;
+    html += `<span class="price-list-arrow${priceListOpen ? ' open' : ''}" id="priceListArrow">▼</span>`;
     html += `</div>`;
     html += `<div class="price-list-summary" id="priceListSummary" style="display:none;"></div>`;
-    html += `<div class="price-list-body" id="priceListBody">`;
+    html += `<div class="price-list-body${priceListOpen ? ' open' : ''}" id="priceListBody">`;
     html += renderPriceListItems(allStats.prices, 'default', 'all', null);
     html += `</div>`;
     html += `</div>`;
@@ -140,7 +148,8 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<h3>文章搜索模式偏好</h3>`;
     html += renderToggleRow('articleFuzzySwitch', '模糊搜索',
-        articleFuzzyOn(), 'toggleArticleFuzzy()');
+        articleFuzzyOn(), 'toggleArticleFuzzy()',
+        '开启后，检索词依据同义词表扩展为同义项一并参与匹配，可覆盖正式名称与俗称、简称之间的对应关系；命中结果合并为单一列表并按相关性排序。召回范围相应扩大，会包含相关但非精确匹配的条目；仅作用于文章板块。');
     html += `</div>`;
 
     // 网格画质
@@ -219,12 +228,14 @@ function renderSettingsPage() {
 // 浅色卡片 = "状态/设置项"；主题色实心按钮 = "立即执行的动作"。两套语言分开，
 // 也避免把开关和按钮排在同一行（之前那样看着很乱）。
 //
-// 参数：(id, label, on, onclickExpr)
+// 参数：(id, label, on, onclickExpr, desc)
 //   id          —— 给 .switch 元素的 id，用于 setSwitchState(id, on) 局部刷新
 //   label       —— 显示文案
 //   on          —— 当前是否开启（布尔）
 //   onclickExpr —— 点击整张卡片时执行的全局函数表达式字符串
-function renderToggleRow(id, label, on, onclickExpr) {
+//   desc        —— 可选：开关下方的一行补充说明（.toggle-desc，0.72rem 次要色）。
+//                  放在卡片内部，所以点说明文字也会切换开关（整张卡片是一个点击区）。
+function renderToggleRow(id, label, on, onclickExpr, desc) {
     const checked = !!on;
     return `<div class="toggle-card" onclick="${onclickExpr}">`
         + `<div class="toggle-card-top">`
@@ -232,6 +243,7 @@ function renderToggleRow(id, label, on, onclickExpr) {
         + `<span class="switch${checked ? ' on' : ''}" id="${id}" role="switch" aria-checked="${checked ? 'true' : 'false'}">`
         + `<span class="switch-knob"></span></span>`
         + `</div>`
+        + (desc ? `<div class="toggle-desc">${desc}</div>` : '')
         + `</div>`;
 }
 
@@ -284,8 +296,11 @@ function togglePriceList() {
     const body = document.getElementById('priceListBody');
     const arrow = document.getElementById('priceListArrow');
     if (!body || !arrow) return;
-    body.classList.toggle('open');
-    arrow.classList.toggle('open');
+    // ★ 以模块级变量为准（而不是 classList.toggle 盲翻）：
+    //   重渲染后 DOM 的 class 是按 priceListOpen 写出来的，两边必须同一个口径。
+    priceListOpen = !priceListOpen;
+    body.classList.toggle('open', priceListOpen);
+    arrow.classList.toggle('open', priceListOpen);
 }
 
 function updateSettingsPageTheme(color) {
