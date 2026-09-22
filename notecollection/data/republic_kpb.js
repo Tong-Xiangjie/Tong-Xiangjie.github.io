@@ -22,6 +22,36 @@ const republic_kpbData = {
 
     series: [
         {
+            seriesName: "中华民国七年（1918年） 美钞版 兑换券",
+            year: "1918",
+            varieties: [
+                {
+                    varietyName: "1918年 10元 加盖“省立”",
+                    copies: [
+                        {
+                            copyId: 27104088,
+                            year: 1918,
+                            version: "343984",
+                            bank: "广东省银行/The Kuangtung Provincial Bank",
+                            print: "美国钞票公司/ABNC",
+                            signature1: "",
+                            signature2: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 60",
+                            price: "415元",
+                            purchaseDate: "2026年8月12日",
+                            krause: "S2403c",
+                            remark: "大“七”版。肉眼可见有裁切，并且凹凸感尽失，纸币中间似乎存在修复痕迹。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_kpb/343984-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_kpb/343984-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             seriesName: "中华民国三十八年（1949年） 中华书局版 大洋票",
             year: "1949",
             varieties: [
