@@ -516,21 +516,24 @@ function ensureViewContainer(key) {
     return viewScrollContainers[key];
 }
 
-// ========== 分类页滚动位置的记忆 ==========
+// ========== 概览页 / 分类页滚动位置的记忆 ==========
 // 用户要求（原话）：
 //   「全局和含有子类的板块的"概览页"应该保留滚动状态；全局的可以一直保留；
 //     板块（例如"人民币"）的，在不切换板块浏览的前提下也应该保留，
 //     切换后再次进入就是从头开始了。」
-// 落实成两条规则：
+//   补充澄清（第二轮）：
+//   「全局概览页滚动状态没有保存！全局是不受切换tab/小板块影响的。
+//     另外，父类的滚动状态也不受切换tab影响。」
+// 落实成三条规则：
 //   · 全局概览（#notes / #coins，容器 notes_overview / coins_overview）：
-//     滚动位置**一直**保留。它本来就成立 —— 切 tab 不清空概览容器的 DOM，
-//     scrollTop 自然还在，所以这里不碰它。
-//   · 分类页（含"含子类的分类"的概览页，如人民币 / 票证；容器 notes_category_xxx）：
-//     停留在该分类内浏览（含进出它的子分类）时保留；一旦进了**别的顶级分类**，
-//     再回到它就从顶部开始。
+//     滚动位置**一直**保留 —— 不受切 tab 影响，也不受进出任何分类（"小板块"）影响。
+//   · 分类概览 / 分类列表（容器 notes_category_xxx）：
+//     停留在该分类内浏览（含进出它的子分类、切 tab）时保留；
+//     一旦进了**别的顶级分类**，再回到它就从顶部开始。
 // 为什么必须单独记：视图容器虽然按分类分开（notes_category_<id>），但每次进入都要
 //   重渲染 innerHTML —— 容器 scrollHeight 一归零，浏览器立刻把 scrollTop 钳到 0，
-//   容器自身根本保不住位置。
+//   容器自身根本保不住位置。tab-switcher 里那条"从 modeStates 恢复 scrollY"的老路
+//   只在容器**没被清空**时才走，容器一旦被清空（例如从侧边栏进过分类）就什么都不恢复。
 // 记的是"容器 key → 位置"，归属则是**顶级分类 id**（currentCategoryId 在子分类里
 //   指向的就是父分类），所以进出子分类不会误判成"换了板块"。
 const categoryScrollMemory = { notes: {}, coins: {} };
@@ -544,6 +547,11 @@ function modeOfContainerKey(key) {
     return null;
 }
 
+// 全局概览的容器 key（这类记忆永不作废）
+function isOverviewContainerKey(key) {
+    return key === 'notes_overview' || key === 'coins_overview';
+}
+
 function rememberCategoryScroll(key, el) {
     const mode = modeOfContainerKey(key);
     if (!mode || !el) return;
@@ -553,30 +561,36 @@ function rememberCategoryScroll(key, el) {
     categoryScrollMemory[mode][key] = el.scrollTop || 0;
 }
 
-// 进入某个顶级分类时调用：换了顶级分类 → 旧记忆全部作废（"切换后再次进入从头开始"）。
+// 进入某个顶级分类时调用：换了顶级分类 → 该板块的**分类**记忆作废
+//（"切换后再次进入从头开始"）。全局概览那条必须留着 —— 用户明确要求"一直保留"。
 function noteCategoryOwner(catId) {
     const mode = currentMode;
     if (!categoryScrollMemory[mode]) return;
     if (categoryScrollOwner[mode] === catId) return;
-    categoryScrollMemory[mode] = {};
+    const kept = {};
+    for (const k of Object.keys(categoryScrollMemory[mode])) {
+        if (isOverviewContainerKey(k)) kept[k] = categoryScrollMemory[mode][k];
+    }
+    categoryScrollMemory[mode] = kept;
     categoryScrollOwner[mode] = catId;
 }
 
-// 分类页渲染完调用：把记住的位置放回去。
+// 渲染完（概览页 / 分类页）调用：把记住的位置放回去。
+// 返回放回去的位置（没放回则 0），供 tab-switcher 判断是否还要走老的回退路径。
 function restoreCategoryScroll() {
-    if (!isCollectionMode() || isSettingsMode) return;
-    if (currentView !== VIEW.CATEGORY) return;
+    if (!isCollectionMode() || isSettingsMode) return 0;
+    if (currentView !== VIEW.OVERVIEW && currentView !== VIEW.CATEGORY) return 0;
     const mode = currentMode;
     const key = getContainerKey();
-    const mem = categoryScrollMemory[mode];
-    const y = mem ? mem[key] : 0;
-    if (!(y > 0)) return;
+    const y = (categoryScrollMemory[mode] || {})[key] || 0;
+    if (!(y > 0)) return 0;
     const el = viewScrollContainers[key];
-    if (!el) return;
+    if (!el) return 0;
     // 等一帧：innerHTML 刚写完，浏览器还没算完布局，此刻设 scrollTop 会被钳回 0。
     requestAnimationFrame(function () {
         if (el.scrollTop !== y) el.scrollTop = y;
     });
+    return y;
 }
 
 // ★ 所有模式都使用独立容器，#app 不再用于渲染

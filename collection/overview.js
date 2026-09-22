@@ -106,6 +106,10 @@ function renderOverview() {
 
     app.innerHTML = html;
 
+    // ★ 全局概览的滚动位置：一直保留 —— 不受切 tab（纸币/硬币）影响，也不受进出分类影响。
+    //   重渲染会把 scrollTop 钳到 0，所以必须在渲染后放回去（见 core.js 的滚动记忆）。
+    if (typeof restoreCategoryScroll === 'function') restoreCategoryScroll();
+
     // ★ 概览页图片是懒加载的，渲染完成后在后台补齐，保证「没滚到的图」也能离线看
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }

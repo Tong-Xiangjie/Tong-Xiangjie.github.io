@@ -364,7 +364,13 @@ function restoreNotesCoinsFromSettings(target) {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
+        // ★ 概览页 / 分类页优先用"滚动记忆"里的位置（core.js）：它由 scroll 事件实时更新，
+        //   比 modeStates 里那份（只在切板块时采集）更新，而且容器被清空重渲染后仍然有效。
+        //   记忆里没有（返回 0）才回退到老逻辑，避免把已恢复的位置又覆盖掉。
+        const memY = (currentView === VIEW.OVERVIEW || currentView === VIEW.CATEGORY)
+            ? (typeof restoreCategoryScroll === 'function' ? restoreCategoryScroll() : 0) : 0;
+        const scrollPos = memY > 0 ? 0
+            : currentView === VIEW.OVERVIEW ? saved.overviewScrollY
             : currentView === VIEW.CATEGORY ? saved.categoryScrollY
             : saved.searchScrollY;
         if (scrollPos > 0) {
@@ -568,7 +574,13 @@ function enterNotesOrCoinsTab(target) {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
     } else {
         restoreExpandedStates({ expandedSeries: saved.expandedSeries, expandedVarieties: saved.expandedVarieties });
-        const scrollPos = currentView === VIEW.OVERVIEW ? saved.overviewScrollY
+        // ★ 概览页 / 分类页优先用"滚动记忆"里的位置（core.js）：它由 scroll 事件实时更新，
+        //   比 modeStates 里那份（只在切板块时采集）更新，而且容器被清空重渲染后仍然有效。
+        //   记忆里没有（返回 0）才回退到老逻辑，避免把已恢复的位置又覆盖掉。
+        const memY = (currentView === VIEW.OVERVIEW || currentView === VIEW.CATEGORY)
+            ? (typeof restoreCategoryScroll === 'function' ? restoreCategoryScroll() : 0) : 0;
+        const scrollPos = memY > 0 ? 0
+            : currentView === VIEW.OVERVIEW ? saved.overviewScrollY
             : currentView === VIEW.CATEGORY ? saved.categoryScrollY
             : saved.searchScrollY;
         if (scrollPos > 0) {
