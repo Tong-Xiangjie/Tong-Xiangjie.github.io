@@ -1606,9 +1606,12 @@ function highlightAny(text, terms, keyword) {
 }
 
 function openArticleReader(index, restoreScroll) {
-  const listContainer = viewScrollContainers['articles_list'];
-  if (listContainer) {
-    articleState.listScrollY = listContainer.scrollTop;
+  // ★ 列表位置一律从"滚动记忆"取，而不是现场量 listContainer.scrollTop：
+  //   此刻列表容器已经隐藏（display:none），隐藏元素的 scrollTop 恒为 0，
+  //   量出来的 0 会把已经记住的位置冲掉 —— 这是原来 articleState.listScrollY
+  //   被清成 0 的原因（返回列表时只是碰巧因为 DOM 没被清空才没露馅）。
+  if (typeof getRememberedArticleScroll === 'function') {
+    articleState.listScrollY = getRememberedArticleScroll('articles_list');
   }
 
   currentArticleIndex = index;
@@ -1624,9 +1627,11 @@ function openArticleReader(index, restoreScroll) {
   switchToCurrentContainer();
   const app = getRenderContainer();
 
+  // ★ 阅读位置不在这里设：renderArticleReader 结尾会按这篇自己的滚动记忆恢复
+  //   （没读过的文章记忆为 0，innerHTML 本来就已经把它归零）。
+  //   restoreScroll 参数保留是为了不改调用方，两条路径现在结果一致。
   if (articleContentCache[article.contentPath]) {
     renderArticleReader(article, articleContentCache[article.contentPath]);
-    app.scrollTop = restoreScroll ? (articleState.readerScrollY || 0) : 0;
     return;
   }
 
@@ -1645,7 +1650,6 @@ function openArticleReader(index, restoreScroll) {
       articlePlainTextCache[article.contentPath] = stripHtml(content);
       if (currentArticleView === VIEW.READER && currentArticleIndex === index) {
         renderArticleReader(article, content);
-        app.scrollTop = restoreScroll ? (articleState.readerScrollY || 0) : 0;
       }
     })
     .catch(() => {
@@ -1674,6 +1678,13 @@ function renderArticleReader(article, content) {
   html += `<div class="article-reader">${htmlContent}</div>`;
   app.innerHTML = html;
   requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
+
+  // ★ 恢复这篇自己的阅读位置。没读过 → 记忆为 0 → 什么也不做（innerHTML 已归零）。
+  //   放在这里而不是调用方：缓存命中、fetch 回来、重新加载三条路径都会经过本函数，
+  //   只写一处就不会漏。
+  if (typeof restoreArticleScroll === 'function') {
+    restoreArticleScroll(articleReaderContainerKey(currentArticleIndex));
+  }
 }
 
 function closeArticleReader() {
@@ -1690,11 +1701,17 @@ function closeArticleReaderInner() {
   // 切换到列表时不重置滚动（保留原有位置）
   switchToCurrentContainer();
   renderArticleList(false); // 不重置滚动
-  const listContainer = getRenderContainer();
-  if (articleState.listScrollY > 0) {
-    requestAnimationFrame(() => {
-      listContainer.scrollTop = articleState.listScrollY;
-    });
+  // ★ 再从滚动记忆兜一次底：renderArticleList(false) 读的是容器**当时**的 scrollTop，
+  //   万一容器在中间被清过一次就量不到了，记忆里那份才是权威。
+  if (typeof restoreArticleScroll === 'function') {
+    restoreArticleScroll('articles_list');
+  } else {
+    const listContainer = getRenderContainer();
+    if (articleState.listScrollY > 0) {
+      requestAnimationFrame(() => {
+        listContainer.scrollTop = articleState.listScrollY;
+      });
+    }
   }
 }
 

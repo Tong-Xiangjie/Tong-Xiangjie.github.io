@@ -509,6 +509,8 @@ function ensureViewContainer(key) {
         //   router / search 好几处，漏一处就变成"有时候能记住有时候不能"，极难排查。
         //   容器是唯一必经之路，挂这里一次就全覆盖。
         div.addEventListener('scroll', function () {
+            // 文章板块的容器走自己那套记忆（语义见下方 articleScrollMemory）
+            if (isArticleContainerKey(key)) { rememberArticleScroll(key, div); return; }
             rememberCategoryScroll(key, div);
         }, { passive: true });
         viewScrollContainers[key] = div;
@@ -587,6 +589,61 @@ function restoreCategoryScroll() {
     const el = viewScrollContainers[key];
     if (!el) return 0;
     // 等一帧：innerHTML 刚写完，浏览器还没算完布局，此刻设 scrollTop 会被钳回 0。
+    requestAnimationFrame(function () {
+        if (el.scrollTop !== y) el.scrollTop = y;
+    });
+    return y;
+}
+
+// ========== 文章板块的滚动位置记忆 ==========
+// 用户要求（原话）：「类似于纸币/硬币的概览页保留滚动进度，在文章板块也要体现。」
+//
+// 文章板块只有两种容器：
+//   · articles_list            文章列表（搜索结果也用这一个）
+//   · articles_reader_<index>  第 index 篇的阅读器
+// 与纸币/硬币的区别：文章之间**没有层级**（不存在"父类 / 子类"），每篇文章就是一个
+//   独立目标，所以这里不做 noteCategoryOwner 那种"换了板块就作废"的归属判断 ——
+//   每个容器各自记住自己的位置，本次会话内一直有效。
+//   这也正对上阅读场景：读到一半去别的板块转一圈回来，应该接着刚才的位置读；
+//   读过的另一篇再打开，也应该回到上次停下的地方。
+//
+// 为什么不能只靠 articleState.listScrollY / readerScrollY（原有那套）：
+//   · 容器一旦隐藏（display:none），它的 scrollTop 恒为 0 —— 在阅读器里调用
+//     openArticleReader 时列表容器正是隐藏的，量出来的 0 会把已记住的位置冲掉；
+//   · 那套值只在"切 tab / 返回列表"两条路径上被读，别处渲染（例如同义词表加载完
+//     补一次 renderArticleList、文章正文 fetch 回来后再渲染）都不会恢复。
+//   容器是唯一必经之路，位置记在容器这一层才不漏。
+const articleScrollMemory = {};
+
+function isArticleContainerKey(key) {
+    return key === 'articles_list' || String(key).indexOf('articles_reader_') === 0;
+}
+
+// 阅读器容器的 key。与 MODE_REGISTRY 里 articles 的 containerKey() 必须一致。
+function articleReaderContainerKey(index) {
+    return 'articles_reader_' + index;
+}
+
+function rememberArticleScroll(key, el) {
+    if (!el) return;
+    // 同分类记忆：内容不足一屏（含"刚被 innerHTML='' 清空"这一瞬间）说明这是滚动被
+    // 钳位，不是用户在滚动 —— 此时绝不能覆盖已记住的位置。
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+    articleScrollMemory[key] = el.scrollTop || 0;
+}
+
+function getRememberedArticleScroll(key) {
+    const y = articleScrollMemory[key];
+    return (typeof y === 'number' && y > 0) ? y : 0;
+}
+
+// 渲染完调用：把记住的位置放回去（等一帧，innerHTML 刚写完时设 scrollTop 会被钳回 0）。
+// 返回放回去的位置，没放回则 0。
+function restoreArticleScroll(key) {
+    const y = getRememberedArticleScroll(key);
+    if (!(y > 0)) return 0;
+    const el = viewScrollContainers[key];
+    if (!el) return 0;
     requestAnimationFrame(function () {
         if (el.scrollTop !== y) el.scrollTop = y;
     });
