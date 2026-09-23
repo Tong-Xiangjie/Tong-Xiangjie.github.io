@@ -615,6 +615,44 @@ function restoreCategoryScroll() {
 //   容器是唯一必经之路，位置记在容器这一层才不漏。
 const articleScrollMemory = {};
 
+// ★ 文章列表只有**一个**容器（articles_list），却承载多个逻辑列表：全部 + 每个侧栏分类。
+//   所以列表的位置要再按"当前是哪个分类"分开记 —— 否则从"全部"点进某个板块，
+//   那个板块的位置会把"全部"的位置覆盖掉，再回到全局就变成了回到顶部
+//   （用户报的现象：「全局滚动到某处，点击侧边栏的板块浏览某篇文章再回到全局，
+//     会回到顶部，而这是不希望的」）。
+//   阅读器不用分层：它本来就是一篇一个容器（articles_reader_<index>）。
+const articleListOwner = { current: null };
+
+function articleListMemoryKey() {
+    const cat = (typeof currentArticleCategory !== 'undefined' && currentArticleCategory)
+        ? currentArticleCategory : 'all';
+    return 'articles_list::' + cat;
+}
+
+// 容器 key → 记忆 key（列表要按分类再分一层）
+function articleMemoryKeyOf(containerKey) {
+    if (containerKey === 'articles_list') return articleListMemoryKey();
+    return containerKey;
+}
+
+// 进入某个文章分类时调用：换了板块 → **其它板块**的列表记忆作废
+//（与纸币/硬币的 noteCategoryOwner 同一条规则："切换后再次进入从头开始"）。
+// ★ "全部"就是全局，不是某个板块 —— 它不改变归属，它那条记忆也永不作废，
+//   因为用户明确要求"回到全局保留全局原来的状态"。
+function noteArticleListOwner(catId) {
+    const cat = catId || 'all';
+    if (cat === 'all') return;
+    if (articleListOwner.current === cat) return;
+    for (const k of Object.keys(articleScrollMemory)) {
+        if (k.indexOf('articles_list::') === 0
+            && k !== 'articles_list::all'
+            && k !== 'articles_list::' + cat) {
+            delete articleScrollMemory[k];
+        }
+    }
+    articleListOwner.current = cat;
+}
+
 function isArticleContainerKey(key) {
     return key === 'articles_list' || String(key).indexOf('articles_reader_') === 0;
 }
@@ -629,11 +667,11 @@ function rememberArticleScroll(key, el) {
     // 同分类记忆：内容不足一屏（含"刚被 innerHTML='' 清空"这一瞬间）说明这是滚动被
     // 钳位，不是用户在滚动 —— 此时绝不能覆盖已记住的位置。
     if (el.scrollHeight <= el.clientHeight + 1) return;
-    articleScrollMemory[key] = el.scrollTop || 0;
+    articleScrollMemory[articleMemoryKeyOf(key)] = el.scrollTop || 0;
 }
 
 function getRememberedArticleScroll(key) {
-    const y = articleScrollMemory[key];
+    const y = articleScrollMemory[articleMemoryKeyOf(key)];
     return (typeof y === 'number' && y > 0) ? y : 0;
 }
 

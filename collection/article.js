@@ -698,13 +698,13 @@ function onArticleSidebarClickInner(categoryId) {
     if (currentArticleCategory === categoryId) {
       // 已选中子分类 → 取消选中，回到父分类
       currentArticleCategory = parentId;
-      renderArticleList(true);
+      renderArticleList(false); // 位置由该分类自己的滚动记忆决定（首次进入自然是 0）
       renderArticleSidebar();
       return;
     }
     // 未选中 → 选中该子分类
     currentArticleCategory = categoryId;
-    renderArticleList(true);
+    renderArticleList(false); // 位置由该分类自己的滚动记忆决定（首次进入自然是 0）
     renderArticleSidebar();
     return;
   }
@@ -715,7 +715,7 @@ function onArticleSidebarClickInner(categoryId) {
   // 如果当前选中了这个父分类下的某个子分类 → 关闭父分类，显示全部文章
   if (parentCat.children && parentCat.children.some(sub => sub.id === currentArticleCategory)) {
     currentArticleCategory = 'all';
-    renderArticleList(true);
+    renderArticleList(false); // 位置由该分类自己的滚动记忆决定（首次进入自然是 0）
     renderArticleSidebar();
     return;
   }
@@ -723,14 +723,14 @@ function onArticleSidebarClickInner(categoryId) {
   // 如果当前选中的就是这个父分类 → 切换到全部文章
   if (currentArticleCategory === parentCat.id) {
     currentArticleCategory = 'all';
-    renderArticleList(true);
+    renderArticleList(false); // 位置由该分类自己的滚动记忆决定（首次进入自然是 0）
     renderArticleSidebar();
     return;
   }
 
   // 否则进入该父分类
   currentArticleCategory = parentCat.id;
-  renderArticleList(true);
+  renderArticleList(false); // 位置由该分类自己的滚动记忆决定（首次进入自然是 0）
   renderArticleSidebar();
 }
 
@@ -1511,7 +1511,19 @@ function renderArticleList(resetScroll = false, keepScroll = null) {
   //   keepScroll 用于"列表 DOM 已被调用方清空/重建"的情况（见 enterArticlesTab）：
   //   那时 container.scrollTop 已经被清空成 0，直接读会把要恢复的位置丢掉，
   //   所以由调用方把清空**之前**量到的位置传进来。
-  const savedScrollTop = resetScroll ? 0 : (keepScroll !== null ? keepScroll : container.scrollTop);
+  //
+  // ★ 否则一律以"这个列表自己的滚动记忆"为准（getRememberedArticleScroll 内部会按
+  //   当前文章分类取对应的那一份）：列表容器只有一个，多个分类共用它，现场读
+  //   container.scrollTop 读到的是**上一个分类**的位置，切分类时会张冠李戴
+  //   （实测会把上一个分类的位置夹到新分类的最大值上，看起来就是"乱跳"）。
+  //   记忆为空就是 0 —— 这个分类没来过，从顶部开始，正是想要的行为。
+  //   这一条正是"全局滚到某处 → 点侧栏板块看文章 → 回到全局却回到顶部"的修复点。
+  if (typeof noteArticleListOwner === 'function') noteArticleListOwner(currentArticleCategory);
+  const rememberedListY = (typeof getRememberedArticleScroll === 'function')
+    ? getRememberedArticleScroll('articles_list') : 0;
+  const savedScrollTop = resetScroll
+    ? 0
+    : (keepScroll !== null ? keepScroll : rememberedListY);
 
   ensureArticleStaticHeader(container);
 
