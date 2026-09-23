@@ -347,6 +347,11 @@ function onPriceSortOrFilterChange() {
     }
 
     bodyEl.innerHTML = renderPriceListItems(data.filteredPrices, priceSortOrder, priceFilter, data.filterInfo);
+
+    // ★ 换了排序或筛选就是另一批内容了，旧的滚动位置没有意义（会停在一条
+    //   和刚才完全无关的条目上），所以这里显式回到顶部，并把记忆一起清零。
+    priceListScrollTop = 0;
+    bodyEl.scrollTop = 0;
 }
 
 

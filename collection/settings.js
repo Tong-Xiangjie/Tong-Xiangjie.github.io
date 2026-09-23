@@ -23,6 +23,11 @@ let priceListOpen = false;
 let priceSortOrder = 'default';   // 'default' | 'desc' | 'asc'
 let priceFilter = 'all';          // 'all' 或 buildPriceFilterCategories() 里的某个 id
 
+// ★ 价格列表面板**内部**的滚动位置（它是 max-height:420px + overflow-y:auto 的面板，
+//   有自己的 scrollTop）。整个「我的」页重渲染时面板也一起重建，滚动位置会归零；
+//   恢复时机见 renderSettingsPage 末尾。同样只活在本次会话里。
+let priceListScrollTop = 0;
+
 // 按当前的排序/筛选算出真正要渲染的数据。
 // ★ 首屏渲染与用户切换排序/筛选必须走同一个函数，否则"汇总数字和下面列表对不上"
 //   （这正是 onPriceSortOrFilterChange 里那段注释警告过的事）。
@@ -253,6 +258,25 @@ function renderSettingsPage() {
         setTimeout(() => {
             app.scrollTop = settingsPageCache.scrollY || 0;
         }, 50);
+    }
+
+    // ★ 价格列表是"固定 420px + 内部滚动"的面板，它有自己的 scrollTop；
+    //   上面那行恢复的是**整个「我的」页**的滚动，管不到它，面板一重渲染就回到顶部。
+    //   这里挂监听 + 恢复，口径和展开态、排序筛选一致：只活在本次会话里。
+    const plBody = document.getElementById('priceListBody');
+    if (plBody) {
+        plBody.addEventListener('scroll', function () {
+            // ★ 面板收起时 max-height:0 会把 scrollTop 钳成 0，那不是用户在滚，
+            //   别把已经记住的位置覆盖掉（和分类页滚动记忆同一个坑）。
+            if (plBody.scrollHeight <= plBody.clientHeight + 1) return;
+            priceListScrollTop = plBody.scrollTop || 0;
+        }, { passive: true });
+        // 收起状态下 clientHeight 为 0，设 scrollTop 无效，所以只在展开时恢复
+        if (priceListOpen && priceListScrollTop > 0) {
+            requestAnimationFrame(function () {
+                if (plBody.scrollTop !== priceListScrollTop) plBody.scrollTop = priceListScrollTop;
+            });
+        }
     }
 
     document.querySelectorAll('#settingsThemeColors .theme-color').forEach(el => {
