@@ -15,6 +15,9 @@ const fecData = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "纸币目录编号" }
     ],
+    readmes: [
+        { title: "一篇浅薄的论文：从外汇兑换券看我国改革开放初期的制度转型", content: "file:readmes/fec_history_paper.html" }
+    ],
     series: [
         {
             seriesName: "1979年 1角",
