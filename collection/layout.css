@@ -1093,6 +1093,12 @@ body.modal-open {
     .modal-tip .tip-touch { display: none; }
     .modal-tip .tip-mouse { display: inline; }
 }
+/* ★ 单面图没有另一面可翻，提示语里就不该出现"滑动翻面"（用户要求）。
+   判据与左右两个翻面按钮完全一致：打开弹窗时 JS 会按"有没有第二张不同的图"
+   给 .modal 挂 .multi-img（category-view.js: modal.classList.toggle('multi-img', !!currentModalImg2)）。
+   父级 .tip-touch 在鼠标设备上本来就是 display:none，所以这里只管触摸那一份。 */
+.modal-tip .tip-flip { display: none; }
+.modal.multi-img .modal-tip .tip-flip { display: inline; }
 /* 原图还没加载完：提示语换成"原图加载中…"（此时缩放/拖动被禁用，见 initPinchZoom） */
 .modal-tip .tip-loading { display: none; }
 .modal.modal-loading .modal-tip .tip-touch,

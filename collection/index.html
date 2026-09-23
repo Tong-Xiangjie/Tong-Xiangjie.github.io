@@ -147,7 +147,11 @@
         <img id="modalImgOverlay" class="modal-img-overlay" src="" alt="">
     </div>
     <div class="modal-tip">
-        <span class="tip-touch">双指缩放 | 拖动查看 | 滑动翻面 | 单击关闭</span>
+        <!-- ★ "滑动翻面"单独包一层：单面图没有另一面可翻，这句提示就不该出现
+             （用户要求）。显隐由 .modal.multi-img 控制，判据和左右两个翻面按钮
+             完全一致 —— 都是"有没有第二张不同的图"（见 category-view.js 里
+             modal.classList.toggle('multi-img', !!currentModalImg2)）。 -->
+        <span class="tip-touch">双指缩放 | 拖动查看<span class="tip-flip"> | 滑动翻面</span> | 单击关闭</span>
         <span class="tip-mouse">滚轮缩放 | 拖动查看 | 单击关闭</span>
         <span class="tip-loading">原图加载中，请稍候</span>
     </div>

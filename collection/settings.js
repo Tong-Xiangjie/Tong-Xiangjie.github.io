@@ -15,6 +15,46 @@ let articleCacheConfirmTimer = null;
 //   不写 localStorage：这是一次浏览里的临时开合，和主题、模糊搜索那种"偏好"不同类。
 let priceListOpen = false;
 
+// ★ 价格列表的排序方式与筛选板块，同理也必须由模块级变量持有：
+//   它们是 <select> 的选中值，而整个「我的」页每次重渲染都会重建这两个 select，
+//   重建后浏览器只会认 HTML 里写死的 selected（默认排序 / 全部藏品），
+//   用户选过的"从高到低""某个板块"就没了（用户要求保留）。
+//   与 priceListOpen 一样只活在本次会话里。
+let priceSortOrder = 'default';   // 'default' | 'desc' | 'asc'
+let priceFilter = 'all';          // 'all' 或 buildPriceFilterCategories() 里的某个 id
+
+// 按当前的排序/筛选算出真正要渲染的数据。
+// ★ 首屏渲染与用户切换排序/筛选必须走同一个函数，否则"汇总数字和下面列表对不上"
+//   （这正是 onPriceSortOrFilterChange 里那段注释警告过的事）。
+//   顺带做一次归一：筛选目标若已不存在（数据变了），退回"全部藏品"，
+//   免得留下一个谁都选不中的 select 值。
+function currentPriceListData(stats) {
+    const s = stats || computeStats();
+    let filterInfo = null;
+    let filteredPrices = s.prices;
+
+    if (priceFilter && priceFilter !== 'all') {
+        const matchedCat = buildPriceFilterCategories().find(c => c.id === priceFilter);
+        if (matchedCat) {
+            filterInfo = { dataKey: matchedCat.dataKey, source: matchedCat.source };
+            filteredPrices = filterPricesByCategory(s.prices, filterInfo);
+        } else {
+            priceFilter = 'all';
+        }
+    }
+    return { filteredPrices, filterInfo };
+}
+
+// 筛选生效时那两行汇总（总投入 / 均价）。未筛选时返回空串。
+function priceListSummaryHtml(filteredPrices, filterInfo) {
+    if (!filterInfo) return '';
+    const total = filteredPrices.reduce((sum, p) => sum + (p.noPrice ? 0 : p.value), 0);
+    const pricedItems = filteredPrices.filter(p => !p.noPrice);
+    const avg = pricedItems.length > 0 ? Math.round(total / pricedItems.length) : 0;
+    return `<div class="price-list-summary-row"><span>该板块总投入</span><span>${total.toFixed(0)}元</span></div>`
+        + `<div class="price-list-summary-row"><span>该板块藏品均价</span><span>${avg}元/件</span></div>`;
+}
+
 function renderSettingsPage() {
     const app = getRenderContainer();
     const currentTheme = localStorage.getItem('app-theme') || '#1677ff';
@@ -47,23 +87,26 @@ function renderSettingsPage() {
     html += `<span>价格列表</span>`;
     html += `<div class="price-list-controls">`;
     html += `<select class="price-sort-select" id="priceSortSelect" onclick="event.stopPropagation()" onchange="onPriceSortOrFilterChange()">`;
-    html += `<option value="default" selected>默认排序</option>`;
-    html += `<option value="desc">从高到低</option>`;
-    html += `<option value="asc">从低到高</option>`;
+    for (const [val, label] of [['default', '默认排序'], ['desc', '从高到低'], ['asc', '从低到高']]) {
+        html += `<option value="${val}"${priceSortOrder === val ? ' selected' : ''}>${label}</option>`;
+    }
     html += `</select>`;
     html += `<select class="price-filter-select" id="priceFilterSelect" onclick="event.stopPropagation()" onchange="onPriceSortOrFilterChange()">`;
-    html += `<option value="all">全部藏品</option>`;
+    html += `<option value="all"${priceFilter === 'all' ? ' selected' : ''}>全部藏品</option>`;
     const filterCategories = buildPriceFilterCategories();
     for (const cat of filterCategories) {
-        html += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
+        html += `<option value="${cat.id}"${priceFilter === cat.id ? ' selected' : ''}>${escapeHtml(cat.name)}</option>`;
     }
     html += `</select>`;
     html += `</div>`;
     html += `<span class="price-list-arrow${priceListOpen ? ' open' : ''}" id="priceListArrow">▼</span>`;
     html += `</div>`;
-    html += `<div class="price-list-summary" id="priceListSummary" style="display:none;"></div>`;
+    // ★ 汇总行与列表都按"当前的排序 + 筛选"渲染，和切换时走同一套计算
+    const priceData = currentPriceListData(allStats);
+    const priceSummaryHtml = priceListSummaryHtml(priceData.filteredPrices, priceData.filterInfo);
+    html += `<div class="price-list-summary" id="priceListSummary" style="display:${priceData.filterInfo ? 'block' : 'none'};">${priceSummaryHtml}</div>`;
     html += `<div class="price-list-body${priceListOpen ? ' open' : ''}" id="priceListBody">`;
-    html += renderPriceListItems(allStats.prices, 'default', 'all', null);
+    html += renderPriceListItems(priceData.filteredPrices, priceSortOrder, priceFilter, priceData.filterInfo);
     html += `</div>`;
     html += `</div>`;
     html += `</div>`;

@@ -329,38 +329,24 @@ function onPriceSortOrFilterChange() {
     const bodyEl = document.getElementById('priceListBody');
     if (!sortSelect || !filterSelect || !bodyEl) return;
 
-    const order = sortSelect.value;
-    const filter = filterSelect.value;
-    const stats = computeStats();
+    // ★ 记到模块级变量上：这两个 <select> 会随「我的」页整体重渲染而重建，
+    //   不记下来下次渲染就退回"默认排序 / 全部藏品"（用户要求保留选择）。
+    priceSortOrder = sortSelect.value;
+    priceFilter = filterSelect.value;
 
-    let filterInfo = null;
-    let filteredPrices = stats.prices;
-
-    if (filter && filter !== 'all') {
-        const filterCats = buildPriceFilterCategories();
-        const matchedCat = filterCats.find(c => c.id === filter);
-        if (matchedCat) {
-            filterInfo = { dataKey: matchedCat.dataKey, source: matchedCat.source };
-            // ★ 用同一个函数筛，然后把这个结果同时交给汇总与列表 —— 
-            //   以前汇总用 allowedNames 筛、列表却在 renderPriceListItems 内部再筛一遍，
-            //   两套逻辑一旦有差异就会"汇总数字和下面列表对不上"。
-            filteredPrices = filterPricesByCategory(stats.prices, filterInfo);
-        }
-    }
+    // ★ 与首屏渲染共用同一套计算（settings.js 的 currentPriceListData）：
+    //   以前汇总用 filterPricesByCategory 筛、列表在 renderPriceListItems 内部再筛一遍，
+    //   两套逻辑一旦有差异就会"汇总数字和下面列表对不上"。
+    //   它还可能把已失效的筛选值归一成 'all'，所以下面要把 select 同步回来。
+    const data = currentPriceListData();
+    if (filterSelect.value !== priceFilter) filterSelect.value = priceFilter;
 
     if (summaryEl) {
-        if (filterInfo) {
-            const total = filteredPrices.reduce((s, p) => s + (p.noPrice ? 0 : p.value), 0);
-            const pricedItems = filteredPrices.filter(p => !p.noPrice);
-            const avg = pricedItems.length > 0 ? Math.round(total / pricedItems.length) : 0;
-            summaryEl.style.display = 'block';
-            summaryEl.innerHTML = `<div class="price-list-summary-row"><span>该板块总投入</span><span>${total.toFixed(0)}元</span></div><div class="price-list-summary-row"><span>该板块藏品均价</span><span>${avg}元/件</span></div>`;
-        } else {
-            summaryEl.style.display = 'none';
-        }
+        summaryEl.style.display = data.filterInfo ? 'block' : 'none';
+        summaryEl.innerHTML = priceListSummaryHtml(data.filteredPrices, data.filterInfo);
     }
 
-    bodyEl.innerHTML = renderPriceListItems(filteredPrices, order, filter, filterInfo);
+    bodyEl.innerHTML = renderPriceListItems(data.filteredPrices, priceSortOrder, priceFilter, data.filterInfo);
 }
 
 
