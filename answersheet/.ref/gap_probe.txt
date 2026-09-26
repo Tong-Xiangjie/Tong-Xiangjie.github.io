@@ -1,0 +1,32 @@
+GAP PROBE = {
+ "scale": 0.875645,
+ "colGapComputed": "6.99968px",
+ "colGapMM": 1.852,
+ "varColGap": "1.852mm",
+ "varFsNum": "9.5pt",
+ "colWidthMM": 27.996,
+ "bubbleHMM": 2.435,
+ "numFontSize": "12.6667px",
+ "numLineHeight": "12.6667px",
+ "numHMM": 3.353,
+ "rowHeightsMM": [
+  3.353,
+  2.435,
+  2.435,
+  2.435,
+  2.435
+ ],
+ "gapsMM": [
+  1.848,
+  1.848,
+  1.848,
+  1.848
+ ],
+ "pitchMM": [
+  5.201,
+  4.283,
+  4.283,
+  4.283
+ ],
+ "totalHMM": 20.485
+}

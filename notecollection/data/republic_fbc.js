@@ -48,6 +48,29 @@ const republic_fbcData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/MP024556-2.jpg"
                         }
                     ]
+                },{
+                    varietyName: "1937年 2角 《雍正耕织图》之“插秧”",
+                    copies: [
+                        {
+                            copyId: 22938647,
+                            year: 1937,
+                            version: "GF150753",
+                            bank: "中国农民银行/The Farmers Bank of China",
+                            print: "中国大业公司/TYPC",
+                            signature1: "叶琢堂",
+                            signature2: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 65E",
+                            price: "180元",
+                            purchaseDate: "2026年9月26日",
+                            krause: "462",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/GF150753-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/GF150753-2.jpg"
+                        }
+                    ]
                 }
             ]
         },{

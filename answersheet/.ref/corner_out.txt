@@ -1,0 +1,48 @@
+========================================================================================
+A3 math p1
+========================================================================================
+
+  top-left-most corner:  x=5.59 y=8.30 w=6.77 h=4.23   center=(8.975, 10.415)
+
+  TOP marks  n=20  pitch=5.93
+      first mark center x = 17.275   (left edge x=15.41)
+      last  mark center x = 130.385
+      mark center y       = 10.920
+  LEFT marks n=6
+      first mark center y = 88.650   (top edge y=87.55)
+      mark center x       = 9.910
+
+  --- DELTAS (corner center vs mark center) ---
+      corner.centerX - top[0].centerX  =  -8.300 mm
+      corner.centerX - left[0].centerX =  -0.935 mm
+      corner.centerY - left[0].centerY = -78.235 mm
+      corner.centerY - top[0].centerY  =  -0.505 mm
+
+  --- alt reading: corner EDGE vs first top mark EDGE ---
+      corner right edge   12.360  vs top[0] left edge   15.410   delta  -3.050 mm
+      corner left  edge    5.590  vs top[0] centerX     17.275   delta -11.685 mm
+
+========================================================================================
+A4 math p1
+========================================================================================
+
+  top-left-most corner:  x=5.59 y=13.55 w=6.77 h=4.23   center=(8.975, 15.665)
+
+  TOP marks  n=29  pitch=5.93
+      first mark center x = 19.560   (left edge x=17.78)
+      last  mark center x = 186.180
+      mark center y       = 15.830
+  LEFT marks n=5
+      first mark center y = 69.340   (top edge y=68.24)
+      mark center x       = 7.115
+
+  --- DELTAS (corner center vs mark center) ---
+      corner.centerX - top[0].centerX  = -10.585 mm
+      corner.centerX - left[0].centerX =  +1.860 mm
+      corner.centerY - left[0].centerY = -53.675 mm
+      corner.centerY - top[0].centerY  =  -0.165 mm
+
+  --- alt reading: corner EDGE vs first top mark EDGE ---
+      corner right edge   12.360  vs top[0] left edge   17.780   delta  -5.420 mm
+      corner left  edge    5.590  vs top[0] centerX     19.560   delta -13.970 mm
+

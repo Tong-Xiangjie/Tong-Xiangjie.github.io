@@ -1,0 +1,80 @@
+﻿
+================================================================================
+A4 portrait (1 face/page)
+================================================================================
+  SELF-TEST: PASS  (0 violations)
+  page 210x297mm  faces=1  faceW=210
+
+  --- face 0  (x 0 .. 210) ---
+  block=4.06x2.88  step=5.6  rowPitch=3.5
+  content  L=12.7  R=197.3
+  corner   x=5.59 y=13.55 w=6.77 h=4.23  center=(8.975, 15.665)
+  rowCenters  (5): 88.15, 93.84, 100.22, 106.6, 112.98
+  colCenters  (33): 15.4, 21, 26.6, 32.2, 37.8 ... 189, 194.6
+  topBand  left=13.37 right=196.63 span=183.26
+           whitespace L=0.67  R=0.67
+  topMarks (33)  first=(15.4, 15.665)  last=(194.6, 15.665)
+  leftMarks (5) at x=8.975
+      题号   cx=8.975  cy=88.15  rowCenter=88.15
+      A    cx=8.975  cy=93.84  rowCenter=93.84
+      B    cx=8.975  cy=100.22  rowCenter=100.22
+      C    cx=8.975  cy=106.6  rowCenter=106.6
+      D    cx=8.975  cy=112.98  rowCenter=112.98
+
+================================================================================
+A3 landscape (3 faces/page)
+================================================================================
+  SELF-TEST: PASS  (0 violations)
+  page 420x297mm  faces=3  faceW=140
+
+  --- face 0  (x 0 .. 140) ---
+  block=4x2.6  step=5.6  rowPitch=3.5
+  content  L=12.7  R=127.3
+  corner   x=5.59 y=8.3 w=6.77 h=4.23  center=(8.975, 10.415)
+  rowCenters  (5): 100.585, 106.07, 112.17, 118.27, 124.37
+  colCenters  (20): 16.8, 22.4, 28, 33.6, 39.2 ... 117.6, 123.2
+  topBand  left=14.8 right=125.2 span=110.4
+           whitespace L=2.1  R=2.1
+  topMarks (20)  first=(16.8, 10.415)  last=(123.2, 10.415)
+  leftMarks (5) at x=8.975
+      题号   cx=8.975  cy=100.585  rowCenter=100.585
+      A    cx=8.975  cy=106.07  rowCenter=106.07
+      B    cx=8.975  cy=112.17  rowCenter=112.17
+      C    cx=8.975  cy=118.27  rowCenter=118.27
+      D    cx=8.975  cy=124.37  rowCenter=124.37
+
+  --- face 1  (x 140 .. 280) ---
+  block=4x2.6  step=5.6  rowPitch=3.5
+  content  L=152.7  R=267.3
+  corner   x=145.59 y=8.3 w=6.77 h=4.23  center=(148.975, 10.415)
+  rowCenters  (5): 100.585, 106.07, 112.17, 118.27, 124.37
+  colCenters  (20): 156.8, 162.4, 168, 173.6, 179.2 ... 257.6, 263.2
+  topBand  left=154.8 right=265.2 span=110.4
+           whitespace L=2.1  R=2.1
+  topMarks (20)  first=(156.8, 10.415)  last=(263.2, 10.415)
+  leftMarks (5) at x=148.975
+      题号   cx=148.975  cy=100.585  rowCenter=100.585
+      A    cx=148.975  cy=106.07  rowCenter=106.07
+      B    cx=148.975  cy=112.17  rowCenter=112.17
+      C    cx=148.975  cy=118.27  rowCenter=118.27
+      D    cx=148.975  cy=124.37  rowCenter=124.37
+
+  --- face 2  (x 280 .. 420) ---
+  block=4x2.6  step=5.6  rowPitch=3.5
+  content  L=292.7  R=407.3
+  corner   x=285.59 y=8.3 w=6.77 h=4.23  center=(288.975, 10.415)
+  rowCenters  (5): 100.585, 106.07, 112.17, 118.27, 124.37
+  colCenters  (20): 296.8, 302.4, 308, 313.6, 319.2 ... 397.6, 403.2
+  topBand  left=294.8 right=405.2 span=110.4
+           whitespace L=2.1  R=2.1
+  topMarks (20)  first=(296.8, 10.415)  last=(403.2, 10.415)
+  leftMarks (5) at x=288.975
+      题号   cx=288.975  cy=100.585  rowCenter=100.585
+      A    cx=288.975  cy=106.07  rowCenter=106.07
+      B    cx=288.975  cy=112.17  rowCenter=112.17
+      C    cx=288.975  cy=118.27  rowCenter=118.27
+      D    cx=288.975  cy=124.37  rowCenter=124.37
+
+================================================================================
+ALL GEOMETRY CHECKS PASSED
+================================================================================

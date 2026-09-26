@@ -1,0 +1,75 @@
+
+=== A3 math p1: 61 enclosed small regions (candidate bubbles) ===
+  size histogram (w x h mm):
+      2.88 x   1.86   x33
+      3.05 x   1.86   x11
+      4.91 x   6.43   x5
+      1.52 x   2.03   x4
+      4.74 x   6.43   x4
+      3.56 x   3.89   x1
+      3.73 x   2.20   x1
+      1.52 x   1.86   x1
+      2.20 x   2.37   x1
+  positions of the 2.88x1.86 bubbles (first 20):
+      x=  17.78 y= 115.65  2.88x1.86  edge=['RED']
+      x=  23.37 y= 115.65  2.88x1.86  edge=['RED']
+      x=  34.37 y= 115.65  2.88x1.86  edge=['RED']
+      x=  39.96 y= 115.65  2.88x1.86  edge=['RED']
+      x=  51.31 y= 115.65  2.88x1.86  edge=['RED']
+      x=  62.31 y= 115.65  2.88x1.86  edge=['RED']
+      x=  67.90 y= 115.65  2.88x1.86  edge=['RED']
+      x=  73.32 y= 115.65  2.88x1.86  edge=['RED']
+      x=  78.91 y= 115.65  2.88x1.86  edge=['RED']
+      x=  23.54 y= 119.21  2.88x1.86  edge=['RED']
+      x=  29.13 y= 119.21  2.88x1.86  edge=['RED']
+      x=  34.54 y= 119.21  2.88x1.86  edge=['RED']
+      x=  40.13 y= 119.21  2.88x1.86  edge=['RED']
+      x=  51.48 y= 119.21  2.88x1.86  edge=['RED']
+      x=  62.48 y= 119.21  2.88x1.86  edge=['RED']
+      x=  68.07 y= 119.21  2.88x1.86  edge=['RED']
+      x=  79.08 y= 119.21  2.88x1.86  edge=['RED']
+      x=  23.54 y= 122.77  2.88x1.86  edge=['RED']
+      x=  29.13 y= 122.77  2.88x1.86  edge=['RED']
+      x=  34.54 y= 122.77  2.88x1.86  edge=['RED']
+  same-row x positions: [17.8, 23.4, 34.4, 40.0, 51.3, 62.3, 67.9, 73.3, 78.9]
+  x pitches: [5.6, 11.0, 5.6, 11.3, 11.0, 5.6, 5.4, 5.6]
+  same-col y positions: [115.7, 126.2]
+  y pitches: [10.5]
+
+=== A4 math p1: 62 enclosed small regions (candidate bubbles) ===
+  size histogram (w x h mm):
+      3.73 x   2.54   x18
+      3.56 x   2.54   x15
+      3.73 x   2.37   x6
+      4.74 x   5.42   x5
+      4.91 x   5.42   x5
+      3.56 x   2.37   x5
+      3.56 x   3.89   x1
+      1.86 x   1.86   x1
+      4.40 x   5.42   x1
+      1.86 x   1.52   x1
+      3.05 x   2.37   x1
+      2.20 x   2.88   x1
+  positions of the 3.73x2.54 bubbles (first 20):
+      x=  29.13 y=  89.75  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  46.74 y=  89.75  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  58.42 y=  89.75  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  69.77 y=  89.75  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  81.45 y=  89.75  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  17.10 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  28.79 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  34.71 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  46.40 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  58.08 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  75.69 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  81.62 y=  96.69  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  17.10 y= 100.25  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  28.79 y= 100.25  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  34.71 y= 100.25  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  46.40 y= 100.25  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  58.08 y= 100.25  3.73x2.54  edge=['BLACK', 'OTHER']
+      x=  75.69 y= 100.25  3.73x2.54  edge=['BLACK', 'OTHER']
+  same-row x positions: [29.1, 46.7, 58.4, 69.8, 81.5]
+  x pitches: [17.6, 11.7, 11.4, 11.7]
+  same-col y positions: [89.8, 96.7, 100.2]
+  y pitches: [6.9, 3.5]

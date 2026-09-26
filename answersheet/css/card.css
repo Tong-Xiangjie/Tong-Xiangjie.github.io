@@ -1,0 +1,753 @@
+/* =============================================================================
+ * 答题卡生成器 · 答题卡本体样式
+ * -----------------------------------------------------------------------------
+ * 单位：尺寸用 mm，字号用 pt（沿用初版，观感一致）。
+ * 字体搭配由 config.js 的 FONTS/TYPE 经 theme.applyFonts() 写成 CSS 变量：
+ *   标题 / 栏目名 / 题号 / 表头 → SimHei 黑体
+ *   说明文字 / 填空 / 作答区   → SimSun 宋体
+ *
+ * 定位块（角标/顶部/左侧）一律 absolute 定位到纸上，不参与文档流 ——
+ * 这是与填涂框严格对齐的前提。
+ * ========================================================================== */
+
+/* ── 纸张 ────────────────────────────────────────────────────────────── */
+/* 打印尺寸必须与纸张一致，否则浏览器会把内容缩放到可打印区域 */
+@page { size: A4 portrait; margin: 0; }
+@page :first { }
+
+.as-page {
+  /* 页眉网格的兜底值。运行时会被 theme.applyPreset 用 page.js 的 CHROME
+     覆盖（单一真源）；这里只保证即使变量没写上也不会塌成 0 高。 */
+  --head-title-h: 19mm;
+  --head-info-h: 8.267mm;
+  --head-note-h: 33mm;
+  --head-title-pad-top: 22mm;
+  --barcode-w: 63mm;
+  position: relative;
+  background: var(--paper);
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: var(--font-sun);
+  color: var(--ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.as-page[data-format="A4"] { width: 210mm; height: 297mm; }
+.as-page[data-format="A3"] { width: 420mm; height: 297mm; }
+
+.as-face-guide {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 0;
+  border-left: 0.2mm dashed #c8c8c8;
+  pointer-events: none;
+}
+
+/* ── 定位块 ──────────────────────────────────────────────────────────────
+ * z-index 必须高于正文块：.as-choice-section / .as-subjective 都是不透明
+ * 白底的绝对定位块，且排在定位块之后，会把左侧定标带整条盖住
+ * （在浏览器预览里就是这样，不是 html2canvas 的锅）。 */
+.as-mark {
+  position: absolute;
+  width: var(--block-w);
+  height: var(--block-h);
+  background: var(--mark);
+  box-sizing: border-box;
+  z-index: 3;
+}
+.as-corner {
+  position: absolute;
+  width: var(--corner-w);
+  height: var(--corner-h);
+  background: var(--mark);
+  box-sizing: border-box;
+  z-index: 3;
+}
+
+/* ── 面内容容器 ──────────────────────────────────────────────────────── */
+/* ⚠ 必须写全 left/right：只给 top/bottom 的话，绝对定位盒会收缩到内容宽
+   （实测 .as-face 只有 184.6mm 宽而不是 210mm），里面的 .as-head 用
+   left:0;right:0 定位就会以这个窄盒为基准，整个页眉跟着左移、宽度也不对。 */
+.as-face {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  padding: 0 var(--pad-x);
+}
+
+/* 后续页的「xx答题卡」提示行。
+   ⚠ 必须绝对定位：它一旦落进文档流，就会把 .as-face-body 往下推，
+     而且自己也会被正文盖住。原来这条规则和首页 .as-title 一起被删掉了，
+     导致后续页的提示行飘在 14mm 处、与正文重叠。 */
+.as-title {
+  position: absolute;
+  left: var(--pad-x);
+  right: var(--pad-x);
+  top: var(--head-other-title-top, 14mm);
+  text-align: center;
+}
+
+/* ── 页眉：标题 ──────────────────────────────────────────────────────── */
+/* 首页页眉 = 三行网格：标题 / 信息 / 注意事项+条形码。
+ *
+ * ⚠ 标题行必须是 **auto**，不能写死高度。
+ *   写死 19mm 时，长标题会换到第二行、从行底溢出，正好压到下面的
+ *   「姓名 / 班级 / 准考证号」上（实测标题盒 0→22mm，信息行 19mm 就开始了，
+ *   重叠 3mm）。改成 auto 后标题行按内容长高，信息行**永远**紧跟其后。
+ *
+ * 信息行与注意事项行仍是固定高：它们的内部布局（表格、缺考框定标）
+ * 依赖确定的高度，分页器也算好了它们的 y。
+ *
+ * .as-face 的 left/width 由 builder 内联写死（A3 要按面偏移），所以这里
+ * 不能用 left:0;right:0 —— 那是 padding box 的外沿，会顶到纸边。
+ * 用 var(--pad-x) 内缩，正好落在内容盒上，与下方正文同宽。 */
+.as-head {
+  position: absolute;
+  left: var(--pad-x);
+  right: var(--pad-x);
+  top: 0;
+  display: grid;
+  /* auto 行 + 两个定高行：长标题长高，后面两行跟着下移 */
+  grid-template-rows: auto var(--head-info-h) var(--head-note-h);
+  /* 三行之间的净间距。必须与 page.js 的 CHROME.rowGap 同源 ——
+     firstBottom（正文起点）要把这两道 gap 加进去，否则正文会压住注意事项框。 */
+  row-gap: var(--head-row-gap, 0mm);
+}
+
+.as-head-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: center;
+  /* 高度 = --head-title-h（由 app 实测标题内容后写回）。
+     ⚠ 不要用 min-height：那样量到的行高会包含这个下限，把实测值当输入
+       喂回去会形成正反馈，每渲染一次页眉就长高一点。
+       行高固定后，行内用 justify-content:flex-end 把标题贴底，观感不变。 */
+  height: var(--head-title-h);
+  padding-top: var(--head-title-pad-top);
+  box-sizing: border-box;
+}
+.as-title-main {
+  font-family: var(--font-hei);
+  font-size: var(--fs-mainTitle);
+  font-weight: var(--fw-mainTitle);
+  letter-spacing: var(--ls-mainTitle);
+  color: var(--fc-mainTitle);
+  line-height: 1.2;
+}
+.as-title-sub {
+  font-family: var(--font-hei);
+  font-size: var(--fs-subTitle);
+  font-weight: var(--fw-subTitle);
+  letter-spacing: var(--ls-subTitle);
+  color: var(--fc-subTitle);
+  line-height: 1.2;
+  margin-top: 0.4mm;
+}
+
+/* ── 页眉：考生信息 ──────────────────────────────────────────────────── */
+.as-info {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.as-info-row {
+  display: flex;
+  align-items: center;
+  /* ⚠ 这里**不要**用 flex 的 `gap`。以前写的是 `gap: -3mm`，而 flex 的 gap
+     不接受负值，浏览器把整条声明判为无效（computed value = normal），
+     于是元素之间一点空隙都没有 —— 用户看到的「姓名横线和班级贴在一起」。
+     改用 `gap` 又走到了另一个极端：**每一处**相邻元素都被撑开 5mm，连
+     「姓名：」和它自己的横线之间也多了 5mm，用户明确说这不对
+     ——「我只要求姓名横线与班级间距大一点，没有说和姓名的间距也要拉大」。
+     所以空隙只加在**标签之前**：给 .as-info-label 一个 margin-left，
+     该标签自己的横线（前一个元素）贴着它，标签到横线不留缝。 */
+  gap: 0;
+  font-family: var(--font-sun);
+  font-size: var(--fs-info);
+  color: var(--fc-info);
+}
+.as-info-label {
+  font-weight: 500;
+  white-space: nowrap;
+  /* 「姓名：」前面没有横线，margin-left 由下面按需覆盖。
+     「班级：」「准考证号」前面的 margin-left 就是用户要的空隙：
+         [姓名横线] 5mm [班级：] 0 [班级横线] 5mm [准考证号]
+       即横线紧贴它自己的标签，空隙只出现在「横线 → 下一个标签」之间。 */
+  margin-left: 5mm;
+}
+/* 行首的「姓名：」前不需要空隙 */
+.as-info-row > .as-info-label:first-child { margin-left: 0; }
+.as-info-fill {
+  position: relative;
+  flex: 0 0 auto;
+  height: 0;
+  /* 下划线改用绝对定位（::after）画在文字基线稍下方。
+     ⚠ 不能再用 `margin-bottom:-5mm` 把下划线往下拽：负外边距会把这一项的
+       外边距盒撑大，整行在 .as-info 里垂直居中后文字就整体偏上，而且偏移量
+       会随字号漂移。绝对定位的下划线不参与布局，行高恒等于文字行高。 */
+}
+.as-info-fill::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4.2mm;              /* 距行心 4.2mm ≈ 文字基线下方，与初版一致 */
+  border-bottom: 0.3mm solid var(--accent);
+}
+.as-info-fill.name { width: 30mm; }
+.as-info-fill.seat { width: 30mm; }
+
+/* 准考证号书写栏：一行空方框（考生手写，不填涂），尺寸照初版 7mm × 8mm */
+.as-zk {
+  border-collapse: collapse;
+  /* 不写 margin-left：水平空隙统一由 .as-info-row 的 gap 给，
+     否则会变成「gap + margin」两段不等宽的间距。 */
+}
+.as-zk td {
+  width: 7mm;
+  height: 8mm;
+  border: 0.3mm solid var(--accent);
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ── 页眉：注意事项 ──────────────────────────────────────────────────── */
+/* 「注意事项 + 条形码」整行：两者并排 */
+/* 「注意事项 + 条形码」整行：两者并排 */
+.as-note-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4mm;
+  min-width: 0;
+}
+
+.as-note {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0.3mm solid var(--accent);
+  box-sizing: border-box;
+}
+.as-note-left {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 8mm;
+  border-right: 0.3mm solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--font-hei);
+  font-size: var(--fs-noteLabel);
+  letter-spacing: var(--ls-noteLabel);
+  color: var(--fc-noteLabel);
+}
+.as-note-main {
+  margin-left: 8mm;
+  padding: 2.4mm 3mm 0;
+  height: 28mm;
+  box-sizing: border-box;
+  font-family: var(--font-sun);
+  font-size: var(--fs-noteBody);
+  line-height: 1.45;
+  color: var(--fc-noteBody);
+}
+.as-note-bottom {
+  position: absolute;
+  left: 8mm; right: 0; bottom: 0;
+  height: 5mm;
+  border-top: 0.3mm solid var(--accent);
+  box-sizing: border-box;
+}
+/* 缺考框：**横向**对齐顶部定标带的第 3 个小方块（用户指定）。
+   ⚠ left / top 都由 js/builders/page.js 的 notesBox() **内联**写入
+     （见 absentBoxLeft()），下面这条只是没有 JS 时的兜底值。
+     改 preset 的 blockW / cornerInsetX / cornerW / topBandCount / padX，
+     或改 TOP_BAND_ABSENT_INDEX 时，兜底值会失效 —— 别依赖它，
+     要看实测请跑 `node .ref\absent_probe.cjs A4`。
+   ⚠ 包含块是 .as-note 的**内边距盒**，不是 .as-note-bottom；
+     把框放进底栏会让水平基准变成底栏（多偏 8mm 且越出红框）。 */
+/* 缺考标记框：左边框盒锚在**红框外缘**上（与红框左边缘共线）。
+   .as-check-box 是 .as-note 的直接子层，包含块 = .as-note 的**内边距盒**，
+   内边距盒左缘 = padX + 1px（12.7 + 0.2646 = 12.9646mm）。
+   红框外缘左 = cornerInsetX + blockW/2 + markGap = 14.005mm，故
+     left = 14.005 − 12.9646 = 1.0404mm
+   ⚠ 改 preset 的 markGap / blockW / cornerInsetX / padX 时这里要跟着改。
+   纵向 top 由 builder 按同一套行心算出，与左侧定标块共线。 */
+.as-check-box {
+  position: absolute;
+  left: 16.297mm;   /* A4 兜底：第 3 个顶部小方块块心 29.262 − blockW/2 − 12.9646 */
+  width: var(--block-w);
+  height: var(--block-h);
+  border: 0.3mm solid var(--accent);
+  box-sizing: border-box;
+}
+.as-note-absent-tip,
+.as-note-sample-tip {
+  position: absolute;
+  font-family: var(--font-sun);
+  font-size: var(--fs-noteBody);
+  color: var(--fc-noteBody);
+  white-space: nowrap;
+}
+.as-note-absent-tip { left: 5mm; }
+.as-note-sample-tip {
+  left: 78mm;
+  display: flex;
+  align-items: center;
+  gap: 1.4mm;
+}
+.as-bubble-sample {
+  width: var(--block-w);
+  height: var(--block-h);
+  border: 0.3mm solid var(--accent);
+  border-radius: 0.6mm;
+  display: inline-block;
+  box-sizing: border-box;
+}
+.as-bubble-sample.filled { background: var(--accent); }
+
+/* ── 页眉：条形码 ────────────────────────────────────────────────────── */
+.as-barcode {
+  flex: 0 0 var(--barcode-w);
+  border: 0.3mm dashed var(--accent);
+  border-radius: 3mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3mm;
+  box-sizing: border-box;
+}
+.as-barcode-title {
+  font-family: var(--font-sun);
+  font-size: var(--fs-barcodeTitle);
+  letter-spacing: var(--ls-barcodeTitle);
+  font-weight: var(--fw-barcodeTitle);
+  color: var(--fc-barcodeTitle);
+}
+.as-barcode-tip {
+  font-family: var(--font-sun);
+  font-size: var(--fs-barcodeTip);
+  color: var(--fc-barcodeTip);
+}
+
+/* ── 选择题区 ────────────────────────────────────────────────────────── */
+/* 结构与尺寸严格照初版：
+   红圆角外框 → 栏目头 → 黑内框 → 网格
+   网格内每列 gap = 1.845mm，题号/气泡宽 = --block-w，列宽 = --step
+   偏移由 geometry.boxOffsets 反推，保证左侧定标带与网格行心严格对齐。 */
+.as-choice-section {
+  position: absolute;
+  left: var(--outer-left);
+  right: var(--outer-left);
+  box-sizing: border-box;
+  /* 不设白底：这一层的左缘（--outer-left）在左侧定标带**里面**，
+     铺白底会把定标带盖掉。底色由 .as-choice-outer 自己负责。
+     z-index:1 建一个层叠上下文，把整棵子树压到定位块（z-index:3）之下。 */
+  z-index: 1;
+}
+
+.as-choice-outer {
+  border: var(--box-border) solid var(--accent);
+  border-radius: 3mm;
+  /* 左右内边距恒为 0（--outer-pad-x = 0）：黑框的水平位置由它自己的
+     margin-left 精确给出（见 builders/choice.js）。
+     用 padding 会被浏览器吸附到整设备像素，两层 padding 叠起来能把网格
+     推偏 0.08~0.22mm，与绝对定位的定标块错开。 */
+  padding: var(--outer-pad-y) var(--outer-pad-x) var(--outer-pad-y-bottom) var(--outer-pad-x);
+  background: #fff;
+  box-sizing: border-box;
+  /* 红框铺的是不透明白底，而它的左缘（--outer-left）落在左侧定标带**里面**，
+     会把定标块盖住。定标块 z-index:3，这里必须显式压到它下面。 */
+  z-index: 1;
+}
+
+.as-choice-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 栏目头高度固定为 --choice-header-h，不随字体度量浮动。
+     分页器用同一个值推算网格顶 y，从而「定标带行心 = 网格行心」由构造保证。 */
+  height: var(--choice-header-h);
+  box-sizing: border-box;
+  margin-bottom: var(--choice-header-gap);
+  margin-top: 0;
+  padding-left: 3mm;
+}
+.as-choice-header-no-example {
+  display: flex;
+  justify-content: center;
+  height: var(--choice-header-h);
+  box-sizing: border-box;
+  margin-bottom: var(--choice-header-gap);
+  margin-top: 0;
+}
+.as-choice-header-no-example .as-section-tip {
+  text-align: center;
+  /* 用户指定：选择题区这句「请在各题目的答题区域内作答，超出黑色矩形边框
+     限定区域的答案无效！」（续排面的栏目头）字号必须与非选择题区那句
+     **完全一致** —— 即 --fs-pageTip（10pt 宋体红）。
+     原来用的是 --fs-noteBody（8pt），比非选择题那句小一号。 */
+  font-size: var(--fs-pageTip);
+}
+
+.as-section-title {
+  font-family: var(--font-hei);
+  font-size: var(--fs-sectionTitle);
+  color: var(--fc-sectionTitle);
+  font-weight: normal;
+}
+.as-section-tip {
+  font-family: var(--font-sun);
+  font-size: var(--fs-sectionTip);
+  color: var(--fc-sectionTip);
+  text-align: left;
+}
+.as-example-block {
+  display: inline-block;
+  width: var(--block-w);
+  height: var(--block-h);
+  background: var(--ink);
+  vertical-align: middle;
+  margin-left: 2px;
+  box-sizing: border-box;
+}
+
+.as-choice-inner {
+  border: var(--box-border) solid var(--ink);
+  /* ⚠ 黑框**没有内边距**：边框盒宽恒等于「网格宽 + 2×线」，网格紧贴内缘。
+     宽度与水平位置都由 builder 内联给出（margin-left = boxGap）。
+     之前这里留了 --inner-pad-y 的内边距、builder 又把黑框做得比网格宽，
+     居中之后左右各多出 3.79mm —— 用户看到的「红黑框左右间距太宽」就是它。 */
+  padding: 0;
+  background: #fff;
+  box-sizing: border-box;
+  /* 黑框在红框内部，但红框的内容盒仍然横跨左侧定标带；
+     黑框的不透明白底同样会盖住定标块，一并压到定标块之下。 */
+  z-index: 1;
+}
+
+/* 网格层：普通文档流子元素，放在黑框里面。
+   不走绝对定位 —— html2canvas（导出 PDF 用的库）对「绝对定位元素套绝对定位
+   祖先」会整块漏渲染：实测导出图里选择区一片空白、只剩红框。
+   横向位置由**黑框的 margin-left** 给出（见 builders/choice.js），
+   纵向由黑框的 margin-top 给出。margin 不会被吸附到整设备像素，可以精确落位。
+
+   ⚠ flex-shrink:0 是必须的：黑框是 flex 容器时（或网格落入 flex 上下文），
+   网格会被压缩，列心随之整体偏移，与定标块错开。禁止收缩，宽度只认内联值。 */
+.as-choice-grid {
+  position: static;
+  flex-shrink: 0;
+  margin: 0;
+  /* 纵向 flex：行与行之间的空档由 builder 内联的 row-gap 给出
+     （= 一个定位点的高度）。做成 flex 是为了让 gap 生效且不与
+     行自身的 margin 合并，高度可加、可预测。
+     横向位置由 builder 内联的 margin-left 给出（居中余量 + gridShiftX），
+     所以这里 align-items 用默认的 stretch 即可 —— 行的宽度就是 gridW。 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 一行 = 若干块 + 块间的空列占位。
+   ⚠ 块间距必须用独立 spacer，不能用块的 margin-left —— flex 项的 margin 是
+   叠加在前一项之后的，块间距会越往后越大（实测 12 题时空了 6 题、12 题的宽度）。
+   spacer 宽 = gap × step，正好空出「一道选择题的宽度」。 */
+.as-choice-line {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.as-choice-spacer {
+  flex: 0 0 auto;
+  height: 1px;
+  align-self: flex-start;
+}
+
+/* 块：由 flex 顺序排布，宽度 = 块内题数 × step */
+.as-choice-block {
+  flex: 0 0 auto;
+}
+
+/* 列内一切绝对定位，坐标来自 geometry.rowOffsets（top 即行心），
+   彻底避开字体度量 / flex 取整带来的行高误差。 */
+.as-choice-col {
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.as-choice-item {
+  position: absolute;
+  top: 0;
+  width: var(--block-w);
+  height: 100%;
+}
+.as-choice-nums,
+.as-choice-optrow {
+  position: absolute;
+  left: 0;
+  width: var(--block-w);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+/* 一列 = 一块。列宽 = 块内题数 × 节距。
+   列内元素全部绝对定位，横向位置由 builder 内联的 left 给出，
+   因此节距恒为 --step，题号与气泡必然同列心。 */
+.as-choice-num {
+  display: block;
+  width: var(--block-w);
+  min-width: var(--block-w);
+  flex: 0 0 var(--block-w);
+  text-align: center;
+  font-family: var(--font-hei);
+  font-size: var(--fs-num);
+  color: var(--fc-num);
+  font-weight: var(--fw-num);
+  /* 行高锁死为 1：盒高 == 字号 == geometry.numRowH，
+     这样 translateY(-50%) 后的行心与左侧定标块完全重合。 */
+  line-height: 1;
+}
+.as-bubble {
+  width: var(--block-w);
+  min-width: var(--block-w);
+  flex: 0 0 var(--block-w);
+  height: var(--block-h);
+  border: 0.3mm solid var(--accent);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: var(--font-hei);
+  font-size: var(--fs-opt);
+  font-weight: var(--fw-opt);
+  line-height: 1;
+  color: var(--fc-opt);
+  background: #fff;
+  box-sizing: border-box;
+}
+
+/* ── 非选择题区 ──────────────────────────────────────────────────────── */
+/* 结构与初版一致：红圆角外框（含栏目头）→ 黑色边框表格 → 每行一题
+   与选择题同宽同框：left/right 都用 --outer-left。 */
+.as-subjective {
+  position: absolute;
+  left: var(--outer-left);
+  right: var(--outer-left);
+  box-sizing: border-box;
+}
+.as-subject-outer {
+  border: var(--box-border) solid var(--accent);
+  border-radius: 3mm;
+  /* ⚠ 这四个变量由 theme.js 从 paginator.SUBJ_CHROME 写进来 ——
+     分页器按同一组常量算红框总高，两边不一致红框就会压到页脚上。
+     下内边距比上内边距大：它要装下页内提示语句。 */
+  padding: var(--subj-pad-y, 2.5mm) var(--outer-pad-x)
+           var(--subj-pad-y-bottom, 2.5mm) var(--outer-pad-x);
+  background: #fff;
+  box-sizing: border-box;
+}
+.as-subject-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* ⚠ 固定高 + 固定下外边距，不用 auto：
+     分页器的 SUBJ_BOX_CHROME 常量按「内边距 + 栏目头 + 下间距 + 内边距」算红框高，
+     栏目头若随字体度量浮动，两边就对不上，红框会压到页脚上。
+     三个量由 theme.js 从 SUBJ_CHROME 写进来，与 paginator.js 同源。 */
+  height: var(--subj-header-h, 5mm);
+  margin-top: 0;
+  margin-bottom: var(--subj-header-mb, 1mm);
+  padding-left: 3mm;
+  box-sizing: border-box;
+}
+.as-subject-title {
+  font-family: var(--font-hei);
+  font-size: var(--fs-sectionTitle);
+  color: var(--fc-sectionTitle);
+  font-weight: normal;
+}
+.as-subject-tip {
+  font-family: var(--font-sun);
+  font-size: var(--fs-sectionTip);
+  color: var(--fc-sectionTip);
+  text-align: left;
+}
+
+/* 页内提示「请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效」
+   印在非选择题**黑框下方、红框内缘上方**那段空档里 —— 也就是红黑框之间
+   下方那一横条。每面非选择题各一次；唯一不印的是印「非选择题（提示：…）」
+   栏目头的那一面……不，栏目头面也印，栏目头只是全卡只出现一次。
+   字体/字号/颜色取自原稿 .subject-page-tip：宋体 10pt 红 居中。 */
+.as-subject-page-tip {
+  font-family: var(--font-sun);
+  font-size: var(--fs-pageTip);
+  color: var(--fc-pageTip);
+  text-align: center;
+  /* 固定高，与 paginator.SUBJ_CHROME.tipH 同源（theme.js 写入 --subj-tip-h），
+     否则分页器算出的红框高会和真实渲染打架。
+     ⚠ 净空**只由下面这一个 margin 给**（theme.js 从 paginator.TIP_GAP
+       写 --subj-tip-gap = 0.5mm），不要再和容器的 padding 叠加。 */
+  height: var(--subj-tip-h, 4mm);
+  line-height: var(--subj-tip-h, 4mm);
+  /* 用户要求「这句话贴近黑框和红框的上下界，上下不要留那么多空」。
+     参照件实测「提示 → 黑框外缘」= 1.36mm，本站旧值 1.996mm。 */
+  margin: var(--subj-tip-gap, 0.5mm) 0;
+  box-sizing: border-box;
+}
+.as-subject-inner-table {
+  /* 黑框比红框内容盒左右各内缩 1mm（用户指定）。
+     ⚠ 用 margin 而不是给红框加 padding —— 红框的横向内边距必须保持 0
+       （见 .as-subject-outer 的注释），否则盒模型又变成两套口径。 */
+  margin: 0 var(--subj-box-gap, 1mm);
+  width: calc(100% - 2 * var(--subj-box-gap, 1mm));
+  /* ⚠ 用 separate + border-spacing:0，**不用 collapse**。
+     collapse 模式下边框被摊到行/列上，表格总高会比
+     「各行高之和」多出约 1.04mm（实测 4/8/12 行都是这个常数），
+     分页器算出的红框就比真实渲染的矮，最后一块压到页脚上。
+     separate 模式下盒模型是可加的，与 paginator 的算法逐项吻合。
+     行与行之间的分隔线改用 tr 上的 border-top（见下）。 */
+  border-collapse: separate;
+  border-spacing: 0;
+  border: var(--box-border) solid var(--ink);
+}
+.as-subject-inner-table td {
+  padding: var(--inner-pad-x);
+  vertical-align: top;
+  border-top: var(--box-border) solid var(--ink);
+  box-sizing: border-box;
+}
+.as-subject-inner-table tr:first-child td { border-top: none; }
+
+.as-subj-head {
+  display: flex;
+  align-items: baseline;
+  /* 题号「14.」与分值「（9分）」之间的间隙。
+     ⚠ 全角「（」的字形盒有约 2.65mm 的左空白（墨迹从盒左缘 +2.15mm 才开始），
+       所以 flex gap 加多少都会**再叠上**这段空白。实测 gap:0.5mm 时
+       盒间隙 0.496mm，视觉间隙却有 ~2.6mm，看着很松。
+       用户要求「题号和分值间间距还可以小一点」，直接把 gap 归零，
+       让全角括号自己的左空白充当间距（视觉间隙 ≈ 2.15mm）。 */
+  gap: 0;
+  /* ⚠ 固定高，不用 auto：分页器按「题头 5.0mm + 作答区 + 上下内边距」算单题高，
+     这里若让行高随字体度量浮动，分页器算出的游标就会比真实红框矮，
+     最后一块会压到页脚上（实测每差 3.08mm/题）。
+     --subj-head-h 与 --subj-head-mb 由 theme.js 写，与 subject.js 的 HEAD_H 同源。 */
+  height: var(--subj-head-h, 5mm);
+  box-sizing: border-box;
+  margin-bottom: var(--subj-head-mb, 0mm);
+}
+.as-subj-no {
+  font-family: var(--font-sun);
+  font-size: var(--fs-answerNo);
+  color: var(--fc-answerNo);
+}
+/* 续排段题头「续14.」：**红色**，字号比正题号（12.5pt）稍小一点。
+   只出现在「一题被页边界切开、余下部分落到下一面」的段首。 */
+.as-subj-no.as-subj-cont {
+  font-size: var(--fs-answerCont, 11pt);
+  color: var(--fc-answerCont, var(--accent));
+}
+.as-subj-score {
+  font-family: var(--font-sun);
+  font-size: var(--fs-answerScore);
+  color: var(--fc-answerScore);
+}
+.as-subj-tip {
+  font-family: var(--font-sun);
+  font-size: var(--fs-sectionTip);
+  color: var(--fc-sectionTip);
+  margin-left: auto;
+}
+.as-subj-body {
+  width: 100%;
+  background: #fff;
+  box-sizing: border-box;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--answer-line-h) - 0.3mm),
+    var(--accent-faint) calc(var(--answer-line-h) - 0.3mm),
+    var(--accent-faint) var(--answer-line-h)
+  );
+}
+.as-subj-body.plain { background-image: none; }
+
+/* 页内续页提示（红框内、黑框外） */
+/* ⚠ 这里原本还有一条重复的 .as-subject-page-tip（pageTip 字号 + margin 2mm），
+   它把上一条的 margin 覆盖成 2mm，与容器的 padding 叠加成 2.5mm ——
+   正是用户说的「留空比较多」。已删除，净空统一由 --subj-tip-gap 给。 */
+
+/* ── 页脚 ────────────────────────────────────────────────────────────── */
+/* 与 .as-head 同理：.as-face 的内联 left/width 已经定好面框，
+   这里再内缩 var(--pad-x) 落在内容盒上。 */
+/* 页脚：只印「科目　第 N 面（共 M 面）」。
+   ⚠「请在各题目的答题区域内作答…」不在页脚 —— 页脚每面都渲染一次，
+     放这里会全卡重复印。那句话在非选择题红框与黑框之间（.as-subject-page-tip）。
+   ⚠ 位置照参照件定，不是「贴着纸底 4mm」：
+     参照件 .ref/a4_bbox.xml 实测
+       页码行          y 279.57 → 283.90
+       教育部…监制     y 281.81 → 284.48
+     页脚现在只剩页码行，整块底 ≈ 284.1mm。
+     原来 bottom:4mm 把文字推到 283.16mm —— 比参照件低 9mm。
+     bottom = 纸高 − 284.1 ≈ 12.9mm（A4/A3 同值）。 */
+.as-footer {
+  position: absolute;
+  left: var(--pad-x);
+  right: var(--pad-x);
+  /* 用户 2026 指定：页脚**固定在下方定位点中心的高度**（不再与红框锚定）。
+     实现：top 写到「下定位点行心」的 y（286mm），再用 translateY(-50%)
+     把块的**中线**压到那条线上 —— 块心对齐由构造保证，不依赖块高。
+     ⚠ 具体数值由 builders/page.js 的 footerBottom() 内联写在每个页脚上；
+       这里只留一个 A4 兜底值。不要在 CSS 里用 calc(var − var) —— 实测
+       这条声明会被 Chrome 整条丢弃，页脚退回静态位置跑到纸顶去。 */
+  top: 286mm;
+  transform: translateY(-50%);
+  font-family: var(--font-sun);
+  font-size: var(--fs-footer);
+  line-height: 1.55;
+  text-align: center;
+  color: var(--fc-footer);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * 非答题区「考生请不要在此区域作答」
+ * -----------------------------------------------------------------------
+ * 吃掉一面排完正文后剩下的空白，避免出现「没有名目的空档」。
+ * 高度由分页器算好、内联写死在元素上（不走 CSS 流 —— 与全卡其它纵向
+ * 元素一样，「对齐由构造保证」）。
+ * 字号 / 横竖排由 app.js 的 fitNoAnswer() 在 DOM 落地后按框的
+ * clientWidth/clientHeight 实测再定（见 builders/noanswer.js）。
+ * ═══════════════════════════════════════════════════════════════════════ */
+.as-noanswer {
+  position: absolute;
+  left: var(--outer-left);
+  right: var(--outer-left);
+  /* 红框皮肤与选择题/非选择题红框一致：同色、同线宽、同圆角 */
+  border: var(--na-border, 0.3mm) solid var(--accent);
+  border-radius: var(--na-radius, 3mm);
+  background: #fff;
+  box-sizing: border-box;
+  padding: var(--na-pad, 2mm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.as-noanswer-text {
+  font-family: var(--font-hei);
+  color: var(--accent);
+  text-align: center;
+  line-height: 1.15;
+  word-break: keep-all;
+  /* 字号与书写方向由 JS 内联覆盖 */
+}

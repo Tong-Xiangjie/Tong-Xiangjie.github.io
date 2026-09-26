@@ -211,7 +211,7 @@ const gkqData = {
                             purchaseDate: "2026年7月16日",
                             krause: "Unlisted",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
-                            remark: "",
+                            remark: "这个分数我非常满意。还记得当时买的时候问老板“有没有折”结果老板已读不回，（当时其实我根据老板拍的图片已经初步判断是没有问题的了），但是这张价格确实还可以，于是即便老板已读不回我也是直接拍下了。没想到拍下后老板就发来各种详细的实拍图（印证了之前我的初步判断），并且从老板的个人信息以及发过来的语音判断老板应该是一个老头子。后来收到快递，居然是挂号信，并且似乎依稀记得这张甚至没有用硬夹子包着……这种情况下还能评上这个分也是奇迹了，况且在老板那里就被老板摸来摸去很多次。不过这张到手后确实发现品质优于其他。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ38182121-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ38182121-2.jpg"
                         }

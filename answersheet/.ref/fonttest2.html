@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>font embed test</title>
+<style>
+  @font-face { font-family: 'NotoSC'; src: url('fonts/notosans.subset.ttf') format('truetype'); }
+  .t { font-family: 'NotoSC'; font-size: 12pt; }
+</style>
+</head>
+<body>
+<p class="t">物理答题卡 注意事项 选择题 非选择题 姓名：准考证号</p>
+<script src="jspdf3.umd.min.js"></script>
+<script>
+window.__T = null;
+window.runTest = function () {
+  window.__T = null;
+  return fetch('fonts/notosans.subset.ttf')
+    .then(function (r) { return r.arrayBuffer(); })
+    .then(function (ab) {
+      var bytes = new Uint8Array(ab);
+      var bin = '';
+      for (var i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      }
+      var b64 = btoa(bin);
+      var out = { fontBytes: bytes.length, fontB64Len: b64.length,
+        hasJsPDF: typeof jspdf, hasCtor: !!(window.jspdf && window.jspdf.jsPDF) };
+      try {
+        var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [210, 297],
+          orientation: 'portrait', compress: true });
+        pdf.addFileToVFS('notosans.ttf', b64);
+        pdf.addFont('notosans.ttf', 'NotoSC', 'normal');
+        pdf.setFont('NotoSC');
+        pdf.setFontSize(12);
+        pdf.text('物理答题卡 注意事项 选择题 非选择题', 20, 30);
+        pdf.setFontSize(9);
+        pdf.text('1.答题前，考生先填写好自己的姓名、准考证号，并认真核对条形码上的姓名；', 20, 40);
+        pdf.text('ABCDEFG abcdefg 0123456789 （10分）', 20, 46);
+        pdf.setDrawColor(217, 48, 37);
+        pdf.setLineWidth(0.3);
+        pdf.rect(14, 50, 182, 40);
+        pdf.setFillColor(0, 0, 0);
+        pdf.rect(16, 100, 1.5, 2.4, 'F');
+        var uri = pdf.output('datauristring');
+        out.pdfDataUriLen = uri.length;
+        out.pdfBytes = Math.round((uri.length - uri.indexOf(',') - 1) * 0.75);
+        out.ok = true;
+        out.uri = uri;
+      } catch (e) {
+        out.ok = false; out.err = String(e);
+      }
+      window.__T = out;
+      return out;
+    })
+    .catch(function (e) { window.__T = { fetchErr: String(e) }; return window.__T; });
+};
+</script>
+</body></html>

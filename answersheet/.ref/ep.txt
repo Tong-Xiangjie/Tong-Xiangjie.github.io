@@ -1,0 +1,23 @@
+﻿RESULT {
+ "appApi": true,
+ "readBack": {
+  "title": "2026届高三第一次模拟考试",
+  "choiceTotal": "12",
+  "subjCount": "5"
+ },
+ "stagePages0": 2,
+ "stageBubbles": 48,
+ "wrapGeom": "wrap gone",
+ "wrapGeom2": "wrap gone",
+ "captured": false,
+ "blobSize": 0,
+ "dataUriLen": 0,
+ "errors": [],
+ "logs": [],
+ "stagePages": 2,
+ "leakedWrap": 0,
+ "btn": {
+  "disabled": false,
+  "text": "导出 PDF"
+ }
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>font embed test (SimHei/SimSun)</title></head>
+<body>
+<script src="jspdf3.umd.min.js"></script>
+<script>
+window.__T = null;
+function toB64(bytes) {
+  var bin = '';
+  for (var i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+window.runTest = function () {
+  window.__T = null;
+  return Promise.all([
+    fetch('fonts/SimHei.subset.ttf').then(r => r.arrayBuffer()),
+    fetch('fonts/SimSun.subset.ttf').then(r => r.arrayBuffer())
+  ]).then(function (abs) {
+    var hei = new Uint8Array(abs[0]), sun = new Uint8Array(abs[1]);
+    var out = { heiBytes: hei.length, sunBytes: sun.length };
+    try {
+      var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [210, 297],
+        orientation: 'portrait', compress: true });
+      pdf.addFileToVFS('SimHei.subset.ttf', toB64(hei));
+      pdf.addFont('SimHei.subset.ttf', 'SimHei', 'normal');
+      pdf.addFileToVFS('SimSun.subset.ttf', toB64(sun));
+      pdf.addFont('SimSun.subset.ttf', 'SimSun', 'normal');
+
+      pdf.setFont('SimHei'); pdf.setFontSize(18);
+      pdf.text('2026届高三第一次模拟考试', 105, 20, { align: 'center' });
+      pdf.setFont('SimSun'); pdf.setFontSize(18);
+      pdf.text('物理答题卡', 105, 30, { align: 'center' });
+      pdf.setFont('SimHei'); pdf.setFontSize(12);
+      pdf.text('注意事项', 13, 40);
+      pdf.setFont('SimSun'); pdf.setFontSize(8);
+      pdf.text('1.答题前，考生先填写好自己的姓名、准考证号，并认真核对条形码上的姓名、准考证号、考室和座位号；', 21, 45);
+      pdf.setFontSize(8);
+      pdf.text('2.选择题请按题号用2B铅笔填涂方框，修改时用橡皮擦干净，不留痕迹；', 21, 49);
+      pdf.setFont('SimHei'); pdf.setFontSize(11);
+      pdf.text('选择题', 17, 60);
+      pdf.setFont('SimSun'); pdf.setFontSize(9);
+      pdf.text('(提示：请用2B铅笔在正确答案上填涂，修改时只能用橡皮擦干净，不留痕迹。正确填涂示例：', 31, 60);
+      pdf.setFont('SimSun'); pdf.setFontSize(12.5);
+      pdf.text('续13.', 16, 90);
+      pdf.setFontSize(10);
+      pdf.text('（10分）', 30, 90);
+      pdf.setFontSize(9);
+      pdf.text('请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效！', 105, 100, { align: 'center' });
+      pdf.text('考生请不要在此区域作答', 105, 120, { align: 'center' });
+      pdf.text('贴条形码区 姓名：准考证号 缺考标记', 105, 130, { align: 'center' });
+      pdf.text('ABCDEFG abcdefg 0123456789 （10分）→', 105, 140, { align: 'center' });
+
+      pdf.setDrawColor(217, 48, 37); pdf.setLineWidth(0.3);
+      pdf.rect(14, 150, 182, 20);
+      pdf.setFillColor(0, 0, 0);
+      pdf.rect(16, 175, 3.967, 2.38, 'F');
+      pdf.rect(70.5, 175, 3.967, 2.38, 'F');
+
+      var uri = pdf.output('datauristring');
+      out.pdfBytes = Math.round((uri.length - uri.indexOf(',') - 1) * 0.75);
+      out.ok = true; out.uri = uri;
+    } catch (e) { out.ok = false; out.err = String(e); }
+    window.__T = out;
+    return out;
+  }).catch(function (e) { window.__T = { fetchErr: String(e) }; return window.__T; });
+};
+</script>
+</body></html>

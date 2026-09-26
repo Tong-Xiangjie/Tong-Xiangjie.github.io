@@ -1,0 +1,79 @@
+PROBE2 = {
+ "scale": 0.875645,
+ "secTop": 419.516,
+ "outerTopMM": 110.997,
+ "secTopMM": 110.997,
+ "outer": {
+  "position": "static",
+  "borderTop": "1px",
+  "padTop": "7.93701px",
+  "boxSizing": "border-box"
+ },
+ "probeAbsTopMM": 110.997,
+ "probeAbs5MM": 115.995,
+ "probeOffsetParent": "as-choice-section",
+ "probeOffsetTopPx": 19,
+ "headerTopMM": 113.357,
+ "innerTopMM": 121.754,
+ "secAbs0MM": 110.997,
+ "secAbs5MM": 115.995,
+ "secOffsetParent": "as-choice-section",
+ "sec": {
+  "position": "absolute",
+  "padTop": "0px",
+  "borderTop": "0px",
+  "top": "419.528px",
+  "marginTop": "0px"
+ },
+ "innerBox": {
+  "attr": "height:25.163mm;padding:0",
+  "topMM": 121.754,
+  "contentTopMM": 122.018,
+  "padTop": "0px",
+  "padLeft": "0px",
+  "borderTop": "1px",
+  "boxSizing": "border-box",
+  "height": "95.0938px"
+ },
+ "horiz": {
+  "secLeftMM": 6.342,
+  "outerLeftMM": 6.342,
+  "innerLeftMM": 10.331,
+  "innerBorderLeft": "1px",
+  "innerPadLeft": "0px",
+  "gridLeftMM": 13.295,
+  "gridLeftComputed": "auto",
+  "gridMarginLeft": "10.2047px",
+  "gridAttr": "margin:2.117mm 0 0 2.7mm",
+  "gridPos": "static",
+  "gridParent": "as-choice-inner",
+  "outerPadLeft": "14.0787px",
+  "outerBorderLeft": "1px",
+  "gridRightComputed": "auto",
+  "gridWidthMM": 186.105,
+  "bubble0LeftMM": 13.295,
+  "bubble0CxMM": 15.325,
+  "num0CxMM": 15.325,
+  "leftMarkCxMM": 8.971,
+  "varOuterPadX": "3.725mm",
+  "varInnerPadX": "2.03mm",
+  "varShift": "0.67mm"
+ },
+ "outerRect": {
+  "top": 110.997,
+  "h": 38.179,
+  "clientTop": 1,
+  "offsetTop": 0,
+  "parentCls": "as-choice-section"
+ },
+ "grid": {
+  "inlineTop": "",
+  "computedTop": "auto",
+  "position": "static",
+  "topMM": 124.135
+ },
+ "gridAt0MM": 124.135,
+ "gridAt5MM": 124.135,
+ "numsTopMM": 124.135,
+ "firstLeftMarkMM": 65.079
+}

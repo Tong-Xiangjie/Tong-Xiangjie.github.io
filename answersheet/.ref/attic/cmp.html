@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>raster compare (preview vs draw-list)</title></head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js"></script>
+<script>
+/* ============================================================================
+ * 保真度比对
+ *   ① 在隐藏 iframe 里载入真实 index.html 并生成答题卡
+ *   ② 在**iframe 内**把 measure 的绘制清单栅格化
+ *   ③ 在**iframe 内**用 html2canvas 截预览（与位图导出同链路）
+ *   ④ 逐毫米比墨迹
+ *
+ * 比「清单 vs 预览」而不是「PDF 像素 vs 预览」的理由：
+ *   draw.js 只是把清单原样交给 jsPDF，所以「清单落在哪」= 「PDF 画在哪」。
+ * ==========================================================================*/
+(function () {
+  'use strict';
+  window.__C = null;
+
+  function ready(W) {
+    try {
+      var d = W.document;
+      return !!(d && d.getElementById('btnGenerate') && W.AS && W.AS.pdfMeasure &&
+                W.AS.pdfVector && W.html2pdf);
+    } catch (e) { return false; }
+  }
+
+  window.runCompare = function (cfg) {
+    window.__C = null;
+    var fr = document.createElement('iframe');
+    fr.style.cssText = 'width:1400px;height:1000px;border:0;position:absolute;left:-9999px;';
+    fr.src = '../index.html?cb=' + Date.now() + '&fresh=1';
+    document.body.appendChild(fr);
+
+    return new Promise(function (resolve) {
+      var tries = 0;
+      (function poll() {
+        var W = fr.contentWindow;
+        if (!ready(W)) {
+          if (++tries > 120) { window.__C = { err: 'iframe 未就绪' }; resolve(window.__C); return; }
+          setTimeout(poll, 250); return;
+        }
+        setTimeout(function () {
+          try {
+            var d = W.document;
+            function set(id, v) { var e = d.getElementById(id); if (e) e.value = v; }
+            var seg = d.querySelector('#segFormat button[data-val="' + (cfg.format || 'A4') + '"]');
+            if (seg) seg.click();
+            var th = d.querySelector('#themePick [data-theme="' + (cfg.theme || 'color') + '"]');
+            if (th) th.click();
+            set('cardTitle', cfg.title || '2026届高三第一次模拟考试');
+            set('cardSubject', cfg.subject || '物理');
+            set('choiceTotal', String(cfg.choiceTotal));
+            set('choiceStart', '1');
+            set('subjStart', String(cfg.choiceTotal + 1));
+            set('subjCount', String(cfg.subjCount));
+            set('subjScore', new Array(cfg.subjCount).fill(cfg.score || '10').join(','));
+            if (cfg.lines) set('subjLines', String(cfg.lines));
+            d.getElementById('btnGenerate').click();
+
+            setTimeout(function () {
+              /* ── 全部在 iframe 内执行 ───────────────────────────── */
+              var script = d.createElement('script');
+              script.textContent = 'window.__RES = null;(' + INFRAME.toString() + ')(' + JSON.stringify(cfg) + ');';
+              d.body.appendChild(script);
+              var waited = 0;
+              (function wait2() {
+                var got = W.__RES;
+                if (got && got.err !== 'running') { window.__C = got; resolve(window.__C); return; }
+                if (++waited > 320) {
+                  window.__C = { err: 'iframe 内比对超时', partial: got };
+                  resolve(window.__C); return;
+                }
+                setTimeout(wait2, 250);
+              })();
+            }, 2800);
+          } catch (e) {
+            window.__C = { err: String(e && e.stack ? e.stack : e) };
+            resolve(window.__C);
+          }
+        }, 300);
+      })();
+    });
+  };
+
+  /* ── 在 iframe 内跑的函数 ────────────────────────────────────────
+     注意：这个函数被 toString() 序列化后注入 iframe，所以
+     **不能引用外层的任何变量**，只能用 iframe 自己的 window/AS。 */
+  function INFRAME(cfg) {
+    var W = window, D = document;
+    var AS = W.AS;
+    W.__RES = { err: 'running' };
+    function el(html) { var t = D.createElement('div'); t.innerHTML = html.trim(); return t.firstChild; }
+
+    function fail(e) { W.__RES = { err: String(e && e.stack ? e.stack : e) }; }
+
+    try {
+      var stage = D.getElementById('stage');
+      var pageEl = stage.querySelector('.as-page');
+      if (!pageEl) { W.__RES = { err: '没有页面' }; return; }
+      var paper = AS.config.PAPER[cfg.format || 'A4'];
+
+      var list = AS.pdfMeasure.measurePage(pageEl, paper);
+
+      var PPM = 96 / 25.4;
+      var Wp = Math.round(paper.w * PPM), Hp = Math.round(paper.h * PPM);
+      var c1 = D.createElement('canvas');
+      c1.width = Wp; c1.height = Hp;
+      var g1 = c1.getContext('2d');
+      g1.fillStyle = '#fff'; g1.fillRect(0, 0, Wp, Hp);
+      var k = Wp / paper.w;
+      list.fills.forEach(function (o) {
+        g1.fillStyle = 'rgb(' + o.color.r + ',' + o.color.g + ',' + o.color.b + ')';
+        g1.fillRect(o.x * k, o.y * k, o.w * k, o.h * k);
+      });
+      list.strokes.forEach(function (o) {
+        g1.strokeStyle = 'rgb(' + o.color.r + ',' + o.color.g + ',' + o.color.b + ')';
+        g1.lineWidth = Math.max(1, o.lw * k);
+        g1.strokeRect(o.x * k, o.y * k, o.w * k, o.h * k);
+      });
+      g1.fillStyle = '#000';
+      list.texts.forEach(function (o) {
+        g1.fillRect(o.x * k, Math.max(0, (o.y - 0.12) * k), Math.max(1, o.w * k), 2);
+      });
+
+      W.html2pdf().set({
+        margin: 0,
+        image: { type: 'png' },
+        html2canvas: { scale: 1, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: [paper.w, paper.h], orientation: paper.orientation }
+      }).from(pageEl).toCanvas().get('canvas').then(function (shot) {
+          var c2 = D.createElement('canvas');
+          c2.width = Wp; c2.height = Hp;
+          var g2 = c2.getContext('2d');
+          g2.fillStyle = '#fff'; g2.fillRect(0, 0, Wp, Hp);
+          g2.drawImage(shot, 0, 0, Wp, Hp);
+
+          function rowInk(ctx) {
+            var dd = ctx.getImageData(0, 0, Wp, Hp).data, rows = new Float64Array(Hp);
+            for (var y = 0; y < Hp; y++) {
+              var n = 0;
+              for (var x = 0; x < Wp; x++) {
+                var i = (y * Wp + x) * 4;
+                if (dd[i] > 245 && dd[i + 1] > 245 && dd[i + 2] > 245) continue;
+                n++;
+              }
+              rows[y] = n;
+            }
+            return rows;
+          }
+          var r1 = rowInk(g1), r2 = rowInk(g2);
+          function rng(rows) {
+            var f = -1, l = -1;
+            for (var y = 0; y < rows.length; y++) if (rows[y] > 3) { f = y; break; }
+            for (var y2 = rows.length - 1; y2 >= 0; y2--) if (rows[y2] > 3) { l = y2; break; }
+            return { first: Math.round(f / PPM * 100) / 100, last: Math.round(l / PPM * 100) / 100 };
+          }
+          var mmN = Math.round(paper.h);
+          var a = new Float64Array(mmN), b = new Float64Array(mmN);
+          for (var y3 = 0; y3 < Hp; y3++) {
+            var mi = Math.min(mmN - 1, Math.floor(y3 / PPM));
+            a[mi] += r1[y3]; b[mi] += r2[y3];
+          }
+          var diff = [], worst = 0, worstMM = -1;
+          for (var s = 0; s < mmN; s++) {
+            if (b[s] < 60) continue;
+            var rel = Math.abs(a[s] - b[s]) / b[s];
+            if (rel > worst) { worst = rel; worstMM = s; }
+            if (rel > 0.45) diff.push({ mm: s, vec: Math.round(a[s]), prev: Math.round(b[s]) });
+          }
+          diff.sort(function (p, q) { return Math.abs(q.vec - q.prev) - Math.abs(p.vec - p.prev); });
+          var sum1 = 0, sum2 = 0;
+          for (var q2 = 0; q2 < mmN; q2++) { sum1 += a[q2]; sum2 += b[q2]; }
+
+          /* 逐行文字基线对照：把清单里的文字按 y 排序，看分布是否合理 */
+          W.__RES = {
+            counts: { fills: list.fills.length, strokes: list.strokes.length, texts: list.texts.length },
+            listInk: rng(r1), previewInk: rng(r2),
+            inkTotalRatio: Math.round(sum1 / Math.max(1, sum2) * 1000) / 1000,
+            worstRowDiffPct: Math.round(worst * 100), worstRowMM: worstMM,
+            rowsDiffering: diff.length, worstRows: diff.slice(0, 16),
+            textSample: list.texts.slice(0, 14).map(function (t) {
+              return { t: t.text.slice(0, 16), x: t.x, y: t.y,
+                       size: Math.round(t.size * 100) / 100, font: t.font,
+                       align: t.align, w: t.w };
+            }),
+            boxSample: list.strokes.slice(0, 8).map(function (o) {
+              return { cls: o.cls, x: o.x, y: o.y, w: o.w, h: o.h, lw: o.lw };
+            }),
+            debug: list.debug,
+            inkDbg: (function () { try { return AS.__inkDbg || null; } catch (e) { return 'ERR ' + e; } })(),
+          };
+        })
+        .catch(fail);
+    } catch (e) { fail(e); }
+  }
+})();
+</script>
+</body></html>

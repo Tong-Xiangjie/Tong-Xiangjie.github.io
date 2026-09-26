@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>vector pdf probe</title></head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js"></script>
+<script>
+/* ============================================================================
+ * 矢量导出探针
+ *   ① 在隐藏 iframe 里载入真实 index.html，走一遍生成
+ *   ② 调 iframe 里的 AS.pdfVector.render() 产出矢量 PDF
+ *   ③ 把「测量得到的绘制清单」栅格化，与 html2canvas 截的预览逐行比墨迹
+ *
+ * ⚠ 第 ③ 步比的是「绘制清单的位置」而不是「PDF 的像素」——
+ *   因为 draw.js 只是把清单原样交给 jsPDF，所以这在逻辑上等价。
+ * ==========================================================================*/
+(function () {
+  'use strict';
+  window.__V = null;
+  window.__diag = {};
+
+  function ready(W) {
+    try {
+      var d = W.document;
+      return !!(d && d.getElementById('btnGenerate') && W.AS &&
+                W.AS.pdfVector && W.AS.config);
+    } catch (e) { return false; }
+  }
+
+  window.runProbe = function (cfg) {
+    window.__V = null;
+    var fr = document.createElement('iframe');
+    fr.style.cssText = 'width:1400px;height:900px;border:0;position:absolute;left:-9999px;';
+    fr.onload = function () { window.__diag.loaded = true; };
+    fr.src = '../index.html?cb=' + Date.now() + '&fresh=1';
+    document.body.appendChild(fr);
+
+    return new Promise(function (resolve) {
+      var tries = 0;
+      (function poll() {
+        var W = fr.contentWindow;
+        if (!ready(W)) {
+          if (++tries > 120) {
+            window.__V = { ok: false, err: 'iframe 未就绪（超时）' };
+            resolve(window.__V); return;
+          }
+          setTimeout(poll, 250); return;
+        }
+        setTimeout(function () {
+          try {
+            var d = W.document;
+            function set(id, v) { var e = d.getElementById(id); if (e) e.value = v; }
+            var seg = d.querySelector('#segFormat button[data-val="' + (cfg.format || 'A4') + '"]');
+            if (seg) seg.click();
+            var th = d.querySelector('#themePick [data-theme="' + (cfg.theme || 'color') + '"]');
+            if (th) th.click();
+            set('cardTitle', cfg.title || '2026届高三第一次模拟考试');
+            set('cardSubject', cfg.subject || '物理');
+            set('choiceTotal', String(cfg.choiceTotal));
+            set('choiceStart', '1');
+            set('subjStart', String(cfg.choiceTotal + 1));
+            set('subjCount', String(cfg.subjCount));
+            set('subjScore', new Array(cfg.subjCount).fill(cfg.score || '10').join(','));
+            if (cfg.lines) set('subjLines', String(cfg.lines));
+            d.getElementById('btnGenerate').click();
+
+            setTimeout(function () {
+              var stage = d.getElementById('stage');
+              if (!stage.querySelector('.as-page')) {
+                window.__V = { ok: false, err: '未生成答题卡' };
+                resolve(window.__V); return;
+              }
+              W.AS.pdfVector.render({
+                stage: stage,
+                format: cfg.format || 'A4',
+                theme: cfg.theme || 'color'
+              }).then(function (r) {
+                var uri = r.pdf.output('datauristring');
+                window.__V = {
+                  ok: true, stats: r.stats, missing: r.missing,
+                  charsetSize: r.charsetSize, uri: uri,
+                  pdfBytes: Math.round((uri.length - uri.indexOf(',') - 1) * 0.75),
+                  pages: d.querySelectorAll('.as-page').length
+                };
+                /* 顺带导出每张纸的原始绘制清单，供 verify_pdf.py 对照 ——
+                   清单坐标就是 draw.js 交给 jsPDF 的坐标。 */
+                try {
+                  var pgs = d.querySelectorAll('.as-page');
+                  var list = [];
+                  for (var q = 0; q < pgs.length; q++) {
+                    var pg = W.AS.pdfMeasure.measurePage(pgs[q],
+                      W.AS.config.PAPER[cfg.format || 'A4']);
+                    delete pg.debug;
+                    list.push(pg);
+                  }
+                  window.__V.measure = { pages: list, format: cfg.format || 'A4',
+                                         theme: cfg.theme || 'color', cfg: cfg };
+                } catch (e) { window.__V.measureErr = String(e); }
+
+                /* ── DOM 真值快照 ─────────────────────────────────────────
+                   上面那份清单是 measure.js 的**输出**。为了让「导出件 =
+                   预览」这条结论不依赖我自己的测量层，这里再直接从 DOM 上
+                   量一遍元素盒（getBoundingClientRect，transform 关掉），
+                   存成独立的一份真值。
+
+                   ⚠ transform 必须关掉：.preview-stage 上的 scale 会让
+                     getBoundingClientRect 返回缩放后的值（3.3095 px/mm
+                     而不是 3.7795 px/mm）。 */
+                try {
+                  var PXMM = 96 / 25.4;
+                  var pgs2 = d.querySelectorAll('.as-page');
+                  var truth = [];
+                  for (var z = 0; z < pgs2.length; z++) {
+                    var pgEl = pgs2[z];
+                    var st = pgEl.closest('.preview-stage') || pgEl.parentNode;
+                    var sT = st.style.transform, sW = st.style.width;
+                    st.style.transform = 'none'; st.style.width = 'auto';
+                    void st.offsetHeight;
+                    var pr = pgEl.getBoundingClientRect();
+                    var boxes = [];
+                    var all = pgEl.querySelectorAll('*');
+                    for (var k = 0; k < all.length; k++) {
+                      var el = all[k];
+                      var cs = W.getComputedStyle(el);
+                      var hasBg = cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)';
+                      var bw = parseFloat(cs.borderTopWidth) || 0;
+                      var hasBorder = bw > 0 && cs.borderTopStyle !== 'none';
+                      if (!hasBg && !hasBorder) continue;
+                      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+                      var b = el.getBoundingClientRect();
+                      if (b.width < 0.2 || b.height < 0.2) continue;
+                      boxes.push({
+                        cls: String(el.className || ''),
+                        bg: hasBg ? cs.backgroundColor : null,
+                        border: hasBorder ? cs.borderTopWidth : null,
+                        borderColor: hasBorder ? cs.borderTopColor : null,
+                        x: +((b.left - pr.left) / PXMM).toFixed(4),
+                        y: +((b.top - pr.top) / PXMM).toFixed(4),
+                        w: +(b.width / PXMM).toFixed(4),
+                        h: +(b.height / PXMM).toFixed(4)
+                      });
+                    }
+                    st.style.transform = sT; st.style.width = sW;
+                    truth.push({ boxes: boxes });
+                  }
+                  window.__V.dom = { pages: truth, pxPerMM: PXMM };
+                } catch (e) { window.__V.domErr = String(e); }
+
+                if (cfg.compare === false) { resolve(window.__V); return; }
+                resolve(window.__V);
+              }).catch(function (e) {
+                window.__V = { ok: false, err: String(e && e.stack ? e.stack : e) };
+                resolve(window.__V);
+              });
+            }, 2800);
+          } catch (e) {
+            window.__V = { ok: false, err: String(e && e.stack ? e.stack : e) };
+            resolve(window.__V);
+          }
+        }, 300);
+      })();
+    });
+  };
+})();
+</script>
+</body></html>

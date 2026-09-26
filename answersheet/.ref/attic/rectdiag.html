@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>rect diag</title></head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js"></script>
+<script>
+window.__D = null;
+function ready(W) {
+  try { return !!(W.document.getElementById('btnGenerate') && W.AS && W.AS.pdfMeasure); }
+  catch (e) { return false; }
+}
+window.runDiag = function (cfg) {
+  window.__D = null;
+  var fr = document.createElement('iframe');
+  fr.style.cssText = 'width:1400px;height:1000px;border:0;position:absolute;left:-9999px;';
+  fr.src = '../index.html?cb=' + Date.now() + '&fresh=1';
+  document.body.appendChild(fr);
+  return new Promise(function (resolve) {
+    var tries = 0;
+    (function poll() {
+      var W = fr.contentWindow;
+      if (!ready(W)) {
+        if (++tries > 120) { window.__D = { err: '未就绪' }; resolve(window.__D); return; }
+        setTimeout(poll, 250); return;
+      }
+      setTimeout(function () {
+        var d = W.document;
+        function set(id, v) { var e = d.getElementById(id); if (e) e.value = v; }
+        set('choiceTotal', String(cfg.choiceTotal)); set('choiceStart', '1');
+        set('subjStart', String(cfg.choiceTotal + 1)); set('subjCount', String(cfg.subjCount));
+        set('subjScore', new Array(cfg.subjCount).fill('10').join(','));
+        set('subjLines', String(cfg.lines || 6));
+        d.getElementById('btnGenerate').click();
+        setTimeout(function () {
+          var s = d.createElement('script');
+          s.textContent = '(' + DIAG.toString() + ')();';
+          d.body.appendChild(s);
+          var waited = 0;
+          (function w2() {
+            if (W.__D && W.__D.err !== 'running') { window.__D = W.__D; resolve(window.__D); return; }
+            if (++waited > 160) { window.__D = { err: '超时', p: W.__D }; resolve(window.__D); return; }
+            setTimeout(w2, 250);
+          })();
+        }, 2600);
+      }, 300);
+    })();
+  });
+};
+function DIAG() {
+  var W = window, D = document;
+  W.__D = { err: 'running' };
+  try {
+    var page = D.querySelector('#stage .as-page');
+    var stage = page.closest('.preview-stage');
+    stage.style.transform = 'none';
+    void page.offsetHeight;
+    var pr = page.getBoundingClientRect();
+    var PPM = 96 / 25.4;
+    var mm = function (px) { return Math.round(px / PPM * 1000) / 1000; };
+
+    function dump(sel, label) {
+      var el = page.querySelector(sel);
+      if (!el) return { sel: sel, missing: true };
+      var cs = getComputedStyle(el);
+      var r = el.getBoundingClientRect();
+      var tn = null;
+      var w = D.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+      var n;
+      while ((n = w.nextNode())) { if (n.nodeValue && n.nodeValue.trim()) { tn = n; break; } }
+      var o = {
+        sel: sel, label: label, display: cs.display, fs: cs.fontSize,
+        lh: cs.lineHeight, ls: cs.letterSpacing, ta: cs.textAlign,
+        boxW: mm(r.width), boxH: mm(r.height),
+        text: tn ? tn.nodeValue.slice(0, 40) : null,
+        textLen: tn ? tn.nodeValue.length : 0
+      };
+      if (tn) {
+        var rg = D.createRange();
+        rg.selectNodeContents(tn);
+        var rs = rg.getClientRects();
+        o.rectCount = rs.length;
+        o.rects = [];
+        for (var i = 0; i < Math.min(rs.length, 8); i++) {
+          o.rects.push({ i: i, top: mm(rs[i].top - pr.top), left: mm(rs[i].left - pr.left),
+                         w: mm(rs[i].width), h: mm(rs[i].height) });
+        }
+        /* 逐字符 rect 的 top 去重，看真实行数 */
+        var tops = {};
+        for (var c = 0; c < tn.nodeValue.length; c++) {
+          var r1 = D.createRange();
+          r1.setStart(tn, c); r1.setEnd(tn, c + 1);
+          var cs1 = r1.getClientRects();
+          if (!cs1.length) continue;
+          var key = mm(cs1[0].top - pr.top);
+          tops[key] = (tops[key] || 0) + 1;
+        }
+        o.charTopBuckets = Object.keys(tops).map(function (k) { return k + '×' + tops[k]; });
+      }
+      return o;
+    }
+    W.__D = {
+      out: [
+        dump('.as-note-left', '注意事项（竖排 flex）'),
+        dump('.as-note-main', '注意事项正文（多行）'),
+        dump('.as-title-main', '主标题'),
+        dump('.as-barcode-title', '条形码标题（letter-spacing 1mm）'),
+        dump('.as-section-title', '栏目头'),
+        dump('.as-choice-num', '题号')
+      ]
+    };
+  } catch (e) { W.__D = { err: String(e && e.stack ? e.stack : e) }; }
+}
+</script>
+</body></html>

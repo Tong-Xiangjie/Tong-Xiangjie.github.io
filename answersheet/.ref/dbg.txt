@@ -1,0 +1,15 @@
+﻿blocks: [
+  {
+    "kind": "choice",
+    "totalLines": 3,
+    "colH": 49.4,
+    "lineH": 53.4,
+    "startNo": 1,
+    "total": 60
+  }
+]
+chromeFirst = 106  chromeOther = 20
+usable = 283
+columnHeight = 49.4
+faces = 1
+  face0 first=true cursor=266.2 body= choice(rows=3,from=0,top=106)

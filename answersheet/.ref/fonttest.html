@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>font embed test</title></head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+window.__T = null;
+window.runTest = function () {
+  window.__T = null;
+  return fetch('fonts/notosans.subset.ttf')
+    .then(function (r) { return r.arrayBuffer(); })
+    .then(function (ab) {
+      var bytes = new Uint8Array(ab);
+      var bin = '';
+      for (var i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      }
+      var b64 = btoa(bin);
+      var out = { fontB64Len: b64.length, abBytes: bytes.length };
+      try {
+        /* jsPDF 不是全局的，藏在 html2pdf worker 的 opt.jsPDF 里。
+           借一个 worker 把它实例化出来。 */
+        var w = html2pdf().set({ jsPDF: { unit: 'mm', format: [210, 297], orientation: 'portrait', compress: true } });
+        w.prop.pdf = null;
+        return w.toContainer().then(function () {
+          var pdf = w.prop.pdf;
+          out.pdfIsJS = !!(pdf && pdf.addFileToVFS);
+          if (!out.pdfIsJS) {
+            /* toContainer 没建 pdf，就用 toPdf 那一步 */
+            var w2 = html2pdf().set({ jsPDF: { unit: 'mm', format: [210, 297], orientation: 'portrait', compress: true } });
+            w2.prop.canvas = new (function () {
+              var c = document.createElement('canvas'); c.width = 10; c.height = 10; return c;
+            })();
+            w2.prop.pageSize = null;
+            return w2.toPdf().then(function () { pdf = w2.prop.pdf; out.pdfIsJS = !!(pdf && pdf.addFileToVFS); finish(pdf); });
+          }
+          finish(pdf);
+          return null;
+        });
+      } catch (e) {
+        out.ok = false;
+        out.err = String(e);
+        window.__T = out;
+        return out;
+      }
+
+      function finish(pdf) {
+        try {
+          if (!pdf || !pdf.addFileToVFS) { out.ok = false; out.err = 'no jsPDF instance'; window.__T = out; return; }
+          pdf.addFileToVFS('notosans.ttf', b64);
+          pdf.addFont('notosans.ttf', 'NotoSC', 'normal');
+          pdf.setFont('NotoSC');
+          pdf.setFontSize(12);
+          pdf.text('物理答题卡 注意事项 选择题 非选择题', 20, 30);
+          pdf.setFontSize(9);
+          pdf.text('1.答题前，考生先填写好自己的姓名、准考证号，并认真核对条形码上的姓名；', 20, 40);
+          pdf.setDrawColor(217, 48, 37);
+          pdf.setLineWidth(0.3);
+          pdf.rect(14, 50, 182, 40);
+          pdf.setFillColor(0, 0, 0);
+          pdf.rect(16, 100, 1.5, 2.4, 'F');
+          var uri = pdf.output('datauristring');
+          out.pdfDataUriLen = uri.length;
+          out.pdfBytes = Math.round((uri.length - uri.indexOf(',') - 1) * 0.75);
+          out.ok = true;
+          out.uri = uri;
+        } catch (e) {
+          out.ok = false;
+          out.err = String(e);
+        }
+        window.__T = out;
+      }
+    })
+    .catch(function (e) { window.__T = { fetchErr: String(e) }; return window.__T; });
+};
+</script>
+</body></html>

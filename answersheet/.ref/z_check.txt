@@ -1,0 +1,117 @@
+Z CHECK
+{
+ "mark": {
+  "sel": ".as-mark-left",
+  "z": "3",
+  "pos": "absolute",
+  "bg": "rgb(0, 0, 0)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 13.4,
+  "h": 8.1
+ },
+ "markTop": {
+  "sel": ".as-mark-top",
+  "z": "3",
+  "pos": "absolute",
+  "bg": "rgb(0, 0, 0)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 13.4,
+  "h": 8.1
+ },
+ "corner": {
+  "sel": ".as-corner",
+  "z": "3",
+  "pos": "absolute",
+  "bg": "rgb(0, 0, 0)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 22.4,
+  "h": 14
+ },
+ "choiceSection": {
+  "sel": ".as-choice-section",
+  "z": "1",
+  "pos": "absolute",
+  "bg": "rgba(0, 0, 0, 0)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 653,
+  "h": 126.4
+ },
+ "choiceOuter": {
+  "sel": ".as-choice-outer",
+  "z": "1",
+  "pos": "static",
+  "bg": "rgb(255, 255, 255)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 653,
+  "h": 126.4
+ },
+ "choiceInner": {
+  "sel": ".as-choice-inner",
+  "z": "1",
+  "pos": "static",
+  "bg": "rgb(255, 255, 255)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 626.6,
+  "h": 83.3
+ },
+ "subjective": {
+  "sel": ".as-subjective",
+  "z": "auto",
+  "pos": "absolute",
+  "bg": "rgba(0, 0, 0, 0)",
+  "vis": "visible",
+  "disp": "block",
+  "op": "1",
+  "w": 653,
+  "h": 277.4
+ },
+ "bubble": {
+  "sel": ".as-bubble",
+  "z": "auto",
+  "pos": "static",
+  "bg": "rgb(217, 48, 37)",
+  "vis": "visible",
+  "disp": "flex",
+  "op": "1",
+  "w": 13.4,
+  "h": 8.1
+ },
+ "verdict": [
+  {
+   "over": ".as-choice-section",
+   "markZ": "3",
+   "blockZ": "1",
+   "ok": true
+  },
+  {
+   "over": ".as-choice-outer",
+   "markZ": "3",
+   "blockZ": "1",
+   "ok": true
+  },
+  {
+   "over": ".as-choice-inner",
+   "markZ": "3",
+   "blockZ": "1",
+   "ok": true
+  },
+  {
+   "over": ".as-subjective",
+   "markZ": "3",
+   "blockZ": "auto",
+   "ok": true
+  }
+ ]
+}

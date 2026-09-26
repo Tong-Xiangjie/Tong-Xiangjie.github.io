@@ -1,0 +1,65 @@
+﻿
+[PASS] A4 · 12 choice + 5 subjective
+    format=A4 choice=12 subj=5 -> 3 faces on 3 sheet(s)
+    rendered: 48 bubbles, 128 positioning marks, html 23225 chars
+    layout:
+      face0 (首页) cursor=280.4  choice[3行 @117mm] subj#13[@208.76mm h=71.6]
+      face1        cursor=234.8  subj#14[@20mm h=71.6] subj#15[@91.6mm h=71.6] subj#16[@163.2mm h=71.6]
+      face2        cursor=91.6  subj#17[@20mm h=71.6]
+
+[PASS] A4 · 0 choice + 5 subjective
+    format=A4 choice=0 subj=5 -> 2 faces on 2 sheet(s)
+    rendered: 0 bubbles, 86 positioning marks, html 16010 chars
+    layout:
+      face0 (首页) cursor=249.2  subj#13[@106mm h=71.6] subj#14[@177.6mm h=71.6]
+      face1        cursor=234.8  subj#15[@20mm h=71.6] subj#16[@91.6mm h=71.6] subj#17[@163.2mm h=71.6]
+
+[PASS] A4 · 20 choice + 0 subjective
+    format=A4 choice=20 subj=0 -> 1 faces on 1 sheet(s)
+    rendered: 80 bubbles, 44 positioning marks, html 14391 chars
+    layout:
+      face0 (首页) cursor=240.7  choice[4行 @117mm]
+
+[PASS] A4 · 60 choice (multi-page)
+    format=A4 choice=60 subj=0 -> 2 faces on 2 sheet(s)
+    rendered: 240 bubbles, 86 positioning marks, html 27206 chars
+    layout:
+      face0 (首页) cursor=272.6  choice[5行 @117mm]
+      face1        cursor=239.4  choice[7行 @20mm]
+
+[PASS] A4 · 12 choice + 20 tall subjective (multi-page)
+    format=A4 choice=12 subj=20 -> 11 faces on 11 sheet(s)
+    rendered: 48 bubbles, 464 positioning marks, html 63315 chars
+    layout:
+      face0 (首页) cursor=208.8  choice[3行 @117mm]
+      face1        cursor=224.8  subj#13[@20mm h=102.4] subj#14[@122.4mm h=102.4]
+      face2        cursor=224.8  subj#15[@20mm h=102.4] subj#16[@122.4mm h=102.4]
+      face3        cursor=224.8  subj#17[@20mm h=102.4] subj#18[@122.4mm h=102.4]
+      face4        cursor=224.8  subj#19[@20mm h=102.4] subj#20[@122.4mm h=102.4]
+      face5        cursor=224.8  subj#21[@20mm h=102.4] subj#22[@122.4mm h=102.4]
+      face6        cursor=224.8  subj#23[@20mm h=102.4] subj#24[@122.4mm h=102.4]
+      face7        cursor=224.8  subj#25[@20mm h=102.4] subj#26[@122.4mm h=102.4]
+      face8        cursor=224.8  subj#27[@20mm h=102.4] subj#28[@122.4mm h=102.4]
+      face9        cursor=224.8  subj#29[@20mm h=102.4] subj#30[@122.4mm h=102.4]
+      face10        cursor=224.8  subj#31[@20mm h=102.4] subj#32[@122.4mm h=102.4]
+
+[PASS] A3 · 20 choice + 5 subjective
+    format=A3 choice=20 subj=5 -> 3 faces on 1 sheet(s)
+    rendered: 80 bubbles, 89 positioning marks, html 20397 chars
+    layout:
+      face0 (首页) cursor=215.3  choice[1行 @117mm] subj#13[@143.67000000000002mm h=71.6]
+      face1        cursor=234.8  subj#14[@20mm h=71.6] subj#15[@91.6mm h=71.6] subj#16[@163.2mm h=71.6]
+      face2        cursor=91.6  subj#17[@20mm h=71.6]
+
+[PASS] A3 · 40 choice + 10 subjective
+    format=A3 choice=40 subj=10 -> 4 faces on 2 sheet(s)
+    rendered: 160 bubbles, 176 positioning marks, html 35050 chars
+    layout:
+      face0 (首页) cursor=245.9  choice[2行 @117mm] subj#13[@174.34mm h=71.6]
+      face1        cursor=234.8  subj#14[@20mm h=71.6] subj#15[@91.6mm h=71.6] subj#16[@163.2mm h=71.6]
+      face2        cursor=234.8  subj#17[@20mm h=71.6] subj#18[@91.6mm h=71.6] subj#19[@163.2mm h=71.6]
+      face3        cursor=234.8  subj#20[@20mm h=71.6] subj#21[@91.6mm h=71.6] subj#22[@163.2mm h=71.6]
+
+========================================================================
+ALL PASS — 26 faces, 0 alignment violations
+========================================================================

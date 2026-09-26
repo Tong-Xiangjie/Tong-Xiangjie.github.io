@@ -1,0 +1,866 @@
+SETUP = {"format":"NOT_FOUND"}
+PROBE = {
+ "genErr": null,
+ "pipe": {
+  "colHeight": 20.503,
+  "rowOffsets": [
+   1.6755,
+   6.421,
+   10.709,
+   14.997,
+   19.285
+  ],
+  "bubbleH": 2.436,
+  "numRowH": 3.351,
+  "preset": "{\"blockW\":4.06,\"colGap\":1.852,\"optRows\":4,\"cornerW\":6.77,\"cornerH\":4.23,\"cornerInsetX\":8.975,\"padX\":12.7,\"markGap\":3,\"boxGap\":3,\"subjBoxGap\":1,\"step\":null,\"gridShiftX\":null,\"markShiftX\":null,\"topBandCount\":29,\"innerPadTop\":3,\"innerPadBottom\":2.62}",
+  "optFormat": "A4",
+  "choiceTotal": 12,
+  "choiceStart": 1,
+  "subjLen": 5,
+  "blockCount": 6,
+  "blockKinds": [
+   "choice",
+   "subj",
+   "subj",
+   "subj",
+   "subj",
+   "subj"
+  ],
+  "choiceBlock": {
+   "totalLines": 1,
+   "colH": 20.503,
+   "size": 5,
+   "perLine": 4
+  },
+  "chromeFirst": 82.95,
+  "chromeOther": 20,
+  "faceCount": 3,
+  "faceBodyLens": [
+   3,
+   4,
+   1
+  ],
+  "firstBody": [
+   "choice:1",
+   "subj",
+   "subj"
+  ]
+ },
+ "errs": [],
+ "hasPage": true,
+ "pageParent": "page-wrap",
+ "stageType": 1,
+ "stageCls": "preview-stage",
+ "pages": 4,
+ "choiceSections": 1,
+ "choiceOuter": 1,
+ "subjectOuter": 3,
+ "zkCells": 9,
+ "stageEls": 1,
+ "asKeys": [
+  "config",
+  "geometry",
+  "theme",
+  "marks",
+  "choice",
+  "subject",
+  "page",
+  "noAnswer",
+  "paginator",
+  "app",
+  "__faces",
+  "__lastOptions"
+ ],
+ "choiceKeys": [
+  "OPTIONS",
+  "header",
+  "build",
+  "heightForRows"
+ ],
+ "subjKeys": [
+  "parseScores",
+  "scoreText",
+  "HEAD_H",
+  "cellPad",
+  "itemHeight",
+  "headOverhead",
+  "headerH",
+  "pageTipBlockH",
+  "renderRow",
+  "renderItem",
+  "render"
+ ]
+}
+
+RESULT_KEYS = {"hasResult":true,"hasResultResult":true,"type":"object","hasValue":true,"exc":false,"top":["id","result"]}
+page: 209.996 x 296.999 mm   (zoom-corrected)
+innerW=175.989
+innerHTML head: <div class="as-choice-grid" style="margin: 0px 0px 0px 3.317mm; width: 151.464mm; row-gap: 2.436mm;"><div class="as-choice-line"><div class="as-choice-col" style="width:31.555mm;height:20.503mm"><div class="as-choice-item" style="left:0mm;width:4.06mm"><div cl
+rowGeom = {
+ "nums": {
+  "x": 20.844,
+  "y": 94.965,
+  "w": 4.06,
+  "h": 3.349,
+  "cx": 22.874,
+  "cy": 96.639
+ },
+ "numsCS": {
+  "h": "12.6562px",
+  "mt": "0px",
+  "mb": "0px",
+  "lh": "12.6652px"
+ },
+ "rows": [
+  {
+   "x": 20.844,
+   "y": 100.168,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 22.874,
+   "cy": 101.385
+  },
+  {
+   "x": 20.844,
+   "y": 104.455,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 22.874,
+   "cy": 105.672
+  },
+  {
+   "x": 20.844,
+   "y": 108.742,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 22.874,
+   "cy": 109.959
+  },
+  {
+   "x": 20.844,
+   "y": 113.029,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 22.874,
+   "cy": 114.246
+  },
+  {
+   "x": 27.153,
+   "y": 100.168,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 29.183,
+   "cy": 101.385
+  },
+  {
+   "x": 27.153,
+   "y": 104.455,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 29.183,
+   "cy": 105.672
+  },
+  {
+   "x": 27.153,
+   "y": 108.742,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 29.183,
+   "cy": 109.959
+  },
+  {
+   "x": 27.153,
+   "y": 113.029,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 29.183,
+   "cy": 114.246
+  },
+  {
+   "x": 33.466,
+   "y": 100.168,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 35.496,
+   "cy": 101.385
+  },
+  {
+   "x": 33.466,
+   "y": 104.455,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 35.496,
+   "cy": 105.672
+  },
+  {
+   "x": 33.466,
+   "y": 108.742,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 35.496,
+   "cy": 109.959
+  },
+  {
+   "x": 33.466,
+   "y": 113.029,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 35.496,
+   "cy": 114.246
+  },
+  {
+   "x": 39.774,
+   "y": 100.168,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 41.804,
+   "cy": 101.385
+  },
+  {
+   "x": 39.774,
+   "y": 104.455,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 41.804,
+   "cy": 105.672
+  },
+  {
+   "x": 39.774,
+   "y": 108.742,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 41.804,
+   "cy": 109.959
+  },
+  {
+   "x": 39.774,
+   "y": 113.029,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 41.804,
+   "cy": 114.246
+  },
+  {
+   "x": 46.087,
+   "y": 100.168,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 48.117,
+   "cy": 101.385
+  },
+  {
+   "x": 46.087,
+   "y": 104.455,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 48.117,
+   "cy": 105.672
+  },
+  {
+   "x": 46.087,
+   "y": 108.742,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 48.117,
+   "cy": 109.959
+  },
+  {
+   "x": 46.087,
+   "y": 113.029,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 48.117,
+   "cy": 114.246
+  }
+ ],
+ "rowsCS": [
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  },
+  {
+   "h": "9.20312px",
+   "mt": "0px",
+   "mb": "0px",
+   "w": "15.3438px",
+   "pad": "0px",
+   "just": "center"
+  }
+ ],
+ "bubbleCS": {
+  "w": "15.3438px",
+  "minW": "15.3449px",
+  "flex": "0 0 15.3449px",
+  "boxSizing": "border-box",
+  "border": "1px",
+  "pad": "0px"
+ },
+ "colCS": {
+  "h": "77.4844px"
+ }
+}
+geomPred = {"faceW":210,"colsPerLine":24,"contentBox":{"left":14.005,"right":195.995,"width":181.99},"expectedFirstColCx":16.035,"rowOffsets":[1.6755,6.421,10.709,14.997,19.285],"columnHeight":20.503,"boxOffsets":{"border":0.3,"outerPadX":0,"innerMarginLeft":3,"boxGap":3,"markGap":3,"bandRightEdge":11.005,"outerLeft":14.005,"innerBorderLeft":17.305,"gridLeft":17.605,"outerPadY":0.5,"outerPadYBottom":0.5,"innerPadTop":3,"innerPadBottom":2.62,"headerGap":1,"headerH":5,"leftBandX":8.975},"secTop":321.071,"hasSection":true,"pageCount":4,"outerCount":1,"subjCount":3,"zkCells":9}
+chain = {
+ ".as-choice-section": {
+  "rect": {
+   "x": 14.002,
+   "y": 84.948,
+   "w": 181.992,
+   "h": 34.536,
+   "cx": 104.998,
+   "cy": 102.216
+  },
+  "pad": "0px",
+  "padL": "0px",
+  "border": "0px",
+  "borderL": "0px",
+  "box": "border-box",
+  "left": "52.9323px",
+  "right": "52.9323px",
+  "w": "687.844px",
+  "marL": "0px",
+  "contentLeftPx": 121.393,
+  "contentLeftMM": 14.002
+ },
+ ".as-choice-outer": {
+  "rect": {
+   "x": 14.002,
+   "y": 84.948,
+   "w": 182.517,
+   "h": 34.536,
+   "cx": 105.261,
+   "cy": 102.216
+  },
+  "pad": "1.88976px 0px",
+  "padL": "0px",
+  "border": "1px",
+  "borderL": "1px",
+  "box": "border-box",
+  "left": "auto",
+  "right": "auto",
+  "w": "689.828px",
+  "marL": "0px",
+  "contentLeftPx": 122.393,
+  "contentLeftMM": 14.304
+ },
+ ".as-choice-inner": {
+  "rect": {
+   "x": 17.264,
+   "y": 91.703,
+   "w": 175.989,
+   "h": 27.021,
+   "cx": 105.259,
+   "cy": 105.213
+  },
+  "pad": "11.3386px 0px 9.90236px",
+  "padL": "0px",
+  "border": "1px",
+  "borderL": "1px",
+  "box": "border-box",
+  "left": "auto",
+  "right": "auto",
+  "w": "665.156px",
+  "marL": "11.3386px",
+  "contentLeftPx": 133.189,
+  "contentLeftMM": 17.566
+ },
+ ".as-choice-line": {
+  "rect": {
+   "x": 20.844,
+   "y": 94.965,
+   "w": 151.462,
+   "h": 20.501,
+   "cx": 96.575,
+   "cy": 105.215
+  },
+  "pad": "0px",
+  "padL": "0px",
+  "border": "0px",
+  "borderL": "0px",
+  "box": "border-box",
+  "left": "auto",
+  "right": "auto",
+  "w": "572.453px",
+  "marL": "0px",
+  "contentLeftPx": 144.037,
+  "contentLeftMM": 20.844
+ },
+ ".as-choice-col": {
+  "rect": {
+   "x": 20.844,
+   "y": 94.965,
+   "w": 31.552,
+   "h": 20.501,
+   "cx": 36.62,
+   "cy": 105.215
+  },
+  "pad": "0px",
+  "padL": "0px",
+  "border": "0px",
+  "borderL": "0px",
+  "box": "border-box",
+  "left": "0px",
+  "right": "0px",
+  "w": "119.25px",
+  "marL": "0px",
+  "contentLeftPx": 144.037,
+  "contentLeftMM": 20.844
+ },
+ ".as-bubble": {
+  "x": 20.844,
+  "y": 100.168,
+  "w": 4.06,
+  "h": 2.435,
+  "cx": 22.874,
+  "cy": 101.385
+ },
+ ".as-choice-num": {
+  "x": 20.844,
+  "y": 94.965,
+  "w": 4.06,
+  "h": 3.349,
+  "cx": 22.874,
+  "cy": 96.639
+ },
+ "vars": {
+  "innerPadX": "2.5mm",
+  "outerPadX": "0mm",
+  "qGap": "2.251mm",
+  "blockW": "4.06mm",
+  "step": "6.311mm",
+  "outerLeft": "14.005mm"
+ }
+}
+rects = {
+ ".as-choice-section": {
+  "x": 14.002,
+  "y": 84.948,
+  "w": 181.992,
+  "h": 34.536,
+  "cx": 104.998,
+  "cy": 102.216
+ },
+ ".as-choice-outer": {
+  "x": 14.002,
+  "y": 84.948,
+  "w": 182.517,
+  "h": 34.536,
+  "cx": 105.261,
+  "cy": 102.216
+ },
+ ".as-choice-inner": {
+  "x": 17.264,
+  "y": 91.703,
+  "w": 175.989,
+  "h": 27.021,
+  "cx": 105.259,
+  "cy": 105.213
+ },
+ ".as-choice-line": {
+  "x": 20.844,
+  "y": 94.965,
+  "w": 151.462,
+  "h": 20.501,
+  "cx": 96.575,
+  "cy": 105.215
+ },
+ ".as-choice-col": {
+  "x": 20.844,
+  "y": 94.965,
+  "w": 31.552,
+  "h": 20.501,
+  "cx": 36.62,
+  "cy": 105.215
+ },
+ ".as-choice-nums": {
+  "x": 20.844,
+  "y": 94.965,
+  "w": 4.06,
+  "h": 3.349,
+  "cx": 22.874,
+  "cy": 96.639
+ },
+ ".as-choice-num": {
+  "x": 20.844,
+  "y": 94.965,
+  "w": 4.06,
+  "h": 3.349,
+  "cx": 22.874,
+  "cy": 96.639
+ },
+ ".as-choice-optrow": {
+  "x": 20.844,
+  "y": 100.168,
+  "w": 4.06,
+  "h": 2.435,
+  "cx": 22.874,
+  "cy": 101.385
+ },
+ ".as-bubble": {
+  "x": 20.844,
+  "y": 100.168,
+  "w": 4.06,
+  "h": 2.435,
+  "cx": 22.874,
+  "cy": 101.385
+ }
+}
+innerHTMLFull = <div class="as-choice-inner" style="height:27.023mm;width:175.99mm;padding:3mm 0 2.62mm 0;margin:0mm 0 0 3mm"><div class="as-choice-grid" style="margin:0 0 0 3.317mm;width:151.464mm;row-gap:2.436mm"><div class="as-choice-line"><div class="as-choice-col" style="width:31.555mm;height:20.503mm"><div class="as-choice-item" style="left:0mm;width:4.06mm"><div class="as-choice-nums" style="top:1.6755mm;height:3.351mm;line-height:3.351mm;width:4.06mm"><span class="as-choice-num" style="width:4.06mm;height:3.351mm">1</span></div><div class="as-choice-optrow" style="top:6.421mm;width:4.06mm;height:2.436mm"><span class="as-bubble" style="width:4.06mm;height:2.436mm">A</span></div><div class="as-choice-
+offsetProbe = {
+ "beforeDeltaPx": 11.849,
+ "afterDeltaPx": 11.849,
+ "restoredDeltaPx": 11.849,
+ "innerPadLeft": "0px",
+ "innerBorderLeft": "1px",
+ "linePadLeft": "0px",
+ "lineMarginLeft": "0px",
+ "linePosition": "static",
+ "innerVarPadX": "2.5mm",
+ "innerVarShift": "",
+ "inlineStyle": "height: 27.023mm; width: 175.99mm; padding: 3mm 0px 2.62mm; margin: 0mm 0px 0px 3mm;"
+}
+leftMarkYs = [80.448,96.724,101.47,105.757,110.044,114.331]
+rowCentersDom = [101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246,101.385,105.672,109.959,114.246]
+geomLive = {"gridTop":95.05,"rowCenters":[96.726,101.471,105.759,110.047,114.335],"leftMarkYs":[80.45,96.726,101.471,105.759,110.047,114.335],"colCenters0":[22.952,29.263,35.574,41.885]}
+headerProbe = {"header":{"x":14.267,"y":85.708,"w":181.988,"h":4.998,"cx":105.261,"cy":88.208},"headerH":"18.8906px","headerVar":"5mm","headerMarB":"3.77953px","headerDisplay":"flex","inner":{"x":17.264,"y":91.703,"w":175.989,"h":27.021,"cx":105.259,"cy":105.213},"outer":{"x":14.002,"y":84.948,"w":182.517,"h":34.536,"cx":105.261,"cy":102.216},"innerPadTop":"11.3386px","outerPadTop":"1.88976px","outerBorderTop":"1px","headerMarginTop":"0px","headerPadTop":"0px","headerBox":"border-box","innerMarginTop":"0px","innerBorderTop":"1px","pxPerMM":3.7795275590551185}
+gridProbe = {"grid":{"x":20.844,"y":94.965,"w":151.462,"h":20.501,"cx":96.575,"cy":105.215},"gridAttrStyle":"margin: 0px 0px 0px 3.317mm; width: 151.464mm; row-gap: 2.436mm;","gridCbOffset":0,"choiceChromeH":10.1,"geomKeys":["bubbleH","numRowH","TOP_BAND_CY","TIP_GAP","TIP_H","answerTop","answerBottom","answerHeight","frameGap","frameExtend","frameTopLimit","frameBottomLimit","frameHeight","FRAME_INSET_K","contentChrome","pxMM","snapMM","gridCbOffset","choiceHeadH","choiceChromeH","choiceFootH","rowOffsets","columnHeight","boxOffsets","contentBox","gridLeft","gridOriginX","gridOriginBase","innerBoxW","outerBoxW","gridShiftX","markShiftX","topBandCount","topBandCountFor","topBandStep","topBandStepFor","topBandWidth","topBandGeom","choiceStep","lineHeight","lineGapH","lineGapMarkOffset","rowPitch","blockPlan","columnsPerLine","maxBlocksPerLine","gridAvailW","columnCenters","markColumnCenters","layoutFace","layoutPage","selfTest","r3"],"gridComputedTop":"auto","gridOuterStart":"<div class=\"as-choice-grid\" style=\"margin: 0px 0px 0px 3.317mm; width: 151.464mm; row-gap: 2.436mm;\"><div class=\"as-choi","gridTopVar":"","gridPos":"static","gridTop":"auto","gridLeft":"auto","gridRight":"auto","inner":{"x":17.264,"y":91.703,"w":175.989,"h":27.021,"cx":105.259,"cy":105.213},"innerPos":"static","innerPadTop":"11.3386px","innerH":"102.125px","parentClass":"as-choice-inner"}
+cbProbe = {"outerPos":"static","secPos":"absolute","gridTopStyle":"","gridTopComputed":"auto","cbAt0MM":94.965,"outerTopMM":84.948,"secTopMM":84.948,"cbRelOuter":10.017,"gridNowMM":94.965}
+padProbe = {"padBoxTopMM":84.948,"outerBorderTopMM":84.948,"deltaMM":0,"outerBorderTopPx":"1px","outerPadTopPx":"1.88976px","outerPos":"static"}
+blocksLive = [[{"kind":"choice","gridTop":95.05,"boxTop":84.95,"rows":1,"head":true},{"kind":"subj","boxTop":124.273,"top":124.273,"head":true},{"kind":"subj","boxTop":210.358,"top":210.358,"head":false}],[{"kind":"subj","boxTop":16.076,"top":16.076,"head":false},{"kind":"subj","boxTop":48.256,"top":48.256,"head":false},{"kind":"subj","boxTop":127.462,"top":127.462,"head":false},{"kind":"subj","boxTop":206.668,"top":206.668,"head":false}],[{"kind":"subj","boxTop":16.076,"top":16.076,"head":false}]]
+detail = {
+ "colW": "119.25px",
+ "colGap": "normal",
+ "colPad": "0px",
+ "colBorder": "0px",
+ "itemCount": 5,
+ "numsRow": {
+  "rect": {
+   "x": 20.844,
+   "y": 94.965,
+   "w": 4.06,
+   "h": 3.349,
+   "cx": 22.874,
+   "cy": 96.639
+  },
+  "pad": "0px",
+  "mar": "0px",
+  "just": "center",
+  "gap": "normal",
+  "w": "15.3438px",
+  "align": "center",
+  "display": "flex",
+  "pos": "absolute",
+  "transform": "matrix(1, 0, 0, 1, 0, -6.32812)"
+ },
+ "optRow": {
+  "rect": {
+   "x": 20.844,
+   "y": 100.168,
+   "w": 4.06,
+   "h": 2.435,
+   "cx": 22.874,
+   "cy": 101.385
+  },
+  "pad": "0px",
+  "mar": "0px",
+  "just": "center",
+  "gap": "normal",
+  "w": "15.3438px",
+  "align": "center",
+  "display": "flex",
+  "pos": "absolute",
+  "transform": "matrix(1, 0, 0, 1, 0, -4.60156)"
+ },
+ "numsRowW": "15.3438px",
+ "rowW": "15.3438px",
+ "nums": [
+  {
+   "x": 20.844,
+   "w": 4.06,
+   "cx": 22.874,
+   "cy": 96.639
+  }
+ ],
+ "bubs": [
+  {
+   "x": 20.844,
+   "w": 4.06,
+   "cx": 22.874,
+   "cy": 101.385
+  }
+ ],
+ "itemCx": [
+  22.874,
+  29.183,
+  35.496,
+  41.804,
+  48.117
+ ],
+ "numPitch": 6.309,
+ "bubPitch": 6.309,
+ "numVsBub": 0
+}
+
+  PREDICTED (secTop + off) vs ACTUAL row centers
+   row0: pred=322.747 actual=96.639 diff=-226.108
+   row1: pred=327.492 actual=101.385 diff=-226.107
+   row2: pred=331.78 actual=105.672 diff=-226.108
+   row3: pred=336.068 actual=109.959 diff=-226.109
+   row4: pred=340.356 actual=114.246 diff=-226.11
+
+GROUPS = {"A4":{"size":5,"perLine":4,"gap":1},"A3":{"size":5,"perLine":4,"gap":1}}
+choice.build src = function build(o) {
+    var g = o.group || C.GROUPS.A4;
+    var p = o.preset || C.PRESETS.A4;
+    /* 本面的宽度（A3 一页三面，每面 140mm），由 app.js 传入 */
+    var faceW0 = o.faceW || C.PAPER.A4.w;
+    var step = G.c
+--step=6.311mm  --block-w=4.06mm  bubbleW=4.06  optrowW=4.06
+lines=1  cols=3
+first line columns:
+  col0: x=20.844 w=31.552
+     nums    = 1,2,3,4,5
+     numXs   = 22.874, 29.183, 35.496, 41.804, 48.117
+     bubbleXs= 22.874
+  col1: x=58.704 w=31.552
+     nums    = 6,7,8,9,10
+     numXs   = 60.734, 67.043, 73.356, 79.664, 85.977
+     bubbleXs= 60.734
+  col2: x=96.565 w=12.621
+     nums    = 11,12
+     numXs   = 98.594, 104.903
+     bubbleXs= 98.594
+--font-sun = "SimSun", "宋体", "Songti SC", serif
+--font-hei = "SimHei", "黑体", "Microsoft YaHei", sans-serif
+title font   : {"family":"SimHei, 黑体, \"Microsoft YaHei\", sans-serif","size":"24px","color":"rgb(217, 48, 37)"}
+choice num   : {"family":"SimHei, 黑体, \"Microsoft YaHei\", sans-serif","size":"12.6667px","color":"rgb(0, 0, 0)"}
+section title: {"family":"SimHei, 黑体, \"Microsoft YaHei\", sans-serif","size":"14.6667px","color":"rgb(217, 48, 37)"}
+
+corners:
+   x=5.589 y=8.884 w=6.768 h=4.229  center=(8.973, 10.999)
+   x=197.64 y=8.884 w=6.768 h=4.229  center=(201.023, 10.999)
+   x=5.589 y=283.881 w=6.768 h=4.229  center=(8.973, 285.996)
+   x=197.64 y=283.881 w=6.768 h=4.229  center=(201.023, 285.996)
+   x=5.589 y=311.704 w=6.768 h=4.229  center=(8.973, 313.819)
+   x=197.64 y=311.704 w=6.768 h=4.229  center=(201.023, 313.819)
+   x=5.589 y=586.701 w=6.768 h=4.229  center=(8.973, 588.816)
+   x=197.64 y=586.701 w=6.768 h=4.229  center=(201.023, 588.816)
+   x=5.589 y=614.524 w=6.768 h=4.229  center=(8.973, 616.638)
+   x=197.64 y=614.524 w=6.768 h=4.229  center=(201.023, 616.638)
+   x=5.589 y=889.521 w=6.768 h=4.229  center=(8.973, 891.635)
+   x=197.64 y=889.521 w=6.768 h=4.229  center=(201.023, 891.635)
+   x=5.589 y=917.343 w=6.768 h=4.229  center=(8.973, 919.458)
+   x=197.64 y=917.343 w=6.768 h=4.229  center=(201.023, 919.458)
+   x=5.589 y=1192.341 w=6.768 h=4.229  center=(8.973, 1194.455)
+   x=197.64 y=1192.341 w=6.768 h=4.229  center=(201.023, 1194.455)
+
+topMarks (n=29):
+   cx=16.64 cy=10.999 w=4.06 h=2.435
+   cx=22.948 cy=10.999 w=4.06 h=2.435
+   cx=29.261 cy=10.999 w=4.06 h=2.435
+   cx=35.57 cy=10.999 w=4.06 h=2.435
+   cx=41.883 cy=10.999 w=4.06 h=2.435
+   cx=48.196 cy=10.999 w=4.06 h=2.435
+   ... last cx=193.348 cy=10.999
+
+leftMarks (n=6):
+   cx=8.971 cy=80.448 w=4.06 h=2.435
+   cx=8.971 cy=96.724 w=4.06 h=2.435
+   cx=8.971 cy=101.47 w=4.06 h=2.435
+   cx=8.971 cy=105.757 w=4.06 h=2.435
+   cx=8.971 cy=110.044 w=4.06 h=2.435
+   cx=8.971 cy=114.331 w=4.06 h=2.435
+
+bubbles (n=48): first 12
+   cx=22.874 cy=101.385 w=4.06 h=2.435
+   cx=22.874 cy=105.672 w=4.06 h=2.435
+   cx=22.874 cy=109.959 w=4.06 h=2.435
+   cx=22.874 cy=114.246 w=4.06 h=2.435
+   cx=29.183 cy=101.385 w=4.06 h=2.435
+   cx=29.183 cy=105.672 w=4.06 h=2.435
+   cx=29.183 cy=109.959 w=4.06 h=2.435
+   cx=29.183 cy=114.246 w=4.06 h=2.435
+   cx=35.496 cy=101.385 w=4.06 h=2.435
+   cx=35.496 cy=105.672 w=4.06 h=2.435
+   cx=35.496 cy=109.959 w=4.06 h=2.435
+   cx=35.496 cy=114.246 w=4.06 h=2.435
+
+choiceGrid : [{"x":20.844,"y":94.965,"w":151.462,"h":20.501,"cx":96.575,"cy":105.215}]
+choiceHeader: [{"x":14.267,"y":85.708,"w":181.988,"h":4.998,"cx":105.261,"cy":88.208}]
+title      : [{"x":66.898,"y":16.045,"w":76.2,"h":7.619,"cx":104.998,"cy":19.854}]
+note       : [{"x":12.7,"y":49.94,"w":117.599,"h":32.999,"cx":71.5,"cy":66.439}]
+checkBoxes : [{"x":27.231,"y":79.218,"w":4.06,"h":2.435,"cx":29.261,"cy":80.435}]
+barcode    : [{"x":134.297,"y":49.94,"w":63,"h":32.999,"cx":165.797,"cy":66.439}]
+
+======================================================================
+ALIGNMENT ASSERTIONS (from real browser layout)
+======================================================================
+  角标中心y == 顶部块心y                                       10.999 vs 10.999  OK
+  角标中心x == 左侧块心x                                       8.973 vs 8.971  OK
+  选择题第一列心 == 第二个顶部定标块心                                 22.874 vs 22.948  OK  (容差 0.1mm，盒模型取整)
+     定标块数 29   第一块 16.64   第二块 22.948   第一列 22.874
+     气泡列心(前6): 22.874, 29.183, 35.496, 41.804, 48.117, 60.734
+     气泡列距: 6.309, 6.313, 6.308, 6.313, 12.617, 6.309, 6.313
+  定标带节距 == 气泡列距                                        6.308 vs 6.309  OK
+  端空隙 == 块间空隙                                          L=2.25 R=2.262 块间=2.248  OK
+     角标右缘 12.36  首块左缘 14.61  末块右缘 195.378  角标左缘 197.64
+  顶部块尺寸 == 气泡尺寸(w)                                     4.06 vs 4.06  OK
+  顶部块尺寸 == 气泡尺寸(h)                                     2.435 vs 2.435  OK
+  左侧块尺寸 == 气泡尺寸(w)                                     4.06 vs 4.06  OK
+     题号行心: 96.639   (n=1, raw=[96.639])
+     气泡行心: 101.385, 105.672, 109.959, 114.246
+     左侧块心y: 80.448, 96.724, 101.47, 105.757, 110.044, 114.331
+     每个左侧块心都落在某个行心(题号/气泡)上: OK  (最大偏差 0.085mm，容差 0.1mm)
+  题号列心 == 气泡列心(第1题)                                    22.874 vs 22.874  OK
+  题号节距 == 气泡节距                                         6.309 vs 6.309  OK
+  列节距 == 实测定标带节距                                       6.309 vs 6.308  OK
+     缺考/示例框: [{"x":27.231,"y":79.218,"w":4.06,"h":2.435,"cx":29.261,"cy":80.435}]
+       框cy=80.435 有对齐的左侧块: OK

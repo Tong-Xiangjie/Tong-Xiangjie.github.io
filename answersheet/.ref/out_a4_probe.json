@@ -1,0 +1,139 @@
+{
+ "wrapPageRect": {
+  "w": 793.69,
+  "h": 1122.52
+ },
+ "wrapCounts": {
+  "pages": 3,
+  "bubbles": 50,
+  "marks": 106,
+  "grids": 1,
+  "subjTables": 3
+ },
+ "chain": [
+  {
+   "cls": "as-page",
+   "pos": "relative",
+   "disp": "block",
+   "h": "1122.52px",
+   "w": "793.688px",
+   "rectH": 1122.52,
+   "rectW": 793.69,
+   "rectTop": 0,
+   "overflow": "hidden",
+   "float": "none",
+   "contain": "none"
+  },
+  {
+   "cls": "page-wrap",
+   "pos": "relative",
+   "disp": "block",
+   "h": "1122.52px",
+   "w": "793.688px",
+   "rectH": 1122.52,
+   "rectW": 793.69,
+   "rectTop": 0,
+   "overflow": "visible",
+   "float": "none",
+   "contain": "none"
+  },
+  {
+   "cls": "DIV",
+   "pos": "fixed",
+   "disp": "block",
+   "h": "3367.55px",
+   "w": "793.688px",
+   "rectH": 3367.55,
+   "rectW": 793.69,
+   "rectTop": 0,
+   "overflow": "visible",
+   "float": "none",
+   "contain": "none"
+  }
+ ],
+ "firstBubble": {
+  "w": 15.34,
+  "h": 9.2,
+  "bg": "rgb(217, 48, 37)"
+ },
+ "gridRect": {
+  "w": 703.39,
+  "h": 77.48
+ },
+ "canvasCard": {
+  "w": 794,
+  "h": 1123
+ },
+ "canvasLive": {
+  "w": 794,
+  "h": 1123
+ },
+ "variants": {
+  "fixed-offscreen": {
+   "wrapRect": {
+    "w": 794,
+    "h": 3368
+   },
+   "container": {
+    "w": 0,
+    "h": 0
+   },
+   "canvas": {
+    "w": 794,
+    "h": 0
+   }
+  },
+  "absolute-origin": {
+   "wrapRect": {
+    "w": 794,
+    "h": 3368
+   },
+   "container": {
+    "w": 0,
+    "h": 0
+   },
+   "canvas": {
+    "w": 794,
+    "h": 0
+   }
+  },
+  "static-flow": {
+   "wrapRect": {
+    "w": 743,
+    "h": 3368
+   },
+   "container": {
+    "w": 0,
+    "h": 0
+   },
+   "canvas": {
+    "w": 794,
+    "h": 3368
+   }
+  },
+  "absolute-origin-visible": {
+   "wrapRect": {
+    "w": 794,
+    "h": 3368
+   },
+   "container": {
+    "w": 0,
+    "h": 0
+   },
+   "canvas": {
+    "w": 794,
+    "h": 0
+   }
+  }
+ },
+ "canvas": {
+  "w": 2382,
+  "h": 0
+ },
+ "canvasAlt": {
+  "w": 794,
+  "h": 0
+ },
+ "canvasErr": "IndexSizeError: Failed to execute 'getImageData' on 'CanvasRenderingContext2D': The source height is 0.",
+ "dataUriLen": 4131
+}
