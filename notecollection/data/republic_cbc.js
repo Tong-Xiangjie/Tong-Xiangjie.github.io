@@ -420,6 +420,35 @@ const republic_cbcData = {
                 }
             ]
         },{
+            seriesName: "中华民国三十四年（1945年） 美钞版 金圆券",
+            year: "1945",
+            varieties: [
+                {
+                    varietyName: "1945年 1元 蒋像 重庆忠县石宝寨",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1945,
+                            version: "VV673***",
+                            bank: "中央银行",
+                            print: "美国钞票公司/ABNC",
+                            signature1: "总裁（Governor）：俞鸿钧（O.K. Yui）",
+                            signature2: "总经理（General Manager）：李骏耀（Lee Chun-yiu）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "60元",
+                            purchaseDate: "2026年9月26日",
+                            krause: "387",
+                            remark: "双字轨：共505种，发行量5.05亿张。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/VV673***-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/VV673***-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国三十五至三十八年（1946～1949年） 德纳罗版 金圆券",
             year: "1945～1948",
             varieties: [

@@ -95,6 +95,29 @@ const republic_bocData = {
             year: "1940",
             varieties: [
                 {
+                    varietyName: "1940年 5元 天坛",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1940,
+                            version: "K1024**B",
+                            bank: "中国银行",
+                            print: "美国钞票公司/ABNC",
+                            signature1: "总经理（General Manager）：宋汉章（Sung Hang-Chang）",
+                            signature2: "经理（Manager）：贝祖诒（Tsuyee Pei）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "60元",
+                            purchaseDate: "2026年9月26日",
+                            krause: "84",
+                            remark: "正背面双字轨",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/K1024**B-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/K1024**B-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "1940年 10元 天坛",
                     copies: [
                         {
