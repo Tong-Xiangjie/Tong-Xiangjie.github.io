@@ -673,34 +673,11 @@ function toggleSearchMode() {
   }
 }
 
-// ★ key → 中文 label 的反向表，直接从各数据文件的 detailFields 收集。
-//   ★ 必须**惰性构建**：脚本加载时数据还没 fetch 完，那时建表会得到空 Map。
-//   缓存随 invalidateRenderedViews() 失效（数据/设置变化时重建）。
-let detailFieldLabels = null;
-
-function ensureDetailFieldLabels() {
-  if (detailFieldLabels) return detailFieldLabels;
-  const map = new Map();
-  const saved = currentMode;
-  try {
-    for (const mode of [MODE.NOTES, MODE.COINS]) {
-      currentMode = mode;
-      for (const dataKey of getAllDataKeys()) {
-        const data = getData(dataKey);
-        if (!data || !Array.isArray(data.detailFields)) continue;
-        for (const f of data.detailFields) {
-          if (f && f.key && f.label && !map.has(f.key)) map.set(f.key, f.label);
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[搜索] 构建字段标签表失败（不影响搜索）:', e);
-  } finally {
-    currentMode = saved;
-  }
-  detailFieldLabels = map;
-  return map;
-}
+// ★ 这里原来有一张 key → 中文 label 的反向表（ensureDetailFieldLabels / detailFieldLabels），
+//   唯一用途是让"评级机构"模式支持按中文字段名搜索（如输入"评级公司"）。
+//   但 label 是**字段名**而不是字段值，匹配它等于"输入字段名 → 所有带该字段的条目
+//   全部命中"（实测"评级分数"/"评级公司"各返回 339 件），把按字段搜索变成了浏览全部，
+//   是反直觉的。字段名已经由搜索框旁边的下拉选项承担，所以整张表和它的构建函数一起删掉。
 
 // ★「全字段搜索」= 数据文件在 detailFields 里声明的**全部字段**，
 //   而不是只搜固定的那 7 个。各板块字段差异很大（纸币有 issueDate / withdrawnDate /
@@ -743,19 +720,30 @@ function collectSearchFields(copy, series, variety, extraText) {
 
 // 一次搜索只算一次的关键词形态（避免逐条副本重复归一化）
 function makeSearchPlan(keyword, type) {
-  const plan = {
+  const kw = (keyword === null || keyword === undefined) ? '' : String(keyword);
+  return {
     keyword: keyword,
-    norm: normalizeForSearch(stripCatalogPrefix(keyword))
+    // ★ 下面三个形态是"统一比较口径"的关键。
+    //   以前各字段分支写的是 String(字段).toLowerCase().includes(keyword) —— 只把
+    //   **字段**转小写、关键词原样比较，于是大写输入在字段模式下必然 0 件：
+    //   实测「KP04057」冠字号 0 件 /「kp04057」1 件，「ACG」评级机构 0 件 /
+    //   「acg」316 件，「MS67」0 件 /「ms67」4 件。而同一串在"全字段"下却能命中
+    //   （那里有 normalizeForSearch 兜底），用户极易误判成"我没有这张"。
+    lower: kw.toLowerCase(),                 // 原样小写（旧行为的兜底）
+    normKw: normalizeForSearch(kw),          // NFKC + 去空白 + 小写（字段模式用，不剥前缀）
+    norm: normalizeForSearch(stripCatalogPrefix(kw))  // 剥目录前缀（目录编号模式用）
   };
-  if (type === SEARCH_TYPE.AGENCY) {
-    // 允许按中文字段名搜（如输入"评级公司"）
-    const labels = ensureDetailFieldLabels();
-    plan.agencyLabels = ['condition', 'grade', 'gradingCompany']
-      .map(k => labels.get(k) || '')
-      .filter(Boolean)
-      .join(' ');
-  }
-  return plan;
+}
+
+// 字段值是否命中关键词。
+// ★ 两边都过 normalizeForSearch（NFKC 全角→半角、去掉所有空白、转小写），
+//   与"全字段""目录编号"完全同口径 —— 这就是"同一串字符换个搜索类型就查无此物"的正解。
+//   再保留一层原样小写包含做兜底，保证不回归旧行为。
+function fieldMatches(value, plan) {
+  const s = (value === null || value === undefined) ? '' : String(value);
+  if (!s) return false;
+  if (plan.normKw && normalizeForSearch(s).includes(plan.normKw)) return true;
+  return !!plan.lower && s.toLowerCase().includes(plan.lower);
 }
 
 // metaText：当前 mode 下这一条所属的"分类名 / 上级分类名"（见 collectSearchFields 的注释）。
@@ -763,13 +751,12 @@ function makeSearchPlan(keyword, type) {
 //   把分类名并进去会让"按年份搜"这种精确搜索也命中整片分类，属于改错。
 function matchEntry(copy, series, variety, plan, type, isEmpty, metaText) {
   if (isEmpty) return true;
-  const keyword = plan.keyword;
 
   switch (type) {
     case SEARCH_TYPE.ALL: {
       const joined = collectSearchFields(copy, series, variety, metaText).join(' ');
       const lower = joined.toLowerCase();
-      if (lower.includes(keyword)) return true;
+      if (lower.includes(plan.lower)) return true;
       // 支持目录编号的前缀/空格差异，以及全角输入
       if (plan.norm) {
         if (lower.includes(plan.norm)) return true;
@@ -782,28 +769,30 @@ function matchEntry(copy, series, variety, plan, type, isEmpty, metaText) {
     }
 
     case SEARCH_TYPE.NAME:
-      return series.seriesName.toLowerCase().includes(keyword) ||
-             (variety ? variety.varietyName.toLowerCase().includes(keyword) : false);
+      return fieldMatches(series.seriesName, plan) ||
+             (variety ? fieldMatches(variety.varietyName, plan) : false);
 
     case SEARCH_TYPE.VERSION:
-      return String(copy.version || '').toLowerCase().includes(keyword);
+      return fieldMatches(copy.version, plan);
 
     case SEARCH_TYPE.YEAR:
-      return String(copy.year || '').toLowerCase().includes(keyword);
+      return fieldMatches(copy.year, plan);
 
-    case SEARCH_TYPE.AGENCY: {
+    case SEARCH_TYPE.AGENCY:
       // "评级机构"既可能是公司名（硬币 gradingCompany），也可能是分数（纸币 condition）
-      const text = [copy.condition, copy.grade, copy.gradingCompany]
-        .map(v => (v === null || v === undefined ? '' : String(v))).join(' ');
-      if (text.toLowerCase().includes(keyword)) return true;
-      return !!(plan.agencyLabels && plan.agencyLabels.includes(keyword));
-    }
+      // ★ 不再匹配 detailFields 的中文**标签**（原来输入"评级分数"/"评级公司"会把
+      //   所有带该字段的条目全部命中，实测 339 件，即"按字段名搜索 = 全命中"）：
+      //   label 是字段名而不是字段值，匹配它等于把"按字段搜索"变成"浏览全部"，
+      //   是反直觉的。字段名由下拉选项本身承担，不需要再当关键词。
+      return fieldMatches(copy.condition, plan) ||
+             fieldMatches(copy.grade, plan) ||
+             fieldMatches(copy.gradingCompany, plan);
 
     case SEARCH_TYPE.KRAUSE: {
       const raw = String(copy.catalogNumber || copy.krause || '');
       const formatted = formatCatalogNumber(raw);
       // ① 原样包含（与旧行为一致，保证不回归）
-      if (raw.toLowerCase().includes(keyword) || formatted.toLowerCase().includes(keyword)) return true;
+      if (raw.toLowerCase().includes(plan.lower) || formatted.toLowerCase().includes(plan.lower)) return true;
       // ② 前缀/空白/全角无关：'KM#130'、'km# 130'、'ＫＭ＃130' 互相都能命中
       //    （此前只认 'Pick# ' 这一种写法，KM#/SUN# 一律搜不到 —— 审查报告 B3）
       if (!plan.norm) return false;
@@ -812,7 +801,7 @@ function matchEntry(copy, series, variety, plan, type, isEmpty, metaText) {
       if (normRaw.includes(plan.norm) || normFmt.includes(plan.norm)) return true;
       // ③ 关键词自带前缀时（如输入 "KM#130"），用原始关键词再试一次：
       //    plan.norm 已被 stripCatalogPrefix 剥过，单独比较原始形态能覆盖更多写法
-      const normKw = normalizeForSearch(keyword);
+      const normKw = plan.normKw;
       return !!normKw && (normRaw.includes(normKw) || normFmt.includes(normKw));
     }
 
@@ -820,8 +809,7 @@ function matchEntry(copy, series, variety, plan, type, isEmpty, metaText) {
       // ★ 评级证书编号（copyId，detailFields 里的 label 正是"评级证书编号"）
       const id = String(copy.copyId || '');
       if (!id) return false;
-      if (id.toLowerCase().includes(keyword)) return true;
-      return !!plan.norm && normalizeForSearch(id).includes(plan.norm);
+      return fieldMatches(id, plan);
     }
   }
   return false;
