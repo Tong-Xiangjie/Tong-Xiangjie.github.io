@@ -27,29 +27,24 @@ const rmb3Data = {
         {
             seriesName: "1960年 1角 枣红",
             year: "1960",
-            varieties: [
+            copies: [
                 {
-                    varietyName: "枣红1角",
-                    copies: [
-                        {
-                            copyId: 1,
-                            year: 1960,
-                            version: "",
-                            bank: "中国人民银行",
-                            condition: "",
-                            price: "",
-                            purchaseDate: "",
-                            krause: "",
-                            wmk: "空心五角星水印/Hollow Stars",
-                            issueDate: "1962年4月20日",
-                            depositOnlyDate: "",
-                            withdrawnDate: "2000年7月1日",
-                            size: "114mm*52mm",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
-                        }
-                    ]
+                    copyId: 0,
+                    year: 1960,
+                    version: "",
+                    bank: "中国人民银行",
+                    condition: "",
+                    price: "",
+                    purchaseDate: "",
+                    krause: "",
+                    wmk: "空心五角星水印/Hollow Stars",
+                    issueDate: "1962年4月20日",
+                    depositOnlyDate: "",
+                    withdrawnDate: "2000年7月1日",
+                    size: "114mm*52mm",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb3/-2.jpg"
                 }
             ]
         },
@@ -61,7 +56,7 @@ const rmb3Data = {
                     varietyName: "背绿水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 0,
                             year: 1962,
                             version: "",
                             bank: "中国人民银行",
@@ -84,7 +79,7 @@ const rmb3Data = {
                     varietyName: "背绿无水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 0,
                             year: 1962,
                             version: "",
                             bank: "中国人民银行",
@@ -107,7 +102,7 @@ const rmb3Data = {
                     varietyName: "红三冠凸版水印",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 0,
                             year: 1962,
                             version: "",
                             bank: "中国人民银行",
