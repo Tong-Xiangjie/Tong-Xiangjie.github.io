@@ -41,7 +41,7 @@ const japanData = {
                             issueDate: "",
                             withdrawnDate: "",
                             size: "",
-                            wmk: "",
+                            wmk: "桐叶轮廓/Outline of Kiri Leaf",
                             remark: "这张居然有水印！我还是买回来快一个月才偶然发现的。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/japan/1945-50-51-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/japan/1945-50-51-2.jpg"

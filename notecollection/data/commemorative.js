@@ -249,7 +249,7 @@ const commemorativeData = {
                     remark: "", 
                     img1: "https://tong-xiangjie.github.io/notecollection/image/comm/762965-1.jpg", 
                     img2: "https://tong-xiangjie.github.io/notecollection/image/comm/762965-2.jpg",
-                    denomination: "",
+                    denomination: "港币20元",
                     wmk: "国家体育场（鸟巢）/Stadium",
                     size: "143mm*71.5mm"
                 }
@@ -276,7 +276,7 @@ const commemorativeData = {
                     remark: "", 
                     img1: "https://tong-xiangjie.github.io/notecollection/image/comm/MO239989-1.jpg", 
                     img2: "https://tong-xiangjie.github.io/notecollection/image/comm/MO239989-2.jpg",
-                    denomination: "",
+                    denomination: "澳门币20元",
                     wmk: "国家体育场（鸟巢）/Stadium",
                     size: "143mm*71.5mm"
                 }

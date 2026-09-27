@@ -25,7 +25,7 @@ const rmb3Data = {
     series: [
         // ==================== 1角系列 ====================
         {
-            seriesName: "1960年版 1角 枣红",
+            seriesName: "1960年 1角 枣红",
             year: "1960",
             varieties: [
                 {
@@ -54,7 +54,7 @@ const rmb3Data = {
             ]
         },
         {
-            seriesName: "1962年版 1角 上山下乡",
+            seriesName: "1962年 1角 上山下乡",
             year: "1962",
             varieties: [
                 {
@@ -246,7 +246,7 @@ const rmb3Data = {
 
         // ==================== 2角系列 ====================
         {
-            seriesName: "1962年版 2角 长江大桥",
+            seriesName: "1962年 2角 长江大桥",
             year: "1962",
             varieties: [
                 {
@@ -323,7 +323,7 @@ const rmb3Data = {
 
         // ==================== 5角系列 ====================
         {
-            seriesName: "1972年版 5角 纺织工人",
+            seriesName: "1972年 5角 纺织工人",
             year: "1972",
             varieties: [
                 {
@@ -417,7 +417,7 @@ const rmb3Data = {
 
         // ==================== 1元系列 ====================
         {
-            seriesName: "1960年版 1元 拖拉机",
+            seriesName: "1960年 1元 拖拉机",
             year: "1960",
             varieties: [
                 {
@@ -494,7 +494,7 @@ const rmb3Data = {
 
         // ==================== 2元系列 ====================
         {
-            seriesName: "1960年版 2元 车床工人",
+            seriesName: "1960年 2元 车床工人",
             year: "1960",
             varieties: [
                 {
@@ -548,7 +548,7 @@ const rmb3Data = {
 
         // ==================== 5元系列 ====================
         {
-            seriesName: "1960年版 5元 炼钢",
+            seriesName: "1960年 5元 炼钢",
             year: "1960",
             varieties: [
                 {
@@ -602,7 +602,7 @@ const rmb3Data = {
 
         // ==================== 10元系列 ====================
         {
-            seriesName: "1965年版 10元 大团结",
+            seriesName: "1965年 10元 大团结",
             year: "1965",
             varieties: [
                 {
