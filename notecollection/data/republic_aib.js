@@ -83,6 +83,22 @@ const republic_aibData = {
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A146896A-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A146896A-2.jpg"
+                        },{
+                            copyId: 15941424,
+                            year: 1940,
+                            version: "A015576B",
+                            bank: "厦门劝业银行",
+                            print: "",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 67E",
+                            price: "100元",
+                            purchaseDate: "2026年9月28日",
+                            krause: "S1657Aa",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A015576B-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_aib/A015576B-2.jpg"
                         }
                     ]
                 },{
