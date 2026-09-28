@@ -22,7 +22,7 @@ const nedbData = {
             // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
             readme: {
                 title: "一九五四年国家经济建设公债条例",
-                content: "file:readmes/nedb_1954_ordinance.txt"
+                content: "file:readmes/nedb_1954_ordinance.html"
             },
             varieties: [
                 {
@@ -147,7 +147,7 @@ const nedbData = {
             // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
             readme: {
                 title: "一九五五年国家经济建设公债条例",
-                content: "file:readmes/nedb_1955_ordinance.txt"
+                content: "file:readmes/nedb_1955_ordinance.html"
             },
             varieties: [
                 {
@@ -345,7 +345,7 @@ const nedbData = {
             // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
             readme: {
                 title: "一九五七年国家经济建设公债条例",
-                content: "file:readmes/nedb_1957_ordinance.txt"
+                content: "file:readmes/nedb_1957_ordinance.html"
             },
             varieties: [
                 {
@@ -376,7 +376,7 @@ const nedbData = {
             // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
             readme: {
                 title: "一九五八年国家经济建设公债条例",
-                content: "file:readmes/nedb_1958_ordinance.txt"
+                content: "file:readmes/nedb_1958_ordinance.html"
             },
             varieties: [
                 {
