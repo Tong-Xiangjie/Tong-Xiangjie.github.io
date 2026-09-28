@@ -63,9 +63,9 @@ series: [
                             signature1: "经理（Manager）：唐寿民（S.M. Tang）",
                             signature2: "经理（Manager）：王子崧（J.S. Wong）",
                             issueDate: "1914年10月1日",
-                            withdrawnDate: "大楼（红色） 加盖蓝上海",
+                            withdrawnDate: "",
                             size: "79mm*162mm",
-                            remark: "",
+                            remark: "大楼（红色） 加盖蓝上海",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/SB052887D-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/SB052887D-2.jpg"
                         }

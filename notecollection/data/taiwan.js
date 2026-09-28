@@ -423,7 +423,7 @@ const taiwanData = {
                     copies: [
                         {
                             copyId: 27104073,
-                            year: 1949,
+                            year: 1954,
                             version: "A795950C",
                             bank: "台湾银行",
                             condition: "ACG 65E",

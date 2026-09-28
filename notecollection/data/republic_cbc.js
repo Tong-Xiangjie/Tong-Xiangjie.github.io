@@ -457,7 +457,7 @@ const republic_cbcData = {
                     copies: [
                         {
                             copyId: 16956910,
-                            year: 1945,
+                            year: 1946,
                             version: "6D838457",
                             bank: "中央银行",
                             print: "德纳罗印钞公司/TDLR",

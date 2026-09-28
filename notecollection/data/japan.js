@@ -30,7 +30,7 @@ const japanData = {
                     copies: [
                         {
                             copyId: 19968729,
-                            year: 1947,
+                            year: 1945,
                             version: "{51}",
                             bank: "日本帝国政府/The Japanese Imperial Government",
                             condition: "ACG 66E",
