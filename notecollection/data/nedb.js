@@ -408,7 +408,7 @@ const nedbData = {
                             price: "60元",
                             purchaseDate: "2026年9月28日",
                             krause: "Unlisted",
-                            remark: "加盖付讫——什么，你问我为什么这张盖了章还要买？我就请问，都这个价格了，还要什么自行车？(^ڡ^)",
+                            remark: "加盖“现金付讫”——什么，你问我为什么这张盖了章还要买？我就请问，都这个价格了，还要什么自行车？(^ڡ^)票面印章上的“中国人民银行凤台支行黑龙潭办事处”位于今天的安徽省淮南市凤台县。由于“付讫”章只能是在它中签并完成最后一次还本付息时盖上，故合理推断票面上的蓝章是在1968年9月30日至12月31日的兑付窗口内中签并完成最终还本付息时由银行加盖的。——可那个年代的事，谁又能够确定呢？",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-2.jpg"
                         }
