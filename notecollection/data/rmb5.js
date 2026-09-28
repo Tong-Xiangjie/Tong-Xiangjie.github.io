@@ -158,7 +158,7 @@ const rmb5Data = {
                             img1: "https://tong-xiangjie.github.io/notecollection/image/rmb5/IO88888767-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb5/IO88888767-2.jpg"
                         },{
-                            copyId: 15343311,
+                            copyId: 19307537,
                             year: 2005,
                             version: "X5E2236134",
                             bank: "中国人民银行",
