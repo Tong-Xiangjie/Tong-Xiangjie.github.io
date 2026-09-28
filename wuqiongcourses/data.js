@@ -12,7 +12,7 @@ var curriculumData = {
   meta: {
     title: "无穹书院<br>人工智能专业本科培养方案",
     version: "2025级",
-    lastUpdated: "2026-09-11"
+    lastUpdated: "2026-09-28"
   },
 
   student: {
@@ -132,7 +132,7 @@ var curriculumData = {
       season: "夏季学期",
       note: "建议修读学分: 4",
       courses: [
-        { id: "30940022", name: "AI基石设计", credits: 2, category: "创新实践环节", score: "已选课", remark: "" },
+        { id: "30940022", name: "AI基石设计", credits: 2, category: "创新实践环节", score: "4.0", remark: "" },
         { id: "10680092", name: "思政实践", credits: 2, category: "思想政治理论课", score: "已选课", remark: "" }
       ]
     },
@@ -149,7 +149,7 @@ var curriculumData = {
         { id: "20240152", name: "人工智能导论", credits: 2, category: "专业核心课程", score: "已选课", remark: "另可选：30940032 / 44100102" },
         { id: "10680073", name: "马克思主义基本原理", credits: 3, category: "思想政治理论课", score: "已选课", remark: "" },
         { id: "10720031", name: "体育(3)", credits: 1, category: "体育", score: "已选课", remark: "游泳专项" },
-        { id: "14201022", name: "英语(3)", credits: 2, category: "外语", score: "已选课", remark: "大一下学期选课：词汇的力量" },
+        { id: "14201022", name: "英语(3)", credits: 2, category: "外语", score: "4.0", remark: "大一下学期选课：词汇的力量" },
         { id: "10430944", name: "大学物理A(2)", credits: 4, category: "科学基础", score: "已选课", remark: "AI专业方向可选；另可选：大学物理B(2)、大学物理(2)英" },
         { id: "10430801", name: "物理实验B(1)", credits: 1, category: "科学基础", score: "已选课", remark: "AI专业方向选修" }
       ]
