@@ -15,7 +15,7 @@ const lecbData = {
     ],
     readme: {
         title: "中华人民共和国地方经济建设公债条例",
-        content: "file:readmes/lecb_ordinance.txt"
+        content: "file:readmes/lecb_ordinance.html"
     },
     series: [
         // ==================== 四川省 1959年 ====================
@@ -25,7 +25,7 @@ const lecbData = {
             // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
             readme: {
                 title: "四川省一九五九年地方经济建设公债发行办法",
-                content: "file:readmes/lecb_sichuan_1959_ordinance.txt"
+                content: "file:readmes/lecb_sichuan_1959_ordinance.html"
             },
             varieties: [
                 {
@@ -56,14 +56,14 @@ const lecbData = {
             // 新增 readme：显示在品种列表页（与各个面额并列，在上方）
             readme: {
                 title: "福建省地方经济建设公债条例",
-                content: "file:readmes/lecb_fujian_ordinance.txt"
+                content: "file:readmes/lecb_fujian_ordinance.html"
             },
             varieties: [
                 {
                     varietyName: "1元",
                     readme: {
                         title: "福建省1960年地方经济建设公债1元券赏析",
-                        content: "file:readmes/1960_fujianlocaldebt_1yuan.txt"
+                        content: "file:readmes/1960_fujianlocaldebt_1yuan.html"
                     },
                     copies: [
                         {
