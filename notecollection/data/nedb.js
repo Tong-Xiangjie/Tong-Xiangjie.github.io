@@ -362,8 +362,8 @@ const nedbData = {
                             krause: "Unlisted",
                             // 原来的 remark 文件已移到 series 级别的 readme 中
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/%E2%85%A2%E2%85%A9%E2%85%A93307203-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/%E2%85%A2%E2%85%A9%E2%85%A93307203-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/300-3307203-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/300-3307203-2.jpg"
                         }
                     ]
                 }
@@ -393,7 +393,13 @@ const nedbData = {
                             krause: "Unlisted",
                             remark: "闲鱼上有一张同号段、同分数、号码ⅩⅠⅩ7361944的同版本公债我收藏了很久都没买，因其标价是198元。虽然我一开始觉得这个价跟市场价差不多，但还是一直犹豫。直到某天我突然刷到这个（和下面那张2元同时买的，卖家两张打包出）……啊幸好当时没买，不然被割惨了……",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-8.jpg"]
+                            },
                         }
                     ]
                 },{
@@ -410,7 +416,13 @@ const nedbData = {
                             krause: "Unlisted",
                             remark: "加盖“现金付讫”——什么，你问我为什么这张盖了章还要买？我就请问，都这个价格了，还要什么自行车？(^ڡ^)票面印章上的“中国人民银行凤台支行黑龙潭办事处”位于今天的安徽省淮南市凤台县。由于“付讫”章只能是在它中签并完成最后一次还本付息时盖上，故合理推断票面上的蓝章是在1968年9月30日至12月31日的兑付窗口内中签并完成最终还本付息时由银行加盖的。——可那个年代的事，谁又能够确定呢？",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-8.jpg"]
+                            },
                         }
                     ]
                 }

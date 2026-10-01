@@ -259,6 +259,12 @@ const rmb2Data = {
                     remark: "浅水坝。这张价格还不错，发布24～48小时内拍下的。",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-1.jpg",
                     img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-2.jpg",
+                    // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                    imgExtra: {
+                        sideLight: ["https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-4.jpg"],
+                        transmit:  ["https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-6.jpg"],
+                        uv:        ["https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/rmb2/712-8905794-8.jpg"]
+                    },
                     depositOnlyDate: ""
                 }
             ]

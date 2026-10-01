@@ -45,7 +45,13 @@ const republic_mfrcData = {
                             krause: "626a",
                             remark: "印刷机构“BEPP”是Bureau of Engraving and Printing, Peking (China)的缩写；定期有利国库券的英文全称是Interest Bearing Treasury Note",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1479029-8.jpg"]
+                            },
                         }
                     ]
                 },{
@@ -66,7 +72,13 @@ const republic_mfrcData = {
                             krause: "627a",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_mfrc/1152926-8.jpg"]
+                            },
                         }
                     ]
                 },{

@@ -41,8 +41,14 @@ const lecbData = {
                             purchaseDate: "2026年4月24日",
                             krause: "Unlisted",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/%E2%85%A0%E2%85%A1%E2%85%A206173849-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/%E2%85%A0%E2%85%A1%E2%85%A206173849-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-8.jpg"]
+                            },
                         }
                     ]
                 }
@@ -77,7 +83,13 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-8.jpg"]
+                            },
                         },{
                             copyId: 26992541,
                             year: 1960,
@@ -89,7 +101,13 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-8.jpg"]
+                            },
                         },{
                             copyId: 26992542,
                             year: 1960,
@@ -101,7 +119,13 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-8.jpg"]
+                            },
                         },{
                             copyId: 26992543,
                             year: 1960,
@@ -113,7 +137,13 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-8.jpg"]
+                            },
                         }
                     ]
                 }

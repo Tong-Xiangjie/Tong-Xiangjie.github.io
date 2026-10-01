@@ -513,18 +513,24 @@ function imageContentRect(el) {
 //       → 币海拾年翻面后缩回的是**原来那张**的位置（用户报告的 bug）
 //     · 详情卡片里的 .info-lightbox-imgs img 也漏网
 //       → 从详情卡片点开大图，退出缩回的是网格里那张的位置而不是卡片里那张
+//     · 完整八面图浮层的 .octo-face img 同样漏网（同一个坑踩第三次）
+//       → 在八面图里翻面后退出，反面缩回了正面的那个格子
+//         （用户报告的"翻面后退出大图，图片会回到错误的框内"）
 //   .info-lightbox-imgs img 没有类名，只能靠祖先类名定位。
 //   非 <img> 元素（如 .copy-thumb 的占位 <div>）天然没有 src，比对时会被跳过。
 //
 // ★ 同一个 URL 在页面上常常有**多份**，取哪一份决定动画落点，所以按
 //   DOM 序先后就是优先级，列表顺序即优先级顺序，不要随便调换：
-//     1. .info-lightbox-imgs img  —— 详情卡片里的那两张（"详细信息"弹出后）
-//     2. .timeline-img            —— 专题/币海拾年时间线
-//     3. img.mini-thumb           —— 网格缩略图
-//     4. img.copy-thumb           —— 分类视图明细行的缩略图
-//   为什么卡片必须排第一：在分类视图里同一张图会同时出现在「明细行 .copy-thumb」
-//   和「详情卡片 .info-lightbox-imgs img」里。用户是从卡片里点开大图的，
-//   而卡片浮在明细行之上、面积也大得多；若先命中 .copy-thumb，
+//     1. .octo-face img          —— 完整八面图浮层里的六张
+//     2. .info-lightbox-imgs img —— 详情卡片里的那两张（"详细信息"弹出后）
+//     3. .timeline-img           —— 专题/币海拾年时间线
+//     4. img.mini-thumb          —— 网格缩略图
+//     5. img.copy-thumb          —— 分类视图明细行的缩略图
+//   为什么八面图排第一：它是铺满屏幕的浮层，z-index 高于详情卡片与网格，
+//   打开时下面那些全被盖住 —— 此时只有它那六张是"用户看到的那一份"。
+//   为什么卡片必须排在网格前面：在分类视图里同一张图会同时出现在
+//   「明细行 .copy-thumb」和「详情卡片 .info-lightbox-imgs img」里。用户是从卡片里
+//   点开大图的，而卡片浮在明细行之上、面积也大得多；若先命中 .copy-thumb，
 //   缩回动画就会飞到下面那张小缩略图 —— 正是用户报告的
 //   "退出缩小的位置是原先概览图所在的地方而不是弹窗处"。
 //   （详情卡片打开时，网格被浮层盖住，此时它才是"用户看到的那一份"。）
@@ -547,9 +553,10 @@ function gridThumbForUrl(url) {
     //   模块级的 const 有可能落在切片之外，于是运行时报
     //   "URL_CANDIDATE_SELECTORS is not defined" —— 真实页面不会（整文件加载），
     //   但校验脚本会。放在函数内既避开这个坑，也让这张表跟着函数一起走。
-    //   代价是每次调用新建一个 4 元素数组（closeModal / 翻面时才各调一次），
+    //   代价是每次调用新建一个 5 元素数组（closeModal / 翻面时才各调一次），
     //   可以忽略。顺序即优先级，理由见上方注释。
     const URL_CANDIDATE_SELECTORS = [
+        '.octo-face img',
         '.info-lightbox-imgs img',
         'img.timeline-img',
         'img.mini-thumb',

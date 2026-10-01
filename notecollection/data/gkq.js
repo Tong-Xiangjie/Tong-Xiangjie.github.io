@@ -43,8 +43,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅣⅩ148437-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅣⅩ148437-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/40-148437-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/40-148437-2.jpg"
                         }
                     ]
                 },
@@ -61,8 +61,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅦ813772-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅦ813772-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/07-813772-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/07-813772-2.jpg"
                         }
                     ]
                 }
@@ -86,8 +86,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅦ9103374-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅦ9103374-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/07-9103374-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/07-9103374-2.jpg"
                         }
                     ]
                 }
@@ -111,8 +111,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅢⅡ09191201-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅢⅡ09191201-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/32-09191201-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/32-09191201-2.jpg"
                         }
                     ]
                 },
@@ -129,8 +129,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅡⅤ7501722-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅡⅤ7501722-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/25-7501722-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/25-7501722-2.jpg"
                         }
                     ]
                 }
@@ -154,8 +154,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅡ83410889-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅡ83410889-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/02-83410889-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/02-83410889-2.jpg"
                         }
                     ]
                 },
@@ -172,8 +172,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ64357754-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ64357754-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-64357754-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-64357754-2.jpg"
                         }
                     ]
                 },
@@ -194,8 +194,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ40955834-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ40955834-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-40955834-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-40955834-2.jpg"
                         }
                     ]
                 },
@@ -212,8 +212,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "满版古币水印/Pu Coin(Pants&Coins)",
                             remark: "这个分数我非常满意。还记得当时买的时候问老板“有没有折”结果老板已读不回，（当时其实我根据老板拍的图片已经初步判断是没有问题的了），但是这张价格确实还可以，于是即便老板已读不回我也是直接拍下了。没想到拍下后老板就发来各种详细的实拍图（印证了之前我的初步判断），并且从老板的个人信息以及发过来的语音判断老板应该是一个老头子。后来收到快递，居然是挂号信，并且似乎依稀记得这张甚至没有用硬夹子包着……这种情况下还能评上这个分也是奇迹了，况且在老板那里就被老板摸来摸去很多次。不过这张到手后确实发现品质优于其他。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ38182121-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ38182121-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-38182121-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-38182121-2.jpg"
                         }
                     ]
                 }
@@ -241,8 +241,8 @@ const gkqData = {
                             krause: "Unlisted",
                             wmk: "GKQ五星水印/Stars & Letters",
                             remark: "这个分数早有预料。从今往后再也不对保粹纸币抱有任何幻想。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ30102812-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/ⅩⅠ30102812-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-30102812-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/gkq/01-30102812-2.jpg"
                         }
                     ]
                 }

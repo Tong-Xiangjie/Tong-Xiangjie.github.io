@@ -96,7 +96,13 @@ const republic_fbcData = {
                             krause: "474",
                             remark: "这张显然买贵了，分数也不甚理想。一开始头脑发热，看卖家发布的图片还以为两边冠号不一样，结果后来细看才发现原来只是数字“6”没印全，我把它当作“3”了……教训：还是要先研究再买。这个版本的冠号数字“3”是圆头“3”，而这张纸币脱墨的“6”长得像一个平头“3”，这么明显的破绽都没发现。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/QG217046-8.jpg"]
+                            },
                         }
                     ]
                 }

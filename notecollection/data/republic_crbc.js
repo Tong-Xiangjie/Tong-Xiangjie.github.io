@@ -161,7 +161,13 @@ const republic_crbcData = {
                             krause: "J20a",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-2.jpg"
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-2.jpg",
+                            // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                            imgExtra: {
+                                sideLight: ["https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-4.jpg"],
+                                transmit:  ["https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-6.jpg"],
+                                uv:        ["https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-8.jpg"]
+                            },
                         }
                     ]
                 }

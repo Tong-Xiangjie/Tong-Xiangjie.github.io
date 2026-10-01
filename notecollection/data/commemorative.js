@@ -196,6 +196,12 @@ const commemorativeData = {
                     remark: "普通冠号", 
                     img1: "https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-1.jpg", 
                     img2: "https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-2.jpg",
+                    // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                    imgExtra: {
+                        sideLight: ["https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-4.jpg"],
+                        transmit:  ["https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-6.jpg"],
+                        uv:        ["https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/comm/J00344985-8.jpg"]
+                    },
                     denomination: "100元",
                     wmk: "数字“2000”/2000",
                     size: "165mm*80mm"
