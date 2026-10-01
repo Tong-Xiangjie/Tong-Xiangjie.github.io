@@ -72,6 +72,58 @@ series: [
                     ]
                 }
             ]
+        },{
+            seriesName: "中华民国三十一年（1942年） 京华版 美金节约建国储蓄券",
+            year: "1914",
+            varieties: [
+                {
+                    varietyName: "1942年 美金50元",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1942,
+                            version: "0017545",
+                            bank: "交通银行",
+                            print: "京华印书馆/CHPH",
+                            signature1: "",
+                            signature2: "",
+                            issueDate: "1942年12月1日",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "70元",
+                            purchaseDate: "2026年10月1日",
+                            krause: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/001754-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/001754-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1942年 美金100元",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1942,
+                            version: "0003309",
+                            bank: "交通银行",
+                            print: "京华印书馆/CHPH",
+                            signature1: "",
+                            signature2: "",
+                            issueDate: "1942年12月1日",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "70元",
+                            purchaseDate: "2026年10月1日",
+                            krause: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0003309-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0003309-2.jpg"
+                        }
+                    ]
+                }
+            ]
         }
     ]
 };

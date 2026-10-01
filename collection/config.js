@@ -73,7 +73,7 @@ const categoryTree = [
         id: 'republic',
         name: '民国纸币',
         children: [
-            // —— 国家银行 ——
+            // —— 国家银行（四大行） ——
             { id: 'republic_cbc', name: '中央银行', dataKey: 'republic_cbcData', dataFile: '../notecollection/data/republic_cbc.js' },
             { id: 'republic_boc', name: '中国银行', dataKey: 'republic_bocData', dataFile: '../notecollection/data/republic_boc.js' },
             { id: 'republic_communications', name: '交通银行', dataKey: 'republic_communicationsData', dataFile: '../notecollection/data/republic_communications.js' },
@@ -109,6 +109,7 @@ const categoryTree = [
             { id: 'nedb', name: '国家经济建设公债', dataKey: 'nedbData', dataFile: '../notecollection/data/nedb.js' },
             { id: 'lecb', name: '地方经济建设公债', dataKey: 'lecbData', dataFile: '../notecollection/data/lecb.js' },
             { id: 'dscc', name: '复员军人兑取现金券', dataKey: 'dsccData', dataFile: '../notecollection/data/dscc.js' },
+            { id: 'mpc', name: '军用代金券', dataKey: 'mpcData', dataFile: '../notecollection/data/mpc.js' },
             { id: 'fec', name: '外汇兑换券', dataKey: 'fecData', dataFile: '../notecollection/data/fec.js' },
             { id: 'gkq', name: '国库券', dataKey: 'gkqData', dataFile: '../notecollection/data/gkq.js' }
         ]

@@ -21,7 +21,8 @@ const republic_kpbData = {
     ],
 
     series: [
-        /*{
+        /*本来想留，考虑再三还是挂网上卖掉算了，原来的数据留作纪念
+        {
             seriesName: "中华民国七年（1918年） 美钞版 兑换券",
             year: "1918",
             varieties: [
