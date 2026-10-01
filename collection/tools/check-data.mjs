@@ -109,20 +109,25 @@ vm.runInContext([
     //   用间接 eval 是取不到的（只有 var 会挂到全局对象上），换脚本收集就会整片漏掉。
     const refs = [];
     const IMG_KEYS = ['img1', 'img2', 'img', 'yearImg'];
-    const walkImg = (o, where) => {
+    // ★ insideImg：落在 img1/img2/imgExtra 这类"图片容器"里的字符串都算图片引用。
+    //   imgExtra（完整八面图）是 { sideLight: [url, url], transmit: [...], uv: [...] }
+    //   这种嵌套结构，键名 sideLight/transmit/uv 本身不带 img 前缀，只靠键名判断会整片漏掉
+    //   —— 于是那 6 张图是否存在就永远检不出来。
+    const walkImg = (o, where, insideImg) => {
         if (!o || typeof o !== 'object') return;
-        if (Array.isArray(o)) { for (const x of o) walkImg(x, where); return; }
+        if (Array.isArray(o)) { for (const x of o) walkImg(x, where, insideImg); return; }
         for (const k of Object.keys(o)) {
             const v = o[k];
-            if (IMG_KEYS.indexOf(k) >= 0 && typeof v === 'string' && v) {
+            const imgish = !!insideImg || IMG_KEYS.indexOf(k) >= 0 || /^img/i.test(k);
+            if (imgish && typeof v === 'string' && v) {
                 refs.push({ url: v, where: where + '.' + k });
             } else if (v && typeof v === 'object') {
-                walkImg(v, where + '.' + k);
+                walkImg(v, where + '.' + k, imgish);
             }
         }
     };
     for (const kind of ['notes', 'coins', 'fun']) {
-        for (const key of Object.keys(maps[kind])) walkImg(maps[kind][key], key);
+        for (const key of Object.keys(maps[kind])) walkImg(maps[kind][key], key, false);
     }
 
     return JSON.stringify({ reports, missingVar, refs });
@@ -168,7 +173,7 @@ if (missingImgs.length) {
 
 // ---------------- 4. detailFields 与数据是否对得上 ----------------
 console.log('\n==== detailFields 声明 vs 数据 ====');
-const ignoreKeys = new Set(['img1', 'img2', 'img', 'yearImg', 'readme', 'readmes', 'copies', 'varieties', 'seriesName', 'varietyName', 'name', 'title', 'remark']);
+const ignoreKeys = new Set(['img1', 'img2', 'img', 'yearImg', 'imgExtra', 'readme', 'readmes', 'copies', 'varieties', 'seriesName', 'varietyName', 'name', 'title', 'remark']);
 // 说明：remark 由 category-view.js 的 openCopyDetail 单独兜底渲染（当 detailFields 里没有它时自动补一行"备注"），
 // 所以"有 remark 但没声明"不算问题。
 let gapCount = 0, extraCount = 0;

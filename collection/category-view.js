@@ -1326,6 +1326,109 @@ function initPinchZoom() {
 }
 
 // ========== 详细信息卡片 ==========
+// ========== 完整八面图（ACG 出图） ==========
+// 要拍就 8 张全齐：正/背两张就是 img1/img2，其余六张在 copy.imgExtra 里，
+// 结构 { sideLight:[正面,背面], transmit:[正面,背面], uv:[正面,背面] }。
+// ★ 键名必须以 img 开头：core.js 的 isSearchableField() 会把 /^img/i 的字段排除在
+//   "全字段搜索"之外；若叫 extraImgs 之类，这 6 个 URL 会并进全字段匹配，
+//   搜 "jpg"/"tong-xiangjie" 会命中几乎全站。
+const OCTO_KINDS = [
+    { key: 'sideLight', label: '侧光图' },
+    { key: 'transmit', label: '透光图' },
+    { key: 'uv', label: '荧光图' }
+];
+const OCTO_FACE_LABELS = ['正面', '背面'];
+// 八面图浮层是否开着。Esc 要分层关闭（先关八面图，再关详情卡片），需要它做判据。
+let octoGalleryOpen = false;
+
+// 取出这一条藏品的八面图。没有、或结构不对，返回空数组（界面就完全不出现入口行）。
+function getOctoViews(copy) {
+    const extra = copy && copy.imgExtra;
+    if (!extra || typeof extra !== 'object') return [];
+    const out = [];
+    for (const k of OCTO_KINDS) {
+        const arr = extra[k.key];
+        if (!Array.isArray(arr)) continue;
+        const faces = [];
+        for (let i = 0; i < arr.length && i < 2; i++) {
+            const url = getImageUrl(arr[i]);
+            if (url) faces.push({ label: OCTO_FACE_LABELS[i], url });
+        }
+        if (faces.length) out.push({ key: k.key, label: k.label, faces: faces });
+    }
+    return out;
+}
+
+// 打开八面图浮层。入口是详情卡片最后一行「完整八面图 / 点击查看」里的那个链接。
+function openOctoGallery(idx) {
+    const info = copyDetailList[idx];
+    if (!info) return;
+    const views = getOctoViews(info.copy);
+    if (!views.length) return;
+
+    closeOctoGallery(true);            // 防重复打开（连点两下不会叠两个）
+
+    const box = document.createElement('div');
+    box.id = 'octoLightbox';
+    box.className = 'octo-lightbox';
+
+    const inner = document.createElement('div');
+    inner.className = 'octo-inner';
+
+    const closeBtn = document.createElement('div');
+    closeBtn.className = 'lightbox-close';
+    closeBtn.textContent = '×';
+    closeBtn.title = '关闭';
+    closeBtn.onclick = (e) => { e.stopPropagation(); closeOctoGallery(); };
+    inner.appendChild(closeBtn);
+
+    let html = '<div class="octo-grid">';
+    for (const v of views) {
+        html += '<div class="octo-col">';
+        html += `<div class="octo-col-title">${escapeHtml(v.label)}</div>`;
+        html += '<div class="octo-faces">';
+        for (const f of v.faces) {
+            // 点缩略图看大图：直接复用现有的图片弹窗，于是缩放/拖动/左右翻正背全都有。
+            // 把这一类的正/背两张一起传进去，大图里就能翻面。
+            const other = (v.faces.length > 1 && v.faces[0].url !== f.url) ? v.faces[0].url : '';
+            const partner = other || (v.faces[1] && v.faces[1].url !== f.url ? v.faces[1].url : f.url);
+            const g = gridImg(f.url);
+            html += `<div class="octo-face">`
+                 + `<img src="${escapeAttr(g.src)}"${thumbFallbackAttr(g.fallback)} alt="" `
+                 + `onclick="openModal('${escapeAttr(f.url)}', '${escapeAttr(partner)}')">`
+                 + `<span class="octo-face-cap">${escapeHtml(f.label)}</span></div>`;
+        }
+        html += '</div></div>';
+    }
+    html += '</div>';
+
+    const content = document.createElement('div');
+    content.innerHTML = html;
+    while (content.firstChild) inner.appendChild(content.firstChild);
+
+    box.appendChild(inner);
+
+    // ★ 必须插在 #imageModal **之前**：两者 z-index 都是 1000，同值时由 DOM 顺序决出上下。
+    //   若按常规 appendChild 放到最后，从八面图点开的大图反而会被八面图盖住。
+    const imgModal = document.getElementById('imageModal');
+    if (imgModal && imgModal.parentNode) imgModal.parentNode.insertBefore(box, imgModal);
+    else document.body.appendChild(box);
+
+    box.addEventListener('click', function (e) {
+        if (e.target === box) closeOctoGallery();
+    });
+
+    octoGalleryOpen = true;
+}
+
+function closeOctoGallery(silent) {
+    const box = document.getElementById('octoLightbox');
+    octoGalleryOpen = false;
+    if (!box) return;
+    if (silent) box.remove();          // 详情卡片一起关掉时用，不必再淡出
+    else fadeOutAndRemove(box, 200);
+}
+
 function openCopyDetail(idx) {
     const info = copyDetailList[idx];
     if (!info) return;
@@ -1379,11 +1482,20 @@ function openCopyDetail(idx) {
         rows.push({ label: '备注', value: String(copy.remark) });
     }
 
-    if (rows.length > 0) {
+    // 完整八面图：入口固定放在最后一行。★ 只有「点击查看」是可点的链接（用户要求），
+    // 前半段"完整八面图"就是普通的字段标签，和其它 .detail-row 长得完全一样。
+    // 详情卡片只在"点到背景"时才关，所以这里不需要给链接做任何"别顺手关弹窗"的放行。
+    const octoRow = getOctoViews(copy).length
+        ? `<div class="detail-row"><span class="detail-label">完整八面图</span>`
+          + `<span class="detail-value"><span class="octo-link" onclick="openOctoGallery(${idx})">点击查看</span></span></div>`
+        : '';
+
+    if (rows.length > 0 || octoRow) {
         html += `<div class="info-lightbox-body">`;
         for (const r of rows) {
             html += `<div class="detail-row"><span class="detail-label">${escapeHtml(r.label)}</span><span class="detail-value">${escapeHtml(r.value)}</span></div>`;
         }
+        html += octoRow;
         html += `</div>`;
     }
 
@@ -1401,11 +1513,18 @@ function openCopyDetail(idx) {
 }
 
 function closeCopyDetail() {
+    // ★ 卡片关了，八面图不能留在屏幕上：它是卡片的下一层，跟着一起收掉。
+    closeOctoGallery(true);
     const overlay = document.getElementById('copyDetailLightbox');
     if (overlay) fadeOutAndRemove(overlay, 240);   // 先淡出再移除，避免硬切
     document.removeEventListener('keydown', copyDetailKeyHandler);
 }
 
 function copyDetailKeyHandler(e) {
-    if (e.key === 'Escape') closeCopyDetail();
+    if (e.key !== 'Escape') return;
+    // ★ 分层关闭：八面图开在详情卡片上面时，Esc 只该关掉最上面那一层。
+    //   图片大图弹窗那一层由 core.js 里更早注册的处理器负责（它只在 imageModalOpen
+    //   时才动手，并且会 stopImmediatePropagation），所以大图开着时走不到这里。
+    if (octoGalleryOpen) { closeOctoGallery(); return; }
+    closeCopyDetail();
 }

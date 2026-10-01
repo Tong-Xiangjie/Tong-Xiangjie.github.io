@@ -38,6 +38,19 @@ const commemorativeData = {
                     remark: "我国纪念钞的鼻祖，发行量最少的一张", 
                     img1: "https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-1.jpg", 
                     img2: "https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-2.jpg",
+                    // 完整八面图：ACG 出图，要拍就 8 张全齐 —— 这里是正/背之外的六张。
+                    // ★ 键名以 img 开头是**必须**的：core.js 的 isSearchableField() 会把
+                    //   /^img/i 的字段排除在"全字段搜索"之外；若叫 extraImgs 之类，
+                    //   这 6 个 URL 会并进全字段匹配，搜 "jpg"/"tong-xiangjie" 会命中几乎全站。
+                    // ★ 每类按 [正面, 背面] 排列，对应文件依次是 -3/-4、-5/-6、-7/-8。
+                    imgExtra: {
+                        sideLight: ["https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-3.jpg",
+                                    "https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-4.jpg"],
+                        transmit:  ["https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-5.jpg",
+                                    "https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-6.jpg"],
+                        uv:        ["https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-7.jpg",
+                                    "https://tong-xiangjie.github.io/notecollection/image/comm/KP04057-8.jpg"]
+                    },
                     denomination: "澳门币10元",
                     wmk: "无水印/Without Watermark"
                 }

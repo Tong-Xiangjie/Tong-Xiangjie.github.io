@@ -1491,6 +1491,76 @@ body.modal-open {
 .detail-label { color: var(--text-secondary); flex-shrink: 0; margin-right: 12px; }
 .detail-value { color: var(--text); text-align: right; word-break: break-all; }
 
+/* ========== 完整八面图（ACG 出图：正/背之外的 侧光 / 透光 / 荧光 各两张） ==========
+   入口在详情卡片最后一行「完整八面图 / 点击查看」，只有那半截是链接。
+   ★ 层级刻意与 .modal 同值（1000），靠"插在 #imageModal 之前"决定上下：
+     详情卡片(999) < 八面图(1000) < 图片大图弹窗(1000，在 DOM 里更靠后)。
+     于是"点缩略图看大图 → 关掉大图 → 回到八面图"天然成立，
+     不需要在代码里手写"谁临时隐藏、谁再恢复"。 */
+.octo-link {
+    /* 用户要求：不要下划线。靠主题色 + 手型光标表示可点，横向也不占额外高度。 */
+    color: var(--theme);
+    cursor: pointer;
+}
+.octo-lightbox {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: contentFadeIn var(--dur-2) var(--ease-out);
+}
+.octo-inner {
+    background: var(--card-bg);
+    border-radius: 12px;
+    max-width: 980px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;                 /* .lightbox-close 的定位基准 */
+    padding: 18px 18px 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+/* 三栏：侧光图 / 透光图 / 荧光图，每栏内是正、背两张（并排）。
+   auto-fit + minmax 让它"放得下就三栏，放不下自己退成两栏、一栏"——
+   手机上自动变竖排（用户要求），不必写死断点；用户改浏览器默认字号、
+   横竖屏切换、将来加第四类光照，都不用回来改这里。
+   用 auto-fit（而不是 auto-fill）：它会把空轨道折叠掉，所以只有三类光照时
+   就是规规矩矩三栏、等宽铺满，不会在右边留一条空白。 */
+.octo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+}
+.octo-col { min-width: 0; }
+.octo-col-title {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--text);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+.octo-faces { display: flex; gap: 8px; }
+.octo-face { flex: 1 1 0; min-width: 0; }
+.octo-face img {
+    width: 100%;
+    display: block;
+    border-radius: 6px;
+    cursor: zoom-in;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.octo-face-cap {
+    display: block;
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
 /* ========== 数据加载 ========== */
 .data-loading {
     display: flex;
