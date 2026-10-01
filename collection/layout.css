@@ -1516,24 +1516,23 @@ body.modal-open {
 .octo-inner {
     background: var(--card-bg);
     border-radius: 12px;
-    max-width: 980px;
+    /* ★ 尺寸对齐详情卡片（.info-lightbox-inner：520px / 88vh）—— 用户要求"和原来的
+       弹窗差不多大就行"。八面图只是"正背面之外再看六张"，不必铺满屏幕；
+       要看细节点开大图即可（大图有缩放和拖动）。 */
+    max-width: 520px;
     width: 100%;
-    max-height: 90vh;
+    max-height: 88vh;
     overflow-y: auto;
     position: relative;                 /* .lightbox-close 的定位基准 */
-    padding: 18px 18px 16px;
+    padding: 16px 20px 20px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
 }
-/* 三栏：侧光图 / 透光图 / 荧光图，每栏内是正、背两张（并排）。
-   auto-fit + minmax 让它"放得下就三栏，放不下自己退成两栏、一栏"——
-   手机上自动变竖排（用户要求），不必写死断点；用户改浏览器默认字号、
-   横竖屏切换、将来加第四类光照，都不用回来改这里。
-   用 auto-fit（而不是 auto-fill）：它会把空轨道折叠掉，所以只有三类光照时
-   就是规规矩矩三栏、等宽铺满，不会在右边留一条空白。 */
+/* 每类光照占一行（用户：电脑上竖着排、3 排），一行里放正、背两张。
+   auto-fit 那套三栏已废弃：一行一类，宽度全给图，图自然就大了 3 倍。 */
 .octo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 18px;
 }
 .octo-col { min-width: 0; }
 .octo-col-title {
@@ -1544,10 +1543,30 @@ body.modal-open {
     margin-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
-.octo-faces { display: flex; gap: 8px; }
-.octo-face { flex: 1 1 0; min-width: 0; }
+/* ★ 不再用"固定形状的格子"（aspect-ratio 盒子已删）：一行只放两张，
+   给一个固定宽度，高度交给图片自己的比例 —— 固定宽度、高度自适应，绝不拉伸。
+   flex-grow 保持 0：六张图宽度完全一致（正/背之间、三排之间都一致），
+   这样侧光那种竖向图和透光/荧光那种横向图才真的可对比；
+   两张整体再由 justify-content: center 在行内居中。
+   ★ 基准宽度 220px 是按"弹窗 520px、内容宽 484px"配的：2×220+12=452 放得下两张，
+   留 32px 余量给居中（太小会挤成一张一行，太大又浪费）。
+   flex-wrap 让它在窄屏（手机）自己从"两张并排"变成"一张一行"（换行按 flex 基准
+   宽度判断），不用写断点；换行后依然靠 justify-content: center 左右居中。
+   固定宽度下两张高度不同时，align-items: center 让它们的中线对齐。 */
+.octo-faces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;        /* 固定宽度 → 上下居中 */
+    justify-content: center;    /* 两张整体在行内居中；换行成竖排后 → 左右居中 */
+}
+.octo-face {
+    flex: 0 1 220px;            /* 固定宽度：不伸长，六张同宽 */
+    min-width: 0;               /* 窄屏时等比收缩，仍保持同宽 */
+}
 .octo-face img {
     width: 100%;
+    height: auto;               /* 按自己的比例，不拉伸 */
     display: block;
     border-radius: 6px;
     cursor: zoom-in;

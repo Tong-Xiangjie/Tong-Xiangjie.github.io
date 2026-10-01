@@ -1393,6 +1393,9 @@ function openOctoGallery(idx) {
             const other = (v.faces.length > 1 && v.faces[0].url !== f.url) ? v.faces[0].url : '';
             const partner = other || (v.faces[1] && v.faces[1].url !== f.url ? v.faces[1].url : f.url);
             const g = gridImg(f.url);
+            // 固定宽度、高度自适应：宽度交给 .octo-face（一行两张），
+            // 高度跟着图片自己的比例走，所以不会被拉伸；两张高度不同时
+            // 由 .octo-faces 的 align-items: center 让中线对齐。
             html += `<div class="octo-face">`
                  + `<img src="${escapeAttr(g.src)}"${thumbFallbackAttr(g.fallback)} alt="" `
                  + `onclick="openModal('${escapeAttr(f.url)}', '${escapeAttr(partner)}')">`
