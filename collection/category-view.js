@@ -615,6 +615,23 @@ function modalContainRect(ar) {
     return { left: left, top: top, width: w, height: h, right: left + w, bottom: top + h };
 }
 
+// ★ 关闭动画的**起飞**矩形：取图片此刻在屏幕上真实占据的那块（含捏合放大 / 滚轮缩放 /
+//   拖动位移），而不是"未放大的 contain 矩形"。
+//   入场可以用 contain 矩形（刚打开时必然是 1 倍），但关闭不行：用户放大后点关闭，
+//   若还从 contain 矩形起飞，第一帧就先跳回原始大小、再缩回缩略图 —— 用户报告的
+//   "图片放大后点击关闭，会突变变回正常大小后再出现关闭动画"。
+//   这里用 imageContentRect 而不是元素框：.modal-img 靠 object-fit 内接，元素框比例
+//   ≠ 图片比例。放大是作用在父级 #imageContainer 上的等比 scale3d，元素框量出来已经是
+//   放大后的框，内接换算按比例缩放后依然成立。
+//   量不到（元素没了 / 尺寸为 0）时返回 null，调用方回退到原来的 contain 矩形。
+function modalShrinkFromRect() {
+    const img = document.getElementById('modalImg');
+    if (!img) return null;
+    const r = imageContentRect(img);
+    if (!r || r.width <= 1 || r.height <= 1) return null;
+    return r;
+}
+
 function cancelModalFlight() {
     if (modalFlightTimer) { clearTimeout(modalFlightTimer); modalFlightTimer = null; }
     if (modalFlightEl) {
@@ -1172,7 +1189,8 @@ function closeModal() {
         const to = modalShrinkTarget(imageContentRect(src));
         if (to) {
             modalImg.style.opacity = '0';
-            startModalFlight(modalContainRect(to.width / to.height), to,
+            // ★ 起飞矩形取"此刻真实占据"的那块（放大 / 拖动过就是放大后的）
+            startModalFlight(modalShrinkFromRect() || modalContainRect(to.width / to.height), to,
                 modalImg.currentSrc || modalImg.src, finish);
             flown = true;
         }

@@ -771,6 +771,12 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
+    /* ★ 手机上侧边栏展开时内容区只剩约 255px，冠号 + 「详细信息」摆不下。
+       原来 flex 默认 nowrap，两个子项又都 white-space: nowrap，
+       min-content 就等于整段文字、谁也收缩不了，于是整行直接顶出屏幕
+       （用户报的「ⅩⅠⅩ7361948 详细信息 这一行被挤出屏幕」）。
+       允许换行后，「详细信息」会落到第二行，而不是被推出去。 */
+    flex-wrap: wrap;
     font-size: 0.75rem;
     color: var(--text);
 }
@@ -779,7 +785,13 @@ body {
     display: inline-block;
     transform: scaleX(0.9);
     transform-origin: left center;
-    white-space: nowrap;
+    /* ★ 原来是 white-space: nowrap：冠号比容器还宽时只能撑出屏幕。
+       改成"能换行、但只在放不下时才断"—— overflow-wrap: anywhere 只在
+       整段确实摆不下时才拆词，正常宽度下冠号依然完整地待在一行里。
+       min-width/max-width 一起给，保证它愿意收缩。 */
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     font-size: 1.0rem;
 }
 .copy-info .condition {
