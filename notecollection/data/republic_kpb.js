@@ -21,7 +21,7 @@ const republic_kpbData = {
     ],
 
     series: [
-        {
+        /*{
             seriesName: "中华民国七年（1918年） 美钞版 兑换券",
             year: "1918",
             varieties: [
@@ -50,7 +50,7 @@ const republic_kpbData = {
                     ]
                 }
             ]
-        },
+        },*/
         {
             seriesName: "中华民国三十八年（1949年） 中华书局版 大洋票",
             year: "1949",

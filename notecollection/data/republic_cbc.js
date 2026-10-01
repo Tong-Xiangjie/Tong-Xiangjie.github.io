@@ -391,7 +391,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国三十四年（1945年） 上海版 东北九省流通券",
+            seriesName: "中华民国三十四年（1945年） 中央上海版 东北九省流通券",
             year: "1945～1948",
             varieties: [
                 {
