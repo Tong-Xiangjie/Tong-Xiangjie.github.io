@@ -42,8 +42,8 @@ const rmb2Data = {
                     size: "90mm*42.5mm",
                     krause: "860a",
                     remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-2.jpg",
+                    img1: "-1.jpg",
+                    img2: "-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
@@ -193,8 +193,8 @@ const rmb2Data = {
                     size: "100mm*47.5mm",
                     krause: "862a",
                     remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/-2.jpg",
+                    img1: "-1.jpg",
+                    img2: "-2.jpg",
                     depositOnlyDate: ""
                 }
             ]
