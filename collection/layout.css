@@ -1516,6 +1516,11 @@ body.modal-open {
     cursor: zoom-in;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+/* ★「详细信息」弹窗里的缺图占位：比真图小一半（48% → 24%）。
+   真图是两张并排各占 48%，而占位只是一枚灰钱币，跟真图一样大就太抢眼了
+   （用户原话："详细信息弹窗里面的这个古钱币图片可以小点 … 还要缩小，现在一半大左右"）。
+   高度由占位图自带的 1:1 固有比例决定，不用写死。 */
+.info-lightbox-imgs img.img-failed { width: 24%; }
 .detail-row {
     display: flex;
     justify-content: space-between;
@@ -2427,11 +2432,12 @@ img.img-failed {
 .special-lightbox-nopic::before { content: ''; width: 56px; height: 56px; }
 /* 大图弹窗坐在深色遮罩上，浅色主题的 --text-secondary 太深会看不见，单独给中性灰。
    ★ 还要单独把蒙版限小：.modal-img 是 100vw×100dvh 铺满整个视口，
-     默认 contain 会把钱币画得跟屏幕一样大 —— 这里给个固定小尺寸居中显示。 */
+     默认 contain 会把钱币画得跟屏幕一样大 —— 这里给个固定小尺寸居中显示。
+     尺寸按用户反馈再减半：180px → 90px（窄屏按 17vw 等比缩）。 */
 .modal-img.img-failed {
     background-color: #9aa2ad;
-    -webkit-mask-size: min(180px, 34vw);
-    mask-size: min(180px, 34vw);
+    -webkit-mask-size: min(90px, 17vw);
+    mask-size: min(90px, 17vw);
 }
 /* ★ 降级成占位后**不该点得开**：点开的大图还是那张缺图，白跑一趟。
    这里用 pointer-events 而不是去删内联 onclick —— 万一下载重试把真图找回来了，
