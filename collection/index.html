@@ -71,6 +71,22 @@
             } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
         })();
     </script>
+    <!-- ★ 缺图占位与空状态插图平时只是 CSS 里的 mask-image，浏览器要等"某个元素第一次
+         真的用到"才去取 —— 于是首个缺图/空状态会先空一下、再"啪"地跳出钱币或线稿。
+         这里在解析 HTML 阶段就声明预加载，让它们和样式表并行取回；12 个合计不到 8KB。
+         清单必须与 core.js 的 PLACEHOLDER_ART_FILES 一致（verify-img-placeholder.mjs 会逐项比对）。 -->
+    <link rel="preload" as="image" type="image/svg+xml" href="img-placeholder.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-search.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-notes.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-coins.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-articles.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-special.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-shanhe.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-region.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-timeline.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-tag.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-stats.svg">
+    <link rel="preload" as="image" type="image/svg+xml" href="empty-color.svg">
     <link rel="stylesheet" href="layout.css">
     <!-- ★ Hammer.js 只服务于灯箱的双指缩放（category-view.js initPinchZoom，打开弹窗时才调用）。
          这是全站唯一的跨域请求，原先在 <head> 同步加载会阻塞首屏渲染（跨域 DNS + TLS），

@@ -14,7 +14,8 @@
     .timeline-no-img::before，以及 404 后降级的 img.img-failed。
 
     形制：外郭（粗）+ 内郭（细）+ 方孔（粗，中间透空，不是填色块），
-    环带上刻站名「銅の幣紀」（上銅、右の、下幣、左紀）。
+    环带上刻四个字「銅の幣紀」（上銅、下の、右幣、左紀）——
+    也就是古钱币的「上下右左」对读，先上下、再右左。
     铭文既是品牌，也让占位天然不可能被误认成真品照片。
     刻意保持扁平：没有渐变、没有锈迹、没有划痕 ——
     那些在 36×26 的缩略图上只会糊成一团，深色主题下也更难分辨。
@@ -34,13 +35,13 @@
     <rect x="74" y="74" width="52" height="52" rx="2" stroke-width="12"/>
   </g>
 
-  <!-- 铭文：銅（上）の（右）幣（下）紀（左） -->
+  <!-- 铭文：銅（上）の（下）幣（右）紀（左）—— 对读作「銅の幣紀」 -->
   <g fill="#000000"
      font-family="'Source Han Sans SC','Noto Sans CJK SC','Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif"
      font-weight="900" font-size="26" text-anchor="middle" dominant-baseline="central">
     <text x="100" y="52">銅</text>
-    <text x="148" y="100">の</text>
-    <text x="100" y="148">幣</text>
+    <text x="100" y="148">の</text>
+    <text x="148" y="100">幣</text>
     <text x="52" y="100">紀</text>
   </g>
 </svg>

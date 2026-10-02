@@ -375,6 +375,8 @@ function onSidebarItemClickInner(catId) {
     if (currentMode === MODE.SPECIAL) {
         if (selectedSpecial === catId) {
             // 点击已选中的专题：返回概览
+            // 和分类一样：关闭即离开，滚动记忆作废（专题模式没有这套记忆，属于无害兜底）
+            if (typeof forgetCategoryScroll === 'function') forgetCategoryScroll();
             selectedSpecial = null;
             currentCategoryId = null;
             currentSubId = null;
@@ -399,6 +401,10 @@ function onSidebarItemClickInner(catId) {
 
     if (currentCategoryId === catId) {
         // 点击已选中的分类：返回概览
+        // ★ 关闭板块 = 离开这个板块：把它的滚动记忆一起作废，下次点开从顶部开始。
+        //   原来只有"切到别的板块"才作废（core.js 的 noteCategoryOwner），
+        //   走"关闭"这条路径不经过它，于是关掉再点开还停在上次的进度上。
+        if (typeof forgetCategoryScroll === 'function') forgetCategoryScroll();
         currentCategoryId = null;
         currentSubId = null;
         currentView = VIEW.OVERVIEW;

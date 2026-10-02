@@ -2407,6 +2407,7 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .copy-thumb.no-img::before,
 .shanhe-list-cell .no-img::before,
 .timeline-no-img::before,
+.special-lightbox-nopic::before,
 img.img-failed {
     background-color: var(--text-secondary);
     -webkit-mask-image: url('img-placeholder.svg');
@@ -2421,8 +2422,17 @@ img.img-failed {
 .copy-thumb.no-img::before { content: ''; width: 34px; height: 26px; }
 .shanhe-list-cell .no-img::before { content: ''; width: 46px; height: 46px; }
 .timeline-no-img::before { content: ''; width: 38px; height: 34px; }
-/* 大图弹窗坐在深色遮罩上，浅色主题的 --text-secondary 太深会看不见，单独给中性灰 */
-.modal-img.img-failed { background-color: #9aa2ad; }
+/* 专题大图弹窗里"数据压根没图"的那一档：原来只有一行「暂无图片」，一并补上钱币 */
+.special-lightbox-nopic { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.special-lightbox-nopic::before { content: ''; width: 56px; height: 56px; }
+/* 大图弹窗坐在深色遮罩上，浅色主题的 --text-secondary 太深会看不见，单独给中性灰。
+   ★ 还要单独把蒙版限小：.modal-img 是 100vw×100dvh 铺满整个视口，
+     默认 contain 会把钱币画得跟屏幕一样大 —— 这里给个固定小尺寸居中显示。 */
+.modal-img.img-failed {
+    background-color: #9aa2ad;
+    -webkit-mask-size: min(180px, 34vw);
+    mask-size: min(180px, 34vw);
+}
 /* ★ 降级成占位后**不该点得开**：点开的大图还是那张缺图，白跑一趟。
    这里用 pointer-events 而不是去删内联 onclick —— 万一下载重试把真图找回来了，
    撤掉 .img-failed 它就又能点开了。

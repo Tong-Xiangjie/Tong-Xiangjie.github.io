@@ -414,7 +414,8 @@ function renderLightboxContent(contentEl, config) {
         html += `<img src="${imgUrl}"${thumbFallbackAttr('')} alt="${escapeAttr(item.name || item.scene || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
         html += `</div>`;
     } else {
-        html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
+        // 和列表里的 .no-img 一样：自绘古钱币（由 .special-lightbox-nopic::before 提供）＋一行字
+        html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;"><span class="special-lightbox-nopic">暂无图片</span></div>`;
     }
 
     html += `<div style="border-top:1px solid var(--border);padding-top:12px;">`;

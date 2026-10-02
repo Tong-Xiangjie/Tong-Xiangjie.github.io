@@ -126,7 +126,14 @@ function escapeAttr(url) {
 // （对照 <img src> / background-image 都拿不到 currentColor 这件事）。
 // 元素这边只需要变成一个"透明的、已加载的"图片：不留浏览器碎图标，
 // 也不遮挡底下由 CSS 画出来的钱币；降级态用 .img-failed 这个类标记。
-const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+// ★ 这个透明图必须**自带尺寸**，不能再用 1×1。
+//   原先用的是 1×1 透明 GIF，于是凡是"靠图片自身尺寸撑开"的 <img> 在降级后都会塌：
+//     · 专题大图弹窗（special.js 那张 width:auto + max-height:100%）塌成 1×1 —— 古钱币完全看不见；
+//     · 详细信息卡片的 .info-lightbox-imgs img（width:48% + height:auto）塌成一条 1px 细缝；
+//     · 八面图 .octo-face img（width:100% + height:auto）与文章正文图同理。
+//   有固定尺寸的地方（.copy-thumb 56×40、.mini-thumb 36×26、.timeline-img 80×60 等）
+//   大小由 CSS 说了算，与图片固有尺寸无关，所以换成 160×160 不会顶坏任何排版。
+const TRANSPARENT_PIXEL = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3C/svg%3E';
 
 // 图片兜底链的最后一档：缩略图 → 原图 → 占位（.img-failed + 透明图）。
 // ★ 为什么占位时必须记下真实地址、并让元素继续留在 failedImages 里：
@@ -619,6 +626,25 @@ function noteCategoryOwner(catId) {
     }
     categoryScrollMemory[mode] = kept;
     categoryScrollOwner[mode] = catId;
+}
+
+// 关闭板块（点已选中的分类/专题 → 回到概览）时调用：这个板块的滚动记忆就此作废，
+// 下次点开从头开始。用户要求（原话）：
+//   「关闭板块（如：民国纸币）后，再次点开就应该概览页从头开始，
+//     现在需要点击另一个板块才会这样，否则还是原来那个滚动进度」
+// 原因是原来只有 noteCategoryOwner（切换到**别的**顶级分类）才会作废记忆，
+// 而"关闭"这条路径不经过它，于是记忆留了下来、再点开就还停在上次的进度上。
+// 全局概览那两条照旧保留 —— 用户明确要求"全局的可以一直保留"。
+function forgetCategoryScroll() {
+    const mode = currentMode;
+    if (!categoryScrollMemory[mode]) return;
+    const kept = {};
+    for (const k of Object.keys(categoryScrollMemory[mode])) {
+        if (isOverviewContainerKey(k)) kept[k] = categoryScrollMemory[mode][k];
+    }
+    categoryScrollMemory[mode] = kept;
+    // 归属清空：下次进入任何分类都会走 noteCategoryOwner 的"从头开始"分支
+    categoryScrollOwner[mode] = null;
 }
 
 // 渲染完（概览页 / 分类页）调用：把记住的位置放回去。
@@ -1146,6 +1172,29 @@ function emptyArt(kind, small) {
     return '<span class="empty-art' + (small ? ' empty-art-sm' : '') +
            ' empty-art-' + kind + '" aria-hidden="true"></span>';
 }
+
+// ★ 插图预热：这些 SVG 平时只是 CSS 里的 mask-image，浏览器要等到**某个元素第一次真的用到**时
+//   才去取它们 —— 于是首个缺图/空状态会先空一下、再"啪"地跳出钱币或线稿。
+//   index.html 的 <link rel="preload"> 已经在解析阶段就并行拉起来了，这里再补一遍
+//   （个别浏览器会丢掉"没被立刻使用"的预加载），并顺手 decode()，让首帧直接用得上。
+//   这份清单必须和 collection/index.html 里的预加载清单一致 ——
+//   verify-img-placeholder.mjs 会把两边逐项比对，少一个都算失败。
+const PLACEHOLDER_ART_FILES = [
+    'img-placeholder.svg',
+    'empty-search.svg', 'empty-notes.svg', 'empty-coins.svg', 'empty-articles.svg',
+    'empty-special.svg', 'empty-shanhe.svg', 'empty-region.svg', 'empty-timeline.svg',
+    'empty-tag.svg', 'empty-stats.svg', 'empty-color.svg'
+];
+(function warmUpPlaceholderArt() {
+    try {
+        for (const f of PLACEHOLDER_ART_FILES) {
+            const im = new Image();
+            im.src = f;
+            // 解码失败无所谓：真用的时候浏览器会再取/再解一次
+            if (im.decode) im.decode().catch(function () {});
+        }
+    } catch (e) { /* 预热失败不许影响任何功能 */ }
+})();
 
 function collectExpandedStates() {
     // ★ 改为"只收集当前活动容器里、本分类作用域下"的展开态（原来是无差别全文档扫描，
