@@ -100,7 +100,7 @@ const republic_bocData = {
                         {
                             copyId: 0,
                             year: 1940,
-                            version: "K1024**B",
+                            version: "H385109B",
                             bank: "中国银行",
                             print: "美国钞票公司/ABNC",
                             signature1: "总经理（General Manager）：宋汉章（Sung Hang-Chang）",
@@ -113,8 +113,8 @@ const republic_bocData = {
                             purchaseDate: "2026年9月26日",
                             krause: "84",
                             remark: "正背面双字轨",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/K1024**B-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/K1024**B-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/H385109B-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/H385109B-2.jpg"
                         }
                     ]
                 },{

@@ -421,7 +421,7 @@ const commemorativeData = {
             year: "2012～2023",
             "varieties": [
                 {
-                    "varietyName": "2012 龙年",
+                    "varietyName": "2012年 龙年",
                     readmes: [
                         { title: "中国银行龙年生肖贺岁钞", content: "file:readmes/amsx_2012.txt" }
                     ],
@@ -429,7 +429,7 @@ const commemorativeData = {
                         
                     ]
                 },{
-                    "varietyName": "2013 蛇年",
+                    "varietyName": "2013年 蛇年",
                     readmes: [
                         { title: "中国银行蛇年生肖贺岁钞", content: "file:readmes/amsx_2013.txt" }
                     ],
@@ -437,7 +437,7 @@ const commemorativeData = {
                         
                     ]
                 },{
-                    "varietyName": "2014 马年",
+                    "varietyName": "2014年 马年",
                     readmes: [
                         { title: "中国银行马年生肖贺岁钞", content: "file:readmes/amsx_2014.txt" }
                     ],
@@ -481,7 +481,7 @@ const commemorativeData = {
                     ]
                 },
                 {
-                    "varietyName": "2015 羊年",
+                    "varietyName": "2015年 羊年",
                     readmes: [
                         { title: "中国银行羊年生肖贺岁钞", content: "file:readmes/amsx_2015.txt" }
                     ],
@@ -525,7 +525,7 @@ const commemorativeData = {
                     ]
                 },
                 {
-                    "varietyName": "2016 猴年",
+                    "varietyName": "2016年 猴年",
                     readmes: [
                         { title: "中国银行猴年生肖贺岁钞", content: "file:readmes/amsx_2016.txt" }
                     ],
@@ -569,7 +569,7 @@ const commemorativeData = {
                     ]
                 },
                 {
-                    "varietyName": "2017 鸡年",
+                    "varietyName": "2017年 鸡年",
                     readmes: [
                         { title: "中国银行鸡年生肖贺岁钞", content: "file:readmes/amsx_2017.txt" }
                     ],
@@ -612,7 +612,7 @@ const commemorativeData = {
                     ]
                 },
                 {
-                    "varietyName": "2018 狗年",
+                    "varietyName": "2018年 狗年",
                     readmes: [
                         { title: "中国银行狗年生肖贺岁钞", content: "file:readmes/amsx_2018.txt" }
                     ],
@@ -656,7 +656,7 @@ const commemorativeData = {
                     ]
                 },
                 {
-                    "varietyName": "2019 猪年",
+                    "varietyName": "2019年 猪年",
                     readmes: [
                         { title: "中国银行猪年生肖贺岁钞", content: "file:readmes/amsx_2019.txt" }
                     ],
@@ -664,7 +664,7 @@ const commemorativeData = {
                         
                     ]
                 },{
-                    "varietyName": "2020 鼠年",
+                    "varietyName": "2020年 鼠年",
                     readmes: [
                         { title: "中国银行鼠年生肖贺岁钞", content: "file:readmes/amsx_2020.txt" }
                     ],
@@ -672,7 +672,7 @@ const commemorativeData = {
                         
                     ]
                 },{
-                    "varietyName": "2021 牛年",
+                    "varietyName": "2021年 牛年",
                     readmes: [
                         { title: "中国银行牛年生肖贺岁钞", content: "file:readmes/amsx_2021.txt" }
                     ],
@@ -680,7 +680,7 @@ const commemorativeData = {
                         
                     ]
                 },{
-                    "varietyName": "2022 虎年",
+                    "varietyName": "2022年 虎年",
                     readmes: [
                         { title: "中国银行虎年生肖贺岁钞", content: "file:readmes/amsx_2022.txt" }
                     ],
@@ -688,7 +688,7 @@ const commemorativeData = {
                         
                     ]
                 },{
-                    "varietyName": "2023 兔年",
+                    "varietyName": "2023年 兔年",
                     readmes: [
                         { title: "中国银行兔年生肖贺岁钞", content: "file:readmes/amsx_2023.txt" }
                     ],

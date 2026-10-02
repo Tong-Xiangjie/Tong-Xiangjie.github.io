@@ -30,7 +30,7 @@ const republic_pbkcData = {
                             copyId: 10259025,
                             year: 1949,
                             version: "A338842",
-                            bank: "贵州省银行/The Provincial Bank of Kwuichow",
+                            bank: "贵州省银行",
                             print: "中央印制厂重庆厂/CPF",
                             issueDate: "",
                             withdrawnDate: "",

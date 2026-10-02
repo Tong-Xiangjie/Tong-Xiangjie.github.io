@@ -55,8 +55,8 @@ const hk_govData = {
                             signature: "财政司司长：梁锦松  金融管理专员：任志刚",
                             faceDate: "2003年1月1日",
                             remark: "占位，暂无藏品",
-                            img1: "-1.jpg",
-                            img2: "-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/hk_gov/0-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/hk_gov/0-2.jpg"
                         }
                     ]
                 },{
@@ -99,8 +99,8 @@ const hk_govData = {
                             signature: "财政司司长：唐英年  金融管理专员：任志刚",
                             faceDate: "2007年4月1日",
                             remark: "占位，暂无藏品",
-                            img1: "-1.jpg",
-                            img2: "-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/hk_gov/0-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/hk_gov/0-2.jpg"
                         }
                     ]
                 },{

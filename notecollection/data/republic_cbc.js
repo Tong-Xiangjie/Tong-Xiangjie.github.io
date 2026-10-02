@@ -429,7 +429,7 @@ const republic_cbcData = {
                         {
                             copyId: 0,
                             year: 1945,
-                            version: "VV673***",
+                            version: "MU408451",
                             bank: "中央银行",
                             print: "美国钞票公司/ABNC",
                             signature1: "总裁（Governor）：俞鸿钧（O.K. Yui）",
@@ -442,8 +442,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年9月26日",
                             krause: "387",
                             remark: "双字轨：共505种，发行量5.05亿张。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/VV673***-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/VV673***-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/MU408451-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/MU408451-2.jpg"
                         }
                     ]
                 }

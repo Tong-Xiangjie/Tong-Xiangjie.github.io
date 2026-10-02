@@ -39,8 +39,8 @@ const brick_labelData = {
                             size: "",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "-1.jpg",
-                            img2: "-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/brick_label/0-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/brick_label/0-2.jpg"
                         }
                     ]
                 },{
@@ -60,8 +60,8 @@ const brick_labelData = {
                             size: "",
                             wmk: "无水印/Without Watermark",
                             remark: "",
-                            img1: "-1.jpg",
-                            img2: "-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/brick_label/0-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/brick_label/0-2.jpg"
                         }
                     ]
                 }
