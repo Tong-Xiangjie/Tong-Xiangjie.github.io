@@ -112,10 +112,46 @@ function escapeAttr(url) {
         .replace(/'/g, '%27');
 }
 
-// 缩略图加载失败时回退原图：返回可直接拼进 <img ...> 的 onerror 属性片段
+// ========== 缺图占位 ==========
+// 占位图形是自绘的古钱币（collection/img-placeholder.svg），但**不是**当图片塞进 src：
+// 那张 SVG 在 CSS 里当蒙版（mask-image）用，颜色来自主题变量，所以深浅主题自动适配
+// （对照 <img src> / background-image 都拿不到 currentColor 这件事）。
+// 元素这边只需要变成一个"透明的、已加载的"图片：不留浏览器碎图标，
+// 也不遮挡底下由 CSS 画出来的钱币；降级态用 .img-failed 这个类标记。
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+// 图片兜底链的最后一档：缩略图 → 原图 → 占位（.img-failed + 透明图）。
+// ★ 为什么占位时必须记下真实地址、并让元素继续留在 failedImages 里：
+//   顶部「重新加载」按钮（retryFailedImages）是按元素的 src 重新请求的，
+//   若把 src 换成占位图就不再改回来，重试只会一遍遍请求占位图，真图永远回不来。
+//   用户明确要求"缺的地方要可以重新加载"，所以真实地址存进 data-retry-src；
+//   重试成功后由 load 监听器把它连同 .img-failed 一起清掉。
+function imgFallback(el, nextUrl) {
+    if (!el || el.tagName !== 'IMG') return;
+    const cur = el.getAttribute('src') || '';
+    if (cur === TRANSPARENT_PIXEL) return;                // 已经处在占位态，不再套娃
+    // 第一档：缩略图挂了 → 试原图（去查询串比较，重试时 src 会带 ?retry=...）
+    if (nextUrl && cur.split('?')[0] !== nextUrl) {
+        el.src = nextUrl;
+        return;
+    }
+    // 第二档：占位。保留真实地址与 alt，随时可还原（重试再次失败也走这里）
+    el.dataset.retrySrc = cur.split('?')[0] || el.dataset.retrySrc || nextUrl || '';
+    if (el.alt) el.dataset.retryAlt = el.alt;
+    el.alt = '';
+    el.classList.add('img-failed');
+    el.src = TRANSPARENT_PIXEL;
+    if (typeof failedImages !== 'undefined' && failedImages) {
+        failedImages.add(el);
+        updateRetryFab();
+    }
+}
+
+// 缩略图加载失败时的兜底：返回可直接拼进 <img ...> 的 onerror 属性片段。
+// ★ 无论有没有"原图"这一档都要接上 —— 原图自己也会 404（数据里确实有这样的条目），
+//   那种情况也必须能落到占位图，否则就是浏览器碎图标。
 function thumbFallbackAttr(originalUrl) {
-    if (!originalUrl) return '';
-    return ` onerror="this.onerror=null;this.src='${escapeAttr(originalUrl)}'"`;
+    return ` onerror="imgFallback(this, '${escapeAttr(originalUrl || '')}')"`;
 }
 
 // ========== 网格图片源：缩略图 / 原图可切换 ==========
@@ -1406,7 +1442,18 @@ function setupImageRetry() {
     document.addEventListener('load', (e) => {
         const t = e.target;
         if (t && t.tagName === 'IMG') {
-            if (failedImages.delete(t)) updateRetryFab();
+            // ★ 占位用的透明像素也是"加载成功"，但它代表原图仍然失败：不能从重试队列里
+            //   摘掉，否则 FAB 会消失，用户再也没有机会找回真图。所以这里按"src 是不是
+            //   那个透明像素"判断，而不是按有没有触发过 load。
+            if (t.getAttribute('src') === TRANSPARENT_PIXEL) {
+                failedImages.add(t);
+            } else {
+                t.removeAttribute('data-retry-src');
+                if (t.dataset.retryAlt) { t.alt = t.dataset.retryAlt; t.removeAttribute('data-retry-alt'); }
+                t.classList.remove('img-failed');   // 真图回来了，撤掉占位
+                failedImages.delete(t);
+            }
+            updateRetryFab();
         }
     }, true);
 
@@ -1440,7 +1487,9 @@ function retryFailedImages() {
     updateRetryFab();
     for (const img of list) {
         if (!img.isConnected) continue;
-        let src = img.getAttribute('src') || img.src;
+        // ★ 已经落到占位图的，真实地址在 data-retry-src 上（src 此时是占位图）——
+        //   不读它就会一遍遍请求占位图，真图永远回不来。
+        let src = (img.dataset && img.dataset.retrySrc) || img.getAttribute('src') || img.src;
         if (!src) continue;
         const sep = src.includes('?') ? '&' : '?';
         img.src = src + sep + 'retry=' + Date.now() + Math.random().toString(36).slice(2, 6);

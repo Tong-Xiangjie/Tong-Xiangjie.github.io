@@ -411,7 +411,7 @@ function renderLightboxContent(contentEl, config) {
 
     if (imgUrl) {
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;">`;
-        html += `<img src="${imgUrl}" alt="${escapeAttr(item.name || item.scene || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
+        html += `<img src="${imgUrl}"${thumbFallbackAttr('')} alt="${escapeAttr(item.name || item.scene || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
         html += `</div>`;
     } else {
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--text-secondary);font-size:0.85rem;">暂无图片</div>`;
@@ -569,7 +569,7 @@ function renderShanheList(config) {
             const gImg = gridImg(item.img || item.yearImg);
             html += `<div class="shanhe-list-cell" onclick="openSpecialLightbox(${idx})" title="${escapeAttr(item.scene || item.name || '')}">`;
             if (imgUrl) html += `<img src="${escapeAttr(gImg.src)}"${thumbFallbackAttr(gImg.fallback)} alt="" loading="lazy">`;
-            else html += `<span class="no-img">还木有图片</span>`;
+            else html += `<span class="no-img">暂无图片</span>`;
             html += `</div>`;
         }
         html += `</div>`;
@@ -1488,7 +1488,7 @@ function renderTimelineContent(config) {
                     html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
                 }
                 if (!img1 && !img2) {
-                    html += `<div class="timeline-no-img">无图</div>`;
+                    html += `<div class="timeline-no-img">暂无图片</div>`;
                 }
                 html += `</div>`;
                 html += `<div class="timeline-info">`;

@@ -384,7 +384,7 @@ function renderCopiesList(copies, detailFields, displayName, accV) {
         html += `<div class="dual-thumb">`;
         if (img1) html += `<img class="copy-thumb" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="O_o" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
         if (img2) html += `<img class="copy-thumb" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="o_O" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
-        if (!img1 && !img2) html += `<div class="copy-thumb no-img">我的图捏？？？</div>`;
+        if (!img1 && !img2) html += `<div class="copy-thumb no-img">暂无图片</div>`;
         html += `</div>`;
         html += `<div class="copy-info">`;
 
@@ -796,6 +796,12 @@ function loadModalImage(opts) {
                 backdrop.style.display = 'none';
                 backdrop.removeAttribute('src');
             }
+        } else if (typeof imgFallback === 'function') {
+            // ★ 连缩略图都没有、或缩略图也挂了：落到占位图（自绘古钱币）。
+            //   大图弹窗里也得给个交代 —— 否则用户看到的就是浏览器碎图标。
+            //   imgFallback 会把真实地址记进 data-retry-src 并留在重试队列，
+            //   顶部「重新加载」仍然能把它换回真图。
+            imgFallback(modalImg, '');
         }
         fireReady();   // 失败也要放行，让翻面动画能收尾
     };

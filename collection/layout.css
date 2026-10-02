@@ -764,7 +764,9 @@ body {
 .mini-thumb:hover { opacity: 0.7; }
 .copy-thumb { width: 56px; height: 40px; object-fit: contain; background: var(--thumb-bg); border-radius: 4px; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
 .copy-thumb:hover { opacity: 0.7; }
-.copy-thumb.no-img { display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: var(--text-secondary); background: var(--thumb-bg); }
+.copy-thumb.no-img { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0; color: var(--text-secondary); background: var(--thumb-bg); }
+/* ★ 56×40 的格子放不下「暂无图片」四个字：只放自绘的古钱币（详见文件末尾的缺图占位段） */
+.copy-thumb.no-img::before { content: ''; width: 34px; height: 26px; }
 
 .copy-info { flex: 1; min-width: 0; font-size: 0.8rem; line-height: 1.5; }
 .copy-info .version {
@@ -1932,11 +1934,19 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .shanhe-list-cell:hover img { transform: scale(1.12); }
 .shanhe-list-cell .no-img {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     height: 100%;
     font-size: 0.65rem;
     color: var(--text-secondary);
+}
+/* ★ 缺图时中间放自绘的古钱币（原来只有「还木有图片」字样） */
+.shanhe-list-cell .no-img::before {
+    content: '';
+    width: 46px;
+    height: 46px;
 }
 /* 地图 ⇄ 列表 是有方向感的切换，用横向滑动表达方向（而不是又一次"向上淡入"）。
    两个类定义在 .content-enter 之后，因此会覆盖它的动画声明。 */
@@ -2196,13 +2206,21 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     width: 80px;
     height: 60px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 2px;
     background: var(--thumb-bg);
     font-size: 0.6rem;
     color: var(--text-secondary);
     border: 1px solid var(--border);
     border-radius: 4px;
+}
+/* ★ 缺图时中间放自绘的古钱币（原来只有「无图」两个字） */
+.timeline-no-img::before {
+    content: '';
+    width: 38px;
+    height: 34px;
 }
 .timeline-info { flex: 1; min-width: 0; }
 .timeline-name { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
@@ -2350,6 +2368,38 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .special-lightbox-content img {
     transition: opacity 0.25s ease;
 }
+
+/* ============================================================
+   ★ 缺图占位：自绘古钱币（collection/img-placeholder.svg）
+   数据里没图（未评级的藏品一律没有图片）、或图片 404 降级，都显示这枚钱币。
+   这里把 SVG 当**蒙版**用、颜色交给主题变量，这是关键：
+   <img src> 与 background-image 都拿不到 currentColor，只有
+   "mask-image + background-color: var(...)" 才能让占位跟着主题走
+   （深色主题自动变浅，将来换主题色也一起变）。
+   三处"数据里就没图"的占位用 ::before 画；404 降级的 <img> 直接染自己。
+   蒙版按 alpha 取值，所以 SVG 里的线条是纯黑不透明、其余透明。
+   选择器权重与 .shanhe-list-cell img 同为 (0,1,1)，靠"位置在后"取胜，
+   所以这一段必须留在文件末尾。
+   ============================================================ */
+.copy-thumb.no-img::before,
+.shanhe-list-cell .no-img::before,
+.timeline-no-img::before,
+img.img-failed {
+    background-color: var(--text-secondary);
+    -webkit-mask-image: url('img-placeholder.svg');
+    mask-image: url('img-placeholder.svg');
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+.copy-thumb.no-img::before { content: ''; width: 34px; height: 26px; }
+.shanhe-list-cell .no-img::before { content: ''; width: 46px; height: 46px; }
+.timeline-no-img::before { content: ''; width: 38px; height: 34px; }
+/* 大图弹窗坐在深色遮罩上，浅色主题的 --text-secondary 太深会看不见，单独给中性灰 */
+.modal-img.img-failed { background-color: #9aa2ad; }
 
 /* ============================================================
    ★ 初始化加载完成后的交接（进度条淡出 → 内容淡入）
