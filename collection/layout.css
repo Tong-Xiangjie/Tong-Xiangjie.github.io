@@ -1519,8 +1519,17 @@ body.modal-open {
 /* ★「详细信息」弹窗里的缺图占位：比真图小一半（48% → 24%）。
    真图是两张并排各占 48%，而占位只是一枚灰钱币，跟真图一样大就太抢眼了
    （用户原话："详细信息弹窗里面的这个古钱币图片可以小点 … 还要缩小，现在一半大左右"）。
-   高度由占位图自带的 1:1 固有比例决定，不用写死。 */
-.info-lightbox-imgs img.img-failed { width: 24%; }
+   高度由占位图自带的 1:1 固有比例决定，不用写死。
+   ★ 变窄之后左边会空一大截（用户："大小可以，但是没有居中"），所以再让它自己居中：
+     flex 行里的 auto 外边距会把剩余空间平分，于是
+       · 只有一张占位（另一张真图）→ 这张钱币正好在行中央；
+       · 两张都占位 → 左右两侧留白相等，整体仍是居中；
+     真图（没有 img-failed 类名）的 48% 并排布局一点不动。 */
+.info-lightbox-imgs img.img-failed {
+    width: 24%;
+    margin-left: auto;
+    margin-right: auto;
+}
 .detail-row {
     display: flex;
     justify-content: space-between;
