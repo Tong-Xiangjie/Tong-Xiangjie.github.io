@@ -47,9 +47,19 @@ const categoryTree = [
     {
         id: 'taiwan',
         name: '台币',
-        dataKey: 'taiwanData',
-        dataFile: '../notecollection/data/taiwan.js',
-        children: null
+        // ★ 原来是一个文件 data/taiwan.js（7 个系列 457 行），现按系列拆成 7 个文件，
+        //   台币从"叶子分类"变成"父分类"，与人民币按套、港币按银行同一个结构。
+        //   顺序沿用原文件里 series 的书写顺序（旧台币 → 第一/二/三/五套 → 金门 → 马祖），
+        //   没有第四套 —— 原文件里就没有，不是漏拆。
+        children: [
+            { id: 'taiwanOld', name: '战后旧台币', dataKey: 'taiwanOldData', dataFile: '../notecollection/data/taiwan_old.js' },
+            { id: 'taiwan1', name: '第一套横式新台币', dataKey: 'taiwan1Data', dataFile: '../notecollection/data/taiwan_1.js' },
+            { id: 'taiwan2', name: '第二套横式新台币', dataKey: 'taiwan2Data', dataFile: '../notecollection/data/taiwan_2.js' },
+            { id: 'taiwan3', name: '第三套横式新台币', dataKey: 'taiwan3Data', dataFile: '../notecollection/data/taiwan_3.js' },
+            { id: 'taiwan5', name: '第五套横式新台币', dataKey: 'taiwan5Data', dataFile: '../notecollection/data/taiwan_5.js' },
+            { id: 'taiwanKm', name: '金门地区专用钞券', dataKey: 'taiwanKmData', dataFile: '../notecollection/data/taiwan_km.js' },
+            { id: 'taiwanMz', name: '马祖地区专用钞券', dataKey: 'taiwanMzData', dataFile: '../notecollection/data/taiwan_mz.js' }
+        ]
     },
     {
         id: 'foreign',

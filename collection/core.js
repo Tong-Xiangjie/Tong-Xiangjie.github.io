@@ -57,6 +57,11 @@ const IMAGE_BASE = SITE_BASE + 'notecollection/image/';
 //   概览/时间轴显示「暂无图片」。
 //   注：改成裸写法后，check-data.mjs 的"文件名是空的（形如 目录/-1.jpg）"清单就查不到
 //   它们了（那份"待补清单"一并消失 —— 这正是当初写成完整 URL 形式的唯一作用）。
+//   ★ 还有一种写法长得像 "{copyId}-1.jpg"（例如 rmb3 里的 0-1.jpg / 0-2.jpg），语义上
+//   同样是"这条还没有图"，但它**不能**按文件名形状来判：磁盘上现有 82 张真图就是
+//   这个形状（722-1.jpg、26279291-1.jpg、1-1.jpg…），按形状判会把真图误显示成古钱币。
+//   这类只走运行时那条路：照常请求 → 404 → 降级成占位（img.img-failed），
+//   好处是图补上之后，点顶部「图片加载失败」重试一次就能自己显出来。
 const PLACEHOLDER_IMG_RE = /^-\d+\.[a-z0-9]+$/i;
 
 function getImageUrl(path, subDir = 'comm') {
