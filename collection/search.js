@@ -274,7 +274,7 @@ function reconcileWithFLIP(wrapper, oldKeyMap, newFlatList, container, keptScrol
       // ★ 这 400ms 里用户可能已经又打字了。若期间发生过任何一次重建，
       //   本次的"空空如也"就是过期结论，写下去会把新结果覆盖掉 —— 直接放弃。
       if (generation !== searchRenderGeneration) return;
-      wrapper.innerHTML = `<div class="empty-state">啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
+      wrapper.innerHTML = `<div class="empty-state">${emptyArt('search')}啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
       for (const el of deleteElements) {
         if (el.parentNode) el.remove();
       }

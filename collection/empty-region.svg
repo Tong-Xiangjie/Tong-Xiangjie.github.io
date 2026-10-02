@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 地域空：一个定位标记 -->
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="100" cy="78" r="34"/>
+    <polygon points="80,106 120,106 100,152"/>
+  </g>
+  <g fill="#000000">
+    <circle cx="100" cy="78" r="11"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round">
+    <line x1="62" y1="172" x2="138" y2="172"/>
+  </g>
+</svg>

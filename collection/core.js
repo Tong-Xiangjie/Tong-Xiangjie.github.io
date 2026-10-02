@@ -1132,6 +1132,21 @@ function escapeHtml(str) {
     });
 }
 
+// ★ 空状态插图：把自绘的线稿 SVG 当蒙版用，颜色跟着主题走 —— 和缺图占位
+//   （collection/img-placeholder.svg）完全同一套做法：SVG 只提供形状（黑色不透明线条 + 透明底），
+//   实际颜色由 CSS 的 background-color: var(--text-secondary) 决定，所以浅色/深色都自动对。
+//   一个问题一个画面，kind 就是 collection/empty-<kind>.svg 的后半截；见 layout.css 的
+//   .empty-art-* 规则。
+//   kind = 'collection' 用于「纸币/硬币」两个板块共用的空状态：它们文案相同（啥都木有），
+//   按当前板块自动分成纸币、硬币两种画面。
+function emptyArt(kind, small) {
+    if (kind === 'collection') {
+        kind = (typeof currentMode !== 'undefined' && currentMode === MODE.COINS) ? 'coins' : 'notes';
+    }
+    return '<span class="empty-art' + (small ? ' empty-art-sm' : '') +
+           ' empty-art-' + kind + '" aria-hidden="true"></span>';
+}
+
 function collectExpandedStates() {
     // ★ 改为"只收集当前活动容器里、本分类作用域下"的展开态（原来是无差别全文档扫描，
     //   会把隐藏容器里其它分类的节点也算进来 —— 见文件上方 getCategoryScope 的说明）。

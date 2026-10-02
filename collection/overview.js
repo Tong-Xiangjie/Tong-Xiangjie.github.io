@@ -80,7 +80,7 @@ function renderOverview() {
     const modeName = modeLabel();
     let html = `<div class="overview-header"><h2>全部${modeName}</h2><p>共${allItems.length}件藏品</p></div>`;
     if (allItems.length === 0) {
-        html += '<div class="empty-state">啥都木有</div>';
+        html += '<div class="empty-state">' + emptyArt('collection') + '啥都木有</div>';
         app.innerHTML = html;
         return;
     }

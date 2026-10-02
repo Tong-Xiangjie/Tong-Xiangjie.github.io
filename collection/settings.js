@@ -170,7 +170,7 @@ function renderSettingsPage() {
 
     html += `<div class="saved-colors" id="savedColorsContainer">`;
     if (customColors.length === 0) {
-        html += `<span class="empty-colors-hint">还没添加自定义颜色哦～</span>`;
+        html += `<span class="empty-colors-hint">${emptyArt('color', true)}还没添加自定义颜色哦～</span>`;
     } else {
         for (let i = 0; i < customColors.length; i++) {
             const color = customColors[i];

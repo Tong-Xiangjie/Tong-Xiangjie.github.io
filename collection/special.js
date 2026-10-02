@@ -130,7 +130,7 @@ function renderSpecialOverview() {
     let html = `<div class="overview-header"><h2>专题收藏</h2><p>选择专题查看详情</p></div>`;
 
     if (!configs || configs.length === 0) {
-        html += '<div class="empty-state">还木有专题</div>';
+        html += '<div class="empty-state">' + emptyArt('special') + '还木有专题</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         // ★★★ 恢复概览滚动 ★★★
@@ -262,10 +262,10 @@ function renderSpecialContent() {
     }
 
     const data = getData(config.dataKey);
-    if (!data) { app.innerHTML = '<div class="empty-state">啥都木有</div>'; return; }
+    if (!data) { app.innerHTML = '<div class="empty-state">' + emptyArt('special') + '啥都木有</div>'; return; }
 
     const items = data.items || data;
-    if (!items || items.length === 0) { app.innerHTML = '<div class="empty-state">啥都木有</div>'; return; }
+    if (!items || items.length === 0) { app.innerHTML = '<div class="empty-state">' + emptyArt('special') + '啥都木有</div>'; return; }
 
     if (config.view === 'map') {
         renderShanheContent(config);
@@ -332,7 +332,7 @@ function renderSpecialContent() {
         html += `</div></div>`;
     }
 
-    if (filteredItems.length === 0) html += '<div class="empty-state">啊哦，啥都木有……</div>';
+    if (filteredItems.length === 0) html += '<div class="empty-state">' + emptyArt('special') + '啊哦，啥都木有……</div>';
     app.innerHTML = html;
 
     // ★★★ 恢复专题滚动（从缓存中） ★★★
@@ -533,7 +533,7 @@ function renderShanheList(config) {
 
     let html = shanheHeaderHtml(config);
     if (flat.length === 0) {
-        html += '<div class="empty-state">还……还没有风景(╥_╥)</div>';
+        html += '<div class="empty-state">' + emptyArt('shanhe') + '还……还没有风景(╥_╥)</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -1033,7 +1033,7 @@ function renderShanheProvince(config) {
     html += `<div class="overview-header"><h2>${escapeHtml(provinceName)}</h2><p>共${items.length}个景观图</p></div>`;
 
     if (items.length === 0) {
-        html += '<div class="empty-state">这么近，那么美，可这儿却没有我的一席之地……</div>';
+        html += '<div class="empty-state">' + emptyArt('region') + '这么近，那么美，可这儿却没有我的一席之地……</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -1421,7 +1421,7 @@ function renderTimelineContent(config) {
     html += `</div>`;
 
     if (filteredItems.length === 0) {
-        html += '<div class="empty-state">显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
+        html += '<div class="empty-state">' + emptyArt('timeline') + '显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;

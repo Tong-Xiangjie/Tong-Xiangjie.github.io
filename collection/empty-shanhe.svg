@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 山河板块空：远山、地平线与水面 -->
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round">
+    <circle cx="146" cy="52" r="18"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20,152 62,84 90,116 118,62 160,152"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round">
+    <line x1="20" y1="152" x2="160" y2="152"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22,182 42,170 62,182 82,170 102,182 122,170 142,182 162,170 178,180"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 搜索无结果：放大镜里照出一枚古钱币 -->
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="88" cy="84" r="50"/>
+    <line x1="124" y1="120" x2="164" y2="160"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="5" stroke-linejoin="round">
+    <circle cx="88" cy="84" r="24"/>
+    <rect x="78" y="74" width="20" height="20" rx="2"/>
+  </g>
+</svg>

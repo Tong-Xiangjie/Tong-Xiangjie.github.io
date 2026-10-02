@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 价格列表空：一枚还没写价格的价签 -->
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linejoin="round">
+    <polygon points="34,66 130,66 166,100 130,134 34,134"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="6" stroke-linejoin="round">
+    <circle cx="56" cy="100" r="12"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="6" stroke-linecap="round">
+    <line x1="88" y1="88" x2="140" y2="88"/>
+    <line x1="88" y1="112" x2="124" y2="112"/>
+  </g>
+</svg>

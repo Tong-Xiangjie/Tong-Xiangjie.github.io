@@ -82,7 +82,7 @@ function renderCurrentCategory() {
     const data = getData(dataKey);
     if (!data) {
         const app = getRenderContainer();
-        app.innerHTML = '<div class="empty-state">啥都木有</div>';
+        app.innerHTML = '<div class="empty-state">' + emptyArt('collection') + '啥都木有</div>';
         triggerViewAnimation();
         return;
     }
@@ -144,7 +144,7 @@ function renderCategoryOverview(cat) {
 
     let html = `<div class="overview-header"><h2>${escapeHtml(cat.name)}</h2><p>共${allItems.length}件藏品</p></div>`;
     if (allItems.length === 0) {
-        html += '<div class="empty-state">啥都木有</div>';
+        html += '<div class="empty-state">' + emptyArt('collection') + '啥都木有</div>';
         app.innerHTML = html;
         triggerViewAnimation();
         return;
@@ -213,7 +213,7 @@ function renderSeriesList(data, title) {
     pendingReveal = null;
 
     if (!data || !data.series || data.series.length === 0) {
-        app.innerHTML = '<div class="empty-state">啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
+        app.innerHTML = '<div class="empty-state">' + emptyArt('collection') + '啥都木有，赶快攒钱库库买入۹( ÒہÓ )۶</div>';
         return;
     }
 
@@ -360,7 +360,9 @@ function renderSeriesList(data, title) {
 
 function renderCopiesList(copies, detailFields, displayName, accV) {
     if (!copies || copies.length === 0) {
-        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">啥都木有</div>';
+        // 行内空状态：用 18px 的小图（这块默认只有一行文字，块级大图会把列表撑开）
+        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">' +
+               emptyArt('collection', true) + '啥都木有</div>';
     }
     // ★ accV：本条列表属于哪个品种（无品种层时传 -1）。
     //   data-copy-index 是 **全局** 序号（openCopyDetail 需要它去 copyDetailList 取数据），

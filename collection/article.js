@@ -1276,7 +1276,7 @@ function reconcileArticleWithFLIP(wrapper, oldKeyMap, newFlatList, container, sa
     setTimeout(() => {
       // ★ 过期就直接放弃（详见上面 articleRenderGeneration 的说明）
       if (generation !== articleRenderGeneration) return;
-      wrapper.innerHTML = `<div class="empty-state">还没有文章哦，赶快连夜肝一篇出来╮(╯▽╰)╭</div>`;
+      wrapper.innerHTML = `<div class="empty-state">${emptyArt('articles')}还没有文章哦，赶快连夜肝一篇出来╮(╯▽╰)╭</div>`;
       for (const el of deleteElements) {
         if (el.parentNode) el.remove();
       }
@@ -1672,7 +1672,7 @@ function openArticleReader(index, restoreScroll) {
           `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">⟳ 重新加载</button>` +
           `</div>` +
           `<div class="overview-header"><h2>${escapeHtml(article.title)}</h2></div>` +
-          `<div class="empty-state">文章不见了哦~</div>`;
+          `<div class="empty-state">${emptyArt('articles')}文章不见了哦~</div>`;
       }
     });
 }

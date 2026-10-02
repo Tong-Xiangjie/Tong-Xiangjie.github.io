@@ -317,7 +317,7 @@ function renderPriceListItems(prices, order, filter, filterInfo) {
         html += `</div>`;
     }
     if (sorted.length === 0) {
-        html += `<div class="price-list-empty">啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
+        html += `<div class="price-list-empty">${emptyArt('tag')}啊呜，这里空空如也υ´• ﻌ •\`υ</div>`;
     }
     return html;
 }
@@ -408,7 +408,7 @@ function buildRatingHTML(stats) {
         html += `</div>`;
     }
     if (stats.sortedGrades.length === 0 && stats.ungraded === 0) {
-        html += `<div class="empty-colors-hint">还没有评级数据鸭～</div>`;
+        html += `<div class="empty-colors-hint">${emptyArt('stats')}还没有评级数据鸭～</div>`;
     }
     html += `</div>`;
     return html;
@@ -429,7 +429,7 @@ function buildYearHTML(stats) {
         html += `</div>`;
     }
     if (stats.sortedYears.length === 0) {
-        html += `<div class="empty-colors-hint">还没有年代数据鸭～</div>`;
+        html += `<div class="empty-colors-hint">${emptyArt('stats')}还没有年代数据鸭～</div>`;
     }
     html += `</div>`;
     return html;

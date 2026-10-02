@@ -1192,6 +1192,29 @@ body.modal-open {
 /* ========== 空状态 ========== */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 0.9rem; }
 
+/* 空状态插图：自绘线稿 SVG 当蒙版（和缺图占位 img-placeholder.svg 同一套做法）。
+   颜色不写在 SVG 里，而是由这里的 background-color 给，所以跟着主题自动变。 */
+.empty-art, .empty-art-sm {
+  background-color: var(--text-secondary);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+.empty-art { display: block; width: 84px; height: 84px; margin: 0 auto 14px; }
+/* 行内小图（例如设置页「还没添加自定义颜色哦」那种一句话提示）；必须排在 .empty-art 之后覆盖尺寸 */
+.empty-art-sm { display: inline-block; width: 18px; height: 18px; margin: 0 6px 0 0; vertical-align: -4px; }
+.empty-art-search { -webkit-mask-image: url('empty-search.svg'); mask-image: url('empty-search.svg'); }
+.empty-art-notes { -webkit-mask-image: url('empty-notes.svg'); mask-image: url('empty-notes.svg'); }
+.empty-art-coins { -webkit-mask-image: url('empty-coins.svg'); mask-image: url('empty-coins.svg'); }
+.empty-art-articles { -webkit-mask-image: url('empty-articles.svg'); mask-image: url('empty-articles.svg'); }
+.empty-art-special { -webkit-mask-image: url('empty-special.svg'); mask-image: url('empty-special.svg'); }
+.empty-art-shanhe { -webkit-mask-image: url('empty-shanhe.svg'); mask-image: url('empty-shanhe.svg'); }
+.empty-art-region { -webkit-mask-image: url('empty-region.svg'); mask-image: url('empty-region.svg'); }
+.empty-art-timeline { -webkit-mask-image: url('empty-timeline.svg'); mask-image: url('empty-timeline.svg'); }
+.empty-art-tag { -webkit-mask-image: url('empty-tag.svg'); mask-image: url('empty-tag.svg'); }
+.empty-art-stats { -webkit-mask-image: url('empty-stats.svg'); mask-image: url('empty-stats.svg'); }
+.empty-art-color { -webkit-mask-image: url('empty-color.svg'); mask-image: url('empty-color.svg'); }
+
 /* ========== 设置页 ========== */
 .settings-page { max-width: 800px; margin: 0 auto; }
 .settings-page h2 { font-size: 1.3rem; margin-bottom: 20px; }
@@ -1215,7 +1238,7 @@ body.modal-open {
 .saved-color-item .color-block:hover { transform: scale(1.1); }
 .saved-color-item .remove-color-btn { width: 16px; height: 16px; background: rgba(0, 0, 0, 0.1); border: none; border-radius: 50%; cursor: pointer; font-size: 0.55rem; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); transition: background 0.15s, color 0.15s; }
 .saved-color-item .remove-color-btn:hover { background: #d92121; color: #fff; }
-.empty-colors-hint { color: var(--text-secondary); font-size: 0.8rem; margin: 4px 0; }
+.empty-colors-hint { color: var(--text-secondary); font-size: 0.8rem; margin: 4px 0; text-align: center; }
 
 /* ========== 数据导出 ========== */
 .export-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }

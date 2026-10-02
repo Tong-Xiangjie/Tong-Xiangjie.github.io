@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 文章板块空：一张没写字的稿纸 -->
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linejoin="round">
+    <rect x="52" y="28" width="96" height="124" rx="4"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round">
+    <line x1="68" y1="60" x2="132" y2="60"/>
+    <line x1="68" y1="84" x2="132" y2="84"/>
+    <line x1="68" y1="108" x2="132" y2="108"/>
+    <line x1="68" y1="132" x2="110" y2="132"/>
+  </g>
+</svg>
