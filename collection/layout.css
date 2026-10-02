@@ -2400,6 +2400,14 @@ img.img-failed {
 .timeline-no-img::before { content: ''; width: 38px; height: 34px; }
 /* 大图弹窗坐在深色遮罩上，浅色主题的 --text-secondary 太深会看不见，单独给中性灰 */
 .modal-img.img-failed { background-color: #9aa2ad; }
+/* ★ 降级成占位后**不该点得开**：点开的大图还是那张缺图，白跑一趟。
+   这里用 pointer-events 而不是去删内联 onclick —— 万一下载重试把真图找回来了，
+   撤掉 .img-failed 它就又能点开了。
+   注意：只有 <img> 需要，.no-img 那几处本来就是不可点的 div。 */
+img.img-failed {
+    pointer-events: none;
+    cursor: default;
+}
 
 /* ============================================================
    ★ 初始化加载完成后的交接（进度条淡出 → 内容淡入）

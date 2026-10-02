@@ -7,22 +7,40 @@
     蒙版 + background-color 取主题变量，才能让占位跟着主题色走
     （深色主题自动变浅，浅色主题自动变深，将来换主题色也一起跟着变）。
 
-    所以这里只画"形状"：线条一律纯黑不透明、其余全透明。
+    所以这里只画"形状"：线条与文字一律纯黑不透明、其余全透明。
     蒙版按 alpha 取值，可见处 = 蒙版不透明处，颜色完全由 CSS 决定。
     对应样式在 collection/layout.css 的「缺图占位」段，
     消费方有三处：.copy-thumb.no-img::before / .shanhe-list-cell .no-img::before /
     .timeline-no-img::before，以及 404 后降级的 img.img-failed。
 
-    形制：外郭（粗）+ 内郭（细）+ 方孔（粗，且中间是**透明**的，不是填色块）。
-    刻意保持扁平：没有渐变、没有锈迹、没有划痕、没有铭文 ——
-    这些东西在 36×26 的缩略图上只会糊成一团，在深色主题下也更难分辨。
+    形制：外郭（粗）+ 内郭（细）+ 方孔（粗，中间透空，不是填色块），
+    环带上刻站名「銅の幣紀」（上銅、右の、下幣、左紀）。
+    铭文既是品牌，也让占位天然不可能被误认成真品照片。
+    刻意保持扁平：没有渐变、没有锈迹、没有划痕 ——
+    那些在 36×26 的缩略图上只会糊成一团，深色主题下也更难分辨。
+
+    几何（viewBox 200，圆心 100,100）：
+      外郭 r=84 线宽 12 → 边缘 78~90
+      内郭 r=66 线宽  5 → 边缘 63.5~68.5
+      方孔 52×52 线宽 12 → 外沿到 32
+      铭文中心半径 48、字号 26 → 占 35~61，正好落在方孔与内郭之间的环带上
   -->
   <g fill="none" stroke="#000000" stroke-linejoin="round">
     <!-- 外郭 -->
     <circle cx="100" cy="100" r="84" stroke-width="12"/>
     <!-- 内郭 -->
-    <circle cx="100" cy="100" r="62" stroke-width="6"/>
+    <circle cx="100" cy="100" r="66" stroke-width="5"/>
     <!-- 方孔（中间透空，背景直接透过去） -->
     <rect x="74" y="74" width="52" height="52" rx="2" stroke-width="12"/>
+  </g>
+
+  <!-- 铭文：銅（上）の（右）幣（下）紀（左） -->
+  <g fill="#000000"
+     font-family="'Source Han Sans SC','Noto Sans CJK SC','Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif"
+     font-weight="900" font-size="26" text-anchor="middle" dominant-baseline="central">
+    <text x="100" y="52">銅</text>
+    <text x="148" y="100">の</text>
+    <text x="100" y="148">幣</text>
+    <text x="52" y="100">紀</text>
   </g>
 </svg>
