@@ -813,7 +813,8 @@ body {
     margin-left: 6px;
     white-space: nowrap;
 }
-.copy-detail-link:hover { text-decoration: underline; }
+/* ★ 悬停不要下划线（用户原话："「详细信息」鼠标放上去不要有下划线"）。
+   可点性由 --theme 配色 + cursor: pointer 承担；原来这条 :hover 下划线整条去掉。 */
 
 /* ========== 系列标题 ========== */
 .series-header { margin-bottom: 16px; }
@@ -831,6 +832,33 @@ body {
 .article-reader p { margin: 12px 0; }
 .article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); cursor: zoom-in; }
 .article-reader center { display: block; text-align: center; }
+/* ★ 文章正文里的表格：正文是 readmes/*.txt 里的**原始 HTML**，里面写死了浅色底，
+   50 篇里 31 篇有表、共 49 张，其中 38 行的表头写成
+     <tr style="background-color: #f5f7fa; …">      （另有 2 × #fafbfc）
+   黑夜模式下正文是浅色字（--text: #e8eaed），压在写死的浅色底上就看不见了 ——
+   用户原话："类似于「中国银行鼠年生肖贺岁钞」文章中的表头在黑夜模式下看不清文字 …
+   表头底部不要白色"。这里统一交给主题变量：表头 --bg-light、框线 --border。
+   ★ 不需要 !important：表头底色写在 th 上，而写死的那条挂在 tr 上 ——
+     tr 的背景先画、cell 的背景后画，th 的底色正好把那一条盖住（查过：没有任何
+     一处把 background-color 写在 <th> 上）。只有 <td> 上那 2 处例外，见下面的
+     深色专用规则。 */
+.article-reader table { color: var(--text); }
+.article-reader table th,
+.article-reader table td { color: var(--text); }
+.article-reader table th {
+    background-color: var(--bg-light);
+    font-weight: 600;
+}
+/* 已经带 border="1" 的表格（27/31 篇）把框线换成主题色；
+   没有 border 属性的表格保持原样，不凭空多出线条。 */
+.article-reader table[border] { border: 1px solid var(--border); }
+.article-reader table[border] th,
+.article-reader table[border] td { border: 1px solid var(--border); }
+/* 极少数把浅色底直接写在 <td> 上的（2 处）：深色下换成半透明灰，字才看得见。
+   这里必须 !important —— 压的是内容里的**内联**样式，而且只在深色模式生效。 */
+html[data-color-scheme="dark"] .article-reader table td[style*="background-color"] {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
 
 .article-snippet {
     font-size: 0.78rem;
@@ -1827,13 +1855,21 @@ html[data-color-scheme="dark"] .shanhe-map-wrap .state:hover {
     stroke-width: var(--label-stroke, 2px);
     paint-order: stroke;
 }
+/* ★ 悬停放大后的标签是白字，描边必须跟着"压在什么底上"选：
+   白天模式的 --bg 是浅色（#eef4ff），白字配浅色描边等于糊成一片 —— 用户原话：
+   "山河地图在白天模式下鼠标悬浮在省份上方，文字应该有黑色描边，否则看不清"。
+   所以默认（白天）改成黑色描边：白字压黑边，压在任何省色上都读得清。
+   paint-order: stroke 由上面的 .shanhe-label 继承，描边仍然画在文字下面。 */
 .shanhe-map-wrap .shanhe-label.active {
     font-size: calc(var(--label-size, 12px) * 1.2);
     fill: #fff;
-    stroke: var(--bg);
+    stroke: #000;
     stroke-width: var(--label-stroke, 1.5);
 }
-.shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; }
+.shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; stroke: #000; }
+/* 深色模式维持原样：那里 --bg 本来就是深色，白字 + 深色描边已经够清楚 */
+html[data-color-scheme="dark"] .shanhe-map-wrap .shanhe-label.active { stroke: var(--bg); }
+html[data-color-scheme="dark"] .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { stroke: var(--bg); }
 
 .shanhe-map-inset {
     width: 240px;
