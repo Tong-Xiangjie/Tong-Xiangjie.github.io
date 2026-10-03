@@ -1203,7 +1203,16 @@ function onTimelineFilterChangeInner() {
     if (yearSelect) timelineFilterYear = yearSelect.value;
     if (monthSelect) timelineFilterMonth = monthSelect.value;
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    // ★ 换了年份/月份＝换了一份列表，位置必须回到顶部（用户要求："更新选择年份/月份后
+    //   应该回到顶部"）。注意 renderTimelineContent 末尾有个 setTimeout 会把
+    //   specialPageCaches 里的 scrollY 还原回来 —— 所以先把缓存清零，
+    //   否则刚滚到顶部又被那一步拉回旧位置。
+    if (selectedSpecial && specialPageCaches[selectedSpecial]) {
+        specialPageCaches[selectedSpecial].scrollY = 0;
+    }
     if (config) renderTimelineContent(config);
+    const app = getRenderContainer();
+    if (app) app.scrollTop = 0;
 }
 
 // ---------- 返回专题概览 ----------
@@ -1416,9 +1425,30 @@ function renderTimelineContent(config) {
     html += `</div>`;
     html += `</div>`;
 
+    // ★ 标题下面那句标语换成"所选时间段一共花了多少钱"（用户要求："可以将点进专题后的
+    //   标题下面那句标语换成「在所选的时间段内，你共花了xx元」这样类似的句子"）。
+    //   金额口径和下面每天的"这天，你一共花了X元"完全一致：只累加能解析出正数的 price，
+    //   取整显示。一件都没记价格时不硬说"0 元"，仍旧显示原来的标语。
+    let periodTotal = 0;
+    let periodHasPrice = false;
+    for (const item of filteredItems) {
+        const price = parseFloat(String(item.copy.price || '').replace(/[^0-9.]/g, ''));
+        if (!isNaN(price) && price > 0) { periodTotal += price; periodHasPrice = true; }
+    }
+    const periodText = (timelineFilterYear === '全部' && timelineFilterMonth === '全部')
+        ? '到目前为止'
+        : (timelineFilterYear === '全部')
+            ? '在历年的 ' + parseInt(timelineFilterMonth, 10) + ' 月里'
+            : (timelineFilterMonth === '全部')
+                ? '在 ' + timelineFilterYear + ' 年里'
+                : '在 ' + timelineFilterYear + ' 年 ' + parseInt(timelineFilterMonth, 10) + ' 月里';
+    const sloganText = (periodHasPrice || filteredItems.length === 0)
+        ? periodText + '，你共花了 ' + periodTotal.toFixed(0) + ' 元'
+        : (config.slogan || '');
+
     html += `<div class="timeline-header">`;
     html += `<h2>${escapeHtml(config.name)}</h2>`;
-    html += `<p class="timeline-slogan">${escapeHtml(config.slogan)}</p>`;
+    html += `<p class="timeline-slogan">${escapeHtml(sloganText)}</p>`;
     html += `</div>`;
 
     if (filteredItems.length === 0) {
