@@ -1189,18 +1189,32 @@ function closeModal() {
     //   于是"反面格子被滚出视口"这类情况仍然保有原来的稳健行为（而不是退化成整体淡出）。
     const fallbackSrc = lastModalSourceImg;
     const faceUrl = currentModalSrc();
-    const src = gridThumbForUrl(faceUrl) || fallbackSrc;
+    const preferredSrc = gridThumbForUrl(faceUrl);
     const modalImg = document.getElementById('modalImg');
     let flown = false;
-    if (!prefersReducedMotion() && src && src.isConnected && modalImg &&
-        typeof src.getBoundingClientRect === 'function') {
-        const to = modalShrinkTarget(imageContentRect(src));
-        if (to) {
+    // ★ 落点依次试：「当前这一面」的格子 → 用户最初点进来的那张。
+    //   为什么不能写成 gridThumbForUrl(faceUrl) || fallbackSrc（旧写法）：
+    //   gridThumbForUrl 在格子被滚出视口时**故意**把那个"有尺寸但不在视口内"的
+    //   元素返回出来当兜底（见它的注释），于是 `||` 永远轮不到 fallbackSrc；
+    //   紧接着 modalShrinkTarget() 又会因为"不在视口内"把它判掉 —— 整个缩回飞行
+    //   被跳过，只剩整体淡出。这正是用户报告的极端情况：
+    //   「图片完全不在屏幕中、但可以靠翻面看到，这时点退出没有动画，直接淡出」。
+    //   所以改成逐个候选试到"真的落在视口内"为止，最后一个都不行才退化成淡出。
+    if (!prefersReducedMotion() && modalImg) {
+        const candidates = [];
+        if (preferredSrc) candidates.push(preferredSrc);
+        if (fallbackSrc && fallbackSrc !== preferredSrc) candidates.push(fallbackSrc);
+        for (let i = 0; i < candidates.length; i++) {
+            const src = candidates[i];
+            if (!src || !src.isConnected || typeof src.getBoundingClientRect !== 'function') continue;
+            const to = modalShrinkTarget(imageContentRect(src));
+            if (!to) continue;
             modalImg.style.opacity = '0';
             // ★ 起飞矩形取"此刻真实占据"的那块（放大 / 拖动过就是放大后的）
             startModalFlight(modalShrinkFromRect() || modalContainRect(to.width / to.height), to,
                 modalImg.currentSrc || modalImg.src, finish);
             flown = true;
+            break;
         }
     }
 
