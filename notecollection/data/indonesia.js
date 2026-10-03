@@ -43,6 +43,151 @@ const indonesiaData = {
                 }
             ]
         },{
+            seriesName: "1963年系列",
+            year: "1963～1964",
+            varieties: [
+                {
+                    varietyName: "1仙（Sen）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1964,
+                            version: "XCZ038862",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "2元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "90r",
+                            size: "",
+                            watermark: "无水印/Without watermark",
+                            remark: "补号冠（冠号字母前缀为X）。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/XCZ038862-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/XCZ038862-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "5仙（Sen）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1964,
+                            version: "AQR049478",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "2元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "91a",
+                            size: "",
+                            watermark: "无水印/Without watermark",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/AQR049478-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/AQR049478-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "10仙（Sen）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1964,
+                            version: "BET035964",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "2元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "92a",
+                            size: "",
+                            watermark: "无水印/Without watermark",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BET035964-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BET035964-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "25仙（Sen）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1964,
+                            version: "AUB072083",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "2元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "93a",
+                            size: "",
+                            watermark: "无水印/Without watermark",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/AUB072083-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/AUB072083-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "50仙（Sen）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1964,
+                            version: "BWF027442",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "2元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "94a",
+                            size: "",
+                            watermark: "无水印/Without watermark",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BWF027442-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BWF027442-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "1992年系列",
+            year: "1992～2001",
+            varieties: [
+                {
+                    varietyName: "500卢比（Rupiah）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1997,
+                            version: "RAA456229",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "3.5元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "128f",
+                            size: "",
+                            watermark: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/RAA456229-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/RAA456229-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1000卢比（Rupiah）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1998,
+                            version: "BUD451369",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "5元",
+                            purchaseDate: "2026年3月11日",
+                            krause: "129g",
+                            size: "",
+                            watermark: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BUD451369-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BUD451369-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "2000年系列",
             year: "2000～2016",
             varieties: [
@@ -50,6 +195,20 @@ const indonesiaData = {
                     varietyName: "1000卢比（Rupiah）",
                     copies: [
                         {
+                            copyId: 0,
+                            year: 2013,
+                            version: "ULG122606",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "3元",
+                            purchaseDate: "2026年1月25日",
+                            krause: "141m",
+                            size: "",
+                            watermark: "T.N. Dien",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/ULG122606-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/ULG122606-2.jpg"
+                        },{
                             copyId: 25791711,
                             year: 2016,
                             version: "FPK115111",
@@ -72,6 +231,25 @@ const indonesiaData = {
             year: "2016～2021",
             varieties: [
                 {
+                    varietyName: "1000卢比（Rupiah）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 2021,
+                            version: "BCS045306",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "3元",
+                            purchaseDate: "2026年1月25日",
+                            krause: "154f",
+                            size: "",
+                            watermark: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BCS045306-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BCS045306-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "2000卢比（Rupiah）",
                     copies: [
                         {
@@ -132,6 +310,25 @@ const indonesiaData = {
                             remark: "这张爱藏标签信息错了^_^，把第三个冠号O当作了数字0，因此标签上面写的是KA0088999，这还使得这张钞票多了一个它本来不该有的版别“连对号”，这也有点搞笑了。不过这一张我是一眼就看上的，所以一开始看到的时候拍卖出价还是3元的时候我就下定决心100以内都可以接受（虽然后来看到出价到了73还是有点肉疼ToT），不过最好还是咬咬牙买到哩~这张的数字冠O是我看上它的最大亮点，况且后面就马上紧邻一个数字0，可以很好地对比这两个字在字体上的差别！这可能才是数字冠一开始本来就应该有的样子吧。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/KAO088999-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/KAO088999-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "2000卢比（Rupiah）",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 2022,
+                            version: "CFD608700",
+                            bank: "印度尼西亚银行/Bank Indonesia",
+                            condition: "暂未评级",
+                            price: "2元",
+                            purchaseDate: "2026年2月19日",
+                            krause: "163",
+                            size: "",
+                            watermark: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/CFD608700-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/CFD608700-2.jpg"
                         }
                     ]
                 }
