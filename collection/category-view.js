@@ -594,12 +594,18 @@ function gridThumbForUrl(url) {
     return fallback;
 }
 
-// 关闭：缩回那张图的缩略图位置（前提是它在、仍在视口内且没被滚走）
+// 关闭：缩回那张图**本来应在**的位置。
+// ★ 这里**不要求**落点在视口内（与入场不同）：格子被滚出屏幕时，图片就该朝它
+//   真实所在的位置飞出去 —— 飞出屏幕也是对的，而不是被夹回视口内、更不是放弃动画。
+//   只挡真正不可用的矩形：没有尺寸（隐藏视图容器里那份 0×0）、或数值不是有限数。
+//   （历史上这里要求"必须在视口内"，于是屏幕外那张格子被整段判掉、缩回飞行被跳过，
+//     退化成整体淡出 —— 就是用户报告的"图片完全不在屏幕中时点退出没有动画"。）
 function modalShrinkTarget(to) {
-    const onScreen = to && to.bottom > 0 && to.top < window.innerHeight &&
-                     to.right > 0 && to.left < window.innerWidth &&
-                     to.width >= 8 && to.height >= 8;
-    return onScreen ? to : null;
+    if (!to) return null;
+    const w = to.width, h = to.height;
+    if (!isFinite(to.left) || !isFinite(to.top) || !isFinite(w) || !isFinite(h)) return null;
+    if (w < 8 || h < 8) return null;
+    return to;
 }
 
 // 视口内「按 contain 铺满」的矩形
@@ -1199,7 +1205,10 @@ function closeModal() {
     //   紧接着 modalShrinkTarget() 又会因为"不在视口内"把它判掉 —— 整个缩回飞行
     //   被跳过，只剩整体淡出。这正是用户报告的极端情况：
     //   「图片完全不在屏幕中、但可以靠翻面看到，这时点退出没有动画，直接淡出」。
-    //   所以改成逐个候选试到"真的落在视口内"为止，最后一个都不行才退化成淡出。
+    //   现在 modalShrinkTarget 只挡"没尺寸 / 数值非法"的矩形，屏幕外的格子照样算数，
+    //   于是这一面会朝它**本来应在**的位置飞出去（用户要的正是这个）；
+    //   只有首选那个格子根本不存在或没有尺寸时，才退到用户点进来的那张，
+    //   两个都不行才退化成整体淡出。
     if (!prefersReducedMotion() && modalImg) {
         const candidates = [];
         if (preferredSrc) candidates.push(preferredSrc);
