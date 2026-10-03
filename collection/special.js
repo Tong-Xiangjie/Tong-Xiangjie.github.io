@@ -1429,6 +1429,8 @@ function renderTimelineContent(config) {
     //   标题下面那句标语换成「在所选的时间段内，你共花了xx元」这样类似的句子"）。
     //   金额口径和下面每天的"这天，你一共花了X元"完全一致：只累加能解析出正数的 price，
     //   取整显示。一件都没记价格时不硬说"0 元"，仍旧显示原来的标语。
+    //   措辞按用户反馈收了一遍（"在…里"的"在"和"里"都不要）：
+    //     2026 年，你共花了 N 元 / 2026 年 7 月，你共花了 N 元 / 历年 7 月，你共花了 N 元
     let periodTotal = 0;
     let periodHasPrice = false;
     for (const item of filteredItems) {
@@ -1438,10 +1440,10 @@ function renderTimelineContent(config) {
     const periodText = (timelineFilterYear === '全部' && timelineFilterMonth === '全部')
         ? '到目前为止'
         : (timelineFilterYear === '全部')
-            ? '在历年的 ' + parseInt(timelineFilterMonth, 10) + ' 月里'
+            ? '历年 ' + parseInt(timelineFilterMonth, 10) + ' 月'
             : (timelineFilterMonth === '全部')
-                ? '在 ' + timelineFilterYear + ' 年里'
-                : '在 ' + timelineFilterYear + ' 年 ' + parseInt(timelineFilterMonth, 10) + ' 月里';
+                ? timelineFilterYear + ' 年'
+                : timelineFilterYear + ' 年 ' + parseInt(timelineFilterMonth, 10) + ' 月';
     const sloganText = (periodHasPrice || filteredItems.length === 0)
         ? periodText + '，你共花了 ' + periodTotal.toFixed(0) + ' 元'
         : (config.slogan || '');
