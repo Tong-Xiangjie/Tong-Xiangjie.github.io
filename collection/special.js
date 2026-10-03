@@ -1183,8 +1183,23 @@ function setTimelineOrder(order) {
 function setTimelineOrderInner(order) {
     if (timelineSortOrder === order) return;
     timelineSortOrder = order;
+    // ★ 换排序同样算"换了一份列表"：位置回到顶部（用户要求："更换最新/最早也要回到顶部"）
+    rerenderTimeline();
+}
+
+// ★ 时间轴上任何"换了内容"的操作（换年份/月份、换最新/最早）都走这里：
+//   重渲染一帧，并把滚动位置放回顶部。
+//   ★ 顺序不能反：必须先把 specialPageCaches 里的旧位置清零再渲染 ——
+//     renderTimelineContent 末尾有个 setTimeout 会把缓存里的值还原回来，
+//     不清零的话刚滚到顶部又会被拉回旧位置（这就是"换筛选不回到顶部"的根因）。
+function rerenderTimeline() {
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
+    if (selectedSpecial && specialPageCaches[selectedSpecial]) {
+        specialPageCaches[selectedSpecial].scrollY = 0;
+    }
     if (config) renderTimelineContent(config);
+    const app = getRenderContainer();
+    if (app) app.scrollTop = 0;
 }
 
 // ---------- 筛选变更 ----------
@@ -1202,17 +1217,9 @@ function onTimelineFilterChangeInner() {
     const monthSelect = document.getElementById('timelineMonthFilter');
     if (yearSelect) timelineFilterYear = yearSelect.value;
     if (monthSelect) timelineFilterMonth = monthSelect.value;
-    const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     // ★ 换了年份/月份＝换了一份列表，位置必须回到顶部（用户要求："更新选择年份/月份后
-    //   应该回到顶部"）。注意 renderTimelineContent 末尾有个 setTimeout 会把
-    //   specialPageCaches 里的 scrollY 还原回来 —— 所以先把缓存清零，
-    //   否则刚滚到顶部又被那一步拉回旧位置。
-    if (selectedSpecial && specialPageCaches[selectedSpecial]) {
-        specialPageCaches[selectedSpecial].scrollY = 0;
-    }
-    if (config) renderTimelineContent(config);
-    const app = getRenderContainer();
-    if (app) app.scrollTop = 0;
+    //   应该回到顶部"）。清缓存 + 回顶部的顺序与原因都写在 rerenderTimeline 里。
+    rerenderTimeline();
 }
 
 // ---------- 返回专题概览 ----------
