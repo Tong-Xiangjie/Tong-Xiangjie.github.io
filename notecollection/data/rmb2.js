@@ -22,10 +22,6 @@ const rmb2Data = {
         { title: "第二套人民币纸币暗记汇总", content: "file:readmes/2nd_Series_RMB_Secret_Marks_Summary.html" },
         { title: "新中国一、二、五分纸币发行时间及背景", content: "file:readmes/2nd_Series_RMB_time_of_release_of_the_fen_note.html" }
     ],
-    readme: {
-        title: "第二套人民币纸币暗记汇总",
-        content: "file:readmes/2nd_Series_RMB_Secret_Marks_Summary.txt"
-    },
     series: [
         // ==================== 1分系列 ====================
         {
