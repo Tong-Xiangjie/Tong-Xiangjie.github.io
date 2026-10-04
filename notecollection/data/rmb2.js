@@ -18,6 +18,10 @@ const rmb2Data = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "纸币目录编号" }
     ],
+    readmes: [
+        { title: "第二套人民币纸币暗记汇总", content: "file:readmes/2nd_Series_RMB_Secret_Marks_Summary.html" },
+        { title: "新中国一、二、五分纸币发行时间及背景", content: "file:readmes/2nd_Series_RMB_time_of_release_of_the_fen_note.html" }
+    ],
     readme: {
         title: "第二套人民币纸币暗记汇总",
         content: "file:readmes/2nd_Series_RMB_Secret_Marks_Summary.txt"
@@ -25,221 +29,230 @@ const rmb2Data = {
     series: [
         // ==================== 1分系列 ====================
         {
-            seriesName: "1953年 1分 长号",
+            seriesName: "1953年 1分 卡车",
             year: "1953",
-            copies: [
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1953,
-                    version: "",
-                    bank: "中国人民银行",
-                    condition: "",
-                    price: "",
-                    purchaseDate: "",
-                    issueDate: "1955年3月1日",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "90mm*42.5mm",
-                    krause: "860a",
-                    remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-2.jpg",
-                    depositOnlyDate: ""
+                    varietyName: "长号券",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1953,
+                            version: "",
+                            bank: "中国人民银行",
+                            condition: "",
+                            price: "",
+                            purchaseDate: "",
+                            issueDate: "1955年3月1日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "90mm*42.5mm",
+                            krause: "860a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-2.jpg",
+                            depositOnlyDate: ""
+                        }
+                    ]
+                },{
+                    varietyName: "短号券",
+                    copies: [
+                        {
+                            copyId: 15763280,
+                            year: 1981,
+                            version: "ⅦⅡⅡ",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "17元",
+                            purchaseDate: "2026年2月18日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "90mm*42.5mm",
+                            krause: "860b.1",
+                            remark: "小三冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/722-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/722-2.jpg",
+                            depositOnlyDate: ""
+                        },{
+                            copyId: 20183338,
+                            year: 1981,
+                            version: "ⅠⅡⅡ",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "25元",
+                            purchaseDate: "2026年3月2日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "90mm*42.5mm",
+                            krause: "860b.2",
+                            remark: "大三冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-2.jpg",
+                            depositOnlyDate: ""
+                        },{
+                            copyId: 17046959,
+                            year: 1981,
+                            version: "ⅤⅩ",
+                            bank: "中国人民银行",
+                            condition: "ACG 66E",
+                            price: "30元",
+                            purchaseDate: "2026年2月7日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "90mm*42.5mm",
+                            krause: "860c",
+                            remark: "大二冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/50-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/50-2.jpg",
+                            depositOnlyDate: ""
+                        }
+                    ]
                 }
             ]
         },
-        {
-            seriesName: "1953年 1分 短号",
-            year: "1953",
-            copies: [
-                {
-                    copyId: 15763280,
-                    year: 1953,
-                    version: "ⅦⅡⅡ",
-                    bank: "中国人民银行",
-                    condition: "ACG 67E",
-                    price: "17元",
-                    purchaseDate: "2026年2月18日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "90mm*42.5mm",
-                    krause: "860b.1",
-                    remark: "小三冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/722-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/722-2.jpg",
-                    depositOnlyDate: ""
-                },{
-                    copyId: 20183338,
-                    year: 1953,
-                    version: "ⅠⅡⅡ",
-                    bank: "中国人民银行",
-                    condition: "ACG 67E",
-                    price: "25元",
-                    purchaseDate: "2026年3月2日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "90mm*42.5mm",
-                    krause: "860b.2",
-                    remark: "大三冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-2.jpg",
-                    depositOnlyDate: ""
-                },{
-                    copyId: 17046959,
-                    year: 1953,
-                    version: "ⅤⅩ",
-                    bank: "中国人民银行",
-                    condition: "ACG 66E",
-                    price: "30元",
-                    purchaseDate: "2026年2月7日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "90mm*42.5mm",
-                    krause: "860c",
-                    remark: "大二冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/50-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/50-2.jpg",
-                    depositOnlyDate: ""
-                }
-            ]
-        },
-
         // ==================== 2分系列 ====================
         {
-            seriesName: "1953年 2分 长号",
+            seriesName: "1953年 2分 飞机",
             year: "1953",
-            copies: [
+            varieties: [
                 {
-                    copyId: 18120396,
-                    year: 1953,
-                    version: "ⅦⅣⅠ7004155",
-                    bank: "中国人民银行",
-                    condition: "ACG 67E",
-                    price: "238元",
-                    purchaseDate: "2026年1月8日",
-                    issueDate: "1955年3月1日",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "95mm*45mm",
-                    krause: "861a",
-                    remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/741-7004155-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/741-7004155-2.jpg",
-                    depositOnlyDate: ""
-                }
-            ]
-        },
-        {
-            seriesName: "1953年 2分 短号",
-            year: "1953",
-            copies: [
-                {
-                    copyId: 16169051,
-                    year: 1953,
-                    version: "ⅡⅠⅡ",
-                    bank: "中国人民银行",
-                    condition: "ACG 66E",
-                    price: "28元",
-                    purchaseDate: "2026年3月2日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "95mm*45mm",
-                    krause: "861c",
-                    remark: "小三冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/212-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/212-2.jpg",
-                    depositOnlyDate: ""
+                    varietyName: "长号券",
+                    copies: [
+                        {
+                            copyId: 18120396,
+                            year: 1953,
+                            version: "ⅦⅣⅠ7004155",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "238元",
+                            purchaseDate: "2026年1月8日",
+                            issueDate: "1955年3月1日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "95mm*45mm",
+                            krause: "861a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/741-7004155-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/741-7004155-2.jpg",
+                            depositOnlyDate: ""
+                        }
+                    ]
                 },{
-                    copyId: 12882224,
-                    year: 1953,
-                    version: "ⅠⅤⅤ",
-                    bank: "中国人民银行",
-                    condition: "ACG 67E",
-                    price: "17元",
-                    purchaseDate: "2026年2月4日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "95mm*45mm",
-                    krause: "861b",
-                    remark: "大三冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/155-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/155-2.jpg",
-                    depositOnlyDate: ""
+                    varietyName: "短号券",
+                    copies: [
+                        {
+                            copyId: 16169051,
+                            year: 1981,
+                            version: "ⅡⅠⅡ",
+                            bank: "中国人民银行",
+                            condition: "ACG 66E",
+                            price: "28元",
+                            purchaseDate: "2026年3月2日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "95mm*45mm",
+                            krause: "861c",
+                            remark: "小三冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/212-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/212-2.jpg",
+                            depositOnlyDate: ""
+                        },{
+                            copyId: 12882224,
+                            year: 1981,
+                            version: "ⅠⅤⅤ",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "17元",
+                            purchaseDate: "2026年2月4日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "95mm*45mm",
+                            krause: "861b",
+                            remark: "大三冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/155-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/155-2.jpg",
+                            depositOnlyDate: ""
+                        }
+                    ]
                 }
             ]
         },
-
         // ==================== 5分系列 ====================
         {
-            seriesName: "1953年 5分 长号",
+            seriesName: "1953年 5分 轮船",
             year: "1953",
-            copies: [
+            varieties: [
                 {
-                    copyId: 1,
-                    year: 1953,
-                    version: "",
-                    bank: "中国人民银行",
-                    condition: "",
-                    price: "",
-                    purchaseDate: "",
-                    issueDate: "1955年3月1日",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "100mm*47.5mm",
-                    krause: "862a",
-                    remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-2.jpg",
-                    depositOnlyDate: ""
+                    varietyName: "长号券",
+                    copies: [
+                        {
+                            copyId: 1,
+                            year: 1953,
+                            version: "",
+                            bank: "中国人民银行",
+                            condition: "",
+                            price: "",
+                            purchaseDate: "",
+                            issueDate: "1955年3月1日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "100mm*47.5mm",
+                            krause: "862a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/0-2.jpg",
+                            depositOnlyDate: ""
+                        }
+                    ]
+                },{
+                    varietyName: "短号券",
+                    copies: [
+                        {
+                            copyId: 16088105,
+                            year: 1981,
+                            version: "ⅢⅤⅢ",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "17元",
+                            purchaseDate: "2026年2月4日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "100mm*47.5mm",
+                            krause: "862c",
+                            remark: "小三冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/353-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/353-2.jpg",
+                            depositOnlyDate: ""
+                        },{
+                            copyId: 10788285,
+                            year: 1981,
+                            version: "ⅩⅤⅤ",
+                            bank: "中国人民银行",
+                            condition: "ACG 67E",
+                            price: "30元",
+                            purchaseDate: "2026年2月18日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "100mm*47.5mm",
+                            krause: "862b",
+                            remark: "大三冠",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/055-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/055-2.jpg",
+                            depositOnlyDate: ""
+                        }
+                    ]
                 }
             ]
         },
+        // ==================== 5角系列 ====================
         {
-            seriesName: "1953年 5分 短号",
-            year: "1953",
-            copies: [
-                {
-                    copyId: 16088105,
-                    year: 1953,
-                    version: "ⅢⅤⅢ",
-                    bank: "中国人民银行",
-                    condition: "ACG 67E",
-                    price: "17元",
-                    purchaseDate: "2026年2月4日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "100mm*47.5mm",
-                    krause: "862c",
-                    remark: "小三冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/353-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/353-2.jpg",
-                    depositOnlyDate: ""
-                },{
-                    copyId: 10788285,
-                    year: 1953,
-                    version: "ⅩⅤⅤ",
-                    bank: "中国人民银行",
-                    condition: "ACG 67E",
-                    price: "30元",
-                    purchaseDate: "2026年2月18日",
-                    issueDate: "1981年",
-                    withdrawnDate: "2007年4月1日",
-                    wmk: "无水印/Without Watermark",
-                    size: "100mm*47.5mm",
-                    krause: "862b",
-                    remark: "大三冠",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/055-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/055-2.jpg",
-                    depositOnlyDate: ""
-                }
-            ]
-        },{
             seriesName: "1953年 5角 水坝",
             year: "1953",
             copies: [

@@ -8,8 +8,8 @@
   ✓ parseRoute(#notes/search/krause/KM%23130)  {"mode":"notes","view":"search","searchType":"krause","searchKeyword":"KM#130"}
   ✓ parseRoute(#notes/search/copyid/1843785)  {"mode":"notes","view":"search","searchType":"copyid","searchKeyword":"1843785"}
   ✓ parseRoute(#notes/search/%E6%B0%B4%E5%8D%B0)  {"mode":"notes","view":"search","searchType":"all","searchKeyword":"水印"}
-  ✓ parseRoute(#articles)  {"mode":"articles","articleIndex":-1}
-  ✓ parseRoute(#articles/12)  {"mode":"articles","articleIndex":12}
+  ✓ parseRoute(#articles)  {"mode":"articles","articleIndex":-1,"categoryId":null,"searchMode":null}
+  ✓ parseRoute(#articles/12)  {"mode":"articles","articleIndex":12,"categoryId":null,"searchMode":null}
   ✓ parseRoute(#settings)  {"mode":"settings"}
   ✓ parseRoute(#special)  {"mode":"special","configId":null}
   ✓ parseRoute(#special/shanhe)  {"mode":"special","configId":"shanhe"}
@@ -34,11 +34,28 @@
   ✓ search copyid  →  #notes/search/copyid/1843785-048
   ✓ articles list  →  #articles
   ✓ articles reader  →  #articles/7
+  ✓ articles category  →  #articles/c-notes_rmb
+  ✓ articles reader+category  →  #articles/3/c-coins
   ✓ settings  →  #settings
   ✓ special overview  →  #special
   ✓ special shanhe map  →  #special/shanhe
   ✓ special shanhe list  →  #special/shanhe/view-list
   ✓ special timeline asc  →  #special/timeline/order-asc
+  ✓ special denom 10000元  →  #special/denom/g10000%E5%85%83/order-asc
+  ✓ special years 1990s  →  #special/years/g1990s/order-asc
+  ✓ special 子类+时间轴  →  #special/timeline/g1990s/order-asc
+
+=== 3b. 子类/分类字段必须原样活到解析结果里 ===
+  ✓ 专题子类 10000元  →  #special/denom/g10000%E5%85%83/order-asc
+  ✓ 专题子类 1990s  →  #special/years/g1990s/order-asc
+  ✓ 专题无子类时不该凭空生出 g 段  →  #special/denom/order-asc
+  ✓ 文章分类段  →  #articles/c-notes_rmb
+  ✓ 文章序号+分类并存  →  #articles/5/c-coins
+  ✓ 文章默认分类写 all 时不产生 c 段  →  #articles
+  ✓ 文章标题搜索关键词  →  #articles/q-%E6%B0%B4%E5%8D%B0/sm-title
+  ✓ 文章全文搜索关键词  →  #articles/q-%E4%B8%AD%E5%9B%BD%E4%BA%BA%E6%B0%91%E9%93%B6%E8%A1%8C/sm-fulltext
+  ✓ 文章搜索+分类+序号可共存  →  #articles/2/c-coins/q-PMG/sm-fulltext
+  ✓ 文章无关键词时不产生 q/sm 段  →  #articles
 
 === 4. 生成/解析幂等（避免地址栏抖动）===
   ✓ 含 # 的关键词往返不丢字符  {"mode":"notes","view":"search","searchType":"krause","searchKeyword":"KM#130"}

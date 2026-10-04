@@ -95,8 +95,8 @@ series: [
                             purchaseDate: "2026年10月1日",
                             krause: "",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/001754-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/001754-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0017545-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0017545-2.jpg"
                         }
                     ]
                 },{
