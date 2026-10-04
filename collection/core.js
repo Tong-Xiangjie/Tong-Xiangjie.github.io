@@ -1316,6 +1316,14 @@ function setupModalEvents() {
     // ★ 区分"点击"和"拖动结束"。
     //   拖动平移之后，浏览器仍会在 mouseup 时补发一次 click，不区分的话
     //   电脑上每次拖动查看都会顺手把弹窗关掉。
+    //   判定拖动有两条路，满足任意一条就算拖动（都不关弹窗）：
+    //     ① 位移超过 MODAL_DRAG_SLOP —— 8px 容差，避免手抖误判；
+    //     ② 按住超过 MODAL_DRAG_HOLD_MS —— 用户要求"拖动时长大于某个阈值就算拖动"。
+    //   ★ ② 是后加的：原来整个判断被关在"按住 < 800ms"这个门槛里，于是**慢速**拖动
+    //     （哪怕已经移动了很远）会整段跳过判定、直接落到 closeModal()，弹窗被误关
+    //     （用户报的就是这个）。阈值按用户要求取得比较小 —— 正常"点一下"远快于它。
+    const MODAL_DRAG_SLOP = 8;
+    const MODAL_DRAG_HOLD_MS = 400;
     let downX = 0, downY = 0, downTime = 0;
     const markDown = function(x, y) { downX = x; downY = y; downTime = Date.now(); };
     modal.addEventListener('mousedown', function(e) { markDown(e.clientX, e.clientY); });
@@ -1329,12 +1337,12 @@ function setupModalEvents() {
         // 关闭按钮与翻面按钮都长在蒙版里，点它们不能被"点哪儿都关"顺手关掉弹窗
         if (t && t.classList && (t.classList.contains('modal-close') || t.classList.contains('modal-nav'))) return;
 
-        // 拖动结束的那一下不算点击（8px 容差，避免手抖误判）
-        if (downTime && Date.now() - downTime < 800) {
-            const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
-            if (moved > 8) { downTime = 0; return; }
-        }
+        // 先算再清零（清零之后就量不出"按住了多久"了）。
+        // 没有经过 mousedown/touchstart 的 click（downTime 为 0）两条都是 0，照常关闭。
+        const held = downTime ? Date.now() - downTime : 0;
+        const moved = downTime ? Math.hypot(e.clientX - downX, e.clientY - downY) : 0;
         downTime = 0;
+        if (moved > MODAL_DRAG_SLOP || held > MODAL_DRAG_HOLD_MS) return;   // 算拖动，不关闭
 
         // 点哪儿都关（鼠标与触摸行为一致，包括点图片本身）。
         // 代价是"双击还原"不可用 —— 双击的第一下就已经把弹窗关了；

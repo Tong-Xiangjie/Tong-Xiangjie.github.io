@@ -62,7 +62,8 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 | `verify-years-timeline.mjs` | 期间合计文案、年份/月份筛选后回到顶部、缓存复位 |
 | `verify-timeline-mobile.mjs` | 手机宽度下不超出屏幕 |
 | `verify-heatmap.mjs` | 按月份热力图（年 × 月）：每个格子的件数/金额与"测试自己从原始数据重算"完全一致、格子金额之和 == 标语总额、悬停用**纯 CSS** tooltip 显示且没有内联定位、点格子=按它筛选、深浅主题与手机宽度 |
-| `verify-timeline-flip.mjs` | 反复点**同一个**时间段不重渲染（像反复点同一个 tab）；真换时间段时条目按搜索结果的 FLIP 滑进滑出（退场替身会清掉、动画结束不留内联 style、屏幕外的条目不播）；文章版块是同一套动画 |
+| `verify-timeline-flip.mjs` | 反复点**同一个**时间段不重渲染（像反复点同一个 tab）；真换时间段时条目按搜索结果的 FLIP 滑进滑出（退场替身会清掉、动画结束不留内联 style、屏幕外的条目不播）；空 ↔ 有两个方向都有动画；三个方向位移的瞬间都不能有横向滚动条；文章版块是同一套动画 |
+| `verify-modal-drag.mjs` | 大图里"拖动平移"与"单击关闭"的区分：快速单击要关；快速拖动、**慢速长距离拖动**、慢速按住都不能误关（用户报过"慢速移动很远也被当成单击关闭"）；拖完再单击仍要能关 |
 
 **搜索**
 | 文件 | 管什么 |
@@ -124,6 +125,21 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 ## CI
 
 `.github/workflows/regression.yml` 在每次 push 到 `main` 时跑一遍（也可在 Actions 页面手动触发）。
-用 `windows-latest`：用例是在 Windows 上写的，有些尺寸/文本度量依赖字体渲染，换 ubuntu 有踩
-字体差异的风险，而 Windows runner 同样预装 Chrome、公开仓库分钟数免费。用例本身已做跨平台处理
-（`CHROME_PATH`、Linux 路径、CI 下自动加 `--no-sandbox`），想换 `ubuntu-latest` 改一行即可。
+跑 **ubuntu + windows 两个平台**（`strategy.matrix`，`fail-fast: false`，两边各自报结果）：
+
+- `windows-latest` 是"保真"的那一份 —— 用例是在 Windows 上写的，有些尺寸/文本度量依赖字体渲染；
+- `ubuntu-latest` 是**跨平台**的那一份，也是目标里"用例在 CI（Linux/Chrome）可跑"的验证面。
+
+用例本身已做跨平台处理（`CHROME_PATH`、Linux 路径、CI 下自动加 `--no-sandbox`）。
+
+### ★ CI 上"本地全绿、CI 全红"的两个坑（2026-10 都踩过）
+
+1. **宿主机系统偏好会漏进用例**。CI 的 runner 默认关闭系统动画，Chrome 于是报
+   `prefers-reduced-motion: reduce`，而"动画应该播"的断言在那种环境下必然失败
+   （`verify-swipe-flip`、`verify-close-anim`、`verify-timeline-flip` 都中过）。
+   修法：这类用例连上 CDP 后立刻
+   `Emulation.setEmulatedMedia({ features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] })`，
+   把偏好钉死 —— 用例不该随宿主机的系统设置变红。**新写动画相关的用例请照做。**
+2. **失败只看得到"断言失败"四个字**。CI 日志要鉴权才能下载，能匿名读到的只有 check-run 注解，
+   所以 `run.mjs` 现在会把失败用例的**前 6 条 ✗ 断言原文**写进 `::error` 注解
+   （起因就是第 1 条那批失败查不出原因，白等了好几轮 18 分钟的 CI）。
