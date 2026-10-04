@@ -17,7 +17,9 @@ const fn = sp.slice(sp.indexOf('function onTimelineFilterChangeInner'), sp.index
 const helper = sp.slice(sp.indexOf('function rerenderTimeline'), sp.indexOf('function onTimelineFilterChangeInner'));
 ok(/specialPageCaches\[selectedSpecial\]\.scrollY = 0/.test(helper), '① rerenderTimeline 里先把滚动缓存清零（否则会被 render 末尾的还原拉回去）');
 ok(/app\.scrollTop = 0/.test(helper), '① rerenderTimeline 渲染后把容器滚到顶部');
-ok(helper.indexOf('scrollY = 0') < helper.indexOf('renderTimelineContent(config)'), '① 顺序正确：先清缓存、再渲染');
+// 这里只匹配函数名，不写死参数：那个调用后来加了参数（keepChrome: true 用来把
+// 进入动画限制在下面的列表上），写死 renderTimelineContent(config) 会让这条断言无故变红
+ok(helper.indexOf('scrollY = 0') < helper.indexOf('renderTimelineContent('), '① 顺序正确：先清缓存、再渲染');
 ok(/rerenderTimeline\(\)/.test(fn), '① 换年份/月份走 rerenderTimeline()');
 ok(/rerenderTimeline\(\)/.test(sp.slice(sp.indexOf('function setTimelineOrderInner'), sp.indexOf('function rerenderTimeline'))), '① 换最新/最早（排序）也走 rerenderTimeline()');
 ok((sp.match(/specialPageCaches\[[^\]]+\]\.scrollY = 0/g) || []).length === 1, '① 全站只有这一处清零（没有顺手破坏别处的滚动记忆）');

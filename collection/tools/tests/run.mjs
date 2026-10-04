@@ -171,4 +171,25 @@ function printSummary(results, t0) {
 }
 
 const bad = printSummary(results, t0);
+
+// GitHub Actions：把结果做成注解（workflow command）。
+// 为什么值得加：CI 日志要鉴权才能下载，而 check-run 的注解用公开 API 就能读到 ——
+// 失败时能直接看到是哪个用例，不用翻整份日志；注解也会显示在提交页面上。
+if (process.env.GITHUB_ACTIONS) {
+    for (const r of results) {
+        if (r.code === 0 || r.code === 3) continue;
+        const why = r.code === 2 ? '环境问题（多半是找不到 Chrome）' : '断言失败';
+        const short = r.label.replace(/^verify-/, '').replace(/\.mjs$/, '');
+        console.log(`::error title=${r.label} 失败（exit=${r.code}）::${why}；本地复现：node collection/tools/tests/run.mjs --only ${short}`);
+    }
+    for (const r of results) {
+        if (r.code !== 3) continue;
+        console.log(`::notice title=${r.label} 已跳过::缺本地工件，见它的输出`);
+    }
+    for (const n of staleSkipped) {
+        console.log(`::notice title=${n} 已跳过::已知漂移（非本次改动导致），见 collection/tools/tests/README.md`);
+    }
+    if (bad === 0) console.log(`::notice title=回归用例全部通过::通过 ${results.length - results.filter(r => r.code === 3).length} 项`);
+}
+
 process.exit(bad === 0 ? 0 : 1);
