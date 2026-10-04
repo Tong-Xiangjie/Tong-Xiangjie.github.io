@@ -61,6 +61,7 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 |---|---|
 | `verify-years-timeline.mjs` | 期间合计文案、年份/月份筛选后回到顶部、缓存复位 |
 | `verify-timeline-mobile.mjs` | 手机宽度下不超出屏幕 |
+| `verify-heatmap.mjs` | 按月份热力图（年 × 月）：每个格子的件数/金额与"测试自己从原始数据重算"完全一致、格子金额之和 == 标语总额、悬停用**纯 CSS** tooltip 显示且没有内联定位、点格子=按它筛选、深浅主题与手机宽度 |
 
 **搜索**
 | 文件 | 管什么 |

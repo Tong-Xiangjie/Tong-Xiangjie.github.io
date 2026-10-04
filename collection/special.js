@@ -1197,7 +1197,7 @@ function rerenderTimeline() {
     if (selectedSpecial && specialPageCaches[selectedSpecial]) {
         specialPageCaches[selectedSpecial].scrollY = 0;
     }
-    if (config) renderTimelineContent(config);
+    if (config) renderTimelineContent(config, { keepChrome: true });
     const app = getRenderContainer();
     if (app) app.scrollTop = 0;
 }
@@ -1240,8 +1240,230 @@ function backFromTimelineInner() {
     renderSpecialOverview();
 }
 
+// ---------- 按月份热力图（年 × 月） ----------
+// 只回答一个问题："哪个月花得多"。格子深浅按"金额为主、件数为辅"的加权分分 5 档；
+// 悬停/聚焦时用**纯 CSS** 的 tooltip 显示件数与金额 —— JS 不参与定位，也不给 tooltip
+// 写内联 style，这样手机上点一下（聚焦）也能看，且不会因为 resize / 滚动而错位。
+//
+// 数据用**全部有效条目**（validItems），不跟着年份/月份筛选走：否则筛成年份后就只剩一行，
+// 看不出趋势。筛选状态由下拉框自己表达；点热力图则反过来把筛选取上去：
+//   · 格子        → 这一年 + 这一个月
+//   · 年份标签    → 这一年（全部月份）
+//   · 月份表头    → 历年这个月（全部年份）
+//   · 左上角"全部" → 回到全部时间
+// 深浅：**不分档**，按金额比例给一个连续值（用户要求"能不能无限档？自动丝滑变化"）。
+// 两轮实测也都指向这个方向：
+//   · 线性 5 档 → "200 多块和 2000 多块看不出什么区别"（档太少，一小格就跨过去了）
+//   · 对数 5 档 → "7000 和 3000 颜色差不多"（对数把高端压扁，两笔一起顶到第 5 档）
+// 现在：0 元 = 0（不显示），其余按 金额/最大金额 线性铺在 [0.10, 0.95] 上 ——
+// 既是"按比例"，也不会因为金额很小而看不见（最低也有 0.10）。
+// 件数只出现在 tooltip 文案里（用户说"或者只看金额也可以"）。
+function timelineHeatmapOpacity(amount, maxAmount) {
+    if (!amount || amount <= 0) return 0;
+    if (!maxAmount || maxAmount <= 0) return 0.10;
+    return 0.10 + 0.85 * Math.min(1, amount / maxAmount);
+}
+
+// 金额口径必须和"这天，你一共花了X元"、标语「你共花了 N 元」完全一致：
+// 只认能解析出的正数 price，取整显示。★ 改这里就等于改那两处，verify-heatmap 会盯着。
+function timelinePriceOf(copy) {
+    const price = parseFloat(String((copy && copy.price) || '').replace(/[^0-9.]/g, ''));
+    return (!isNaN(price) && price > 0) ? price : 0;
+}
+
+function buildMonthHeatmap(items) {
+    const byYear = new Map();
+    for (const it of items) {
+        const y = it.date.getFullYear();
+        const m = it.date.getMonth();                 // 0-11
+        if (!byYear.has(y)) byYear.set(y, Array.from({ length: 12 }, () => ({ n: 0, sum: 0 })));
+        const cell = byYear.get(y)[m];
+        cell.n++;
+        cell.sum += timelinePriceOf(it.copy);
+    }
+    if (byYear.size === 0) return '';
+
+    // 年份**升序**：老的在上、新的在下（用户要求）
+    const years = [...byYear.keys()].sort((a, b) => a - b);
+    let maxAmount = 0;
+    for (const y of years) for (const c of byYear.get(y)) if (c.sum > maxAmount) maxAmount = c.sum;
+
+    // 标签的泡里也要有"多少件、多少钱"（用户要求）：
+    //   年份 = 全年合计；月份 = 历年这个月的合计；"全部" = 全部时间合计
+    const monthTotal = Array.from({ length: 12 }, () => ({ n: 0, sum: 0 }));
+    const yearTotal = new Map();
+    let allN = 0, allSum = 0;
+    for (const y of years) {
+        const cells = byYear.get(y);
+        let n = 0, sum = 0;
+        for (let m = 0; m < 12; m++) {
+            n += cells[m].n; sum += cells[m].sum;
+            monthTotal[m].n += cells[m].n; monthTotal[m].sum += cells[m].sum;
+        }
+        yearTotal.set(y, { n, sum });
+        allN += n; allSum += sum;
+    }
+    // 文案统一成用户给的格式：x年x月，共购入x件，合计x元
+    const tipOf = (lead, n, sum) => `${lead}，共购入${n}件，合计${Math.round(sum)}元`;
+
+    const allActive = (timelineFilterYear === '全部' && timelineFilterMonth === '全部');
+    let html = `<div class="tl-heatmap">`;
+
+    // 表头：左上角"全部"（点它回到全部时间）+ 12 个月份（点它看历年这个月）
+    // ★ 标签也用**自写悬浮泡**（同一套 .tl-heatmap-tip），不用原生 title：
+    //   原生 tooltip 又慢又丑、样式不可控，而且在触摸设备上根本不出现。
+    //   data-label 存住纯文本，方便用例和样式按"这一格是谁"来取（textContent 会被悬浮泡文案污染）。
+    html += `<div class="tl-heatmap-row tl-hm-head">`;
+    html += `<div class="tl-heatmap-ylabel tl-hm-corner${allActive ? ' is-active' : ''}" role="button" tabindex="0"` +
+        ` data-label="全部" aria-label="回到全部时间：${tipOf('全部时间', allN, allSum)}"` +
+        ` onclick="applyTimelineFilter('全部','全部')">全部` +
+        `<span class="tl-heatmap-tip">${tipOf('全部时间', allN, allSum)}</span></div>`;
+    for (let m = 1; m <= 12; m++) {
+        const sel = (timelineFilterYear === '全部' && timelineFilterMonth === String(m).padStart(2, '0')) ? ' is-active' : '';
+        const mt = monthTotal[m - 1];
+        const mtip = tipOf(`历年${m}月`, mt.n, mt.sum);
+        html += `<div class="tl-heatmap-mlabel${sel}" role="button" tabindex="0" data-label="${m}"` +
+            ` aria-label="看历年 ${m} 月：${mtip}"` +
+            ` onclick="applyTimelineFilter('全部', ${m})">${m}` +
+            `<span class="tl-heatmap-tip">${mtip}</span></div>`;
+    }
+    html += `</div>`;
+
+    for (const y of years) {
+        const cells = byYear.get(y);
+        const yt = yearTotal.get(y);
+        const ytip = tipOf(`${y}年`, yt.n, yt.sum);
+        const rowSel = (timelineFilterYear === String(y) && timelineFilterMonth === '全部') ? ' is-active' : '';
+        html += `<div class="tl-heatmap-row">`;
+        html += `<div class="tl-heatmap-ylabel${rowSel}" role="button" tabindex="0" data-label="${y}"` +
+            ` aria-label="看 ${y} 年全年：${ytip}"` +
+            ` onclick="applyTimelineFilter(${y}, '全部')">${y}` +
+            `<span class="tl-heatmap-tip">${ytip}</span></div>`;
+        for (let m = 0; m < 12; m++) {
+            const c = cells[m];
+            // 连续深浅：直接把这个格子的透明度写成内联自定义属性（CSS 读不到 DOM 里的金额，
+            // 所以"无限档"只能由 JS 给一个值；这不是给 tooltip 写内联样式，tooltip 仍是纯 CSS 定位）
+            const o = timelineHeatmapOpacity(c.sum, maxAmount);
+            const styleAttr = o > 0 ? ` style="--hm-o:${Math.round(o * 1000) / 1000}"` : '';
+            // tl-hm-on 只为"有金额"的格子加：深色主题那条 calc() 提亮只该作用在它们身上，
+            // 否则 0 元的空格子也会被抬到 0.08（测出来过），空月份会微微泛色
+            const onClass = o > 0 ? ' tl-hm-on' : '';
+            const label = tipOf(`${y}年${m + 1}月`, c.n, c.sum);
+            const edge = m === 0 ? ' tl-hm-first' : (m === 11 ? ' tl-hm-last' : '');
+            html += `<div class="tl-heatmap-cell${edge}${onClass}"${styleAttr} tabindex="0" role="button"` +
+                ` data-year="${y}" data-month="${String(m + 1).padStart(2, '0')}"` +
+                ` aria-label="${escapeAttr(label)}" onclick="onHeatmapCellClick(${y}, ${m + 1})">` +
+                `<i class="tl-hm-fill"></i><span class="tl-heatmap-tip">${escapeHtml(label)}</span></div>`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+// 统一的筛放入口：year / month 都可以是 '全部'，或者数字/数字字符串
+function applyTimelineFilter(year, month) {
+    const ys = document.getElementById('timelineYearFilter');
+    const ms = document.getElementById('timelineMonthFilter');
+    if (ys) ys.value = (year === '全部') ? '全部' : String(year);
+    if (ms) ms.value = (month === '全部') ? '全部' : String(month).padStart(2, '0');
+    // 走统一入口：URL 同步 + 回到顶部 + 只让下面的时间轴动一次，都在那里
+    if (typeof onTimelineFilterChange === 'function') onTimelineFilterChange();
+}
+
+// 点格子 = 这一年 + 这一个月
+function onHeatmapCellClick(year, month) { applyTimelineFilter(year, month); }
+
+// ---------- 悬浮泡的水平位置：能居中就居中 ----------
+// 规则（用户要求）：**尽可能居中于它描述的东西**，只有会越出热力图左右边界时才往里挤。
+// "它描述的东西"对格子就是格子本身；对标签是**文字**（年份数字靠右、月份数字居中，
+// 对着整块可点击区域的中心会显得箭头指着框，用户两次指出）—— 所以靶心取文字中心。
+// 为什么不是纯 CSS：泡宽随文案变、格子随视口变，写死"第几列不居中"就会"放得下也被挤"。
+// JS 只算两个变量：--hm-tx（水平位移）和 --hm-arrow（尖角位置），
+// 泡的显示/隐藏、配色、尖角形状、动画全都还在 CSS 里，JS 不碰 left/top/position。
+function clampHeatmapTip(el) {
+    const tip = el && el.querySelector(':scope > .tl-heatmap-tip');
+    if (!tip) return;
+    // 年份标签的泡由 CSS 定死在数字右边（尖角在泡的左侧竖边上），不参与居中/纠偏
+    if (el.classList.contains('tl-heatmap-ylabel') && !el.classList.contains('tl-hm-corner')) return;
+    const hm = el.closest('.tl-heatmap');
+    if (!hm) return;
+    tip.style.removeProperty('--hm-tx');
+    tip.style.removeProperty('--hm-arrow');
+    const box = el.getBoundingClientRect();
+    // ★ 宽度取小数（offsetWidth 会取整，手机上会差 2~3px）。泡虽然还是隐藏状态，但布局已经算好了。
+    const w = tip.getBoundingClientRect().width;
+    if (!box.width || !w) return;
+    // ★ 左右边界取**内容容器**（屏幕可见区），不是热力图本身 —— 用户要求"窄屏时泡不要超出屏幕边界"，
+    //   热力图在宽屏下只占中间一条，拿它当界会把泡过早往里挤。
+    //   上下仍然不能超出热力图：那个由 CSS 保证（泡一律朝上弹，表头那一行给它们留了空间）。
+    const bounds = (() => {
+        const mc = (typeof getRenderContainer === 'function' && getRenderContainer()) || null;
+        if (mc && mc.getBoundingClientRect) {
+            const r = mc.getBoundingClientRect();
+            if (r.width) return { left: r.left, right: r.right };
+        }
+        const rootW = document.documentElement.clientWidth || window.innerWidth || 0;
+        return { left: 0, right: rootW };
+    })();
+    const boxCenter = box.left + box.width / 2;
+    // 靶心：标签取文字中心（"全部"/月份的数字），格子（没有直接文字节点）取方块中心
+    const textNode = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+    let anchor = boxCenter;
+    if (textNode) {
+        const rg = document.createRange();
+        rg.selectNodeContents(textNode);
+        const rr = rg.getBoundingClientRect();
+        if (rr.width) anchor = rr.left + rr.width / 2;
+    }
+    // 先按靶心居中（--hm-tx 的基准 -50% 是"居中于方块"，这里补上靶心相对方块中心的偏移），
+    // 只有会越出热力图左右边界时才往里挤。
+    // ★ 这里只算几何意图，**不碰 transition、也不测量动画中的位置**：一冻 transition
+    //   淡入动画就没了（用户反馈"只有退出动画"）；量动画中的位置又会把偏差反复累加。
+    const pad = 1.5;
+    const naturalL = anchor - w / 2;
+    let shift = 0;
+    if (naturalL < bounds.left + pad) shift = (bounds.left + pad) - naturalL;
+    else if (naturalL + w > bounds.right - pad) shift = (bounds.right - pad) - (naturalL + w);
+    tip.style.setProperty('--hm-tx', `calc(-50% + ${(anchor - boxCenter + shift).toFixed(2)}px)`);
+    // 尖角落在靶心上
+    const arrow = Math.max(8, Math.min(w - 8, w / 2 - shift));
+    tip.style.setProperty('--hm-arrow', `${arrow.toFixed(2)}px`);
+}
+
+let heatmapTipClampBound = false;
+function bindHeatmapTipClamp() {
+    if (heatmapTipClampBound) return;
+    heatmapTipClampBound = true;
+    const pick = (e) => {
+        const t = e.target;
+        if (!t || typeof t.closest !== 'function') return null;
+        return t.closest('.tl-heatmap-cell, .tl-heatmap-ylabel, .tl-heatmap-mlabel');
+    };
+    // 事件委托：热力图上的方块有几十个，别逐个绑。
+    // 只算几何（不碰 transition），所以不需要等下一帧再校一次——淡入/位移动画照旧由 CSS 负责。
+    const run = (el) => clampHeatmapTip(el);
+    document.addEventListener('mouseover', (e) => { const el = pick(e); if (el) run(el); });
+    document.addEventListener('focusin', (e) => { const el = pick(e); if (el) run(el); });
+}
+
+// 只让下面的时间轴动一次（换筛选/换排序用）。
+// 为什么单独写一个：triggerViewAnimation()（core.js）是把 content-enter 挂在**整个滚动容器**上，
+// 于是"换年月"这种同屏换内容也会让标题、热力图、顶部工具条一起淡入一次 —— 用户要求它们只在
+// "进入专题板块"那一次跟着整页动画走。这里把同样的动画只挂在 .timeline-body 上。
+function animateTimelineBodyOnly(app) {
+    const body = app && app.querySelector('.timeline-body');
+    if (!body) return;
+    body.classList.remove('content-enter');
+    void body.offsetHeight;               // 强制回流，保证类移除生效
+    body.classList.add('content-enter');
+}
+
 // ---------- 核心渲染 ----------
-function renderTimelineContent(config) {
+function renderTimelineContent(config, opts) {
+    // ★ opts.keepChrome：换年月/换排序触发的重渲染。此时标题、热力图、顶部工具条
+    //   保持原样不重播进入动画，只有下面的时间轴列表淡入一次。
+    const keepChrome = !!(opts && opts.keepChrome);
     const app = getRenderContainer();
 
     const items = [];
@@ -1460,10 +1682,14 @@ function renderTimelineContent(config) {
     html += `<p class="timeline-slogan">${escapeHtml(sloganText)}</p>`;
     html += `</div>`;
 
+    // ★ 按月份热力图放在"空状态提前 return"之前：筛选到一件都没有时，格子图仍在，
+    //   用户能立刻看出是"这个月本来就没买"还是"筛错了"。
+    html += buildMonthHeatmap(validItems);
+
     if (filteredItems.length === 0) {
         html += '<div class="empty-state">' + emptyArt('timeline') + '显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
         app.innerHTML = html;
-        triggerViewAnimation();
+        if (keepChrome) animateTimelineBodyOnly(app); else triggerViewAnimation();
         return;
     }
 
@@ -1545,6 +1771,8 @@ function renderTimelineContent(config) {
     html += `</div>`;
 
     app.innerHTML = html;
+    // 热力图悬浮泡的"能居中就居中"逻辑（只挂一次，事件委托在 document 上）
+    bindHeatmapTipClamp();
     // ★ 时间轴曾漏了这一步（其它专题页都有），导致本页图片从不进入预缓存队列
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
     // ★★★ 恢复时间轴滚动（使用专题缓存） ★★★
@@ -1553,5 +1781,6 @@ function renderTimelineContent(config) {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
         }, 50);
     }
-    triggerViewAnimation();
+    // ★ 动画范围：进入专题时整页淡入（triggerViewAnimation）；换年月/换排序只让下面的列表动
+    if (keepChrome) animateTimelineBodyOnly(app); else triggerViewAnimation();
 }

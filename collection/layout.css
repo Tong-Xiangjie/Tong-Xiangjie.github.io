@@ -2202,6 +2202,183 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .timeline-header h2 { font-size: 1.4rem; font-weight: bold; }
 .timeline-slogan { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0; }
 
+/* ===== 币海拾年 · 按月份热力图（年 × 月） =====
+   格子深浅 = 当月花了多少钱（--hm-lv1..5；0 档是"这个月没买"）。
+   tooltip 是**纯 CSS**：格子里预置好 .tl-heatmap-tip，悬停/聚焦时显示，位置由 CSS 决定
+   （JS 不设 left/top，也不写内联 style —— 手机上点一下也一样好用，不会因滚动/缩放错位）。
+   首尾两列往回收，免得贴着容器边缘被切掉。
+   触摸设备没有 hover，所以 :focus（点一下=聚焦）也要能显示；触摸下 :focus-visible
+   不一定触发，这里靠 @media (hover: none) 单独补一条。 */
+.tl-heatmap {
+    /* 格子边长：正方形（用户要求"格子弄成小正方形，高度和现在的一样"），
+       宽高共用这一个变量，取值范围与之前的高度一致（20~34px）。 */
+    --hm-cell: clamp(24px, 5vw, 42px);
+    margin: 14px 0 18px;
+}
+.tl-heatmap-row {
+    display: grid;
+    grid-template-columns: 3.4em repeat(12, var(--hm-cell));
+    justify-content: center;            /* 整块热力图在内容区里居中（用户要求） */
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.tl-heatmap-ylabel, .tl-heatmap-mlabel {
+    position: relative;                 /* 悬浮泡的定位基准 */
+    display: flex;
+    align-items: center;
+    height: var(--hm-cell);
+    font-size: 0.8rem;                  /* 用户要求"年份、月份、全部"字号大一点 */
+    color: var(--text-secondary);
+    white-space: nowrap;                /* 窄屏也不许换行：年份/月份/全部 各自只占一行 */
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color 0.12s ease;
+}
+.tl-heatmap-ylabel:hover, .tl-heatmap-mlabel:hover { color: var(--theme); }
+/* 当前筛选对应的那一行 / 那一列 / 那个"全部"标出来，否则点了不知道选中了哪儿 */
+.tl-heatmap-ylabel.is-active, .tl-heatmap-mlabel.is-active { color: var(--theme); font-weight: bold; }
+.tl-heatmap-ylabel { justify-content: flex-end; padding-right: 4px; font-variant-numeric: tabular-nums; }
+.tl-heatmap-mlabel { justify-content: center; }
+.tl-hm-head { margin-bottom: 2px; }
+.tl-hm-head .tl-heatmap-ylabel { justify-content: center; padding-right: 0; font-size: 0.72rem; }
+
+.tl-heatmap-cell {
+    position: relative;                 /* tooltip 的定位基准 */
+    width: var(--hm-cell);
+    height: var(--hm-cell);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg-light);        /* 0 档：这个月没买 */
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+/* ★ 悬停只轻轻放大一点点：原来 1.12 那一档用户反馈"变大幅度过大"。
+   ★★ 缩放放在**色块**上而不是格子上：tooltip 是格子的子元素，格子一缩放它也会被放大 4%，
+   于是"量宽度时还在热力图内、悬停动画结束后又冒出去 2px"（实测就是这么来的）。
+   缩放色块的视觉效果一样，但泡的位置/字号不再随悬停变化。 */
+.tl-heatmap-cell:hover > .tl-hm-fill { transform: scale(1.04); }
+.tl-heatmap-cell:hover { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16); z-index: 3; }
+.tl-heatmap-cell:focus-visible { box-shadow: 0 0 0 2px var(--theme); z-index: 3; }
+/* 深浅不分档：每个格子由 JS 写一个连续的 --hm-o（0 = 这个月没买），
+   色相取 --theme，所以自动跟随用户选的 app 主题色，也不用 color-mix。 */
+.tl-hm-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--theme);
+    opacity: var(--hm-o, 0);
+    pointer-events: none;
+    transition: transform 0.12s ease;
+}
+/* 深色底本身很暗，同样的透明度看着更淡：有金额的格子整体平滑抬一档（乘 0.92 再加 0.08）。
+   ★ 必须限定在 .tl-hm-on（有金额）上：否则 0 元的空格子也会被抬到 0.08，空月份会微微泛色 */
+html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o, 0) * 0.92 + 0.08); }
+
+.tl-heatmap-tip {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 7px);
+    /* 水平位移用一个变量：靠边的列把它改成 0，让 tooltip 往容器里侧贴。
+       这样"显示/收起"两条规则不用给每个列各写一遍。 */
+    transform: translateX(var(--hm-tx, -50%)) translateY(3px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    line-height: 1.3;
+    /* 反色：浅色主题下深底浅字，深色主题下浅底深字，两边都读得清 */
+    background: var(--text);
+    color: var(--bg);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+    z-index: 20;
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+}
+/* 显示 / 收起：格子和标签共用一套（标签的泡是它的直接子元素） */
+.tl-heatmap-cell:hover > .tl-heatmap-tip,
+.tl-heatmap-cell:focus-visible > .tl-heatmap-tip,
+.tl-heatmap-ylabel:hover > .tl-heatmap-tip,
+.tl-heatmap-ylabel:focus-visible > .tl-heatmap-tip,
+.tl-heatmap-mlabel:hover > .tl-heatmap-tip,
+.tl-heatmap-mlabel:focus-visible > .tl-heatmap-tip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(var(--hm-tx, -50%)) translateY(0);
+}
+@media (hover: none) {
+    .tl-heatmap-cell:focus > .tl-heatmap-tip,
+    .tl-heatmap-ylabel:focus > .tl-heatmap-tip,
+    .tl-heatmap-mlabel:focus > .tl-heatmap-tip { opacity: 1; visibility: visible; transform: translateX(var(--hm-tx, -50%)) translateY(0); }
+    .tl-heatmap-cell:hover > .tl-hm-fill { transform: none; }      /* 触摸设备别跟着"悬停"放大 */
+}
+/* ★ 水平位置由 JS 在悬停/聚焦时算一次（clampHeatmapTip）：**能居中就居中**，
+   只有会越出热力图左右边界时才往里挤；--hm-tx 是被挤的位移量，--hm-arrow 让尖角
+   在那之后仍然指着方块中心。这里只留默认值（居中），不写死"哪几列不居中"。 */
+.tl-heatmap-tip::after {
+    content: '';
+    position: absolute;
+    top: calc(100% - 1px);              /* 和圆角框重叠 1px：否则抗锯齿会在接缝留一条深色细线 */
+    left: var(--hm-arrow, 50%);
+    margin-left: -5px;
+    width: 0;
+    height: 0;
+    border: 5px solid transparent;
+    border-top: 6px solid var(--text);
+    border-bottom: none;
+}
+/* ★ 年份标签的泡：整体挪到年份**右边**，尖角长在泡的**左侧竖边**上、横着指向年份（用户指定）。
+   它不参与 JS 的居中/纠偏（clampHeatmapTip 对年份直接跳过），位置由 CSS 定死 —— 就在数字右边。 */
+.tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner) > .tl-heatmap-tip {
+    left: calc(100% + 4px);             /* 贴着数字右边（用户要求"再左移一点"） */
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%) translateX(-3px);
+}
+.tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner):hover > .tl-heatmap-tip,
+.tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner):focus-visible > .tl-heatmap-tip,
+.tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner):focus > .tl-heatmap-tip {
+    transform: translateY(-50%) translateX(0);
+}
+/* 左侧竖边上的尖角：朝左指（border-right 有色、left 边收成 0 → 一个左指三角） */
+.tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner) > .tl-heatmap-tip::after {
+    top: 50%;
+    bottom: auto;
+    left: auto;
+    right: calc(100% - 1px);            /* 和圆角框重叠 1px，去掉接缝那条细线 */
+    margin: -5px 0 0 0;
+    border: 5px solid transparent;
+    border-right: 6px solid var(--text);
+    border-left: none;
+}
+/* 表头那一行（"全部" + 12 个月份）的泡往下弹：它们上面已经没有空间了，尖角改成朝上。
+   间距压到"往上叠 2px"（用户两次要求"向上移动一点"），贴着数字、箭头也就更靠近数字本身。 */
+.tl-hm-head .tl-heatmap-tip { bottom: auto; top: calc(100% - 2px); transform: translateX(var(--hm-tx, -50%)) translateY(-3px); }
+.tl-hm-head .tl-heatmap-tip::after {
+    top: auto;
+    bottom: calc(100% - 1px);           /* 同样重叠 1px，去掉接缝那条细线 */
+    border-top: none;
+    border-bottom: 6px solid var(--text);
+}
+/* 注：泡一律朝上弹（容身在 .tl-hm-head 那一行里），只有表头那行朝下。
+   试过"最早那一年朝下弹"，桌面没问题，但手机上下面只剩一行、会溢出下边界 6px。 */
+@media (prefers-reduced-motion: reduce) {
+    .tl-heatmap-cell, .tl-heatmap-tip { transition: none; }
+    .tl-heatmap-cell:hover > .tl-hm-fill { transform: none; }
+}
+/* 手机：格子、间距、字号一起按视口缩小（用户要求"窄屏不换行，只整体缩小"），
+   padding-top 是给最上面那一行的泡留的：手机上表头那行只有 ~19px 高，
+   泡往上弹需要 ~32px，不留就会顶出热力图的上边界。 */
+@media (max-width: 480px) {
+    .tl-heatmap { --hm-cell: clamp(16px, 5.4vw, 22px); padding-top: 14px; }
+    .tl-heatmap-row { grid-template-columns: 2.6em repeat(12, var(--hm-cell)); gap: 2px; }
+    .tl-heatmap-ylabel, .tl-heatmap-mlabel { font-size: 0.72rem; }
+    .tl-heatmap-ylabel { padding-right: 2px; }
+}
+
 .timeline-body { display: flex; flex-direction: column; padding-left: 12px; }
 .timeline-date-header {
     display: flex;
