@@ -61,7 +61,18 @@ async function openCard(version) {
     if (idx >= 0) break;
     await sleep(200);
   }
-  if (idx < 0) return -1;
+  if (idx < 0) {
+    // ★ 失败时把"为什么没有"打出来：注解只会带 ✗ 行，这里顺手把诊断做成 ✗ 行，
+    //   否则 CI 上只能看到"下标 -1"，查不出是数据没加载、还是板块没进对。
+    const diag = await evaluate(`(()=>JSON.stringify({
+      listLen: (typeof copyDetailList === 'undefined') ? 'undefined' : copyDetailList.length,
+      hash: location.hash, mode: (typeof currentMode !== 'undefined') ? currentMode : '?',
+      items: (typeof allItems !== 'undefined' && allItems) ? allItems.length : '?',
+      detailOpen: !!document.querySelector('.copy-detail, .detail-card, #copyDetail')
+    }))()`).catch(e => '诊断失败：' + e.message);
+    console.log(`  ✗ 打开 ${version} 的详情卡片失败：copyDetailList 里找不到（诊断 ${diag}）`);
+    return -1;
+  }
   await evaluate(`(()=>{ openCopyDetail(${idx}); return true; })()`);
   await sleep(700);
   return idx;

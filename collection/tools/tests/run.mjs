@@ -137,7 +137,8 @@ const runOne = (label, file, args = []) => new Promise(done => {
     child.stderr.on('data', onData);
     child.on('error', e => { console.log(`  ✗ 启动失败：${e.message}`); done({ label, code: 2, ms: Date.now() - t0, firstFail: '启动失败：' + e.message }); });
     child.on('close', code => {
-        const failLines = out.split(/\r?\n/).map(l => l.trim()).filter(l => /^✗/.test(l));
+        const lines = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const failLines = lines.filter(l => /^✗/.test(l));
         done({
             label,
             code: code === null ? 2 : code,
@@ -146,6 +147,9 @@ const runOne = (label, file, args = []) => new Promise(done => {
             // ★ 首个断言往往不足以定位（比如"播了进出场"这种概括句）——
             //   注解正文上限 64KB，多带几条成本很低，能省掉一次 18 分钟的 CI 往返。
             failLines: failLines.slice(0, 6),
+            // ★ 有些用例失败时一条 ✗ 都没有（断言在别处打印、或是退出前才炸），
+            //   这时把输出尾部带上 —— 否则注解又变成"断言失败"四个字。
+            tail: failLines.length ? [] : lines.slice(-3),
             failCount: failLines.length
         });
     });
@@ -212,7 +216,9 @@ if (process.env.GITHUB_ACTIONS) {
         // ★ 把失败断言逐条带上（`:：%` 这类字符要转义，否则会把注解截断）
         const detail = (r.failLines && r.failLines.length)
             ? `；失败断言（共 ${r.failCount} 条）：` + r.failLines.map(l => l.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 220)).join(' ｜ ')
-            : '';
+            : ((r.tail && r.tail.length)
+                ? '；输出尾部：' + r.tail.map(l => l.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 220)).join(' ｜ ')
+                : '');
         console.log(`::error title=${r.label} 失败（exit=${r.code}）::${why}${detail}；本地复现：node collection/tools/tests/run.mjs --only ${short}`);
     }
     for (const r of results) {
