@@ -81,6 +81,10 @@ async function evaluate(e) {
 }
 
 await send('Runtime.enable'); await send('Page.enable');
+// ★ 把 prefers-reduced-motion 钉成 no-preference：GitHub 的 Windows runner 默认关闭系统动画，
+//   Chrome 会报 reduce，于是"动画应该播"的断言在 CI 上必然红（本用例 2026-10 就是这样挂的）。
+//   这是用例自身依赖了宿主机偏好，不是被测代码的问题。
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
 await send('Page.navigate', { url: BASE });
 let loaded = false;
 for (let i = 0; i < 220; i++) { if (await evaluate(`typeof onTabClick === 'function' && document.readyState === 'complete'`).catch(() => false)) { loaded = true; break; } await sleep(120); }

@@ -59,6 +59,10 @@ async function evaluate(e) {
 }
 await send('Runtime.enable');
 await send('Page.enable');
+// ★ 钉死媒体偏好。本用例第 67 行就有断言"无头浏览器没有开 reduced-motion"——那是**假设**，
+//   在 CI（GitHub 的 Windows runner 默认关闭系统动画）不成立，于是它连同后面的动画断言
+//   一起变红。改成用例自己把偏好设为 no-preference，假设就成了保证。
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
 await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#notes` });
 for (let i = 0; i < 140; i++) { const r = await evaluate(`typeof openModal === 'function' && document.readyState === 'complete'`).catch(() => false); if (r) break; await sleep(120); }
 await sleep(900);

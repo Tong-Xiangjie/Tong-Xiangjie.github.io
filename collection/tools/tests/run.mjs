@@ -143,6 +143,9 @@ const runOne = (label, file, args = []) => new Promise(done => {
             code: code === null ? 2 : code,
             ms: Date.now() - t0,
             firstFail: failLines[0] || '',
+            // ★ 首个断言往往不足以定位（比如"播了进出场"这种概括句）——
+            //   注解正文上限 64KB，多带几条成本很低，能省掉一次 18 分钟的 CI 往返。
+            failLines: failLines.slice(0, 6),
             failCount: failLines.length
         });
     });
@@ -206,9 +209,9 @@ if (process.env.GITHUB_ACTIONS) {
         if (r.code === 0 || r.code === 3) continue;
         const why = r.code === 2 ? '环境问题（多半是找不到 Chrome）' : '断言失败';
         const short = r.label.replace(/^verify-/, '').replace(/\.mjs$/, '');
-        // ★ 把首个失败断言原文带上（`:：` 这类字符要转义，否则会把注解截断）
-        const detail = r.firstFail
-            ? `；首个失败断言：${r.firstFail.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 300)}${r.failCount > 1 ? `（共 ${r.failCount} 条 ✗）` : ''}`
+        // ★ 把失败断言逐条带上（`:：%` 这类字符要转义，否则会把注解截断）
+        const detail = (r.failLines && r.failLines.length)
+            ? `；失败断言（共 ${r.failCount} 条）：` + r.failLines.map(l => l.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 220)).join(' ｜ ')
             : '';
         console.log(`::error title=${r.label} 失败（exit=${r.code}）::${why}${detail}；本地复现：node collection/tools/tests/run.mjs --only ${short}`);
     }

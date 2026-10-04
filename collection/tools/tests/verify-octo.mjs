@@ -52,8 +52,15 @@ async function boot(hash) {
 // 打开 KP04057 的详情卡片，返回它的 copyDetailList 下标
 async function openCard(version) {
   await boot('notes/commemorative');
-  const idx = await evaluate(`(()=>{ if (typeof copyDetailList === 'undefined') return -1;
-    return copyDetailList.findIndex(x => x.copy && String(x.copy.version) === ${JSON.stringify(version)}); })()`);
+  // ★ 等 copyDetailList 备好再找：CI 上 boot 之后列表还没填完就查会拿到下标 -1 而假红
+  //   （2026-10 的 CI 就是这样挂的）。最多等 6 秒；真没有仍然返回 -1，断言照旧会红。
+  let idx = -1;
+  for (let i = 0; i < 30; i++) {
+    idx = await evaluate(`(()=>{ if (typeof copyDetailList === 'undefined') return -1;
+      return copyDetailList.findIndex(x => x.copy && String(x.copy.version) === ${JSON.stringify(version)}); })()`);
+    if (idx >= 0) break;
+    await sleep(200);
+  }
   if (idx < 0) return -1;
   await evaluate(`(()=>{ openCopyDetail(${idx}); return true; })()`);
   await sleep(700);
@@ -62,6 +69,9 @@ async function openCard(version) {
 
 try {
   await send('Page.enable'); await send('Runtime.enable');
+  // ★ 钉死媒体偏好：CI（GitHub 的 Windows runner）默认关闭系统动画 → Chrome 报 reduce，
+  //   这个用例后面有依赖展开/过渡完成的断言，随宿主机偏好变红不合适。
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
   console.log(`══════ 完整八面图（${LIVE ? '线上' : '本地'}）══════`);
 
   console.log('\n── 1. 详情卡片里的入口行 ──');

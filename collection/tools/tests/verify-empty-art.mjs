@@ -118,8 +118,19 @@ for (const k of KINDS) {
     const prev = (typeof getColorSchemeMode === 'function') ? getColorSchemeMode() : 'system';
     let light = '', dark = '';
     if (typeof setColorSchemeMode === 'function') {
-      setColorSchemeMode('light'); light = getComputedStyle(e).backgroundColor;
-      setColorSchemeMode('dark'); dark = getComputedStyle(e).backgroundColor;
+      // ★ 切换后要**等调色板真的变了**再采数：CI 上（慢机器）切完立刻读会两次读到同一个
+      //   颜色，断言"浅 ≠ 深"就假红（2026-10 的 CI 就是这样挂的）。这里改成等到不一样为止，
+      //   最多等 1 秒 —— 如果真的一直一样，dark 仍等于 light，断言照旧会红，不会掩盖问题。
+      const waitFrame = () => new Promise(r => setTimeout(r, 50));
+      setColorSchemeMode('light');
+      light = getComputedStyle(e).backgroundColor;
+      setColorSchemeMode('dark');
+      for (let i = 0; i < 20; i++) {
+        const c = getComputedStyle(e).backgroundColor;
+        if (c && c !== light) { dark = c; break; }
+        await waitFrame();
+      }
+      if (!dark) dark = getComputedStyle(e).backgroundColor;
       setColorSchemeMode(prev);
     }
     const sm = document.createElement('span');

@@ -6,12 +6,17 @@
 #   空状态、SW 缓存与离线、数据自检……），是这个纯静态站点唯一的自动化防线。
 #   进仓库后每次 push 到 main 自动跑一遍，就不用靠"记得手动跑"了。
 #
-# 为什么用 windows-latest 而不是 ubuntu：
-#   用例是在 Windows 上写的，断言里有些尺寸/文本度量依赖字体与渲染细节。
-#   换到 ubuntu 有踩字体差异的风险，而 windows-latest 同样预装 Chrome、
-#   公开仓库的 Actions 分钟数免费 —— 保真比省那一两分钟更值。用例本身已经
-#   做了跨平台处理（支持 CHROME_PATH / Linux 路径 / CI 下加 --no-sandbox），
-#   想在 ubuntu 上跑也没问题，换 runs-on 即可。
+# 为什么是 ubuntu + windows 两个平台（原来只有 windows-latest）：
+#   用例是在 Windows 上写的，断言里有些尺寸/文本度量依赖字体与渲染细节，所以
+#   windows-latest 是"保真"的那一份（曾经担心换到 ubuntu 会踩字体差异）。
+#   但只有 Windows 一份等于没验证过跨平台，而目标要求"用例在 CI（Linux/Chrome）可跑"。
+#   于是改成矩阵：ubuntu 那份是**新增**的验证面，windows 那份保真不动。
+#   公开仓库的 Actions 分钟数免费，多一平台只是多花点时间。
+#   ★ fail-fast: false —— 两个平台各自报结果，避免一个红就把另一个还没跑完的掐掉
+#     （跨平台问题恰恰需要两边都看到）。
+#   ★ 2026-10 的教训：CI 上有一批"本地全绿、CI 全红"的用例，根因是 CI 环境默认关闭系统动画
+#     （Chrome 报 prefers-reduced-motion: reduce），而用例断言"动画应该播"。
+#     现在这类用例自己用 Emulation.setEmulatedMedia 把偏好钉成 no-preference。
 #
 # ★ 与 thumbs.yml 同样的约定：run: 的正文保持 ASCII，中文只写在注释和 name 里。
 #   （GitHub Actions 会把 run 内容写成临时脚本，Windows PowerShell 5.1 遇到
@@ -33,7 +38,11 @@ concurrency:
 
 jobs:
   regression:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
       - name: 检出代码

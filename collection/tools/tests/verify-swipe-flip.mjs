@@ -58,6 +58,10 @@ async function evaluate(e) {
   return r.result.value;
 }
 await send('Page.enable'); await send('Runtime.enable');
+// ★ 钉死媒体偏好：CI（GitHub 的 Windows runner）默认关闭系统动画 → Chrome 报 reduce →
+//   "关闭时生成了缩回飞行图层（说明没被 reduced-motion 短路）"这类断言必然红。
+//   用例自身不该随宿主机的系统偏好变红。
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let fail = 0;
