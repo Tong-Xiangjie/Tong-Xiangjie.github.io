@@ -1,0 +1,58 @@
+# 回归用例（collection/tools/tests/ 下的用例 + collection/tools/verify-mode-registry.mjs + check-data.mjs）
+#
+# 为什么要有这个 workflow：
+#   这些用例原本只存在开发机上（用 .git/info/exclude 排除），换机器或误删就全没了。
+#   它们记录的是这一路踩过的坑（翻面状态机、缩回动画落点、滚动记忆、占位图、
+#   空状态、SW 缓存与离线、数据自检……），是这个纯静态站点唯一的自动化防线。
+#   进仓库后每次 push 到 main 自动跑一遍，就不用靠"记得手动跑"了。
+#
+# 为什么用 windows-latest 而不是 ubuntu：
+#   用例是在 Windows 上写的，断言里有些尺寸/文本度量依赖字体与渲染细节。
+#   换到 ubuntu 有踩字体差异的风险，而 windows-latest 同样预装 Chrome、
+#   公开仓库的 Actions 分钟数免费 —— 保真比省那一两分钟更值。用例本身已经
+#   做了跨平台处理（支持 CHROME_PATH / Linux 路径 / CI 下加 --no-sandbox），
+#   想在 ubuntu 上跑也没问题，换 runs-on 即可。
+#
+# ★ 与 thumbs.yml 同样的约定：run: 的正文保持 ASCII，中文只写在注释和 name 里。
+#   （GitHub Actions 会把 run 内容写成临时脚本，Windows PowerShell 5.1 遇到
+#     UTF-8 无 BOM 的中文可能截断字符串；这里虽然只是两条 node 命令，
+#     也没必要赌。）
+
+name: 回归用例
+
+on:
+  push:
+    branches: [main]
+  # 允许在 Actions 页面手动触发（改完用例想立刻验证时很有用）
+  workflow_dispatch:
+
+# 同一分支上新的一次 push 直接取消上一次还没跑完的，省时间也省额度
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 用例里用了全局 WebSocket / fetch，需要 Node 22+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 打印环境信息
+        run: |
+          node --version
+          node -e "console.log('chrome:', process.env.CHROME_PATH || '(auto)')"
+
+      - name: 数据自检 + 全部回归用例
+        run: node collection/tools/tests/run.mjs
+
+      - name: 失败时提示怎么本地复现
+        if: failure()
+        run: echo "See the summary at the end of the previous step. Run locally: node collection/tools/tests/run.mjs --only <name>"
