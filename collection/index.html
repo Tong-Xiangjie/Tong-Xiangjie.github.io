@@ -89,9 +89,10 @@
     <link rel="preload" as="image" type="image/svg+xml" href="empty-color.svg">
     <link rel="stylesheet" href="layout.css">
     <!-- ★ Hammer.js 只服务于灯箱的双指缩放（category-view.js initPinchZoom，打开弹窗时才调用）。
-         这是全站唯一的跨域请求，原先在 <head> 同步加载会阻塞首屏渲染（跨域 DNS + TLS），
-         加 defer 后不阻塞解析；若 CDN 挂掉也不会让灯箱逻辑抛错（调用处有守卫）。 -->
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+         A3：已改为本地 vendor/hammer.min.js（同一份 2.0.8 构建，20.3KB）——
+         站内从此没有任何外部依赖：CDN 被墙/抽风时不会再"静默丢失缩放功能"，
+         断网（走 SW 资源缓存）时也能正常加载。仍然 defer，不阻塞首屏解析。 -->
+    <script defer src="vendor/hammer.min.js"></script>
 </head>
 <body>
 
