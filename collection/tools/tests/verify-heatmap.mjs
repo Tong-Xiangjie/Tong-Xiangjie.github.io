@@ -329,6 +329,8 @@ const tipProbe = async (elExpr) => JSON.parse(await evaluate(`(()=>{
   });
 })()`));
 const cellExpr = (rowIdx, col) => `(document.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)')[${rowIdx}]||{querySelectorAll:()=>[]}).querySelectorAll('.tl-heatmap-cell')[${col}]`;
+// ★ 必须定义在顶层：⑤（窄屏）里也要用它，放到 ③ 的 else 块里就会 ReferenceError（踩过一次）
+const yearExpr = `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => !e.classList.contains('tl-hm-corner'))`;
 const hoverAt = async (elExpr) => {
   const box = JSON.parse(await evaluate(`(()=>{ const el=${elExpr}; if(!el) return JSON.stringify(null);
     const r=el.getBoundingClientRect(); return JSON.stringify({x:Math.round(r.left+r.width/2), y:Math.round(r.top+r.height/2)}); })()`));
@@ -439,7 +441,6 @@ for (const [name, expr, want, expectFn] of labelCases) {
 ok(labBad === 0, `③ ★ 标签的泡都满足"不越界 + 该居中的居中 + 有尖角"${labBad ? '；问题：' + labMsg.join('；') : ''}`);
 
 // 年份标签：泡整个在年份数字**右边**，尖角长在泡的左侧竖边（横着指回年份）—— 用户指定
-const yearExpr = `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => !e.classList.contains('tl-hm-corner'))`;
 await hoverAt(yearExpr);
 const yearTip = await tipProbe(yearExpr);
 ok(yearTip.found && yearTip.vis && yearTip.tipL >= yearTip.textR,
@@ -565,6 +566,19 @@ await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons
 await sleep(200);
 ok(mOut === 0, `⑤ ★ 手机宽度下泡也没越出屏幕边界、上下仍在热力图内（扫了首行 12 个格子）${mMsg.filter(m => /越界|没显示/.test(m)).join('；')}`);
 ok(mCent === 0, `⑤ ★ 手机宽度下同样"能居中就居中、放不下才贴边"${mCent ? '；' + mMsg.join('；') : ''}`);
+
+// 窄屏下年份那个"侧边泡"也不能跑出屏幕（用户专门提的）：它在数字右边、尖角在左侧竖边
+await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'center' }); return 1; })()`);
+await sleep(400);
+await hoverAt(yearExpr);
+const mYear = await tipProbe(yearExpr);
+ok(mYear.found && mYear.vis && mYear.outX <= 1,
+  `⑤ ★ 窄屏下年份的侧边泡不越出屏幕（左右越界 ${mYear.outX}｜${mYear.geo}）`);
+ok(mYear.outY <= 1, `⑤ ★ 窄屏下年份的侧边泡上下仍在热力图内（上下越界 ${mYear.outY}）`);
+ok(mYear.arrowSide === 'Right' && mYear.tipL >= mYear.textR,
+  `⑤ ★ 窄屏下年份的泡仍在数字右边、尖角在左侧竖边（泡左 ${mYear.tipL} ≥ 数字右 ${mYear.textR}；尖角边 ${mYear.arrowSide}）`);
+await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
+await sleep(200);
 
 // 再窄一档 320px：用户要求"窄屏不换行，只整体缩小"
 await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 720, deviceScaleFactor: 2, mobile: true });
