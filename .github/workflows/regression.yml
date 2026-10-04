@@ -55,4 +55,6 @@ jobs:
 
       - name: 失败时提示怎么本地复现
         if: failure()
-        run: echo "See the summary at the end of the previous step. Run locally: node collection/tools/tests/run.mjs --only <name>"
+        run: |
+          echo "See the summary at the end of the previous step."
+          echo "Run locally: node collection/tools/tests/run.mjs --only <name>"
