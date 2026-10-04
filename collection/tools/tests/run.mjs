@@ -124,6 +124,11 @@ const results = [];
 //   注解只告诉我它们失败了，具体是哪条断言完全看不到。
 //   所以现在把子进程的 stdout/stderr 边转发边留一份，失败时把**第一条 ✗ 断言**塞进注解。
 const MAX_KEEP = 200 * 1024;                 // 只留尾部 200KB，避免长输出把内存堆起来
+// ★ 每个用例的硬超时。原来没有：一个卡住的用例会一直占着 CI，直到 workflow 的
+//   timeout-minutes: 60 才被砍掉，而那 60 分钟里注解什么线索都没有
+//   （2026-10 就出现过一次 35 分钟还没跑完、两个平台都卡在 regression 步骤的运行）。
+//   超时就杀掉、按失败报出来，注解里带"超时"字样，并给出耗时。
+const SUITE_TIMEOUT_MS = Number(process.env.SUITE_TIMEOUT_MS || 15 * 60 * 1000);
 const runOne = (label, file, args = []) => new Promise(done => {
     const t0 = Date.now();
     const child = spawn(process.execPath, [file, ...args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -135,14 +140,26 @@ const runOne = (label, file, args = []) => new Promise(done => {
     };
     child.stdout.on('data', onData);
     child.stderr.on('data', onData);
-    child.on('error', e => { console.log(`  ✗ 启动失败：${e.message}`); done({ label, code: 2, ms: Date.now() - t0, firstFail: '启动失败：' + e.message }); });
+    let timedOut = false;
+    const killer = setTimeout(() => {
+        timedOut = true;
+        console.log(`\n  ✗ ${label} 超过 ${Math.round(SUITE_TIMEOUT_MS / 1000)}s 仍未结束，已强制终止（用例自身卡住？）`);
+        try { child.kill('SIGKILL'); } catch {}
+    }, SUITE_TIMEOUT_MS);
+    child.on('error', e => {
+        clearTimeout(killer);
+        console.log(`  ✗ 启动失败：${e.message}`);
+        done({ label, code: 2, ms: Date.now() - t0, firstFail: '启动失败：' + e.message, failLines: ['✗ 启动失败：' + e.message], tail: [], failCount: 1 });
+    });
     child.on('close', code => {
+        clearTimeout(killer);
         const lines = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
         const failLines = lines.filter(l => /^✗/.test(l));
         done({
             label,
-            code: code === null ? 2 : code,
+            code: timedOut ? 1 : (code === null ? 2 : code),
             ms: Date.now() - t0,
+            timedOut,
             firstFail: failLines[0] || '',
             // ★ 首个断言往往不足以定位（比如"播了进出场"这种概括句）——
             //   注解正文上限 64KB，多带几条成本很低，能省掉一次 18 分钟的 CI 往返。
@@ -211,7 +228,11 @@ const bad = printSummary(results, t0);
 if (process.env.GITHUB_ACTIONS) {
     for (const r of results) {
         if (r.code === 0 || r.code === 3) continue;
-        const why = r.code === 2 ? '环境问题（多半是找不到 Chrome）' : '断言失败';
+        const why = r.timedOut
+            ? `超时（>${Math.round(SUITE_TIMEOUT_MS / 1000)}s 未结束，已强制终止）`
+            : (r.code === 1 ? '断言失败'
+                : (r.code === 2 ? '环境问题（多半是找不到 Chrome）'
+                    : `异常退出（exit=${r.code}，不是 0/1/2/3 —— 多半是崩了或未结算的顶层 await）`));
         const short = r.label.replace(/^verify-/, '').replace(/\.mjs$/, '');
         // ★ 把失败断言逐条带上（`:：%` 这类字符要转义，否则会把注解截断）
         const detail = (r.failLines && r.failLines.length)
