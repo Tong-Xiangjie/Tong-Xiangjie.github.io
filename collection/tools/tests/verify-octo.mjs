@@ -46,7 +46,14 @@ function ok(cond, label) { if (cond) { pass++; console.log(`  ✓ ${label}`); } 
 
 async function boot(hash) {
   await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#${hash}` });
-  for (let i = 0; i < 140; i++) { const r = await evaluate(`(()=>typeof viewScrollContainers!=='undefined' && Object.keys(viewScrollContainers).length>0 && document.readyState==='complete')()`).catch(() => false); if (r) break; await sleep(300); }
+  // ★ 就绪条件里必须带上 copyDetailList：原来只等 viewScrollContainers + readyState，
+  //   在 CI 上出现过"页面已经 ready 但 copyDetailList 还是 undefined"（诊断实测：
+  //   {"listLen":"undefined","mode":"?"}），于是后面一路找下标 -1。
+  for (let i = 0; i < 140; i++) {
+    const r = await evaluate(`(()=>typeof viewScrollContainers!=='undefined' && Object.keys(viewScrollContainers).length>0 && document.readyState==='complete' && typeof copyDetailList!=='undefined')()`).catch(() => false);
+    if (r) break;
+    await sleep(300);
+  }
   await sleep(LIVE ? 2600 : 1800);
 }
 // 打开 KP04057 的详情卡片，返回它的 copyDetailList 下标

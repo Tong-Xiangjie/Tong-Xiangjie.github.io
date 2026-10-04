@@ -48,12 +48,28 @@ let pass = 0, fail = 0;
 function ok(cond, label) { if (cond) { pass++; console.log(`  ✓ ${label}`); } else { fail++; console.log(`  ✗ ${label}`); } }
 async function boot(hash) {
   await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#${hash}` });
-  for (let i = 0; i < 140; i++) { const r = await evaluate(`(()=>typeof viewScrollContainers!=='undefined' && Object.keys(viewScrollContainers).length>0 && document.readyState==='complete')()`).catch(() => false); if (r) break; await sleep(300); }
+  for (let i = 0; i < 140; i++) { const r = await evaluate(`(()=>typeof viewScrollContainers!=='undefined' && Object.keys(viewScrollContainers).length>0 && document.readyState==='complete' && typeof performSearchAndRender==='function')()`).catch(() => false); if (r) break; await sleep(300); }
   await sleep(LIVE ? 2600 : 1800);
 }
-// 直接调 performSearchAndRender（离 UI），读 prevSearchResults 长度
-const count = (kw, type) => evaluate(`(()=>{ performSearchAndRender(${JSON.stringify(kw)}, ${JSON.stringify(type)});
-  return prevSearchResults ? prevSearchResults.length : -1; })()`);
+// 直接调 performSearchAndRender（离 UI），读 prevSearchResults 长度。
+// ★ 原来是一发定胜负：CI 上这行抛过异常（注解里的 "at <anonymous>:2:63" 就是它），
+//   于是整个用例以一个看不懂的栈收场。现在改成重试 + 把异常原文打成 ✗ 行：
+//   · prevSearchResults 还是 falsy（= 渲染没落地）也算没就绪，继续等；
+//   · 一直抛异常就打印真实 message（而不是只留栈），annotation 里能直接看到。
+const count = async (kw, type) => {
+  let lastErr = null;
+  for (let i = 0; i < 40; i++) {
+    try {
+      const n = await evaluate(`(()=>{ if (typeof performSearchAndRender !== 'function') return -2;
+        performSearchAndRender(${JSON.stringify(kw)}, ${JSON.stringify(type)});
+        return prevSearchResults ? prevSearchResults.length : -1; })()`);
+      if (n >= 0) return n;
+    } catch (e) { lastErr = e; }
+    await sleep(250);
+  }
+  console.log(`  ✗ count(${JSON.stringify(kw)}, ${JSON.stringify(type)}) 重试 40 次仍未就绪` + (lastErr ? `：${String(lastErr.message).slice(0, 200)}` : ''));
+  return -1;
+};
 // 走真实 UI：选类型 → 填输入框 → 点搜索按钮 → 读结果。
 // ★ 渲染条数只能数**当前可见**的滚动容器：各视图容器是常驻的、只是 display 切换，
 //   概览页也在用 .search-result-item，直接 document.querySelectorAll 会把概览的
