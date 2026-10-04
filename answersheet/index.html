@@ -159,9 +159,11 @@
      ⚠ html2pdf 把 jsPDF 打包在自己内部，**不暴露全局** `jspdf`。
        矢量导出要直接调 jsPDF 的绘图 API，所以必须另外引一份 UMD 版。
        两者版本对齐（html2pdf 0.10.1 内嵌的就是 jsPDF 3.x），
-       位图导出走 html2pdf、矢量导出走这份 jsPDF，互不干扰。 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js"></script>
+       位图导出走 html2pdf、矢量导出走这份 jsPDF，互不干扰。
+     两个文件已本地化到 vendor/（就是原来 cdnjs 上那两份、版本一模一样），
+     站内不再依赖任何 CDN：离线也能用，也不会因为 CDN 抽风而白屏。 -->
+<script src="vendor/html2pdf.bundle.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
 
 <!-- 模块按依赖顺序加载（普通 script，避免 file:// 下的 CORS 限制） -->
 <script src="js/config.js?v=226"></script>
