@@ -1220,6 +1220,18 @@ body.modal-open {
 /* ========== 空状态 ========== */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 0.9rem; }
 
+/* ★ 时间轴的空状态淡入：从"有"筛到"无"时，条目会滑出去（playTimelineFlip 的退场替身），
+   空状态自己也该跟着淡入，而不是硬蹦出来。只挂在 .timeline-empty-enter 上，
+   其它板块的 .empty-state 不受影响。 */
+@keyframes timelineEmptyIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+.timeline-empty-enter { animation: timelineEmptyIn 0.28s ease both; }
+@media (prefers-reduced-motion: reduce) {
+    .timeline-empty-enter { animation: none; }
+}
+
 /* 空状态插图：自绘线稿 SVG 当蒙版（和缺图占位 img-placeholder.svg 同一套做法）。
    颜色不写在 SVG 里，而是由这里的 background-color 给，所以跟着主题自动变。 */
 .empty-art, .empty-art-sm {
@@ -2379,7 +2391,21 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
     .tl-heatmap-ylabel { padding-right: 2px; }
 }
 
-.timeline-body { display: flex; flex-direction: column; padding-left: 12px; }
+.timeline-body {
+    display: flex;
+    flex-direction: column;
+    padding-left: 12px;
+    /* ★ 换筛选时的进出场（special.js 的 playTimelineFlip）会把条目先 translateX(40px) 再落位，
+       而 CSS 变换会撑大**可滚动溢出区** —— 于是动画期间整页冒出一条横向滚动条
+       （用户反馈："左右滑动的时候会出现左右方向的滚动条，这也是之前出现过的问题"）。
+       把横向溢出裁掉即可，注意必须用 overflow-x: clip 而不是 hidden：
+       · clip 不会把本元素变成滚动容器，纵向仍是 visible（如果用 hidden，
+         横向 hidden + 纵向 visible 会被浏览器算成 overflow-y: auto，
+         列表自己长出第二条纵向滚动条，反而更糟）；
+       · 这里是整条链路上能拦住它的那一层 —— 条目都在 .timeline-body 里，
+         而热力图的悬浮泡是它的**兄弟**节点（不在里面），不会被误裁。 */
+    overflow-x: clip;
+}
 .timeline-date-header {
     display: flex;
     align-items: baseline;

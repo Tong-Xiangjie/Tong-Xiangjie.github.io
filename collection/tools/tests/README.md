@@ -62,6 +62,7 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 | `verify-years-timeline.mjs` | 期间合计文案、年份/月份筛选后回到顶部、缓存复位 |
 | `verify-timeline-mobile.mjs` | 手机宽度下不超出屏幕 |
 | `verify-heatmap.mjs` | 按月份热力图（年 × 月）：每个格子的件数/金额与"测试自己从原始数据重算"完全一致、格子金额之和 == 标语总额、悬停用**纯 CSS** tooltip 显示且没有内联定位、点格子=按它筛选、深浅主题与手机宽度 |
+| `verify-timeline-flip.mjs` | 反复点**同一个**时间段不重渲染（像反复点同一个 tab）；真换时间段时条目按搜索结果的 FLIP 滑进滑出（退场替身会清掉、动画结束不留内联 style、屏幕外的条目不播）；文章版块是同一套动画 |
 
 **搜索**
 | 文件 | 管什么 |

@@ -118,11 +118,34 @@ if (!tests.length) {
 
 // ---------- 跑 ----------
 const results = [];
+// ★ 为什么要自己转发子进程输出（原来直接 stdio: 'inherit'）：
+//   CI 日志要鉴权才能下载，能匿名读到的只有 check-run 注解。注解里如果只写"断言失败"，
+//   就等于没有信息 —— 2026-10 那次 CI 有 5 个用例"本地全绿、CI 全红"，
+//   注解只告诉我它们失败了，具体是哪条断言完全看不到。
+//   所以现在把子进程的 stdout/stderr 边转发边留一份，失败时把**第一条 ✗ 断言**塞进注解。
+const MAX_KEEP = 200 * 1024;                 // 只留尾部 200KB，避免长输出把内存堆起来
 const runOne = (label, file, args = []) => new Promise(done => {
     const t0 = Date.now();
-    const child = spawn(process.execPath, [file, ...args], { cwd: ROOT, env, stdio: 'inherit' });
-    child.on('error', e => { console.log(`  ✗ 启动失败：${e.message}`); done({ label, code: 2, ms: Date.now() - t0 }); });
-    child.on('close', code => done({ label, code: code === null ? 2 : code, ms: Date.now() - t0 }));
+    const child = spawn(process.execPath, [file, ...args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    const onData = buf => {
+        const s = buf.toString();
+        out = (out + s).slice(-MAX_KEEP);
+        process.stdout.write(s);
+    };
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onData);
+    child.on('error', e => { console.log(`  ✗ 启动失败：${e.message}`); done({ label, code: 2, ms: Date.now() - t0, firstFail: '启动失败：' + e.message }); });
+    child.on('close', code => {
+        const failLines = out.split(/\r?\n/).map(l => l.trim()).filter(l => /^✗/.test(l));
+        done({
+            label,
+            code: code === null ? 2 : code,
+            ms: Date.now() - t0,
+            firstFail: failLines[0] || '',
+            failCount: failLines.length
+        });
+    });
 });
 
 const t0 = Date.now();
@@ -165,7 +188,10 @@ function printSummary(results, t0) {
     }
     if (bad.length) {
         console.log('\n  失败项：');
-        for (const r of bad) console.log(`    · ${r.label}（exit=${r.code}${r.code === 2 ? '，多半是环境问题，比如找不到 Chrome' : ''}）`);
+        for (const r of bad) {
+            console.log(`    · ${r.label}（exit=${r.code}${r.code === 2 ? '，多半是环境问题，比如找不到 Chrome' : ''}）`);
+            if (r.firstFail) console.log(`        ${r.firstFail}`);
+        }
     }
     return bad.length;
 }
@@ -180,7 +206,11 @@ if (process.env.GITHUB_ACTIONS) {
         if (r.code === 0 || r.code === 3) continue;
         const why = r.code === 2 ? '环境问题（多半是找不到 Chrome）' : '断言失败';
         const short = r.label.replace(/^verify-/, '').replace(/\.mjs$/, '');
-        console.log(`::error title=${r.label} 失败（exit=${r.code}）::${why}；本地复现：node collection/tools/tests/run.mjs --only ${short}`);
+        // ★ 把首个失败断言原文带上（`:：` 这类字符要转义，否则会把注解截断）
+        const detail = r.firstFail
+            ? `；首个失败断言：${r.firstFail.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 300)}${r.failCount > 1 ? `（共 ${r.failCount} 条 ✗）` : ''}`
+            : '';
+        console.log(`::error title=${r.label} 失败（exit=${r.code}）::${why}${detail}；本地复现：node collection/tools/tests/run.mjs --only ${short}`);
     }
     for (const r of results) {
         if (r.code !== 3) continue;

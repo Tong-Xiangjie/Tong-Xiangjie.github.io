@@ -1215,11 +1215,23 @@ function onTimelineFilterChange() {
 function onTimelineFilterChangeInner() {
     const yearSelect = document.getElementById('timelineYearFilter');
     const monthSelect = document.getElementById('timelineMonthFilter');
-    if (yearSelect) timelineFilterYear = yearSelect.value;
-    if (monthSelect) timelineFilterMonth = monthSelect.value;
+    const nextYear = yearSelect ? yearSelect.value : timelineFilterYear;
+    const nextMonth = monthSelect ? monthSelect.value : timelineFilterMonth;
+    // ★ 点的是**同一个时间段**（比如反复点同一个格子、反复点"全部"）：什么都不做。
+    //   用户要求"和反复点纸币/硬币 tab 一样"——tab 那边就是在 onTabClickInner 里
+    //   按身份判断后直接 return（见 tab-switcher.js）。这里同理，只是身份的
+    //   "当前值"是 timelineFilterYear + timelineFilterMonth 这一对。
+    //   为什么必须在这里（而不是在 applyTimelineFilter 里）：下拉框自己 onchange
+    //   也会走到这儿，选回原来那一项同样不该重渲染。
+    //   注意返回值：调用方据此知道"有没有真的换列表"，但 onTimelineFilterChange
+    //   仍会照常 syncRoute（URL 本来就该与当前状态一致）。
+    if (nextYear === timelineFilterYear && nextMonth === timelineFilterMonth) return false;
+    timelineFilterYear = nextYear;
+    timelineFilterMonth = nextMonth;
     // ★ 换了年份/月份＝换了一份列表，位置必须回到顶部（用户要求："更新选择年份/月份后
     //   应该回到顶部"）。清缓存 + 回顶部的顺序与原因都写在 rerenderTimeline 里。
     rerenderTimeline();
+    return true;
 }
 
 // ---------- 返回专题概览 ----------
@@ -1447,17 +1459,145 @@ function bindHeatmapTipClamp() {
     document.addEventListener('focusin', (e) => { const el = pick(e); if (el) run(el); });
 }
 
-// 只让下面的时间轴动一次（换筛选/换排序用）。
-// 为什么单独写一个：triggerViewAnimation()（core.js）是把 content-enter 挂在**整个滚动容器**上，
-// 于是"换年月"这种同屏换内容也会让标题、热力图、顶部工具条一起淡入一次 —— 用户要求它们只在
-// "进入专题板块"那一次跟着整页动画走。这里把同样的动画只挂在 .timeline-body 上。
-function animateTimelineBodyOnly(app) {
-    const body = app && app.querySelector('.timeline-body');
-    if (!body) return;
-    body.classList.remove('content-enter');
-    void body.offsetHeight;               // 强制回流，保证类移除生效
-    body.classList.add('content-enter');
+// ---------- 时间轴的"搜索式进出场"（FLIP） ----------
+// 用户要求：换时间段/换排序时，下面的列表要像**纸币/硬币搜索结果**那样条目自己滑进滑出
+// （位移同时含左右与上下），而不是整块重刷一下。参考实现在 search.js / article.js：
+//   ① 改 DOM 前记下每个条目的 key 与屏幕位置；② 改完算位移，先反向平移再过渡回原位；
+//   ③ 新条目从右侧滑入；④ 被筛掉的条目滑出后消失。
+// ★ 与 search.js 的关键区别：时间轴是**整块 app.innerHTML = html 重建**的，改完之后
+//   旧节点已经不存在了（不像搜索结果那样能移动真节点），所以：
+//   · 保留条目的 FLIP 只靠 key→旧位置 的映射（新节点套用同一位移即可，FLIP 不要求同一个节点）；
+//   · 退场替身必须在改 DOM **之前**用 cloneNode 留一份（只克隆可视区附近的，避免几百个条目全克隆）。
+const TL_FLIP_EASE = 'transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.32s ease';
+const TL_FLIP_DX = 40;          // 新条目从右侧 40px 处滑入（与搜索结果同一个量）
+
+function timelineFlipEnabled() {
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
+
+function snapshotTimelineFlip(app) {
+    const snap = { items: new Map(), host: null };
+    if (!app || !timelineFlipEnabled()) return snap;
+    const host = app.getBoundingClientRect();
+    snap.host = host;
+    // 只克隆"看得见"的那些（上下各放宽 200px）：退场动画本来也只对可视区有意义，
+    // 不这么限制的话，从"全部"收窄筛选会把几百个条目一起 clone，白费一次大开销。
+    const viewTop = Math.max(host.top, 0) - 200;
+    const viewBottom = Math.min(host.bottom, window.innerHeight) + 200;
+    app.querySelectorAll('.timeline-item').forEach(el => {
+        const key = el.dataset.flipKey;
+        if (!key || snap.items.has(key)) return;
+        const r = el.getBoundingClientRect();
+        const visible = r.bottom > viewTop && r.top < viewBottom;
+        snap.items.set(key, {
+            left: r.left - host.left,
+            top: r.top - host.top,
+            w: r.width,
+            h: r.height,
+            visible,
+            clone: visible ? el.cloneNode(true) : null
+        });
+    });
+    return snap;
+}
+
+function playTimelineFlip(app, snap) {
+    // ★ 注意这里**不能**要求 snap.items 非空：上一屏是空状态（"显然，在选择的这个时间段
+    //   你并没有乱花钱"）时一个条目都没有，那正是"从无到有"最需要动画的时候 —— 早先加了
+    //   size === 0 就 return，结果这种情形下新条目直接蹦出来（用户反馈"缺少从无到有的动画"）。
+    if (!app || !snap || !snap.host) return;
+    if (!timelineFlipEnabled()) return;
+    const host = app.getBoundingClientRect();
+    const moving = [];
+    const seen = new Set();
+    // ★ 只给"可视区附近"的条目播动画（上下各放宽 200px）：屏幕外的条目本来也看不见，
+    //   而"从一年放开到全部"会一次多出三百多个条目 —— 全都挂 transition 会明显卡顿。
+    //   这与 search.js 里的做法一致（那边对首屏以下的条目只做延迟淡入）。
+    const viewTop = host.top - 200;
+    const viewBottom = Math.min(host.bottom, window.innerHeight) + 200;
+
+    // ① 已经在页面上的条目：新条目从右侧滑入，保留条目从旧位置滑到新位置（dx/dy 都算）
+    app.querySelectorAll('.timeline-item').forEach(el => {
+        if (!el.dataset.flipKey) return;
+        const old = snap.items.get(el.dataset.flipKey);
+        if (old) seen.add(el.dataset.flipKey);
+        const r = el.getBoundingClientRect();
+        const near = r.bottom > viewTop && r.top < viewBottom;
+        if (!near) return;
+        let dx, dy;
+        if (old) {
+            dx = (snap.host.left + old.left) - r.left;
+            dy = (snap.host.top + old.top) - r.top;
+            if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;   // 位置没动就别播
+        } else {
+            dx = TL_FLIP_DX;
+            dy = 0;
+        }
+        el.style.transition = 'none';
+        el.style.transform = 'translate(' + dx.toFixed(1) + 'px, ' + dy.toFixed(1) + 'px)';
+        if (!old) el.style.opacity = '0';
+        moving.push(el);
+    });
+
+    // ② 这一版里消失的条目：把改 DOM 前留的克隆贴到原位置，做退场替身滑出去
+    const ghosts = [];
+    for (const [key, old] of snap.items) {
+        if (seen.has(key) || !old.clone || !old.visible) continue;
+        const g = old.clone;
+        g.classList.add('timeline-flip-ghost');
+        g.querySelectorAll('.timeline-flip-ghost').forEach(x => x.classList.remove('timeline-flip-ghost'));
+        g.style.position = 'fixed';
+        g.style.left = (snap.host.left + old.left) + 'px';
+        g.style.top = (snap.host.top + old.top) + 'px';
+        g.style.width = old.w + 'px';
+        g.style.height = old.h + 'px';
+        g.style.margin = '0';
+        g.style.pointerEvents = 'none';
+        g.style.zIndex = '90';
+        g.style.transition = 'none';
+        g.style.transform = 'translate(0, 0)';
+        g.style.opacity = '1';
+        document.body.appendChild(g);
+        ghosts.push(g);
+    }
+
+    if (moving.length === 0 && ghosts.length === 0) return;
+
+    // 先把起始态渲染出去（一次回流），下一帧再统一过渡到落位状态
+    void app.offsetHeight;
+    requestAnimationFrame(() => {
+        for (const el of moving) {
+            el.style.transition = TL_FLIP_EASE;
+            el.style.transform = '';
+            el.style.opacity = '';
+        }
+        for (const g of ghosts) {
+            g.style.transition = TL_FLIP_EASE;
+            g.style.transform = 'translateX(' + TL_FLIP_DX + 'px)';
+            g.style.opacity = '0';
+            const done = () => { g.removeEventListener('transitionend', done); if (g.parentNode) g.remove(); };
+            g.addEventListener('transitionend', done);
+            // ★ 兜底：某些情况下 transitionend 不会来（元素被隐藏、动画被合并…），
+            //   留一个定时器保证替身一定被清掉 —— 否则它会一直盖在页面上、还会挡住点击。
+            setTimeout(() => { if (g.parentNode) g.remove(); }, 700);
+        }
+    });
+
+    // 动画结束后清掉内联 style：残留的 transform/opacity 会让下一次测量（FLIP 本身、
+    // 热力图泡的边界判断）读到错的几何。
+    setTimeout(() => {
+        for (const el of moving) {
+            el.style.transition = '';
+            el.style.transform = '';
+            el.style.opacity = '';
+        }
+    }, 420);
+}
+
+// ★ 这里原来是 animateTimelineBodyOnly()：换筛选时给 .timeline-body 挂一次 content-enter 淡入。
+//   用户后来要求"像纸币/硬币搜索结果那样的进出场（左右滑动和上下滑动）"，条目的滑入滑出
+//   已经由上面的 snapshotTimelineFlip / playTimelineFlip 负责，整块再淡入反而糊，
+//   所以那个函数已经删掉，换筛选/换排序一律走 FLIP。
 
 // ---------- 核心渲染 ----------
 function renderTimelineContent(config, opts) {
@@ -1465,6 +1605,10 @@ function renderTimelineContent(config, opts) {
     //   保持原样不重播进入动画，只有下面的时间轴列表淡入一次。
     const keepChrome = !!(opts && opts.keepChrome);
     const app = getRenderContainer();
+    // ★ FLIP 的"旧位置"必须在改 DOM **之前**量：时间轴是整块 innerHTML 重建的，
+    //   改完之后旧节点就不在了（退场替身也因此要在这里先 clone 好）。
+    //   只有换筛选/换排序（keepChrome）需要 —— 进入专题那一次走的是整页进入动画。
+    const flipSnap = keepChrome ? snapshotTimelineFlip(app) : null;
 
     const items = [];
 
@@ -1687,13 +1831,16 @@ function renderTimelineContent(config, opts) {
     html += buildMonthHeatmap(validItems);
 
     if (filteredItems.length === 0) {
-        html += '<div class="empty-state">' + emptyArt('timeline') + '显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
+        html += '<div class="empty-state timeline-empty-enter">' + emptyArt('timeline') + '显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
         app.innerHTML = html;
-        if (keepChrome) animateTimelineBodyOnly(app); else triggerViewAnimation();
+        if (keepChrome) playTimelineFlip(app, flipSnap); else triggerViewAnimation();
         return;
     }
 
     html += `<div class="timeline-body">`;
+    // FLIP 用的 key：按内容算，跨渲染稳定（不能用自增序号——换筛选后序号会整体错位，
+    // 保留的条目就认不出来了）。完全相同的条目（同一天买两枚一模一样的）用出现次序区分。
+    const flipSigCount = new Map();
     for (const dateKey of sortedDates) {
         const groupItems = grouped[dateKey];
 
@@ -1741,7 +1888,12 @@ function renderTimelineContent(config, opts) {
                 metaParts.push('购入价格：' + priceText);
                 const metaStr = metaParts.join('\u00A0\u00A0\u00A0\u00A0');
 
-                html += `<div class="timeline-item">`;
+                const flipSig = [item.type, item.dataKey, item.seriesName, c.purchaseDate,
+                    c.version, c.condition || c.grade, c.gradingCompany, c.price, c.img1, c.img2].join('|');
+                const flipNth = flipSigCount.get(flipSig) || 0;
+                flipSigCount.set(flipSig, flipNth + 1);
+
+                html += `<div class="timeline-item" data-flip-key="${escapeAttr(flipSig + '#' + flipNth)}">`;
                 html += `<div class="timeline-left">`;
                 html += `<div class="timeline-dot"></div>`;
                 html += `</div>`;
@@ -1781,6 +1933,7 @@ function renderTimelineContent(config, opts) {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
         }, 50);
     }
-    // ★ 动画范围：进入专题时整页淡入（triggerViewAnimation）；换年月/换排序只让下面的列表动
-    if (keepChrome) animateTimelineBodyOnly(app); else triggerViewAnimation();
+    // ★ 动画范围：进入专题时整页淡入（triggerViewAnimation）；换年月/换排序只让列表里的
+    //   条目自己滑进滑出（playTimelineFlip），标题、热力图、工具条都不动。
+    if (keepChrome) playTimelineFlip(app, flipSnap); else triggerViewAnimation();
 }

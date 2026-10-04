@@ -657,10 +657,14 @@ await sleep(1000);
 const filterInfo = JSON.parse(await evaluate(`(()=>{ const app=getRenderContainer(); return JSON.stringify({
   va: window.__vaCount || 0,
   bodyAnim: !!(app && app.querySelector('.timeline-body.content-enter')),
+  flipReady: typeof playTimelineFlip === 'function' && typeof snapshotTimelineFlip === 'function',
   heatmap: !!document.querySelector('.tl-heatmap'), header: !!document.querySelector('.timeline-header') }); })()`));
 ok(clicked2 === 'ok', '⑥ 又点了一个格子（换筛选）');
 ok(filterInfo.va === 0, `⑥ ★ 换筛选没有再触发整页动画（triggerViewAnimation 调用 ${filterInfo.va} 次）`);
-ok(filterInfo.bodyAnim, '⑥ ★ 换筛选时只有 .timeline-body 淡入一次');
+// ★ 这条原来是"换筛选时只有 .timeline-body 淡入一次"。用户后来要求改成"像纸币/硬币搜索结果
+//   那样的进出场（左右+上下滑动）"，整块淡入已经删掉，改为由条目的 FLIP 负责 ——
+//   所以这里核对的是"FLIP 就位 + 没有再整块重播"（本意不变：换筛选只动列表区）。
+ok(!filterInfo.bodyAnim && filterInfo.flipReady, '⑥ ★ 换筛选不再整块淡入，改由条目自己滑进滑出（FLIP 就位）');
 ok(filterInfo.heatmap && filterInfo.header, '⑥ 标题与热力图仍在（只是不再重播动画）');
 // 收尾：回到全部时间
 await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
