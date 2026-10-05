@@ -178,13 +178,102 @@ try {
     await send('Network.setBlockedURLs', { urls: ['*theme.js*'] });
     await send('Page.reload', { ignoreCache: true });
     await sleep(1900);
-    const fresh = JSON.parse(await evaluate(PROBE));
     const want = CSS_DEFAULTS[mode];
-    const bad = Object.keys(want).filter(k => fresh[k] !== want[k]);
-    console.log(`  [${mode === 'dark' ? '暗' : '亮'}色 + 无主题色偏好 + theme.js 被拦] --theme=${fresh['--theme']}  --theme-light=${fresh['--theme-light']}  --bg=${fresh['--bg']}`);
+    // ★ 颜色必须**归一化后**再比：layout.css 为了做明暗补间，把这些变量用
+    //   @property 注册成了 <color>，于是同一个颜色读出来的序列化形态变了
+    //   （#eef4ff → rgb(238, 244, 255)）。直接比字符串会误报，
+    //   归一到 getComputedStyle 的 color 形态后，断言的**原意**（CSS 默认值
+    //   有没有被多余的内联值覆盖）保持不变。
+    const fresh = JSON.parse(await evaluate(`(()=>{
+      const cs = getComputedStyle(document.documentElement);
+      const d = document.createElement('span'); document.body.appendChild(d);
+      const norm = v => { d.style.color = ''; d.style.color = v; return getComputedStyle(d).color; };
+      const keys = ${JSON.stringify(Object.keys(want))};
+      const raw = {}, normalized = {};
+      for (const k of keys) { raw[k] = cs.getPropertyValue(k).trim(); normalized[k] = norm(raw[k]); }
+      d.remove();
+      return JSON.stringify({ raw, normalized });
+    })()`));
+    const wantNorm = JSON.parse(await evaluate(`(()=>{
+      const d = document.createElement('span'); document.body.appendChild(d);
+      const norm = v => { d.style.color = ''; d.style.color = v; return getComputedStyle(d).color; };
+      const want = ${JSON.stringify(want)}, out = {};
+      for (const k of Object.keys(want)) out[k] = norm(want[k]);
+      d.remove();
+      return JSON.stringify(out);
+    })()`));
+    const bad = Object.keys(want).filter(k => fresh.normalized[k] !== wantNorm[k]);
+    console.log(`  [${mode === 'dark' ? '暗' : '亮'}色 + 无主题色偏好 + theme.js 被拦] --theme=${fresh.raw['--theme']}  --theme-light=${fresh.raw['--theme-light']}  --bg=${fresh.raw['--bg']}`
+      + (bad.length ? `  ✗ 归一化后不一致：${bad.map(k => k + ' ' + fresh.normalized[k] + ' vs ' + wantNorm[k]).join('；')}` : '  （归一化后与 CSS 默认一致）'));
     ok(bad.length === 0,
       `没存过主题色时（${mode === 'dark' ? '暗' : '亮'}色），CSS 默认值原样保留、没有多余的内联覆盖`);
   }
+
+  // ══════════════ 明暗切换的颜色补间 ══════════════
+  // ★ 用户报："切换白天黑夜的时候，有一部分的颜色是突变的（那些框的背景色，
+  //   比如评级/年代柱状图的背景）"。
+  //   那些框吃的是 --thumb-bg / --theme 等变量，变量瞬间换值就一起跳。
+  //   layout.css 用 @property 把颜色变量注册成可插值类型、只给变量加过渡，
+  //   theme.js 在切换的那一小段时间挂 .theme-anim。
+  //   这里验三件事：切换期间变量**真的在插值**（不是瞬间到位）、
+  //   消费者（body 底色）跟着补间、切完把类摘掉。
+  console.log('\n══════ 明暗切换的颜色补间 ══════');
+  await send('Network.setBlockedURLs', { urls: [] });
+  const SAMPLE = `(()=>{ const el=document.documentElement, cs=getComputedStyle(el);
+    return JSON.stringify({
+      body: getComputedStyle(document.body).backgroundColor,
+      bg: cs.getPropertyValue('--bg').trim(),
+      thumb: cs.getPropertyValue('--thumb-bg').trim(),
+      cls: el.classList.contains('theme-anim')
+    }); })()`;
+
+  // ① 允许动效：变量必须"走"过去
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  await evaluate(`(()=>{ localStorage.setItem('collection-color-scheme','light'); return true; })()`);
+  await send('Page.reload', { ignoreCache: true });
+  await sleep(2200);
+  const cLight = JSON.parse(await evaluate(SAMPLE));
+  await evaluate(`(()=>{ setColorSchemeMode('dark'); return true; })()`);
+  // ★ 不要死等固定毫秒再采样：机器忙的时候 120ms 可能还没开始变（第一次写就抖过）。
+  //   改成轮询到"值第一次发生变化"那一帧 —— 这一帧是什么，正好能区分
+  //   "在插值"（中间色）和"直接到位"（终值）。
+  async function sampleFirstChange(fromBody, ms = 1500) {
+    const t0 = Date.now();
+    let last = null;
+    while (Date.now() - t0 < ms) {
+      last = JSON.parse(await evaluate(SAMPLE));
+      if (last.body !== fromBody) return last;
+      await sleep(25);
+    }
+    return last;
+  }
+  const cMid = await sampleFirstChange(cLight.body);
+  await sleep(700);
+  const cEnd = JSON.parse(await evaluate(SAMPLE));
+  console.log(`  亮 body=${cLight.body} bg=${cLight.bg} thumb=${cLight.thumb}`);
+  console.log(`  变化第一帧 body=${cMid.body} bg=${cMid.bg} thumb=${cMid.thumb}  类=${cMid.cls}`);
+  console.log(`  暗 body=${cEnd.body} bg=${cEnd.bg} thumb=${cEnd.thumb}  类=${cEnd.cls}`);
+  ok(cLight.cls === false, '切换前没有挂 .theme-anim（不常驻）');
+  ok(cMid.cls === true, '★ 切换过程中挂着 .theme-anim');
+  ok(cEnd.cls === false, '★ 切完把 .theme-anim 摘掉（不常驻，免得以后改这些变量都变慢）');
+  ok(cMid.bg !== cLight.bg && cMid.bg !== cEnd.bg,
+     `★ 变化第一帧 --bg 就是中间值 = 变量真的在插值（${cLight.bg} → ${cMid.bg} → ${cEnd.bg}）`);
+  ok(cMid.thumb !== cLight.thumb && cMid.thumb !== cEnd.thumb,
+     `★ 柱状图底色用的 --thumb-bg 同样在插值（${cLight.thumb} → ${cMid.thumb} → ${cEnd.thumb}）`);
+  ok(cMid.body !== cLight.body && cMid.body !== cEnd.body,
+     `★ 消费者跟着补间：body 背景第一帧就是中间色（${cLight.body} → ${cMid.body} → ${cEnd.body}）—— 用户看到的"突变"就是这里`);
+
+  // ② 减弱动效：直接到位，不许有中间值
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  const rLight = JSON.parse(await evaluate(SAMPLE));
+  await evaluate(`(()=>{ setColorSchemeMode('light'); return true; })()`);
+  const rMid = await sampleFirstChange(rLight.body);
+  await sleep(500);
+  const rEnd = JSON.parse(await evaluate(SAMPLE));
+  console.log(`  减弱动效：变化第一帧 body=${rMid.body}（起点 ${rLight.body} / 终点 ${rEnd.body}）类=${rMid.cls}`);
+  ok(rMid.cls === false, '★ 减弱动效时不挂 .theme-anim');
+  ok(rMid.body === rEnd.body, `★ 减弱动效时直接到位，没有中间色（第一帧已是终值 ${rMid.body}）`);
+  await send('Emulation.setEmulatedMedia', { features: [] });
 
   console.log(`\nconsole.error: ${errs.length ? errs.join(' | ') : '（无）'}`);
   console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);

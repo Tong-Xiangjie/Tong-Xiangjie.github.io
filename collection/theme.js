@@ -75,19 +75,59 @@ function isDarkScheme() {
         window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-function applyColorScheme() {
+function applyColorScheme(animate) {
     const dark = isDarkScheme();
     const el = document.documentElement;
-    el.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
-    el.style.colorScheme = dark ? 'dark' : 'light';   // 让原生控件/滚动条跟着变
-    // 底色变了，整套调色板要重算
-    applyTheme(localStorage.getItem('app-theme') || defaultTheme);
+    withThemeAnim(function () {
+        el.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
+        el.style.colorScheme = dark ? 'dark' : 'light';   // 让原生控件/滚动条跟着变
+        // 底色变了，整套调色板要重算
+        applyTheme(localStorage.getItem('app-theme') || defaultTheme);
+    }, animate);
+}
+
+// ★ 明暗/主题色切换的"补间窗口"。
+//   整套配色是 CSS 变量，变量换值是**瞬间**的，所以吃变量的地方（背景、边框、
+//   文字、柱状图底色）会一起跳 —— 用户报的"切换白天黑夜时有些框的背景色突变"。
+//   layout.css 里用 @property 把这些颜色变量注册成可插值类型并加了过渡，
+//   这里只负责在切换的那一小段时间挂上 .theme-anim，切完摘掉。
+//   常驻不行：会让以后每次改这些变量都变慢，hover 反馈也会发糊。
+//   减弱动效时不挂（CSS 那边也有 @media 兜底），直接到位。
+const THEME_ANIM_CLASS = 'theme-anim';
+const THEME_ANIM_MS = 320;          // 比 --dur-3(0.3s) 略长，保证过渡跑完再摘类
+let themeAnimTimer = 0;
+
+function themeAnimAllowed() {
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function withThemeAnim(fn, animate) {
+    const el = document.documentElement;
+    const on = (animate !== false) && themeAnimAllowed();
+    if (on) {
+        el.classList.add(THEME_ANIM_CLASS);
+        // ★ 强制一次样式结算：让浏览器把"变量带过渡"这件事记进变化前的样式。
+        //   不加这一下，挂类和改变量发生在同一个任务里，Chrome 有可能直接给出
+        //   最终值（视作"没有过渡"），补间就时有时无。
+        void el.offsetWidth;
+    }
+    try {
+        return fn();
+    } finally {
+        if (on) {
+            if (themeAnimTimer) clearTimeout(themeAnimTimer);
+            themeAnimTimer = setTimeout(function () {
+                themeAnimTimer = 0;
+                el.classList.remove(THEME_ANIM_CLASS);
+            }, THEME_ANIM_MS);
+        }
+    }
 }
 
 function setColorSchemeMode(mode) {
     if (COLOR_SCHEME_MODES.indexOf(mode) < 0) return;
     try { localStorage.setItem(COLOR_SCHEME_KEY, mode); } catch (e) {}
-    applyColorScheme();
+    applyColorScheme(true);
     // 山河地图的颜色是 JS 算出来写进 SVG 的，得让它重算
     if (typeof window.refreshShanheColors === 'function') {
         window.refreshShanheColors();
@@ -99,7 +139,7 @@ function watchSystemColorScheme() {
     if (typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = function () {
-        if (getColorSchemeMode() === 'system') applyColorScheme();
+        if (getColorSchemeMode() === 'system') applyColorScheme(true);
     };
     if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onChange);
     else if (typeof mq.addListener === 'function') mq.addListener(onChange);
@@ -156,12 +196,15 @@ function applyTheme(color) {
 }
 
 function loadTheme() {
-    applyColorScheme();
+    // ★ 初始化不补间：这时候 head 里的内联脚本已经把同样的值写好了，
+    //   补间不但没意义，还会在首屏多挂一个类。
+    applyColorScheme(false);
 }
 
 // ★ 修改：切换主题后主动刷新地图颜色
 function setTheme(color) {
-    applyTheme(color);
+    // 换主题色也是一整套配色在换，同样补间（不然色块点了之后页面是跳的）
+    withThemeAnim(function () { applyTheme(color); });
     localStorage.setItem('app-theme', color);
 
     // 若地图颜色刷新函数已定义，则调用它

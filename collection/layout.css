@@ -84,6 +84,52 @@
     --ease-accordion: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
+/* ===== 明暗切换的"补间" =====
+   用户报："切换白天黑夜的时候，有一部分的颜色是突变的（那些框的背景色，
+   比如评级/年代柱状图的背景）"。
+   因为整套配色就是下面这几个变量，切换时变量**瞬间**换值，凡吃变量的地方
+   （背景、边框、文字、SVG 的 fill/stroke）就一起跳 ——
+   .stat-bar-track 吃 --thumb-bg、.stat-bar-fill 吃 --theme，正是那些柱状图。
+
+   这里特意**不**走"临时给所有元素加 transition"那条路：那会把元素自己正在跑的
+   transition 覆盖掉，把 transform 动画打断成硬切 —— 比如外观那块刚做好的明暗
+   滑块，点"暗"时它正在滑，恰好会被打断。
+   改法：用 @property 把颜色变量本身注册成可插值类型，只给变量加过渡 ——
+   变量逐帧插值，所有消费者自动跟着补间，一个元素都不用碰。
+
+   兼容性：不支持 @property 的浏览器（Chrome < 85 / Safari < 16.4 / Firefox < 128）
+   只是退回"瞬间切换"的老行为，不会出错。
+   .theme-anim 这个类只在切换的那一小段时间挂上（theme.js 的 withThemeAnim），
+   平时不挂 —— 常驻会让以后每次改这些变量都变慢，hover 反馈也会发糊。 */
+@property --theme { syntax: '<color>'; inherits: true; initial-value: #1677ff; }
+@property --theme-light { syntax: '<color>'; inherits: true; initial-value: #4096ff; }
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #eef4ff; }
+@property --bg-light { syntax: '<color>'; inherits: true; initial-value: #f6f9ff; }
+@property --sidebar-bg { syntax: '<color>'; inherits: true; initial-value: #e4edf8; }
+@property --card-bg { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --text { syntax: '<color>'; inherits: true; initial-value: #000000; }
+@property --text-secondary { syntax: '<color>'; inherits: true; initial-value: #666666; }
+@property --border { syntax: '<color>'; inherits: true; initial-value: #d5dce8; }
+@property --thumb-bg { syntax: '<color>'; inherits: true; initial-value: #dce6f0; }
+@property --row-hover-bg { syntax: '<color>'; inherits: true; initial-value: rgba(0, 0, 0, 0.10); }
+
+html.theme-anim {
+    transition: --theme var(--dur-3) var(--ease-inout),
+                --theme-light var(--dur-3) var(--ease-inout),
+                --bg var(--dur-3) var(--ease-inout),
+                --bg-light var(--dur-3) var(--ease-inout),
+                --sidebar-bg var(--dur-3) var(--ease-inout),
+                --card-bg var(--dur-3) var(--ease-inout),
+                --text var(--dur-3) var(--ease-inout),
+                --text-secondary var(--dur-3) var(--ease-inout),
+                --border var(--dur-3) var(--ease-inout),
+                --thumb-bg var(--dur-3) var(--ease-inout),
+                --row-hover-bg var(--dur-3) var(--ease-inout);
+}
+@media (prefers-reduced-motion: reduce) {
+    html.theme-anim { transition: none; }
+}
+
 /* ===== 暗色底（JS 跑起来之前的临时底色）=====
    真正的暗色调色板是 theme.js 的 applyTheme() 按主题色算出来写在内联样式上的
    （内联优先级更高，会覆盖这里）。这一块只负责"别闪白"：head 里的内联脚本会先
