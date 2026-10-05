@@ -363,10 +363,9 @@ function onPriceSortOrFilterChange() {
     if (filterSelect.value !== priceFilter) filterSelect.value = priceFilter;
 
     if (summaryEl) {
-        summaryEl.innerHTML = priceListSummaryHtml(data.filteredPrices, data.filterInfo);
-        // ★ 汇总行的进出改成"下滑展开 / 上滑收起"（用户要求，见 settings.js 的
-        //   setPriceSummaryShown）；原来这里是 display 硬切 + 一次性淡入。
-        setPriceSummaryShown(summaryEl, !!data.filterInfo);
+        // ★ 内容交给 setPriceSummaryShown 一起管：收起时它要到动画结束才换内容
+        //   （先换内容高度会先缩一下、页面跟着跳 51px，用户报的"卡"里就有这一下）。
+        setPriceSummaryShown(summaryEl, !!data.filterInfo, priceListSummaryHtml(data.filteredPrices, data.filterInfo));
     }
 
     // ★ 换了排序或筛选就是另一批内容了，旧的滚动位置没有意义（会停在一条

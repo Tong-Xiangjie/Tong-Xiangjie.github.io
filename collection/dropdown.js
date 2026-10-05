@@ -359,7 +359,10 @@
     if (typeof MutationObserver === 'function') {
         var mo = new MutationObserver(function () {
             if (mo.__t) return;
-            mo.__t = setTimeout(function () { mo.__t = 0; schedule(); }, 120);
+            // ★ 防抖从 120ms 收到 32ms：拾年专题切一次时间就会重建一批 <select>，
+            //   等 120ms 才增强的话，新控件会先以原生样子露脸一瞬（用户报的"闪现老的下拉栏"）。
+            //   原生控件的隐藏已经交给 CSS（select{display:none}），这里再把窗口收小到一两帧。
+            mo.__t = setTimeout(function () { mo.__t = 0; schedule(); }, 32);
         });
         mo.observe(document.body, { childList: true, subtree: true });
     }

@@ -30,6 +30,14 @@ const html = readFileSync('collection/index.html', 'utf8');
 ok(html.includes('dropdown.js'), '① index.html 引入了 dropdown.js');
 ok(/\.dd-native\s*\{[^}]*display\s*:\s*none/.test(css),
   '① 原生 select 是 .dd-native { display:none }（藏起来但留在 DOM 里，继续持有状态）');
+// ★ 用户报的"拾年专题切一次时间会闪现老的下拉栏，再恢复正常"：
+//   模块是异步增强的（DOM 变动 → 防抖 → 下一帧），刚渲染出来的 <select> 会先以原生样子露脸。
+//   修法两道：① CSS 里**从一开始**就藏掉原生 select；② 防抖窗口从 120ms 收到 32ms。
+ok(/^\s*select\s*\{[^}]*display\s*:\s*none/m.test(css.replace(/\/\*[\s\S]*?\*\//g, '')),
+  '★ ① 原生 select 从一开始就是 display:none（不等异步增强，否则新渲染的下拉会先闪一下原生控件）');
+const ddDebounce = (js.match(/mo\.__t\s*=\s*setTimeout\([\s\S]{0,160}?,\s*(\d+)\s*\)/) || [])[1];
+ok(ddDebounce !== undefined && Number(ddDebounce) <= 40,
+  `★ ① 增强的防抖窗口收到 ${ddDebounce}ms（≤40ms；原来是 120ms，新控件要露脸一瞬）`);
 ok(/min-width\s*:\s*0/.test(css), '① .dd-label 有 min-width:0（flex 子项不加这条，固定宽度会被长文字撑开，压缩就废了）');
 ok(/\.dd-label-text\s*\{[^}]*display\s*:\s*inline-block/.test(css) && /\.dd-opt-text\s*\{[^}]*display\s*:\s*inline-block/.test(css),
   '① 被压缩的文字元素是 inline-block（像侧边栏的 .child-text：盒子宽=文字宽，scaleX 才算得准）');

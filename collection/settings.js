@@ -51,13 +51,18 @@ function currentPriceListData(stats) {
 }
 
 // 筛选生效时那两行汇总（总投入 / 均价）。未筛选时返回空串。
+// ★ 内容包一层 .price-list-summary-inner：内边距必须挂在**内层**，
+//   否则外层 max-height 收到 0 时那 16px padding（+1px 边框）还留在布局里，
+//   收起动画末段会把下面顶起来 17px（实测就是这 17px 在抖）。
 function priceListSummaryHtml(filteredPrices, filterInfo) {
     if (!filterInfo) return '';
     const total = filteredPrices.reduce((sum, p) => sum + (p.noPrice ? 0 : p.value), 0);
     const pricedItems = filteredPrices.filter(p => !p.noPrice);
     const avg = pricedItems.length > 0 ? Math.round(total / pricedItems.length) : 0;
-    return `<div class="price-list-summary-row"><span>该板块总投入</span><span>${total.toFixed(0)}元</span></div>`
-        + `<div class="price-list-summary-row"><span>该板块藏品均价</span><span>${avg}元/件</span></div>`;
+    return `<div class="price-list-summary-inner">`
+        + `<div class="price-list-summary-row"><span>该板块总投入</span><span>${total.toFixed(0)}元</span></div>`
+        + `<div class="price-list-summary-row"><span>该板块藏品均价</span><span>${avg}元/件</span></div>`
+        + `</div>`;
 }
 
 function renderSettingsPage() {
@@ -113,7 +118,9 @@ function renderSettingsPage() {
     const priceSummaryHtml = priceListSummaryHtml(priceData.filteredPrices, priceData.filterInfo);
     const sumShown = !!priceData.filterInfo;
     html += `<div class="price-list-summary${sumShown ? ' shown' : ''}" id="priceListSummary" style="display:${sumShown ? 'block' : 'none'};max-height:${sumShown ? 'none' : '0px'};">${priceSummaryHtml}</div>`;
-    html += `<div class="price-list-body${priceListOpen ? ' open' : ''}" id="priceListBody">`;
+    // ★ 没有筛选时汇总行不显示，它让出的那段高度由列表用 .absorb 撑住 ——
+    //   卡片外框总高因此始终一致，卡片以下（统计图表、整页外观设置）不会上下跳。
+    html += `<div class="price-list-body${priceListOpen ? ' open' : ''}${sumShown ? '' : ' absorb'}" id="priceListBody">`;
     html += renderPriceListItems(priceData.filteredPrices, priceSortOrder, priceFilter, priceData.filterInfo);
     html += `</div>`;
     html += `</div>`;
@@ -478,44 +485,146 @@ function playPriceListRowsIn(body) {
 //     隔了一次完整的样式/布局，起点一定生效。
 let priceSummaryTimer = null;
 let priceSummarySeq = 0;
+let priceSummaryBarTimer = null;
+// 与 layout.css 的 .price-list-body.open 的 max-height 一致（列表张开时的上限）
+const PRICE_LIST_MAX_H = 420;
 function afterNextPaint(fn) {
     requestAnimationFrame(function () { requestAnimationFrame(fn); });
 }
-function setPriceSummaryShown(sum, show) {
+// 汇总行的实高：写进 --pl-sum-h，列表靠它算出"收起时要吸收多少"。
+// ★ 用 getBoundingClientRect 而不是 scrollHeight：后者量不到上下内边距（实测差 17px），
+//   吸收量和让出量对不上，卡片还是会先被顶下去再弹回来。必须在汇总行可见时量。
+function priceSummaryMeasure(sum) {
+    const h = Math.round(sum.getBoundingClientRect().height) || 0;
+    if (h > 0) document.documentElement.style.setProperty('--pl-sum-h', h + 'px');
+    return h;
+}
+// 列表的自绘滚动条（挂在 body 上、按宿主旧几何画）。动画期间它跟不上新几何会看着错位，
+// 所以先隐掉，动画结束再让它重新对位。
+function priceSummaryBar(bodyEl, hide) {
+    const rec = bodyEl && bodyEl.__cscroll;
+    const bar = rec && rec.bar;
+    if (!bar) return;
+    if (hide) {
+        bar.style.transition = 'opacity 0.1s linear';
+        bar.style.opacity = '0';
+    } else {
+        bar.style.transition = '';
+        bar.style.opacity = '';
+        priceSummaryBarTimer = null;
+        if (typeof window.refreshCustomScrollbars === 'function') window.refreshCustomScrollbars();
+    }
+}
+function setPriceSummaryShown(sum, show, html) {
     if (!sum) return;
+    // ★ 汇总内容由这里统一管：**收起时不要立刻换内容** —— 一换内容高度就先缩一下
+    //   （实测量到 16px，页面跟着跳 51px）。旧数字要一路滑上去，滑完再换/清空。
+    const nextHtml = typeof html === 'string' ? html : null;
+    const applyHtml = () => { if (nextHtml !== null) sum.innerHTML = nextHtml; };
     // ★ 先看这个栏目本来在不在（class 是唯一口径：整页重渲染时也是按 filterInfo 写出来的）。
     //   用户："假如一直有这个栏目就不用重复展开收起，只有在'全部藏品'与其他东西切换的时候才要这个动画"
     //   —— 分类 → 另一个分类时汇总行一直在，只换数字，不该重播一遍下拉/上收。
     const wasShown = sum.classList.contains('shown');
     const seq = ++priceSummarySeq;                 // 期间又切了一次就以最后一次为准
     if (priceSummaryTimer) { clearTimeout(priceSummaryTimer); priceSummaryTimer = null; }
-    if (wasShown === show) {
+
+    const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
+    const body = document.getElementById('priceListBody');
+    const wrapper = sum.closest('.price-list-wrapper');
+    const listOpen = !!(body && body.classList.contains('open'));
+    // ★ 关键：列表开着的时候，让**列表自己吸收/让出**汇总行那段高度 ——
+    //   汇总行 max-height 67→0 的同时，列表 max-height 420→487，两者用同一时长同一条缓动，
+    //   任意时刻之和恒等于 487：卡片外框总高不变，卡片以下（统计图表、整页外观设置）
+    //   一个像素都不动。三次"卡"的根子就是整页跟着汇总行上下动 ——
+    //   动 max-height 是布局动画，下面那一大段每帧都要重排重绘。
+    //   列表没开（没有列表可吸收）时就不播动画，一次到位：一帧的事，不会卡。
+    const canAbsorb = listOpen && !reduced;
+    const setAbsorb = (on) => { if (body) body.classList.toggle('absorb', !!on); };
+    const moveBar = (hide) => { if (listOpen) priceSummaryBar(body, hide); };
+    // 列表要吸收/让出的那一段 = 汇总行实高 h。动画期间写**明确 px**：
+    //   calc() 里带 var 的 max-height 浏览器不做插值（实测直接跳变，页面照样抖），
+    //   两端都是纯 px 才真的过渡；收尾再交回 .absorb 类（算出来的值一模一样，不会跳）。
+    const sumH = () => Math.round(sum.getBoundingClientRect().height) || 0;
+    const pinBody = (px) => { if (body && canAbsorb) body.style.maxHeight = px + 'px'; };
+    const clearBody = () => { if (body) body.style.maxHeight = ''; };
+
+    if (wasShown === show) {                       // 状态没变：只换数字，不重播动画
+        applyHtml();
         sum.style.display = show ? 'block' : 'none';
         sum.style.maxHeight = show ? 'none' : '';
+        if (show) priceSummaryMeasure(sum);
+        setAbsorb(!show);
+        clearBody();
+        moveBar(false);
         return;
     }
-    const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
-    sum.classList.toggle('shown', show);
+
+    if (reduced) {                                 // 减弱动效：一次到位，不播动画
+        applyHtml();
+        sum.classList.toggle('shown', show);
+        sum.style.display = show ? 'block' : 'none';
+        sum.style.maxHeight = show ? 'none' : '';
+        if (show) priceSummaryMeasure(sum);
+        setAbsorb(!show);
+        clearBody();
+        return;
+    }
+
+    moveBar(true);
     if (show) {
+        // ── 下滑展开 ──
+        applyHtml();
+        sum.classList.add('shown');
         sum.style.display = 'block';
-        if (reduced) { sum.style.maxHeight = 'none'; return; }
-        // 先把起点定在 0（本帧就被样式计算吃掉），两帧后再放开到自然高度 —— 下滑展开
+        const h = sumH();
+        setAbsorb(false);                          // 静止值交回 CSS（420）
+        pinBody(PRICE_LIST_MAX_H + h);             // 起点 = 刚才的吸收态高度，本帧不变
+        if (wrapper) wrapper.classList.add('sum-expanding');
+        // 先把起点定在 0（本帧就被样式计算吃掉），两帧后再放开到自然高度
         sum.style.maxHeight = '0px';
         afterNextPaint(() => {
             if (seq !== priceSummarySeq) return;
             sum.style.maxHeight = sum.scrollHeight + 'px';
-            // 220ms（--dur-2）+ 余量：动画结束后放开高度上限
-            priceSummaryTimer = setTimeout(() => { sum.style.maxHeight = 'none'; priceSummaryTimer = null; }, 300);
+            pinBody(PRICE_LIST_MAX_H);             // 487 → 420：与汇总行的 0 → h 精确互补
+            // 220ms（--dur-2）+ 余量：滑完再放开高度上限
+            priceSummaryTimer = setTimeout(() => {
+                if (seq !== priceSummarySeq) return;
+                sum.style.maxHeight = 'none';
+                if (wrapper) wrapper.classList.remove('sum-expanding');
+                clearBody();
+                priceSummaryMeasure(sum);
+                moveBar(false);
+                priceSummaryTimer = null;
+            }, 300);
         });
     } else {
-        if (reduced) { sum.style.maxHeight = ''; sum.style.display = 'none'; return; }
-        // 上一轮结束时可能是 none，先固定成当前高度，两帧后再滑到 0 —— 上滑收起
-        sum.style.maxHeight = sum.scrollHeight + 'px';
+        // ── 上滑收起 ──
+        // ★ 这里必须先把 .shown 摘掉：.shown 上的过渡是入场时长（--dur-2/220ms），
+        //   而列表吸收走的是退场时长（--dur-1/140ms），两边不同步卡片就会先被顶下去再弹回来。
+        //   摘掉后两边都是 --dur-1/--ease-in，任意时刻高度之和恒定。
+        //   摘类造成的高度变化会被同一帧写入的内联 max-height 立刻盖掉，不会先塌一下。
+        // ★ 这里**不能**再判断 canAbsorb 就 return：列表没收起时没有东西可以吸收，
+        //   但汇总行自己照样要滑走（用户报的"价格列表没展开时这个小栏目收不起来"就是这句）。
+        const h = sumH();                          // ★ 必须在摘 .shown 之前量：摘了 max-height 就是 0
+        priceSummaryMeasure(sum);
+        sum.classList.remove('shown');
+        pinBody(PRICE_LIST_MAX_H);                 // 从静止值 420 起（下一帧滑到 420 + h）
+        sum.style.maxHeight = h + 'px';            // 从实高起
         afterNextPaint(() => {
             if (seq !== priceSummarySeq) return;
             sum.style.maxHeight = '0px';
+            pinBody(PRICE_LIST_MAX_H + h);         // 420 → 487：与汇总行的 h → 0 精确互补
             // 140ms（--dur-1）+ 余量：滑动结束再收掉 display
-            priceSummaryTimer = setTimeout(() => { sum.style.display = 'none'; sum.style.maxHeight = ''; priceSummaryTimer = null; }, 260);
+            priceSummaryTimer = setTimeout(() => {
+                if (seq !== priceSummarySeq) return;
+                sum.style.display = 'none';
+                sum.style.maxHeight = '';
+                setAbsorb(true);                   // 静止态交给 CSS，值与刚才的内联完全一致
+                clearBody();
+                applyHtml();                       // 空内容留到最后再换
+                moveBar(false);
+                priceSummaryTimer = null;
+            }, 260);
         });
     }
 }

@@ -1554,7 +1554,16 @@ body.modal-open {
 }
 /* 这里的 420px 是有意的：价格列表本身就是"固定高度 + 内部滚动"的面板，
    内容通常远超 420px，所以不存在手风琴那种"插值跑空"的问题。 */
-.price-list-body.open { max-height: 420px; opacity: 1; overflow-y: auto; }
+.price-list-body.open { max-height: 420px; opacity: 1; overflow-y: auto; transition: max-height var(--dur-1) var(--ease-in); }
+/* ★ 汇总行收起时让出的那一段，由列表自己吸收（列表顶边上移、可视区变高、底边不动）。
+   这样"卡片外框总高"在收起/展开过程中恒定 → 卡片以下（统计图表卡片、整页外观设置）
+   一个像素都不用重排重绘。用户三次反馈的"卡"，根子就是整页跟着汇总行上下动：
+   动 max-height 是布局动画，下面那一大段每帧都要重排重绘，机器稍慢就是掉帧。
+   --pl-sum-h 由 JS 按汇总行实高写入（见 settings.js 的 setPriceSummaryShown）。 */
+.price-list-body.open.absorb { max-height: calc(420px + var(--pl-sum-h, 67px)); }
+/* 展开时列表在"让位"，用入场时长（和汇总行的 --dur-2/--ease-out 同步，
+   两条 max-height 用同一时长同一条缓动，任意时刻两者之和 = 定值，外框纹丝不动） */
+.price-list-wrapper.sum-expanding .price-list-body.open { transition: max-height var(--dur-2) var(--ease-out); }
 /* ★ 标题行/汇总 与"具体价格行"之间的分割线：**不能**挂在"第一行"的 border-top 上 ——
    列表体是滚动容器，第一行的 border-top 会跟着内容一起滚走，滚下去之后标题行下面就是空的
    （用户报的"标题栏目和具体价格栏之间缺少一条分割线"）。
@@ -1600,24 +1609,27 @@ body.modal-open {
    收起态用 --dur-1/--ease-in（出场）、展开态用 --dur-2/--ease-out（入场），
    和站内其它进出动画一个约定。max-height 的具体数值由 JS 按实测高度给
    （见 settings.js 的 setPriceSummaryShown），这里只提供"起点 0"和过渡。
-   竖向内边距一起过渡：不然收起到最后会剩 16px 的 padding 撑着，display:none 一落
-   下面的内容会往上跳一下。
+   ★ 竖向内边距**不再**参与过渡：padding 恒定，max-height 才是唯一变量，
+   这样它和列表吸收的那段（.price-list-body.open.absorb）能用同一条曲线精确互补，
+   卡片外框总高在动画过程中恒定 —— 页面下方因此完全不动（三次"卡"的解法）。
    ★ 不做淡入淡出：元素是从 display:none 出来的，透明度没有可过渡的起点（试过，
    实测量到第一帧就已经是 1）；而且用户要的就是纯粹的上下滑动。 */
 .price-list-summary {
-    padding: 0 14px;
     background: var(--bg-light);
-    border-top: 1px solid var(--border);
     max-height: 0;
     overflow: hidden;
-    transition: max-height var(--dur-1) var(--ease-in), padding var(--dur-1) var(--ease-in);
+    transition: max-height var(--dur-1) var(--ease-in);
 }
+/* ★ 内边距和这条分割线都挂在内层：外层因此能在 max-height:0 时真正收到 0 高度。
+   挂在外层的话，收起末段这 16px padding + 1px 边框还占着布局，下面会被顶起来 17px。 */
+.price-list-summary-inner { padding: 8px 14px; border-top: 1px solid var(--border); }
 .price-list-summary.shown {
-    padding: 8px 14px;
-    transition: max-height var(--dur-2) var(--ease-out), padding var(--dur-2) var(--ease-out);
+    max-height: none;
+    transition: max-height var(--dur-2) var(--ease-out);
 }
 @media (prefers-reduced-motion: reduce) {
-    .price-list-summary, .price-list-summary.shown { transition: none; }
+    .price-list-summary, .price-list-summary.shown,
+    .price-list-body.open, .price-list-wrapper.sum-expanding .price-list-body.open { transition: none; }
 }
 .price-list-summary-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 3px 0; color: var(--text-secondary); }
 .price-list-summary-row span:last-child { font-weight: bold; color: var(--text); }
@@ -3073,6 +3085,14 @@ textarea:focus-visible {
    ★ 压扁靠的是 .dd-label 的 min-width:0 + ellipsis：flex 子项默认 min-width:auto
      会被内容撑开，固定宽度就形同虚设 —— 这一条是"写不下就压扁"的关键。
    ============================================================ */
+/* ★ 原生 <select> 从**一开始**就藏起来，不等 dropdown.js 增强。
+   模块是异步增强的（DOM 变动 → 防抖 → 下一帧），新渲染出来的那一下原生控件会先露脸：
+   用户报的"拾年专题切一次时间会闪现老的下拉栏，再恢复正常"就是这 100 多毫秒。
+   全站每一个 <select> 都会被增强（dropdown.js 扫 document.querySelectorAll('select')），
+   提前藏掉不会漏掉谁；增强之后 .dd-native 依然是 display:none。 */
+select {
+    display: none;
+}
 .dd-native {
     display: none !important;
 }

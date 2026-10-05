@@ -336,6 +336,93 @@ ok(TOGGLE.收起中间帧 > 2, `★ ④c 切回「全部藏品」= 栏目消失�
 ok(TOGGLE.收起后display === 'none', '④c 收完之后真的收掉了（display:none）');
 
 // ══════════════════════════════════════════════════════════════
+// 用户第三次："还是卡顿" / "甚至更加卡" —— 根因是**整页跟着汇总行上下动**：
+// 动 max-height 是布局动画，卡片以下那一大段（统计图表卡片 + 整页外观设置）
+// 每帧都要跟着重排重绘。修法是让价格列表自己吸收汇总行让出的那段高度，
+// 卡片外框总高在动画过程中恒定 —— 于是卡片以下一帧都不用重绘。
+console.log('\n══════ ④d 收起/展开时卡片以下一动不动 ══════\n');
+const STATIC = JSON.parse(await evaluate(`(async()=>{
+  const f=document.getElementById('priceFilterSelect');
+  const body=document.getElementById('priceListBody');
+  const card=document.querySelector('.stats-chart-card');
+  const sum=document.getElementById('priceListSummary');
+  const cat=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all')[0];
+  const watch=()=>[Math.round(card.getBoundingClientRect().top), Math.round(card.getBoundingClientRect().height),
+                   Math.round(body.getBoundingClientRect().height)];
+  // 先展开（切到分类）
+  f.value=cat; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,800));
+  const 展开后=watch();
+  const 展开absorb=body.classList.contains('absorb');
+  // 标题「价格列表」与汇总行之间的分割线：必须挂在**内层**（外层要能收到 0 高度）
+  const inner=sum.querySelector('.price-list-summary-inner');
+  const 线={ 内层: inner ? getComputedStyle(inner).borderTopWidth : null,
+             外层: getComputedStyle(sum).borderTopWidth,
+             内边距: inner ? getComputedStyle(inner).paddingTop : null };
+  // 再收起（切回全部藏品），逐帧盯卡片：它的 top 必须纹丝不动
+  const 卡片帧=[], 列表帧=[]; const t0=performance.now();
+  f.value='all'; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(res=>{ const tick=()=>{
+      卡片帧.push(Math.round(card.getBoundingClientRect().top*10)/10);
+      列表帧.push(Math.round(body.getBoundingClientRect().height*10)/10);
+      if (performance.now()-t0<520) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
+  await new Promise(r=>setTimeout(r,260));
+  const 收起后=watch();
+  const 收起absorb=body.classList.contains('absorb');
+  return JSON.stringify({ 分类:cat, 展开后, 收起后, 展开absorb, 收起absorb, 线,
+    卡片档:new Set(卡片帧).size, 卡片范围:[Math.min(...卡片帧), Math.max(...卡片帧)],
+    列表档:new Set(列表帧).size, 列表范围:[Math.min(...列表帧), Math.max(...列表帧)],
+    汇总display:sum.style.display, 内联maxH:sum.style.maxHeight,
+    残余sumExpanding:!!document.querySelector('.price-list-wrapper.sum-expanding') });
+})()`));
+console.log(`  卡片 top 档数 ${STATIC.卡片档}（范围 ${JSON.stringify(STATIC.卡片范围)}）；列表高度档数 ${STATIC.列表档}（范围 ${JSON.stringify(STATIC.列表范围)}）`);
+console.log(`  展开后 ${JSON.stringify(STATIC.展开后)} → 收起后 ${JSON.stringify(STATIC.收起后)}（absorb ${STATIC.展开absorb} → ${STATIC.收起absorb}）`);
+ok(STATIC.卡片档 === 1,
+  `★ ④d 收起动画期间卡片以下的元素一动不动（top 只有 ${STATIC.卡片档} 档：${JSON.stringify(STATIC.卡片范围)}）—— 修之前整段跟着上移 67px，每帧重排重绘，这就是"卡"`);
+ok(STATIC.列表档 > 3 && STATIC.列表范围[1] - STATIC.列表范围[0] >= 40,
+  `★ ④d 是**列表自己**把汇总行那段吸收了（高度 ${STATIC.列表范围[0]} → ${STATIC.列表范围[1]}，共 ${STATIC.列表档} 档）`);
+ok(Math.abs(STATIC.收起后[0] - STATIC.展开后[0]) <= 1 && STATIC.收起后[1] === STATIC.展开后[1],
+  `④d 收完之后卡片回到原位、高度不变（${JSON.stringify(STATIC.展开后)} → ${JSON.stringify(STATIC.收起后)}）`);
+ok(STATIC.收起absorb === true && STATIC.展开absorb === false,
+  `④d 吸收状态跟着切换（展开 ${STATIC.展开absorb} / 收起 ${STATIC.收起absorb}）`);
+ok(STATIC.汇总display === 'none' && STATIC.内联maxH === '' && !STATIC.残余sumExpanding,
+  `④d 收起后不留痕迹（display=${STATIC.汇总display} maxH="${STATIC.内联maxH}" 残留类=${STATIC.残余sumExpanding}）`);
+ok(STATIC.线 && STATIC.线.内层 !== '0px' && STATIC.线.外层 === '0px',
+  `★ ④d 标题「价格列表」与汇总行之间有分割线（内层 ${STATIC.线 && STATIC.线.内层}，外层 ${STATIC.线 && STATIC.线.外层}）—— 线必须在内层：外层要能在 max-height:0 时收到 0 高度，否则收起末段会顶 17px`);
+
+// ══════════════════════════════════════════════════════════════
+// 用户："价格列表没有展开的时候，这个小栏目收不起来" —— 列表收起时没有东西可以吸收，
+// 但汇总行自己照样要滑走（当时分支里多了一句 canAbsorb 就 return，直接什么都不做）。
+console.log('\n══════ ④e 列表收起时汇总行照样能收起 ══════\n');
+const CLOSED = JSON.parse(await evaluate(`(async()=>{
+  const head=document.querySelector('.price-list-header'), body=document.getElementById('priceListBody');
+  const sum=document.getElementById('priceListSummary'), f=document.getElementById('priceFilterSelect');
+  if (body.classList.contains('open')) { head.click(); await new Promise(r=>setTimeout(r,700)); }   // 先收起列表
+  const 列表开着=body.classList.contains('open');
+  const cat=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all')[0];
+  f.value=cat; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,700));
+  const 展开后={ display:sum.style.display, 高:Math.round(sum.getBoundingClientRect().height),
+    文字:(sum.textContent||'').trim().slice(0,16) };
+  // 切回全部：必须滑走并最终 display:none
+  const 帧=[]; const t0=performance.now();
+  f.value='all'; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(res=>{ const tick=()=>{ 帧.push(Math.round((parseFloat(getComputedStyle(sum).maxHeight)||0)*10)/10);
+      if (performance.now()-t0<600) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
+  await new Promise(r=>setTimeout(r,300));
+  return JSON.stringify({ 列表开着, 展开后, 位移档:[...new Set(帧)].length, 前几帧:帧.slice(0,10),
+    收起后display:sum.style.display, 收起后高:Math.round(sum.getBoundingClientRect().height),
+    内联maxH:sum.style.maxHeight, body内联maxH:body.style.maxHeight });
+})()`));
+console.log(`  列表开着=${CLOSED.列表开着}；展开后 ${JSON.stringify(CLOSED.展开后)}`);
+console.log(`  收起：${CLOSED.位移档} 档（前几帧 ${JSON.stringify(CLOSED.前几帧)}）→ display=${CLOSED.收起后display}，高 ${CLOSED.收起后高}`);
+ok(CLOSED.列表开着 === false && CLOSED.展开后.display === 'block' && CLOSED.展开后.高 > 20,
+  `④e 前情：列表收起时汇总行照样能出现（高 ${CLOSED.展开后.高}）`);
+ok(CLOSED.位移档 >= 3, `★ ④e 列表收起时收起仍然有滑动动画（${CLOSED.位移档} 档）`);
+ok(CLOSED.收起后display === 'none' && CLOSED.内联maxH === '' && CLOSED.收起后高 === 0,
+  `★ ④e 列表收起时汇总行真的收得起来（display=${CLOSED.收起后display}，高 ${CLOSED.收起后高}，内联 maxH="${CLOSED.内联maxH}"）`);
+
+// ══════════════════════════════════════════════════════════════
 console.log('\n══════ ⑤ 展开有动画（全部条目错开出现）══════\n');
 const EXPAND = JSON.parse(await evaluate(`(async()=>{
   const head = document.querySelector('.price-list-header'), b = document.getElementById('priceListBody');
