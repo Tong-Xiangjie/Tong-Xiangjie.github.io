@@ -47,7 +47,7 @@ const taiwan1Data = {
                     img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/K435010S-2.jpg"
                 },{
                     copyId: 27104076,
-                    year: 1961,
+                    year: 1973,
                     version: "G823517F",
                     bank: "台湾银行",
                     condition: "ACG 60",
@@ -94,7 +94,7 @@ const taiwan1Data = {
             ]
         },
         {
-            seriesName: "中华民国四十九年（1960年） 红10元 中华民国五十七年（1968年）发行",
+            seriesName: "中华民国五十年（1961年） 红10元",
             copies: [
                 {
                     copyId: 27104079,
@@ -106,7 +106,7 @@ const taiwan1Data = {
                     purchaseDate: "2026年7月18日",
                     krause: "1970",
                     print:"",
-                    remark: "",
+                    remark: "该券实际发行于中华民国五十七年（1968年）。",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/Z565788R-1.jpg",
                     img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/Z565788R-2.jpg"
                 }

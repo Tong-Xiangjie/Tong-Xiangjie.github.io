@@ -94,6 +94,8 @@ const categoryTree = [
     {
         id: 'republic',
         name: '民国纸币',
+        dataKey: 'republicReadmeData',
+        dataFile: '../notecollection/data/republic_readme.js',
         children: [
             // —— 国家银行（四大行） ——
             { id: 'republic_cbc', name: '中央银行', dataKey: 'republic_cbcData', dataFile: '../notecollection/data/republic_cbc.js' },
