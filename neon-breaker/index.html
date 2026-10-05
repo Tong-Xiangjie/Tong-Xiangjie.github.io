@@ -891,6 +891,7 @@ const G = {
   lastBricks: -1,
   infinite: false,        // 练习模式：无限生命
   practice: false,        // 本局是否练习模式（练习分数不计入最高分）
+  sideRun: false,         // 本局是否"从选关开始"（存档写练习槽，不动正式存档）
   selectIdx: 0,
   selectHint: 0,
   confirmNew: false,      // "开新局会覆盖存档"的二次确认
@@ -1137,6 +1138,7 @@ function clearBoard(){
 function newGame(){
   G.level = 0; G.score = 0; G.lives = 3; G.shake = 0; G.flash = 0;
   G.practice = false;
+  G.sideRun = false;
   G.infinite = false;     // 普通模式必须显式关掉无限生命，否则会从选关界面"泄漏"进来
   G.playTime = 0;
   G.confirmNew = false;
@@ -1148,6 +1150,9 @@ function newGame(){
 
 // 练习模式：从选关界面开始，无限生命，分数不计入最高分
 function startSelect(){
+  // 进选关之前先落一次盘：这是"我只是想看看前面几关"最常见的入口，
+  // 不能因为进去看一眼就丢掉正在打的那一局。
+  if (G.state === S.PLAY || G.state === S.READY || G.state === S.PAUSE) saveProgress(false);
   G.infinite = false;
   G.selectIdx = 0;
   G.selectHint = 0;
@@ -1161,6 +1166,7 @@ function startLevel(idx){
   G.level = it.level;
   G.score = 0;
   G.practice = G.infinite;
+  G.sideRun = true;         // 从选关进来的局：存档写练习槽，绝不覆盖正在打的那一局
   G.lives = G.infinite ? 99 : 3;
   G.shake = 0; G.flash = 0;
   G.playTime = 0;
@@ -1173,7 +1179,21 @@ function startLevel(idx){
 /* ============================ 存档 ============================ */
 const SAVE_KEY = 'neon-breaker-save-v1';
 const SET_KEY  = 'neon-breaker-settings-v1';
+// 练习/选关的局**单独一个槽**：玩家按 C 只是想"看看前面几关长什么样"，
+// 不应该把正在打的那一局覆盖掉。（真实事故：打到第 151 关 164 万分，
+// 进选关点了一关，正式存档当场被 0 分 3 命的练习局盖掉，一局全没了。）
+const SAVE_KEY_PRACTICE = 'neon-breaker-save-practice-v1';
+// 回收站：删档 / 被更差的局覆盖之前，先留一份，按 B 能找回来。
+const SAVE_KEY_BACKUP   = 'neon-breaker-save-backup-v1';
 const SAVE_VERSION = 1;
+
+// 当前该读写哪个槽。标题页/结算页永远看**正式槽**（这时 G.practice 可能是上一局的残留）。
+// "从选关开始的一局"（不管有没有开无限生命）都算 side run，写进练习槽 ——
+// 真实事故里玩家开的就是**没**开无限生命的选关局，所以判据不能只看 practice。
+function slotKey(){
+  if (G.state === S.TITLE || G.state === S.OVER || G.state === S.WIN) return SAVE_KEY;
+  return (G.practice || G.sideRun) ? SAVE_KEY_PRACTICE : SAVE_KEY;
+}
 
 // localStorage 可能被禁用（隐私模式等），统一走安全包装
 const Store = (() => {
@@ -1218,6 +1238,7 @@ function serializeSave(){
     lives: G.lives,
     infinite: !!G.infinite,
     practice: !!G.practice,
+    sideRun: !!G.sideRun,     // 这一局是不是从选关开始的（决定存档进哪个槽）
     paddleW: paddle.w,
     playTime: Math.round(G.playTime),
     state: G.state,
@@ -1317,17 +1338,34 @@ function tryImport(text){
   return false;
 }
 
+// 存档是不是"更值钱"：先看关卡，再看分数（用于决定要不要留一份到回收站）
+function saveWorth(raw){
+  try {
+    const d = JSON.parse(raw);
+    if (!d || d.practice) return -1;                    // 练习局不值得占用回收站
+    return (Number(d.level) || 0) * 1e9 + (Number(d.score) || 0);
+  } catch (e){ return -1; }
+}
+
 function saveProgress(manual){
   const data = serializeSave();
-  try { Store.set(SAVE_KEY, JSON.stringify(data)); }
+  const json = JSON.stringify(data);
+  const key = slotKey();
+  // 正式槽被"更差的一局"覆盖之前，先把旧的挪进回收站 ——
+  // 练习槽不参与（练习局本来就不该动正式存档）。
+  if (key === SAVE_KEY){
+    const old = Store.get(SAVE_KEY);
+    if (old && old !== json && saveWorth(old) > saveWorth(json)) Store.set(SAVE_KEY_BACKUP, old);
+  }
+  try { Store.set(key, json); }
   catch (e){ if (manual) toast('存档失败：空间不足'); return false; }
   autoSaveTimer = 0;
   if (manual) toast('已存档 · 第 ' + (data.level + 1) + ' 关');
   return true;
 }
 
-function saveInfo(){
-  const raw = Store.get(SAVE_KEY);
+function saveInfo(key){
+  const raw = Store.get(key || slotKey());
   if (!raw) return null;
   try {
     const d = JSON.parse(raw);
@@ -1343,11 +1381,30 @@ function saveInfo(){
   } catch (e){ return null; }
 }
 
-function hasSave(){ return saveInfo() !== null; }
+function hasSave(key){ return saveInfo(key) !== null; }
 
-function clearSave(announce){
-  Store.del(SAVE_KEY);
-  if (announce) toast('存档已清除');
+// 删档 / 覆盖之前把当前槽挪进回收站；keepBackup=false 用于"命耗尽了"那种
+// 有意作废的场景（否则读回来只会回到必死局面）。
+function clearSave(announce, keepBackup){
+  const key = slotKey();
+  if (keepBackup !== false){
+    const raw = Store.get(key);
+    if (raw) Store.set(SAVE_KEY_BACKUP, raw);
+  }
+  Store.del(key);
+  if (announce) toast(keepBackup === false ? '存档已清除' : '存档已清除 · 按 B 可以找回');
+}
+
+// B：把回收站里的存档放回正式槽并直接接着打
+function restoreBackup(){
+  const raw = Store.get(SAVE_KEY_BACKUP);
+  if (!raw) return false;
+  Store.set(SAVE_KEY, raw);
+  Store.del(SAVE_KEY_BACKUP);
+  autoSaveArmed = true;
+  if (!loadProgress()){ toast('那份备份读不出来'); return true; }
+  toast('已找回上一局 · 第 ' + (G.level + 1) + ' 关');
+  return true;
 }
 
 // 从存档恢复。返回 false 表示存档无效
@@ -1382,6 +1439,7 @@ function loadProgress(){
   // 第二遍：数值都干净，才真正落地
   G.level = d.level;
   G.practice = !!d.practice;
+  G.sideRun = !!d.sideRun || !!d.practice;   // 老存档没有 sideRun 字段，练习局要当成 side run
   G.infinite = !!d.infinite;
   paddle = makePaddle();
   loadLevel(d.level, grid);                 // 会重置砖块/球/粒子并进入 READY
@@ -1585,6 +1643,10 @@ addEventListener('keydown', e => {
   }
   if (e.key === 'Delete' || e.key === 'Backspace'){
     if (hasSave()){ clearSave(true); return; }
+  }
+  // B：找回上一份存档（删档 / 被更差的局覆盖时留下的回收站）
+  if (e.key === 'b' || e.key === 'B'){
+    if (restoreBackup()) return;
   }
 
   // 练习/选关界面：吃掉所有按键
@@ -2525,7 +2587,7 @@ function loseLife(){
   if (G.lives <= 0){
     G.state = S.OVER;
     Sound.over();
-    clearSave(false);       // 命耗尽了：存档作废，避免读档回到必死局面
+    clearSave(false, false);       // 命耗尽了：存档作废，避免读档回到必死局面
     autoSaveArmed = false;
     return;
   }
@@ -3445,6 +3507,12 @@ function drawOverlay(){
                           (si.infinite ? '练习' : si.lives + ' 命'),
                     y: H/2 + 170, font: 'bold 18px Segoe UI, sans-serif', color: '#4dff9e' }]);
       ctx.restore();
+    }
+    // 回收站里还有更早的一份（删档或者被练习局覆盖过）—— 明说可以按 B 找回来
+    const bi = si ? null : saveInfo(SAVE_KEY_BACKUP);
+    if (bi && !G.confirmNew){
+      centerText([{ text: '按 B 找回上一局  ·  第 ' + (bi.level + 1) + ' 关 · ' + bi.score + ' 分',
+                    y: H/2 + 170, font: 'bold 17px Segoe UI, sans-serif', color: '#ffd93d' }]);
     }
 
     if (G.confirmNew){

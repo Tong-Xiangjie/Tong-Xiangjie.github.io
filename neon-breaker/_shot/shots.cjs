@@ -605,6 +605,37 @@ render = function(){
 };
 `;
 
+// 99-save：造一张"第 N 关 + 指定分数/命数"的存档码（诊断场景，只在点名时跑）
+// 用游戏自己的 serializeSave()/encodeShareCode() 生成，再用 decodeShareCode() 回读自检 ——
+// 手搓 JSON 容易在 bricks 下标 / 校验和上出错，那样玩家导入时会被直接判"校验失败"。
+// 用法：node shots.cjs 99-save --probe      改分数/关卡/命数就改最后那行的参数。
+SCENES['99-save'] = `
+window.__out = [];
+function mkSave(level1, score, lives, tag){
+  newGame();
+  G.level = level1 - 1;
+  loadLevel(level1 - 1);
+  G.score = score;
+  G.best = Math.max(score, +(localStorage.getItem('neon-breaker-best') || 0) || 0);
+  G.lives = lives;
+  G.practice = false; G.infinite = false;
+  G.state = S.READY;
+  var code = encodeShareCode();
+  var back = decodeShareCode(code);
+  window.__out.push('=== ' + tag + ' ===');
+  window.__out.push('生成时：第 ' + (G.level + 1) + ' 关  分数 ' + G.score + '  最高分 ' + G.best +
+                    '  命 ' + G.lives + '  挡板宽 ' + paddle.w +
+                    '  砖 ' + bricks.filter(function(b){ return !b.dead; }).length +
+                    '（其中可破坏 ' + breakableLeft() + '）');
+  window.__out.push('回读自检：' + (back.ok
+    ? '第 ' + (back.info.level + 1) + ' 关  分数 ' + back.info.score + '  最高分 ' + back.info.best +
+      '  命 ' + back.info.lives + '  砖 ' + String(back.info.bricks).split(',').length + '  OK'
+    : '失败 ' + back.error));
+  window.__out.push(code);
+}
+mkSave(151, 1640766, 98, '第 151 关 · 1640766 分 · 98 条命');
+`;
+
 // 7. 选关
 SCENES['07-select'] = `G.state = S.SELECT; G.selectIdx = 1; G.best = 48250; G.time = 1.0;
 render();

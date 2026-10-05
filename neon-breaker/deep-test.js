@@ -101,7 +101,10 @@ globalThis.$GAME = {
   tryImport, shareUI, importUI,
   saveProgress, loadProgress, hasSave, clearSave, saveInfo, serializeSave,
   saveSettings, loadSettings, SAVE_KEY, SET_KEY,
+  SAVE_KEY_PRACTICE, SAVE_KEY_BACKUP, slotKey, restoreBackup,
   rawSave: () => Store.get(SAVE_KEY), rawSet: () => Store.get(SET_KEY),
+  rawPractice: () => Store.get(SAVE_KEY_PRACTICE),
+  rawBackup: () => Store.get(SAVE_KEY_BACKUP),
   storeAvailable: () => Store.available,
   setViewport: (w, h) => { globalThis.VP.w = w; globalThis.VP.h = h; resize(); },
   // 特殊砖块 / 配色相关
@@ -2680,17 +2683,68 @@ globalThis.$GAME = {
               `${d2.bricks.split(',').filter(Boolean).length} vs ${aliveNow}`);
       }
 
-      // 练习模式标记随存档保留
+      // 练习模式标记随存档保留（练习局现在有自己的槽，见下面独立的用例）
       $.startSelect();
       if (!$.snap().G.infinite) $.selectKey('i');
       $.selectKey('1');
       $.saveProgress(false);
-      const practiceRaw = store[$.SAVE_KEY];
+      const practiceRaw = store[$.SAVE_KEY_PRACTICE];
+      check('练习局写进练习槽', !!practiceRaw, 'practice=' + (practiceRaw ? 'yes' : 'no'));
       $.newGame();
-      store[$.SAVE_KEY] = practiceRaw;
+      store[$.SAVE_KEY_PRACTICE] = practiceRaw;
+      $.snap().G.practice = true;          // 练习局里按 F9：槽位由 G.practice 决定
       $.loadProgress();
       check('练习模式标记随存档一起还原', $.snap().G.practice === true && $.snap().G.infinite === true);
       check('练习模式读档后生命仍充足', $.snap().G.lives >= 99, 'lives=' + $.snap().G.lives);
+
+      // ---- 存档安全：练习局绝不能覆盖正式存档 -------------------------------
+      // 真实事故：玩家打到第 151 关 164 万分 98 条命，想按 C 看看前面几关的难度，
+      // 在选关里点了一关 —— 练习局（0 分 3 命）当场把正式存档盖掉了，一局全没。
+      // 这一组用例钉住的就是"按 C 看一眼，代价必须是零"。
+      for (const k of Object.keys(store)) delete store[k];
+      $.newGame();
+      $.snap().G.level = 150; $.snap().G.score = 1640766; $.snap().G.lives = 98;
+      $.saveProgress(false);
+      const mainRaw = store[$.SAVE_KEY];
+      check('正式存档就位（第 151 关 / 1640766 分 / 98 命）',
+            JSON.parse(mainRaw).level === 150 && JSON.parse(mainRaw).score === 1640766 &&
+            JSON.parse(mainRaw).lives === 98);
+
+      $.startSelect();                       // 按 C
+      $.selectKey('1');                      // 点第 1 关（练习）
+      check('进选关会先把正式存档落一次盘', !!store[$.SAVE_KEY]);
+      check('练习局没有覆盖正式存档', store[$.SAVE_KEY] === mainRaw, '正式槽被改了');
+      check('练习局写进了练习槽', !!store[$.SAVE_KEY_PRACTICE]);
+      check('标题页的「继续存档」看的是正式槽（G.practice 残留也不影响）',
+            (($.snap().G.state = 0), $.saveInfo().level === 150));
+
+      $.loadProgress();                      // R 继续存档
+      check('继续存档拿到的是原来那一局，不是练习局',
+            $.snap().G.level === 150 && $.snap().G.score === 1640766 && $.snap().G.lives === 98,
+            `level=${$.snap().G.level} score=${$.snap().G.score} lives=${$.snap().G.lives}`);
+
+      // ---- 回收站：删档不再是一键火化，按 B 能找回来 -------------------------
+      store[$.SAVE_KEY] = mainRaw;
+      delete store[$.SAVE_KEY_BACKUP];
+      $.clearSave(true);
+      check('删档后正式槽空了', !store[$.SAVE_KEY]);
+      check('删掉的档进了回收站', !!store[$.SAVE_KEY_BACKUP]);
+      check('按 B 能找回上一局', $.restoreBackup() === true && JSON.parse(store[$.SAVE_KEY]).level === 150);
+      check('找回之后回收站清空（不会无限回滚）', !store[$.SAVE_KEY_BACKUP]);
+
+      // ---- 被"更差的一局"覆盖时自动留底 -------------------------------------
+      store[$.SAVE_KEY] = mainRaw;
+      delete store[$.SAVE_KEY_BACKUP];
+      $.newGame();
+      check('开新局不会静默丢掉高关卡存档（旧档进回收站）',
+            !!store[$.SAVE_KEY_BACKUP] && JSON.parse(store[$.SAVE_KEY_BACKUP]).level === 150);
+      check('正式槽已经是新局', JSON.parse(store[$.SAVE_KEY]).level === 0);
+
+      // 命耗尽是有意作废：**不**进回收站，否则按 B 读回来还是必死局面
+      store[$.SAVE_KEY] = mainRaw;
+      delete store[$.SAVE_KEY_BACKUP];
+      $.clearSave(false, false);
+      check('命耗尽清档不进回收站', !store[$.SAVE_KEY] && !store[$.SAVE_KEY_BACKUP]);
 
       // 最高分不因读档而倒退
       $.snap().G.best = 50000;
