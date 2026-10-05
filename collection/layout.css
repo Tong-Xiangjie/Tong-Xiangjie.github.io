@@ -2916,23 +2916,133 @@ textarea:focus-visible {
     visibility: visible;
     pointer-events: auto;           /* 显示时才可拖/可点 */
 }
-/* 滑块：比原生条细（视觉 6px，命中带是 10px，见 scrollbar.js 的 TRACK），
-   颜色用站点自己的 --text-secondary 调透明度 —— 会自动跟着明暗主题走，
-   不用为暗色再写一套。悬停/拖动时略微变粗变深，是"浮层滚动条"该有的反馈。 */
+/* 滑块：比原生条细很多（视觉 4px，命中带是 10px，见 scrollbar.js 的 TRACK —— 细归细，
+   抓取范围没变），颜色用站点自己的 --text-secondary 调透明度 —— 会自动跟着明暗主题走，
+   不用为暗色再写一套。
+   悬停/拖动**只变亮、不变粗**（用户明确要求：放上去不用变粗，亮度像现在这样变化即可）。 */
 .cscroll-thumb {
-    width: 6px;
+    width: 4px;
     height: 100%;
     margin: 0 auto;                 /* 在 10px 命中带里居中 */
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.18);                                        /* 不支持 color-mix 时的兜底 */
     background: color-mix(in srgb, var(--text-secondary, #888) 42%, transparent);
-    transition: width var(--dur-1) var(--ease-out), background-color var(--dur-1) ease;
+    transition: background-color var(--dur-1) ease;
 }
 .cscroll-bar:hover .cscroll-thumb,
 .cscroll-bar.cscroll-drag .cscroll-thumb {
-    width: 8px;
     background: color-mix(in srgb, var(--text-secondary, #888) 68%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
     .cscroll-bar, .cscroll-thumb { transition: none; }
+}
+
+/* ============================================================
+   ★ 自绘下拉栏（逻辑在 dropdown.js）
+   用户要求：① 不用系统默认的下拉；② 触发器**固定宽度**，写不下的像侧边栏那样压扁；
+             ③ 弹出时有动画。
+   ★ 原生 <select> 没删，只是 display:none 藏起来继续持有状态：
+     .value / .options / .selectedIndex / change 是全站既有契约（stats.js、router.js、
+     special.js 都在用，十几个用例也在用 `s.value='x'; dispatchEvent(change)`）。
+     看得见的只有下面这一层。所以这里绝不要给 .dd-native 加 pointer-events 之外的花样。
+   ★ 压扁靠的是 .dd-label 的 min-width:0 + ellipsis：flex 子项默认 min-width:auto
+     会被内容撑开，固定宽度就形同虚设 —— 这一条是"写不下就压扁"的关键。
+   ============================================================ */
+.dd-native {
+    display: none !important;
+}
+.dd {
+    display: inline-block;
+    width: var(--dd-w, 128px);          /* ★ 固定宽度；各上下文可用 --dd-w 覆盖 */
+    max-width: 100%;
+    vertical-align: middle;
+    font-size: 0.75rem;                 /* 与原 .price-sort-select / .timeline-filter-select 一致 */
+}
+/* 各处的固定宽度：按"原来内容大概多长"定，写不下的压扁省略（不再让控件宽度随内容变）。
+   筛选项是"人民币 - 第一套人民币"这种长名字，给宽一点；年/月只有"全部 / 2024年"，给窄一点。
+   改宽度只动这里，不要回 JS 里写数字。 */
+.dd[data-dd-for="priceFilterSelect"] { --dd-w: 168px; }
+.dd[data-dd-for="timelineYearFilter"],
+.dd[data-dd-for="timelineMonthFilter"] { --dd-w: 96px; }
+@media (max-width: 600px) {
+    /* 窄屏：固定宽度也要收，不然两个控件就把标题行挤爆 */
+    .dd { --dd-w: 124px; }
+    .dd[data-dd-for="priceFilterSelect"] { --dd-w: 132px; }
+    .dd[data-dd-for="timelineYearFilter"],
+    .dd[data-dd-for="timelineMonthFilter"] { --dd-w: 84px; }
+}
+.dd-trigger {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
+}
+.dd-trigger:hover { border-color: var(--theme); }
+/* 与全站焦点环约定一致（见文件末尾"键盘焦点可见"一节）：只有键盘操作才出现 */
+.dd-trigger:focus-visible { outline: 2px solid var(--theme); outline-offset: 1px; }
+.dd-label {
+    flex: 1 1 auto;
+    min-width: 0;                       /* ★ 关键：不加这条，固定宽度压不住长文字 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.dd-caret {
+    flex: 0 0 auto;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--text-secondary);
+    transition: transform var(--dur-2) var(--ease-out);
+}
+.dd-open .dd-caret { transform: rotate(180deg); }
+
+.dd-popup {
+    /* ★ fixed：不会被 .price-list-body / .timeline-header 这类 overflow 容器裁掉
+       （原生 select 的弹层是浏览器画的，所以没这个问题；自己画就必须绕开裁剪）。 */
+    position: fixed;
+    z-index: 900;                       /* 内容之上、弹窗(1000)之下 */
+    min-width: 96px;
+    max-width: 320px;
+    max-height: 280px;
+    overflow-y: auto;                   /* 选项多时滚动，滚动条由 scrollbar.js 自绘 */
+    padding: 4px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    font-size: 0.75rem;
+    /* ★ 弹出动画 */
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.dd.dd-open .dd-popup { opacity: 1; transform: none; }
+.dd:not(.dd-open) .dd-popup { pointer-events: none; }   /* 收起动画期间不吃点击 */
+.dd-opt {
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dd-opt-active { background: var(--row-hover-bg); }
+.dd-opt-on { color: var(--theme); font-weight: 600; }
+.dd-opt-disabled { color: var(--text-secondary); cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+    .dd-trigger, .dd-popup, .dd-caret { transition: none; }
 }

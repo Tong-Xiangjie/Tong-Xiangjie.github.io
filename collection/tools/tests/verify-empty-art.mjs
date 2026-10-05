@@ -118,19 +118,28 @@ for (const k of KINDS) {
     const prev = (typeof getColorSchemeMode === 'function') ? getColorSchemeMode() : 'system';
     let light = '', dark = '';
     if (typeof setColorSchemeMode === 'function') {
-      // ★ 切换后要**等调色板真的变了**再采数：CI 上（慢机器）切完立刻读会两次读到同一个
-      //   颜色，断言"浅 ≠ 深"就假红（2026-10 的 CI 就是这样挂的）。这里改成等到不一样为止，
-      //   最多等 1 秒 —— 如果真的一直一样，dark 仍等于 light，断言照旧会红，不会掩盖问题。
-      const waitFrame = () => new Promise(r => setTimeout(r, 50));
+      // ★ 切换后要**等调色板稳定**再采数，两侧都要等。
+      //   明暗切换现在带 0.3s 的颜色补间（layout.css 用 @property 让变量逐帧插值），
+      //   切完立刻读到的还是**切换前**的值。原来的写法只等了 dark 那一侧，于是：
+      //   页面本来就在 dark 时，切 light 后立刻采样拿到的是 dark 值，
+      //   再切回 dark 时颜色根本没动过 → 两次采到同一个颜色 → 假红。
+      //   两侧都等到不动为止；如果真的一直一样，dark 仍等于 light，断言照旧会红，不会掩盖问题。
+      const settle = async (read) => {
+        let last = read(), stable = 0;
+        const t0 = Date.now();
+        while (Date.now() - t0 < 1500) {
+          await new Promise(r => setTimeout(r, 40));
+          const now = read();
+          if (now === last) { if (++stable >= 3) return now; }
+          else { stable = 0; last = now; }
+        }
+        return last;
+      };
+      const bgc = () => getComputedStyle(e).backgroundColor;
       setColorSchemeMode('light');
-      light = getComputedStyle(e).backgroundColor;
+      light = await settle(bgc);
       setColorSchemeMode('dark');
-      for (let i = 0; i < 20; i++) {
-        const c = getComputedStyle(e).backgroundColor;
-        if (c && c !== light) { dark = c; break; }
-        await waitFrame();
-      }
-      if (!dark) dark = getComputedStyle(e).backgroundColor;
+      dark = await settle(bgc);
       setColorSchemeMode(prev);
     }
     const sm = document.createElement('span');

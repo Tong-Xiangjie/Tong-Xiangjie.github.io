@@ -220,6 +220,12 @@
      浮一个自绘滑块，宽度也就永远不变了。逻辑在 scrollbar.js，样式在 layout.css 末尾。 -->
 <script src="scrollbar.js"></script>
 
+<!-- ========== 自绘下拉栏 ==========
+     把页面上所有原生 <select> 换成自己画的外观（固定宽度、太长就压扁省略、弹出有动画）。
+     原生 select 不删，只是 display:none 藏起来继续持有 .value / options / change 契约，
+     所以既有逻辑和用例一字不用改。逻辑在 dropdown.js，样式在 layout.css 末尾。 -->
+<script src="dropdown.js"></script>
+
 <!-- ========== 图片本地缓存（离线可用） ========== -->
 <script>
 // 注册图片缓存 Service Worker（scope 为 /collection/）

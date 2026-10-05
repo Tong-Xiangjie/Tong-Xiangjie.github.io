@@ -167,7 +167,7 @@ else {
   ok(I.容器是否被改过position === 'static' || I.容器是否被改过position === 'relative',
      `② 容器自身 position 保持 ${I.容器是否被改过position}（没有为了浮层去改它，避免带偏内部绝对定位）`);
   ok(Math.abs(I.滑块高 - I.期望滑块高) <= 2, `② 滑块长度与实际内容成比例（${I.滑块高}px vs 期望 ${I.期望滑块高}px）`);
-  ok(I.滑块宽 > 0 && I.滑块宽 <= 10, `② 滑块比原生条细（视觉 ${I.滑块宽}px，原生是 ${I.整流器原生条宽}px，用户要求"略微细一点"）`);
+  ok(I.滑块宽 > 0 && I.滑块宽 <= 6, `② 滑块比原生条细很多（视觉 ${I.滑块宽}px，原生是 ${I.整流器原生条宽}px，用户要求"再细一点"）`);
   ok(I.横向条数 === 0, `② 没有画横向自绘条（${I.横向条数} 个）`);
 }
 
@@ -209,6 +209,27 @@ else {
   await mouse('mouseMoved', rc.cx, rc.cy);
   await sleep(900);
   ok(await barOn() === false, '③ 鼠标移开后又隐藏（不是一直赖着）');
+
+  // ★ 悬停反馈：用户要求"鼠标放上去可以不用变粗，亮度像现在这样变化即可"
+  const thumbStyle = () => evaluate(`(()=>{ const h=[...document.querySelectorAll('*')].filter(e=>e.__cscroll && e.offsetParent!==null)[0];
+    if(!h) return 'no-host';
+    const t=h.__cscroll.thumb, cs=getComputedStyle(t);
+    const r=t.getBoundingClientRect();
+    return JSON.stringify({ w: Math.round(r.width*100)/100, bg: cs.backgroundColor, cy: Math.round(r.top+r.height/2), x: Math.round(r.right-1) }); })()`);
+  await mouse('mouseMoved', rc.cx, rc.cy);          // 指针在内容区里，不在条上
+  await sleep(250);
+  const idle = JSON.parse(await thumbStyle());
+  // ★ 要移两次：第一次只是让条"出现"（此时 pointer-events 才从 none 变成 auto），
+  //   而 :hover 是在指针移动时结算的 —— 光标没在"已经可交互"的条上再动一次，
+  //   悬停样式不会生效。真人连续移动不会遇到，脚本里必须补这一下。
+  await mouse('mouseMoved', Math.max(0, idle.x - 8), idle.cy);
+  await sleep(80);
+  await mouse('mouseMoved', idle.x, idle.cy);       // 压到滑块上
+  await sleep(320);
+  const hov = JSON.parse(await thumbStyle());
+  ok(hov.w === idle.w, `★ ③ 鼠标放上去滑块**不变粗**（${idle.w}px → ${hov.w}px，用户要求）`);
+  ok(hov.bg !== idle.bg, `★ ③ 鼠标放上去只变亮（${idle.bg} → ${hov.bg}，用户要求）`);
+  console.log(`  滑块粗细 ${hov.w}px（命中带 10px，细但好抓）`);
 }
 
 // ══════════════════════════════════════════════════════════════

@@ -315,7 +315,9 @@
             if (mo.__t) return;
             mo.__t = setTimeout(function () { mo.__t = 0; scheduleSync(); }, 150);
         });
-        mo.observe(document.body, { childList: true, subtree: true });
+        // 除了子节点变化，还要盯 hidden 属性：下拉弹层、弹窗这类是"原地显示/隐藏"，
+        // 没有 childList 变化，但一显示就可能需要自绘滚动条（下拉列表就是 overflow-y:auto）。
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
     }
     function boot() { scheduleSync(); setTimeout(function () { fullScan(true); }, 400); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
