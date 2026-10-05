@@ -262,7 +262,17 @@
     }
     function onAnyScroll(e) {
         if (!openOne) return;
-        if (e && e.target && openOne.popup.contains(e.target)) return;
+        // ★ 守卫：e.target 可能是 window 这类**不是 Node** 的目标，此时 contains 会抛
+        //   TypeError（"parameter 1 is not of type 'Node'"）—— 这就是 CI 上那条间歇性
+        //   "全程无未捕获异常（1 条）" 的真凶（上面那段注释原写"onAnyScroll 早有这个守卫"
+        //   是我记错了，它当时没有，所以坑留了很久）。
+        //   ★ 非 Node 一律**直接返回、不关弹层**：这不是"随便选一个"，而是要跟改动前的
+        //   **实际效果**完全一致 —— 那时 contains 抛异常，close() 也就没执行、弹层留着。
+        //   改成"按滚在弹层外处理"虽也说得通，但会凭空多出一次关闭（本地 CI=true 复跑时
+        //   出现过 65/5 的偶发失败），为了不动既有行为，这里只去掉异常本身。
+        const t = e && e.target;
+        if (!t || !t.nodeType) return;
+        if (openOne.popup.contains(t)) return;
         close(openOne, false);
     }
 
