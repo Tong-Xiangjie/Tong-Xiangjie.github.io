@@ -46,12 +46,37 @@
     var IDLE_HIDE_MS = 900;      // 停手多久淡出
     var LEAVE_HIDE_MS = 500;     // 鼠标移出热区后多久淡出
     var FULL_SCAN_MS = 800;      // 真值扫描的最低间隔（读 scrollHeight 很便宜，但别每帧扫）
+    var BAR_Z_MIN = 60;          // 滑块 z-index 的下界（见 barZ()）
 
     var hosts = [];
     var lastFullScan = 0;
 
     function reduceMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    // ---------- 滑块的 z-index：跟着宿主所在层叠层级走 ----------
+    // ★ 不能写死。滑块是 fixed 定位、挂在 body 下，所以它和"宿主所在的那一层"是兄弟关系，
+    //   谁在上面只看 z-index：下拉弹层是 900、大图灯箱是 1000+，写死 60 就会被它们的背景
+    //   整个盖住 —— 现象正是用户报的"原生滚动条没了、自己写的也没看见"（原生条被
+    //   .cscroll-host 收掉了，自绘的又被盖住）。
+    //   这里把祖先里"定位且带 z-index"的值累加（近似"这一层有多高"），滑块再高一层。
+    function barZ(el) {
+        var z = 0, n = el;
+        while (n && n !== document.body && n !== document.documentElement) {
+            var cs;
+            try { cs = getComputedStyle(n); } catch (e) { break; }
+            if (cs && cs.position !== 'static') {
+                var v = parseInt(cs.zIndex, 10);
+                if (!isNaN(v)) z += v;
+            }
+            n = n.parentElement;
+        }
+        return Math.max(BAR_Z_MIN, z + 1);
+    }
+    function syncBarZ(rec) {
+        var v = String(barZ(rec.el));
+        if (rec.bar.style.zIndex !== v) rec.bar.style.zIndex = v;
     }
 
     // ---------- ① 快速通道：样式表里声明了可滚的选择器 ----------
@@ -142,6 +167,7 @@
         var rec = { el: el, bar: bar, thumb: thumb, dragging: false, hideTimer: 0, hot: false, seen: false, m: null };
         el.__cscroll = rec;
         hosts.push(rec);
+        syncBarZ(rec);               // 立刻按宿主所在层级给滑块定 z-index（下拉弹层/灯箱都靠它）
 
         // 兜底再挂一次类（CSS 已经提前收掉了常见滚动容器的原生条，见 layout.css）
         el.classList.add(HOST_CLASS);
@@ -170,6 +196,7 @@
 
     function refresh(rec) {
         if (!rec.el || !rec.el.isConnected) { unmount(rec); return; }
+        syncBarZ(rec);           // 宿主可能换到了另一个层叠上下文里（弹层开关、视图切换）
         layout(rec);
     }
 
@@ -332,4 +359,20 @@
     }, 800);
 
     window.refreshCustomScrollbars = function () { fullScan(true); scheduleSync(); };
+
+    // ★ 给"点外面就关"的浮层用（下拉弹层已经接了）：滑块和轨道是挂在 **body** 下的，
+    //   不在浮层里 —— 所以按滑块拖动会被浮层的"点了外面"判定命中，弹层立刻关掉，
+    //   结果就是"一点滚动条就关闭，没法滚"（用户实测报告）。
+    //   浮层只要问一下 customScrollbarHit(e.target) 就能把这一类点击排除在外。
+    window.customScrollbarHit = function (target) {
+        for (var el = target; el; el = el.parentElement) {
+            if (el.classList && el.classList.contains('cscroll-bar')) return true;
+        }
+        return false;
+    };
+    // 正在拖滑块时（指针可能已经移出条外）也算"在操作滚动条"，同样别关。
+    window.customScrollbarBusy = function () {
+        for (var i = 0; i < hosts.length; i++) if (hosts[i].dragging) return true;
+        return false;
+    };
 })();

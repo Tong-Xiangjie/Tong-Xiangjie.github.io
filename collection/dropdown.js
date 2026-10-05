@@ -63,7 +63,7 @@
         box.setAttribute('data-dd-for', id);      // 方便 CSS 按上下文调固定宽度（--dd-w）
         box.innerHTML =
             '<button type="button" class="dd-trigger" aria-haspopup="listbox" aria-expanded="false">' +
-            '<span class="dd-label"></span>' +
+            '<span class="dd-label"><span class="dd-label-text"></span></span>' +
             '<span class="dd-caret" aria-hidden="true"></span>' +
             '</button>' +
             '<div class="dd-popup" role="listbox" tabindex="-1" hidden></div>';
@@ -77,6 +77,7 @@
             select: select, box: box, id: id,
             trigger: box.querySelector('.dd-trigger'),
             label: box.querySelector('.dd-label'),
+            labelText: box.querySelector('.dd-label-text'),
             popup: box.querySelector('.dd-popup'),
             active: -1, opened: false
         };
@@ -120,6 +121,11 @@
             var opt = e.target.closest ? e.target.closest('.dd-opt') : null;
             if (opt) setActive(rec, Number(opt.dataset.index), false);
         });
+        // ★ 鼠标离开弹层就把悬停高亮清掉（用户实测：不清的话那一行会一直亮着，
+        //   看着像"选中了它"，其实只是鼠标以前路过）。键盘的 rec.active 保留着，
+        //   所以清掉之后再按方向键是从原位置继续走，不会跳回开头。
+        //   当前选中项本身由 .dd-opt-on（主题色 + 加粗）表示，不靠这条高亮，所以不会丢信息。
+        rec.popup.addEventListener('pointerleave', function () { clearActive(rec); });
 
         rebuild(rec);
     }
@@ -133,18 +139,60 @@
         return out;
     }
 
+    // ★ Word 式文字比例压缩 —— 和 sidebar.js 的 fitSidebarLabels() 同一套做法：
+    //   算得出可用宽度，就把整段文字横向 scaleX 压到刚好放得下（**不截断、不加省略号**）。
+    //   用户原话："不是省略号！是横向压扁。你看看侧边栏的实现"。
+    //   ★ 前提（踩过才知道）：被压的元素必须是"收缩到内容宽度"的盒子（inline-block）。
+    //     如果它是个被容器钉死宽度的块，scrollWidth 只是被裁掉的那部分，scaleX 会压过头
+    //     还留一条空白 —— 侧边栏父级那种 `flex:1;min-width:0` 的写法就有这个问题，
+    //     所以这里统一用 .dd-label-text / .dd-opt-text 两个 inline-block 来量、来压。
+    function squeezeText(el, avail) {
+        if (!el) return 1;
+        el.style.transform = '';
+        var full = el.offsetWidth || el.scrollWidth;      // inline-block：盒子宽就是文字宽
+        if (!(avail > 0) || full <= avail + 0.5) return 1;  // 放得下就不压
+        var ratio = avail / full;
+        el.style.transformOrigin = 'left center';
+        el.style.transform = 'scaleX(' + ratio.toFixed(4) + ')';
+        return ratio;
+    }
+
+    // 触发器上的文字：可用宽 = .dd-label 的实际宽（它被固定宽度夹住，caret 已经占掉了）
+    function fitLabel(rec) {
+        if (!rec || !rec.labelText) return;
+        squeezeText(rec.labelText, rec.label.clientWidth);
+    }
+
+    // 弹层里的每个选项：可用宽 = 选项盒子宽 - 左右 padding
+    function fitOptions(rec) {
+        if (!rec || !rec.popup) return;
+        var kids = rec.popup.children;
+        for (var i = 0; i < kids.length; i++) {
+            var opt = kids[i], tx = opt.firstChild;
+            if (!tx || tx.nodeType !== 1) continue;
+            var cs = getComputedStyle(opt);
+            var avail = opt.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+            squeezeText(tx, avail);
+        }
+    }
+
     // 重建弹出列表 + 同步触发器上的文字
     function rebuild(rec) {
         var opts = optionsOf(rec);
         var html = '';
         for (var i = 0; i < opts.length; i++) {
+            // 文字包一层 inline-block，压扁才有准确的可量宽度（见 squeezeText 的注释）。
+            // title 仍留着：压得很扁时字会很难认，鼠标停一下能看全（信息不丢）。
             html += '<div class="dd-opt' + (opts[i].disabled ? ' dd-opt-disabled' : '') + '"' +
                 ' role="option" data-index="' + i + '" data-value="' + escapeHtml(opts[i].value) + '"' +
-                ' id="' + rec.id + '-opt-' + i + '" aria-selected="false">' + escapeHtml(opts[i].text) + '</div>';
+                ' id="' + rec.id + '-opt-' + i + '" aria-selected="false"' +
+                ' title="' + escapeHtml(opts[i].text) + '">' +
+                '<span class="dd-opt-text">' + escapeHtml(opts[i].text) + '</span></div>';
         }
         rec.popup.innerHTML = html;
         rec.opts = opts;
         sync(rec);
+        if (rec.opened) fitOptions(rec);      // 弹层开着时重建（stats.js 重填筛选）要立刻重压
     }
 
     // 把 select 的当前值反映到自绘那一层
@@ -152,9 +200,10 @@
         var i = rec.select.selectedIndex;
         var text = (i >= 0 && rec.opts && rec.opts[i]) ? rec.opts[i].text : '';
         if (!text && rec.select.value) text = rec.select.value;      // options 还没建好时兜底
-        if (rec.label.textContent !== text) rec.label.textContent = text;
-        // 文字太长时给个 title，鼠标停一下能看全（"压扁"之后仍能读到完整值）
+        if (rec.labelText.textContent !== text) rec.labelText.textContent = text;
+        // 文字太长时给个 title，鼠标停一下能看全（压扁之后仍能读到完整值）
         if (rec.label.title !== text) rec.label.title = text;
+        fitLabel(rec);
         var nodes = rec.popup.children;
         for (var k = 0; k < nodes.length; k++) {
             var on = (k === i);
@@ -200,7 +249,12 @@
     }
 
     function onDocDown(e) {
-        if (openOne && !openOne.box.contains(e.target)) close(openOne, false);
+        if (!openOne) return;
+        // ★ 自绘滚动条挂在 body 下，不在弹层里 —— 点它/拖它不能被当成"点了外面"，
+        //   否则一按滑块弹层就关，弹层里根本滚不动（用户实测报告："一旦点击滚动条就会关闭"）。
+        if (typeof window.customScrollbarHit === 'function' && window.customScrollbarHit(e.target)) return;
+        if (typeof window.customScrollbarBusy === 'function' && window.customScrollbarBusy()) return;
+        if (!openOne.box.contains(e.target)) close(openOne, false);
     }
     function onAnyScroll(e) {
         if (!openOne) return;
@@ -213,8 +267,14 @@
     function place(rec) {
         var r = rec.trigger.getBoundingClientRect();
         var pop = rec.popup;
-        pop.style.minWidth = Math.round(r.width) + 'px';
+        // ★ 弹层宽度**钉成和触发器一模一样**，不随选项文字变宽：
+        //   长选项靠比例压缩（scaleX）横向压扁，跟触发器上的文字一致。
+        //   原来写的是 minWidth，于是"人民币流通硬币 - 第二套人民币硬币（硬分币）"这种长选项
+        //   会把弹层撑到 320px，比触发器宽一截、错位。
+        pop.style.width = Math.round(r.width) + 'px';
         var h = pop.offsetHeight;
+        fitLabel(rec);              // 增强时容器若还隐藏着（可用宽 0）压不了，打开时补一次
+        fitOptions(rec);            // 宽度定了才能算每个选项的可用宽（弹层隐藏时量不到）
         var below = window.innerHeight - r.bottom - 8;
         var above = r.top - 8;
         var top = (h <= below || below >= above) ? (r.bottom + 4) : (r.top - h - 4);
@@ -231,6 +291,14 @@
         if (scroll && nodes[i] && nodes[i].scrollIntoView) {
             try { nodes[i].scrollIntoView({ block: 'nearest' }); } catch (e) {}
         }
+    }
+
+    // 只清"高亮"这个视觉状态，不动 rec.active（键盘还记得走到哪了）
+    function clearActive(rec) {
+        if (!rec || !rec.opts) return;
+        var nodes = rec.popup.children;
+        for (var k = 0; k < nodes.length; k++) nodes[k].classList.remove('dd-opt-active');
+        rec.trigger.removeAttribute('aria-activedescendant');
     }
 
     function pick(rec, i) {
@@ -295,7 +363,15 @@
         });
         mo.observe(document.body, { childList: true, subtree: true });
     }
-    window.addEventListener('resize', schedule);
+    // 窗口/容器宽度变了要重新压一遍：窄屏断点会改触发器的固定宽度，
+    // 而增强那一刻容器可能是隐藏的（量到的可用宽是 0，压不了）—— 侧边栏也有同样的钩子。
+    function refitAll() {
+        for (var i = 0; i < all.length; i++) {
+            fitLabel(all[i]);
+            if (all[i].opened) fitOptions(all[i]);
+        }
+    }
+    window.addEventListener('resize', function () { refitAll(); schedule(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule);
     else schedule();
 

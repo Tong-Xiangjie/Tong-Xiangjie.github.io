@@ -30,8 +30,16 @@ const html = readFileSync('collection/index.html', 'utf8');
 ok(html.includes('dropdown.js'), '① index.html 引入了 dropdown.js');
 ok(/\.dd-native\s*\{[^}]*display\s*:\s*none/.test(css),
   '① 原生 select 是 .dd-native { display:none }（藏起来但留在 DOM 里，继续持有状态）');
-ok(/min-width\s*:\s*0/.test(css), '① .dd-label 有 min-width:0（flex 子项不加这条，固定宽度会被长文字撑开，压扁就废了）');
-ok(/text-overflow\s*:\s*ellipsis/.test(css), '① 长文字用省略号压扁');
+ok(/min-width\s*:\s*0/.test(css), '① .dd-label 有 min-width:0（flex 子项不加这条，固定宽度会被长文字撑开，压缩就废了）');
+ok(/\.dd-label-text\s*\{[^}]*display\s*:\s*inline-block/.test(css) && /\.dd-opt-text\s*\{[^}]*display\s*:\s*inline-block/.test(css),
+  '① 被压缩的文字元素是 inline-block（像侧边栏的 .child-text：盒子宽=文字宽，scaleX 才算得准）');
+// ★ 断言 CSS 时要先剥掉注释：这几条规则的注释里正好在讨论 "text-overflow: ellipsis"，
+//   不剥的话断言会被自己的注释绊倒（第一次跑就踩了）。
+const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, '');
+ok(!/\.dd-label\s*\{[^}]*text-overflow/.test(cssCode) && !/\.dd-opt\s*\{[^}]*text-overflow/.test(cssCode),
+  '① 没有用 text-overflow: ellipsis（用户明确说不要省略号；而且省略号按**布局**宽度画，压扁后会多画一个"…"）');
+ok(/squeezeText/.test(js) && /scaleX\(/.test(js) && /transformOrigin\s*=\s*'left center'/.test(js),
+  '① JS 用 scaleX 做 Word 式比例压缩（和 sidebar.js 的 fitSidebarLabels 同一套）');
 ok(/\.dd-popup\s*\{[^}]*position\s*:\s*fixed/.test(css),
   '① 弹层是 position: fixed（不会被 .price-list-body / .timeline-header 这些 overflow 容器裁掉）');
 ok(/\.dd\.dd-open\s+\.dd-popup/.test(css) && /transition\s*:/.test(css.match(/\.dd-popup\s*\{[^}]*\}/)?.[0] || ''),
@@ -122,7 +130,7 @@ else {
 }
 
 // ══════════════════════════════════════════════════════════════
-console.log('\n══════ ③ 固定宽度 + 写不下的压扁省略 ══════\n');
+console.log('\n══════ ③ 固定宽度 + 写不下的横向压缩（Word 式比例压缩，不是省略号） ══════\n');
 const SQUEEZE = `(()=>{
   const f = document.getElementById('priceFilterSelect'), r = f.__dd;
   // 找最长的一个选项（筛选里是"人民币 - 第一套人民币"这类长名字）
@@ -132,21 +140,70 @@ const SQUEEZE = `(()=>{
   const longText = f.options[li].textContent.trim();
   r.popup.querySelector('.dd-opt[data-index="' + li + '"]').click();
   const after = Math.round(r.trigger.getBoundingClientRect().width);
-  const lb = r.label;
-  const cs = getComputedStyle(lb);
+  const lb = r.label, tx = r.labelText;
+  const cs = getComputedStyle(tx);
+  const m = (cs.transform || 'none').match(/matrix\\(([-\\d.]+)/);
+  const mtx = function (el) { const t = getComputedStyle(el).transform || 'none'; const x = t.match(/matrix\\(([-\\d.]+)/); return x ? parseFloat(x[1]) : 1; };
   return JSON.stringify({ before, after, longText, label: lb.textContent,
-    scrollW: lb.scrollWidth, clientW: lb.clientWidth, ellipsis: cs.textOverflow, overflow: cs.overflow,
-    whiteSpace: cs.whiteSpace, title: lb.title, maxChars: longText.length });
+    可用宽: lb.clientWidth, 文字宽: tx.offsetWidth, 视觉宽: Math.round(tx.getBoundingClientRect().width),
+    压缩比: mtx(tx), display: cs.display, transformOrigin: cs.transformOrigin,
+    父的textOverflow: getComputedStyle(lb).textOverflow, 父的overflow: getComputedStyle(lb).overflow,
+    title: lb.title, maxChars: longText.length });
 })()`;
 const Q = JSON.parse(await evaluate(SQUEEZE));
 console.log(`  最长选项「${Q.longText}」（${Q.maxChars} 字）；触发器宽度 ${Q.before} → ${Q.after}`);
-console.log(`  文字需要 ${Q.scrollW}px，可用 ${Q.clientW}px → 压扁=${Q.scrollW > Q.clientW}`);
+console.log(`  文字需要 ${Q.文字宽}px，可用 ${Q.可用宽}px → scaleX(${Q.压缩比}) → 视觉宽 ${Q.视觉宽}px`);
 ok(Q.after === Q.before, `★ ③ 选中长选项后触发器宽度不变（${Q.before} → ${Q.after}px）= 固定宽度，不是随内容变`);
-ok(Q.label === Q.longText, '③ 触发器文字确实换成了刚选的那一项');
-ok(Q.scrollW > Q.clientW, `★ ③ 写不下的文字被压扁（文字 ${Q.scrollW}px > 可用 ${Q.clientW}px，像侧边栏那样省略，不是把控件撑宽）`);
-ok(Q.ellipsis === 'ellipsis' && Q.overflow === 'hidden' && Q.whiteSpace === 'nowrap',
-  `③ 压扁是靠 overflow:hidden + text-overflow:ellipsis + nowrap（${Q.ellipsis}/${Q.overflow}/${Q.whiteSpace}）`);
-ok(Q.title === Q.longText, '③ 压扁之后 title 里有完整文字（鼠标停一下能看全，信息没丢）');
+ok(Q.label === Q.longText, '③ 触发器文字确实换成了刚选的那一项（一个字都没截）');
+ok(Q.文字宽 > Q.可用宽, `★ ③ 这条样本确实写不下（文字 ${Q.文字宽}px > 可用 ${Q.可用宽}px），否则下面几条测不到东西`);
+ok(Q.display === 'inline-block', `③ 被压缩的是 inline-block 文字元素（display=${Q.display}）`);
+ok(Q.压缩比 < 1 && Math.abs(Q.压缩比 - Q.可用宽 / Q.文字宽) < 0.02,
+  `★ ③ 压缩比 = 可用/文字（scaleX=${Q.压缩比}，理论 ${(Q.可用宽 / Q.文字宽).toFixed(4)}）`);
+ok(Math.abs(Q.视觉宽 - Q.可用宽) <= 2,
+  `★ ③ 压完正好占满可用宽度（视觉 ${Q.视觉宽}px vs 可用 ${Q.可用宽}px）——整段文字都在，没有省略号、也没留空`);
+ok(Q.父的textOverflow !== 'ellipsis', `③ 父元素没有 text-overflow:ellipsis（${Q.父的textOverflow}）——压扁后不该再画"…"`);
+ok(Q.title === Q.longText, '③ 压扁之后 title 里有完整文字（压得很扁时鼠标停一下能看全）');
+
+// ★ 用户新要求（2026-10）：弹层宽度 = **触发器宽度**；选项文字太长就压扁，
+//   而不是把弹层撑宽（原来写的是 minWidth，长选项会把弹层撑到 320px，比触发器宽一截还错位）。
+const POPW = `(()=>{
+  const f = document.getElementById('priceFilterSelect'), r = f.__dd;
+  if (!r.opened) r.trigger.click();
+  const pop = r.popup;
+  const tw = Math.round(r.trigger.getBoundingClientRect().width);
+  const pw = Math.round(pop.getBoundingClientRect().width);
+  // 挑一条文字最宽的选项：它必须被压扁（而不是把弹层顶宽）
+  let li = 0, ln = -1;
+  [...pop.children].forEach((d, i) => { if (d.scrollWidth > ln) { ln = d.scrollWidth; li = i; } });
+  const opt = pop.children[li], cs = getComputedStyle(opt);
+  const tx = opt.firstChild;
+  const tcs = getComputedStyle(tx);
+  const mtx = function (el) { const t = getComputedStyle(el).transform || 'none'; const x = t.match(/matrix\\(([-\\d.]+)/); return x ? parseFloat(x[1]) : 1; };
+  const out = {
+    触发宽: tw, 弹层宽: pw, 选项数: pop.children.length,
+    最长选项: (opt.textContent || '').trim().slice(0, 20),
+    选项文字宽: tx.offsetWidth, 选项可用宽: opt.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0),
+    压缩比: mtx(tx), 视觉宽: Math.round(tx.getBoundingClientRect().width),
+    display: tcs.display,
+    选项textOverflow: cs.textOverflow,
+    title有全文: opt.title === (opt.textContent || '').trim()
+  };
+  if (r.opened) r.trigger.click();       // 收起来，别影响后面几节
+  out.已收起 = !r.opened;
+  return JSON.stringify(out);
+})()`;
+const PW = JSON.parse(await evaluate(POPW));
+console.log(`  弹层宽 ${PW.弹层宽}px vs 触发宽 ${PW.触发宽}px；最长选项「${PW.最长选项}」文字 ${PW.选项文字宽}px / 可用 ${PW.选项可用宽}px → scaleX(${PW.压缩比}) → 视觉 ${PW.视觉宽}px`);
+ok(PW.触发宽 > 0 && PW.弹层宽 === PW.触发宽,
+  `★ ③ 弹层宽度 = 触发器宽度（${PW.弹层宽} vs ${PW.触发宽}px）——不再被长选项撑宽`);
+ok(PW.选项文字宽 > PW.选项可用宽, `★ ③ 弹层里确实有写不下的长选项（文字 ${PW.选项文字宽}px > 可用 ${PW.选项可用宽}px）`);
+ok(PW.display === 'inline-block' && PW.压缩比 < 1 && Math.abs(PW.压缩比 - PW.选项可用宽 / PW.选项文字宽) < 0.02,
+  `★ ③ 弹层选项同样按 可用/文字 比例压缩（scaleX=${PW.压缩比}，理论 ${(PW.选项可用宽 / PW.选项文字宽).toFixed(4)}）`);
+ok(Math.abs(PW.视觉宽 - PW.选项可用宽) <= 2,
+  `★ ③ 压完正好占满选项宽度（视觉 ${PW.视觉宽}px vs 可用 ${PW.选项可用宽}px）`);
+ok(PW.选项textOverflow !== 'ellipsis', `③ 弹层选项也没有省略号（${PW.选项textOverflow}）`);
+ok(PW.title有全文, '③ 弹层里每个选项都有 title 全文（压得很扁时仍能看全）');
+ok(PW.已收起, '③ 量完宽度能把弹层收起来');
 
 // ══════════════════════════════════════════════════════════════
 console.log('\n══════ ④ 弹出动画 ══════\n');
@@ -263,6 +320,52 @@ ok(NARROW.trigW < 168, `⑦ 窄屏下固定宽度自动收窄（${NARROW.trigW}p
 ok(NARROW.trigRight <= NARROW.innerW + 1, `⑦ 控件没有伸出视口（右边缘 ${NARROW.trigRight} ≤ ${NARROW.innerW}）`);
 ok(NARROW.横向溢出 === false, '⑦ 窄屏下整页没有横向溢出（固定宽度没有把页面撑宽）');
 await send('Emulation.clearDeviceMetricsOverride');
+
+// ══════════════════════════════════════════════════════════════
+// 用户实测：鼠标悬停那一行的高亮，鼠标离开弹层后一直留着（看着像选中了它）。
+// 高亮是 mousemove → setActive() 加的 .dd-opt-active，离开时没人清。
+console.log('\n══════ ⑨ 鼠标离开弹层，悬停高亮要消失 ══════\n');
+const HOVER = JSON.parse(await evaluate(`(()=>{
+  const f = document.getElementById('priceFilterSelect'), r = f.__dd;
+  if (!r.opened) r.trigger.click();
+  const opts = [...r.popup.children];
+  const i = Math.min(3, opts.length - 1);
+  const o = opts[i].getBoundingClientRect();
+  return JSON.stringify({ x: Math.round(o.left + 6), y: Math.round(o.top + o.height / 2), idx: i, 选项数: opts.length });
+})()`));
+await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: HOVER.x, y: HOVER.y, button: 'none', pointerType: 'mouse' });
+await sleep(180);
+const onHover = JSON.parse(await evaluate(`(()=>{
+  const r = document.getElementById('priceFilterSelect').__dd;
+  return JSON.stringify({ 高亮数: r.popup.querySelectorAll('.dd-opt-active').length,
+    高亮索引: [...r.popup.children].findIndex(d => d.classList.contains('dd-opt-active')),
+    弹层还开着: r.opened });
+})()`));
+ok(onHover.高亮数 === 1 && onHover.高亮索引 === HOVER.idx,
+  `⑨ 鼠标悬停会高亮那一行（第 ${onHover.高亮索引} 项，共 ${HOVER.选项数} 项）`);
+// 移到页面右下角的空地（远离弹层）
+await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1220, y: 860, button: 'none', pointerType: 'mouse' });
+await sleep(300);
+const offHover = JSON.parse(await evaluate(`(()=>{
+  const r = document.getElementById('priceFilterSelect').__dd;
+  return JSON.stringify({ 高亮数: r.popup.querySelectorAll('.dd-opt-active').length,
+    弹层还开着: r.opened, 选中项标记: r.popup.querySelectorAll('.dd-opt-on').length,
+    aria: r.trigger.getAttribute('aria-activedescendant') });
+})()`));
+ok(offHover.高亮数 === 0, '★ ⑨ 鼠标离开弹层后悬停高亮消失（修之前会一直亮着）');
+ok(offHover.弹层还开着, '⑨ 只是移开鼠标，弹层不该被关掉');
+ok(offHover.选中项标记 === 1, '⑨ 当前选中项仍有 .dd-opt-on 标记（清高亮没把"当前值"一起弄丢）');
+ok(offHover.aria === null, '⑨ aria-activedescendant 也一起清掉了（无障碍状态跟视觉一致）');
+// 清掉之后键盘要接着走，而不是跳回第一项
+const KB2 = JSON.parse(await evaluate(`(()=>{
+  const r = document.getElementById('priceFilterSelect').__dd;
+  const before = r.active;
+  r.trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+  return JSON.stringify({ before, after: r.active, 高亮数: r.popup.querySelectorAll('.dd-opt-active').length });
+})()`));
+ok(KB2.高亮数 === 1 && KB2.after === KB2.before + 1,
+  `⑨ 清高亮后按方向键从原位置继续（${KB2.before} → ${KB2.after}），不是跳回开头`);
+await evaluate(`(()=>{ const r = document.getElementById('priceFilterSelect').__dd; if (r.opened) r.trigger.click(); return 1; })()`);
 
 // ══════════════════════════════════════════════════════════════
 console.log('\n══════ ⑧ 时间轴的两个筛选（另一个视图里的下拉）══════\n');

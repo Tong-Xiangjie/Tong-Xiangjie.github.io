@@ -255,6 +255,128 @@ else {
   ok(ratio > 0.1 && ratio < 0.9, `④ 拖动 150px 大致对应内容滚动了 ${(ratio * 100).toFixed(0)}%（不是一拖到底也不是没动）`);
 }
 
+// ══════════════════════════════════════════════════════════════
+// 用户报：下拉栏里"原生滚动条被禁用了，但自己写的滚动条没出现"。
+// 根因不是没挂上 —— 弹层确实被挂成了 .cscroll-host（原生条被收掉），滑块也建了、位置尺寸都对，
+// 但它的 z-index 是**写死的 60**，而弹层是 900，于是滑块每次出现都被弹层自己的背景整个盖住：
+// 看起来就是"两个都没有"。所以滑块的 z-index 必须跟着宿主所在层叠层级走（scrollbar.js 的 barZ()）。
+// 这一节用 elementFromPoint 直接问"那个像素点上最顶的是谁"，写死 z-index 的版本必红。
+console.log('\n══════ ⑤ 下拉弹层里的滑块要浮在弹层之上（用户报的"滚动条没出现"） ══════\n');
+await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#notes` });
+for (let i = 0; i < 140; i++) { const r = await evaluate(`document.readyState === 'complete' && !!document.querySelector('.view-scroll-container')`).catch(() => false); if (r) break; await sleep(120); }
+await sleep(1200);
+// 打开"币海拾年"（时间轴）——它的月份下拉有 13 个选项，够超出弹层 max-height(280px)
+const opened = await evaluate(`(()=>{
+  const t = (typeof specialCategoryTree !== 'undefined' && specialCategoryTree) ? specialCategoryTree : [];
+  const hit = t.find(c => /拾年|时间轴/.test(c.name || '')) || t.find(c => c.id === 'years');
+  if (hit && typeof onSpecialOverviewItemClick === 'function') { onSpecialOverviewItemClick(hit.id); return true; }
+  return false;
+})()`);
+for (let i = 0; i < 60; i++) { if (await evaluate(`!!document.getElementById('timelineMonthFilter')`)) break; await sleep(250); }
+await sleep(900);
+ok(opened, '⑤ 能打开"币海拾年"时间轴（拿它的月份下拉做样本）');
+
+const POPUP = `(()=>{
+  const m = document.getElementById('timelineMonthFilter');
+  if (!m || !m.__dd) return JSON.stringify({ err: '月份下拉没有自绘化' });
+  const pop = m.__dd.popup, trig = m.__dd.trigger;
+  const cs = getComputedStyle(pop);
+  const borders = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+  const bar = pop.__cscroll ? pop.__cscroll.bar : null;
+  const tb = bar ? bar.querySelector('.cscroll-thumb') : null;
+  const r = trig.getBoundingClientRect();
+  const out = {
+    选项数: m.options.length,
+    触发宽: Math.round(r.width), 弹层宽: Math.round(pop.getBoundingClientRect().width),
+    需要滚动: pop.scrollHeight > pop.clientHeight + 1,
+    已挂宿主: pop.classList.contains('cscroll-host'),
+    原生条吃掉宽: Math.round((pop.offsetWidth - pop.clientWidth) - borders),
+    scrollbarWidth: cs.scrollbarWidth,
+    弹层z: parseInt(cs.zIndex, 10) || 0,
+    scrollTop: Math.round(pop.scrollTop),
+    maxScroll: pop.scrollHeight - pop.clientHeight
+  };
+  if (!bar) { out.滑块 = '没有给弹层建滑块'; return JSON.stringify(out); }
+  const bc = getComputedStyle(bar), tr = tb.getBoundingClientRect();
+  const cx = Math.round(tr.left + tr.width / 2), cy = Math.round(tr.top + tr.height / 2);
+  const top = document.elementFromPoint(cx, cy);
+  out.滑块 = { z: parseInt(bc.zIndex, 10) || 0, vis: bc.visibility, op: Number(bc.opacity),
+    pe: bc.pointerEvents, 高: Math.round(tr.height), 顶: Math.round(tr.top), x: cx, y: cy,
+    命中: top ? (typeof top.className === 'string' && top.className ? top.className : top.tagName) : 'null',
+    在最上层: !!(top && /cscroll-(thumb|bar)/.test(top.className || '')) };
+  return JSON.stringify(out);
+})()`;
+
+await evaluate(`document.getElementById('timelineMonthFilter').__dd.trigger.click()`);
+let pp = JSON.parse(await evaluate(POPUP));
+for (let i = 0; i < 30 && !pp.已挂宿主; i++) { await sleep(200); pp = JSON.parse(await evaluate(POPUP)); }
+console.log('    ' + JSON.stringify(pp.滑块 ? { 选项数: pp.选项数, 触发宽: pp.触发宽, 弹层宽: pp.弹层宽, 需要滚动: pp.需要滚动, 弹层z: pp.弹层z, 滑块z: pp.滑块.z } : pp));
+ok(!pp.err, `⑤ 月份下拉已自绘化${pp.err ? '（' + pp.err + '）' : ''}`);
+if (!pp.err) {
+  ok(pp.已挂宿主, '⑤ 弹层已被自绘滚动条接管（原生条会被 .cscroll-host 收掉）');
+  ok(pp.需要滚动, `⑤ 样本弹层确实需要滚动（内容 ${pp.maxScroll}px 超出），否则这一节测不到东西`);
+  ok(pp.原生条吃掉宽 === 0, `⑤ 弹层里的原生纵向条已被收掉，不再吃宽度（吃掉 ${pp.原生条吃掉宽}px）`);
+  ok(pp.滑块 !== '没有给弹层建滑块', '⑤ 给弹层建了自绘滑块');
+  if (pp.滑块 !== '没有给弹层建滑块') {
+    ok(pp.滑块.z > pp.弹层z, `⑤ 滑块 z-index 高于弹层（${pp.滑块.z} > ${pp.弹层z}）——写死 60 的话这里就露馅`);
+    // 滚轮滚一下：滑块必须出现，而且那个像素点上最顶的必须是滑块（不是弹层背景）
+    const before = pp.滑块.顶;
+    await wheel(pp.滑块.x, pp.滑块.y, 120);
+    await sleep(400);
+    const scrolled = JSON.parse(await evaluate(POPUP));
+    console.log(`    滚动后：scrollTop ${pp.scrollTop} → ${scrolled.scrollTop}，滑块顶 ${before} → ${scrolled.滑块.顶}，命中「${scrolled.滑块.命中}」`);
+    ok(scrolled.scrollTop > 0, `⑤ 弹层能滚（scrollTop ${pp.scrollTop} → ${scrolled.scrollTop}）`);
+    ok(scrolled.滑块.顶 > before, '⑤ 滚动时滑块跟着走');
+    ok(scrolled.滑块.vis === 'visible' && scrolled.滑块.op > 0.9, `⑤ 滚动时滑块可见（visibility=${scrolled.滑块.vis} opacity=${scrolled.滑块.op}）`);
+    ok(scrolled.滑块.在最上层, `⑤ ★ 滑块浮在弹层之上（该点上最顶的元素是「${scrolled.滑块.命中}」）——这一条就是用户报的那个 bug`);
+    // 鼠标压到滑块上也要浮在最上层（热区显形的另一条路径）
+    await mouse('mouseMoved', scrolled.滑块.x, scrolled.滑块.y + 40);
+    await sleep(120);
+    await mouse('mouseMoved', scrolled.滑块.x + 1, scrolled.滑块.y + 41);
+    await sleep(350);
+    const hot = JSON.parse(await evaluate(POPUP));
+    ok(hot.滑块.vis === 'visible' && hot.滑块.在最上层,
+      `⑤ 鼠标滑到滑块位置时同样可见且在最上层（visibility=${hot.滑块.vis}，命中「${hot.滑块.命中}」）`);
+    // ★ 用户实测的第二个 bug：滑块挂在 body 下、不在弹层里，于是"按下滑块"被弹层的
+    //   "点了外面就关"判定命中 → 弹层立刻关掉，滑块根本拖不动。
+    //   这一条必须真按下去（pointerdown 在捕获阶段就被弹层监听），不能只查 CSS。
+    const z = scrolled.滑块;
+    await mouse('mouseMoved', z.x, z.y + 40);
+    await sleep(60);
+    await mouse('mousePressed', z.x, z.y + 40, { buttons: 1 });
+    await sleep(260);
+    const afterPress = JSON.parse(await evaluate(`(()=>{
+      const m = document.getElementById('timelineMonthFilter');
+      return JSON.stringify({ 弹层还开着: !!(m && m.__dd && m.__dd.opened) });
+    })()`));
+    ok(afterPress.弹层还开着, '★ ⑤ 按下滑块时弹层不会被关掉（修之前这里必红：滑块在 body 下，被当成"点了外面"）');
+    // 继续拖，看内容真的滚动了，且弹层全程还在
+    for (let i = 1; i <= 4; i++) { await mouse('mouseMoved', z.x, z.y + 40 + i * 12, { buttons: 1, button: 'left' }); await sleep(40); }
+    await mouse('mouseReleased', z.x, z.y + 88, { buttons: 1 });
+    await sleep(260);
+    const afterDrag = JSON.parse(await evaluate(`(()=>{
+      const m = document.getElementById('timelineMonthFilter'), pop = m.__dd.popup;
+      return JSON.stringify({ 弹层还开着: m.__dd.opened, scrollTop: Math.round(pop.scrollTop), max: pop.scrollHeight - pop.clientHeight });
+    })()`));
+    ok(afterDrag.弹层还开着 && afterDrag.scrollTop > 0,
+      `★ ⑤ 按住滑块能拖动弹层滚动，且弹层一直开着（scrollTop → ${afterDrag.scrollTop} / 最大 ${afterDrag.max}）`);
+    // 弹层关掉后滑块要跟着收起来（不能留在屏幕上当幽灵）
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 640, y: 300, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 640, y: 300, button: 'left', clickCount: 1 });
+    await sleep(400);
+    const closed = JSON.parse(await evaluate(`(()=>{
+      const m = document.getElementById('timelineMonthFilter');
+      const pop = m && m.__dd ? m.__dd.popup : null;
+      if (!pop) return JSON.stringify({ err: '下拉没了' });
+      const bar = pop.__cscroll ? pop.__cscroll.bar : null;
+      return JSON.stringify({ 弹层隐藏: pop.hidden === true || getComputedStyle(pop).display === 'none',
+        滑块显示: bar ? getComputedStyle(bar).display : 'no-bar' });
+    })()`));
+    ok(closed.弹层隐藏, '⑤ 点弹层外面能关掉它（后面这条"滑块要跟着收"才有意义）');
+    ok(closed.滑块显示 === 'none', `⑤ 弹层收起后滑块不再显示（display=${closed.滑块显示}）`);
+  }
+}
+
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));

@@ -37,6 +37,7 @@ const SYMBOL_CATEGORIES = [
 ];
 
 let panelOpen = false;
+let panelHideTimer = 0;   // "收掉 display"的定时器，见 closePanel()
 
 function initSymbolPicker() {
     const toggleBtn = document.getElementById('symbolToggle');
@@ -77,6 +78,12 @@ function initSymbolPicker() {
     panel.style.zIndex = '50';
 
     function openPanel() {
+        // 关到一半又被打开：把"收掉 display"的定时器清掉，否则会先隐后显闪一下
+        clearTimeout(panelHideTimer);
+        panel.classList.add('shown');
+        // ★ 先让 display:block 结算一次，再挂 .open。否则"从 display:none 直接到目标样式"
+        //   会在同一次样式计算里完成，浏览器拿不到 before-change style，动画根本不会播（硬切）。
+        void panel.offsetHeight;
         panel.classList.add('open');
         overlay.style.display = 'block';
         overlay.style.pointerEvents = 'auto';
@@ -85,10 +92,18 @@ function initSymbolPicker() {
     }
 
     function closePanel() {
-        panel.classList.remove('open');
+        panel.classList.remove('open');   // 触发退出动画
         overlay.style.display = 'none';
         overlay.style.pointerEvents = 'none';
         panelOpen = false;
+        // ★ 动画期间面板还在布局里（还是 display:block），要等它跑完再真正收掉 ——
+        //   留着它会继续被当成滚动容器（自绘滚动条会给它挂滑块）、继续吃点击。
+        //   收掉的时机取动画时长（--dur-1 = 0.14s）再留一点余量。
+        clearTimeout(panelHideTimer);
+        panelHideTimer = setTimeout(function () {
+            if (!panelOpen) panel.classList.remove('shown');
+        // "减少动态效果"下 transition 是 none，退出是瞬时的，不用等
+        }, (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) ? 0 : 180);
     }
 
     window.closeSymbolPanel = function() {

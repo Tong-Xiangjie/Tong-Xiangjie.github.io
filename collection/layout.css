@@ -377,9 +377,29 @@ body {
     max-height: 260px;
     overflow-y: auto;
     display: none;
+    /* ★ 出现/消失动画：淡入 + 从触发按钮那侧"长"出来（面板挂在搜索框右上角，
+       所以 transform-origin 取 top right）。
+       进出的 transition 分别写在"进入后的状态"和"基础状态"里 —— 过渡取的是变化**之后**
+       那条规则上的值，于是打开用 --dur-2/--ease-out（小面板档），关闭用更短的
+       --dur-1/--ease-in，收起比展开利落一点。 */
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    transform-origin: top right;
+    transition: opacity var(--dur-1) var(--ease-in), transform var(--dur-1) var(--ease-in);
+}
+/* 进入布局（display:block），但还不可见 —— 由 symbol-picker.js 结算一次样式后再挂 .open */
+.symbol-panel.shown {
+    display: block;
 }
 .symbol-panel.open {
-    display: block;
+    opacity: 1;
+    transform: none;
+    transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+    /* ★ .open 那条规则的优先级比 .symbol-panel 高，所以这里必须把两个状态都写上，
+       否则"进入"这一侧仍会走 .symbol-panel.open 里的 0.22s 补间，兜底只兜住一半。 */
+    .symbol-panel, .symbol-panel.open { transition: none; }
 }
 
 .symbol-category {
@@ -1423,8 +1443,9 @@ body.modal-open {
     transition: transform var(--dur-2) var(--ease-inout),
                 width var(--dur-2) var(--ease-inout);
 }
-/* 首帧摆位、窗口缩放时不要"从最左边滑过来"，那是噪声 */
-.segmented.seg-no-anim .seg-pill { transition: none; }
+/* 首帧摆位、窗口缩放时不要"从最左边滑过来"，那是噪声。
+   ★ 不限定 .segmented：纸币/硬币的 .rating-tabs 也用同一个滑块（见上面）。 */
+.seg-no-anim .seg-pill { transition: none; }
 .seg-btn {
     position: relative;          /* ★ 压在滑块上面，文字才看得见 */
     z-index: 1;
@@ -1505,7 +1526,11 @@ body.modal-open {
     font-size: 0.85rem;
     gap: 8px;
 }
-.price-list-header span:first-child { font-weight: bold; color: var(--text-secondary); }
+/* ★ 用 > 收窄：原来写的是 `.price-list-header span:first-child`，
+   它会命中**任何**在父元素里排第一的 span —— 包括自绘下拉里那两个 .dd-label
+   （它们是 .dd-trigger 的第一个子元素），于是价格列表那两个下拉显示的值被染成
+   灰色加粗，和别的下拉（搜索类型/时间轴）不一致。这一条本来只想管"价格列表"这个标题。 */
+.price-list-header > span:first-child { font-weight: bold; color: var(--text-secondary); }
 .price-list-controls { display: flex; gap: 6px; margin-left: auto; }
 .price-sort-select,
 .price-filter-select {
@@ -1530,6 +1555,27 @@ body.modal-open {
 /* 这里的 420px 是有意的：价格列表本身就是"固定高度 + 内部滚动"的面板，
    内容通常远超 420px，所以不存在手风琴那种"插值跑空"的问题。 */
 .price-list-body.open { max-height: 420px; opacity: 1; overflow-y: auto; }
+/* ★ 标题行/汇总 与"具体价格行"之间的分割线：**不能**挂在"第一行"的 border-top 上 ——
+   列表体是滚动容器，第一行的 border-top 会跟着内容一起滚走，滚下去之后标题行下面就是空的
+   （用户报的"标题栏目和具体价格栏之间缺少一条分割线"）。
+   所以线画在列表体自己身上：它在滚动区域之外，永远紧贴标题行。 */
+.price-list-body.open { border-top: 1px solid var(--border); }
+/* 这时第一行自己的 border-top 就是重复的一条了，去掉（其余行仍靠它做行分隔） */
+.price-list-body.open .price-list-item:first-child { border-top: none; }
+
+/* ★ 行的进入动画（展开时全部条目错开淡入；切换筛选时新行淡入）
+   backwards：带延迟的行在延迟期间保持 from 状态（否则会先亮一下再动）。 */
+@keyframes pl-row-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+.pl-enter { animation: pl-row-in var(--dur-2) var(--ease-out) backwards; }
+/* ★ 错开延迟由 JS 逐行写 animation-delay（settings.js 的 playPriceListRowsIn）：
+   条数不定，CSS 里用 nth-child 只能写到固定条数；而且间隔要按总条数压缩
+   （40 多条 × 30ms 会长到 1.4s，看着像卡住）。动画结束 JS 会把延迟和内联样式清掉。 */
+@media (prefers-reduced-motion: reduce) {
+    .pl-enter { animation: none; }
+}
 .price-list-item {
     display: flex;
     align-items: center;
@@ -1542,7 +1588,29 @@ body.modal-open {
 .price-list-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .price-list-value { font-weight: bold; color: var(--theme); flex-shrink: 0; text-align: right; min-width: 60px; }
 .price-list-value.no-price { color: var(--text-secondary); font-weight: normal; }
-.price-list-summary { padding: 8px 14px; background: var(--bg-light); border-top: 1px solid var(--border); }
+/* ★ 汇总行做"下滑展开 / 上滑收起"（用户要求："直接用上滑收起下滑展开就行"）。
+   收起态用 --dur-1/--ease-in（出场）、展开态用 --dur-2/--ease-out（入场），
+   和站内其它进出动画一个约定。max-height 的具体数值由 JS 按实测高度给
+   （见 settings.js 的 setPriceSummaryShown），这里只提供"起点 0"和过渡。
+   竖向内边距一起过渡：不然收起到最后会剩 16px 的 padding 撑着，display:none 一落
+   下面的内容会往上跳一下。
+   ★ 不做淡入淡出：元素是从 display:none 出来的，透明度没有可过渡的起点（试过，
+   实测量到第一帧就已经是 1）；而且用户要的就是纯粹的上下滑动。 */
+.price-list-summary {
+    padding: 0 14px;
+    background: var(--bg-light);
+    border-top: 1px solid var(--border);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--dur-1) var(--ease-in), padding var(--dur-1) var(--ease-in);
+}
+.price-list-summary.shown {
+    padding: 8px 14px;
+    transition: max-height var(--dur-2) var(--ease-out), padding var(--dur-2) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+    .price-list-summary, .price-list-summary.shown { transition: none; }
+}
 .price-list-summary-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 3px 0; color: var(--text-secondary); }
 .price-list-summary-row span:last-child { font-weight: bold; color: var(--text); }
 .price-list-empty { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem; }
@@ -1557,11 +1625,18 @@ body.modal-open {
 }
 .rating-section-header h3 { margin-bottom: 0; order: 2; }
 .rating-section-header .rating-tabs { order: 1; }
-.rating-tabs { display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.rating-tab { padding: 3px 14px; font-size: 0.75rem; cursor: pointer; user-select: none; background: var(--bg-light); color: var(--text-secondary); transition: all 0.15s; border-right: 1px solid var(--border); }
-.rating-tab:last-child { border-right: none; }
-.rating-tab:hover { background: var(--sidebar-bg); }
-.rating-tab.active { background: var(--theme); color: #fff; }
+/* ★ 选中高亮做成"滑动块"（用户要求："纸币 硬币 ←这个也做成滑动块"）：
+   active 的背景不再由 tab 自己画（原来是 .rating-tab.active 硬切 background:var(--theme)），
+   而是复用「明暗」那套 .seg-pill —— JS 量出选中项的 left/width 写进 --seg-x/--seg-w，
+   切换时滑块滑过去（见 settings.js 的 layoutSegmented）。 */
+.rating-tabs { position: relative; display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--bg-light); }
+.rating-tabs .seg-pill { top: 0; bottom: 0; border-radius: 5px; }
+/* ★ 去掉了两项之间的 border-right 分隔线：以前 active 自己的背景盖着看不出来，
+   换成滑块之后，这条线（z-index 在滑块之上）会从滑块上划过去，看着像多了一根竖杠
+   （用户："纸币，样本之间多了一条竖着的杠"）。分段控件的选中态由滑块表达，不需要再加线。 */
+.rating-tab { position: relative; z-index: 1; padding: 3px 14px; font-size: 0.75rem; cursor: pointer; user-select: none; background: transparent; color: var(--text-secondary); transition: color 0.15s; }
+.rating-tab:hover:not(.active) { background: var(--sidebar-bg); }
+.rating-tab.active { color: #fff; }
 
 #ratingSection, #yearSection { transition: opacity 0.15s ease, transform 0.15s ease; }
 
@@ -1583,10 +1658,16 @@ body.modal-open {
     transition: color 0.15s, background 0.15s;
     z-index: 10;
     user-select: none;
+    /* ★ 内容现在会从 × 底下滚过去（见 .info-lightbox-inner 的说明），所以给它一块
+       和卡片同色的底：不滚时看不见（和卡片一个色），滚过来的内容不会穿过 ×，
+       × 始终看得清。 */
+    background: var(--card-bg);
 }
-.lightbox-close:hover { color: var(--theme); background: rgba(0, 0, 0, 0.06); }
+.lightbox-close:hover { color: var(--theme); background: var(--bg-light); }
 
-.special-lightbox-inner { animation: lightboxIn var(--dur-2) var(--ease-out); }
+.special-lightbox-inner { animation: lightboxIn var(--dur-2) var(--ease-out); overflow: hidden; display: flex; flex-direction: column; }
+/* ★ 同 .info-lightbox-inner：滚动放在内容区，卡片不滚，右上角 × 才不会跟着走 */
+.special-lightbox-content { overflow-y: auto; min-height: 0; }
 @keyframes lightboxIn {
     from { opacity: 0; transform: scale(0.94); }
     to { opacity: 1; transform: none; }
@@ -1627,11 +1708,17 @@ body.modal-open {
     max-width: 520px;
     width: 100%;
     max-height: 88vh;
-    overflow-y: auto;
+    /* ★ 滚动放在内容区（见下一条），卡片自己不滚 —— 这样右上角的 × 才不跟着内容走。
+       原来是 overflow-y:auto 写在卡片上、× 又是卡片的 absolute 子元素：绝对定位的基准
+       是卡片的 padding box，而它属于**被滚动的内容坐标**，所以一滚 × 就跟着上去了
+       （用户："弹窗可滚动，但右上角 × 不应随滚动移动"）。 */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     position: relative;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
 }
-.info-lightbox-content { padding: 16px 20px 20px; }
+.info-lightbox-content { padding: 16px 20px 20px; overflow-y: auto; min-height: 0; }
 .info-lightbox-title {
     font-size: 1rem;
     font-weight: bold;
@@ -1703,7 +1790,10 @@ body.modal-open {
     max-width: 520px;
     width: 100%;
     max-height: 88vh;
-    overflow-y: auto;
+    /* ★ 同上：滚动交给 .octo-grid，卡片本身不滚，× 才能钉在右上角 */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     position: relative;                 /* .lightbox-close 的定位基准 */
     padding: 16px 20px 20px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
@@ -1714,6 +1804,8 @@ body.modal-open {
     display: grid;
     grid-template-columns: 1fr;
     gap: 18px;
+    overflow-y: auto;
+    min-height: 0;
 }
 .octo-col { min-width: 0; }
 .octo-col-title {
@@ -2882,6 +2974,7 @@ textarea:focus-visible {
 .info-lightbox-inner,
 .octo-inner,
 .timeline-body,
+.dd-popup,
 .cscroll-host {
     scrollbar-width: none;          /* Firefox：收掉原生条（FF 不支持分轴，两个方向一起收） */
     -ms-overflow-style: none;       /* 旧 Edge */
@@ -2994,9 +3087,18 @@ textarea:focus-visible {
 .dd-label {
     flex: 1 1 auto;
     min-width: 0;                       /* ★ 关键：不加这条，固定宽度压不住长文字 */
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: hidden;                   /* 只做"兜底裁剪"：JS 压缩没跑起来时最多裁掉，不会把触发器撑开 */
     white-space: nowrap;
+    /* ★ 这里**不能**加 text-overflow: ellipsis：省略号是按布局宽度画的（transform 不改变布局），
+       压扁之后文字视觉上明明放得下，却还会在右边缘多画一个"…" —— 用户明确说不要省略号。 */
+}
+/* ★ 真正干活的元素：inline-block = 盒子宽就是文字宽，scaleX(可用/文字) 才能正好压满。
+   放在 .dd-label 里，.dd-label 负责"固定宽度夹住"，它负责"按比例压扁"。
+   （用户要求：像侧边栏那样横向压扁，不是加省略号。） */
+.dd-label-text {
+    display: inline-block;
+    white-space: nowrap;
+    transform-origin: left center;
 }
 .dd-caret {
     flex: 0 0 auto;
@@ -3014,8 +3116,10 @@ textarea:focus-visible {
        （原生 select 的弹层是浏览器画的，所以没这个问题；自己画就必须绕开裁剪）。 */
     position: fixed;
     z-index: 900;                       /* 内容之上、弹窗(1000)之下 */
-    min-width: 96px;
-    max-width: 320px;
+    /* ★ 宽度不在这里定：dropdown.js 的 place() 会把它钉成**和触发器一样宽**，
+       长选项靠 .dd-opt 的 ellipsis 压扁，而不是把弹层撑宽（用户要求）。
+       这里只兜底一个下界，别让它塌成一条线。 */
+    min-width: 72px;
     max-height: 280px;
     overflow-y: auto;                   /* 选项多时滚动，滚动条由 scrollbar.js 自绘 */
     padding: 4px;
@@ -3037,8 +3141,13 @@ textarea:focus-visible {
     color: var(--text);
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: hidden;                   /* 兜底（同 .dd-label） */
+}
+/* 选项文字同样用 inline-block + scaleX 压扁（见 .dd-label-text 的注释） */
+.dd-opt-text {
+    display: inline-block;
+    white-space: nowrap;
+    transform-origin: left center;
 }
 .dd-opt-active { background: var(--row-hover-bg); }
 .dd-opt-on { color: var(--theme); font-weight: 600; }
