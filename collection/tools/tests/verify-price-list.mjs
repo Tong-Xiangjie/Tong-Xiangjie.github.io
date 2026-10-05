@@ -239,6 +239,47 @@ await evaluate(`(()=>{ const s=document.getElementById('priceSortSelect'); s.val
 await sleep(600);
 
 // ══════════════════════════════════════════════════════════════
+// 用户追加："这个收起还是会卡顿"。实测根因：切回全部要重建 394 行，
+// 而 FLIP 又对全部 394 行各测两遍（旧位置/新位置）+ 挂 394 个 transform ——
+// 同步耗时 58ms，紧接着 4 帧 >25ms（最长 59ms），正好和汇总行的收起动画抢帧。
+// 收窄成：FLIP 只作用于视口 ±2 屏；屏幕外的行交给 content-visibility 跳过渲染；
+// 新行的淡入也按一屏封顶。改完同步 14ms、滑动期间 12 帧都是 15-18ms。
+console.log('\n══════ ④b 收起的卡顿（同步耗时 / 滑动期间的帧）══════\n');
+ok(/\.price-list-item\s*\{[^}]*content-visibility\s*:\s*auto/.test(css) &&
+   /\.price-list-item\s*\{[^}]*contain-intrinsic-size/.test(css),
+  '④b 屏幕外的行不参与布局绘制（content-visibility + contain-intrinsic-size 占位高度）');
+ok(/priceListAnimWindow\s*\(/.test(statsJs), '④b FLIP 限定在视口 ±2 屏，不再全量测 394 行');
+ok(/perScreen \+ 4/.test(statsJs), '④b 新行的淡入按一屏封顶（一次带进 380 多行不全挂动画）');
+
+const JANK = JSON.parse(await evaluate(`(async()=>{
+  const f=document.getElementById('priceFilterSelect'), b=document.getElementById('priceListBody');
+  const cat=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all')[0];
+  f.value=cat; f.dispatchEvent(new Event('change',{bubbles:true}));      // 先让汇总行出来
+  await new Promise(r=>setTimeout(r,900));
+  const frames=[]; let stop=false, last=performance.now();
+  const tick=()=>{ const n=performance.now(); frames.push(Math.round(n-last)); last=n; if(!stop) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  const h=performance.now();
+  f.value='all'; f.dispatchEvent(new Event('change',{bubbles:true}));    // 收起（重建 394 行）
+  const 同步=Math.round(performance.now()-h);
+  const 淡入行=document.querySelectorAll('#priceListBody .pl-enter').length;
+  const 行数=document.querySelectorAll('#priceListBody .price-list-item').length;
+  await new Promise(r=>setTimeout(r,900)); stop=true;
+  return JSON.stringify({ cat, 同步, 淡入行, 行数, 前6帧:frames.slice(0,6),
+    滑动期最长帧:Math.max(...frames.slice(0,6)), 全程最长帧:Math.max(...frames) });
+})()`));
+console.log(`  切回全部：同步 ${JANK.同步}ms；前 6 帧 ${JANK.前6帧.join('/')}（最长 ${JANK.滑动期最长帧}ms）；淡入行 ${JANK.淡入行}/${JANK.行数}`);
+ok(JANK.行数 > 0, `④b 收起路径能跑通（${JANK.行数} 行）`);
+if (JANK.行数 > 100) {
+  // 阈值断言只在"真实大列表"下有意义；CI 上如果没有数据文件（行数很少）就只留静态那几条
+  ok(JANK.同步 < 45, `★ ④b 收起时的同步耗时降下来了（${JANK.同步}ms；修之前实测 58ms）`);
+  ok(JANK.滑动期最长帧 < 40, `★ ④b 收起滑动期间不掉帧（前 6 帧最长 ${JANK.滑动期最长帧}ms；修之前 59ms 且连续 4 帧 >25ms）`);
+  ok(JANK.淡入行 <= 40, `★ ④b 新行的淡入按一屏封顶（${JANK.淡入行} 行，不是 394 行全挂）`);
+} else {
+  ok(true, `④b 行数只有 ${JANK.行数}（没有数据文件），跳过耗时阈值断言`);
+}
+
+// ══════════════════════════════════════════════════════════════
 console.log('\n══════ ⑤ 展开有动画（全部条目错开出现）══════\n');
 const EXPAND = JSON.parse(await evaluate(`(async()=>{
   const head = document.querySelector('.price-list-header'), b = document.getElementById('priceListBody');

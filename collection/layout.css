@@ -1583,6 +1583,14 @@ body.modal-open {
     font-size: 0.78rem;
     border-top: 1px solid var(--border);
     gap: 8px;
+    /* ★ 真实数据下这个列表有 394 行，视口里只看得到十几行。
+       屏幕外的行没必要参与布局/绘制 —— 每次切换排序筛选重建整片内容时，
+       这里正是"汇总行收起卡顿"的主要来源（实测同步 58ms、之后还有 4 帧 >25ms）。
+       content-visibility: auto 让浏览器跳过屏幕外行的渲染；contain-intrinsic-size
+       先给个占位高度（6+6 padding + 1px 边框 + 单行文字 ≈ 32px），
+       加了 auto 前缀后浏览器会记住真实尺寸，估不准也会自我修正。 */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 32px;
 }
 .price-list-index { color: var(--text-secondary); font-size: 0.7rem; min-width: 24px; flex-shrink: 0; }
 .price-list-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }

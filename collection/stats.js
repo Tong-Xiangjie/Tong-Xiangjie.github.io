@@ -375,9 +375,16 @@ function onPriceSortOrFilterChange() {
     priceListScrollTop = 0;
     bodyEl.scrollTop = 0;
 
+    // ★ 只记"看得见"那一段：真实数据 394 行，视口里只有十几行。
+    //   全量测量（之后 FLIP 还要再量一遍）是切换时同步耗时的大头，
+    //   也正是"汇总行收起卡顿"的元凶（实测同步 58ms、之后 4 帧 >25ms）。
+    //   视口外 ±2 屏的行不参与 FLIP —— 动没动反正看不见。
+    const win = priceListAnimWindow(bodyEl);
     const before = new Map();
     for (const el of bodyEl.querySelectorAll('.price-list-item')) {
-        before.set(el.getAttribute('data-pl-key') || '', el.getBoundingClientRect().top);
+        const top = el.getBoundingClientRect().top;
+        if (top < win.top || top > win.bottom) continue;
+        before.set(el.getAttribute('data-pl-key') || '', top);
     }
 
     bodyEl.innerHTML = renderPriceListItems(data.filteredPrices, priceSortOrder, priceFilter, data.filterInfo);
@@ -389,16 +396,27 @@ function onPriceSortOrFilterChange() {
     animatePriceListRows(bodyEl, before);
 }
 
+// FLIP 的作用范围：视口 ± 2 屏（见 onPriceSortOrFilterChange 里的说明）。
+// 列表在切换排序/筛选时会先回到顶部，所以另外用行号兜底限制新行的淡入。
+function priceListAnimWindow(bodyEl) {
+    const box = bodyEl.getBoundingClientRect();
+    const margin = Math.max(box.height || 420, 200) * 2;
+    return { top: box.top - margin, bottom: box.bottom + margin };
+}
+
 // 见 onPriceSortOrFilterChange 末尾的说明
 function animatePriceListRows(bodyEl, before) {
     if (!bodyEl) return;
     const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
     const rows = [...bodyEl.querySelectorAll('.price-list-item')];
-    rows.forEach(el => {
+    // 新进来的行也只有一屏内的需要淡入：一次"切回全部"可能带进 380 多行，
+    // 全都挂 320ms 动画既看不出效果，又给本来就在卡的那一帧添活。
+    const perScreen = Math.max(1, Math.ceil((bodyEl.clientHeight || 420) / 32));
+    rows.forEach((el, i) => {
         const oldTop = before.get(el.getAttribute('data-pl-key') || '');
         if (oldTop === undefined) {
             // 这次筛选新进来的行：淡入 + 轻微上移
-            if (!reduced) {
+            if (!reduced && i < perScreen + 4) {
                 el.classList.add('pl-enter');
                 setTimeout(() => el.classList.remove('pl-enter'), 320);
             }
