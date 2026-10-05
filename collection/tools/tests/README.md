@@ -95,6 +95,14 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 | `verify-css.mjs` | `layout.css` 括号配平、断点一致性、`focus-visible` 完整性 |
 | `verify-deadcode.mjs` | 死代码清理 |
 
+**自绘控件（替换浏览器默认外观）**
+| 文件 | 管什么 |
+|---|---|
+| `verify-dropdown.mjs` | 自绘下拉栏：固定宽度、写不下的压扁省略+`title` 保留全文、弹出真有补间、`select.value`/`options`/`change` 契约正反两个方向都不动、键盘与点外部、时间轴换年份真的重渲染、窄屏无横向溢出 |
+| `verify-scrollbar.mjs` | 自绘滚动条：原生条宽度归零**不再吃掉内容区宽度**（实测 `offsetWidth-clientWidth`）、浮在内容之上、空闲自动隐藏、滑到条上再出现、悬停只变亮不变粗、拖动与点击翻页 |
+| `verify-symbol-panel.mjs` | 特殊字符面板的出现/消失动画：有中间帧（不是硬切）、收起后离开布局（宽度 0，否则会被自绘滚动条当容器）、`reduce` 下不做动画、插入字符/`Esc`/遮罩/`closeSymbolPanel()` 既有行为不变 |
+| `check-portable.mjs` | 用例本身的可移植性（本机绝对路径、CDP 端口撞车、ROOT 来源）—— runner 会先跑它 |
+
 **缓存 / 离线 / 外部依赖**
 | 文件 | 管什么 |
 |---|---|
@@ -116,6 +124,7 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 1. **先红后绿**：先写用例、对旧代码跑出红，再改代码跑到绿。这样才能证明用例真的在测东西。
 2. **自包含**：本地服务器 + 无头 Chrome，随机 CDP 端口（`12100 + random`）、`mkdtemp` 临时用户目录，
    避免和别的用例或残留进程抢端口/缓存。
+   **目录一律用 `process.cwd()`**（runner 以仓库根为 cwd 起用例），写死绝对路径在 CI 上必炸（见下面 CI 第 4 条）。
 3. **报告格式**：`ok(条件, '说明')` 累加通过/失败，末尾打印 `通过 N / 失败 M` 并打印未捕获异常数，
    失败时 `exit 1`；环境问题（比如找不到 Chrome）`exit 2`。
 4. **断言要打到位**：能断言精确数值就别断言"大于 0"（例如动画落点断言到具体 left/top，
@@ -149,3 +158,36 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
    （默认 15 分钟，`SUITE_TIMEOUT_MS` 可覆盖）：超时就强杀、按失败报出来，
    注解里写"超时（>Ns 未结束）"。没有它的时候，一个卡住的用例要等 workflow 的
    `timeout-minutes: 60` 才被砍，那 60 分钟里注解什么线索都没有。
+4. **用例里写死了开发机的绝对路径**（2026-10 的第三个坑，也是最隐蔽的一个）。
+   `verify-octo.mjs` / `verify-search-case.mjs` 里有 `const ROOT = 'C:/Users/…'`：
+   本机跑没事，runner 上没有这个路径 → 测试服务器对**每个**请求都 404 → 页面根本没加载
+   → "读源码"的静态断言**全过**、所有运行时断言**全挂**。
+   `verify-search-case` 更绕：84 条 `count()` 各自重试 40 次 × 250ms ≈ 840s，
+   把 15 分钟硬超时耗光，CI 上报的居然是"**超时**"，看着像性能问题。
+   两平台报的失败完全相同，最容易被误判成"CI 环境不行"。
+   现在由 `check-portable.mjs` 在用例之前静态拦住（绝对路径 / CDP 端口撞车 / ROOT 来源），
+   runner 每轮都会先跑它。
+
+### CI 红了、日志又看不到，怎么定位
+
+CI 日志要 token 才能下载，**check-run 注解用公开 API 就能读**（`run.mjs` 把失败断言写进
+`::error` 注解就是为了这个）。还不够时用 `diag-ci.mjs`：它不改任何代码，只做三件事并把结果
+打成注解 —— ① 页面脚本执行前注入错误收集器（`window.onerror` / `unhandledrejection` /
+`console.error`）；② 开 CDP Network 记录 4xx/5xx、加载失败、以及"发出去了但一直没收到响应"
+的请求；③ 启动期间每 5 秒采样关键全局、渲染条目数、资源进度。
+
+```bash
+node collection/tools/tests/diag-ci.mjs notes/commemorative   # 本地先验证
+DIAG_WAIT_MS=90000 node collection/tools/tests/diag-ci.mjs     # 等久一点
+```
+
+配合读注解：
+
+```bash
+curl -s "https://api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs" \
+  | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{for(const c of JSON.parse(s).check_runs)console.log(c.name,c.conclusion,c.output.annotations_count)})"
+```
+
+★ 教训：`diag-ci.mjs` 一跑就发现 **CI 上页面本身完全正常**（关键全局齐、0 失败请求），
+于是注意力从"页面/环境"转回"用例自己" —— 直接指向了第 4 条那个写死的路径。
+诊断脚本的价值就在这里：**先证明哪一半是好的**，别在错的方向上猜。

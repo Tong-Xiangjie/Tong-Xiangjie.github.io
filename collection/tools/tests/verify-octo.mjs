@@ -15,7 +15,13 @@ import { join } from 'node:path';
 import { createServer } from 'node:http';
 
 const LIVE = process.env.LIVE === '1';
-const ROOT = 'C:/Users/57891/tong-xiangjie.github.io';
+// ★ 这里原来写死了开发机的绝对路径（'C:/Users/57891/tong-xiangjie.github.io'）。
+//   在本机跑没事，一到 CI 就整片红：runner 上没有这个路径，测试服务器对**每个**请求
+//   都 404，页面根本没加载 —— 于是"读源码"的静态断言全过、所有运行时断言全挂
+//   （诊断里 copyDetailList=undefined、脚本文数=0 就是这么来的）。
+//   用 process.cwd()：run.mjs 是以仓库根为 cwd 起用例的，手动跑也要求在仓库根执行
+//   （用例里那些 readFileSync('collection/…') 本来就依赖 cwd）。
+const ROOT = process.cwd();
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg' };
 let server = null, BASE = 'https://tong-xiangjie.github.io/collection/index.html';
 if (!LIVE) {

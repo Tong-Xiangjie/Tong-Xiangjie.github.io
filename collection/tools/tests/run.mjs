@@ -10,6 +10,10 @@
 //     node collection/tools/tests/run.mjs --data-only      # 只做数据自检
 //     node collection/tools/tests/run.mjs --all            # 连"已知漂移"的老用例一起跑
 //
+// 每轮都会先跑两个静态自检（都在用例之前，红了就不必等那 20 分钟）：
+//     collection/tools/check-data.mjs               数据/结构自检
+//     collection/tools/tests/check-portable.mjs     用例在别的机器/CI 上跑得起来吗
+//
 // 退出码约定（用例侧）：0 = 通过；1 = 有断言失败；2 = 环境问题；3 = 跳过（缺本地工件）
 //
 // ★ 已知漂移的老用例：用 git worktree 在"本会话之前的代码"上复核过，它们在改动前
@@ -41,6 +45,7 @@ import { dirname, join, resolve } from 'node:path';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');          // collection/tools/tests → 仓库根
 const DATA_CHECK = join(ROOT, 'collection', 'tools', 'check-data.mjs');
+const PORTABLE_CHECK = join(HERE, 'check-portable.mjs');
 
 const argv = process.argv.slice(2);
 const hasFlag = (name) => argv.includes(name);
@@ -184,6 +189,13 @@ if (!hasFlag('--no-data') && (hasFlag('--data-only') || existsSync(DATA_CHECK)))
 }
 
 if (!hasFlag('--data-only')) {
+    // ★ 可移植性自检放在用例之前：它一红就没必要再花 20 分钟等一批注定在 CI 上红的用例。
+    //   来由见 check-portable.mjs 顶部注释 —— verify-octo / verify-search-case 写死了开发机
+    //   绝对路径，本地全绿、CI 整片红，而这类问题在本地永远复现不出来，只能静态拦住。
+    if (existsSync(PORTABLE_CHECK)) {
+        console.log('\n─── 可移植性自检（check-portable.mjs）──────────────\n');
+        results.push(await runOne('check-portable', PORTABLE_CHECK));
+    }
     for (let i = 0; i < tests.length; i++) {
         console.log(`\n─── [${i + 1}/${tests.length}] ${tests[i].name} ────────────────────\n`);
         results.push(await runOne(tests[i].name, tests[i].file));

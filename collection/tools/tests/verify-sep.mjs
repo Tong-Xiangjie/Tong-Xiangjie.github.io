@@ -71,7 +71,10 @@ const BASE = `http://127.0.0.1:${server.address().port}/collection/index.html`;
 const chromePath = (process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [`${process.env.ProgramFiles}\\Google\\Chrome\\Application\\chrome.exe`, `${process.env['ProgramFiles(x86)']}\\Google\\Chrome\\Application\\chrome.exe`, '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']).find(p => p && existsSync(p));
 if (!chromePath) { console.log('  ✗ 找不到 Chrome：请设置 CHROME_PATH 环境变量，或安装 Chrome/Chromium'); process.exit(2); }
 const userDir = await mkdtemp(join(tmpdir(), 'cdpSep-'));
-const DP = 10908;
+// ★ 端口从 10908 挪到 10608：10908 落在 verify-4issues.mjs 的随机段 10900-10989 里，
+//   万一那边随机抽到 10908、而这个用例的 Chrome 又还没退干净，就会连到别人家的浏览器上
+//   （连得上、能发命令，但页面是空的，报错极难看懂）。check-portable.mjs 会盯住这类重叠。
+const DP = 10608;
 const child = spawn(chromePath, ['--headless=new', `--remote-debugging-port=${DP}`, `--user-data-dir=${userDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), '--window-size=1280,900', 'about:blank'], { stdio: 'ignore' });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
