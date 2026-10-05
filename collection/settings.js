@@ -119,8 +119,12 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `</div>`;
 
-    html += `<div class="settings-section">`;
-    html += `<div class="rating-section-header">`;
+    // ★「评级得分统计」和「藏品年代统计」是联动的（同一个币种口径），用户要求把两块放进
+    //   **同一个圆角矩形**里：卡片顶上放币种切换，两个**小节标题各占一条柱状图的高度、居中**。
+    //   （"占一条柱状图高度 / 可居左或居中"说的是这两条小节标题，不是卡片标题。）
+    html += `<div class="settings-section stats-chart-card">`;
+    html += `<div class="stats-chart-head">`;
+    html += `<span class="stats-chart-name">统计图表</span>`;
     html += `<div class="rating-tabs">`;
     // ★ 会滑动的选中高亮块（和「明暗」那几个选项同一套，见 layoutSegmented）。
     //   放在最前面，靠 z-index 压在两个 tab 下面。
@@ -128,16 +132,13 @@ function renderSettingsPage() {
     html += `<span class="rating-tab ${ratingMode === 'notes' ? 'active' : ''}" data-mode="notes" onclick="switchRatingMode('notes')">纸币</span>`;
     html += `<span class="rating-tab ${ratingMode === 'coins' ? 'active' : ''}" data-mode="coins" onclick="switchRatingMode('coins')">硬币</span>`;
     html += `</div>`;
-    html += `<h3>评级得分统计</h3>`;
     html += `</div>`;
-    html += `<div id="ratingSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
+    html += `<h3 class="stats-chart-sub">评级得分统计</h3>`;
+    html += `<div id="ratingSection">`;
     html += buildRatingHTML(stats);
     html += `</div>`;
-    html += `</div>`;
-
-    html += `<div class="settings-section">`;
-    html += `<h3>藏品年代统计</h3>`;
-    html += `<div id="yearSection" style="transition: opacity 0.15s ease, transform 0.15s ease;">`;
+    html += `<h3 class="stats-chart-sub">藏品年代统计</h3>`;
+    html += `<div id="yearSection">`;
     html += buildYearHTML(stats);
     html += `</div>`;
     html += `</div>`;

@@ -1151,7 +1151,16 @@ try {
         // 滑块要和它盖住的那个 tab 完全重合（否则会在边上露出一条底色）
         pillCoverX: Math.round(pb.left-ab.left), pillCoverW: Math.round(pb.width-ab.width),
         activeBg: getComputedStyle(act).backgroundColor,
-        title: (document.querySelector('.rating-section-header h3')||{}).textContent||'' }); })()`;
+        // ★ 设计：两块图表在同一个圆角卡片里；两条小节标题各占一条柱状图高度、居中
+        卡内标题: [...document.querySelectorAll('.stats-chart-card .stats-chart-sub')].map(h=>h.textContent.trim()),
+        卡内区块: [...document.querySelectorAll('.stats-chart-card [id]')].map(e=>e.id),
+        卡片圆角: getComputedStyle(document.querySelector('.stats-chart-card')||document.body).borderRadius,
+        卡片数: document.querySelectorAll('.stats-chart-card').length,
+        标题对齐: [...document.querySelectorAll('.stats-chart-card .stats-chart-sub')].map(h=>getComputedStyle(h).textAlign),
+        标题高: [...document.querySelectorAll('.stats-chart-card .stats-chart-sub')].map(h=>Math.round(h.getBoundingClientRect().height)),
+        一根柱子行高: (()=>{ const r=document.querySelector('#ratingSection .stat-bar-row'); return r?Math.round(r.getBoundingClientRect().height):0; })(),
+        tabs在卡片里: !!document.querySelector('.stats-chart-card .rating-tabs'),
+        tabs在卡片顶行: !!document.querySelector('.stats-chart-card .stats-chart-head .rating-tabs') }); })()`;
 
     await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
     await boot('notes/overview');
@@ -1160,7 +1169,16 @@ try {
     console.log(`  ${JSON.stringify({ active: r0.active, pillX: r0.pillX, btnX: r0.btnX, dx: r0.dx, dw: r0.dw, pillBg: r0.pillBg })}`);
     ok(!r0.err, `纸币/硬币渲染出滑块（${r0.err || 'ok'}）`);
     if (!r0.err) {
-      ok(r0.title === '评级得分统计', `⑭ 就是「评级得分统计」那一块（标题「${r0.title}」）`);
+      // ★ 用户设计：评级得分统计 + 藏品年代统计 联动，放进同一个圆角矩形；
+      //   两条小节标题各占一条柱状图的高度、居中；币种切换挪到卡片顶上。
+      ok(r0.卡片数 === 1 && r0.卡内区块.join(',') === 'ratingSection,yearSection',
+        `★ ⑭ 两块图表在同一个圆角卡片里（卡片 ${r0.卡片数} 个，区块 ${r0.卡内区块.join('+')}）`);
+      ok(r0.tabs在卡片顶行 === true, '★ ⑭ 币种切换在卡片顶行');
+      ok(r0.卡内标题.join('/') === '评级得分统计/藏品年代统计', `★ ⑭ 两条小节标题是「${r0.卡内标题.join('」「')}」`);
+      ok(r0.标题对齐.every(a => a === 'center'), `★ ⑭ 两条小节标题居中（text-align=${JSON.stringify(r0.标题对齐)}）`);
+      ok(r0.标题高.every(h => Math.abs(h - r0.一根柱子行高) <= 1),
+        `★ ⑭ 标题高度 = 一条柱状图的高度（标题 ${JSON.stringify(r0.标题高)} vs 柱行 ${r0.一根柱子行高}）`);
+      ok(parseFloat(r0.卡片圆角) > 0, `★ ⑭ 卡片是圆角矩形（border-radius=${r0.卡片圆角}）`);
       ok(r0.tabs.join('/') === 'notes/coins', `⑭ 两个选项是 纸币/硬币（data-mode=${r0.tabs.join('/')}）`);
       ok(Math.abs(r0.dx) <= 1 && Math.abs(r0.dw) <= 1,
         `★ ⑭ 滑块与选中项几何一致（偏差 dx=${r0.dx} dw=${r0.dw}）——几何是量出来的`);
@@ -1185,20 +1203,115 @@ try {
       const lo = Math.min(r0.pillX, r1.pillX), hi = Math.max(r0.pillX, r1.pillX);
       ok(rMid.pillX > lo && rMid.pillX < hi, `★ ⑭ 中途那一帧夹在起终点之间 = 确实在滑动（${r0.pillX} → ${rMid.pillX} → ${r1.pillX}）`);
 
-      // 重渲染后（切板块往返）滑块还得在位，不能跑到最左边
+      // ★ 切换的动画（用户设计）：柱子按槽位伸缩、左右文字淡出淡入、
+      //   「藏品年代统计」标题滑到新槽位、整个卡片做展开/收起。
+      //   注意别拿"第一根柱子"当判据：占比最高的那一档两边常常都是 100%，
+      //   只盯它会把"有动画"误判成"没动画"；这里比对整组柱宽签名。
+      const back = other === 'coins' ? 'notes' : 'coins';
+      const MORPH = JSON.parse(await evaluate(`(async()=>{
+        const card=document.querySelector('.stats-chart-card');
+        const title=document.querySelectorAll('.stats-chart-card .stats-chart-sub')[1];
+        const sig=()=>[...document.querySelectorAll('#ratingSection .stat-bar-fill')]
+          .map(f=>Math.round(f.getBoundingClientRect().width)).join(',');
+        const opa=()=>{ const l=document.querySelector('#ratingSection .stat-bar-label');
+          return l?Number(Number(getComputedStyle(l).opacity).toFixed(3)):-1; };
+        // "从无到有"多出来的柱子：盯最后一根（切到柱数更多的那种时它原本不存在）
+        const lastW=()=>{ const fs=document.querySelectorAll('#ratingSection .stat-bar-fill');
+          return fs.length?Math.round(fs[fs.length-1].getBoundingClientRect().width):-1; };
+        const s0=sig(), h0=Math.round(card.getBoundingClientRect().height);
+        const sigs=[], ops=[], tops=[], hs=[], lasts=[];
+        const t0=performance.now();
+        document.querySelector('.rating-tab[data-mode="${back}"]').click();
+        await new Promise(res=>{ const tick=()=>{ sigs.push(sig()); ops.push(opa());
+            tops.push(Math.round(title.getBoundingClientRect().top));
+            hs.push(Math.round(card.getBoundingClientRect().height));
+            lasts.push(lastW());
+            if (performance.now()-t0<820) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
+        return JSON.stringify({ h0, s0, 档数:new Set(sigs).size, 首帧:sigs[0], 末帧:sigs[sigs.length-1],
+          透明档数:new Set(ops).size, 最小透明度:Math.min(...ops), 最高透明度:Math.max(...ops),
+          标题档数:new Set(tops).size, 标题首:tops[0], 标题末:tops[tops.length-1],
+          卡片档数:new Set(hs).size, 卡片首:hs[0], 卡片末:hs[hs.length-1],
+          末柱首几帧:lasts.slice(0,10), 末柱最小:Math.min(...lasts.filter(x=>x>=0)), 末柱末:lasts[lasts.length-1],
+          残留类:[...document.querySelectorAll('.stat-bar-row')].filter(r=>r.classList.contains('text-out')||r.classList.contains('text-in')).length,
+          残留:{height:card.style.height,transition:card.style.transition,overflow:card.style.overflow,
+                标题t:title.style.transform,标题o:title.style.opacity,标题tr:title.style.transition,
+                柱子:[...document.querySelectorAll('.stat-bar-fill')].filter(f=>f.style.transition||f.dataset.to).length} });
+      })()`));
+      console.log(`  切到「${back}」：柱宽签名 ${MORPH.档数} 档；文字透明度 ${MORPH.最小透明度}→${MORPH.最高透明度}；` +
+        `年代标题 top ${MORPH.标题首}→${MORPH.标题末}（${MORPH.标题档数} 档）；卡片高 ${MORPH.卡片首}→${MORPH.卡片末}（${MORPH.卡片档数} 档）`);
+      console.log(`  末根柱子（切前不存在）：${MORPH.末柱首几帧.join('/')} → ${MORPH.末柱末}px`);
+      ok(MORPH.档数 > 2, `★ ⑭ 柱子按槽位伸缩（整组柱宽出现 ${MORPH.档数} 个签名，不是硬切）`);
+      ok(MORPH.末柱最小 <= 3 && MORPH.末柱末 > 3,
+        `★ ⑭ "从无到有"的柱子从 0 拉长到应有长度（最小 ${MORPH.末柱最小}px → 末 ${MORPH.末柱末}px）`);
+      ok(MORPH.末帧 !== MORPH.首帧, `★ ⑭ 柱子最终换成了新口径的数据（${MORPH.首帧} → ${MORPH.末帧}）`);
+      ok(MORPH.最小透明度 < 0.9 && MORPH.最高透明度 > 0.9,
+        `★ ⑭ 柱行左右的文字淡出再淡入（透明度 ${MORPH.最小透明度} → ${MORPH.最高透明度}，${MORPH.透明档数} 档）`);
+      ok(MORPH.标题档数 > 2 && MORPH.标题末 !== MORPH.标题首,
+        `★ ⑭ 「藏品年代统计」标题滑到新槽位（top ${MORPH.标题首} → ${MORPH.标题末}，${MORPH.标题档数} 档）`);
+      ok(MORPH.卡片档数 > 2, `★ ⑭ 卡片做展开/收起的高度过渡（${MORPH.卡片首} → ${MORPH.卡片末}，${MORPH.卡片档数} 档）`);
+      ok(!MORPH.残留.height && !MORPH.残留.transition && !MORPH.残留.overflow &&
+         !MORPH.残留.标题t && !MORPH.残留.标题o && !MORPH.残留.标题tr,
+        `★ ⑭ 动画结束后不留内联样式（${JSON.stringify(MORPH.残留)}）`);
+      ok(MORPH.残留.柱子 === 0 && MORPH.残留类 === 0,
+        `⑭ 柱子不留内联过渡、行上的动画类也清干净（柱子 ${MORPH.残留.柱子} / 类 ${MORPH.残留类}）`);
+
+      // 重渲染后（切板块往返）滑块还得在位，不能跑到最左边。
+      // 注意此时选中的是 back（上面那段动画又点了一次），不是 other。
       await evaluate(`(()=>{ onTabClick('coins'); return true; })()`); await sleep(2200);
       await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
       const r2 = JSON.parse(await evaluate(RPILL));
-      ok(r2.active === other && Math.abs(r2.dx) <= 1,
-        `★ ⑭ 重渲染后滑块仍在选中项上（active=${r2.active} 偏差 dx=${r2.dx}）`);
+      ok(r2.active === back && Math.abs(r2.dx) <= 1,
+        `★ ⑭ 重渲染后滑块仍在选中项上（active=${r2.active}，期望 ${back}，偏差 dx=${r2.dx}）`);
 
-      // 减弱动效：不许有过渡，但位置照旧
+      // ★ 连点滑块：不重复淡入，但也不能把文字藏着（用户："藏太久了，还不如之前那个，
+      //   我只是要求不要重复淡入"）—— 所以连点期间文字应该一直是亮的。
+      const RAPID = JSON.parse(await evaluate(`(async()=>{
+        const opa=()=>{ const l=document.querySelector('#ratingSection .stat-bar-label');
+          return l?Number(Number(getComputedStyle(l).opacity).toFixed(2)):-1; };
+        const tabs=[...document.querySelectorAll('.rating-tab')];
+        const 点击期间=[];
+        for (let i=0;i<8;i++){ tabs[i%2].click(); await new Promise(r=>setTimeout(r,45)); 点击期间.push(opa()); }
+        const samples=[];
+        const t1=performance.now();
+        await new Promise(res=>{ const tick=()=>{ samples.push(opa());
+            if (performance.now()-t1<1000) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
+        const all=点击期间.concat(samples);
+        return JSON.stringify({ 点击期间, 点击期间最低:Math.min(...点击期间),
+          最低:Math.min(...all), 最高:Math.max(...all),
+          回升次数: all.reduce((n,v,i)=> n + (i>0 && v>0.9 && all[i-1]<=0.9 ? 1:0), 0),
+          末尾:samples.slice(-4),
+          残留类:[...document.querySelectorAll('.stat-bar-row')].filter(x=>x.classList.contains('text-out')||x.classList.contains('text-in')).length,
+          残留内联:!!document.querySelector('.stats-chart-card').style.height });
+      })()`));
+      console.log(`  连点 8 次：点击期间文字透明度 ${RAPID.点击期间.join('/')}；之后 ${RAPID.最低}→${RAPID.最高}（回升 ${RAPID.回升次数} 次）`);
+      ok(RAPID.回升次数 <= 1, `★ ⑭ 连点滑块时文字不重复淡入（从低回升到高 ${RAPID.回升次数} 次）`);
+      ok(RAPID.点击期间最低 > 0.5, `★ ⑭ 连点期间文字不会消失（最低 ${RAPID.点击期间最低}，不藏）`);
+      ok(RAPID.最高 > 0.9, `★ ⑭ 文字始终可见（末值 ${RAPID.最高}）`);
+      ok(RAPID.残留类 === 0 && RAPID.残留内联 === false,
+        `⑭ 连点后不留动画痕迹（类 ${RAPID.残留类} / 内联 ${RAPID.残留内联}）`);
+
+      // 减弱动效：不许有过渡，但位置和内容照常
       await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
       await sleep(200);
       const rRed = JSON.parse(await evaluate(RPILL));
       ok(rRed.transitionDuration === '0s' || rRed.transitionProperty === 'none',
         `★ ⑭ 减弱动效时滑块不过渡（${rRed.transitionProperty} / ${rRed.transitionDuration}）`);
       ok(Math.abs(rRed.dx) <= 1, `⑭ 减弱动效时位置照样对（偏差 ${rRed.dx}）`);
+      // 减弱动效下切换：内容要照常换、但不能留动画痕迹
+      const rRedSwitch = JSON.parse(await evaluate(`(async()=>{
+        const before=document.querySelector('#ratingSection .stat-bar-label').textContent;
+        const first=document.querySelector('.rating-tab:not(.active)');
+        first.click();
+        await new Promise(r=>setTimeout(r,260));
+        const card=document.querySelector('.stats-chart-card');
+        const title=document.querySelectorAll('.stats-chart-card .stats-chart-sub')[1];
+        return JSON.stringify({ 换了: document.querySelector('#ratingSection .stat-bar-label').textContent!==before,
+          残留类:[...document.querySelectorAll('.stat-bar-row')].filter(x=>x.classList.contains('text-out')||x.classList.contains('text-in')).length,
+          残留内联: !!(card.style.height||card.style.transition||title.style.transform||title.style.opacity||title.style.transition) });
+      })()`));
+      ok(rRedSwitch.换了 === true, '★ ⑭ 减弱动效时切换照常换内容');
+      ok(rRedSwitch.残留类 === 0 && rRedSwitch.残留内联 === false,
+        `★ ⑭ 减弱动效时不播动画、也不留痕迹（类 ${rRedSwitch.残留类} / 内联 ${rRedSwitch.残留内联}）`);
     }
   }
 

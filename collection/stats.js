@@ -425,6 +425,10 @@ function animatePriceListRows(bodyEl, before) {
 
 
 function switchRatingMode(mode) {
+    // ★ 点已经选中的那个：什么都不做。
+    //   （用户："反复点击纸币/硬币，不要让柱状图左右的文字反复淡入" —— 同一个就别重演一遍。）
+    if (mode === ratingMode) return;
+
     ratingMode = mode;
     const stats = computeStats(ratingMode);
 
@@ -438,27 +442,150 @@ function switchRatingMode(mode) {
         layoutSegmented(document.querySelector('.rating-tabs'), true);
     }
 
-    const gradeSection = document.getElementById('ratingSection');
-    if (gradeSection) {
-        gradeSection.style.opacity = '0';
-        gradeSection.style.transform = 'translateY(8px)';
-        setTimeout(() => {
-            gradeSection.innerHTML = buildRatingHTML(stats);
-            gradeSection.style.opacity = '1';
-            gradeSection.style.transform = 'translateY(0)';
-        }, 100);
-    }
+    // ★ 切换币种的图表动画：见 animateChartSwitch（用户设计，一次切换四件事同时发生）
+    animateChartSwitch([
+        ['ratingSection', buildRatingHTML(stats)],
+        ['yearSection', buildYearHTML(stats)],
+    ]);
+}
 
-    const yearSection = document.getElementById('yearSection');
-    if (yearSection) {
-        yearSection.style.opacity = '0';
-        yearSection.style.transform = 'translateY(8px)';
-        setTimeout(() => {
-            yearSection.innerHTML = buildYearHTML(stats);
-            yearSection.style.opacity = '1';
-            yearSection.style.transform = 'translateY(0)';
-        }, 100);
-    }
+// ★ 切换币种时的图表动画（用户设计）。
+//   把卡片内容看成一串**槽位**，每个槽 = 一根柱状图的高度（28px）：
+//     [卡片头] [评级得分统计 标题] [评级柱 × N] [藏品年代统计 标题] [年代柱 × M]
+//   切一次做四件事：
+//     ① 所有柱行**左右的文字**淡出（柱子本身先不动）
+//     ② 换内容：柱子按**槽位**伸缩 —— 第 i 根对第 i 根，不管它前后代表的是什么评级/年代；
+//        柱子的位置不挪，所以看起来就是同一个位置上的柱子在长/缩。
+//        "从无到有"多出来的槽没有旧柱子，就从 0 拉长到应有长度
+//     ③ 手停下来以后文字淡入；「藏品年代统计」标题滑到它的新槽位（柱数不同它就得上下挪），
+//        它现在占的那个槽原本是根柱子 —— 那根柱子在①已经淡出消失了，于是"柱子淡出 → 标题淡入"
+//     ④ 整个圆角卡片补一次高度过渡（柱数不同 → 展开/收起），卡片本身位置不动
+//   ★ 连点保护（用户要求）：动画没收尾又点，就**不再重演一次淡出** —— 直接把内容换掉，
+//     新文字**立刻亮着**（不是藏着等）。用户原话："我只是要求不要重复淡入"，
+//     藏着等手停下来反而更糟。柱子的起止值每次都是现量的**渲染**宽度（px），
+//     所以连点也是接着滑，不会跳。
+//   减弱动效时全部跳过，直接换内容。
+const CHART_SETTLE_MS = 130;
+const chartAnim = { active: false, timers: [] };
+
+function chartAnimClearTimers() {
+    chartAnim.timers.forEach(t => clearTimeout(t));
+    chartAnim.timers = [];
+}
+
+function chartAnimLater(fn, ms) {
+    chartAnim.timers.push(setTimeout(fn, ms));
+}
+
+function animateChartSwitch(list) {
+    const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
+    const resume = chartAnim.active;         // 上一轮还没收尾 → 这次是连点
+    chartAnimClearTimers();
+
+    const card = document.querySelector('.stats-chart-card');
+    const subs = card ? card.querySelectorAll('.stats-chart-sub') : null;
+    const yearTitle = subs && subs[1] ? subs[1] : null;   // 「藏品年代统计」
+    const jobs = list.map(([id, html]) => ({ sec: document.getElementById(id), html })).filter(j => j.sec);
+    if (!jobs.length) { chartAnim.active = false; return; }
+
+    // 动手改之前把要用的量一次量完（边改边读会互相打架）
+    const oldW = jobs.map(j => [...j.sec.querySelectorAll('.stat-bar-fill')].map(f => f.getBoundingClientRect().width));
+    const h0 = card ? Math.round(card.getBoundingClientRect().height) : 0;
+    const titleTop0 = yearTitle ? yearTitle.getBoundingClientRect().top : 0;
+
+    // 收尾：清内联样式和动画类（淡入不在这里做，见下面的 afterNextPaint）
+    const finish = () => {
+        if (card) {
+            card.style.transition = '';
+            card.style.height = '';
+            card.style.overflow = '';
+        }
+        if (yearTitle) {
+            yearTitle.style.transition = '';
+            yearTitle.style.transform = '';
+            yearTitle.style.opacity = '';
+        }
+        jobs.forEach(j => j.sec.querySelectorAll('.stat-bar-row')
+            .forEach(row => row.classList.remove('text-out', 'text-in')));
+        chartAnim.active = false;
+    };
+
+    const swapIn = (hideText) => {
+        jobs.forEach(j => { j.sec.innerHTML = j.html; });
+
+        // ② 柱子按槽位伸缩
+        jobs.forEach((j, i) => {
+            [...j.sec.querySelectorAll('.stat-bar-row')].forEach((row, k) => {
+                // 正常切换：文字先藏住，换完内容再淡入一次。
+                // 连点（hideText=false）：新文字直接亮着换内容 —— 用户要的是"不要反复淡入"，
+                // 不是"一直藏着"（藏久了还不如不藏）。
+                if (hideText) row.classList.add('text-out');
+                if (reduced) return;
+                const fill = row.querySelector('.stat-bar-fill');
+                if (!fill) return;
+                const to = fill.style.width;            // 目标长度（构建时写好的百分比）
+                const from = oldW[i][k];                // 同一槽位上一根柱子的渲染宽度
+                fill.style.transition = 'none';
+                // ★ "从无到有"的柱子从 0 拉长（用户要求）；老柱子从它当前的长度接着走
+                fill.style.width = (from === undefined ? 0 : from) + 'px';
+                fill.dataset.to = to;
+            });
+        });
+
+        // ③ 标题滑槽：先按旧的纵向位置偏移摆好，再滑回 0
+        if (yearTitle && !reduced) {
+            const dy = Math.round(titleTop0 - yearTitle.getBoundingClientRect().top);
+            yearTitle.style.transition = 'none';
+            yearTitle.style.transform = 'translateY(' + dy + 'px)';
+            yearTitle.style.opacity = '0';
+        }
+        const h1 = card ? Math.round(card.getBoundingClientRect().height) : 0;
+
+        if (reduced) {                                   // 减弱动效：不淡出、不动画，一次到位
+            chartAnim.active = false;
+            finish();
+            return;
+        }
+
+        chartAnim.active = true;
+        afterNextPaint(() => {
+            jobs.forEach(j => j.sec.querySelectorAll('.stat-bar-fill').forEach(fill => {
+                if (!fill.dataset.to) return;           // 交回 CSS 的 width 过渡，放开到新长度
+                fill.style.transition = '';
+                fill.style.width = fill.dataset.to;
+                delete fill.dataset.to;
+            }));
+            if (yearTitle) {
+                yearTitle.style.transition = 'transform var(--dur-3) var(--ease-out), opacity var(--dur-2) var(--ease-out)';
+                yearTitle.style.transform = 'translateY(0)';
+                yearTitle.style.opacity = '1';
+            }
+            // 文字淡入（只有正常切换才做；连点时文字本来就亮着）
+            if (hideText) {
+                jobs.forEach(j => j.sec.querySelectorAll('.stat-bar-row').forEach(row => {
+                    row.classList.remove('text-out');
+                    row.classList.add('text-in');
+                }));
+            }
+            // ④ 卡片高度：先钉住旧高度，再等一帧过渡到新高度（同一帧写起止值会被合并成一次计算）
+            if (card && h0 && Math.abs(h1 - h0) > 1) {
+                card.style.overflow = 'hidden';
+                card.style.height = h0 + 'px';
+                requestAnimationFrame(() => {
+                    if (!card.isConnected) return;
+                    card.style.transition = 'height var(--dur-3) var(--ease-out)';
+                    card.style.height = h1 + 'px';
+                });
+            }
+        });
+        chartAnimLater(finish, 420);                     // 动画跑完清场
+    };
+
+    // 减弱动效 / 连点：不重演淡出，直接换幕（连点时新文字直接亮着）
+    if (reduced || resume) { swapIn(false); return; }
+    chartAnim.active = true;
+    jobs.forEach(j => j.sec.querySelectorAll('.stat-bar-row').forEach(r => r.classList.add('text-out')));
+    chartAnimLater(() => swapIn(true), CHART_SETTLE_MS);
 }
 
 function buildRatingHTML(stats) {

@@ -1616,15 +1616,26 @@ body.modal-open {
 .price-list-empty { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem; }
 
 /* ========== 评级切换选项卡 ========== */
-.rating-section-header {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    margin-bottom: 10px;
+/* ★「统计图表」卡片（用户设计）：评级得分统计 + 藏品年代统计 是联动的，放进同一个圆角矩形，
+   币种切换挪到卡片顶上；两条**小节标题各占一条柱状图的高度、居中**
+   （"占一条柱状图高度 / 可居左或居中"说的是这两条标题）。
+   一条柱状图的高度 = .stat-bar-row 的 28px（轨道 18px + 上下 padding 5px）。 */
+.stats-chart-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px 14px;
 }
-.rating-section-header h3 { margin-bottom: 0; order: 2; }
-.rating-section-header .rating-tabs { order: 1; }
+.stats-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.stats-chart-name { font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); }
+h3.stats-chart-sub {
+    height: 28px;                 /* = 一条柱状图的高度 */
+    line-height: 28px;
+    margin: 0;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
 /* ★ 选中高亮做成"滑动块"（用户要求："纸币 硬币 ←这个也做成滑动块"）：
    active 的背景不再由 tab 自己画（原来是 .rating-tab.active 硬切 background:var(--theme)），
    而是复用「明暗」那套 .seg-pill —— JS 量出选中项的 left/width 写进 --seg-x/--seg-w，
@@ -1638,7 +1649,20 @@ body.modal-open {
 .rating-tab:hover:not(.active) { background: var(--sidebar-bg); }
 .rating-tab.active { color: #fff; }
 
-#ratingSection, #yearSection { transition: opacity 0.15s ease, transform 0.15s ease; }
+/* 切换币种时不再整块淡出淡入：柱状图长度自己长/缩，卡片高度平滑收缩（见 animateChartSwitch） */
+
+/* ★ 图表切换动画（用户设计）：柱状图位置不动、只伸缩；行左右的文字淡出→换内容→淡入。
+   柱子本身在 .stat-bar-fill（自带 width 过渡），文字在这里单独控透明度。 */
+.stat-bar-label, .stat-bar-count { transition: opacity var(--dur-1) var(--ease-in); }
+.stat-bar-row.text-out .stat-bar-label,
+.stat-bar-row.text-out .stat-bar-count { opacity: 0; }
+.stat-bar-row.text-in .stat-bar-label,
+.stat-bar-row.text-in .stat-bar-count { opacity: 1; transition: opacity var(--dur-2) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+    .stat-bar-label, .stat-bar-count,
+    .stat-bar-row.text-in .stat-bar-label,
+    .stat-bar-row.text-in .stat-bar-count { transition: none; }
+}
 
 /* ========== 灯箱通用 ========== */
 .lightbox-close {
