@@ -467,9 +467,23 @@ function buildArticleCategoryTree() {
     }
   }
 
+  // ★ 硬币这边原来只跑顶层（跟 buildPriceFilterCategories 是一模一样的病）：
+  //   tree 里作为 children 的流通硬币分类，即使有文章也永远进不了文章分类树。
+  //   现在与上面纸币那段同构：有 children 就展开，聚合父级篇数。
   for (const cat of coinCategoryTree) {
-    const count = coinsCount[cat.dataKey] || 0;
-    if (count > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + count + '篇）', dataKey: cat.dataKey, children: null });
+    if (cat.children) {
+      const children = [];
+      let parentTotal = 0;
+      for (const sub of cat.children) {
+        const count = coinsCount[sub.dataKey] || 0;
+        parentTotal += count;
+        if (count > 0) children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
+      }
+      if (children.length > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + parentTotal + '篇）', children });
+    } else {
+      const count = coinsCount[cat.dataKey] || 0;
+      if (count > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + count + '篇）', dataKey: cat.dataKey, children: null });
+    }
   }
 }
 

@@ -357,6 +357,47 @@ try {
   console.log(`  改回默认后往返：排序=${s4.sort} 筛选=${s4.filter} 汇总=${s4.summary}`);
   ok(s4.sort === 'default' && s4.filter === 'all' && s4.summary === 'none', '★ 改回默认后往返仍是默认（不是无脑保持）');
 
+  // ══════════════ ⑨ 价格列表筛选包含硬币的**子分类** ══════════════
+  // ★ 用户报的："价格列表那里还是没有'流通硬币'"。
+  //   根因：buildPriceFilterCategories() 里纸币那半边会展开 cat.children，
+  //   硬币那半边只遍历顶层 —— 而流通硬币在 tree 里是"人民币流通硬币"的 children，
+  //   于是一整块硬币子分类永远进不了筛选列表（article.js 里硬币的文章分类同样漏）。
+  console.log('\n══════ ⑨ 价格列表筛选包含硬币子分类 ══════');
+  await boot('notes/overview');
+  await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
+  // ★ 直接看 buildPriceFilterCategories() 的返回值（它带 dataKey/source），
+  //   不要去解析 <option> 的 value —— 那边的 id 是 coins_<cat.id>，拿它比 dataKey 不可靠。
+  const FILTER_OPTS = `(()=>{ const f=document.getElementById('priceFilterSelect');
+    let cats = [];
+    try { cats = buildPriceFilterCategories(); } catch (e) { return JSON.stringify({ err: String(e && e.message) }); }
+    // 树里"有数据"的分类：含子分类的按子算，与函数应有的口径一致
+    const expect = [];
+    for (const cat of (typeof coinCategoryTree !== 'undefined' ? coinCategoryTree : [])) {
+      if (cat.children && cat.children.length) for (const s of cat.children) expect.push({ key: s.dataKey, id: 'coins_' + s.id, label: cat.name + ' - ' + s.name });
+      else if (cat.dataKey) expect.push({ key: cat.dataKey, id: 'coins_' + cat.id, label: cat.name });
+    }
+    const has = k => { const d = window.COIN_DATA_MAP && window.COIN_DATA_MAP[k]; return !!(d && d.series && d.series.length > 0); };
+    const want = expect.filter(e => has(e.key));
+    const gotKeys = cats.filter(c => c.source === 'coins').map(c => c.dataKey);
+    const missing = want.filter(e => !gotKeys.includes(e.key)).map(e => e.key);
+    return JSON.stringify({
+      total: cats.length,
+      coinCats: cats.filter(c => c.source === 'coins').map(c => ({ id: c.id, name: c.name, key: c.dataKey })),
+      want: want.map(e => e.key), missing,
+      optionCount: f ? f.options.length : -1
+    });
+  })()`;
+  const fo = JSON.parse(await evaluate(FILTER_OPTS));
+  if (fo.err) console.log('  调用 buildPriceFilterCategories() 出错：' + fo.err);
+  console.log('  函数返回 ' + fo.total + ' 项，其中硬币 ' + (fo.coinCats || []).length + ' 项：' + (fo.coinCats || []).map(c => c.name + '(' + c.id + ')').join(' / '));
+  console.log('  树里有数据的硬币分类（应有）：' + (fo.want || []).join(', '));
+  if (fo.missing && fo.missing.length) console.log('  缺失：' + fo.missing.join(', '));
+  ok(!fo.err, 'buildPriceFilterCategories() 可正常调用');
+  ok(fo.missing && fo.missing.length === 0, `★ 树里有数据的硬币分类一个都没漏（应有 ${(fo.want || []).length} 个，缺 ${(fo.missing || []).length} 个）`);
+  ok((fo.coinCats || []).some(c => /circulating/.test(c.id)), '★ 筛选列表里能看到「流通硬币」那一支（用户报的就是它）');
+  ok((fo.coinCats || []).some(c => / - /.test(c.name)), '有子分类的走「父 - 子」命名，与纸币一致');
+  ok((fo.coinCats || []).every(c => c.name && !/^人民币流通硬币$/.test(c.name.trim())), '带子分类的父分类不单独出现（否则点了筛不到东西）');
+
   // ══════════════ ⑦ 单面图的提示语不含"滑动翻面" ══════════════
   console.log('\n══════ ⑦ 单面图提示语 ══════');
   const TIP = `(()=>{ const m=document.getElementById('imageModal');

@@ -222,52 +222,48 @@ function computeStats(typeFilter) {
 // ============================================================
 function buildPriceFilterCategories() {
     const cats = [];
-    
-    // ========== 纸币分类 ==========
-    if (window.DATA_MAP) {
-        for (const cat of categoryTree) {
+
+    // ★ 改成"走树"生成（纸币/硬币同一套逻辑）。
+    //   原来这里是两段**手写遍历**：纸币那半边会展开 cat.children，硬币那半边
+    //   只跑顶层 —— 而流通硬币在 tree 里是"人民币流通硬币"的 children，
+    //   于是 circulating_2/3/4/5 永远进不了筛选列表（用户报的
+    //   "价格列表那里还是没有'流通硬币'"就是这个）。
+    //   同一类病这已经是第三处：coinAllDataKeys 手写、coincollection 手写文件名、
+    //   这里是手写遍历。凡是"树变了但代码没跟上"的地方，都是因为没走树。
+    //   口头约定：以后树加深层级，这里自动跟上，不用再改。
+    function collect(tree, map, source) {
+        if (!tree || !map) return;
+        for (const cat of tree) {
             if (cat.children) {
                 // 有子分类：显示 "父分类 - 子分类"
                 for (const sub of cat.children) {
-                    const data = window.DATA_MAP[sub.dataKey];
+                    const data = map[sub.dataKey];
                     if (data && data.series && data.series.length > 0) {
                         cats.push({
-                            id: 'notes_' + sub.id,
+                            id: source + '_' + sub.id,
                             name: cat.name + ' - ' + sub.name,
                             dataKey: sub.dataKey,
-                            source: 'notes'
+                            source: source
                         });
                     }
                 }
             } else if (cat.dataKey) {
                 // 无子分类（顶层分类）：直接显示分类名
-                const data = window.DATA_MAP[cat.dataKey];
+                const data = map[cat.dataKey];
                 if (data && data.series && data.series.length > 0) {
                     cats.push({
-                        id: 'notes_' + cat.id,
+                        id: source + '_' + cat.id,
                         name: cat.name,
                         dataKey: cat.dataKey,
-                        source: 'notes'
+                        source: source
                     });
                 }
             }
         }
     }
 
-    // ========== 硬币分类 ==========
-    if (window.COIN_DATA_MAP) {
-        for (const cat of coinCategoryTree) {
-            const data = window.COIN_DATA_MAP[cat.dataKey];
-            if (data && data.series && data.series.length > 0) {
-                cats.push({
-                    id: 'coins_' + cat.id,
-                    name: cat.name,
-                    dataKey: cat.dataKey,
-                    source: 'coins'
-                });
-            }
-        }
-    }
+    if (window.DATA_MAP) collect(typeof categoryTree !== 'undefined' ? categoryTree : null, window.DATA_MAP, 'notes');
+    if (window.COIN_DATA_MAP) collect(typeof coinCategoryTree !== 'undefined' ? coinCategoryTree : null, window.COIN_DATA_MAP, 'coins');
 
     return cats;
 }
