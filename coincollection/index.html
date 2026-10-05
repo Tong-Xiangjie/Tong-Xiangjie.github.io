@@ -589,9 +589,10 @@
     <div class="modal-tip">双指缩放 | 拖动查看 | 点击背景关闭</div>
 </div>
 
-<script src="data/commemorative_coins.js"></script>
-<script src="data/circulating.js"></script>
-<script src="data/gold_silver.js"></script>
+<!-- ★ 数据文件不再在这里逐条列出：只声明分类树（coin-config.js 的 dataFile），
+     由共享的动态加载器并发注入。加数据文件只要改树，不用再来改这个 HTML。 -->
+<script src="coin-config.js"></script>
+<script src="../collection/data-loader.js"></script>
 
 <script src="js/main.js"></script>
 </body>

@@ -609,44 +609,12 @@
 </div>
 
 <!-- 数据文件 -->
-<script src="data/commemorative.js"></script>
-<script src="data/uncut.js"></script>
-<script src="data/hk_boc.js"></script>
-<script src="data/hk_hsbc.js"></script>
-<script src="data/hk_sc.js"></script>
-<script src="data/hk_gov.js"></script>
-<script src="data/macau_boc.js"></script>
-<script src="data/macau_bnu.js"></script>
-<script src="data/taiwan.js"></script>
-<script src="data/rmb1.js"></script>
-<script src="data/rmb2.js"></script>
-<script src="data/rmb3.js"></script>
-<script src="data/rmb4.js"></script>
-<script src="data/rmb5.js"></script>
-<script src="data/fec.js"></script>
-<script src="data/gkq.js"></script>
-<script src="data/nedb.js"></script>
-<script src="data/lecb.js"></script>
-<script src="data/pvpb.js"></script>
-<script src="data/dscc.js"></script>
-<script src="data/republic_cbc.js"></script>
-<script src="data/republic_boc.js"></script>
-<script src="data/republic_communications.js"></script>
-<script src="data/republic_fbc.js"></script>
-<script src="data/republic_kpb.js"></script>
-<script src="data/republic_crbc.js"></script>
-<script src="data/republic_aib.js"></script>
-<script src="data/japan_military.js"></script>
-<script src="data/republic_spb.js"></script>
-<script src="data/republic_mfrc.js"></script>
-<script src="data/japan.js"></script>
-<script src="data/indonesia.js"></script>
-<script src="data/venezuela.js"></script>
-<script src="data/ukarine.js"></script>
-<script src="data/russia.js"></script>
-<script src="data/vietnam.js"></script>
 
 <!-- 主逻辑 -->
+<!-- ★ 数据文件不再在这里逐条列出：分类与文件名写在 data-config.js 里，
+     由共享的动态加载器并发注入。加数据文件只改那份配置，不用再来改这个 HTML。 -->
+<script src="data-config.js"></script>
+<script src="../collection/data-loader.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

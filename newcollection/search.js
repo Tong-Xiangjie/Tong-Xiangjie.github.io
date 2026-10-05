@@ -1,5 +1,12 @@
-let currentSearchKeyword = '';
-let currentSearchType = 'all';
+// ★ 这里原来还有两行顶层声明：
+//       let currentSearchKeyword = '';
+//       let currentSearchType = 'all';
+//   但 main.js（本页更早加载，第 8-9 行）已经声明了同名的两个变量。所有脚本共享
+//   同一个全局作用域，重复的 let 会直接抛
+//       SyntaxError: Identifier 'currentSearchKeyword' has already been declared
+//   —— 而且是**整个 search.js 都不执行**（不是只丢一行），页面上的搜索就静默失灵。
+//   collection/ 那边是对的：core.js 声明、search.js 只赋值。这里对齐那个做法。
+//   顶层重名这类问题由 collection/tools/check-data.mjs 的第 6 项守着。
 
 function doSearch() {
     const input = document.getElementById('searchInput');

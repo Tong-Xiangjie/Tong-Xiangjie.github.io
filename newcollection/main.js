@@ -2278,8 +2278,27 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
+// ========== 数据加载（动态） ==========
+// ★ 藏品数据不再是 index.html 里的一排 <script>（那些文件名现在写在 config.js /
+//   coin-config.js 的 dataFile 里），改由 ../collection/data-loader.js 并发注入，
+//   注入完它会把三个 map 建好。所以启动流程必须先 await 它再渲染 ——
+//   以前是浏览器保证数据脚本先执行完，动态化之后没有这个保证，不等就是空页面。
+//   那三个 bridge 文件（data-bridge/coin-data-bridge/fun-data-bridge）也随之删掉了：
+//   它们做的事就是"从全局变量拼这三个 map"，现在由加载器统一做。
+async function bootData() {
+    if (typeof loadDataFromTrees !== 'function') return;
+    await loadDataFromTrees({
+        trees: [
+            { tree: categoryTree, mapName: 'DATA_MAP' },
+            { tree: coinCategoryTree, mapName: 'COIN_DATA_MAP' }
+        ],
+        specials: { mapName: 'FUN_DATA_MAP' }
+    });
+}
+
 // ========== ★ 修改后的 DOMContentLoaded（增加 updateSearchUIForMode() 调用） ==========
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    await bootData();
     buildSpecialCategoryTree();
     renderSidebar();
 

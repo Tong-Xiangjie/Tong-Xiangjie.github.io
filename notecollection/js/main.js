@@ -29,44 +29,21 @@ let isHandlingPopState = false;
 let viewHistoryStack = [];
 
 // 合并所有数据
-const banknotesData = {
-    commemorative: commemorativeData,
-    uncut: uncutData,
-    hk_boc: hk_bocData,
-    hk_hsbc: hk_hsbcData,
-    hk_sc: hk_scData,
-    hk_gov: hk_govData,
-    macau_boc: macau_bocData,
-    macau_bnu: macau_bnuData,
-    taiwan: taiwanData,
-    rmb5: rmb5Data,
-    rmb4: rmb4Data,
-    rmb3: rmb3Data,
-    rmb2: rmb2Data,
-    rmb1: rmb1Data,
-    fec: fecData,
-    gkq: gkqData,
-    nedb: nedbData,
-    lecb: lecbData,
-    pvpb: pvpbData,
-    dscc: dsccData,
-    republic_cbc: republic_cbcData,
-    republic_boc: republic_bocData,
-    republic_communications: republic_communicationsData,
-    republic_fbc: republic_fbcData,
-    republic_kpb: republic_kpbData,
-    republic_crbc: republic_crbcData,
-    republic_aib: republic_aibData,
-    republic_spb: republic_spbData,
-    republic_mfrc: republic_mfrcData,
-    japan_military: japanMilitaryData,
-    japan: japanData,
-    indonesia: indonesiaData,
-    venezuela: venezuelaData,
-    ukarine: ukarineData,
-    russia: russiaData,
-    vietnam: vietnamData
-};
+// 合并所有数据
+// ★ 数据现在是**动态加载**的：文件名只写在 data-config.js 的分类树 dataFile 里，
+//   由 ../collection/data-loader.js 并发注入。所以这里不能在顶层直接引用
+//   xxxData 这类全局 —— 脚本执行时它们还没加载出来，引用就是 ReferenceError，
+//   整份 main.js 作废（页面空白）。先留空壳，bootData() 里 await 完再灌。
+const banknotesData = {};
+
+async function bootData() {
+    if (typeof loadDataFromTrees === 'function') {
+        await loadDataFromTrees({ trees: [{ tree: dataCategoryTree, mapName: 'NOTE_DATA_MAP' }] });
+    }
+    for (const entry of dataCategoryTree) {
+        banknotesData[entry.dataKey] = (window.NOTE_DATA_MAP && window.NOTE_DATA_MAP[entry.dataKey]) || null;
+    }
+}
 
 const categoryOrder = [
     "commemorative",
@@ -1411,7 +1388,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', async function() {
+    // ★ 必须先等数据加载完再渲染：以前数据是一排 <script>，浏览器保证它们在
+    //   main.js 之前执行；改成动态注入后没有这个保证，不等就会渲染出空页面。
+    await bootData();
     viewHistoryStack = [];
     pushViewToHistory(false);
     renderCategories(false);

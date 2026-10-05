@@ -6,17 +6,24 @@ let isHandlingPopState = false;
 let viewHistoryStack = [];
 
 // 合并所有数据
-const coinsData = {
-    commemorative: coincommData,
-    circulating: circulatingData,
-    gold_silver: gold_silverData
-};
+// ★ 数据现在是**动态加载**的（文件名写在 coin-config.js 的分类树 dataFile 里，
+//   由 ../collection/data-loader.js 并发注入）。所以这里**不能**在顶层直接写
+//   coincommData / circulating_5Data 这些全局 —— 脚本执行时它们还没加载出来，
+//   一引用就是 ReferenceError，整份 main.js 作废（页面空白）。
+//   改成先留空壳，bootData() 里 await 加载完再灌进去。
+// ★ categoryOrder 也由分类树推导（coinCategoryOrder），不再手写第二份 ——
+//   以前手写的那份就是硬币拆分成 circulating_2/3/4/5 后没跟上的地方。
+const coinsData = {};
+const categoryOrder = coinCategoryOrder;
 
-const categoryOrder = [
-    "commemorative",
-    "circulating",
-    "gold_silver"
-];
+async function bootData() {
+    if (typeof loadDataFromTrees === 'function') {
+        await loadDataFromTrees({ trees: [{ tree: coinCategoryTree, mapName: 'COIN_DATA_MAP' }] });
+    }
+    for (const cid of categoryOrder) {
+        coinsData[cid] = (window.COIN_DATA_MAP && window.COIN_DATA_MAP[cid]) || null;
+    }
+}
 
 let currentView = "categories";
 let currentCategoryId = null;
@@ -1820,7 +1827,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', async function() {
+    // ★ 必须先等数据加载完再渲染：以前数据是一排 <script>，浏览器保证它们在
+    //   main.js 之前执行；改成动态注入后就没有这个保证了，不等就会渲染出空页面。
+    await bootData();
     viewHistoryStack = [];
     pushViewToHistory(false);
     renderCategories(false);

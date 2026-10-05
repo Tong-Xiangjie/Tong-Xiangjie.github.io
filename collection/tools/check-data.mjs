@@ -49,13 +49,61 @@ vm.runInContext([
     read(path.join(COL, 'data-loader.js')),
     'window.__note = JSON.stringify(walkTree(categoryTree, []));',
     'window.__coin = JSON.stringify(walkTree(coinCategoryTree, []));',
+    'window.__agg = JSON.stringify({ notes: allDataKeys, coins: coinAllDataKeys });',
     'window.__special = JSON.stringify((window.SPECIAL_CONFIGS||[]).filter(c=>c.dataFile&&c.dataKey).map(c=>({key:c.dataKey,file:c.dataFile,var:c.dataVar||c.dataKey})));'].join('\n;\n'), ctx0, { filename: 'cfg.js' });
+
+// ---------------- 1b. 分类树 ↔ 聚合 dataKey 列表 必须双向一致 ----------------
+// ★ 2026-10 的真实事故：硬币 tree 从 circulatingData 改成了 circulating_5/4/3/2Data
+//   （coin-config.js 里改的），但同一文件下方的 coinAllDataKeys 是**手写**的旧列表
+//   ['commemorativeData','circulatingData','gold_silverData']。
+//   后果：流通硬币整类没接上 —— 硬币板块少了这些分类、价格列表筛选里看不到、
+//   computeStats() 的硬币数也少算（"我的"页面上凭空少一块）。
+//   纸币那边的 allDataKeys 是从 categoryTree 推导的，所以只有硬币会这样失联。
+//   这里双向查：树里有、列表里没有的（漏接），以及列表里有、树里没有的（过期残留）。
+{
+    const agg = JSON.parse(ctx0.__agg);
+    const pairs = [
+        { tree: JSON.parse(ctx0.__note).map(s => s.key), list: agg.notes || [], name: 'allDataKeys', side: '纸币' },
+        { tree: JSON.parse(ctx0.__coin).map(s => s.key), list: agg.coins || [], name: 'coinAllDataKeys', side: '硬币' }
+    ];
+    for (const p of pairs) {
+        for (const k of p.tree) {
+            if (!p.list.includes(k)) err(`${p.name} 少了${p.side}分类树里的 dataKey「${k}」——这一类在页面上会整块消失（分类、筛选、统计都少它）`);
+        }
+        for (const k of p.list) {
+            if (!p.tree.includes(k)) warn(`${p.name} 里的「${k}」已不在${p.side}分类树里（多半是改了 tree 之后忘了同步这张列表）`);
+        }
+    }
+}
 
 const sources = [
     ...JSON.parse(ctx0.__note).map(s => ({ ...s, kind: 'notes' })),
     ...JSON.parse(ctx0.__coin).map(s => ({ ...s, kind: 'coins' })),
     ...JSON.parse(ctx0.__special).map(s => ({ ...s, kind: 'fun' }))
 ];
+
+// ---------------- 1c. dataKey 不得跨板块撞名 ----------------
+// ★ 纸币的纪念钞与硬币的纪念币原本都叫 'commemorativeData'：两个 key 分别落在
+//   DATA_MAP 与 COIN_DATA_MAP 里，所以"能用"，但任何只拿到 dataKey 而没拿到 source
+//   的代码都会指错板块（stats.js 里那段注释就是为它写的告警），价格列表按分类筛选
+//   也得靠 (dataKey, source) 两个字段一起比才不会串。
+//   现在要求 dataKey 全局唯一 —— 撞名一律 ERROR，逼着新分类起个不撞的名字。
+{
+    const byKey = new Map();
+    for (const s of sources) {
+        if (!s.key) continue;
+        if (!byKey.has(s.key)) byKey.set(s.key, []);
+        byKey.get(s.key).push(s.kind);
+    }
+    const KIND_CN = { notes: '纸币', coins: '硬币', fun: '趣味' };
+    for (const [k, kinds] of byKey) {
+        const uniq = [...new Set(kinds)];
+        if (uniq.length > 1) {
+            err(`dataKey「${k}」被多个板块共用（${uniq.map(x => KIND_CN[x] || x).join(' / ')}）——` +
+                `只拿到 dataKey、没拿到 source 的代码会指错板块；请给其中一个换一个唯一的名字`);
+        }
+    }
+}
 
 // ---------------- 2. 真正把数据跑起来 ----------------
 const dataFiles = [];
@@ -209,32 +257,93 @@ if (!labelIssues) console.log('  全部一致');
 
 // ---------------- 6. 前端脚本顶层重名 ----------------
 console.log('\n==== 前端顶层声明重名 ====');
-const jsFiles = fs.readdirSync(COL).filter(f => f.endsWith('.js')).sort();
-const decls = new Map();
-for (const f of jsFiles) {
-    const lines = read(path.join(COL, f)).split('\n');
-    let inBlock = false;
-    lines.forEach((line, i) => {
-        const t = line.trim();
-        if (inBlock) { if (t.includes('*/')) inBlock = false; return; }
-        if (t.startsWith('/*')) { if (!t.includes('*/')) inBlock = true; return; }
-        if (t.startsWith('//') || /^[ \t]/.test(line)) return;
-        const m = line.match(/^function\s+([A-Za-z_$][\w$]*)\s*\(/) || line.match(/^(?:let|const|var)\s+([A-Za-z_$][\w$]*)\s*=/);
-        if (m) {
-            if (!decls.has(m[1])) decls.set(m[1], []);
-            decls.get(m[1]).push(f + ':' + (i + 1));
-        }
-    });
-}
+// ★ 必须**按页面分组**比较：collection/ 与 newcollection/ 是两个独立页面，
+//   各自加载自己那一套脚本，永远不会同时出现在同一个全局作用域里 ——
+//   把两者放进同一张表比较会得到几十条误报（第一版就这么错过，已改）。
+//   组内才是真的冲突。newcollection/search.js 里重复声明 currentSearchKeyword
+//   就是这么漏掉的：它是 let，重复声明不是"静默覆盖"而是直接
+//     SyntaxError: Identifier '...' has already been declared
+//   整份 search.js 都不执行（页面上的搜索静默失灵）。所以分两档：
+//     · let / const 重复 —— 致命，ERROR（整份脚本作废）
+//     · var / function 重复 —— 后声明覆盖前声明，WARN（老注释说的那种）
+const JS_GROUPS = [
+    { name: 'collection', dir: COL },
+    { name: 'newcollection', dir: path.join(ROOT, 'newcollection') }
+];
 let dupIssues = 0;
-for (const [name, list] of decls) {
-    if (list.length > 1) { dupIssues++; warn('顶层重名（后者会静默覆盖前者）: ' + name + ' @ ' + list.join(' , ')); }
+const groupJsCount = new Map();
+for (const g of JS_GROUPS) {
+    if (!exists(g.dir)) continue;
+    const decls = new Map();
+    const files = fs.readdirSync(g.dir).filter(f => f.endsWith('.js')).sort();
+    groupJsCount.set(g.name, files.length);
+    for (const f of files) {
+        const lines = read(path.join(g.dir, f)).split('\n');
+        let inBlock = false;
+        lines.forEach((line, i) => {
+            const t = line.trim();
+            if (inBlock) { if (t.includes('*/')) inBlock = false; return; }
+            if (t.startsWith('/*')) { if (!t.includes('*/')) inBlock = true; return; }
+            if (t.startsWith('//') || /^[ \t]/.test(line)) return;
+            const m = line.match(/^function\s+([A-Za-z_$][\w$]*)\s*\(/) || line.match(/^(let|const|var)\s+([A-Za-z_$][\w$]*)\s*=/);
+            if (m) {
+                const name = m[2] || m[1];
+                const kind = m[2] ? m[1] : 'function';
+                if (!decls.has(name)) decls.set(name, []);
+                decls.get(name).push({ where: g.name + '/' + f + ':' + (i + 1), kind });
+            }
+        });
+    }
+    for (const [name, list] of decls) {
+        if (list.length < 2) continue;
+        dupIssues++;
+        const where = list.map(d => d.where + '(' + d.kind + ')').join(' , ');
+        if (list.some(d => d.kind === 'let' || d.kind === 'const')) {
+            err(`[${g.name}] 顶层重名且是 let/const，整份脚本会因 SyntaxError 作废: ${name} @ ${where}`);
+        } else {
+            warn(`[${g.name}] 顶层重名（后者会静默覆盖前者）: ` + name + ' @ ' + where);
+        }
+    }
+    console.log(`  ${g.name}: 扫了 ${files.length} 个 js`);
 }
 if (!dupIssues) console.log('  没有重名');
 
+// ---------------- 7. 数据文件不许写死在页面的 <script> 里 ----------------
+// ★ 规则（用户定的）：藏品数据一律动态加载，文件名只写在分类树的 dataFile 里，
+//   由 collection/data-loader.js 注入。理由是这次的真事故：硬币拆成
+//   circulating_2/3/4/5 之后，coincollection / newcollection 两个页面还列着旧的
+//   circulating.js —— 一个直接 ReferenceError 白屏，一个静默少一整类。
+//   唯一允许保留的是"提供分类树本身的 meta 文件"（加载器得先知道有哪些专题数据），
+//   它们不含藏品，列在下面的白名单里。
+console.log('\n==== 数据文件是否写死在页面里 ====');
+const META_WHITELIST = [
+    'funcollection/years/data.js',      // 定义 specialYearsMeta，SPECIAL_CONFIGS 的来源
+    'data/synonyms-version.js'          // 同义词表的版本号，不是藏品数据
+];
+const PAGE_DIRS = ['collection', 'notecollection', 'coincollection', 'newcollection', 'funcollection/years', 'answersheet'];
+let hardCoded = 0;
+for (const dir of PAGE_DIRS) {
+    const page = path.join(ROOT, dir, 'index.html');
+    if (!exists(page)) continue;
+    const src = read(page);
+    for (const m of src.matchAll(/<script src="([^"]+\.js)"><\/script>/g)) {
+        const ref = m[1];
+        const looksLikeData = /(^|\/)data\/[^/]+\.js$/.test(ref) || /\.\.\/[a-z]+\/data\/[^/]+\.js$/.test(ref);
+        if (!looksLikeData) continue;
+        const normalized = ref.replace(/^\.\.\//, '');
+        if (META_WHITELIST.some(w => normalized.endsWith(w))) continue;
+        hardCoded++;
+        err(`${dir}/index.html 里写死了数据文件「${ref}」——数据必须动态加载：` +
+            `把文件名写进分类树的 dataFile（见 collection/data-loader.js 的 loadDataFromTrees），` +
+            `否则改了数据结构这里就会静默失联（硬币 circulating_* 就是这么挂的）`);
+    }
+    console.log(`  ${dir}/index.html: 检查过`);
+}
+if (!hardCoded) console.log('  没有写死的数据文件');
+
 // ---------------- 汇总 ----------------
 console.log('\n' + '='.repeat(56));
-console.log('扫描文件: collection/*.js ' + jsFiles.length + ' 个 / 数据文件 ' + dataFiles.length + ' 个');
+console.log('扫描文件: collection/*.js ' + (groupJsCount.get('collection') || 0) + ' 个 / newcollection/*.js ' + (groupJsCount.get('newcollection') || 0) + ' 个 / 数据文件 ' + dataFiles.length + ' 个');
 const byKind = { notes: 0, coins: 0, fun: 0 };
 for (const r of reports) byKind[r.kind] = (byKind[r.kind] || 0) + r.copies;
 console.log('藏品: ' + reports.reduce((s, r) => s + r.copies, 0) + ' 件' +
