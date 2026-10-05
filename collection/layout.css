@@ -1332,6 +1332,7 @@ body.modal-open {
 }
 /* 三态分段控件（跟随系统 / 亮 / 暗） */
 .segmented {
+    position: relative;          /* ★ 滑动高亮块靠绝对定位，见下面的 .seg-pill */
     display: flex;
     gap: 2px;
     margin-top: 8px;
@@ -1339,7 +1340,28 @@ body.modal-open {
     background: var(--thumb-bg);
     border-radius: 8px;
 }
+/* ★ 选中高亮 = 一块会左右滑动的滑块。
+   原来是给 .active 按钮自己换背景（硬切，明暗切换那三个选项之间"啪"地跳）。
+   几何不写死在 CSS 里：JS 量出选中项的 left/width 写进 --seg-x / --seg-w，
+   所以选项文字变长、窗口缩放、字体换掉都能自动跟正。 */
+.seg-pill {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 0;
+    width: var(--seg-w, 0px);
+    transform: translateX(var(--seg-x, 0px));
+    background: var(--theme);
+    border-radius: 6px;
+    pointer-events: none;        /* 别挡住按钮点击 */
+    transition: transform var(--dur-2) var(--ease-inout),
+                width var(--dur-2) var(--ease-inout);
+}
+/* 首帧摆位、窗口缩放时不要"从最左边滑过来"，那是噪声 */
+.segmented.seg-no-anim .seg-pill { transition: none; }
 .seg-btn {
+    position: relative;          /* ★ 压在滑块上面，文字才看得见 */
+    z-index: 1;
     flex: 1;
     padding: 6px 4px;
     border: none;
@@ -1349,11 +1371,12 @@ body.modal-open {
     font-size: 0.78rem;
     font-family: inherit;
     cursor: pointer;
-    transition: background-color var(--dur-2) var(--ease-inout), color var(--dur-2) var(--ease-inout);
+    /* 背景不在这里过渡了（交给滑块），只留文字颜色 */
+    transition: color var(--dur-2) var(--ease-inout);
 }
 .seg-btn:hover { color: var(--text); }
 .seg-btn.active {
-    background: var(--theme);
+    background: transparent;     /* ★ 高亮改由 .seg-pill 画 */
     color: #fff;
     font-weight: 500;
 }
@@ -1381,6 +1404,7 @@ body.modal-open {
 .switch.on .switch-knob { transform: translateX(20px); }
 @media (prefers-reduced-motion: reduce) {
     .switch, .switch-knob, .toggle-card { transition: none; }
+    .seg-pill { transition: none; }   /* ★ 明暗那块的滑动高亮也不滑，直接到位 */
 }
 
 /* ========== 统计样式 ========== */

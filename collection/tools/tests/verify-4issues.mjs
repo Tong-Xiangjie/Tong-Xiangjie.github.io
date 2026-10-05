@@ -357,12 +357,12 @@ try {
   console.log(`  改回默认后往返：排序=${s4.sort} 筛选=${s4.filter} 汇总=${s4.summary}`);
   ok(s4.sort === 'default' && s4.filter === 'all' && s4.summary === 'none', '★ 改回默认后往返仍是默认（不是无脑保持）');
 
-  // ══════════════ ⑨ 价格列表筛选包含硬币的**子分类** ══════════════
+  // ══════════════ ⑥′ 价格列表筛选包含硬币的**子分类** ══════════════
   // ★ 用户报的："价格列表那里还是没有'流通硬币'"。
   //   根因：buildPriceFilterCategories() 里纸币那半边会展开 cat.children，
   //   硬币那半边只遍历顶层 —— 而流通硬币在 tree 里是"人民币流通硬币"的 children，
   //   于是一整块硬币子分类永远进不了筛选列表（article.js 里硬币的文章分类同样漏）。
-  console.log('\n══════ ⑨ 价格列表筛选包含硬币子分类 ══════');
+  console.log('\n══════ ⑥′ 价格列表筛选包含硬币子分类 ══════');
   await boot('notes/overview');
   await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
   // ★ 直接看 buildPriceFilterCategories() 的返回值（它带 dataKey/source），
@@ -1026,6 +1026,94 @@ try {
     ok(N.colorChanged === true,
        `★ 换到深色主题时占位颜色跟着变（${N.lightColor} → ${N.darkColor}）`);
   }
+
+  // ══════════════ ⑬ 外观：明暗分段控件的选中高亮是"滑动"过去的 ══════════════
+  // ★ 用户要求："明暗那里的高亮按钮其实可以设计为左右滑动的动画"。
+  //   原来是把 .active 按钮自己的背景一换（硬切）。现在高亮是一块独立的 .seg-pill，
+  //   JS 量出选中项的 left/width 写进 --seg-x/--seg-w，CSS 过渡 transform/width。
+  //   这里要验的是：几何真的对得上（不是写死宽度）、点了会滑到新位置、
+  //   并且**尊重"减弱动效"**（reduce 时不允许有过渡）。
+  console.log('\n══════ ⑬ 外观：明暗高亮滑块 ══════');
+  {  // ★ 用块作用域包住：本节的 p0/p1/before 会和别的小节撞名
+  const PILL = `(()=>{ const box=document.getElementById('colorSchemeSeg');
+    if(!box) return JSON.stringify({ err:'没有 colorSchemeSeg' });
+    const pill=box.querySelector('.seg-pill');
+    const act=box.querySelector('.seg-btn.active');
+    const btn=(v)=>box.querySelector('.seg-btn[data-value="'+v+'"]');
+    if(!pill||!act) return JSON.stringify({ err:'缺少 .seg-pill 或 .active', hasPill:!!pill, hasActive:!!act });
+    const cs=getComputedStyle(pill);
+    const geom=(el)=>{ const bb=box.getBoundingClientRect(), ab=el.getBoundingClientRect();
+      return { x: Math.round(ab.left-bb.left-box.clientLeft), w: Math.round(ab.width) }; };
+    const vars={ x: Math.round(parseFloat(cs.getPropertyValue('--seg-x'))||0),
+                 w: Math.round(parseFloat(cs.getPropertyValue('--seg-w'))||0) };
+    const want=geom(act);
+    const pb=pill.getBoundingClientRect(), ab=act.getBoundingClientRect();
+    const bb2=box.getBoundingClientRect();
+    return JSON.stringify({
+      active: act.dataset.value, hasPill:true,
+      transitionProperty: cs.transitionProperty, transitionDuration: cs.transitionDuration,
+      vars, want,
+      // ★ 关键：--seg-x 是 JS 立刻写下的"目标值"，读它量不出滑动过程。
+      //   要判断"是不是真的在滑"，必须量滑块**渲染出来的**位置。
+      pillX: Math.round(pb.left-bb2.left), btnX: Math.round(ab.left-bb2.left),
+      dx: Math.round(pb.left-ab.left), dw: Math.round(pb.width-ab.width),
+      btnVals: [...box.querySelectorAll('.seg-btn')].map(b=>b.dataset.value),
+      activeBg: getComputedStyle(act).backgroundColor,
+      disabled: cs.transitionDuration === '0s' || cs.transitionProperty === 'none'
+    }); })()`;
+
+  // ① 减弱动效下：滑块必须"直接到位"（不许有过渡）
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await boot('notes/overview');
+  await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
+  const pRed = JSON.parse(await evaluate(PILL));
+  ok(!pRed.err, `外观分段控件渲染出滑块（${pRed.err || 'ok'}）`);
+  if (!pRed.err) {
+    console.log(`  减弱动效：transition=${pRed.transitionProperty} / ${pRed.transitionDuration}；滑块变量 x=${pRed.vars.x} w=${pRed.vars.w}，选中「${pRed.active}」`);
+    ok(pRed.disabled, '★ 减弱动效时滑块不过渡（直接到位）');
+    ok(Math.abs(pRed.dx) <= 1 && Math.abs(pRed.dw) <= 1,
+       `★ 滑块与选中项几何一致（偏差 dx=${pRed.dx} dw=${pRed.dw}）——几何是量出来的，不是写死宽度`);
+  }
+
+  // ② 允许动效时：有过渡，并且点了真的滑到新位置
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  await boot('notes/overview');
+  await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
+  const p0 = JSON.parse(await evaluate(PILL));
+  ok(!p0.err && /transform/.test(p0.transitionProperty) && parseFloat(p0.transitionDuration) > 0,
+     `★ 允许动效时滑块有 transform 过渡（${p0.transitionProperty} / ${p0.transitionDuration}）`);
+
+  // 从当前值切到另一个值（优先切到"暗"，它和另外两个都不同）
+  const other = (p0.btnVals || []).find(v => v !== p0.active) || 'dark';
+  const before = p0;
+  await evaluate(`(()=>{ const b=document.querySelector('#colorSchemeSeg .seg-btn[data-value=${JSON.stringify(other)}]'); b.click(); return true; })()`);
+  await sleep(110);
+  const pMid = JSON.parse(await evaluate(PILL));
+  await sleep(700);
+  const p1 = JSON.parse(await evaluate(PILL));
+  console.log(`  点「${other}」：渲染位置 起点 pillX=${before.pillX} → 中途 ${pMid.pillX} → 终点 ${p1.pillX}（目标 btnX=${p1.btnX}）`);
+  ok(p1.active === other, `★ 点击后高亮状态切到「${other}」（实际 ${p1.active}）`);
+  ok(Math.abs(p1.dx) <= 1 && Math.abs(p1.dw) <= 1,
+     `★ 滑到位后与新的选中项几何一致（偏差 dx=${p1.dx} dw=${p1.dw}）`);
+  ok(p1.pillX !== before.pillX, `★ 滑块真的移动了（${before.pillX} → ${p1.pillX}），不是原地换色`);
+  // 中途那一帧必须夹在起终点之间 —— 这才证明是"滑过去"而不是"闪过去"
+  const lo = Math.min(before.pillX, p1.pillX), hi = Math.max(before.pillX, p1.pillX);
+  ok(pMid.pillX > lo && pMid.pillX < hi,
+     `★ 中途那一帧夹在起终点之间 = 确实在滑动（${before.pillX} → ${pMid.pillX} → ${p1.pillX}）`);
+  ok(p0.activeBg === 'rgba(0, 0, 0, 0)' || p0.activeBg === 'transparent',
+     `★ 选中按钮自身背景透明（高亮由滑块画，否则会是两块）—— 实际 ${p0.activeBg}`);
+
+  // ③ 切主题色也不能把滑块弄丢（主题色变了滑块颜色跟着变，位置不动）
+  const beforeTheme = JSON.parse(await evaluate(PILL));
+  await evaluate(`(()=>{ if (typeof applyTheme==='function') { applyTheme('#d92121'); return true; } return false; })()`);
+  await sleep(400);
+  const pTheme = JSON.parse(await evaluate(PILL));
+  ok(pTheme.vars.x === beforeTheme.vars.x && Math.abs(pTheme.dx) <= 1,
+     `★ 换主题色后滑块还在原位（渲染位置 ${beforeTheme.pillX} → ${pTheme.pillX}）`);
+  }
+
+  // 收尾：媒体模拟恢复默认，免得影响后续用例
+  await send('Emulation.setEmulatedMedia', { features: [] });
 
   console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);
   process.exitCode = fail ? 1 : 0;

@@ -253,6 +253,10 @@ function renderSettingsPage() {
     html += `</div>`;
     app.innerHTML = html;
 
+    // ★ 设置页是整体重建 innerHTML 的，滑块每次都得重新量一次位置
+    //   （animate=false：重渲染时"滑过去"没意义，直接摆正）
+    layoutAllSegmented(false);
+
     // ★ 延迟恢复滚动
     if (settingsPageCache && settingsPageCache.scrollY) {
         setTimeout(() => {
@@ -327,7 +331,10 @@ function setSwitchState(id, on) {
 function renderSegmented(id, label, options, current, onPickName) {
     let html = `<div class="toggle-card">`;
     if (label) html += `<div class="toggle-label">${label}</div>`;
-    html += `<div class="segmented" id="${id}" role="radiogroup">`;
+    // ★ seg-no-anim：首帧滑块要"摆"到当前项上，不能从最左边滑过去（见 layoutSegmented）
+    html += `<div class="segmented seg-no-anim" id="${id}" role="radiogroup">`;
+    // ★ 会滑动的选中高亮块。放在最前面，靠 z-index 压在按钮下面（见 layout.css）
+    html += `<span class="seg-pill" aria-hidden="true"></span>`;
     for (const [value, text] of options) {
         const active = value === current ? ' active' : '';
         html += `<button type="button" class="seg-btn${active}" data-value="${value}"`
@@ -336,6 +343,49 @@ function renderSegmented(id, label, options, current, onPickName) {
     }
     html += `</div></div>`;
     return html;
+}
+
+// ★ 把滑块摆到当前选中项上。
+//   几何从按钮上量（不写死宽度）：选项文字长了、窗口缩放了、字体换了都能自动跟正。
+//   animate=true 时滑过去（用户点击），false 时直接到位（首帧 / 缩放 / 字体就绪）。
+function layoutSegmented(idOrBox, animate) {
+    const box = (typeof idOrBox === 'string') ? document.getElementById(idOrBox) : idOrBox;
+    if (!box || !box.querySelector) return;
+    const pill = box.querySelector('.seg-pill');
+    if (!pill) return;
+    const active = box.querySelector('.seg-btn.active');
+    // ★ 兜底：设置页有可能是在"还没显示"的时候渲染的（那时所有 rect 都是 0），
+    //   或者宽度被字体/侧边栏影响。挂个 ResizeObserver，一有真实尺寸就重新量。
+    //   这里不会有回环：滑块是绝对定位，改 --seg-w 不会反过来改变容器宽度。
+    if (!box.__segObserved && typeof ResizeObserver === 'function') {
+        box.__segObserved = true;
+        try {
+            new ResizeObserver(function () { layoutSegmented(box, false); }).observe(box);
+        } catch (e) {}
+    }
+    if (!animate) box.classList.add('seg-no-anim');
+    if (active) {
+        const bb = box.getBoundingClientRect();
+        const ab = active.getBoundingClientRect();
+        // 绝对定位的 left:0 贴的是 padding 边，所以要减掉容器左边框宽度
+        box.style.setProperty('--seg-x', (ab.left - bb.left - box.clientLeft) + 'px');
+        box.style.setProperty('--seg-w', ab.width + 'px');
+        pill.style.visibility = '';
+    } else {
+        // 没有选中项（理论上不该发生）：把滑块收起来，别留在原地误导
+        box.style.setProperty('--seg-w', '0px');
+        pill.style.visibility = 'hidden';
+    }
+    if (!animate) {
+        // 摆位这一帧不能被过渡吃掉，所以等两帧再恢复动画
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () { box.classList.remove('seg-no-anim'); });
+        });
+    }
+}
+
+function layoutAllSegmented(animate) {
+    document.querySelectorAll('.segmented').forEach(function (box) { layoutSegmented(box, animate); });
 }
 
 // 点完立刻更新高亮，不等整页重渲染
@@ -347,6 +397,21 @@ function updateSegmented(id, value) {
         btn.classList.toggle('active', on);
         btn.setAttribute('aria-checked', on ? 'true' : 'false');
     });
+    layoutSegmented(box, true);      // ★ 滑块滑过去
+}
+
+// ★ 窗口尺寸变了（侧边栏宽度/字号都会跟着变）滑块要重新量；缩放时不播动画。
+//   字体晚到会让按钮宽度变，所以 fonts.ready 之后再量一次。
+let segRelayoutRaf = 0;
+window.addEventListener('resize', function () {
+    if (segRelayoutRaf) cancelAnimationFrame(segRelayoutRaf);
+    segRelayoutRaf = requestAnimationFrame(function () {
+        segRelayoutRaf = 0;
+        layoutAllSegmented(false);
+    });
+});
+if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+    document.fonts.ready.then(function () { layoutAllSegmented(false); });
 }
 
 // ========== 网格画质：缩略图 / 原图 ==========
