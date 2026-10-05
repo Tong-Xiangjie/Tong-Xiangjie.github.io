@@ -127,15 +127,22 @@
             var el = all[i];
             if (el.__cscroll) continue;
             if (el === document.body || el === document.documentElement) continue;
-            // 先读几何（很便宜；中间不写样式，不会反复触发重排），真正超出的才去读 computed
+            // ★ 先问样式，再读几何 —— 顺序很要紧。
+            //   computed style 只走样式解析，不触发重排；clientHeight/scrollHeight 会。
+            //   反过来的话，列表里上千个普通 div 每个都要读一遍几何：394 行的价格列表
+            //   重建之后这一次全量重扫实测 140ms 以上，正是用户报的"汇总行收起卡顿"
+            //   （实测禁掉 MutationObserver 这一下就消失：最长帧 172ms → 8ms）。
+            //   判定条件没变：既要允许纵向滚动，也要真的超出。
+            var cs;
+            try { cs = getComputedStyle(el); } catch (e) { continue; }
+            if (!/auto|scroll|overlay/.test(cs.overflowY)) continue;
             if (verticalNeed(el)) cand.push(el);
         }
         for (var k = 0; k < cand.length; k++) {
             var c = cand[k];
             if (!verticalNeed(c)) continue;
-            var cs = getComputedStyle(c);
-            if (!/auto|scroll|overlay/.test(cs.overflowY)) continue;
-            if (realHorizontalScroller(c, cs)) continue;      // 保险：真能横滚的，保持原生
+            var ccs = getComputedStyle(c);
+            if (realHorizontalScroller(c, ccs)) continue;      // 保险：真能横滚的，保持原生
             attach(c);
         }
     }

@@ -483,8 +483,17 @@ function afterNextPaint(fn) {
 }
 function setPriceSummaryShown(sum, show) {
     if (!sum) return;
+    // ★ 先看这个栏目本来在不在（class 是唯一口径：整页重渲染时也是按 filterInfo 写出来的）。
+    //   用户："假如一直有这个栏目就不用重复展开收起，只有在'全部藏品'与其他东西切换的时候才要这个动画"
+    //   —— 分类 → 另一个分类时汇总行一直在，只换数字，不该重播一遍下拉/上收。
+    const wasShown = sum.classList.contains('shown');
     const seq = ++priceSummarySeq;                 // 期间又切了一次就以最后一次为准
     if (priceSummaryTimer) { clearTimeout(priceSummaryTimer); priceSummaryTimer = null; }
+    if (wasShown === show) {
+        sum.style.display = show ? 'block' : 'none';
+        sum.style.maxHeight = show ? 'none' : '';
+        return;
+    }
     const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
     sum.classList.toggle('shown', show);
     if (show) {

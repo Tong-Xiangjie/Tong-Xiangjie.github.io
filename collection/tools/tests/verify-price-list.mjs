@@ -251,7 +251,20 @@ ok(/\.price-list-item\s*\{[^}]*content-visibility\s*:\s*auto/.test(css) &&
 ok(/priceListAnimWindow\s*\(/.test(statsJs), '④b FLIP 限定在视口 ±2 屏，不再全量测 394 行');
 ok(/perScreen \+ 4/.test(statsJs), '④b 新行的淡入按一屏封顶（一次带进 380 多行不全挂动画）');
 
+// ★ 用户第二次报"收起动画还是相当卡顿"。归因实验（临时探针，已删）：
+//   把 MutationObserver 变成空实现后，141~172ms 的长任务完全消失、最长帧 172ms → 8ms
+//   —— 元凶是自绘滚动条在每次 DOM 变动后那次全量重扫：它对列表里上千个普通 div
+//   逐个读 clientHeight/scrollHeight，而读几何会触发重排。
+//   改成先问 computed style（只做样式解析，不重排），只有真允许纵向滚动的才读几何。
+const sbJs = readFileSync('collection/scrollbar.js', 'utf8');
+const scanBody = (sbJs.match(/function fullScan[\s\S]*?\n    \}/) || [''])[0];
+ok(scanBody.indexOf('getComputedStyle(el)') > -1 &&
+   scanBody.indexOf('getComputedStyle(el)') < scanBody.indexOf('verticalNeed(el)'),
+  '★ ④b 全量重扫先问样式再读几何（反过来 394 行重建后每个 div 都读一遍几何 = 140ms 长任务）');
+
 const JANK = JSON.parse(await evaluate(`(async()=>{
+  window.__lt=[];
+  try{ new PerformanceObserver(l=>{ for(const e of l.getEntries()) window.__lt.push(Math.round(e.duration)); }).observe({entryTypes:['longtask']}); }catch(e){}
   const f=document.getElementById('priceFilterSelect'), b=document.getElementById('priceListBody');
   const cat=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all')[0];
   f.value=cat; f.dispatchEvent(new Event('change',{bubbles:true}));      // 先让汇总行出来
@@ -259,6 +272,7 @@ const JANK = JSON.parse(await evaluate(`(async()=>{
   const frames=[]; let stop=false, last=performance.now();
   const tick=()=>{ const n=performance.now(); frames.push(Math.round(n-last)); last=n; if(!stop) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
+  window.__lt=[];
   const h=performance.now();
   f.value='all'; f.dispatchEvent(new Event('change',{bubbles:true}));    // 收起（重建 394 行）
   const 同步=Math.round(performance.now()-h);
@@ -266,18 +280,60 @@ const JANK = JSON.parse(await evaluate(`(async()=>{
   const 行数=document.querySelectorAll('#priceListBody .price-list-item').length;
   await new Promise(r=>setTimeout(r,900)); stop=true;
   return JSON.stringify({ cat, 同步, 淡入行, 行数, 前6帧:frames.slice(0,6),
-    滑动期最长帧:Math.max(...frames.slice(0,6)), 全程最长帧:Math.max(...frames) });
+    滑动期最长帧:Math.max(...frames.slice(0,6)), 全程最长帧:Math.max(...frames),
+    长任务:window.__lt.slice(), 最长长任务:window.__lt.length?Math.max(...window.__lt):0 });
 })()`));
-console.log(`  切回全部：同步 ${JANK.同步}ms；前 6 帧 ${JANK.前6帧.join('/')}（最长 ${JANK.滑动期最长帧}ms）；淡入行 ${JANK.淡入行}/${JANK.行数}`);
+console.log(`  切回全部：同步 ${JANK.同步}ms；前 6 帧 ${JANK.前6帧.join('/')}（最长 ${JANK.滑动期最长帧}ms）；` +
+  `长任务 ${JANK.长任务.length} 个（最长 ${JANK.最长长任务}ms）；淡入行 ${JANK.淡入行}/${JANK.行数}`);
 ok(JANK.行数 > 0, `④b 收起路径能跑通（${JANK.行数} 行）`);
 if (JANK.行数 > 100) {
   // 阈值断言只在"真实大列表"下有意义；CI 上如果没有数据文件（行数很少）就只留静态那几条
   ok(JANK.同步 < 45, `★ ④b 收起时的同步耗时降下来了（${JANK.同步}ms；修之前实测 58ms）`);
   ok(JANK.滑动期最长帧 < 40, `★ ④b 收起滑动期间不掉帧（前 6 帧最长 ${JANK.滑动期最长帧}ms；修之前 59ms 且连续 4 帧 >25ms）`);
   ok(JANK.淡入行 <= 40, `★ ④b 新行的淡入按一屏封顶（${JANK.淡入行} 行，不是 394 行全挂）`);
+  // 这条是用户第二次报的"还是相当卡顿"：修之前这里有 141~172ms 的长任务
+  ok(JANK.最长长任务 < 130,
+    `★ ④b 收起期间没有长任务卡住主线程（最长 ${JANK.最长长任务}ms，共 ${JANK.长任务.length} 个；修之前 141~172ms）`);
 } else {
   ok(true, `④b 行数只有 ${JANK.行数}（没有数据文件），跳过耗时阈值断言`);
 }
+
+// ══════════════════════════════════════════════════════════════
+// 用户追加："假如一直有这个栏目就不用重复展开收起，只有在'全部藏品'与其他东西切换的时候才要这个动画"
+// —— 分类 → 另一个分类时汇总行一直在，只换数字；只有 全部藏品 ↔ 分类（栏目出现/消失）才播。
+console.log('\n══════ ④c 一直有栏目就不重播展开/收起 ══════\n');
+const TOGGLE = JSON.parse(await evaluate(`(async()=>{
+  const f=document.getElementById('priceFilterSelect');
+  const sum=document.getElementById('priceListSummary');
+  const cats=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all');
+  if (cats.length<2) return JSON.stringify({ 跳过:'分类只有 '+cats.length+' 个' });
+  f.value=cats[0]; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,700));
+  const 有栏目=sum.classList.contains('shown');
+  // 分类 → 另一个分类：逐帧采，有动画的话 max-height 会出现中间值、高度会被压扁
+  const frames=[]; const t0=performance.now();
+  f.value=cats[1]; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(res=>{ const tick=()=>{
+      frames.push({ m:sum.style.maxHeight, d:sum.style.display, h:Math.round(sum.getBoundingClientRect().height) });
+      if (performance.now()-t0<600) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
+  const 中间值=frames.filter(x=>x.m && x.m!=='none' && x.m!=='0px').length;
+  // 再切回「全部藏品」：这时候栏目真的消失，才该有收起动画
+  const 收起帧=[]; const t1=performance.now();
+  f.value='all'; f.dispatchEvent(new Event('change',{bubbles:true}));
+  await new Promise(res=>{ const tick=()=>{ 收起帧.push(Math.round(sum.getBoundingClientRect().height));
+      if (performance.now()-t1<500) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
+  return JSON.stringify({ 分类数:cats.length, 有栏目, display:frames[0]&&frames[0].d,
+    中间值, 最小高度:Math.min(...frames.map(x=>x.h)), 最大高度:Math.max(...frames.map(x=>x.h)),
+    收起中间帧:new Set(收起帧).size, 收起末:收起帧[收起帧.length-1], 收起后display:sum.style.display });
+})()`));
+console.log(`  分类→分类：display=${TOGGLE.display}，max-height 中间值 ${TOGGLE.中间值} 个，高度 ${TOGGLE.最小高度}~${TOGGLE.最大高度}；` +
+  `切回全部：${TOGGLE.收起中间帧} 个中间高度，末 ${TOGGLE.收起末}px`);
+ok(TOGGLE.有栏目 === true, '④c 切到分类后汇总行确实在（前情）');
+ok(TOGGLE.display === 'block' && TOGGLE.中间值 === 0,
+  `★ ④c 分类→分类不重播展开动画（display=${TOGGLE.display}，max-height 没有中间值）`);
+ok(TOGGLE.最小高度 > 0, `★ ④c 分类→分类时汇总行不会被压扁再弹开（最小高度 ${TOGGLE.最小高度}px）`);
+ok(TOGGLE.收起中间帧 > 2, `★ ④c 切回「全部藏品」= 栏目消失，仍然有收起动画（${TOGGLE.收起中间帧} 个中间高度）`);
+ok(TOGGLE.收起后display === 'none', '④c 收完之后真的收掉了（display:none）');
 
 // ══════════════════════════════════════════════════════════════
 console.log('\n══════ ⑤ 展开有动画（全部条目错开出现）══════\n');
