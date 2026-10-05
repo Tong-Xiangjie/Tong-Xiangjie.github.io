@@ -254,7 +254,11 @@
         //   否则一按滑块弹层就关，弹层里根本滚不动（用户实测报告："一旦点击滚动条就会关闭"）。
         if (typeof window.customScrollbarHit === 'function' && window.customScrollbarHit(e.target)) return;
         if (typeof window.customScrollbarBusy === 'function' && window.customScrollbarBusy()) return;
-        if (!openOne.box.contains(e.target)) close(openOne, false);
+        // ★ e.target 可能是 window 之类**不是 Node** 的目标（window 上派发的 pointerdown）。
+        //   这时 contains 会抛 TypeError（"parameter 1 is not of type 'Node'"），
+        //   而 window 显然不在弹层里 —— 按"点了外面"处理即可。下一行的 onAnyScroll 早有这个守卫。
+        const t = e && e.target;
+        if (!t || !t.nodeType || !openOne.box.contains(t)) close(openOne, false);
     }
     function onAnyScroll(e) {
         if (!openOne) return;

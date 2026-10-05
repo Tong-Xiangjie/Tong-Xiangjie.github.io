@@ -88,7 +88,9 @@ let msgId = 0; const pending = new Map();
 const ws = new WebSocket(await (async () => { for (let i = 0; i < 80; i++) { try { const l = await (await fetch(`http://127.0.0.1:${DP}/json/list`)).json(); const p = l.find(t => t.type === 'page'); if (p?.webSocketDebuggerUrl) return p.webSocketDebuggerUrl; } catch {} await sleep(250); } throw new Error('CDP 未就绪'); })());
 await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 const errors = [];
-ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.text + ' ' + (m.params.exceptionDetails?.exception?.description || '')); if (m.id && pending.has(m.id)) { const { res, rej } = pending.get(m.id); pending.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); } };
+// ★ 未捕获异常要把**调用栈**一起带上：原来只记 text/description，CI 上看到"有 1 条异常"
+//   却不知道是谁抛的（日志要鉴权下载，注解又只截第一条断言）。
+ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.method === 'Runtime.exceptionThrown') { const ed = m.params.exceptionDetails || {}; const st = (ed.stackTrace && ed.stackTrace.callFrames || []).slice(0, 4).map(f => `${f.functionName || '(匿名)'} @ ${(f.url || '').split('/').pop()}:${f.lineNumber + 1}:${f.columnNumber + 1}`).join('  ←  '); errors.push((ed.text || '') + ' ' + (ed.exception?.description || '') + (st ? '  ｜ 栈：' + st : '')); } if (m.id && pending.has(m.id)) { const { res, rej } = pending.get(m.id); pending.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); } };
 function send(method, params = {}) { return new Promise((res, rej) => { const i = ++msgId; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); }); }
 async function evaluate(e) {
   const r = await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true });
