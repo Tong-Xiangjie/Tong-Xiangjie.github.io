@@ -44,11 +44,12 @@ const coinAllDataKeys = [];
 (function collectCoinKeys() {
     for (const cat of coinCategoryTree) {
         if (cat.children) {
+            // ★ 与 config.js 的 allDataKeys 同构：父分类自己也可能挂数据文件（只放文章），
+            //   而且必须排在子级前面（列表默认顺序 = 收集顺序 = 这张表的顺序）。
+            if (cat.dataKey) coinAllDataKeys.push(cat.dataKey);
             for (const sub of cat.children) {
                 if (sub.dataKey) coinAllDataKeys.push(sub.dataKey);
             }
-            // ★ 与 config.js 的 allDataKeys 同构：父分类自己也可能挂数据文件（只放文章）。
-            if (cat.dataKey) coinAllDataKeys.push(cat.dataKey);
         } else if (cat.dataKey) {
             coinAllDataKeys.push(cat.dataKey);
         }

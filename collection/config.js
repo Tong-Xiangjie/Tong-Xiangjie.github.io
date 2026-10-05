@@ -164,14 +164,16 @@ const allDataKeys = [];
 (function collectKeys() {
     for (const cat of categoryTree) {
         if (cat.children) {
+            // ★ 父分类自己也可能有数据文件（只放文章，如台币上的「台钞图录」）。
+            //   ① 必须入表，否则 article.js 的 collectAllArticles 遍历 allDataKeys
+            //      时整篇跳过（数据加载成功、文章却一条都不进列表）。
+            //   ② 必须排在子级**前面**：文章列表的默认顺序就是收集顺序，而收集顺序
+            //      就是 allDataKeys 的顺序 —— 追加在子级之后，父级文章就会显示在
+            //      子级文章下面（用户实测到的现象）。
+            if (cat.dataKey) allDataKeys.push(cat.dataKey);
             for (const sub of cat.children) {
                 if (sub.dataKey) allDataKeys.push(sub.dataKey);
             }
-            // ★ 父分类自己也可能有数据文件（只放文章，如台币上的「台钞图录」）。
-            //   不收进来的话 article.js 的 collectAllArticles 遍历 allDataKeys 时
-            //   会整篇跳过 —— 数据加载成功、文章却一条都不进列表，这就是
-            //   "父类挂的文章在「文章」板块里看不到"的真正原因（光加 config 不够）。
-            if (cat.dataKey) allDataKeys.push(cat.dataKey);
         } else if (cat.dataKey) {
             allDataKeys.push(cat.dataKey);
         }

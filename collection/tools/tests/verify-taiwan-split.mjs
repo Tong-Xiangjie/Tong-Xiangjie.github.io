@@ -142,6 +142,46 @@ else {
   // 只在失败时打印中间状态，平时不吵。
   if (!board.text.includes('台钞图录')) console.log('    [诊断] ' + JSON.stringify(diag));
   ok(board.text.includes('台钞图录'), `切到「文章」板块后，父类那篇「台钞图录」出现在列表里${board.err ? '（切 tab 时报错：' + board.err + '）' : ''}`);
+
+  // ★ 父级自己的文章要排在子级文章**前面**：列表默认顺序 = 收集顺序 = allDataKeys 顺序，
+  //   所以父级 dataKey 必须排在它的子级之前。这里对整棵树做通用检查（不只看台币），
+  //   以后任何父级挂文章都受这条守着。
+  const order = JSON.parse(await evaluate(`(()=>{
+    const keys = (typeof allDataKeys !== 'undefined') ? allDataKeys : [];
+    const bad = [];
+    for (const cat of (typeof categoryTree !== 'undefined' ? categoryTree : [])) {
+      if (!cat.children || !cat.dataKey) continue;
+      const pi = keys.indexOf(cat.dataKey);
+      for (const sub of cat.children) {
+        if (!sub.dataKey) continue;
+        const si = keys.indexOf(sub.dataKey);
+        if (pi < 0 || si < 0 || pi > si) bad.push(cat.id + '(' + pi + ') 晚于 ' + sub.id + '(' + si + ')');
+      }
+    }
+    return JSON.stringify({ bad, taiwanFirst: keys.indexOf('taiwanReadmeData') < keys.indexOf('taiwanOldData') });
+  })()`));
+  ok(order.bad.length === 0, `有父级数据的分类，父级都排在子级之前（异常：${JSON.stringify(order.bad)}）`);
+  ok(order.taiwanFirst === true, '台币父级 dataKey 排在子级之前 → 父级文章显示在该类最上面');
+
+  // ★ 上一条只是"表里的顺序对"，这一条把机制也钉住：文章列表默认顺序就是收集顺序，
+  //   收集顺序必须与 allDataKeys 顺序一致（有逆序对就说明中间被重排过，
+  //   父级文章又会被挤到子级文章下面）。这同时是上一轮的教训 ——
+  //   只断言"数据加载了"会给出假绿。
+  const seq = JSON.parse(await evaluate(`(()=>{
+    const keys = (typeof allDataKeys !== 'undefined') ? allDataKeys : [];
+    const list = (typeof collectedArticles !== 'undefined' ? collectedArticles : []).filter(a => a.sourceType === 'notes');
+    let inversions = 0, pairs = 0;
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = keys.indexOf(list[i].dataKey), b = keys.indexOf(list[j].dataKey);
+        if (a < 0 || b < 0) continue;
+        pairs++;
+        if (a > b) inversions++;
+      }
+    }
+    return JSON.stringify({ inversions, pairs, count: list.length });
+  })()`));
+  ok(seq.inversions === 0, `文章收集顺序与 allDataKeys 一致（${seq.count} 篇、逆序对 ${seq.inversions}/${seq.pairs}）`);
 }
 
 // ③ 逐个打开每个子类
