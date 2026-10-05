@@ -85,14 +85,30 @@ const tree = JSON.parse(await evaluate(`(()=>{
   const list = (typeof categoryTree !== 'undefined') ? categoryTree : [];
   const n = list.find(c=>c.id==='taiwan');
   if (!n) return JSON.stringify({ none: true });
+  const own = (n.dataKey && window.DATA_MAP) ? window.DATA_MAP[n.dataKey] : null;
   return JSON.stringify({ none:false, name:n.name, hasOwnData: !!n.dataKey, hasOwnFile: !!n.dataFile,
+    ownSeries: (own && Array.isArray(own.series)) ? own.series.length : -1,
     children: (n.children||[]).map(c=>({ id:c.id, name:c.name, dataKey:c.dataKey, dataFile:c.dataFile })) });
 })()`));
 ok(tree.none === false, '前置：categoryTree 里找得到 taiwan 节点');
 if (tree.none) { console.log('\n  父节点都没了，后面的检查没意义。'); process.exitCode = 1; }
 else {
   ok(tree.name === '台币', `父类名字仍是「${tree.name}」`);
-  ok(tree.hasOwnData === false && tree.hasOwnFile === false, '父类自己不再挂 dataKey/dataFile（和 rmb/hk/民国 一致）');
+  // ★ 规则升级：「父类自己挂文章」这条需求要求父类能有自己的数据文件。
+  //   当初那句"父类不再挂 dataKey/dataFile"的本意是**藏品只来自子文件**（不重复），
+  //   写成"不许挂"就把父类文章这条路一起堵死了。现在按本意断言：
+  //   可以挂，但那个文件必须是只放文章的载体（series 为空）。
+  ok(tree.hasOwnData && tree.hasOwnFile, '父类可以有自己的数据文件（用于挂文章）');
+  ok(tree.ownSeries === 0, `父类自己的数据文件里没有藏品（series=${tree.ownSeries}，应为 0）`);
+  // 父类那篇文章必须真的随文件加载进来了 —— 这正是第一版失败的原因：
+  // readme 写进了 data/taiwan.js（拆分后的旧文件，已不在树里 → 根本不会被加载），
+  // 于是"文章"板块里什么都没有。
+  const ownReadmes = JSON.parse(await evaluate(`(()=>{
+    const d = (window.DATA_MAP && window.DATA_MAP.taiwanReadmeData) || null;
+    return JSON.stringify({ loaded: !!d, titles: d && Array.isArray(d.readmes) ? d.readmes.map(r => r.title) : [] });
+  })()`));
+  ok(ownReadmes.loaded, '父类的数据文件（taiwanReadmeData）已加载进 DATA_MAP');
+  ok(ownReadmes.titles.includes('台钞图录'), `父类挂的文章随之加载：${JSON.stringify(ownReadmes.titles)}`);
   ok(tree.children.length === PLAN.length, `父类下正好 ${PLAN.length} 个子类（实际 ${tree.children.length}）`);
   const namesOk = JSON.stringify(tree.children.map(c => c.name)) === JSON.stringify(PLAN.map(p => p.name));
   ok(namesOk, `子类名称与顺序一致：${tree.children.map(c => c.name).join(' → ')}`);

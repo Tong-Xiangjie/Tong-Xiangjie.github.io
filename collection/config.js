@@ -47,6 +47,11 @@ const categoryTree = [
     {
         id: 'taiwan',
         name: '台币',
+        // ★ 父分类也可以有自己的数据文件 —— 只为挂文章（台币上的「台钞图录」）。
+        //   data-loader 的 walkTree 先收本节点的 dataKey/dataFile 再递归 children，
+        //   所以这里加 dataKey 不会顶掉子分类的数据；藏品仍然只来自 children。
+        dataKey: 'taiwanReadmeData',
+        dataFile: '../notecollection/data/taiwan_readme.js',
         // ★ 原来是一个文件 data/taiwan.js（7 个系列 457 行），现按系列拆成多个文件，
         //   台币从"叶子分类"变成"父分类"，与人民币按套、港币按银行同一个结构。
         //   前 7 条是有藏品的系列（顺序沿用原文件里 series 的书写顺序）；

@@ -454,13 +454,19 @@ function buildArticleCategoryTree() {
   for (const cat of categoryTree) {
     if (cat.children) {
       const children = [];
-      let parentTotal = 0;
+      let parentTotal = notesCount[cat.dataKey] || 0;
       for (const sub of cat.children) {
         const count = notesCount[sub.dataKey] || 0;
         parentTotal += count;
         if (count > 0) children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
       }
-      if (children.length > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + parentTotal + '篇）', children });
+      // ★ 父分类自己也能挂文章（如台币上的「台钞图录」）：父级自己的篇数也要算进父级，
+      //   并且父级只因子级有文章才出现的话，父级文章就永远看不见 —— 故用 parentTotal 判定。
+      //   父级条目带上自己的 dataKey，getFilteredArticles 的父级分支要用它取父级文章；
+      //   一个子级文章都没有时退回叶子形态（children: null），由叶子分支按 dataKey 过滤。
+      if (children.length > 0 || parentTotal > 0) {
+        articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + parentTotal + '篇）', dataKey: cat.dataKey || null, children: children.length > 0 ? children : null });
+      }
     } else {
       const count = notesCount[cat.dataKey] || 0;
       if (count > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + count + '篇）', dataKey: cat.dataKey, children: null });
@@ -473,13 +479,16 @@ function buildArticleCategoryTree() {
   for (const cat of coinCategoryTree) {
     if (cat.children) {
       const children = [];
-      let parentTotal = 0;
+      let parentTotal = coinsCount[cat.dataKey] || 0;
       for (const sub of cat.children) {
         const count = coinsCount[sub.dataKey] || 0;
         parentTotal += count;
         if (count > 0) children.push({ id: sub.id, name: sub.name + '（' + count + '篇）', dataKey: sub.dataKey });
       }
-      if (children.length > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + parentTotal + '篇）', children });
+      // ★ 与纸币那段同构：硬币父分类自己也能挂文章。
+      if (children.length > 0 || parentTotal > 0) {
+        articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + parentTotal + '篇）', dataKey: cat.dataKey || null, children: children.length > 0 ? children : null });
+      }
     } else {
       const count = coinsCount[cat.dataKey] || 0;
       if (count > 0) articleCategoryTree.push({ id: cat.id, name: cat.name + '（' + count + '篇）', dataKey: cat.dataKey, children: null });
@@ -1435,6 +1444,9 @@ function getFilteredArticles() {
     if (isParent) {
       const parentCat = articleCategoryTree.find(c => c.id === currentArticleCategory);
       const subKeys = parentCat && parentCat.children ? parentCat.children.map(s => s.dataKey || s.id) : [];
+      // ★ 父分类自己挂的文章也要列出来：父级条目现在带自己的 dataKey，补进 subKeys。
+      //   不补的话，点进"台币"只看得到子分类的文章，父级那篇（台钞图录）仍然不见。
+      if (parentCat && parentCat.dataKey && !subKeys.includes(parentCat.dataKey)) subKeys.push(parentCat.dataKey);
       articles = collectedArticles.filter(a => subKeys.includes(a.dataKey));
     } else {
       let targetDataKey = null;
