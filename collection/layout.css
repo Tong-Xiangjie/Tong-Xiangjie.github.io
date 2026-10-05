@@ -126,6 +126,26 @@ html.theme-anim {
                 --thumb-bg var(--dur-3) var(--ease-inout),
                 --row-hover-bg var(--dur-3) var(--ease-inout);
 }
+
+/* ★ 补间期间，元素自带的颜色过渡必须让位。
+   用户报："主题色变化时间不一样，整个网站的大背景的变化时间显然要长一些"。
+   根因：变量已经在插值了，而元素自己那条 transition 是在**追一个移动的目标**，
+   必然比变量晚到位。实测换主题色（#1677ff → #d92121）：
+     --bg / body 背景 335ms、--theme 365ms、.sidebar 349ms，
+     而 .content（自带 transition: background var(--dur-2)）到 494ms 才停。
+   为什么整条 transition 都关掉、而不是只挑颜色那几个属性：CSS 没法从一条
+   transition 简写里单独摘掉 background/color 而保留 transform/width。
+   代价是补间那 0.3s 内别的属性过渡也变成瞬时 —— 这个窗口是用户点一下触发的，
+   实际不会同时有别的动画在跑，可以接受。
+   两个例外必须保住，它们此刻正在动：
+     .seg-pill —— 明暗滑块正在滑，关掉就变硬切（刚做的功能就废了）；
+     .seg-btn  —— 选中项文字要跟着滑块渐白，关掉会"啪"地变白。 */
+html.theme-anim :not(.seg-pill):not(.seg-btn),
+html.theme-anim :not(.seg-pill):not(.seg-btn)::before,
+html.theme-anim :not(.seg-pill):not(.seg-btn)::after {
+    transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     html.theme-anim { transition: none; }
 }
@@ -2836,3 +2856,83 @@ textarea:focus-visible {
    special.js 里 `isMobile` 的 matchMedia 判断也必须是 768px，否则会出现
    "CSS 按手机排版、JS 按桌面排版"的错配（历史上 760/768 混用过）。
    ============================================================ */
+
+/* ============================================================
+   ★ 自绘滚动条（逻辑在 scrollbar.js）
+   为什么要自己写：原生滚动条**占布局宽度**。主滚动区一出现纵向滚动条，可用宽度
+   就少掉约 15px（Windows Chrome），整页内容横向缩一下 —— 用户原话："总是容易把
+   整个网站横向变窄一点点"。
+   所以这里在 **CSS 里提前**把这些滚动容器的原生纵向条收成 0 宽（不等 JS）：
+   否则首屏会先按"有原生条"的宽度排版，等 JS 发现并加 .cscroll-host 再收回，
+   宽度要弹一下 —— 那一下仍然是被压缩过的。
+   ★ 自绘条本身是 position: fixed 的浮层（见下面 .cscroll-bar），不参与布局，
+     所以内容区宽度**永远**不含滚动条。
+   ★ 这份清单列的是"本站的滚动容器"。其中 .view-scroll-container / #app 的 overflow
+     是 core.js / main.js 用**内联样式**给的（CSS 里搜不到 overflow-y:auto），
+     所以别指望靠 overflow 声明反推，这里按 class/id 直接提前收掉。
+   ★ 以后新增滚动容器，把选择器也加进这份清单（JS 也会兜底加 .cscroll-host，
+     但那是"先占宽后收回"，会闪；加在这里才是提前收掉）。
+   ============================================================ */
+.view-scroll-container,
+#app,
+.content,
+.sidebar,
+.symbol-panel,
+.price-list-body,
+.info-lightbox-inner,
+.octo-inner,
+.timeline-body,
+.cscroll-host {
+    scrollbar-width: none;          /* Firefox：收掉原生条（FF 不支持分轴，两个方向一起收） */
+    -ms-overflow-style: none;       /* 旧 Edge */
+}
+.view-scroll-container::-webkit-scrollbar,
+#app::-webkit-scrollbar,
+.content::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+.symbol-panel::-webkit-scrollbar,
+.price-list-body::-webkit-scrollbar,
+.info-lightbox-inner::-webkit-scrollbar,
+.octo-inner::-webkit-scrollbar,
+.timeline-body::-webkit-scrollbar,
+.cscroll-host::-webkit-scrollbar {
+    width: 0;                       /* ★ 只收纵向（width）：万一真有横向滚动的地方，
+                                       它的横向原生条仍然保留，不会失去指示 */
+    height: 0;
+}
+
+.cscroll-bar {
+    position: fixed;                /* ★ 不用 absolute：那要求容器是定位基准，
+                                       会把容器里绝对定位的后代（如 .tl-heatmap-tip）带偏 */
+    z-index: 60;                    /* 在内容之上、弹窗(1000)之下 */
+    border-radius: 999px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;           /* 不显示时不吃事件 */
+    transition: opacity var(--dur-2) var(--ease-out), visibility var(--dur-2);
+}
+.cscroll-bar.cscroll-on {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;           /* 显示时才可拖/可点 */
+}
+/* 滑块：比原生条细（视觉 6px，命中带是 10px，见 scrollbar.js 的 TRACK），
+   颜色用站点自己的 --text-secondary 调透明度 —— 会自动跟着明暗主题走，
+   不用为暗色再写一套。悬停/拖动时略微变粗变深，是"浮层滚动条"该有的反馈。 */
+.cscroll-thumb {
+    width: 6px;
+    height: 100%;
+    margin: 0 auto;                 /* 在 10px 命中带里居中 */
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.18);                                        /* 不支持 color-mix 时的兜底 */
+    background: color-mix(in srgb, var(--text-secondary, #888) 42%, transparent);
+    transition: width var(--dur-1) var(--ease-out), background-color var(--dur-1) ease;
+}
+.cscroll-bar:hover .cscroll-thumb,
+.cscroll-bar.cscroll-drag .cscroll-thumb {
+    width: 8px;
+    background: color-mix(in srgb, var(--text-secondary, #888) 68%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+    .cscroll-bar, .cscroll-thumb { transition: none; }
+}

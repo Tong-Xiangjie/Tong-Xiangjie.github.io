@@ -979,11 +979,25 @@ try {
     const canSwitch = typeof setColorSchemeMode === 'function';
     let lightColor = '', darkColor = '';
     const bg = () => isImg ? getComputedStyle(e).backgroundColor : getComputedStyle(e, '::before').backgroundColor;
+    // ★ 切完主题必须等颜色**稳定**再采：明暗切换现在带 0.3s 的颜色补间
+    //   （layout.css 用 @property 让变量逐帧插值），切完立刻读到的是切换前的值。
+    //   第一版就是在这里红的：浅色和深色采到同一个颜色。
+    const settleBg = async () => {
+      let last = bg(), stable = 0;
+      const t0 = Date.now();
+      while (Date.now() - t0 < 1500) {
+        await new Promise(r => setTimeout(r, 40));
+        const now = bg();
+        if (now === last) { if (++stable >= 3) return now; }
+        else { stable = 0; last = now; }
+      }
+      return last;
+    };
     if (canSwitch) {
       setColorSchemeMode('light');
-      lightColor = bg();
+      lightColor = await settleBg();
       setColorSchemeMode('dark');
-      darkColor = bg();
+      darkColor = await settleBg();
       setColorSchemeMode(prevMode);
     }
     return JSON.stringify({
