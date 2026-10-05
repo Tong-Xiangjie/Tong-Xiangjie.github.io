@@ -106,10 +106,13 @@ function renderSettingsPage() {
     html += `</div>`;
     html += `<span class="price-list-arrow${priceListOpen ? ' open' : ''}" id="priceListArrow">▼</span>`;
     html += `</div>`;
-    // ★ 汇总行与列表都按"当前的排序 + 筛选"渲染，和切换时走同一套计算
+    // ★ 汇总行与列表都按"当前的排序 + 筛选"渲染，和切换时走同一套计算。
+    //   初始状态必须和 setPriceSummaryShown 的口径一致：显示时带 .shown + max-height:none，
+    //   否则重渲染后它会因为 max-height:0 / opacity:0 直接看不见（.shown 才是"展开态"）。
     const priceData = currentPriceListData(allStats);
     const priceSummaryHtml = priceListSummaryHtml(priceData.filteredPrices, priceData.filterInfo);
-    html += `<div class="price-list-summary" id="priceListSummary" style="display:${priceData.filterInfo ? 'block' : 'none'};">${priceSummaryHtml}</div>`;
+    const sumShown = !!priceData.filterInfo;
+    html += `<div class="price-list-summary${sumShown ? ' shown' : ''}" id="priceListSummary" style="display:${sumShown ? 'block' : 'none'};max-height:${sumShown ? 'none' : '0px'};">${priceSummaryHtml}</div>`;
     html += `<div class="price-list-body${priceListOpen ? ' open' : ''}" id="priceListBody">`;
     html += renderPriceListItems(priceData.filteredPrices, priceSortOrder, priceFilter, priceData.filterInfo);
     html += `</div>`;
@@ -119,6 +122,9 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<div class="rating-section-header">`;
     html += `<div class="rating-tabs">`;
+    // ★ 会滑动的选中高亮块（和「明暗」那几个选项同一套，见 layoutSegmented）。
+    //   放在最前面，靠 z-index 压在两个 tab 下面。
+    html += `<span class="seg-pill" aria-hidden="true"></span>`;
     html += `<span class="rating-tab ${ratingMode === 'notes' ? 'active' : ''}" data-mode="notes" onclick="switchRatingMode('notes')">纸币</span>`;
     html += `<span class="rating-tab ${ratingMode === 'coins' ? 'active' : ''}" data-mode="coins" onclick="switchRatingMode('coins')">硬币</span>`;
     html += `</div>`;
@@ -348,12 +354,14 @@ function renderSegmented(id, label, options, current, onPickName) {
 // ★ 把滑块摆到当前选中项上。
 //   几何从按钮上量（不写死宽度）：选项文字长了、窗口缩放了、字体换了都能自动跟正。
 //   animate=true 时滑过去（用户点击），false 时直接到位（首帧 / 缩放 / 字体就绪）。
+//   ★ 选中项的类名不统一：.segmented 用 .seg-btn.active，「纸币/硬币」的 .rating-tabs
+//     用 .rating-tab.active，所以两种都认。
 function layoutSegmented(idOrBox, animate) {
     const box = (typeof idOrBox === 'string') ? document.getElementById(idOrBox) : idOrBox;
     if (!box || !box.querySelector) return;
     const pill = box.querySelector('.seg-pill');
     if (!pill) return;
-    const active = box.querySelector('.seg-btn.active');
+    const active = box.querySelector('.seg-btn.active, .rating-tab.active');
     // ★ 兜底：设置页有可能是在"还没显示"的时候渲染的（那时所有 rect 都是 0），
     //   或者宽度被字体/侧边栏影响。挂个 ResizeObserver，一有真实尺寸就重新量。
     //   这里不会有回环：滑块是绝对定位，改 --seg-w 不会反过来改变容器宽度。
@@ -385,7 +393,8 @@ function layoutSegmented(idOrBox, animate) {
 }
 
 function layoutAllSegmented(animate) {
-    document.querySelectorAll('.segmented').forEach(function (box) { layoutSegmented(box, animate); });
+    // ★ 带上 .rating-tabs（纸币/硬币）：它复用同一套 .seg-pill 滑块
+    document.querySelectorAll('.segmented, .rating-tabs').forEach(function (box) { layoutSegmented(box, animate); });
 }
 
 // 点完立刻更新高亮，不等整页重渲染
@@ -425,6 +434,82 @@ function toggleGridOriginal() {
     if (typeof invalidateRenderedViews === 'function') invalidateRenderedViews();
 }
 
+// ★ 展开时让**每一条**都错开淡入（用户要求，原来只动了前 6 条）。
+//   错开只排"一屏装得下"的那些行：屏幕外的行用户根本看不到，给它们排长延迟有两个坏处 ——
+//   ① 400 条 × 每行几毫秒会把整段拉成一两秒；② backwards 填充期间它们是隐藏的，
+//   用户这时候往下滚会看到一片空白。
+//   所以一屏之后的行延迟封顶（≈整个错开窗口），既不拖长也不会被"藏住"。
+//   延迟只能逐行写（CSS 的 nth-child 写到固定条数就到头了），所以结束时要清干净。
+function playPriceListRowsIn(body) {
+    if (!body) return;
+    if (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) return;
+    const rows = [...body.querySelectorAll('.price-list-item')];
+    if (!rows.length) return;
+    const ROW_H = 30;                                   // 见 .price-list-item 的高度
+    const perScreen = Math.max(1, Math.ceil((body.clientHeight || 420) / ROW_H));
+    const step = Math.max(8, Math.min(24, Math.round(260 / perScreen)));
+    const maxDelay = Math.min(rows.length, perScreen) * step;
+    rows.forEach((el, i) => {
+        el.style.animationDelay = Math.min(i, perScreen) * step + 'ms';
+        el.classList.add('pl-enter');
+    });
+    setTimeout(() => {
+        rows.forEach(el => {
+            el.classList.remove('pl-enter');
+            el.style.animationDelay = '';
+        });
+    }, 420 + maxDelay);
+}
+
+// ★ 汇总行的"下滑展开 / 上滑收起"（用户要求；原来是 display 硬切 + 一次性淡入）。
+//   display:none 是不能过渡的，所以：
+//     · 展开：先 display:block，max-height 从 0 量到自然高度，动画走完再放开成 none
+//       （放开是为了窗口变窄、文字换行时不被裁）。
+//     · 收起：从当前高度滑回 0，动画走完才 display:none。
+//   max-height 用实测值而不是写死的数字，换行/字号变化都不会被裁。
+//
+//   ★ 起滑必须推迟一帧（用户报"收起的动画有卡顿"）：切换筛选时，同一个任务里还要
+//     重建整张 394 行的价格列表并给每行挂 FLIP —— 那是几十毫秒的重活。如果滑动跟它
+//     抢同一帧，140/220ms 的动画头几帧直接被拖住，看起来就是卡顿。推到下一帧再起滑，
+//     重活先跑完，动画自己走得很干净。
+//   ★ 用双层 rAF（和 layoutSegmented 同一个套路）：单层有可能和"设起点"落在同一帧里
+//     被合并成一次样式计算，那样起止值只剩一个，动画根本不会发生。两层能保证中间
+//     隔了一次完整的样式/布局，起点一定生效。
+let priceSummaryTimer = null;
+let priceSummarySeq = 0;
+function afterNextPaint(fn) {
+    requestAnimationFrame(function () { requestAnimationFrame(fn); });
+}
+function setPriceSummaryShown(sum, show) {
+    if (!sum) return;
+    const seq = ++priceSummarySeq;                 // 期间又切了一次就以最后一次为准
+    if (priceSummaryTimer) { clearTimeout(priceSummaryTimer); priceSummaryTimer = null; }
+    const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
+    sum.classList.toggle('shown', show);
+    if (show) {
+        sum.style.display = 'block';
+        if (reduced) { sum.style.maxHeight = 'none'; return; }
+        // 先把起点定在 0（本帧就被样式计算吃掉），两帧后再放开到自然高度 —— 下滑展开
+        sum.style.maxHeight = '0px';
+        afterNextPaint(() => {
+            if (seq !== priceSummarySeq) return;
+            sum.style.maxHeight = sum.scrollHeight + 'px';
+            // 220ms（--dur-2）+ 余量：动画结束后放开高度上限
+            priceSummaryTimer = setTimeout(() => { sum.style.maxHeight = 'none'; priceSummaryTimer = null; }, 300);
+        });
+    } else {
+        if (reduced) { sum.style.maxHeight = ''; sum.style.display = 'none'; return; }
+        // 上一轮结束时可能是 none，先固定成当前高度，两帧后再滑到 0 —— 上滑收起
+        sum.style.maxHeight = sum.scrollHeight + 'px';
+        afterNextPaint(() => {
+            if (seq !== priceSummarySeq) return;
+            sum.style.maxHeight = '0px';
+            // 140ms（--dur-1）+ 余量：滑动结束再收掉 display
+            priceSummaryTimer = setTimeout(() => { sum.style.display = 'none'; sum.style.maxHeight = ''; priceSummaryTimer = null; }, 260);
+        });
+    }
+}
+
 function togglePriceList() {
     const body = document.getElementById('priceListBody');
     const arrow = document.getElementById('priceListArrow');
@@ -434,6 +519,9 @@ function togglePriceList() {
     priceListOpen = !priceListOpen;
     body.classList.toggle('open', priceListOpen);
     arrow.classList.toggle('open', priceListOpen);
+    // ★ 展开时全部条目错开进来（用户报的"展开缺少动画"：原来只有容器 max-height 在动，
+    //   行是一次性出现的，看着还是硬切）。
+    if (priceListOpen) playPriceListRowsIn(body);
 }
 
 function updateSettingsPageTheme(color) {

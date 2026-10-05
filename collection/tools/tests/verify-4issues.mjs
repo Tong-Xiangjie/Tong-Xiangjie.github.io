@@ -1126,6 +1126,82 @@ try {
      `★ 换主题色后滑块还在原位（渲染位置 ${beforeTheme.pillX} → ${pTheme.pillX}）`);
   }
 
+  // ══════════════ ⑭「纸币 / 硬币」的选中高亮也是滑动块 ══════════════
+  // ★ 用户要求："纸币 硬币 ←这个也做成滑动块"（和「明暗」那几个选项同一套 .seg-pill）。
+  //   这段其实和 ⑬ 是同一个机制，但换成 .rating-tabs / .rating-tab.active 这套类名，
+  //   所以"量选中项"的选择器容易漏 —— 这里就是专门盯着它别漏。
+  console.log('\n══════ ⑭ 纸币/硬币 高亮滑块 ══════');
+  {
+    const RPILL = `(()=>{ const box=document.querySelector('.rating-tabs');
+      if(!box) return JSON.stringify({ err:'没有 .rating-tabs' });
+      const pill=box.querySelector('.seg-pill');
+      const act=box.querySelector('.rating-tab.active');
+      if(!pill||!act) return JSON.stringify({ err:'缺少 .seg-pill 或 .rating-tab.active', hasPill:!!pill, hasActive:!!act });
+      const cs=getComputedStyle(pill), bb=box.getBoundingClientRect();
+      const pb=pill.getBoundingClientRect(), ab=act.getBoundingClientRect();
+      return JSON.stringify({ active: act.dataset.mode, mode: (typeof ratingMode!=='undefined')?ratingMode:'?',
+        tabs: [...box.querySelectorAll('.rating-tab')].map(t=>t.dataset.mode),
+        transitionProperty: cs.transitionProperty, transitionDuration: cs.transitionDuration,
+        pillBg: cs.backgroundColor, theme: getComputedStyle(document.documentElement).getPropertyValue('--theme').trim(),
+        pillX: Math.round(pb.left-bb.left), btnX: Math.round(ab.left-bb.left),
+        dx: Math.round(pb.left-ab.left), dw: Math.round(pb.width-ab.width),
+        // ★ 两项之间不能有竖线：滑块在下面，线在 z-index 之上会从滑块上划过去（用户报过）
+        tabBorderRight: getComputedStyle(act).borderRightWidth,
+        所有竖线: [...box.querySelectorAll('.rating-tab')].map(t=>getComputedStyle(t).borderRightWidth),
+        // 滑块要和它盖住的那个 tab 完全重合（否则会在边上露出一条底色）
+        pillCoverX: Math.round(pb.left-ab.left), pillCoverW: Math.round(pb.width-ab.width),
+        activeBg: getComputedStyle(act).backgroundColor,
+        title: (document.querySelector('.rating-section-header h3')||{}).textContent||'' }); })()`;
+
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+    await boot('notes/overview');
+    await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
+    const r0 = JSON.parse(await evaluate(RPILL));
+    console.log(`  ${JSON.stringify({ active: r0.active, pillX: r0.pillX, btnX: r0.btnX, dx: r0.dx, dw: r0.dw, pillBg: r0.pillBg })}`);
+    ok(!r0.err, `纸币/硬币渲染出滑块（${r0.err || 'ok'}）`);
+    if (!r0.err) {
+      ok(r0.title === '评级得分统计', `⑭ 就是「评级得分统计」那一块（标题「${r0.title}」）`);
+      ok(r0.tabs.join('/') === 'notes/coins', `⑭ 两个选项是 纸币/硬币（data-mode=${r0.tabs.join('/')}）`);
+      ok(Math.abs(r0.dx) <= 1 && Math.abs(r0.dw) <= 1,
+        `★ ⑭ 滑块与选中项几何一致（偏差 dx=${r0.dx} dw=${r0.dw}）——几何是量出来的`);
+      ok(r0.pillBg === r0.theme, `★ ⑭ 滑块用的是主题色（${r0.pillBg} = --theme ${r0.theme}）`);
+      ok(r0.activeBg === 'rgba(0, 0, 0, 0)', `★ ⑭ 选中 tab 自身背景透明（高亮由滑块画，否则两块）—— 实际 ${r0.activeBg}`);
+      ok(r0.所有竖线.every(w => w === '0px'),
+        `★ ⑭ 两个选项之间没有竖线（滑块才不会被一条线划过去）—— 实际 ${JSON.stringify(r0.所有竖线)}`);
+      ok(/transform/.test(r0.transitionProperty) && parseFloat(r0.transitionDuration) > 0,
+        `⑭ 滑块有 transform 过渡（${r0.transitionProperty} / ${r0.transitionDuration}）`);
+
+      // 点「硬币」：滑块要滑过去，不是原地换色
+      const other = r0.active === 'notes' ? 'coins' : 'notes';
+      await evaluate(`(()=>{ const t=document.querySelector('.rating-tab[data-mode=${JSON.stringify(other)}]'); t.click(); return true; })()`);
+      await sleep(80);
+      const rMid = JSON.parse(await evaluate(RPILL));
+      await sleep(700);
+      const r1 = JSON.parse(await evaluate(RPILL));
+      console.log(`  点「${other}」：${r0.pillX} → 中途 ${rMid.pillX} → ${r1.pillX}（目标 ${r1.btnX}）`);
+      ok(r1.active === other && r1.mode === other, `★ ⑭ 点击后高亮与统计模式都切到「${other}」（${r1.active}/${r1.mode}）`);
+      ok(Math.abs(r1.dx) <= 1 && Math.abs(r1.dw) <= 1, `★ ⑭ 滑到位后与新选中项几何一致（偏差 dx=${r1.dx} dw=${r1.dw}）`);
+      ok(r1.pillX !== r0.pillX, `★ ⑭ 滑块真的移动了（${r0.pillX} → ${r1.pillX}），不是原地换色`);
+      const lo = Math.min(r0.pillX, r1.pillX), hi = Math.max(r0.pillX, r1.pillX);
+      ok(rMid.pillX > lo && rMid.pillX < hi, `★ ⑭ 中途那一帧夹在起终点之间 = 确实在滑动（${r0.pillX} → ${rMid.pillX} → ${r1.pillX}）`);
+
+      // 重渲染后（切板块往返）滑块还得在位，不能跑到最左边
+      await evaluate(`(()=>{ onTabClick('coins'); return true; })()`); await sleep(2200);
+      await evaluate(`(()=>{ onTabClick('settings'); return true; })()`); await sleep(2600);
+      const r2 = JSON.parse(await evaluate(RPILL));
+      ok(r2.active === other && Math.abs(r2.dx) <= 1,
+        `★ ⑭ 重渲染后滑块仍在选中项上（active=${r2.active} 偏差 dx=${r2.dx}）`);
+
+      // 减弱动效：不许有过渡，但位置照旧
+      await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+      await sleep(200);
+      const rRed = JSON.parse(await evaluate(RPILL));
+      ok(rRed.transitionDuration === '0s' || rRed.transitionProperty === 'none',
+        `★ ⑭ 减弱动效时滑块不过渡（${rRed.transitionProperty} / ${rRed.transitionDuration}）`);
+      ok(Math.abs(rRed.dx) <= 1, `⑭ 减弱动效时位置照样对（偏差 ${rRed.dx}）`);
+    }
+  }
+
   // 收尾：媒体模拟恢复默认，免得影响后续用例
   await send('Emulation.setEmulatedMedia', { features: [] });
 

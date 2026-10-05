@@ -286,6 +286,26 @@ function filterPricesByCategory(prices, filterInfo) {
     return prices.filter(p => p.dataKey === wantKey && (!wantSource || p.type === wantSource));
 }
 
+// ★ (dataKey, source) → 分类显示名，给价格列表每条加"大类"前缀用。
+//   价格条目自己只带 dataKey + type（见 computeStats 里 prices.push 的字段），
+//   要显示"纪念钞 - …"、"人民币 - 第三套人民币 - …"就得回到分类树上取名字
+//   （buildPriceFilterCategories 生成的名字正好就是这个格式，筛选下拉里用的也是它）。
+//   取名字这一段是纯查表，缓存一次即可（分类树是静态的）。
+let priceCategoryLabelCache = null;
+function priceCategoryLabel(dataKey, source) {
+    if (!dataKey) return '';
+    if (!priceCategoryLabelCache) {
+        priceCategoryLabelCache = new Map();
+        for (const cat of buildPriceFilterCategories()) {
+            const k = cat.source + '|' + cat.dataKey;
+            // 同一个 (dataKey, source) 可能被多个分类条目指到（同名系列散落在不同子类里），
+            // 保留第一个即可：前缀只是"告诉用户这条属于哪个大类"，不参与筛选。
+            if (!priceCategoryLabelCache.has(k)) priceCategoryLabelCache.set(k, cat.name);
+        }
+    }
+    return priceCategoryLabelCache.get(source + '|' + dataKey) || '';
+}
+
 function renderPriceListItems(prices, order, filter, filterInfo) {
     // prices 已由调用方按分类筛好（避免这里再筛一次导致汇总与列表不同源）
     const filteredPrices = prices;
@@ -304,9 +324,14 @@ function renderPriceListItems(prices, order, filter, filterInfo) {
     for (let i = 0; i < sorted.length; i++) {
         const p = sorted[i];
         const displayPrice = p.noPrice ? '-' : p.value + '元';
-        const nameHtml = escapeHtml(p.name);
+        // ★ 带上大类前缀（用户要求）："纪念钞 - 澳门格兰披治大奖赛35周年纪念钞 (KP04057)"、
+        //   "人民币 - 第三套人民币 - 1960年 1角 枣红"。分类名本身可能已经带一层
+        //   "父 - 子"，所以拼起来自然就是两段式。
+        const catLabel = priceCategoryLabel(p.dataKey, p.type);
+        const nameHtml = escapeHtml(catLabel ? catLabel + ' - ' + p.name : p.name);
         const versionHtml = p.version ? escapeHtml(p.version) : '';
-        html += `<div class="price-list-item">`;
+        // data-pl-key：切换排序/筛选时用 FLIP 认人（同一行换位置要能认出来）
+        html += `<div class="price-list-item" data-pl-key="${escapeHtml(p.name + '|' + (p.version || ''))}">`;
         html += `<span class="price-list-index">${i + 1}</span>`;
         html += `<span class="price-list-name">${nameHtml}${versionHtml ? ' (' + versionHtml + ')' : ''}</span>`;
         html += `<span class="price-list-value ${p.noPrice ? 'no-price' : ''}">${displayPrice}</span>`;
@@ -338,16 +363,64 @@ function onPriceSortOrFilterChange() {
     if (filterSelect.value !== priceFilter) filterSelect.value = priceFilter;
 
     if (summaryEl) {
-        summaryEl.style.display = data.filterInfo ? 'block' : 'none';
         summaryEl.innerHTML = priceListSummaryHtml(data.filteredPrices, data.filterInfo);
+        // ★ 汇总行的进出改成"下滑展开 / 上滑收起"（用户要求，见 settings.js 的
+        //   setPriceSummaryShown）；原来这里是 display 硬切 + 一次性淡入。
+        setPriceSummaryShown(summaryEl, !!data.filterInfo);
+    }
+
+    // ★ 换了排序或筛选就是另一批内容了，旧的滚动位置没有意义（会停在一条
+    //   和刚才完全无关的条目上），所以这里先回到顶部 —— 顺序很重要：
+    //   必须在记录旧位置**之前**归零，否则 FLIP 记下的是"滚动过"的坐标，动画会整体错位。
+    priceListScrollTop = 0;
+    bodyEl.scrollTop = 0;
+
+    const before = new Map();
+    for (const el of bodyEl.querySelectorAll('.price-list-item')) {
+        before.set(el.getAttribute('data-pl-key') || '', el.getBoundingClientRect().top);
     }
 
     bodyEl.innerHTML = renderPriceListItems(data.filteredPrices, priceSortOrder, priceFilter, data.filterInfo);
 
-    // ★ 换了排序或筛选就是另一批内容了，旧的滚动位置没有意义（会停在一条
-    //   和刚才完全无关的条目上），所以这里显式回到顶部，并把记忆一起清零。
-    priceListScrollTop = 0;
-    bodyEl.scrollTop = 0;
+    // ★ 切换排序/筛选的 FLIP 动画（用户报的"切换缺少动画"）：
+    //   原来是直接换 innerHTML —— 整片内容瞬间跳到新顺序，没有任何过渡。
+    //   做法和"币海拾年"的条目动画同一套：换内容前记下每行的位置（data-pl-key 认人），
+    //   换完先把行摆回旧位置（transform，不带过渡），下一帧放开让它滑到新位置。
+    animatePriceListRows(bodyEl, before);
+}
+
+// 见 onPriceSortOrFilterChange 末尾的说明
+function animatePriceListRows(bodyEl, before) {
+    if (!bodyEl) return;
+    const reduced = (typeof prefersReducedMotion === 'function') && prefersReducedMotion();
+    const rows = [...bodyEl.querySelectorAll('.price-list-item')];
+    rows.forEach(el => {
+        const oldTop = before.get(el.getAttribute('data-pl-key') || '');
+        if (oldTop === undefined) {
+            // 这次筛选新进来的行：淡入 + 轻微上移
+            if (!reduced) {
+                el.classList.add('pl-enter');
+                setTimeout(() => el.classList.remove('pl-enter'), 320);
+            }
+            return;
+        }
+        const dy = Math.round(oldTop - el.getBoundingClientRect().top);
+        if (reduced || !dy) return;
+        el.style.transition = 'none';
+        el.style.transform = 'translateY(' + dy + 'px)';
+        requestAnimationFrame(() => {
+            el.style.transition = 'transform var(--dur-3) var(--ease-out)';
+            el.style.transform = '';
+            // 动画结束把内联样式清干净（用例里明确断言"动画结束后不留内联 style"）
+            const done = () => {
+                el.style.transition = '';
+                el.style.transform = '';
+                el.removeEventListener('transitionend', done);
+            };
+            el.addEventListener('transitionend', done);
+            setTimeout(done, 600);        // 兜底：过渡被打断（比如用户又切了一次）也要清掉
+        });
+    });
 }
 
 
@@ -358,6 +431,12 @@ function switchRatingMode(mode) {
     document.querySelectorAll('.rating-tab').forEach(el => {
         el.classList.toggle('active', el.dataset.mode === mode);
     });
+
+    // ★ 纸币/硬币 的选中高亮是"滑动块"（用户要求）：切完高亮，把滑块滑到新的 tab 上。
+    //   和「明暗」那几个选项共用 layoutSegmented（几何是从 tab 上量的，不写死宽度）。
+    if (typeof layoutSegmented === 'function') {
+        layoutSegmented(document.querySelector('.rating-tabs'), true);
+    }
 
     const gradeSection = document.getElementById('ratingSection');
     if (gradeSection) {
