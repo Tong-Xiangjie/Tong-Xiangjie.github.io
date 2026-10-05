@@ -247,11 +247,15 @@ if (process.env.GITHUB_ACTIONS) {
                     : `异常退出（exit=${r.code}，不是 0/1/2/3 —— 多半是崩了或未结算的顶层 await）`));
         const short = r.label.replace(/^verify-/, '').replace(/\.mjs$/, '');
         // ★ 把失败断言逐条带上（`:：%` 这类字符要转义，否则会把注解截断）
-        const detail = (r.failLines && r.failLines.length)
-            ? `；失败断言（共 ${r.failCount} 条）：` + r.failLines.map(l => l.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 220)).join(' ｜ ')
-            : ((r.tail && r.tail.length)
-                ? '；输出尾部：' + r.tail.map(l => l.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 220)).join(' ｜ ')
-                : '');
+        // ★ 还要带上用例打印的 `! ...` 行（未捕获异常的原文和调用栈就在那里）。
+        //   之前只带 ✗ 行，CI 上只能看到"全程无未捕获异常（1 条）"却不知道是谁抛的，
+        //   白跑一轮 20 分钟。日志要鉴权下载，注解是唯一能匿名读到的通道。
+        const esc = (l) => l.replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 260);
+        const bang = (r.tail || []).filter(l => /^\s*!/.test(l)).slice(0, 3).map(esc);
+        const detail = ((r.failLines && r.failLines.length)
+            ? `；失败断言（共 ${r.failCount} 条）：` + r.failLines.map(esc).join(' ｜ ')
+            : ((r.tail && r.tail.length) ? '；输出尾部：' + r.tail.map(esc).join(' ｜ ') : ''))
+            + (bang.length ? '；异常/附加输出：' + bang.join(' ｜ ') : '');
         console.log(`::error title=${r.label} 失败（exit=${r.code}）::${why}${detail}；本地复现：node collection/tools/tests/run.mjs --only ${short}`);
     }
     for (const r of results) {
