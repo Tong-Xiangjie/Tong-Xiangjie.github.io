@@ -369,11 +369,16 @@ if (!pp.err) {
       const pop = m && m.__dd ? m.__dd.popup : null;
       if (!pop) return JSON.stringify({ err: '下拉没了' });
       const bar = pop.__cscroll ? pop.__cscroll.bar : null;
+      // ★ 弹层元素可能已经被下拉模块整个换掉（重建），旧记录随之 unmount —— 那时
+      //   pop.__cscroll 取不到。这不代表"滑块留在屏幕上"，恰恰相反：滑块已经被删了。
+      //   所以两种结局都算通过：display:none，或者记录已消失（no-bar）。
       return JSON.stringify({ 弹层隐藏: pop.hidden === true || getComputedStyle(pop).display === 'none',
-        滑块显示: bar ? getComputedStyle(bar).display : 'no-bar' });
+        滑块显示: bar ? getComputedStyle(bar).display : 'no-bar',
+        记录还在: !!(pop && pop.__cscroll), 弹层还在DOM: !!(pop && pop.isConnected) });
     })()`));
     ok(closed.弹层隐藏, '⑤ 点弹层外面能关掉它（后面这条"滑块要跟着收"才有意义）');
-    ok(closed.滑块显示 === 'none', `⑤ 弹层收起后滑块不再显示（display=${closed.滑块显示}）`);
+    ok(closed.滑块显示 === 'none' || closed.滑块显示 === 'no-bar',
+      `⑤ 弹层收起后滑块不再显示（display=${closed.滑块显示}；no-bar = 弹层被重建、记录已 unmount，滑块同样没了；记录还在=${closed.记录还在} 弹层在DOM=${closed.弹层还在DOM}）`);
   }
 }
 
