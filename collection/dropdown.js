@@ -353,7 +353,13 @@
     // ---------- 自动接管全部 <select> ----------
     function scan() {
         var list = document.querySelectorAll('select');
-        for (var i = 0; i < list.length; i++) enhance(list[i]);
+        for (var i = 0; i < list.length; i++) {
+            // ★ 兜底：增强中途抛错时，这个 select 没有 .dd-native，会被 CSS 里那条
+            //   "细指针环境提前藏掉原生 select"的规则藏起来 —— 那就是"什么都没有"。
+            //   所以失败时显式放它出来（.dd-fail 在 layout.css 里）。
+            try { enhance(list[i]); }
+            catch (e) { try { list[i].classList.add('dd-fail'); } catch (e2) { } }
+        }
     }
     var raf = 0;
     function schedule() {

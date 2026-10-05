@@ -3085,13 +3085,21 @@ textarea:focus-visible {
    ★ 压扁靠的是 .dd-label 的 min-width:0 + ellipsis：flex 子项默认 min-width:auto
      会被内容撑开，固定宽度就形同虚设 —— 这一条是"写不下就压扁"的关键。
    ============================================================ */
-/* ★ 原生 <select> 从**一开始**就藏起来，不等 dropdown.js 增强。
-   模块是异步增强的（DOM 变动 → 防抖 → 下一帧），新渲染出来的那一下原生控件会先露脸：
-   用户报的"拾年专题切一次时间会闪现老的下拉栏，再恢复正常"就是这 100 多毫秒。
-   全站每一个 <select> 都会被增强（dropdown.js 扫 document.querySelectorAll('select')），
-   提前藏掉不会漏掉谁；增强之后 .dd-native 依然是 display:none。 */
-select {
-    display: none;
+/* ★ 原生 <select> 的提前隐藏**只限细指针（鼠标）环境**，不能无条件藏。
+  dropdown.js 开头就有一句：pointer: coarse（触屏）时直接不接管 —— 移动端靠的就是
+  系统原生下拉（"触屏就用系统原生的，更好用"）。无条件藏掉的话，移动端就成了
+  "自绘的不出现、原生的也被禁用"，什么都不剩。用户实测报过这一条。
+  条件与 JS 那句对齐（JS 判 coarse，这里用 fine），且媒体特性不支持时不匹配 ——
+  即"藏不掉"这个方向是安全的（宁可闪一下原生控件，也不能什么都不显示）。
+  下面那条 .dd-fail 是给增强中途抛错的 select 兜底：那时它没有 .dd-native，
+  会被上面的规则藏掉，必须显式放出来。 */
+@media (pointer: fine) {
+    select {
+        display: none;
+    }
+}
+.dd-fail {
+    display: block !important;
 }
 .dd-native {
     display: none !important;

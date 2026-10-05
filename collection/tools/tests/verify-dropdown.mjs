@@ -33,8 +33,13 @@ ok(/\.dd-native\s*\{[^}]*display\s*:\s*none/.test(css),
 // ★ 用户报的"拾年专题切一次时间会闪现老的下拉栏，再恢复正常"：
 //   模块是异步增强的（DOM 变动 → 防抖 → 下一帧），刚渲染出来的 <select> 会先以原生样子露脸。
 //   修法两道：① CSS 里**从一开始**就藏掉原生 select；② 防抖窗口从 120ms 收到 32ms。
-ok(/^\s*select\s*\{[^}]*display\s*:\s*none/m.test(css.replace(/\/\*[\s\S]*?\*\//g, '')),
-  '★ ① 原生 select 从一开始就是 display:none（不等异步增强，否则新渲染的下拉会先闪一下原生控件）');
+// ★ 用户报的"移动端自绘下拉不出现、原生的也被禁用"：
+//   dropdown.js 对 pointer:coarse（触屏）**故意不接管**，移动端靠的就是系统原生下拉。
+//   所以"提前藏掉原生 select"这件事只能在 pointer:fine 下做，且媒体的不匹配方向要是安全的。
+ok(/@media\s*\(pointer:\s*fine\)\s*\{[^}]*?select\s*\{[^}]*?display\s*:\s*none/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')),
+  '★ ① 原生 select 的提前隐藏只在 pointer:fine（鼠标）下生效 —— 触屏那台设备必须留着系统原生下拉');
+ok(/\.dd-fail\s*\{[^}]*display\s*:\s*block\s*!important/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')) && /classList\.add\('dd-fail'\)/.test(js),
+  '★ ① 增强抛错时有兜底：失败的 select 加 .dd-fail 显式放出来（否则它同样会被那条规则藏掉）');
 const ddDebounce = (js.match(/mo\.__t\s*=\s*setTimeout\([\s\S]{0,160}?,\s*(\d+)\s*\)/) || [])[1];
 ok(ddDebounce !== undefined && Number(ddDebounce) <= 40,
   `★ ① 增强的防抖窗口收到 ${ddDebounce}ms（≤40ms；原来是 120ms，新控件要露脸一瞬）`);
@@ -425,6 +430,35 @@ else {
     ok(SWAP.内容变了 === true, '★ ⑧ 换年份后时间轴内容真的重新渲染了（既有 onTimelineFilterChange 链路完好）');
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// ⑩ 触屏（pointer: coarse）：模块"故意不接管"，必须留着系统原生下拉
+//    用户实测报过：「移动端显示不出来自己写的下拉栏，原生的也被禁用了」——
+//    起因就是有人把原生 select 无条件 display:none 了。
+console.log('\n══════ ⑩ 触屏环境下不能什么都不显示 ══════\n');
+// ★ pointer 这个媒体特性用 Emulation.setEmulatedMedia 模拟不了（实测 CSS 与 matchMedia 都不变），
+//   必须用触摸模拟：它才会把 primary pointer 变成 coarse。
+await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+await send('Emulation.setEmulatedMedia', { features: [
+    { name: 'prefers-reduced-motion', value: 'no-preference' }
+] });
+await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#settings` });
+for (let i = 0; i < 140; i++) { const r = await evaluate(`document.readyState === 'complete' && document.querySelectorAll('select').length > 0`).catch(() => false); if (r) break; await sleep(120); }
+await sleep(1500);
+const COARSE = JSON.parse(await evaluate(`(()=>{
+  const sels = [...document.querySelectorAll('select')];
+  const 可见 = sels.filter(s => { const cs = getComputedStyle(s); return cs.display !== 'none' && cs.visibility !== 'hidden'; });
+  return JSON.stringify({ coarse: window.matchMedia('(pointer: coarse)').matches, fine: window.matchMedia('(pointer: fine)').matches,
+    select数: sels.length, 可见: 可见.length,
+    触发器: document.querySelectorAll('.dd-trigger').length,
+    弹出层: document.querySelectorAll('.dd-popup').length,
+    首个: 可见[0] ? ((可见[0].id || '(无id)') + ' display=' + getComputedStyle(可见[0]).display) : '（没有可见的 select）' });
+})()`));
+console.log(`  触屏模拟：pointer:coarse=${COARSE.coarse} / pointer:fine=${COARSE.fine}；select ${COARSE.select数} 个、可见 ${COARSE.可见} 个；自绘触发器 ${COARSE.触发器} 个；首个可见 ${COARSE.首个}`);
+ok(COARSE.select数 > 0 && COARSE.可见 === COARSE.select数,
+  `★ ⑩ 触屏下原生 select 全部可见（${COARSE.可见}/${COARSE.select数}）—— 这是移动端唯一能用的下拉控件，一个都不能藏`);
+ok(COARSE.触发器 === 0 && COARSE.弹出层 === 0,
+  `⑩ 触屏下确实不自绘（触发器 ${COARSE.触发器}、弹出层 ${COARSE.弹出层}，与 dropdown.js 的 pointer:coarse 判断一致）`);
 
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
