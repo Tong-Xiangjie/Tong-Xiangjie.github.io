@@ -417,7 +417,9 @@ const hangSengData = {
 
 **配套约定：**
 - 图片放 `notecollection/image/hang_seng/`，数据里填完整站点 URL（`https://tong-xiangjie.github.io/notecollection/image/hang_seng/xxx.jpg`）或相对路径，`getImageUrl` 自动识别子目录
-- 文章正文 txt 放 `notecollection/readmes/`，数据里 `content: "file:readmes/xxx.txt"`
+- 文章正文放 `notecollection/readmes/`（**统一用 .html 后缀**，里面就是原始 HTML），数据里 `content: "file:readmes/xxx.html"`
+  - 大类下的文章：在数据文件**顶层**加 `readmes: [{ title, content }]`（如 `notecollection/data/taiwan.js` 的「台钞图录」）
+  - 系列 / 品种下的文章：分别放在 `series[].readmes` / `series[].varieties[].readmes`
 - 若数据文件全局变量名 ≠ dataKey（罕见情况），叶子节点补 `dataVar` 字段
 
 ### 新增一个硬币分类

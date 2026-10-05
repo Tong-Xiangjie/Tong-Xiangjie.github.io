@@ -77,7 +77,9 @@ function walkTxt(dir, out) {
     let st;
     try { st = statSync(full); } catch { continue; }
     if (st.isDirectory()) walkTxt(full, out);
-    else if (name.toLowerCase().endsWith('.txt')) out.push(full);
+    // ★ 文章的正文后缀统一成了 .html（原来是 .txt）。条件写成"不是图片就行"，
+    //   以后再统一后缀也不用回来改这里 —— 这目录下除 image/ 外全是正文。
+    else if (/\.(txt|html?)$/i.test(name) && !/\.(png|jpe?g|webp|gif|svg)$/i.test(name)) out.push(full);
   }
   return out;
 }

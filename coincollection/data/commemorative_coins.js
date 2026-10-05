@@ -519,7 +519,7 @@ const coincommData = {
                     varietyName: "三江源国家公园",
                     readme: {
                         title: "三江源国家公园纪念币发行公告",
-                        content: "file:readmes/2023_sanjiangyuan_giantpanda_release.txt"
+                        content: "file:readmes/2023_sanjiangyuan_giantpanda_release.html"
                     },
                     copies: [
                         {
@@ -549,7 +549,7 @@ const coincommData = {
                     varietyName: "大熊猫国家公园",
                     readme: {
                         title: "大熊猫国家公园纪念币发行公告",
-                        content: "file:readmes/2023_sanjiangyuan_giantpanda_release.txt"
+                        content: "file:readmes/2023_sanjiangyuan_giantpanda_release.html"
                     },
                     copies: [
                         {
@@ -579,7 +579,7 @@ const coincommData = {
                     varietyName: "东北虎豹国家公园",
                     readme: {
                         title: "东北虎豹国家公园纪念币发行公告",
-                        content: "file:readmes/2024_northeast_tiger_leopard_release.txt"
+                        content: "file:readmes/2024_northeast_tiger_leopard_release.html"
                     },
                     copies: []
                 },
@@ -587,7 +587,7 @@ const coincommData = {
                     varietyName: "海南热带雨林国家公园",
                     readme: {
                         title: "海南热带雨林国家公园纪念币发行公告",
-                        content: "file:readmes/2025_hainan_rainforest_release.txt"
+                        content: "file:readmes/2025_hainan_rainforest_release.html"
                     },
                     copies: []
                 },
@@ -595,7 +595,7 @@ const coincommData = {
                     varietyName: "武夷山国家公园",
                     readme: {
                         title: "武夷山国家公园纪念币发行公告",
-                        content: "file:readmes/2026_wuyishan_release.txt"
+                        content: "file:readmes/2026_wuyishan_release.html"
                     },
                     copies: []
                 }

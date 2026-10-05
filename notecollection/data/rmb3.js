@@ -20,7 +20,7 @@ const rmb3Data = {
     ],
     readme: {
         title: "第三套人民币纸币暗记汇总",
-        content: "file:readmes/3rd_Series_RMB_Secret_Marks_Summary.txt"
+        content: "file:readmes/3rd_Series_RMB_Secret_Marks_Summary.html"
     },
     series: [
         // ==================== 1角系列 ====================

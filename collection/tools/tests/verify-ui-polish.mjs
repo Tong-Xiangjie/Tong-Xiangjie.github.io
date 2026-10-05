@@ -218,7 +218,7 @@ if (mapOk) {
 
 // ─────────── ③ 文章表头在黑夜模式下看得清 ───────────
 console.log('\n══════ ③ 文章表头（黑夜模式）══════\n');
-const txt = await readFile('notecollection/readmes/amsx_2020.txt', 'utf8').catch(() => '');
+const txt = await readFile('notecollection/readmes/amsx_2020.html', 'utf8').catch(() => '');
 ok(/<table[^>]*border="1"/.test(txt) && /<th>/.test(txt), '① 找到「鼠年生肖贺岁钞」那张表的原始 HTML');
 await boot('notes');
 await setScheme('dark');

@@ -23,7 +23,7 @@ const hk_bocData = {
             year: "1994～2001",
             readme: {
                 title: "新时期中国银行纸币——港币",
-                content: "file:readmes/hk_boc_1994.txt"
+                content: "file:readmes/hk_boc_1994.html"
             },
             varieties: [
                 {

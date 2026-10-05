@@ -3,6 +3,9 @@ const taiwanData = {
     name: "台币",
     icon: null,
     desc: "Taiwan Currency",
+    readmes: [
+        { title: "台钞图录", content: "file:readmes/taiwan_index_of_taiwan_dollar.html" }
+    ],
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行方" },

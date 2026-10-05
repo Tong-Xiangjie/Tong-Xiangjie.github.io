@@ -24,7 +24,7 @@ const republic_mfrcData = {
             year: "1949",
             readme: {
                 title: "定期有利国库券章程",
-                content: "file:readmes/mfrc_ibtn.txt"
+                content: "file:readmes/mfrc_ibtn.html"
             },
             varieties: [
                 {

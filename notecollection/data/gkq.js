@@ -13,12 +13,12 @@ const gkqData = {
         { key: "krause", label: "纸币目录编号" }
     ],
     readmes: [
-        { title: "浅谈国库券 | 一、概述和市场情况", content: "file:readmes/gkq_1.txt" },
-        { title: "浅谈国库券 | 二、早期的分析（1981-1984）", content: "file:readmes/gkq_2.txt" },
-        { title: "浅谈国库券 | 三、中期的分析（1985-1989）", content: "file:readmes/gkq_3.txt" },
-        { title: "浅谈国库券 | 四、后期（1990-1991）", content: "file:readmes/gkq_4.txt" },
-        { title: "浅谈国库券 | 五、大面值国库券（1992-1994）", content: "file:readmes/gkq_5.txt" },
-        { title: "浅谈国库券 | 六、最后的国库券（1995-1997）", content: "file:readmes/gkq_6.txt" }
+        { title: "浅谈国库券 | 一、概述和市场情况", content: "file:readmes/gkq_1.html" },
+        { title: "浅谈国库券 | 二、早期的分析（1981-1984）", content: "file:readmes/gkq_2.html" },
+        { title: "浅谈国库券 | 三、中期的分析（1985-1989）", content: "file:readmes/gkq_3.html" },
+        { title: "浅谈国库券 | 四、后期（1990-1991）", content: "file:readmes/gkq_4.html" },
+        { title: "浅谈国库券 | 五、大面值国库券（1992-1994）", content: "file:readmes/gkq_5.html" },
+        { title: "浅谈国库券 | 六、最后的国库券（1995-1997）", content: "file:readmes/gkq_6.html" }
     ],
     series: [
         // ==================== 1982年 ====================
@@ -27,7 +27,7 @@ const gkqData = {
             year: "1982",
             readme: {
                 title: "中华人民共和国一九八二年国库券条例",
-                content: "file:readmes/gkq_1982_ordinance.txt"
+                content: "file:readmes/gkq_1982_ordinance.html"
             },
             varieties: [
                 {
@@ -225,7 +225,7 @@ const gkqData = {
             year: "1993",
             readme: {
                 title: "跟着纸币游中国 | 深圳火车站",
-                content: "file:readmes/20260807_shenzhenzhan.txt"
+                content: "file:readmes/20260807_shenzhenzhan.html"
             },
             varieties: [
                 {

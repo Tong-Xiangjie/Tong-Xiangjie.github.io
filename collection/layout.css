@@ -918,7 +918,7 @@ body {
 .article-reader p { margin: 12px 0; }
 .article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); cursor: zoom-in; }
 .article-reader center { display: block; text-align: center; }
-/* ★ 文章正文里的表格：正文是 readmes/*.txt 里的**原始 HTML**，里面写死了浅色底，
+/* ★ 文章正文里的表格：正文是 readmes/*.html 里的**原始 HTML**，里面写死了浅色底，
    50 篇里 31 篇有表、共 49 张，其中 38 行的表头写成
      <tr style="background-color: #f5f7fa; …">      （另有 2 × #fafbfc）
    黑夜模式下正文是浅色字（--text: #e8eaed），压在写死的浅色底上就看不见了 ——
