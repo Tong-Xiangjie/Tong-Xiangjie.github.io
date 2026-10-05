@@ -18,7 +18,12 @@ import { join } from 'node:path';
 import { createServer } from 'node:http';
 
 const LIVE = process.env.LIVE === '1';
-const ROOT = 'C:/Users/57891/tong-xiangjie.github.io';
+// ★ 这里原来写死了开发机的绝对路径（'C:/Users/57891/tong-xiangjie.github.io'）。
+//   在本机跑没事，一到 CI 就整片红：runner 上没有这个路径，测试服务器对**每个**请求
+//   都 404，页面根本没加载 —— 静态断言全过、84 条运行时 count() 全部"重试 40 次仍未就绪"
+//   （84 × 40 × 250ms ≈ 840s，正好把 15 分钟的硬超时耗光，于是 CI 报的是"超时"）。
+//   用 process.cwd()：run.mjs 以仓库根为 cwd 起用例，手动跑也要求在仓库根执行。
+const ROOT = process.cwd();
 const LOCAL = `http://127.0.0.1:0/collection/index.html`;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg' };
 let server = null, BASE = 'https://tong-xiangjie.github.io/collection/index.html';
@@ -155,8 +160,50 @@ try {
     ok(a === b && b > 0, `${label}：全角与半角等价（${a} vs ${b}）`);
   }
 
-  // ── 4. 中文字段标签不再"全命中"────────────────────────────────────────────
-  console.log('\n── 4. 评级机构模式：中文字段标签 ──');
+  // ── 4. 罗马数字不能被"折成几个 I" ──────────────────────────────────────────
+  // NFKC 会把罗马数字兼容分解成 ASCII：Ⅰ→I、Ⅱ→II、Ⅲ→III、Ⅶ→VII。
+  // 于是「ⅢⅡⅠ」变成 6 个 I，能命中「ⅠⅡⅢ」甚至「ⅦⅡⅡ」；搜「ⅠO888」命中 IO88888767
+  // （用户实测报告）。这些本来就是不同的冠字号，必须区分开。
+  // ★ 同时要守住 NFKC 存在的理由：全角/半角仍要等价（上一节），ASCII 的 IO888 仍要能命中。
+  console.log('\n── 4. 罗马数字不再退化成 I 计数 ──');
+  const NORM = JSON.parse(await evaluate(`(()=>JSON.stringify({
+    san: normalizeForSearch('ⅢⅡⅠ'), yi: normalizeForSearch('ⅠⅡⅢ'), qi: normalizeForSearch('ⅦⅡⅡ'),
+    ioRoman: normalizeForSearch('ⅠO888'), ioAscii: normalizeForSearch('IO888'),
+    one: normalizeForSearch('Ⅲ'), full: normalizeForSearch('ＡＣＧ'), km: normalizeForSearch('ＫＭ＃ 130')
+  }))()`));
+  console.log('    ' + JSON.stringify(NORM));
+  ok(NORM.one === 'ⅲ', `单个「Ⅲ」归一化后是 1 个字符（实测 ${JSON.stringify(NORM.one)}），不再是 3 个 i`);
+  ok(NORM.san !== NORM.yi && NORM.san !== NORM.qi,
+    `「ⅢⅡⅠ」与「ⅠⅡⅢ」/「ⅦⅡⅡ」归一化后不再相同（${JSON.stringify(NORM.san)} vs ${JSON.stringify(NORM.yi)} vs ${JSON.stringify(NORM.qi)}）`);
+  ok(NORM.ioRoman !== NORM.ioAscii, `「ⅠO888」与「IO888」归一化后不再相同（${JSON.stringify(NORM.ioRoman)} vs ${JSON.stringify(NORM.ioAscii)}）`);
+  ok(NORM.full === 'acg' && NORM.km === 'km#130',
+    `全角→半角 / 去空白没被改坏（ＡＣＧ→${NORM.full}，ＫＭ＃ 130→${NORM.km}）`);
+
+  // 真实数据里跑一遍（冠字号模式）
+  const versionsOf = async (kw) => JSON.parse(await evaluate(`(()=>{
+    performSearchAndRender(${JSON.stringify(kw)}, 'version');
+    const r = (typeof prevSearchResults !== 'undefined' && prevSearchResults) ? prevSearchResults : [];
+    return JSON.stringify(r.map(x => String((x && x.copy && x.copy.version) || (x && x.version) || '')).slice(0, 30));
+  })()`));
+  const vIoRoman = await versionsOf('ⅠO888');
+  console.log(`    搜「ⅠO888」→ ${JSON.stringify(vIoRoman)}`);
+  ok(!vIoRoman.includes('IO88888767'), `搜罗马数字的「ⅠO888」不再命中 ASCII 的 IO88888767（命中 ${JSON.stringify(vIoRoman)}）`);
+  const vIoAscii = await versionsOf('IO888');
+  console.log(`    搜「IO888」→ ${JSON.stringify(vIoAscii)}`);
+  ok(vIoAscii.includes('IO88888767'), `ASCII 的「IO888」仍能命中 IO88888767（没把正常路径一起关掉）`);
+  const vSan = await versionsOf('ⅢⅡⅠ');
+  console.log(`    搜「ⅢⅡⅠ」→ ${JSON.stringify(vSan)}`);
+  ok(!vSan.includes('ⅠⅡⅢ06173849') && !vSan.includes('ⅦⅡⅡ'),
+    `搜「ⅢⅡⅠ」不再命中「ⅠⅡⅢ」/「ⅦⅡⅡ」（命中 ${JSON.stringify(vSan)}）`);
+  const vQi = await versionsOf('ⅦⅡⅡ');
+  console.log(`    搜「ⅦⅡⅡ」→ ${JSON.stringify(vQi)}`);
+  ok(vQi.includes('ⅦⅡⅡ'), `搜「ⅦⅡⅡ」仍能命中它自己（命中 ${JSON.stringify(vQi)}）`);
+  const vYi = await versionsOf('ⅠⅡⅢ06173849');
+  console.log(`    搜「ⅠⅡⅢ06173849」→ ${JSON.stringify(vYi)}`);
+  ok(vYi.includes('ⅠⅡⅢ06173849'), `完整的罗马数字冠字号仍能精确命中（命中 ${JSON.stringify(vYi)}）`);
+
+  // ── 5. 中文字段标签不再"全命中"────────────────────────────────────────────
+  console.log('\n── 5. 评级机构模式：中文字段标签 ──');
   for (const kw of ['评级分数', '评级公司', '评级机构', '评级证书编号']) {
     const n = await count(kw, 'agency');
     console.log(`    「${kw}」 评级机构模式 → ${n} 件`);
@@ -165,8 +212,8 @@ try {
   const acgAll = await count('ACG', 'all');
   ok(acgAll > 0, `全字段模式搜「ACG」仍能命中（${acgAll} 件）`);
 
-  // ── 5. 走真实 UI（下拉框 + 输入框 + 搜索按钮）──────────────────────────────
-  console.log('\n── 5. 真实 UI 路径 ──');
+  // ── 6. 走真实 UI（下拉框 + 输入框 + 搜索按钮）──────────────────────────────
+  console.log('\n── 6. 真实 UI 路径 ──');
   await boot('notes');
   for (const [kw, type, label] of [['ACG', 'agency', '大写+评级机构'], ['KP04057', 'version', '大写+冠字号'], ['acg', 'agency', '小写+评级机构']]) {
     const ui = JSON.parse(await uiCount(kw, type));

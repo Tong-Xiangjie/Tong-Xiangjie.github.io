@@ -7,9 +7,23 @@ import vm from 'node:vm';
 const MODE = { NOTES: 'notes', COINS: 'coins' };
 const SEARCH_TYPE = { ALL: 'all', NAME: 'name', VERSION: 'version', YEAR: 'year', AGENCY: 'agency', KRAUSE: 'krause', COPYID: 'copyid' };
 const CATALOG_PREFIX_RE = /^(?:pick|km|krause|sun)\s*[-#]\s*/i;
+// ★ 与 core.js 的 foldCompat 同步：NFKC 会把罗马数字折成 ASCII 字母（Ⅰ→I、Ⅲ→III、Ⅶ→VII），
+//   那会让 'ⅢⅡⅠ' 与 'ⅠⅡⅢ' / 'ⅦⅡⅡ'、'ⅠO888' 与 'IO88888767' 混为一谈。
+//   这里必须和源码一致，否则这份镜像验证的就不是线上真正跑的逻辑了。
+const COMPAT_KEEP_FIRST = 0x2160;
+const COMPAT_PUA_FIRST = 0xE000;
+const COMPAT_PUA_RE = /[\uE000-\uE028]/g;
+function foldCompat(v) {
+  const s = String(v);
+  if (COMPAT_PUA_RE.test(s)) return s.normalize('NFKC');
+  return s
+    .replace(/[\u2160-\u2188]/g, c => String.fromCharCode(COMPAT_PUA_FIRST + c.charCodeAt(0) - COMPAT_KEEP_FIRST))
+    .normalize('NFKC')
+    .replace(COMPAT_PUA_RE, c => String.fromCharCode(COMPAT_KEEP_FIRST + c.charCodeAt(0) - COMPAT_PUA_FIRST));
+}
 function normalizeForSearch(v) {
   if (v === undefined || v === null) return '';
-  return String(v).normalize('NFKC').replace(/[\s\u3000\u00a0]+/g, '').toLowerCase();
+  return foldCompat(v).replace(/[\s\u3000\u00a0]+/g, '').toLowerCase();
 }
 function stripCatalogPrefix(v) {
   if (v === undefined || v === null) return '';

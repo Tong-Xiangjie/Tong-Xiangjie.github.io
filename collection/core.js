@@ -16,15 +16,36 @@ const CATALOG_PREFIX_RE = /^(?:pick|km)\s*[-#]\s*/i;
 
 // 搜索用字符串归一化：NFKC（全角→半角，ＫＭ＃→KM#）→ 去掉所有空白 → 小写。
 // 这样 'KM# 130' / 'KM#130' / 'ＫＭ＃130' 会被视为同一个串。
+//
+// ★ 但 NFKC 会把罗马数字（U+2160–U+2188 那一带）"兼容分解"成 ASCII 字母：
+//   Ⅰ→I、Ⅱ→II、Ⅲ→III、Ⅶ→VII、ⅩⅦ→XVII。对搜索来说这是**错的**：
+//   实测数据里 rmb2.js 的冠字号有 'ⅦⅡⅡ' / 'ⅠⅡⅡ' / 'ⅡⅠⅡ'，rmb5.js 有 'IO88888767'，
+//   折叠之后 'ⅢⅡⅠ' 变成 6 个 I，于是能命中 'ⅠⅡⅢ'、甚至 'ⅦⅡⅡ'；
+//   搜 'ⅠO888' 会命中 IO88888767。可这些本来就是不同的冠字号，必须区分开（用户实测报告）。
+//   NFKC 本身是刚需（全角/半角必须等价、大小写不敏感也靠它），所以只把这一段"保出来"：
+//   先换成私用区码位（NFKC 不动私用区），归一化完再换回去。
+const COMPAT_KEEP_FIRST = 0x2160, COMPAT_KEEP_LAST = 0x2188;
+const COMPAT_PUA_FIRST = 0xE000;
+const COMPAT_PUA_RE = /[\uE000-\uE028]/g;                 // 41 个码位（0x2188-0x2160+1）
+// 保护 → NFKC → 还原。数据里如果本来就带这段私用区字符（极罕见），就整体走老路，
+// 免得把人家原本的字符换坏 —— 宁可那里维持旧行为，也不制造新的错配。
+function foldCompat(v) {
+    const s = String(v);
+    if (COMPAT_PUA_RE.test(s)) return s.normalize('NFKC');
+    return s
+        .replace(/[\u2160-\u2188]/g, c => String.fromCharCode(COMPAT_PUA_FIRST + c.charCodeAt(0) - COMPAT_KEEP_FIRST))
+        .normalize('NFKC')
+        .replace(COMPAT_PUA_RE, c => String.fromCharCode(COMPAT_KEEP_FIRST + c.charCodeAt(0) - COMPAT_PUA_FIRST));
+}
 function normalizeForSearch(v) {
     if (v === undefined || v === null) return '';
-    return String(v).normalize('NFKC').replace(/[\s\u3000\u00a0]+/g, '').toLowerCase();
+    return foldCompat(v).replace(/[\s\u3000\u00a0]+/g, '').toLowerCase();
 }
 
 // 剥掉目录编号前缀（不区分大小写、不区分空白与全角）
 function stripCatalogPrefix(v) {
     if (v === undefined || v === null) return '';
-    return String(v).normalize('NFKC').replace(CATALOG_PREFIX_RE, '');
+    return foldCompat(v).replace(CATALOG_PREFIX_RE, '');
 }
 
 // ========== 目录编号格式化（统一规则） ==========
