@@ -29,6 +29,30 @@ const KNOWN_STALE = [
 ];
 const STALE_REASON = new Map(KNOWN_STALE);
 //
+// ★ 断言"真实藏品"的用例：它们查的是 KP04057 的详情、taiwanOldData、真实滚动高度……
+//   而 notecollection/data/ 是 gitignore 的（那是私人藏品数据，不进仓库），
+//   CI 上根本没有这些文件 —— 这些用例在 CI 上必然红，红的还不是代码。
+//   实测（2026-10，本地把 data/ 临时移开跑完整回归）：14 个用例红，全是这一类。
+//   所以数据目录不在就跳过它们，并把原因写在明面上；本地有数据时照跑，--all 也照跑。
+const REQUIRES_DATA = [
+    'verify-4issues.mjs',          // 全局概览滚动位置（要有真实可滚动的板块）
+    'verify-close-scroll.mjs',     // 「找到可滚动的板块」
+    'verify-dropdown.mjs',         // 方向键从原位置继续（选项数量来自真实分类）
+    'verify-heatmap.mjs',          // 连续透明度值（要真实成交记录）
+    'verify-img-placeholder.mjs',  // 降级态图片（要真实缺失图片的条目）
+    'verify-lightbox-close.mjs',   // KP04057 的详情数据
+    'verify-octo.mjs',             // 同上：copyDetailList 里找不到 KP04057
+    'verify-search-case.mjs',      // 全角/半角等价（要真实可搜的藏品）
+    'verify-search-race.mjs',      // 可复现的搜索组合
+    'verify-search.mjs',           // 同上
+    'verify-swipe-flip.mjs',       // 要真实卡片
+    'verify-taiwan-split.mjs',     // taiwan_old.js / taiwanOldData
+    'verify-timeline-flip.mjs',    // 可视区条目数量（要真实时间轴条目）
+    'verify-ui-polish.mjs'         // 「详细信息」可点文字（要真实条目）
+];
+const dataSkipped = [];
+
+//
 // 每个用例都是自包含的：自己起本地 HTTP 服务器、自己拉起无头 Chrome、自己断言。
 // 所以：
 //   1) 顺序执行。每个用例都要开一个 Chrome，并发会把机器压垮，也会互相抢资源。
@@ -107,6 +131,21 @@ if (!hasFlag('--all') && !only) {
 if (staleSkipped.length) {
     console.log(`  ⏭ 跳过 ${staleSkipped.length} 个"已知漂移"的老用例（--all 可一起跑）：`);
     for (const n of staleSkipped) console.log(`      · ${n} —— ${STALE_REASON.get(n)}`);
+    console.log('');
+}
+// 本地没有 notecollection/data/（CI 就是这样）：跳过断言真实藏品的用例。
+// --only 点名时照跑（专门排查要用），--all 也照跑。
+if (!existsSync(join(ROOT, 'notecollection', 'data')) && !only && !hasFlag('--all')) {
+    tests = tests.filter(t => {
+        if (REQUIRES_DATA.includes(t.name)) { dataSkipped.push(t.name); return false; }
+        return true;
+    });
+}
+if (dataSkipped.length) {
+    console.log(`  ⏭ 跳过 ${dataSkipped.length} 个"要真实藏品数据"的用例（notecollection/data/ 不在；--only 点名或 --all 可跑）：`);
+    console.log('      这些用例断言的是真实藏品（KP04057 详情、taiwanOldData、真实滚动高度……），');
+    console.log('      而 data/ 是 gitignore 的私人数据，CI 上没有 —— 跑了必红，且红的不是代码。');
+    for (const n of dataSkipped) console.log(`      · ${n}`);
     console.log('');
 }
 
