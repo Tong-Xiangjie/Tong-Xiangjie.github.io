@@ -67,3 +67,29 @@ jobs:
         run: |
           echo "See the summary at the end of the previous step."
           echo "Run locally: node collection/tools/tests/run.mjs --only <name>"
+
+  # ★ 临时诊断作业：查"本地全绿、CI 全红"的根因（verify-search-case.mjs 的
+  #   performSearchAndRender 与 verify-octo.mjs 的 copyDetailList 在 CI 里同时不存在）。
+  #   只跑 diag-ci.mjs，把页面启动实况（控制台异常、失败/挂住的请求、启动进度采样）
+  #   打成 check-run 注解 —— CI 日志要鉴权才能下载，注解用公开 API 就能读，省掉来回猜。
+  #   查清根因后删掉这个作业。
+  diagnose:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 诊断页面启动
+        env:
+          DIAG_WAIT_MS: '90000'
+        run: node collection/tools/tests/diag-ci.mjs
