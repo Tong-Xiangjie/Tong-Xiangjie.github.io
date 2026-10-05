@@ -122,6 +122,26 @@ else {
   // ② 页面上的子类入口（点得进）
   const links = await evaluate(`(()=>{const t=document.body.innerText.replace(/\\s+/g,' ');return ${JSON.stringify(PLAN.map(p => p.name))}.filter(n=>t.includes(n)).length;})()`);
   ok(links === PLAN.length, `父类页面上 ${PLAN.length} 个子类名字都渲染出来了（实际 ${links}）`);
+
+  // ★ 父类自己挂的文章，在「文章」板块里必须真的看得见（本次新增的能力）。
+  //   enterArticlesTab 内部有 await，所以切完 tab 要等一下再读文本。
+  await evaluate(`(async()=>{ try { if (typeof enterArticlesTab === 'function') await enterArticlesTab(); } catch (e) { window.__artTabErr = String((e && e.message) || e); } })()`);
+  await new Promise(r => setTimeout(r, 1500));
+  const board = JSON.parse(await evaluate(`JSON.stringify({ text: document.body.innerText.replace(/\\s+/g,' '), err: window.__artTabErr || null })`));
+  const diag = JSON.parse(await evaluate(`(()=>{
+    const list = (typeof collectedArticles !== 'undefined') ? collectedArticles : [];
+    const mine = list.filter(a => a.dataKey === 'taiwanReadmeData');
+    const t = (typeof articleCategoryTree !== 'undefined' ? articleCategoryTree : []).find(c => c.id === 'taiwan');
+    let filtered = null;
+    try { filtered = (typeof getFilteredArticles === 'function') ? getFilteredArticles().length : null; } catch (e) { filtered = 'err:' + ((e && e.message) || e); }
+    return JSON.stringify({ total: list.length, mineCount: mine.length, mineTitle: (mine[0] && mine[0].title) || null,
+      cat: (typeof currentArticleCategory !== 'undefined') ? currentArticleCategory : null,
+      treeEntry: t ? { name: t.name, dataKey: t.dataKey || null, childrenLen: (t.children || []).length } : null,
+      filtered, boardHasTaiwan: document.body.innerText.includes('台币'), boardLen: document.body.innerText.length });
+  })()`));
+  // 只在失败时打印中间状态，平时不吵。
+  if (!board.text.includes('台钞图录')) console.log('    [诊断] ' + JSON.stringify(diag));
+  ok(board.text.includes('台钞图录'), `切到「文章」板块后，父类那篇「台钞图录」出现在列表里${board.err ? '（切 tab 时报错：' + board.err + '）' : ''}`);
 }
 
 // ③ 逐个打开每个子类

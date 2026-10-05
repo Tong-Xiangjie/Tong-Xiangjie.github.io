@@ -167,6 +167,11 @@ const allDataKeys = [];
             for (const sub of cat.children) {
                 if (sub.dataKey) allDataKeys.push(sub.dataKey);
             }
+            // ★ 父分类自己也可能有数据文件（只放文章，如台币上的「台钞图录」）。
+            //   不收进来的话 article.js 的 collectAllArticles 遍历 allDataKeys 时
+            //   会整篇跳过 —— 数据加载成功、文章却一条都不进列表，这就是
+            //   "父类挂的文章在「文章」板块里看不到"的真正原因（光加 config 不够）。
+            if (cat.dataKey) allDataKeys.push(cat.dataKey);
         } else if (cat.dataKey) {
             allDataKeys.push(cat.dataKey);
         }

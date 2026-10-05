@@ -47,6 +47,8 @@ const coinAllDataKeys = [];
             for (const sub of cat.children) {
                 if (sub.dataKey) coinAllDataKeys.push(sub.dataKey);
             }
+            // ★ 与 config.js 的 allDataKeys 同构：父分类自己也可能挂数据文件（只放文章）。
+            if (cat.dataKey) coinAllDataKeys.push(cat.dataKey);
         } else if (cat.dataKey) {
             coinAllDataKeys.push(cat.dataKey);
         }
