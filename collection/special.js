@@ -364,7 +364,10 @@ function openSpecialLightbox(index) {
 
     const inner = document.createElement('div');
     inner.className = 'special-lightbox-inner';
-    inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
+    // ★ 滚动交给 .special-lightbox-content（见 layout.css），卡片本身不滚：
+    //   这样右上角的 × 才不会跟着内容滚走（用户："弹窗可滚动，但右上角 × 不应随滚动移动"）。
+    //   这里是内联样式，优先级比 CSS 高，所以必须在这儿一起改掉 overflow-y:auto。
+    inner.style.cssText = 'background:var(--card-bg);border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2);';
 
     const closeBtn = document.createElement('div');
     closeBtn.className = 'lightbox-close';
