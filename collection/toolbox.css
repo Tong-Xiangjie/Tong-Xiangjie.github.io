@@ -1,0 +1,680 @@
+/* ==================== toolbox.css ====================
+   文章编辑器「工具箱」的样式（逻辑在 toolbox.js）。
+
+   ★ 为什么是独立文件而不是塞进 layout.css：
+     layout.css 已经 3200+ 行，而这一块是自成一体的功能（弹窗 + 工具栏 + 编辑器），
+     单独一个文件更好定位。加载顺序上它在 layout.css **之后**（见 index.html），
+     所以这里的规则天然能覆盖同名项 —— 但仍然刻意只用 .tb-* 前缀，
+     不碰主站任何既有类名，避免"改工具箱把主站某个角落改坏"。
+
+   ★ 配色只用 :root 里已定义的主题变量（--bg / --bg-light / --card-bg / --border /
+     --text / --text-secondary / --theme / --theme-light / --thumb-bg / --row-hover-bg）。
+     整套变量由 theme.js 的 applyTheme() 写到 documentElement 上，浅色/暗色都会换值，
+     所以这里不需要 `html[data-color-scheme="dark"]` 分支（正文表格那节才需要，
+     因为它要压的是内容里写死的内联样式）。
+   ★ 唯一的例外是右侧代码区的深底：那是"代码编辑器"的刻意设计（深底等宽字体），
+     两种主题下都保持深色，所以用写死的深色 + 自带的浅色字，不跟主题变量走。
+     （写死在这里是安全的：它不承载任何"正文内容"，只是工具自身的显示面板。）
+   ★ 视觉基调刻意向站内既有的浮层看齐（弹窗/详情卡/自绘下拉那一套）：
+     圆角 6~8px、1px 边框、浅阴影 0 8px 24px rgba(0,0,0,0.16)（抄自 .dd-popup），
+     遮罩 rgba(0,0,0,0.65)（抄自 .info-lightbox），过渡时长只用 --dur-1 / --dur-2，
+     字体不另设（继承 body 的字体栈）。工具栏按钮默认无边框无底色，只在 hover/.active 时
+     给一点 --row-hover-bg —— 与站内 tab / 行悬停的状态表达一致。 */
+
+/* ---------- 弹窗：像 Word 那样接近满屏 ---------- */
+.tb-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1200;                 /* 高于大图灯箱(1000)与自绘下拉弹层(900)：工具箱是"最上层的工作台" */
+    background: rgba(0, 0, 0, 0.65);   /* 与 .info-lightbox 的遮罩同值：站内就这一个"内容浮层"调子 */
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    /* 弹窗自己铺满视口，但它不接管任何全局手势：没有 touch-action: none、
+       没有 wheel 监听，所以移动端在弹窗外的页面行为一个都没变。 */
+}
+.tb-modal.tb-open { display: flex; }
+
+/* 锁背景滚动：和 body.modal-open 同一套做法，但用独立类名 ——
+   大图灯箱与工具箱万一同时开着，两边的类互不干扰（谁先关谁只摘自己的）。 */
+body.tb-modal-open {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* 卡片 = Word 那样的"窗口"：position:absolute + 由 JS 写 left/top/width/height。
+   ★ 为什么不用 flex 居中：窗口要能拖动/缩放，居中是"父容器算位置"，一拖就打架。
+     改成绝对定位之后，位置和尺寸只有一个来源（toolbox.js 的 toolboxWin 对象），
+     拖动/缩放/全屏/还原全是改同一组数字，不会有"两套布局互相覆盖"的怪状态。
+   ★ 宽高默认值仍然留在 CSS 里：万一工具箱脚本没加载/报错，弹窗至少还是个正常的
+     居中居间尺寸（.tb-modal 的 padding 会兜住），不会变成 0 大小的空块。 */
+.tb-card {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    width: min(1400px, 96vw);
+    height: 90vh;
+    max-height: 90vh;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);   /* 与 .dd-popup 同一条：站内的"浮层"就这么浅 */
+    overflow: hidden;              /* 圆角靠它裁住内部面板的直角 */
+    animation: tbIn var(--dur-2) var(--ease-out);
+}
+/* 全屏态：位置尺寸由 JS 写成整个视口，这里只管"看起来像全屏"（去圆角去边框） */
+.tb-card.tb-full {
+    border-radius: 0;
+    border-color: transparent;
+    animation: none;
+}
+.tb-card.tb-full .tb-grip { display: none; }   /* 全屏时没什么可缩放的 */
+@keyframes tbIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.99); }
+    to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .tb-card { animation: none; }
+}
+
+/* ---------- 拖动 / 缩放 ----------
+   八个手柄（四条边 + 四个角）在 .tb-card 内部贴边铺一条细带。
+   ★ 为什么手柄要"往里铺"而不是往外扩：.tb-card 是 overflow:hidden（圆角要裁内部面板），
+     负偏移的手柄会被自己裁掉、直接点不到。
+   ★ 也不压内容区滚动条：.tb-body 留了 6px 右/下内边距，
+     所以东/南手柄那 6px 落在这段留白上，不会盖住编辑区或代码区自己的滚动条。
+   光标 + touch-action:none 是必须的：触摸拖动时不能让浏览器把这段手势当成滚动。 */
+.tb-grip {
+    position: absolute;
+    z-index: 5;                    /* 高于 body 里的内容面板，低于浮层对话框(.tb-dialog) */
+    touch-action: none;
+}
+.tb-grip-n  { top: 0;    left: 10px;  right: 10px; height: 6px; cursor: ns-resize; }
+.tb-grip-s  { bottom: 0; left: 10px;  right: 10px; height: 6px; cursor: ns-resize; }
+.tb-grip-w  { left: 0;   top: 10px;   bottom: 10px; width: 6px;  cursor: ew-resize; }
+.tb-grip-e  { right: 0;  top: 10px;   bottom: 10px; width: 6px;  cursor: ew-resize; }
+.tb-grip-nw { top: 0;    left: 0;     width: 14px; height: 14px; cursor: nwse-resize; }
+.tb-grip-ne { top: 0;    right: 0;    width: 14px; height: 14px; cursor: nesw-resize; }
+.tb-grip-sw { bottom: 0; left: 0;     width: 14px; height: 14px; cursor: nesw-resize; }
+.tb-grip-se { bottom: 0; right: 0;    width: 16px; height: 16px; cursor: nwse-resize; }
+/* 拖动/缩放期间给 body 加上的：别让手势顺手把正文选中了 */
+body.tb-window-drag,
+body.tb-window-drag * { user-select: none !important; -webkit-user-select: none !important; }
+
+/* ---------- 顶栏（标题 + 全屏 + 关闭） ---------- */
+.tb-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border);
+    cursor: move;                  /* 整条顶栏都是拖动区 */
+    user-select: none;             /* 拖的时候别把标题文字一起选中 */
+    touch-action: none;            /* 触摸拖动不触发滚动 */
+}
+/* 全屏 / 关闭：都放在标题栏**右上角**（文件名输入框的 margin-right:auto 把它们顶到右边）。
+   默认无边框无底色，hover 才给底色；尺寸与工具栏按钮同一档（28px），不做大按钮。 */
+.tb-win,
+.tb-close {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.78rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.tb-win:hover { background: var(--row-hover-bg); color: var(--text); }
+/* 关闭按钮沿用站内 .modal-close 那套观感（圆底 + 白 ×，见 layout.css）：
+   那边是 position:fixed 的大图灯箱按钮，直接套类名会把工具箱的按钮钉到屏幕上，
+   所以只照抄它的形状与配色，尺寸按标题栏收小到 26px。 */
+.tb-close {
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    padding: 0;
+    margin-left: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 15px;
+    font-weight: bold;
+}
+.tb-close:hover { background: rgba(0, 0, 0, 0.8); color: #fff; }
+/* （原来标题文字用的 .tb-title 已经删掉：那个位置现在是下载文件名输入框，
+   工具的完整名称留在弹窗的 aria-label 与「我的」页面入口按钮上。） */
+
+/* ---------- 工具栏（固定，不随内容滚动） ---------- */
+.tb-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 10px;
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border);
+}
+.tb-sep {
+    width: 1px;
+    height: 16px;
+    margin: 0 5px;
+    background: var(--border);
+    flex: 0 0 auto;
+}
+/* 按钮统一形状：28px 高、默认**无边框无底色**，只在 hover / 激活时给一点底色。
+   这是站内 tab、行悬停一贯的状态表达（--row-hover-bg 是主题变量，深浅色都跟着走），
+   比"一片小卡片"式的按钮安静得多，也不会把工具栏撑得花。 */
+.tb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 8px;
+    min-width: 28px;
+    box-sizing: border-box;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.tb-btn:hover { background: var(--row-hover-bg); }
+/* 按下（激活）态：跟 hover 同一档底色，但颜色转主题色，和站内 tab 的 active 一致 */
+.tb-btn:active { background: var(--row-hover-bg); color: var(--theme); }
+/* 图标字（B / I / U / S）：用单独的字重/装饰表达含义，比图标字体省事，也跟得上主题色 */
+.tb-ic { font-weight: 700; }
+.tb-ic-i { font-style: italic; font-weight: 600; }
+.tb-ic-u { text-decoration: underline; font-weight: 600; }
+.tb-ic-s { text-decoration: line-through; font-weight: 600; }
+/* 「复制」是主操作：填主题色（跟 .export-btn 一样），其余按钮保持安静 */
+.tb-btn.tb-primary {
+    background: var(--theme);
+    color: #fff;
+}
+.tb-btn.tb-primary:hover { background: var(--theme); opacity: 0.88; }
+/* 「清空」会真的删东西：只用次要文字色，hover 时才亮起来，不抢主操作的位置。
+   点第一次只把文案改成"再点一次"（二次确认），见 toolbox.js 的 toolboxClearAll()。 */
+.tb-btn.tb-danger { color: var(--text-secondary); }
+.tb-btn.tb-danger:hover { color: var(--theme); }
+
+/* ---------- 草稿提示条 ----------
+   位置在工具栏下面、主体上面：不挡编辑区，也不浮在内容上（浮层容易误点）。
+   hidden 属性默认是 display:none，但 flex 布局会覆盖它 —— 所以要显式写上
+   `[hidden] { display: none }`，否则 is-hidden 的条子照样占位显示。 */
+.tb-draftbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 10px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+}
+.tb-draftbar[hidden] { display: none; }
+/* 一个小圆点当"未读/待处理"的暗示，不做动画（不抢注意力） */
+.tb-draftbar-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--theme);
+    flex: 0 0 auto;
+}
+.tb-draftbar .tb-btn { height: 22px; padding: 0 7px; font-size: 0.72rem; }
+
+/* 字号档位：一个小集合，不是原生下拉 —— 原生 <select> 会被 dropdown.js 接管，
+   而那个自绘弹层是 position: fixed + z-index 900，会跑到工具箱弹窗下面去，
+   点不到。所以这里刻意不用 <select>。 */
+.tb-sizes { display: flex; gap: 1px; align-items: center; }
+.tb-size {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    min-width: 26px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+    transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.tb-size:hover { background: var(--row-hover-bg); }
+.tb-size:active { background: var(--row-hover-bg); color: var(--theme); }
+.tb-size[data-size="0.85rem"] { font-size: 0.66rem; }
+.tb-size[data-size="1em"]     { font-size: 0.75rem; }
+.tb-size[data-size="1.1em"]   { font-size: 0.83rem; }
+.tb-size[data-size="1.3em"]   { font-size: 0.95rem; }
+.tb-size[data-size="1.6em"]   { font-size: 1.1rem; }
+
+/* 颜色 / 高亮：<label> 包一个 <input type="color">。
+   label 负责显示文字与"当前颜色"的色块，input 藏在里面但仍然可点、可键盘操作
+   （绝对定位铺满 label，opacity:0 —— 不是 display:none，那样点不到）。 */
+.tb-color-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 7px;
+    box-sizing: border-box;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    transition: background-color var(--dur-1) var(--ease-out);
+}
+.tb-color-label:hover { background: var(--row-hover-bg); }
+.tb-color-label input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+.tb-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    flex: 0 0 auto;
+}
+/* 高亮色块用棋盘底衬一层，让"没有高亮"（黑/透明）和深色也能分辨 */
+.tb-swatch-back {
+    background-image: linear-gradient(45deg, rgba(128,128,128,0.35) 25%, transparent 25%, transparent 75%, rgba(128,128,128,0.35) 75%),
+                      linear-gradient(45deg, rgba(128,128,128,0.35) 25%, transparent 25%, transparent 75%, rgba(128,128,128,0.35) 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 4px 4px;
+}
+
+/* ---------- 主体：左编辑区 / 右代码区，各自独立滚动 ---------- */
+.tb-body {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;                 /* ★ flex 子项要能收缩，否则内部 overflow 不生效 */
+    overflow: hidden;
+    /* ★ 这 6px 右/下留白是给缩放手柄让位的：东/南那两条手柄贴在卡片边上，
+         不留白就会压在编辑区/代码区自己的滚动条上（拖滚动条变成拖窗口）。 */
+    padding: 0 6px 6px 0;
+}
+/* 面板 = 一行小标题 + 内容。两块面板之间只用一条 1px 分隔线，不做"卡片套卡片"，
+   也不加阴影 —— 标题条跟各自面板同底色，看上去是一整块。 */
+.tb-pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+.tb-pane-edit { flex: 1 1 62%; border-right: 1px solid var(--border); }
+.tb-pane-code { flex: 0 0 38%; background: #1e1e28; }
+/* 面板小标题：站内那种"分类标题"的做法 —— 小字、次要色、一条底线 */
+.tb-pane-head {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border);
+}
+.tb-pane-code .tb-pane-head {
+    background: #26262e;
+    color: #9aa3b2;
+    border-bottom-color: #33333d;
+}
+.tb-editor {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;  /* 滚到底不把滚动传给背景页 */
+    /* ★ 尺寸/间距/字号照用户给的那份草稿："padding:28px 34px; font-size:16px; line-height:1.85"。
+       颜色用站内变量（草稿写的是写死的 #222，深色主题下会看不清，用户允许换站内变量）。 */
+    padding: 28px 34px 40px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.85;
+    outline: none;
+}
+/* 空编辑区的提示语：文案写在 HTML 的 data-placeholder 上（和代码区的 placeholder 一起管）。
+   :empty 在"里面只有一个 <p><br></p>"时不成立，所以再配一条 :has 兜底
+   （现代浏览器都支持；不支持只是少个提示，不影响功能）。
+   打开时的初始内容就是 <p><br></p>，所以真正生效的是第二条。 */
+.tb-editor:empty::before,
+.tb-editor:has(> p:only-child > br:only-child)::before {
+    content: attr(data-placeholder);
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+/* 编辑区里正文元素的最小可用样式。只影响"编辑时的观感"，
+   不参与输出（输出的是内联样式，见 toolbox.js 的模板）。 */
+.tb-editor p { margin: 0 0 1em; }
+.tb-editor ul, .tb-editor ol { margin: 10px 0; padding-left: 22px; }
+.tb-editor blockquote {
+    margin: 10px 0;
+    padding: 6px 12px;
+    border-left: 3px solid var(--theme);
+    background: var(--bg-light);
+}
+.tb-editor img { max-width: 100%; height: auto; vertical-align: middle; }
+.tb-editor table { border-collapse: collapse; margin: 10px 0; max-width: 100%; }
+.tb-editor th, .tb-editor td {
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    font-size: 0.85rem;
+    color: var(--text);
+    min-width: 36px;
+}
+.tb-editor th { background: var(--bg-light); font-weight: 600; }
+.tb-editor a { color: var(--theme); }
+/* 选中态用主题色的半透明底：默认的蓝色选区在暗色下和正文对不上 */
+.tb-editor ::selection { background: var(--theme-light); color: #fff; }
+
+/* 右侧代码区：刻意保持深底（代码编辑器的一贯观感，两种主题下都是深色）。
+   一列 = 小标题（.tb-pane-head）+ 代码 + 校验区。 */
+.tb-code {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: block;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    resize: none;                  /* 缩放交给布局，用户拖它没有意义 */
+    /* ★ 尺寸/间距/字号/配色照用户那份草稿（代码区两种主题下都保持深底，见上面的说明） */
+    padding: 16px 18px;
+    background: #1e1e28;
+    color: #d6deeb;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    tab-size: 2;
+    /* ★ 必须自动换行、不许出现横向滚动条：文章 HTML 里常有一长串**不含空格**的片段
+       （例如 <div style="background:…;border-left:…">），只写 pre-wrap 它在 textarea 里
+       也不一定断得开，所以 white-space / overflow-wrap / word-break 三个都写上，
+       再配 HTML 上的 wrap="soft" + overflow-x: hidden 兜底。
+       （textarea 里 white-space 不生效，真正起作用的是 wrap 属性与 overflow-wrap；
+         写在一起是为了将来换成 div/pre 时不用再补。） */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+/* ---------- 校验区 ----------
+   深底面板里的浅色小块，不抢眼；有问题才长高（最多占代码区的 32%）。
+   它**只提示**：复制/下载永远可用（用户可能就是故意写浏览器能纠正的东西）。 */
+.tb-validate {
+    flex: 0 0 auto;
+    max-height: 32%;
+    overflow-y: auto;
+    padding: 5px 12px 7px;
+    background: #26262e;
+    border-top: 1px solid #33333d;
+    color: #9aa3b2;
+    font-size: 0.7rem;
+    line-height: 1.55;
+}
+.tb-lint-ok { color: #79b884; }
+.tb-lint-bad { color: #ff9c94; }
+.tb-lint-warn { color: #e8c46a; }
+.tb-lint-list { margin: 0; padding-left: 14px; }
+.tb-lint-list li { margin: 1px 0; }
+
+/* 撤回/恢复：栈空了就置灰（用 disabled，别只改颜色 —— 颜色改不了"点不动"） */
+.tb-btn:disabled,
+.tb-btn:disabled:hover {
+    opacity: 0.4;
+    cursor: default;
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+/* ---------- 底部状态栏（固定，只留字数） ---------- */
+.tb-foot {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 5px 10px;
+    background: var(--bg-light);
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+.tb-count b { color: var(--text); }
+.tb-foot .tb-spacer { flex: 1 1 auto; }
+
+/* ---------- 提示条（复制成功/失败等） ---------- */
+.tb-toast {
+    position: absolute;
+    left: 50%;
+    bottom: 48px;
+    transform: translate(-50%, 6px);
+    max-width: 70%;
+    padding: 6px 12px;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    font-size: 0.76rem;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+    z-index: 10;
+}
+.tb-toast.show { opacity: 1; transform: translate(-50%, 0); }
+/* ★ toast 的绝对定位基准 = 整张卡片。这里**不能**再写 `.tb-card { position: relative }`：
+   它会覆盖上面那条 `position: absolute`（同优先级、后写赢），卡片就不再是"由 JS 定 left/top
+   的绝对定位元素"，而会退回 flex 静态位置 —— 表现就是"拖动时数字变了、窗口没动"。
+   absolute 本身就已经建立了包含块，toast 的定位一样成立。 */
+
+/* ---------- 字段对话框（表格参数 / 图片参数 / 超链接） ---------- */
+.tb-dialog {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 20;
+}
+.tb-dialog-card {
+    /* ★ 尺寸/间距/圆角照用户那份草稿：width:440px; max-width:calc(100vw - 40px); padding:20px;
+       border-radius:12px。底色/描边换成站内变量，深色主题下才不会白底黑字硬撞。 */
+    width: 440px;
+    max-width: calc(100vw - 40px);
+    max-height: 86%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    animation: tbIn var(--dur-2) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+    .tb-dialog-card { animation: none; }
+}
+.tb-dialog-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+}
+.tb-field { margin-bottom: 12px; }
+/* ★ 草稿里 label 是包着 input 的，所以 margin-bottom:12px 是"字段与字段之间"的距离；
+   这里的 DOM 是 label 与 input **平级**，于是把 12px 留给 .tb-field（上面那条），
+   label 自己只留 6px 的"标签到输入框"间距 —— 视觉结果与草稿一致。
+   勾选框那一路（.tb-check）要排除掉，否则被这条 display:block 打回块级、勾选框会换行。 */
+.tb-field > label:not(.tb-check) {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.tb-field input[type="text"],
+.tb-field input[type="number"] {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+.tb-field input:focus { border-color: var(--theme); }
+.tb-field .tb-hint {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    line-height: 1.5;
+}
+.tb-check {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.8rem;
+    color: var(--text);
+    cursor: pointer;
+}
+.tb-check input { width: 15px; height: 15px; accent-color: var(--theme); cursor: pointer; }
+.tb-dialog-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+/* 对话框主按钮：照草稿 background:var(--theme); color:#fff; border-color:var(--theme) */
+.tb-dialog-foot .tb-primary {
+    background: var(--theme);
+    color: #fff;
+    border-color: var(--theme);
+}
+
+/* ---------- 左上角"下载文件名"输入框 ----------
+   它占着原来标题文字的位置，所以做得像"可编辑的标题"：无边框、透明底、标题字号；
+   鼠标移上去 / 聚焦才浮出边框与底色，一眼能看出"这里能改"。 */
+.tb-filename {
+    flex: 0 1 auto;
+    min-width: 0;
+    width: 240px;                  /* 200~260px：够写一个文件名，又不跟右边的按钮挤 */
+    max-width: 46vw;
+    margin-right: auto;            /* ★ 把「全屏 / 关闭」顶到标题栏最右边 */
+    padding: 3px 7px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+}
+.tb-filename::placeholder { color: var(--text-secondary); opacity: 0.75; }
+.tb-filename:hover { border-color: var(--border); background: var(--bg-light); }
+.tb-filename:focus { border-color: var(--theme); background: var(--card-bg); }
+.tb-filename:focus::placeholder { opacity: 0.45; }
+
+/* ---------- 拖动表格列宽时：整页禁止选中、光标统一成 col-resize ---------- */
+body.tb-col-resize { user-select: none; -webkit-user-select: none; cursor: col-resize; }
+
+/* ---------- 表格右键小菜单 ----------
+   紧凑的一列（站内风格：白底 + 1px 边框 + 6px 圆角），只在表格里右键时出现；
+   z-index 要压在 .tb-modal(1200) / .tb-dialog(20) 之上，否则会被窗口盖住。 */
+.tb-tmenu {
+    position: fixed;
+    z-index: 1300;
+    min-width: 132px;
+    padding: 4px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    font-size: 13px;
+    line-height: 1.4;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.tb-tmenu-item {
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: var(--text);
+    white-space: nowrap;
+    cursor: pointer;
+}
+.tb-tmenu-item:hover { background: var(--row-hover-bg); }
+/* 用不了的项（例如没跨多格就想合并）：灰掉且不响应 */
+.tb-tmenu-item.tb-off,
+.tb-tmenu-item.tb-off:hover {
+    background: transparent;
+    color: var(--text-secondary);
+    opacity: 0.55;
+    cursor: default;
+}
+.tb-tmenu-sep { margin: 4px 2px; border-top: 1px solid var(--border); }
+
+/* ---------- 键盘焦点可见（与全站约定一致：只有键盘操作才出现） ---------- */
+.tb-btn:focus-visible,
+.tb-size:focus-visible,
+.tb-close:focus-visible,
+.tb-color-label:focus-within,
+.tb-field input:focus-visible {
+    outline: 2px solid var(--theme);
+    outline-offset: 1px;
+}
+
+/* ---------- 窄屏：左右比例固定即可 ----------
+   用户几乎不在手机上用这个工具，所以**不做**专门的移动端布局；
+   这里只保证"窄到一定程度时两栏仍各自能滚、按钮不溢出"，
+   不引入任何会改变移动端既有行为的东西（没有 touch-action、没有手势监听）。 */
+@media (max-width: 720px) {
+    .tb-modal { padding: 6px; }
+    .tb-card { width: 100%; height: 94vh; max-height: 94vh; border-radius: 8px; }
+    .tb-body { flex-direction: column; }
+    .tb-pane-edit { flex: 1 1 auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .tb-pane-code { flex: 1 1 auto; }
+    .tb-filename { width: 150px; font-size: 0.76rem; }
+    .tb-win { padding: 0 6px; font-size: 0.72rem; }
+}

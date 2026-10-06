@@ -264,6 +264,23 @@ function renderSettingsPage() {
     html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">点击即可下载相应文件</p>`;
     html += `</div>`;
 
+    // 工具箱（文章 HTML 生成器）
+    // ★ 入口放这里、不在底部 Tab 栏另开一个 tab：它是**写作辅助**，不是一块藏品内容，
+    //   和「数据导出」「图片缓存」这些工具同类，所以统一收在「我的」页面最下面。
+    // ★ 用 onclick="toolboxOpen()" 而不是在这里 addEventListener：整个设置页每次重渲染
+    //   都是重建 innerHTML，事件监听得在 renderSettingsPage 里重新挂一遍（现有几个按钮
+    //   全是内联 onclick，就是为避开这个坑）。toolbox.js 的顶层 function 是全局词法绑定，
+    //   内联 onclick 取得到。
+    // ★ 按钮**不依赖** toolbox.js 是否加载成功：万一副本没更新，toolboxOpen 未定义时
+    //   内联 onclick 只会抛一条 ReferenceError（页面不白屏），不会把设置页弄坏。
+    html += `<div class="settings-section">`;
+    html += `<h3>工具箱</h3>`;
+    html += `<div class="export-buttons">`;
+    html += `<button class="export-btn" id="toolboxOpenBtn" onclick="toolboxOpen()">文章 HTML 生成器</button>`;
+    html += `</div>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">站内弹窗里所见即所得地写正文，右侧实时生成 HTML（支持标题、引用框、图注、图片、超链接、表格，以及直接从 Excel/网页粘贴表格）</p>`;
+    html += `</div>`;
+
     html += `</div>`;
     app.innerHTML = html;
 
