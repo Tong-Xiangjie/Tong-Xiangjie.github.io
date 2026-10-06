@@ -277,8 +277,15 @@
             </div>
             <div class="tb-pane tb-pane-code">
                 <div class="tb-pane-head">HTML</div>
-                <textarea class="tb-code" id="tbCode" spellcheck="false" wrap="soft"
-                          placeholder="粘贴或直接编辑 HTML" aria-label="HTML 代码（可编辑）"></textarea>
+                <div class="tb-code-wrap">
+                    <!-- 代码区高亮镜像层（纯显示，data-tb-display）：textarea 里的文字没法用
+                         CSS Custom Highlight API 画高亮（它的 value 不在 DOM 里），所以这里放一层
+                         与 textarea 文字、字号、行高完全一致的镜像，高亮的 Range 画在它上面。
+                         它在 textarea 下面、pointer-events:none，不改内容、不动选区。 -->
+                    <div class="tb-code-hl" id="tbCodeHl" data-tb-display="1" aria-hidden="true"></div>
+                    <textarea class="tb-code" id="tbCode" spellcheck="false" wrap="soft"
+                              placeholder="粘贴或直接编辑 HTML" aria-label="HTML 代码（可编辑）"></textarea>
+                </div>
                 <!-- 校验区：只提示，不阻断复制/下载。计数同时写在 data-errors/data-warnings 上 -->
                 <div class="tb-validate" id="tbValidate" data-errors="0" data-warnings="0"></div>
             </div>
