@@ -21,6 +21,7 @@ const rmb2Data = {
     readmes: [
         { title: "第二套人民币发行历史相关", content: "file:readmes/2nd_Series_RMB_About_Its_History_zhihu.html" },
         { title: "第二套人民币纸币暗记汇总", content: "file:readmes/2nd_Series_RMB_Secret_Marks_Summary.html" },
+        { title: "台湾当局的人民币伪钞计划", content: "file:readmes/2nd_Series_RMB_Taiwan_Counterfeit_Money_zhihu.html" },
         { title: "新中国一、二、五分纸币发行时间及背景", content: "file:readmes/2nd_Series_RMB_time_of_release_of_the_fen_note.html" }
     ],
     series: [
