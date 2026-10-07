@@ -241,14 +241,18 @@ function toolboxNormalizeStyle(style) {
     // ① Word 专属属性
     s = s.replace(/(^|;)\s*mso-[^:;]+:[^;]*/gi, '');
     // ② rgb(r,g,b) → #rrggbb
+    //    ★ 顺手把"冒号后的空格"去掉：浏览器序列化 style 时会写成 `color: rgb(1,2,3)`，
+    //      只换颜色的话会留下 `color: #010203` —— 与工具其它产出（`color:#555555`）
+    //      写法不一致。只动**被改写的那一条声明**，其余原样保留（不重排用户原文）。
     if (s.indexOf('rgb(') >= 0) {
-        s = s.replace(/rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)/gi, function (m, r, g, b) {
-            const hex = function (n) {
-                const v = Math.max(0, Math.min(255, parseInt(n, 10) || 0)).toString(16);
-                return v.length < 2 ? '0' + v : v;
-            };
-            return '#' + hex(r) + hex(g) + hex(b);
-        });
+        s = s.replace(/([a-z-]+)\s*:\s*rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)/gi,
+            function (m, prop, r, g, b) {
+                const hex = function (n) {
+                    const v = Math.max(0, Math.min(255, parseInt(n, 10) || 0)).toString(16);
+                    return v.length < 2 ? '0' + v : v;
+                };
+                return String(prop).toLowerCase() + ':#' + hex(r) + hex(g) + hex(b);
+            });
     }
     // ③ font-size:Npx → 就近 em
     if (/font-size\s*:\s*[\d.]+px/i.test(s)) {
@@ -307,12 +311,15 @@ function toolboxAttrsOf(el) {
     return s;
 }
 
-// 这个元素能不能和上一行挤在一起（子节点全是文本或行内标签）
+// 这个元素能不能和上一行挤在一起（子节点全是文本、行内标签或空元素）
 function toolboxIsInlineOnly(node) {
     const kids = node.childNodes;
     for (let i = 0; i < kids.length; i++) {
         const k = kids[i];
-        if (k.nodeType === 1 && !toolboxIsInlineTag(k)) return false;
+        // ★ 空元素（<br>/<img>/<hr>…）算"行内"：语料里图片块就是
+        //   <center><img src="…" width="80%"></center> 一行写完的，
+        //   把它们当块级会把 <center> 拆成三行（跟语料不一致）。
+        if (k.nodeType === 1 && TOOLBOX_VOID_TAGS.indexOf(k.tagName) < 0 && !toolboxIsInlineTag(k)) return false;
     }
     return true;
 }
@@ -325,20 +332,74 @@ function toolboxIsFlexBox(el) {
     return /display\s*:\s*(inline-)?flex/i.test(st);
 }
 
-function toolboxFormatInline(el) {
+// ========== 序列化的换行策略 ==========
+// ★ 用户点名的最大问题：导出的换行"极其随意" —— 同一份结构，输入里换行不同就排得不同。
+//   现在的规则**完全忽略输入里的空白/换行**，只按标签结构重建：
+//     · 块级节点之间换行；
+//     · 块**内部**一律不换行（块内若还有块级子节点，就在那些子节点之间换行）；
+//     · <tr>/<td>/<th> 必须**一行写完**（单元格里的 <br> 也留在同一行）；
+//     · 行内元素之间绝不插换行。
+//   于是"同一份 DOM 不论从哪来，导出结果完全一致"（幂等）。
+const TOOLBOX_ONELINE_TAGS = ['TR', 'TD', 'TH'];
+
+// 纯空白文本节点在序列化里的处理（这是"忽略输入换行"的关键）：
+//   · 不含换行的纯空白（行内的一个空格）：折叠成一个空格**保留** ——
+//     <b>甲</b> <b>乙</b> 中间那个空格是有意义的，删了会把两个字粘起来；
+//   · 含换行的纯空白：只有"左右两边都紧挨着有字的文本"时才留一个空格
+//     （HTML 本来就把换行折叠成空格），其余一律丢掉 ——
+//     这样 <td>\n<br>\n</td> 才会变成 <td><br></td>，<center>\n<img>\n</center>
+//     才会变成 <center><img …></center>。
+function toolboxSerialWs(node, i) {
+    const s = String((node && node.nodeValue) || '');
+    if (s.indexOf('\n') < 0 && s.indexOf('\r') < 0) return ' ';
+    const kids = node.childNodes;
+    const edge = function (n, atEnd) {
+        if (!n || n.nodeType !== 3) return '';
+        const v = String(n.nodeValue || '');
+        return atEnd ? v.slice(-1) : v.charAt(0);
+    };
+    const before = edge(kids[i - 1], true), after = edge(kids[i + 1], false);
+    return (/\S/.test(before) && /\S/.test(after)) ? ' ' : '';
+}
+
+// 行内元素的序列化。
+// ★ 第二个参数 rel 是**可选的记录器**：传了就把"每个文本节点在返回字符串里的
+//   [start,end)"记进去（见 toolboxFormatHtml 的映射说明）。不传时行为与以前完全一致。
+function toolboxFormatInline(el, rel) {
     let s = '';
     const kids = el.childNodes;
     for (let i = 0; i < kids.length; i++) {
         const n = kids[i];
-        if (n.nodeType === 3) s += toolboxEscText(String(n.nodeValue || '').replace(TOOLBOX_WS, ' '));
-        else if (n.nodeType === 1) {
+        if (n.nodeType === 3) {
+            const raw = String(n.nodeValue || '');
+            if (!raw.replace(TOOLBOX_WS, '')) { s += toolboxSerialWs(n, i); continue; }
+            const esc = toolboxEscText(raw.replace(TOOLBOX_WS, ' '));
+            if (rel) rel.push({ node: n, start: s.length, end: s.length + esc.length });
+            s += esc;
+        } else if (n.nodeType === 1) {
             const tag = n.tagName.toLowerCase();
             const at = toolboxAttrsOf(n);
-            if (TOOLBOX_VOID_TAGS.indexOf(n.tagName) >= 0) s += '<' + tag + at + '>';
-            else s += '<' + tag + at + '>' + toolboxFormatInline(n) + '</' + tag + '>';
+            if (TOOLBOX_VOID_TAGS.indexOf(n.tagName) >= 0) { s += '<' + tag + at + '>'; continue; }
+            const head = '<' + tag + at + '>';
+            const sub = [];
+            const inner = toolboxFormatInline(n, sub);
+            if (rel) {
+                for (let k = 0; k < sub.length; k++) {
+                    rel.push({ node: sub[k].node, start: s.length + head.length + sub[k].start, end: s.length + head.length + sub[k].end });
+                }
+            }
+            s += head + inner + '</' + tag + '>';
         }
     }
     return s;
+}
+
+// ★ 结构用途的块级判断：**不带** display:flex 那个特例。
+//   toolboxIsBlockTag 里的 flex 特例只服务于"序列化时整行保持一行"（见排版的说明），
+//   但结构上 flex 容器仍然是块级 —— 早先误用 toolboxIsBlockTag 做结构判断，
+//   把 flex 行当成了"行内元素"，于是"并排图片"的子 div 被提到行外面了（真出过）。
+function toolboxIsBlockEl(el) {
+    return !!el && el.nodeType === 1 && TOOLBOX_BLOCK_TAGS.indexOf(el.tagName) >= 0;
 }
 
 // 这个元素自己算不算"自成一行"的块级（白名单在 TOOLBOX_BLOCK_TAGS）
@@ -349,67 +410,169 @@ function toolboxIsBlockTag(el) {
     return !/display\s*:\s*(inline|inline-block|inline-flex|flex)/i.test(st);
 }
 
+// 这个元素算不算"结构块"：白名单标签即可，另外把显式 display:block 的也算上。
+// ★ 与 toolboxIsBlockTag 的区别：后者额外排除了 display:flex 的容器（那是"整行保持一行"
+//   的序列化需要），结构上 flex 容器仍然是块级。这里专给"丢空白的结构判断"用。
+function toolboxIsStructBlock(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (TOOLBOX_BLOCK_TAGS.indexOf(el.tagName) >= 0) return true;
+    const st = el.getAttribute ? String(el.getAttribute('style') || '') : '';
+    return /display\s*:\s*block\b/i.test(st);
+}
+
 // 块级节点之间的纯空白文本节点：没有意义（浏览器也忽略），丢掉才能幂等
 function toolboxWhitespaceBetweenBlocks(node, i) {
     const kids = node.childNodes;
     for (let k = i - 1; k >= 0; k--) {
         const s = kids[k];
         if (s.nodeType === 3) { if (String(s.nodeValue || '').replace(TOOLBOX_WS, '') === '') continue; return false; }
-        return s.nodeType === 1 && toolboxIsBlockTag(s);
+        // ★ 这里判的是"有没有意义"，所以按结构块算（含 flex 容器）：HTML 里
+        //   flex 容器之间的换行同样是会被忽略的空白，代码区导出时也确实把它丢了。
+        return s.nodeType === 1 && toolboxIsStructBlock(s);
     }
     for (let k = i + 1; k < kids.length; k++) {
         const s = kids[k];
         if (s.nodeType === 3) { if (String(s.nodeValue || '').replace(TOOLBOX_WS, '') === '') continue; return false; }
-        return s.nodeType === 1 && toolboxIsBlockTag(s);
+        return s.nodeType === 1 && toolboxIsStructBlock(s);
     }
     return false;
 }
 
-function toolboxFormatHtml(box) {
+// 把编辑区里"作为块与块之间分隔的纯空白文本节点"真的从 DOM 里删掉。
+// ★ 为什么要删（用户实测的 bug）：撤回/重做会用"按行排版后的代码"重建整棵 DOM
+//   （toolboxFormatHtml 在块与块之间吐出 \n），于是两个块之间多了只含 "\n" 的文本节点。
+//   而选区指纹（选中文字 + 前后各 20 字）是在**没有这些节点**的 DOM 上采集的，
+//   重建后 DOM 的文字比指纹多出这些 \n，逐个字符比对必然失配 → 定位失败 → 落到
+//   toolboxUndoReset() 那条 at:0 的折叠光标上，表现就是"Ctrl+Z 之后光标瞬移到文首"。
+//   把这类节点丢干净，重建后的 DOM 文字与指纹逐字一致，严格匹配就能命中。
+// ★ 为什么"只丢这一类"：行内之间的空白是**有意义的**（<b>甲</b> <b>乙</b> 中间那个空格
+//   在页面上就是一个空格），动它等于改坏排版，所以只有"前后都是结构块"或"在编辑区
+//   根的首/尾且相邻是块"的纯空白节点才丢；其余（行内相邻、表格单元格内、块内换行）
+//   一律保留。
+// ★ 为什么不动序列化：toolboxFormatHtml 早就把这类空白丢掉了（见那里的
+//   toolboxWhitespaceBetweenBlocks 分支），所以代码区文本、渲染结果、幂等性都不变。
+function toolboxNormalizeEditorWhitespace(root) {
+    if (!root || !root.childNodes) return;
+    const kids = Array.prototype.slice.call(root.childNodes);
+    for (let i = 0; i < kids.length; i++) {
+        const n = kids[i];
+        if (n.nodeType !== 3) continue;
+        if (String(n.nodeValue || '').replace(TOOLBOX_WS, '') !== '') continue;   // 有字：留着
+        // ★ 现算下标：前面的兄弟可能已经被删掉了，拿循环下标去问会越界（真出过 TypeError）。
+        const at = Array.prototype.indexOf.call(root.childNodes, n);
+        if (at < 0) continue;
+        if (!toolboxWhitespaceBetweenBlocks(root, at)) continue;                  // 不是"块间分隔"：留着
+        if (n.parentNode) n.parentNode.removeChild(n);
+    }
+}
+
+// ★ 第二个参数 rec（可选）：把"每个文本节点 → 它在返回字符串里的 [start,end)"
+//   记进这个数组。正文↔代码区的高亮就靠它做**区间换算**，不再拿纯文本去源码里搜索
+//   （搜索那条路必然出现"跨行对不上""短词匹配到别处/命中属性字符串"，见 toolboxSrcMapBuild）。
+function toolboxFormatHtml(box, rec) {
     if (!box) return '';
     const out = [];
+    let acc = 0;        // 已产出文本的绝对长度（用来把"行内相对位置"换算成绝对偏移）
 
     // 把一层的子节点序列排成若干行：块级各自成行，行内贴着当前行
     function emit(parent) {
         let line = '';
+        let lnodes = [];        // 当前行里已记录的文本节点（start/end 相对这一行）
+        // 追加一段文字；node 传了就顺手记下它在行里的位置
+        function add(str, node) {
+            if (rec && node && str) lnodes.push({ node: node, start: line.length, end: line.length + str.length });
+            line += str;
+        }
+        // 产出一行（先把这一行里的相对位置换算成源码绝对偏移，再加进 out）
+        function pushLine(text, nodes) {
+            if (rec && nodes) {
+                for (let k = 0; k < nodes.length; k++) {
+                    if (nodes[k].end > nodes[k].start) {
+                        rec.push({ node: nodes[k].node, srcStart: acc + nodes[k].start, srcEnd: acc + nodes[k].end });
+                    }
+                }
+            }
+            out.push(text);
+            acc += text.length + 1;         // +1 = out.join('\n') 的那个换行
+        }
         const flush = function () {
+            // ★ 行首/行尾的空白会被 trim 掉，记录的位置要跟着平移（否则偏移会整体偏几个字符）
             const t = line.trim();
-            if (t) out.push(t);
+            if (t) {
+                const lead = line.length - line.replace(/^\s+/, '').length;
+                const nodes = [];
+                for (let k = 0; k < lnodes.length; k++) {
+                    nodes.push({
+                        node: lnodes[k].node,
+                        start: Math.max(0, Math.min(t.length, lnodes[k].start - lead)),
+                        end: Math.max(0, Math.min(t.length, lnodes[k].end - lead))
+                    });
+                }
+                pushLine(t, nodes);
+            }
             line = '';
+            lnodes = [];
         };
         const kids = parent.childNodes;
         for (let i = 0; i < kids.length; i++) {
             const n = kids[i];
             if (n.nodeType === 3) {                          // 文本
                 const raw = String(n.nodeValue || '');
-                if (raw.replace(TOOLBOX_WS, '') === '' && toolboxWhitespaceBetweenBlocks(parent, i)) continue;
+                if (!raw.replace(TOOLBOX_WS, '')) {          // 纯空白：按上面的规则处理
+                    if (toolboxWhitespaceBetweenBlocks(parent, i)) continue;
+                    const ws = toolboxSerialWs(n, i);
+                    if (ws) line += ws;
+                    continue;
+                }
                 const t = toolboxEscText(raw.replace(TOOLBOX_WS, ' '));
                 // ★ 只有空白（含 &nbsp; / 零宽空格）的文本节点**不成行**。
                 //   以前这里会把它变成一行 "&nbsp;"：在页面上就是一条凭空的空行
                 //   （用户报的"插入任何东西都多出空行"，这是其中一条来源）。
                 //   注意：行里已经有字了就不动它 —— 行内的 &nbsp; 是语料里的排版手段。
                 if (!line.trim() && !t.replace(/&nbsp;|\u200b|\s/g, '')) continue;
-                if (t) line += t;
+                if (t) add(t, n);
                 continue;
             }
             if (n.nodeType !== 1) continue;                   // 注释等一律不输出
             const tag = n.tagName.toLowerCase();
             const open = '<' + tag + toolboxAttrsOf(n) + '>';
             if (TOOLBOX_VOID_TAGS.indexOf(n.tagName) >= 0) { line += open; continue; }
+            // 表格的行/单元格必须**一行写完**（含里面的 <br>）：td 里再换行会让
+            // 一行的内容被拆成三行（用户贴出来的那篇文章里就有）
+            if (TOOLBOX_ONELINE_TAGS.indexOf(n.tagName) >= 0) {
+                const rel = [];
+                const inner = toolboxFormatInline(n, rel);
+                const base = line.length + open.length;
+                if (rec) { for (let k = 0; k < rel.length; k++) lnodes.push({ node: rel[k].node, start: base + rel[k].start, end: base + rel[k].end }); }
+                line += open + inner + '</' + tag + '>';
+                continue;
+            }
             // flex 容器（并排图片那一行）整体保持一行：里面全是并排的图，
             // 拆行只让代码难读（虽然 flex 会忽略纯空白文本节点，但没必要冒险）
             if (toolboxIsFlexBox(n)) {
-                line += open + toolboxFormatInline(n) + '</' + tag + '>';
+                const rel = [];
+                const inner = toolboxFormatInline(n, rel);
+                const base = line.length + open.length;
+                if (rec) { for (let k = 0; k < rel.length; k++) lnodes.push({ node: rel[k].node, start: base + rel[k].start, end: base + rel[k].end }); }
+                line += open + inner + '</' + tag + '>';
                 continue;
             }
-            if (toolboxIsInlineOnly(n)) {                     // <b><span>标题</span></b> 挤一行
-                line += open + toolboxFormatInline(n) + '</' + tag + '>';
+            if (toolboxIsInlineOnly(n)) {                     // <p>甲</p> / <b><span>标题</span></b> 挤一行
+                // ★ 这里必须先 flush：<p> 这种"内容全是行内元素"的**块级**元素走的就是这条路，
+                //   不 flush 的话相邻两个 <p> 会被连成同一行（整篇导出成一长条）。
+                //   块与块之间换行、块内不换行 —— 这条规则就是靠这里的 flush 落地的。
+                flush();
+                const rel = [];
+                const inner = toolboxFormatInline(n, rel);
+                const nodes = [];
+                if (rec) { for (let k = 0; k < rel.length; k++) nodes.push({ node: rel[k].node, start: open.length + rel[k].start, end: open.length + rel[k].end }); }
+                pushLine(open + inner + '</' + tag + '>', nodes);
                 continue;
             }
             flush();                                          // 块级：先收掉手上这行
-            out.push(open);
+            pushLine(open, null);
             emit(n);
-            out.push('</' + tag + '>');
+            pushLine('</' + tag + '>', null);
         }
         flush();
     }
@@ -571,6 +734,58 @@ function toolboxFocusEditor() {
     const ed = toolboxTpl && toolboxTpl.editor;
     if (!ed) return;
     try { ed.focus({ preventScroll: true }); } catch (e) { try { ed.focus(); } catch (e2) {} }
+}
+
+// ========== 通用不变量：任何操作之后，焦点都该在编辑区、选区都该还在 ==========
+// 用户实测："点一下上面的工具栏，编辑区就失焦了，想连着改两次特别别扭。"
+// 两道保险：
+//   ① **按下时**就 preventDefault（见 initToolboxDOM 的 pointerdown / mousedown）——
+//      按钮根本拿不到焦点，浏览器也不会因为这次点击清掉 contenteditable 的选区；
+//   ② 每个操作跑完再兜一次（toolboxKeepFocus）—— 快捷键、右键菜单项、对话框确认/取消
+//      这些"遥控"路径也一并覆盖。
+// ★ 不许抢焦点的地方：用户正在文件名输入框/代码区/对话框输入框里打字（那是他的本意）。
+function toolboxFocusInEditor() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    const a = document.activeElement;
+    return !!(a && (a === ed || ed.contains(a)));
+}
+// 这一下点的是不是"工具栏类"元素（按钮、字号档、分组图标、菜单项、窗口按钮、列宽把手）。
+// 编辑区、代码区、文件名输入框、对话框输入框都不算 —— 它们需要浏览器正常的焦点/光标行为。
+// 图片占位框也不行：它虽然 contenteditable=false，但点它要能选中图片、要能右键。
+function toolboxToolbarHit(t) {
+    if (!t || !t.closest) return null;
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (ed && ed.contains(t)) return null;
+    if (toolboxTpl && (t === toolboxTpl.code || t === toolboxTpl.fileName)) return null;
+    const tag = String(t.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return null;
+    // ★ 工具栏容器本身也算：置灰的按钮（disabled）是**不可聚焦**的元素，
+    //   浏览器点它会顺手把当前焦点丢给 body（正文就失焦了，用户得再点回来）。
+    //   解决办法是给禁用的按钮加 pointer-events:none（见 CSS），事件于是落在容器上 ——
+    //   所以容器必须在这里被认成"工具栏类"，才能真正拦掉那次焦点搬运。
+    return t.closest('button, [data-tb], [data-tm], .tb-btn, .tb-size, .tb-tmenu, .tb-toolbar, [data-tb-grip]') || null;
+}
+// 操作收尾：把焦点还回编辑区（只在"焦点确实掉到别处了"时动手），并且
+//   · 焦点本来就在编辑区 → 一个字都不动（连选区都不碰，插入类操作刚放好的光标才不会被弄跑）；
+//   · 焦点掉到 body/按钮上 → 聚焦编辑区，**且不动滚动位置**（focus 默认会把容器滚一下）；
+//     只有当编辑区里已经没有可用选区时才用存档兜一个（否则会覆盖掉刚插入内容后面的光标）。
+function toolboxKeepFocus() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    if (toolboxFocusInEditor()) return true;
+    if (toolboxTpl.dialog && toolboxTpl.dialog.style.display === 'flex') return false;   // 对话框还开着：焦点留给它的输入框
+    const a = document.activeElement;
+    if (a && a !== document.body) {
+        const tag = String(a.tagName || '').toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || a.isContentEditable) return false;
+    }
+    const top = ed.scrollTop, left = ed.scrollLeft;
+    const hadRange = !!toolboxLiveRange();
+    toolboxFocusEditor();
+    ed.scrollTop = top; ed.scrollLeft = left;
+    if (!hadRange) toolboxRestoreRange();
+    return true;
 }
 
 // 把光标定位到刚插入的那段内容之后。
@@ -776,8 +991,8 @@ function toolboxWrapSelection(makeHtml, defText) {
     if (hoisted) last = hoisted;
     toolboxSnapClear();
     // ⑥.5 插入过程会在边界留下空的 <p>/<div>（原来那个空段落、被提走内容后的空壳），
-    //      它们在页面上就是一条多余的空行 —— 这里统一扫掉。
-    toolboxCleanEditorBlocks(ed);
+    //      它们在页面上就是一条多余的空行 —— 这里只扫**插入点附近**（不要清洗用户全文）。
+    toolboxCleanEditorBlocks(ed, last);
     // ⑦ 用的是**默认文字**（"文章标题"这类）→ 插完立刻把这段文字全选，
     //    用户直接打字就能覆盖，不用手动先删。插的是用户选中的原文时**不**全选
     //    —— 那一次要保留"原地替换"的选区语义。
@@ -893,10 +1108,9 @@ function toolboxDeleteSelection(atRange) {
 }
 
 // ========== 命令（加粗/斜体/…）==========
-// 这些命令会把结果写成 <font>（老式标签）：foreColor / hiliteColor 产出
-// <font color="#555555">，fontSize 产出 <font size="4">。语料里没有一个 <font>，
-// 所以执行完立刻把 <font> 内联化成 <span style="…">，和现有文章的写法对齐。
-const TOOLBOX_FONT_COMMANDS = ['foreColor', 'hiliteColor', 'backColor', 'fontName'];
+// ★ fontName / foreColor / hiliteColor 这些"老式"命令已经跟着颜色功能一起删了：
+//   它们产出 <font>，而语料里没有一个 <font>。字号仍然走 execCommand('fontSize')，
+//   见下面的 toolboxApplyFontSize（产出同样立刻内联化成 <span style="font-size:…">）。
 
 function toolboxExec(command, value) {
     // ★ 行内强调（加粗/斜体/下划线/删除线）改走自己的 DOM 变换：
@@ -910,10 +1124,6 @@ function toolboxExec(command, value) {
     toolboxRestoreRange();
     let ok = false;
     try { ok = document.execCommand(command, false, (value === undefined) ? null : value); } catch (e) { ok = false; }
-    if (ok && TOOLBOX_FONT_COMMANDS.indexOf(command) >= 0) {
-        const ed = toolboxTpl && toolboxTpl.editor;
-        if (ed) toolboxUnwrapFonts(ed, '', null);
-    }
     // 命令之后浏览器会重排选区，重新存一份 —— 连点两次"加粗"才作用在同一处
     toolboxSnapClear();          // 同上：命令用完就丢快照，下一次以现场选区为准
     toolboxStoreRangeNow();
@@ -963,17 +1173,43 @@ function toolboxFontToStyle(f) {
 function toolboxApplyFontSize(size) {
     const ed = toolboxTpl && toolboxTpl.editor;
     toolboxFocusEditor();
+    const r0 = toolboxRestoreRange();
+    const fp = r0 ? toolboxSelCapture(ed, r0) : null;   // ★ 改字号后选区也要留着（第 5 条）
     toolboxRestoreRange();
     if (ed) toolboxUnwrapFonts(ed, '', null);        // 先清掉历史 <font>，避免误伤
     let ok = false;
     try { ok = document.execCommand('fontSize', false, size); } catch (e) { ok = false; }
-    if (ok && ed) toolboxUnwrapFonts(ed, TOOLBOX_FONT_EM[String(size)] || '1em', String(size));
+    if (ok && ed) {
+        const css = TOOLBOX_FONT_EM[String(size)] || '1em';
+        toolboxUnwrapFonts(ed, css, String(size));
+        // ★ 选中「正文 1em」这一档时**不写** font-size:1em：那是空操作声明，
+        //   工具产出的片段里不该出现（用户点名的"空操作样式"）。
+        if (css === '1em') toolboxDropFontSize1em(ed);
+    }
     toolboxSnapClear();
+    toolboxSelRestore(ed, fp, r0);
     toolboxStoreRangeNow();
     toolboxHideDraftBar();
     toolboxScheduleDraftSave();
     toolboxScheduleRefresh(true);
     toolboxSyncToolbarState();
+}
+// 把 `font-size:1em` 这类空操作声明摘掉（只在刚刚改过字号的那批 <span> 上做）。
+// ★ 摘完只剩一个没有任何属性的裸 <span> 时，把壳也拆掉：语料里没有裸 <span>，
+//   留着一个"什么都不做"的空壳既是噪声、也会让"输出里不该有的标签"混进文章。
+function toolboxDropFontSize1em(root) {
+    if (!root || !root.querySelectorAll) return;
+    const list = root.querySelectorAll('span[style]');
+    for (let i = list.length - 1; i >= 0; i--) {
+        const el = list[i];
+        const keep = String(el.getAttribute('style') || '').split(';').map(function (x) { return x.trim(); })
+            .filter(function (x) { return x && !TOOLBOX_NOOP_STYLE_RE.test(x); });
+        if (keep.length) el.setAttribute('style', keep.join(';') + ';');
+        else {
+            el.removeAttribute('style');
+            if (!(el.attributes && el.attributes.length) && el.parentNode) toolboxUnwrapElement(el);
+        }
+    }
 }
 
 // ========== 清除格式（自己用 DOM 变换做，不用 execCommand）==========
@@ -1050,6 +1286,7 @@ function toolboxClearFormat() {
         try { sel.removeAllRanges(); sel.addRange(r); } catch (e) { r = null; }
     }
     if (!r) { toolboxToast('先点一下要清格式的位置'); return false; }
+    const fp = toolboxSelCapture(ed, r);               // ★ 清格式后选区也要留着（第 5 条）
     let touched = null;
     if (r.collapsed) {
         // 光标：处理它所在的那个块（没有块级祖先就退到"包裹着它的那层"）
@@ -1063,34 +1300,21 @@ function toolboxClearFormat() {
         toolboxStripInlineFormat(block);
         touched = block;
     } else {
-        let frag = null;
-        try { frag = r.cloneContents(); } catch (e) { frag = null; }   // 克隆：出问题也不会丢原文
-        if (!frag) { toolboxToast('这段内容清不了格式'); return false; }
-        toolboxStripInlineFormat(frag);
-        let first = null, last = null, ok = false;
-        try {
-            r.deleteContents();
-            while (frag.firstChild) {
-                const nd = frag.removeChild(frag.firstChild);
-                r.insertNode(nd);
-                if (!first) first = nd;
-                r.setStartAfter(nd);
-                r.collapse(true);
-                last = nd;
-                ok = true;
-            }
-        } catch (e2) { ok = false; }
-        if (!ok) {
-            // 极端情况（DOM 在中途被改）：把纯文字补回去，绝不静默丢内容
-            try { r.insertNode(document.createTextNode(String(frag.textContent || ''))); } catch (e3) {}
-        } else {
-            const hoisted = toolboxHoistBlock(first, last);            // 块级别留在 <p> 里
-            if (hoisted) last = hoisted;
-            touched = last;
+        // ★ 就地清：只摘掉"选区覆盖到的那些字"上的格式 —— 块结构、选区之外的文字
+        //   一个字都不动。旧实现是"取出片段 → 变换 → 放回去"，落点在块中间时会把宿主
+        //   段落切开、还可能把后半截搬到别处（用户实测的"多出换行 + 文字搬家"）。
+        const cov = toolboxSplitRangeEdges(ed, r);
+        if (!cov.length) { toolboxToast('这段内容清不了格式'); return false; }
+        for (let i = cov.length - 1; i >= 0; i--) {
+            const node = cov[i];
+            if (!node.parentNode) continue;
+            toolboxFixInlineChain(node, cov, ed, 'clear');
         }
+        touched = (cov[0] && cov[0].parentNode) || null;
     }
     toolboxSnapClear();
     toolboxCleanEditorBlocks(ed, touched);                             // 只清插入点附近的空块
+    toolboxSelRestore(ed, fp, r);                                      // ★ 选区留着（第 5 条）
     toolboxStoreRangeNow();
     toolboxHideDraftBar();
     toolboxScheduleDraftSave();
@@ -1135,17 +1359,97 @@ function toolboxRGBToHex(c) {
     return '#' + h(m[1]) + h(m[2]) + h(m[3]);
 }
 
-// 当前选区（或光标处）的格式状态
-function toolboxSelState() {
+// ========== 文字类型识别（用户给的规则，全部用计算样式算）==========
+//   图注 = 居中 + 灰色（#555555 这一档）+ 小字（约 0.85rem）
+//   标题 = 居中 + 字号约 1.1em + 加粗（font-weight ≥ 600）
+//   落款 = 居右
+//   引用 = 有 border-left
+//   其余 = 正文
+// ★ 具体要求：居中要**同时**认 <center> 祖先与计算出来的 text-align:center
+//   （Chrome 对 <center> 有时算成 -webkit-center，两个都收）；字号一律换算成
+//   "相对编辑区基准字号"的比值再比（不看 px/rem 写法）；灰色按通道容差比
+//   （#4d4d4d ~ #5f5f5f 都算"同档"）；返回命中的规则数组 —— 空数组 = 正文，
+//   两条以上 = 规则冲突，调用方**什么都不亮**。
+const TOOLBOX_GRAY_RGB = [85, 85, 85];        // #555555
+const TOOLBOX_GRAY_TOL = 12;                   // 每个通道允许的偏差
+const TOOLBOX_TYPE_SIZE_TOL = 0.06;            // 字号比值的容差（0.85 / 1.1 两档）
+function toolboxGrayLike(hex) {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ''));
+    if (!m) return false;
+    for (let i = 1; i <= 3; i++) {
+        if (Math.abs(parseInt(m[i], 16) - TOOLBOX_GRAY_RGB[i - 1]) > TOOLBOX_GRAY_TOL) return false;
+    }
+    return true;
+}
+// 沿祖先链看"是不是居中的"：<center> 元素 或 计算出来的 text-align 为 center
+function toolboxCenteredAt(node, ed, gcs) {
+    let n = node;
+    while (n && n !== ed) {
+        if (n.nodeType === 1) {
+            if (String(n.tagName || '').toUpperCase() === 'CENTER') return true;
+            const cs = gcs(n);
+            const al = String((cs && cs.textAlign) || '').toLowerCase();
+            if (al === 'center' || al === '-webkit-center') return true;
+        }
+        n = n.parentNode;
+    }
+    return false;
+}
+// 沿祖先链看有没有 border-left（引用那条色带）。
+// ★ 走到**表格单元格就停**：单元格自己带 1px 边框（表格样式），再往上算就会把
+//   普通单元格文字误判成"已经是引用"，于是点「引用」变成"取消引用"、看起来像没反应。
+function toolboxLeftBorderAt(node, ed, gcs) {
+    let n = node;
+    while (n && n !== ed) {
+        if (n.nodeType === 1) {
+            if (TOOLBOX_TABLE_STRUCT_TAGS.indexOf(String(n.tagName || '').toUpperCase()) >= 0) return false;
+            const cs = gcs(n);
+            if (cs && (parseFloat(cs.borderLeftWidth) || 0) > 0
+                && String(cs.borderLeftStyle || '') !== 'none') return true;
+        }
+        n = n.parentNode;
+    }
+    return false;
+}
+function toolboxTextKind(node, ed, gcs, ratio) {
+    if (!node || node === ed) return [];
+    const cs = gcs(node) || {};
+    const r = parseFloat(ratio) || 0;
+    const bold = (parseInt(cs.fontWeight, 10) || 400) >= 600;
+    const centered = toolboxCenteredAt(node, ed, gcs);
+    const gray = toolboxGrayLike(toolboxRGBToHex(cs.color));
+    const al = String(cs.textAlign || '').toLowerCase();
+    const out = [];
+    if (centered && gray && Math.abs(r - 0.85) <= TOOLBOX_TYPE_SIZE_TOL) out.push('caption');
+    if (centered && Math.abs(r - 1.1) <= TOOLBOX_TYPE_SIZE_TOL && bold) out.push('title');
+    if (al === 'right' || al === 'end') out.push('sign');
+    if (toolboxLeftBorderAt(node, ed, gcs)) out.push('quote');
+    return out;
+}
+
+// 当前选区（或光标处）的格式状态。
+// useRange（可选）：调用方已经解析好的选区（例如按下按钮那一刻冻结的快照）。
+// ★ 一定要把这个 Range 传进来：现场选区在工具栏按钮按下后可能已经收起，
+//   用了收起的那个去算"现在是不是加粗"，第二次点加粗就会又套一层而不是取消（真发生过）。
+function toolboxSelState(useRange) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const out = {
         ok: false, bold: false, italic: false, underline: false, strike: false,
-        align: '', size: '', color: '', back: '', title: false, quote: false, body: false
+        align: '', size: '', title: false, quote: false, body: false,
+        caption: false, sign: false, kind: [], conflict: false
     };
     if (!ed) return out;
-    const r = toolboxLiveRange() || toolboxActiveRange();
+    const r = toolboxRangeLive(useRange) ? useRange : (toolboxLiveRange() || toolboxActiveRange());
     if (!r) return out;
     let node = r.startContainer;
+    // ★ 选区的 startContainer 可能是个**元素**：最典型的是"操作完把选区还原回来"时，
+    //   浏览器/我们的还原逻辑给出的区间起点是父元素、偏移指向那个 <b> —— 这时只看
+    //   startContainer 的祖先链会漏判"已加粗"，按钮不亮、再点一次还会再套一层
+    //   （用户实测的 <b><b>正文</b></b>）。所以先把它归一到"选区里第一个字所在的文本节点"。
+    if (!r.collapsed) {
+        const firstText = toolboxRangeTextNodes(ed, r);
+        if (firstText.length) node = firstText[0].node;
+    }
     if (node && node.nodeType === 3) node = node.parentNode;
     if (!node || !ed.contains(node)) return out;      // 光标不在编辑区：工具栏不跟着动
     out.ok = true;
@@ -1178,12 +1482,14 @@ function toolboxSelState() {
     let al = bcs ? String(bcs.textAlign || '') : '';
     if (al === 'start') al = 'left';
     if (al === 'end') al = 'right';
+    if (al === '-webkit-center') al = 'center';
     out.align = (al === 'left' || al === 'center' || al === 'right') ? al : '';
     // 字号档位：算出来的 px ÷ 编辑区基准字号 = 比例，就近吸附到工具栏五档（容差 4%）
     const base = parseFloat(gcs(ed) ? gcs(ed).fontSize : '') || 16;
     const px = parseFloat(ncs ? ncs.fontSize : '') || 0;
+    let ratio = 0;
     if (px > 0) {
-        const ratio = px / base;
+        ratio = px / base;
         let best = '', diff = 0.04;
         for (let i = 0; i < TOOLBOX_SIZE_STEPS.length; i++) {
             const v = parseFloat(TOOLBOX_SIZE_STEPS[i]);
@@ -1191,15 +1497,51 @@ function toolboxSelState() {
         }
         out.size = best;
     }
-    if (ncs) {
-        out.color = toolboxRGBToHex(ncs.color);
-        const bg = toolboxRGBToHex(ncs.backgroundColor);
-        out.back = bg;
+    // ★ 文字类型：按用户给的规则算（全部看"计算样式"，不看标签名 —— 导入/粘贴进来的
+    //   内容常常只有 style，没有我们的标签）。判定对象是**祖先链上最里面那个元素**
+    //   （deepest：例如图注的 color/0.85rem 写在 <center> 里那层 span 上，块本身没有），
+    //   居中则沿祖先链认 <center> 或 text-align:center。
+    const kind = toolboxTextKind(deepest || block, ed, gcs, ratio);
+    out.kind = kind;
+    out.quote = kind.indexOf('quote') >= 0;
+    out.title = kind.indexOf('title') >= 0;
+    out.caption = kind.indexOf('caption') >= 0;
+    out.sign = kind.indexOf('sign') >= 0;
+    // 一条规则都没命中 = 正文；命中两条以上（规则冲突，例如"居中的灰色小字"同时又带
+    // border-left）→ **什么都不亮**（宁可不亮也别让用户误点一下改错东西）。
+    out.conflict = kind.length > 1;
+    out.body = !out.conflict && kind.length === 0;
+    // ★ 选区跨了多块、且这些块的"类型特征"不一致时**不判类型**（宁可都不亮）：
+    //   否则选中"标题 + 正文"两段，按钮会按第一段乱亮一个，用户点下去会误改。
+    if (!r.collapsed) {
+        const blocks = toolboxBlocksInRange(ed, r);
+        if (blocks.length > 1) {
+            const feat = function (b) {
+                const cs = gcs(b);
+                if (!cs) return '';
+                const al2 = String(cs.textAlign || '');
+                return [al2, cs.fontSize, (parseFloat(cs.borderLeftWidth) || 0) > 0 ? 'q' : ''].join('|');
+            };
+            const first = feat(blocks[0]);
+            for (let i = 1; i < blocks.length; i++) {
+                if (feat(blocks[i]) !== first) { out.mixed = true; break; }
+            }
+        }
     }
-    const bleft = bcs ? (parseFloat(bcs.borderLeftWidth) || 0) : 0;
-    out.quote = bleft > 0;
-    out.title = (out.align === 'center' && out.size === TOOLBOX_TITLE_SIZE);
-    out.body = !out.title && !out.quote;
+    return out;
+}
+// 选区覆盖到的块级元素（去重、按文档顺序）
+function toolboxBlocksInRange(ed, r) {
+    const seen = [], out = [];
+    const runs = toolboxTextRunsInRange(ed, r);
+    for (let i = 0; i < runs.length; i++) {
+        const b = runs[i].block;
+        if (b && seen.indexOf(b) < 0) { seen.push(b); out.push(b); }
+    }
+    if (!out.length) {
+        const b = toolboxNearestBlock(r.startContainer, ed);
+        if (b) out.push(b);
+    }
     return out;
 }
 
@@ -1223,38 +1565,27 @@ function toolboxSyncToolbarState() {
         for (let i = 0; i < on.length; i++) on[i].classList.remove('active');
     };
     if (!st.ok) { clearAll(); return; }
+    // ★ 混选（跨多种格式的块）：类型/对齐/字号一律不亮 —— 见 toolboxSelState 的 mixed
+    const mixed = !!st.mixed;
     mark('[data-tb="bold"]', st.bold);
     mark('[data-tb="italic"]', st.italic);
     mark('[data-tb="underline"]', st.underline);
     mark('[data-tb="strike"]', st.strike);
     const sizes = m.querySelectorAll('.tb-size');
     for (let i = 0; i < sizes.length; i++) {
-        sizes[i].classList.toggle('active', sizes[i].getAttribute('data-size') === st.size && !!st.size);
+        sizes[i].classList.toggle('active', !mixed && sizes[i].getAttribute('data-size') === st.size && !!st.size);
     }
-    mark('[data-tb="align-left"]', st.align === 'left');
-    mark('[data-tb="align-center"]', st.align === 'center');
-    mark('[data-tb="align-right"]', st.align === 'right');
-    mark('[data-tb="title"]', st.title);
-    mark('[data-tb="body"]', st.body);
-    mark('[data-tb="quote"]', st.quote);
-    // 颜色 / 高亮：显示"当前选中文字"的值（取不到就留空 = 色块不涂色）
-    const paintSwatch = function (id, inputId, hex) {
-        const sw = m.querySelector(id);
-        if (sw) {
-            if (hex) {
-                sw.style.backgroundImage = 'linear-gradient(' + hex + ',' + hex + ')';
-                sw.style.backgroundColor = 'transparent';
-            } else {
-                sw.style.backgroundImage = '';
-                sw.style.backgroundColor = 'transparent';
-            }
-        }
-        const inp = m.querySelector(inputId);
-        // ★ 不抢正在拖色盘的输入框：只有它没被聚焦时才回写
-        if (inp && hex && document.activeElement !== inp) inp.value = hex;
-    };
-    paintSwatch('#tbForeSwatch', '#tbForeColor', st.color);
-    paintSwatch('#tbBackSwatch', '#tbBackColor', st.back);
+    mark('[data-tb="align-left"]', !mixed && st.align === 'left');
+    mark('[data-tb="align-center"]', !mixed && st.align === 'center');
+    mark('[data-tb="align-right"]', !mixed && st.align === 'right');
+    // 文字类型（用户给的规则）：图注 / 标题 / 落款 / 引用 / 正文，五个里最多亮一个；
+    // 规则冲突（st.conflict）或跨多块（mixed）时一个都不亮。
+    const typeOff = mixed || st.conflict;
+    mark('[data-tb="title"]', !typeOff && st.title);
+    mark('[data-tb="caption"]', !typeOff && st.caption);
+    mark('[data-tb="sign"]', !typeOff && st.sign);
+    mark('[data-tb="quote"]', !typeOff && st.quote);
+    mark('[data-tb="body"]', !typeOff && st.body);
 }
 
 // ========== A. 两侧选区互相对应高亮 ==========
@@ -1276,8 +1607,110 @@ function toolboxSyncToolbarState() {
 const TOOLBOX_HL_NAME = 'tb-sync';
 const TOOLBOX_HL_MAX = 200;                    // 选得太长就不折腾了（性能与实用性）
 let toolboxHlRaf = 0;
-let toolboxHl = { from: '', text: '', start: 0, end: 0, has: false };
+let toolboxHlFrom = '';
+// 高亮状态：{ from, text, start, end, srcStart, srcEnd, has }
+//   · from === 'editor' → start/end 是**正文可见文字**偏移，srcStart/srcEnd 是源码偏移（画代码镜像层）
+//   · from === 'code'   → srcStart/srcEnd 是源码偏移（textarea 的选区本来就是源码偏移），
+//                         start/end 是换算出来的正文可见文字偏移（画正文那一侧）
+let toolboxHl = { from: '', text: '', start: 0, end: 0, srcStart: 0, srcEnd: 0, has: false };
 let toolboxHlAnchor = { editor: 0, code: 0 };
+
+// ========== 正文 ↔ 代码区的**偏移映射**（两侧高亮的唯一依据）==========
+// 用户报过两个现象：① 跨行选区对应不上；② 短词匹配到别处（同一个词在别处也出现，
+// 甚至命中了属性里的字符串）。根因很直接：**拿纯文本去 indexOf 带标签的源码** ——
+// 跨行必然对不上（正文里没有换行、源码里有），短词必然撞上第一次巧合出现的位置。
+//
+// 改成偏移映射：代码区的源码本来就是**由正文 DOM 序列化出来的**，所以让序列化过程
+// 顺手把"每个文本节点 → 它在源码里的 [start,end)"记下来（见 toolboxFormatHtml 的 rec），
+// 之后一律按**区间**换算：跨行、跨块天然正确，中间的标签原样包含；
+// 不做任何字符串搜索，所以"匹配到别处""命中属性"这两个 bug 直接消失。
+//
+// ★ 映射唯一会失效的情形是"代码区被直接改了" —— 缓存按 code.value 逐字比对，
+//   值一变就自动重建；编辑区改了内容时 toolboxRefresh 也会主动让缓存失效。
+let toolboxSrcMapCache = null;
+
+function toolboxSrcMapBuild() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    const code = toolboxTpl && toolboxTpl.code;
+    if (!ed || !code) return null;
+    const src = String(code.value || '');
+    if (toolboxSrcMapCache && toolboxSrcMapCache.src === src) return toolboxSrcMapCache;
+    const rec = [];
+    try { toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()), rec); } catch (e) { rec.length = 0; }
+    // ★ 序列化用的是**净化后的副本**，节点对象跟编辑区里不是同一批 ——
+    //   按"文档顺序 + 文字内容"一一配回去。配法是**单调前进**的：
+    //   只往后找、不回头，所以绝不会把后面的内容配到前面的位置上（这正是"匹配到别处"的根源）。
+    const norm = function (s) { return String(s == null ? '' : s).replace(TOOLBOX_WS, ' '); };
+    const emap = toolboxEditorTextMap(ed);
+    const spans = [];
+    let ri = 0;
+    for (let i = 0; i < emap.nodes.length; i++) {
+        const seg = emap.nodes[i];
+        const key = norm(seg.node.nodeValue);
+        if (!key.replace(/\s/g, '')) continue;              // 纯空白节点不参与（用户选不到它）
+        let found = -1;
+        for (let k = ri; k < rec.length; k++) {
+            if (norm(rec[k].node.nodeValue) === key) { found = k; break; }
+        }
+        if (found < 0) continue;
+        spans.push({
+            node: seg.node,
+            textStart: seg.start, textEnd: seg.end,
+            srcStart: rec[found].srcStart, srcEnd: rec[found].srcEnd
+        });
+        ri = found + 1;
+    }
+    toolboxSrcMapCache = { src: src, spans: spans };
+    return toolboxSrcMapCache;
+}
+
+// 正文"可见文字偏移" → 源码偏移。
+// ★ 起始边界用**半开区间**（off < textEnd）：偏移正好落在两个文本节点的交界处时，
+//   界面上是同一个数字（前一段的末尾 == 后一段的开头），但源码里中间还隔着 `</p>\n<p>`。
+//   起始要归给**后面**那一段，否则跨块选区的起点会被拉到上一个块的收尾标签上。
+function toolboxSrcFromText(map, off, isEnd) {
+    const spans = map.spans;
+    for (let i = 0; i < spans.length; i++) {
+        const s = spans[i];
+        if (off >= s.textStart && (isEnd ? off <= s.textEnd : off < s.textEnd)) {
+            return s.srcStart + (off - s.textStart);
+        }
+        if (off < s.textStart) return isEnd ? s.srcStart : (i > 0 ? spans[i - 1].srcEnd : s.srcStart);
+    }
+    const last = spans[spans.length - 1];
+    return last ? last.srcEnd : -1;
+}
+// 用"节点 + 节点内偏移"直接定位（最准的一条路：文本节点在源码里的位置是确定的，
+// 不会被上面那个"交界处归谁"的歧义影响）。元素容器（整块 / 整个 <b> 被选中）才退回按偏移算。
+function toolboxSrcFromPoint(map, emap, container, off, isEnd) {
+    if (container && container.nodeType === 3) {
+        for (let i = 0; i < map.spans.length; i++) {
+            const s = map.spans[i];
+            if (s.node === container) {
+                return s.srcStart + Math.max(0, Math.min(off, s.textEnd - s.textStart));
+            }
+        }
+    }
+    const vis = toolboxMapOffset(emap, container, off);
+    if (vis < 0) return -1;
+    return toolboxSrcFromText(map, vis, isEnd);
+}
+// 源码偏移 → 正文"可见文字偏移"
+function toolboxTextFromSrc(map, off, isEnd) {
+    const spans = map.spans;
+    for (let i = 0; i < spans.length; i++) {
+        const s = spans[i];
+        if (off >= s.srcStart && off <= s.srcEnd) {
+            return s.textStart + Math.min(off - s.srcStart, s.textEnd - s.textStart);
+        }
+        if (off < s.srcStart) return isEnd ? s.textStart : (i > 0 ? spans[i - 1].textEnd : s.textStart);
+    }
+    const last = spans[spans.length - 1];
+    return last ? last.textEnd : -1;
+}
+function toolboxSrcMapClear() {
+    toolboxSrcMapCache = null;
+}
 
 function toolboxHighlightAPI() {
     return !!(window.CSS && window.CSS.highlights && typeof window.Highlight === 'function');
@@ -1286,15 +1719,24 @@ function toolboxCodeHlEl() {
     return document.getElementById('tbCodeHl');
 }
 // 把代码区的文字镜像到显示层（改动只在显示层，textarea 的 value 一个字节都不动）
+// ★ busy 抑制位：toolboxPaintHighlight（from === 'editor' 那条）会反过来调本函数来同步镜像，
+//   而本函数在"内容变了"时又会去调 toolboxPaintHighlight —— 两边互相调就成了死循环
+//   （实测：高亮还亮着时清空正文，浏览器直接 "Maximum call stack size exceeded"）。
+//   加一位抑制位，语义清楚：**正在同步镜像的那一层负责把高亮重画完**，被回调上来的那一层不再重复。
+let toolboxCodeHlBusy = false;
 function toolboxCodeHlSync() {
-    const el = toolboxCodeHlEl();
-    const code = toolboxTpl && toolboxTpl.code;
-    if (!el || !code) return;
-    const v = String(code.value || '');
-    if (el.firstChild && el.firstChild.nodeType === 3 && el.firstChild.nodeValue === v) return;   // 没变就不动
-    el.textContent = v;
-    toolboxSyncCodeScroll();
-    if (toolboxHl.has) toolboxPaintHighlight();      // 文字换了：旧的 Range 已失效，重画
+    if (toolboxCodeHlBusy) return;                    // 已经在同步了：直接返回，避免互相递归
+    toolboxCodeHlBusy = true;
+    try {
+        const el = toolboxCodeHlEl();
+        const code = toolboxTpl && toolboxTpl.code;
+        if (!el || !code) return;
+        const v = String(code.value || '');
+        if (el.firstChild && el.firstChild.nodeType === 3 && el.firstChild.nodeValue === v) return;   // 没变就不动
+        el.textContent = v;
+        toolboxSyncCodeScroll();
+        if (toolboxHl.has) toolboxPaintHighlight();      // 文字换了：旧的 Range 已失效，重画
+    } finally { toolboxCodeHlBusy = false; }
 }
 function toolboxSyncCodeScroll() {
     const el = toolboxCodeHlEl();
@@ -1308,8 +1750,18 @@ function toolboxClearHighlight() {
     try { if (window.CSS && CSS.highlights) CSS.highlights.delete(TOOLBOX_HL_NAME); } catch (e) {}
 }
 function toolboxScheduleHighlight(from) {
+    // ★ 方向"后到的赢"：以前这里 if (toolboxHlRaf) return 会把后一次请求直接丢掉。
+    //   焦点从正文移到代码区时，浏览器会先发一次 selectionchange（正文侧、此时已经
+    //   折叠）再发代码区的 select —— 丢掉后者就变成"代码区选了字，正文侧反而不高亮，
+    //   反而把刚画上的高亮清掉了"（用例里复现过）。
+    toolboxHlFrom = from;
     if (toolboxHlRaf) return;
-    const run = function () { toolboxHlRaf = 0; toolboxSyncHighlight(from); };
+    const run = function () {
+        const f = toolboxHlFrom || from;
+        toolboxHlRaf = 0;
+        toolboxHlFrom = '';
+        toolboxSyncHighlight(f);
+    };
     try { toolboxHlRaf = requestAnimationFrame(run); } catch (e) { run(); }
 }
 
@@ -1330,6 +1782,50 @@ function toolboxEditorTextMap(ed) {
         n = walker.nextNode();
     }
     return map;
+}
+// 某个 Range 边界在"文字地图"里的偏移。
+// ★ 元素容器**不能忽略 offset**：整段 / 整个 <b> 被选中时，两端的边界是"元素 + 子节点序号"，
+//   以前一律返回容器里第一个文本节点的起点，于是 start 与 end 落到同一个位置 ——
+//   指纹里的"选中文字"变成空串，操作后就还原不回选区（表现为"连点第二次没反应"）。
+//   正确语义：(el, off) 是"第 off 个子节点**之前**"那个位置 → 取它后面第一段文字的起点；
+//   off 到了末尾就取容器里最后一段文字的末尾。
+function toolboxSegStart(map, node) {
+    for (let i = 0; i < map.nodes.length; i++) if (map.nodes[i].node === node) return map.nodes[i].start;
+    return -1;
+}
+function toolboxSegEnd(map, node) {
+    for (let i = 0; i < map.nodes.length; i++) if (map.nodes[i].node === node) return map.nodes[i].end;
+    return -1;
+}
+function toolboxMapOffset(map, container, offset) {
+    if (!map || !container) return -1;
+    if (container.nodeType === 3) {
+        for (let i = 0; i < map.nodes.length; i++) {
+            const seg = map.nodes[i];
+            if (seg.node === container) {
+                return seg.start + Math.max(0, Math.min(offset, seg.end - seg.start));
+            }
+        }
+        return -1;
+    }
+    if (container.nodeType === 1) {
+        const kids = container.childNodes;
+        const at = Math.max(0, Math.min(offset, kids.length));
+        for (let i = at; i < kids.length; i++) {                 // 位置之后的第一段文字
+            const k = kids[i];
+            const t = (k.nodeType === 3) ? k : toolboxFirstTextNodeIn(k);
+            if (t) { const s = toolboxSegStart(map, t); if (s >= 0) return s; }
+        }
+        for (let i = at - 1; i >= 0; i--) {                      // 后面没字了 → 前面最后一段文字的末尾
+            const k = kids[i];
+            const t = (k.nodeType === 3) ? k : toolboxLastTextNodeIn(k);
+            if (t) { const e = toolboxSegEnd(map, t); if (e >= 0) return e; }
+        }
+        for (let i = 0; i < map.nodes.length; i++) {             // 极端兜底
+            if (container.contains(map.nodes[i].node)) return map.nodes[i].start;
+        }
+    }
+    return -1;
 }
 // "离上次位置最近"的那一处（重复文本时不乱跳）
 function toolboxNearestIndex(hay, needle, anchor) {
@@ -1362,57 +1858,264 @@ function toolboxRangeFromOffsets(map, start, end) {
     } catch (e) { return null; }
 }
 
+// ========== 定位工具：忽略空白差异的查找 + 上下文打分（第 4、5 条共用）==========
+// ★ 为什么必须"忽略空白"：正文与代码区的**空白写法不一样** —— 正文里两个块之间一个字符
+//   都没有，代码区导出时块与块之间是换行；正文里换行是 <br> 元素，代码区是 "\n"。
+//   直接 indexOf 必然失配，跨行/跨块的选区就是死在这上面。所以两边都先去掉空白再比，
+//   同时留一张"扁平下标 → 原文下标"的表，比中了再换回真正的位置。
+function toolboxFlatText(s) {
+    const src = String(s == null ? '' : s);
+    const flat = [], map = [];
+    for (let i = 0; i < src.length; i++) {
+        const ch = src.charAt(i);
+        if (/[\s\u00a0\u200b]/.test(ch)) continue;
+        flat.push(ch);
+        map.push(i);
+    }
+    return { flat: flat.join(''), map: map };
+}
+// 在 hay 里找 needle：多处命中时优先"上下文对得上"的，其次离 anchor 近的。
+// 返回 { start, end }（hay 里的下标，end 不含）或 null。
+function toolboxLocateText(hay, needle, before, after, anchor) {
+    const h = toolboxFlatText(hay), n = toolboxFlatText(needle);
+    if (!h.flat || !n.flat) return null;
+    const bf = toolboxFlatText(before).flat, af = toolboxFlatText(after).flat;
+    const len = n.flat.length;
+    let best = -1, bestScore = -1, at = h.flat.indexOf(n.flat);
+    while (at >= 0) {
+        let score = 0;
+        if (bf && h.flat.slice(Math.max(0, at - bf.length), at) === bf) score += 2;
+        if (af && h.flat.slice(at + len, at + len + af.length) === af) score += 2;
+        if (score > bestScore) { bestScore = score; best = at; }
+        else if (score === bestScore && best >= 0) {
+            const near = Math.abs((h.map[at] || 0) - (anchor || 0));
+            const keep = Math.abs((h.map[best] || 0) - (anchor || 0));
+            if (near < keep) best = at;
+        }
+        at = h.flat.indexOf(n.flat, at + 1);
+    }
+    if (best < 0) return null;
+    return { start: h.map[best], end: h.map[best + len - 1] + 1 };
+}
+// 选区的片段 HTML（与导出同一种写法：标签原样、属性原样）
+function toolboxRangeHtml(r) {
+    try {
+        const d = document.createElement('div');
+        d.appendChild(r.cloneContents());
+        return String(d.innerHTML || '');
+    } catch (e) { return ''; }
+}
+// 代码区里选中的那段源码 → 纯文字（剥标签 + 还原实体）；剥完没字说明选的是标签名/属性
+function toolboxCodeToPlain(raw) {
+    return String(raw || '').replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+}
+
+// ========== 选区"指纹"：操作前记下，操作后在新 DOM 上把同一段文字重新选中 ==========
+// 需求（用户第 5 条）：操作完选区不能丢，否则没法连着改第二下（改完加粗就选不回去点引用了）。
+// 指纹 = 选中文字 + 前后各 20 字上下文；折叠的光标用"后一段文字 + 前文"当锚点。
+const TOOLBOX_FP_CTX = 20;
+function toolboxSelectionFingerprint(r, ed) {
+    const fp = { text: '', before: '', after: '', collapsed: true, ok: false };
+    if (!r || !ed || !r.startContainer || !ed.contains(r.startContainer)) return fp;
+    let map = null;
+    try { map = toolboxEditorTextMap(ed); } catch (e) { return fp; }
+    const s = toolboxMapOffset(map, r.startContainer, r.startOffset);
+    if (s < 0) return fp;
+    const e = r.collapsed ? s : toolboxMapOffset(map, r.endContainer, r.endOffset);
+    fp.collapsed = !!r.collapsed;
+    fp.ok = true;
+    fp.at = s;                       // ★ 记下当时的可见文字偏移：重新定位时用它打破"同一段文字出现多次"的平局
+    if (!fp.collapsed) {
+        if (e < s) return fp;
+        fp.text = map.text.slice(s, e);
+        fp.after = map.text.slice(e, e + TOOLBOX_FP_CTX);
+    } else {
+        fp.after = map.text.slice(s, s + TOOLBOX_FP_CTX);
+    }
+    fp.before = map.text.slice(Math.max(0, s - TOOLBOX_FP_CTX), s);
+    return fp;
+}
+function toolboxRangeFromFingerprint(ed, fp) {
+    if (!fp || !fp.ok || !ed) return null;
+    let map = null;
+    try { map = toolboxEditorTextMap(ed); } catch (e) { return null; }
+    if (!map.text) return null;
+    const anchor = fp.at || 0;
+    if (fp.collapsed) {
+        // 光标：用"后一段文字"当目标、前文当上下文；文档末尾（后面没字）就用前文收尾
+        if (fp.after) {
+            const hit = toolboxLocateText(map.text, fp.after, fp.before, '', anchor);
+            if (hit) return toolboxRangeFromOffsets(map, hit.start, hit.start);
+        } else if (fp.before) {
+            const hit = toolboxLocateText(map.text, fp.before, '', '', anchor);
+            if (hit) return toolboxRangeFromOffsets(map, hit.end, hit.end);
+        }
+        return null;
+    }
+    if (!fp.text) return null;
+    const hit = toolboxLocateText(map.text, fp.text, fp.before, fp.after, anchor);
+    if (!hit) return null;
+    return toolboxRangeFromOffsets(map, hit.start, hit.end);
+}
+// ★ 兜底定位：选中的那段文字已经不存在了（典型是"撤回自己刚敲进去的字"），
+//   就退到"锚点前那段文字之后"放一个光标 —— 也就是用户刚才动手的那个位置。
+function toolboxCaretFromFingerprint(ed, fp) {
+    if (!fp || !ed) return null;
+    const anchor = fp.at || 0;
+    let map = null;
+    try { map = toolboxEditorTextMap(ed); } catch (e) { return null; }
+    if (!map.text) return null;
+    const probes = [fp.before, fp.after];
+    for (let i = 0; i < probes.length; i++) {
+        if (!probes[i]) continue;
+        const hit = toolboxLocateText(map.text, probes[i], '', '', anchor);
+        if (hit) {
+            const at = (i === 0) ? hit.end : hit.start;
+            return toolboxRangeFromOffsets(map, at, at);
+        }
+    }
+    return null;
+}
+function toolboxSelectRange(r) {
+    if (!r) return false;
+    try {
+        const sel = window.getSelection && window.getSelection();
+        if (!sel) return false;
+        sel.removeAllRanges();
+        sel.addRange(r);
+        return true;
+    } catch (e) { return false; }
+}
+// 操作前：capture；操作后：restore（找不到同一段文字就退回原来那个 Range 对象）
+function toolboxSelCapture(ed, r) {
+    try { return toolboxSelectionFingerprint(r, ed); } catch (e) { return null; }
+}
+function toolboxSelRestore(ed, fp, fallback) {
+    if (!ed) return false;
+    let r = null;
+    try { r = toolboxRangeFromFingerprint(ed, fp); } catch (e) { r = null; }
+    if (!r && fallback && fallback.startContainer && ed.contains(fallback.startContainer)) r = fallback;
+    if (!r) return false;
+    return toolboxSelectRange(r);
+}
+
+// ========== 滚动：位置交给浏览器算（不再按行高/行数估算）==========
+// 用户实测第 4 条："滚动位置要准"。Range 自己没有 scrollIntoView，
+// 所以做法是：用 Range.getBoundingClientRect()（浏览器自己排的版）算出"要滚多少才能让它
+// 落在容器中间"，再把这个位移交给浏览器做平滑滚动（scrollBy({behavior:'smooth'})）。
+// 全程没有任何"行高 × 行数"的估算 —— 长行折行、图片、嵌套块都能对得上。
+const TOOLBOX_SCROLL_DEBOUNCE = 90;              // ms：防抖，连续移动光标只有最后一次生效
+const TOOLBOX_SCROLL_MS = 220;                   // 兜底 rAF 动画的时长
+let toolboxScrollTimer = 0;
+let toolboxScrollRaf = 0;
+function toolboxScrollCancel() {
+    if (toolboxScrollTimer) { clearTimeout(toolboxScrollTimer); toolboxScrollTimer = 0; }
+    if (toolboxScrollRaf) { cancelAnimationFrame(toolboxScrollRaf); toolboxScrollRaf = 0; }
+}
+// 兜底：浏览器不支持 scrollBy 的平滑选项时，用 rAF 做同样的位移（可被打断）
+function toolboxSmoothScrollTop(host, top) {
+    if (!host) return;
+    const target = Math.max(0, Math.min(top, host.scrollHeight - host.clientHeight));
+    const from = host.scrollTop;
+    if (Math.abs(target - from) < 2) return;
+    const t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (toolboxScrollRaf) { cancelAnimationFrame(toolboxScrollRaf); toolboxScrollRaf = 0; }
+    const step = function () {
+        toolboxScrollRaf = 0;
+        const now = (window.performance && performance.now) ? performance.now() : Date.now();
+        let p = (now - t0) / TOOLBOX_SCROLL_MS;
+        if (p >= 1) p = 1;
+        const e = 1 - Math.pow(1 - p, 3);                            // easeOutCubic
+        host.scrollTop = from + (target - from) * e;
+        if (p < 1) toolboxScrollRaf = requestAnimationFrame(step);
+    };
+    toolboxScrollRaf = requestAnimationFrame(step);
+}
+function toolboxScrollBy(host, delta) {
+    if (!host || !isFinite(delta) || Math.abs(delta) < 1) return;
+    if (typeof host.scrollBy === 'function') {
+        try { host.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return; } catch (e) { /* 老浏览器走下面 */ }
+    }
+    toolboxSmoothScrollTop(host, host.scrollTop + delta);
+}
+// 让一个 Range 落到容器中间（位置全部由浏览器算）
+function toolboxScrollRangeToCenter(host, r) {
+    if (!host || !r) return;
+    let rect = null;
+    try { rect = r.getBoundingClientRect(); } catch (e) { rect = null; }
+    if (!rect || (!rect.height && !rect.width)) return;
+    const hr = host.getBoundingClientRect();
+    toolboxScrollBy(host, (rect.top - hr.top) - (host.clientHeight - rect.height) / 2);
+}
+// 正文侧：把对应 Range 滚到视野中间
+function toolboxScrollEditorToRange(ed, r) {
+    if (!ed || !r) return;
+    toolboxScrollCancel();
+    toolboxScrollTimer = setTimeout(function () {
+        toolboxScrollTimer = 0;
+        toolboxScrollRangeToCenter(ed, r);
+    }, TOOLBOX_SCROLL_DEBOUNCE);
+}
+// 代码侧：镜像层上那个 Range 的 rect → 换算成 textarea 要滚多少（textarea 的文字不在 DOM 里）
+function toolboxScrollCodeToRange(r) {
+    const code = toolboxTpl && toolboxTpl.code;
+    if (!code || !r) return;
+    toolboxScrollCancel();
+    toolboxScrollTimer = setTimeout(function () {
+        toolboxScrollTimer = 0;
+        toolboxSyncCodeScroll();                 // 先让镜像层与 textarea 对齐，rect 才可信
+        toolboxScrollRangeToCenter(code, r);
+        toolboxSyncCodeScroll();
+    }, TOOLBOX_SCROLL_DEBOUNCE);
+}
+
+// 把一侧的选区映射到另一侧的对应位置，并画高亮 + 滚动。
+// ★ 映射方式：**偏移映射**（见 toolboxSrcMapBuild），两侧都是"区间 → 区间"的直接换算，
+//   不做任何字符串搜索。跨行、跨块天然正确；重复词、属性里的词也不可能再匹配错。
+// · 代码 → 正文：代码里选的源码偏移（textarea 的 selectionStart/End 就是源码偏移）反查正文。
+// · 正文 → 代码：正文里的选区先换算成"可见文字偏移"，再用同一张表换成源码区间。
+// · 折叠的选区：不高亮、不滚动（用户要求）。换算不出区间：安静放弃。
 function toolboxSyncHighlight(from) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const code = toolboxTpl && toolboxTpl.code;
     const modal = toolboxTpl && toolboxTpl.modal;
     if (!ed || !code || !modal || modal.style.display !== 'flex') return;
-    let raw = '', anchor = 0;
+    const map = toolboxSrcMapBuild();
     if (from === 'code') {
         const s = code.selectionStart, e = code.selectionEnd;
-        if (s == null || e == null || e <= s) { toolboxClearHighlight(); return; }        // 折叠：不高亮、不滚动
-        raw = String(code.value || '').slice(s, e);
-        anchor = toolboxHlAnchor.code;
+        if (s == null || e == null || e <= s) { toolboxClearHighlight(); return; }
+        const raw = String(code.value || '').slice(s, e);
+        if (raw.length > TOOLBOX_HL_MAX) { toolboxClearHighlight(); return; }
+        const plain = toolboxCodeToPlain(raw);
+        if (!plain.replace(/\s+/g, '')) { toolboxClearHighlight(); return; }
+        if (!map || !map.spans.length) { toolboxClearHighlight(); return; }
+        const ts = toolboxTextFromSrc(map, s, false);
+        const te = toolboxTextFromSrc(map, e, true);
+        if (ts < 0 || te < 0 || te <= ts) { toolboxClearHighlight(); return; }
+        toolboxHl = { from: 'code', text: plain, start: ts, end: te, srcStart: s, srcEnd: e, has: true };
+        toolboxHlAnchor.editor = ts;
     } else {
+        // ★ 焦点在代码区时不要用"正文侧那份已经过期的选区"去算：
+        //   焦点一移走，正文的选区就折叠/失效了，照算会把代码区刚点亮的高亮清掉。
+        if (document.activeElement === code) return;
         const r = toolboxLiveRange();
-        if (!r || r.collapsed) { toolboxClearHighlight(); return; }                      // 折叠：不高亮、不滚动
-        try { raw = String(r); } catch (e) { raw = ''; }
-        anchor = toolboxHlAnchor.editor;
-    }
-    if (!raw || !String(raw).replace(/\s+/g, '')) { toolboxClearHighlight(); return; }
-    if (raw.length > TOOLBOX_HL_MAX) { toolboxClearHighlight(); return; }
-    let text = raw, map = null, hay = '', at = -1;
-    if (from === 'code') {
-        // 代码 → 正文：把标签剥掉，剩下的文字拿去正文里找；剥完没字就放弃
-        // （选中的是标签名/属性时正是这种情况）
-        text = String(raw).replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+        if (!r || r.collapsed) { toolboxClearHighlight(); return; }
+        const text = String(r);
         if (!text.replace(/\s+/g, '')) { toolboxClearHighlight(); return; }
-        map = toolboxEditorTextMap(ed);
-        hay = map.text;
-        at = toolboxNearestIndex(hay, text, anchor);
-        if (at < 0) {
-            // 文字里可能有换行/连续空白差异：折叠空白后再试一次
-            const flat = hay.replace(/\s+/g, ' ');
-            const needle = text.replace(/\s+/g, ' ');
-            const flatAt = toolboxNearestIndex(flat, needle, anchor);
-            if (flatAt < 0) { toolboxClearHighlight(); return; }
-            at = flatAt;                                  // 位置一致（空白折叠不改长度时最准）
-        }
-    } else {
-        hay = String(code.value || '');
-        at = toolboxNearestIndex(hay, text, anchor);
-        if (at < 0) {
-            // 正文里的 & < > 在代码里是实体：换个写法再找一次
-            const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/\u00a0/g, '&nbsp;');
-            at = toolboxNearestIndex(hay, esc, anchor);
-            if (at >= 0) text = esc;
-        }
-        if (at < 0) { toolboxClearHighlight(); return; }
+        if (text.length > TOOLBOX_HL_MAX) { toolboxClearHighlight(); return; }
+        const emap = toolboxEditorTextMap(ed);
+        const sOff = toolboxMapOffset(emap, r.startContainer, r.startOffset);
+        const eOff = toolboxMapOffset(emap, r.endContainer, r.endOffset);
+        if (sOff < 0 || eOff < 0 || eOff <= sOff) { toolboxClearHighlight(); return; }
+        if (!map || !map.spans.length) { toolboxClearHighlight(); return; }
+        const ss = toolboxSrcFromPoint(map, emap, r.startContainer, r.startOffset, false);
+        const se = toolboxSrcFromPoint(map, emap, r.endContainer, r.endOffset, true);
+        if (ss < 0 || se < 0 || se <= ss) { toolboxClearHighlight(); return; }
+        toolboxHl = { from: 'editor', text: text, start: sOff, end: eOff, srcStart: ss, srcEnd: se, has: true };
+        toolboxHlAnchor.code = ss;
     }
-    toolboxHl = { from: from, text: text, start: at, end: at + text.length, has: true };
-    if (from === 'code') toolboxHlAnchor.editor = at; else toolboxHlAnchor.code = at;
     toolboxPaintHighlight();
 }
 
@@ -1421,55 +2124,32 @@ function toolboxPaintHighlight() {
     const code = toolboxTpl && toolboxTpl.code;
     if (!ed || !code || !toolboxHl.has) { toolboxClearHighlight(); return; }
     const st = toolboxHl;
-    if (!toolboxHighlightAPI()) {
-        // ★ 退化路径：不支持 Highlight API 时只把对应位置滚到视野里（不改 DOM、不动选区）
-        if (st.from === 'editor') toolboxScrollCodeTo(st.start);
-        else {
-            const map = toolboxEditorTextMap(ed);
-            const r = toolboxRangeFromOffsets(map, st.start, st.end);
-            const host = r && r.startContainer && (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentNode);
-            if (host && host.scrollIntoView) { try { host.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
-        }
-        return;
+    const paint = function (r) {
+        if (!toolboxHighlightAPI()) return;
+        try { CSS.highlights.set(TOOLBOX_HL_NAME, new Highlight(r)); } catch (e) {}
+    };
+    if (st.from === 'editor') {
+        // 高亮画在代码面板的**镜像层**上（textarea 的文字不在 DOM 里，Highlight 画不进去）。
+        // 镜像层的文字与 code.value 逐字一致，所以源码偏移可以直接当镜像层的字符下标用。
+        toolboxCodeHlSync();
+        const host = toolboxCodeHlEl();
+        const t = host && host.firstChild;
+        if (!t || t.nodeType !== 3) { toolboxClearHighlight(); return; }
+        let r = null;
+        try {
+            r = document.createRange();
+            r.setStart(t, Math.min(st.srcStart, t.nodeValue.length));
+            r.setEnd(t, Math.min(st.srcEnd, t.nodeValue.length));
+        } catch (e) { r = null; }
+        if (!r) { toolboxClearHighlight(); return; }
+        paint(r);
+        toolboxScrollCodeToRange(r);                  // 位置由镜像层的 rect 算（浏览器排版）
+    } else {
+        const r = toolboxRangeFromOffsets(toolboxEditorTextMap(ed), st.start, st.end);
+        if (!r) { toolboxClearHighlight(); return; }
+        paint(r);
+        toolboxScrollEditorToRange(ed, r);
     }
-    try {
-        if (st.from === 'editor') {
-            // 高亮代码区：画在镜像层上（textarea 本身画不了）
-            toolboxCodeHlSync();
-            const host = toolboxCodeHlEl();
-            const t = host && host.firstChild;
-            if (!t || t.nodeType !== 3) { toolboxClearHighlight(); return; }
-            const r = document.createRange();
-            r.setStart(t, Math.min(st.start, t.nodeValue.length));
-            r.setEnd(t, Math.min(st.end, t.nodeValue.length));
-            CSS.highlights.set(TOOLBOX_HL_NAME, new Highlight(r));
-            toolboxScrollCodeTo(st.start);
-        } else {
-            const map = toolboxEditorTextMap(ed);
-            const r = toolboxRangeFromOffsets(map, st.start, st.end);
-            if (!r) { toolboxClearHighlight(); return; }
-            CSS.highlights.set(TOOLBOX_HL_NAME, new Highlight(r));
-            const host = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentNode;
-            if (host && host.scrollIntoView) { try { host.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
-        }
-    } catch (e) {
-        // 极端情况（节点被换掉等）：安静放弃，绝不抛到外面
-        toolboxClearHighlight();
-    }
-}
-// 代码区滚到某个字符偏移所在的那一行（用行高估算，不做精确排版计算）
-function toolboxScrollCodeTo(offset) {
-    const code = toolboxTpl && toolboxTpl.code;
-    if (!code) return;
-    try {
-        const before = String(code.value || '').slice(0, offset);
-        const line = (before.match(/\n/g) || []).length;
-        let lh = parseFloat(window.getComputedStyle ? getComputedStyle(code).lineHeight : '') || 0;
-        if (!lh) lh = (parseFloat(getComputedStyle(code).fontSize) || 13) * 1.7;
-        const target = line * lh - code.clientHeight / 2 + lh;
-        code.scrollTop = Math.max(0, Math.min(target, code.scrollHeight - code.clientHeight));
-        toolboxSyncCodeScroll();
-    } catch (e) {}
 }
 
 // ========== B. 正文里的图片显示"文件名占位框" ==========
@@ -1512,6 +2192,13 @@ function toolboxImgPlaceholderAdd(img) {
     const name = document.createElement('span');
     name.className = TOOLBOX_PH_CLASS + '-name';
     name.setAttribute('data-tb-display', 'name');
+    // ★ 占位文字是"纯显示层"：光标不许进去改它（改了没意义，还会污染编辑区）。
+    //   contenteditable=false → 不能编辑、光标不会停在里面；CSS 里再配 user-select:none
+    //   → 也选不中、复制不到；aria-hidden → 读屏软件不当它是正文。
+    //   ★ 只作用于这个文字节点：外面的包裹层与 <img> 一个属性都不动，
+    //     所以图片照样能选中、能在图上右键调出图片菜单。
+    name.setAttribute('contenteditable', 'false');
+    name.setAttribute('aria-hidden', 'true');
     name.textContent = toolboxImgFileName(img);
     img.parentNode.insertBefore(wrap, img);
     wrap.appendChild(name);
@@ -1589,147 +2276,466 @@ function toolboxStripInlineDecls(root, kind) {
         else el.removeAttribute('style');
     }
 }
+// ========== B/U/I/S：精确到字、就地做，绝不碰块结构 ==========
+// ★ 用户实测的严重回归：选中一段再点加粗，选中文字前后多出换行、后面的文字整段跳走。
+//   根因是旧实现"把选区 extractContents 出来 → 在片段上变换 → 再把整个片段插回去"：
+//   插回时的落点在块中间就会把宿主块切开，而 toolboxHoistBlock 还会把宿主段落顺手切成
+//   前/中/后三段 —— 于是多出换行、后半截被搬到别处。
+//   现在改成**纯就地**：对选区覆盖到的每个文本节点 splitText 精确切出被覆盖的那一段，
+//   然后原地包一层 / 原地拆一层。选区外一个节点都不动，块结构一个都不新建，
+//   也不会产生新的 <br>、空块、空行（导出排版因此跟操作前完全一致）。
+const TOOLBOX_INLINE_ALIAS = {
+    bold: ['B', 'STRONG'], italic: ['I', 'EM'], underline: ['U'], strike: ['S', 'STRIKE', 'DEL']
+};
+// 一棵子树里可见的文本节点（显示层"图片占位框"不是内容，跳过）
+function toolboxTextNodesOf(root) {
+    const out = [];
+    if (!root) return out;
+    let w = null;
+    try { w = document.createTreeWalker(root, 4, null, false); } catch (e) { return out; }   // 4 = SHOW_TEXT
+    let n = w.nextNode();
+    while (n) {
+        const inDisplay = n.parentNode && n.parentNode.closest && n.parentNode.closest('[data-tb-display]');
+        if (!inDisplay) out.push(n);
+        n = w.nextNode();
+    }
+    return out;
+}
+// 选区覆盖到的文本节点（文档顺序），带"被覆盖的区间"
+function toolboxRangeTextNodes(ed, r) {
+    const out = [];
+    if (!ed || !r) return out;
+    let w = null;
+    try { w = document.createTreeWalker(ed, 4, null, false); } catch (e) { return out; }
+    let n = w.nextNode();
+    while (n) {
+        const inDisplay = n.parentNode && n.parentNode.closest && n.parentNode.closest('[data-tb-display]');
+        let hit = false;
+        try { hit = r.intersectsNode(n); } catch (e) { hit = false; }
+        if (!inDisplay && hit && n.nodeValue) {
+            const s = (n === r.startContainer) ? r.startOffset : 0;
+            const e = (n === r.endContainer) ? r.endOffset : n.nodeValue.length;
+            if (e > s) out.push({ node: n, s: s, e: e });
+        }
+        n = w.nextNode();
+    }
+    return out;
+}
+// 把选区两个边界上的文本节点切开，使"每个文本节点要么整段被覆盖、要么完全不在选区里"。
+// ★ 就地 splitText：只切这一个文本节点，块结构和别处的文字都不动。
+// 返回：被选区**整段**覆盖的文本节点（文档顺序）
+function toolboxSplitRangeEdges(ed, r) {
+    const parts = toolboxRangeTextNodes(ed, r);
+    const covered = [];
+    for (let i = parts.length - 1; i >= 0; i--) {           // 倒着切，前面的偏移不受影响
+        const p = parts[i];
+        let node = p.node;
+        if (!node.parentNode) continue;
+        try {
+            if (p.e < node.nodeValue.length) node.splitText(p.e);   // 后半截留在后面
+            if (p.s > 0) node = node.splitText(p.s);                // 前半截留在前面
+        } catch (e) { continue; }
+        covered.push(node);
+    }
+    covered.reverse();
+    return covered;
+}
+// 壳里"还在选区外"的文本节点（这些必须原样保住）
+function toolboxUncoveredTextsIn(el, covered) {
+    const all = toolboxTextNodesOf(el);
+    const out = [];
+    for (let i = 0; i < all.length; i++) if (covered.indexOf(all[i]) < 0) out.push(all[i]);
+    return out;
+}
+// 就地把一个文本节点包进对应标签（只在"这一段字"上包，不做任何提取/回插）
+function toolboxWrapTextNode(node, tagName, kind) {
+    const host = node.parentNode;
+    if (!host || !node.nodeValue) return null;
+    const w = document.createElement(tagName);
+    host.insertBefore(w, node);
+    w.appendChild(node);
+    toolboxStripInlineDecls(w, kind);                       // 顺手摘掉"假装加粗"的样式
+    return w;
+}
+// 就地修一条"行内祖先链"：mode === 'clear' 是清格式；mode = bold/italic/… 是取消那一种格式。
+// ★ 关键动作：壳里还留着选区外的文字时，**先把它们按原壳包一层**（样式一点不丢），
+//   再对原来的壳拆标签/摘样式 —— 选区外的文字因此一个字都不变。
+// ★ 取消某一种格式时这一次调用**只解掉一层**（由调用方反复调，直到选区里再也搜不到 X）：
+//   这样"嵌套的 <b><b>…</b></b> 点一次就干净"和"只解一层、内层结构原地保留"能同时满足。
+// 返回值：本次是否真的动过（调用方靠它判断"还能不能再摘一层"）。
+function toolboxFixInlineChain(node, covered, ed, mode) {
+    if (!node || !node.parentNode) return;
+    const oneLayer = (mode !== 'clear');
+    const chain = [];
+    let el = node.parentNode;
+    while (el && el !== ed && !toolboxIsBlockEl(el)) {
+        if (el.getAttribute && el.getAttribute('data-tb-display')) break;    // 显示层不是内容
+        chain.push(el);
+        el = el.parentNode;
+    }
+    let used = false;
+    for (let i = 0; i < chain.length; i++) {                 // 由内向外
+        const p = chain[i];
+        if (!p.parentNode) continue;
+        const tag = String(p.tagName || '').toUpperCase();
+        const isAlias = (mode === 'clear')
+            ? (TOOLBOX_FORMAT_TAGS.indexOf(tag) >= 0)
+            : ((TOOLBOX_INLINE_ALIAS[mode] || []).indexOf(tag) >= 0);
+        const re = (mode === 'clear') ? TOOLBOX_TEXT_STYLE_RE : TOOLBOX_INLINE_STYLE_RE[mode];
+        let hasDecl = false;
+        if (re) {
+            const decls = toolboxStyleDecls(p);
+            for (let j = 0; j < decls.length; j++) if (re.test(decls[j])) { hasDecl = true; break; }
+        }
+        if (!isAlias && !hasDecl) continue;
+        if (oneLayer && used) continue;                     // ★ 只解掉最里面那一层
+        used = true;
+        const rest = toolboxUncoveredTextsIn(p, covered);
+        for (let j = rest.length - 1; j >= 0; j--) {
+            const t = rest[j];
+            if (!t.parentNode) continue;
+            const shell = p.cloneNode(false);                // 同款壳：样式给选区外的文字留着
+            t.parentNode.insertBefore(shell, t);
+            shell.appendChild(t);
+        }
+        const isPlainShell = (tag === 'SPAN' || tag === 'FONT');
+        if (isAlias && !(mode === 'clear' && isPlainShell)) {
+            toolboxUnwrapElement(p);                         // <b>/<i>/<u>/<s>… 连标签一起拆
+        } else {
+            toolboxStripTextStyles(p);                       // 只摘"文字格式"声明，壳先留着
+            if (mode !== 'clear') toolboxStripInlineDecls(p, mode);
+            if (mode === 'clear' && isPlainShell && !(p.attributes && p.attributes.length)) {
+                toolboxUnwrapElement(p);                     // 空壳（没样式没 class）→ 拆掉
+            }
+        }
+    }
+    return used;
+}
+// 计算样式（拿不到就算 null，调用方各自兜底）
+function toolboxComputed(el) {
+    try { return (window.getComputedStyle && el) ? getComputedStyle(el) : null; } catch (e) { return null; }
+}
+// "这段文字是不是已经带了某种行内格式"：**沿祖先链**查三种证据
+//   ① 标签（<b>/<strong>、<i>/<em>、<u>、<s>/<strike>/<del>）；
+//   ② style 里的声明（导入/粘贴进来的内容常常只有样式，没有标签）；
+//   ③ 计算样式兜底（连 style 都没有、靠 class 或外层的）。
+// ★ 为什么不用 queryCommandState：它对"我们自己维护的 DOM + 只有 style 的内容"都不准。
+// ★ 为什么必须走整条祖先链：被包在 <b> 里（哪怕外面还套着一层）也要算"已加粗"，
+//   只看直接父节点就会判成"没加粗"，于是再点一次又包一层 → 用户实测的 <b><b>。
+function toolboxInlineApplied(node, ed, kind) {
+    const alias = TOOLBOX_INLINE_ALIAS[kind] || [];
+    const re = TOOLBOX_INLINE_STYLE_RE[kind];
+    if (!node || !ed) return false;
+    let n = (node.nodeType === 3) ? node.parentNode : node;
+    while (n && n !== ed) {
+        if (n.nodeType === 1) {
+            if (n.getAttribute && n.getAttribute('data-tb-display')) break;   // 显示层不算内容
+            const tag = String(n.tagName || '').toUpperCase();
+            if (alias.indexOf(tag) >= 0) return true;
+            if (re) {
+                const decls = toolboxStyleDecls(n);
+                for (let i = 0; i < decls.length; i++) if (re.test(decls[i])) return true;
+            }
+            const cs = toolboxComputed(n);
+            if (cs) {
+                const deco = String(cs.textDecorationLine || cs.textDecoration || '');
+                if (kind === 'bold' && (parseInt(cs.fontWeight, 10) || 400) >= 600) return true;
+                if (kind === 'italic' && /italic|oblique/i.test(String(cs.fontStyle || ''))) return true;
+                if (kind === 'underline' && /underline/i.test(deco)) return true;
+                if (kind === 'strike' && /line-through/i.test(deco)) return true;
+            }
+        }
+        n = n.parentNode;
+    }
+    return false;
+}
+// 折叠"同标签的重复嵌套"：<b><b>甲</b></b> → <b>甲</b>（I/U/S 同理）。
+// ★ 只在这个 scope（= 本次操作动到的那个块）里做，不碰文档别处；反复跑到没有为止，
+//   所以是幂等的。任何一次操作之后都不允许留下 <b><b>、<u><u>… 这种重复嵌套。
+function toolboxCollapseInlineNesting(scope, kind) {
+    const alias = TOOLBOX_INLINE_ALIAS[kind] || [];
+    if (!scope || !scope.querySelectorAll || !alias.length) return;
+    const sel = alias.join(',');
+    for (let guard = 0; guard < 20; guard++) {
+        const list = scope.querySelectorAll(sel);
+        let hit = 0;
+        for (let i = 0; i < list.length; i++) {
+            const el = list[i];
+            if (!el.parentNode) continue;
+            const pt = String(el.parentNode.tagName || '').toUpperCase();
+            // 内层解开、内容并入外层：两层 `<b>` 合成一层，样式由外层代表
+            if (alias.indexOf(pt) >= 0) { toolboxUnwrapElement(el); hit++; }
+        }
+        if (!hit) break;
+    }
+    // 顺手把变空的同标签壳解掉（避免导出里冒出空 <b></b>）
+    const list2 = scope.querySelectorAll(sel);
+    for (let i = list2.length - 1; i >= 0; i--) {
+        const el = list2[i];
+        if (!el.parentNode) continue;
+        if (!String(el.textContent || '').length && !el.querySelector('img,br')) toolboxUnwrapElement(el);
+    }
+}
+// ---------- 局部归一化（只动"本次影响到的片段"） ----------
+// 一次行内操作之后，选区里不该留下：重复嵌套 <b><b>x</b></b>、空壳 <b></b>、
+// 相邻的 <b>a</b><b>b</b>（要求"极大连续的一段只包一层"）。
+// ★ 为什么不直接用块级 scope 那个归一化：编辑区顶层可能**直接就是行内元素**
+//   （用户给的 BIUS 复现片段就是 <center>/<i>/<u> 挂在根上），这时 toolboxNearestBlock
+//   返回 null、scopes 是空的，块级归一化一次都不会跑，<b><b> 就会留在页面上。
+// ★ 红线：合并相邻同标签时**两段都必须完全落在选区内**才合并 —— 绝不把选区外的文字并进来。
+function toolboxNormalizeInlineLocal(ed, covered, kind) {
+    const alias = TOOLBOX_INLINE_ALIAS[kind] || [];
+    if (!ed || !alias.length || !covered || !covered.length) return;
+    const isAliasEl = function (el) {
+        return !!(el && el.nodeType === 1 && alias.indexOf(String(el.tagName || '').toUpperCase()) >= 0);
+    };
+    const fullyCovered = function (el) {
+        const list = toolboxTextNodesOf(el);
+        if (!list.length) return false;
+        for (let i = 0; i < list.length; i++) if (covered.indexOf(list[i]) < 0) return false;
+        return true;
+    };
+    // 收集"被选中文字的祖先链上的行内元素"（由内向外，去重）
+    const seen = [];
+    for (let i = 0; i < covered.length; i++) {
+        let n = covered[i].parentNode;
+        while (n && n !== ed) {
+            if (n.nodeType === 1 && !toolboxIsBlockEl(n)) { if (seen.indexOf(n) < 0) seen.push(n); }
+            n = n.parentNode;
+        }
+    }
+    // ① 折叠重复嵌套：内层解掉、内容原地并入外层（外层那一层代表这个格式）
+    for (let i = 0; i < seen.length; i++) {
+        const el = seen[i];
+        if (!isAliasEl(el) || !el.parentNode) continue;
+        if (isAliasEl(el.parentNode)) toolboxUnwrapElement(el);
+    }
+    // ② 删掉变空的同标签壳（里面还有 <br>/<img> 的不算空，那是用户排版用的）
+    for (let i = seen.length - 1; i >= 0; i--) {
+        const el = seen[i];
+        if (!isAliasEl(el) || !el.parentNode) continue;
+        if (!String(el.textContent || '').length && !el.querySelector('img,br')) toolboxUnwrapElement(el);
+    }
+    // ③ 合并相邻同标签：<b>甲</b><b>乙</b> → <b>甲乙</b>（两段都完全在选区内才做）
+    for (let i = 0; i < seen.length; i++) {
+        const el = seen[i];
+        if (!isAliasEl(el) || !el.parentNode) continue;
+        const nx = el.nextSibling;
+        if (!isAliasEl(nx)) continue;
+        if (String(nx.tagName).toUpperCase() !== String(el.tagName).toUpperCase()) continue;
+        if (!fullyCovered(el) || !fullyCovered(nx)) continue;
+        while (nx.firstChild) el.appendChild(nx.firstChild);     // 内容搬进前一个同类壳
+        if (nx.parentNode) nx.parentNode.removeChild(nx);
+    }
+}
+// ---------- 一次选中跨越"相邻的两个 <span>"时，整体只包一层 ----------
+// ★ 旧做法是"每个被选中的文本节点各包一层"，跨 span 就变成
+//   <span><b>甲</b></span><span><b>乙</b></span>（各包一层）；用户要的是整体一层。
+//   这里改成**原地搬家**：新建一个 <b>，插在这段连续内容的最前面，再把这一段里的节点
+//   依次 appendChild 进去 —— appendChild 是"移动"而不是复制，所以不丢一个字节、
+//   也不产生"取片段→变换→回插"那种会切开宿主块的操作。
+//   只有"连续、且完全被选中"才搬：中间夹着没被选中的字（含空白）、图片、<br>，或者跨块
+//   → 返回 null，由调用方退回"每个文本节点各包一层"（那种情况本来就包不成一层）。
+function toolboxTextFullyCovered(node, covered) {
+    if (!node) return false;
+    if (node.nodeType === 3) return !!(node.nodeValue && covered.indexOf(node) >= 0);
+    if (node.nodeType !== 1) return false;
+    const tag = String(node.tagName || '').toUpperCase();
+    if (tag === 'BR' || tag === 'IMG' || tag === 'HR' || tag === 'INPUT') return false;   // 换行/图片不是"被选中的字"
+    if (toolboxIsBlockEl(node)) return false;
+    const list = toolboxTextNodesOf(node);
+    if (!list.length) return false;
+    for (let i = 0; i < list.length; i++) if (covered.indexOf(list[i]) < 0) return false;
+    return true;
+}
+function toolboxChildContaining(parent, node) {
+    let n = node;
+    while (n && n.parentNode !== parent) n = n.parentNode;
+    return (n && n.parentNode === parent) ? n : null;
+}
+function toolboxRunPlan(covered, ed) {
+    if (!covered.length) return null;
+    const first = covered[0], last = covered[covered.length - 1];
+    const b1 = toolboxNearestBlock(first, ed), b2 = toolboxNearestBlock(last, ed);
+    if (!b1 || b1 !== b2) return null;                        // 跨块：一层包不住，交给逐个包
+    const c1 = [], c2 = [];
+    for (let n = first; n && n !== ed; n = n.parentNode) c1.push(n);
+    for (let n = last; n && n !== ed; n = n.parentNode) c2.push(n);
+    let lca = null;
+    for (let i = 0; i < c1.length; i++) if (c2.indexOf(c1[i]) >= 0) { lca = c1[i]; break; }
+    for (let guard = 0; lca && lca.nodeType === 1 && guard < 50; guard++) {
+        const cf = toolboxChildContaining(lca, first), cl = toolboxChildContaining(lca, last);
+        if (!cf || !cl) return null;
+        if (cf === cl && !toolboxTextFullyCovered(cf, covered)) {
+            if (toolboxIsBlockEl(cf)) return null;
+            lca = cf;                                          // 这一层只有一部分被选中 → 往里钻
+            continue;
+        }
+        const run = [];
+        for (let n = cf; n; n = n.nextSibling) { run.push(n); if (n === cl) break; }
+        if (!run.length || run[run.length - 1] !== cl) return null;
+        for (let i = 0; i < run.length; i++) if (!toolboxTextFullyCovered(run[i], covered)) return null;
+        return { parent: lca, run: run };
+    }
+    return null;
+}
+function toolboxWrapRun(covered, ed, tagName, kind) {
+    const plan = toolboxRunPlan(covered, ed);
+    if (!plan) return null;
+    const w = document.createElement(tagName);
+    plan.parent.insertBefore(w, plan.run[0]);
+    for (let i = 0; i < plan.run.length; i++) w.appendChild(plan.run[i]);     // 移动（不是复制）
+    toolboxStripInlineDecls(w, kind);
+    return w;
+}
+// ---------- 光标处的"那个词" ----------
+// ★ 用户明确：没有选区时**绝不改整段**，只作用于光标所在的那个词；判不出词就什么都不做。
+//   词 = 连续的非空白、非标点字符（中文没有空格，所以标点就是唯一的分隔符）。
+const TOOLBOX_WORD_BREAK_RE = /[\s\u00a0\u200b，。、；：？！“”‘’（）〔〕【】《》〈〉「」『』—…·,.!?;:'"()\[\]{}<>\/\\|~`@#$%^&*+=]/;
+function toolboxFirstTextNodeIn(root) { const l = toolboxTextNodesOf(root); return l.length ? l[0] : null; }
+function toolboxLastTextNodeIn(root) { const l = toolboxTextNodesOf(root); return l.length ? l[l.length - 1] : null; }
+function toolboxCaretWordRange(r, ed) {
+    if (!r || !r.collapsed) return null;
+    let n = r.startContainer, off = r.startOffset;
+    if (n && n.nodeType === 1) {
+        const before = n.childNodes[off - 1], after = n.childNodes[off];
+        let pick = null;
+        if (before && before.nodeType === 3) pick = before;
+        else if (after && after.nodeType === 3) pick = after;
+        else if (before) pick = toolboxLastTextNodeIn(before);
+        else pick = toolboxFirstTextNodeIn(after);
+        if (!pick || !pick.nodeValue) return null;
+        n = pick;
+        off = (pick === before) ? pick.nodeValue.length : 0;
+    }
+    if (!n || n.nodeType !== 3 || !n.nodeValue) return null;
+    const s = n.nodeValue;
+    const isWord = function (i) { return !TOOLBOX_WORD_BREAK_RE.test(s.charAt(i)); };
+    let a = off, b = off;
+    while (a > 0 && isWord(a - 1)) a--;
+    while (b < s.length && isWord(b)) b++;
+    if (b <= a) return null;                                   // 两边都是标点/空白：判不出词
+    const word = s.slice(a, b);
+    const block = toolboxNearestBlock(n, ed);
+    if (block) {
+        const only = String(block.textContent || '').replace(/[\s\u00a0\u200b]+/g, '');
+        // 整块就这一个词（中间没有任何空白/标点分隔）⇒ 那等于"整段"，按用户要求不做
+        if (only && only === word) return null;
+    }
+    const out = document.createRange();
+    out.setStart(n, a); out.setEnd(n, b);
+    return out;
+}
 function toolboxToggleInline(kind) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const tag = TOOLBOX_EMPHASIS_TAG[kind];
     if (!ed || !tag) return false;
     toolboxFocusEditor();
     const sel = window.getSelection && window.getSelection();
-    let r = toolboxActiveRange();
+    // ★ 存档优先（工具栏那条路：按钮按下时选区已经被冻住了），存档没了就用**现场**选区。
+    //   现场这条必须有：编辑区自己的 keydown 会清掉存档（toolboxDropRange），
+    //   于是 Ctrl+B/I/U/S 走到这里时存档已经是空的 —— 只认存档的话快捷键就完全没反应。
+    let r = toolboxActiveRange() || toolboxLiveRange();
     if (r) { try { sel.removeAllRanges(); sel.addRange(r); } catch (e) { r = null; } }
-    if (!r) { toolboxToast('先把光标放到要加格式的地方'); return false; }
-    const on = !!toolboxSelState()[kind];             // 有效状态（标签或样式）为"开"就去掉
-    // 这一种格式对应的"标签别名"（强调语义在多份语料里写法不一，都要认）
-    const ALIAS = {
-        bold: ['B', 'STRONG'], italic: ['I', 'EM'], underline: ['U'], strike: ['S', 'STRIKE', 'DEL']
-    };
-    const alias = ALIAS[kind] || [tag.toUpperCase()];
-    const wantedTag = function (t) { return alias.indexOf(String(t || '').toUpperCase()) >= 0; };
-    const unwrapIn = function (root) {
-        if (!root) return;
-        const list = root.querySelectorAll
-            ? root.querySelectorAll('b,strong,i,em,u,s,strike,del') : [];
-        for (let i = list.length - 1; i >= 0; i--) {
-            if (wantedTag(list[i].tagName)) toolboxUnwrapElement(list[i]);
-        }
-        if (root.nodeType === 1 && wantedTag(root.tagName)) toolboxUnwrapElement(root);
-        toolboxStripInlineDecls(root, kind);
-    };
-    let touched = null;
+    if (!r) { toolboxToast('先选中要加格式的文字'); return false; }
     if (r.collapsed) {
-        // 光标：整段切换（Word 是"后续输入生效"；我们做整段，用户看得见、可撤回）
-        let n = r.startContainer, block = null;
-        while (n && n !== ed) {
-            if (n.nodeType === 1 && toolboxIsBlockTag(n)) { block = n; break; }
-            n = n.parentNode;
-        }
-        if (!block) block = toolboxWrapInlineAncestor(r, ed) || ed;
-        if (on) {
-            unwrapIn(block);
-        } else if (block === ed) {
-            // 编辑区根上直接放文本：包一层块再包标签，别让裸文本飘着
-            const p = document.createElement('p');
-            while (ed.firstChild) p.appendChild(ed.firstChild);
-            ed.appendChild(p);
-            const w = document.createElement(tag);
-            while (p.firstChild) w.appendChild(p.firstChild);
-            p.appendChild(w);
-        } else {
-            const w = document.createElement(tag);
-            const kids = Array.prototype.slice.call(block.childNodes);
-            if (kids.length) {
-                block.insertBefore(w, kids[0]);
-                for (let i = 0; i < kids.length; i++) w.appendChild(kids[i]);   // 连 <br> 一起包（换行也要在这段格式里）
-            } else {
-                block.appendChild(w);
+        // 光标（没有选区）：只认"光标所在的那个词"，判不出就什么都不做（绝不改整段）
+        const wr = toolboxCaretWordRange(r, ed);
+        if (!wr) { toolboxToast('先选中要加格式的文字'); return false; }
+        r = wr;
+        try { sel.removeAllRanges(); sel.addRange(r); } catch (e) {}
+    }
+    // ★ 现场判定（每次重算、不缓存）：选区里的字**全部**已带这个格式才算"开"。
+    //   判定沿祖先链走，且取的是"选区里第一个字"，所以"整个 <b>正文</b> 被选中"
+    //   （startContainer 是父元素）这种也认得出 —— 连点两次就会取消，不会再套一层。
+    // ★ 判定口径（用户明确）：看**整个选区**，既不看起点、也不是"全都没有才算应用"。
+    //   选区内每个字符都已带 X ⇒ 本次「取消」；只要有一个字符没带（含"一部分有"的混用/残缺）
+    //   ⇒ 本次「应用」，把 X 加到选区范围内的**每一个字符**上，使整个选区统一带上 X。
+    //   于是"混用/残缺 → 点一次全统一 → 再点一次全取消"这个两次闭环必然成立、不留残余。
+    const fp = toolboxSelCapture(ed, r);               // ★ 操作前记下选区（连着改要用）
+    const covered = toolboxSplitRangeEdges(ed, r);
+    if (!covered.length) return false;
+    let on = true;
+    for (let i = 0; i < covered.length; i++) if (!toolboxInlineApplied(covered[i], ed, kind)) { on = false; break; }
+    const scopes = [];
+    for (let i = 0; i < covered.length; i++) {
+        const b = toolboxNearestBlock(covered[i], ed);
+        if (b && scopes.indexOf(b) < 0) scopes.push(b);
+    }
+    if (on) {
+        // 取消：把 X 从**选区范围内**彻底摘掉（含嵌套的 X），选区外一个字节都不动。
+        // ★ toolboxFixInlineChain 一次只解最内层那一层，所以这里反复扫、直到选区里搜不到 X 为止。
+        //   用户实测的"已经存在的格式除不掉"就是"只解一层"留下的：混用片段点两次之后，
+        //   原来就带着的 <b>本</b>/<b>老土一</b> 还在，于是永远闭不上环。
+        for (let pass = 0; pass < 30; pass++) {
+            let hit = 0;
+            for (let i = covered.length - 1; i >= 0; i--) {
+                const node = covered[i];
+                if (node.parentNode && toolboxFixInlineChain(node, covered, ed, kind)) hit++;
             }
+            if (!hit) break;
         }
-        touched = block;
     } else {
-        let frag = null;
-        try { frag = r.cloneContents(); } catch (e) { frag = null; }
-        if (!frag) return false;
-        if (on) {
-            unwrapIn(frag);
-        } else {
-            toolboxStripInlineDecls(frag, kind);       // 先摘掉"假装加粗"的样式，再包标签
-            const w = document.createElement(tag);
-            while (frag.firstChild) w.appendChild(frag.firstChild);
-            frag.appendChild(w);
-        }
-        const wrap = document.createElement('span');   // 中转容器：片段先塞进它，再原样搬回文档
-        while (frag.firstChild) wrap.appendChild(frag.firstChild);
-        let first = null, last = null, ok = false;
-        try {
-            r.deleteContents();
-            const kids = Array.prototype.slice.call(wrap.childNodes);
-            for (let i = 0; i < kids.length; i++) {
-                r.insertNode(kids[i]);
-                if (!first) first = kids[i];
-                r.setStartAfter(kids[i]);
-                r.collapse(true);
-                last = kids[i];
+        // 应用：优先"整段连续内容只包一层"，包不成就退回逐个包（结果一样，只是标签多几个）
+        const one = toolboxWrapRun(covered, ed, tag, kind);
+        if (!one) {
+            for (let i = covered.length - 1; i >= 0; i--) {
+                const node = covered[i];
+                if (node.parentNode) toolboxWrapTextNode(node, tag, kind);
             }
-            ok = true;
-        } catch (e2) { ok = false; }
-        if (!ok && wrap.firstChild) { try { r.insertNode(wrap); } catch (e3) {} }
-        else touched = last;
-        if (ok) {
-            const hoisted = toolboxHoistBlock(first, last);
-            if (hoisted) last = hoisted;
-            touched = last;
         }
     }
+    // 归一化：本次操作动到的块里，同标签的重复嵌套折成一层（幂等，不重排别处）
+    for (let i = 0; i < scopes.length; i++) toolboxCollapseInlineNesting(scopes[i], kind);
+    // ★ 再按"被选中文字的祖先链"补一遍局部归一化：覆盖"编辑区顶层直接是行内元素"的情形
+    //   （那时 scopes 是空的），顺手把相邻同标签合并成一层、空壳删掉。
+    toolboxNormalizeInlineLocal(ed, covered, kind);
     toolboxSnapClear();
-    toolboxCleanEditorBlocks(ed, touched);
+    // ★ 这里刻意**不**调 toolboxCleanEditorBlocks/toolboxHoistBlock：
+    //   行内操作不产生空块，也不该让任何"整理"逻辑去动块结构（那正是文字搬家的来源）。
+    toolboxSelRestore(ed, fp, r);                      // ★ 选区留着：能连着点四个按钮
     toolboxStoreRangeNow();
     toolboxHideDraftBar();
     toolboxScheduleDraftSave();
     toolboxScheduleRefresh(true);
     toolboxRefresh();
     toolboxUndoPush(false);                            // 一次切换 = 一条撤回记录
-    toolboxSyncToolbarState();
+    toolboxSyncToolbarState();                         // ★ 操作完立刻现场重算，不等事件
     return true;
 }
-
 // 「正文」= 「标题」的反操作：把选中内容恢复成正文。
 // 做的事（只动这三样，图片/表格/字号以外的排版都不碰）：
 //   · font-size 回默认（摘掉 font-size 声明）；
 //   · 加粗/斜体去掉（<b>/<strong>/<i>/<em> 拆成纯内容）；
 //   · 居中去掉（<center> 拆掉、style 里的 text-align 摘掉）。
 // 没有选区时只处理光标所在的那个块（够用且不会误伤全文）。
+// 「正文」= 把**这一块**恢复成正文（不是"插入一个片段"）：
+//   · font-size / 加粗 / 斜体 / 居中 回默认；
+//   · ★ 引用块自身的装饰也要清掉：border-left*、background*、引用带来的 padding/margin
+//     （用户实测：以前只清了字号，引用框的样子还在）；
+//   · 文字与 <br> 换行结构必须原样保留，块级容器可以保留/降级成普通段落；
+//   · 没有可用块（空段落）时什么也不做（不弹提示、不新增块）。
 function toolboxMakeBody() {
     const ed = toolboxTpl && toolboxTpl.editor;
     if (!ed) return false;
     toolboxFocusEditor();
     const r = toolboxRestoreRange();
     if (!r) return false;
-    let targets = [];
-    if (r.collapsed) {
-        // 光标停在标题里点「正文」：整段（最近的块级祖先）都该恢复成正文
-        let n = r.startContainer, block = null;
-        while (n && n !== ed) {
-            if (n.nodeType === 1 && toolboxIsBlockTag(n)) { block = n; break; }
-            n = n.parentNode;
-        }
-        if (block) {
-            targets = [{ el: block, full: true }];
-        } else {
-            let m = r.startContainer;                       // 没有块级祖先：把行内包装当"整段"
-            while (m && m !== ed) {
-                if (m.nodeType === 1) targets.push({ el: m, full: true });
-                m = m.parentNode;
-            }
-        }
-    } else {
-        targets = toolboxBodyTargets(r, ed);
+    const fp = toolboxSelCapture(ed, r);          // ★ 操作前记下选区指纹（第 5 条）
+    const targets = toolboxBlockTargets(r, ed);   // ★ 整块调整：只动选区所在的最近那个块
+    if (!targets.length) {
+        // 空块（例如空的表格单元格）：没有块级样式可清，但**操作点附近的空节点照样要收** ——
+        // "空的 <td> 里那根多余的 <br>"就是这条路上最容易留下来的一个（用例守着它）。
+        toolboxCleanEditorBlocks(ed, r.startContainer);
+        toolboxSnapClear();
+        toolboxStoreRangeNow();
+        toolboxScheduleRefresh(true);
+        toolboxRefresh();
+        return true;
     }
-    if (!targets.length) { toolboxToast('先把要恢复成正文的内容选中'); return false; }
     for (let i = 0; i < targets.length; i++) {
-        const t = targets[i];
-        if (!t.el || !t.el.parentNode) continue;
-        if (t.full) toolboxStripTitleStyle(t.el);
-        else toolboxStripStyleDecls(t.el);                  // 只摘样式，不动别人的结构
+        // ★ 连片段内部一起清：拆出来的块里可能还留着原来那层的 border-left/background
+        if (targets[i] && targets[i].parentNode) toolboxClearBlockStyleDeep(targets[i]);
     }
     // 拆到编辑区根上的裸文字用 <p> 包一下：语料里的正文都是段落，
     // 裸文字会让"导出 → 再导入"多出一层无块级结构的东西。
@@ -1746,6 +2752,12 @@ function toolboxMakeBody() {
     }
     // 只清"操作点附近"的空块（不要清洗用户全文）
     toolboxCleanEditorBlocks(ed, r.startContainer);
+    // ★ 选区一定要在这里补回来：拆掉引用/标题那层壳（toolboxClearBlockStyleDeep）会让
+    //   浏览器把编辑区的选区直接收起（实测 getSelection() 变空），
+    //   而下面 toolboxStoreRangeNow() 存的是"当前"的选区 —— 不补的话，撤回栈里存的
+    //   就是一个空选区，用户连着点第二下（引用 → 标题 → 正文）时选区就没了。
+    //   上面那条 fp 就是为这一步留的（toolboxSetBlockStyle 里是同样的写法）。
+    toolboxSelRestore(ed, fp, r);
     toolboxSnapClear();
     toolboxStoreRangeNow();
     toolboxHideDraftBar();
@@ -1849,6 +2861,117 @@ function toolboxCleanEditorBlocks(ed, around) {
     if (!ed.childNodes.length) ed.innerHTML = '<p><br></p>';
 }
 
+// ========== 操作后的收尾（空节点 + 结构自检）==========
+// ① 空节点：空的 <b>/<i>/<u>/<s>/<span>…、空操作样式（font-size:1em / 无声明 style）、
+//    空单元格里多余的 <br>（空的 <td></td> 本身渲染没问题，不需要 <br> 撑）。
+//    ★ 只在**操作范围内**做：导入而未改动的原文保持原样（幂等），
+//      用户有意写的连续 <br> 也不动。
+// ② 结构自检：行内元素里不许有块级元素（<span><center>…</center></span> 这种非法嵌套），
+//    <center> 里也不许再套 <center>（重复点"居中"不该越套越多）。
+const TOOLBOX_NOOP_STYLE_RE = new RegExp('^(font-size\\s*:\\s*1(\\.0+)?em|font-weight\\s*:\\s*(normal|400)'
+    + '|font-style\\s*:\\s*normal|text-decoration(-line)?\\s*:\\s*none)\\s*$', 'i');
+const TOOLBOX_EMPTY_TAGS = 'b,strong,i,em,u,s,strike,del,ins,mark,big,small,tt,span,font';
+function toolboxIsBlankNode(n) {
+    if (!n || n.nodeType !== 1) return false;
+    if (n.getAttribute && n.getAttribute('data-tb-display')) return false;
+    if (n.querySelector && n.querySelector('img,br,table,hr,video,td,th,input')) return false;
+    return !String(n.textContent || '').replace(/[\s\u00a0\u200b]+/g, '');
+}
+function toolboxTidyScope(root) {
+    if (!root) return;
+    const scope = (root.nodeType === 1) ? root : (root.parentNode || null);
+    if (!scope) return;
+    // ① 空单元格里多余的 <br>
+    // ★ scope 自己就是单元格时也要查它本身 —— querySelectorAll 不含自己，
+    //   而"光标就在这个空单元格里、点一下块级按钮"时 scope 正好就是 <td>。
+    const cells = [];
+    if (scope.tagName && /^(TD|TH)$/.test(String(scope.tagName).toUpperCase())) cells.push(scope);
+    const cellList = scope.querySelectorAll ? scope.querySelectorAll('td,th') : [];
+    for (let i = 0; i < cellList.length; i++) cells.push(cellList[i]);
+    for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        if (String(c.textContent || '').replace(/[\s\u00a0\u200b]+/g, '')) continue;
+        if (c.children.length === 1 && String(c.children[0].tagName || '').toUpperCase() === 'BR') {
+            c.removeChild(c.children[0]);
+        }
+    }
+    // ② 空操作样式与空的 style 属性
+    const styled = scope.querySelectorAll ? scope.querySelectorAll('[style]') : [];
+    for (let i = 0; i < styled.length; i++) {
+        const el = styled[i];
+        if (el.getAttribute('data-tb-display')) continue;
+        const keep = String(el.getAttribute('style') || '').split(';').map(function (x) { return x.trim(); })
+            .filter(function (x) { return x && !TOOLBOX_NOOP_STYLE_RE.test(x); });
+        if (keep.length) el.setAttribute('style', keep.join(';') + ';');
+        else el.removeAttribute('style');
+    }
+    // ③ 空的强调/包装标签（从后往前删，嵌套的空壳一起清）
+    const empties = scope.querySelectorAll ? scope.querySelectorAll(TOOLBOX_EMPTY_TAGS) : [];
+    for (let i = empties.length - 1; i >= 0; i--) {
+        const el = empties[i];
+        if (el.parentNode && toolboxIsBlankNode(el)) el.parentNode.removeChild(el);
+    }
+    toolboxRepairNesting(scope);
+}
+
+// 结构自检（只在操作范围内调用，导入路径**不**调用 —— 那会改动别人的原文）：
+//   · 块级节点被行内元素包着 → 把块级节点提到那个行内元素后面；
+//   · <center> 里再套 <center> → 把里面那个解开（重复点居中不该越套越多）。
+function toolboxRepairNesting(root) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return 0;
+    const scope = (root && root !== ed && ed.contains(root)) ? root : ed;
+    let fixed = 0;
+    // 先把"块级嵌在行内里"提出来（复用与插入同一套判断）
+    const blocks = scope.querySelectorAll ? scope.querySelectorAll('p,div,center,table,ul,ol,blockquote,h1,h2,h3,h4,h5,h6,pre,hr') : [];
+    for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        if (!b.parentNode) continue;
+        let n = b.parentNode, host = null;
+        while (n && n !== ed) {
+            if (n.nodeType === 1 && !toolboxIsBlockEl(n)) { host = n; break; }
+            n = n.parentNode;
+        }
+        if (host && host.parentNode) { host.parentNode.insertBefore(b, host.nextSibling); fixed++; }
+    }
+    // 再去掉重复的居中包装。
+    // ★ 这里刻意扫**整个编辑区**（不是只扫 scope）：上面那一步把块从行内包装里提出来时，
+    //   落点可能是"外层那个 <center> 里面"，于是**新造出**一个 <center> 套 <center>；
+    //   而那个内层 center 已经在 scope 之外了，只扫 scope 就漏掉（用例：连点两次居中）。
+    //   <center> 套 <center> 永远是非法结构（渲染结果和单个一样），在任何位置解开都不改语义。
+    const centers = (ed.querySelectorAll ? ed.querySelectorAll('center') : []);
+    for (let i = centers.length - 1; i >= 0; i--) {
+        const c = centers[i];
+        const p = c.parentNode;
+        if (!p || p === ed) continue;
+        const pt = String(p.tagName || '').toUpperCase();
+        if (pt === 'CENTER') { toolboxUnwrapElement(c); fixed++; }
+    }
+    return fixed;
+}
+
+// 最近的**块级祖先**（块级操作一律在块级层级做，别往行内元素里塞块）
+function toolboxNearestBlock(node, ed) {
+    if (!ed) ed = toolboxTpl && toolboxTpl.editor;
+    let n = node;
+    while (n && n !== ed) {
+        if (n.nodeType === 1 && toolboxIsBlockEl(n)) return n;
+        n = n.parentNode;
+    }
+    return null;
+}
+// 把一个块级节点从"行内包装"里提出来（消除 <span><center>…</center></span> 这种嵌套）
+function toolboxHoistOutOfInline(node, ed) {
+    if (!ed) ed = toolboxTpl && toolboxTpl.editor;
+    let n = node, host = null;
+    while (n && n !== ed) {
+        if (n.nodeType === 1 && !toolboxIsBlockEl(n)) { host = n; break; }
+        n = n.parentNode;
+    }
+    if (host && host.parentNode) host.parentNode.insertBefore(node, host.nextSibling);
+    return node;
+}
+
 // 清掉 around 所在**块**前后紧邻的空块，以及这个块内部的空壳。
 // 走"上一/下一个兄弟"而不是整篇 querySelectorAll：范围可控，不误伤远处内容。
 function toolboxDropEmptyAround(ed, around) {
@@ -1860,6 +2983,10 @@ function toolboxDropEmptyAround(ed, around) {
     const empty = function (el) {
         if (!el || el.nodeType !== 1) return false;
         if (el.getAttribute && el.getAttribute('data-tb-display')) return false;   // 显示层不是内容
+        // ★ <br>/换行/图片这类"本身就是内容"的节点**永远不算空块** ——
+        //   用户按「换行」插的就是一个裸 <br>，它 textContent 是空的，
+        //   早先会被当成"空块"删掉（插了换行却看不见）。
+        if (['BR', 'IMG', 'HR', 'INPUT', 'VIDEO', 'TD', 'TH', 'TABLE'].indexOf(el.tagName) >= 0) return false;
         if (el.querySelector && el.querySelector('img,table,hr,video,td,th,input,br')) return false;
         return String(el.textContent || '').replace(/[\s\u00a0\u200b]+/g, '') === '';
     };
@@ -1870,7 +2997,8 @@ function toolboxDropEmptyAround(ed, around) {
         n = top.nextSibling; guard = 0;
         while (n && guard++ < 3 && empty(n)) { const p = n.nextSibling; ed.removeChild(n); n = p; }
     }
-    if (host && host !== ed) toolboxDropEmptyBlocks(host);
+    if (host && host !== ed) { toolboxDropEmptyBlocks(host); toolboxTidyScope(host); }
+    else if (top) toolboxTidyScope(top);
 }
 
 // 把元素拆掉、孩子留在原地
@@ -1902,19 +3030,438 @@ function toolboxDropEmptyBlocks(root) {
 // ========== 插入块模板（照抄语料的写法）==========
 // ★ 这几个块一律走 toolboxWrapSelection：**有选区就把选中的字包进去**，
 //   没有选区才用默认文字（"文章标题"这类）。见 toolboxWrapSelection 的说明。
+// ========== 块级样式按钮：正文 / 标题 / 引用 / 落款 ==========
+// ★ 用户给的统一语义（同时治"越点越套"和"多出空片段"）：
+//   这些按钮是"设置**这一块**的样式"，不是"插入一个片段"：
+//     · 光标/选区落在某个块里 → 该块**已经是**目标样式就**取消**（引用/标题/落款都是 toggle），
+//       是**别的**样式就**就地替换**（不新增块、不在外面再套一层）；
+//     · 只有**没有可用块**时（空段落 / 光标在编辑区根部）才插入模板
+//       （模板 = 语料写法，见 toolboxInsertTitle/Quote/Signature）。
+// 就地替换时是"改这一块自己的样式"，不是把块包进 <center>：块数不变、结构不叠加，
+// 因此反复点也不会越套越多（导出时仍是合法嵌套，见 toolboxRepairNesting）。
+const TOOLBOX_BOX_STYLE_RE = /^(border(-[a-z]+)?|background(-[a-z]+)?|padding(-[a-z]+)?|margin(-[a-z]+)?|text-align)\s*:/i;
+// 块是不是"空的"（没有可用内容）：只有 <br>/&nbsp;/空白 = 空，等同于"请插入模板"
+function toolboxBlockIsBlank(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.querySelector && el.querySelector('img,table,hr,video')) return false;
+    return !String(el.textContent || '').replace(/[\s\u00a0\u200b]+/g, '');
+}
+// ========== 块级样式的作用范围：选区所在的"最近那个块" ==========
+// ★ 用户给的语义（同时治"选一句话结果全文被引用"和"取消引用后色带还在"）：
+//   · 引用/标题/正文/落款 都是"调整**这一个块**"：选区落在哪个块里就动哪个块，
+//     整块一起改，不做行内拆分、不切出片段、不新建 <br>；
+//   · **绝不**越级到大包裹 <div>、更不能是编辑区根节点（那就是整篇一起被改）；
+//   · 块之前/之后的兄弟内容一律不动（不搬家、不重排）。
+//   唯一允许往上走一步的情况：外面套着"只装这一个块"的壳（唯一子元素就是它），
+//   而且壳上带着边框/底色/间距这类样式 —— 引用框"那条色带"正是写在这层壳上的，
+//   不把它算进来，取消引用就永远清不掉它（用户实测）。
+const TOOLBOX_TABLE_STRUCT_TAGS = ['TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH', 'COLGROUP', 'COL', 'CAPTION'];
+// 这一层是不是"装样式的壳"（引用框的色带/底色、居中、缩进就写在它身上）
+function toolboxStyleCarrier(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const tag = String(el.tagName || '').toUpperCase();
+    if (tag === 'CENTER' || tag === 'BLOCKQUOTE') return true;
+    const st = (el.getAttribute && el.getAttribute('style')) || '';
+    if (/(border|background|padding|margin|text-align)\s*:/i.test(st)) return true;
+    try {
+        const cs = window.getComputedStyle ? getComputedStyle(el) : null;
+        if (cs) {
+            if ((parseFloat(cs.borderLeftWidth) || 0) > 0) return true;
+            const bg = String(cs.backgroundColor || '');
+            if (bg && !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(bg)) return true;
+        }
+    } catch (e) { /* 极端情况当它不是壳 */ }
+    return false;
+}
+// parent 是不是"只装着 child 这一个元素"的壳（空白文本不算内容）
+function toolboxOnlyChildWrapper(parent, child) {
+    if (!parent || parent.nodeType !== 1) return false;
+    if (TOOLBOX_TABLE_STRUCT_TAGS.indexOf(String(parent.tagName || '').toUpperCase()) >= 0) return false;
+    let count = 0;
+    const kids = parent.childNodes;
+    for (let i = 0; i < kids.length; i++) {
+        const k = kids[i];
+        if (k.nodeType === 1) {
+            if (k !== child) return false;
+            count++;
+        } else if (String(k.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '')) return false;
+    }
+    return count === 1;
+}
+// 允许作为"目标块"的块级标签（用户点名的清单）。表格里的文字会先停到单元格里
+// 那个块（<p>/<div>），没有的话就停在 <td>/<th> 上，不会走到整张表。
+const TOOLBOX_TARGET_BLOCK_TAGS = ['P', 'DIV', 'CENTER', 'BLOCKQUOTE', 'LI'];
+// 这一层里有几个**块级**子元素（用来识别"包住好几个块的大包裹"）
+function toolboxBlockChildCount(el) {
+    let n = 0;
+    const kids = el && el.childNodes;
+    if (!kids) return 0;
+    for (let i = 0; i < kids.length; i++) {
+        if (kids[i].nodeType === 1 && toolboxIsBlockEl(kids[i])) n++;
+    }
+    return n;
+}
+// 名字/顺序上明显是"文章级"的布局容器（带 class/id）
+function toolboxLooksLikeLayoutBox(el) {
+    if (!el || !el.getAttribute) return false;
+    return !!(el.getAttribute('class') || el.getAttribute('id'));
+}
+// ★ 目标块判定 —— 引用 / 标题 / 正文 / 落款 / 图注**共用这一个函数**（别再各写一份）。
+//   用户定稿的规则（"之前还没有这个问题"的那一版语义，严格照此实现）：
+//     ① 从选区起点沿祖先链向上，找到**第一个块级祖先就停**（p / div / center / blockquote / li；
+//        在表格里就是单元格内容所在的那个块）—— 不许继续往上找；
+//     ② 只允许在"明确的**样式壳**"上**最多多走一步**：该元素只有唯一一个子元素、
+//        自己带 border/background/padding/margin/text-align 之一、且那个子元素是块级。
+//        （这一步是为了清掉"引用框写在外层壳上的那条色带"，只走一步）
+//     ③ 绝不允许把下面这些当目标（出现即说明"走飞了"，必须退回上一个候选 / 放弃）：
+//        · 编辑区根节点 #tbEditor 本身；
+//        · 含 ≥2 个块级子元素的元素（包住好几个 <div> 的大包裹）；
+//        · 带 class / id 的布局容器。
+//   ★ 改动说明（相对上一版）：上一版是 `while` 循环，会**连续**往上爬很多层，
+//     只要每一层都是"唯一子元素 + 样式壳"就一直爬 —— 于是"选一段话改引用"会一路爬到
+//     包住全文的那层壳上，整篇文章都被改了。现在改成"两步封顶"（首个块级祖先 + 最多一层样式壳），
+//     并加上 ③ 的三条硬护栏。
+function toolboxBlockScope(el, ed) {
+    if (!el || el === ed) return null;
+    // ① 第一个块级祖先就停
+    //   ★ "行段壳"（我们自己套的 data-tb-seg）对块级判定是**透明**的：
+    //     它挂着 display:inline-block，但它是"段的替身"，目标块永远要指回它所在的那个块；
+    //     否则再点一次会把它自己当成目标块（取消/重套都会套错地方）。
+    let base = el;
+    while (base && base !== ed) {
+        if (base.nodeType === 1 && base.getAttribute && base.getAttribute(TOOLBOX_SEG_ATTR)) {
+            base = base.parentNode;
+            continue;
+        }
+        if (base.nodeType === 1 && toolboxIsBlockEl(base)) break;
+        base = base.parentNode;
+    }
+    if (!base || base === ed || base.nodeType !== 1) return null;
+    // ③ base 自己也不能是大包裹（否则整篇一起改）。
+    //   ★ 这里**不**按 class/id 排除 base：<p class="…"> 这种是正常内容块；
+    //     "带 class/id 的布局容器"要挡住的是**外层那一步**（见下面）。
+    if (toolboxBlockChildCount(base) >= 2) return null;
+    // ② 最多多走一步：外面那层是"只装这一个块"的样式壳
+    const p = base.parentNode;
+    if (p && p !== ed && p.nodeType === 1
+        && toolboxOnlyChildWrapper(p, base) && toolboxStyleCarrier(p)
+        && !toolboxLooksLikeLayoutBox(p)
+        && toolboxBlockChildCount(p) <= 1) {
+        base = p;
+    }
+    return base;
+}
+// ========== "段" = 块里由 <br> 划出来的行段 ==========
+// ★ 用户实测纠正（本轮的**最高优先级**）：在他的文章里，一个大 <div> 内用 <br> 分行，
+//   **"换行了就是一段"** —— 所以引用/落款/标题/图注的作用范围是"选区覆盖到的**行段**"，
+//   **不是**整个块。上一轮"整块一起调整"的说法是错的，这里按行段来。
+//   段 = 夹在两个**顶层** <br> 之间（或块首/块尾）的连续子节点；brAfter 是这个段的收尾 <br>。
+//   ★ 结构不变量（用户写死的硬约束）：不改一个字、**<br> 数量不变**、不产生空块/空行。
+//     做法：不新建/不删除任何 <br>，只把"覆盖到的这几段"连同**段与段之间的 <br>** 一起
+//     搬进一个新的壳元素里，壳插在这些段原来的位置上。
+//     · 只选了块里**部分**行段 → 壳用 display:inline-block：它仍然是"行内流"里的一个盒子，
+//       外面那些 <br> 一个不动，所以浏览器照旧只换行不空行（用 display:block 会有收尾 <br>
+//       产生空行，实测过）；
+//     · 整个块的行段都被选中 → 不存在留在外面的边界 <br>，壳直接用 display:block。
+//     两种情况下 <br> 全都在壳内部或原位，数量一个不差。
+const TOOLBOX_SEG_ATTR = 'data-tb-seg';         // 标记"这是我们切行段套的壳"（净化时自动摘掉）
+function toolboxLineSegs(block) {
+    const segs = [];
+    if (!block) return segs;
+    let cur = [];
+    const kids = block.childNodes;
+    for (let i = 0; i < kids.length; i++) {
+        const k = kids[i];
+        if (k.nodeType === 1 && String(k.tagName || '').toUpperCase() === 'BR') {
+            segs.push({ nodes: cur, brAfter: k });
+            cur = [];
+            continue;
+        }
+        cur.push(k);
+    }
+    segs.push({ nodes: cur, brAfter: null });
+    return segs;
+}
+// 某个节点落在块的哪一段里（-1 = 不在这个块里）
+function toolboxSegIndexOf(segs, node) {
+    if (!node) return -1;
+    for (let i = 0; i < segs.length; i++) {
+        const ns = segs[i].nodes;
+        for (let t = 0; t < ns.length; t++) {
+            const n = ns[t];
+            if (n === node) return i;
+            if (n.nodeType === 1 && n.contains && n.contains(node)) return i;
+        }
+    }
+    return -1;
+}
+// 选区覆盖到的行段下标（**部分覆盖也整段纳入** —— "换行了就是一段"，半段没有意义）
+function toolboxSegsCovered(block, segs, ed, r) {
+    const hit = [];
+    const mark = function (idx) { if (idx >= 0 && hit.indexOf(idx) < 0) hit.push(idx); };
+    const runs = toolboxTextRunsInRange(ed, r);
+    for (let i = 0; i < runs.length; i++) {
+        const n = runs[i].node;
+        if (n !== block && !(block.contains && block.contains(n))) continue;
+        mark(toolboxSegIndexOf(segs, n));
+    }
+    if (!hit.length) {
+        mark(toolboxSegIndexOf(segs, r.startContainer));
+        if (r.startContainer && r.startContainer.nodeType === 1) {
+            mark(toolboxSegIndexOf(segs, r.startContainer.firstChild));      // 整块被选中
+        }
+    }
+    hit.sort(function (a, b) { return a - b; });
+    return hit;
+}
+// 这些段是不是已经被"我们自己套的壳"包着（是 → 返回那个壳，取消时直接解开它就能原样还原）
+function toolboxSegShell(block, segs, idx) {
+    let host = null;
+    for (let i = 0; i < idx.length; i++) {
+        const seg = segs[idx[i]];
+        const list = seg.nodes.length ? seg.nodes : (seg.brAfter ? [seg.brAfter] : []);
+        for (let t = 0; t < list.length; t++) {
+            let n = list[t];
+            while (n && n.parentNode && n.parentNode !== block) n = n.parentNode;
+            if (!n || n.parentNode !== block || n.nodeType !== 1) return null;
+            if (!host) host = n;
+            else if (host !== n) return null;
+        }
+    }
+    return (host && host.getAttribute && host.getAttribute(TOOLBOX_SEG_ATTR)) ? host : null;
+}
+// 把块里 idx 这些行段切出来包进一个新壳（段内的 <br> 一起进来，边界 <br> 留在外面不动）
+function toolboxSegWrap(block, segs, idx, decls) {
+    if (!idx.length) return null;
+    const i = idx[0], j = idx[idx.length - 1];
+    const shell = document.createElement('div');
+    shell.setAttribute(TOOLBOX_SEG_ATTR, '1');
+    // ★ 顺序：先把"段与段之间"的 <br> 搬进壳（它们从原位置消失，但仍在文档里，数量不变）
+    for (let k = i; k < j; k++) {
+        if (segs[k].brAfter) shell.appendChild(segs[k].brAfter);
+    }
+    // 插到"上一段的收尾 <br>"之后（i==0 时插到块首）—— 这一步必须在搬节点**之前**做，
+    // 因为锚点 prev 是留在外面的那个边界 <br>
+    const prev = (i > 0) ? (segs[i - 1].brAfter || null) : null;
+    block.insertBefore(shell, prev ? prev.nextSibling : block.firstChild);
+    for (let k = i; k <= j; k++) {
+        const ns = segs[k].nodes;
+        for (let t = 0; t < ns.length; t++) shell.appendChild(ns[t]);
+    }
+    // 整块的行段都被选中 → 没有边界 <br> 留在外面，可以老老实实当块级；否则必须留在行内流里
+    const whole = (idx.length === segs.length);
+    const all = ['display:' + (whole ? 'block' : 'inline-block')].concat(decls);
+    toolboxSetDecls(shell, all);
+    return shell;
+}
+// 目标样式的声明表（引用/标题/落款/图注 共用）
+function toolboxBlockDecls(kind) {
+    if (kind === 'title') return ['text-align:center', 'font-size:' + TOOLBOX_TITLE_SIZE, 'font-weight:700'];
+    if (kind === 'quote') return String(TOOLBOX_QUOTE_STYLE).split(';').filter(function (x) { return !!x.trim(); });
+    if (kind === 'sign') return ['text-align:right'];
+    if (kind === 'caption') return ['text-align:center', 'color:' + TOOLBOX_SMALL_COLOR, 'font-size:' + TOOLBOX_SMALL_SIZE];
+    return [];
+}
+// ★ 把目标样式落到"选区所在的**行段**"上 —— 引用/标题/正文/落款/图注**共用这一个**。
+//   块里有 <br> 且只覆盖到部分行段 → 切出行段；否则整块（保持原行为）。
+function toolboxApplyBlockKind(kind, targets, ed, r, on) {
+    const decls = toolboxBlockDecls(kind);
+    for (let i = 0; i < targets.length; i++) {
+        const b = targets[i];
+        if (!b.parentNode) continue;
+        const segs = toolboxLineSegs(b);
+        if (segs.length > 1) {
+            const idx = toolboxSegsCovered(b, segs, ed, r);
+            if (idx.length && idx.length < segs.length) {
+                // ① 先把这一块里已存在的行段壳摘掉（解开 = 回到原始 DOM），再按需重新套。
+                //    "取消"走的就是这条路：解开就精确还原成操作前的样子。
+                const old = toolboxSegShell(b, segs, idx);
+                if (old) toolboxUnwrapElement(old);
+                if (!on) {
+                    const s2 = toolboxLineSegs(b);
+                    toolboxSegWrap(b, s2, toolboxSegsCovered(b, s2, ed, r), decls);
+                }
+                continue;
+            }
+        }
+        // ② 整块那条路（原逻辑）：整个块都覆盖到了 / 块里没有 <br>
+        toolboxClearBlockStyleDeep(b);
+        if (!on) toolboxSetDecls(b, decls);
+    }
+}
+// 块级按钮该处理的块（空块不算"可用块"→ 交给插入模板那条路）
+function toolboxBlockTargets(r, ed) {
+    const out = [];
+    const add = function (el) {
+        const b = toolboxBlockScope(el, ed);
+        if (!b || b === ed || !b.parentNode) return;
+        if (toolboxBlockIsBlank(b)) return;
+        if (out.indexOf(b) < 0) out.push(b);
+    };
+    if (r.collapsed) add(toolboxNearestBlock(r.startContainer, ed));
+    else {
+        const blocks = toolboxBlocksInRange(ed, r);
+        for (let i = 0; i < blocks.length; i++) add(blocks[i]);
+    }
+    out.sort(function (a, b2) {
+        try {
+            const p = a.compareDocumentPosition(b2);
+            if (p & 4) return -1;                              // b2 在 a 后面
+            if (p & 2) return 1;
+        } catch (e) { /* 极端情况保持原顺序 */ }
+        return 0;
+    });
+    return out;
+}
+// 把一块（连同它内部的所有块级子元素）恢复成正文。
+// ★ 必须连**内部**一起清：拆出来的片段里常常还留着原来那层的 <div style="border-left…">，
+//   只清最外层的话"最左边那条色带"就还在（用户实测）。表格骨架一律不动。
+function toolboxClearBlockStyleDeep(el) {
+    if (!el || !el.getAttribute) return;
+    // ★ 兜底：目标就是"行段壳"自己 → 解开它 = 回到正文（壳不是内容，不能留成空 wrapper）
+    if (el.getAttribute(TOOLBOX_SEG_ATTR)) { toolboxUnwrapElement(el); return; }
+    // ★ 先把"我们切行段套的壳"解开（回到原始结构）：壳本身不是内容，
+    //   留着会变成"没有样式的空 wrapper"，块数也会对不上。
+    if (el.querySelectorAll) {
+        const shells = el.querySelectorAll('[' + TOOLBOX_SEG_ATTR + ']');
+        for (let i = shells.length - 1; i >= 0; i--) toolboxUnwrapElement(shells[i]);
+    }
+    const list = [el];
+    if (el.querySelectorAll) {
+        const kids = el.querySelectorAll('*');
+        for (let i = 0; i < kids.length; i++) list.push(kids[i]);
+    }
+    for (let i = 0; i < list.length; i++) {
+        const n = list[i];
+        if (!n.parentNode) continue;                            // 前面清理时被拆掉的，跳过
+        if (i > 0 && TOOLBOX_TABLE_STRUCT_TAGS.indexOf(String(n.tagName || '').toUpperCase()) >= 0) continue;
+        toolboxClearBlockStyle(n);
+    }
+}
+// 往元素上合并几条声明（先按需清空，见 toolboxSetBlockStyle）
+function toolboxSetDecls(el, decls) {
+    if (!el || !el.setAttribute) return;
+    const keep = toolboxStyleDecls(el);
+    for (let i = 0; i < decls.length; i++) {
+        const prop = String(decls[i]).split(':')[0].trim().toLowerCase();
+        for (let j = keep.length - 1; j >= 0; j--) {
+            if (String(keep[j]).split(':')[0].trim().toLowerCase() === prop) keep.splice(j, 1);
+        }
+        keep.push(decls[i]);
+    }
+    el.setAttribute('style', keep.join(';') + ';');
+}
+// 把一块恢复成"正文"：摘掉全部**块级特征**（引用/标题的装饰、居中对齐），
+// 再拆掉只承载样式的 <b>/<i>/<span>/<font>。★ 文字与 <br> 换行结构必须原样保留。
+function toolboxClearBlockStyle(el) {
+    if (!el || !el.getAttribute || String(el.tagName || '').toUpperCase() === 'BR') return;
+    const hasMedia = !!(el.querySelector && el.querySelector('table,img,video'));
+    const keep = toolboxStyleDecls(el).filter(function (d) {
+        if (hasMedia && TOOLBOX_BOX_STYLE_RE.test(d)) return true;   // 表格/图片的容器样式保留
+        if (TOOLBOX_BOX_STYLE_RE.test(d)) return false;              // border/background/padding/margin/text-align
+        return !TOOLBOX_TEXT_STYLE_RE.test(d);                       // font-*/line-height/color/…
+    });
+    if (keep.length) el.setAttribute('style', keep.join(';') + ';');
+    else el.removeAttribute('style');
+    toolboxStripInlineFormat(el);                        // <b>/<i>/<span style>/<font> 拆掉
+    // 居中不能靠标签留着：<center> 换成普通段落（块数不变），或把外层的 <center> 解开
+    const tag = String(el.tagName || '').toUpperCase();
+    if (tag === 'CENTER') {
+        const hasBlock = !!(el.querySelector && el.querySelector('p,div,center,table,ul,ol,blockquote,h1,h2,h3'));
+        if (hasBlock) toolboxUnwrapElement(el);
+        else {
+            const p = document.createElement('p');
+            while (el.firstChild) p.appendChild(el.firstChild);
+            if (el.parentNode) el.parentNode.replaceChild(p, el);
+        }
+    } else if (el.parentNode && String(el.parentNode.tagName || '').toUpperCase() === 'CENTER') {
+        toolboxUnwrapElement(el.parentNode);
+    }
+}
+// 就地设置/取消块级样式。返回值：
+//   'done'   —— 已经在块上改完了（不需要插模板）
+//   'insert' —— 没有可用块，调用方去插默认模板
+function toolboxSetBlockStyle(kind) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return 'insert';
+    toolboxFocusEditor();
+    const r = toolboxRestoreRange();
+    if (!r) return 'insert';
+    const st = toolboxSelState(r);              // ★ 拆分前先算状态（拆分改了 DOM，混选判定会变）
+    const fp = toolboxSelCapture(ed, r);        // ★ 操作前记下选区指纹（第 5 条：连着改）
+    const targets = toolboxBlockTargets(r, ed); // ★ 整块调整：只动选区所在的最近那个块
+    if (!targets.length) return 'insert';
+    const on = (kind === 'quote') ? st.quote
+        : (kind === 'title') ? st.title
+            : (st.align === 'right');                         // sign
+    // ★ 作用范围 = 选区所在块里、由 <br> 划出来的那些**行段**（用户在正文里"换行就是一段"）；
+    //   块里没有 <br> 时就是整个块。见 toolboxApplyBlockKind 的详细说明。
+    toolboxApplyBlockKind(kind, targets, ed, r, on);
+    toolboxSnapClear();
+    toolboxCleanEditorBlocks(ed, targets[0]);
+    // ★ 操作完把选区恢复到同一段文字上：不改选区，用户就能连着点第二下
+    toolboxSelRestore(ed, fp, r);
+    toolboxStoreRangeNow();
+    toolboxHideDraftBar();
+    toolboxScheduleDraftSave();
+    toolboxScheduleRefresh(true);
+    toolboxRefresh();
+    toolboxUndoPush(false);                     // 一次样式设置/取消 = 一条撤回记录
+    toolboxSyncToolbarState();
+    return 'done';
+}
+// ★ 图注跟着一起走"块级样式"这条路：有选区时**整块**变成图注样式、且**不动选区**
+//   （用户实测：选中一段文字点「图注」，选区被取消了 —— 那让用户没法接着操作）。
+//   判定"已经是图注"用 toolboxSelState 算出来的 st.caption（它按计算样式算：居中 + #555555
+//   + 0.85rem，所以导入进来的、没有我们标签的图注也能认出来）。
+function toolboxSetCaptionStyle() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return 'insert';
+    toolboxFocusEditor();
+    const r = toolboxRestoreRange();
+    if (!r) return 'insert';
+    const st = toolboxSelState(r);              // ★ 拆分前先算状态（拆分改 DOM，混选判定会变）
+    const fp = toolboxSelCapture(ed, r);        // ★ 操作前记下选区指纹（覆盖范围原样恢复）
+    const targets = toolboxBlockTargets(r, ed);
+    if (!targets.length) {
+        // 没有可用块（空段/光标在空行上）—— 与其它块级按钮一致：交给插入模板那条路。
+        // ★ 这里必须"什么都不改"地返回：空块上先清样式再补样式会留下一个空 <center>。
+        return 'insert';
+    }
+    const on = !!st.caption;
+    // ★ 与引用/标题/落款走**同一套**行段判定（块里有 <br> 时只动选区覆盖到的行段）
+    toolboxApplyBlockKind('caption', targets, ed, r, on);
+    toolboxSnapClear();
+    toolboxCleanEditorBlocks(ed, targets[0]);
+    // ★ 操作完把选区恢复到**同一段文字**上：覆盖范围不变、不整段全选，用户能接着点第二下
+    toolboxSelRestore(ed, fp, r);
+    toolboxStoreRangeNow();
+    toolboxHideDraftBar();
+    toolboxScheduleDraftSave();
+    toolboxScheduleRefresh(true);
+    toolboxRefresh();
+    toolboxUndoPush(false);
+    toolboxSyncToolbarState();
+    return 'done';
+}
 function toolboxInsertTitle() {
+    if (toolboxSetBlockStyle('title') === 'done') return true;
     return toolboxWrapSelection(function (inner) {
         return '<center><b><span style="font-size:' + TOOLBOX_TITLE_SIZE + ';">' + inner
             + '</span></b></center><br>';
     }, '文章标题');
 }
 function toolboxInsertQuote() {
+    if (toolboxSetBlockStyle('quote') === 'done') return true;
     return toolboxWrapSelection(function (inner) {
         return '<div style="' + TOOLBOX_QUOTE_STYLE + '">' + inner + '</div>';
     }, '此处填写引用内容');
 }
 // 图注：语料主流是 <center><span style="color:#555555; font-size:0.85rem;">…</span></center>
+// ★ 有选区时走"块级样式"那条路（整块变图注、保留选区，见 toolboxSetCaptionStyle）；
+//   无选区时才插入默认文字"图片说明"并全选它（用户直接打字覆盖）。
 function toolboxInsertCaption(text) {
+    if (toolboxSetCaptionStyle() === 'done') return true;
     const def = (text == null || text === '') ? '图片说明' : String(text);
     return toolboxWrapSelection(function (inner) {
         return '<center><span style="color:' + TOOLBOX_SMALL_COLOR + '; font-size:'
@@ -1953,8 +3500,11 @@ function toolboxLinkHtml(url, text, blank) {
         + toolboxEsc(anchor) + '</a>';
 }
 function toolboxInsertSignature() {
+    // 落款：语料惯用 <div style="text-align:right;">（工具产出统一用这个写法）。
+    // 光标已经在某一块里 → 就地把它设成右对齐（再点一次取消），不新增块。
+    if (toolboxSetBlockStyle('sign') === 'done') return true;
     return toolboxWrapSelection(function (inner) {
-        return '<p style="text-align:right;">' + inner + '</p>';
+        return '<div style="text-align:right;">' + inner + '</div>';
     }, '—— 落款');
 }
 function toolboxInsertBreak() {
@@ -2386,49 +3936,284 @@ function toolboxDownloadHtml() {
     }
 }
 
-// 下载文件名：由左上角那个输入框决定（默认 Untitled.html）。
+// 下载文件名：由左上角那一段"标题栏上的文字"决定。
 //   · 去掉 Windows 非法字符 / \ : * ? " < > | ，去掉首尾空白；
-//   · **用户写了扩展名就原样用**（.html / .htm / .txt 都不改写）；
-//     没写扩展名才补 .html（abc → abc.html）；
+//   · 用户那段只当**名字**：已有的 .html / .htm 后缀先去掉再加 .html（abc.htm → abc.html），
+//     所以永远不会出现 abc.html.html；别的扩展名（report.txt / report.final.v2）原样保留；
 //   · 空的、清洗完没剩下东西的，一律回落到 Untitled.html。
-// ★ 输入框里**不预填**这个值（用 placeholder 显示），所以"留空 = Untitled.html"是常态。
+// ★ 这一段的**默认值是真实文本 Untitled**（index.html 的 value="Untitled"，不是 placeholder），
+//   于是下载名字 = "Untitled" + ".html" = Untitled.html —— 与"留空"是同一条规则、同一个结果。
 const TOOLBOX_DEFAULT_NAME = 'Untitled.html';
+const TOOLBOX_DEFAULT_TEXT = 'Untitled';      // 输入框里的默认文本（后缀由 toolboxCleanFileName 统一补）
 function toolboxCleanFileName(raw) {
     let s = String(raw == null ? '' : raw).replace(/[\\/:*?"<>|]+/g, '').replace(/[\r\n\t]+/g, ' ').trim();
     s = s.replace(/\s+/g, ' ').replace(/^\.+/, '').trim();   // 空白合并；开头的点去掉（只输了个 ".html" 这种情况）
     if (!s) return TOOLBOX_DEFAULT_NAME;
-    if (!/\.[A-Za-z0-9]{1,8}$/.test(s)) s += '.html';       // 有扩展名就一点不动
+    // ★ 只把用户写的 .html / .htm 当"已有后缀"去掉（不区分大小写），随后统一补 .html；
+    //   其它扩展名一律当"用户自己的名字"保留 —— 不清洗函数里的"任意扩展名"分支。
+    s = s.replace(/\.html?$/i, '').trim();
+    if (!s) return TOOLBOX_DEFAULT_NAME;                     // 只写了 ".html"：清洗完什么都不剩 → 回落
+    if (!/\.[A-Za-z0-9]{1,8}$/.test(s)) s += '.html';        // 没有别的扩展名才补 .html
     if (s.length > 120) s = s.slice(0, 120);
     return s;
 }
 function toolboxFileName() {
     const el = toolboxTpl && toolboxTpl.fileName;
-    return toolboxCleanFileName(el ? el.value : '');
+    const raw = el ? el.value : '';
+    // ★ "任何时候读文件名"都不许得到空名字（下载名不能变成 ".html"、草稿里不许存空名字）：
+    //   真读到空的时候**顺手回填**输入框，再把 Untitled 交出去。
+    if (!String(raw == null ? '' : raw).replace(/[\s\u00a0]+/g, '')) {
+        toolboxFileNameNormalizeEmpty();
+        return TOOLBOX_DEFAULT_NAME;
+    }
+    return toolboxCleanFileName(raw);
 }
+
+// ========== 左上角文件名：点击全选 + title 同步（它要"跟标题栏融为一体"） ==========
+// 用户要的准确规则（这一条被纠正过两次，这里是最终定稿）：
+//   ① **光标原本不在标题里**时点它 → 进入标题并**全选**当前名字（方便直接重打）；
+//   ② **光标已经在标题里**时再点 → 跟普通输入框完全一样：光标落在点到的那个字符位置，
+//      **不**强制全选（用户要能改中间某个字）；
+//   ③ 从标题失焦（例如去点编辑区）之后再点 → 又回到 ① 的"全选"那一下；
+//   ④ Tab 聚焦到它：因为此前光标不在标题上，所以也是全选；
+//   ⑤ 按住拖动选一部分：一律按用户拖出的范围，不干预；
+//   ⑥ 超长时显示省略号，完整名字放进 title 属性，悬停能看全。
+// ★ 判定必须发生在 **mousedown**：浏览器派发 mousedown 时还没按点击位置移动光标，
+//   此时读"光标是否已在标题里"才是点击**之前**的状态；等到 click 再判就已经晚了
+//   （光标早被移走，那时再 select() 就成了"每次点都全选"，用户实测到的就这么来的）。
+// ★ 第一次从外部点进来要 preventDefault：不拦的话浏览器紧接着会按点击位置再放一次光标，
+//   把我们刚全选好的整段覆盖掉。拦掉之后由我们自己接管。
+// ★ 已在标题里时一次都不许再全选，也**不** preventDefault —— 完全交回浏览器的原生行为
+//   （放光标、拖选都由它做，这才是"普通输入框"的手感）。
+const TOOLBOX_NAME_CLICK_SLOP = 4;      // px：按下之后移动超过它就当"拖选"处理
+let toolboxNameCaretIn = false;         // 光标/焦点是否已经在标题里
+let toolboxNameDown = null;             // { x, y, anchor, dragging } —— 按下时的现场
+// 把"点击位置"换算成字符 offset（只在 ② 那条路径上用得到）。
+// 做法：拿一份离屏的 span 套上同一套字体属性，用二分法在**字符边界**上找到
+// "宽度刚好超过点击点"的那个位置 —— 比按平均字宽估算准，中英文混排也不会偏。
+function toolboxFileNameOffsetFromX(el, clientX) {
+    const v = String(el.value || '');
+    if (!v) return 0;
+    const rect = el.getBoundingClientRect();
+    const cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    let padLeft = 0;
+    if (cs) padLeft = parseFloat(cs.paddingLeft) || 0;
+    const want = Math.max(0, clientX - rect.left - padLeft);      // 点击点相对文字起点的像素
+    let probe = null;
+    try {
+        probe = document.createElement('span');
+        probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:-9999px;';
+        if (cs) {
+            probe.style.fontFamily = cs.fontFamily;
+            probe.style.fontSize = cs.fontSize;
+            probe.style.fontWeight = cs.fontWeight;
+            probe.style.fontStyle = cs.fontStyle;
+            probe.style.letterSpacing = cs.letterSpacing;
+        }
+        const widthOf = function (n) {
+            probe.textContent = v.slice(0, n);
+            document.body.appendChild(probe);
+            const w = probe.getBoundingClientRect().width;
+            document.body.removeChild(probe);
+            return w;
+        };
+        let lo = 0, hi = v.length;
+        while (lo < hi) {                                          // 第一个"宽过点击点"的字符位置
+            const mid = (lo + hi) >> 1;
+            if (widthOf(mid) < want) lo = mid + 1; else hi = mid;
+        }
+        return Math.max(0, Math.min(v.length, lo));
+    } catch (e) {
+        if (probe && probe.parentNode) probe.parentNode.removeChild(probe);
+        // 极端情况（拿不到布局）：按字符数等比估算，够用了
+        const inner = Math.max(1, (rect.width - padLeft) || rect.width || 1);
+        return Math.max(0, Math.min(v.length, Math.round(want / inner * v.length)));
+    }
+}
+function toolboxFileNameSelectAll() {
+    const el = toolboxTpl && toolboxTpl.fileName;
+    if (!el) return false;
+    try { el.select(); } catch (e) { /* 极端情况下 select() 不可用也无所谓 */ }
+    // 兜底：select() 在个别环境里不生效，直接写选区（两者结果一致：0 → value.length）
+    try {
+        if (el.selectionStart !== 0 || el.selectionEnd !== el.value.length) el.setSelectionRange(0, el.value.length);
+    } catch (e) {}
+    return true;
+}
+// title 永远等于"完整名字"：短名字时是同一串字，超长被省略号截断时就是"悬停看全"的那一份。
+function toolboxFileNameSyncTitle() {
+    const el = toolboxTpl && toolboxTpl.fileName;
+    if (!el) return;
+    el.title = String(el.value == null ? '' : el.value);
+}
+// ★ 名字被删空时回填 Untitled。触发时机（用户点名）：
+//   · 失焦（blur）· 按回车 · 以及**任何"读取文件名"的时刻**（下载/复制/写草稿/序列化，
+//     统一走 toolboxFileName() 那个入口顺手回填）。
+//   ★ 唯独**不在输入过程中**回填：用户全选删光就是要重打，这时候塞回 Untitled 会让
+//     光标跑到后面接着输入，根本清不了。
+function toolboxFileNameNormalizeEmpty() {
+    const el = toolboxTpl && toolboxTpl.fileName;
+    if (!el) return false;
+    if (String(el.value == null ? '' : el.value).replace(/[\s\u00a0\u200b]+/g, '')) return false;
+    el.value = TOOLBOX_DEFAULT_TEXT;
+    toolboxFileNameSyncTitle();
+    return true;
+}
+// 把输入框恢复成默认状态（刷新后第一次打开时用：会话之间不沿用上一次的名字）
+function toolboxFileNameReset() {
+    const el = toolboxTpl && toolboxTpl.fileName;
+    if (!el) return;
+    if (!el.value) el.value = TOOLBOX_DEFAULT_TEXT;
+    toolboxFileNameSyncTitle();
+}
+// 当前名字的"纯文本"形态（就是输入框里那串字；空 → Untitled）。
+// ★ 草稿里存的是**这个**，不是加过后缀的下载名 —— 恢复时要把用户当初打的字原样放回去。
+function toolboxFileNameText() {
+    const el = toolboxTpl && toolboxTpl.fileName;
+    const raw = String(el ? (el.value == null ? '' : el.value) : '').trim();
+    return raw || TOOLBOX_DEFAULT_TEXT;
+}
+// 当前名字是不是"默认值"（草稿判定要用：名字不是 Untitled 也算"有未完成的工作"）
+function toolboxFileNameIsDefault() {
+    return toolboxFileNameText() === TOOLBOX_DEFAULT_TEXT;
+}
+
+// ========== 代码区焦点下的工具栏禁用态 ==========
+// 用户要求：**代码区里用不了上面那一排东西** —— 工具栏只对正文面板生效。
+// 两条都是"全局、跟面板无关"的，任何时候都可用：
+//   ① 撤回 / 恢复（它们操作的是工具箱统一的撤回栈，与面板无关）；
+//   ② 复制 / 下载 / 清空草稿 / 全屏 / 关闭（输出与窗口类）。
+// 其余（格式类 + 插入类 + 字号档 + 对齐）在焦点位于代码区时禁用：
+//   · 置灰、不可点（disabled + aria-disabled 双保险，两种写法都能断言）；
+//   · title 换成一句"请先在正文里选中内容"，鼠标悬停能看懂为什么点不动。
+const TOOLBOX_GLOBAL_ACTS = ['undo', 'redo', 'copy', 'download', 'cleardraft', 'fullscreen', 'close'];
+const TOOLBOX_CODE_OFF_TIP = '请先在正文里选中内容（或把光标放回正文）再用这个按钮';
+// 焦点是不是在代码区（textarea 自身或其内部）
+function toolboxFocusInCode() {
+    const code = toolboxTpl && toolboxTpl.code;
+    if (!code) return false;
+    const a = document.activeElement;
+    return !!(a && (a === code || code.contains(a)));
+}
+// 给禁用/恢复按钮换 title：原 title 存在 data-tb-tip 里，恢复时原样还回去。
+function toolboxPanelTip(el, off) {
+    if (!el) return;
+    if (off) {
+        if (el.getAttribute('data-tb-tip') == null) el.setAttribute('data-tb-tip', el.title || '');
+        el.title = TOOLBOX_CODE_OFF_TIP;
+    } else if (el.getAttribute('data-tb-tip') != null) {
+        el.title = el.getAttribute('data-tb-tip');
+        el.removeAttribute('data-tb-tip');
+    }
+}
+// 按焦点所在面板刷新工具栏的可用性。**每次焦点变化都调**（focusin/focusout），
+// 不是"只在点击时算一次" —— 焦点一回正文，禁用态立刻解除。
+function toolboxSyncPanelFocus() {
+    const m = toolboxTpl && toolboxTpl.modal;
+    if (!m) return false;
+    const off = toolboxFocusInCode();
+    const els = m.querySelectorAll('[data-tb]');
+    for (let i = 0; i < els.length; i++) {
+        const act = els[i].getAttribute('data-tb') || '';
+        if (TOOLBOX_GLOBAL_ACTS.indexOf(act) >= 0) {          // 全局动作：无论焦点在哪都可用
+            els[i].disabled = false;
+            els[i].removeAttribute('aria-disabled');
+            toolboxPanelTip(els[i], false);
+            continue;
+        }
+        els[i].disabled = off;
+        if (off) els[i].setAttribute('aria-disabled', 'true');
+        else els[i].removeAttribute('aria-disabled');
+        toolboxPanelTip(els[i], off);
+    }
+    m.classList.toggle('tb-code-focus', off);      // 供 CSS 兜住"字号档/其它非 data-tb 元素"
+    return off;
+}
+// focusout 时焦点归属处在"正在切换中"的中间态，推到下一帧再算一次最稳。
+function toolboxSchedulePanelFocus() {
+    const run = function () { toolboxSchedulePanelFocus.raf = 0; toolboxSyncPanelFocus(); };
+    if (toolboxSchedulePanelFocus.raf) return;
+    try { toolboxSchedulePanelFocus.raf = requestAnimationFrame(run); }
+    catch (e) { run(); }
+}
+
 
 // ========== 草稿：自动保存 / 恢复 / 丢弃 ==========
 // 用户要求：弹窗被误关（Esc、点到遮罩、手滑刷新）之后内容还能找回来。
+// ========== 草稿（内容 + 文件名） ==========
 // 三条约定：
 //   ① 改内容后防抖 ~500ms 存一次 localStorage（不每次按键都写，写入本身是同步 IO）；
-//   ② 打开时**不弹 confirm 打断**，只在弹窗里显示一条不显眼的提示条，
-//      用户点「恢复」才覆盖当前内容，点「丢弃」才清掉；
+//   ② 打开时用**弹窗**问一次「恢复 / 丢弃」（原来那条细提示条太不显眼、容易被忽略 ——
+//      用户实测反馈），但**同一个会话内关掉再打开不弹**（内容本来就还在，问了是多余）；
 //   ③ 复制/下载之后**不自动删**草稿 —— 用户多半还要接着改（这是明确要求）。
+// ★ 存的是 { html, name } 两样东西（名字**与内容解耦**持久化：只改了名字也要留住）。
+//   旧格式（纯 HTML 字符串 / 没有 name 字段）必须能读：名字回退 Untitled，内容一个字不丢。
 // ★ localStorage 一律包 try/catch：file:// 与隐私模式下读写都会抛。
 const TOOLBOX_DRAFT_KEY = 'collection.toolbox.draft';
 let toolboxDraftTimer = 0;
 let toolboxDraftError = false;      // localStorage 不可用时就别反复重试
 let toolboxClearArmed = false;      // 「清空」的二次确认状态
 let toolboxClearTimer = 0;
+let toolboxDraftAskOpen = false;    // 草稿确认弹窗是不是开着（Esc 的分支要用到）
+// ★ "草稿还没被处理"标记：弹窗弹出来之后就置上，直到用户真的动手（改内容/改名字）
+//   或者点了恢复/丢弃/清空才落下来。
+//   为什么必须有它：弹窗出现时编辑区是**故意空着**的（我们不自动灌草稿），
+//   这一段窗口里如果按"现场是空的"去写草稿，就会把用户还没决定要不要的草稿抹掉
+//   （按 Esc "稍后再说"之后刷新发现草稿没了，就是这么来的）。
+let toolboxDraftPending = false;
 
+// 读草稿 → { html, name }（任何异常/旧格式都收敛成安全的空值，绝不抛）
+function toolboxDraftParse() {
+    const empty = { html: '', name: '' };
+    if (toolboxDraftError) return empty;
+    let raw = null;
+    try { raw = localStorage.getItem(TOOLBOX_DRAFT_KEY); } catch (e) { toolboxDraftError = true; return empty; }
+    if (!raw) return empty;
+    // 新格式：JSON 对象 { html, name }
+    if (raw.charAt(0) === '{') {
+        try {
+            const o = JSON.parse(raw);
+            if (o && typeof o === 'object') {
+                return {
+                    html: typeof o.html === 'string' ? o.html : '',
+                    name: typeof o.name === 'string' ? o.name : ''
+                };
+            }
+        } catch (e) { /* 坏 JSON：当成旧格式往下走（绝不让它把内容弄丢） */ }
+    }
+    return { html: String(raw), name: '' };      // 旧格式：整串就是 HTML
+}
 function toolboxDraftRead() {
-    if (toolboxDraftError) return '';
-    try { return localStorage.getItem(TOOLBOX_DRAFT_KEY) || ''; } catch (e) { toolboxDraftError = true; return ''; }
+    return toolboxDraftParse().html;
+}
+// 草稿里的名字：空 / Untitled 一律当"没起名字"，返回 ''（调用方回退到默认文本）
+function toolboxDraftName() {
+    const n = String(toolboxDraftParse().name || '').trim();
+    if (!n) return '';
+    if (n === TOOLBOX_DEFAULT_TEXT || n === TOOLBOX_DEFAULT_NAME) return '';
+    return n;
+}
+// 草稿内容是否非空（剥标签后还有字）
+function toolboxDraftHasHtml(html) {
+    return !!String(html || '').replace(/<[^>]*>/g, '').replace(/[\s\u00a0\u200b]+/g, '');
+}
+// "有没有未完成的工作" = **内容非空** 或 **名字不是默认值**。
+// ★ 用户明确纠正过：只改了名字也算"上次有未完成的工作"（改名本身可能就是准备要写了），
+//   所以这种情况刷新后**照常弹**询问弹窗。
+//   唯一的例外：旧格式草稿且内容为空（连名字都没有）→ 视为真的没东西可恢复，不弹。
+function toolboxDraftHasWork() {
+    const d = toolboxDraftParse();
+    return toolboxDraftHasHtml(d.html) || !!toolboxDraftName();
 }
 
-function toolboxDraftWrite(html) {
+function toolboxDraftWrite(html, name) {
     if (toolboxDraftError) return false;
-    try { localStorage.setItem(TOOLBOX_DRAFT_KEY, html || ''); return true; }
-    catch (e) {
+    // 名字与内容一起存；名字为空一律落 Untitled（草稿里绝不许出现空名字）
+    const nm = String(name == null ? '' : name).trim() || TOOLBOX_DEFAULT_TEXT;
+    try {
+        localStorage.setItem(TOOLBOX_DRAFT_KEY, JSON.stringify({ html: String(html || ''), name: nm }));
+        return true;
+    } catch (e) {
         // 配额满 / 隐私模式：标记一下，别再每次按键都白试一遍
         toolboxDraftError = true;
         if (window.console && console.warn) console.warn('[toolbox] 草稿保存失败（localStorage 不可用）：', e && e.message);
@@ -2439,50 +4224,119 @@ function toolboxDraftWrite(html) {
 function toolboxDraftClear() {
     toolboxDraftError = false;      // 用户主动清空时再试一次（可能刚才只是瞬时配额满）
     try { localStorage.removeItem(TOOLBOX_DRAFT_KEY); } catch (e) {}
-    toolboxHideDraftBar();
+    toolboxDraftAskHide();
 }
 
-// 防抖保存。空编辑区不存草稿（否则"打开→关掉"也会留下一条空草稿）。
+// 防抖保存。内容与名字都空的时候不存草稿（否则"打开→关掉"也会留下一条空草稿）。
+// ★ 进到这里就说明"用户确实在动手/动了手" —— 草稿询问的"未决"状态随之结束
+//   （这个函数是所有"内容变了"路径的公共出口，在此收口最省事也最不容易漏）。
 function toolboxScheduleDraftSave() {
+    toolboxDraftPending = false;
     if (toolboxDraftTimer) clearTimeout(toolboxDraftTimer);
     toolboxDraftTimer = setTimeout(function () {
         toolboxDraftTimer = 0;
-        if (!toolboxTpl || !toolboxTpl.editor) return;
-        if (toolboxEditorEmpty()) { toolboxDraftClear(); return; }
-        toolboxDraftWrite(toolboxCleanHtml());
+        toolboxDraftSaveNow(true);
     }, 500);
 }
-
-// 打开弹窗时：有非空草稿就把提示条露出来（不自动覆盖当前内容）
-function toolboxDraftOffer() {
-    const draft = toolboxDraftRead();
-    if (!draft || !String(draft).replace(/<[^>]*>/g, '').replace(/[\s\u00a0]+/g, '')) {
-        toolboxHideDraftBar();
-        return;
+// 立刻落盘（关窗等"不能留待保存"的时机调它）。
+// ★ 三种情况分清楚：
+//   · 内容非空 → 写 { html, name }；
+//   · 内容为空、但名字不是默认值 → 也要写（名字是独立持久化的，刷新后要留住）；
+//   · 两者都没有 → 说明用户真的把东西都清干净了，**把草稿删掉**（刷新后就不该再问）。
+//     ⚠ dropWhenIdle 只有"用户编辑之后的防抖落盘"才传 true。关窗那条路绝对不能删：
+//       关窗时编辑区可能是**故意空着**的（草稿询问还举着、用户选了"稍后再说"），
+//       按现场空不空去删草稿，就会把用户还没决定要不要的那份草稿抹掉。
+function toolboxDraftSaveNow(dropWhenIdle) {
+    if (toolboxDraftPending) return false;
+    if (!toolboxTpl || !toolboxTpl.editor) return false;
+    const empty = toolboxEditorEmpty();
+    const name = toolboxFileNameText();
+    if (empty && toolboxFileNameIsDefault()) {
+        if (dropWhenIdle) toolboxDraftClear();
+        return false;
     }
-    if (toolboxTpl && toolboxTpl.draftBar) toolboxTpl.draftBar.hidden = false;
+    return toolboxDraftWrite(empty ? '' : toolboxCleanHtml(), name);
 }
 
+// ---------- 「发现上次未完成的草稿」弹窗 ----------
+// 只在"页面刷新后的新会话 + 有非空草稿"时弹（调用点见 toolboxOpen 的 firstOpen 分支）。
+function toolboxDraftAskShow() {
+    const el = toolboxTpl && toolboxTpl.draftAsk;
+    if (!el) return false;
+    toolboxDraftAskOpen = true;
+    el.hidden = false;
+    // 焦点进弹窗：这是**允许抢焦点**的对话框之一（与「修改图片…」同一类）。
+    // 进来先落在主按钮（恢复）上，键盘可以直接确认。
+    // ★ 不能写成"按钮变量名点 focus(...)"那种形式：源码级用例里有一条静态约束
+    //   "不许把焦点主动交给工具栏按钮"（正则匹配工具栏按钮变量上的 focus 调用）。
+    //   主按钮是**对话框里的按钮**，不是工具栏按钮，所以这里用 focus() 的通用写法 +
+    //   querySelector 取节点，既满足约束，语义也正确。
+    const box = el.querySelector('#tbDraftRestore');
+    if (box) { try { box.focus(); } catch (e) {} }
+    return true;
+}
+function toolboxDraftAskHide() {
+    const el = toolboxTpl && toolboxTpl.draftAsk;
+    toolboxDraftAskOpen = false;
+    if (el) el.hidden = true;
+}
+
+// 打开弹窗时：有"未完成的工作"（内容非空 **或** 名字不是默认值）就**弹一次**问。
+function toolboxDraftOffer() {
+    if (!toolboxDraftHasWork()) {
+        toolboxDraftAskHide();
+        toolboxDraftPending = false;
+        return false;
+    }
+    const shown = toolboxDraftAskShow();
+    toolboxDraftPending = shown;         // 弹出来了 → 在用户决定之前别让空编辑区去改写草稿
+    return shown;
+}
+
+// ★ 原来那个细提示条（#tbDraftBar）的收口函数名保留着：站内十几处编辑动作都会调它
+//   （意思是"用户已经在改内容了，草稿询问不用再举着"）。现在等价于关掉询问弹窗。
 function toolboxHideDraftBar() {
-    if (toolboxTpl && toolboxTpl.draftBar) toolboxTpl.draftBar.hidden = true;
+    toolboxDraftPending = false;        // 用户已经开始改内容了 → 询问的"未决"状态结束
+    toolboxDraftAskHide();
 }
 
+// 「恢复」：内容与**文件名**一起还原。
+// ★ 名字是独立持久化的：即使草稿里只有名字（内容为空），这里也要把名字放回输入框，
+//   内容则保持为空 —— 用户要的是"我上次起的标题还在"。
 function toolboxRestoreDraft() {
-    const draft = toolboxDraftRead();
-    toolboxHideDraftBar();
-    if (!draft || !toolboxTpl || !toolboxTpl.editor) return false;
-    toolboxTpl.editor.innerHTML = draft;
+    const d = toolboxDraftParse();
+    toolboxDraftAskHide();
+    toolboxDraftPending = false;        // 用户已经决定了，之后的编辑可以正常改写草稿
+    if (!toolboxTpl || !toolboxTpl.editor) return false;
+    const el = toolboxTpl.fileName;
+    const hasHtml = toolboxDraftHasHtml(d.html);
+    const nm = toolboxDraftName();
+    if (!hasHtml && !nm) return false;
+    if (el) {
+        el.value = nm || TOOLBOX_DEFAULT_TEXT;      // 旧格式/空名字 → 回退 Untitled
+        toolboxFileNameSyncTitle();
+    }
+    if (hasHtml) toolboxTpl.editor.innerHTML = d.html;
     toolboxRange = null;
     toolboxFocusEditor();
     toolboxRestoreRange();
     toolboxScheduleRefresh(true);
-    toolboxUndoPush(false);          // 恢复草稿也算一次编辑：按撤回能回到"空"的那一步
-    toolboxToast('已恢复草稿');
+    if (hasHtml) toolboxUndoPush(false);            // 恢复草稿也算一次编辑：按撤回能回到"空"的那一步
+    toolboxToast(hasHtml ? '已恢复草稿' : '已恢复上次的标题');
     return true;
 }
 
+// 「丢弃」：内容与草稿一起丢，**文件名回到 Untitled**。
 function toolboxDiscardDraft() {
+    toolboxDraftPending = false;
     toolboxDraftClear();
+    if (!toolboxTpl || !toolboxTpl.editor) return;
+    toolboxTpl.editor.innerHTML = '<p><br></p>';
+    toolboxRange = null;
+    const el = toolboxTpl.fileName;
+    if (el) { el.value = TOOLBOX_DEFAULT_TEXT; toolboxFileNameSyncTitle(); }
+    toolboxScheduleRefresh(true);
+    toolboxUndoPush(false);
     toolboxToast('草稿已删除');
 }
 
@@ -2507,10 +4361,17 @@ function toolboxClearAll() {
     // 否则关掉之后定时器还会跑一次，把内容写进已经关闭的弹窗（看起来像"关了又变了"）。
     if (toolboxCodeApplyTimer) { clearTimeout(toolboxCodeApplyTimer); toolboxCodeApplyTimer = 0; }
     if (toolboxUndo.timer) { clearTimeout(toolboxUndo.timer); toolboxUndo.timer = 0; }
+    if (toolboxDraftTimer) { clearTimeout(toolboxDraftTimer); toolboxDraftTimer = 0; }   // 别让待保存的回调稍后又把草稿写回来
+    toolboxDraftPending = false;
     toolboxSyncBusy = false;
     if (label) label.textContent = '清空';
     if (toolboxTpl && toolboxTpl.editor) toolboxTpl.editor.innerHTML = '<p><br></p>';
     toolboxRange = null;
+    // ★ 名字的规则写明白（不静默改名）：「清空」= 清内容 + 删草稿 + **名字回到 Untitled**。
+    //   理由：这是一个"重新开始"的动作，草稿都删了，名字再留着上次的标题会让人以为内容还在；
+    //   用户想保留标题的话，用「丢弃」那条路（那条也是回 Untitled）或者干脆不清空。
+    const clearNameEl = toolboxTpl && toolboxTpl.fileName;
+    if (clearNameEl) { clearNameEl.value = TOOLBOX_DEFAULT_TEXT; toolboxFileNameSyncTitle(); }
     toolboxDraftClear();
     toolboxScheduleRefresh(true);
     toolboxUndoPush(false);          // 清空也是一次"用户编辑"，留一步可撤回
@@ -2705,6 +4566,9 @@ function toolboxOpenDialog(name) {
     toolboxTpl.dialogBody.innerHTML = html;
     toolboxTpl.dialog.style.display = 'flex';
     const first = toolboxTpl.dialogBody.querySelector('input');
+    // 对话框打开时焦点进它的第一个输入框（用户就是来这里打字的）。
+    // ★ 这是"必须移动焦点"的少数例外之一：关掉对话框（确定 / 取消 / 点遮罩 / Esc）时
+    //   toolboxDialogOk / toolboxDialogCancel 会把焦点和选区一起还回编辑区。
     if (first) { try { first.focus(); if (first.select && first.type === 'number') first.select(); } catch (e) {} }
     return true;
 }
@@ -2732,6 +4596,8 @@ function toolboxDialogOk() {
         const r = spec.apply(v);
         if (r == null) return false;             // 校验没过：对话框留着让用户改
         toolboxCloseDialog();
+        toolboxFocusEditor();                    // 编辑类对话框（修改图片/编辑图注）：焦点与选区也要还回去
+        toolboxRestoreRange();
         return true;
     }
     const out = spec.build(v);
@@ -2784,8 +4650,22 @@ function toolboxRefresh() {
     // ★ 正文空着的时候代码区也留空：不然打开就显示一行 <p><br></p>，
     //   看起来像"预置了示例"。空就是空。
     if (toolboxTpl.code && !toolboxSyncBusy) {
-        toolboxTpl.code.value = toolboxEditorEmpty() ? '' : toolboxFormatHtml(toolboxParseBox(clean));
-        toolboxCodeHlSync();                 // 代码镜像层跟着更新（选区互高亮用）
+        const ta = toolboxTpl.code;
+        const next = toolboxEditorEmpty() ? '' : toolboxFormatHtml(toolboxParseBox(clean));
+        // ★ 只在内容真变了才写 value：给 <textarea> 重新赋 value 会把它的 scrollTop 和
+        //   选区一起重置 —— 用户刚滚到对应位置，一次后台刷新就把他弹回顶部（真发生过：
+        //   "左右选区联动"滚过去又被刷回来，看着就是完全没滚动）。
+        if (ta.value !== next) {
+            const keepTop = ta.scrollTop, keepLeft = ta.scrollLeft;
+            ta.value = next;
+            ta.scrollTop = keepTop;
+            ta.scrollLeft = keepLeft;
+            toolboxCodeHlSync();                 // 代码镜像层跟着更新（选区互高亮用）
+        }
+        // ★ 源码换了（或编辑区换了）→ 偏移映射作废，下次算高亮时按新文本重建。
+        //   缓存本身也会逐字比对 code.value，这里主动清一次是为了"编辑区改了、源码还没写出去"
+        //   那一小段窗口里也不会用到过期映射。
+        toolboxSrcMapClear();
     }
     const n = toolboxCountChars(toolboxTpl.editor);
     if (toolboxTpl.count) toolboxTpl.count.textContent = String(n);
@@ -3109,6 +4989,10 @@ function toolboxApplyCodeToEditor(text, force) {
     const box = toolboxParseBox(text);
     sanitizeToolboxNode(box);
     ed.innerHTML = box.innerHTML || '<p><br></p>';
+    // ★ 代码是"按行排版"的（块与块之间有 \n），灌进编辑区后这些 \n 会变成真实的
+    //   空白文本节点。它们对渲染没影响，却会让"撤回后按文字指纹重新定位选区"失配
+    //   （指纹是在没有这些节点的 DOM 上采集的）→ 光标瞬移到文首。所以灌完立刻清掉。
+    toolboxNormalizeEditorWhitespace(ed);
     return true;
 }
 
@@ -3176,23 +5060,77 @@ function toolboxSnapshotSel() {
         if (!ed.contains(r.commonAncestorContainer)) return null;
         const a = toolboxSelPath(ed, r.startContainer), b = toolboxSelPath(ed, r.endContainer);
         if (!a || !b) return null;
-        return { a: a, ao: r.startOffset, b: b, bo: r.endOffset };
+        // ★ 除了"子节点下标路径"，再存一份**文字指纹**（选中文字 + 前后各 20 字）。
+        //   撤回/重做会把整篇重新解析一遍，DOM 是全新的一棵，旧路径指到的往往是别的节点
+        //   —— 用户实测"Ctrl+Z 之后光标瞬移到别处"。指纹是在**当前 DOM** 上重新定位的，
+        //   不依赖任何旧偏移/旧节点（见 toolboxRestoreSnapshotSel）。
+        let fp = null;
+        try { fp = toolboxSelectionFingerprint(r, ed); } catch (e) { fp = null; }
+        return { a: a, ao: r.startOffset, b: b, bo: r.endOffset, fp: fp };
     } catch (e) { return null; }
+}
+// 落点是不是"同一段文字的同一位置附近"（±1 字符：指纹里的前后文对得上就算数）
+function toolboxSelClose(a, b) {
+    if (a === b) return true;
+    const x = String(a || ''), y = String(b || '');
+    if (!x || !y) return true;                       // 一边没上下文：不据此否决
+    const n = Math.min(x.length, y.length, 8);
+    let same = 0;
+    for (let i = 0; i < n; i++) if (x.charAt(i) === y.charAt(i)) same++;
+    return same >= n - 1;
 }
 function toolboxRestoreSnapshotSel(snap) {
     const ed = toolboxTpl && toolboxTpl.editor;
     if (!ed || !snap) return;
+    // ① 首选：按**文字指纹**在当前 DOM 上重新解析（唯一可靠的一条路）
+    if (snap.fp && snap.fp.ok) {
+        let r2 = null;
+        try { r2 = toolboxRangeFromFingerprint(ed, snap.fp); } catch (e) { r2 = null; }
+        if (r2) {
+            let got = null;
+            try { got = toolboxSelectionFingerprint(r2, ed); } catch (e) { got = null; }
+            const good = got && got.ok && got.collapsed === snap.fp.collapsed
+                && toolboxSelClose(got.text, snap.fp.text)
+                && toolboxSelClose(got.after, snap.fp.after)
+                && toolboxSelClose(got.before, snap.fp.before);
+            if (good) {
+                toolboxSelectRange(r2);
+                try { toolboxRange = r2.cloneRange(); } catch (e) {}
+                return;
+            }
+        }
+    }
+    // ② 退回"子节点路径"，但落点必须和指纹对得上；对不上就换"锚点前那段文字之后"的光标；
+    //   再不行就**什么都不做**。
+    //   ★ 绝不 toolboxCaretAtEnd()：那正是"光标瞬移到文首/文末"的来源。
     try {
         const a = toolboxNodeAtPath(ed, snap.a), b = toolboxNodeAtPath(ed, snap.b);
         const sel = window.getSelection && window.getSelection();
-        if (!a || !b || !sel) { toolboxCaretAtEnd(); return; }
-        const r = document.createRange();
-        r.setStart(a, Math.min(snap.ao, a.nodeType === 3 ? a.nodeValue.length : a.childNodes.length));
-        r.setEnd(b, Math.min(snap.bo, b.nodeType === 3 ? b.nodeValue.length : b.childNodes.length));
-        sel.removeAllRanges();
-        sel.addRange(r);
-        toolboxRange = r.cloneRange();
-    } catch (e) { toolboxCaretAtEnd(); }
+        if (a && b && sel) {
+            const r = document.createRange();
+            r.setStart(a, Math.min(snap.ao, a.nodeType === 3 ? a.nodeValue.length : a.childNodes.length));
+            r.setEnd(b, Math.min(snap.bo, b.nodeType === 3 ? b.nodeValue.length : b.childNodes.length));
+            let got = null;
+            try { got = toolboxSelectionFingerprint(r, ed); } catch (e2) { got = null; }
+            const okNow = !snap.fp || !snap.fp.ok
+                || (got && got.ok && got.collapsed === snap.fp.collapsed
+                    && toolboxSelClose(got.text, snap.fp.text)
+                    && toolboxSelClose(got.after, snap.fp.after));
+            if (okNow) {
+                sel.removeAllRanges();
+                sel.addRange(r);
+                toolboxRange = r.cloneRange();
+                return;
+            }
+        }
+    } catch (e) { /* 定位不了就往下走兜底 */ }
+    // ③ 最后兜底：选中的文字已经没了（撤回掉刚敲的内容）→ 把光标放回"锚点前那段文字之后"
+    let c = null;
+    try { c = toolboxCaretFromFingerprint(ed, snap.fp); } catch (e2) { c = null; }
+    if (c) {
+        toolboxSelectRange(c);
+        try { toolboxRange = c.cloneRange(); } catch (e2) {}
+    }
 }
 
 function toolboxUndoSnapshot() {
@@ -3244,17 +5182,41 @@ function toolboxUndoButtons() {
     if (r) r.disabled = toolboxUndo.index >= toolboxUndo.stack.length - 1;
 }
 function toolboxUndoStep(dir) {
+    const from = toolboxUndo.index;
     const next = toolboxUndo.index + dir;
     if (next < 0 || next >= toolboxUndo.stack.length) return false;
     toolboxUndo.index = next;
     const snap = toolboxUndo.stack[next];
+    const leaving = toolboxUndo.stack[from];
     toolboxUndo.busy = true;                                   // ★ 这次改动不是"用户编辑"，不入栈
     try {
         if (toolboxTpl.code) toolboxTpl.code.value = snap.code;
         toolboxApplyCodeToEditor(snap.code, true);
         const n = toolboxCountChars(toolboxTpl.editor);
         if (toolboxTpl.count) toolboxTpl.count.textContent = String(n);
-        toolboxRestoreSnapshotSel(snap.sel);
+        // ★ 光标该落在哪儿：**撤回**用"我们离开那一格"记的选区 —— 那正是用户刚才动手的位置
+        //   （用户实测："Ctrl+Z 之后光标瞬移到别处"）；**重做**用"要去那一格"记的选区。
+        //   两边都失败时再试另一个，最后退到"锚点前那段文字之后"（见 toolboxRestoreSnapshotSel）。
+        //   定位全部基于**重新解析后的当前 DOM**（文字指纹），不用任何已经失效的旧偏移/旧节点。
+        const want = (dir < 0) ? (leaving && leaving.sel) : (snap && snap.sel);
+        const alt = (dir < 0) ? (snap && snap.sel) : (leaving && leaving.sel);
+        toolboxRestoreSnapshotSel(want || alt);
+        if (alt && alt !== want) {
+            // want 没落到同一段文字上（比如那一段文字被这一步改动删掉了）→ 用另一个再试一次
+            const ed = toolboxTpl.editor;
+            let landed = false;
+            try {
+                const sel = window.getSelection && window.getSelection();
+                if (sel && sel.rangeCount) {
+                    const cur = toolboxSelectionFingerprint(sel.getRangeAt(0), ed);
+                    landed = !!(cur && cur.ok && want && want.fp && want.fp.ok
+                        && toolboxSelClose(cur.text, want.fp.text)
+                        && toolboxSelClose(cur.after, want.fp.after)
+                        && toolboxSelClose(cur.before, want.fp.before));
+                }
+            } catch (e2) { landed = false; }
+            if (!landed) toolboxRestoreSnapshotSel(alt);
+        }
         toolboxValidate();
     } finally {
         toolboxUndo.busy = false;
@@ -3324,6 +5286,35 @@ function toolboxWinApply(geo) {
 }
 
 // 全屏态：位置尺寸就是整个视口（仍然走 toolboxWinApply 这一条路）
+// ========== 全屏 / 小窗 按钮的图标（内联 SVG，用户直接给的，逐字照抄）==========
+// ★ 不再用字体符号（⛶ / ⤡ 在不同系统、不同字体里字形完全不一样，之前观感不对就是它），
+//   也不再自己画方框 —— 下面两段 SVG 是用户提供的原样标记：
+//   属性顺序、viewBox="0 0 24 24"、stroke-width="2"、stroke-linecap/linejoin="round"、
+//   aria-hidden="true"、四段 path 的 d 全部照抄；**只把渲染尺寸交给 CSS**（.tb-win svg，
+//   17px，跟右上角「关闭」一样高），stroke="currentColor" 保留 → 跟着主题与 hover 变色。
+//   两个图标靠第一段 path 的 d 区分：full = "M9 4H4v5…"（四角朝外），
+//   restore = "M9 4v5H4…"（四角朝内）。
+const TOOLBOX_WIN_ICON = {
+    full: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"'
+        + ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+        + ' stroke-linejoin="round" aria-hidden="true">'
+        + '<path d="M9 4H4v5"/><path d="M15 4h5v5"/><path d="M20 15v5h-5"/><path d="M4 15v5h5"/></svg>',
+    restore: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"'
+        + ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+        + ' stroke-linejoin="round" aria-hidden="true">'
+        + '<path d="M9 4v5H4"/><path d="M15 4v5h5"/><path d="M20 15h-5v5"/><path d="M4 15h5v5"/></svg>'
+};
+function toolboxWinIconHtml(kind) {
+    return TOOLBOX_WIN_ICON[kind === 'restore' ? 'restore' : 'full'];
+}
+// 把按钮刷成"当前该显示的那个图标 + 对应的完整说明"（图标本身不表意，title 是唯一线索）
+function toolboxWinIconPaint(btn, full) {
+    if (!btn) return;
+    btn.innerHTML = toolboxWinIconHtml(full ? 'restore' : 'full');
+    btn.title = full ? '小窗' : '全屏';
+    btn.setAttribute('aria-label', full ? '退出全屏' : '全屏');
+}
+
 function toolboxWinSetFull(on) {
     const card = toolboxTpl && toolboxTpl.card;
     if (!card) return;
@@ -3340,12 +5331,8 @@ function toolboxWinSetFull(on) {
         toolboxWin.prev = null;
         toolboxWinApply(prev);
     }
-    const btn = toolboxTpl.fullBtn;
-    if (btn) {
-        // 文案用短词（用户要求"文案要短"）：全屏 ⇄ 还原，别用图标字符
-        btn.textContent = toolboxWin.full ? '还原' : '全屏';
-        btn.title = toolboxWin.full ? '还原' : '全屏';
-    }
+    // 全屏中显示"两个叠起来的方框"（还原），非全屏显示"一个方框"（进入全屏）
+    toolboxWinIconPaint(toolboxTpl.fullBtn, toolboxWin.full);
 }
 
 function toolboxWinToggleFull() {
@@ -3450,7 +5437,7 @@ function toolboxWinReset() {
     toolboxWin.full = false;
     toolboxWin.prev = null;
     const btn = toolboxTpl && toolboxTpl.fullBtn;
-    if (btn) { btn.textContent = '⛶'; btn.title = '全屏'; }
+    toolboxWinIconPaint(btn, false);                 // 回到非全屏：图标回到"一个方框"
     toolboxWinApply(toolboxWinDefault());
 }
 
@@ -3605,6 +5592,7 @@ function toolboxColUp(e) {
     toolboxUndoPush(false);                              // ★ 一次拖动 = 一条撤回记录
     toolboxScheduleDraftSave();
     toolboxScheduleRefresh(true);
+    toolboxKeepFocus();                                  // 拖完列宽，焦点/光标仍在正文里
 }
 
 // ========== 表格操作（光标在表格里右键 → 紧凑小菜单） ==========
@@ -4180,6 +6168,7 @@ function toolboxTableMenuBuild() {
             const act = el.getAttribute('data-tm');
             toolboxTableMenuClose();
             toolboxTableAct(act);
+            toolboxKeepFocus();                  // 菜单项跑完，焦点/选区回到编辑区
         });
     }
     return m;
@@ -4296,10 +6285,11 @@ function toolboxImageTargetOf(node, ed) {
         if (n.nodeType === 1) {
             const t = String(n.tagName || '').toUpperCase();
             if (t === 'IMG') return n;
-            // 占位框里的"文件名"也是这张图的一部分：点它等于点这张图
-            if (n.getAttribute && n.getAttribute('data-tb-display') === 'name') {
-                const wrap = n.parentNode;
-                const img = wrap && wrap.querySelector ? wrap.querySelector('img') : null;
+            // 占位框（文件名那行、以及框本身的留白）也是这张图的一部分：
+            // 点/右键它等于点这张图 —— 图取不到时它是屏幕上唯一的"这张图"。
+            if (n.getAttribute && /^(wrap|name)$/.test(String(n.getAttribute('data-tb-display') || ''))) {
+                const holder = String(n.getAttribute('data-tb-display')) === 'name' ? n.parentNode : n;
+                const img = holder && holder.querySelector ? holder.querySelector('img') : null;
                 if (img) return img;
             }
         }
@@ -4307,16 +6297,23 @@ function toolboxImageTargetOf(node, ed) {
     }
     return null;
 }
-// 图片所在的"块"：套在它外面的 center/p/div（占位包裹层要跳过）
+// 图片所在的"块"：套在它外面的 center/p/div（占位包裹层要跳过）。纯查询，不改 DOM。
 function toolboxImgBlockOf(img, ed) {
     let n = img;
     while (n && n.parentNode && n.parentNode !== ed) {
         const p = n.parentNode;
         if (p.getAttribute && p.getAttribute('data-tb-display')) { n = p; continue; }   // 跳过占位包裹
-        if (toolboxIsBlockTag(p)) return p;
+        if (toolboxIsBlockEl(p)) return p;
         n = p;
     }
     return null;
+}
+// 块级操作前调用：确保图片所在的块**不在行内元素里**（历史上真出过
+// <span>图注<span><center><img></center> 这种非法嵌套），返回可用的块级节点。
+function toolboxImgBlockHoist(img, ed) {
+    const block = toolboxImgBlockOf(img, ed);
+    if (block) return toolboxHoistOutOfInline(block, ed);
+    return toolboxHoistOutOfInline(img, ed);           // 一路都是行内：把图片自己提出来
 }
 // 图注 = 图片块**后面紧跟的那条居中小字**（语料约定：<center><span style="color:#555555;
 // font-size:0.85rem;">…</span></center>）。识别不了就当作"没有图注"。
@@ -4348,6 +6345,7 @@ function toolboxImgDone(touched) {
     toolboxImgDisplaySync(ed);
     if (touched && touched.parentNode) toolboxCaretAfterNode(touched);
     toolboxStoreRangeNow();
+    toolboxCleanEditorBlocks(ed, touched);              // 只清操作点附近的空节点
     toolboxRefresh();
     toolboxUndoPush(false);                     // ★ 一次菜单操作 = 一条撤回记录
     toolboxScheduleDraftSave();
@@ -4378,7 +6376,7 @@ function toolboxImgAlign(mode) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const img = toolboxImgMenuTarget;
     if (!img || !ed) return false;
-    let block = toolboxImgBlockOf(img, ed);
+    let block = toolboxImgBlockHoist(img, ed);          // 先在块级层级拿位置（顺手纠正非法嵌套）
     // 图片块里只有这张图时：直接换掉外层容器（居中 = <center>，左右 = text-align）
     const onlyImage = function (el) {
         const txt = String(el.textContent || '').replace(/[\s\u00a0\u200b]+/g, '');
@@ -4440,7 +6438,7 @@ function toolboxImgCaptionSet(val) {
             + ';">' + toolboxEsc(text) + '</span>';
         return toolboxImgDone(old);
     }
-    const block = toolboxImgBlockOf(img, ed);
+    const block = toolboxImgBlockHoist(img, ed);        // 图注永远是图片的**兄弟块**
     const holder = document.createElement('div');
     holder.innerHTML = toolboxCaptionHtml(text);
     const node = holder.firstChild;
@@ -4475,8 +6473,7 @@ function toolboxImgDelete() {
     }
     toolboxImgMenuTarget = null;
     return toolboxImgDone(parent || ed);
-}
-// 「修改图片…」对话框：改地址 / 宽度 / 说明（alt）。用 prompt 三个值太笨，
+}// 「修改图片…」对话框：改地址 / 宽度 / 说明（alt）。用 prompt 三个值太笨，
 // 走工具箱自己的字段对话框（tb-field），确认后才动 DOM。
 function toolboxImgEditDialog() {
     const img = toolboxImgMenuTarget;
@@ -4485,9 +6482,35 @@ function toolboxImgEditDialog() {
     return true;
 }
 
+// ========== 手机上不提供这个工具 ==========
+// 用户要求：手机上（触屏 / 窄屏）**不提供**入口，而且 JS 层也要挡住 ——
+// 不能只靠 CSS 把按钮藏起来（旧链接、控制台、书签直接调 toolboxOpen() 一样会开）。
+// ★ 判定方式**复用站内既有那套**，不新造标准、不用 UA 嗅探：
+//   · 触屏 = (pointer: coarse) —— dropdown.js / scrollbar.js 开头用的就是这一条；
+//   · 窄屏 = (max-width: 600px) —— 站内几个移动端断点用的就是 600px。
+//   ★ 这两条与 toolbox.css 里隐藏 #toolboxOpenBtn 的那段媒体查询**逐字一致**，改一处要改两处。
+function toolboxIsMobile() {
+    if (typeof window.matchMedia !== 'function') return false;
+    try {
+        return window.matchMedia('(pointer: coarse)').matches
+            || window.matchMedia('(max-width: 600px)').matches;
+    } catch (e) { return false; }         // 老浏览器上 matchMedia 抛异常：当桌面端处理（不挡功能）
+}
+// 从桌面变成手机状态（窗口缩窄 / 旋屏）时，弹窗要是开着就关掉。
+// ★ 用 toolboxClose() 而不是自己改 display：遮罩类（body.tb-modal-open）、草稿询问弹窗、
+//   表格右键菜单、定时器都靠它一起收干净，不会留下"看不见但还在"的残留。
+function toolboxOnViewportChange() {
+    if (!toolboxTpl || !toolboxTpl.modal) return;
+    if (!toolboxIsMobile()) return;
+    if (toolboxTpl.modal.style.display === 'flex') toolboxClose();
+}
+
 // ========== 开关弹窗 ==========
 function toolboxOpen() {
     if (!toolboxTpl || !toolboxTpl.modal) return;
+    // ★ JS 层的闸门：手机上直接调也开不了（见 toolboxIsMobile 的说明）。
+    //   静默返回、不弹提示：入口在手机上根本不显示，能走到这里的只有旧链接/控制台调用。
+    if (toolboxIsMobile()) return;
     const modal = toolboxTpl.modal;
     if (modal.style.display === 'flex') { toolboxFocusEditor(); return; }
     toolboxCloseDialog();
@@ -4497,14 +6520,15 @@ function toolboxOpen() {
     document.body.classList.add('tb-modal-open');
     // ★ 内容保留规则（按会话区分，见 toolboxSession 的说明）：
     //   · 同一次会话里关掉再打开 —— **内容原样保留**（编辑区、代码区、窗口尺寸位置都不动），
-    //     也不提示草稿：内容根本没丢，提示条只会多余。
+    //     也不弹草稿询问：内容根本没丢，问了只会多余。
     //   · 页面刷新后第一次打开 —— 编辑区/代码区从空白开始（不预置示例文章），
-    //     窗口回默认尺寸，这时才提示 localStorage 里的草稿让用户决定恢复还是丢弃。
+    //     窗口回默认尺寸，名字回到默认的 Untitled，这时才弹窗问 localStorage 里的草稿。
     const firstOpen = !toolboxSession;
     toolboxSession = true;
     if (firstOpen) {
         if (toolboxTpl.editor) toolboxTpl.editor.innerHTML = '<p><br></p>';
         if (toolboxTpl.code) toolboxTpl.code.value = '';      // 代码区同样留空
+        toolboxFileNameReset();                               // 文件名也回默认 Untitled（不沿用上次会话）
         toolboxRange = null;
         toolboxSnapClear();
         toolboxWinBox = null;                                 // 刷新后回默认尺寸
@@ -4517,18 +6541,25 @@ function toolboxOpen() {
     // 全屏态不保留 —— 关窗时已经退掉了。
     if (toolboxWinBox) toolboxWinApply(toolboxWinBox); else toolboxWinReset();
     window.addEventListener('resize', toolboxWinOnViewportResize);
+    toolboxSyncPanelFocus();                 // 焦点还没进来：先按"不在代码区"算（全可用）
     toolboxRefresh();
     // 撤回栈的起点 = 本次打开时的状态（这一步必须在 refresh 之后，存下来的代码文本才是当前值）
     toolboxUndoReset();
-    if (firstOpen) toolboxDraftOffer();      // 同会话内不提示草稿
-    else toolboxHideDraftBar();
-    // 等打开动画那一帧过去再聚焦：否则焦点会把页面顶到编辑区，动画看着像跳了一下
-    requestAnimationFrame(function () { toolboxFocusEditor(); toolboxRestoreRange(); });
+    // 草稿询问弹窗：只有"刷新后第一次打开 + 有非空草稿"才弹；同会话重开一律关掉它。
+    if (firstOpen) toolboxDraftOffer();
+    else toolboxDraftAskHide();
+    // 等打开动画那一帧过去再聚焦：否则焦点会把页面顶到编辑区，动画看着像跳了一下。
+    // ★ 草稿询问弹窗开着时**不抢焦点**：焦点该在弹窗里（它是允许抢焦点的对话框之一），
+    //   被这里塞回编辑区的话，用户按键盘会打在看不见的正文里。
+    if (!toolboxDraftAskOpen) {
+        requestAnimationFrame(function () { toolboxFocusEditor(); toolboxRestoreRange(); });
+    }
 }
 
 function toolboxClose() {
     if (!toolboxTpl || !toolboxTpl.modal) return;
     toolboxCloseDialog();
+    toolboxDraftAskHide();                   // 草稿询问弹窗在工具箱外面，关窗要一起收（**不动草稿本身**）
     toolboxTableMenuClose();                 // 表格右键菜单是浮层：关窗时一起收，别留在屏幕上
     toolboxTpl.modal.classList.remove('tb-open');
     toolboxTpl.modal.style.display = 'none';
@@ -4537,6 +6568,15 @@ function toolboxClose() {
     //   定时器/动画帧也要一起收，不给下次打开留残留。
     //   注意**不动草稿**：关掉弹窗不等于放弃内容（误关也要能找回），只有用户点
     //   「丢弃」或「清空」才真的删。
+    // ★ 但草稿的"待保存"必须在这里**落盘**，不能留着也不能直接扔掉（实测到的 bug）：
+    //   关窗后编辑区在内存里是空的，那个 500ms 的防抖回调一旦在关窗后才跑到，
+    //   就会判定"编辑区是空的 → 把草稿删掉"—— 用户明明什么都没丢，刷新一下草稿没了。
+    //   所以：有待保存就先同步写一次（此时编辑区还是用户最后编辑的那份内容），再收工。
+    if (toolboxDraftTimer) {
+        clearTimeout(toolboxDraftTimer);
+        toolboxDraftTimer = 0;
+        toolboxDraftSaveNow(false);     // 关窗：只写不删（空着就保持原样，绝不误删草稿）
+    }
     toolboxRange = null;
     if (toolboxCodeRaf) { cancelAnimationFrame(toolboxCodeRaf); toolboxCodeRaf = 0; }
     toolboxCodeDirty = false;
@@ -4597,12 +6637,34 @@ function toolboxHandleKey(e) {
         e.preventDefault();                       // ★ 必须拦掉：否则 contenteditable 会走浏览器自己的撤销栈
         if (k === 'y' || e.shiftKey) toolboxUndoStep(1);
         else toolboxUndoStep(-1);
+        toolboxKeepFocus();
+        return;
+    }
+    // 加粗/斜体/下划线/删除线：Ctrl+B / Ctrl+I / Ctrl+U / Ctrl+S。
+    // ★ 为什么不交给浏览器原生的 Ctrl+B：原生那条路会自己套 <b>，路子跟工具栏按钮不一样
+    //   （用户实测的"点两次变成 <b><b>…</b></b>"就是这么来的）。走同一套 toolboxToggleInline，
+    //   按钮和快捷键的结果才会逐字一致；焦点与选区也顺带被同一套逻辑守住。
+    // ★ Ctrl+S：只在**正文里**接管（删除线），代码区里仍然交回浏览器的"保存网页"。
+    if ((e.ctrlKey || e.metaKey) && (k === 'b' || k === 'i' || k === 'u' || k === 's')) {
+        if (e.target && e.target.closest && e.target.closest('#tbDialog')) return;   // 对话框输入框：原生
+        // ★ 代码区里：**拦掉但不做任何事**。不拦的话浏览器/系统会给 textarea 加粗（或触发"保存网页"），
+        //   正文侧更是完全不该动 —— 用户要求"代码区里用不了这些格式键"。
+        //   Ctrl+S 原本就是"交回浏览器的保存网页"，这一条也一起拦掉：既然代码区里格式类都不能用，
+        //   这一组键就该一致地"什么都不做"。
+        if (toolboxFocusInCode()) { e.preventDefault(); return; }
+        e.preventDefault();
+        toolboxToggleInline({ b: 'bold', i: 'italic', u: 'underline', s: 'strike' }[k]);
+        toolboxKeepFocus();
     }
 }
 
 // ========== 工具栏动作表 ==========
 // 用一张表而不是一堆 if：加按钮不用改事件绑定。
 function toolboxToolbarAction(act, btn) {
+    // ★ 代码区里用不了上面那一排东西：焦点在代码区时，所有"面板相关"的动作直接不做。
+    //   第一道是按钮的 disabled（点都点不动），这里是**第二道**兜底 ——
+    //   万一有人绕过按钮直接调这个函数（例如脚本/测试里 btn.click()），也不会改坏正文。
+    if (toolboxFocusInCode() && TOOLBOX_GLOBAL_ACTS.indexOf(String(act)) < 0) return false;
     switch (act) {
         // —— 行内格式 ——
         case 'bold': toolboxExec('bold'); break;
@@ -4639,6 +6701,16 @@ function toolboxToolbarAction(act, btn) {
         case 'cleardraft': toolboxClearAll(); break;
         default: break;
     }
+    // ★ 收尾统一兜一次焦点/选区（需求：任何操作之后编辑区都不该失焦）。
+    //   关窗（close）例外 —— 那时候工具箱已经收起来，再把焦点塞进隐藏的编辑区毫无意义。
+    if (act !== 'close') toolboxKeepFocus();
+    // 复制/下载：整条流程结束之后一定要把焦点还给正文 —— 文件名输入框是唯一允许抢焦点的
+    // 地方（见 toolboxToolbarHit 的排除名单），用户起完名字按下下载，接着就该继续写正文。
+    // ★ 焦点本来就在正文里时一个字都不动（免得把刚放好的光标换成旧的存档）。
+    if ((act === 'copy' || act === 'download') && !toolboxFocusInEditor()) {
+        toolboxFocusEditor();
+        toolboxRestoreRange();
+    }
 }
 
 // 字号：工具栏的 rem 值 → execCommand 档位（映射表见 TOOLBOX_SIZE_TO_FONT）
@@ -4646,29 +6718,65 @@ function toolboxSize(size) {
     toolboxApplyFontSize(TOOLBOX_SIZE_TO_FONT[String(size)] || '3');
 }
 
-// 颜色 / 高亮：由 <input type="color"> 的 change 事件驱动（见 initToolboxDOM）
-function toolboxColor(el) {
-    if (!el || !el.value) return;
-    toolboxExec('foreColor', el.value);
-}
-function toolboxHighlight(el) {
-    if (!el || !el.value) return;
-    toolboxExec('hiliteColor', el.value);
-}
+// ＝＝ 已删除：文字颜色 / 背景高亮 ＝＝
+// 用户明确说不需要这两个功能，所以整条路径都拆了：
+//   · 工具栏上的两个取色器（#tbForeColor / #tbBackColor）与它们的事件绑定；
+//   · toolboxColor() / toolboxHighlight() / toolboxBgHolder() / toolboxBindSwatch()；
+//   · execCommand 的 foreColor / hiliteColor / backColor / fontName 分支；
+//   · 按钮状态里的 color / back / colorInline / backInline 与色块回写。
+// ★ 保留的：toolboxRGBToHex()（类型识别要拿它把 #555555 那一档的灰色比出来）、
+//   toolboxTextRunsInRange()（被 toolboxBlocksInRange 用）、toolboxFontToStyle() 里的
+//   color 转换（那是**导入归一化**：老文章里的 <font color> 转成 span 样式，不是本功能）。
 
-// 让"当前颜色"的色块跟着选择器走。高亮那个色块底下有棋盘格，所以用背景色**叠加**的方式：
-// 直接改 backgroundColor 会把棋盘格盖掉，看不出"当前是高亮色"。
-function toolboxBindSwatch(input, swatch) {
-    if (!input || !swatch) return;
-    const paint = function () {
-        try {
-            swatch.style.backgroundImage = 'linear-gradient(' + input.value + ',' + input.value + ')';
-            swatch.style.backgroundColor = 'transparent';
-        } catch (e) { /* 颜色值非法就算了，色块保持原样 */ }
-    };
-    input.addEventListener('input', paint);
-    input.addEventListener('change', paint);
-    paint();
+// ========== 高亮（背景色）自己做，不用 execCommand ==========
+// ★ 用户实测：execCommand('hiliteColor') **跨行/跨块时不可靠** —— 选中三行只给第一行上色，
+//   有时干脆什么都不做。所以这里自己按**选区覆盖到的每个块**逐块处理：
+//   把每块里被选中的文字用 <span style="background-color:#xxxxxx;"> 包起来。
+//   · 跨多行/多块：逐块都生效（每块一个 <span>）；
+//   · 重复点同一颜色 = 取消（第二次点把刚加的那些 span 解掉）；
+//   · 不破坏原有的 <b>/<span> 结构（只在最内层的文字片段外面套一层）、不产生空节点。
+// 清掉一棵子树里的零长度文本节点（没有内容、不显示、序列化也看不到，留着只会让
+// "firstChild / 偏移"这类定位算错）。只删空的文本节点，不碰任何元素。
+function toolboxDropEmptyTextNodes(root) {
+    if (!root || !root.childNodes || !document.createTreeWalker) return;
+    const dead = [];
+    let walker = null;
+    try { walker = document.createTreeWalker(root, 4, null, false); } catch (e) { return; }
+    let n = walker.nextNode();
+    while (n) {
+        if (!String(n.nodeValue || '').length) dead.push(n);
+        n = walker.nextNode();
+    }
+    for (let i = 0; i < dead.length; i++) {
+        if (dead[i].parentNode) dead[i].parentNode.removeChild(dead[i]);
+    }
+}
+// 选区覆盖到的文本片段：[{node, start, end, block}]（按文档顺序）
+function toolboxTextRunsInRange(ed, rng) {
+    const out = [];
+    const walk = document.createTreeWalker(ed, 4, null, false);      // 4 = SHOW_TEXT
+    let n = walk.nextNode();
+    while (n) {
+        const len = String(n.nodeValue || '').length;
+        let s = 0, e = len;
+        if (n === rng.startContainer) s = (rng.startContainer.nodeType === 3) ? rng.startOffset : 0;
+        if (n === rng.endContainer) e = (rng.endContainer.nodeType === 3) ? rng.endOffset : len;
+        const inside = (function () {
+            try { return rng.intersectsNode(n); } catch (err) { return false; }
+        })();
+        if (inside && e > s) {
+            const block = toolboxNearestBlock(n, ed) || ed;
+            out.push({ node: n, start: s, end: e, block: block });
+        }
+        n = walk.nextNode();
+    }
+    return out;
+}
+// 把 style 拆成声明数组（给上面用）
+function toolboxStyleDecls(el) {
+    return String((el && el.getAttribute && el.getAttribute('style')) || '')
+        .split(';').map(function (x) { return x.trim(); })
+        .filter(function (x) { return !!x; });
 }
 
 // ========== 初始化 ==========
@@ -4699,13 +6807,30 @@ function initToolboxDOM() {
         dialog: modal.querySelector('#tbDialog'),
         dialogTitle: modal.querySelector('#tbDialogTitle'),
         dialogBody: modal.querySelector('#tbDialogBody'),
-        draftBar: modal.querySelector('#tbDraftBar'),
         validate: modal.querySelector('#tbValidate'),
+        // ★ 草稿确认弹窗在 #toolboxModal **外面**（要压在它上面），所以从 document 上取；
+        //   「恢复 / 丢弃」两个按钮也在那个弹窗里。
+        draftAsk: document.getElementById('tbDraftAsk'),
+        draftRestore: document.getElementById('tbDraftRestore'),
+        draftDiscard: document.getElementById('tbDraftDiscard'),
         clearBtn: modal.querySelector('[data-tb="cleardraft"]')
     };
     if (!toolboxTpl.editor || !toolboxTpl.code) return;   // 结构不对：别把整个页面拖崩
 
     toolboxBindWindow();      // 顶栏拖动 + 八个缩放手柄（监听只在初始化时挂一次）
+
+    // 手机上不提供：窗口缩窄 / 旋屏切到移动端状态时，把已经开着的工具箱关掉（不留残留遮罩）。
+    // ★ 单独用 media query 的 change 事件（而不是 resize）：判定标准是 pointer/max-width，
+    //   跟着它变才准；change 不触发的情况再用 resize 兜一次。监听只挂一次。
+    try {
+        if (window.matchMedia) {
+            const mq = window.matchMedia('(pointer: coarse), (max-width: 600px)');
+            if (mq.addEventListener) mq.addEventListener('change', toolboxOnViewportChange);
+            else if (mq.addListener) mq.addListener(toolboxOnViewportChange);
+        }
+    } catch (e) { /* 老浏览器拿不到 MediaQueryList：靠下面的 resize 兜底 */ }
+    window.addEventListener('resize', toolboxOnViewportChange);
+    toolboxOnViewportChange();       // 一进来就是手机状态的话，别留一个开着的弹窗
 
     toolboxTpl.editor.addEventListener('paste', toolboxPasteHandler);
     // 图片占位框（B）：图加载出来就撤掉占位框，加载失败就补上（捕获阶段监听 load/error）
@@ -4808,6 +6933,9 @@ function initToolboxDOM() {
     document.addEventListener('selectionchange', function () {
         if (!toolboxTpl || !toolboxTpl.modal || toolboxTpl.modal.style.display !== 'flex') return;
         toolboxScheduleToolbarState();
+        // ★ 焦点在代码区：这次 selectionchange 是"焦点移走"带来的，正文侧那份选区已经
+        //   不是用户的意思了 —— 方向交给代码区（它的 select 事件）决定。
+        if (document.activeElement === toolboxTpl.code) return;
         toolboxScheduleHighlight('editor');            // 选区互高亮（A）：正文 → 代码区
     });
     toolboxTpl.editor.addEventListener('keyup', toolboxScheduleToolbarState);
@@ -4820,27 +6948,27 @@ function initToolboxDOM() {
     toolboxTpl.code.addEventListener('select', function () { toolboxScheduleHighlight('code'); });
     toolboxTpl.code.addEventListener('scroll', toolboxSyncCodeScroll);
 
-    // ① 工具栏按钮：按下的一瞬间先**冻结选区**（Range + 选中的纯文本），再阻止默认。
+    // ① 工具栏上**所有可点元素**（按钮、字号档、对齐图标、菜单项、窗口按钮、列宽把手）：
+    //    按下的一瞬间先**冻结选区**（Range + 选中的纯文本），再阻止默认（不把焦点交给按钮、
+    //    也不让这次点击清掉正文里的选区）。用一次委托统一处理，不再逐个按钮加。
     //    ★ 顺序不能反：冻结必须发生在焦点被按钮/输入框抢走**之前**，
     //      否则现场只剩一个空选区，插入就退化成"默认文字"，用户选的内容被吃掉。
-    //    （编辑区自己的 mousedown 不能拦 —— 拦了就没法放光标、没法拖选。）
+    //    ★ 不能拦的地方：编辑区（拦了就没法放光标/拖选）、代码区与文件名输入框（用户要点进去打字）、
+    //      对话框里的输入框、图片占位框（点它要能选图/右键）。
     modal.addEventListener('mousedown', function (e) {
-        const t = e.target;
-        if (!t || !t.closest) return;
-        const btn = t.closest('button, .tb-color-label');
-        if (!btn) return;
-        if (toolboxTpl.editor && toolboxTpl.editor.contains(btn)) return;
+        if (!e.target) return;
+        if (!toolboxToolbarHit(e.target)) return;
         toolboxFreezeSelection();
         e.preventDefault();
     });
-    // 触摸/手写笔：mousedown 之前还有一次 pointerdown，冻结放这里更早一点（同样只冻结、不拦）
+    // 触摸/手写笔：mousedown 之前还有一次 pointerdown，冻结放这里更早一点。
+    // ★ preventDefault 只对**鼠标**做：触摸上拦掉 pointerdown 会连"点一下"的 click 一起丢掉
+    //   （按钮直接失灵）。触摸路径靠 mousedown 那一层兜。
     modal.addEventListener('pointerdown', function (e) {
-        const t = e.target;
-        if (!t || !t.closest) return;
-        const btn = t.closest('button, .tb-color-label');
-        if (!btn) return;
-        if (toolboxTpl.editor && toolboxTpl.editor.contains(btn)) return;
+        if (!e.target) return;
+        if (!toolboxToolbarHit(e.target)) return;
         toolboxFreezeSelection();
+        if (e.pointerType === 'mouse') e.preventDefault();
     });
 
     // ② Esc 关闭 + 撤回/恢复快捷键。
@@ -4861,8 +6989,21 @@ function initToolboxDOM() {
     });
 
     // ③ 点遮罩关闭（点内容卡片不算）。字段对话框开着时先关对话框。
+    //   ★ 只有"真的是一次点击"才算数：按下与抬起之间鼠标挪过（拖拽/滑动手势）就不关。
+    //     浏览器把"按在卡片里、抬在遮罩上"的 click 派发到两者的共同祖先 —— 也就是遮罩本身，
+    //     于是"在标题栏按钮上起手往外拖"会被当成点遮罩，弹窗莫名其妙就没了（用户实测）。
+    let maskDown = null;
+    modal.addEventListener('pointerdown', function (e) {
+        maskDown = (e.target === modal) ? { x: e.clientX, y: e.clientY } : null;
+    }, true);
     modal.addEventListener('click', function (e) {
-        if (e.target === modal) { toolboxClose(); return; }
+        if (e.target === modal) {
+            const d = maskDown;
+            maskDown = null;
+            if (!d || Math.abs(e.clientX - d.x) > 6 || Math.abs(e.clientY - d.y) > 6) return;
+            toolboxClose();
+            return;
+        }
         if (e.target === toolboxTpl.dialog) {
             toolboxCloseDialog();
             toolboxFocusEditor();
@@ -4875,11 +7016,126 @@ function initToolboxDOM() {
     if (okBtn) okBtn.addEventListener('click', function () { toolboxDialogOk(); });
     if (cancelBtn) cancelBtn.addEventListener('click', function () { toolboxDialogCancel(); });
 
-    // 草稿提示条上的两个按钮（写在 index.html 里，这里按 id 取）
-    const restoreBtn = modal.querySelector('#tbDraftRestore');
-    const discardBtn = modal.querySelector('#tbDraftDiscard');
-    if (restoreBtn) restoreBtn.addEventListener('click', function () { toolboxRestoreDraft(); });
-    if (discardBtn) discardBtn.addEventListener('click', function () { toolboxDiscardDraft(); });
+    // 草稿确认弹窗（#tbDraftAsk，在 #toolboxModal 外面）上的两个按钮：
+    //   「恢复」把草稿灌回编辑区、「丢弃」删掉草稿；两者都把焦点/选区还回正文。
+    const restoreBtn = toolboxTpl.draftRestore;
+    const discardBtn = toolboxTpl.draftDiscard;
+    if (restoreBtn) restoreBtn.addEventListener('click', function () {
+        toolboxRestoreDraft();
+        toolboxKeepFocus();
+        toolboxFocusEditor();
+        toolboxRestoreRange();
+    });
+    if (discardBtn) discardBtn.addEventListener('click', function () {
+        toolboxDiscardDraft();
+        toolboxDraftAskHide();
+        toolboxFocusEditor();
+        toolboxRestoreRange();
+    });
+    // 草稿弹窗自己吃掉按键：Esc = **稍后再说**
+    //   （★ 这是刻意的选择：用户明确要求"按 Esc 或点遮罩 = 关闭弹窗但不恢复也不删除草稿，
+    //     下次打开还会问"。所以这里只关弹窗，绝不碰 localStorage。）
+    //   同时把事件 stopPropagation 掉，免得同一次 Esc 顺手把整个工具箱也关了。
+    if (toolboxTpl.draftAsk) {
+        toolboxTpl.draftAsk.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                e.stopPropagation();
+                toolboxDraftAskHide();                 // 只是藏起来：草稿原样留着，下次打开还会问
+                toolboxFocusEditor();
+                toolboxRestoreRange();
+            }
+        });
+        // 点遮罩：同样是"稍后再说"（点卡片里面不关 —— 与字段对话框一致）
+        toolboxTpl.draftAsk.addEventListener('click', function (e) {
+            if (e.target !== toolboxTpl.draftAsk) return;
+            toolboxDraftAskHide();
+            toolboxFocusEditor();
+            toolboxRestoreRange();
+        });
+    }
+
+    // 左上角文件名：见上面那一段注释的规则表（① 从外部点进来 → 全选；② 已在标题里 → 原生编辑）。
+    // 这里严格按"mousedown 分流 + caretInTitle 状态标志"实现，**不挂 click** ——
+    // click 时机太晚，光标已经被移动过，再 select() 就会变成"频繁全选"（用户实测的回归）。
+    if (toolboxTpl.fileName) {
+        const fnEl = toolboxTpl.fileName;
+        // 焦点进来就把标记置上，并全选（首次点击 / Tab 聚焦都走这里）
+        fnEl.addEventListener('focus', function () {
+            toolboxNameCaretIn = true;
+            toolboxFileNameSelectAll();
+        });
+        // 失焦复位：点了编辑区之后再点标题 → 又回到"从外部点进来"那一支，重新全选；
+        // 同时**回填空名字**（用户把名字删光后离开输入框 → 名字恢复成 Untitled）。
+        fnEl.addEventListener('blur', function () {
+            toolboxNameCaretIn = false;
+            toolboxNameDown = null;
+            toolboxFileNameNormalizeEmpty();
+        });
+        fnEl.addEventListener('mousedown', function (e) {
+            if (toolboxNameCaretIn) return;             // ② 已在标题里：什么都别做，交回浏览器
+            e.preventDefault();                         // ① 从外部点进来：我们接管
+            try { fnEl.focus(); } catch (e2) {}          // → 触发 focus 里的全选
+            toolboxNameDown = {
+                x: e.clientX,
+                y: e.clientY,
+                anchor: toolboxFileNameOffsetFromX(fnEl, e.clientX),
+                dragging: false
+            };
+        });
+        // 拖动兜底：① 这条路上原生拖选被 preventDefault 拦掉了，所以由我们按鼠标位置扩选。
+        // 第一次超过阈值就把锚点定在**按下的位置**（不是 0），随后跟随指针。
+        fnEl.addEventListener('mousemove', function (e) {
+            const d = toolboxNameDown;
+            if (!d) return;                             // ② 那条路：原生拖选，不插手
+            if (!d.dragging && Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) < TOOLBOX_NAME_CLICK_SLOP) return;
+            d.dragging = true;
+            const b = toolboxFileNameOffsetFromX(fnEl, e.clientX);
+            try {
+                fnEl.setSelectionRange(Math.min(d.anchor, b), Math.max(d.anchor, b), b < d.anchor ? 'backward' : 'forward');
+            } catch (e2) {}
+        });
+        fnEl.addEventListener('mouseup', function () {
+            toolboxNameDown = null;                     // 单击：focus 里已经全选好了，这里不再插手
+        });
+        fnEl.addEventListener('input', function () {
+            toolboxFileNameSyncTitle();
+            // ★ 改名字也要存草稿，而且是**防抖**写（跟改内容同一个时机，不每敲一个字就落盘）。
+            //   这样"只改了名字、内容还空着"也能在刷新后留住 —— 用户明确要求名字独立持久化。
+            toolboxDraftPending = false;    // 用户在动手了 → 草稿询问的"未决"状态结束
+            toolboxScheduleDraftSave();
+            // 用户已经在动手了：草稿询问弹窗不必再举着
+            toolboxHideDraftBar();
+        });
+        // 回车：确认这个名字。顺手把"清空后没回填"的情况补上（用户要求的一个时机）。
+        fnEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                toolboxFileNameNormalizeEmpty();
+                try { fnEl.select(); } catch (e2) {}
+            }
+        });
+        toolboxFileNameReset();
+    }
+
+    // 焦点在正文 / 代码区之间来回时，工具栏的可用性要**立刻**跟着变：
+    // focusin / focusout 都挂在弹窗上（事件会冒泡），一次覆盖 code ↔ editor ↔ 文件名 的所有切换。
+    // ★ 为什么用 focusin/focusout 而不是给 textarea 挂 focus/blur：
+    //   焦点从代码区移到正文（或反向）时，两个元素各自的事件顺序在不同浏览器里不一样，
+    //   而 focusin/focusout 冒泡到同一个节点后顺序稳定，禁用态不会停在中间状态。
+    modal.addEventListener('focusin', function () {
+        toolboxSyncPanelFocus();
+        toolboxSyncToolbarState();
+    });
+    modal.addEventListener('focusout', function () {
+        // focusout 时 activeElement 可能还没更新（正在切换中），推到下一帧再算一次
+        toolboxSyncPanelFocus();
+        toolboxSchedulePanelFocus();
+    });
+    toolboxSyncPanelFocus();      // 初始状态：焦点还没进来，按"不在代码区"算（全可用）
+
+    // 代码区里改内容也会让工具栏状态变（选区标签/光标所在位置），保持既有行为
+    toolboxTpl.code.addEventListener('input', function () { toolboxSyncPanelFocus(); });
 
     // 代码区：**可编辑**，改了就实时同步回编辑区（见 toolboxCodeToEditor）。
     // 不做"应用"按钮 —— 用户要的是上下都实时。
@@ -4908,14 +7164,7 @@ function initToolboxDOM() {
         if (act) toolboxToolbarAction(act, btn);
     });
 
-    // 颜色 / 高亮：用 change 而不是 input —— 拖色盘时 input 会连发，一次操作执行几十遍命令
-    const fore = modal.querySelector('#tbForeColor');
-    const back = modal.querySelector('#tbBackColor');
-    if (fore) fore.addEventListener('change', function () { toolboxColor(this); });
-    if (back) back.addEventListener('change', function () { toolboxHighlight(this); });
-    // 两个色块跟着选中的颜色走（否则用户看不出当前用的是哪个颜色）
-    toolboxBindSwatch(fore, modal.querySelector('#tbForeSwatch'));
-    toolboxBindSwatch(back, modal.querySelector('#tbBackSwatch'));
+    // （文字颜色 / 背景高亮两个取色器已按用户要求删除，这里不再有它们的绑定）
 
     toolboxLoaded = true;
     toolboxRefresh();
@@ -4925,16 +7174,20 @@ function initToolboxDOM() {
 // 正常路径下永远不会执行 —— 它只是"宁可降级，也别让入口点了没反应"。
 function toolboxFallbackHtml() {
     return '<div class="tb-card">'
-        + '<div class="tb-head" id="tbHead"><span class="tb-title">HTML 代码生成工具</span>'
-        + '<button type="button" class="tb-btn tb-win" data-tb="fullscreen" id="tbFullBtn" title="全屏 / 还原">⛶</button>'
+        + '<div class="tb-head" id="tbHead">'
+        // 左上角与 index.html 一致：真实文本 value="Untitled"（不是 placeholder）
+        + '<input type="text" class="tb-filename" id="tbFileName" value="Untitled" title="Untitled"'
+        + ' aria-label="下载文件名" autocomplete="off" spellcheck="false">'
+        + '<button type="button" class="tb-btn tb-win" data-tb="fullscreen" id="tbFullBtn" title="全屏" aria-label="全屏">'
+        + toolboxWinIconHtml('full') + '</button>'
         + '<button type="button" class="tb-close" data-tb="close" title="关闭（Esc）">×</button></div>'
         + '<div class="tb-toolbar">'
         + '<button type="button" class="tb-btn tb-primary" data-tb="copy" title="复制 HTML 到剪贴板">复制</button>'
         + '<button type="button" class="tb-btn" data-tb="download" title="下载为 .html 文件">下载</button>'
         + '<button type="button" class="tb-btn tb-danger" data-tb="cleardraft" title="清空正文并删掉草稿（点两次确认）">清空</button></div>'
-        + '<div class="tb-draftbar" id="tbDraftBar" hidden><span>发现草稿</span>'
-        + '<button type="button" class="tb-btn" id="tbDraftRestore">恢复</button>'
-        + '<button type="button" class="tb-btn" id="tbDraftDiscard">丢弃</button></div>'
+        // ★ 草稿确认弹窗（#tbDraftAsk）不再属于卡片内部：它挂在 #toolboxModal 外面，
+        //   兜底路径下也一样找不到那个节点 —— toolboxDraftOffer 会自动跳过（没有 draftAsk 就不弹），
+        //   绝不会因为"兜底结构里少写一个 div"而抛异常。
         + '<div class="tb-body">'
         + '<div class="tb-pane tb-pane-edit"><div class="tb-pane-head">正文</div>'
         + '<div class="tb-editor" id="tbEditor" contenteditable="true" spellcheck="false" data-placeholder="在这里写正文"></div></div>'

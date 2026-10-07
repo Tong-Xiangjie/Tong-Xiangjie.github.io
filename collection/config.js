@@ -120,6 +120,8 @@ const categoryTree = [
     {
         id: 'military',
         name: '军票',
+        dataKey: 'military_note_ReadmeData',
+        dataFile: '../notecollection/data/military_note_readme.js',
         children: [
             { id: 'japanMilitary', name: '侵华日军军用手票', dataKey: 'japanMilitaryData', dataFile: '../notecollection/data/japan_military.js' },
             { id: 'jp_burma', name: '日占缅甸', dataKey: 'jp_burmaData', dataFile: '../notecollection/data/jp_burma.js' }

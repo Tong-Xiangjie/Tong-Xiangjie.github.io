@@ -120,18 +120,23 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
     touch-action: none;            /* 触摸拖动不触发滚动 */
 }
 /* 全屏 / 关闭：都放在标题栏**右上角**（文件名输入框的 margin-right:auto 把它们顶到右边）。
-   默认无边框无底色，hover 才给底色；尺寸与工具栏按钮同一档（28px），不做大按钮。 */
-.tb-win,
-.tb-close {
+   ★ 用 button.tb-win 而不是 .tb-win：全屏按钮同时带 .tb-btn（工具栏那套），
+     .tb-btn 在文件后面、同权重，会把它自己的 height:28px / padding:0 8px / min-width:28px /
+     border-radius:6px 盖上来。这里提高一级权重，才能和「关闭」真正同尺寸同形状。
+   ★ 图标是内联 SVG（stroke:currentColor），不是字体符号 —— 字体符号在不同系统里字形不一致。 */
+button.tb-win,
+button.tb-close {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 28px;
-    padding: 0 8px;
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    padding: 0;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: 50%;
     color: var(--text-secondary);
     font-family: inherit;
     font-size: 0.78rem;
@@ -139,24 +144,27 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
     cursor: pointer;
     transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
-.tb-win:hover { background: var(--row-hover-bg); color: var(--text); }
-/* 关闭按钮沿用站内 .modal-close 那套观感（圆底 + 白 ×，见 layout.css）：
-   那边是 position:fixed 的大图灯箱按钮，直接套类名会把工具箱的按钮钉到屏幕上，
-   所以只照抄它的形状与配色，尺寸按标题栏收小到 26px。 */
-.tb-close {
-    width: 26px;
-    min-width: 26px;
-    height: 26px;
-    padding: 0;
-    margin-left: 4px;
+/* 图标：用户给的 SVG 标记是 24×24，在按钮里渲染成 17px（与右上角「关闭」同高）；
+   display:block 是为了消掉行内基线在底部多出来的那几像素。 */
+button.tb-win svg { display: block; width: 17px; height: 17px; }
+/* ★ 用户要求：右上角的 × 要与大窗/小窗按钮**完全同款** ——
+   平时是灰的（和全屏按钮同一个色值来源 --text-secondary），鼠标悬浮才变白。
+   所以这里把原来那套"常驻深色圆底 + 白 ×"整个换掉：**默认态什么都不覆盖**，
+   只靠上面 `button.tb-win, button.tb-close` 那条共用规则（同尺寸 / 同圆角 / 同内边距 /
+   同颜色 / 同 transition）。下面两条 hover / focus-visible 也把两个按钮写在同一组选择器里，
+   保证"同款"是结构上的事实，而不是两处各写一遍碰巧一样。 */
+button.tb-win:hover,
+button.tb-close:hover { background: rgba(0, 0, 0, 0.6); color: #fff; }
+/* 键盘聚焦态：与 hover 同一档底色，另加主题色描边（全站 .tb-btn:focus-visible 那套约定） */
+button.tb-win:focus-visible,
+button.tb-close:focus-visible {
     background: rgba(0, 0, 0, 0.6);
-    border: none;
-    border-radius: 50%;
     color: #fff;
-    font-size: 15px;
-    font-weight: bold;
+    outline: 2px solid var(--theme);
+    outline-offset: 1px;
 }
-.tb-close:hover { background: rgba(0, 0, 0, 0.8); color: #fff; }
+/* 关闭按钮只保留"与全屏按钮之间那 4px 间距"这一条差异（三个按钮水平居中、间距一致） */
+button.tb-close { margin-left: 4px; }
 /* （原来标题文字用的 .tb-title 已经删掉：那个位置现在是下载文件名输入框，
    工具的完整名称留在弹窗的 aria-label 与「我的」页面入口按钮上。） */
 
@@ -202,6 +210,17 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
 .tb-btn:hover { background: var(--row-hover-bg); }
 /* 按下（激活）态：跟 hover 同一档底色，但颜色转主题色，和站内 tab 的 active 一致 */
 .tb-btn:active { background: var(--row-hover-bg); color: var(--theme); }
+/* ★ 「当前选区就是这个格式」的状态（Bug 5）：加粗/斜体/对齐/标题/正文/引用等按钮
+   在选区处于该格式时亮起来。与 :active（鼠标按下）区分开：那是瞬时反馈，这是持续状态。
+   底色用 --bg（浅色主题下是淡蓝、深色主题下是深底），边框与文字用主题色 —— 两个主题都清楚。 */
+.tb-btn.active,
+.tb-size.active {
+    background: var(--bg);
+    border-color: var(--theme);
+    color: var(--theme);
+}
+.tb-btn.active:hover,
+.tb-size.active:hover { background: var(--bg); }
 /* 图标字（B / I / U / S）：用单独的字重/装饰表达含义，比图标字体省事，也跟得上主题色 */
 .tb-ic { font-weight: 700; }
 .tb-ic-i { font-style: italic; font-weight: 600; }
@@ -222,27 +241,8 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
    位置在工具栏下面、主体上面：不挡编辑区，也不浮在内容上（浮层容易误点）。
    hidden 属性默认是 display:none，但 flex 布局会覆盖它 —— 所以要显式写上
    `[hidden] { display: none }`，否则 is-hidden 的条子照样占位显示。 */
-.tb-draftbar {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 3px 10px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    font-size: 0.74rem;
-    color: var(--text-secondary);
-}
-.tb-draftbar[hidden] { display: none; }
-/* 一个小圆点当"未读/待处理"的暗示，不做动画（不抢注意力） */
-.tb-draftbar-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--theme);
-    flex: 0 0 auto;
-}
-.tb-draftbar .tb-btn { height: 22px; padding: 0 7px; font-size: 0.72rem; }
+/* （原来那条「发现草稿」细提示条（.tb-draftbar）的样式已随实现一起删除：
+     用户反馈它太不显眼、容易被忽略，现在改成 #tbDraftAsk 那个确认弹窗，见下面的 .tb-ask。） */
 
 /* 字号档位：一个小集合，不是原生下拉 —— 原生 <select> 会被 dropdown.js 接管，
    而那个自绘弹层是 position: fixed + z-index 900，会跑到工具箱弹窗下面去，
@@ -271,51 +271,6 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
 .tb-size[data-size="1.1em"]   { font-size: 0.83rem; }
 .tb-size[data-size="1.3em"]   { font-size: 0.95rem; }
 .tb-size[data-size="1.6em"]   { font-size: 1.1rem; }
-
-/* 颜色 / 高亮：<label> 包一个 <input type="color">。
-   label 负责显示文字与"当前颜色"的色块，input 藏在里面但仍然可点、可键盘操作
-   （绝对定位铺满 label，opacity:0 —— 不是 display:none，那样点不到）。 */
-.tb-color-label {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 28px;
-    padding: 0 7px;
-    box-sizing: border-box;
-    background: transparent;
-    color: var(--text);
-    border: 1px solid transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.78rem;
-    transition: background-color var(--dur-1) var(--ease-out);
-}
-.tb-color-label:hover { background: var(--row-hover-bg); }
-.tb-color-label input[type="color"] {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-}
-.tb-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    border: 1px solid var(--border);
-    flex: 0 0 auto;
-}
-/* 高亮色块用棋盘底衬一层，让"没有高亮"（黑/透明）和深色也能分辨 */
-.tb-swatch-back {
-    background-image: linear-gradient(45deg, rgba(128,128,128,0.35) 25%, transparent 25%, transparent 75%, rgba(128,128,128,0.35) 75%),
-                      linear-gradient(45deg, rgba(128,128,128,0.35) 25%, transparent 25%, transparent 75%, rgba(128,128,128,0.35) 75%);
-    background-size: 8px 8px;
-    background-position: 0 0, 4px 4px;
-}
 
 /* ---------- 主体：左编辑区 / 右代码区，各自独立滚动 ---------- */
 .tb-body {
@@ -387,6 +342,43 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
     background: var(--bg-light);
 }
 .tb-editor img { max-width: 100%; height: auto; vertical-align: middle; }
+/* 图片占位框（B）：工具箱页面里语料的相对路径取不到图，不处理就是一排破图/空白。
+   真实 <img> 一个字节没改，只是外面套了一层纯显示结构（data-tb-display="wrap"），
+   这里把图藏起来、把文件名显示出来；包裹层的宽度由 JS 按 <img width="…"> 的值给。
+   ★ 这一层在序列化/字数/校验里都会被跳过，所以永远不会出现在导出结果里。 */
+.tb-imgph {
+    display: inline-block;
+    box-sizing: border-box;
+    max-width: 100%;
+    min-height: 64px;
+    padding: 14px 10px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: var(--bg-light);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    text-align: center;
+    vertical-align: middle;
+    overflow: hidden;
+}
+.tb-imgph > img { display: none; }                 /* 图取不到：只显示文件名 */
+.tb-imgph-name {
+    display: block;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    /* ★ 占位文字是纯显示层：不许选中、不许复制（改不了也不该被当成正文选走）。
+       JS 那边同时给了 contenteditable="false" 与 aria-hidden="true"。 */
+    user-select: none;
+    -webkit-user-select: none;
+}
+.tb-imgph-name::before {
+    content: "图片";
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text);
+    font-size: 0.7rem;
+}
 .tb-editor table { border-collapse: collapse; margin: 10px 0; max-width: 100%; }
 .tb-editor th, .tb-editor td {
     border: 1px solid var(--border);
@@ -402,6 +394,42 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
 
 /* 右侧代码区：刻意保持深底（代码编辑器的一贯观感，两种主题下都是深色）。
    一列 = 小标题（.tb-pane-head）+ 代码 + 校验区。 */
+/* 代码区外面这层包装：深底、相对定位，给"高亮镜像层"当坐标基准。
+   深底从 textarea 挪到这里 —— 镜像层要画在 textarea 下面、垫着它的底色才看得见。 */
+.tb-code-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    background: #1e1e28;
+    overflow: hidden;
+}
+/* 高亮镜像层：与 .tb-code 完全相同的排版参数（字号/行高/内边距/换行规则），
+   文字透明，只显示 ::highlight(tb-sync) 画出来的高亮块。纯显示，不接收鼠标事件。 */
+.tb-code-hl {
+    position: absolute;
+    inset: 0;
+    padding: 16px 18px;
+    box-sizing: border-box;
+    color: transparent;
+    pointer-events: none;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    tab-size: 2;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow: hidden;
+}
+/* 两侧选区对应高亮（A）：用站内主题色调成半透明，深色主题下也清楚，不用刺眼的纯黄。
+   不支持 color-mix() 的浏览器用上面那行 rgba 兜底（同一色系）。 */
+::highlight(tb-sync) {
+    background-color: rgba(22, 119, 255, 0.28);
+}
+::highlight(tb-sync) {
+    background-color: color-mix(in srgb, var(--theme) 30%, transparent);
+}
 .tb-code {
     flex: 1 1 auto;
     width: 100%;
@@ -412,9 +440,12 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
     border: none;
     outline: none;
     resize: none;                  /* 缩放交给布局，用户拖它没有意义 */
-    /* ★ 尺寸/间距/字号/配色照用户那份草稿（代码区两种主题下都保持深底，见上面的说明） */
+    position: relative;            /* 压在镜像层上面 */
+    z-index: 1;
+    /* ★ 尺寸/间距/字号/配色照用户那份草稿（代码区两种主题下都保持深底，见上面的说明）。
+       底色透明：让下面那层镜像上的高亮透上来（深底由 .tb-code-wrap 提供）。 */
     padding: 16px 18px;
-    background: #1e1e28;
+    background: transparent;
     color: #d6deeb;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     font-size: 12.5px;
@@ -593,29 +624,112 @@ body.tb-window-drag * { user-select: none !important; -webkit-user-select: none 
     border-color: var(--theme);
 }
 
-/* ---------- 左上角"下载文件名"输入框 ----------
-   它占着原来标题文字的位置，所以做得像"可编辑的标题"：无边框、透明底、标题字号；
-   鼠标移上去 / 聚焦才浮出边框与底色，一眼能看出"这里能改"。 */
+/* ---------- 代码区焦点下的禁用态（工具栏只对正文面板生效） ----------
+   用户要求：代码区里用不了上面那一排东西。禁用的范围由 JS 决定（toolboxSyncPanelFocus），
+   这里只管"看起来就是灰的、点不动"：半透明 + 默认光标，并且**吃掉 hover/active 的底色**
+   （否则鼠标划过去还会亮一下，看起来像能点）。 */
+.tb-btn:disabled,
+.tb-btn[aria-disabled="true"],
+.tb-size:disabled,
+.tb-size[aria-disabled="true"] {
+    opacity: 0.38;
+    color: var(--text-secondary);
+    background: transparent;
+    border-color: transparent;
+    cursor: default;
+    pointer-events: none;          /* 鼠标根本不进去：hover/active 一律不触发 */
+}
+/* 主按钮（复制）禁用时也别再顶着主题色，否则会显得"只有它还能点" */
+.tb-btn.tb-primary:disabled,
+.tb-btn.tb-primary[aria-disabled="true"] {
+    background: var(--border);
+    color: var(--text-secondary);
+    border-color: transparent;
+}
+/* 兜底：焦点在代码区时（toolboxSyncPanelFocus 给弹窗加的 .tb-code-focus），
+   字号档这类**不带 data-tb** 的元素拿不到 disabled 属性，用一条规则统一压住。
+   （分组竖线 .tb-sep 不动：它只是分隔符，跟着变淡反而显得整条工具栏都"坏了"。） */
+.tb-modal.tb-code-focus .tb-size { opacity: 0.38; pointer-events: none; cursor: default; }
+
+/* ---------- 草稿询问弹窗（发现上次未完成的草稿） ----------
+   ★ 它在 #toolboxModal **外面**，所以要自己铺满视口并压在主弹窗（z-index:1200）之上：
+     1250 正好高于主弹窗、低于表格右键小菜单（1300，那是"卡片内部"的浮层，仍然最上面）。
+   ★ 卡片复用 .tb-dialog-card（宽 440px / 圆角 12px / 站内变量），只收窄一点 —— 内容只有一句话。 */
+.tb-ask {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 1250;
+    background: rgba(0, 0, 0, 0.45);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.tb-ask[hidden] { display: none; }
+.tb-ask-card { width: 380px; }
+.tb-ask-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+/* 主按钮（恢复）：与字段对话框的「确定」同一样式 */
+.tb-ask .tb-dialog-foot .tb-primary {
+    background: var(--theme);
+    color: #fff;
+    border-color: var(--theme);
+}
+
+/* ---------- 左上角"下载文件名"（就是标题栏上的一段字，不是输入框） ----------
+   用户要求：它要跟最上面那一栏**融为一体** —— 看着就是标题栏上的文字，不是控件。
+   所以这里把"输入框"的外壳全部拆掉：无边框（border-width:0，连 hover/focus 也不浮出来）、
+   底色与标题栏同色（--bg-light，不写 transparent：跟标题栏底色逐像素一致，换主题也不用改）、
+   无圆角差异、focus 时也没有 outline/光晕。
+   ★ 默认值用**真实文本** Untitled（写在 index.html 的 value 里），不用 ::placeholder ——
+     placeholder 的 computed color 天生跟真实文字不一样，用户要的是"默认值与输入值颜色完全相同"。
+     颜色只有一处来源：下面的 color: var(--text)，默认文字与用户输入的文字共用它。
+   ★ 超长省略：宽度封顶（200~260px），超出走 CSS 省略号，完整名字在 title 属性里（JS 同步）。 */
 .tb-filename {
     flex: 0 1 auto;
     min-width: 0;
     width: 240px;                  /* 200~260px：够写一个文件名，又不跟右边的按钮挤 */
-    max-width: 46vw;
+    /* ★ 显示宽度上限 = 原来的 1.5 倍：原来的 max-width 是 46vw，46 × 1.5 = 69vw。
+       1440px 视口下折算 69vw ≈ 993px —— 但真正生效的上限仍是上面那条 width:240px
+       （flex:0 1 auto 会收缩），所以日常看到的名字宽度就是 240px；
+       这条 max-width 是给"窄屏 / 超长名字"兜底的：窄到 240px 的一倍半以下才轮到它。
+       无论哪条生效，超出都走省略号（overflow:hidden + text-overflow:ellipsis），
+       完整名字在 title 里。 */
+    max-width: 69vw;               /* 原 46vw 的 1.5 倍 */
     margin-right: auto;            /* ★ 把「全屏 / 关闭」顶到标题栏最右边 */
-    padding: 3px 7px;
-    background: transparent;
-    color: var(--text);
-    border: 1px solid transparent;
-    border-radius: 6px;
-    font-family: inherit;
+    padding: 0 2px;                /* 只留一点点内边距让文字不贴边，不制造"框"的感觉 */
+    background: var(--bg-light);   /* 与 .tb-head 同底色：融为一体 */
+    color: var(--text);            /* ★ 默认值与用户输入的唯一颜色来源 */
+    border: 0;                     /* 无边框、无外框线 */
+    border-radius: 0;              /* 与标题栏没有圆角差异 */
+    font-family: inherit;          /* 与标题栏其它文字同字体 */
     font-size: 0.82rem;
-    outline: none;
-    transition: border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+    /* ★ 加粗：与站内标题（.series-name-label / .variety-name / 各卡片标题）同一个字重档 ——
+       layout.css 用的是 font-weight:bold（计算值 700 ≥ 600）。加粗只是字重，
+       颜色仍然只有上面那一条 color: var(--text)，所以"默认值与输入值同色"不受影响。 */
+    font-weight: 700;
+    line-height: 1.4;
+    /* ★ overflow:hidden + text-overflow:ellipsis 是一对：输入框只写 ellipsis 是不会出现省略号的，
+       必须同时把内容裁掉。裁掉之后左右滚动也一并没了（省得点进去光标把文字推出可视区）。 */
+    overflow: hidden;
+    text-overflow: ellipsis;       /* 超长显示省略号 */
+    cursor: text;                  /* 唯一的提示：这里可以点进去改名字 */
+    outline: none;                 /* focus 时不要边框/光晕（保持"就是标题栏上的一段字"） */
 }
-.tb-filename::placeholder { color: var(--text-secondary); opacity: 0.75; }
-.tb-filename:hover { border-color: var(--border); background: var(--bg-light); }
-.tb-filename:focus { border-color: var(--theme); background: var(--card-bg); }
-.tb-filename:focus::placeholder { opacity: 0.45; }
+/* focus 时**什么都不变**：不浮边框、不换底色、不加 box-shadow。
+   这里显式写一条同样的规则，是为了让"有人以后手滑加了 :focus 样式"这件事在代码里看得见。 */
+.tb-filename:focus {
+    background: var(--bg-light);
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    box-shadow: none;
+}
+/* 选中态：与站内文字选中的观感一致（用户点一下就会全选，必须看得出选到了什么） */
+.tb-filename::selection { background: var(--theme); color: #fff; }
 
 /* ---------- 拖动表格列宽时：整页禁止选中、光标统一成 col-resize ---------- */
 body.tb-col-resize { user-select: none; -webkit-user-select: none; cursor: col-resize; }
@@ -659,7 +773,6 @@ body.tb-col-resize { user-select: none; -webkit-user-select: none; cursor: col-r
 .tb-btn:focus-visible,
 .tb-size:focus-visible,
 .tb-close:focus-visible,
-.tb-color-label:focus-within,
 .tb-field input:focus-visible {
     outline: 2px solid var(--theme);
     outline-offset: 1px;
@@ -669,12 +782,25 @@ body.tb-col-resize { user-select: none; -webkit-user-select: none; cursor: col-r
    用户几乎不在手机上用这个工具，所以**不做**专门的移动端布局；
    这里只保证"窄到一定程度时两栏仍各自能滚、按钮不溢出"，
    不引入任何会改变移动端既有行为的东西（没有 touch-action、没有手势监听）。 */
-@media (max-width: 720px) {
+/* ★ 触屏（pointer: coarse，站内 dropdown.js / scrollbar.js 用的同一个判定）时：
+   这个工具**不提供**，窄屏那一套也就没意义了；工具仍在，再窄的桌面窗口也照 720px 断点走。 */
+@media (max-width: 720px) and (pointer: fine) {
     .tb-modal { padding: 6px; }
     .tb-card { width: 100%; height: 94vh; max-height: 94vh; border-radius: 8px; }
     .tb-body { flex-direction: column; }
     .tb-pane-edit { flex: 1 1 auto; border-right: none; border-bottom: 1px solid var(--border); }
     .tb-pane-code { flex: 1 1 auto; }
     .tb-filename { width: 150px; font-size: 0.76rem; }
-    .tb-win { padding: 0 6px; font-size: 0.72rem; }
+    /* 全屏按钮的盒子跟「关闭」保持一致，窄屏也不缩（缩了图标会挤变形） */
+    button.tb-win { width: 26px; min-width: 26px; height: 26px; padding: 0; }
+}
+
+/* ---------- 手机上不提供「文章 HTML 生成器」入口 ----------
+   ★ 判定方式**复用站内既有那套**，不新造标准、不用 UA 嗅探：
+     · 触屏 = (pointer: coarse) —— dropdown.js / scrollbar.js 开头用的就是这一条；
+     · 窄屏 = (max-width: 600px) —— 站内几个移动端断点用的就是 600px。
+   两条只要命中一条就不显示入口。**这段断点与 toolbox.js 的 toolboxIsMobile() 必须逐字一致**
+   （JS 里用它挡住"直接调 toolboxOpen()"这条路，见那里的注释）。 */
+@media (pointer: coarse), (max-width: 600px) {
+    #toolboxOpenBtn { display: none !important; }
 }

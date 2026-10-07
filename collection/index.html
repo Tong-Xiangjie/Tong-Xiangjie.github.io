@@ -195,13 +195,28 @@
              ★ 没有可复用的窗口拖动实现 —— verify-modal-drag.mjs 里的 MODAL_DRAG_SLOP /
                MODAL_DRAG_HOLD_MS 是图片灯箱"下滑关闭"的手势阈值，跟拖动窗口无关，没动它。 -->
         <div class="tb-head" id="tbHead">
-            <!-- 左上角不是标题文字，而是**下载文件名**输入框：
-                 留空就用 Untitled.html（所以不预填，只用 placeholder 显示默认值），
-                 下载时按它取名，非法字符会被 toolboxCleanFileName() 清洗掉。 -->
-            <input type="text" class="tb-filename" id="tbFileName" placeholder="Untitled.html"
-                   title="下载文件名（留空用 Untitled.html）" aria-label="下载文件名" autocomplete="off" spellcheck="false">
+            <!-- 左上角不是标题文字，而是**下载文件名**：它要跟这一栏融为一体。
+                 ★ 默认值用**真实文本** value="Untitled"（不是 placeholder）：placeholder 的
+                   计算颜色天生跟真实文字不同，而用户要求"默认值与输入值颜色完全一样"。
+                   颜色只有一个来源 —— .tb-filename 的 color: var(--text)。
+                 ★ 下载名字 = 这里的内容 + ".html"（已有 .html/.htm 后缀就先去掉再加，绝不双后缀）；
+                   非法字符与首尾空白由 toolboxCleanFileName() 清洗。
+                 ★ title 显示**完整名字**（超长被省略号截断时，悬停就能看全），
+                   由 toolboxFileNameSyncTitle() 跟着输入实时同步。 -->
+            <input type="text" class="tb-filename" id="tbFileName" value="Untitled"
+                   title="Untitled" aria-label="下载文件名" autocomplete="off" spellcheck="false">
+            <!-- 全屏 / 小窗：图标是**用户给的那两段内联 SVG**（逐字照抄，只把渲染尺寸收到 17px），
+                 不是字体符号、也不是自己画的方框 —— ⛶ / ⤡ 这类字形在不同系统里长得不一样，
+                 正是之前观感不对的原因。
+                 进入全屏的位置放"四角朝外"的那段（title 全屏），进去之后换成"四角朝内"的那段
+                 （title 小窗 / aria-label 退出全屏），切换在 toolbox.js 的 toolboxWinIconPaint()。
+                 尺寸、内边距、hover 与右上角「关闭」一致。 -->
             <button type="button" class="tb-btn tb-win" data-tb="fullscreen" id="tbFullBtn"
-                    title="全屏">全屏</button>
+                    title="全屏" aria-label="全屏"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                    height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+                    d="M9 4H4v5"/><path d="M15 4h5v5"/><path d="M20 15v5h-5"/><path
+                    d="M4 15v5h5"/></svg></button>
             <button type="button" class="tb-close" data-tb="close" title="关闭">×</button>
         </div>
 
@@ -225,15 +240,9 @@
                 <button type="button" class="tb-size" data-tb="size" data-size="1.6em" title="1.6em">1.6</button>
             </span>
             <span class="tb-sep"></span>
-            <label class="tb-color-label" title="文字颜色（默认 #555555，与现有文章的小字一致）">
-                <span class="tb-swatch" id="tbForeSwatch" style="background:#555555;"></span>A
-                <input type="color" id="tbForeColor" value="#555555" aria-label="文字颜色">
-            </label>
-            <label class="tb-color-label" title="背景高亮（默认透明）">
-                <span class="tb-swatch tb-swatch-back" id="tbBackSwatch"></span>高亮
-                <input type="color" id="tbBackColor" value="#ffff00" aria-label="背景高亮">
-            </label>
-            <span class="tb-sep"></span>
+            <!-- 文字颜色 / 背景高亮两个功能已按用户要求**整体删除**（他不需要）：
+                 连同取色器 UI、hiliteColor 分支、toolboxHighlight 与相关样式、用例一起清掉了。
+                 图注用的 #555555 / 0.85rem 是**固定写法**，不再需要用户选颜色。 -->
             <button type="button" class="tb-btn" data-tb="align-left" title="左对齐">左</button>
             <button type="button" class="tb-btn" data-tb="align-center" title="居中">中</button>
             <button type="button" class="tb-btn" data-tb="align-right" title="右对齐">右</button>
@@ -247,22 +256,13 @@
             <button type="button" class="tb-btn" data-tb="image" title="插入图片（居中，宽度默认 80%）">图片</button>
             <button type="button" class="tb-btn" data-tb="stack" title="多张图片并排（2~4 张一行，默认同高度 180px，整行共用一条图注）">多图</button>
             <button type="button" class="tb-btn" data-tb="link" title="插入超链接（默认新标签页打开）">链接</button>
-            <button type="button" class="tb-btn" data-tb="table" title="插入表格（也可以把 Excel/网页里的表格直接粘进编辑区；在已有表格里点右键可以插删行列、合并单元格）">表格</button>
+            <button type="button" class="tb-btn" data-tb="table" title="插入表格（在已有表格里点右键可以插删行列、合并单元格；现成的 HTML 表格请粘到右侧代码区）">表格</button>
             <button type="button" class="tb-btn" data-tb="br" title="插入换行 &lt;br&gt;">换行</button>
             <button type="button" class="tb-btn" data-tb="sign" title="插入落款（右对齐）">落款</button>
             <span class="tb-sep"></span>
             <button type="button" class="tb-btn tb-primary" data-tb="copy" title="复制 HTML 到剪贴板">复制</button>
             <button type="button" class="tb-btn" data-tb="download" title="下载为 .html 文件">下载</button>
             <button type="button" class="tb-btn tb-danger" data-tb="cleardraft" title="清空正文并删掉草稿（点两次确认）">清空</button>
-        </div>
-
-        <!-- 草稿提示条：打开时若发现上次没写完的草稿就露出来。
-             刻意做成"不显眼的一条"，而且**不用 confirm 打断** —— 用户点「恢复」才覆盖当前内容。 -->
-        <div class="tb-draftbar" id="tbDraftBar" hidden>
-            <span class="tb-draftbar-dot" aria-hidden="true"></span>
-            <span>发现草稿</span>
-            <button type="button" class="tb-btn" id="tbDraftRestore" title="把草稿放回编辑区">恢复</button>
-            <button type="button" class="tb-btn" id="tbDraftDiscard" title="删掉草稿">丢弃</button>
         </div>
 
         <!-- 主体：左正文、右 HTML，各自独立滚动，中间一条 1px 分隔线。
@@ -330,6 +330,25 @@
                     <button type="button" class="tb-btn tb-primary" id="tbDialogOk">确定</button>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 「发现上次未完成的草稿」确认弹窗 ==========
+     ★ 为什么单独一层、而且放在 #toolboxModal **外面**：
+       ① 用户反馈原来那条细提示条（#tbDraftBar）太不显眼、容易被忽略，改成弹窗问一次；
+       ② 它要压在工具箱主弹窗之上（z-index 1250 > .tb-modal 的 1200）；
+          放在 #toolboxModal 里面的话，会一起受主弹窗的 overflow:hidden 裁剪与卡片定位约束，
+          做不到"真的盖在最上面、永远居中"。
+     ★ 筹码仍然只有三个：恢复 / 丢弃 / （Esc 或点遮罩 = 稍后再说，什么都不做）。
+       样式与工具箱内既有的「修改图片…」对话框同一套（.tb-dialog-* + 站内变量）。 -->
+<div class="tb-ask" id="tbDraftAsk" role="dialog" aria-modal="true" aria-labelledby="tbDraftAskTitle" hidden>
+    <div class="tb-dialog-card tb-ask-card">
+        <div class="tb-dialog-title" id="tbDraftAskTitle">发现上次未完成的草稿</div>
+        <div class="tb-ask-text">要把它放回编辑区吗？（选「稍后再说」也不会丢）</div>
+        <div class="tb-dialog-foot">
+            <button type="button" class="tb-btn" id="tbDraftDiscard" title="删掉草稿">丢弃</button>
+            <button type="button" class="tb-btn tb-primary" id="tbDraftRestore" title="把草稿放回编辑区">恢复</button>
         </div>
     </div>
 </div>
