@@ -229,6 +229,10 @@
             <button type="button" class="tb-btn tb-ic-i" data-tb="italic" title="斜体（Ctrl+I）">I</button>
             <button type="button" class="tb-btn tb-ic-u" data-tb="underline" title="下划线（Ctrl+U）">U</button>
             <button type="button" class="tb-btn tb-ic-s" data-tb="strike" title="删除线">S</button>
+            <!-- 上标 / 下标：与加粗/斜体/下划线/删除线同一套"字符级三态开关"
+                 （全有→取消、否则→给整个选区补满），可跨段落、结构与 <br> 都不动。 -->
+            <button type="button" class="tb-btn" data-tb="sup" title="上标">上标</button>
+            <button type="button" class="tb-btn" data-tb="sub" title="下标">下标</button>
             <span class="tb-sep"></span>
             <!-- 字号五档。刻意不用 <select>：原生 select 会被 dropdown.js 接管，而它的
                  弹层是 position:fixed + z-index:900，会落到本弹窗(z-index:1200)下面点不到。 -->
@@ -275,6 +279,15 @@
             <div class="tb-pane tb-pane-code">
                 <div class="tb-pane-head">HTML</div>
                 <div class="tb-code-wrap">
+                    <!-- 行号栏（gutter）：只标**逻辑行**（按 \n 划分）的行号，长行折出来的续行留空。
+                         纯显示层：aria-hidden + user-select:none + pointer-events:none，
+                         且**不参与任何取值路径** —— 复制/下载/导出永远只读 #tbCode.value，
+                         行号一个字符都进不去。 -->
+                    <div class="tb-code-gutter" id="tbCodeGutter" aria-hidden="true"><div class="tb-code-gutter-inner" id="tbCodeGutterInner"></div></div>
+                    <!-- 行号栏的排版测量层：与代码区**同字体/同字号/同行高/同 tab-size/同 padding**、
+                         同宽（左边界与 textarea 一致），visibility:hidden（仍然参与排版，能量出
+                         每个逻辑行折行后的真实像素高度）。只测量，不显示、不接收事件、不参与序列化。 -->
+                    <div class="tb-code-measure" id="tbCodeMeasure" data-tb-display="1" aria-hidden="true"></div>
                     <!-- 代码区高亮镜像层（纯显示，data-tb-display）：textarea 里的文字没法用
                          CSS Custom Highlight API 画高亮（它的 value 不在 DOM 里），所以这里放一层
                          与 textarea 文字、字号、行高完全一致的镜像，高亮的 Range 画在它上面。

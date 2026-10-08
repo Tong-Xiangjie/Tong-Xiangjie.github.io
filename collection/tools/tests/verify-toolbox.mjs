@@ -673,8 +673,12 @@ const pastePlain = await json(`(()=>{
 })()`);
 ok(pastePlain.prevented === true && pastePlain.hasTable === false,
   '(8)* 普通文字粘贴被拦下并按纯文本处理（不会误判成表格）');
-ok(pastePlain.html.indexOf('这是一段普通文字') >= 0 && !/<p[^>]*>这是一段普通文字/.test(pastePlain.html),
-  `(8)* 普通文字原样进来、没有被包成 <p>${JSON.stringify(pastePlain.html)}`);
+// ★ 规格变更（用户实测 bug，见 (40)）：纯文本粘贴后**必须被包进 <p>**。
+//   以前这条断言钉的是"原样进来、没有被包成 <p>" —— 那正是用户报的 bug
+//   （空编辑区粘「示例文字」，代码区出来的是裸文字，接着打字也留在裸文本里）。
+//   所以这里把口径反过来钉：文字一个字不少，同时**必须**是 <p>…</p>。
+ok(pastePlain.html.indexOf('这是一段普通文字') >= 0 && /<p[^>]*>这是一段普通文字[^<]*<\/p>/.test(pastePlain.html),
+  `(8)* 普通文字粘贴：文字原样进来、且被包进一个 <p>（不再是顶层裸文本）${JSON.stringify(pastePlain.html)}`);
 
 // 代码区仍然保HTML：把带表格的 HTML 粘进代码区正文区跟着出现真表
 const codePaste = await json(`(()=>{
@@ -5708,14 +5712,27 @@ const WK34 = { bold: 'wrapB', italic: 'wrapI', underline: 'wrapU', strike: 'wrap
 
 // ---------- ① 用户的核心复现：整段混用 → 每种格式各点两次，两次闭环 ----------
 // 选中"第 2~4 个顶层块"= 混用区域的整段文字（第 1 块那个 <center> 图注不在选区里）
+// ★ 选区范围：第 2 个一级孩子 → 它自己的结尾。
+//   第 1 个孩子是 <center> 图注（不在选区里）；第 2 个孩子现在**就是**整段混用内容的那个
+//   `<p>` —— 用户口径第 5 条要求"编辑区根下永远没有裸文本/裸行内节点"，所以灌进来的
+//   `<i>…</i><u>…</u><i>…</i>` 这三个根级行内元素会被顶层归一化包成**一个** `<p>`。
+//   （以前这里是 3 个并列的一级孩子，选区取 children[1]..children[3]；现在取 children[1]
+//    一个块的首尾即可，圈进来的文字与当初逐字相同。）
 await s34Set(FX);
 await sleep(320);
-await s34SelRegion(1, 3);
+await s34SelRegion(1, 1);
 await sleep(240);
 const fx0 = await s34SelShot();
 ok(fx0.b + fx0.i + fx0.u + fx0.s >= 6 && fx0.sel.length > 60,
   `(34) 前置：混用区域选中了（选区内 b/i/u/s = ${fx0.b}/${fx0.i}/${fx0.u}/${fx0.s}，选区 ${fx0.sel.length} 字）`);
 const FX_TEXT = fx0.text, FX_BRS = fx0.brs, FX_BLOCKS = fx0.content, FX_SEL = fx0.sel;
+// ★ 选区比较用**去掉换行后的字符序列**：
+//   本轮起"编辑区根下不留裸行内节点"，所以用户这段 fixture 里那三个根级行内元素
+//   （<i>/<u>/<i>）会被顶层归一化包成一个 `<p>`。于是"格式操作之后按文字指纹重建选区"
+//   时，浏览器可能把 range 的起点落在**块边界**上（上一块末尾 / 本块开头）—— 视觉上
+//   是同一个字符位置、选中的字一个不差，但 `Selection.toString()` 会按块边界多吐一个
+//   `\n`（那是浏览器的排版产物，不是内容）。所以这里比"选中了哪些字"，不比这个 `\n`。
+const selEq = function (a, b) { return String(a).replace(/\n/g, '') === String(b).replace(/\n/g, ''); };
 // ★ 用户这段 fixture 里的外链没有 target="_blank"，校验器本来就会报 1 条**警告**
 //   （那是语料/校验器早就定好的规则，不是这次操作弄出来的）。所以这里的口径是：
 //   错误必须为 0，而且整条校验文案要**逐字不变**（= 本次操作一条新问题都没引入）。
@@ -5735,7 +5752,7 @@ for (let n = 0; n < BIUS34.length; n++) {
   const c1 = await s34SelShot();
   ok(c1[nkey].tot > 0 && c1[nkey].bad === 0 && c1[wkey] >= 1,
     `(34)* ${cn} 第 1 次：混用 ⇒ 整个选区**统一**带上（没带到的文本节点 ${c1[nkey].bad}/${c1[nkey].tot}，包住选区的 <${key}> ${c1[wkey]} 个）`);
-  ok(c1.sel === FX_SEL && c1.text === FX_TEXT && c1.brs === FX_BRS && c1.content === FX_BLOCKS,
+  ok(selEq(c1.sel, FX_SEL) && c1.text === FX_TEXT && c1.brs === FX_BRS && c1.content === FX_BLOCKS,
     `(34)* ${cn} 第 1 次：选区还在同一段文字上、textContent/<br>/块数都不变（选 ${c1.sel.length} 字 / br ${c1.brs} / 块 ${c1.content}）`);
   ok(c1.dup === false, `(34)* ${cn} 第 1 次：没有出现重复嵌套（<${key}><${key}>）`);
   ok(c1.keep0 === FX_CENTER && c1.lint === FX_LINT,
@@ -5749,7 +5766,7 @@ for (let n = 0; n < BIUS34.length; n++) {
   // ★ 用户点名要的那条：取消某一种格式时，其它三种标签（及其它一切）完全没被碰
   ok(others.every(function (k) { return c2[k] === pre[k]; }),
     `(34)* ${cn} 第 2 次：其它三种标签计数一个没变（${others.map(function (k) { return k + ':' + pre[k] + '→' + c2[k]; }).join(' / ')}）`);
-  ok(c2.sel === FX_SEL && c2.text === FX_TEXT && c2.brs === FX_BRS && c2.content === FX_BLOCKS,
+  ok(selEq(c2.sel, FX_SEL) && c2.text === FX_TEXT && c2.brs === FX_BRS && c2.content === FX_BLOCKS,
     `(34)* ${cn} 第 2 次：选区仍在同一段文字上、textContent/<br>/块数都不变（br ${c2.brs} / 块 ${c2.content}）`);
   ok(c2.dup === false && c2.e === 0 && c2.lint === FX_LINT,
     `(34)* ${cn} 第 2 次：没有重复嵌套、错误 0 条、校验文案没变（${c2.e}e）`);
@@ -5760,7 +5777,7 @@ ok(fin.nakedB.bad === fin.nakedB.tot && fin.nakedI.bad === fin.nakedI.tot
   && fin.nakedU.bad === fin.nakedU.tot && fin.nakedS.bad === fin.nakedS.tot
   && fin.wrapB === 0 && fin.wrapI === 0 && fin.wrapU === 0 && fin.wrapS === 0,
   `(34)* 四种各点两次之后：选区内 <b>/<i>/<u>/<s> 全部归零（残留 ${fin.wrapB}/${fin.wrapI}/${fin.wrapU}/${fin.wrapS}）`);
-ok(fin.text === FX_TEXT && fin.sel === FX_SEL,
+ok(fin.text === FX_TEXT && selEq(fin.sel, FX_SEL),
   `(34)* 四种各点两次之后：textContent 逐字不变、选区还在（${fin.sel.length} 字）`);
 ok(fin.brs === FX_BRS && fin.content === FX_BLOCKS && fin.e === 0 && fin.lint === FX_LINT,
   `(34)* 四种各点两次之后：<br> 数 / 块数不变、错误 0 条、校验文案没变（br ${fin.brs} / 块 ${fin.content}）`);
@@ -5772,7 +5789,7 @@ for (let n = 0; n < BIUS34.length; n++) {
   await clickSel(`[data-tb="${kind}"]`);
   await sleep(430);
   const ra = await s34SelShot();
-  ok(ra[nkey].tot > 0 && ra[nkey].bad === 0 && ra.dup === false && ra.sel === FX_SEL,
+  ok(ra[nkey].tot > 0 && ra[nkey].bad === 0 && ra.dup === false && selEq(ra.sel, FX_SEL),
     `(34)* 反向 ${cn}：加回来之后整个选区都带上、只包一层、选区还在（未覆盖 ${ra[nkey].bad}/${ra[nkey].tot}）`);
   ok(ra.text === FX_TEXT && ra.brs === FX_BRS && ra.content === FX_BLOCKS && ra.keep0 === FX_CENTER,
     `(34)* 反向 ${cn}：文字/<br>/块数不变、选区外没动过`);
@@ -5883,76 +5900,103 @@ const edSnapshot35 = () => json(`(()=>{const ed=document.getElementById('tbEdito
     brs:ed.querySelectorAll('br').length, blocks:ed.querySelectorAll('p,div,center,blockquote,table').length,
     anchor:anchorTag, focus:!!(document.activeElement && (document.activeElement===ed||ed.contains(document.activeElement))) });})()`);
 // 真实派发一次 Enter（CDP 键盘事件）——keys 里 text:'\\r' 才带出浏览器默认行为
-async function pressEnter35(mods = 0) {
+//   ★ enter35(0) = Enter（段落分界）；enter35(8) = Shift+Enter（段内分行，8 = Shift 修饰位）
+async function enter35(mods = 0) {
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter',
     windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods, text: '\r' });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter',
     windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods });
   await sleep(420);
 }
-// 把光标放到 <p>前半段</p> 的段末（紧接着 <br> 该出现的位置）
+async function pressEnter35(mods = 0) { return enter35(mods); }   // 兼容旧名（Enter 走段落分界）
+async function pressShiftEnter35() { return enter35(8); }         // Shift+Enter 走段内分行
+// 把光标放到 <p>前半段</p> 的段末
 const caretInHalf35 = () => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   ed.innerHTML='<p>前半段</p>'; toolboxRefresh(); toolboxUndoReset();
   const p=ed.querySelector('p'); const r=document.createRange();
   r.selectNodeContents(p); r.collapse(false);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
 
-// 35a. 编辑区里真实按 Enter → 插入一个 <br>、textContent 一个字符都没多、块数不变
+// 35a. 真实按 **Enter** → 段落分界：新建一个 <p>、textContent 一个字符都没多、代码区仍是第一段
+// ★ 本轮口径（用户更正）：**Enter = 段落分界**（不是段内 <br>）；段内分行是 Shift+Enter（见 35a2）。
 await resetEditor();
 await caretInHalf35();
 const e35a0 = await edSnapshot35();
-await pressEnter35();
+await enter35(0);
 const e35a1 = await edSnapshot35();
-// 注：toolboxInsertBreak() 走的是 toolboxInsertHtml('<br>') —— 光标在 <p> 里时这个 <br>
-//     落在**那一块之后**（浏览器/execCommand 的既有行为，不是本轮改的），所以这里
-//     只钉"多了一个 <br>、且它在原文之后"，不钉它在段落内部的偏移。
-ok(e35a1.brs === e35a0.brs + 1 && /前半段[\s\S]*<br\s*\/?>/.test(e35a1.html),
-  `(35)* 编辑区按 Enter 插入了一个 <br>（br ${e35a0.brs}→${e35a1.brs}，${JSON.stringify(e35a1.html)}）`);
-ok(e35a1.text === e35a0.text && e35a1.blocks === e35a0.blocks,
-  `(35)* Enter 只加 <br>：textContent 一个字符没多、块数不变（${JSON.stringify(e35a1.text)} / 块 ${e35a1.blocks}）`);
+ok(e35a1.blocks === e35a0.blocks + 1 && e35a1.text === e35a0.text,
+  `(35)* 一次 Enter = 段落分界：块数 ${e35a0.blocks}→${e35a1.blocks}、textContent 一个字符没多（${JSON.stringify(e35a1.text)}）`);
+ok(e35a1.code === '<p>前半段</p>',
+  `(35)* Enter 之后代码区只有第一段（空落脚段不算内容，实际 ${JSON.stringify(e35a1.code)}）`);
 ok(e35a1.focus === true, '(35)* Enter 之后焦点还留在编辑区');
+await send('Input.insertText', { text: '乙' });
+await sleep(360);
+const e35a2 = await edSnapshot35();
+ok(e35a2.code === '<p>前半段</p>\n<p>乙</p>' && e35a2.text === '前半段乙',
+  `(35)* 甲 ⏎ 乙 ⇒ 两个相邻段落（实际 ${JSON.stringify(e35a2.code)}）`);
 
-// 35b. 行为一致性：同一个初始状态，Enter 与"原「换行」按钮那个入口"产出完全一致
+// 35a2. 真实按 **Shift+Enter** → 段内分行：同一个 <p> 里一根 <br>、代码区 <p>前半段<br></p>
 await resetEditor();
 await caretInHalf35();
-await pressEnter35();
+const e35s0 = await edSnapshot35();
+await enter35(8);
+const e35s1 = await edSnapshot35();
+ok(e35s1.brs === e35s0.brs + 2 && /<p>前半段<br[^>]*>(<br[^>]*data-tb-caret[^>]*>)?<\/p>/.test(e35s1.html),
+  `(35)* Shift+Enter = 段内分行：当前段内一根软换行 <br> + 一根落脚 <br>（br ${e35s0.brs}→${e35s1.brs}，${JSON.stringify(e35s1.html)}）`);
+ok(e35s1.text === e35s0.text && e35s1.blocks === e35s0.blocks,
+  `(35)* 段内分行只加 <br>：textContent 一个字符没多、块数不变（${JSON.stringify(e35s1.text)} / 块 ${e35s1.blocks}）`);
+ok(e35s1.code === '<p>前半段<br></p>',
+  `(35)* 段内分行之后代码区逐字等于 <p>前半段<br></p>（${JSON.stringify(e35s1.code)}）`);
+
+// 35b. 行为一致性：Shift+Enter 与"工具栏「换行」按钮那个入口"产出完全一致
+await resetEditor();
+await caretInHalf35();
+await enter35(8);
 const e35Enter = await edSnapshot35();
 await resetEditor();
 await caretInHalf35();
 // ★ 参考的一次必须从**同一个状态**出发：真实按键会先触发编辑区自己那个 keydown 监听
-//   （toolboxDropRange，把上一次的选区存档丢掉），然后才轮到我们的 Enter 处理。
-//   所以这里也先 toolboxDropRange()，再走原「换行」按钮的等价入口 toolboxToolbarAction('br')
-//   （Enter 处理函数里调的就是它，见 toolbox.js 的编辑区 keydown 绑定）。
-//   实测：不先 dropRange 的话结果会差一个 <br> 的位置（<p>前半段<br></p> vs <p>前半段</p><br>），
-//   那是"状态不同"，不是"行为不同"。
+//   （toolboxDropRange，把上一次的选区存档丢掉），然后才轮到我们的处理。
+//   所以这里也先 toolboxDropRange()，再走「换行」按钮的等价入口 toolboxToolbarAction('br')。
+//   ★ 两条路都进 toolboxEnterBreak()（同一份"取现场选区 → 找块 → 插 <br>+落脚点"逻辑），
+//     所以 HTML 必须**逐字一致**。
 await evaluate(`(()=>{toolboxDropRange(); toolboxToolbarAction('br'); return 1;})()`);
 await sleep(420);
 const e35Fn = await edSnapshot35();
 ok(e35Enter.html === e35Fn.html,
-  `(35)* Enter 与 toolboxToolbarAction('br')（原「换行」按钮的入口）产出的编辑区 HTML 逐字一致`
-  + `（Enter=${JSON.stringify(e35Enter.html)} / 按钮入口=${JSON.stringify(e35Fn.html)}）`);
+  `(35)* Shift+Enter 与 toolboxToolbarAction('br')（「换行」按钮的入口）产出的编辑区 HTML 逐字一致`
+  + `（Shift+Enter=${JSON.stringify(e35Enter.html)} / 按钮入口=${JSON.stringify(e35Fn.html)}）`);
 ok(e35Enter.code === e35Fn.code,
-  `(35)* Enter 与按钮入口产出的代码区内容也逐字一致`
-  + `（Enter=${JSON.stringify(e35Enter.code)} / 按钮入口=${JSON.stringify(e35Fn.code)}）`);
+  `(35)* Shift+Enter 与按钮入口产出的代码区内容也逐字一致`
+  + `（Shift+Enter=${JSON.stringify(e35Enter.code)} / 按钮入口=${JSON.stringify(e35Fn.code)}）`);
 
-// 35c. 插入后光标落在 <br> 之后，接着打字不会跑到文首
+// 35c. 段内分行之后光标停在 <br> 之后（两根 <br> 之间），接着打字落在第二行、不会跑到文首
 await resetEditor();
 await caretInHalf35();
-await pressEnter35();
+await enter35(8);
 const caret35 = await json(`(()=>{const ed=document.getElementById('tbEditor');
-  const s=getSelection()||{}; const br=ed.querySelector('br');
-  const idx=br?[].indexOf.call(br.parentNode.childNodes,br):-1;
-  const after = !!(s.anchorNode && br && s.anchorNode === br.parentNode && s.anchorOffset === idx+1);
-  return JSON.stringify({ after:after, idx:idx,
+  const s=getSelection()||{}; const brs=[...ed.querySelectorAll('br')];
+  const soft=brs.filter(function(b){return !b.getAttribute('data-tb-caret');})[0];
+  const mark=ed.querySelector('br[data-tb-caret]');
+  const p=ed.querySelector('p');
+  // ★ 新口径：光标停在**两根 <br> 之间**（就是浏览器原生 Shift+Enter 的位置）。
+  let atMark=false;
+  try { atMark = !!(mark && s.anchorNode===p
+      && s.anchorOffset===[].indexOf.call(p.childNodes,mark)); } catch(e){}
+  return JSON.stringify({ atMark:atMark, soft:(soft?[].indexOf.call(soft.parentNode.childNodes,soft):-1),
+    mark:(mark?[].indexOf.call(mark.parentNode.childNodes,mark):-1),
     anchorType:s.anchorNode?s.anchorNode.nodeType:'', anchorOffset:s.anchorOffset });})()`);
 await send('Input.insertText', { text: 'XYZ' });
 await sleep(320);
 const typed35 = await json(`(()=>{const ed=document.getElementById('tbEditor');
-  return JSON.stringify({ html:ed.innerHTML, text:ed.textContent });})()`);
-ok(caret35.after === true,
-  `(35)* 光标停在刚插入的 <br> 之后（br 是第 ${caret35.idx} 个子节点，光标 ${caret35.anchorType}/${caret35.anchorOffset}）`);
+  return JSON.stringify({ html:ed.innerHTML, text:ed.textContent, code:document.getElementById('tbCode').value });})()`);
+ok(caret35.atMark === true && caret35.mark === caret35.soft + 1,
+  `(35)* 段内分行后光标停在两根 <br> 之间（软换行 ${caret35.soft}、落脚点 ${caret35.mark}，`
+  + `光标 ${caret35.anchorType}/${caret35.anchorOffset}）`);
 ok(typed35.text.indexOf('前半段') === 0 && typed35.text.indexOf('XYZ') > typed35.text.indexOf('前半段'),
   `(35)* 接着打字落在正确位置、没有跑到文首（${JSON.stringify(typed35.text)} / ${JSON.stringify(typed35.html)}）`);
+ok(typed35.code === '<p>前半段<br>XYZ</p>',
+  `(35)* 继续打字之后这个 <br> 仍在，代码区是 <p>前半段<br>XYZ</p>（${JSON.stringify(typed35.code)}）`);
 
 // 35d. Ctrl+Z 能撤回这次换行（撤回后与操作前一致，光标不跳到文首）
 await evaluate(`(()=>{const p=document.createElement('p'); p.textContent='第一段';
@@ -5962,7 +6006,7 @@ await evaluate(`(()=>{const p=document.createElement('p'); p.textContent='第一
   const r=document.createRange(); r.selectNodeContents(p); r.collapse(false);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
 const u35a = await edSnapshot35();
-await pressEnter35();
+await enter35(8);                          // 段内分行 → 能撤回
 const u35b = await edSnapshot35();
 await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ',
   windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2, text: '' });
@@ -5970,9 +6014,9 @@ await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ',
   windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
 await sleep(420);
 const u35c = await edSnapshot35();
-ok(u35b.brs === u35a.brs + 1, `(35)* （前置）Enter 之后确实多了 1 个 <br>（${u35a.brs}→${u35b.brs}）`);
+ok(u35b.brs === u35a.brs + 2, `(35)* （前置）段内分行之后确实多了"软换行 + 落脚"两根 <br>（${u35a.brs}→${u35b.brs}）`);
 ok(u35c.html === u35a.html && u35c.text === u35a.text,
-  `(35)* Ctrl+Z 撤掉了这次换行，HTML 与操作前一致（${JSON.stringify(u35c.html)}）`);
+  `(35)* Ctrl+Z 撤掉了这次段内分行，HTML 与操作前一致（${JSON.stringify(u35c.html)}）`);
 ok(u35c.text.indexOf('后半段') > 0 && !/^<br/.test(u35c.html),
   '(35)* 撤回后光标没有跳到文首（文档内容顺序没被换位）');
 
@@ -5980,7 +6024,7 @@ ok(u35c.text.indexOf('后半段') > 0 && !/^<br/.test(u35c.html),
 await evaluate(`(()=>{const c=document.getElementById('tbCode'); c.value='<p>ab</p>'; c.focus();
   c.setSelectionRange(2,2); return 1;})()`);
 const c35a = await evaluate(`document.getElementById('tbCode').value`);
-await pressEnter35();
+await enter35(0);
 const c35b = await evaluate(`document.getElementById('tbCode').value`);
 ok(c35b.indexOf('\n') >= 0 && c35b.indexOf('<br') < 0,
   `(35)* 代码区里 Enter 是正常换行、没有被劫持成 <br>（${JSON.stringify(c35b)}）`);
@@ -5989,27 +6033,1946 @@ ok(c35b.indexOf('\n') >= 0 && c35b.indexOf('<br') < 0,
 await evaluate(`(()=>{const fn=document.getElementById('tbFileName'); fn.value='我的文章'; fn.focus(); return 1;})()`);
 const f35a = await json(`(()=>{const fn=document.getElementById('tbFileName');
   return JSON.stringify({ value:fn.value, ed:document.getElementById('tbEditor').innerHTML });})()`);
-await pressEnter35();
+await enter35(0);
 const f35b = await json(`(()=>{const fn=document.getElementById('tbFileName');
   return JSON.stringify({ value:fn.value, ed:document.getElementById('tbEditor').innerHTML });})()`);
 ok(f35b.value === f35a.value && f35a.value === '我的文章',
   `(35)* 文件名框里 Enter 不改变文件名、没被劫持（${JSON.stringify(f35b.value)}）`);
 
-// 35g. 反向断言：Shift+Enter 未被我们劫持（只断言 defaultPrevented 保持 false，不断言浏览器默认行为）
-await evaluate(`window.__tbEnt = { shift: null };`);
+// 35g. **反转后的断言**：Shift+Enter 现在是**我们处理**的（段内分行）——
+//   它必须被 preventDefault（不然浏览器会再走一遍原生 insertLineBreak，多出一根 <br>），
+//   而且产出的结构就是段内 <br>（35a2 已逐字断言）。
+//   ★ 读 defaultPrevented 必须用**冒泡阶段**的监听（挂在 document 上）：
+//     挂在编辑区上的捕获监听跑在我们自己的处理**之前**，那时当然还是 false。
+await evaluate(`window.__tbEnt = { shift: null, ctrl: null };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter') {
+    if (e.shiftKey) window.__tbEnt.shift = e.defaultPrevented;
+    else if (e.ctrlKey) window.__tbEnt.ctrl = e.defaultPrevented; } });`);
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   ed.innerHTML='<p>前半段</p>'; toolboxRefresh();
   const p=ed.querySelector('p'); const r=document.createRange();
   r.selectNodeContents(p); r.collapse(false);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
-  ed.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.shiftKey) window.__tbEnt.shift = e.defaultPrevented; }, true);
   return 1;})()`);
-await pressEnter35(8);
-const sh35 = await json(`JSON.stringify({ prevented: window.__tbEnt.shift })`);
-ok(sh35.prevented === false,
-  `(35)* Shift+Enter 没有被我们劫持（keydown 的 defaultPrevented=${sh35.prevented}，交给浏览器默认行为）`);
+await enter35(8);
+const sh35 = await json(`JSON.stringify({ prevented: window.__tbEnt.shift, code: document.getElementById('tbCode').value })`);
+ok(sh35.prevented === true,
+  `(35)* Shift+Enter 由我们处理（冒泡阶段读到 keydown 的 defaultPrevented=${sh35.prevented}）`);
+ok(sh35.code === '<p>前半段<br></p>',
+  `(35)* Shift+Enter 产出段内换行、没有被浏览器默认行为重复插入（代码区 ${JSON.stringify(sh35.code)}）`);
 
 // ==============================================================
+// ==============================================================
+console.log('\n====== (36) A：空编辑区提示语不占行高，光标就在「从这里开始」那一行 ======\n');
+// 用户实测 bug：「最开始什么都没有的时候，光标在「从这里开始」的下面一行；
+//   输入部分内容再删掉之后，才能回到「从这里开始」的高度。」
+// 根因：提示语是**参与排版的** ::before（一个行内内容）：它先占掉第一行，初始那个
+//   <p><br></p> 被挤到第二行 ⇒ 光标落在提示语下面，空状态比"打字后清空"多一行。
+// 修法两处（都不动序列化）：
+//   ① CSS：提示语改绝对定位叠加（不参与排版、不占行高），编辑区加 min-height 兜住一行；
+//   ② JS：打开时把初始光标显式摆进**第一个块里面**（不摆的话焦点进来时选区停在编辑区根上，
+//      那里没有行盒，第一眼看到的光标就不在提示语那一行）。
+const geom36 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const cs=getComputedStyle(ed,'::before'); const edcs=getComputedStyle(ed);
+  const er=ed.getBoundingClientRect();
+  const padT=parseFloat(edcs.paddingTop)||0, lh=parseFloat(edcs.lineHeight)||0;
+  const first=ed.firstElementChild; const fr=first?first.getBoundingClientRect():null;
+  return JSON.stringify({ pos:cs.position, beforeTop:parseFloat(cs.top), padT:padT,
+    lh:Math.round(lh*100)/100, html:ed.innerHTML, kids:ed.children.length,
+    firstTag:first?first.tagName:'',
+    firstTop:fr?Math.round((fr.top-er.top-padT)*100)/100:null,
+    firstLines:fr?Math.round(fr.height/lh*100)/100:null,
+    brs:ed.querySelectorAll('br').length });})()`);
+const caret36 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const s=getSelection(); if(!s.rangeCount) return JSON.stringify({none:true});
+  const n=s.getRangeAt(0).startContainer; const p=ed.firstElementChild;
+  return JSON.stringify({none:false, inFirstBlock:!!(p&&(p===n||p.contains(n))),
+    anchorIsEditorRoot:(n===ed), tag:p?p.tagName:''});})()`);
+// 重新走一遍"刷新后第一次打开"（全程不点编辑区、不摆光标）
+await evaluate(`(()=>{ try{toolboxDraftClear();}catch(e){} toolboxSession=false; toolboxClose(); toolboxOpen(); return 1;})()`);
+await sleep(560);
+// ★ 关窗时草稿会再落一次盘，所以"刷新后第一次打开"仍可能弹「发现未保存草稿」——
+//   它是**铺满视口的浮层**（z-index 1250），会挡住后面所有的真鼠标点击。
+//   这一节只关心空编辑区的排版，按用户的正常路径把它收掉（等价于点「丢弃」/「恢复」的决定），
+//   并把它已经收干净这件事钉住。
+const ask36 = await json(`(()=>{const el=document.getElementById('tbDraftAsk');
+  return JSON.stringify({ open: !!toolboxDraftAskOpen, hidden: !!el.hidden });})()`);
+if (ask36.open || !ask36.hidden) { await evaluate(`toolboxDraftAskHide()`); await sleep(240); }
+const ask36b = await json(`(()=>{const el=document.getElementById('tbDraftAsk');
+  return JSON.stringify({ open: !!toolboxDraftAskOpen, hidden: !!el.hidden });})()`);
+ok(ask36b.open === false && ask36b.hidden === true,
+  `(36) 草稿询问浮层已经收干净（否则它会盖住工具栏，后面所有真点击都会点在它上面）：`
+  + `打开时 open=${ask36.open}/hidden=${ask36.hidden} → 现在 open=${ask36b.open}/hidden=${ask36b.hidden}`);
+const g36a = await geom36();
+const c36a = await caret36();
+ok(g36a.kids === 1 && g36a.html === '<p><br></p>' && g36a.brs === 1,
+  `(36) 初始状态就是空编辑区：<p><br></p>（${JSON.stringify(g36a.html)}）`);
+ok(g36a.pos === 'absolute',
+  `(36)* 提示语是绝对定位叠加、**不参与排版**（computed position=${g36a.pos}；修复前是 static，会独占一整行）`);
+ok(Math.abs(g36a.beforeTop - g36a.padT) <= 1,
+  `(36)* 提示语顶边就在内容区首行上（top=${g36a.beforeTop} vs padding-top=${g36a.padT}，容差 1px）`);
+ok(g36a.firstTop === 0 && g36a.firstLines === 1,
+  `(36)* 空编辑区只有一行：首个块顶边=${g36a.firstTop}px、占 ${g36a.firstLines} 行`
+  + `（修复前 = 提示语一行 + 内容一行 = 2 行）`);
+ok(c36a.none === false && c36a.inFirstBlock === true && c36a.anchorIsEditorRoot === false,
+  `(36)* 打开时光标就在第一个块（<${c36a.tag}>）里面、不在编辑区根上`
+  + `（inFirstBlock=${c36a.inFirstBlock} / anchorIsEditorRoot=${c36a.anchorIsEditorRoot}）`);
+// 不点任何地方直接打字 —— 打出来的字必须落在提示语那一行
+await send('Input.insertText', { text: '甲' });
+await sleep(420);
+const g36b = await geom36();
+ok(g36b.html === '<p>甲</p>' && g36b.firstTop === 0 && g36b.firstLines === 1,
+  `(36)* 直接打字就落在提示语那一行（${JSON.stringify(g36b.html)}，首行顶边=${g36b.firstTop}、占 ${g36b.firstLines} 行）`);
+// 全选删除 → 必须回到与初始**完全相同**的结构与高度
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.focus();
+  const r=document.createRange(); r.selectNodeContents(ed);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); return 1;})()`);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46, nativeVirtualKeyCode: 46 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46, nativeVirtualKeyCode: 46 });
+await sleep(560);
+const g36c = await geom36();
+const code36c = await evaluate(`document.getElementById('tbCode').value`);
+ok(g36c.html === g36a.html && g36c.firstTop === g36a.firstTop && g36c.firstLines === g36a.firstLines,
+  `(36)* 全删之后回到与初始**完全相同**的状态（${JSON.stringify(g36c.html)}，`
+  + `首行顶边 ${g36a.firstTop}→${g36c.firstTop}px、占行 ${g36a.firstLines}→${g36c.firstLines}）`);
+ok(code36c === '',
+  `(36)* 空编辑区的代码区仍然是空的 —— 这次改动没有动序列化（${JSON.stringify(code36c)}）`);
+await send('Input.insertText', { text: '乙' });
+await sleep(420);
+const g36d = await geom36();
+ok(g36d.html === '<p>乙</p>' && g36d.firstTop === g36a.firstTop,
+  `(36)* 全删之后再打字，仍落在同一行（${JSON.stringify(g36d.html)}，首行顶边=${g36d.firstTop}）`);
+
+// ==============================================================
+console.log('\n====== (37) B：提示语弹窗（toast）层级高于所有工具箱浮层 ======\n');
+// 用户实测：「下方浮现的提示语弹窗图层比有各种选项的弹窗要低，这不对。」
+// 口径：不硬编码数字 —— 从**已加载的样式表**里把各层的 z-index 常量读出来做数值比较，
+//   再断言 toast 的计算值等于那个常量、且严格大于其余每一层。
+const zmap37 = await json(`(()=>{const want={'tb-toast':0,'tb-dialog':0,'tb-tmenu':0,'tb-ask':0,'tb-modal':0,'tb-grip':0,'dd-popup':0};
+  for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+    for (const r of rules) { const s=r.selectorText; if(!s||!r.style||!r.style.zIndex) continue;
+      for (const k in want) { if (new RegExp('^\\\\.'+k+'$').test(s)) want[k]=parseInt(r.style.zIndex,10)||0; } } }
+  const comp=function(id){const e=document.getElementById(id);return e?(parseInt(getComputedStyle(e).zIndex,10)||0):0;};
+  return JSON.stringify(Object.assign({}, want, { toastComputed: comp('tbToast') }));})()`);
+console.log(`  各层 z-index：${JSON.stringify(zmap37)}`);
+ok(zmap37.toastComputed === zmap37['tb-toast'] && zmap37['tb-toast'] > 0,
+  `(37) toast 的计算层级等于样式表里的常量（computed=${zmap37.toastComputed} / css=${zmap37['tb-toast']}）`);
+ok(zmap37['tb-toast'] > zmap37['tb-modal'],
+  `(37)* toast 层级 > 工具箱主弹窗（${zmap37['tb-toast']} > ${zmap37['tb-modal']}）`);
+for (const k37 of ['tb-dialog', 'tb-tmenu', 'tb-ask', 'tb-grip', 'dd-popup']) {
+  ok(zmap37['tb-toast'] > zmap37[k37],
+    `(37)* toast 层级 > ${k37}（${zmap37['tb-toast']} > ${zmap37[k37]}）`);
+}
+// 同一层叠上下文（都在 #toolboxModal 里）中，toast 必须是最大的那个
+const ctx37 = await json(`(()=>{const t=document.getElementById('tbToast');
+  const m=document.getElementById('toolboxModal');
+  const zs=[...m.querySelectorAll('*')].filter(function(e){return e.id!=='tbToast' && getComputedStyle(e).zIndex!=='auto';})
+    .map(function(e){return parseInt(getComputedStyle(e).zIndex,10)||0;});
+  return JSON.stringify({ inModal:!!(m&&m.contains(t)), toast:parseInt(getComputedStyle(t).zIndex,10)||0,
+    maxOther: Math.max.apply(null, zs.concat([0])), others: zs.length });})()`);
+ok(ctx37.inModal === true && ctx37.toast > ctx37.maxOther,
+  `(37)* 在主弹窗内部的层叠上下文里也是最高的（toast=${ctx37.toast} > 其余最大 ${ctx37.maxOther}，共比较 ${ctx37.others} 层）`);
+
+// ==============================================================
+console.log('\n====== (38) C：上标 / 下标（<sup>/<sub>，与 BIUS 同一套字符级三态开关）======\n');
+// 规格：与加粗/斜体/下划线/删除线**完全同款**的字符级三态（全有→取消；否则→给整个选区补满），
+//   可跨段落，块结构与 <br> 一个都不动；校验不报错/不报警告；工具栏高亮、撤回栈都要有。
+const supBtn38 = await json(`(()=>{const a=document.querySelector('[data-tb="sup"]'), b=document.querySelector('[data-tb="sub"]');
+  return JSON.stringify({ sup:!!a, sub:!!b, supText:a?a.textContent.trim():'', subText:b?b.textContent.trim():'' });})()`);
+ok(supBtn38.sup === true && supBtn38.sub === true,
+  `(38) 工具栏有上标/下标两个按钮（${JSON.stringify(supBtn38)}）`);
+const tbl38 = await json(`JSON.stringify({
+  inInlineTags: TOOLBOX_INLINE_TAGS.indexOf('SUP')>=0 && TOOLBOX_INLINE_TAGS.indexOf('SUB')>=0,
+  inOkTags: TOOLBOX_OK_TAGS.indexOf('SUP')>=0 && TOOLBOX_OK_TAGS.indexOf('SUB')>=0,
+  tag: TOOLBOX_EMPHASIS_TAG.sup==='sup' && TOOLBOX_EMPHASIS_TAG.sub==='sub',
+  alias: (TOOLBOX_INLINE_ALIAS.sup||[]).indexOf('SUP')>=0 && (TOOLBOX_INLINE_ALIAS.sub||[]).indexOf('SUB')>=0 })`);
+ok(tbl38.inInlineTags && tbl38.inOkTags,
+  '(38)* <sup>/<sub> 在行内标签白名单与正文标签白名单里（导入不会被降级成纯文本）');
+ok(tbl38.tag && tbl38.alias,
+  '(38)* 复用同一套机制：TOOLBOX_EMPHASIS_TAG 与 TOOLBOX_INLINE_ALIAS 都登记了 sup/sub');
+const setEd38 = (h, full) => evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML=${JSON.stringify(h)};
+  toolboxRefresh(); toolboxUndoReset();
+  const p=ed.querySelector('p'); const r=document.createRange();
+  if(${full ? 'true' : 'false'}) r.selectNodeContents(ed); else r.selectNodeContents(p);
+  r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const selAll38 = (i) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  const p=ed.querySelectorAll('p')[${i}]; const r=document.createRange(); r.selectNodeContents(p);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const shot38 = () => json(`(()=>{const ed=document.getElementById('tbEditor'); const s=getSelection();
+  const on=[]; document.querySelectorAll('#toolboxModal .tb-btn.active').forEach(function(b){on.push(b.getAttribute('data-tb'));});
+  return JSON.stringify({ html:ed.innerHTML, code:document.getElementById('tbCode').value, text:ed.textContent,
+    brs:ed.querySelectorAll('br').length, blocks:ed.querySelectorAll('p,div,center,blockquote,li').length,
+    top:ed.children.length, sup:ed.querySelectorAll('sup').length, sub:ed.querySelectorAll('sub').length,
+    sel:(s.rangeCount?String(s):''), on:on,
+    errs:+document.getElementById('tbValidate').getAttribute('data-errors'),
+    warns:+document.getElementById('tbValidate').getAttribute('data-warnings') });})()`);
+
+// 38a. 应用（真点按钮）
+await setEd38('<p>甲乙丙</p>');
+await sleep(300);
+await selAll38(0);
+const c38a0 = await shot38();
+// 点之前把"按钮到底可点不可点"这件事量清楚：焦点在不在正文、按钮有没有被禁用、
+// 按钮中心点上到底是哪个元素（这三样任一不对，真鼠标事件就不会落到按钮上）。
+const diag38 = await json(`(()=>{const b=document.querySelector('[data-tb="sup"]');
+  if(!b) return JSON.stringify({noBtn:true});
+  const r=b.getBoundingClientRect();
+  const el=document.elementFromPoint(Math.round(r.left+r.width/2), Math.round(r.top+r.height/2));
+  return JSON.stringify({ disabled:!!b.disabled, focusInCode:toolboxFocusInCode(),
+    active:(document.activeElement&&(document.activeElement.id||document.activeElement.tagName))||'',
+    hit: el? (el.tagName+((el.getAttribute&&el.getAttribute('data-tb'))?('['+el.getAttribute('data-tb')+']'):'')) : 'null',
+    cardFull:document.querySelector('.tb-card').classList.contains('tb-full'),
+    inViewport: r.top>=0 && r.bottom<=window.innerHeight && r.left>=0 && r.right<=window.innerWidth,
+    rect:[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)] });})()`);
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.focus(); toolboxSyncPanelFocus(); return 1;})()`);
+await clickSel('[data-tb="sup"]');
+await sleep(420);
+const c38a1 = await shot38();
+ok(c38a1.sup === 1 && /<sup>甲乙丙<\/sup>/.test(c38a1.html),
+  `(38)* 选中整段点「上标」→ 包成 <sup>（${JSON.stringify(c38a1.html)}；点击前状态 ${JSON.stringify(diag38)}）`);
+ok(c38a1.text === c38a0.text && c38a1.brs === c38a0.brs && c38a1.blocks === c38a0.blocks && c38a1.top === c38a0.top,
+  `(38)* 上标只加标签：textContent/<br>/块结构逐项不变（文字 ${JSON.stringify(c38a1.text)}、`
+  + `br ${c38a0.brs}→${c38a1.brs}、块 ${c38a0.blocks}→${c38a1.blocks}）`);
+ok(c38a1.sel === c38a0.sel,
+  `(38)* 选区保留（${JSON.stringify(c38a1.sel)}）`);
+ok(c38a1.on.indexOf('sup') >= 0,
+  `(38)* 按下之后工具栏「上标」按钮亮起（active = ${JSON.stringify(c38a1.on)}）`);
+// 38b. 再点一次 = 干净取消（闭环）
+await selAll38(0);
+await clickSel('[data-tb="sup"]');
+await sleep(420);
+const c38b = await shot38();
+ok(c38b.sup === 0 && c38b.html === '<p>甲乙丙</p>' && c38b.text === '甲乙丙' && c38b.on.indexOf('sup') < 0,
+  `(38)* 同一个选区再点一次 → 上标被**干净地**摘掉、按钮灭（${JSON.stringify(c38b.html)}）`);
+// 38c. 嵌套：<b><sup>x</sup></b> 只取消 sup，外层 <b> 不动
+await setEd38('<p><b>甲乙</b></p>');
+await sleep(300);
+await selAll38(0);
+await clickSel('[data-tb="sup"]');
+await sleep(420);
+const c38c1 = await shot38();
+await selAll38(0);
+await clickSel('[data-tb="sup"]');
+await sleep(420);
+const c38c2 = await shot38();
+ok(c38c1.html === '<p><b><sup>甲乙</sup></b></p>' && c38c2.html === '<p><b>甲乙</b></p>',
+  `(38)* 嵌套一层：<b> 里套 <sup> 后只取消 sup，外层 <b> 完好（${JSON.stringify(c38c1.html)} → ${JSON.stringify(c38c2.html)}）`);
+// 38d. 反向嵌套：<sup><b>x</b></sup> 只取消 b，外层 sup 不动
+await setEd38('<p>甲乙</p>');
+await sleep(300);
+await selAll38(0);
+await clickSel('[data-tb="sup"]');
+await sleep(420);
+await selAll38(0);
+await clickSel('[data-tb="bold"]');
+await sleep(420);
+const c38d1 = await shot38();
+await selAll38(0);
+await clickSel('[data-tb="bold"]');
+await sleep(420);
+const c38d2 = await shot38();
+ok(c38d1.html === '<p><sup><b>甲乙</b></sup></p>' && c38d2.html === '<p><sup>甲乙</sup></p>',
+  `(38)* 反向嵌套：<sup> 里套 <b> 后只取消 b，外层 sup 完好（${JSON.stringify(c38d1.html)} → ${JSON.stringify(c38d2.html)}）`);
+// 38e. 跨段落应用：块结构与 <br> 都不变，两段各得一层
+await setEd38('<p>甲乙</p><p>丙丁</p>');
+await sleep(300);
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); const ps=ed.querySelectorAll('p');
+  const first=function(n){const w=document.createTreeWalker(n,4,null,false);return w.nextNode();};
+  const last=function(n){let l=null;const w=document.createTreeWalker(n,4,null,false);let x=w.nextNode();while(x){l=x;x=w.nextNode();}return l;};
+  const t0=first(ps[0]), t1=last(ps[1]);
+  const r=document.createRange(); r.setStart(t0,1); r.setEnd(t1,1);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const c38e0 = await shot38();
+await clickSel('[data-tb="sup"]');
+await sleep(480);
+const c38e1 = await shot38();
+ok(c38e1.sup === 2 && c38e1.brs === c38e0.brs && c38e1.blocks === c38e0.blocks && c38e1.text === c38e0.text,
+  `(38)* 跨段落应用：两段各得一层 <sup>，块数/<br>/文字都不变（${JSON.stringify(c38e1.html)}）`);
+// 38f. 下标：与上标互不干扰
+await selAll38(0);
+await clickSel('[data-tb="sub"]');
+await sleep(420);
+const c38f = await shot38();
+ok(c38f.html.indexOf('<sub>') >= 0 && c38f.sub >= 1,
+  `(38)* 「下标」独立生效（${JSON.stringify(c38f.html)}）`);
+// 38g. 校验：含 <sup>/<sub> 的正文 0 错误 0 警告
+ok(c38f.errs === 0 && c38f.warns === 0,
+  `(38)* 校验对 <sup>/<sub> 不报错也不报警告（错误 ${c38f.errs} / 警告 ${c38f.warns}）`);
+// 38h. 导出保留 <sup>/<sub> 原文，且"导出→再导入→再导出"逐字节一致
+const idem38 = await json(`(()=>{const ed=document.getElementById('tbEditor');
+  const before=toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()));
+  ed.innerHTML=before;
+  const after=toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()));
+  return JSON.stringify({ before:before, after:after, same:before===after,
+    keepSup:/<sup>/.test(before), keepSub:/<sub>/.test(before) });})()`);
+ok(idem38.keepSup && idem38.keepSub,
+  `(38)* 导出的 HTML 逐字保留 <sup>/<sub>（${JSON.stringify(idem38.before).slice(0, 110)}）`);
+ok(idem38.same === true,
+  '(38)* 幂等：导出→再导入→再导出 逐字节一致');
+// 38i. 撤回：上标也能撤回
+await setEd38('<p>甲乙丙</p>');
+await sleep(300);
+await selAll38(0);
+const c38i0 = await shot38();
+await clickSel('[data-tb="sup"]');
+await sleep(420);
+const c38i1 = await shot38();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await sleep(460);
+const c38i2 = await shot38();
+ok(c38i1.html !== c38i0.html && c38i2.html === c38i0.html,
+  `(38)* 上标进了撤回栈：Ctrl+Z 回到操作前（${JSON.stringify(c38i1.html)} → ${JSON.stringify(c38i2.html)}）`);
+
+// ==============================================================
+console.log('\n====== (39) D：逐操作"换行中性"审计（不许无谓多/少空行、空块）======\n');
+// 用户要求：「任何格式不应该增加或减少换行（除非像必须需要换行，我说的是无谓的多余的空行）。」
+// 判据（每个操作逐项比）：<br> 数不变、textContent 逐字不变、**顶层**块数不变、
+//   导出的代码行数不变、不新增空块、不新增空行。
+// 结构性必需的情形单独列出（见 39b/39c）：表格/图片必须有承载它的块。
+const snap39 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const code=document.getElementById('tbCode').value;
+  const blocks=[...ed.children];
+  const emptyBlocks=blocks.filter(function(b){return !String(b.textContent||'').replace(/[\\s\\u00a0\\u200b]+/g,'').length
+    && !b.querySelector('img,table,hr,video,br');}).length;
+  return JSON.stringify({ html:ed.innerHTML, text:ed.textContent, brs:ed.querySelectorAll('br').length,
+    blocks:blocks.length, emptyBlocks:emptyBlocks, code:code,
+    codeLines:code?code.split('\\n').length:0, blankLines:(code.match(/\\n[ \\t]*\\n/g)||[]).length });})()`);
+const set39 = (h) => evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML=${JSON.stringify(h)};
+  toolboxRefresh(); toolboxUndoReset(); const r=document.createRange(); r.selectNodeContents(ed);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const selP39 = (i) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  const p=ed.querySelectorAll('p')[${i}]; const r=document.createRange(); r.selectNodeContents(p);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const FIX39 = '<p>甲乙丙</p><p>丁戊己</p>';
+const OPS39 = [
+  ['body', '正文'], ['quote', '引用'], ['title', '标题'], ['caption', '图注'], ['sign', '落款'],
+  ['bold', '加粗'], ['italic', '斜体'], ['underline', '下划线'], ['strike', '删除线'],
+  ['sup', '上标'], ['sub', '下标'],
+  ['align-left', '左对齐'], ['align-center', '居中'], ['align-right', '右对齐']
+];
+for (const op39 of OPS39) {
+  await set39(FIX39);
+  await sleep(240);
+  await selP39(0);
+  const d0 = await snap39();
+  await evaluate(`toolboxToolbarAction(${JSON.stringify(op39[0])})`);
+  await sleep(420);
+  const d1 = await snap39();
+  const neutral = d1.brs === d0.brs && d1.text === d0.text && d1.blocks === d0.blocks
+    && d1.emptyBlocks === d0.emptyBlocks && d1.codeLines === d0.codeLines && d1.blankLines === d0.blankLines;
+  ok(neutral,
+    `(39)* ${op39[1]}：换行中性（<br> ${d0.brs}→${d1.brs}、块 ${d0.blocks}→${d1.blocks}、`
+    + `空块 ${d0.emptyBlocks}→${d1.emptyBlocks}、代码行 ${d0.codeLines}→${d1.codeLines}、空行 ${d0.blankLines}→${d1.blankLines}、`
+    + `文字${d1.text === d0.text ? '不变' : '变了：' + JSON.stringify(d1.text)}）`);
+}
+// 字号（走真实按钮：五档里选 1.1）
+await set39(FIX39);
+await sleep(240);
+await selP39(0);
+const s39sz0 = await snap39();
+await clickSel('.tb-size[data-size="1.1em"]');
+await sleep(460);
+const s39sz1 = await snap39();
+ok(s39sz1.brs === s39sz0.brs && s39sz1.text === s39sz0.text && s39sz1.blocks === s39sz0.blocks
+  && s39sz1.emptyBlocks === s39sz0.emptyBlocks && s39sz1.codeLines === s39sz0.codeLines && s39sz1.blankLines === s39sz0.blankLines,
+  `(39)* 字号（1.1）：换行中性（<br> ${s39sz0.brs}→${s39sz1.brs}、块 ${s39sz0.blocks}→${s39sz1.blocks}、`
+  + `代码行 ${s39sz0.codeLines}→${s39sz1.codeLines}、空行 ${s39sz0.blankLines}→${s39sz1.blankLines}）`);
+// 落款（走它原来的入口）
+await set39(FIX39);
+await sleep(240);
+await selP39(0);
+const s39sg0 = await snap39();
+await evaluate(`toolboxToolbarAction('sign')`);
+await sleep(420);
+const s39sg1 = await snap39();
+ok(s39sg1.brs === s39sg0.brs && s39sg1.text === s39sg0.text && s39sg1.blocks === s39sg0.blocks
+  && s39sg1.codeLines === s39sg0.codeLines && s39sg1.blankLines === s39sg0.blankLines,
+  `(39)* 落款：换行中性（<br> ${s39sg0.brs}→${s39sg1.brs}、块 ${s39sg0.blocks}→${s39sg1.blocks}、`
+  + `代码行 ${s39sg0.codeLines}→${s39sg1.codeLines}）`);
+// 39b. 结构性必需的第一例：往**空编辑区**插表格 —— 必须出现承载它的块，除此之外不许有多余空块/空行
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p><br></p>';
+  toolboxRefresh(); toolboxUndoReset();
+  const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+await sleep(300);
+const t39a0 = await snap39();
+await clickSel('[data-tb="table"]');
+await sleep(360);
+await clickSel('#tbDialogOk');
+await sleep(520);
+const t39a1 = await snap39();
+ok(/<table/.test(t39a1.code),
+  `(39b) 空编辑区插入表格：表格在（结构必需 —— <table> 必须有一个承载它的位置）`);
+ok(t39a1.emptyBlocks === 0 && t39a1.blankLines === 0,
+  `(39b)* 插入表格后没有空块、也没有空行（空块 ${t39a1.emptyBlocks}、空行 ${t39a1.blankLines}、`
+  + `代码行 ${t39a1.codeLines}）`);
+ok(!/<br/.test(t39a1.code),
+  `(39b)* 插入表格没有在**导出结果**里夹带任何 <br>（导出 ${JSON.stringify(t39a1.code).slice(0, 60)}…；`
+  + `编辑区里那一个 <br> 是插入前就存在的空段落外壳 <p><br></p>，序列化会把它丢掉，所以不算"多出来的换行"）`);
+// 光标回到正文、点「正文」不许动结构
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  const last=ed.lastElementChild; const r=document.createRange(); r.selectNodeContents(last); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+await sleep(200);
+const t39a2 = await snap39();
+await evaluate(`toolboxToolbarAction('body')`);
+await sleep(420);
+const t39a3 = await snap39();
+ok(t39a3.blocks === t39a2.blocks && t39a3.brs === t39a2.brs && t39a3.text === t39a2.text
+  && t39a3.blankLines === t39a2.blankLines,
+  `(39b)* 表格之后回到正文并点「正文」：块/<br>/文字/空行都不变（块 ${t39a2.blocks}→${t39a3.blocks}、`
+  + `br ${t39a2.brs}→${t39a3.brs}、空行 ${t39a2.blankLines}→${t39a3.blankLines}）`);
+// 39c. 结构性必需的第二例：往空编辑区插图片
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p><br></p>';
+  toolboxRefresh(); toolboxUndoReset();
+  const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+await sleep(300);
+await clickSel('[data-tb="image"]');
+await sleep(360);
+await evaluate(`(()=>{const el=document.getElementById('tbF_src'); if(el){el.value='https://example.com/a.jpg';}
+  const c=document.getElementById('tbF_caption'); if(c){c.value='配图说明';} return 1;})()`);
+await clickSel('#tbDialogOk');
+await sleep(560);
+const i39 = await snap39();
+ok(/<img/.test(i39.code),
+  '(39c) 空编辑区插入图片：图片在（结构必需 —— 图片块必须有承载它的位置）');
+ok(i39.blankLines === 0 && i39.emptyBlocks <= 1,
+  `(39c)* 插入图片后没有多余空行（空行 ${i39.blankLines}、空块 ${i39.emptyBlocks}、代码行 ${i39.codeLines}）`);
+// 39d. 单独记录的例外：块里带**真实换行**（<br>）时，浏览器的 justify* 会把这一块拆成按行的 div
+//   —— 这是 execCommand 的既有行为（本轮不许改对齐逻辑），这里如实钉住"它也没有多出空行/空块"。
+await set39('<p>甲<br>乙</p>');
+await sleep(260);
+await selP39(0);
+const j39a = await snap39();
+await evaluate(`toolboxToolbarAction('align-right')`);
+await sleep(460);
+const j39b = await snap39();
+console.log(`  例外（右对齐 + 块内 <br>）：br ${j39a.brs}→${j39b.brs}，块 ${j39a.blocks}→${j39b.blocks}，`
+  + `空行 ${j39a.blankLines}→${j39b.blankLines}，HTML=${JSON.stringify(j39b.html)}`);
+ok(j39b.text === j39a.text && j39b.blankLines === j39a.blankLines && j39b.emptyBlocks === 0,
+  `(39d)* 右对齐把一个含 <br> 的块拆成按行 div（execCommand 既有行为）：文字与"无空行/无空块"不变`
+  + `（文字${j39b.text === j39a.text ? '不变' : '变了'}、空行 ${j39a.blankLines}→${j39b.blankLines}、空块 ${j39b.emptyBlocks}）`);
+
+// ==============================================================
+console.log('\n====== (40) E：粘贴的顶层归一化（裸文本必须被包进块）======\n');
+// 用户实测 bug：「直接粘贴文字，例如粘贴「示例文字」，右侧代码区会直接显示「示例文字」
+//   而不是 <p>示例文字</p>。触发此 bug 后，直接输入也会有这样的 bug。」
+// 根因：粘贴走 toolboxInsertHtml，插进去的是一段没有块级外壳的 HTML；光标在编辑区根上时，
+//   `示例文字` 就成了 #tbEditor 的直系子节点（裸文本），导出照实输出；光标也留在这个裸文本里，
+//   所以**之后打字**同样落在裸文本里。
+// 修法：粘贴那条路（只有它）在插入之后、toolboxUndoPush 之前做一次**顶层归一化**：
+//   把编辑区根下面连续的裸文本/裸行内节点合成一个 <p>（块级节点一个都不碰，
+//   不加 <br>、不删内容 ⇒ textContent 与 <br> 数逐字不变）。换行/分块策略一个字没改。
+const paste40 = (text, htmlToo) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  const dt=new DataTransfer(); dt.setData('text/plain',${JSON.stringify(text)});
+  ${htmlToo ? `dt.setData('text/html',${JSON.stringify(htmlToo)});` : ''}
+  ed.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true})); return 1;})()`);
+// 与 (8) 同款前置：编辑区是 <p><br></p>，光标落在编辑区根上（粘贴最容易暴露 bug 的位置）
+const atRoot40 = () => evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p><br></p>';
+  toolboxRefresh(); toolboxUndoReset();
+  const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+const bare40 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  let bare=0;
+  for (const n of ed.childNodes) { if(n.nodeType===3 && String(n.nodeValue||'').replace(/[\\s\\u00a0\\u200b]+/g,'').length) bare++; }
+  return JSON.stringify({ bareTopText:bare });})()`);
+const shot40 = () => json(`(()=>{const ed=document.getElementById('tbEditor'); const code=document.getElementById('tbCode').value;
+  const blocks=[...ed.children];
+  // ★ 根级 <br> 是用户留的空行（块与块之间那一行），不是"空块"
+  const emptyBlocks=blocks.filter(function(b){return b.tagName!=='BR' && !String(b.textContent||'').replace(/[\\s\\u00a0\\u200b]+/g,'').length
+    && !b.querySelector('img,table,hr,video,br');}).length;
+  return JSON.stringify({ html:ed.innerHTML, code:code, text:ed.textContent,
+    brs:ed.querySelectorAll('br').length, top:ed.children.length, emptyBlocks:emptyBlocks,
+    blankLines:(code.match(/\\n[ \\t]*\\n/g)||[]).length });})()`);
+// 40a. 空编辑区粘纯文本
+await atRoot40();
+await sleep(280);
+await paste40('示例文字');
+await sleep(560);
+const p40a = await shot40();
+const b40a = await bare40();
+ok(p40a.code === '<p>示例文字</p>',
+  `(40)* 空编辑区粘「示例文字」→ 代码区就是 <p>示例文字</p>（实际 ${JSON.stringify(p40a.code)}）`);
+ok(b40a.bareTopText === 0 && p40a.top === 1,
+  `(40)* 编辑区根下面不再有裸文本节点（裸文本 ${b40a.bareTopText} 个、顶层块 ${p40a.top} 个）`);
+ok(p40a.brs === 0 && p40a.text === '示例文字',
+  `(40)* <br> 0 个、textContent 就是「示例文字」（br ${p40a.brs}、文字 ${JSON.stringify(p40a.text)}）`);
+// 40b. 紧接着打字 —— 仍在这一个块里
+await send('Input.insertText', { text: '更多' });
+await sleep(420);
+const p40b = await shot40();
+const b40b = await bare40();
+ok(p40b.code === '<p>示例文字更多</p>' && p40b.top === 1 && p40b.brs === 0 && b40b.bareTopText === 0,
+  `(40)* 紧接其后打字「更多」→ 仍是一个块 <p>示例文字更多</p>（实际 ${JSON.stringify(p40b.code)}）`);
+// 40c. 在已有块的中间粘贴 —— 留在该块内，不新增块、不多空行
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p>甲丙</p>';
+  toolboxRefresh(); toolboxUndoReset();
+  const t=ed.querySelector('p').firstChild; const r=document.createRange(); r.setStart(t,1); r.collapse(true);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+await sleep(280);
+await paste40('乙');
+await sleep(560);
+const p40c = await shot40();
+ok(p40c.code === '<p>甲乙丙</p>' && p40c.top === 1 && p40c.brs === 0 && p40c.blankLines === 0,
+  `(40)* 段中间粘贴留在该块内：<p>甲乙丙</p>（实际 ${JSON.stringify(p40c.code)}，块 ${p40c.top}、空行 ${p40c.blankLines}）`);
+// 40d. 多行纯文本 —— 行间仍是 <br>，整段进同一个块（本轮起代码区"一个块一行"）
+await atRoot40();
+await sleep(280);
+await paste40('文字\n文字2');
+await sleep(560);
+const p40d = await shot40();
+const b40d = await bare40();
+ok(p40d.code === '<p>文字<br>文字2</p>'
+  && p40d.text === '文字文字2' && p40d.brs === 1 && b40d.bareTopText === 0,
+  `(40)* 多行纯文本：段内单个换行仍是 <br>，整段进同一个 <p>（实际 ${JSON.stringify(p40d.code)}）`);
+// 40e. 多段（≥3 行）与含空行
+await atRoot40();
+await sleep(280);
+await paste40('甲\n乙\n丙');
+await sleep(560);
+const p40e = await shot40();
+ok(p40e.code === '<p>甲<br>乙<br>丙</p>' && p40e.text === '甲乙丙' && p40e.emptyBlocks === 0,
+  `(40)* 三段纯文本：一个块里两个 <br>、无多余空块（实际 ${JSON.stringify(p40e.code)}）`);
+await atRoot40();
+await sleep(280);
+await paste40('甲\n\n乙');
+await sleep(560);
+const p40f = await shot40();
+// ★ 本轮口径（用户定的"粘贴与手敲一致"）：粘贴里的**空行 = 一个独立成行的 <br>** ——
+//   与手敲「甲 ⏎⏎ 乙」得到的代码逐字相同；不再是老策略那种"段内两个 <br>"。
+ok(p40f.code === '<p>甲</p>\n<br>\n<p>乙</p>' && p40f.text === '甲乙'
+  && p40f.emptyBlocks === 0 && p40f.brs === 1,
+  `(40)* 含空行的两段：空行 = 独立成行的 <br>（与手敲一致），没有多余空块（实际 ${JSON.stringify(p40f.code)}）`);
+// 40f. 富文本粘贴：清洗行为不变（纯文本、不自动转表格），且顶层不留裸文本
+await atRoot40();
+await sleep(280);
+await paste40('文字\n文字2', '<p>文字</p><table><tr><td>格子</td></tr></table><p>文字2</p>');
+await sleep(560);
+const p40g = await shot40();
+const b40g = await bare40();
+ok(!/<table/.test(p40g.code) && /文字[\s\S]*文字2/.test(p40g.code) && b40g.bareTopText === 0 && p40g.top === 1,
+  `(40)* 富文本粘贴：仍然只取纯文本、不自动转表格，且顶层不留裸文本（实际 ${JSON.stringify(p40g.code)}）`);
+// 40g. 粘贴后 Ctrl+Z：HTML 回到粘贴前，光标不跳文首
+await atRoot40();
+await sleep(280);
+const u40a = await shot40();
+await paste40('示例文字');
+await sleep(560);
+const u40b = await shot40();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await sleep(560);
+const u40c = await shot40();
+const caret40 = await json(`(()=>{const ed=document.getElementById('tbEditor'); const s=getSelection();
+  return JSON.stringify({ inEditor: !!(s.rangeCount && ed.contains(s.getRangeAt(0).startContainer)) });})()`);
+ok(u40b.code !== u40a.code && u40c.code === u40a.code,
+  `(40)* 粘贴后 Ctrl+Z 回到粘贴前（${JSON.stringify(u40b.code)} → ${JSON.stringify(u40c.code)}）`);
+ok(caret40.inEditor === true,
+  '(40)* 撤回之后光标仍在编辑区里（没有跳到文首/丢焦点）');
+// 40h. 全流程无多余空块/空行（与 D 项共用判据）
+ok(p40a.emptyBlocks === 0 && p40d.emptyBlocks === 0 && p40e.emptyBlocks === 0 && p40g.emptyBlocks === 0
+  && p40a.blankLines === 0 && p40d.blankLines === 0 && p40e.blankLines === 0 && p40g.blankLines === 0,
+  '(40)* 全流程没有多出任何空块或空行（包块只产生"结构必需"的那一个块）');
+
+// ==============================================================
+console.log('\n====== (41) F：代码区行号栏（gutter，只标逻辑行、对齐实测）======\n');
+// 用户需求：「右侧代码区最好标注一下行数序号」。
+// 关键坑：代码区 wrap="soft"，长逻辑行会折成多行视觉行 ⇒ 序号只标**逻辑行**的行首，
+//   折行续行留空；序号高度按每个逻辑行折行后的**实际像素**排（高度取自同排版的隐藏测量层
+//   #tbCodeMeasure，逐行 div 的 getBoundingClientRect）。
+// 红线：五个滚动/高亮函数一行未改；行号栏不参与任何取值路径（复制/下载只读 #tbCode.value）。
+const gutterSet = (v) => evaluate(`(()=>{const t=document.getElementById('tbCode');
+  t.value=${JSON.stringify(v)}; t.dispatchEvent(new Event('input',{bubbles:true})); return 1;})()`);
+const gutterShot = () => json(`(()=>{const t=document.getElementById('tbCode');
+  const g=document.getElementById('tbCodeGutter'); const inner=document.getElementById('tbCodeGutterInner');
+  const rows=[...inner.children];
+  const tc=getComputedStyle(t);
+  const codeTop=t.getBoundingClientRect().top+parseFloat(tc.paddingTop);
+  return JSON.stringify({ exists:!!g, rows:rows.length,
+    nums:rows.map(function(r){return r.textContent;}),
+    heights:rows.map(function(r){return Math.round(r.getBoundingClientRect().height*100)/100;}),
+    firstNumTop: rows.length? Math.round(rows[0].getBoundingClientRect().top*100)/100 : null,
+    codeTop: Math.round(codeTop*100)/100, lineHeight: Math.round((parseFloat(tc.lineHeight)||0)*100)/100,
+    scrollTop:t.scrollTop, scrollHeight:t.scrollHeight, clientHeight:t.clientHeight,
+    aria:g?g.getAttribute('aria-hidden'):null, userSelect:g?getComputedStyle(g).userSelect:null,
+    pointer:g?getComputedStyle(g).pointerEvents:null, wrap:t.getAttribute('wrap'),
+    measRows:(document.getElementById('tbCodeMeasure')||{children:[]}).children.length,
+    tf: inner.style.transform || '', value:t.value,
+    gutterText: g?g.textContent:'' });})()`);
+// 41a. 多行（含空行）：序号个数 == 逻辑行数
+const G41A = ['<p>一</p>', '<p>二</p>', '', '<p>三</p>', '', '<p>四</p>'].join('\n');
+await gutterSet(G41A);
+await sleep(760);
+const g41a = await gutterShot();
+ok(g41a.exists === true && g41a.rows === 6,
+  `(41)* 6 个逻辑行（含 2 个空行）→ 6 个序号（实际 ${g41a.rows}）`);
+ok(g41a.nums[0] === '1' && g41a.nums[5] === '6',
+  `(41)* 序号从 1 连续排到 6（${JSON.stringify(g41a.nums)}）`);
+ok(g41a.measRows === 6,
+  `(41)* 测量层与逻辑行一一对应（${g41a.measRows} 行）`);
+// 41b. 首个序号与第一行顶边对齐（容差 1px）、行高一致
+ok(g41a.firstNumTop !== null && Math.abs(g41a.firstNumTop - g41a.codeTop) <= 1,
+  `(41)* 第 1 个序号的顶边与代码区第 1 行顶边对齐（序号 ${g41a.firstNumTop} vs 代码 ${g41a.codeTop}，容差 1px）`);
+ok(Math.abs(g41a.heights[0] - g41a.lineHeight) <= 0.6,
+  `(41)* 普通逻辑行的行高与代码区一致（序号行 ${g41a.heights[0]} vs 行高 ${g41a.lineHeight}）`);
+// 41c. 长行折行：序号个数仍 == 逻辑行数，续行没有多余编号，且这一行占的高度 = 折行后的实际高度
+const LONG41 = 'x'.repeat(300);
+const G41C = ['<p>短一</p>', '<p>' + LONG41 + '</p>', '<p>短二</p>'].join('\n');
+await gutterSet(G41C);
+await sleep(760);
+const g41c = await gutterShot();
+ok(g41c.rows === 3 && g41c.nums.length === 3,
+  `(41)* 长行折行后仍是 3 个序号（逻辑行数），续行没有多余编号（${JSON.stringify(g41c.nums)}）`);
+ok(g41c.heights[1] > g41c.lineHeight * 2,
+  `(41)* 折行那一行在行号栏里占"折行后的实际高度"（${g41c.heights[1]}px > 2×行高 ${g41c.lineHeight}）`);
+ok(Math.abs(g41c.heights[0] - g41a.heights[0]) <= 0.01,
+  '(41)* 折行只影响它自己那一行的高度，别的逻辑行行高不变');
+// 41d. 滚动同步：用 scrollTop / 视觉位置这类可量化方式断言
+const G41D = [];
+for (let i = 1; i <= 60; i++) G41D.push('<p>第' + i + '行内容</p>');
+await gutterSet(G41D.join('\n'));
+await sleep(820);
+const g41d0 = await gutterShot();
+const delta41 = () => json(`(()=>{const t=document.getElementById('tbCode');
+  const m=document.getElementById('tbCodeMeasure'); const inner=document.getElementById('tbCodeGutterInner');
+  const i=5; const mr=m.children[i].getBoundingClientRect(); const gr=inner.children[i].getBoundingClientRect();
+  // ★ 测量层不是滚动容器（overflow 由 textarea 自己管），所以它的 y 要减去 textarea 的 scrollTop
+  //   才是"这一行此刻在屏幕上的位置"；行号栏整体 translateY(-scrollTop)，两者一减差值应恒为 0。
+  return JSON.stringify({ delta: Math.round((mr.top-t.scrollTop-gr.top)*100)/100, scrollTop:t.scrollTop,
+    tf: inner.style.transform || '' });})()`);
+const d41a = await delta41();
+await evaluate(`(()=>{const t=document.getElementById('tbCode'); t.scrollTop=160;
+  t.dispatchEvent(new Event('scroll')); return t.scrollTop;})()`);
+await sleep(260);
+const d41b = await delta41();
+const g41d1 = await gutterShot();
+ok(g41d0.scrollHeight > g41d0.clientHeight,
+  `(41) 60 行的代码区确实能滚（scrollHeight ${g41d0.scrollHeight} > clientHeight ${g41d0.clientHeight}）`);
+ok(d41b.scrollTop >= 100,
+  `(41)* 真的滚动了（scrollTop ${d41a.scrollTop} → ${d41b.scrollTop}）`);
+ok(Math.abs(d41a.delta - d41b.delta) <= 0.75,
+  `(41)* 滚动前后"第 6 行文字顶边 − 第 6 个序号顶边"的差值不变（${d41a.delta} → ${d41b.delta}）`);
+ok(/translateY\(-1[0-9]{2}/.test(String(d41b.tf)) || d41b.tf.indexOf('translateY') === 0,
+  `(41)* 行号栏跟着滚（transform=${JSON.stringify(d41b.tf)}）`);
+ok(g41d1.rows === 60,
+  `(41)* 滚动不改变序号个数（${g41d1.rows}）`);
+// 41e. 尺寸变化（全屏/还原）后重新对齐
+const align41 = () => json(`(()=>{const t=document.getElementById('tbCode'); const inner=document.getElementById('tbCodeGutterInner');
+  const tc=getComputedStyle(t);
+  // 代码区第 1 行此刻的屏幕位置 = 内容区顶边 − scrollTop（上面滚动用例把 scrollTop 留在了 160）
+  const codeTop=t.getBoundingClientRect().top+parseFloat(tc.paddingTop)-t.scrollTop;
+  const num=inner.children[0]?inner.children[0].getBoundingClientRect().top:null;
+  return JSON.stringify({ codeTop:Math.round(codeTop*100)/100, num:num===null?null:Math.round(num*100)/100,
+    scrollTop:t.scrollTop, rows:inner.children.length });})()`);
+const a41a = await align41();
+await evaluate(`toolboxWinToggleFull()`);
+await sleep(700);
+const a41b = await align41();
+ok(a41b.rows === 60 && a41b.num !== null && Math.abs(a41b.num - a41b.codeTop) <= 1,
+  `(41)* 全屏之后仍然对齐（序号 ${a41b.num} vs 代码 ${a41b.codeTop}，容差 1px）`);
+await evaluate(`toolboxWinToggleFull()`);
+await sleep(700);
+const a41c = await align41();
+ok(a41c.rows === 60 && Math.abs(a41c.num - a41c.codeTop) <= 1,
+  `(41)* 退出全屏之后仍然对齐（序号 ${a41c.num} vs 代码 ${a41c.codeTop}）`);
+// 41f. 高亮镜像层与新加的测量层左边界一致（证明"行号栏没有把高亮挤歪"）
+const mirror41 = await json(`(()=>{const t=document.getElementById('tbCode'); const h=document.getElementById('tbCodeHl');
+  const tc=getComputedStyle(t), hc=getComputedStyle(h);
+  return JSON.stringify({ codeContentLeft: Math.round((t.getBoundingClientRect().left+parseFloat(tc.paddingLeft))*100)/100,
+    hlContentLeft: Math.round((h.getBoundingClientRect().left+parseFloat(hc.paddingLeft))*100)/100,
+    hlZ:getComputedStyle(h).zIndex });})()`);
+ok(Math.abs(mirror41.codeContentLeft - mirror41.hlContentLeft) <= 1,
+  `(41)* 高亮镜像层与代码区的内容左边界仍然重合（镜像 ${mirror41.hlContentLeft} vs 代码 ${mirror41.codeContentLeft}）`);
+// 41g. 复制 / 下载内容与 #tbCode.value 逐字一致、不含行号
+await evaluate(`(()=>{window.__tbClip=null;
+  try{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:function(x){window.__tbClip=x;return Promise.resolve();}}});}catch(e){}
+  window.__tbBlob=null;
+  const orig=URL.createObjectURL;
+  URL.createObjectURL=function(b){window.__tbBlob=b;return orig.call(URL,b);};
+  return 1;})()`);
+await evaluate(`toolboxCopyHtml()`);
+await sleep(360);
+await clickSel('[data-tb="download"]');
+await sleep(420);
+const pure41 = await json(`(async ()=>{const v=document.getElementById('tbCode').value;
+  let blobText=null;
+  try { blobText = window.__tbBlob ? await window.__tbBlob.text() : null; } catch(e) { blobText='ERR'; }
+  return JSON.stringify({ value:v, clip:window.__tbClip, blob:blobText,
+    clipSame: window.__tbClip===v, blobSame: blobText===v,
+    hasNumPrefix: /^\\s*\\d+\\s*\\n/.test(String(window.__tbClip||'')), gutterText:document.getElementById('tbCodeGutter').textContent });})()`);
+ok(pure41.clipSame === true,
+  '(41)* 复制出来的内容与 #tbCode.value 逐字一致（不含行号）');
+ok(pure41.blobSame === true,
+  '(41)* 下载出来的内容与 #tbCode.value 逐字一致（不含行号）');
+ok(pure41.hasNumPrefix === false && pure41.gutterText.length > 0,
+  `(41)* 行号只存在于独立的行号栏里（行号栏文字 ${JSON.stringify(pure41.gutterText.slice(0, 12))}…），`
+  + '没有任何取值路径会读到它');
+// 41h. 空内容时显示 1
+await gutterSet('');
+await sleep(760);
+const g41h = await gutterShot();
+ok(g41h.rows === 1 && g41h.nums[0] === '1',
+  `(41)* 空内容时行号栏显示 1（${JSON.stringify(g41h.nums)}）`);
+// 41i. 反向断言：代码区自身的属性一个字没动
+ok(g41h.wrap === 'soft' && g41h.aria === 'true' && g41h.userSelect === 'none' && g41h.pointer === 'none',
+  `(41)* 行号栏是纯显示层（aria-hidden=${g41h.aria}、user-select:${g41h.userSelect}、`
+  + `pointer-events:${g41h.pointer}），代码区 wrap="${g41h.wrap}" 没动`);
+
+// ==============================================================
+console.log('\n====== (42) G：Enter=段落分界 / Shift+Enter=段内分行（两类 <br> 绝不互换）/ 空行↔段落动态互转 ======\n');
+// 用户口径（最终版，2024 更正后）：
+//   · 一段 = 一个 <p>；
+//   · **Enter** = **段落分界**：结束当前 <p>、新建一个 <p>、光标进新段
+//     （例：甲 ⏎ 乙 → `<p>甲</p>` + `<p>乙</p>`）；
+//   · **Shift+Enter** = **段内分行**：当前 <p> 内插一根 <br>，光标到它后面那一行
+//     （例：甲 ⇧⏎ 乙 → `<p>甲<br>乙</p>`，仍是**同一个** <p>）；
+//   · **连按两次 Enter** = 中间那个空段落升格成一根**独立成行的 <br>**（空行）
+//     （例：甲 ⏎ ⏎ 乙 → `<p>甲</p>` / `<br>` / `<p>乙</p>`）；
+//   · 在空行上打字 → 那根 <br> 就地变成 <p>；把某段的字删光 → 那个 <p> 变回独立 <br>；
+//   · **两类 <br> 绝不互换**：`<p>` 内部的 <br>（段内）永远留在这一段里、序列化时与所在
+//     <p> **同一行**；与块同级的 <br>（段间空行）永远独占一行。导出→导入→导出逐字节幂等。
+//   · 编辑区根下永远没有裸文本/裸行内节点；编辑区彻底空时仍导出空内容（不凭空造 <br>/<p>）。
+const gSet42 = (html) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML=${JSON.stringify(html)}; toolboxNormalizeEditorWhitespace(ed); toolboxRefresh(); toolboxUndoReset();
+  toolboxSnapClear(); toolboxRange=null;
+  const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSaveRange(); return 1;})()`);
+const gCaretEnd42 = (sel) => evaluate(`(()=>{const ed=document.getElementById('tbEditor'); const b=ed.querySelector(${JSON.stringify(sel)});
+  if(!b) return 0; const r=document.createRange(); r.selectNodeContents(b); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const gType42 = async (t) => { await send('Input.insertText', { text: t }); await sleep(430); };
+// 真实按键：Enter（mods=0）/ Shift+Enter（mods=8）
+const gEnter42 = async (mods) => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter',
+    windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods || 0, text: '\r' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter',
+    windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods || 0 });
+  await sleep(430);
+};
+const gBack42 = async () => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  await sleep(430);
+};
+const gUndo42 = async () => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+  await sleep(560);
+};
+const gShot42 = () => json(`(()=>{const ed=document.getElementById('tbEditor'); const code=document.getElementById('tbCode').value;
+  const BARE=/^(P|DIV|CENTER|TABLE|UL|OL|H1|H2|H3|H4|H5|H6|BLOCKQUOTE|PRE|HR|VIDEO|IMG|BR)$/;
+  const kids=[...ed.childNodes];
+  const bare=kids.filter(function(c){
+    if(c.nodeType===3) return !!String(c.nodeValue||'').replace(/[\\s\\u00a0\\u200b]+/g,'').length;
+    if(c.nodeType!==1) return false;
+    return !BARE.test(c.tagName); }).length;
+  const blocks=[...ed.children].filter(function(c){return c.tagName!=='BR';});
+  const lines=code.split('\\n').filter(function(x){return x.trim();});
+  const lh=parseFloat(getComputedStyle(ed).lineHeight)||0;
+  // 光标落脚点 = 一根带标记的 <br>（data-tb-caret）：它给"块尾那根 <br>"撑出行盒。
+  const holder=ed.querySelector('[data-tb-caret]');
+  const s=getSelection(); const lint=toolboxLint(code);
+  const first=blocks[0];
+  return JSON.stringify({ html:ed.innerHTML, code:code, text:ed.textContent,
+    brs:ed.querySelectorAll('br').length, blocks:blocks.length, lines:lines.length,
+    marks:ed.querySelectorAll('br[data-tb-caret]').length,
+    blanks:lines.filter(function(x){return /^<br\\s*\\/?>$/.test(x.trim());}).length,
+    bare:bare, lh:Math.round(lh*100)/100, holder:!!holder,
+    // 第一个块**实际渲染了几行**（换行是否真的看得见，用行盒高度算）
+    firstLines:first?Math.round(first.getBoundingClientRect().height/lh*100)/100:null,
+    caretInEditor:!!(s.rangeCount&&ed.contains(s.getRangeAt(0).startContainer)),
+    caretParent:(function(){try{const n=s.getRangeAt(0).startContainer;
+      return (n.nodeType===3?(n.parentNode?n.parentNode.tagName:'?'):n.tagName)+'@'+s.getRangeAt(0).startOffset;}catch(e){return '';}})(),
+    tops:blocks.map(function(b){return Math.round(b.getBoundingClientRect().top);}),
+    onePerLine:lines.every(function(l){return (l.match(/<(p|center|div|table|ul|ol|blockquote|h[1-6])\\b/g)||[]).length<=1;}),
+    twoOnOneLine:/<\\/(p|center|div|blockquote|h[1-6])>[ \\t]*<(p|center|div|blockquote|table|ul|ol|h[1-6])\\b/.test(code),
+    ps:(code.match(/<p\\b/g)||[]).length,
+    e:lint.errors.length, w:lint.warnings.length });})()`);
+const gRT42 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  // "正文文字"：把所有文本节点串起来，但跳过图片占位壳自带的那块文件名标签
+  // （<span class="tb-imgph-name">xxx.jpg</span>，contenteditable=false + aria-hidden，
+  //  是占位壳的显示部件、不是用户内容；它不参与"往返掉不掉字"的判定）
+  const ctext=function(){ let s=''; const w=document.createTreeWalker(ed, NodeFilter.SHOW_TEXT, null); let n;
+    while((n=w.nextNode())){ const p=n.parentNode;
+      if(p&&p.closest&&p.closest('.tb-imgph-name')) continue; s+=n.nodeValue||''; } return s; };
+  const t0=ctext(); const raw0=ed.textContent;
+  const c1=toolboxCodeText(); toolboxApplyCodeToEditor(c1,true); const c2=toolboxCodeText();
+  const lint=toolboxLint(c2);
+  return JSON.stringify({ c1:c1, c2:c2, same:(c1===c2), t0:raw0, text:ed.textContent,
+    sameText:(t0===ctext()), e:lint.errors.length, w:lint.warnings.length });})()`);
+
+// —— 42a **Shift+Enter** = 段内分行：同一个 <p> 里一根 <br>、编辑区立刻多出一行、<br> 稳定 ——
+await resetEditor();
+await gSet42('<p>哈哈哈</p>');
+await gCaretEnd42('p');
+await sleep(200);
+const g0 = await gShot42();
+await gEnter42(8);                       // Shift+Enter
+const g1 = await gShot42();
+ok(g1.code === '<p>哈哈哈<br></p>',
+  `(42)* Shift+Enter（段内分行）：代码区逐字等于 <p>哈哈哈<br></p>（实际 ${JSON.stringify(g1.code)}）`);
+ok(g1.brs === g0.brs + 2 && g1.text === g0.text && g1.blocks === g0.blocks && g1.ps === 1,
+  `(42)* 段内分行只加"软换行 + 落脚"两根 <br>：textContent 一个字符没多、块数不变、仍只有一个 <p>`
+  + `（${JSON.stringify(g1.text)} / 块 ${g1.blocks} / 代码里 <p> ${g1.ps}）`);
+ok(g1.firstLines === 2 && g0.firstLines === 1,
+  `(42)* 编辑区**立刻**看得见一个换行：那一段从 1 行变成 2 行（行盒高/行高 ${g0.firstLines} → ${g1.firstLines}）`);
+await gType42('新内容');
+const g2 = await gShot42();
+ok(g2.code === '<p>哈哈哈<br>新内容</p>' && g2.brs === 1 && g2.blocks === 1 && g2.marks === 0,
+  `(42)* 接着打字：这个 <br> 还在、新字接在它后面，落脚标记被收拾干净（实际 ${JSON.stringify(g2.code)}）`);
+ok(g2.bare === 0, '(42)* 打完字之后编辑区根下仍然没有裸文本/裸行内节点');
+
+// —— 42a2 **Enter** = 段落分界：新建一个 <p>（不再是段内 <br>）——
+await resetEditor();
+await gSet42('<p>哈哈哈</p>');
+await gCaretEnd42('p');
+await sleep(200);
+const ge0 = await gShot42();
+await gEnter42(0);                       // Enter
+const ge1 = await gShot42();
+ok(ge1.blocks === ge0.blocks + 1 && ge1.text === ge0.text && ge1.marks === 0,
+  `(42)* Enter=段落分界：块数 ${ge0.blocks}→${ge1.blocks}、textContent 一个字符没多（${JSON.stringify(ge1.text)}）`);
+ok(ge1.code === '<p>哈哈哈</p>',
+  `(42)* Enter 之后代码区只有第一段（空落脚段不算内容，实际 ${JSON.stringify(ge1.code)}）`);
+ok(ge1.caretInEditor === true && /^P@0$/.test(ge1.caretParent),
+  `(42)* Enter 之后光标在新段开头 P@0（与浏览器原生 Enter 的位置一致，实际 ${ge1.caretParent}）`);
+await gType42('新内容');
+const ge2 = await gShot42();
+ok(ge2.code === '<p>哈哈哈</p>\n<p>新内容</p>' && ge2.ps === 2,
+  `(42)* 甲 ⏎ 乙 ⇒ 两个相邻段落（实际 ${JSON.stringify(ge2.code)}）`);
+ok(ge2.bare === 0 && ge2.e === 0 && ge2.w === 0,
+  `(42)* 段落分界后根下无裸节点、校验 0 错 0 警（${ge2.e}e${ge2.w}w）`);
+
+// —— 42b 两次 Enter：段落分界 + 独立成行的 <br>（空行）+ 光标落到下面的新段 ——
+await resetEditor();
+await gSet42('<p>哈哈哈</p>');
+await gCaretEnd42('p');
+await sleep(200);
+await gEnter42(0);
+await gEnter42(0);
+const g3 = await gShot42();
+ok(g3.code === '<p>哈哈哈</p>\n<br>',
+  `(42)* 两次 Enter：段落分界 + 一个**独立成行**的 <br>（实际 ${JSON.stringify(g3.code)}）`);
+ok(g3.blocks === 2 && g3.brs === 2 && g3.bare === 0,
+  `(42)* 编辑区里是「一段 + 一根空行 <br> + 新落脚段」、根下无裸节点（块 ${g3.blocks} br ${g3.brs} 裸 ${g3.bare}）`);
+ok(g3.tops.length === 2 && (g3.tops[1] - g3.tops[0]) > g3.lh * 1.6,
+  `(42)* 编辑区肉眼可见一个空行：新段被顶下两行（新段顶边 ${g3.tops[1]} − 首段顶边 ${g3.tops[0]} > 1.6×行高 ${g3.lh}）`);
+ok(g3.caretInEditor === true, '(42)* 两次 Enter 之后光标还在编辑区里（在新段里）');
+await gType42('新内容');
+const g4 = await gShot42();
+ok(g4.code === '<p>哈哈哈</p>\n<br>\n<p>新内容</p>',
+  `(42)* 空行下面打字：空行仍是独立 <br>，新内容自成一段（实际 ${JSON.stringify(g4.code)}）`);
+ok(g4.text === '哈哈哈新内容' && g4.bare === 0,
+  `(42)* textContent 逐字等于用户输入、根下无裸节点（${JSON.stringify(g4.text)}）`);
+ok(g4.e === 0 && g4.w === 0,
+  `(42)* 含独立 <br> 的内容 校验 0 错 0 警（${g4.e}e${g4.w}w）`);
+const g4rt = await gRT42();
+ok(g4rt.same === true && g4rt.c1 === g4.code,
+  `(42)* 导出→导入→再导出 逐字节幂等（${JSON.stringify(g4rt.c1)} → ${JSON.stringify(g4rt.c2)}）`);
+ok(g4rt.e === 0 && g4rt.w === 0 && g4rt.text === '哈哈哈新内容',
+  `(42)* 往返之后校验仍 0 错 0 警、文字逐字不变（${g4rt.e}e${g4rt.w}w / ${JSON.stringify(g4rt.text)}）`);
+
+// —— 42b2 段内分行之后再 Enter：段内那根 <br> **留在原段**，绝不被提升成段落之间 ——
+await resetEditor();
+await gSet42('<p>哈哈哈</p>');
+await gCaretEnd42('p');
+await sleep(200);
+await gEnter42(8);                       // Shift+Enter：段内一根 <br>
+await gEnter42(0);                       // Enter：段落分界
+const gm1 = await gShot42();
+ok(gm1.code === '<p>哈哈哈<br></p>' && gm1.ps === 1,
+  `(42)* 段内 <br> + Enter：那根 <br> 仍**留在段内**（代码 ${JSON.stringify(gm1.code)}）`);
+await gType42('新内容');
+const gm2 = await gShot42();
+ok(gm2.code === '<p>哈哈哈<br></p>\n<p>新内容</p>' && gm2.blanks === 0,
+  `(42)* 新内容自成一段，段内 <br> 没有被变成"段落之间的空行"（实际 ${JSON.stringify(gm2.code)} / DOM ${JSON.stringify(gm2.html)}）`);
+
+// —— 42c 空行上打字 → <br> 就地变 <p>；删空 → 变回 <br>（可逆）——
+const gBlankXY = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const ps=[...ed.children].filter(function(c){return c.tagName==='P';});
+  const a=ps[0].getBoundingClientRect(), b=ps[1].getBoundingClientRect();
+  return JSON.stringify({ x:Math.round(a.left+30), y:Math.round((a.bottom+b.top)/2) });})()`);
+await resetEditor();
+await gSet42('<p>甲</p><br><p>乙</p>');
+await sleep(220);
+const gy = await gBlankXY();
+await clickAt(gy.x, gy.y);
+await sleep(320);
+const g5 = await gShot42();
+ok(g5.code === '<p>甲</p>\n<br>\n<p>乙</p>' && g5.bare === 0,
+  `(42)* （前置）点空行：空行还在、根下无裸节点（实际 ${JSON.stringify(g5.code)}）`);
+await gType42('X');
+const g6 = await gShot42();
+ok(g6.code === '<p>甲</p>\n<p>X</p>\n<p>乙</p>' && g6.brs === 0 && g6.blocks === 3 && g6.text === '甲X乙',
+  `(42)* 在空行上打字：那根 <br> 消失、就地长出一个 <p>（实际 ${JSON.stringify(g6.code)}）`);
+await gType42('Y');
+const g7 = await gShot42();
+ok(g7.code === '<p>甲</p>\n<p>XY</p>\n<p>乙</p>',
+  `(42)* 继续打字仍在同一个新段里（实际 ${JSON.stringify(g7.code)}）`);
+await gBack42();
+await gBack42();
+const g8 = await gShot42();
+ok(g8.code === '<p>甲</p>\n<br>\n<p>乙</p>' && g8.text === '甲乙' && g8.blocks === 2,
+  `(42)* 把这段的字逐字删空：<p> 变回**独立成行的 <br>**（实际 ${JSON.stringify(g8.code)}）`);
+ok(g8.tops.length === 2 && (g8.tops[1] - g8.tops[0]) > g8.lh * 1.6 && g8.bare === 0,
+  `(42)* 变回空行之后编辑区仍可见一个空行、根下无裸节点（新段顶边差 ${g8.tops[1] - g8.tops[0]} > 1.6×行高 ${g8.lh}）`);
+await gType42('Z');
+const g9 = await gShot42();
+ok(g9.code === '<p>甲</p>\n<p>Z</p>\n<p>乙</p>',
+  `(42)* 空行上再打字又能长成 <p>（空行 ↔ 段落完全可逆，实际 ${JSON.stringify(g9.code)}）`);
+const g9rt = await gRT42();
+ok(g9rt.same === true && g9rt.e === 0 && g9rt.w === 0,
+  `(42)* 这个状态往返逐字节幂等、校验 0/0（${JSON.stringify(g9rt.c1)}）`);
+
+// —— 42d 多个连续空行：剩几根还是几根，位置不变 ——
+await resetEditor();
+await gSet42('<p>甲</p>');
+await gCaretEnd42('p');
+await sleep(200);
+await pressEnter35();
+await pressEnter35();
+await pressEnter35();
+const g10 = await gShot42();
+ok(g10.code === '<p>甲</p>\n<br>\n<br>',
+  `(42)* 连按三次 Enter：两个**独立成行**的 <br>（空行 2 个，实际 ${JSON.stringify(g10.code)}）`);
+await gType42('乙');
+const g11 = await gShot42();
+ok(g11.code === '<p>甲</p>\n<br>\n<br>\n<p>乙</p>' && g11.blanks === 2,
+  `(42)* 两个空行 + 新段并存（实际 ${JSON.stringify(g11.code)} / DOM ${JSON.stringify(g11.html)}）`);
+// 点**第一个**空行（首段正下方半行处）再打字：只吃一根 <br>，剩下一根位置不变
+const gFirstBlank = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const p=ed.querySelector('p'); const a=p.getBoundingClientRect();
+  const lh=parseFloat(getComputedStyle(ed).lineHeight)||0;
+  return JSON.stringify({ x:Math.round(a.left+30), y:Math.round(a.bottom+lh*0.5) });})()`);
+const gfb = await gFirstBlank();
+await clickAt(gfb.x, gfb.y);
+await sleep(320);
+await gType42('X');
+const g12 = await gShot42();
+ok(g12.code === '<p>甲</p>\n<p>X</p>\n<br>\n<p>乙</p>' && g12.blanks === 1,
+  `(42)* 在第一个空行上打字：只吃一根 <br>，剩余空行数与顺序不变（实际 ${JSON.stringify(g12.code)} / DOM ${JSON.stringify(g12.html)}）`);
+await gBack42();
+const g13 = await gShot42();
+ok(g13.code === '<p>甲</p>\n<br>\n<br>\n<p>乙</p>' && g13.blanks === 2,
+  `(42)* 把「X」删掉：又回到两根独立 <br>（实际 ${JSON.stringify(g13.code)} / DOM ${JSON.stringify(g13.html)}）`);
+
+// —— 42e 撤回：<br>→<p> 与 <p>→<br> 都要能撤回，且光标不跳文首 ——
+await resetEditor();
+await gSet42('<p>甲</p><br><p>乙</p>');
+await sleep(220);
+const gy2 = await gBlankXY();
+await clickAt(gy2.x, gy2.y);
+await sleep(320);
+const gu0 = await gShot42();
+await gType42('X');
+const gu1 = await gShot42();
+await gUndo42();
+const gu2 = await gShot42();
+ok(gu1.code !== gu0.code && gu2.code === gu0.code && gu2.text === '甲乙',
+  `(42)* 空行→<p> 这一步能撤回：代码回到空行形态（${JSON.stringify(gu1.code)} → ${JSON.stringify(gu2.code)}）`);
+ok(gu2.caretInEditor === true, '(42)* 撤回之后光标仍在编辑区里（没有跳到文首/丢焦点）');
+
+// —— 42f 与"编辑区彻底空"区分：什么都没写 → 导出仍是空内容 ——
+await gSet42('<p><br></p>');       // 刚打开编辑区时的样子（空段落壳）
+await sleep(560);
+const gEmpty0 = await gShot42();
+ok(gEmpty0.code === '' && gEmpty0.lines === 0 && gEmpty0.ps === 0 && gEmpty0.brs <= 1,
+  `(42)* 空编辑区：导出就是空内容，不凭空产生 <br>/<p>（实际 ${JSON.stringify(gEmpty0.code)} / br ${gEmpty0.brs} / 代码里 <p> ${gEmpty0.ps} 个）`);
+await gType42('Z');
+await gBack42();
+const gEmpty1 = await gShot42();
+ok(gEmpty1.code === '' && gEmpty1.text === '',
+  `(42)* 打了字再删空：导出又回到空内容（实际 ${JSON.stringify(gEmpty1.code)}）`);
+ok(gEmpty1.brs <= 1, `(42)* 删空之后编辑区至多留一个"落脚 <br>"，不堆积空行（br ${gEmpty1.brs}）`);
+
+// —— 42g 代码区行结构：一个块一行、空行独立一行、段内不硬拆行 ——
+await resetEditor();
+await gSet42('<p>甲</p><br><p>乙</p>');
+await sleep(240);
+const gl = await gShot42();
+ok(gl.lines === 3 && gl.blocks + gl.blanks === gl.lines && gl.onePerLine === true && gl.twoOnOneLine === false,
+  `(42)* 代码区行结构：块数 ${gl.blocks} + 空行 ${gl.blanks} == 行数 ${gl.lines}，每行只有一个块、没有两块挤一行`);
+const longA = '这是一段很长的正文'.repeat(30);   // ≥300 字
+const longB = '软换行之后的第二行'.repeat(6);
+await resetEditor();
+await gSet42('<p>' + longA + '<br>' + longB + '</p>');
+await sleep(240);
+const gll = await gShot42();
+ok(gll.code === '<p>' + longA + '<br>' + longB + '</p>' && gll.lines === 1 && gll.ps === 1,
+  `(42)* 长段落（${longA.length + longB.length} 字，内含一个 <br>）仍然只占**一行**、只算一个 <p>（实际行数 ${gll.lines}）`);
+const gllrt = await gRT42();
+ok(gllrt.same === true, '(42)* 长段落那一行往返逐字节幂等');
+
+// —— 42h **两类 <br> 绝不互换**：段内的留在 <p> 里、段间的独立成行；各自往返逐字节幂等 ——
+// 判别规则（用户口径）：`<p>` **内部**的 <br> = 段内分行；与块**同级**的 <br> = 段落之间的空行。
+const gMark42 = async (code) => {
+  await evaluate(`(()=>{const box=document.getElementById('tbCode'); box.value=${JSON.stringify(code)};
+    box.dispatchEvent(new Event('input',{bubbles:true})); return 1;})()`);
+  // 代码区 → 编辑区是防抖同步（TOOLBOX_CODE_DEBOUNCE），这里显式再跑一次同一个入口，
+  // 免得测试被防抖时序影响（两条路都进 toolboxApplyCodeToEditor，结果完全一致）。
+  await sleep(200);
+  await evaluate(`(()=>{ if (typeof toolboxCodeToEditor==='function') toolboxCodeToEditor(); return 1;})()`);
+  await sleep(260);
+  return json(`(()=>{const ed=document.getElementById('tbEditor');
+  const ins=[...ed.querySelectorAll('p > br')].filter(function(b){return !b.getAttribute('data-tb-caret');}).length;
+  const outs=[...ed.children].filter(function(c){return c.tagName==='BR';}).length;
+  const stray=[...ed.querySelectorAll('br')].filter(function(b){return b.parentNode===ed;}).length;
+  // ★ "导出"= 代码区那份文本：toolboxRefresh 里就是这么算的（净化 + 缩进美化、一块一行）
+  const out2=(typeof toolboxEditorEmpty==='function'&&toolboxEditorEmpty())?'':toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()));
+  const lint=toolboxLint(out2);
+  return JSON.stringify({ html:ed.innerHTML, out:out2, same:(out2===${JSON.stringify(code)}), inner:ins, outer:stray,
+    e:lint.errors.length, w:lint.warnings.length, text:ed.textContent });})()`);
+};
+const gMix42 = await gMark42('<p>甲<br>乙</p>\n<br>\n<p>丙<br>丁</p>');
+ok(gMix42.same === true && gMix42.inner === 2 && gMix42.outer === 1,
+  `(42)* 混合 fixture：段内 <br> 仍在 <p> 内（${gMix42.inner} 根）、段间 <br> 仍与块同级（${gMix42.outer} 根）、`
+  + `导出逐字节不变（${JSON.stringify(gMix42.out)}）`);
+ok(gMix42.text === '甲乙丙丁' && gMix42.e === 0 && gMix42.w === 0,
+  `(42)* 混合 fixture 文字逐字不变、校验 0 错 0 警（${gMix42.e}e${gMix42.w}w / ${JSON.stringify(gMix42.text)}）`);
+const gIntra42 = await gMark42('<p>甲<br>乙</p>');
+ok(gIntra42.same === true && gIntra42.inner === 1 && gIntra42.outer === 0,
+  `(42)* 段内分行导入→导出：<br> 仍在 <p> 内、没有升级成段落之间的 <br>（${JSON.stringify(gIntra42.out)}）`);
+const gInter42 = await gMark42('<p>甲</p>\n<br>\n<p>乙</p>');
+ok(gInter42.same === true && gInter42.outer === 1 && gInter42.inner === 0,
+  `(42)* 段间空行导入→导出：<br> 仍独占一行、没有被吞进任何 <p>（${JSON.stringify(gInter42.out)}）`);
+// 空段落归一化：源码里"只有 <br> 没有文字"的空 <p> ⇒ 它所在位置的独立 <br>
+// ★ 这里"same"必然为假：归一化**就是**要把 `<p><br></p>` 改成独立 `<br>`（用户点名的规则：
+//   编辑区里空行只有一种形态）。要钉的是"归一化后的文本"和"再往返一次逐字节幂等"。
+const gEmptyP42 = await gMark42('<p>甲</p>\n<p><br></p>\n<p>乙</p>');
+ok(gEmptyP42.out === '<p>甲</p>\n<br>\n<p>乙</p>' && gEmptyP42.outer === 1 && gEmptyP42.text === '甲乙',
+  `(42)* 只有一个空 <p>（无文字）归一化成独立 <br>（实际 ${JSON.stringify(gEmptyP42.out)}）`);
+const gEmptyP42b = await gMark42(gEmptyP42.out);
+ok(gEmptyP42b.same === true && gEmptyP42b.outer === 1,
+  `(42)* 归一化之后**再往返一次**逐字节幂等（${JSON.stringify(gEmptyP42b.out)}）`);
+
+// —— 42i 光标：可见性（行盒）／命中（真鼠标点击）／继续输入／退格 ——
+// ★ 关于 `getClientRects()`：实测（Chrome 148 / headless）**浏览器自己**按 Shift+Enter 得到
+//   `<p>哈哈哈<br><br></p>`、光标停在 (p,2) 时，`getSelection().getRangeAt(0).getClientRects()`
+//   同样是**空数组** —— 这个 API 对"折叠在两根 <br> 之间的插入点"根本不返回矩形，
+//   拿它当"光标可见"的判据会必然失败（不是我们的 bug）。所以这一节用**更强**的替代判据：
+//     ① 这个块实际渲染成了几行（行盒高度 / 行高）——换行真的画出来了；
+//     ② `document.caretRangeFromPoint` 在该行的坐标上返回"<br> 之后"的位置；
+//     ③ 真鼠标点击该行 + 打字 ⇒ 字落在该行（这正是用户实测的"点下一行没反应"）；
+//     ④ 退格能删掉那根 <br> 并回到上一行末尾。
+const gLineHit42 = (lineIdx) => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const p=ed.querySelector('p'); const b=p.getBoundingClientRect();
+  const lh=parseFloat(getComputedStyle(ed).lineHeight)||29.6;
+  const y=Math.round(b.top+lh*(${lineIdx}+0.5)); const x=Math.round(b.left+60);
+  const cr=document.caretRangeFromPoint(x,y);
+  const n=cr?cr.startContainer:null;
+  return JSON.stringify({ x:x, y:y, lh:Math.round(lh*100)/100,
+    node:(n?(n.nodeType===3?'#text@'+(n.parentNode?n.parentNode.tagName:'?'):n.tagName):'null'),
+    off:cr?cr.startOffset:-1, pTop:Math.round(b.top), pLines:Math.round(b.height/lh*100)/100 });})()`);
+await resetEditor();
+await gSet42('<p>哈哈哈</p>');
+await gCaretEnd42('p');
+await sleep(200);
+await gEnter42(8);
+const gc1 = await gShot42();
+const gh1 = await gLineHit42(1);
+// ★ 关于 `caretRangeFromPoint`：这一段（段内分行后第二行）上它返回的是**最近的文字位置**
+//   （实测 #text@P@3，也就是上一行行尾），因为第二行没有文字、只有行盒 —— 这是 Chrome
+//   这个 API 的实现口径，不是命中失败。真正的判据在下面：**真鼠标点击** + 接着打字落在第二行
+//   （那正是用户实测的现场："鼠标点击下一行没有反应"）。所以这里只断言"第二行真的渲染出来了"。
+ok(gc1.firstLines === 2 && gh1.pLines === 2 && gh1.y > gh1.pTop + gh1.lh * 0.9,
+  `(42)* 段内分行后：那一段真的渲染成 2 行（${gh1.pLines} 行；第二行 y=${gh1.y} > 段顶+1 行 ${Math.round(gh1.pTop + gh1.lh)}）`);
+// 真鼠标点第 2 行 → 打字必须落在第 2 行
+const gBox42 = await json(`(()=>{const p=document.querySelector('#tbEditor p');const b=p.getBoundingClientRect();
+  const lh=parseFloat(getComputedStyle(document.getElementById('tbEditor')).lineHeight)||29.6;
+  return JSON.stringify({x:Math.round(b.left+120), y:Math.round(b.top+lh*1.5), top:Math.round(b.top), lh:lh});})()`);
+await clickAt(gBox42.x, gBox42.y);
+await sleep(320);
+const gc2 = await gShot42();
+ok(gc2.caretInEditor === true && /P@2$/.test(gc2.caretParent),
+  `(42)* 鼠标点段内第二行：光标落在两根 <br> 之间（期望 P@2，实际 ${gc2.caretParent}；点 (${gBox42.x},${gBox42.y}) 段顶 ${gBox42.top} 行高 ${gBox42.lh}）`);
+await gType42('Z');
+const gc3 = await gShot42();
+ok(gc3.code === '<p>哈哈哈<br>Z</p>' && gc3.text === '哈哈哈Z',
+  `(42)* 点第二行再打字 ⇒ 字落在第二行、仍是同一个 <p>（实际 ${JSON.stringify(gc3.code)}）`);
+await gBack42();
+const gc4 = await gShot42();
+ok(gc4.code === '<p>哈哈哈<br></p>' && gc4.text === '哈哈哈' && gc4.firstLines === 2 && gc4.marks === 1,
+  `(42)* 段内退格一次：删掉刚打的字、那根 <br> 还在，落脚点自动补回来（实际 ${JSON.stringify(gc4.code)} / 行 ${gc4.firstLines}）`);
+await gBack42();
+const gc5 = await gShot42();
+ok(gc5.code === '<p>哈哈哈</p>' && gc5.text === '哈哈哈' && gc5.firstLines === 1 && gc5.brs === 0,
+  `(42)* 再退格一次：段内那根 <br> 被删掉、回到一行（实际 ${JSON.stringify(gc5.code)}）`);
+// Enter 之后的新段落：真鼠标点那一行 + 打字
+await resetEditor();
+await gSet42('<p>哈哈哈</p>');
+await gCaretEnd42('p');
+await sleep(200);
+await gEnter42(0);
+const gn1 = await gShot42();
+const gnBox = await json(`(()=>{const ps=[...document.querySelectorAll('#tbEditor p')];const b=ps[1].getBoundingClientRect();
+  return JSON.stringify({h:Math.round(b.height), x:Math.round(b.left+40), y:Math.round(b.top+b.height/2),
+    lines:Math.round(b.height/(parseFloat(getComputedStyle(document.getElementById('tbEditor')).lineHeight)||29.6)*100)/100});})()`);
+ok(gn1.blocks === 2 && gnBox.lines === 1 && gnBox.h > 0,
+  `(42)* Enter 分出的新段是一个**真的行盒**（高 ${gnBox.h}px ≈ 1 行 ${gnBox.lines}），光标能画出来`);
+await clickAt(gnBox.x, gnBox.y);
+await sleep(320);
+await gType42('乙');
+const gn2 = await gShot42();
+ok(gn2.code === '<p>哈哈哈</p>\n<p>乙</p>' && gn2.text === '哈哈哈乙',
+  `(42)* 鼠标点新段那一行 + 打字 ⇒ 落在新段里（实际 ${JSON.stringify(gn2.code)}）`);
+// 段间退格：只删空行，绝不吞掉整段（用户实测的"退格丢字"回归）
+await resetEditor();
+await gSet42('<p>甲</p><br><p>乙</p>');
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor');const p=ed.querySelectorAll('p')[1];
+  const r=document.createRange(); r.setStart(p.firstChild,0); r.collapse(true);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+await gBack42();
+const gb1 = await gShot42();
+ok(gb1.code === '<p>甲</p>\n<p>乙</p>' && gb1.text === '甲乙' && gb1.blanks === 0,
+  `(42)* 段间退格：只删掉那根独立 <br>、两段直接相接、一个字都没丢（实际 ${JSON.stringify(gb1.code)}）`);
+await gBack42();
+const gb2 = await gShot42();
+ok(gb2.code === '<p>甲乙</p>' && gb2.text === '甲乙',
+  `(42)* 再退格一次才由浏览器把两段合并（实际 ${JSON.stringify(gb2.code)}）`);
+// 点内容下方的空白 → 光标落末尾
+await resetEditor();
+await gSet42('<p>甲</p><br><p>乙</p>');
+await sleep(240);
+const gEndBox = await json(`(()=>{const ed=document.getElementById('tbEditor');const b=ed.getBoundingClientRect();
+  return JSON.stringify({x:Math.round(b.left+300), y:Math.round(b.bottom-6)});})()`);
+await clickAt(gEndBox.x, gEndBox.y);
+await sleep(320);
+await gType42('W');
+const gEndShot = await gShot42();
+ok(gEndShot.code === '<p>甲</p>\n<br>\n<p>乙W</p>' && gEndShot.text === '甲乙W',
+  `(42)* 点内容下方的空白处再打字 ⇒ 落在文档末尾（实际 ${JSON.stringify(gEndShot.code)}）`);
+
+// ==============================================================
+console.log('\n====== (43) H：上标 / 下标互斥（应用一个就把另一个摘掉） ======\n');
+const hSet43 = (html, selJs) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML=${JSON.stringify(html)}; toolboxNormalizeEditorWhitespace(ed); toolboxRefresh(); toolboxUndoReset(); ed.focus();
+  const r=document.createRange(); ${selJs}
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const hShot43 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const on=function(b){ return !!(b&&/\\bactive\\b/.test(b.className||'')); };
+  return JSON.stringify({ html:ed.innerHTML, code:document.getElementById('tbCode').value, text:ed.textContent,
+    sup:ed.querySelectorAll('sup').length, sub:ed.querySelectorAll('sub').length,
+    brs:ed.querySelectorAll('br').length, blocks:[...ed.children].filter(function(c){return c.tagName!=='BR';}).length,
+    supOn:on(document.querySelector('[data-tb="sup"]')), subOn:on(document.querySelector('[data-tb="sub"]')) });})()`);
+const hClick43 = async (act) => { await evaluate(`toolboxDraftAskHide(); document.querySelector('[data-tb="${act}"]').click();`); await sleep(430); };
+const SEL_SUB43 = `const el=ed.querySelector('sup,sub,span'); r.selectNodeContents(el);`;
+const SEL_ALL43 = `r.selectNodeContents(ed);`;
+
+await resetEditor();
+await hSet43('<p>甲<sup>1</sup>乙</p>', SEL_SUB43);
+const h1a = await hShot43();
+await hClick43('sub');
+const h1b = await hShot43();
+ok(h1a.sup === 1 && h1b.sup === 0 && h1b.sub === 1 && h1b.text === '甲1乙' && h1b.blocks === h1a.blocks && h1b.brs === h1a.brs,
+  `(43)* 上标 → 点「下标」：只剩 <sub>，结构/文字不变（${JSON.stringify(h1b.html)}）`);
+ok(h1b.subOn === true && h1b.supOn === false,
+  `(43)* 只亮「下标」一个按钮（sub=${h1b.subOn} sup=${h1b.supOn}）`);
+await hClick43('sub');
+const h1c = await hShot43();
+ok(h1c.sub === 0 && h1c.sup === 0 && h1c.text === '甲1乙',
+  `(43)* 再点一次「下标」：全部摘掉（${JSON.stringify(h1c.html)}）`);
+
+await resetEditor();
+await hSet43('<p>甲<sub>1</sub>乙</p>', SEL_SUB43);
+await hClick43('sup');
+const h2b = await hShot43();
+ok(h2b.sub === 0 && h2b.sup === 1 && h2b.text === '甲1乙' && h2b.supOn === true && h2b.subOn === false,
+  `(43)* 下标 → 点「上标」：只剩 <sup>（${JSON.stringify(h2b.html)}）`);
+
+await resetEditor();
+await hSet43('<p>甲<span style="vertical-align:super;">1</span>乙</p>', SEL_SUB43);
+await hClick43('sub');
+const h3 = await hShot43();
+ok(h3.sup === 0 && h3.sub === 1 && !/vertical-align\s*:\s*super/i.test(h3.html) && h3.text === '甲1乙',
+  `(43)* 只有 vertical-align:super 样式形态：互斥时样式一并摘掉、只剩 <sub>（${JSON.stringify(h3.html)}）`);
+
+await resetEditor();
+await hSet43('<p>甲<sup><b>1</b></sup>乙</p>', SEL_SUB43);
+await hClick43('sub');
+const h4a = await hShot43();
+ok(h4a.sup === 0 && h4a.sub === 1 && /<b>/.test(h4a.html),
+  `(43)* 嵌套 <sup><b>x</b></sup>：只换上下标，加粗保留（${JSON.stringify(h4a.html)}）`);
+await resetEditor();
+await hSet43('<p>甲<b><sub>1</sub></b>乙</p>', SEL_SUB43);
+await hClick43('sup');
+const h4b = await hShot43();
+ok(h4b.sub === 0 && h4b.sup === 1 && /<b>/.test(h4b.html),
+  `(43)* 嵌套 <b><sub>x</sub></b>：只换上下标，加粗保留（${JSON.stringify(h4b.html)}）`);
+
+await resetEditor();
+await hSet43('<p><sup>甲</sup>乙丙</p>', SEL_ALL43);
+await hClick43('sub');
+const h5 = await hShot43();
+ok(h5.sup === 0 && h5.sub === 1 && h5.text === '甲乙丙' && /<sub>甲乙丙<\/sub>/.test(h5.html),
+  `(43)* 混合选区 + 一次点「下标」：整个选区统一成 <sub>，原来的 <sup> 不残留（${JSON.stringify(h5.html)}）`);
+await hClick43('sub');
+const h5b = await hShot43();
+ok(h5b.sup === 0 && h5b.sub === 0 && h5b.text === '甲乙丙',
+  `(43)* 再点一次：全取消（${JSON.stringify(h5b.html)}）`);
+
+await resetEditor();
+await hSet43('<p><sup>甲</sup></p><p>乙丙</p>',
+  `const a=ed.querySelectorAll('p'); r.setStart(a[0].firstChild.firstChild,0); r.setEnd(a[1].firstChild,1);`);
+await hClick43('sub');
+const h6 = await hShot43();
+ok(h6.sup === 0 && h6.sub === 2 && h6.blocks === 2 && h6.text === '甲乙丙',
+  `(43)* 跨两段：各自就地生效、块数不变（${JSON.stringify(h6.html)}）`);
+const h6rt = await gRT42();
+ok(h6rt.same === true && h6rt.e === 0 && h6rt.w === 0, `(43)* 上下标状态往返逐字节幂等、校验 0/0（${JSON.stringify(h6rt.c1)}）`);
+
+// ==============================================================
+console.log('\n====== (44) I：粘贴 = 一段一个 <p>、段内 \\n = <br>、空行 = 独立 <br> ======\n');
+const iPaste44 = (text, html) => evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.focus();
+  const dt=new DataTransfer(); dt.setData('text/plain', ${JSON.stringify(text)});
+  ${html ? `dt.setData('text/html', ${JSON.stringify(html)});` : ''}
+  const ev=new ClipboardEvent('paste', {clipboardData:dt, bubbles:true, cancelable:true});
+  ed.dispatchEvent(ev); return 1;})()`);
+const iSet44 = (html, selJs) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML=${JSON.stringify(html)}; toolboxNormalizeEditorWhitespace(ed); toolboxRefresh(); toolboxUndoReset(); ed.focus();
+  const r=document.createRange(); ${selJs || 'r.selectNodeContents(ed); r.collapse(false);'}
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+
+await resetEditor();
+await iSet44('');
+await iPaste44('文字\n文字2');
+await sleep(560);
+const i1 = await gShot42();
+ok(i1.code === '<p>文字<br>文字2</p>' && i1.ps === 1 && i1.text === '文字文字2' && i1.bare === 0,
+  `(44)* 段内单个换行：留在同一个 <p> 里当 <br>（实际 ${JSON.stringify(i1.code)}）`);
+
+await resetEditor();
+await iSet44('');
+await iPaste44('很荒诞，也很真实。但我觉得这件事有个别的角度看。'
+  + '\n\n**同一套、同一天买的、同一天送的、同一个样票号 08241——唯一的变量就是纸本身。**'
+  + '\n\n你什么都没换。……你是那套公债的存档人，不是它的作者。');
+await sleep(660);
+const i2 = await gShot42();
+ok(i2.ps === 3 && i2.blocks === 3,
+  `(44)* 用户给的三段原文（空行分段）→ 恰好 3 个 <p>（实际 <p> ${i2.ps} 个 / 块 ${i2.blocks} 个）`);
+ok(i2.code === '<p>很荒诞，也很真实。但我觉得这件事有个别的角度看。</p>\n<br>\n'
+  + '<p>**同一套、同一天买的、同一天送的、同一个样票号 08241——唯一的变量就是纸本身。**</p>\n<br>\n'
+  + '<p>你什么都没换。……你是那套公债的存档人，不是它的作者。</p>',
+  `(44)* 空行 = 独立成行的 <br>（与手敲一致）、一段一行（实际 ${JSON.stringify(i2.code)}）`);
+ok(i2.text === '很荒诞，也很真实。但我觉得这件事有个别的角度看。'
+  + '**同一套、同一天买的、同一天送的、同一个样票号 08241——唯一的变量就是纸本身。**'
+  + '你什么都没换。……你是那套公债的存档人，不是它的作者。',
+  '(44)* 文字逐字等于粘贴文本（一个字符没多、没少）');
+ok(i2.bare === 0 && i2.e === 0 && i2.w === 0,
+  `(44)* 根下无裸节点、校验 0 错 0 警（裸 ${i2.bare} / ${i2.e}e${i2.w}w）`);
+const i2rt = await gRT42();
+ok(i2rt.same === true && i2rt.text === i2.text,
+  `(44)* 三段粘贴结果 导出→导入→再导出 逐字节幂等（实际 ${JSON.stringify(i2rt.c1)}）`);
+
+await resetEditor();
+await iSet44('<p>前文甲乙</p>', `const p=ed.querySelector('p'); const t=p.firstChild; r.setStart(t,2); r.collapse(true);`);
+await iPaste44('丙\n\n丁');
+await sleep(560);
+const i3 = await gShot42();
+ok(i3.code === '<p>前文丙</p>\n<br>\n<p>丁甲乙</p>' && i3.ps === 2 && i3.blanks === 1 && i3.text === '前文丙丁甲乙',
+  `(44)* 段中间粘贴多段：第一段接在当前行、空行独立成行、后半截留在最后一段（实际 ${JSON.stringify(i3.code)}）`);
+
+await resetEditor();
+await iSet44('');
+await iPaste44('甲\n乙\n丙');
+await sleep(560);
+const i4 = await gShot42();
+ok(i4.code === '<p>甲<br>乙<br>丙</p>' && i4.ps === 1 && i4.blanks === 0,
+  `(44)* 三段单换行（没有空行）→ 仍是同一个 <p> 里两个 <br>（实际 ${JSON.stringify(i4.code)}）`);
+
+await resetEditor();
+await iSet44('');
+await iPaste44('甲\n\n\n\n乙');
+await sleep(560);
+const i5 = await gShot42();
+ok(i5.code === '<p>甲</p>\n<br>\n<br>\n<br>\n<p>乙</p>' && i5.blanks === 3,
+  `(44)* 粘贴里连续 3 个空行 → 3 根独立 <br>（与手敲一致，实际 ${JSON.stringify(i5.code)}）`);
+
+await resetEditor();
+await iSet44('');
+await iPaste44('文字\n文字2', '<p>文字</p><table><tr><td>格子</td></tr></table><p>文字2</p>');
+await sleep(560);
+const i6 = await gShot42();
+ok(!/<table/.test(i6.code) && i6.code === '<p>文字<br>文字2</p>' && i6.bare === 0 && i6.e === 0 && i6.w === 0,
+  `(44)* 富文本粘贴：仍只取纯文本、不自动转表格、根下无裸节点（实际 ${JSON.stringify(i6.code)}）`);
+
+// ==============================================================
+console.log('\n====== (45) 代码区行结构：拿用户的规范样例当 fixture（一段一行、空行独立一行） ======\n');
+// ★ 风格基线只用用户亲手贴的那份样例，**内联在测试里**（不读 notecollection/** 的任何文章：
+//   用户明确说那些是他用当前有 bug 的工具自动生成的产物，不能当语料/期望值）。
+const SAMPLE45 = [
+  '<center><b><span style="font-size:1.1em;">中华世纪坛</span></b></center>',
+  '<p>第一段正文。这里写第一段，一段就是一个段落。</p>',
+  '<br>',
+  '<p>第二段正文，段内有一个软换行<br>这是同一段的第二行。</p>',
+  '<center><img src="readmes/image/comm/xxx.jpg" width="80%"></center>',
+  '<center><span style="color:#555555; font-size:0.85rem;">图注：一段说明文字。</span></center>',
+  '<br>',
+  '<div style="text-align:right;">落款：某某<br>二〇二五年</div>'
+].join('\n');
+// 走**用户真正会走的路**：把样例贴进代码区（input 事件）→ 编辑区 → 再看导出文本
+await setCode(SAMPLE45);
+await sleep(620);
+const s45 = await json(`(()=>{const ed=document.getElementById('tbEditor'); const code=toolboxCodeText();
+  const BARE=/^(P|DIV|CENTER|TABLE|UL|OL|H1|H2|H3|H4|H5|H6|BLOCKQUOTE|PRE|HR|VIDEO|IMG|BR)$/;
+  const bare=[...ed.childNodes].filter(function(c){
+    if(c.nodeType===3) return !!String(c.nodeValue||'').replace(/[\\s\\u00a0\\u200b]+/g,'').length;
+    if(c.nodeType!==1) return false; return !BARE.test(c.tagName); }).length;
+  const blocks=[...ed.children].filter(function(c){return c.tagName!=='BR';});
+  const lines=code.split('\\n').filter(function(x){return x.trim();});
+  const lint=toolboxLint(code);
+  return JSON.stringify({ code:code, text:ed.textContent, bare:bare, blocks:blocks.length, lines:lines.length,
+    blanks:lines.filter(function(x){return /^<br\\s*\\/?>$/.test(x.trim());}).length,
+    onePerLine:lines.every(function(l){return (l.match(/<(p|center|div|table|ul|ol|blockquote|h[1-6])\\b/g)||[]).length<=1;}),
+    twoOnOneLine:/<\\/(p|center|div|blockquote|h[1-6])>[ \\t]*<(p|center|div|blockquote|table|ul|ol|h[1-6])\\b/.test(code),
+    ps:(code.match(/<p\\b/g)||[]).length, e:lint.errors.length, w:lint.warnings.length });})()`);
+ok(s45.code === SAMPLE45,
+  '(45)* 规范样例原样保留：贴进代码区→编辑区→再导出逐字节一致（8 行）');
+ok(s45.lines === 8 && s45.onePerLine === true && s45.twoOnOneLine === false,
+  `(45)* 每个块/空行各占一行：8 行、每行只有一个元素、没有两块挤同一行（行数 ${s45.lines}）`);
+ok(s45.blocks + s45.blanks === s45.lines && s45.blanks === 2,
+  `(45)* 块数 ${s45.blocks} + 空行 ${s45.blanks} == 行数 ${s45.lines}`);
+ok(s45.ps === 2,
+  `(45)* 没有"一个 <p> 包住整篇"：整篇只有 2 个 <p>（= 2 个正文段落，实际 ${s45.ps}）`);
+ok(s45.e === 0 && s45.w === 0 && s45.bare === 0,
+  `(45)* 样例 校验 0 错 0 警、根下无裸节点（${s45.e}e${s45.w}w 裸 ${s45.bare}）`);
+const s45rt = await gRT42();
+// ★ 这里比"往返前后**正文文字**有没有变"（sameText：跳过图片占位壳自带的文件名标签），
+//   不比它跟 s45.text 的字符串：首次从**代码区**导入时，图片占位壳会多挂一个文件名标签
+//   （`<span class="tb-imgph-name">xxx.jpg</span>`，contenteditable=false + aria-hidden），
+//   再走一次"直接应用到编辑区"时那个标签不重建 —— 那是占位壳自己的显示细节（老功能，
+//   与本轮换行/空行改动无关）。真正要保证的是：代码逐字节幂等 + 往返不掉正文文字。
+ok(s45rt.same === true && s45rt.sameText === true && s45rt.c1 === SAMPLE45,
+  `(45)* 样例 导出→导入→再导出 逐字节幂等、往返不掉字（same=${s45rt.same} 首次一致=${s45rt.c1 === SAMPLE45} 正文文字不变=${s45rt.sameText}）`);
+// 图注/落款/标题/图片这四个"站内写法"逐条钉住（与样例一字不差）
+ok(/^<center><b><span style="font-size:1\.1em;">中华世纪坛<\/span><\/b><\/center>$/.test(s45.code.split('\n')[0]),
+  '(45)* 标题写法与样例一致：<center><b><span style="font-size:1.1em;">…</span></b></center> 独占一行');
+ok(s45.code.split('\n')[4] === '<center><img src="readmes/image/comm/xxx.jpg" width="80%"></center>',
+  '(45)* 图片写法与样例一致：<center><img … width="80%"></center> 独占一行');
+ok(s45.code.split('\n')[5] === '<center><span style="color:#555555; font-size:0.85rem;">图注：一段说明文字。</span></center>',
+  '(45)* 图注写法与样例一致：居中 + #555555 + 0.85rem');
+ok(/^<div style="text-align:right;">/.test(s45.code.split('\n')[7]),
+  '(45)* 落款写法与样例一致：<div style="text-align:right;">…</div> 独占一行');
+
+// ==============================================================
+console.log('\n====== (46) IME：合成期间绝不归一化/改写结构（拼音首字母不许漏成正文） ======\n');
+// 用户实测 bug：三段分别打字，第 2、3 段的开头漏出了拼音首字母（w / l），代码区把它们当成正文
+//   序列化了。根因：**合成过程中的每一次 input（insertCompositionText）都被我们当成"用户打了字"
+//   做了 DOM 归一化**（把裸文本包进 <p>、扫落脚点、刷新……），输入法下一次 compositionupdate
+//   就写不回原来那个位置了 ⇒ 首字母留在了正文里。
+// 修法（toolbox.js，见这几处的注释）：合成期间**什么都不做** ——
+//   · compositionstart / compositionupdate：只置冻结位 + 切提示语，不碰 DOM；
+//   · input：inputType=insertCompositionText（或 isComposing）时只记"待补跑"，不转换、不刷新；
+//   · keydown Enter：isComposing / keyCode 229 / 冻结位 ⇒ **放行给输入法**（不 preventDefault）；
+//   · compositionend：先解冻，下一帧再补一次归一化（先存选区、跑完恢复）；
+//   · 粘贴：合成中只排队，合成结束再执行。
+// 本节的断言就是"钉住这个冻结"：合成期间**结构性函数一次都不许被调用**，
+// 而上屏之后文字必须完整（首字母一个都不许漏在外面）。
+await resetEditor();
+await sleep(200);
+// 计数探针：把"会改结构的函数"包一层（只在本次测试里生效，不改产品代码）
+await evaluate(`(()=>{window.__ime = { structural:0, calls:{}, hint:0 };
+  ['toolboxFillBlankLine','toolboxParagraphToBlankLine','toolboxWrapStrayTopLevel','toolboxCaretHolderSweep',
+   'toolboxCaretSupportSync','toolboxEnterBreak','toolboxInsertParagraph','toolboxPastePlain','toolboxImportBlankLines',
+   'toolboxDropEmptyBlocks','toolboxApplyCodeToEditor'].forEach(function(k){
+    const f=window[k]; if(typeof f!=='function') return;
+    window[k]=function(){ window.__ime.structural++; window.__ime.calls[k]=(window.__ime.calls[k]||0)+1; return f.apply(this, arguments); };
+  });
+  const h=window.toolboxHintSync;
+  window.toolboxHintSync=function(){ window.__ime.hint++; return h.apply(this, arguments); };
+  return 1;})()`);
+const imeState = () => json(`(()=>{const ed=document.getElementById('tbEditor'); const cs=getComputedStyle(ed,'::before');
+  const s=getSelection();
+  return JSON.stringify({ html:ed.innerHTML, text:ed.textContent, code:document.getElementById('tbCode').value,
+    hint:cs.display, structural:window.__ime.structural, calls:window.__ime.calls, hintCalls:window.__ime.hint,
+    marks:ed.querySelectorAll('[data-tb-caret]').length,
+    sel:(function(){try{const n=s.getRangeAt(0).startContainer; return (n.nodeType===3?'#text':'el');}catch(e){return '';}})() });})()`);
+const imeReset = async () => {
+  // ★ 先把上一节留下的防抖定时器（刷新/校验/代码同步）跑完，否则它们会在"合成期间"落地，
+  //   把结构计数记成 1 次 —— 那是上一节的动作，不是合成的动作。等干净了再清零计数。
+  await sleep(760);
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p><br></p>'; toolboxRefresh(); toolboxUndoReset();
+    const r=document.createRange(); r.setStart(ed.querySelector('p'),0); r.collapse(true);
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+  await sleep(320);
+  await evaluate(`window.__ime={structural:0,calls:{},hint:0};`);
+};
+
+// —— 46a 一次真实合成：HEAD（compositionstart/update 不改结构） → input(insertCompositionText) 不改结构 ——
+await imeReset();
+await send('Input.imeSetComposition', { text: 'wang', selectionStart: 4, selectionEnd: 4 });
+await sleep(300);
+const im1 = await imeState();
+ok(im1.structural === 0,
+  `(46)* 合成中（compositionupdate）结构性调用 0 次（实际 ${im1.structural} 次：${JSON.stringify(im1.calls)}）`);
+ok(im1.marks === 0 && /^<p>(wang|<br>)/.test(im1.html),
+  `(46)* 合成中不改结构：编辑区仍是那一个块、没有落脚标记（${JSON.stringify(im1.html)}）`);
+await send('Input.insertText', { text: '王' });
+await sleep(420);
+const im2 = await imeState();
+ok(im2.text === '王',
+  `(46)* 上屏之后文字**逐字等于候选词**、拼音首字母一个都没漏在外面（实际 ${JSON.stringify(im2.text)}）`);
+ok(im2.code === '<p>王</p>',
+  `(46)* 上屏之后代码区就是干净的 <p>王</p>（实际 ${JSON.stringify(im2.code)}）`);
+ok(im2.marks === 0 && im2.structural >= 1,
+  `(46)* 上屏之后（compositionend 之后）才补跑归一化（结构性调用 ${im2.structural} 次）`);
+
+// —— 46b 三段分别用输入法打字：每段首字母都不许漏（用户原 bug 的现场）——
+await imeReset();
+const imeType = async (pinyin, word) => {
+  await send('Input.imeSetComposition', { text: pinyin, selectionStart: pinyin.length, selectionEnd: pinyin.length });
+  await sleep(260);
+  await send('Input.insertText', { text: word });
+  await sleep(420);
+};
+await imeType('wang', '王');
+await enter35(0);                       // Enter = 段落分界
+await imeType('li', '李');
+await enter35(0);
+await imeType('zhang', '张');
+const im3 = await imeState();
+ok(im3.text === '王李张',
+  `(46)* 三段分别输入法打字：文字逐字等于「王李张」、没有 w/l/z 漏出来（实际 ${JSON.stringify(im3.text)}）`);
+ok(im3.code === '<p>王</p>\n<p>李</p>\n<p>张</p>',
+  `(46)* 三段各成一段、代码区干净（实际 ${JSON.stringify(im3.code)}）`);
+ok(!/[a-z]/.test(im3.text) && im3.marks === 0,
+  `(46)* 正文里没有任何拼音字母残留、也没有落脚标记（marks=${im3.marks}）`);
+
+// —— 46c 合成中的 Enter：我们**不许**劫持（defaultPrevented=false），也不许改结构 ——
+await imeReset();
+await evaluate(`window.__imeEnt={p:null,n:0};
+  document.addEventListener('keydown', function(e){ if(e.key==='Enter'&&e.isComposing) { window.__imeEnt.p=e.defaultPrevented; window.__imeEnt.n++; } });`);
+await send('Input.imeSetComposition', { text: 'ni', selectionStart: 2, selectionEnd: 2 });
+await sleep(300);
+const imBefore = await imeState();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r' });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+await sleep(320);
+const imEnt = await json(`JSON.stringify(window.__imeEnt)`);
+const imAfter = await imeState();
+ok(imEnt.n >= 1 && imEnt.p === false,
+  `(46)* 合成中的 Enter 被**放行给输入法**（我们没 preventDefault：isComposing 的 keydown 收到 ${imEnt.n} 次、defaultPrevented=${imEnt.p}）`);
+ok(imAfter.calls.toolboxInsertParagraph === undefined && imAfter.calls.toolboxEnterBreak === undefined,
+  `(46)* 合成中的 Enter 没有走我们的段落分界/段内换行（调用表 ${JSON.stringify(imAfter.calls)}）`);
+await send('Input.imeSetComposition', { text: '', selectionStart: 0, selectionEnd: 0 });
+await sleep(320);
+const imAfter2 = await imeState();
+ok(imAfter2.text === '' || imAfter2.text === 'ni' || imAfter2.text === '你',
+  `(46)* 取消/清空合成之后正文里没有多出结构性节点（文字 ${JSON.stringify(imAfter2.text)}，标记 ${imAfter2.marks}）`);
+
+// —— 46d 合成中插入标点：整段文字完整（——、…… 一个都不许丢）——
+await imeReset();
+await imeType('ni', '你');
+await send('Input.imeSetComposition', { text: '——', selectionStart: 2, selectionEnd: 2 });
+await sleep(260);
+await send('Input.insertText', { text: '——' });
+await sleep(420);
+await imeType('hao', '好');
+const im4 = await imeState();
+ok(im4.text === '你——好' && im4.code === '<p>你——好</p>',
+  `(46)* 合成中插入标点：整句完整（${JSON.stringify(im4.text)} / ${JSON.stringify(im4.code)}）`);
+
+// —— 46e 输入法路径下的 Enter / Shift+Enter 与键盘路径完全一致 ——
+await imeReset();
+await imeType('wang', '王');
+await enter35(0);                       // Enter
+await imeType('li', '李');
+const ie1 = await imeState();
+ok(ie1.code === '<p>王</p>\n<p>李</p>',
+  `(46)* 输入法上屏 + Enter：段落分界正常（${JSON.stringify(ie1.code)}）`);
+await imeType('zhang', '张');
+await enter35(8);                       // Shift+Enter = 段内分行
+await imeType('san', '三');
+const ie2 = await imeState();
+ok(ie2.code === '<p>王</p>\n<p>李张<br>三</p>',
+  `(46)* 输入法上屏 + Shift+Enter：段内分行正常、仍是同一个 <p>（${JSON.stringify(ie2.code)}）`);
+
+// ==============================================================
+console.log('\n====== (47) 空编辑区提示语：完全由内容决定，有内容时彻底隐藏、绝不压在第一行上 ======\n');
+// 用户实测 bug：「提示语在有内容时还显示，而且和第一行**重叠**」。
+// 根因：显示/隐藏以前只靠 CSS 的 `:empty` / `:has(> p:only-child > br:only-child)` 判定，
+//   遇到"编辑区根上正挂着合成中的拼音裸文本"这类中间态就误判成"空"⇒ 提示语在**有正文时**
+//   照样显示、并且绝对定位恰好压在第一行上。
+// 修法：判定搬进 JS（toolboxHintShouldShow / toolboxHintSync，见 toolbox.js），
+//   调用点覆盖 input / keyup / compositionstart·update·end / 程序化灌入 / 粘贴 / 删除 / 撤回；
+//   隐藏用 display:none（零矩形 ⇒ 不遮挡、不可选、不影响点击），不再有任何"半透明残留"。
+const hintShot = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const cs=getComputedStyle(ed,'::before'); const ecs=getComputedStyle(ed);
+  const er=ed.getBoundingClientRect(); const lh=parseFloat(ecs.lineHeight)||0;
+  const padTop=parseFloat(ecs.paddingTop)||0;
+  const hasTxt=!!String(ed.textContent||'').replace(/[\\s\\u00a0\\u200b]+/g,'').length;
+  const first=ed.firstElementChild; const fr=first?first.getBoundingClientRect():null;
+  return JSON.stringify({ cls:(' '+ed.className+' ').indexOf(' tb-hint-on ')>0,
+    display:cs.display, vis:cs.visibility, op:cs.opacity, pe:cs.pointerEvents,
+    hasTxt:hasTxt, html:ed.innerHTML, text:ed.textContent, padTop:Math.round(padTop),
+    rootBr:[...ed.children].filter(function(c){return c.tagName==='BR';}).length,
+    media:ed.querySelectorAll('img,table,hr,video').length,
+    multi:[...ed.querySelectorAll('p,div,center,blockquote,h1,h2,h3,h4,h5,h6')].filter(function(b){return b.querySelectorAll('br').length>1;}).length,
+    firstTop:fr?Math.round(fr.top-er.top):null, firstH:fr?Math.round(fr.height):null,
+    edH:Math.round(er.height), lh:Math.round(lh*100)/100 });})()`);
+// 独立复算一遍"这个编辑区算不算空"（与产品里的判定规则同构，但这里是测试自己算的）：
+//   有文字 / 有图片表格分割线视频 ⇒ "有内容"。
+//   ★ 口径反转（本轮，用户实测案例 8）：**"只有空行"算空** —— 根级独立空行 `<br>`、
+//     或"块里只有换行没有字"，都算空。理由：那时候代码区导出的正文就是空的（''），
+//     提示语必须跟着"代码区空不空"走；旧口径"看见根级 <br> 就算有内容"会让
+//     "Ctrl+Z 撤回到全空"之后提示语不再出现（用户报的正是这个）。
+const hintEmpty = (g) => !g.hasTxt && g.media === 0;
+const hintClear = async () => {
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p><br></p>'; toolboxNormalizeEditorWhitespace(ed);
+    toolboxRefresh(); toolboxHintSync(); toolboxUndoReset();
+    const r=document.createRange(); r.setStart(ed.querySelector('p'),0); r.collapse(true);
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+  await sleep(420);
+};
+// 47a 空编辑区：提示语可见，而且**不占用行高**（第一行仍是那个空段落壳）
+await hintClear();
+const hp0 = await hintShot();
+ok(hp0.cls === true && hp0.display === 'block' && hp0.vis === 'visible' && hp0.op === '1',
+  `(47)* 空编辑区：提示语可见（class=${hp0.cls} display=${hp0.display} visibility=${hp0.vis} opacity=${hp0.op}）`);
+ok(hp0.firstTop === hp0.padTop && hp0.hasTxt === false,
+  `(47)* 提示语不占行高：第一行就落在编辑区的内边距位置上（相对编辑区顶 ${hp0.firstTop}px == padding-top ${hp0.padTop}px，正文为空=${!hp0.hasTxt}）`);
+// 47b 打一个字：提示语立刻彻底隐藏（零矩形 ⇒ 不可能压在第一行上）
+await send('Input.insertText', { text: '甲' });
+await sleep(420);
+const hp1 = await hintShot();
+ok(hp1.hasTxt === true && hp1.cls === false && hp1.display === 'none' && hp1.vis === 'hidden' && hp1.op === '0',
+  `(47)* 有正文：提示语彻底隐藏（display=${hp1.display} visibility=${hp1.vis} opacity=${hp1.op} pointer-events=${hp1.pe}）`);
+// 真鼠标点正文里 → 光标必须落在文字里（提示语不许拦截点击）
+const hBox = await json(`(()=>{const ed=document.getElementById('tbEditor');const r=ed.getBoundingClientRect();
+  return JSON.stringify({x:Math.round(r.left+40), y:Math.round(r.top+parseFloat(getComputedStyle(ed).lineHeight)*0.5)});})()`);
+await clickAt(hBox.x, hBox.y);
+await sleep(280);
+const hp2 = await json(`(()=>{const s=getSelection(); const n=s.rangeCount?s.getRangeAt(0).startContainer:null;
+  const ed=document.getElementById('tbEditor');
+  return JSON.stringify({ inside:!!(n&&ed.contains(n)), txt:ed.textContent, clickRects:!!(s.rangeCount&&s.getRangeAt(0).getClientRects().length) });})()`);
+ok(hp2.inside === true && hp2.txt === '甲',
+  `(47)* 点正文第一行：提示语不遮挡、不影响点击（光标在编辑区里=${hp2.inside}，正文仍是 ${JSON.stringify(hp2.txt)}）`);
+// 47c 合成中：拼音一出现提示语就该消失（用户原 bug 的中间态）
+await hintClear();
+const hp3a = await hintShot();
+await send('Input.imeSetComposition', { text: 'w', selectionStart: 1, selectionEnd: 1 });
+await sleep(320);
+const hp3 = await hintShot();
+ok(hp3a.cls === true && hp3.cls === false && hp3.display === 'none',
+  `(47)* 合成中（拼音一进编辑区）提示语立刻隐藏（合成前 ${hp3a.display} → 合成中 ${hp3.display}）`);
+await send('Input.insertText', { text: '王' });
+await sleep(420);
+const hp4 = await hintShot();
+ok(hp4.text === '王' && hp4.display === 'none',
+  `(47)* 上屏之后仍然隐藏、正文正确（${JSON.stringify(hp4.text)} / display=${hp4.display}）`);
+// 47d 全删掉 → 提示语回来；撤回之后状态一致
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+await sleep(500);
+const hp5 = await hintShot();
+ok(hp5.text === '' && hp5.cls === true && hp5.display === 'block',
+  `(47)* 全删掉：提示语又回来（文字 ${JSON.stringify(hp5.text)} / display=${hp5.display}）`);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await sleep(560);
+const hp6 = await hintShot();
+// ★ 撤回的判定口径：**不管撤回把内容恢复成哪一步，提示语都必须跟内容一致**
+//   （真实输入法路径下"合成的那一步入不入撤回栈"是浏览器的口径，不该在用例里写死）。
+//   "算不算空"由测试自己按同一条规则复算（hintEmpty）：光 textContent 为空不等于编辑区是空的 ——
+//   但**只有空行**（比如撤回到"一根独立空行 <br>"）按本轮口径算空，提示语就该出现。
+ok(hp6.cls === hintEmpty(hp6) && hp6.display === (hintEmpty(hp6) ? 'block' : 'none'),
+  `(47)* 撤回之后状态始终跟内容一致（文字 ${JSON.stringify(hp6.text)} / 根下空行 ${hp6.rootBr} / `
+  + `应由内容决定显示=${hintEmpty(hp6)} / class=${hp6.cls} / display=${hp6.display}）`);
+// 再用**普通打字**（一个 input 事件 = 一步）钉确定性的"打字 → 撤回 → 重做"三态：
+//   ★ 用户实测案例 8：用 Ctrl+Z 撤回到**全空**时，提示语必须**回来**（旧实现在这一步不出现）。
+await hintClear();
+await send('Input.insertText', { text: '乙' });
+await sleep(460);
+const hp6b = await hintShot();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await sleep(600);
+const hp6c = await hintShot();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'y', code: 'KeyY', windowsVirtualKeyCode: 89, nativeVirtualKeyCode: 89, modifiers: 2 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'y', code: 'KeyY', windowsVirtualKeyCode: 89, nativeVirtualKeyCode: 89, modifiers: 2 });
+await sleep(620);
+const hp6e = await hintShot();
+await send('Input.insertText', { text: '丙' });
+await sleep(420);
+const hp6d = await hintShot();
+ok(hp6b.display === 'none' && hp6c.text === '' && hp6c.cls === true && hp6c.display === 'block',
+  `(47)* 打字 → Ctrl+Z 撤回到全空：提示语必须回来（${hp6b.display} → ${JSON.stringify(hp6c.text)}/${hp6c.display}）`);
+ok(hp6e.text.indexOf('乙') >= 0 && hp6e.display === 'none' && hp6d.display === 'none' && hp6d.text.indexOf('丙') >= 0,
+  `(47)* 再 Ctrl+Y 重做 → 提示语又跟着内容隐藏、还能接着打字`
+  + `（重做后 ${JSON.stringify(hp6e.text)}/${hp6e.display} → 打字后 ${JSON.stringify(hp6d.text)}/${hp6d.display}）`);
+// 47e 程序化灌入 / 粘贴 / 空行：提示语的显隐都跟着内容走
+await hintClear();
+await evaluate(`(()=>{const box=document.getElementById('tbCode'); box.value='<p>灌入的正文</p>';
+  box.dispatchEvent(new Event('input',{bubbles:true})); return 1;})()`);
+await sleep(700);
+const hp7 = await hintShot();
+ok(hp7.text === '灌入的正文' && hp7.display === 'none' && hp7.cls === false,
+  `(47)* 代码区灌入正文：提示语隐藏（${JSON.stringify(hp7.text)} / display=${hp7.display}）`);
+await hintClear();
+await evaluate(`toolboxInsertHtml('<br>')`);
+await sleep(520);
+const hp8 = await hintShot();
+// ★ 口径反转（本轮，用户实测案例 8）：只有空行、没有任何文字 ⇒ **算空** ⇒ 提示语显示。
+//   旧的"看见根级 <br> 就算有内容"与本条"代码区空 ⇒ 提示语出现"是矛盾的，
+//   而代码区导出的正文这时候确实是空的（''），所以按"空"处理才与代码区一致。
+ok(hp8.text === '' && hp8.cls === true && hp8.display === 'block',
+  `(47)* 只有一根"独立空行 <br>"（没有任何文字）算空 ⇒ 提示语显示（display=${hp8.display}）`);
+// 47f 程序化灌入**空内容**（代码区清空后同步）：提示语必须回来（用户实测案例 8 的同类路径）
+await evaluate(`(()=>{const box=document.getElementById('tbCode'); box.value='';
+  box.dispatchEvent(new Event('input',{bubbles:true})); return 1;})()`);
+await sleep(700);
+const hp9 = await hintShot();
+ok(hp9.text === '' && hp9.cls === true && hp9.display === 'block',
+  `(47)* 代码区清空同步到编辑区：提示语回来（文字 ${JSON.stringify(hp9.text)} / display=${hp9.display}）`);
+
+// ==============================================================
+console.log('\n====== (48) 用户实测的三个漏掉的路径：空行落点 / 粘贴分段 / 撤回后的提示语 ======\n');
+// —— 48A 空行上的落点与光标（用户案例 4：拼音上屏后光标跳到下一段开头）——
+// ★ 落点断言口径（用户点名要求）：**按"编辑区纯文本偏移"断言**，不能只说"光标在编辑区里"。
+//   off = 光标之前的纯文本字数（= 刚输入的字之后）；blk = 光标所在的那个顶层块。
+//   两者一起才钉得住"光标就在刚上屏的字后面、而且就在这一段里"。
+const u48Shot = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const s=getSelection(); const r=s.rangeCount?s.getRangeAt(0):null;
+  let off=-1, blk='-';
+  try { const b=document.createRange(); b.setStart(ed,0); b.setEnd(r.startContainer,r.startOffset); off=b.toString().length; } catch(e){}
+  try { let m=r.startContainer; while(m&&m.parentNode&&m.parentNode!==ed) m=m.parentNode; if(m&&m!==ed) blk=m.tagName+':'+m.textContent; } catch(e){}
+  return JSON.stringify({ code:document.getElementById('tbCode').value, text:ed.textContent, off:off, blk:blk,
+    ps:ed.querySelectorAll('p').length, blanks:[...ed.children].filter(function(c){return c.tagName==='BR';}).length,
+    inBr:[...ed.querySelectorAll('p')].reduce(function(a,p){return a+p.querySelectorAll('br').length;},0),
+    cls:(' '+ed.className+' ').indexOf(' tb-hint-on ')>0 });})()`);
+const u48Set = async (html, selJs) => {
+  await resetEditor();
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML=${JSON.stringify(html)};
+    toolboxNormalizeEditorWhitespace(ed); toolboxRefresh(); toolboxUndoReset(); ed.focus(); return 1;})()`);
+  await sleep(240);
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); const r=document.createRange(); ${selJs || 'r.selectNodeContents(ed); r.collapse(false);'}
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+  await sleep(180);
+};
+const u48Ime = async (pre, han) => {
+  await send('Input.imeSetComposition', { text: pre, selectionStart: pre.length, selectionEnd: pre.length });
+  await sleep(340);
+  await send('Input.insertText', { text: han });
+  await sleep(720);
+};
+// 两种"光标停在空行上"的真实现场：
+//   · u48AtNextP：浏览器把"点空行"解析成**下一段开头**（用户实际遇到的现场）；
+//   · u48AtRoot：光标就在根上、紧邻那根空行（另一种浏览器的解析结果）。
+const u48AtNextP = `const p2=ed.querySelectorAll('p')[1]; r.setStart(p2.firstChild||p2,0); r.collapse(true);`;
+const u48AtRoot = `r.setStart(ed,2); r.collapse(true);`;
+const u48Base = '<p>甲</p><br><p>乙</p>';
+// 48A-1 拼音：空行 → 段落，光标必须落在「中」之后；接着输「国」还在同一段里
+await u48Set(u48Base, u48AtNextP);
+await u48Ime('zhong', '中');
+const u1a = await u48Shot();
+ok(u1a.code === '<p>甲</p>\n<p>中</p>\n<p>乙</p>' && u1a.ps === 3 && u1a.blanks === 0,
+  `(48)* 案例4·拼音：空行上输「中」→ 空行变 <p>、前后两段都在（实际 ${JSON.stringify(u1a.code)}）`);
+ok(u1a.off === 2 && u1a.blk === 'P:中',
+  `(48)* 案例4·拼音：上屏后光标在「中」**之后**（文本偏移 ${u1a.off}（应为 2）/ 所在块 ${u1a.blk}（应为 P:中））`);
+await u48Ime('guo', '国');
+const u1b = await u48Shot();
+ok(u1b.code === '<p>甲</p>\n<p>中国</p>\n<p>乙</p>' && u1b.off === 3 && u1b.blk === 'P:中国',
+  `(48)* 案例4·拼音：接着输「国」仍在同一段、光标在字后（${JSON.stringify(u1b.code)} / 偏移 ${u1b.off} / 块 ${u1b.blk}）`);
+// 48A-2 同一条路、另一种"空行光标"现场（光标挂在根的 <br> 旁）
+await u48Set(u48Base, u48AtRoot);
+await u48Ime('zhong', '中');
+const u2a = await u48Shot();
+ok(u2a.code === '<p>甲</p>\n<p>中</p>\n<p>乙</p>' && u2a.off === 2 && u2a.blk === 'P:中',
+  `(48)* 案例4·拼音（光标挂根上）：同样只吃掉那一格空行、光标在字后（${JSON.stringify(u2a.code)} / 偏移 ${u2a.off}）`);
+// 48A-3 同类路径：英文/数字（普通按键）
+await u48Set(u48Base, u48AtNextP);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: '7', code: 'Digit7', windowsVirtualKeyCode: 55, nativeVirtualKeyCode: 55, text: '7' });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: '7', code: 'Digit7', windowsVirtualKeyCode: 55, nativeVirtualKeyCode: 55 });
+await sleep(460);
+const u3a = await u48Shot();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: '8', code: 'Digit8', windowsVirtualKeyCode: 56, nativeVirtualKeyCode: 56, text: '8' });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: '8', code: 'Digit8', windowsVirtualKeyCode: 56, nativeVirtualKeyCode: 56 });
+await sleep(460);
+const u3b = await u48Shot();
+ok(u3a.code === '<p>甲</p>\n<p>7</p>\n<p>乙</p>' && u3a.off === 2 && u3a.blk === 'P:7',
+  `(48)* 案例4·数字：空行上敲 7 → 自成一段、光标在字后（${JSON.stringify(u3a.code)} / 偏移 ${u3a.off} / 块 ${u3a.blk}）`);
+ok(u3b.code === '<p>甲</p>\n<p>78</p>\n<p>乙</p>' && u3b.off === 3 && u3b.blk === 'P:78',
+  `(48)* 案例4·数字：接着敲 8 落在同一段（${JSON.stringify(u3b.code)} / 偏移 ${u3b.off} / 块 ${u3b.blk}）`);
+// 48A-4 同类路径：空行上 Shift+Enter（不许把"段落间空行"改写成"段内分行"）
+await u48Set(u48Base, u48AtRoot);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r', modifiers: 8 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: 8 });
+await sleep(520);
+const u4a = await u48Shot();
+ok(u4a.code === '<p>甲</p>\n<br>\n<br>\n<p>乙</p>' && u4a.blanks === 2 && u4a.inBr === 0 && u4a.ps === 2,
+  `(48)* 案例4·空行上 Shift+Enter：再补一根**根级空行**，绝不改成段内 <br>（${JSON.stringify(u4a.code)} / 段内 <br>=${u4a.inBr}）`);
+await send('Input.insertText', { text: '丙' });
+await sleep(560);
+const u4b = await u48Shot();
+ok(u4b.code === '<p>甲</p>\n<br>\n<p>丙</p>\n<p>乙</p>' && u4b.off === 2 && u4b.blk === 'P:丙',
+  `(48)* 案例4·空行上 Shift+Enter 之后打字：字就落在光标那一行、上面留一根空行（${JSON.stringify(u4b.code)} / 偏移 ${u4b.off}）`);
+// 48A-5 同类路径：空行上粘贴（单段 / 多段）
+await u48Set(u48Base, u48AtNextP);
+await iPaste44('丙');
+await sleep(620);
+const u5a = await u48Shot();
+ok(u5a.code === '<p>甲</p>\n<p>丙</p>\n<p>乙</p>' && u5a.off === 2 && u5a.blk === 'P:丙',
+  `(48)* 案例4·空行上粘贴单段：粘贴内容自成一段、光标在字后（${JSON.stringify(u5a.code)} / 偏移 ${u5a.off} / 块 ${u5a.blk}）`);
+await u48Set(u48Base, u48AtNextP);
+await iPaste44('丙\n\n丁');
+await sleep(760);
+const u5b = await u48Shot();
+ok(u5b.code === '<p>甲</p>\n<p>丙</p>\n<br>\n<p>丁</p>\n<p>乙</p>' && u5b.ps === 4 && u5b.blanks === 1 && u5b.off === 3,
+  `(48)* 案例4·空行上粘贴多段：第一段吃掉那格空行、后面的段各成一段、下半段不动`
+  + `（${JSON.stringify(u5b.code)} / 偏移 ${u5b.off}）`);
+
+// —— 48B 粘贴分段（用户案例 7：三段原文粘进来只有一个 <p>）——
+// ★ 用户实测的现场是 **CRLF** 与**全角空格空行**（`\r\n\r\n` / `\n\u3000\n`）：
+//   旧判据的正则只认 `[ \t\u00a0]`，这两种一个都不认 ⇒ "空行分段"整条路被跳过，
+//   三段正文塞进同一个 <p>、段间只剩 `<br><br>`（用户截图正是这个）。
+const u48P1 = '很荒诞，也很真实。但我觉得这件事有个别的角度看。';
+const u48P2 = '**同一套、同一天买的、同一天送的、同一个样票号 08241——唯一的变量就是纸本身。**';
+const u48P3 = '你什么都没换。不是选了好的送、差的留，是整组进去，让纸自己说话。';
+const u48Seen = ['\\n\\n', '\\r\\n\\r\\n（CRLF，用户实测现场）', '\\n\\u3000\\n（全角空格空行）', '\\n\\t\\n（制表符空行）'];
+const u48Seps = ['\n\n', '\r\n\r\n', '\n\u3000\n', '\n\t\n'];
+for (let i = 0; i < u48Seps.length; i++) {
+  await resetEditor();
+  await iSet44('');
+  await iPaste44([u48P1, u48P2, u48P3].join(u48Seps[i]));
+  await sleep(700);
+  const g = await u48Shot();
+  ok(g.ps === 3 && g.blanks === 2 && g.inBr === 0 && g.text === u48P1 + u48P2 + u48P3,
+    `(48)* 案例7·分隔符 ${u48Seen[i]}：三段原文 → 3 个 <p> + 2 根独立空行、段内无 <br>`
+    + `（实际 <p>${g.ps} / 空行${g.blanks} / 段内 <br>${g.inBr}）`);
+  ok(g.code === '<p>' + u48P1 + '</p>\n<br>\n<p>' + u48P2 + '</p>\n<br>\n<p>' + u48P3 + '</p>',
+    `(48)* 案例7·分隔符 ${u48Seen[i]}：代码区逐字是"一段一个 <p>、空行一根独立 <br>"（实际 ${JSON.stringify(g.code)}）`);
+  const rt = await gRT42();
+  ok(rt.same === true && rt.e === 0 && rt.w === 0,
+    `(48)* 案例7·分隔符 ${u48Seen[i]}：往返逐字节幂等、校验 0 错 0 警（${JSON.stringify(rt.c1)}）`);
+}
+// 反例（与上面成对，防止"凡是粘贴都按空行切"）：单行、无空行多行
+await resetEditor();
+await iSet44('');
+await iPaste44('只有一行');
+await sleep(620);
+const u6a = await u48Shot();
+ok(u6a.code === '<p>只有一行</p>' && u6a.ps === 1 && u6a.blanks === 0,
+  `(48)* 案例7·反例：粘贴只有一行 → 仍然是 1 个 <p>（${JSON.stringify(u6a.code)}）`);
+await resetEditor();
+await iSet44('');
+await iPaste44('甲\r\n乙\r\n丙');
+await sleep(620);
+const u6b = await u48Shot();
+ok(u6b.code === '<p>甲<br>乙<br>丙</p>' && u6b.ps === 1 && u6b.inBr === 2,
+  `(48)* 案例7·反例：粘贴三行（CRLF、没有空行）→ 仍是同一个 <p> 里两根 <br>（${JSON.stringify(u6b.code)}）`);
+// 只有 HTML 的剪贴板（网页复制、没带 text/plain）：块级边界换成换行，段落不丢
+await resetEditor();
+await iSet44('');
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.focus();
+  const dt=new DataTransfer(); dt.setData('text/html','<p>甲段</p><p>乙段</p>');
+  ed.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true})); return 1;})()`);
+await sleep(700);
+const u6c = await u48Shot();
+ok(u6c.code === '<p>甲段</p>\n<br>\n<p>乙段</p>' && u6c.ps === 2 && u6c.text === '甲段乙段',
+  `(48)* 案例7·只有 HTML 的剪贴板：块级边界不丢，两段各成 <p>（实际 ${JSON.stringify(u6c.code)}）`);
+
+// —— 48C 撤回删到全空之后的提示语（用户案例 8）——
+// ★ 关键口径：**"只有空行"算空** —— 撤回/删空之后编辑区常常只剩一根根级 `<br>`，
+//   代码区导出的正文就是空的（''），提示语必须出现（用户实测：这一步不出现）。
+const u48HintClear = async () => {
+  await resetEditor();
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p><br></p>';
+    toolboxNormalizeEditorWhitespace(ed); toolboxRefresh(); toolboxHintSync(); toolboxUndoReset();
+    const r=document.createRange(); r.setStart(ed.querySelector('p'),0); r.collapse(true);
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+  await sleep(440);
+};
+const u48UndoKey = async (k, mod) => {
+  const vk = k === 'z' ? 90 : 89;
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code: 'Key' + k.toUpperCase(), windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers: mod });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: 'Key' + k.toUpperCase(), windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers: mod });
+  await sleep(620);
+};
+// 48C-1 全选删除到空 → 提示语出现（用户说这条本来就对，先钉住）
+await u48HintClear();
+await send('Input.insertText', { text: '甲' });
+await sleep(500);
+const u7a = await u48Shot();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: 2 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: 2 });
+await sleep(200);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+await sleep(560);
+const u7b = await u48Shot();
+ok(u7a.cls === false && u7b.text === '' && u7b.cls === true,
+  `(48)* 案例8·全选删除：有字时隐藏 → 删空后提示语出现（${u7a.cls} → ${u7b.cls}，文字 ${JSON.stringify(u7b.text)}）`);
+// 48C-2 Ctrl+Z 撤回到全空 → 提示语必须回来（用户报的 bug 本体）
+await u48HintClear();
+await send('Input.insertText', { text: '乙' });
+await sleep(520);
+const u8a = await u48Shot();
+await u48UndoKey('z', 2);
+const u8b = await u48Shot();
+ok(u8a.cls === false && u8b.text === '' && u8b.cls === true,
+  `(48)* 案例8·Ctrl+Z 撤回到全空：提示语必须回来（${u8a.cls} → ${u8b.cls}，文字 ${JSON.stringify(u8b.text)}，`
+  + `根下空行 ${u8b.blanks}）`);
+// 48C-3 撤回 → 重做 → 再撤回：每一步的提示语都与内容一致
+await u48UndoKey('z', 2 + 8);
+const u8c = await u48Shot();
+await u48UndoKey('z', 2);
+const u8d = await u48Shot();
+ok(u8c.text.indexOf('乙') >= 0 && u8c.cls === false && u8d.text === '' && u8d.cls === true,
+  `(48)* 案例8·重做/再撤回：重做回「乙」→ 隐藏；再撤回到空 → 又出现`
+  + `（${JSON.stringify(u8c.text)}/${u8c.cls} → ${JSON.stringify(u8d.text)}/${u8d.cls}）`);
+// 48C-4 程序化整篇换内容（toolboxApplyCodeToEditor = 所有"整篇换内容"的唯一出口）
+await u48HintClear();
+await send('Input.insertText', { text: '丙' });
+await sleep(500);
+const u9a = await u48Shot();
+await evaluate(`toolboxApplyCodeToEditor('', true)`);
+await sleep(500);
+const u9b = await u48Shot();
+ok(u9a.cls === false && u9b.text === '' && u9b.cls === true,
+  `(48)* 案例8·程序化灌入空内容：提示语跟着内容走（${u9a.cls} → ${u9b.cls}）`);
+
+// ==============================================================
+console.log('\n====== (49) 案例 3：两次 Enter 的顺序不变量（gap 相对前后段的位置不许变）======\n');
+// ★ 顺序断言口径（用户点名要求）：**用节点顺序断言**，不能只断言"存在一根根级 <br>"。
+//   u49Shot() 把编辑区根的子节点按顺序列出来（BR = 独立空行 / P = 段落），
+//   并给出光标落在第几个根子节点上 —— "空行在谁前面、谁后面"直接可读、可直接比对。
+const u49Shot = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const s=getSelection(); const r=s.rangeCount?s.getRangeAt(0):null;
+  const kids=[...ed.childNodes].map(function(c){
+    if (c.nodeType===3) return '#text:'+JSON.stringify(c.nodeValue);
+    return c.tagName+(c.getAttribute&&c.getAttribute('data-tb-caret')?'[caret]':'');});
+  let ci=-1;
+  try { if (r) { let m=r.startContainer;
+    if (m===ed) ci=r.startOffset;
+    else { while(m.parentNode&&m.parentNode!==ed) m=m.parentNode; ci=Array.prototype.indexOf.call(ed.childNodes,m); } } } catch(e){}
+  let off=-1, blk='-';
+  try { const b=document.createRange(); b.setStart(ed,0); b.setEnd(r.startContainer,r.startOffset); off=b.toString().length; } catch(e){}
+  try { let m=r.startContainer; while(m&&m.parentNode&&m.parentNode!==ed) m=m.parentNode; if(m&&m!==ed) blk=m.tagName+':'+m.textContent; } catch(e){}
+  return JSON.stringify({ order:kids, caretIn:ci, off:off, blk:blk,
+    code:document.getElementById('tbCode').value, text:ed.textContent,
+    ps:ed.querySelectorAll('p').length,
+    blanks:[...ed.children].filter(function(c){return c.tagName==='BR';}).length });})()`);
+const u49New = async () => {
+  await resetEditor();
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.focus();
+    const r=document.createRange(); r.setStart(ed.querySelector('p'),0); r.collapse(true);
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+  await sleep(320);
+};
+const u49Set = async (html, selJs) => {
+  await resetEditor();
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML=${JSON.stringify(html)};
+    toolboxNormalizeEditorWhitespace(ed); toolboxRefresh(); toolboxUndoReset(); ed.focus(); return 1;})()`);
+  await sleep(240);
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); const r=document.createRange(); ${selJs}
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+  await sleep(180);
+};
+const u49Ime = async (pre, han) => {
+  await send('Input.imeSetComposition', { text: pre, selectionStart: pre.length, selectionEnd: pre.length });
+  await sleep(340);
+  await send('Input.insertText', { text: han });
+  await sleep(720);
+};
+const u49Enter = async (mods) => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods || 0, text: '\r' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods || 0 });
+  await sleep(430);
+};
+const u49Back = async () => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  await sleep(470);
+};
+const u49AtRootBlank = `r.setStart(ed,2); r.collapse(true);`;
+const u49AtNextP = `const p2=ed.querySelectorAll('p')[1]; r.setStart(p2.firstChild||p2,0); r.collapse(true);`;
+const u49Base = '<p>甲</p><br><p>乙</p>';
+// —— 49A 真实按键序列：`甲` ⏎ ⏎ `乙`（中文输入法路径 —— 本轮案例 3 的回归现场）——
+for (const mode of ['ime', 'plain']) {
+  const tag = (mode === 'ime') ? '拼音' : '普通输入';
+  await u49New();
+  if (mode === 'ime') await u49Ime('jia', '甲');
+  else { await send('Input.insertText', { text: '甲' }); await sleep(520); }
+  const a0 = await u49Shot();
+  ok(a0.code === '<p>甲</p>' && a0.ps === 1 && a0.blanks === 0,
+    `(49)* 案例3·${tag}：敲「甲」→ 1 个 <p>、没有空行（${JSON.stringify(a0.code)}）`);
+  await u49Enter(0);
+  const a1 = await u49Shot();
+  ok(a1.order.join(',') === 'P,P' && a1.blanks === 0 && a1.code === '<p>甲</p>',
+    `(49)* 案例3·${tag}：第一次 Enter → 两个 <p>、**没有**空行（顺序 ${a1.order.join('|')} / ${JSON.stringify(a1.code)}）`);
+  await u49Enter(0);
+  const a2 = await u49Shot();
+  // ② 顺序必须是 前段 → 独立空行 → 落脚段，且**光标在落脚段里、位于那根空行之后**
+  ok(a2.order.join(',') === 'P,BR,P' && a2.blanks === 1 && a2.caretIn === 2 && a2.blk === 'P:',
+    `(49)* 案例3·${tag}：第二次 Enter → 前段 + 独立空行 + 空落脚块，光标在落脚块里且在空行之后`
+    + `（顺序 ${a2.order.join('|')} / 光标在第 ${a2.caretIn} 个根子节点 / 所在块 ${a2.blk}）`);
+  if (mode === 'ime') await u49Ime('yi', '乙');
+  else { await send('Input.insertText', { text: '乙' }); await sleep(560); }
+  const a3 = await u49Shot();
+  ok(a3.order.join(',') === 'P,BR,P' && a3.code === '<p>甲</p>\n<br>\n<p>乙</p>' && a3.text === '甲乙',
+    `(49)* 案例3·${tag}：敲「乙」→ 文字落在**空行之后**（顺序 ${a3.order.join('|')} / ${JSON.stringify(a3.code)}）`);
+  ok(a3.order[1] === 'BR' && a3.order[0] === 'P' && a3.order[2] === 'P' && a3.blanks === 1 && a3.off === 2 && a3.blk === 'P:乙',
+    `(49)* 案例3·${tag}：那根空行 <br> 确实在 </p> 之后、下一个 <p> 之前（节点顺序 ${a3.order.join('|')} / `
+    + `光标偏移 ${a3.off} 在 ${a3.blk}）`);
+}
+// —— 49B 同类顺序不变量：空行上的打字 / Shift+Enter / 粘贴 / 退格，都不许改变 gap 的位置 ——
+// ① 空行上打字（光标被浏览器解析成"下一段开头"）：空行那一格就地长成 <p>，位置不变
+await u49Set(u49Base, u49AtNextP);
+await u49Ime('zhong', '中');
+const b1 = await u49Shot();
+ok(b1.order.join(',') === 'P,P,P' && b1.code === '<p>甲</p>\n<p>中</p>\n<p>乙</p>' && b1.text === '甲中乙',
+  `(49)* 顺序不变量·空行上打字：那一格就地变成 <p>（顺序 ${b1.order.join('|')} / ${JSON.stringify(b1.code)}）`);
+ok(b1.off === 2 && b1.blk === 'P:中',
+  `(49)* 顺序不变量·空行上打字：光标在新字之后、位置就是原来那一格（偏移 ${b1.off} / ${b1.blk}）`);
+// ② 空行上打字（光标挂在根的 <br> 旁）：同上
+await u49Set(u49Base, u49AtRootBlank);
+await u49Ime('zhong', '中');
+const b2 = await u49Shot();
+ok(b2.order.join(',') === 'P,P,P' && b2.code === '<p>甲</p>\n<p>中</p>\n<p>乙</p>' && b2.off === 2,
+  `(49)* 顺序不变量·空行上打字（光标挂根上）：同样只吃掉那一格（顺序 ${b2.order.join('|')} / 偏移 ${b2.off}）`);
+// ③ 空行上 Shift+Enter：再补一根**根级**空行，仍在原位置（段内 <br> 一根都不许出现）
+await u49Set(u49Base, u49AtRootBlank);
+await u49Enter(8);
+const b3 = await u49Shot();
+ok(b3.order.join(',') === 'P,BR,BR,P' && b3.code === '<p>甲</p>\n<br>\n<br>\n<p>乙</p>'
+  && b3.blanks === 2 && b3.ps === 2 && b3.blanks === b1.blanks + 2,
+  `(49)* 顺序不变量·空行上 Shift+Enter：新空行紧跟原来那根（顺序 ${b3.order.join('|')} / ${JSON.stringify(b3.code)}）`);
+// ④ 空行上粘贴（单段）：内容落进那一格，前后两段不动
+await u49Set(u49Base, u49AtRootBlank);
+await iPaste44('丙');
+await sleep(640);
+const b4 = await u49Shot();
+ok(b4.order.join(',') === 'P,P,P' && b4.code === '<p>甲</p>\n<p>丙</p>\n<p>乙</p>' && b4.off === 2 && b4.blk === 'P:丙',
+  `(49)* 顺序不变量·空行上粘贴单段：内容就落在那一格、光标在字后（顺序 ${b4.order.join('|')} / 偏移 ${b4.off}）`);
+// ⑤ 空行上粘贴（两段）：第一段吃掉那一格，其余各成段，后半段留在最后
+await u49Set(u49Base, u49AtRootBlank);
+await iPaste44('丙\n\n丁');
+await sleep(760);
+const b5 = await u49Shot();
+ok(b5.order.join(',') === 'P,P,BR,P,P' && b5.code === '<p>甲</p>\n<p>丙</p>\n<br>\n<p>丁</p>\n<p>乙</p>' && b5.caretIn === 3,
+  `(49)* 顺序不变量·空行上粘贴两段：新段落按顺序插在那一格，段间空行留在两段之间`
+  + `（顺序 ${b5.order.join('|')} / 光标在第 ${b5.caretIn} 个根子节点）`);
+// ⑥ 空行后退格：只删掉那一根空行，前后两段合到相邻位置（顺序里不许再多出别的节点）
+await u49Set(u49Base, u49AtRootBlank);
+await u49Back();
+const b6 = await u49Shot();
+ok(b6.order.join(',') === 'P,P' && b6.code === '<p>甲</p>\n<p>乙</p>' && b6.blanks === 0 && b6.text === '甲乙',
+  `(49)* 顺序不变量·空行后退格（光标在空行上）：只少掉那一根 <br>（顺序 ${b6.order.join('|')} / ${JSON.stringify(b6.code)}）`);
+await u49Set(u49Base, u49AtNextP);
+await u49Back();
+const b7 = await u49Shot();
+ok(b7.order.join(',') === 'P,P' && b7.code === '<p>甲</p>\n<p>乙</p>' && b7.text === '甲乙',
+  `(49)* 顺序不变量·空行后退格（光标在下一段开头）：结果一致（顺序 ${b7.order.join('|')} / ${JSON.stringify(b7.code)}）`);
+// ⑦ 空行上打字之后退格：又回到"同一格"的空行（gap 位置可逆）
+await u49Set(u49Base, u49AtRootBlank);
+await u49Ime('zhong', '中');
+await u49Back();
+const b8 = await u49Shot();
+ok(b8.order.join(',') === 'P,BR,P' && b8.code === '<p>甲</p>\n<br>\n<p>乙</p>' && b8.text === '甲乙',
+  `(49)* 顺序不变量·空行上打字段落删空：又回到同一格的空行（顺序 ${b8.order.join('|')} / ${JSON.stringify(b8.code)}）`);
+
 console.log(`\n  -------- 通过 ${pass} / 失败 ${fail} -------- `);
 ok(errors.length === 0, `全程无未捕获异常${errors.length} 条）`);
 if (errors.length) errors.slice(0, 5).forEach(e => console.log('    ! ' + e.slice(0, 220)));

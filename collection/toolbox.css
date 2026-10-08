@@ -309,9 +309,14 @@ button.tb-close { margin-left: 4px; }
 }
 .tb-editor {
     flex: 1 1 auto;
-    min-height: 0;
+    /* ★ 至少要有一行的位置：空编辑区（或只有一个 <p><br></p>）时也要有"放光标的那一行"，
+       否则光标行会贴着提示语的下一行、或者干脆没有行盒。 */
+    min-height: calc(1.85em + 28px + 40px);
     overflow-y: auto;
     overscroll-behavior: contain;  /* 滚到底不把滚动传给背景页 */
+    /* ★ 空状态提示语用的是绝对定位叠加（见下面 ::before）：它需要一个定位祖先。
+       这里不能写 overflow:hidden 之外的裁剪，absolute 子元素照样跟着内容滚。 */
+    position: relative;
     /* ★ 尺寸/间距/字号照用户给的那份草稿："padding:28px 34px; font-size:16px; line-height:1.85"。
        颜色用站内变量（草稿写的是写死的 #222，深色主题下会看不清，用户允许换站内变量）。 */
     padding: 28px 34px 40px;
@@ -322,18 +327,44 @@ button.tb-close { margin-left: 4px; }
     outline: none;
 }
 /* 空编辑区的提示语：文案写在 HTML 的 data-placeholder 上（和代码区的 placeholder 一起管）。
-   :empty 在"里面只有一个 <p><br></p>"时不成立，所以再配一条 :has 兜底
-   （现代浏览器都支持；不支持只是少个提示，不影响功能）。
-   打开时的初始内容就是 <p><br></p>，所以真正生效的是第二条。 */
-.tb-editor:empty::before,
-.tb-editor:has(> p:only-child > br:only-child)::before {
+   ★ 显示/隐藏**完全由 JS 按"编辑区里到底有没有内容"实时判定**（见 toolbox.js 的
+     toolboxHintShouldShow / toolboxHintSync，判定点覆盖 input / keyup / compositionstart·
+     update·end / 程序化灌入 / 粘贴 / 删除 / 撤回）。
+     以前只用 CSS 的 `:empty` / `:has(> p:only-child > br:only-child)` 判定 —— 遇到
+     "编辑区根上正挂着合成中的拼音裸文本"这种中间态就会误判成"空"，于是**有正文时提示语
+     还显示、压在正文第一行上**（用户实测："敲第二行的时候，从这里开始和第一行重叠出现"）。
+     换成类名开关之后，判据跟"代码区是不是空的"用的是同一套内容观，不会再分叉。
+   ★ 绝对定位叠加（不参与排版、不占行高）：
+     打开时的初始内容就是 <p><br></p>，它才是第一行，光标从一开始就在「从这里开始」那一行；
+     "打一堆字再全删掉"回到的也是同一行（两种状态表现一致）。
+     内偏移 = 编辑区的 padding（28px 34px 40px），这样文字与提示语逐像素对齐。
+   ★ 隐藏必须彻底：display:none（零矩形 ⇒ 绝不遮挡、不可选、不影响点击），
+     另外 opacity/visibility 一起带上，任何一条单独生效都不会漏出来。 */
+.tb-editor::before {
     content: attr(data-placeholder);
+    position: absolute;
+    left: 34px;
+    top: 28px;
     color: var(--text-secondary);
     pointer-events: none;
+    display: none;
+    opacity: 0;
+    visibility: hidden;
+}
+.tb-editor.tb-hint-on::before {
+    display: block;
+    opacity: 1;
+    visibility: visible;
 }
 /* 编辑区里正文元素的最小可用样式。只影响"编辑时的观感"，
    不参与输出（输出的是内联样式，见 toolbox.js 的模板）。 */
 .tb-editor p { margin: 0 0 1em; }
+/* 光标落脚点 [data-tb-caret] 现在是**一根带标记的 <br>**（见 toolbox.js 的
+   toolboxCaretHolderMake）：它不需要任何样式 —— `<br>` 天生就换行、就生成行盒，
+   而且与浏览器自己按 Shift+Enter 得到的 `<p>甲<br><br></p>` 逐字节一致
+   （实测：span 版落脚点哪怕给了宽度，选区的 getClientRects() 仍是空的 ⇒ 插入点画不出来，
+   鼠标点"下一行"也命不中；换成 <br> 之后光标可见、可点、打字进对行）。
+   所以这里**没有**样式规则：不要给 [data-tb-caret] 加 display/width，那会把 <br> 变成行内块。 */
 .tb-editor ul, .tb-editor ol { margin: 10px 0; padding-left: 22px; }
 .tb-editor blockquote {
     margin: 10px 0;
@@ -403,12 +434,75 @@ button.tb-close { margin-left: 4px; }
     display: flex;
     background: #1e1e28;
     overflow: hidden;
+    /* 行号栏宽度：一处定义，行号栏/测量层/高亮镜像层三边共用，保证三者左边界完全一致。 */
+    --tb-gutter-w: 46px;
+}
+/* ---------- 行号栏（gutter）----------
+   代码区是 wrap="soft"：长逻辑行会折成**多行视觉行**。
+   ★ 行号只标在**逻辑行**（按 \n 划分）的行首，折行的续行**留空**（标准做法，不会错位）。
+     于是"行号"的纵向位置不能按 行号×行高 算 —— 每个逻辑行占多高由它折了几行决定。
+     高度来自同排版的隐藏测量层（.tb-code-measure）里逐行 div 的 offsetHeight，
+     由 toolboxGutterSync 写进每一行的高度上。
+   它是 flex 里的**在流**一列（不是覆盖层）：这样 textarea 的可用宽度自动让出这 46px，
+   代码文字不会钻到行号下面；高亮镜像层把左边界同样让出 46px（见下），三者对齐。 */
+.tb-code-gutter {
+    flex: 0 0 var(--tb-gutter-w);
+    width: var(--tb-gutter-w);
+    align-self: stretch;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: #17171f;                                  /* 比代码底(#1e1e28)再深一档，淡淡的区分 */
+    border-right: 1px solid #2b2b36;
+    color: #6b7280;                                       /* 弱化：行号不该抢代码的注意力 */
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    user-select: none;
+    -webkit-user-select: none;                            /* 行号绝不参与选中/复制 */
+    pointer-events: none;                                 /* 也不可点：不挡代码区的滚动条与点击 */
+}
+/* 行号的实际内容容器：padding 与代码区一致（16px），滚动时整体上移（transform），
+   所以第 1 个序号与代码区第 1 行的顶边严格对齐。 */
+.tb-code-gutter-inner {
+    padding: 16px 0;
+    box-sizing: border-box;
+    will-change: transform;
+}
+.tb-code-gutter-row {
+    height: 21.875px;                                     /* 默认 = 12.5px × 1.75；JS 按实际像素覆盖 */
+    padding-right: 10px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+}
+/* 行号栏的测量层：排版参数与 .tb-code / .tb-code-hl 逐条一致（换一条就会量错、进而错位），
+   差别只有 visibility:hidden（仍参与排版）与左边界让出 46px。 */
+.tb-code-measure {
+    position: absolute;
+    left: var(--tb-gutter-w);
+    right: 0;
+    top: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -1;
+    padding: 16px 18px;
+    box-sizing: border-box;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    tab-size: 2;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 /* 高亮镜像层：与 .tb-code 完全相同的排版参数（字号/行高/内边距/换行规则），
    文字透明，只显示 ::highlight(tb-sync) 画出来的高亮块。纯显示，不接收鼠标事件。 */
 .tb-code-hl {
     position: absolute;
-    inset: 0;
+    /* ★ 左边界让出 46px 的行号栏：镜像层必须与 textarea 的**内容区**重合，
+       否则高亮会整体左移 46px（行号栏占了 flex 的第一列）。其余三边照旧。 */
+    inset: 0 0 0 var(--tb-gutter-w);
     padding: 16px 18px;
     box-sizing: border-box;
     color: transparent;
@@ -526,7 +620,11 @@ button.tb-close { margin-left: 4px; }
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
-    z-index: 10;
+    /* ★ 用户的实测：提示语被"有各种选项的弹窗"盖住了 —— 那是层级写反了。
+       toast 必须永远在最上面：1400 > 表格/图片小菜单(1300) > 草稿确认(1250)
+       > 工具箱主弹窗(1200) > 站内下拉弹层(900) > 字段对话框(20) > 缩放手柄(5)。
+       它一直是工具箱这一摞里的最上层，任何浮层都不该压住它。 */
+    z-index: 1400;
 }
 .tb-toast.show { opacity: 1; transform: translate(-50%, 0); }
 /* ★ toast 的绝对定位基准 = 整张卡片。这里**不能**再写 `.tb-card { position: relative }`：

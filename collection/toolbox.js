@@ -42,6 +42,13 @@ const TOOLBOX_TABLE_HEAD_STYLE = 'border:1px solid var(--border);padding:0.4rem;
 // 行内标签：代码美化时用来判断"能不能和上一行挤在一起"。
 const TOOLBOX_INLINE_TAGS = ['A', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'SPAN', 'CODE',
     'SUB', 'SUP', 'FONT', 'SMALL', 'MARK', 'TIME'];
+// ★ 光标托（编辑期临时节点，见 toolboxCaretHolderMake）：一个空的 inline-block span。
+//   它一个字都不含（textContent 不变），只在 <br> 后面"撑出那一行"，让光标有落脚的行盒；
+//   序列化前一律摘掉，所以导出的 HTML 里永远看不到它。
+const TOOLBOX_CARET_ATTR = 'data-tb-caret';
+// ★ 空行的唯一形态（用户口径）：块与块之间**一个独立成行的根级 `<br>`**。
+//   它不需要任何标记 —— 就是用户规范样例里那种普通 <br>，序列化原样输出、校验器不报错。
+//   "空行 ↔ 段落"的互转见 toolboxFillBlankLine / toolboxParagraphToBlankLine。
 // 空元素：没有结束标签，也不增加缩进层级。
 const TOOLBOX_VOID_TAGS = ['BR', 'IMG', 'HR', 'COL', 'INPUT', 'WBR'];
 // 块级标签：代码排版时"各自成一行"的那些。
@@ -108,6 +115,10 @@ function toolboxCleanHtml() {
     // ★ 图片占位框是纯显示层：先摘掉（包裹层解开、文件名删掉），
     //   序列化出来的永远是**原始那份** HTML —— 幂等靠这一步。
     toolboxStripDisplayNodes(box);
+    // ★ 光标托（编辑期用来给"<br> 后面那一行"撑行盒的空 span）不是内容：一律摘掉。
+    //   用户已经在那一行打了字的话，字会原样挪到 <br> 后面，一个字符都不会丢 ——
+    //   所以导出的永远只有 <br> 和正文，看不到任何工具留下的痕迹。
+    toolboxStripCaretHolders(box);
     sanitizeToolboxNode(box);
     // 空块清理放在净化之后：白名单外的标签被拆成文本后，可能出现"只剩一个空 <p>/<span>"的壳，
     // 这些壳在页面上就是一条多余的空行（用户明确要求插入后不出现空行/空块）。
@@ -190,7 +201,9 @@ function sanitizeToolboxNode(root) {
             const val = attrs[k].value;
             let keep = (name === 'colspan' || name === 'rowspan' || name === 'width'
                 || name === 'style' || name === 'href' || name === 'src' || name === 'controls'
-                || name === 'poster' || name === 'alt' || name === 'title' || name === 'target' || name === 'rel');
+                || name === 'poster' || name === 'alt' || name === 'title' || name === 'target' || name === 'rel'
+                // ★ 光标托必须活过净化（带 tb- 前缀，不属于外部粘贴的杂质）；导出前会被摘掉。
+                || name === 'data-tb-caret');
             if (!keep) { try { el.removeAttribute(attrs[k].name); } catch (e) {} continue; }
             // ③ 地址：带 scheme 的只允许 http(s)/邮件/电话/data:image；
             //    不带 scheme 的一律当**相对路径**放行 —— 语料里的图片是
@@ -421,19 +434,23 @@ function toolboxIsStructBlock(el) {
 }
 
 // 块级节点之间的纯空白文本节点：没有意义（浏览器也忽略），丢掉才能幂等
+// ★ 根级 `<br>`（= 用户留的空行，见 toolboxInsertParagraph）在这里跟块级同等对待：
+//   代码区排版时 `<br>` 自己占一行，导入后它两边会留下 "\n" 文本节点。不认这一条，
+//   那些 "\n" 就永远清不掉 —— 表现是"编辑区文字里凭空多出换行、撤回后光标定位失配"。
 function toolboxWhitespaceBetweenBlocks(node, i) {
+    const sep = function (s) { return s.nodeType === 1 && (toolboxIsStructBlock(s) || s.tagName === 'BR'); };
     const kids = node.childNodes;
     for (let k = i - 1; k >= 0; k--) {
         const s = kids[k];
         if (s.nodeType === 3) { if (String(s.nodeValue || '').replace(TOOLBOX_WS, '') === '') continue; return false; }
         // ★ 这里判的是"有没有意义"，所以按结构块算（含 flex 容器）：HTML 里
         //   flex 容器之间的换行同样是会被忽略的空白，代码区导出时也确实把它丢了。
-        return s.nodeType === 1 && toolboxIsStructBlock(s);
+        return sep(s);
     }
     for (let k = i + 1; k < kids.length; k++) {
         const s = kids[k];
         if (s.nodeType === 3) { if (String(s.nodeValue || '').replace(TOOLBOX_WS, '') === '') continue; return false; }
-        return s.nodeType === 1 && toolboxIsStructBlock(s);
+        return sep(s);
     }
     return false;
 }
@@ -536,7 +553,16 @@ function toolboxFormatHtml(box, rec) {
             if (n.nodeType !== 1) continue;                   // 注释等一律不输出
             const tag = n.tagName.toLowerCase();
             const open = '<' + tag + toolboxAttrsOf(n) + '>';
-            if (TOOLBOX_VOID_TAGS.indexOf(n.tagName) >= 0) { line += open; continue; }
+            if (TOOLBOX_VOID_TAGS.indexOf(n.tagName) >= 0) {
+                // ★ 走到这里的是"块容器的一级孩子"里的空元素。其中 **根级 `<br>` = 用户留的
+                //   一个空行**，按用户要求"代码勤换行、一个块一行"——它自己占一行；
+                //   连按两次 Enter 留两个空行就是两行 `<br>`，绝不挤成 `<br><br>` 一行。
+                //   ★ 段内的 `<br>`（`<p>` 里那些）走的是 toolboxFormatInline，不经过这里，
+                //     仍然和同一段的文字待在同一行 —— 段内不硬拆行。
+                if (n.tagName === 'BR') { flush(); pushLine(open, null); continue; }
+                line += open;
+                continue;
+            }
             // 表格的行/单元格必须**一行写完**（含里面的 <br>）：td 里再换行会让
             // 一行的内容被拆成三行（用户贴出来的那篇文章里就有）
             if (TOOLBOX_ONELINE_TAGS.indexOf(n.tagName) >= 0) {
@@ -625,6 +651,38 @@ function toolboxSaveRange() {
 function toolboxDropRange() {
     toolboxSnapClear();
     toolboxRange = null;
+}
+
+// ＝＝ 空编辑区提示语（「从这里开始……」）的显隐判定 ＝＝
+// ★ 为什么改成 JS 按内容实时判定：以前只靠 CSS 的 `:empty` / `:has(> p:only-child > br:only-child)`
+//   来切，遇到"根上正挂着合成中的拼音裸文本"这类中间态就会误判成"空" —— 于是**有正文时提示语
+//   还显示、压在正文第一行上**（用户实测："敲第二行的时候，从这里开始和第一行重叠出现"）。
+// ★ 判定口径（**与 toolboxEditorEmpty() 完全同一套** —— "代码区是不是空的"用的就是那个判据）：
+//     · 任何非空白**文字**（合成中的拼音就是文本节点）→ 有内容；
+//     · 页面里的 img / table / hr / video / input → 有内容；
+//     · **只有空行**（根级 `<br>` ×N、或 `<p><br><br></p>` 这种只有换行没有字的块）→ **算空**。
+//   ★ 为什么"只有空行"必须算空（用户实测 bug 3）：用 Ctrl+Z 一路撤回到全空时，编辑区正好落在
+//     "一根独立空行 `<br>`"这个形态上，而代码区是空的（''）—— 旧判据"看见根级 `<br>` 就算有内容"
+//     于是让提示语不出现，用户看到的就是"撤回删到全空之后提示语不再出现"。
+//     代码区空 ⇒ 提示语该出现；两个判据必须一致，否则就是"所见 ≠ 代码"。
+//     （"只有空行"没有任何文字、导出的正文也是空的，所以算空是对的。）
+function toolboxHintShouldShow() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return true;
+    if (ed.querySelector && ed.querySelector('img,table,hr,video,input')) return false;
+    return !String(ed.textContent || '').replace(/[\s\u00a0\u200b]+/g, '');
+}
+// 切换提示语（显示完全由这个类名决定，见 CSS 的 .tb-editor.tb-hint-on::before）。
+// ★ 收口原则（用户要求）：所有"会重建/改动编辑区"的路都必须经过这里，不许逐个补。
+//   现在的覆盖：① toolboxRefresh（打字/删除/工具插入/粘贴/归一化都汇到这里）；
+//   ② toolboxApplyCodeToEditor（**整篇换内容**的唯一出口：撤回/重做、代码区同步、
+//      程序化灌入、重置、导入 —— 都由它落地，见它末尾那一行）；
+//   ③ 编辑区 input / keyup / compositionstart·update·end（合成期间的中间态也要跟着走）。
+function toolboxHintSync() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || !ed.classList) return;
+    if (toolboxHintShouldShow()) ed.classList.add('tb-hint-on');
+    else ed.classList.remove('tb-hint-on');
 }
 
 // 一条命令/一次插入跑完之后调用：**先清掉旧存档**再存当前的现场。
@@ -797,7 +855,14 @@ function toolboxPlaceCaretAfter(inserted) {
     const sel = window.getSelection && window.getSelection();
     if (!sel) return;
     const isEl = inserted.nodeType === 1;
-    const isBlock = isEl && !toolboxIsInlineTag(inserted.tagName) && inserted.tagName !== 'IMG';
+    // ★ <br> 属于**行内内容**（本函数开头那段说明就是这么写的），光标要"紧跟在它后面"、
+    //   留在同一个块里。BR 不在 TOOLBOX_INLINE_TAGS（那是"排版能不能同行"用的行内白名单，
+    //   BR 归在空元素 TOOLBOX_VOID_TAGS 里），于是这里一直把它当"整块内容"处理 →
+    //   toolboxCaretAtEnd() 把光标扔到**编辑区根**的末尾。下一次按 Enter，落点就成了"根的
+    //   末尾"，<br> 插到块外面去（用户实测：要在左边按两次 Enter 才看见换行，代码区却已经
+    //   两个 <br>；接着打字还落在根上的裸文本里）。HR/表格这类真块级保持原样，IMG 单独排除。
+    const isBlock = isEl && inserted.tagName !== 'BR'
+        && !toolboxIsInlineTag(inserted.tagName) && inserted.tagName !== 'IMG';
     try {
         const r = document.createRange();
         r.setStartAfter(inserted);
@@ -807,6 +872,26 @@ function toolboxPlaceCaretAfter(inserted) {
         toolboxRange = r.cloneRange();
     } catch (e) { /* 定位失败无所谓，下一次 restore 会用兜底位置 */ }
     if (isBlock) toolboxCaretAtEnd();
+}
+
+// ★ 空编辑区的初始光标：摆进**第一个块里面**（用户实测 bug：光标在「从这里开始」的下面一行）。
+//   只把提示语改成绝对定位还不够 —— 不显式摆光标的话，焦点进来时选区停在 #tbEditor 根上
+//   （<p> 之后，那里根本没有行盒），第一眼看到的光标就不在提示语那一行。
+//   摆进 <p><br></p> 里之后，光标与提示语从第一帧起就在同一行，接着打字也落在同一行。
+function toolboxCaretIntoFirstBlock() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    const sel = window.getSelection && window.getSelection();
+    if (!ed || !sel) return;
+    const block = ed.firstChild;
+    if (!block) return;
+    try {
+        const r = document.createRange();
+        if (block.nodeType === 1 && toolboxIsBlockEl(block)) { r.selectNodeContents(block); r.collapse(true); }
+        else { r.setStart(block, 0); r.collapse(true); }
+        sel.removeAllRanges();
+        sel.addRange(r);
+        toolboxRange = r.cloneRange();
+    } catch (e) { /* 摆不进去无所谓：下一次 restore 会用兜底位置 */ }
 }
 
 // 光标落在编辑区末尾（"插在块后面"用；编辑区末尾才是真正能接着打字的位置）
@@ -850,7 +935,7 @@ function toolboxIsInlineTag(nodeOrName) {
 // atRange（可选）：**显式指定**落点。paste / drop 这类"事件里一定能拿到实时选区"的
 //   路径必须传它 —— 缓存 Range 一旦过期，内容就会跑到文章末尾（用户实测的 bug 1）。
 //   不传时按 实时选区 → 冻结快照 → 存档 → 编辑区末尾 的顺序找（末尾是最后兜底）。
-function toolboxInsertHtml(html, atRange) {
+function toolboxInsertHtml(html, atRange, wrapStray) {
     if (!html) return false;
     const ed = toolboxTpl && toolboxTpl.editor;
     if (!ed) return false;
@@ -885,6 +970,11 @@ function toolboxInsertHtml(html, atRange) {
     // ★ 插完就把冻结快照丢掉：快照是"按下按钮那一刻"的东西，
     //   留着它会让下一次操作（尤其是没有选区时的默认文字插入）又去用它。
     toolboxSnapClear();
+    // ★ 粘贴那条路（wrapStray）：把编辑区根下面的裸文本/裸行内节点合成 <p> —— 必须在
+    //   toolboxUndoPush 之前做，否则撤回栈顶存的是"没包块"的中间态，重做会把裸文本放回来。
+    //   别的插入路径（标题/引用/图注/图片/表格/链接/换行）刻意不传：它们本来就产出块，
+    //   而且「换行」插的就是一个顶层裸 <br>，包成块会凭空多一个空块（用户明确不要）。
+    if (ok && wrapStray) toolboxWrapStrayTopLevel(ed);
     // 边界上留下的空段落/空壳扫掉（表格、图片块插进空编辑区时最常见）
     // ★ 只扫**插入点附近**（传 last）：用户全文里的空块不是我们该动的。
     toolboxCleanEditorBlocks(ed, last);
@@ -1342,14 +1432,24 @@ function toolboxWrapInlineAncestor(r, ed) {
 //   内联 var() 的表格）和"外部导入的 HTML"（只有 style 没有标签）都不准。
 const TOOLBOX_SIZE_STEPS = ['0.85rem', '1em', '1.1em', '1.3em', '1.6em'];
 // 行的四种强调格式 → 要写的标签（TOOLBOX_INLINE_TAGS 是"行内标签白名单"，别混）
-const TOOLBOX_EMPHASIS_TAG = { bold: 'b', italic: 'i', underline: 'u', strike: 's' };
+// ★ 上标/下标（用户新增）也走这张表：它们与 BIUS **完全同一套**字符级三态开关
+//   （同一个 toolboxToggleInline），所以规范化/嵌套折叠/跨段/选区保留全都免费复用，
+//   不另写一套 DOM 变换。
+const TOOLBOX_EMPHASIS_TAG = { bold: 'b', italic: 'i', underline: 'u', strike: 's', sup: 'sup', sub: 'sub' };
 // 每种行内格式对应的"样式声明"（导入的内容常常只有样式、没有标签）
 const TOOLBOX_INLINE_STYLE_RE = {
     bold: /^font-weight\s*:/i,
     italic: /^font-style\s*:/i,
     underline: /^(text-decoration|text-decoration-line)\s*:/i,
-    strike: /^(text-decoration|text-decoration-line)\s*:/i
+    strike: /^(text-decoration|text-decoration-line)\s*:/i,
+    // ★ 上下标：导入的内容可能只有 `vertical-align:super/sub` 没有标签。补上这两条之后，
+    //   它们跟标签形态一样能被摘掉（互斥与"再点一次取消"都靠它）。
+    sup: /^vertical-align\s*:\s*super\b/i,
+    sub: /^vertical-align\s*:\s*sub\b/i
 };
+// ★ 上下标互斥（用户方案 A）：同一个字符不可能同时是上标和下标。
+//   应用一个之前，先把另一个从选区里按同一套字符级链路摘干净（见 toolboxToggleInline）。
+const TOOLBOX_INLINE_FOE = { sup: 'sub', sub: 'sup' };
 
 function toolboxRGBToHex(c) {
     const m = String(c || '').match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
@@ -1435,6 +1535,7 @@ function toolboxSelState(useRange) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const out = {
         ok: false, bold: false, italic: false, underline: false, strike: false,
+        sup: false, sub: false,
         align: '', size: '', title: false, quote: false, body: false,
         caption: false, sign: false, kind: [], conflict: false
     };
@@ -1463,6 +1564,8 @@ function toolboxSelState(useRange) {
             if (tag === 'I' || tag === 'EM') out.italic = true;
             if (tag === 'U') out.underline = true;
             if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') out.strike = true;
+            if (tag === 'SUP') out.sup = true;
+            if (tag === 'SUB') out.sub = true;
             const cs = gcs(n);
             if (cs) {
                 if ((parseInt(cs.fontWeight, 10) || 400) >= 600) out.bold = true;
@@ -1470,6 +1573,8 @@ function toolboxSelState(useRange) {
                 const deco = String(cs.textDecorationLine || cs.textDecoration || '');
                 if (/underline/i.test(deco)) out.underline = true;
                 if (/line-through/i.test(deco)) out.strike = true;
+                if (/super/i.test(String(cs.verticalAlign || ''))) out.sup = true;
+                if (/sub/i.test(String(cs.verticalAlign || ''))) out.sub = true;
             }
             if (!block && toolboxIsBlockTag(n)) block = n;
         }
@@ -1571,6 +1676,8 @@ function toolboxSyncToolbarState() {
     mark('[data-tb="italic"]', st.italic);
     mark('[data-tb="underline"]', st.underline);
     mark('[data-tb="strike"]', st.strike);
+    mark('[data-tb="sup"]', st.sup);
+    mark('[data-tb="sub"]', st.sub);
     const sizes = m.querySelectorAll('.tb-size');
     for (let i = 0; i < sizes.length; i++) {
         sizes[i].classList.toggle('active', !mixed && sizes[i].getAttribute('data-size') === st.size && !!st.size);
@@ -1744,6 +1851,114 @@ function toolboxSyncCodeScroll() {
     if (!el || !code) return;
     el.scrollTop = code.scrollTop;
     el.scrollLeft = code.scrollLeft;
+}
+
+// ========== 代码区行号栏（gutter）==========
+// 用户需求：右侧代码区标注行号序号。
+// ★ 关键坑：代码区是 wrap="soft"，**长逻辑行会折成多行视觉行**。所以：
+//   · 序号只标在**逻辑行**（value 按 \n 划分）的行首，折出来的续行一律**留空**
+//     —— 不是按视觉行编号（那样一折行就全错位）；
+//   · 于是序号的纵向位置不能按"行号 × 行高"算：得按每个逻辑行折行后的**实际像素高度**排。
+//     高度取自隐藏的测量层 #tbCodeMeasure —— 它与代码区同字体/同字号/同行高/同 tab-size/
+//     同 padding、同宽（左边界同为 46px 之后），里面每个逻辑行一个 div（空行用 <br> 撑满），
+//     逐个量 getBoundingClientRect() 即可拿到小数点级的真实高度。
+// ★ 这一组**刻意不改**这五个函数（toolboxSyncCodeScroll / toolboxScrollCodeToRange /
+//   toolboxScrollEditorToRange / toolboxSyncHighlight / toolboxPaintHighlight）：
+//   行号栏的滚动同步是**新加**的一个监听器，只做 translateY。
+// ★ 行号栏不参与任何取值路径：复制/下载/导出读的一直是 #tbCode.value。
+let toolboxGutterRaf = 0;
+let toolboxGutterRO = null;
+function toolboxCodeGutterEl() { return document.getElementById('tbCodeGutter'); }
+function toolboxCodeGutterInner() { return document.getElementById('tbCodeGutterInner'); }
+function toolboxCodeMeasureEl() { return document.getElementById('tbCodeMeasure'); }
+// 逻辑行：按 \n 划分；空内容也算 1 行（行号栏显示 "1"，常规做法）。
+function toolboxCodeLines(v) { return String(v == null ? '' : v).split('\n'); }
+// 重建测量层（value 没变就不动：避免每次滚动/刷新都重建 DOM）
+function toolboxGutterMeasureBuild(val) {
+    const m = toolboxCodeMeasureEl();
+    if (!m) return;
+    if (m.getAttribute('data-v') === val) return;
+    const lines = toolboxCodeLines(val);
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < lines.length; i++) {
+        const d = document.createElement('div');
+        if (lines[i]) d.textContent = lines[i];
+        else d.appendChild(document.createElement('br'));       // 空行也要占满一行的高度
+        frag.appendChild(d);
+    }
+    m.textContent = '';
+    m.appendChild(frag);
+    m.setAttribute('data-v', val);
+}
+// 重排行号栏：序号个数 = 逻辑行数；每个序号的高度 = 该逻辑行折行后的实际高度。
+function toolboxGutterSync() {
+    const ta = toolboxTpl && toolboxTpl.code;
+    const g = toolboxCodeGutterEl();
+    const inner = toolboxCodeGutterInner();
+    if (!ta || !g || !inner) return;
+    const val = String(ta.value == null ? '' : ta.value);
+    toolboxGutterMeasureBuild(val);
+    const m = toolboxCodeMeasureEl();
+    // ★ 测量层必须与 textarea 的**内容宽**完全一致：textarea 一旦出现竖向滚动条，
+    //   内容宽就少掉一条滚动条的宽度（十几 px），折行位置随之变化 —— 宽度靠 CSS 猜不出来，
+    //   所以直接按 textarea 自身量（clientWidth 已扣掉滚动条，含 padding，与测量层同 padding）。
+    if (m && ta.parentNode && ta.parentNode.getBoundingClientRect) {
+        try {
+            const wrapRect = ta.parentNode.getBoundingClientRect();
+            const taRect = ta.getBoundingClientRect();
+            m.style.left = Math.round(taRect.left - wrapRect.left) + 'px';
+            m.style.width = Math.max(0, Math.round(ta.clientWidth)) + 'px';
+        } catch (e) { /* 量不到就退回 CSS 里那份等宽设定，最多折行差一点 */ }
+    }
+    const fallback = parseFloat(getComputedStyle(ta).lineHeight) || 21.875;
+    const n = (m && m.children.length) ? m.children.length : toolboxCodeLines(val).length;
+    // ① 先量每个逻辑行的顶边（相对测量层的 padding-box 顶边 = 代码区内容区顶边）
+    let mTop = 0;
+    try { mTop = m ? m.getBoundingClientRect().top : 0; } catch (e) { mTop = 0; }
+    const tops = [], heights = [];
+    for (let i = 0; i < n; i++) {
+        const cell = m && m.children[i];
+        let top = 0, h = fallback;
+        if (cell) {
+            const r = cell.getBoundingClientRect();
+            top = mTop ? (r.top - mTop) : 0;
+            h = r.height || fallback;
+            if (!(h > 0)) h = fallback;
+        } else {
+            top = fallback * i;
+        }
+        tops.push(top);
+        heights.push(h);
+    }
+    // ② 按"下一个逻辑行的顶边 − 本行顶边"给每一行定高：这样每行序号都贴着它那一行的顶边
+    const rows = inner.children;
+    for (let i = 0; i < n; i++) {
+        let h;
+        if (i < n - 1 && tops[i + 1] > tops[i]) h = tops[i + 1] - tops[i];
+        else h = heights[i];
+        let row = rows[i];
+        if (!row) { row = document.createElement('div'); row.className = 'tb-code-gutter-row'; inner.appendChild(row); }
+        const num = String(i + 1);
+        if (row.textContent !== num) row.textContent = num;
+        row.style.height = (h > 0 ? h : fallback).toFixed(2) + 'px';
+    }
+    for (let k = rows.length - 1; k >= n; k--) inner.removeChild(rows[k]);
+    toolboxGutterScroll();
+}
+// 滚动同步：只把行号栏的内容整体上移 scrollTop（新监听器，不碰 toolboxSyncCodeScroll）
+function toolboxGutterScroll() {
+    const ta = toolboxTpl && toolboxTpl.code;
+    const inner = toolboxCodeGutterInner();
+    if (!ta || !inner) return;
+    const y = ta.scrollTop || 0;
+    const tf = y ? 'translateY(' + (-y) + 'px)' : '';
+    if (inner.style.transform !== tf) inner.style.transform = tf;
+}
+// 输入/尺寸变化时的防抖重排（一帧一次，避免连续输入时反复量布局）
+function toolboxScheduleGutter() {
+    if (toolboxGutterRaf) return;
+    const run = function () { toolboxGutterRaf = 0; toolboxGutterSync(); };
+    try { toolboxGutterRaf = requestAnimationFrame(run); } catch (e) { run(); }
 }
 function toolboxClearHighlight() {
     toolboxHl = { from: '', text: '', start: 0, end: 0, has: false };
@@ -2285,7 +2500,8 @@ function toolboxStripInlineDecls(root, kind) {
 //   然后原地包一层 / 原地拆一层。选区外一个节点都不动，块结构一个都不新建，
 //   也不会产生新的 <br>、空块、空行（导出排版因此跟操作前完全一致）。
 const TOOLBOX_INLINE_ALIAS = {
-    bold: ['B', 'STRONG'], italic: ['I', 'EM'], underline: ['U'], strike: ['S', 'STRIKE', 'DEL']
+    bold: ['B', 'STRONG'], italic: ['I', 'EM'], underline: ['U'], strike: ['S', 'STRIKE', 'DEL'],
+    sup: ['SUP'], sub: ['SUB']
 };
 // 一棵子树里可见的文本节点（显示层"图片占位框"不是内容，跳过）
 function toolboxTextNodesOf(root) {
@@ -2443,6 +2659,10 @@ function toolboxInlineApplied(node, ed, kind) {
                 if (kind === 'italic' && /italic|oblique/i.test(String(cs.fontStyle || ''))) return true;
                 if (kind === 'underline' && /underline/i.test(deco)) return true;
                 if (kind === 'strike' && /line-through/i.test(deco)) return true;
+                // ★ 上标/下标：导入的内容可能只有 `vertical-align:super/sub` 没有标签，
+                //   一样要认成"已应用"（否则点一次会再套一层）。
+                if (kind === 'sup' && /super/i.test(String(cs.verticalAlign || ''))) return true;
+                if (kind === 'sub' && /sub/i.test(String(cs.verticalAlign || ''))) return true;
             }
         }
         n = n.parentNode;
@@ -2676,6 +2896,23 @@ function toolboxToggleInline(kind) {
             if (!hit) break;
         }
     } else {
+        // ★ 上下标互斥（用户方案 A）：应用「上标」就先把「下标」摘掉，反之亦然。
+        //   走的是**同一套**字符级清除链路（toolboxFixInlineChain + 折叠 + 局部归一化），
+        //   所以三种形态都能摘干净：<sup><b>x</b></sup>、<b><sub>x</sub></b>、
+        //   <span style="vertical-align:super">x</span>；跨段时按段落逐段就地做。
+        const foe = TOOLBOX_INLINE_FOE[kind];
+        if (foe) {
+            for (let pass = 0; pass < 30; pass++) {
+                let hit = 0;
+                for (let i = covered.length - 1; i >= 0; i--) {
+                    const node = covered[i];
+                    if (node.parentNode && toolboxFixInlineChain(node, covered, ed, foe)) hit++;
+                }
+                if (!hit) break;
+            }
+            for (let i = 0; i < scopes.length; i++) toolboxCollapseInlineNesting(scopes[i], foe);
+            toolboxNormalizeInlineLocal(ed, covered, foe);
+        }
         // 应用：优先"整段连续内容只包一层"，包不成就退回逐个包（结果一样，只是标签多几个）
         const one = toolboxWrapRun(covered, ed, tag, kind);
         if (!one) {
@@ -2861,6 +3098,56 @@ function toolboxCleanEditorBlocks(ed, around) {
     if (!ed.childNodes.length) ed.innerHTML = '<p><br></p>';
 }
 
+// ★ 顶层归一化：编辑区的**直接子节点**里不允许有"裸文本 / 裸行内元素"。
+//   用户实测的 bug：空编辑区里粘贴纯文本「示例文字」，右侧代码区直接显示 `示例文字`
+//   而不是 `<p>示例文字</p>`；而且光标就停在这个裸文本节点里，**之后接着打字也留在裸文本里**，
+//   于是"输入的内容"也一直没有块结构。
+//   根因：粘贴走 toolboxInsertHtml，插进去的是一段没有块级外壳的 HTML（`示例文字`、`甲<br>乙`），
+//   它就成了 #tbEditor 的直系子节点，导出时照实输出。
+//
+//   做法：把**连续**的这类节点合成一个 <p>（多段粘贴 = 一个块里的若干 <br>，与原换行策略一致）。
+//   · 只动"直系且不是块级"的节点，块级节点（<p>/<div>/<center>/<table>…）一个都不碰；
+//   · 不新增 <br>、不新增空块、不删内容 ⇒ textContent 与 <br> 数量逐字不变（用户点名的要求）；
+//   · 空白文本节点（换行缩进那种）不算，免得把排版空白包进段落。
+//   返回包了几段（0 = 本来就没有裸节点，什么都不用做）。
+function toolboxIsStrayTopLevel(n) {
+    if (!n) return false;
+    if (n.nodeType === 3) return !!String(n.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '').length;
+    if (n.nodeType !== 1) return false;
+    if (n.getAttribute && n.getAttribute('data-tb-display')) return false;   // 纯显示层不算内容
+    // ★ <br> **不算**裸行内节点，不包块：
+    //   用户的规范写法里，块与块之间的"空行"就是**单独一行的 <br>**（见规范样例里
+    //   `</p>` 和下一个 `<p>` 之间那一行 `<br>`）。把它包进 <p> 再被空块清理吃掉，
+    //   等于**吞掉用户主动留的空行**（用户原话：「我主动敲两次换行肯定就是想留出一个空行」）。
+    if (n.tagName === 'BR') return false;
+    return !toolboxIsBlockEl(n);                                            // 其余行内元素 = 没有块
+}
+function toolboxWrapStrayTopLevel(ed) {
+    if (!ed) return 0;
+    let wrapped = 0;
+    for (let i = 0; i < ed.childNodes.length;) {
+        if (!toolboxIsStrayTopLevel(ed.childNodes[i])) { i++; continue; }
+        const run = [];
+        let j = i;
+        while (j < ed.childNodes.length) {
+            const n = ed.childNodes[j];
+            if (toolboxIsStrayTopLevel(n)) { run.push(n); j++; continue; }
+            // ★ 夹在这一串裸内容**中间/末尾**的 <br> 属于同一串（例如粘贴"甲\n乙"时落下来的
+            //   段内软换行）→ 一起包进同一个 <p>，结果必须是 <p>甲<br>乙</p>，不许拆成两个段。
+            //   ★ 判据是"前一个兄弟已经在串里"：真正的空行（单独一根 <br> 夹在两个块之间）
+            //     不会走到这里 —— 它前面是块，这一串根本没开始；所以空行永远是空行。
+            if (run.length && n.nodeType === 1 && n.tagName === 'BR') { run.push(n); j++; continue; }
+            break;
+        }
+        const p = document.createElement('p');
+        ed.insertBefore(p, run[0]);
+        for (let k = 0; k < run.length; k++) p.appendChild(run[k]);
+        wrapped++;
+        i++;                                                                 // 现在这个位置上是新的 <p>
+    }
+    return wrapped;
+}
+
 // ========== 操作后的收尾（空节点 + 结构自检）==========
 // ① 空节点：空的 <b>/<i>/<u>/<s>/<span>…、空操作样式（font-size:1em / 无声明 style）、
 //    空单元格里多余的 <br>（空的 <td></td> 本身渲染没问题，不需要 <br> 撑）。
@@ -2983,6 +3270,9 @@ function toolboxDropEmptyAround(ed, around) {
     const empty = function (el) {
         if (!el || el.nodeType !== 1) return false;
         if (el.getAttribute && el.getAttribute('data-tb-display')) return false;   // 显示层不是内容
+        // ★ 根级 `<br>` 是用户的空行（不是块），一律不当空块清 —— 这条同时保证"插入表格/
+        //   图片后收尾"不会顺手吃掉用户留的空行。
+        if (el.tagName === 'BR') return false;
         // ★ <br>/换行/图片这类"本身就是内容"的节点**永远不算空块** ——
         //   用户按「换行」插的就是一个裸 <br>，它 textContent 是空的，
         //   早先会被当成"空块"删掉（插了换行却看不见）。
@@ -3011,7 +3301,7 @@ function toolboxUnwrapElement(el) {
 
 // 空块清理：<p><br></p>、<div>&nbsp;</div>、只有空白的 <span> 这类"什么都没装"的块删掉。
 // ★ 只认 p/div/span/center/li 这些"包装用"的标签；<td>/<th>/<table>/<br>/<img> 一律不动
-//   —— 空的单元格是有意留的、连续 <br> 是用户排版空一行的手段。
+//   —— 空的单元格是有意留的、**根级 <br> 是用户的空行**（块与块之间那一行，见 toolboxInsertParagraph）。
 function toolboxDropEmptyBlocks(root) {
     if (!root || !root.querySelectorAll) return;
     const list = root.querySelectorAll('p,div,span,center,li,font');
@@ -3023,6 +3313,7 @@ function toolboxDropEmptyBlocks(root) {
         if (el.querySelector && el.querySelector('img,table,hr,video,td,th,input')) continue;
         const txt = String(el.textContent || '').replace(/[\s\u00a0\u200b]+/g, '');
         if (txt) continue;                                                 // 有字就不动
+        // ★ 根级的 `<br>`×N 不是"空块"，是用户留的空行，永远不在这条路上被删。
         el.parentNode.removeChild(el);
     }
 }
@@ -3507,8 +3798,793 @@ function toolboxInsertSignature() {
         return '<div style="text-align:right;">' + inner + '</div>';
     }, '—— 落款');
 }
+// ========== 段、换行、光标托 ==========
+// 用户口径（结构层面；与"格式作用的 <br> 行段"是两回事，别混）：
+//   ① **一段 = 一个 `<p>`**。编辑区根下永远不许有裸文本/裸行内节点
+//      （toolboxWrapStrayTopLevel 挂在 toolboxRefresh 上，所有改编辑区的路径都兜住）；
+//   ② **一次 Enter = 段内一个 `<br>`**，并且**编辑区立刻可见一个换行**（光标那一行真的下移一行）；
+//      该 `<br>` 在用户删掉它之前一直稳定存在（不会因为继续打字消失）；
+//   ③ **连按两次 Enter（用户主动留一个空行）= 一个空的 `<p></p>`**
+//      （用户原话：「`<p></p>`此处是一个空行，用于文章的层次考虑」）：
+//      结束当前 `<p>`（把刚敲的那个段内 `<br>` 升格成段落分界），补一个**空的 `<p></p>`**，
+//      再新建一个 `<p>` 让光标落脚；落脚那一 `<p>` 还没打字，所以序列化时不输出它。
+//
+// ★ 为什么要"光标托"（TOOLBOX_CARET_ATTR）：
+//   `<p>哈哈哈<br></p>` 里那个 `<br>` 在**块尾**时，浏览器不给它生成行盒 —— 光标会被画回
+//   上一行（用户实测的"按一次 Enter 左边纹丝不动，要按两次"就是这个），而且浏览器会把
+//   接着打的字**并进上一行的文本节点**，顺手把尾随的 `<br>` 吃掉（"第二个 `<br>` 消失"）。
+//
+// ★★ 落脚点几经迭代，最终形态是**一根带标记的 `<br>`**（不是 span）：
+//   · 用 span（哪怕 width:1px）时，实测它的矩形虽然有，但**选区的 getClientRects() 是空的**
+//     —— 浏览器画不出插入点（用户实测："按一次 Enter 左边光标看不见"），
+//     而且鼠标点"下一行"命中的还是上一行的文字（"点下一行没反应"，打字进错行）。
+//   · 换成 `<br data-tb-caret="1">` 之后，DOM 形态与**浏览器自己**按 Shift+Enter
+//     得到的结果逐字节一致：`<p>哈哈哈<br><br></p>`，光标停在两根 `<br>` 中间
+//     （实测 Chrome 原生 insertLineBreak 就是这个结果，选区同样是 (p,2)）。
+//     实测：鼠标点第二行 → 光标正确落到 (p,2) → 打字得到 `<p>哈哈哈<br>Z</p>`（字落在第二行）。
+//   · 这根 `<br>` 只负责"给光标一格落脚"，序列化前一律摘掉（toolboxStripCaretHolders），
+//     所以代码区/导出永远是 `<p>哈哈哈<br></p>`，一个字节都不多。
+//   · 它**不含任何文字**（textContent 一字不变），也不占字符数。
+function toolboxCaretHolderMake() {
+    const br = document.createElement('br');
+    br.setAttribute(TOOLBOX_CARET_ATTR, '1');
+    return br;
+}
+// 摘托：把托里的东西挪到原位、删掉托本身。打了字之后也要走这里 —— 一个字都不能丢。
+function toolboxCaretHolderStrip(sp) {
+    if (!sp || !sp.parentNode) return;
+    const p = sp.parentNode;
+    while (sp.firstChild) p.insertBefore(sp.firstChild, sp);
+    p.removeChild(sp);
+}
+// 托的清理：
+//   · 里面有东西（用户已经在那一行打了字）→ 一律解开，内容留在原处；
+//   · 空托 → 光标还贴在它上面（在它里面、或紧挨它前一格/后一格）就留着
+//     （它正是当前那一行的落脚点），光标已经走了就删掉
+//     （不然编辑区会比代码区多出一条空行）。
+function toolboxCaretHolderSweep() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || !ed.querySelectorAll) return 0;
+    const list = ed.querySelectorAll('[' + TOOLBOX_CARET_ATTR + ']');
+    if (!list.length) return 0;
+    let sel = null;
+    try { sel = window.getSelection(); } catch (e) { sel = null; }
+    // 光标在这个落脚点上吗？—— <br> 托没有子节点，光标只能**紧贴**它（前/后一格），
+    // 所以两种情形都要算"还在用"。
+    const caretOn = function (sp) {
+        if (!sel || !sel.rangeCount || !sel.anchorNode) return false;
+        if (sp === sel.anchorNode || sp.contains(sel.anchorNode)) return true;
+        const n = sel.anchorNode;
+        const kids = n.childNodes;
+        if (!kids) return false;
+        const at = sel.anchorOffset;
+        return kids[at] === sp || kids[at - 1] === sp;
+    };
+    let n = 0;
+    for (let i = list.length - 1; i >= 0; i--) {
+        const sp = list[i];
+        if (!sp.parentNode) continue;
+        const hasContent = String(sp.textContent || '').replace(/[\s\u00a0\u200b]+/g, '').length
+            || (sp.querySelector && sp.querySelector('img,br,table,hr,video'));
+        if (hasContent) { toolboxCaretHolderStrip(sp); n++; continue; }
+        if (caretOn(sp)) continue;
+        sp.parentNode.removeChild(sp);
+        n++;
+    }
+    return n;
+}
+// 供序列化用：在**克隆体**上摘托（编辑区里那份要留着给光标落脚）。
+function toolboxStripCaretHolders(root) {
+    if (!root || !root.querySelectorAll) return 0;
+    const list = root.querySelectorAll('[' + TOOLBOX_CARET_ATTR + ']');
+    for (let i = list.length - 1; i >= 0; i--) toolboxCaretHolderStrip(list[i]);
+    return list.length;
+}
+// 块里"有没有真东西"（文字/图片/表格/视频/水平线/输入框）。空段判定到处要用，所以单独一个。
+function toolboxBlockHasContent(el) {
+    if (!el) return false;
+    if (el.querySelector && el.querySelector('img,table,hr,video,td,th,input')) return true;
+    return !!String(el.textContent || '').replace(/[\s\u00a0\u200b]+/g, '').length;
+}
+// 导入：源码里**写着的空 <p>**（`<p></p>` / `<p><br></p>`）按用户口径就是"一个空行"，
+// 就地换成根级独立 `<br>` —— 这样"空行"在整个编辑器里只有一种形态（<br>），
+// 动态互转（打字变 <p>、删空退回 <br>）才不会有第二种空行藏进来。
+// ★ 只处理编辑区根下的空 <p>：表格单元格里的空 <p> 是单元格占位，不动。
+function toolboxImportBlankLines(root) {
+    if (!root || !root.childNodes) return 0;
+    const kids = Array.prototype.slice.call(root.childNodes);
+    let n = 0;
+    for (let i = 0; i < kids.length; i++) {
+        const el = kids[i];
+        if (!el || el.nodeType !== 1 || String(el.tagName).toUpperCase() !== 'P') continue;
+        if (toolboxBlockHasContent(el)) continue;
+        if (el.querySelector('img,table,hr,video,td,th,input')) continue;
+        root.replaceChild(document.createElement('br'), el);
+        n++;
+    }
+    return n;
+}
+// 光标所在的**顶层块**（编辑区的一级孩子，且必须是块级）。找不到 → null（光标在根上，得先包块）。
+function toolboxTopBlockOf(node, ed) {
+    if (!ed) ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || !node) return null;
+    let n = (node.nodeType === 1) ? node : node.parentNode;
+    let top = null;
+    while (n && n !== ed) { top = n; n = n.parentNode; }
+    return (top && top.parentNode === ed && toolboxIsBlockEl(top)) ? top : null;
+}
+// 在光标处把一个块就地切开：光标之后的内容进新块（同标签、同 style），返回新块。
+function toolboxSplitBlockAt(blk, r) {
+    if (!blk || !blk.parentNode) return null;
+    let tail, frag;
+    try {
+        tail = document.createRange();
+        tail.setStart(r.startContainer, r.startOffset);
+        if (blk.lastChild) tail.setEndAfter(blk.lastChild); else tail.setEnd(blk, 0);
+    } catch (e) { return null; }
+    try { frag = tail.collapsed ? document.createDocumentFragment() : tail.extractContents(); }
+    catch (e) { return null; }
+    const tag = String(blk.tagName || 'P').toUpperCase();
+    const keep = (tag === 'P' || tag === 'DIV' || tag === 'BLOCKQUOTE' || /^H[1-6]$/.test(tag)) ? tag.toLowerCase() : 'p';
+    const nb = document.createElement(keep);
+    const st = blk.getAttribute && blk.getAttribute('style');
+    if (st) nb.setAttribute('style', st);
+    nb.appendChild(frag);
+    blk.parentNode.insertBefore(nb, blk.nextSibling);
+    return nb;
+}
+// ---------- 空行 ↔ 段落的动态互转（用户口径） ----------
+// 正文 = 一个"行序列"：**有文字的行 = `<p>内容</p>`**，**空行 = 一个独立成行的 `<br>`**。
+// 两者随用户输入自动互转，触发点只有一处 —— 编辑区的 input 事件（见 initToolboxDOM）：
+//   · insert* → toolboxFillBlankLine()：在空行上打字，那个 <br> 就地变成 <p>；
+//   · delete* → toolboxParagraphToBlankLine()：把某段的字全删光，那个 <p> 变回 <br>。
+// ★ 为什么放在 input 里、归一化之前：此刻 DOM 还没被顶层归一化动过，打的字还是根上的
+//   裸文本，正好能一眼看出"它是不是落在某个空行旁边"；选区也还是浏览器刚给的现场位置，
+//   改完只需动那个 <br>，光标一个字符都不会跳。
+// ★ 为什么严格按 inputType 分派：只有"用户自己打字/自己删空"才转换。工具插入留下的空壳
+//   （插表格/图片后的 `<p><br></p>`）不转 —— 否则每次插入都会凭空多出一个空行。
+//
+// ＝＝ 光标的"逻辑位置"：纯文本偏移 ⇄ 光标 ＝＝
+// ★ 为什么需要（用户实测 bug 1 的根因）：结构一旦被改写（空行 <br> 换成 <p>、
+//   合成上屏时浏览器把文字节点整个换掉……），**归一化之前抓的那个 DOM Range 就可能整段失效**
+//   或被夹到相邻节点上 —— 表现就是"拼音输入「中」之后光标跳到下一段开头（跑到「乙」前面）"。
+//   文字偏移跟节点身份无关，改完结构再按同一个偏移落回来，光标就一定还在"刚输入的文字之后"。
+//   （跟代码区联动用的 toolboxSrcFromText / toolboxTextFromSrc 是另一套口径：那套把
+//     代码区源码偏移 ⇄ 编辑区字符偏移对应起来，用于高亮；这里是编辑区内部的光标定位。）
+function toolboxCaretTextOffset() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    const sel = window.getSelection && window.getSelection();
+    if (!ed || !sel || !sel.rangeCount) return -1;
+    const r = sel.getRangeAt(0);
+    if (!r.startContainer || !ed.contains(r.startContainer)) return -1;
+    try {
+        const before = document.createRange();
+        before.setStart(ed, 0);
+        before.setEnd(r.startContainer, r.startOffset);
+        return before.toString().length;
+    } catch (e) { return -1; }
+}
+// 文本偏移 → 光标（toolboxCaretTextOffset 的逆运算）。偏移超出范围就落到文末。
+function toolboxCaretToTextOffset(off) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || off < 0) return false;
+    let acc = 0, hit = null, hitAt = 0, last = null, lastLen = 0;
+    const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT, null);
+    while (walker.nextNode()) {
+        const t = walker.currentNode;
+        const len = String(t.nodeValue || '').length;
+        if (!hit && off <= acc + len) { hit = t; hitAt = off - acc; break; }
+        acc += len; last = t; lastLen = len;
+    }
+    try {
+        const nr = document.createRange();
+        if (hit) nr.setStart(hit, Math.max(0, Math.min(hitAt, String(hit.nodeValue || '').length)));
+        else if (last) nr.setStart(last, lastLen);
+        else nr.setStart(ed, ed.childNodes.length);
+        nr.collapse(true);
+        const sel = window.getSelection();
+        if (!sel) return false;
+        sel.removeAllRanges(); sel.addRange(nr);
+        toolboxSaveRange();
+        return true;
+    } catch (e) { return false; }
+}
+// 这一格是不是"真正的空行"（根级、独立成行、不带落脚标记的 `<br>`）。
+// 带标记的 `<br data-tb-caret>` 是光标落脚点，不是空行。
+function toolboxIsBlankLineBr(n) {
+    return !!(n && n.nodeType === 1 && n.tagName === 'BR'
+        && !(n.getAttribute && n.getAttribute(TOOLBOX_CARET_ATTR)));
+}
+// 从 blk 往前找"实义"的兄弟（跳过空文本节点）。
+function toolboxPrevMeaningfulSibling(blk) {
+    let n = blk && blk.previousSibling;
+    while (n) {
+        if (n.nodeType === 3 && !String(n.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '').length) { n = n.previousSibling; continue; }
+        break;
+    }
+    return n || null;
+}
+// 光标是不是停在这一块的**逻辑开头**（块内光标之前只有空白/换行，没有字）。
+function toolboxCaretAtBlockStart(blk, r) {
+    if (!blk || !r) return false;
+    try {
+        const t = document.createRange();
+        t.setStart(blk, 0);
+        t.setEnd(r.startContainer, r.startOffset);
+        return !String(t.toString()).replace(/[\s\u00a0\u200b]+/g, '').length;
+    } catch (e) { return false; }
+}
+// ★★ 空行上的"落点物化"（用户实测 bug 1 的关键修法）：把光标正待着的那一格空行**就地**
+//   变成一个空的段落壳 `<p><br></p>`，光标放进去。
+//   为什么非做不可：光标停在"独立成行的 `<br>`"上时，它在**根级**、紧贴一根 `<br>` ——
+//   浏览器（尤其输入法合成提交那一步）并不把它当成稳定的插入点，经常把字插进**下一段的开头**
+//   （用户看到的就是"输「中」之后光标跑到「乙」前面"）。物化成真正的块之后，插入点就稳了。
+//   两条现场都认：① 光标就在根上、紧邻空行；② 光标在某块开头、而这一块前面紧邻空行
+//   （浏览器把"点空行"解析成"下一段开头"就是这种，用户遇到的正是它）——
+//   第②种带"这一块本来就有内容"的限定，见 toolboxBlankLineBrAtCaret 里的说明（案例 3 的回归点）。
+//   物化出来的空段落壳在导出时按既定规则归一化成独立 `<br>`（空段落 = 空行），代码区一字不差。
+function toolboxBlankLineCaretHost() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return 0;
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount) return 0;
+    const r = sel.getRangeAt(0);
+    if (!r.collapsed || !ed.contains(r.startContainer)) return 0;
+    const blank = toolboxBlankLineBrAtCaret();
+    if (!blank || !blank.parentNode) return 0;
+    const host = blank.parentNode;
+    const p = document.createElement('p');
+    p.appendChild(document.createElement('br'));
+    host.insertBefore(p, blank);                 // 就地占位：顺序一个节点都不动
+    host.removeChild(blank);
+    try {
+        const nr = document.createRange();
+        nr.setStart(p, 0);
+        nr.collapse(true);
+        sel.removeAllRanges(); sel.addRange(nr);
+        toolboxSnapClear();
+        toolboxSaveRange();
+    } catch (e) {}
+    return 1;
+}
+// 光标正"待在"哪一根空行上（只读，不改 DOM）。两种现场都算：
+//   ① 光标就在根上、紧邻一根独立空行 `<br>`；
+//   ② 光标在某块开头、而这一块前面紧邻一根独立空行 `<br>`，**且这一块里本来就有字/图/表**
+//      （浏览器把"点空行"解析成"下一段开头"就是这种 —— 用户遇到的正是它）。
+//      ★ 第②条那个"本来就有内容"的限定不能省：连按 Enter 分出来的**落脚段**本身是空的，
+//        光标正常待在里面，那不是"光标停在空行上"（限定它的原因见下面函数体里的长注释）。
+// 供"物化落点"（toolboxBlankLineCaretHost）与"空行上 Shift+Enter"共用。
+function toolboxBlankLineBrAtCaret() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return null;
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    const r = sel.getRangeAt(0);
+    if (!r.collapsed || !ed.contains(r.startContainer)) return null;
+    if (r.startContainer === ed) {
+        const i = r.startOffset;
+        if (toolboxIsBlankLineBr(ed.childNodes[i - 1])) return ed.childNodes[i - 1];
+        if (toolboxIsBlankLineBr(ed.childNodes[i])) return ed.childNodes[i];
+        return null;
+    }
+    const blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk || !blk.parentNode) return null;
+    // ★★ 守卫（用户实测案例 3 回归的根因）：**"这一块自己没内容"就不算"光标停在空行上"**。
+    //   连按 Enter 分出来的那个**落脚段**本来就是空的（`<p><br></p>`），光标正常待在它里面；
+    //   如果在这里也去"物化落点"，就会把**上方那根空行偷换成新段落、并把光标从落脚段搬走**，
+    //   于是"前段 → 空行 → 落脚段（光标在此）"的顺序被破坏 —— 拼音上屏后 gap 消失
+    //   （案例 3：`甲 ⏎ ⏎ 乙` 出来的是 `<p>甲</p>` + `<p>乙</p>`，中间那根独立 `<br>` 没了）。
+    //   只有"这一块本身有字/图/表"（= 用户其实点在了**下一段的开头**）才算"光标落在空行上"。
+    //   `toolboxBlockHasContent` 不把 `<br>` 当内容：纯换行的空段落一律算"没内容"。
+    if (!toolboxBlockHasContent(blk)) return null;
+    const prev = toolboxPrevMeaningfulSibling(blk);
+    if (toolboxIsBlankLineBr(prev) && toolboxCaretAtBlockStart(blk, r)) return prev;
+    return null;
+}
+// ★ 补齐"普通按键"那条路：浏览器把刚敲的字插进**下一段的开头**时（合成以外的路径也会遇到），
+//   把那一格空行吃掉、让刚打的这几个字自成一段，并把光标放到这几个字之后。
+//   与 toolboxBlankLineCaretHost 的区别：那条是"提前物化"（合成/粘贴/回车前），
+//   这条是"事后补救"（字已经插进去了，按 e.data 的长度把那几个字认出来）。
+function toolboxTypedIntoNextBlock(typedLen) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || !typedLen || typedLen < 1) return 0;
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount) return 0;
+    const r = sel.getRangeAt(0);
+    if (!r.collapsed || r.startContainer.nodeType !== 3) return 0;
+    const blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk || !blk.parentNode) return 0;
+    const prev = toolboxPrevMeaningfulSibling(blk);
+    if (!toolboxIsBlankLineBr(prev)) return 0;
+    const t = r.startContainer;
+    const off = r.startOffset;
+    if (off < typedLen) return 0;                // 刚打的字必须完整地在本节点里（不然不敢猜）
+    const typed = String(t.nodeValue || '').slice(off - typedLen, off);
+    if (!typed) return 0;
+    // ★ 判据：**这一块里、光标之前的文字，正好就是刚打进去的那几个字**。
+    //   也就是"用户是在这一段的最前面打的"——段中打字（前面已有字）一律不动。
+    //   （不能只看"光标前没有字"：input 事件跑的时候刚打的字已经在光标左边了。）
+    let before = '';
+    try {
+        const t2 = document.createRange();
+        t2.setStart(blk, 0);
+        t2.setEnd(r.startContainer, r.startOffset);
+        before = String(t2.toString());
+    } catch (e) { return 0; }
+    if (before !== typed) return 0;
+    // ★ 还要排除"这一块本来就空、打进去的字就是它的全部内容"这种：那是**正常的往空段落里打字**
+    //   （比如连按 Enter 之后那个落脚的 `<p><br></p>`），不能再吃掉旁边的空行 ——
+    //   否则"连按三次 Enter 得到两根空行、接着打字段落另起"这条既定口径会被破坏。
+    //   只有"这一块本来就有字"（光标在最前面、后面还压着原文）才说明用户是在空行上打字。
+    if (String(blk.textContent || '') === typed) return 0;
+    const host = prev.parentNode;
+    const p = document.createElement('p');
+    p.appendChild(document.createTextNode(typed));
+    host.insertBefore(p, prev);                  // 空行那一格 → 新段落
+    host.removeChild(prev);
+    try {
+        if (String(t.nodeValue || '').length > typedLen) t.nodeValue = String(t.nodeValue).slice(typedLen);
+        else if (t.parentNode) t.parentNode.removeChild(t);   // 整块就这几个字：节点空了就删掉
+    } catch (e) { return 0; }
+    // 原来那个块被搬空了就顺手清掉（只有空壳、没有字）
+    if (!toolboxBlockHasContent(blk) && blk.parentNode) blk.parentNode.removeChild(blk);
+    try {
+        const nr = document.createRange();
+        const last = p.lastChild;
+        if (last && last.nodeType === 3) nr.setStart(last, String(last.nodeValue || '').length);
+        else { nr.selectNodeContents(p); nr.collapse(false); }
+        sel.removeAllRanges(); sel.addRange(nr);
+    } catch (e) {}
+    toolboxSnapClear();
+    toolboxSaveRange();
+    return 1;
+}
+function toolboxFillBlankLine() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return 0;
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount) return 0;
+    const r = sel.getRangeAt(0);
+    const c = r.startContainer;
+    if (!c || c.nodeType !== 3 || c.parentNode !== ed) return 0;      // 打的字必须是根上的裸文本
+    if (!String(c.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '')) return 0;
+    const pv = c.previousSibling, nx = c.nextSibling;
+    // ★ 只认**真正的空行**（根级独立 `<br>`）：带标记的落脚 `<br>`（data-tb-caret）不是空行，
+    //   它只是光标暂住的那一格，绝不能因为"旁边打了字"就被吃掉。
+    const isBlank = function (n) {
+        return !!(n && n.nodeType === 1 && n.tagName === 'BR'
+            && !(n.getAttribute && n.getAttribute(TOOLBOX_CARET_ATTR)));
+    };
+    let drop = null;
+    if (isBlank(pv)) drop = pv;                                        // 字落在空行**后面**
+    else if (isBlank(nx)) drop = nx;                                    // 字落在空行**前面**
+    if (!drop) return 0;
+    // 只吃**一个** <br>：多个空行时"剩余空行数不变、顺序不变"。
+    const off = r.startOffset;
+    ed.removeChild(drop);
+    // ★ 就地包成 <p>（不要等顶层归一化）：文字节点身份不变 ⇒ 光标还在这段里、偏移不变，
+    //   接着打的字自然接在同一个 <p> 里（用户断言：X 之后打 Y 必须得到 <p>XY</p>，
+    //   而不是跑到下一段去）。
+    const np = document.createElement('p');
+    ed.insertBefore(np, c);
+    np.appendChild(c);
+    try {
+        const nr = document.createRange();
+        nr.setStart(c, Math.max(0, Math.min(off, String(c.nodeValue || '').length)));
+        nr.collapse(true);
+        sel.removeAllRanges(); sel.addRange(nr);
+        toolboxSnapClear();
+        toolboxSaveRange();
+    } catch (e) {}
+    return 1;
+}
+// 段落的字被删光 → 该 <p> 变回一个"独立成行的 <br>"（空行）。
+function toolboxParagraphToBlankLine() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return 0;
+    const r = toolboxLiveRange() || toolboxActiveRange();
+    if (!r) return 0;
+    const blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk || String(blk.tagName || '').toUpperCase() !== 'P') return 0;
+    if (toolboxBlockHasContent(blk)) return 0;                        // 还有字 → 不动
+    // ★ 编辑区就剩这一段（用户把唯一那段删空了）→ **不转**：保持原来那个空段落壳，
+    //   跟"刚打开、什么都没写"的样子逐像素一致（用户点名要求区分这种情形），
+    //   导出也仍旧是空内容（toolboxEditorEmpty 那条路）。
+    if (ed.querySelectorAll('p,div,center,table,ul,ol,blockquote,pre,h1,h2,h3,h4,h5,h6,img,hr,video').length <= 1) return 0;
+    const br = document.createElement('br');
+    ed.insertBefore(br, blk);
+    ed.removeChild(blk);
+    // ★ 光标落到这根 <br> **前面**（就是用户点空行时空标停的位置）：接着打字会走
+    //   toolboxFillBlankLine 重新长成一个 <p> —— 空行 ↔ 段落因此完全可逆。
+    try {
+        const nr = document.createRange();
+        nr.setStart(ed, Array.prototype.indexOf.call(ed.childNodes, br));
+        nr.collapse(true);
+        const sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+        toolboxSnapClear();
+        toolboxSaveRange();
+    } catch (e) {}
+    return 1;
+}
+// 光标之后（光标所在块内）还有没有"实义内容"？—— 有 ⇒ 这一行不是块尾，不需要落脚 <br>。
+// 只看文字/图片/表格/视频/水平线：中间那几根 <br>、空文本、标记节点都不算内容。
+function toolboxContentAfterCaret(r) {
+    const blk = toolboxTopBlockOf(r.startContainer);
+    const scope = blk || (toolboxTpl && toolboxTpl.editor);
+    if (!scope) return false;
+    let after = null;
+    try {
+        after = document.createRange();
+        after.setStart(r.startContainer, r.startOffset);
+        if (scope.lastChild) after.setEndAfter(scope.lastChild); else after.setEnd(scope, 0);
+    } catch (e) { return false; }
+    if (after.collapsed) return false;
+    let frag = null;
+    try { frag = after.cloneContents(); } catch (e) { return false; }
+    if (!frag) return false;
+    if (String(frag.textContent || '').replace(/[\s\u00a0\u200b]+/g, '').length) return true;
+    return !!(frag.querySelector && frag.querySelector('img,table,hr,video,input'));
+}
+// 段内换行（**只**由 Shift+Enter / 工具栏「换行」按钮触发）：在光标处插一根 `<br>`，
+// 光标落到 `<br>` 之后那一行 —— **仍在同一个 <p> 里**（用户口径：段内分行绝不变成段落）。
+//   · 光标后面还有内容（`甲|乙`）→ 只插一根 `<br>`，光标落在后面那个字之前
+//     ⇒ `<p>甲<br>乙</p>`（与浏览器原生 insertLineBreak 一致）；
+//   · 光标已经在块尾（`甲|`）→ 再补一根**带标记的落脚 `<br>`**（见 toolboxCaretHolderMake
+//     上面的实测说明），光标停在两根 `<br>` 中间 ⇒ 浏览器给这一行生成行盒、光标可见可点，
+//     序列化时标记那根被摘掉 ⇒ 代码区仍是 `<p>甲<br></p>`。
+function toolboxInsertBreakNodes(r) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return null;
+    try { if (!r.collapsed) r.deleteContents(); } catch (e) {}
+    if (!ed.contains(r.startContainer)) return null;
+    const needHolder = !toolboxContentAfterCaret(r);
+    const br = document.createElement('br');
+    const holder = needHolder ? toolboxCaretHolderMake() : null;
+    const frag = document.createDocumentFragment();
+    frag.appendChild(br);
+    if (holder) frag.appendChild(holder);
+    try { r.insertNode(frag); } catch (e) { return null; }
+    try {
+        const host = br.parentNode;
+        const at = Array.prototype.indexOf.call(host.childNodes, br) + 1;      // = 两根 br 之间
+        const nr = document.createRange();
+        const nx = br.nextSibling;
+        if (!holder && nx && nx.nodeType === 3 && String(nx.nodeValue || '').length) nr.setStart(nx, 0);
+        else nr.setStart(host, Math.max(0, Math.min(at, host.childNodes.length)));
+        nr.collapse(true);
+        const sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+    } catch (e) {}
+    toolboxSnapClear();
+    toolboxSaveRange();
+    return holder || br;
+}
+// 连按两次 Enter 的落地逻辑现在都在 toolboxInsertParagraph() 里（见那个函数上方那段注释）：
+// ★ 空行的最终形态（用户口径）：块与块之间一个独立 `<br>`，与他的规范样例一致 ——
+//   `<p>哈哈哈</p>` / `<br>` / `<p>新内容</p>`。不是空 `<p></p>`，也不是段内 `<br><br>`。
+//   旧的 toolboxBlankParagraphAt()（"一次 Enter 先插段内 <br>、第二次 Enter 再把那根 <br>
+//   升格成空行"）在本轮口径反转后已无调用点，直接删掉，避免和新逻辑两套说法并存。
+// 光标停在**根**上（没有块）时的归位：按它在根孩子里的位置，落到相邻块的末尾/开头。
+// ★ 为什么必须有这一步：打字之后浏览器常把光标挂在编辑区**根**的末尾（文字本身被顶层归一化
+//   包进了 <p>，光标却没跟着进去）。这时候插 <br>，节点会落在块**外面** —— 那正是
+//   "右边出来裸文本 / 裸行"和"左边按一次 Enter 纹丝不动"的老根因。归位后一律在块内操作。
+function toolboxCaretIntoNearBlock(ed, node, offset) {
+    if (!ed || !node) return null;
+    let idx = -1;
+    if (node === ed) idx = offset;
+    else if (node.parentNode === ed) idx = Array.prototype.indexOf.call(ed.childNodes, node) + (node.nodeType === 3 ? 0 : 1);
+    if (idx < 0) return null;
+    const kids = ed.childNodes;
+    for (let i = Math.min(idx, kids.length) - 1; i >= 0; i--) {          // 左边最近的块 → 它的末尾
+        const c = kids[i];
+        if (c.nodeType === 1 && toolboxIsBlockEl(c)) {
+            const r = document.createRange();
+            try { r.selectNodeContents(c); r.collapse(false); } catch (e) { return null; }
+            return r;
+        }
+    }
+    for (let i = Math.max(idx, 0); i < kids.length; i++) {               // 左边没有块 → 右边那个的开头
+        const c = kids[i];
+        if (c.nodeType === 1 && toolboxIsBlockEl(c)) {
+            const r = document.createRange();
+            try { r.setStart(c, 0); r.collapse(true); } catch (e) { return null; }
+            return r;
+        }
+    }
+    return null;
+}
+// 编辑区里按 **Shift+Enter**（工具栏「换行」按钮走的是同一个入口 —— 两条路必须完全一致）。
+// ★ 用户口径（2024 更正）：**段内分行**只由 Shift+Enter / 「换行」按钮产生；
+//   它永远留在当前 `<p>` 里（`<p>甲<br>乙</p>`），**不会**被提升成段落、也不会拆成两个 `<p>`。
+//   Enter 是**段落分界**，走 toolboxInsertParagraph。
+function toolboxEnterBreak() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    // ★★ IME 第二道兜底：合成期间绝不改结构（Enter 那条 keydown 已经把合成中的 Enter
+    //   放行给输入法了；这里再兜一层，防止工具栏「换行」按钮/脚本在合成中被点到）。
+    if (toolboxComposing) return false;
+    toolboxFocusEditor();
+    // ★ 光标停在**空行**上时，Shift+Enter 的语义是"在这一行下面再来一行" —— 再补一根
+    //   **根级独立 `<br>`**（空行），光标到它后面。为什么不套用"段内分行"：
+    //   空行在编辑器里就是根级 `<br>`，它旁边没有 `<p>` 可待；如果就地造一个 `<p>` 再插段内
+    //   `<br>`，就等于把"段落间空行"改写成"段内分行" —— 正是用户明令禁止的**两类 `<br>` 互换**。
+    //   这样两根空行、一行不多一行不少，与连按 Enter 得到多个空行也完全一致。
+    const blankHere = toolboxBlankLineBrAtCaret();
+    if (blankHere && blankHere.parentNode) {
+        const nb = document.createElement('br');
+        blankHere.parentNode.insertBefore(nb, blankHere.nextSibling);
+        try {
+            const nr = document.createRange();
+            const host = nb.parentNode;
+            nr.setStart(host, Array.prototype.indexOf.call(host.childNodes, nb) + 1);
+            nr.collapse(true);
+            const sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+        } catch (e) {}
+        toolboxSnapClear();
+        toolboxSaveRange();
+        toolboxCaretHolderSweep();
+        toolboxRefresh();
+        toolboxUndoPush(false);
+        toolboxKeepFocus();
+        return true;
+    }
+    let r = toolboxLiveRange();
+    if (!r) r = toolboxActiveRange();
+    if (!r) return false;
+    // 光标在根上（没有块）→ 先把裸文本/裸行内节点包成 <p>，再按块处理
+    let blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk) {
+        toolboxWrapStrayTopLevel(ed);
+        blk = toolboxTopBlockOf(r.startContainer, ed);
+    }
+    if (!blk) {
+        const nr = toolboxCaretIntoNearBlock(ed, r.startContainer, r.startOffset);
+        if (nr) { r = nr; blk = toolboxTopBlockOf(r.startContainer, ed); }
+    }
+    if (!toolboxInsertBreakNodes(r)) return false;
+    toolboxCaretHolderSweep();
+    toolboxRefresh();
+    toolboxUndoPush(false);
+    toolboxKeepFocus();
+    return true;
+}
 function toolboxInsertBreak() {
-    toolboxInsertHtml('<br>');
+    if (toolboxEnterBreak()) return;
+    toolboxInsertHtml('<br>');              // 兜底：拿不到选区时按老路子插（不改变既有行为）
+}
+
+// ========== Enter = 段落分界（新建 `<p>`）==========
+// ★ 用户口径：Enter **一定**是段落分界 —— 结束当前 `<p>`，新建一个 `<p>`，光标进新段；
+//   段内分行是 Shift+Enter（见 toolboxEnterBreak）。**两类 `<br>` 绝不互换**：
+//     · `<p>` 内部的 `<br>` = 段内分行（Shift+Enter 产出，永远留在这一段里）；
+//     · `<p>` 之外、与块同级的 `<br>` = 段落之间的空行（连按两次 Enter 产出）。
+// ★ 连按两次 Enter = 一个空行：第一次 Enter 分出来的"落脚段"本身就是空的，第二次 Enter
+//   时它**升格成一根根级独立 `<br>`**（空行），下面再开一个新的落脚段。
+//   于是 `甲 ⏎ ⏎ 乙` = `<p>甲</p>` / `<br>` / `<p>乙</p>`（与用户给的规范样例一致）。
+// ★ 光标可见/可点（用户实测 bug）：新段落一律是 `<p><br></p>`，光标放在 (p,0) ——
+//   与浏览器原生 Enter 的位置逐字节一致（实测原生回车得到 `<p>哈哈哈</p><p><br></p>`，
+//   选区就是 (p,0)），所以插入点能正常画出、鼠标点得进去、接着打字落在该段。
+function toolboxInsertParagraph() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    if (toolboxComposing) return false;                    // ★★ IME：合成中的 Enter 是选词确认
+    toolboxFocusEditor();
+    let r = toolboxLiveRange();
+    if (!r) r = toolboxActiveRange();
+    if (!r) return false;
+    let blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk) {
+        toolboxWrapStrayTopLevel(ed);
+        blk = toolboxTopBlockOf(r.startContainer, ed);
+    }
+    // ① 光标压根不在任何块里（停在根上/空行上）→ 就地开一个新段，光标进新段
+    if (!blk) {
+        if (!toolboxParagraphAtRoot(r)) return false;
+        toolboxCaretHolderSweep();
+        toolboxRefresh();
+        toolboxUndoPush(false);
+        toolboxKeepFocus();
+        return true;
+    }
+    // ② 光标所在的这一段**本身是空的**（上一次 Enter 分出来的落脚段）→
+    //    它自己升格成一根"独立成行的 `<br>`"（空行），下面再开一个新的落脚段。
+    //    判据 `>1` 把"刚打开、编辑区只有这一个空段"排除在外：那种情况下 Enter 只是分出
+    //    一个新段（不会凭空多出一个空行）。
+    const blkCount = ed.querySelectorAll('p,div,center,table,ul,ol,blockquote,pre,h1,h2,h3,h4,h5,h6,img,hr,video').length;
+    if (blkCount > 1 && !toolboxBlockHasContent(blk) && String(blk.tagName || '').toUpperCase() === 'P') {
+        const blank = document.createElement('br');
+        blk.parentNode.insertBefore(blank, blk);
+        const np = document.createElement('p');
+        np.appendChild(document.createElement('br'));          // 新落脚段的落脚行
+        blk.parentNode.insertBefore(np, blk);
+        blk.parentNode.removeChild(blk);
+        try {
+            const nr = document.createRange();
+            nr.setStart(np, 0);
+            nr.collapse(true);
+            const sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+        } catch (e) {}
+        toolboxCaretHolderSweep();
+        toolboxRefresh();
+        toolboxUndoPush(false);
+        toolboxKeepFocus();
+        return true;
+    }
+    // ③ 普通情况：在光标处把这一段切成两段，光标进新段。
+    //    先把"落脚用"的标记节点（data-tb-caret 的 <br>）从切点上请出去 ——
+    //    它只是给光标找的落脚点，不该跟着内容搬进新段。
+    const nb = toolboxSplitBlockAt(blk, r);
+    if (!nb) return false;
+    while (nb.firstChild && toolboxIsCaretOrBlankNode(nb.firstChild)) nb.removeChild(nb.firstChild);
+    // 前半段被切空了（在段首按 Enter）→ 它自己就是用户留下的一行空白，
+    // 就地变一根独立 `<br>`（空行），不能凭空消失（所见 = 代码）。
+    if (!toolboxBlockHasContent(blk) && !(blk.querySelector && blk.querySelector('img,table,hr,video'))) {
+        const blank = document.createElement('br');
+        blk.parentNode.insertBefore(blank, blk);
+        blk.parentNode.removeChild(blk);
+    }
+    // 新段还空着 → 给一根落脚行；光标落在新段**开头**（原生 Enter 的位置）
+    const empty = !nb.firstChild;
+    if (empty) nb.appendChild(document.createElement('br'));
+    try {
+        const nr = document.createRange();
+        const first = nb.firstChild;
+        if (!empty && first && first.nodeType === 3 && String(first.nodeValue || '').length) nr.setStart(first, 0);
+        else nr.setStart(nb, 0);
+        nr.collapse(true);
+        const sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+    } catch (e) {}
+    toolboxSnapClear();
+    toolboxSaveRange();
+    toolboxCaretHolderSweep();
+    toolboxRefresh();
+    toolboxUndoPush(false);
+    toolboxKeepFocus();
+    return true;
+}
+// "标记节点 / 空文本"：切段时不该搬进新段的东西（落脚 <br>、空文本）。
+function toolboxIsCaretOrBlankNode(n) {
+    if (!n) return false;
+    if (n.nodeType === 3) return !String(n.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '').length;
+    if (n.nodeType !== 1) return false;
+    if (n.getAttribute && n.getAttribute(TOOLBOX_CARET_ATTR)) return true;
+    return n.tagName === 'BR';
+}
+// 落脚点补建（光标可见性/命中的兜底）：删字、撤回、程序化改动之后，光标可能又落到
+// "块尾那根 <br> 之后"这个**没有行盒**的位置 —— 那正是用户实测"光标看不见、点不着"的现场。
+// 只处理两种现场（其余一律不碰）：
+//   A. 光标后面紧跟一根**没有标记的 <br>**、而且它之后（忽略空文本）再没有别的东西：
+//      这是浏览器在"这一行被删空"时补的占位 `<br>` —— 把**同一根节点**加上标记
+//      （它就从"代码里多出来的一根 <br>"变成"光标的落脚点"），行盒留着、代码区不多一行。
+//      实测（Chrome 148）：`<p>哈哈哈<br>Z</p>` 里把 Z 删掉，浏览器会留下
+//      `<p>哈哈哈<br><br></p>` —— 不处理的话代码区就凭空多出一根 <br>；
+//   B. 光标停在**块尾**（后面什么都没有）且前面紧邻一根软换行 <br>：
+//      补一根带标记的 <br>（与 Shift+Enter 之后的状态完全一致），序列化时摘掉。
+// 前置条件：光标折叠、在编辑区里、所在块**有内容**（空段落壳本身就有行盒，绝不能碰，
+// 否则空段会凭空多一行）、且整个编辑区里还没有落脚标记。
+function toolboxCaretSupportSync() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || toolboxComposing) return 0;
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount) return 0;
+    const r = sel.getRangeAt(0);
+    if (!r.collapsed || !ed.contains(r.startContainer)) return 0;
+    const blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk || !toolboxBlockHasContent(blk)) return 0;
+    if (ed.querySelector('[' + TOOLBOX_CARET_ATTR + ']')) return 0;
+    // 光标之后（同一块内）还剩什么？跳过空文本；标记节点不该出现在这里。
+    const c0 = r.startContainer;
+    let tail = null;
+    if (c0.nodeType === 1) tail = c0.childNodes[r.startOffset] || null;
+    else if (c0.nodeType === 3) {
+        if (r.startOffset < String(c0.nodeValue || '').length) tail = c0;   // 同一个文本节点里后面还有字
+        else tail = c0.nextSibling;
+    }
+    let after = null;
+    for (let n = tail; n; n = n.nextSibling) {
+        if (n.nodeType === 3 && !String(n.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '').length) continue;
+        after = n; break;
+    }
+    const isBr = function (n) { return !!(n && n.nodeType === 1 && n.tagName === 'BR'); };
+    // —— A. 后面只剩一根"没有标记的 <br>"（浏览器补的占位行）→ 就地把它变成落脚点 ——
+    if (isBr(after) && !(after.getAttribute && after.getAttribute(TOOLBOX_CARET_ATTR))) {
+        let more = null;
+        for (let n = after.nextSibling; n; n = n.nextSibling) {
+            if (n.nodeType === 3 && !String(n.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '').length) continue;
+            more = n; break;
+        }
+        if (!more) {
+            after.setAttribute(TOOLBOX_CARET_ATTR, '1');
+            toolboxSaveRange();
+            return 1;
+        }
+        return 0;
+    }
+    if (after) return 0;                                    // 后面还有别的东西 → 不需要落脚点
+    if (toolboxContentAfterCaret(r)) return 0;              // 双保险（文本/图片等实义内容）
+    // —— B. 光标就在块尾：前面紧邻的必须是一根**软换行** <br> ——
+    let prev = null;
+    if (c0.nodeType === 1) prev = c0.childNodes[r.startOffset - 1] || null;
+    else if (c0.nodeType === 3 && r.startOffset === 0) prev = c0.previousSibling;
+    if (!isBr(prev) || (prev.getAttribute && prev.getAttribute(TOOLBOX_CARET_ATTR))) return 0;
+    const mark = toolboxCaretHolderMake();
+    try { r.insertNode(mark); } catch (e) { return 0; }
+    try {
+        const nr = document.createRange();
+        nr.setStart(mark.parentNode, Array.prototype.indexOf.call(mark.parentNode.childNodes, mark));
+        nr.collapse(true);
+        sel.removeAllRanges(); sel.addRange(nr);
+        toolboxSaveRange();
+    } catch (e) {}
+    return 1;
+}
+// 段间退格（用户口径：两类 `<br>` 的退格行为都要正确）：
+//   光标在某段**最开头**、它前面又是一个"独立成行的空行 `<br>`"时，**只删掉那根空行**，
+//   两段就此直接相接（`</p><p>`）；**绝不让浏览器把整段吞掉**。
+// ★ 为什么必须自己拦：实测（Chrome 148 headless）在 `<p>甲</p>` / `<br>` / `<p>乙</p>` 里
+//   把光标放到"乙"段开头按退格，浏览器默认会把这**整段删掉**（乙没了）并多留一个空行 ——
+//   用户实测的"按退格丢字"就是这么来的。拦下来之后：第一次退格删空行、第二次退格才由浏览器
+//   把两段合并（这一步是正常的、不丢字）。
+function toolboxBackspaceBlankLine() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    const r = toolboxLiveRange() || toolboxActiveRange();
+    if (!r || !r.collapsed) return false;
+    const blk = toolboxTopBlockOf(r.startContainer, ed);
+    if (!blk) return false;
+    // 光标在这段的**最开头**吗（光标之前没有任何实义内容）？
+    let head = null;
+    try {
+        head = document.createRange();
+        head.selectNodeContents(blk);
+        head.setEnd(r.startContainer, r.startOffset);
+    } catch (e) { return false; }
+    if (!head.collapsed) {
+        let frag = null;
+        try { frag = head.cloneContents(); } catch (e) { return false; }
+        if (String(frag.textContent || '').replace(/[\s\u00a0\u200b]+/g, '').length) return false;
+        if (frag.querySelector && frag.querySelector('img,table,hr,video,input')) return false;
+    }
+    const prev = blk.previousSibling;
+    if (!prev || prev.nodeType !== 1 || prev.tagName !== 'BR') return false;
+    ed.removeChild(prev);                       // 空行没了 ⇒ 两段直接相接
+    toolboxSnapClear();
+    toolboxSaveRange();
+    toolboxCaretHolderSweep();
+    toolboxRefresh();
+    toolboxUndoPush(false);
+    toolboxKeepFocus();
+    return true;
+}
+// 光标停在**根**上（照片/空行之间，不在任何块里）时按 Enter：就地开一个新段。
+//   位置：紧跟光标前面那个根级空行 `<br>`（如果有）之后 —— 这样"在空行上回车"
+//   得到的是 `<p>甲</p>` / `<br>` / `<p><br></p>`，光标在最后一个段里，顺序不乱。
+function toolboxParagraphAtRoot(r) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    const np = document.createElement('p');
+    np.appendChild(document.createElement('br'));
+    let at = null;
+    if (r.startContainer === ed) {
+        at = ed.childNodes[r.startOffset] || null;
+    } else if (r.startContainer.parentNode === ed) {
+        at = r.startContainer.nextSibling;
+    }
+    ed.insertBefore(np, at);
+    try {
+        const nr = document.createRange();
+        nr.setStart(np, 0);
+        nr.collapse(true);
+        const sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+    } catch (e) {}
+    toolboxSnapClear();
+    toolboxSaveRange();
+    return true;
 }
 
 // ========== 并排图片（多张一行）==========
@@ -3640,9 +4716,18 @@ function toolboxPickCells(data, row, cols) {
 //      否则"把表格粘进来"这条既有功能就废了。
 //   ② 代码区：原样保留 HTML —— "把现成文章的 HTML 导入进来"这条功能全靠它。
 //
+// 换行统一：CRLF / CR / U+2028 / U+2029 → `\n`。
+// ★ 剪贴板里的换行有四五种写法：Windows 复制是 `\r\n`，某些网页与 PDF 用 U+2028（行分隔）
+//   / U+2029（段分隔），老 Mac 是单个 `\r`。不统一的话，后面所有"按行/按空行"的判断都会漏。
+function toolboxNormalizeNewlines(text) {
+    return String(text == null ? '' : text)
+        .replace(/\r\n?/g, '\n')
+        .replace(/[\u2028\u2029]/g, '\n');
+}
+
 // 纯文本 → HTML：只做转义 + 换行换 <br>，别的什么都不加。
 function toolboxPlainTextHtml(text) {
-    const t = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+    const t = toolboxNormalizeNewlines(text);
     const parts = t.split('\n');
     let html = '';
     for (let i = 0; i < parts.length; i++) {
@@ -3650,6 +4735,63 @@ function toolboxPlainTextHtml(text) {
         if (parts[i]) html += toolboxEscText(parts[i]);
     }
     return html;
+}
+
+// 只有 HTML 的剪贴板（从网页复制的富文本，且没带 text/plain）→ 纯文本。
+// ★ 为什么需要它（用户实测 bug 2 的同族缺口）：旧代码是把标签直接换成**空格**
+//   （`html.replace(/<[^>]*>/g, ' ')`），于是 `<p>甲</p><p>乙</p>` 变成"甲 乙"——
+//   段落边界整个消失，粘进来只能是一个 <p>。这里先把**块级边界换成换行**再剥标签：
+//   `</p>` / `</div>` / `<br>` 各自成行，段与段之间补一个空行，于是"空行 = 段落分界"
+//   这条路照样能接上。
+function toolboxHtmlToPlainLines(html) {
+    let h = String(html || '');
+    h = h.replace(/<(script|style|meta|link|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+    h = h.replace(/<br\s*\/?>/gi, '\n');
+    h = h.replace(/<\/(p|div|li|h[1-6]|tr|section|article|blockquote|pre|td|th)\s*>/gi, '\n\n');
+    h = h.replace(/<[^>]*>/g, '');
+    h = h.replace(/&nbsp;/gi, ' ').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&amp;/gi, '&');
+    h = toolboxNormalizeNewlines(h);
+    return h.replace(/[^\S\n\r]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+}
+
+// 纯文本 → **段落数组**（每段已经转义、段内换行已经转成 <br>）。
+// 用户口径（与手敲 Enter 完全同一套规则）：
+//   · **空行 = 段落分界** → 拆成两段（连续多个空行只算一次分界，不产生空段）；
+//   · **段内单个换行 = 行内换行** → `<br>`；
+//   · 首尾空行不产生空的 <p>（"无多余空块/空行"）。
+function toolboxPlainTextParas(text) {
+    // ★ 换行/行分隔符先统一：`\r\n`、`\r`（Windows / 老 Mac 剪贴板）、U+2028 / U+2029
+    //   （某些网页、PDF 复制出来的"段落分隔符"）一律当成普通换行。
+    const t = toolboxNormalizeNewlines(text);
+    // ★ 用**捕获分隔符**切分：奇数位就是"段与段之间的那一坨换行"。
+    //   分隔符里有 n 个 \n ⇒ 中间夹了 n-1 个**空行**。这与用户手敲的规则完全一致：
+    //   一次 Enter 是段内 `<br>`（不切段），两次 Enter 才留出一个空行 ——
+    //   而空行在编辑器里就是一个"独立成行的 `<br>`"（见 toolboxInsertParagraph）。
+    //   所以粘贴里的空行也照这个来：段与段之间补上同样数量的独立 <br>，
+    //   粘进来的排版与"自己一行一行敲出来"逐字一致。
+    // ★★ 空行里的"空白"必须用 `[^\S\n\r]`（= 除换行以外的所有空白）判定，不能用 `[ \t\u00a0]`：
+    //   用户实测 bug 2 —— 从网页/文档里复制出来的空行常常是全角空格 U+3000、制表符、
+    //   U+00A0，或者整篇是 CRLF；旧的窄字符集一个都不认，于是"空行分段"这条路被整条跳过，
+    //   三段正文被塞进同一个 <p>、段间只剩 `<br><br>`。
+    //   又不能直接用 `\s`：它会把换行本身也吃掉，空行数（blanks）就数错了。
+    const parts = t.split(/(\n[^\S\n\r]*\n+)/);
+    const out = [];
+    for (let i = 0; i < parts.length; i += 2) {
+        const seg = parts[i].replace(/^[^\S\n\r]+/, '').replace(/[^\S\n\r]+$/, '');
+        // ★ 这个段**前面**那一坨分隔符在 parts[i-1]（i 是偶数，说明 i-1 是捕获到的分隔符）
+        const sepBefore = (i > 0) ? (parts[i - 1] || '') : '';
+        const blanks = sepBefore ? Math.max(0, (sepBefore.match(/\n/g) || []).length - 1) : 0;
+        if (!seg) continue;                        // 首尾的空行不产生段落，也不留空行
+        const lines = seg.split('\n');
+        let h = '';
+        for (let k = 0; k < lines.length; k++) {
+            if (k) h += '<br>';
+            if (lines[k]) h += toolboxEscText(lines[k]);
+        }
+        out.push({ html: h, blanksBefore: out.length ? blanks : 0 });
+    }
+    return out;
 }
 
 // 正文区粘贴：**一律纯文本**。
@@ -3681,19 +4823,144 @@ function toolboxPasteHandler(e) {
     }
 
     e.preventDefault();
-    // ★ 先取实时选区，再动 DOM —— 顺序不能反：清空编辑区/删选区之后现场就没了
-    const live = toolboxLiveRange();
+    // ★★ IME 守卫之六：合成还没结束就来了 paste（现实中浏览器总是先 compositionend 再 paste，
+    //   这里纯粹是兜底）：**绝不在合成中改 DOM** —— 原样记住这次粘贴，等合成结束那一帧再重放。
+    if (toolboxComposing) {
+        toolboxComposingFlush = true;
+        toolboxComposingPending = function () { toolboxPastePlain(text, html); };
+        return;
+    }
+    toolboxPastePlain(text, html);
+}
+// 粘贴的**实际执行**部分（与 IME 无关，单独抽出来是为了"合成中推迟重放"那条路能复用它）。
+// ★ 先取实时选区，再动 DOM —— 顺序不能反：清空编辑区/删选区之后现场就没了
+function toolboxPastePlain(text, html) {
     if (toolboxEditorEmpty()) {
         // ★ 清空（而不是塞一个 <p><br></p> 占位）：否则导出的正文开头会多一个空段落
         toolboxTpl.editor.innerHTML = '';
         toolboxRange = null;
     }
     toolboxSnapClear();                  // 粘贴用"现场"位置，不用工具栏那份快照
-    toolboxDeleteSelection(live || toolboxLiveRange());
-    // 只有 HTML（比如从网页复制带样式的一段）：把标签剥掉，文字照样一个字不丢
-    const src = text || String(html).replace(/<[^>]*>/g, ' ');
+    // ★★ 顺序不能反（用户实测 bug 1 的同族缺口）：**先**把落点物化（光标停在空行上、
+    //   或在空行下面那一段的开头时，就地把它变成一个空的 <p>），**再**取实时选区。
+    //   反过来取到的还是"物化前"那个飘在空行旁/落在下一段里的 Range，
+    //   于是粘进来的第一段会跟下一段的字黏在一起、物化出来的空段落反而被丢掉。
+    toolboxBlankLineCaretHost();
+    const live = toolboxLiveRange();
+    toolboxDeleteSelection(live || toolboxActiveRange());
+    // 只有 HTML（比如从网页复制带样式的一段）：把块级边界换成换行再剥标签，
+    // 段落边界不会像"换成空格"那样被吃掉（见 toolboxHtmlToPlainLines）。
+    const src = text || toolboxHtmlToPlainLines(html);
+    // ★ 第三个参数 = 真：粘贴之后把编辑区根下面的裸文本/裸行内节点合成 <p>
+    //   （用户实测 bug：空编辑区粘「示例文字」，代码区出来的是裸文字，不是 <p>示例文字</p>）。
+    //   换行策略一个字没改：多行粘贴仍然是 `<br>` 分隔，只是整段落进同一个 <p> 里。
+    //
+    // ★★ 段落口径（用户明确期待）：**粘贴里出现空行 = 段落分界 → 每段一个 `<p>`**；
+    //   段内单个换行仍旧是 `<br>`。用户那份三段原文（段间各一个空行）必须出来 3 个 `<p>`；
+    //   光标在段中间时"就地拆开"：前半段 + 第一段接在一起，后面的段各自成块，
+    //   后半段接在最后一段后面（一个字不丢、顺序不变）。
+    // ★ 判据从"正则里有没有空行"改成"解析出来是不是超过一段"：空行里的空白种类很多
+    //   （全角空格 / 制表符 / U+00A0 / CRLF），交给 toolboxPlainTextParas 一处判定，
+    //   两边口径不会再分叉（用户实测 bug 2 就是这里漏掉的）。
+    const paras = toolboxPlainTextParas(src);
+    const at = live || toolboxLiveRange();
+    if (paras.length > 1) {
+        toolboxPasteParagraphs(paras, at);
+        return;
+    }
     const plain = toolboxPlainTextHtml(src);
-    if (plain) toolboxInsertHtml(plain, live || toolboxLiveRange());
+    if (plain) toolboxInsertHtml(plain, at, true);
+}
+
+// 多段粘贴：**每段一个 `<p>`**（用户规范写法）。光标在段中间时就地拆开：
+//   前半段 + 第一段接在一起 → 后面的段各自成块 → 后半段接在最后一段后面。
+// ★ 只在"粘贴内容里确实有空行"时才走这条路；没有空行的普通多行粘贴一个字都不改
+//   （仍旧是同一块里的几个 `<br>`，既有用例靠它）。
+function toolboxPasteParagraphs(paras, live) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || !paras || !paras.length) return false;
+    const makeP = function (it) {
+        const p = document.createElement('p');
+        if (it && it.html) p.innerHTML = it.html;
+        return p;
+    };
+    // 段与段之间的"空行"：按用户手敲的规则插**独立成行的 <br>**（几个空行就几根）
+    const blanksOf = function (it) { return (it && it.blanksBefore > 0) ? it.blanksBefore : 0; };
+    const makeBlanks = function (n) {
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < n; i++) frag.appendChild(document.createElement('br'));
+        return frag;
+    };
+    const moveInto = function (target, src) { while (src.firstChild) target.appendChild(src.firstChild); };
+    let r = (live && live.startContainer && ed.contains(live.startContainer)) ? live : toolboxLiveRange();
+    let blk = r ? toolboxTopBlockOf(r.startContainer, ed) : null;
+    if (!blk) {                                  // 光标在根上 → 先把裸文本/裸行内节点包成块
+        toolboxWrapStrayTopLevel(ed);
+        blk = r ? toolboxTopBlockOf(r.startContainer, ed) : null;
+    }
+    if (!blk && r) {                             // 还挂在根末尾 → 归到相邻块里（与 Enter 同一条规矩）
+        const nr = toolboxCaretIntoNearBlock(ed, r.startContainer, r.startOffset);
+        if (nr) { r = nr; blk = toolboxTopBlockOf(r.startContainer, ed); }
+    }
+    let caretHost = null;
+    if (!blk) {
+        // 空编辑区 / 根上没有块：一段一个 <p>（段间按粘贴里的空行补独立 <br>），整批插进去
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < paras.length; i++) {
+            if (i) frag.appendChild(makeBlanks(blanksOf(paras[i])));
+            frag.appendChild(makeP(paras[i]));
+        }
+        let done = false;
+        if (r && ed.contains(r.startContainer)) {
+            try { if (!r.collapsed) r.deleteContents(); } catch (e) {}
+            try { r.insertNode(frag); done = true; } catch (e) { done = false; }
+        }
+        if (!done) { while (frag.firstChild) ed.appendChild(frag.firstChild); }
+        caretHost = ed.lastElementChild;
+    } else {
+        const head = blk;
+        const tail = toolboxSplitBlockAt(head, r);
+        if (!toolboxBlockHasContent(head)) {                  // 前半段本来是空壳（<p><br></p>）→ 清掉
+            while (head.firstChild) head.removeChild(head.firstChild);
+        }
+        moveInto(head, makeP(paras[0]));                      // 第一段接在当前这一行后面
+        let last = head;
+        for (let i = 1; i < paras.length; i++) {
+            const p = makeP(paras[i]);
+            head.parentNode.insertBefore(p, tail || head.nextSibling);
+            // ★ 段间空行 = 独立 <br>，插在新段**前面**（顺序：上一段 / 空行 / 这一段）
+            for (let b = 0; b < blanksOf(paras[i]); b++) head.parentNode.insertBefore(document.createElement('br'), p);
+            last = p;
+        }
+        if (tail) {
+            const tailHasBlock = !!(tail.querySelector
+                && tail.querySelector('p,div,center,table,ul,ol,blockquote,h1,h2,h3,h4,h5,h6,hr'));
+            if (!toolboxBlockHasContent(tail)) {
+                tail.parentNode.removeChild(tail);             // 光标本来就在段尾：不留空壳
+            } else if (tailHasBlock) {
+                last = tail;                                   // 后半段自己就是块结构：自成一段
+            } else {
+                moveInto(last, tail);                          // 后半段的文字接在最后一段后面
+                tail.parentNode.removeChild(tail);
+            }
+        }
+        caretHost = last;
+    }
+    if (caretHost) {
+        try {
+            const nr = document.createRange();
+            nr.selectNodeContents(caretHost);
+            nr.collapse(false);
+            const sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+        } catch (e) {}
+    }
+    toolboxSnapClear();
+    toolboxCaretHolderSweep();
+    toolboxRefresh();
+    toolboxUndoPush(false);
+    toolboxKeepFocus();
+    return true;
 }
 
 // 代码区粘贴：剪贴板里有 HTML 就用 HTML（导入现成文章靠它），
@@ -4733,6 +6000,68 @@ const TOOLBOX_CODE_DEBOUNCE = 350;   // 代码区输入的防抖（ms）：太�
 let toolboxCodeApplyTimer = 0;       // 代码区 → 编辑区 的防抖定时器
 let toolboxSyncBusy = false;         // ★ 抑制位：同步中，对面的 input 不处理
 
+// ＝＝ 输入法合成（IME / 拼音）期间的"冻结位" ＝＝
+// 用户实测：用真实拼音输入法打字会丢字、重复字、光标乱跳。根因是**合成中浏览器正拿拼音/
+// 候选字不断改写 DOM**（文本节点会被整体换掉），而我们那几条"结构归一化"（顶层裸文本包成
+// `<p>`、空行 ↔ `<p>` 互转、光标托清扫）任何一条在这时候动 DOM，都会把正在合成的节点搬走 ——
+// 输入法随后还在往旧节点上写，于是字丢了或写了两遍，光标也被挪走。
+// 所以这里定一条铁律：**合成没结束，编辑区一个节点都不许改**。
+//   · compositionstart/update → 冻结；凡是会改结构的入口一律跳过（或推迟）；
+//   · compositionend（拼音上屏）→ **下一帧**才解冻并补跑一次归一化（先存选区、跑完再恢复），
+//     这样"上屏后才做该做的归一化"，而且不会把刚上屏的字重排/让光标跑掉；
+//   · 合成中的 Enter（输入法选词确认）绝对不劫持 —— 见 keydown 里的 isComposing/keyCode 229 守卫。
+let toolboxComposing = false;        // 合成中？
+let toolboxComposingFlush = false;   // 合成结束后要不要补一次归一化
+let toolboxComposingPending = null;  // 合成中被推迟的动作（目前只有"粘贴"）
+
+// 兜底解冻：万一某个浏览器没给 compositionend（或者事件顺序怪），只要来了一次**非合成**的
+// 普通输入，就认为合成已经结束 —— 否则冻结位会一直卡住，代码区再也不刷新。
+function toolboxComposingActive(e) {
+    if (toolboxComposing) return true;
+    return !!(e && e.isComposing === true);
+}
+// 合成结束：立刻解冻（后面紧跟的那个 input 必须能正常处理），归一化推迟一帧再跑。
+function toolboxComposingFinish() {
+    toolboxComposing = false;
+    if (!toolboxComposingFlush) return;
+    toolboxComposingFlush = false;
+    const run = function () {
+        const ed = toolboxTpl && toolboxTpl.editor;
+        if (!ed) return;
+        // ① 先记住此刻的落点 —— **两套都记**：
+        //    · keep：DOM Range（归一化只移动节点时它仍然有效，最省事）；
+        //    · keepOff：**逻辑位置**（编辑区纯文本偏移）。归一化一旦真的改写了结构
+        //      （空行 <br> → <p>、裸文本被包进 <p>、节点被换掉），旧 Range 就可能整段失效
+        //      或被夹到相邻节点上 —— 用户实测的"拼音输「中」之后光标跳到「乙」前面"就是这么来的。
+        //      文字偏移与节点身份无关，改完结构再按同一个偏移落回来，光标一定还在刚上屏的字之后。
+        const sel = window.getSelection && window.getSelection();
+        let keep = null, keepOff = -1;
+        try {
+            if (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).startContainer)) {
+                keep = sel.getRangeAt(0).cloneRange();
+                keepOff = toolboxCaretTextOffset();
+            }
+        } catch (e1) {}
+        try { toolboxFillBlankLine(); } catch (e2) {}                                  // 上屏的字如果落在空行上 → 并进新 <p>
+        try { if (!toolboxSyncBusy) toolboxWrapStrayTopLevel(ed); } catch (e3) {}       // 顶层兜底归一化
+        // ② 落回光标：**先按逻辑位置**（唯一不怕结构改写的一套），落不回去再用 Range。
+        let restored = false;
+        try { if (keepOff >= 0) restored = toolboxCaretToTextOffset(keepOff); } catch (e4) { restored = false; }
+        if (!restored) {
+            try {
+                if (keep && ed.contains(keep.startContainer)) { sel.removeAllRanges(); sel.addRange(keep); }
+            } catch (e5) {}
+        }
+        toolboxScheduleRefresh(false);
+        // ③ 兜底：合成期间被推迟的动作（粘贴）—— 放在光标落定之后，粘贴才用得上正确的落点。
+        const pend = toolboxComposingPending;
+        toolboxComposingPending = null;
+        if (pend) { try { pend(); } catch (e6) {} }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+    else setTimeout(run, 0);
+}
+
 function toolboxCodeText() {
     return (toolboxTpl && toolboxTpl.code) ? String(toolboxTpl.code.value || '') : '';
 }
@@ -4743,6 +6072,26 @@ function toolboxCodeText() {
 function toolboxRefresh() {
     if (!toolboxTpl || !toolboxTpl.editor) return;
     toolboxCodeDirty = false;
+    // ★ 顶层归一化（**所有会改编辑区的路径**的总兜底）：
+    //   编辑区的直接子节点里不允许出现裸文本 / 裸行内元素。上一轮只在**粘贴**那条路上做了
+    //   这件事（toolboxInsertHtml 的 wrapStray），结果**打字/回车/剪切/删除**这些路径照样能
+    //   在根上留下裸文本（用户实测：手敲几行之后右侧代码区出现 `开始编辑<br>…` 这种没有 <p>
+    //   的顶层文字）。放在这里的原因：
+    //     · 它就在"读编辑区 → 写代码区"的唯一出口上，插进来的内容无论从哪条路径来，
+     //       序列化之前都会被规整成块结构 —— 一条兜底覆盖全部路径，不用到处加调用；
+    //     · 位置在 toolboxCleanHtml() **之前**，所以代码区拿到的永远已经是规整过的那份；
+    //     · 只移动节点、不新建换行/空块（见 toolboxWrapStrayTopLevel），所以 textContent、
+    //       <br> 数、块数都不变，幂等不变；
+    //     · **代码区 → 编辑区**那条同步路（toolboxSyncBusy）跳过：那个方向要求"编辑区忠实
+    //       等于代码区里写的东西"，不该在背后改写用户刚敲的源码（双向同步的既有用例靠它）。
+    if (!toolboxSyncBusy && !toolboxComposing) toolboxWrapStrayTopLevel(toolboxTpl.editor);
+    // 光标托收尾：已经打了字的托要解开（字留在 <br> 后面那一行，托本身不进导出），
+    // 光标已经走开的空托直接删掉（不然编辑区会多出一条代码区根本没有的空行）。
+    // ★ 光标还在里面的空托**留着** —— 它正是当前那一行的落脚点。
+    // ★ 合成中不扫：托的增删也是改 DOM，会打断输入法的合成（见上面的冻结位）。
+    if (!toolboxComposing) toolboxCaretHolderSweep();
+    if (!toolboxSyncBusy) toolboxCaretSupportSync();   // ★ 光标落到"块尾 <br> 之后"时把落脚点补回来
+    toolboxHintSync();                   // ★ 提示语跟着内容走（程序化灌入/粘贴/删除/撤回都在这里收口）
     // 图片占位框（纯显示层）：先按当前加载状态对齐，再导出 —— 导出会跳过显示层
     toolboxImgDisplaySync();
     const clean = toolboxCleanHtml();
@@ -4769,6 +6118,8 @@ function toolboxRefresh() {
     const n = toolboxCountChars(toolboxTpl.editor);
     if (toolboxTpl.count) toolboxTpl.count.textContent = String(n);
     toolboxValidate();
+    // 行号栏跟着代码文本重排（序号个数 = 逻辑行数；高度按折行后的实际像素算）
+    toolboxScheduleGutter();
 }
 
 // ========== 校验 ==========
@@ -5111,10 +6462,20 @@ function toolboxApplyCodeToEditor(text, force) {
     const box = toolboxParseBox(text);
     sanitizeToolboxNode(box);
     ed.innerHTML = box.innerHTML || '<p><br></p>';
+    // ★ 导入时把源码里**已经写着的空段落**（`<p></p>` / `<p><br></p>`）就地归一成根级 `<br>`
+    //   —— 空行在编辑器里只有这一种形态，才谈得上"打字变 <p>、删空退回 <br>"的稳定互转，
+    //   也才谈得上"导出→导入→导出逐字节幂等"（用户点名要求）。
+    toolboxImportBlankLines(ed);
     // ★ 代码是"按行排版"的（块与块之间有 \n），灌进编辑区后这些 \n 会变成真实的
     //   空白文本节点。它们对渲染没影响，却会让"撤回后按文字指纹重新定位选区"失配
     //   （指纹是在没有这些节点的 DOM 上采集的）→ 光标瞬移到文首。所以灌完立刻清掉。
     toolboxNormalizeEditorWhitespace(ed);
+    // ★★ 提示语收口（用户要求"放进唯一出口，不要逐条补"）：**整篇换内容**只有这一条路
+    //   —— 撤回/重做（toolboxUndoStep）、代码区→编辑区（toolboxCodeToEditor）、
+    //   程序化灌入/重置/导入，全都落在这里。它一改内容就同步提示语，
+    //   于是"撤回到全空之后提示语不回来"这类漏判不会再有第二次。
+    //   （打字/删除那条**就地**改内容的路走 toolboxRefresh，那里同样有这个调用。）
+    toolboxHintSync();
     return true;
 }
 
@@ -5124,6 +6485,7 @@ function toolboxCodeToEditor() {
     const text = toolboxCodeText();
     const ok = toolboxApplyCodeToEditor(text, false);
     if (!ok) { toolboxValidate(); return; }                   // 结构没配平：编辑区保持原样
+    // ★ 提示语不在这里单独补：toolboxApplyCodeToEditor() 末尾已经收口（所有整篇换内容的路共用它）
     toolboxSyncBusy = true;                                   // ★ 抑制位：下面的 refresh 不许回头写代码区
     try {
         toolboxCodeDirty = false;
@@ -5289,7 +6651,15 @@ function toolboxUndoReset() {
     //   代码区可能正停在一段没通过结构检查的半截文本上（那次改动本来就没进编辑区），
     //   照抄进来的话，一按撤回就会把那段半截内容灌进编辑区。
     const ed = toolboxTpl && toolboxTpl.editor;
-    const base = ed ? toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml())) : toolboxCodeText();
+    // ★ 起点快照用**编辑区那一份**（净化 + 按行排版后的导出），不要照抄代码区的原文：
+    //   代码区可能正停在一段没通过结构检查的半截文本上（那次改动本来就没进编辑区），
+    //   照抄进来的话，一按撤回就会把那段半截内容灌进编辑区。
+    // ★ "编辑区是空的" ⇒ 快照就是空串（与代码区显示的那份一致）：否则起点快照会是一根
+    //   独立空行 `<br>`（空编辑区的净化结果），撤回回到起点时编辑区变成"只有空行"的形态 ——
+    //   代码区是空的、提示语却因为"有 <br>"不回来（用户实测 bug 3 的另一半原因）。
+    const base = ed
+        ? (toolboxEditorEmpty() ? '' : toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml())))
+        : toolboxCodeText();
     toolboxUndo = {
         stack: [{ code: base, sel: toolboxSnapshotSel() }],
         index: 0, lastAt: 0, busy: false, timer: 0
@@ -6653,6 +8023,8 @@ function toolboxOpen() {
         toolboxFileNameReset();                               // 文件名也回默认 Untitled（不沿用上次会话）
         toolboxRange = null;
         toolboxSnapClear();
+        // ★ 需求 A：光标从第一帧起就落在「从这里开始」那一行 —— 显式摆进第一个块里（见函数注释）
+        toolboxCaretIntoFirstBlock();
         toolboxWinBox = null;                                 // 刷新后回默认尺寸
     }
     toolboxClearArmed = false;
@@ -6793,6 +8165,9 @@ function toolboxToolbarAction(act, btn) {
         case 'italic': toolboxExec('italic'); break;
         case 'underline': toolboxExec('underline'); break;
         case 'strike': toolboxExec('strikeThrough'); break;
+        // 上标 / 下标（用户新增）：与 BIUS 完全同一条字符级三态开关
+        case 'sup': toolboxToggleInline('sup'); break;
+        case 'sub': toolboxToggleInline('sub'); break;
         case 'size': toolboxSize(btn ? btn.getAttribute('data-size') : '1em'); break;
         // —— 对齐 ——
         case 'align-left': toolboxExec('justifyLeft'); break;
@@ -6810,6 +8185,7 @@ function toolboxToolbarAction(act, btn) {
         case 'link': toolboxOpenDialog('link'); break;
         case 'table': toolboxOpenDialog('table'); break;
         case 'br': toolboxInsertBreak(); break;
+        case 'para': toolboxInsertParagraph(); break;   // Enter：段落分界（新建 <p>）
         case 'sign': toolboxInsertSignature(); break;
         // —— 撤回 / 恢复 ——
         case 'undo': toolboxUndoStep(-1); break;
@@ -6978,17 +8354,63 @@ function initToolboxDOM() {
         if (hit && toolboxColStart(e, hit)) return;
         toolboxDropRange();
     });
-    toolboxTpl.editor.addEventListener('keydown', toolboxDropRange);
-    // 编辑区里按 Enter = 原来那个「换行」按钮（插 <br>）：
-    // ★ 只认**不带任何修饰键**的 Enter；Shift/Ctrl/Cmd/Alt+Enter 一律不劫持（浏览器默认行为）。
-    // ★ 只挂在 #tbEditor 上：代码区 #tbCode、文件名 #tbFileName、各对话框输入框都不受影响。
-    // ★ 走的是与原「换行」按钮**完全同一个入口** toolboxToolbarAction('br')（→ toolboxInsertBreak
-    //   → toolboxInsertHtml）—— 连按钮点击后那段统一的"收尾兜焦点/选区"也一并走到，
-    //   所以产出的 HTML 与按钮逐字一致（实测只用 toolboxInsertBreak 会差一个 <br> 的位置）。
     toolboxTpl.editor.addEventListener('keydown', function (e) {
-        if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.isComposing === true || e.keyCode === 229 || toolboxComposing) return;   // ★★ IME：合成中不碰存档/快照
+        toolboxDropRange();
+    });
+    // ★★ IME 守卫之一：合成开始/进行中 → 冻结（期间任何结构归一化都会被跳开或推迟）。
+    toolboxTpl.editor.addEventListener('compositionstart', function () {
+        // ★★ 用户实测 bug 1 的关键一步：合成**开始之前**先把落点稳住。
+        //   光标如果停在"空行"上（根级 <br> 旁，或浏览器把它解析成了下一段的开头），
+        //   输入法提交时会把这几个字插进**下一段的开头**（用户看到"输「中」之后光标跑到「乙」前面"）。
+        //   这里就地把它物化成一个空的 `<p><br></p>`、光标放进去 —— 合成就落在这块里，
+        //   上屏后是 `<p>中</p>`，后面那段一个字都没被碰（导出时空段落仍归一化成独立 <br>）。
+        try { toolboxBlankLineCaretHost(); } catch (e1) {}
+        toolboxComposing = true;
+        toolboxComposingFlush = true;      // 合成结束后补一次归一化（上屏的字要并进该在的块）
+        toolboxHintSync();                 // ★ 合成中也按内容实时判定（拼音一出现提示语就该消失）
+    });
+    toolboxTpl.editor.addEventListener('compositionupdate', function () { toolboxComposing = true; toolboxHintSync(); });
+    // ★★ IME 守卫之三：合成结束（拼音上屏）→ 立刻解冻（后面紧跟的那个 input 要能正常处理），
+    //   但结构归一化**推迟到下一帧**：此刻 DOM 还是"用户刚确认的样子"，马上重写会打断
+    //   输入法最后的收尾（丢字/重复/光标乱跳正是这么来的）。归一化里会先存选区、跑完再恢复。
+    toolboxTpl.editor.addEventListener('compositionend', function () { toolboxComposingFinish(); toolboxHintSync(); });
+    // 编辑区里的回车（用户口径，2024 更正）：
+    //   · **Enter** = 段落分界 → 新建一个 `<p>`，光标进新段（toolboxToolbarAction('para')）；
+    //   · **Shift+Enter** = 段内分行 → 在当前 `<p>` 里插一根 `<br>`，光标到它后面那一行
+    //     （toolboxToolbarAction('br')，和工具栏「换行」按钮**完全同一个入口**）。
+    // 两类 `<br>` 因此永远不会互换：段内的留在 `<p>` 里，段落之间那个独立 `<br>` 只能由
+    // "连按两次 Enter"（空段落升格）或粘贴的空行产生。
+    // ★ Ctrl/Cmd/Alt+Enter 一律不劫持（浏览器默认行为）。
+    // ★ 只挂在 #tbEditor 上：代码区 #tbCode、文件名 #tbFileName、各对话框输入框都不受影响。
+    // ★★ IME 守卫之四（**最关键的一条**）：合成中的 Enter 是输入法的"选词确认"，不是换行。
+    //   判据 isComposing / keyCode 229（老浏览器"正在合成"标记）/ 我们自己的冻结位，
+    //   命中就**直接放行给输入法**：既不 preventDefault，也不插 <br>、不拆段、不改任何结构。
+    //   合成结束之后（compositionend 已过）再按 Enter，才恢复成正常的段落分界/段内换行。
+    toolboxTpl.editor.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.isComposing === true || e.keyCode === 229 || toolboxComposing) return;
         e.preventDefault();
-        toolboxToolbarAction('br');
+        // ★ 先把"此刻的真实光标"补回存档，再做插入（用户实测 bug 的根因就在这里）：
+        //   这个监听器**排在** toolboxDropRange 那条 keydown 之后，而那条会把存档和快照一起
+        //   清空（它的职责是"用户自己动了光标 → 旧快照作废"）。存档一空，插入就只能退到
+        //   "编辑区**根**的末尾"当落点 —— 于是节点落到块**外面**，成了根级裸节点。
+        //   后果就是用户看到的那些"所见 ≠ 代码"的老毛病。
+        //   光标此刻就在正文里，实时选区是唯一正确的落点。
+        toolboxSaveRange();
+        // ★ 这里**不**物化空行：Enter 在空行上的语义是"再要一个空行"（连按 Enter 出多个空行，
+        //   见 42 段的既定口径），把它先变成空段落壳会打断 "⌅⌅⌅" 这条链。空行的物化只在
+        //   真正需要"插入点"的两条路上做：合成开始前、粘贴前（toolboxBlankLineCaretHost）。
+        toolboxToolbarAction(e.shiftKey ? 'br' : 'para');
+    });
+    // 段间退格：只删那根"独立空行 <br>"，别让浏览器把整段吞掉（见 toolboxBackspaceBlankLine）。
+    //   ★ IME 守卫同样生效（合成中的退格属于输入法）。
+    //   ★ 只认不带修饰键的 Backspace：Shift/Ctrl/Cmd/Alt+Backspace 一律交回浏览器。
+    toolboxTpl.editor.addEventListener('keydown', function (e) {
+        if (e.key !== 'Backspace' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.isComposing === true || e.keyCode === 229 || toolboxComposing) return;
+        if (!toolboxBackspaceBlankLine()) return;
+        e.preventDefault();
     });
     // 表格里右键 → 紧凑小菜单（插/删行列、插删单元格、合并/拆分）。
     // ★ 右键时先把光标放到点上（除非现在正跨格选中 —— 那多半就是要合并），
@@ -7038,14 +8460,56 @@ function initToolboxDOM() {
     toolboxTpl.editor.addEventListener('mouseleave', function () {
         if (!toolboxColDrag) toolboxTpl.editor.style.cursor = '';
     });
-    toolboxTpl.editor.addEventListener('input', function () {
+    toolboxTpl.editor.addEventListener('input', function (e) {
         if (toolboxSyncBusy) return;                 // ★ 抑制位：这是"代码区 → 编辑区"写进来的
-        toolboxScheduleRefresh(false);
+        // ★★ IME 守卫之五：**合成期间什么都不做** —— 不转换、不归一化、不刷新。
+        //   合成中的 input（inputType = insertCompositionText）只是拼音/候选字在变，
+        //   这时候把打的字包进 <p> 或者把节点搬走，输入法下一次 update 就写不回去了
+        //   （用户实测的丢字/重复/光标乱跳）。合成结束后由 compositionend 那条路补跑。
+        const composing = toolboxComposingActive(e);
+        toolboxHintSync();                           // ★ 提示语：合成中的拼音也算"有内容"（马上隐藏）
+        // ★ 空行 ↔ 段落的动态互转（用户口径，见这两个函数上方的长注释）：
+        //   打字落在空行上 → 独立 <br> 就地变成 <p>；把某段的字删光 → 那个 <p> 退回独立 <br>。
+        //   必须在 scheduleRefresh 之前跑：这时打的字还是根上的裸文本，能看出它挨着哪个 <br>。
+        const it = String((e && e.inputType) || '');
+        if (!composing) {
+            toolboxComposing = false;                // 收到非合成的输入 = 合成肯定已经结束（兜底解冻）
+            if (it.indexOf('delete') === 0) toolboxParagraphToBlankLine();
+            else if (it.indexOf('insert') === 0) {
+                // ★ 先补一条"事后补救"的路：浏览器把刚敲的字插进**下一段的开头**时
+                //   （光标其实停在空行上，见 toolboxTypedIntoNextBlock），把那几个字认出来
+                //   自成一段、光标放到字后。合成/粘贴那两条路是**提前物化**（见 compositionstart
+                //   与 toolboxPastePlain 里的 toolboxBlankLineCaretHost），这里管普通按键。
+                if (it !== 'insertFromPaste' && it !== 'insertFromDrop') {
+                    let n = 0;
+                    try { n = String((e && e.data) || '').replace(/[\r\n]/g, '').length; } catch (e9) { n = 0; }
+                    if (n > 0) toolboxTypedIntoNextBlock(n);
+                }
+                toolboxFillBlankLine();
+            }
+            // ★ 删字/撤回到"块尾 <br> 之后"时把落脚点补回来（光标看得见、点得着）。
+            toolboxCaretSupportSync();
+        } else {
+            toolboxComposingFlush = true;            // 记下来：合成结束后补一次归一化 + 刷新
+        }
+        if (!composing) toolboxScheduleRefresh(false);
         toolboxScheduleDraftSave();
         toolboxUndoSoon();
     });
-    toolboxTpl.editor.addEventListener('keyup', function () {
+    // 光标离开"空光标托"（用户点到别处去了）→ 那个"落脚行"立刻收掉：
+    // 编辑区不允许比代码区多出一行（托只在光标停在那儿时才是必要的）。
+    document.addEventListener('selectionchange', function () {
+        if (!toolboxLoaded || toolboxSyncBusy) return;
+        if (toolboxComposing) return;                    // ★★ IME：合成中不扫托（扫托就是改 DOM）
+        const ed = toolboxTpl && toolboxTpl.editor;
+        if (!ed || !ed.querySelectorAll) return;
+        if (!ed.querySelectorAll('[' + TOOLBOX_CARET_ATTR + ']').length) return;
+        toolboxCaretHolderSweep();
+    });
+    toolboxTpl.editor.addEventListener('keyup', function (e) {
         if (toolboxSyncBusy) return;
+        toolboxHintSync();                                                        // ★ 提示语跟着内容走
+        if (toolboxComposingActive(e)) { toolboxComposingFlush = true; return; }   // ★★ IME：合成中不刷新
         toolboxScheduleRefresh(false);
         toolboxScheduleDraftSave();
         toolboxUndoSoon();
@@ -7080,6 +8544,21 @@ function initToolboxDOM() {
     toolboxTpl.code.addEventListener('mouseup', function () { toolboxScheduleHighlight('code'); });
     toolboxTpl.code.addEventListener('select', function () { toolboxScheduleHighlight('code'); });
     toolboxTpl.code.addEventListener('scroll', toolboxSyncCodeScroll);
+    // 行号栏（gutter）：**新加**的监听器，上面那条（toolboxSyncCodeScroll）一个字不动。
+    //   · scroll：只同步行号栏的纵向偏移（translateY，不做别的）；
+    //   · input：输入时防抖重排（序号个数 = 逻辑行数）；
+    //   · ResizeObserver + window resize：面板/窗口尺寸变了、进/出全屏、卡片拖拽缩放
+    //     都会让折行位置变化，必须重新量高度（否则折行一多就整体错位）。
+    toolboxTpl.code.addEventListener('scroll', toolboxGutterScroll);
+    toolboxTpl.code.addEventListener('input', toolboxScheduleGutter);
+    window.addEventListener('resize', toolboxScheduleGutter);
+    if (window.ResizeObserver) {
+        try {
+            toolboxGutterRO = new ResizeObserver(function () { toolboxGutterSync(); });
+            toolboxGutterRO.observe(toolboxTpl.code);
+        } catch (e) { toolboxGutterRO = null; }
+    }
+    toolboxScheduleGutter();
 
     // ① 工具栏上**所有可点元素**（按钮、字号档、对齐图标、菜单项、窗口按钮、列宽把手）：
     //    按下的一瞬间先**冻结选区**（Range + 选中的纯文本），再阻止默认（不把焦点交给按钮、
@@ -7323,7 +8802,7 @@ function toolboxFallbackHtml() {
         //   绝不会因为"兜底结构里少写一个 div"而抛异常。
         + '<div class="tb-body">'
         + '<div class="tb-pane tb-pane-edit"><div class="tb-pane-head">编辑区</div>'
-        + '<div class="tb-editor" id="tbEditor" contenteditable="true" spellcheck="false" data-placeholder="从这里开始……"></div></div>'
+        + '<div class="tb-editor tb-hint-on" id="tbEditor" contenteditable="true" spellcheck="false" data-placeholder="从这里开始……"></div></div>'
         + '<div class="tb-pane tb-pane-code"><div class="tb-pane-head">HTML</div>'
         + '<textarea class="tb-code" id="tbCode" spellcheck="false" wrap="soft" placeholder="可在此粘贴或编辑HTML代码"></textarea>'
         + '<div class="tb-validate" id="tbValidate" data-errors="0" data-warnings="0"></div></div></div>'

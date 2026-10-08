@@ -135,9 +135,11 @@ const categoryTree = [
             { id: 'nedb', name: '国家经济建设公债', dataKey: 'nedbData', dataFile: '../notecollection/data/nedb.js' },
             { id: 'lecb', name: '地方经济建设公债', dataKey: 'lecbData', dataFile: '../notecollection/data/lecb.js' },
             { id: 'dscc', name: '复员军人兑取现金券', dataKey: 'dsccData', dataFile: '../notecollection/data/dscc.js' },
-            { id: 'mpc', name: '军用代金券', dataKey: 'mpcData', dataFile: '../notecollection/data/mpc.js' },
-            { id: 'fec', name: '外汇兑换券', dataKey: 'fecData', dataFile: '../notecollection/data/fec.js' },
-            { id: 'gkq', name: '国库券', dataKey: 'gkqData', dataFile: '../notecollection/data/gkq.js' }
+            { id: 'mpc',  name: '军用代金券', dataKey: 'mpcData', dataFile: '../notecollection/data/mpc.js' },
+            { id: 'fec',  name: '外汇兑换券', dataKey: 'fecData', dataFile: '../notecollection/data/fec.js' },
+            { id: 'gkq',  name: '国库券', dataKey: 'gkqData', dataFile: '../notecollection/data/gkq.js' },
+            { id: 'ngfs', name: '全国通用粮票', dataKey: 'ngfsData', dataFile: '../notecollection/data/ngfs.js' },
+            { id: 'mgn',  name: '军用粮票', dataKey: 'mgnData', dataFile: '../notecollection/data/mgn.js' }
         ]
     },
     {

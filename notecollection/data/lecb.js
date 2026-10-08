@@ -42,7 +42,8 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/123-06173849-4.jpg"],
@@ -66,7 +67,7 @@ const lecbData = {
             },
             varieties: [
                 {
-                    varietyName: "1元",
+                    varietyName: "1元 东圳水库",
                     readme: {
                         title: "福建省1960年地方经济建设公债1元券赏析",
                         content: "file:readmes/1960_fujianlocaldebt_1yuan.html"
@@ -83,7 +84,8 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566062-4.jpg"],
@@ -101,7 +103,8 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566063-4.jpg"],
@@ -119,7 +122,8 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566064-4.jpg"],
@@ -137,7 +141,8 @@ const lecbData = {
                             krause: "Unlisted",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/lecb/1566065-4.jpg"],

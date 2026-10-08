@@ -26,7 +26,7 @@ const nedbData = {
             },
             varieties: [
                 {
-                    varietyName: "10000元",
+                    varietyName: "10000元 联合收割机",
                     copies: [
                         {
                             copyId: 26992545,
@@ -44,7 +44,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "20000元",
+                    varietyName: "20000元 汽车运输",
                     copies: [
                         {
                             copyId: 26992549,
@@ -74,7 +74,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "50000元",
+                    varietyName: "50000元 铁路与工厂",
                     copies: [
                         {
                             copyId: 26992561,
@@ -104,7 +104,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "100000元",
+                    varietyName: "100000元 机械打谷场",
                     copies: [
                         {
                             copyId: 26992562,
@@ -122,7 +122,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "500000元",
+                    varietyName: "500000元 火车与工厂",
                     copies: [
                         {
                             copyId: 26992563,
@@ -140,7 +140,8 @@ const nedbData = {
                     ]
                 }
             ]
-        },// ==================== 1955年版 ====================
+        },
+        // ==================== 1955年版 ====================
         {
             seriesName: "1955年",
             year: "1955",
@@ -244,7 +245,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "100000元",
+                    varietyName: "100000元 挖土机",
                     copies: [
                         {
                             copyId: 26992554,
@@ -275,7 +276,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "500000元",
+                    varietyName: "500000元 联合收割机",
                     copies: [
                         {
                             copyId: 26992556,
@@ -306,7 +307,7 @@ const nedbData = {
                     ]
                 },
                 {
-                    varietyName: "1000000元",
+                    varietyName: "1000000元 炼钢厂",
                     copies: [
                         {
                             copyId: 26992558,
@@ -338,6 +339,53 @@ const nedbData = {
                 }
             ]
         },
+        // ==================== 1956年版 ====================
+        {
+            seriesName: "1956年",
+            year: "1956",
+            // 新增 readme：显示在品种列表页（与各个面值并列，在上方）
+            readme: {
+                title: "一九五六年国家经济建设公债条例",
+                content: "file:readmes/nedb_1956_ordinance.html"
+            },
+            varieties: [
+                {
+                    varietyName: "1元",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "2元",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "5元",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "10元 联合收割机",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "50元 铁路运输",
+                    copies: [
+                        
+                    ]
+                },{
+                    varietyName: "100元 挖煤机",
+                    copies: [
+                        
+                    ]
+                }
+            ]
+        },
         // ==================== 1957年版 ====================
         {
             seriesName: "1957年",
@@ -349,7 +397,7 @@ const nedbData = {
             },
             varieties: [
                 {
-                    varietyName: "1元",
+                    varietyName: "1元 机械打谷场",
                     copies: [
                         {
                             copyId: 19996831,
@@ -366,8 +414,36 @@ const nedbData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/300-3307203-2.jpg"
                         }
                     ]
+                },
+                {
+                    varietyName: "2元 林场伐木",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "5元 勘探队员",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "10元 康藏公路运输队",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "50元 官厅水库",
+                    copies: [
+                        
+                    ]
+                },{
+                    varietyName: "100元 现代化洗煤厂",
+                    copies: [
+                        
+                    ]
                 }
-                // 可继续添加：2元、5元、10元、50元、100元等面值
             ]
         },// ==================== 1958年版 ====================
         {
@@ -380,7 +456,7 @@ const nedbData = {
             },
             varieties: [
                 {
-                    varietyName: "1元",
+                    varietyName: "1元 机械打谷场",
                     copies: [
                         {
                             copyId: 22513788,
@@ -393,7 +469,8 @@ const nedbData = {
                             krause: "Unlisted",
                             remark: "闲鱼上有一张同号段、同分数、号码ⅩⅠⅩ7361944的同版本公债我收藏了很久都没买，因其标价是198元。虽然我一开始觉得这个价跟市场价差不多，但还是一直犹豫。直到某天我突然刷到这个（和下面那张2元同时买的，卖家两张打包出）……啊幸好当时没买，不然被割惨了……",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/010-7361948-4.jpg"],
@@ -402,8 +479,9 @@ const nedbData = {
                             },
                         }
                     ]
-                },{
-                    varietyName: "2元",
+                },
+                {
+                    varietyName: "2元 林场伐木",
                     copies: [
                         {
                             copyId: 22513867,
@@ -416,7 +494,8 @@ const nedbData = {
                             krause: "Unlisted",
                             remark: "加盖“现金付讫”——什么，你问我为什么这张盖了章还要买？我就请问，都这个价格了，还要什么自行车？(^ڡ^)票面印章上的“中国人民银行凤台支行黑龙潭办事处”位于今天的安徽省淮南市凤台县。由于“付讫”章只能是在它中签并完成最后一次还本付息时盖上，故合理推断票面上的蓝章是在1968年9月30日至12月31日的兑付窗口内中签并完成最终还本付息时由银行加盖的。——可那个年代的事，谁又能够确定呢？",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-4.jpg"],
@@ -424,6 +503,30 @@ const nedbData = {
                                 uv:        ["https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/nedb/200-3121188-8.jpg"]
                             },
                         }
+                    ]
+                },
+                {
+                    varietyName: "5元 勘探队员",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "10元 康藏公路运输队",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "50元 官厅水库",
+                    copies: [
+                        
+                    ]
+                },
+                {
+                    varietyName: "100元 现代化洗煤厂",
+                    copies: [
+                        
                     ]
                 }
             ]
