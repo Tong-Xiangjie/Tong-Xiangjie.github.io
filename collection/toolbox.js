@@ -4345,8 +4345,8 @@ function toolboxClearAll() {
     const label = toolboxTpl && toolboxTpl.clearBtn;
     if (!toolboxClearArmed) {
         toolboxClearArmed = true;
-        if (label) label.textContent = '再点一次清空';
-        toolboxToast('再点一次：清空并删草稿');
+        if (label) label.textContent = '确定吗？';
+        toolboxToast('再次点击以清空草稿');
         if (toolboxClearTimer) clearTimeout(toolboxClearTimer);
         toolboxClearTimer = setTimeout(function () {
             toolboxClearTimer = 0;
@@ -4377,7 +4377,7 @@ function toolboxClearAll() {
     toolboxUndoPush(false);          // 清空也是一次"用户编辑"，留一步可撤回
     toolboxFocusEditor();
     toolboxRestoreRange();
-    toolboxToast('已清空，草稿也删掉了');
+    toolboxToast('草稿已删除');
     return true;
 }
 
@@ -4390,13 +4390,32 @@ function toolboxClearAll() {
 //   留空则按各自的默认值处理（看每个 build()），行为完全一样但不干扰输入。
 //   唯一的例外是那种"不填就没法用"的项（用户没选文字时的链接文字），
 //   也是留空即回退，不预填。
+
+// 「插入链接」的地址校验（用户要求放宽，不再强制 https://）：
+//   · 通过：http(s):// 开头、www. 开头、带点号的裸域名（如 solve.quest）、mailto: / tel: 等协议；
+//   · 挡住：空、含空白字符、含中文标点、没有点号也没有协议的单个词（明显不像链接）。
+// ★ 只做"拦不拦"的判断，**不动用户输入**（不自动补 https://，写进 href 的就是原样）。
+const TOOLBOX_URL_SKIP = '()[]{}<>《》「」『』，。；：！？、·—…“”‘’';
+function toolboxLinkUrlOk(url) {
+    const u = String(url || '').trim();
+    if (!u) return false;
+    if (/\s/.test(u)) return false;                                  // 空白字符（含全角空格 \u3000）
+    for (let i = 0; i < TOOLBOX_URL_SKIP.length; i++) {
+        if (u.indexOf(TOOLBOX_URL_SKIP.charAt(i)) >= 0) return false; // 中文标点 / 括号
+    }
+    if (/^(https?:\/\/|mailto:|tel:)/i.test(u)) return true;
+    if (/^www\./i.test(u)) return true;
+    if (/^[^\s/]+\.[A-Za-z]{2,}(\/|$|\?|#|:)/.test(u)) return true;   // 裸域名 + 可选路径
+    return false;
+}
+
 const TOOLBOX_DIALOGS = {
     table: {
         title: '插入表格',
         fields: [
-            { key: 'rows', label: '行数（含表头）', type: 'number', placeholder: '3', min: 1, max: 60 },
-            { key: 'cols', label: '列数', type: 'number', placeholder: '2', min: 1, max: 20 },
-            { key: 'header', label: '第一行是表头', type: 'checkbox', checked: true }
+            { key: 'rows', label: '行数', type: 'number', placeholder: '留空则默认为3行', min: 1, max: 60 },
+            { key: 'cols', label: '列数', type: 'number', placeholder: '留空则默认为2列', min: 1, max: 20 },
+            { key: 'header', label: '表格第一行为表头', type: 'checkbox', checked: true }
         ],
         build: function (v) {
             // 留空 = 默认 3 行（含表头）× 2 列
@@ -4408,16 +4427,13 @@ const TOOLBOX_DIALOGS = {
     image: {
         title: '插入图片',
         fields: [
-            { key: 'src', label: '图片地址', type: 'text', placeholder: 'readmes/image/…', wide: true,
-              hint: '相对路径，例如 readmes/image/comm/amsx_2012_01.jpg' },
-            { key: 'width', label: '宽度', type: 'text', placeholder: TOOLBOX_IMG_WIDTH,
-              hint: '留空就是 ' + TOOLBOX_IMG_WIDTH + '（语料里 160 张图片全用这个值）' },
-            { key: 'caption', label: '图注（可空）', type: 'text', placeholder: '留空则用选中的文字',
-              hint: '留空 = 不写图注；如果正文里选中了文字，就用选中的那段' }
+            { key: 'src', label: '图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'width', label: '图片宽度', type: 'text', placeholder: '留空则默认为80%宽度' },
+            { key: 'caption', label: '图注', type: 'text', placeholder: '留空则使用已选中文字' }
         ],
         build: function (v) {
             const src = String(v.src || '').trim();
-            if (!src) { toolboxToast('请填写图片地址'); return null; }
+            if (!src) { toolboxToast('请填写图片路径'); return null; }
             // 图注留空 → 用"按下按钮时选中的文字"（不预填，但行为保留）
             const cap = String(v.caption || '').trim() || toolboxSnapText;
             return toolboxImageBlock(src, String(v.width || '').trim() || TOOLBOX_IMG_WIDTH, cap);
@@ -4429,52 +4445,93 @@ const TOOLBOX_DIALOGS = {
     stack: {
         title: '插入多张图片',
         fields: [
-            { key: 'count', label: '图片张数', type: 'number', placeholder: '2', min: 2, max: TOOLBOX_MAX_STACK },
-            { key: 'mode', label: '尺寸模式', type: 'text', placeholder: 'height',
-              hint: 'height = 同高度（每张按同一高度缩放，宽度自适应）；width = 同宽度（等分整行）' },
-            { key: 'size', label: '高度或宽度值', type: 'text',
-              placeholder: TOOLBOX_STACK_HEIGHT + 'px',
-              hint: '同高度模式填高度（留空 = ' + TOOLBOX_STACK_HEIGHT + 'px）；同宽度模式填宽度（留空即等分整行）' },
-            { key: 'sharedCap', label: '图注（整行共用）', type: 'text', placeholder: '留空则用选中的文字', wide: true,
-              hint: '填在这里 = 整行下面一条居中图注（默认这样做）；要每张图各写一条，就填下面的"每张图图注"' },
-            { key: 'src1', label: '第 1 张地址', type: 'text', placeholder: 'readmes/image/…', wide: true },
-            { key: 'cap1', label: '第 1 张图注（可空）', type: 'text', wide: true },
-            { key: 'src2', label: '第 2 张地址', type: 'text', placeholder: 'readmes/image/…', wide: true },
-            { key: 'cap2', label: '第 2 张图注（可空）', type: 'text', wide: true },
-            { key: 'src3', label: '第 3 张地址（张数 ≥ 3 时用）', type: 'text', placeholder: 'readmes/image/…', wide: true },
-            { key: 'cap3', label: '第 3 张图注（可空）', type: 'text', wide: true },
-            { key: 'src4', label: '第 4 张地址（张数 = 4 时用）', type: 'text', placeholder: 'readmes/image/…', wide: true },
-            { key: 'cap4', label: '第 4 张图注（可空）', type: 'text', wide: true }
+            { key: 'count', label: '并排图片数量', type: 'number', placeholder: '留空则默认为2', min: 2, max: TOOLBOX_MAX_STACK },
+            // 尺寸模式：**选项**（同高度 / 同宽度），不是文本框 —— 提交给下游的值仍然是
+            // 原来的 'height' / 'width' 字符串（toolboxDialogOk 从 data-value 上取）。
+            { key: 'mode', label: '尺寸模式', type: 'segmented', value: 'height',
+              options: [{ v: 'height', label: '同高度' }, { v: 'width', label: '同宽度' }],
+              hint: '同高度：每张按同一高度缩放、宽度自适应；同宽度：每张等宽、等分整行' },
+            // 高度/宽度值：标签 / placeholder / hint 跟着「尺寸模式」切换
+            // （见下面 fields 里那两条随模式更新的文案）。
+            { key: 'size', label: '高度', type: 'text',
+              placeholder: '留空则默认为' + TOOLBOX_STACK_HEIGHT + 'px',
+              hint: '填高度（留空 = ' + TOOLBOX_STACK_HEIGHT + 'px）；同宽度模式改填总宽度比例，例如 100% / 80%' },
+            { key: 'sharedCap', label: '图组注释', type: 'text', placeholder: '留空则使用已选中文字', wide: true },
+            { key: 'src1', label: '第 1 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap1', label: '第 1 张图图注', type: 'text', placeholder: '图 1 注释，可空', wide: true },
+            { key: 'src2', label: '第 2 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap2', label: '第 2 张图图注', type: 'text', placeholder: '图 2 注释，可空', wide: true },
+            { key: 'src3', label: '第 3 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap3', label: '第 3 张图图注', type: 'text', placeholder: '图 3 注释，可空', wide: true },
+            { key: 'src4', label: '第 4 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap4', label: '第 4 张图图注', type: 'text', placeholder: '图 4 注释，可空', wide: true }
         ],
         build: function (v) {
             const n = Math.max(2, Math.min(TOOLBOX_MAX_STACK, parseInt(v.count, 10) || 2));
             const imgs = [];
             for (let i = 1; i <= n; i++) {
                 const src = String(v['src' + i] || '').trim();
-                if (!src) { toolboxToast('第 ' + i + ' 张的图片地址还没填'); return null; }
+                if (!src) { toolboxToast('您还未填写图 ' + i + ' 的路径'); return null; }
                 imgs.push({ src: src, caption: String(v['cap' + i] || '').trim() });
             }
             const mode = (String(v.mode || '').trim().toLowerCase() === 'width') ? 'width' : 'height';
             let size = String(v.size || '').trim();
-            if (mode === 'height') size = size || (TOOLBOX_STACK_HEIGHT + 'px');
-            else size = (!size || size === (TOOLBOX_STACK_HEIGHT + 'px')) ? 'calc' : size;
+            if (mode === 'height') {
+                // 同高度：填的就是高度，留空 = 默认 180px（值原样传下去，没有变化）
+                size = size || (TOOLBOX_STACK_HEIGHT + 'px');
+            } else if (!size || size === (TOOLBOX_STACK_HEIGHT + 'px')) {
+                // 同宽度：留空 = 等分整行（'calc' 是传给 toolboxStackRowHtml 的既有约定值）
+                size = 'calc';
+            } else if (/^\d+(\.\d+)?$/.test(size)) {
+                // ★ 语义修正（用户点名要求）：同宽度模式填的是**总宽度比例**，
+                //   与「单图插入」的宽度字段同口径 —— 只写纯数字（如 80）时按百分比处理。
+                //   这里是唯一新增的最小字符串解析；带单位（%/px/calc…）的值一字不改。
+                size = size + '%';
+            }
             // 整行共用的图注：留空 → 用按下按钮时选中的文字（不预填，行为保留）
             const shared = String(v.sharedCap || '').trim() || toolboxSnapText;
             return toolboxStackRowHtml(imgs, mode, size, shared);
+        },
+        // 「高度/宽度值」这一格的文案随「尺寸模式」切：
+        // 同高度 → 高度（px）；同宽度 → 总宽度比例（100% / 80% 这种，与单图宽度同口径）。
+        // ★ 键名必须叫 dynamic 而不是 fields —— 上面那个 fields 是**字段定义数组**，
+        //   同名会把它整个覆盖掉，对话框会变成空的（本轮实际踩到过）。
+        //   只改标签 / placeholder / hint 三处文案，不引入任何新的交互动作。
+        dynamic: {
+            setMode: function (mode) {
+                const on = (mode === 'width');
+                const lab = document.querySelector('label[for="tbF_size"]');
+                const inp = document.getElementById('tbF_size');
+                const hint = inp && inp.parentNode
+                    ? inp.parentNode.querySelector('.tb-hint') : null;
+                if (lab) lab.textContent = on ? '总宽度比例/宽度' : '高度';
+                if (inp) {
+                    inp.placeholder = on ? '留空则等分整行；例如 100% / 80%'
+                        : ('留空则默认为' + TOOLBOX_STACK_HEIGHT + 'px');
+                }
+                if (hint) {
+                    hint.textContent = on
+                        ? '填整行总宽度比例（与单图插入的宽度同口径，例如 100% / 80%；只填数字按百分比算）；留空 = 等分整行'
+                        : ('填高度（留空 = ' + TOOLBOX_STACK_HEIGHT + 'px）；切到同宽度模式时改填总宽度比例');
+                }
+            }
         }
     },
     link: {
         title: '插入超链接',
         fields: [
-            { key: 'url', label: '链接地址', type: 'text', placeholder: 'https://…', wide: true },
-            { key: 'text', label: '链接文字（留空则用选中的文字）', type: 'text',
-              placeholder: '留空则用选中的文字', wide: true },
-            { key: 'blank', label: '新标签页打开（target="_blank"）', type: 'checkbox', checked: true }
+            { key: 'url', label: '链接地址', type: 'text', placeholder: '请输入URL', wide: true },
+            { key: 'text', label: '显示文字', type: 'text',
+              placeholder: '留空则使用已选中文字或目标URL', wide: true },
+            { key: 'blank', label: '目标链接在新标签页打开', type: 'checkbox', checked: true }
         ],
         build: function (v) {
             const url = String(v.url || '').trim();
-            if (!/^https?:\/\//i.test(url) && !/^(mailto:|tel:)/i.test(url)) {
-                toolboxToast('地址要以 https:// 开头');
+            // 放宽校验（用户要求）：只挡"明显不像链接"的输入 —— 空、带空白/中文标点、
+            // 或者既不是 http(s)/www/裸域名、也不是 mailto:/tel: 的写法。
+            // ★ 不自动补 https:// 前缀（用户输入原样写进 href，与原来一致）。
+            if (!toolboxLinkUrlOk(url)) {
+                toolboxToast('请输入有效URL');
                 return null;
             }
             return toolboxLinkHtml(url, String(v.text || '').trim(), v.blank);
@@ -4486,12 +4543,9 @@ const TOOLBOX_DIALOGS = {
     imgEdit: {
         title: '修改图片',
         fields: [
-            { key: 'src', label: '图片地址', type: 'text', wide: true,
-              hint: '相对路径，例如 readmes/image/comm/amsx_2012_01.jpg' },
-            { key: 'width', label: '宽度', type: 'text',
-              hint: '与语料一致写成属性值，例如 80% / 60% / 600px' },
-            { key: 'alt', label: '说明（alt，正文占位框显示的就是它）', type: 'text', wide: true,
-              hint: '留空 = 自动用地址里的文件名' }
+            { key: 'src', label: '图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'width', label: '图片宽度', type: 'text', placeholder: '留空则默认为80%宽度' },
+            { key: 'alt', label: '占位文字', type: 'text', wide: true, placeholder: '留空则使用图片文件名' }
         ],
         fill: function () {
             const img = toolboxImgMenuTarget;
@@ -4504,9 +4558,9 @@ const TOOLBOX_DIALOGS = {
         },
         apply: function (v) {
             const img = toolboxImgMenuTarget;
-            if (!img || !img.parentNode) { toolboxToast('这张图片已经不在了'); return null; }
+            if (!img || !img.parentNode) { toolboxToast('图片不存在'); return null; }
             const src = String(v.src || '').trim();
-            if (!src) { toolboxToast('请填写图片地址'); return null; }
+            if (!src) { toolboxToast('请填写图片路径'); return null; }
             const w = String(v.width || '').trim();
             const alt = String(v.alt || '').trim();
             img.setAttribute('src', src);
@@ -4519,8 +4573,7 @@ const TOOLBOX_DIALOGS = {
     imgCap: {
         title: '编辑图注',
         fields: [
-            { key: 'text', label: '图注文字', type: 'text', wide: true,
-              hint: '留空 = 删除这条图注；没有图注时填了就新增一条居中小字' }
+            { key: 'text', label: '图注内容', type: 'text', wide: true }
         ],
         fill: function () {
             const ed = toolboxTpl && toolboxTpl.editor;
@@ -4545,12 +4598,32 @@ function toolboxOpenDialog(name) {
     let preset = {};
     if (spec.fill) { try { preset = spec.fill() || {}; } catch (e) { preset = {}; } }
     let html = '';
+    // 选择控件（尺寸模式）：与工具栏「字号」同一套按钮写法，不用 <select> ——
+    // 原生 select 会被 dropdown.js 接管，而它的弹层是 position:fixed + z-index:900，
+    // 会落到本弹窗(z-index:1200) 下面点不到（见 index.html 里字号那一排的说明）。
+    // ★ 提交给下游的值仍然是原来的 'height' / 'width' 字符串，存在容器的 data-value 上。
+    const segHtml = function (f) {
+        const cur = (f.value == null ? '' : String(f.value));
+        let h = '<div class="tb-segs" id="tbF_' + f.key + '" data-value="' + toolboxEsc(cur)
+            + '" role="group" aria-label="' + toolboxEsc(f.label) + '">';
+        for (let j = 0; j < f.options.length; j++) {
+            const op = f.options[j];
+            h += '<button type="button" class="tb-seg'
+                + (String(op.v) === cur ? ' active' : '') + '" data-val="' + toolboxEsc(op.v) + '">'
+                + toolboxEsc(op.label) + '</button>';
+        }
+        return h + '</div>';
+    };
     for (let i = 0; i < spec.fields.length; i++) {
         const f = spec.fields[i];
         html += '<div class="tb-field' + (f.wide ? ' tb-wide' : '') + '">';
         if (f.type === 'checkbox') {
             html += '<label class="tb-check"><input type="checkbox" id="tbF_' + f.key + '"'
                 + (f.checked ? ' checked' : '') + '><span>' + toolboxEsc(f.label) + '</span></label>';
+        } else if (f.type === 'segmented') {
+            html += '<label for="tbF_' + f.key + '">' + toolboxEsc(f.label) + '</label>';
+            html += segHtml(f);
+            if (f.hint) html += '<div class="tb-hint">' + toolboxEsc(f.hint) + '</div>';
         } else {
             html += '<label for="tbF_' + f.key + '">' + toolboxEsc(f.label) + '</label>';
             // ★ 没有 value：默认值只写在 placeholder 上（见上面的说明）
@@ -4564,6 +4637,29 @@ function toolboxOpenDialog(name) {
         html += '</div>';
     }
     toolboxTpl.dialogBody.innerHTML = html;
+    // 选择控件：点一下切当前值（只改控件状态，真正的取值在 toolboxDialogOk 里做）
+    const segs = toolboxTpl.dialogBody.querySelectorAll('.tb-segs');
+    for (let i = 0; i < segs.length; i++) {
+        (function (box) {
+            box.addEventListener('click', function (e) {
+                const b = e.target && e.target.closest ? e.target.closest('.tb-seg') : null;
+                if (!b) return;
+                const all = box.querySelectorAll('.tb-seg');
+                for (let j = 0; j < all.length; j++) all[j].classList.remove('active');
+                b.classList.add('active');
+                box.setAttribute('data-value', String(b.getAttribute('data-val') || ''));
+                // 随模式更新别的字段的文案（纯显示，不改任何行为）
+                const setMode = spec.dynamic && spec.dynamic.setMode;
+                if (typeof setMode === 'function') setMode(box.getAttribute('data-value'));
+            });
+        })(segs[i]);
+    }
+    // 打开时先按当前值把联动文案摆正（每次打开都对，不依赖上一次的状态）
+    const setMode = spec.dynamic && spec.dynamic.setMode;
+    if (typeof setMode === 'function') {
+        const mb = toolboxTpl.dialogBody.querySelector('.tb-segs');
+        if (mb) setMode(mb.getAttribute('data-value'));
+    }
     toolboxTpl.dialog.style.display = 'flex';
     const first = toolboxTpl.dialogBody.querySelector('input');
     // 对话框打开时焦点进它的第一个输入框（用户就是来这里打字的）。
@@ -4589,7 +4685,10 @@ function toolboxDialogOk() {
         const f = spec.fields[i];
         const el = document.getElementById('tbF_' + f.key);
         if (!el) continue;
-        v[f.key] = (f.type === 'checkbox') ? !!el.checked : el.value;
+        // 选择控件（尺寸模式）：值是按钮组容器上的 data-value（'height' / 'width'）
+        v[f.key] = (f.type === 'checkbox') ? !!el.checked
+            : (f.type === 'segmented') ? String(el.getAttribute('data-value') || '')
+                : el.value;
     }
     // 编辑类对话框（修改图片/编辑图注）：apply 直接改已有节点，不插入新内容
     if (spec.apply) {
@@ -4837,7 +4936,7 @@ function toolboxCheckColor(prop, value, shorthand) {
             const low = w.toLowerCase();
             return TOOLBOX_COLOR_PASS.indexOf(low) < 0 && !TOOLBOX_NAMED_COLORS[low];
         });
-    if (words.length) return prop + ' 的颜色值看不懂：' + words[0];
+    if (words.length) return prop + ' 的颜色值无法解析：' + words[0];
     return '';
 }
 
@@ -4899,12 +4998,20 @@ function toolboxLintDom(text) {
             warnings.push({ msg: '表格列数不一致（' + counts.join(' / ') + '）' });
         }
     }
-    // ③ <img src> 的写法
+    // ③ <img src>：改为检查"有没有漏加图片后缀"（用户要求 —— 漏后缀比路径前缀更常见）。
+    //    · 先把 ?query / #hash 去掉再判（https://…/a.png?s=1 不算漏）；
+    //    · data:image/… 只做宽松判断（base64 里出现点号是常事，误报代价更大，直接放过）；
+    //    · 认不出来的写成 data: 的其他形态同样放过，只盯"有路径但结尾没有图片后缀"。
+    const imgExtRe = /\.(jpe?g|png|webp|gif|svg|bmp|avif|ico|tiff?)$/i;
     const imgs = box.querySelectorAll('img');
     for (let i = 0; i < imgs.length; i++) {
         const src = String(imgs[i].getAttribute('src') || '');
-        if (!/^readmes\/image\//.test(src) && !/^https?:\/\//i.test(src) && !/^data:image\//i.test(src)) {
-            warnings.push({ msg: '<img src> 不是 readmes/image/… 或 http(s)://：' + src.slice(0, 40) });
+        const path = src.split('#')[0].split('?')[0].trim();
+        if (/^data:/i.test(path)) continue;                        // data: 形态一律放过
+        if (!path) continue;                                       // 空 src 不在这里报
+        if (!imgExtRe.test(path)) {
+            warnings.push({ msg: '图片路径缺少后缀（.jpg/.png/.webp/.gif 等）：'
+                + path.slice(0, 40) });
         }
     }
     // ④ 行内样式里的颜色
@@ -4930,47 +5037,62 @@ function toolboxLintDom(text) {
     for (let i = 0; i < as.length; i++) {
         const href = String(as[i].getAttribute('href') || '');
         if (/^https?:\/\//i.test(href) && as[i].getAttribute('target') !== '_blank') {
-            warnings.push({ msg: '外链缺 target="_blank"：' + snippet(as[i]) });
+            warnings.push({ msg: '外链缺 target="_blank"：' + snippet(as[i]) + '，该链接将在原有窗口打开'});
         }    }
     return warnings;
 }
 
 function toolboxLint(text) {
     const st = toolboxLintStructure(text);
-    const warn = st.fatal ? [] : toolboxLintDom(text);   // 结构都坏了，DOM 警告没意义
+    // ★ Error 与 Warning **共存**（用户要求）：结构没配平时照样把 DOM 层能查到的警告一起报出来，
+    //   两者不再互相覆盖。判定规则本身一条都没改，只是不再因为 fatal 就把 warnings 丢掉。
+    let warn = [];
+    try { warn = toolboxLintDom(text) || []; } catch (e) { warn = []; }
     return { errors: st.errors, warnings: warn, fatal: st.fatal };
 }
 
 // 把校验结果画到代码区下面那块。
+// ★ 先列全部 Error，再列全部 Warning（各自带原有计数）—— 两类同时显示，互不覆盖。
 // 计数同时写在 data-* 上：用例直接读属性断言，不用去解析文案。
 function toolboxValidate() {
     const box = toolboxTpl && toolboxTpl.validate;
     const code = toolboxCodeText();
     if (!box) return;
     const res = toolboxLint(code);
-    box.setAttribute('data-errors', String(res.errors.length));
-    box.setAttribute('data-warnings', String(res.warnings.length));
+    const errs = res.errors || [], warns = res.warnings || [];
+    box.setAttribute('data-errors', String(errs.length));
+    box.setAttribute('data-warnings', String(warns.length));
     box.setAttribute('data-fatal', res.fatal ? '1' : '0');
     if (!code.trim()) {
-        box.innerHTML = '<div class="tb-lint-ok">检查</div>';
+        box.innerHTML = '<div class="tb-lint-ok"></div>';
         return;
     }
-    if (!res.errors.length && !res.warnings.length) {
-        box.innerHTML = '<div class="tb-lint-ok">检查 · 无问题</div>';
+    if (!errs.length && !warns.length) {
+        box.innerHTML = '<div class="tb-lint-ok">Accepted</div>';
         return;
     }
-    // 文案尽量短：有问题就把条数放出来（标题用"检查"），每条尽量一行内说清。
-    let html = '<div class="tb-lint-head">检查 · ';
-    if (res.errors.length) html += '<b class="tb-lint-bad">错误 ' + res.errors.length + '</b>';
-    if (res.errors.length && res.warnings.length) html += ' ';
-    if (res.warnings.length) html += '<b class="tb-lint-warn">警告 ' + res.warnings.length + '</b>';
-    html += '</div><ul class="tb-lint-list">';
+    // 文案尽量短：有问题就把条数放出来，每条尽量一行内说清。
+    let html = '<div class="tb-lint-head"> ';
+    if (errs.length) html += '<b class="tb-lint-bad">Error ' + errs.length + '</b>';
+    if (errs.length && warns.length) html += ' ';
+    if (warns.length) html += '<b class="tb-lint-warn">Warning ' + warns.length + '</b>';
+    html += '</div>';
     const line = function (kind, it) {
-        return '<li class="tb-lint-' + kind + '">' + (it.line ? '第 ' + it.line + ' 行：' : '') + toolboxEsc(it.msg) + '</li>';
+        return '<li class="tb-lint-' + kind + '">' + (it.line ? 'Line ' + it.line + '：' : '') + toolboxEsc(it.msg) + '</li>';
     };
-    for (let i = 0; i < res.errors.length && i < 20; i++) html += line('bad', res.errors[i]);
-    for (let i = 0; i < res.warnings.length && i < 20; i++) html += line('warn', res.warnings[i]);
-    html += '</ul>';
+    // Error 在 Warning 上面：两块各自一个列表，条数分别为 min(总数, 20)
+    if (errs.length) {
+        html += '<ul class="tb-lint-list tb-lint-errors">';
+        for (let i = 0; i < errs.length && i < 20; i++) html += line('bad', errs[i]);
+        if (errs.length > 20) html += '<li class="tb-lint-bad">…还有 ' + (errs.length - 20) + ' 条错误</li>';
+        html += '</ul>';
+    }
+    if (warns.length) {
+        html += '<ul class="tb-lint-list tb-lint-warnings">';
+        for (let i = 0; i < warns.length && i < 20; i++) html += line('warn', warns[i]);
+        if (warns.length > 20) html += '<li class="tb-lint-warn">…还有 ' + (warns.length - 20) + ' 条警告</li>';
+        html += '</ul>';
+    }
     box.innerHTML = html;
 }
 
@@ -5311,7 +5433,7 @@ function toolboxWinIconHtml(kind) {
 function toolboxWinIconPaint(btn, full) {
     if (!btn) return;
     btn.innerHTML = toolboxWinIconHtml(full ? 'restore' : 'full');
-    btn.title = full ? '小窗' : '全屏';
+    btn.title = full ? '退出全屏' : '全屏';
     btn.setAttribute('aria-label', full ? '退出全屏' : '全屏');
 }
 
@@ -5608,10 +5730,10 @@ const TOOLBOX_TM_ITEMS = [
     { act: 'col-right', label: '右侧插入列' },
     { act: 'col-del',   label: '删除列' },
     { sep: 1 },
-    { act: 'cell-add',  label: '插入单元格', title: '在光标所在单元格的右侧插入一个空单元格' },
+    { act: 'cell-add',  label: '插入单元格', title: '' },
     { act: 'cell-del',  label: '删除单元格' },
     { sep: 1 },
-    { act: 'merge',     label: '合并单元格', title: '先在表格里选中横跨多格的文字，再点这里' },
+    { act: 'merge',     label: '合并单元格', title: '' },
     { act: 'split',     label: '拆分单元格' }
 ];
 
@@ -5782,7 +5904,7 @@ function toolboxTableDone(dom, cell) {
 function toolboxTableInsertRow(where) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const row = cell.parentNode, table = toolboxTableOf(cell);
     if (!row || !table) return false;
     const grid = toolboxTableGrid(table);
@@ -5836,11 +5958,11 @@ function toolboxTableInsertRow(where) {
 function toolboxTableDeleteRow() {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const row = cell.parentNode, table = toolboxTableOf(cell);
     if (!row || !table) return false;
     // 一行都没有了就没有表格了：直接拒绝（别删成 <table></table>）
-    if (toolboxTableRowCount(table) <= 1) { toolboxToast('只剩一行了，删掉就没有表格了'); return false; }
+    if (toolboxTableRowCount(table) <= 1) { toolboxToast('表格只剩一行，无法删除'); return false; }
     // ★ 行里有跨行合并单元格时拒绝：删掉它会让下面几行的列位整体错位（会变成破表）。
     //   先「拆分单元格」再删行 —— 宁可不做，也不静默留一张坏表。
     const cells = Array.prototype.filter.call(row.children, function (x) {
@@ -5849,7 +5971,7 @@ function toolboxTableDeleteRow() {
     });
     for (let i = 0; i < cells.length; i++) {
         if (toolboxSpanOf(cells[i], 'rowspan') > 1) {
-            toolboxToast('这一行里有跨行合并的单元格，先拆分再删行');
+            toolboxToast('请先拆分跨行合并的单元格再删除该行');
             return false;
         }
     }
@@ -5887,7 +6009,7 @@ function toolboxTableDeleteRow() {
 function toolboxTableInsertCol(where) {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const table = toolboxTableOf(cell);
     const grid = toolboxTableGrid(table);
     const pos = toolboxGridPosOf(grid, cell);
@@ -5926,12 +6048,12 @@ function toolboxTableInsertCol(where) {
 function toolboxTableDeleteCol() {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const table = toolboxTableOf(cell);
     const grid = toolboxTableGrid(table);
     const pos = toolboxGridPosOf(grid, cell);
     if (!pos) return false;
-    if (toolboxTableCols2(table) <= 1) { toolboxToast('只剩一列了，删掉就没有表格了'); return false; }
+    if (toolboxTableCols2(table) <= 1) { toolboxToast('表格只剩一列，无法删除'); return false; }
     // 目标列：取光标所在单元格覆盖的**整段**列（合并格里的光标删掉整个合并区域太狠了，
     // 这里只删它覆盖的最后一列 —— 和"光标停在哪一列"的直觉一致）
     const target = pos.c + toolboxSpanOf(cell, 'colspan') - 1;
@@ -5961,7 +6083,7 @@ function toolboxTableDeleteCol() {
 function toolboxTableAddCell() {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const row = cell.parentNode, table = toolboxTableOf(cell);
     if (!row || !table) return false;
     // 需求里只有一项「插入单元格」：默认插到光标所在单元格的**右侧**（标题已经写明）。
@@ -5975,7 +6097,7 @@ function toolboxTableAddCell() {
 function toolboxTableDeleteCell() {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const row = cell.parentNode, table = toolboxTableOf(cell);
     if (!row || !table) return false;
     const cells = Array.prototype.filter.call(row.children, function (x) {
@@ -5983,7 +6105,7 @@ function toolboxTableDeleteCell() {
         return t === 'TD' || t === 'TH';
     });
     // 只剩一格时删掉就是"空行"：直接拒绝（比"顺手删整行"更不容易误伤数据）
-    if (cells.length <= 1) { toolboxToast('这一行只剩一个单元格了，删掉会变成空行'); return false; }
+    if (cells.length <= 1) { toolboxToast('该行只剩一个单元格，无法删除'); return false; }
     const next = cell.nextSibling;
     row.removeChild(cell);
     let target = null;
@@ -6044,10 +6166,10 @@ function toolboxTableMerge() {
     const ed = toolboxTpl && toolboxTpl.editor;
     const picked = toolboxTablePickedCells(ed);
     if (!picked || !picked.keeper) {
-        toolboxToast('先在表格里选中横跨两个以上单元格的文字');
+        toolboxToast('请先选中横跨两个以上单元格的文字');
         return false;
     }
-    if (picked.cells.length < 2) { toolboxToast('选中的已经是一个单元格了'); return false; }
+    if (picked.cells.length < 2) { toolboxToast('选中的已是单个单元格'); return false; }
     const keeper = picked.keeper;
     let dropped = 0;
     for (let i = 0; i < picked.cells.length; i++) {
@@ -6088,9 +6210,9 @@ function toolboxTableMerge() {
 function toolboxTableSplit() {
     const ed = toolboxTpl && toolboxTpl.editor;
     const cell = toolboxCaretCell(ed);
-    if (!cell) { toolboxToast('先把光标放到表格里'); return false; }
+    if (!cell) { toolboxToast('请先将光标置于表格中'); return false; }
     const cs = toolboxSpanOf(cell, 'colspan'), rs = toolboxSpanOf(cell, 'rowspan');
-    if (cs === 1 && rs === 1) { toolboxToast('这个单元格没有合并，不用拆'); return false; }
+    if (cs === 1 && rs === 1) { toolboxToast('单元格并未合并，无法拆分'); return false; }
     const table = toolboxTableOf(cell);
     const grid = toolboxTableGrid(table);                // ★ 先量网格：补格子的位置要按"拆之前"算
     const pos = toolboxGridPosOf(grid, cell);
@@ -6259,14 +6381,14 @@ function toolboxTableAct(act) {
 // 点空白/Esc/滚动/关窗都关、Esc 从内到外、视口内 clamp）完全一致，只是换一套菜单项。
 // 图片菜单的"目标"是右键点中的那个 <img>（光标也放到它旁边）。
 const TOOLBOX_IM_ITEMS = [
-    { act: 'img-edit', label: '修改图片…', title: '改地址、宽度、说明' },
+    { act: 'img-edit', label: '修改图片参数', title: '' },
     { sep: 1 },
-    { act: 'img-w80',  label: '宽度 80%' },
-    { act: 'img-w60',  label: '宽度 60%' },
-    { act: 'img-w100', label: '宽度 100%' },
+    { act: 'img-w60',  label: '60%宽度' },
+    { act: 'img-w80',  label: '80%宽度' },
+    { act: 'img-w100', label: '100%宽度' },
     { sep: 1 },
-    { act: 'img-c',    label: '居中' },
     { act: 'img-l',    label: '左对齐' },
+    { act: 'img-c',    label: '居中对齐' },
     { act: 'img-r',    label: '右对齐' },
     { sep: 1 },
     { act: 'img-cap',  label: '编辑图注' },
@@ -6451,7 +6573,7 @@ function toolboxImgCaptionDelete() {
     const img = toolboxImgMenuTarget;
     if (!img || !ed) return false;
     const cap = toolboxImgCaptionBlock(img, ed);
-    if (!cap || !cap.parentNode) { toolboxToast('这张图后面没有图注'); return false; }
+    if (!cap || !cap.parentNode) { toolboxToast('未找到图注'); return false; }
     cap.parentNode.removeChild(cap);
     return toolboxImgDone(img);
 }
@@ -6857,6 +6979,17 @@ function initToolboxDOM() {
         toolboxDropRange();
     });
     toolboxTpl.editor.addEventListener('keydown', toolboxDropRange);
+    // 编辑区里按 Enter = 原来那个「换行」按钮（插 <br>）：
+    // ★ 只认**不带任何修饰键**的 Enter；Shift/Ctrl/Cmd/Alt+Enter 一律不劫持（浏览器默认行为）。
+    // ★ 只挂在 #tbEditor 上：代码区 #tbCode、文件名 #tbFileName、各对话框输入框都不受影响。
+    // ★ 走的是与原「换行」按钮**完全同一个入口** toolboxToolbarAction('br')（→ toolboxInsertBreak
+    //   → toolboxInsertHtml）—— 连按钮点击后那段统一的"收尾兜焦点/选区"也一并走到，
+    //   所以产出的 HTML 与按钮逐字一致（实测只用 toolboxInsertBreak 会差一个 <br> 的位置）。
+    toolboxTpl.editor.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        e.preventDefault();
+        toolboxToolbarAction('br');
+    });
     // 表格里右键 → 紧凑小菜单（插/删行列、插删单元格、合并/拆分）。
     // ★ 右键时先把光标放到点上（除非现在正跨格选中 —— 那多半就是要合并），
     //   再把这份选区**冻结**下来，菜单项执行时用它。
@@ -7182,17 +7315,17 @@ function toolboxFallbackHtml() {
         + toolboxWinIconHtml('full') + '</button>'
         + '<button type="button" class="tb-close" data-tb="close" title="关闭（Esc）">×</button></div>'
         + '<div class="tb-toolbar">'
-        + '<button type="button" class="tb-btn tb-primary" data-tb="copy" title="复制 HTML 到剪贴板">复制</button>'
-        + '<button type="button" class="tb-btn" data-tb="download" title="下载为 .html 文件">下载</button>'
-        + '<button type="button" class="tb-btn tb-danger" data-tb="cleardraft" title="清空正文并删掉草稿（点两次确认）">清空</button></div>'
+        + '<button type="button" class="tb-btn tb-primary" data-tb="copy" title="复制HTML代码至剪贴板">复制</button>'
+        + '<button type="button" class="tb-btn" data-tb="download" title="将代码下载为.html文件">下载</button>'
+        + '<button type="button" class="tb-btn tb-danger" data-tb="cleardraft" title="清空正文并删除草稿">清空</button></div>'
         // ★ 草稿确认弹窗（#tbDraftAsk）不再属于卡片内部：它挂在 #toolboxModal 外面，
         //   兜底路径下也一样找不到那个节点 —— toolboxDraftOffer 会自动跳过（没有 draftAsk 就不弹），
         //   绝不会因为"兜底结构里少写一个 div"而抛异常。
         + '<div class="tb-body">'
-        + '<div class="tb-pane tb-pane-edit"><div class="tb-pane-head">正文</div>'
-        + '<div class="tb-editor" id="tbEditor" contenteditable="true" spellcheck="false" data-placeholder="在这里写正文"></div></div>'
+        + '<div class="tb-pane tb-pane-edit"><div class="tb-pane-head">编辑区</div>'
+        + '<div class="tb-editor" id="tbEditor" contenteditable="true" spellcheck="false" data-placeholder="从这里开始……"></div></div>'
         + '<div class="tb-pane tb-pane-code"><div class="tb-pane-head">HTML</div>'
-        + '<textarea class="tb-code" id="tbCode" spellcheck="false" wrap="soft" placeholder="粘贴或直接编辑 HTML"></textarea>'
+        + '<textarea class="tb-code" id="tbCode" spellcheck="false" wrap="soft" placeholder="可在此粘贴或编辑HTML代码"></textarea>'
         + '<div class="tb-validate" id="tbValidate" data-errors="0" data-warnings="0"></div></div></div>'
         + '<div class="tb-foot"><span class="tb-count"><b id="tbCount">0</b> 字</span></div>'
         + '<div class="tb-toast" id="tbToast"></div>'

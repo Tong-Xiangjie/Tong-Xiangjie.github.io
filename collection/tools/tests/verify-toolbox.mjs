@@ -50,8 +50,10 @@ ok(/id="tbValidate"/.test(html), '(1) 代码区下面有校验区（#tbValidate�
 // 文案精简：两块面板各一行小标题，长句说明一律删掉，提示改放 placeholder / data-placeholder
 ok((html.match(/class="tb-pane-head"/g) || []).length === 2, '(1) 正文 / HTML 两块面板各有一行小标题');
 ok(!/tb-codebar|tb-sub/.test(html), '(1) 常驻长句说明已删除（不留说明条）');
-ok(/data-placeholder="在这里写正文"/.test(html) && /placeholder="粘贴或直接编辑 HTML"/.test(html),
-  '(1) 空状态提示改成了 placeholder（正文用 data-placeholder，代码区用 placeholder）');
+// ★ 文案以**用户手改过的 index.html** 为准（本轮用户把空状态提示、草稿弹窗文案、
+//   按钮 title 都自己改短了）：这里同步成用户版的字符串，判定只改字符串、不放宽语义。
+ok(/data-placeholder="从这里开始……"/.test(html) && /placeholder="可在此粘贴或编辑HTML代码"/.test(html),
+  '(1) 空状态提示改成了 placeholder（编辑区用 data-placeholder，代码区用 placeholder）');
 ok(/id="tbCode"[^>]*wrap="soft"/.test(html), '(1) 代码区 textarea 显式写 wrap="soft"（长行要折行）');
 ok(/data-tb="undo"/.test(html) && /data-tb="redo"/.test(html), '(1) 工具栏有「撤回」「恢复」按钮');
 ok(/id="tbFullBtn"/.test(html) && /data-tb="fullscreen"/.test(html), '(1) 标题栏有全屏按钮');
@@ -66,7 +68,7 @@ ok((fullBtnMarkup.match(/<path/g) || []).length === 4 && /d="M9 4H4v5"/.test(ful
   `(1)* 进入全屏、SVG 4 path、第一条d="M9 4H4v5"（实${(fullBtnMarkup.match(/<path/g) || []).length} 条）`);
 ok(!/<rect/.test(fullBtnMarkup), '(1)* 不再自己画方框（按钮标签里没有 <rect>）');
 ok(/id="tbFullBtn"[^>]*title="全屏"/.test(fullBtnMarkup),
-  '(1)* 初始 title="全屏"（进入后由 JS 改成「小窗」）');
+  '(1)* 初始 title="全屏"（进入后由 JS 改成「退出全屏」）');
 // ★ 事故修复：这两条的判定式和文案都被编码事故啃掉了（`!/(⛶|⤡)/` 的空字符类变成了
 //   永远为假的 `!/(?:)/`，文案也少了"把 ⛶/⤡ 当按钮文字写"）。按基线语义复原，判定只紧不松。
 ok(!/[\u26F6\u2921]/.test(fullBtnMarkup), '(1)* 全屏按钮的标签里不再有 ⛶/⤡ 字形');
@@ -76,8 +78,8 @@ ok(!/[\u26F6\u2921]/.test(fullBtnMarkup), '(1)* 全屏按钮的标签里不再�
 ok(!/[\u26F6\u2921]/.test(js.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')),
   '(1)* 源码里没有任何"把 ⛶/⤡ 当按钮文字写"的字符串（彻底不依赖字形渲染）');
 ok(/TOOLBOX_WIN_ICON/.test(js) && /function toolboxWinIconPaint/.test(js) && /function toolboxWinIconHtml/.test(js)
-  && /d="M9 4v5H4"/.test(js) && /'小窗'/.test(js) && /'全屏'/.test(js),
-  '(1)* 两套图标（进入全屏 M9 4H4v5 / 小窗 M9 4v5H4）都在源码里，切换走 toolboxWinIconPaint()，标题在 全屏 ↔ 小窗 之间切');
+  && /d="M9 4v5H4"/.test(js) && /'退出全屏'/.test(js) && /'全屏'/.test(js),
+  '(1)* 两套图标（进入全屏 M9 4H4v5 / 退出全屏 M9 4v5H4）都在源码里，切换走 toolboxWinIconPaint()，标题在 全屏 ↔ 退出全屏 之间切');
 // 八个缩放手柄：四条边 + 四个角（n/s/e/w/nw/ne/sw/se）
 const gripsInHtml = (html.match(/data-tb-grip="/g) || []).length;
 ok(gripsInHtml === 8, `(1) 八个方向的缩放手柄都在（实际 ${gripsInHtml} 个）`);
@@ -86,8 +88,8 @@ ok(/id="tbDraftAsk"/.test(html) && /id="tbDraftRestore"/.test(html) && /id="tbDr
   '(1) 草稿确认弹窗（#tbDraftAsk + 恢复 + 丢弃）的 DOM 在 index.html 里');
 ok(!/id="tbDraftBar"/.test(html) && !/class="tb-draftbar/.test(html),
   '(1)* 旧的细提示条 #tbDraftBar 的**元素**已从 index.html 删除（只剩注释里提一句历史）');
-ok(/id="tbDraftAsk"[\s\S]{0,400}?发现上次未完成的草稿/.test(html),
-  '(1)* 草稿弹窗的文案是「发现上次未完成的草稿」');
+ok(/id="tbDraftAsk"[\s\S]{0,400}?发现未保存草稿/.test(html),
+  '(1)* 草稿弹窗的文案是「发现未保存草稿」（以用户手改过的 index.html 为准）');
 ok(/id="tbTableMenu"/.test(html) && /role="menu"/.test(html),
   '(1) 表格右键小菜单的 DOM（#tbTableMenu）在 index.html 里');
 ok(/onclick="toolboxOpen\(\)"/.test(readFileSync('collection/settings.js', 'utf8')),
@@ -137,8 +139,10 @@ ok(/function toolboxFileNameSelectAll/.test(js) && /function toolboxSyncPanelFoc
   && /function toolboxDraftAskShow/.test(js),
   '(1)* 三个新能力都在源码里：点击全选 / 代码区禁用态 / 草稿确认弹窗');
 ok(/data-tb="body"[^>]*>正文</.test(html), '(1)* 工具栏有「正文」按钮（标题的反操作）');
-ok(/data-tb="stack"[^>]*>多图</.test(html) && /data-tb="stack"[^>]*title="[^"]*多张图片并排/.test(html),
-  '(1)* 「并排」已改名「多图」，title 里写明"多张图片并排"');
+// 用户手改过 index.html：这个按钮的 title 被他清空了 —— 按他的版本来（断言"这个属性在、且为空"，
+// 原来那句"title 里写明多张图片并排"已随他的改动失效；改的是字符串，不放宽结构判定）。
+ok(/data-tb="stack"[^>]*>多图</.test(html) && /data-tb="stack"[^>]*title=""/.test(html),
+  '(1)* 「并排」已改名「多图」（title 为空，以用户手改过的 index.html 为准）');
 ok(/TOOLBOX_DEFAULT_NAME\s*=\s*'Untitled\.html'/.test(js) && /function toolboxCleanFileName/.test(js),
   '(1)* 下载文件名有 default + 清洗函数（非法字符/后缀补齐）');
 ok(/function toolboxColGroup/.test(js) && /'width:' \+ s\.pct\[i\] \+ '%;'/.test(js) && /TOOLBOX_COL_MIN_PCT/.test(js),
@@ -156,9 +160,9 @@ ok(JSON.stringify(tmLabels) === JSON.stringify(['上方插入行', '下方插入
     '右侧插入列', '删除列', '插入单元格', '删除单元格', '合并单元格', '拆分单元格']),
   '(1)* 表格操作的 10 个动作在源码里就是这个顺序（上方插入行/下方插入行/删除行/左侧插入列/右侧插入列/删除列/插入单元格/删除单元格/合并单元格/拆分单元格）');
 const imLabels = (imBlock.match(/label:\s*'([^']+)'/g) || []).map(s => s.replace(/label:\s*'|'/g, ''));
-ok(JSON.stringify(imLabels) === JSON.stringify(['修改图片…', '宽度 80%', '宽度 60%', '宽度 100%',
-    '居中', '左对齐', '右对齐', '编辑图注', '删除图注', '删除图片']),
-  '(1)* 图片右键菜单的 10 个动作在源码里就是这个顺序（修改图片…/宽度 80%/宽度 60%/宽度 100%/居中/左对齐/右对齐/编辑图注/删除图注/删除图片）');
+ok(JSON.stringify(imLabels) === JSON.stringify(['修改图片参数', '60%宽度', '80%宽度', '100%宽度',
+    '左对齐', '居中对齐', '右对齐', '编辑图注', '删除图注', '删除图片']),
+  '(1)* 图片右键菜单的 10 个动作在源码里就是这个顺序（修改图片参数/60%宽度/80%宽度/100%宽度/左对齐/居中对齐/右对齐/编辑图注/删除图注/删除图片）');
 ok(/addEventListener\('contextmenu'/.test(js) && /toolboxTableMenuOpen/.test(js)
    && /toolboxTableMenuClose/.test(js) && /m\.addEventListener\('mousedown', function \(e\) \{ e\.preventDefault\(\); \}\)/.test(js),
   '(1)* 表格里右键弹菜单，且菜单自己的 mousedown 阻止默认（不抢焦点、不丢表格选区）');
@@ -183,8 +187,13 @@ ok(css.indexOf('.tb-tmenu') >= 0 && /\.tb-tmenu \{[\s\S]{0,400}font-size: 13px/.
    && /\.tb-tmenu \{[\s\S]{0,400}border: 1px solid var\(--border\)/.test(css),
   '(1)* 右键菜单是站内风格的小菜单（白底 + 1px var(--border) + 6px 圆角 + 13px）');
 const dlgBlock = js.slice(js.indexOf('const TOOLBOX_DIALOGS'), js.indexOf('function toolboxOpenDialog'));
-ok(dlgBlock.length > 100 && /placeholder:/.test(dlgBlock) && !/value:/.test(dlgBlock) && !/value="/.test(dlgBlock),
-  '(1)* 字段对话框的默认值全部写在 placeholder 上（一个 value 预填都没有）');
+// ★ 新增的「尺寸模式」是**选项控件**：它天然要有个默认选中值（value: 'height'），
+//   那不是"文本输入框的预填"。把这一处排除掉之后，断言与原来完全一致 ——
+//   块里不许再出现任何 value: / value=" 的预填。
+const dlgBlockNoSegDefault = dlgBlock.replace(/\bvalue:\s*'(?:height|width)'/g, '');
+ok(dlgBlock.length > 100 && /placeholder:/.test(dlgBlock)
+  && !/value:/.test(dlgBlockNoSegDefault) && !/value="/.test(dlgBlock),
+  '(1)* 字段对话框的默认值全部写在 placeholder 上（一个 value 预填都没有；尺寸模式的默认选中值除外）');
 
 export {};
 
@@ -507,10 +516,14 @@ ok(/text-align:\s*center/i.test(alignHtml), '(6) 居中对齐生效（<p style="
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');ed.innerHTML='<p><b><span style="color:#ff0000;">清格式</span></b></p>';
   const r=document.createRange();r.selectNodeContents(ed.querySelector('p'));
   const s=getSelection();s.removeAllRanges();s.addRange(r);ed.focus();return 1;})()`);
-await clickSel('[data-tb="clear"]');
+// ★ 「清格式」按钮已按用户要求删除，动作本身保留。这里改用**等价入口**
+//   toolboxToolbarAction('clear') —— 就是原来那个按钮被点击时走的同一个入口
+//   （唯一区别是没有那一次真实鼠标点击；判定语义一字不放宽）。
+await evaluate(`toolboxToolbarAction('clear')`);
+await sleep(220);
 const clearHtml = await evaluate(`document.getElementById('tbEditor').innerHTML`);
 ok(!/color:#ff0000/i.test(clearHtml) && /清格式/.test(clearHtml),
-  '(6) 清除格式摘掉了行内颜色、但文字还在（<p>清格式</p>）');
+  '(6) 清格式（等价入口 toolboxToolbarAction(\'clear\')）摘掉了行内颜色、但文字还在（<p>清格式</p>）');
 
 // ==============================================================
 console.log('\n====== (7) 表格：对话框插入 + 输出形======\n');
@@ -531,8 +544,8 @@ const dlg1 = await json(`(()=>{
 ok(dlg1.open === true, `(7) 点「表格」弹出了参数对话框（标题「${dlg1.title}」）`);
 ok(dlg1.hasRows && dlg1.hasCols && dlg1.hasHeader, '(7) 对话框里有行数/列数/表头三个字段');
 ok(dlg1.headerChecked === true, `(7) 默认勾第一行是表头"（默认${dlg1.rowsPlaceholder} "x ${dlg1.colsPlaceholder} 列）`);
-ok(dlg1.rowsValue === '' && dlg1.colsValue === '' && dlg1.rowsPlaceholder === '3' && dlg1.colsPlaceholder === '2',
-  '(7)* 行数/列数不预填 value，默认值只写在 placeholder 上（3 / 2）');
+ok(dlg1.rowsValue === '' && dlg1.colsValue === '' && dlg1.rowsPlaceholder === '留空则默认为3行' && dlg1.colsPlaceholder === '留空则默认为2列',
+  '(7)* 行数/列数不预填 value，默认值只写在 placeholder 上（留空则默认为3行 / 留空则默认为2列）');
 await evaluate(`(()=>{document.getElementById('tbF_rows').value='3';document.getElementById('tbF_cols').value='3';
   document.getElementById('tbF_header').checked=true;return 1;})()`);
 await clickSel('#tbDialogOk');
@@ -713,9 +726,15 @@ const capHtml = await evaluate(`document.getElementById('tbEditor').innerHTML`);
 // 容忍 color:#555555; font-size 之间的空格：语料里两种写法都
 ok(/color:\s*#555555;\s*font-size:\s*0\.85rem/.test(capHtml), '(9) 图注：居中 + #555555 + 0.85rem');
 await putCaretAtEnd();
-await clickSel('[data-tb="sign"]');
+// ★ 「落款」按钮已按用户要求删除，动作本身保留。这里改用**等价入口**
+//   toolboxToolbarAction('sign') —— 就是原来那个按钮被点击时走的同一个入口
+//   （注意：不能用「右对齐」顶上 —— 它走 execCommand('justifyRight')，会把块里的 <br> 弄丢，
+//     与「落款」不是同一条路径，会改坏这条用例原本钉的不变量）。
+await evaluate(`toolboxToolbarAction('sign')`);
+await sleep(320);
 const signHtml = await evaluate(`document.getElementById('tbEditor').innerHTML`);
-ok(/text-align:right/.test(signHtml), '(9) 落款是右对齐');
+ok(/text-align:right/.test(signHtml),
+  '(9) 落款（等价入口 toolboxToolbarAction(\'sign\')）：右对齐（<div style="text-align:right;">—— 落款</div>）');
 const blocks = { html: titleAfter.html + quoteHtml + capHtml + signHtml, code: titleAfter.code };
 ok(/<center>/.test(blocks.html), '(9) 块级内容用 <center> 居中（语料 380 处的主流写法）');
 // 需求：插入后不许出现多余空/ 空块
@@ -763,10 +782,13 @@ ok(keptBr.after === 2, `(9)* 用户有意写的连续 <br> 不会被当空块删
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');ed.innerHTML='<p>前半段</p>';
   const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);
   const s=getSelection();s.removeAllRanges();s.addRange(r);ed.focus();return 1;})()`);
-await clickSel('[data-tb="br"]');
+// ★ 「换行」按钮已按用户要求删除（自己按 Enter 即可，行为见 (35) 那一节）；
+//   这里改用**等价入口** toolboxToolbarAction('br')（原按钮点击走的同一个入口），
+//   继续覆盖"<br> 插在文档中间会真的留下来"这一条。
+await evaluate(`toolboxToolbarAction('br')`);
 await clickSel('[data-tb="caption"]');
 const brHtml = await evaluate(`document.getElementById('tbEditor').innerHTML`);
-ok(/<br\s*\/?>/.test(brHtml), '(9) 换行插入了 <br>（插在中间的 br 会真的留下来，<p>前半段</p><br><center><span style="color:#555555;font-size:0.85rem;">图片说明</span></center>）');
+ok(/<br\s*\/?>/.test(brHtml), '(9) 换行（等价入口 toolboxToolbarAction(\'br\')）插入了 <br>（插在中间的 br 会真的留下来，<p>前半段</p><br><center><span style="color:#555555;font-size:0.85rem;">图片说明</span></center>）');
 
 // 图片对话框
 await resetEditor();
@@ -779,9 +801,9 @@ const imgDlg = await json(`(()=>{const d=document.getElementById('tbDialog');
     srcPh:(document.getElementById('tbF_src')||{}).placeholder,
     hasCaption:!!document.getElementById('tbF_caption')});})()`);
 ok(imgDlg.open && imgDlg.hasCaption, '(9) 图片按钮弹出对话框（地址/宽度/说明）');
-ok(imgDlg.width === '' && imgDlg.widthPh === '80%',
-  `(9)* 图片宽度不预填，默认值 80% 写在 placeholder 上（语料 160 处图片全是这个值）`);
-ok(imgDlg.src === '' && /^readmes\/image\//.test(imgDlg.srcPh),
+ok(imgDlg.width === '' && imgDlg.widthPh === '留空则默认为80%宽度',
+  `(9)* 图片宽度不预填，默认值 80% 只写在 placeholder 上（${imgDlg.widthPh}）`);
+ok(imgDlg.src === '' && /readmes\/image\//.test(imgDlg.srcPh),
   `(9)* 图片地址也不预填（placeholder${imgDlg.srcPh}」提示相对路径）`);
 // 留空 = 用默认值：只填地址，宽度留出来的必须是 width="80%"
 await evaluate(`(()=>{document.getElementById('tbF_src').value='readmes/image/comm/amsx_2012_01.jpg';
@@ -815,9 +837,9 @@ const linkDlg = await json(`(()=>{const d=document.getElementById('tbDialog');
     textPh:(document.getElementById('tbF_text')||{}).placeholder});})()`);
 ok(linkDlg.open === true, '(9) 链接按钮弹出对话框');
 ok(linkDlg.blank === true, '(9) 默认勾上「新标签页打开」（语料 46 个链接里 32 个带 _blank）');
-ok(linkDlg.url === '' && /^https:\/\//.test(linkDlg.urlPh),
-  `(9)* 链接地址不预填https://，只放在 placeholder 里（${linkDlg.urlPh}」）`);
-ok(/选中的文/.test(linkDlg.textPh), `(9)* 链接文字留空即用选中的文字（placeholder${linkDlg.textPh}」）`);
+ok(linkDlg.url === '' && /^请输入URL$/.test(linkDlg.urlPh),
+  `(9)* 链接地址不预填，placeholder 提示「请输入URL」（${linkDlg.urlPh}」）`);
+ok(/选中文字/.test(linkDlg.textPh), `(9)* 链接文字留空即用选中的文字（placeholder${linkDlg.textPh}」）`);
 await evaluate(`(()=>{document.getElementById('tbF_url').value='https://www.bankofchina.com/';return 1;})()`);
 await clickSel('#tbDialogOk');
 const linkHtml = await evaluate(`document.getElementById('tbEditor').innerHTML`);
@@ -835,10 +857,14 @@ const stackDlg = await json(`(()=>{const d=document.getElementById('tbDialog');
     title:(document.getElementById('tbDialogTitle')||{}).textContent,
     count:(document.getElementById('tbF_count')||{}).value,
     countPh:(document.getElementById('tbF_count')||{}).placeholder,
-    mode:(document.getElementById('tbF_mode')||{}).value,
-    modePh:(document.getElementById('tbF_mode')||{}).placeholder,
+    // 尺寸模式改成了**选项控件**（.tb-segs，值在容器的 data-value 上）——不是文本框
+    modeBox:(document.getElementById('tbF_mode')||{}).tagName||'',
+    mode:(document.getElementById('tbF_mode')||{}).dataset ? (document.getElementById('tbF_mode').dataset.value||'') : '',
+    modeOpts:[...(document.querySelectorAll('#tbF_mode .tb-seg')||[])].map(b=>b.textContent),
+    modeHasText:!!document.querySelector('#tbF_mode input'),
     size:(document.getElementById('tbF_size')||{}).value,
     sizePh:(document.getElementById('tbF_size')||{}).placeholder,
+    sizeLabel:((document.querySelector('label[for="tbF_size"]')||{}).textContent||''),
     src1:(document.getElementById('tbF_src1')||{}).value,
     src1Ph:(document.getElementById('tbF_src1')||{}).placeholder,
     hasSrc1:!!document.getElementById('tbF_src1'), hasSrc4:!!document.getElementById('tbF_src4'),
@@ -847,20 +873,33 @@ const stackDlg = await json(`(()=>{const d=document.getElementById('tbDialog');
     sharedCapLabel:((document.querySelector('label[for="tbF_sharedCap"]')||{}).textContent||''),
     sharedCapValue:(document.getElementById('tbF_sharedCap')||{}).value||''});})()`);
 ok(stackDlg.open === true, `(10) 点「多图」弹出对话框（标题「${stackDlg.title}」）`);
-ok(stackDlg.count === '' && stackDlg.countPh === '2' && stackDlg.hasSrc1 && stackDlg.hasSrc4 && stackDlg.hasCap1,
-  '(10)* 张数不预填（placeholder 2），对话框支持 2~4 张、每张都有地址，且保留每图单独的图注字段');
-ok(stackDlg.hasSharedCap === true && /整行/.test(stackDlg.sharedCapLabel) && stackDlg.sharedCapValue === '',
-  `(10)* 对话框默认提供「${stackDlg.sharedCapLabel.trim()}」输入框（不预填，留用选中的文字）`);
-ok(stackDlg.mode === '' && stackDlg.modePh === 'height',
-  `(10)* 尺寸模式不预填，默认height ֻдplaceholder 上（实际值「${stackDlg.mode}」）`);
-ok(stackDlg.size === '' && stackDlg.sizePh === '180px',
-  `(10)* 高度值不预填，默认 180px 写在 placeholder 上（取自语料 flex 容器的 height:180px）`);
+ok(stackDlg.count === '' && stackDlg.countPh === '留空则默认为2' && stackDlg.hasSrc1 && stackDlg.hasSrc4 && stackDlg.hasCap1,
+  '(10)* 张数不预填（placeholder「留空则默认为2」），对话框支持 2~4 张、每张都有地址，且保留每图单独的图注字段');
+ok(stackDlg.hasSharedCap === true && stackDlg.sharedCapLabel.trim() === '图组注释' && stackDlg.sharedCapValue === '',
+  `(10)* 对话框默认提供「${stackDlg.sharedCapLabel.trim()}」输入框（不预填，留用选中的文字）`);ok(stackDlg.modeBox === 'DIV' && stackDlg.modeHasText === false && stackDlg.mode === 'height'
+  && JSON.stringify(stackDlg.modeOpts) === JSON.stringify(['同高度', '同宽度']),
+  `(10)* 尺寸模式是**选项控件**（两个选项 ${JSON.stringify(stackDlg.modeOpts)}，默认 ${stackDlg.mode}），不是文本框`);
+ok(stackDlg.size === '' && stackDlg.sizePh === '留空则默认为' + 180 + 'px' && stackDlg.sizeLabel === '高度',
+  `(10)* 同高度模式下 size 的标签是「${stackDlg.sizeLabel}」、placeholder 是「${stackDlg.sizePh}」`);
+// 切到「同宽度」：标签 / placeholder 跟着变（只改文案，不改行为）
+const sizeSwitch = await json(`(()=>{const b=[...document.querySelectorAll('#tbF_mode .tb-seg')].find(x=>x.textContent==='同宽度');
+  b.click();
+  const box=document.getElementById('tbF_mode');
+  const inp=document.getElementById('tbF_size');
+  return JSON.stringify({ value:box.dataset.value, active:[...box.querySelectorAll('.tb-seg.active')].map(x=>x.textContent),
+    label:(document.querySelector('label[for="tbF_size"]')||{}).textContent||'',
+    ph:inp.placeholder, hint:(inp.parentNode.querySelector('.tb-hint')||{}).textContent||'' });})()`);
+ok(sizeSwitch.value === 'width' && JSON.stringify(sizeSwitch.active) === JSON.stringify(['同宽度'])
+  && /总宽度比例/.test(sizeSwitch.label) && /%/.test(sizeSwitch.ph) && /比例/.test(sizeSwitch.hint),
+  `(10)* 切到同宽度后：值=${sizeSwitch.value}、标签「${sizeSwitch.label}」、placeholder「${sizeSwitch.ph}」`);
+// 切回同高度（后面的用例按同高度走）
+await evaluate(`(()=>{const b=[...document.querySelectorAll('#tbF_mode .tb-seg')].find(x=>x.textContent==='同高度');b.click();return 1;})()`);
 ok(stackDlg.src1 === '' && /readmes\/image\//.test(stackDlg.src1Ph || ''),
   `(10)* 每张图的地址也不预填（placeholder${stackDlg.src1Ph}」）`);
 
 // 10a. 默认（整行共用一条图注）：图注在容器之后、只出现一次、且不生成每图的子div
 await evaluate(`(()=>{document.getElementById('tbF_count').value='3';
-  document.getElementById('tbF_mode').value='height';
+  [...document.querySelectorAll('#tbF_mode .tb-seg')].find(x=>x.textContent==='同高度').click();
   document.getElementById('tbF_size').value='180px';
   document.getElementById('tbF_sharedCap').value='一分纸币的三个版别';
   document.getElementById('tbF_src1').value='readmes/image/rmb2/1953_2fen_1.jpg';
@@ -910,7 +949,7 @@ ok(stackH.innerDivs === 0, `(10)* 不勾"每张图各自一时不生成多余的
 await resetEditor();
 await clickSel('[data-tb="stack"]');
 await evaluate(`(()=>{document.getElementById('tbF_count').value='2';
-  document.getElementById('tbF_mode').value='height';
+  [...document.querySelectorAll('#tbF_mode .tb-seg')].find(x=>x.textContent==='同高度').click();
   document.getElementById('tbF_size').value='180px';
   document.getElementById('tbF_sharedCap').value='';
   document.getElementById('tbF_src1').value='readmes/image/rmb2/1953_2fen_1.jpg';
@@ -939,7 +978,7 @@ ok(stackPer.hasCenter === false, '(10) 每图单独图注时不额外再加一�
 await resetEditor();
 await clickSel('[data-tb="stack"]');
 await evaluate(`(()=>{document.getElementById('tbF_count').value='2';
-  document.getElementById('tbF_mode').value='width';
+  [...document.querySelectorAll('#tbF_mode .tb-seg')].find(x=>x.textContent==='同宽度').click();
   document.getElementById('tbF_size').value='';
   document.getElementById('tbF_sharedCap').value='';
   document.getElementById('tbF_src1').value='readmes/image/rmb2/1953_2fen_1.jpg';
@@ -957,6 +996,25 @@ console.log(`  同宽度：${JSON.stringify(stackW.styles[0])}`);
 ok(stackW.n === 2 && stackW.calcs === 2, `(10)* 同宽度模式下每张图都width:calc(${stackW.calcs}/2）`);
 ok(/width:calc\(\(100% - 20px\) \/ 2\)/.test(stackW.styles[0]),
   `(10)* 等分公式把gap 算进去了100% - (n-1)*20px) / n，实际${stackW.styles[0]}）`);
+
+// 10c-2. 同宽度模式填**总宽度比例**：纯数字按百分比处理（用户点名要的语义修正）
+await resetEditor();
+await clickSel('[data-tb="stack"]');
+await evaluate(`(()=>{document.getElementById('tbF_count').value='2';
+  [...document.querySelectorAll('#tbF_mode .tb-seg')].find(x=>x.textContent==='同宽度').click();
+  document.getElementById('tbF_size').value='80';
+  document.getElementById('tbF_sharedCap').value='';
+  document.getElementById('tbF_src1').value='readmes/image/rmb2/1953_2fen_1.jpg';
+  document.getElementById('tbF_src2').value='readmes/image/rmb2/1953_2fen_2.png';
+  return 1;})()`);
+await clickSel('#tbDialogOk');
+const stackW2 = await json(`(()=>{
+  const ed = document.getElementById('tbEditor');
+  const styles = [...ed.querySelectorAll('img')].map(i => i.getAttribute('style') || '');
+  return JSON.stringify({ n: styles.length, styles: styles });
+})()`);
+ok(stackW2.n === 2 && /^width:80%;height:auto;$/.test(stackW2.styles[0]),
+  `(10)* 同宽度模式只填数字时按百分比处理（80 ⇒ width:80%，实际 ${JSON.stringify(stackW2.styles[0])}）`);
 
 // 10d. 4 张也要能出（上限内）
 await resetEditor();
@@ -1059,8 +1117,8 @@ ok(ask1.editorText === '',
   '(11)* 刷新后打开时编辑区是空的（草稿**不自动**灌进去，先问）');
 ok(ask1.open === true && ask1.inViewport === true && ask1.hidden === false && ask1.hasBox === true,
   '(11)* 刷新后打开：「发现草稿」弹窗真的可见（有实际盒子、在视口内、不是 hidden）');
-ok(/发现上次未完成的草稿/.test(ask1.text),
-  `(11)* 弹窗文案含「发现上次未完成的草稿」（实际「${ask1.text}」）`);
+ok(/发现未保存草稿/.test(ask1.text),
+  `(11)* 弹窗文案含「发现未保存草稿」（实际「${ask1.text}」）`);
 ok(Number(ask1.zIndex) > Number(ask1.modalZ) && Number(ask1.zIndex) > 0,
   `(11)* 弹窗层级高于工具箱主弹窗${ask1.zIndex} > ${ask1.modalZ}）`);
 ok(ask1.restoreText === '恢复' && ask1.discardText === '丢弃',
@@ -1151,7 +1209,7 @@ const clearClick1 = await json(`(()=>{const b=document.querySelector('[data-tb="
   b.click(); return JSON.stringify({ before:t0, after:b.textContent,
     draftStill: (localStorage.getItem('collection.toolbox.draft')||'').length,
     editor: (document.getElementById('tbEditor').textContent||'').trim() });})()`);
-ok(clearClick1.after !== clearClick1.before && /再点一/.test(clearClick1.after),
+ok(clearClick1.after !== clearClick1.before && /确定吗/.test(clearClick1.after),
   `(11)* 第一次点只是二次确认（按钮变成「${clearClick1.after}」），内容与草稿都还在`);
 ok(clearClick1.draftStill > 0 && clearClick1.editor === '待清空内', '(11)* 确认前什么都没删');
 const clearClick2 = await json(`(()=>{const b=document.querySelector('[data-tb="cleardraft"]');
@@ -1916,8 +1974,34 @@ const selectedWrap = async (act, defWords, structRe, note) => {
 };
 await selectedWrap('title', ['文章标题'], /font-size:\s*1\.1em/, '标题');
 await selectedWrap('quote', ['此处填写引用内容'], /border-left:\s*3px solid/, '引用');
-await selectedWrap('caption', ['图片说明'], /color:\s*#555555/, 'ͼע');
-await selectedWrap('sign', ['落款'], /text-align:\s*right/, '落款');
+await selectedWrap('caption', ['图片说明'], /color:\s*#555555/, '图注');
+// ★ 「落款」按钮已按用户要求删除，工具栏上没有等价按钮（「右对齐」走 execCommand('justifyRight')，
+//   会丢掉块里的 <br>、也拿不回被收起的选区，不是同一个入口）。
+//   所以这一段改成**同样严苛、但不用按钮**的等价写法：照样"先把编辑区选区收起（模拟被抢焦点）"，
+//   再调等价入口 toolboxToolbarAction('sign') —— 断言语义与原来完全一致（选中的「甲乙丙」原样保留、
+//   不出现默认的「—— 落款」、并且出现 text-align:right）。
+{
+  await evaluate(`toolboxOpen()`);
+  await sleep(260);
+  await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+    ed.innerHTML='<p>甲乙丙</p>';
+    const node=ed.querySelector('p').firstChild;
+    const r=document.createRange(); r.setStart(node,0); r.setEnd(node,3);
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
+    toolboxSaveRange(); return 1;})()`);
+  // 关键一步：模拟"浏览器把编辑区选区收起（真实场景里按钮/输入框抢焦点就是这样）"
+  await evaluate(`(()=>{const s=getSelection(); const ed=document.getElementById('tbEditor');
+    if (s) s.collapse(ed, 0); return 1;})()`);
+  await sleep(60);
+  await evaluate(`toolboxToolbarAction('sign')`);
+  await sleep(320);
+  const stSign = await json(`(()=>{const ed=document.getElementById('tbEditor');
+    return JSON.stringify({html:ed.innerHTML, text:(ed.textContent||'').trim()});})()`);
+  console.log(`  sign${JSON.stringify(stSign.html)}`);
+  ok(stSign.text.indexOf('甲乙') >= 0, `(16)* 点「落款」后选中的「甲乙丙」原样保留（${JSON.stringify(stSign.text)}）`);
+  ok(stSign.text.indexOf('落款') < 0, '(16)* 选区被收起也仍然用选中的「甲乙丙」，没有插入默认的「—— 落款」');
+  ok(/text-align:\s*right/.test(stSign.html), '(16) 出现了对应结构（落款）');
+}
 
 // 链接：对话框里点确定时，编辑区早已失焦 —— 链接文字仍要取选中的「甲乙丙」
 await evaluate(`toolboxOpen()`);
@@ -2638,7 +2722,9 @@ await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   ed.innerHTML='<center><b><span style="font-size:1.1em;color:#555555;">甲</span></b></center>';
   const r=document.createRange(); r.selectNodeContents(ed);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
-await clickSel('[data-tb="clear"]');
+// ★ 「清格式」按钮已按用户要求删除，动作本身保留。这里改用**等价入口**
+//   toolboxToolbarAction('clear')（原按钮点击走的同一个入口），判定语义一字不放宽。
+await evaluate(`toolboxToolbarAction('clear')`);
 await sleep(500);
 const p3 = await json(`(()=>{const ed=document.getElementById('tbEditor'); const v=document.getElementById('tbValidate');
   return JSON.stringify({ html: ed.innerHTML, text: ed.textContent||'',
@@ -2651,8 +2737,10 @@ ok(p3.e === 0 && p3.w === 0, `(20)* 【bug 3】清格式的结果通过校验（
 // ---------- Bug 4：插入任何东西都不许多出空行 ----------
 await resetEditor();
 const step4 = [];
+// ★ 「清格式」按钮已删，动作用它的等价入口保住 —— 这一步仍按原样覆盖（四步一步不少）。
 for (const act of ['title', 'quote', 'clear', 'body']) {
-  await clickSel(`[data-tb="${act}"]`);
+  if (act === 'clear') await evaluate(`toolboxToolbarAction('clear')`);
+  else await clickSel(`[data-tb="${act}"]`);
   await sleep(520);
   const st = await emptyBlocks20();
   step4.push({ act, n: st.n, blank: st.blankLines, samples: st.samples });
@@ -2897,8 +2985,8 @@ if (await openImgMenu()) {
   // ★ 用 '\u2026' 转义而不要直接写"…"：这个文件的省略号在编码事故里被换成了长得一样、
   //   码点却不同的字符（实测 5 个汉字的字面量和 DOM 里那 5 个汉字逐字节不等），
   //   转义写法不依赖文件编码，比较结果才是可信的。
-  ok(mC.hidden === false && mC.items.length === 10 && mC.items[0] === '修改图片' + '\u2026',
-    `(20)* 图片右键弹出菜单（10 项：修改图片…/宽度 80%/宽度 60%…，实际 ${mC.items.length} 项）`);
+  ok(mC.hidden === false && mC.items.length === 10 && mC.items[0] === '修改图片参数',
+    `(20)* 图片右键弹出菜单（10 项：修改图片参数/80%宽度/60%宽度…，实际 ${mC.items.length} 项）`);
   ok(mC.inView === true, '(20)* 菜单落在视口内（不会跑到屏幕外）');
   await tmenuClick('img-w60');
   const wC = await evaluate(`(()=>{const i=document.getElementById('tbEditor').querySelector('img');
@@ -3123,17 +3211,17 @@ if (await openImgMenu()) {
   ok(nest.cc === 0 && nest.n <= nest0.n,
     `(20)* 连点两次居中：<center> 不套 <center>、层级也不越点越深（cc=${nest.cc} 层数 ${nest0.n}→${nest.n}）`);
 }
-// 落款 / 标题写法统一（颜色那个用例已随功能一起删除）
+// 落款（原「落款」按钮，已按用户要求删除 → 用等价入口 toolboxToolbarAction('sign')）/ 标题写法统一
 await resetEditor();
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   const p=document.createElement('p'); p.innerHTML='<br>'; ed.appendChild(p);
   const r=document.createRange(); r.selectNodeContents(p); r.collapse(false);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSaveRange(); return 1;})()`);
-await clickSel('[data-tb="sign"]');
+await evaluate(`toolboxToolbarAction('sign')`);
 await sleep(460);
 const sign20 = await codeVal20();
-ok(/<div style="text-align:right;">/.test(sign20), '(20)* 工具产出的样式一律"冒号后不留空格"（<div style="text-align:right;">—— 落款</div>）');
-ok(!/:\s+/.test(sign20), '(20)* 【bug 4】标题→引用→清格式→正文 四步之后都没有空块、代码里没有空行');
+ok(/<div style="text-align:right;">/.test(sign20), '(20)* 工具产出的样式一律"冒号后不留空格"（<div style="text-align:right;">—— 原来的落款那一行</div>）');
+ok(!/:\s+/.test(sign20), '(20)* 落款那一行的 style 里冒号后没有多余空格');
 // 字号「1em」档不写空操作声明
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML='<p>字号文字</p>';
   const r=document.createRange(); r.selectNodeContents(ed.querySelector('p'));
@@ -3186,8 +3274,10 @@ const tyTit = await typeProbe('标题那行');
 ok(tyTit.title === true && tyTit.on.length === 1 && tyTit.on[0] === 'title',
   `(21)* 【类型判定】居中+ 1.1em + 加粗 只有「标题」亮${JSON.stringify(tyTit.on)}）`);
 const tySign = await typeProbe('落款那行');
-ok(tySign.sign === true && tySign.on.length === 1 && tySign.on[0] === 'sign',
-  `(21)* 【类型判定】居中只有「落款」亮${JSON.stringify(tySign.on)}）`);
+// ★ 「落款」按钮已按用户要求删除：类型判定本身（st.sign === true）保持不变，
+//   但工具栏上再没有对应按钮可亮 —— 所以断言改成"判定成立、且没有任何类型按钮亮"。
+ok(tySign.sign === true && tySign.on.length === 0,
+  `(21)* 【类型判定】右对齐那行仍判成 sign，但「落款」按钮已删、工具栏上不亮任何类型按钮（${JSON.stringify(tySign.on)}）`);
 const tyQuote = await typeProbe('引用那行');
 ok(tyQuote.quote === true && tyQuote.on.length === 1 && tyQuote.on[0] === 'quote',
   `(21)* 【类型判定】有 border-left 只有「引用」亮${JSON.stringify(tyQuote.on)}）`);
@@ -3373,6 +3463,7 @@ ok(partOff.text === '前缀甲乙丙丁后缀' && partOff.sel === '乙丙' && pa
   `(21)* 【B/U/I/S】局部取消后文字/换行/选区都没变（${JSON.stringify(partOff.text)} / ${JSON.stringify(partOff.sel)}）`);
 ok(partOff.e === 0 && partOff.w === 0, `(21)* 【B/U/I/S】局部取消后校验 0 0 警（${partOff.e}/${partOff.w}）`);
 // 带样式的 <span>：只清选中那两个字，选区内外的样式壳分得干干净净
+// ★ 「清格式」按钮已按用户要求删除，动作用等价入口保住（toolboxToolbarAction('clear')）。
 const spanBase = '<p><span style="color:#555555;font-size:0.85rem;">甲乙丙丁</span></p>';
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   ed.innerHTML=${JSON.stringify(spanBase)}; toolboxRefresh(); toolboxUndoReset(); ed.focus();
@@ -3380,7 +3471,9 @@ await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   const r=document.createRange(); r.setStart(t,1); r.setEnd(t,3);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
   toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
-await clickSel('[data-tb="clear"]');
+// ★ 「清格式」按钮已删，但动作本身保留 —— 这里用**等价入口** toolboxToolbarAction('clear')
+//   （原按钮点击走的同一个入口），判定语义一字不放宽。
+await evaluate(`toolboxToolbarAction('clear')`);
 await sleep(450);
 const spanCl = await json(`(()=>{const ed=document.getElementById('tbEditor'); const v=document.getElementById('tbValidate');
   return JSON.stringify({ html:ed.innerHTML, text:ed.textContent, sel:getSelection().toString(),
@@ -3399,10 +3492,12 @@ ok(spanCl.text === '甲乙丙丁' && spanCl.sel === '乙丙' && spanCl.e === 0 &
 
 // ---------- 跨行选区：另一侧高亮要含两行，并按浏览器算出的位置滚到中间 ----------
 const fmtBase = '<p>甲段 目标文字 甲段落</p><p>乙段 目标文字 乙段</p>';
+// 第一个元素：有按钮就用选择器（走真鼠标点击），按钮已删的用 'act:xxx' 走等价入口
+// toolboxToolbarAction('xxx')（原按钮点击走的同一个入口）—— 10 个操作一个不少、语义不放宽。
 const fmtOps = [
   ['[data-tb="bold"]', '加粗'], ['[data-tb="underline"]', '下划'], ['[data-tb="italic"]', '斜体'],
-  ['[data-tb="strike"]', '删除行'], ['[data-tb="clear"]', '清格式'], ['[data-tb="quote"]', '引用'],
-  ['[data-tb="title"]', '标题'], ['[data-tb="body"]', '正文'], ['[data-tb="sign"]', '落款'],
+  ['[data-tb="strike"]', '删除行'], ['act:clear', '清格式'], ['[data-tb="quote"]', '引用'],
+  ['[data-tb="title"]', '标题'], ['[data-tb="body"]', '正文'], ['act:sign', '落款'],
   ['.tb-size[data-size="1.1em"]', '字号 1.1em']
 ];
 const fmtBad = [];
@@ -3417,8 +3512,12 @@ for (let i = 0; i < fmtOps.length; i++) {
       n=w.nextNode(); } return 0;})()`);
   const pre = await json(`(()=>{const ed=document.getElementById('tbEditor');
     return JSON.stringify({ text:ed.textContent, idx:ed.textContent.indexOf('乙段 目标文字') });})()`);
-  await clickSel(fmtOps[i][0]);
-  await sleep(440);
+  if (fmtOps[i][0].indexOf('act:') === 0) {
+    await evaluate(`toolboxToolbarAction(${JSON.stringify(fmtOps[i][0].slice(4))})`);
+    await sleep(440);
+  } else {
+    await clickSel(fmtOps[i][0]);
+  }
   const post = await json(`(()=>{const ed=document.getElementById('tbEditor'); const v=document.getElementById('tbValidate');
     return JSON.stringify({ text:ed.textContent, idx:ed.textContent.indexOf('乙段 目标文字'),
       e:+v.getAttribute('data-errors'), w:+v.getAttribute('data-warnings') });})()`);
@@ -3680,7 +3779,7 @@ const phMenu = await menuShot22();
 // ★ 事故修复：这条断言（占位框上右键弹图片菜单）原本的文案被换成了 (22) BIUS 那一段的
 //   句子（"【下划线】第 1 次…"），于是校验输出里一直显示成"下划线不生效"，把人带偏。
 //   这里把文案复原成图片菜单，并把省略号写成 '\u2026' 转义（文件里那个"…"码点被换过）。
-ok(phMenu.hidden === false && phMenu.items.length === 10 && phMenu.items[0] === '修改图片' + '\u2026',
+ok(phMenu.hidden === false && phMenu.items.length === 10 && phMenu.items[0] === '修改图片参数',
   `(22)* 占位框上右键照样弹图片菜单（${phMenu.items.length} 项，首项 ${JSON.stringify(phMenu.items[0])}）`);
 await evaluate(`(()=>{const m=document.getElementById('tbTableMenu'); if(m) m.hidden=true; return 1;})()`);
 const phCode = await codeVal20();
@@ -3962,8 +4061,8 @@ const fullBtn20b = await json(winBtnProbe);
 ok(fullBtn20b.paths === 4 && fullBtn20b.d0 === 'M9 4v5H4',
   `(20)* 全屏后换成小窗图标：4 path、第一条d="M9 4v5H4"（实${fullBtn20b.paths} / ${fullBtn20b.d0}）`);
 // ★ 事故修复：`'退出全'` 少了"屏"，文案也丢了括号。
-ok(fullBtn20b.title === '小窗' && fullBtn20b.aria === '退出全屏' && !fullBtn20b.glyphs && fullBtn20b.text === '',
-  `(20)* 全屏后 title=小窗、aria-label=退出全屏，仍然只有图标没有字形（${fullBtn20b.title} / ${fullBtn20b.aria}）`);
+ok(fullBtn20b.title === '退出全屏' && fullBtn20b.aria === '退出全屏' && !fullBtn20b.glyphs && fullBtn20b.text === '',
+  `(20)* 全屏后 title=aria-label=退出全屏，仍然只有图标没有字形（${fullBtn20b.title} / ${fullBtn20b.aria}）`);
 ok(fullBtn20b.rects === 0, `(20)* 小窗图标里同样没有 <rect>（${fullBtn20b.rects} 个）`);
 // 按钮盒子与「关闭」一致：同高、同宽、圆心对
 const winBoxPair = await json(`(()=>{const f=document.getElementById('tbFullBtn').getBoundingClientRect();
@@ -4279,8 +4378,10 @@ await evaluate(`(()=>{const n=document.getElementById('tbFileName'); n.value='Un
 // ==============================================================
 console.log('\n====== (25) 代码区：用不了上面那排（格式/插入类按钮禁用） ======\n');
 // 面板相关（在代码区里必须禁用）与全局（任何面板都能用）两组动作
+// ★ 「清格式」「换行」「落款」三个按钮已按用户要求从工具栏删除 → 这里不再列它们
+//   （没有按钮可禁用）；保留的 15 个动作仍然逐个断言"在代码区里是禁用态"。
 const PANEL_ACTS = ['bold', 'italic', 'underline', 'strike', 'align-left', 'align-center', 'align-right',
-  'clear', 'title', 'body', 'quote', 'caption', 'image', 'stack', 'link', 'table', 'br', 'sign'];
+  'title', 'body', 'quote', 'caption', 'image', 'stack', 'link', 'table'];
 const GLOBAL_ACTS = ['undo', 'redo', 'copy', 'download', 'cleardraft', 'fullscreen'];
 // 一个动作的禁用状态：disabled 属+ aria-disabled + title 提示，再加上"能不能真的点"
 const panelShot = (act) => json(`(()=>{const b=document.querySelector('[data-tb="${act}"]');
@@ -4901,13 +5002,16 @@ const LOAD_A = (html) => evaluate(`(()=>{const ed=document.getElementById('tbEdi
   ed.innerHTML=${JSON.stringify(html)}; toolboxRefresh(); toolboxUndoReset(); ed.focus(); return 1;})()`);
 const A_HTML = '<div>A</div><div>B<br>C</div><div>D</div>';
 const A_TEXT = 'ABCD';
+// ★ 「落款」按钮已删 → 用它的**等价入口** toolboxToolbarAction('sign')（原按钮点击走的同一个入口）。
+//   注意不能拿「右对齐」顶上：execCommand('justifyRight') 会把块里的 <br> 弄丢，会改坏下面钉的不变量。
 for (const [act, cn] of [['quote', '引用'], ['sign', '落款'], ['title', '标题'], ['body', '正文']]) {
   await LOAD_A(A_HTML);
   await sleep(260);
   const before = await blockShot();
   await selInKid(1, 'B', 1);
   await sleep(200);
-  await clickSel(`[data-tb="${act}"]`);
+  if (act === 'sign') await evaluate(`toolboxToolbarAction('sign')`);
+  else await clickSel(`[data-tb="${act}"]`);
   await sleep(460);
   const after = await blockShot();
   const onlyMid = after.kids.length === 3 && after.kids[0] === before.kids[0] && after.kids[2] === before.kids[2];
@@ -5051,6 +5155,12 @@ const selSeg = (segIdx, chars) => evaluate(`(()=>{const ed=document.getElementBy
   r.setStart(target,0); r.setEnd(target,${chars === 'all' ? 'len' : chars});
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
   toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
+// ★ 「落款」按钮已删 → 用它的**等价入口** toolboxToolbarAction('sign')（原按钮点击走的同一个入口）。
+//   这里包一个小工具：有按钮的照旧走真鼠标点击，按钮已删的走等价入口。
+const actClick31 = async (act) => {
+  if (act === 'sign') { await evaluate(`toolboxToolbarAction('sign')`); await sleep(220); }
+  else await clickSel(`[data-tb="${act}"]`);
+};
 for (const [act, cn, mark] of [['quote', '引用', 'border-left'], ['sign', '落款', 'text-align'], ['title', '标题', 'font-weight']]) {
   // ---- 单段 ----
   await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.innerHTML=${JSON.stringify(SEG_HTML)};
@@ -5059,7 +5169,7 @@ for (const [act, cn, mark] of [['quote', '引用', 'border-left'], ['sign', '落
   const s0 = await segSnap(mark);
   await selSeg(1, 'all');                       // B 那一整段
   await sleep(180);
-  await clickSel(`[data-tb="${act}"]`);
+  await actClick31(act);
   await sleep(470);
   const s1 = await segSnap(mark);
   ok(s1.text === SEG_TEXT && s1.brs === s0.brs && s1.n === s0.n,
@@ -5091,7 +5201,7 @@ for (const [act, cn, mark] of [['quote', '引用', 'border-left'], ['sign', '落
     const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
     toolboxSnapClear(); toolboxRange=null; toolboxSaveRange(); return 1;})()`);
   await sleep(180);
-  await clickSel(`[data-tb="${act}"]`);
+  await actClick31(act);
   await sleep(470);
   const m1 = await segSnap(mark);
   ok(m1.text === SEG_TEXT && m1.brs === m0.brs && m1.n === m0.n,
@@ -5375,7 +5485,7 @@ await sleep(220);
 await s33Sel('目标文字', 0, 4);
 await sleep(150);
 const chain = [['bold', '加粗'], ['italic', '斜体'], ['underline', '下划线'], ['quote', '引用'],
-  ['caption', '图注'], ['sign', '落款'], ['title', '标题'], ['body', '正文']];
+  ['caption', '图注'], ['align-right', '右对齐'], ['title', '标题'], ['body', '正文']];
 const lostSel = [], chainText = [];
 for (const [act, cn] of chain) {
   await clickSel(`[data-tb="${act}"]`);
@@ -5416,7 +5526,10 @@ const s33Neighbor = async (act, cn) => {
   await s33Sel('目标段', 0, 3);
   await sleep(150);
   const before = await s33Shot();
-  await clickSel(`[data-tb="${act}"]`);
+  // ★ 「落款」按钮已删 → 用它的**等价入口** toolboxToolbarAction('sign')（原按钮点击走的同一个入口）；
+  //   不能换成「右对齐」：justifyRight 会把块里的 <br> 弄丢，正是下面这条断言要守的东西。
+  if (act === 'sign') { await evaluate(`toolboxToolbarAction('sign')`); await sleep(250); }
+  else await clickSel(`[data-tb="${act}"]`);
   await sleep(470);
   const after = await s33Shot();
   ok(before.kids[0] === after.kids[0] && before.kids[2] === after.kids[2],
@@ -5440,6 +5553,7 @@ const s33Neighbor = async (act, cn) => {
     `(33)* ③${cn}：操作后选区仍在那一段文字上（${JSON.stringify(after.sel)}）`);
 };
 await s33Neighbor('quote', '引用');
+// ★ 「落款」已删 → 用它的等价入口 toolboxToolbarAction('sign')，仍守"只动目标那一段"这一条
 await s33Neighbor('sign', '落款');
 
 // ---------- ④ 字符级 / 段级的边界 ----------
@@ -5750,6 +5864,150 @@ for (let n = 0; n < BIUS34.length; n++) {
     `(34)* 闭环 ${cn}：再点一次 → 全无、文字与选区都还在（${JSON.stringify(o2.html)}）`);
 }
 }
+
+// ==============================================================
+console.log('\n====== (35) 编辑区 Enter = 原「换行」按钮（插 <br>）；代码区/文件名/Shift+Enter 不劫持 ======\n');
+// 用户要求：编辑区里按 Enter（不带修饰键）要与原来那个「换行」按钮效果完全一样。
+// 只认不带修饰键的 Enter；作用范围严格限定 #tbEditor；走的是同一个底层入口 toolboxInsertBreak()。
+const edSnapshot35 = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  const s=getSelection()||{};
+  let anchorTag='';
+  try {
+    const c=s.anchorNode;
+    const el=(c&&c.nodeType===1)?c:(c?c.parentNode:null);
+    const n=s.anchorNode;
+    anchorTag = (n&&n.nodeType===3) ? ('#'+String(n.nodeValue||'').length)
+      : (el?el.tagName:'' );
+  } catch(e){}
+  return JSON.stringify({ html:ed.innerHTML, text:ed.textContent, code:document.getElementById('tbCode').value,
+    brs:ed.querySelectorAll('br').length, blocks:ed.querySelectorAll('p,div,center,blockquote,table').length,
+    anchor:anchorTag, focus:!!(document.activeElement && (document.activeElement===ed||ed.contains(document.activeElement))) });})()`);
+// 真实派发一次 Enter（CDP 键盘事件）——keys 里 text:'\\r' 才带出浏览器默认行为
+async function pressEnter35(mods = 0) {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter',
+    windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods, text: '\r' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter',
+    windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: mods });
+  await sleep(420);
+}
+// 把光标放到 <p>前半段</p> 的段末（紧接着 <br> 该出现的位置）
+const caretInHalf35 = () => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML='<p>前半段</p>'; toolboxRefresh(); toolboxUndoReset();
+  const p=ed.querySelector('p'); const r=document.createRange();
+  r.selectNodeContents(p); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+
+// 35a. 编辑区里真实按 Enter → 插入一个 <br>、textContent 一个字符都没多、块数不变
+await resetEditor();
+await caretInHalf35();
+const e35a0 = await edSnapshot35();
+await pressEnter35();
+const e35a1 = await edSnapshot35();
+// 注：toolboxInsertBreak() 走的是 toolboxInsertHtml('<br>') —— 光标在 <p> 里时这个 <br>
+//     落在**那一块之后**（浏览器/execCommand 的既有行为，不是本轮改的），所以这里
+//     只钉"多了一个 <br>、且它在原文之后"，不钉它在段落内部的偏移。
+ok(e35a1.brs === e35a0.brs + 1 && /前半段[\s\S]*<br\s*\/?>/.test(e35a1.html),
+  `(35)* 编辑区按 Enter 插入了一个 <br>（br ${e35a0.brs}→${e35a1.brs}，${JSON.stringify(e35a1.html)}）`);
+ok(e35a1.text === e35a0.text && e35a1.blocks === e35a0.blocks,
+  `(35)* Enter 只加 <br>：textContent 一个字符没多、块数不变（${JSON.stringify(e35a1.text)} / 块 ${e35a1.blocks}）`);
+ok(e35a1.focus === true, '(35)* Enter 之后焦点还留在编辑区');
+
+// 35b. 行为一致性：同一个初始状态，Enter 与"原「换行」按钮那个入口"产出完全一致
+await resetEditor();
+await caretInHalf35();
+await pressEnter35();
+const e35Enter = await edSnapshot35();
+await resetEditor();
+await caretInHalf35();
+// ★ 参考的一次必须从**同一个状态**出发：真实按键会先触发编辑区自己那个 keydown 监听
+//   （toolboxDropRange，把上一次的选区存档丢掉），然后才轮到我们的 Enter 处理。
+//   所以这里也先 toolboxDropRange()，再走原「换行」按钮的等价入口 toolboxToolbarAction('br')
+//   （Enter 处理函数里调的就是它，见 toolbox.js 的编辑区 keydown 绑定）。
+//   实测：不先 dropRange 的话结果会差一个 <br> 的位置（<p>前半段<br></p> vs <p>前半段</p><br>），
+//   那是"状态不同"，不是"行为不同"。
+await evaluate(`(()=>{toolboxDropRange(); toolboxToolbarAction('br'); return 1;})()`);
+await sleep(420);
+const e35Fn = await edSnapshot35();
+ok(e35Enter.html === e35Fn.html,
+  `(35)* Enter 与 toolboxToolbarAction('br')（原「换行」按钮的入口）产出的编辑区 HTML 逐字一致`
+  + `（Enter=${JSON.stringify(e35Enter.html)} / 按钮入口=${JSON.stringify(e35Fn.html)}）`);
+ok(e35Enter.code === e35Fn.code,
+  `(35)* Enter 与按钮入口产出的代码区内容也逐字一致`
+  + `（Enter=${JSON.stringify(e35Enter.code)} / 按钮入口=${JSON.stringify(e35Fn.code)}）`);
+
+// 35c. 插入后光标落在 <br> 之后，接着打字不会跑到文首
+await resetEditor();
+await caretInHalf35();
+await pressEnter35();
+const caret35 = await json(`(()=>{const ed=document.getElementById('tbEditor');
+  const s=getSelection()||{}; const br=ed.querySelector('br');
+  const idx=br?[].indexOf.call(br.parentNode.childNodes,br):-1;
+  const after = !!(s.anchorNode && br && s.anchorNode === br.parentNode && s.anchorOffset === idx+1);
+  return JSON.stringify({ after:after, idx:idx,
+    anchorType:s.anchorNode?s.anchorNode.nodeType:'', anchorOffset:s.anchorOffset });})()`);
+await send('Input.insertText', { text: 'XYZ' });
+await sleep(320);
+const typed35 = await json(`(()=>{const ed=document.getElementById('tbEditor');
+  return JSON.stringify({ html:ed.innerHTML, text:ed.textContent });})()`);
+ok(caret35.after === true,
+  `(35)* 光标停在刚插入的 <br> 之后（br 是第 ${caret35.idx} 个子节点，光标 ${caret35.anchorType}/${caret35.anchorOffset}）`);
+ok(typed35.text.indexOf('前半段') === 0 && typed35.text.indexOf('XYZ') > typed35.text.indexOf('前半段'),
+  `(35)* 接着打字落在正确位置、没有跑到文首（${JSON.stringify(typed35.text)} / ${JSON.stringify(typed35.html)}）`);
+
+// 35d. Ctrl+Z 能撤回这次换行（撤回后与操作前一致，光标不跳到文首）
+await evaluate(`(()=>{const p=document.createElement('p'); p.textContent='第一段';
+  const ed=document.getElementById('tbEditor'); ed.innerHTML=''; ed.appendChild(p);
+  const p2=document.createElement('p'); p2.textContent='后半段'; ed.appendChild(p2);
+  toolboxRefresh(); toolboxUndoReset();
+  const r=document.createRange(); r.selectNodeContents(p); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+const u35a = await edSnapshot35();
+await pressEnter35();
+const u35b = await edSnapshot35();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'z', code: 'KeyZ',
+  windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2, text: '' });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ',
+  windowsVirtualKeyCode: 90, nativeVirtualKeyCode: 90, modifiers: 2 });
+await sleep(420);
+const u35c = await edSnapshot35();
+ok(u35b.brs === u35a.brs + 1, `(35)* （前置）Enter 之后确实多了 1 个 <br>（${u35a.brs}→${u35b.brs}）`);
+ok(u35c.html === u35a.html && u35c.text === u35a.text,
+  `(35)* Ctrl+Z 撤掉了这次换行，HTML 与操作前一致（${JSON.stringify(u35c.html)}）`);
+ok(u35c.text.indexOf('后半段') > 0 && !/^<br/.test(u35c.html),
+  '(35)* 撤回后光标没有跳到文首（文档内容顺序没被换位）');
+
+// 35e. 反向断言：代码区 #tbCode 里 Enter 正常换行（未被劫持）
+await evaluate(`(()=>{const c=document.getElementById('tbCode'); c.value='<p>ab</p>'; c.focus();
+  c.setSelectionRange(2,2); return 1;})()`);
+const c35a = await evaluate(`document.getElementById('tbCode').value`);
+await pressEnter35();
+const c35b = await evaluate(`document.getElementById('tbCode').value`);
+ok(c35b.indexOf('\n') >= 0 && c35b.indexOf('<br') < 0,
+  `(35)* 代码区里 Enter 是正常换行、没有被劫持成 <br>（${JSON.stringify(c35b)}）`);
+
+// 35f. 反向断言：文件名输入框里 Enter 行为不变（未被劫持）
+await evaluate(`(()=>{const fn=document.getElementById('tbFileName'); fn.value='我的文章'; fn.focus(); return 1;})()`);
+const f35a = await json(`(()=>{const fn=document.getElementById('tbFileName');
+  return JSON.stringify({ value:fn.value, ed:document.getElementById('tbEditor').innerHTML });})()`);
+await pressEnter35();
+const f35b = await json(`(()=>{const fn=document.getElementById('tbFileName');
+  return JSON.stringify({ value:fn.value, ed:document.getElementById('tbEditor').innerHTML });})()`);
+ok(f35b.value === f35a.value && f35a.value === '我的文章',
+  `(35)* 文件名框里 Enter 不改变文件名、没被劫持（${JSON.stringify(f35b.value)}）`);
+
+// 35g. 反向断言：Shift+Enter 未被我们劫持（只断言 defaultPrevented 保持 false，不断言浏览器默认行为）
+await evaluate(`window.__tbEnt = { shift: null };`);
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML='<p>前半段</p>'; toolboxRefresh();
+  const p=ed.querySelector('p'); const r=document.createRange();
+  r.selectNodeContents(p); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
+  ed.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.shiftKey) window.__tbEnt.shift = e.defaultPrevented; }, true);
+  return 1;})()`);
+await pressEnter35(8);
+const sh35 = await json(`JSON.stringify({ prevented: window.__tbEnt.shift })`);
+ok(sh35.prevented === false,
+  `(35)* Shift+Enter 没有被我们劫持（keydown 的 defaultPrevented=${sh35.prevented}，交给浏览器默认行为）`);
 
 // ==============================================================
 console.log(`\n  -------- 通过 ${pass} / 失败 ${fail} -------- `);

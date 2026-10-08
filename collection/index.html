@@ -233,9 +233,9 @@
             <!-- 字号五档。刻意不用 <select>：原生 select 会被 dropdown.js 接管，而它的
                  弹层是 position:fixed + z-index:900，会落到本弹窗(z-index:1200)下面点不到。 -->
             <span class="tb-sizes" role="group" aria-label="字号">
-                <button type="button" class="tb-size" data-tb="size" data-size="0.85rem" title="小字 0.85rem">小</button>
-                <button type="button" class="tb-size" data-tb="size" data-size="1em" title="正文 1em">1em</button>
-                <button type="button" class="tb-size" data-tb="size" data-size="1.1em" title="标题 1.1em">1.1</button>
+                <button type="button" class="tb-size" data-tb="size" data-size="0.85rem" title="0.85rem">0.85</button>
+                <button type="button" class="tb-size" data-tb="size" data-size="1em" title="1em">1</button>
+                <button type="button" class="tb-size" data-tb="size" data-size="1.1em" title="1.1em">1.1</button>
                 <button type="button" class="tb-size" data-tb="size" data-size="1.3em" title="1.3em">1.3</button>
                 <button type="button" class="tb-size" data-tb="size" data-size="1.6em" title="1.6em">1.6</button>
             </span>
@@ -244,25 +244,22 @@
                  连同取色器 UI、hiliteColor 分支、toolboxHighlight 与相关样式、用例一起清掉了。
                  图注用的 #555555 / 0.85rem 是**固定写法**，不再需要用户选颜色。 -->
             <button type="button" class="tb-btn" data-tb="align-left" title="左对齐">左</button>
-            <button type="button" class="tb-btn" data-tb="align-center" title="居中">中</button>
+            <button type="button" class="tb-btn" data-tb="align-center" title="居中对齐">中</button>
             <button type="button" class="tb-btn" data-tb="align-right" title="右对齐">右</button>
-            <button type="button" class="tb-btn" data-tb="clear" title="清除文字格式（不动表格/图片/段落）">清格式</button>
             <span class="tb-sep"></span>
-            <button type="button" class="tb-btn" data-tb="title" title="插入文章标题（居中加粗 1.1em）；选中了文字就把选中的文字包成标题">标题</button>
+            <button type="button" class="tb-btn" data-tb="title" title="">标题</button>
             <!-- 「正文」= 标题的反操作：把选中的内容恢复成正文（字号回默认、去粗、去居中） -->
-            <button type="button" class="tb-btn" data-tb="body" title="把选中内容恢复成正文（字号回默认、去掉加粗与居中）">正文</button>
-            <button type="button" class="tb-btn" data-tb="quote" title="插入引用框（左侧 3px 主题色竖线的小字块）">引用</button>
-            <button type="button" class="tb-btn" data-tb="caption" title="插入图注（居中 #555555 0.85rem）">图注</button>
-            <button type="button" class="tb-btn" data-tb="image" title="插入图片（居中，宽度默认 80%）">图片</button>
-            <button type="button" class="tb-btn" data-tb="stack" title="多张图片并排（2~4 张一行，默认同高度 180px，整行共用一条图注）">多图</button>
-            <button type="button" class="tb-btn" data-tb="link" title="插入超链接（默认新标签页打开）">链接</button>
-            <button type="button" class="tb-btn" data-tb="table" title="插入表格（在已有表格里点右键可以插删行列、合并单元格；现成的 HTML 表格请粘到右侧代码区）">表格</button>
-            <button type="button" class="tb-btn" data-tb="br" title="插入换行 &lt;br&gt;">换行</button>
-            <button type="button" class="tb-btn" data-tb="sign" title="插入落款（右对齐）">落款</button>
+            <button type="button" class="tb-btn" data-tb="body" title="">正文</button>
+            <button type="button" class="tb-btn" data-tb="quote" title="">引用</button>
+            <button type="button" class="tb-btn" data-tb="caption" title="">图注</button>
+            <button type="button" class="tb-btn" data-tb="image" title="">图片</button>
+            <button type="button" class="tb-btn" data-tb="stack" title="">多图</button>
+            <button type="button" class="tb-btn" data-tb="link" title="">链接</button>
+            <button type="button" class="tb-btn" data-tb="table" title="">表格</button>
             <span class="tb-sep"></span>
-            <button type="button" class="tb-btn tb-primary" data-tb="copy" title="复制 HTML 到剪贴板">复制</button>
-            <button type="button" class="tb-btn" data-tb="download" title="下载为 .html 文件">下载</button>
-            <button type="button" class="tb-btn tb-danger" data-tb="cleardraft" title="清空正文并删掉草稿（点两次确认）">清空</button>
+            <button type="button" class="tb-btn tb-primary" data-tb="copy" title="复制HTML代码至剪贴板">复制</button>
+            <button type="button" class="tb-btn" data-tb="download" title="将代码下载为.html文件">下载</button>
+            <button type="button" class="tb-btn tb-danger" data-tb="cleardraft" title="清空正文并删除草稿">清空</button>
         </div>
 
         <!-- 主体：左正文、右 HTML，各自独立滚动，中间一条 1px 分隔线。
@@ -270,10 +267,10 @@
              两块面板各有一行小标题（正文 / HTML）：面板靠 1px 线分隔，不做"卡片套卡片"。 -->
         <div class="tb-body">
             <div class="tb-pane tb-pane-edit">
-                <div class="tb-pane-head">正文</div>
+                <div class="tb-pane-head">编辑区</div>
                 <div class="tb-editor" id="tbEditor" contenteditable="true" spellcheck="false"
-                     role="textbox" aria-multiline="true" aria-label="正文编辑区"
-                     data-placeholder="在这里写正文"></div>
+                     role="textbox" aria-multiline="true" aria-label="编辑区"
+                     data-placeholder="从这里开始……"></div>
             </div>
             <div class="tb-pane tb-pane-code">
                 <div class="tb-pane-head">HTML</div>
@@ -284,7 +281,7 @@
                          它在 textarea 下面、pointer-events:none，不改内容、不动选区。 -->
                     <div class="tb-code-hl" id="tbCodeHl" data-tb-display="1" aria-hidden="true"></div>
                     <textarea class="tb-code" id="tbCode" spellcheck="false" wrap="soft"
-                              placeholder="粘贴或直接编辑 HTML" aria-label="HTML 代码（可编辑）"></textarea>
+                              placeholder="可在此粘贴或编辑HTML代码" aria-label="HTML代码"></textarea>
                 </div>
                 <!-- 校验区：只提示，不阻断复制/下载。计数同时写在 data-errors/data-warnings 上 -->
                 <div class="tb-validate" id="tbValidate" data-errors="0" data-warnings="0"></div>
@@ -311,14 +308,14 @@
              ★ 手柄贴在卡片内侧（.tb-card 是 overflow:hidden，往外扩会被自己裁掉点不到），
                .tb-body 留了 6px 右/下内边距，所以东/南手柄不会压住编辑区/代码区的滚动条。
              逻辑用 Pointer Events（鼠标/触摸同一套），见 toolbox.js 的 toolboxBindWindow。 -->
-        <div class="tb-grip tb-grip-n" data-tb-grip="n" title="拖动调整高度（上边）"></div>
-        <div class="tb-grip tb-grip-s" data-tb-grip="s" title="拖动调整高度（下边）"></div>
-        <div class="tb-grip tb-grip-w" data-tb-grip="w" title="拖动调整宽度（左边）"></div>
-        <div class="tb-grip tb-grip-e" data-tb-grip="e" title="拖动调整宽度（右边）"></div>
-        <div class="tb-grip tb-grip-nw" data-tb-grip="nw" title="等比缩放（左上角）"></div>
-        <div class="tb-grip tb-grip-ne" data-tb-grip="ne" title="等比缩放（右上角）"></div>
-        <div class="tb-grip tb-grip-sw" data-tb-grip="sw" title="等比缩放（左下角）"></div>
-        <div class="tb-grip tb-grip-se" data-tb-grip="se" title="等比缩放（右下角）"></div>
+        <div class="tb-grip tb-grip-n" data-tb-grip="n" title=""></div>
+        <div class="tb-grip tb-grip-s" data-tb-grip="s" title=""></div>
+        <div class="tb-grip tb-grip-w" data-tb-grip="w" title=""></div>
+        <div class="tb-grip tb-grip-e" data-tb-grip="e" title=""></div>
+        <div class="tb-grip tb-grip-nw" data-tb-grip="nw" title=""></div>
+        <div class="tb-grip tb-grip-ne" data-tb-grip="ne" title=""></div>
+        <div class="tb-grip tb-grip-sw" data-tb-grip="sw" title=""></div>
+        <div class="tb-grip tb-grip-se" data-tb-grip="se" title=""></div>
 
         <!-- 字段对话框：表格参数 / 图片参数 / 超链接共用这一个浮层 -->
         <div class="tb-dialog" id="tbDialog">
@@ -344,11 +341,11 @@
        样式与工具箱内既有的「修改图片…」对话框同一套（.tb-dialog-* + 站内变量）。 -->
 <div class="tb-ask" id="tbDraftAsk" role="dialog" aria-modal="true" aria-labelledby="tbDraftAskTitle" hidden>
     <div class="tb-dialog-card tb-ask-card">
-        <div class="tb-dialog-title" id="tbDraftAskTitle">发现上次未完成的草稿</div>
-        <div class="tb-ask-text">要把它放回编辑区吗？（选「稍后再说」也不会丢）</div>
+        <div class="tb-dialog-title" id="tbDraftAskTitle">发现未保存草稿</div>
+        <div class="tb-ask-text">是否将其放回编辑区？</div>
         <div class="tb-dialog-foot">
-            <button type="button" class="tb-btn" id="tbDraftDiscard" title="删掉草稿">丢弃</button>
-            <button type="button" class="tb-btn tb-primary" id="tbDraftRestore" title="把草稿放回编辑区">恢复</button>
+            <button type="button" class="tb-btn" id="tbDraftDiscard" title="">丢弃</button>
+            <button type="button" class="tb-btn tb-primary" id="tbDraftRestore" title="">恢复</button>
         </div>
     </div>
 </div>

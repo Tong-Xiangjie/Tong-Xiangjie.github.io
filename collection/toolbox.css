@@ -611,6 +611,30 @@ button.tb-close { margin-left: 4px; }
     cursor: pointer;
 }
 .tb-check input { width: 15px; height: 15px; accent-color: var(--theme); cursor: pointer; }
+/* 对话框里的选项控件（尺寸模式：同高度 / 同宽度）——
+   与工具栏「字号」那排按钮同一套观感：1px 圆角、选中项用主题色描边 + 淡主题底。
+   刻意不用 <select>：原生 select 会被 dropdown.js 接管，弹层 z-index 低于本弹窗点不到。 */
+.tb-segs { display: flex; gap: 6px; margin-top: 6px; }
+.tb-seg {
+    flex: 1;
+    padding: 7px 10px;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+}
+.tb-seg:hover { background: var(--row-hover-bg); }
+.tb-seg.active {
+    color: var(--theme);
+    border-color: var(--theme);
+    /* 不支持 color-mix() 的浏览器用上面这行基础底色兜底（与 .tb-btn.active 同一套做法） */
+    background: var(--bg);
+    background: color-mix(in srgb, var(--theme) 12%, transparent);
+}
+.tb-seg:focus-visible { outline: 2px solid var(--theme); outline-offset: 1px; }
 .tb-dialog-foot {
     display: flex;
     justify-content: flex-end;
