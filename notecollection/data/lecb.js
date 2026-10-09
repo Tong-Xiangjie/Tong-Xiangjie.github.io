@@ -29,7 +29,7 @@ const lecbData = {
             },
             varieties: [
                 {
-                    varietyName: "1元",
+                    varietyName: "1元 棉田丰收",
                     copies: [
                         {
                             copyId: 26992544,
