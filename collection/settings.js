@@ -278,7 +278,6 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="toolboxOpenBtn" onclick="toolboxOpen()">文章 HTML 生成器</button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">站内弹窗里所见即所得地写正文，右侧实时生成 HTML（支持标题、引用框、图注、图片、超链接、表格）。表格用工具栏的「表格」按钮生成，或把现成的 HTML 粘到右侧代码区；正文区粘贴一律按**纯文本**处理，不会带入原来的样式</p>`;
     html += `</div>`;
 
     html += `</div>`;
