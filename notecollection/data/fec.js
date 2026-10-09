@@ -8,6 +8,8 @@ const fecData = {
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行方" },
         { key: "year", label: "发行年份" },
+        { key: "issueDate", label: "发行日期" },
+        { key: "size", label: "标准尺寸" },
         { key: "wmk", label: "水印" },
         { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
@@ -20,7 +22,7 @@ const fecData = {
     ],
     series: [
         {
-            seriesName: "1979年 1角",
+            seriesName: "1979年 1角 黄果树瀑布",
             year: "1979",
             varieties: [
                 {
@@ -35,6 +37,8 @@ const fecData = {
                             version: "ZA000000 17458",
                             condition: "ACG 66E",
                             krause: "FX1s",
+                            issueDate: "1980年4月1日",
+                            size: "128mm*49mm",
                             wmk: "五星火炬/Star&Torch",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/fec/17458-1.jpg",
@@ -54,6 +58,8 @@ const fecData = {
                             version: "AI172872",
                             condition: "ACG 67E",
                             krause: "FX1a",
+                            issueDate: "1980年4月1日",
+                            size: "128mm*49mm",
                             wmk: "五星/Stars",
                             remark: "无荧光",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/fec/AI172872-1.jpg",
@@ -68,6 +74,8 @@ const fecData = {
                             version: "DL832836",
                             condition: "ACG 66E",
                             krause: "FX1a",
+                            issueDate: "1980年4月1日",
+                            size: "128mm*49mm",
                             wmk: "五星/Stars",
                             remark: "有荧光",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/fec/DL832836-1.jpg",
@@ -78,7 +86,7 @@ const fecData = {
             ]
         },
         {
-            seriesName: "1979年 5角",
+            seriesName: "1979年 5角 天坛",
             year: "1979",
             copies: [
                 {
@@ -90,6 +98,8 @@ const fecData = {
                     version: "ZN611794",
                     condition: "ACG 66E",
                     krause: "FX2",
+                    issueDate: "1980年4月1日",
+                    size: "134mm*52mm",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/fec/ZN611794-1.jpg",
@@ -98,7 +108,7 @@ const fecData = {
             ]
         },
         {
-            seriesName: "1979年 1元",
+            seriesName: "1979年 1元 三潭印月",
             year: "1979",
             copies: [
                 {
@@ -110,6 +120,8 @@ const fecData = {
                     version: "DN598149",
                     condition: "ACG 67E",
                     krause: "FX3",
+                    issueDate: "1980年4月1日",
+                    size: "152mm*58mm",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/fec/DN598149-1.jpg",
@@ -118,7 +130,7 @@ const fecData = {
             ]
         },
         {
-            seriesName: "1979年 5元",
+            seriesName: "1979年 5元 黄山",
             year: "1979",
             copies: [
                 {
@@ -130,6 +142,8 @@ const fecData = {
                     version: "ZZ756837",
                     condition: "ACG 67E",
                     krause: "FX4",
+                    issueDate: "1980年4月1日",
+                    size: "158mm*62mm",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/fec/ZZ756837-1.jpg",
@@ -138,7 +152,7 @@ const fecData = {
             ]
         },
         {
-            seriesName: "1979年 10元",
+            seriesName: "1979年 10元 长江三峡",
             year: "1979",
             copies: [
                 {
@@ -150,6 +164,8 @@ const fecData = {
                     version: "ZA000000 19589",
                     condition: "PMG 66E",
                     krause: "FX5s",
+                    issueDate: "1980年4月1日",
+                    size: "164mm*67mm",
                     wmk: "五星火炬/Star&Torch",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/fec/19589-1.jpg",
@@ -158,7 +174,7 @@ const fecData = {
             ]
         },
         {
-            seriesName: "1979年 50元",
+            seriesName: "1979年 50元 象鼻山",
             year: "1979",
             copies: [
                 {
@@ -170,6 +186,8 @@ const fecData = {
                     version: "ZA000000 17376",
                     condition: "ACG 67E",
                     krause: "FX6s",
+                    issueDate: "1980年4月1日",
+                    size: "170mm*70mm",
                     wmk: "国徽/National Badge",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/fec/17376-1.jpg",
@@ -178,7 +196,7 @@ const fecData = {
             ]
         },
         {
-            seriesName: "1979年 100元",
+            seriesName: "1979年 100元 万里长城",
             year: "1979",
             copies: [
                 {
@@ -190,11 +208,26 @@ const fecData = {
                     version: "ZA000000 11376",
                     condition: "ACG 66E",
                     krause: "FX7s",
+                    issueDate: "1980年4月1日",
+                    size: "170mm*70mm",
                     wmk: "国徽/National Badge",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/fec/11376-1.jpg",
                     img2: "https://tong-xiangjie.github.io/notecollection/image/fec/11376-2.jpg"
                 }
+            ]
+        },{
+            seriesName: "1988年 50元 漓江春色",
+            year: "1988",
+            copies: [
+                
+            ]
+        },
+        {
+            seriesName: "1988年 100元 万里长城",
+            year: "1988",
+            copies: [
+                
             ]
         }
     ]

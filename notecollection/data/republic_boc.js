@@ -95,7 +95,7 @@ const republic_bocData = {
             year: "1940",
             varieties: [
                 {
-                    varietyName: "1940年 5元 天坛",
+                    varietyName: "1940年 5元 天坛祈年殿",
                     copies: [
                         {
                             copyId: 0,
@@ -118,7 +118,7 @@ const republic_bocData = {
                         }
                     ]
                 },{
-                    varietyName: "1940年 10元 天坛",
+                    varietyName: "1940年 10元 天坛祈年殿",
                     copies: [
                         {
                             copyId: 86996215,

@@ -37,7 +37,7 @@ const macau_bocData = {
             ],
             varieties: [
                 {
-                    varietyName: "澳门币10元",
+                    varietyName: "澳门币10元 东望洋灯塔",
                     copies: [
                         {
                             copyId: 22792421,
@@ -51,14 +51,14 @@ const macau_bocData = {
                             signature: "澳门分行总经理：王振钧",
                             faceDate: "1995年10月16日",
                             size: "138mm*69mm",
-                            remark: "正面：东望洋灯塔；背面：澳门中银大厦、莲花图案",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AK09086-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AK09086-2.jpg"
                         }
                     ]
                 },
                 {
-                    varietyName: "澳门币100元",
+                    varietyName: "澳门币100元 外港客运码头",
                     copies: [
                         {
                             copyId: 23155101,
@@ -72,7 +72,7 @@ const macau_bocData = {
                             signature: "澳门分行总经理：张鸿义",
                             faceDate: "2003年12月8日",
                             size: "153mm*76.5mm",
-                            remark: "正面：外港客运码头；背面：澳门中银大厦、莲花图案",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/HB11154-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/HB11154-2.jpg"
                         }
@@ -90,7 +90,7 @@ const macau_bocData = {
             },
             varieties: [
                 {
-                    varietyName: "澳门币10元",
+                    varietyName: "澳门币10元 妈阁庙",
                     copies: [
                         {
                             copyId: 22308022,
@@ -104,14 +104,14 @@ const macau_bocData = {
                             signature: "澳门分行行长：叶一新",
                             faceDate: "2013年7月1日",
                             size: "138mm*69mm",
-                            remark: "正面：妈阁庙；背面：澳门中银大厦、莲花图案",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/BA118169-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/BA118169-2.jpg"
                         }
                     ]
                 },
                 {
-                    varietyName: "澳门币20元",
+                    varietyName: "澳门币20元 大三巴牌坊",
                     copies: [
                         {
                             copyId: 26626159,
@@ -125,7 +125,7 @@ const macau_bocData = {
                             signature: "澳门分行总经理：叶一新",
                             faceDate: "2008年8月8日",
                             size: "140mm*69mm",
-                            remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AR921648-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AR921648-2.jpg"
                         },
@@ -141,7 +141,7 @@ const macau_bocData = {
                             signature: "澳门分行行长：叶一新",
                             faceDate: "2013年7月1日",
                             size: "140mm*69mm",
-                            remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AJ008699-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AJ008699-2.jpg"
                         }
@@ -159,7 +159,7 @@ const macau_bocData = {
             },
             varieties: [
                 {
-                    varietyName: "澳门元20元",
+                    varietyName: "澳门元20元 澳门科学馆",
                     copies: [
                         {
                             copyId: 22583754,
@@ -173,14 +173,14 @@ const macau_bocData = {
                             signature: "澳门分行行长：李光",
                             faceDate: "2020年5月18日",
                             size: "143mm*71.5mm",
-                            remark: "正面：大三巴牌坊；背面：澳门中银大厦、莲花图案",
+                            remark: "案",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AN090100-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AN090100-2.jpg"
                         }
                     ]
                 },
                 {
-                    varietyName: "澳门元50元",
+                    varietyName: "澳门元50元 镜湖医院历史纪念馆",
                     copies: [
                         {
                             copyId: 23978672,
@@ -194,7 +194,7 @@ const macau_bocData = {
                             signature: "澳门分行行长：贾元兵",
                             faceDate: "2020年5月18日",
                             size: "148mm*74mm",
-                            remark: "正面：岗顶剧院；背面：澳门中银大厦、莲花图案",
+                            remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AB235738-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AB235738-2.jpg"
                         }

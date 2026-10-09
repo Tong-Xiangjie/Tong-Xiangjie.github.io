@@ -199,7 +199,7 @@ const rmb4Data = {
         },
         // ==================== 1元（有多个年份，需要varieties层） ====================
         {
-            seriesName: "1元",
+            seriesName: "1元 万里长城",
             year: "1980～1996",
             varieties: [
                 {
@@ -311,7 +311,7 @@ const rmb4Data = {
         },
         // ==================== 2元（有多个年份，需要varieties层） ====================
         {
-            seriesName: "2元",
+            seriesName: "2元 南天一柱",
             year: "1980～1990",
             varieties: [
                 {
@@ -400,7 +400,7 @@ const rmb4Data = {
         },
         // ==================== 5元（只有1980年，无varieties层） ====================
         {
-            seriesName: "5元",
+            seriesName: "5元 长江巫峡",
             year: "1980",
             copies: [
                 {
@@ -442,7 +442,7 @@ const rmb4Data = {
         },
         // ==================== 10元（只有1980年，无varieties层） ====================
         {
-            seriesName: "10元",
+            seriesName: "10元 珠穆朗玛峰",
             year: "1980",
             copies: [
                 {
@@ -467,7 +467,7 @@ const rmb4Data = {
         },
         // ==================== 50元（有多个年份，需要varieties层） ====================
         {
-            seriesName: "50元",
+            seriesName: "50元 壶口瀑布",
             year: "1980～1990",
             varieties: [
                 {
@@ -503,7 +503,7 @@ const rmb4Data = {
         },
         // ==================== 100元（有多个年份，需要varieties层） ====================
         {
-            seriesName: "100元",
+            seriesName: "100元 井冈山",
             year: "1980～1990",
             varieties: [
                 {

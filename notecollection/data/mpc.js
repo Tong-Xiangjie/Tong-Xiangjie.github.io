@@ -17,7 +17,7 @@ const mpcData = {
     ],
     series: [
         {
-            seriesName: "1965年 1分",
+            seriesName: "1965年 1分 运输机",
             year: "1979",
             copies: [
                 {

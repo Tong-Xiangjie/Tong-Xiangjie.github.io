@@ -22,7 +22,7 @@ const rmb5Data = {
     series: [
         // ==================== 1元 ====================
         {
-            seriesName: "1元",
+            seriesName: "1元 三潭印月",
             year: "1999～2019",
             varieties: [
                 {
@@ -111,7 +111,7 @@ const rmb5Data = {
         },
         // ==================== 5元 ====================
         {
-            seriesName: "5元",
+            seriesName: "5元 五岳独尊",
             year: "1999～2020",
             varieties: [
                 {
@@ -238,7 +238,7 @@ const rmb5Data = {
         },
         // ==================== 10元 ====================
         {
-            seriesName: "10元",
+            seriesName: "10元 长江三峡",
             year: "1999～2019",
             varieties: [
                 {
@@ -332,7 +332,7 @@ const rmb5Data = {
         },
         // ==================== 20元 ====================
         {
-            seriesName: "20元",
+            seriesName: "20元 桂林山水",
             year: "1999～2019",
             varieties: [
                 {
@@ -408,7 +408,7 @@ const rmb5Data = {
         },
         // ==================== 50元 ====================
         {
-            seriesName: "50元",
+            seriesName: "50元 布达拉宫",
             year: "1999～2019",
             varieties: [
                 {
@@ -467,7 +467,7 @@ const rmb5Data = {
         },
         // ==================== 100元 ====================
         {
-            seriesName: "100元",
+            seriesName: "100元 人民大会堂",
             year: "1999～2015",
             varieties: [
                 {

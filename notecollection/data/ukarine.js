@@ -23,7 +23,7 @@ const ukarineData = {
             year: "2023～2024",
             varieties: [
                 {
-                    varietyName: "2023年 20格里夫纳（Hryven） 俄乌战争1周年纪念钞",
+                    varietyName: "2023年 20格里夫纳（Hryven） 俄乌战争1周年纪念钞 “我们不会忘记”",
                     year: "2023",
                     copies: [
                         {
@@ -46,7 +46,7 @@ const ukarineData = {
                     ]
                 },
                 {
-                    varietyName: "2024年 50格里夫纳（Hryven） 俄乌战争2周年纪念钞",
+                    varietyName: "2024年 50格里夫纳（Hryven） 俄乌战争2周年纪念钞 “团结拯救世界”",
                     year: "2024",
                     copies: [
                         {
