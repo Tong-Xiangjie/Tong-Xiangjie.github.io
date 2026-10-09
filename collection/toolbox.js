@@ -6766,6 +6766,9 @@ function toolboxWinFit(w, h, left, top) {
 function toolboxWinApply(geo) {
     const card = toolboxTpl && toolboxTpl.card;
     if (!card) return;
+    // 几何一变，正在飞的影子层就落到错的矩形上了（拖动/缩放/全屏/视口变化…）：
+    // 一律先收掉动画再改尺寸 —— 收掉只是摘影子层 + 复位弹窗 opacity，不会碰任何内容。
+    if (toolboxFlightEl) toolboxFlightCancel();
     const g = toolboxWinFit(geo.w, geo.h, geo.left, geo.top);
     toolboxWin.left = g.left; toolboxWin.top = g.top; toolboxWin.w = g.w; toolboxWin.h = g.h;
     toolboxWin.ready = true;
@@ -6775,6 +6778,344 @@ function toolboxWinApply(geo) {
     card.style.height = g.h + 'px';
     card.style.maxHeight = 'none';
     return g;
+}
+
+// ========== 动画：与站内「图片放大 / 缩小」**同一套做法、同一组参数** ==========
+// 站内那套在 collection/category-view.js（startModalFlight / cancelModalFlight / closeModal）：
+//   · 手段：**克隆层 + FLIP** —— 往 document.body 挂一个影子元素，先把它摆到**终态矩形**
+//     （left/top/width/height 就是终态），再用 transform: translate(dx,dy) scale(s) 反演回
+//     **起点矩形**，void offsetWidth 逼出第一帧，然后 transition: transform … 收尾到 transform: none；
+//   · 时长：320ms（MODAL_FLIGHT_MS）；
+//   · 缓动：cubic-bezier(.22,.61,.36,1)（MODAL_FLIGHT_EASE，与 layout.css 的 --ease-out 同一条曲线）；
+//   · 收尾：transitionend（一次性）+ setTimeout(时长 + 80ms) 兜底，done 保证只收一次；
+//   · 真实元素在飞行期间 modalImg.style.opacity = '0'（只动 opacity），落地回调里恢复；
+//   · prefersReducedMotion()（core.js）为真时**整段跳过**，CSS 侧也是同口径的媒体查询；
+//   · 取消：cancelModalFlight() 清定时器 + 摘掉克隆层。
+// 工具箱三处动画（全屏 ⇄ 小屏、打开、关闭）逐条复用上面这一套：同样的克隆层 + 同样的反演
+// 数学 + 同样的 320ms 与同一条缓动曲线 + 同样的 transitionend/超时双收尾 + 同样的
+// prefersReducedMotion 闸门 + 同样的"取消即清理"语义。
+// （影子层"按哪个矩形排版、往哪边变换"有两点必要的推广，见 toolboxFlightStart 上面的说明。）
+// ★ 唯一必须的差别：影子层克隆的是**整张卡片**（cloneNode(true)），而真实卡片只被压成
+//   opacity:0，**绝不在真实卡片上写 transform**。两条理由：
+//   ① 站内既有用例（(14) 全屏）点完按钮 220ms 就量 .tb-card 的矩形并与视口比对 ——
+//      真实卡片上只要有 transform，量到的就是"缩放中的矩形"，等于动画动了布局；
+//   ② 编辑区/代码区的滚动同步与行号栏都按 getBoundingClientRect 换算，真实卡片不带
+//      transform，这些换算在动画期间也一直是准的（受保护的五个函数一行都不用碰）。
+//   用 opacity:0 而不是 visibility/display 隐藏，是因为 opacity:0 的元素**依然可点**：
+//   飞行期间连点"全屏"、点"关闭"照常命中真实按钮，不会被遮罩吃掉。
+// ★ 影子层要"一眼看不出假"：cloneNode 不拷运行时状态，必须成对补齐 textarea/input 的
+//   value 与所有可滚动容器的 scrollTop/scrollLeft；另外必须摘掉所有 id / data-tb*
+//   （站内到处是 getElementById 与 [data-tb] 委托，留着就会出现"动画期间查到两个同名元素"）。
+const TOOLBOX_FLIGHT_MS = 320;                              // = category-view.js 的 MODAL_FLIGHT_MS
+const TOOLBOX_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';  // = MODAL_FLIGHT_EASE = layout.css 的 --ease-out
+const TOOLBOX_FLIGHT_XFADE_MS = 100;                        // 落地交叉淡出的时长（飞行最后 100ms）
+const TOOLBOX_FLIGHT_XFADE_DELAY = TOOLBOX_FLIGHT_MS - TOOLBOX_FLIGHT_XFADE_MS;   // 220ms 起，和位移同一条时间轴
+let toolboxFlightEl = null;        // 正在飞的克隆层（同时只允许一个：新动画开始前先取消旧的）
+let toolboxFlightTimer = 0;        // 超时兜底（过渡没触发也要收尾）
+let toolboxFlightDimmed = null;    // 这一轮压暗的是谁：'modal'（打开）/ 'card'（全屏切换）/ null
+
+// 克隆整张卡片做影子层（外观、层级、pointer-events 见 toolbox.css 的 .tb-flight-clone；
+// aria-hidden 在函数末尾设，纯画面不进辅助技术/tab 序列）
+function toolboxFlightClone(card) {
+    if (!card) return null;
+    const c = card.cloneNode(true);
+    const all = [c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
+    // ① 摘掉影子层里所有 id 与 data-tb*：否则 getElementById / 事件委托会命中影子层
+    for (let i = 0; i < all.length; i++) {
+        const el = all[i];
+        if (!el.removeAttribute) continue;
+        el.removeAttribute('id');
+        el.removeAttribute('contenteditable');
+        const attrs = el.attributes;
+        if (!attrs || !attrs.length) continue;
+        const drop = [];
+        for (let k = 0; k < attrs.length; k++) {
+            const n = attrs[k].name;
+            if (n.indexOf('data-tb') === 0) drop.push(n);
+        }
+        for (let k = 0; k < drop.length; k++) el.removeAttribute(drop[k]);
+    }
+    // ② 成对补齐运行时状态：表单值 + 滚动位置（否则影子层里代码区是空的、编辑区跳回顶部）
+    const src = [card].concat(Array.prototype.slice.call(card.querySelectorAll('*')));
+    for (let i = 0; i < src.length; i++) {
+        const a = src[i], b = all[i];
+        if (!a || !b) continue;
+        const tag = a.tagName;
+        if (tag === 'TEXTAREA' || tag === 'INPUT') {
+            try { b.value = a.value; } catch (e) {}
+            try { if (a.type === 'checkbox' || a.type === 'radio') b.checked = a.checked; } catch (e) {}
+        }
+        if (a.scrollTop || a.scrollLeft) {
+            try { b.scrollTop = a.scrollTop; b.scrollLeft = a.scrollLeft; } catch (e) {}
+        }
+    }
+    // ③ 影子层挂在 body 上，所以定位原点得是视口（卡片自己是 .tb-modal 里的 absolute，
+    //    而 body 在弹窗打开时是 position:fixed —— 不改成 fixed 就会被 body 的 top 带偏）
+    c.style.position = 'fixed';
+    c.style.maxHeight = 'none';
+    c.style.margin = '0';
+    // 纯画面：对辅助技术藏起来（影子层里的按钮不该被读屏念一遍、也不该进 tab 序列）。
+    // 真按键会立刻收掉动画（见 toolboxBindFlightCancel），所以不存在"焦点停在影子上"的窗口。
+    c.setAttribute('aria-hidden', 'true');
+    // ★★ 这个类不能少：.tb-flight-clone（toolbox.css）负责 animation:none（否则影子层
+    //    跟着 .tb-card 一起播 tbIn，CSS 动画会盖掉内联 transform，飞行直接失效）、
+    //    pointer-events:none（飞行期间点击必须打到真实卡片）、z-index 1210（压主弹窗、被 toast 压）。
+    if (c.classList) c.classList.add('tb-flight-clone');
+    return c;
+}
+
+// 取消当前飞行并**彻底清干净**（幂等）：摘克隆层 + 复位真实弹窗的 opacity/transition。
+// 连点全屏、开了立刻关、关了立刻开都靠它保证"同时只有一个动画、且一定落到正确终态"。
+function toolboxFlightCancel() {
+    if (toolboxFlightTimer) { clearTimeout(toolboxFlightTimer); toolboxFlightTimer = 0; }
+    if (toolboxFlightEl) {
+        const el = toolboxFlightEl;
+        toolboxFlightEl = null;
+        el.style.willChange = '';
+        if (el.parentNode) el.parentNode.removeChild(el);
+    }
+    // 精确复原"被压暗的那一层"：只知道"压过"是不够的，压的是弹窗还是卡片得分开记，
+    // 否则复原错了目标就会留下"真实卡片彻底看不见、却还能点"的状态。
+    if (toolboxFlightDimmed === 'modal') {
+        const modal = toolboxTpl && toolboxTpl.modal;
+        if (modal) {
+            modal.style.opacity = '';
+            modal.style.transition = '';
+        }
+    } else if (toolboxFlightDimmed === 'card') {
+        const card = toolboxTpl && toolboxTpl.card;
+        if (card) {
+            // ★ transition 必须先写成 none，不能只是"清空内联"：落地交叉淡出给卡片挂的那条
+            //   opacity 过渡（100ms + 220ms delay）在打断时**不会**因为内联被清掉而消失 ——
+            //   清空后计算值退回 CSS 的 all，opacity 仍在属性列表里，Chrome 会保留这个实例继续跑
+            //   （实测：飞行中按键打断后，卡片被它摁在 opacity:0 上直到 320ms 才回来 ⇒ 用户看到
+            //    "一按键卡片先消失一下"）。写成 none ⇒ 属性不在列表里 ⇒ 实例当场取消，可见性立刻生效。
+            card.style.transition = 'none';
+            card.style.opacity = '';
+            toolboxFlightClearCardTransition(card);
+        }
+    }
+    // tbIn 的压制（toolboxFlightDimCard 里设的 animation:none）只在**弹窗已经隐藏**时才撤：
+    // 弹窗还开着的时候撤掉，computed animation-name 立刻由 none 变回 tbIn ⇒ 入场动画当场重跑，
+    // 用户看到的又是一次"淡入 + 1% 缩放"的跳变。隐藏时撤掉则是无害的（下次打开照常播入场动画）。
+    // 取消过渡用的那条 transition:none 同理：弹窗还开着时留着（它正负责把过渡实例压掉），
+    // 由下一帧的 toolboxFlightClearCardTransition 撤；弹窗已隐藏时这里直接撤干净。
+    // 这两条都不看工具箱的压暗标记：标记可能早就复位了，而内联样式还挂在卡片上。
+    const modalNow = toolboxTpl && toolboxTpl.modal;
+    const cardNow = toolboxTpl && toolboxTpl.card;
+    if (cardNow && (!modalNow || modalNow.style.display !== 'flex')) {
+        if (cardNow.style.animation) cardNow.style.animation = '';
+        if (cardNow.style.transition === 'none') cardNow.style.transition = '';
+    }
+    toolboxFlightDimmed = null;
+    return true;
+}
+
+// 撤掉上面那条"取消过渡用"的内联 transition:none —— 必须等到下一个任务再撤：
+// 同一个任务里写回空串等于什么都没写（过渡实例还在）；而延后一格撤既不影响取消效果，
+// 也不会留下内联残留。期间若又起了新的飞行，就交给新飞行自己的过渡，不能抹掉。
+function toolboxFlightClearCardTransition(card) {
+    if (!card) return;
+    if (typeof requestAnimationFrame !== 'function') { card.style.transition = ''; return; }
+    requestAnimationFrame(function () {
+        if (!toolboxFlightEl && card.style.transition === 'none') card.style.transition = '';
+    });
+}
+
+// 正在飞吗（给关闭/复位的调用方与用例探针用）
+function toolboxFlightBusy() { return !!toolboxFlightEl; }
+
+// 与 startModalFlight 同构：把影子层从 fromRect 飞到 toRect。
+// ★ 与图片那套的两点差别（都写清楚，免得后人以为是抄漏了）：
+//   ① 影子层永远按"两个矩形里**大的那个**"排版。卡片在 144×36 这种尺寸下内部布局是崩的
+//      （工具栏换行、编辑区高度归零、代码区没高度），所以只能"大矩形排版 + transform 缩到
+//      小矩形"，不能反过来。图片那套之所以按落地矩形排版，是因为图片内容跟尺寸无关。
+//   ② 两个方向各自缩放（scale(sx, sy)），不是图片那套的等比 scale(s)：
+//      缩略图与原图**等比**（category-view.js 里明确写了这个前提），而入口按钮 144×36 与
+//      窗口 1361×722 根本不同比 —— 等比缩放会让首帧/末帧的矩形对不上（末帧"啪"地跳一下）。
+//      分轴缩放之后，首末两帧分别与源/目标矩形逐像素重合。
+// dimTarget：这一轮压暗谁 —— 'modal'（打开：连遮罩一起，压得住 tbIn）/ 'card'（全屏⇄小屏：
+// 只压卡片，遮罩绝不能闪）/ null（关闭：弹窗当帧就 display:none，没什么可压）。
+function toolboxFlightStart(fromRect, toRect, clone, onDone, dimTarget) {
+    toolboxFlightCancel();                     // 先收掉上一次飞行（顺带把压暗复位）
+    if (!clone || !fromRect || !toRect) return 0;
+    if (fromRect.width < 2 || fromRect.height < 2 || toRect.width < 2 || toRect.height < 2) return 0;
+    // ★ 顺序即规格（改这里前先看这段注释）：
+    //   ① 先把真实的那一层压暗 —— 必须在**插入影子层之前**、同一个任务里；
+    //   ② 影子层**内联**带上反演到起点的 transform（和它依赖的 transform-origin），**再**插入 DOM；
+    //   ③ 强制一次样式重算，把"起点状态"提交给渲染器（必须在反演 transform 就位之后）；
+    //   ④ **下一帧**（rAF）才开 transition、播放到另一端。
+    //   这样任何一帧都不会出现"终态位置的那一层"：首帧就是起点位置的影子层。
+    //   （旧版把压暗放在调用方、而 start 开头的 cancel 又把它撤销了，等于从没压暗过 ——
+    //     于是真实卡片整段飞行都以终态显示着，用户看到的"多一层先突现、另一层再飞上去盖住"
+    //     就是它：突现的那层是真实卡片，飞过去盖住它的是影子层。）
+    const modal = toolboxTpl && toolboxTpl.modal;
+    const card = toolboxTpl && toolboxTpl.card;
+    if (dimTarget === 'modal') toolboxFlightDimModal(modal);
+    else if (dimTarget === 'card') toolboxFlightDimCard(card);
+    const fromArea = fromRect.width * fromRect.height;
+    const toArea = toRect.width * toRect.height;
+    const atFrom = fromArea >= toArea;          // true：按起点排版、向终点变换；false：按终点排版、从起点变换回来
+    // ★ 目标是小窗的两条路（关闭、全屏→小窗）要额外做一次**落地交叉淡出**。
+    //   影子层永远按"两端里的大矩形"排版（见上面 ① 的说明），所以落到小矩形时它是"大布局被压扁"，
+    //   而真实小窗有自己的布局（工具栏换行、编辑区/代码区比例都不同）—— 直接换人就是用户看到的
+    //   "最后一帧突变一下"。交叉之后这一下发生在半透明状态下，肉眼看不到。
+    //   判据就是 atFrom：影子层按**起点**（大矩形）排版 ⇔ 终点是小矩形。
+    //   目标是大窗的两条路（打开、小窗→全屏）落地那一帧影子层与真实大窗逐像素一致，不加交叉
+    //   （多一次淡入反而会看出"淡进来"）。
+    const crossFade = atFrom;
+    const box = atFrom ? fromRect : toRect;
+    const other = atFrom ? toRect : fromRect;
+    const sx = other.width / box.width;
+    const sy = other.height / box.height;
+    const dx = (other.left + other.width / 2) - (box.left + box.width / 2);
+    const dy = (other.top + other.height / 2) - (box.top + box.height / 2);
+    const mapped = 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')';
+    const identity = 'translate(0px,0px) scale(1,1)';
+    clone.style.left = box.left + 'px';
+    clone.style.top = box.top + 'px';
+    clone.style.width = box.width + 'px';
+    clone.style.height = box.height + 'px';
+    clone.style.transformOrigin = '50% 50%';    // 内联写死：反演数学依赖它，不指望外部样式
+    clone.style.transform = atFrom ? identity : mapped;
+    // 交叉淡出的起点值也在这里落定（影子层满、真实那一层已被压到 0），
+    // 下一帧开过渡时才有确定的"从哪开始"。
+    if (crossFade) clone.style.opacity = '1';
+    clone.style.willChange = 'transform';
+    try {
+        document.body.appendChild(clone);       // 插入时就已经在起点位置上
+        toolboxFlightEl = clone;
+        // ③ 强制样式重算：把"起点状态"落到渲染器（这一步在反演 transform 之后才安全）
+        if (typeof getComputedStyle === 'function') getComputedStyle(clone).transform;
+    } catch (e) {
+        toolboxFlightCancel();                  // 异常路径也要把弹窗恢复可见（绝不能"看不见但可点"）
+        return 0;
+    }
+    let done = false;
+    const finish = function () {
+        if (done) return;
+        done = true;
+        if (clone.removeEventListener) clone.removeEventListener('transitionend', onEnd);
+        toolboxFlightCancel();                 // 清干净：影子层摘掉、弹窗 opacity/transition 复位（恢复可见）
+        if (onDone) onDone();
+    };
+    // ④ 下一帧才开过渡、播放到另一端；rAF 只是"让首帧先画出来"，不保证一定来
+    //    （标签页在后台时它不来），所以下面的超时兜底照常先注册，兜底里也会收尾。
+    //    交叉淡出与位移**同一条时间轴**（同一次 play() 里下发，靠 transition-delay 错开）：
+    //    影子层 1→0、真实卡片 0→1，都在 220ms→320ms 这一段完成 —— 不是"等位移走完再淡"。
+    const play = function () {
+        if (toolboxFlightEl !== clone) return;  // 期间被取消/换掉了：什么都不做
+        const move = 'transform ' + TOOLBOX_FLIGHT_MS + 'ms ' + TOOLBOX_FLIGHT_EASE;
+        if (crossFade) {
+            const fade = 'opacity ' + TOOLBOX_FLIGHT_XFADE_MS + 'ms ' + TOOLBOX_FLIGHT_EASE
+                + ' ' + TOOLBOX_FLIGHT_XFADE_DELAY + 'ms';
+            clone.style.transition = move + ', ' + fade;
+            clone.style.opacity = '0';
+            // 真实卡片本来就被压到 opacity:0（dimTarget==='card'），这里让它同步淡回来；
+            // 关闭那一路弹窗已经 display:none，没有能一起淡入的真实层，就是单边淡出。
+            if (card && toolboxFlightDimmed === 'card') {
+                card.style.transition = fade;
+                card.style.opacity = '1';
+            }
+        } else {
+            clone.style.transition = move;
+        }
+        clone.style.transform = atFrom ? mapped : identity;
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(play);
+    else play();
+    // ★ 只认**克隆层自己**的过渡：卡片里有一堆带 transition 的子元素（按钮的 background-color
+    //   等），它们的 transitionend 会冒泡上来，不过滤就会提前收尾。
+    //   图片那套飞的是叶子 <img>，天然没有这个问题 —— 这里是必须补上的一步。
+    // ★ 交叉淡出时还必须等 opacity 的过渡也结束：影子层要**淡到 0 之后**才允许摘掉，
+    //   否则最后仍是"啪"地一下换人。两个属性都到齐（或超时兜底）才算完。
+    const pending = { transform: 1 };
+    if (crossFade) pending.opacity = 1;
+    const onEnd = function (e) {
+        if (e && e.target !== clone) return;
+        const prop = (e && e.propertyName) ? e.propertyName : 'transform';
+        if (!pending[prop]) return;
+        delete pending[prop];
+        if (!Object.keys(pending).length) finish();
+    };
+    clone.addEventListener('transitionend', onEnd);
+    // 兜底：比"过渡时长"多留 120ms，把 rAF 那一帧的延迟也算进去（图片那套是 +80）
+    toolboxFlightTimer = setTimeout(finish, TOOLBOX_FLIGHT_MS + 120);
+    return 1;
+}
+
+// 让"真实的那一层"在飞行期间隐身（只动 opacity）。按路径选压谁，都是同一件事：
+// 屏幕上同一时刻只该有影子层，任何一帧都不许出现"终态位置的那一层"。
+//   · 'modal'（打开）：压**整个弹窗**（含遮罩）。打开时卡片自己的入场动画 tbIn 正在跑，
+//     而 CSS 动画会盖掉内联 opacity —— 只有连遮罩一起压暗才压得住；遮罩本来也是跟着弹窗
+//     一起出现的，收尾那一帧才显形（用户规定的顺序：先压暗、再插影子层、收尾复原）。
+//   · 'card'（全屏 ⇄ 小屏）：只压**卡片**。这时弹窗一直开着，遮罩**绝不能跟着闪** ——
+//     全屏切换让背景忽明忽暗是另一个可见缺陷；而且全屏切换不触发 tbIn（它只在 display
+//     变化时才跑），所以卡片自己的内联 opacity 说了算，不需要别的花招。
+//   · null（关闭）：什么都不用压 —— 弹窗当帧就 display:none 了。
+// ★ opacity:0 的元素**照常参与命中测试**：飞行期间连点"全屏"、点"关闭"照样命中真实按钮。
+// ★ 压暗必须在**插入影子层之前**、同一个任务里做（见 toolboxFlightStart 的顺序说明）。
+function toolboxFlightDimModal(modal) {
+    if (!modal) return 0;
+    modal.style.transition = 'none';   // 不许它自己动（将来 CSS 若加了 transition 也不会跑偏）
+    modal.style.opacity = '0';
+    toolboxFlightDimmed = 'modal';
+    return 1;
+}
+function toolboxFlightDimCard(card) {
+    if (!card) return 0;
+    // ★ 必须同时压住卡片自己的入场动画 tbIn：`.tb-full` 这个类上挂着 animation:none，
+    //   全屏→小屏时类被摘掉，computed animation-name 由 none 变回 tbIn ⇒ 入场动画**重新起跑**
+    //   （实测 currentTime 从 0 开始跑满 220ms）。而 CSS 动画的优先级高于 transition ——
+    //   不压住它，落地交叉淡出里"真实卡片 0 → 1"这一半就完全被它接管：卡片在飞行**前 220ms**
+    //   就淡完了，比例切换仍然发生在影子层完全不透明的时候，用户照样看到突变。
+    //   压到什么时候：必须留到弹窗关闭（见 toolboxFlightCancel / toolboxClose）——
+    //   飞行一结束就撤掉会让 tbIn 当场重跑，落地那一帧反而多出一次淡入 + 1% 缩放。
+    card.style.animation = 'none';
+    card.style.opacity = '0';
+    toolboxFlightDimmed = 'card';
+    return 1;
+}
+
+// 触发按钮（#toolboxOpenBtn，在「我的」页面里由 settings.js 渲染）此刻的矩形。
+// 按钮不在 DOM / 不可见（手机态、页面切走、被重新渲染掉、滚出视口）时返回 null → 这次不做动画。
+function toolboxFlightSourceRect() {
+    const btn = document.getElementById('toolboxOpenBtn');
+    if (!btn || !btn.getBoundingClientRect) return null;
+    const r = btn.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return null;
+    return r;
+}
+
+// 打开动画：从入口按钮"长"成弹窗（图片那套是缩略图→大图，这里是按钮→弹窗）
+// 压暗弹窗、插入影子层、开过渡的**顺序**全在 toolboxFlightStart 里统一保证，这里只管量矩形。
+function toolboxOpenFlight() {
+    const card = toolboxTpl && toolboxTpl.card;
+    const modal = toolboxTpl && toolboxTpl.modal;
+    if (!card || !modal || prefersReducedMotion()) return 0;
+    const from = toolboxFlightSourceRect();
+    if (!from) return 0;
+    const to = card.getBoundingClientRect();
+    if (to.width < 2) return 0;
+    // 打开：压暗整个弹窗（含遮罩）—— tbIn 正在卡片上跑，只有压住父级才压得住它
+    return toolboxFlightStart(from, to, toolboxFlightClone(card), null, 'modal');
+}
+
+// 关闭动画：克隆层飞回入口按钮（真实弹窗由 toolboxClose **同步**收干净，见那里的说明）
+function toolboxCloseFlight(from, to) {
+    const card = toolboxTpl && toolboxTpl.card;
+    if (!card || !from || !to || prefersReducedMotion()) return 0;
+    // 关闭：弹窗当帧就 display:none 了，没有需要压暗的层
+    return toolboxFlightStart(from, to, toolboxFlightClone(card), null, null);
+}
+
+// 飞行期间用户一动手就立刻收掉动画（弹出终态）：保证"能继续输入、光标可见"，
+// 也保证紧接着的拖动/缩放/点击量到的都是真实几何。capture 阶段挂，不拦截事件本身。
+function toolboxBindFlightCancel(modal) {
+    if (!modal) return;
+    const stop = function () { if (toolboxFlightEl) toolboxFlightCancel(); };
+    modal.addEventListener('pointerdown', stop, true);
+    modal.addEventListener('keydown', stop, true);
 }
 
 // 全屏态：位置尺寸就是整个视口（仍然走 toolboxWinApply 这一条路）
@@ -6807,10 +7148,16 @@ function toolboxWinIconPaint(btn, full) {
     btn.setAttribute('aria-label', full ? '退出全屏' : '全屏');
 }
 
-function toolboxWinSetFull(on) {
+function toolboxWinSetFull(on, animate) {
     const card = toolboxTpl && toolboxTpl.card;
     if (!card) return;
     if (on === toolboxWin.full) return;
+    const modal = toolboxTpl.modal;
+    // 动画闸门：① 调用方允许（关窗顺手退全屏时不飞，弹窗正在关）② 没要求减动效
+    // ③ 弹窗真的开着（display:flex）。三条都满足才飞，否则照旧瞬间切换。
+    const fly = (animate !== false) && !prefersReducedMotion()
+        && !!modal && modal.style.display === 'flex';
+    const from = fly ? card.getBoundingClientRect() : null;   // 旧矩形：改布局**之前**量
     if (on) {
         toolboxWin.prev = { left: toolboxWin.left, top: toolboxWin.top, w: toolboxWin.w, h: toolboxWin.h };
         toolboxWin.full = true;
@@ -6825,6 +7172,19 @@ function toolboxWinSetFull(on) {
     }
     // 全屏中显示"两个叠起来的方框"（还原），非全屏显示"一个方框"（进入全屏）
     toolboxWinIconPaint(toolboxTpl.fullBtn, toolboxWin.full);
+    // 全屏 ⇄ 小屏：与图片放大/缩小同一套（影子层从旧矩形飞到新矩形，真实卡片被压暗）。
+    // 这里只压**卡片**：弹窗一直开着，遮罩跟着闪就成了另一个可见缺陷（背景忽明忽暗）；
+    // 而且全屏切换不触发 tbIn，卡片自己的内联 opacity 说了算。
+    if (fly) {
+        const to = card.getBoundingClientRect();
+        // 影子层克隆"已经改好布局"的卡片：落地那一帧与真实卡片逐像素一致。
+        // 压暗/插入/开过渡的顺序由 toolboxFlightStart 统一保证（先压暗再插入，绝不先闪终态）。
+        toolboxFlightStart(from, to, toolboxFlightClone(card), null, 'card');
+    } else if (toolboxFlightEl) {
+        // 这次不飞（减动效 / 关窗顺手退全屏 / 弹窗没开）却还有影子层在飞：几何已经变了，
+        // 让它继续飞只会落在错的矩形上 —— 直接收掉。
+        toolboxFlightCancel();
+    }
 }
 
 function toolboxWinToggleFull() {
@@ -8005,6 +8365,9 @@ function toolboxOpen() {
     if (toolboxIsMobile()) return;
     const modal = toolboxTpl.modal;
     if (modal.style.display === 'flex') { toolboxFocusEditor(); return; }
+    // 上一次"关窗飞行"可能还在飞（关了立刻开）：先收干净，别让它落在按钮上、
+    // 也别和这次打开的影子层叠在一起。收掉只是摘掉影子层与复位 opacity，不动任何内容。
+    toolboxFlightCancel();
     toolboxCloseDialog();
     modal.style.display = 'flex';
     modal.classList.add('tb-open');
@@ -8048,15 +8411,32 @@ function toolboxOpen() {
     if (!toolboxDraftAskOpen) {
         requestAnimationFrame(function () { toolboxFocusEditor(); toolboxRestoreRange(); });
     }
+    // ★ 打开动画放在最后：布局、窗口尺寸、代码区/编辑区内容都已经落定，这时量到的
+    //   才是真终态矩形（与图片那套"先把 modal 显示好、再让克隆层飞进来"同一个顺序）。
+    toolboxOpenFlight();
 }
 
 function toolboxClose() {
     if (!toolboxTpl || !toolboxTpl.modal) return;
+    // ★ 关闭动画 = 克隆层飞回入口按钮（与图片缩小那套同源）。三个要点：
+    //   ① 起止矩形与影子层都在**收尾之前**备好：下面那整段会 display:none 并把卡片
+    //      的 left/top 清掉，之后再量就没得量了；
+    //   ② 真实弹窗**这一帧就**收干净（display:none 等一行都不延后）—— 站内既有用例
+    //      在 Esc 之后立刻断言 display === 'none'；动画绝不能把收尾推到 320ms 之后；
+    //   ③ 影子层是纯画面（pointer-events:none），收尾期间它挂在 body 上飞，飞完自摘。
+    toolboxFlightCancel();                    // 上一次飞行（比如打开还没飞完）先收掉：同时只允许一个
+    const closeCard = toolboxTpl.card;
+    const closeFrom = closeCard ? closeCard.getBoundingClientRect() : null;
+    const closeTo = prefersReducedMotion() ? null : toolboxFlightSourceRect();
+    const closeClone = (closeFrom && closeTo) ? toolboxFlightClone(closeCard) : null;
     toolboxCloseDialog();
     toolboxDraftAskHide();                   // 草稿询问弹窗在工具箱外面，关窗要一起收（**不动草稿本身**）
     toolboxTableMenuClose();                 // 表格右键菜单是浮层：关窗时一起收，别留在屏幕上
     toolboxTpl.modal.classList.remove('tb-open');
     toolboxTpl.modal.style.display = 'none';
+    // 弹窗已经隐藏 ⇒ 现在撤掉 tbIn 的压制是安全的（隐藏时撤，下次打开照常播入场动画；
+    // 飞行没跑或减动效时也要在这里撤，否则内联的 animation:none 会一直挂在卡片上）。
+    if (toolboxTpl.card) toolboxTpl.card.style.animation = '';
     document.body.classList.remove('tb-modal-open');
     // ★ 关闭时把状态清干净：Range 指向的节点可能已经被回收（"存档失效"就是这么来的），
     //   定时器/动画帧也要一起收，不给下次打开留残留。
@@ -8094,12 +8474,14 @@ function toolboxClose() {
         toolboxWinBox = { left: toolboxWin.left, top: toolboxWin.top, w: toolboxWin.w, h: toolboxWin.h };
     }
     toolboxWinUp(null);
-    toolboxWinSetFull(false);
+    toolboxWinSetFull(false, false);          // 关窗顺手退全屏：这里不飞（弹窗正在关，飞行由下面的收尾接手）
     window.removeEventListener('resize', toolboxWinOnViewportResize);
     // 关掉时把 inline 定位清掉（display:none 的窗口留着 left/top 没意义，
     // 而且下次是 toolboxWinApply(toolboxWinBox) 重新写回去，不会丢）
     if (toolboxTpl.card) { toolboxTpl.card.style.left = ''; toolboxTpl.card.style.top = ''; }
     toolboxWin.ready = false;
+    // 收尾都做完了，最后启动"飞回入口按钮"的影子层（前面已经量好矩形、克隆好外观）
+    if (closeClone) toolboxCloseFlight(closeFrom, closeTo);
 }
 
 function toolboxToggle() {
@@ -8316,6 +8698,7 @@ function initToolboxDOM() {
     if (!toolboxTpl.editor || !toolboxTpl.code) return;   // 结构不对：别把整个页面拖崩
 
     toolboxBindWindow();      // 顶栏拖动 + 八个缩放手柄（监听只在初始化时挂一次）
+    toolboxBindFlightCancel(modal);   // 飞行期间用户一动手就立刻收掉动画（见函数注释）
 
     // 手机上不提供：窗口缩窄 / 旋屏切到移动端状态时，把已经开着的工具箱关掉（不留残留遮罩）。
     // ★ 单独用 media query 的 change 事件（而不是 resize）：判定标准是 pointer/max-width，

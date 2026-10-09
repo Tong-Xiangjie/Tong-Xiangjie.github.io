@@ -7973,6 +7973,514 @@ const b8 = await u49Shot();
 ok(b8.order.join(',') === 'P,BR,P' && b8.code === '<p>甲</p>\n<br>\n<p>乙</p>' && b8.text === '甲乙',
   `(49)* 顺序不变量·空行上打字段落删空：又回到同一格的空行（顺序 ${b8.order.join('|')} / ${JSON.stringify(b8.code)}）`);
 
+// ==============================================================
+console.log('\n====== (50) 动画：全屏⇄小屏 / 打开 / 关闭（复用站内图片放大那套：320ms + cubic-bezier(.22,.61,.36,1)）======\n');
+// 现场快照：影子层（数量/矩形/变换/层级/能否被点到）+ 真实卡片与弹窗的矩形与内联残留。
+// ★ "只动 transform/opacity"这条硬要求就靠 cardInline/modalInline 这几个字段来验：
+//   动画结束后它们必须全是空串（不许留下任何内联 transform/transition/will-change/opacity）。
+const a50Shot = () => json(`(()=>{const card=document.querySelector('.tb-card'),modal=document.getElementById('toolboxModal');
+  const clones=[...document.querySelectorAll('.tb-flight-clone')]; const c=clones[0];
+  const cs=c?getComputedStyle(c):null;
+  const box=e=>{if(!e)return null;const r=e.getBoundingClientRect();return {l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height)};};
+  const toast=document.getElementById('tbToast');
+  return JSON.stringify({ clones:clones.length, cloneBox:box(c), cloneTf:cs?cs.transform:null,
+    cloneZ:cs?cs.zIndex:null, clonePE:cs?cs.pointerEvents:null, cloneAnim:cs?cs.animationName:null,
+    busy:(typeof toolboxFlightBusy==='function')?toolboxFlightBusy():null,
+    cardBox:box(card), cardFull:card.classList.contains('tb-full'),
+    // offsetWidth/Height 不受任何 transform 影响 —— 用来证明"动画期间布局一点没动"
+    cardOffset:{w:card.offsetWidth,h:card.offsetHeight},
+    cardInline:{tf:card.style.transform,tr:card.style.transition,wc:card.style.willChange,op:card.style.opacity,
+      an:card.style.animation},
+    modalInline:{op:modal.style.opacity,tr:modal.style.transition},
+    modalOpacity:getComputedStyle(modal).opacity, cardOpacity:getComputedStyle(card).opacity,
+    cardAnimName:getComputedStyle(card).animationName,
+    modalDisplay:getComputedStyle(modal).display, modalZ:getComputedStyle(modal).zIndex,
+    toastZ:toast?getComputedStyle(toast).zIndex:null,
+    bodyCls:document.body.className,
+    btn:(function(){const b=document.getElementById('toolboxOpenBtn');if(!b||!b.getBoundingClientRect)return null;
+      const r=b.getBoundingClientRect();return (r.width<2||r.height<2)?null:{l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height)};})()
+  });})()`);
+// 真鼠标点击（不等待）：中途采样必须用这个，clickSel 里那 220ms 会把动画等完
+const a50Click = async (sel) => { const b = await btnCenter(sel); if (b.none) throw new Error('找不到元素：' + sel); await clickAt(b.x, b.y); };
+const a50Open = async () => { await evaluate('toolboxOpen()'); await sleep(700); };
+const a50RectEq = (a, b) => Math.abs(a.l - b.l) <= 1 && Math.abs(a.t - b.t) <= 1 && Math.abs(a.w - b.w) <= 1 && Math.abs(a.h - b.h) <= 1;
+// "中间态确实存在"的采样器：按 40ms 连续看若干帧，只要**有一帧**严格落在两端之间就算命中。
+// 不写成"固定等 50ms 看一次"是因为无头 Chrome 偶尔会把过渡的首帧拖后一两帧（实测到过），
+// 那一帧仍然停在起点、会被误判成"瞬间跳变"。轮询只是把"确实动过"这件事看清楚，
+// 判据一步没松：真的瞬间跳变的话，轮询里一个中间帧都不可能命中（终态时影子层已经摘掉了）。
+const a50SampleUntil = async (cond, tries, gap) => {
+  let last = null;
+  for (let i = 0; i < tries; i++) {
+    last = await a50Shot();
+    if (cond(last)) return { hit: true, s: last, i };
+    await sleep(gap);
+  }
+  return { hit: false, s: last, i: tries };
+};
+const a50Between = (s, from, to) => !!s.cloneBox
+  && s.cloneBox.w > Math.min(from.w, to.w) + 4 && s.cloneBox.w < Math.max(from.w, to.w) - 4
+  && s.cloneBox.h > Math.min(from.h, to.h) + 4 && s.cloneBox.h < Math.max(from.h, to.h) - 4;
+const a50Inverse = (f) => f.clones === 1 && f.busy === true && typeof f.tf === 'string' && f.tf !== 'none'
+  && f.tf.indexOf('matrix') === 0 && /translate\(/.test(f.tfInline) && /scale\(/.test(f.tfInline)
+  && f.originInline === '50% 50%';
+// 首帧"该隐身的都隐身了"——按路径分两种压暗目标（见 toolbox.js 里 toolboxFlightDim* 的注释）：
+//   打开 = 压整个弹窗（卡片上正跑着 tbIn，CSS 动画会盖掉内联 opacity，只能压父级）；
+//   全屏⇄小屏 = 只压卡片（弹窗一直开着，遮罩 opacity 必须保持 1 —— 背景不许跟着闪）。
+const a50FirstDimModal = (f) => f.modalInlineOp === '0' && f.modalOpacity === '0' && f.cardOpacity === '0'
+  && !f.cardTf && f.hitInside === true;
+const a50FirstDimCard = (f) => f.cardInlineOp === '0' && f.cardOpacity === '0' && f.modalOpacity === '1'
+  && !f.cardTf && f.hitInside === true;
+// 关窗那条路弹窗已经 display:none（computed opacity 仍是 1，但根本不参与绘制）
+const a50FirstHidden = (f) => f.display === 'none' && f.modalInlineOp === '' && !f.cardTf;
+const a50CenterDist = (r, o) => Math.hypot((r.l + r.w / 2) - (o.l + o.w / 2), (r.t + r.h / 2) - (o.t + o.h / 2));
+// 卡片"真的看得见"的判据：卡片此刻若在渲染树里，计算 opacity 必须是 1。
+// ★ 弹窗 display:none 时**不能**看卡片的计算值：卡片上挂着 tbIn 动画，元素不在渲染树里时
+//   Chrome 会把被动画的属性解析到 from 关键帧（opacity:0）—— 那是浏览器语义，不是我们压暗的。
+//   所以关窗路径只认"内联压暗已清空"（下次显示出来必然是可见的）。
+const a50CardVisible = (s) => !s.cardInline.op && (s.modalDisplay === 'none' || s.cardOpacity === '1');
+// 终态"干净"：卡片/弹窗上不许留任何内联动画属性，且**两层都要恢复可见**。
+// 恢复那一条是用户明确要求的护栏：任何收尾路径漏了复原，就会出现"卡片彻底看不见但还能点"。
+const a50Clean = (s) => !s.cardInline.tf && !s.cardInline.tr && !s.cardInline.wc && !s.cardInline.op
+  && !s.modalInline.op && !s.modalInline.tr && s.modalOpacity === '1' && a50CardVisible(s);
+// 飞行中"该隐身的都隐身了"（两条路各一条）。
+// ★ 这两条就是"多一层突现"那个缺陷的看门狗：压暗一旦失效（或被 start 开头的 cancel 撤销），
+//   真实卡片就会以终态位置显形，这里立刻红。
+const a50MidModalHidden = (s) => s.modalInline.op === '0' && s.modalOpacity === '0'
+  && !s.cardInline.tf && !s.cardInline.tr && !s.cardInline.wc;
+const a50MidCardHidden = (s) => s.cardInline.op === '0' && s.cardOpacity === '0' && s.modalOpacity === '1'
+  && !s.cardInline.tf && !s.cardInline.tr && !s.cardInline.wc;
+// 首帧探针：**同步**触发（同一任务内，中间绝不经过 rAF——rAF 才是开始播放的那一步）
+// 然后立刻读影子层与真实那一层。用来钉死"任何一帧都不许出现终态位置的那一层"：
+//   · 影子层必须已经带着反演到起点的 transform（不是 none、不是终态）；
+//   · 影子层矩形必须等于**起点**矩形；
+//   · 同一时刻真实那一层必须已经隐身，所以看不到"以终态突现的真实卡片"。
+const a50First = (triggerJs) => json(`(()=>{ ${triggerJs};
+  const c=document.querySelector('.tb-flight-clone'); const m=document.getElementById('toolboxModal');
+  const card=document.querySelector('.tb-card');
+  const box=e=>{if(!e)return null;const r=e.getBoundingClientRect();return {l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height)};};
+  const fb=document.getElementById('tbFullBtn'); const fr=fb.getBoundingClientRect();
+  const hit=document.elementFromPoint(fr.left+fr.width/2, fr.top+fr.height/2);
+  return JSON.stringify({ clones:document.querySelectorAll('.tb-flight-clone').length,
+    tf:c?getComputedStyle(c).transform:null, tfInline:c?c.style.transform:'', originInline:c?c.style.transformOrigin:'',
+    cloneBox:box(c), modalOpacity:getComputedStyle(m).opacity, modalInlineOp:m.style.opacity,
+    cardOpacity:getComputedStyle(card).opacity, cardAnimName:getComputedStyle(card).animationName, cardInlineOp:card.style.opacity,
+    display:getComputedStyle(m).display, cardBox:box(card), cardTf:card.style.transform,
+    hitInside:!!(hit && m.contains(hit)), hitWhat:hit?(hit.id||hit.tagName):null,
+    busy:(typeof toolboxFlightBusy==='function')?toolboxFlightBusy():null });})()`);
+// 逐帧采样器（在页面里用 rAF 连拍，一次往返取回整串）：记录影子层与真实卡片的 opacity。
+// 只有逐帧样本才够密到能看清"影子层被摘掉的那一瞬间"它已经淡到几 —— 这是"没有硬切换"的判据。
+// 每轮自成一个数组（上一轮的循环发现被取代就自己停），互不污染。
+const a50ProbeStart = () => evaluate(`(()=>{const arr=[];window.__a50=arr;let n=0;
+  const tick=function(){ if(window.__a50!==arr) return;
+    const c=document.querySelector('.tb-flight-clone');const card=document.querySelector('.tb-card');
+    arr.push([n++, c?+getComputedStyle(c).opacity:null, +getComputedStyle(card).opacity,
+      getComputedStyle(card).animationName]);
+    if(n<80)requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);return 1;})()`);
+const a50ProbeRead = () => json(`JSON.stringify(window.__a50)`);
+const a50CloneFrames = (S) => S.filter(s => s[1] !== null);
+const a50CrossFrames = (S) => S.filter(s => s[1] !== null && s[1] > 0.05 && s[1] < 0.95);
+const a50BothMidFrames = (S) => S.filter(s => s[1] !== null && s[1] > 0.05 && s[1] < 0.95 && s[2] > 0.05 && s[2] < 0.95);
+// 影子层在飞的那几帧里，真实卡片上的入场动画 tbIn 必须一直是 none（否则动画会盖掉交叉淡出）
+const a50AnimLeakFrames = (S) => S.filter(s => s[1] !== null && s[3] !== 'none');
+const a50LastCloneIdx = (S) => { let i = -1; for (let k = 0; k < S.length; k++) if (S[k][1] !== null) i = k; return i; };
+// 用户给的"硬切换"判据：前一帧影子层还接近不透明、后一帧影子层已经没了且真实层已经不透明
+const a50HardSwitch = (S) => { const bad = []; for (let k = 0; k + 1 < S.length; k++) {
+  if (S[k][1] !== null && S[k][1] >= 0.5 && S[k + 1][1] === null && S[k + 1][2] >= 0.9) bad.push(k); } return bad; };
+// 内容不变量：动画只许动 transform/opacity，正文 / 代码区 / 校验必须逐字不变
+const a50Inv = () => json(`(()=>{const ed=document.getElementById('tbEditor'); const code=document.getElementById('tbCode');
+  const v=document.getElementById('tbValidate');
+  const exp=toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()));
+  return JSON.stringify({ text:ed.textContent, blocks:ed.querySelectorAll('p,div,center,blockquote,li').length,
+    top:ed.children.length, brs:ed.querySelectorAll('br').length, bytes:code.value.length, code:code.value,
+    exp:exp, errs:+v.getAttribute('data-errors'), warns:+v.getAttribute('data-warnings') });})()`);
+
+// —— 50A 全屏 ⇄ 小屏 ——
+await a50Open();
+// 基线：把动画关掉直接切（toolboxWinSetFull 的第二个参数 = false），拿"无动画"的两个终态矩形
+await evaluate('toolboxWinSetFull(false, false)'); await sleep(320);
+const a50Small = await a50Shot();
+await evaluate('toolboxWinSetFull(true, false)'); await sleep(320);
+const a50Full = await a50Shot();
+await evaluate('toolboxWinSetFull(false, false)'); await sleep(320);
+ok(a50Full.cardFull === true && a50Full.cardBox.w > a50Small.cardBox.w + 20,
+  `(50) 基线：无动画直接切也照旧（小窗 ${a50Small.cardBox.w}×${a50Small.cardBox.h} → 全屏 ${a50Full.cardBox.w}×${a50Full.cardBox.h}）`);
+// 真动画：点全屏 —— **先同步钉首帧**（同一任务内读，中间不经过 rAF），再连续采样中间态
+const a50Inv0 = await a50Inv();
+const a50PreFull = await a50Shot();
+const a50FFin = await a50First(`document.getElementById('tbFullBtn').click()`);
+ok(a50Inverse(a50FFin),
+  `(50)* 首帧（全屏进）：影子层**一出现就**带着反演到起点的那套 transform（${String(a50FFin.tf).slice(0, 38)}…、origin=${a50FFin.originInline}），不是以终态突现`);
+ok(a50RectEq(a50FFin.cloneBox, a50PreFull.cardBox),
+  `(50)* 首帧（全屏进）：影子层矩形 = 起点矩形（当前窗口 ${JSON.stringify(a50FFin.cloneBox)}），而不是全屏终态 ${JSON.stringify(a50Full.cardBox)}`);
+ok(a50FirstDimCard(a50FFin),
+  `(50)* 首帧（全屏进）：同一时刻真实卡片已经压暗（卡片 opacity=${a50FFin.cardOpacity}、内联 ${JSON.stringify(a50FFin.cardInlineOp)}）`
+  + `且仍可点击（命中 ${a50FFin.hitWhat}）—— 屏幕上不会同时存在"终态那一层"`);
+ok(a50FFin.modalOpacity === '1' && a50FFin.modalInlineOp === '',
+  `(50)* 首帧（全屏进）：遮罩**没有**跟着闪 —— 全屏切换时弹窗 opacity 始终是 ${a50FFin.modalOpacity}（只压卡片，不压遮罩）`);
+const a50PollA = await a50SampleUntil(s => s.clones === 1 && s.busy === true && a50Between(s, a50Small.cardBox, a50Full.cardBox), 5, 40);
+const a50Mid = a50PollA.s;
+ok(a50Mid.clones === 1 && a50Mid.busy === true,
+  `(50)* 全屏切换：动画真的在跑（飞行层 ${a50Mid.clones} 个、busy=${a50Mid.busy}）`);
+ok(typeof a50Mid.cloneTf === 'string' && a50Mid.cloneTf !== 'none' && a50Mid.cloneTf.indexOf('matrix') === 0,
+  `(50)* 全屏切换：中途 transform 不是 none、也不是终态（${String(a50Mid.cloneTf).slice(0, 42)}…）`);
+ok(a50PollA.hit === true && a50Between(a50Mid, a50Small.cardBox, a50Full.cardBox),
+  `(50)* 全屏切换：中途矩形严格落在两端之间（第 ${a50PollA.i + 1} 次采样 ${a50Mid.cloneBox.w}×${a50Mid.cloneBox.h} ∈ `
+  + `${a50Small.cardBox.w}×${a50Small.cardBox.h} … ${a50Full.cardBox.w}×${a50Full.cardBox.h}）—— 不是瞬间跳变`);
+ok(a50RectEq(a50Mid.cardBox, a50Full.cardBox) && a50Mid.cardFull === true,
+  `(50)* 全屏切换：飞行只动影子层 —— 真实卡片在动画期间就已经是终态几何（${JSON.stringify(a50Mid.cardBox)} = 全屏基线）`);
+ok(a50MidCardHidden(a50Mid),
+  `(50)* 全屏切换中途：真实卡片整段压暗（卡片 opacity=${a50Mid.cardOpacity}，不会"以终态显形"）、遮罩保持不变（弹窗 opacity=${a50Mid.modalOpacity}）、卡片本体无内联动画属性（${JSON.stringify(a50Mid.cardInline)}）`);
+ok(a50Mid.clonePE === 'none' && a50Mid.cloneZ === '1210' && a50Mid.cloneAnim === 'none',
+  `(50)* 影子层不吃点击（pointer-events=${a50Mid.clonePE}）、层级压在主弹窗之上（z=${a50Mid.cloneZ}）、不跟着卡片播 tbIn（animation-name=${a50Mid.cloneAnim}）`);
+ok(a50Mid.modalZ === '1200' && a50Mid.toastZ === '1400',
+  `(50)* 层级不变：主弹窗 ${a50Mid.modalZ} < 影子层 1210 < toast ${a50Mid.toastZ}`);
+await sleep(560);
+const a50End = await a50Shot();
+ok(a50End.clones === 0 && a50End.busy === false,
+  `(50)* 全屏切换结束后：影子层自己摘掉（clones=${a50End.clones}、busy=${a50End.busy}）`);
+ok(a50Clean(a50End),
+  `(50)* 全屏切换结束后无残留（卡片 ${JSON.stringify(a50End.cardInline)}、弹窗 ${JSON.stringify(a50End.modalInline)}）`);
+ok(a50RectEq(a50End.cardBox, a50Full.cardBox),
+  `(50)* 全屏终态矩形与"无动画直接切换"一致（±1px）：${JSON.stringify(a50End.cardBox)} vs ${JSON.stringify(a50Full.cardBox)}`);
+// 内容不变量：与动画前的快照逐字比对（文字 / 块数 / 顶层块数 / <br> 数 / 代码区字节）
+const a50Inv1 = await a50Inv();
+ok(a50Inv1.text === a50Inv0.text && a50Inv1.blocks === a50Inv0.blocks && a50Inv1.top === a50Inv0.top
+  && a50Inv1.brs === a50Inv0.brs && a50Inv1.bytes === a50Inv0.bytes && a50Inv1.code === a50Inv0.code,
+  `(50)* 全屏动画前后正文与代码逐字不变（文字 ${a50Inv1.text.length} 字、块 ${a50Inv1.blocks}（顶层 ${a50Inv1.top}）、`
+  + `<br> ${a50Inv1.brs} 个、代码 ${a50Inv1.bytes} 字节）`);
+ok(a50Inv1.exp === a50Inv0.exp && a50Inv1.exp.length > 0 && a50Inv1.errs === a50Inv0.errs && a50Inv1.warns === a50Inv0.warns,
+  `(50)* 动画前后导出结果逐字节一致（${a50Inv1.exp.length} 字节）、校验也还是 ${a50Inv1.errs} 错 ${a50Inv1.warns} 警`);
+// 再走一次"导出→再导入→再导出"，确认动画之后渲染/解析链路仍然幂等（与 (20)(38) 同一判据）
+const a50Idem = await json(`(()=>{const ed=document.getElementById('tbEditor');
+  const before=toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()));
+  ed.innerHTML=before; toolboxRefresh(); toolboxUndoReset();
+  const after=toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml()));
+  return JSON.stringify({ same:before===after, len:before.length, head:before.slice(0,60) });})()`);
+await sleep(300);
+ok(a50Idem.same === true,
+  `(50)* 全屏动画之后"导出→再导入→再导出"仍然逐字节幂等（${a50Idem.len} 字节，${JSON.stringify(a50Idem.head)}…）`);
+// 反向：退出全屏也走同一套（同样先同步钉首帧）
+const a50PreSmall = await a50Shot();
+const a50FFout = await a50First(`document.getElementById('tbFullBtn').click()`);
+ok(a50Inverse(a50FFout),
+  `(50)* 首帧（全屏出）：影子层一出现就在起点（比恒等/反演 transform：${String(a50FFout.tf).slice(0, 34)}…），不是先以窗口终态突现`);
+ok(a50RectEq(a50FFout.cloneBox, a50PreSmall.cardBox) && a50FirstDimCard(a50FFout),
+  `(50)* 首帧（全屏出）：影子层矩形 = 当前全屏矩形 ${JSON.stringify(a50FFout.cloneBox)}，且真实卡片已压暗（卡片 opacity=${a50FFout.cardOpacity}）、遮罩未动（弹窗 opacity=${a50FFout.modalOpacity}）、仍可点击`);
+const a50PollB = await a50SampleUntil(s => s.clones === 1 && a50Between(s, a50Small.cardBox, a50Full.cardBox), 5, 40);
+const a50Mid2 = a50PollB.s;
+ok(a50Mid2.clones === 1 && a50PollB.hit === true,
+  `(50)* 退出全屏：同样有中间态（第 ${a50PollB.i + 1} 次采样 ${a50Mid2.cloneBox.w} 介于 ${a50Small.cardBox.w} 与 ${a50Full.cardBox.w} 之间）`);
+await sleep(560);
+const a50End2 = await a50Shot();
+ok(a50End2.clones === 0 && a50RectEq(a50End2.cardBox, a50Small.cardBox) && a50Clean(a50End2),
+  `(50)* 退出全屏终态与基线一致且无残留（${JSON.stringify(a50End2.cardBox)}）`);
+
+// —— 50B 打开 / 关闭 ——
+const a50Btn = (await a50Shot()).btn;
+const a50OpenBase = (await a50Shot()).cardBox;
+const a50OpenBaseOff = (await a50Shot()).cardOffset;
+// 关闭：先同步钉首帧（首帧必须是**弹窗终态位置的影子层**，而不是先以按钮位置突现）
+const a50FFclose = await a50First(`toolboxClose()`);
+ok(a50Inverse(a50FFclose),
+  `(50)* 首帧（关闭）：影子层一出现就带着起点位置的 transform（${String(a50FFclose.tf).slice(0, 34)}…），不是先以按钮位置突现`);
+ok(a50FirstHidden(a50FFclose) && a50RectEq(a50FFclose.cloneBox, a50OpenBase),
+  `(50)* 首帧（关闭）：影子层矩形 = 刚才弹窗的矩形 ${JSON.stringify(a50FFclose.cloneBox)}（终点是按钮 ${JSON.stringify(a50Btn)}），真实弹窗当帧就 display:none`);
+const a50Closed = await a50Shot();
+ok(a50Closed.modalDisplay === 'none' && a50Closed.clones === 1 && a50Closed.busy === true,
+  `(50)* 关闭：弹窗**当帧**就收干净（display=${a50Closed.modalDisplay}），动画交给影子层，收尾一点不延后`);
+const a50PollC = await a50SampleUntil(s => s.clones === 1 && a50Between(s, a50OpenBase, a50Btn)
+  && a50CenterDist(s.cloneBox, a50Btn) < a50CenterDist(a50OpenBase, a50Btn) - 4, 5, 40);
+const a50CloseMid = a50PollC.s;
+ok(a50CloseMid.clones === 1 && a50PollC.hit === true,
+  `(50)* 关闭动画：影子层在中途（第 ${a50PollC.i + 1} 次采样 ${a50CloseMid.cloneBox.w}×${a50CloseMid.cloneBox.h}）、`
+  + `且中心确实在朝入口按钮靠近（离按钮 ${Math.round(a50CenterDist(a50CloseMid.cloneBox, a50Btn))} `
+  + `< 起点 ${Math.round(a50CenterDist(a50OpenBase, a50Btn))}）`);
+await sleep(560);
+const a50CloseEnd = await a50Shot();
+ok(a50CloseEnd.clones === 0 && a50CloseEnd.busy === false && a50CloseEnd.modalDisplay === 'none' && a50Clean(a50CloseEnd),
+  `(50)* 关闭动画结束：影子层摘掉、弹窗保持隐藏、无任何残留（卡片内联压暗 ${JSON.stringify(a50CloseEnd.cardInline.op)} 已清空；`
+  + `注意此时卡片的**计算** opacity 被 Chrome 解析成 ${a50CloseEnd.cardOpacity}，那是 tbIn 动画在非渲染树里的语义，不是残留）`);
+// 打开：从入口按钮飞到弹窗（必须先把按钮滚进视口 —— 它在「我的」页面很靠下）
+await evaluate(`(()=>{const b=document.getElementById('toolboxOpenBtn');if(b&&b.scrollIntoView)b.scrollIntoView({block:'center'});return 1;})()`);
+await sleep(280);
+const a50Btn2 = (await a50Shot()).btn;
+// 打开：先同步钉首帧（首帧必须是**入口按钮位置的影子层**，而不是先以弹窗终态突现）
+const a50FFopen = await a50First(`document.getElementById('toolboxOpenBtn').click()`);
+ok(a50Inverse(a50FFopen),
+  `(50)* 首帧（打开）：影子层一出现就带着反演到按钮的 transform（${String(a50FFopen.tf).slice(0, 34)}…），不是以弹窗终态突现`);
+ok(a50Btn2 && a50RectEq(a50FFopen.cloneBox, a50Btn2) && a50FirstDimModal(a50FFopen),
+  `(50)* 首帧（打开）：影子层矩形 = 入口按钮矩形 ${JSON.stringify(a50FFopen.cloneBox)}，且真实弹窗已压暗（弹窗/卡片 opacity=${a50FFopen.modalOpacity}/${a50FFopen.cardOpacity}）、按钮仍可点击`);
+const a50PollD = await a50SampleUntil(s => s.clones === 1 && s.busy === true && a50Between(s, a50Btn2 || a50Btn, a50OpenBase), 5, 40);
+const a50OpenMid = a50PollD.s;
+ok(a50OpenMid.clones === 1 && a50OpenMid.busy === true && a50OpenMid.modalDisplay === 'flex',
+  `(50)* 打开动画：影子层从入口按钮飞出来（clones=${a50OpenMid.clones}、弹窗 display=${a50OpenMid.modalDisplay}）`);
+ok(a50Btn2 && a50PollD.hit === true && a50Between(a50OpenMid, a50Btn2, a50OpenBase)
+  && a50OpenMid.cardOffset.w === a50OpenBaseOff.w && a50OpenMid.cardOffset.h === a50OpenBaseOff.h,
+  `(50)* 打开动画：中途矩形介于按钮（${a50Btn2 ? a50Btn2.w : '?'}）与弹窗（${a50OpenBase.w}）之间（第 ${a50PollD.i + 1} 次采样 `
+  + `${a50OpenMid.cloneBox.w}）；真实卡片布局在动画期间一点没动（offset ${a50OpenMid.cardOffset.w}×${a50OpenMid.cardOffset.h} `
+  + `= 终态 ${a50OpenBaseOff.w}×${a50OpenBaseOff.h}）`);
+ok(a50MidModalHidden(a50OpenMid),
+  `(50)* 打开动画中途：真实弹窗整段压暗（opacity=${a50OpenMid.modalOpacity}）、卡片本体无内联动画属性（${JSON.stringify(a50OpenMid.cardInline)}）`);
+await sleep(560);
+const a50OpenEnd = await a50Shot();
+ok(a50OpenEnd.clones === 0 && a50OpenEnd.modalDisplay === 'flex' && a50RectEq(a50OpenEnd.cardBox, a50OpenBase) && a50Clean(a50OpenEnd),
+  `(50)* 打开动画结束：弹窗落在终态矩形、无残留（${JSON.stringify(a50OpenEnd.cardBox)}）`);
+// 关了立刻开：同时只允许一个影子层，终态必须是"开着"
+await evaluate('toolboxClose(); toolboxOpen();');
+const a50Rapid1 = await a50Shot();
+ok(a50Rapid1.clones <= 1 && a50Rapid1.modalDisplay === 'flex',
+  `(50)* 关了立刻开：永远只有一个影子层（clones=${a50Rapid1.clones}）、弹窗状态 = 开着`);
+await sleep(700);
+const a50Rapid2 = await a50Shot();
+ok(a50Rapid2.clones === 0 && a50Rapid2.busy === false && a50Rapid2.modalDisplay === 'flex'
+  && a50RectEq(a50Rapid2.cardBox, a50OpenBase) && a50Clean(a50Rapid2),
+  `(50)* 关了立刻开：终态正确（display=${a50Rapid2.modalDisplay}、矩形 ${JSON.stringify(a50Rapid2.cardBox)}、无残留）`);
+
+// —— 50C 动画期间/之后功能完好 ——
+await clickSel('[data-tb="fullscreen"]');
+await sleep(700);
+await resetEditor();
+await sleep(220);
+await send('Input.insertText', { text: '后' });
+await sleep(520);
+const a50Type = await json(`(()=>{const ed=document.getElementById('tbEditor');const code=document.getElementById('tbCode').value;
+  const s=getSelection();const r=s.rangeCount?s.getRangeAt(0):null;let off=-1;
+  try{const b=document.createRange();b.setStart(ed,0);b.setEnd(r.startContainer,r.startOffset);off=b.toString().length;}catch(e){}
+  return JSON.stringify({text:ed.textContent,code:code,off:off});})()`);
+ok(a50Type.text === '后' && a50Type.code === '<p>后</p>' && a50Type.off === 1,
+  `(50)* 动画结束后输入正常：文字="${a50Type.text}"、代码区=${JSON.stringify(a50Type.code)}、光标偏移=${a50Type.off}`);
+// 动画进行中：真按键一落下就立刻收掉动画（不让用户对着看不见的卡片打字）
+await a50Click('#tbFullBtn');
+await sleep(60);
+const a50During0 = await a50Shot();
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 });
+await sleep(60);
+const a50During1 = await a50Shot();
+await send('Input.insertText', { text: '中' });
+await sleep(520);
+const a50During2 = await json(`(()=>{const ed=document.getElementById('tbEditor');const code=document.getElementById('tbCode').value;
+  const s=getSelection();const r=s.rangeCount?s.getRangeAt(0):null;let off=-1;
+  try{const b=document.createRange();b.setStart(ed,0);b.setEnd(r.startContainer,r.startOffset);off=b.toString().length;}catch(e){}
+  return JSON.stringify({text:ed.textContent,code:code,off:off});})()`);
+ok(a50During0.clones === 1 && a50During1.clones === 0 && a50During1.busy === false,
+  `(50)* 飞行中用户一按键就立刻收掉动画（${a50During0.clones} → ${a50During1.clones} 个影子层），光标不会停在看不见的地方`);
+ok(a50During2.text === '后中' && a50During2.code === '<p>后中</p>' && a50During2.off === 2,
+  `(50)* 动画进行中输入照样正确落入编辑区：文字="${a50During2.text}"、光标偏移=${a50During2.off}`);
+// 滚动同步：飞行期间与之后都必须仍然正确（不改那五个函数，只验结果）
+// ★ 必须先把内容填到"真的能滚"（60 行）—— 只写一个字的话 scrollTop 会被夹回 0，
+//   断言就成了"0 == 0"的空转（这里复用 (41) 那份 60 行内容）。
+const a50ScrollShot = () => json(`(()=>{const t=document.getElementById('tbCode');
+  // ★ 只"调用"受保护的 toolboxSyncCodeScroll()（一行都没改），且**只在量之前**调 ——
+  //   产品自己就是这么用的（toolboxScrollCodeToRange 里先同步镜像层再量 rect）。
+  //   镜像层是 overflow:hidden 的懒同步层，平时不跟随 textarea 滚动，所以不能拿
+  //   "滚动后 hl.scrollTop 自己就变了"当判据 —— 那不是产品的行为。
+  if (typeof toolboxSyncCodeScroll === 'function') toolboxSyncCodeScroll();
+  const h=document.getElementById('tbCodeHl'); const inner=document.getElementById('tbCodeGutterInner');
+  const tc=getComputedStyle(t);
+  const codeTop=t.getBoundingClientRect().top+parseFloat(tc.paddingTop)-t.scrollTop;
+  const num=inner.children[0]?inner.children[0].getBoundingClientRect().top:null;
+  return JSON.stringify({code:Number(t.scrollTop), hl:Number(h.scrollTop), tf:inner.style.transform||'',
+    num:num===null?null:Math.round(num*100)/100,
+    delta:num===null?null:Math.round((num-codeTop)*100)/100,
+    clones:document.querySelectorAll('.tb-flight-clone').length});})()`);
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); let h='';
+  for(let i=1;i<=120;i++) h+='<p>'+i+'段落文字内容</p>';
+  ed.innerHTML=h; toolboxRefresh(); return 1;})()`);
+await sleep(900);
+await evaluate(`(()=>{const t=document.getElementById('tbCode'); t.scrollTop=160; t.dispatchEvent(new Event('scroll')); return t.scrollTop;})()`);
+await sleep(140);
+await a50Click('#tbFullBtn');
+const a50PollE = await a50SampleUntil(s => s.clones === 1, 5, 40);
+const a50Scroll = await a50ScrollShot();
+ok(a50PollE.hit === true && a50Scroll.clones === 1 && a50Scroll.code === 160 && a50Scroll.hl === 160
+  && a50Scroll.tf === 'translateY(-160px)',
+  `(50)* 飞行期间滚动同步仍然正确（代码区 ${a50Scroll.code} → 镜像层 ${a50Scroll.hl}、行号栏 ${JSON.stringify(a50Scroll.tf)}、影子层 ${a50Scroll.clones} 个）`);
+await sleep(620);
+// 动画结束后：正文选中靠后的段落 → "编辑器→代码区"滚动同步仍然生效（与 (20) A/4 同款路径）
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); const ps=ed.querySelectorAll('p');
+  const t=ps[110].firstChild; const r=document.createRange(); r.setStart(t,0); r.setEnd(t,5);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
+await sleep(1200);
+const a50Scroll2 = await a50ScrollShot();
+ok(a50Scroll2.clones === 0 && a50Scroll2.code > 1000 && a50Scroll2.hl === a50Scroll2.code
+  && a50Scroll2.tf === 'translateY(-' + a50Scroll2.code + 'px)' && a50Scroll2.num !== null && Math.abs(a50Scroll2.delta) <= 1,
+  `(50)* 动画结束后滚动同步与行号栏对齐仍然正确：选中靠后的段落 → 代码区滚到 ${a50Scroll2.code}、`
+  + `镜像层 ${a50Scroll2.hl}、行号栏 ${JSON.stringify(a50Scroll2.tf)}、第 1 个序号与第 1 行顶边差 ${a50Scroll2.delta}px`);
+
+// —— 50D 连点 ——
+await evaluate('toolboxWinSetFull(false, false)');
+await sleep(260);
+for (let i = 0; i < 5; i++) await a50Click('#tbFullBtn');    // 不等待、真连点
+await sleep(760);
+const a50RapidFull = await a50Shot();
+ok(a50RapidFull.cardFull === true && a50RapidFull.clones === 0 && a50RapidFull.busy === false && a50Clean(a50RapidFull),
+  `(50)* 连点全屏 5 次：落到唯一正确终态（full=${a50RapidFull.cardFull}、影子层 ${a50RapidFull.clones} 个、无残留）`);
+ok(a50RectEq(a50RapidFull.cardBox, a50Full.cardBox),
+  `(50)* 连点之后的矩形与"无动画全屏"一致（${JSON.stringify(a50RapidFull.cardBox)}）`);
+for (let i = 0; i < 3; i++) { await evaluate('toolboxClose(); toolboxOpen();'); }
+await sleep(800);
+const a50RapidCycle = await a50Shot();
+ok(a50RapidCycle.modalDisplay === 'flex' && a50RapidCycle.clones === 0 && a50Clean(a50RapidCycle),
+  `(50)* 连点"关了立刻开" 3 轮：终态是开着、只有一个终态、无残留（display=${a50RapidCycle.modalDisplay}）`);
+
+// —— 50E 恢复护栏：四种打断路径之后，真实弹窗都必须恢复可见（opacity 计算值 1）且能点 ——
+// 漏掉任何一条就会出现最糟的状态："卡片彻底看不见、却还能点到"。
+console.log('  --- 50E 恢复护栏（正常结束 / 按键打断 / 飞行中再切换 / 飞行中关闭）---');
+await evaluate('toolboxWinSetFull(false, false)');
+await sleep(300);
+// ① 正常结束
+await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(760);
+const a50R1 = await a50Shot();
+ok(a50R1.clones === 0 && a50R1.busy === false && a50Clean(a50R1)
+  && a50R1.modalOpacity === '1' && a50R1.modalDisplay === 'flex',
+  `(50)* 恢复①正常结束：影子层摘掉、真实弹窗恢复可见（opacity=${a50R1.modalOpacity}、display=${a50R1.modalDisplay}）、无内联残留`);
+// ② 飞行中按键打断
+await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(60);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 });
+await sleep(260);
+const a50R2 = await a50Shot();
+ok(a50R2.clones === 0 && a50R2.busy === false && a50Clean(a50R2)
+  && a50R2.modalOpacity === '1' && a50R2.modalDisplay === 'flex',
+  `(50)* 恢复②飞行中按键打断：动画立刻收掉（clones=${a50R2.clones}）、真实弹窗恢复可见（opacity=${a50R2.modalOpacity}）、`
+  + `无内联残留（卡片 ${JSON.stringify(a50R2.cardInline.op)}/${JSON.stringify(a50R2.cardInline.tr)}、卡片计算 opacity=${a50R2.cardOpacity}）`);
+// ③ 飞行中再次切换（第二次 start 会先取消第一次，取消里必须复原）
+await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(60);
+await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(760);
+const a50R3 = await a50Shot();
+ok(a50R3.clones === 0 && a50R3.busy === false && a50Clean(a50R3)
+  && a50R3.modalOpacity === '1' && a50R3.modalDisplay === 'flex',
+  `(50)* 恢复③飞行中再次切换：两次飞行不叠加、终态可见（opacity=${a50R3.modalOpacity}、full=${a50R3.cardFull}）`);
+// ④ 飞行中关闭
+await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(60);
+await a50First(`toolboxClose()`);
+await sleep(760);
+const a50R4 = await a50Shot();
+ok(a50R4.clones === 0 && a50R4.busy === false && a50Clean(a50R4)
+  && a50R4.modalOpacity === '1' && a50R4.modalDisplay === 'none' && a50R4.cardInline.op === '',
+  `(50)* 恢复④飞行中关闭：影子层收掉、卡片压暗已复原为 ${JSON.stringify(a50R4.cardInline.op)}、弹窗保持隐藏（display=${a50R4.modalDisplay}）—— 不是"看不见还能点"`);
+await a50Open();
+
+// —— 50F prefers-reduced-motion: reduce ——
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+ok(await evaluate(`window.matchMedia('(prefers-reduced-motion: reduce)').matches`) === true,
+  '(50) 已模拟 prefers-reduced-motion: reduce');
+await evaluate('toolboxClose()');
+const a50Rm0 = await a50Shot();
+ok(a50Rm0.modalDisplay === 'none' && a50Rm0.clones === 0 && a50Rm0.busy === false,
+  `(50)* 减动效：关闭**直接到终态**（没有影子层、没有中间态，display=${a50Rm0.modalDisplay}）`);
+await evaluate('toolboxOpen()');
+const a50Rm1 = await a50Shot();
+ok(a50Rm1.modalDisplay === 'flex' && a50Rm1.clones === 0 && a50RectEq(a50Rm1.cardBox, a50OpenBase),
+  `(50)* 减动效：打开**直接到终态**（同一帧就是最终矩形 ${JSON.stringify(a50Rm1.cardBox)}）`);
+await a50Click('#tbFullBtn');
+await sleep(40);
+const a50Rm2 = await a50Shot();
+ok(a50Rm2.clones === 0 && a50Rm2.cardFull === true && a50RectEq(a50Rm2.cardBox, a50Full.cardBox),
+  `(50)* 减动效：全屏切换**直接到终态**（没有中间态，矩形 ${JSON.stringify(a50Rm2.cardBox)}）`);
+await send('Emulation.setEmulatedMedia', { features: [] });
+ok(await evaluate(`window.matchMedia('(prefers-reduced-motion: reduce)').matches`) === false,
+  '(50) 动效偏好已恢复（后续用例不受影响）');
+// 减动效下也不能留下交叉淡出的内联过渡（直跳终态 ⇒ 一次 transition 都不该下发）
+await sleep(320);
+const a50Rm3 = await a50Shot();
+ok(a50Clean(a50Rm3) && a50Rm3.clones === 0,
+  `(50)* 减动效：全程没有影子层、也没有给真实卡片挂过交叉淡出的内联过渡（卡片 ${JSON.stringify(a50Rm3.cardInline)}）`);
+
+// —— 50G 落地交叉淡出：目标是**小窗**的两条路（关闭 / 全屏→小窗）不许"硬换人" ——
+// 影子层永远按两端里的大矩形排版，落到小矩形时是"大布局被压扁"，而真实小窗有自己的布局
+// （工具栏换行、编辑区/代码区比例）—— 硬换人就是用户看到的"最后一帧突变一下"。
+// 判据：逐帧采样里不许出现"影子层还接近不透明就被摘掉"的相邻两帧。
+console.log('  --- 50G 落地交叉淡出（全屏→小窗 / 关闭）& 大窗两路不许多出淡入 ---');
+await a50Open();
+await evaluate('toolboxWinSetFull(false, false)'); await sleep(320);
+
+// ① 小窗 → 全屏（大窗路：不加交叉）
+await a50ProbeStart();
+const a50G1 = await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(900);
+const a50S1 = await a50ProbeRead();
+ok(a50Inverse(a50G1) && a50FirstDimCard(a50G1),
+  `(50)* 交叉淡出取样①（小窗→全屏）首帧仍然正确：影子层已反演到起点、真实卡片压暗且可点`);
+ok(a50CloneFrames(a50S1).length >= 8 && a50CrossFrames(a50S1).length === 0,
+  `(50)* 大窗路（小窗→全屏）**不加**交叉：逐帧 ${a50S1.length} 帧里影子层一次都没淡过（${a50CloneFrames(a50S1).length} 帧有影子层，中间值 ${a50CrossFrames(a50S1).length} 帧）—— 落地那一帧本来就逐像素一致，多一次淡入反而看得出"淡进来"`);
+ok(a50AnimLeakFrames(a50S1).length === 0,
+  `(50)* 大窗路（小窗→全屏）：影子层在飞的 ${a50CloneFrames(a50S1).length} 帧里真实卡片的 animation-name 也一直是 none（这一路卡片被压暗，入场动画同样不该掺和）`);
+const a50E1 = await a50Shot();
+ok(a50E1.clones === 0 && a50Clean(a50E1) && a50RectEq(a50E1.cardBox, a50Full.cardBox),
+  `(50)* 大窗路（小窗→全屏）终态：影子层自摘、无内联残留、矩形与无动画基线一致 ${JSON.stringify(a50E1.cardBox)}`);
+
+// ② 全屏 → 小窗（小窗路：要交叉）
+await a50ProbeStart();
+const a50G2 = await a50First(`document.getElementById('tbFullBtn').click()`);
+await sleep(900);
+const a50S2 = await a50ProbeRead();
+const a50Last2 = a50LastCloneIdx(a50S2);
+ok(a50AnimLeakFrames(a50S2).length === 0,
+  `(50)* 交叉淡出前提（全屏→小窗）：影子层在飞的 ${a50CloneFrames(a50S2).length} 帧里，真实卡片的入场动画 tbIn 一直是 none`
+  + `（漏 ${a50AnimLeakFrames(a50S2).length} 帧）—— 全屏→小窗会摘掉 .tb-full，若不压住它，tbIn 会重新起跑并盖掉卡片的 opacity 过渡`);
+ok(a50BothMidFrames(a50S2).length >= 1,
+  `(50)* 交叉确实发生（全屏→小窗）：影子层与真实卡片**同时**处于中间值的帧 ${a50BothMidFrames(a50S2).length} 个（例：影子层 ${a50BothMidFrames(a50S2)[0] ? a50BothMidFrames(a50S2)[0][1] : '—'} / 卡片 ${a50BothMidFrames(a50S2)[0] ? a50BothMidFrames(a50S2)[0][2] : '—'}）—— 比例切换发生在半透明状态下`);
+ok(a50Last2 >= 0 && a50S2[a50Last2][1] < 0.25 && a50S2[a50Last2 + 1] && a50S2[a50Last2 + 1][2] >= 0.99,
+  `(50)* 没有硬切换（全屏→小窗）：影子层被摘掉前的最后一帧已经淡到 ${a50S2[a50Last2][1].toFixed(3)}，摘掉之后真实卡片是 ${a50S2[a50Last2 + 1] ? a50S2[a50Last2 + 1][2].toFixed(3) : '—'}（逐帧粒度，末帧≈0 而不是"啪"地一下）`);
+ok(a50HardSwitch(a50S2).length === 0,
+  `(50)* 逐帧扫完 ${a50S2.length} 帧：不存在"影子层还 ≥0.5 就被摘掉且真实层已不透明"的硬切换（${a50HardSwitch(a50S2).length} 处）`);
+const a50E2 = await a50Shot();
+ok(a50E2.clones === 0 && a50Clean(a50E2) && a50RectEq(a50E2.cardBox, a50Small.cardBox),
+  `(50)* 小窗路（全屏→小窗）终态：影子层自摘、无内联残留、矩形与无动画基线 ±1px ${JSON.stringify(a50E2.cardBox)}`);
+// 注：内联 animation 由 CSSOM 规范成完整缩写（"auto ease 0s 1 normal none running none"），
+// 所以判据看 computed animation-name 是不是 none —— 那才是"入场动画没有重跑"的真凭据。
+ok(a50E2.cardInline.an !== '' && a50E2.cardAnimName === 'none' && a50E2.cardOpacity === '1',
+  `(50)* 小窗路（全屏→小窗）落地那一帧没有 tbIn 重跑：卡片 computed animation-name=${a50E2.cardAnimName}（内联压制在）、opacity=${a50E2.cardOpacity}`
+  + `—— 压制保留到弹窗关闭，见下一条`);
+
+// ③ 打开（大窗路：不加交叉）
+await evaluate('toolboxClose()'); await sleep(760);
+await a50ProbeStart();
+const a50G3 = await a50First(`document.getElementById('toolboxOpenBtn').click()`);
+await sleep(900);
+const a50S3 = await a50ProbeRead();
+ok(a50Inverse(a50G3) && a50FirstDimModal(a50G3),
+  `(50)* 交叉淡出取样③（打开）首帧仍然正确：影子层已反演到入口按钮、真实弹窗压暗且按钮可点`);
+ok(a50CloneFrames(a50S3).length >= 8 && a50CrossFrames(a50S3).length === 0,
+  `(50)* 大窗路（打开）**不加**交叉：逐帧 ${a50S3.length} 帧里影子层一次都没淡过 —— 打开落地的影子层就是真实卡片布局，不需要也不应该有额外淡入`);
+const a50E3 = await a50Shot();
+ok(a50E3.clones === 0 && a50Clean(a50E3) && a50RectEq(a50E3.cardBox, a50OpenBase),
+  `(50)* 大窗路（打开）终态：影子层自摘、无内联残留、矩形与无动画基线一致 ${JSON.stringify(a50E3.cardBox)}`);
+
+// ④ 关闭（小窗路：要交叉；弹窗当帧 display:none，没有能一起淡入的真实层 ⇒ 单边淡出）
+await a50ProbeStart();
+const a50G4 = await a50First(`toolboxClose()`);
+await sleep(900);
+const a50S4 = await a50ProbeRead();
+const a50Last4 = a50LastCloneIdx(a50S4);
+ok(a50FirstHidden(a50G4) && a50Inverse(a50G4),
+  `(50)* 交叉淡出取样④（关闭）首帧仍然正确：影子层在弹窗终态矩形上、真实弹窗当帧 display:none`);
+ok(a50CrossFrames(a50S4).length >= 1,
+  `(50)* 交叉确实发生（关闭）：影子层最后一段确实在淡出（${a50CrossFrames(a50S4).length} 帧处于中间值）—— 弹窗已 display:none，这一路是单边淡出（没有能一起淡入的真实层）`);
+ok(a50Last4 >= 0 && a50S4[a50Last4][1] < 0.25,
+  `(50)* 没有硬切换（关闭）：影子层被摘掉前的最后一帧已经淡到 ${a50S4[a50Last4][1].toFixed(3)}，不是"啪"地消失`);
+ok(a50HardSwitch(a50S4).length === 0,
+  `(50)* 逐帧扫完 ${a50S4.length} 帧（关闭）：不存在"影子层还 ≥0.5 就被摘掉"的硬切换（${a50HardSwitch(a50S4).length} 处）`);
+const a50E4 = await a50Shot();
+ok(a50E4.clones === 0 && a50E4.modalDisplay === 'none' && a50Clean(a50E4),
+  `(50)* 小窗路（关闭）终态：影子层自摘、弹窗保持隐藏、无内联残留（卡片压暗 ${JSON.stringify(a50E4.cardInline.op)} 已清空）`);
+// 关窗路径必须把 tbIn 的压制也撤掉（弹窗已隐藏 ⇒ 撤掉不会重跑；不撤就会一直挂在卡片上）
+ok(a50E4.cardInline.an === '' && a50E4.cardInline.tr === '' && a50E4.cardInline.op === '',
+  `(50)* 小窗路（关闭）关掉之后：卡片上的 tbIn 压制与交叉淡出的内联过渡一起撤掉`
+  + `（animation=${JSON.stringify(a50E4.cardInline.an)}、transition=${JSON.stringify(a50E4.cardInline.tr)}）—— 弹窗隐藏时撤才不会让入场动画当场重跑`);
+await a50Open();
+const a50E5 = await a50Shot();
+ok(a50E5.cardInline.an === '' && a50E5.modalDisplay === 'flex' && a50Clean(a50E5),
+  `(50)* 重开后：打开路**不压**卡片入场动画（内联 animation=${JSON.stringify(a50E5.cardInline.an)}）—— 那一路由压暗整个弹窗兜住，无需压制卡片自己`);
+
 console.log(`\n  -------- 通过 ${pass} / 失败 ${fail} -------- `);
 ok(errors.length === 0, `全程无未捕获异常${errors.length} 条）`);
 if (errors.length) errors.slice(0, 5).forEach(e => console.log('    ! ' + e.slice(0, 220)));

@@ -82,6 +82,26 @@ body.tb-modal-open {
     .tb-card { animation: none; }
 }
 
+/* ---------- 飞行克隆层（全屏⇄小屏 / 打开 / 关闭 的动画）----------
+   与站内「图片放大 · 缩小」同一套做法（collection/category-view.js 的 startModalFlight）：
+   往 body 挂一个影子元素，摆到**终态矩形**，再用 transform 反演回起点，过渡到恒等。
+   ★ 影子层是 .tb-card 的深拷贝，所以**带着 .tb-card 这个类**（样式全靠它）；
+     但绝不能让它跟着卡片一起播 tbIn 入场动画 —— CSS 动画会盖掉内联 transform，
+     影子层就会自己动起来（动画期间一帧都不能有第二个动的东西）。所以这里 animation: none。
+   ★ 层级：主弹窗 1200 < 影子层 1210 < 草稿确认/表格小菜单 1250~1300 < toast 1400。
+     toast 必须永远在最上面（用户明确要求过），影子层只压主弹窗。
+   ★ pointer-events: none 是必须的：影子层盖在按钮上，但它只是画面；
+     能接收事件的必须一直是真实卡片（否则飞行期间点"全屏/关闭"会打在影子上，
+     连点全屏、开了立刻关这些操作就全失灵了）。 */
+.tb-flight-clone {
+    position: fixed;
+    margin: 0;
+    animation: none !important;
+    pointer-events: none !important;
+    z-index: 1210;
+    transform-origin: 50% 50%;
+}
+
 /* ---------- 拖动 / 缩放 ----------
    八个手柄（四条边 + 四个角）在 .tb-card 内部贴边铺一条细带。
    ★ 为什么手柄要"往里铺"而不是往外扩：.tb-card 是 overflow:hidden（圆角要裁内部面板），
