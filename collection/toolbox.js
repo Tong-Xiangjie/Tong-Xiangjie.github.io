@@ -3777,14 +3777,22 @@ function toolboxImageBlock(src, width, caption) {
 }
 // 超链接：默认带 target="_blank"（语料 46 个链接里 32 个带），
 // 同时补 rel="noopener" —— 防 window.opener 反向操作，反正正文里也不会有什么依赖。
-// ★ 链接文字优先取"按下按钮那一刻选中的文字"（快照），现场选区到点确定时早就没了
-//   —— 对话框一拿到焦点，编辑区的选区就收起了。取不到才退回对话框里填的文字。
+// ★ 链接文字取值优先级（用户口径，从高到低；**老实现把 ① 和 ② 弄反了**）：
+//   ① 对话框「显示文字」里填了什么就用什么 —— 用户填的值必须赢；
+//   ② 框里留空 → 用"按下按钮那一刻选中/快照的文字"（对话框一拿到焦点，编辑区的选区就收起了，
+//      现场选区到点确定时早就没了，所以这份快照是必须的）；
+//   ③ 还没有 → 现场选区（兜底，理论上取不到）；
+//   ④ 都没有 → 空串。调用方（link.build）据此提示"必须填写"，不再拿 URL 当链接文字。
 function toolboxLinkText(fallback) {
-    if (toolboxSnapText) return toolboxSnapText;
+    if (fallback) return String(fallback);          // ① 对话框里填的优先
+    if (toolboxSnapText) return toolboxSnapText;    // ② 按下按钮那一刻的快照
     const r = toolboxActiveRange();
     if (r && !r.collapsed) { try { return String(r); } catch (e) {} }
-    return String(fallback || '');
+    return '';                                      // ③④ 都没有
 }
+// url 是地址，text 是对话框里填的"显示文字"（空 = 用快照/选区）。
+// ★ 末尾的 `|| url` 只是最后兜底（dialog 的 build 已经在"两边都空"时拦下并提示了），
+//   留着是为了万一别处直接调它也不会产出 <a></a> 这种空链接。
 function toolboxLinkHtml(url, text, blank) {
     const anchor = toolboxLinkText(text) || url;
     return '<a href="' + toolboxEsc(url) + '"' + (blank ? ' target="_blank" rel="noopener"' : '') + '>'
@@ -5655,25 +5663,39 @@ function toolboxClearAll() {
 // ★ 一律**不预填** value，默认值走 placeholder：
 //   预填会让用户以为"这里已经填好了"，想把 3 改成 5 得先把 3 删掉；
 //   留空则按各自的默认值处理（看每个 build()），行为完全一样但不干扰输入。
-//   唯一的例外是那种"不填就没法用"的项（用户没选文字时的链接文字），
-//   也是留空即回退，不预填。
+//   唯一的例外是那种"不填就没法用"的项（用户没选文字时的链接「显示文字」）：
+//   它现在真的**必填** —— 没有选中文字、框里又是空的就提示填写（不再拿 URL 当链接文字）；
+//   但仍然**不预填** value，只给 placeholder，免得用户以为"这里已经填好了"。
 
-// 「插入链接」的地址校验（用户要求放宽，不再强制 https://）：
-//   · 通过：http(s):// 开头、www. 开头、带点号的裸域名（如 solve.quest）、mailto: / tel: 等协议；
-//   · 挡住：空、含空白字符、含中文标点、没有点号也没有协议的单个词（明显不像链接）。
-// ★ 只做"拦不拦"的判断，**不动用户输入**（不自动补 https://，写进 href 的就是原样）。
-const TOOLBOX_URL_SKIP = '()[]{}<>《》「」『』，。；：！？、·—…“”‘’';
-function toolboxLinkUrlOk(url) {
-    const u = String(url || '').trim();
-    if (!u) return false;
-    if (/\s/.test(u)) return false;                                  // 空白字符（含全角空格 \u3000）
-    for (let i = 0; i < TOOLBOX_URL_SKIP.length; i++) {
-        if (u.indexOf(TOOLBOX_URL_SKIP.charAt(i)) >= 0) return false; // 中文标点 / 括号
-    }
-    if (/^(https?:\/\/|mailto:|tel:)/i.test(u)) return true;
-    if (/^www\./i.test(u)) return true;
-    if (/^[^\s/]+\.[A-Za-z]{2,}(\/|$|\?|#|:)/.test(u)) return true;   // 裸域名 + 可选路径
-    return false;
+// 「插入链接」的地址校验（用户口径：**只硬拦三类，其余一律放行**）：
+//   ⛔ ① 空；② 含空白字符（含全角空格）；③ 协议是 javascript: / vbscript: / data:（安全线，必须留）。
+//   ✅ 一律放行：半角括号 ( )、各类中文标点、没有协议的裸词（example.com / www.a.com / solve.quest）、
+//      带 & 与 %E2%80%93 的长地址…… —— 以前那串"中文标点 + 半角括号"的黑名单把
+//      https://…/Japanese_military_currency_(1937%E2%80%931945)&oldid=… 这种**合法链接判无效**，
+//      是明确的误判。用户要求「可以改为提醒」，于是：
+//   ⚠️ "看着不像链接"（既没有协议、也不含点号，例如「随便一段话」）**只提醒不拦**（见下面 link.build）。
+// ★ 只做"拦不拦 / 提不提醒"的判断，**不动用户输入**（不自动补 https://，写进 href 的就是原样）。
+// ★ 安全线的写法：把 C0 控制字符与空白**一律删掉**再比对协议 —— 浏览器解析 URL 时会忽略
+//   scheme 里的 tab/换行（"java\tscript:alert(1)" 正是靠这个绕过的），大小写也一并抹平；
+//   "\u0000javascript:" 这种前导控制字符同理被删掉后现形。
+//   返回"原因"而不是布尔值，是为了让调用方能给出对得上的提示，而不是笼统一句"无效"。
+function toolboxLinkUrlBlocked(url) {
+    const u = String(url == null ? '' : url).trim();
+    if (!u) return 'empty';
+    if (/\s/.test(u)) return 'space';                        // 空白（JS 的 \s 含全角空格 \u3000）
+    const probe = u.replace(/[\u0000-\u0020\u007F]+/g, '').toLowerCase();
+    if (/^(javascript|vbscript|data):/.test(probe)) return 'scheme';
+    return '';
+}
+// "看着不像链接"：既没有协议（xxx:）、也不含点号 —— 例如「随便一段话」。
+// ★ 只用于**提醒**（toast），绝不阻止插入（用户要求：可以改为提醒，不要阻止「确定」）。
+//   注意："有协议"包含 mailto:/tel:/ftp: 等任意 scheme 写法，"有点号"包含域名/路径/文件名。
+function toolboxLinkLooksOdd(url) {
+    const s = String(url == null ? '' : url).trim();
+    if (!s) return false;
+    if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(s)) return false;   // 有协议：http:、mailto:、tel:、ftp:…
+    if (s.indexOf('.') >= 0) return false;                   // 有点号：域名 / 路径 / 文件名
+    return true;
 }
 
 const TOOLBOX_DIALOGS = {
@@ -5788,20 +5810,31 @@ const TOOLBOX_DIALOGS = {
         title: '插入超链接',
         fields: [
             { key: 'url', label: '链接地址', type: 'text', placeholder: '请输入URL', wide: true },
+            // ★ 文案跟着规则改：以前写"留空则使用已选中文字或目标URL"，现在没有选中文字时**必须**填
+            //   （见下面的 build：两者都没有就提示填写，不再拿 URL 当链接文字）。
             { key: 'text', label: '显示文字', type: 'text',
-              placeholder: '留空则使用已选中文字或目标URL', wide: true },
+              placeholder: '留空则使用已选中的文字（没有选中文字时必须填写）', wide: true },
             { key: 'blank', label: '目标链接在新标签页打开', type: 'checkbox', checked: true }
         ],
         build: function (v) {
-            const url = String(v.url || '').trim();
-            // 放宽校验（用户要求）：只挡"明显不像链接"的输入 —— 空、带空白/中文标点、
-            // 或者既不是 http(s)/www/裸域名、也不是 mailto:/tel: 的写法。
-            // ★ 不自动补 https:// 前缀（用户输入原样写进 href，与原来一致）。
-            if (!toolboxLinkUrlOk(url)) {
-                toolboxToast('请输入有效URL');
+            const url = String(v.url == null ? '' : v.url).trim();
+            // ① 硬拦三类，其余一律放行（判据见 toolboxLinkUrlBlocked 的注释）
+            const bad = toolboxLinkUrlBlocked(url);
+            if (bad === 'empty') { toolboxToast('请填写链接地址'); return null; }
+            if (bad === 'space') { toolboxToast('链接地址里不能有空格'); return null; }
+            if (bad === 'scheme') { toolboxToast('出于安全考虑，javascript: / vbscript: / data: 不能作为链接地址'); return null; }
+            // ② 显示文字的优先级见 toolboxLinkText：**对话框里填的值赢**。
+            //    用户报的 bug 就出在这一步反了 —— 老实现让"按下按钮那一刻的快照"覆盖用户在框里打的字，
+            //    于是"选甲、在框里填乙"插出来还是甲。
+            const text = String(v.text == null ? '' : v.text).trim();
+            if (!text && !toolboxLinkText('')) {
+                // 两者都没有：不插入，提示必须填写（老实现会退化成拿 URL 当文字）
+                toolboxToast('请填写「显示文字」（没有选中文字时必须填写）');
                 return null;
             }
-            return toolboxLinkHtml(url, String(v.text || '').trim(), v.blank);
+            // ③ 只是提醒，不阻止「确定」：既无协议、也不含点号的裸词也让它按原样插进去
+            if (toolboxLinkLooksOdd(url)) toolboxToast('提示：这看起来不像网址，已按原样插入');
+            return toolboxLinkHtml(url, text, v.blank);
         }
     },
     // 修改已有图片（图片右键菜单 → 「修改图片…」）。
@@ -6768,7 +6801,10 @@ function toolboxWinApply(geo) {
     if (!card) return;
     // 几何一变，正在跑的几何动画就落在错的矩形上了（拖动/缩放/全屏/视口变化…）：
     // 一律先停掉动画再改尺寸 —— 停掉只是不再逐帧插值，不碰内容、也不动工具箱状态。
-    if (toolboxGeoAnim) toolboxGeoStop();
+    // ★ settle=true：如果被打断的正好是**关窗动画**，它的收尾（隐藏弹窗、恢复遮罩、
+    //   复位 toolboxClosing）必须在这里补上 —— 否则会留下"弹窗 display:flex + 全透明遮罩"
+    //   的死状态（整页点不动）。收尾自己幂等，"关了立刻开"那条路已经先复位过，不会被它误伤。
+    if (toolboxGeoAnim) toolboxGeoCancel(true);
     const g = toolboxWinFit(geo.w, geo.h, geo.left, geo.top);
     toolboxWin.left = g.left; toolboxWin.top = g.top; toolboxWin.w = g.w; toolboxWin.h = g.h;
     toolboxWin.ready = true;
@@ -6801,7 +6837,10 @@ const TOOLBOX_GEO_BEZIER = [0.22, 0.61, 0.36, 1];
 // 肉眼已经分不出来，再空转剩下的几十毫秒没有意义 —— 也让"关完之后弹窗何时 display:none"
 // 是确定的（既有用例在关窗后 320ms 就断言 display:none）。
 const TOOLBOX_GEO_CLOSE_EPS = 2;
-let toolboxGeoAnim = null;      // { card, from, to, end, eps, t0, raf, onDone }：同时只允许一个动画
+let toolboxGeoAnim = null;      // { card, from, to, end, eps, t0, raf, gen, onDone, settle }：同时只允许一个动画
+// ★ 代数号：每换一段动画就 +1。旧动画的回调（rAF 里的 step、以及 onDone）凭它自证
+//   "我还是当前这一次"，不是就直接闭嘴 —— 这是"连点/打断时新动画绝不会被旧回调写回旧几何"的保证。
+let toolboxGeoGen = 0;
 let toolboxClosing = false;     // 关闭动画期间：弹窗还 display:flex（否则卡片没得画），但逻辑上已关
 
 // 三次贝塞尔求值：时间进度 t（0..1）→ 缓动后的进度。
@@ -6853,20 +6892,40 @@ function toolboxGeoAuthoritative() {
     };
 }
 
-// 停掉正在跑的动画：不再逐帧插值，但**不动几何、不回调**（返回它是否真的在跑）。
-function toolboxGeoStop() {
-    if (!toolboxGeoAnim) return false;
+// 取消当前动画：停 rAF + 代数号 +1（旧回调从此作废）+ 清掉 running 标志。
+// ★ 一律**不写 end 几何**：取消的语义是"这一段作废"，几何归调用方随后写（权威值），
+//   所以"旧动画的末帧几何"永远不会盖到新状态上。
+// settle=true 时顺带补上"这一段没来得及做的收尾" —— 只有关闭动画有收尾（隐藏弹窗、恢复遮罩），
+// 它自己幂等；打开/全屏动画没有收尾，传了也什么都不做。
+function toolboxGeoCancel(settle) {
     const a = toolboxGeoAnim;
-    toolboxGeoAnim = null;
+    if (!a) return null;
+    toolboxGeoAnim = null;                             // running 标志：取消即"没在跑"
+    a.done = true;                                     // 旧记录标记作废：它的任何回调都不再有效
+    toolboxGeoGen++;                                   // ★ 代数号推进：这段动画的所有后续回调作废
     if (a.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(a.raf);
-    return true;
+    a.raf = 0;
+    if (settle && a.settle) { try { a.settle(); } catch (e) {} }
+    return a;
 }
 
-// 收尾：把权威几何写回去 + 回调（幂等：动画已经被停掉时什么都不做）。
+// 停掉正在跑的动画（不写 end、不做收尾，返回它是否真的在跑）。
+// 用它的地方都是"紧接着要自己写权威几何/自己接着跑"：关窗中途被打开（toolboxOpen）、
+// 手势按下（toolboxGeoAdopt）。要"顺便收尾"的用 toolboxGeoCancel(true)。
+function toolboxGeoStop() {
+    return !!toolboxGeoCancel(false);
+}
+
+// 收尾（收尾状态机）：写回 end 几何 + 完成回调。
+// ★ 幂等 + 认令牌：已经被取消、已经被换代的回调进不来（a.done / toolboxGeoAnim !== a / 代数号不符），
+//   所以"上一次动画的完成回调在新动画开始后才到达"这种情况绝不会写回旧几何。
 function toolboxGeoEnd(a) {
-    if (!a || toolboxGeoAnim !== a) return;
+    if (!a || a.done || toolboxGeoAnim !== a || a.gen !== toolboxGeoGen) return;
+    a.done = true;
     toolboxGeoAnim = null;
+    toolboxGeoGen++;                                   // 这一段到此为止，它的回调也不再有效
     if (a.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(a.raf);
+    a.raf = 0;
     const card = a.card;
     if (card && a.end) {
         card.style.left = a.end.left;
@@ -6880,9 +6939,10 @@ function toolboxGeoEnd(a) {
 // 跑一段几何动画：fromRect → toRect，320ms，cubic-bezier(.22,.61,.36,1)。
 // end 是收尾时写回的内联几何（权威值；关闭时是四个空串 = 交回 CSS），
 // eps > 0 时"离终点只剩 eps 像素"就直接收尾（关闭动画用，见 TOOLBOX_GEO_CLOSE_EPS），
-// onDone 只在走到终点时回调一次。
-function toolboxGeoRun(card, fromRect, toRect, end, onDone, eps) {
-    toolboxGeoStop();                                  // 同时只允许一个动画
+// settle 是"这一段被取消时也要补做的收尾"（只有关闭动画需要，幂等），
+// onDone 只在走到终点时回调一次（与 settle 常常是同一个函数）。
+function toolboxGeoRun(card, fromRect, toRect, end, onDone, eps, settle) {
+    toolboxGeoCancel(false);                           // ★ ① 先取消上一次：rAF 与代数号一起作废
     if (!card || !fromRect || !toRect) return 0;
     if (typeof requestAnimationFrame !== 'function') {  // 没有 rAF：直接落终态，绝不卡住
         if (end) {
@@ -6894,12 +6954,14 @@ function toolboxGeoRun(card, fromRect, toRect, end, onDone, eps) {
     }
     const a = {
         card: card, from: fromRect, to: toRect, end: end || null,
-        eps: eps > 0 ? eps : 0, t0: 0, raf: 0, onDone: onDone || null
+        eps: eps > 0 ? eps : 0, t0: 0, raf: 0, onDone: onDone || null,
+        settle: settle || null, gen: ++toolboxGeoGen, done: false
     };
     toolboxGeoAnim = a;
     toolboxGeoWrite(card, fromRect);                   // ② 首帧就在起点（同一任务、绘制之前）
     a.raf = requestAnimationFrame(function step(now) {
-        if (toolboxGeoAnim !== a) return;              // 期间被取消/接手了：什么都别做
+        // ★ 认令牌：被取消 / 被新一代取代 / 已经收过尾 —— 一个字都不许写
+        if (a.done || toolboxGeoAnim !== a || a.gen !== toolboxGeoGen) return;
         if (!a.t0) a.t0 = now;
         const t = (now - a.t0) / TOOLBOX_GEO_MS;
         if (t >= 1) { toolboxGeoEnd(a); return; }
@@ -6976,16 +7038,22 @@ function toolboxCloseGeo(from, to) {
     const card = toolboxTpl && toolboxTpl.card;
     const modal = toolboxTpl && toolboxTpl.modal;
     if (!card || !modal || !from || !to || prefersReducedMotion()) return 0;
+    // ★ 收尾状态机 = 这一个函数：走到终点时执行，被"取消但要求补收尾"打断时也执行。
+    //   幂等（toolboxClosing 已经复位就直接返回）："关了立刻开"先复位了它，于是老动画的收尾
+    //   不会把已经打开的弹窗又藏起来。
+    const settle = function () {
+        if (!toolboxClosing) return;
+        toolboxClosing = false;
+        modal.style.background = '';      // 遮罩恢复：下次打开还得用
+        modal.style.display = 'none';
+        // 弹窗已经隐藏 ⇒ 撤掉 tbIn 的压制（open 动画期间压的）。隐藏时撤不会重跑入场动画。
+        if (card.style.animation) card.style.animation = '';
+    };
     return toolboxGeoRun(card, from, to,
         { left: '', top: '', width: '', height: '' },
-        function () {
-            toolboxClosing = false;
-            modal.style.background = '';      // 遮罩恢复：下次打开还得用
-            modal.style.display = 'none';
-            // 弹窗已经隐藏 ⇒ 撤掉 tbIn 的压制（open 动画期间压的）。隐藏时撤不会重跑入场动画。
-            if (card.style.animation) card.style.animation = '';
-        },
-        TOOLBOX_GEO_CLOSE_EPS);
+        settle,                            // 正常走到终点：收尾
+        TOOLBOX_GEO_CLOSE_EPS,
+        settle);                           // 被取消（视口变化/全屏按钮）也要收尾：绝不留死状态
 }
 
 // 全屏态：位置尺寸就是整个视口（仍然走 toolboxWinApply 这一条路）
@@ -7023,6 +7091,17 @@ function toolboxWinSetFull(on, animate) {
     if (!card) return;
     if (on === toolboxWin.full) return;
     const modal = toolboxTpl.modal;
+    // ★ 关窗动画还没跑完就点了全屏按钮：这一下在 320ms 内完全点得到（卡片还在画面里）。
+    //   旧实现只把动画 stop 掉 —— 关窗动画的收尾（隐藏弹窗、恢复遮罩）永远到不了，
+    //   于是留下"弹窗 display:flex + 全透明遮罩"的死状态，整页点不动。
+    //   现在按"关窗被这一下打断"处理：用户显然还想用这个窗口，于是取消这次关闭
+    //   （复位 closing、恢复遮罩、作废那段动画），下面的切换照常走几何动画 ——
+    //   起点仍然是此刻的真实矩形，画面连续。
+    if (toolboxClosing && toolboxGeoAnim) {
+        toolboxClosing = false;
+        if (modal) modal.style.background = '';
+        toolboxGeoCancel(false);
+    }
     // 动画闸门：① 调用方允许（关窗顺手退全屏时不飞）② 没要求减动效
     // ③ 弹窗真的开着（display:flex）④ 不是正在关窗（那一路由关闭动画自己收尾）。
     // 四条都满足才做几何动画，否则照旧瞬间切换。
@@ -7053,7 +7132,8 @@ function toolboxWinSetFull(on, animate) {
     } else if (toolboxGeoAnim) {
         // 这次不做动画（减动效 / 关窗顺手退全屏 / 弹窗没开）却还有动画在跑：几何已经变了，
         // 让它继续跑只会落在错的矩形上 —— 直接停掉，权威值就是上面 toolboxWinApply 刚写的那组。
-        toolboxGeoStop();
+        // settle=true 是兜底：万一被打断的是关窗动画，它的收尾也必须落地（不留死状态）。
+        toolboxGeoCancel(true);
     }
 }
 
@@ -7075,6 +7155,8 @@ function toolboxWinDown(e, mode, dir) {
     }
     // 动画中途按下（拖动/缩放）：就地接手 —— 停掉动画并把权威几何对齐到**此刻**的矩形，
     // 手势从当前画面接着走，不会从"动画的目标值"开始跳一下。
+    // （关窗动画期间走不到这里：那段时间 toolboxWin.ready 是 false，上面一行就早退了；
+    //   关窗被打断只有两条路 —— 全屏按钮与视口变化，都各自在自己的入口收尾。）
     if (toolboxGeoAnim) toolboxGeoAdopt(card);
     const r = card.getBoundingClientRect();
     const s = {

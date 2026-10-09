@@ -2937,7 +2937,16 @@ const hlC = await json(`(()=>{const h=(window.CSS&&CSS.highlights)?CSS.highlight
   return JSON.stringify({ size: h?h.size:0 });})()`);
 ok(hlC.size > 0, `(20)* 代码区选中 → 正文对应文字高亮（反向，Range 数 ${hlC.size}）`);
 
-// ---------- A/4：对应位置是**平滑**滚过去（不是一帧跳）---------
+// ---------- A/4：对应位置是**平滑**滚过去（逐帧采样判定，不看"某一刻"）---------
+// ★ 老写法是"第 40ms / 180ms / 880ms 各看一眼 scrollTop"，再要求"中间那次 ≠ 最终"。
+//   滚动什么时候开始、什么时候收尾跟机器快慢有关：偶尔中间那次已经等于最终值（或还没开始动），
+//   就成了历史上那条时红时绿的间歇失败。现在改成页面内**逐帧**采样（70 帧 ≈ 1.1s），
+//   再判"起点与终点之间确实有一串不同的中间取值、而且单调不回头" —— 与具体时间点无关。
+await evaluate(`(()=>{const arr=[];window.__s20=arr;let n=0;
+  const c=document.getElementById('tbCode');
+  const tick=function(now){ if(window.__s20!==arr) return;
+    arr.push([now, c.scrollTop]); if(++n<70) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);return 1;})()`);
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   let h=''; for(let i=1;i<=120;i++) h+='<p>'+i+'段落文字内容</p>';
   ed.innerHTML=h;
@@ -2946,16 +2955,20 @@ await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   const r=document.createRange(); r.setStart(t,0); r.setEnd(t,5);
   const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
   toolboxSnapClear(); toolboxSaveRange(); return 1;})()`);
-await sleep(40);
-const s0 = await evaluate(`document.getElementById('tbCode').scrollTop.toFixed(1)`);
-await sleep(140);
-const s1 = await evaluate(`document.getElementById('tbCode').scrollTop.toFixed(1)`);
-await sleep(700);
-const s2 = await evaluate(`document.getElementById('tbCode').scrollTop.toFixed(1)`);
-console.log(`  平滑滚动：起始${s0} 中${s1} 最${s2}`);
-ok(parseFloat(s2) > parseFloat(s0) + 10, `(20)* 选中靠后的段落会把代码区滚到对应位置（${s0} → ${s2}）`);
-ok(parseFloat(s1) !== parseFloat(s2) && parseFloat(s1) > parseFloat(s0),
-  `(20)* 【第 4 条】滚动是逐帧滑过去的（中途 ${s1} ≠ 最终 ${s2}）`);
+await sleep(1300);                                   // 等 70 帧采样跑完
+const s20 = await json(`JSON.stringify(window.__s20||[])`);
+const s20Vals = s20.map(x => Math.round(x[1] * 10) / 10);
+const s20First = s20Vals.length ? s20Vals[0] : 0;
+const s20Last = s20Vals.length ? s20Vals[s20Vals.length - 1] : 0;
+const s20Mids = [...new Set(s20Vals.filter(v => v > s20First + 1 && v < s20Last - 1))];
+let s20Back = 0;
+for (let i = 1; i < s20Vals.length; i++) if (s20Vals[i] < s20Vals[i - 1] - 1) s20Back++;
+console.log(`  平滑滚动（逐帧采样）：起始 ${s20First.toFixed(1)} → 终 ${s20Last.toFixed(1)}，`
+  + `${s20Vals.length} 帧里 ${s20Mids.length} 个中间取值、回头 ${s20Back} 次`);
+ok(s20Vals.length >= 20 && s20Last > s20First + 10,
+  `(20)* 选中靠后的段落会把代码区滚到对应位置（${s20First.toFixed(0)} → ${s20Last.toFixed(0)}）`);
+ok(s20Mids.length >= 3 && s20Back === 0,
+  `(20)* 【第 4 条】滚动是逐帧滑过去的（${s20Mids.length} 个中间取值、单调不回头）—— 不是一帧跳过去`);
 
 // ---------- B：图片文件名占位----------
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
@@ -8369,16 +8382,195 @@ ok(a50Jend.modalDisplay === 'flex' && a50RectEq(a50Jend.cardBox, a50J0.cardBox) 
   `(50)* 关了立刻开：唯一终态 = 开着（display=${a50Jend.modalDisplay}、矩形 ${JSON.stringify(a50Jend.cardBox)}、无残留、closing=${a50Jend.closing}）`);
 ok(a50Jend.cardAnimName === 'none',
   `(50)* 关了立刻开：打开动画仍然压着 tbIn（animation-name=${a50Jend.cardAnimName}），落地不会多一次缩放`);
-// ② 连点全屏 5 次
+// ② 连点全屏 5 次 ×10 轮（每轮复位）—— 收尾不靠"等 900ms"，靠**轮询到稳定**
+// ★ 先说清这次的间歇失败是什么（已复现）：全屏按钮是 26px 的**圆形**（border-radius:50%），
+//   而几何动画期间它跟着标题栏一起移动。老写法"量一次中心 → 立刻按"中间隔着 2~4ms（CDP 往返），
+//   落点可能刚好滚出圆周（实测：圆心 (1337,50) r=13，落点 (1329,61) 距离 13.6px），
+//   click 事件根本不触发 —— 5 次里少一次，奇偶就反了（full=false + 小窗权威几何，正是复现到的现象）。
+//   产品本身没问题（按钮在它当时的位置上是可点的），所以这里把**测法**做成确定性的：
+//   按下后核对"这一次真的送达了吗"，没送达就重新瞄准再按 —— 断言仍然是"送达 5 次 ⇒ 唯一正确终态"。
+const a50Deliver = async () => {
+  for (let i = 1; i <= 8; i++) {
+    const before = await evaluate(`(document.getElementById('tbFullBtn').__a50Clicks||0)`);
+    const b = await btnCenter('#tbFullBtn');
+    if (b.none) throw new Error('找不到 #tbFullBtn');
+    await clickAt(b.x, b.y);
+    const after = await evaluate(`(document.getElementById('tbFullBtn').__a50Clicks||0)`);
+    if (after > before) return i;                    // 第 i 次尝试才真的送到
+    await sleep(16);                                 // 让动画再走一帧，下一轮用新的中心重新瞄准
+  }
+  return 0;
+};
+// 稳定判据 = 收尾状态机真的跑完了：不在跑动画 + 无内联残留 + 内联几何逐字等于权威值
+const a50Stable = (s, geo) => !s.running && s.closing === false && a50Clean(s) && a50GeoSame(s, geo);
+const a50WaitStable = async (geo, limit) => {
+  const t0 = Date.now();
+  for (;;) {
+    const s = await a50Shot();
+    if (a50Stable(s, geo)) return { s: s, ms: Date.now() - t0, ok: true };
+    if (Date.now() - t0 > (limit || 1200)) return { s: s, ms: Date.now() - t0, ok: false };
+    await sleep(25);
+  }
+};
+await evaluate(`(()=>{const b=document.getElementById('tbFullBtn');
+  b.__a50Clicks=0;
+  if(!b.__a50Hook){ b.__a50Hook=true; b.addEventListener('click',function(){ b.__a50Clicks++; },true); }
+  return 1;})()`);
+let a50RapidBad = 0, a50RapidExtra = 0, a50RapidMs = 0;
+let a50RapidLast = null;
+for (let a50r = 1; a50r <= 10; a50r++) {
+  await evaluate('toolboxWinSetFull(false, false)');              // 复位：小窗、无动画
+  const a50Pre = await a50WaitStable(a50SmallGeo, 1000);
+  if (!a50Pre.ok) {
+    a50RapidBad++;
+    console.log(`    ! 第 ${a50r} 轮复位就没到稳定：内联=${JSON.stringify(a50Pre.s.cardGeo)} running=${a50Pre.s.running} closing=${a50Pre.s.closing}`);
+  }
+  for (let k = 0; k < 5; k++) {
+    const n = await a50Deliver();
+    if (n === 0) { a50RapidBad++; console.log(`    ! 第 ${a50r} 轮第 ${k + 1} 次点击 8 次尝试都没送达`); }
+    else a50RapidExtra += n - 1;
+  }
+  const fin = await a50WaitStable(a50FullGeo, 1200);
+  a50RapidMs += fin.ms;
+  a50RapidLast = fin.s;
+  const good = fin.ok && fin.s.cardFull === true && a50RectEq(fin.s.cardBox, a50Full.cardBox);
+  if (!good) {
+    a50RapidBad++;
+    console.log(`    ! 第 ${a50r} 轮没到唯一终态：full=${fin.s.cardFull} running=${fin.s.running} closing=${fin.s.closing} `
+      + `display=${fin.s.modalDisplay} 遮罩=${JSON.stringify(fin.s.modalBg)} 内联=${JSON.stringify(fin.s.cardGeo)} `
+      + `矩形=${JSON.stringify(fin.s.cardBox)} 内联残留=${JSON.stringify(fin.s.cardInline)} 等待=${fin.ms}ms`);
+  }
+}
+ok(a50RapidBad === 0,
+  `(50)* 连点全屏 5 次 ×10 轮：每轮都落到唯一正确终态（full=true、running=false、无残留、display=flex）—— `
+  + `异常 ${a50RapidBad} 轮；多试 ${a50RapidExtra} 次才送达（圆形按钮在动、瞄偏了的测法竞态，不是产品状态问题）`);
+ok(a50RapidLast && a50RapidLast.cardFull === true && a50RectEq(a50RapidLast.cardBox, a50Full.cardBox)
+  && a50GeoSame(a50RapidLast, a50FullGeo),
+  `(50)* 连点全屏 5 次：矩形与内联几何都回到权威值（${JSON.stringify(a50RapidLast.cardBox)} / ${JSON.stringify(a50RapidLast.cardGeo)}），`
+  + `平均 ${(a50RapidMs / 10).toFixed(0)}ms 内收敛到稳定（轮询判定，不靠固定等待）`);
+// ②b 代数号守卫：每次新切换都取消上一段（旧记录作废、running 正确置位、起点取当下实时矩形）
+//     ★ 两次点击之间要**真的过几帧**：同一个任务里连点两次，第一段动画一帧都没走，
+//       "实时矩形"就等于起点本身，那就验不出"起点取当下"（这里 90ms ≈ 5 帧）。
+const a50GenFirst = await json(`(()=>{
+  const g0 = toolboxGeoAnim ? toolboxGeoAnim.gen : -1;
+  document.getElementById('tbFullBtn').click();                  // 开一段新动画
+  const a1 = toolboxGeoAnim;
+  return JSON.stringify({ g0:g0, g1:a1?a1.gen:-1, r1:!!a1 });})()`);
+await sleep(90);
+const a50GenSeq = await json(`(()=>{
+  const a1 = toolboxGeoAnim, g1 = a1 ? a1.gen : -1;
+  const fromW = a1 ? a1.from.width : -1, toW = a1 ? a1.to.width : -1;
+  document.getElementById('tbFullBtn').click();                  // 半路再打断一次
+  const a2 = toolboxGeoAnim;
+  return JSON.stringify({ g1:g1, g2:a2?a2.gen:-1, r1:!!a1, r2:!!a2,
+    oldDone:!!(a1 && a1.done), staleIsCurrent:(a1 === a2), oldRafCleared:!!(a1 && a1.raf === 0),
+    midFromW:fromW, midToW:toW, newFromW:a2?a2.from.width:-1, newToW:a2?a2.to.width:-1,
+    fromIsLive:!!(a2 && a2.from && a2.to && Math.abs(a2.from.width - a2.to.width) > 0.5) });})()`);
+ok(a50GenFirst.g1 > a50GenFirst.g0 && a50GenSeq.g2 > a50GenSeq.g1 && a50GenFirst.r1 === true && a50GenSeq.r2 === true
+  && a50GenSeq.oldDone === true && a50GenSeq.staleIsCurrent === false && a50GenSeq.oldRafCleared === true
+  && a50GenSeq.fromIsLive === true,
+  `(50)* 代数号守卫：新切换先取消上一段（旧记录 done=true、rAF 句柄已清、不再是当前），running 正确置位，`
+  + `新动画的起点是**此刻的实时矩形**（打断时 ${a50GenSeq.midFromW} → 新起点 ${a50GenSeq.newFromW}，`
+  + `不是"上一段的目标值" ${a50GenSeq.newToW}）`
+  + `（代数号 ${a50GenFirst.g0} → ${a50GenSeq.g1} → ${a50GenSeq.g2}）`);
+// ②c 关窗动画中途按全屏按钮：不许留下"弹窗 display:flex + 全透明遮罩"的半关死状态
+const a50CloseOpen = await a50WaitStable(a50FullGeo, 1200);
+ok(a50CloseOpen.ok, `(50)* 代数号守卫之后能收敛回稳定（${a50CloseOpen.ms}ms、内联=${JSON.stringify(a50CloseOpen.s.cardGeo)}）`);
+await a50Click('.tb-close');                                      // 关窗（动画在跑）
+await sleep(70);
+const a50MidClose = await a50Shot();
+const a50Interrupt = await a50Deliver();                          // 关窗中途按全屏（务必送达）
+const a50DeadRes = await (async () => {
+  const t0 = Date.now();
+  for (;;) {
+    const s = await a50Shot();
+    const dead = s.modalDisplay === 'flex' && s.modalBg === 'transparent' && s.closing === true;
+    if (!s.running && !s.closing && !dead) return { ok: true, s: s, ms: Date.now() - t0 };
+    if (Date.now() - t0 > 1500) return { ok: false, s: s, ms: Date.now() - t0 };
+    await sleep(25);
+  }
+})();
+ok(a50MidClose.closing === true && a50Interrupt > 0 && a50DeadRes.ok && a50DeadRes.s.cardFull === true
+  && a50DeadRes.s.modalDisplay === 'flex' && a50DeadRes.s.modalBg !== 'transparent',
+  `(50)* 关窗动画中途按全屏按钮（关窗中途 closing=${a50MidClose.closing}）：关窗被这一下打断、全屏照常落地，`
+  + `不留"半关"死状态（display=${a50DeadRes.s.modalDisplay}、遮罩=${JSON.stringify(a50DeadRes.s.modalBg)}、`
+  + `closing=${a50DeadRes.s.closing}、full=${a50DeadRes.s.cardFull}、${a50DeadRes.ms}ms）`);
+// ②d 关窗动画被**几何单写者**打断（toolboxWinApply）：收尾照样落地，且写回的是**新权威几何**
+//     ★ 先把"可打断面"说清楚（实测）：关窗期间 toolboxWin.ready 是 false，所以拖动
+//       （toolboxWinDown）和视口变化（toolboxWinOnViewportResize）都会早退 —— 真正能打断
+//       关窗动画的只有两条：全屏按钮（②c）与几何单写者被调用（这里）。两条都要确定收尾。
 await evaluate('toolboxWinSetFull(false, false)');
-await sleep(260);
-for (let i = 0; i < 5; i++) await a50Click('#tbFullBtn');    // 不等待、真连点
-await sleep(900);
-const a50RapidFull = await a50Shot();
-ok(a50RapidFull.cardFull === true && a50RapidFull.running === false && a50Clean(a50RapidFull),
-  `(50)* 连点全屏 5 次：落到唯一正确终态（full=${a50RapidFull.cardFull}、running=${a50RapidFull.running}、无残留）`);
-ok(a50RectEq(a50RapidFull.cardBox, a50Full.cardBox) && a50GeoSame(a50RapidFull, a50FullGeo),
-  `(50)* 连点全屏 5 次：矩形与内联几何都回到权威值（${JSON.stringify(a50RapidFull.cardBox)} / ${JSON.stringify(a50RapidFull.cardGeo)}）`);
+const a50GrabPre = await a50WaitStable(a50SmallGeo, 1000);
+const a50Grab = await json(`(()=>{
+  const modal=document.getElementById('toolboxModal'), card=document.querySelector('.tb-card');
+  document.querySelector('.tb-close').click();                 // 关窗：几何动画开始跑
+  const midClosing=toolboxClosing, midRunning=!!toolboxGeoAnim;
+  toolboxWinApply({left:100, top:100, w:900, h:600});          // 关窗中途改几何（单写者不变式）
+  return JSON.stringify({ midClosing:midClosing, midRunning:midRunning,
+    afterClosing:toolboxClosing, afterRunning:!!toolboxGeoAnim,
+    display:getComputedStyle(modal).display, bg:modal.style.background,
+    inline:{l:card.style.left,w:card.style.width,h:card.style.height} });})()`);
+const a50GrabEnd = await (async () => {
+  const t0 = Date.now();
+  for (;;) {
+    const s = await a50Shot();
+    if (!s.running && !s.closing) return { s: s, ms: Date.now() - t0 };
+    if (Date.now() - t0 > 1500) return { s: s, ms: Date.now() - t0, timeout: true };
+    await sleep(25);
+  }
+})();
+ok(a50GrabPre.ok && a50Grab.midClosing === true && a50Grab.midRunning === true
+  && a50Grab.afterClosing === false && a50Grab.afterRunning === false
+  && a50Grab.display === 'none' && a50Grab.bg === ''
+  && a50Grab.inline.l === '100px' && a50Grab.inline.w === '900px' && a50Grab.inline.h === '600px'
+  && !a50GrabEnd.timeout && a50GrabEnd.s.closing === false && a50GrabEnd.s.running === false,
+  `(50)* 关窗动画被几何单写者打断：收尾立刻落地（closing ${a50Grab.midClosing}→${a50GrabEnd.s.closing}、`
+  + `display=${a50Grab.display}、遮罩=${JSON.stringify(a50Grab.bg)}），且写回的是**新权威几何**`
+  + `（${a50Grab.inline.l}/${a50Grab.inline.w}/${a50Grab.inline.h}）而不是关窗的旧 end`);
+// ②e 关窗期间视口变化：ready=false ⇒ 这一下被忽略，关窗照常走到自己的确定终态（不留半关）
+//     ★ ②d 结束时工具箱是关着的（那正是"收尾落地"的证据），所以这里先幂等地重新打开；
+//       打开后的几何跟着上一次会话走，不假设它一定是小窗，只要求"已经稳定"。
+await evaluate('toolboxOpen()');
+await sleep(700);
+const a50ResizePre = await (async () => {
+  const t0 = Date.now();
+  for (;;) {
+    const s = await a50Shot();
+    if (!s.running && !s.closing) return { ok: true, s: s, ms: Date.now() - t0 };
+    if (Date.now() - t0 > 1200) return { ok: false, s: s, ms: Date.now() - t0 };
+    await sleep(25);
+  }
+})();
+await evaluate('toolboxWinSetFull(false, false)');
+await sleep(300);
+const a50Resize = await json(`(()=>{
+  const modal=document.getElementById('toolboxModal');
+  document.querySelector('.tb-close').click();
+  const midClosing=toolboxClosing, midRunning=!!toolboxGeoAnim, midReady=!!toolboxWin.ready;
+  window.dispatchEvent(new Event('resize'));
+  return JSON.stringify({ midClosing:midClosing, midRunning:midRunning, midReady:midReady,
+    afterClosing:toolboxClosing, afterRunning:!!toolboxGeoAnim });})()`);
+const a50ResizeEnd = await (async () => {
+  const t0 = Date.now();
+  for (;;) {
+    const s = await a50Shot();
+    if (!s.running && !s.closing) return { s: s, ms: Date.now() - t0 };
+    if (Date.now() - t0 > 1500) return { s: s, ms: Date.now() - t0, timeout: true };
+    await sleep(25);
+  }
+})();
+ok(a50ResizePre.ok && a50Resize.midClosing === true && a50Resize.midRunning === true && a50Resize.midReady === false
+  && a50Resize.afterClosing === true && a50Resize.afterRunning === true
+  && !a50ResizeEnd.timeout && a50ResizeEnd.s.modalDisplay === 'none' && a50ResizeEnd.s.closing === false,
+  `(50)* 关窗期间视口变化被忽略（ready=false、关窗不受影响）：关窗照常收尾到确定终态`
+  + `（display=${a50ResizeEnd.s.modalDisplay}、遮罩=${JSON.stringify(a50ResizeEnd.s.modalBg)}、`
+  + `closing=${a50ResizeEnd.s.closing}、${a50ResizeEnd.ms}ms）`);
+await evaluate('toolboxOpen()');                                  // 后面几个用例要继续用工具箱
+await sleep(700);
+// 收尾复位：回到小窗（轮询到稳定，不用固定等待），后续用例不受影响
+await evaluate('toolboxWinSetFull(false, false)');
+const a50RapidReset = await a50WaitStable(a50SmallGeo, 1000);
+ok(a50RapidReset.ok, `(50)* 连点/打断这一组收尾：复位回小窗也收敛到稳定（${a50RapidReset.ms}ms、内联=${JSON.stringify(a50RapidReset.s.cardGeo)}）`);
 // ③ 动画进行中打字：新机制不再打断动画（真实元素一直能输入），打字照常落入编辑区、动画照常落地
 await evaluate('toolboxWinSetFull(false, false)');
 await sleep(300);
@@ -8564,6 +8756,188 @@ ok(a50Type.text === '后' && a50Type.code === '<p>后</p>' && a50Type.off === 1,
   `(50)* 动画结束后输入正常：文字=${JSON.stringify(a50Type.text)}、代码区=${JSON.stringify(a50Type.code)}、光标偏移=${a50Type.off}`);
 ok(a50Clean(a50Final) && a50Final.running === false && a50Final.hitInside === true,
   `(50)* 收尾：无残留、动画已停、卡片仍可点（命中 ${a50Final.hitWhat}）、弹窗 display=${a50Final.modalDisplay}`);
+// ==============================================================
+console.log('\n====== (51) 超链接：地址只硬拦三类（其余放行/提醒）+「显示文字」以对话框填的为准 ======\n');
+// 前置：弹窗开着、动画没在跑（(50) 收尾就是这个状态；这里再兜一次，顺序被打乱也不怕）
+await evaluate('toolboxOpen()');
+await sleep(420);
+
+// —— 本节自己的取数/操作工具 ——
+const a51Ed = () => json(`(()=>{const ed=document.getElementById('tbEditor');
+  return JSON.stringify({html:ed.innerHTML, text:ed.textContent, code:document.getElementById('tbCode').value});})()`);
+const a51Dlg = () => json(`(()=>{const d=document.getElementById('tbDialog');
+  return JSON.stringify({open:getComputedStyle(d).display!=='none',
+    url:(document.getElementById('tbF_url')||{}).value, text:(document.getElementById('tbF_text')||{}).value,
+    textPh:(document.getElementById('tbF_text')||{}).placeholder||''});})()`);
+const a51Toast = () => json(`(()=>{const t=document.getElementById('tbToast');
+  return JSON.stringify({show:t.classList.contains('show'), text:t.textContent||''});})()`);
+const a51ToastClear = () => evaluate(`(()=>{const t=document.getElementById('tbToast');t.classList.remove('show');t.textContent='';return 1;})()`);
+// 选中编辑区那段文字（模拟"用户真的选了"）：先清掉上一次的快照/存档，避免串味
+const a51Sel = (html, start, end) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML=${JSON.stringify(html)}; toolboxSnapClear(); toolboxRange=null;
+  const n=ed.querySelector('p').firstChild;
+  const r=document.createRange(); r.setStart(n,${start}); r.setEnd(n,${end});
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSaveRange(); return 1;})()`);
+// 没选文字：光标落在末尾（collapsed），快照也清空 —— 就是"用户没选东西"的状态
+const a51Caret = (html) => evaluate(`(()=>{const ed=document.getElementById('tbEditor');
+  ed.innerHTML=${JSON.stringify(html)}; toolboxSnapClear(); toolboxRange=null;
+  const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus(); toolboxSaveRange(); return 1;})()`);
+// 打开对话框：真实鼠标点工具栏「链接」按钮 —— 正是产品里"按下按钮先冻结选区"那条路径。
+// 已经开着就不重复点（被拦下的用例对话框会留着，直接用同一个）。
+const a51Open = async () => { if (!(await a51Dlg()).open) { await clickSel('[data-tb="link"]'); await sleep(220); } };
+// 走一遍"填字段 → 确定"：返回编辑区/代码区/对话框/toast 当时的状态
+const a51Link = async (url, text, afterFill) => {
+  await a51Open();
+  await a51ToastClear();
+  await evaluate(`(()=>{document.getElementById('tbF_url').value=${JSON.stringify(url)};
+    document.getElementById('tbF_text').value=${JSON.stringify(text == null ? '' : text)};return 1;})()`);
+  if (afterFill) await evaluate(afterFill);
+  await clickSel('#tbDialogOk');
+  await sleep(220);
+  // 取数前把编辑区与代码区同步一次：代码区是防抖刷新的，不等它就可能在读上一版
+  await evaluate('toolboxRefresh()');
+  await sleep(150);
+  const ed = await a51Ed();
+  return { html: ed.html, plain: ed.text, code: ed.code, dlg: await a51Dlg(), toast: await a51Toast() };
+};
+const a51Anchors = (html) => {
+  const out = []; const re = /<a href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g; let m;
+  while ((m = re.exec(html || ''))) out.push({ href: m[1], text: m[2] });
+  return out;
+};
+const a51Anchor = (html) => a51Anchors(html)[0] || null;
+const a51Esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// —— 51A 硬拦三类：空 / 含空白 / 危险协议（安全线，一条都不许放宽）——
+const a51Deny = [
+  ['地址为空', ''],
+  ['只有空白', '   '],
+  ['半角空格', 'https://example.com/a b'],
+  ['全角空格', 'https://example.com/a\u3000b'],
+  ['制表符', 'https://exa\tmple.com'],
+  ['javascript:（小写）', 'javascript:alert(1)'],
+  ['JaVaScRiPt:（大小写混写）', 'JaVaScRiPt:alert(1)'],
+  ['前导空白 + 控制字符', '\u0000 \tjavascript:alert(1)'],
+  ['java\\tscript:（拼接绕过）', 'java\tscript:alert(1)'],
+  ['java\\u0000script:（拼接绕过）', 'java\u0000script:alert(1)'],
+  ['vbscript:（小写）', 'vbscript:msgbox(1)'],
+  ['VBScript:（大小写混写）', 'VBScript:MsgBox(1)'],
+  ['data:（文本脚本）', 'data:text/html,<script>alert(1)</script>'],
+  ['DaTa:（大小写混写 + base64）', 'DaTa:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==']
+];
+for (const [a51Name, a51Url] of a51Deny) {
+  await a51Sel('<p>甲</p>', 0, 1);
+  const a51R = await a51Link(a51Url, '乙');
+  const a51Refused = a51R.dlg.open === true && a51R.plain === '甲' && !/<a\b/.test(a51R.html);
+  ok(a51Refused && a51R.toast.show === true && a51R.toast.text.length > 0,
+    `(51)* 硬拦·${a51Name}：${JSON.stringify(a51Url)} → 拒绝插入（对话框留着、原内容「甲」不动、没有 <a>），并给了提示「${a51R.toast.text.slice(0, 40)}」`);
+}
+
+// —— 51B 其余一律放行（本轮核心反转：不再拿"中文标点/半角括号"当无效）——
+const a51Wiki = 'https://ch.wikipedia.org/w/index.php?title=Japanese_military_currency_(1937%E2%80%931945)&oldid=1005465457';
+const a51Allow = [
+  ['维基长地址（半角括号 + %E2%80%93 + &）', a51Wiki],
+  ['裸域名', 'example.com'],
+  ['www. 开头', 'www.a.com'],
+  ['.quest 这种新顶级域', 'solve.quest'],
+  ['全角问号等中文标点', 'https://example.com/？a=1&b=2'],
+  ['成串中文标点', 'https://example.com/《》「」，。；：！？'],
+  ['mailto:', 'mailto:someone@example.com'],
+  ['tel:', 'tel:+861012345678']
+];
+for (const [a51Name, a51Url] of a51Allow) {
+  await a51Sel('<p>甲</p>', 0, 1);
+  const a51R = await a51Link(a51Url, '乙');
+  const a51A = a51Anchor(a51R.html);
+  ok(!!a51A && a51A.href === a51Esc(a51Url) && a51A.text === '乙',
+    `(51)* 放行·${a51Name}：${JSON.stringify(a51Url)} → 插进去了（href=${a51A ? JSON.stringify(a51A.href) : '—'}、显示文字=${a51A ? JSON.stringify(a51A.text) : '—'}）`);
+  ok(a51R.toast.show === false,
+    `(51)* 放行·${a51Name}：没有任何多余提醒（toast 没弹）—— 提醒不做成噪音`);
+}
+
+// —— 51C "看着不像链接"（既无协议、也不含点号）改成提醒：不阻止「确定」——
+await a51Sel('<p>甲</p>', 0, 1);
+const a51Odd = await a51Link('随便一段话', '乙');
+const a51OddA = a51Anchor(a51Odd.html);
+ok(!!a51OddA && a51OddA.href === '随便一段话' && a51OddA.text === '乙',
+  `(51)* 提醒·不像链接的裸词「随便一段话」：照样插进去了（href=${a51OddA ? JSON.stringify(a51OddA.href) : '—'}）—— 不再判无效`);
+ok(a51Odd.toast.show === true && /网址|链接/.test(a51Odd.toast.text),
+  `(51)* 提醒·不像链接的裸词：给了提醒（toast「${a51Odd.toast.text.slice(0, 60)}」）但**没有**阻止确定`);
+
+// —— 51D 「显示文字」以对话框里填的为准（用户报的 bug：选了甲、框里填乙，出来还是甲）——
+// 1) 选中「甲」+ 框里填「乙」 → 必须是「乙」
+await a51Sel('<p>甲</p>', 0, 1);
+const a51D1 = await a51Link('https://example.com/', '乙');
+const a51D1A = a51Anchor(a51D1.html);
+ok(!!a51D1A && a51D1A.text === '乙',
+  `(51)* 显示文字·填了「乙」：结果是 ${a51D1A ? JSON.stringify(a51D1A.text) : '—'}（**不是**选中的「甲」）—— 用户填的值赢`);
+ok(a51D1.plain === '乙',
+  `(51)* 显示文字·填了「乙」：选区那段被这个链接**替换**掉，没丢字也没重复（编辑区文字=${JSON.stringify(a51D1.plain)}）`);
+ok(/<a [^>]*>乙<\/a>/.test(a51D1.code) && a51D1.code.indexOf('甲') < 0,
+  `(51)* 显示文字·填了「乙」：代码区与编辑区一致（代码=${JSON.stringify(a51D1.code.slice(0, 90))}）`);
+// 2) 框里留空 → 回落用按下按钮那一刻选中的「甲」
+await a51Sel('<p>甲</p>', 0, 1);
+const a51D2 = await a51Link('https://example.com/', '');
+const a51D2A = a51Anchor(a51D2.html);
+ok(!!a51D2A && a51D2A.text === '甲',
+  `(51)* 显示文字·留空：回落用按下按钮那一刻选中的「甲」（实际 ${a51D2A ? JSON.stringify(a51D2A.text) : '—'}）`);
+// 3) 先填「乙」再删光（显式清空）→ 同样回落用「甲」
+await a51Sel('<p>甲</p>', 0, 1);
+const a51D3 = await a51Link('https://example.com/', '',
+  `(()=>{const t=document.getElementById('tbF_text');t.value='乙';t.value='';return 1;})()`);
+const a51D3A = a51Anchor(a51D3.html);
+ok(!!a51D3A && a51D3A.text === '甲',
+  `(51)* 显示文字·先填后删光（显式清空）：回落用选中的「甲」（实际 ${a51D3A ? JSON.stringify(a51D3A.text) : '—'}）`);
+// 4) 没选文字 + 框里填「乙」 → 「乙」
+await a51Caret('<p><br></p>');
+const a51D4 = await a51Link('https://example.com/', '乙');
+const a51D4A = a51Anchor(a51D4.html);
+ok(!!a51D4A && a51D4A.text === '乙',
+  `(51)* 显示文字·没选文字、框里填了「乙」：用它（实际 ${a51D4A ? JSON.stringify(a51D4A.text) : '—'}）`);
+// 5) 没选文字 + 框也空 → 提示必须填写、不插入
+await a51Caret('<p><br></p>');
+const a51D5 = await a51Link('https://example.com/', '');
+ok(a51D5.dlg.open === true && !/<a\b/.test(a51D5.html) && /请填写/.test(a51D5.toast.text),
+  `(51)* 显示文字·两边都空：提示必须填写、不插入（对话框还开着=${a51D5.dlg.open}、提示「${a51D5.toast.text.slice(0, 50)}」）`);
+// 6) 框里带空格的文字逐字保留（不 trim 内容里的空格）
+await a51Sel('<p>甲</p>', 0, 1);
+const a51D6 = await a51Link('https://example.com/', 'Japanese military currency');
+const a51D6A = a51Anchor(a51D6.html);
+ok(!!a51D6A && a51D6A.text === 'Japanese military currency',
+  `(51)* 显示文字·带空格的文字逐字保留：${a51D6A ? JSON.stringify(a51D6A.text) : '—'}`);
+// 7) 同一段里连着插两个链接：各自用自己的文字（第二次走"留空回落快照"，不许串用上一次的）
+await a51Sel('<p>甲丙</p>', 0, 1);
+const a51D7a = await a51Link('https://example.com/1', '乙');
+await evaluate(`(()=>{const ed=document.getElementById('tbEditor');const a=ed.querySelector('a');
+  const n=a.nextSibling;
+  const r=document.createRange();r.setStart(n,0);r.setEnd(n,1);
+  const s=getSelection();s.removeAllRanges();s.addRange(r);ed.focus();toolboxSaveRange();return 1;})()`);
+const a51D7b = await a51Link('https://example.com/2', '');
+const a51D7As = a51Anchors(a51D7b.html);
+ok(a51D7As.length === 2 && a51D7As[0].text === '乙' && a51D7As[1].text === '丙'
+  && a51D7As[0].href === 'https://example.com/1' && a51D7As[1].href === 'https://example.com/2',
+  `(51)* 同一段插两个链接：文字各自正确（${JSON.stringify(a51D7As.map(x => x.text))}、地址 ${JSON.stringify(a51D7As.map(x => x.href))}）—— 没串用上一次的快照/选区`);
+// 8)「显示文字」框本身：有选区也**不预填**（只有 placeholder）
+await a51Sel('<p>甲</p>', 0, 1);
+await evaluate(`toolboxDialogCancel()`);
+await sleep(120);
+await a51Open();
+const a51D8 = await a51Dlg();
+ok(a51D8.text === '' && /选中文字/.test(a51D8.textPh),
+  `(51)*「显示文字」框：有选区也不预填（value=${JSON.stringify(a51D8.text)}、placeholder「${a51D8.textPh}」）—— 填进去的值才是用户的意思`);
+await evaluate(`toolboxDialogCancel()`);
+await sleep(120);
+// 9) 收尾：插一条"合法但长"的维基链接，校验区必须 0 错 0 警
+await a51Sel('<p>甲</p>', 0, 1);
+const a51D9 = await a51Link(a51Wiki, '维基');
+await evaluate('toolboxRefresh()');
+await sleep(220);
+const a51Lint = await json(`(()=>{const v=document.getElementById('tbValidate');
+  return JSON.stringify({errors:+v.getAttribute('data-errors'), warnings:+v.getAttribute('data-warnings')});})()`);
+ok(!!a51Anchor(a51D9.html) && a51Lint.errors === 0 && a51Lint.warnings === 0,
+  `(51)* 合法链接（含括号/&/%E2%80%93）插入后校验区 0 错 0 警（error=${a51Lint.errors}、warning=${a51Lint.warnings}）`);
+
 console.log(`\n  -------- 通过 ${pass} / 失败 ${fail} -------- `);
 ok(errors.length === 0, `全程无未捕获异常${errors.length} 条）`);
 if (errors.length) errors.slice(0, 5).forEach(e => console.log('    ! ' + e.slice(0, 220)));
