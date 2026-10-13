@@ -69,7 +69,7 @@ const hk_hsbcData = {
                     ]
                 },
                 {
-                    varietyName: "港币20元",
+                    varietyName: "港币20元 黑柴",
                     copies: [
                         {
                             copyId: 21885641,

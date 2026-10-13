@@ -22,7 +22,7 @@ const republic_fbcData = {
 
     series: [
         {
-            seriesName: "中华民国二十六年（1937年） 大业版 法币券",
+            seriesName: "中华民国二十六年（1937年） 大业版 法币券·辅币券",
             year: "1937",
             varieties: [
                 {
@@ -69,6 +69,35 @@ const republic_fbcData = {
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/GF150753-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/GF150753-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国二十九年（1940年） 大业版 法币券",
+            year: "1940",
+            varieties: [
+                {
+                    varietyName: "1940年 1元 《雍正耕织图》之“砻”",
+                    copies: [
+                        {
+                            copyId: "2399921-055",
+                            year: 1940,
+                            version: "FV046722",
+                            bank: "中国农民银行",
+                            print: "中国大业公司/TYPC",
+                            signature1: "总经理（General Manager）",
+                            signature2: "协理（Asst. General Manager）：",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "PMG 65E",
+                            price: "385元",
+                            purchaseDate: "2026年10月13日",
+                            krause: "463",
+                            remark: "双字轨版本。购入这张农民银行钞券以纪念今天“江泽民诞辰100周年普通纪念币”的发行。转卖纪念币使我净赚260元，相当于这张农民银行纸币只需要125元（什么奇怪的逻辑）。“砻”（lóng）的含义是一种传统的稻谷脱壳农具，同时也指用这种工具给稻谷脱壳的动作。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/FV046722-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_fbc/FV046722-2.jpg"
                         }
                     ]
                 }

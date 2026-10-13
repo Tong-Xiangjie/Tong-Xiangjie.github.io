@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a2e">
+<title>SimpleWebOS 3.0</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💻</text></svg>">
+<style>
+:root {
+  --accent: #4a9eff;
+  --bg-1: #1a1a2e; --bg-2: #16213e; --bg-3: #0f3460;
+  --text: #ffffff;
+  --window-bg: rgba(28,28,32,.96);
+  --window-header: rgba(255,255,255,.08);
+  --glass: rgba(0,0,0,.28);
+  --border: rgba(255,255,255,.18);
+  --hover: rgba(255,255,255,.12);
+}
+:root.light {
+  --bg-1: #e8ecf4; --bg-2: #d9e2ec; --bg-3: #bcccdc;
+  --text: #1a1a2e;
+  --window-bg: rgba(250,250,252,.96);
+  --window-header: rgba(0,0,0,.06);
+  --glass: rgba(255,255,255,.5);
+  --border: rgba(0,0,0,.12);
+  --hover: rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+#os { position: fixed; inset: 0; display: flex; flex-direction: column; color: var(--text); background: linear-gradient(135deg, var(--bg-1), var(--bg-2), var(--bg-3)); transition: background .3s, color .3s; }
+
+/* 启动画面 */
+#boot { position: fixed; inset: 0; z-index: 99999; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; transition: opacity .5s; }
+#boot.hidden { opacity: 0; pointer-events: none; }
+.boot-logo { font-size: 80px; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: .7; } }
+.boot-bar { width: 200px; height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+.boot-bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.boot-text { font-size: 13px; opacity: .6; }
+
+/* 锁屏 */
+#lockscreen { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; backdrop-filter: blur(30px); background: rgba(0,0,0,.5); transition: opacity .4s, transform .4s; }
+#lockscreen.hidden { opacity: 0; pointer-events: none; transform: scale(1.05); }
+.lock-time { font-size: 64px; font-weight: 200; letter-spacing: 2px; }
+.lock-date { font-size: 16px; opacity: .8; margin-top: -14px; }
+.lock-hint { font-size: 13px; opacity: .6; margin-top: 40px; animation: blink 1.5s infinite; }
+@keyframes blink { 0%,100% { opacity: .6; } 50% { opacity: .2; } }
+.lock-avatar { width: 80px; height: 80px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 40px; }
+
+/* 状态栏 */
+#statusbar { height: 30px; flex: 0 0 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 13px; background: var(--glass); backdrop-filter: blur(10px); z-index: 1000; user-select: none; }
+#statusbar .left, #statusbar .right { display: flex; align-items: center; gap: 12px; }
+#statusbar .clickable { cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: .15s; }
+#statusbar .clickable:hover { background: var(--hover); }
+
+/* 桌面 */
+#desktop { flex: 1; position: relative; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, 86px); gap: 16px; align-content: start; overflow: auto; }
+.icon { width: 86px; padding: 10px 6px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: .15s; font-size: 34px; }
+.icon span { font-size: 12px; text-align: center; line-height: 1.25; word-break: break-all; }
+.icon:hover { background: var(--hover); }
+.icon:active { transform: scale(.94); }
+.icon.selected { background: var(--hover); outline: 1px solid var(--accent); }
+
+/* Dock */
+#dock { height: 68px; flex: 0 0 68px; display: flex; align-items: center; justify-content: center; gap: 14px; background: var(--glass); backdrop-filter: blur(14px); z-index: 1000; padding: 0 14px; overflow-x: auto; }
+#dock .dock-icon { position: relative; font-size: 26px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 14px; cursor: pointer; user-select: none; transition: .15s; flex: 0 0 auto; }
+#dock .dock-icon:hover { background: var(--hover); transform: translateY(-4px); }
+#dock .dock-icon:active { transform: scale(.9); }
+#dock .dock-icon .indicator { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: 0; transition: .2s; }
+#dock .dock-icon.running .indicator { opacity: 1; }
+
+/* 开始菜单 */
+#startmenu { position: absolute; left: 12px; bottom: 78px; width: 320px; max-height: 70vh; background: var(--window-bg); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5); padding: 14px; z-index: 1500; backdrop-filter: blur(20px); display: none; flex-direction: column; gap: 12px; overflow: hidden; }
+#startmenu.show { display: flex; animation: slideUp .2s ease; }
+@keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+#startmenu .search { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--hover); color: var(--text); outline: none; font-size: 14px; }
+#startmenu .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; overflow-y: auto; padding: 4px; }
+#startmenu .app-tile { padding: 12px 6px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: .15s; font-size: 26px; }
+#startmenu .app-tile span { font-size: 11px; text-align: center; }
+#startmenu .app-tile:hover { background: var(--hover); }
+
+/* 通知中心 */
+#notifcenter { position: absolute; right: 12px; top: 42px; width: 340px; max-height: 70vh; background: var(--window-bg); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5); padding: 14px; z-index: 1500; backdrop-filter: blur(20px); display: none; flex-direction: column; gap: 10px; overflow: hidden; }
+#notifcenter.show { display: flex; animation: slideDown .2s ease; }
+@keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+#notifcenter .title { font-size: 14px; font-weight: 600; opacity: .8; padding: 0 4px; }
+#notifcenter .list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 60vh; }
+.notif { background: var(--hover); padding: 10px 12px; border-radius: 10px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+.notif .n-icon { font-size: 20px; }
+.notif .n-body { flex: 1; }
+.notif .n-title { font-weight: 600; margin-bottom: 2px; }
+.notif .n-time { font-size: 11px; opacity: .5; }
+.notif .n-close { cursor: pointer; opacity: .5; padding: 0 4px; }
+
+/* Toast */
+#toasts { position: fixed; top: 42px; left: 50%; transform: translateX(-50%); z-index: 9000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: rgba(0,0,0,.85); color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 13px; backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,.3); animation: toastIn .3s ease, toastOut .3s ease 2.2s forwards; pointer-events: auto; max-width: 80vw; }
+@keyframes toastIn { from { transform: translateY(-20px); opacity: 0; } }
+@keyframes toastOut { to { transform: translateY(-20px); opacity: 0; } }
+
+/* 窗口 */
+.window { position: absolute; top: 70px; left: 80px; width: 480px; height: 360px; min-width: 260px; min-height: 180px; background: var(--window-bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.5); display: flex; flex-direction: column; overflow: hidden; z-index: 100; backdrop-filter: blur(20px); color: var(--text); transition: opacity .15s, transform .15s; }
+.window.minimized { opacity: 0; pointer-events: none; transform: scale(.9) translateY(40px); }
+.window.maximized { top: 30px !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 30px - 68px) !important; border-radius: 0; }
+.window-header { height: 38px; flex: 0 0 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: var(--window-header); cursor: move; user-select: none; font-size: 14px; }
+.window-title { display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.window-actions { display: flex; gap: 6px; }
+.win-btn { width: 24px; height: 24px; border-radius: 50%; border: none; color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: .15s; }
+.win-btn.min { background: #febc2e; }
+.win-btn.max { background: #28c840; }
+.win-btn.close { background: #ff5f57; }
+.win-btn:hover { filter: brightness(1.15); }
+.win-btn:active { transform: scale(.9); }
+.window-content { flex: 1; padding: 12px; overflow: auto; background: rgba(0,0,0,.18); position: relative; }
+:root.light .window-content { background: rgba(0,0,0,.03); }
+.resize-handle { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 5; }
+.resize-handle::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px; border-right: 2px solid var(--border); border-bottom: 2px solid var(--border); }
+
+/* 右键菜单 */
+#ctxmenu { position: fixed; z-index: 20000; background: var(--window-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.4); padding: 6px; min-width: 200px; backdrop-filter: blur(20px); display: none; font-size: 13px; }
+#ctxmenu.show { display: block; animation: fadeIn .12s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: scale(.97); } }
+.ctx-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.ctx-item:hover { background: var(--hover); }
+.ctx-item.disabled { opacity: .4; pointer-events: none; }
+.ctx-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
+/* 通用 */
+textarea, input, select, button { font-family: inherit; }
+.app-btn { background: var(--hover); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; transition: .15s; }
+.app-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.app-btn:active { transform: scale(.96); }
+.app-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* 终端 */
+.terminal { height: 100%; display: flex; flex-direction: column; font-family: ui-monospace, "Cascadia Code", monospace; font-size: 13px; color: #7CFC00; }
+.term-output { flex: 1; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+.term-input-line { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 6px; }
+.term-input-line input { flex: 1; background: transparent; border: none; outline: none; color: #7CFC00; font-family: inherit; font-size: inherit; }
+
+/* 设置 */
+.settings-list { display: flex; flex-direction: column; gap: 14px; }
+.settings-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+.setting-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: .15s; }
+.color-dot:hover { transform: scale(1.15); }
+.color-dot.active { border-color: #fff; }
+
+/* 计算器 */
+.calc { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.calc-display { background: rgba(0,0,0,.3); padding: 16px; border-radius: 10px; font-size: 28px; text-align: right; font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; min-height: 60px; word-break: break-all; }
+:root.light .calc-display { background: rgba(0,0,0,.06); }
+.calc-btns { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.calc-btns button { border: none; border-radius: 10px; font-size: 18px; cursor: pointer; background: var(--hover); color: var(--text); transition: .1s; }
+.calc-btns button:hover { background: var(--accent); color: #fff; }
+.calc-btns button:active { transform: scale(.96); }
+.calc-btns .op { background: rgba(74,158,255,.25); }
+.calc-btns .eq { background: var(--accent); color: #fff; }
+
+/* 文件管理器 */
+.fm { display: flex; height: 100%; gap: 10px; }
+.fm-sidebar { width: 130px; flex: 0 0 130px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.fm-sidebar .fm-nav { padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.fm-sidebar .fm-nav:hover { background: var(--hover); }
+.fm-sidebar .fm-nav.active { background: var(--accent); color: #fff; }
+.fm-main { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fm-path { font-size: 12px; opacity: .7; padding: 4px 8px; background: var(--hover); border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.fm-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.fm-item:hover { background: var(--hover); }
+.fm-item .fm-icon { font-size: 18px; }
+.fm-item .fm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 音乐 */
+.music { display: flex; flex-direction: column; align-items: center; gap: 14px; height: 100%; justify-content: center; padding: 12px; }
+.music-cover { width: 130px; height: 130px; border-radius: 16px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 50px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+.music-cover.playing { animation: spin 6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.music-title { font-size: 15px; font-weight: 600; }
+.music-artist { font-size: 12px; opacity: .6; margin-top: -8px; }
+.music-progress { width: 100%; height: 4px; background: var(--hover); border-radius: 2px; overflow: hidden; }
+.music-progress-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.music-controls { display: flex; gap: 14px; align-items: center; }
+.music-controls button { background: transparent; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 6px; }
+.music-controls button:hover { color: var(--accent); }
+
+/* 日历 */
+.calendar { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; flex: 1; }
+.cal-day-name { text-align: center; font-size: 11px; opacity: .5; padding: 4px 0; }
+.cal-day { text-align: center; padding: 8px 0; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.cal-day:hover { background: var(--hover); }
+.cal-day.today { background: var(--accent); color: #fff; }
+.cal-day.other { opacity: .3; }
+
+/* 聊天 */
+.chat { display: flex; flex-direction: column; height: 100%; gap: 8px; }
+.chat-toolbar { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.chat-status { flex: 1; font-size: 12px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-status.online { color: #28c840; opacity: 1; }
+.chat-status.error { color: #ff5f57; opacity: 1; }
+.chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; }
+.msg { max-width: 80%; padding: 8px 12px; border-radius: 14px; font-size: 13px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
+.msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.msg.bot { align-self: flex-start; background: var(--hover); border-bottom-left-radius: 4px; }
+.msg.streaming::after { content: '▊'; animation: blink 1s infinite; margin-left: 2px; opacity: .7; }
+.chat-input { display: flex; gap: 6px; }
+.chat-input input { flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--hover); color: var(--text); outline: none; font-size: 13px; }
+
+/* 画板 */
+.paint { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.paint-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.paint-canvas { flex: 1; background: #fff; border-radius: 8px; touch-action: none; cursor: crosshair; width: 100%; }
+
+/* 贪吃蛇 */
+.snake-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; height: 100%; justify-content: center; }
+.snake-canvas { background: #0a0a1a; border-radius: 10px; max-width: 100%; }
+.snake-score { font-size: 14px; }
+.snake-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 160px; }
+.snake-btns button { padding: 10px; font-size: 16px; }
+
+/* 关于 */
+.about { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 20px; }
+.about-logo { font-size: 60px; }
+.about-title { font-size: 20px; font-weight: 600; }
+.about-sub { font-size: 12px; opacity: .6; }
+.about-info { font-size: 13px; opacity: .8; margin-top: 10px; line-height: 1.8; }
+
+/* 浏览器 */
+.browser { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.browser-bar { display: flex; gap: 6px; }
+.browser-bar input { flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--hover); color: var(--text); outline: none; font-size: 13px; }
+.browser-view { flex: 1; overflow-y: auto; background: rgba(0,0,0,.15); border-radius: 10px; padding: 16px; font-size: 14px; line-height: 1.6; }
+:root.light .browser-view { background: rgba(0,0,0,.03); }
+.browser-view a { color: var(--accent); cursor: pointer; }
+
+/* 时钟 */
+.clockapp { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 100%; }
+.clock-big { font-size: 46px; font-weight: 200; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+.clock-date { font-size: 14px; opacity: .7; }
+
+/* 电池 */
+.battery { position: relative; width: 22px; height: 12px; border: 1px solid var(--text); border-radius: 3px; display: inline-block; }
+.battery::after { content: ''; position: absolute; right: -4px; top: 3px; width: 3px; height: 4px; background: var(--text); border-radius: 0 1px 1px 0; }
+.battery-fill { height: 100%; background: #28c840; border-radius: 2px; transition: width .3s; }
+
+/* Modal */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 30000; backdrop-filter: blur(4px); }
+.modal { width: 90%; max-width: 400px; background: var(--window-bg); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.5); color: var(--text); }
+.modal h3 { margin: 0 0 4px; font-size: 15px; }
+.modal label { font-size: 12px; opacity: .7; margin-bottom: -6px; }
+.modal input, .modal select, .modal textarea { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--hover); color: var(--text); outline: none; font-size: 13px; font-family: ui-monospace, monospace; width: 100%; }
+.modal input:focus, .modal textarea:focus { border-color: var(--accent); }
+.modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.modal .tip { font-size: 11px; opacity: .55; line-height: 1.6; }
+.modal .tip code { background: var(--hover); padding: 1px 5px; border-radius: 4px; }
+
+/* AI 结果面板 */
+.ai-result { position: absolute; inset: 0; background: var(--window-bg); border-radius: 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; z-index: 50; overflow: auto; }
+.ai-result-content { flex: 1; overflow: auto; font-size: 13px; line-height: 1.7; white-space: pre-wrap; background: var(--hover); padding: 12px; border-radius: 8px; }
+.ai-result-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hover); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+@media (max-width: 700px) {
+  #desktop { padding: 14px; grid-template-columns: repeat(auto-fill, 76px); gap: 10px; }
+  .icon { width: 76px; font-size: 28px; }
+  .window { top: 40px !important; left: 10px !important; width: calc(100vw - 20px) !important; height: calc(100vh - 120px) !important; }
+  .window.maximized { top: 30px !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 30px - 68px) !important; }
+  #dock { height: 60px; flex-basis: 60px; gap: 8px; }
+  #dock .dock-icon { font-size: 22px; width: 44px; height: 44px; }
+  #startmenu { width: calc(100vw - 24px); left: 12px; }
+  #notifcenter { width: calc(100vw - 24px); right: 12px; }
+  .fm-sidebar { width: 90px; flex-basis: 90px; }
+  .lock-time { font-size: 48px; }
+}
+</style>
+</head>
+<body>
+<div id="os">
+  <div id="statusbar">
+    <div class="left">
+      <span class="clickable" id="btn-start">🖥️ 开始</span>
+      <span id="running-apps"></span>
+    </div>
+    <div class="right">
+      <span class="clickable" id="btn-ai" title="AI 命令面板 (Ctrl+K)">🤖</span>
+      <span class="clickable" id="btn-clock">--:--</span>
+      <span id="net-icon">📶</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span id="batt-pct">100%</span><span class="battery"><span class="battery-fill" id="batt-fill" style="width:100%"></span></span></span>
+      <span class="clickable" id="btn-notif">🔔</span>
+    </div>
+  </div>
+  <div id="desktop"></div>
+  <div id="dock"></div>
+  <div id="startmenu">
+    <input class="search" id="start-search" placeholder="🔍 搜索应用...">
+    <div class="apps" id="start-apps"></div>
+  </div>
+  <div id="notifcenter">
+    <div class="title">🔔 通知中心</div>
+    <div class="list" id="notif-list"></div>
+    <button class="app-btn" id="clear-notif" style="width:100%">清空通知</button>
+  </div>
+</div>
+<div id="toasts"></div>
+<div id="ctxmenu"></div>
+<div id="boot">
+  <div class="boot-logo">💻</div>
+  <div class="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
+  <div class="boot-text" id="boot-text">正在启动...</div>
+</div>
+<div id="lockscreen" class="hidden">
+  <div class="lock-avatar">👤</div>
+  <div class="lock-time" id="lock-time">--:--</div>
+  <div class="lock-date" id="lock-date">--</div>
+  <div class="lock-hint">点击任意位置解锁</div>
+</div>
+
+<script>
+/* ============================================================
+   SimpleWebOS 3.0
+   ============================================================ */
+
+/* ---------- 系统状态 ---------- */
+const OS = {
+  version: '3.0',
+  state: {
+    accent: '#4a9eff',
+    theme: 'dark',
+    wallpaper: 'linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)',
+    windows: [],
+    zIndex: 100,
+    notifications: [],
+    filesystem: {
+      type: 'dir', children: {
+        '桌面': { type: 'dir', children: {
+          'readme.txt': { type: 'file', content: '欢迎使用 SimpleWebOS 3.0！\n\n这是一个运行在浏览器里的系统原型。\n试试右键桌面、打开终端、使用 Ctrl+K 呼出 AI。' }
+        }},
+        '文档': { type: 'dir', children: {
+          '笔记.txt': { type: 'file', content: '今天学习了 HTML/CSS/JS。' },
+          'todo.md': { type: 'file', content: '# 待办\n- [x] 写操作系统原型\n- [x] 接入 AI\n- [ ] 加驱动' }
+        }},
+        '图片': { type: 'dir', children: {
+          'sunset.jpg': { type: 'file', content: '（假装这是张夕阳照片 🌅）' }
+        }},
+        '音乐': { type: 'dir', children: {
+          '夜曲.mp3': { type: 'file', content: '（假装这里有一段旋律 🎵）' }
+        }},
+        '下载': { type: 'dir', children: {} },
+        '回收站': { type: 'dir', children: {} }
+      }
+    }
+  }
+};
+
+function saveState() {
+  try {
+    localStorage.setItem('webos-v3', JSON.stringify({
+      accent: OS.state.accent,
+      theme: OS.state.theme,
+      wallpaper: OS.state.wallpaper,
+      filesystem: OS.state.filesystem
+    }));
+  } catch(e) {}
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('webos-v3') || 'null');
+    if (!s) return;
+    if (s.accent) OS.state.accent = s.accent;
+    if (s.theme) OS.state.theme = s.theme;
+    if (s.wallpaper) OS.state.wallpaper = s.wallpaper;
+    if (s.filesystem) OS.state.filesystem = s.filesystem;
+  } catch(e) {}
+}
+loadState();
+
+/* ============================================================
+   AI 核心模块
+   ============================================================ */
+const AI = {
+  cfg: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    key: '',
+    system: '你是 SimpleWebOS 内置的 AI 助手，回答简洁、友好、准确。'
+  },
+  load() {
+    try {
+      const s = JSON.parse(localStorage.getItem('webos-ai') || '{}');
+      Object.assign(this.cfg, s);
+    } catch(e) {}
+  },
+  save() {
+    localStorage.setItem('webos-ai', JSON.stringify({
+      baseUrl: this.cfg.baseUrl, model: this.cfg.model,
+      key: this.cfg.key, system: this.cfg.system
+    }));
+  },
+  ready() { return !!this.cfg.key; },
+  async chat(messages, opts = {}) {
+    const { onDelta, signal, system } = opts;
+    if (!this.cfg.key) throw new Error('未配置 API Key');
+    const url = this.cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions';
+    const body = {
+      model: this.cfg.model,
+      messages: [{ role: 'system', content: system || this.cfg.system }, ...messages],
+      stream: true
+    };
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.cfg.key },
+        body: JSON.stringify(body), signal
+      });
+    } catch (e) { throw new Error('网络错误：' + e.message + '（可能 CORS 或断网）'); }
+    if (!res.ok) {
+      let t = ''; try { t = await res.text(); } catch(_) {}
+      throw new Error(`HTTP ${res.status}: ${t.slice(0, 200)}`);
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder('utf-8');
+    let buf = '', full = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const d = t.slice(5).trim();
+        if (d === '[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          const delta = j.choices?.[0]?.delta?.content || '';
+          if (delta) { full += delta; onDelta && onDelta(delta, full); }
+        } catch(_) {}
+      }
+    }
+    return full;
+  },
+  ask(prompt, opts) { return this.chat([{ role: 'user', content: prompt }], opts); }
+};
+AI.load();
+
+/* ---------- 全局 AI 设置面板 ---------- */
+function openAISettings() {
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = `
+    <div class="modal">
+      <h3>⚙️ AI 接口设置（全系统生效）</h3>
+      <label>Base URL</label>
+      <input id="g-base" value="${AI.cfg.baseUrl}">
+      <label>模型</label>
+      <input id="g-model" value="${AI.cfg.model}">
+      <label>API Key</label>
+      <input id="g-key" type="password" value="${AI.cfg.key}" placeholder="sk-...">
+      <label>系统提示词</label>
+      <textarea id="g-sys" rows="2">${AI.cfg.system}</textarea>
+      <div class="tip">
+        DeepSeek: <code>https://api.deepseek.com/v1</code> / <code>deepseek-chat</code><br>
+        OpenAI: <code>https://api.openai.com/v1</code> / <code>gpt-4o-mini</code><br>
+        Kimi: <code>https://api.moonshot.cn/v1</code> / <code>moonshot-v1-8k</code><br>
+        智谱: <code>https://open.bigmodel.cn/api/paas/v4</code> / <code>glm-4-flash</code><br>
+        通义: <code>https://dashscope.aliyuncs.com/compatible-mode/v1</code> / <code>qwen-turbo</code><br>
+        <b>Key 只保存在本机 localStorage</b>，请求时直接发给对应 API。
+      </div>
+      <div class="row">
+        <button class="app-btn" id="g-cancel">取消</button>
+        <button class="app-btn" id="g-save" style="background:var(--accent);border-color:var(--accent);color:#fff">保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(mask);
+  mask.querySelector('#g-cancel').onclick = () => mask.remove();
+  mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+  mask.querySelector('#g-save').onclick = () => {
+    AI.cfg.baseUrl = mask.querySelector('#g-base').value.trim() || AI.cfg.baseUrl;
+    AI.cfg.model   = mask.querySelector('#g-model').value.trim() || AI.cfg.model;
+    AI.cfg.key     = mask.querySelector('#g-key').value.trim();
+    AI.cfg.system  = mask.querySelector('#g-sys').value.trim() || AI.cfg.system;
+    AI.save();
+    mask.remove();
+    notify('🤖', 'AI 设置', AI.ready() ? '已连接 ' + AI.cfg.model : '未配置 Key');
+  };
+}
+
+/* ---------- 文件工具 ---------- */
+function downloadFile(filename, content, mime = 'text/plain') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+}
+function saveToVFS(path, name, content) {
+  const parts = path.split('/').filter(Boolean);
+  let node = OS.state.filesystem;
+  for (const p of parts) {
+    if (!node.children[p]) node.children[p] = { type: 'dir', children: {} };
+    node = node.children[p];
+  }
+  node.children[name] = { type: 'file', content };
+  saveState();
+}
+
+/* ---------- 应用注册表 ---------- */
+const APPS = {
+  files:    { name: '文件',    icon: '📁', w: 640, h: 420, mount: mountFiles },
+  terminal: { name: '终端',    icon: '⌨️', w: 540, h: 360, mount: mountTerminal },
+  notes:    { name: '记事本',  icon: '📝', w: 480, h: 380, mount: mountNotes },
+  calc:     { name: '计算器',  icon: '🧮', w: 300, h: 440, mount: mountCalc },
+  paint:    { name: '画板',    icon: '🎨', w: 580, h: 440, mount: mountPaint },
+  music:    { name: '音乐',    icon: '🎵', w: 320, h: 440, mount: mountMusic },
+  calendar: { name: '日历',    icon: '📅', w: 400, h: 440, mount: mountCalendar },
+  chat:     { name: '聊天',    icon: '💬', w: 420, h: 500, mount: mountChat },
+  snake:    { name: '贪吃蛇',  icon: '🐍', w: 380, h: 480, mount: mountSnake },
+  browser:  { name: '浏览器',  icon: '🌐', w: 640, h: 460, mount: mountBrowser },
+  clock:    { name: '时钟',    icon: '⏰', w: 340, h: 280, mount: mountClock },
+  settings: { name: '设置',    icon: '⚙️', w: 440, h: 480, mount: mountSettings },
+  about:    { name: '关于',    icon: 'ℹ️', w: 340, h: 380, mount: mountAbout }
+};
+
+/* ---------- 启动流程 ---------- */
+const boot = document.getElementById('boot');
+const bootFill = document.getElementById('boot-fill');
+const bootText = document.getElementById('boot-text');
+const lockscreen = document.getElementById('lockscreen');
+
+const bootSteps = ['加载内核...', '初始化驱动...', '挂载文件系统...', '启动图形界面...', '就绪'];
+let bootStep = 0;
+const bootTimer = setInterval(() => {
+  bootStep++;
+  bootFill.style.width = (bootStep / bootSteps.length * 100) + '%';
+  if (bootStep <= bootSteps.length) bootText.textContent = bootSteps[bootStep - 1];
+  if (bootStep > bootSteps.length) {
+    clearInterval(bootTimer);
+    setTimeout(() => {
+      boot.classList.add('hidden');
+      lockscreen.classList.remove('hidden');
+    }, 400);
+  }
+}, 350);
+
+lockscreen.addEventListener('click', () => {
+  lockscreen.classList.add('hidden');
+  setTimeout(() => notify('💻', 'SimpleWebOS', '欢迎回来，用户'), 300);
+});
+
+function updateLockTime() {
+  const d = new Date();
+  document.getElementById('lock-time').textContent = d.toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('lock-date').textContent = d.toLocaleDateString('zh-CN', {year:'numeric', month:'long', day:'numeric', weekday:'long'});
+}
+updateLockTime();
+setInterval(updateLockTime, 1000);
+
+/* ---------- 状态栏 ---------- */
+const clockEl = document.getElementById('btn-clock');
+function updateClock() {
+  clockEl.textContent = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+let battery = 100;
+function updateBattery() {
+  battery = Math.max(15, battery - (Math.random() < 0.05 ? 1 : 0));
+  document.getElementById('batt-pct').textContent = battery + '%';
+  const fill = document.getElementById('batt-fill');
+  fill.style.width = battery + '%';
+  fill.style.background = battery > 50 ? '#28c840' : battery > 20 ? '#febc2e' : '#ff5f57';
+}
+setInterval(updateBattery, 8000);
+updateBattery();
+
+function updateNetIcon() {
+  document.getElementById('net-icon').textContent = navigator.onLine ? '📶' : '📵';
+}
+updateNetIcon();
+window.addEventListener('online', () => { updateNetIcon(); notify('📶','网络','已连接到网络'); });
+window.addEventListener('offline', () => { updateNetIcon(); notify('📵','网络','网络已断开'); });
+
+/* ---------- Toast ---------- */
+function notify(icon, title, body) {
+  const toasts = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<b>${icon} ${title}</b> · ${body}`;
+  toasts.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+  OS.state.notifications.unshift({ icon, title, body, time: new Date() });
+  renderNotifications();
+}
+function renderNotifications() {
+  const list = document.getElementById('notif-list');
+  if (OS.state.notifications.length === 0) {
+    list.innerHTML = '<div style="opacity:.5;font-size:13px;text-align:center;padding:20px">暂无通知</div>';
+    return;
+  }
+  list.innerHTML = OS.state.notifications.map((n, i) => `
+    <div class="notif">
+      <div class="n-icon">${n.icon}</div>
+      <div class="n-body">
+        <div class="n-title">${n.title}</div>
+        <div>${n.body}</div>
+        <div class="n-time">${n.time.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="n-close" data-i="${i}">×</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.n-close').forEach(b => {
+    b.addEventListener('click', () => {
+      OS.state.notifications.splice(+b.dataset.i, 1);
+      renderNotifications();
+    });
+  });
+}
+renderNotifications();
+document.getElementById('clear-notif').addEventListener('click', () => {
+  OS.state.notifications = [];
+  renderNotifications();
+});
+document.getElementById('btn-notif').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('startmenu').classList.remove('show');
+  document.getElementById('notifcenter').classList.toggle('show');
+});
+document.getElementById('btn-ai').addEventListener('click', openAIPalette);
+
+/* ---------- 开始菜单 ---------- */
+const startmenu = document.getElementById('startmenu');
+const startApps = document.getElementById('start-apps');
+function renderStartApps(filter = '') {
+  const q = filter.toLowerCase();
+  startApps.innerHTML = Object.keys(APPS)
+    .filter(k => APPS[k].name.toLowerCase().includes(q) || k.includes(q))
+    .map(k => `<div class="app-tile" data-app="${k}"><span>${APPS[k].icon}</span><span>${APPS[k].name}</span></div>`)
+    .join('');
+  startApps.querySelectorAll('.app-tile').forEach(el => {
+    el.addEventListener('click', () => { openApp(el.dataset.app); startmenu.classList.remove('show'); });
+  });
+}
+renderStartApps();
+document.getElementById('start-search').addEventListener('input', e => renderStartApps(e.target.value));
+document.getElementById('btn-start').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('notifcenter').classList.remove('show');
+  startmenu.classList.toggle('show');
+  if (startmenu.classList.contains('show')) setTimeout(() => document.getElementById('start-search').focus(), 50);
+});
+document.getElementById('btn-clock').addEventListener('click', () => openApp('clock'));
+
+document.addEventListener('click', e => {
+  if (!startmenu.contains(e.target) && e.target.id !== 'btn-start') startmenu.classList.remove('show');
+  const nc = document.getElementById('notifcenter');
+  if (!nc.contains(e.target) && e.target.id !== 'btn-notif') nc.classList.remove('show');
+  const cm = document.getElementById('ctxmenu');
+  if (!cm.contains(e.target)) cm.classList.remove('show');
+});
+
+/* ---------- 桌面 ---------- */
+const desktop = document.getElementById('desktop');
+const DESKTOP_APPS = ['files','terminal','notes','calc','browser','paint','music','calendar','chat','snake','settings','about'];
+
+function renderDesktop() {
+  desktop.innerHTML = DESKTOP_APPS.map(k => `
+    <div class="icon" data-app="${k}">
+      <div>${APPS[k].icon}</div>
+      <span>${APPS[k].name}</span>
+    </div>
+  `).join('');
+  desktop.querySelectorAll('.icon').forEach(el => {
+    el.addEventListener('dblclick', () => openApp(el.dataset.app));
+    el.addEventListener('click', () => {
+      desktop.querySelectorAll('.icon').forEach(i => i.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+    let lastTap = 0;
+    el.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTap < 400) e.preventDefault();
+      openApp(el.dataset.app);
+      lastTap = now;
+    });
+  });
+}
+renderDesktop();
+
+/* ---------- Dock ---------- */
+const dock = document.getElementById('dock');
+const DOCK_APPS = ['files','terminal','notes','chat','browser','settings'];
+
+function renderDock() {
+  dock.innerHTML = `
+    <div class="dock-icon" data-app="__start" title="开始菜单">🚀</div>
+    ${DOCK_APPS.map(k => `
+      <div class="dock-icon" data-app="${k}" title="${APPS[k].name}">
+        ${APPS[k].icon}
+        <span class="indicator"></span>
+      </div>
+    `).join('')}
+  `;
+  dock.querySelectorAll('.dock-icon').forEach(el => {
+    el.addEventListener('click', () => {
+      if (el.dataset.app === '__start') startmenu.classList.toggle('show');
+      else openApp(el.dataset.app);
+    });
+  });
+}
+renderDock();
+
+function updateDockIndicators() {
+  const runningApps = new Set(OS.state.windows.map(w => w.appId));
+  dock.querySelectorAll('.dock-icon').forEach(el => {
+    el.classList.toggle('running', runningApps.has(el.dataset.app));
+  });
+  const ra = document.getElementById('running-apps');
+  ra.innerHTML = OS.state.windows.map(w =>
+    `<span class="clickable" data-win="${w.id}" style="font-size:14px">${APPS[w.appId].icon}</span>`
+  ).join('');
+  ra.querySelectorAll('[data-win]').forEach(el => {
+    el.addEventListener('click', () => {
+      const w = OS.state.windows.find(x => x.id == el.dataset.win);
+      if (w) { w.el.classList.remove('minimized'); focusWindow(w); }
+    });
+  });
+}
+
+/* ---------- 窗口管理 ---------- */
+let winIdSeq = 1;
+function openApp(appId, opts = {}) {
+  const app = APPS[appId];
+  if (!app) return;
+  const win = document.createElement('div');
+  win.className = 'window';
+  const isMobile = window.innerWidth < 700;
+  const w = isMobile ? window.innerWidth - 20 : (opts.w || app.w);
+  const h = isMobile ? window.innerHeight - 120 : (opts.h || app.h);
+  const offset = (OS.state.windows.length % 6) * 26;
+  win.style.width = w + 'px';
+  win.style.height = h + 'px';
+  win.style.left = Math.min(80 + offset, Math.max(10, window.innerWidth - w - 20)) + 'px';
+  win.style.top = Math.min(70 + offset, Math.max(40, window.innerHeight - h - 90)) + 'px';
+  win.style.zIndex = ++OS.state.zIndex;
+  win.dataset.appId = appId;
+  win.innerHTML = `
+    <div class="window-header">
+      <div class="window-title">${app.icon} ${app.name}</div>
+      <div class="window-actions">
+        <button class="win-btn min" title="最小化">−</button>
+        <button class="win-btn max" title="最大化">□</button>
+        <button class="win-btn close" title="关闭">×</button>
+      </div>
+    </div>
+    <div class="window-content"></div>
+    <div class="resize-handle"></div>
+  `;
+  OS.state.windows.push({ id: winIdSeq++, appId, el: win });
+  win.querySelector('.win-btn.close').addEventListener('click', e => { e.stopPropagation(); closeWindow(win); });
+  win.querySelector('.win-btn.min').addEventListener('click', e => { e.stopPropagation(); win.classList.add('minimized'); });
+  win.querySelector('.win-btn.max').addEventListener('click', e => { e.stopPropagation(); win.classList.toggle('maximized'); });
+  win.addEventListener('pointerdown', () => focusWindow({ el: win }));
+  document.getElementById('os').appendChild(win);
+  makeDraggable(win);
+  makeResizable(win);
+  try { app.mount(win.querySelector('.window-content'), win); } catch(e) { console.error(e); }
+  updateDockIndicators();
+  focusWindow({ el: win });
+  return win;
+}
+function closeWindow(winEl) {
+  OS.state.windows = OS.state.windows.filter(w => w.el !== winEl);
+  winEl.remove();
+  updateDockIndicators();
+}
+function focusWindow(win) { win.el.style.zIndex = ++OS.state.zIndex; }
+
+function makeDraggable(win) {
+  const header = win.querySelector('.window-header');
+  let sx, sy, sl, st, dragging = false;
+  header.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    if (win.classList.contains('maximized')) return;
+    dragging = true;
+    sx = e.clientX; sy = e.clientY;
+    const r = win.getBoundingClientRect();
+    sl = r.left; st = r.top;
+    header.setPointerCapture(e.pointerId);
+  });
+  header.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    win.style.left = Math.max(0, Math.min(window.innerWidth - 60, sl + dx)) + 'px';
+    win.style.top = Math.max(30, Math.min(window.innerHeight - 60, st + dy)) + 'px';
+  });
+  const stop = e => { if (dragging) { dragging = false; try { header.releasePointerCapture(e.pointerId); } catch(_){} } };
+  header.addEventListener('pointerup', stop);
+  header.addEventListener('pointercancel', stop);
+}
+function makeResizable(win) {
+  const handle = win.querySelector('.resize-handle');
+  let sx, sy, sw, sh, resizing = false;
+  handle.addEventListener('pointerdown', e => {
+    if (win.classList.contains('maximized')) return;
+    resizing = true;
+    sx = e.clientX; sy = e.clientY;
+    const r = win.getBoundingClientRect();
+    sw = r.width; sh = r.height;
+    handle.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!resizing) return;
+    win.style.width = Math.max(260, sw + e.clientX - sx) + 'px';
+    win.style.height = Math.max(180, sh + e.clientY - sy) + 'px';
+  });
+  const stop = e => { if (resizing) { resizing = false; try { handle.releasePointerCapture(e.pointerId); } catch(_){} } };
+  handle.addEventListener('pointerup', stop);
+  handle.addEventListener('pointercancel', stop);
+}
+
+/* ---------- 右键菜单 ---------- */
+const ctxmenu = document.getElementById('ctxmenu');
+document.addEventListener('contextmenu', e => {
+  // 文件项右键
+  const fmItem = e.target.closest('.fm-item');
+  const noteArea = e.target.closest('textarea[data-note]');
+  let items;
+  if (fmItem) {
+    const name = fmItem.dataset.name;
+    const isDir = fmItem.dataset.type === 'dir';
+    items = [
+      { icon: '📂', label: '打开', action: () => fmItem.click() },
+      ...(!isDir ? [{ icon: '🤖', label: 'AI 总结', action: () => aiOnFile(name, 'summary') }] : []),
+      ...(!isDir ? [{ icon: '🌐', label: 'AI 翻译', action: () => aiOnFile(name, 'translate') }] : []),
+      ...(!isDir ? [{ icon: '✨', label: 'AI 润色', action: () => aiOnFile(name, 'polish') }] : []),
+      { divider: true },
+      { icon: '📤', label: '导出', action: () => exportFile(name) },
+      { icon: '✏️', label: '重命名', action: () => renameFile(name) },
+      { icon: '🗑️', label: '删除', action: () => deleteFile(name) }
+    ];
+  } else {
+    items = [
+      { icon: '🔄', label: '刷新桌面', action: () => location.reload() },
+      { icon: '🤖', label: 'AI 命令面板', action: () => openAIPalette() },
+      { icon: '⚙️', label: 'AI 设置', action: () => openAISettings() },
+      { divider: true },
+      { icon: '📁', label: '打开文件管理器', action: () => openApp('files') },
+      { icon: '⌨️', label: '打开终端', action: () => openApp('terminal') },
+      { divider: true },
+      { icon: 'ℹ️', label: '关于系统', action: () => openApp('about') }
+    ];
+  }
+  e.preventDefault();
+  ctxmenu.innerHTML = items.map((it, i) => it.divider
+    ? '<div class="ctx-divider"></div>'
+    : `<div class="ctx-item" data-i="${i}"><span>${it.icon}</span><span>${it.label}</span></div>`
+  ).join('');
+  ctxmenu.querySelectorAll('.ctx-item').forEach(el => {
+    el.addEventListener('click', () => {
+      items[+el.dataset.i].action();
+      ctxmenu.classList.remove('show');
+    });
+  });
+  const x = Math.min(e.clientX, window.innerWidth - 220);
+  const y = Math.min(e.clientY, window.innerHeight - 280);
+  ctxmenu.style.left = x + 'px';
+  ctxmenu.style.top = y + 'px';
+  ctxmenu.classList.add('show');
+});
+
+/* 文件操作辅助（当前目录） */
+let CURRENT_DIR = null;
+function aiOnFile(name, mode) {
+  if (!CURRENT_DIR || !CURRENT_DIR.children[name]) return notify('❌', 'AI', '文件不存在');
+  const node = CURRENT_DIR.children[name];
+  if (node.type !== 'file') return;
+  const prompts = {
+    summary: '请总结以下内容，输出要点：',
+    translate: '请把以下内容翻译（中译英，英译中）：',
+    polish: '请润色以下文字，保持原意：'
+  };
+  const labels = { summary: '总结', translate: '翻译', polish: '润色' };
+  runAIOnText(prompts[mode] + '\n\n---\n' + node.content, labels[mode] + '：' + name, (result) => {
+    node.content = result;
+    saveState();
+    notify('💾', 'AI', '已替换文件内容');
+  });
+}
+function exportFile(name) {
+  if (!CURRENT_DIR || !CURRENT_DIR.children[name]) return;
+  const node = CURRENT_DIR.children[name];
+  if (node.type !== 'file') return;
+  downloadFile(name, node.content);
+  notify('📤', '导出', '已下载 ' + name);
+}
+function renameFile(name) {
+  if (!CURRENT_DIR) return;
+  const nn = prompt('新名字：', name);
+  if (!nn || nn === name) return;
+  CURRENT_DIR.children[nn] = CURRENT_DIR.children[name];
+  delete CURRENT_DIR.children[name];
+  saveState();
+  notify('✏️', '重命名', name + ' → ' + nn);
+  // 触发文件管理器刷新
+  document.querySelectorAll('.window[data-app-id="files"]').forEach(w => {
+    w.querySelectorAll('.fm-nav').forEach(n => { if (n.classList.contains('active')) n.click(); });
+  });
+}
+function deleteFile(name) {
+  if (!CURRENT_DIR) return;
+  if (!confirm('删除 ' + name + '？')) return;
+  const node = CURRENT_DIR.children[name];
+  OS.state.filesystem.children['回收站'].children[name + '-' + Date.now()] = node;
+  delete CURRENT_DIR.children[name];
+  saveState();
+  notify('🗑️', '已删除', name + ' 已移入回收站');
+  document.querySelectorAll('.window[data-app-id="files"]').forEach(w => {
+    w.querySelectorAll('.fm-nav').forEach(n => { if (n.classList.contains('active')) n.click(); });
+  });
+}
+
+/* ---------- 通用 AI 结果面板 ---------- */
+function runAIOnText(prompt, title, onApply) {
+  if (!AI.ready()) return openAISettings();
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = `
+    <div class="modal" style="max-width:560px">
+      <h3>🤖 ${title}</h3>
+      <div class="ai-result-content" id="ar-c" style="max-height:50vh;min-height:100px">思考中...</div>
+      <div class="row">
+        <button class="app-btn" id="ar-close">关闭</button>
+        <button class="app-btn" id="ar-copy">复制</button>
+        <button class="app-btn" id="ar-apply" style="background:var(--accent);border-color:var(--accent);color:#fff">应用</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(mask);
+  const content = mask.querySelector('#ar-c');
+  let full = '';
+  mask.querySelector('#ar-close').onclick = () => mask.remove();
+  mask.querySelector('#ar-copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(full); notify('📋','AI','已复制'); } catch(e) { notify('❌','AI','复制失败'); }
+  };
+  mask.querySelector('#ar-apply').onclick = () => {
+    if (!full) return notify('⚠️','AI','无内容');
+    onApply && onApply(full);
+    mask.remove();
+  };
+  AI.chat([{ role: 'user', content: prompt }], {
+    onDelta: (d, f) => { full = f; content.textContent = f; }
+  }).catch(e => { content.textContent = '❌ ' + e.message; });
+}
+
+/* ---------- 全局 AI 命令面板 ---------- */
+function openAIPalette() {
+  if (document.getElementById('ai-palette')) return;
+  const mask = document.createElement('div');
+  mask.id = 'ai-palette';
+  mask.style.cssText = 'position:fixed;inset:0;z-index:40000;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding-top:15vh';
+  mask.innerHTML = `
+    <div style="width:min(600px,90vw);background:var(--window-bg);border:1px solid var(--border);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden;color:var(--text)">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <span style="font-size:20px">🤖</span>
+        <input id="ai-p-in" placeholder="问 AI 任何问题...（Enter 发送，Esc 关闭）" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:15px" autocomplete="off">
+      </div>
+      <div id="ai-p-out" style="padding:16px 18px;max-height:55vh;overflow:auto;font-size:14px;line-height:1.7;white-space:pre-wrap;display:none"></div>
+    </div>
+  `;
+  document.body.appendChild(mask);
+  const inp = mask.querySelector('#ai-p-in');
+  const out = mask.querySelector('#ai-p-out');
+  inp.focus();
+  mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+  mask.addEventListener('keydown', e => { if (e.key === 'Escape') mask.remove(); });
+  inp.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    const q = inp.value.trim();
+    if (!q) return;
+    if (!AI.ready()) { out.style.display = 'block'; out.textContent = '❌ 请先配置 API（点击状态栏 🤖 图标右侧，或 Ctrl+K 后再配）'; return; }
+    out.style.display = 'block';
+    out.textContent = '🤖 思考中...';
+    try {
+      await AI.chat([{ role: 'user', content: q }], {
+        onDelta: (d, f) => { out.textContent = f; }
+      });
+    } catch(err) { out.textContent = '❌ ' + err.message; }
+  });
+}
+
+/* ---------- 主题 ---------- */
+function applyTheme() {
+  document.documentElement.classList.toggle('light', OS.state.theme === 'light');
+  document.documentElement.style.setProperty('--accent', OS.state.accent);
+  document.getElementById('os').style.background = OS.state.wallpaper;
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', OS.state.theme === 'light' ? '#e8ecf4' : '#1a1a2e');
+}
+applyTheme();
+
+/* ============================================================
+   应用实现
+   ============================================================ */
+
+/* ---------- 文件管理器 ---------- */
+function mountFiles(container) {
+  let cwdPath = '/';
+  container.innerHTML = `
+    <div class="fm">
+      <div class="fm-sidebar">
+        <div class="fm-nav" data-path="/">🏠 主目录</div>
+        <div class="fm-nav" data-path="/桌面">🖥️ 桌面</div>
+        <div class="fm-nav" data-path="/文档">📄 文档</div>
+        <div class="fm-nav" data-path="/图片">🖼️ 图片</div>
+        <div class="fm-nav" data-path="/音乐">🎵 音乐</div>
+        <div class="fm-nav" data-path="/下载">⬇️ 下载</div>
+        <div class="fm-nav" data-path="/回收站">🗑️ 回收站</div>
+      </div>
+      <div class="fm-main">
+        <div class="fm-path">/</div>
+        <div class="fm-list"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="app-btn" id="fm-newfile">＋ 文件</button>
+          <button class="app-btn" id="fm-newdir">＋ 文件夹</button>
+          <button class="app-btn" id="fm-ai">🤖 AI</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const pathEl = container.querySelector('.fm-path');
+  const listEl = container.querySelector('.fm-list');
+
+  function getNode(path) {
+    if (path === '/') return OS.state.filesystem;
+    const parts = path.split('/').filter(Boolean);
+    let node = OS.state.filesystem;
+    for (const p of parts) {
+      if (!node.children || !node.children[p]) return null;
+      node = node.children[p];
+    }
+    return node;
+  }
+  function navigate(path) {
+    const node = getNode(path);
+    if (!node || node.type !== 'dir') return;
+    cwdPath = path;
+    CURRENT_DIR = node;
+    render();
+  }
+  function render() {
+    pathEl.textContent = cwdPath;
+    const entries = Object.entries(CURRENT_DIR.children || {});
+    if (entries.length === 0) {
+      listEl.innerHTML = '<div style="opacity:.5;text-align:center;padding:20px;font-size:13px">空文件夹</div>';
+    } else {
+      listEl.innerHTML = entries.map(([name, node]) => `
+        <div class="fm-item" data-name="${name}" data-type="${node.type}">
+          <span class="fm-icon">${node.type === 'dir' ? '📁' : '📄'}</span>
+          <span class="fm-name">${name}</span>
+        </div>
+      `).join('');
+    }
+    listEl.querySelectorAll('.fm-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const name = el.dataset.name;
+        const node = CURRENT_DIR.children[name];
+        if (node.type === 'dir') {
+          navigate(cwdPath === '/' ? '/' + name : cwdPath + '/' + name);
+        } else {
+          const w = openApp('notes');
+          setTimeout(() => {
+            const ta = w.querySelector('textarea');
+            if (ta) { ta.value = node.content; ta.dataset.fileName = name; }
+          }, 50);
+        }
+      });
+    });
+  }
+  container.querySelectorAll('.fm-nav').forEach(el => {
+    el.addEventListener('click', () => {
+      container.querySelectorAll('.fm-nav').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      navigate(el.dataset.path);
+    });
+  });
+  container.querySelector('#fm-newfile').addEventListener('click', () => {
+    const name = prompt('文件名：', '新建文件.txt');
+    if (!name) return;
+    CURRENT_DIR.children[name] = { type: 'file', content: '' };
+    saveState(); render();
+  });
+  container.querySelector('#fm-newdir').addEventListener('click', () => {
+    const name = prompt('文件夹名：', '新建文件夹');
+    if (!name) return;
+    CURRENT_DIR.children[name] = { type: 'dir', children: {} };
+    saveState(); render();
+  });
+  container.querySelector('#fm-ai').addEventListener('click', () => {
+    const q = prompt('问 AI 关于当前目录的问题，或输入要生成的文件内容：\n（例：写一份项目说明，保存为 readme.md）');
+    if (!q) return;
+    runAIOnText(q, 'AI 生成', (result) => {
+      const name = prompt('保存为什么文件名？', 'ai-output.txt');
+      if (name) {
+        CURRENT_DIR.children[name] = { type: 'file', content: result };
+        saveState(); render();
+        notify('💾', 'AI', '已保存为 ' + name);
+      }
+    });
+  });
+  navigate('/');
+}
+
+/* ---------- 终端（带 AI） ---------- */
+function mountTerminal(container) {
+  container.innerHTML = `
+    <div class="terminal">
+      <div class="term-output">SimpleWebOS Terminal v3.0\n输入 help 查看命令 | 试试 ai 用JS写个快排\n\n</div>
+      <div class="term-input-line">
+        <span>user@webos:~$</span>
+        <input autofocus autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+  `;
+  const out = container.querySelector('.term-output');
+  const input = container.querySelector('input');
+  const history = [];
+  let hIdx = -1;
+  function print(s) { out.textContent += s + '\n'; out.scrollTop = out.scrollHeight; }
+
+  const cmds = {
+    help: () => '可用命令:\n  help            显示帮助\n  echo <文本>      回显\n  date            当前时间\n  clear           清屏\n  ls [路径]        列出文件\n  cat <文件>       查看文件\n  mkdir <名字>     新建文件夹\n  touch <名字>     新建文件\n  rm <名字>        删除\n  whoami          当前用户\n  uname           系统信息\n  neofetch        系统信息（花哨）\n  open <应用>      打开应用\n  apps            列出所有应用\n  theme <dark|light> 切换主题\n  history         命令历史\n  ai <问题>        AI 问答\n  aiset           打开 AI 设置\n  aikey <key>     快速设置 API Key\n  export <文件>    导出文件到本机\n  exit            关闭终端',
+    echo: (a) => a.join(' '),
+    date: () => new Date().toString(),
+    clear: () => { out.textContent = ''; return ''; },
+    whoami: () => 'user',
+    uname: () => `SimpleWebOS ${OS.version} (browser) ${navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'}`,
+    ls: (a) => {
+      const path = a[0] || '/';
+      const parts = path.split('/').filter(Boolean);
+      let node = OS.state.filesystem;
+      for (const p of parts) {
+        if (!node.children || !node.children[p]) return `ls: ${path}: 不存在`;
+        node = node.children[p];
+      }
+      if (node.type !== 'dir') return path;
+      return Object.entries(node.children || {}).map(([n, v]) => v.type === 'dir' ? n + '/' : n).join('  ') || '(空)';
+    },
+    cat: (a) => {
+      if (!a[0]) return 'cat: 缺少文件名';
+      const parts = a[0].split('/').filter(Boolean);
+      let node = OS.state.filesystem;
+      for (const p of parts) {
+        if (!node.children || !node.children[p]) return `cat: ${a[0]}: 不存在`;
+        node = node.children[p];
+      }
+      return node.type === 'file' ? node.content : `cat: ${a[0]}: 是目录`;
+    },
+    mkdir: (a) => { if (!a[0]) return '用法: mkdir <名字>'; OS.state.filesystem.children[a[0]] = {type:'dir',children:{}}; saveState(); return `创建文件夹 ${a[0]}`; },
+    touch: (a) => { if (!a[0]) return '用法: touch <名字>'; OS.state.filesystem.children[a[0]] = {type:'file',content:''}; saveState(); return `创建文件 ${a[0]}`; },
+    rm: (a) => { if (!a[0]) return '用法: rm <名字>'; if (OS.state.filesystem.children[a[0]]) { delete OS.state.filesystem.children[a[0]]; saveState(); return `删除 ${a[0]}`; } return `rm: ${a[0]}: 不存在`; },
+    open: (a) => { if (APPS[a[0]]) { openApp(a[0]); return `打开 ${APPS[a[0]].name}`; } return `应用不存在: ${a[0]}`; },
+    apps: () => Object.keys(APPS).join('  '),
+    theme: (a) => { if (a[0]==='dark'||a[0]==='light') { OS.state.theme=a[0]; applyTheme(); saveState(); return `主题切换为 ${a[0]}`; } return '用法: theme dark|light'; },
+    history: () => history.map((h,i) => `  ${i+1}  ${h}`).join('\n'),
+    exit: () => { closeWindow(container.closest('.window')); return ''; },
+    export: (a) => {
+      if (!a[0]) return '用法: export <文件名>（导出到本机）';
+      const node = OS.state.filesystem.children[a[0]];
+      if (!node || node.type !== 'file') return `export: ${a[0]}: 不存在或不是文件`;
+      downloadFile(a[0], node.content);
+      return `已导出 ${a[0]}`;
+    },
+    aiset: () => { openAISettings(); return '打开 AI 设置'; },
+    aikey: (a) => {
+      if (!a[0]) return '用法: aikey <你的APIKey>';
+      AI.cfg.key = a[0]; AI.save();
+      return '✅ API Key 已保存';
+    },
+    ai: async (a) => {
+      const q = a.join(' ').trim();
+      if (!q) return '用法: ai <问题>\n例: ai 用JS写个快排';
+      if (!AI.ready()) return '❌ 未配置 API，运行 aiset 或 aikey <key>';
+      print('🤖 思考中...');
+      try {
+        let reply = '';
+        await AI.chat([{ role: 'user', content: q }], {
+          onDelta: (d, f) => {
+            reply = f;
+            out.textContent = out.textContent.replace(/🤖 思考中\.\.\.[\s\S]*$/, '🤖 ' + f);
+            out.scrollTop = out.scrollHeight;
+          }
+        });
+        out.textContent = out.textContent.replace(/🤖 [\s\S]*$/, '🤖 ' + reply + '\n');
+        out.scrollTop = out.scrollHeight;
+      } catch(e) { print('❌ ' + e.message); }
+      return '';
+    },
+    neofetch: () => `       user@webos\n       -----------\n  OS:     SimpleWebOS ${OS.version}\n  Kernel: browser-js\n  Shell:  webos-sh 3.0\n  DE:     WebUI\n  Theme:  ${OS.state.theme}\n  Apps:   ${Object.keys(APPS).length} 个\n  AI:     ${AI.ready() ? AI.cfg.model : '未配置'}\n  Screen: ${window.innerWidth}x${window.innerHeight}`
+  };
+
+  input.addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      const line = input.value.trim();
+      input.value = '';
+      print('user@webos:~$ ' + line);
+      if (!line) return;
+      history.push(line); hIdx = history.length;
+      const parts = line.split(/\s+/);
+      const c = parts[0], args = parts.slice(1);
+      if (cmds[c]) {
+        const r = await cmds[c](args);
+        if (r) print(r);
+      } else {
+        print(`webos-sh: 未找到命令: ${c}（输入 help 查看帮助）`);
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (hIdx > 0) { hIdx--; input.value = history[hIdx]; }
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      if (hIdx < history.length - 1) { hIdx++; input.value = history[hIdx]; }
+      else { hIdx = history.length; input.value = ''; }
+      e.preventDefault();
+    }
+  });
+}
+
+/* ---------- 记事本（带 AI 工具） ---------- */
+function mountNotes(container) {
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;gap:8px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="app-btn" data-act="polish">✨ 润色</button>
+        <button class="app-btn" data-act="summary">📝 总结</button>
+        <button class="app-btn" data-act="translate">🌐 翻译</button>
+        <button class="app-btn" data-act="continue">➡️ 续写</button>
+        <button class="app-btn" data-act="custom">🤖 自定义</button>
+        <span style="flex:1"></span>
+        <button class="app-btn" id="n-export">📤</button>
+      </div>
+      <textarea data-note placeholder="在这里记事...（自动保存）" style="flex:1;width:100%;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;outline:none;resize:none;font-family:ui-monospace,monospace;font-size:14px;line-height:1.6;padding:10px"></textarea>
+    </div>
+  `;
+  const ta = container.querySelector('textarea');
+  ta.value = localStorage.getItem('webos-notes') || '';
+  ta.addEventListener('input', () => localStorage.setItem('webos-notes', ta.value));
+
+  async function aiAction(prompt, label) {
+    if (!AI.ready()) return openAISettings();
+    const text = ta.value.trim();
+    if (!text) return notify('⚠️', '记事本', '内容为空');
+    runAIOnText(prompt + '\n\n---\n' + text, label, (result) => {
+      ta.value = result;
+      localStorage.setItem('webos-notes', ta.value);
+      notify('✅', 'AI', label + '完成');
+    });
+  }
+  container.querySelectorAll('[data-act]').forEach(b => {
+    b.onclick = () => {
+      const act = b.dataset.act;
+      if (act === 'polish') return aiAction('请润色以下文字，保持原意，输出润色后的文本：', '润色');
+      if (act === 'summary') return aiAction('请总结以下内容，输出要点：', '总结');
+      if (act === 'translate') return aiAction('请把以下内容翻译（中译英，英译中）：', '翻译');
+      if (act === 'continue') return aiAction('请续写以下内容，自然衔接：', '续写');
+      if (act === 'custom') {
+        const p = prompt('输入你的指令：', '改写为正式语气');
+        if (p) aiAction(p, '处理');
+      }
+    };
+  });
+  container.querySelector('#n-export').onclick = () => {
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    downloadFile(`note-${stamp}.txt`, ta.value);
+    notify('📤', '记事本', '已导出');
+  };
+}
+
+/* ---------- 计算器 ---------- */
+function mountCalc(container) {
+  container.innerHTML = `
+    <div class="calc">
+      <div class="calc-display" id="cd">0</div>
+      <div class="calc-btns">
+        <button data-k="C">C</button>
+        <button data-k="±">±</button>
+        <button data-k="%">%</button>
+        <button data-k="/" class="op">÷</button>
+        <button data-k="7">7</button>
+        <button data-k="8">8</button>
+        <button data-k="9">9</button>
+        <button data-k="*" class="op">×</button>
+        <button data-k="4">4</button>
+        <button data-k="5">5</button>
+        <button data-k="6">6</button>
+        <button data-k="-" class="op">−</button>
+        <button data-k="1">1</button>
+        <button data-k="2">2</button>
+        <button data-k="3">3</button>
+        <button data-k="+" class="op">+</button>
+        <button data-k="0" style="grid-column:span 2">0</button>
+        <button data-k=".">.</button>
+        <button data-k="=" class="eq">=</button>
+      </div>
+    </div>
+  `;
+  const d = container.querySelector('#cd');
+  let cur = '0', prev = null, op = null, fresh = true;
+  function upd() { d.textContent = cur; }
+  container.querySelectorAll('.calc-btns button').forEach(b => {
+    b.addEventListener('click', () => {
+      const k = b.dataset.k;
+      if (k === 'C') { cur = '0'; prev = null; op = null; fresh = true; }
+      else if (k === '±') cur = cur.startsWith('-') ? cur.slice(1) : '-' + cur;
+      else if (k === '%') cur = String(parseFloat(cur) / 100);
+      else if ('+-*/'.includes(k)) {
+        if (op !== null && !fresh) cur = String(calc(parseFloat(prev), parseFloat(cur), op));
+        prev = cur; op = k; fresh = true;
+      }
+      else if (k === '=') {
+        if (op !== null) { cur = String(calc(parseFloat(prev), parseFloat(cur), op)); op = null; prev = null; fresh = true; }
+      }
+      else if (k === '.') { if (!cur.includes('.')) cur += '.'; }
+      else cur = fresh ? k : (cur === '0' ? k : cur + k), fresh = false;
+      upd();
+    });
+  });
+  function calc(a, b, o) {
+    if (o === '+') return a + b;
+    if (o === '-') return a - b;
+    if (o === '*') return a * b;
+    if (o === '/') return b === 0 ? 0 : a / b;
+    return b;
+  }
+}
+
+/* ---------- 画板 ---------- */
+function mountPaint(container) {
+  container.innerHTML = `
+    <div class="paint">
+      <div class="paint-tools">
+        <input type="color" id="p-color" value="#4a9eff" style="width:40px;height:32px;border:none;background:transparent;cursor:pointer">
+        <input type="range" id="p-size" min="1" max="30" value="4" style="width:100px">
+        <span id="p-size-label" style="font-size:12px;opacity:.7">4px</span>
+        <button class="app-btn" id="p-clear">清空</button>
+        <button class="app-btn" id="p-save">保存</button>
+      </div>
+      <canvas class="paint-canvas"></canvas>
+    </div>
+  `;
+  const canvas = container.querySelector('canvas');
+  const ctx = canvas.getContext('2d');
+  const color = container.querySelector('#p-color');
+  const size = container.querySelector('#p-size');
+  const sizeLabel = container.querySelector('#p-size-label');
+  setTimeout(() => {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, 50);
+  let drawing = false, lx = 0, ly = 0;
+  canvas.addEventListener('pointerdown', e => {
+    drawing = true;
+    const r = canvas.getBoundingClientRect();
+    lx = e.clientX - r.left; ly = e.clientY - r.top;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const r = canvas.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    ctx.strokeStyle = color.value;
+    ctx.lineWidth = +size.value;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(x, y); ctx.stroke();
+    lx = x; ly = y;
+  });
+  canvas.addEventListener('pointerup', () => drawing = false);
+  canvas.addEventListener('pointercancel', () => drawing = false);
+  size.addEventListener('input', () => sizeLabel.textContent = size.value + 'px');
+  container.querySelector('#p-clear').onclick = () => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); };
+  container.querySelector('#p-save').onclick = () => {
+    const a = document.createElement('a');
+    a.download = 'paint-' + Date.now() + '.png';
+    a.href = canvas.toDataURL();
+    a.click();
+    notify('🎨', '画板', '图片已保存');
+  };
+}
+
+/* ---------- 音乐 ---------- */
+function mountMusic(container) {
+  const playlist = [
+    { title: '夜曲', artist: 'Chopin', icon: '🌙' },
+    { title: '月光', artist: 'Debussy', icon: '🌕' },
+    { title: '卡农', artist: 'Pachelbel', icon: '🎻' },
+    { title: '致爱丽丝', artist: 'Beethoven', icon: '💝' }
+  ];
+  let idx = 0, playing = false, progress = 0, timer = null;
+  container.innerHTML = `
+    <div class="music">
+      <div class="music-cover" id="m-cover">🎵</div>
+      <div class="music-title" id="m-title">--</div>
+      <div class="music-artist" id="m-artist">--</div>
+      <div class="music-progress"><div class="music-progress-fill" id="m-prog"></div></div>
+      <div class="music-controls">
+        <button id="m-prev">⏮</button>
+        <button id="m-play">▶️</button>
+        <button id="m-next">⏭</button>
+      </div>
+    </div>
+  `;
+  const cover = container.querySelector('#m-cover');
+  const title = container.querySelector('#m-title');
+  const artist = container.querySelector('#m-artist');
+  const prog = container.querySelector('#m-prog');
+  const btnPlay = container.querySelector('#m-play');
+  function load() {
+    const s = playlist[idx];
+    title.textContent = s.title; artist.textContent = s.artist; cover.textContent = s.icon;
+    progress = 0; prog.style.width = '0%';
+  }
+  function tick() {
+    if (!playing) return;
+    progress = Math.min(100, progress + 0.4);
+    prog.style.width = progress + '%';
+    if (progress >= 100) next();
+  }
+  function play() { playing = true; cover.classList.add('playing'); btnPlay.textContent = '⏸'; if (timer) clearInterval(timer); timer = setInterval(tick, 100); }
+  function pause() { playing = false; cover.classList.remove('playing'); btnPlay.textContent = '▶️'; if (timer) { clearInterval(timer); timer = null; } }
+  function next() { idx = (idx + 1) % playlist.length; load(); if (playing) play(); }
+  function prev() { idx = (idx - 1 + playlist.length) % playlist.length; load(); if (playing) play(); }
+  btnPlay.onclick = () => playing ? pause() : play();
+  container.querySelector('#m-next').onclick = next;
+  container.querySelector('#m-prev').onclick = prev;
+  const observer = new MutationObserver(() => {
+    if (!document.body.contains(container)) { if (timer) clearInterval(timer); observer.disconnect(); }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  load();
+}
+
+/* ---------- 日历 ---------- */
+function mountCalendar(container) {
+  let viewDate = new Date();
+  container.innerHTML = `
+    <div class="calendar">
+      <div class="cal-header">
+        <button class="app-btn" id="cal-prev">‹</button>
+        <span id="cal-title">--</span>
+        <button class="app-btn" id="cal-next">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  `;
+  const titleEl = container.querySelector('#cal-title');
+  const grid = container.querySelector('#cal-grid');
+  function render() {
+    titleEl.textContent = viewDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
+    const y = viewDate.getFullYear(), m = viewDate.getMonth();
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const prevDays = new Date(y, m, 0).getDate();
+    const today = new Date();
+    let html = ['日','一','二','三','四','五','六'].map(d => `<div class="cal-day-name">${d}</div>`).join('');
+    for (let i = first - 1; i >= 0; i--) html += `<div class="cal-day other">${prevDays - i}</div>`;
+    for (let d = 1; d <= days; d++) {
+      const isToday = d === today.getDate() && m === today.getMonth() && y === today.getFullYear();
+      html += `<div class="cal-day${isToday ? ' today' : ''}">${d}</div>`;
+    }
+    const rest = (7 - ((first + days) % 7)) % 7;
+    for (let i = 1; i <= rest; i++) html += `<div class="cal-day other">${i}</div>`;
+    grid.innerHTML = html;
+  }
+  container.querySelector('#cal-prev').onclick = () => { viewDate.setMonth(viewDate.getMonth() - 1); render(); };
+  container.querySelector('#cal-next').onclick = () => { viewDate.setMonth(viewDate.getMonth() + 1); render(); };
+  render();
+}
+
+/* ---------- 聊天（AI + 导出） ---------- */
+function mountChat(container) {
+  const history = JSON.parse(localStorage.getItem('webos-chat-history') || '[]');
+  let sending = false;
+  container.innerHTML = `
+    <div class="chat">
+      <div class="chat-toolbar">
+        <span class="chat-status" id="chat-status"></span>
+        <button class="app-btn" id="chat-set" title="API 设置">⚙️</button>
+        <button class="app-btn" id="chat-export" title="导出聊天记录">📤</button>
+        <button class="app-btn" id="chat-clear" title="清空">🗑️</button>
+      </div>
+      <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chat-input">
+        <input id="chat-in" placeholder="说点什么...（Enter 发送）" autocomplete="off">
+        <button class="app-btn" id="chat-send">发送</button>
+      </div>
+    </div>
+  `;
+  const msgsEl = container.querySelector('#chat-msgs');
+  const input = container.querySelector('#chat-in');
+  const statusEl = container.querySelector('#chat-status');
+
+  function refreshStatus() {
+    if (AI.ready()) {
+      statusEl.textContent = '🟢 ' + AI.cfg.model;
+      statusEl.className = 'chat-status online';
+    } else {
+      statusEl.textContent = '⚪ 未接入 AI（点 ⚙️）';
+      statusEl.className = 'chat-status';
+    }
+  }
+  refreshStatus();
+
+  function addMsg(text, who) {
+    const el = document.createElement('div');
+    el.className = 'msg ' + who;
+    el.textContent = text;
+    msgsEl.appendChild(el);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    return el;
+  }
+  function persist() { localStorage.setItem('webos-chat-history', JSON.stringify(history)); }
+
+  if (history.length === 0) {
+    const hello = AI.ready() ? `你好！我是 ${AI.cfg.model}，有什么可以帮你？` : '你好！点右上角 ⚙️ 配置 API，我就能接入真 AI。';
+    history.push({ role: 'assistant', content: hello, ts: Date.now() });
+    persist();
+  }
+  history.forEach(m => addMsg(m.content, m.role === 'user' ? 'me' : 'bot'));
+
+  async function send() {
+    if (sending) return;
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    addMsg(text, 'me');
+    history.push({ role: 'user', content: text, ts: Date.now() });
+    persist();
+    const botEl = addMsg('', 'bot');
+    if (!AI.ready()) {
+      botEl.textContent = '（未接入 AI）请点 ⚙️ 配置 API Key。';
+      history.push({ role: 'assistant', content: botEl.textContent, ts: Date.now() });
+      persist();
+      return;
+    }
+    sending = true;
+    botEl.classList.add('streaming');
+    botEl.textContent = '思考中…';
+    try {
+      const ctx = history
+        .slice(0, -1)
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .slice(-20)
+        .map(m => ({ role: m.role, content: m.content }));
+      const reply = await AI.chat(ctx, {
+        onDelta: (d, full) => { botEl.textContent = full; msgsEl.scrollTop = msgsEl.scrollHeight; }
+      });
+      botEl.classList.remove('streaming');
+      if (!reply) botEl.textContent = '（AI 没有返回内容）';
+      history.push({ role: 'assistant', content: reply || '', ts: Date.now() });
+      persist();
+    } catch (e) {
+      botEl.classList.remove('streaming');
+      botEl.textContent = '❌ ' + e.message;
+      statusEl.textContent = '⚠️ API 出错';
+      statusEl.className = 'chat-status error';
+    } finally { sending = false; }
+  }
+  container.querySelector('#chat-send').onclick = send;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+  container.querySelector('#chat-set').onclick = () => { openAISettings(); setTimeout(refreshStatus, 100); };
+  container.querySelector('#chat-clear').onclick = () => {
+    if (!confirm('清空聊天记录？')) return;
+    history.length = 0;
+    msgsEl.innerHTML = '';
+    localStorage.removeItem('webos-chat-history');
+    addMsg('对话已清空。', 'bot');
+  };
+
+  /* 导出 */
+  container.querySelector('#chat-export').onclick = () => {
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.innerHTML = `
+      <div class="modal">
+        <h3>📤 导出聊天记录</h3>
+        <div style="font-size:12px;opacity:.7">共 ${history.length} 条消息</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="app-btn" data-fmt="md">Markdown（.md）</button>
+          <button class="app-btn" data-fmt="json">JSON（.json）</button>
+          <button class="app-btn" data-fmt="txt">纯文本（.txt）</button>
+          <button class="app-btn" data-fmt="copy">复制到剪贴板</button>
+          <button class="app-btn" data-fmt="vfs">保存到 /下载 文件夹</button>
+        </div>
+        <div class="row"><button class="app-btn" id="e-cancel">取消</button></div>
+      </div>
+    `;
+    document.body.appendChild(mask);
+    mask.querySelector('#e-cancel').onclick = () => mask.remove();
+    mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+    mask.querySelectorAll('[data-fmt]').forEach(btn => {
+      btn.onclick = async () => {
+        const fmt = btn.dataset.fmt;
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        let content = '', filename = `chat-${stamp}`, mime = 'text/plain';
+        if (fmt === 'md') {
+          filename += '.md'; mime = 'text/markdown';
+          content = `# SimpleWebOS 聊天记录\n\n导出时间：${new Date().toLocaleString('zh-CN')}\n模型：${AI.cfg.model || '无'}\n\n---\n\n`;
+          history.forEach(m => {
+            const who = m.role === 'user' ? '🧑 我' : '🤖 AI';
+            const t = m.ts ? new Date(m.ts).toLocaleString('zh-CN') : '';
+            content += `### ${who}${t ? ' · ' + t : ''}\n\n${m.content}\n\n`;
+          });
+        } else if (fmt === 'json') {
+          filename += '.json'; mime = 'application/json';
+          content = JSON.stringify({ exportedAt: new Date().toISOString(), model: AI.cfg.model, messages: history }, null, 2);
+        } else if (fmt === 'txt') {
+          filename += '.txt';
+          history.forEach(m => {
+            const who = m.role === 'user' ? '我' : 'AI';
+            content += `[${who}] ${m.content}\n\n`;
+          });
+        } else if (fmt === 'copy') {
+          try {
+            await navigator.clipboard.writeText(history.map(m =>
+              `[${m.role === 'user' ? '我' : 'AI'}] ${m.content}`
+            ).join('\n\n'));
+            notify('📋', '导出', '已复制到剪贴板');
+          } catch(e) { notify('❌', '导出', '复制失败：' + e.message); }
+          mask.remove();
+          return;
+        } else if (fmt === 'vfs') {
+          const md = `# 聊天记录\n\n` + history.map(m =>
+            `**${m.role === 'user' ? '我' : 'AI'}**: ${m.content}`
+          ).join('\n\n');
+          const fname = `chat-${stamp}.md`;
+          saveToVFS('/下载', fname, md);
+          notify('💾', '导出', '已保存到 /下载/' + fname);
+          mask.remove();
+          return;
+        }
+        downloadFile(filename, content, mime);
+        notify('📤', '导出', '已下载 ' + filename);
+        mask.remove();
+      };
+    });
+  };
+}
+
+/* ---------- 贪吃蛇 ---------- */
+function mountSnake(container) {
+  container.innerHTML = `
+    <div class="snake-wrap">
+      <div class="snake-score">分数: <span id="sn-score">0</span> | 最高: <span id="sn-best">0</span></div>
+      <canvas class="snake-canvas" width="320" height="320"></canvas>
+      <div class="snake-btns">
+        <div></div><button data-dir="U">↑</button><div></div>
+        <button data-dir="L">←</button><button data-dir="D">↓</button><button data-dir="R">→</button>
+      </div>
+    </div>
+  `;
+  const canvas = container.querySelector('canvas');
+  const ctx = canvas.getContext('2d');
+  const GRID = 16, CELL = canvas.width / GRID;
+  let snake = [{x:8,y:8}], dir = {x:1,y:0}, food = {x:12,y:8};
+  let score = 0, best = +(localStorage.getItem('snake-best') || 0), over = false;
+  container.querySelector('#sn-best').textContent = best;
+  function reset() {
+    snake = [{x:8,y:8}]; dir = {x:1,y:0}; food = {x:12,y:8}; score = 0; over = false;
+    container.querySelector('#sn-score').textContent = 0;
+  }
+  function spawnFood() {
+    do { food = {x: (Math.random()*GRID)|0, y: (Math.random()*GRID)|0}; }
+    while (snake.some(s => s.x===food.x && s.y===food.y));
+  }
+  function step() {
+    if (over) return;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID || snake.some(s => s.x===head.x && s.y===head.y)) {
+      over = true;
+      if (score > best) { best = score; localStorage.setItem('snake-best', best); }
+      container.querySelector('#sn-best').textContent = best;
+      draw();
+      return;
+    }
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) { score++; container.querySelector('#sn-score').textContent = score; spawnFood(); }
+    else snake.pop();
+    draw();
+  }
+  function draw() {
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(255,255,255,.04)';
+    for (let i = 0; i <= GRID; i++) {
+      ctx.beginPath(); ctx.moveTo(i*CELL, 0); ctx.lineTo(i*CELL, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i*CELL); ctx.lineTo(canvas.width, i*CELL); ctx.stroke();
+    }
+    ctx.fillStyle = '#ff5f57';
+    ctx.beginPath(); ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2 - 2, 0, Math.PI*2); ctx.fill();
+    snake.forEach((s, i) => {
+      ctx.fillStyle = i === 0 ? '#4a9eff' : '#28c840';
+      ctx.beginPath();
+      ctx.roundRect(s.x*CELL + 1, s.y*CELL + 1, CELL - 2, CELL - 2, 4);
+      ctx.fill();
+    });
+    if (over) {
+      ctx.fillStyle = 'rgba(0,0,0,.7)';
+      ctx.fillRect(0, canvas.height/2 - 30, canvas.width, 60);
+      ctx.fillStyle = '#fff';
+      ctx.font = '18px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('游戏结束，点击重开', canvas.width/2, canvas.height/2 + 6);
+    }
+  }
+  canvas.addEventListener('click', () => { if (over) { reset(); draw(); } });
+  container.querySelectorAll('[data-dir]').forEach(b => {
+    b.onclick = () => {
+      const d = b.dataset.dir;
+      if (d === 'U' && dir.y === 0) dir = {x:0,y:-1};
+      if (d === 'D' && dir.y === 0) dir = {x:0,y:1};
+      if (d === 'L' && dir.x === 0) dir = {x:-1,y:0};
+      if (d === 'R' && dir.x === 0) dir = {x:1,y:0};
+    };
+  });
+  document.addEventListener('keydown', e => {
+    if (!document.body.contains(canvas)) return;
+    if (e.key === 'ArrowUp' && dir.y === 0) dir = {x:0,y:-1};
+    if (e.key === 'ArrowDown' && dir.y === 0) dir = {x:0,y:1};
+    if (e.key === 'ArrowLeft' && dir.x === 0) dir = {x:-1,y:0};
+    if (e.key === 'ArrowRight' && dir.x === 0) dir = {x:1,y:0};
+  });
+  const timer = setInterval(() => {
+    if (!document.body.contains(canvas)) { clearInterval(timer); return; }
+    step();
+  }, 130);
+  draw();
+}
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (w < 2*r) r = w/2; if (h < 2*r) r = h/2;
+    this.beginPath();
+    this.moveTo(x+r, y);
+    this.arcTo(x+w, y, x+w, y+h, r);
+    this.arcTo(x+w, y+h, x, y+h, r);
+    this.arcTo(x, y+h, x, y, r);
+    this.arcTo(x, y, x+w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
+/* ---------- 浏览器 ---------- */
+function mountBrowser(container) {
+  container.innerHTML = `
+    <div class="browser">
+      <div class="browser-bar">
+        <button class="app-btn" id="b-back">←</button>
+        <input id="b-url" placeholder="输入网址或搜索..." value="about:home">
+        <button class="app-btn" id="b-go">前往</button>
+      </div>
+      <div class="browser-view" id="b-view"></div>
+    </div>
+  `;
+  const view = container.querySelector('#b-view');
+  const input = container.querySelector('#b-url');
+  async function nav(url) {
+    if (url === 'about:home' || url === 'home' || !url) {
+      view.innerHTML = `
+        <h1>🌐 SimpleBrowser</h1>
+        <p>内置页面：</p>
+        <ul>
+          <li><a data-url="about:home">about:home</a> - 首页</li>
+          <li><a data-url="about:system">about:system</a> - 系统信息</li>
+          <li><a data-url="about:apps">about:apps</a> - 应用列表</li>
+        </ul>
+        <p>也可以在下方直接问 AI：</p>
+        <div style="display:flex;gap:6px"><input id="b-ai-in" placeholder="问 AI..." style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--hover);color:var(--text);outline:none"><button class="app-btn" id="b-ai-go">问 AI</button></div>
+        <div id="b-ai-out" style="margin-top:10px;white-space:pre-wrap;line-height:1.7;font-size:13px"></div>
+      `;
+      const aiIn = view.querySelector('#b-ai-in');
+      const aiOut = view.querySelector('#b-ai-out');
+      view.querySelector('#b-ai-go').onclick = async () => {
+        const q = aiIn.value.trim();
+        if (!q) return;
+        if (!AI.ready()) { aiOut.textContent = '❌ 未配置 API'; return; }
+        aiOut.textContent = '🤖 思考中...';
+        try {
+          await AI.chat([{ role: 'user', content: q }], { onDelta: (d, f) => { aiOut.textContent = f; } });
+        } catch(e) { aiOut.textContent = '❌ ' + e.message; }
+      };
+      aiIn.addEventListener('keydown', e => { if (e.key === 'Enter') view.querySelector('#b-ai-go').click(); });
+    } else if (url === 'about:system') {
+      view.innerHTML = `
+        <h1>系统信息</h1>
+        <p><b>系统:</b> SimpleWebOS ${OS.version}</p>
+        <p><b>AI:</b> ${AI.ready() ? AI.cfg.model : '未配置'}</p>
+        <p><b>UA:</b> ${navigator.userAgent}</p>
+        <p><b>屏幕:</b> ${screen.width}x${screen.height}</p>
+        <p><b>语言:</b> ${navigator.language}</p>
+        <p><b>在线:</b> ${navigator.onLine ? '是' : '否'}</p>
+      `;
+    } else if (url === 'about:apps') {
+      view.innerHTML = '<h1>应用列表</h1>' + Object.keys(APPS).map(k =>
+        `<p>${APPS[k].icon} <b>${APPS[k].name}</b> <a data-app="${k}">打开</a></p>`
+      ).join('');
+    } else if (url.startsWith('http')) {
+      window.open(url, '_blank');
+      view.innerHTML = `<p>已在新标签页打开: ${url}</p><p>（出于安全限制，大多数网站不能在 iframe 中加载）</p>`;
+    } else {
+      view.innerHTML = `<h1>找不到</h1><p>无法访问 ${url}</p>`;
+    }
+    view.querySelectorAll('[data-url]').forEach(a => a.onclick = () => { nav(a.dataset.url); input.value = a.dataset.url; });
+    view.querySelectorAll('[data-app]').forEach(a => a.onclick = () => openApp(a.dataset.app));
+  }
+  container.querySelector('#b-go').onclick = () => nav(input.value.trim());
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') nav(input.value.trim()); });
+  nav('about:home');
+}
+
+/* ---------- 时钟 ---------- */
+function mountClock(container) {
+  container.innerHTML = `
+    <div class="clockapp">
+      <div class="clock-big" id="c-time">--:--:--</div>
+      <div class="clock-date" id="c-date">--</div>
+    </div>
+  `;
+  const t = container.querySelector('#c-time');
+  const d = container.querySelector('#c-date');
+  function upd() {
+    const now = new Date();
+    t.textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
+    d.textContent = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  }
+  upd();
+  const timer = setInterval(() => {
+    if (!document.body.contains(container)) { clearInterval(timer); return; }
+    upd();
+  }, 1000);
+}
+
+/* ---------- 设置 ---------- */
+function mountSettings(container) {
+  container.innerHTML = `
+    <div class="settings-list">
+      <div class="settings-item"><b>主题</b>
+        <div class="setting-row">
+          <button class="app-btn" data-theme="dark">深色</button>
+          <button class="app-btn" data-theme="light">浅色</button>
+        </div>
+      </div>
+      <div class="settings-item"><b>强调色</b></div>
+      <div class="setting-row">
+        ${['#4a9eff','#28c840','#ff5f57','#febc2e','#a855f7','#ec4899','#06b6d4'].map(c =>
+          `<div class="color-dot" data-color="${c}" style="background:${c}"></div>`
+        ).join('')}
+      </div>
+      <div class="settings-item"><b>壁纸</b></div>
+      <div class="setting-row">
+        ${[
+          'linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)',
+          'linear-gradient(135deg, #2b1055, #7597de)',
+          'linear-gradient(135deg, #134e5e, #71b280)',
+          'linear-gradient(135deg, #42275a, #734b6d)',
+          'linear-gradient(135deg, #ff512f, #dd2476)',
+          'linear-gradient(135deg, #0f2027, #203a43, #2c5364)'
+        ].map(w => `<div class="color-dot" data-wall="${w}" style="background:${w}"></div>`).join('')}
+      </div>
+      <div class="settings-item"><b>AI 助手</b></div>
+      <div style="font-size:12px;opacity:.75;line-height:1.6">
+        当前：${AI.ready() ? '🟢 ' + AI.cfg.model : '⚪ 未配置'}
+      </div>
+      <button class="app-btn" id="s-ai">⚙️ AI 设置</button>
+      <div class="settings-item"><b>系统信息</b></div>
+      <div style="font-size:13px;opacity:.75;line-height:1.7">
+        系统: SimpleWebOS ${OS.version}<br>
+        内核: browser-js<br>
+        屏幕: ${screen.width}x${screen.height}<br>
+        语言: ${navigator.language}
+      </div>
+      <button class="app-btn" id="s-reset" style="color:#ff5f57;border-color:#ff5f57">恢复出厂设置</button>
+    </div>
+  `;
+  container.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { OS.state.theme = b.dataset.theme; applyTheme(); saveState(); });
+  container.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { OS.state.accent = b.dataset.color; applyTheme(); saveState(); });
+  container.querySelectorAll('[data-wall]').forEach(b => b.onclick = () => { OS.state.wallpaper = b.dataset.wall; applyTheme(); saveState(); });
+  container.querySelector('#s-ai').onclick = openAISettings;
+  container.querySelector('#s-reset').onclick = () => {
+    if (confirm('确定恢复出厂设置？所有数据将丢失。')) {
+      ['webos-v3','webos-notes','snake-best','webos-chat-history','webos-ai'].forEach(k => localStorage.removeItem(k));
+      location.reload();
+    }
+  };
+}
+
+/* ---------- 关于 ---------- */
+function mountAbout(container) {
+  container.innerHTML = `
+    <div class="about">
+      <div class="about-logo">💻</div>
+      <div class="about-title">SimpleWebOS</div>
+      <div class="about-sub">Version ${OS.version}</div>
+      <div class="about-info">
+        一个运行在浏览器里的"操作系统"原型。<br>
+        纯 HTML / CSS / JavaScript 打造。<br>
+        支持多窗口、文件系统、终端、AI 助手。
+      </div>
+      <div style="font-size:11px;opacity:.4;margin-top:10px">Made with ❤️ and ☕</div>
+    </div>
+  `;
+}
+
+/* ---------- 键盘快捷键 ---------- */
+document.addEventListener('keydown', e => {
+  if (e.altKey && e.key === 'Tab') {
+    e.preventDefault();
+    if (OS.state.windows.length === 0) return;
+    const sorted = [...OS.state.windows].sort((a,b) => (+a.el.style.zIndex||0) - (+b.el.style.zIndex||0));
+    const last = sorted[0];
+    last.el.classList.remove('minimized');
+    focusWindow(last);
+  }
+  if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 't') { e.preventDefault(); openApp('terminal'); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openAIPalette(); }
+  if (e.key === 'Escape') {
+    startmenu.classList.remove('show');
+    document.getElementById('notifcenter').classList.remove('show');
+    ctxmenu.classList.remove('show');
+  }
+});
+
+/* ---------- 自适应 ---------- */
+window.addEventListener('resize', () => {
+  if (window.innerWidth < 700) {
+    OS.state.windows.forEach(w => {
+      if (!w.el.classList.contains('maximized')) {
+        w.el.style.left = '10px';
+        w.el.style.width = (window.innerWidth - 20) + 'px';
+      }
+    });
+  }
+});
+
+/* ---------- 开场提示 ---------- */
+setTimeout(() => {
+  notify('💡', '提示', '双击桌面图标打开应用 | Ctrl+K 呼出 AI | 右键桌面更多选项');
+}, 3000);
+</script>
+</body>
+</html>

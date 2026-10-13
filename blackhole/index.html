@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>黑洞吞噬</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#05030f;touch-action:none;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:#fff;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+  }
+  canvas{display:block;position:fixed;inset:0;}
+  .hud{
+    position:fixed;top:14px;left:14px;right:14px;
+    display:flex;justify-content:space-between;
+    pointer-events:none;z-index:5;
+  }
+  .pill{
+    background:rgba(20,14,45,.72);
+    border:1px solid rgba(139,92,246,.35);
+    border-radius:999px;padding:7px 16px;
+    font-size:14px;font-weight:600;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    font-variant-numeric:tabular-nums;
+  }
+  #sizeWrap{
+    position:fixed;left:0;right:0;bottom:16px;
+    display:flex;justify-content:center;
+    pointer-events:none;z-index:5;
+  }
+  #sizeEl{
+    background:rgba(20,14,45,.72);
+    border:1px solid rgba(139,92,246,.35);
+    border-radius:999px;padding:7px 20px;
+    font-size:14px;font-weight:600;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    font-variant-numeric:tabular-nums;
+  }
+  .screen{
+    position:fixed;inset:0;z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;
+    background:radial-gradient(circle at 50% 42%,rgba(60,30,120,.5),rgba(5,3,15,.94));
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  }
+  .screen h1{
+    font-size:clamp(28px,7vw,52px);letter-spacing:.08em;
+    background:linear-gradient(90deg,#a78bfa,#22d3ee,#f472b6);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    margin-bottom:16px;
+  }
+  .screen p{opacity:.78;font-size:15px;line-height:1.95;max-width:540px;}
+  .screen b{color:#c4b5fd;}
+  .btn{
+    margin-top:28px;padding:13px 46px;border:none;border-radius:999px;
+    font-size:17px;font-weight:700;color:#fff;cursor:pointer;
+    background:linear-gradient(135deg,#7c3aed,#c026d3);
+    box-shadow:0 0 30px rgba(139,92,246,.6);
+    transition:transform .15s;
+  }
+  .btn:active{transform:scale(.95);}
+  .hidden{display:none!important;}
+  .tip{margin-top:18px;font-size:13px;opacity:.42;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <div class="pill" id="timeEl">⏱ 120</div>
+  <div class="pill" id="scoreEl">分数 0</div>
+</div>
+<div id="sizeWrap"><div id="sizeEl">洞口半径 30</div></div>
+<div class="screen" id="startScreen">
+  <h1>桌 面 上 的 洞</h1>
+  <p>
+    拖动鼠标 / 手指，让桌面上的洞滑来滑去<br>
+    地图更大，方块大小悬殊，中央有一座<b>冲天高塔</b><br>
+    洞口滑到方块下方，方块就会<b>自然倾斜、翻倒</b><br>
+    洞口移开，上方方块会<b>被剩余部分撑住，不再下坠</b>
+  </p>
+  <button class="btn" id="startBtn">开始</button>
+  <div class="tip">手机可直接滑动屏幕 · 也支持 WASD</div>
+</div>
+<div class="screen hidden" id="endScreen">
+  <h1 id="endTitle">时间到</h1>
+  <p id="endText"></p>
+  <button class="btn" id="againBtn">再来一局</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  if(typeof THREE === 'undefined' || typeof CANNON === 'undefined'){
+    document.body.innerHTML =
+      '<div style="padding:40px;color:#fff;font-family:sans-serif">' +
+      '⚠️ 物理库加载失败，请检查网络后刷新页面。' +
+      '</div>';
+    return;
+  }
+
+  /* ================= 常量 ================= */
+  const TAU          = Math.PI * 2;
+
+  // —— 地图参数 ——
+  const ARENA_R      = 2000;
+  const START_R      = 30;
+  const MAX_R        = 420;
+  const GAME_TIME    = 150;
+  const PLAYER_SPEED = 350;
+
+  // 地砖
+  const TILE_SIZE    = 90;
+  const TILE_HALF    = TILE_SIZE / 2;
+  const TILE_THICK   = 20;
+  const TILE_COUNT   = Math.ceil(ARENA_R / TILE_SIZE) + 1;
+
+  // 城市网格
+  const GRID         = 15;
+  const CELL         = (ARENA_R * 2) / GRID;
+
+  const BG_COLOR     = 0x05030f;
+  const PURPLE       = 0xa78bfa;
+
+  const GRAVITY_Y    = -1800;
+
+  const GROUND_GROUP = 1;
+  const BLOCK_GROUP  = 2;
+
+  /* ================= 状态 ================= */
+  let scene, camera, renderer;
+  let holeGroup, holeRim;
+  let groundMesh;
+  let player = { x: 0, z: 0, r: START_R };
+  let blocks = [];
+  let groundTiles = [];
+  let ripples = [];
+
+  let running   = false;
+  let timeLeft  = GAME_TIME;
+  let score     = 0;
+  let lastT     = 0;
+  let eatenCount = 0;
+
+  const pointer   = { x: 0, y: 0 };
+  const keys      = {};
+  const smoothCam = { x: 0, z: 0 };
+
+  let lastHoleX = -99999, lastHoleZ = -99999, lastHoleR = -1;
+  let lastTileX = -99999, lastTileZ = -99999, lastTileR = -1;
+
+  /* ================= Cannon 世界 ================= */
+  let world;
+
+  function initPhysics(){
+    world = new CANNON.World();
+    world.gravity.set(0, GRAVITY_Y, 0);
+    world.broadphase = new CANNON.SAPBroadphase(world);
+    world.allowSleep = false;
+    world.defaultContactMaterial.friction = 0.8;
+    world.defaultContactMaterial.restitution = 0.00;
+  }
+
+  /* ================= 小工具 ================= */
+  const rand  = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+
+  /* ================= HUD ================= */
+  const timeEl   = document.getElementById('timeEl');
+  const scoreEl  = document.getElementById('scoreEl');
+  const sizeEl   = document.getElementById('sizeEl');
+  const startScr = document.getElementById('startScreen');
+  const endScr   = document.getElementById('endScreen');
+  const endTitle = document.getElementById('endTitle');
+  const endText  = document.getElementById('endText');
+
+  function updateHUD(){
+    timeEl.textContent  = '⏱ ' + Math.max(0, Math.ceil(timeLeft));
+    scoreEl.textContent = '分数 ' + score;
+    sizeEl.textContent  = '洞口半径 ' + Math.round(player.r);
+  }
+
+  /* ================= 带洞地面（视觉） ================= */
+  function buildGroundGeometry(){
+    const shape = new THREE.Shape();
+    shape.moveTo(-ARENA_R, -ARENA_R);
+    shape.lineTo( ARENA_R, -ARENA_R);
+    shape.lineTo( ARENA_R,  ARENA_R);
+    shape.lineTo(-ARENA_R,  ARENA_R);
+    shape.lineTo(-ARENA_R, -ARENA_R);
+
+    const hole = new THREE.Path();
+    hole.absarc(player.x, -player.z, player.r * 0.995, 0, TAU, true);
+    shape.holes.push(hole);
+
+    return new THREE.ShapeGeometry(shape, 24);
+  }
+
+  function rebuildGround(){
+    if(groundMesh.geometry) groundMesh.geometry.dispose();
+    groundMesh.geometry = buildGroundGeometry();
+  }
+
+  function maybeRebuildGround(){
+    if(Math.abs(player.x - lastHoleX) < 0.5 &&
+       Math.abs(player.z - lastHoleZ) < 0.5 &&
+       Math.abs(player.r - lastHoleR) < 0.5) return;
+    lastHoleX = player.x;
+    lastHoleZ = player.z;
+    lastHoleR = player.r;
+    rebuildGround();
+  }
+
+  /* ================= 地面砖块（物理） ================= */
+  function buildGroundTiles(){
+    groundTiles = [];
+
+    for(let i = -TILE_COUNT; i < TILE_COUNT; i++){
+      for(let j = -TILE_COUNT; j < TILE_COUNT; j++){
+        const tx = i * TILE_SIZE + TILE_HALF;
+        const tz = j * TILE_SIZE + TILE_HALF;
+
+        if(Math.abs(tx) > ARENA_R + TILE_HALF) continue;
+        if(Math.abs(tz) > ARENA_R + TILE_HALF) continue;
+
+        const body = new CANNON.Body({
+          mass: 0,
+          shape: new CANNON.Box(new CANNON.Vec3(TILE_HALF, TILE_THICK / 2, TILE_HALF)),
+          position: new CANNON.Vec3(tx, -TILE_THICK / 2, tz),
+          collisionFilterGroup: GROUND_GROUP,
+          collisionFilterMask: BLOCK_GROUP
+        });
+        world.addBody(body);
+
+        groundTiles.push({
+          x: tx,
+          z: tz,
+          body: body,
+          active: true
+        });
+      }
+    }
+  }
+
+  function clearGroundTiles(){
+    for(let i = 0; i < groundTiles.length; i++){
+      world.removeBody(groundTiles[i].body);
+    }
+    groundTiles = [];
+  }
+
+  /* ---- 关键：根据洞口位置挖空 / 恢复地砖 ---- */
+  function updateGroundTiles(){
+    // 阈值降到 0.1，洞口移动时更频繁地重算
+    if(Math.abs(player.x - lastTileX) < 0.1 &&
+       Math.abs(player.z - lastTileZ) < 0.1 &&
+       Math.abs(player.r - lastTileR) < 0.1) return;
+    lastTileX = player.x;
+    lastTileZ = player.z;
+    lastTileR = player.r;
+
+    const hR = player.r;
+    const hx = player.x;
+    const hz = player.z;
+
+    // ★ 洞口在动 → 唤醒附近所有方块，让它们立刻感知地砖变化
+    const wakeR  = hR + TILE_SIZE * 6;
+    const wakeR2 = wakeR * wakeR;
+    for(let k = 0; k < blocks.length; k++){
+      const b = blocks[k];
+      const p = b.body.position;
+      const dx = p.x - hx;
+      const dz = p.z - hz;
+      if(dx * dx + dz * dz < wakeR2){
+        b.body.wakeUp();
+      }
+    }
+
+    // 更新每块地砖的碰撞状态
+    for(let i = 0; i < groundTiles.length; i++){
+      const tile = groundTiles[i];
+      const dx = tile.x - hx;
+      const dz = tile.z - hz;
+      const d  = Math.hypot(dx, dz);
+
+      const inHole = d < hR + TILE_HALF;
+
+      if(inHole && tile.active){
+        // 挖空：立刻断开与方块的碰撞
+        tile.active = false;
+        tile.body.collisionFilterMask = 0;
+      } else if(!inHole && !tile.active){
+        // 恢复：地砖重新成为实体地面
+        tile.active = true;
+        tile.body.collisionFilterMask = BLOCK_GROUP;
+      }
+    }
+  }
+
+  /* ================= 场景初始化 ================= */
+  function initScene(){
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(BG_COLOR);
+    scene.fog = new THREE.FogExp2(BG_COLOR, 0.00011);
+
+    camera = new THREE.PerspectiveCamera(
+      55, window.innerWidth / window.innerHeight, 1, 16000
+    );
+
+    renderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById('c'),
+      antialias: true
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(BG_COLOR, 1);
+
+    scene.add(new THREE.AmbientLight(0x9b8ee0, 1.05));
+
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    dir.position.set(500, 1600, 400);
+    scene.add(dir);
+
+    const fill = new THREE.DirectionalLight(0x5b3fb5, 0.75);
+    fill.position.set(-600, 600, -500);
+    scene.add(fill);
+
+    /* ---- 桌面（视觉，带洞） ---- */
+    groundMesh = new THREE.Mesh(
+      buildGroundGeometry(),
+      new THREE.MeshStandardMaterial({
+        color: 0x1a1238,
+        roughness: 0.94,
+        metalness: 0.06,
+        side: THREE.DoubleSide
+      })
+    );
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.y = 0;
+    scene.add(groundMesh);
+
+    /* ---- 桌面格纹 ---- */
+    const grid = new THREE.GridHelper(ARENA_R * 2, GRID * 2, 0x6d4fd8, 0x2a1a5c);
+    grid.position.y = 0.45;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.18;
+    scene.add(grid);
+
+    /* ---- 四周发光边框 ---- */
+    const wallMat = new THREE.MeshBasicMaterial({
+      color: 0x7c3aed, transparent: true, opacity: 0.16,
+      side: THREE.DoubleSide
+    });
+    const wallH = 80, wallT = 12, L = ARENA_R * 2;
+    [
+      { w: L,     d: wallT, x: 0,       z: -ARENA_R },
+      { w: L,     d: wallT, x: 0,       z:  ARENA_R },
+      { w: wallT, d: L,     x: -ARENA_R, z: 0 },
+      { w: wallT, d: L,     x:  ARENA_R, z: 0 }
+    ].forEach(function(w){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w.w, wallH, w.d), wallMat);
+      m.position.set(w.x, wallH / 2, w.z);
+      scene.add(m);
+    });
+
+    /* ---- 洞口边缘装饰环 ---- */
+    holeGroup = new THREE.Group();
+    scene.add(holeGroup);
+
+    holeRim = new THREE.Mesh(
+      new THREE.RingGeometry(0.955, 1.045, 64),
+      new THREE.MeshBasicMaterial({
+        color: PURPLE,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide
+      })
+    );
+    holeRim.rotation.x = -Math.PI / 2;
+    holeRim.position.y = 0.55;
+    holeGroup.add(holeRim);
+
+    holeGroup.position.set(0, 0, 0);
+    holeGroup.scale.setScalar(START_R);
+
+    smoothCam.x = 0;
+    smoothCam.z = 0;
+    updateCamera(1);
+  }
+
+  /* ================= 生成城市 ================= */
+  // 按分桶产生悬殊的方块尺寸
+  function pickBlockSize(){
+    const r = Math.random();
+    if(r < 0.42){          // 小方块
+      return {
+        hw: rand(8, 16),
+        bh: rand(22, 45)
+      };
+    } else if(r < 0.72){   // 中方块
+      return {
+        hw: rand(20, 34),
+        bh: rand(40, 80)
+      };
+    } else if(r < 0.91){   // 大方块
+      return {
+        hw: rand(42, 62),
+        bh: rand(70, 130)
+      };
+    } else {                // 巨大方块
+      return {
+        hw: rand(72, 100),
+        bh: rand(120, 210)
+      };
+    }
+  }
+
+  function buildCity(){
+    const TOWER_I = Math.floor(GRID / 2);
+    const TOWER_J = Math.floor(GRID / 2) + 1;
+
+    for(let i = 0; i < GRID; i++){
+      for(let j = 0; j < GRID; j++){
+        // 街道：每隔 4 格留一条通道
+        if(i % 4 === 0 || j % 4 === 0) continue;
+
+        const cx = -ARENA_R + CELL * (i + 0.5);
+        const cz = -ARENA_R + CELL * (j + 0.5);
+
+        const isTower = (i === TOWER_I && j === TOWER_J);
+
+        // 塔：非常高的独立塔；普通：1~3 块堆叠
+        let numBlocks;
+        let blockCol;
+
+        if(isTower){
+          numBlocks = 20 + Math.floor(Math.random() * 8);   // 20 ~ 27 层
+          blockCol = new THREE.Color().setHSL(
+            rand(0.10, 0.15), rand(0.80, 0.95), rand(0.58, 0.72)
+          );
+        } else {
+          numBlocks = 1 + Math.floor(Math.random() * 3);
+          if(Math.random() < 0.82){
+            blockCol = new THREE.Color().setHSL(
+              rand(0.56, 0.76), rand(0.18, 0.48), rand(0.30, 0.62)
+            );
+          } else {
+            blockCol = new THREE.Color().setHSL(
+              rand(0.05, 0.13), rand(0.55, 0.85), rand(0.48, 0.62)
+            );
+          }
+        }
+
+        let y = 0;
+
+        for(let k = 0; k < numBlocks; k++){
+          let hw, bh;
+
+          if(isTower){
+            // 塔：底部宽，向上收窄
+            const baseHw = 26;
+            hw = baseHw * (1 - k * 0.018);
+            if(hw < baseHw * 0.55) hw = baseHw * 0.55;
+            bh = rand(42, 58);
+          } else {
+            const size = pickBlockSize();
+            hw = size.hw * (1 - k * 0.12);
+            if(hw < 6) hw = 6;
+            bh = size.bh * rand(0.85, 1.15);
+          }
+
+          // 堆叠偏移：像随手堆的木块
+          const offX = (k === 0) ? 0 : rand(-hw * 0.3, hw * 0.3);
+          const offZ = (k === 0) ? 0 : rand(-hw * 0.3, hw * 0.3);
+          const offRotY = (k === 0) ? 0 : rand(-0.4, 0.4);
+
+          const px = cx + offX;
+          const py = y + bh / 2 + (k === 0 ? 0 : 0.5);
+          const pz = cz + offZ;
+
+          const mat = new THREE.MeshStandardMaterial({
+            color: blockCol,
+            roughness: 0.55,
+            metalness: 0.3,
+            emissive: blockCol,
+            emissiveIntensity: isTower ? 0.25 : 0.12
+          });
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(hw * 2, bh, hw * 2),
+            mat
+          );
+          mesh.position.set(px, py, pz);
+          mesh.rotation.y = offRotY;
+          scene.add(mesh);
+
+          // 方块刚体：始终和地面、方块碰撞
+          const body = new CANNON.Body({
+            mass: 1,
+            shape: new CANNON.Box(new CANNON.Vec3(hw, bh / 2, hw)),
+            position: new CANNON.Vec3(px, py, pz),
+            collisionFilterGroup: BLOCK_GROUP,
+            collisionFilterMask: GROUND_GROUP | BLOCK_GROUP
+          });
+          body.quaternion.setFromEuler(0, offRotY, 0);
+          body.sleepSpeedLimit = 0.55;
+          body.sleepTimeLimit   = 0.55;
+          body.linearDamping    = 0.04;
+          body.angularDamping   = 0.14;
+          world.addBody(body);
+
+          blocks.push({
+            mesh:    mesh,
+            body:    body,
+            hw:      hw,
+            bh:      bh,
+            isTower: isTower
+          });
+
+          y += bh + (k === 0 ? 0 : 0.5);
+        }
+      }
+    }
+  }
+
+  /* ================= 涟漪 ================= */
+  function addRipple(x, z, r0, maxR, color){
+    const geo = new THREE.RingGeometry(1, 1.13, 48);
+    const mat = new THREE.MeshBasicMaterial({
+      color: color, transparent: true, opacity: 0.9,
+      side: THREE.DoubleSide, depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(x, 1.3, z);
+    mesh.scale.setScalar(r0);
+    scene.add(mesh);
+    ripples.push({ mesh: mesh, t: 0, r0: r0, maxR: maxR, mat: mat });
+  }
+
+  function updateRipples(dt){
+    for(let i = ripples.length - 1; i >= 0; i--){
+      const rp = ripples[i];
+      rp.t += dt * 2.2;
+      if(rp.t >= 1){
+        scene.remove(rp.mesh);
+        rp.mesh.geometry.dispose();
+        rp.mat.dispose();
+        ripples.splice(i, 1);
+        continue;
+      }
+      const e = 1 - Math.pow(1 - rp.t, 2);
+      const s = rp.r0 + (rp.maxR - rp.r0) * e;
+      rp.mesh.scale.setScalar(s);
+      rp.mat.opacity = (1 - rp.t) * 0.85;
+    }
+  }
+
+  /* ================= 清除 ================= */
+  function clearBlocks(){
+    for(let i = 0; i < blocks.length; i++){
+      const b = blocks[i];
+      scene.remove(b.mesh);
+      b.mesh.geometry.dispose();
+      b.mesh.material.dispose();
+      world.removeBody(b.body);
+    }
+    blocks = [];
+
+    for(let i = 0; i < ripples.length; i++){
+      scene.remove(ripples[i].mesh);
+      ripples[i].mesh.geometry.dispose();
+      ripples[i].mat.dispose();
+    }
+    ripples = [];
+  }
+
+  /* ================= 开始 / 重置 ================= */
+  function initGame(){
+    clearBlocks();
+    clearGroundTiles();
+
+    player.x = 0;
+    player.z = 0;
+    player.r = START_R;
+    holeGroup.position.set(0, 0, 0);
+    holeGroup.scale.setScalar(START_R);
+
+    smoothCam.x = 0;
+    smoothCam.z = 0;
+
+    lastHoleX = -99999;
+    lastHoleZ = -99999;
+    lastHoleR = -1;
+    rebuildGround();
+
+    lastTileX = -99999;
+    lastTileZ = -99999;
+    lastTileR = -1;
+    buildGroundTiles();
+
+    buildCity();
+
+    score    = 0;
+    eatenCount = 0;
+    timeLeft = GAME_TIME;
+    running  = true;
+
+    pointer.x = window.innerWidth  / 2;
+    pointer.y = window.innerHeight / 2;
+
+    lastT = performance.now();
+    updateHUD();
+  }
+
+  /* ================= 洞口移动 ================= */
+  function movePlayer(dt){
+    let dx = 0, dz = 0;
+
+    const kx = (keys['d'] || keys['arrowright'] ? 1 : 0) -
+               (keys['a'] || keys['arrowleft']  ? 1 : 0);
+    const kz = (keys['s'] || keys['arrowdown']  ? 1 : 0) -
+               (keys['w'] || keys['arrowup']    ? 1 : 0);
+
+    if(kx || kz){
+      dx = kx; dz = kz;
+    } else {
+      const px = pointer.x - window.innerWidth  / 2;
+      const py = pointer.y - window.innerHeight / 2;
+      const len = Math.hypot(px, py);
+      if(len > 26){ dx = px / len; dz = py / len; }
+    }
+
+    const d = Math.hypot(dx, dz);
+    if(d > 0.001){
+      player.x += dx / d * PLAYER_SPEED * dt;
+      player.z += dz / d * PLAYER_SPEED * dt;
+    }
+
+    const lim = ARENA_R - player.r * 0.5 - 12;
+    player.x = clamp(player.x, -lim, lim);
+    player.z = clamp(player.z, -lim, lim);
+
+    holeGroup.position.set(player.x, 0, player.z);
+  }
+
+  /* ================= 吞噬检测（计分 / 成长） ================= */
+  function updateHoleEating(){
+    const hR = player.r;
+    const hx = player.x;
+    const hz = player.z;
+
+    for(let i = 0; i < blocks.length; i++){
+      const b = blocks[i];
+      const p = b.body.position;
+
+      const dx = p.x - hx;
+      const dz = p.z - hz;
+      const d  = Math.hypot(dx, dz);
+
+      // 洞口比方块大，且方块中心进入洞口 → 被吞噬
+      if(hR > b.hw * 0.85 && d < hR + b.hw * 0.2){
+        if(!b.scored){
+          b.scored = true;
+          eatenCount++;
+
+          const s = b.hw * b.hw * (b.isTower ? 2.4 : 0.85);
+          score += Math.round(b.hw * b.hw * (b.isTower ? 0.30 : 0.10));
+
+          const before = player.r;
+          player.r = Math.min(MAX_R,
+            Math.sqrt(player.r * player.r + s));
+
+          // ★ 只有洞口变大时才产生涟漪（吃掉方块的涟漪已移除）
+          if(Math.floor(before) !== Math.floor(player.r)){
+            addRipple(player.x, player.z, player.r * 0.7,
+                      player.r * 1.7, 0xc4b5fd);
+          }
+        }
+      }
+    }
+  }
+
+  /* ================= 清理掉出屏幕的方块 ================= */
+  function cleanupBlocks(){
+    for(let i = blocks.length - 1; i >= 0; i--){
+      const b = blocks[i];
+      if(b.body.position.y < -600){
+        scene.remove(b.mesh);
+        b.mesh.geometry.dispose();
+        b.mesh.material.dispose();
+        world.removeBody(b.body);
+        blocks.splice(i, 1);
+      }
+    }
+  }
+
+  /* ================= 相机 ================= */
+  function updateCamera(dt){
+    const k = 1 - Math.pow(0.002, Math.min(dt, 0.1));
+    smoothCam.x += (player.x - smoothCam.x) * k;
+    smoothCam.z += (player.z - smoothCam.z) * k;
+
+    const dist   = 380 + player.r * 3.0;
+    const height = dist * 1.05;
+
+    camera.position.set(smoothCam.x, height, smoothCam.z + dist);
+    camera.lookAt(smoothCam.x, 50, smoothCam.z);
+  }
+
+  /* ================= 主更新 ================= */
+  function update(dt){
+    timeLeft -= dt;
+    if(timeLeft <= 0){
+      timeLeft = 0;
+      updateHUD();
+      gameOver(false);
+      return;
+    }
+
+    movePlayer(dt);
+
+    // 1) 地面砖块：根据洞口位置挖空 / 恢复
+    updateGroundTiles();
+
+    // 2) 物理步进
+    world.step(1/120, dt, 3);
+
+    // 3) 同步 Mesh
+    for(let i = 0; i < blocks.length; i++){
+      const b = blocks[i];
+      b.mesh.position.copy(b.body.position);
+      b.mesh.quaternion.copy(b.body.quaternion);
+    }
+
+    // 4) 吞噬检测
+    updateHoleEating();
+
+    // 5) 清理与渲染
+    cleanupBlocks();
+    updateRipples(dt);
+    updateCamera(dt);
+
+    holeGroup.scale.setScalar(player.r);
+    maybeRebuildGround();
+    updateHUD();
+
+    if(blocks.length === 0){
+      gameOver(true);
+      return;
+    }
+  }
+
+  /* ================= 结束 ================= */
+  function gameOver(cleared){
+    running = false;
+
+    if(cleared){
+      endTitle.textContent = '全部清空！';
+      endText.innerHTML =
+        '整座城市都被你吞下去了<br>' +
+        '剩余时间 <b>' + Math.max(0, Math.ceil(timeLeft)) + ' 秒</b><br>' +
+        '最终洞口半径 <b>' + Math.round(player.r) + '</b><br>' +
+        '总得分 <b>' + score + '</b>';
+    } else {
+      endTitle.textContent = '时间到！';
+      endText.innerHTML =
+        '最终洞口半径 <b>' + Math.round(player.r) + '</b><br>' +
+        '总得分 <b>' + score + '</b><br>' +
+        '已吞 <b>' + eatenCount + '</b> 块，还剩 <b>' + blocks.length + '</b> 块';
+    }
+
+    endScr.classList.remove('hidden');
+  }
+
+  /* ================= 渲染循环 ================= */
+  function animate(){
+    requestAnimationFrame(animate);
+
+    const now = performance.now();
+    let dt = (now - lastT) / 1000;
+    lastT = now;
+    if(!(dt > 0)) dt = 0.016;
+    if(dt > 0.06) dt = 0.06;
+
+    if(running){
+      update(dt);
+    } else {
+      world.step(1/60, dt, 3);
+      for(let i = 0; i < blocks.length; i++){
+        const b = blocks[i];
+        b.mesh.position.copy(b.body.position);
+        b.mesh.quaternion.copy(b.body.quaternion);
+      }
+      cleanupBlocks();
+      updateRipples(dt);
+      updateCamera(dt);
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  /* ================= 输入 ================= */
+  window.addEventListener('pointermove', function(e){
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+  }, { passive: true });
+
+  window.addEventListener('pointerdown', function(e){
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+  }, { passive: true });
+
+  window.addEventListener('keydown', function(e){
+    const k = e.key.toLowerCase();
+    keys[k] = true;
+    if(['arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(k) >= 0){
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener('keyup', function(e){
+    keys[e.key.toLowerCase()] = false;
+  });
+
+  window.addEventListener('resize', function(){
+    const w = window.innerWidth, h = window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  });
+
+  /* ================= 按钮 ================= */
+  document.getElementById('startBtn').addEventListener('click', function(){
+    startScr.classList.add('hidden');
+    endScr.classList.add('hidden');
+    initGame();
+  });
+
+  document.getElementById('againBtn').addEventListener('click', function(){
+    endScr.classList.add('hidden');
+    initGame();
+  });
+
+  /* ================= 启动 ================= */
+  initPhysics();
+  initScene();
+  pointer.x = window.innerWidth  / 2;
+  pointer.y = window.innerHeight / 2;
+  lastT = performance.now();
+  requestAnimationFrame(animate);
+
+})();
+</script>
+</body>
+</html>
