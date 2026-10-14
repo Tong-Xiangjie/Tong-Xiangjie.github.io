@@ -176,8 +176,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年10月14日",
                             krause: "217a",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916,-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916,-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916-2.jpg"
                         }
                     ]
                 },{
