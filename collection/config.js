@@ -157,6 +157,25 @@ const categoryTree = [
             { id: 'box_label', name: '封箱单', dataKey: 'box_labelData', dataFile: '../notecollection/data/box_label.js' },
             { id: 'box_manifest', name: '箱券明细表', dataKey: 'box_manifestData', dataFile: '../notecollection/data/box_manifest.js' }
         ]
+    },
+    // ★ 评级费台账（不是藏品！）：自己送 ACG 评级的 5 个批次费用，按【付款日期】计入支出。
+    //   放这里的唯一原因是"数据文件必须由一个 dataKey 声明"——check-data 与 data-loader
+    //   的 walkTree() 都只认分类树 / SPECIAL_CONFIGS 里的 dataKey（见 tools/check-data.mjs 第 1 节）。
+    //   navHidden: true ⇒ 这个节点**不进导航**（侧边栏 / 分类页 / 概览 / 搜索 / 文章分类都不显示），
+    //   摘除动作只在 core.js 的 visibleCategoryTree() 里做一处 —— data-loader 读的还是这棵原始树，
+    //   所以数据照常加载、check-data 照样认得它，只是用户点不到它。
+    //   数据文件里 series 是**空数组**（没有任何 copies），所以：
+    //     · 藏品总数、评级得分统计、藏品年代统计、价格列表 全都不受影响（仍 396 件）；
+    //     · 它不参与藏品口径，只是一笔支出账。
+    //   数据文件的 name/remark 也写明它是费用台账，万一以后从别处露出不会被误当藏品。
+    //   ★ 它真正的落点是「币海拾年」时间轴：special.js 的 gradingFeeEntries() 把 5 个批次
+    //     按付款日期转成时间轴条目，与同期藏品按日期混排（不经由这棵树）。
+    {
+        id: 'grading_fee',
+        name: '评级费（费用台账）',
+        dataKey: 'gradingFeeData',
+        dataFile: '../notecollection/data/grading_fee.js',
+        navHidden: true
     }
 ];
 

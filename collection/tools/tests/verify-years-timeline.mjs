@@ -107,10 +107,24 @@ const state = () => evaluate(`(()=>{
   });
 })()`).then(JSON.parse);
 // 独立重算：自己解析日期与价格，不调用页面里的过滤器
+// ★ 必须把评级费台账也算进来：时间轴上现在多了 5 条评级费条目（special.js 的
+//   gradingFeeEntries()，按**付款日期**落位），它们同样计入"这天/这段时间你一共花了多少"。
+//   漏掉这一段的话，全部年份口径会差 4198.5 元（页面 52646 vs 只算藏品的 48448）。
+//   台账的形状不同（batches[].payDate / paidFee），所以单独遍历一遍。
 const expectSum = (year, month) => evaluate(`(()=>{
   const px = (s) => { const m = String(s == null ? '' : s).match(/[0-9]+(?:\\.[0-9]+)?/); return m ? parseFloat(m[0]) : NaN; };
   const pd = (s) => { const m = String(s||'').trim().match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日?/); return m ? { y: +m[1], mo: +m[2] } : null; };
   let sum = 0, n = 0, priced = 0;
+  // ★ 藏品侧的 copyId 全集：台账判"已售出"的依据就是"cert 匹配不到 copyId"。
+  const copyIds = new Set();
+  for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+    if (!map) continue;
+    for (const k of Object.keys(map)) {
+      const d = map[k]; if (!d || !d.series) continue;
+      const scan = (arr) => { for (const c of (arr || [])) if (c && c.copyId) copyIds.add(String(c.copyId)); };
+      for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); }
+    }
+  }
   for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
     if (!map) continue;
     for (const k of Object.keys(map)) {
@@ -123,6 +137,25 @@ const expectSum = (year, month) => evaluate(`(()=>{
         n++; const p = px(c.price); if (!isNaN(p) && p > 0) { sum += p; priced++; }
       } };
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
+    }
+  }
+  // ★ 评级费台账：按**付款日期** paidDate 落位，只数**匹配得上 copyId 的行**（匹配不上 = 已售出），
+  //   金额取这些行的 paidFee（折后）。台账里那 4 行已售出的已经被剔除，这里再按同一判据筛一遍，
+  //   与页面上 gradingFeeEntries() 的算法保持一致（see verify-grading-fee.mjs）。
+  const fee = window.DATA_MAP && window.DATA_MAP['gradingFeeData'];
+  if (fee && Array.isArray(fee.batches)) {
+    for (const b of fee.batches) {
+      const m = String(b.paidDate || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+      if (!m) continue;
+      if (${JSON.stringify(year)} !== '全部' && m[1] !== ${JSON.stringify(year)}) continue;
+      if (${JSON.stringify(month)} !== '全部' && m[2] !== ${JSON.stringify(month)}) continue;
+      const live = (b.items || []).filter(it => it && copyIds.has(String(it.cert)));
+      // ★ 一条"评级费"= 该批未售出行之和，所以这里只 push **一条**（不是每行一条）。
+      let amt = 0;
+      for (const it of live) { const p = px(it.paidFee); if (!isNaN(p)) amt += p; }
+      amt = Math.round(amt * 10) / 10;
+      if (amt <= 0) continue;   // 整批已售出 ⇒ 不出现在时间轴上
+      n++; sum += amt; priced++;
     }
   }
   return JSON.stringify({ sum: Math.round(sum), n, priced });

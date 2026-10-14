@@ -159,8 +159,12 @@ chk(sandbox.isCollectionMode() === false, '未注册板块：不被当成 collec
 chk(sandbox.modeFromUrlSegment('stamps_future') === null, '未注册段名：modeFromUrlSegment() 返回 null');
 
 // 拿真实函数验证取树/取数也安全退化
+// ★ visibleCategoryTree 要一起抽：getCategoryTree() 现在会把标了 navHidden 的节点摘掉，
+//   所以它依赖这个小工具函数。抽出来之后这个用例的语义**完全不变** ——
+//   下面那棵合成树（{ id:'cn', name:'中国邮票' }）没有 navHidden，会被原样返回。
 vm.runInContext(`(function(){
 ${[
+    extractFunction(core, 'visibleCategoryTree'),
     extractFunction(core, 'getCategoryTree'),
     extractFunction(core, 'getAllDataKeys'),
     extractFunction(core, 'getData')

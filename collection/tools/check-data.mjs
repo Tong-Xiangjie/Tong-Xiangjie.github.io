@@ -178,11 +178,32 @@ vm.runInContext([
         for (const key of Object.keys(maps[kind])) walkImg(maps[kind][key], key, false);
     }
 
-    return JSON.stringify({ reports, missingVar, refs });
+    // ★ 评级费台账（grading_fee.js）：它不是藏品（没有 copies），所以上面那些
+    //   series/copies 的检查一概碰不到它 —— 这里把它原样带出去单独体检。
+    //   ★ 精简后明细挂在每个批次的 items[] 里（顶层**没有** items），所以整份带出去。
+    let grading = null;
+    try { grading = (0, eval)('gradingFeeData'); } catch (e) { grading = null; }
+    if (!grading || !grading.batches) grading = null;
+
+    // ★ 藏品侧的 copyId 全集：台账判"已售出"的依据就是"cert 找不到匹配"，
+    //   所以这里把集合一起带出去（maps 是本闭包内的变量，外面看不到）。
+    const copyIds = [];
+    for (const kind of Object.keys(maps)) {
+        for (const key of Object.keys(maps[kind])) {
+            const d = maps[kind][key];
+            if (!d || !d.series) continue;
+            for (const s of d.series) {
+                if (s.varieties) { for (const v of s.varieties) for (const c of (v.copies || [])) if (c && c.copyId) copyIds.push(String(c.copyId)); }
+                else { for (const c of (s.copies || [])) if (c && c.copyId) copyIds.push(String(c.copyId)); }
+            }
+        }
+    }
+
+    return JSON.stringify({ reports, missingVar, refs, grading, copyIds });
 })();`
 ].join('\n;\n'), ctx, { filename: 'data.js' });
 
-const { reports, missingVar, refs } = JSON.parse(ctx.__out);
+const { reports, missingVar, refs, grading, copyIds: gradingCopyIds } = JSON.parse(ctx.__out);
 
 console.log('数据源 ' + sources.length + ' 个，数据文件 ' + dataFiles.length + ' 个\n');
 for (const m of missingVar) err('数据文件里的全局变量不存在: ' + m);
@@ -254,6 +275,110 @@ for (const [l, s] of Object.entries(byLabel)) {
     if (s.size > 1) { labelIssues++; warn('同一个标签 "' + l + '" 对应 ' + s.size + ' 个 key: ' + [...s].join(' / ')); }
 }
 if (!labelIssues) console.log('  全部一致');
+
+// ---------------- 5b. 评级费台账 ----------------
+// ★ 为什么单独查：这笔钱是**支出**，静默错一个数字没人看得出来（页面只是少显示一点），
+//   所以把用户裁定过的口径钉死在这里：
+//     · 折后价 = 原价 × 0.9（"代理折扣9折"），支出取折后价；
+//     · 明细**只保留匹配得上藏品 copyId 的行**（匹配不上 = 已售出，已在数据里剔除），
+//       所以"匹配上的明细之和 == 该批 paidFee（支出）"必须成立；
+//       xlsx 表格上的**实收留档值**另存为 sheetPaidFee/sheetListFee，单独校验它 ≥ 支出；
+//     · 批次 4 的汇总块字面写作"1,615元"（显示舍入），真值 1615.5 —— 这里按 1615.5 守；
+//     · 5 批逐批之和必须等于 totals.paidFee；
+//     · 付款日期必须齐全且唯一（按付款日期计入支出的前提）；
+//     · 送评日期 ≠ 付款日期（别拿文件名前 8 位当付款日期）。
+//   ★ 判据（用户裁定）：判"已售出"的唯一依据就是"台账某行的 cert 在藏品 copyId 里
+//     找不到匹配"；**不与"现在是否还在手上"做任何一致性检查** —— 一切以录入的数据为准。
+if (grading) {
+    console.log('\n==== 评级费台账 ====');
+    const num = (s) => { const n = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
+    const round1 = (n) => Math.round(n * 10) / 10;
+    const B4 = 'PJ20260615262532';                 // 批次 4：字面 1,615 是显示舍入，真值 1615.5
+    const B4_EXPECT = 1615.5;
+
+    // 藏品侧 copyId 全集：台账里留下的每一行都必须能匹配上（匹配不上就该已经被剔除）
+    const copyIds = new Set(gradingCopyIds || []);
+
+    let soldRows = 0, soldPaid = 0, unmatchedRows = 0;
+
+    // ① 每批：匹配上的明细之和 == 该批支出；行数一致；每行都匹配得上 copyId
+    for (const b of grading.batches) {
+        const mine = b.items || [];
+        const sumList = round1(mine.reduce((s, i) => s + num(i.listFee), 0));
+        const sumPaid = round1(mine.reduce((s, i) => s + num(i.paidFee), 0));
+        if (mine.length === 0) err(`评级费批次 ${b.pj} 在 items 里一行明细都没有（批次台账与明细对不上）`);
+        if (sumList !== num(b.listFee)) err(`评级费批次 ${b.pj}：明细原价之和 ${sumList} ≠ 批次原价 ${b.listFee}`);
+        if (sumPaid !== num(b.paidFee)) err(`评级费批次 ${b.pj}：明细折后之和 ${sumPaid} ≠ 批次折后(支出) ${b.paidFee}`);
+        if (mine.length !== Number(b.itemCount)) err(`评级费批次 ${b.pj}：明细行数 ${mine.length} ≠ itemCount ${b.itemCount}`);
+        // 留档实收必须 = 支出 + 已售出（留档含被剔除的那部分）
+        if (round1(num(b.sheetPaidFee) - num(b.paidFee)) !== round1(num(b.soldPaidFee))) {
+            err(`评级费批次 ${b.pj}：留档实收 ${b.sheetPaidFee} - 支出 ${b.paidFee} ≠ 已售出 ${b.soldPaidFee}`);
+        }
+        soldRows += Number(b.soldCount) || 0;
+        soldPaid = round1(soldPaid + num(b.soldPaidFee));
+        // ② 折后价必须是原价的 9 折（半价换壳等"原价本身已打折"的行不影响这条：折扣后仍是 9 折）
+        for (const i of mine) {
+            const o = num(i.listFee), p = num(i.paidFee);
+            if (Math.abs(p - round1(o * 0.9)) > 1e-9) {
+                err(`评级费 ${b.pj} 序号 ${i.cert}：折后 ${i.paidFee} ≠ 原价 ${i.listFee} × 0.9`);
+            }
+            // ③ 明知判据：能留在 items 里的行，必须匹配得上某个藏品 copyId
+            if (!copyIds.has(String(i.cert))) {
+                unmatchedRows++;
+                err(`评级费 ${b.pj} 的编码 ${i.cert} 在藏品 copyId 里找不到匹配 —— 按判据它属于"已售出"，不应留在 items 里`);
+            }
+        }
+    }
+
+    // ④ 批次 4 的钉死值（该批无已售出行，所以支出 = 留档）
+    const b4 = grading.batches.find(x => x.pj === B4);
+    if (!b4) err(`评级费批次缺少 ${B4}`);
+    else if (num(b4.paidFee) !== B4_EXPECT) err(`评级费批次 4（${B4}）折后应为 ${B4_EXPECT} 元（用户裁定），实际 ${b4.paidFee}`);
+    else if (num(b4.sheetPaidFee) !== B4_EXPECT) err(`评级费批次 4（${B4}）的留档实收也应为 ${B4_EXPECT} 元（该批无已售出行）`);
+
+    // ⑤ 逐批之和 == totals（支出与留档两套都要对）
+    const sumPaidAll = round1(grading.batches.reduce((s, b) => s + num(b.paidFee), 0));
+    const sumListAll = round1(grading.batches.reduce((s, b) => s + num(b.listFee), 0));
+    const sumSheetPaid = round1(grading.batches.reduce((s, b) => s + num(b.sheetPaidFee), 0));
+    const sumSheetList = round1(grading.batches.reduce((s, b) => s + num(b.sheetListFee), 0));
+    const rowCount = grading.batches.reduce((s, b) => s + (b.items || []).length, 0);
+    if (grading.totals) {
+        if (sumPaidAll !== num(grading.totals.paidFee)) err(`评级费总计：逐批之和 ${sumPaidAll} ≠ totals.paidFee ${grading.totals.paidFee}`);
+        if (sumListAll !== num(grading.totals.listFee)) err(`评级费原价总计：逐批之和 ${sumListAll} ≠ totals.listFee ${grading.totals.listFee}`);
+        if (rowCount !== Number(grading.totals.itemCount)) err(`评级费件数：逐批之和 ${rowCount} ≠ totals.itemCount ${grading.totals.itemCount}`);
+        if (sumSheetPaid !== num(grading.totals.sheetPaidFee)) err(`评级费留档实收总计：逐批之和 ${sumSheetPaid} ≠ totals.sheetPaidFee ${grading.totals.sheetPaidFee}`);
+        if (sumSheetList !== num(grading.totals.sheetListFee)) err(`评级费留档原价总计：逐批之和 ${sumSheetList} ≠ totals.sheetListFee ${grading.totals.sheetListFee}`);
+        if (soldRows !== Number(grading.totals.soldCount)) err(`评级费已售出行数：逐批之和 ${soldRows} ≠ totals.soldCount ${grading.totals.soldCount}`);
+        if (soldPaid !== num(grading.totals.soldPaidFee)) err(`评级费已售出金额：逐批之和 ${soldPaid} ≠ totals.soldPaidFee ${grading.totals.soldPaidFee}`);
+        if (round1(num(grading.totals.paidFee) + num(grading.totals.soldPaidFee)) !== num(grading.totals.sheetPaidFee)) {
+            err(`评级费：支出 ${grading.totals.paidFee} + 已售出 ${grading.totals.soldPaidFee} ≠ 留档实收 ${grading.totals.sheetPaidFee}`);
+        }
+    } else {
+        err('评级费台账缺少 totals 汇总');
+    }
+
+    // ⑥ 日期：付款日期齐全、唯一、且不等于送评日期
+    const seenPay = new Map();
+    for (const b of grading.batches) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(b.paidDate || '')) err(`评级费批次 ${b.pj} 的付款日期格式异常: ${b.paidDate}`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(b.sentDate || '')) err(`评级费批次 ${b.pj} 的送评日期格式异常: ${b.sentDate}`);
+        if (b.paidDate === b.sentDate) err(`评级费批次 ${b.pj} 的付款日期与送评日期相同（${b.paidDate}）——付款日期不是送评日期`);
+        if (seenPay.has(b.paidDate)) err(`评级费付款日期 ${b.paidDate} 重复（批次 ${seenPay.get(b.paidDate)} 与 ${b.pj}）——按付款日期计入支出时会被合并`);
+        seenPay.set(b.paidDate, b.pj);
+    }
+
+    // ⑦ 绝不能把 xlsx 汇总块里的个人信息写进来
+    const dump = JSON.stringify(grading);
+    for (const bad of ['铜香结', '18174433891', '微信号', '订单号', '客户']) {
+        if (dump.includes(bad)) err(`评级费台账里出现了个人信息「${bad}」（汇总块的客户信息不应入库）`);
+    }
+
+    console.log(`  ${grading.batches.length} 批 / ${rowCount} 行明细（已剔除 ${soldRows} 行已售出）/ 支出合计 ${grading.totals ? grading.totals.paidFee : '?'} / 表格实收留档 ${grading.totals ? grading.totals.sheetPaidFee : '?'}`);
+    if (unmatchedRows) console.log(`  ⚠ 有 ${unmatchedRows} 行匹配不上 copyId（上面的 ERROR 已逐条列出）`);
+    for (const b of grading.batches.slice().sort((a, b) => String(a.paidDate).localeCompare(String(b.paidDate)))) {
+        console.log(`    ${b.paidDate} 付款 · ${b.pj} · 送评 ${b.sentDate} · ${b.itemCount} 件 · 支出 ${b.paidFee}（留档实收 ${b.sheetPaidFee}，已售出 ${b.soldCount} 行 ${b.soldPaidFee}）`);
+    }
+}
 
 // ---------------- 6. 前端脚本顶层重名 ----------------
 console.log('\n==== 前端顶层声明重名 ====');

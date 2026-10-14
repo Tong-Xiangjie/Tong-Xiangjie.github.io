@@ -1286,6 +1286,137 @@ function timelinePriceOf(copy) {
     return (!isNaN(price) && price > 0) ? price : 0;
 }
 
+// ============================================
+// ===== 评级费台账 → 时间轴条目（用户裁定："评级费出现在币海拾年里"） =====
+// 数据来源：notecollection/data/grading_fee.js 的 window.DATA_MAP['gradingFeeData']。
+// ★ 口径（别改）：
+//   ① 每条按**付款日期** paidDate 落位（不是送评日期 sentDate）；
+//   ② 金额用批次里的 paidFee —— 它已经是"**匹配得上 copyId 的行**"之和
+//      （匹配不上的行 = 已售出，台账里已经剔除），所以这里直接读，不再自己筛；
+//   ③ 批次 4（PJ20260615262532）= 1615.5 元（汇总块字面"1,615元"是显示舍入）；
+//   ④ 某批 paidFee 为 0（整批都已售出）⇒ 该批不出现在时间轴上；
+//   ⑤ 展示文字**优先从藏品记录取**（用 cert 关联 copyId），台账那边只有 cert + 两个金额。
+// ★ 为什么在 special.js 而不是 stats.js：这笔钱是**时间轴里的一条**，
+//   与"我的"页的资金统计无关（用户明确要求「我的」保持原样）。
+// ============================================
+
+// 日元/元字符串 → 数字（"1615.5元" → 1615.5）。校验用，展示仍用原字符串。
+function feeAmountOf(s) {
+    const n = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, ''));
+    return isFinite(n) ? n : 0;
+}
+
+// 藏品 copyId → { copy, seriesName, type, dataKey }，用于丰富台账显示（"复用原有数据"）。
+// 惰性构建并缓存（时间轴会反复重渲染）；台账/藏品变了就重建。
+function gradingCopyIndex() {
+    const d = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+    if (!d) return {};
+    if (d.__copyIndex) return d.__copyIndex;
+    const idx = {};
+    const maps = [
+        [window.DATA_MAP, 'notes'],
+        [window.COIN_DATA_MAP, 'coins'],
+        [window.FUN_DATA_MAP, 'fun']
+    ];
+    for (const [map, type] of maps) {
+        if (!map) continue;
+        for (const dataKey of Object.keys(map)) {
+            const data = map[dataKey];
+            if (!data || !data.series) continue;
+            for (const series of data.series) {
+                if (series.varieties) {
+                    for (const variety of series.varieties) {
+                        for (const c of (variety.copies || [])) {
+                            if (c && c.copyId && !idx[c.copyId]) {
+                                idx[c.copyId] = { copy: c, seriesName: series.seriesName + ' - ' + variety.varietyName, type: type, dataKey: dataKey };
+                            }
+                        }
+                    }
+                } else {
+                    for (const c of (series.copies || [])) {
+                        if (c && c.copyId && !idx[c.copyId]) {
+                            idx[c.copyId] = { copy: c, seriesName: series.seriesName, type: type, dataKey: dataKey };
+                        }
+                    }
+                }
+            }
+        }
+    }
+    d.__copyIndex = idx;
+    return idx;
+}
+
+// 台账支出之和（数字）= **未售出**（匹配得上 copyId）部分之和。
+// 数据未加载 / 没有台账时返回 0，调用方据此静默跳过。
+function gradingFeeTotal() {
+    let sum = 0;
+    for (const e of gradingFeeEntries()) sum += feeAmountOf(e.copy.price);
+    return Math.round(sum * 10) / 10;
+}
+
+function gradingFeeEntries() {
+    const d = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+    if (!d || !Array.isArray(d.batches)) return [];
+    const idx = gradingCopyIndex();
+    const out = [];
+    for (const b of d.batches) {
+        if (!b || !b.paidDate) continue;
+        // ★ 判据（用户裁定）：**匹配不到 copyId 的行视为已售出** ⇒ 这行的评级费不计入支出。
+        //   台账数据文件里那 4 行已经被剔除了（check-data 也会拦），这里是**第三道防线**：
+        //   万一哪天台账里混进了匹配不上的行，页面自己也不会把它算进钱里。
+        const live = (b.items || []).filter(function (it) { return it && idx[it.cert]; });
+        // ★ 支出按**留下的行**重算，而不是直接读 b.paidFee —— 数据正常时两者相等
+        //   （数据文件里 paidFee 就是未售出行之和），异常时以行级重算为准。
+        //   · items 压根没有（数据形状坏了）→ 退回读 b.paidFee，宁可显示也别静默吞掉一笔钱；
+        //   · items 有、但**一行都没匹配上** → 整批已售出，支出就是 0（不回退）。
+        const hasItems = Array.isArray(b.items) && b.items.length > 0;
+        const amount = hasItems
+            ? Math.round(live.reduce(function (s, it) { return s + feeAmountOf(it.paidFee); }, 0) * 10) / 10
+            : feeAmountOf(b.paidFee);
+        // ★ 整批都已售出（支出为 0）⇒ 不进时间轴：一条 0 元的"支出"没有意义
+        if (amount <= 0) continue;
+        const date = parseChineseDate(b.paidDate);
+        if (!date || isNaN(date.getTime())) continue;
+        // 展示用：从匹配到的藏品记录里取（取不到就退回批次号）
+        let displayName = '批次 ' + b.pj;
+        if (live.length === 1) {
+            const h = idx[live[0].cert];
+            const path = (typeof getCategoryPath === 'function') ? getCategoryPath(h.dataKey, h.type) : '';
+            displayName = (path ? path + ' - ' : '') + h.seriesName;
+        } else if (live.length > 1) {
+            displayName = '批次 ' + b.pj + '（' + live.length + ' 项）';
+        }
+        out.push({
+            // ★ 借用既有条目形状，绝不往 collectAllCopies() 的结果里塞东西：
+            //   台账的 series 仍是空数组，藏品总数/均价/评级与年代统计都不受影响。
+            copy: {
+                // version 那一格放 PJ 编号（渲染分支直接读它当"PJ 编号"）
+                version: b.pj,
+                // condition 同样放 PJ 编号：数据完整性检查要能直接从条目上认出批次
+                condition: b.pj,
+                // 金额 = 未售出部分；带"元"，与数据文件里的写法一致
+                price: String(amount) + '元',
+                purchaseDate: b.paidDate
+            },
+            type: 'fee',
+            dataKey: 'gradingFeeData',
+            // 条目标题：匹配得到就从藏品取，取不到退回批次号
+            seriesName: displayName,
+            itemCount: live.length,
+            date: date,
+            dateStr: formatTimelineDate(date)
+        });
+    }
+    return out;
+}
+
+// 时间轴分组的日期键。★ 必须和藏品那侧的写法**完全一致**（藏品的 purchaseDate 是
+// "2025年8月5日" 这种中文写法，357 条全是），否则同一天会被分进两个 key、
+// 页面上会冒出两个标题一模一样的日期分组头（债还清了也看不出来）。
+function formatTimelineDate(d) {
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+}
+
 function buildMonthHeatmap(items) {
     const byYear = new Map();
     for (const it of items) {
@@ -1727,6 +1858,12 @@ function renderTimelineContent(config, opts) {
         }
     }
 
+    // ===== 评级费台账（按付款日期落位）=====
+    // ★ 与藏品**同一批 items**：后面的筛选、排序、按日期分组全都照旧走，
+    //   所以 5 条评级费会自然地与同期藏品按日期混排，不需要单独一段。
+    //   它们没进 collectAllCopies()，藏品总数仍是 396 件。
+    for (const e of gradingFeeEntries()) items.push(e);
+
     // 过滤无效日期
     const validItems = items.filter(it => it.date && !isNaN(it.date.getTime()));
 
@@ -1758,8 +1895,15 @@ function renderTimelineContent(config, opts) {
         grouped[key].push(item);
     }
     const sortedDates = Object.keys(grouped).sort((a, b) => {
-        const dateA = new Date(a);
-        const dateB = new Date(b);
+        // ★ 日期键是中文写法（"2025年8月5日"，藏品的 purchaseDate 原样，357 条全是），
+        //   `new Date("2025年8月5日")` 在 V8 里是 Invalid Date，相减得 NaN ——
+        //   于是这个 sort 其实**不排序**，分组头按"首次出现"的顺序排。
+        //   这是本次改动之前就有的行为，不属于评级费这件事，所以我没有顺手改它
+        //   （改了会让 357 条藏品的显示顺序一起变）。评级费那 5 条的落位不依赖这里：
+        //   它们走的就是和藏品完全相同的 filteredItems 排序 + 分组逻辑。
+        const dateA = parseChineseDate(a);
+        const dateB = parseChineseDate(b);
+        if (!dateA || !dateB || isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
         return timelineSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
 
@@ -1879,7 +2023,14 @@ function renderTimelineContent(config, opts) {
                 let fullName = categoryPath ? categoryPath + ' - ' + item.seriesName : item.seriesName;
 
                 let metaParts = [];
-                if (item.type === 'notes') {
+                if (item.type === 'fee') {
+                    // 台账条目：沿用同一套 .timeline-* 样式，只换文案。
+                    // 标题 = 该批匹配到的藏品名（gradingFeeEntries 已按 copyId 取好），
+                    // 取不到就是「批次 PJ…」。日期在日期分组头上；PJ 编号在 copy.version 里。
+                    metaParts.push('评级费');
+                    metaParts.push('PJ 编号：' + version);
+                    if (item.itemCount) metaParts.push(item.itemCount + ' 件');
+                } else if (item.type === 'notes') {
                     metaParts.push('冠字号：' + version);
                     metaParts.push('评级得分：' + grade);
                 } else {

@@ -147,6 +147,16 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
     return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
   };
   const cells = {}; const years = new Set(); let totalAmount = 0, totalCount = 0;
+  // ★ 藏品侧的 copyId 全集：台账判"已售出"的依据就是"cert 匹配不到 copyId"。
+  const copyIds = new Set();
+  for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+    if (!map) continue;
+    for (const k of Object.keys(map)) {
+      const d = map[k]; if (!d || !d.series) continue;
+      const scan = (arr) => { for (const c of (arr || [])) if (c && c.copyId) copyIds.add(String(c.copyId)); };
+      for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); }
+    }
+  }
   for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
     if (!map) continue;
     for (const k of Object.keys(map)) {
@@ -162,6 +172,28 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
         totalAmount += p; totalCount++; years.add(y);
       } };
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
+    }
+  }
+  // ★ 评级费台账也要算进来：时间轴上多了 5 条评级费条目（special.js 的
+  //   gradingFeeEntries()，按**付款日期** paidDate 落位），它们同样进热力图的格子、
+  //   年份标签与"全部"泡。★ 一条"评级费"= 该批**匹配得上 copyId 的行**（匹配不上 = 已售出）
+  //   的 paidFee 之和，所以这里每批只记 **1 件**、金额取该批未售出部分。
+  //   漏掉这一段会让 5 个格子的件数/金额全部偏小，并连带把三个标签泡泡一起带红。
+  const fee = window.DATA_MAP && window.DATA_MAP['gradingFeeData'];
+  if (fee && Array.isArray(fee.batches)) {
+    for (const b of fee.batches) {
+      const dt = pdate(b.paidDate); if (!dt || isNaN(dt.getTime())) continue;
+      const live = (b.items || []).filter(it => it && copyIds.has(String(it.cert)));
+      let amt = 0;
+      for (const it of live) amt += px(it.paidFee);
+      amt = Math.round(amt * 10) / 10;
+      if (amt <= 0) continue;   // 整批已售出 ⇒ 不出现在时间轴上
+      const y = String(dt.getFullYear()), mo = String(dt.getMonth() + 1).padStart(2, '0');
+      const key = y + '/' + mo;
+      cells[key] = cells[key] || { n: 0, sum: 0 };
+      cells[key].n++;
+      const p = amt; cells[key].sum += p;
+      totalAmount += p; totalCount++; years.add(y);
     }
   }
   return JSON.stringify({ cells, years: [...years].sort(), totalAmount: Math.round(totalAmount), totalCount });

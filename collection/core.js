@@ -1115,10 +1115,22 @@ function buildSpecialCategoryTree() {
     }
 }
 
+// ★ 只用于**展示**的分类树：把标了 navHidden 的节点摘掉（节点本身仍留在 categoryTree 里）。
+//   为什么摘在这里：getCategoryTree() 是"侧边栏 / 分类页 / 概览 / 搜索 / 文章分类导航"
+//   这五处拿树的**唯一漏斗**，而 data-loader 的 walkTree() 读的是原始的 categoryTree ——
+//   于是"数据照常加载、但导航里看不到"这件事只需要改这一个函数。
+//   目前只有评级费台账（grading_fee）用它：那是笔支出账，不是藏品分类，
+//   放在侧边栏里会多出一个点进去空空如也的分类。
+//   返回新数组（不改原树），免得调用方顺手 push 到 categoryTree 上。
+function visibleCategoryTree(tree) {
+    return tree.filter(cat => !cat.navHidden);
+}
+
 function getCategoryTree() {
     const def = getModeDef();
     if (!def || typeof def.tree !== 'function') return null;
-    return def.tree() || null;
+    const tree = def.tree();
+    return tree ? visibleCategoryTree(tree) : null;
 }
 
 function getAllDataKeys() {
