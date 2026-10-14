@@ -1408,6 +1408,11 @@ function gradingFeeEntries() {
             //   · sentDate —— 送评日期（只是留档，卡片副行写「送评 …」）。
             paidDate: b.paidDate || '',
             sentDate: b.sentDate || '',
+            // ★ 评级公司：**只在数据里**（批次的 grader 字段）。渲染端不写死、不猜、不默认，
+            //   数据里没有就退回中性文案「评级费」。以后送 PMG/PCGS 只需改数据。
+            grader: (typeof b.grader === 'string' ? b.grader.trim() : ''),
+            // ★ 该批清单文件（xlsx）地址，同样只来自数据。缺字段 ⇒ 不渲染「查看清单」链接。
+            listUrl: (typeof b.listUrl === 'string' ? b.listUrl.trim() : ''),
             date: date,
             dateStr: formatTimelineDate(date)
         });
@@ -2054,25 +2059,32 @@ function renderTimelineContent(config, opts) {
                 html += `</div>`;
                 if (isFee) {
                     // ★ 费用条目**不是藏品**：不占图片位，也绝不渲染任何图片占位（连「暂无图片」
-                    //   和 .timeline-images 这个容器都不生成）。整行一张紧凑卡片：
-                    //   [评级费] ACG 评级费 ·············· 810元
-                    //            26 件 · PJ… · 送评 YYYY年M月D日
-                    //   付款日期由上面的日期分组头承担，这里不重复写；「PJ 编号：」前缀也不要。
-                    //   ★ 送评日期取 item.sentDate（留档的"送评"日期），**不是** copy.purchaseDate
-                    //     （那是付款日期，用来落位的）——两者不是同一天，别拿错。
+                    //   和 .timeline-images 这个容器都不生成）。两行紧凑卡片：
+                    //     [评级费] 评级公司：<来自数据 item.grader>
+                    //     送评日期：… · 单号：PJ… · 评级收费：…元 · 查看清单
+                    //   · 公司名**只从数据来**（item.grader）：以后送别家评级公司只改数据；
+                    //     数据里没有就退回中性文案「评级费」，绝不在渲染里写死任何公司名。
+                    //   · 「评级收费」= 未售出部分的支出（= copy.price 那侧），与统计口径一致。
+                    //   · 付款日期由上面的日期分组头承担，这里不重复写。
+                    //   · 「查看清单」只在数据给了 listUrl 时才渲染 —— 缺字段就不出链接，
+                    //     不留空占位、不出死链。样式与正文里的行内链接一致（下划线 + 新窗口）。
                     const sentDate = parseChineseDate(item.sentDate);
                     const sentStr = sentDate ? formatTimelineDate(sentDate) : '';
-                    const subParts = [];
-                    if (item.itemCount) subParts.push(item.itemCount + ' 件');
-                    if (version && version !== '—') subParts.push(escapeHtml(version));
-                    if (sentStr) subParts.push('送评 ' + sentStr);
+                    const grader = item.grader || '';
+                    const headTitle = grader ? '评级公司：' + grader : '评级费';
                     html += `<div class="timeline-card timeline-card--fee">`;
                     html += `<div class="timeline-fee-main">`;
                     html += `<span class="timeline-fee-tag">评级费</span>`;
-                    html += `<span class="timeline-fee-title">ACG 评级费</span>`;
-                    html += `<span class="timeline-fee-amount">${escapeHtml(priceText)}</span>`;
+                    html += `<span class="timeline-fee-title">${escapeHtml(headTitle)}</span>`;
                     html += `</div>`;
-                    html += `<div class="timeline-fee-sub">${subParts.join(' \u00B7 ')}</div>`;
+                    html += `<div class="timeline-fee-sub">`;
+                    if (sentStr) html += `<span class="fee-f">送评日期：${escapeHtml(sentStr)}</span>`;
+                    html += `<span class="fee-f">单号：${escapeHtml(version)}</span>`;
+                    html += `<span class="fee-f">评级收费：${escapeHtml(priceText)}</span>`;
+                    if (item.listUrl) {
+                        html += `<span class="fee-f"><a class="timeline-fee-link" href="${escapeAttr(item.listUrl)}" target="_blank" rel="noopener">查看清单</a></span>`;
+                    }
+                    html += `</div>`;
                     html += `</div>`;
                 } else {
                     html += `<div class="timeline-card">`;

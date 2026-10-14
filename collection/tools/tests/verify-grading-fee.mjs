@@ -20,6 +20,8 @@
 //
 // 退出码：0 = 通过；1 = 有断言失败；2 = 找不到 Chrome（环境问题）。
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { inflateRawSync } from 'node:zlib';
 import { readFile, mkdtemp } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
@@ -319,6 +321,51 @@ ok(entries.every(e => cnDate(e.copy.purchaseDate) === e.dateStr),
 ok(entries.every(e => !e.copy.img1 && !e.copy.img2), '台账条目没有图片字段（渲染时根本不生成图片位）');
 ok(entries.map(e => e.dateStr).join(',') === WANT_DATES.map(cnDate).join(','), `条目按付款日期升序：${entries.map(e => e.dateStr).join(' → ')}`);
 
+// ⑧-1b ★ 公司名 / 清单地址都只是**数据字段的搬运工**（条目上能直接读到，渲染端不另起名字）
+ok(entries.every((e, i) => e.grader === G.batches[i].grader),
+    `条目上的 grader 就是数据里的 grader（${entries.map(e => e.grader).join(' / ')}）`);
+ok(entries.every((e, i) => e.listUrl === G.batches[i].listUrl),
+    '条目上的 listUrl 就是数据里的 listUrl（渲染端不拼也不猜）');
+{
+    // ★ 把数据里的公司名换成 PMG、并且**去掉** listUrl ⇒ 条目必须跟着变（没有写死、也没默认成别家）
+    //   注意：一定还要给一份**真实的 copyId 索引**，否则按"匹配不到=已售出"的口径一个条目都不会出。
+    const swapped = JSON.parse(JSON.stringify(G));
+    swapped.batches = [swapped.batches[4]];
+    swapped.batches[0].grader = 'PMG';
+    delete swapped.batches[0].listUrl;
+    const f = makeFeeCtx([
+        'window.COIN_DATA_MAP = {}; window.FUN_DATA_MAP = {};',
+        'window.DATA_MAP = { gradingFeeData: ' + JSON.stringify(swapped) + ', realCollection: ' + JSON.stringify({ name: 'real', series: realSeries }) + ' };',
+        'window.getCategoryPath = function(){ return ""; };',
+        'window.__e = JSON.stringify(gradingFeeEntries());'
+    ]);
+    const es = JSON.parse(f.__e);
+    const e0 = es[0];
+    ok(es.length === 1, `换公司名后仍有 1 条条目（实际 ${es.length} 条）`);
+    ok(!!e0 && e0.grader === 'PMG',
+        `数据改成 PMG 后，条目上的公司名就是 PMG（实际 ${e0 && e0.grader}）—— 公司名没有写死`);
+    ok(!!e0 && e0.listUrl === '',
+        `数据里删掉 listUrl 后，条目上没有清单地址（实际 ${JSON.stringify(e0 && e0.listUrl)}）—— 缺字段不会瞎猜`);
+    ok(!!e0 && NUM(e0.copy.price) === 810, `改公司名/删链接都不影响金额口径（实际 ${e0 && e0.copy.price}）`);
+}
+{
+    // grader 缺失 ⇒ 空串（渲染端据此回退成中性的「评级费」，不会变成某家公司）
+    const noGrader = JSON.parse(JSON.stringify(G));
+    noGrader.batches = [noGrader.batches[0]];
+    delete noGrader.batches[0].grader;
+    const f = makeFeeCtx([
+        'window.COIN_DATA_MAP = {}; window.FUN_DATA_MAP = {};',
+        'window.DATA_MAP = { gradingFeeData: ' + JSON.stringify(noGrader) + ', realCollection: ' + JSON.stringify({ name: 'real', series: realSeries }) + ' };',
+        'window.getCategoryPath = function(){ return ""; };',
+        'window.__e = JSON.stringify(gradingFeeEntries());'
+    ]);
+    const es = JSON.parse(f.__e);
+    const e0 = es[0];
+    ok(es.length === 1, `grader 缺失时仍有 1 条条目（实际 ${es.length} 条）`);
+    ok(!!e0 && e0.grader === '', `grader 缺失时条目上是空串（实际 ${JSON.stringify(e0 && e0.grader)}）—— 不默认成任何公司`);
+    ok(!!e0 && NUM(e0.copy.price) === 279, `grader 缺失也不影响金额（实际 ${e0 && e0.copy.price}）`);
+}
+
 // ⑧-2 「复用藏品数据」这条路：台账里**没存任何名称**，展示所需的一切都按 cert 去藏品记录取
 {
     const fakeSeries = [{ seriesName: 'S1', varieties: [{ varietyName: 'V1', copies: [
@@ -417,6 +464,138 @@ for (const key of PJ_KEYS) {
 }
 ok(!PJ_KEYS.some(k => dataSrc.includes(k)), '整份源码里也没有个人信息（汇总块的客户信息没被抄进来）');
 ok(G.series.length === 0 && Object.keys(G).indexOf('totals') >= 0, '台账结构完整（series 空 + totals 有）');
+
+// ⑨-2 ★ 评级公司只从数据来（渲染端不写死）
+const GRADERS = G.batches.map(b => b.grader);
+ok(GRADERS.every(x => typeof x === 'string' && x.trim() !== ''),
+    `每个批次都带 grader 评级公司（实际 ${JSON.stringify(GRADERS)}）`);
+ok(GRADERS.every(x => x === GRADERS[0]), `当前 5 批是同一家公司（${GRADERS[0]}）—— 但渲染只认这个字段，不认公司名本身`);
+ok(!/爱藏/.test(readFileSync(join(COL, 'special.js'), 'utf8')),
+    '★ 渲染文件（special.js）里**没有**「爱藏」二字 —— 公司名完全由数据驱动，没有写死');
+
+// ⑨-3 ★ listUrl 指向的清单文件确实存在（相对路径从 collection/ 页面出发 ⇒ 相对仓库根就是去掉开头的 ../）
+const LIST_FILES = G.batches.map(b => ({
+    pj: b.pj,
+    url: b.listUrl,
+    // 页面在 collection/ 下，href="../notecollection/..." 解析后落在仓库根
+    disk: b.listUrl ? b.listUrl.replace(/^\.\.\//, '') : null
+}));
+ok(LIST_FILES.every(f => typeof f.url === 'string' && f.url.trim() !== ''),
+    `每个批次都带 listUrl（实际 ${LIST_FILES.map(f => f.url).join(' | ')}）`);
+ok(LIST_FILES.every(f => f.url.startsWith('../notecollection/readmes/image/grading_fee/')),
+    'listUrl 是从 collection/ 出发的相对路径（../notecollection/readmes/image/grading_fee/…）');
+ok(LIST_FILES.every(f => f.url.endsWith(f.pj + '.xlsx')),
+    'listUrl 的文件名就是该批次的 PJ 编号 .xlsx');
+ok(LIST_FILES.every(f => existsSync(f.disk)),
+    `5 个清单文件在磁盘上都存在（${LIST_FILES.filter(f => !existsSync(f.disk)).map(f => f.disk).join(', ') || '缺失 0 个'}）`);
+
+// ★ 那 5 个 xlsx 是用户自己处理好的最终版本，本用例**只读**它们：
+//   校验存在性 + 逐字节指纹（证明没有被任何脚本改写），再解析内容与台账对账。
+const XLSX_SHA = {
+    PJ20251125235158: '8ba5bc26947b35c097c5e6d2e3370a01c5b40bae0b9f3a74dc2697778673e606',
+    PJ20260125243493: 'acbf2c18deec790605ec249a28a2879aef7592b79eab191d38854a3d955adfff',
+    PJ20260310253570: '17518b32aae336b63158a200294783e080c7635929d1df8da854b7dd625980bd',
+    PJ20260615262532: '03b5e0901f17f0bf4f99380e7f55fb2e442d66c640e1dbefd0840fb05d581073',
+    PJ20260906266166: 'f032a3f0fcc31cd95043323cdcd012f115e13aaa0f5b5cdd5b7c2adccc1eeb09'
+};
+for (const f of LIST_FILES) {
+    const sha = createHash('sha256').update(readFileSync(f.disk)).digest('hex');
+    ok(sha === XLSX_SHA[f.pj], `${f.pj}.xlsx 逐字节未改动（sha256 ${sha.slice(0, 16)}…）`);
+}
+
+// ── xlsx 只读解析（零依赖：手写 zip + zlib inflate）—— 用于与台账对账 ──
+function xlsxEntries(buf) {
+    let eocd = buf.length - 22;
+    while (eocd >= 0 && buf.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+    if (eocd < 0) throw new Error('no EOCD');
+    const count = buf.readUInt16LE(eocd + 10);
+    let pos = buf.readUInt32LE(eocd + 16);
+    const out = new Map();
+    for (let i = 0; i < count; i++) {
+        const method = buf.readUInt16LE(pos + 10);
+        const csize = buf.readUInt32LE(pos + 20);
+        const nameLen = buf.readUInt16LE(pos + 28);
+        const extraLen = buf.readUInt16LE(pos + 30);
+        const cmtLen = buf.readUInt16LE(pos + 32);
+        const localOff = buf.readUInt32LE(pos + 42);
+        const name = buf.toString('utf8', pos + 46, pos + 46 + nameLen);
+        const start = localOff + 30 + buf.readUInt16LE(localOff + 26) + buf.readUInt16LE(localOff + 28);
+        const raw = buf.subarray(start, start + csize);
+        out.set(name, method === 0 ? Buffer.from(raw) : inflateRawSync(raw));
+        pos += 46 + nameLen + extraLen + cmtLen;
+    }
+    return out;
+}
+const xmlUnesc = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(+d))
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&amp;/g, '&');
+function parseFeeSheet(disk) {
+    const zip = xlsxEntries(readFileSync(disk));
+    const ss = zip.get('xl/sharedStrings.xml').toString('utf8');
+    const shared = [...ss.matchAll(/<si>[\s\S]*?<\/si>/g)].map(m =>
+        [...m[0].replace(/<rPh[\s\S]*?<\/rPh>/g, '').matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map(x => xmlUnesc(x[1])).join(''));
+    const sheet = zip.get('xl/worksheets/sheet1.xml').toString('utf8');
+    const rows = [];
+    for (const rm of sheet.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+        const cells = [];
+        for (const cm of rm[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+            const ref = (cm[1].match(/\br="([A-Z]+)\d+"/) || [])[1] || '';
+            const idx = ref ? ref.split('').reduce((a, ch) => a * 26 + (ch.charCodeAt(0) - 64), 0) - 1 : cells.length;
+            const vm = (cm[2] || '').match(/<v>([\s\S]*?)<\/v>/);
+            const v = vm ? xmlUnesc(vm[1]) : '';
+            cells[idx] = /\bt="s"/.test(cm[1]) ? (shared[+v] ?? '') : v;
+        }
+        rows.push(cells);
+    }
+    const h = rows.findIndex(c => c.some(x => x === '评级费原价'));
+    if (h < 0) throw new Error('找不到表头行');
+    const cList = rows[h].indexOf('评级费原价'), cPaid = rows[h].indexOf('实际费用');
+    const details = [];
+    let total = null;
+    for (let i = h + 1; i < rows.length; i++) {
+        if (rows[i].some(x => x === '合计')) { total = rows[i]; break; }
+        if (/^\d+$/.test(String(rows[i][0] ?? '').trim()) && String(rows[i][1] ?? '').trim() !== '') details.push(rows[i]);
+    }
+    if (!total) throw new Error('找不到合计行');
+    const num = (v) => Number(String(v ?? '').replace(/[,\s]/g, ''));
+    return {
+        detailRows: details.length,
+        feeTotal: num(total[cPaid]),
+        listTotal: num(total[cList]),
+        listPerRow: R1(details.reduce((s, c) => s + (Number(c[cList]) || 0), 0)),
+        paidPerRow: R1(details.reduce((s, c) => s + (Number(c[cPaid]) || 0), 0))
+    };
+}
+// 每个 xlsx 的明细行数 / 实收合计（用户给的期望值）
+const SHEET_EXPECT = {
+    PJ20251125235158: { rows: 12, paid: 297 },
+    PJ20260125243493: { rows: 15, paid: 495 },
+    PJ20260310253570: { rows: 34, paid: 936 },
+    PJ20260615262532: { rows: 35, paid: 1615.5 },
+    PJ20260906266166: { rows: 27, paid: 855 }
+};
+for (const f of LIST_FILES) {
+    const b = G.batches.find(x => x.pj === f.pj);
+    const s = parseFeeSheet(f.disk);
+    const want = SHEET_EXPECT[f.pj];
+    ok(s.detailRows === want.rows,
+        `${f.pj} 明细 ${s.detailRows} 行（期望 ${want.rows}）`);
+    ok(s.feeTotal === want.paid,
+        `${f.pj} 清单「实际费用」合计 ${s.feeTotal}（期望 ${want.paid}）`);
+    // 逐行求和也要等于合计（合计行不是手改的数，是明细加出来的）
+    ok(s.paidPerRow === s.feeTotal, `${f.pj} 逐行实收之和 ${s.paidPerRow} = 合计行 ${s.feeTotal}`);
+    // 与台账对账：清单的实收合计 == 台账的 sheetPaidFee（留档口径）
+    ok(NUM(b.sheetPaidFee) === s.feeTotal,
+        `${f.pj} 清单实收 ${s.feeTotal} = 台账留档 sheetPaidFee ${b.sheetPaidFee}`);
+    // 原价合计 - 折扣 = 实收（数据文件里记的"代理折扣9折"）
+    ok(R1(s.listTotal * 0.9) === R1(s.feeTotal),
+        `${f.pj} 原价合计 ${s.listTotal} × 0.9 = ${R1(s.listTotal * 0.9)} = 实收 ${s.feeTotal}`);
+}
+ok(R1(Object.values(SHEET_EXPECT).reduce((s, v) => s + v.paid, 0)) === SHEET_PAID,
+    `5 份清单实收合计 = ${SHEET_PAID}（与台账留档总合计一致）`);
+ok(Object.values(SHEET_EXPECT).reduce((s, v) => s + v.rows, 0) === SHEET_ROWS,
+    `5 份清单明细行数合计 = ${SHEET_ROWS} 行（与台账留档行数一致）`);
 
 // ══════════════════════════════════════════════════════════════
 section('⑩ 导航里藏起来，但数据照常加载（分类列表不出现它）');
@@ -603,20 +782,32 @@ try {
             let d = ''; let p = it.previousElementSibling;
             while (p && !p.classList.contains('timeline-date-header')) p = p.previousElementSibling;
             if (p) d = (p.querySelector('.timeline-date-label')||{}).textContent || '';
+            const a = card.querySelector('a');
+            // ★ 第二行用**字段**量：各字段是独立 <span class="fee-f">，分隔符由 CSS ::before 画，
+            //   所以这里显式按字段取，不依赖分隔符是否进了 innerText。
+            const fields = [...card.querySelectorAll('.timeline-fee-sub .fee-f')].map(e => e.textContent.trim());
             out.push({
                 date: d.replace(/\\u00A0/g,' ').trim(),
                 tag: ((card.querySelector('.timeline-fee-tag')||{}).textContent||'').trim(),
                 title: ((card.querySelector('.timeline-fee-title')||{}).textContent||'').trim(),
-                amount: ((card.querySelector('.timeline-fee-amount')||{}).textContent||'').trim(),
-                sub: ((card.querySelector('.timeline-fee-sub')||{}).textContent||'').replace(/\\u00A0/g,' ').replace(/\\s+/g,' ').trim(),
+                fields,
+                sub: fields.join(' \\u00B7 '),
                 text: card.textContent.replace(/\\u00A0/g,' ').replace(/\\s+/g,' ').trim(),
                 html: card.outerHTML,
+                feeFieldCount: card.querySelectorAll('.timeline-fee-sub .fee-f').length,
                 noImgTxt: /暂无图片/.test(card.textContent),
                 imgs: card.querySelectorAll('img').length,
                 imagesBox: card.querySelectorAll('.timeline-images').length,
                 noImgBox: card.querySelectorAll('.timeline-no-img').length,
                 cardClass: card.className,
-                itemClass: it.className
+                itemClass: it.className,
+                linkHref: a ? a.getAttribute('href') : null,
+                linkTarget: a ? a.getAttribute('target') : null,
+                linkRel: a ? a.getAttribute('rel') : null,
+                linkAbs: a ? a.href : null,
+                linkText: a ? a.textContent.trim() : null,
+                linkDeco: a ? getComputedStyle(a).textDecorationLine : null,
+                linkColor: a ? getComputedStyle(a).color : null
             });
         }
         return out;
@@ -628,9 +819,10 @@ try {
     ok(JSON.stringify(feeDates) === JSON.stringify(wantDateLabels),
         `5 条的日期就是 5 个**付款日期**、且顺序一致：${feeDates.join(' / ')}`);
 
-    // ⑫-4a ★ 重新设计后的卡片结构
+    // ⑫-4a ★ 第一行 = 标签 + 评级公司（公司名来自数据字段）
     ok((feeRows || []).every(r => r.tag === '评级费'), `每条左侧都有小标签「评级费」（实际 ${JSON.stringify((feeRows || []).map(r => r.tag))}）`);
-    ok((feeRows || []).every(r => r.title === 'ACG 评级费'), `主行标题都是「ACG 评级费」（实际 ${JSON.stringify((feeRows || []).map(r => r.title))}）`);
+    ok((feeRows || []).every(r => r.title === '评级公司：' + GRADERS[0]),
+        `★ 第一行是「评级公司：${GRADERS[0]}」，公司名来自数据字段（实际 ${JSON.stringify((feeRows || []).map(r => r.title))}）`);
     ok((feeRows || []).every(r => r.itemClass.includes('timeline-item--fee') || r.cardClass.includes('timeline-card--fee')),
         '费用条目带专属 class（timeline-item--fee / timeline-card--fee），与藏品条目可区分');
 
@@ -642,34 +834,96 @@ try {
     ok((feeRows || []).every(r => !/<img|timeline-no-img|timeline-images/.test(r.html)),
         '整段 HTML 里不含 <img>／.timeline-no-img／.timeline-images');
 
-    // ⑫-4c ★ 文案：PJ 只出现一次、无「购入价格」、无「批次…（N 项）」、付款日期不重复写
-    ok((feeRows || []).every((r, i) => {
-        const n = (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length;
-        return n === 1;
-    }), `每条里 PJ 编号只出现**一次**（实际 ${JSON.stringify((feeRows || []).map((r, i) => (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length))}）`);
+    // ⑫-4c ★ 第二行：字段与顺序 = 送评日期 / 单号 / 评级收费 / 查看清单
+    ok((feeRows || []).every(r => r.feeFieldCount === 4),
+        `第二行正好 4 个字段（实际 ${JSON.stringify((feeRows || []).map(r => r.feeFieldCount))}）`);
+    ok((feeRows || []).every((r, i) => r.fields[0] === '送评日期：' + cnDate(EXPECT[i][1])),
+        `第 1 个字段 = 「送评日期：…」（是送评日期，不是付款日期；实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[0])}）`);
+    ok((feeRows || []).every(r => !WANT_DATES.some(d => r.fields[0].includes(cnDate(d)))),
+        '第 1 个字段里**没有**付款日期（付款日期只出现在日期分组头）');
+    ok((feeRows || []).every((r, i) => r.fields[1] === '单号：' + EXPECT[i][0]),
+        `第 2 个字段 = 「单号：PJ…」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[1])}）`);
+    ok((feeRows || []).every(r => /^评级收费：[\d.]+元$/.test(r.fields[2])),
+        `第 3 个字段 = 「评级收费：xx元」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[2])}）`);
+    ok((feeRows || []).every(r => r.fields[3] === '查看清单'),
+        `第 4 个字段 = 「查看清单」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[3])}）`);
+    ok((feeRows || []).every(r => /送评日期[\s\S]*单号[\s\S]*评级收费[\s\S]*查看清单/.test(r.html)),
+        'HTML 里的先后顺序也是 送评日期 → 单号 → 评级收费 → 查看清单');
     ok((feeRows || []).every(r => !/购入价格/.test(r.text)), '不出现「购入价格」字样（那是藏品的说法，费用条目不沿用）');
-    ok((feeRows || []).every(r => !/批次\\s*PJ[^ ]*（\\d+ 项）/.test(r.text) && !/（\\d+ 项）/.test(r.text)),
+    ok((feeRows || []).every(r => !/批次[\s\S]*PJ/.test(r.text) && !/（\d+ 项）/.test(r.text)),
         '不出现「批次 …（N 项）」这种标题');
-    ok((feeRows || []).every(r => !/PJ 编号：/.test(r.text)), '不出现「PJ 编号：」前缀（PJ 编号只在副行出现一次）');
-    // 付款日期由日期分组头承担，副行里不重复写（副行只有"送评"日期）
-    ok((feeRows || []).every((r, i) => !new RegExp(cnDate(WANT_DATES[i])).test(r.sub)),
-        '副行里**不重复写付款日期**（付款日期由日期分组头承担）');
-    ok((feeRows || []).every((r, i) => r.sub.indexOf('送评 ' + cnDate(EXPECT[i][1])) >= 0),
-        `副行写的是**送评**日期（${EXPECT.map(e => e[1]).join(' / ')}）`);
-    ok((feeRows || []).every((r, i) => new RegExp('^' + WANT_COUNTS[i] + ' 件 · ' + EXPECT[i][0] + ' · 送评 ' + cnDate(EXPECT[i][1]) + '$').test(r.sub)),
-        `副行形状 = "N 件 · PJ… · 送评 YYYY年M月D日"（实际 "${(feeRows || [])[0] && (feeRows || [])[0].sub}"）`);
+    ok((feeRows || []).every(r => !/\d+\s*件/.test(r.text)), '第二行里不再列件数（用户给的版式里没有件数）');
+    ok((feeRows || []).every(r => /爱藏/.test(r.text)), '页面上的公司名确实渲染出来了（来自数据，不是渲染里写死）');
+    ok((feeRows || []).every((r, i) => (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length === 1),
+        `每条里 PJ 编号只出现**一次**（实际 ${JSON.stringify((feeRows || []).map((r, i) => (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length))}）`);
     ok((feeRows || []).every(r => r.date && r.date.length > 0), '每条都落在某个日期分组头下（分组没坏）');
     ok((feeRows || []).every(r => !SOLD_CERTS.some(c => r.text.includes(c))), '已售出的 4 个编码没有出现在卡片里');
 
-    // ⑫-4d 金额：右侧加粗金额 = 该批支出（不是留档那侧）
-    ok(JSON.stringify((feeRows || []).map(r => NUM(r.amount))) === JSON.stringify(WANT_AMTS),
-        `右侧金额 = ${WANT_AMTS.join(' / ')}（支出侧；实际 ${(feeRows || []).map(r => r.amount).join(' / ')}）`);
-    ok(R1((feeRows || []).reduce((s, r) => s + NUM(r.amount), 0)) === KEPT_PAID,
-        `5 条金额之和 = ${KEPT_PAID}（实际 ${R1((feeRows || []).reduce((s, r) => s + NUM(r.amount), 0))}）`);
-    ok((feeRows || []).every(r => /元$/.test(r.amount)), '金额带"元"后缀');
-    ok((feeRows || []).every((r, i) => r.amount === WANT_AMTS[i] + '元'),
+    // ⑫-4d 金额：第二行里的「评级收费」= 该批支出（不是留档那侧）
+    const feeAmts = (feeRows || []).map(r => NUM(r.fields[2]));
+    ok(JSON.stringify(feeAmts) === JSON.stringify(WANT_AMTS),
+        `「评级收费」= ${WANT_AMTS.join(' / ')}（支出侧；实际 ${feeAmts.join(' / ')}）`);
+    ok(R1(feeAmts.reduce((s, v) => s + v, 0)) === KEPT_PAID,
+        `5 笔金额之和 = ${KEPT_PAID}（实际 ${R1(feeAmts.reduce((s, v) => s + v, 0))}）`);
+    ok((feeRows || []).every((r, i) => r.fields[2] === '评级收费：' + WANT_AMTS[i] + '元'),
         `金额逐条逐字正确（${WANT_AMTS.map(v => v + '元').join(' / ')}）`);
-    ok((feeRows || []).every(v => !/购入价格/.test(v.text)), '金额不只出现在「购入价格」标签后（已去掉那个标签）');
+    ok(feeAmts.every(v => v !== 297 && v !== 495 && v !== 855),
+        '已售出行被排除后的金额（279/423/810）与旧值（297/495/855）确实不同 —— 页面上真的按新口径显示');
+    ok((feeRows || []).every(r => !/timeline-fee-amount/.test(r.html)),
+        '不再有独立的右侧金额节点（金额改成第二行里的「评级收费」，按用户给的版式走）');
+
+    // ⑫-4e ★「查看清单」链接：数据给了 listUrl，就必须是能打开的真链接
+    ok((feeRows || []).every(r => r.linkText === '查看清单'), '每条都渲染出了「查看清单」链接');
+    ok((feeRows || []).every(r => r.linkHref === '../notecollection/readmes/image/grading_fee/' + r.fields[1].replace('单号：', '') + '.xlsx'),
+        `href = 相对路径 ../notecollection/readmes/image/grading_fee/<PJ>.xlsx（实际 ${(feeRows || [])[0] && (feeRows || [])[0].linkHref}）`);
+    ok((feeRows || []).every(r => r.linkTarget === '_blank'), 'target="_blank"（新窗口打开，与正文里的外链一致）');
+    ok((feeRows || []).every(r => r.linkRel === 'noopener'), 'rel="noopener"（新窗口打开的既有约定）');
+    ok((feeRows || []).every(r => r.linkDeco === 'underline'),
+        `链接带下划线（与正文 <a> 一致；实际 ${(feeRows || [])[0] && (feeRows || [])[0].linkDeco}）`);
+    // ★ 与正文链接同色：正文里没有任何 a 的着色规则，靠浏览器对 color-scheme 的默认映射；
+    //   所以比对"页面内正文示例 <a>"的实测色，而不是写死一个色值。
+    const artLinkColor = await evaluate(`(()=>{
+        const h = document.createElement('div');
+        h.className = 'article-reader'; h.style.cssText = 'position:absolute;left:-9999px;top:0';
+        h.innerHTML = '<p>一篇拙劣的<a href="https://example.com/">论文</a></p>';
+        document.body.appendChild(h);
+        const c = getComputedStyle(h.querySelector('a')).color;
+        h.remove();
+        return c;
+    })()`);
+    ok(!!artLinkColor && (feeRows || []).every(r => r.linkColor === artLinkColor),
+        `★「查看清单」与正文行内链接同色（都是 ${artLinkColor}）`);
+    const linkStatus = JSON.parse(await evaluate(`(async()=>{
+        const out = [];
+        for (const a of document.querySelectorAll('.timeline-item[data-type="fee"] .timeline-fee-link')) {
+            const r = await fetch(a.href, { method: 'HEAD' });
+            out.push([a.getAttribute('href'), r.status]);
+        }
+        return JSON.stringify(out);
+    })()`));
+    ok(linkStatus.length === 5, `页面上有 5 个清单链接（实际 ${linkStatus.length}）`);
+    ok(linkStatus.every(([, s]) => s === 200), `5 个链接 HEAD 全部 200、不是 404（实际 ${linkStatus.map(([, s]) => s).join(' / ')}）`);
+    ok(linkStatus.every(([h]) => h.includes('grading_fee/') && h.endsWith('.xlsx')), '打开的确实是 grading_fee 目录下的 .xlsx');
+
+    // ⑫-4f ★ listUrl 缺失时**不渲染链接**（不留空占位、不出死链）
+    //   渲染分支已经由 ⑧-1b 用"删掉 listUrl 的数据"验过了（条目上 listUrl 为空串）；
+    //   这里在真实 DOM 上按同一条判据（有 listUrl 才有 <a>）复核一遍页面形状。
+    const linkShape = JSON.parse(await evaluate(`(()=>{
+        const cards = [...document.querySelectorAll('.timeline-card--fee')].filter(c => c.getBoundingClientRect().width > 1);
+        const withLink = cards.filter(c => c.querySelector('.timeline-fee-link')).length;
+        const cardsNoLink = cards.filter(c => c.querySelector('.timeline-fee-sub .fee-f:last-child') &&
+                                             /查看清单/.test(c.querySelector('.timeline-fee-sub .fee-f:last-child').textContent) &&
+                                             !c.querySelector('.timeline-fee-link')).length;
+        const emptyAnchors = [...document.querySelectorAll('.timeline-card--fee a')].filter(a => !a.getAttribute('href') || !a.textContent.trim()).length;
+        return JSON.stringify({ cards: cards.length, withLink, cardsNoLink, emptyAnchors,
+                                lastFieldTexts: cards.map(c => (c.querySelector('.timeline-fee-sub .fee-f:last-child')||{}).textContent || '') });
+    })()`));
+    ok(linkShape.cards === 5 && linkShape.withLink === 5,
+        `5 张卡都有 listUrl ⇒ 5 个链接（实际 ${linkShape.withLink}/${linkShape.cards}）`);
+    ok(linkShape.cardsNoLink === 0, '没有"写着查看清单却没有链接"的卡片（不留空占位）');
+    ok(linkShape.emptyAnchors === 0, '没有 href 为空或文字为空的 <a>（不出死链）');
+    ok(linkShape.lastFieldTexts.every(t => t === '查看清单'),
+        `最后一项就是「查看清单」（实际 ${JSON.stringify(linkShape.lastFieldTexts)}）`);
 
     // ⑫-5 与藏品按日期混排：日期分组头整体有序，且评级费夹在藏品日期流里
     const dateOrder = await evaluate(`[...document.querySelectorAll('.timeline-date-label')].map(e=>e.textContent.replace(/\\u00A0/g,' ').trim())`);
@@ -856,15 +1110,17 @@ try {
         let calls = 0;
         if (orig) window.openModal = function(){ calls++; };
         try {
-            // 费用条目：点卡片本体、点标题、点金额 —— 都不该开灯箱
+            // 费用条目：点卡片本体、标签、标题、第二行各字段 —— 都不该开灯箱
+            // ★ 刻意**不点「查看清单」那个 <a>**：那是真链接，点它会开新窗口（会被弹窗拦截），
+            //   与本检查无关；下面的回车探测避免命中链接本身。
             for (const it of document.querySelectorAll('.timeline-item')) {
                 if (it.dataset.type !== 'fee') continue;
                 const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
                 const r = card.getBoundingClientRect(); if (r.width < 1) continue;
                 out.feeHits++;
-                for (const el of [card, card.querySelector('.timeline-fee-title'), card.querySelector('.timeline-fee-amount'), card.querySelector('.timeline-fee-tag')]) {
-                    if (el) el.click();
-                }
+                const targets = [card, card.querySelector('.timeline-fee-title'), card.querySelector('.timeline-fee-tag')]
+                    .concat([...card.querySelectorAll('.timeline-fee-sub .fee-f')]);
+                for (const el of targets) { if (el) el.click(); }
                 // 回车：费用条目不该有 tabindex / role=button
                 if (it.tabIndex >= 0 || card.tabIndex >= 0) out.feeAlt++;
             }
@@ -942,11 +1198,12 @@ try {
             if (it.dataset.type !== 'fee') continue;
             const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
             const cr = card.getBoundingClientRect(); if (cr.width < 1) continue;
+            const sub = card.querySelector('.timeline-fee-sub');
             o.fee = { cardLeft: r1(cr.left), cardRight: r1(cr.right),
                       tagLeft: r1(card.querySelector('.timeline-fee-tag').getBoundingClientRect().left),
-                      amountLeft: r1(card.querySelector('.timeline-fee-amount').getBoundingClientRect().left) };
+                      subLeft: sub ? r1(sub.getBoundingClientRect().left) : null };
             o.pull = getComputedStyle(card).marginLeft;
-            o.amountBold = getComputedStyle(card.querySelector('.timeline-fee-amount')).fontWeight;
+            o.subFontSize = sub ? getComputedStyle(sub).fontSize : null;
             break;
         }
         o.aligned = (o.col && o.fee) ? (o.col.cardLeft === o.fee.cardLeft) : null;
@@ -996,7 +1253,8 @@ try {
     ok(lay.col.cardLeft - lay.col.imgLeft <= 0.5,
         `藏品卡片的图片左边缘 = 卡片左边缘（${lay.col.imgLeft} / ${lay.col.cardLeft}）—— 图片是卡片最左侧内容`);
     ok(lay.overflow === false && layBase.overflow === false, '桌面宽度下没有横向溢出');
-    ok(lay.amountBold === '700' || /bold/.test(lay.amountBold), `金额是加粗的（font-weight=${lay.amountBold}）`);
+    ok(lay.subFontSize === '12px' || parseFloat(lay.subFontSize) <= 13,
+        `第二行是灰色小字（font-size=${lay.subFontSize}）`);
 
     // 手机端：向左拉必须关掉，否则会把内容推出屏幕左边
     await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
