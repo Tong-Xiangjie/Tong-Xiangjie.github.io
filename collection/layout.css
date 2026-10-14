@@ -2692,6 +2692,21 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
     gap: 14px;
     align-items: flex-start;
     padding: 4px 0;
+    /* ★ 「图片离左边那条竖线太远」：竖线画在 .timeline-left::after 上（left:50%），
+       所以竖线右边缘到卡片左边缘的空隙 = 左列剩下一半 + .timeline-item 的 gap。
+       为了让**内容**贴近竖线又**不动竖线本身**（竖线是分组/热力图的视觉基准），
+       这里不缩左列宽度（那会把竖线一起往左拽），而是把卡片整体向左拉一段。
+       默认 0px，只在 >600px（竖线与卡片同排的布局）下由下面那条媒体查询打开，
+       免得把手机端（竖线已隐藏、卡片本来就从最左边开始）的内容推出屏幕。 */
+    --tl-card-pull: 0px;
+    margin-left: calc(-1 * var(--tl-card-pull));
+}
+/* >600px 才向左拉：宽屏固定 48px；往窄走按 (视口 - 454px) 线性收，
+   到 601px 附近正好收成 0，与 ≤600px 的 0px 无缝接上。 */
+@media (min-width: 601px) {
+    .timeline-card {
+        --tl-card-pull: clamp(0px, calc(100vw - 454px), 48px);
+    }
 }
 .timeline-images { display: flex; gap: 6px; flex-shrink: 0; }
 .timeline-img {
@@ -2727,6 +2742,56 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
 .timeline-info { flex: 1; min-width: 0; }
 .timeline-name { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
 .timeline-meta { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* ---- 评级费条目：整行紧凑卡片，不占图片位 ----------------------------------
+   费用条目不是藏品，没有图片这回事。所以渲染时**根本不生成** .timeline-images
+   容器（连「暂无图片」占位也不生成，见 special.js 的 isFee 分支）；下面这几条只
+   负责把这一行排成 [标签] 标题 ······ 金额 / 副行 的样子。
+   配色只取既有的 --theme / --text-secondary / --border，不新增任何色值。 */
+.timeline-card--fee {
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--theme) 8%, transparent), transparent 65%);
+}
+.timeline-fee-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.timeline-fee-tag {
+    flex-shrink: 0;
+    background: var(--theme);
+    color: #fff;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    padding: 1px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+.timeline-fee-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: bold;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.timeline-fee-amount {
+    flex-shrink: 0;
+    font-weight: bold;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+}
+.timeline-fee-sub {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
 
 /* ========== 响应式 ========== */
 @media (max-width: 768px) {
@@ -2770,6 +2835,12 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
     .timeline-left::after { display: none; }
     .timeline-dot { margin-top: 0; }
     .timeline-card { flex-direction: column; }
+    /* 评级费卡片在手机上：收紧内边距与间隙，金额与标签都不换行，
+       中间标题继续 ellipsis —— 375px 下也不会把行撑出屏幕。 */
+    .timeline-card--fee { padding: 8px 10px; gap: 3px; }
+    .timeline-fee-main { gap: 6px; }
+    .timeline-fee-tag { font-size: 0.64rem; padding: 1px 6px; }
+    .timeline-fee-title { font-size: 0.85rem; }
     /* ★ 手机上图片必须能收缩（用户报的「币海拾年图片宽度超出手机屏幕」）。
        原来这里只有 `.timeline-img { width: 100%; }`，但：
          · 父级 .timeline-images 是 `display:flex; flex-shrink:0`（不允许收缩）

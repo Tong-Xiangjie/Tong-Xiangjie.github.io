@@ -1403,6 +1403,11 @@ function gradingFeeEntries() {
             // 条目标题：匹配得到就从藏品取，取不到退回批次号
             seriesName: displayName,
             itemCount: live.length,
+            // ★ 两个日期别搞混：
+            //   · paidDate —— 付款日期（**落位口径**，也在 copy.purchaseDate 里，分组键用它）；
+            //   · sentDate —— 送评日期（只是留档，卡片副行写「送评 …」）。
+            paidDate: b.paidDate || '',
+            sentDate: b.sentDate || '',
             date: date,
             dateStr: formatTimelineDate(date)
         });
@@ -2010,6 +2015,7 @@ function renderTimelineContent(config, opts) {
         for (const item of groupItems) {
             try {
                 const c = item.copy;
+                const isFee = item.type === 'fee';
                 const img1 = getImageUrl(c.img1);
                 const img2 = getImageUrl(c.img2);
                 const g1 = gridImg(c.img1);
@@ -2023,23 +2029,18 @@ function renderTimelineContent(config, opts) {
                 let fullName = categoryPath ? categoryPath + ' - ' + item.seriesName : item.seriesName;
 
                 let metaParts = [];
-                if (item.type === 'fee') {
-                    // 台账条目：沿用同一套 .timeline-* 样式，只换文案。
-                    // 标题 = 该批匹配到的藏品名（gradingFeeEntries 已按 copyId 取好），
-                    // 取不到就是「批次 PJ…」。日期在日期分组头上；PJ 编号在 copy.version 里。
-                    metaParts.push('评级费');
-                    metaParts.push('PJ 编号：' + version);
-                    if (item.itemCount) metaParts.push(item.itemCount + ' 件');
-                } else if (item.type === 'notes') {
-                    metaParts.push('冠字号：' + version);
-                    metaParts.push('评级得分：' + grade);
-                } else {
-                    if (gradingCompany && gradingCompany !== '') {
-                        metaParts.push('评级机构：' + gradingCompany);
+                if (!isFee) {
+                    if (item.type === 'notes') {
+                        metaParts.push('冠字号：' + version);
+                        metaParts.push('评级得分：' + grade);
+                    } else {
+                        if (gradingCompany && gradingCompany !== '') {
+                            metaParts.push('评级机构：' + gradingCompany);
+                        }
+                        metaParts.push('评级得分：' + grade);
                     }
-                    metaParts.push('评级得分：' + grade);
+                    metaParts.push('购入价格：' + priceText);
                 }
-                metaParts.push('购入价格：' + priceText);
                 const metaStr = metaParts.join('\u00A0\u00A0\u00A0\u00A0');
 
                 const flipSig = [item.type, item.dataKey, item.seriesName, c.purchaseDate,
@@ -2047,27 +2048,51 @@ function renderTimelineContent(config, opts) {
                 const flipNth = flipSigCount.get(flipSig) || 0;
                 flipSigCount.set(flipSig, flipNth + 1);
 
-                html += `<div class="timeline-item" data-flip-key="${escapeAttr(flipSig + '#' + flipNth)}">`;
+                html += `<div class="timeline-item${isFee ? ' timeline-item--fee' : ''}" data-type="${escapeAttr(item.type || '')}" data-flip-key="${escapeAttr(flipSig + '#' + flipNth)}">`;
                 html += `<div class="timeline-left">`;
                 html += `<div class="timeline-dot"></div>`;
                 html += `</div>`;
-                html += `<div class="timeline-card">`;
-                html += `<div class="timeline-images">`;
-                if (img1) {
-                    html += `<img class="timeline-img" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
+                if (isFee) {
+                    // ★ 费用条目**不是藏品**：不占图片位，也绝不渲染任何图片占位（连「暂无图片」
+                    //   和 .timeline-images 这个容器都不生成）。整行一张紧凑卡片：
+                    //   [评级费] ACG 评级费 ·············· 810元
+                    //            26 件 · PJ… · 送评 YYYY年M月D日
+                    //   付款日期由上面的日期分组头承担，这里不重复写；「PJ 编号：」前缀也不要。
+                    //   ★ 送评日期取 item.sentDate（留档的"送评"日期），**不是** copy.purchaseDate
+                    //     （那是付款日期，用来落位的）——两者不是同一天，别拿错。
+                    const sentDate = parseChineseDate(item.sentDate);
+                    const sentStr = sentDate ? formatTimelineDate(sentDate) : '';
+                    const subParts = [];
+                    if (item.itemCount) subParts.push(item.itemCount + ' 件');
+                    if (version && version !== '—') subParts.push(escapeHtml(version));
+                    if (sentStr) subParts.push('送评 ' + sentStr);
+                    html += `<div class="timeline-card timeline-card--fee">`;
+                    html += `<div class="timeline-fee-main">`;
+                    html += `<span class="timeline-fee-tag">评级费</span>`;
+                    html += `<span class="timeline-fee-title">ACG 评级费</span>`;
+                    html += `<span class="timeline-fee-amount">${escapeHtml(priceText)}</span>`;
+                    html += `</div>`;
+                    html += `<div class="timeline-fee-sub">${subParts.join(' \u00B7 ')}</div>`;
+                    html += `</div>`;
+                } else {
+                    html += `<div class="timeline-card">`;
+                    html += `<div class="timeline-images">`;
+                    if (img1) {
+                        html += `<img class="timeline-img" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img1)}', '${escapeAttr(img2 || img1)}')">`;
+                    }
+                    if (img2) {
+                        html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
+                    }
+                    if (!img1 && !img2) {
+                        html += `<div class="timeline-no-img">暂无图片</div>`;
+                    }
+                    html += `</div>`;
+                    html += `<div class="timeline-info">`;
+                    html += `<div class="timeline-name">${escapeHtml(fullName)}</div>`;
+                    html += `<div class="timeline-meta">${escapeHtml(metaStr)}</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
                 }
-                if (img2) {
-                    html += `<img class="timeline-img" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="" onclick="event.stopPropagation(); openModal('${escapeAttr(img2)}', '${escapeAttr(img1 || img2)}')">`;
-                }
-                if (!img1 && !img2) {
-                    html += `<div class="timeline-no-img">暂无图片</div>`;
-                }
-                html += `</div>`;
-                html += `<div class="timeline-info">`;
-                html += `<div class="timeline-name">${escapeHtml(fullName)}</div>`;
-                html += `<div class="timeline-meta">${escapeHtml(metaStr)}</div>`;
-                html += `</div>`;
-                html += `</div>`;
                 html += `</div>`;
             } catch (e) {
                 console.warn('[时间轴] 渲染单个条目出错（已跳过）:', e);

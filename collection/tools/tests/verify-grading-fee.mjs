@@ -316,38 +316,37 @@ ok(R1(entries.reduce((s, e) => s + NUM(e.copy.price), 0)) === KEPT_PAID,
     `5 条金额之和 = ${KEPT_PAID}（${entries.map(e => NUM(e.copy.price)).join(' + ')}）`);
 ok(entries.every(e => cnDate(e.copy.purchaseDate) === e.dateStr),
     '条目自带的 purchaseDate（ISO，来自台账）与分组日期（中文写法）指同一天（混排/分组都靠它）');
-ok(entries.every(e => !e.copy.img1 && !e.copy.img2), '台账条目没有图片字段（渲染时走既有的无图占位）');
+ok(entries.every(e => !e.copy.img1 && !e.copy.img2), '台账条目没有图片字段（渲染时根本不生成图片位）');
 ok(entries.map(e => e.dateStr).join(',') === WANT_DATES.map(cnDate).join(','), `条目按付款日期升序：${entries.map(e => e.dateStr).join(' → ')}`);
 
-// ⑧-2 展示文字**从藏品记录取**（"优先复用原有数据"）
+// ⑧-2 「复用藏品数据」这条路：台账里**没存任何名称**，展示所需的一切都按 cert 去藏品记录取
 {
     const fakeSeries = [{ seriesName: 'S1', varieties: [{ varietyName: 'V1', copies: [
-        { copyId: KEPT_ITEMS[0].cert, version: 'AAAA', price: '7元' },
-        { copyId: '99999999', version: 'BBBB', price: '8元' }   // 一个与台账无关的藏品
+        { copyId: KEPT_ITEMS[0].cert, version: 'AAAA', price: '7元' }
     ] }] }];
     const one = makeFeeCtx([
         'window.DATA_MAP = ' + JSON.stringify({ gradingFeeData: { ...G, batches: [G.batches[0]] }, fake: { series: fakeSeries } }) + ';',
         'window.getCategoryPath = function(){ return ""; };',
+        'window.__idx = JSON.stringify(gradingCopyIndex());',
         'window.__e = JSON.stringify(gradingFeeEntries());'
     ]);
+    const idx = JSON.parse(one.__idx);
+    const rec = idx[KEPT_ITEMS[0].cert];
+    ok(!!rec && rec.seriesName.indexOf('S1') >= 0 && rec.seriesName.indexOf('V1') >= 0,
+        `gradingCopyIndex() 按 cert 解析出了藏品记录（seriesName="${rec && rec.seriesName}"）—— 台账里并没有这个名字`);
+    ok(!!rec && rec.copy.version === 'AAAA', '解析出来的那份记录还能取到藏品的冠字号码（AAAA）—— 复用藏品数据这条路是通的');
+    ok(!!rec && rec.copy.price === '7元', '价格也来自藏品侧（7元），台账只贡献 listFee/paidFee 两个费用字段');
     const e1 = JSON.parse(one.__e)[0];
-    ok(e1 && e1.seriesName.indexOf('S1') >= 0 && e1.seriesName.indexOf('V1') >= 0,
-        `条目标题来自藏品记录的 seriesName（实际 "${e1 && e1.seriesName}"）—— 台账里并没有这个名字`);
-    ok(/评级费/.test(JSON.stringify(e1)) === false, '（标题里不含"评级费"字样；那三个字由渲染分支加，不由名称承担）');
+    // ★ 这份 fixture 只喂了 1 个藏品（第一个 cert），所以"未售出部分"就只有那一行 = 18元。
+    //   这恰好也是"支出按留下的行重算"的又一次旁证。
+    ok(!!e1 && e1.type === 'fee' && e1.itemCount === 1 && NUM(e1.copy.price) === 18,
+        `条目按"未售出部分"口径（这份 fixture 只有 1 行匹配上 ⇒ 1 行 / 18元；实际 ${e1 && e1.itemCount} 行 / ${e1 && e1.copy.price}）`);
+    ok(!!e1 && e1.sentDate === EXPECT[0][1] && e1.paidDate === EXPECT[0][2] && e1.dateStr === cnDate(EXPECT[0][2]),
+        `条目同时带着送评日期（${e1 && e1.sentDate}）与付款日期（${e1 && e1.paidDate} → ${e1 && e1.dateStr}），两者不同天`);
 }
-// 藏品记录里一个都没有时（DATA_MAP 只有台账、没有任何 series）：
-// 按判据"匹配不到 copyId = 已售出"，此时每一行都算已售出 ⇒ 时间轴上一条都不出现。
-{
-    const none = makeFeeCtx([
-        'window.DATA_MAP = ' + JSON.stringify({ gradingFeeData: G }) + ';',
-        'window.getCategoryPath = function(){ return ""; };',
-        'window.__e = JSON.stringify(gradingFeeEntries()); window.__t = gradingFeeTotal();'
-    ]);
-    const es = JSON.parse(none.__e);
-    ok(es.length === 0 && none.__t === 0,
-        `藏品记录一份都没有时，5 批全部按"已售出"处理 ⇒ 时间轴 0 条、总额 0（实际 ${es.length} 条 / ${none.__t}）`);
-    ok(es.every(e => e.seriesName === undefined || e.seriesName.length > 0), '（没有半截/空标题的条目）');
-}
+// ⑧-2b 台账明细里没有名称/冠号/分数可供渲染 —— 必须靠藏品记录
+ok(KEPT_ITEMS.every(i => !('name' in i) && !('version' in i) && !('condition' in i)),
+    '台账明细里没有 name/version/condition（渲染所需信息全部按 cert 去藏品记录取）');
 
 // ⑧-3 ★ 注入式 fixture：验证"匹配不到 copyId 的行不计入支出 / 不进时间轴"这条**逻辑**。
 //   数据里那 4 行已经被剔除了，所以只能靠注入一份"只匹配得上一部分"的台账来验逻辑。
@@ -595,19 +594,30 @@ try {
         ys.value='全部'; ms.value='全部'; if(typeof setTimelineOrder==='function') setTimelineOrder('asc'); return true; })()`);
     await sleep(900);
 
-    // ⑫-4 时间轴里的 5 条评级费
+    // ⑫-4 时间轴里的 5 条评级费（★ 用 data-type / 专属 class 定位，不再靠"文案里有没有评级费"）
     const feeRows = await evaluate(`(()=>{
         const out = [];
         for (const it of document.querySelectorAll('.timeline-item')) {
-            const card = it.querySelector('.timeline-card'); if (!card) continue;
-            const meta = (card.querySelector('.timeline-meta')||{}).textContent || '';
-            if (!/评级费/.test(meta)) continue;
+            if (it.dataset.type !== 'fee') continue;
+            const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
             let d = ''; let p = it.previousElementSibling;
             while (p && !p.classList.contains('timeline-date-header')) p = p.previousElementSibling;
             if (p) d = (p.querySelector('.timeline-date-label')||{}).textContent || '';
-            out.push({ date: d.replace(/\\u00A0/g,' ').trim(), name: ((card.querySelector('.timeline-name')||{}).textContent||'').trim(),
-                       meta: meta.replace(/\\u00A0/g,' ').replace(/\\s+/g,' ').trim(),
-                       noImg: !!card.querySelector('.timeline-no-img') });
+            out.push({
+                date: d.replace(/\\u00A0/g,' ').trim(),
+                tag: ((card.querySelector('.timeline-fee-tag')||{}).textContent||'').trim(),
+                title: ((card.querySelector('.timeline-fee-title')||{}).textContent||'').trim(),
+                amount: ((card.querySelector('.timeline-fee-amount')||{}).textContent||'').trim(),
+                sub: ((card.querySelector('.timeline-fee-sub')||{}).textContent||'').replace(/\\u00A0/g,' ').replace(/\\s+/g,' ').trim(),
+                text: card.textContent.replace(/\\u00A0/g,' ').replace(/\\s+/g,' ').trim(),
+                html: card.outerHTML,
+                noImgTxt: /暂无图片/.test(card.textContent),
+                imgs: card.querySelectorAll('img').length,
+                imagesBox: card.querySelectorAll('.timeline-images').length,
+                noImgBox: card.querySelectorAll('.timeline-no-img').length,
+                cardClass: card.className,
+                itemClass: it.className
+            });
         }
         return out;
     })()`);
@@ -618,21 +628,48 @@ try {
     ok(JSON.stringify(feeDates) === JSON.stringify(wantDateLabels),
         `5 条的日期就是 5 个**付款日期**、且顺序一致：${feeDates.join(' / ')}`);
 
-    const feeAmts = (feeRows || []).map(r => NUM((r.meta.match(/购入价格：([^ ]+)/) || [])[1]));
-    ok(JSON.stringify(feeAmts) === JSON.stringify(WANT_AMTS),
-        `5 条金额 = ${WANT_AMTS.join(' / ')}（支出侧，不是留档 ${SHEET_PAID}；实际 ${feeAmts.join(' / ')}）`);
-    ok(R1(feeAmts.reduce((s, v) => s + v, 0)) === KEPT_PAID,
-        `5 条金额之和 = ${KEPT_PAID}（实际 ${R1(feeAmts.reduce((s, v) => s + v, 0))}）`);
-    ok(feeAmts.every(v => v !== 297 && v !== 495 && v !== 855),
-        '已售出行被排除后的金额（279/423/810）与旧值（297/495/855）确实不同 —— 页面上真的按新口径显示');
-    ok((feeRows || []).every(r => /评级费/.test(r.meta)), '每条都带「评级费」标记');
-    ok((feeRows || []).every((r, i) => r.meta.includes(EXPECT[i][0])), '每条都带对应的 PJ 编号');
-    ok((feeRows || []).every((r, i) => new RegExp(WANT_COUNTS[i] + '\\s*件').test(r.meta)),
-        `每条都带件数（${WANT_COUNTS.join(' / ')} 件 —— 已是"未售出"件数）`);
-    ok((feeRows || []).every(r => r.noImg), '5 条都没有图片 → 走既有的「暂无图片」占位（没有破图/空洞）');
-    ok((feeRows || []).every(r => r.name && r.name.length > 0), `5 条都有标题（复用既有条目样式，没有空白标题）`);
-    ok((feeRows || []).every(r => !SOLD_CERTS.some(c => r.name.includes(c) || r.meta.includes(c))),
-        '已售出的 4 个编码没有出现在页面上的任何一条里');
+    // ⑫-4a ★ 重新设计后的卡片结构
+    ok((feeRows || []).every(r => r.tag === '评级费'), `每条左侧都有小标签「评级费」（实际 ${JSON.stringify((feeRows || []).map(r => r.tag))}）`);
+    ok((feeRows || []).every(r => r.title === 'ACG 评级费'), `主行标题都是「ACG 评级费」（实际 ${JSON.stringify((feeRows || []).map(r => r.title))}）`);
+    ok((feeRows || []).every(r => r.itemClass.includes('timeline-item--fee') || r.cardClass.includes('timeline-card--fee')),
+        '费用条目带专属 class（timeline-item--fee / timeline-card--fee），与藏品条目可区分');
+
+    // ⑫-4b ★ 完全不占图片位：没有「暂无图片」、没有任何 <img>、没有图片容器/占位节点
+    ok((feeRows || []).every(r => r.noImgTxt === false), '费用条目里**没有**「暂无图片」字样');
+    ok((feeRows || []).every(r => r.imgs === 0), `费用条目里**一个 <img> 都没有**（实际 ${JSON.stringify((feeRows || []).map(r => r.imgs))}）`);
+    ok((feeRows || []).every(r => r.imagesBox === 0), '费用条目里没有 .timeline-images 图片容器（整行根本不生成图片列）');
+    ok((feeRows || []).every(r => r.noImgBox === 0), '费用条目里没有 .timeline-no-img 占位节点');
+    ok((feeRows || []).every(r => !/<img|timeline-no-img|timeline-images/.test(r.html)),
+        '整段 HTML 里不含 <img>／.timeline-no-img／.timeline-images');
+
+    // ⑫-4c ★ 文案：PJ 只出现一次、无「购入价格」、无「批次…（N 项）」、付款日期不重复写
+    ok((feeRows || []).every((r, i) => {
+        const n = (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length;
+        return n === 1;
+    }), `每条里 PJ 编号只出现**一次**（实际 ${JSON.stringify((feeRows || []).map((r, i) => (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length))}）`);
+    ok((feeRows || []).every(r => !/购入价格/.test(r.text)), '不出现「购入价格」字样（那是藏品的说法，费用条目不沿用）');
+    ok((feeRows || []).every(r => !/批次\\s*PJ[^ ]*（\\d+ 项）/.test(r.text) && !/（\\d+ 项）/.test(r.text)),
+        '不出现「批次 …（N 项）」这种标题');
+    ok((feeRows || []).every(r => !/PJ 编号：/.test(r.text)), '不出现「PJ 编号：」前缀（PJ 编号只在副行出现一次）');
+    // 付款日期由日期分组头承担，副行里不重复写（副行只有"送评"日期）
+    ok((feeRows || []).every((r, i) => !new RegExp(cnDate(WANT_DATES[i])).test(r.sub)),
+        '副行里**不重复写付款日期**（付款日期由日期分组头承担）');
+    ok((feeRows || []).every((r, i) => r.sub.indexOf('送评 ' + cnDate(EXPECT[i][1])) >= 0),
+        `副行写的是**送评**日期（${EXPECT.map(e => e[1]).join(' / ')}）`);
+    ok((feeRows || []).every((r, i) => new RegExp('^' + WANT_COUNTS[i] + ' 件 · ' + EXPECT[i][0] + ' · 送评 ' + cnDate(EXPECT[i][1]) + '$').test(r.sub)),
+        `副行形状 = "N 件 · PJ… · 送评 YYYY年M月D日"（实际 "${(feeRows || [])[0] && (feeRows || [])[0].sub}"）`);
+    ok((feeRows || []).every(r => r.date && r.date.length > 0), '每条都落在某个日期分组头下（分组没坏）');
+    ok((feeRows || []).every(r => !SOLD_CERTS.some(c => r.text.includes(c))), '已售出的 4 个编码没有出现在卡片里');
+
+    // ⑫-4d 金额：右侧加粗金额 = 该批支出（不是留档那侧）
+    ok(JSON.stringify((feeRows || []).map(r => NUM(r.amount))) === JSON.stringify(WANT_AMTS),
+        `右侧金额 = ${WANT_AMTS.join(' / ')}（支出侧；实际 ${(feeRows || []).map(r => r.amount).join(' / ')}）`);
+    ok(R1((feeRows || []).reduce((s, r) => s + NUM(r.amount), 0)) === KEPT_PAID,
+        `5 条金额之和 = ${KEPT_PAID}（实际 ${R1((feeRows || []).reduce((s, r) => s + NUM(r.amount), 0))}）`);
+    ok((feeRows || []).every(r => /元$/.test(r.amount)), '金额带"元"后缀');
+    ok((feeRows || []).every((r, i) => r.amount === WANT_AMTS[i] + '元'),
+        `金额逐条逐字正确（${WANT_AMTS.map(v => v + '元').join(' / ')}）`);
+    ok((feeRows || []).every(v => !/购入价格/.test(v.text)), '金额不只出现在「购入价格」标签后（已去掉那个标签）');
 
     // ⑫-5 与藏品按日期混排：日期分组头整体有序，且评级费夹在藏品日期流里
     const dateOrder = await evaluate(`[...document.querySelectorAll('.timeline-date-label')].map(e=>e.textContent.replace(/\\u00A0/g,' ').trim())`);
@@ -680,8 +717,8 @@ try {
             while (sib && !sib.classList.contains('timeline-date-header')) {
                 if (sib.classList.contains('timeline-item')) {
                     n++;
-                    const meta = (sib.querySelector('.timeline-meta')||{}).textContent || '';
-                    if (/评级费/.test(meta)) fee++;
+                    // ★ 费用条目靠 data-type 认，不再靠 meta 文案（重新设计后 meta 节点已不存在）
+                    if (sib.dataset.type === 'fee') fee++;
                 }
                 sib = sib.nextElementSibling;
             }
@@ -764,12 +801,14 @@ try {
     const darkFee = await evaluate(`(()=>{
         const rows = [];
         for (const it of document.querySelectorAll('.timeline-item')) {
-            const card = it.querySelector('.timeline-card'); if (!card) continue;
-            const meta = (card.querySelector('.timeline-meta')||{}).textContent || '';
-            if (!/评级费/.test(meta)) continue;
+            if (it.dataset.type !== 'fee') continue;
+            const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
             const r = card.getBoundingClientRect();
             if (r.width < 1 || r.height < 1) continue;   // 隐藏容器里的旧副本
-            rows.push({ w: Math.round(r.width), h: Math.round(r.height), overflow: card.scrollWidth > card.clientWidth + 2 });
+            const cs = getComputedStyle(card);
+            rows.push({ w: Math.round(r.width), h: Math.round(r.height),
+                        overflow: card.scrollWidth > card.clientWidth + 2,
+                        bg: cs.backgroundColor, color: cs.color, radius: cs.borderRadius });
         }
         return JSON.stringify({ n: rows.length, rows, scheme: document.documentElement.getAttribute('data-color-scheme') });
     })()`).then(v => JSON.parse(v || '{}'));
@@ -777,6 +816,7 @@ try {
         `深色模式：5 条评级费仍在（data-color-scheme=${darkFee.scheme}，可见条数=${darkFee.n}）`);
     ok((darkFee.rows || []).every(r => r.overflow === false), '深色模式：条目没有横向溢出');
     ok((darkFee.rows || []).every(r => r.h > 0 && r.w > 0), '深色模式：条目都有实际尺寸（没有被压成 0 高）');
+    ok((darkFee.rows || []).every(r => r.radius && r.radius !== '0px'), '深色模式：卡片仍带圆角（样式没被主题覆盖掉）');
 
     // 手机宽度（375px）
     await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
@@ -784,22 +824,252 @@ try {
     const mobFee = await evaluate(`(()=>{
         const rows = [];
         for (const it of document.querySelectorAll('.timeline-item')) {
-            const card = it.querySelector('.timeline-card'); if (!card) continue;
-            const meta = (card.querySelector('.timeline-meta')||{}).textContent || '';
-            if (!/评级费/.test(meta)) continue;
+            if (it.dataset.type !== 'fee') continue;
+            const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
             const r = card.getBoundingClientRect();
             if (r.width < 1 || r.height < 1) continue;
-            rows.push({ w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right), overflow: card.scrollWidth > card.clientWidth + 2 });
+            const main = card.querySelector('.timeline-fee-main');
+            const mr = main ? main.getBoundingClientRect() : null;
+            rows.push({ w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right),
+                        overflow: card.scrollWidth > card.clientWidth + 2,
+                        mainOverflow: main ? main.scrollWidth > main.clientWidth + 2 : null,
+                        mainW: mr ? Math.round(mr.width) : 0 });
         }
-        return JSON.stringify({ n: rows.length, rows, vw: window.innerWidth });
+        return JSON.stringify({ n: rows.length, rows, vw: window.innerWidth, docOverflow: document.documentElement.scrollWidth > window.innerWidth + 2 });
     })()`).then(v => JSON.parse(v || '{}'));
     ok(mobFee.n === 5, `手机宽度 375px：5 条评级费仍在（可见条数=${mobFee.n}，视口 ${mobFee.vw}px）`);
     ok((mobFee.rows || []).every(r => r.right <= 375 + 2), '手机宽度：条目没有超出右边（不横向滚动）');
     ok((mobFee.rows || []).every(r => r.overflow === false && r.h > 0), '手机宽度：条目没有溢出、也没有被压成 0 高');
+    ok((mobFee.rows || []).every(r => r.mainOverflow === false), '手机宽度：主行（标签+标题+金额）没有被挤到换行/溢出');
+    ok(mobFee.docOverflow === false, '手机宽度：整页没有横向滚动条');
     await send('Emulation.clearDeviceMetricsOverride');
     await sleep(400);
     // 恢复成跟随系统，免得影响同进程里后续的检查
     await evaluate(`(()=>{ if (typeof setColorSchemeMode === 'function') setColorSchemeMode('system'); return true; })()`);
+
+    // ⑫-9 ★ 费用条目**不可点开大图**：它没有图片，点击/回车都不该触发灯箱，也不该报错
+    //   （既有的藏品条目点图仍要能打开灯箱 —— 两条一起验，免得"一刀切禁掉点击"。）
+    const clickProbe = await evaluate(`(()=>{
+        const out = { feeHits: 0, feeModal: 0, feeAlt: 0, collectibleHits: 0, collectibleModal: 0, collectibleImgs: 0, hasModal: false };
+        const orig = (typeof window.openModal === 'function') ? window.openModal : null;
+        out.hasModal = !!orig;
+        let calls = 0;
+        if (orig) window.openModal = function(){ calls++; };
+        try {
+            // 费用条目：点卡片本体、点标题、点金额 —— 都不该开灯箱
+            for (const it of document.querySelectorAll('.timeline-item')) {
+                if (it.dataset.type !== 'fee') continue;
+                const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
+                const r = card.getBoundingClientRect(); if (r.width < 1) continue;
+                out.feeHits++;
+                for (const el of [card, card.querySelector('.timeline-fee-title'), card.querySelector('.timeline-fee-amount'), card.querySelector('.timeline-fee-tag')]) {
+                    if (el) el.click();
+                }
+                // 回车：费用条目不该有 tabindex / role=button
+                if (it.tabIndex >= 0 || card.tabIndex >= 0) out.feeAlt++;
+            }
+            out.feeModal = calls;
+            // 藏品条目：找一个真的有图的，点它的图 —— 必须仍能开灯箱
+            const before = calls;
+            for (const img of document.querySelectorAll('.timeline-item:not([data-type="fee"]) .timeline-img')) {
+                const r = img.getBoundingClientRect();
+                out.collectibleImgs++;
+                if (r.width < 1) continue;
+                img.click();
+                out.collectibleHits++;
+                break;
+            }
+            out.collectibleModal = calls - before;
+        } finally {
+            if (orig) window.openModal = orig;
+        }
+        return JSON.stringify(out);
+    })()`).then(v => JSON.parse(v || '{}'));
+    ok(clickProbe.feeHits === 5, `点到了 5 条费用条目（实际 ${clickProbe.feeHits}）`);
+    ok(clickProbe.feeModal === 0, `点费用条目（卡片/标题/金额/标签）**不开灯箱**（openModal 调用 ${clickProbe.feeModal} 次）`);
+    ok(clickProbe.feeAlt === 0, '费用条目没有 tabindex/role=button（键盘回车也不会"打开"它）');
+    ok(clickProbe.collectibleImgs > 0, `页面上仍有带图的藏品条目（${clickProbe.collectibleImgs} 个）—— 灯箱行为有东西可验`);
+    ok(clickProbe.hasModal === true && clickProbe.collectibleModal >= 1,
+        `既有藏品条目点图**仍然打开灯箱**（openModal 调用 ${clickProbe.collectibleModal} 次）—— 没被一刀切禁掉`);
+    // 键盘回车：派发到费用条目上，同样不该开灯箱
+    const enterProbe = await evaluate(`(()=>{
+        const orig = (typeof window.openModal === 'function') ? window.openModal : null;
+        let calls = 0; if (orig) window.openModal = function(){ calls++; };
+        try {
+            for (const it of document.querySelectorAll('.timeline-item')) {
+                if (it.dataset.type !== 'fee') continue;
+                const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
+                const r = card.getBoundingClientRect(); if (r.width < 1) continue;
+                for (const el of [card, it]) {
+                    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                    el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+                }
+            }
+        } finally { if (orig) window.openModal = orig; }
+        return calls;
+    })()`);
+    ok(enterProbe === 0, `费用条目上按回车**不开灯箱**（openModal 调用 ${enterProbe} 次）`);
+
+    // ⑫-10 ★ 「图片离左边那条竖线太远」：向左拉近后重新量一遍间距。
+    //   竖线画在 .timeline-left::after 上，与 .timeline-dot 共用同一条 50% 轴线
+    //   （点宽 12、left:50%、translateX(-50%)，中心 = 轴；::after 同样居中），
+    //   所以这里用**点的中心 x** 代表竖线轴，是真实元素的实测值，不依赖伪元素读取。
+    //   改动前 竖线轴=69 → 图片左=125；改动后 → 图片左=77，轴→图 56px 收成 8px。
+    const LAYOUT_PROBE = `(()=>{
+        const r1 = n => Math.round(n * 10) / 10;
+        const o = { vw: window.innerWidth, mq600: matchMedia('(max-width: 600px)').matches };
+        for (const it of document.querySelectorAll('.timeline-item')) {
+            const left = it.querySelector('.timeline-left'), dot = it.querySelector('.timeline-dot');
+            if (!left) continue;
+            const lr = left.getBoundingClientRect(); if (lr.width < 1) continue;
+            const dr = dot ? dot.getBoundingClientRect() : null;
+            const cs = getComputedStyle(left), af = getComputedStyle(left, '::after');
+            o.left = { x: r1(lr.left), w: r1(lr.width), dir: cs.flexDirection };
+            o.afterDisplay = af.display;
+            o.afterLeft = af.left; o.afterW = r1(parseFloat(af.width) || 0);
+            if (dr) o.dot = { cx: r1(dr.left + dr.width / 2), w: r1(dr.width) };
+            break;
+        }
+        for (const it of document.querySelectorAll('.timeline-item')) {
+            if (it.dataset.type === 'fee') continue;
+            const box = it.querySelector('.timeline-images'); if (!box) continue;
+            const br = box.getBoundingClientRect(); if (br.width < 1) continue;
+            const cr = it.querySelector('.timeline-card').getBoundingClientRect();
+            o.col = { imgLeft: r1(br.left), cardLeft: r1(cr.left), cardRight: r1(cr.right) };
+            break;
+        }
+        for (const it of document.querySelectorAll('.timeline-item')) {
+            if (it.dataset.type !== 'fee') continue;
+            const card = it.querySelector('.timeline-card--fee'); if (!card) continue;
+            const cr = card.getBoundingClientRect(); if (cr.width < 1) continue;
+            o.fee = { cardLeft: r1(cr.left), cardRight: r1(cr.right),
+                      tagLeft: r1(card.querySelector('.timeline-fee-tag').getBoundingClientRect().left),
+                      amountLeft: r1(card.querySelector('.timeline-fee-amount').getBoundingClientRect().left) };
+            o.pull = getComputedStyle(card).marginLeft;
+            o.amountBold = getComputedStyle(card.querySelector('.timeline-fee-amount')).fontWeight;
+            break;
+        }
+        o.aligned = (o.col && o.fee) ? (o.col.cardLeft === o.fee.cardLeft) : null;
+        o.overflow = document.documentElement.scrollWidth > window.innerWidth + 2;
+        if (o.dot && o.col) o.gap = r1(o.col.imgLeft - o.dot.cx);
+        if (o.dot && o.fee) o.gapFee = r1(o.fee.tagLeft - o.dot.cx);
+        return JSON.stringify(o);
+    })()`;
+    const BASE_CSS = `.timeline-card{margin-left:0 !important;}`;
+    const CLAMP_PATCH = `(()=>{
+        let s = document.getElementById('__tlpull');
+        if (!s) { s = document.createElement('style'); s.id = '__tlpull'; document.head.appendChild(s); }
+        // 与 layout.css 里那条 @media (min-width:601px) 的公式保持一致（48px 下限 601px 处为 1px）
+        s.textContent = '.timeline-card{--tl-card-pull: clamp(0px, calc(100vw - 454px), 48px);}';
+        return true;
+    })()`;
+
+    // ① 现状（已应用向左拉）
+    const lay = JSON.parse(await evaluate(LAYOUT_PROBE));
+    // ② 临时钉住 0，量"改动前"的间距作为对照，同时确认竖线轴没变
+    await evaluate(`(()=>{ const s=document.createElement('style'); s.id='__tlbase'; s.textContent=${JSON.stringify(BASE_CSS)}; document.head.appendChild(s); return true; })()`);
+    await sleep(500);
+    const layBase = JSON.parse(await evaluate(LAYOUT_PROBE));
+    // ③ 还原成真实状态
+    await evaluate(`(()=>{ const s=document.getElementById('__tlbase'); if(s) s.remove(); const p=document.getElementById('__tlpull'); if(p) p.remove(); return true; })()`);
+    await sleep(500);
+    const layBack = JSON.parse(await evaluate(LAYOUT_PROBE));
+
+    ok(lay.mq600 === false, `桌面宽度量测（视口 ${lay.vw}px，(max-width:600px) 未命中）`);
+    ok(layBase.gap === 56 && lay.gap === 8,
+        `★ 竖线轴→图片左边缘：改动前 ${layBase.gap}px → 改动后 ${lay.gap}px（收窄 ${layBase.gap - lay.gap}px）`);
+    // 竖线位置没动：同一视口下改前/改后轴完全一致，且仍是 .timeline-left 的中心
+    ok(lay.dot.cx === layBase.dot.cx && lay.dot.cx === layBack.dot.cx,
+        `★ 竖线轴位置未变（改前/改后都是 x=${lay.dot.cx}）—— 只移内容、没移竖线`);
+    ok(Math.abs(lay.dot.cx - (lay.left.x + lay.left.w / 2)) <= 0.5,
+        `竖线轴=左列中心（${lay.dot.cx} = ${lay.left.x} + ${lay.left.w}/2）—— 几何自洽`);
+    ok(lay.gap === 8 && lay.gap >= 6 && lay.gap <= 10,
+        `间距落在"紧凑但不相贴"的区间（${lay.gap}px ∈ [6,10]）`);
+    ok(lay.gap > 0 && lay.gap > lay.afterW,
+        `图片左边缘在竖线**右侧**、不重叠（间距 ${lay.gap}px > 竖线宽 ${lay.afterW}px）`);
+    ok(lay.pull === '-48px' && layBase.pull === '0px',
+        `左拉量由 --tl-card-pull 控制（实际 ${lay.pull}，钉住 0 后为 ${layBase.pull}）`);
+    ok(lay.col.cardRight === layBase.col.cardRight,
+        `卡片右边缘没变（${lay.col.cardRight}）—— 只往左拉，没把卡片撑宽`);
+    ok(lay.aligned === true && layBack.aligned === true,
+        `★ 费用条目与藏品条目左边缘对齐（都是 ${lay.fee.cardLeft}）`);
+    ok(lay.col.cardLeft - lay.col.imgLeft <= 0.5,
+        `藏品卡片的图片左边缘 = 卡片左边缘（${lay.col.imgLeft} / ${lay.col.cardLeft}）—— 图片是卡片最左侧内容`);
+    ok(lay.overflow === false && layBase.overflow === false, '桌面宽度下没有横向溢出');
+    ok(lay.amountBold === '700' || /bold/.test(lay.amountBold), `金额是加粗的（font-weight=${lay.amountBold}）`);
+
+    // 手机端：向左拉必须关掉，否则会把内容推出屏幕左边
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
+    await sleep(1400);
+    const layM = JSON.parse(await evaluate(LAYOUT_PROBE));
+    await evaluate(`(()=>{ const s=document.createElement('style'); s.id='__tlbase2'; s.textContent=${JSON.stringify(BASE_CSS)}; document.head.appendChild(s); return true; })()`);
+    await sleep(500);
+    const layMBase = JSON.parse(await evaluate(LAYOUT_PROBE));
+    await evaluate(`(()=>{ const s=document.getElementById('__tlbase2'); if(s) s.remove(); return true; })()`);
+    // 再验一下公式在断点附近的自洽：601px 处应≈1px、640px 处 48px 已封顶
+    await send('Emulation.setDeviceMetricsOverride', { width: 640, height: 720, deviceScaleFactor: 1, mobile: false });
+    await sleep(1200);
+    const lay640 = JSON.parse(await evaluate(LAYOUT_PROBE));
+    await send('Emulation.setDeviceMetricsOverride', { width: 601, height: 720, deviceScaleFactor: 1, mobile: false });
+    await sleep(1200);
+    await evaluate(CLAMP_PATCH);
+    await sleep(400);
+    const lay601 = JSON.parse(await evaluate(LAYOUT_PROBE));
+    await evaluate(`(()=>{ const p=document.getElementById('__tlpull'); if(p) p.remove(); return true; })()`);
+    await sleep(300);
+
+    ok(layM.mq600 === true && layM.vw === 375, `手机 375px：(max-width:600px) 命中=${layM.mq600}，实测视口 ${layM.vw}px`);
+    ok(layM.pull === '0px' && layMBase.pull === '0px',
+        `手机端向左拉被关掉（--tl-card-pull 生效值 ${layM.pull}）—— 不会把内容推出屏幕`);
+    ok(layM.aligned === true, `手机端费用条目与藏品条目左边缘仍对齐（都是 ${layM.fee.cardLeft}）`);
+    ok(layM.col.cardLeft >= 20 && layM.col.imgLeft === layM.col.cardLeft,
+        `手机端卡片/图片左边缘仍在布局左边（${layM.col.imgLeft} ≥ 20px），没有被拉成负数`);
+    ok(layM.overflow === false, '手机端没有横向溢出');
+    ok(layM.afterDisplay === 'none' || layM.left.dir === 'row',
+        `手机端竖线本就隐藏（::after display=${layM.afterDisplay}，左列 direction=${layM.left.dir}）—— 因此"间距"在手机端不适用`);
+    ok(lay640.mq600 === false && lay640.overflow === false && lay640.gap === 8,
+        `640px：仍是同排布局、间距 ${lay640.gap}px、无溢出`);
+    ok(lay601.mq600 === false && lay601.overflow === false && lay601.col.cardLeft > lay601.dot.cx,
+        `601px（断点边界）：卡片仍在竖线右侧（卡片左 ${lay601.col.cardLeft} > 竖线轴 ${lay601.dot.cx}），无溢出`);
+    await send('Emulation.clearDeviceMetricsOverride');
+    await sleep(400);
+
+    // ⑫-11 ★「手机端 CSS 真的生效了吗」：layout.css 一旦多/少一个花括号，
+    //   浏览器会把后面所有规则吞掉（手机端整块失效），而文件字面量照样"看起来没问题"。
+    //   这里直接读**计算后的样式**（不是读文件文本），所以能真的抓到那种被吞掉的情形。
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
+    await sleep(1400);
+    const cssReach = JSON.parse(await evaluate(`(()=>{
+        const o = { vw: window.innerWidth };
+        // ★ 只认**布局中真的占位**的那一条：前面去过「我的」页，隐藏容器里还留着旧副本，
+        //   它们的 .timeline-left 计算宽是 auto、rect 宽是 0，会误判成"媒体查询没生效"。
+        const it = [...document.querySelectorAll('.timeline-item')].find(e => e.offsetParent && e.getBoundingClientRect().width > 1);
+        if (it) {
+            const left = it.querySelector('.timeline-left');
+            const cs = getComputedStyle(left);
+            o.leftWidth = cs.width;
+            o.leftDir = cs.flexDirection;
+            o.afterDisplay = getComputedStyle(left, '::after').display;
+            o.itemDir = getComputedStyle(it).flexDirection;
+            o.leftColW = Math.round(left.getBoundingClientRect().width);
+            o.cardTop = Math.round(it.querySelector('.timeline-card').getBoundingClientRect().top);
+            o.dotBottom = Math.round(it.querySelector('.timeline-dot').getBoundingClientRect().bottom);
+        }
+        const fee = [...document.querySelectorAll('.timeline-card--fee')].find(e => e.offsetParent && e.getBoundingClientRect().width > 1);
+        if (fee) o.feePadTop = getComputedStyle(fee).paddingTop;
+        return JSON.stringify(o);
+    })()`));
+    ok(cssReach.vw === 375 && !!cssReach.leftWidth, `手机端 CSS 生效性检查（视口 ${cssReach.vw}px，找到布局中的时间轴条目）`);
+    ok(cssReach.leftColW > cssReach.vw * 0.8 && cssReach.leftDir === 'row',
+        `600px 那块媒体查询确实生效：.timeline-left 变成整行（宽 ${cssReach.leftColW} / 视口 ${cssReach.vw}，direction=${cssReach.leftDir}）`);
+    ok(cssReach.afterDisplay === 'none',
+        `手机端竖线按规则隐藏（::after display=${cssReach.afterDisplay}）—— 若 layout.css 括号失衡，这条会先红`);
+    ok(cssReach.itemDir === 'column' && cssReach.cardTop >= cssReach.dotBottom - 40,
+        `手机端条目改为上下排（item direction=${cssReach.itemDir}）`);
+    ok(cssReach.feePadTop === '8px',
+        `手机端费用卡片收紧后的内边距生效（padding-top=${cssReach.feePadTop}，桌面是 10px）`);
+    await send('Emulation.clearDeviceMetricsOverride');
+    await sleep(400);
 
     ok(pageErrors.length === 0, `全程无未捕获异常（${pageErrors.length} 条${pageErrors.length ? '：' + pageErrors.slice(0, 2).join(' | ') : ''}）`);
 } catch (e) {
