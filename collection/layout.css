@@ -2499,19 +2499,93 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .tl-heatmap-cell:hover { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16); z-index: 3; }
 .tl-heatmap-cell:focus-visible { box-shadow: 0 0 0 2px var(--theme); z-index: 3; }
 /* 深浅不分档：每个格子由 JS 写一个连续的 --hm-o（0 = 这个月没买），
-   色相取 --theme，所以自动跟随用户选的 app 主题色，也不用 color-mix。 */
+   色相取 --theme，所以自动跟随用户选的 app 主题色，也不用 color-mix。
+   ★ 色相**随档位提亮**（用户要求"最亮的颜色还可以更加亮以拉开颜色区分度"）：
+   --hm-bright（0→1，JS 按"金额/最大金额"给出）越大，色相越偏向更亮的 --theme-light。
+   为 0 时 color-mix 出 --theme（与改动前完全一样），为 1 时是 --theme-light —— 也就是
+   山河图例那根条带的右端色。深色模式下 --theme-light 由 applyTheme() 提亮 35%，
+   暗底上的可读性也随之改善。 */
 .tl-hm-fill {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: var(--theme);
+    background: color-mix(in srgb,
+        var(--theme-light, var(--theme)) calc(var(--hm-bright, 0) * 55%),
+        var(--theme));
     opacity: var(--hm-o, 0);
     pointer-events: none;
     transition: transform 0.12s ease;
 }
 /* 深色底本身很暗，同样的透明度看着更淡：有金额的格子整体平滑抬一档（乘 0.92 再加 0.08）。
-   ★ 必须限定在 .tl-hm-on（有金额）上：否则 0 元的空格子也会被抬到 0.08，空月份会微微泛色 */
+   ★ 必须限定在 .tl-hm-on（有金额）上：否则 0 元的空格子也会被抬到 0.08，空月份会微微泛色
+   ★ 图例条带的有色段也带 .tl-hm-on，所以它和格子走的是**同一条**公式。 */
 html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o, 0) * 0.92 + 0.08); }
+
+/* ---------- 色阶图例（0/25/50/75/100%）----------
+   ★ 只保留三样东西：渐变指示条 + 中间三根竖杠 + 五个居中的金额标签。
+   没有任何标题文字、也没有"少 → 多"这类注解（用户明确去掉）。
+   ★ **宽度与热力条逐像素一致**：这里把图例做成热力图行的"几何双胞胎" ——
+   同一套 grid-template-columns（含 --hm-cell）、同一个 gap、同一个 justify-content: center，
+   而且**不设 width: max-content**（那会让它按自身内容收缩、于是整体左移 20px，
+   与居中的热力图行错位 —— 实测过）。两块宽度相同 ⇒ 居中对齐后每一条网格线都对得上。
+   ★ 条带是一条**连续渐变**（background-image 由 JS 按热力图同一取色函数写成
+   linear-gradient 的 color stop），不是几个离散色块。 */
+.tl-heatmap-legend {
+    display: grid;
+    grid-template-columns: 2.6em repeat(12, var(--hm-cell));
+    justify-content: center;
+    gap: 2px;
+    align-items: start;
+    margin-top: 10px;
+}
+/* 桌面（>480px）跟热力图一样用 3.4em 的年份列 + 4px 间距，否则第一列宽度差 0.8em */
+@media (min-width: 481px) {
+    .tl-heatmap-legend {
+        grid-template-columns: 3.4em repeat(12, var(--hm-cell));
+        gap: 4px;
+    }
+}
+.tl-hm-legend-spacer { grid-column: 1; }
+.tl-hm-legend-slot {
+    grid-column: 2 / -1;
+    position: relative;
+    padding-bottom: 17px;         /* 给下面的金额标签留位置 */
+}
+.tl-hm-legend-bar {
+    display: block;
+    height: 8px;                  /* 与山河图例条带同高 */
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+.tl-hm-legend-marks { position: absolute; left: 0; right: 0; top: 0; height: 8px; }
+/* 中间三个节点的竖杠刻度（0% 与 100% 在条带两端，不画） */
+.tl-hm-legend-mark {
+    position: absolute;
+    top: -2px;
+    width: 1px;
+    height: 12px;
+    background: var(--text-secondary);
+    opacity: 0.85;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+/* 金额标签：以对应位置为**中心**（left:X% + translateX(-50%)），只写金额。
+   不可点击：纯 <span>，既不渲染 <a>/href，也把手型光标和命中都关掉。 */
+.tl-hm-legend-ticks { position: absolute; left: 0; right: 0; top: 13px; height: 14px; }
+.tl-hm-legend-tick {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);   /* ★ 居中语义，不改成两端贴边 */
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    padding: 0;
+    cursor: default;
+    pointer-events: none;
+    user-select: none;
+}
 
 .tl-heatmap-tip {
     position: absolute;
@@ -2615,6 +2689,9 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
     .tl-heatmap-row { grid-template-columns: 2.6em repeat(12, var(--hm-cell)); gap: 2px; }
     .tl-heatmap-ylabel, .tl-heatmap-mlabel { font-size: 0.72rem; }
     .tl-heatmap-ylabel { padding-right: 2px; }
+    /* 图例在手机上：网格照旧复用上面那套（在同一个 @media 里 --hm-cell 已经缩小），
+       只把字号压小一档；条带宽度仍与热力条严格一致。 */
+    .tl-hm-legend-tick { font-size: 0.62rem; }
 }
 
 .timeline-body {
@@ -2746,7 +2823,7 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
 /* ---- 评级费条目：两行紧凑卡片，不占图片位 ------------------------------------
    费用条目不是藏品，没有图片这回事。所以渲染时**根本不生成** .timeline-images
    容器（连「暂无图片」占位也不生成，见 special.js 的 isFee 分支）；下面这几条只
-   负责把这一行排成   [评级费] 评级公司：xxx / 送评日期：… · 单号：… · 评级收费：… · 查看清单
+   负责把这一行排成   评级费(大标题) [ACG(圆角标签)] / 送评日期：… · 单号：… · 评级收费：… 下载清单
    配色只取既有的 --theme / --text-secondary / --border，不新增任何色值。 */
 .timeline-card--fee {
     flex-direction: column;
@@ -2758,10 +2835,30 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
 }
 .timeline-fee-main {
     display: flex;
-    align-items: center;
+    /* ★ 按文字基线对齐（不是 center）：第一行里大标题 0.9rem、链接 0.75rem，
+       行盒高度不同，center 会让链接相对大标题略微上浮。 */
+    align-items: baseline;
+    flex-wrap: wrap;                /* 375px 下太挤时允许换行，不许撑出横向滚动条 */
     gap: 8px;
     min-width: 0;
 }
+/* 第一行：评级费【大标题】 [评级公司：ACG]【主题色圆角标签】 下载清单
+   ★ 大标题不再 flex:1 独占整行 —— 后面还有「标签/链接」两样要跟着排，
+   所以改成 flex-shrink:0 的自然宽度，中间留一点空隙（gap），整体靠左。
+   ★ 链接在最右端：用 margin-left:auto 把它推到行尾（用户要求"移到第一行的 acg 后面"，
+   放行尾既紧跟标签、又不会挤在中间被省略号切掉）。 */
+.timeline-fee-title {
+    flex-shrink: 0;
+    min-width: 0;
+    font-weight: bold;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* ★ 主题色圆角标签，文字 = 「评级公司：」+ 数据里的 graderShort（用户确认前缀也放进去）。
+   第一行原本是  [标签"评级费"] + 大标题"评级公司：xxx"，
+   现在改成      "评级费"当大标题 + [标签"评级公司：ACG"] + 下载清单。 */
 .timeline-fee-tag {
     flex-shrink: 0;
     background: var(--theme);
@@ -2771,15 +2868,6 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
     padding: 1px 8px;
     border-radius: 10px;
     white-space: nowrap;
-}
-.timeline-fee-title {
-    flex: 1;
-    min-width: 0;
-    font-weight: bold;
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 /* 第二行：各字段以 · 分隔。分隔符用 ::before 画，DOM 里就不必塞分隔节点，
    换行时收尾那一项不会留下一个孤零零的 ·。 */
@@ -2793,11 +2881,23 @@ html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o,
 }
 .timeline-fee-sub .fee-f + .fee-f::before { content: '\00B7'; margin-right: 6px; }
 .timeline-fee-sub .fee-f { white-space: nowrap; }
-/* 「查看清单」= 正文里那种行内链接：下划线 + 新窗口。
+/* 「下载清单」= 正文里那种行内链接：下划线 + 新窗口。现在在**第一行**行尾。
+   ★ 字号：**不许继承第一行大标题的字号**（用户反馈"几个字太大，应该是普通字号大小"），
+   显式写成和第二行字段一样的 0.75rem。字号是写死的绝对值，所以不管第一行将来怎么调都不受影响。
+   ★ 垂直对齐：第一行是 align-items:center 的 flex，大标题(0.9rem 粗体)与链接(0.75rem)
+   的**行盒**不同高，纯 center 会让链接文字相对大标题略微上浮。这里改成
+   align-items:baseline（见 .timeline-fee-main）+ 链接自带 line-height:1.5，
+   两者按文字基线对齐，看上去是"一行字"，不会突兀地上下错位。
    ★ 刻意**不写 color** —— 正文（.article-reader）里也没有任何 a 的着色规则，
    链接色来自浏览器对 color-scheme 的默认映射。这里同样不干预，
-   两处链接色就自然一致（写 color:inherit 反而会变成正文灰、与正文链接不一致）。 */
+   两处链接色就自然一致（写 color:inherit 反而会变成正文灰、与正文链接不一致）。
+   ★ 它不在 .fee-f 那一族里，所以不会吃到 ".fee-f + .fee-f::before" 那个分隔符。 */
 .timeline-fee-link {
+    flex-shrink: 0;
+    margin-left: auto;              /* 推到第一行行尾 */
+    font-size: 0.75rem;             /* = 第二行 .timeline-fee-sub 的字号 */
+    line-height: 1.5;
+    white-space: nowrap;
     text-decoration: underline;
     cursor: pointer;
 }

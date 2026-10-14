@@ -147,6 +147,7 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
     return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
   };
   const cells = {}; const years = new Set(); let totalAmount = 0, totalCount = 0;
+  let ownAmount = 0, feeSum = 0, rawAmount = 0;   // ownAmount = Σ裸币价；feeSum = 评级费支出；rawAmount = Σ录入价
   // ★ 藏品侧的 copyId 全集：台账判"已售出"的依据就是"cert 匹配不到 copyId"。
   const copyIds = new Set();
   for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
@@ -155,6 +156,21 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
       const d = map[k]; if (!d || !d.series) continue;
       const scan = (arr) => { for (const c of (arr || [])) if (c && c.copyId) copyIds.add(String(c.copyId)); };
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); }
+    }
+  }
+  // ★★ 认证码 → 该枚要减掉的评级费（**裸币价口径**，用户裁定 2026-10）：
+  //   录入价含评级费 ⇒ 自己送评且**非换壳**的那一枚显示/统计都减掉它。
+  //   换壳行（reholder）不减（当作原始价格），也不计入评级费。
+  //   同一 cert 出现两次时取**第一次**，与页面 gradingFeeIndex() 一致。
+  const feeOfCert = {};
+  const fee = window.DATA_MAP && window.DATA_MAP['gradingFeeData'];
+  if (fee && Array.isArray(fee.batches)) {
+    for (const b of fee.batches) {
+      for (const it of (b.items || [])) {
+        if (!it || !it.cert || feeOfCert[it.cert] !== undefined) continue;
+        if (!copyIds.has(String(it.cert))) continue;          // 已售出 ⇒ 不参与
+        feeOfCert[it.cert] = it.reholder ? 0 : px(it.paidFee); // 换壳 ⇒ 不减费
+      }
     }
   }
   for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
@@ -168,22 +184,24 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
         const key = y + '/' + mo;
         cells[key] = cells[key] || { n: 0, sum: 0 };
         cells[key].n++;
-        const p = px(c.price); cells[key].sum += p;
-        totalAmount += p; totalCount++; years.add(y);
+        const raw = px(c.price);
+        const fri = (c.copyId && feeOfCert[c.copyId] != null) ? feeOfCert[c.copyId] : 0;
+        const p = (raw > 0 && raw - fri >= 0) ? raw - fri : raw;   // 裸币价
+        cells[key].sum += p;
+        totalAmount += p; ownAmount += p; rawAmount += raw; totalCount++; years.add(y);
       } };
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
     }
   }
   // ★ 评级费台账也要算进来：时间轴上多了 5 条评级费条目（special.js 的
   //   gradingFeeEntries()，按**付款日期** paidDate 落位），它们同样进热力图的格子、
-  //   年份标签与"全部"泡。★ 一条"评级费"= 该批**匹配得上 copyId 的行**（匹配不上 = 已售出）
-  //   的 paidFee 之和，所以这里每批只记 **1 件**、金额取该批未售出部分。
+  //   年份标签与"全部"泡。★ 一条"评级费"= 该批**匹配得上 copyId 且非换壳**的行之和
+  //   （匹配不上 = 已售出；换壳 = 不计入评级费），所以这里每批只记 **1 件**。
   //   漏掉这一段会让 5 个格子的件数/金额全部偏小，并连带把三个标签泡泡一起带红。
-  const fee = window.DATA_MAP && window.DATA_MAP['gradingFeeData'];
   if (fee && Array.isArray(fee.batches)) {
     for (const b of fee.batches) {
       const dt = pdate(b.paidDate); if (!dt || isNaN(dt.getTime())) continue;
-      const live = (b.items || []).filter(it => it && copyIds.has(String(it.cert)));
+      const live = (b.items || []).filter(it => it && copyIds.has(String(it.cert)) && !it.reholder);
       let amt = 0;
       for (const it of live) amt += px(it.paidFee);
       amt = Math.round(amt * 10) / 10;
@@ -193,10 +211,10 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
       cells[key] = cells[key] || { n: 0, sum: 0 };
       cells[key].n++;
       const p = amt; cells[key].sum += p;
-      totalAmount += p; totalCount++; years.add(y);
+      totalAmount += p; feeSum += p; totalCount++; years.add(y);
     }
   }
-  return JSON.stringify({ cells, years: [...years].sort(), totalAmount: Math.round(totalAmount), totalCount });
+  return JSON.stringify({ cells, years: [...years].sort(), totalAmount: Math.round(totalAmount), totalCount, ownAmount: Math.round(ownAmount), feeSum: Math.round(feeSum), rawAmount: Math.round(rawAmount) });
 })()`));
 console.log(`      独立重算：${expectMatrix.years.length} 个年份（${expectMatrix.years.join(',')}）、${expectMatrix.totalCount} 件、${expectMatrix.totalAmount} 元`);
 
@@ -225,7 +243,16 @@ ok(cellBad === 0, `② ★ ${cellChecked} 个格子的「件数 + 金额」全�
 ok(Math.round(sumAll) === expectMatrix.totalAmount, `② 全部格子金额之和 = 独立重算总额（${Math.round(sumAll)} vs ${expectMatrix.totalAmount}）`);
 
 const sloganSum = parseInt(((await evaluate(`(document.querySelector('.timeline-slogan')||{}).textContent||''`)).match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
-ok(sloganSum === expectMatrix.totalAmount, `② ★ 格子金额之和 == 标语总额（${sloganSum} 元），说明热力图的金额口径与列表完全一致`);
+ok(Math.round(sumAll) === expectMatrix.totalAmount, `② 全部格子金额之和 = 独立重算总额（${Math.round(sumAll)} vs ${expectMatrix.totalAmount}）`);
+// ★★ 口径（用户裁定 2026-10，最终版）：**总花费 = Σ裸币价 + 评级费支出**，
+//   数学上恒等于 **Σ 藏品 price**（录入价 = 裸币价 + 该枚评级费）。既不重复也不遗漏。
+//   热力图与标语都必须落在同一个数上（热力图把两者都画进格子里）。
+ok(sloganSum === expectMatrix.totalAmount,
+  `② ★ 标语"共花了" == 热力图总额 == Σ裸币价 + 评级费支出（${sloganSum} vs ${expectMatrix.totalAmount}）`);
+ok(expectMatrix.totalAmount === expectMatrix.ownAmount + expectMatrix.feeSum,
+  `② ★ 总额 == Σ裸露价 ${expectMatrix.ownAmount} + 评级费支出 ${expectMatrix.feeSum} = ${expectMatrix.ownAmount + expectMatrix.feeSum}`);
+ok(expectMatrix.ownAmount === expectMatrix.rawAmount - expectMatrix.feeSum,
+  `② ★ Σ裸币价 == Σ录入价 − 评级费支出（${expectMatrix.ownAmount} == ${expectMatrix.rawAmount} − ${expectMatrix.feeSum}）`);
 
 // 深浅：用户两轮都说"不灵敏"，最后要求**无限档、按比例丝滑变化**。所以这里不改公式、直接验算：
 //   每个格子的 --hm-o 必须 = 0（金额 0）或 0.10 + 0.85 × 金额/最大金额
@@ -598,6 +625,190 @@ await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons
 await sleep(200);
 ok(mOut === 0, `⑤ ★ 手机宽度下泡也没越出屏幕边界、上下仍在热力图内（扫了首行 12 个格子）${mMsg.filter(m => /越界|没显示/.test(m)).join('；')}`);
 ok(mCent === 0, `⑤ ★ 手机宽度下同样"能居中就居中、放不下才贴边"${mCent ? '；' + mMsg.join('；') : ''}`);
+
+// ─────────── ⑤-b 色阶图例（0/25/50/75/100% + 最亮档提亮） ───────────
+// 用户要求："加一条类似于山河地图那样的指示条带，分别在 0%、25%、50%、75%、100% 的
+// 地方标注颜色深浅对应的价格。最亮的颜色还可以更加亮以拉开颜色区分度。"
+// 后续又明确：条带**本身是连续渐变**（不是 5 个离散色块）；中间三个节点各一根竖杠、
+// 两端不画；五个金额标签**以对应位置为中心**对齐；只写金额（无括号、无注解、不可点）；
+// **图例里不要任何标题文字**（"金额"、"少 → 多"都不要）；条带宽度与热力条一致。
+const legendFrame = `(()=>{
+  const lg = document.querySelector('.tl-heatmap-legend');
+  if (!lg) return JSON.stringify({ found: false });
+  const cs = getComputedStyle;
+  const bar = lg.querySelector('.tl-hm-legend-bar');
+  const marks = [...lg.querySelectorAll('.tl-hm-legend-mark')];
+  const ticks = [...lg.querySelectorAll('.tl-hm-legend-tick')];
+  const cells = [...document.querySelectorAll('.tl-heatmap-cell')];
+  const cellInfo = cells.map(c => {
+    const f = c.querySelector('.tl-hm-fill');
+    return { src: c.style.getPropertyValue('--hm-src').trim(),
+             amt: +(c.style.getPropertyValue('--hm-src') || 0),
+             bright: c.style.getPropertyValue('--hm-bright').trim(),
+             o: c.style.getPropertyValue('--hm-o').trim(),
+             color: cs(f).backgroundColor, opacity: +cs(f).opacity };
+  });
+  const maxAmt = Math.max(0, ...cellInfo.map(c => +c.src || 0));
+  const lr = lg.getBoundingClientRect();
+  const br = bar ? bar.getBoundingClientRect() : null;
+  const slot = lg.querySelector('.tl-hm-legend-slot');
+  const sr = slot ? slot.getBoundingClientRect() : null;
+  // 热力条（12 个格子的整体范围）：第一格左边缘 → 最后一格右边缘
+  const firstCell = cells[0], lastCell = cells[cells.length - 1];
+  const fcr = firstCell ? firstCell.getBoundingClientRect() : null;
+  const lcr = lastCell ? lastCell.getBoundingClientRect() : null;
+  const themeColor = cs(document.documentElement).getPropertyValue('--theme').trim();
+  // 该档金额对应的色相（用于和渐变 stop 比对）
+  const segColorAt = (amt) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    const stop = document.createElementNS('http://www.w3.org/2000/svg','stop');
+    const bg = cs(bar).backgroundImage;
+    return bg;
+  };
+  return JSON.stringify({
+    found: true,
+    theme: themeColor,
+    themeLight: cs(document.documentElement).getPropertyValue('--theme-light').trim(),
+    barImage: bar ? cs(bar).backgroundImage : null,
+    barColor: bar ? cs(bar).backgroundColor : null,
+    barH: br ? Math.round(br.height) : 0,
+    markCount: marks.length,
+    marks: marks.map(m => ({ pct: +m.dataset.percent, left: Math.round(m.getBoundingClientRect().left),
+                             w: Math.round(m.getBoundingClientRect().width), h: Math.round(m.getBoundingClientRect().height) })),
+    ticks: ticks.map(t => ({ pct: +t.dataset.percent, amt: +t.dataset.amount, text: t.textContent.trim(),
+        left: Math.round(t.getBoundingClientRect().left), right: Math.round(t.getBoundingClientRect().right),
+        center: (t.getBoundingClientRect().left + t.getBoundingClientRect().right) / 2,
+        transform: cs(t).transform, cursor: cs(t).cursor, pe: cs(t).pointerEvents })),
+    anchors: [0, 25, 50, 75, 100].map(p => sr ? sr.left + sr.width * p / 100 : -1),
+    tickTags: ticks.map(t => t.tagName),
+    linkCount: lg.querySelectorAll('a').length,
+    textAll: lg.textContent.replace(/\\s+/g, ' ').trim(),
+    hasArrow: /[\\u2192\\u27A1\\u2794\\u21D2\\uFF0D>]/.test(lg.textContent),
+    cellInfo, maxAmt,
+    bar: br ? { left: Math.round(br.left), right: Math.round(br.right), w: Math.round(br.width) } : null,
+    heatBar: (fcr && lcr) ? { left: Math.round(fcr.left), right: Math.round(lcr.right), w: Math.round(lcr.right - fcr.left) } : null,
+    legend: { left: Math.round(lr.left), right: Math.round(lr.right), top: Math.round(lr.top), bottom: Math.round(lr.bottom) },
+    hm: (() => { const h = document.querySelector('.tl-heatmap').getBoundingClientRect();
+        return { left: Math.round(h.left), right: Math.round(h.right), bottom: Math.round(h.bottom) }; })(),
+    tickFont: ticks.length ? parseFloat(cs(ticks[0]).fontSize) : 0,
+    docOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    vw: window.innerWidth,
+    scheme: document.documentElement.getAttribute('data-color-scheme')
+  });
+})()`;
+const lg375 = JSON.parse(await evaluate(legendFrame));
+ok(lg375.found === true, '⑤-b ★ 热力图下面有色阶图例条带');
+ok(lg375.markCount === 3, `⑤-b ★ 恰好 3 根竖杠刻度（实际 ${lg375.markCount} 根）`);
+ok(JSON.stringify(lg375.marks.map(m => m.pct)) === JSON.stringify([25, 50, 75]),
+  `⑤-b ★ 三根竖杠就在 25/50/75%（实际 ${lg375.marks.map(m => m.pct + '%').join(' / ')}）—— 两端不画`);
+ok(lg375.ticks.length === 5, `⑤-b 图例里正好 5 个金额标签（实际 ${lg375.ticks.length} 个）`);
+ok(JSON.stringify(lg375.ticks.map(t => t.pct)) === JSON.stringify([0, 25, 50, 75, 100]),
+  `⑤-b 五个标签分别对应 0/25/50/75/100%（实际 ${lg375.ticks.map(t => t.pct).join('/')}）`);
+// 五档价格 = 百分比 × 最大金额（同一条连续色阶的取值，不是另造的几个数）
+ok(lg375.ticks.every(t => t.amt === Math.round(lg375.maxAmt * t.pct / 100)),
+  `⑤-b ★ 五档数值就是 0/25/50/75/100% × 最大金额 ${lg375.maxAmt}：${lg375.ticks.map(t => t.pct + '%=' + t.amt + '元').join(' · ')}`);
+ok(lg375.ticks.every(t => t.text === t.amt + '元'),
+  `⑤-b ★ 标签只写金额、不带括号也不带注解（${lg375.ticks.map(t => t.text).join(' / ')}）`);
+// ★ 标签水平中心落在对应百分比位置上（居中语义）
+const offMax = Math.max(...lg375.ticks.map((t, i) => Math.abs(t.center - lg375.anchors[i])));
+ok(offMax <= 2,
+  `⑤-b ★ 五个标签都以对应位置为**中心**（最大偏差 ${offMax.toFixed(1)}px）：${lg375.ticks.map((t, i) => t.pct + '%@' + t.center.toFixed(0) + '/靶' + lg375.anchors[i].toFixed(0)).join(' ')}`);
+ok(lg375.ticks.every(t => /matrix\(1, 0, 0, 1, -\d/.test(t.transform) || /translateX\(-50%\)/.test(t.transform)),
+  '⑤-b ★ 定位用的是 translateX(-50%) 居中语义（没有改成两端贴边对齐）');
+// ★ 条带是连续渐变，不是离散色块（getComputedStyle 会把 color-mix 解析成 color(srgb …)，
+//   所以这里数的是渐变里出现的 color() 数量的 stop，而不是源码里的字面写法）
+ok(/linear-gradient/.test(lg375.barImage || ''),
+  `⑤-b ★ 指示条是一条 linear-gradient 连续渐变（实测 ${String(lg375.barImage).slice(0, 60)}…）`);
+ok((String(lg375.barImage).match(/color\(srgb/g) || []).length >= 4,
+  `⑤-b ★ 渐变里至少 4 个有色 stop（对应 0/25/50/75/100% 五档；0% 那端是 transparent）`);
+
+// ★★ 色停必须**均匀铺在 0/25/50/75/100%**（用户专门提过怀疑："是不是颜色渐变全部放在前面 25% 了"）。
+//   这里把 getComputedStyle 的 backgroundImage 原样解析出 (颜色, 偏移) 逐档核对，不看源码。
+const gradientStops = [...String(lg375.barImage).matchAll(/(color\(srgb[^)]*\)|rgba?\([^)]*\)|transparent)\s+([\d.]+)%/g)]
+  .map(m => ({ color: m[1], pct: +m[2] }));
+ok(gradientStops.length === 5, `⑤-b ★ 渐变正好 5 个色停（实际 ${gradientStops.length} 个）`);
+const stopPcts = gradientStops.map(s => s.pct);
+ok(JSON.stringify(stopPcts) === JSON.stringify([0, 25, 50, 75, 100]),
+  `⑤-b ★★ 色停偏移恰好均匀落在 0/25/50/75/100%（实际 [${stopPcts.join(', ')}]）`);
+// 相邻两档必须"看得出是两种颜色"：通道差总和 > 0.02（0-1 归一后）才算拉开区分度
+const chanDiff = (a, b) => {
+  const pa = [...String(a).matchAll(/[\d.]+/g)].map(Number).slice(-3);
+  const pb = [...String(b).matchAll(/[\d.]+/g)].map(Number).slice(-3);
+  return Math.abs(pa[0] - pb[0]) + Math.abs(pa[1] - pb[1]) + Math.abs(pa[2] - pb[2]);
+};
+const pairDiffs = [];
+for (let i = 1; i < gradientStops.length; i++) pairDiffs.push(chanDiff(gradientStops[i - 1].color, gradientStops[i].color));
+ok(pairDiffs.slice(1).every(d => d > 0.02),
+  `⑤-b ★ 相邻色停颜色互不相同（通道差 ${pairDiffs.slice(1).map(d => d.toFixed(3)).join(' / ')}，都要 > 0.02）`);
+// 0% 那一端是"没有买"（透明白），100% 是最亮档 —— 两处差异要明显
+ok(/rgba\(0, 0, 0, 0\)|transparent/.test(gradientStops[0] && gradientStops[0].color || ''),
+  `⑤-b ★ 0% 那端是"没买"的透明（实际 ${gradientStops[0] && gradientStops[0].color}）`);
+ok(chanDiff(lg375.theme, gradientStops[4] && gradientStops[4].color || '') > 0.05,
+  `⑤-b ★★ 0% 与 100% 两处色差明显（--theme 本色 ${lg375.theme} → 100% 端 ${gradientStops[4] && gradientStops[4].color}）`);
+// 色相亮度工具（相对亮度，WCAG 口径）。color(srgb …) 与 rgb(…) 都归一成 [r,g,b] 0-255。
+// ★ 一律先按 0-1 归一化，再走 sRGB 反伽马；不要中途 ×255 再 ÷255（那么写自己在算术上是对称的，
+//   但可读性差、也容易被"到底在哪一步归一"绕晕）。
+const lumOf = (v) => {
+  const s = String(v == null ? '' : v);
+  let r, g, b;
+  const cm = s.match(/color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/);
+  if (cm) { r = +cm[1]; g = +cm[2]; b = +cm[3]; }
+  else {
+    const m = s.match(/([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+    if (!m) return NaN;
+    r = +m[1] / 255; g = +m[2] / 255; b = +m[3] / 255;
+  }
+  const f = (x) => { const t = Math.min(1, Math.max(0, x)); return t <= 0.03928 ? t / 12.92 : Math.pow((t + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const brightestCellColor = (() => { const top = lg375.cellInfo.slice().sort((a, b) => b.amt - a.amt)[0]; return top ? top.color : null; })();
+// ★ 图例里不要任何文字（标题/注解），只剩金额标签
+ok(!/金额/.test(lg375.textAll), `⑤-b ★ 图例里没有「金额」标题（实际文字「${lg375.textAll}」）`);
+ok(!/少\s*→\s*多/.test(lg375.textAll) && !lg375.hasArrow,
+  `⑤-b ★ 图例里没有「少 → 多」这类注解、也没有箭头符号（实际文字「${lg375.textAll}」）`);
+// ★ 图例不可点击
+ok(lg375.linkCount === 0 && lg375.tickTags.every(t => t === 'SPAN'),
+  '⑤-b ★ 金额标签里没有 <a>、没有 href（全是 <span>）');
+ok(lg375.ticks.every(t => t.pe === 'none' && t.cursor !== 'pointer'),
+  `⑤-b ★ 金额标签不可点（pointer-events=${lg375.ticks[0].pe}，cursor=${lg375.ticks[0].cursor}）`);
+// ★ 宽度与热力条一致（逐像素）
+ok(lg375.bar && lg375.heatBar && Math.abs(lg375.bar.left - lg375.heatBar.left) <= 1 &&
+   Math.abs(lg375.bar.right - lg375.heatBar.right) <= 1,
+  `⑤-b ★ 指示条宽度与热力条一致（条带 ${lg375.bar.left}..${lg375.bar.right} vs 热力条 ${lg375.heatBar.left}..${lg375.heatBar.right}）`);
+// ★ 最亮档提亮：色相随档位偏向更亮的 --theme-light
+const baseThemeLum = lumOf(lg375.theme);
+ok(!!brightestCellColor && lumOf(brightestCellColor) > baseThemeLum + 0.02,
+  `⑤-b ★★ 最亮档比改动前更亮：相对亮度 ${brightestCellColor ? lumOf(brightestCellColor).toFixed(3) : '-'} > --theme 本色 ${baseThemeLum.toFixed(3)}`);
+// 色相随档位单调变亮（拉开区分度）
+const rampLums = (() => {
+  const bs = lg375.cellInfo.map(c => +c.bright).filter(v => !isNaN(v));
+  const uniq = [...new Set(bs)].sort((a, b) => a - b);
+  return uniq.map(b => { const c = lg375.cellInfo.find(x => +x.bright === b); return lumOf(c.color); });
+})();
+ok(rampLums.every((v, i) => i === 0 || v >= rampLums[i - 1] - 1e-6),
+  `⑤-b 色相亮度随档位单调不倒退（${rampLums.map(v => v.toFixed(2)).join(' ≤ ')}）`);
+// 图例与热力图同一套取色：渐变两端 == 对应金额格子的色相
+ok(/color\(srgb/.test(String(lg375.barImage)),
+  '⑤-b ★ 渐变用的是与热力图同一个色相表达式（color-mix(--theme-light, --theme) 的解析结果）');
+// 渐变的最后一档（100%）必须与"金额最大的那个格子"同色
+const lastStopColor = (() => {
+  const m = [...String(lg375.barImage).matchAll(/color\(srgb ([^)]+)\)/g)].pop();
+  return m ? `color(srgb ${m[1]})` : null;
+})();
+ok(!!lastStopColor && !!brightestCellColor && lastStopColor === brightestCellColor,
+  `⑤-b ★ 渐变最右端色 ${lastStopColor} == 金额最大格子的色相 ${brightestCellColor}（同一套取色函数）`);
+// 图例在热力图的**数据行下方**（.tl-heatmap 的 bottom 含最后一个格子的悬浮泡，
+// 那个泡是绝对定位、不算版式高度，所以拿最后一个数据行的 bottom 来比）
+const lastRowBottom = await evaluate(`(()=>{
+  const rows = [...document.querySelectorAll('.tl-heatmap-row')].filter(r => r.querySelector('.tl-heatmap-cell'));
+  const r = rows[rows.length - 1];
+  return r ? Math.round(r.getBoundingClientRect().bottom) : -1;
+})()`);
+ok(lg375.legend.top >= lastRowBottom - 1,
+  `⑤-b 图例贴在热力图数据行下方（图例 top ${lg375.legend.top} ≥ 最后一行 bottom ${lastRowBottom}）`);
+ok(lg375.barH >= 5 && lg375.barH <= 12, `⑤-b 条带是 8px 那种细条（实际 ${lg375.barH}px 高）`);
+ok(lg375.legend.right <= lg375.vw && lg375.docOverflow <= 1,
+  `⑤-b ★ 375px 下图例不超出屏幕（图例 ${lg375.legend.left}..${lg375.legend.right}，视口 ${lg375.vw}，溢出 ${lg375.docOverflow}）`);
 
 // 窄屏下年份那个"侧边泡"也不能跑出屏幕（用户专门提的）：它在数字右边、尖角在左侧竖边
 await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'center' }); return 1; })()`);

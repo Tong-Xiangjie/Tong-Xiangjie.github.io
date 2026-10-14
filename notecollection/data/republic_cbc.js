@@ -135,6 +135,52 @@ const republic_cbcData = {
             year: "1936",
             varieties: [
                 {
+                    varietyName: "1936年 1元 曲阜孔庙大成殿",
+                    copies: [
+                        {
+                            copyId: 18004555,
+                            year: 1936,
+                            version: "L/K 955369",
+                            bank: "中央银行",
+                            print: "英国华德路公司/W&S",
+                            signature1: "总经理（General Manager）：李觉（D.L. Lichia）",
+                            signature2: "协理（Asst. Gen. Manager）：田亦民（Y.M. Dien）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 64E",
+                            price: "98元",
+                            purchaseDate: "2026年10月14日",
+                            krause: "216d",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/18004555-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/18004555-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1936年 5元 曲阜孔庙大成殿",
+                    copies: [
+                        {
+                            copyId: 10701916,
+                            year: 1936,
+                            version: "B/D 893165V",
+                            bank: "中央银行",
+                            print: "英国华德路公司/W&S",
+                            signature1: "总经理（General Manager）：李觉（D.L. Lichia）",
+                            signature2: "协理（Asst. Gen. Manager）：黄秀峰（Siufeng Huang）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 63E",
+                            price: "88元",
+                            purchaseDate: "2026年10月14日",
+                            krause: "217a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916,-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916,-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "1936年 10元 曲阜孔庙大成殿",
                     copies: [
                         {
@@ -230,6 +276,24 @@ const republic_cbcData = {
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-2.jpg"
+                        },{
+                            copyId: 10008444,
+                            year: 1936,
+                            version: "V644225 T/S",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            signature1: "总经理（General Manager）：李觉（D.L. Lichia）",
+                            signature2: "协理（Asst. General Manager）：田亦民（Y.M. Dien）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 65E",
+                            price: "88元",
+                            purchaseDate: "2026年10月14日",
+                            krause: "213c",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10008444-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10008444-2.jpg"
                         }
                     ]
                 }

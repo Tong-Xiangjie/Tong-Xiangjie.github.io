@@ -50,37 +50,47 @@ vm.createContext(sctx);
 vm.runInContext(dataSrc + '\n;window.__g = JSON.stringify(gradingFeeData);', sctx, { filename: 'grading_fee.js' });
 const G = JSON.parse(sctx.__g);
 
-// ★ 每批：pj / 送评 / 付款 / 未售出行数 / 未售出原价 / **支出** / 表格行数 / 表格原价 / 表格实收 / 已售出行数 / 已售出金额
-//   注意"未售出原价"与"支出"不是同一个数：原价是折前的口径（279 元支出对应 310 元原价），
+// ★ 每批：pj / 送评 / 付款 / 支出侧行数 / 原价(全部行) / **支出** / 表格行数 / 表格原价 / 表格实收 / 已售出行数 / 已售出金额 / 换壳行数 / 换壳金额
+//   注意"原价"与"支出"不是同一个数：原价是折前的口径（279 元支出对应 310 元原价），
 //   表格原价是含已售出行的（330 元）。
+//   ★★ 支出口径（用户裁定 2026-10）= 未售出 **且非换壳** 行之和 ⇒ 批次 4 = 1602
+//      （1615.5 里含 13.5 的换壳行，已剔除；留档实收仍是 1615.5）。
 const EXPECT = [
-    ['PJ20251125235158', '2025-11-25', '2025-12-17', 11, '310元', '279元', 12, '330元', '297元', 1, '18元'],
-    ['PJ20260125243493', '2026-01-25', '2026-01-29', 14, '470元', '423元', 15, '550元', '495元', 1, '72元'],
-    ['PJ20260310253570', '2026-03-10', '2026-04-01', 33, '1010元', '909元', 34, '1040元', '936元', 1, '27元'],
-    ['PJ20260615262532', '2026-06-15', '2026-07-01', 35, '1795元', '1615.5元', 35, '1795元', '1615.5元', 0, '0元'],
-    ['PJ20260906266166', '2026-09-06', '2026-10-01', 26, '900元', '810元', 27, '950元', '855元', 1, '45元'],
+    ['PJ20251125235158', '2025-11-25', '2025-12-17', 11, '310元', '279元', 12, '330元', '297元', 1, '18元', 0, '0元'],
+    ['PJ20260125243493', '2026-01-25', '2026-01-29', 14, '470元', '423元', 15, '550元', '495元', 1, '72元', 0, '0元'],
+    ['PJ20260310253570', '2026-03-10', '2026-04-01', 33, '1010元', '909元', 34, '1040元', '936元', 1, '27元', 0, '0元'],
+    ['PJ20260615262532', '2026-06-15', '2026-07-01', 34, '1795元', '1602元', 35, '1795元', '1615.5元', 0, '0元', 1, '13.5元'],
+    ['PJ20260906266166', '2026-09-06', '2026-10-01', 26, '900元', '810元', 27, '950元', '855元', 1, '45元', 0, '0元'],
 ];
 // ★ 4 个已售出（匹配不到 copyId）的编码 —— 用户裁定：判据就是"匹配不到 copyId"
 const SOLD_CERTS = ['26011872', '26288328', '26626174', '27104088'];
-const KEPT_ROWS = EXPECT.reduce((s, e) => s + e[3], 0);           // 119
-const KEPT_PAID = R1(EXPECT.reduce((s, e) => s + NUM(e[5]), 0)); // 4036.5
+const KEPT_ROWS = EXPECT.reduce((s, e) => s + e[3], 0);           // 118（支出侧行数：不含已售出、不含换壳）
+const KEPT_PAID = R1(EXPECT.reduce((s, e) => s + NUM(e[5]), 0)); // 4023
 const SHEET_ROWS = EXPECT.reduce((s, e) => s + e[6], 0);          // 123
 const SHEET_PAID = R1(EXPECT.reduce((s, e) => s + NUM(e[8]), 0)); // 4198.5
 const SOLD_ROWS = EXPECT.reduce((s, e) => s + e[9], 0);           // 4
 const SOLD_PAID = R1(EXPECT.reduce((s, e) => s + NUM(e[10]), 0)); // 162
+const RH_ROWS = EXPECT.reduce((s, e) => s + e[11], 0);            // 1
+const RH_PAID = R1(EXPECT.reduce((s, e) => s + NUM(e[12]), 0));   // 13.5
 const KEPT_ITEMS = G.batches.flatMap(b => b.items || []);
+const NON_RH_ITEMS = KEPT_ITEMS.filter(i => !i.reholder);         // 支出侧明细行
 const WANT_DATES = EXPECT.map(e => e[2]);
 
 ok(G.batches.length === 5, `一共 5 个批次（实际 ${G.batches.length}）`);
-ok(KEPT_ITEMS.length === KEPT_ROWS, `items 里共 ${KEPT_ROWS} 行明细（已剔除 ${SOLD_ROWS} 行已售出；实际 ${KEPT_ITEMS.length}）`);
+ok(KEPT_ITEMS.length === KEPT_ROWS + RH_ROWS,
+    `items 里共 ${KEPT_ROWS + RH_ROWS} 行明细（已剔除 ${SOLD_ROWS} 行已售出，含 ${RH_ROWS} 行换壳；实际 ${KEPT_ITEMS.length}）`);
+ok(NON_RH_ITEMS.length === KEPT_ROWS, `剔掉换壳后 ${KEPT_ROWS} 行参与支出（实际 ${NON_RH_ITEMS.length}）`);
 ok(G.totals.itemCount === KEPT_ROWS, `totals.itemCount = ${KEPT_ROWS}（支出侧行数；实际 ${G.totals.itemCount}）`);
 ok(G.totals.paidFee === KEPT_PAID + '元', `totals.paidFee = "${KEPT_PAID}元"（支出合计；实际 "${G.totals.paidFee}"）`);
 ok(G.totals.sheetPaidFee === SHEET_PAID + '元', `totals.sheetPaidFee = "${SHEET_PAID}元"（表格实收留档；实际 "${G.totals.sheetPaidFee}"）`);
 ok(G.totals.sheetItemCount === SHEET_ROWS, `totals.sheetItemCount = ${SHEET_ROWS}（表格留档行数；实际 ${G.totals.sheetItemCount}）`);
 ok(G.totals.soldCount === SOLD_ROWS && G.totals.soldPaidFee === SOLD_PAID + '元',
     `totals 记着已售出 ${SOLD_ROWS} 行 / ${SOLD_PAID}元（实际 ${G.totals.soldCount} 行 / ${G.totals.soldPaidFee}）`);
-ok(R1(NUM(G.totals.paidFee) + NUM(G.totals.soldPaidFee)) === NUM(G.totals.sheetPaidFee),
-    `支出 ${G.totals.paidFee} + 已售出 ${G.totals.soldPaidFee} = 留档实收 ${G.totals.sheetPaidFee}`);
+// ★★ 新口径下的自洽式：留档实收 = 支出 + 已售出 + **换壳**
+ok(R1(NUM(G.totals.paidFee) + NUM(G.totals.soldPaidFee) + NUM(G.totals.reholderPaidFee)) === NUM(G.totals.sheetPaidFee),
+    `支出 ${G.totals.paidFee} + 已售出 ${G.totals.soldPaidFee} + 换壳 ${G.totals.reholderPaidFee} = 留档实收 ${G.totals.sheetPaidFee}`);
+ok(G.totals.reholderCount === RH_ROWS && G.totals.reholderPaidFee === RH_PAID + '元',
+    `totals 记着换壳 ${RH_ROWS} 行 / ${RH_PAID}元（实际 ${G.totals.reholderCount} 行 / ${G.totals.reholderPaidFee}）`);
 ok(KEPT_PAID !== SHEET_PAID, `支出合计 ${KEPT_PAID}元 与留档实收 ${SHEET_PAID}元 **不是**同一个数（差额 ${R1(SHEET_PAID - KEPT_PAID)}元）`);
 
 // ★ 精简后的字段清单：明细**只**留 cert + listFee + paidFee（+ 换壳标记），
@@ -118,16 +128,21 @@ const mismatch = [];
 for (const e of EXPECT) {
     const b = G.batches.find(x => x.pj === e[0]);
     const mine = (b && b.items) || [];
+    // ★ "批次的支出"对的是**剔除换壳后**的明细之和；原价则对**全部明细**之和
+    const mineNonRh = mine.filter(i => !i.reholder);
     const sl = R1(mine.reduce((s, i) => s + NUM(i.listFee), 0));
-    const sp = R1(mine.reduce((s, i) => s + NUM(i.paidFee), 0));
-    if (!b || mine.length !== e[3] || sl !== NUM(e[4]) || sp !== NUM(e[5])) {        mismatch.push(`${e[0]}: 行${mine.length}/${sl}/${sp} vs 期望 ${e[3]}/${e[4]}/${e[5]}`);
+    const sp = R1(mineNonRh.reduce((s, i) => s + NUM(i.paidFee), 0));
+    if (!b || mineNonRh.length !== e[3] || sl !== NUM(e[4]) || sp !== NUM(e[5])) {        mismatch.push(`${e[0]}: 支出侧行${mineNonRh.length}/${sl}/${sp} vs 期望 ${e[3]}/${e[4]}/${e[5]}`);
     }
 }
-ok(mismatch.length === 0, `每批"匹配上的明细之和 = 该批支出"（原价与折后都核过；异常：${mismatch.join(' | ') || '无'}）`);
+ok(mismatch.length === 0, `每批"剔除换壳的明细之和 = 该批支出"（原价与折后都核过；异常：${mismatch.join(' | ') || '无'}）`);
 ok(R1(G.batches.reduce((s, b) => s + NUM(b.paidFee), 0)) === KEPT_PAID, `逐批支出之和 = ${KEPT_PAID}元（= 新总计）`);
 ok(R1(G.batches.reduce((s, b) => s + NUM(b.sheetPaidFee), 0)) === SHEET_PAID, `逐批留档实收之和 = ${SHEET_PAID}元（= 表格上的实收，未受影响）`);
-ok(G.batches.every(b => R1(NUM(b.sheetPaidFee) - NUM(b.paidFee)) === NUM(b.soldPaidFee)),
-    '每批：留档实收 - 支出 = 该批已售出金额（两个合计自洽）');
+// ★★ 新口径：差额 = 已售出 + 换壳（换壳不再算进支出）
+ok(G.batches.every(b => R1(NUM(b.sheetPaidFee) - NUM(b.paidFee)) === R1(NUM(b.soldPaidFee) + NUM(b.reholderPaidFee || 0))),
+    '每批：留档实收 - 支出 = 该批已售出 + 该批换壳（两个合计自洽）');
+ok(R1(SHEET_PAID - KEPT_PAID) === R1(SOLD_PAID + RH_PAID),
+    `留档实收 − 支出 = 已售出 ${SOLD_PAID} + 换壳 ${RH_PAID} = ${R1(SOLD_PAID + RH_PAID)}（实际 ${R1(SHEET_PAID - KEPT_PAID)}）`);
 
 // ══════════════════════════════════════════════════════════════
 section('③ 按【付款日期】计入，不是送评日期');
@@ -137,8 +152,9 @@ for (const e of EXPECT) {
     ok(!!b && b.sentDate === e[1] && b.paidDate === e[2]
         && b.itemCount === e[3] && NUM(b.listFee) === NUM(e[4]) && NUM(b.paidFee) === NUM(e[5])
         && b.sheetItemCount === e[6] && NUM(b.sheetListFee) === NUM(e[7]) && NUM(b.sheetPaidFee) === NUM(e[8])
-        && b.soldCount === e[9] && NUM(b.soldPaidFee) === NUM(e[10]),
-        `批次 ${e[0]}：送评 ${b && b.sentDate} / 付款 ${b && b.paidDate} · 支出 ${e[5]}（留档 ${e[8]}，已售出 ${e[9]} 行 ${e[10]}）`);
+        && b.soldCount === e[9] && NUM(b.soldPaidFee) === NUM(e[10])
+        && (b.reholderCount || 0) === e[11] && NUM(b.reholderPaidFee || '0元') === NUM(e[12]),
+        `批次 ${e[0]}：送评 ${b && b.sentDate} / 付款 ${b && b.paidDate} · 支出 ${e[5]}（留档 ${e[8]}，已售出 ${e[9]} 行 ${e[10]}，换壳 ${e[11]} 行 ${e[12]}）`);
 }
 ok(G.batches.every(b => b.paidDate && b.paidDate !== b.sentDate), '每批的付款日期都不等于送评日期');
 ok(G.batches.every(b => /^\d{4}-\d{2}-\d{2}$/.test(b.paidDate)), '付款日期都是 ISO 写法');
@@ -147,16 +163,18 @@ ok(G.batches.slice().sort((a, b) => a.paidDate.localeCompare(b.paidDate)).map(b 
     `5 个付款日期按升序 = ${WANT_DATES.join(' → ')}`);
 
 // ══════════════════════════════════════════════════════════════
-section('④ 批次 4 = 1615.5（不是字面的 1,615）');
+section('④ 批次 4：留档 1615.5（不是字面的 1,615），支出 1602（剔掉 13.5 换壳）');
 // ══════════════════════════════════════════════════════════════
 const B4 = 'PJ20260615262532';
 const b4 = G.batches.find(x => x.pj === B4);
 ok(!!b4, `批次 4（${B4}）存在`);
-ok(b4 && NUM(b4.paidFee) === 1615.5, `批次 4 支出 = 1615.5元（实际 ${b4 && b4.paidFee}）`);
-ok(b4 && NUM(b4.sheetPaidFee) === 1615.5, '批次 4 留档实收 = 1615.5元（该批无已售出行，两者相同）');
+ok(b4 && NUM(b4.paidFee) === 1602, `批次 4 支出 = 1602元（实际 ${b4 && b4.paidFee}）`);
+ok(b4 && NUM(b4.sheetPaidFee) === 1615.5, '批次 4 留档实收 = 1615.5元（该批无已售出行）');
 ok(b4 && b4.soldCount === 0 && NUM(b4.soldPaidFee) === 0, '批次 4 没有已售出行（所以 35 行全在 items 里）');
 ok(b4 && NUM(b4.listFee) === 1795 && R1(NUM(b4.listFee) * 0.9) === 1615.5, '批次 4 原价 1795 → 折后 1615.5（9 折）');
 ok(b4 && (b4.items || []).length === 35, `批次 4 明细 35 行（实际 ${b4 && (b4.items || []).length}）`);
+ok(b4 && b4.reholderCount === 1 && NUM(b4.reholderPaidFee) === 13.5, '批次 4 记着 1 行换壳 / 13.5 元（不计入支出）');
+ok(b4 && R1(NUM(b4.sheetPaidFee) - NUM(b4.paidFee)) === 13.5, '批次 4：留档 1615.5 − 支出 1602 = 换壳 13.5');
 
 // ══════════════════════════════════════════════════════════════
 section('⑤ 重复编码 26626187 只算第一次');
@@ -171,23 +189,29 @@ ok(dup.length === 2, `26626187 在 items 里出现 2 次（批次 3 与批次 4�
     ok(!!r4 && NUM(r4.paidFee) === 0 && NUM(r4.listFee) === 0, `批次 4 那一行计 0/0 元（只算第一次；实际 ${r4 && r4.listFee}/${r4 && r4.paidFee}）`);
 }
 ok(R1(dup.reduce((s, i) => s + NUM(i.paidFee), 0)) === 27, '26626187 这一枚在总支出里只贡献 27元（没有被算两次）');
-ok(KEPT_PAID !== 4009.5, `总支出 ${KEPT_PAID}元 —— 若把这枚重复计一次会变成 4009.5，说明"只算一次"生效`);
 
 // ══════════════════════════════════════════════════════════════
-section('⑥ 换壳行 FJ772552（15 → 13.5）照录入计');
+section('⑥ 换壳行 FJ772552（15 → 13.5）**不计入评级费**');
 // ══════════════════════════════════════════════════════════════
-// ★ 该行（批次 4 的 cert 19006336）**匹配得上 copyId ⇒ 未售出 ⇒ 计入**。
-//   （如果哪天它被卖掉、从藏品里移除了，那它会匹配不上而被剔除 —— 下一条断言盯着这个。）
+// ★★ 用户裁定（推翻早先"换壳也算评级费"）：换壳当作**原始价格**处理 ——
+//   不减费、也不计入评级费。所以这一行仍然留在 items 里（留档可追溯、且它匹配得上
+//   copyId），但**不参与 paidFee 汇总**、也不参与藏品那侧的"裸币价"折算。
 const shellCert = '19006336';
 const shell = KEPT_ITEMS.find(i => i.cert === shellCert);
-ok(!!shell, `换壳行（cert=${shellCert}）仍在 items 里（匹配得上 copyId ⇒ 未售出 ⇒ 计入）`);
+ok(!!shell, `换壳行（cert=${shellCert}）仍在 items 里留档（可追溯）`);
 ok(shell && shell.reholder === true, '换壳行带 reholder: true 标记');
 ok(shell && shell.listFee === '15元' && shell.paidFee === '13.5元', `原价 15元 / 折后 13.5元（实际 ${shell && shell.listFee} / ${shell && shell.paidFee}）`);
 ok(shell && NUM(shell.listFee) === 15 && NUM(shell.paidFee) === 13.5, '半价换壳的原价 15 = 常规 30 的一半，折后 13.5 = 15 × 0.9');
 ok(KEPT_ITEMS.filter(i => i.reholder === true).length === 1, '全台账只有这一行带换壳标记（不会误标）');
 ok(SOLD_CERTS.indexOf(shellCert) < 0, '换壳行不在已售出名单里（判据是"匹配不到 copyId"，它匹配得上）');
-ok(b4 && Math.abs(R1((b4.items || []).reduce((s, i) => s + NUM(i.paidFee), 0)) - 1615.5) < 1e-9,
-    '换壳行 13.5 已含在批次 4 的 1615.5元支出里');
+// ★ 新判据：13.5 **不在**支出里
+ok(R1(NON_RH_ITEMS.reduce((s, i) => s + NUM(i.paidFee), 0)) === 4023,
+    `剔掉换壳后的明细之和 = 4023（换壳的 13.5 不在里面）`);
+ok(R1(KEPT_ITEMS.reduce((s, i) => s + NUM(i.paidFee), 0)) === 4036.5,
+    '全部明细（含换壳）之和 = 4036.5 —— 与 4023 相差正好 13.5，说明剔除生效');
+ok(!NON_RH_ITEMS.some(i => i.cert === shellCert), '换壳行**不在**支出侧明细里（不计入评级费）');
+ok(b4 && R1((b4.items || []).reduce((s, i) => s + NUM(i.paidFee), 0)) === 1615.5,
+    '换壳行 13.5 仍含在批次 4 的**留档** 1615.5 里（留档不受影响）');
 
 // ══════════════════════════════════════════════════════════════
 section('⑦ 与真实藏品 copyId 对账（"已售出"判据的机制性证明）');
@@ -231,7 +255,7 @@ vm.runInContext(`window.__probe = (function(){
             else if (s.copies) { for (const c of s.copies) list.push([c, s.seriesName]); }
             for (const pair of list) {
                 const c = pair[0];
-                if (c && c.copyId && !idx[c.copyId]) idx[c.copyId] = { name: pair[1], version: c.version || '', condition: c.condition || c.grade || '' };
+                if (c && c.copyId && !idx[c.copyId]) idx[c.copyId] = { name: pair[1], version: c.version || '', condition: c.condition || c.grade || '', price: c.price || '' };
             }
         }
     }
@@ -278,7 +302,9 @@ const parseChineseDateStub = `function parseChineseDate(s) {
     const m2 = String(s||'').trim().match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日?/);
     return m2 ? new Date(+m2[1], +m2[2]-1, +m2[3]) : null;
 }`;
-const FEE_FNS = ['timelinePriceOf', 'feeAmountOf', 'formatTimelineDate', 'gradingCopyIndex', 'gradingFeeEntries', 'gradingFeeTotal'];
+// ★ timelinePriceOf 现在会调 nakedFeeOf（裸币价口径）→ nakedFeeOf 又要 gradingFeeIndex，
+//   所以这两个也必须在沙箱里，否则 vm 里跑 timelinePriceOf 会 ReferenceError。
+const FEE_FNS = ['timelinePriceOf', 'nakedFeeOf', 'gradingFeeIndex', 'feeAmountOf', 'formatTimelineDate', 'gradingCopyIndex', 'gradingFeeEntries', 'gradingFeeTotal', 'nakedPriceOf', 'formatYuan'];
 function makeFeeCtx(extra = []) {
     const c = { console, window: null, JSON, Object, Array, String, Number, RegExp, Math, Boolean, Set, Map, Date, Error, isFinite, parseFloat, parseInt, isNaN };
     c.window = c;
@@ -397,23 +423,45 @@ ok(KEPT_ITEMS.every(i => !('name' in i) && !('version' in i) && !('condition' in
 
 // ⑧-3 ★ 注入式 fixture：验证"匹配不到 copyId 的行不计入支出 / 不进时间轴"这条**逻辑**。
 //   数据里那 4 行已经被剔除了，所以只能靠注入一份"只匹配得上一部分"的台账来验逻辑。
-//   fixture ①：批次 4 的 35 行里只有 1 行的 cert 能在藏品里找到 ⇒ 该批支出塌成 13.5，条目仍在；
+//   fixture ①：批次 4 的 35 行里只有 1 行（**非换壳**那行）的 cert 能在藏品里找到
+//              ⇒ 该批支出塌成 54，条目仍在；
 //   fixture ②：批次 5 的 26 行一个都匹配不上 ⇒ 该批支出为 0，**整批不出现在时间轴上**。
+//   ★ 这里特意**不用换壳行**（shellCert）：换壳行现在不计入评级费，
+//     拿它当"唯一匹配上的那行"会得到 0 元、整批消失，验不出"塌成一行"这件事。
 {
+    // ★ 挑一行**非换壳、且费用 > 0**的（批次 4 第一行是重复编码 26626187，计 0/0 元，
+    //   拿它验"塌成一行"会得到 0 元、整批消失，验不出东西）
+    const oneRow = (b4.items || []).find(i => !i.reholder && NUM(i.paidFee) > 0);
+    const oneCert = oneRow.cert;
+    const oneFee = NUM(oneRow.paidFee);
     const onlyShell = { ...G, batches: [G.batches[3]], totals: G.totals };
     const f1 = makeFeeCtx([
         'window.DATA_MAP = ' + JSON.stringify({
             gradingFeeData: onlyShell,
-            fake: { series: [{ seriesName: 'S', varieties: [{ varietyName: 'V', copies: [{ copyId: shellCert, version: 'FJ772552' }] }] }] }
+            fake: { series: [{ seriesName: 'S', varieties: [{ varietyName: 'V', copies: [{ copyId: oneCert, version: 'V1' }] }] }] }
         }) + ';',
         'window.getCategoryPath = function(){ return ""; };',
         'window.__e = JSON.stringify(gradingFeeEntries()); window.__t = gradingFeeTotal();'
     ]);
     const e1 = JSON.parse(f1.__e);
-    ok(e1.length === 1 && NUM(e1[0].copy.price) === 13.5,
-        `fixture①：只匹配得上 1 行时，该批条目金额塌成 13.5（只算匹配上的那行；实际 ${e1[0] && e1[0].copy.price}）`);
-    ok(Math.abs(f1.__t - 13.5) < 1e-9, `fixture①：gradingFeeTotal() = 13.5（实际 ${f1.__t}）`);
+    ok(e1.length === 1 && NUM(e1[0].copy.price) === oneFee,
+        `fixture①：只匹配得上 1 行时，该批条目金额塌成 ${oneFee}（只算匹配上的那行；实际 ${e1[0] && e1[0].copy.price}）`);
+    ok(Math.abs(f1.__t - oneFee) < 1e-9, `fixture①：gradingFeeTotal() = ${oneFee}（实际 ${f1.__t}）`);
     ok(e1[0].itemCount === 1, `fixture①：件数也跟着变成 1（实际 ${e1[0].itemCount}）`);
+}
+//   fixture ③：批次 4 里**只匹配得上换壳那一行** ⇒ 支出为 0、整批消失（换壳不计入评级费）
+{
+    const onlyRh = { ...G, batches: [G.batches[3]], totals: G.totals };
+    const f3 = makeFeeCtx([
+        'window.DATA_MAP = ' + JSON.stringify({
+            gradingFeeData: onlyRh,
+            fake: { series: [{ seriesName: 'S', varieties: [{ varietyName: 'V', copies: [{ copyId: shellCert, version: 'FJ772552' }] }] }] }
+        }) + ';',
+        'window.getCategoryPath = function(){ return ""; };',
+        'window.__e = JSON.stringify(gradingFeeEntries()); window.__t = gradingFeeTotal();'
+    ]);
+    ok(JSON.parse(f3.__e).length === 0 && f3.__t === 0,
+        `fixture③：只匹配得上换壳那一行 ⇒ 支出 0 / 不进时间轴（实际条目 ${JSON.parse(f3.__e).length} 条、合计 ${f3.__t}）`);
 }
 {
     const onlyB5 = { ...G, batches: [G.batches[4]], totals: G.totals };
@@ -470,8 +518,24 @@ const GRADERS = G.batches.map(b => b.grader);
 ok(GRADERS.every(x => typeof x === 'string' && x.trim() !== ''),
     `每个批次都带 grader 评级公司（实际 ${JSON.stringify(GRADERS)}）`);
 ok(GRADERS.every(x => x === GRADERS[0]), `当前 5 批是同一家公司（${GRADERS[0]}）—— 但渲染只认这个字段，不认公司名本身`);
-ok(!/爱藏/.test(readFileSync(join(COL, 'special.js'), 'utf8')),
-    '★ 渲染文件（special.js）里**没有**「爱藏」二字 —— 公司名完全由数据驱动，没有写死');
+
+// ★ graderShort（圆角标签里的短名）同样只从数据来，且**渲染端不得写死**。
+const GRADERS_SHORT = G.batches.map(b => b.graderShort);
+const GRADERS_SHORT_OF = (pj) => {
+    const b = G.batches.find(x => x.pj === pj);
+    return b ? b.graderShort : null;
+};
+ok(GRADERS_SHORT.every(x => typeof x === 'string' && x.trim() !== ''),
+    `每个批次都带 graderShort 短名（实际 ${JSON.stringify(GRADERS_SHORT)}）`);
+ok(!/ACG/.test(readFileSync(join(COL, 'special.js'), 'utf8').replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')),
+    '★ 渲染文件（special.js）里**没有**「ACG」三字（注释除外）—— 短名完全由数据驱动，没有写死');
+ok(!/ACG/.test(readFileSync(join(COL, 'layout.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')),
+    '★ 样式文件（layout.css）里也没有「ACG」（注释除外；标签文字不来自 CSS content）');
+// ★ 注释里会举"评级公司：爱藏评级"当示例（讲版式），所以比对前先把注释剥掉。
+const specialSrcNoComment = readFileSync(join(COL, 'special.js'), 'utf8')
+    .replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+ok(!/爱藏/.test(specialSrcNoComment),
+    '★ 渲染文件（special.js）里**没有**「爱藏」二字（注释除外）—— 公司名完全由数据驱动，没有写死');
 
 // ⑨-3 ★ listUrl 指向的清单文件确实存在（相对路径从 collection/ 页面出发 ⇒ 相对仓库根就是去掉开头的 ../）
 const LIST_FILES = G.batches.map(b => ({
@@ -750,7 +814,13 @@ try {
 
     // ⑫-2 藏品口径没被污染
     const copyCount = await evaluate(`typeof collectAllCopies==='function' ? collectAllCopies().length : -1`);
-    ok(copyCount === 396, `藏品总数仍是 396 件（实际 ${copyCount}）`);
+    // ★ 基线数字会随用户往数据里加藏品而变（用户在 republic_cbc.js 里加了 3 枚 ⇒ 396→399）。
+    //   这条断言的本意是"台账没有被算进藏品总数"，所以改成**与页面自己的口径对照**：
+    //   藏品的 series/copies 里根本没有 grading_fee，台账 series 为空。
+    ok(copyCount > 0 && await evaluate(`DATA_MAP['gradingFeeData'].series.length === 0`),
+        `藏品总数 ${copyCount} 件；台账 series 为空（评级费没被算进藏品总数）`);
+    ok(await evaluate(`collectAllCopies().every(c => !c.__fromFeeLedger)`),
+        'collectAllCopies() 里没有任何来自台账的条目');
 
     // ⑫-3 进入「币海拾年」
     const sid = await evaluate(`(()=>{
@@ -782,13 +852,18 @@ try {
             let d = ''; let p = it.previousElementSibling;
             while (p && !p.classList.contains('timeline-date-header')) p = p.previousElementSibling;
             if (p) d = (p.querySelector('.timeline-date-label')||{}).textContent || '';
-            const a = card.querySelector('a');
+            const a = card.querySelector('a.timeline-fee-link');
             // ★ 第二行用**字段**量：各字段是独立 <span class="fee-f">，分隔符由 CSS ::before 画，
             //   所以这里显式按字段取，不依赖分隔符是否进了 innerText。
+            //   ★ 口径（用户裁定）：第二行是 3 个 .fee-f（送评日期 / 单号 / 评级收费）
+            //     + 1 个 <a class="timeline-fee-link">（下载清单）。链接**故意**不是 .fee-f，
+            //     否则 .fee-f + .fee-f::before 会在「评级收费」和链接之间多画一个 ·。
             const fields = [...card.querySelectorAll('.timeline-fee-sub .fee-f')].map(e => e.textContent.trim());
             out.push({
+                pj: (fields[1] || '').replace('单号：', ''),
                 date: d.replace(/\\u00A0/g,' ').trim(),
                 tag: ((card.querySelector('.timeline-fee-tag')||{}).textContent||'').trim(),
+                hasTag: !!card.querySelector('.timeline-fee-tag'),
                 title: ((card.querySelector('.timeline-fee-title')||{}).textContent||'').trim(),
                 fields,
                 sub: fields.join(' \\u00B7 '),
@@ -807,7 +882,8 @@ try {
                 linkAbs: a ? a.href : null,
                 linkText: a ? a.textContent.trim() : null,
                 linkDeco: a ? getComputedStyle(a).textDecorationLine : null,
-                linkColor: a ? getComputedStyle(a).color : null
+                linkColor: a ? getComputedStyle(a).color : null,
+                linkCursor: a ? getComputedStyle(a).cursor : null
             });
         }
         return out;
@@ -819,10 +895,18 @@ try {
     ok(JSON.stringify(feeDates) === JSON.stringify(wantDateLabels),
         `5 条的日期就是 5 个**付款日期**、且顺序一致：${feeDates.join(' / ')}`);
 
-    // ⑫-4a ★ 第一行 = 标签 + 评级公司（公司名来自数据字段）
-    ok((feeRows || []).every(r => r.tag === '评级费'), `每条左侧都有小标签「评级费」（实际 ${JSON.stringify((feeRows || []).map(r => r.tag))}）`);
-    ok((feeRows || []).every(r => r.title === '评级公司：' + GRADERS[0]),
-        `★ 第一行是「评级公司：${GRADERS[0]}」，公司名来自数据字段（实际 ${JSON.stringify((feeRows || []).map(r => r.title))}）`);
+    // ⑫-4a ★ 第一行 = 「评级费」【大标题】 + 主题色圆角标签（文字 = 「评级公司：」+ 数据里的短名）
+    ok((feeRows || []).every(r => r.title === '评级费'),
+        `★ 第一行开头是「评级费」大标题（实际 ${JSON.stringify((feeRows || []).map(r => r.title))}）`);
+    ok((feeRows || []).every(r => r.hasTag && r.tag === '评级公司：' + GRADERS_SHORT_OF(r.pj)),
+        `★ 圆角标签文本 = 「评级公司：」+ 数据里的 graderShort（实际 ${JSON.stringify((feeRows || []).map(r => r.tag))}）`);
+    ok((feeRows || []).every(r => r.tag === '评级公司：' + GRADERS_SHORT[0]),
+        `★ 5 批都是「评级公司：${GRADERS_SHORT[0]}」`);
+    // ★ 第一行 DOM 顺序：评级费 → 标签（评级公司：ACG）→ 下载清单
+    ok((feeRows || []).every(r => /评级费[\s\S]*timeline-fee-tag[^>]*>评级公司：[\s\S]*?<\/span>[\s\S]*?下载清单/.test(r.html)),
+        '★ 第一行 DOM 顺序 = 评级费 → 圆角标签（评级公司：ACG）→ 下载清单');
+    ok((feeRows || []).every(r => !/timeline-fee-grader/.test(r.html)),
+        '不再有独立的「评级公司：」文字节点（前缀已经进标签里了）');
     ok((feeRows || []).every(r => r.itemClass.includes('timeline-item--fee') || r.cardClass.includes('timeline-card--fee')),
         '费用条目带专属 class（timeline-item--fee / timeline-card--fee），与藏品条目可区分');
 
@@ -834,9 +918,9 @@ try {
     ok((feeRows || []).every(r => !/<img|timeline-no-img|timeline-images/.test(r.html)),
         '整段 HTML 里不含 <img>／.timeline-no-img／.timeline-images');
 
-    // ⑫-4c ★ 第二行：字段与顺序 = 送评日期 / 单号 / 评级收费 / 查看清单
-    ok((feeRows || []).every(r => r.feeFieldCount === 4),
-        `第二行正好 4 个字段（实际 ${JSON.stringify((feeRows || []).map(r => r.feeFieldCount))}）`);
+    // ⑫-4c ★ 第二行：字段与顺序 = 送评日期 / 单号 / 评级收费 / 下载清单
+    ok((feeRows || []).every(r => r.feeFieldCount === 3),
+        `第二行正好 3 个 .fee-f 字段 + 1 个链接（实际 .fee-f ${JSON.stringify((feeRows || []).map(r => r.feeFieldCount))}）`);
     ok((feeRows || []).every((r, i) => r.fields[0] === '送评日期：' + cnDate(EXPECT[i][1])),
         `第 1 个字段 = 「送评日期：…」（是送评日期，不是付款日期；实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[0])}）`);
     ok((feeRows || []).every(r => !WANT_DATES.some(d => r.fields[0].includes(cnDate(d)))),
@@ -845,15 +929,32 @@ try {
         `第 2 个字段 = 「单号：PJ…」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[1])}）`);
     ok((feeRows || []).every(r => /^评级收费：[\d.]+元$/.test(r.fields[2])),
         `第 3 个字段 = 「评级收费：xx元」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[2])}）`);
-    ok((feeRows || []).every(r => r.fields[3] === '查看清单'),
-        `第 4 个字段 = 「查看清单」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].fields[3])}）`);
-    ok((feeRows || []).every(r => /送评日期[\s\S]*单号[\s\S]*评级收费[\s\S]*查看清单/.test(r.html)),
-        'HTML 里的先后顺序也是 送评日期 → 单号 → 评级收费 → 查看清单');
+    ok((feeRows || []).every(r => r.linkText === '下载清单'),
+        `第 4 项（链接）= 「下载清单」（实际 ${JSON.stringify((feeRows || [])[0] && (feeRows || [])[0].linkText)}）`);
+    ok((feeRows || []).every(r => /送评日期[\s\S]*单号[\s\S]*评级收费/.test(r.html)),
+        '第二行 HTML 里的先后顺序是 送评日期 → 单号 → 评级收费');
+    // ★ 第一行顺序：评级费 → 标签(评级公司：ACG) → 下载清单（链接**已经在第一行**）
+    ok((feeRows || []).every(r => {
+        const main = (r.html.match(/<div class="timeline-fee-main">([\s\S]*?)<\/div>/) || [])[1] || '';
+        return /评级费/.test(main) && /timeline-fee-tag/.test(main) && /下载清单/.test(main)
+            && main.indexOf('评级费') < main.indexOf('timeline-fee-tag')
+            && main.indexOf('timeline-fee-tag') < main.indexOf('下载清单');
+    }), '★ 第一行里 评级费 → 标签 → 下载清单 的先后顺序正确（链接在第一行）');
+    ok((feeRows || []).every(r => !/timeline-fee-sub[\s\S]*?下载清单/.test(r.html)),
+        '★ 第二行（.timeline-fee-sub）里**没有**「下载清单」（已经移到第一行）');
+    // ★ 链接刻意不在 .fee-f 族里（否则 ::before 会在「评级收费」后面多画一个 ·）
+    ok((feeRows || []).every(r => !/class="fee-f[^"]*"[^>]*>[^<]*下载清单/.test(r.html)),
+        '链接**不是** .fee-f（不会与「评级收费」之间多一个 · 分隔符）');
+    // ★ 第 3 个字段的金额必须是**新支出口径**（批次 4 = 1602，不是留档 1615.5）
+    ok((feeRows || []).every((r, i) => NUM(r.fields[2]) === NUM(EXPECT[i][5])),
+        `★ 每条金额 = 该批**新支出口径**（${(feeRows || []).map(r => NUM(r.fields[2])).join(' / ')} vs ${EXPECT.map(e => NUM(e[5])).join(' / ')}）`);
     ok((feeRows || []).every(r => !/购入价格/.test(r.text)), '不出现「购入价格」字样（那是藏品的说法，费用条目不沿用）');
     ok((feeRows || []).every(r => !/批次[\s\S]*PJ/.test(r.text) && !/（\d+ 项）/.test(r.text)),
         '不出现「批次 …（N 项）」这种标题');
     ok((feeRows || []).every(r => !/\d+\s*件/.test(r.text)), '第二行里不再列件数（用户给的版式里没有件数）');
-    ok((feeRows || []).every(r => /爱藏/.test(r.text)), '页面上的公司名确实渲染出来了（来自数据，不是渲染里写死）');
+    // ★ 短名标签必须来自数据：把数据改成 PMG ⇒ 标签就变「评级公司：PMG」（不是写死的 ACG）
+    ok((feeRows || []).every(r => r.tag === '评级公司：' + GRADERS_SHORT[0]),
+        `页面上的标签就是「评级公司：」+ 数据里的 graderShort（实际 ${JSON.stringify((feeRows || []).map(r => r.tag))}）`);
     ok((feeRows || []).every((r, i) => (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length === 1),
         `每条里 PJ 编号只出现**一次**（实际 ${JSON.stringify((feeRows || []).map((r, i) => (r.text.match(new RegExp(EXPECT[i][0], 'g')) || []).length))}）`);
     ok((feeRows || []).every(r => r.date && r.date.length > 0), '每条都落在某个日期分组头下（分组没坏）');
@@ -872,8 +973,9 @@ try {
     ok((feeRows || []).every(r => !/timeline-fee-amount/.test(r.html)),
         '不再有独立的右侧金额节点（金额改成第二行里的「评级收费」，按用户给的版式走）');
 
-    // ⑫-4e ★「查看清单」链接：数据给了 listUrl，就必须是能打开的真链接
-    ok((feeRows || []).every(r => r.linkText === '查看清单'), '每条都渲染出了「查看清单」链接');
+    // ⑫-4e ★「下载清单」链接：数据给了 listUrl，就必须是能打开的真链接
+    //   （文案从「查看清单」改成「下载清单」—— 点开确实是下载，用户要求改）
+    ok((feeRows || []).every(r => r.linkText === '下载清单'), '每条都渲染出了「下载清单」链接');
     ok((feeRows || []).every(r => r.linkHref === '../notecollection/readmes/image/grading_fee/' + r.fields[1].replace('单号：', '') + '.xlsx'),
         `href = 相对路径 ../notecollection/readmes/image/grading_fee/<PJ>.xlsx（实际 ${(feeRows || [])[0] && (feeRows || [])[0].linkHref}）`);
     ok((feeRows || []).every(r => r.linkTarget === '_blank'), 'target="_blank"（新窗口打开，与正文里的外链一致）');
@@ -892,7 +994,7 @@ try {
         return c;
     })()`);
     ok(!!artLinkColor && (feeRows || []).every(r => r.linkColor === artLinkColor),
-        `★「查看清单」与正文行内链接同色（都是 ${artLinkColor}）`);
+        `★「下载清单」与正文行内链接同色（都是 ${artLinkColor}）`);
     const linkStatus = JSON.parse(await evaluate(`(async()=>{
         const out = [];
         for (const a of document.querySelectorAll('.timeline-item[data-type="fee"] .timeline-fee-link')) {
@@ -912,18 +1014,55 @@ try {
         const cards = [...document.querySelectorAll('.timeline-card--fee')].filter(c => c.getBoundingClientRect().width > 1);
         const withLink = cards.filter(c => c.querySelector('.timeline-fee-link')).length;
         const cardsNoLink = cards.filter(c => c.querySelector('.timeline-fee-sub .fee-f:last-child') &&
-                                             /查看清单/.test(c.querySelector('.timeline-fee-sub .fee-f:last-child').textContent) &&
+                                             /下载清单/.test(c.querySelector('.timeline-fee-sub .fee-f:last-child').textContent) &&
                                              !c.querySelector('.timeline-fee-link')).length;
-        const emptyAnchors = [...document.querySelectorAll('.timeline-card--fee a')].filter(a => !a.getAttribute('href') || !a.textContent.trim()).length;
+        // ★ 底下这些查询也必须限定在**可见卡**（cards）里：页面上还有隐藏容器里的同构副本，
+        //   不限定就会取到隐藏副本、拿到空串（这条曾经真的红过）。
+        const emptyAnchors = cards.flatMap(c => [...c.querySelectorAll('a')]).filter(a => !a.getAttribute('href') || !a.textContent.trim()).length;
         return JSON.stringify({ cards: cards.length, withLink, cardsNoLink, emptyAnchors,
-                                lastFieldTexts: cards.map(c => (c.querySelector('.timeline-fee-sub .fee-f:last-child')||{}).textContent || '') });
+                                lastFieldTexts: cards.map(c => (c.querySelector('.timeline-fee-sub .fee-f:last-child')||{}).textContent || ''),
+                                firstLine: cards.map(c => ((c.querySelector('.timeline-fee-main')||{}).textContent || '').replace(/\\s+/g,' ').trim()),
+                                firstLineKids: cards.map(c => [...(c.querySelector('.timeline-fee-main')||{children:[]}).children].map(k => k.className + ':' + k.textContent.replace(/\\s+/g,' ').trim())) });
     })()`));
     ok(linkShape.cards === 5 && linkShape.withLink === 5,
         `5 张卡都有 listUrl ⇒ 5 个链接（实际 ${linkShape.withLink}/${linkShape.cards}）`);
-    ok(linkShape.cardsNoLink === 0, '没有"写着查看清单却没有链接"的卡片（不留空占位）');
+    ok(linkShape.cardsNoLink === 0, '没有"写着下载清单却没有链接"的卡片（不留空占位）');
     ok(linkShape.emptyAnchors === 0, '没有 href 为空或文字为空的 <a>（不出死链）');
-    ok(linkShape.lastFieldTexts.every(t => t === '查看清单'),
-        `最后一项就是「查看清单」（实际 ${JSON.stringify(linkShape.lastFieldTexts)}）`);
+    ok(linkShape.lastFieldTexts.every(t => /^评级收费：/.test(t)),
+        `第二行最后一项是「评级收费」（链接已经移到第一行；实际 ${JSON.stringify(linkShape.lastFieldTexts)}）`);
+    ok(linkShape.firstLine.every(t => t === '评级费' + '评级公司：' + (GRADERS_SHORT[0] || '') + '下载清单'),
+        `★ 第一行整体文字 = 「评级费」「评级公司：${GRADERS_SHORT[0]}」「下载清单」（实际 ${JSON.stringify(linkShape.firstLine)}）`);
+
+    // ⑫-4f-2 ★「下载清单」必须用**普通字号**（用户反馈"几个字太大"）：
+    //   它原来跟在大标题后面继承了 0.9rem。现在要求 = 第二行字段字号，且**小于**大标题。
+    //   ★ 用计算样式断言（不看 CSS 字面量），这样任何继承/层叠的意外都能抓到。
+    const fontSizeProbe = JSON.parse(await evaluate(`(()=>{
+        const card = [...document.querySelectorAll('.timeline-card--fee')].find(c => c.offsetParent && c.getBoundingClientRect().width > 1);
+        if (!card) return JSON.stringify({});
+        const fs = (el) => el ? parseFloat(getComputedStyle(el).fontSize) : null;
+        const link = card.querySelector('.timeline-fee-link');
+        const title = card.querySelector('.timeline-fee-title');
+        const tag = card.querySelector('.timeline-fee-tag');
+        const sub = card.querySelector('.timeline-fee-sub');
+        const f0 = card.querySelector('.timeline-fee-sub .fee-f');
+        const main = card.querySelector('.timeline-fee-main');
+        const baseline = (el) => { const r = el.getBoundingClientRect(); return Math.round(r.bottom * 10) / 10; };
+        return JSON.stringify({
+            link: fs(link), title: fs(title), tag: fs(tag), sub: fs(sub), fee: fs(f0),
+            mainAlign: main ? getComputedStyle(main).alignItems : null,
+            // "基线对齐"的粗判：链接与标签的文字行底不应差太多（两者字号差一档）
+            linkBottom: link ? baseline(link) : null,
+            tagBottom: tag ? baseline(tag) : null
+        });
+    })()`));
+    ok(fontSizeProbe.link === fontSizeProbe.fee,
+        `★「下载清单」字号 = 第二行字段字号（链接 ${fontSizeProbe.link}px vs 字段 ${fontSizeProbe.fee}px）`);
+    ok(fontSizeProbe.link < fontSizeProbe.title,
+        `★「下载清单」字号**小于**「评级费」大标题（${fontSizeProbe.link}px < ${fontSizeProbe.title}px）`);
+    // ★ 只要求"普通字号（= 第二行字段的 12px）、且小于大标题"；不比圆角标签更小
+    //   （标签字号 0.68rem 是刻意的"角标"尺寸，链接没必要跟着缩到那么小）。
+    ok(fontSizeProbe.mainAlign === 'baseline',
+        `第一行按基线对齐（align-items=${fontSizeProbe.mainAlign}），大小字号混排不会突兀地上浮/下沉`);
 
     // ⑫-5 与藏品按日期混排：日期分组头整体有序，且评级费夹在藏品日期流里
     const dateOrder = await evaluate(`[...document.querySelectorAll('.timeline-date-label')].map(e=>e.textContent.replace(/\\u00A0/g,' ').trim())`);
@@ -1328,6 +1467,157 @@ try {
         `手机端费用卡片收紧后的内边距生效（padding-top=${cssReach.feePadTop}，桌面是 10px）`);
     await send('Emulation.clearDeviceMetricsOverride');
     await sleep(400);
+
+    // ⑫-12 ★★ 「裸币」显示口径（用户裁定 2026-10）：
+    //   录入价**含评级费** ⇒ 自己送评且非换壳的那一枚显示「购入价格：裸币{N}元」，
+    //   N = 录入价 − 该枚评级费；换壳行与直接买来的现货一律**原样显示**（不加"裸币"）。
+    //   同时「共花了 X 元」= Σ 藏品 price（裸币价之和），不再额外加评级费。
+    {
+        // 服务端（Node）独立算出每一枚的裸币价，作为对账基准
+        const numOf = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n; };
+        const feeOfCert = {};
+        for (const b of G.batches) for (const it of (b.items || [])) {
+            if (!it || !it.cert || feeOfCert[it.cert] !== undefined) continue;
+            feeOfCert[it.cert] = it.reholder ? 0 : numOf(it.paidFee);
+        }
+        const expectedNaked = {};           // cert → 裸币价
+        const expectedRaw = {};             // cert → 录入价
+        let sumRaw = 0, sumNaked = 0, matchedNonRh = 0, matchedRh = 0;
+        for (const cert of colCopyIds) {
+            const raw = numOf(colIdx[cert].price);
+            if (!(raw > 0)) continue;
+            const f = feeOfCert[cert] || 0;
+            const naked = raw - f;
+            sumRaw += raw;
+            sumNaked += naked;
+            expectedRaw[cert] = raw;
+            expectedNaked[cert] = naked;
+            if (cert === shellCert) matchedRh++;
+            else if (feeOfCert[cert] !== undefined) matchedNonRh++;
+        }
+        console.log(`      裸币口径基准：${matchedNonRh} 枚自送评非换壳（要减费）、${matchedRh} 枚换壳（原价）`);
+        console.log(`      Σ 录入价 = ${R1(sumRaw)} 元 / Σ 裸币价 = ${R1(sumNaked)} 元（差 = 评级费 ${R1(sumRaw - sumNaked)}）`);
+        // ★ 页面侧自校准：逼页面自己把"Σ 录入价 / Σ 裸币价"报出来。
+        //   ★★ 注意 collectAllCopies() 返回的是**包装对象**（{copy, seriesName, type, dataKey}），
+        //   价格在 c.copy.price 里 —— 写成 c.price 会得到"0 件有价"，把断言带偏。
+        const pageBase = JSON.parse(await evaluate(`(()=>{
+            const num = (v) => { const n = parseFloat(String(v==null?'':v).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; };
+            const fee = (window.DATA_MAP && DATA_MAP['gradingFeeData']) || null;
+            const fIdx = {};
+            if (fee && Array.isArray(fee.batches)) for (const b of fee.batches) for (const it of (b.items||[])) {
+                if (!it || !it.cert || fIdx[it.cert] !== undefined) continue;
+                fIdx[it.cert] = it.reholder ? 0 : num(it.paidFee);
+            }
+            let raw = 0, naked = 0, cnt = 0, withFee = 0;
+            const all = (typeof collectAllCopies === 'function') ? collectAllCopies() : [];
+            const byCert = {};
+            for (const w of all) {
+                const c = w.copy || w;
+                const p = num(c.price); if (!(p > 0)) continue;
+                cnt++; raw += p;
+                const f = (c.copyId && fIdx[c.copyId] != null) ? fIdx[c.copyId] : 0;
+                if (c.copyId && fIdx[c.copyId] > 0) withFee++;
+                naked += (p - f);
+                if (c.copyId) byCert[String(c.copyId)] = p;
+            }
+            return JSON.stringify({ cnt, raw: Math.round(raw*100)/100, naked: Math.round(naked*100)/100, withFee, all: all.length, byCert: byCert });
+        })()`));
+        console.log(`      页面 collectAllCopies()：${pageBase.cnt} 件有价 / 共 ${pageBase.all} 件 · Σ 录入价 ${pageBase.raw} · Σ 裸币价 ${pageBase.naked}（其中 ${pageBase.withFee} 件要减费）`);
+        // ★ 以**页面口径**为准重建基准（Node 侧按 copyId 去重的扫描会漏掉没写 copyId 的藏品）
+        for (const cert of Object.keys(pageBase.byCert)) {
+            const raw = pageBase.byCert[cert];
+            const f = feeOfCert[cert] || 0;
+            expectedRaw[cert] = raw;
+            expectedNaked[cert] = raw - f;
+        }
+        const pageSumNaked = pageBase.naked;
+        // ★★ 用户原话举的例子：KP04057（cert 26626154）。
+        //   ★ 实测它录入 **925元**、台账该枚 **18元**（不是用户记忆里的 880/45）
+        //     ⇒ 正确显示是「裸币907元」。这里按**数据实际值**断言，并在日志里写明偏差，
+        //     免得把"用户记错了数字"误判成代码 bug。
+        const KP_CERT = '26626154';
+        const kpFee = feeOfCert[KP_CERT];
+        const kpRaw = pageBase.byCert[KP_CERT];
+        console.log(`      ★ 用户举例 KP04057：数据实际是 录入 ${kpRaw}元 / 费 ${kpFee}元 ⇒ 裸币 ${R1(kpRaw - kpFee)}元（用户记的是 880/45 ⇒ 835）`);
+        ok(kpRaw > 0 && kpFee > 0,
+            `KP04057（cert ${KP_CERT}）确实在台账里、且要减费（录入 ${kpRaw}元 / 费 ${kpFee}元）`);
+        ok(R1(kpRaw - kpFee) === R1(expectedNaked[KP_CERT]),
+            `★ KP04057 的裸币价 = 录入 − 费（${kpRaw} − ${kpFee} = ${R1(kpRaw - kpFee)}）`);
+        const kpShown = await evaluate(`(()=>{
+            for (const it of document.querySelectorAll('.timeline-item')) {
+                if (!it.offsetParent || it.dataset.type === 'fee') continue;
+                if (!/KP04057/.test(it.textContent)) continue;
+                const m = it.textContent.replace(/\\u00A0/g,' ').match(/购入价格：([^\\s]{0,24})/);
+                if (m) return m[1];
+            }
+            return null;
+        })()`);
+        ok(kpShown === '裸币' + R1(kpRaw - kpFee) + '元',
+            `★ 页面上 KP04057 确实渲染成「购入价格：${kpShown}」（应为 裸币${R1(kpRaw - kpFee)}元）`);
+        // ★ 先钉一组"机制性"事实：抽样一枚，把 原价/费/裸币价 三个数报出来
+        const sampleCert = '26011874';      // 郑和 1225 元那枚（费 45）—— 减费后是个整百落位的例子
+        ok(expectedRaw[sampleCert] > 0 && feeOfCert[sampleCert] > 0,
+            `样例 ${sampleCert}：录入 ${expectedRaw[sampleCert]}元 / 该枚评级费 ${feeOfCert[sampleCert]}元 ⇒ 裸币 ${R1(expectedNaked[sampleCert])}元`);
+        ok(R1(expectedRaw[sampleCert] - feeOfCert[sampleCert]) === R1(expectedNaked[sampleCert]),
+            `样例 ${sampleCert} 的裸币价 = 录入 − 费（${expectedRaw[sampleCert]} − ${feeOfCert[sampleCert]} = ${R1(expectedNaked[sampleCert])}）`);
+
+        // 页面：抓时间轴里所有藏品条目的「购入价格」文本 + 它属于哪一枚（靠冠字号不稳，
+        //   改用 title/内部数据？没有 data-copyid，于是按"该条目 HTML 里出现的冠字号"配对；
+        //   更可靠的是直接读 DOM 顺序不必要 —— 这里只做两类抽样断言 + 全量总和断言。）
+        const nakedProbe = JSON.parse(await evaluate(`(()=>{
+            const out = { naked: [], raw: [], hasNaked: 0, total: 0, slogan: '' };
+            const items = [...document.querySelectorAll('.timeline-item')].filter(e => e.offsetParent && e.dataset.type !== 'fee');
+            let feeShown = 0;   // 5 条评级费条目上写的「评级收费：xx元」之和（也要加回总额）
+            for (const it of document.querySelectorAll('.timeline-item[data-type="fee"]')) {
+                if (!it.offsetParent) continue;
+                for (const f of it.querySelectorAll('.timeline-fee-sub .fee-f')) {
+                    const mm = f.textContent.match(/^评级收费：([0-9.]+)元$/);
+                    if (mm) feeShown += +mm[1];
+                }
+            }
+            for (const it of items) {
+                const meta = it.querySelector('.timeline-meta') || it.querySelector('.timeline-card');
+                const txt = (meta || it).textContent.replace(/\\u00A0/g, ' ').replace(/\\s+/g, ' ');
+                const m = txt.match(/购入价格：(裸币)?([0-9.]+)元/);
+                if (!m) continue;
+                out.total++;
+                if (m[1]) { out.hasNaked++; out.naked.push(+m[2]); } else out.raw.push(+m[2]);
+                out[m[1] ? 'sampleNaked' : 'sampleRaw'] = (out[m[1] ? 'sampleNaked' : 'sampleRaw'] || []).concat(txt.slice(0, 90));
+            }
+            out.slogan = ((document.querySelector('.timeline-slogan') || {}).textContent || '').trim();
+            out.feeShown = feeShown;
+            return JSON.stringify(out);
+        })()`));
+        ok(nakedProbe.hasNaked === pageBase.withFee,
+            `★ 页面上带「裸币」字样的藏品条目 = 自送评非换壳的枚数（页面 ${nakedProbe.hasNaked} vs 基准 ${pageBase.withFee}）`);
+        const shownTotal = R1(nakedProbe.naked.reduce((s, v) => s + v, 0) + nakedProbe.raw.reduce((s, v) => s + v, 0) + nakedProbe.feeShown);
+        ok(R1(nakedProbe.naked.reduce((s, v) => s + v, 0) + nakedProbe.raw.reduce((s, v) => s + v, 0)) === R1(pageSumNaked),
+            `★ 页面上逐条藏品「购入价格」之和 = Σ 裸币价（${R1(nakedProbe.naked.reduce((s, v) => s + v, 0) + nakedProbe.raw.reduce((s, v) => s + v, 0))} vs ${R1(pageSumNaked)}）`);
+        ok(nakedProbe.feeShown === KEPT_PAID,
+            `★ 页面上 5 条评级费条目写的「评级收费」之和 = ${KEPT_PAID}（实际 ${nakedProbe.feeShown}）`);
+        ok(R1(shownTotal) === R1(pageBase.raw),
+            `★★ 界面上**所有**金额相加（裸币价 + 评级收费）= 标语总额（${shownTotal} vs Σ 录入价 ${pageBase.raw}）`);
+        // ★ 换壳行：显示原价、且**没有**"裸币"
+        ok(nakedProbe.raw.indexOf(expectedRaw[shellCert]) >= 0,
+            `★ 换壳行（FJ772552）显示的是原价 ${expectedRaw[shellCert]}元（在"不带裸币"的那批里）`);
+        ok(!nakedProbe.naked.some(v => v === expectedNaked[shellCert]),
+            `换壳行**没有**被折成裸币价（${R1(expectedNaked[shellCert])} 不在裸币那一批里）`);
+        // ★ 标语 = Σ 藏品 price（不再额外加评级费）
+        const sloganNum = parseInt((nakedProbe.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+        // ★★ 最终口径（用户裁定 2026-10）：**总花费 = Σ裸币价 + 评级费支出**，
+        //   数学上恒等于 **Σ 藏品 price**（录入价 = 裸币价 + 该枚评级费）。
+        //   上一版把评级费从总额里漏掉了（页面出现 44699），用户反馈"又少算了评级费"。
+        //   ★ 先按**未取整**的原始和验恒等式，再看取整后的标语 —— 页面是 toFixed(0)，
+        //     四舍五入的先后顺序会造成 ±0.5 的差，拿原始和验才严谨。
+        ok(R1(pageSumNaked + KEPT_PAID) === R1(pageBase.raw),
+            `★ Σ裸币价 ${pageSumNaked} + 评级费支出 ${KEPT_PAID} = Σ录入价 ${pageBase.raw}（未取整的原始和，恒等式成立）`);
+        ok(R1(pageSumNaked) === R1(pageBase.raw - KEPT_PAID),
+            `★ 自洽：Σ裸币价 ${pageSumNaked} == Σ录入价 ${pageBase.raw} − 评级费 ${KEPT_PAID}`);
+        ok(sloganNum === Math.round(pageBase.raw),
+            `★ 标语「共花了 ${sloganNum} 元」= Σ 藏品 price（页面独立复算 ${pageBase.raw} ⇒ ${Math.round(pageBase.raw)}）`);
+        ok(sloganNum !== Math.round(pageSumNaked),
+            `★ 标语**不是**只算裸币价（那样会是 ${Math.round(pageSumNaked)}，就是用户看到的"又少算了评级费"）`);
+    }
 
     ok(pageErrors.length === 0, `全程无未捕获异常（${pageErrors.length} 条${pageErrors.length ? '：' + pageErrors.slice(0, 2).join(' | ') : ''}）`);
 } catch (e) {

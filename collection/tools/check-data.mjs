@@ -294,28 +294,43 @@ if (grading) {
     const num = (s) => { const n = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
     const round1 = (n) => Math.round(n * 10) / 10;
     const B4 = 'PJ20260615262532';                 // 批次 4：字面 1,615 是显示舍入，真值 1615.5
-    const B4_EXPECT = 1615.5;
+    // ★ 支出口径（用户裁定 2026-10）剔掉那 1 行换壳（13.5）⇒ 支出 1602；留档仍是 1615.5
+    const B4_EXPECT = 1602;
+    const B4_SHEET_EXPECT = 1615.5;
 
     // 藏品侧 copyId 全集：台账里留下的每一行都必须能匹配上（匹配不上就该已经被剔除）
     const copyIds = new Set(gradingCopyIds || []);
 
-    let soldRows = 0, soldPaid = 0, unmatchedRows = 0;
+    let soldRows = 0, soldPaid = 0, unmatchedRows = 0, rhRows = 0, rhPaid = 0;
 
     // ① 每批：匹配上的明细之和 == 该批支出；行数一致；每行都匹配得上 copyId
+    //   ★★ 支出口径（用户裁定 2026-10）= 未售出 **且非换壳** 行之和：
+    //     换壳行（reholder）当作原始价格处理 —— 不减费、不计入评级费。
+    //     所以"支出侧"明细要先把 reholder 滤掉；原价（listFee）仍按**全部**明细求和。
     for (const b of grading.batches) {
         const mine = b.items || [];
+        const mineNoRh = mine.filter(i => !i.reholder);
         const sumList = round1(mine.reduce((s, i) => s + num(i.listFee), 0));
-        const sumPaid = round1(mine.reduce((s, i) => s + num(i.paidFee), 0));
+        const sumPaid = round1(mineNoRh.reduce((s, i) => s + num(i.paidFee), 0));
         if (mine.length === 0) err(`评级费批次 ${b.pj} 在 items 里一行明细都没有（批次台账与明细对不上）`);
         if (sumList !== num(b.listFee)) err(`评级费批次 ${b.pj}：明细原价之和 ${sumList} ≠ 批次原价 ${b.listFee}`);
-        if (sumPaid !== num(b.paidFee)) err(`评级费批次 ${b.pj}：明细折后之和 ${sumPaid} ≠ 批次折后(支出) ${b.paidFee}`);
-        if (mine.length !== Number(b.itemCount)) err(`评级费批次 ${b.pj}：明细行数 ${mine.length} ≠ itemCount ${b.itemCount}`);
-        // 留档实收必须 = 支出 + 已售出（留档含被剔除的那部分）
-        if (round1(num(b.sheetPaidFee) - num(b.paidFee)) !== round1(num(b.soldPaidFee))) {
-            err(`评级费批次 ${b.pj}：留档实收 ${b.sheetPaidFee} - 支出 ${b.paidFee} ≠ 已售出 ${b.soldPaidFee}`);
+        if (sumPaid !== num(b.paidFee)) err(`评级费批次 ${b.pj}：剔换壳后明细折后之和 ${sumPaid} ≠ 批次折后(支出) ${b.paidFee}`);
+        if (mineNoRh.length !== Number(b.itemCount)) err(`评级费批次 ${b.pj}：支出侧明细行数 ${mineNoRh.length} ≠ itemCount ${b.itemCount}`);
+        // 留档实收必须 = 支出 + 已售出 + 换壳（留档含被剔除的那两部分）
+        const rhFee = round1(mine.filter(i => i.reholder).reduce((s, i) => s + num(i.paidFee), 0));
+        if (round1(num(b.sheetPaidFee) - num(b.paidFee)) !== round1(num(b.soldPaidFee) + rhFee)) {
+            err(`评级费批次 ${b.pj}：留档实收 ${b.sheetPaidFee} - 支出 ${b.paidFee} ≠ 已售出 ${b.soldPaidFee} + 换壳 ${round1(rhFee)}元`);
+        }
+        if (mine.filter(i => i.reholder).length !== (Number(b.reholderCount) || 0)) {
+            err(`评级费批次 ${b.pj}：换壳行数 ${mine.filter(i => i.reholder).length} ≠ reholderCount ${b.reholderCount || 0}`);
+        }
+        if (round1(rhFee) !== num(b.reholderPaidFee || '0元')) {
+            err(`评级费批次 ${b.pj}：换壳金额 ${round1(rhFee)}元 ≠ reholderPaidFee ${b.reholderPaidFee || '（缺失）'}`);
         }
         soldRows += Number(b.soldCount) || 0;
         soldPaid = round1(soldPaid + num(b.soldPaidFee));
+        rhRows += mine.filter(i => i.reholder).length;
+        rhPaid = round1(rhPaid + rhFee);
         // ② 折后价必须是原价的 9 折（半价换壳等"原价本身已打折"的行不影响这条：折扣后仍是 9 折）
         for (const i of mine) {
             const o = num(i.listFee), p = num(i.paidFee);
@@ -330,18 +345,19 @@ if (grading) {
         }
     }
 
-    // ④ 批次 4 的钉死值（该批无已售出行，所以支出 = 留档）
+    // ④ 批次 4 的钉死值（该批无已售出行，但含 1 行换壳 ⇒ 支出 = 留档 − 13.5）
     const b4 = grading.batches.find(x => x.pj === B4);
     if (!b4) err(`评级费批次缺少 ${B4}`);
-    else if (num(b4.paidFee) !== B4_EXPECT) err(`评级费批次 4（${B4}）折后应为 ${B4_EXPECT} 元（用户裁定），实际 ${b4.paidFee}`);
-    else if (num(b4.sheetPaidFee) !== B4_EXPECT) err(`评级费批次 4（${B4}）的留档实收也应为 ${B4_EXPECT} 元（该批无已售出行）`);
+    else if (num(b4.paidFee) !== B4_EXPECT) err(`评级费批次 4（${B4}）支出应为 ${B4_EXPECT} 元（剔掉 13.5 换壳），实际 ${b4.paidFee}`);
+    else if (num(b4.sheetPaidFee) !== B4_SHEET_EXPECT) err(`评级费批次 4（${B4}）的留档实收应为 ${B4_SHEET_EXPECT} 元（该批无已售出行），实际 ${b4.sheetPaidFee}`);
 
     // ⑤ 逐批之和 == totals（支出与留档两套都要对）
     const sumPaidAll = round1(grading.batches.reduce((s, b) => s + num(b.paidFee), 0));
     const sumListAll = round1(grading.batches.reduce((s, b) => s + num(b.listFee), 0));
     const sumSheetPaid = round1(grading.batches.reduce((s, b) => s + num(b.sheetPaidFee), 0));
     const sumSheetList = round1(grading.batches.reduce((s, b) => s + num(b.sheetListFee), 0));
-    const rowCount = grading.batches.reduce((s, b) => s + (b.items || []).length, 0);
+    // ★ 件数按**支出侧**（剔除换壳）求和：totals.itemCount = 118（119 行明细 − 1 行换壳）
+    const rowCount = grading.batches.reduce((s, b) => s + (b.items || []).filter(i => !i.reholder).length, 0);
     if (grading.totals) {
         if (sumPaidAll !== num(grading.totals.paidFee)) err(`评级费总计：逐批之和 ${sumPaidAll} ≠ totals.paidFee ${grading.totals.paidFee}`);
         if (sumListAll !== num(grading.totals.listFee)) err(`评级费原价总计：逐批之和 ${sumListAll} ≠ totals.listFee ${grading.totals.listFee}`);
@@ -350,8 +366,11 @@ if (grading) {
         if (sumSheetList !== num(grading.totals.sheetListFee)) err(`评级费留档原价总计：逐批之和 ${sumSheetList} ≠ totals.sheetListFee ${grading.totals.sheetListFee}`);
         if (soldRows !== Number(grading.totals.soldCount)) err(`评级费已售出行数：逐批之和 ${soldRows} ≠ totals.soldCount ${grading.totals.soldCount}`);
         if (soldPaid !== num(grading.totals.soldPaidFee)) err(`评级费已售出金额：逐批之和 ${soldPaid} ≠ totals.soldPaidFee ${grading.totals.soldPaidFee}`);
-        if (round1(num(grading.totals.paidFee) + num(grading.totals.soldPaidFee)) !== num(grading.totals.sheetPaidFee)) {
-            err(`评级费：支出 ${grading.totals.paidFee} + 已售出 ${grading.totals.soldPaidFee} ≠ 留档实收 ${grading.totals.sheetPaidFee}`);
+        if (rhRows !== Number(grading.totals.reholderCount || 0)) err(`评级费换壳行数：逐批之和 ${rhRows} ≠ totals.reholderCount ${grading.totals.reholderCount || 0}`);
+        if (rhPaid !== num(grading.totals.reholderPaidFee || '0元')) err(`评级费换壳金额：逐批之和 ${rhPaid} ≠ totals.reholderPaidFee ${grading.totals.reholderPaidFee || '0元'}`);
+        // ★ 留档实收 = 支出 + 已售出 + 换壳（换壳也不再计入支出）
+        if (round1(num(grading.totals.paidFee) + num(grading.totals.soldPaidFee) + num(grading.totals.reholderPaidFee || '0元')) !== num(grading.totals.sheetPaidFee)) {
+            err(`评级费：支出 ${grading.totals.paidFee} + 已售出 ${grading.totals.soldPaidFee} + 换壳 ${grading.totals.reholderPaidFee || '0元'} ≠ 留档实收 ${grading.totals.sheetPaidFee}`);
         }
     } else {
         err('评级费台账缺少 totals 汇总');
@@ -376,7 +395,7 @@ if (grading) {
     console.log(`  ${grading.batches.length} 批 / ${rowCount} 行明细（已剔除 ${soldRows} 行已售出）/ 支出合计 ${grading.totals ? grading.totals.paidFee : '?'} / 表格实收留档 ${grading.totals ? grading.totals.sheetPaidFee : '?'}`);
     if (unmatchedRows) console.log(`  ⚠ 有 ${unmatchedRows} 行匹配不上 copyId（上面的 ERROR 已逐条列出）`);
     for (const b of grading.batches.slice().sort((a, b) => String(a.paidDate).localeCompare(String(b.paidDate)))) {
-        console.log(`    ${b.paidDate} 付款 · ${b.pj} · 送评 ${b.sentDate} · ${b.itemCount} 件 · 支出 ${b.paidFee}（留档实收 ${b.sheetPaidFee}，已售出 ${b.soldCount} 行 ${b.soldPaidFee}）`);
+        console.log(`    ${b.paidDate} 付款 · ${b.pj} · 送评 ${b.sentDate} · ${b.itemCount} 件 · 支出 ${b.paidFee}（留档实收 ${b.sheetPaidFee}，已售出 ${b.soldCount} 行 ${b.soldPaidFee}${b.reholderCount ? `，换壳 ${b.reholderCount} 行 ${b.reholderPaidFee}（不计支出）` : ''}）`);
     }
 }
 

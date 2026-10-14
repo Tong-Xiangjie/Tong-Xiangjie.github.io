@@ -125,6 +125,21 @@ const expectSum = (year, month) => evaluate(`(()=>{
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); }
     }
   }
+  // ★★ 裸币价口径（用户裁定 2026-10）：自送评且**非换壳**的藏品，录入价里含评级费，
+  //   条目与统计都按「录入价 − 该枚评级费」算；换壳行按原价、不计费。
+  //   同一 cert 出现两次时取**第一次**，与页面 gradingFeeIndex() 一致。
+  const feeOfCert = {};
+  const feeData = window.DATA_MAP && window.DATA_MAP['gradingFeeData'];
+  if (feeData && Array.isArray(feeData.batches)) {
+    for (const b of feeData.batches) {
+      for (const it of (b.items || [])) {
+        if (!it || !it.cert || feeOfCert[it.cert] !== undefined) continue;
+        if (!copyIds.has(String(it.cert))) continue;              // 已售出 ⇒ 不参与
+        const f = px(it.paidFee);
+        feeOfCert[it.cert] = it.reholder ? 0 : (isNaN(f) ? 0 : f);
+      }
+    }
+  }
   for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
     if (!map) continue;
     for (const k of Object.keys(map)) {
@@ -134,14 +149,20 @@ const expectSum = (year, month) => evaluate(`(()=>{
         const dt = pd(c.purchaseDate); if (!dt) continue;
         if (${JSON.stringify(year)} !== '全部' && String(dt.y) !== ${JSON.stringify(year)}) continue;
         if (${JSON.stringify(month)} !== '全部' && String(dt.mo).padStart(2, '0') !== ${JSON.stringify(month)}) continue;
-        n++; const p = px(c.price); if (!isNaN(p) && p > 0) { sum += p; priced++; }
+        n++;
+        const raw = px(c.price);
+        if (!isNaN(raw) && raw > 0) {
+          const fri = (c.copyId && feeOfCert[c.copyId] != null) ? feeOfCert[c.copyId] : 0;
+          sum += (raw - fri >= 0) ? (raw - fri) : raw;            // 裸币价
+          priced++;
+        }
       } };
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
     }
   }
-  // ★ 评级费台账：按**付款日期** paidDate 落位，只数**匹配得上 copyId 的行**（匹配不上 = 已售出），
-  //   金额取这些行的 paidFee（折后）。台账里那 4 行已售出的已经被剔除，这里再按同一判据筛一遍，
-  //   与页面上 gradingFeeEntries() 的算法保持一致（see verify-grading-fee.mjs）。
+  // ★ 评级费台账：按**付款日期** paidDate 落位，只数**匹配得上 copyId 且非换壳**的行
+  //   （匹配不上 = 已售出；换壳 = 不计入评级费），金额取这些行的 paidFee（折后）。
+  //   ★ 这一段是**加回总额**的一半：Σ裸币价 + 评级费支出 == Σ 藏品 price。
   const fee = window.DATA_MAP && window.DATA_MAP['gradingFeeData'];
   if (fee && Array.isArray(fee.batches)) {
     for (const b of fee.batches) {
@@ -149,8 +170,8 @@ const expectSum = (year, month) => evaluate(`(()=>{
       if (!m) continue;
       if (${JSON.stringify(year)} !== '全部' && m[1] !== ${JSON.stringify(year)}) continue;
       if (${JSON.stringify(month)} !== '全部' && m[2] !== ${JSON.stringify(month)}) continue;
-      const live = (b.items || []).filter(it => it && copyIds.has(String(it.cert)));
-      // ★ 一条"评级费"= 该批未售出行之和，所以这里只 push **一条**（不是每行一条）。
+      const live = (b.items || []).filter(it => it && copyIds.has(String(it.cert)) && !it.reholder);
+      // ★ 一条"评级费"= 该批未售出且非换壳行之和，所以这里只 push **一条**（不是每行一条）。
       let amt = 0;
       for (const it of live) { const p = px(it.paidFee); if (!isNaN(p)) amt += p; }
       amt = Math.round(amt * 10) / 10;

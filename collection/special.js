@@ -1279,11 +1279,83 @@ function timelineHeatmapOpacity(amount, maxAmount) {
     return 0.10 + 0.85 * Math.min(1, amount / maxAmount);
 }
 
+// ---------- 热力图图例（0/25/50/75/100% 五档） ----------
+// ★ 这里**不另造一套颜色**：五档的价格就是同一条连续色阶在 0/25/50/75/100% 处的取值
+//   （百分比 × 最大金额），颜色照旧由同一个 timelineHeatmapOpacity() 与同一套 CSS
+//   （--hm-o / --hm-bright / --hm-on）算出来 —— 所以"图例第 N 档的颜色"与"金额等于
+//   该档价格的格子的颜色"必然一致，改热力图的取色函数这里自动跟着变。
+// ★ 图例布局/刻度写法沿用「山河地图」那条图例（.shanhe-map-legend / .shanhe-legend-bar）：
+//   同一套 label + bar + label 的三段式，只是这里的条带是分段实数色、并带五个刻度。
+function timelineHeatmapTiers(maxAmount) {
+    const FRACS = [0, 0.25, 0.5, 0.75, 1];
+    const max = (maxAmount > 0) ? maxAmount : 0;
+    return FRACS.map(f => ({
+        frac: f,
+        percent: Math.round(f * 100),
+        amount: Math.round(max * f),
+        opacity: timelineHeatmapOpacity(max * f, max)
+    }));
+}
+
+// 图例条带的**颜色**：必须是热力图那个色相的 sRGB 实色，而不是一条静态写死的渐变。
+//   color-mix(A p%, B) 的色相 = A 与 B 按 p 线性插值，不透明度另算；所以这里
+//   "预乘"出同一个色相：p = --hm-o × bright × 55% ⇒
+//     mix(--theme-light, --theme, p') 且 p' = p / --hm-o = bright × 55%
+//   于是这条渐变与"金额沿 0→最大金额 走一遍"的格子色相完全一致，
+//   改热力图的取色函数（--hm-bright 的权重）这里自动跟着变。
+function timelineHeatmapColorCss(amount, maxAmount) {
+    const o = timelineHeatmapOpacity(amount, maxAmount);
+    if (o <= 0) return 'transparent';
+    const bright = (maxAmount > 0) ? Math.min(1, amount / maxAmount) : 0;
+    const pct = Math.round(bright * 55 * 10) / 10;
+    return `color-mix(in srgb, var(--theme-light, var(--theme)) ${pct}%, var(--theme))`;
+}
+
+// 图例条带：**一条连续渐变**（不是几个色块），0/25/50/75/100% 五处标注该档金额，
+// 中间三个节点各一根竖杠刻度（两端不画竖杠）。
+// ★ 宽度与热力条一致：直接复用热力图那一套网格（2.6em + 12×--hm-cell + 同一个 gap），
+//   所以左右边缘与热力图逐像素对齐，不另算宽度、也不会比热力图宽或窄。
+function timelineHeatmapLegendHtml(maxAmount) {
+    const tiers = timelineHeatmapTiers(maxAmount);
+    const stops = tiers.map(t => `${timelineHeatmapColorCss(t.amount, maxAmount)} ${t.percent}%`).join(', ');
+    let html = `<div class="tl-heatmap-legend">`;
+    html += `<span class="tl-hm-legend-spacer"></span>`;      // 与热力图的年份列同宽
+    html += `<span class="tl-hm-legend-slot">`;               // 与那 12 个格子同宽
+    html += `<span class="tl-hm-legend-bar" style="background-image:linear-gradient(to right, ${stops})"></span>`;
+    // 刻度：25/50/75 三根竖杠（0% 与 100% 是条带两端，不画）
+    html += `<span class="tl-hm-legend-marks">`;
+    for (const t of tiers) {
+        if (t.percent <= 0 || t.percent >= 100) continue;
+        html += `<i class="tl-hm-legend-mark" data-percent="${t.percent}" style="left:${t.percent}%"></i>`;
+    }
+    html += `</span>`;
+    // 价格标签：都以对应位置为**中心**（left:X% + translateX(-50%)），只写金额、无括号无注解，
+    // 不可点击（纯 <span>，没有 <a>、没有 href）
+    html += `<span class="tl-hm-legend-ticks">`;
+    for (const t of tiers) {
+        html += `<span class="tl-hm-legend-tick" data-percent="${t.percent}"` +
+            ` data-amount="${t.amount}" style="left:${t.percent}%">${t.amount}元</span>`;
+    }
+    html += `</span>`;
+    html += `</span>`;
+    html += `</div>`;
+    return html;
+}
+
 // 金额口径必须和"这天，你一共花了X元"、标语「你共花了 N 元」完全一致：
 // 只认能解析出的正数 price，取整显示。★ 改这里就等于改那两处，verify-heatmap 会盯着。
+//
+// ★★ 口径修正（用户裁定 2026-10）：这里返回**裸币价**
+//   （自送评且非换壳 ⇒ 录入价 − 该枚评级费；否则原价）。
+//   理由：录入价含评级费，重复计会让热力图/每日合计/标语一起虚高。
+//   注意实现次序：本函数是"原价"的**唯一读取口**，nakedPriceOf 内部会调用它拿原价，
+//   所以**绝不能**反向在这里调 nakedPriceOf —— 那会无限递归。
 function timelinePriceOf(copy) {
     const price = parseFloat(String((copy && copy.price) || '').replace(/[^0-9.]/g, ''));
-    return (!isNaN(price) && price > 0) ? price : 0;
+    const raw = (!isNaN(price) && price > 0) ? price : 0;
+    if (raw <= 0) return 0;
+    const fee = nakedFeeOf(copy && copy.copyId);
+    return (fee != null && raw - fee >= 0) ? (raw - fee) : raw;
 }
 
 // ============================================
@@ -1346,12 +1418,63 @@ function gradingCopyIndex() {
     return idx;
 }
 
-// 台账支出之和（数字）= **未售出**（匹配得上 copyId）部分之和。
+// 台账支出之和（数字）= **未售出 且非换壳** 部分之和。
 // 数据未加载 / 没有台账时返回 0，调用方据此静默跳过。
 function gradingFeeTotal() {
     let sum = 0;
     for (const e of gradingFeeEntries()) sum += feeAmountOf(e.copy.price);
     return Math.round(sum * 10) / 10;
+}
+
+// ---------- 「裸币价」折算（用户裁定） ----------
+// 用户口径："我自己 data 里面录入的是**含评级费**的，你显示出来应该减掉评级费"，
+// 且"凡是自己送评的一律视为裸币送评，除了换壳的当作原始价格，也不算进评级费"。
+//   · 能在台账里匹配上 copyId、且**不是换壳行** ⇒ 录入价 − 该枚的 paidFee = 裸币价；
+//   · 换壳行 / 匹配不上台账（= 直接买来的现货）⇒ 原价，不加"裸币"也不减费。
+// cert → 该枚的评级费（只在台账里出现的那一行；同一 cert 出现两次时取**第一次**，
+// 与"重复编码只算第一次"的支出判据一致）。有 __feeIndex 缓存，避免每件都重扫。
+function gradingFeeIndex() {
+    const d = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+    if (!d || !Array.isArray(d.batches)) return {};
+    if (d.__feeIndex) return d.__feeIndex;
+    const idx = {};
+    for (const b of d.batches) {
+        for (const it of (b && b.items) || []) {
+            if (!it || !it.cert || idx[it.cert]) continue;
+            idx[it.cert] = { fee: feeAmountOf(it.paidFee), reholder: !!it.reholder, pj: b.pj };
+        }
+    }
+    d.__feeIndex = idx;
+    return idx;
+}
+
+// 返回"该枚的裸币价（数字）"；null = 不折算、按原样显示（换壳行 / 非自送评 /
+// 价格本来就不是个能解析的正数）。
+function nakedPriceOf(cert) {
+    const fee = nakedFeeOf(cert);
+    if (fee == null) return null;
+    const idx = gradingCopyIndex();
+    const copy = idx[String(cert)] && idx[String(cert)].copy;
+    const price = parseFloat(String((copy && copy.price) || '').replace(/[^0-9.]/g, ''));
+    if (!(price > 0)) return null;
+    const naked = price - fee;
+    return naked >= 0 ? naked : null;               // 减成负数说明数据对不上，别硬算
+}
+
+// 该枚要减掉的评级费（数字）；null = 不减（换壳 / 台账里没有 / 没有正面额）。
+// ★ 只回答"减多少"，**不读藏品价**，所以 timelinePriceOf 可以放心调它（避免递归）。
+function nakedFeeOf(cert) {
+    if (!cert) return null;
+    const hit = gradingFeeIndex()[String(cert)];
+    if (!hit || hit.reholder) return null;          // 换壳 ⇒ 当作原始价格
+    return (hit.fee > 0) ? hit.fee : null;
+}
+
+// 金额保持"数字 + 元"的人类可读写法，**不四舍五入丢精度**（903 元、1615.5 元这类都要对）。
+// 只做 2 位小数的浮点收口（880 − 45 = 835；1615.5 这种本来就带一位小数）。
+function formatYuan(n) {
+    const r = Math.round(n * 100) / 100;
+    return String(r) + '元';
 }
 
 function gradingFeeEntries() {
@@ -1364,7 +1487,12 @@ function gradingFeeEntries() {
         // ★ 判据（用户裁定）：**匹配不到 copyId 的行视为已售出** ⇒ 这行的评级费不计入支出。
         //   台账数据文件里那 4 行已经被剔除了（check-data 也会拦），这里是**第三道防线**：
         //   万一哪天台账里混进了匹配不上的行，页面自己也不会把它算进钱里。
-        const live = (b.items || []).filter(function (it) { return it && idx[it.cert]; });
+        // ★★ 第二条判据（用户后来裁定，推翻了早先"换壳也算评级费"）：
+        //   **换壳行（reholder）当作原始价格处理 —— 不减费、也不计入评级费。**
+        //   所以这里把它一并滤掉；它对应的藏品在时间轴里显示**原价**（不加"裸币"）。
+        const live = (b.items || []).filter(function (it) {
+            return it && idx[it.cert] && !it.reholder;
+        });
         // ★ 支出按**留下的行**重算，而不是直接读 b.paidFee —— 数据正常时两者相等
         //   （数据文件里 paidFee 就是未售出行之和），异常时以行级重算为准。
         //   · items 压根没有（数据形状坏了）→ 退回读 b.paidFee，宁可显示也别静默吞掉一笔钱；
@@ -1411,7 +1539,10 @@ function gradingFeeEntries() {
             // ★ 评级公司：**只在数据里**（批次的 grader 字段）。渲染端不写死、不猜、不默认，
             //   数据里没有就退回中性文案「评级费」。以后送 PMG/PCGS 只需改数据。
             grader: (typeof b.grader === 'string' ? b.grader.trim() : ''),
-            // ★ 该批清单文件（xlsx）地址，同样只来自数据。缺字段 ⇒ 不渲染「查看清单」链接。
+            // ★ 评级公司短名：圆角标签里的字（"ACG"），同样**只在数据里**。
+            //   数据里没有就省略整个标签，绝不写死、也不默认成别家。
+            graderShort: (typeof b.graderShort === 'string' ? b.graderShort.trim() : ''),
+            // ★ 该批清单文件（xlsx）地址，同样只来自数据。缺字段 ⇒ 不渲染「下载清单」链接。
             listUrl: (typeof b.listUrl === 'string' ? b.listUrl.trim() : ''),
             date: date,
             dateStr: formatTimelineDate(date)
@@ -1500,7 +1631,13 @@ function buildMonthHeatmap(items) {
             // 连续深浅：直接把这个格子的透明度写成内联自定义属性（CSS 读不到 DOM 里的金额，
             // 所以"无限档"只能由 JS 给一个值；这不是给 tooltip 写内联样式，tooltip 仍是纯 CSS 定位）
             const o = timelineHeatmapOpacity(c.sum, maxAmount);
-            const styleAttr = o > 0 ? ` style="--hm-o:${Math.round(o * 1000) / 1000}"` : '';
+            // ★ --hm-src = 这一格的原始金额；--hm-bright = 0→1 的档位比例（最亮那档 = 1）。
+            //   两者都只是"把这格的取值交给 CSS"（CSS 读不到 DOM 里的数字），
+            //   与 --hm-o 同一性质，不是给 tooltip 写内联定位。
+            const bright = (maxAmount > 0) ? Math.min(1, c.sum / maxAmount) : 0;
+            const styleAttr = o > 0
+                ? ` style="--hm-o:${Math.round(o * 1000) / 1000};--hm-src:${Math.round(c.sum)};--hm-bright:${bright.toFixed(3)}"`
+                : '';
             // tl-hm-on 只为"有金额"的格子加：深色主题那条 calc() 提亮只该作用在它们身上，
             // 否则 0 元的空格子也会被抬到 0.08（测出来过），空月份会微微泛色
             const onClass = o > 0 ? ' tl-hm-on' : '';
@@ -1513,6 +1650,9 @@ function buildMonthHeatmap(items) {
         }
         html += `</div>`;
     }
+    // ★ 色阶图例贴在热力图正下方（用户要求"加一条类似山河地图那样的指示条带"）：
+    //   0/25/50/75/100% 五处标出该档对应的金额，颜色与热力图同一套取色函数。
+    html += timelineHeatmapLegendHtml(maxAmount);
     html += `</div>`;
     return html;
 }
@@ -1957,14 +2097,29 @@ function renderTimelineContent(config, opts) {
 
     // ★ 标题下面那句标语换成"所选时间段一共花了多少钱"（用户要求："可以将点进专题后的
     //   标题下面那句标语换成「在所选的时间段内，你共花了xx元」这样类似的句子"）。
-    //   金额口径和下面每天的"这天，你一共花了X元"完全一致：只累加能解析出正数的 price，
-    //   取整显示。一件都没记价格时不硬说"0 元"，仍旧显示原来的标语。
+    //   金额口径和下面每天的"这天，你一共花了X元"完全一致，取整显示。
+    //   一件都没记价格时不硬说"0 元"，仍旧显示原来的标语。
+    //   措辞按用户反馈收了一遍（"在…里"的"在"和"里"都不要）：
+    //     2026 年，你共花了 N 元 / 2026 年 7 月，你共花了 N 元 / 历年 7 月，你共花了 N 元
+    //
+    // ★★ 口径（用户裁定 2026-10，**两头都要做**，最后一版）：
+    //     · 每枚自送藏品显示**裸币价** = 录入价 − 该枚评级费（见 nakedPriceOf）；
+    //     · 评级费条目显示**该批支出**（= 未售出且非换壳行之和，合计 4023）；
+    //     · **总花费 = Σ裸币价 + 评级费支出**，它在数学上恒等于 **Σ 藏品 price**
+    //       （因为 录入价 = 裸币价 + 该枚评级费），所以既不重复计数、也不遗漏。
+    //   历史坑：第一版把"裸币化"只做了减法、没有把评级费加回来 ⇒ 总额少了 4023
+    //   （页面出现 44699，用户反馈"又少算了评级费"）。第二版干脆把评级费条目**跳过**，
+    //   同样是少算。现在这两条路都堵住：评级费条目**照常累加**，藏品累加裸币价。
+    //   ★ 一件都记不上价格时不硬说"0 元"，仍旧显示原来的标语。
     //   措辞按用户反馈收了一遍（"在…里"的"在"和"里"都不要）：
     //     2026 年，你共花了 N 元 / 2026 年 7 月，你共花了 N 元 / 历年 7 月，你共花了 N 元
     let periodTotal = 0;
     let periodHasPrice = false;
     for (const item of filteredItems) {
-        const price = parseFloat(String(item.copy.price || '').replace(/[^0-9.]/g, ''));
+        const naked = nakedPriceOf(item.copy && item.copy.copyId);
+        const price = (naked != null)
+            ? naked
+            : parseFloat(String(item.copy.price || '').replace(/[^0-9.]/g, ''));
         if (!isNaN(price) && price > 0) { periodTotal += price; periodHasPrice = true; }
     }
     const periodText = (timelineFilterYear === '全部' && timelineFilterMonth === '全部')
@@ -2001,10 +2156,16 @@ function renderTimelineContent(config, opts) {
     for (const dateKey of sortedDates) {
         const groupItems = grouped[dateKey];
 
+        // ★ 口径与上面标语、与条目上显示的"购入价格"三者一致（用户裁定 2026-10）：
+        //   藏品用**裸币价**（录入价 − 该枚评级费）；评级费条目**照常累加**该批支出。
+        //   于是「这天一共花了」==「标语总额」在该天的分摊，且全局 Σ 恒等于 Σ 藏品 price。
         let dayTotal = 0;
         let hasPrice = false;
         for (const item of groupItems) {
-            const price = parseFloat(String(item.copy.price || '').replace(/[^0-9.]/g, ''));
+            const naked = nakedPriceOf(item.copy && item.copy.copyId);
+            const price = (naked != null)
+                ? naked
+                : parseFloat(String(item.copy.price || '').replace(/[^0-9.]/g, ''));
             if (!isNaN(price) && price > 0) {
                 dayTotal += price;
                 hasPrice = true;
@@ -2044,7 +2205,14 @@ function renderTimelineContent(config, opts) {
                         }
                         metaParts.push('评级得分：' + grade);
                     }
-                    metaParts.push('购入价格：' + priceText);
+                    // ★★ 「裸币」显示（用户裁定）：录入价是**含评级费**的，自己送评（且非换壳）
+                    //   的那一枚要减掉评级费、并标出"裸币"；换壳行与直接买来的现货一律原样显示。
+                    const naked = nakedPriceOf(c.copyId);
+                    if (naked != null) {
+                        metaParts.push('购入价格：裸币' + formatYuan(naked));
+                    } else {
+                        metaParts.push('购入价格：' + priceText);
+                    }
                 }
                 const metaStr = metaParts.join('\u00A0\u00A0\u00A0\u00A0');
 
@@ -2060,30 +2228,37 @@ function renderTimelineContent(config, opts) {
                 if (isFee) {
                     // ★ 费用条目**不是藏品**：不占图片位，也绝不渲染任何图片占位（连「暂无图片」
                     //   和 .timeline-images 这个容器都不生成）。两行紧凑卡片：
-                    //     [评级费] 评级公司：<来自数据 item.grader>
-                    //     送评日期：… · 单号：PJ… · 评级收费：…元 · 查看清单
-                    //   · 公司名**只从数据来**（item.grader）：以后送别家评级公司只改数据；
-                    //     数据里没有就退回中性文案「评级费」，绝不在渲染里写死任何公司名。
-                    //   · 「评级收费」= 未售出部分的支出（= copy.price 那侧），与统计口径一致。
+                    //     [评级费（大标题）] [评级公司：ACG 圆角标签] [下载清单]
+                    //     送评日期：… · 单号：PJ… · 评级收费：…元
+                    //   · 第一行：「评级费」用大标题样式（= 原来"评级公司：爱藏评级"那个位置/字号），
+                    //     后面紧跟**一个**主题色圆角标签，标签文字 = 「评级公司：」+ 短名
+                    //     （用户确认："评级公司：也放进圆角标签内"）。
+                    //   · 短名**只从数据来**（item.graderShort）：以后送别家只改数据；
+                    //     数据里没有就**整个标签都不渲染**，绝不在渲染里写死任何公司名。
+                    //   · 「下载清单」在第一行、紧跟在圆角标签后面（用户要求从第二行移上来）；
+                    //     只在数据给了 listUrl 时才渲染 —— 缺字段就不出链接，不留空占位、不出死链。
+                    //     点开是下载 xlsx，所以文字用"下载"不用"查看"。
+                    //   · 「评级收费」= 未售出且非换壳部分的支出（= copy.price 那侧），与统计口径一致。
                     //   · 付款日期由上面的日期分组头承担，这里不重复写。
-                    //   · 「查看清单」只在数据给了 listUrl 时才渲染 —— 缺字段就不出链接，
-                    //     不留空占位、不出死链。样式与正文里的行内链接一致（下划线 + 新窗口）。
                     const sentDate = parseChineseDate(item.sentDate);
                     const sentStr = sentDate ? formatTimelineDate(sentDate) : '';
-                    const grader = item.grader || '';
-                    const headTitle = grader ? '评级公司：' + grader : '评级费';
+                    const short = item.graderShort || '';
                     html += `<div class="timeline-card timeline-card--fee">`;
                     html += `<div class="timeline-fee-main">`;
-                    html += `<span class="timeline-fee-tag">评级费</span>`;
-                    html += `<span class="timeline-fee-title">${escapeHtml(headTitle)}</span>`;
+                    html += `<span class="timeline-fee-title">评级费</span>`;
+                    // ★ 前缀「评级公司：」与短名**在同一个元素里**（用户确认）；
+                    //   数据里没给 graderShort 就整个标签都不渲染 —— 不留一个空悬的"评级公司："。
+                    if (short) {
+                        html += `<span class="timeline-fee-tag">评级公司：${escapeHtml(short)}</span>`;
+                    }
+                    if (item.listUrl) {
+                        html += `<a class="timeline-fee-link" href="${escapeAttr(item.listUrl)}" target="_blank" rel="noopener">下载清单</a>`;
+                    }
                     html += `</div>`;
                     html += `<div class="timeline-fee-sub">`;
                     if (sentStr) html += `<span class="fee-f">送评日期：${escapeHtml(sentStr)}</span>`;
                     html += `<span class="fee-f">单号：${escapeHtml(version)}</span>`;
                     html += `<span class="fee-f">评级收费：${escapeHtml(priceText)}</span>`;
-                    if (item.listUrl) {
-                        html += `<span class="fee-f"><a class="timeline-fee-link" href="${escapeAttr(item.listUrl)}" target="_blank" rel="noopener">查看清单</a></span>`;
-                    }
                     html += `</div>`;
                     html += `</div>`;
                 } else {
