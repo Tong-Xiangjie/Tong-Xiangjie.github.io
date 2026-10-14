@@ -391,6 +391,35 @@ const republic_cbcData = {
                 }
             ]
         },{
+            seriesName: "中华民国三十四年（1945年） 中央上海版 法币券",
+            year: "1945",
+            varieties: [
+                {
+                    varietyName: "1945年 10元",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1945,
+                            version: "AA055306",
+                            bank: "中央银行",
+                            print: "中央印制厂上海厂/CPFS",
+                            signature1: "局长：李骏耀",
+                            signature2: "副局长：田福璡",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "115元",
+                            purchaseDate: "2026年10月14日",
+                            krause: "270",
+                            remark: "抗战胜利后，中央印制厂于民国三十四年（1945年）九月接收原敌伪上海中央储备银行印刷厂，设立上海厂，承担货币与有价证券的印制任务。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/AA055306-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/AA055306-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国三十四年（1945年） 中央上海版 东北九省流通券",
             year: "1945～1948",
             varieties: [
