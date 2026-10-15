@@ -2473,8 +2473,19 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     transition: color 0.12s ease;
 }
 .tl-heatmap-ylabel:hover, .tl-heatmap-mlabel:hover { color: var(--theme); }
-/* 当前筛选对应的那一行 / 那一列 / 那个"全部"标出来，否则点了不知道选中了哪儿 */
-.tl-heatmap-ylabel.is-active, .tl-heatmap-mlabel.is-active { color: var(--theme); font-weight: bold; }
+/* 当前筛选对应的那一行 / 那一列 / 那个"全部"标出来，否则点了不知道选中了哪儿。
+   ★★★ 用户反复反馈的「年份/月份首次高亮后数字会沉降一点点，而且回不去」的真凶就在这里：
+   老写法用 `font-weight: bold` 做高亮 —— 字重一变，**字形本身的墨迹框就变了**
+   （笔画变粗、ink 高度 +1px、字宽也变），而 `getBoundingClientRect()` 量的是**行盒**，
+   行盒在定高 42px 的 flex 盒里居中 ⇒ 行盒一个像素都不动，所以"外框零偏差"的断言全绿，
+   但屏幕上的数字确实换了一副字形、看起来往下沉了一点。
+   ⇒ 高亮只准用**不影响字形度量**的属性：color（变主题蓝）
+     + 背景色（浅主题色，仅作"看起来比旁边凸一点"的区分，不参与任何尺寸计算）。
+     字重/字号/字体/字距一律各个状态相同 —— verify-heatmap 里有断言盯着。 */
+.tl-heatmap-ylabel.is-active, .tl-heatmap-mlabel.is-active {
+    color: var(--theme);
+    background: color-mix(in srgb, var(--theme) 12%, transparent);
+}
 .tl-heatmap-ylabel { justify-content: flex-end; padding-right: 4px; font-variant-numeric: tabular-nums; }
 .tl-heatmap-mlabel { justify-content: center; }
 .tl-hm-head { margin-bottom: 2px; }
@@ -2624,11 +2635,23 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.7rem;
+    /* ★★★ 用户反复反馈的"数字沉降"：泡是**按钮的子元素**，凡是"继承自按钮"的字体属性
+       都会跟着按钮的选中/悬浮态变（老代码按钮用 font-weight: bold 高亮，泡就整体变粗；
+       按钮一旦改 line-height / letter-spacing / font-size，泡的行盒也跟着变）。
+       泡里的文字与按钮无关 ⇒ 这里把**会影响字形与行盒的字体属性全部显式钉死**，
+       一律不继承。于是"泡在不在、按钮高亮不高亮"都改不了泡里文字的度量。
+       ★ `font: inherit` 只用来清掉继承来的简写，紧接着逐项覆盖成固定值。 */
+    font: inherit;
+    font-size: 0.7rem;
     /* ★★★ 用户 2026-10：「"全部"那个泡，可以不用全部加粗，改成和普通泡泡一样」。
        根因：泡是**范围按钮的子元素**，而"当前选中"的按钮会加 `.is-active { font-weight: bold }`
        （左上角"全部"默认就是选中态）⇒ 整只泡**继承**了 700 的粗体。
        泡的文字与按钮无关，所以这里显式钉住 normal（只让 .tl-hm-num 的金额/件数保持 700）。 */
     font-weight: normal;
+    font-style: normal;
+    letter-spacing: normal;
+    word-spacing: normal;
+    vertical-align: baseline;
     line-height: 1.3;
     /* 反色：浅色主题下深底浅字，深色主题下浅底深字，两边都读得清 */
     background: var(--text);

@@ -1322,10 +1322,19 @@ function timelineHeatmapTiers(maxAmount) {
     return FRACS.map(f => ({
         frac: f,
         percent: Math.round(f * 100),
+        // ★ 只做**显示**取整（四舍五入到整数元），分档本身仍由实时 max 乘出来：
+        //   max = 7193.5 时五档 = 0 / 1798 / 3597 / 5395 / 7194。
+        //   100% 那档就是"最大月合计"本身，和用户手算的 7194 是同一个数。
         amount: Math.round(max * f),
         opacity: timelineHeatmapOpacity(max * f, max)
     }));
 }
+
+// ★★★ 图例五档的最大值**必须**由当前数据实时算出来（`maxAmount` = 该色阶口径下
+//   最大的月度合计 = `cell.psum` 的最大值），页面里**不许**出现任何写死的档位金额。
+//   历史教训：上一版色阶用的是"裸币价 + 当月评级费"（`cell.sum`），2026/02 于是算成
+//   7193，而泡里写的是 7670 ⇒ 用户拿"2026 年 2 月逐日明细手算的 7194"一对就发现不对。
+//   verify-heatmap 里有断言：五档金额 == 实时最大月合计 × {0,¼,½,¾,1}（四舍五入）。
 
 // 图例条带 / 热力图格子共用的**取色**：金额 → `rgba(主题蓝, alpha)`。
 function timelineHeatmapColorCss(amount, maxAmount) {
@@ -1393,11 +1402,12 @@ function timelinePriceOf(copy) {
 }
 
 // 只取**录入价**（藏品数据里写的那个 price），不做任何评级费折算。
-// ★ 为什么单独抽出来：提示文案第一行的"合计"口径（用户 2026-10 明确要求）是
-//   **Σ录入价**，不是 Σ裸币价 —— 用户手工把整站加了一遍，得到 52746（≈ 48721.5 录入价 + 4023 评级费），
-//   而裸币价之和只有 44698.5（因为每枚都先减了自己的评级费再相加）。
-//   两个数都对，但用在**不同**地方：热力图填色/标语用裸币口径（避免同一笔评级费被计两次），
-//   提示文案的三行用录入价口径（与用户自己账面能对上）。别把两者混起来。
+// ★ 它只用来**派生**裸币价（timelinePriceOf = 它 − 该枚评级费），**不再直接展示**。
+// ★ 用户 2026-10 的最终裁定：提示第一行"合计"要写**裸币价之和** ——
+//   他拿"2026 年 2 月整月逐日明细"手算 = **7194**，而"Σ录入价"是 7670（多出这些枚
+//   自己的评级费 476.5）⇒ 三行文案、热力图填色、图例、逐日明细全部统一到裸币口径。
+//   （更早那版第一行写 Σ录入价 = 48721.5，与页面自己"这天你一共花了"的逐日和 44698.5
+//     对不上，用户一对账就发现了。）
 function timelineRawPriceOf(copy) {
     const price = parseFloat(String((copy && copy.price) || '').replace(/[^0-9.]/g, ''));
     return (!isNaN(price) && price > 0) ? price : 0;
@@ -1607,18 +1617,20 @@ function formatTimelineDate(d) {
 //   `items` 里混着**藏品**和**评级费条目**（type==='fee'，由 gradingFeeEntries() 生产，见
 //   renderTimelineContent）。两者在"格子的深浅"上都要算钱（那格确实出去了这么多），
 //   但**提示文案的第一行只能算藏品**：
-//     · 第一行「共购入N件，合计X元」= **只数藏品**，X = **Σ录入价**（藏品数据里写的 price，
-//       **不减**该枚评级费、也**不含**评级费条目）。
-//       ★ 为什么是录入价而不是裸币价：用户把整站手工加了一遍得到 52746，
-//         而"Σ裸币价 + 评级费"只有 44698.5 + 4023 = 48721.5 —— 差的就是每枚各自减掉的那笔费。
-//         用户要的是"这个范围我付出去多少"，那就是**录入价 + 评级费**，两笔都在账上。
+//     · 第一行「共购入N件，合计X元」= **只数藏品**，X = **Σ裸币价**（= Σ(录入价 − 该枚自己的
+//       评级费)；换壳的按原价不减）。★ 最终裁定（用户 2026-10，拿 2026-02 逐日明细手算 = 7194）：
+//       它必须等于该范围里"每天'这天你一共花了X元'"的**总和**，也就是热力图填色与图例五档的口径。
+//       ⚠️ 早先这里写的是 **Σ录入价**（全部 = 48721.5，2026/02 = 7670），比逐日之和整整多出
+//          "每一枚自己的评级费"（全部多 4023，2026/02 多 477）—— 用户一对账就发现 7670 对不上 7194。
+//          ⇒ 这就是"7670 是从哪来的"的答案：**它是 Σ录入价**，把每枚各自的评级费又算了一遍。
 //     · 评级费单独走台账聚合（feeByYm），出第二行；
-//     · 第三行 = 第一行 + 第二行。
+//     · 第三行 = 第一行 + 第二行（= Σ裸币价 + 台账评级费 = Σ录入价）。
 //   ⚠️ 别把这里理解成"把评级费从 byYear 里删掉" —— byYear 同时供**填色**用，删了就少钱了。
 //      所以这里并行记三套数：
-//        `n / sum`     = 该格**所有条目**（藏品 + 评级费）的裸币口径金额 —— 供填色与 data-amount；
-//        `pn / psum`   = **只藏品**、金额取**录入价** —— 供提示文案第一行；
-//        `npn / npsum` = 只藏品、金额取**裸币价** —— 供"Σ裸币价"这类独立校验。
+//        `n / sum`     = 该格**所有条目**（藏品 + 评级费）的裸币口径金额 —— 早先供填色用；
+//        `pn / psum`   = **只藏品**、金额取**录入价** —— 只作校验（Σ录入价 48721.5，别拿去展示）；
+//        `npn / npsum` = 只藏品、金额取**裸币价** —— ★ 现在**填色 / data-amount / 图例 / 年·月·
+//                        全部三种标签泡 / 逐日"这天你一共花了"**全部走这一支（唯一展示口径）。
 function buildMonthHeatmap(items) {
     const byYear = new Map();
     for (const it of items) {
@@ -1638,15 +1650,26 @@ function buildMonthHeatmap(items) {
 
     // 年份**升序**：老的在上、新的在下（用户要求）
     const years = [...byYear.keys()].sort((a, b) => a - b);
+    // ★★★ 色阶的"金额"口径 = **裸币价**（`cell.npsum` = Σ「录入价 − 该枚自己的评级费」）。
+    //   这就是时间轴里"这天，你一共花了 X 元"、以及泡第一行"合计"用的同一个数。
+    //   ★ 用户 2026-10 拿"2026 年 2 月整月逐日明细"手算 = **7194**（= 68 件的裸币价之和
+    //     7193.5，只差显示取整），色阶必须跟这个数走。
+    //   ★ 踩过的两个坑（用户原话："热力图的价格还是不对"）：
+    //     ① 最早用 `c.sum`（= 裸币价 **再加**当月落位的那笔评级费）⇒ 2026/02 = 8003，泡里写 7670；
+    //     ② 改用 `c.psum` 后又发现 **psum 是"Σ录入价、不减评级费"**（2026/02 = 7670）
+    //        —— 它比裸币价多了这些枚自己的评级费 477。
+    //   ⇒ 三个数各说各话的根源就是"填色用一支口径、泡用另一支"。现在统一成 `npsum`：
+    //       泡第一行合计 == 格子取色金额 == 图例五档金额 == Σ(该月逐日"这天你一共花了")
+    //       == 2026/02 的 7193（用户手算 7194，差的是 7193.5 的显示取整）。
     let maxAmount = 0;
-    for (const y of years) for (const c of byYear.get(y)) if (c.sum > maxAmount) maxAmount = c.sum;
+    for (const y of years) for (const c of byYear.get(y)) if (c.npsum > maxAmount) maxAmount = c.npsum;
 
     // 标签的泡里也要有"多少件、多少钱"（用户要求）：
     //   年份 = 全年合计；月份 = 历年这个月的合计；"全部" = 全部时间合计
     //   ★ 同样分成三套（见上面那段注释）。
     const monthTotal = Array.from({ length: 12 }, () => ({ n: 0, sum: 0, pn: 0, psum: 0, npn: 0, npsum: 0 }));
     const yearTotal = new Map();
-    let allPn = 0, allPsum = 0, allNpn = 0, allNpsum = 0;
+    let allNpn = 0, allNpsum = 0;
     for (const y of years) {
         const cells = byYear.get(y);
         let n = 0, sum = 0, pn = 0, psum = 0, npn = 0, npsum = 0;
@@ -1659,7 +1682,6 @@ function buildMonthHeatmap(items) {
             monthTotal[m].npn += cells[m].npn; monthTotal[m].npsum += cells[m].npsum;
         }
         yearTotal.set(y, { n, sum, pn, psum, npn, npsum });
-        allPn += pn; allPsum += psum;
         allNpn += npn; allNpsum += npsum;
     }
     // 文案统一成用户给的格式：x年x月，共购入x件，合计x元
@@ -1682,7 +1704,7 @@ function buildMonthHeatmap(items) {
         // ★ 金额写法：**数字与两侧文字之间一律不加空格**（用户 2026-10 明确要求
         //   "评级费用xx元，xx和两边文字之间不要空格"）—— 所以是
         //   `评级费用810元`（不是 `评级费用 810 元`）、`合计1114元`、`共购入9件`。
-        //   小数只在真有小数时出现（录入价合计可能出现 .5，比如 48721.5）。
+        //   小数只在真有小数时出现（裸币价合计可能出现 .5，比如 44698.5）。
         const money = (v) => (Math.round(Math.round(v * 10) / 10 * 100) % 100 === 0)
             ? String(Math.round(v)) : String(Math.round(v * 10) / 10);
         // ★ 用户要求：泡里的**数字/件数加粗**，标签文字保持正常字重。
@@ -1756,58 +1778,65 @@ function buildMonthHeatmap(items) {
     //   ③ 其它范围（单月 / 某年 / 历年某月）的前缀保持原样，**不许**扩散这个词。
     html += `<div class="tl-heatmap-row tl-hm-head">`;
     html += `<div class="tl-heatmap-ylabel tl-hm-corner${allActive ? ' is-active' : ''}" role="button" tabindex="0"` +
-        ` data-label="全部" aria-label="回到全部数据：${escapeAttr(tipOf('入坑以来', allPn, allPsum, { k: allFeeK, amount: allFeeAmount }))}"` +
+        ` data-label="全部" aria-label="回到全部数据：${escapeAttr(tipOf('入坑以来', allNpn, allNpsum, { k: allFeeK, amount: allFeeAmount }))}"` +
         ` onclick="applyTimelineFilter('全部','全部')">全部` +
-        `<span class="tl-heatmap-tip">${tipHtml('入坑以来', allPn, allPsum, { k: allFeeK, amount: allFeeAmount })}</span></div>`;
+        `<span class="tl-heatmap-tip">${tipHtml('入坑以来', allNpn, allNpsum, { k: allFeeK, amount: allFeeAmount })}</span></div>`;
     for (let m = 1; m <= 12; m++) {
         const sel = (timelineFilterYear === '全部' && timelineFilterMonth === String(m).padStart(2, '0')) ? ' is-active' : '';
         const mt = monthTotal[m - 1];
-        const mtip = tipOf(`历年${m}月`, mt.pn, mt.psum, monthFee[m - 1]);
+        const mtip = tipOf(`历年${m}月`, mt.npn, mt.npsum, monthFee[m - 1]);
         html += `<div class="tl-heatmap-mlabel${sel}" role="button" tabindex="0" data-label="${m}"` +
             ` aria-label="看历年 ${m} 月：${escapeAttr(mtip)}"` +
             ` onclick="applyTimelineFilter('全部', ${m})">${m}` +
-            `<span class="tl-heatmap-tip">${tipHtml(`历年${m}月`, mt.pn, mt.psum, monthFee[m - 1])}</span></div>`;
+            `<span class="tl-heatmap-tip">${tipHtml(`历年${m}月`, mt.npn, mt.npsum, monthFee[m - 1])}</span></div>`;
     }
     html += `</div>`;
 
     for (const y of years) {
         const cells = byYear.get(y);
         const yt = yearTotal.get(y);
-        const ytip = tipOf(`${y}年`, yt.pn, yt.psum, yearFee.get(y) || null);
+        const ytip = tipOf(`${y}年`, yt.npn, yt.npsum, yearFee.get(y) || null);
         const rowSel = (timelineFilterYear === String(y) && timelineFilterMonth === '全部') ? ' is-active' : '';
         // ★★ 最上面那一年的数据行标记成 tl-hm-first-row：它的泡**要往下弹**（见 layout.css），
         //   因为泡一律朝上弹、而第一行上面只有表头 + 14px，容不下三行的泡（会顶出热力图）。
         //   这一行只加 class，不动任何间距 —— 用户明确要求"热力图到上方的距离跟以前一样"。
         html += `<div class="tl-heatmap-row${y === years[0] ? ' tl-hm-first-row' : ''}">`;
+        // ★ --hm-yearsum = 这一年 12 格的金额之和（= 裸币口径的"全年购入合计"）。
+        //   ★ 它由下面那 12 个格子的 `cell.npsum` 相加得到，渲染时直接写出来，
+        //     verify-heatmap 会拿"该年各月逐日合计之和"对它做断言（自洽性判据）。
         html += `<div class="tl-heatmap-ylabel${rowSel}" role="button" tabindex="0" data-label="${y}"` +
+            ` style="--hm-yearsum:${Math.round(yt.npsum * 10) / 10}"` +
             ` aria-label="看 ${y} 年全年：${escapeAttr(ytip)}"` +
             ` onclick="applyTimelineFilter(${y}, '全部')">${y}` +
-            `<span class="tl-heatmap-tip">${tipHtml(`${y}年`, yt.pn, yt.psum, yearFee.get(y) || null)}</span></div>`;
+            `<span class="tl-heatmap-tip">${tipHtml(`${y}年`, yt.npn, yt.npsum, yearFee.get(y) || null)}</span></div>`;
         for (let m = 0; m < 12; m++) {
             const c = cells[m];
             // 连续深浅：直接把这个格子的金额在色阶上的位置算成**透明度**
             // （CSS 读不到 DOM 里的金额，所以只能由 JS 给值；这不是给 tooltip 写内联样式）
             // ★ 有没有色块由**金额**决定（0 元 = 不画），alpha 由 hmAlphaOf 给；
             //   o > 0 只为沿用既有 CSS 钩子（--hm-o / .tl-hm-on），0 元时干脆不写这两个东西。
-            const o = (c.sum > 0) ? timelineHeatmapOpacity(c.sum, maxAmount) : 0;
+            // ★ 取色与泡泡**同一个金额**（cell.npsum = 裸币价）：这样"最深的格子"就是
+            //   图例 100% 那档、"泡里第一行的合计"也等于这个数，三处永远一致。
+            const o = (c.npsum > 0) ? timelineHeatmapOpacity(c.npsum, maxAmount) : 0;
             // ★★ 格子 = 主题蓝实色 + 该档 alpha，与图例条带**同一个函数、同一组 5 档 alpha**。
             //   底色的实色统一走 CSS 里的 .tl-hm-fill（background: var(--theme)），
             //   这里只写 opacity ⇒ 主题色换了格子跟着换，而"图例↔格子 alpha 逐档相等"不变。
-            const bright = (maxAmount > 0) ? Math.min(1, c.sum / maxAmount) : 0;
+            const bright = (maxAmount > 0) ? Math.min(1, c.npsum / maxAmount) : 0;
             // --hm-src = 这一格的原始金额；--hm-bright = 0→1 的档位比例（最亮那档 = 1）；
             // --hm-o 就是这一档的 alpha（CSS 直接用它当 opacity）。
             const styleAttr = o > 0
-                ? ` style="--hm-o:${Math.round(o * 1000) / 1000};--hm-src:${Math.round(c.sum)};--hm-bright:${bright.toFixed(3)}"`
+                ? ` style="--hm-o:${Math.round(o * 1000) / 1000};--hm-src:${Math.round(c.npsum * 10) / 10};--hm-bright:${bright.toFixed(3)}"`
                 : '';
             // tl-hm-on 只为"有金额"的格子加：深色主题那条压暗滤镜只该作用在它们身上
             const onClass = o > 0 ? ' tl-hm-on' : '';
-            const label = tipOf(`${y}年${m + 1}月`, c.pn, c.psum, feeAt(y, m));            const edge = m === 0 ? ' tl-hm-first' : (m === 11 ? ' tl-hm-last' : '');
+            const label = tipOf(`${y}年${m + 1}月`, c.npn, c.npsum, feeAt(y, m));
+            const edge = m === 0 ? ' tl-hm-first' : (m === 11 ? ' tl-hm-last' : '');
             html += `<div class="tl-heatmap-cell${edge}${onClass}"${styleAttr} tabindex="0" role="button"` +
                 ` data-year="${y}" data-month="${String(m + 1).padStart(2, '0')}"` +
-                ` data-amount="${Math.round(c.sum)}" data-bright="${bright.toFixed(3)}"` +
+                ` data-amount="${Math.round(c.npsum * 10) / 10}" data-bright="${bright.toFixed(3)}"` +
                 ` data-alpha="${o > 0 ? o : ''}"` +
                 ` aria-label="${escapeAttr(label)}" onclick="onHeatmapCellClick(${y}, ${m + 1})">` +
-                `<i class="tl-hm-fill"></i><span class="tl-heatmap-tip">${tipHtml(`${y}年${m + 1}月`, c.pn, c.psum, feeAt(y, m))}</span></div>`;
+                `<i class="tl-hm-fill"></i><span class="tl-heatmap-tip">${tipHtml(`${y}年${m + 1}月`, c.npn, c.npsum, feeAt(y, m))}</span></div>`;
         }
         html += `</div>`;
     }

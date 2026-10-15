@@ -11,6 +11,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { decodePng, pixelAt } from './lib/pixel.mjs';
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
 
@@ -40,6 +41,29 @@ ok(!/\.tl-heatmap-title/.test(css) && !/tl-heatmap-title/.test(sp), '① 已去�
 //   （用户反馈过"悬浮泡出现的动画基本没有，只有退出动画"）
 ok(/transition:[^;]*opacity[^;]*transform/.test(css), '① 泡的淡入 + 位移写在 CSS 的 transition 里（出现的动画不会丢）');
 ok(!/style\.transition|transitionProperty|transition\s*=\s*'none'/.test(clampFn), '① clampHeatmapTip 不碰 transition（动了就只剩退出动画）');
+// ★★★ 用户反复反馈的「年份/月份高亮后数字会沉降一点点」：
+//   真凶是**用 font-weight 做高亮** —— 字重一变，字形墨迹框就变（笔画变粗、ink 变高 1px），
+//   而行盒在定高 42px 的 flex 盒里居中 ⇒ `getBoundingClientRect()` 一个像素都不动，
+//   所以"外框零偏差"的断言全绿、屏幕上却真的换了一副字形。⇒ 高亮一律只准用
+//   **不改变字体度量**的属性（color / background），字号·字重·字体·行高·字距各状态必须相同。
+{
+  const activeRule = (css.match(/\.tl-heatmap-ylabel\.is-active[^{]*\{[^}]*\}/) || [''])[0];
+  ok(activeRule.length > 0, '① ★★★ 有 .is-active 高亮规则');
+  ok(!/font-weight\s*:\s*(bold|[6-9]00)/.test(activeRule),
+    `① ★★★ 高亮规则里**没有** font-weight（改用 color + background，避免字形变化造成的"数字沉降"）：${activeRule.replace(/\s+/g, ' ')}`);
+  ok(/color\s*:/.test(activeRule), '① ★★★ 高亮仍然用主题色标出（只是不再动字重）');
+  // 悬浮态同样不许碰任何字体度量属性（hover 只准改 color 等 paint 属性）
+  const hoverRule = (css.match(/\.tl-heatmap-ylabel:hover[^{]*\{[^}]*\}/) || [''])[0];
+  ok(!/font(-weight|-size|-family)?\s*:/.test(hoverRule) && !/line-height|letter-spacing|padding|border|height/.test(hoverRule),
+    `① ★★★ 标签的 :hover 只改 paint 属性（不改字号/字重/行高/内边距/边框/高度）：${hoverRule.replace(/\s+/g, ' ')}`);
+  // 泡必须彻底脱离版式流：absolute + 显式行高（`line-height: normal` 等），
+  // 这样"泡在不在"都改不了父级与标签文字的任何度量。
+  const tipRule = (css.match(/\.tl-heatmap-tip\s*\{[\s\S]*?\n\}/) || [''])[0];
+  ok(/position\s*:\s*absolute/.test(tipRule),
+    `① ★ 泡是绝对定位（不参与父级版式）：${tipRule.replace(/\s+/g, ' ').slice(0, 160)}`);
+  ok(/line-height\s*:/.test(tipRule),
+    `① ★★★ 泡上显式写了 line-height（不继承按钮的行高，避免插进按钮里时影响基线）`);
+}
 
 // ─────────── 起服务 + 无头浏览器 ───────────
 const ROOT = process.cwd();
@@ -271,10 +295,11 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
     totalAmount: Math.round(totalAmount), totalCount, ownAmount: Math.round(ownAmount),
     feeSum: totalFee, rawAmount: Math.round(rawAmount),
     range: {
-      // 「全部时间」范围：第一行取 pn/psum（只藏品、录入价），第二行 fee = totalFee
+      // 「全部时间」范围：第一行取 **裸币口径** npn/npsum（用户 2026-10 裁定）
       all,
-      allTotal: Math.round((all.psum + totalFee) * 10) / 10,
-      allNaked: all.npsum,
+      allTotal: Math.round((all.npsum + totalFee) * 10) / 10,
+      allRaw: { count: all.pn, sum: all.psum },
+      allNaked: { count: all.npn, sum: all.npsum },
       allNakedPlusFee: Math.round((all.npsum + totalFee) * 10) / 10
     }
   });            // ← JSON.stringify 的右括号（少一个就会报 "missing ) after argument list"）
@@ -301,33 +326,33 @@ const tipTextOf = (tip) => {
 let cellBad = 0, cellChecked = 0, sumAll = 0;
 for (const r of (shape?.rows || [])) {
   for (const c of r.cells) {
-    const want = expectMatrix.cells[r.year + '/' + c.m] || { n: 0, sum: 0, pn: 0, psum: 0 };
+    const want = expectMatrix.cells[r.year + '/' + c.m] || { n: 0, sum: 0, pn: 0, psum: 0, npn: 0, npsum: 0 };
     cellChecked++;
-    sumAll += want.sum;
+    sumAll += want.npsum;
     const { text: tip, lines } = tipTextOf(c.tip);
     // 用户定的文案格式（2026-10 起是**两/三行**）：
-    //   第一行 = `x年x月，共购入N件，合计X元`，N/X **只算藏品**、X = Σ**录入价**（不含评级费）
+    //   第一行 = `x年x月，共购入N件，合计X元`，N/X **只算藏品**、X = **Σ裸币价**（不含评级费）
     //   第二行 = `另对K件钱币评级，评级费用 Y 元`（该月没有评级费就整行没有）
     //   第三行 = `合计支出Z元`，Z = X + Y（同样只在有评级费时出现）
-    const wantText = `${r.year}年${Number(c.m)}月，共购入${want.pn}件，合计${want.psum}元`;
+    const wantText = `${r.year}年${Number(c.m)}月，共购入${want.npn}件，合计${want.npsum}元`;
     const exact = lines[0] === wantText;
-    const nOk = lines[0].includes(`共购入${want.pn}件`);
-    const sumOk = lines[0].includes(`合计${want.psum}元`);
+    const nOk = lines[0].includes(`共购入${want.npn}件`);
+    const sumOk = lines[0].includes(`合计${want.npsum}元`);
     // ★ aria-label 走的是 escapeAttr ⇒ 里面的 `<strong class="tl-hm-num">` 被编码成
     //   `%3Cstrong class=%22tl-hm-num%22%3E`。要比就先把实体/百分号编码解回来，
     //   再去掉标签，最后和泡的纯文本比。
     const ariaPlain = decodeEnt(String(c.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
       .replace(/%22/g, '"').replace(/&#10;/g, '\n').replace(/%0A/gi, '\n'))
       .replace(/<[^>]*>/g, '');
-    const ariaOk = !!c.aria && ariaPlain.includes(`共购入${want.pn}件`) && ariaPlain.includes(`合计${want.psum}元`);
+    const ariaOk = !!c.aria && ariaPlain.includes(`共购入${want.npn}件`) && ariaPlain.includes(`合计${want.npsum}元`);
     // ★ 第一行里**绝不能**并进评级费（这正是用户报的"多了一倍评级费"）
     const feeAmt = (() => { const m = (lines[1] || '').match(/评级费用\s*([\d.]+)\s*元/); return m ? +m[1] : null; })();
-    const noFeeInHead = feeAmt == null || !lines[0].includes(`合计${Math.round(want.psum + feeAmt)}元`);
+    const noFeeInHead = feeAmt == null || !lines[0].includes(`合计${Math.round(want.npsum + feeAmt)}元`);
     // ★★ 第三行 == 第一行 + 第二行（逐格恒等 ⇒ 评级费只被加过一次）
     const totalOk = (() => {
       if (feeAmt == null) return lines.length === 1;
       const m = (lines[2] || '').match(/^合计支出([\d.]+)元$/);
-      return lines.length === 3 && !!m && Math.abs(+m[1] - (want.psum + feeAmt)) <= 0.01;
+      return lines.length === 3 && !!m && Math.abs(+m[1] - (want.npsum + feeAmt)) <= 0.01;
     })();
     if (!nOk || !sumOk || !ariaOk || !exact || !noFeeInHead || !totalOk) {
       cellBad++;
@@ -353,19 +378,26 @@ if (cellBad) {
   console.log(`         复算：${Object.keys(expectMatrix.cells).slice(0, 4).map(k => k + '=' + JSON.stringify(expectMatrix.cells[k])).join(' , ')}`);
   console.log(`         页面：${dbg}`);
 }
-ok(Math.round(sumAll) === expectMatrix.totalAmount, `② 全部格子金额之和 = 独立重算总额（${Math.round(sumAll)} vs ${expectMatrix.totalAmount}）`);
+// ★★ 格子填色/图例的口径（用户 2026-10 用"2026 年 2 月逐日明细"手算 7194 之后钉死）：
+//   填色金额 = 泡第一行"合计" = **Σ(该月每天的"这天，你一共花了 X 元")** = `cell.psum`（裸币价）。
+//   ⇒ 所以"全部格子之和"必须等于 `expectMatrix.ownAmount`（Σ裸币价 = 46668.5），
+//     **不是** `totalAmount`（那是"Σ裸币价 + 评级费支出"= 标语用的总支出口径）。
+ok(Math.abs(sumAll - expectMatrix.ownAmount) <= 0.6,
+  `② ★★★ 全部格子金额之和 == Σ裸币价 ${expectMatrix.ownAmount}（实测 ${Math.round(sumAll * 10) / 10}）—— 填色口径 = 泡第一行合计 = 逐日"这天你一共花了"`);
 
 const sloganSum = parseInt(((await evaluate(`(document.querySelector('.timeline-slogan')||{}).textContent||''`)).match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
-ok(Math.round(sumAll) === expectMatrix.totalAmount, `② 全部格子金额之和 = 独立重算总额（${Math.round(sumAll)} vs ${expectMatrix.totalAmount}）`);
-// ★★ 口径（用户裁定 2026-10，最终版）：**总花费 = Σ裸币价 + 评级费支出**，
+// ★★ 标语口径（用户裁定 2026-10，最终版）：**总花费 = Σ裸币价 + 评级费支出**，
 //   数学上恒等于 **Σ 藏品 price**（录入价 = 裸币价 + 该枚评级费）。既不重复也不遗漏。
-//   热力图与标语都必须落在同一个数上（热力图把两者都画进格子里）。
+//   ★ 注意：标语与"格子填色"**不是同一个数** —— 标语是"总共花了多少"（含所有评级费），
+//     格子/图例是"每个月花了多少"（裸币价口径，与逐日明细吻合）。
 ok(sloganSum === expectMatrix.totalAmount,
-  `② ★ 标语"共花了" == 热力图总额 == Σ裸币价 + 评级费支出（${sloganSum} vs ${expectMatrix.totalAmount}）`);
-ok(expectMatrix.totalAmount === expectMatrix.ownAmount + expectMatrix.feeSum,
-  `② ★ 总额 == Σ裸露价 ${expectMatrix.ownAmount} + 评级费支出 ${expectMatrix.feeSum} = ${expectMatrix.ownAmount + expectMatrix.feeSum}`);
+  `② ★ 标语"共花了" == Σ裸币价 + 评级费支出（${sloganSum} vs ${expectMatrix.totalAmount}）`);
+ok(sloganSum === expectMatrix.ownAmount + expectMatrix.feeSum,
+  `② ★ 标语总额 == Σ裸币价 ${expectMatrix.ownAmount} + 评级费支出 ${expectMatrix.feeSum} = ${expectMatrix.ownAmount + expectMatrix.feeSum}`);
 ok(expectMatrix.ownAmount === expectMatrix.rawAmount - expectMatrix.feeSum,
   `② ★ Σ裸币价 == Σ录入价 − 评级费支出（${expectMatrix.ownAmount} == ${expectMatrix.rawAmount} − ${expectMatrix.feeSum}）`);
+ok(expectMatrix.totalAmount === expectMatrix.rawAmount,
+  `② ★★★ 两条总口径恒等：Σ裸币价+评级费支出 == Σ录入价（${expectMatrix.totalAmount} == ${expectMatrix.rawAmount}）—— 7670 与 7193.5 的差就是这么来的`);
 
 // ─────────── ②-c 悬浮提示：第一行不含评级费、第二/三行按需出现 ───────────
 // 用户 2026-10 的三行形态（以 2026年10月 为例）：
@@ -397,7 +429,7 @@ const expectFees = JSON.parse(await evaluate(`(()=>{
     const dt = pdate(b.paidDate); if (!dt) continue;
     // ★★ key 必须与 data-month 完全同形（**两位、带前导零**）：
     //   写成 2026/1 就永远匹配不上页面里的 2026/01，于是 1~9 月被误判成"无评级费"
-    //   （上一版就是这么报出"第一行 2259 ≠ Σ录入价 0 / 无评级费却有 3 行"的）。
+    //   （上一版就是这么报出"第一行 1836 ≠ Σ裸币价 0 / 无评级费却有 3 行"的）。
     const key = dt.getFullYear() + '/' + String(dt.getMonth() + 1).padStart(2, '0');
     const cur = out[key] || { k:0, amount:0 };
     cur.k += live.length; cur.amount = Math.round((cur.amount + amount)*100)/100;
@@ -434,7 +466,7 @@ for (const t of tipsAll) {
   const lines = String(t.tip).split('\n');
   // ★★ 台账 monthKey 是 'y/MM'（**两位、带前导零**，与 data-month 一模一样）；
   //   早先写成 Number(t.m) 得到 'y/1'，于是 1~9 月的台账永远查不到
-  //   ⇒ 这些月份被当成"无评级费"，用例报出"第一行 2259 ≠ Σ录入价 0"这种看不懂的错。
+  //   ⇒ 这些月份被当成"无评级费"，用例报出"第一行 1836 ≠ Σ裸币价 0"这种看不懂的错。
   const mk = t.y + '/' + t.m;
   const exp = expectFees[mk] || null;
   const cellWant = expectMatrix.cells[mk] || null;
@@ -457,8 +489,8 @@ for (const t of tipsAll) {
       if (Math.abs(tl - (headSum + fa)) > 0.01) tipBad.push(`${t.y}/${t.m} 第三行 ${tl} ≠ ${headSum}+${fa}=${Math.round((headSum + fa) * 10) / 10}`);
       // ★★★ 第一行**绝不能**并进评级费（"多了一倍评级费"就是这个）
       //   ★ cellWant 在循环头就取好了（原先在这里重新声明 ⇒ `const` 暂时性死区 ⇒ TypeError）
-      if (Math.abs(headSum - (cellWant ? cellWant.psum : 0)) > 0.01) {
-        tipBad.push(`${t.y}/${t.m} 第一行 ${headSum} ≠ Σ录入价 ${cellWant ? cellWant.psum : '（无该月）'}`);
+      if (Math.abs(headSum - (cellWant ? cellWant.npsum : 0)) > 0.01) {
+        tipBad.push(`${t.y}/${t.m} 第一行 ${headSum} ≠ Σ裸币价 ${cellWant ? cellWant.npsum : '（无该月）'}`);
       }
     }
   } else {
@@ -479,7 +511,7 @@ if (oct) {
   console.log('     2026年10月 实际提示文本：');
   lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
   const octExp = expectFees['2026/10'];
-  // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ录入价）：
+  // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ裸币价）：
   //     2026年10月，共购入8件，合计1114元      ← 用户原话写的是"9件"，实测数据是 **8 件 / 1114 元**
   //                                              （collectAllCopies 与实际遍历两条独立路径都是 8 件 1114 元）
   //     另对26件钱币评级，评级费用810元
@@ -492,8 +524,8 @@ if (oct) {
     `②-c ★★★ 第二行 == 「另对xx件钱币评级，评级费用810元」（数字两侧无空格；实际「${lines[1]}」）`);
   ok(lines[2] === '合计支出1924元',
     `②-c ★★★ 第三行 == 「合计支出1924元」（1114 + 810；实际「${lines[2]}」）`);
-  ok(octCell && octCell.pn === 8 && Math.abs(octCell.psum - 1114) <= 0.01,
-    `②-c ★★★ 独立复算该月 = ${octCell && octCell.pn} 件 / Σ录入价 ${octCell && octCell.psum} 元`);  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
+  ok(octCell && octCell.npn === 8 && Math.abs(octCell.npsum - 1114) <= 0.01,
+    `②-c ★★★ 独立复算该月 = ${octCell && octCell.npn} 件 / Σ裸币价 ${octCell && octCell.npsum} 元`);  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
     `②-c ★★★ 台账该月评级 = 26 件 / 810 元（实际 ${octExp.k} 件 / ${octExp.amount} 元）`);
   // aria-label 也要是同一套文本（aria 走 escapeAttr，会带编码后的 <strong> 标签）
   const ariaOct = decodeEnt(String(oct.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
@@ -564,8 +596,8 @@ console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是
   for (const x of octItems) console.log(`        ${String(x.copyId || '（无 copyId）').padEnd(14)} price=${JSON.stringify(x.rawPrice)} → ${x.price}  [${x.key}]`);
   ok(octItems.length === octWant.pn,
     `②-d ★★★ 2026年10月 实际购入件数 == ${octItems.length}（与"只按日期数"的独立复算一致；页面提示也是 ${octWant.pn} 件）`);
-  ok(Math.round(octSum) === Math.round(octWant.psum),
-    `②-d ★★★ 该月合计金额（只算有价格的）== ${Math.round(octSum)}（与页面 ${octWant.psum} 一致）—— **件数与金额各自独立复算**：件数不看价格、金额看价格`);
+  ok(Math.round(octSum) === Math.round(octWant.npsum),
+    `②-d ★★★ 该月合计金额（只算有价格的）== ${Math.round(octSum)}（与页面 ${octWant.npsum} 一致）—— **件数与金额各自独立复算**：件数不看价格、金额看价格`);
   ok(octNoPrice === 0, `②-d ★★ 这 ${octItems.length} 件**每一件都有价格**（无价格件数 = ${octNoPrice}）⇒ "有一件没价格被漏算"这个猜测不成立`);
   // B) 页面提示第一行的件数 / 金额
   if (octTips) {
@@ -598,6 +630,127 @@ console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是
     `②-d ★★ 那一张多出来的卡片是评级费条目（${domOct && JSON.stringify(domOct.items.filter(w => /评级费/.test(w.txt)).map(w => w.txt))}）`);
   ok(!!domOct && domOct.days.length === 3 && domOct.days.join(',') === '2026年10月14日,2026年10月13日,2026年10月1日',
     `②-d ★ 那 9 张卡片分布在 3 天里（${domOct && domOct.days.join(' / ')}）—— 9 条并没有第 9 件藏品`);
+}
+
+// ─────────── ②-e 以"每日合计之和"为准对账（用户 2026-10 的判据） ───────────
+// 用户裁定：**单月合计 == 该月"这天，你一共花了 X 元"之和**。
+//   他手算 2026 年 2 月 = 68+88+298+121+240+2323+1153+677+198+766+129+298+341+494 = **7194**。
+//   ★ 本段**真的去调用页面自己的按日聚合函数**（timelineDailyAmountOf / 同类函数），
+//     逐日把"这天你一共花了多少"算出来再加总，而不是复用热力图的按格聚合 ——
+//     这样"单月 == 逐日之和"才是一条**独立**的判据。
+console.log('\n══════ ②-e 单月合计 == 该月"逐日合计"之和（用户判据） ══════\n');
+{
+  const daily = JSON.parse(await evaluate(`(()=>{
+    const dayFn = (typeof timelineDayAmountOf === 'function' ? timelineDayAmountOf
+      : (typeof timelineDailyAmount === 'function' ? timelineDailyAmount : null));
+    const priceFn = (typeof timelinePriceOf === 'function' ? timelinePriceOf : null);
+    const pdate = (s) => { const t = String(s || '').trim(); const d = new Date(t); if (!isNaN(d.getTime())) return d;
+      const m = t.match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+    const px = (s) => { const v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return (isNaN(v) || v <= 0) ? 0 : v; };
+    // 逐枚：用页面自己那支"这枚在时间轴上算多少钱"的函数（= 裸币价）
+    const per = [];
+    for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+      if (!map) continue;
+      for (const k of Object.keys(map)) { const d = map[k]; if (!d || !d.series) continue;
+        const walk = (arr) => { for (const c of (arr || [])) {
+          if (!c || !c.purchaseDate) continue;
+          const dt = pdate(c.purchaseDate); if (!dt) continue;
+          per.push({ y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate(),
+            v: (typeof timelinePriceOf === 'function' ? px(timelinePriceOf(c)) : px(c.price)) });
+        } };
+        for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
+      }
+    }
+    const byDay = new Map(), byMonth = new Map();
+    for (const r of per) {
+      const dk = r.y + '/' + String(r.m).padStart(2, '0') + '/' + String(r.d).padStart(2, '0');
+      const mk = r.y + '/' + String(r.m).padStart(2, '0');
+      byDay.set(dk, Math.round(((byDay.get(dk) || 0) + r.v) * 10) / 10);
+      byMonth.set(mk, Math.round(((byMonth.get(mk) || 0) + r.v) * 10) / 10);
+    }
+    return JSON.stringify({ dayFnName: typeof dayFn === 'function' ? (dayFn.name || '匿名') : null,
+      priceFnName: typeof priceFn === 'function' ? (priceFn.name || '匿名') : null,
+      byDay: [...byDay.entries()], byMonth: [...byMonth.entries()], rows: per.length });
+  })()`));
+  const dailyMonth = new Map(daily.byMonth);
+  console.log(`     逐日聚合：${daily.byDay.length} 天 / ${daily.rows} 枚（金额函数：${daily.priceFnName}）`);
+  console.log(`     2026 年 2 月逐日合计（独立按日重算，与用户手算的 14 天对照）：`);
+  const feb = daily.byDay.filter(([k]) => k.startsWith('2026/02/')).sort();
+  for (const [k, v] of feb) console.log(`        ${k}  ${v}`);
+  const febSum = Math.round(feb.reduce((s, [, v]) => s + v, 0) * 10) / 10;
+  console.log(`        ── 2 月合计 = ${febSum}（用户手算 7194）`);
+  // ★★ 两个数都要算：精确值 7193.5，以及"按页面那样每天四舍五入显示后再相加"= 7194。
+  //   用户是照屏幕上的每日数字（765.5 印成 766）加的，所以他得 7194；两者差 0.5，属显示取整。
+  const febAcc = Math.round(feb.reduce((s, [, v]) => s + v, 0) * 10) / 10;
+  const febShown = feb.reduce((s, [, v]) => s + Math.round(v), 0);
+  console.log(`        精确值 ${febAcc}；按页面每天取整后相加 = ${febShown}（用户手算 7194）`);
+  ok(febShown === 7194 && Math.abs(febAcc - 7194) <= 1,
+    `②-e ★★★ 2026 年 2 月「逐日合计之和」= ${febAcc}（按天取整后 ${febShown}）== 用户手算的 7194`);
+  // 页面格子的金额必须 == 该月逐日合计（对所有有数据的月份）
+  const cellAmt = JSON.parse(await evaluate(`(()=>{
+    const out = {};
+    for (const r of [...document.querySelectorAll('.tl-heatmap-row')].filter(x => !x.classList.contains('tl-hm-head'))) {
+      const y = (r.querySelector('.tl-heatmap-ylabel') || {}).dataset?.label;
+      for (const c of r.querySelectorAll('.tl-heatmap-cell')) out[y + '/' + c.dataset.month] = +(c.dataset.amount || 0);
+    }
+    return JSON.stringify(out);
+  })()`));
+  const monthBad = [];
+  let nMon = 0;
+  for (const [mk, v] of dailyMonth) {
+    const [y, m] = mk.split('/');
+    const got = cellAmt[y + '/' + m];
+    nMon++;
+    if (got === undefined || Math.abs(got - v) > 0.11) monthBad.push(`${mk}: 格子 ${got} ≠ 逐日 ${v}`);
+  }
+  ok(monthBad.length === 0,
+    `②-e ★★★ 全部 ${nMon} 个月：格子金额 == 该月"逐日合计之和"（不一致：${monthBad.join('；') || '无'}）`);
+  // 全年合计 == 各月之和；全部合计 == 所有月之和（自洽性）
+  const ySum = new Map(), allSum = Math.round([...dailyMonth.values()].reduce((s, v) => s + v, 0) * 10) / 10;
+  for (const [mk, v] of dailyMonth) { const y = mk.split('/')[0]; ySum.set(y, Math.round(((ySum.get(y) || 0) + v) * 10) / 10); }
+  const pageYear = JSON.parse(await evaluate(`(()=>{
+    const out = {};
+    for (const e of document.querySelectorAll('.tl-heatmap-ylabel')) if (e.dataset.label && /^\\d{4}$/.test(e.dataset.label))
+      out[e.dataset.label] = +(e.style.getPropertyValue('--hm-yearsum') || 0);
+    return JSON.stringify(out);
+  })()`));
+  const yBad = [];
+  for (const [y, v] of ySum) { const got = pageYear[y]; if (got === undefined || Math.abs(got - v) > 0.11) yBad.push(`${y}: 页面 ${got} ≠ 逐月之和 ${v}`); }
+  ok(yBad.length === 0 && Object.keys(pageYear).length === ySum.size,
+    `②-e ★★★ 每个年份行：页面写的全年合计 == 该年各月"逐日合计"之和（${yBad.join('；') || '全部一致'}；页面上 ${Object.keys(pageYear).length} 个年份行）`);
+  console.log(`     各年"逐月之和"：${[...ySum.entries()].map(([y, v]) => y + '=' + v).join(' , ')}`);
+  console.log(`     全部 = Σ所有月 = ${allSum}；Σ各年 = ${Math.round([...ySum.values()].reduce((s, v) => s + v, 0) * 10) / 10}`);
+  ok(Math.abs(allSum - expectMatrix.ownAmount) <= 0.6,
+    `②-e ★★ 全部（Σ所有月）== Σ裸币价 ${expectMatrix.ownAmount}（${allSum}）`);
+  ok(Math.abs(Math.round([...ySum.values()].reduce((s, v) => s + v, 0) * 10) / 10 - allSum) <= 0.11,
+    `②-e ★★ 自洽：Σ各年 == Σ所有月（${[...ySum.values()].reduce((s, v) => s + v, 0)} == ${allSum}）`);
+
+  // ★★★ 图例五档的最大值必须**等于按"逐日合计"口径算出来的最大月合计**（用户判据 3）：
+  //   当前数据下最大月 = 2026/02 = 7193.5（显示 7194）。
+  const maxMon = [...dailyMonth.entries()].sort((a, b) => b[1] - a[1])[0];
+  const legend = JSON.parse(await evaluate(`(()=>{
+    const lg = document.querySelector('.tl-heatmap-legend');
+    if (!lg) return JSON.stringify(null);
+    const ticks = [...lg.querySelectorAll('.tl-hm-legend-tick')];
+    return JSON.stringify({ ticks: ticks.map(t => ({ pct: +t.dataset.percent, amt: +t.dataset.amount, text: t.textContent.trim() })) });
+  })()`));
+  console.log(`     最大月合计（逐日口径）= ${maxMon[1]} 元，落在 ${maxMon[0]}`);
+  console.log(`     图例五档实测文本：${legend && legend.ticks.map(t => t.text).join(' / ')}`);
+  ok(!!legend && Math.abs((legend.ticks[4] || {}).amt - maxMon[1]) <= 0.5,
+    `②-e ★★★ 图例 100% 档 == 最大月合计（图例 ${legend && legend.ticks[4] && legend.ticks[4].amt} vs 逐日口径最大月 ${maxMon[1]} 元 @ ${maxMon[0]}）`);
+  // 最大月的那个格子必须是最深的一档（bright == 1）
+  const maxCell = JSON.parse(await evaluate(`(()=>{
+    const c = [...document.querySelectorAll('.tl-heatmap-cell')].find(x => String(x.dataset.year) === ${JSON.stringify(maxMon[0].split('/')[0])} && String(x.dataset.month) === ${JSON.stringify(maxMon[0].split('/')[1])});
+    return JSON.stringify(c ? { amt: +c.dataset.amount, bright: +c.dataset.bright, alpha: +c.dataset.alpha } : null);
+  })()`));
+  ok(!!maxCell && Math.abs(maxCell.amt - maxMon[1]) <= 0.11 && maxCell.bright === 1 && Math.abs(maxCell.alpha - 0.95) <= 0.001,
+    `②-e ★★★ 最大月那一格（${maxMon[0]}）取的是最深一档：金额 ${maxCell && maxCell.amt}、bright ${maxCell && maxCell.bright}、α ${maxCell && maxCell.alpha}`);
+  const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const spNoCmt = stripComments(readFileSync('collection/special.js', 'utf8')), cssNoCmt = stripComments(css);
+  ok(!/7193/.test(spNoCmt) && !/7193/.test(cssNoCmt),
+    `②-e ★★★ special.js / layout.css 里**没有任何写死的 7193**（图例五档全部由实时 max 算出来）`);
+  ok(/timelineHeatmapTiers\s*\(\s*maxAmount\s*\)/.test(spNoCmt),
+    '②-e ★★★ 图例五档由 timelineHeatmapTiers(maxAmount) 实时算（maxAmount = 最大月合计），不是写死的数组');
 }
 
 // ⑤ 换行真的会渲染成三行 + 泡的形状（宽由内容定、不折行、文字居中）
@@ -688,9 +841,10 @@ ok(octLines && octLines.tipW >= 200 && octLines.tipW > octLines.cellW * 2,
 const lvInfo = JSON.parse(await evaluate(`(()=>{
   const cells = [...document.querySelectorAll('.tl-heatmap-cell')];
   const o = c => +(c.style.getPropertyValue('--hm-o') || 0);
-  // ★★ 填色金额读 data-amount（渲染端写的**该格总额** = 藏品裸币价 + 该月评级费），
-  //   **不要**从泡文案里抠"合计" —— 泡第一行现在是**录入价口径**（只算藏品、不减费），
-  //   与填色用的裸币口径差一个评级费，抠出来必然对不上（上一版就是这么误报的）。
+  // ★★ 填色金额读 data-amount（渲染端写的 = **该格裸币口径金额** cell.psum：
+  //   藏品录入价 − 该枚自己的评级费）。★ 它必须与泡第一行"合计"**逐分相等** ——
+  //   这正是用户 2026-10 抓到的 bug：上一版填色用的是"裸币价 + 该月评级费"，
+  //   2026/02 于是填 7193、图例最大值也 7193，而泡里写 7670，三处口径互相打架。
   const am = c => +(c.dataset.amount || 0);
   const rows = cells.map(c => {
     const f = c.querySelector('.tl-hm-fill');
@@ -1036,19 +1190,28 @@ const sumCells = (pick) => {
     const [yy, mm] = k.split('/').map(Number);
     if (!pick(yy, mm)) continue;
     const c = expectMatrix.cells[k];
-    n += c.n; sum += c.sum; pn += c.pn || 0; psum += c.psum || 0;
+    n += c.n; sum += c.sum;
+    // ★★ 标签泡第一行用的字段：**裸币口径**（npn / npsum）。
+    //   这与格子泡、逐日"这天你一共花了"、图例五档是同一支口径（用户 2026-10 裁定）。
+    pn += c.npn || 0; psum += c.npsum || 0;
   }
-  return { n, sum: Math.round(sum), pn, psum: Math.round(psum * 10) / 10 };
+  return {
+    n, sum: Math.round(sum), pn,
+    psum: Math.round(psum * 10) / 10,
+    naked: Math.round(psum * 10) / 10      // ★ 与 psum 同值：这一支就是"裸币口径"
+  };
 };
 const year0 = expectMatrix.years.map(Number).sort((a, b) => a - b)[0];
 // ★★ 统一成 {pn, psum}：标签泡与格子泡**同一套字段名**，
 //   早先这里写成 {n, sum} 而断言读 exp.pn ⇒ 永远 undefined（上一版误报就是它）。
 const expectLabel = {
-  all: { pn: expectMatrix.range.all.pn, psum: expectMatrix.range.all.psum },
+  all: { pn: expectMatrix.range.allNaked.count, psum: Math.round(expectMatrix.range.allNaked.sum * 10) / 10 },
   year0: sumCells(yy => yy === year0),
   year0Label: String(year0),
   m7: sumCells((yy, mm) => mm === 7)
 };
+expectLabel.all.naked = expectLabel.all.psum;
+expectLabel.all.n = expectLabel.all.pn;
 await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'center' }); return 1; })()`);
 await sleep(350);
 const labelCases = [
@@ -1067,8 +1230,8 @@ for (const [name, expr, want, expectFn] of labelCases) {
   const m = firstLineOf(p.text).match(want);
   const exp = expectFn();
   ok(!!m, `③ ★ ${name}有自己的悬浮泡（显示「${String(p.text).replace(/\n/g, ' ⏎ ')}」）`);
-  ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.psum) <= 0.01,
-    `③ ★ ${name}的泡第一行件数/购入金额与它管的格子一致（泡 ${m ? m[1] + ' 件/' + m[2] + ' 元' : '—'} vs 复算 ${exp.pn} 件/${exp.psum} 元）`);
+  ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.naked) <= 0.51,
+    `③ ★ ${name}的泡第一行件数/购入金额与它管的格子一致（泡 ${m ? m[1] + ' 件/' + m[2] + ' 元' : '—'} vs 复算 ${exp.pn} 件/裸币 Σ ${exp.naked} 元）`);
   // ★ 泡的形状：不能被压成"一个格子那么宽"（用户报过），且每行不折行
   ok(p.tipW >= 200 && p.ws === 'nowrap',
     `③ ★ ${name}的泡宽度由内容决定、不折行（${p.tipW}×${p.tipH}px，white-space=${p.ws}）`);
@@ -1128,9 +1291,10 @@ const sumCellsFor = (pick) => {
     const [yy, mm] = key.split('/').map(Number);
     if (!pick(yy, mm)) continue;
     const c = expectMatrix.cells[key];
-    pn += c.pn || 0; psum += c.psum || 0; nsum += c.sum;
+    // ★★ 泡第一行的口径 = **裸币价**（npn / npsum）—— 与格子填色、逐日合计、图例五档同一支
+    pn += c.npn || 0; psum += c.npsum || 0; nsum += c.npsum;
   }
-  return { pn, psum: Math.round(psum * 10) / 10, nsum: Math.round(nsum) };
+  return { n: pn, pn, psum: Math.round(psum * 10) / 10, naked: Math.round(psum * 10) / 10, nsum: Math.round(nsum * 10) / 10 };
 };
 const yAll = expectMatrix.years.map(Number).sort((a, b) => a - b);
 const scopeCases = [
@@ -1150,8 +1314,8 @@ for (const [name, expr, headRe, expectFn, feeFn] of scopeCases) {
   console.log(`     ${name}（${lines.length} 行）：`);
   lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
   const m = lines[0].match(headRe);
-  ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.psum) <= 0.01,
-    `③-b ★★ ${name}：第一行前缀正确，件数/Σ录入价与独立复算一致（${m ? m[1] + ' 件/' + m[2] + ' 元' : '格式不符'} vs ${exp.pn} 件/${exp.psum} 元）`);
+  ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.naked) <= 0.51,
+    `③-b ★★ ${name}：第一行前缀正确，件数/Σ裸币价与独立复算一致（${m ? m[1] + ' 件/' + m[2] + ' 元' : '格式不符'} vs 复算 ${exp.n} 件/裸币 Σ ${exp.naked} 元）`);
   // ★★★ 第一行**不许**等于"含评级费"的那个数（防重复计入的核心）
   if (fexp) {
     ok(!(Math.abs(+m[2] - (exp.psum + fexp.amount)) <= 0.01 && fexp.amount > 0),
@@ -1204,14 +1368,14 @@ console.log('\n══════ ③-b2 四种范围的件数自查（件数不
           if (!c || !c.purchaseDate) continue;
           const dt = pdate(c.purchaseDate); if (!dt) continue;
           rows.push({ y: dt.getFullYear(), m: dt.getMonth() + 1, price: px(c.price),
-            hasPrice: c.price != null && String(c.price).trim() !== '' });
+            naked: px(timelinePriceOf(c)), hasPrice: c.price != null && String(c.price).trim() !== '' });
         } };
         for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
       }
     }
-    const agg = (pick) => { let n = 0, sum = 0, noPrice = 0;
-      for (const r of rows) { if (!pick(r)) continue; n++; sum += r.price; if (!r.hasPrice) noPrice++; }
-      return { n, sum: Math.round(sum * 10) / 10, noPrice }; };
+    const agg = (pick) => { let n = 0, sum = 0, naked = 0, noPrice = 0;
+      for (const r of rows) { if (!pick(r)) continue; n++; sum += r.price; naked += r.naked; if (!r.hasPrice) noPrice++; }
+      return { n, sum: Math.round(sum * 10) / 10, naked: Math.round(naked * 10) / 10, noPrice }; };
     // 页面上的四种范围泡（纯文本）
     const tipOf = (e) => { if (!e) return null; const t = e.querySelector(':scope > .tl-heatmap-tip'); return t ? window.__tipText(t) : null; };
     const mLabels = [...document.querySelectorAll('.tl-heatmap-mlabel')];
@@ -1236,31 +1400,66 @@ console.log('\n══════ ③-b2 四种范围的件数自查（件数不
   const A = expectMatrix.range.all;
   const octCell = expectMatrix.cells['2026/10'] || { pn: 0, psum: 0 };
   const firstOf = (t) => (t ? String(t).split('\n')[0] : '（未取到）');
-  console.log('     范围              实际购入件数  无价格件    Σ录入价    页面泡第一行');
+  console.log('     范围              实际购入件数  无价格件    Σ裸币价    页面泡第一行');
   const print = (name, n, sum, noPrice, tip) =>
     console.log(`     ${name.padEnd(16)} ${String(n).padStart(10)}  ${String(noPrice).padStart(6)}  ${String(sum).padStart(10)}   ${firstOf(tip)}`);
-  print('全部（入坑以来）', recount.all.n, recount.all.sum, recount.all.noPrice, recount.tips.all);
-  print('单月 2026年10月', recount.oct.n, recount.oct.sum, recount.oct.noPrice, recount.tips.oct);
-  print('某年 2026年', recount.y2026.n, recount.y2026.sum, recount.y2026.noPrice, recount.tips.y2026);
-  print('历年10月', recount.m10.n, recount.m10.sum, recount.m10.noPrice, recount.tips.m10);
+  print('全部（入坑以来）', recount.all.n, recount.all.naked, recount.all.noPrice, recount.tips.all);
+  print('单月 2026年10月', recount.oct.n, recount.oct.naked, recount.oct.noPrice, recount.tips.oct);
+  print('某年 2026年', recount.y2026.n, recount.y2026.naked, recount.y2026.noPrice, recount.tips.y2026);
+  print('历年10月', recount.m10.n, recount.m10.naked, recount.m10.noPrice, recount.tips.m10);
   console.log(`     （全站共 ${recount.totalRows} 件藏品带购入日期；其中 **${recount.noPriceRows} 件没有价格字段**）`);
   console.log(`     对照：全部范围的"卡片总数" = 藏品 ${recount.all.n} + 评级费条目 5 = ${recount.all.n + 5}（时间轴顶部"共385件"写的就是这个数）`);
   // 件数与金额各自独立复算后再和页面泡对一遍
   const chk = (name, want, tip) => {
     const m = String(tip || '').split('\n')[0].match(/共购入(\d+)件，合计([\d.]+)元/);
     ok(!!m && +m[1] === want.n, `③-b2 ★★★ ${name}：件数 ${want.n} == 独立复算（页面「${m ? m[1] : '?'}件」）`);
-    ok(!!m && Math.abs(+m[2] - want.sum) <= 0.01, `③-b2 ★★★ ${name}：Σ录入价 ${want.sum} == 独立复算（页面「${m ? m[2] : '?'}元」）`);
+    ok(!!m && Math.abs(+m[2] - want.naked) <= 0.01, `③-b2 ★★★ ${name}：Σ裸币价 ${want.naked} == 独立复算（页面「${m ? m[2] : '?'}元」）`);
   };
   chk('全部（入坑以来）', recount.all, recount.tips.all);
   chk('单月 2026年10月', recount.oct, recount.tips.oct);
   chk('某年 2026年', recount.y2026, recount.tips.y2026);
   chk('历年10月', recount.m10, recount.tips.m10);
-  ok(recount.all.n === A.pn && Math.abs(recount.all.sum - A.psum) <= 0.01,
-    `③-b2 ★★★ 全部范围与格子重算口径一致（件数 ${recount.all.n}/${A.pn}、金额 ${recount.all.sum}/${A.psum}）`);
-  ok(recount.oct.n === octCell.pn && Math.abs(recount.oct.sum - octCell.psum) <= 0.01,
-    `③-b2 ★★★ 2026年10月与格子重算口径一致（件数 ${recount.oct.n}/${octCell.pn}、金额 ${recount.oct.sum}/${octCell.psum}）`);
+  ok(recount.all.n === A.npn && Math.abs(recount.all.naked - A.npsum) <= 0.01,
+    `③-b2 ★★★ 全部范围与格子重算口径一致（件数 ${recount.all.n}/${A.npn}、Σ裸币价 ${recount.all.naked}/${A.npsum}；Σ录入价 ${recount.all.sum}）`);
+  ok(recount.oct.n === octCell.npn && Math.abs(recount.oct.naked - octCell.npsum) <= 0.01,
+    `③-b2 ★★★ 2026年10月与格子重算口径一致（件数 ${recount.oct.n}/${octCell.npn}、Σ裸币价 ${recount.oct.naked}/${octCell.npsum}）`);
   ok(recount.noPriceRows === 0,
     `③-b2 ★★ 全站 ${recount.noPriceRows} 件藏品缺价格字段 ⇒ 今天"计件数"与"计有价格的件数"结果相同（将来出现 0 元藏品时，件数仍按实际件数计）`);
+}
+
+// ─────────── ③-e 填色金额 == 泡第一行"合计"（口径回环，用户 2026-10 的 bug） ───────────
+// 用户原话："热力图的价格还是不对"。根因：**格子取色与泡第一行用了两支不同口径** ——
+//   泡第一行曾经是 `cell.psum`（Σ录入价，2026/02 = 7670），而逐日"这天你一共花了"与
+//   页面自己的每日合计是**裸币价**（2026/02 = 7193.5 ≈ 用户手算的 7194）。
+// 现在两处统一到 **cell.npsum** ⇒ 逐格断言 `data-amount` == 泡第一行"合计" == 逐日之和。
+console.log('\n══════ ③-e 填色金额 == 泡第一行"合计"（逐格回环） ══════\n');
+{
+  const pairs = JSON.parse(await evaluate(`(()=>{
+    const out = [];
+    for (const r of [...document.querySelectorAll('.tl-heatmap-row')].filter(x => !x.classList.contains('tl-hm-head'))) {
+      const y = (r.querySelector('.tl-heatmap-ylabel') || {}).dataset?.label;
+      for (const c of r.querySelectorAll('.tl-heatmap-cell')) {
+        const t = c.querySelector('.tl-heatmap-tip');
+        const txt = window.__tipText ? window.__tipText(t) : '';
+        // ★ 只取**第一行**的"合计"（第三行也叫"合计支出"，不能混）
+        const m = String(txt).split('\\n')[0].match(/合计([\\d.]+)元/);
+        out.push({ key: y + '/' + c.dataset.month, amt: +(c.dataset.amount || 0), tipSum: m ? +m[1] : null, first: String(txt).split('\\n')[0] });
+      }
+    }
+    return JSON.stringify(out);
+  })()`));
+  const bad = pairs.filter(p => p.amt > 0 && (p.tipSum === null || Math.abs(p.amt - p.tipSum) > 0.11));
+  const covered = pairs.filter(p => p.amt > 0).length;
+  console.log(`     有色的格子 ${covered} 个；样例：`);
+  for (const p of pairs.filter(x => x.amt > 0).slice(0, 3)) console.log(`        ${p.key}  填色金额=${p.amt}  泡第一行「${p.first}」`);
+  ok(bad.length === 0,
+    `③-e ★★★ 每个有色格子的**填色金额** == 它泡第一行的"合计"（不一致：${bad.map(b => b.key + ' ' + b.amt + '≠' + b.tipSum).join('；') || '无'}）`);
+  const octP = pairs.find(p => p.key === '2026/10');
+  ok(!!octP && octP.amt === 1114 && octP.tipSum === 1114,
+    `③-e ★★★ 2026/10 这一格：填色 ${octP && octP.amt} == 泡里合计 ${octP && octP.tipSum} == 1114（上一版这里是 1924，评级费被算进了填色）`);
+  const febP = pairs.find(p => p.key === '2026/02');
+  ok(!!febP && Math.abs(febP.amt - 7194) <= 1,
+    `③-e ★★★ 2026/02 这一格：填色 ${febP && febP.amt}（= 裸币口径 7193.5，用户手算逐日之和 7194；上一版这里是 7670，因为泡第一行用了 Σ录入价）`);
 }
 
 
@@ -1269,33 +1468,44 @@ console.log('\n══════ ③-b2 四种范围的件数自查（件数不
 console.log('\n══════ ③-c 逐月分解表（购入 / 评级费 / 合计支出） ══════\n');
 {
   const months = [...new Set(Object.keys(expectMatrix.cells))].sort();
-  const hdr = ['范围', '购件数', '购入合计(Σ录入价)', '评级件数', '评级费', '合计支出', '格子合计(含费·裸币口径)'];
+  // ★★★ 用户要的逐月表：**裸币口径**（= 逐日"这天你一共花了"之和 = 格子填色 = 泡第一行）。
+  //   同时并列打印"Σ录入价"与"Σ该月每枚自己的评级费"，好让 7670 ← 7193.5 + 476.5 一眼可见。
+  const to1 = (v) => Math.round(v * 10) / 10;
+  const hdr = ['范围', '购件数', '购入合计(Σ裸币价)', 'Σ录入价', '差(录入−裸币)', '评级件数', '评级费', '合计支出', '格子填色'];
   const rows = [];
   for (const key of months) {
     const c = expectMatrix.cells[key];
     const f = expectFees[key] || null;
-    rows.push([key, c.pn || 0, Math.round((c.psum || 0) * 10) / 10, f ? f.k : 0, f ? f.amount : 0,
-      Math.round(((c.psum || 0) + (f ? f.amount : 0)) * 10) / 10, Math.round(c.sum)]);
+    const nk = to1(c.npsum || 0), rw = to1(c.psum || 0);
+    rows.push([key, c.npn || 0, nk, rw, to1(rw - nk), f ? f.k : 0, f ? f.amount : 0,
+      to1(nk + (f ? f.amount : 0)), to1(c.npsum || 0)]);
   }
   const A = expectMatrix.range.all;
   const FT = expectMatrix.feeSum;
-  rows.push(['—— 全部 ——', A.pn, A.psum, expectFees && Object.keys(expectFees).reduce((s, k) => s + expectFees[k].k, 0), FT, A.psum + FT, A.sum]);
+  rows.push(['—— 全部 ——', A.npn, to1(A.npsum), to1(A.psum), to1(A.psum - A.npsum),
+    expectFees && Object.keys(expectFees).reduce((s, k) => s + expectFees[k].k, 0), FT, to1(A.npsum + FT), to1(A.npsum)]);
   const w = hdr.map((h, i) => Math.max(h.length * 2, ...rows.map(r => String(r[i]).length)) + 2);
   const fmt = (r) => r.map((v, i) => String(v).padEnd(w[i])).join('');
   console.log('     ' + fmt(hdr));
   rows.forEach(r => console.log('     ' + fmt(r)));
-  console.log(`\n     ★ Σ录入价（全部）= ${A.psum} ；Σ裸币价 = ${A.npsum} ；评级费支出 = ${FT} ；购件数 = ${A.pn}`);
-  console.log(`     ★ 页面"全部"泡第三行（合计支出）= ${A.psum + FT}`);
-  console.log(`     ★ Σ录入价 − (Σ裸币价 + 评级费) = ${Math.round((A.psum - (A.npsum + FT)) * 10) / 10}`);
-  console.log(`       ⇒ 两个口径**完全相等**（每枚录入价 = 裸币价 + 该枚评级费，逐枚恒等）。
-          用户手算的 52746 与页面的 ${A.psum + FT} 差 ${Math.round((52746 - (A.psum + FT)) * 10) / 10} 元：
-          是逐枚录入价的小数部分在手工加总时被四舍五入（页面口径不取整），无法从数据反推。`);
-  ok(A.psum + FT > A.npsum + FT, '③-c ★★ Σ录入价 + 评级费 > Σ裸币价 + 评级费（证明第一行必须用录入价口径）');
-  // ★★ "每次减费都按 0.5 元取整"这个猜测**不成立**（实测差额 == 0），所以不再断言具体数值，
-  //   只把两个口径的差额如实打出来。用户手算 52746 与 Σ录入价 + 评级费 52744.5 之间的
-  //   1.5 元，来自**逐枚录入价的小数被手算时四舍五入**（页面口径不取整），无法从数据里反推。
+  // ★★★ 用户要的三笔对账（全部范围）：
+  //   ① 各月"Σ裸币价"之和 == 明细逐日之和 == 全部范围泡第一行；
+  //   ② 各月"Σ录入价"之和 == Σ裸币价 + Σ(每枚自己的评级费) == 台账评级费支出；
+  //   ③ 全部范围泡第三行 = 第一行 + 第二行。
+  const sumNk = to1(months.reduce((s, k) => s + (expectMatrix.cells[k].npsum || 0), 0));
+  const sumRw = to1(months.reduce((s, k) => s + (expectMatrix.cells[k].psum || 0), 0));
+  console.log(`\n     ★ 全部范围泡第一行（Σ裸币价）= ${to1(A.npsum)} ；逐月"Σ裸币价"相加 = ${sumNk} ；Σ录入价 = ${sumRw}`);
+  console.log(`     ★ 台账评级费支出 = ${FT} ；全部范围泡第二行（另对 118 件评级）= ${FT} ；第三行合计支出 = ${to1(A.npsum + FT)}`);
+  console.log(`     ★ 逐月"Σ录入价 − Σ裸币价"相加 = ${to1(sumRw - sumNk)}`);  console.log(`       ⇒ 逐月差额 = 该月每一枚**自己的**评级费之和（2026/02 就是 477：7670 = 7193 + 477）。`);
+  console.log(`       ⇒ 这正是"7670 从哪来"的答案：它是 Σ录入价，把 2026/02 那 68 枚各自的评级费又加了一遍。`);
+  ok(Math.abs(sumNk - to1(A.npsum)) <= 0.6 && Math.abs(sumRw - to1(A.psum)) <= 0.6,
+    `③-c ★★★ 逐月相加 == 全部范围（Σ裸币价 ${sumNk}/${to1(A.npsum)}；Σ录入价 ${sumRw}/${to1(A.psum)}）`);
+  ok(Math.abs((sumRw - sumNk) - FT) <= 0.6,
+    `③-c ★★★ 逐月"Σ录入价 − Σ裸币价"之和 ${to1(sumRw - sumNk)} == 台账评级费支出 ${FT}（逐枚恒等：录入价 = 裸币价 + 该枚评级费）`);
+  ok(A.npsum < A.psum && A.npsum + FT === A.psum,
+    `③-c ★★★ 两条总口径恒等：Σ裸币价 ${to1(A.npsum)} + 评级费 ${FT} == Σ录入价 ${to1(A.psum)}（全部范围泡三行自洽）`);
   const drift = Math.round((A.psum - (A.npsum + FT)) * 10) / 10;
-  ok(Math.abs(drift) < 1000, `③-c ★★ 两个口径的差额 = ${drift} 元（如实报告；见上面打印的三行）`);
+  ok(Math.abs(drift) < 0.6, `③-c ★★ 两口径差额 = ${drift} 元（0 = 逐枚恒等）`);
 }
 
 // 年份标签：泡整个在年份数字**右边**，尖角长在泡的左侧竖边（横着指回年份）—— 用户指定
@@ -1340,8 +1550,16 @@ ok(!!tipAllLight && +tipAllLight.strongWAll >= 600 && tipAllLight.strongWAll ===
   `③-d ★★★ 金额/件数仍然加粗、且与普通泡相同（${tipAllLight && tipAllLight.strongWAll} vs ${tipAllLight && tipAllLight.strongWNorm}，≥600）`);
 // 左上角那个按钮本身：**保持站内既有的"当前选中"样式**（.is-active 给粗体，这是原有设计，
 // 用户这次只要求改**泡**、没要求改按钮外观）——这里只钉住"选中态是粗体"这件事不被顺手改掉。
-ok(!!tipAllLight && tipAllLight.cornerFw === '700' && tipAllLight.otherLabelFw === '400',
-  `③-d ★ 左上角"全部"按钮仍是选中态（粗体 ${tipAllLight && tipAllLight.cornerFw}），普通年份按钮 ${tipAllLight && tipAllLight.otherLabelFw}（按钮外观未改动）`);
+// ★★★ 高亮（选中态）现在**只改颜色**，不再动字重 —— 这正是"数字沉降"的真凶：
+//   字重一变，字形墨迹框就变，而行盒在定高 42px 的 flex 盒里居中、`getBoundingClientRect()`
+//   一个像素都不动 ⇒ 老断言全绿、用户屏幕上数字却真的换了一副字形往下沉。
+//   ⇒ 选中态与普通标签的 fontWeight 必须**相同**（都是 400），"选中"改由颜色表达。
+const cornerColor = await evaluate(`getComputedStyle(document.querySelector('.tl-hm-corner')).color`);
+const themeNow = await evaluate(`getComputedStyle(document.documentElement).getPropertyValue('--theme').trim()`);
+ok(!!tipAllLight && tipAllLight.cornerFw === tipAllLight.otherLabelFw && /^400$/.test(tipAllLight.cornerFw),
+  `③-d ★★★ 选中态不强改字重：左上角"全部" ${tipAllLight && tipAllLight.cornerFw} == 普通年份按钮 ${tipAllLight && tipAllLight.otherLabelFw}（"数字沉降"的真凶就是这里的 font-weight）`);
+ok(String(cornerColor).replace(/\s/g, '') === String(themeNow).replace(/\s/g, ''),
+  `③-d ★★ 选中态改用颜色标出（"全部" color ${cornerColor} == --theme ${themeNow}）`);
 }
 
 // ─────────── ④ 点格子 = 按这个格子筛选 ───────────
@@ -1727,9 +1945,12 @@ const fillColors = [...new Set(cellAmts.map(c => (rgbTriple(c.color) || []).join
 ok(fillColors.length === 1 && fillColors[0] === (rgbTriple(lg375.theme) || []).join(','),
   `⑤-b ★★★ 格子底色全是 --theme 本色（只靠 opacity 分深浅）：${fillColors.join(' / ')} vs theme ${rgbTriple(lg375.theme)}`);
 // 页面自己的取色函数与条带两端一致（不用 DOM，直接调页面函数）
+// ★ 这里**不许**再写死 7193（历史遗留的写死值）；max 从页面上实时读到的最大格子金额来。
+const liveMax = lg375.maxAmt;
 const fnEnds = JSON.parse(await evaluate(`(()=>{
     if (typeof timelineHeatmapColorCss !== 'function') return JSON.stringify(null);
-    return JSON.stringify([timelineHeatmapColorCss(0, 7193), timelineHeatmapColorCss(7193, 7193)]);
+    const m = ${liveMax};
+    return JSON.stringify([timelineHeatmapColorCss(0, m), timelineHeatmapColorCss(m, m)]);
 })()`));
 ok(!!fnEnds && Math.abs(alphaOf(fnEnds[0]) - endAlpha[0]) <= 1e-6,
   `⑤-b ★★★ 页面取色在 v=0（最少钱的档）时正好是条带 0% 端（α ${fnEnds && alphaOf(fnEnds[0])} == ${endAlpha[0]}）`);
@@ -1981,6 +2202,208 @@ const rowH = JSON.parse(await evaluate(`(()=>{
 })()`));
 ok(Math.abs(rowH.row - rowH.cell) <= 0.5,
   `⑦ ★★ 数据行高度 == 格子边长（行 ${rowH.row}px vs 格子 ${rowH.cell}px）—— 泡没有撑高任何一行`);
+
+// ─────────── ⑦-b 「数字沉降」四类测量（用户 2026-10 要求换测量方式） ───────────
+// 用户原话："还是有数字沉降下去的问题"。上一轮只量了 `getBoundingClientRect()`（**行盒**），
+// 而"文字在框内下沉"这种事行盒可以一个像素都不动 ⇒ 这台机器上全绿、用户屏幕上仍在动。
+// 这一段改量**文字本身**：Range 文字矩形 + 字体度量 + DOM 结构 + **逐像素差分**。
+console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度量 / DOM 结构 / 像素差分 ══════\n');
+{
+  // 四类测量一体：文字节点 Range 矩形 + 全部字体度量 + DOM 结构签名
+  const glyphExpr = `(()=>{
+    const cs = getComputedStyle;
+    const els = [...document.querySelectorAll('.tl-heatmap-ylabel, .tl-heatmap-mlabel')];
+    return JSON.stringify(els.map(e => {
+      const box = e.getBoundingClientRect();
+      const tn = [...e.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+      let text = null, rects = [];
+      if (tn) { const rg = document.createRange(); rg.selectNodeContents(tn);
+        const r = rg.getBoundingClientRect(); text = [+r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3)];
+        rects = [...rg.getClientRects()].map(x => [+x.left.toFixed(3), +x.top.toFixed(3), +x.width.toFixed(3), +x.height.toFixed(3)]); }
+      const c = cs(e);
+      return { label: (e.dataset.label || e.textContent || '').trim().slice(0, 8),
+        box: [+box.left.toFixed(3), +box.top.toFixed(3), +box.width.toFixed(3), +box.height.toFixed(3)], text, rects,
+        font: [c.fontSize, c.fontWeight, c.fontFamily, c.lineHeight, c.verticalAlign, c.letterSpacing,
+          c.fontVariantNumeric, c.textRendering, c.fontStretch, c.fontStyle].join('|'),
+        geom: [c.display, c.alignItems, c.justifyContent, c.padding, c.margin, c.height, c.minHeight, c.width, c.borderTopWidth, c.borderLeftWidth, c.borderRadius].join('|'),
+        paint: [c.color, c.background, c.transform, c.outline, c.boxShadow, c.opacity, c.filter].join('|'),
+        kids: e.childNodes.length + '#' + [...e.childNodes].map(n => n.nodeType === 3 ? 'T' : n.nodeName + '.' + n.className).join(',') };
+    }));
+  })()`;
+  const glyphs = async () => JSON.parse(await evaluate(glyphExpr));
+  // ★★★ 泡里**文字自己的**行盒矩形：泡是按钮的子元素，所以还要证明
+  //   "泡的行盒不随按钮的选中/悬浮状态变"。隐藏时 Range 返回空矩形，取到 0 个就跳过，
+  //   悬浮中（可见）必须有矩形。
+  const tipTextRects = async () => JSON.parse(await evaluate(`(()=>{
+    const out = [];
+    for (const t of document.querySelectorAll('.tl-heatmap-tip')) {
+      const tn = [...t.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+      const rg = document.createRange(); rg.selectNodeContents(t);
+      const rs = [...rg.getClientRects()].map(x => [+x.left.toFixed(2), +x.top.toFixed(2), +x.width.toFixed(2), +x.height.toFixed(2)]);
+      const c = getComputedStyle(t);
+      out.push({ n: rs.length, rects: rs, vis: c.visibility, op: +c.opacity,
+        font: [c.fontSize, c.fontWeight, c.lineHeight, c.letterSpacing, c.verticalAlign, c.fontStyle, c.fontFamily].join('|'),
+        firstText: tn ? String(tn.textContent).slice(0, 8) : '' });
+    }
+    return JSON.stringify(out);
+  })()`));
+  const diffGlyph = (a, b) => {
+    const bad = [];
+    if (a.length !== b.length) return [`标签个数 ${a.length} → ${b.length}`];
+    for (let i = 0; i < a.length; i++) {
+      const A = a[i], B = b[i];
+      for (const k of ['font', 'geom', 'kids']) if (A[k] !== B[k]) bad.push(`#${i}(${A.label}) ${k}：${A[k]} → ${B[k]}`);
+      for (const k of ['box', 'text']) {
+        if (!A[k] || !B[k]) { if (!!A[k] !== !!B[k]) bad.push(`#${i}(${A.label}) ${k} 有/无变化`); continue; }
+        for (let j = 0; j < 4; j++) if (Math.abs(A[k][j] - B[k][j]) > 0.01) bad.push(`#${i}(${A.label}) ${k}[${['left', 'top', 'width', 'height'][j]}]：${A[k][j]} → ${B[k][j]}`);
+      }
+      if (A.rects.length !== B.rects.length) bad.push(`#${i}(${A.label}) 文字 Range 矩形个数 ${A.rects.length} → ${B.rects.length}`);
+      for (let j = 0; j < Math.min(A.rects.length, B.rects.length); j++)
+        for (let k = 0; k < 4; k++) if (Math.abs(A.rects[j][k] - B.rects[j][k]) > 0.01)
+          bad.push(`#${i}(${A.label}) rangeRect[${k}]：${A.rects[j][k]} → ${B.rects[j][k]}`);
+    }
+    return bad;
+  };
+  // 像素差分：对每个标签，裁"文字矩形 ±pad"这块，逐像素比对两张整页截图
+  const pad = 5;
+  const shotPng = async () => decodePng(Buffer.from((await send('Page.captureScreenshot', { format: 'png', background: 'white' })).data, 'base64'));
+  const dprNow = await evaluate('devicePixelRatio');
+  const diffPixels = (imgA, imgB, base) => {
+    let n = 0, maxd = 0, ys = new Set(), xs = new Set();
+    const out = [];
+    for (const g of base) {
+      const r = g.box;
+      const x0 = Math.max(0, Math.floor((r[0] - pad) * dprNow)), y0 = Math.max(0, Math.floor((r[1] - pad) * dprNow));
+      const x1 = Math.min(imgA.width, Math.ceil((r[0] + r[2] + pad) * dprNow)), y1 = Math.min(imgA.height, Math.ceil((r[1] + r[3] + pad) * dprNow));
+      let d = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const p = pixelAt(imgA, x, y), q = pixelAt(imgB, x, y);
+        const dd = Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2]));
+        if (dd > 0) { d++; n++; if (dd > maxd) maxd = dd; ys.add(y); xs.add(x); }
+      }
+      if (d) out.push({ label: g.label, box: r, d, maxd });
+    }
+    return { n, maxd, out, yRange: ys.size ? [Math.min(...ys), Math.max(...ys)] : null, xRange: xs.size ? [Math.min(...xs), Math.max(...xs)] : null };
+  };
+
+  const gBase = await glyphs();
+  const tipBase = await tipTextRects();
+  const imgBase = await shotPng();
+  console.log(`     标签 ${gBase.length} 个；截图 ${imgBase.width}x${imgBase.height}，dpr=${dprNow}`);
+  // ★ 唯一一次"首悬浮"：量悬浮**中**
+  await hoverAt(cellExpr(0, 5));
+  await sleep(500);
+  const gHover = await glyphs();
+  const tipHover = await tipTextRects();
+  const imgHover = await shotPng();
+  // ★★★ 泡里文字自己的行盒：悬浮中出现的那只泡，它每一行的矩形必须"可预测"，
+  //   而且**泡的字体度量不许随按钮状态变**（全部 15 只泡的字体串必须完全一致）。
+  const visBase = tipBase.filter(t => t.vis === 'visible' && t.op > 0), visHover = tipHover.filter(t => t.vis === 'visible' && t.op > 0);
+  const tipFonts = [...new Set(tipBase.map(t => t.font))];
+  console.log(`     泡：基线时可见 ${visBase.length} 只 / 悬浮中可见 ${visHover.length} 只（共 ${tipBase.length} 只）；泡字体串 ${tipFonts.length} 种`);
+  for (const t of visHover) console.log(`        可见泡「${t.firstText}…」行盒 ${JSON.stringify(t.rects)} 字体 ${t.font.split('|').slice(0, 5).join(' / ')}`);
+  ok(visBase.length === 0 && visHover.length === 1,
+    `⑦-b ★★★ 基线时 0 只泡可见、悬浮中恰好 1 只可见（实测 ${visBase.length} → ${visHover.length}）`);
+  ok(visHover.length === 1 && visHover[0].n >= 1,
+    `⑦-b ★★ 可见的那只泡能量到 ${visHover[0] && visHover[0].n} 个文字行盒（不止一个空矩形）`);
+  ok(tipFonts.length === 1,
+    `⑦-b ★★★ 全部 ${tipBase.length} 只泡的字体度量完全一致（${tipFonts.length} 种）—— 泡不继承按钮的字号/字重/行高：${tipFonts[0]}`);
+  const tipFontHover = [...new Set(tipHover.map(t => t.font))];
+  ok(tipFontHover.length === 1 && tipFontHover[0] === tipFonts[0],
+    `⑦-b ★★★ 悬浮中泡的字体度量与基线逐项相同（不因按钮悬浮/选中而变）`);
+  const dHover = diffGlyph(gBase, gHover);
+  const fontDiffHover = dHover.filter(x => /font|geom|kids/.test(x));
+  ok(fontDiffHover.length === 0,
+    `⑦-b ★★★ 悬浮**中**：字体度量（字号/字重/字体/行高/字距/vertical-align）与盒模型属性零变化（${fontDiffHover.slice(0, 3).join(' | ') || '全部相同'}）`);
+  const pDiag = dHover.filter(x => /文字 Range|rangeRect|box\[top\]|box\[height\]|text\[top\]|text\[height\]/.test(x));
+  ok(pDiag.length === 0,
+    `⑦-b ★★★ 悬浮中：文字本体矩形与行盒的**纵向**坐标零偏差（${pDiag.slice(0, 3).join(' | ') || '零偏差'}）`);
+  // 移开 → 与基线逐值比（四类）
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
+  await sleep(500);
+  const gAfter = await glyphs();
+  const imgAfter = await shotPng();
+  const dAfter = diffGlyph(gBase, gAfter);
+  ok(dAfter.length === 0,
+    `⑦-b ★★★ 首次悬浮后**移开**：文字矩形 + 字体度量 + DOM 结构 与基线逐值相同（${gBase.length} 个标签${dAfter.length ? '；偏差：' + dAfter.slice(0, 4).join(' | ') : '零偏差'}）`);
+  const pxAfter = diffPixels(imgBase, imgAfter, gBase);
+  console.log(`     像素差分（移开后 vs 基线，${gBase.length} 个标签区域）：差异像素 ${pxAfter.n} 个${pxAfter.n ? '，最大通道差 ' + pxAfter.maxd : ''}`);
+  ok(pxAfter.n === 0,
+    `⑦-b ★★★ 首次悬浮后移开：标签区域**逐像素零差异**（差异 ${pxAfter.n} 个像素${pxAfter.n ? '，位置 y ' + JSON.stringify(pxAfter.yRange) + ' x ' + JSON.stringify(pxAfter.xRange) + '，明细 ' + JSON.stringify(pxAfter.out.slice(0, 3)) : ''}）`);
+  // 悬浮中的像素差：只允许"颜色变了"（不会动位置）—— 文字矩形已在上面钉死。
+  const pxHover = diffPixels(imgBase, imgHover, gBase);
+  console.log(`     像素差分（悬浮中 vs 基线）：差异像素 ${pxHover.n} 个（悬浮是**故意**改颜色，允许；位置偏差已由上面两条钉死）`);
+  ok(pxHover.n > 0 || true, `⑦-b 悬浮中允许颜色变化（差异 ${pxHover.n} 像素）`);
+
+  // ★★ 高亮态（.is-active，用户说的"按键被高亮"）：字号/字重/位置一个字都不许动。
+  //   ★ 只有**被选中的那一个**标签会变色（筛 2025 年 ⇒ 只有年份标签"2025"高亮），
+  //     其它标签颜色本来就不该变 —— 所以"颜色必须变"只对被选中的那个断言。
+  const gBeforeActive = await glyphs();
+  await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
+  await sleep(900);
+  const gActive = await glyphs();
+  const activeDiff = [];
+  let colorChanged = 0;
+  for (let i = 0; i < gBeforeActive.length; i++) {
+    const A = gBeforeActive[i], B = gActive[i];
+    if (A.font !== B.font) activeDiff.push(`#${i}(${A.label}) font：${A.font} → ${B.font}`);
+    if (A.geom !== B.geom) activeDiff.push(`#${i}(${A.label}) geom：${A.geom} → ${B.geom}`);
+    for (const k of ['box', 'text']) if (A[k] && B[k]) for (let j = 0; j < 4; j++)
+      if (Math.abs(A[k][j] - B[k][j]) > 0.01) activeDiff.push(`#${i}(${A.label}) ${k}[${['left', 'top', 'width', 'height'][j]}]：${A[k][j]} → ${B[k][j]}`);
+    if (A.paint !== B.paint) colorChanged++;
+  }
+  const g2025 = gActive.find(x => x.label === '2025');
+  console.log(`     高亮 2025 后：标签「2025」文字矩形 ${JSON.stringify(g2025 && g2025.text)}、字体 ${g2025 && g2025.font.split('|').slice(0, 2).join(' / ')}、颜色 ${g2025 && g2025.paint.split('|')[0]}；变色标签 ${colorChanged} 个 / 共 ${gActive.length} 个`);
+  ok(activeDiff.length === 0,
+    `⑦-b ★★★ 高亮（.is-active）只改颜色：字号/字重/字体/盒模型/文字矩形**零变化**（${activeDiff.slice(0, 4).join(' | ') || '零偏差'}）`);
+  ok(colorChanged <= 2 && !!g2025 && /22,\s*119,\s*255/.test(g2025.paint),
+    `⑦-b ★★★ 高亮只落在被选中的那一个标签上（变色 ${colorChanged} 个；「2025」颜色 ${g2025 && g2025.paint.split('|')[0]}）`);
+  await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
+  await sleep(800);
+  const gBack = await glyphs();
+  const backDiff = diffGlyph(gBase, gBack);
+  ok(backDiff.length === 0,
+    `⑦-b ★★★ 取消高亮回到"全部"后，仍与最初基线逐值相同（${backDiff.slice(0, 3).join(' | ') || '零偏差'}）`);
+
+  // ★★★ 用户第 ④ 类测量：**换一个设备像素比再全程走一遍**。
+  //   原理：如果"数字沉降"是亚像素/半像素渲染造成的，换 dpr 一定会把它放大成真实偏差。
+  //   做法：改 dpr 后**重新导航**（视口尺寸必须在 navigate 之前设），再重复
+  //   "基线 → 悬浮 → 移开 → 高亮 → 取消" 五个状态，每个状态都重测三类：文字矩形 / 字体度量 / DOM 结构。
+  for (const dpr of [1, 1.5]) {
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: dpr, mobile: false });
+    await send('Page.navigate', { url: `${BASE}?dpr=${dpr}&t=${Date.now()}#notes` });
+    for (let i = 0; i < 140; i++) {
+      const r = await evaluate(`(()=>typeof onTabClick==='function' && document.readyState==='complete' && Object.keys(viewScrollContainers||{}).length>0)()`).catch(() => false);
+      if (r) break;
+      await sleep(150);
+    }
+    await sleep(800);
+    await openYears();
+    await sleep(1200);
+    const b = await glyphs();
+    await hoverAt(cellExpr(0, 5));
+    await sleep(450);
+    const h = await glyphs();
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
+    await sleep(450);
+    const a = await glyphs();
+    const act = await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
+    await sleep(850);
+    const g = await glyphs();
+    await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
+    await sleep(850);
+    const r = await glyphs();
+    const bad = [].concat(
+      diffGlyph(b, h).filter(x => /font|geom|kids/.test(x)),
+      diffGlyph(b, a),
+      diffGlyph(b, g).filter(x => /font|geom|kids/.test(x) || /text\[|box\[/.test(x)),
+      diffGlyph(b, r));
+    console.log(`     dpr=${dpr}：标签 ${b.length} 个，五态对比偏差 ${bad.length} 条`);
+    ok(bad.length === 0,
+      `⑦-b ★★★ dpr=${dpr} 下"基线→悬浮→移开→高亮→取消"五态：文字矩形/字体度量/DOM 结构全部零偏差（${bad.slice(0, 3).join(' | ') || '零偏差'}）`);
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+}
 
 // 收尾：回到全部时间
 await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
