@@ -7097,7 +7097,13 @@ function toolboxWinSetFull(on, animate) {
     //   现在按"关窗被这一下打断"处理：用户显然还想用这个窗口，于是取消这次关闭
     //   （复位 closing、恢复遮罩、作废那段动画），下面的切换照常走几何动画 ——
     //   起点仍然是此刻的真实矩形，画面连续。
-    if (toolboxClosing && toolboxGeoAnim) {
+    //   ★ 判据只认 toolboxClosing，**不能**再要求 toolboxGeoAnim 为真：
+    //     toolboxCloseGeo 是先置 toolboxClosing、再调 toolboxGeoRun，而 toolboxGeoAnim
+    //     要到 toolboxGeoRun 里才被赋值；所以"关闭刚发起、动画还没建起来"的那一小段窗口里
+    //     toolboxClosing=true 而 toolboxGeoAnim=null。原来的 `&& toolboxGeoAnim` 在这个窗口里
+    //     会跳过打断 → 关窗照常收尾 → 用户按的全屏被撤销（弹窗被藏起来、full 被复位）。
+    //     实测：6x CPU 降频下必现（单帧窗口被拉长），本机偶尔也能撞上。
+    if (toolboxClosing) {
         toolboxClosing = false;
         if (modal) modal.style.background = '';
         toolboxGeoCancel(false);

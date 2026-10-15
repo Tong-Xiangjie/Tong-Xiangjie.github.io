@@ -167,7 +167,12 @@ const runOne = (label, file, args = []) => new Promise(done => {
     child.on('close', code => {
         clearTimeout(killer);
         const lines = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const failLines = lines.filter(l => /^✗/.test(l));
+        // ★ 失败断言的标记不止 `✗`。`verify-toolbox.mjs` 历史上用 `[XX]`（它是全仓库唯一一个），
+        //   而这里只认 `✗` ⇒ 注解里一句失败断言都提取不到，只剩"输出尾部"，
+        //   2026-10 那几轮 CI 因此完全看不出是哪几条断言红的。
+        //   用例侧已经把标记统一成 `✗`，这里同时认 `[XX]` 兜底：万一以后又有用例换标记，
+        //   注解也不会静默退化成"输出尾部"。
+        const failLines = lines.filter(l => /^✗/.test(l) || /^\[XX\]/.test(l));
         done({
             label,
             code: timedOut ? 1 : (code === null ? 2 : code),
