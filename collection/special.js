@@ -1933,6 +1933,68 @@ function bindHeatmapTipClamp() {
     document.addEventListener('focusin', (e) => { const el = pick(e); if (el) run(el); });
 }
 
+// ---------- 泡泡几何的"冻结"防护 ----------
+// 起因（用户反馈）：冷启动（直接打开/刷新 #special/timeline）时"首次悬浮高亮后数字会沉一点、
+// 而且不会回到原位"；从站内点进来却看不到。
+//
+// 冷启动的实测（逐帧采样，1280×900 dpr=1）：
+//   t≈500ms 专题面板与热力图第一次出现，t≈690~770ms 期间**整块**还在往上走约 10.5px，
+//   起点是祖先链上的布局动画（同一次任务里 view 滚动容器的可用高度 819.078 → 826 逐帧插值，
+//   `.body-row` 的 top 7.92 → 1）。热力图元素**自己**的矩形在这段里一动没动（左 346.734、
+//   宽 43.516 全程恒定，泡泡相对格子的偏移恒为 0.000px），所以这本身不是"数字沉降"；
+//   但它意味着：**用户第一次悬浮很可能落在"整页还在动"的窗口里**。
+//   一旦 clampHeatmapTip 在这次窗口里量了 getBoundingClientRect()，它算出来的
+//   `--hm-tx` / `--hm-arrow` 就带着那一刻的几何被写死在行内 style 上；
+//   而这两个值只有"下一次鼠标移到某个格子/标签上"才会被重算——
+//   于是动画结束、整块落位之后，泡泡相对格子就**永久偏了一点**（这正是"不会回到原来的地方"）。
+//
+// 实测（早悬浮 vs 等稳定后再悬浮，都取"相对格子"的偏移）目前都是 0.000px —— 也就是说
+// 这条时序在**当前**代码里没有被触发；但它是"把测量结果缓存到行内样式上"这个写法的固有风险，
+// 任何祖先动画（侧栏收起、顶部工具条/图片撑高、系统字体换挡……）都会把它变成真实的错位。
+// 所以这里加一层**与动画无关**的兜底：布局一旦改动，就把已经写下的泡泡几何**重算一遍**。
+//
+// ★ 两条铁律（踩过坑才这么写）：
+//   ① 只在**布局落位**之后重算。resize 事件/ResizeObserver 回调往往正好落在动画的
+//      **第一帧**（此时量到的是动画起点），所以回调里必须等动画时长过去再量；
+//   ② 只重算**已经量过**的泡泡（行内已有 --hm-tx）。没量过的（用户还没碰）一个都不碰，
+//      既零开销，也绝不会凭空给泡泡写几何。
+//      ↑ 这条原来漏了：ResizeObserver 一上来就把**没量过**的泡泡也重算了一遍，
+//        等于凭空给它们写了 --hm-tx。已修正为只处理"行内已有 --hm-tx"的。
+const HM_TIP_REFRESH_DELAY = 340;   // 略大于 .content-enter 的 --dur-enter(0.3s) 与各布局过渡(0.22~0.3s)
+let heatmapTipObserver = null;
+let heatmapTipTimer = 0;
+function refreshHeatmapTipGeometry(root) {
+    const hm = (root && root.nodeType === 1 && root.classList && root.classList.contains('tl-heatmap'))
+        ? root
+        : (root && root.querySelector ? root.querySelector('.tl-heatmap') : document.querySelector('.tl-heatmap'));
+    if (!hm) return;
+    let n = 0;
+    for (const tip of hm.querySelectorAll('.tl-heatmap-tip')) {
+        // ★ 只重算"已经被量过"的：没有 --hm-tx 说明用户还没碰过它，不需要动
+        if (!tip.style.getPropertyValue('--hm-tx')) continue;
+        const el = tip.parentElement;
+        if (el) { clampHeatmapTip(el); n++; }
+    }
+    return n;
+}
+function watchHeatmapTipGeometry(hm) {
+    if (!hm) return;
+    const schedule = () => {
+        if (heatmapTipTimer) clearTimeout(heatmapTipTimer);
+        // 等布局动画结束（不是等"下一帧"）
+        heatmapTipTimer = setTimeout(() => { heatmapTipTimer = 0; refreshHeatmapTipGeometry(hm); }, HM_TIP_REFRESH_DELAY);
+    };
+    if (typeof ResizeObserver === 'function') {
+        if (!heatmapTipObserver) heatmapTipObserver = new ResizeObserver(schedule);
+        heatmapTipObserver.disconnect();
+        heatmapTipObserver.observe(hm);
+        // 热力图**上方/下方**的东西长高长矮不会改热力图的尺寸，所以渲染容器也一起盯着
+        const host = (typeof getRenderContainer === 'function' && getRenderContainer()) || null;
+        if (host) heatmapTipObserver.observe(host);
+    }
+    schedule();
+}
+
 // ---------- 时间轴的"搜索式进出场"（FLIP） ----------
 // 用户要求：换时间段/换排序时，下面的列表要像**纸币/硬币搜索结果**那样条目自己滑进滑出
 // （位移同时含左右与上下），而不是整块重刷一下。参考实现在 search.js / article.js：
@@ -2479,8 +2541,25 @@ function renderTimelineContent(config, opts) {
     html += `</div>`;
 
     app.innerHTML = html;
+    // ★★★ 尽量把本页新出现的 <select> 增强成自绘下拉（`refreshCustomDropdowns` = dropdown.js 里的
+    //   `schedule`，内部只安排一帧 rAF，**不保证同一任务内跑完** —— 实测它经常被页面加载时
+    //   已排队的那次 rAF 吞掉，真正建壳发生在下一个 rAF，于是浏览器会先画一帧"没有两个下拉"
+    //   的 top-bar）。真正把这件事钉死的是 layout.css 里 `@media (max-width:600px)` 下
+    //   `.timeline-top-right { min-height:78px }`；这里调用只是把建壳尽量提前、少一帧中间态。
+    //   背景（用户报的"刷新页面才会沉降、站内点进来不会"）：
+    //     · 不调的话，靠 dropdown.js 的 MutationObserver（32ms 去抖）才增强 ——
+    //       于是浏览器会先画一帧"有标题、有排序按钮、但没有两个下拉"的 top-bar：
+    //       `.timeline-top-right` 只有 46.9 + 75.9×2 + 8×2 = 198.7px，一行放得下 ⇒ 高 80px；
+    //     · 32~57ms 后 `.dd`（84px 固定宽）建好 ⇒ 总宽 366.6px > 343px ⇒ flex-wrap 换行
+    //       ⇒ top-bar 80 → 116px ⇒ **下方热力图整块被推下 36px**；
+    //     · "第一次悬浮"正好落在这之后，热力图在它自己内部一动不动（⑦-c 五态全绿），
+    //       但整块被祖先推走且再也不回来 ⇒ 用户看到的就是"一悬浮数字就沉下去"。
+    if (typeof window.refreshCustomDropdowns === 'function') window.refreshCustomDropdowns();
     // 热力图悬浮泡的"能居中就居中"逻辑（只挂一次，事件委托在 document 上）
     bindHeatmapTipClamp();
+    // ★ 布局落位后把已量过的泡泡几何重算一遍（见 watchHeatmapTipGeometry 的注释：
+    //   冷启动时整块还会往上走约 10px，别让那一刻量到的 --hm-tx 被永久冻住）
+    watchHeatmapTipGeometry(app.querySelector('.tl-heatmap'));
     // ★ 时间轴曾漏了这一步（其它专题页都有），导致本页图片从不进入预缓存队列
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
     // ★★★ 恢复时间轴滚动（使用专题缓存） ★★★

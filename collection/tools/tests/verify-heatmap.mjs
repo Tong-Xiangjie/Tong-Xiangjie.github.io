@@ -842,9 +842,17 @@ ok(octLines && octLines.n >= 3,
   `②-c ★★ 2026年10月 的泡在屏幕上真的是多行（${octLines ? octLines.n + ' 个文本行盒、高 ' + octLines.h + 'px、单行高 ' + octLines.oneLine + 'px' : '没取到'}）`);
 ok(octLines && octLines.h >= octLines.oneLine * 2.8,
   `②-c ★★ 泡的高度 ≈ 三行（${octLines ? octLines.h + 'px ≥ 2.8 × ' + octLines.oneLine + 'px' : '没取到'}）—— <br> 真的把三行渲染出来了`);
-ok(octLines && octLines.tipW >= 200 && octLines.tipW > octLines.cellW * 2,
+// ★★★ 用户报的"形状问题"（泡被压成一个格子那么宽）—— 判据**全部改成字体/视口无关**：
+//   · 旧的 `tipW >= 200` 是写死的 px，CI（ubuntu）字体更窄 ⇒ 实测 176px ⇒ 误报（CI 红的就是这条）；
+//     `tipW > cellW * 2` 本身是相对量，保留。
+//   · 再加一条 hRatio（泡高 / 泡宽）< 1.0：正常"三行、宽 ≈200、高 ≈52"⇒ 0.25 左右；
+//     被压成竖排时宽塌到 59、高 256 ⇒ 4.3（本机反例实测）。
+//   · `<br>` 三行、高度 ≥ 2.8 × lineHeight 这两条**本来就相对 lineHeight**（octLines.oneLine），
+//     与字体无关，保持不动。
+ok(octLines && octLines.tipW > octLines.cellW * 2,
   `②-c ★★★ 泡的宽度没有被压成"一个格子那么宽"（泡 ${octLines && octLines.tipW}px > 格子 ${octLines && octLines.cellW}px × 2）—— 用户报的形状问题`);
-
+ok(octLines && octLines.tipW > 0 && octLines.h / octLines.tipW < 1.0,
+  `②-c ★★★ 泡不是竖排（高/宽 = ${octLines && (octLines.h / octLines.tipW).toFixed(3)} < 1.0，泡 ${octLines && octLines.tipW}×${octLines && octLines.h}px）—— 字体无关的形状判据`);
 // 深浅：颜色**只有 --theme 一种**，深浅全由 opacity 表达；
 //   每个格子的 --hm-o 必须 = 0（金额 0）或 lerp(0.06, 0.95, 金额/最大金额)
 const lvInfo = JSON.parse(await evaluate(`(()=>{
@@ -1066,6 +1074,13 @@ const tipProbe = async (elExpr) => JSON.parse(await evaluate(`(()=>{
   //   （.tl-heatmap 的 padding-top），所以拿 .tl-heatmap 的上下边当界。
   const outY = Math.max(0, Math.round(hr.top - tr.top), Math.round(tr.bottom - hr.bottom));
   const boxC = br.left + br.width / 2;
+  // ★★★ 字体/视口无关的形状度量（CI（ubuntu）与本机字体不同，绝不能拿具体 px 当判据）：
+  //   nLines = 文本行盒个数（Range.getClientRects()，块级元素直接量只会得到 1 个）；
+  //   lh     = 计算出来的单行高（px，跟字体走，但**只和自身比**）；
+  //   hRatio = 泡高 / 泡宽 —— "被压成一个格子那么宽"必然让这个比值暴涨，与字体无关。
+  const _rg = document.createRange(); _rg.selectNodeContents(tip);
+  const _rects = [..._rg.getClientRects()].filter(x => x.width > 0 && x.height > 0);
+  const _lh = parseFloat(getComputedStyle(tip).lineHeight) || 0;
   const tn = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
   let anchorC = boxC, textL = null, textR = null;
   if (tn) { const rg = document.createRange(); rg.selectNodeContents(tn); const rr = rg.getBoundingClientRect();
@@ -1078,6 +1093,18 @@ const tipProbe = async (elExpr) => JSON.parse(await evaluate(`(()=>{
     // ★ 泡宽 + 单个格子宽：用来断言"泡没有被压成一个格子那么宽"（用户报的形状问题）
     tipW: Math.round(tr.width), tipH: Math.round(tr.height),
     ws: getComputedStyle(tip).whiteSpace,
+    // ★ 字体无关的形状度量（见 tp 上面那段注释）
+    nLines: _rects.length,
+    lh: +_lh.toFixed(2),
+    hRatio: tr.width > 0 ? +(tr.height / tr.width).toFixed(3) : null,
+    scrollW: tip.scrollWidth,
+    // ★★ 内容宽度（字体无关判据用）：每行 nowrap、width:max-content、text-align:center
+    //    ⇒ 若"没有折行"，泡的**内宽** == 最长那一行的宽度 == scrollWidth（无溢出）。
+    //    对比 tip.scrollWidth > tip.clientWidth 就能判"内容被压住溢出/被迫折行"。
+    //    （注意：这段是**模板字符串内部**，注释里不能出现反引号，否则会提前结束字符串。）
+    clientW: tip.clientWidth,
+    // ★ 被描述对象（格子/标签）的宽 —— 用于"泡宽 > 2 × 它"这条**相对**判据
+    boxW: +br.width.toFixed(2),
     out: Math.max(outX, outY), outX, outY,
     dc: Math.round((tr.left + tr.width / 2) - anchorC),
     anchorC: Math.round(anchorC),
@@ -1241,9 +1268,26 @@ for (const [name, expr, want, expectFn] of labelCases) {
   ok(!!m, `③ ★ ${name}有自己的悬浮泡（显示「${String(p.text).replace(/\n/g, ' ⏎ ')}」）`);
   ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.naked) <= 0.51,
     `③ ★ ${name}的泡第一行件数/购入金额与它管的格子一致（泡 ${m ? m[1] + ' 件/' + m[2] + ' 元' : '—'} vs 复算 ${exp.pn} 件/裸币 Σ ${exp.naked} 元）`);
-  // ★ 泡的形状：不能被压成"一个格子那么宽"（用户报过），且每行不折行
-  ok(p.tipW >= 200 && p.ws === 'nowrap',
-    `③ ★ ${name}的泡宽度由内容决定、不折行（${p.tipW}×${p.tipH}px，white-space=${p.ws}）`);
+  // ★★★ 泡的形状：必须能抓住"泡被压成竖排"这个回归（用户报的形状问题）。判据全部是**相对量**：
+  //   ① tipW > boxW × 2     —— 泡明显比它所描述的对象宽。
+  //   ② hRatio < 1.0        —— 泡高 / 泡宽。
+  //   ③ scrollW ≤ clientW+1 —— 内容没有被压住（width:max-content + nowrap 下内容宽 == scrollWidth）。
+  //   ④ ws === 'nowrap'     —— 直接查计算样式（与字体完全无关，本来就是最稳的一条）。
+  //   ★ 反例推演（本机实测，把老实现注回去，见 %TEMP%/hmdiag/neg.mjs）：
+  //     正常：泡 224.8×51.7、高/宽 0.230、boxW 43.5、scrollW==clientW；
+  //     只注入 `white-space: pre-line`：**形状不变**（现在的文案是 <br> 分行，不靠 \n）
+  //       ⇒ 只有 ④ 能抓住，① ② ③ 都照样绿（所以 ④ 不能删）；
+  //     再注入 `width:auto`（当年真正让首选宽度塌掉的组合）：泡塌成 **59.3×255.6**、
+  //       高/宽 **4.310**、boxW 43.5 ⇒ ① false、② false —— 两条都红。
+  //   ★ 为什么不再用 `tipW >= 200`：CI（ubuntu）与本机字体不同，同样文案量出来的宽度不同
+  //     （CI 上 176px），写死 200 在字体更窄的 runner 上就会误报（CI 已实测红了 6 条）。
+  const cellW = p.boxW || 0;
+  ok(p.tipW > cellW * 2,
+    '③ ★ ' + name + '的泡明显宽于一个格子（泡 ' + p.tipW + 'px > 格子 ' + cellW + 'px × 2）—— 抓"被压成一个格子那么宽"');
+  ok(p.hRatio !== null && p.hRatio < 1.0,
+    '③ ★ ' + name + '的泡不是竖排（高/宽 = ' + p.hRatio + ' < 1.0）—— 抓"三行被挤成竖排"');
+  ok(p.ws === 'nowrap' && p.scrollW <= p.clientW + 1,
+    '③ ★ ' + name + '的泡每行不折行、内容没有被压住（white-space=' + p.ws + '，scrollWidth ' + p.scrollW + ' ≤ clientWidth ' + p.clientW + ' + 1，共 ' + p.nLines + ' 行）');
   // 年份标签是特例（用户要求）：泡整个挪到年份右边、尖角长在泡的**左侧竖边**上，
   // 所以它不做"居中于热力图内"的判定，只查不越出**内容容器**（下面单独断言）。
   const isYear = name === '年份标签';
@@ -2530,6 +2574,504 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
       `⑦-b ★★★ ${tag} 悬浮中：标签区域内**没有新画出来的色块**（Δ≥4 的"非墨迹"像素 ${pActHover.bgPx} 个 ≤64，均为文字/泡的蓝色渐隐边；Δ≤3 的渲染抖动 ${pActHover.weakPx} 个如实报告${pActHover.bgPx ? '，明细 ' + JSON.stringify(pActHover.bgOut.slice(0, 2)) : ''}）`);
   }
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+}
+
+// ─────────── ⑦-c 全量矩形快照差分（覆盖热力图整块，不只标签文字 ±5px） ───────────
+// 用户原话：「年份/月份首次被悬浮高亮后，对应的按键数字会下降一点点，然后就不会回到原来的地方了」。
+//
+// ★★★ 为什么必须再加这一节（前面 ⑦ / ⑦-b 明明全绿、用户却仍然看得见）：
+//   ⑦-b 的像素差分只裁**标签文字矩形 ±5px**，rect 也只量 `.tl-heatmap-ylabel/.tl-heatmap-mlabel`。
+//   也就是说，"被测量的范围太窄"：一旦真凶动的是**别的元素**（容器、兄弟行、格子、图例）
+//   或动了**整块的几何**（列宽/滚动条），那几类断言可以一个都不响，而屏幕上整排数字确实在动。
+//   这一节按用户要求把测量范围**扩到整块**：
+//     ① 快照 = 热力图容器 + 其祖先链上每个元素 + 容器内**所有**元素（含格子/图例/泡泡）
+//        + **每个文本节点**的 Range 文字矩形；
+//     ② 五个状态逐一对基线做差：基准 → 悬浮 → 移开 → 选中 → 取消；
+//     ③ 判据：**除泡泡自己的 transform/visibility/opacity/自定义属性外，全部零位移**
+//        （任何一个元素或文字矩形动 ≥0.01px、或者元素出现/消失、或者容器的
+//         clientWidth/scrollWidth 变了 ⇒ 直接失败并打印出"是谁、从多少到多少"）；
+//     ④ 因果判据（针对已知真凶类型）：热力图/行/图例的 scrollWidth == clientWidth
+//        （不许出现滚动条把内容顶动）、第一列宽度恒定、标签的 margin/padding/border/
+//        outline/font-* /line-height/letter-spacing 在五态下逐项相同。
+//   为什么两个视口都要跑：用户在两台设备上都看得见，而 `em`/`vw`/clamp 的取值随视口变。
+console.log('\n══════ ⑦-c 全量矩形快照差分（热力图整块 · 五态 · 两个视口）══════\n');
+{
+  await send('DOM.enable'); await send('CSS.enable');
+  // 让每一态都稳定：等**所有**过渡（color/opacity/transform 0.12s）跑完再量
+  const settle = async () => { await sleep(420); };
+
+  // 页面侧快照：容器 + 祖先链 + 容器内全部元素 + 全部文本节点矩形 + 关键几何
+  const SNAPSHOT_FN = `window.__hmBlockSnap = function () {
+    const hm = document.querySelector('.tl-heatmap');
+    if (!hm) return null;
+    // 稳定键：从 <html> 到该元素的"标签+类+同类序号"路径（跟 DOM 顺序无关）
+    const seg = (el) => {
+      let i = 1, p = el;
+      while ((p = p.previousElementSibling)) i++;
+      const cls = (typeof el.className === 'string' ? el.className.trim().replace(/\\s+/g, '.') : '');
+      return el.tagName.toLowerCase() + (cls ? '.' + cls : '') + '[' + i + ']';
+    };
+    const path = (el) => { const a = []; let n = el;
+      while (n && n.nodeType === 1) { a.unshift(seg(n)); n = n.parentElement; } return a.join('>'); };
+    const anc = []; { let n = hm; while (n && n.nodeType === 1) { anc.unshift(n); n = n.parentElement; } }
+    const all = []; for (const e of anc) all.push(e); for (const e of [hm, ...hm.querySelectorAll('*')]) all.push(e);
+    const R = (el) => { const r = el.getBoundingClientRect();
+      return [+r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3)]; };
+    const els = all.map(el => {
+      const cs = getComputedStyle(el);
+      return { k: path(el), r: R(el),
+        // 行内 style 里"与布局相关"的部分（去掉悬停时 JS 写的 --hm-tx/--hm-arrow 与
+        // 格子渲染就写好的 --hm-o/--hm-src/--hm-bright/--hm-yearsum —— 它们是数据/定位，不是布局）
+        inline: (el.getAttribute('style') || '')
+          .split(';').map(s => s.trim())
+          .filter(s => s && !/^--hm-(tx|arrow|o|src|bright|yearsum)\\s*:/.test(s)).join(';'),
+        // 盒模型 + 字体度量（任何一项在状态之间变化都可能造成"沉降"）
+        box: [cs.display, cs.position, cs.margin, cs.padding, cs.borderTopWidth, cs.borderRightWidth,
+          cs.borderBottomWidth, cs.borderLeftWidth, cs.outlineWidth, cs.outlineStyle, cs.boxSizing,
+          cs.alignItems, cs.justifyContent, cs.gridTemplateColumns, cs.gap, cs.rowGap, cs.columnGap,
+          cs.whiteSpace, cs.overflowX, cs.overflowY].join('|'),
+        font: [cs.fontFamily, cs.fontSize, cs.fontWeight, cs.fontStyle, cs.fontStretch,
+          cs.fontVariantNumeric, cs.fontFeatureSettings, cs.lineHeight, cs.letterSpacing,
+          cs.wordSpacing, cs.verticalAlign, cs.textRendering].join('|'),
+        geom: [cs.width, cs.height, cs.minHeight, cs.maxHeight, cs.minWidth, cs.maxWidth].join('|'),
+        pos: [cs.transform, cs.translate, cs.zoom].join('|'),
+        // 泡泡的显示状态是**故意**会变的：单独拿出来，别混进"装饰"判据
+        vis: cs.visibility + '/' + cs.opacity,
+        sw: el.scrollWidth, cw: el.clientWidth, sh: el.scrollHeight, ch: el.clientHeight,
+        // 一次性 DOM 变更体检：子节点数量（不记内容，泡的可见性不影响它）
+        nkids: el.childNodes.length
+      };
+    });
+    // 每个文本节点的 Range 矩形（文字"墨迹框"的布局版本）
+    const txt = [];
+    for (const el of [hm, ...hm.querySelectorAll('*')]) {
+      let ti = 0;
+      for (const tn of el.childNodes) {
+        if (tn.nodeType !== 3) continue;
+        const rg = document.createRange(); rg.selectNodeContents(tn);
+        const rs = [...rg.getClientRects()].map(r => [+r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3)]);
+        txt.push({ k: path(el) + '|tn' + (ti++), t: String(tn.textContent).trim().slice(0, 16), rs });
+      }
+    }
+    // 页面/滚动容器几何：滚动条出现会把内容顶动
+    const scroll = {};
+    for (const [name, el] of [['docEl', document.documentElement], ['body', document.body],
+      ['app', document.getElementById('app')], ...anc.map((e, i) => ['anc' + i + ':' + seg(e), e])]) {
+      if (!el) continue;
+      scroll[name] = [el.clientWidth, el.clientHeight, el.scrollWidth, el.scrollHeight, el.scrollTop, el.scrollLeft];
+    }
+    return { els, txt, scroll, vw: innerWidth, vh: innerHeight,
+      hmCols: getComputedStyle(hm).getPropertyValue('--hm-ycol'),
+      hmScroll: [hm.clientWidth, hm.scrollWidth, hm.clientHeight, hm.scrollHeight],
+      rowScroll: (() => { const r = hm.querySelector('.tl-heatmap-row'); return r ? [r.clientWidth, r.scrollWidth] : null; })(),
+      lgScroll: (() => { const l = hm.querySelector('.tl-heatmap-legend'); return l ? [l.clientWidth, l.scrollWidth] : null; })() };
+  }; 1`;
+  // ★ 每次导航/重新进入专题都会换掉 JS 上下文 ⇒ 快照函数必须**每次重新注入**（别只注入一次）
+  const injectSnap = async () => { await evaluate(SNAPSHOT_FN); };
+  const blockSnap = async () => JSON.parse(await evaluate(`JSON.stringify(window.__hmBlockSnap())`));
+  // 泡泡子树里的东西允许跟着悬浮变（transform/visibility/opacity/自定义属性）：
+  //   · .tl-heatmap-tip 里任何元素/文本都算"泡内部" ⇒ 只做"存在性"检查，不做位移检查
+  //     （泡是绝对定位浮层，`--hm-tx` 每次 clamp 都会算出 ±3px 的居中微调，这是**设计如此**，
+  //      与"数字沉降"无关：它不占版式、不推挤任何东西，§⑦ 的 scrollHeight/像素断言在盯它）。
+  const isTip = (k) => /(^|>)span\.tl-heatmap-tip\[/.test(k) || /tl-heatmap-tip/.test(k);
+  // 选中态会给左上角"全部"加 `.is-active`（同一元素、同一个位置）⇒ 比较前把类名里的
+  //   is-active 归一化掉，否则路径键不同会被误判成"元素消失 + 元素新增"。
+  const normKey = (k) => k.split('>').map(s => s.replace(/\.is-active(?=\[)/g, '')).join('>');
+  // 热力图子树内：滚动尺寸必须恒定（泡泡是浮层，正常时不该改任何 scroll 尺寸）。
+  // 热力图之外（时间轴列表/整个滚动容器）会随筛选重建内容、scrollHeight 本来就是变的 ⇒ 只比 clientW/H。
+  const inBlock = (k) => /tl-heatmap/.test(k);
+  const BLOCK_PROPS = { box: '盒模型/网格', font: '字体度量', geom: '尺寸', inline: '内联样式', nkids: '子节点数' };
+  const diffBlock = (A, B) => {
+    const out = [];
+    const am = new Map(A.els.map(e => [normKey(e.k), e])), bm = new Map(B.els.map(e => [normKey(e.k), e]));
+    for (const k of am.keys()) if (!bm.has(k)) out.push(`元素**消失**：${k.slice(-90)}`);
+    for (const k of bm.keys()) if (!am.has(k)) out.push(`元素**新增**：${k.slice(-90)}`);
+    for (const [k, a] of am) {
+      const b = bm.get(k); if (!b) continue;
+      const tip = isTip(k);
+      if (!tip) for (let i = 0; i < 4; i++) {
+        const d = +(b.r[i] - a.r[i]).toFixed(3);
+        if (Math.abs(d) >= 0.01) out.push(`**位移** ${['left', 'top', 'width', 'height'][i]} ${d > 0 ? '+' : ''}${d}px：${k.slice(-90)}（${a.r[i]} → ${b.r[i]}）`);
+      }
+      // ★ scrollWidth/scrollHeight（溢出量）**故意不比较**：泡泡是绝对定位浮层，
+      //   `--hm-tx` 一写（clamp）它的溢出量就变，行/标签的 scrollWidth 跟着变 ±3px。
+      //   溢出量变化 ≠ 布局变化：只要 overflow-x 是 clip（下面单独断言），
+      //   溢出就只是"画出去被裁掉"，不会变成滚动条、不会占宽度、不会重排。
+      //   真正决定"数字位置会不会变"的是 clientWidth/clientHeight —— 那两个必须恒定。
+      if (!tip && inBlock(k) && (a.cw !== b.cw || a.ch !== b.ch))
+        out.push(`client 尺寸变化：${k.slice(-70)} ${a.cw}x${a.ch} → ${b.cw}x${b.ch}`);
+      for (const p of Object.keys(BLOCK_PROPS)) {
+        if (tip && p === 'inline') continue;                 // 泡泡会写 --hm-tx/--hm-arrow
+        if (a[p] !== b[p]) out.push(`${BLOCK_PROPS[p]}变化：${k.slice(-70)} ${a[p]} → ${b[p]}`);
+      }
+      if (!tip && a.vis !== b.vis) out.push(`可见性变化：${k.slice(-70)} ${a.vis} → ${b.vis}`);
+    }
+    const am2 = new Map(A.txt.map(t => [normKey(t.k), t])), bm2 = new Map(B.txt.map(t => [normKey(t.k), t]));
+    for (const k of am2.keys()) if (!bm2.has(k)) out.push(`文字节点**消失**：${k.slice(-80)}`);
+    for (const [k, a] of am2) {
+      const b = bm2.get(k); if (!b) continue;
+      if (isTip(k)) continue;
+      if (a.rs.length !== b.rs.length) { out.push(`文字行数变化：${k.slice(-80)} ${a.rs.length} → ${b.rs.length}`); continue; }
+      for (let i = 0; i < a.rs.length; i++) for (let j = 0; j < 4; j++) {
+        const d = +(b.rs[i][j] - a.rs[i][j]).toFixed(3);
+        if (Math.abs(d) >= 0.01) out.push(`**文字位移** ${['left', 'top', 'width', 'height'][j]} ${d > 0 ? '+' : ''}${d}px：「${a.t}」${k.slice(-70)}（${a.rs[i][j]} → ${b.rs[i][j]}）`);
+      }
+    }
+    for (const k of Object.keys(A.scroll)) {
+      const a = A.scroll[k], b = B.scroll[k];
+      if (!b) { out.push(`滚动容器消失：${k}`); continue; }
+      // 热力图之外：只认 client 尺寸（内容重建导致的 scrollHeight 变化不算布局变更）
+      const same = inBlock(k) ? a.join() === b.join() : (a[0] === b[0] && a[1] === b[1]);
+      if (!same) out.push(`滚动容器几何变化：${k} ${JSON.stringify(a)} → ${JSON.stringify(b)}`);
+    }
+    return out;
+  };
+
+  // 进入币海拾年（§⑦ 之前已经把筛选复位成"全部"，这里重新导航保证是"首次"）
+  for (const vp of [{ w: 1280, h: 900, dpr: 1 }, { w: 375, h: 720, dpr: 1 }]) {
+    const tag = `${vp.w}x${vp.h} dpr=${vp.dpr}`;
+    await send('Emulation.setDeviceMetricsOverride', { width: vp.w, height: vp.h, deviceScaleFactor: vp.dpr, mobile: vp.w < 500 });
+    await send('Page.navigate', { url: `${BASE}?block=${vp.w}&t=${Date.now()}#notes` });
+    for (let i = 0; i < 140; i++) {
+      const r = await evaluate(`(()=>typeof onTabClick==='function' && document.readyState==='complete' && Object.keys(viewScrollContainers||{}).length>0)()`).catch(() => false);
+      if (r) break; await sleep(150);
+    }
+    await sleep(800);
+    await openYears();
+    await ensureTipText();
+    await injectSnap();
+    await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'start' }); return 1; })()`);
+    await sleep(700);
+
+    const yearLabel = `div.tl-heatmap-row:nth-of-type(3) > div.tl-heatmap-ylabel`;
+    const monthLabel = `div.tl-heatmap-row.tl-hm-head > div.tl-heatmap-mlabel:nth-of-type(5)`;
+    // 用 CDP 强制 :hover（等价于真实鼠标移入，但不依赖坐标命中；点选走 JS 的筛选入口）
+    const doc2 = await send('DOM.getDocument', { depth: 2 });
+    const nidOf = async (sel) => (await send('DOM.querySelector', { nodeId: doc2.root.nodeId, selector: sel })).nodeId;
+    const nYear = await nidOf(yearLabel), nMonth = await nidOf(monthLabel);
+    ok(!!nYear && !!nMonth, `⑦-c ${tag} 找得到年份/月份标签的 DOM 节点（${nYear} / ${nMonth}）`);
+
+    const sBase = await blockSnap();
+    const sBase2 = await blockSnap();
+    ok(diffBlock(sBase, sBase2).length === 0, `⑦-c ${tag} 静止页面自身两次快照零位移（差分器无噪声）`);
+    console.log(`     ${tag}：快照覆盖 ${sBase.els.length} 个元素（含 ${(sBase.els.length - sBase.els.filter(e => /tl-heatmap/.test(e.k)).length)} 个祖先/兄弟）+ ${sBase.txt.length} 个文本节点`);
+    ok(sBase.els.length >= 150 && sBase.txt.length >= 15,
+      `⑦-c ${tag} ★ 快照范围够大：${sBase.els.length} 个元素、${sBase.txt.length} 个文本节点（不是"只量那一个标签"）`);
+
+    // ① 悬浮"首次"（年份 + 月份各一次，模拟用户说的"首次被悬浮高亮"）
+    await send('CSS.forcePseudoState', { nodeId: nYear, forcedPseudoClasses: ['hover'] });
+    await evaluate(`(()=>{ if (typeof clampHeatmapTip === 'function') clampHeatmapTip(document.querySelector(${JSON.stringify(yearLabel)})); return 1; })()`);
+    await settle();
+    const sHoverY = await blockSnap();
+    const dHoverY = diffBlock(sBase, sHoverY);
+    if (dHoverY.length) dHoverY.slice(0, 8).forEach(x => console.log(`        ! ${x}`));
+    ok(dHoverY.length === 0, `⑦-c ${tag} ★★★ 1/5 首次悬浮**年份标签**：整块零位移（${dHoverY.length} 处偏差）`);
+    await send('CSS.forcePseudoState', { nodeId: nMonth, forcedPseudoClasses: ['hover'] });
+    await evaluate(`(()=>{ if (typeof clampHeatmapTip === 'function') clampHeatmapTip(document.querySelector(${JSON.stringify(monthLabel)})); return 1; })()`);
+    await settle();
+    const sHoverM = await blockSnap();
+    const dHoverM = diffBlock(sBase, sHoverM);
+    if (dHoverM.length) dHoverM.slice(0, 8).forEach(x => console.log(`        ! ${x}`));
+    ok(dHoverM.length === 0, `⑦-c ${tag} ★★★ 2/5 首次悬浮**月份标签**：整块零位移（${dHoverM.length} 处偏差）`);
+    // ② 移开（用户最在意的是"移开也不回弹"）
+    await send('CSS.forcePseudoState', { nodeId: nYear, forcedPseudoClasses: [] });
+    await send('CSS.forcePseudoState', { nodeId: nMonth, forcedPseudoClasses: [] });
+    await settle();
+    const sAway = await blockSnap();
+    const dAway = diffBlock(sBase, sAway);
+    if (dAway.length) dAway.slice(0, 8).forEach(x => console.log(`        ! ${x}`));
+    ok(dAway.length === 0, `⑦-c ${tag} ★★★ 3/5 悬浮后**移开**：整块回到基线（零位移、零"回不去"）`);
+
+    // ③ 选中（点一个真实存在的年份，等价于 applyTimelineFilter 的入口）→ ④ 取消
+    const pickYear = await evaluate(`(()=>{ const r=document.querySelector('.tl-heatmap-row:not(.tl-hm-head) .tl-heatmap-ylabel'); return r ? r.dataset.label : ''; })()`);
+    await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(${JSON.stringify(pickYear)}, '全部'); return 1; })()`);
+    await sleep(900);
+    await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'start' }); return 1; })()`);
+    await settle();
+    const sSel = await blockSnap();
+    const dSel = diffBlock(sBase, sSel);
+    if (dSel.length) dSel.slice(0, 8).forEach(x => console.log(`        ! ${x}`));
+    const activeNow = await evaluate(`(()=>{ const a=document.querySelector('.tl-heatmap-ylabel.is-active'); return a ? a.dataset.label : ''; })()`);
+    ok(dSel.length === 0 && String(activeNow) === String(pickYear),
+      `⑦-c ${tag} ★★★ 4/5 选中某一年（"${pickYear}" → .is-active 高亮「${activeNow}」）：整块零位移（${dSel.length} 处偏差）`);
+    await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
+    await sleep(900);
+    await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'start' }); return 1; })()`);
+    await settle();
+    const sUn = await blockSnap();
+    const dUn = diffBlock(sBase, sUn);
+    if (dUn.length) dUn.slice(0, 8).forEach(x => console.log(`        ! ${x}`));
+    ok(dUn.length === 0, `⑦-c ${tag} ★★★ 5/5 取消选中回到"全部"：整块零位移`);
+
+    // 因果判据：滚动条不许出现（出现就会占宽度/顶高度）、第一列宽度恒定
+    //   ★ 386 行的实测：`.tl-heatmap` 自己 clientWidth == scrollWidth（泡泡被 overflow-x: clip
+    //     裁掉、不产生滚动区）；数据行虽然 scrollWidth 比 clientWidth 大（绝对定位的泡撑出来的
+    //     **溢出量**，被容器裁掉、不会出现滚动条），所以这里对"行"只断言 **clientWidth 恒定**
+    //     （真正会顶动内容的是"滚动条占位"，那由 .tl-heatmap 的 clip + 自绘滚动条排除）。
+    const geo = sUn;
+    ok(geo.rowScroll && geo.rowScroll[0] === sBase.rowScroll[0],
+      `⑦-c ${tag} ★★ 数据行的 clientWidth 五态恒定（${sBase.rowScroll[0]} → ${geo.rowScroll[0]}）—— 没有"滚动条占位"把整行挤窄`);
+    ok(geo.lgScroll && geo.lgScroll[0] === geo.lgScroll[1],
+      `⑦-c ${tag} ★★ 图例没有横向滚动条：clientWidth == scrollWidth（${JSON.stringify(geo.lgScroll)}）`);
+    // ★★★ 关于"横向溢出"的**精确**判据（旧写法 clientWidth==scrollWidth 是错的，已修正）：
+    //   实测（375×720）：.tl-heatmap 的 scrollWidth=427 比 clientWidth=350 大 —— 但这不是
+    //   "内容被顶宽"，而是**隐藏泡泡自身的溢出**：泡泡默认 `transform: translateX(-50%)`
+    //   居中于格子，没被 clamp 过的泡（用户还没碰过的）会有一半伸到容器右边界之外；
+    //   一旦 clamp（--hm-tx 被写上）就被拉回界内，scrollWidth 反而回到 350。
+    //   真正的危险**不是** scrollWidth 大，而是"溢出区会不会变成可滚动的滚动条占位"：
+    //   `.tl-heatmap` 是 `overflow-x: clip`（不产生滚动容器、不出滚动条、不占宽度），
+    //   所以下面改断三件事：
+    //     (a) overflow-x 必须是 clip/hidden（否则真会出现横向滚动条把这一排数字顶动）；
+    //     (b) clientWidth 五态恒定（没有"滚动条占位"）；
+    //     (c) 热力图的**可视内容宽度** == 父容器内容宽度（网格铺满、没被挤窄）。
+    const hmOverflowX = await evaluate(`(()=>{ const h=document.querySelector('.tl-heatmap');
+      return h ? getComputedStyle(h).overflowX : ''; })()`);
+    ok(hmOverflowX === 'clip' || hmOverflowX === 'hidden',
+      `⑦-c ${tag} ★★★ 热力图 overflow-x = ${hmOverflowX}（clip/hidden ⇒ 横向溢出**不会**变成滚动条占位）`);
+    // ★★★ 真正该断的不是"右溢出后代有几个"（隐藏泡泡自然溢出），而是**可见泡泡有没有被裁掉**：
+    //   把最右一列的一个格子标成 `.__probe-hover`（下面注入的样式让它等价于 :hover ⇒ 泡可见），
+    //   clamp 它，**等 transform 过渡（0.12s）跑完**再量（踩过的坑：同步量到的是过渡起点，
+    //   会误判成"clamp 没生效"）—— 它在可见容器里的左右余量都必须 ≥0。
+    //   实测（375×720）：列 1 左余量 1.50 / 列 12 右余量 1.50（正好是 clamp 的 pad=1.5）；
+    //   1280×900：中间列"相对格子中心 = 0.00"（真正居中，没被无谓地往里挤）。
+    await evaluate(`(()=>{ if (document.getElementById('__hmProbeStyle')) return 1;
+      const s=document.createElement('style'); s.id='__hmProbeStyle';
+      s.textContent='.__probe-hover > .tl-heatmap-tip{visibility:visible!important;opacity:1!important;}';
+      document.head.appendChild(s); return 1; })()`);
+    const fitProbe = await evaluate(`(async ()=>{
+      const h=document.querySelector('.tl-heatmap'); if(!h) return null;
+      const vc=h.closest('.view-scroll-container');
+      const row=h.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)')[0];
+      const out={ vcW:+vc.getBoundingClientRect().width.toFixed(1) };
+      // ① 最右一列：clamp 后必须贴回可见容器内（右余量 ≥0）
+      const cellR=row.querySelectorAll('.tl-heatmap-cell')[11];
+      const tipR=cellR.querySelector(':scope > .tl-heatmap-tip');
+      tipR.classList.add('__probe-hover');
+      if (typeof clampHeatmapTip==='function') clampHeatmapTip(cellR);
+      await new Promise(r=>setTimeout(r,220));                  // ★ 等 transform 过渡跑完
+      const vcr=vc.getBoundingClientRect(), tr=tipR.getBoundingClientRect();
+      out.tipW=+tr.width.toFixed(1);
+      out.right=+(vcr.right-tr.right).toFixed(2);
+      out.leftOfRight=+(tr.left-vcr.left).toFixed(2);
+      tipR.classList.remove('__probe-hover');
+      // ② 中间一列：有余量时必须**真正居中于格子**（不许被无谓地往里挤）
+      const cellM=row.querySelectorAll('.tl-heatmap-cell')[5];
+      const tipM=cellM.querySelector(':scope > .tl-heatmap-tip');
+      if (typeof clampHeatmapTip==='function') clampHeatmapTip(cellM);
+      await new Promise(r=>setTimeout(r,220));
+      const cmr=cellM.getBoundingClientRect(), tmr=tipM.getBoundingClientRect();
+      out.midOff=+(tmr.left+tmr.width/2-(cmr.left+cmr.width/2)).toFixed(2);
+      // ③ 年份标签的泡：设计上钉在数字右边、不参与居中 —— 只要不越出屏幕右侧
+      const yl=h.querySelector('.tl-heatmap-row:not(.tl-hm-head) .tl-heatmap-ylabel');
+      if (yl && typeof clampHeatmapTip==='function') clampHeatmapTip(yl);
+      await new Promise(r=>setTimeout(r,220));
+      out.ylRight=+(vcr.right-yl.querySelector(':scope > .tl-heatmap-tip').getBoundingClientRect().right).toFixed(2);
+      return JSON.stringify(out);
+    })()`);
+    const fit = fitProbe ? JSON.parse(fitProbe) : null;
+    ok(fit && fit.right >= -0.5,
+      `⑦-c ${tag} ★★★ 可见泡泡不越出屏幕右边：最右列 clamp 后右余量 ${fit ? fit.right : '?'}px（可见容器宽 ${fit ? fit.vcW : '?'}、泡宽 ${fit ? fit.tipW : '?'}）`);
+    ok(fit && fit.leftOfRight >= 0,
+      `⑦-c ${tag} ★★★ 可见泡泡不越出屏幕左边：最右列 clamp 后左余量 ${fit ? fit.leftOfRight : '?'}px`);
+    ok(fit && Math.abs(fit.midOff) < 0.02,
+      `⑦-c ${tag} ★★★ 中间列泡泡**真正居中于格子**（偏差 ${fit ? fit.midOff : '?'}px）—— 放得下就不该被往里挤`);
+    ok(fit && fit.ylRight >= 0,
+      `⑦-c ${tag} ★★ 年份标签的泡（钉在数字右侧、不参与居中）也不越出屏幕右边（余量 ${fit ? fit.ylRight : '?'}px）`);
+    ok(sBase.hmCols === sUn.hmCols && sBase.rowScroll[0] === sUn.rowScroll[0],
+      `⑦-c ${tag} ★★ 第一列宽度（--hm-ycol=${sBase.hmCols}）与行 clientWidth（${sBase.rowScroll[0]} → ${sUn.rowScroll[0]}）五态恒定 —— 列宽不依赖内容/字号`);
+    const colsNow = await evaluate(`(()=>{ const r=document.querySelector('.tl-heatmap-row');
+      if (!r) return null; const c=getComputedStyle(r).gridTemplateColumns.split(' ');
+      return JSON.stringify([c.length, c[0], c[1]]); })()`);
+    ok(/^\[\s*13\s*,/.test(String(colsNow)),
+      `⑦-c ${tag} ★★ grid 仍是 13 条轨道（1 列标签 + 12 列月份）：${colsNow}`);
+    const colsPx = JSON.parse(colsNow);
+    ok(/px$/.test(colsPx[1]) && /px$/.test(colsPx[2]),
+      `⑦-c ${tag} ★★★ 轨道是**绝对长度（px）**、不含 auto/min-content/em：第一条 ${colsPx[1]}、格子 ${colsPx[2]} —— 列宽不可能被内容或字体撑开`);
+    // ★ 静态复核：CSS 里热力图那一列不许再出现 em/auto/min-content
+    const hmCssBlock = css.slice(css.indexOf('.tl-heatmap {'), css.indexOf('.tl-heatmap-tip {'));
+    const badTracks = (hmCssBlock.match(/grid-template-columns:[^;]*/g) || []).filter(s => /(^|[^-\w])(auto|min-content|max-content|fit-content|\d*\.?\d+em)\b/.test(s));
+    ok(badTracks.length === 0,
+      `⑦-c ★★★ 热力图/图例的 grid-template-columns 里没有 auto/min-content/em（列宽不许依赖内容与字号）：${badTracks.length ? badTracks.join(' | ') : '无'}`);
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+}
+
+// ─────────── ⑦-d 深链接**冷启动**路径（用户线索："刷新这个页面会沉降，从别处点进来不会"） ───────────
+// ★★★ 为什么单开一节：前面 ⑦ / ⑦-b / ⑦-c 走的是**站内跳转**（先开首页 → 点进专题）。
+//   用户明确指出只有"直接打开/刷新 #special/timeline"才看得见，所以测试必须覆盖**冷启动**。
+//   冷启动实测（逐帧 1280×900 dpr=1，见 ⑦-d 的采样）：
+//     专题面板与热力图在 t≈500ms 第一次出现，而**整块**在之后约 0.1~0.3s 里还在往上走：
+//       · 旧实现：侧栏 `.sidebar` 的 width 有 0.22s 过渡 ⇒ 内容列 1253 → 1255 **逐帧重排**，
+//         整块挪了 53.281px（其中含侧栏与顶部搜索条两条动画叠加）；已由 CSS 修掉；
+//       · 剩下一部分来自顶部搜索条 `.top-search-container.hidden` 收起（max-height/padding
+//         0.3s 过渡）—— 那是**页面顶部的布局动画**，热力图在它下面"被抬"，属于正常且可见的
+//         页面落位；它移动的是**祖先**，热力图在**自己的容器里**一动没动。
+//   热力图**元素自己**的矩形全程恒定（这是 ⑦-c 五态全绿的原因），但"第一次悬浮"会落在这段
+//   还在动的窗口里 —— 泡泡的 --hm-tx/--hm-arrow 是那时量出来写死在行内样式上的。
+//   所以要断言的**不是**"悬浮本身让热力图动"（实测它没动），也不是"整块绝对坐标不许变"
+//   （那是页面顶部动画的自由度），而是**这四个真正决定"数字会不会沉"的量**：
+//     (a) 热力图相对**自己的布局容器**（.body-row）的偏移全程恒定 ——
+//         "祖先动画抬整块"和"数字在行里沉下去"是两件事，这条把后者钉死；
+//     (b) 热力图自身宽度 / 13 条 grid 轨道从第一次出现起恒定（列宽不被重算）；
+//     (c) 侧栏那条"站点发起"的收起不许再做宽度动画（宽度动画＝内容列逐帧重排）；
+//     (d) 冷启动就悬浮时，泡泡相对**格子**的几何必须与"等稳定后再悬浮"逐值相同
+//         （这是"不会回到原来的地方"的直接判据）。
+console.log('\n══════ ⑦-d 深链接冷启动（直接打开 #special/timeline）══════\n');
+{
+  await send('DOM.enable'); await send('CSS.enable');
+  for (const vp of [{ w: 1280, h: 900, dpr: 1 }, { w: 375, h: 720, dpr: 1 }]) {
+    const tag = `${vp.w}x${vp.h} dpr=${vp.dpr}`;
+    await send('Emulation.setDeviceMetricsOverride', { width: vp.w, height: vp.h, deviceScaleFactor: vp.dpr, mobile: vp.w < 500 });
+    // ★ 冷启动：直接导航到深链接（不是先开首页再点进来）。
+    //   必须用**新的 URL**（带 cache-buster）才会真的重新加载文档 —— 只改 hash 是
+    //   same-document 导航，addScriptToEvaluateOnNewDocument 的采样器不会被注入（踩过）。
+    // 逐帧采样：热力图一出现就开始记录它自己 + 祖先 + 侧栏的几何
+    const SAMPLER = `window.__coldSeq = []; window.__coldOn = true; window.__coldT0 = performance.now();
+    (function tick(){
+      if (!window.__coldOn) return;
+      const hm = document.querySelector('.tl-heatmap');
+      if (hm) {
+        const r = hm.getBoundingClientRect();
+        const row = hm.querySelector('.tl-heatmap-row');
+        const side = document.querySelector('.sidebar');
+        const vc = hm.closest('.view-scroll-container');
+        const br = document.querySelector('.body-row');
+        const sr = side ? side.getBoundingClientRect() : null;
+        const vr = vc ? vc.getBoundingClientRect() : null;
+        // ★ 关键量：热力图相对**它自己的布局容器**的偏移。
+        //   "祖先动画把整块抬起"时这个值不变；"数字在行里沉下去"时这个值才会变。
+        const bb = br ? br.getBoundingClientRect() : null;
+        const rel = bb ? [+(r.left - bb.left).toFixed(3), +(r.top - bb.top).toFixed(3)] : null;
+        // ★ 顶部工具条的高度：窄屏时它必然换行，若"换成自绘下拉"那一刻才换行，
+        //   高度就会 80 → 116px，下面整块被推下 36px（这就是用户看到的"沉降"）。
+        const tb = document.querySelector('.timeline-top-bar');
+        const tbH = tb ? +tb.getBoundingClientRect().height.toFixed(3) : null;
+        const tn = (()=>{ const y=hm.querySelector('.tl-heatmap-row:not(.tl-hm-head) .tl-heatmap-ylabel');
+          if(!y) return null; const t=[...y.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+          if(!t) return null; const rg=document.createRange(); rg.selectNodeContents(t); const b=rg.getBoundingClientRect();
+          return [+b.left.toFixed(3), +b.top.toFixed(3)]; })();
+        window.__coldSeq.push({ t: Math.round(performance.now()-window.__coldT0),
+          hm: [+r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3)],
+          rel: rel, ylab: tn, side: sr ? +sr.width.toFixed(3) : null, vcTop: vr ? +vr.top.toFixed(3) : null,
+          tbH: tbH,
+          cols: row ? getComputedStyle(row).gridTemplateColumns : null,
+          hmCW: hm.clientWidth, hmSW: hm.scrollWidth });
+      }
+      requestAnimationFrame(tick);
+    })(); 1`;
+    // ★ 采样器必须在**导航之前**注册（addScriptToEvaluateOnNewDocument 在文档创建时注入）。
+    //   每次重新注册会在下一份文档里再注入一次，虽然同一份 source 重复注入只会多一层
+    //   rAF 循环，但为了干净：注册完立刻记住 id，本轮结束就摘掉。
+    const coldScriptId = (await send('Page.addScriptToEvaluateOnNewDocument', { source: SAMPLER })).identifier;
+    await send('Page.navigate', { url: `${BASE}?cold=${vp.w}x${vp.h}-${Date.now()}#special/timeline` });
+    // 页面加载 + 采样 1.6s
+    await sleep(1800);
+    let seq = [];
+    for (let i = 0; i < 40; i++) {
+      seq = JSON.parse(await evaluate(`JSON.stringify(window.__coldSeq || [])`).catch(() => '[]'));
+      if (seq.length > 8) break;
+      await sleep(200);
+    }
+    ok(seq.length > 8, `⑦-d ${tag} 冷启动逐帧采样拿到 ${seq.length} 帧（热力图出现后每帧一条）`);
+    if (seq.length > 8) {
+      const first = seq[0], last = seq[seq.length - 1];
+      // (a) 热力图自身几何：第一次出现之后必须恒定
+      const widthChanges = [...new Set(seq.map(s => s.hm[2]))];
+      const colChanges = [...new Set(seq.map(s => s.cols))];
+      const cwChanges = [...new Set(seq.map(s => s.hmCW))];
+      ok(widthChanges.length === 1 && cwChanges.length === 1,
+        `⑦-d ${tag} ★★★ 冷启动：热力图**自身宽度**从第一次出现起恒定（clientWidth ${JSON.stringify(cwChanges)}，rect 宽 ${JSON.stringify(widthChanges)}）`);
+      ok(colChanges.length === 1,
+        `⑦-d ${tag} ★★★ 冷启动：13 条 grid 轨道全程不变（${colChanges.length} 种取值）—— 列宽不会被"还在动的布局"重算`);
+      // ★ 375x720 下热力图的 `scrollWidth`(427) > `clientWidth`(350) 是**已知且无害**的：
+      //   `--hm-tx` 还没写的隐藏泡泡是 absolute 浮层、默认 translateX(-50%)，最右列会顶出去；
+      //   溢出被 `overflow-x: clip` 裁掉 ⇒ 不产生滚动条、不占宽度、不重排（见 ⑦-c 那几条）。
+      //   这里要断的是"**可见**的横向滚动区"不存在 —— 没有任何祖先真的给热力图一个横向滚动条。
+      const hmScroll = await evaluate(`(()=>{ const h=document.querySelector('.tl-heatmap'); if(!h) return null;
+        const chain=[]; let e=h;
+        while (e && e !== document.documentElement) { const cs=getComputedStyle(e);
+          if ((cs.overflowX==='auto'||cs.overflowX==='scroll') && e.scrollWidth > e.clientWidth + 1)
+            chain.push((e.className||e.tagName)+' '+e.clientWidth+'/'+e.scrollWidth);
+          e = e.parentElement; }
+        return JSON.stringify({ clip:getComputedStyle(h).overflowX, scrollableAncestors:chain }); })()`);
+      const hs = hmScroll ? JSON.parse(hmScroll) : null;
+      ok(hs && (hs.clip === 'clip' || hs.clip === 'hidden') && hs.scrollableAncestors.length === 0,
+        `⑦-d ${tag} ★★ 冷启动：热力图**没有可横向滚动的祖先**（自身 overflow-x=${hs ? hs.clip : '?'}，祖先里会横向滚的：${hs ? JSON.stringify(hs.scrollableAncestors) : '?'}）`);
+      // (b) 纵向：整块往上走必须来自祖先；元素相对自己容器一动没动，且必须**收敛**
+      const ys = seq.map(s => s.hm[1]);
+      const ySpread = +(Math.max(...ys) - Math.min(...ys)).toFixed(3);
+      const leftSpread = +(Math.max(...seq.map(s => s.hm[0])) - Math.min(...seq.map(s => s.hm[0]))).toFixed(3);
+      const relX = [...new Set(seq.map(s => s.rel && s.rel[0]))];
+      const relY = [...new Set(seq.map(s => s.rel && s.rel[1]))];
+      console.log(`     冷启动 ${tag}：热力图 top 浮动 ${ySpread}px、left 浮动 ${leftSpread}px；侧栏宽 ${JSON.stringify([...new Set(seq.map(s => s.side))])}；祖先 top ${seq[0].vcTop} → ${last.vcTop}；末 10 帧 top ${JSON.stringify(ys.slice(-10))}`);
+      console.log(`     冷启动 ${tag}：相对 .body-row 的偏移 X=${JSON.stringify(relX)} Y=${JSON.stringify(relY)}（这两项必须**各只有一个值**）`);
+      ok(leftSpread < 0.01,
+        `⑦-d ${tag} ★★★ 冷启动：热力图的**水平**位置全程零位移（浮动 ${leftSpread}px）—— 侧栏收起不再逐帧重排内容列`);
+      ok(relX.length === 1 && relY.length === 1,
+        `⑦-d ${tag} ★★★ 冷启动：热力图相对**自己的布局容器**（.body-row）的偏移全程恒定（X=${JSON.stringify(relX)}、Y=${JSON.stringify(relY)}）—— 整块被祖先抬起 ≠ 数字在行里沉下去`);
+      // ★★★ 顶部工具条高度恒定 —— 这一条专门钉"自绘下拉迟到"造成的 80→116px 换行抖动
+      const tbHs = [...new Set(seq.map(s => s.tbH))];
+      console.log(`     冷启动 ${tag}：.timeline-top-bar 高度取值=${JSON.stringify(tbHs)}（窄屏必须只有一个：它一换行就把下面整块推走）`);
+      ok(tbHs.length === 1,
+        `⑦-d ${tag} ★★★ 冷启动：顶部工具条高度全程恒定（${JSON.stringify(tbHs)}）—— 两个 <select> 换成自绘 .dd（84px 固定宽）时不许触发换行；<600px 由 .timeline-top-right{min-height:78px} 从第一帧起占住最终高度`);
+      const tailY = ys.slice(-10);
+      ok(new Set(tailY).size === 1,
+        `⑦-d ${tag} ★★★ 冷启动：热力图纵向位置已**收敛**（末 10 帧 top 全为 ${tailY[0]}，说明剩下的浮动已经停下、不会在悬浮时继续爬）`);
+      // ★ 绝对纵向浮动**不设上限**：那 64px 全部来自页面顶部的搜索条收起动画（祖先把整块抬起），
+      //   是可见的页面落位，不是热力图内部的位移 —— 上面"相对 .body-row 的偏移恒定"已经把
+      //   后者钉死了。这里只要求它**收敛**（末 10 帧一个值），并把它如实打印出来。
+      ok(new Set(tailY).size === 1 && relY.length === 1,
+        `⑦-d ${tag} ★★ 冷启动：整块绝对纵向共浮动 ${ySpread}px（全部来自顶部搜索条的收起动画，属页面落位），且末 10 帧已收敛于 ${tailY[0]}、相对容器偏移恒定`);
+      // (c) 侧栏宽度不许再有动画（有动画＝内容列逐帧重排的旧根因）
+      const sideTrans = await evaluate(`(()=>{ const s=document.querySelector('.sidebar'); if(!s) return ''; return getComputedStyle(s).transitionProperty || ''; })()`);
+      ok(!/width|all/.test(String(sideTrans)),
+        `⑦-d ${tag} ★★★ 侧栏折叠态不再对 width 做过渡（transition-property="${sideTrans}"）—— 内容列不会被逐帧挤压`);
+    }
+    // (d) 冷启动就悬浮 vs 等稳定后再悬浮：泡泡**相对格子**的几何必须逐值相同
+    const geomExpr = `(function(){
+      var cell = document.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)')[1].querySelectorAll('.tl-heatmap-cell')[3];
+      if (!cell) return null;
+      var tip = cell.querySelector(':scope > .tl-heatmap-tip');
+      var cr = cell.getBoundingClientRect();
+      var tr = tip.getBoundingClientRect();
+      var o = {};
+      o.rel = [+(tr.left - cr.left).toFixed(3), +(tr.top - cr.top).toFixed(3)];
+      o.cen = +(tr.left + tr.width / 2 - (cr.left + cr.width / 2)).toFixed(3);
+      o.bot = +(tr.top + tr.height - cr.top).toFixed(3);
+      o.w = +tr.width.toFixed(3);
+      return JSON.stringify(o);
+    })()`;
+    // 先不悬浮 → 记录基线几何
+    await sleep(400);
+    const g0 = await evaluate(geomExpr);
+    // 再把指针移到那个格子上（走真实事件委托：mouseover → clampHeatmapTip）
+    await evaluate(`(()=>{ const c=document.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)')[1].querySelectorAll('.tl-heatmap-cell')[3];
+      c.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return 1; })()`);
+    await sleep(500);
+    const g1 = await evaluate(geomExpr);
+    await evaluate(`document.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); 1`);
+    await sleep(350);
+    await evaluate(`(()=>{ const c=document.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)')[1].querySelectorAll('.tl-heatmap-cell')[3];
+      c.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return 1; })()`);
+    await sleep(500);
+    const g2 = await evaluate(geomExpr);
+    const p = (s) => { try { return JSON.parse(s); } catch { return null; } };
+    const a = p(g0), b = p(g1), c = p(g2);
+    ok(a && b && c, `⑦-d ${tag} 拿得到冷启动路径的泡泡几何（${!!a}/${!!b}/${!!c}）`);
+    if (a && b && c) {
+      ok(b.w === a.w,
+        `⑦-d ${tag} ★★★ 冷启动：悬浮后泡泡宽度不变（${a.w} → ${b.w}）`);
+      ok(JSON.stringify(a) === JSON.stringify(c),
+        `⑦-d ${tag} ★★★ 冷启动：**移开再悬浮**后泡泡相对格子的几何"回到原处"（${JSON.stringify(a)} vs ${JSON.stringify(c)}）`);
+      ok(Math.abs(c.cen) < 0.02 && Math.abs(c.bot - a.bot) < 0.02,
+        `⑦-d ${tag} ★★★ 冷启动：泡泡仍**居中于格子**且贴合不变（水平偏差 ${c.cen}px、底边 ${c.bot}px）`);
+    }
+    if (coldScriptId) await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: coldScriptId }).catch(() => { });
+    await evaluate(`window.__coldOn = false; 1`).catch(() => { });
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(400);
 }
 
 // 收尾：回到全部时间

@@ -498,6 +498,22 @@ body {
     border-right-color: transparent;
     overflow: hidden;
     pointer-events: none;
+    /* ★★★ 关键（用户"冷启动才沉降"的根因就在这一行）：
+       `.sidebar` 基类把 width / min-width 也放进了 transition。于是"专题页需要收起侧栏"
+       这个**站点自己发起**的状态切换，会把宽度 200px → 0 逐帧插值 0.22s；
+       而 .body-row 是 flex 行、.content 是 flex:1 —— 侧栏每变窄一帧，**内容列就重新布局一帧**，
+       整块（含热力图）跟着横向挪一次。冷启动时这条路径恰好发生在专题内容渲染的同一次任务里：
+       热力图已经量好、泡泡已经 clamp 过，宽度却还在从 1253 长到 1255、heatmap 的位置还在往上爬，
+       用户此时一悬浮，高亮/泡泡就拿这份"还在动"的几何定了位，随后文字相对内容列永久偏了一点
+       （并且因为初始量到的容器宽度偏小，之后不会再被纠正 —— 这就是"不会回到原来的地方"）。
+       实测（冷启动逐帧采样）：t=684ms 年份数字 x=359.000 sx=19.328 side=3.328，
+       t=701ms → 357.828 / 17 / 1，t=756ms 才落到 357.828 / 17 / 1 终值 —— 一共挪了 64px。
+       修法：这条"站点发起"的收起**不做宽度动画**（宽度一帧到位），只保留 `.sidebar` 自己的
+       透明度淡出（下面 opacity/border-right-color 仍在过渡表里）—— 既没有"逐帧重排"，
+       观感上仍是"淡出，而不是啪地消失"。用户手动折叠走的是 `.sidebar.collapsed` 那条规则，
+       它的动画保持原样、不受这里影响。 */
+    transition: opacity var(--dur-2) var(--ease-out),
+                border-right-color var(--dur-2) var(--ease-out);
 }
 .body-row.sidebar-hidden .sidebar-toggle {
     width: 0;
@@ -2415,9 +2431,49 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     outline: none;
     cursor: pointer;
     height: 28px;
+    /* ★★★ 冷启动"整块往下沉一下、再也不回去"的第二条真凶
+       （第一条是 .sidebar 的 width 过渡，见本文件里那段注释）。
+       因果链（375×720 冷启动，rAF 逐帧实测，见 verify-heatmap.mjs ⑦-d）：
+         t≈700ms  renderTimelineContent 写 innerHTML ⇒ `.timeline-top-right` 里只有
+                  「件数 + 两个排序按钮」= 46.9 + 75.9×2 + 8×2 = **198.7px**，一行放得下，
+                  top-bar 高 **80px**（两个 <select> 此时被 `@media (pointer: fine){select{display:none}}`
+                  藏着，自绘的 `.dd` 包壳还不存在 ⇒ 不占宽，宽度为 0）；
+         t≈757ms  dropdown.js 的 MutationObserver（32ms 去抖 + 一帧 rAF）才把两个 <select>
+                  换成 `.dd`（**84px 固定宽**，见下面 .dd[data-dd-for]）⇒ 控件总宽变成
+                  366.6px > 容器 343px ⇒ flex-wrap 换行 ⇒ top-bar 高 **80 → 116px**
+                  ⇒ 下方热力图**整块被推下 36px**；
+         t≈805ms  顶部搜索条收起动画结束。
+       热力图自己在这段时间里一动没动（⑦-c 五态全绿），但"第一次悬浮"正落在这之后
+       ⇒ 看起来就是"一悬浮就沉下去，而且回不来"。用户"直接刷新会有、从站内点进来没有"
+       也得到解释：站内进来时 `select` 早已被增强过、`.dd` 已存在，没有这个中间态。
+       ★ 修法：**不给原生 <select> 设宽度**（它被 display:none，设多宽都不占位；真正占位的是
+         后来才生成的 `.dd` 包壳），而是**把这一行的高度从第一帧起就定死** ——
+         见下面 `@media (max-width: 600px)` 里的 `.timeline-top-right { min-height: 78px }`
+         （= 换行后的最终高度）。高度不再由"控件是 2 个还是 4 个"决定 ⇒ 热力图一动不动。
+       ★ 另外 special.js 在 `app.innerHTML = html` 之后还调了一次
+         `window.refreshCustomDropdowns()`，尽量把建壳提前（它内部只是安排一帧 rAF，
+         所以只能"尽量"，不能保证同任务完成 —— 上面的 min-height 才是可靠的那一层）。
+       这里保留 width 只是让原生 <select> 在**触屏**（dropdown.js 主动不接管、原生控件
+       直接露脸）下也有个稳定宽度，与 .dd 的固定宽同源，避免触屏上换行时机不同。 */
+    width: var(--dd-w, 96px);
 }
 .timeline-filter-select:hover { border-color: var(--theme); }
 .timeline-filter-select:focus { border-color: var(--theme); }
+@media (max-width: 600px) {
+    /* 与下面 `.dd[data-dd-for="timelineYearFilter"]` 那条同值，见上面注释 */
+    .timeline-filter-select { width: var(--dd-w, 84px); }
+    /* ★★★ 冷启动"整块往下沉一下"的第二条真凶的**真正修法**在这里。
+       窄屏时这一行放不下 5 个控件，必然换行；而"还没换成自绘下拉"的那一小段里
+       两个 <select> 是 display:none（不占宽），一行放得下 ⇒ top-bar 只有 80px；
+       等 dropdown.js 把 `.dd`（84px 固定宽）建好 ⇒ 换行 ⇒ 80 → 116px
+       ⇒ **下方热力图整块被推下 36px**（详见上面 .timeline-filter-select 那段注释）。
+       修法：给这一行一个**从一开始就成立**的最小高度（= 换行后的最终高度），
+       于是"控件从 2 个变成 4 个"只让内容自己排列，行的高度不动 ⇒ 热力图一动不动。
+       这个值只影响窄屏、只在 top-bar 内部，不改变任何控件的宽度/位置。
+       实测（375×720 冷启动，rAF 逐帧）：min-height:78px ⇒ top-bar 恒为 116px、
+       热力图相对 .body-row 的 Y 偏移全程只有一个取值。 */
+    .timeline-top-right { min-height: 78px; }
+}
 
 .timeline-sort-btn {
     background: transparent;
@@ -2451,15 +2507,35 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     /* 格子边长：正方形（用户要求"格子弄成小正方形，高度和现在的一样"），
        宽高共用这一个变量，取值范围与之前的高度一致（20~34px）。 */
     --hm-cell: clamp(24px, 5vw, 42px);
+    /* ★★★ 年份/月份那一列（网格第 1 列）的宽度**用绝对长度钉死，不用 em**。
+       为什么必须这样（这是"首次悬浮后数字沉降"这类一次性布局变更的根）：
+       `em` 的解析依赖**元素自己的 font-size**，而字号又可能被选中态/悬浮态/字体回退
+       （font-family 换一个字体、字体加载后 swap）改变 ⇒ 列宽跟着变 ⇒ 后面的 12 个格子
+       与月份标签整体重排（"下沉一点点"）。改成 px 之后，这一列的宽度在任何状态下
+       都只由这条声明决定，**与字体、字号、内容、状态完全无关** —— 不可能再被撑开或压缩。
+       取值与旧写法等价：桌面 0.8rem 字号下 3.4em == 43.52px（旧实测列宽就是 43.52px），
+       手机 0.72rem 字号下 2.6em == 29.952px（见下面 @media 里的同名声明）。 */
+    --hm-ycol: 43.52px;
     margin: 14px 0 18px;
+    /* ★★ 横向不许出现滚动条：拖动/动画期间万一有溢出，滚动条会占掉宽度、把整块网格挤窄
+       （也就是"数字横着挪一下"）。`clip` 只裁切、**不建立滚动容器**（不会像 hidden 那样
+       把 overflow-y 算成 auto），所以纵向仍然照旧。热力图的泡是绝对定位的浮层，
+       横向越界的部分本来就该被裁掉（年份侧边泡由 JS 的 clampHeatmapTip 保证不出屏）。 */
+    overflow-x: clip;
 }
 .tl-heatmap-row {
     display: grid;
-    grid-template-columns: 3.4em repeat(12, var(--hm-cell));
+    /* ★ 第 1 列用钉死的 px（--hm-ycol），不用 em/auto/min-content：
+       列宽不许依赖内容（标签文字宽度）或字号，否则任何一次交互导致的字形/字体变化
+       都会改列宽、把整行（含 12 个格子）一起挪动。 */
+    grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell));
     justify-content: center;            /* 整块热力图在内容区里居中（用户要求） */
     gap: 4px;
     margin-bottom: 4px;
+    /* 兜底：哪怕将来有人给行加了 border/padding，也不许长出滚动条来挤宽度 */
+    scrollbar-width: none;
 }
+.tl-heatmap-row::-webkit-scrollbar { width: 0; height: 0; }
 .tl-heatmap-ylabel, .tl-heatmap-mlabel {
     position: relative;                 /* 悬浮泡的定位基准 */
     display: flex;
@@ -2568,16 +2644,29 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
    linear-gradient 的 color stop），不是几个离散色块。 */
 .tl-heatmap-legend {
     display: grid;
-    grid-template-columns: 2.6em repeat(12, var(--hm-cell));
+    /* ★★★ 第一列必须与 .tl-heatmap-row **用同一个变量**，不许再用 em。
+       这个坑刚好被这次改动抓出来：图例的 font-size 是**继承来的 16px**（它自己不设字号，
+       只有金额标签 .tl-hm-legend-tick 是 0.68rem），所以旧写法 `2.6em` 实际解析成
+       **41.6px**；而热力图行的字号是 0.8rem/0.72rem ⇒ 2.6em 只有 29.95px。
+       于是图例的"金额标签槽"（grid-column: 2 / -1）被第一条轨道挤窄了，
+       实测桌面 81..346 vs 热力条 75..340 —— 图上每一条网格线都错开 6px。
+       改成共用 --hm-ycol 后两边逐像素同一个网格，"图例 ↔ 热力图"那边宽度自然相等。 */
+    grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell));
     justify-content: center;
     gap: 2px;
     align-items: start;
     margin-top: 10px;
+    /* ★ 与 .tl-heatmap-row 同一条保险：图例也必须与热力图**逐像素同一个网格**，
+       宽度不许被滚动条或字体影响（图例与热力图错位是用户明确点过的老问题）。 */
+    scrollbar-width: none;
+    overflow-x: clip;
 }
-/* 桌面（>480px）跟热力图一样用 3.4em 的年份列 + 4px 间距，否则第一列宽度差 0.8em */
+.tl-heatmap-legend::-webkit-scrollbar { width: 0; height: 0; }
+/* 桌面（>480px）跟热力图一样用同一个年份列 + 4px 间距（否则第一列宽度差一档）。
+   ★ 上面 base 规则已经与数据行完全一致，这里只需要补 gap（2px → 4px）。 */
 @media (min-width: 481px) {
     .tl-heatmap-legend {
-        grid-template-columns: 3.4em repeat(12, var(--hm-cell));
+        grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell));
         gap: 4px;
     }
 }
@@ -2765,8 +2854,10 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
    padding-top 是给最上面那一行的泡留的：手机上表头那行只有 ~19px 高，
    泡往上弹需要 ~32px，不留就会顶出热力图的上边界。 */
 @media (max-width: 480px) {
-    .tl-heatmap { --hm-cell: clamp(16px, 5.4vw, 22px); padding-top: 14px; }
-    .tl-heatmap-row { grid-template-columns: 2.6em repeat(12, var(--hm-cell)); gap: 2px; }
+    .tl-heatmap { --hm-cell: clamp(16px, 5.4vw, 22px); --hm-ycol: 29.952px; padding-top: 14px; }
+    /* ★ 手机上第一列同样用钉死的 px（2.6em @ 0.72rem == 29.952px，与旧写法等值），
+       不许用 em —— 列宽不许随字号/字体变化，否则一交互整块网格就横向重排。 */
+    .tl-heatmap-row { grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell)); gap: 2px; }
     .tl-heatmap-ylabel, .tl-heatmap-mlabel { font-size: 0.72rem; }
     .tl-heatmap-ylabel { padding-right: 2px; }
     /* 图例在手机上：网格照旧复用上面那套（在同一个 @media 里 --hm-cell 已经缩小），
