@@ -13,7 +13,7 @@ window.SPECIAL_CONFIGS = [
     {
         id: 'denom',
         name: '面额大观',
-        slogan: '元角分厘，方寸之间',
+        slogan: '元角分厘，各载风华',
         dataKey: 'denomData',
         dataFile: '../funcollection/denom/data.js',
         dataVar: 'denomItems',
@@ -33,7 +33,7 @@ window.SPECIAL_CONFIGS = [
     {
         id: 'timeline',
         name: '币海拾年',
-        slogan: '入坑这么久，你的眼光变了多少？',
+        slogan: '集藏历岁，鉴物观心',
         view: 'timeline'
     }
 ];

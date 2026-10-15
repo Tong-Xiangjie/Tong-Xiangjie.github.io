@@ -92,6 +92,6 @@ const specialDenomMeta = {
     id: 'denom',
     name: '面额大观',
     dataKey: 'denomData',
-    slogan: '元角分厘，方寸之间',
+    slogan: '元角分厘，各载风华',
     groupBy: 'denom'
 };
