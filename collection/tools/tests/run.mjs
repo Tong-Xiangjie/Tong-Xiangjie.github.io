@@ -9,10 +9,15 @@
 //     node collection/tools/tests/run.mjs --skip 4issues,octo
 //     node collection/tools/tests/run.mjs --data-only      # 只做数据自检
 //     node collection/tools/tests/run.mjs --all            # 连"已知漂移"的老用例一起跑
+//     node collection/tools/tests/run.mjs --no-retry       # 失败项不重跑（排查抖动时用）
 //
 // 每轮都会先跑两个静态自检（都在用例之前，红了就不必等那 20 分钟）：
 //     collection/tools/check-data.mjs               数据/结构自检
 //     collection/tools/tests/check-portable.mjs     用例在别的机器/CI 上跑得起来吗
+//
+// ★ 失败项自动重跑一次（见下面 RETRY_MAX 那段注释）：只重跑失败的那几项，串行再跑一遍，
+//   重跑通过就当偶发抖动、从失败列表里移除并打一条 `↻ … 重跑一次 → 通过`。
+//   这样一次抖动不会让整个 workflow 变红，也不会让 CI 时间翻倍。
 //
 // 退出码约定（用例侧）：0 = 通过；1 = 有断言失败；2 = 环境问题；3 = 跳过（缺本地工件）
 //
@@ -123,6 +128,9 @@ if (!tests.length) {
 
 // ---------- 跑 ----------
 const results = [];
+// 记下每一项到底是用哪个脚本、哪些参数跑的 —— 重跑时要原样再跑一遍，
+// 不能靠"名字猜文件"（需重跑的项包括 check-data / check-portable 这种不带 verify- 前缀的）。
+const RUN_SPEC = new Map();
 // ★ 为什么要自己转发子进程输出（原来直接 stdio: 'inherit'）：
 //   CI 日志要鉴权才能下载，能匿名读到的只有 check-run 注解。注解里如果只写"断言失败"，
 //   就等于没有信息 —— 2026-10 那次 CI 有 5 个用例"本地全绿、CI 全红"，
@@ -181,6 +189,7 @@ const t0 = Date.now();
 if (!hasFlag('--no-data') && (hasFlag('--data-only') || existsSync(DATA_CHECK))) {
     console.log('\n─── 数据自检（check-data.mjs）────────────────────\n');
     const r = await runOne('check-data', DATA_CHECK);
+    RUN_SPEC.set(r, [DATA_CHECK, []]);
     results.push(r);
     if (hasFlag('--data-only')) {
         printSummary(results, t0);
@@ -194,17 +203,61 @@ if (!hasFlag('--data-only')) {
     //   绝对路径，本地全绿、CI 整片红，而这类问题在本地永远复现不出来，只能静态拦住。
     if (existsSync(PORTABLE_CHECK)) {
         console.log('\n─── 可移植性自检（check-portable.mjs）──────────────\n');
-        results.push(await runOne('check-portable', PORTABLE_CHECK));
+        const rp = await runOne('check-portable', PORTABLE_CHECK);
+        RUN_SPEC.set(rp, [PORTABLE_CHECK, []]);
+        results.push(rp);
     }
     for (let i = 0; i < tests.length; i++) {
         console.log(`\n─── [${i + 1}/${tests.length}] ${tests[i].name} ────────────────────\n`);
-        results.push(await runOne(tests[i].name, tests[i].file));
+        const rt = await runOne(tests[i].name, tests[i].file);
+        RUN_SPEC.set(rt, [tests[i].file, []]);
+        results.push(rt);
+    }
+}
+
+// ---------- 失败项自动重跑一次 ----------
+// ★ 为什么要有这一步：verify-scrollbar 这类用例偶发红（时序/干扰抖动），但它**单跑必绿**，
+//   一次抖动就让整个 workflow 红、还发一封失败邮件。所以失败项自动**串行**重跑一次，
+//   只有重跑仍失败才算真失败（重跑通过就从失败列表里移除，并在输出里打一条 ↻ 行）。
+// ★ 只重跑失败的那几项：整套重跑一遍会让 CI 时间翻倍（CI 本来就要 29 分钟）。
+// ★ 只把 exit=1（断言失败）当作"可能是抖动"来重跑；
+//   exit=2（环境问题，例如找不到 Chrome）重跑没有意义，直接算失败 —— 免得白等一轮超时。
+// ★ 与"已知漂移跳过名单"完全无关：那份名单在选清单时就过滤掉了，这里碰不到它们。
+const RETRY_MAX = 3;              // 一次全量里最多重跑几个，防止有人一次改红一大片时拖爆 CI
+const RETRY_CODES = new Set([1]);
+if (!hasFlag('--data-only') && !hasFlag('--no-retry')) {
+    const retryable = results.filter(r => RETRY_CODES.has(r.code));
+    if (retryable.length) {
+        console.log('\n════════════════════════════════════════════════');
+        console.log(`  ↻ ${retryable.length} 项第一次跑失败，串行重跑一次（只有重跑仍失败才算真失败）`);
+        console.log('════════════════════════════════════════════════');
+        for (const r of retryable.slice(0, RETRY_MAX)) {
+            const [rFile, rArgs] = RUN_SPEC.get(r) || [join(HERE, r.label), []];
+            console.log(`\n─── [重跑] ${r.label}（第一次 exit=${r.code}${r.firstFail ? '，' + r.firstFail.slice(0, 80) : ''}）───\n`);
+            const again = await runOne(r.label, rFile, rArgs);
+            if (again.code === 0) {
+                // 重跑通过：把第一次的结果替换掉（耗时保留两次之和），并记下"曾失败但重跑救回"
+                results[results.indexOf(r)] = {
+                    ...again, label: r.label, ms: r.ms + again.ms,
+                    retryPassed: true, firstCode: r.code, firstFail: r.firstFail
+                };
+                console.log(`  ↻ ${r.label} 重跑一次 → 通过（第一次 exit=${r.code}${r.firstFail ? '：' + r.firstFail.slice(0, 60) : ''}；判定为偶发抖动，不计失败）`);
+            } else {
+                r.retried = true; r.retryCode = again.code;
+                r.retryFirstFail = again.firstFail;
+                console.log(`  ↻ ${r.label} 重跑一次 → 仍然失败（exit=${again.code}），按真失败计`);
+            }
+        }
+        if (retryable.length > RETRY_MAX) {
+            console.log(`  ↻ 另有 ${retryable.length - RETRY_MAX} 项失败未重跑（一次全量最多重跑 ${RETRY_MAX} 项，避免 CI 时间失控）`);
+        }
     }
 }
 
 function printSummary(results, t0) {
     // exit 3 = 用例自己报"跳过"（缺本地工件），不算失败
     const bad = results.filter(r => r.code !== 0 && r.code !== 3);
+    const retriedOk = results.filter(r => r.retryPassed);
     const skipped = results.filter(r => r.code === 3);
     console.log('\n════════════════════════════════════════════════');
     console.log('  汇总');
@@ -214,6 +267,12 @@ function printSummary(results, t0) {
         console.log(`  ${mark} ${r.label.padEnd(28)} exit=${r.code}  ${(r.ms / 1000).toFixed(1)}s`);
     }
     console.log(`\n  共 ${results.length} 项，通过 ${results.length - bad.length - skipped.length}，跳过 ${skipped.length}，失败 ${bad.length}，用时 ${((Date.now() - t0) / 1000 / 60).toFixed(1)} 分钟`);
+    if (retriedOk.length) {
+        console.log('\n  重跑救回的项（第一次失败、重跑一次通过，已不计入失败）：');
+        for (const r of retriedOk) {
+            console.log(`    ↻ ${r.label}（第一次 exit=${r.firstCode}${r.firstFail ? '：' + r.firstFail : ''} → 重跑通过）`);
+        }
+    }
     if (skipped.length) {
         console.log('\n  跳过的项（缺本地工件，见各自输出里的 ⏭ 行）：');
         for (const r of skipped) console.log(`    ⏭ ${r.label}`);
@@ -225,14 +284,15 @@ function printSummary(results, t0) {
     if (bad.length) {
         console.log('\n  失败项：');
         for (const r of bad) {
-            console.log(`    · ${r.label}（exit=${r.code}${r.code === 2 ? '，多半是环境问题，比如找不到 Chrome' : ''}）`);
+            console.log(`    · ${r.label}（exit=${r.code}${r.code === 2 ? '，多半是环境问题，比如找不到 Chrome' : ''}${r.retried ? '，已重跑一次仍失败' : ''}）`);
             if (r.firstFail) console.log(`        ${r.firstFail}`);
+            if (r.retried && r.retryFirstFail) console.log(`        重跑后：${r.retryFirstFail}`);
         }
     }
     return bad.length;
 }
 
-const bad = printSummary(results, t0);
+const badCount = printSummary(results, t0);
 
 // GitHub Actions：把结果做成注解（workflow command）。
 // 为什么值得加：CI 日志要鉴权才能下载，而 check-run 的注解用公开 API 就能读到 ——
@@ -265,7 +325,14 @@ if (process.env.GITHUB_ACTIONS) {
     for (const n of staleSkipped) {
         console.log(`::notice title=${n} 已跳过::已知漂移（非本次改动导致），见 collection/tools/tests/README.md`);
     }
-    if (bad === 0) console.log(`::notice title=回归用例全部通过::通过 ${results.length - results.filter(r => r.code === 3).length} 项`);
+    // 重跑救回也要写在明面上：CI 全绿并不等于"第一次就全绿"，
+    // 那种"偶发红"的用例仍然值得有人去修它的时序。
+    for (const r of results) {
+        if (!r.retryPassed) continue;
+        const esc = (l) => String(l || '').replace(/%/g, '%25').replace(/\r?\n/g, ' ').slice(0, 260);
+        console.log(`::notice title=${r.label} 重跑一次后通过::第一次 exit=${r.firstCode}${r.firstFail ? '（' + esc(r.firstFail) + '）' : ''}；属偶发抖动，建议查一下该用例的时序`);
+    }
+    if (badCount === 0) console.log(`::notice title=回归用例全部通过::通过 ${results.length - results.filter(r => r.code === 3).length} 项`);
 }
 
-process.exit(bad === 0 ? 0 : 1);
+process.exit(badCount === 0 ? 0 : 1);

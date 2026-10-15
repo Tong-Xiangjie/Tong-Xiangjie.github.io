@@ -51,9 +51,23 @@ ok(offenders.length === 0, '★ collection/ 下所有 html/js/css 都不含外�
 //     · 点目录（.git / .github / answersheet/.ref/…）：Jekyll、Pages 默认都不发布点目录，不会上线；
 //     · vendor（就是本地化的库本身）、data 与 image（用户的数据和图片，出现域名不代表依赖）、
 //       tests（用例源码里本来就写着这些 CDN 正则）。
+//   另有一条**显式例外名单** CDN_EXEMPT（见下），只列具体路径前缀、并写清原因 ——
+//   排除哪些文件必须是能一眼看完的，不能靠"某个域名/某个目录一概不管"来放宽。
 console.log('\n══════ ②b 静态：整站（含 notecollection）都没有外部 CDN 依赖 ══════\n');
 const SKIP_DIRS = new Set(['node_modules', 'vendor', 'data', 'image', 'tests']);
-const localRefs = [], siteOffenders = [];
+// ★ 显式例外名单（CDN_EXEMPT）：只在这条"整站无外部 CDN"检查里生效，且必须写清原因。
+//   键 = 相对仓库根的**路径前缀**（只认这一条路径，不是一个域名、也不是整个仓库）。
+//   新加一条前请先想清楚：能不能直接把这个文件本地化？本地化才是正解，例外只是"暂不改造"。
+const CDN_EXEMPT = new Map([
+  // blackhole/ 是历史遗留的本地小游戏页面（three.js 的示例改造而来，早已不在导航里），
+  // 它引 jsdelivr 上的 three@0.128.0 与 cannon@0.6.2，暂时不改造。
+  // （这条例外只覆盖 blackhole/ 下的文件；站点主体——collection/notecollection/answersheet/
+  //   coincollection/funcollection/newcollection 等——仍然一律禁止外部 CDN。）
+  ['blackhole/', '历史遗留的本地小游戏页面，引 jsdelivr 的 three.js/cannon.js，暂不改造']
+]);
+const relPath = p => p.slice(ROOT.length + 1).replace(/\\/g, '/');
+const isCdnExempt = p => { const r = relPath(p); return [...CDN_EXEMPT.keys()].some(prefix => r.startsWith(prefix)); };
+const localRefs = [], siteOffenders = [], cdnExemptHits = [];
 (function walkAll(d) {
   for (const n of readdirSync(d)) {
     const p = join(d, n);
@@ -64,7 +78,11 @@ const localRefs = [], siteOffenders = [];
     if (!/\.(html?|js|css|mjs)$/i.test(n)) continue;
     const t = readFileSync(p, 'utf8');
     const m = t.match(/https?:\/\/(cdnjs|cdn\.jsdelivr|unpkg|ajax\.googleapis|fonts\.googleapis)[^"')\s]*/i);
-    if (m) siteOffenders.push(p + ' → ' + m[0].slice(0, 60));
+    if (m) {
+      // 命中例外名单的只记一笔（打印出来，避免"悄悄放过"），其余照旧报错。
+      if (isCdnExempt(p)) cdnExemptHits.push(p + ' → ' + m[0].slice(0, 60));
+      else siteOffenders.push(p + ' → ' + m[0].slice(0, 60));
+    }
     if (/\.html?$/i.test(n)) {
       for (const mm of t.matchAll(/<(script|link)[^>]*?(?:src|href)\s*=\s*["']([^"']+)["']/gi)) {
         const u = mm[2];
@@ -74,7 +92,13 @@ const localRefs = [], siteOffenders = [];
     }
   }
 })(ROOT);
-ok(siteOffenders.length === 0, '★ 整站（含 notecollection）没有任何外部 CDN 引用', siteOffenders.length ? JSON.stringify(siteOffenders) : '');
+if (cdnExemptHits.length) {
+  console.log(`  ⓘ ${cdnExemptHits.length} 个文件的外部 CDN 引用落在显式例外名单里（不计为失败。`)
+  console.log('     每行只显示第一处，blackhole/index.html 实际引了 three 与 cannon 两个）：');
+  for (const h of cdnExemptHits) console.log(`      · ${h}`);
+  for (const [prefix, why] of CDN_EXEMPT) console.log(`        例外 ${prefix} —— ${why}`);
+}
+ok(siteOffenders.length === 0, '★ 整站（含 notecollection）没有任何外部 CDN 引用（blackhole/ 为显式例外，见上）', siteOffenders.length ? JSON.stringify(siteOffenders) : '');
 const missing = localRefs.filter(([p, u]) => !existsSync(join(dirname(p), u.split('?')[0].split('#')[0])));
 ok(missing.length === 0, `★ 每个本地 <script>/<link> 指向的文件都存在（查了 ${localRefs.length} 条）`, missing.length ? JSON.stringify(missing.slice(0, 4)) : '');
 // ★ 只认 CDN 的 **URL**，不认 "cdnjs" 这个词 —— 注释里写"原来挂 cdnjs"是允许的
@@ -90,6 +114,8 @@ const hammerPages = [];
     if (segs.some(s => s.startsWith('.') || SKIP_DIRS.has(s))) continue;
     if (statSync(p).isDirectory()) { walkHtml(p); continue; }
     if (!/\.html?$/i.test(n)) continue;
+    // 与上面 ②b 用同一份 CDN_EXEMPT：例外的只有 blackhole/ 这一条路径前缀。
+    if (isCdnExempt(p)) continue;
     const t = readFileSync(p, 'utf8');
     if (/hammer/i.test(t)) hammerPages.push([p.slice(ROOT.length + 1), t]);
   }
