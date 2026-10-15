@@ -472,6 +472,7 @@ let modalFlipBusy = false;     // 翻面动画进行中（防止连点叠加成�
 let modalFlipTimer = null;
 let currentModalSide = 1;      // 当前看的是哪一面：1 = 正面(img1)，2 = 反面(img2)
 let modalFullReady = false;    // 原图是否已解码完成 —— 完成前禁止缩放/拖动
+let modalLoadSrc = '';         // 本次加载要显示的**原始**地址（用来判断"到货的是不是当前这一面"）
 
 const MODAL_FLIGHT_MS = 320;
 const MODAL_FLIGHT_EASE = 'cubic-bezier(.22,.61,.36,1)';
@@ -675,10 +676,23 @@ function startModalFlight(fromRect, toRect, srcUrl, onDone) {
         done = true;
         if (modalFlightTimer) { clearTimeout(modalFlightTimer); modalFlightTimer = null; }
         if (onDone) onDone();
+        // ★ 飞行图层的寿命**只由这一次飞行决定**：飞完就必须撤掉，不能只指望调用方
+        //   在 onDone 里调 cancelModalFlight() —— openModal 的落地回调第一句就是
+        //   "token 变了就直接 return"（翻面会推进 modalLoadToken），于是
+        //   「缩略图还在飞向全屏时就翻面」会让那个回调整段跳过，这一层就永远留在
+        //   DOM 里：它停在"全屏 contain"那一格、z-index 1002（高于 .modal 的 1000），
+        //   扛着一张低清缩略图，把下面**已经加载好的当前面大图**整块盖住 ——
+        //   用户报告的「加载中翻面，加载完成后看不到新那一面」就是这么来的。
+        //   （放在 onDone() 之后：调用方自己的状态恢复顺序与原来完全一致。）
+        if (modalFlightEl === el) {
+            if (el.parentNode) el.remove();
+            modalFlightEl = null;
+        }
     };
     el.addEventListener('transitionend', finish, { once: true });
     // 兜底：过渡未触发（元素被隐藏等）也必须收尾，否则弹窗会卡在半透明状态
     modalFlightTimer = setTimeout(finish, MODAL_FLIGHT_MS + 80);
+    return el;
 }
 
 // 当前这一面要显示的图（1 = 正面 img1，2 = 反面 img2）
@@ -772,6 +786,8 @@ function loadModalImage(opts) {
     const full = currentModalSrc();
     if (!full) return 0;
     const token = ++modalLoadToken;
+    // 这一轮"该显示哪一面"的原始地址：onload 里用它确认到货的图属于当前面（见下）
+    modalLoadSrc = full;
     const backdropUrl = currentModalBackdrop(!!(opts && opts.skipBackdrop));
     const backdrop = document.getElementById('modalImgOverlay');
     const backdropSrc = backdropUrl || '';
@@ -823,6 +839,13 @@ function loadModalImage(opts) {
     //   不涉及任何 opacity 状态机。
     modalImg.onload = function () {
         if (token !== modalLoadToken) return;   // 已经翻到另一面了，丢弃这次结果
+        // ★ 第二道闸：到货的这张必须就是"当前这一面"的地址。
+        //   token 挡的是"又新发起了一次加载"；这里挡的是"同一个 token 下当前面被换掉"
+        //   —— 翻面是先改 currentModalSide、再走 loadModalImage 换 src 的，这段窗口里
+        //   迟到的 load 事件只可能属于上一面。把它当成"当前面就绪"，用户就会觉得
+        //   "翻过去的那一面不显形、得再翻一次才看得到"。
+        //   真撞上就给当前面重新挂一次加载，而不是把这份迟到的结果算数。
+        if (modalLoadSrc !== currentModalSrc()) { loadModalImage({}); return; }
         modalFullReady = true;
         modal.classList.remove('modal-loading');
         if (readyTimer) { clearTimeout(readyTimer); readyTimer = null; }
@@ -898,6 +921,28 @@ function restoreModalBackdrop() {
         return;
     }
     beginModalBackdrop();
+}
+
+// 「此刻真的画在屏幕上」的那张图是谁 —— 关闭时交给飞行图层扛的就是它。
+//   返回 { src, from }：
+//     from='img'      主图自己：原图已解码，或者已经退成缩略图/占位图
+//     from='backdrop' 垫底层 #modalImgOverlay 里的低清缩略图 ——
+//                     原图**还在下载**，主图此刻一点像素都没有（naturalWidth=0）。
+//                     旧写法把这种"还在下载的原图"当飞行源，整段缩回动画
+//                     naturalWidth 恒为 0：飞的是空的，而真正可见的那张低清图
+//                     留在弹窗里跟着蒙版一起淡出（用户报的"淡出和飞回叠加"）。
+//     from='none'     谁都画不出来（图挂了 / 元素丢了）→ src 退回主图地址，
+//                     宁可飞一张暂时空白的，也别打断关闭流程。
+function modalPainted() {
+    const img = document.getElementById('modalImg');
+    const overlay = document.getElementById('modalImgOverlay');
+    const imgSrc = img ? (img.currentSrc || img.getAttribute('src') || '') : '';
+    if (img && imgSrc && img.complete && img.naturalWidth > 0) return { src: imgSrc, from: 'img' };
+    if (overlay && overlay.classList.contains('backdrop-layer')) {
+        const ovSrc = overlay.currentSrc || overlay.getAttribute('src') || '';
+        if (ovSrc && overlay.complete && overlay.naturalWidth > 0) return { src: ovSrc, from: 'backdrop' };
+    }
+    return { src: imgSrc, from: 'none' };
 }
 
 // 正反面切换（圆形 ‹ › 按钮 / 左右方向键）
@@ -1139,8 +1184,9 @@ function closeModal() {
     //     · 走回缩动画时，飞行图层在 modal 之外（z-index 更高）→ 只有蒙版在淡，
     //       图片仍然清晰地飞回原缩略图位置
     //     · 不走回缩时，整个查看器一起淡出
+    //   ★ 但「原图还没解码就绪」时**不能**这么淡（见下面 stillLoading 那一段）：
+    //     此刻画面上那张图还在 .modal **里面**（垫底低清图），淡它就是淡图片本身。
     modal.classList.remove('modal-show');
-    modal.classList.add('modal-hide');
 
     let done = false;
     const finish = function () {
@@ -1197,6 +1243,14 @@ function closeModal() {
     const faceUrl = currentModalSrc();
     const preferredSrc = gridThumbForUrl(faceUrl);
     const modalImg = document.getElementById('modalImg');
+    // ★ 关闭这一刻"画面上那张图"是谁（决定飞行图层扛什么、以及要不要淡出）。
+    //   from='backdrop' = 原图还在下载、真正可见的是垫底低清图 —— 这是唯一一种
+    //   "淡出会淡到图片本身"的情形。注意**不能**只看 modalFullReady：原图 404 时
+    //   它也一直是 false，但那时画面上要么是退成缩略图的主图（from='img'）、
+    //   要么什么都没有（from='none'），都该照旧走"蒙版淡出 + 图片飞回"
+    //   （verify-flip.mjs 的"蒙版同时在淡出"就钉着这条，rmb3 那组图本地就是全缺的）。
+    const painted = modalPainted();
+    const stillLoading = painted.from === 'backdrop';
     let flown = false;
     // ★ 落点依次试：「当前这一面」的格子 → 用户最初点进来的那张。
     //   为什么不能写成 gridThumbForUrl(faceUrl) || fallbackSrc（旧写法）：
@@ -1218,18 +1272,43 @@ function closeModal() {
             if (!src || !src.isConnected || typeof src.getBoundingClientRect !== 'function') continue;
             const to = modalShrinkTarget(imageContentRect(src));
             if (!to) continue;
+            // ★ 飞行图层扛"此刻真的画在屏幕上"的那张图，而不是 modalImg.src：
+            //   · 原图已就绪 → 主图
+            //   · 原图还在下载 → 垫底层里那张低清缩略图。旧写法把 modalImg.src
+            //     （= 还在下载的原图）交给飞行图层，它整段动画 naturalWidth 恒为 0、
+            //     什么像素都画不出来，而真正可见的那张低清图留在弹窗里跟着淡出 ——
+            //     用户看到的就是"淡出"与"飞回"叠加，而且飞的是空的。
             modalImg.style.opacity = '0';
-            // ★ 起飞矩形取"此刻真实占据"的那块（放大 / 拖动过就是放大后的）
-            startModalFlight(modalShrinkFromRect() || modalContainRect(to.width / to.height), to,
-                modalImg.currentSrc || modalImg.src, finish);
+            const flightEl = startModalFlight(modalShrinkFromRect() || modalContainRect(to.width / to.height), to,
+                painted.src, finish);
             flown = true;
+            // ★ 加载中：弹窗里那份低清图要撤掉（否则同一张图"原地留一张 + 再飞一张"），
+            //   但**等飞行图层真把这张图画出来之后再撤** —— 撤早了会空一帧
+            //   （飞行图层是一次新请求，命中缓存时才是同步就绪）。
+            if (stillLoading) {
+                const dropBackdrop = function () { dropModalBackdrop(); };
+                if (flightEl && !flightEl.complete) flightEl.addEventListener('load', dropBackdrop, { once: true });
+                else dropBackdrop();
+            }
             break;
         }
     }
 
+    // ★ 「加载中关闭」这一场合成里只保留"飞回原位"这一个几何动画，不出现任何淡出。
+    //   用户原话：「原图还没有加载出来的时候就点击关闭图片，会出现淡出和飞回动画
+    //   同时叠加，我不希望淡出动画。」
+    //   上面已经把弹窗里那份低清图的可见性交给了飞行图层，所以这里淡 .modal 只会
+    //   淡掉蒙版本身；但蒙版一淡，用户仍然会看到"淡出 + 飞回"两条动画同时在跑。
+    //   于是这一支：蒙版保持原样，直到飞行结束由 finish() 一次性 display:none 收掉
+    //   （差别条件就是"加载中 + 真的走了回缩飞行"这一种，正常关闭照旧淡出）。
+    if (!(flown && stillLoading)) {
+        modal.classList.add('modal-hide');
+    }
+
     // 兜底：无论是否回缩，蒙版淡出结束后都必须真正隐藏。
     // （回缩动画的 finish 会先触发，done 保证只执行一次）
-    const hideMs = prefersReducedMotion() ? 0 : MODAL_HIDE_MS;
+    // 不淡出的那一支没有 MODAL_HIDE_MS 可等，收尾时间就是飞行结束。
+    const hideMs = (prefersReducedMotion() || (flown && stillLoading)) ? 0 : MODAL_HIDE_MS;
     if (modalCloseTimer) clearTimeout(modalCloseTimer);
     modalCloseTimer = setTimeout(finish, (flown ? MODAL_FLIGHT_MS : 0) + hideMs + 80);
 }

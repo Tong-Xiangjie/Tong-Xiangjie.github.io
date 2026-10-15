@@ -42,7 +42,10 @@ const FN_NAMES = [
   // 垫底层相关：主图加载期间由 #modalImgOverlay 扛着缩略图（替代原来的
   // #modalImg background-image 方案），这三个函数是 loadModalImage/resetModalZoom
   // 的直接依赖，必须一并抽取。
-  'beginModalBackdrop', 'dropModalBackdrop', 'restoreModalBackdrop', 'currentModalSrc', 'currentModalBackdrop'
+  'beginModalBackdrop', 'dropModalBackdrop', 'restoreModalBackdrop', 'currentModalSrc', 'currentModalBackdrop',
+  // 关闭时"飞行图层扛哪张图 / 要不要淡出"的判据（原图没就绪时扛垫底低清图），
+  // closeModal 直接依赖
+  'modalPainted'
 ];
 const code = FN_NAMES.map(n => extractFn(SRC, n)).join('\n\n');
 
@@ -180,6 +183,7 @@ function makeSandbox() {
     modalLoadToken: 0, modalFlightEl: null, modalFlightTimer: null, modalCloseTimer: null,
     modalFlipBusy: false, modalFlipTimer: null,
     currentModalSide: 1, modalFullReady: false,
+    modalLoadSrc: '',   // loadModalImage 记下"这一轮该显示哪一面"，onload 里用来核对到货的图
     currentModalImg1: '', currentModalImg2: '',
     currentScale: 1, currentX: 0, currentY: 0,
     hammerManager: null,
