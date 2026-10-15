@@ -17,6 +17,72 @@ let timelineSortOrder = 'desc';
 let timelineFilterYear = '全部';
 let timelineFilterMonth = '全部';
 
+// ==================== 冷启动：搜索栏必须在**第一次绘制之前**就收起 ====================
+// 起因（用户 2026 反复反馈、桌面 1920 必现）：直接打开 / 刷新 `#special/timeline` 时，
+//   「年份 / 月份」两排按键会在时间线渲染出来的那一刻**整体向下滑一次**（网格上边缘下移），
+//   然后停在最终位置不回弹 —— 正是用户说的"数字沉降"。
+//
+// 真凶**不在热力图里**，而是上面那条搜索栏：
+//   `.app-layout` 是 `flex-direction: column`，`.top-search-container` 排在 `.body-row` 之前，
+//   所以搜索栏的高度**直接决定** `.body-row`（进而整张热力图）的纵坐标。
+//   静态 HTML 里搜索栏是"展开"的（`.top-search-container` 没有 `hidden`，高约 70px），
+//   router 要到数据加载完、首屏渲染后才按 URL 给它加 `hidden`，于是触发一次
+//   `max-height / padding / opacity` 的 `--dur-3`(0.3s) 过渡。
+//   实测时序（1920x1080 冷启动，逐帧采样）：
+//     t=557.9ms  router 给搜索栏加 `hidden`（加载遮罩刚开始淡出）
+//     t=561.6ms  过渡开始
+//     t=746.2ms  时间线渲染 ⇒ 热力图**第一次出现**，此刻搜索栏才收到 54.2px
+//     t=870.8ms  过渡结束（搜索栏只剩 1px 的 border-bottom）
+//   ⇒ 热力图的**文档绝对 top** 在 198.25 → 145 之间滑了 **53.25px**。
+//   1440x900 / 1366x768 之所以"看起来没事"：那两个宽度下过渡在渲染点之前已经走完，
+//   热力图全程只有一个绝对 top 取值；1920 宽下搜索栏起始 70px 高，0.3s 过渡正好压在渲染点上。
+//
+// 为什么不能在 HTML 里写死 `hidden`：本站无服务端，HTML 是静态的，收不收起来只有 router
+//   读了 URL 才知道。所以这里在**解析期**（早于任何元素首次绘制）按 URL 一次性打上
+//   `html[data-hm-cold]`，由 `layout.css` 把它 `display: none` 掉（`max-height` 过渡的
+//   中间值仍参与布局，只有 `display: none` 能保证第一帧就零高度）。
+//
+// ★ 只对"专题深链接"打这个标记：
+//    · `#special/...`：正是会出问题的路径；
+//    · 站内点进来的路径上搜索栏**早已收起**，本来就没有这一帧，打不打都一样；
+//    · 普通首页 / 认不出的 hash：一律不打 ⇒ 首页搜索栏**分毫不动**。
+// ★ 属性随后会被摘掉（见下面的 rAF）：那一刻 router 已经加上了 `hidden` 类，此后由类
+//   接管，所以"从专题返回普通板块时搜索栏滑出来"的动画完全没变。
+(function markHmColdIfSpecialDeepLink() {
+    try {
+        const h = String(location.hash || '');
+        if (!/^#special\//.test(h)) return;      // 不是专题深链接 ⇒ 什么都不做
+        document.documentElement.setAttribute('data-hm-cold', '1');
+    } catch (e) { /* 读不到 hash 也不该影响任何功能 */ }
+})();
+// 摘掉标记：**必须等 router 真的把 `hidden` 类加上**，不能简单地推几帧 ——
+// router 是在"数据加载完 → `#app` 揭示 → 渲染首屏"时才加类（实测 t=557.9ms），
+// 而解析期的 rAF 在 t≈70ms 就跑了：那会儿摘掉等于没修。
+// 这里用 MutationObserver 精确等那个时刻，然后**同步**摘掉并强制一次样式重算：
+//   `display: none`（来自标记）与 `max-height: 0`（来自 `hidden` 类）对布局的效果一致
+//   （都是零高度、且 `.body-row` 的纵坐标相同），所以这次交接不会有任何跳动；
+//   同一个任务里 `getComputedStyle` 读一下再强行 `display` 一次，是为了让浏览器
+//   在**本帧**就把新样式应用掉，不留下"两套规则谁生效"的中间帧。
+(function clearHmColdAfterRouterAppliedHidden() {
+    try {
+        const root = document.documentElement;
+        if (!root.hasAttribute('data-hm-cold')) return;
+        const sc = document.querySelector('.top-search-container');
+        const done = function () {
+            try { obs.disconnect(); } catch (e) { }
+            root.removeAttribute('data-hm-cold');
+            if (sc) { void sc.getBoundingClientRect().height; }   // 强制样式重算，本帧生效
+        };
+        const hasHidden = function () { return !!(sc && sc.classList.contains('hidden')); };
+        if (hasHidden()) { done(); return; }
+        const obs = new MutationObserver(function () { if (hasHidden()) done(); });
+        obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'], subtree: true });
+        // ★ 兜底：万一因为别的原因 `hidden` 一直没被加上（例如将来改了 router 的写法），
+        //   也绝不能把搜索栏永久藏起来 —— 3s 后无条件摘掉标记并放弃。
+        setTimeout(function () { try { obs.disconnect(); } catch (e) { } root.removeAttribute('data-hm-cold'); }, 3000);
+    } catch (e) { /* 观察器不可用也不能影响功能 */ }
+})();
+
 const SHANHE_LABEL_OFFSETS = {
     hebei: 10
 };

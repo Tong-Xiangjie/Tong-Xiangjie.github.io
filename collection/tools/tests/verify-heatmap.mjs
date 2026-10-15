@@ -2330,18 +2330,41 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   };
   // 像素差分：对每个标签，裁"文字矩形 ±pad"这块，逐像素比对两张整页截图
   const pad = 5;
+  // ★★★ 判据：**几何**（文字节点 Range 矩形的并集 + tol）而不是"从像素推出来的墨迹掩码"。
+  //   为什么换（CI #63 实测红了 5 条）：
+  //     旧判据把"亮度 < 200 的像素"当墨迹、再膨胀 1 圈，落在掩码外且 Δ≥4 的算违规。
+  //     这个掩码**依赖字体光栅化**：字形更细/更宽/抗锯齿更散时，一处文字的 halo 会被划到
+  //     "非文字"，于是产生假违规。本机实测复现（见 %TEMP%/hmdiag/fontsim.mjs）：
+  //       · `font-family: "Times New Roman"` 16px ⇒ text 宽 32px，OLD 报 3 个违规像素
+  //         （样例 `[215,232,255] → [223,230,240]`，与 CI 的 `[222,216,255] → [227,212,192]`
+  //          同型 —— 都是文字的亚像素抗锯齿过渡边）；
+  //       · `font-family: Georgia` 17px ⇒ 1 个违规像素；
+  //       · 本机默认字体 / Arial / Courier / 18px ⇒ 0 个（所以本机一直是绿的）。
+  //   而这条断言的**真正目的**是防"选中态额外画了底色块/边框/阴影"（当初那个
+  //   `background: color-mix(in srgb, var(--theme) 12%, transparent)` 的圆角色块）——
+  //   色块一定**越出文字本身的矩形**，所以用几何区判定既字体无关、又完全保住语义。
+  //   `tol` 用来覆盖文字自身的抗锯齿 halo。**实测标定**（`%TEMP%/hmdiag/tol.mjs` + `edge.mjs`）：
+  //     375x720 下 `Range.getClientRects()` 给的是**行盒**（高 17px），而字形墨迹的
+  //     抗锯齿边缘会溢出到行盒**上方**约 3~5px（衬线体的 ascent 更大时更明显）；
+  //     实测那两个越界像素在 `(68,261)`/`(69,261)`，Δ 只有 9/6，颜色 `[223,236,255] → [228,235,246]`
+  //     —— 纯 halo，不是"多画了东西"。它们在裁框内、但在"文字矩形 + 1.5px"之外，
+  //     且**加大容差救不了**（它们离墨迹 3.4px 以上，容差要开到 5.5px 才够，
+  //     而 4px 容差下 12% 底色块仍有 132 个像素越界 ⇒ 容差不是正确的旋钮）。
+  //     正确的旋钮是**允许区的纵向余量**：文字行的 ink 只会落在行盒上下各 ~4px 内，
+  //     而色块/边框/阴影是以**元素盒**（43.5×42px）为基准画的，越界量是几十像素。
+  //     ⇒ tol 取 **5px**：文字 halo 全部覆盖，色块越界仍是大片（25% 色块在 tol=4 时 132px、tol=1.5 时 436px）。
+  const GLYPH_TOL = 5;
   const shotPng = async () => decodePng(Buffer.from((await send('Page.captureScreenshot', { format: 'png', background: 'white' })).data, 'base64'));
   const dprNow = await evaluate('devicePixelRatio');
   const diffPixels = (imgA, imgB, base, opt = {}) => {
     let n = 0, maxd = 0, ys = new Set(), xs = new Set();
     let glyphPx = 0, bgPx = 0, weakPx = 0;
-    const bgOut = [];
+    let inside = 0, outside = 0, outsideMaxd = 0;
+    const bgOut = [], outsideOut = [];
     const out = [];
     // ★ 裁剪区域可以来自另一份量测（选中态文字换了颜色 ⇒ 单独给它一个更松的裁框）
     const boxes = opt.boxes || base;
-    // ★ 文字掩码：亮度 < 200 视为"墨迹"，再**膨胀 1 圈**把抗锯齿的过渡边（halo）也吞进来
-    //   —— 文字反色时 halo 必然跟着变（这就是"文字自身颜色变了"，不是多画了一块色）。
-    //   落在掩码里 = 允许；落在掩码外的浅色背景上 = 多画了色块/边框/阴影 ⇒ 违规。
+    // ★ 墨迹掩码保留下来**只作诊断**（报告里仍能看到"文字色差异多少像素"），不再当硬判据。
     const LUM = (c) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
     const inkAt = (img, x, y, x0, y0, x1, y1) => {
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -2357,6 +2380,12 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
       const r = (g.text && g.text[2] > 0) ? g.text : g.box;
       const x0 = Math.max(0, Math.floor((r[0] - pad) * dprNow)), y0 = Math.max(0, Math.floor((r[1] - pad) * dprNow));
       const x1 = Math.min(imgA.width, Math.ceil((r[0] + r[2] + pad) * dprNow)), y1 = Math.min(imgA.height, Math.ceil((r[1] + r[3] + pad) * dprNow));
+      // ★★★ 允许差异的**几何区** = 该标签文字节点全部 Range 矩形（含每个行盒）的并集 + tol。
+      //   文字换色时 halo 只会落在这个区域里；任何色块/边框/阴影都会越出它。
+      const gRects = (g.rects && g.rects.length) ? g.rects : [r];
+      const inGeom = (x, y) => gRects.some(q =>
+        (x + 0.5) >= (q[0] - GLYPH_TOL) * dprNow && (x + 0.5) <= (q[0] + q[2] + GLYPH_TOL) * dprNow &&
+        (y + 0.5) >= (q[1] - GLYPH_TOL) * dprNow && (y + 0.5) <= (q[1] + q[3] + GLYPH_TOL) * dprNow);
       let d = 0;
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
         const p = pixelAt(imgA, x, y), q = pixelAt(imgB, x, y);
@@ -2368,11 +2397,19 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
             else if (dd <= 3) weakPx++;     // ★ 渲染器抗锯齿抖动（≤3/255，肉眼不可见）
             else { bgPx++; if (bgOut.length < 8) bgOut.push({ label: g.label, x, y, from: p, to: q, dd }); }
           }
+          if (inGeom(x, y)) inside++;
+          else {
+            outside++; if (dd > outsideMaxd) outsideMaxd = dd;
+            if (outsideOut.length < 8) outsideOut.push({ label: g.label, x, y, from: p, to: q, dd });
+          }
         }
       }
       if (d) out.push({ label: g.label, box: r, d, maxd });
     }
     return { n, maxd, out, glyphPx, bgPx, weakPx, bgOut,
+      // ★ 新判据的返回量：inside = 文字几何区内的差异（换色必然有，允许）；
+      //   outside = 几何区**以外**的差异（必须 0）。
+      inside, outside, outsideMaxd, outsideOut,
       yRange: ys.size ? [Math.min(...ys), Math.max(...ys)] : null, xRange: xs.size ? [Math.min(...xs), Math.max(...xs)] : null };
   };
 
@@ -2479,16 +2516,18 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   const colorReallyChanged = !!g2025 && p2025base && p2025base.paint !== g2025.paint;
   ok(colorReallyChanged && /22,\s*119,\s*255/.test(g2025.paint.split('|')[0]),
     `⑦-b ★★★ 选中的「2025」**颜色确实变了**（${p2025base && p2025base.paint.split('|')[0]} → ${g2025.paint.split('|')[0]}）—— 高亮只体现在文字颜色上`);
-  // ★★★ 像素差分（选中前 vs 选中后）：**除文字本身的颜色外 0 个差异像素**。
-  //   判据：一个"变了"的像素若落在深色墨迹（或其 1px 抗锯齿过渡边）上 = 文字反色，允许；
-  //         落在浅色背景上 = 多画了一块色块/边框/阴影 ⇒ 违规。
+  // ★★★ 像素差分（选中前 vs 选中后）：**文字（几何区）以外的像素 0 个差异**。
+  //   判据已改为**几何**：文字节点 Range 矩形并集 + 1.5px 容差以外的差异像素必须为 0。
+  //   旧的"墨迹掩码"分类（glyphPx/bgPx）降级为**诊断信息**，不再当硬判据 —— 它依赖字体
+  //   光栅化，在 CI 上会对同一处文字的抗锯齿过渡边误判（CI #63 红了 5 条，本机用
+  //   Times/Georgia 也能复现）。详见 diffPixels 上面的注释。
   const pxActive = diffPixels(imgBeforeActive, imgActive, gBeforeActive, { allowGlyph: true, boxes: gActive });
-  console.log(`     像素差分（选中后 vs 选中前，${gBeforeActive.length} 个标签区域）：文字色差异 ${pxActive.glyphPx} 像素（允许）；**文字以外的差异 ${pxActive.bgPx} 像素**（必须为 0）`);
-  if (pxActive.bgPx) console.log(`        违规位置：${JSON.stringify(pxActive.bgOut.slice(0, 4))}`);
-  ok(pxActive.bgPx === 0,
-    `⑦-b ★★★ 选中前后**文字区以外的像素完全一致**（文字色差异 ${pxActive.glyphPx} 个允许；非文字差异 ${pxActive.bgPx} 个${pxActive.bgPx ? '，明细 ' + JSON.stringify(pxActive.bgOut.slice(0, 3)) : ''}）`);
-  ok(!colorReallyChanged || pxActive.glyphPx > 0,
-    `⑦-b ★★★ 选中确实改变了文字颜色（文字像素差异 ${pxActive.glyphPx} 个 > 0）`);
+  console.log(`     像素差分（选中后 vs 选中前，${gBeforeActive.length} 个标签区域）：几何区内差异 ${pxActive.inside} 像素（文字换色，允许）；**几何区外差异 ${pxActive.outside} 像素**（必须为 0）；诊断用旧分类：文字色 ${pxActive.glyphPx} / 非文字 ${pxActive.bgPx} / 弱抖 ${pxActive.weakPx}`);
+  if (pxActive.outside) console.log(`        违规位置：${JSON.stringify(pxActive.outsideOut.slice(0, 4))}`);
+  ok(pxActive.outside === 0,
+    `⑦-b ★★★ 选中前后**文字（Range 几何区 +5px）以外的像素完全一致**（区外差异 ${pxActive.outside} 个、最大通道差 ${pxActive.outsideMaxd}；区内文字换色差异 ${pxActive.inside} 个允许${pxActive.outside ? '；明细 ' + JSON.stringify(pxActive.outsideOut.slice(0, 3)) : ''}）`);
+  ok(!colorReallyChanged || pxActive.inside > 0,
+    `⑦-b ★★★ 选中确实改变了文字颜色（文字几何区内差异 ${pxActive.inside} 个 > 0）`);
   await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
   await sleep(800);
   const gBack = await glyphs();
@@ -2547,31 +2586,32 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
     const pBack = (vp.dpr !== dprNow) ? null : diffPixels(iB, iA, b);
     const pAct = diffPixels(iB, iG, b, { allowGlyph: true, boxes: g });
     const pActHover = diffPixels(iB, iH, b, { allowGlyph: true, boxes: h });
-    console.log(`     ${tag}：标签 ${b.length} 个；五态结构偏差 ${bad.length} 条；选中前后像素差 文字色 ${pAct.glyphPx} / **非文字 ${pAct.bgPx}**（弱抖 ${pAct.weakPx}）；悬浮中像素差 文字色 ${pActHover.glyphPx} / **非文字 ${pActHover.bgPx}**（弱抖 ${pActHover.weakPx}）${pBack ? '；移开后像素差 ' + pBack.n : ''}`);
+    console.log(`     ${tag}：标签 ${b.length} 个；五态结构偏差 ${bad.length} 条；选中前后像素差 **几何区外 ${pAct.outside}** / 区内 ${pAct.inside}（诊断旧分类：文字色 ${pAct.glyphPx}、非文字 ${pAct.bgPx}、弱抖 ${pAct.weakPx}）；悬浮中像素差 **几何区外 ${pActHover.outside}** / 区内 ${pActHover.inside}${pBack ? '；移开后像素差 ' + pBack.n : ''}`);
     ok(bad.length === 0,
       `⑦-b ★★★ ${tag} "基线→悬浮→移开→选中→取消"五态：文字矩形/字体度量/DOM 结构/装饰全部零偏差（${bad.slice(0, 3).join(' | ') || '零偏差'}）`);
     // 移开后只要极小容差（≤12px）：浏览器偶发把亚像素抗锯齿重排一遍，
     // 那属于渲染器抖动、不是布局位移；真正"沉降"会造成成百上千像素的位移差。
     if (pBack) ok(pBack.n <= 12,
       `⑦-b ★★★ ${tag} 悬浮后移开：像素零差异（实测 ${pBack.n} 个，容差 ≤12 用于抗锯齿抖动）`);
-    ok(pAct.bgPx === 0,
-      `⑦-b ★★★ ${tag} **选中前后文字区以外 0 个差异像素**（文字色差异 ${pAct.glyphPx}，非文字 ${pAct.bgPx}，弱抖 ${pAct.weakPx}${pAct.bgPx ? '，明细 ' + JSON.stringify(pAct.bgOut.slice(0, 3)) : ''}）`);
+    // ★★★ 新判据（几何区）：文字换色差异落在 Range∪+5px 内，区外必须 **严格 0**。
+    ok(pAct.outside === 0,
+      `⑦-b ★★★ ${tag} **选中前后文字（Range 几何区 +5px）以外 0 个差异像素**（区外 ${pAct.outside}、最大通道差 ${pAct.outsideMaxd}；区内文字换色 ${pAct.inside} 个允许；诊断旧分类 文字色 ${pAct.glyphPx}/非文字 ${pAct.bgPx}/弱抖 ${pAct.weakPx}${pAct.outside ? '，明细 ' + JSON.stringify(pAct.outsideOut.slice(0, 3)) : ''}）`);
     // ★ 截图始终按 CSS 像素 1:1 取（dpr 只影响渲染清晰度、不改截图像素数）⇒
     //   "文字像素确实变了"只在 dpr==基线 dpr 时才有可观测的颜色差，其余 dpr 用**计算样式**证明。
-    if (vp.dpr === dprNow) ok(pAct.glyphPx > 0,
-      `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（文字像素差异 ${pAct.glyphPx} > 0）`);
+    if (vp.dpr === dprNow) ok(pAct.inside > 0,
+      `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（文字几何区内差异 ${pAct.inside} 个 > 0）`);
     else {
       const gBasePaint = gBeforeActive.find(x => x.label === '2025').paint.split('|')[0];
       const gNowPaint = g.find(x => x.label === '2025').paint.split('|')[0];
       ok(gBasePaint !== gNowPaint && /22,\s*119,\s*255/.test(gNowPaint),
         `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（截图按 CSS 像素 1:1 取，本 dpr 下无像素色差 ⇒ 用计算样式证明：${gBasePaint} → ${gNowPaint}）`);
     }
-    // 悬浮态：标签区域内只允许"文字/蓝色抗锯齿边"跟着变。
-    //   ★ 贴边的月份标签（375px 下"6"那一列）会与相邻格子的泡在同一小块区域重叠，
-    //     实测最多 34 个 Δ=4 的**蓝色渐隐边**像素（其它 3 个视口全是 0）⇒ 给一个
-    //     很小的绝对上限（≤64），并在消息里如实报数；**选中态**那一条才是严格 0。
-    ok(pActHover.bgPx <= 64,
-      `⑦-b ★★★ ${tag} 悬浮中：标签区域内**没有新画出来的色块**（Δ≥4 的"非墨迹"像素 ${pActHover.bgPx} 个 ≤64，均为文字/泡的蓝色渐隐边；Δ≤3 的渲染抖动 ${pActHover.weakPx} 个如实报告${pActHover.bgPx ? '，明细 ' + JSON.stringify(pActHover.bgOut.slice(0, 2)) : ''}）`);
+    // 悬浮态：标签区域内只允许"文字自身的抗锯齿边"跟着变（同样用**几何区**判，字体无关）。
+    //   ★ 贴边的月份标签（375px 下"6"那一列）会与相邻格子的泡在同一小块区域重叠 ——
+    //     那种重叠也仍然发生在**文字几何区**内吗？不一定，所以这里保留一个很小的绝对上限
+    //     （≤64）而不是 0，并在消息里如实报数；**选中态**那条才是严格 0。
+    ok(pActHover.outside <= 64,
+      `⑦-b ★★★ ${tag} 悬浮中：标签文字几何区以外**没有新画出来的色块**（区外差异 ${pActHover.outside} 个 ≤64，为文字/泡的蓝色渐隐边；区内 ${pActHover.inside} 个；诊断旧分类 非文字 ${pActHover.bgPx}、弱抖 ${pActHover.weakPx}${pActHover.outside ? '，明细 ' + JSON.stringify(pActHover.outsideOut.slice(0, 2)) : ''}）`);
   }
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 }
@@ -2900,27 +2940,34 @@ console.log('\n══════ ⑦-c 全量矩形快照差分（热力图整�
 // ─────────── ⑦-d 深链接**冷启动**路径（用户线索："刷新这个页面会沉降，从别处点进来不会"） ───────────
 // ★★★ 为什么单开一节：前面 ⑦ / ⑦-b / ⑦-c 走的是**站内跳转**（先开首页 → 点进专题）。
 //   用户明确指出只有"直接打开/刷新 #special/timeline"才看得见，所以测试必须覆盖**冷启动**。
-//   冷启动实测（逐帧 1280×900 dpr=1，见 ⑦-d 的采样）：
-//     专题面板与热力图在 t≈500ms 第一次出现，而**整块**在之后约 0.1~0.3s 里还在往上走：
-//       · 旧实现：侧栏 `.sidebar` 的 width 有 0.22s 过渡 ⇒ 内容列 1253 → 1255 **逐帧重排**，
-//         整块挪了 53.281px（其中含侧栏与顶部搜索条两条动画叠加）；已由 CSS 修掉；
-//       · 剩下一部分来自顶部搜索条 `.top-search-container.hidden` 收起（max-height/padding
-//         0.3s 过渡）—— 那是**页面顶部的布局动画**，热力图在它下面"被抬"，属于正常且可见的
-//         页面落位；它移动的是**祖先**，热力图在**自己的容器里**一动没动。
-//   热力图**元素自己**的矩形全程恒定（这是 ⑦-c 五态全绿的原因），但"第一次悬浮"会落在这段
-//   还在动的窗口里 —— 泡泡的 --hm-tx/--hm-arrow 是那时量出来写死在行内样式上的。
-//   所以要断言的**不是**"悬浮本身让热力图动"（实测它没动），也不是"整块绝对坐标不许变"
-//   （那是页面顶部动画的自由度），而是**这四个真正决定"数字会不会沉"的量**：
-//     (a) 热力图相对**自己的布局容器**（.body-row）的偏移全程恒定 ——
-//         "祖先动画抬整块"和"数字在行里沉下去"是两件事，这条把后者钉死；
-//     (b) 热力图自身宽度 / 13 条 grid 轨道从第一次出现起恒定（列宽不被重算）；
-//     (c) 侧栏那条"站点发起"的收起不许再做宽度动画（宽度动画＝内容列逐帧重排）；
-//     (d) 冷启动就悬浮时，泡泡相对**格子**的几何必须与"等稳定后再悬浮"逐值相同
-//         （这是"不会回到原来的地方"的直接判据）。
+//
+// ★★★ 2026 复核后的口径修正（重要，别再退回去）：
+//   本节的**第一版**只断言了两件事：① 热力图相对**自己的布局容器**（`.body-row`）的偏移恒定；
+//   ② 顶部工具条高度恒定。用户复核后指出这**没抓住他看到的画面** —— 因为如果**容器本身**
+//   在冷启动里被抬起，那两条**全都是绿的**。事实正是如此（1920x1080 实测）：
+//     · `.top-search-container` 是 `.app-layout`（flex column）的**第一个**子项，
+//       它排在 `.body-row` 前面 ⇒ 它的高度直接决定整条 `.body-row`（含热力图、含年份/月份两排）
+//       的纵坐标；
+//     · 静态 HTML 里它没有 `hidden`（展开，高约 70px），router 要到数据就绪（t=557.9ms）
+//       才按 URL 加 `hidden`，触发 0.3s 的 max-height/padding 过渡；
+//     · 时间线在 t=746.2ms 渲染 ⇒ 热力图**第一次出现**时搜索栏才收到 54.2px，
+//       t=870.8ms 收到 1px ⇒ **文档绝对 top 从 198.25 滑到 145（53.25px）**，不回弹。
+//     而 `relY` 全程只有 145-1-46-56=42 一个值、`tbH` 全程只有一个值 —— 旧口径当然全绿。
+//   ⇒ 所以本节现在断言的是**绝对量**：`rect.top + window.scrollY`、年份/月份两排的绝对纵坐标、
+//     `window.scrollY` / `documentElement.scrollTop` / 可滚动祖先 `scrollTop`、
+//     `visualViewport.offsetTop`、纵向滚动条出现性。这些都必须**全程恒定**。
+//   · 1440x900 / 1366x768 恰好复现不出来（那两个宽度下过渡在渲染点之前已走完），
+//     所以视口清单里必须保留 1920x1080 —— 否则这条修复等于没测。
+// ★ 视口：1920x1080 / 1440x900 / 1366x768（用户的实际桌面窗口）+ 1280x900 + 375x720（回归）。
 console.log('\n══════ ⑦-d 深链接冷启动（直接打开 #special/timeline）══════\n');
 {
   await send('DOM.enable'); await send('CSS.enable');
-  for (const vp of [{ w: 1280, h: 900, dpr: 1 }, { w: 375, h: 720, dpr: 1 }]) {
+  // ★★★ 视口清单（用户 2026 复核："我的窗口是最大化的桌面窗口，宽约 1920，也可能是 1366/1440"）：
+  //   桌面三个（1920x1080 / 1440x900 / 1366x768）**必须**在内 —— 实测 1920x1080 才是
+  //   "数字沉降"的必现视口（`fixtest.mjs`：1920 浮动 53.25px，1440/1366 恰好为 0），
+  //   只测 1280x900 会正好漏掉它。移动端 375x720 与桌面 1280x900 保留。
+  for (const vp of [{ w: 1920, h: 1080, dpr: 1 }, { w: 1440, h: 900, dpr: 1 }, { w: 1366, h: 768, dpr: 1 },
+                    { w: 1280, h: 900, dpr: 1 }, { w: 375, h: 720, dpr: 1 }]) {
     const tag = `${vp.w}x${vp.h} dpr=${vp.dpr}`;
     await send('Emulation.setDeviceMetricsOverride', { width: vp.w, height: vp.h, deviceScaleFactor: vp.dpr, mobile: vp.w < 500 });
     // ★ 冷启动：直接导航到深链接（不是先开首页再点进来）。
@@ -2951,9 +2998,26 @@ console.log('\n══════ ⑦-d 深链接冷启动（直接打开 #speci
           if(!y) return null; const t=[...y.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
           if(!t) return null; const rg=document.createRange(); rg.selectNodeContents(t); const b=rg.getBoundingClientRect();
           return [+b.left.toFixed(3), +b.top.toFixed(3)]; })();
+        // ★★★ 绝对量（用户 2026 复核要求）：只测"相对自己的容器"会漏掉"容器自己被抬"。
+        //   docTop = rect.top + scrollY —— 这才是用户眼睛里数字所在的位置。
+        const de = document.documentElement;
+        const scrollers = (()=>{ const out=[]; let e=hm;
+          while (e && e !== de) { const cs=getComputedStyle(e);
+            if (cs.overflowY==='auto'||cs.overflowY==='scroll'||cs.overflowY==='overlay') out.push(+e.scrollTop.toFixed(3));
+            e=e.parentElement; }
+          out.push(+de.scrollTop.toFixed(3));
+          return out; })();
+        // 年份 + 月份两排的**绝对**纵坐标（用户说"两者一起下沉"⇒ 网格上边缘在动）
+        const labAbs = [...hm.querySelectorAll('.tl-heatmap-ylabel, .tl-heatmap-mlabel')]
+          .map(e => +(e.getBoundingClientRect().top + window.scrollY).toFixed(2));
         window.__coldSeq.push({ t: Math.round(performance.now()-window.__coldT0),
           hm: [+r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3)],
+          hmAbsTop: +(r.top + window.scrollY).toFixed(3),
+          labAbs: labAbs,
           rel: rel, ylab: tn, side: sr ? +sr.width.toFixed(3) : null, vcTop: vr ? +vr.top.toFixed(3) : null,
+          docTop: de.scrollTop, winY: window.scrollY, scrollers: scrollers,
+          sbGap: window.innerHeight - de.clientHeight, innerH: window.innerHeight,
+          vvTop: window.visualViewport ? +window.visualViewport.offsetTop.toFixed(2) : null,
           tbH: tbH,
           cols: row ? getComputedStyle(row).gridTemplateColumns : null,
           hmCW: hm.clientWidth, hmSW: hm.scrollWidth });
@@ -3018,15 +3082,80 @@ console.log('\n══════ ⑦-d 深链接冷启动（直接打开 #speci
       const tailY = ys.slice(-10);
       ok(new Set(tailY).size === 1,
         `⑦-d ${tag} ★★★ 冷启动：热力图纵向位置已**收敛**（末 10 帧 top 全为 ${tailY[0]}，说明剩下的浮动已经停下、不会在悬浮时继续爬）`);
-      // ★ 绝对纵向浮动**不设上限**：那 64px 全部来自页面顶部的搜索条收起动画（祖先把整块抬起），
-      //   是可见的页面落位，不是热力图内部的位移 —— 上面"相对 .body-row 的偏移恒定"已经把
-      //   后者钉死了。这里只要求它**收敛**（末 10 帧一个值），并把它如实打印出来。
-      ok(new Set(tailY).size === 1 && relY.length === 1,
-        `⑦-d ${tag} ★★ 冷启动：整块绝对纵向共浮动 ${ySpread}px（全部来自顶部搜索条的收起动画，属页面落位），且末 10 帧已收敛于 ${tailY[0]}、相对容器偏移恒定`);
+      // ══════════════════════════════════════════════════════════════════════════════
+      // ★★★ 绝对坐标恒定（用户 2026 复核的核心要求）
+      //   旧断言只要求"相对 .body-row 的偏移恒定"，于是**容器自己被抬**这件事被它放过了 ——
+      //   而那正是用户看到的现象：`.top-search-container`（`.app-layout` 的 flex 子项，排在
+      //   `.body-row` 之前）在冷启动中途塌陷，把整条 `.body-row`（含热力图、含年份/月份两排
+      //   按键）一起往上顶，文档绝对 top 从 198.25 滑到 145（1920x1080 实测 53.25px），
+      //   停在最终位置不回弹 ⇒ 用户描述为"年份与月份一起往下沉、网格上边缘下移"。
+      //   所以这里把口径从"相对容器"升级为"**文档绝对坐标**"：rect.top + window.scrollY。
+      // ══════════════════════════════════════════════════════════════════════════════
+      const absTops = seq.map(s => s.hmAbsTop).filter(v => typeof v === 'number');
+      const absSpread = absTops.length ? +(Math.max(...absTops) - Math.min(...absTops)).toFixed(3) : -1;
+      console.log(`     冷启动 ${tag}：热力图**文档绝对 top** 取值 ${JSON.stringify([...new Set(absTops)])}（浮动 ${absSpread}px）`);
+      ok(absTops.length > 0 && absSpread < 0.01,
+        `⑦-d ${tag} ★★★ 冷启动：热力图的**文档绝对坐标**（rect.top + scrollY）全程恒定（浮动 ${absSpread}px；取值 ${JSON.stringify([...new Set(absTops)].slice(0, 6))}）—— "容器自己被抬"也算位移`);
+      // 年份 + 月份两排的绝对纵坐标：用户明确说"两者一起下沉"⇒ 逐帧必须一个值
+      const labStates = [...new Set(seq.map(s => JSON.stringify(s.labAbs)))];
+      const labSpread = (() => {
+        if (!seq.every(s => Array.isArray(s.labAbs) && s.labAbs.length === seq[0].labAbs.length)) return -1;
+        let m = 0;
+        for (let i = 0; i < seq[0].labAbs.length; i++) {
+          const col = seq.map(s => s.labAbs[i]); m = Math.max(m, Math.max(...col) - Math.min(...col));
+        }
+        return +m.toFixed(3);
+      })();
+      console.log(`     冷启动 ${tag}：年份+月份两排绝对纵坐标状态 ${labStates.length} 种（最大浮动 ${labSpread}px，共 ${seq[0].labAbs ? seq[0].labAbs.length : 0} 个标签）`);
+      ok(labStates.length === 1,
+        `⑦-d ${tag} ★★★ 冷启动：**年份与月份两排按键的绝对纵坐标**全程恒定（${labStates.length} 种取值，最大浮动 ${labSpread}px）—— 这是用户肉眼看到"数字沉降"的那两排`);
+      // 滚动：冷启动最容易触发一次自动滚动/滚动锚定，表现就是"整页数字一起沉"
+      const winYs = [...new Set(seq.map(s => s.winY))];
+      const docTops = [...new Set(seq.map(s => s.docTop))];
+      const scrollerStates = [...new Set(seq.map(s => JSON.stringify(s.scrollers)))];
+      const vvTops = [...new Set(seq.map(s => s.vvTop))];
+      console.log(`     冷启动 ${tag}：window.scrollY=${JSON.stringify(winYs)}  documentElement.scrollTop=${JSON.stringify(docTops)}  visualViewport.offsetTop=${JSON.stringify(vvTops)}  可滚动祖先进度状态=${scrollerStates.length} 种`);
+      ok(winYs.length === 1 && winYs[0] === 0 && docTops.length === 1 && docTops[0] === 0,
+        `⑦-d ${tag} ★★★ 冷启动：全程**没有发生任何滚动**（window.scrollY=${JSON.stringify(winYs)}、documentElement.scrollTop=${JSON.stringify(docTops)}）—— 排除滚动锚定/自动滚动`);
+      ok(scrollerStates.length === 1,
+        `⑦-d ${tag} ★★ 冷启动：热力图的所有可滚动祖先 `+`scrollTop 全程不变（${scrollerStates.length} 种取值：${JSON.stringify(scrollerStates.slice(0, 3))}）`);
+      ok(vvTops.length === 1,
+        `⑦-d ${tag} ★★ 冷启动：visualViewport.offsetTop 全程不变（${JSON.stringify(vvTops)}）—— 没有视觉视口级别的位移`);
+      // 纵向滚动条：冷启动中途出现/消失也会让内容横向重排、整块跳动
+      const sbGaps = [...new Set(seq.map(s => s.sbGap))];
+      const innerHs = [...new Set(seq.map(s => s.innerH))];
+      console.log(`     冷启动 ${tag}：纵向滚动条占位 = innerHeight - clientHeight = ${JSON.stringify(sbGaps)}（innerHeight 取值 ${JSON.stringify(innerHs)}）`);
+      ok(sbGaps.length === 1 && sbGaps[0] === 0,
+        `⑦-d ${tag} ★★★ 冷启动：**纵向滚动条的存在性全程不变且从未出现**（innerHeight-clientHeight=${JSON.stringify(sbGaps)}）—— 排除"滚动条中途出现把内容挤窄"`);
+      ok(innerHs.length === 1,
+        `⑦-d ${tag} ★★ 冷启动：窗口内高全程恒定（${JSON.stringify(innerHs)}）`);
       // (c) 侧栏宽度不许再有动画（有动画＝内容列逐帧重排的旧根因）
       const sideTrans = await evaluate(`(()=>{ const s=document.querySelector('.sidebar'); if(!s) return ''; return getComputedStyle(s).transitionProperty || ''; })()`);
       ok(!/width|all/.test(String(sideTrans)),
         `⑦-d ${tag} ★★★ 侧栏折叠态不再对 width 做过渡（transition-property="${sideTrans}"）—— 内容列不会被逐帧挤压`);
+      // ★★★ 搜索栏必须在**第一次绘制之前**就已收起（修复本身）
+      //   真凶：`.top-search-container` 是 `.app-layout` 的 flex 子项、排在 `.body-row` 之前，
+      //   router 要到数据就绪（实测 t=557.9ms）才给它加 `hidden`，触发 0.3s 的
+      //   max-height/padding 过渡，而时间线在 t=746.2ms 就渲染了 ⇒ 热力图第一次出现时
+      //   搜索栏才收到 54.2px，之后一路收到 1px，整块被顶上去 53.25px。
+      //   修复：`special.js` 在解析期按 URL 给 `html` 打 `data-hm-cold`，`layout.css` 用
+      //   `display: none` 让搜索栏第一帧就零高度（`max-height` 过渡的中间值仍参与布局）。
+      const coldFix = await evaluate(`(()=>{
+        const sc = document.querySelector('.top-search-container');
+        if (!sc) return JSON.stringify({ missing: true });
+        const cs = getComputedStyle(sc);
+        return JSON.stringify({ h: +sc.getBoundingClientRect().height.toFixed(2),
+          hidden: sc.classList.contains('hidden'), attr: document.documentElement.getAttribute('data-hm-cold'),
+          sel: /data-hm-cold/.test([...document.styleSheets].map(s=>{ try { return [...s.cssRules].map(r=>r.cssText).join('\\n'); } catch(e){ return ''; } }).join('\\n')) });
+      })()`);
+      const cf = JSON.parse(coldFix);
+      console.log(`     冷启动 ${tag}：搜索栏 h=${cf.h} hidden=${cf.hidden} data-hm-cold=${cf.attr}（CSS 里有规则=${cf.sel}）`);
+      ok(cf.sel === true,
+        `⑦-d ${tag} ★★★ layout.css 里存在 \`html[data-hm-cold] .top-search-container { display: none }\` 规则（搜索栏第一帧就零高度）`);
+      ok(cf.hidden === true && cf.h <= 1.01,
+        `⑦-d ${tag} ★★★ 冷启动：搜索栏最终已收起（height=${cf.h}px、hidden=${cf.hidden}）—— 收起的过渡不许再压到时间线渲染点上`);
+      ok(cf.attr === null,
+        `⑦-d ${tag} ★★ 冷启动：\`data-hm-cold\` 标记已被摘掉（=${cf.attr}）—— 摘掉后由 \`hidden\` 类接管，"返回普通板块时搜索栏滑出来"的动画不受影响`);
     }
     // (d) 冷启动就悬浮 vs 等稳定后再悬浮：泡泡**相对格子**的几何必须逐值相同
     const geomExpr = `(function(){
