@@ -254,38 +254,48 @@ ok(expectMatrix.totalAmount === expectMatrix.ownAmount + expectMatrix.feeSum,
 ok(expectMatrix.ownAmount === expectMatrix.rawAmount - expectMatrix.feeSum,
   `② ★ Σ裸币价 == Σ录入价 − 评级费支出（${expectMatrix.ownAmount} == ${expectMatrix.rawAmount} − ${expectMatrix.feeSum}）`);
 
-// 深浅：用户两轮都说"不灵敏"，最后要求**无限档、按比例丝滑变化**。所以这里不改公式、直接验算：
-//   每个格子的 --hm-o 必须 = 0（金额 0）或 0.10 + 0.85 × 金额/最大金额
+// 深浅：颜色**只有 --theme 一种**，深浅全由 opacity 表达；
+//   每个格子的 --hm-o 必须 = 0（金额 0）或 lerp(0.06, 0.95, 金额/最大金额)
 const lvInfo = JSON.parse(await evaluate(`(()=>{
   const cells = [...document.querySelectorAll('.tl-heatmap-cell')];
   const o = c => +(c.style.getPropertyValue('--hm-o') || 0);
   const am = c => { const t=(c.querySelector('.tl-heatmap-tip')||{}).textContent||''; const m=t.match(/合计([0-9]+)元/); return m?+m[1]:0; };
-  const rows = cells.map(c => ({ am: am(c), o: o(c), fill: +(getComputedStyle(c.querySelector('.tl-hm-fill')).opacity) }));
+  const rows = cells.map(c => {
+    const f = c.querySelector('.tl-hm-fill');
+    const cs = getComputedStyle(f);
+    return { am: am(c), o: o(c), fill: +cs.opacity, bg: cs.backgroundColor || '' };
+  });
   const maxAm = Math.max(...rows.map(r => r.am));
   const bad = [];
   for (const r of rows) {
-    const want = r.am <= 0 ? 0 : 0.10 + 0.85 * Math.min(1, r.am / maxAm);
+    const want = r.am <= 0 ? 0 : 0.06 + 0.89 * Math.min(1, r.am / maxAm);
     if (Math.abs(r.o - want) > 0.002) bad.push(r.am + '元:' + r.o.toFixed(3) + '≠' + want.toFixed(3));
   }
   let mono = true;
   for (const a of rows) for (const b of rows) if (a.am > b.am && a.o < b.o - 1e-9) mono = false;
-  const distinct = new Set(rows.filter(r => r.am > 0).map(r => r.o.toFixed(3))).size;
+  // ★ "没买就不画色块"：判据是**这一格不可见**（opacity 为 0）
+  //   注意 fill 的 background 在 CSS 里固定是 var(--theme)，所以背景色本身永远是主题蓝；
+  //   色块的显隐完全由 opacity（--hm-o）说了算，不能拿背景色判断。
+  const zeroCells = rows.filter(r => r.am <= 0);
+  const zeroOpaque = zeroCells.filter(r => r.o > 0 || r.fill > 0.005).length;
+  const visible = rows.filter(r => r.am > 0);
+  const alphas = [...new Set(visible.map(r => +r.o.toFixed(3)))];
   const sorted = rows.slice().sort((x, y) => y.am - x.am);
   const big = sorted[0];
   const mid = rows.slice().sort((x, y) => Math.abs(x.am - 3000) - Math.abs(y.am - 3000))[0];
-  return JSON.stringify({ n: rows.length, bad: bad.slice(0, 4), badN: bad.length, mono, maxAm, distinct,
-    zeros: rows.filter(r => r.am <= 0).length,
-    zeroO: rows.length ? Math.max(...rows.filter(r => r.am <= 0).map(r => r.o), 0) : 0,
-    zeroFill: rows.length ? Math.max(...rows.filter(r => r.am <= 0).map(r => r.fill), 0) : 0,
-    filled: rows.filter(r => r.fill > 0.02).length, nonZero: rows.filter(r => r.am > 0).length,
+  return JSON.stringify({ n: rows.length, bad: bad.slice(0, 4), badN: bad.length, mono, maxAm,
+    distinct: alphas.length, alphas: alphas.sort((a, b) => a - b),
+    zeros: zeroCells.length, zeroOpaque,
     mid, big, midGap: (mid && big) ? +(big.o - mid.o).toFixed(3) : 0 });
 })()`));
-ok(lvInfo.zeros === 0 || (lvInfo.zeroO === 0 && lvInfo.zeroFill < 0.005), `② "没有购买记录"的月份真的透明（${lvInfo.zeros} 个 0 元格子，--hm-o 最大 ${lvInfo.zeroO}、实际渲染不透明度最大 ${lvInfo.zeroFill.toFixed(3)}）`);
+ok(lvInfo.zeros === 0 || lvInfo.zeroOpaque === 0, `② "没有购买记录"的月份真的不填色（${lvInfo.zeros} 个 0 元格子，其中 ${lvInfo.zeroOpaque} 个有填充）`);
 ok(lvInfo.mono, '② 深浅随金额单调不倒退');
-ok(lvInfo.badN === 0, `② ★ 严格按比例、连续不分档：--hm-o = 0.10+0.85×金额/最大金额(${lvInfo.maxAm})，${lvInfo.n} 个格子全部对得上${lvInfo.badN ? '；不符：' + lvInfo.bad.join('，') : ''}`);
-ok(lvInfo.distinct >= 8, `② ★ 是连续值而不是几档（有记录的格子里出现了 ${lvInfo.distinct} 个互不相同的透明度）`);
-ok(lvInfo.filled === lvInfo.nonZero, `② 有金额的格子都真的画上了填充色（${lvInfo.filled}/${lvInfo.nonZero}）`);
-ok(lvInfo.midGap >= 0.35, `② ★ 3000 元那格与最深一格差得开（${lvInfo.mid.am} 元 o=${lvInfo.mid.o.toFixed(3)} → ${lvInfo.big.am} 元 o=${lvInfo.big.o.toFixed(3)}，差 ${lvInfo.midGap}）`);
+ok(lvInfo.badN === 0, `② ★ 严格按比例：--hm-o = 0.06+0.89×金额/最大金额(${lvInfo.maxAm})，${lvInfo.n} 个格子全部对得上${lvInfo.badN ? '；不符：' + lvInfo.bad.join('，') : ''}`);
+// ★★ 深浅体现在**透明度**上，而且是**连续值**（"无限档、按比例丝滑变化"，用户明确要的）
+ok(lvInfo.distinct >= 8, `② ★ 深浅是连续值而不是几档（有记录的格子里出现了 ${lvInfo.distinct} 个互不相同的 alpha）`);
+ok(lvInfo.alphas[0] >= 0.06 - 1e-6 && lvInfo.alphas[lvInfo.alphas.length - 1] <= 0.95 + 1e-6,
+  `② ★ 所有 alpha 都落在色阶 [0.06, 0.95] 内（实测 ${lvInfo.alphas[0]} … ${lvInfo.alphas[lvInfo.alphas.length - 1]}）`);
+ok(lvInfo.midGap >= 0.15, `② ★ 3000 元那格与最深一格差得开（${lvInfo.mid.am} 元 o=${lvInfo.mid.o.toFixed(3)} → ${lvInfo.big.am} 元 o=${lvInfo.big.o.toFixed(3)}，差 ${lvInfo.midGap}）`);
 
 // 结构细节：年份升序、正方形、没有标题那句、左上角是"全部"
 const geo = JSON.parse(await evaluate(`(()=>{
@@ -569,27 +579,49 @@ const setMode = async (m) => {
 const readTheme = async () => JSON.parse(await evaluate(`(()=>{
   const tip=document.querySelector('.tl-heatmap-tip'); const ct=getComputedStyle(tip);
   const cell=document.querySelector('.tl-heatmap-cell'); const cc=getComputedStyle(cell);
-  const fill=document.querySelector('.tl-heatmap-cell .tl-hm-fill'); const cf=fill?getComputedStyle(fill):null;
-  const ops=[...document.querySelectorAll('.tl-heatmap-cell')].map(c=>{ const f=c.querySelector('.tl-hm-fill'); return f?+getComputedStyle(f).opacity:null; }).filter(v=>v!==null);
+  const onCells=[...document.querySelectorAll('.tl-heatmap-cell')].filter(c=>+c.style.getPropertyValue('--hm-o')>0);
+  const fills=onCells.map(c=>{ const f=c.querySelector('.tl-hm-fill'); return f?getComputedStyle(f):null; }).filter(Boolean);
+  // 深浅 = opacity（颜色恒为 --theme），所以这里量的是**计算出来的 opacity**
+  const alphas=fills.map(f=>+parseFloat(f.opacity).toFixed(3));
+  // ★ 必须取**可见**那一个：页面里可能同时存在隐藏容器里的副本，
+  //   document.querySelector 拿到的可能是隐藏副本（它的 computed filter 读出来是 none，
+  //   于是"格子有压暗、条带没有"这种假失败会出现）。
+  const bar=[...document.querySelectorAll('.tl-hm-legend-bar')].find(b=>b.getBoundingClientRect().width>1)||document.querySelector('.tl-hm-legend-bar');
   return JSON.stringify({
     scheme: document.documentElement.getAttribute('data-color-scheme'),
     tipBg: ct.backgroundColor, tipColor: ct.color, cellBg: cc.backgroundColor,
-    fillBg: cf?cf.backgroundColor:null,
+    fillBg: fills.length?fills[0].backgroundColor:null,
     theme: getComputedStyle(document.documentElement).getPropertyValue('--theme').trim(),
-    maxOp: ops.length?Math.max(...ops):null, minOp: ops.length?Math.min(...ops):null
+    fillCount: fills.length, distinctColors: new Set(alphas).size,
+    alphaSet: [...new Set(alphas)].sort((a,b)=>a-b),
+    maxL: alphas.length?Math.max(...alphas):null, minL: alphas.length?Math.min(...alphas):null,
+    // 深色模式下条带与格子都必须被同一条压暗规则命中（filter），否则一边暗一边亮
+    barFilter: bar?getComputedStyle(bar).filter:null,
+    fillFilter: fills.length?fills[0].filter:null
   });
 })()`));
 await setMode('light');
 const lightT = await readTheme();
 ok(lightT.scheme === 'light', `⑤ 切到浅色成功（data-color-scheme=${lightT.scheme}）`);
-ok(!!lightT.fillBg && !/rgba\(0, 0, 0, 0\)/.test(lightT.fillBg), `⑤ 格子有填充色 ${lightT.fillBg}（取 var(--theme)=${lightT.theme || '空'}，所以会自动跟随用户选的 app 主题色）`);
-ok(lightT.maxOp > lightT.minOp, `⑤ 连续深浅确实体现在透明度上（最深 ${lightT.maxOp} > 最浅 ${lightT.minOp}）`);
+ok(!!lightT.fillBg && !/rgba\(0, 0, 0, 0\)/.test(lightT.fillBg), `⑤ 格子有填充色 ${lightT.fillBg}（= --theme 本色，深浅靠 opacity）`);
+// ★★ 深浅由 opacity 表达：有金额的格子出现**多种 alpha**，且最浅↔最深差得开
+ok(lightT.distinctColors >= 2, `⑤ 深浅由透明度表达（${lightT.fillCount} 个有色格子出现 ${lightT.distinctColors} 种 alpha）`);
+ok(lightT.maxL - lightT.minL >= 0.2, `⑤ ★ 最深与最浅格子的 alpha 差 ≥ 0.2（${lightT.minL} → ${lightT.maxL}，差 ${(lightT.maxL - lightT.minL).toFixed(3)}）`);
 await setMode('dark');
 const darkT = await readTheme();
 ok(darkT.scheme === 'dark', `⑤ 切到深色成功（data-color-scheme=${darkT.scheme}）`);
 ok(darkT.tipBg !== lightT.tipBg || darkT.tipColor !== lightT.tipColor, `⑤ tooltip 配色跟着主题变（浅 ${lightT.tipBg}/${lightT.tipColor} → 深 ${darkT.tipBg}/${darkT.tipColor}）`);
 ok(Math.abs(lum(darkT.tipBg) - lum(darkT.tipColor)) > 60, `⑤ 深色下 tooltip 底色与文字对比够（${Math.round(Math.abs(lum(darkT.tipBg) - lum(darkT.tipColor)))}）`);
-ok(darkT.maxOp > lightT.maxOp, `⑤ 深色下分级整体提一档（最深 ${lightT.maxOp} → ${darkT.maxOp}）`);
+// ★★ 深色下**不动** alpha 色阶（"接近透明"在暗底上更接近背景色 —— 用户说这是预期行为，
+//   不要为了可见性把它加白提亮，也不做压暗之类的"深色专用"处理）。
+//   ⇒ 深浅集合必须与浅色**逐值相同**，而且**两边都不该挂任何滤镜**（防"写了但静默不生效"）。
+ok(JSON.stringify(darkT.alphaSet) === JSON.stringify(lightT.alphaSet),
+  `⑤ ★★ 深色下 alpha 色阶与浅色逐值相同（浅 ${lightT.alphaSet.join('/')} vs 深 ${darkT.alphaSet.join('/')}）`);
+ok(String(lightT.fillFilter) === 'none' && String(darkT.fillFilter) === 'none' &&
+   String(lightT.barFilter) === 'none' && String(darkT.barFilter) === 'none',
+  `⑤ ★★ 格子和条带都不挂滤镜（浅色 fill=${lightT.fillFilter}/bar=${lightT.barFilter}，深色 fill=${darkT.fillFilter}/bar=${darkT.barFilter}）`);
+ok(darkT.maxL - darkT.minL >= 0.2,
+  `⑤ ★★ 深色下深浅依然分得开（alpha 跨度 ${(darkT.maxL - darkT.minL).toFixed(3)} ≥ 0.2）`);
 await setMode('light');
 
 await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
@@ -633,7 +665,7 @@ ok(mCent === 0, `⑤ ★ 手机宽度下同样"能居中就居中、放不下才
 // 两端不画；五个金额标签**以对应位置为中心**对齐；只写金额（无括号、无注解、不可点）；
 // **图例里不要任何标题文字**（"金额"、"少 → 多"都不要）；条带宽度与热力条一致。
 const legendFrame = `(()=>{
-  const lg = document.querySelector('.tl-heatmap-legend');
+  const lg = [...document.querySelectorAll('.tl-heatmap-legend')].find(e => e.getBoundingClientRect().width > 1) || document.querySelector('.tl-heatmap-legend');
   if (!lg) return JSON.stringify({ found: false });
   const cs = getComputedStyle;
   const bar = lg.querySelector('.tl-hm-legend-bar');
@@ -646,6 +678,8 @@ const legendFrame = `(()=>{
              amt: +(c.style.getPropertyValue('--hm-src') || 0),
              bright: c.style.getPropertyValue('--hm-bright').trim(),
              o: c.style.getPropertyValue('--hm-o').trim(),
+             // ★ 深浅现在只由 opacity 表达（颜色恒为 --theme）；alpha 就是 --hm-o
+             alpha: +(c.style.getPropertyValue('--hm-o') || 0),
              color: cs(f).backgroundColor, opacity: +cs(f).opacity };
   });
   const maxAmt = Math.max(0, ...cellInfo.map(c => +c.src || 0));
@@ -715,53 +749,87 @@ ok(offMax <= 2,
   `⑤-b ★ 五个标签都以对应位置为**中心**（最大偏差 ${offMax.toFixed(1)}px）：${lg375.ticks.map((t, i) => t.pct + '%@' + t.center.toFixed(0) + '/靶' + lg375.anchors[i].toFixed(0)).join(' ')}`);
 ok(lg375.ticks.every(t => /matrix\(1, 0, 0, 1, -\d/.test(t.transform) || /translateX\(-50%\)/.test(t.transform)),
   '⑤-b ★ 定位用的是 translateX(-50%) 居中语义（没有改成两端贴边对齐）');
-// ★ 条带是连续渐变，不是离散色块（getComputedStyle 会把 color-mix 解析成 color(srgb …)，
-//   所以这里数的是渐变里出现的 color() 数量的 stop，而不是源码里的字面写法）
-ok(/linear-gradient/.test(lg375.barImage || ''),
-  `⑤-b ★ 指示条是一条 linear-gradient 连续渐变（实测 ${String(lg375.barImage).slice(0, 60)}…）`);
-ok((String(lg375.barImage).match(/color\(srgb/g) || []).length >= 4,
-  `⑤-b ★ 渐变里至少 4 个有色 stop（对应 0/25/50/75/100% 五档；0% 那端是 transparent）`);
-
-// ★★ 色停必须**均匀铺在 0/25/50/75/100%**（用户专门提过怀疑："是不是颜色渐变全部放在前面 25% 了"）。
-//   这里把 getComputedStyle 的 backgroundImage 原样解析出 (颜色, 偏移) 逐档核对，不看源码。
-const gradientStops = [...String(lg375.barImage).matchAll(/(color\(srgb[^)]*\)|rgba?\([^)]*\)|transparent)\s+([\d.]+)%/g)]
-  .map(m => ({ color: m[1], pct: +m[2] }));
-ok(gradientStops.length === 5, `⑤-b ★ 渐变正好 5 个色停（实际 ${gradientStops.length} 个）`);
-const stopPcts = gradientStops.map(s => s.pct);
-ok(JSON.stringify(stopPcts) === JSON.stringify([0, 25, 50, 75, 100]),
-  `⑤-b ★★ 色停偏移恰好均匀落在 0/25/50/75/100%（实际 [${stopPcts.join(', ')}]）`);
-// 相邻两档必须"看得出是两种颜色"：通道差总和 > 0.02（0-1 归一后）才算拉开区分度
-const chanDiff = (a, b) => {
-  const pa = [...String(a).matchAll(/[\d.]+/g)].map(Number).slice(-3);
-  const pb = [...String(b).matchAll(/[\d.]+/g)].map(Number).slice(-3);
-  return Math.abs(pa[0] - pb[0]) + Math.abs(pa[1] - pb[1]) + Math.abs(pa[2] - pb[2]);
-};
-const pairDiffs = [];
-for (let i = 1; i < gradientStops.length; i++) pairDiffs.push(chanDiff(gradientStops[i - 1].color, gradientStops[i].color));
-ok(pairDiffs.slice(1).every(d => d > 0.02),
-  `⑤-b ★ 相邻色停颜色互不相同（通道差 ${pairDiffs.slice(1).map(d => d.toFixed(3)).join(' / ')}，都要 > 0.02）`);
-// 0% 那一端是"没有买"（透明白），100% 是最亮档 —— 两处差异要明显
-ok(/rgba\(0, 0, 0, 0\)|transparent/.test(gradientStops[0] && gradientStops[0].color || ''),
-  `⑤-b ★ 0% 那端是"没买"的透明（实际 ${gradientStops[0] && gradientStops[0].color}）`);
-ok(chanDiff(lg375.theme, gradientStops[4] && gradientStops[4].color || '') > 0.05,
-  `⑤-b ★★ 0% 与 100% 两处色差明显（--theme 本色 ${lg375.theme} → 100% 端 ${gradientStops[4] && gradientStops[4].color}）`);
-// 色相亮度工具（相对亮度，WCAG 口径）。color(srgb …) 与 rgb(…) 都归一成 [r,g,b] 0-255。
-// ★ 一律先按 0-1 归一化，再走 sRGB 反伽马；不要中途 ×255 再 ÷255（那么写自己在算术上是对称的，
-//   但可读性差、也容易被"到底在哪一步归一"绕晕）。
-const lumOf = (v) => {
-  const s = String(v == null ? '' : v);
-  let r, g, b;
-  const cm = s.match(/color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/);
-  if (cm) { r = +cm[1]; g = +cm[2]; b = +cm[3]; }
-  else {
-    const m = s.match(/([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
-    if (!m) return NaN;
-    r = +m[1] / 255; g = +m[2] / 255; b = +m[3] / 255;
+// ★★ 条带 = **一条连续渐变、整条作为一个整体**，只用**两个色停**（0% 近透明 → 100% 最深）。
+//   用户最终方案原话："就把整条作为整体不就行了吗？"
+//   ⇒ 这里钉住"恰好两个色停、覆盖 0%→100%"，不许再出现 25/50/75% 中间的 alpha 色停
+//     （老实现正是把变化挤在前 25%：0% 全透明、25% 已接近满色）。
+ok(/linear-gradient\(to right/.test(lg375.barImage || ''),
+  `⑤-b ★ 指示条是 linear-gradient(to right, …)（实测 ${String(lg375.barImage).slice(0, 70)}…）`);
+// ★ 注意 Chrome 会把 rgba() 色停序列化成 `color(srgb r g b / a)`（新版）或 `rgba(r, g, b, a)`
+//   （旧版），两种写法都要能解析，否则这里会静默解析出 0 个色停、断言形状全错。
+//   形状：[色值] [百分比]? 之间用逗号分隔，最后一端可能没有百分比（隐含 100%）。
+const barImageStr = String(lg375.barImage || '');
+const gradBody = (barImageStr.match(/linear-gradient\(([^]*)\)$/) || [, ''])[1];
+const gradientStops = gradBody.split(/,(?![^(]*\))/).map(part => {
+  const s = part.trim();
+  const color = (s.match(/^(color\([^)]*\)|rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}|transparent)/) || [])[1] || '';
+  const pm = s.match(/([\d.]+)%/);
+  return { color, pct: pm ? +pm[1] : null, raw: s };
+}).filter(s => s.color);
+// 没有百分比的端点按 CSS 规则补默认值：第一个 0%、最后一个 100%
+if (gradientStops.length && gradientStops[0].pct === null) gradientStops[0].pct = 0;
+if (gradientStops.length && gradientStops[gradientStops.length - 1].pct === null) {
+  gradientStops[gradientStops.length - 1].pct = 100;
+}
+ok(gradientStops.length === 2,
+  `⑤-b ★★ 渐变**恰好两个色停**（实际 ${gradientStops.length} 个：${gradientStops.map(s => s.color + '@' + s.pct + '%').join(' , ') || '解析为空：' + barImageStr}）`);
+ok(JSON.stringify(gradientStops.map(s => s.pct)) === JSON.stringify([0, 100]),
+  `⑤-b ★★ 两个色停覆盖 0% → 100%（实际 [${gradientStops.map(s => s.pct).join(', ')}]）`);
+ok(!/(25|50|75)\s*%/.test(gradBody),
+  '⑤-b ★★ 渐变里**没有** 25/50/75% 的中间色停（整条交给浏览器线性插值）');
+// alpha 解析：rgba(r,g,b,a) 的第 4 个分量，或 color(srgb r g b / a) 的斜杠后分量；rgb() 视为 1
+const alphaOf = (c) => {
+  const s = String(c);
+  const srgb = s.match(/color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)(?:\s*\/\s*([\d.eE+-]+%?))?/);
+  if (srgb) {
+    if (srgb[4] == null) return 1;
+    return /%$/.test(srgb[4]) ? parseFloat(srgb[4]) / 100 : parseFloat(srgb[4]);
   }
-  const f = (x) => { const t = Math.min(1, Math.max(0, x)); return t <= 0.03928 ? t / 12.92 : Math.pow((t + 0.055) / 1.055, 2.4); };
-  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  const m = s.match(/rgba?\(([^)]*)\)/);
+  if (!m) return NaN;
+  const parts = m[1].split(/[,\s/]+/).filter(x => x !== '').map(s => parseFloat(s));
+  if (parts.length >= 4) return parts[parts.length - 1];
+  return 1;
 };
-const brightestCellColor = (() => { const top = lg375.cellInfo.slice().sort((a, b) => b.amt - a.amt)[0]; return top ? top.color : null; })();
+// 色相三元组（取掉 alpha 的前三个分量，统一成 0-255）
+const rgbOf = (c) => {
+  const s = String(c);
+  const srgb = s.match(/color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/);
+  if (srgb) return [+srgb[1], +srgb[2], +srgb[3]].map(x => Math.round(x * 255));
+  const m = s.match(/rgba?\(([^)]*)\)/);
+  if (!m) return null;
+  return m[1].split(/[,\s/]+/).filter(x => x !== '').slice(0, 3).map(s => Math.round(parseFloat(s)));
+};
+const endAlpha = gradientStops.map(s => alphaOf(s.color));
+ok(JSON.stringify(rgbOf(gradientStops[0].color)) === JSON.stringify(rgbOf(gradientStops[1].color)),
+  `⑤-b ★★ 两个端点是同一支颜色（只变 alpha）：${rgbOf(gradientStops[0].color)} / ${rgbOf(gradientStops[1].color)}`);
+ok(endAlpha[0] <= 0.12, `⑤-b ★★ 0% 端 alpha ≤ 0.12（"接近透明"；实际 ${endAlpha[0]}）`);
+ok(endAlpha[1] >= 0.9, `⑤-b ★★ 100% 端 alpha ≥ 0.9（最深/最显眼；实际 ${endAlpha[1]}）`);
+ok(endAlpha[1] > endAlpha[0], `⑤-b ★★ 100% 端比 0% 端更实（${endAlpha[0]} → ${endAlpha[1]}）`);
+// 这条直线：条上比例 p 处的 alpha = lerp(0.06, 0.95, p)
+const barAlphaAt = (p) => endAlpha[0] + (endAlpha[1] - endAlpha[0]) * p;
+// 颜色解析工具（下面多处要用）
+const rgbTriple = (v) => {
+  const s = String(v == null ? '' : v);
+  const cm = s.match(/color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/);
+  if (cm) return [+cm[1], +cm[2], +cm[3]].map(x => Math.round(x * 255));
+  const hm = s.match(/#([0-9a-fA-F]{6})/);
+  if (hm) { const h = hm[1]; return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+  const m = s.match(/([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+  return m ? [+m[1], +m[2], +m[3]].map(x => Math.round(x)) : null;
+};
+// 明度工具（WCAG 相对亮度）。rgb(…) / color(srgb …) / #rrggbb 都归一成 [r,g,b] 0-1。
+const lumOfRgb = (t3) => {
+  const [R, G, B] = t3.map(x => x / 255);
+  const f = (x) => { const t = Math.min(1, Math.max(0, x)); return t <= 0.03928 ? t / 12.92 : Math.pow((t + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(R) + 0.7152 * f(G) + 0.0722 * f(B);
+};
+const lumOf = (v) => { const t3 = rgbTriple(v); return t3 ? lumOfRgb(t3) : NaN; };
+// HSL 的 L = (max+min)/2
+const hslLOf = (v) => { const t3 = rgbTriple(v); return t3 ? (Math.max(...t3) + Math.min(...t3)) / 2 / 255 : NaN; };
+// 色相固定（不要为了区分度变成彩虹色）：两个端点都必须是同一支蓝。
+ok(gradientStops.every(s => { const t = rgbTriple(s.color); return t && t[2] > t[0] && t[2] >= t[1]; }),
+  `⑤-b ★★ 条带两端都是蓝色系（B 通道最大、R 最小）：${gradientStops.map(s => rgbTriple(s.color).join(',')).join(' | ')}`);
 // ★ 图例里不要任何文字（标题/注解），只剩金额标签
 ok(!/金额/.test(lg375.textAll), `⑤-b ★ 图例里没有「金额」标题（实际文字「${lg375.textAll}」）`);
 ok(!/少\s*→\s*多/.test(lg375.textAll) && !lg375.hasArrow,
@@ -775,28 +843,48 @@ ok(lg375.ticks.every(t => t.pe === 'none' && t.cursor !== 'pointer'),
 ok(lg375.bar && lg375.heatBar && Math.abs(lg375.bar.left - lg375.heatBar.left) <= 1 &&
    Math.abs(lg375.bar.right - lg375.heatBar.right) <= 1,
   `⑤-b ★ 指示条宽度与热力条一致（条带 ${lg375.bar.left}..${lg375.bar.right} vs 热力条 ${lg375.heatBar.left}..${lg375.heatBar.right}）`);
-// ★ 最亮档提亮：色相随档位偏向更亮的 --theme-light
-const baseThemeLum = lumOf(lg375.theme);
-ok(!!brightestCellColor && lumOf(brightestCellColor) > baseThemeLum + 0.02,
-  `⑤-b ★★ 最亮档比改动前更亮：相对亮度 ${brightestCellColor ? lumOf(brightestCellColor).toFixed(3) : '-'} > --theme 本色 ${baseThemeLum.toFixed(3)}`);
-// 色相随档位单调变亮（拉开区分度）
-const rampLums = (() => {
-  const bs = lg375.cellInfo.map(c => +c.bright).filter(v => !isNaN(v));
-  const uniq = [...new Set(bs)].sort((a, b) => a - b);
-  return uniq.map(b => { const c = lg375.cellInfo.find(x => +x.bright === b); return lumOf(c.color); });
-})();
-ok(rampLums.every((v, i) => i === 0 || v >= rampLums[i - 1] - 1e-6),
-  `⑤-b 色相亮度随档位单调不倒退（${rampLums.map(v => v.toFixed(2)).join(' ≤ ')}）`);
-// 图例与热力图同一套取色：渐变两端 == 对应金额格子的色相
-ok(/color\(srgb/.test(String(lg375.barImage)),
-  '⑤-b ★ 渐变用的是与热力图同一个色相表达式（color-mix(--theme-light, --theme) 的解析结果）');
-// 渐变的最后一档（100%）必须与"金额最大的那个格子"同色
-const lastStopColor = (() => {
-  const m = [...String(lg375.barImage).matchAll(/color\(srgb ([^)]+)\)/g)].pop();
-  return m ? `color(srgb ${m[1]})` : null;
-})();
-ok(!!lastStopColor && !!brightestCellColor && lastStopColor === brightestCellColor,
-  `⑤-b ★ 渐变最右端色 ${lastStopColor} == 金额最大格子的色相 ${brightestCellColor}（同一套取色函数）`);
+// ★★★ 图例 ↔ 热力图**逐档相等**（用户最终方案："就把整条作为整体"）。
+//   实现上两边就是**同一条直线**：条带 `linear-gradient(to right, rgba(blue,0.06), rgba(blue,0.95))`
+//   由浏览器按整条宽度线性插值；热力图格子的 opacity = alpha(v) = lerp(0.06, 0.95, v/max)。
+//   这里取**最小 / 中间 / 最大**三个格子，与"条上同一比例位置的 alpha"逐档比对（容差 ≤0.02）。
+const cellAmts = [...lg375.cellInfo].filter(c => c.amt > 0).sort((a, b) => a.amt - b.amt);
+const minCell = cellAmts[0], maxCell = cellAmts[cellAmts.length - 1];
+const midCell = cellAmts[Math.floor(cellAmts.length / 2)];
+const cellAlpha = (c) => +c.alpha;
+const samples = [{ tag: '最小', c: minCell }, { tag: '中间', c: midCell }, { tag: '最大', c: maxCell }].filter(s => s.c);
+const sampleRows = samples.map(s => {
+  const ratio = s.c.amt / lg375.maxAmt;
+  const want = barAlphaAt(ratio);
+  return { tag: s.tag, amt: s.c.amt, ratio, got: cellAlpha(s.c), want, diff: Math.abs(cellAlpha(s.c) - want) };
+});
+ok(sampleRows.every(r => r.diff <= 0.02),
+  `⑤-b ★★★ 最小/中间/最大三个格子的 alpha == 条上同比例位置的 alpha（${sampleRows.map(r => r.tag + ' ' + r.amt + '元 α=' + r.got.toFixed(3) + ' vs ' + r.want.toFixed(3)).join(' | ')}）`);
+ok(Math.abs(cellAlpha(maxCell) - endAlpha[1]) <= 0.02,
+  `⑤-b ★★★ 值最大的格子（${maxCell.amt}元 ⇒ 1.000）== 条 100% 端（α ${cellAlpha(maxCell).toFixed(3)} vs ${endAlpha[1]}）`);
+// 值最小的格子严格说落在 3.4% 处（不是 0%），所以它应该**比 0% 端略实、且仍在 25% 刻度以内**；
+// "0% 端"由页面自己的取色函数核对（v=0 ⇒ 0.06），这才是真正的端点断言。
+const minRatio = minCell.amt / lg375.maxAmt;
+ok(cellAlpha(minCell) >= endAlpha[0] - 0.02 && cellAlpha(minCell) < barAlphaAt(0.25),
+  `⑤-b ★★★ 值最小的格子（${minCell.amt}元 ⇒ ${minRatio.toFixed(3)}）比 0% 端略实、但仍在 25% 刻度之内（α ${cellAlpha(minCell).toFixed(3)}：${endAlpha[0]} ≤ α < ${barAlphaAt(0.25).toFixed(3)}）`);
+// 热力图**全部**格子的 alpha 都出自这条色阶（与 lerp 值相等）
+const offRampAlpha = cellAmts.filter(c => Math.abs(cellAlpha(c) - barAlphaAt(c.amt / lg375.maxAmt)) > 0.02);
+ok(offRampAlpha.length === 0,
+  `⑤-b ★★★ 热力图全部 ${cellAmts.length} 个有色格子的 alpha 都出自这条色阶（不在的：${offRampAlpha.map(c => c.amt + '元/α' + c.alpha).join(', ') || '无'}）`);
+ok(cellAmts.every(c => cellAlpha(c) >= endAlpha[0] - 0.02 && cellAlpha(c) <= endAlpha[1] + 0.02),
+  `⑤-b ★★★ 所有格子 alpha 都落在条带两端之间 [${endAlpha[0]}, ${endAlpha[1]}]`);
+// 格子写的是同一支主题蓝（不是别处另一套颜色）：颜色只有一种，就是 --theme
+const fillColors = [...new Set(cellAmts.map(c => (rgbTriple(c.color) || []).join(',')))];
+ok(fillColors.length === 1 && fillColors[0] === (rgbTriple(lg375.theme) || []).join(','),
+  `⑤-b ★★★ 格子底色全是 --theme 本色（只靠 opacity 分深浅）：${fillColors.join(' / ')} vs theme ${rgbTriple(lg375.theme)}`);
+// 页面自己的取色函数与条带两端一致（不用 DOM，直接调页面函数）
+const fnEnds = JSON.parse(await evaluate(`(()=>{
+    if (typeof timelineHeatmapColorCss !== 'function') return JSON.stringify(null);
+    return JSON.stringify([timelineHeatmapColorCss(0, 7193), timelineHeatmapColorCss(7193, 7193)]);
+})()`));
+ok(!!fnEnds && Math.abs(alphaOf(fnEnds[0]) - endAlpha[0]) <= 1e-6,
+  `⑤-b ★★★ 页面取色在 v=0（最少钱的档）时正好是条带 0% 端（α ${fnEnds && alphaOf(fnEnds[0])} == ${endAlpha[0]}）`);
+ok(!!fnEnds && Math.abs(alphaOf(fnEnds[1]) - endAlpha[1]) <= 1e-6,
+  `⑤-b ★★★ 页面 timelineHeatmapColorCss(max) 的 alpha == 条带 100% 端（${fnEnds && alphaOf(fnEnds[1])} vs ${endAlpha[1]}）`);
 // 图例在热力图的**数据行下方**（.tl-heatmap 的 bottom 含最后一个格子的悬浮泡，
 // 那个泡是绝对定位、不算版式高度，所以拿最后一个数据行的 bottom 来比）
 const lastRowBottom = await evaluate(`(()=>{

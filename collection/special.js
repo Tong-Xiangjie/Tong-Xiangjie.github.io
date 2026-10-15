@@ -1274,16 +1274,46 @@ function backFromTimelineInner() {
 // 既是"按比例"，也不会因为金额很小而看不见（最低也有 0.10）。
 // 件数只出现在 tooltip 文案里（用户说"或者只看金额也可以"）。
 function timelineHeatmapOpacity(amount, maxAmount) {
-    if (!amount || amount <= 0) return 0;
-    if (!maxAmount || maxAmount <= 0) return 0.10;
-    return 0.10 + 0.85 * Math.min(1, amount / maxAmount);
+    return hmAlphaOf(amount, maxAmount);
+}
+
+// ---------- 热力图色阶（同一支主题蓝 + 透明度线性铺满整条） ----------
+// ★★ 用户五轮反馈的最终结论（最简方案）：
+//   ① "颜色渐变只在条的前面 25%" —— 老实现的**色停位置**是对的，但颜色不对：
+//      0% 是全透明、25% 就已经接近满色，之后三档几乎一样 ⇒ 后 75% 看着一片平。
+//   ② "还是之前那个配色" —— 配色就是原来那套：**同一支主题蓝 + 透明度**；
+//      钱最少那端"接近透明"（不是浅色、不是白色），色相全程不变，也不要彩虹色。
+//   ③ "说的是深浅" / "就把整条作为整体不就行了吗" —— 别手工写 5 个 alpha 色停，
+//      **整条当成一个整体、只用两个端点**，由浏览器线性插值，天然均匀。
+//   ⇒ 所以全站只有下面这一条**线性关系**：
+//        alpha(v) = HM_ALPHA_MIN + (HM_ALPHA_MAX − HM_ALPHA_MIN) × (v / max)
+//     图例条带 = `linear-gradient(to right, rgba(blue,0.06), rgba(blue,0.95))`（两个色停）；
+//     热力图格子 = 同一个 alpha(v) 当 opacity。
+//     于是"值为 v 的格子"与"条上 v/max 那个位置"必然相等 —— 这是**同一条直线的两端**，
+//     不需要再对色停、也不需要分档。
+//   ★ 端点的取值：0.06 = "接近透明"但**不是**全透明（用户要看得见有个淡块，
+//     而且 0 元格子本来就不画色块）；0.95 = 最深/最显眼那一档。
+const HM_ALPHA_MIN = 0.06;
+const HM_ALPHA_MAX = 0.95;
+// 整条只用这两个端点色（linear-gradient 的两个色停），格子与条带都从这里取值。
+const HM_FILL = 'var(--theme)';
+
+// 图例与格子共用的**透明度**：金额 → alpha。唯一一条定义，别在别处再写一套。
+//   ★ 端点必须**严格**是 HM_ALPHA_MIN / HM_ALPHA_MAX：
+//     金额 0（或只有 1 分钱）→ 0.06（"接近透明"，和条带 0% 端逐字节相等），
+//     金额 = maxAmount → 0.95（和条带 100% 端相等）。
+//   ★ "有没有画色块"由渲染端按金额决定，**不靠这里的 0**：老实现让 0 元返回 0，
+//     于是图例 0% 端写成透明度 0（全透明），整条的变化就全挤在前 25% 了。
+function hmAlphaOf(amount, maxAmount) {
+    const v = (typeof amount === 'number' && isFinite(amount)) ? amount : 0;
+    const ratio = (maxAmount > 0) ? Math.max(0, Math.min(1, v / maxAmount)) : 0;
+    return HM_ALPHA_MIN + (HM_ALPHA_MAX - HM_ALPHA_MIN) * ratio;
 }
 
 // ---------- 热力图图例（0/25/50/75/100% 五档） ----------
-// ★ 这里**不另造一套颜色**：五档的价格就是同一条连续色阶在 0/25/50/75/100% 处的取值
-//   （百分比 × 最大金额），颜色照旧由同一个 timelineHeatmapOpacity() 与同一套 CSS
-//   （--hm-o / --hm-bright / --hm-on）算出来 —— 所以"图例第 N 档的颜色"与"金额等于
-//   该档价格的格子的颜色"必然一致，改热力图的取色函数这里自动跟着变。
+// ★ 这里**不另造一套颜色/深浅**：五档的价格就是同一条色阶在 0/25/50/75/100% 处的取值
+//   （百分比 × 最大金额）；深浅由同一个 hmAlphaOf() 给出（与图例条带同一条直线）。
+//   所以"图例第 N 档"与"金额等于该档价格的格子"必然一致，改取色函数两边同时跟着变。
 // ★ 图例布局/刻度写法沿用「山河地图」那条图例（.shanhe-map-legend / .shanhe-legend-bar）：
 //   同一套 label + bar + label 的三段式，只是这里的条带是分段实数色、并带五个刻度。
 function timelineHeatmapTiers(maxAmount) {
@@ -1297,31 +1327,29 @@ function timelineHeatmapTiers(maxAmount) {
     }));
 }
 
-// 图例条带的**颜色**：必须是热力图那个色相的 sRGB 实色，而不是一条静态写死的渐变。
-//   color-mix(A p%, B) 的色相 = A 与 B 按 p 线性插值，不透明度另算；所以这里
-//   "预乘"出同一个色相：p = --hm-o × bright × 55% ⇒
-//     mix(--theme-light, --theme, p') 且 p' = p / --hm-o = bright × 55%
-//   于是这条渐变与"金额沿 0→最大金额 走一遍"的格子色相完全一致，
-//   改热力图的取色函数（--hm-bright 的权重）这里自动跟着变。
+// 图例条带 / 热力图格子共用的**取色**：金额 → `rgba(主题蓝, alpha)`。
 function timelineHeatmapColorCss(amount, maxAmount) {
-    const o = timelineHeatmapOpacity(amount, maxAmount);
-    if (o <= 0) return 'transparent';
-    const bright = (maxAmount > 0) ? Math.min(1, amount / maxAmount) : 0;
-    const pct = Math.round(bright * 55 * 10) / 10;
-    return `color-mix(in srgb, var(--theme-light, var(--theme)) ${pct}%, var(--theme))`;
+    return `rgba(22, 119, 255, ${hmAlphaOf(amount, maxAmount)})`;
 }
 
 // 图例条带：**一条连续渐变**（不是几个色块），0/25/50/75/100% 五处标注该档金额，
 // 中间三个节点各一根竖杠刻度（两端不画竖杠）。
 // ★ 宽度与热力条一致：直接复用热力图那一套网格（2.6em + 12×--hm-cell + 同一个 gap），
 //   所以左右边缘与热力图逐像素对齐，不另算宽度、也不会比热力图宽或窄。
+// ★★ 条带是**一条连续渐变，整条作为一个整体**：只用**两个色停**（0% 近透明 → 100% 最深），
+//   由浏览器按整条宽度线性插值 ⇒ 天然均匀，不存在"变化挤在前 25%"的问题。
+//   两个端点就是 hmAlphaOf 的上下限（HM_ALPHA_MIN / HM_ALPHA_MAX），
+//   与热力图格子的 opacity 是**同一条直线**，所以"值为 v 的格子"与"条上 v/max 处"必然相等。
+//   ★ 5 个金额标签 + 3 根竖杠照旧保留 —— 它们只是**刻度标注**，不参与配色。
 function timelineHeatmapLegendHtml(maxAmount) {
     const tiers = timelineHeatmapTiers(maxAmount);
-    const stops = tiers.map(t => `${timelineHeatmapColorCss(t.amount, maxAmount)} ${t.percent}%`).join(', ');
+    const stops = `rgba(22, 119, 255, ${HM_ALPHA_MIN}), rgba(22, 119, 255, ${HM_ALPHA_MAX})`;
     let html = `<div class="tl-heatmap-legend">`;
     html += `<span class="tl-hm-legend-spacer"></span>`;      // 与热力图的年份列同宽
     html += `<span class="tl-hm-legend-slot">`;               // 与那 12 个格子同宽
-    html += `<span class="tl-hm-legend-bar" style="background-image:linear-gradient(to right, ${stops})"></span>`;
+    // ★ 条带带 tl-hm-on：深色模式那条压暗滤镜（html[data-color-scheme="dark"] .tl-hm-on ...）
+    //   用它来同时命中格子和条带 —— 两边始终同一条公式，不会一边暗一边亮。
+    html += `<span class="tl-hm-legend-bar tl-hm-on" style="background-color:${HM_FILL};background-image:linear-gradient(to right, ${stops})"></span>`;
     // 刻度：25/50/75 三根竖杠（0% 与 100% 是条带两端，不画）
     html += `<span class="tl-hm-legend-marks">`;
     for (const t of tiers) {
@@ -1628,23 +1656,28 @@ function buildMonthHeatmap(items) {
             `<span class="tl-heatmap-tip">${ytip}</span></div>`;
         for (let m = 0; m < 12; m++) {
             const c = cells[m];
-            // 连续深浅：直接把这个格子的透明度写成内联自定义属性（CSS 读不到 DOM 里的金额，
-            // 所以"无限档"只能由 JS 给一个值；这不是给 tooltip 写内联样式，tooltip 仍是纯 CSS 定位）
-            const o = timelineHeatmapOpacity(c.sum, maxAmount);
-            // ★ --hm-src = 这一格的原始金额；--hm-bright = 0→1 的档位比例（最亮那档 = 1）。
-            //   两者都只是"把这格的取值交给 CSS"（CSS 读不到 DOM 里的数字），
-            //   与 --hm-o 同一性质，不是给 tooltip 写内联定位。
+            // 连续深浅：直接把这个格子的金额在色阶上的位置算成**透明度**
+            // （CSS 读不到 DOM 里的金额，所以只能由 JS 给值；这不是给 tooltip 写内联样式）
+            // ★ 有没有色块由**金额**决定（0 元 = 不画），alpha 由 hmAlphaOf 给；
+            //   o > 0 只为沿用既有 CSS 钩子（--hm-o / .tl-hm-on），0 元时干脆不写这两个东西。
+            const o = (c.sum > 0) ? timelineHeatmapOpacity(c.sum, maxAmount) : 0;
+            // ★★ 格子 = 主题蓝实色 + 该档 alpha，与图例条带**同一个函数、同一组 5 档 alpha**。
+            //   底色的实色统一走 CSS 里的 .tl-hm-fill（background: var(--theme)），
+            //   这里只写 opacity ⇒ 主题色换了格子跟着换，而"图例↔格子 alpha 逐档相等"不变。
             const bright = (maxAmount > 0) ? Math.min(1, c.sum / maxAmount) : 0;
+            // --hm-src = 这一格的原始金额；--hm-bright = 0→1 的档位比例（最亮那档 = 1）；
+            // --hm-o 就是这一档的 alpha（CSS 直接用它当 opacity）。
             const styleAttr = o > 0
                 ? ` style="--hm-o:${Math.round(o * 1000) / 1000};--hm-src:${Math.round(c.sum)};--hm-bright:${bright.toFixed(3)}"`
                 : '';
-            // tl-hm-on 只为"有金额"的格子加：深色主题那条 calc() 提亮只该作用在它们身上，
-            // 否则 0 元的空格子也会被抬到 0.08（测出来过），空月份会微微泛色
+            // tl-hm-on 只为"有金额"的格子加：深色主题那条压暗滤镜只该作用在它们身上
             const onClass = o > 0 ? ' tl-hm-on' : '';
             const label = tipOf(`${y}年${m + 1}月`, c.n, c.sum);
             const edge = m === 0 ? ' tl-hm-first' : (m === 11 ? ' tl-hm-last' : '');
             html += `<div class="tl-heatmap-cell${edge}${onClass}"${styleAttr} tabindex="0" role="button"` +
                 ` data-year="${y}" data-month="${String(m + 1).padStart(2, '0')}"` +
+                ` data-amount="${Math.round(c.sum)}" data-bright="${bright.toFixed(3)}"` +
+                ` data-alpha="${o > 0 ? o : ''}"` +
                 ` aria-label="${escapeAttr(label)}" onclick="onHeatmapCellClick(${y}, ${m + 1})">` +
                 `<i class="tl-hm-fill"></i><span class="tl-heatmap-tip">${escapeHtml(label)}</span></div>`;
         }

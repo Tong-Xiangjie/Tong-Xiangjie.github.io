@@ -2498,28 +2498,34 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .tl-heatmap-cell:hover > .tl-hm-fill { transform: scale(1.04); }
 .tl-heatmap-cell:hover { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16); z-index: 3; }
 .tl-heatmap-cell:focus-visible { box-shadow: 0 0 0 2px var(--theme); z-index: 3; }
-/* 深浅不分档：每个格子由 JS 写一个连续的 --hm-o（0 = 这个月没买），
-   色相取 --theme，所以自动跟随用户选的 app 主题色，也不用 color-mix。
-   ★ 色相**随档位提亮**（用户要求"最亮的颜色还可以更加亮以拉开颜色区分度"）：
-   --hm-bright（0→1，JS 按"金额/最大金额"给出）越大，色相越偏向更亮的 --theme-light。
-   为 0 时 color-mix 出 --theme（与改动前完全一样），为 1 时是 --theme-light —— 也就是
-   山河图例那根条带的右端色。深色模式下 --theme-light 由 applyTheme() 提亮 35%，
-   暗底上的可读性也随之改善。 */
+/* 深浅：**同一支主题蓝 + 透明度**（用户五轮反馈后的最终配色）。
+   色相永远取 --theme（自动跟随用户选的 app 主题色），深浅只由 opacity 表达；
+   金额最小的格子"接近透明"，最大的一档最深（0.95）。
+   ★ 三条历史教训记在这里，别再走回去：
+     ① 最早 0% 是 transparent、25% 就接近满色 ⇒ "渐变只在前 25%"（用户两轮反馈）；
+     ② 中途试过 color-mix(--theme-light p%, --theme) ⇒ 四档通道差只有 0.02~0.04，
+        肉眼一片同色（同一个问题的另一种表现）；
+     ③ 也试过"用浅→深实色" ⇒ 起点变成发白的浅蓝，用户明确说"还是之前那个配色，
+        钱最少的接近透明"。所以**颜色永远是 --theme，只动 opacity**。
+   opacity 的值由 JS 按 hmAlphaOf() 写成内联 --hm-o（与图例条带同一条线性关系）。 */
 .tl-hm-fill {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: color-mix(in srgb,
-        var(--theme-light, var(--theme)) calc(var(--hm-bright, 0) * 55%),
-        var(--theme));
+    background: var(--theme);
     opacity: var(--hm-o, 0);
     pointer-events: none;
     transition: transform 0.12s ease;
 }
-/* 深色底本身很暗，同样的透明度看着更淡：有金额的格子整体平滑抬一档（乘 0.92 再加 0.08）。
-   ★ 必须限定在 .tl-hm-on（有金额）上：否则 0 元的空格子也会被抬到 0.08，空月份会微微泛色
-   ★ 图例条带的有色段也带 .tl-hm-on，所以它和格子走的是**同一条**公式。 */
-html[data-color-scheme="dark"] .tl-hm-on .tl-hm-fill { opacity: calc(var(--hm-o, 0) * 0.92 + 0.08); }
+/* ★★ 深色模式下**不做任何特殊处理**（这里曾经有一条 brightness 压暗规则，已删除）：
+   ① 用户明确说"接近透明在深色背景上更接近背景色，这是符合预期的，别为了可见性把它加白"；
+      同理，压暗也属于"为了好看而动色阶"，会把"图例 ↔ 热力图逐档相等"这条硬要求变得更难验证。
+   ② 实测过：`html[data-color-scheme="dark"] .tl-hm-on .tl-hm-legend-bar { filter: … }`
+      在真机上根本不匹配（同一个元素 `.tl-hm-on` 和 `.tl-hm-legend-bar` 单独都 matches、
+      组合成后代选择器就 false —— 而同样写法作用在 .tl-hm-fill 上却是 true）。
+      这种"规则写了但静默不生效"最容易骗过 review：看起来有深色适配，实际只有格子被改了、
+      条带没改 ⇒ 深色下图例和热力图就不是一套颜色了。所以**删掉整条规则**，
+      两边都交给同一份 alpha 色阶，深色浅色完全一致。 */
 
 /* ---------- 色阶图例（0/25/50/75/100%）----------
    ★ 只保留三样东西：渐变指示条 + 中间三根竖杠 + 五个居中的金额标签。
