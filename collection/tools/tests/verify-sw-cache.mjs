@@ -28,7 +28,18 @@ const server = createServer(async (req, res) => {
     if (!existsSync(full) || (await stat(full)).isDirectory()) { res.writeHead(404).end('nf'); return; }
     let buf = await readFile(full);
     if (p.endsWith('/sw.js') && swVariant) buf = Buffer.concat([buf, Buffer.from('\n// redeploy-marker\n')]);
-    res.writeHead(200, { 'Content-Type': MIME[extname(full).toLowerCase()] || 'application/octet-stream', 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=600' });
+    // ★ SW 脚本必须**不可长缓存**。原先一律发 `public, max-age=600`，而 sw.js 也吃到了这个头 ——
+    //   按规范 SW 脚本理应按 max-age 缓存（浏览器自 2018 起不再对 SW 脚本施加上限），
+    //   于是 `registration.update()` 有可能直接命中 HTTP 缓存、拿到的还是旧字节，
+    //   新版本永远不装、activate 里的清缓存也就不跑。CI 上 windows 那两条
+    //   "旧缓存没被清掉"正是这么来的（10s 轮询等不到，因为压根没发生升级）。
+    //   真实部署也是这么发的（SW 必须 no-cache，否则更新传不出去），所以这里跟着改。
+    const isSW = p.endsWith('/sw.js');
+    res.writeHead(200, {
+      'Content-Type': MIME[extname(full).toLowerCase()] || 'application/octet-stream',
+      'Content-Length': buf.length,
+      'Cache-Control': isSW ? 'no-cache' : 'public, max-age=600'
+    });
     res.end(buf);
   } catch (e) { console.log('    [服务器错误] ' + p + ' :: ' + e.message); res.writeHead(500).end(String(e.message)); }
 });
@@ -164,16 +175,36 @@ const updated = await evaluate(`(async () => {
   const r = await navigator.serviceWorker.getRegistration();
   if (!r) return 'no-reg';
   await r.update();
-  for (let i = 0; i < 40; i++) {
-    if (r.active && r.active.scriptURL && (await caches.keys()).indexOf('collection-images-v0') === -1) return 'ok';
+  // ★ 等两个条件同时成立：新 SW 真的**接管**（activated / controller 换成它），且旧缓存被清掉。
+  //   只轮询"缓存没了"看不出到底是"没升级"还是"升级了但没清"，
+  //   诊断里把 SW 状态与 scriptURL 一起带出来，下次 CI 红了能一眼区分。
+  const t0 = Date.now();
+  for (let i = 0; i < 120; i++) {
+    const keys = await caches.keys();
+    const ctrl = navigator.serviceWorker.controller;
+    if (r.active && r.active.state === 'activated' && ctrl && keys.indexOf('collection-images-v0') === -1) {
+      return 'ok:' + (Date.now() - t0) + 'ms';
+    }
     await new Promise(s => setTimeout(s, 250));
   }
-  return 'timeout';
+  const keys = await caches.keys();
+  return 'timeout:' + (Date.now() - t0) + 'ms'
+    + ' active=' + (r.active ? (r.active.state + '@' + String(r.active.scriptURL).split('/').slice(-2).join('/')) : 'none')
+    + ' installing=' + (r.installing ? r.installing.state : 'none')
+    + ' waiting=' + (r.waiting ? r.waiting.state : 'none')
+    + ' controller=' + (navigator.serviceWorker.controller ? '有' : '无')
+    + ' keys=' + JSON.stringify(keys);
 })()`);
-await sleep(600);
+console.log('  升级结果：' + updated);
+// 再给 activate 的清理一点时间（轮询已经等到 keys 里没有 v0 了，这里只是兜底）
+for (let i = 0; i < 20; i++) {
+  const k = await evaluate(`caches.keys()`);
+  if (!k.includes('collection-images-v0') && !k.includes('collection-assets-v0')) break;
+  await sleep(250);
+}
 const keysAfter = await evaluate(`caches.keys()`);
-ok(!keysAfter.includes('collection-images-v0'), '★ 升级后旧的 collection-images-v0 被清掉', JSON.stringify(keysAfter));
-ok(!keysAfter.includes('collection-assets-v0'), '★ 升级后旧的 collection-assets-v0 被清掉');
+ok(!keysAfter.includes('collection-images-v0'), '★ 升级后旧的 collection-images-v0 被清掉', JSON.stringify(keysAfter) + ' / update=' + updated);
+ok(!keysAfter.includes('collection-assets-v0'), '★ 升级后旧的 collection-assets-v0 被清掉', 'update=' + updated);
 ok(keysAfter.includes('stardust-migration-images'), '★ 别的项目的缓存（stardust-migration-images）没有被误删');
 ok(keysAfter.some(k => k.startsWith('collection-images-v')), '当前版本的图片缓存仍在（升级不会清掉用户已缓存的图）');
 const keptImg = await evaluate(`(async () => { const k = (await caches.keys()).find(x => x.startsWith('collection-images-v')); const c = await caches.open(k); return (await c.match(${JSON.stringify(IMG)}, { ignoreSearch: true })) ? 1 : 0; })()`);
