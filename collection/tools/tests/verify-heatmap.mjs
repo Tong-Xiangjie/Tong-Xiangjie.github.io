@@ -3203,6 +3203,340 @@ console.log('\n══════ ⑦-d 深链接冷启动（直接打开 #speci
   await sleep(400);
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// ⑦-e 换时间范围时，顶部那两个自绘下拉**不许被拆掉重建**（用户报的"闪动一下"）
+//
+// 症状（用户原话）："为什么每次换选择的时间段，那个下拉栏就像是要'重建'一下，闪动一下。"
+// 上一层线索（用户补充）："之前不是禁用了原生下拉栏吗？原来是闪回原生下拉栏，现在就是先空一下。"
+//
+// 实测根因（落笔前在未修改的工作区复现，见 %TEMP%/hmdiag/paint.mjs）：
+//   `renderTimelineContent` 用 `app.innerHTML = html` **整块**换掉内容，而 `.dd` 就写在
+//   那段 html 里 ⇒ 老壳（连同 `.dd-trigger`/`.dd-label-text` 及监听器）作为旧子树被丢弃，
+//   新 `<select>` 身上没有 `__dd`，建壳又要等 rAF（`schedule`）或 32ms 去抖
+//   ⇒ **中间那一帧被真的画了出来**：
+//     t=2309.9ms  .dd=2 壳=[d2,d3] 文字=["全部年份","全部月份"]  .timeline-top-right=422.77px
+//     t=2394.8ms  .dd=0 壳=[]      文字=[]                      .timeline-top-right=214.77px  ← 空帧
+//     t=2408.5ms  .dd=2 壳=[d4,d5] 文字=["2026年","全部月份"]   .timeline-top-right=422.77px
+//   "空白 + 控件区塌 208px（'共N件'与两个排序按钮整排横移）"叠加 = 用户看到的"闪动/像重建"。
+//   控制组（再选同一个值 → `onTimelineFilterChangeInner` 提前 return，不重渲染）**0 空帧**，
+//   证明"闪动"与"重渲染"严格一一对应。
+//
+// 修法：`special.js` 的 `renderIntoContainerWithDropdowns()` 在 `innerHTML` 之前
+//   `captureCustomDropdowns` 把壳摘下来、之后 `adoptCustomDropdowns` 认领回去
+//   （dropdown.js 只增不改的两个导出）⇒ `.dd`/`.dd-trigger`/`.dd-label-text` 身份不变。
+//
+// ★ 本节的判据（全部用**绝对/几何量**，不依赖字体渲染）：
+//   ① 全程**不存在**"原生 select 可见"的帧；
+//   ② 全程**不存在**"原生被藏 且 .dd 数=0"的空白帧；
+//   ③ 两个 `.dd` 的**节点身份**全程只有 1 种取值（触发按钮与标签文字节点同）；
+//   ④ 两个 `.dd` 的**自身宽度**全程恒定，且 `.timeline-top-right` 从不塌陷到"没有下拉"的宽度；
+//   ⑤ 【护栏】同一次采样里 top-bar 高度与热力图**文档绝对 top** 必须单值 ⇒ 证明这次的
+//      改动没有把上面 ⑦-d 的沉降修复弄回去。
+//   ⑥ 控制组（再选同一个值）必须也是"零空白 + 身份不变"，防止断言被写成恒真。
+// ══════════════════════════════════════════════════════════════════════════
+console.log('\n══════ ⑦-e 换筛选时下拉控件不许重建（"闪动一下"）══════\n');
+{
+  // 页面侧仪表：给节点打身份，逐帧采样
+  const ddInst = `(function(){
+    window.__ddW = new WeakMap(); window.__ddN = 0; window.__ddFrames = []; window.__ddOn = false;
+    function idOf(el){ if(!el) return null; var v=window.__ddW.get(el); if(!v){ v='e'+(++window.__ddN); window.__ddW.set(el,v); } return v; }
+    window.__ddIdOf = idOf;
+    window.__ddProbe = function(){
+      var root = getRenderContainer();
+      var bar = root.querySelector('.timeline-top-bar');
+      if(!bar) return { noBar:true };
+      var dds = [].slice.call(bar.querySelectorAll('.dd'));
+      var sels = [].slice.call(bar.querySelectorAll('select'));
+      var vis = sels.filter(function(s){ var c=getComputedStyle(s);
+        return c.display!=='none' && c.visibility!=='hidden' && +c.opacity>0; }).length;
+      var tr = bar.querySelector('.timeline-top-right');
+      var hm = root.querySelector('.tl-heatmap');
+      return { t: +performance.now().toFixed(1),
+        nDd: dds.length, nSel: sels.length, nativeVis: vis,
+        ddId: dds.map(idOf),
+        trId: dds.map(function(d){ return idOf(d.querySelector('.dd-trigger')); }),
+        ltId: dds.map(function(d){ return idOf(d.querySelector('.dd-label-text')); }),
+        ddW: dds.map(function(d){ return +d.getBoundingClientRect().width.toFixed(2); }),
+        texts: dds.map(function(d){ var x=d.querySelector('.dd-label-text'); return x?x.textContent:null; }),
+        trW: tr ? +tr.getBoundingClientRect().width.toFixed(2) : null,
+        barH: +bar.getBoundingClientRect().height.toFixed(2),
+        hmAbs: hm ? +(hm.getBoundingClientRect().top + window.scrollY).toFixed(2) : null };
+    };
+    function loop(){ if(!window.__ddOn) return; window.__ddFrames.push(window.__ddProbe()); requestAnimationFrame(loop); }
+    window.__ddStart = function(){ window.__ddOn = true; window.__ddFrames = []; requestAnimationFrame(loop); };
+    window.__ddStop = function(){ window.__ddOn = false; return JSON.stringify(window.__ddFrames); };
+    // 负例A：把整块重渲染换回"只有 app.innerHTML = html"（即修复前的行为）
+    window.__negNoAdopt = function(){
+      window.__origRenderInto = window.renderIntoContainerWithDropdowns;
+      window.__negCalls = 0;
+      window.renderIntoContainerWithDropdowns = function(app, html){ window.__negCalls++; app.innerHTML = html; };
+      return typeof window.renderIntoContainerWithDropdowns === 'function';
+    };
+    window.__negNoAdoptRestore = function(){
+      if (window.__origRenderInto) window.renderIntoContainerWithDropdowns = window.__origRenderInto;
+      return 1;
+    };
+    // 负例B：让原生 <select> 露脸（摘掉 .dd-native，它带着 display:none !important）
+    window.__negNativeVisible = function(){
+      [].slice.call(document.querySelectorAll('select.dd-native')).forEach(function(s){ s.classList.remove('dd-native'); });
+      var st = document.createElement('style'); st.id = '__negNative';
+      st.textContent = '.dd-native, select { display: block !important; }';
+      document.head.appendChild(st);
+      var s2 = document.getElementById('timelineYearFilter');
+      window.__negNativeRestore = function(){ try{ st.remove(); }catch(e){}
+        [].slice.call(document.querySelectorAll('select')).forEach(function(s){ s.classList.add('dd-native'); }); return 1; };
+      return s2 ? getComputedStyle(s2).display : 'no select';
+    };
+    return 1; })()`;
+  const ddSwitch = (v) => evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter');
+    s.value=${JSON.stringify(v)}; s.dispatchEvent(new Event('change',{ bubbles:true })); return 1; })()`);
+  // 一行断言的公共部分。
+  // ★ `neg` 模式：这是**故意注入的回归**，我们**期望**这些判据报红。所以这里只测量、
+  //   不以"通过/失败"计分（否则一个成功的负例反而给计数 +8 失败）。
+  //   调用方随后用 `ok(违规量 > 0, …)` 把"负例确实报红了"记成一条**通过**。
+  const checkFrames = (tag, fr, neg) => {
+    const blank = fr.filter(f => f.nDd === 0 && f.nSel > 0 && f.nativeVis === 0);
+    const nat = fr.filter(f => f.nativeVis > 0);
+    const ddIds = [...new Set(fr.map(f => JSON.stringify(f.ddId)))];
+    const trIds = [...new Set(fr.map(f => JSON.stringify(f.trId)))];
+    const ltIds = [...new Set(fr.map(f => JSON.stringify(f.ltId)))];
+    const ddWs = [...new Set(fr.map(f => JSON.stringify(f.ddW)))];
+    const barHs = [...new Set(fr.map(f => f.barH))];
+    const hmAbs = [...new Set(fr.map(f => f.hmAbs))];
+    const noDown = fr.filter(f => f.trW != null && f.trW < 300);
+    // 判据逐条：正常模式记分；负例模式只收集"这条判据红了没有"
+    const A = [
+      ['全程**不存在原生 select 可见的帧**（原生被 CSS `.dd-native{display:none!important}` 藏住，任何一帧露脸都是回归）',
+        nat.length === 0, `（${nat.length} 帧）`],
+      ['全程**不存在"控件区空白帧"**（原生被藏 且 .dd 数=0 的帧）',
+        blank.length === 0, `（${blank.length}${blank.length ? ' @' + blank.slice(0, 4).map(f => f.t + 'ms').join(',') : ''}）`],
+      ['两个 `.dd` 节点**身份全程不变** —— 这是用户说的"像要重建一下"的直接判据',
+        ddIds.length === 1, `（${ddIds.length} 种取值：${ddIds.join(' | ')}）`],
+      ['`.dd-trigger` 与 `.dd-label-text` 节点身份也全程不变',
+        trIds.length === 1 && ltIds.length === 1, `（触发按钮 ${trIds.length} 种、标签文字 ${ltIds.length} 种）`],
+      ['两个下拉的**自身宽度**全程恒定',
+        ddWs.length === 1, `（${ddWs.length} 种取值：${ddWs.join(' | ')}）`],
+      ['控件区 `.timeline-top-right` **从不塌陷**（宽度 < 300px 的帧）—— 下拉消失会让"共N件"和两个排序按钮整排横移 208px',
+        noDown.length === 0, `（${noDown.length}${noDown.length ? '，最窄 ' + Math.min(...noDown.map(f => f.trW)) + 'px' : ''}）`],
+      ['【护栏】top-bar 高度与热力图**文档绝对 top** 全程单值 ⇒ ⑦-d 的沉降修复未被回退',
+        barHs.length === 1 && hmAbs.length === 1, `（高度 ${JSON.stringify(barHs)}、绝对 top ${JSON.stringify(hmAbs)}）`],
+    ];
+    if (!neg) {
+      for (const [msg, cond, extra] of A) ok(cond, `⑦-e ${tag} ★★★ ${msg}${extra}`);
+    }
+    // 负例模式：返回"红了几条"，供调用方断言"必须红"
+    const red = A.filter(([, cond]) => !cond).length;
+    return { blank: blank.length, nat: nat.length, red, total: A.length, ddIds: ddIds.length, noDown: noDown.length };
+  };
+
+  for (const [W, H, tag] of [[1920, 1080, '1920x1080'], [375, 720, '375x720']]) {
+    await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: W < 500 });
+    await send('Page.navigate', { url: `${BASE}?k=${Date.now()}-dde#special/timeline` });
+    for (let i = 0; i < 80; i++) { if (await evaluate(`!!document.querySelector('.tl-heatmap')`).catch(() => false)) break; await sleep(150); }
+    await sleep(320);
+    await evaluate(ddInst);
+    // 确保起点是"全部"
+    await ddSwitch('全部'); await sleep(500);
+    const idBefore = JSON.parse(await evaluate(`JSON.stringify((function(){ var p=window.__ddProbe();
+      return { ddId:p.ddId, trId:p.trId, ltId:p.ltId, texts:p.texts, ddW:p.ddW, trW:p.trW }; })())`));
+    ok(idBefore.ddId.length === 2 && idBefore.ddId.every(Boolean),
+      `⑦-e ${tag} 采样起点：两个下拉都在（身份 ${JSON.stringify(idBefore.ddId)}、宽 ${JSON.stringify(idBefore.ddW)}、文字 ${JSON.stringify(idBefore.texts)}）`);
+
+    // ── ① 真实点击路径：点触发器 → 点"2026年" ──
+    await evaluate(`window.__ddStart()`);
+    await evaluate(`(function(){ var b=document.querySelector('.dd[data-dd-for="timelineYearFilter"]');
+      b.querySelector('.dd-trigger').click();
+      var o=b.querySelector('.dd-popup .dd-opt[data-value="2026"]'); if(o) o.click(); return 1; })()`);
+    await sleep(750);
+    const fr1 = JSON.parse(await evaluate(`window.__ddStop()`));
+    checkFrames(`${tag} 真实点击 全部→2026年`, fr1);
+    const idAfter = JSON.parse(await evaluate(`JSON.stringify((function(){ var p=window.__ddProbe();
+      return { ddId:p.ddId, trId:p.trId, ltId:p.ltId, texts:p.texts }; })())`));
+    ok(JSON.stringify(idBefore.ddId) === JSON.stringify(idAfter.ddId) &&
+       JSON.stringify(idBefore.trId) === JSON.stringify(idAfter.trId) &&
+       JSON.stringify(idBefore.ltId) === JSON.stringify(idAfter.ltId),
+      `⑦-e ${tag} ★★★ 切换前后 \`.dd\`/\`.dd-trigger\`/\`.dd-label-text\` 身份逐项相同（${JSON.stringify(idBefore.ddId)} → ${JSON.stringify(idAfter.ddId)}）`);
+    ok(JSON.stringify(idBefore.texts) !== JSON.stringify(idAfter.texts) && idAfter.texts[0].indexOf('2026') >= 0,
+      `⑦-e ${tag} ★★ 就地更新：文字确实跟着变了（${JSON.stringify(idBefore.texts)} → ${JSON.stringify(idAfter.texts)}）—— 节点没换、内容换了，才是"就地更新"而不是"什么都不做"`);
+
+    // ── ② 程序化路径：换月份 ──
+    await evaluate(`window.__ddStart()`);
+    await evaluate(`(()=>{ const s=document.getElementById('timelineMonthFilter'); s.value='07';
+      s.dispatchEvent(new Event('change',{ bubbles:true })); return 1; })()`);
+    await sleep(750);
+    checkFrames(`${tag} 程序化 换月份→07`, JSON.parse(await evaluate(`window.__ddStop()`)));
+
+    // ── ③ 控制组：再选**同一个值**（`onTimelineFilterChangeInner` 提前 return，不重渲染） ──
+    await evaluate(`window.__ddStart()`);
+    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='2026';
+      s.dispatchEvent(new Event('change',{ bubbles:true })); return 1; })()`);
+    await sleep(500);
+    const fr3 = JSON.parse(await evaluate(`window.__ddStop()`));
+    const c3 = checkFrames(`${tag} 控制组：再选同一个值（不重渲染）`, fr3);
+    ok(c3.blank === 0 && c3.nat === 0,
+      `⑦-e ${tag} 控制组确认"不重渲染 ⇒ 零空白帧"（空白 ${c3.blank}、原生 ${c3.nat}）—— 这条同时证明上面的断言不是恒真`);
+
+    // ── ④ 负例A：换回"只有 innerHTML = html"⇒ 断言必须报红 ──
+    const instA = await evaluate(`window.__negNoAdopt()`);
+    ok(instA === true, `⑦-e ${tag} 负例A 已把整块重渲染换回"只有 app.innerHTML = html"（即修复前行为）`);
+    await evaluate(`window.__ddStart()`);
+    const atStart = await evaluate(`(function(){ try{ return timelineFilterYear; }catch(e){ return 'ERR'; } })()`);
+    await ddSwitch('全部');
+    await sleep(900);
+    const frA = JSON.parse(await evaluate(`window.__ddStop()`));
+    const callsA = await evaluate(`window.__negCalls`);
+    ok(callsA > 0, `⑦-e ${tag} 负例A 的覆盖确实生效（被调用 ${callsA} 次；起点 timelineFilterYear=${atStart}）—— 0 次说明覆盖没生效、这个负例无效`);
+    const nA = checkFrames(`${tag} 负例A`, frA, true);
+    ok(nA.red > 0,
+      `⑦-e ${tag} ★★★ 负例A **必须报红**：去掉保壳后 ${nA.red}/${nA.total} 条判据变红（空白帧 ${nA.blank}、身份 ${nA.ddIds} 种取值、控件区塌陷帧 ${nA.noDown}）⇒ 说明这些判据真的能抓到"重建/闪动"`);
+    await evaluate(`window.__negNoAdoptRestore()`);
+    // 恢复：重新加载一次拿到未被覆盖的页面
+    await send('Page.navigate', { url: `${BASE}?k=${Date.now()}-dde2#special/timeline` });
+    for (let i = 0; i < 80; i++) { if (await evaluate(`!!document.querySelector('.tl-heatmap')`).catch(() => false)) break; await sleep(150); }
+    await sleep(320); await evaluate(ddInst); await ddSwitch('全部'); await sleep(400);
+
+    // ── ⑤ 负例B：让原生 select 露脸 ⇒ "原生可见帧 === 0"必须报红 ──
+    const dispB = await evaluate(`window.__negNativeVisible()`);
+    ok(dispB === 'block', `⑦-e ${tag} 负例B 已让原生 select 显示出来（computed display=${dispB}）—— 不是 block 说明注入没生效、这个负例无效`);
+    await evaluate(`window.__ddStart()`);
+    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='2025';
+      s.dispatchEvent(new Event('change',{ bubbles:true })); return 1; })()`);
+    await sleep(800);
+    const frB = JSON.parse(await evaluate(`window.__ddStop()`));
+    const nB = checkFrames(`${tag} 负例B`, frB, true);
+    ok(nB.nat > 0,
+      `⑦-e ${tag} ★★★ 负例B **必须报红**：注入"原生可见"后测到原生可见帧 ${nB.nat} 个、共 ${nB.red}/${nB.total} 条判据变红 ⇒ 说明"原生可见帧 === 0"这条判据真的能抓到这个回归`);
+    await evaluate(`window.__negNativeRestore && window.__negNativeRestore()`);
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
+  await sleep(600);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ⑦-f 顶部那一行的高度不许被"原生 <select> → 自绘 .dd"的增强改动（CI 专项）
+//
+// 背景（ubuntu-latest CI 在 84484b3f 上 ⑦-d 报了 16 条红）：
+//   `✗ 冷启动：热力图相对 .body-row 的偏移全程恒定（X=[17]、Y=[132,129]）`
+//   `✗ 冷启动：顶部工具条高度全程恒定（[45,42]）`
+//   本机同代码是单值（[145]/[46]）⇒ 这是**字体度量相关**的差异。机制：
+//     `.timeline-filter-select` 写死了 `height: 28px`，
+//     而 `.dd-trigger` 的高度是**字体相关**的（`padding: 2px` + `1px` 边框 + 一行 `line-height: 1.5`）。
+//     两者盒高只要不严格相等，"那一行里最高的元素"就会在增强前后换人 ⇒ 行高跳一下
+//     ⇒ 下面整块（热力图）跟着跳 ⇒ ⑦-d 的"相对 .body-row 的偏移"和"顶栏高度"出现两个取值。
+//
+// 本机复现（%TEMP%/hmdiag/tbfit.mjs）：把字体换成 monospace 13px / Georgia 15px / Times 17px …
+//   在**未修复**的盒模型下，`.dd-trigger` 会变成 26 / 29 / 32px（原生 select 恒为 28px），
+//   而顶栏高度出现 45→42.5（monospace 13px）、45→44（DejaVu Sans 12px）这类两取值。
+//
+// 修法（layout.css，用"同一个盒高"而不是猜某个机器的 px）：
+//   `.timeline-top-bar { --tl-ctl-h: 28px }`，`.timeline-filter-select` 与
+//   `.dd[data-dd-for=…] .dd-trigger` 都吃这个变量（全局 `box-sizing: border-box`），
+//   `.dd-trigger` 去掉竖向 padding（它本来就是 flex + align-items:center）。
+//   ⇒ 字体只影响盒**内部**的文字基线，不再影响盒高。
+//
+// ★ 判据的关键：`textBox` = 用 `Range.getBoundingClientRect()` 量的**文字行盒**高度，
+//   它是**字体度量相关**的（本机实测不同字体取到 13/15/17/19/20 五个值）。
+//   断言 `trgH === selH`（两者都是 border-box 实高）在**所有**字体下都成立。
+//   为了证明这条断言不是恒真，同一个探针还会在"中和修复"（现场注入更高特异性的
+//   `height:auto; padding:2px` 规则，不删原规则）后重量一次，那时 `trgH !== selH`
+//   必须成立（本机实测 24/26/29/27/32/24 vs 28）—— 有分界才算真的在测东西。
+// ══════════════════════════════════════════════════════════════════════════
+console.log('\n══════ ⑦-f 增强前后顶栏行高严格相等（CI 字体度量专项）══════\n');
+{
+  // ★ 这一段要在**干净的文档**上量：先导航回 timeline 深链接
+  await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await send('Page.navigate', { url: `${BASE}?tlh=${Date.now()}#special/timeline` });
+  for (let i = 0; i < 80; i++) { if (await evaluate(`!!document.querySelector('.tl-heatmap')`).catch(() => false)) break; await sleep(150); }
+  await sleep(900);
+
+  const fitProbe = `(function(){
+    var root = getRenderContainer(); var bar = root.querySelector('.timeline-top-bar');
+    if (!bar) return { noBar: 1 };
+    var trg = bar.querySelector('.dd[data-dd-for="timelineYearFilter"] .dd-trigger');
+    if (!trg) return { noDD: 1 };
+    var cs = getComputedStyle(trg);
+    // textBox：把**同样字面**的一段文字放进绝对定位的 span，量它第 1 个文字行盒的高度。
+    // 这个值只由字体度量决定（与 .dd-trigger 的实际盒高无关）⇒ 是"字体在不在起作用"的证据。
+    var pr = document.createElement('span');
+    pr.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font-family:' + cs.fontFamily
+      + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle
+      + ';letter-spacing:' + cs.letterSpacing + ';line-height:' + cs.lineHeight + ';';
+    pr.textContent = '2026年';
+    bar.appendChild(pr);
+    var rg = document.createRange(); rg.selectNodeContents(pr.firstChild);
+    var textBox = +rg.getBoundingClientRect().height.toFixed(3);
+    pr.remove();
+    var back = bar.querySelector('.back-btn');
+    return {
+      textBox: textBox,
+      trgH: trg.offsetHeight,
+      trgComputed: cs.height,
+      trgPadTB: parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom),
+      selH: +getComputedStyle(document.getElementById('timelineYearFilter')).height.replace('px', ''),
+      backH: back ? +back.getBoundingClientRect().height.toFixed(2) : null,
+      barH: +bar.getBoundingClientRect().height.toFixed(2),
+      ddN: bar.querySelectorAll('.dd').length,
+      nativeVisible: [].slice.call(bar.querySelectorAll('select')).filter(function (s) {
+        var c = getComputedStyle(s); return c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0; }).length,
+    };
+  })()`;
+  // 现场注入：① 字体覆盖（改字体度量）② 中和修复（更高特异性、无 !important，压过修复规则但不删它）
+  const setFit = async (fontSpec, neutral) => {
+    const fcss = fontSpec ? `.timeline-top-bar, .timeline-top-bar * { font-family: ${fontSpec[0]} !important; font-size: ${fontSpec[1]} !important; }` : '';
+    const ncss = neutral ? '.timeline-top-bar .dd[data-dd-for="timelineYearFilter"] .dd-trigger,'
+      + ' .timeline-top-bar .dd[data-dd-for="timelineMonthFilter"] .dd-trigger'
+      + ' { height: auto; padding-top: 2px; padding-bottom: 2px; overflow: visible; }' : '';
+    await evaluate(`(function(){
+      var f=document.getElementById('__fitF'); if(f) f.remove();
+      var n=document.getElementById('__fitN'); if(n) n.remove();
+      if(${JSON.stringify(fcss)}){ var s=document.createElement('style'); s.id='__fitF'; s.textContent=${JSON.stringify(fcss)}; document.head.appendChild(s); }
+      if(${JSON.stringify(ncss)}){ var s2=document.createElement('style'); s2.id='__fitN'; s2.textContent=${JSON.stringify(ncss)}; document.head.appendChild(s2); }
+      return 1; })()`);
+    await sleep(260);
+    return await evaluate(fitProbe);
+  };
+  const FONTS_F = [
+    ['默认', null],
+    ['monospace 13px', ['monospace', '13px']],
+    ['Georgia 15px', ['Georgia, serif', '15px']],
+    ['Liberation Serif 14px', ['"Liberation Serif", "Nimbus Roman", serif', '14px']],
+    ['Times 17px', ['"Times New Roman", Georgia, serif', '17px']],
+    ['DejaVu Sans 12px', ['"DejaVu Sans", Verdana, sans-serif', '12px']],
+  ];
+  const seenText = new Set(); const seenBar = new Set();
+  let fitAllEqual = true, fitBoundary = true, fitProbed = 0;
+  for (const [flabel, fspec] of FONTS_F) {
+    const fixed = await setFit(fspec, false);
+    const neut = await setFit(fspec, true);
+    if (fixed.noBar || fixed.noDD) { ok(false, `⑦-f ${flabel} 拿不到顶栏/下拉（noBar=${!!fixed.noBar} noDD=${!!fixed.noDD}）`); continue; }
+    fitProbed++;
+    seenText.add(fixed.textBox); seenBar.add(fixed.barH);
+    const same = fixed.trgH === fixed.selH;
+    const differs = neut.trgH !== neut.selH;
+    if (!same) fitAllEqual = false;
+    if (!differs) fitBoundary = false;
+    ok(same,
+      `⑦-f ${flabel} ★★★ 增强前后**盒高严格相等**：.dd-trigger ${fixed.trgH}px === 原生 select ${fixed.selH}px`
+      + `（文字行盒探针 textBox=${fixed.textBox}px、trg computed height=${fixed.trgComputed}、竖向 padding=${fixed.trgPadTB}；`
+      + `中和修复后变成 ${neut.trgH}px ≠ ${neut.selH}px ⇒ 这条判据有分界${differs ? '' : ' —— 警告：无分界，可能恒真'}）`);
+  }
+  // ★ 探针必须确实看到了不同字体度量 —— 否则"字体无关"这句话没被检验到
+  ok(seenText.size > 1,
+    `⑦-f 探针确实跟着字体在变（textBox 取到 ${seenText.size} 个不同值：${JSON.stringify([...seenText])}）⇒ 下面"任何字体下都相等"的结论才有意义`);
+  ok(fitAllEqual && fitProbed === FONTS_F.length,
+    `⑦-f ★★★ ${FONTS_F.length} 种字体度量下，"增强前后盒高严格相等"全部成立（实测 ${fitProbed} 组）—— 这正是 CI 那 16 条红的机制：两条路的盒高不相等时，增强那一帧行高会跳（monospace 13px 实测 45→42.5、DejaVu Sans 12px 实测 45→44）`);
+  ok(fitBoundary,
+    `⑦-f ★★★ 负例（同探针、中和修复）：盒子高度必须出现"不相等"⇒ 证明上面那条断言不是恒真`);
+  // 顺带钉住：这一段里自绘下拉始终在位、原生始终不可见
+  const lastFit = await setFit(null, false);
+  ok(lastFit.ddN === 2 && lastFit.nativeVisible === 0,
+    `⑦-f 顶栏始终是 2 个自绘 .dd 且原生 select 不可见（.dd=${lastFit.ddN}、原生可见=${lastFit.nativeVisible}、顶栏高=${lastFit.barH}px）`);
+  await evaluate(`(function(){ var f=document.getElementById('__fitF'); if(f) f.remove();
+    var n=document.getElementById('__fitN'); if(n) n.remove(); return 1; })()`);
+  await sleep(200);
+}
+
 // 收尾：回到全部时间
 await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
 await sleep(900);

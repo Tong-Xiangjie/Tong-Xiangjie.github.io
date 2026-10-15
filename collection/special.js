@@ -2201,6 +2201,49 @@ function playTimelineFlip(app, snap) {
 //   已经由上面的 snapshotTimelineFlip / playTimelineFlip 负责，整块再淡入反而糊，
 //   所以那个函数已经删掉，换筛选/换排序一律走 FLIP。
 
+// ★★★ 保壳复用：整块重渲染时不让顶部那套自绘下拉被拆掉重建。
+//
+// 用户的反馈："为什么每次换选择的时间段，那个下拉栏就像是要'重建'一下，闪动一下。"
+// 实测根因（`%TEMP%/hmdiag/paint.mjs` 逐帧）：
+//   `renderTimelineContent` 用 `app.innerHTML = html` 整块换掉内容，而 `.dd` 就写在
+//   那段 html 里 —— 老壳（连同 `.dd-trigger` / `.dd-label-text` 与它们的监听器）作为旧
+//   子树被丢弃，新 `<select>` 身上没有 `__dd`，建壳又要等 rAF（dropdown.js 的 `schedule`）
+//   或 32ms 去抖 ⇒ **中间那一帧被真的画了出来**：
+//     t=2394.8ms  .dd=0（原生被 CSS 藏着）⇒ 控件区域一片空白，
+//     `.timeline-top-right` 从 422.77px 塌到 214.77px，"共N件"和两个排序按钮整排横移，
+//     下一帧（t=2408.5ms）才弹回来。空白 + 208px 横移叠加 = 用户看到的"闪动/像重建"。
+//
+// 为什么不能靠 dropdown.js 自己的 MutationObserver 兜住：那条路是"内容先画、控件后补"，
+//   而浏览器的绘制发生在 JS 让出之后 —— 补的那一帧一定晚于画的那一帧。
+// 所以这里反过来做：**先把壳摘下来保住，换完内容再认领回去**。
+//   `captureCustomDropdowns` / `adoptCustomDropdowns` 由 dropdown.js 提供（只增不改的导出）。
+//   壳节点身份全程不变，只有弹层里的选项子节点按新 options 重建（年份集合本来就会变）。
+//   `enhance()` 见到 `select.__dd` 就 return，所以"认领"过的 select 不会再被建一次壳。
+// ★ 没有旧壳可认领时（首次渲染）兜底走同步建壳 `refreshCustomDropdownsNow`，
+//   保证"内容与壳在同一个任务里同时就位"，同样不留空白帧。
+function renderIntoContainerWithDropdowns(app, html) {
+    var capture = (typeof window.captureCustomDropdowns === 'function') ? window.captureCustomDropdowns : null;
+    var adopt = (typeof window.adoptCustomDropdowns === 'function') ? window.adoptCustomDropdowns : null;
+    // ① 重渲染前：把现存的自绘壳摘到游离容器（节点身份、监听器、__dd 记录全保留）
+    var pen = capture ? capture(app) : null;
+    // ② 整块替换（原有行为一字未改）
+    app.innerHTML = html;
+    // ③ 重渲染后：把壳认领给新一批同 id 的 <select>
+    var adopted = adopt ? adopt(app, pen) : 0;
+    // ④ 兜底：还有没被认领的 select（首次渲染 / 新增的下拉），同步建壳。
+    //    刻意**同步**调用而不是 `refreshCustomDropdowns()`（=schedule，只排 rAF）——
+    //    排到下一帧就等于把空白帧留在画面上。
+    if (typeof window.refreshCustomDropdownsNow === 'function') {
+        window.refreshCustomDropdownsNow();
+    } else if (typeof window.refreshCustomDropdowns === 'function') {
+        window.refreshCustomDropdowns();
+    }
+    // ⑤ 仍然排一次延迟的建壳/重压：认领回来的壳在容器刚 un-hide 时量到的可用宽可能是 0，
+    //    压扁要等布局定下来再补一次（与原来调 refreshCustomDropdowns() 的效果一致）。
+    if (typeof window.refreshCustomDropdowns === 'function') window.refreshCustomDropdowns();
+    return adopted;
+}
+
 // ---------- 核心渲染 ----------
 function renderTimelineContent(config, opts) {
     // ★ opts.keepChrome：换年月/换排序触发的重渲染。此时标题、热力图、顶部工具条
@@ -2462,7 +2505,7 @@ function renderTimelineContent(config, opts) {
 
     if (filteredItems.length === 0) {
         html += '<div class="empty-state timeline-empty-enter">' + emptyArt('timeline') + '显然，在选择的这个时间段你并没有乱花钱(·ω·)</div>';
-        app.innerHTML = html;
+        renderIntoContainerWithDropdowns(app, html);
         if (keepChrome) playTimelineFlip(app, flipSnap); else triggerViewAnimation();
         return;
     }
@@ -2606,21 +2649,20 @@ function renderTimelineContent(config, opts) {
     }
     html += `</div>`;
 
-    app.innerHTML = html;
-    // ★★★ 尽量把本页新出现的 <select> 增强成自绘下拉（`refreshCustomDropdowns` = dropdown.js 里的
-    //   `schedule`，内部只安排一帧 rAF，**不保证同一任务内跑完** —— 实测它经常被页面加载时
-    //   已排队的那次 rAF 吞掉，真正建壳发生在下一个 rAF，于是浏览器会先画一帧"没有两个下拉"
-    //   的 top-bar）。真正把这件事钉死的是 layout.css 里 `@media (max-width:600px)` 下
-    //   `.timeline-top-right { min-height:78px }`；这里调用只是把建壳尽量提前、少一帧中间态。
-    //   背景（用户报的"刷新页面才会沉降、站内点进来不会"）：
-    //     · 不调的话，靠 dropdown.js 的 MutationObserver（32ms 去抖）才增强 ——
+    // ★★★ 保壳复用 + 同步建壳（两个下拉不再被拆掉重建，见 renderIntoContainerWithDropdowns
+    //   的长注释：整块 innerHTML 替换会让 .dd 消失一帧，那一帧会被画出来 ⇒ 用户看到"闪动"）。
+    //   这一句替代了原来单独的 `app.innerHTML = html;` 与紧随其后的
+    //   `window.refreshCustomDropdowns()`（=schedule，只排 rAF，救不了那一帧）。
+    //   下方这段历史注释保留，它记录的是**冷启动**那条时序（另一个问题：整块沉降），
+    //   与"切换筛选时闪动"是两回事，但同样是"控件晚一帧就位"这一个根：
+    //     · 不提前建壳的话，靠 dropdown.js 的 MutationObserver（32ms 去抖）才增强 ——
     //       于是浏览器会先画一帧"有标题、有排序按钮、但没有两个下拉"的 top-bar：
     //       `.timeline-top-right` 只有 46.9 + 75.9×2 + 8×2 = 198.7px，一行放得下 ⇒ 高 80px；
     //     · 32~57ms 后 `.dd`（84px 固定宽）建好 ⇒ 总宽 366.6px > 343px ⇒ flex-wrap 换行
     //       ⇒ top-bar 80 → 116px ⇒ **下方热力图整块被推下 36px**；
     //     · "第一次悬浮"正好落在这之后，热力图在它自己内部一动不动（⑦-c 五态全绿），
     //       但整块被祖先推走且再也不回来 ⇒ 用户看到的就是"一悬浮数字就沉下去"。
-    if (typeof window.refreshCustomDropdowns === 'function') window.refreshCustomDropdowns();
+    renderIntoContainerWithDropdowns(app, html);
     // 热力图悬浮泡的"能居中就居中"逻辑（只挂一次，事件委托在 document 上）
     bindHeatmapTipClamp();
     // ★ 布局落位后把已量过的泡泡几何重算一遍（见 watchHeatmapTipGeometry 的注释：

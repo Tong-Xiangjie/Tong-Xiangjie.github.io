@@ -2486,6 +2486,45 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
        直接露脸）下也有个稳定宽度，与 .dd 的固定宽同源，避免触屏上换行时机不同。 */
     width: var(--dd-w, 96px);
 }
+/* ★★★ CI 专用真凶（ubuntu-latest，verify-heatmap ⑦-d 在 84484b3f 上抓到 16 条红）：
+   "原生 <select> → 自绘 .dd" 的**那次增强**会改变顶栏那一行的高度，于是下面整块
+   相对 `.body-row` 的 Y 也一次性挪一下。
+   CI 实测：`.timeline-top-bar` 高度 [45, 42]、相对 .body-row 的 Y [132, 129]。
+
+   为什么本机（Windows）看不到：`.timeline-filter-select` 写死了 `height: 28px`，
+   而 `.dd-trigger` 的高度是**字体度量相关**的 —— `padding: 2px` + `1px` 边框 +
+   一行 `line-height: 1.5`（见下面 `.dd-trigger` 那段）。本机默认字体下它只有 **24px**，
+   比 28px 矮，所以"这一行里最高的元素"是那两个 `.timeline-sort-btn`（也是 28px）
+   ⇒ 换不换自绘都还是 28px，看不出问题。
+   换一套字体度量就不一样了 —— 本机实测 `.dd-trigger` 会跑到 28px 的两侧：
+   monospace 13px → 26px、Georgia 15px → 29px、Liberation Serif 14px → 27px、
+   Times 17px → 32px、DejaVu Sans 12px → 24px（原生 `<select>` 恒为 28px）。
+   **只要两条路的盒高不严格相等，行高就会在增强那一帧跳一下。**
+   本机直接复现（%TEMP%/hmdiag/rowshift.mjs）：注入 `.dd-trigger { height: 32px }`
+   立刻得到顶栏 46 → 49、相对 .body-row 的 Y 144 → **147**（差 3.00px），与 CI 同型。
+
+   修法（方案 (a)：让两条路的**盒模型高度**取同一个值，而不是去猜某台机器上的 px）：
+   把"这一行控件的高度"抽成一个 CSS 变量，`.timeline-filter-select` 与
+   `.dd-trigger` 都吃它 ⇒ 原生也好、自绘也好，都是同一个 border-box 高度，
+   字体只影响盒**内部**的文字基线，不再影响盒高 ⇒ 行高在增强前后天然相等。
+   `box-sizing: border-box` 是本文件全局的（见顶部 `*`），所以这个值就是含边框的实高。
+   取值 28px 与原来 `.timeline-filter-select { height: 28px }` 完全一致
+   ⇒ **本机观感不变**（增强前后都还是 28px）；只是把 `.dd-trigger` 从"恰好等于 28px"
+   改成"确定等于 28px"，并去掉竖向 padding（`.dd-trigger` 本来就是
+   `display:flex; align-items:center`，竖向居中由 flex 负责，padding 只会把盒撑高）。
+   断言见 verify-heatmap.mjs ⑦-f：用"文字行盒"（`Range.getBoundingClientRect()`）探针
+   在 6 种字体度量下验"增强前后盒高严格相等"，并把"中和修复后必须不相等"作为负例。 */
+.timeline-top-bar {
+    --tl-ctl-h: 28px;
+}
+.dd[data-dd-for="timelineYearFilter"] .dd-trigger,
+.dd[data-dd-for="timelineMonthFilter"] .dd-trigger {
+    height: var(--tl-ctl-h, 28px);
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;                   /* 盒高被钉死后，别让超出的行盒把视觉撑破 */
+}
+.timeline-filter-select { height: var(--tl-ctl-h, 28px); }
 .timeline-filter-select:hover { border-color: var(--theme); }
 .timeline-filter-select:focus { border-color: var(--theme); }
 @media (max-width: 600px) {

@@ -82,6 +82,7 @@
             active: -1, opened: false
         };
         select.__dd = rec;
+        box.__rec = rec;            // ★ 反向引用：重渲染后认领要用它（见 adoptCustomDropdowns）
         all.push(rec);
 
         // ② 原生 → 自绘：包一层 value setter（只包实例）
@@ -360,8 +361,127 @@
         }
     }
 
+    // ============================================================
+    // ★★★ 保壳复用（adopt）：让"整块 innerHTML 重渲染"不再把下拉拆掉重建
+    //
+    // 背景（用户实测）：拾年专题切一次时间范围，`renderTimelineContent` 会
+    //   `app.innerHTML = html` 整块换掉 —— 而 `.dd` 就写在那段 html 里，
+    //   于是老壳连同一个 `.dd-trigger` / `.dd-label-text` 一起被丢弃；
+    //   新 `<select>` 是全新节点、身上没有 `__dd`，建壳又要等 rAF / 32ms 去抖
+    //   ⇒ 中间那一帧被**真的画了出来**：控件区域两个下拉凭空消失、
+    //     `.timeline-top-right` 从 422.77px 塌到 214.77px（"共N件"和两个排序按钮
+    //     整排横移），下一帧再弹回来。用户原话："换时间段时下拉栏像要重建一下、闪动一下"。
+    //
+    // 做法（**只增不改**，不改任何既有调用点与既有行为）：
+    //   ① 重渲染前 `captureCustomDropdowns(root)` 把 .dd 摘到游离容器（节点身份、
+    //      事件监听、`__dd` 记录、压扁用的 transform 全部保留）；
+    //   ② 重渲染后 `adoptCustomDropdown(root, pen)` 按 `data-dd-for` ↔ `select.id`
+    //      把壳认领给新 `<select>`（挂回它前面），并 `rebuild` 弹层选项、刷新文字。
+    //   `.dd` / `.dd-trigger` / `.dd-label-text` 三个节点的身份**全程不变**，
+    //   只有弹层子选项按新 options 重建（年份集合本来就会随筛选变）。
+    //
+    // 为什么必须是"认领"而不是"再 enhance 一次"：`enhance()` 见到 `select.__dd` 就
+    //   return，所以只要由这里负责把 `__dd` 挂到新 select 上，既有的 enhance 就自动跳过，
+    //   两条路不会打架。
+    // ============================================================
+
+    // 清掉指向"已脱离文档"的旧记录：`all` 原来只增不减，每切一次范围就多两条
+    // 指向废弃 select 的记录（同一次重渲染的副产物）。这里在每次 scan 前顺手清一次。
+    function pruneDetached() {
+        if (all.length < 16) return;                 // 量小就不扫，避免每帧都过一遍
+        var kept = [];
+        for (var i = 0; i < all.length; i++) {
+            var rec = all[i];
+            if (rec.select && rec.select.isConnected) kept.push(rec);
+            else if (rec.select && rec.select.__dd === rec) { try { delete rec.select.__dd; } catch (e) { rec.select.__dd = null; } }
+        }
+        all.length = 0;
+        for (var j = 0; j < kept.length; j++) all.push(kept[j]);
+    }
+
+    // 把一个 select 的 value setter 包成"写入即同步自绘层"（与 enhance 里那段逐字等价）
+    function bindValueWatcher(rec, select) {
+        try {
+            var proto = Object.getPrototypeOf(select);
+            var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (desc && desc.set) {
+                Object.defineProperty(select, 'value', {
+                    configurable: true,
+                    get: function () { return desc.get.call(this); },
+                    set: function (v) { desc.set.call(this, v); sync(rec); }
+                });
+            }
+        } catch (e) { /* 包不上就算了，change 那条路仍然能同步 */ }
+    }
+
+    // ★ 重渲染前调用：把 root 里所有自绘壳摘到游离容器 pen 里，返回 pen。
+    //   摘下来而不是删掉 —— 节点身份、监听器、__dd 记录全在。
+    function captureCustomDropdowns(root, pen) {
+        if (!root || !root.querySelectorAll) return pen || null;
+        pen = pen || document.createElement('div');
+        var boxes = [].slice.call(root.querySelectorAll('.dd'));
+        for (var i = 0; i < boxes.length; i++) {
+            var box = boxes[i];
+            var key = box.getAttribute('data-dd-for');
+            // 认领用的钥匙：select 的 id。没有 data-dd-for 的壳（理论上不会有）就不动它，
+            // 留给 enhance 的老路处理。
+            if (key && box.parentNode) pen.appendChild(box);
+        }
+        return pen;
+    }
+
+    // ★ 重渲染后调用：把 pen 里的壳认领给 root 里新一批同 id 的 <select>。
+    //   认领成功后 enhance() 会因为 `select.__dd` 已存在而跳过它 ⇒ 不会重复建壳、不会闪。
+    function adoptCustomDropdowns(root, pen) {
+        if (!root || !root.querySelectorAll || !pen) return 0;
+        var boxes = [].slice.call(pen.querySelectorAll('.dd'));
+        if (!boxes.length) return 0;
+        var pool = {};
+        for (var i = 0; i < boxes.length; i++) {
+            var k = boxes[i].getAttribute('data-dd-for');
+            if (k) (pool[k] || (pool[k] = [])).push(boxes[i]);
+        }
+        var sels = [].slice.call(root.querySelectorAll('select'));
+        var n = 0;
+        for (var j = 0; j < sels.length; j++) {
+            var s = sels[j];
+            if (!s.id || !pool[s.id] || !pool[s.id].length) continue;   // 没有可认领的壳 → 留给 enhance
+            var old = s.__dd;
+            if (old && old.select === s) continue;                      // 已经是它自己的壳了
+            var box = pool[s.id].shift();
+            var rec = box.__rec;
+            if (!rec) continue;
+            // ① 记录改指新 select；② 新 select 挂上同一个 rec，enhance 便会跳过它
+            rec.select = s;
+            s.__dd = rec;
+            // ③ 把 enhance() 当初给这个 select 打的三样东西照原样补齐（**不能少**）：
+            //    · `.dd-native` 带着 layout.css 里 `display:none !important`；
+            //    · `tabindex="-1"` / `aria-hidden="true"` 让原生控件不进 Tab 序列、
+            //      对读屏隐藏（无障碍交给自绘那层的 role="listbox"/aria-*）。
+            //    少了这套，新的 select 就只剩 `@media (pointer: fine) { select { display:none } }`
+            //    那一条兜着 —— 触屏/放宽媒体特性时就会冒出两个原生控件。
+            try {
+                s.classList.add('dd-native');
+                s.setAttribute('tabindex', '-1');
+                s.setAttribute('aria-hidden', 'true');
+            } catch (e) { }
+            // ④ value setter 要重新包到**新** select 实例上（旧实例已经不在文档里）
+            bindValueWatcher(rec, s);
+            // ⑤ 事件监听按元素重新挂（监听器是挂在旧 select 上的，新 select 没有）
+            s.addEventListener('change', function () { sync(rec); });
+            // ⑥ 挂回它该在的位置：新 select 之前（与 enhance 的插入位置一致）
+            if (s.parentNode) s.parentNode.insertBefore(box, s);
+            // ⑦ 弹层选项按新 select 重建 + 刷文字与选中态（.dd/.dd-trigger/.dd-label-text
+            //    三个节点本身不动，所以不会闪；重建的只有 .dd-popup 的子选项）
+            try { rebuild(rec); } catch (e) { try { sync(rec); } catch (e2) { } }
+            n++;
+        }
+        return n;
+    }
+
     // ---------- 自动接管全部 <select> ----------
     function scan() {
+        pruneDetached();
         var list = document.querySelectorAll('select');
         for (var i = 0; i < list.length; i++) {
             // ★ 兜底：增强中途抛错时，这个 select 没有 .dd-native，会被 CSS 里那条
@@ -399,4 +519,18 @@
     else schedule();
 
     window.refreshCustomDropdowns = schedule;
+    // ★ 同步建壳：`schedule()` 只排一帧 rAF（`if (raf) return` 还会被别的 rAF 吞掉），
+    //   于是"整块重渲染后到建壳之间"那一帧会被画成空白。整块重渲染的调用方
+    //   （special.js 的 renderTimelineContent）在写完 innerHTML 后同步调这个，
+    //   壳与内容就在**同一个任务**里建好，那一帧根本不存在。
+    //   （认领路径走通时其实不需要它，留作没有旧壳可认领时的兜底 —— 例如首次渲染。）
+    window.refreshCustomDropdownsNow = scan;
+    // ★ 保壳复用的一对入口，见上方长注释。只增不改：不传参/没壳时是彻底的空操作。
+    window.captureCustomDropdowns = captureCustomDropdowns;
+    window.adoptCustomDropdowns = adoptCustomDropdowns;
+    // ★ 只读自检：`all` 实例表的长度。修内存泄漏前后都要能观察到这个数，
+    //   verify-heatmap 用它断言"连续切换 20 次后不增长"。纯读，不影响任何行为。
+    window.customDropdownStats = function () {
+        return { instances: all.length, boxes: document.querySelectorAll('.dd').length };
+    };
 })();
