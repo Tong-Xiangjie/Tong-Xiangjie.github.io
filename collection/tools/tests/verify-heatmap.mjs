@@ -341,7 +341,7 @@ for (const r of (shape?.rows || [])) {
     const { text: tip, lines } = tipTextOf(c.tip);
     // 用户定的文案格式（2026-10 起是**两/三行**）：
     //   第一行 = `x年x月，共购入N件，合计X元`，N/X **只算藏品**、X = **Σ裸币价**（不含评级费）
-    //   第二行 = `另对K件钱币评级，评级费用 Y 元`（该月没有评级费就整行没有）
+    //   第二行 = `另对K件藏品进行评级，评级费用 Y 元`（该月没有评级费就整行没有）
     //   第三行 = `合计支出Z元`，Z = X + Y（同样只在有评级费时出现）
     const wantText = `${r.year}年${Number(c.m)}月，共购入${want.npn}件，合计${want.npsum}元`;
     const exact = lines[0] === wantText;
@@ -411,7 +411,7 @@ ok(expectMatrix.totalAmount === expectMatrix.rawAmount,
 // ─────────── ②-c 悬浮提示：第一行不含评级费、第二/三行按需出现 ───────────
 // 用户 2026-10 的三行形态（以 2026年10月 为例）：
 //   2026年10月，共购入9件，合计1114元        ← **不含**评级费（否则均价被抬高）
-//   另对34件钱币评级，评级费用 810 元
+//   另对34件藏品进行评级，评级费用 810 元
 //   当月合计支出1924元                       ← 1114 + 810，只在有评级费时出现
 console.log('\n══════ ②-c 悬浮提示：合计不含评级费 + 评级费单独成行 ══════\n');
 // 独立复算：从**台账原始数据**（页面数据文件）重算每月评级费件数与金额，
@@ -523,14 +523,14 @@ if (oct) {
   // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ裸币价）：
   //     2026年10月，共购入8件，合计1114元      ← 用户原话写的是"9件"，实测数据是 **8 件 / 1114 元**
   //                                              （collectAllCopies 与实际遍历两条独立路径都是 8 件 1114 元）
-  //     另对26件钱币评级，评级费用810元
+  //     另对26件藏品进行评级，评级费用810元
   //     合计支出1924元
   const octCell = expectMatrix.cells['2026/10'];
   ok(/^2026年10月，共购入\d+件，合计1114元$/.test(lines[0]),
     `②-c ★★★ 第一行合计 == 1114（实际「${lines[0]}」）`);
   ok(!/1924/.test(lines[0]), `②-c ★★★ 第一行里**不出现** 1924（实际「${lines[0]}」）`);
-  ok(/^另对[\d]+件钱币评级，评级费用810元$/.test(lines[1] || ''),
-    `②-c ★★★ 第二行 == 「另对xx件钱币评级，评级费用810元」（数字两侧无空格；实际「${lines[1]}」）`);
+  ok(/^另对[\d]+件藏品进行评级，评级费用810元$/.test(lines[1] || ''),
+    `②-c ★★★ 第二行 == 「另对xx件藏品进行评级，评级费用810元」（数字两侧无空格；实际「${lines[1]}」）`);
   ok(lines[2] === '合计支出1924元',
     `②-c ★★★ 第三行 == 「合计支出1924元」（1114 + 810；实际「${lines[2]}」）`);
   ok(octCell && octCell.npn === 8 && Math.abs(octCell.npsum - 1114) <= 0.01,
@@ -1177,8 +1177,8 @@ const hoverState = JSON.parse(await evaluate(`(()=>{
 })()`));
 ok(hoverState.vis === 'visible' && hoverState.op > 0.9, `③ ★ 悬停后 tooltip 显示了（visibility=${hoverState.vis} opacity=${hoverState.op}，之前 ${beforeHover.vis}/${beforeHover.op}）`);
 ok(hoverState.w > 40 && hoverState.h > 10, `③ tooltip 真的渲染出尺寸了（${hoverState.w}×${hoverState.h}px）`);
-// ★ 文案格式（数字两侧**无空格**）：x年x月，共购入x件，合计x元 [⏎ 另对x件钱币评级，评级费用x元 ⏎ 合计支出x元]
-ok(/^[0-9]{4}年[0-9]{1,2}月，共购入[0-9]+件，合计[\d.]+元(\n另对[0-9]+件钱币评级，评级费用[\d.]+元\n合计支出[\d.]+元)?$/.test(box.text), `③ tooltip 文案是「x年x月，共购入x件，合计x元」+ 可选第二行评级费与第三行合计支出：「${JSON.stringify(box.text)}」`);
+// ★ 文案格式（数字两侧**无空格**）：x年x月，共购入x件，合计x元 [⏎ 另对x件藏品进行评级，评级费用x元 ⏎ 合计支出x元]
+ok(/^[0-9]{4}年[0-9]{1,2}月，共购入[0-9]+件，合计[\d.]+元(\n另对[0-9]+件藏品进行评级，评级费用[\d.]+元\n合计支出[\d.]+元)?$/.test(box.text), `③ tooltip 文案是「x年x月，共购入x件，合计x元」+ 可选第二行评级费与第三行合计支出：「${JSON.stringify(box.text)}」`);
 ok(!/transparent|rgba\(0, 0, 0, 0\)/.test(hoverState.bg), `③ tooltip 有底色（${hoverState.bg}）`);
 // tooltip 不该跑出内容区左/右边界太多
 await evaluate(`(()=>{ const mc=(typeof getRenderContainer==='function'&&getRenderContainer())||document.body; const r=mc.getBoundingClientRect(); window.__hmBox={ l:r.left, r:r.right }; return 1; })()`);
