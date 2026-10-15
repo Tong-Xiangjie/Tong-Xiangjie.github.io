@@ -175,13 +175,31 @@ html[data-color-scheme="dark"] {
 }
 html[data-color-scheme="light"] { color-scheme: light; }
 
-/* ===== OCRB 字体 ===== */
+/* ===== OCRB 字体 =====
+   ★ 这个 family 全仓库只被 .copy-info .version-text（藏品卡上的冠号）用，
+     所以它什么时候就绪，只影响那一小块文字。
+   ★ 为什么 font-display 从 swap 改成 block（用户报的"总是会跳一下"）：
+       swap = 字体没到时**先用回退字体画一遍**，字体到位后再重排一次。
+       冠号是等宽感很强的 OCR-B，回退字体比它窄：逐帧实测每个冠号宽度会
+       99.15→103.89px / 92.74→98.16px（+4.7~5.4px），就是看到的那个"跳"。
+       block = 字体没就绪时那一段**先不画**（Chrome 的 block 期约 3s），
+       绝不会"先按回退字体排版、再跳成真字体"。
+   ★ 为什么敢用 block（不会把冠号藏很久）：
+       ① index.html 里已经 <link rel=preload as=font>，字节和样式表并行取；
+       ② main.js 开头还会主动 document.fonts.load() 一次，把 FontFace 状态
+          提前置成 loaded —— 这一步 preload 做不到：preload 只把字节放进缓存，
+          第一个用到它的元素仍会走一次"先按回退排版、拿到字体后再重排"的异步流程；
+       ③ 冠号要等 72 个数据文件加载完、卡片渲染时才出现（实测 t≈1.2s），
+          而字体 t≈150ms 就 loaded —— block 期实际根本不会发生。
+       verify-ocrb-init.mjs 会逐帧断言"冠号可见期间宽度零位移"。
+   ★ 兜底：字体真取不到（404 / 离线首访且 SW 未命中）时，block 期结束
+      （约 3s）会自动落回字体栈后面的系统字体，不会永久不显示。 */
 @font-face {
     font-family: 'OCRB10PitchBT-Regular';
     src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
     font-weight: normal;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 
 * {

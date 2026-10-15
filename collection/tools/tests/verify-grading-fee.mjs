@@ -1471,7 +1471,7 @@ try {
     // ⑫-12 ★★ 「裸币」显示口径（用户裁定 2026-10）：
     //   录入价**含评级费** ⇒ 自己送评且非换壳的那一枚显示「购入价格：裸币{N}元」，
     //   N = 录入价 − 该枚评级费；换壳行与直接买来的现货一律**原样显示**（不加"裸币"）。
-    //   同时「共花了 X 元」= Σ 藏品 price（裸币价之和），不再额外加评级费。
+    //   同时「一共花了 X 元」= Σ 藏品 price（裸币价之和），不再额外加评级费。
     {
         // 服务端（Node）独立算出每一枚的裸币价，作为对账基准
         const numOf = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n; };
@@ -1603,7 +1603,7 @@ try {
         ok(!nakedProbe.naked.some(v => v === expectedNaked[shellCert]),
             `换壳行**没有**被折成裸币价（${R1(expectedNaked[shellCert])} 不在裸币那一批里）`);
         // ★ 标语 = Σ 藏品 price（不再额外加评级费）
-        const sloganNum = parseInt((nakedProbe.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+        const sloganNum = parseInt((nakedProbe.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
         // ★★ 最终口径（用户裁定 2026-10）：**总花费 = Σ裸币价 + 评级费支出**，
         //   数学上恒等于 **Σ 藏品 price**（录入价 = 裸币价 + 该枚评级费）。
         //   上一版把评级费从总额里漏掉了（页面出现 44699），用户反馈"又少算了评级费"。
@@ -1614,7 +1614,7 @@ try {
         ok(R1(pageSumNaked) === R1(pageBase.raw - KEPT_PAID),
             `★ 自洽：Σ裸币价 ${pageSumNaked} == Σ录入价 ${pageBase.raw} − 评级费 ${KEPT_PAID}`);
         ok(sloganNum === Math.round(pageBase.raw),
-            `★ 标语「共花了 ${sloganNum} 元」= Σ 藏品 price（页面独立复算 ${pageBase.raw} ⇒ ${Math.round(pageBase.raw)}）`);
+            `★ 标语「一共花了 ${sloganNum} 元」= Σ 藏品 price（页面独立复算 ${pageBase.raw} ⇒ ${Math.round(pageBase.raw)}）`);
         ok(sloganNum !== Math.round(pageSumNaked),
             `★ 标语**不是**只算裸币价（那样会是 ${Math.round(pageSumNaked)}，就是用户看到的"又少算了评级费"）`);
     }

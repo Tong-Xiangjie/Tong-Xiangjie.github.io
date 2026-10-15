@@ -87,6 +87,16 @@
     <link rel="preload" as="image" type="image/svg+xml" href="empty-tag.svg">
     <link rel="preload" as="image" type="image/svg+xml" href="empty-stats.svg">
     <link rel="preload" as="image" type="image/svg+xml" href="empty-color.svg">
+    <!-- ★ OCR-B（layout.css 里的 'OCRB10PitchBT-Regular'，只给 .copy-info .version-text
+         的冠号用；9.3KB woff）。以前**没有任何 preload**：浏览器要等第一张藏品卡被排版、
+         真的需要这个字形时才发现它，于是冠号先用回退字体画几帧、字体到位后再跳一次。
+         逐帧实测（HTTP/2 + 80ms RTT）：字体请求 t≈1565ms 才开始（加载屏 t≈1201ms 就消失了），
+         .version-text 第 74 帧以回退字体出现、第 80 帧换成 OCR-B，宽度 99.15→103.89px、
+         92.74→98.16px（每个冠号 +4.7~5.4px）。
+         preload 让字节和样式表**并行**下载；`crossorigin` 不能省 —— 字体是按 CORS 模式取的，
+         少了它 preload 命不中，浏览器会白下一次（缓存里两份、毫无收益）。
+         清单一致性由 verify-ocrb-init.mjs 断言（href 必须与 layout.css 的 src 指向同一文件）。 -->
+    <link rel="preload" as="font" type="font/woff" href="../font/OCRB10PitchBT-Regular.woff" crossorigin>
     <link rel="stylesheet" href="layout.css">
     <!-- ★ 工具箱（文章 HTML 生成器）的样式。单独一个文件、只用 .tb-* 前缀，
          放在 layout.css **之后**：这样里边万一有同名声明也一定以工具箱为准，

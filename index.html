@@ -5,6 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>网站总入口</title>
+    <!-- ★ OCR-B（下面 @font-face 里那个 "OCRB10"，9.3KB woff）：这页 body 就把它摆在
+         字体栈第一位，键盘按键、2FA 口令框、VERIFICATION GATE 全是它 —— 而它以前
+         没有任何 preload，只能等浏览器排版到第一个用到它的元素时才去取。
+         逐帧实测（HTTP/2）：字体 t=22.7→113.1ms 才回来，而首帧在 t≈105.8ms 就画了，
+         于是第 0 帧先按回退字体画一遍（.sub 宽 109.48px、.key-btn 高 48.38px），
+         第 2 帧字体到位再重排（122.81px / 45.38px，.password-section 高度 −8px）——
+         就是那个"跳一下"。preload 让字节和后面的资源并行取；crossorigin 不能省
+         （字体按 CORS 模式取，少了它 preload 命不中）。 -->
+    <link rel="preload" as="font" type="font/woff" href="font/OCRB10PitchBT-Regular.woff" crossorigin>
     <style>
         /* ═══ 自定义西文字体：OCR-B ═══ */
         @font-face {
@@ -351,6 +360,20 @@
             .key-btn { font-size: 1.1rem; padding: 0.5rem 0; }
         }
     </style>
+    <!-- ★ 光有 preload 还不够：preload 只把**字节**放进缓存，第一个用到这个字体的
+         元素仍会走一次"先按回退字体排版 → 字体到手后再重排"的异步流程（哪怕命中的
+         是缓存）。这里趁 @font-face 刚进 CSSOM 就按 family 主动 load 一次，把 FontFace
+         状态提前变成 loaded，元素第一次排版就用真字体，全程没有回退字体那一遍。
+         @font-face 就写在上面那个 <style> 里，所以这里运行时 CSSOM 已经有这条规则
+         （写在 <style> 之前就会取不到，load() 会立刻以空数组 resolve）。
+         这里不阻塞任何请求：没有待取的外部样式表，脚本只做一次同步调用。 -->
+    <script>
+        (function () {
+            try {
+                if (document.fonts && document.fonts.load) document.fonts.load('1em "OCRB10"');
+            } catch (e) { /* 老浏览器 / 隐私模式：忽略，退回 font-display 的行为 */ }
+        })();
+    </script>
 </head>
 <body>
 <div class="glass-panel" id="appRoot">

@@ -2457,11 +2457,11 @@ function renderTimelineContent(config, opts) {
     html += `</div>`;
 
     // ★ 标题下面那句标语换成"所选时间段一共花了多少钱"（用户要求："可以将点进专题后的
-    //   标题下面那句标语换成「在所选的时间段内，你共花了xx元」这样类似的句子"）。
+    //   标题下面那句标语换成「在所选的时间段内，你一共花了xx元」这样类似的句子"）。
     //   金额口径和下面每天的"这天，你一共花了X元"完全一致，取整显示。
     //   一件都没记价格时不硬说"0 元"，仍旧显示原来的标语。
     //   措辞按用户反馈收了一遍（"在…里"的"在"和"里"都不要）：
-    //     2026 年，你共花了 N 元 / 2026 年 7 月，你共花了 N 元 / 历年 7 月，你共花了 N 元
+    //     2026 年，你一共花了 N 元 / 2026 年 7 月，你一共花了 N 元 / 历年 7 月，你一共花了 N 元
     //
     // ★★ 口径（用户裁定 2026-10，**两头都要做**，最后一版）：
     //     · 每枚自送藏品显示**裸币价** = 录入价 − 该枚评级费（见 nakedPriceOf）；
@@ -2473,7 +2473,7 @@ function renderTimelineContent(config, opts) {
     //   同样是少算。现在这两条路都堵住：评级费条目**照常累加**，藏品累加裸币价。
     //   ★ 一件都记不上价格时不硬说"0 元"，仍旧显示原来的标语。
     //   措辞按用户反馈收了一遍（"在…里"的"在"和"里"都不要）：
-    //     2026 年，你共花了 N 元 / 2026 年 7 月，你共花了 N 元 / 历年 7 月，你共花了 N 元
+    //     2026 年，你一共花了 N 元 / 2026 年 7 月，你一共花了 N 元 / 历年 7 月，你一共花了 N 元
     let periodTotal = 0;
     let periodHasPrice = false;
     for (const item of filteredItems) {
@@ -2486,12 +2486,12 @@ function renderTimelineContent(config, opts) {
     const periodText = (timelineFilterYear === '全部' && timelineFilterMonth === '全部')
         ? '到目前为止'
         : (timelineFilterYear === '全部')
-            ? '历年 ' + parseInt(timelineFilterMonth, 10) + ' 月'
+            ? '历年' + parseInt(timelineFilterMonth, 10) + '月'
             : (timelineFilterMonth === '全部')
-                ? timelineFilterYear + ' 年'
-                : timelineFilterYear + ' 年 ' + parseInt(timelineFilterMonth, 10) + ' 月';
+                ? timelineFilterYear + '年'
+                : timelineFilterYear + '年' + parseInt(timelineFilterMonth, 10) + '月';
     const sloganText = (periodHasPrice || filteredItems.length === 0)
-        ? periodText + '，你共花了 ' + periodTotal.toFixed(0) + ' 元'
+        ? periodText + '，你一共花了' + periodTotal.toFixed(0) + '元'
         : (config.slogan || '');
 
     html += `<div class="timeline-header">`;

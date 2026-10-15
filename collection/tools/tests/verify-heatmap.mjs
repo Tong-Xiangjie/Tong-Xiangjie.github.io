@@ -2,7 +2,7 @@
 //   · 每年一行、12 个月一列，格子按"当月花了多少钱"分级
 //   · 悬停（CSS 自写 tooltip，不用 JS 定位）显示**购买件数与具体金额**
 //   · 格子里的数字必须与"自己从原始数据重算"的结果完全一致（不信任页面里的聚合代码）
-//   · 全部格子的金额之和 == 标语「到目前为止，你共花了 N 元」的 N（口径必须一致）
+//   · 全部格子的金额之和 == 标语「到目前为止，你一共花了 N 元」的 N（口径必须一致）
 //   · 点格子 = 把年份/月份筛选取上这个格子
 //   · 手机宽度下不横向溢出；深色主题下 tooltip 可读
 import { createServer } from 'node:http';
@@ -394,13 +394,13 @@ if (cellBad) {
 ok(Math.abs(sumAll - expectMatrix.ownAmount) <= 0.6,
   `② ★★★ 全部格子金额之和 == Σ裸币价 ${expectMatrix.ownAmount}（实测 ${Math.round(sumAll * 10) / 10}）—— 填色口径 = 泡第一行合计 = 逐日"这天你一共花了"`);
 
-const sloganSum = parseInt(((await evaluate(`(document.querySelector('.timeline-slogan')||{}).textContent||''`)).match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+const sloganSum = parseInt(((await evaluate(`(document.querySelector('.timeline-slogan')||{}).textContent||''`)).match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
 // ★★ 标语口径（用户裁定 2026-10，最终版）：**总花费 = Σ裸币价 + 评级费支出**，
 //   数学上恒等于 **Σ 藏品 price**（录入价 = 裸币价 + 该枚评级费）。既不重复也不遗漏。
 //   ★ 注意：标语与"格子填色"**不是同一个数** —— 标语是"总共花了多少"（含所有评级费），
 //     格子/图例是"每个月花了多少"（裸币价口径，与逐日明细吻合）。
 ok(sloganSum === expectMatrix.totalAmount,
-  `② ★ 标语"共花了" == Σ裸币价 + 评级费支出（${sloganSum} vs ${expectMatrix.totalAmount}）`);
+  `② ★ 标语"一共花了" == Σ裸币价 + 评级费支出（${sloganSum} vs ${expectMatrix.totalAmount}）`);
 ok(sloganSum === expectMatrix.ownAmount + expectMatrix.feeSum,
   `② ★ 标语总额 == Σ裸币价 ${expectMatrix.ownAmount} + 评级费支出 ${expectMatrix.feeSum} = ${expectMatrix.ownAmount + expectMatrix.feeSum}`);
 ok(expectMatrix.ownAmount === expectMatrix.rawAmount - expectMatrix.feeSum,
@@ -1637,7 +1637,7 @@ ok(!!clicked, `④ 找到了有购买记录的格子（${clicked ? clicked.y + '
 if (clicked) {
   ok(afterClick.year === clicked.y && afterClick.month === clicked.m, `④ ★ 点格子后下拉框变成 ${clicked.y} 年 ${clicked.m} 月（实际 ${afterClick.year}/${afterClick.month}）`);
   const want = expectMatrix.cells[clicked.y + '/' + clicked.m];
-  const got = parseInt((afterClick.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+  const got = parseInt((afterClick.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
   ok(got === Math.round(want.sum), `④ 筛选后的标语金额 = 该格子金额（页面 ${got} vs 重算 ${Math.round(want.sum)}）`);
   ok(new RegExp(`共${want.n}件`).test(afterClick.count), `④ 顶部件数也跟着变成该格子的 ${want.n} 件（${afterClick.count}）`);
   ok(afterClick.scrollTop === 0, `④ 点格子后回到顶部（${afterClick.scrollTop}）`);

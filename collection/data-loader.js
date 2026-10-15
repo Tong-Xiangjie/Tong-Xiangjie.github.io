@@ -17,6 +17,41 @@
 //   ★ 注意边界：**定义分类树的那些 meta 文件**（如 funcollection/years/data.js 里的
 //     specialYearsMeta）必须在配置期就存在，它们仍以 <script> 引入；这里加载的
 //     只是**藏品数据**文件。
+
+// ==================== 数据模块的加载并发 ====================
+// ★ 这个常量就是加载屏上"正在加载 xxx.js · k/N"背后那批 <script> 的并发上限
+//   （用户问的"一次加载 6 个"）。verify-ocrb-init.mjs 会断言它的值 + 行为。
+//
+// ★ 为什么从 6 提到 24 —— 全是本机实测（HTTP/2 over TLS，80ms RTT，各 3 次取中位数，
+//   指标 = 导航开始 → 全部数据文件 responseEnd）：
+//       并发  6 → 1491ms（加载屏消失 1930ms）      并发 12 →  960ms
+//       并发 16 →  847ms                         并发 24 →  656ms（加载屏消失 1095ms）
+//       并发 32 →  685ms                         并发 48 →  580ms
+//       并发 70 →  458ms
+//   另一轮同条件复核（只看 6 / 24）：下载完 1463 → 688ms，加载屏消失 1897 → 1125ms。
+//   同机换成 HTTP/1.1 再测同一批并发：6/12/24/48 **全是 ~1990ms**，一点不动 ——
+//   Chrome 对每个源只开 6 条 TCP 连接，写多大都只是排队。所以"提到多少"只能在
+//   HTTP/2 下量（GitHub Pages 就是 h2）；在 HTTP/1.1 上测会得到"并发根本没用"的假结论。
+//   轮数模型 dlEnd ≈ FCP + ceil(N/并发) × RTT 与实测吻合（N=72 个数据文件，
+//   实测值来自加载屏的 k/N 与动态插入计数，两者一致；注意别拿"配置里 dataFile:
+//   出现次数"去数——那是 73，多出来的一个没有 dataKey，walkTree 根本不收它）。
+//
+// ★ 为什么停在 24、不取 48/70：
+//   ① 轮数已经压到 ceil(72/24)=3，再往上（48/70）下载只再快 76~200ms；
+//   ② 同发越多，"下载完 → 脚本全部执行完"的尾段越长（70 路时从 ~3ms 涨到 ~114ms）——
+//      585KB 数据 JS 的解析+执行是主线程的固定成本，一次涌进来的脚本更多、
+//      更容易堆成一个长任务，收益被吃掉大半；
+//   ③ 进度条一跳一大格，观感更差；
+//   ④ 24 路同发只多占**同一条 h2 连接**上的 24 个 stream（GitHub Pages/Fastly 的
+//      SETTINGS_MAX_CONCURRENT_STREAMS 是 100），不新增 TCP 连接；峰值内存增量
+//      约 24 × 9KB ≈ 0.2MB。
+//   实测长任务总量在 6/12/16/24/32/48/70 下都是 182~207ms（每次恰好 1 个长任务，
+//   且它是数据加载完后的首屏渲染，不随并发变化）—— 没有"并发越高越卡"。
+//
+// ★ 顺序语义完全没变：这些数据文件互相独立（各自只定义自己那个全局变量），
+//   加载顺序本来就无所谓；worker 池的取号 `next++` 是同步的，不存在取重/漏取。
+const DATA_LOAD_CONCURRENCY = 24;
+
 async function loadDataFromTrees(spec) {
     const { trees = [], specials, onProgress } = spec || {};
     const byMap = new Map();
@@ -46,7 +81,6 @@ async function loadDataFromTrees(spec) {
     const total = files.length;
     const failed = [];
     let done = 0;
-    const CONCURRENCY = 6;
     let next = 0;
     async function worker() {
         while (next < files.length) {
@@ -62,7 +96,7 @@ async function loadDataFromTrees(spec) {
             if (onProgress) onProgress({ loaded: done, total, current: file });
         }
     }
-    await Promise.all(Array.from({ length: Math.max(1, Math.min(CONCURRENCY, files.length)) }, worker));
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(DATA_LOAD_CONCURRENCY, files.length)) }, worker));
 
     for (const [mapName, sources] of byMap) {
         window[mapName] = {};
@@ -130,11 +164,11 @@ function loadAllData(onProgress) {
 
         const total = files.length;
         const failed = [];
-        // ★ 并发加载（原来是一个个 await）。
-        //   50 个数据文件合计只有 465KB，串行却要付 50 次网络往返 —— 按 100ms RTT
-        //   算就是约 5 秒纯粹耗在排队上，手机上更久。并发 6 路后只剩约 9 次往返。
+        // ★ 并发数改由文件顶部的 DATA_LOAD_CONCURRENCY 统一提供（原来是写死的 6）。
+        //   取 24 的实测依据与取舍见那个常量上方的注释 —— 一句话：
+        //   GitHub Pages 走 HTTP/2，70 个数据文件在同一条连接上多路复用，
+        //   并发 6→24 把往返轮数从 12 压到 3，本机 80ms RTT 下 1491ms → 656ms。
         //   各数据文件互相独立（各自只定义自己的那个变量），加载顺序无所谓。
-        const CONCURRENCY = 6;
         let done = 0;
         let next = 0;
         async function worker() {
@@ -151,7 +185,7 @@ function loadAllData(onProgress) {
                 if (onProgress) onProgress({ loaded: done, total, current: file });
             }
         }
-        await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker));
+        await Promise.all(Array.from({ length: Math.min(DATA_LOAD_CONCURRENCY, files.length) }, worker));
         if (onProgress) onProgress({ loaded: files.length, total, current: '' });
 
         if (failed.length > 0) {

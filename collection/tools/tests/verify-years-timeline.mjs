@@ -24,7 +24,7 @@ ok(/rerenderTimeline\(\)/.test(fn), '① 换年份/月份走 rerenderTimeline()'
 ok(/rerenderTimeline\(\)/.test(sp.slice(sp.indexOf('function setTimelineOrderInner'), sp.indexOf('function rerenderTimeline'))), '① 换最新/最早（排序）也走 rerenderTimeline()');
 ok((sp.match(/specialPageCaches\[[^\]]+\]\.scrollY = 0/g) || []).length === 1, '① 全站只有这一处清零（没有顺手破坏别处的滚动记忆）');
 const hdr = sp.slice(sp.indexOf('let periodTotal'), sp.indexOf('const sloganText') + 260);
-ok(/periodTotal/.test(hdr) && /你共花了/.test(hdr), '② 标语由"这段时间花了多少"算出来');
+ok(/periodTotal/.test(hdr) && /你一共花了/.test(hdr), '② 标语由"这段时间花了多少"算出来');
 ok(/config\.slogan/.test(hdr), '② 一件都没记价格时仍回退到原来的标语（不硬说 0 元）');
 ok(/item\.copy\.price/.test(hdr), '② 金额口径与每天那条"这天，你一共花了X元"一致');
 
@@ -189,10 +189,10 @@ const sid = await openYears();
 ok(!!sid, `进入币海拾年（${sid || '没找到'}）`);
 const s0 = await state();
 ok(!!s0.slogan, `标题下的标语现在是：「${s0.slogan}」`);
-ok(/你共花了\s*\d+\s*元/.test(s0.slogan || ''), '标语换成了"…你共花了 N 元"');
+ok(/你一共花了\s*\d+\s*元/.test(s0.slogan || ''), '标语换成了"…你一共花了 N 元"');
 ok(!/一钞一年号/.test(s0.slogan || ''), '不再是原来那句 slogan（一钞一年号，一纸一春秋）');
 const e0 = await expectSum(s0.year, s0.month);
-const got0 = parseInt((s0.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+const got0 = parseInt((s0.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
 ok(got0 === e0.sum, `★ 金额与独立重算一致：页面 ${got0} 元 vs 测试自己算 ${e0.sum} 元（${s0.year}/${s0.month}，${e0.n} 件，其中 ${e0.priced} 件有价）`);
 ok(/到目前为止/.test(s0.slogan || ''), '全部年份+全部月份时措辞是"到目前为止"（不是"全部时间段"这种别扭说法）');
 ok(!/在|里/.test((s0.slogan || '').replace('到目前为止', '')), `措辞里没有多余的"在/里"（${s0.slogan}）`);
@@ -229,7 +229,7 @@ else {
     ok(r1.after.scrollTop === 0, `★ 换年份后回到顶部（scrollTop ${r1.scrolled.scrollTop} → ${r1.after.scrollTop}）`);
     ok(r1.after.cache === 0, `★ 缓存里那个旧位置也被作废了（999 → ${r1.after.cache}），不会被 render 末尾的还原拉回 999px`);
     const ey = await expectSum(y, r1.after.month);
-    const gy = parseInt((r1.after.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+    const gy = parseInt((r1.after.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
     ok(gy === ey.sum, `标语金额跟着变：${gy} 元 = 独立重算 ${ey.sum} 元（${ey.n} 件）`);
     ok(new RegExp(y).test(r1.after.slogan), `措辞里带上了年份（${r1.after.slogan}）`);
     ok(r1.after.slogan.indexOf('在') < 0 && r1.after.slogan.indexOf('里') < 0, `年份那句没有"在/里"（${r1.after.slogan}）`);
@@ -239,18 +239,18 @@ else {
     ok(r2.after.month === '07', '③ 月份筛选生效（07 月）');
     ok(r2.after.scrollTop === 0, `★ 换月份后也回到顶部（scrollTop ${r2.scrolled.scrollTop} → ${r2.after.scrollTop}）`);
     const em = await expectSum(r2.after.year, '07');
-    const gm = parseInt((r2.after.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+    const gm = parseInt((r2.after.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
     ok(gm === em.sum, `07 月的金额也一致：${gm} 元 = 独立重算 ${em.sum} 元（${em.n} 件）`);
-    ok(/7 月/.test(r2.after.slogan), `措辞里带上了月份（${r2.after.slogan}）`);
+    ok(/7月/.test(r2.after.slogan), `措辞里带上了月份（${r2.after.slogan}）`);
     ok(r2.after.slogan.indexOf('在') < 0 && r2.after.slogan.indexOf('里') < 0, `年+月那句也没有"在/里"（${r2.after.slogan}）`);
   }
-  // 只选月份（年份回到全部）：措辞应是"历年 7 月，你共花了 N 元"
+  // 只选月份（年份回到全部）：措辞应是"历年7月，你一共花了N元"
   await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='全部'; s.dispatchEvent(new Event('change')); return 1; })()`);
   await sleep(800);
   const rm = await state();
   const em2 = await expectSum('全部', '07');
-  const gm2 = parseInt((rm.slogan.match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
-  ok(/^历年 7 月，你共花了/.test(rm.slogan || ''), `只选月份时措辞是"历年 7 月，…"（${rm.slogan}）`);
+  const gm2 = parseInt((rm.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
+  ok(/^历年7月，你一共花了/.test(rm.slogan || ''), `只选月份时措辞是"历年7月，…"（${rm.slogan}）`);
   ok(gm2 === em2.sum, `只选月份时的金额也一致：${gm2} 元 = 独立重算 ${em2.sum} 元（${em2.n} 件）`);
   // 换"最新/最早"（排序）也要回到顶部（用户追加要求）
   const preSort = await state();
@@ -272,7 +272,7 @@ else {
     ok(afterS.scrollTop === 0, `★ 换最新/最早后也回到顶部（${scrolledS.scrollTop} → ${afterS.scrollTop}）`);
     ok(afterS.cache === 0 || afterS.cache === null, `排序也把缓存里的旧位置作废（${afterS.cache}）`);
     const eS = await expectSum(afterS.year, afterS.month);
-    const gS = parseInt(((afterS.slogan || '').match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
+    const gS = parseInt(((afterS.slogan || '').match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
     ok(gS === eS.sum, `排序只改顺序不改金额（${gS} 元 = 独立重算 ${eS.sum} 元）`);
     const firstDate = await evaluate(`(()=>{ const h = document.querySelector('.timeline-date-label'); return h ? h.textContent.trim() : ''; })()`);
     ok(!!firstDate, `列表确实重排了（首条日期：${firstDate}）`);

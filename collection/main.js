@@ -1,6 +1,31 @@
 // ==================== main.js ====================
 // 精简版：初始化与事件绑定
 
+// ★ OCR-B（冠号字体）提前置为 loaded —— 只靠 head 里的 <link rel=preload as=font> 不够：
+//   preload 只解决"字节什么时候到"，**不解决"第一次用到它时的异步重排"**。
+//   元素第一次需要这个字体时，浏览器仍会先按回退字体排一次版、拿到字体后再重排一次；
+//   这一次重排就是用户报的"总是会跳一下"（逐帧实测：冠号宽度 99.15→103.89px、
+//   92.74→98.16px，即 +4.7~5.4px）。这里在卡片渲染之前按 family 主动 load 一次，
+//   把 FontFace 状态提前变成 loaded，元素第一次排版就用真字体，全程零位移。
+//   ★ 为什么写在这里而不是 head 的内联脚本里：@font-face 在 layout.css 中，
+//     head 里那条内联脚本运行时 CSSOM 里还没有这条规则，document.fonts.load()
+//     会立刻以空数组 resolve（等于没做）。本文件是 </body> 前的外链经典脚本，
+//     执行时阻塞样式表（layout.css）必然已加载完 —— 规则一定在。
+//   ★ 时机：这里 t≈110ms 就跑完，而卡片要等 72 个数据文件加载完（t≈1.2s）才渲染，
+//     所以字体必然先就绪；失败也只是退回 layout.css 的 font-display: block 兜底。
+(function () {
+    function kickOcrbFont() {
+        try {
+            if (document.fonts && document.fonts.load) document.fonts.load('1em "OCRB10PitchBT-Regular"');
+        } catch (e) { /* 老浏览器 / 隐私模式：忽略 */ }
+    }
+    kickOcrbFont();
+    // 兜底：万一 layout.css 还没进 CSSOM（本文件是经典外链脚本，理论上不会），
+    // 等它 load 事件再补一次。
+    var l = document.querySelector('link[href$="layout.css"]');
+    if (l && !l.sheet) l.addEventListener('load', kickOcrbFont, { once: true });
+})();
+
 document.addEventListener('DOMContentLoaded', async function() {
     const loadingContainer = document.getElementById('loadingContainer');
     const appEl = document.getElementById('app');
