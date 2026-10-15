@@ -128,8 +128,35 @@ const r2 = await evaluate(`fetch(${JSON.stringify(IMG)}).then(r => r.status).cat
 const afterSecond = hits.get(IMG) || 0;
 ok(r2 === 200, `第二次也能取到图片（HTTP ${r2}）`);
 ok(afterSecond === afterFirst, `★ 第二次取同一张图没有再打到服务器（计数停在 ${afterSecond}）—— 走的缓存`, `服务器计数 ${afterFirst} → ${afterSecond}`);
-const inImageCache = await evaluate(`(async () => { const k = (await caches.keys()).find(x => x.startsWith('collection-images')); if (!k) return 0; const c = await caches.open(k); return (await c.match(${JSON.stringify(IMG)}, { ignoreSearch: true })) ? 1 : 0; })()`);
-ok(inImageCache === 1, '★ 这张图确实被写进了 collection-images 缓存');
+// ★ 写缓存是"响应返回之后"才落盘的（stale-while-revalidate），所以这里**轮询等待**它出现，
+//   不再是一锤子查一次。CI windows 上偶发的这条红就是这个窗口：
+//   第二次请求已经吃了缓存（上面那条绿），但 cache.put 还没落盘 ⇒ 这里查到 0。
+//   超时也不加长固定 sleep，而是把诊断一次性打全（keys / controller / SW 状态 / 该资源的
+//   performance 条目），让下一次 CI 红了能直接定位。
+const waitImageCached = async (ms = 6000) => {
+  const t0 = Date.now();
+  for (;;) {
+    const n = await evaluate(`(async () => { const k = (await caches.keys()).find(x => x.startsWith('collection-images')); if (!k) return 0; const c = await caches.open(k); return (await c.match(${JSON.stringify(IMG)}, { ignoreSearch: true })) ? 1 : 0; })()`);
+    if (n === 1) return { ok: true, ms: Date.now() - t0 };
+    if (Date.now() - t0 > ms) return { ok: false, ms: Date.now() - t0, diag: await evaluate(`(async () => {
+      const keys = await caches.keys();
+      const reg = await navigator.serviceWorker.getRegistration();
+      const ents = performance.getEntriesByName(${JSON.stringify(new URL(IMG, 'http://x').pathname)}, 'resource')
+        .concat(performance.getEntriesByType('resource').filter(e => e.name.indexOf(${JSON.stringify(IMG_FILE)}) >= 0));
+      return JSON.stringify({
+        keys: keys,
+        controller: navigator.serviceWorker.controller ? '有' : '无',
+        active: reg && reg.active ? reg.active.state : 'none',
+        waiting: reg && reg.waiting ? reg.waiting.state : 'none',
+        installing: reg && reg.installing ? reg.installing.state : 'none',
+        swEntries: ents.slice(0, 3).map(e => ({ name: e.name.split('/').pop(), transferSize: e.transferSize, encodedBodySize: e.encodedBodySize, decodedBodySize: e.decodedBodySize, duration: Math.round(e.duration) }))
+      }); })()`) };
+    await sleep(120);
+  }
+};
+const imgCached = await waitImageCached();
+ok(imgCached.ok, '★ 这张图确实被写进了 collection-images 缓存',
+  imgCached.ok ? `（等 ${imgCached.ms}ms 后出现）` : `（等 ${imgCached.ms}ms 仍未出现；诊断 ${imgCached.diag}）`);
 
 console.log('\n══════ ③ 资源：network-first（在线时优先网络，绝不吃旧代码）══════\n');
 // ★ 关掉浏览器 HTTP 缓存，否则"没再请求服务器"可能只是 HTTP 缓存命中，看不出 SW 的真实行为

@@ -125,9 +125,20 @@ self.addEventListener('fetch', (event) => {
                     .then(response => {
                         if (isCacheable(response)) {
                             const clone = response.clone();
-                            caches.open(CACHE_NAME)
+                            // ★ put 必须交给 event.waitUntil 兜住。
+                            //   原来只是"发出去就不管"：respondWith 已经用网络响应解决了，
+                            //   这个 put 就成了游离的 Promise —— SW 一旦被挂起/回收，
+                            //   或者它比"下一次读缓存"到得还晚，就会表现为
+                            //   "第二次请求仍然打到服务器 / 缓存里查不到这张图"。
+                            //   CI windows 上偶发的
+                            //   「★ 这张图确实被写进了 collection-images 缓存」红就是这个窗口。
+                            //   waitUntil 不改变任何响应行为（返回的仍是 response），
+                            //   只是让浏览器把这次写入当成"这次 fetch 事件的收尾工作"，
+                            //   从而保证它跑完（离线可用性只增不减）。
+                            const put = caches.open(CACHE_NAME)
                                 .then(cache => cache.put(request, clone))
                                 .catch(() => {});
+                            try { event.waitUntil(put); } catch (e) {}
                         }
                         return response;
                     })
