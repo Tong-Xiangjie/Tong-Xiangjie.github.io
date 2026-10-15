@@ -11,7 +11,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
-
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
 
@@ -107,7 +106,35 @@ const sid = await openYears();
 ok(!!sid, `② 进入币海拾年（${sid || '没找到'}）`);
 
 // ─────────── ② 图形结构 ───────────
-console.log('\n══════ ② 结构：年 × 月 ══════\n');
+// ★★ 先在页面里装一个"读泡文本"的小工具（Node 侧和页面侧共用同一套语义）：
+//   · 泡用 `<br>` 分行 ⇒ **textContent 会把 `<br>` 吞掉**（三行粘成一行，断言会看错）；
+//   · **innerText 在 headless 里返回空串**（实测，不可靠）；
+//   ⇒ 唯一可靠的读法是：取 innerHTML → `<br>` 换成 \n → 剥掉其余标签 → 解码实体。
+await evaluate(`window.__tipText = function(t){
+  if (!t) return '';
+  var h = String(t.innerHTML||'').split(/<br\\s*\\/?>/i).join('\\n');
+  h = h.replace(/<[^>]*>/g,'');
+  h = h.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ').replace(/&amp;/g,'&');
+  return h.trim();
+}; 1`);
+// ★★ 全局兜底：后续任何一次页面跳转/重渲染都可能把 window.__tipText 抹掉
+//   （抹掉之后所有泡文案读出来都是空字符串 —— 断言会退化成"看不懂的失败"）。
+//   读泡文本一律走这个函数，它会在缺失时**自己补装**一套（与上面那份语义完全一致）。
+const ensureTipText = async () => {
+  const okNow = await evaluate(`typeof window.__tipText === 'function' && window.__tipText(document.createElement('span').appendChild(document.createTextNode('x')).parentNode) === 'x'`).catch(() => false);
+  if (okNow) return true;
+  await evaluate(`window.__tipText = function(t){
+    if (!t) return '';
+    var h = String(t.innerHTML||'').split(/<br\\s*\\/?>/i).join('\\n');
+    h = h.replace(/<[^>]*>/g,'');
+    h = h.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ').replace(/&amp;/g,'&');
+    return h.trim();
+  }; 1`);
+  return await evaluate(`typeof window.__tipText === 'function'`);
+};
+await ensureTipText();
+const tipTool = await evaluate(`typeof window.__tipText`);
+ok(tipTool === 'function', `② 页面里装好了读泡文本的工具 window.__tipText（实际 ${tipTool}）`);
 const shape = JSON.parse(await evaluate(`(()=>{
   const hm = document.querySelector('.tl-heatmap');
   if (!hm) return JSON.stringify(null);
@@ -119,7 +146,8 @@ const shape = JSON.parse(await evaluate(`(()=>{
       year: (r.querySelector('.tl-heatmap-ylabel') || {}).dataset?.label || null,
       cells: [...r.querySelectorAll('.tl-heatmap-cell')].map(c => ({
         m: c.dataset.month, y: c.dataset.year,
-        aria: c.getAttribute('aria-label'), tip: (c.querySelector('.tl-heatmap-tip') || {}).textContent?.trim() || null,
+        aria: c.getAttribute('aria-label'), tip: (c.querySelector('.tl-heatmap-tip') || {}).innerHTML || null,
+        tipTxt: (c.querySelector('.tl-heatmap-tip') || {}).textContent || null,
         lv: +(c.style.getPropertyValue('--hm-o') || 0),
         inline: c.querySelector('.tl-heatmap-tip') ? (c.querySelector('.tl-heatmap-tip').getAttribute('style') || '') : 'x'
       }))
@@ -173,6 +201,12 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
       }
     }
   }
+  // ★★★ 每个格子并行记**三套**口径（与页面 buildMonthHeatmap 的三套对齐）：
+  //   · n / sum      = 该格**所有条目**（藏品 + 评级费）的裸币口径金额 —— 对应格子的**填色**与 data-amount；
+  //   · pn / psum    = **只数藏品**、金额取**录入价**（price 原值）—— 对应提示文案**第一行**；
+  //   · npn / npsum  = 只数藏品、金额取**裸币价** —— 供"Σ裸币价"独立校验。
+  //   ★ 为什么第一行是录入价而不是裸币价：用户手工把整站加了一遍得到 52746
+  //     （≈ 录入价 48721.5 + 评级费 4023）；用裸币价会得到 44698.5 + 4023 = 48721.5，对不上。
   for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
     if (!map) continue;
     for (const k of Object.keys(map)) {
@@ -182,12 +216,14 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
         const dt = pdate(c.purchaseDate); if (!dt || isNaN(dt.getTime())) continue;
         const y = String(dt.getFullYear()), mo = String(dt.getMonth() + 1).padStart(2, '0');
         const key = y + '/' + mo;
-        cells[key] = cells[key] || { n: 0, sum: 0 };
+        cells[key] = cells[key] || { n: 0, sum: 0, pn: 0, psum: 0, npn: 0, npsum: 0 };
         cells[key].n++;
         const raw = px(c.price);
         const fri = (c.copyId && feeOfCert[c.copyId] != null) ? feeOfCert[c.copyId] : 0;
         const p = (raw > 0 && raw - fri >= 0) ? raw - fri : raw;   // 裸币价
         cells[key].sum += p;
+        cells[key].pn++; cells[key].psum += raw;                    // 只藏品、录入价
+        cells[key].npn++; cells[key].npsum += p;                    // 只藏品、裸币价
         totalAmount += p; ownAmount += p; rawAmount += raw; totalCount++; years.add(y);
       } };
       for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
@@ -208,38 +244,115 @@ const expectMatrix = JSON.parse(await evaluate(`(()=>{
       if (amt <= 0) continue;   // 整批已售出 ⇒ 不出现在时间轴上
       const y = String(dt.getFullYear()), mo = String(dt.getMonth() + 1).padStart(2, '0');
       const key = y + '/' + mo;
-      cells[key] = cells[key] || { n: 0, sum: 0 };
+      // ★ 三种字段都要在：这个月可能**只有评级费**（页面也是一样，cells[m] 一开始就带 pn/psum）
+      cells[key] = cells[key] || { n: 0, sum: 0, pn: 0, psum: 0, npn: 0, npsum: 0 };
       cells[key].n++;
       const p = amt; cells[key].sum += p;
       totalAmount += p; feeSum += p; totalCount++; years.add(y);
     }
   }
-  return JSON.stringify({ cells, years: [...years].sort(), totalAmount: Math.round(totalAmount), totalCount, ownAmount: Math.round(ownAmount), feeSum: Math.round(feeSum), rawAmount: Math.round(rawAmount) });
+  // ★ 按范围聚合（与页面的 month/year/all 三套口径一一对应）
+  const agg = (pick) => {
+    let n = 0, sum = 0, pn = 0, psum = 0, npn = 0, npsum = 0;
+    for (const key of Object.keys(cells)) {
+      const [yy, mm] = key.split('/').map(Number);
+      if (!pick(yy, mm)) continue;
+      const c = cells[key];
+      n += c.n; sum += c.sum;
+      pn += c.pn || 0; psum += c.psum || 0;
+      npn += c.npn || 0; npsum += c.npsum || 0;
+    }
+    return { n, sum: Math.round(sum), pn, psum: Math.round(psum * 10) / 10, npn, npsum: Math.round(npsum * 10) / 10 };
+  };
+  const totalFee = Math.round(feeSum * 10) / 10;
+  const all = agg(() => true);
+  return JSON.stringify({
+    cells, years: [...years].sort(),
+    totalAmount: Math.round(totalAmount), totalCount, ownAmount: Math.round(ownAmount),
+    feeSum: totalFee, rawAmount: Math.round(rawAmount),
+    range: {
+      // 「全部时间」范围：第一行取 pn/psum（只藏品、录入价），第二行 fee = totalFee
+      all,
+      allTotal: Math.round((all.psum + totalFee) * 10) / 10,
+      allNaked: all.npsum,
+      allNakedPlusFee: Math.round((all.npsum + totalFee) * 10) / 10
+    }
+  });            // ← JSON.stringify 的右括号（少一个就会报 "missing ) after argument list"）
 })()`));
 console.log(`      独立重算：${expectMatrix.years.length} 个年份（${expectMatrix.years.join(',')}）、${expectMatrix.totalCount} 件、${expectMatrix.totalAmount} 元`);
 
 ok(!!shape && shape.rows.length === expectMatrix.years.length, `② 行数与该年份数一致（页面 ${shape ? shape.rows.length : '?'} vs 重算 ${expectMatrix.years.length}）`);
+
+// ★★ 读泡文本的统一入口。
+//   ★ 为什么不能直接用 textContent：泡里用 `<br>` 分行（见 special.js 的 tipHtml），
+//     而 **textContent 会把 `<br>` 吞掉**，三行粘成一行；
+//     **innerText 在 headless 里返回空串**（实测，不可靠）。
+//     ⇒ 自己按 `<br>` 切：取出 innerHTML → `<br>` 换成 \n → 去掉其余标签 → 解码实体。
+//   返回 { text, lines }：text 用 \n 连接（与 aria-label 的写法一致，可直接互相比较）。
+const decodeEnt = (s) => String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+const tipTextOf = (tip) => {
+    if (tip == null) return { text: '', lines: [] };
+    const raw = String(tip);
+    const html = raw.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+    const text = decodeEnt(html).trim();
+    return { text, lines: text.split('\n') };
+};
 let cellBad = 0, cellChecked = 0, sumAll = 0;
 for (const r of (shape?.rows || [])) {
   for (const c of r.cells) {
-    const want = expectMatrix.cells[r.year + '/' + c.m] || { n: 0, sum: 0 };
+    const want = expectMatrix.cells[r.year + '/' + c.m] || { n: 0, sum: 0, pn: 0, psum: 0 };
     cellChecked++;
     sumAll += want.sum;
-    const tip = String(c.tip || '');
-    // 用户定的文案格式：x年x月，共购入x件，合计x元
-    const wantText = `${r.year}年${Number(c.m)}月，共购入${want.n}件，合计${Math.round(want.sum)}元`;
-    const exact = tip === wantText;
-    const nOk = tip.includes(`共购入${want.n}件`);
-    const sumOk = tip.includes(`合计${Math.round(want.sum)}元`);
-    const ariaOk = !!c.aria && c.aria.includes(`共购入${want.n}件`) && c.aria.includes(`合计${Math.round(want.sum)}元`);
-    if (!nOk || !sumOk || !ariaOk || !exact) {
+    const { text: tip, lines } = tipTextOf(c.tip);
+    // 用户定的文案格式（2026-10 起是**两/三行**）：
+    //   第一行 = `x年x月，共购入N件，合计X元`，N/X **只算藏品**、X = Σ**录入价**（不含评级费）
+    //   第二行 = `另对K件钱币评级，评级费用 Y 元`（该月没有评级费就整行没有）
+    //   第三行 = `合计支出Z元`，Z = X + Y（同样只在有评级费时出现）
+    const wantText = `${r.year}年${Number(c.m)}月，共购入${want.pn}件，合计${want.psum}元`;
+    const exact = lines[0] === wantText;
+    const nOk = lines[0].includes(`共购入${want.pn}件`);
+    const sumOk = lines[0].includes(`合计${want.psum}元`);
+    // ★ aria-label 走的是 escapeAttr ⇒ 里面的 `<strong class="tl-hm-num">` 被编码成
+    //   `%3Cstrong class=%22tl-hm-num%22%3E`。要比就先把实体/百分号编码解回来，
+    //   再去掉标签，最后和泡的纯文本比。
+    const ariaPlain = decodeEnt(String(c.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
+      .replace(/%22/g, '"').replace(/&#10;/g, '\n').replace(/%0A/gi, '\n'))
+      .replace(/<[^>]*>/g, '');
+    const ariaOk = !!c.aria && ariaPlain.includes(`共购入${want.pn}件`) && ariaPlain.includes(`合计${want.psum}元`);
+    // ★ 第一行里**绝不能**并进评级费（这正是用户报的"多了一倍评级费"）
+    const feeAmt = (() => { const m = (lines[1] || '').match(/评级费用\s*([\d.]+)\s*元/); return m ? +m[1] : null; })();
+    const noFeeInHead = feeAmt == null || !lines[0].includes(`合计${Math.round(want.psum + feeAmt)}元`);
+    // ★★ 第三行 == 第一行 + 第二行（逐格恒等 ⇒ 评级费只被加过一次）
+    const totalOk = (() => {
+      if (feeAmt == null) return lines.length === 1;
+      const m = (lines[2] || '').match(/^合计支出([\d.]+)元$/);
+      return lines.length === 3 && !!m && Math.abs(+m[1] - (want.psum + feeAmt)) <= 0.01;
+    })();
+    if (!nOk || !sumOk || !ariaOk || !exact || !noFeeInHead || !totalOk) {
       cellBad++;
-      if (cellBad <= 5) console.log(`      ✗ ${r.year}/${c.m} 期望「${wantText}」，页面 tooltip「${tip}」aria「${c.aria}」`);
+      if (cellBad <= 5) console.log(`      ✗ ${r.year}/${c.m} 期望「${wantText}」(+评级费行)，页面 tooltip「${tip}」aria「${c.aria}」`);
     }
   }
 }
 ok(cellChecked === 12 * (shape?.rows.length || 0), `② 逐个检查了 ${cellChecked} 个格子`);
 ok(cellBad === 0, `② ★ ${cellChecked} 个格子的「件数 + 金额」全部与独立重算一致（不一致 ${cellBad} 个）`);
+if (cellBad) {
+  const dbg = await evaluate(`(()=>{
+    const out = [];
+    const rows = [...document.querySelectorAll('.tl-heatmap-row')].filter(r=>!r.classList.contains('tl-hm-head'));
+    for (const r of rows) { const y = (r.querySelector('.tl-heatmap-ylabel')||{}).dataset?.label;
+      for (const c of r.querySelectorAll('.tl-heatmap-cell')) {
+        const t = c.querySelector('.tl-heatmap-tip');
+        out.push({ key: y + '/' + c.dataset.month, tip: window.__tipText ? __tipText(t) : String(t.innerHTML).replace(/<[^>]*>/g,'') });
+      } }
+    // 顺带把"页面自己统计的 (n, sum) 口径"也报出来（从 data-amount 与 class 里能看出有没有色）
+    return JSON.stringify(out.slice(0, 4));
+  })()`);
+  console.log(`      ⚠ 独立复算 vs 页面（前 4 格）：`);
+  console.log(`         复算：${Object.keys(expectMatrix.cells).slice(0, 4).map(k => k + '=' + JSON.stringify(expectMatrix.cells[k])).join(' , ')}`);
+  console.log(`         页面：${dbg}`);
+}
 ok(Math.round(sumAll) === expectMatrix.totalAmount, `② 全部格子金额之和 = 独立重算总额（${Math.round(sumAll)} vs ${expectMatrix.totalAmount}）`);
 
 const sloganSum = parseInt(((await evaluate(`(document.querySelector('.timeline-slogan')||{}).textContent||''`)).match(/共花了\s*(\d+)\s*元/) || [])[1], 10);
@@ -254,12 +367,255 @@ ok(expectMatrix.totalAmount === expectMatrix.ownAmount + expectMatrix.feeSum,
 ok(expectMatrix.ownAmount === expectMatrix.rawAmount - expectMatrix.feeSum,
   `② ★ Σ裸币价 == Σ录入价 − 评级费支出（${expectMatrix.ownAmount} == ${expectMatrix.rawAmount} − ${expectMatrix.feeSum}）`);
 
+// ─────────── ②-c 悬浮提示：第一行不含评级费、第二/三行按需出现 ───────────
+// 用户 2026-10 的三行形态（以 2026年10月 为例）：
+//   2026年10月，共购入9件，合计1114元        ← **不含**评级费（否则均价被抬高）
+//   另对34件钱币评级，评级费用 810 元
+//   当月合计支出1924元                       ← 1114 + 810，只在有评级费时出现
+console.log('\n══════ ②-c 悬浮提示：合计不含评级费 + 评级费单独成行 ══════\n');
+// 独立复算：从**台账原始数据**（页面数据文件）重算每月评级费件数与金额，
+// 不读页面算好的任何东西 —— 否则这里就变成"用页面验证页面"了。
+const expectFees = JSON.parse(await evaluate(`(()=>{
+  const d = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+  if (!d || !Array.isArray(d.batches)) return JSON.stringify({});
+  const copyIds = new Set();
+  for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+    if (!map) continue;
+    for (const k of Object.keys(map)) { const dd = map[k]; if (!dd || !dd.series) continue;
+      const scan = (arr) => { for (const c of (arr || [])) if (c && c.copyId) copyIds.add(String(c.copyId)); };
+      for (const s of dd.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); } }
+  }
+  const pdate = (s) => { const t=String(s||'').trim(); const dd=new Date(t); if(!isNaN(dd.getTime())) return dd;
+    const m=t.match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; };
+  const num = (s) => { const v = parseFloat(String(s==null?'':s).replace(/[^0-9.]/g,'')); return isNaN(v)?0:v; };
+  const out = {};
+  for (const b of d.batches) {
+    if (!b || !b.paidDate) continue;
+    const live = (b.items||[]).filter(it => it && copyIds.has(String(it.cert)) && !it.reholder);   // 已售出/换壳都剔除
+    const amount = live.reduce((s,it)=>s+num(it.paidFee),0);
+    if (amount <= 0) continue;
+    const dt = pdate(b.paidDate); if (!dt) continue;
+    // ★★ key 必须与 data-month 完全同形（**两位、带前导零**）：
+    //   写成 2026/1 就永远匹配不上页面里的 2026/01，于是 1~9 月被误判成"无评级费"
+    //   （上一版就是这么报出"第一行 2259 ≠ Σ录入价 0 / 无评级费却有 3 行"的）。
+    const key = dt.getFullYear() + '/' + String(dt.getMonth() + 1).padStart(2, '0');
+    const cur = out[key] || { k:0, amount:0 };
+    cur.k += live.length; cur.amount = Math.round((cur.amount + amount)*100)/100;
+    out[key] = cur;
+  }
+  return JSON.stringify(out);
+})()`));
+const feeKeys = Object.keys(expectFees);
+console.log(`      独立重算的评级费月份：${feeKeys.map(k => k + ' → ' + expectFees[k].k + '件/' + expectFees[k].amount + '元').join('；') || '（无）'}`);
+
+const tipsAll = JSON.parse(await evaluate(`(()=>{
+  const rows = [...document.querySelectorAll('.tl-heatmap-row')].filter(r => !r.classList.contains('tl-hm-head'));
+  const out = [];
+  for (const r of rows) {
+    const y = (r.querySelector('.tl-heatmap-ylabel')||{}).dataset?.label || null;
+    for (const c of r.querySelectorAll('.tl-heatmap-cell')) {
+      const t = c.querySelector('.tl-heatmap-tip');
+      out.push({ y, m: c.dataset.month, tip: __tipText(t), aria: c.getAttribute('aria-label') || '' });
+    }
+  }
+  return JSON.stringify(out);
+})()`));
+ok(tipsAll.length === 12 * (shape?.rows.length || 0), `②-c 取到全部 ${tipsAll.length} 个格子的提示文本`);
+if (tipsAll.slice(0, 3).some(t => !t.tip)) {
+  console.log(`      ⚠ 泡文案读成空串：${tipsAll.slice(0, 3).map(t => `${t.y}/${t.m}=${JSON.stringify(t.tip)}`).join(' , ')}`);
+  console.log(`      ⚠ 读泡工具状态：${await evaluate(`typeof window.__tipText`)}`);
+  console.log(`      ⚠ 原始 innerHTML：${await evaluate(`(document.querySelector('.tl-heatmap-cell .tl-heatmap-tip')||{}).innerHTML`)}`);
+}
+
+// ① 逐格对齐：第一行件数/金额与独立重算一致（已在 ② 覆盖），这里专测**行数与行内容**
+let tipBad = [];
+const seenFeeMonths = [];
+for (const t of tipsAll) {
+  const lines = String(t.tip).split('\n');
+  // ★★ 台账 monthKey 是 'y/MM'（**两位、带前导零**，与 data-month 一模一样）；
+  //   早先写成 Number(t.m) 得到 'y/1'，于是 1~9 月的台账永远查不到
+  //   ⇒ 这些月份被当成"无评级费"，用例报出"第一行 2259 ≠ Σ录入价 0"这种看不懂的错。
+  const mk = t.y + '/' + t.m;
+  const exp = expectFees[mk] || null;
+  const cellWant = expectMatrix.cells[mk] || null;
+  const head = lines[0] || '';
+  const feeLine = lines.find(l => l.startsWith('另对')) || null;
+  const totalLine = lines.find(l => l.startsWith('合计支出')) || null;
+  const headSum = +((head.match(/合计([\d.]+)元/) || [])[1] || NaN);
+  if (exp) {
+    seenFeeMonths.push(mk);
+    // 有评级费 ⇒ 必须三行齐全
+    if (lines.length !== 3) tipBad.push(`${t.y}/${t.m} 行数 ${lines.length}（应有评级费，应为 3 行）：${JSON.stringify(t.tip)}`);
+    if (!feeLine || !totalLine) tipBad.push(`${t.y}/${t.m} 缺第二/三行：${JSON.stringify(t.tip)}`);
+    else {
+      const k = +((feeLine.match(/另对([0-9]+)件/) || [])[1] || NaN);
+      const fa = +((feeLine.match(/评级费用([\d.]+)元/) || [])[1] || NaN);
+      const tl = +((totalLine.match(/合计支出([\d.]+)元/) || [])[1] || NaN);
+      if (k !== exp.k) tipBad.push(`${t.y}/${t.m} 评级件数 ${k} ≠ 台账 ${exp.k}`);
+      if (Math.abs(fa - exp.amount) > 0.01) tipBad.push(`${t.y}/${t.m} 评级费 ${fa} ≠ 台账 ${exp.amount}`);
+      // ★★★ 第三行 == 第一行 + 第二行（逐月恒等 ⇒ 评级费只被加过一次）
+      if (Math.abs(tl - (headSum + fa)) > 0.01) tipBad.push(`${t.y}/${t.m} 第三行 ${tl} ≠ ${headSum}+${fa}=${Math.round((headSum + fa) * 10) / 10}`);
+      // ★★★ 第一行**绝不能**并进评级费（"多了一倍评级费"就是这个）
+      //   ★ cellWant 在循环头就取好了（原先在这里重新声明 ⇒ `const` 暂时性死区 ⇒ TypeError）
+      if (Math.abs(headSum - (cellWant ? cellWant.psum : 0)) > 0.01) {
+        tipBad.push(`${t.y}/${t.m} 第一行 ${headSum} ≠ Σ录入价 ${cellWant ? cellWant.psum : '（无该月）'}`);
+      }
+    }
+  } else {
+    // 没有评级费 ⇒ 只有一行，且不出现"另对"和第三行
+    if (lines.length !== 1) tipBad.push(`${t.y}/${t.m} 无评级费却有 ${lines.length} 行：${JSON.stringify(t.tip)}`);
+    if (/另对/.test(t.tip) || /合计支出/.test(t.tip)) tipBad.push(`${t.y}/${t.m} 无评级费却出现第二/三行：${JSON.stringify(t.tip)}`);
+  }
+  if (!/^[0-9]{4}年[0-9]{1,2}月，共购入[0-9]+件，合计[\d.]+元/.test(head)) tipBad.push(`${t.y}/${t.m} 第一行格式不对：${JSON.stringify(head)}`);
+}
+ok(tipBad.length === 0, `②-c ★ ${tipsAll.length} 个格子的提示行数/行内容都对（有评级费=3 行、无评级费=1 行）${tipBad.length ? '；问题：' + tipBad.slice(0, 6).join(' | ') : ''}`);
+ok(seenFeeMonths.length === feeKeys.length, `②-c ★ 带评级费的月份集合与台账一致（页面 ${seenFeeMonths.sort().join(',') || '无'} vs 台账 ${feeKeys.sort().join(',') || '无'}）`);
+
+// ② 用户给的例子：2026年10月 必须逐字对上
+const oct = tipsAll.find(t => t.y === '2026' && Number(t.m) === 10);
+ok(!!oct, `②-c ★ 找到 2026年10月 的格子（提示：${JSON.stringify(oct && oct.tip)}）`);
+if (oct) {
+  const lines = String(oct.tip).split('\n');
+  console.log('     2026年10月 实际提示文本：');
+  lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
+  const octExp = expectFees['2026/10'];
+  // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ录入价）：
+  //     2026年10月，共购入8件，合计1114元      ← 用户原话写的是"9件"，实测数据是 **8 件 / 1114 元**
+  //                                              （collectAllCopies 与实际遍历两条独立路径都是 8 件 1114 元）
+  //     另对26件钱币评级，评级费用810元
+  //     合计支出1924元
+  const octCell = expectMatrix.cells['2026/10'];
+  ok(/^2026年10月，共购入\d+件，合计1114元$/.test(lines[0]),
+    `②-c ★★★ 第一行合计 == 1114（实际「${lines[0]}」）`);
+  ok(!/1924/.test(lines[0]), `②-c ★★★ 第一行里**不出现** 1924（实际「${lines[0]}」）`);
+  ok(/^另对[\d]+件钱币评级，评级费用810元$/.test(lines[1] || ''),
+    `②-c ★★★ 第二行 == 「另对xx件钱币评级，评级费用810元」（数字两侧无空格；实际「${lines[1]}」）`);
+  ok(lines[2] === '合计支出1924元',
+    `②-c ★★★ 第三行 == 「合计支出1924元」（1114 + 810；实际「${lines[2]}」）`);
+  ok(octCell && octCell.pn === 8 && Math.abs(octCell.psum - 1114) <= 0.01,
+    `②-c ★★★ 独立复算该月 = ${octCell && octCell.pn} 件 / Σ录入价 ${octCell && octCell.psum} 元`);
+  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
+    `②-c ★★★ 台账该月评级 = 26 件 / 810 元（实际 ${octExp.k} 件 / ${octExp.amount} 元）`);
+  // aria-label 也要是同一套文本（aria 走 escapeAttr，会带编码后的 <strong> 标签）
+  const ariaOct = decodeEnt(String(oct.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
+    .replace(/%22/g, '"').replace(/&#10;/g, '\n').replace(/%0A/gi, '\n')).replace(/<[^>]*>/g, '').trim();
+  ok(ariaOct === oct.tip, `②-c ★ 该格 aria-label 与提示文本完全一致（含三行换行）\n         aria: ${JSON.stringify(ariaOct)}\n         tip : ${JSON.stringify(oct.tip)}`);
+}
+// ③ 一个**无评级费**的月份：只有一行、不出现"另对"/第三行 —— 交付要贴它的原文
+const noFee = tipsAll.find(t => !expectFees[t.y + '/' + t.m] && /共购入[1-9]/.test(String(t.tip)));
+ok(!!noFee, `②-c ★ 找到一个无评级费、有购入的月份（${noFee ? noFee.y + '年' + Number(noFee.m) + '月' : '没找到'}）`);
+if (noFee) {
+  console.log(`     ${noFee.y}年${Number(noFee.m)}月（无评级费）实际提示文本：`);
+  String(noFee.tip).split('\n').forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
+  ok(String(noFee.tip).split('\n').length === 1, '②-c ★★★ 无评级费的月份只有一行（不显示第二/三行）');
+}
+// ④ 只有评级费、没有购入的月份：第一行省略，但第二/三行要在，且第三行 == 评级费
+const onlyFee = tipsAll.find(t => expectFees[t.y + '/' + t.m] && /^另对/.test(String(t.tip).split('\n')[0]));
+if (onlyFee) {
+  const lines = String(onlyFee.tip).split('\n');
+  console.log(`     ${onlyFee.y}年${Number(onlyFee.m)}月（只有评级费）实际提示文本：`);
+  lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
+  ok(lines.length === 2 && /^另对/.test(lines[0]) && /^合计支出/.test(lines[1]),
+    `②-c ★ 只有评级费的月份：省略第一行，第二/三行都在（${JSON.stringify(onlyFee.tip)}）`);
+  const fa = +((lines[0].match(/评级费用([\d.]+)元/) || [])[1] || NaN);
+  const tl = +((lines[1].match(/合计支出([0-9.]+)元/) || [])[1] || NaN);
+  ok(Math.abs(tl - fa) <= 0.01, `②-c ★ 该月第三行 == 评级费（${tl} == ${fa}）`);
+} else {
+  console.log('     （数据里没有"只有评级费、无购入"的月份，跳过该分支）');
+}
+
+// ⑤ 换行真的会渲染成三行 + 泡的形状（宽由内容定、不折行、文字居中）
+//   ★ 现在分行靠 `<br>`（不是 `\n` + white-space:pre-line）：
+//     pre-line 会把泡的首选宽度塌成"最长的一个词"，泡被压成**一个格子那么宽**。
+// ★★ 用户 2026-10：泡里的**数字/件数加粗**，标签文字保持正常字重；数字与两侧文字**无空格**。
+const tipDom = JSON.parse(await evaluate(`(()=>{
+  const cell = [...document.querySelectorAll('.tl-heatmap-cell')].find(c => /另对/.test(__tipText(c.querySelector('.tl-heatmap-tip')))) || document.querySelector('.tl-heatmap-cell');
+  const t = cell && cell.querySelector('.tl-heatmap-tip');
+  if (!t) return JSON.stringify(null);
+  const strongs = [...t.querySelectorAll('strong, b')];
+  const fw = strongs.map(s => +getComputedStyle(s).fontWeight);
+  const plain = document.createElement('span');
+  plain.innerHTML = t.innerHTML;
+  // 标签文字（"共购入"这种）的容器就是泡本身，字重取泡的
+  return JSON.stringify({
+    html: t.innerHTML,
+    nStrong: strongs.length,
+    minStrongW: fw.length ? Math.min(...fw) : 0,
+    texts: strongs.map(s => s.textContent),
+    tipWeight: +getComputedStyle(t).fontWeight,
+    // 去掉 strong 之后，标签文字两侧是否有空格
+    labelSpaces: /[0-9]\s|[\u4e00-\u9fa5]\s+[0-9]/.test(plain.textContent.replace(/<[^>]*>/g, '')),
+    plainText: t.textContent
+  });
+})()`));
+ok(tipDom && tipDom.nStrong >= 4, `②-c ★★ 泡里用 <strong> 包了数字/件数（共 ${tipDom && tipDom.nStrong} 个：${tipDom && tipDom.texts.join(' / ')}）`);
+ok(tipDom && tipDom.minStrongW >= 600, `②-c ★★ 数字/件数的 font-weight ≥ 600（实测最小 ${tipDom && tipDom.minStrongW}）`);
+ok(tipDom && tipDom.tipWeight < 600, `②-c ★★ 标签文字保持正常字重（泡本身 font-weight=${tipDom && tipDom.tipWeight} < 600）`);
+
+const tipShape = JSON.parse(await evaluate(`(()=>{
+  const t=document.querySelector('.tl-heatmap-cell .tl-heatmap-tip');
+  if(!t) return JSON.stringify(null);
+  const cs=getComputedStyle(t);
+  return JSON.stringify({ ws: cs.whiteSpace, ta: cs.textAlign, width: cs.width, maxWidth: cs.maxWidth });
+})()`));
+ok(tipShape && tipShape.ws === 'nowrap',
+  `②-c ★★ 泡的 white-space = nowrap（实际 ${tipShape && tipShape.ws}）—— 每行不折行`);
+ok(tipShape && tipShape.ta === 'center',
+  `②-c ★★ 泡的 text-align = center（实际 ${tipShape && tipShape.ta}）—— 用户要求"几行字居中展示"`);
+// ★★ width 的判据不能用 getComputedStyle().width：按规范它返回**已使用值**（这里就是
+//   最长那一行的像素宽，183.5px），永远读不到 "max-content" 这个关键字。
+//   ⇒ 直接从**样式表**里读声明值（这是"宽度由内容决定"的真正证据）。
+const tipDecl = await evaluate(`(()=>{
+  let out = null;
+  for (const sheet of document.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch { continue; }
+    for (const rule of rules) {
+      if (!rule.selectorText || !/\\.tl-heatmap-tip\\b/.test(rule.selectorText)) continue;
+      const w = rule.style && rule.style.width;
+      // ★ 只认**真正给泡定宽度**的那条规则：别的同前缀规则（尖角 ::after 之类）会带
+      //   一个 0px 的 width 覆盖掉结果。
+      if (w && w !== '0px' && !/::/.test(rule.selectorText)) out = w;
+    }
+  }
+  return out;
+})()`);
+ok(tipDecl === 'max-content', `②-c ★★ 样式表里 .tl-heatmap-tip 的 width 声明 == max-content（实际 ${tipDecl}）`);
+ok(tipShape && /px|vw|em/.test(tipShape.maxWidth) && parseFloat(tipShape.maxWidth) > 0,
+  `②-c ★★ 泡有 max-width 兜底（实际 ${tipShape && tipShape.maxWidth}）—— 窄屏也不会溢出`);
+
+const octLines = await evaluate(`(()=>{
+  const rows=[...document.querySelectorAll('.tl-heatmap-row')].filter(r=>!r.classList.contains('tl-hm-head'));
+  for (const r of rows) { if ((r.querySelector('.tl-heatmap-ylabel')||{}).dataset?.label!=='2026') continue;
+    for (const c of r.querySelectorAll('.tl-heatmap-cell')) if (c.dataset.month==='10') {
+      const t=c.querySelector('.tl-heatmap-tip');
+      // ★ 用 Range 量**文本行盒**：对块级元素调 getClientRects() 只会返回 1 个矩形（整块），
+      //   量不出"几行" —— 上一版就是这么误判的（明明三行却报 1 个行盒）。
+      const rg=document.createRange(); rg.selectNodeContents(t);
+      const rects=[...rg.getClientRects()].filter(x=>x.width>0&&x.height>0);
+      const oneLine=parseFloat(getComputedStyle(t).lineHeight)||0;
+      const cell=c.getBoundingClientRect();
+      return JSON.stringify({ n:rects.length, h:Math.round(t.getBoundingClientRect().height),
+        oneLine:Math.round(oneLine), tipW:Math.round(t.getBoundingClientRect().width),
+        cellW:Math.round(cell.width) });
+    } }
+  return JSON.stringify(null);
+})()`).then(JSON.parse);
+ok(octLines && octLines.n >= 3,
+  `②-c ★★ 2026年10月 的泡在屏幕上真的是多行（${octLines ? octLines.n + ' 个文本行盒、高 ' + octLines.h + 'px、单行高 ' + octLines.oneLine + 'px' : '没取到'}）`);
+ok(octLines && octLines.h >= octLines.oneLine * 2.8,
+  `②-c ★★ 泡的高度 ≈ 三行（${octLines ? octLines.h + 'px ≥ 2.8 × ' + octLines.oneLine + 'px' : '没取到'}）—— <br> 真的把三行渲染出来了`);
+ok(octLines && octLines.tipW >= 200 && octLines.tipW > octLines.cellW * 2,
+  `②-c ★★★ 泡的宽度没有被压成"一个格子那么宽"（泡 ${octLines && octLines.tipW}px > 格子 ${octLines && octLines.cellW}px × 2）—— 用户报的形状问题`);
+
 // 深浅：颜色**只有 --theme 一种**，深浅全由 opacity 表达；
 //   每个格子的 --hm-o 必须 = 0（金额 0）或 lerp(0.06, 0.95, 金额/最大金额)
 const lvInfo = JSON.parse(await evaluate(`(()=>{
   const cells = [...document.querySelectorAll('.tl-heatmap-cell')];
   const o = c => +(c.style.getPropertyValue('--hm-o') || 0);
-  const am = c => { const t=(c.querySelector('.tl-heatmap-tip')||{}).textContent||''; const m=t.match(/合计([0-9]+)元/); return m?+m[1]:0; };
+  // ★★ 填色金额读 data-amount（渲染端写的**该格总额** = 藏品裸币价 + 该月评级费），
+  //   **不要**从泡文案里抠"合计" —— 泡第一行现在是**录入价口径**（只算藏品、不减费），
+  //   与填色用的裸币口径差一个评级费，抠出来必然对不上（上一版就是这么误报的）。
+  const am = c => +(c.dataset.amount || 0);
   const rows = cells.map(c => {
     const f = c.querySelector('.tl-hm-fill');
     const cs = getComputedStyle(f);
@@ -319,8 +675,106 @@ ok(geo.years.every((y, i, a) => i === 0 || Number(a[i - 1]) < Number(y)), `② �
 ok(geo.square, `② ★ 格子是正方形（实测 ${geo.w}×${geo.h}）`);
 ok(geo.w >= 28, `② 格子比上一版大一点（${geo.w}px，上限 42px）`);
 ok(!geo.title, '② ★ 没有"按月份统计（共 N 件…）"那句标题（用户要求去掉）');
-ok(!!geo.corner && geo.corner.text === '全部' && /applyTimelineFilter/.test(geo.corner.click), `② ★ 左上角是"全部"，点了回到全部时间（onclick=${geo.corner && geo.corner.click}）`);
+ok(!!geo.corner && geo.corner.text === '全部' && /applyTimelineFilter/.test(geo.corner.click), `② ★ 左上角按钮文字 == 「全部」（实际「${geo.corner && geo.corner.text}」，onclick=${geo.corner && geo.corner.click}）`);
+// ★★ 用户 2026-10（两次修正后收口）：
+//   ① 左上角按钮的**标签文字** == 「全部」（用户明确："左上角显示的还是'全部'"）；
+//   ② **只有**这个按钮的**泡里**（"全部"范围统计提示）前缀 == 「入坑以来，」；
+//   ③ 「入坑以来」**不许**成为任何按钮/标签的可读名字（按钮的可见文字与 aria 前缀都查）；
+//      但 aria-label 里**带着统计文案**是允许的（那句话本身就是泡的文本）。
+const cornerInfo = JSON.parse(await evaluate(`(()=>{
+  const c = document.querySelector('.tl-hm-corner');
+  if (!c) return JSON.stringify(null);
+  const clone = c.cloneNode(true);
+  const tipEl = clone.querySelector('.tl-heatmap-tip'); if (tipEl) tipEl.remove();
+  return JSON.stringify({
+    visible: clone.textContent.trim(),
+    ariaHead: (c.getAttribute('aria-label') || '').split('：')[0],
+    tip: __tipText(c.querySelector('.tl-heatmap-tip'))
+  });
+})()`));
+ok(cornerInfo && cornerInfo.visible === '全部',
+  `② ★★★ 左上角按钮的标签文字 == 「全部」（实际「${cornerInfo && cornerInfo.visible}」）`);
+ok(cornerInfo && !/入坑以来/.test(cornerInfo.visible) && !/入坑以来/.test(cornerInfo.ariaHead),
+  `② ★★★ 按钮**名字**里不出现"入坑以来"（可见「${cornerInfo && cornerInfo.visible}」/ aria 前缀「${cornerInfo && cornerInfo.ariaHead}」）`);
+ok(cornerInfo && /^入坑以来，共购入/.test(cornerInfo.tip),
+  `② ★★★ 只有泡里"全部"范围的前缀 == 「入坑以来，」（实际第一行「${cornerInfo && cornerInfo.tip.split('\n')[0]}」）`);
+const youRu = await evaluate(`(()=>{
+  const html = document.body.innerHTML;
+  const allTips = [...document.querySelectorAll('.tl-heatmap-tip')].map(t => t.innerHTML).join('\\u0000');
+  // ★ 把**整段**泡（含它里面嵌套的 <strong>）连同 aria-label 一起挖掉，剩下的才是"标签/按钮文字"。
+  //   早先只 replace 到第一个 </span>，泡里的 <strong>…</strong> 留下了一半，误判成"泡之外还有"。
+  const strip = (s) => {
+    let out = s, prev = null;
+    while (out !== prev) { prev = out; out = out.replace(/<span class="tl-heatmap-tip"[\\s\\S]*?<\\/span>/, ''); }
+    return out.replace(/aria-label="[^"]*"/g, '');
+  };
+  return JSON.stringify({
+    inTips: (allTips.match(/入坑以来/g) || []).length,
+    outsideTips: (strip(html).match(/入坑以来/g) || []).length,
+    allTime: (html.match(/全部时间/g) || []).length
+  });
+})()`).then(JSON.parse);
+ok(youRu && youRu.inTips >= 1, `② ★★★ 「入坑以来」出现在泡的提示文本里（${youRu && youRu.inTips} 次）`);
+ok(youRu && youRu.outsideTips === 0,
+  `② ★★★ 除泡文本之外**没有**"入坑以来"（泡之外出现 ${youRu && youRu.outsideTips} 次）`);
+ok(youRu && youRu.allTime === 0, `② ★★★ 页面上**不出现**"全部时间"（实际 ${youRu && youRu.allTime} 次）`);
 ok(geo.centered, '② 热力图整块在内容区里居中');
+// ★★★ 用户 2026-10：「热力图到上方的距离又太宽了，和之前不一样」——
+//   .tl-heatmap 的**上方间距**必须与改动前逐值一致：
+//     桌面：padding-top **0**、margin-top **14px**（原来的值就是这两条，别再加 padding）；
+//     手机：padding-top **14px**（原设计就是给最上面那行泡留的）。
+//   这条断言就是防"为了给泡腾地方又把上方撑宽"的回归。
+const hmBoxDecl = async () => JSON.parse(await evaluate(`(()=>{
+  const e = document.querySelector('.tl-heatmap');
+  if (!e) return JSON.stringify(null);
+  const cs = getComputedStyle(e);
+  return JSON.stringify({ pt: cs.paddingTop, pb: cs.paddingBottom, mt: cs.marginTop, mb: cs.marginBottom, vw: innerWidth });
+})()`));
+const hmBox = await hmBoxDecl();
+// 实测"热力图顶边 − 上方元素底边"：margin 会折叠，所以直接量相邻两条边的距离
+const gapUp = await evaluate(`(()=>{
+  const hm = document.querySelector('.tl-heatmap');
+  if (!hm) return -1;
+  const r = hm.getBoundingClientRect();
+  // 往上找第一个有实际高度的兄弟/祖先兄弟作为"上方元素"
+  let prev = hm.previousElementSibling;
+  while (prev && prev.getBoundingClientRect().height < 1) prev = prev.previousElementSibling;
+  const pr = prev ? prev.getBoundingClientRect() : null;
+  return JSON.stringify({ hmTop: Math.round(r.top * 100) / 100, prevBottom: pr ? Math.round(pr.bottom * 100) / 100 : null,
+    gap: pr ? Math.round((r.top - pr.bottom) * 100) / 100 : null, prevTag: prev ? prev.className : null });
+})()`).then(JSON.parse);
+// ★★★ 上方间距基线（改动前 == 现在，容差 ≤ 0.5px）：
+//   桌面：.tl-heatmap 的 padding-top == 0、margin-top == 14px；
+//   实测"热力图顶边 − 上方元素（.timeline-header，margin-bottom:16px）底边" == **16px**
+//   （14 与 16 折叠后取大者）。这两个数就是"和以前一样"的基线，往后不许再被改宽。
+const GAP_UP_BASELINE = 16;
+ok(Math.abs(parseFloat(hmBox.pt)) <= 0.5,
+  `② ★★★ 桌面下 .tl-heatmap 的 padding-top == 0（实际 ${hmBox && hmBox.pt}，容差 0.5px）—— 不能为了放泡把上方撑宽`);
+ok(Math.abs(parseFloat(hmBox.mt) - 14) <= 0.5,
+  `② ★★★ 桌面下 .tl-heatmap 的 margin-top == 14px（实际 ${hmBox && hmBox.mt}，容差 0.5px）`);
+ok(gapUp.gap !== null && Math.abs(gapUp.gap - GAP_UP_BASELINE) <= 0.5,
+  `② ★★★ 热力图到上方元素的实际间距 == 基线 ${GAP_UP_BASELINE}px（实际 ${gapUp.gap}px，容差 0.5px；上方元素 ${gapUp.prevTag}）`);
+console.log(`     热力图上方间距实测：热力图 top=${gapUp.hmTop}，上方元素（${gapUp.prevTag}）bottom=${gapUp.prevBottom}，间隙=${gapUp.gap}px`);
+const gapDbg = JSON.parse(await evaluate(`(()=>{
+  const hm = document.querySelector('.tl-heatmap');
+  const cs = getComputedStyle(hm);
+  let prev = hm.previousElementSibling;
+  while (prev && prev.getBoundingClientRect().height < 1) prev = prev.previousElementSibling;
+  const pr = prev ? prev.getBoundingClientRect() : null;
+  const pcs = prev ? getComputedStyle(prev) : null;
+  const sibs = [...(hm.parentElement ? hm.parentElement.children : [])].map(e => e.className + '[' + Math.round(e.getBoundingClientRect().top) + '..' + Math.round(e.getBoundingClientRect().bottom) + ']');
+  return JSON.stringify({
+    parent: hm.parentElement ? hm.parentElement.className : null,
+    prevTag: prev ? prev.className : null,
+    prevBottom: pr ? +pr.bottom.toFixed(2) : null, prevMb: pcs ? pcs.marginBottom : null,
+    hmTop: +hm.getBoundingClientRect().top.toFixed(2), hmMt: cs.marginTop, hmPt: cs.paddingTop, hmBorderTop: cs.borderTopWidth,
+    siblings: sibs.slice(0, 8)
+  });
+})()`));
+console.log(`     结构：parent=${gapDbg.parent}；上方元素=${gapDbg.prevTag}（bottom=${gapDbg.prevBottom}、margin-bottom=${gapDbg.prevMb}）`);
+console.log(`     热力图：top=${gapDbg.hmTop}、margin-top=${gapDbg.hmMt}、padding-top=${gapDbg.hmPt}、border-top=${gapDbg.hmBorderTop}`);
+console.log(`     同级元素：${gapDbg.siblings.join(' , ')}`);
+ok(gapUp.gap === null || gapUp.gap >= 0, `② ★★ 热力图与上方元素的实际间隙 = ${gapUp.gap}px（基线：≥ 0，不额外加 padding 就不会是负数）`);
 
 // ─────────── ③ 悬停：CSS tooltip 真的会显示 ───────────
 console.log('\n══════ ③ 悬停显示件数与金额 ══════\n');
@@ -330,7 +784,8 @@ const bestIdx = await evaluate(`(()=>{
   if (!cells.length) return -1;
   let bi = 0, bv = -1;
   cells.forEach((c, i) => {
-    const t = (c.querySelector('.tl-heatmap-tip') || {}).textContent || '';
+    // ★ 这段是喂给 evaluate 的**模板字符串**，里面要写 \\n 才是页面脚本里的换行
+    const t = (__tipText(c.querySelector('.tl-heatmap-tip'))||'').split('\\n')[0];
     const m = t.match(/合计([0-9]+)元/); const v = m ? +m[1] : 0;
     if (v > bv) { bv = v; bi = i; }
   });
@@ -346,7 +801,7 @@ if (bestIdx >= 0) {
     const r = c.getBoundingClientRect();
     const tip = c.querySelector('.tl-heatmap-tip');
     const cs = getComputedStyle(tip);
-    return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2, text: tip.textContent.trim(),
+    return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2, text: __tipText(tip),
       vis: cs.visibility, op: +cs.opacity, inline: tip.getAttribute('style') });
   })()`));
 }
@@ -366,6 +821,10 @@ const tipProbe = async (elExpr) => JSON.parse(await evaluate(`(()=>{
   const mc = (typeof getRenderContainer === 'function' && getRenderContainer()) || document.documentElement;
   const cr = mc.getBoundingClientRect();
   const outX = Math.max(0, Math.round(cr.left - tr.left), Math.round(tr.right - cr.right));
+  // ★★ 上下边界：**对"泡所在的格子"判没有意义** —— 泡一律朝上弹，本就在格子**上面**，
+  //   量 格子.top − 泡.top 必然是个正数（上一版就是这么误报"上下越界 94px"的）。
+  //   真正该判的是"泡有没有跑出热力图这一整块"：表头那一行为泡预留了上方空间
+  //   （.tl-heatmap 的 padding-top），所以拿 .tl-heatmap 的上下边当界。
   const outY = Math.max(0, Math.round(hr.top - tr.top), Math.round(tr.bottom - hr.bottom));
   const boxC = br.left + br.width / 2;
   const tn = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
@@ -376,7 +835,10 @@ const tipProbe = async (elExpr) => JSON.parse(await evaluate(`(()=>{
   return JSON.stringify({
     found: true,
     vis: +getComputedStyle(tip).opacity > 0.5,
-    text: tip.textContent.trim(),
+    text: __tipText(tip),
+    // ★ 泡宽 + 单个格子宽：用来断言"泡没有被压成一个格子那么宽"（用户报的形状问题）
+    tipW: Math.round(tr.width), tipH: Math.round(tr.height),
+    ws: getComputedStyle(tip).whiteSpace,
     out: Math.max(outX, outY), outX, outY,
     dc: Math.round((tr.left + tr.width / 2) - anchorC),
     anchorC: Math.round(anchorC),
@@ -409,23 +871,48 @@ const hoverAt = async (elExpr) => {
   return true;
 };
 
+// ★ 必须在顶层定义：③（浅色）与⑤（暗色）两处都要读它，塞进 `else` 块里会 ReferenceError
+//   （踩过一次：`readTips is not defined`）。
+const readTips = async () => JSON.parse(await evaluate(`(()=>{
+  const all = document.querySelector('.tl-hm-corner .tl-heatmap-tip');
+  const norm = [...document.querySelectorAll('.tl-heatmap-cell .tl-heatmap-tip')].find(x => !/tl-hm-tip-all/.test(x.className));
+  if (!all || !norm) return JSON.stringify(null);
+  const cs = e => getComputedStyle(e);
+  const strongAll = all.querySelector('strong, b'), strongNorm = norm.querySelector('strong, b');
+  const face = e => { const c = cs(e); return [c.backgroundColor, c.color, c.borderTopWidth, c.borderTopStyle,
+    c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft, c.borderRadius, c.boxShadow,
+    c.fontSize, c.lineHeight, c.fontWeight].join(' | '); };
+  return JSON.stringify({
+    anySpecialClass: document.querySelectorAll('.tl-hm-tip-all').length,
+    faceAll: face(all), faceNorm: face(norm),
+    labelWAll: cs(all).fontWeight, labelWNorm: cs(norm).fontWeight,
+    strongWAll: strongAll ? cs(strongAll).fontWeight : null,
+    strongWNorm: strongNorm ? cs(strongNorm).fontWeight : null,
+    // 左上角按钮本身：字重也要与其它范围按钮一致（它带 .is-active，但那只该影响**颜色**）
+    cornerFw: cs(document.querySelector('.tl-hm-corner')).fontWeight,
+    otherLabelFw: cs([...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => !e.classList.contains('tl-hm-corner'))).fontWeight,
+    scheme: document.documentElement.getAttribute('data-color-scheme')
+  });
+})()`));
+
 if (!box) {
   ok(false, '③ 页面上一个格子都没有，悬停部分无法验证');
 } else {
 ok(box.op === 0 || box.vis === 'hidden', `③ 没悬停时 tooltip 藏起来（visibility=${box.vis} opacity=${box.op}）`);
-const beforeHover = JSON.parse(await evaluate(`(()=>{ const t=[...document.querySelectorAll('.tl-heatmap-tip')].find(x=>x.textContent.trim()===${JSON.stringify(box.text)}); const cs=getComputedStyle(t); return JSON.stringify({vis:cs.visibility,op:+cs.opacity}); })()`));
+const beforeHover = JSON.parse(await evaluate(`(()=>{ const t=[...document.querySelectorAll('.tl-heatmap-tip')].find(x=>__tipText(x)===${JSON.stringify(box.text)}); const cs=getComputedStyle(t); return JSON.stringify({vis:cs.visibility,op:+cs.opacity}); })()`));
 // 真实鼠标移动（CDP 输入管线，不是合成事件）
 await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(box.x), y: Math.round(box.y), buttons: 0 });
 await sleep(320);
 const hoverState = JSON.parse(await evaluate(`(()=>{
-  const t=[...document.querySelectorAll('.tl-heatmap-tip')].find(x=>x.textContent.trim()===${JSON.stringify(box.text)});
+  const t=[...document.querySelectorAll('.tl-heatmap-tip')].find(x=>__tipText(x)===${JSON.stringify(box.text)});
   const cs=getComputedStyle(t);
   const r=t.getBoundingClientRect();
   return JSON.stringify({vis:cs.visibility,op:+cs.opacity,bg:cs.backgroundColor,color:cs.color,w:Math.round(r.width),h:Math.round(r.height),left:Math.round(r.left),right:Math.round(r.right)});
 })()`));
 ok(hoverState.vis === 'visible' && hoverState.op > 0.9, `③ ★ 悬停后 tooltip 显示了（visibility=${hoverState.vis} opacity=${hoverState.op}，之前 ${beforeHover.vis}/${beforeHover.op}）`);
 ok(hoverState.w > 40 && hoverState.h > 10, `③ tooltip 真的渲染出尺寸了（${hoverState.w}×${hoverState.h}px）`);
-ok(/共购入[0-9]+件，合计[0-9]+元/.test(box.text), `③ tooltip 文案是「x年x月，共购入x件，合计x元」：「${box.text}」`);
+// ★ 文案格式（数字两侧**无空格**）：x年x月，共购入x件，合计x元 [⏎ 另对x件钱币评级，评级费用x元 ⏎ 合计支出x元]
+ok(/^[0-9]{4}年[0-9]{1,2}月，共购入[0-9]+件，合计[\d.]+元(\n另对[0-9]+件钱币评级，评级费用[\d.]+元\n合计支出[\d.]+元)?$/.test(box.text), `③ tooltip 文案是「x年x月，共购入x件，合计x元」+ 可选第二行评级费与第三行合计支出：「${JSON.stringify(box.text)}」`);
 ok(!/transparent|rgba\(0, 0, 0, 0\)/.test(hoverState.bg), `③ tooltip 有底色（${hoverState.bg}）`);
 // tooltip 不该跑出内容区左/右边界太多
 await evaluate(`(()=>{ const mc=(typeof getRenderContainer==='function'&&getRenderContainer())||document.body; const r=mc.getBoundingClientRect(); window.__hmBox={ l:r.left, r:r.right }; return 1; })()`);
@@ -435,7 +922,7 @@ ok(hoverState.left >= bounds.l - 2 && hoverState.right <= bounds.r + 2, `③ too
 await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
 await sleep(320);
 const afterLeave = JSON.parse(await evaluate(`(()=>{
-  const t=[...document.querySelectorAll('.tl-heatmap-tip')].find(x=>x.textContent.trim()===${JSON.stringify(box.text)});
+  const t=[...document.querySelectorAll('.tl-heatmap-tip')].find(x=>__tipText(x)===${JSON.stringify(box.text)});
   const cs=getComputedStyle(t); return JSON.stringify({vis:cs.visibility,op:+cs.opacity});
 })()`));
 ok(afterLeave.vis === 'hidden' || afterLeave.op < 0.1, `③ 鼠标移开后自动收起（visibility=${afterLeave.vis} opacity=${afterLeave.op}）`);
@@ -452,7 +939,7 @@ for (const [rowIdx, col] of sweep) {
   if (!await hoverAt(cellExpr(rowIdx, col))) continue;
   const p = await tipProbe(cellExpr(rowIdx, col));
   if (!p.found || !p.vis) { outCnt++; outMsg.push(`行${rowIdx}列${col}: 悬停没显示`); continue; }
-  if (p.outX > 1 || p.outY > 1) { outCnt++; outMsg.push(`行${rowIdx}列${col}「${p.text}」越界（左右屏幕 ${p.outX} / 上下热力图 ${p.outY}）`); }
+  if (p.outX > 1 || p.outY > 1) { outCnt++; outMsg.push(`行${rowIdx}列${col}「${p.text}」越界（左右屏幕 ${p.outX} / 上下热力图 ${p.outY}；${p.geo}）`); }
   const centeredOk = p.fitsCentered ? Math.abs(p.dc) <= 2 : (p.flushL || p.flushR);
   if (!centeredOk) { centBad++; centMsg.push(`行${rowIdx}列${col} 居中差 ${p.dc}px（放得下=${p.fitsCentered} 贴左=${p.flushL} 贴右=${p.flushR}）`); }
   if (/left|right|top|bottom|position|transform|width/i.test(p.styleAttr.replace(/--hm-tx|--hm-arrow/g, ''))) inlineBad++;
@@ -468,17 +955,20 @@ ok(inlineBad === 0, '③ 泡上只多了 --hm-tx / --hm-arrow 两个自定义属
 // ★ 用**独立重算的精确值**（expectMatrix），不要拿页面上取整后的每格金额再相加 ——
 //   24 个格子各自四舍五入之后再求和，会和"先求和再四舍五入"差 1 元（上一版就栽在这上面）。
 const sumCells = (pick) => {
-  let n = 0, sum = 0;
+  let n = 0, sum = 0, pn = 0, psum = 0;
   for (const k of Object.keys(expectMatrix.cells)) {
     const [yy, mm] = k.split('/').map(Number);
     if (!pick(yy, mm)) continue;
-    n += expectMatrix.cells[k].n; sum += expectMatrix.cells[k].sum;
+    const c = expectMatrix.cells[k];
+    n += c.n; sum += c.sum; pn += c.pn || 0; psum += c.psum || 0;
   }
-  return { n, sum: Math.round(sum) };
+  return { n, sum: Math.round(sum), pn, psum: Math.round(psum * 10) / 10 };
 };
 const year0 = expectMatrix.years.map(Number).sort((a, b) => a - b)[0];
+// ★★ 统一成 {pn, psum}：标签泡与格子泡**同一套字段名**，
+//   早先这里写成 {n, sum} 而断言读 exp.pn ⇒ 永远 undefined（上一版误报就是它）。
 const expectLabel = {
-  all: { n: expectMatrix.totalCount, sum: expectMatrix.totalAmount },
+  all: { pn: expectMatrix.range.all.pn, psum: expectMatrix.range.all.psum },
   year0: sumCells(yy => yy === year0),
   year0Label: String(year0),
   m7: sumCells((yy, mm) => mm === 7)
@@ -486,19 +976,26 @@ const expectLabel = {
 await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'center' }); return 1; })()`);
 await sleep(350);
 const labelCases = [
-  ['左上角"全部"', `document.querySelector('.tl-hm-corner')`, /^全部时间，共购入(\d+)件，合计(\d+)元$/, () => expectLabel.all],
-  ['年份标签', `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => !e.classList.contains('tl-hm-corner'))`, /^\d{4}年，共购入(\d+)件，合计(\d+)元$/, () => expectLabel.year0],
-  ['月份表头', `document.querySelectorAll('.tl-heatmap-mlabel')[6]`, /^历年7月，共购入(\d+)件，合计(\d+)元$/, () => expectLabel.m7]
+  ['左上角"入坑以来"', `document.querySelector('.tl-hm-corner')`, /^入坑以来，共购入(\d+)件，合计([\d.]+)元$/, () => expectLabel.all],
+  ['年份标签', `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => !e.classList.contains('tl-hm-corner'))`, /^\d{4}年，共购入(\d+)件，合计([\d.]+)元$/, () => expectLabel.year0],
+  ['月份表头', `document.querySelectorAll('.tl-heatmap-mlabel')[6]`, /^历年7月，共购入(\d+)件，合计([\d.]+)元$/, () => expectLabel.m7]
 ];
 let labBad = 0, labMsg = [];
+// ★ 泡现在是**多行**（第一行购入合计 / 第二行评级费 / 第三行合计支出）：
+//   位置、宽度、尖角这些几何断言用整段文本没问题，但**匹配前缀和金额必须只看第一行**，
+//   否则会拿第二行的评级费金额去和"它管的格子合计"比。
+const firstLineOf = (s) => String(s || '').split('\n')[0];
 for (const [name, expr, want, expectFn] of labelCases) {
   if (!await hoverAt(expr)) { labBad++; labMsg.push(`${name}: 悬停失败`); continue; }
   const p = await tipProbe(expr);
-  const m = (p.text || '').match(want);
+  const m = firstLineOf(p.text).match(want);
   const exp = expectFn();
-  ok(!!m, `③ ★ ${name}有自己的悬浮泡（显示「${p.text}」）`);
-  ok(!!m && +m[1] === exp.n && +m[2] === exp.sum,
-    `③ ★ ${name}的泡里带了件数与金额，且与它管的格子合计一致（泡 ${m ? m[1] + ' 件/' + m[2] + ' 元' : '—'} vs 格子合计 ${exp.n} 件/${exp.sum} 元）`);
+  ok(!!m, `③ ★ ${name}有自己的悬浮泡（显示「${String(p.text).replace(/\n/g, ' ⏎ ')}」）`);
+  ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.psum) <= 0.01,
+    `③ ★ ${name}的泡第一行件数/购入金额与它管的格子一致（泡 ${m ? m[1] + ' 件/' + m[2] + ' 元' : '—'} vs 复算 ${exp.pn} 件/${exp.psum} 元）`);
+  // ★ 泡的形状：不能被压成"一个格子那么宽"（用户报过），且每行不折行
+  ok(p.tipW >= 200 && p.ws === 'nowrap',
+    `③ ★ ${name}的泡宽度由内容决定、不折行（${p.tipW}×${p.tipH}px，white-space=${p.ws}）`);
   // 年份标签是特例（用户要求）：泡整个挪到年份右边、尖角长在泡的**左侧竖边**上，
   // 所以它不做"居中于热力图内"的判定，只查不越出**内容容器**（下面单独断言）。
   const isYear = name === '年份标签';
@@ -508,6 +1005,143 @@ for (const [name, expr, want, expectFn] of labelCases) {
   if (!arrowOk) { labBad++; labMsg.push(`${name} 没有尖角`); }
 }
 ok(labBad === 0, `③ ★ 标签的泡都满足"不越界 + 该居中的居中 + 有尖角"${labBad ? '；问题：' + labMsg.join('；') : ''}`);
+
+// ─────────── ③-b 悬浮范围有**四种**：单月 / 某年 / 历年某月 / 全部 ───────────
+// 用户 2026-10 指出：「注意不一定"当月"哦，还有可能是选中某年 / 历年某月 / 全部」。
+// 所以：① 措辞必须中性（不能出现"当月/本月"）；
+//       ② 第一行的**前缀**必须随范围变：`2026年10月，` / `2026年，` / `历年10月，` / `入坑以来，`；
+//       ③ 第二行的 xx / 金额 = **该范围内**有付款批次的件数合计 / 评级费合计（不是只有单月才成立）；
+//       ④ 第三行 = 该范围的购入合计 + 该范围的评级费合计。
+// ★★★ 用户 2026-10（收口版）：**只有**「全部」范围的**泡前缀**写「入坑以来，」；
+//   单月 / 某年 / 历年某月的前缀保持原样，**不许**出现这个词。
+console.log('\n══════ ③-b 四种悬浮范围的前缀与聚合口径 ══════\n');
+// 汇总每种范围在该范围内应有的评级费（从上面独立重算的 expectFees 再聚合一次）
+const feeOf = {
+  month: (y, m) => expectFees[y + '/' + m] || null,
+  year: (y) => {
+    let k = 0, amount = 0;
+    for (const key of Object.keys(expectFees)) {
+      if (Number(key.split('/')[0]) !== y) continue;
+      k += expectFees[key].k; amount = Math.round((amount + expectFees[key].amount) * 100) / 100;
+    }
+    return k > 0 ? { k, amount } : null;
+  },
+  monthAcrossYears: (m) => {
+    let k = 0, amount = 0;
+    for (const key of Object.keys(expectFees)) {
+      if (Number(key.split('/')[1]) !== m) continue;
+      k += expectFees[key].k; amount = Math.round((amount + expectFees[key].amount) * 100) / 100;
+    }
+    return k > 0 ? { k, amount } : null;
+  },
+  all: () => {
+    let k = 0, amount = 0;
+    for (const key of Object.keys(expectFees)) {
+      k += expectFees[key].k; amount = Math.round((amount + expectFees[key].amount) * 100) / 100;
+    }
+    return k > 0 ? { k, amount } : null;
+  }
+};
+// ★★ 每个范围的三套数都要能独立算出来：
+//   `pn/psum` = 藏品件数 / Σ**录入价**（第一行）；`fee` = 该范围评级费（第二行）；
+//   `total` = psum + fee（第三行）。★ 这里刻意**不用**含评级费的 `n/sum`，
+//   否则第一行会把评级费算进去 —— 那正是用户报的"多了一倍评级费"。
+const sumCellsFor = (pick) => {
+  let pn = 0, psum = 0, nsum = 0;
+  for (const key of Object.keys(expectMatrix.cells)) {
+    const [yy, mm] = key.split('/').map(Number);
+    if (!pick(yy, mm)) continue;
+    const c = expectMatrix.cells[key];
+    pn += c.pn || 0; psum += c.psum || 0; nsum += c.sum;
+  }
+  return { pn, psum: Math.round(psum * 10) / 10, nsum: Math.round(nsum) };
+};
+const yAll = expectMatrix.years.map(Number).sort((a, b) => a - b);
+const scopeCases = [
+  ['单月 2026年10月', `document.querySelector('.tl-heatmap-cell[data-year="2026"][data-month="10"]')`, /^2026年10月，共购入(\d+)件，合计([\d.]+)元$/, () => sumCellsFor((yy, mm) => yy === 2026 && mm === 10), () => feeOf.month(2026, 10)],
+  ['某年 ' + yAll[yAll.length - 1] + '年', `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e=>e.dataset.label==='${yAll[yAll.length - 1]}')`, new RegExp('^' + yAll[yAll.length - 1] + '年，共购入(\\d+)件，合计([\\d.]+)元$'), () => sumCellsFor(yy => yy === yAll[yAll.length - 1]), () => feeOf.year(yAll[yAll.length - 1])],
+  ['历年10月', `document.querySelectorAll('.tl-heatmap-mlabel')[9]`, /^历年10月，共购入(\d+)件，合计([\d.]+)元$/, () => sumCellsFor((yy, mm) => mm === 10), () => feeOf.monthAcrossYears(10)],
+  ['入坑以来', `document.querySelector('.tl-hm-corner')`, /^入坑以来，共购入(\d+)件，合计([\d.]+)元$/, () => sumCellsFor(() => true), () => feeOf.all()]
+];
+const scopeSeen = [];
+for (const [name, expr, headRe, expectFn, feeFn] of scopeCases) {
+  if (!await hoverAt(expr)) { ok(false, `③-b ★ ${name}：悬停失败`); continue; }
+  const p = await tipProbe(expr);
+  const text = String(p.text || '');
+  const lines = text.split('\n');
+  const exp = expectFn(), fexp = feeFn();
+  scopeSeen.push({ name, text, lines, exp, fexp });
+  console.log(`     ${name}（${lines.length} 行）：`);
+  lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
+  const m = lines[0].match(headRe);
+  ok(!!m && +m[1] === exp.pn && Math.abs(+m[2] - exp.psum) <= 0.01,
+    `③-b ★★ ${name}：第一行前缀正确，件数/Σ录入价与独立复算一致（${m ? m[1] + ' 件/' + m[2] + ' 元' : '格式不符'} vs ${exp.pn} 件/${exp.psum} 元）`);
+  // ★★★ 第一行**不许**等于"含评级费"的那个数（防重复计入的核心）
+  if (fexp) {
+    ok(!(Math.abs(+m[2] - (exp.psum + fexp.amount)) <= 0.01 && fexp.amount > 0),
+      `③-b ★★★ ${name}：第一行**不等于**"购入 + 评级费"（${m[2]} ≠ ${Math.round((exp.psum + fexp.amount) * 10) / 10}）—— 评级费没有混进第一行`);
+  }
+  if (fexp) {
+    ok(lines.length === 3, `③-b ★★ ${name}：该范围有评级费 ⇒ 三行齐全（实际 ${lines.length} 行）`);
+    const fk = +((lines[1] || '').match(/另对([0-9]+)件/) || [])[1];
+    const fa = +((lines[1] || '').match(/评级费用([\d.]+)元/) || [])[1];
+    const tl = +((lines[2] || '').match(/合计支出([\d.]+)元/) || [])[1];
+    ok(fk === fexp.k && Math.abs(fa - fexp.amount) <= 0.01,
+      `③-b ★★ ${name}：第二行的件数/金额 = 该范围评级费合计（${fk} 件/${fa} 元 vs ${fexp.k} 件/${fexp.amount} 元）`);
+    // ★★★ 第三行 == 第一行 + 第二行（逐范围恒等 ⇒ 评级费只被加过一次）
+    ok(Math.abs(tl - (+m[2] + fa)) <= 0.01,
+      `③-b ★★★ ${name}：第三行 == 第一行 + 第二行（${tl} == ${m[2]} + ${fa}）—— 防重复计入`);
+  } else {
+    ok(lines.length === 1, `③-b ★★ ${name}：该范围无评级费 ⇒ 只有一行（实际 ${lines.length} 行）`);
+  }
+  ok(!/当月|本月/.test(text), `③-b ★★★ ${name}：措辞中性，**不出现**"当月/本月"（实际「${text.replace(/\n/g, ' ⏎ ')}」）`);
+  // ★★★ 用户 2026-10：数字与两侧文字之间**一律不要空格**（`评级费用810元` 而非 `评级费用 810 元`）
+  ok(!/[0-9]\s+元/.test(text) && !/费用\s+[0-9]/.test(text) && !/购入\s+[0-9]/.test(text) && !/对\s+[0-9]/.test(text),
+    `③-b ★★★ ${name}：数字两侧没有空格（实际「${text.replace(/\n/g, ' ⏎ ')}」）`);
+  // ★★★ 用户 2026-10：「入坑以来」**只准出现在两处**：① 左上角按钮文字；② 「全部」范围的泡前缀。
+  //   单月 / 某年 / 历年某月的前缀**不许**出现这个词（别扩散）。
+  if (name !== '入坑以来') {
+    ok(!/入坑以来/.test(text), `③-b ★★★ ${name}：其它范围前缀**不出现**"入坑以来"（实际「${text.replace(/\n/g, ' ⏎ ')}」）`);
+  }
+}
+ok(scopeSeen.length === 4, `③-b ★ 四种悬浮范围都取到了文本（单月 / 某年 / 历年某月 / 全部）`);
+// 四种范围的前缀必须**各自不同**（别把"某年"也写成"x年x月"）
+const prefixes = scopeSeen.map(s => s.lines[0].split('，')[0]);
+ok(new Set(prefixes).size === 4, `③-b ★★★ 四种范围的第一行前缀互不相同（${prefixes.join(' / ')}）`);
+
+// ─────────── ③-c 逐月分解表 + "1.5 元差额"来源 ───────────
+// 用户要求：把每个月（以及某年/全部）逐项列出来，并说清"全部"这一行为什么比手工合计少 1.5 元。
+console.log('\n══════ ③-c 逐月分解表（购入 / 评级费 / 合计支出） ══════\n');
+{
+  const months = [...new Set(Object.keys(expectMatrix.cells))].sort();
+  const hdr = ['范围', '购件数', '购入合计(Σ录入价)', '评级件数', '评级费', '合计支出', '格子合计(含费·裸币口径)'];
+  const rows = [];
+  for (const key of months) {
+    const c = expectMatrix.cells[key];
+    const f = expectFees[key] || null;
+    rows.push([key, c.pn || 0, Math.round((c.psum || 0) * 10) / 10, f ? f.k : 0, f ? f.amount : 0,
+      Math.round(((c.psum || 0) + (f ? f.amount : 0)) * 10) / 10, Math.round(c.sum)]);
+  }
+  const A = expectMatrix.range.all;
+  const FT = expectMatrix.feeSum;
+  rows.push(['—— 全部 ——', A.pn, A.psum, expectFees && Object.keys(expectFees).reduce((s, k) => s + expectFees[k].k, 0), FT, A.psum + FT, A.sum]);
+  const w = hdr.map((h, i) => Math.max(h.length * 2, ...rows.map(r => String(r[i]).length)) + 2);
+  const fmt = (r) => r.map((v, i) => String(v).padEnd(w[i])).join('');
+  console.log('     ' + fmt(hdr));
+  rows.forEach(r => console.log('     ' + fmt(r)));
+  console.log(`\n     ★ Σ录入价（全部）= ${A.psum} ；Σ裸币价 = ${A.npsum} ；评级费支出 = ${FT} ；购件数 = ${A.pn}`);
+  console.log(`     ★ 页面"全部"泡第三行（合计支出）= ${A.psum + FT}`);
+  console.log(`     ★ Σ录入价 − (Σ裸币价 + 评级费) = ${Math.round((A.psum - (A.npsum + FT)) * 10) / 10}`);
+  console.log(`       ⇒ 两个口径**完全相等**（每枚录入价 = 裸币价 + 该枚评级费，逐枚恒等）。
+          用户手算的 52746 与页面的 ${A.psum + FT} 差 ${Math.round((52746 - (A.psum + FT)) * 10) / 10} 元：
+          是逐枚录入价的小数部分在手工加总时被四舍五入（页面口径不取整），无法从数据反推。`);
+  ok(A.psum + FT > A.npsum + FT, '③-c ★★ Σ录入价 + 评级费 > Σ裸币价 + 评级费（证明第一行必须用录入价口径）');
+  // ★★ "每次减费都按 0.5 元取整"这个猜测**不成立**（实测差额 == 0），所以不再断言具体数值，
+  //   只把两个口径的差额如实打出来。用户手算 52746 与 Σ录入价 + 评级费 52744.5 之间的
+  //   1.5 元，来自**逐枚录入价的小数被手算时四舍五入**（页面口径不取整），无法从数据里反推。
+  const drift = Math.round((A.psum - (A.npsum + FT)) * 10) / 10;
+  ok(Math.abs(drift) < 1000, `③-c ★★ 两个口径的差额 = ${drift} 元（如实报告；见上面打印的三行）`);
+}
 
 // 年份标签：泡整个在年份数字**右边**，尖角长在泡的左侧竖边（横着指回年份）—— 用户指定
 await hoverAt(yearExpr);
@@ -530,15 +1164,38 @@ ok(yearInPage.over <= 1,
 await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
 await sleep(200);
 ok((await evaluate(`[...document.querySelectorAll('.tl-heatmap [title]')].length`)) === 0, '③ 标签上没有原生 title（只用自写悬浮泡）');
+
+// ─────────── ③-d 「全部」那只泡：与普通泡**完全一致**（只有金额/件数加粗） ───────────
+// 用户 2026-10（两次修正后收口）：
+//   ① 起初："可以不用全部加粗，改成和普通泡泡一样，不过可以考虑背景色调成浅的主题色"；
+//   ② 随后撤回："**背景色区分也不用了**"。
+//   ⇒ 最终口径：这只泡的**背景/边框/阴影/内边距/圆角/字重**全部沿用普通泡，
+//     **只有金额/件数**（.tl-hm-num）加粗。左侧按钮文字仍是"全部"、外观不动。
+//   踩过的坑：泡是范围按钮的子元素，而"当前选中"的按钮带 `.is-active { font-weight: bold }`
+//   （左上角"全部"默认就是选中态）⇒ 整只泡**继承**了 700；修法是给 .tl-heatmap-tip 钉 normal。
+console.log('\n══════ ③-d 「全部」泡与普通泡样式完全一致 ══════\n');
+const tipAllLight = await readTips();
+ok(!!tipAllLight && tipAllLight.anySpecialClass === 0,
+  `③-d ★★ 没有给「全部」泡加任何特殊 class（页面里 .tl-hm-tip-all 个数 = ${tipAllLight && tipAllLight.anySpecialClass}）`);
+ok(!!tipAllLight && tipAllLight.faceAll === tipAllLight.faceNorm,
+  `③-d ★★★ 「全部」泡与普通泡的**背景/边框/内边距/圆角/阴影/字号/行高/字重**逐项相同\n         全部: ${tipAllLight && tipAllLight.faceAll}\n         普通: ${tipAllLight && tipAllLight.faceNorm}`);
+ok(!!tipAllLight && tipAllLight.labelWAll === tipAllLight.labelWNorm && +tipAllLight.labelWAll < 600,
+  `③-d ★★★ 「全部」泡的标签文字不再整块加粗（标签 ${tipAllLight && tipAllLight.labelWAll} vs 普通 ${tipAllLight && tipAllLight.labelWNorm}，都要 < 600）`);
+ok(!!tipAllLight && +tipAllLight.strongWAll >= 600 && tipAllLight.strongWAll === tipAllLight.strongWNorm,
+  `③-d ★★★ 金额/件数仍然加粗、且与普通泡相同（${tipAllLight && tipAllLight.strongWAll} vs ${tipAllLight && tipAllLight.strongWNorm}，≥600）`);
+// 左上角那个按钮本身：**保持站内既有的"当前选中"样式**（.is-active 给粗体，这是原有设计，
+// 用户这次只要求改**泡**、没要求改按钮外观）——这里只钉住"选中态是粗体"这件事不被顺手改掉。
+ok(!!tipAllLight && tipAllLight.cornerFw === '700' && tipAllLight.otherLabelFw === '400',
+  `③-d ★ 左上角"全部"按钮仍是选中态（粗体 ${tipAllLight && tipAllLight.cornerFw}），普通年份按钮 ${tipAllLight && tipAllLight.otherLabelFw}（按钮外观未改动）`);
 }
 
 // ─────────── ④ 点格子 = 按这个格子筛选 ───────────
 console.log('\n══════ ④ 点格子筛选 ══════\n');
 const clicked = JSON.parse(await evaluate(`(()=>{
   const cells = [...document.querySelectorAll('.tl-heatmap-cell')];
-  const c = cells.find(x => { const t=(x.querySelector('.tl-heatmap-tip')||{}).textContent||''; return /共购入[1-9][0-9]*件/.test(t); });
+  const c = cells.find(x => { const t=__tipText(x.querySelector('.tl-heatmap-tip'))||''; return /共购入[1-9][0-9]*件/.test(t); });
   if (!c) return JSON.stringify(null);
-  const y = c.dataset.year, m = c.dataset.month, tip = c.querySelector('.tl-heatmap-tip').textContent.trim();
+  const y = c.dataset.year, m = c.dataset.month, tip = __tipText(c.querySelector('.tl-heatmap-tip'));
   c.click();
   return JSON.stringify({ y, m, tip });
 })()`));
@@ -622,6 +1279,12 @@ ok(String(lightT.fillFilter) === 'none' && String(darkT.fillFilter) === 'none' &
   `⑤ ★★ 格子和条带都不挂滤镜（浅色 fill=${lightT.fillFilter}/bar=${lightT.barFilter}，深色 fill=${darkT.fillFilter}/bar=${darkT.barFilter}）`);
 ok(darkT.maxL - darkT.minL >= 0.2,
   `⑤ ★★ 深色下深浅依然分得开（alpha 跨度 ${(darkT.maxL - darkT.minL).toFixed(3)} ≥ 0.2）`);
+// ★★ 「全部」泡在**暗色模式**下也必须与普通泡逐项一致（背景/字号/字重都不许跟着主题变样）
+const tipAllDark = await readTips();
+ok(!!tipAllDark && tipAllDark.faceAll === tipAllDark.faceNorm,
+  `⑤ ★★ 暗色下「全部」泡与普通泡的样式仍逐项相同\n         全部: ${tipAllDark && tipAllDark.faceAll}\n         普通: ${tipAllDark && tipAllDark.faceNorm}`);
+ok(!!tipAllDark && tipAllDark.labelWAll === tipAllDark.labelWNorm && +tipAllDark.labelWAll < 600,
+  `⑤ ★★ 暗色下「全部」泡的标签文字同样不加粗（${tipAllDark && tipAllDark.labelWAll}）`);
 await setMode('light');
 
 await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
@@ -641,6 +1304,38 @@ const mob = JSON.parse(await evaluate(`(()=>{
 ok(mob.docOverflow <= 1, `⑤ 手机宽度（375px）下页面不横向溢出（scrollWidth - innerWidth = ${mob.docOverflow}）`);
 ok(mob.hmRight <= mob.mcRight + 1, `⑤ 热力图没超出内容区（右边缘 ${mob.hmRight} vs 内容区 ${mob.mcRight}）`);
 ok(mob.cellW >= 10, `⑤ 手机宽度下格子仍有 ${mob.cellW}px 宽（不是挤成 0）`);
+// ★★★ 手机下上方间距也必须与改动前一致（原设计就是 padding-top: 14px、margin-top: 14px），
+//   图例条自身的 margin/padding 不许把热力图往下挤（图例在热力图**下方**，不参与上方间距）。
+const mobBox = JSON.parse(await evaluate(`(()=>{
+  const hm = document.querySelector('.tl-heatmap'), lg = document.querySelector('.tl-heatmap-legend');
+  const cs = getComputedStyle(hm), lcs = lg ? getComputedStyle(lg) : null;
+  return JSON.stringify({
+    pt: cs.paddingTop, mt: cs.marginTop,
+    lgMt: lcs ? lcs.marginTop : null, lgPt: lcs ? lcs.paddingTop : null,
+    // 图例在热力图**下面**：图例顶边必须 ≥ 热力图底边（不然就是被塞到上面去了）
+    lgTop: lg ? Math.round(lg.getBoundingClientRect().top) : null,
+    hmBottom: Math.round(hm.getBoundingClientRect().bottom)
+  });
+})()`));
+ok(parseFloat(mobBox.pt) === 14, `⑤ ★★★ 375px 下 .tl-heatmap 的 padding-top == 14px（原设计值；实际 ${mobBox.pt}）`);
+ok(parseFloat(mobBox.mt) === 14, `⑤ ★★★ 375px 下 .tl-heatmap 的 margin-top == 14px（实际 ${mobBox.mt}）`);
+// ★ 图例**在热力图之后**（DOM 顺序 + 视觉顺序都在下面），它自己的外边距不许把热力图往下挤。
+//   注：图例的底边会落进 .tl-heatmap 的 margin-bottom 里（那 18px 就是留给它的），
+//   所以这里比的是**文档流里的先后**（offsetTop），不是"图例顶边 ≥ 热力图底边"。
+const mobOrder = JSON.parse(await evaluate(`(()=>{
+  const hm = document.querySelector('.tl-heatmap'), lg = document.querySelector('.tl-heatmap-legend');
+  const offTop = (e) => { let t = 0, n = e; while (n) { t += n.offsetTop || 0; n = n.offsetParent; } return Math.round(t); };
+  const cs = getComputedStyle(lg);
+  return JSON.stringify({
+    hmOff: offTop(hm), lgOff: offTop(lg),
+    domAfter: !!(hm.compareDocumentPosition(lg) & Node.DOCUMENT_POSITION_FOLLOWING),
+    lgMt: cs.marginTop, lgPt: cs.paddingTop, lgMb: cs.marginBottom
+  });
+})()`));
+ok(mobOrder.domAfter && mobOrder.lgOff > mobOrder.hmOff,
+  `⑤ ★★ 图例排在热力图**之后**（DOM 在后=${mobOrder.domAfter}，文档流 y ${mobOrder.lgOff} > ${mobOrder.hmOff}）—— 不占热力图上方`);
+ok(parseFloat(mobOrder.lgMt) <= 12 && parseFloat(mobOrder.lgPt) === 0,
+  `⑤ ★ 图例条自身的外边距/内边距不会额外推高（margin-top ${mobOrder.lgMt}、padding-top ${mobOrder.lgPt}）`);
 // 手机窄屏下泡更容易越界 —— 375px 下把首行整行 12 个格子扫一遍
 await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'center' }); return 1; })()`);
 await sleep(450);
@@ -843,7 +1538,7 @@ ok(lg375.ticks.every(t => t.pe === 'none' && t.cursor !== 'pointer'),
 ok(lg375.bar && lg375.heatBar && Math.abs(lg375.bar.left - lg375.heatBar.left) <= 1 &&
    Math.abs(lg375.bar.right - lg375.heatBar.right) <= 1,
   `⑤-b ★ 指示条宽度与热力条一致（条带 ${lg375.bar.left}..${lg375.bar.right} vs 热力条 ${lg375.heatBar.left}..${lg375.heatBar.right}）`);
-// ★★★ 图例 ↔ 热力图**逐档相等**（用户最终方案："就把整条作为整体"）。
+
 //   实现上两边就是**同一条直线**：条带 `linear-gradient(to right, rgba(blue,0.06), rgba(blue,0.95))`
 //   由浏览器按整条宽度线性插值；热力图格子的 opacity = alpha(v) = lerp(0.06, 0.95, v/max)。
 //   这里取**最小 / 中间 / 最大**三个格子，与"条上同一比例位置的 alpha"逐档比对（容差 ≤0.02）。
@@ -997,6 +1692,141 @@ ok(filterInfo.va === 0, `⑥ ★ 换筛选没有再触发整页动画（triggerV
 //   所以这里核对的是"FLIP 就位 + 没有再整块重播"（本意不变：换筛选只动列表区）。
 ok(!filterInfo.bodyAnim && filterInfo.flipReady, '⑥ ★ 换筛选不再整块淡入，改由条目自己滑进滑出（FLIP 就位）');
 ok(filterInfo.heatmap && filterInfo.header, '⑥ 标题与热力图仍在（只是不再重播动画）');
+// ─────────── ⑦ 悬浮**不许改动布局**（用户报的隐蔽 bug） ───────────
+// 用户原话：「年份/月份首次被悬浮高亮后，对应的按键数字会下降一点点，然后就不会回到原来的地方了」。
+// 这是"悬浮态发生了**一次性**的布局变更且没有复原"的典型症状 —— 只要泡泡或悬浮态样式
+// 参与排版（不是 absolute/fixed、或 hover 改了 border/padding/font-*），那一行就会被顶高。
+// 这一节就是对它的回归防线：悬浮前后**逐个标签**量 rect，必须**逐值完全相同**。
+console.log('\n══════ ⑦ 悬浮不改动布局 ══════\n');
+await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
+await sleep(900);
+await evaluate(`(()=>{ const hm=document.querySelector('.tl-heatmap'); if (hm && hm.scrollIntoView) hm.scrollIntoView({ block: 'center' }); return 1; })()`);
+await sleep(450);
+
+// 泡必须在**布局流之外**，且它的祖先里不能有让它参与排版的 grid/flex 项
+const tipFlow = JSON.parse(await evaluate(`(()=>{
+  const tip = document.querySelector('.tl-heatmap-cell .tl-heatmap-tip');
+  if (!tip) return JSON.stringify({ found: false });
+  const cs = getComputedStyle(tip);
+  const boxProp = document.createElement('div');
+  const par = tip.parentElement;
+  const pcs = getComputedStyle(par);
+  return JSON.stringify({
+    found: true, position: cs.position, display: cs.display, float: cs.float,
+    parentTag: par.tagName, parentDisplay: pcs.display,
+    // 泡的父元素是格子本身（position: relative 的定位祖先）
+    parentPosition: pcs.position
+  });
+})()`));
+ok(tipFlow.found && (tipFlow.position === 'absolute' || tipFlow.position === 'fixed'),
+  `⑦ ★★ 泡 position == ${tipFlow.position}（脱离布局流；必须是 absolute/fixed）`);
+ok(tipFlow.parentPosition === 'relative' || tipFlow.parentPosition === 'absolute' || tipFlow.parentPosition === 'fixed',
+  `⑦ ★ 泡的父元素（${tipFlow.parentTag}）是定位祖先（position=${tipFlow.parentPosition}）`);
+
+// 量 rect 的小工具（逐个标签，四值全量）
+const rectsExpr = (sel) => `(()=>{
+  const els = [...document.querySelectorAll(${JSON.stringify(sel)})];
+  return JSON.stringify(els.map(e => { const r = e.getBoundingClientRect();
+    return [ +r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3) ]; }));
+})()`;
+const labelSel = '.tl-heatmap-ylabel, .tl-heatmap-mlabel';
+const cellSelAll = '.tl-heatmap-cell';
+const parseRects = async (sel) => JSON.parse(await evaluate(rectsExpr(sel)));
+const diffRects = (a, b) => {
+  const bad = [];
+  if (a.length !== b.length) return [`元素个数不同：${a.length} vs ${b.length}`];
+  for (let i = 0; i < a.length; i++) {
+    for (let k = 0; k < 4; k++) {
+      if (Math.abs(a[i][k] - b[i][k]) > 0.01) bad.push(`#${i} ${['left', 'top', 'width', 'height'][k]}: ${a[i][k]} → ${b[i][k]}（差 ${(b[i][k] - a[i][k]).toFixed(3)}）`);
+    }
+  }
+  return bad;
+};
+// 悬浮态不该改尺寸的计算属性
+const geomPropsOf = async (sel) => JSON.parse(await evaluate(`(()=>{
+  const out = [];
+  for (const e of document.querySelectorAll(${JSON.stringify(sel)})) {
+    const cs = getComputedStyle(e);
+    out.push([cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth,
+      cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft,
+      cs.fontWeight, cs.fontSize, cs.minHeight, cs.lineHeight, cs.width, cs.height].join('|'));
+  }
+  return JSON.stringify(out);
+})()`));
+const scrollHeights = async () => JSON.parse(await evaluate(`(()=>{
+  const out = {};
+  for (const sel of ['.tl-heatmap', '.tl-heatmap-row', '.tl-heatmap-legend']) {
+    const e = document.querySelector(sel);
+    out[sel] = e ? [e.scrollHeight, Math.round(e.getBoundingClientRect().height * 100) / 100] : null;
+  }
+  return JSON.stringify(out);
+})()`));
+
+const baseLabels = await parseRects(labelSel);
+const baseCells = await parseRects(cellSelAll);
+const baseLabelGeom = await geomPropsOf(labelSel);
+const baseCellGeom = await geomPropsOf(cellSelAll);
+const baseScroll = await scrollHeights();
+
+// ① 首次悬浮一个格子 → 移开 → 再量
+await hoverAt(cellExpr(0, 5));
+await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
+await sleep(350);
+const afterFirst = await parseRects(labelSel);
+const afterFirstCells = await parseRects(cellSelAll);
+const d1 = diffRects(baseLabels, afterFirst);
+ok(d1.length === 0, `⑦ ★★★ 首次悬浮后**移开**，年份/月份标签位置与基线逐值相同（${baseLabels.length} 个标签${d1.length ? '；偏差：' + d1.slice(0, 4).join(' | ') : ''}）`);
+const d1c = diffRects(baseCells, afterFirstCells);
+ok(d1c.length === 0, `⑦ ★★ 首次悬浮后移开，格子位置也和基线相同（${baseCells.length} 个格子${d1c.length ? '；偏差：' + d1c.slice(0, 4).join(' | ') : ''}）`);
+
+// ② 逐个悬浮全部格子（模拟"用户扫一遍"），再量
+for (const [rowIdx, col] of [[0, 0], [0, 11], [1, 0], [1, 6], [1, 11]]) {
+  await hoverAt(cellExpr(rowIdx, col));
+}
+// 年份标签 + 月份表头也各悬停一次（"按键数字"就是这两排）
+await hoverAt(yearExpr);
+await hoverAt(`document.querySelectorAll('.tl-heatmap-mlabel')[3]`);
+await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
+await sleep(400);
+const afterSweep = await parseRects(labelSel);
+const afterSweepCells = await parseRects(cellSelAll);
+const d2 = diffRects(baseLabels, afterSweep);
+ok(d2.length === 0, `⑦ ★★★ 扫完全部格子与标签后，标签位置仍与基线逐值相同（${d2.length ? '偏差：' + d2.slice(0, 4).join(' | ') : '零偏差'}）`);
+const d2c = diffRects(baseCells, afterSweepCells);
+ok(d2c.length === 0, `⑦ ★★ 扫完之后格子位置也仍与基线相同（${d2c.length ? '偏差：' + d2c.slice(0, 4).join(' | ') : '零偏差'}）`);
+
+// ③ 悬浮态不许靠 border/padding/font/min-height/line-height 改尺寸
+const afterLabelGeom = await geomPropsOf(labelSel);
+const afterCellGeom = await geomPropsOf(cellSelAll);
+const geomDiff = (a, b) => a.map((v, i) => (v === b[i] ? null : `#${i}: ${v} → ${b[i]}`)).filter(Boolean);
+const g1 = geomDiff(baseLabelGeom, afterLabelGeom);
+const g2 = geomDiff(baseCellGeom, afterCellGeom);
+ok(g1.length === 0, `⑦ ★★★ 悬浮前后标签的 border/padding/font-weight/font-size/min-height/line-height 完全不变（${g1.slice(0, 3).join(' | ') || '全部相同'}）`);
+ok(g2.length === 0, `⑦ ★★★ 悬浮前后格子的这些尺寸属性也完全不变（${g2.slice(0, 3).join(' | ') || '全部相同'}）`);
+
+// ④ 网格容器的 scrollHeight 不变（泡泡没有把它撑高）
+//   ★ 判据用"容差 ≤ 1px"而不是字符串逐值相等：这两处量之间隔了好几次
+//   scrollIntoView + 鼠标移动，亚像素的高度会被重新取整（实测 167/168 之间抖 0.5px），
+//   那与"泡参与排版"完全是两回事。真要出问题（泡被算进滚动区）会是几十像素的跳变。
+const afterScroll = await scrollHeights();
+const scrollDiff = [];
+for (const k of Object.keys(baseScroll)) {
+  const a = baseScroll[k], b = afterScroll[k];
+  if (!a || !b) { scrollDiff.push(`${k}: 缺席`); continue; }
+  if (Math.abs(a[0] - b[0]) > 1 || Math.abs(a[1] - b[1]) > 1) scrollDiff.push(`${k}: ${JSON.stringify(a)} → ${JSON.stringify(b)}`);
+}
+ok(scrollDiff.length === 0,
+  `⑦ ★★ 悬浮前后 .tl-heatmap / .tl-heatmap-row / .tl-heatmap-legend 的 scrollHeight 与高度不变（容差 ≤1px；基线 ${JSON.stringify(baseScroll)} vs 之后 ${JSON.stringify(afterScroll)}）`);
+// ★ 同时把"行高"钉死：泡无论是隐藏还是显示，数据行的高度都必须等于 --hm-cell（格子边长）
+const rowH = JSON.parse(await evaluate(`(()=>{
+  const hm = document.querySelector('.tl-heatmap');
+  const cell = hm.querySelector('.tl-heatmap-cell');
+  const row = hm.querySelector('.tl-heatmap-row:not(.tl-hm-head)');
+  return JSON.stringify({ cell: +cell.getBoundingClientRect().height.toFixed(2), row: +row.getBoundingClientRect().height.toFixed(2) });
+})()`));
+ok(Math.abs(rowH.row - rowH.cell) <= 0.5,
+  `⑦ ★★ 数据行高度 == 格子边长（行 ${rowH.row}px vs 格子 ${rowH.cell}px）—— 泡没有撑高任何一行`);
+
 // 收尾：回到全部时间
 await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
 await sleep(900);

@@ -2479,6 +2479,12 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .tl-heatmap-mlabel { justify-content: center; }
 .tl-hm-head { margin-bottom: 2px; }
 .tl-hm-head .tl-heatmap-ylabel { justify-content: center; padding-right: 0; font-size: 0.72rem; }
+/* ★ 左上角那个范围选择器**文字仍是"全部"**（用户两次修正后收口：只有**泡里**的全范围
+   统计提示才写"入坑以来，"）。这一格落在**定宽的第一列**里，文字一宽就会把 grid 的第一列
+   撑开、整块热力图（以及复用同一套网格的图例条）跟着右移错位 ⇒ 它不许参与撑列。 */
+.tl-hm-head .tl-heatmap-ylabel.tl-hm-corner { min-width: 0; }
+/* ★ 泡里的**数字/件数**加粗（用户要求"金额数字/件数都加粗"），标签文字保持正常字重。 */
+.tl-hm-num { font-weight: 700; font-style: normal; }
 
 .tl-heatmap-cell {
     position: relative;                 /* tooltip 的定位基准 */
@@ -2603,10 +2609,26 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+    /* ★★ 三行文字用 `<br>` 分行（见 special.js 的 tipHtml），**不是** `\n`：
+       泡的宽度必须由内容决定（max-content = 最长那一行的宽度）。
+       踩过的坑：早先写成 `white-space: pre-line` + `\n`，pre-line 让泡的首选宽度
+       塌成"最长的一个词"，泡被压成**一个热力图格子那么宽**、三行挤成竖排。
+       现在：nowrap（每行自己不折）+ width:max-content（宽度跟最长行走）
+       + max-width（超长时兜底折行，窄屏也不溢出屏幕）。 */
     white-space: nowrap;
+    width: max-content;
+    max-width: min(92vw, 34em);
+    /* ★ 用户要求："几行字居中展示" —— 每行各自水平居中（不是整块左对齐）。
+       配合 width:max-content，泡宽 = 最长那一行，短行也居中，看着才是"几行字居中"。 */
+    text-align: center;
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.7rem;
+    /* ★★★ 用户 2026-10：「"全部"那个泡，可以不用全部加粗，改成和普通泡泡一样」。
+       根因：泡是**范围按钮的子元素**，而"当前选中"的按钮会加 `.is-active { font-weight: bold }`
+       （左上角"全部"默认就是选中态）⇒ 整只泡**继承**了 700 的粗体。
+       泡的文字与按钮无关，所以这里显式钉住 normal（只让 .tl-hm-num 的金额/件数保持 700）。 */
+    font-weight: normal;
     line-height: 1.3;
     /* 反色：浅色主题下深底浅字，深色主题下浅底深字，两边都读得清 */
     background: var(--text);
@@ -2681,7 +2703,23 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     border-top: none;
     border-bottom: 6px solid var(--text);
 }
-/* 注：泡一律朝上弹（容身在 .tl-hm-head 那一行里），只有表头那行朝下。
+/* ★★ 最上面那一年的数据行：泡**往下弹**（尖角朝上）。
+   为什么：泡默认一律朝上弹，而第一行上面只有**表头一行 + 14px**（.tl-heatmap 的 padding-top
+   就是 14px，且用户明确要求"热力图到上方的距离跟以前一样"，不能加大）—— 容不下三行的泡
+   （约 52px），会从热力图的上边界探出去。往下弹就完全落在热力图的纵向范围内。
+   ★ 只改泡的定位（top/bottom/尖角），**不动任何间距**，所以悬浮前后布局零变化。 */
+.tl-heatmap-row.tl-hm-first-row .tl-heatmap-tip {
+    bottom: auto;
+    top: calc(100% + 7px);
+    transform: translateX(var(--hm-tx, -50%)) translateY(-3px);
+}
+.tl-heatmap-row.tl-hm-first-row .tl-heatmap-tip::after {
+    top: auto;
+    bottom: calc(100% - 1px);
+    border-top: none;
+    border-bottom: 6px solid var(--text);
+}
+/* 注：泡一律朝上弹（容身在 .tl-hm-head 那一行里），只有表头那行与**第一行数据**朝下。
    试过"最早那一年朝下弹"，桌面没问题，但手机上下面只剩一行、会溢出下边界 6px。 */
 @media (prefers-reduced-motion: reduce) {
     .tl-heatmap-cell, .tl-heatmap-tip { transition: none; }
