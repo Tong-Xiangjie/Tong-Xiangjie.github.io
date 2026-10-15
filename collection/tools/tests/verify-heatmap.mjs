@@ -493,8 +493,7 @@ if (oct) {
   ok(lines[2] === '合计支出1924元',
     `②-c ★★★ 第三行 == 「合计支出1924元」（1114 + 810；实际「${lines[2]}」）`);
   ok(octCell && octCell.pn === 8 && Math.abs(octCell.psum - 1114) <= 0.01,
-    `②-c ★★★ 独立复算该月 = ${octCell && octCell.pn} 件 / Σ录入价 ${octCell && octCell.psum} 元`);
-  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
+    `②-c ★★★ 独立复算该月 = ${octCell && octCell.pn} 件 / Σ录入价 ${octCell && octCell.psum} 元`);  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
     `②-c ★★★ 台账该月评级 = 26 件 / 810 元（实际 ${octExp.k} 件 / ${octExp.amount} 元）`);
   // aria-label 也要是同一套文本（aria 走 escapeAttr，会带编码后的 <strong> 标签）
   const ariaOct = decodeEnt(String(oct.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
@@ -522,6 +521,83 @@ if (onlyFee) {
   ok(Math.abs(tl - fa) <= 0.01, `②-c ★ 该月第三行 == 评级费（${tl} == ${fa}）`);
 } else {
   console.log('     （数据里没有"只有评级费、无购入"的月份，跳过该分支）');
+}
+
+// ─────────── ②-d 「共购入 N 件」的 N 到底是多少：8 还是 9 ───────────
+// 用户举的例子是 2026 年 10 月「共购入 9 件，合计 1114 元」，页面给的是 8 件。
+// 查证结论（三条互不相干的路径 + 页面 DOM 逐条点数）：
+//   · 数据源：`grep 'purchaseDate: "2026年10月' notecollection/data/*.js` ⇒ **正好 8 条**，
+//     而且 8 条的 price 全部有值（200/98/88/88/115/70/70/385 = 1114）⇒ **不是"有件没价格被漏算"**；
+//   · `collectAllCopies()` 在页面里跑一遍 ⇒ 2026/10 = 8 件 / Σprice 1114；
+//   · 时间轴 DOM 上「2026年10月」那一段 ⇒ **9 张卡片**，其中第 6 张是
+//     「评级费｜评级公司：ACG｜…｜送评日期：2026年9月6日」（付款日期 2026-10-01）
+//     ⇒ 用户数的 9 = **8 件藏品 + 1 条评级费卡片**。
+//   ⇒ 所以「共购入 N 件」的 N 按**藏品件数**记（评级费那条已经单独出在第二行，
+//     再并进第一行就是一行里数两次）。这里把三条路径和 DOM 都钉住。
+console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是 8 件（9 张卡片 = 8 藏品 + 1 评级费） ══════\n');
+{
+  const octTips = tipsAll.find(t => t.y === '2026' && Number(t.m) === 10);
+  const octWant = expectMatrix.cells['2026/10'] || { pn: 0, psum: 0 };
+  // A) 数据源逐条：**不看价格**，只按 purchaseDate 落在 2026 年 10 月数一遍
+  const octItems = JSON.parse(await evaluate(`(()=>{
+    const pdate = (s) => { const t = String(s || '').trim(); const d = new Date(t); if (!isNaN(d.getTime())) return d;
+      const m = t.match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+    const px = (s) => { const v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return (isNaN(v) || v <= 0) ? 0 : v; };
+    const out = [];
+    for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+      if (!map) continue;
+      for (const k of Object.keys(map)) { const d = map[k]; if (!d || !d.series) continue;
+        const walk = (arr) => { for (const c of (arr || [])) {
+          if (!c || !c.purchaseDate) continue;
+          const dt = pdate(c.purchaseDate); if (!dt) continue;
+          if (dt.getFullYear() !== 2026 || dt.getMonth() !== 9) continue;
+          out.push({ copyId: c.copyId != null ? String(c.copyId) : null, price: px(c.price), rawPrice: c.price == null ? null : String(c.price), key: k });
+        } };
+        for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
+      }
+    }
+    return JSON.stringify(out);
+  })()`));
+  const octSum = octItems.reduce((s, x) => s + x.price, 0);
+  const octNoPrice = octItems.filter(x => x.price <= 0).length;
+  console.log(`     2026 年 10 月逐条（不看价格、只按购入日期）：共 ${octItems.length} 件`);
+  for (const x of octItems) console.log(`        ${String(x.copyId || '（无 copyId）').padEnd(14)} price=${JSON.stringify(x.rawPrice)} → ${x.price}  [${x.key}]`);
+  ok(octItems.length === octWant.pn,
+    `②-d ★★★ 2026年10月 实际购入件数 == ${octItems.length}（与"只按日期数"的独立复算一致；页面提示也是 ${octWant.pn} 件）`);
+  ok(Math.round(octSum) === Math.round(octWant.psum),
+    `②-d ★★★ 该月合计金额（只算有价格的）== ${Math.round(octSum)}（与页面 ${octWant.psum} 一致）—— **件数与金额各自独立复算**：件数不看价格、金额看价格`);
+  ok(octNoPrice === 0, `②-d ★★ 这 ${octItems.length} 件**每一件都有价格**（无价格件数 = ${octNoPrice}）⇒ "有一件没价格被漏算"这个猜测不成立`);
+  // B) 页面提示第一行的件数 / 金额
+  if (octTips) {
+    const m = String(octTips.tip).split('\n')[0].match(/共购入(\d+)件，合计([\d.]+)元/);
+    ok(!!m && +m[1] === octItems.length,
+      `②-d ★★★ 页面第一行件数 == 实际购入件数（页面「${m ? m[1] : '?'}件」 vs 实际 ${octItems.length} 件）`);
+  } else {
+    ok(false, '②-d 没找到 2026年10月 的提示文本');
+  }
+  // C) 时间轴 DOM：那个月渲染了几张卡片、其中有几张是评级费
+  const domOct = JSON.parse(await evaluate(`(()=>{
+    const bodies = [...document.querySelectorAll('.timeline-body')].filter(b => b.getBoundingClientRect().height > 1);
+    const body = bodies[0] || document.querySelector('.timeline-body');
+    if (!body) return JSON.stringify(null);
+    const walker = []; let cur = null;
+    for (const el of [...body.children]) {
+      const txt = (el.textContent || '').trim();
+      const m = txt.match(/^(\\d{4}年\\d{1,2}月\\d{1,2}日)/);
+      if (m) { cur = m[1]; continue; }
+      if (cur) walker.push({ day: cur, txt: txt.slice(0, 60) });
+    }
+    const oct = walker.filter(w => /^2026年10月/.test(w.day));
+    return JSON.stringify({ total: oct.length, items: oct,
+      feeCards: oct.filter(w => /评级费/.test(w.txt)).length,
+      days: [...new Set(oct.map(w => w.day))] });
+  })()`));
+  ok(!!domOct && domOct.total === octItems.length + 1,
+    `②-d ★★★ 时间轴 DOM 上「2026年10月」共 ${domOct && domOct.total} 张卡片 = 藏品 ${octItems.length} 件 + **评级费卡片 ${domOct && domOct.feeCards} 张**（这就是用户数的"9"）`);
+  ok(!!domOct && domOct.feeCards === 1,
+    `②-d ★★ 那一张多出来的卡片是评级费条目（${domOct && JSON.stringify(domOct.items.filter(w => /评级费/.test(w.txt)).map(w => w.txt))}）`);
+  ok(!!domOct && domOct.days.length === 3 && domOct.days.join(',') === '2026年10月14日,2026年10月13日,2026年10月1日',
+    `②-d ★ 那 9 张卡片分布在 3 天里（${domOct && domOct.days.join(' / ')}）—— 9 条并没有第 9 件藏品`);
 }
 
 // ⑤ 换行真的会渲染成三行 + 泡的形状（宽由内容定、不折行、文字居中）
@@ -1108,6 +1184,85 @@ ok(scopeSeen.length === 4, `③-b ★ 四种悬浮范围都取到了文本（单
 // 四种范围的前缀必须**各自不同**（别把"某年"也写成"x年x月"）
 const prefixes = scopeSeen.map(s => s.lines[0].split('，')[0]);
 ok(new Set(prefixes).size === 4, `③-b ★★★ 四种范围的第一行前缀互不相同（${prefixes.join(' / ')}）`);
+
+// ─────────── ③-b2 四种范围的「共购入 N 件」自查 ───────────
+// 用户要求：四种范围的件数都要与"该范围实际购入件数"一致；件数**不看价格**、金额看价格。
+//   ★ 独立复算走**与 expectMatrix.cells 无关**的第二条路径：直接遍历 window.DATA_MAP 里
+//     带 purchaseDate 的藏品，按范围数件数（不读 price），按范围求和（读 price）。
+//   ★ 同时打印"含评级费条目的总卡片数"，让"9 张卡片"这种错觉一眼可见。
+console.log('\n══════ ③-b2 四种范围的件数自查（件数不看价格 / 金额看价格） ══════\n');
+{
+  const recount = JSON.parse(await evaluate(`(()=>{
+    const pdate = (s) => { const t = String(s || '').trim(); const d = new Date(t); if (!isNaN(d.getTime())) return d;
+      const m = t.match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+    const px = (s) => { const v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return (isNaN(v) || v <= 0) ? 0 : v; };
+    const rows = [];
+    for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+      if (!map) continue;
+      for (const k of Object.keys(map)) { const d = map[k]; if (!d || !d.series) continue;
+        const walk = (arr) => { for (const c of (arr || [])) {
+          if (!c || !c.purchaseDate) continue;
+          const dt = pdate(c.purchaseDate); if (!dt) continue;
+          rows.push({ y: dt.getFullYear(), m: dt.getMonth() + 1, price: px(c.price),
+            hasPrice: c.price != null && String(c.price).trim() !== '' });
+        } };
+        for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
+      }
+    }
+    const agg = (pick) => { let n = 0, sum = 0, noPrice = 0;
+      for (const r of rows) { if (!pick(r)) continue; n++; sum += r.price; if (!r.hasPrice) noPrice++; }
+      return { n, sum: Math.round(sum * 10) / 10, noPrice }; };
+    // 页面上的四种范围泡（纯文本）
+    const tipOf = (e) => { if (!e) return null; const t = e.querySelector(':scope > .tl-heatmap-tip'); return t ? window.__tipText(t) : null; };
+    const mLabels = [...document.querySelectorAll('.tl-heatmap-mlabel')];
+    const cellTip = (y, m) => { const c = [...document.querySelectorAll('.tl-heatmap-cell')].find(x =>
+      (x.closest('.tl-heatmap-row') || {}).dataset && String(x.dataset.year) === String(y) && String(x.dataset.month) === String(m).padStart(2, '0'));
+      return c ? tipOf(c) : null; };
+    return JSON.stringify({
+      all: agg(() => true),
+      y2026: agg(r => r.y === 2026),
+      m10: agg(r => r.m === 10),
+      oct: agg(r => r.y === 2026 && r.m === 10),
+      noPriceRows: rows.filter(r => !r.hasPrice).length,
+      totalRows: rows.length,
+      tips: {
+        all: tipOf(document.querySelector('.tl-hm-corner')),
+        y2026: tipOf([...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => e.dataset.label === '2026')),
+        m10: tipOf(mLabels[9]),
+        oct: cellTip(2026, '10')
+      }
+    });
+  })()`));
+  const A = expectMatrix.range.all;
+  const octCell = expectMatrix.cells['2026/10'] || { pn: 0, psum: 0 };
+  const firstOf = (t) => (t ? String(t).split('\n')[0] : '（未取到）');
+  console.log('     范围              实际购入件数  无价格件    Σ录入价    页面泡第一行');
+  const print = (name, n, sum, noPrice, tip) =>
+    console.log(`     ${name.padEnd(16)} ${String(n).padStart(10)}  ${String(noPrice).padStart(6)}  ${String(sum).padStart(10)}   ${firstOf(tip)}`);
+  print('全部（入坑以来）', recount.all.n, recount.all.sum, recount.all.noPrice, recount.tips.all);
+  print('单月 2026年10月', recount.oct.n, recount.oct.sum, recount.oct.noPrice, recount.tips.oct);
+  print('某年 2026年', recount.y2026.n, recount.y2026.sum, recount.y2026.noPrice, recount.tips.y2026);
+  print('历年10月', recount.m10.n, recount.m10.sum, recount.m10.noPrice, recount.tips.m10);
+  console.log(`     （全站共 ${recount.totalRows} 件藏品带购入日期；其中 **${recount.noPriceRows} 件没有价格字段**）`);
+  console.log(`     对照：全部范围的"卡片总数" = 藏品 ${recount.all.n} + 评级费条目 5 = ${recount.all.n + 5}（时间轴顶部"共385件"写的就是这个数）`);
+  // 件数与金额各自独立复算后再和页面泡对一遍
+  const chk = (name, want, tip) => {
+    const m = String(tip || '').split('\n')[0].match(/共购入(\d+)件，合计([\d.]+)元/);
+    ok(!!m && +m[1] === want.n, `③-b2 ★★★ ${name}：件数 ${want.n} == 独立复算（页面「${m ? m[1] : '?'}件」）`);
+    ok(!!m && Math.abs(+m[2] - want.sum) <= 0.01, `③-b2 ★★★ ${name}：Σ录入价 ${want.sum} == 独立复算（页面「${m ? m[2] : '?'}元」）`);
+  };
+  chk('全部（入坑以来）', recount.all, recount.tips.all);
+  chk('单月 2026年10月', recount.oct, recount.tips.oct);
+  chk('某年 2026年', recount.y2026, recount.tips.y2026);
+  chk('历年10月', recount.m10, recount.tips.m10);
+  ok(recount.all.n === A.pn && Math.abs(recount.all.sum - A.psum) <= 0.01,
+    `③-b2 ★★★ 全部范围与格子重算口径一致（件数 ${recount.all.n}/${A.pn}、金额 ${recount.all.sum}/${A.psum}）`);
+  ok(recount.oct.n === octCell.pn && Math.abs(recount.oct.sum - octCell.psum) <= 0.01,
+    `③-b2 ★★★ 2026年10月与格子重算口径一致（件数 ${recount.oct.n}/${octCell.pn}、金额 ${recount.oct.sum}/${octCell.psum}）`);
+  ok(recount.noPriceRows === 0,
+    `③-b2 ★★ 全站 ${recount.noPriceRows} 件藏品缺价格字段 ⇒ 今天"计件数"与"计有价格的件数"结果相同（将来出现 0 元藏品时，件数仍按实际件数计）`);
+}
+
 
 // ─────────── ③-c 逐月分解表 + "1.5 元差额"来源 ───────────
 // 用户要求：把每个月（以及某年/全部）逐项列出来，并说清"全部"这一行为什么比手工合计少 1.5 元。
