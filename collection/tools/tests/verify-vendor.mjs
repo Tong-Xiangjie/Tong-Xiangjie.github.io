@@ -59,11 +59,14 @@ const SKIP_DIRS = new Set(['node_modules', 'vendor', 'data', 'image', 'tests']);
 //   键 = 相对仓库根的**路径前缀**（只认这一条路径，不是一个域名、也不是整个仓库）。
 //   新加一条前请先想清楚：能不能直接把这个文件本地化？本地化才是正解，例外只是"暂不改造"。
 const CDN_EXEMPT = new Map([
-  // blackhole/ 是历史遗留的本地小游戏页面（three.js 的示例改造而来，早已不在导航里），
+  // blackhole 是历史遗留的本地小游戏页面（three.js 的示例改造而来，早已不在导航里），
   // 它引 jsdelivr 上的 three@0.128.0 与 cannon@0.6.2，暂时不改造。
-  // （这条例外只覆盖 blackhole/ 下的文件；站点主体——collection/notecollection/answersheet/
+  // ★ 2026-10：小游戏从仓库根目录搬到了 game/ 下（blackhole → game/blackhole），
+  //   所以前缀要跟着走；两个前缀都留着，是为了"搬回去"或"只搬一半"时不会突然误红。
+  // （这条例外只覆盖这两个前缀下的文件；站点主体——collection/notecollection/answersheet/
   //   coincollection/funcollection/newcollection 等——仍然一律禁止外部 CDN。）
-  ['blackhole/', '历史遗留的本地小游戏页面，引 jsdelivr 的 three.js/cannon.js，暂不改造']
+  ['game/blackhole/', '历史遗留的本地小游戏页面，引 jsdelivr 的 three.js/cannon.js，暂不改造'],
+  ['blackhole/', '同上；小游戏搬迁到 game/ 之前的旧路径前缀，留作兼容']
 ]);
 const relPath = p => p.slice(ROOT.length + 1).replace(/\\/g, '/');
 const isCdnExempt = p => { const r = relPath(p); return [...CDN_EXEMPT.keys()].some(prefix => r.startsWith(prefix)); };
