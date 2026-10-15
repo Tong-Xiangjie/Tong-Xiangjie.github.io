@@ -2479,12 +2479,25 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
    （笔画变粗、ink 高度 +1px、字宽也变），而 `getBoundingClientRect()` 量的是**行盒**，
    行盒在定高 42px 的 flex 盒里居中 ⇒ 行盒一个像素都不动，所以"外框零偏差"的断言全绿，
    但屏幕上的数字确实换了一副字形、看起来往下沉了一点。
-   ⇒ 高亮只准用**不影响字形度量**的属性：color（变主题蓝）
-     + 背景色（浅主题色，仅作"看起来比旁边凸一点"的区分，不参与任何尺寸计算）。
-     字重/字号/字体/字距一律各个状态相同 —— verify-heatmap 里有断言盯着。 */
+   ★★★ 用户 2026-10 又指出：中途试过的"加一层浅色底"会在文字下方画出一块色块
+   （看起来像"底部颜色变化"）—— 也不要。
+   ⇒ 高亮**只准改 color**：不碰任何字体属性（字重/字号/字体/字距/行高/vertical-align），
+     也不画任何底色/边框/阴影/伪元素。
+     于是"选中"前后**除文字本身的颜色外，像素级完全一致** —— verify-heatmap 里有断言盯着
+     （计算样式 + CDP 截图逐像素差分，文字区以外的差异像素必须为 0）。 */
 .tl-heatmap-ylabel.is-active, .tl-heatmap-mlabel.is-active {
     color: var(--theme);
-    background: color-mix(in srgb, var(--theme) 12%, transparent);
+    background: none;                   /* ★ 显式声明：不许有底色（含 background-image） */
+    border: none;                       /* ★ 不许有下边框等任何装饰边 */
+    box-shadow: none;                   /* ★ 不许有阴影 */
+}
+/* ★★★ 除 color / background / border / box-shadow 外**一个属性都不许动** ——
+   尤其不许碰 padding：标签的 padding-right（年份靠右对齐用的 4px）一旦变成 0，
+   文字会整体右移 4px，虽然不算"沉降"但会真的挪位置（`text[left] 352.266 → 356.266`）。
+   verify-heatmap 里对 geom（含 padding）逐值断言。 */
+.tl-heatmap-ylabel.is-active::before, .tl-heatmap-ylabel.is-active::after,
+.tl-heatmap-mlabel.is-active::before, .tl-heatmap-mlabel.is-active::after {
+    content: none;                      /* ★ 选中态不许长出任何伪元素 */
 }
 .tl-heatmap-ylabel { justify-content: flex-end; padding-right: 4px; font-variant-numeric: tabular-nums; }
 .tl-heatmap-mlabel { justify-content: center; }

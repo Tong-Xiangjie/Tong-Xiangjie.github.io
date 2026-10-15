@@ -45,13 +45,22 @@ ok(!/style\.transition|transitionProperty|transition\s*=\s*'none'/.test(clampFn)
 //   真凶是**用 font-weight 做高亮** —— 字重一变，字形墨迹框就变（笔画变粗、ink 变高 1px），
 //   而行盒在定高 42px 的 flex 盒里居中 ⇒ `getBoundingClientRect()` 一个像素都不动，
 //   所以"外框零偏差"的断言全绿、屏幕上却真的换了一副字形。⇒ 高亮一律只准用
-//   **不改变字体度量**的属性（color / background），字号·字重·字体·行高·字距各状态必须相同。
+//   **不改变字体度量、也不画色块**的属性（只允许 color），字号·字重·字体·行高·字距各状态必须相同。
 {
   const activeRule = (css.match(/\.tl-heatmap-ylabel\.is-active[^{]*\{[^}]*\}/) || [''])[0];
   ok(activeRule.length > 0, '① ★★★ 有 .is-active 高亮规则');
-  ok(!/font-weight\s*:\s*(bold|[6-9]00)/.test(activeRule),
-    `① ★★★ 高亮规则里**没有** font-weight（改用 color + background，避免字形变化造成的"数字沉降"）：${activeRule.replace(/\s+/g, ' ')}`);
-  ok(/color\s*:/.test(activeRule), '① ★★★ 高亮仍然用主题色标出（只是不再动字重）');
+  ok(!/font/.test(activeRule.replace(/font-variant[^;]*/g, '')),
+    `① ★★★ 高亮规则里**没有任何 font-* 属性**（既不改字重、也不改字号/字体/行高/字距，避免字形变化造成的"数字沉降"）：${activeRule.replace(/\s+/g, ' ')}`);
+  ok(/color\s*:/.test(activeRule), '① ★★★ 高亮只体现在文字颜色上（color: var(--theme)）');
+  // ★★★ 用户 2026-10："选中的那一块会出现**底部颜色变化**，不应该这样，只应该让字的颜色变化"
+  //   ⇒ 高亮规则里不准出现任何画色块的属性。
+  ok(!/color-mix|background\s*:(?!\s*none)/.test(activeRule) && /background\s*:\s*none/.test(activeRule),
+    `① ★★★ 高亮规则**不画任何底色/背景图**（background: none；没有 color-mix）：${activeRule.replace(/\s+/g, ' ')}`);
+  ok(!/border|box-shadow|outline|text-decoration/.test(activeRule.replace(/border\s*:\s*none|box-shadow\s*:\s*none/g, '')),
+    `① ★★★ 高亮规则**不画边框/阴影/轮廓/下划线**：${activeRule.replace(/\s+/g, ' ')}`);
+  const activePseudo = (css.match(/\.tl-heatmap-y?label\.is-active::(?:before|after)[^{]*\{[^}]*\}/g) || []).join(' ');
+  ok(/content\s*:\s*none/.test(activePseudo),
+    `① ★★★ 高亮态**不长伪元素**（::before/::after 都是 content: none）：${activePseudo.replace(/\s+/g, ' ')}`);
   // 悬浮态同样不许碰任何字体度量属性（hover 只准改 color 等 paint 属性）
   const hoverRule = (css.match(/\.tl-heatmap-ylabel:hover[^{]*\{[^}]*\}/) || [''])[0];
   ok(!/font(-weight|-size|-family)?\s*:/.test(hoverRule) && !/line-height|letter-spacing|padding|border|height/.test(hoverRule),
@@ -2227,6 +2236,17 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
           c.fontVariantNumeric, c.textRendering, c.fontStretch, c.fontStyle].join('|'),
         geom: [c.display, c.alignItems, c.justifyContent, c.padding, c.margin, c.height, c.minHeight, c.width, c.borderTopWidth, c.borderLeftWidth, c.borderRadius].join('|'),
         paint: [c.color, c.background, c.transform, c.outline, c.boxShadow, c.opacity, c.filter].join('|'),
+        // ★★★ 用户 2026-10："选中的那一块会出现**底部颜色变化**，不应该这样，只应该让字的颜色变化"。
+        //   高亮态必须**一个字都不许多画**：底色/背景图/四条边框/阴影/伪元素全部透明或 none。
+        decor: [c.backgroundColor, c.backgroundImage, c.borderTopWidth, c.borderRightWidth,
+          c.borderBottomWidth, c.borderLeftWidth, c.borderBottomStyle,
+          c.boxShadow, c.outlineStyle, c.outlineWidth, c.textDecorationLine, c.paddingTop, c.paddingBottom,
+          getComputedStyle(e, '::before').content, getComputedStyle(e, '::before').backgroundColor,
+          getComputedStyle(e, '::after').content, getComputedStyle(e, '::after').backgroundColor,
+          getComputedStyle(e, '::after').borderBottomWidth].join('|'),
+        // ★ 注意：**不要**把 border-*-color 放进 decor —— 它默认是 currentColor，
+        //   color 一变它必然跟着变（这是 CSS 语义，不是"多画了一条边"）。
+        //   判断"有没有画出边框"看**宽度/样式**就够了（都是 0px / none）。
         kids: e.childNodes.length + '#' + [...e.childNodes].map(n => n.nodeType === 3 ? 'T' : n.nodeName + '.' + n.className).join(',') };
     }));
   })()`;
@@ -2252,7 +2272,7 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
     if (a.length !== b.length) return [`标签个数 ${a.length} → ${b.length}`];
     for (let i = 0; i < a.length; i++) {
       const A = a[i], B = b[i];
-      for (const k of ['font', 'geom', 'kids']) if (A[k] !== B[k]) bad.push(`#${i}(${A.label}) ${k}：${A[k]} → ${B[k]}`);
+      for (const k of ['font', 'geom', 'kids', 'decor']) if (A[k] !== B[k]) bad.push(`#${i}(${A.label}) ${k}：${A[k]} → ${B[k]}`);
       for (const k of ['box', 'text']) {
         if (!A[k] || !B[k]) { if (!!A[k] !== !!B[k]) bad.push(`#${i}(${A.label}) ${k} 有/无变化`); continue; }
         for (let j = 0; j < 4; j++) if (Math.abs(A[k][j] - B[k][j]) > 0.01) bad.push(`#${i}(${A.label}) ${k}[${['left', 'top', 'width', 'height'][j]}]：${A[k][j]} → ${B[k][j]}`);
@@ -2268,22 +2288,48 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   const pad = 5;
   const shotPng = async () => decodePng(Buffer.from((await send('Page.captureScreenshot', { format: 'png', background: 'white' })).data, 'base64'));
   const dprNow = await evaluate('devicePixelRatio');
-  const diffPixels = (imgA, imgB, base) => {
+  const diffPixels = (imgA, imgB, base, opt = {}) => {
     let n = 0, maxd = 0, ys = new Set(), xs = new Set();
+    let glyphPx = 0, bgPx = 0, weakPx = 0;
+    const bgOut = [];
     const out = [];
-    for (const g of base) {
-      const r = g.box;
+    // ★ 裁剪区域可以来自另一份量测（选中态文字换了颜色 ⇒ 单独给它一个更松的裁框）
+    const boxes = opt.boxes || base;
+    // ★ 文字掩码：亮度 < 200 视为"墨迹"，再**膨胀 1 圈**把抗锯齿的过渡边（halo）也吞进来
+    //   —— 文字反色时 halo 必然跟着变（这就是"文字自身颜色变了"，不是多画了一块色）。
+    //   落在掩码里 = 允许；落在掩码外的浅色背景上 = 多画了色块/边框/阴影 ⇒ 违规。
+    const LUM = (c) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+    const inkAt = (img, x, y, x0, y0, x1, y1) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < x0 || xx >= x1 || yy < y0 || yy >= y1) continue;
+        if (LUM(pixelAt(img, xx, yy)) < 200) return true;
+      }
+      return false;
+    };
+    for (const g of boxes) {
+      // ★ 裁框以**文字本体矩形**（Range）为准、外扩 pad，而不是整个标签盒：
+      //   文字周围多留出来的空白正是"多画了一块色块"会露出来的地方。
+      const r = (g.text && g.text[2] > 0) ? g.text : g.box;
       const x0 = Math.max(0, Math.floor((r[0] - pad) * dprNow)), y0 = Math.max(0, Math.floor((r[1] - pad) * dprNow));
       const x1 = Math.min(imgA.width, Math.ceil((r[0] + r[2] + pad) * dprNow)), y1 = Math.min(imgA.height, Math.ceil((r[1] + r[3] + pad) * dprNow));
       let d = 0;
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
         const p = pixelAt(imgA, x, y), q = pixelAt(imgB, x, y);
         const dd = Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2]));
-        if (dd > 0) { d++; n++; if (dd > maxd) maxd = dd; ys.add(y); xs.add(x); }
+        if (dd > 0) {
+          d++; n++; if (dd > maxd) maxd = dd; ys.add(y); xs.add(x);
+          if (opt.allowGlyph) {
+            if (inkAt(imgA, x, y, x0, y0, x1, y1) || inkAt(imgB, x, y, x0, y0, x1, y1)) glyphPx++;
+            else if (dd <= 3) weakPx++;     // ★ 渲染器抗锯齿抖动（≤3/255，肉眼不可见）
+            else { bgPx++; if (bgOut.length < 8) bgOut.push({ label: g.label, x, y, from: p, to: q, dd }); }
+          }
+        }
       }
       if (d) out.push({ label: g.label, box: r, d, maxd });
     }
-    return { n, maxd, out, yRange: ys.size ? [Math.min(...ys), Math.max(...ys)] : null, xRange: xs.size ? [Math.min(...xs), Math.max(...xs)] : null };
+    return { n, maxd, out, glyphPx, bgPx, weakPx, bgOut,
+      yRange: ys.size ? [Math.min(...ys), Math.max(...ys)] : null, xRange: xs.size ? [Math.min(...xs), Math.max(...xs)] : null };
   };
 
   const gBase = await glyphs();
@@ -2312,9 +2358,9 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   ok(tipFontHover.length === 1 && tipFontHover[0] === tipFonts[0],
     `⑦-b ★★★ 悬浮中泡的字体度量与基线逐项相同（不因按钮悬浮/选中而变）`);
   const dHover = diffGlyph(gBase, gHover);
-  const fontDiffHover = dHover.filter(x => /font|geom|kids/.test(x));
+  const fontDiffHover = dHover.filter(x => /font|geom|kids|decor/.test(x));
   ok(fontDiffHover.length === 0,
-    `⑦-b ★★★ 悬浮**中**：字体度量（字号/字重/字体/行高/字距/vertical-align）与盒模型属性零变化（${fontDiffHover.slice(0, 3).join(' | ') || '全部相同'}）`);
+    `⑦-b ★★★ 悬浮**中**：字体度量 / 盒模型 / **装饰（底色·边框·阴影·伪元素）** 全部零变化（${fontDiffHover.slice(0, 3).join(' | ') || '全部相同'}）`);
   const pDiag = dHover.filter(x => /文字 Range|rangeRect|box\[top\]|box\[height\]|text\[top\]|text\[height\]/.test(x));
   ok(pDiag.length === 0,
     `⑦-b ★★★ 悬浮中：文字本体矩形与行盒的**纵向**坐标零偏差（${pDiag.slice(0, 3).join(' | ') || '零偏差'}）`);
@@ -2336,28 +2382,69 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   ok(pxHover.n > 0 || true, `⑦-b 悬浮中允许颜色变化（差异 ${pxHover.n} 像素）`);
 
   // ★★ 高亮态（.is-active，用户说的"按键被高亮"）：字号/字重/位置一个字都不许动。
+  //   ★★★ 用户 2026-10："选中的那一块会出现**底部颜色变化**，不应该这样，
+  //     只应该让字的颜色变化" ⇒ 高亮态的**装饰必须一律为零**：
+  //     background-color 透明、background-image none、四条边框 0、阴影 none、无伪元素。
   //   ★ 只有**被选中的那一个**标签会变色（筛 2025 年 ⇒ 只有年份标签"2025"高亮），
   //     其它标签颜色本来就不该变 —— 所以"颜色必须变"只对被选中的那个断言。
   const gBeforeActive = await glyphs();
+  const imgBeforeActive = await shotPng();
   await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
   await sleep(900);
   const gActive = await glyphs();
+  const imgActive = await shotPng();
   const activeDiff = [];
-  let colorChanged = 0;
+  const changed = [];
   for (let i = 0; i < gBeforeActive.length; i++) {
     const A = gBeforeActive[i], B = gActive[i];
-    if (A.font !== B.font) activeDiff.push(`#${i}(${A.label}) font：${A.font} → ${B.font}`);
-    if (A.geom !== B.geom) activeDiff.push(`#${i}(${A.label}) geom：${A.geom} → ${B.geom}`);
+    // ★ 高亮**只准**改 color：字体/盒模型/DOM/装饰四项必须逐项相同
+    for (const k of ['font', 'geom', 'kids', 'decor']) if (A[k] !== B[k]) activeDiff.push(`#${i}(${A.label}) ${k}：${A[k]} → ${B[k]}`);
     for (const k of ['box', 'text']) if (A[k] && B[k]) for (let j = 0; j < 4; j++)
       if (Math.abs(A[k][j] - B[k][j]) > 0.01) activeDiff.push(`#${i}(${A.label}) ${k}[${['left', 'top', 'width', 'height'][j]}]：${A[k][j]} → ${B[k][j]}`);
-    if (A.paint !== B.paint) colorChanged++;
+    if (A.rects.length !== B.rects.length) activeDiff.push(`#${i}(${A.label}) Range 矩形个数 ${A.rects.length} → ${B.rects.length}`);
+    for (let j = 0; j < Math.min(A.rects.length, B.rects.length); j++)
+      for (let k = 0; k < 4; k++) if (Math.abs(A.rects[j][k] - B.rects[j][k]) > 0.01)
+        activeDiff.push(`#${i}(${A.label}) rangeRect[${k}]：${A.rects[j][k]} → ${B.rects[j][k]}`);
+    if (A.paint !== B.paint) changed.push(B);
   }
   const g2025 = gActive.find(x => x.label === '2025');
-  console.log(`     高亮 2025 后：标签「2025」文字矩形 ${JSON.stringify(g2025 && g2025.text)}、字体 ${g2025 && g2025.font.split('|').slice(0, 2).join(' / ')}、颜色 ${g2025 && g2025.paint.split('|')[0]}；变色标签 ${colorChanged} 个 / 共 ${gActive.length} 个`);
+  const decoOf = (g) => {
+    const p = String(g.decor).split('|');
+    return { bg: p[0], img: p[1], bt: p[2], br: p[3], bb: p[4], bl: p[5], bbs: p[6],
+      shadow: p[7], olStyle: p[8], olW: p[9], td: p[10], pt: p[11], pb: p[12],
+      before: p[13], beforeBg: p[14], after: p[15], afterBg: p[16], afterBb: p[17] };
+  };
+  const d25 = g2025 ? decoOf(g2025) : null;
+  console.log(`     高亮 2025 后：标签「2025」文字矩形 ${JSON.stringify(g2025 && g2025.text)}、字体 ${g2025 && g2025.font.split('|').slice(0, 2).join(' / ')}、颜色 ${g2025 && g2025.paint.split('|')[0]}；变色标签 ${changed.length} 个 / 共 ${gActive.length} 个`);
+  console.log(`     选中态「2025」装饰计算样式：background-color=${d25 && d25.bg}  background-image=${d25 && d25.img}  border-bottom=${d25 && d25.bb} / ${d25 && d25.bbs}  border-top/right/left=${d25 && d25.bt}/${d25 && d25.br}/${d25 && d25.bl}`);
+  console.log(`                             box-shadow=${d25 && d25.shadow}  outline=${d25 && d25.olStyle}/${d25 && d25.olW}  text-decoration=${d25 && d25.td}  padding=${d25 && d25.pt}/${d25 && d25.pb}`);
+  console.log(`                             伪元素 before content/bg=${d25 && d25.before}/${d25 && d25.beforeBg}  after content/bg/border-bottom-w=${d25 && d25.after}/${d25 && d25.afterBg}/${d25 && d25.afterBb}`);
   ok(activeDiff.length === 0,
-    `⑦-b ★★★ 高亮（.is-active）只改颜色：字号/字重/字体/盒模型/文字矩形**零变化**（${activeDiff.slice(0, 4).join(' | ') || '零偏差'}）`);
-  ok(colorChanged <= 2 && !!g2025 && /22,\s*119,\s*255/.test(g2025.paint),
-    `⑦-b ★★★ 高亮只落在被选中的那一个标签上（变色 ${colorChanged} 个；「2025」颜色 ${g2025 && g2025.paint.split('|')[0]}）`);
+    `⑦-b ★★★ 高亮（.is-active）只改 color：字体 / 盒模型 / DOM 结构 / **装饰** 零变化（${activeDiff.slice(0, 4).join(' | ') || '零偏差'}）`);
+  const NEUTRAL = /^(rgba\(0,\s*0,\s*0,\s*0\)|transparent)$/;
+  const NOCONTENT = /^(none|normal|"")$/;
+  ok(!!g2025 && NEUTRAL.test(d25.bg) && d25.img === 'none',
+    `⑦-b ★★★ 选中态**没有底色**：background-color=${d25 && d25.bg}（透明）、background-image=${d25 && d25.img}（none）—— 用户说的"底部颜色变化"就是它`);
+  ok(!!g2025 && d25.bb === '0px' && d25.bbs === 'none' && d25.bt === '0px' && d25.br === '0px' && d25.bl === '0px',
+    `⑦-b ★★★ 选中态**没有任何边框**（上下左右 ${d25 && [d25.bt, d25.br, d25.bb, d25.bl].join('/')}，bottom style=${d25 && d25.bbs}）`);
+  ok(!!g2025 && d25.shadow === 'none' && d25.olStyle === 'none' && d25.td === 'none',
+    `⑦-b ★★★ 选中态**没有阴影/轮廓/下划线**（box-shadow=${d25 && d25.shadow}、outline=${d25 && d25.olStyle}、text-decoration=${d25 && d25.td}）`);
+  ok(!!g2025 && NOCONTENT.test(String(d25.before)) && NOCONTENT.test(String(d25.after)) && NEUTRAL.test(String(d25.beforeBg)) && NEUTRAL.test(String(d25.afterBg)),
+    `⑦-b ★★★ 选中态**没有长出伪元素**（::before content=${d25 && d25.before} bg=${d25 && d25.beforeBg}；::after content=${d25 && d25.after} bg=${d25 && d25.afterBg}）`);
+  const p2025base = gBeforeActive.find(x => x.label === '2025');
+  const colorReallyChanged = !!g2025 && p2025base && p2025base.paint !== g2025.paint;
+  ok(colorReallyChanged && /22,\s*119,\s*255/.test(g2025.paint.split('|')[0]),
+    `⑦-b ★★★ 选中的「2025」**颜色确实变了**（${p2025base && p2025base.paint.split('|')[0]} → ${g2025.paint.split('|')[0]}）—— 高亮只体现在文字颜色上`);
+  // ★★★ 像素差分（选中前 vs 选中后）：**除文字本身的颜色外 0 个差异像素**。
+  //   判据：一个"变了"的像素若落在深色墨迹（或其 1px 抗锯齿过渡边）上 = 文字反色，允许；
+  //         落在浅色背景上 = 多画了一块色块/边框/阴影 ⇒ 违规。
+  const pxActive = diffPixels(imgBeforeActive, imgActive, gBeforeActive, { allowGlyph: true, boxes: gActive });
+  console.log(`     像素差分（选中后 vs 选中前，${gBeforeActive.length} 个标签区域）：文字色差异 ${pxActive.glyphPx} 像素（允许）；**文字以外的差异 ${pxActive.bgPx} 像素**（必须为 0）`);
+  if (pxActive.bgPx) console.log(`        违规位置：${JSON.stringify(pxActive.bgOut.slice(0, 4))}`);
+  ok(pxActive.bgPx === 0,
+    `⑦-b ★★★ 选中前后**文字区以外的像素完全一致**（文字色差异 ${pxActive.glyphPx} 个允许；非文字差异 ${pxActive.bgPx} 个${pxActive.bgPx ? '，明细 ' + JSON.stringify(pxActive.bgOut.slice(0, 3)) : ''}）`);
+  ok(!colorReallyChanged || pxActive.glyphPx > 0,
+    `⑦-b ★★★ 选中确实改变了文字颜色（文字像素差异 ${pxActive.glyphPx} 个 > 0）`);
   await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
   await sleep(800);
   const gBack = await glyphs();
@@ -2369,9 +2456,10 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   //   原理：如果"数字沉降"是亚像素/半像素渲染造成的，换 dpr 一定会把它放大成真实偏差。
   //   做法：改 dpr 后**重新导航**（视口尺寸必须在 navigate 之前设），再重复
   //   "基线 → 悬浮 → 移开 → 高亮 → 取消" 五个状态，每个状态都重测三类：文字矩形 / 字体度量 / DOM 结构。
-  for (const dpr of [1, 1.5]) {
-    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: dpr, mobile: false });
-    await send('Page.navigate', { url: `${BASE}?dpr=${dpr}&t=${Date.now()}#notes` });
+  for (const vp of [{ w: 1280, h: 900, dpr: 1, mobile: false }, { w: 1280, h: 900, dpr: 1.5, mobile: false }, { w: 375, h: 720, dpr: 2, mobile: true }, { w: 375, h: 720, dpr: 1, mobile: true }]) {
+    const tag = `${vp.w}x${vp.h} dpr=${vp.dpr}`;
+    await send('Emulation.setDeviceMetricsOverride', { width: vp.w, height: vp.h, deviceScaleFactor: vp.dpr, mobile: vp.mobile });
+    await send('Page.navigate', { url: `${BASE}?vp=${vp.w}x${vp.dpr}&t=${Date.now()}#notes` });
     for (let i = 0; i < 140; i++) {
       const r = await evaluate(`(()=>typeof onTabClick==='function' && document.readyState==='complete' && Object.keys(viewScrollContainers||{}).length>0)()`).catch(() => false);
       if (r) break;
@@ -2379,28 +2467,67 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
     }
     await sleep(800);
     await openYears();
-    await sleep(1200);
+    // ★★ 基线截图前必须让**所有过渡动画**停下来：热力图重渲染后标签的
+    //   `transition: color 0.12s ease` 还在跑，若基线抓在动画中途，之后任何一张
+    //   稳定态截图都会和它差出几十个"半路颜色"像素（实测 375px 下 54 个）。
+    await sleep(1600);
     const b = await glyphs();
+    const iB = await shotPng();
+    await shotPng();                       // 再截一张，确认基线本身已稳定
+    await sleep(200);
     await hoverAt(cellExpr(0, 5));
-    await sleep(450);
+    await sleep(500);
     const h = await glyphs();
+    // ★ 多截一张：悬浮是**过渡动画**（opacity/transform 0.12s），第一张可能抓在动画中途
+    //   （实测偶发在 375px 下抓到 54 个"半透明泡"像素）。取第二张作为稳定态。
+    await shotPng();
+    await sleep(260);
+    const iH = await shotPng();
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5, buttons: 0 });
-    await sleep(450);
+    await sleep(500);
     const a = await glyphs();
-    const act = await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
-    await sleep(850);
+    const iA = await shotPng();
+    await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
+    await sleep(900);
     const g = await glyphs();
+    const iG = await shotPng();
     await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
-    await sleep(850);
+    await sleep(900);
     const r = await glyphs();
     const bad = [].concat(
-      diffGlyph(b, h).filter(x => /font|geom|kids/.test(x)),
+      diffGlyph(b, h).filter(x => /font|geom|kids|decor/.test(x)),
       diffGlyph(b, a),
-      diffGlyph(b, g).filter(x => /font|geom|kids/.test(x) || /text\[|box\[/.test(x)),
+      diffGlyph(b, g).filter(x => /font|geom|kids|decor/.test(x) || /text\[|box\[|rangeRect/.test(x)),
       diffGlyph(b, r));
-    console.log(`     dpr=${dpr}：标签 ${b.length} 个，五态对比偏差 ${bad.length} 条`);
+    // 像素差分：移开后必须 0；选中前后**文字区以外**必须 0
+    const pBack = (vp.dpr !== dprNow) ? null : diffPixels(iB, iA, b);
+    const pAct = diffPixels(iB, iG, b, { allowGlyph: true, boxes: g });
+    const pActHover = diffPixels(iB, iH, b, { allowGlyph: true, boxes: h });
+    console.log(`     ${tag}：标签 ${b.length} 个；五态结构偏差 ${bad.length} 条；选中前后像素差 文字色 ${pAct.glyphPx} / **非文字 ${pAct.bgPx}**（弱抖 ${pAct.weakPx}）；悬浮中像素差 文字色 ${pActHover.glyphPx} / **非文字 ${pActHover.bgPx}**（弱抖 ${pActHover.weakPx}）${pBack ? '；移开后像素差 ' + pBack.n : ''}`);
     ok(bad.length === 0,
-      `⑦-b ★★★ dpr=${dpr} 下"基线→悬浮→移开→高亮→取消"五态：文字矩形/字体度量/DOM 结构全部零偏差（${bad.slice(0, 3).join(' | ') || '零偏差'}）`);
+      `⑦-b ★★★ ${tag} "基线→悬浮→移开→选中→取消"五态：文字矩形/字体度量/DOM 结构/装饰全部零偏差（${bad.slice(0, 3).join(' | ') || '零偏差'}）`);
+    // 移开后只要极小容差（≤12px）：浏览器偶发把亚像素抗锯齿重排一遍，
+    // 那属于渲染器抖动、不是布局位移；真正"沉降"会造成成百上千像素的位移差。
+    if (pBack) ok(pBack.n <= 12,
+      `⑦-b ★★★ ${tag} 悬浮后移开：像素零差异（实测 ${pBack.n} 个，容差 ≤12 用于抗锯齿抖动）`);
+    ok(pAct.bgPx === 0,
+      `⑦-b ★★★ ${tag} **选中前后文字区以外 0 个差异像素**（文字色差异 ${pAct.glyphPx}，非文字 ${pAct.bgPx}，弱抖 ${pAct.weakPx}${pAct.bgPx ? '，明细 ' + JSON.stringify(pAct.bgOut.slice(0, 3)) : ''}）`);
+    // ★ 截图始终按 CSS 像素 1:1 取（dpr 只影响渲染清晰度、不改截图像素数）⇒
+    //   "文字像素确实变了"只在 dpr==基线 dpr 时才有可观测的颜色差，其余 dpr 用**计算样式**证明。
+    if (vp.dpr === dprNow) ok(pAct.glyphPx > 0,
+      `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（文字像素差异 ${pAct.glyphPx} > 0）`);
+    else {
+      const gBasePaint = gBeforeActive.find(x => x.label === '2025').paint.split('|')[0];
+      const gNowPaint = g.find(x => x.label === '2025').paint.split('|')[0];
+      ok(gBasePaint !== gNowPaint && /22,\s*119,\s*255/.test(gNowPaint),
+        `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（截图按 CSS 像素 1:1 取，本 dpr 下无像素色差 ⇒ 用计算样式证明：${gBasePaint} → ${gNowPaint}）`);
+    }
+    // 悬浮态：标签区域内只允许"文字/蓝色抗锯齿边"跟着变。
+    //   ★ 贴边的月份标签（375px 下"6"那一列）会与相邻格子的泡在同一小块区域重叠，
+    //     实测最多 34 个 Δ=4 的**蓝色渐隐边**像素（其它 3 个视口全是 0）⇒ 给一个
+    //     很小的绝对上限（≤64），并在消息里如实报数；**选中态**那一条才是严格 0。
+    ok(pActHover.bgPx <= 64,
+      `⑦-b ★★★ ${tag} 悬浮中：标签区域内**没有新画出来的色块**（Δ≥4 的"非墨迹"像素 ${pActHover.bgPx} 个 ≤64，均为文字/泡的蓝色渐隐边；Δ≤3 的渲染抖动 ${pActHover.weakPx} 个如实报告${pActHover.bgPx ? '，明细 ' + JSON.stringify(pActHover.bgOut.slice(0, 2)) : ''}）`);
   }
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 }
