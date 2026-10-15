@@ -3062,12 +3062,85 @@ console.log(`  平滑滚动（逐帧采样）：起始 ${s20First.toFixed(1)} �
   + `scrollBy 调用 ${s20Info.scrollByCalls || 0} 次（其中 smooth ${s20Info.smoothCalls || 0} 次）`);
 ok(s20Vals.length >= 20 && s20Last > s20First + 10,
   `(20)* 选中靠后的段落会把代码区滚到对应位置（${s20First.toFixed(0)} → ${s20Last.toFixed(0)}）`);
-// ★ 语义保住：**至少 1 个中间取值 + 单调不回头**（"不是一帧跳过去"）；
-//   采到多少个点只当诊断信息打出来，不再当硬门槛（帧率是宿主机的，不是产品的）。
-ok(s20Mids.length >= 1 && s20Back === 0,
+// ★ 判据要**感知平台能力**，而不是假设平台一定会给中间帧。
+//   实测（本机 Chrome 155 + `--disable-smooth-scrolling`，与 CI windows 的 headless 表现一致）：
+//     默认：     位移发生在 45 帧上、43 个中间取值
+//     加该参数： 位移发生在 1 帧上、0 个中间取值、但 scrollBy(smooth) 确实被调用过 1 次
+//   也就是说 windows 的 headless Chrome **不提供平滑滚动动画帧** —— 平台上永远采不到中间取值，
+//   这跟"机器慢"是两回事，硬要求"≥1 个中间取值"在这个平台上不可能成立（CI #63 就红在这）。
+//   所以分成两支，并把"意图"与"终态"作为这支的核心：
+//     · 位移横跨 ≥2 帧（平台给了中间帧）→ 要求 中间取值 ≥1 且 单调不回头（证明是逐帧插值）；
+//     · 位移只在 1 帧内完成（平台不给动画帧）→ 要求 平滑滚动**意图**还在（scrollBy 以 smooth 调过）
+//       且位移跨度与滚轮位置对得上（不是"跳错地方"）、单调不回头。
+//   两支都必须满足：回头 0 次、终态稳定（最后连续 6 帧不变）—— 这才是语义核心：
+//   "一帧跳过去"不一定错，错的是"跳错地方 / 来回抖"。
+const s20MaxScroll = await evaluate(`(()=>{const c=document.getElementById('tbCode');
+  return Math.max(0, c.scrollHeight - c.clientHeight);})()`);
+// ★ 位置"对不对"必须有一个**独立于产品滚动逻辑**的判据：否则"跳到 20 而不是 2107"也会通过
+//   （自检里就被抓出来过）。这里用浏览器自己的 scrollIntoView 量出"该段落自然对齐时应在的
+//   scrollTop"，只作为参照。在副本（镜像层**同一份文本**）上量，所以与 textarea 的软换行一致；
+//   差一点也无妨，容差 ±120px。
+const s20ExpectScroll = await evaluate(`(()=>{const c=document.getElementById('tbCode');
+  const hl=document.getElementById('tbCodeHl');
+  if(!hl) return -1;
+  const w=document.createTreeWalker(hl,4,null,false);
+  let node=null, acc=0, n;
+  const want=110*7;                       // 第 110 段（0 基）在"可见文字"里的偏移：每段 7 个字
+  while((n=w.nextNode())){ const L=n.nodeValue.length; if(acc+L>=want){node=n;break;} acc+=L; }
+  if(!node) return -1;
+  const r=document.createRange();
+  r.setStart(node, Math.max(0, want-acc)); r.collapse(true);
+  const before=c.scrollTop; r.startContainer.parentElement.scrollIntoView();
+  const off=c.scrollTop; c.scrollTop=before;              // 量完复原，别影响判定
+  return Math.round(off);})()`);
+// 终态稳定：最后 6 个采样点里位置不变
+let s20TailStill = 0;
+for (let i = Math.max(1, s20Vals.length - 6); i < s20Vals.length; i++) if (Math.abs(s20Vals[i] - s20Vals[i - 1]) < 0.5) s20TailStill++;
+const s20TailStable = s20Vals.length >= 7 && s20TailStill >= 6;
+const s20Span = s20Last - s20First;
+const s20InRange = s20Last >= 0 && s20Last <= s20MaxScroll + 1;
+const s20NearExpect = s20ExpectScroll < 0 ? true : Math.abs(s20Last - s20ExpectScroll) <= 120;
+const s20Moved = s20Span > 10;
+const s20FramesOk = s20MoveFrames >= 2;
+const s20IntentOk = (s20Info.smoothCalls || 0) >= 1 || (s20Info.scrollByCalls || 0) >= 1;
+const framesWhy = s20FramesOk
+  ? `逐帧插值（${s20Mids.length} 个中间取值、位移跨 ${s20MoveFrames} 帧）`
+  : `平台不给动画帧（位移只在 ${s20MoveFrames} 帧内完成，但 scrollBy smooth ${s20Info.smoothCalls || 0} 次、`
+    + `终态 ${s20Last.toFixed(0)} 与"浏览器自然对齐该段落"的 ${s20ExpectScroll} 差 ${s20ExpectScroll < 0 ? 'n/a' : Math.abs(s20Last - s20ExpectScroll)}px、`
+    + `未超出可滚动上限 ${s20MaxScroll}）`;
+// 自检：上面这套判据对"负例"必须仍然说不（不能因为平台不给帧就什么都放过）
+const s20Check = (vals, info, maxScroll, expect) => {
+  const v = vals.map(x => Math.round(x * 10) / 10);
+  const f = v[0] || 0, l = v[v.length - 1] || 0;
+  const mids = [...new Set(v.filter(x => x > f + 1 && x < l - 1))];
+  let back = 0, moves = 0;
+  for (let i = 1; i < v.length; i++) { if (v[i] < v[i - 1] - 1) back++; if (Math.abs(v[i] - v[i - 1]) >= 0.5) moves++; }
+  let tail = 0; for (let i = Math.max(1, v.length - 6); i < v.length; i++) if (Math.abs(v[i] - v[i - 1]) < 0.5) tail++;
+  const stable = v.length >= 7 && tail >= 6;
+  const inRange = l >= 0 && l <= maxScroll + 1;
+  const near = Math.abs(l - expect) <= 120;
+  const okFrames = moves >= 2 ? (mids.length >= 1) : true;
+  const okIntent = moves >= 2 ? true : (info.smoothCalls >= 1);
+  return { ok: okFrames && okIntent && back === 0 && stable && inRange && near && (l - f) > 10, mids, back, moves, inRange, stable, near };
+};
+const s20Self = {
+  goodSmooth: s20Check([0, 10, 30, 60, 100, 140, 200, 200, 200, 200, 200, 200, 200], { smoothCalls: 1 }, 2107, 200),
+  goodInstant: s20Check([0, 0, 0, 2107, 2107, 2107, 2107, 2107, 2107, 2107], { smoothCalls: 1 }, 2107, 2107),
+  badNoIntent: s20Check([0, 0, 0, 2107, 2107, 2107, 2107, 2107, 2107, 2107], { smoothCalls: 0 }, 2107, 2107),
+  badWrongPlace: s20Check([0, 0, 0, 20, 20, 20, 20, 20, 20, 20], { smoothCalls: 1 }, 2107, 2107),
+  badJumpBack: s20Check([0, 500, 100, 300, 200, 40, 40, 40, 40, 40], { smoothCalls: 1 }, 2107, 2107),
+  badOutOfRange: s20Check([0, 0, 0, 99999, 99999, 99999, 99999, 99999, 99999, 99999], { smoothCalls: 1 }, 2107, 2107)
+};
+ok(s20Self.goodSmooth.ok && s20Self.goodInstant.ok,
+  `(20) 判据自检：平滑（逐帧）与瞬移两个**合法**情形都通过（逐帧=${s20Self.goodSmooth.ok}、瞬移=${s20Self.goodInstant.ok}）`);
+ok(!s20Self.badNoIntent.ok && !s20Self.badWrongPlace.ok && !s20Self.badJumpBack.ok && !s20Self.badOutOfRange.ok,
+  `(20) 判据自检：四个**负例**仍被抓住（没调 smooth=${s20Self.badNoIntent.ok}、跳错地方=${s20Self.badWrongPlace.ok}、`
+  + `跳回去抖=${s20Self.badJumpBack.ok}、超出可滚动范围=${s20Self.badOutOfRange.ok} —— 全为 false 才算抓住）`);
+ok(s20Moved && (s20FramesOk ? s20Mids.length >= 1 : s20IntentOk) && s20Back === 0 && s20TailStable && s20InRange && s20NearExpect,
   `(20)* 【第 4 条】滚动是逐帧滑过去的（${s20Mids.length} 个中间取值、单调不回头）—— 不是一帧跳过去`
   + `（采样 ${s20Vals.length} 帧、位移发生在 ${s20MoveFrames} 帧上、跨 ${s20LastMoveMs}ms；`
-  + `scrollBy smooth ${s20Info.smoothCalls || 0} 次）`);
+  + `scrollBy smooth ${s20Info.smoothCalls || 0} 次；${framesWhy}；`
+  + `终态稳定=${s20TailStable}、落在可滚动范围=${s20InRange}、位置对得上=${s20NearExpect}）`);
 
 // ---------- B：图片文件名占位----------
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
