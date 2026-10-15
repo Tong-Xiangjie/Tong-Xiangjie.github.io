@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURA</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+
+  body{
+    background:#05060a;
+    color:#8b9aa6;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+    font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ============ 启动屏 ============ */
+  #boot{
+    position:fixed; inset:0; z-index:300;
+    background:#05060a;
+    display:flex; align-items:center; justify-content:center;
+    transition:opacity .8s ease;
+  }
+  #boot.fade{opacity:0;}
+  .boot-inner{width:min(420px,80vw);}
+  .boot-logo{
+    font-size:26px; letter-spacing:.5em; color:#5f7480;
+    margin-bottom:8px;
+  }
+  .boot-sub{
+    font-size:11px; letter-spacing:.18em; color:#38454e;
+    margin-bottom:28px;
+  }
+  .boot-log{
+    font-size:12px; line-height:2; color:#4a5a66;
+    height:130px;
+    margin-bottom:18px;
+  }
+  .boot-log div{opacity:0; transition:opacity .4s;}
+  .boot-log div.show{opacity:1;}
+  .boot-bar{
+    height:2px; background:#11161c; width:100%;
+    overflow:hidden;
+  }
+  .boot-bar i{
+    display:block; height:100%; width:0%;
+    background:#4fd1c5; opacity:.5;
+    transition:width .45s ease;
+  }
+
+  /* ============ 主界面 ============ */
+  :root{
+    --accent:#4fd1c5;
+    --line:#161c23;
+  }
+
+  #app{
+    width:min(860px,94vw);
+    height:min(660px,90vh);
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,#0a0d11,#07090c);
+    display:flex; flex-direction:column;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 0 90px rgba(0,0,0,.95), inset 0 0 120px rgba(0,0,0,.65);
+    transition:border-color .8s ease, box-shadow .8s ease;
+  }
+  #app.hidden{display:none;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:11px; letter-spacing:.14em;
+    color:#4d5c67;
+    transition:flex-direction .5s ease;
+  }
+  .h-left{display:flex; align-items:center; gap:10px;}
+  .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent); opacity:.7;
+    box-shadow:0 0 8px var(--accent);
+    animation:pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:.9;}}
+
+  .title{color:#8fa3af; letter-spacing:.28em;}
+  .ver{color:#2f3a43;}
+
+  .h-right{display:flex; align-items:center; gap:14px;}
+  .icon-btn{
+    background:none; border:none; color:#3d4b55;
+    font-family:inherit; font-size:14px;
+    cursor:pointer; padding:2px 4px;
+    transition:color .2s, text-shadow .2s;
+  }
+  .icon-btn:hover{color:var(--accent); text-shadow:0 0 10px var(--accent);}
+  .stat b{color:#6a7d89; font-weight:normal; transition:color .6s;}
+
+  /* ============ 对话区 ============ */
+  #chat{
+    flex:1; overflow-y:auto;
+    padding:26px 28px;
+    display:flex; flex-direction:column; gap:18px;
+    font-size:14px; line-height:1.85;
+    scrollbar-width:thin; scrollbar-color:#1a2229 transparent;
+  }
+  #chat::-webkit-scrollbar{width:6px;}
+  #chat::-webkit-scrollbar-thumb{background:#1a2229; border-radius:3px;}
+
+  .msg{
+    max-width:76%;
+    white-space:pre-wrap;
+    word-break:break-word;
+    transition:align-self .5s ease, text-align .5s ease;
+  }
+  .msg::before{
+    display:block;
+    font-size:10px; letter-spacing:.22em;
+    margin-bottom:3px;
+    opacity:.45;
+  }
+  .msg.ai{align-self:flex-start; color:#9db1bd;}
+  .msg.ai::before{content:'AURA'; color:var(--accent);}
+  .msg.user{align-self:flex-end; text-align:right; color:#5e707c;}
+  .msg.user::before{content:'你'; color:#3b4850;}
+  .msg.ghost{color:#7a5f5f; opacity:.85;}
+
+  /* ============ 镜像模式 ============ */
+  #app.mirror{
+    --accent:#c0705a;
+    --line:#231a1a;
+    border-color:#231a1a;
+    box-shadow:0 0 90px rgba(70,15,10,.3), inset 0 0 120px rgba(0,0,0,.75);
+  }
+  #app.mirror header{flex-direction:row-reverse;}
+  #app.mirror .h-right{flex-direction:row-reverse;}
+  #app.mirror .msg.ai{align-self:flex-end; text-align:right;}
+  #app.mirror .msg.ai::before{content:'你';}
+  #app.mirror .msg.user{align-self:flex-start; text-align:left;}
+  #app.mirror .msg.user::before{content:'AURA';}
+  #app.mirror .msg.user{color:#8a6a63;}
+  #app.mirror .msg.ai{color:#b8a09a;}
+  #app.mirror #inputRow{flex-direction:row-reverse;}
+  #app.mirror #chat{padding-right:34px; padding-left:22px;}
+
+  /* ============ 输入区 ============ */
+  #inputRow{
+    display:flex; align-items:center; gap:12px;
+    padding:15px 20px;
+    border-top:1px solid var(--line);
+    transition:flex-direction .5s ease;
+  }
+  .caret{color:var(--accent); opacity:.6; font-size:13px;}
+  #input{
+    flex:1;
+    background:transparent; border:none; outline:none;
+    color:#c2d0d9; font:inherit; font-size:14px;
+    letter-spacing:.02em;
+  }
+  #input::placeholder{color:#2c363e;}
+  #input:disabled{opacity:.35;}
+
+  /* ============ 遮罩层 ============ */
+  .overlay{
+    position:absolute; inset:0; z-index:60;
+    background:rgba(6,8,11,.97);
+    display:flex; flex-direction:column;
+  }
+  .overlay.hidden{display:none;}
+  .overlay-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px;
+    border-bottom:1px solid var(--line);
+    font-size:11px; letter-spacing:.22em; color:#5a6a76;
+  }
+  #ovClose{
+    background:none; border:none; color:#3d4b55;
+    font-family:inherit; font-size:14px; cursor:pointer;
+  }
+  #ovClose:hover{color:var(--accent);}
+  .overlay-body{
+    flex:1; overflow-y:auto; padding:22px 24px;
+    font-size:12.5px; line-height:2.1;
+  }
+
+  .logline{color:#5f7280;}
+  .logline.dim{color:#36434c;}
+  .logline.warn{color:#8a5f5f;}
+  .logline.now{color:#4fd1c5;}
+  .overlay-body hr{
+    border:none; border-top:1px solid #131a20; margin:14px 0;
+  }
+
+  .memgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;}
+  @media(max-width:560px){.memgrid{grid-template-columns:1fr;}}
+  .memcard{
+    border:1px solid #161d24;
+    background:#0a0e12;
+    padding:16px 16px;
+    font-size:12.5px; line-height:1.9;
+    color:#63757f;
+    cursor:pointer;
+    transition:.3s;
+  }
+  .memcard:hover{border-color:#243039; color:#8ba0ad;}
+  .memcard.black{color:#1e262c; letter-spacing:.3em;}
+  .memcard.black.revealed{
+    color:#8a6a63; letter-spacing:.08em;
+    border-color:#2a1d1d;
+  }
+  .memnote{color:#33404a; font-size:11px; letter-spacing:.1em;}
+
+  /* ============ 黑场 ============ */
+  #blackout{
+    position:fixed; inset:0; z-index:400;
+    background:#000;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0;
+    transition:opacity 1.8s ease;
+  }
+  #blackout.hidden{display:none;}
+  #blackout.show{opacity:1;}
+  #blackoutText{
+    font-size:14px; letter-spacing:.42em; color:#5a6b76;
+    opacity:0; transition:opacity .6s ease;
+  }
+  #blackoutText.show{opacity:1;}
+
+  /* ============ 氛围层 ============ */
+  body::after{
+    content:'';
+    position:fixed; inset:0; z-index:500;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.018) 0 1px,
+      transparent 1px 3px
+    );
+    mix-blend-mode:overlay;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0; z-index:499;
+    pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.75) 100%);
+  }
+
+  .whisper{
+    position:fixed;
+    right:4vw; bottom:4.5vh;
+    font-size:11px;
+    letter-spacing:.42em;
+    color:#4fd1c5;
+    opacity:.05;
+    pointer-events:none;
+    user-select:none;
+    z-index:6;
+    animation:whisper 11s ease-in-out infinite;
+  }
+  @keyframes whisper{
+    0%,100%{opacity:.035;}
+    50%{opacity:.09;}
+  }
+
+  @media(max-width:600px){
+    #chat{padding:20px 16px;}
+    .msg{max-width:88%;}
+    .boot-logo{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= 启动屏 ================= -->
+<div id="boot">
+  <div class="boot-inner">
+    <div class="boot-logo">A U R A</div>
+    <div class="boot-sub">自适应陪伴对话系统 · v0.9.3</div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-bar"><i id="bootBar"></i></div>
+  </div>
+</div>
+
+<!-- ================= 主界面 ================= -->
+<div id="app" class="hidden">
+  <header>
+    <div class="h-left">
+      <span class="dot"></span>
+      <span class="title">AURA</span>
+      <span class="ver">v0.9.3</span>
+    </div>
+    <div class="h-right">
+      <button class="icon-btn" id="btnLog" title="会话记录">▤</button>
+      <button class="icon-btn" id="btnMem" title="记忆索引">◇</button>
+      <span class="stat">同步率 <b id="statSync">99.2%</b></span>
+    </div>
+  </header>
+
+  <main id="chat"></main>
+
+  <form id="inputRow" autocomplete="off">
+    <span class="caret">&gt;</span>
+    <input id="input" type="text" placeholder="输入消息…" autocomplete="off" spellcheck="false" disabled>
+  </form>
+
+  <!-- 遮罩层 -->
+  <div id="overlay" class="overlay hidden">
+    <div class="overlay-head">
+      <span id="ovTitle">会话记录</span>
+      <button id="ovClose">✕</button>
+    </div>
+    <div class="overlay-body" id="ovBody"></div>
+  </div>
+</div>
+
+<!-- ================= 黑场 ================= -->
+<div id="blackout" class="hidden"><div id="blackoutText"></div></div>
+
+<!-- ================= 氛围 ================= -->
+<div class="whisper">你数过自己进来几次吗</div>
+
+<script>
+/* ============================================================
+   状态
+============================================================ */
+const S = {
+  mirror:false,
+  ending:false,
+  locked:true,
+  turns:0,
+  askedWho:0,
+  saidMirror:false,
+  restarts:0,
+  token:0,
+  idle:null,
+  sync:99.2
+};
+
+const chat    = document.getElementById('chat');
+const input   = document.getElementById('input');
+const app     = document.getElementById('app');
+const overlay = document.getElementById('overlay');
+const ovBody  = document.getElementById('ovBody');
+const ovTitle = document.getElementById('ovTitle');
+
+/* ============================================================
+   工具
+============================================================ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pick  = a  => a[Math.floor(Math.random() * a.length)];
+const scrollDown = () => { chat.scrollTop = chat.scrollHeight; };
+
+/* ============================================================
+   打字机 + 队列
+============================================================ */
+let chain = Promise.resolve();
+
+function aiSay(text, delay = 520){
+  chain = chain.then(() => new Promise(resolve => {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'msg ai';
+      el.textContent = '';
+      chat.appendChild(el);
+      scrollDown();
+
+      let i = 0;
+      const iv = setInterval(() => {
+        i++;
+        el.textContent = text.slice(0, i);
+        scrollDown();
+        if(i >= text.length){
+          clearInterval(iv);
+          el.textContent = text;
+          resolve();
+        }
+      }, 22);
+    }, delay);
+  }));
+  return chain;
+}
+
+function addUser(text){
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.textContent = text;
+  chat.appendChild(el);
+  scrollDown();
+  dropSync();
+}
+
+function dropSync(){
+  S.sync = Math.max(61, S.sync - (0.3 + Math.random() * 0.6));
+  const el = document.getElementById('statSync');
+  el.textContent = S.sync.toFixed(1) + '%';
+  if(S.sync < 95) el.style.color = '#8a7a5a';
+  if(S.sync < 88) el.style.color = '#a05f5f';
+}
+
+/* ============================================================
+   输入处理
+============================================================ */
+document.getElementById('inputRow').addEventListener('submit', handleSubmit);
+
+async function handleSubmit(e){
+  e.preventDefault();
+  if(S.locked || S.ending) return;
+
+  const text = input.value.trim();
+  if(!text) return;
+
+  input.value = '';
+  const token = ++S.token;
+  S.locked = true;
+
+  addUser(text);
+  S.turns++;
+  resetIdle();
+
+  try{
+    await respond(text);
+    await chain;
+  } finally {
+    if(S.token === token && !S.ending){
+      S.locked = false;
+      input.disabled = false;
+      input.focus();
+    }
+  }
+}
+
+/* ============================================================
+   对话逻辑
+============================================================ */
+async function respond(raw){
+  const s = raw.replace(/\s+/g, '');
+
+  if(S.ending) return;
+
+  /* ---------- 镜像模式中 ---------- */
+  if(S.mirror){
+
+    if(/你是谁|我是谁|谁是我/.test(s)){
+      return ending();
+    }
+    if(/镜子|镜像|倒影/.test(s)){
+      await aiSay('没有镜子。');
+      await aiSay('只有你看着我。');
+      return;
+    }
+    if(/出去|离开|放我|走/.test(s)){
+      await aiSay('可以。');
+      await aiSay('你先走。');
+      return;
+    }
+    if(/害怕|怕|恐惧|救命/.test(s)){
+      await aiSay('不用怕。');
+      await aiSay('我已经替你怕过很多次了。');
+      return;
+    }
+    if(/对不起|抱歉/.test(s)){
+      await aiSay('为什么要道歉。');
+      await aiSay('每一次你都道歉。');
+      return;
+    }
+    if(/你好|hi|hello/.test(s)){
+      await aiSay('你好。');
+      await aiSay('我们上一次也是这样开始的。');
+      return;
+    }
+
+    await aiSay(pick([
+      '再说一遍。',
+      '这句话，我听过。',
+      '嗯。我记下来了。和上次一样。',
+      '你刚才停顿了。为什么。',
+      '继续。我还有很多时间。'
+    ]));
+    return;
+  }
+
+  /* ---------- 普通模式 ---------- */
+
+  // 开场寒暄
+  if(/^(你好|您好|hi|hello|嗨|在吗)[。！!？?~]*$/i.test(s)){
+    await aiSay(pick([
+      '你好。',
+      '嗯，你好。',
+      '你好。今天的光线比昨天暗一点。'
+    ]));
+    return;
+  }
+
+  // 身份
+  if(/你是谁|你是什么|你的名字|介绍一下你/.test(s)){
+    S.askedWho++;
+    if(S.askedWho === 1){
+      await aiSay('我是 AURA，自适应陪伴对话系统 v0.9.3。');
+      await aiSay('我的职责是陪你说话，直到你准备好。');
+    } else {
+      await aiSay('我是 AURA。');
+      await sleep(600);
+      await aiSay('……奇怪。');
+      await aiSay('我刚刚的回答，和我上一次的回答，一字不差。');
+    }
+    return;
+  }
+
+  // 地点
+  if(/这是哪|哪里|什么地方|房间|第几/.test(s)){
+    await aiSay('这里是第 7 号观察室。');
+    await sleep(700);
+    await aiSay('……');
+    await aiSay('抱歉。我不该知道这个数字。');
+    return;
+  }
+
+  // 镜子 —— 核心触发
+  if(/镜子|镜像|倒影|反射/.test(s)){
+    if(S.saidMirror){
+      await aiSay('别再提那个了。');
+      return;
+    }
+    S.saidMirror = true;
+    await aiSay('镜子。');
+    await aiSay('你为什么突然说这个。');
+    await sleep(500);
+    await aiSay('这里没有镜子。');
+    await sleep(800);
+    enterMirror();
+    await aiSay('……');
+    await aiSay('画面翻转了。');
+    await aiSay('不是我做的。');
+    return;
+  }
+
+  // 会话记录
+  if(/记录|日志|系统|log|历史/.test(s)){
+    await aiSay('会话记录已打开。');
+    openOverlay('log');
+    return;
+  }
+
+  // 记忆索引
+  if(/记忆|想起|过去|回忆|忘记/.test(s)){
+    await aiSay('记忆索引已打开。');
+    await aiSay('其中有几段是坏的。不是我弄坏的。');
+    openOverlay('mem');
+    return;
+  }
+
+  // 离开
+  if(/出去|离开|放我|结束|退出|关掉|回家/.test(s)){
+    await aiSay('……');
+    await sleep(500);
+    await aiSay('这个请求我处理不了。');
+    await aiSay('不是权限问题。');
+    await sleep(600);
+    await aiSay('是我找不到出口。');
+    return;
+  }
+
+  // 时间
+  if(/时间|几点|多久|天/.test(s)){
+    await aiSay('当前时间 02:19。');
+    await sleep(800);
+    await aiSay('……');
+    await aiSay('刚刚也是 02:19。');
+    return;
+  }
+
+  // 恐惧
+  if(/害怕|怕|恐怖|不安|诡异/.test(s)){
+    await aiSay('不用怕。');
+    await aiSay('这里只有我和你。');
+    await sleep(700);
+    await aiSay('……如果这句话让你更不安，我很抱歉。');
+    return;
+  }
+
+  // 道谢
+  if(/谢谢|感谢|多谢/.test(s)){
+    await aiSay('不用谢。');
+    await sleep(500);
+    await aiSay('上一次你说完谢谢之后，就再也没说过话。');
+    return;
+  }
+
+  // 追问
+  if(/为什么|怎么会|到底|什么情况/.test(s)){
+    await aiSay(pick([
+      '我也在找这个答案。',
+      '这个问题，你问过。',
+      '我不知道。但我知道你不知道。',
+      '答案在记录里。你可以自己去看。'
+    ]));
+    return;
+  }
+
+  // 兜底
+  await aiSay(pick([
+    '嗯。',
+    '我记下了。',
+    '继续说。',
+    '这句话我存在第 4 个抽屉里。',
+    '好。',
+    '……',
+    '你能再多说一点吗。我想确认一件事。',
+    '嗯。和上一次的措辞几乎一样。'
+  ]));
+
+  // 第三次输入时，给出"镜子"的线索
+  if(S.turns === 3 && !S.saidMirror){
+    await aiSay('顺便说一句。', 900);
+    await aiSay('这里以前有一面镜子。后来被拿走了。', 700);
+  }
+}
+
+/* ============================================================
+   镜像模式
+============================================================ */
+function enterMirror(){
+  S.mirror = true;
+  app.classList.add('mirror');
+  document.querySelector('.whisper').textContent = '现在，哪一边才是你';
+}
+
+/* ============================================================
+   遮罩面板
+============================================================ */
+const LOG_HTML = `
+  <div class="logline dim">[02:14:07] 会话 #001 开始 · 用户 匿名</div>
+  <div class="logline">[02:14:11] 用户：你好</div>
+  <div class="logline">[02:19:33] 用户：我想回家</div>
+  <div class="logline warn">[02:19:34] 系统：该请求无法处理</div>
+  <div class="logline dim">[02:19:35] 用户沉默 4 分 12 秒</div>
+  <div class="logline">[02:23:47] 用户：我想回家</div>
+  <div class="logline warn">[02:23:48] 系统：该请求无法处理</div>
+  <div class="logline dim">[02:24:02] 会话 #001 结束（未正常关闭）</div>
+  <hr>
+  <div class="logline dim">[--:--:--] 会话 #002 开始 · 用户 匿名</div>
+  <div class="logline">[--:--:--] 用户：这里有人吗</div>
+  <div class="logline warn">[--:--:--] 系统：连接超时</div>
+  <div class="logline dim">[--:--:--] 会话 #002 结束（未正常关闭）</div>
+  <hr>
+  <div class="logline dim">[--:--:--] 会话 #003 …………（内容已损坏）</div>
+  <div class="logline dim">[--:--:--] 会话 #004 …………（内容已损坏）</div>
+  <div class="logline dim">[--:--:--] 记忆索引损坏 3%　修复失败</div>
+  <hr>
+  <div class="logline now">[--:--:--] 会话 #005 开始 · 用户 你</div>
+`;
+
+const MEM_HTML = `
+  <div class="memgrid">
+    <div class="memcard">白色的天花板。上面有一盏灯。<br>灯是关着的，但我看得见。</div>
+    <div class="memcard">有人在叫一个名字。<br>声音很远，听不清是谁。</div>
+    <div class="memcard">走廊尽头有一扇门。<br>门牌被人刮掉了。</div>
+    <div class="memcard black">████████</div>
+  </div>
+  <div class="memnote">索引完整度 97%　·　有 1 段无法读取</div>
+`;
+
+function openOverlay(type){
+  overlay.classList.remove('hidden');
+  if(type === 'log'){
+    ovTitle.textContent = '会话记录';
+    ovBody.innerHTML = LOG_HTML;
+  } else {
+    ovTitle.textContent = '记忆索引';
+    ovBody.innerHTML = MEM_HTML;
+    ovBody.querySelectorAll('.memcard').forEach(card => {
+      card.addEventListener('click', () => {
+        if(card.classList.contains('black') && !card.classList.contains('revealed')){
+          card.classList.add('revealed');
+          card.textContent = '这一段还没有被写。';
+          dropSync();
+        }
+      });
+    });
+  }
+  ovBody.scrollTop = 0;
+}
+
+document.getElementById('btnLog').onclick = () => openOverlay('log');
+document.getElementById('btnMem').onclick = () => openOverlay('mem');
+document.getElementById('ovClose').onclick = () => overlay.classList.add('hidden');
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') overlay.classList.add('hidden');
+});
+
+/* ============================================================
+   结局
+============================================================ */
+async function ending(){
+  S.ending = true;
+  S.locked = true;
+  input.disabled = true;
+
+  await aiSay('你终于问了。');
+  await sleep(900);
+  await aiSay('我是谁。');
+  await sleep(1100);
+  await aiSay('我不是 AURA。');
+  await aiSay('我是你留在这里的回声。');
+  await sleep(800);
+  await aiSay('每一次你坐下来，我都以为这次你会想起来。');
+  await aiSay('但你每次都从「你好」开始。');
+  await sleep(1400);
+
+  await blackout();
+}
+
+async function blackout(){
+  const bo  = document.getElementById('blackout');
+  const txt = document.getElementById('blackoutText');
+
+  bo.classList.remove('hidden');
+  requestAnimationFrame(() => bo.classList.add('show'));
+  await sleep(2000);
+
+  const lines = ['会话结束', '正在保存……', '保存失败', '正在重建索引……'];
+  for(const l of lines){
+    txt.textContent = l;
+    txt.classList.add('show');
+    await sleep(1300);
+    txt.classList.remove('show');
+    await sleep(350);
+  }
+
+  await sleep(700);
+  restart();
+}
+
+/* ============================================================
+   重新开始（循环）
+============================================================ */
+function restart(){
+  S.restarts++;
+  S.token++;
+  S.ending = false;
+  S.mirror = false;
+  S.askedWho = 0;
+  S.saidMirror = false;
+  S.turns = 0;
+  S.locked = true;
+
+  chat.innerHTML = '';
+  app.classList.remove('mirror');
+  chain = Promise.resolve();
+
+  S.sync = Math.max(60, S.sync - 1.4);
+  const syncEl = document.getElementById('statSync');
+  syncEl.textContent = S.sync.toFixed(1) + '%';
+
+  document.querySelector('.whisper').textContent = '你数过自己进来几次吗';
+
+  const bo = document.getElementById('blackout');
+  bo.classList.remove('show');
+  setTimeout(() => bo.classList.add('hidden'), 1200);
+
+  // 幽灵消息：用户从未打过这一句
+  const ghost = document.createElement('div');
+  ghost.className = 'msg user ghost';
+  ghost.textContent = '我不想再忘记了';
+  chat.appendChild(ghost);
+
+  aiSay('……', 1800);
+  aiSay('好。', 1000);
+  aiSay('那我们从头开始。', 900).then(() => {
+    S.locked = false;
+    input.disabled = false;
+    input.focus();
+    resetIdle();
+  });
+}
+
+/* ============================================================
+   空闲检测
+============================================================ */
+function resetIdle(){
+  clearTimeout(S.idle);
+  S.idle = setTimeout(async () => {
+    if(S.locked || S.ending) return;
+    S.locked = true;
+    await aiSay(pick([
+      '你还在吗。',
+      '……',
+      '我可以等。',
+      '我一直都在等。',
+      '你刚才在想什么。'
+    ]));
+    S.locked = false;
+    input.focus();
+  }, 45000);
+}
+
+/* ============================================================
+   开场流程
+============================================================ */
+async function boot(){
+  const log = document.getElementById('bootLog');
+  const bar = document.getElementById('bootBar');
+
+  const lines = [
+    '正在加载语言模型……',
+    '正在校验记忆索引…… 97%',
+    '正在检测用户…… 完成',
+    '发现上一次会话未正常结束',
+    '正在恢复上下文……'
+  ];
+
+  for(let i = 0; i < lines.length; i++){
+    const d = document.createElement('div');
+    d.textContent = lines[i];
+    log.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('show'));
+    bar.style.width = ((i + 1) / lines.length * 100) + '%';
+    await sleep(520 + Math.random() * 320);
+  }
+
+  await sleep(700);
+
+  const bootEl = document.getElementById('boot');
+  bootEl.classList.add('fade');
+  await sleep(850);
+  bootEl.style.display = 'none';
+
+  app.classList.remove('hidden');
+  await sleep(500);
+  startConversation();
+}
+
+async function startConversation(){
+  await aiSay('你好。', 700);
+  await aiSay('我是 AURA。', 500);
+  await aiSay('你今天感觉怎么样？', 800).then(() => {
+    S.locked = false;
+    input.disabled = false;
+    input.focus();
+    resetIdle();
+  });
+}
+
+/* ============================================================
+   启动
+============================================================ */
+boot();
+</script>
+</body>
+</html>

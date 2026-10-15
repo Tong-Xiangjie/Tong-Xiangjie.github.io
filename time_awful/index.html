@@ -1,0 +1,3405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>时钟浏览器 · 极速版</title>
+<script>
+try { if (localStorage.getItem('clockTheme') === 'dark') document.documentElement.classList.add('dark-mode'); } catch(e){}
+</script>
+<style>
+@font-face {
+    font-family: "OCRB10";
+    src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
+    font-weight: normal; font-style: normal; font-display: swap;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+    --bg:#f5f7fa; --fg:#1a2634;
+    --muted:rgba(26,38,52,.6); --faint:rgba(26,38,52,.35);
+    --hover:rgba(26,38,52,.08); --line:rgba(26,38,52,.12);
+    --card:rgba(26,38,52,.04); --accent:#3b82f6;
+    --warn:#f59e0b; --ok:#10b981; --danger:#ef4444;
+    --search:#ffffff; --nav:#ffffff; --gold:#d4a017;
+    --tb:#ff5000; --pdd:#e02e24;
+}
+:root.dark-mode {
+    --bg:#0a0e12; --fg:#eef2ff;
+    --muted:rgba(238,242,255,.58); --faint:rgba(238,242,255,.3);
+    --hover:rgba(238,242,255,.1); --line:rgba(238,242,255,.12);
+    --card:rgba(238,242,255,.05); --accent:#60a5fa;
+    --warn:#fbbf24; --ok:#34d399; --danger:#f87171;
+    --search:#151b22; --nav:#0f141a; --gold:#fbbf24;
+}
+
+html, body { height:100%; }
+body {
+    background:var(--bg); color:var(--fg);
+    font-family:"OCRB10","Source Han Sans","Noto Sans CJK SC","思源黑体","Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+    transition:background-color .35s, color .35s;
+    -webkit-font-smoothing:antialiased;
+    user-select:none;
+}
+
+/* ══════════════════════════════════════════
+   启动画面
+   ══════════════════════════════════════════ */
+#bootScreen {
+    position:fixed; inset:0; z-index:9999;
+    background:var(--bg);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:1.2rem; padding:2rem;
+    transition:opacity .5s ease, visibility .5s;
+}
+#bootScreen.hide { opacity:0; visibility:hidden; pointer-events:none; }
+.boot-logo { font-size:clamp(1.4rem,4vw,2.2rem); font-weight:700; letter-spacing:.2em; text-align:center; }
+.boot-sub { font-size:.8rem; color:var(--muted); letter-spacing:.15em; }
+.boot-bar-wrap { width:min(360px,80vw); height:6px; border-radius:3px; background:var(--card); overflow:hidden; }
+#bootBar { height:100%; width:0%; border-radius:3px; background:var(--accent); transition:width .12s linear; }
+#bootPct { font-size:.85rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+#bootMsg { font-size:.72rem; color:var(--faint); min-height:1em; letter-spacing:.08em; }
+
+/* ══════════════════════════════════════════
+   搜索栏
+   ══════════════════════════════════════════ */
+#searchbar {
+    flex:0 0 auto; display:flex; align-items:center; gap:.5rem;
+    padding:.5rem .7rem; background:var(--nav);
+    border-bottom:1px solid var(--line);
+    position:relative; z-index:200;
+}
+.sb-logo { font-size:1rem; font-weight:700; color:var(--accent); letter-spacing:.05em; flex:0 0 auto; padding:.2rem .3rem; }
+.sb-input-wrap {
+    flex:1 1 auto; display:flex; align-items:center; gap:.4rem;
+    background:var(--search); border:1px solid var(--line);
+    border-radius:999px; padding:.35rem .7rem;
+    min-width:0;
+}
+.sb-icon { color:var(--faint); font-size:.85rem; flex:0 0 auto; }
+#searchInput {
+    flex:1 1 auto; border:none; background:transparent;
+    color:var(--fg); font-family:inherit; font-size:.82rem;
+    outline:none; min-width:0; letter-spacing:.03em;
+}
+#searchInput::placeholder { color:var(--faint); }
+#searchBtn {
+    flex:0 0 auto; border:none; background:var(--accent); color:#fff;
+    font-family:inherit; font-size:.72rem; font-weight:700;
+    padding:.32rem .75rem; border-radius:999px; cursor:pointer;
+    letter-spacing:.06em;
+}
+#searchPanel {
+    position:absolute; top:100%; left:0; right:0;
+    background:var(--nav); border-bottom:1px solid var(--line);
+    box-shadow:0 12px 30px -10px rgba(0,0,0,.25);
+    max-height:0; overflow:hidden;
+    transition:max-height .3s ease;
+}
+#searchPanel.show { max-height:400px; }
+.sp-section { padding:.7rem 1rem; border-bottom:1px solid var(--line); }
+.sp-section:last-child { border-bottom:none; }
+.sp-title { font-size:.66rem; color:var(--faint); font-weight:700; letter-spacing:.14em; margin-bottom:.5rem; }
+.sp-tags { display:flex; flex-wrap:wrap; gap:.4rem; }
+.sp-tag {
+    font-size:.72rem; padding:.28rem .65rem; border-radius:999px;
+    background:var(--card); color:var(--muted); cursor:pointer;
+    transition:background .15s, color .15s; letter-spacing:.03em;
+}
+.sp-tag:hover { background:var(--hover); color:var(--fg); }
+.sp-tag.hot { color:var(--danger); }
+.sp-tag.hot::after { content:"🔥"; margin-left:.2rem; font-size:.62rem; }
+.sp-result { padding:.5rem 0; font-size:.76rem; color:var(--muted); letter-spacing:.03em; cursor:pointer; }
+.sp-result:hover { color:var(--accent); }
+
+/* ══════════════════════════════════════════
+   顶栏
+   ══════════════════════════════════════════ */
+#topbar {
+    flex:0 0 auto; display:flex; align-items:center; gap:.2rem;
+    padding:.4rem .6rem; border-bottom:1px solid var(--line);
+    overflow-x:auto; overflow-y:hidden; white-space:nowrap;
+    background:var(--nav);
+    scrollbar-width:thin;
+}
+#topbar::-webkit-scrollbar { height:4px; }
+#topbar::-webkit-scrollbar-thumb { background:var(--faint); border-radius:2px; }
+.tb-btn {
+    appearance:none; border:none; background:transparent;
+    color:var(--muted); font-family:inherit; font-size:.82rem;
+    padding:.32rem .55rem; border-radius:.5rem; cursor:pointer;
+    transition:background .18s, color .18s; flex:0 0 auto;
+}
+.tb-btn:hover { background:var(--hover); color:var(--fg); }
+.tb-btn.primary { color:var(--fg); font-size:.72rem; font-weight:600; letter-spacing:.06em; }
+.tb-btn.gold {
+    background:linear-gradient(135deg,#fbbf24,#f59e0b);
+    color:#1a2634; font-weight:700;
+    box-shadow:0 2px 8px rgba(245,158,11,.35);
+}
+.tb-btn.gold:hover { filter:brightness(1.08); }
+.tb-sep { width:1px; height:16px; background:var(--line); margin:0 .3rem; flex:0 0 auto; }
+.tb-badge {
+    font-size:.56rem; padding:.08rem .32rem; border-radius:.4rem;
+    background:var(--warn); color:#000; margin-left:.2rem;
+    font-weight:700; vertical-align:top;
+}
+
+/* ══════════════════════════════════════════
+   滚动公告
+   ══════════════════════════════════════════ */
+#ticker {
+    flex:0 0 auto; position:relative; overflow:hidden;
+    height:1.9rem; background:var(--card);
+    border-bottom:1px solid var(--line);
+    font-size:.74rem; color:var(--muted);
+}
+#tickerInner {
+    position:absolute; left:0; top:0; height:100%;
+    display:flex; align-items:center; white-space:nowrap;
+    animation:tickerScroll 46s linear infinite;
+}
+#tickerInner span { padding:0 2.5rem; }
+@keyframes tickerScroll { from{transform:translateX(100vw);} to{transform:translateX(-100%);} }
+
+/* ══════════════════════════════════════════
+   主内容
+   ══════════════════════════════════════════ */
+main {
+    flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden;
+    display:flex; flex-direction:column; align-items:center;
+    padding:1.1rem 1rem 5.5rem; gap:1.1rem;
+    scroll-behavior:smooth;
+}
+main::-webkit-scrollbar { width:6px; }
+main::-webkit-scrollbar-thumb { background:var(--faint); border-radius:3px; }
+
+.clock-block { display:flex; flex-direction:column; align-items:center; text-align:center; }
+.time-display {
+    font-size:min(12vw,19vh);
+    font-weight:700; line-height:1; white-space:nowrap;
+    letter-spacing:.01em;
+    transform:scaleX(.92); transform-origin:center;
+    font-variant-numeric:tabular-nums;
+}
+.time-display .sep { opacity:.72; }
+.ampm { display:none; font-size:.24em; font-weight:500; letter-spacing:.08em; margin-left:.35em; opacity:.7; vertical-align:baseline; }
+.ampm.show { display:inline-block; }
+.date-area {
+    margin-top:clamp(.6rem,2vh,1.3rem);
+    font-size:clamp(.92rem,2.2vw,1.4rem);
+    letter-spacing:.1em; color:var(--muted);
+}
+.lunar-date {
+    margin-top:.35rem;
+    font-size:clamp(.74rem,1.5vw,1rem);
+    letter-spacing:.12em; color:var(--faint);
+}
+
+.formats {
+    width:min(680px,94vw);
+    display:flex; flex-direction:column; gap:.35rem;
+    padding:.85rem 1rem;
+    background:var(--card); border-radius:.9rem;
+    border:1px solid var(--line);
+}
+.fmt-row { display:flex; align-items:center; gap:.9rem; font-size:.76rem; font-variant-numeric:tabular-nums; }
+.fmt-label { flex:0 0 3.2rem; color:var(--faint); font-weight:700; letter-spacing:.14em; font-size:.66rem; }
+.fmt-val { color:var(--muted); letter-spacing:.06em; overflow-x:auto; white-space:nowrap; min-width:0; scrollbar-width:none; }
+.fmt-val::-webkit-scrollbar { display:none; }
+
+.widgets {
+    width:min(880px,94vw);
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(175px,1fr));
+    gap:.7rem;
+}
+.widget {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:.9rem; padding:.85rem 1rem;
+    display:flex; flex-direction:column; gap:.28rem;
+    transition:transform .2s;
+}
+.widget:hover { transform:translateY(-2px); }
+.w-title { font-size:.66rem; color:var(--faint); letter-spacing:.12em; font-weight:700; display:flex; align-items:center; justify-content:space-between; }
+.w-value { font-size:1.45rem; font-weight:700; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+.w-sub { font-size:.7rem; color:var(--muted); letter-spacing:.06em; }
+.w-up { color:var(--ok); } .w-down { color:var(--danger); }
+.wclock-list { display:flex; flex-direction:column; gap:.2rem; margin-top:.1rem; }
+.wclock-row { display:flex; justify-content:space-between; align-items:baseline; font-size:.74rem; color:var(--muted); letter-spacing:.04em; }
+.wclock-row b { font-weight:700; color:var(--fg); font-variant-numeric:tabular-nums; letter-spacing:.02em; }
+
+#feed { width:min(880px,94vw); display:flex; flex-direction:column; gap:.6rem; }
+.feed-header { display:flex; align-items:center; justify-content:space-between; padding:.2rem .2rem .4rem; }
+.feed-title { font-size:.82rem; font-weight:700; letter-spacing:.1em; }
+.feed-refresh { border:none; background:transparent; color:var(--muted); font-size:.72rem; cursor:pointer; padding:.3rem .6rem; border-radius:.5rem; letter-spacing:.05em; }
+.feed-refresh:hover { background:var(--hover); color:var(--fg); }
+.feed-item {
+    display:flex; gap:.85rem; align-items:stretch;
+    padding:.75rem; background:var(--card);
+    border:1px solid var(--line); border-radius:.8rem;
+    cursor:pointer; transition:transform .18s, border-color .18s;
+}
+.feed-item:hover { transform:translateX(3px); border-color:var(--accent); }
+.feed-thumb {
+    flex:0 0 76px; height:60px; border-radius:.5rem;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.7rem;
+    background:linear-gradient(135deg, var(--hover), var(--card));
+}
+.feed-body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:space-between; }
+.feed-headline { font-size:.84rem; font-weight:600; line-height:1.45; letter-spacing:.02em; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.feed-meta { display:flex; align-items:center; gap:.6rem; font-size:.64rem; color:var(--faint); letter-spacing:.05em; margin-top:.35rem; }
+.feed-tag { padding:.08rem .35rem; border-radius:.3rem; background:var(--hover); color:var(--muted); font-size:.6rem; }
+.feed-tag.hot { background:var(--danger); color:#fff; }
+
+/* ══════════════════════════════════════════
+   底部导航
+   ══════════════════════════════════════════ */
+#bottomNav {
+    position:fixed; left:0; right:0; bottom:0; z-index:300;
+    display:flex; align-items:stretch;
+    background:var(--nav); border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom, 0);
+    box-shadow:0 -6px 20px -8px rgba(0,0,0,.15);
+}
+.nav-item {
+    flex:1 1 0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:.15rem;
+    padding:.5rem 0 .45rem; border:none; background:transparent;
+    color:var(--faint); font-family:inherit; font-size:.62rem;
+    letter-spacing:.08em; cursor:pointer;
+    transition:color .18s; position:relative;
+}
+.nav-item .nav-icon { font-size:1.1rem; line-height:1; }
+.nav-item.active { color:var(--accent); }
+.nav-item:hover { color:var(--fg); }
+.nav-item .nav-dot {
+    position:absolute; top:.35rem; right:calc(50% - 1.1rem);
+    width:.42rem; height:.42rem; border-radius:50%;
+    background:var(--danger);
+}
+
+/* ══════════════════════════════════════════
+   九宫格
+   ══════════════════════════════════════════ */
+#gridPanel {
+    position:fixed; inset:0; z-index:600;
+    background:var(--bg);
+    transform:translateY(100%);
+    transition:transform .38s cubic-bezier(.2,.9,.3,1);
+    display:flex; flex-direction:column;
+}
+#gridPanel.show { transform:none; }
+.grid-head {
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:.9rem 1rem; border-bottom:1px solid var(--line);
+}
+.grid-title { font-size:.9rem; font-weight:700; letter-spacing:.1em; }
+.grid-close { border:none; background:transparent; color:var(--muted); font-size:1.3rem; line-height:1; cursor:pointer; padding:.15rem .45rem; border-radius:.4rem; }
+.grid-close:hover { background:var(--hover); color:var(--fg); }
+.grid-body {
+    flex:1 1 auto; overflow-y:auto;
+    padding:1.2rem 1rem 2rem;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr));
+    gap:1.1rem .8rem; align-content:start;
+}
+.grid-app { display:flex; flex-direction:column; align-items:center; gap:.4rem; cursor:pointer; padding:.5rem .2rem; border-radius:.7rem; transition:background .15s; position:relative; }
+.grid-app:hover { background:var(--hover); }
+.grid-app-icon {
+    width:44px; height:44px; border-radius:.7rem;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.4rem;
+    background:linear-gradient(135deg, var(--hover), var(--card));
+    border:1px solid var(--line);
+}
+.grid-app.installed .grid-app-icon {
+    background:linear-gradient(135deg, #ff5000, #ff7a45);
+    color:#fff;
+    border-color:transparent;
+}
+.grid-app.installed.pdd .grid-app-icon {
+    background:linear-gradient(135deg, #e02e24, #ff5a4f);
+}
+.grid-app.installed::after {
+    content:"已安装";
+    position:absolute;
+    top:.35rem; right:.1rem;
+    font-size:.5rem; padding:.06rem .28rem;
+    background:var(--ok); color:#fff;
+    border-radius:.3rem; letter-spacing:.02em;
+}
+.grid-app-name { font-size:.66rem; color:var(--muted); letter-spacing:.04em; text-align:center; }
+
+/* ══════════════════════════════════════════
+   通用弹窗
+   ══════════════════════════════════════════ */
+.modal-mask {
+    position:fixed; inset:0; z-index:700;
+    background:rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center;
+    padding:1rem;
+    opacity:0; visibility:hidden;
+    transition:opacity .3s, visibility .3s;
+}
+.modal-mask.show { opacity:1; visibility:visible; }
+.modal {
+    width:min(380px,94vw);
+    background:var(--bg); border-radius:1rem;
+    border:1px solid var(--line);
+    box-shadow:0 24px 60px -18px rgba(0,0,0,.5);
+    transform:scale(.94) translateY(10px);
+    transition:transform .3s cubic-bezier(.2,.9,.3,1.2);
+    max-height:86vh; display:flex; flex-direction:column;
+}
+.modal-mask.show .modal { transform:none; }
+.modal-head { flex:0 0 auto; padding:1rem 1.1rem .5rem; display:flex; align-items:center; gap:.6rem; }
+.modal-icon { font-size:1.5rem; }
+.modal-title { font-size:.95rem; font-weight:700; letter-spacing:.06em; }
+.modal-body { flex:1 1 auto; overflow-y:auto; padding:.3rem 1.1rem 1rem; font-size:.78rem; color:var(--muted); line-height:1.7; letter-spacing:.03em; }
+.modal-actions { flex:0 0 auto; padding:.6rem 1.1rem 1.1rem; display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap; }
+.modal-btn {
+    font-family:inherit; font-size:.76rem; font-weight:600;
+    padding:.5rem 1.1rem; border-radius:999px;
+    border:1px solid var(--line); background:transparent;
+    color:var(--muted); cursor:pointer; letter-spacing:.05em;
+    transition:background .18s, color .18s;
+}
+.modal-btn:hover { background:var(--hover); color:var(--fg); }
+.modal-btn.primary { background:var(--accent); color:#fff; border-color:transparent; }
+.modal-btn.primary:hover { filter:brightness(1.1); }
+.modal-btn.danger { background:var(--danger); color:#fff; border-color:transparent; }
+.modal-btn.gold { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#1a2634; border-color:transparent; font-weight:700; }
+.modal-btn.tb { background:var(--tb); color:#fff; border-color:transparent; }
+.modal-btn.pdd { background:var(--pdd); color:#fff; border-color:transparent; }
+
+/* ══════════════════════════════════════════
+   VIP 弹窗
+   ══════════════════════════════════════════ */
+#vipMask { z-index:1100; background:rgba(0,0,0,.6); }
+.vip-modal {
+    width:min(440px,94vw) !important;
+    max-height:92vh;
+    background:linear-gradient(180deg, var(--bg), var(--bg)) !important;
+    position:relative;
+    overflow:hidden;
+}
+.vip-modal::before {
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:180px;
+    background:linear-gradient(180deg, rgba(251,191,36,.22), transparent);
+    pointer-events:none;
+}
+.vip-head { text-align:center; padding:1.5rem 1rem .4rem; position:relative; z-index:1; }
+.vip-crown { font-size:3rem; line-height:1; margin-bottom:.35rem; animation:crownFloat 2.4s ease-in-out infinite; filter:drop-shadow(0 4px 12px rgba(245,158,11,.6)); }
+@keyframes crownFloat {
+    0%,100% { transform:translateY(0) rotate(-3deg); }
+    50%     { transform:translateY(-6px) rotate(3deg); }
+}
+.vip-title {
+    font-size:1.15rem; font-weight:700; letter-spacing:.12em;
+    background:linear-gradient(90deg,#fbbf24,#d4a017,#fbbf24);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation:goldShine 2.5s linear infinite;
+}
+@keyframes goldShine { to { background-position:200% center; } }
+.vip-sub { font-size:.72rem; color:var(--muted); margin-top:.3rem; letter-spacing:.08em; }
+.vip-plans { display:grid; grid-template-columns:repeat(2,1fr); gap:.55rem; padding:.9rem 1rem .5rem; position:relative; z-index:1; }
+.vip-plan {
+    background:var(--card); border:1.5px solid var(--line);
+    border-radius:.7rem; padding:.75rem .6rem;
+    text-align:center; cursor:pointer;
+    transition:border-color .2s, transform .15s, box-shadow .2s;
+    position:relative;
+}
+.vip-plan:hover { transform:translateY(-2px); }
+.vip-plan.active {
+    border-color:var(--warn);
+    box-shadow:0 0 0 2px rgba(245,158,11,.22), 0 6px 18px -6px rgba(245,158,11,.5);
+}
+.vip-plan .vp-name { font-size:.68rem; color:var(--muted); letter-spacing:.06em; }
+.vip-plan .vp-time { font-size:.95rem; font-weight:700; color:var(--warn); margin:.22rem 0; letter-spacing:.02em; }
+.vip-plan .vp-price { font-size:.88rem; font-weight:700; letter-spacing:.02em; }
+.vip-plan .vp-price s { color:var(--faint); font-size:.66rem; font-weight:400; margin-right:.25rem; }
+.vip-plan .vp-badge {
+    position:absolute; top:-.55rem; left:50%; transform:translateX(-50%);
+    background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff;
+    font-size:.54rem; font-weight:700; padding:.13rem .45rem;
+    border-radius:999px; letter-spacing:.06em; white-space:nowrap;
+    box-shadow:0 2px 6px rgba(239,68,68,.4);
+}
+.vip-pay { padding:.3rem 1rem .6rem; position:relative; z-index:1; }
+.vip-pay-title { font-size:.62rem; color:var(--faint); letter-spacing:.14em; font-weight:700; margin-bottom:.45rem; }
+.vip-pay-methods { display:grid; grid-template-columns:repeat(4,1fr); gap:.4rem; }
+.pay-method {
+    padding:.5rem .2rem;
+    background:var(--card); border:1.5px solid var(--line);
+    border-radius:.5rem; text-align:center;
+    font-size:.66rem; cursor:pointer; letter-spacing:.02em;
+    transition:border-color .2s, background .2s; line-height:1.3;
+}
+.pay-method.active { border-color:var(--accent); background:rgba(59,130,246,.1); }
+.vip-actions { padding:.5rem 1rem 0; display:flex; gap:.5rem; position:relative; z-index:1; }
+.vip-actions .modal-btn { flex:1 1 0; }
+.vip-tip { padding:.7rem 1rem 1.1rem; font-size:.58rem; color:var(--faint); text-align:center; line-height:1.6; letter-spacing:.02em; position:relative; z-index:1; }
+
+/* ══════════════════════════════════════════
+   支付加载
+   ══════════════════════════════════════════ */
+#payLoading {
+    position:fixed; inset:0; z-index:1500;
+    background:rgba(0,0,0,.65);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; visibility:hidden;
+    transition:opacity .3s, visibility .3s;
+}
+#payLoading.show { opacity:1; visibility:visible; }
+.pay-loading-box {
+    background:var(--bg); border-radius:1rem;
+    padding:1.6rem 2rem; text-align:center;
+    min-width:240px; border:1px solid var(--line);
+    box-shadow:0 24px 60px -18px rgba(0,0,0,.6);
+}
+.pay-spinner {
+    width:38px; height:38px;
+    border:3px solid var(--line);
+    border-top-color:var(--accent);
+    border-radius:50%;
+    margin:0 auto .9rem;
+    animation:spin .8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.pay-text { font-size:.8rem; color:var(--muted); letter-spacing:.05em; min-height:1.2em; }
+
+/* ══════════════════════════════════════════
+   假广告
+   ══════════════════════════════════════════ */
+#fakeAd {
+    position:fixed; inset:0; z-index:1400;
+    background:#0a0e12; color:#eef2ff;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:1.2rem; padding:2rem;
+    opacity:0; visibility:hidden;
+    transition:opacity .35s, visibility .35s;
+}
+#fakeAd.show { opacity:1; visibility:visible; }
+.fake-ad-img { font-size:5rem; animation:adPulse 1.2s ease-in-out infinite; filter:drop-shadow(0 8px 24px rgba(251,191,36,.6)); }
+@keyframes adPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
+.fake-ad-title {
+    font-size:1.2rem; font-weight:700; letter-spacing:.15em;
+    background:linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation:goldShine 2s linear infinite;
+}
+.fake-ad-sub { font-size:.78rem; color:rgba(238,242,255,.6); letter-spacing:.08em; }
+.fake-ad-timer { font-size:3.2rem; font-weight:700; font-variant-numeric:tabular-nums; color:#fbbf24; }
+.fake-ad-skip {
+    border:1px solid rgba(238,242,255,.3);
+    background:transparent; color:#eef2ff;
+    font-family:inherit; font-size:.78rem;
+    padding:.55rem 1.5rem; border-radius:999px;
+    cursor:pointer; letter-spacing:.08em;
+    transition:background .2s;
+}
+.fake-ad-skip:not(:disabled):hover { background:rgba(238,242,255,.1); }
+.fake-ad-skip:disabled { opacity:.35; cursor:not-allowed; }
+
+/* ══════════════════════════════════════════
+   通知
+   ══════════════════════════════════════════ */
+#notifStack {
+    position:fixed; top:.9rem; right:.9rem; z-index:900;
+    display:flex; flex-direction:column; gap:.5rem;
+    width:min(320px,86vw); pointer-events:none;
+}
+.notif {
+    pointer-events:auto;
+    background:var(--bg); border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    border-radius:.7rem; padding:.7rem .85rem;
+    box-shadow:0 12px 30px -10px rgba(0,0,0,.3);
+    font-size:.74rem; color:var(--fg); line-height:1.55;
+    letter-spacing:.03em;
+    animation:notifIn .35s cubic-bezier(.2,.9,.3,1.2);
+    display:flex; gap:.5rem; align-items:flex-start;
+}
+.notif.out { animation:notifOut .3s forwards; }
+.notif-body { flex:1 1 auto; min-width:0; }
+.notif-title { font-weight:700; font-size:.68rem; color:var(--muted); letter-spacing:.1em; margin-bottom:.15rem; }
+@keyframes notifIn { from{transform:translateX(120%);opacity:0;} to{transform:none;opacity:1;} }
+@keyframes notifOut { to{transform:translateX(120%);opacity:0;} }
+
+/* 成就 */
+#achToast {
+    position:fixed; top:.9rem; left:50%; z-index:750;
+    transform:translate(-50%,-160%);
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:.8rem; padding:.7rem 1.1rem;
+    box-shadow:0 16px 40px -12px rgba(0,0,0,.4);
+    display:flex; align-items:center; gap:.7rem;
+    transition:transform .45s cubic-bezier(.2,.9,.3,1.2), opacity .3s;
+    opacity:0; pointer-events:none;
+}
+#achToast.show { transform:translate(-50%,0); opacity:1; }
+.ach-icon { font-size:1.5rem; }
+.ach-title { font-size:.66rem; color:var(--warn); font-weight:700; letter-spacing:.14em; }
+.ach-name { font-size:.9rem; font-weight:700; letter-spacing:.05em; }
+.ach-desc { font-size:.68rem; color:var(--muted); letter-spacing:.04em; }
+
+/* 设置抽屉 */
+#drawerMask {
+    position:fixed; inset:0; z-index:900;
+    background:rgba(0,0,0,.35); opacity:0; visibility:hidden;
+    transition:opacity .3s, visibility .3s;
+}
+#drawerMask.show { opacity:1; visibility:visible; }
+#settingsDrawer {
+    position:fixed; top:0; right:0; bottom:0; z-index:950;
+    width:min(360px,88vw);
+    background:var(--bg); border-left:1px solid var(--line);
+    transform:translateX(100%);
+    transition:transform .38s cubic-bezier(.2,.9,.3,1);
+    display:flex; flex-direction:column;
+    box-shadow:-20px 0 50px -20px rgba(0,0,0,.4);
+}
+#settingsDrawer.show { transform:none; }
+.drawer-head {
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:1rem 1.1rem; border-bottom:1px solid var(--line);
+}
+.drawer-title { font-size:.9rem; font-weight:700; letter-spacing:.1em; }
+.drawer-close { border:none; background:transparent; color:var(--muted); font-size:1.3rem; line-height:1; cursor:pointer; padding:.15rem .45rem; border-radius:.4rem; }
+.drawer-close:hover { background:var(--hover); color:var(--fg); }
+.drawer-body { flex:1 1 auto; overflow-y:auto; padding:.8rem 1.1rem 1.5rem; }
+.drawer-group { margin-top:1rem; }
+.drawer-group-title { font-size:.62rem; color:var(--faint); font-weight:700; letter-spacing:.16em; margin-bottom:.5rem; }
+.setting-row {
+    display:flex; align-items:center; justify-content:space-between;
+    gap:.8rem; padding:.6rem 0; border-bottom:1px solid var(--line);
+}
+.setting-row:last-child { border-bottom:none; }
+.setting-row.clickable { cursor:pointer; }
+.setting-row.clickable:hover { background:var(--hover); margin:0 -.5rem; padding-left:.5rem; padding-right:.5rem; border-radius:.5rem; }
+.setting-label { font-size:.78rem; letter-spacing:.04em; }
+.setting-hint { font-size:.64rem; color:var(--faint); margin-top:.15rem; letter-spacing:.03em; }
+.setting-value { font-size:.72rem; color:var(--accent); font-weight:600; letter-spacing:.04em; }
+.switch {
+    position:relative; width:40px; height:22px; flex:0 0 auto;
+    border-radius:999px; background:var(--line);
+    cursor:pointer; transition:background .22s; border:none;
+}
+.switch::after {
+    content:""; position:absolute; top:3px; left:3px;
+    width:16px; height:16px; border-radius:50%;
+    background:var(--bg); transition:transform .22s;
+    box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+.switch.on { background:var(--accent); }
+.switch.on::after { transform:translateX(18px); }
+
+/* ══════════════════════════════════════════
+   吉祥物（猫在左，气泡在右）
+   ══════════════════════════════════════════ */
+#mascot {
+    position:fixed; left:1rem; bottom:5.2rem; z-index:480;
+    display:flex; align-items:flex-end; gap:.5rem;
+    cursor:pointer; user-select:none;
+}
+#mascotBubble {
+    max-width:180px;
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:.8rem .8rem .8rem .2rem;
+    padding:.5rem .75rem; font-size:.7rem; color:var(--fg);
+    letter-spacing:.04em; line-height:1.5;
+    box-shadow:0 8px 24px -10px rgba(0,0,0,.3);
+    opacity:0; transform:translateY(6px) scale(.95);
+    transition:opacity .25s, transform .25s;
+    pointer-events:none;
+    order:2;
+}
+#mascotBubble.show { opacity:1; transform:none; }
+#mascotFace {
+    font-size:2rem; line-height:1;
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));
+    transition:transform .2s;
+    order:1;
+}
+#mascot:hover #mascotFace { transform:scale(1.12) rotate(6deg); }
+
+/* 加速球 */
+#speedBall {
+    position:fixed; right:1rem; bottom:5.2rem; z-index:500;
+    width:62px; height:62px; border-radius:50%;
+    background:var(--bg); border:1px solid var(--line);
+    box-shadow:0 8px 24px -8px rgba(0,0,0,.35);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    cursor:pointer; user-select:none;
+    transition:transform .2s;
+}
+#speedBall:hover { transform:scale(1.06); }
+#speedBall:active { transform:scale(.95); }
+.sb-ball-pct { font-size:.92rem; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1; }
+.sb-ball-label { font-size:.5rem; color:var(--faint); letter-spacing:.1em; margin-top:.15rem; }
+
+/* 悬浮广告 */
+#floatAd {
+    position:fixed; right:1rem; bottom:9.2rem; z-index:490;
+    width:min(240px,74vw);
+    background:var(--bg); border:1px solid var(--line);
+    border-radius:.8rem; overflow:hidden;
+    box-shadow:0 14px 36px -12px rgba(0,0,0,.4);
+    transform:translateX(140%); opacity:0;
+    transition:transform .45s cubic-bezier(.2,.9,.3,1.2), opacity .3s;
+}
+#floatAd.show { transform:none; opacity:1; }
+.float-ad-img { height:84px; display:flex; align-items:center; justify-content:center; font-size:2.2rem; background:linear-gradient(135deg, var(--accent), var(--warn)); color:#fff; }
+.float-ad-body { padding:.6rem .7rem .7rem; }
+.float-ad-title { font-size:.76rem; font-weight:700; letter-spacing:.04em; }
+.float-ad-desc { font-size:.66rem; color:var(--muted); margin-top:.25rem; line-height:1.5; }
+.float-ad-cta { width:100%; margin-top:.5rem; border:none; background:var(--accent); color:#fff; font-family:inherit; font-size:.7rem; font-weight:700; padding:.38rem 0; border-radius:.5rem; cursor:pointer; letter-spacing:.06em; }
+#floatAdClose { position:absolute; top:.3rem; right:.3rem; width:1.2rem; height:1.2rem; border-radius:50%; border:none; background:rgba(0,0,0,.4); color:#fff; font-size:.7rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+/* 底部广告 */
+#adBanner {
+    flex:0 0 auto; display:flex; align-items:center; gap:.7rem;
+    padding:.6rem 1rem; border-top:1px solid var(--line);
+    background:var(--card); font-size:.78rem; color:var(--muted);
+    transition:transform .35s ease, opacity .35s ease;
+}
+#adBanner.hide { transform:translateY(100%); opacity:0; height:0; padding:0; border:0; overflow:hidden; }
+.ad-tag { font-size:.58rem; padding:.1rem .32rem; border-radius:.28rem; border:1px solid var(--faint); color:var(--faint); letter-spacing:.12em; flex:0 0 auto; }
+.ad-text { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ad-cta { flex:0 0 auto; border:none; background:var(--accent); color:#fff; font-family:inherit; font-size:.72rem; font-weight:700; padding:.32rem .8rem; border-radius:999px; cursor:pointer; letter-spacing:.06em; }
+#adClose { flex:0 0 auto; border:none; background:transparent; color:var(--faint); font-size:1.1rem; line-height:1; cursor:pointer; padding:.1rem .35rem; border-radius:.3rem; }
+
+/* 客服弹窗 */
+#supportMask { z-index:1200; }
+.support-modal { width:min(380px,94vw) !important; max-height:560px; padding:0; display:flex; flex-direction:column; }
+.support-head {
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.9rem 1rem;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(135deg, var(--accent), #6366f1);
+    color:#fff; border-radius:1rem 1rem 0 0;
+    font-size:.85rem; font-weight:700; letter-spacing:.08em;
+}
+.support-head-info { display:flex; align-items:center; gap:.5rem; }
+.support-avatar {
+    width:28px; height:28px; border-radius:50%;
+    background:rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:.95rem;
+    position:relative;
+}
+.support-avatar::after {
+    content:"";
+    position:absolute; bottom:-1px; right:-1px;
+    width:8px; height:8px; border-radius:50%;
+    background:#10b981;
+    border:1.5px solid var(--bg);
+    animation:onlinePulse 2s infinite;
+}
+@keyframes onlinePulse {
+    0%,100% { box-shadow:0 0 0 0 rgba(16,185,129,.6); }
+    50%     { box-shadow:0 0 0 4px rgba(16,185,129,0); }
+}
+#supportClose { border:none; background:transparent; color:#fff; font-size:1.2rem; cursor:pointer; padding:.1rem .4rem; border-radius:.3rem; line-height:1; }
+.support-body {
+    flex:1 1 auto; overflow-y:auto;
+    padding:1rem;
+    display:flex; flex-direction:column; gap:.5rem;
+    min-height:240px; max-height:340px;
+    background:var(--bg);
+}
+.support-msg {
+    max-width:82%;
+    padding:.5rem .75rem;
+    border-radius:.7rem;
+    font-size:.78rem; line-height:1.55;
+    letter-spacing:.03em;
+    word-break:break-word;
+    animation:msgIn .3s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes msgIn { from{transform:translateY(6px);opacity:0;} to{transform:none;opacity:1;} }
+.support-msg.bot {
+    align-self:flex-start;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-bottom-left-radius:.2rem;
+}
+.support-msg.bot.typing {
+    display:flex; align-items:center; gap:.3rem;
+    padding:.55rem .8rem;
+}
+.support-msg.bot.typing span {
+    display:inline-block;
+    width:5px; height:5px; border-radius:50%;
+    background:var(--faint);
+    animation:typingDot 1.2s infinite;
+}
+.support-msg.bot.typing span:nth-child(2) { animation-delay:.2s; }
+.support-msg.bot.typing span:nth-child(3) { animation-delay:.4s; }
+@keyframes typingDot {
+    0%,60%,100% { opacity:.3; transform:translateY(0); }
+    30%         { opacity:1; transform:translateY(-3px); }
+}
+.support-msg.user {
+    align-self:flex-end;
+    background:var(--accent);
+    color:#fff;
+    border-bottom-right-radius:.2rem;
+}
+.support-quick {
+    flex:0 0 auto;
+    padding:.5rem .7rem;
+    background:var(--card);
+    border-top:1px solid var(--line);
+    display:flex; gap:.4rem;
+    overflow-x:auto;
+    scrollbar-width:none;
+}
+.support-quick::-webkit-scrollbar { display:none; }
+.quick-btn {
+    flex:0 0 auto;
+    border:1px solid var(--line);
+    background:var(--bg);
+    color:var(--muted);
+    font-family:inherit;
+    font-size:.68rem;
+    padding:.35rem .7rem;
+    border-radius:999px;
+    cursor:pointer;
+    letter-spacing:.03em;
+    white-space:nowrap;
+    transition:background .15s, color .15s;
+}
+.quick-btn:hover { background:var(--hover); color:var(--fg); }
+.support-input {
+    flex:0 0 auto;
+    display:flex; gap:.4rem;
+    padding:.7rem .8rem;
+    border-top:1px solid var(--line);
+    background:var(--bg);
+    border-radius:0 0 1rem 1rem;
+}
+#supportInput {
+    flex:1 1 auto;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--fg);
+    font-family:inherit;
+    font-size:.78rem;
+    padding:.5rem .75rem;
+    border-radius:999px;
+    outline:none;
+    letter-spacing:.03em;
+    min-width:0;
+}
+#supportInput:focus { border-color:var(--accent); }
+#supportSend {
+    flex:0 0 auto;
+    border:none;
+    background:var(--accent);
+    color:#fff;
+    font-family:inherit;
+    font-size:.74rem;
+    font-weight:700;
+    padding:.5rem 1rem;
+    border-radius:999px;
+    cursor:pointer;
+    letter-spacing:.05em;
+}
+
+/* ══════════════════════════════════════════
+   应用安装弹窗
+   ══════════════════════════════════════════ */
+#installMask { z-index:1300; }
+.install-modal {
+    width:min(340px,92vw) !important;
+    padding:0;
+    overflow:hidden;
+    text-align:center;
+}
+.install-head {
+    padding:1.4rem 1rem .6rem;
+    display:flex; flex-direction:column; align-items:center; gap:.6rem;
+}
+.install-icon {
+    width:72px; height:72px; border-radius:1.1rem;
+    display:flex; align-items:center; justify-content:center;
+    font-size:2.2rem;
+    color:#fff;
+    box-shadow:0 8px 24px -8px rgba(0,0,0,.4);
+}
+.install-icon.tb { background:linear-gradient(135deg, #ff5000, #ff7a45); }
+.install-icon.pdd { background:linear-gradient(135deg, #e02e24, #ff5a4f); }
+.install-name { font-size:1rem; font-weight:700; letter-spacing:.05em; }
+.install-size { font-size:.68rem; color:var(--faint); letter-spacing:.04em; }
+.install-progress-wrap {
+    margin:0 1.2rem;
+    height:6px; border-radius:3px;
+    background:var(--card);
+    overflow:hidden;
+}
+#installProgress {
+    height:100%; width:0%; border-radius:3px;
+    background:var(--accent);
+    transition:width .18s linear;
+}
+#installStatus {
+    padding:.5rem 1rem;
+    font-size:.72rem;
+    color:var(--muted);
+    letter-spacing:.04em;
+    min-height:1.4em;
+}
+.install-actions {
+    padding:.6rem 1.1rem 1.1rem;
+    display:flex; gap:.5rem;
+}
+.install-actions .modal-btn { flex:1 1 0; }
+
+/* 权限弹窗 */
+#permMask { z-index:1350; }
+.perm-modal {
+    width:min(340px,92vw) !important;
+    padding:0;
+}
+.perm-head {
+    padding:1.1rem 1.1rem .4rem;
+    display:flex; align-items:center; gap:.7rem;
+}
+.perm-icon { font-size:1.6rem; }
+.perm-title { font-size:.88rem; font-weight:700; letter-spacing:.04em; }
+.perm-app { font-size:.66rem; color:var(--faint); letter-spacing:.04em; margin-top:.1rem; }
+.perm-body {
+    padding:.3rem 1.1rem 1rem;
+    font-size:.76rem;
+    color:var(--muted);
+    line-height:1.7;
+    letter-spacing:.03em;
+}
+.perm-body ul {
+    margin:.4rem 0 0 1rem;
+    font-size:.7rem;
+}
+.perm-body li { margin:.15rem 0; }
+.perm-actions {
+    padding:.6rem 1.1rem 1.1rem;
+    display:flex; gap:.5rem;
+}
+.perm-actions .modal-btn { flex:1 1 0; }
+
+/* ══════════════════════════════════════════
+   淘宝 / 拼多多 App 全屏
+   ══════════════════════════════════════════ */
+.app-screen {
+    position:fixed; inset:0; z-index:1400;
+    background:var(--bg); color:var(--fg);
+    display:flex; flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .4s cubic-bezier(.2,.9,.3,1);
+}
+.app-screen.show { transform:none; }
+
+/* 通用 App 顶栏 */
+.app-topbar {
+    flex:0 0 auto;
+    display:flex; align-items:center; gap:.6rem;
+    padding:.7rem .9rem;
+    color:#fff;
+    font-size:.82rem; font-weight:700;
+    letter-spacing:.06em;
+}
+.app-topbar.tb { background:linear-gradient(135deg, #ff5000, #ff7a45); }
+.app-topbar.pdd { background:linear-gradient(135deg, #e02e24, #ff5a4f); }
+.app-back {
+    border:none; background:rgba(255,255,255,.2);
+    color:#fff; width:30px; height:30px;
+    border-radius:50%; cursor:pointer;
+    font-size:1rem; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    flex:0 0 auto;
+}
+.app-back:hover { background:rgba(255,255,255,.32); }
+.app-title { flex:1 1 auto; }
+.app-topbar-icons { display:flex; gap:.3rem; }
+.app-topbar-icons .icon-btn {
+    width:30px; height:30px; border-radius:50%;
+    border:none; background:rgba(255,255,255,.2);
+    color:#fff; cursor:pointer; font-size:.9rem;
+    display:flex; align-items:center; justify-content:center;
+}
+
+/* 通用 App 内容区 */
+.app-body {
+    flex:1 1 auto; overflow-y:auto;
+    padding:.9rem;
+    background:var(--bg);
+}
+.app-body::-webkit-scrollbar { width:5px; }
+.app-body::-webkit-scrollbar-thumb { background:var(--faint); border-radius:2px; }
+
+/* 通用 App 底部 Tab */
+.app-tabs {
+    flex:0 0 auto;
+    display:flex; align-items:stretch;
+    background:var(--nav);
+    border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom, 0);
+}
+.app-tab {
+    flex:1 1 0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:.15rem;
+    padding:.5rem 0;
+    border:none; background:transparent;
+    font-family:inherit; font-size:.6rem;
+    letter-spacing:.06em; cursor:pointer;
+    color:var(--faint);
+    transition:color .18s;
+}
+.app-tab .tab-icon { font-size:1.15rem; }
+.app-tab.active { color:var(--tb); }
+.app-tabs.pdd .app-tab.active { color:var(--pdd); }
+
+/* ── 淘宝专属：商品瀑布流 ── */
+.tb-search {
+    display:flex; align-items:center; gap:.4rem;
+    padding:.55rem .75rem;
+    background:var(--card);
+    border-radius:999px;
+    margin-bottom:.9rem;
+    border:1px solid var(--line);
+}
+.tb-search-icon { font-size:.9rem; color:var(--faint); }
+.tb-search-input {
+    flex:1 1 auto;
+    border:none; background:transparent;
+    color:var(--fg); font-family:inherit;
+    font-size:.78rem; outline:none;
+    letter-spacing:.03em;
+}
+.tb-banner {
+    height:130px; border-radius:.9rem;
+    background:linear-gradient(135deg, #ff5000, #ff7a45);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    color:#fff; margin-bottom:.9rem;
+    box-shadow:0 8px 20px -8px rgba(255,80,0,.5);
+    position:relative; overflow:hidden;
+}
+.tb-banner::before {
+    content:"";
+    position:absolute; inset:-30%;
+    background:radial-gradient(circle, rgba(255,255,255,.15) 0%, transparent 60%);
+    animation:bannerRotate 12s linear infinite;
+}
+@keyframes bannerRotate { to { transform:rotate(360deg); } }
+.tb-banner-title {
+    font-size:1.05rem; font-weight:700; letter-spacing:.1em;
+    position:relative; z-index:1;
+}
+.tb-banner-sub {
+    font-size:.66rem; opacity:.88;
+    margin-top:.25rem; letter-spacing:.06em;
+    position:relative; z-index:1;
+}
+.tb-section-title {
+    font-size:.78rem; font-weight:700;
+    letter-spacing:.06em; margin:.4rem .2rem .6rem;
+    display:flex; align-items:center; gap:.4rem;
+}
+.tb-grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:.6rem;
+}
+.tb-card {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:.7rem; overflow:hidden;
+    cursor:pointer;
+    transition:transform .15s, box-shadow .2s;
+}
+.tb-card:hover { transform:translateY(-3px); box-shadow:0 8px 20px -8px rgba(255,80,0,.35); }
+.tb-card-img {
+    height:120px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:3rem;
+    background:linear-gradient(135deg, rgba(255,80,0,.12), rgba(255,255,255,.04));
+}
+.tb-card-info { padding:.55rem .6rem .7rem; }
+.tb-card-title {
+    font-size:.72rem; line-height:1.4;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+    letter-spacing:.02em;
+    color:var(--fg);
+}
+.tb-card-price {
+    display:flex; align-items:baseline; gap:.3rem;
+    margin-top:.4rem;
+}
+.tb-card-price .now {
+    font-size:1.05rem; font-weight:700; color:#ff5000;
+    letter-spacing:-.02em;
+}
+.tb-card-price .now::before { content:"¥"; font-size:.6rem; margin-right:.08rem; }
+.tb-card-price .old {
+    font-size:.6rem; color:var(--faint);
+    text-decoration:line-through;
+}
+.tb-card-sales {
+    font-size:.58rem; color:var(--faint);
+    margin-top:.25rem; letter-spacing:.02em;
+}
+.tb-card-tag {
+    display:inline-block;
+    font-size:.56rem; padding:.08rem .32rem;
+    border-radius:.25rem;
+    background:linear-gradient(135deg, #ff5000, #ff7a45);
+    color:#fff;
+    letter-spacing:.04em;
+    margin-right:.25rem;
+}
+
+/* ── 拼多多专属：砍一刀 ── */
+.pdd-hero {
+    padding:2rem 1rem 1.4rem;
+    text-align:center;
+    background:linear-gradient(180deg, rgba(224,46,36,.15), transparent);
+    border-radius:1rem;
+    margin-bottom:.9rem;
+}
+.pdd-hero-title {
+    font-size:1.15rem; font-weight:700;
+    letter-spacing:.06em;
+    color:#e02e24;
+}
+.pdd-hero-amount {
+    font-size:3.2rem; font-weight:700;
+    color:#e02e24;
+    letter-spacing:-.04em;
+    margin:.5rem 0 .3rem;
+    font-variant-numeric:tabular-nums;
+    line-height:1;
+}
+.pdd-hero-amount::before { content:"¥"; font-size:1.3rem; margin-right:.15rem; }
+.pdd-hero-sub {
+    font-size:.74rem; color:var(--muted);
+    letter-spacing:.06em;
+}
+.pdd-progress-wrap {
+    height:14px; border-radius:7px;
+    background:var(--card);
+    margin:1rem 0 .5rem;
+    overflow:hidden;
+    position:relative;
+    border:1px solid var(--line);
+}
+#pddProgress {
+    height:100%; width:99%;
+    background:linear-gradient(90deg, #e02e24, #ff7a45);
+    border-radius:7px;
+    transition:width .8s cubic-bezier(.2,.9,.3,1.2);
+}
+.pdd-progress-label {
+    display:flex; justify-content:space-between;
+    font-size:.66rem; color:var(--muted);
+    letter-spacing:.04em;
+    margin-bottom:1rem;
+}
+.pdd-progress-label b { color:#e02e24; }
+.pdd-actions {
+    display:flex; flex-direction:column; gap:.6rem;
+    margin-top:1.2rem;
+}
+.pdd-big-btn {
+    border:none;
+    background:linear-gradient(135deg, #e02e24, #ff5a4f);
+    color:#fff;
+    font-family:inherit;
+    font-size:.92rem; font-weight:700;
+    padding:.95rem;
+    border-radius:999px;
+    cursor:pointer;
+    letter-spacing:.12em;
+    box-shadow:0 8px 20px -6px rgba(224,46,36,.55);
+    animation:pddBtnPulse 1.8s ease-in-out infinite;
+}
+@keyframes pddBtnPulse {
+    0%,100% { transform:scale(1); }
+    50%     { transform:scale(1.025); }
+}
+.pdd-big-btn:active { transform:scale(.97); }
+.pdd-sub-actions {
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:.5rem;
+}
+.pdd-mini-btn {
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--fg);
+    font-family:inherit;
+    font-size:.74rem;
+    padding:.7rem .5rem;
+    border-radius:.7rem;
+    cursor:pointer;
+    letter-spacing:.04em;
+    transition:background .15s;
+}
+.pdd-mini-btn:hover { background:var(--hover); }
+.pdd-hint {
+    margin-top:1.2rem;
+    font-size:.62rem;
+    color:var(--faint);
+    text-align:center;
+    line-height:1.7;
+    letter-spacing:.02em;
+}
+.pdd-activity-list {
+    margin-top:1.2rem;
+    display:flex; flex-direction:column; gap:.5rem;
+}
+.pdd-activity {
+    display:flex; align-items:center; gap:.6rem;
+    padding:.75rem;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:.7rem;
+    cursor:pointer;
+    transition:transform .15s;
+    text-align:left;
+}
+.pdd-activity:hover { transform:translateX(3px); }
+.pdd-activity-icon { font-size:1.3rem; flex:0 0 auto; }
+.pdd-activity-text { flex:1 1 auto; min-width:0; }
+.pdd-activity-name {
+    font-size:.78rem; font-weight:600;
+    letter-spacing:.03em;
+}
+.pdd-activity-desc {
+    font-size:.64rem; color:var(--muted);
+    margin-top:.15rem; letter-spacing:.02em;
+}
+.pdd-activity-arrow { color:var(--faint); font-size:.9rem; }
+
+/* 鼠标轨迹 */
+.trail-dot {
+    position:fixed; z-index:400; pointer-events:none;
+    font-size:.85rem; line-height:1;
+    animation:trailFade .9s ease-out forwards;
+}
+@keyframes trailFade {
+    from { opacity:.9; transform:translate(-50%,-50%) scale(1); }
+    to   { opacity:0;  transform:translate(-50%,-50%) scale(.3) rotate(40deg); }
+}
+
+/* VIP 角标 */
+#vipBadge {
+    position:fixed; top:.55rem; left:50%;
+    transform:translate(-50%,-140%);
+    z-index:1000;
+    background:linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24);
+    background-size:200% 100%;
+    color:#1a2634;
+    font-size:.7rem; font-weight:700;
+    letter-spacing:.1em;
+    padding:.35rem 1rem;
+    border-radius:999px;
+    box-shadow:0 6px 18px rgba(245,158,11,.5);
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .35s, transform .45s cubic-bezier(.2,.9,.3,1.2);
+    animation:vipShine 2.5s linear infinite;
+    white-space:nowrap;
+}
+#vipBadge.show { opacity:1; transform:translate(-50%,0); }
+@keyframes vipShine { to { background-position:200% 0; } }
+
+/* VIP 模式：隐藏乱七八糟 */
+body.vip-mode #searchbar,
+body.vip-mode #ticker,
+body.vip-mode .formats,
+body.vip-mode .widgets,
+body.vip-mode #feed,
+body.vip-mode #adBanner,
+body.vip-mode #floatAd,
+body.vip-mode #notifStack,
+body.vip-mode #bottomNav,
+body.vip-mode #speedBall,
+body.vip-mode .fake-btn,
+body.vip-mode .tb-sep {
+    display:none !important;
+}
+body.vip-mode main { padding-bottom:2rem; }
+body.vip-mode #topbar { justify-content:center; border-bottom:none; padding-top:2.2rem; }
+body.vip-mode .clock-block { margin-top:3vh; }
+
+/* 小屏适配 */
+@media (max-width:600px) {
+    .time-display { font-size:min(14vw,15vh); }
+    .formats { padding:.7rem .8rem; }
+    .fmt-row { font-size:.68rem; gap:.5rem; }
+    .fmt-label { flex:0 0 2.4rem; font-size:.6rem; }
+    #mascot { display:none; }
+    .widgets { grid-template-columns:repeat(2,1fr); }
+    .w-value { font-size:1.1rem; }
+    #floatAd { width:min(200px,66vw); bottom:12rem; }
+    .nav-item { font-size:.58rem; }
+    .vip-plans { grid-template-columns:1fr 1fr; }
+    .tb-card-img { height:96px; font-size:2.4rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 启动画面 ══════════ -->
+<div id="bootScreen">
+    <div class="boot-logo">🌐 时钟浏览器</div>
+    <div class="boot-sub">极速版 · 全新内核 · 更快更省电</div>
+    <div class="boot-bar-wrap"><div id="bootBar"></div></div>
+    <div id="bootPct">0%</div>
+    <div id="bootMsg">正在初始化…</div>
+</div>
+
+<!-- ══════════ 搜索栏 ══════════ -->
+<div id="searchbar">
+    <div class="sb-logo">🕐</div>
+    <div class="sb-input-wrap">
+        <span class="sb-icon">🔍</span>
+        <input id="searchInput" type="text" placeholder="搜点什么吧，反正搜不到" autocomplete="off">
+    </div>
+    <button id="searchBtn" type="button">搜索</button>
+    <div id="searchPanel">
+        <div class="sp-section">
+            <div class="sp-title">🔥 热搜榜</div>
+            <div class="sp-tags" id="hotTags"></div>
+        </div>
+        <div class="sp-section">
+            <div class="sp-title">📜 搜索历史</div>
+            <div id="searchHistory" style="font-size:.74rem;color:var(--muted);letter-spacing:.04em;">
+                暂无历史记录（因为您什么都没搜过）
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ 顶栏 ══════════ -->
+<div id="topbar">
+    <button class="tb-btn primary" id="gridBtn" type="button">⊞ 导航</button>
+    <button class="tb-btn primary" id="themeToggleBtn" type="button">🌙 深色</button>
+    <button class="tb-btn primary" id="toggleFormatBtn" type="button">🕛 12小时制</button>
+    <button class="tb-btn primary" id="lunarToggleBtn" type="button">📅 农历</button>
+    <button class="tb-btn primary" id="checkinBtn" type="button">🎁 签到</button>
+    <button class="tb-btn primary" id="supportBtn" type="button">🤖 客服</button>
+    <button class="tb-btn gold" id="vipBtn" type="button">💎 开通VIP</button>
+    <button class="tb-btn primary" id="openSettingsBtn" type="button">⚙️ 设置</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn fake-btn" data-fake="日历">📅</button>
+    <button class="tb-btn fake-btn" data-fake="闹钟">⏰</button>
+    <button class="tb-btn fake-btn" data-fake="秒表">⏱️</button>
+    <button class="tb-btn fake-btn" data-fake="计时器">⏳</button>
+    <button class="tb-btn fake-btn" data-fake="世界时钟">🌍</button>
+    <button class="tb-btn fake-btn" data-fake="天气">🌤️</button>
+    <button class="tb-btn fake-btn" data-fake="股票">📈</button>
+    <button class="tb-btn fake-btn" data-fake="音乐">🎵</button>
+    <button class="tb-btn fake-btn" data-fake="播客">🎙️</button>
+    <button class="tb-btn fake-btn" data-fake="笔记">📝</button>
+    <button class="tb-btn fake-btn" data-fake="待办">✅</button>
+    <button class="tb-btn fake-btn" data-fake="文件">📁</button>
+    <button class="tb-btn fake-btn" data-fake="终端">💻</button>
+    <button class="tb-btn fake-btn" data-fake="AI 助手">🤖</button>
+    <button class="tb-btn fake-btn" data-fake="实验室">🧪<span class="tb-badge">Beta</span></button>
+    <button class="tb-btn fake-btn" data-fake="火箭">🚀</button>
+    <button class="tb-btn fake-btn" data-fake="外星人">👽</button>
+    <button class="tb-btn fake-btn" data-fake="披萨">🍕</button>
+    <button class="tb-btn fake-btn" data-fake="游戏机">🎮</button>
+    <button class="tb-btn fake-btn" data-fake="电视">📺</button>
+    <button class="tb-btn fake-btn" data-fake="爱心">❤️</button>
+</div>
+
+<!-- ══════════ 滚动公告 ══════════ -->
+<div id="ticker"><div id="tickerInner"></div></div>
+
+<!-- ══════════ 主内容 ══════════ -->
+<main>
+    <div class="clock-block">
+        <div class="time-display" id="timeDisplay"><span id="hours">00</span><span class="sep">:</span><span id="minutes">00</span><span class="sep">:</span><span id="seconds">00</span><span class="ampm" id="ampm"></span></div>
+        <div class="date-area" id="gregorianDate"></div>
+        <div class="lunar-date" id="lunarDate"></div>
+    </div>
+
+    <div class="formats">
+        <div class="fmt-row"><span class="fmt-label">BIN</span><span class="fmt-val" id="fmtBin">--</span></div>
+        <div class="fmt-row"><span class="fmt-label">HEX</span><span class="fmt-val" id="fmtHex">--</span></div>
+        <div class="fmt-row"><span class="fmt-label">ROM</span><span class="fmt-val" id="fmtRom">--</span></div>
+        <div class="fmt-row"><span class="fmt-label">MORSE</span><span class="fmt-val" id="fmtMor">--</span></div>
+        <div class="fmt-row"><span class="fmt-label">UNIX</span><span class="fmt-val" id="fmtUnix">--</span></div>
+        <div class="fmt-row"><span class="fmt-label">运行</span><span class="fmt-val" id="fmtUptime">--</span></div>
+    </div>
+
+    <div class="widgets">
+        <div class="widget">
+            <div class="w-title"><span>🌤 天气 · 北京</span><span id="wUpdate">刚刚</span></div>
+            <div class="w-value" id="wTemp">--°C</div>
+            <div class="w-sub" id="wCond">正在获取…</div>
+        </div>
+        <div class="widget">
+            <div class="w-title"><span>📈 时钟指数</span><span>实时</span></div>
+            <div class="w-value" id="wStock">--</div>
+            <div class="w-sub" id="wStockChg">--</div>
+        </div>
+        <div class="widget">
+            <div class="w-title"><span>💻 系统监控</span><span>Live</span></div>
+            <div class="w-value" id="wCpu">--%</div>
+            <div class="w-sub" id="wMem">内存 --%</div>
+        </div>
+        <div class="widget">
+            <div class="w-title"><span>🌍 世界时钟</span><span>UTC±</span></div>
+            <div class="wclock-list" id="wclockList"></div>
+        </div>
+    </div>
+
+    <div id="feed">
+        <div class="feed-header">
+            <div class="feed-title">📰 今日推荐</div>
+            <button class="feed-refresh" id="feedRefresh" type="button">↻ 换一批</button>
+        </div>
+        <div id="feedList"></div>
+    </div>
+</main>
+
+<!-- ══════════ 底部导航 ══════════ -->
+<div id="bottomNav">
+    <button class="nav-item active" data-nav="home"><span class="nav-icon">🏠</span><span>首页</span></button>
+    <button class="nav-item" data-nav="novel"><span class="nav-icon">📖</span><span>小说</span></button>
+    <button class="nav-item" data-nav="game"><span class="nav-icon">🎮</span><span>游戏</span></button>
+    <button class="nav-item" data-nav="live"><span class="nav-icon">📺</span><span>直播</span><span class="nav-dot"></span></button>
+    <button class="nav-item" data-nav="mine"><span class="nav-icon">👤</span><span>我的</span></button>
+</div>
+
+<!-- ══════════ 九宫格 ══════════ -->
+<div id="gridPanel">
+    <div class="grid-head">
+        <div class="grid-title">⊞ 全部应用</div>
+        <button class="grid-close" id="gridClose" type="button">×</button>
+    </div>
+    <div class="grid-body" id="gridBody"></div>
+</div>
+
+<!-- ══════════ 加速球 / 悬浮广告 / 底部广告 ══════════ -->
+<div id="speedBall">
+    <div class="sb-ball-pct" id="sbPct">87%</div>
+    <div class="sb-ball-label">内存</div>
+</div>
+
+<div id="floatAd">
+    <button id="floatAdClose" type="button">×</button>
+    <div class="float-ad-img">🎁</div>
+    <div class="float-ad-body">
+        <div class="float-ad-title">限时福利</div>
+        <div class="float-ad-desc">恭喜您被抽中「时钟浏览器终身会员」！仅剩 3 个名额！</div>
+        <button class="float-ad-cta" id="floatAdCta" type="button">立即领取</button>
+    </div>
+</div>
+
+<div id="adBanner">
+    <span class="ad-tag">广告</span>
+    <span class="ad-text" id="adText">🎉 限时特惠！下载「时钟助手 Pro」立享 0 元购！</span>
+    <button class="ad-cta" id="adCta" type="button">立即下载</button>
+    <button id="adClose" type="button" aria-label="关闭广告">×</button>
+</div>
+
+<!-- ══════════ 通用弹窗 ══════════ -->
+<div class="modal-mask" id="modalMask">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="modal-icon" id="modalIcon">📢</span>
+            <span class="modal-title" id="modalTitle">提示</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-actions" id="modalActions"></div>
+    </div>
+</div>
+
+<!-- ══════════ 应用安装弹窗 ══════════ -->
+<div class="modal-mask" id="installMask">
+    <div class="modal install-modal">
+        <div class="install-head">
+            <div class="install-icon" id="installIcon">🛒</div>
+            <div class="install-name" id="installName">淘宝</div>
+            <div class="install-size" id="installSize">156.8 MB</div>
+        </div>
+        <div class="install-progress-wrap">
+            <div id="installProgress"></div>
+        </div>
+        <div id="installStatus">准备安装…</div>
+        <div class="install-actions">
+            <button class="modal-btn" id="installCancel" type="button">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ 权限弹窗 ══════════ -->
+<div class="modal-mask" id="permMask">
+    <div class="modal perm-modal">
+        <div class="perm-head">
+            <div class="perm-icon" id="permIcon">📷</div>
+            <div>
+                <div class="perm-title" id="permTitle">申请权限</div>
+                <div class="perm-app" id="permApp">淘宝 请求访问</div>
+            </div>
+        </div>
+        <div class="perm-body" id="permBody"></div>
+        <div class="perm-actions">
+            <button class="modal-btn" id="permDeny" type="button">拒绝</button>
+            <button class="modal-btn primary" id="permAllow" type="button">允许</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ VIP 弹窗 ══════════ -->
+<div class="modal-mask" id="vipMask">
+    <div class="modal vip-modal">
+        <div class="vip-head">
+            <div class="vip-crown">👑</div>
+            <div class="vip-title">开通尊享 VIP</div>
+            <div class="vip-sub">解锁纯净无广告体验</div>
+        </div>
+        <div class="vip-plans">
+            <div class="vip-plan active" data-plan="trial">
+                <div class="vp-name">体验会员</div>
+                <div class="vp-time">30 秒</div>
+                <div class="vp-price">¥0.01</div>
+            </div>
+            <div class="vip-plan" data-plan="month">
+                <div class="vp-badge">🔥 最超值</div>
+                <div class="vp-name">月度会员</div>
+                <div class="vp-time">2 分钟</div>
+                <div class="vp-price"><s>¥1800</s>¥18</div>
+            </div>
+            <div class="vip-plan" data-plan="year">
+                <div class="vp-name">年度会员</div>
+                <div class="vp-time">5 分钟</div>
+                <div class="vp-price"><s>¥19800</s>¥198</div>
+            </div>
+            <div class="vip-plan" data-plan="life">
+                <div class="vp-name">终身会员</div>
+                <div class="vp-time">10 分钟</div>
+                <div class="vp-price"><s>¥999999</s>¥9999</div>
+            </div>
+        </div>
+        <div class="vip-pay">
+            <div class="vip-pay-title">选择支付方式</div>
+            <div class="vip-pay-methods">
+                <div class="pay-method active" data-pay="wechat">💚<br>微信</div>
+                <div class="pay-method" data-pay="alipay">💙<br>支付宝</div>
+                <div class="pay-method" data-pay="bank">🏦<br>银行卡</div>
+                <div class="pay-method" data-pay="btc">₿<br>比特币</div>
+            </div>
+        </div>
+        <div class="vip-actions">
+            <button class="modal-btn" id="vipCancel" type="button">下次一定</button>
+            <button class="modal-btn gold" id="vipPay" type="button">立即支付 ¥0.01</button>
+        </div>
+        <div class="vip-tip">点击支付表示您同意《会员服务协议》《隐私政策》《卖身契》</div>
+    </div>
+</div>
+
+<!-- ══════════ 支付加载 ══════════ -->
+<div id="payLoading">
+    <div class="pay-loading-box">
+        <div class="pay-spinner"></div>
+        <div class="pay-text" id="payText">正在通信…</div>
+    </div>
+</div>
+
+<!-- ══════════ 假广告 ══════════ -->
+<div id="fakeAd">
+    <div class="fake-ad-img">🎁</div>
+    <div class="fake-ad-title">广告播放中</div>
+    <div class="fake-ad-sub">完整观看可获得 10 秒 VIP 时长</div>
+    <div class="fake-ad-timer" id="fakeAdTimer">5</div>
+    <button class="fake-ad-skip" id="fakeAdSkip" type="button" disabled>跳过（5）</button>
+</div>
+
+<!-- ══════════ 客服 ══════════ -->
+<div class="modal-mask" id="supportMask">
+    <div class="modal support-modal">
+        <div class="support-head">
+            <div class="support-head-info">
+                <div class="support-avatar">🤖</div>
+                <span>小钟 · 在线客服</span>
+            </div>
+            <button id="supportClose" type="button">×</button>
+        </div>
+        <div class="support-body" id="supportBody">
+            <div class="support-msg bot">您好！我是智能客服小钟 🤖 请问有什么可以帮您？</div>
+            <div class="support-msg bot">温馨提示：我会尽可能帮您解决问题，如果解决不了，那说明这个问题比较严重。</div>
+        </div>
+        <div class="support-quick" id="supportQuick"></div>
+        <div class="support-input">
+            <input id="supportInput" type="text" placeholder="输入您的问题…">
+            <button id="supportSend" type="button">发送</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ 通知 ══════════ -->
+<div id="notifStack"></div>
+
+<!-- ══════════ 成就 ══════════ -->
+<div id="achToast">
+    <div class="ach-icon" id="achIcon">🏆</div>
+    <div>
+        <div class="ach-title">成就解锁</div>
+        <div class="ach-name" id="achName">—</div>
+        <div class="ach-desc" id="achDesc">—</div>
+    </div>
+</div>
+
+<!-- ══════════ 设置抽屉 ══════════ -->
+<div id="drawerMask"></div>
+<aside id="settingsDrawer">
+    <div class="drawer-head">
+        <div class="drawer-title">⚙️ 设置</div>
+        <button class="drawer-close" id="drawerClose" type="button">×</button>
+    </div>
+    <div class="drawer-body">
+        <div class="drawer-group">
+            <div class="drawer-group-title">会员</div>
+            <div class="setting-row clickable" id="drawerVipRow">
+                <div>
+                    <div class="setting-label">💎 开通 VIP</div>
+                    <div class="setting-hint" id="drawerVipHint">当前：普通用户</div>
+                </div>
+                <span class="setting-value" id="drawerVipValue">去开通 →</span>
+            </div>
+            <div class="setting-row clickable" id="drawerWatchAd">
+                <div>
+                    <div class="setting-label">📺 看广告得时长</div>
+                    <div class="setting-hint">观看 5 秒广告，获得 10 秒 VIP</div>
+                </div>
+                <span class="setting-value">去观看 →</span>
+            </div>
+            <div class="setting-row clickable" id="drawerInvite">
+                <div>
+                    <div class="setting-label">🎁 邀请好友</div>
+                    <div class="setting-hint">邀请 1 位好友，双方各得 3 秒 VIP</div>
+                </div>
+                <span class="setting-value">去邀请 →</span>
+            </div>
+        </div>
+        <div class="drawer-group">
+            <div class="drawer-group-title">工具</div>
+            <div class="setting-row clickable" id="drawerClearCache">
+                <div>
+                    <div class="setting-label">🧹 清理缓存</div>
+                    <div class="setting-hint">释放存储空间，优化运行速度</div>
+                </div>
+                <span class="setting-value">去清理 →</span>
+            </div>
+            <div class="setting-row clickable" id="drawerSupport">
+                <div>
+                    <div class="setting-label">🤖 联系客服</div>
+                    <div class="setting-hint">7×24 小时在线（AI 是假的）</div>
+                </div>
+                <span class="setting-value">去联系 →</span>
+            </div>
+            <div class="setting-row clickable" id="drawerResetApps">
+                <div>
+                    <div class="setting-label">🗑️ 卸载已装应用</div>
+                    <div class="setting-hint">把淘宝拼多多恢复成"未安装"</div>
+                </div>
+                <span class="setting-value">去卸载 →</span>
+            </div>
+        </div>
+        <div class="drawer-group">
+            <div class="drawer-group-title">外观</div>
+            <div class="setting-row">
+                <div><div class="setting-label">深色模式</div><div class="setting-hint">深夜护眼，白天装酷</div></div>
+                <button class="switch" data-switch="theme" type="button"></button>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">显示农历</div><div class="setting-hint">干支纪年 · 闰月自动识别</div></div>
+                <button class="switch" data-switch="lunar" type="button"></button>
+            </div>
+        </div>
+        <div class="drawer-group">
+            <div class="drawer-group-title">时间</div>
+            <div class="setting-row">
+                <div><div class="setting-label">24 小时制</div><div class="setting-hint">关闭则使用 12 小时制</div></div>
+                <button class="switch" data-switch="format" type="button"></button>
+            </div>
+        </div>
+        <div class="drawer-group">
+            <div class="drawer-group-title">体验</div>
+            <div class="setting-row">
+                <div><div class="setting-label">通知推送</div><div class="setting-hint">接受来自时钟的碎碎念</div></div>
+                <button class="switch" data-switch="notify" type="button"></button>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">鼠标特效</div><div class="setting-hint">移动鼠标试试看</div></div>
+                <button class="switch" data-switch="trail" type="button"></button>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">悬浮广告</div><div class="setting-hint">关掉它，它还会回来的</div></div>
+                <button class="switch" data-switch="floatAd" type="button"></button>
+            </div>
+        </div>
+        <div class="drawer-group">
+            <div class="drawer-group-title">关于</div>
+            <div class="setting-row">
+                <div><div class="setting-label">版本</div><div class="setting-hint">v99.9.9-beta.7+build.20260405</div></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">已解锁成就</div><div class="setting-hint" id="achCounter">0 / 14</div></div>
+            </div>
+            <div class="setting-row">
+                <div><div class="setting-label">今日签到</div><div class="setting-hint" id="checkinStatus">未签到</div></div>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- ══════════ VIP 角标 ══════════ -->
+<div id="vipBadge">👑 VIP · 剩余 --</div>
+
+<!-- ══════════ 淘宝全屏 ══════════ -->
+<div class="app-screen" id="tbScreen">
+    <div class="app-topbar tb">
+        <button class="app-back" id="tbBack" type="button">←</button>
+        <span class="app-title">🛒 淘宝</span>
+        <div class="app-topbar-icons">
+            <button class="icon-btn" id="tbCamera" type="button">📷</button>
+            <button class="icon-btn" id="tbMsg" type="button">💬</button>
+        </div>
+    </div>
+    <div class="app-body" id="tbBody">
+        <div class="tb-search">
+            <span class="tb-search-icon">🔍</span>
+            <input class="tb-search-input" id="tbSearchInput" placeholder="搜索淘宝商品" readonly>
+        </div>
+        <div class="tb-banner">
+            <div class="tb-banner-title">🛍️ 双十一狂欢节</div>
+            <div class="tb-banner-sub">全场满 300 减 30 · 领券再减 50</div>
+        </div>
+        <div class="tb-section-title">🔥 为你推荐</div>
+        <div class="tb-grid" id="tbGrid"></div>
+    </div>
+    <div class="app-tabs">
+        <button class="app-tab active"><span class="tab-icon">🏠</span><span>首页</span></button>
+        <button class="app-tab"><span class="tab-icon">🧭</span><span>微淘</span></button>
+        <button class="app-tab"><span class="tab-icon">📢</span><span>消息</span></button>
+        <button class="app-tab"><span class="tab-icon">🛒</span><span>购物车</span></button>
+        <button class="app-tab"><span class="tab-icon">👤</span><span>我的淘宝</span></button>
+    </div>
+</div>
+
+<!-- ══════════ 拼多多全屏 ══════════ -->
+<div class="app-screen" id="pddScreen">
+    <div class="app-topbar pdd">
+        <button class="app-back" id="pddBack" type="button">←</button>
+        <span class="app-title">💰 拼多多</span>
+        <div class="app-topbar-icons">
+            <button class="icon-btn" id="pddShare" type="button">📤</button>
+        </div>
+    </div>
+    <div class="app-body" id="pddBody">
+        <div class="pdd-hero">
+            <div class="pdd-hero-title">💸 天天领现金</div>
+            <div class="pdd-hero-amount" id="pddAmount">99.99</div>
+            <div class="pdd-hero-sub">仅差 <b id="pddDiff" style="color:#e02e24">0.01</b> 元即可提现</div>
+            <div class="pdd-progress-wrap">
+                <div id="pddProgress"></div>
+            </div>
+            <div class="pdd-progress-label">
+                <span>已砍进度</span>
+                <span><b id="pddPct">99.99%</b></span>
+            </div>
+            <div class="pdd-actions">
+                <button class="pdd-big-btn" id="pddCutBtn" type="button">✂️ 邀请好友砍一刀</button>
+                <div class="pdd-sub-actions">
+                    <button class="pdd-mini-btn" id="pddWatchAd" type="button">📺 看视频加速</button>
+                    <button class="pdd-mini-btn" id="pddSignIn" type="button">✅ 每日签到</button>
+                </div>
+            </div>
+            <div class="pdd-hint">
+                距离提现还差最后一步！<br>
+                已有 <b id="pddFriends" style="color:#e02e24">184,729</b> 位好友为您助力
+            </div>
+        </div>
+
+        <div class="tb-section-title" style="padding:0 .2rem;">💎 更多福利</div>
+        <div class="pdd-activity-list">
+            <div class="pdd-activity" data-act="lottery">
+                <div class="pdd-activity-icon">🎰</div>
+                <div class="pdd-activity-text">
+                    <div class="pdd-activity-name">幸运大转盘</div>
+                    <div class="pdd-activity-desc">100% 中奖，最高 ¥999 现金红包</div>
+                </div>
+                <div class="pdd-activity-arrow">›</div>
+            </div>
+            <div class="pdd-activity" data-act="coupon">
+                <div class="pdd-activity-icon">🎫</div>
+                <div class="pdd-activity-text">
+                    <div class="pdd-activity-name">今日专属优惠券</div>
+                    <div class="pdd-activity-desc">已为您领取 <b style="color:#e02e24">3</b> 张，还差 <b style="color:#e02e24">7</b> 张</div>
+                </div>
+                <div class="pdd-activity-arrow">›</div>
+            </div>
+            <div class="pdd-activity" data-act="invite">
+                <div class="pdd-activity-icon">👥</div>
+                <div class="pdd-activity-text">
+                    <div class="pdd-activity-name">邀请好友得现金</div>
+                    <div class="pdd-activity-desc">每邀请 1 位好友，可得 ¥0.01</div>
+                </div>
+                <div class="pdd-activity-arrow">›</div>
+            </div>
+            <div class="pdd-activity" data-act="free">
+                <div class="pdd-activity-icon">🎁</div>
+                <div class="pdd-activity-text">
+                    <div class="pdd-activity-name">0 元领好物</div>
+                    <div class="pdd-activity-desc">今日还剩 <b style="color:#e02e24">9999</b> 件</div>
+                </div>
+                <div class="pdd-activity-arrow">›</div>
+            </div>
+        </div>
+    </div>
+    <div class="app-tabs pdd">
+        <button class="app-tab active"><span class="tab-icon">🏠</span><span>首页</span></button>
+        <button class="app-tab"><span class="tab-icon">📺</span><span>多多视频</span></button>
+        <button class="app-tab"><span class="tab-icon">📢</span><span>聊天</span></button>
+        <button class="app-tab"><span class="tab-icon">🛒</span><span>个人中心</span></button>
+    </div>
+</div>
+
+<!-- ══════════ 吉祥物 ══════════ -->
+<div id="mascot">
+    <div id="mascotFace">🐱</div>
+    <div id="mascotBubble">喵~</div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var $ = function (id) { return document.getElementById(id); };
+    var pad2 = function (n) { return n < 10 ? '0' + n : '' + n; };
+    var rnd = function (a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; };
+    var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+
+    /* ═══════ 状态 ═══════ */
+    var state = {
+        theme: 'light', is24Hour: true, showLunar: true,
+        notify: true, trail: true, floatAd: true,
+        startTime: Date.now()
+    };
+
+    /* ══════════════════════════════════════════
+       农历
+       ══════════════════════════════════════════ */
+    var lunarInfo = [
+        0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
+        0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
+        0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,
+        0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,
+        0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,
+        0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,
+        0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,
+        0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,
+        0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,
+        0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x055c0,0x0ab60,0x096d5,0x092e0,
+        0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,
+        0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,
+        0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,
+        0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,
+        0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,
+        0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06b20,0x1a6c4,0x0aae0,
+        0x0a2e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,
+        0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,
+        0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,
+        0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a2d0,0x0d150,0x0f252,
+        0x0d520
+    ];
+    var lunarMonthNames = ['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+    var lunarDayNames = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十',
+                         '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+                         '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+    var ganArr = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+    var zhiArr = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+    function leapMonth(y) { return lunarInfo[y - 1900] & 0xf; }
+    function leapDays(y) { return leapMonth(y) ? ((lunarInfo[y - 1900] & 0x10000) ? 30 : 29) : 0; }
+    function monthDays(y, m) { return (lunarInfo[y - 1900] & (0x10000 >> m)) ? 30 : 29; }
+    function yearDays(y) {
+        var sum = 348;
+        for (var i = 0x8000; i > 0x8; i >>= 1) sum += (lunarInfo[y - 1900] & i) ? 1 : 0;
+        return sum + leapDays(y);
+    }
+    function solarToLunar(y, m, d) {
+        var offset = Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(1900, 0, 31)) / 86400000);
+        var i, temp = 0;
+        for (i = 1900; i < 2101 && offset > 0; i++) { temp = yearDays(i); offset -= temp; }
+        if (offset < 0) { offset += temp; i--; }
+        var lunarYear = i, leap = leapMonth(lunarYear), isLeap = false;
+        for (var j = 1; j < 13 && offset > 0; j++) {
+            if (leap > 0 && j === leap + 1 && !isLeap) { --j; isLeap = true; temp = leapDays(lunarYear); }
+            else { temp = monthDays(lunarYear, j); }
+            if (isLeap && j === leap + 1) isLeap = false;
+            offset -= temp;
+        }
+        if (offset === 0 && leap > 0 && j === leap + 1) {
+            if (isLeap) { isLeap = false; } else { isLeap = true; --j; }
+        }
+        if (offset < 0) { offset += temp; --j; }
+        return { year: lunarYear, month: j, day: offset + 1, isLeap: isLeap };
+    }
+    function getLunarString(y, m, d) {
+        if (y < 1900 || y > 2100) return '';
+        var l = solarToLunar(y, m, d);
+        var off = l.year - 1900;
+        var gz = ganArr[(6 + off) % 10] + zhiArr[off % 12];
+        return gz + '年' + (l.isLeap ? '闰' : '') + lunarMonthNames[l.month - 1] + lunarDayNames[l.day - 1];
+    }
+
+    /* ═══════ 进制转换 ═══════ */
+    var MORSE_DIGIT = { '0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.' };
+    function toBin(n) { return n.toString(2).padStart(8, '0'); }
+    function toHex(n) { return n.toString(16).toUpperCase().padStart(2, '0'); }
+    function toRoman(n) {
+        if (n === 0) return 'N';
+        var map = [[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']], r = '';
+        for (var i = 0; i < map.length; i++) while (n >= map[i][0]) { r += map[i][1]; n -= map[i][0]; }
+        return r;
+    }
+    function toMorse(n) { return String(n).padStart(2,'0').split('').map(function(d){return MORSE_DIGIT[d];}).join(' '); }
+    function humanUptime(ms) {
+        var s = Math.floor(ms/1000), h = Math.floor(s/3600); s %= 3600;
+        var m = Math.floor(s/60); s %= 60;
+        return pad2(h)+':'+pad2(m)+':'+pad2(s);
+    }
+
+    /* ══════════════════════════════════════════
+       启动画面
+       ══════════════════════════════════════════ */
+    var BOOT_MSGS = [
+        '正在唤醒时钟核心…','正在加载农历数据库…','正在校准原子钟…',
+        '正在连接时间服务器…','正在解析时区规则…','正在优化渲染管线…',
+        '正在预热 GPU…','正在检查浏览器兼容性…','正在申请必要权限…',
+        '正在加载广告组件…','正在注入灵魂…','马上就好，真的…',
+        '正在校验会员凭证…','正在拉取广告配置…','正在预加载电商模块…'
+    ];
+    (function boot() {
+        var bar = $('bootBar'), pct = $('bootPct'), msg = $('bootMsg'), screen = $('bootScreen');
+        var prog = 0;
+        msg.textContent = pick(BOOT_MSGS);
+        var t = setInterval(function () {
+            prog += rnd(3, 11);
+            if (prog >= 100) prog = 100;
+            bar.style.width = prog + '%';
+            pct.textContent = prog + '%';
+            if (Math.random() < 0.6) msg.textContent = pick(BOOT_MSGS);
+            if (prog === 100) {
+                clearInterval(t);
+                setTimeout(function () {
+                    screen.classList.add('hide');
+                    setTimeout(function () { screen.remove(); }, 600);
+                }, 420);
+            }
+        }, 130);
+    })();
+
+    /* ══════════════════════════════════════════
+       通用弹窗
+       ══════════════════════════════════════════ */
+    function showModal(opt) {
+        $('modalIcon').textContent = opt.icon || '📢';
+        $('modalTitle').textContent = opt.title || '提示';
+        $('modalBody').innerHTML = opt.body || '';
+        var actions = $('modalActions');
+        actions.innerHTML = '';
+        (opt.actions || [{ text: '知道了', primary: true }]).forEach(function (a) {
+            var b = document.createElement('button');
+            b.className = 'modal-btn' + (a.primary ? ' primary' : '') + (a.danger ? ' danger' : '') + (a.gold ? ' gold' : '') + (a.tb ? ' tb' : '') + (a.pdd ? ' pdd' : '');
+            b.textContent = a.text;
+            b.addEventListener('click', function () {
+                closeModal();
+                if (a.onClick) a.onClick();
+            });
+            actions.appendChild(b);
+        });
+        $('modalMask').classList.add('show');
+    }
+    function closeModal() { $('modalMask').classList.remove('show'); }
+    $('modalMask').addEventListener('click', function (e) {
+        if (e.target === $('modalMask')) closeModal();
+    });
+
+    /* ══════════════════════════════════════════
+       通知
+       ══════════════════════════════════════════ */
+    var NOTIF_DATA = [
+        { t: '⏰ 时钟提醒', b: '已经过去 60 秒了，您还在看时间。' },
+        { t: '📢 系统通知', b: '检测到您正在盯着屏幕，建议眨眨眼。' },
+        { t: '🎁 限时福利', b: '恭喜您获得「永久免费使用本时钟」资格！' },
+        { t: '🔥 热门推荐', b: '您可能还喜欢：另一个时钟页面。' },
+        { t: '💾 自动保存', b: '您的主题偏好已保存到本地存储。' },
+        { t: '🔔 温馨提示', b: '本通知没有任何意义，纯属娱乐。' },
+        { t: '📊 数据分析', b: '今日您已查看时间约 ' + rnd(3, 40) + ' 次。' },
+        { t: '🐛 已知问题', b: '时间有时会过得很快，这是正常现象。' },
+        { t: '🛒 淘宝通知', b: '您关注的商品降价了！¥1999 → ¥1998.99' },
+        { t: '💰 拼多多提醒', b: '您还有 ¥99.99 未提现，快去砍一刀！' },
+        { t: '📦 物流更新', b: '您的快递正在派送中（其实您没买东西）' },
+        { t: '💬 客服消息', b: '客服小钟：亲，给个五星好评呗~' }
+    ];
+    function pushNotif(title, body, ttl) {
+        if (!state.notify) return;
+        if (vipState.active) return;
+        var stack = $('notifStack');
+        if (stack.children.length >= 4) return;
+        var el = document.createElement('div');
+        el.className = 'notif';
+        el.innerHTML = '<div class="notif-body"><div class="notif-title">' + title + '</div>' + body + '</div>';
+        stack.appendChild(el);
+        el.addEventListener('click', dismiss);
+        var timer = setTimeout(dismiss, ttl || rnd(4500, 8000));
+        function dismiss() {
+            clearTimeout(timer);
+            if (!el.parentNode) return;
+            el.classList.add('out');
+            setTimeout(function () { el.remove(); }, 320);
+        }
+    }
+    function scheduleNotifs() {
+        setTimeout(function () {
+            if (state.notify && !vipState.active) {
+                var n = pick(NOTIF_DATA);
+                pushNotif(n.t, n.b);
+            }
+            scheduleNotifs();
+        }, rnd(9000, 18000));
+    }
+
+    /* ══════════════════════════════════════════
+       成就
+       ══════════════════════════════════════════ */
+    var achievements = [
+        { id: 'first',   icon: '🏆', name: '初次邂逅', desc: '打开时钟页面' },
+        { id: 'ten',     icon: '⏱️', name: '坚持十秒', desc: '停留超过 10 秒' },
+        { id: 'minute',  icon: '🕐', name: '一分钟先生', desc: '停留超过 1 分钟' },
+        { id: 'five',    icon: '🖐️', name: '五分钟热恋', desc: '停留超过 5 分钟' },
+        { id: 'search',  icon: '🔍', name: '求知若渴', desc: '使用了搜索功能' },
+        { id: 'grid',    icon: '⊞',  name: '探索者', desc: '打开了九宫格导航' },
+        { id: 'clicker', icon: '🖱️', name: '手痒难耐', desc: '点击任意功能按钮' },
+        { id: 'drawer',  icon: '⚙️', name: '设置狂魔', desc: '打开设置抽屉' },
+        { id: 'mascot',  icon: '🐱', name: '猫奴认证', desc: '摸了摸左下角的猫' },
+        { id: 'vip',     icon: '💎', name: '尊贵会员', desc: '开通了 VIP' },
+        { id: 'refund',  icon: '💸', name: '翻脸不认', desc: 'VIP 到期了' },
+        { id: 'ad',      icon: '📺', name: '广告观赏家', desc: '完整看完一次广告' },
+        { id: 'taobao',  icon: '🛒', name: '剁手党', desc: '安装了淘宝' },
+        { id: 'pdd',     icon: '💰', name: '砍价大师', desc: '安装了拼多多' },
+        { id: 'support', icon: '🤖', name: '话痨', desc: '和客服聊了 5 句以上' }
+    ];
+    var unlocked = {};
+    function unlockAchievement(id) {
+        if (unlocked[id]) return;
+        var a = achievements.find(function (x) { return x.id === id; });
+        if (!a) return;
+        unlocked[id] = true;
+        $('achIcon').textContent = a.icon;
+        $('achName').textContent = a.name;
+        $('achDesc').textContent = a.desc;
+        var toast = $('achToast');
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(function () { toast.classList.remove('show'); }, 2800);
+        $('achCounter').textContent = Object.keys(unlocked).length + ' / ' + achievements.length;
+    }
+
+    /* ══════════════════════════════════════════
+       主时钟
+       ══════════════════════════════════════════ */
+    var hoursEl = $('hours'), minutesEl = $('minutes'), secondsEl = $('seconds');
+    var ampmEl = $('ampm'), gregEl = $('gregorianDate'), lunarEl = $('lunarDate');
+    var WEEKDAYS = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    function updateClock() {
+        var now = new Date();
+        var h24 = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        var dH = state.is24Hour ? h24 : (h24 % 12 || 12);
+        hoursEl.textContent = pad2(dH);
+        minutesEl.textContent = pad2(m);
+        secondsEl.textContent = pad2(s);
+        if (state.is24Hour) { ampmEl.classList.remove('show'); ampmEl.textContent = ''; }
+        else { ampmEl.textContent = h24 >= 12 ? 'PM' : 'AM'; ampmEl.classList.add('show'); }
+        var y = now.getFullYear(), mo = now.getMonth() + 1, d = now.getDate();
+        gregEl.textContent = y + '年' + mo + '月' + d + '日  ' + WEEKDAYS[now.getDay()];
+        if (state.showLunar) {
+            var ls = getLunarString(y, mo, d);
+            lunarEl.textContent = ls ? '农历' + ls : '';
+            lunarEl.style.display = '';
+        } else { lunarEl.textContent = ''; lunarEl.style.display = 'none'; }
+        $('fmtBin').textContent  = toBin(h24) + ' ' + toBin(m) + ' ' + toBin(s);
+        $('fmtHex').textContent  = toHex(h24) + ':' + toHex(m) + ':' + toHex(s);
+        $('fmtRom').textContent  = toRoman(h24) + ':' + toRoman(m) + ':' + toRoman(s);
+        $('fmtMor').textContent  = toMorse(h24) + ' / ' + toMorse(m) + ' / ' + toMorse(s);
+        $('fmtUnix').textContent = Math.floor(now.getTime() / 1000).toString();
+        $('fmtUptime').textContent = humanUptime(Date.now() - state.startTime);
+    }
+    function tick() { updateClock(); setTimeout(tick, 1000 - (Date.now() % 1000)); }
+
+    /* ══════════════════════════════════════════
+       滚动公告
+       ══════════════════════════════════════════ */
+    function updateTicker() {
+        var now = new Date();
+        var t = pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+        var msgs = [
+            '🕐 北京时间 ' + t + ' —— 时间正在以每秒 1 秒的速度流逝',
+            '💡 温馨提示：久坐有害健康，起来动一动吧',
+            '🎉 本页面已为您服务 ' + humanUptime(Date.now() - state.startTime),
+            '🛒 淘宝已上架！点击九宫格即可安装体验',
+            '💰 拼多多提醒：您还有 ¥99.99 未提现',
+            '🤖 客服小钟 24 小时在线，欢迎来撩',
+            '💎 开通 VIP 可去除全部广告（真的，但只持续几十秒）',
+            '🐱 左下角有一只猫，它很想被摸一下',
+            '📰 震惊！99% 的人看完时钟后都做了这个动作'
+        ];
+        var html = '';
+        for (var i = 0; i < msgs.length; i++) html += '<span>' + msgs[i] + '</span>';
+        $('tickerInner').innerHTML = html;
+    }
+
+    /* ══════════════════════════════════════════
+       小组件
+       ══════════════════════════════════════════ */
+    var CONDITIONS = ['晴','多云','阴','小雨','雷阵雨','雾','雪','沙尘暴'];
+    function updateWeather() {
+        $('wTemp').textContent = rnd(-5, 36) + '°C';
+        $('wCond').textContent = pick(CONDITIONS) + ' · 湿度 ' + rnd(20, 95) + '%';
+        $('wUpdate').textContent = '刚刚';
+    }
+    var stockVal = 9999.99;
+    function updateStock() {
+        var delta = (Math.random() - 0.48) * 80;
+        stockVal = Math.max(100, stockVal + delta);
+        var pct = (delta / stockVal * 100);
+        $('wStock').textContent = stockVal.toFixed(2);
+        var chgEl = $('wStockChg');
+        chgEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%  ' + (pct >= 0 ? '▲' : '▼');
+        chgEl.className = 'w-sub ' + (pct >= 0 ? 'w-up' : 'w-down');
+    }
+    function updateSys() {
+        $('wCpu').textContent = rnd(3, 97) + '%';
+        $('wMem').textContent = '内存 ' + rnd(28, 88) + '% · 磁盘 ' + rnd(10, 70) + '%';
+    }
+    var WORLD_ZONES = [
+        { city: '北京', tz: 'Asia/Shanghai' },
+        { city: '东京', tz: 'Asia/Tokyo' },
+        { city: '伦敦', tz: 'Europe/London' },
+        { city: '纽约', tz: 'America/New_York' }
+    ];
+    function updateWorldClock() {
+        var html = '';
+        for (var i = 0; i < WORLD_ZONES.length; i++) {
+            var z = WORLD_ZONES[i], t;
+            try { t = new Date().toLocaleTimeString('en-GB', { timeZone: z.tz, hour:'2-digit', minute:'2-digit', hour12:false }); }
+            catch (e) { t = '--:--'; }
+            html += '<div class="wclock-row"><span>' + z.city + '</span><b>' + t + '</b></div>';
+        }
+        $('wclockList').innerHTML = html;
+    }
+
+    /* ══════════════════════════════════════════
+       信息流
+       ══════════════════════════════════════════ */
+    var FEED_DATA = [
+        { icon:'😱', tag:'震惊', hot:true,  title:'男子连续看时钟三小时，竟然发现了这个秘密…', src:'时钟日报', time:'3 分钟前' },
+        { icon:'🔥', tag:'热点', hot:true,  title:'淘宝拼多多同时上线时钟浏览器，用户：我全都要！', src:'科技观察', time:'8 分钟前' },
+        { icon:'💡', tag:'科普', hot:false, title:'为什么一天有 24 小时？答案让人意想不到', src:'科普中国', time:'半小时前' },
+        { icon:'🤖', tag:'趣闻', hot:true,  title:'实测！和时钟浏览器客服对话 100 句，我崩溃了', src:'互联网深扒', time:'1 小时前' },
+        { icon:'📈', tag:'财经', hot:false, title:'时钟板块集体涨停，专家称「时间就是金钱」', src:'财经网', time:'2 小时前' },
+        { icon:'🎮', tag:'游戏', hot:true,  title:'《看时钟模拟器》上线首日下载破亿，玩家：太上头了', src:'游戏日报', time:'3 小时前' },
+        { icon:'💰', tag:'趣闻', hot:true,  title:'「还差 0.01 元就能提现」—— 拼多多经典套路再现', src:'吐槽大会', time:'昨天' },
+        { icon:'🛒', tag:'消费', hot:false, title:'安装淘宝后我买了 3 件本来不需要的东西', src:'剁手日报', time:'昨天' }
+    ];
+    function renderFeed() {
+        var shuffled = FEED_DATA.slice().sort(function () { return Math.random() - 0.5; }).slice(0, 6);
+        var html = '';
+        shuffled.forEach(function (f) {
+            html += '<div class="feed-item">' +
+                '<div class="feed-thumb">' + f.icon + '</div>' +
+                '<div class="feed-body">' +
+                    '<div class="feed-headline">' + f.title + '</div>' +
+                    '<div class="feed-meta">' +
+                        '<span class="feed-tag' + (f.hot ? ' hot' : '') + '">' + f.tag + '</span>' +
+                        '<span>' + f.src + '</span>' +
+                        '<span>' + f.time + '</span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        });
+        $('feedList').innerHTML = html;
+        $('feedList').querySelectorAll('.feed-item').forEach(function (el) {
+            el.addEventListener('click', function () {
+                pushNotif('📰 内容加载中', '该页面正在加载… 加载失败。请检查网络连接（并没有网络请求）。');
+            });
+        });
+    }
+    $('feedRefresh').addEventListener('click', function () {
+        renderFeed();
+        pushNotif('📰 信息流', '已为您换一批，本次推荐了 ' + rnd(3, 6) + ' 条内容。');
+    });
+
+    /* ══════════════════════════════════════════
+       九宫格（含淘宝/拼多多安装）
+       ══════════════════════════════════════════ */
+    var GRID_APPS = [
+        { icon:'🛒', name:'淘宝', install: 'taobao' },
+        { icon:'💰', name:'拼多多', install: 'pdd' },
+        { icon:'🎁', name:'京东' }, { icon:'🔍', name:'百度' },
+        { icon:'📱', name:'微博' }, { icon:'❓', name:'知乎' },
+        { icon:'📺', name:'B站' }, { icon:'🎵', name:'抖音' },
+        { icon:'📚', name:'小说' }, { icon:'🎮', name:'游戏' },
+        { icon:'📡', name:'直播' }, { icon:'🎫', name:'彩票' },
+        { icon:'🏥', name:'医生' }, { icon:'🚂', name:'抢票' },
+        { icon:'📰', name:'新闻' }, { icon:'🍔', name:'外卖' },
+        { icon:'🚕', name:'打车' }, { icon:'🏦', name:'银行' },
+        { icon:'📷', name:'相机' }, { icon:'🎬', name:'视频' },
+        { icon:'🎧', name:'音乐' }, { icon:'🗺️', name:'地图' },
+        { icon:'📅', name:'日历' }, { icon:'⚙️', name:'设置' }
+    ];
+
+    /* 已安装状态 */
+    var installed = {};
+    try { installed = JSON.parse(localStorage.getItem('installedApps') || '{}'); } catch (e) {}
+    function saveInstalled() {
+        try { localStorage.setItem('installedApps', JSON.stringify(installed)); } catch (e) {}
+    }
+
+    function initGrid() {
+        var body = $('gridBody');
+        body.innerHTML = '';
+        GRID_APPS.forEach(function (app) {
+            var el = document.createElement('div');
+            el.className = 'grid-app';
+            var isInstalled = app.install && installed[app.install];
+            if (isInstalled) {
+                el.classList.add('installed');
+                if (app.install === 'pdd') el.classList.add('pdd');
+            }
+            el.innerHTML = '<div class="grid-app-icon">' + app.icon + '</div><div class="grid-app-name">' + app.name + '</div>';
+            el.addEventListener('click', function () {
+                if (app.install) {
+                    if (installed[app.install]) {
+                        openApp(app.install);
+                    } else {
+                        startInstall(app.install);
+                    }
+                } else {
+                    pushNotif('📱 ' + app.name, '正在打开「' + app.name + '」… 抱歉，该应用未安装。');
+                }
+            });
+            body.appendChild(el);
+        });
+    }
+    initGrid();
+
+    $('gridBtn').addEventListener('click', function () { $('gridPanel').classList.add('show'); unlockAchievement('grid'); });
+    $('gridClose').addEventListener('click', function () { $('gridPanel').classList.remove('show'); });
+
+    /* ══════════════════════════════════════════
+       App 安装流程
+       ══════════════════════════════════════════ */
+    var installConfig = {
+        taobao: {
+            name: '淘宝',
+            icon: '🛒',
+            size: '156.8 MB',
+            iconClass: 'tb',
+            perms: [
+                { icon:'📷', title:'相机', desc:'用于扫码、拍照识图', detail:['拍摄照片和录制视频','用于扫描商品条码'] },
+                { icon:'🎤', title:'麦克风', desc:'用于语音搜索', detail:['录制音频','用于语音输入商品名称'] },
+                { icon:'📍', title:'位置信息', desc:'用于推荐附近商品', detail:['获取精确位置 (GPS)','获取大致位置 (网络)'] },
+                { icon:'👥', title:'通讯录', desc:'用于分享给好友', detail:['读取联系人列表','用于邀请好友一起来购物'] },
+                { icon:'📁', title:'存储', desc:'用于保存商品图片', detail:['读取和写入 SD 卡','缓存商品图片'] },
+                { icon:'📞', title:'电话', desc:'用于联系客服', detail:['读取本机号码','拨打客服电话'] },
+                { icon:'📊', title:'读取应用列表', desc:'用于安全检测', detail:['读取已安装应用列表','"仅用于安全检测"'] },
+                { icon:'🩺', title:'健康数据', desc:'用于健康商品推荐', detail:['读取步数、心率','说真的我们也不知道为什么要这个'] }
+            ]
+        },
+        pdd: {
+            name: '拼多多',
+            icon: '💰',
+            size: '98.2 MB',
+            iconClass: 'pdd',
+            perms: [
+                { icon:'👥', title:'通讯录', desc:'用于邀请好友砍一刀', detail:['读取全部联系人','给所有好友发送砍价邀请'] },
+                { icon:'📍', title:'位置信息', desc:'用于推荐本地商品', detail:['获取精确位置','其实我们只是想多知道点你的信息'] },
+                { icon:'📷', title:'相机', desc:'用于扫码', detail:['拍摄照片和视频','用于扫描商品二维码'] },
+                { icon:'📊', title:'读取应用列表', desc:'用于检测环境安全', detail:['读取已安装应用','检测是否安装了竞品（没有别的意思）'] },
+                { icon:'🔔', title:'通知权限', desc:'用于推送消息', detail:['发送通知','每天最多 99 条'] },
+                { icon:'📁', title:'存储', desc:'用于保存商品', detail:['读写外部存储','缓存活动页面'] }
+            ]
+        }
+    };
+
+    var currentInstall = null;
+    var installTimers = [];
+
+    function clearInstallTimers() {
+        installTimers.forEach(function (t) { clearInterval(t); clearTimeout(t); });
+        installTimers = [];
+    }
+
+    function startInstall(key) {
+        var cfg = installConfig[key];
+        currentInstall = key;
+
+        $('installIcon').textContent = cfg.icon;
+        $('installIcon').className = 'install-icon ' + cfg.iconClass;
+        $('installName').textContent = cfg.name;
+        $('installSize').textContent = cfg.size + ' · 来自官方应用商店';
+        $('installProgress').style.width = '0%';
+        $('installStatus').textContent = '准备安装…';
+
+        $('installMask').classList.add('show');
+
+        /* 下载进度 */
+        var prog = 0;
+        var statuses = [
+            '正在下载…',
+            '正在下载…（1/3）',
+            '正在下载…（2/3）',
+            '正在下载…（3/3）',
+            '正在校验文件完整性…',
+            '正在解压资源…',
+            '正在申请权限…',
+            '即将完成…'
+        ];
+        var t1 = setInterval(function () {
+            prog += rnd(2, 7);
+            if (prog >= 100) {
+                prog = 100;
+                clearInterval(t1);
+                $('installStatus').textContent = '下载完成，正在申请权限…';
+                setTimeout(function () {
+                    $('installMask').classList.remove('show');
+                    startPermissionFlow(key, 0);
+                }, 500);
+            } else {
+                $('installStatus').textContent = pick(statuses);
+            }
+            $('installProgress').style.width = prog + '%';
+        }, 220);
+        installTimers.push(t1);
+    }
+
+    $('installCancel').addEventListener('click', function () {
+        clearInstallTimers();
+        $('installMask').classList.remove('show');
+        pushNotif('❌ 已取消', '安装已取消，您可以随时重试。');
+    });
+
+    /* 权限流程 */
+    function startPermissionFlow(key, idx) {
+        var cfg = installConfig[key];
+        if (idx >= cfg.perms.length) {
+            /* 全部权限走完，安装完成 */
+            finishInstall(key);
+            return;
+        }
+        var p = cfg.perms[idx];
+        $('permIcon').textContent = p.icon;
+        $('permTitle').textContent = '申请权限：' + p.title;
+        $('permApp').textContent = cfg.name + ' 请求访问';
+        $('permBody').innerHTML = '<div>' + p.desc + '</div><ul>' +
+            p.detail.map(function (d) { return '<li>' + d + '</li>'; }).join('') +
+            '</ul>';
+
+        $('permMask').classList.add('show');
+
+        /* 移除旧的监听器 */
+        var allowBtn = $('permAllow');
+        var denyBtn = $('permDeny');
+        var newAllow = allowBtn.cloneNode(true);
+        var newDeny = denyBtn.cloneNode(true);
+        allowBtn.parentNode.replaceChild(newAllow, allowBtn);
+        denyBtn.parentNode.replaceChild(newDeny, denyBtn);
+
+        newAllow.addEventListener('click', function () {
+            $('permMask').classList.remove('show');
+            setTimeout(function () { startPermissionFlow(key, idx + 1); }, 250);
+        });
+        newDeny.addEventListener('click', function () {
+            $('permMask').classList.remove('show');
+            var script = cfg.name === '淘宝' ? '亲，不给权限就没法购物了哦~' : '不给权限就不能砍一刀了哦~';
+            pushNotif('😢 权限被拒', script);
+            setTimeout(function () { startPermissionFlow(key, idx + 1); }, 900);
+        });
+    }
+
+    function finishInstall(key) {
+        var cfg = installConfig[key];
+        installed[key] = true;
+        saveInstalled();
+        initGrid();
+        pushNotif('✅ 安装完成', cfg.name + ' 已安装到您的浏览器！');
+        if (key === 'taobao') unlockAchievement('taobao');
+        if (key === 'pdd') unlockAchievement('pdd');
+        /* 完成后延迟打开 */
+        setTimeout(function () { openApp(key); }, 800);
+    }
+
+    /* ══════════════════════════════════════════
+       打开 App
+       ══════════════════════════════════════════ */
+    function openApp(key) {
+        if (key === 'taobao') {
+            renderTaobao();
+            $('tbScreen').classList.add('show');
+        } else if (key === 'pdd') {
+            renderPdd();
+            $('pddScreen').classList.add('show');
+        }
+    }
+    function closeApp(key) {
+        if (key === 'taobao') $('tbScreen').classList.remove('show');
+        if (key === 'pdd') $('pddScreen').classList.remove('show');
+    }
+
+    /* ══════════════════════════════════════════
+       淘宝 App
+       ══════════════════════════════════════════ */
+    var TB_PRODUCTS = [
+        { icon:'📱', name:'智能手机 12GB+512GB 顶配旗舰版', price:'3999', old:'¥4999', sales:'2.3万人付款', tag:'限时秒杀' },
+        { icon:'👟', name:'秋季新款运动鞋 透气跑步鞋 男女同款', price:'159', old:'¥399', sales:'8.6万人付款', tag:'买一送一' },
+        { icon:'🎧', name:'真无线蓝牙耳机 主动降噪 超长续航', price:'299', old:'¥599', sales:'5.1万人付款', tag:'官方正品' },
+        { icon:'⌚', name:'智能手表 血氧心率监测 50 天续航', price:'599', old:'¥1299', sales:'1.8万人付款', tag:'限量特价' },
+        { icon:'💻', name:'轻薄笔记本电脑 16G+1TB 学生本', price:'4599', old:'¥5999', sales:'9876人付款', tag:'分期免息' },
+        { icon:'🎮', name:'游戏手柄 无线蓝牙 双震动马达', price:'129', old:'¥259', sales:'3.4万人付款', tag:'爆款热销' },
+        { icon:'📷', name:'微单相机 4K 高清 微距拍摄', price:'6299', old:'¥7999', sales:'3210人付款', tag:'顺丰包邮' },
+        { icon:'🍵', name:'明前龙井茶叶 特级 罐装 250g', price:'168', old:'¥398', sales:'6.8万人付款', tag:'新茶上市' },
+        { icon:'🪑', name:'人体工学椅 护腰电脑椅 可躺午休', price:'899', old:'¥1599', sales:'2.1万人付款', tag:'免费送装' },
+        { icon:'🧴', name:'氨基酸洗面奶 温和清洁 敏感肌可用', price:'49.9', old:'¥99', sales:'10万+人付款', tag:'第二件半价' }
+    ];
+    function renderTaobao() {
+        var html = '';
+        for (var i = 0; i < 10; i++) {
+            var p = TB_PRODUCTS[i % TB_PRODUCTS.length];
+            html += '<div class="tb-card" data-idx="' + i + '">' +
+                '<div class="tb-card-img">' + p.icon + '</div>' +
+                '<div class="tb-card-info">' +
+                    '<div class="tb-card-title">' +
+                        '<span class="tb-card-tag">' + p.tag + '</span>' + p.name +
+                    '</div>' +
+                    '<div class="tb-card-price">' +
+                        '<span class="now">' + p.price + '</span>' +
+                        '<span class="old">' + p.old + '</span>' +
+                    '</div>' +
+                    '<div class="tb-card-sales">' + p.sales + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+        $('tbGrid').innerHTML = html;
+        $('tbGrid').querySelectorAll('.tb-card').forEach(function (el) {
+            el.addEventListener('click', function () {
+                var idx = parseInt(el.dataset.idx, 10);
+                var p = TB_PRODUCTS[idx % TB_PRODUCTS.length];
+                showModal({
+                    icon: '🛒', title: '商品详情',
+                    body: '<div style="text-align:center;font-size:3rem;padding:.5rem 0">' + p.icon + '</div>' +
+                          '<div style="font-size:.85rem;color:var(--fg);line-height:1.6;margin-bottom:.5rem">' + p.name + '</div>' +
+                          '<div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.5rem">' +
+                            '<span style="font-size:1.3rem;font-weight:700;color:#ff5000">¥' + p.price + '</span>' +
+                            '<span style="font-size:.7rem;color:var(--faint);text-decoration:line-through">' + p.old + '</span>' +
+                          '</div>' +
+                          '<div style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem">' + p.sales + '</div>' +
+                          '<div style="font-size:.7rem;color:var(--muted);line-height:1.7;padding:.5rem .7rem;background:var(--card);border-radius:.5rem">' +
+                            '📦 发货：24 小时内发货<br>' +
+                            '🚚 快递：顺丰包邮<br>' +
+                            '🔄 退换：七天无理由退换<br>' +
+                            '💳 支持花呗分期（假的）' +
+                          '</div>',
+                    actions: [
+                        { text: '加入购物车', onClick: function () {
+                            pushNotif('🛒 购物车', '已加入购物车，共 ' + rnd(1, 99) + ' 件商品待结算。');
+                        }},
+                        { text: '立即购买', tb: true, onClick: function () {
+                            pushNotif('💳 结算中', '正在跳转支付… 支付失败：余额不足。');
+                        }}
+                    ]
+                });
+            });
+        });
+    }
+    $('tbBack').addEventListener('click', function () { closeApp('taobao'); });
+    $('tbCamera').addEventListener('click', function () {
+        showModal({
+            icon:'📷', title:'扫一扫',
+            body:'相机权限未开启。<br>如需使用请前往系统设置开启权限。',
+            actions:[
+                {text:'取消'},
+                {text:'去设置', primary:true, onClick:function(){
+                    pushNotif('⚙️ 设置', '这里是浏览器，没有系统设置。');
+                }}
+            ]
+        });
+    });
+    $('tbMsg').addEventListener('click', function () {
+        showModal({
+            icon:'💬', title:'消息',
+            body:'<div style="line-height:2;">' +
+                '🛍️ 淘宝官方：您有一张 ¥5 优惠券即将过期<br>' +
+                '📢 商家客服：亲，在的哦~<br>' +
+                '🎁 活动通知：双十一预售开始啦！<br>' +
+                '⚠️ 安全提醒：您的账号在新设备登录<br>' +
+                '<div style="margin-top:.5rem;color:var(--faint);font-size:.68rem">（以上消息均为自动生成）</div>' +
+            '</div>',
+            actions:[{text:'知道了', primary:true}]
+        });
+    });
+    $('tbSearchInput').addEventListener('focus', function () {
+        showModal({
+            icon:'🔍', title:'搜索',
+            body:'搜索功能正在开发中…<br><br>（其实是懒得做）',
+            actions:[{text:'好吧', primary:true}]
+        });
+        $('tbSearchInput').blur();
+    });
+
+    /* ══════════════════════════════════════════
+       拼多多 App
+       ══════════════════════════════════════════ */
+    var pddState = {
+        amount: 99.99,
+        friends: 184729,
+        adUsed: 0,
+        signInUsed: false
+    };
+    function renderPdd() {
+        $('pddAmount').textContent = pddState.amount.toFixed(2);
+        $('pddDiff').textContent = (100 - pddState.amount).toFixed(2);
+        $('pddFriends').textContent = pddState.friends.toLocaleString();
+        var pct = Math.min(99.99, (pddState.amount / 100) * 100);
+        $('pddProgress').style.width = pct + '%';
+        $('pddPct').textContent = pct.toFixed(2) + '%';
+    }
+
+    $('pddBack').addEventListener('click', function () { closeApp('pdd'); });
+    $('pddShare').addEventListener('click', function () {
+        pushNotif('📤 分享', '已复制链接，快去粘贴给微信好友吧！（其实复制了个寂寞）');
+    });
+
+    $('pddCutBtn').addEventListener('click', function () {
+        var gain = (Math.random() * 0.003).toFixed(4);
+        pddState.friends += rnd(1, 8);
+        var newAmount = Math.min(99.9999, pddState.amount + parseFloat(gain));
+        pddState.amount = newAmount;
+        renderPdd();
+
+        var left = (100 - newAmount).toFixed(4);
+        if (parseFloat(left) > 0.0001) {
+            showModal({
+                icon:'✂️', title:'恭喜您！',
+                body:'好友帮您砍了 <b style="color:#e02e24">¥' + gain + '</b>！<br><br>' +
+                     '当前金额：<b style="color:#e02e24">¥' + newAmount.toFixed(4) + '</b><br>' +
+                     '还差 <b style="color:#e02e24">¥' + left + '</b> 就能提现啦！<br><br>' +
+                     '<div style="font-size:.68rem;color:var(--faint)">再邀请 ' + rnd(3, 9999) + ' 位好友就能成功，加油！</div>',
+                actions: [
+                    {text:'我累了…'},
+                    {text:'继续砍！', pdd:true, onClick:function(){ $('pddCutBtn').click(); }}
+                ]
+            });
+        } else {
+            /* 永远提现不了 */
+            pddState.amount = 99.9999;
+            renderPdd();
+            showModal({
+                icon:'🎉', title:'恭喜您，还差最后一步！',
+                body:'您已获得 <b style="color:#e02e24">¥99.9999</b>！<br><br>' +
+                     '还差 <b style="color:#e02e24">¥0.0001</b> 就能提现。<br><br>' +
+                     '<div style="font-size:.7rem;color:var(--muted);line-height:1.7">' +
+                     '但是呢…<br>' +
+                     '您需要完成以下 <b>3 个任务</b> 才能提现：<br>' +
+                     '1️⃣ 邀请 100 位新用户<br>' +
+                     '2️⃣ 在活动页下单 3 笔<br>' +
+                     '3️⃣ 观看 30 分钟视频广告' +
+                     '</div>',
+                actions: [
+                    {text:'我不玩了'},
+                    {text:'继续做任务', pdd:true, onClick:function(){
+                        pushNotif('😭 任务', '任务进度：0/100 新用户 · 0/3 下单 · 0/30 分钟');
+                    }}
+                ]
+            });
+        }
+    });
+
+    $('pddWatchAd').addEventListener('click', function () {
+        if (pddState.adUsed >= 3) {
+            pushNotif('📺 今日上限', '今日观看广告次数已用完，明天再来吧！');
+            return;
+        }
+        pddState.adUsed++;
+        openFakeAd(function () {
+            var gain = 0.0001;
+            pddState.amount = Math.min(99.9999, pddState.amount + gain);
+            renderPdd();
+            pushNotif('📺 广告奖励', '观看广告获得 ¥' + gain + '！已加速 1 次，还剩 ' + (3 - pddState.adUsed) + ' 次');
+        });
+    });
+
+    $('pddSignIn').addEventListener('click', function () {
+        if (pddState.signInUsed) {
+            pushNotif('✅ 签到', '今天已经签到过了，明天再来吧！');
+            return;
+        }
+        pddState.signInUsed = true;
+        pddState.amount = Math.min(99.9999, pddState.amount + 0.0005);
+        renderPdd();
+        showModal({
+            icon:'✅', title:'签到成功',
+            body:'恭喜获得 <b style="color:#e02e24">¥0.0005</b>！<br><br>' +
+                 '累计签到 <b>1</b> 天，距离「连续签到 7 天领 ¥0.001」还差 6 天。<br><br>' +
+                 '<div style="font-size:.68rem;color:var(--faint)">（续签需要看广告，广告需要看广告）</div>',
+            actions:[{text:'好的', primary:true}]
+        });
+    });
+
+    document.querySelectorAll('.pdd-activity').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var act = el.dataset.act;
+            var data = {
+                lottery: {
+                    icon:'🎰', title:'幸运大转盘',
+                    body:'恭喜您抽中：<br><br>' +
+                         '<b style="font-size:1.1rem;color:#e02e24">¥0.0001 优惠券</b><br><br>' +
+                         '使用条件：满 ¥99999 可用。<br>' +
+                         '有效期：永久（但我们建议您尽快使用）'
+                },
+                coupon: {
+                    icon:'🎫', title:'今日专属优惠券',
+                    body:'已为您领取 3 张优惠券：<br><br>' +
+                         '¥5 券（满 ¥100 可用）<br>' +
+                         '¥10 券（满 ¥500 可用）<br>' +
+                         '¥100 券（满 ¥99999 可用）<br><br>' +
+                         '<div style="color:var(--faint);font-size:.68rem">还有 7 张隐藏在您的通讯录里</div>'
+                },
+                invite: {
+                    icon:'👥', title:'邀请好友得现金',
+                    body:'每邀请 1 位好友，可得 <b style="color:#e02e24">¥0.01</b>。<br><br>' +
+                         '好友需要：<br>' +
+                         '• 下载 App<br>' +
+                         '• 注册账号<br>' +
+                         '• 完成首单<br>' +
+                         '• 邀请 3 位新用户<br><br>' +
+                         '<div style="color:var(--faint);font-size:.68rem">这样您就可以得到 ¥0.01 了！</div>'
+                },
+                free: {
+                    icon:'🎁', title:'0 元领好物',
+                    body:'今日还剩 <b style="color:#e02e24">9999</b> 件！<br><br>' +
+                         '您可以选择：<br>' +
+                         '• 价值 ¥0.01 的牙签 ×1<br>' +
+                         '• 价值 ¥0.02 的橡皮筋 ×1<br>' +
+                         '• 价值 ¥0.03 的方便面调料包 ×1<br><br>' +
+                         '<div style="color:var(--faint);font-size:.68rem">运费 ¥15，谢谢惠顾</div>'
+                }
+            }[act];
+            if (data) showModal(data);
+        });
+    });
+
+    /* ══════════════════════════════════════════
+       客服
+       ══════════════════════════════════════════ */
+    var supportMsgCount = 0;
+
+    var SUPPORT_QUICK = [
+        '如何退款？', '人工客服', 'VIP 到期了', '为什么有广告',
+        '淘宝怎么装？', '拼多多能提现吗？', '客服是机器人吗？', '我要投诉'
+    ];
+
+    var SUPPORT_KEYWORDS = [
+        { keys: ['退款', '退货', '退钱'], reply: '亲，退款需要先开通 VIP 哦～<br>不过就算开通了，也退不了呢 😊' },
+        { keys: ['人工', '真人', '转人工'], reply: '正在为您转接人工客服…<br>当前排队人数：<b style="color:#e02e24">999+</b><br>预计等待时间：<b style="color:#e02e24">999 分钟</b><br><br>为您转回智能客服～' },
+        { keys: ['vip', 'VIP', '会员', '到期'], reply: 'VIP 到期是正常现象哦～<br>毕竟我们只承诺了「<b>一段时间</b>」无广告。<br>续费 ¥0.01 即可恢复清净（30 秒）😉' },
+        { keys: ['广告', '为什么有', '太多'], reply: '广告是免费的代价，亲～<br>您可以选择：<br>① 忍受广告<br>② 开通 VIP（然后重新看到广告）<br>③ 关掉页面（推荐）' },
+        { keys: ['淘宝', '怎么装', '安装'], reply: '淘宝可以在「⊞ 导航」里找到哦～<br>点击图标即可开始安装。<br>友情提示：安装过程需要同意 8 个权限 😊' },
+        { keys: ['拼多多', '砍一刀', '提现', 'pdd'], reply: '拼多多的提现成功率是 <b style="color:#e02e24">0.00001%</b> 哦～<br>但是我们的用户都很喜欢这个概率呢 🥰' },
+        { keys: ['机器人', '是不是人', 'ai', 'AI', '智能'], reply: '我是真人客服哦，不是机器人。<br>不信的话您可以问我：1+1 等于几？<br><br>（系统正在思考…）<br><br>答案是：<b>请开通 VIP 查看</b>' },
+        { keys: ['投诉', '举报', '差评', '骗人'], reply: '好的，已为您记录投诉，编号：<b>#998244353</b><br><br>我们会尽快处理。<br>预计处理时间：<b style="color:#e02e24">2099 年</b><br><br>感谢您的反馈！' },
+        { keys: ['你好', '您好', 'hi', 'hello', '在吗'], reply: '您好呀～我是客服小钟 🤖<br>有什么可以帮您的吗？' },
+        { keys: ['谢谢', '感谢', '好的'], reply: '不客气～<br>祝您生活愉快，欢迎下次光临 💕' },
+        { keys: ['clock', '时钟', '时间'], reply: '您问的是时钟吗？<br>告诉您一个秘密——<br>时间是<b>不会</b>因为您问我就变慢的哦 😉' },
+        { keys: ['bug', '卡', '慢', '闪退'], reply: '非常抱歉给您带来不便。<br>建议您：<br>① 刷新页面<br>② 清空缓存<br>③ 换一台电脑<br>④ 换一个人<br><br>如果都不行，那就是这样了。' }
+    ];
+
+    function getSupportReply(text) {
+        var lower = text.toLowerCase();
+        for (var i = 0; i < SUPPORT_KEYWORDS.length; i++) {
+            var kw = SUPPORT_KEYWORDS[i];
+            for (var j = 0; j < kw.keys.length; j++) {
+                if (lower.indexOf(kw.keys[j].toLowerCase()) >= 0) {
+                    return kw.reply;
+                }
+            }
+        }
+        return pick([
+            '嗯…这个问题有点深奥呢～<br>建议您开通 VIP 试试。',
+            '非常抱歉给您带来不便。<br>这个问题我们已经记录，会尽快修复（大概）。',
+            '客服小钟不是很理解您的问题呢～<br>您可以换个说法试试？',
+            '根据《用户服务协议》第 8 章第 3 节第 5 条：<br>「用户提出的问题，如客服无法回答，视为已回答」😊',
+            '啊这…<br>您这个情况有点特殊，建议您重启页面试试。'
+        ]);
+    }
+
+    function initSupportQuick() {
+        var el = $('supportQuick');
+        el.innerHTML = '';
+        SUPPORT_QUICK.forEach(function (q) {
+            var b = document.createElement('button');
+            b.className = 'quick-btn';
+            b.textContent = q;
+            b.addEventListener('click', function () {
+                $('supportInput').value = q;
+                sendSupport();
+            });
+            el.appendChild(b);
+        });
+    }
+    initSupportQuick();
+
+    function openSupport() {
+        $('supportMask').classList.add('show');
+        setTimeout(function () { $('supportInput').focus(); }, 300);
+    }
+    function closeSupport() { $('supportMask').classList.remove('show'); }
+
+    $('supportBtn').addEventListener('click', openSupport);
+    $('supportClose').addEventListener('click', closeSupport);
+    $('supportMask').addEventListener('click', function (e) {
+        if (e.target === $('supportMask')) closeSupport();
+    });
+    $('drawerSupport').addEventListener('click', function () {
+        closeDrawer();
+        setTimeout(openSupport, 250);
+    });
+
+    function appendSupportMsg(text, from, isHtml) {
+        var body = $('supportBody');
+        var el = document.createElement('div');
+        el.className = 'support-msg ' + from;
+        if (isHtml) el.innerHTML = text;
+        else el.textContent = text;
+        body.appendChild(el);
+        body.scrollTop = body.scrollHeight;
+        return el;
+    }
+
+    function sendSupport() {
+        var input = $('supportInput');
+        var text = input.value.trim();
+        if (!text) return;
+
+        appendSupportMsg(text, 'user');
+        input.value = '';
+        supportMsgCount++;
+
+        /* 打字中 */
+        var typing = document.createElement('div');
+        typing.className = 'support-msg bot typing';
+        typing.innerHTML = '<span></span><span></span><span></span>';
+        var body = $('supportBody');
+        body.appendChild(typing);
+        body.scrollTop = body.scrollHeight;
+
+        var delay = rnd(600, 1500);
+        setTimeout(function () {
+            typing.remove();
+            var reply = getSupportReply(text);
+            appendSupportMsg(reply, 'bot', true);
+            supportMsgCount++;
+
+            if (supportMsgCount >= 6) unlockAchievement('support');
+        }, delay);
+    }
+
+    $('supportSend').addEventListener('click', sendSupport);
+    $('supportInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') sendSupport();
+    });
+
+    /* ══════════════════════════════════════════
+       主题 / 制式 / 农历
+       ══════════════════════════════════════════ */
+    function applyTheme(mode) {
+        state.theme = mode;
+        var isDark = mode === 'dark';
+        document.documentElement.classList.toggle('dark-mode', isDark);
+        $('themeToggleBtn').textContent = isDark ? '☀️ 浅色' : '🌙 深色';
+        var sw = document.querySelector('[data-switch="theme"]');
+        if (sw) sw.classList.toggle('on', isDark);
+        try { localStorage.setItem('clockTheme', mode); } catch (e) {}
+    }
+    function applyFormat(is24) {
+        state.is24Hour = is24;
+        $('toggleFormatBtn').textContent = is24 ? '🕛 12小时制' : '🕐 24小时制';
+        var sw = document.querySelector('[data-switch="format"]');
+        if (sw) sw.classList.toggle('on', is24);
+        try { localStorage.setItem('timeFormat', is24 ? '24' : '12'); } catch (e) {}
+        updateClock();
+    }
+    function applyLunar(show) {
+        state.showLunar = show;
+        $('lunarToggleBtn').textContent = show ? '📅 农历' : '📅 农历关';
+        var sw = document.querySelector('[data-switch="lunar"]');
+        if (sw) sw.classList.toggle('on', show);
+        updateClock();
+    }
+
+    /* ══════════════════════════════════════════
+       设置抽屉
+       ══════════════════════════════════════════ */
+    function openDrawer() {
+        $('settingsDrawer').classList.add('show');
+        $('drawerMask').classList.add('show');
+        unlockAchievement('drawer');
+        updateDrawerVipHint();
+    }
+    function closeDrawer() {
+        $('settingsDrawer').classList.remove('show');
+        $('drawerMask').classList.remove('show');
+    }
+    $('openSettingsBtn').addEventListener('click', openDrawer);
+    $('drawerClose').addEventListener('click', closeDrawer);
+    $('drawerMask').addEventListener('click', closeDrawer);
+
+    function updateDrawerVipHint() {
+        if (vipState.active) {
+            var left = Math.max(0, Math.ceil((vipState.expiresAt - Date.now()) / 1000));
+            $('drawerVipHint').textContent = '当前：尊贵VIP · 剩余 ' + left + ' 秒';
+            $('drawerVipValue').textContent = '续费 →';
+        } else {
+            $('drawerVipHint').textContent = '当前：普通用户';
+            $('drawerVipValue').textContent = '去开通 →';
+        }
+    }
+
+    function syncSwitches() {
+        var m = {
+            theme: state.theme === 'dark', lunar: state.showLunar,
+            format: state.is24Hour, notify: state.notify,
+            trail: state.trail, floatAd: state.floatAd
+        };
+        Object.keys(m).forEach(function (k) {
+            var el = document.querySelector('[data-switch="' + k + '"]');
+            if (el) el.classList.toggle('on', m[k]);
+        });
+    }
+
+    document.querySelectorAll('.switch').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var key = btn.dataset.switch;
+            btn.classList.toggle('on');
+            var on = btn.classList.contains('on');
+            switch (key) {
+                case 'theme':   applyTheme(on ? 'dark' : 'light'); break;
+                case 'lunar':   applyLunar(on); break;
+                case 'format':  applyFormat(on); break;
+                case 'notify':
+                    state.notify = on;
+                    pushNotif('🔔 通知设置', on ? '通知已开启，准备好被碎碎念吧。' : '通知已关闭，世界清净了。');
+                    break;
+                case 'trail':   state.trail = on; break;
+                case 'floatAd':
+                    state.floatAd = on;
+                    if (on) { scheduleFloatAd(1200); }
+                    else { $('floatAd').classList.remove('show'); }
+                    break;
+            }
+        });
+    });
+
+    /* ══════════════════════════════════════════
+       VIP 系统
+       ══════════════════════════════════════════ */
+    var vipPlans = {
+        trial: { name: '体验会员', price: '0.01',  seconds: 30  },
+        month: { name: '月度会员', price: '18',    seconds: 120 },
+        year:  { name: '年度会员', price: '198',   seconds: 300 },
+        life:  { name: '终身会员', price: '9999',  seconds: 600 }
+    };
+    var selectedPlan = 'trial';
+    var selectedPay = 'wechat';
+    var vipState = {
+        active: false, expiresAt: 0, timer: null,
+        everActivated: false, everExpired: false
+    };
+
+    function openVIP() { $('vipMask').classList.add('show'); updateVipPayButton(); }
+    function closeVIP() { $('vipMask').classList.remove('show'); }
+    function updateVipPayButton() {
+        var plan = vipPlans[selectedPlan];
+        $('vipPay').textContent = '立即支付 ¥' + plan.price;
+    }
+    document.querySelectorAll('.vip-plan').forEach(function (el) {
+        el.addEventListener('click', function () {
+            document.querySelectorAll('.vip-plan').forEach(function (e) { e.classList.remove('active'); });
+            el.classList.add('active');
+            selectedPlan = el.dataset.plan;
+            updateVipPayButton();
+        });
+    });
+    document.querySelectorAll('.pay-method').forEach(function (el) {
+        el.addEventListener('click', function () {
+            document.querySelectorAll('.pay-method').forEach(function (e) { e.classList.remove('active'); });
+            el.classList.add('active');
+            selectedPay = el.dataset.pay;
+        });
+    });
+    $('vipBtn').addEventListener('click', openVIP);
+    $('vipCancel').addEventListener('click', closeVIP);
+    $('vipMask').addEventListener('click', function (e) {
+        if (e.target === $('vipMask')) closeVIP();
+    });
+
+    $('vipPay').addEventListener('click', function () {
+        var plan = vipPlans[selectedPlan];
+        closeVIP();
+        var payName = { wechat:'微信支付', alipay:'支付宝', bank:'银联', btc:'区块链网络' }[selectedPay] || '支付网关';
+        var steps = [
+            '正在与' + payName + '通信…',
+            '正在验证账户…',
+            '正在扣款 ¥' + plan.price + '…',
+            '正在激活会员…',
+            '支付成功！'
+        ];
+        var loading = $('payLoading');
+        var text = $('payText');
+        loading.classList.add('show');
+        text.textContent = steps[0];
+        var idx = 0;
+        var t = setInterval(function () {
+            idx++;
+            if (idx >= steps.length) {
+                clearInterval(t);
+                setTimeout(function () {
+                    loading.classList.remove('show');
+                    activateVIP(plan.seconds, plan.name);
+                }, 400);
+                return;
+            }
+            text.textContent = steps[idx];
+        }, 480);
+    });
+
+    function activateVIP(seconds, planName) {
+        var wasActive = vipState.active;
+        if (wasActive) {
+            vipState.expiresAt += seconds * 1000;
+        } else {
+            vipState.active = true;
+            vipState.expiresAt = Date.now() + seconds * 1000;
+            document.body.classList.add('vip-mode');
+            $('vipBadge').classList.add('show');
+        }
+        clearInterval(vipState.timer);
+        updateVipBadge();
+        vipState.timer = setInterval(updateVipBadge, 1000);
+        if (!vipState.everActivated) {
+            vipState.everActivated = true;
+            unlockAchievement('vip');
+        }
+        if (planName) pushNotif('💎 支付成功', '已开通「' + planName + '」，有效期 ' + seconds + ' 秒。');
+        updateDrawerVipHint();
+    }
+    function updateVipBadge() {
+        var left = Math.max(0, Math.ceil((vipState.expiresAt - Date.now()) / 1000));
+        if (left <= 0) { expireVIP(); return; }
+        var m = Math.floor(left / 60);
+        var s = left % 60;
+        var text = m > 0 ? (m + '分' + pad2(s) + '秒') : (left + '秒');
+        $('vipBadge').textContent = '👑 VIP · 剩余 ' + text;
+        updateDrawerVipHint();
+    }
+    function expireVIP() {
+        vipState.active = false;
+        clearInterval(vipState.timer);
+        document.body.classList.remove('vip-mode');
+        $('vipBadge').classList.remove('show');
+        updateDrawerVipHint();
+        if (!vipState.everExpired) {
+            vipState.everExpired = true;
+            unlockAchievement('refund');
+        }
+        setTimeout(function () {
+            showModal({
+                icon: '⏰', title: '会员已到期',
+                body: '您的 VIP 会员已到期，广告已恢复。<br><br>续费 <b style="color:var(--warn)">¥0.01</b> 可继续享受无广告纯净体验。<br><br>' +
+                      '<div style="font-size:.68rem;color:var(--faint);line-height:1.6">💡 温馨提示：广告君已经迫不及待了。</div>',
+                actions: [
+                    { text: '残忍关闭' },
+                    { text: '立即续费 ¥0.01', gold: true, onClick: openVIP }
+                ]
+            });
+            pushNotif('🎉 欢迎回来', '广告已恢复。感谢您曾经的支持！');
+        }, 600);
+    }
+    $('drawerVipRow').addEventListener('click', function () {
+        closeDrawer();
+        setTimeout(openVIP, 250);
+    });
+
+    /* ══════════════════════════════════════════
+       假广告（带回调）
+       ══════════════════════════════════════════ */
+    var fakeAdTimer = null;
+    var fakeAdRewarded = false;
+    var fakeAdCallback = null;
+
+    function openFakeAd(callback) {
+        fakeAdCallback = callback || null;
+        var ad = $('fakeAd');
+        ad.classList.add('show');
+        fakeAdRewarded = false;
+        var count = 5;
+        var timerEl = $('fakeAdTimer');
+        var skipBtn = $('fakeAdSkip');
+        timerEl.textContent = count;
+        skipBtn.textContent = '跳过（' + count + '）';
+        skipBtn.disabled = true;
+
+        clearInterval(fakeAdTimer);
+        fakeAdTimer = setInterval(function () {
+            count--;
+            if (count <= 0) {
+                clearInterval(fakeAdTimer);
+                timerEl.textContent = '0';
+                skipBtn.textContent = '✕ 关闭';
+                skipBtn.disabled = false;
+                fakeAdRewarded = true;
+            } else {
+                timerEl.textContent = count;
+                skipBtn.textContent = '跳过（' + count + '）';
+            }
+        }, 1000);
+
+        skipBtn.onclick = function () {
+            if (skipBtn.disabled) return;
+            closeFakeAd();
+            if (fakeAdRewarded) {
+                unlockAchievement('ad');
+                if (fakeAdCallback) {
+                    fakeAdCallback();
+                } else {
+                    activateVIP(10);
+                    pushNotif('🎁 广告奖励', '完整观看广告，已获得 10 秒 VIP 时长！');
+                }
+            } else {
+                pushNotif('😢 没看完', '广告未看完，未获得奖励。');
+            }
+        };
+    }
+    function closeFakeAd() {
+        $('fakeAd').classList.remove('show');
+        clearInterval(fakeAdTimer);
+    }
+
+    $('drawerWatchAd').addEventListener('click', function () {
+        closeDrawer();
+        setTimeout(function () { openFakeAd(); }, 250);
+    });
+
+    /* ══════════════════════════════════════════
+       邀请好友
+       ══════════════════════════════════════════ */
+    $('drawerInvite').addEventListener('click', function () {
+        closeDrawer();
+        var code = Math.random().toString(36).slice(2, 10).toUpperCase();
+        var link = location.origin + location.pathname + '?invite=' + code;
+        try { navigator.clipboard.writeText(link); } catch (e) {}
+        setTimeout(function () {
+            showModal({
+                icon: '🎁', title: '邀请好友',
+                body: '您的专属邀请码：<b style="color:var(--warn);letter-spacing:.15em">' + code + '</b><br><br>' +
+                      '邀请链接（已复制到剪贴板）：<br>' +
+                      '<div style="background:var(--card);padding:.5rem .6rem;border-radius:.4rem;margin:.5rem 0;font-size:.66rem;word-break:break-all;font-family:monospace;color:var(--fg)">' + link + '</div>' +
+                      '邀请 1 位好友，双方各得 <b style="color:var(--ok)">3 秒 VIP</b>。<br>' +
+                      '<div style="margin-top:.5rem;color:var(--faint);font-size:.66rem">（其实没人会点这个链接）</div>',
+                actions: [
+                    { text: '算了' },
+                    { text: '假装邀请了', gold: true, onClick: function () {
+                        activateVIP(3);
+                        pushNotif('🎁 邀请奖励', '感谢您的邀请！已获得 3 秒 VIP 时长。');
+                    }}
+                ]
+            });
+        }, 250);
+    });
+
+    /* ══════════════════════════════════════════
+       清理缓存
+       ══════════════════════════════════════════ */
+    $('drawerClearCache').addEventListener('click', function () {
+        closeDrawer();
+        var size = rnd(0, 1);
+        var time = (Math.random() * 0.01).toFixed(4);
+        setTimeout(function () {
+            showModal({
+                icon: '🧹', title: '清理缓存',
+                body: '正在扫描…<br>扫描完成。<br><br>' +
+                      '发现缓存：<b style="color:var(--accent)">' + size + ' B</b><br>' +
+                      '已清理：<b style="color:var(--ok)">' + size + ' B</b><br>' +
+                      '耗时：<b>' + time + '</b> 秒<br><br>' +
+                      '<div style="color:var(--faint);font-size:.68rem">感谢您为地球环保做出的贡献 🌍</div>',
+                actions: [{ text: '好的', primary: true }]
+            });
+        }, 300);
+    });
+
+    /* 卸载已装应用 */
+    $('drawerResetApps').addEventListener('click', function () {
+        closeDrawer();
+        setTimeout(function () {
+            showModal({
+                icon:'🗑️', title:'卸载应用',
+                body:'即将卸载：<br><br>' +
+                     '🛒 淘宝 ' + (installed.taobao ? '（已安装）' : '（未安装）') + '<br>' +
+                     '💰 拼多多 ' + (installed.pdd ? '（已安装）' : '（未安装）') + '<br><br>' +
+                     '卸载后将恢复成"未安装"状态。',
+                actions:[
+                    {text:'取消'},
+                    {text:'确认卸载', danger:true, onClick:function(){
+                        installed.taobao = false;
+                        installed.pdd = false;
+                        saveInstalled();
+                        initGrid();
+                        closeApp('taobao');
+                        closeApp('pdd');
+                        pushNotif('🗑️ 已卸载', '淘宝和拼多多已从您的浏览器移除。');
+                    }}
+                ]
+            });
+        }, 250);
+    });
+
+    /* ══════════════════════════════════════════
+       加速球 / 悬浮广告 / 底部广告
+       ══════════════════════════════════════════ */
+    var ballPct = 87;
+    var ballEl = $('speedBall'), ballPctEl = $('sbPct');
+    ballEl.addEventListener('click', function () {
+        var reduce = rnd(1, 4);
+        ballPct = Math.max(12, ballPct - reduce);
+        ballPctEl.textContent = ballPct + '%';
+        ballPctEl.style.color = ballPct < 40 ? 'var(--ok)' : 'var(--accent)';
+        pushNotif('🚀 加速完成', '已为您释放 ' + rnd(50, 800) + ' MB 内存，击败了全国 ' + rnd(30, 99) + '% 的用户！');
+        setTimeout(function () {
+            ballPct = Math.min(99, ballPct + rnd(3, 9));
+            ballPctEl.textContent = ballPct + '%';
+            ballPctEl.style.color = 'var(--accent)';
+        }, rnd(3000, 6000));
+    });
+
+    function scheduleFloatAd(delay) {
+        setTimeout(function () {
+            if (!state.floatAd || vipState.active) return;
+            $('floatAd').classList.add('show');
+        }, delay || rnd(15000, 30000));
+    }
+    $('floatAdClose').addEventListener('click', function () {
+        $('floatAd').classList.remove('show');
+        setTimeout(function () {
+            if (state.floatAd && !vipState.active) {
+                $('floatAd').classList.add('show');
+                pushNotif('🎁 福利', '广告君又回来啦~');
+            }
+        }, rnd(12000, 20000));
+    });
+    $('floatAdCta').addEventListener('click', function () {
+        showModal({
+            icon: '🎁', title: '恭喜您！',
+            body: '您已被选中为「时钟浏览器终身会员」！<br><br>' +
+                  '原价 <s>¥1999</s>，现价 <b style="color:var(--danger);font-size:1.1rem">¥0.00</b><br><br>' +
+                  '（其实就是个整活按钮）',
+            actions: [
+                { text: '下次一定' },
+                { text: '立即领取', gold: true, onClick: function () {
+                    activateVIP(5);
+                    pushNotif('🎉 领取成功', '已获得 5 秒 VIP 时长。');
+                }}
+            ]
+        });
+    });
+
+    var AD_TEXTS = [
+        '🎉 限时特惠！下载「时钟助手 Pro」立享 0 元购，还送 3 天会员！',
+        '⚡ 升级到「时钟助手 Pro Max」，解锁秒针平滑动画！',
+        '🔥 点击查看：99% 的人不知道的看时间技巧！',
+        '💎 充值 ¥648 解锁「金色时钟皮肤」（其实没有）',
+        '🚀 下载「时钟助手 Ultra」，体验 8K 分辨率时钟！',
+        '✨ 开通 VIP 即可享受无广告体验（仅需 ¥0.01，持续 30 秒）'
+    ];
+    function showAdBanner() {
+        if (vipState.active) return;
+        $('adText').textContent = pick(AD_TEXTS);
+        $('adBanner').classList.remove('hide');
+    }
+    $('adClose').addEventListener('click', function () {
+        $('adBanner').classList.add('hide');
+        setTimeout(showAdBanner, 22000);
+    });
+    $('adCta').addEventListener('click', function () {
+        pushNotif('🚧 施工中', '下载链接正在赶来的路上。');
+    });
+
+    /* ══════════════════════════════════════════
+       底部导航
+       ══════════════════════════════════════════ */
+    var NAV_DATA = {
+        novel: { icon: '📖', title: '小说书架',
+            body: '<div style="line-height:2;">📕 《时钟的复仇》<br>📗 《时间管理局》<br>📘 《我被闹钟绑架了》<br>📙 《秒针的秘密》<br><div style="margin-top:.6rem;color:var(--faint);font-size:.68rem">书架空空如也，以上均为虚构</div></div>' },
+        game:  { icon: '🎮', title: '游戏中心',
+            body: '<div style="line-height:2;">🎯 《看时钟模拟器 2026》<br>🎲 《分针大冒险》<br>🃏 《时间扑克》<br>⚔️ 《秒针传说》<br><div style="margin-top:.6rem;color:var(--faint);font-size:.68rem">游戏正在下载中（0%）</div></div>' },
+        live:  { icon: '📺', title: '直播',
+            body: '<div style="line-height:2;">🔴 时钟君 正在直播：一起看时间流逝<br>🔴 秒针妹妹 正在直播：滴答滴答<br>🔴 分针大哥 正在直播：慢一点，再慢一点<br><div style="margin-top:.6rem;color:var(--faint);font-size:.68rem">直播已结束（全部）</div></div>' },
+        mine:  { icon: '👤', title: '我的',
+            body: '<div style="line-height:2;">👤 游客用户<br>💰 金币：' + rnd(0, 999) + '<br>⭐ 等级：Lv.' + rnd(1, 99) + '<br>🎁 优惠券：0 张<br><div style="margin-top:.6rem;color:var(--faint);font-size:.68rem">登录功能开发中，敬请期待</div></div>' }
+    };
+    document.querySelectorAll('.nav-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var key = btn.dataset.nav;
+            document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            if (key === 'home') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+            var data = NAV_DATA[key];
+            if (data) {
+                showModal({
+                    icon: data.icon, title: data.title, body: data.body,
+                    actions: [{ text: '返回首页', primary: true, onClick: function () {
+                        document.querySelectorAll('.nav-item').forEach(function (b) {
+                            b.classList.toggle('active', b.dataset.nav === 'home');
+                        });
+                    }}]
+                });
+            }
+        });
+    });
+
+    /* ══════════════════════════════════════════
+       签到
+       ══════════════════════════════════════════ */
+    var checkinDays = [];
+    try { checkinDays = JSON.parse(localStorage.getItem('checkinDays') || '[]'); } catch (e) {}
+    $('checkinBtn').addEventListener('click', function () {
+        var today = new Date().toDateString();
+        var signed = checkinDays.indexOf(today) >= 0;
+        var cells = '';
+        for (var i = 0; i < 7; i++) {
+            var isToday = i === new Date().getDay() - 1 || (new Date().getDay() === 0 && i === 6);
+            var isDone = checkinDays.length > 0 && i < checkinDays.length;
+            var cls = 'checkin-day' + (isDone ? ' done' : '') + (isToday && !signed ? ' today' : '');
+            cells += '<div class="' + cls + '" style="aspect-ratio:1;border-radius:.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;background:' + (isDone ? 'var(--accent)' : 'var(--card)') + ';border:1px solid ' + (isDone ? 'transparent' : 'var(--line)') + ';color:' + (isDone ? '#fff' : 'var(--faint)') + ';font-size:.6rem;">' +
+                '<div style="font-size:.9rem;line-height:1;margin-bottom:.1rem;">' + (isDone ? '✓' : '🎁') + '</div>' +
+                '<div style="font-size:.55rem;">' + rnd(10, 100) + '</div>' +
+            '</div>';
+        }
+        showModal({
+            icon: '🎁', title: '每日签到',
+            body: '<div>连续签到 7 天，可获得「时钟大师」称号（并没有）</div>' +
+                  '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;margin:.6rem 0 .2rem;">' + cells + '</div>' +
+                  '<div style="margin-top:.7rem;padding:.6rem .8rem;background:var(--card);border-radius:.6rem;font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between;">累计金币 <b style="color:var(--warn);font-size:.88rem">' + (checkinDays.length * 10) + '</b></div>',
+            actions: signed
+                ? [{ text: '已签到，明天再来', primary: true }]
+                : [{ text: '关闭' }, { text: '立即签到', primary: true, onClick: doCheckin }]
+        });
+    });
+    function doCheckin() {
+        var today = new Date().toDateString();
+        if (checkinDays.indexOf(today) >= 0) return;
+        checkinDays.push(today);
+        try { localStorage.setItem('checkinDays', JSON.stringify(checkinDays)); } catch (e) {}
+        pushNotif('🎁 签到成功', '恭喜获得 ' + rnd(10, 100) + ' 金币！距离兑换 ¥0.01 还差 ' + rnd(100, 9900) + ' 金币。');
+        $('checkinStatus').textContent = '今日已签到';
+    }
+
+    /* ══════════════════════════════════════════
+       搜索
+       ══════════════════════════════════════════ */
+    var HOT_TAGS = ['时钟坏了怎么修','北京时间校准','农历查询','今天是星期几','如何早睡','时间旅行指南','淘宝为什么装不上','拼多多能提现吗'];
+    var SEARCH_HISTORY = [];
+    (function initSearch() {
+        var tags = $('hotTags');
+        HOT_TAGS.forEach(function (t, i) {
+            var el = document.createElement('span');
+            el.className = 'sp-tag' + (i < 3 ? ' hot' : '');
+            el.textContent = t;
+            el.addEventListener('click', function () { doSearch(t); });
+            tags.appendChild(el);
+        });
+    })();
+    function doSearch(q) {
+        if (!q) q = $('searchInput').value.trim();
+        if (!q) { pushNotif('🔍 搜索', '请输入搜索内容'); return; }
+        SEARCH_HISTORY.unshift(q);
+        if (SEARCH_HISTORY.length > 5) SEARCH_HISTORY.pop();
+        updateSearchHistory();
+        $('searchPanel').classList.remove('show');
+        showModal({
+            icon: '🔍', title: '搜索结果',
+            body: '关于「<b style="color:var(--fg)">' + q + '</b>」<br><br>共找到 <b style="color:var(--danger)">0</b> 条结果。<br>建议您：换个关键词试试，或者直接放弃。',
+            actions: [
+                { text: '重新搜索', onClick: function () { $('searchInput').focus(); } },
+                { text: '我放弃了', primary: true }
+            ]
+        });
+        unlockAchievement('search');
+    }
+    function updateSearchHistory() {
+        var el = $('searchHistory');
+        if (!SEARCH_HISTORY.length) { el.innerHTML = '暂无历史记录（因为您什么都没搜过）'; return; }
+        el.innerHTML = SEARCH_HISTORY.map(function (h) { return '<div class="sp-result">🕐 ' + h + '</div>'; }).join('');
+    }
+    $('searchBtn').addEventListener('click', function () { doSearch(); });
+    $('searchInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(); });
+    $('searchInput').addEventListener('focus', function () { $('searchPanel').classList.add('show'); });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#searchbar')) $('searchPanel').classList.remove('show');
+    });
+
+    /* ══════════════════════════════════════════
+       事件
+       ══════════════════════════════════════════ */
+    $('themeToggleBtn').addEventListener('click', function () {
+        applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+    });
+    $('toggleFormatBtn').addEventListener('click', function () {
+        applyFormat(!state.is24Hour);
+    });
+    $('lunarToggleBtn').addEventListener('click', function () {
+        applyLunar(!state.showLunar);
+    });
+    document.querySelectorAll('.fake-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var name = btn.dataset.fake || '功能';
+            pushNotif('🚧 ' + name, '该功能正在开发中，敬请期待（大约在 2099 年）。');
+            unlockAchievement('clicker');
+        });
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeDrawer();
+            $('gridPanel').classList.remove('show');
+            closeModal();
+            closeVIP();
+            closeSupport();
+            closeApp('taobao');
+            closeApp('pdd');
+            $('permMask').classList.remove('show');
+            $('installMask').classList.remove('show');
+            $('searchPanel').classList.remove('show');
+        }
+    });
+
+    /* ══════════════════════════════════════════
+       吉祥物
+       ══════════════════════════════════════════ */
+    var MASCOT_LINES = [
+        '喵~','你在看时间吗？','好无聊啊…','摸摸我！',
+        '时间过得真快','你还不睡吗？','再待一会儿嘛',
+        '我是一只时钟猫','今天星期几来着？','别忘了喝水哦',
+        '这个页面好臃肿啊','但是你也看得很开心对吧',
+        '你装淘宝啦？剁手了吗？',
+        '拼多多砍到 0.01 了吗？',
+        '客服小钟其实也是我扮的'
+    ];
+    var mascotEl = $('mascot'), bubbleEl = $('mascotBubble');
+    var bubbleTimer = null;
+    function mascotSpeak() {
+        bubbleEl.textContent = pick(MASCOT_LINES);
+        bubbleEl.classList.add('show');
+        clearTimeout(bubbleTimer);
+        bubbleTimer = setTimeout(function () { bubbleEl.classList.remove('show'); }, 2600);
+    }
+    mascotEl.addEventListener('click', function () {
+        mascotSpeak();
+        unlockAchievement('mascot');
+    });
+    setInterval(function () { if (Math.random() < 0.35) mascotSpeak(); }, 14000);
+
+    /* 鼠标轨迹 */
+    var EMOJIS = ['✨','⭐','💫','🌟','·','✧'];
+    var lastTrail = 0;
+    document.addEventListener('mousemove', function (e) {
+        if (!state.trail) return;
+        var now = Date.now();
+        if (now - lastTrail < 80) return;
+        lastTrail = now;
+        var dot = document.createElement('div');
+        dot.className = 'trail-dot';
+        dot.textContent = pick(EMOJIS);
+        dot.style.left = e.clientX + 'px';
+        dot.style.top = e.clientY + 'px';
+        dot.style.color = 'var(--accent)';
+        document.body.appendChild(dot);
+        setTimeout(function () { dot.remove(); }, 900);
+    });
+
+    /* ══════════════════════════════════════════
+       初始化
+       ══════════════════════════════════════════ */
+    function init() {
+        var savedTheme = 'light';
+        try { savedTheme = localStorage.getItem('clockTheme') || 'light'; } catch (e) {}
+        applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
+
+        var savedFmt = '24';
+        try { savedFmt = localStorage.getItem('timeFormat') || '24'; } catch (e) {}
+        applyFormat(savedFmt !== '12');
+
+        applyLunar(true);
+        syncSwitches();
+
+        tick();
+        updateTicker();
+        setInterval(updateTicker, 1000);
+
+        updateWeather();     setInterval(updateWeather, 90000);
+        updateStock();       setInterval(updateStock, 2500);
+        updateSys();         setInterval(updateSys, 3200);
+        updateWorldClock();  setInterval(updateWorldClock, 1000);
+
+        renderFeed();
+        scheduleNotifs();
+        scheduleFloatAd(18000);
+        showAdBanner();
+
+        var today = new Date().toDateString();
+        if (checkinDays.indexOf(today) >= 0) $('checkinStatus').textContent = '今日已签到';
+
+        setTimeout(function () { unlockAchievement('first'); }, 1600);
+        setTimeout(function () { unlockAchievement('ten'); }, 10000);
+        setTimeout(function () { unlockAchievement('minute'); }, 60000);
+        setTimeout(function () { unlockAchievement('five'); }, 300000);
+
+        setTimeout(function () {
+            pushNotif('💎 尊享推荐', '开通 VIP 即可去除全部广告，仅需 ¥0.01！');
+        }, 5000);
+        setTimeout(function () {
+            pushNotif('🛒 应用推荐', '在「⊞ 导航」里可以安装淘宝和拼多多哦~');
+        }, 12000);
+    }
+    init();
+})();
+</script>
+</body>
+</html>

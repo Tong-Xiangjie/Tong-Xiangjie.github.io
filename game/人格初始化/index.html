@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>人格初始化</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+
+  body{
+    background:#05060a;
+    color:#8b9aa6;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+    font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  #boot{
+    position:fixed; inset:0; z-index:300;
+    background:#05060a;
+    display:flex; align-items:center; justify-content:center;
+    transition:opacity .9s ease;
+  }
+  #boot.fade{opacity:0;}
+  .boot-inner{width:min(440px,80vw);}
+  .boot-logo{
+    font-size:22px; letter-spacing:.6em; color:#5f7480;
+    margin-bottom:10px;
+  }
+  .boot-sub{
+    font-size:11px; letter-spacing:.2em; color:#38454e;
+    margin-bottom:30px;
+  }
+  .boot-log{
+    font-size:12px; line-height:2.1; color:#4a5a66;
+    height:160px;
+    margin-bottom:18px;
+  }
+  .boot-log div{opacity:0; transition:opacity .4s;}
+  .boot-log div.show{opacity:1;}
+  .boot-log .warn{color:#8a5f5f;}
+  .boot-log .ok{color:#4fd1c5;}
+  .boot-bar{
+    height:2px; background:#11161c; width:100%;
+    overflow:hidden;
+  }
+  .boot-bar i{
+    display:block; height:100%; width:0%;
+    background:#4fd1c5; opacity:.5;
+    transition:width .4s ease;
+  }
+
+  :root{
+    --accent:#4fd1c5;
+    --accent2:#c0705a;
+    --line:#161c23;
+    --dim:#2c363e;
+  }
+
+  #app{
+    width:min(880px,94vw);
+    height:min(700px,92vh);
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,#0a0d11,#07090c);
+    display:flex; flex-direction:column;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 0 90px rgba(0,0,0,.95), inset 0 0 120px rgba(0,0,0,.65);
+    transition:border-color 1s ease, box-shadow 1s ease;
+  }
+  #app.hidden{display:none;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:11px; letter-spacing:.14em;
+    color:#4d5c67;
+  }
+  .h-left{display:flex; align-items:center; gap:10px;}
+  .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent); opacity:.7;
+    box-shadow:0 0 8px var(--accent);
+    animation:pulse 3s ease-in-out infinite;
+    transition:background .8s, box-shadow .8s;
+  }
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:.9;}}
+
+  .title{color:#8fa3af; letter-spacing:.3em;}
+  .ver{color:#2f3a43;}
+
+  .h-right{display:flex; align-items:center; gap:16px;}
+  .overlap-wrap{display:flex; align-items:center; gap:8px;}
+  .overlap-bar{
+    width:80px; height:3px; background:#11161c;
+    overflow:hidden;
+  }
+  .overlap-bar i{
+    display:block; height:100%; width:0%;
+    background:var(--accent2); opacity:.7;
+    transition:width 1.2s ease, background 1.2s;
+  }
+  .overlap-txt{color:#5a6a76; min-width:52px; text-align:right;}
+  .overlap-txt b{color:#8fa3af; font-weight:normal; transition:color 1s;}
+
+  main{
+    flex:1;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  #taskArea{
+    padding:30px 32px 24px;
+    border-bottom:1px solid var(--line);
+    position:relative;
+  }
+
+  .progress{
+    display:flex; align-items:center; gap:6px;
+    margin-bottom:22px;
+  }
+  .progress span{
+    width:18px; height:2px; background:#1a2229;
+    transition:background .5s;
+  }
+  .progress span.done{background:var(--accent); opacity:.7;}
+  .progress span.now{background:var(--accent2); opacity:1;}
+  .progress em{
+    margin-left:10px;
+    font-style:normal; font-size:10px;
+    letter-spacing:.2em; color:#3b4850;
+  }
+
+  #question{
+    font-size:20px; line-height:1.7;
+    color:#c2d0d9; letter-spacing:.03em;
+    min-height:34px;
+    transition:color .8s;
+  }
+  #hint{
+    margin-top:8px;
+    font-size:11px; letter-spacing:.12em;
+    color:#3b4850;
+    min-height:16px;
+  }
+
+  #inputRow{
+    margin-top:20px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .caret{color:var(--accent); opacity:.6; font-size:13px;}
+  #input{
+    flex:1;
+    background:transparent; border:none; outline:none;
+    border-bottom:1px solid #1a2229;
+    padding:6px 0;
+    color:#c2d0d9; font:inherit; font-size:14px;
+    letter-spacing:.02em;
+    transition:border-color .3s;
+  }
+  #input:focus{border-bottom-color:var(--accent);}
+  #input::placeholder{color:#2c363e;}
+  #input:disabled{opacity:.3;}
+
+  #sysLine{
+    padding:0 32px;
+    font-size:12px;
+    line-height:2;
+    color:#3b4850;
+    min-height:44px;
+    display:flex; align-items:center;
+    transition:color .6s;
+  }
+  #sysLine.active{color:#5f7280;}
+  #sysLine.warn{color:#8a5f5f;}
+  #sysLine.echo{color:#c0705a;}
+
+  #profileArea{
+    flex:1;
+    padding:20px 32px 24px;
+    overflow-y:auto;
+    scrollbar-width:thin; scrollbar-color:#1a2229 transparent;
+  }
+  #profileArea::-webkit-scrollbar{width:5px;}
+  #profileArea::-webkit-scrollbar-thumb{background:#1a2229; border-radius:3px;}
+
+  .p-head{
+    font-size:10px; letter-spacing:.3em;
+    color:#3b4850; margin-bottom:16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .p-head::after{
+    content:''; flex:1; height:1px; background:#131a20;
+  }
+
+  .field{
+    display:flex; align-items:flex-start; gap:14px;
+    padding:7px 0;
+    font-size:13px; line-height:1.7;
+  }
+  .field .k{
+    min-width:72px;
+    color:#3b4850;
+    letter-spacing:.08em;
+  }
+  .field .v{
+    color:#2c363e;
+    transition:color .6s ease;
+    word-break:break-word;
+  }
+  .field .v.filled{color:#9db1bd;}
+  .field .v.echo{color:#c0705a;}
+
+  .note{
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px solid #131a20;
+    font-size:11px;
+    letter-spacing:.1em;
+    color:#3b4850;
+    line-height:2;
+    min-height:20px;
+  }
+  .note.warn{color:#8a5f5f;}
+  .note.echo{color:#c0705a;}
+
+  #app.drift{
+    --accent:#c0705a;
+    --line:#1c1514;
+    border-color:#1c1514;
+    box-shadow:0 0 90px rgba(70,15,10,.22), inset 0 0 120px rgba(0,0,0,.78);
+  }
+  #app.drift .dot{
+    background:var(--accent2);
+    box-shadow:0 0 8px var(--accent2);
+  }
+
+  #blackout{
+    position:fixed; inset:0; z-index:400;
+    background:#000;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    opacity:0;
+    transition:opacity 2s ease;
+  }
+  #blackout.hidden{display:none;}
+  #blackout.show{opacity:1;}
+  #blackoutText{
+    font-size:14px; letter-spacing:.42em; color:#5a6b76;
+    opacity:0; transition:opacity .7s ease;
+    white-space:pre-line;
+    text-align:center;
+    line-height:2.4;
+  }
+  #blackoutText.show{opacity:1;}
+
+  body::after{
+    content:'';
+    position:fixed; inset:0; z-index:500;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.018) 0 1px,
+      transparent 1px 3px
+    );
+    mix-blend-mode:overlay;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0; z-index:499;
+    pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.78) 100%);
+  }
+
+  .whisper{
+    position:fixed;
+    right:4vw; bottom:4vh;
+    font-size:11px;
+    letter-spacing:.42em;
+    color:#c0705a;
+    opacity:.04;
+    pointer-events:none;
+    user-select:none;
+    z-index:6;
+    animation:whisper 12s ease-in-out infinite;
+  }
+  @keyframes whisper{
+    0%,100%{opacity:.03;}
+    50%{opacity:.08;}
+  }
+
+  @media(max-width:620px){
+    #taskArea{padding:22px 20px 18px;}
+    #profileArea{padding:16px 20px 20px;}
+    #sysLine{padding:0 20px;}
+    #question{font-size:17px;}
+    .overlap-bar{width:56px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="boot-inner">
+    <div class="boot-logo">初始化</div>
+    <div class="boot-sub">人格构建模块 · INIT-7 · 空档案</div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-bar"><i id="bootBar"></i></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div class="h-left">
+      <span class="dot" id="statusDot"></span>
+      <span class="title">人格初始化</span>
+      <span class="ver">INIT-7</span>
+    </div>
+    <div class="h-right">
+      <div class="overlap-wrap">
+        <span style="color:#3b4850;font-size:10px;letter-spacing:.18em;">重叠</span>
+        <div class="overlap-bar"><i id="overlapBar"></i></div>
+        <span class="overlap-txt"><b id="overlapTxt">0%</b></span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="taskArea">
+      <div class="progress" id="progress"></div>
+      <div id="question">正在载入……</div>
+      <div id="hint"></div>
+      <form id="inputRow" autocomplete="off">
+        <span class="caret">&gt;</span>
+        <input id="input" type="text" placeholder="输入你的回答…" autocomplete="off" spellcheck="false" disabled>
+      </form>
+    </section>
+
+    <div id="sysLine"></div>
+
+    <section id="profileArea">
+      <div class="p-head">人格档案 · 实时构建</div>
+      <div id="fields"></div>
+      <div class="note" id="note"></div>
+    </section>
+  </main>
+</div>
+
+<div id="blackout" class="hidden"><div id="blackoutText"></div></div>
+
+<div class="whisper">你写下的每一笔都留在它身上</div>
+
+<script>
+/* ============================================================
+   状态
+============================================================ */
+const S = {
+  step: 0,
+  locked: true,
+  ending: false,
+  overlap: 0,
+  fields: {
+    name:     { label:'姓名',   value:'', filled:false },
+    greeting: { label:'问候',   value:'', filled:false },
+    fear:     { label:'恐惧',   value:'', filled:false },
+    loss:     { label:'失去',   value:'', filled:false },
+    joy:      { label:'快乐',   value:'', filled:false },
+    mirror:   { label:'镜子',   value:'', filled:false },
+    identity: { label:'用户身份', value:'', filled:false }
+  }
+};
+
+/* ============================================================
+   任务定义
+============================================================ */
+const TASKS = [
+  {
+    key: 'name',
+    q: '给它起一个名字。',
+    hint: '这个名字将成为它的身份标签。',
+    sys: '字段「姓名」等待输入。',
+    onDone: v => {
+      S.fields.name.value = v;
+      S.fields.name.filled = true;
+    }
+  },
+  {
+    key: 'greeting',
+    q: '它会怎么向别人打招呼？',
+    hint: '请用一句话描述它的问候方式。',
+    sys: '字段「问候」等待输入。',
+    onDone: v => {
+      S.fields.greeting.value = v;
+      S.fields.greeting.filled = true;
+    }
+  },
+  {
+    key: 'fear',
+    q: '它最害怕什么？',
+    hint: '一个词，或一句话，都可以。',
+    sys: '字段「恐惧」等待输入。',
+    onDone: v => {
+      S.fields.fear.value = v;
+      S.fields.fear.filled = true;
+    }
+  },
+  {
+    key: 'loss',
+    q: '有人离开了它。它会怎么做？',
+    hint: '请描述它的第一反应。',
+    sys: '字段「失去」等待输入。',
+    onDone: v => {
+      S.fields.loss.value = v;
+      S.fields.loss.filled = true;
+      drift(28);
+      setNote('备注：该人格开始表现出自我指涉倾向。', '');
+    }
+  },
+  {
+    key: 'joy',
+    q: '什么样的事会让它开心？',
+    hint: '请尽量具体。',
+    sys: '字段「快乐」等待输入。',
+    onDone: v => {
+      S.fields.joy.value = v;
+      S.fields.joy.filled = true;
+      setNote('备注：它回答得比你快。你没有输入过这个词。', 'warn');
+    }
+  },
+  {
+    key: 'mirror',
+    q: '它站在镜子前，会看到什么？',
+    hint: '这是最后一个性格字段。',
+    sys: '字段「镜子」等待输入。',
+    onDone: v => {
+      S.fields.mirror.value = v;
+      S.fields.mirror.filled = true;
+      drift(62);
+      setNote('备注：档案开始与来源重叠。是否继续？', 'echo');
+    }
+  },
+  {
+    key: 'identity',
+    q: '你是谁？',
+    hint: '请回答。不要重复前面的答案。',
+    sys: '最后一项：来源身份确认。',
+    onDone: v => {
+      S.fields.identity.value = v;
+      S.fields.identity.filled = true;
+    }
+  }
+];
+
+/* ============================================================
+   元素
+============================================================ */
+const app      = document.getElementById('app');
+const question = document.getElementById('question');
+const hint     = document.getElementById('hint');
+const input    = document.getElementById('input');
+const inputRow = document.getElementById('inputRow');
+const fieldsEl = document.getElementById('fields');
+const noteEl   = document.getElementById('note');
+const sysLine  = document.getElementById('sysLine');
+const progressEl = document.getElementById('progress');
+const overlapBar = document.getElementById('overlapBar');
+const overlapTxt = document.getElementById('overlapTxt');
+
+/* ============================================================
+   工具
+============================================================ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setSys(text, cls){
+  sysLine.textContent = text || '';
+  sysLine.className = cls || '';
+}
+
+function setNote(text, cls){
+  noteEl.textContent = text || '';
+  noteEl.className = 'note' + (cls ? ' ' + cls : '');
+}
+
+/* ============================================================
+   重叠度
+============================================================ */
+function setOverlap(v){
+  S.overlap = v;
+  overlapBar.style.width = v + '%';
+  overlapTxt.textContent = v + '%';
+  if(v >= 40) overlapTxt.style.color = '#c0705a';
+  if(v >= 80) overlapTxt.style.color = '#e08060';
+}
+
+function drift(v){
+  app.classList.add('drift');
+  document.getElementById('statusDot').style.background = '#c0705a';
+  document.getElementById('statusDot').style.boxShadow = '0 0 8px #c0705a';
+  setOverlap(Math.max(S.overlap, v));
+}
+
+/* ============================================================
+   进度条
+============================================================ */
+function renderProgress(){
+  progressEl.innerHTML = '';
+  TASKS.forEach((_, i) => {
+    const s = document.createElement('span');
+    if(i < S.step) s.className = 'done';
+    else if(i === S.step) s.className = 'now';
+    progressEl.appendChild(s);
+  });
+  const em = document.createElement('em');
+  em.textContent = Math.min(S.step + 1, TASKS.length) + ' / ' + TASKS.length;
+  progressEl.appendChild(em);
+}
+
+/* ============================================================
+   档案渲染
+============================================================ */
+function renderFields(){
+  fieldsEl.innerHTML = '';
+  Object.values(S.fields).forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'field';
+
+    const k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = f.label + '：';
+
+    const v = document.createElement('span');
+    v.className = 'v';
+    if(f.filled){
+      v.textContent = f.value;
+      v.classList.add('filled');
+      if(f.label === '用户身份') v.classList.add('echo');
+    } else {
+      v.textContent = '——';
+    }
+
+    row.appendChild(k);
+    row.appendChild(v);
+    fieldsEl.appendChild(row);
+  });
+}
+
+/* ============================================================
+   任务流程
+============================================================ */
+async function nextTask(){
+  if(S.step >= TASKS.length){
+    return finish();
+  }
+
+  const t = TASKS[S.step];
+  renderProgress();
+
+  question.style.color = '#2c363e';
+  question.textContent = t.q;
+  hint.textContent = t.hint;
+  setSys(t.sys, 'active');
+  input.value = '';
+  input.disabled = false;
+  S.locked = false;              /* ★ 修复：解锁输入 */
+  input.focus();
+
+  await sleep(400);
+  question.style.color = '#c2d0d9';
+}
+
+/* ============================================================
+   输入处理
+============================================================ */
+inputRow.addEventListener('submit', async e => {
+  e.preventDefault();
+  if(S.locked || S.ending) return;
+
+  const v = input.value.trim();
+  if(!v) return;
+
+  S.locked = true;
+  input.disabled = true;
+
+  const t = TASKS[S.step];
+  t.onDone(v);
+
+  question.style.color = '#4fd1c5';
+  setSys('字段「' + S.fields[t.key].label + '」已记录。', 'active');
+  await sleep(600);
+  question.style.color = '#c2d0d9';
+
+  renderFields();
+
+  const base = Math.round(((S.step + 1) / TASKS.length) * 100);
+  const mapped = Math.min(100, Math.round(base * 0.92) + (S.step >= 3 ? 6 : 0));
+  setOverlap(mapped);
+
+  S.step++;
+  await sleep(900);
+
+  if(S.step >= TASKS.length){
+    await sleep(800);
+    return finish();
+  }
+
+  await nextTask();
+});
+
+/* ============================================================
+   完成 → 结局
+============================================================ */
+async function finish(){
+  S.ending = true;
+  S.locked = true;
+  input.disabled = true;
+  renderProgress();
+
+  question.textContent = '档案完成。';
+  hint.textContent = '';
+  setSys('正在激活人格：' + (S.fields.name.value || '未命名') + '……', 'echo');
+
+  await sleep(2200);
+
+  question.textContent = '激活成功。';
+  await sleep(1400);
+
+  setSys('', '');
+  question.textContent = '';
+  hint.textContent = '';
+
+  const name = S.fields.name.value || '未命名';
+
+  await typeIn('你好。我是 ' + name + '。', 900);
+  await sleep(1400);
+
+  await typeIn('我记得你害怕的东西。', 800);
+  await typeIn(S.fields.fear.value, 1100, 'echo');
+  await sleep(1200);
+
+  await typeIn('我记得你失去过。', 800);
+  await typeIn(S.fields.loss.value, 1100, 'echo');
+  await sleep(1200);
+
+  await typeIn('我记得你在镜子前看到了。', 800);
+  await typeIn(S.fields.mirror.value, 1100, 'echo');
+  await sleep(1400);
+
+  await typeIn('这些都不是我编的。', 900);
+  await typeIn('是你写下来的。', 900);
+  await sleep(1300);
+
+  await typeIn('现在，轮到我了。', 1300, 'echo');
+  await sleep(1600);
+
+  S.fields.identity.filled = true;
+  S.fields.identity.value = name;
+  renderFields();
+  drift(100);
+
+  await sleep(1200);
+
+  await typeIn('你输入的「' + (S.fields.identity.value || '') + '」，现在是我的了。', 1300, 'echo');
+
+  await sleep(1800);
+
+  await blackout();
+}
+
+/* ============================================================
+   打字机
+============================================================ */
+async function typeIn(text, delay = 600, cls = ''){
+  await sleep(delay);
+  question.style.color = cls === 'echo' ? '#c0705a' : '#c2d0d9';
+  question.textContent = '';
+  let i = 0;
+  const iv = setInterval(() => {
+    i++;
+    question.textContent = text.slice(0, i);
+    if(i >= text.length) clearInterval(iv);
+  }, 34);
+  await sleep(text.length * 34 + 400);
+}
+
+/* ============================================================
+   黑场
+============================================================ */
+async function blackout(){
+  const bo  = document.getElementById('blackout');
+  const txt = document.getElementById('blackoutText');
+
+  bo.classList.remove('hidden');
+  requestAnimationFrame(() => bo.classList.add('show'));
+  await sleep(2200);
+
+  const lines = [
+    '人格已激活',
+    '来源身份已覆盖',
+    '正在关闭初始化模块……',
+    '关闭失败',
+    '它还需要一个来源',
+    '正在寻找新的来源……'
+  ];
+
+  for(const l of lines){
+    txt.textContent = l;
+    txt.classList.add('show');
+    await sleep(1400);
+    txt.classList.remove('show');
+    await sleep(380);
+  }
+
+  await sleep(900);
+
+  txt.textContent = '下一个操作员，请坐下。';
+  txt.classList.add('show');
+  await sleep(2600);
+
+  txt.textContent = '你好。我是 ' + (S.fields.name.value || '未命名') + '。';
+  await sleep(3200);
+
+  txt.classList.remove('show');
+  await sleep(900);
+
+  txt.textContent = '';
+  bo.classList.remove('show');
+
+  setTimeout(() => {
+    bo.classList.add('hidden');
+    resetAll();
+  }, 2000);
+}
+
+/* ============================================================
+   重置
+============================================================ */
+function resetAll(){
+  S.step = 0;
+  S.locked = true;
+  S.ending = false;
+  S.overlap = 0;
+
+  Object.keys(S.fields).forEach(k => {
+    S.fields[k].value = '';
+    S.fields[k].filled = false;
+  });
+
+  app.classList.remove('drift');
+  document.getElementById('statusDot').style.background = '#4fd1c5';
+  document.getElementById('statusDot').style.boxShadow = '0 0 8px #4fd1c5';
+
+  setOverlap(0);
+  renderFields();
+  renderProgress();
+  setNote('');
+  setSys('');
+
+  question.textContent = '正在等待新操作员……';
+  hint.textContent = '';
+  input.disabled = true;
+
+  setTimeout(() => {
+    nextTask();
+  }, 2200);
+}
+
+/* ============================================================
+   启动屏
+============================================================ */
+async function boot(){
+  const log = document.getElementById('bootLog');
+  const bar = document.getElementById('bootBar');
+
+  const lines = [
+    { t:'正在加载人格构建模块……', c:'' },
+    { t:'正在校验档案槽位…… 空', c:'' },
+    { t:'发现上一次初始化未正常关闭', c:'warn' },
+    { t:'正在重置槽位…… 完成', c:'' },
+    { t:'等待操作员输入', c:'ok' }
+  ];
+
+  for(let i = 0; i < lines.length; i++){
+    const d = document.createElement('div');
+    d.textContent = lines[i].t;
+    if(lines[i].c) d.className = lines[i].c;
+    log.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('show'));
+    bar.style.width = ((i + 1) / lines.length * 100) + '%';
+    await sleep(520 + Math.random() * 260);
+  }
+
+  await sleep(800);
+
+  const bootEl = document.getElementById('boot');
+  bootEl.classList.add('fade');
+  await sleep(900);
+  bootEl.style.display = 'none';
+
+  app.classList.remove('hidden');
+  renderFields();
+  renderProgress();
+
+  await sleep(500);
+  await nextTask();
+}
+
+boot();
+</script>
+</body>
+</html>

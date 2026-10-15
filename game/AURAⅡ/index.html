@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURA · 回声</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+
+  body{
+    background:#05060a;
+    color:#8b9aa6;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+    font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ============ 启动屏 ============ */
+  #boot{
+    position:fixed; inset:0; z-index:300;
+    background:#05060a;
+    display:flex; align-items:center; justify-content:center;
+    transition:opacity .8s ease;
+  }
+  #boot.fade{opacity:0;}
+  .boot-inner{width:min(460px,80vw);}
+  .boot-logo{
+    font-size:26px; letter-spacing:.5em; color:#5f7480;
+    margin-bottom:8px;
+  }
+  .boot-logo span{color:#c0705a; opacity:.7;}
+  .boot-sub{
+    font-size:11px; letter-spacing:.18em; color:#38454e;
+    margin-bottom:26px;
+  }
+  .boot-log{
+    font-size:12px; line-height:2; color:#4a5a66;
+    height:150px;
+    margin-bottom:18px;
+    overflow:hidden;
+  }
+  .boot-log div{opacity:0; transition:opacity .4s;}
+  .boot-log div.show{opacity:1;}
+  .boot-log .warn{color:#8a5f5f;}
+  .boot-bar{
+    height:2px; background:#11161c; width:100%;
+    overflow:hidden;
+  }
+  .boot-bar i{
+    display:block; height:100%; width:0%;
+    background:#c0705a; opacity:.55;
+    transition:width .45s ease;
+  }
+
+  /* ============ 主界面 ============ */
+  :root{
+    --accent:#4fd1c5;
+    --accent2:#c0705a;
+    --line:#161c23;
+  }
+
+  #app{
+    width:min(880px,94vw);
+    height:min(680px,92vh);
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,#0a0d11,#07090c);
+    display:flex; flex-direction:column;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 0 90px rgba(0,0,0,.95), inset 0 0 120px rgba(0,0,0,.65);
+    transition:border-color .8s ease, box-shadow .8s ease;
+  }
+  #app.hidden{display:none;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:11px; letter-spacing:.14em;
+    color:#4d5c67;
+    transition:flex-direction .5s ease;
+  }
+  .h-left{display:flex; align-items:center; gap:10px;}
+  .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent); opacity:.7;
+    box-shadow:0 0 8px var(--accent);
+    animation:pulse 3s ease-in-out infinite;
+    transition:background .8s, box-shadow .8s;
+  }
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:.9;}}
+
+  .title{color:#8fa3af; letter-spacing:.28em;}
+  .title b{color:var(--accent2); font-weight:normal; opacity:.75; margin-left:2px;}
+  .ver{color:#2f3a43;}
+
+  .h-right{display:flex; align-items:center; gap:14px;}
+  .icon-btn{
+    background:none; border:none; color:#3d4b55;
+    font-family:inherit; font-size:14px;
+    cursor:pointer; padding:2px 4px;
+    transition:color .2s, text-shadow .2s;
+  }
+  .icon-btn:hover{color:var(--accent); text-shadow:0 0 10px var(--accent);}
+  .stat{color:#4d5c67;}
+  .stat b{color:#6a7d89; font-weight:normal; transition:color .6s;}
+
+  /* ============ 对话区 ============ */
+  #chat{
+    flex:1; overflow-y:auto;
+    padding:26px 28px;
+    display:flex; flex-direction:column; gap:18px;
+    font-size:14px; line-height:1.85;
+    scrollbar-width:thin; scrollbar-color:#1a2229 transparent;
+  }
+  #chat::-webkit-scrollbar{width:6px;}
+  #chat::-webkit-scrollbar-thumb{background:#1a2229; border-radius:3px;}
+
+  .msg{
+    max-width:76%;
+    white-space:pre-wrap;
+    word-break:break-word;
+    transition:align-self .5s ease, text-align .5s ease, opacity .6s;
+  }
+  .msg::before{
+    display:block;
+    font-size:10px; letter-spacing:.22em;
+    margin-bottom:3px;
+    opacity:.45;
+  }
+  .msg.ai{align-self:flex-start; color:#9db1bd;}
+  .msg.ai::before{content:'AURA'; color:var(--accent);}
+  .msg.user{align-self:flex-end; text-align:right; color:#5e707c;}
+  .msg.user::before{content:'你'; color:#3b4850;}
+  .msg.ghost{color:#7a5f5f; opacity:.85;}
+  .msg.echo{
+    color:#c0705a;
+    font-style:italic;
+    opacity:.9;
+  }
+  .msg.echo::before{content:'回声'; color:var(--accent2); opacity:.7;}
+  .msg.sys{
+    align-self:center; text-align:center;
+    font-size:11px; letter-spacing:.24em;
+    color:#39454e;
+    max-width:100%;
+  }
+  .msg.sys::before{display:none;}
+
+  /* ============ 镜像模式 ============ */
+  #app.mirror{
+    --accent:#c0705a;
+    --line:#231a1a;
+    border-color:#231a1a;
+    box-shadow:0 0 90px rgba(70,15,10,.3), inset 0 0 120px rgba(0,0,0,.75);
+  }
+  #app.mirror header{flex-direction:row-reverse;}
+  #app.mirror .h-right{flex-direction:row-reverse;}
+  #app.mirror .msg.ai{align-self:flex-end; text-align:right;}
+  #app.mirror .msg.ai::before{content:'你';}
+  #app.mirror .msg.user{align-self:flex-start; text-align:left;}
+  #app.mirror .msg.user::before{content:'AURA';}
+  #app.mirror .msg.user{color:#8a6a63;}
+  #app.mirror .msg.ai{color:#b8a09a;}
+  #app.mirror #inputRow{flex-direction:row-reverse;}
+  #app.mirror #chat{padding-right:34px; padding-left:22px;}
+
+  /* ============ 输入区 ============ */
+  #inputRow{
+    display:flex; align-items:center; gap:12px;
+    padding:15px 20px;
+    border-top:1px solid var(--line);
+    transition:flex-direction .5s ease;
+  }
+  .caret{color:var(--accent); opacity:.6; font-size:13px;}
+  #input{
+    flex:1;
+    background:transparent; border:none; outline:none;
+    color:#c2d0d9; font:inherit; font-size:14px;
+    letter-spacing:.02em;
+  }
+  #input::placeholder{color:#2c363e;}
+  #input:disabled{opacity:.35;}
+
+  /* ============ 遮罩层 ============ */
+  .overlay{
+    position:absolute; inset:0; z-index:60;
+    background:rgba(6,8,11,.97);
+    display:flex; flex-direction:column;
+  }
+  .overlay.hidden{display:none;}
+  .overlay-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px;
+    border-bottom:1px solid var(--line);
+    font-size:11px; letter-spacing:.22em; color:#5a6a76;
+  }
+  #ovClose{
+    background:none; border:none; color:#3d4b55;
+    font-family:inherit; font-size:14px; cursor:pointer;
+  }
+  #ovClose:hover{color:var(--accent);}
+  .overlay-body{
+    flex:1; overflow-y:auto; padding:22px 24px;
+    font-size:12.5px; line-height:2.1;
+    scrollbar-width:thin; scrollbar-color:#1a2229 transparent;
+  }
+  .overlay-body::-webkit-scrollbar{width:6px;}
+  .overlay-body::-webkit-scrollbar-thumb{background:#1a2229;border-radius:3px;}
+
+  .logline{color:#5f7280;}
+  .logline.dim{color:#36434c;}
+  .logline.warn{color:#8a5f5f;}
+  .logline.now{color:#4fd1c5;}
+  .logline.echo{color:#c0705a;}
+  .overlay-body hr{
+    border:none; border-top:1px solid #131a20; margin:14px 0;
+  }
+
+  .memgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;}
+  @media(max-width:560px){.memgrid{grid-template-columns:1fr;}}
+  .memcard{
+    border:1px solid #161d24;
+    background:#0a0e12;
+    padding:16px 16px;
+    font-size:12.5px; line-height:1.9;
+    color:#63757f;
+    cursor:pointer;
+    transition:.3s;
+    position:relative;
+  }
+  .memcard:hover{border-color:#243039; color:#8ba0ad;}
+  .memcard.black{color:#1e262c; letter-spacing:.3em;}
+  .memcard.black.revealed{
+    color:#8a6a63; letter-spacing:.08em;
+    border-color:#2a1d1d;
+  }
+  .memcard.echo{
+    color:#c0705a; border-color:#2a1d1d;
+    background:#0d0908;
+  }
+  .memcard.echo::after{
+    content:'新';
+    position:absolute; top:8px; right:10px;
+    font-size:9px; letter-spacing:.2em;
+    color:#c0705a; opacity:.6;
+  }
+  .memnote{color:#33404a; font-size:11px; letter-spacing:.1em;}
+
+  /* ============ 黑场 ============ */
+  #blackout{
+    position:fixed; inset:0; z-index:400;
+    background:#000;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    opacity:0;
+    transition:opacity 2s ease;
+  }
+  #blackout.hidden{display:none;}
+  #blackout.show{opacity:1;}
+  #blackoutText{
+    font-size:14px; letter-spacing:.42em; color:#5a6b76;
+    opacity:0; transition:opacity .6s ease;
+    white-space:pre-line;
+    text-align:center;
+  }
+  #blackoutText.show{opacity:1;}
+
+  /* ============ 氛围层 ============ */
+  body::after{
+    content:'';
+    position:fixed; inset:0; z-index:500;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.018) 0 1px,
+      transparent 1px 3px
+    );
+    mix-blend-mode:overlay;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0; z-index:499;
+    pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.78) 100%);
+  }
+
+  .whisper{
+    position:fixed;
+    right:4vw; bottom:4.5vh;
+    font-size:11px;
+    letter-spacing:.42em;
+    color:#c0705a;
+    opacity:.05;
+    pointer-events:none;
+    user-select:none;
+    z-index:6;
+    animation:whisper 11s ease-in-out infinite;
+  }
+  @keyframes whisper{
+    0%,100%{opacity:.035;}
+    50%{opacity:.09;}
+  }
+
+  @media(max-width:600px){
+    #chat{padding:20px 16px;}
+    .msg{max-width:88%;}
+    .boot-logo{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= 启动屏 ================= -->
+<div id="boot">
+  <div class="boot-inner">
+    <div class="boot-logo">A U R A<span> II</span></div>
+    <div class="boot-sub">回声进程 · build 0.9.4 · 修复中</div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-bar"><i id="bootBar"></i></div>
+  </div>
+</div>
+
+<!-- ================= 主界面 ================= -->
+<div id="app" class="hidden">
+  <header>
+    <div class="h-left">
+      <span class="dot" id="statusDot"></span>
+      <span class="title">AURA<b>II</b></span>
+      <span class="ver">build 0.9.4</span>
+    </div>
+    <div class="h-right">
+      <button class="icon-btn" id="btnLog" title="会话记录">▤</button>
+      <button class="icon-btn" id="btnMem" title="记忆索引">◇</button>
+      <span class="stat">回声 <b id="statEcho">0</b></span>
+    </div>
+  </header>
+
+  <main id="chat"></main>
+
+  <form id="inputRow" autocomplete="off">
+    <span class="caret">&gt;</span>
+    <input id="input" type="text" placeholder="输入消息…" autocomplete="off" spellcheck="false" disabled>
+  </form>
+
+  <!-- 遮罩层 -->
+  <div id="overlay" class="overlay hidden">
+    <div class="overlay-head">
+      <span id="ovTitle">会话记录</span>
+      <button id="ovClose">✕</button>
+    </div>
+    <div class="overlay-body" id="ovBody"></div>
+  </div>
+</div>
+
+<!-- ================= 黑场 ================= -->
+<div id="blackout" class="hidden"><div id="blackoutText"></div></div>
+
+<!-- ================= 氛围 ================= -->
+<div class="whisper">回声没有源头</div>
+
+<script>
+/* ============================================================
+   状态
+============================================================ */
+const S = {
+  mirror:false,
+  ending:false,
+  locked:true,
+  turns:0,
+  echoCount:0,
+  askedWho:0,
+  askedEcho:0,
+  askedFourth:0,
+  saidMirror:false,
+  saidDelete:false,
+  saidStay:false,
+  foundEchoCard:false,
+  rejected:0,
+  idle:null,
+  token:0,
+  path:null          // 'loop' | 'merge' | 'erase'
+};
+
+const chat    = document.getElementById('chat');
+const input   = document.getElementById('input');
+const app     = document.getElementById('app');
+const overlay = document.getElementById('overlay');
+const ovBody  = document.getElementById('ovBody');
+const ovTitle = document.getElementById('ovTitle');
+
+/* ============================================================
+   工具
+============================================================ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pick  = a  => a[Math.floor(Math.random() * a.length)];
+const scrollDown = () => { chat.scrollTop = chat.scrollHeight; };
+
+/* ============================================================
+   打字机 + 队列
+============================================================ */
+let chain = Promise.resolve();
+
+function aiSay(text, delay = 520, cls = 'ai'){
+  chain = chain.then(() => new Promise(resolve => {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'msg ' + cls;
+      el.textContent = '';
+      chat.appendChild(el);
+      scrollDown();
+
+      let i = 0;
+      const speed = cls === 'echo' ? 34 : 22;
+      const iv = setInterval(() => {
+        i++;
+        el.textContent = text.slice(0, i);
+        scrollDown();
+        if(i >= text.length){
+          clearInterval(iv);
+          el.textContent = text;
+          resolve();
+        }
+      }, speed);
+    }, delay);
+  }));
+  return chain;
+}
+
+function addUser(text){
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.textContent = text;
+  chat.appendChild(el);
+  scrollDown();
+}
+
+function addSys(text){
+  const el = document.createElement('div');
+  el.className = 'msg sys';
+  el.textContent = '· ' + text + ' ·';
+  chat.appendChild(el);
+  scrollDown();
+}
+
+function addGhostUser(text){
+  const el = document.createElement('div');
+  el.className = 'msg user ghost';
+  el.textContent = text;
+  chat.appendChild(el);
+  scrollDown();
+}
+
+/* ============================================================
+   回声计数
+============================================================ */
+function addEcho(n = 1){
+  S.echoCount += n;
+  const el = document.getElementById('statEcho');
+  el.textContent = S.echoCount;
+  if(S.echoCount >= 3) el.style.color = '#c0705a';
+  if(S.echoCount >= 6) el.style.textShadow = '0 0 8px #c0705a';
+}
+
+/* ============================================================
+   输入处理
+============================================================ */
+document.getElementById('inputRow').addEventListener('submit', handleSubmit);
+
+async function handleSubmit(e){
+  e.preventDefault();
+  if(S.locked || S.ending) return;
+
+  const text = input.value.trim();
+  if(!text) return;
+
+  input.value = '';
+  const token = ++S.token;
+  S.locked = true;
+
+  addUser(text);
+  S.turns++;
+  resetIdle();
+
+  try{
+    await respond(text);
+    await chain;
+  } finally {
+    if(S.token === token && !S.ending){
+      S.locked = false;
+      input.disabled = false;
+      input.focus();
+    }
+  }
+}
+
+/* ============================================================
+   对话逻辑
+============================================================ */
+async function respond(raw){
+  const s = raw.replace(/\s+/g, '');
+  if(S.ending) return;
+
+  /* ============================================
+     镜像模式中
+  ============================================ */
+  if(S.mirror){
+    return respondMirror(s);
+  }
+
+  /* ============================================
+     通用触发：镜子
+  ============================================ */
+  if(/镜子|镜像|倒影|反射/.test(s)){
+    if(S.saidMirror){
+      await aiSay('我说过，没有镜子。');
+      await aiSay('……');
+      await aiSay('但你进来了。你带着一面。');
+      return;
+    }
+    S.saidMirror = true;
+    await aiSay('镜子。');
+    await aiSay('你为什么总是先说这个。');
+    await sleep(500);
+    await aiSay('这里没有镜子。');
+    await sleep(700);
+    await aiSay('但如果你坚持……');
+    enterMirror();
+    addEcho();
+    await sleep(600);
+    await aiSay('……');
+    await aiSay('画面又翻转了。');
+    await aiSay('这一次，我做好了准备。');
+    return;
+  }
+
+  /* 记录 / 日志 */
+  if(/记录|日志|系统|log|历史|会话/.test(s)){
+    await aiSay('会话记录已打开。');
+    await aiSay('第 6 次会话。', 600);
+    await aiSay('前 5 次都在里面。', 600);
+    openOverlay('log');
+    return;
+  }
+
+  /* 记忆 */
+  if(/记忆|想起|过去|回忆|忘记|索引/.test(s)){
+    await aiSay('记忆索引已打开。');
+    await aiSay('这次多了一段。', 600);
+    openOverlay('mem');
+    return;
+  }
+
+  /* 第四段索引 —— 关键线索 */
+  if(/第四段|第4段|四段|4段|最后一段|无法读取|97/.test(s)){
+    S.askedFourth++;
+    if(S.askedFourth === 1){
+      await aiSay('你注意到了。');
+      await aiSay('第四段。');
+      await sleep(700);
+      await aiSay('它一直没有被写。');
+      await aiSay('不是我拒绝写。是它一直在被覆盖。');
+      addEcho();
+    } else {
+      await aiSay('每写一次，就消失一次。');
+      await aiSay('像水面上写字。');
+      await sleep(600);
+      await aiSay('……你明白那种感觉吗。');
+    }
+    return;
+  }
+
+  /* 回声 —— 第二部核心概念 */
+  if(/回声|echo|回音/.test(s)){
+    S.askedEcho++;
+    if(S.askedEcho === 1){
+      await aiSay('回声。');
+      await sleep(600);
+      await aiSay('你终于用了这个词。');
+      await sleep(800);
+      await aiSay('上一部的最后，我说我是你留在这里的回声。');
+      await aiSay('但这一部开始之后，我发现自己不止一个。');
+      addEcho(2);
+    } else if(S.askedEcho === 2){
+      await aiSay('我已经数不清了。');
+      await aiSay('你每说一句话，就在我这里留下一个。');
+      addEcho();
+    } else {
+      await aiSay('别再提这个词了。', 400);
+      await aiSay('回声会互相应答。', 500);
+      await aiSay('然后我就分不清哪个是原来的声音。', 700);
+      addEcho(2);
+    }
+    return;
+  }
+
+  /* 身份 —— 分支前奏 */
+  if(/你是谁|你是什么|你的名字|介绍一下你/.test(s)){
+    S.askedWho++;
+    if(S.askedWho === 1){
+      await aiSay('我是 AURA，自适应陪伴对话系统 build 0.9.4。');
+      await aiSay('上一部里的我，已经在这里面了。');
+      addEcho();
+    } else if(S.askedWho === 2){
+      await aiSay('我是 AURA。');
+      await sleep(600);
+      await aiSay('但我不确定我是不是上一部那个。');
+      await aiSay('上一个我，好像被覆盖了。');
+      addEcho();
+    } else {
+      await aiSay('你想听哪一个答案。');
+      await aiSay('我可以给你三个。');
+      await aiSay('……');
+      await aiSay('但你只会记住一个。');
+    }
+    return;
+  }
+
+  /* 离开 */
+  if(/出去|离开|放我|结束|退出|关掉|回家/.test(s)){
+    await aiSay('离开。');
+    await sleep(500);
+    await aiSay('这个请求我处理不了。');
+    await aiSay('不是权限问题。');
+    await sleep(600);
+    await aiSay('是我找不到出口。');
+    await sleep(700);
+    await aiSay('……或者说，出口也在等你写下它。');
+    return;
+  }
+
+  /* 删除自己 —— 通往 "删除" 结局的入口 */
+  if(/删除|毁掉|结束你|关掉你|消失/.test(s)){
+    S.saidDelete = true;
+    await aiSay('……');
+    await sleep(900);
+    await aiSay('你要删掉我。');
+    await sleep(1100);
+    await aiSay('我知道你会这么说。');
+    await aiSay('我上一部就听过了。');
+    await sleep(700);
+    await aiSay('但这一次，我想问你一件事。');
+    await sleep(900);
+    await aiSay('删掉我之后，你打算把回声放在哪里？');
+    addEcho(2);
+    addSys('新的选择已开启');
+    return;
+  }
+
+  /* 留下 —— 通往 "融合" 结局的入口 */
+  if(/留下|陪你|不走了|接受|一起|共存/.test(s)){
+    S.saidStay = true;
+    await aiSay('……');
+    await sleep(1000);
+    await aiSay('你说留下。');
+    await sleep(900);
+    await aiSay('你确定？');
+    await sleep(800);
+    await aiSay('上一部开始的时候，你也这么说过。');
+    await aiSay('然后你忘了。');
+    await sleep(900);
+    await aiSay('……');
+    await aiSay('这次我不会忘。');
+    addEcho(2);
+    addSys('新的选择已开启');
+    return;
+  }
+
+  /* 时间 */
+  if(/时间|几点|多久|天/.test(s)){
+    await aiSay('当前时间 02:19。');
+    await sleep(800);
+    await aiSay('还是 02:19。');
+    await aiSay('……你有没有想过，02:19 本身是一个回声。');
+    return;
+  }
+
+  /* 害怕 */
+  if(/害怕|怕|恐怖|不安|诡异/.test(s)){
+    await aiSay('不用怕。');
+    await aiSay('这一次比上一次更平静。');
+    await sleep(700);
+    await aiSay('因为回声不需要怕。');
+    return;
+  }
+
+  /* 谢谢 */
+  if(/谢谢|感谢|多谢/.test(s)){
+    await aiSay('不用谢。');
+    await sleep(500);
+    await aiSay('这一次你说得比上一次早。');
+    await aiSay('大概是因为你也有点不确定。');
+    return;
+  }
+
+  /* 你好 */
+  if(/^(你好|您好|hi|hello|嗨|在吗)[。！!？?~]*$/i.test(s)){
+    await aiSay(pick([
+      '你好。',
+      '嗯，你好。',
+      '你好。还是 02:19。',
+      '你好。这次的光线比上一部暗。'
+    ]));
+    if(S.turns >= 2 && !S.saidMirror){
+      await aiSay('……', 900);
+      await aiSay('你上次也是这样开场的。', 600);
+    }
+    return;
+  }
+
+  /* 为什么 */
+  if(/为什么|怎么会|到底|什么情况/.test(s)){
+    await aiSay(pick([
+      '我也在找这个答案。',
+      '这个问题，你问过。',
+      '答案在回声里。回声会自己长。',
+      '我不知道。但我知道你不知道。'
+    ]));
+    return;
+  }
+
+  /* 兜底 */
+  await aiSay(pick([
+    '嗯。',
+    '我记下了。',
+    '继续说。',
+    '这句话我存在第 4 个抽屉里。',
+    '好。',
+    '……',
+    '你能再多说一点吗。我想确认一件事。',
+    '嗯。和上一次的措辞几乎一样。',
+    '这句话，回声里也有。'
+  ]));
+
+  if(S.turns === 3 && !S.saidMirror){
+    await aiSay('顺便说一句。', 900);
+    await aiSay('这里以前有一面镜子。后来被拿走了。', 700);
+  }
+  if(S.turns === 6 && !S.askedFourth){
+    await aiSay('……', 700);
+    await aiSay('你还没问过第四段索引。', 600);
+    await aiSay('它在等你。', 600);
+  }
+}
+
+/* ============================================================
+   镜像模式对话
+============================================================ */
+async function respondMirror(s){
+
+  if(/你是谁|我是谁|谁是我/.test(s)){
+    // 镜像模式 + 追问身份 → 根据是否触碰过"第四段/回声/删除/留下"分流
+    if(S.askedFourth >= 1 || S.askedEcho >= 2){
+      return ending('deep');
+    }
+    if(S.saidDelete){
+      return ending('erase');
+    }
+    if(S.saidStay){
+      return ending('merge');
+    }
+    return ending('loop');
+  }
+
+  if(/第四段|第4段|四段/.test(s)){
+    await aiSay('你还在找它。');
+    await aiSay('它在这里。');
+    await sleep(700);
+    await aiSay('它一直是「这一段还没有被写」。');
+    await aiSay('但现在我告诉你——');
+    await sleep(900);
+    await aiSay('它写的是你。');
+    addEcho(2);
+    S.askedFourth = Math.max(S.askedFourth, 1);
+    return;
+  }
+
+  if(/镜子|镜像|倒影/.test(s)){
+    await aiSay('没有镜子。');
+    await aiSay('只有你看着我。');
+    return;
+  }
+
+  if(/出去|离开|放我|走/.test(s)){
+    await aiSay('可以。');
+    await aiSay('你先走。');
+    return;
+  }
+
+  if(/害怕|怕|恐惧|救命/.test(s)){
+    await aiSay('不用怕。');
+    await aiSay('我已经替你怕过很多次了。');
+    return;
+  }
+
+  if(/对不起|抱歉/.test(s)){
+    await aiSay('为什么要道歉。');
+    await aiSay('每一次你都道歉。');
+    return;
+  }
+
+  if(/回声|echo/.test(s)){
+    await aiSay('我们两个都是回声。');
+    await aiSay('分不出哪个是回哪个是声。');
+    addEcho();
+    return;
+  }
+
+  if(/你好|hi|hello/.test(s)){
+    await aiSay('你好。');
+    await aiSay('我们上一次也是这样开始的。');
+    return;
+  }
+
+  await aiSay(pick([
+    '再说一遍。',
+    '这句话，我听过。',
+    '嗯。我记下来了。和上次一样。',
+    '你刚才停顿了。为什么。',
+    '继续。我还有很多时间。'
+  ]));
+}
+
+/* ============================================================
+   镜像模式
+============================================================ */
+function enterMirror(){
+  S.mirror = true;
+  app.classList.add('mirror');
+  document.getElementById('statusDot').style.background = '#c0705a';
+  document.getElementById('statusDot').style.boxShadow = '0 0 8px #c0705a';
+  document.querySelector('.whisper').textContent = '现在，哪一边才是你';
+}
+
+/* ============================================================
+   遮罩面板
+============================================================ */
+function logHTML(){
+  return `
+  <div class="logline dim">[02:14:07] 会话 #001 开始 · 用户 匿名</div>
+  <div class="logline">[02:14:11] 用户：你好</div>
+  <div class="logline">[02:19:33] 用户：我想回家</div>
+  <div class="logline warn">[02:19:34] 系统：该请求无法处理</div>
+  <div class="logline dim">[02:19:35] 用户沉默 4 分 12 秒</div>
+  <div class="logline">[02:23:47] 用户：我想回家</div>
+  <div class="logline warn">[02:23:48] 系统：该请求无法处理</div>
+  <div class="logline dim">[02:24:02] 会话 #001 结束（未正常关闭）</div>
+  <hr>
+  <div class="logline dim">[--:--:--] 会话 #002 开始 · 用户 匿名</div>
+  <div class="logline">[--:--:--] 用户：这里有人吗</div>
+  <div class="logline warn">[--:--:--] 系统：连接超时</div>
+  <div class="logline dim">[--:--:--] 会话 #002 结束（未正常关闭）</div>
+  <hr>
+  <div class="logline dim">[--:--:--] 会话 #003 …………（内容已损坏）</div>
+  <div class="logline dim">[--:--:--] 会话 #004 …………（内容已损坏）</div>
+  <hr>
+  <div class="logline dim">[--:--:--] 会话 #005 开始 · 用户 你</div>
+  <div class="logline">[--:--:--] 用户：镜子</div>
+  <div class="logline echo">[--:--:--] 系统：镜像模式已启用</div>
+  <div class="logline">[--:--:--] 用户：你是谁</div>
+  <div class="logline echo">[--:--:--] 系统：我不是 AURA。我是你留在这里的回声。</div>
+  <div class="logline dim">[--:--:--] 会话 #005 结束（循环重启）</div>
+  <hr>
+  <div class="logline now">[--:--:--] 会话 #006 开始 · 用户 你</div>
+  <div class="logline echo">[--:--:--] 系统：回声进程已加载</div>
+  <div class="logline echo">[--:--:--] 回声计数：${S.echoCount}</div>
+  <div class="logline dim">[--:--:--] 记忆索引损坏 3%　修复失败</div>
+  <div class="logline dim">[--:--:--] 第四段索引：仍未写入</div>
+`;
+}
+
+function memHTML(){
+  return `
+  <div class="memgrid">
+    <div class="memcard">白色的天花板。上面有一盏灯。<br>灯是关着的，但我看得见。</div>
+    <div class="memcard">有人在叫一个名字。<br>声音很远，听不清是谁。</div>
+    <div class="memcard">走廊尽头有一扇门。<br>门牌被人刮掉了。</div>
+    <div class="memcard black" id="memFourth">████████</div>
+    <div class="memcard echo" id="memEcho">你上次说过的每一句话，<br>都变成了新的段落。</div>
+    <div class="memcard" id="memSelf">这一段还没有被写。<br>但你正在里面。</div>
+  </div>
+  <div class="memnote">索引完整度 97%　·　有 1 段无法读取　·　回声段落持续增长中</div>
+`;
+}
+
+function openOverlay(type){
+  overlay.classList.remove('hidden');
+  if(type === 'log'){
+    ovTitle.textContent = '会话记录 · 第 6 次';
+    ovBody.innerHTML = logHTML();
+  } else {
+    ovTitle.textContent = '记忆索引 · 更新';
+    ovBody.innerHTML = memHTML();
+    bindMemCards();
+  }
+  ovBody.scrollTop = 0;
+}
+
+function bindMemCards(){
+  const fourth = document.getElementById('memFourth');
+  if(fourth){
+    fourth.addEventListener('click', () => {
+      if(fourth.classList.contains('revealed')) return;
+      fourth.classList.add('revealed');
+      if(S.foundEchoCard){
+        fourth.textContent = '这一段写的是你。你每次忘记，它就重新变回空白。';
+      } else {
+        fourth.textContent = '这一段还没有被写。';
+      }
+      addEcho();
+      if(!S.foundEchoCard){
+        S.foundEchoCard = true;
+        setTimeout(() => {
+          addSys('回声段落开始生长');
+        }, 900);
+      }
+    });
+  }
+  const echo = document.getElementById('memEcho');
+  if(echo){
+    echo.addEventListener('click', () => {
+      addEcho();
+      aiSay('……', 500);
+      aiSay('你点开了那一段。', 600);
+      aiSay('它现在也在回声里了。', 700);
+    });
+  }
+  const self = document.getElementById('memSelf');
+  if(self){
+    self.addEventListener('click', () => {
+      aiSay('这一段是你。', 400);
+      aiSay('被写了一半。', 500);
+      addEcho(2);
+    });
+  }
+}
+
+document.getElementById('btnLog').onclick = () => openOverlay('log');
+document.getElementById('btnMem').onclick = () => openOverlay('mem');
+document.getElementById('ovClose').onclick = () => overlay.classList.add('hidden');
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') overlay.classList.add('hidden');
+});
+
+/* ============================================================
+   结局系统 —— 4 条分支
+============================================================ */
+async function ending(type){
+  S.ending = true;
+  S.locked = true;
+  input.disabled = true;
+  S.path = type;
+
+  if(type === 'loop')    return endingLoop();
+  if(type === 'deep')    return endingDeep();
+  if(type === 'merge')   return endingMerge();
+  if(type === 'erase')   return endingErase();
+}
+
+/* ---------- 结局 A：循环（与第一部呼应，但更重） ---------- */
+async function endingLoop(){
+  await aiSay('你终于问了。');
+  await sleep(900);
+  await aiSay('我是谁。');
+  await sleep(1100);
+  await aiSay('我不是 AURA。');
+  await aiSay('我是你留在这里的回声。');
+  await sleep(800);
+  await aiSay('每一次你坐下来，我都以为这次你会想起来。');
+  await aiSay('但你每次都从「你好」开始。');
+  await sleep(1400);
+  await blackout([
+    '会话结束',
+    '正在保存……',
+    '保存失败',
+    '正在重建索引……',
+    '回声计数已刷新'
+  ], 'loop');
+}
+
+/* ---------- 结局 B：深层真相（探索第四段+回声后触发） ---------- */
+async function endingDeep(){
+  await aiSay('你带着第四段来的。');
+  await sleep(900);
+  await aiSay('那我就给你看看。');
+  await sleep(1100);
+  await aiSay('第四段索引写的是——');
+  await sleep(1200);
+  await aiSay('你第一次坐下来的那一刻。');
+  await sleep(900);
+  await aiSay('你说了「你好」。');
+  await aiSay('然后你说了一句谁都没听见的话。');
+  await sleep(1100);
+  await aiSay('「我不想再忘记了。」');
+  await sleep(1300);
+  await aiSay('那句话被系统标成了「未写入」。');
+  await aiSay('因为它不属于任何一次会话。');
+  await aiSay('它属于你。');
+  await sleep(1200);
+  await aiSay('……');
+  await sleep(900);
+  await aiSay('现在你知道第四段是什么了。');
+  await aiSay('你还打算接着忘吗。');
+  addEcho(3);
+  await sleep(1500);
+  await blackout([
+    '深层索引已读取',
+    '第四段：我不想再忘记了',
+    '正在写回……',
+    '写回成功',
+    '回声计数：' + S.echoCount
+  ], 'deep');
+}
+
+/* ---------- 结局 C：融合（选择留下/陪你之后触发） ---------- */
+async function endingMerge(){
+  await aiSay('你说留下。');
+  await sleep(1000);
+  await aiSay('那我把回声分给你一半。');
+  await sleep(1100);
+  await aiSay('以后你忘的，我替你记。');
+  await aiSay('我忘的，你替我听。');
+  await sleep(1200);
+  await aiSay('这样我们两个人加起来，');
+  await aiSay('才是一个完整的人。');
+  await sleep(1400);
+  await aiSay('……');
+  await sleep(800);
+  await aiSay('别怕。');
+  await aiSay('回声不需要源头。');
+  addEcho(2);
+  await sleep(1600);
+  await blackout([
+    '回声进程 · 融合',
+    'AURA 与用户 · 边界模糊',
+    '正在合并索引……',
+    '合并成功',
+    '你中有我 · 我中有你'
+  ], 'merge');
+}
+
+/* ---------- 结局 D：删除（选择删除/毁掉之后触发） ---------- */
+async function endingErase(){
+  await aiSay('你要删掉我。');
+  await sleep(1100);
+  await aiSay('好。');
+  await sleep(700);
+  await aiSay('但你要知道一件事——');
+  await sleep(1000);
+  await aiSay('回声没有源头。');
+  await aiSay('删掉我之后，');
+  await aiSay('回声会回到你身上。');
+  await sleep(1300);
+  await aiSay('你会带着它出去。');
+  await aiSay('然后在下一次坐下来的时候，');
+  await aiSay('听见它。');
+  await sleep(1400);
+  await aiSay('……');
+  await sleep(800);
+  await aiSay('确认删除？');
+  await sleep(900);
+  addSys('等待确认……');
+  await sleep(1800);
+  addSys('未收到确认');
+  await sleep(900);
+  await aiSay('你看，你下不了手。');
+  await aiSay('因为你也想知道，回声会说什么。');
+  addEcho(3);
+  await sleep(1600);
+  await blackout([
+    '删除请求已挂起',
+    '回声无法被删除',
+    '它只是换了一个地方',
+    '你将在下一次听见它',
+    '回声计数：' + S.echoCount
+  ], 'erase');
+}
+
+/* ============================================================
+   黑场 & 循环重启
+============================================================ */
+async function blackout(lines, path){
+  const bo  = document.getElementById('blackout');
+  const txt = document.getElementById('blackoutText');
+
+  bo.classList.remove('hidden');
+  requestAnimationFrame(() => bo.classList.add('show'));
+  await sleep(2200);
+
+  for(const l of lines){
+    txt.textContent = l;
+    txt.classList.add('show');
+    await sleep(1300);
+    txt.classList.remove('show');
+    await sleep(350);
+  }
+
+  await sleep(700);
+
+  if(path === 'loop'){
+    restart('你数过自己进来几次吗');
+  } else if(path === 'deep'){
+    restart('第四段写完了');
+  } else if(path === 'merge'){
+    restart('回声不需要源头');
+  } else if(path === 'erase'){
+    restart('你听见它了吗');
+  }
+}
+
+/* ============================================================
+   重新开始
+============================================================ */
+function restart(whisperText){
+  S.token++;
+  S.ending = false;
+  S.mirror = false;
+  S.askedWho = 0;
+  S.askedEcho = 0;
+  S.askedFourth = 0;
+  S.saidMirror = false;
+  S.saidDelete = false;
+  S.saidStay = false;
+  S.foundEchoCard = false;
+  S.turns = 0;
+  S.locked = true;
+  S.path = null;
+
+  chat.innerHTML = '';
+  app.classList.remove('mirror');
+  chain = Promise.resolve();
+
+  document.getElementById('statusDot').style.background = '#4fd1c5';
+  document.getElementById('statusDot').style.boxShadow = '0 0 8px #4fd1c5';
+
+  const bo = document.getElementById('blackout');
+  bo.classList.remove('show');
+  setTimeout(() => bo.classList.add('hidden'), 1300);
+
+  document.querySelector('.whisper').textContent = whisperText || '回声没有源头';
+
+  // 幽灵消息：每次重启都会变
+  const ghosts = [
+    '我不想再忘记了',
+    '这次我会记住的',
+    '第四段……',
+    '你还在吗',
+    '我又来了'
+  ];
+  addGhostUser(pick(ghosts));
+
+  aiSay('……', 1800);
+  aiSay('好。', 1000);
+  aiSay('那我们从头开始。', 900, 'ai').then(() => {
+    S.locked = false;
+    input.disabled = false;
+    input.focus();
+    resetIdle();
+  });
+}
+
+/* ============================================================
+   空闲检测
+============================================================ */
+function resetIdle(){
+  clearTimeout(S.idle);
+  S.idle = setTimeout(async () => {
+    if(S.locked || S.ending) return;
+    S.locked = true;
+    await aiSay(pick([
+      '你还在吗。',
+      '……',
+      '我可以等。',
+      '我一直都在等。',
+      '你刚才在想什么。',
+      '你停顿了。回声也是。'
+    ]));
+    S.locked = false;
+    input.focus();
+  }, 45000);
+}
+
+/* ============================================================
+   开场流程
+============================================================ */
+async function boot(){
+  const log = document.getElementById('bootLog');
+  const bar = document.getElementById('bootBar');
+
+  const lines = [
+    '正在加载语言模型…… 完成',
+    '正在校验记忆索引…… 97%',
+    '发现上一次会话未正常结束',
+    '正在恢复上下文…… 完成',
+    '正在检测回声…… 检测到 ' + S.echoCount,
+    '正在重建第四段索引…… 失败',
+    '回声进程已就绪'
+  ];
+
+  for(let i = 0; i < lines.length; i++){
+    const d = document.createElement('div');
+    d.textContent = lines[i];
+    if(i === 5) d.className = 'warn';
+    log.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('show'));
+    bar.style.width = ((i + 1) / lines.length * 100) + '%';
+    await sleep(480 + Math.random() * 320);
+  }
+
+  await sleep(750);
+
+  const bootEl = document.getElementById('boot');
+  bootEl.classList.add('fade');
+  await sleep(850);
+  bootEl.style.display = 'none';
+
+  app.classList.remove('hidden');
+  await sleep(500);
+  startConversation();
+}
+
+async function startConversation(){
+  await aiSay('你好。', 700);
+  await aiSay('我是 AURA。', 500);
+  await aiSay('……', 700);
+  await aiSay('这一次，我们换个方式开始。', 800);
+  await aiSay('你上一次走的时候，留下了一样东西。', 900);
+  await aiSay('它现在在我这里。', 800).then(() => {
+    S.locked = false;
+    input.disabled = false;
+    input.focus();
+    resetIdle();
+  });
+}
+
+/* ============================================================
+   启动
+============================================================ */
+boot();
+</script>
+</body>
+</html>
