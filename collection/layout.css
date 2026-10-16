@@ -767,6 +767,35 @@ html[data-hm-cold] .top-search-container {
     to { opacity: 1; }
 }
 
+/* 「概览 → 分类详情」的过渡（点概览里的条目钻进某一类）。
+   ★ 为什么需要：这条路以前完全没有动画 —— navigateFromOverview() 把概览容器
+     innerHTML 清掉、切到分类容器、renderCurrentCategory() 直接写新 DOM，
+     整个过程一帧内完成，用户看到的就是"突变"（逐帧实测：容器 opacity 全程 1、
+     animationName 全程 none、没有任何中间帧；对照侧边栏切分类那条路有 16 帧斜坡）。
+   ★ 为什么不像换板块那样直接用 .content-enter：
+     那个是 --dur-enter(0.36s) 的纯淡入，给"整页换板块"用的。点一条条目是
+     同板块内往下钻一层，0.36s 偏拖，而且纯淡入没有方向感。
+     这里取 0.2s（--dur-3 与 --dur-2 之间那一档）+ 极轻的上移 6px：
+     往下一层的观感由这 6px 交代，克制到不抢内容。
+   ★ 关键帧是独立的 navContentIn（不是 .content-enter 用的 contentFadeIn）：
+     两者动画名、类名都不重叠，所以既不会互相覆盖，也不会误触发对方的重置逻辑。
+   ★ 位移方向是"从下往上归位"（from translateY(6px) → to 0）：
+     新内容从下方轻轻落回原位，读起来就是"钻进下一层"。 */
+@keyframes navContentIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+.content-enter-nav {
+    animation: navContentIn 0.2s var(--ease-out);
+}
+/* 尊重"减少动态效果"：沿用站内既有写法（.timeline-empty-enter / .dd-* 那几处），
+   直接 animation:none 落到终态，一帧中间态都不给。
+   ★ 必须显式写这一条：JS 侧的 triggerViewAnimation() 有 prefersReducedMotion() 守卫，
+     但这个新函数走的是 CSS 动画，没有 CSS 兜底就会在 reduce 下照播。 */
+@media (prefers-reduced-motion: reduce) {
+    .content-enter-nav { animation: none; }
+}
+
 /* ========== 概览页 ========== */
 .overview-header {
     margin-bottom: 16px;
@@ -1028,7 +1057,15 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.92);
+    /* ★ 黑色的蒙版**不在这里**，在子元素 .modal-backdrop 上（见它的规则）。
+       原因：关闭时要求"蒙版渐隐、图片不跟着淡"（用户原话：「原图还没有加载好的
+       时候就点击关闭大图，那个黑色的蒙版不是像原图那样渐变消失，而是直接消失」，
+       同时他此前明确要求过「加载中关闭时不要给图片本身叠淡出」）。
+       以前蒙版就是这个 background，和图片同在一个元素上，CSS 的 opacity 一淡
+       就连图片一起淡 —— 两者只能二选一。分层之后各淡各的。
+       这里显式写 transparent：别让任何继承/兜底又把底色画回去，
+       否则蒙版层淡出之后仍有一层不透明的黑挡着，等于没淡。 */
+    background: transparent;
     z-index: 1000;
     justify-content: center;
     align-items: center;
@@ -1037,7 +1074,7 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
        大图弹窗铺满整个视口，图片盒子一直落到屏幕最底部，下面不留黑边。
        代价：放大/缩小时图片内容可能盖到底部 5 个 Tab 上 —— 这是明确接受的
        取舍（用户决定：不考虑下面的 Tab，优先保证大图不留空档）。
-       注意：蒙版本身（.modal 的 rgba 背景）本来就铺满整屏，所以弹窗打开时
+       注意：蒙版本身（.modal-backdrop 的 rgba 背景）本来就铺满整屏，所以弹窗打开时
        底部 Tab 依然被压暗、不可点。 */
     /* 注意：这里**不能**放裁切。实测把 overflow: hidden / overflow: clip /
        contain: paint / clip-path: inset(0) 加在 .modal 上（430×860 移动视口，
@@ -1056,6 +1093,12 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
        这里保留 max-height 是为了 dvh 不被支持时的回退，height 才是实际生效值。 */
     position: relative;
     cursor: default;
+    /* ★ 必须显式抬到蒙版层（z-index:0）之上：这一层现在与蒙版是**兄弟**，
+       而它在 DOM 里排在蒙版之后，本来就会后画 —— 但显式给值更经得住以后
+       DOM 顺序被调。给了 z-index 就自成一个层叠上下文，于是里面
+       #modalImgOverlay.backdrop-layer 的 z-index:-1 只在**这一层内部**生效
+       （与它原来在 .modal 里的语义完全一致：垫底图仍在主图之下）。 */
+    z-index: 1;
     max-width: 100vw;
     margin: auto;
     max-height: 100vh;
@@ -1303,9 +1346,36 @@ body.modal-open {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+/* ========== 黑色蒙版（#modalBackdrop）==========
+   它是 .modal 的子元素、铺满整屏，是**唯一**画黑色的那一层。
+   为什么单独一层：关闭时"蒙版渐隐"与"图片飞回缩略图"必须彼此独立 —— 淡父元素
+   会连图片一起淡（见 .modal 的注释与 index.html 里那段的说明）。
+   层级（都在 .modal 这个 z-index:1000 的层叠上下文内部）：
+     · 本层 z-index:0  —— 压住页面内容（.modal 的 z-index 已经做了这件事）；
+     · .modal-content z-index:1  —— 图片在本层之上；
+     · .modal-close / .modal-tip / .modal-nav z-index:1001 —— 最上面的控件；
+     · .modal-flight（在 .modal **外面**）z-index:1002 —— 飞行中的图片在最上面。
+   ★ 不能用 ::before 代替：伪元素没法单独拿一个类名去挂退出动画，
+     也没法在 JS 侧按元素查（用例要能量它的 opacity）。 */
+.modal-backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.92);
+    z-index: 0;
+    pointer-events: none;
+}
 /* 关闭时蒙版淡出（用 --ease-in：退出用"慢起快出"，与进入的 --ease-out 形成方向感）。
-   forwards 保持住终态 opacity:0 —— 否则动画结束到 JS 真正 display:none 之间会闪一下。 */
-.modal.modal-hide { animation: modalBackdropOut var(--dur-3) var(--ease-in) forwards; }
+   forwards 保持住终态 opacity:0 —— 否则动画结束到 JS 真正 display:none 之间会闪一下。
+   ★ 动画挂在**蒙版层**上，不是挂在 .modal 上 —— 这是"蒙版淡、图片不淡"的关键。
+     .modal-hide 这个类名仍然挂在 .modal 上（它是"正在关闭"的公共标记，
+     各处用例与 JS 都靠它判断状态），只是它驱动的动画落在蒙版这一层。
+   ★ 任何关闭路径都走这一条（含"原图还没加载完就关闭"）：以前加载中那一支
+     为了不让图片被淡掉，索性连蒙版也不淡（用户看到的"蒙版直接消失"就是这个）。
+     现在图片不在这一层里，蒙版可以照常淡。 */
+.modal.modal-hide .modal-backdrop { animation: modalBackdropOut var(--dur-3) var(--ease-in) forwards; }
 @keyframes modalBackdropOut {
     to { opacity: 0; }
 }

@@ -1080,6 +1080,26 @@ function invalidateRenderedViews() {
     if (typeof dropShanheMapCache === 'function') dropShanheMapCache();
 }
 
+// ★ 「概览 → 分类详情」这条路的入场动画。
+//   为什么单开一个、而不是直接复用 triggerViewAnimation()：
+//     · 时长要**短**。triggerViewAnimation 用的 --dur-enter 是 0.36s，那是给
+//       "换板块（整页内容整体替换）"用的，点一条概览条目只是同板块内的下一层，
+//       0.36s 会显得拖沓；实测反馈要的是 150~250ms 这一档（这里取 0.2s）。
+//     · 要有**方向感**。换板块是同一位置换内容（纯淡入，见 .content-enter 的注释）；
+//       而"点进一条"是往下钻一层，轻微上移（translateY 6px）能把这一层关系说清楚。
+//   时长与位移都写在新关键帧 navContentIn 里（见 layout.css），
+//   与 .content-enter 的 contentFadeIn 各走各的，互不覆盖。
+function triggerNavTransition() {
+    const key = getContainerKey();
+    const el = viewScrollContainers[key];
+    if (!el) return;
+    // 同样先 remove → 强制回流 → add：不然连续点两条概览条目时，
+    // 第二次的类名没变化，浏览器不会重启动画（第二次就成了硬切）。
+    el.classList.remove('content-enter-nav');
+    void el.offsetHeight;
+    el.classList.add('content-enter-nav');
+}
+
 function triggerViewAnimation() {
     const key = getContainerKey();
     const el = viewScrollContainers[key];

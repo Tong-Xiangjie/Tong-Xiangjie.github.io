@@ -1090,7 +1090,8 @@ function openModal(imgSrc1, imgSrc2) {
         (sourceSrc === imgSrc1 || (!!backdrop && sourceSrc === backdrop));
 
     cancelModalFlight();
-    // 关键：带 forwards 的 .modal-hide 若残留，弹窗会一直不可见
+    // 关键：关闭时给蒙版挂的 .modal-hide 若残留，蒙版会一直停在对它生效的
+    // opacity:0 终态（forwards），弹窗看着就是全黑的空壳 —— 必须摘掉。
     if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
     modal.classList.remove('modal-hide');
 
@@ -1180,12 +1181,9 @@ function closeModal() {
     }
 
     // ★ 蒙版淡出（原来是 finish() 里直接 display:none，所以"啪"地一下就没了）。
-    //   注意 .modal 同时包含蒙版与图片，所以这里是整体不透明度淡出：
-    //     · 走回缩动画时，飞行图层在 modal 之外（z-index 更高）→ 只有蒙版在淡，
-    //       图片仍然清晰地飞回原缩略图位置
-    //     · 不走回缩时，整个查看器一起淡出
-    //   ★ 但「原图还没解码就绪」时**不能**这么淡（见下面 stillLoading 那一段）：
-    //     此刻画面上那张图还在 .modal **里面**（垫底低清图），淡它就是淡图片本身。
+    //   淡的是**蒙版层**（#modalBackdrop），不是 .modal 自己 —— 图片不在那一层里，
+    //   所以：走回缩动画时，飞行图层在 modal 之外（z-index 更高）扛着图片飞回原格子，
+    //   蒙版同时独立渐隐；不走回缩时，图片也确实跟着查看器一起被 finish() 收掉。
     modal.classList.remove('modal-show');
 
     let done = false;
@@ -1294,21 +1292,22 @@ function closeModal() {
         }
     }
 
-    // ★ 「加载中关闭」这一场合成里只保留"飞回原位"这一个几何动画，不出现任何淡出。
-    //   用户原话：「原图还没有加载出来的时候就点击关闭图片，会出现淡出和飞回动画
-    //   同时叠加，我不希望淡出动画。」
-    //   上面已经把弹窗里那份低清图的可见性交给了飞行图层，所以这里淡 .modal 只会
-    //   淡掉蒙版本身；但蒙版一淡，用户仍然会看到"淡出 + 飞回"两条动画同时在跑。
-    //   于是这一支：蒙版保持原样，直到飞行结束由 finish() 一次性 display:none 收掉
-    //   （差别条件就是"加载中 + 真的走了回缩飞行"这一种，正常关闭照旧淡出）。
-    if (!(flown && stillLoading)) {
-        modal.classList.add('modal-hide');
-    }
+    // ★ 蒙版渐隐 —— **任何关闭路径都走这里**，包括"原图还没加载完就关闭"。
+    //   用户原话（本轮）：「当原图未加载好的时候就点击关闭大图，那个黑色的蒙版
+    //   不是像原图那样渐变消失，而是直接消失。」以前正是下面那一支特例造成的：
+    //   那时蒙版和图片同在一个 .modal 上（rgba 背景画在 .modal 自己身上），
+    //   淡 .modal 就等于淡图片本身，与用户更早的那条要求（「原图还没有加载出来的时候
+    //   就点击关闭图片……我不希望淡出动画」，指**图片本身**不要在飞回时叠加淡出）
+    //   直接冲突 —— 当时选了"索性不淡"，于是蒙版硬切消失。
+    //   现在蒙版独立成层（#modalBackdrop，见 index.html 与 layout.css），
+    //   图片（.modal-content 里的主图 / 垫底低清图）与整只查看器保持 opacity:1，
+    //   飞行图层扛着图片飞回去：两条动画互不干扰，两个要求同时成立。
+    //   所以这里不再有特例，也不再需要 flown / stillLoading 参与判断。
+    modal.classList.add('modal-hide');
 
     // 兜底：无论是否回缩，蒙版淡出结束后都必须真正隐藏。
     // （回缩动画的 finish 会先触发，done 保证只执行一次）
-    // 不淡出的那一支没有 MODAL_HIDE_MS 可等，收尾时间就是飞行结束。
-    const hideMs = (prefersReducedMotion() || (flown && stillLoading)) ? 0 : MODAL_HIDE_MS;
+    const hideMs = prefersReducedMotion() ? 0 : MODAL_HIDE_MS;
     if (modalCloseTimer) clearTimeout(modalCloseTimer);
     modalCloseTimer = setTimeout(finish, (flown ? MODAL_FLIGHT_MS : 0) + hideMs + 80);
 }

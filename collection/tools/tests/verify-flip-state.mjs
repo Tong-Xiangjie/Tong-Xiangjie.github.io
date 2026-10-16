@@ -397,7 +397,26 @@ console.log('\n=== 2. 翻面之后关闭：必须出现飞行图层（= 缩回�
   sb.__api.closeModal();
   const modal = sb.els.imageModal;
   chk('关闭时移除了 modal-show', !modal.classList.contains('modal-show'), 'classes=' + modal.className);
-  chk('关闭时加上了 modal-hide（蒙版淡出）', modal.classList.contains('modal-hide'), 'classes=' + modal.className);
+  // ★ 这一条的量法在本轮改过，但**语义一字未变**：它要的一直是"蒙版在淡出"。
+  //   改前蒙版是 .modal 自己的 background，所以"有 modal-hide 类"就等于"蒙版在淡"，
+  //   一条类名断言就够。改后蒙版独立成 #modalBackdrop（.modal 的子元素），
+  //   退出动画挂在那一层上（.modal.modal-hide .modal-backdrop），
+  //   而 .modal-hide 仍然是"正在关闭"的公共标记、照旧挂在 .modal 上。
+  //   于是这里同时钉住两件事：① 标记还在（下游判断状态的代码不受影响）；
+  //   ② 那条标记真的驱动了蒙版层的淡出 —— 只钉 ① 的话，
+  //     把 CSS 里那条 .modal-backdrop 规则删掉这个用例照样绿，等于没有分辨力。
+  chk('关闭时加上了 modal-hide（= 正在关闭，蒙版淡出的公共标记）', modal.classList.contains('modal-hide'), 'classes=' + modal.className);
+  {
+    const maskRule = CSS.match(/\.modal\.modal-hide\s+\.modal-backdrop\s*\{[^}]*\}/);
+    const hasFadeKeyframes = /@keyframes\s+modalBackdropOut\s*\{[\s\S]*?to\s*\{\s*opacity:\s*0;?\s*\}\s*\}/.test(CSS);
+    chk('★ 蒙版淡出真的挂在蒙版层上（.modal.modal-hide .modal-backdrop → modalBackdropOut）',
+      !!maskRule && /animation:\s*modalBackdropOut\b/.test(maskRule[0]) && hasFadeKeyframes,
+      maskRule ? maskRule[0].replace(/\s+/g, ' ').slice(0, 120) : 'CSS 里找不到这条规则');
+    chk('★ 蒙版层没有画在 .modal 自己身上（.modal 的背景必须是 transparent，否则蒙版层淡了还有一层黑挡着）',
+      /\.modal\s*\{[^}]*?background:\s*transparent/.test(CSS), '');
+    chk('★ 关窗时不会再把「整只查看器」淡掉（.modal.modal-hide 上不许再有 opacity 动画）',
+      CSS.match(/\.modal\.modal-hide\s*\{[^}]*\}/) ? !/animation\s*:\s*modalBackdropOut/.test(CSS.match(/\.modal\.modal-hide\s*\{[^}]*\}/)[0]) : true, '');
+  }
   chk('★ 出现了飞行图层（缩回缩略图）', !!sb.modalFlightEl, 'modalFlightEl=' + sb.modalFlightEl);
   chk('★ 来源缩略图仍在（没有被翻面置空）', !!sb.lastModalSourceImg, 'lastModalSourceImg=' + sb.lastModalSourceImg);
   chk('★ 飞行用的是「当前这一面」的图（反面）', sb.modalFlightEl && sb.modalFlightEl.src === sb.currentModalImg2,

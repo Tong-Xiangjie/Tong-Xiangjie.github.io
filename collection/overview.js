@@ -225,6 +225,18 @@ function navigateFromOverview(dataKey, si, vi, ci, hasVarieties) {
     renderSidebar();
     renderCurrentCategory();
 
+    // ★ 渲染完立刻播一次"钻进详情"的过渡（见 core.js 的 triggerNavTransition）。
+    //   放在这里而不是放进 renderCurrentCategory()：那个函数是**所有**进分类的路径
+    //   的公共出口，包括深链接冷启动（main.js 的 applyInitialRoute）与品牌页
+    //   首帧 —— 那些路径要的是"第一帧就是终态"（仓库刚修好的首帧零位移）。
+    //   只有"用户在概览页点了一条"这一条路需要过渡，所以只在这里加。
+    //   ★ 位置必须在 renderCurrentCategory() **之后**：动画是给刚写进去的内容播的；
+    //     放在 render 之前会先播给空容器，等于没播。
+    //   ★ 也不与下面 revealCopyInCategory() 的滚动打架：那条链是 setTimeout(50) 起、
+    //     内部还各自 tick(80/120)，落在 0.2s 动画的中后段；而且展开/滚动只改
+    //     容器的 scrollTop 与手风琴高度，动画只动 opacity/transform，互不覆盖。
+    if (typeof triggerNavTransition === 'function') triggerNavTransition();
+
     // ★ 把"当前所在位置"同步进地址栏。
     //   navigateToCopy()（搜索结果跳转）一直有这一步，概览跳转却漏了，
     //   于是从概览点进分类后地址栏还停留在旧位置，深链接不可分享。

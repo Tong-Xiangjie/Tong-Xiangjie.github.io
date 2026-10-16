@@ -43,6 +43,32 @@ ok(/\.lightbox-close\s*\{[^}]*position\s*:\s*absolute/.test(css) && /\.lightbox-
   '① × 仍是卡片内的 absolute，并且有和卡片同色的底（内容从底下滚过也看得清）');
 ok(/\.modal-close\s*\{[^}]*position\s*:\s*fixed/.test(css), '① 图片大图弹窗的 × 仍是 position:fixed（本来就没问题）');
 
+// ─────────── ①′ 静态：黑色蒙版必须是**独立一层**（⑥⑨ 的"蒙版渐隐、图片不淡"全靠它）──
+//   改前蒙版是 .modal 自己的 background，与图片同层；要"图片不叠淡出"就必然
+//   "蒙版也不能淡"（用户本轮报的"蒙版直接消失"就是这个）。独立成层之后两者才可能同时成立。
+const htmlIdx = readFileSync('collection/index.html', 'utf8');
+{
+  const modalTag = /<div id="imageModal" class="modal">([\s\S]*?)<div class="modal-close"/.exec(htmlIdx);
+  ok(!!modalTag && /class="modal-backdrop"\s+id="modalBackdrop"/.test(modalTag[1]),
+    '①′ ① #imageModal 里有独立的蒙版层 #modalBackdrop（而不是把黑底画在 .modal 自己身上）');
+  ok(/\.modal\s*\{[^}]*?background:\s*transparent\b/.test(css),
+    '①′ ① .modal 自己的背景是 transparent —— 蒙版层淡到 0 之后不会还剩一层不透明的黑');
+  ok(/\.modal-backdrop\s*\{[^}]*?background:\s*rgba\(0,\s*0,\s*0,\s*0\.92\)/.test(css),
+    '①′ ① 蒙版层画的仍是原来那个 rgba(0,0,0,0.92)（观感没变）');
+  const maskFade = css.match(/\.modal\.modal-hide\s+\.modal-backdrop\s*\{[^}]*\}/);
+  ok(!!maskFade && /animation:\s*modalBackdropOut\b/.test(maskFade[0]),
+    `①′ ① 退出动画挂在**蒙版层**上（${maskFade ? maskFade[0].replace(/\s+/g, ' ') : '缺规则'}）`);
+  ok(/@keyframes\s+modalBackdropOut\s*\{[\s\S]*?to\s*\{\s*opacity:\s*0;?\s*\}\s*\}/.test(css),
+    '①′ ① modalBackdropOut 的关键帧仍是"淡到 0"');
+  // 负例已被抓住过：把 closeModal 里的 classList.add('modal-hide') 摘掉、
+  // 或把 .modal-backdrop 那条动画规则删掉，上面两条（以及 ⑥ ⑧ ⑨ 的淡出断言）都会红。
+  // 这一条量的是"标记类本身不许再直接驱动透明度"：.modal 是图片的祖先，
+  // 它自己一旦挂上 opacity 动画，图片就又被连带淡掉了。
+  const modalHideRule = css.match(/\.modal\.modal-hide\s*\{[^}]*\}/);
+  ok(!modalHideRule || !/animation\s*:/.test(modalHideRule[0]),
+    `①′ ① .modal.modal-hide 自己不再挂动画（它现在只是"正在关闭"的标记类；挂了就会连图片一起淡）—— 实际 ${modalHideRule ? modalHideRule[0].replace(/\s+/g, ' ') : '（无这条规则，更好）'}`);
+}
+
 // ══════════════════════════════════════════════════════════════
 const ROOT = process.cwd();
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.txt': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
@@ -272,12 +298,25 @@ async function installSampler() {
     });
     const rect = n => { const r = n.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
     const cur = n => String((n && (n.currentSrc || n.getAttribute('src'))) || '');
+    // ★ 蒙版层的有效不透明度（要乘上祖先的 opacity —— .modal.modal-show 的入场
+    //   淡入是挂在祖先上的）。关闭时蒙版渐隐就量这个数：不再能拿 #imageModal 的
+    //   computed opacity 代替，因为蒙版已经独立成 #modalBackdrop 这一层了
+    //   （见 index.html / layout.css 里那段说明；以前的注释就写在 .modal 上）。
+    const maskEff = () => {
+      const bd = document.getElementById('modalBackdrop');
+      return bd ? +eff(bd).toFixed(4) : -1;
+    };
     const frame = () => {
       const img = document.getElementById('modalImg'), ov = document.getElementById('modalImgOverlay'), fl = document.querySelector('.modal-flight'), m = document.getElementById('imageModal');
       return { t: Math.round(performance.now()),
         modalDisplay: m ? getComputedStyle(m).display : '', modalHide: m ? m.classList.contains('modal-hide') : false, modalOp: m ? getComputedStyle(m).opacity : '',
         ovDisplay: ov ? getComputedStyle(ov).display : '', ovBackdrop: ov ? ov.classList.contains('backdrop-layer') : false, ovNw: ov ? ov.naturalWidth : 0,
         imgSrc: cur(img), imgNw: img ? img.naturalWidth : 0, imgEff: img ? +eff(img).toFixed(3) : 0,
+        // ★ 关这一帧时原图是否还没解码就绪（naturalWidth=0）—— ⑨ 用它证明"这一场确实是
+        //   加载中关闭"，而不是碰巧等到了原图。也顺带记下弹窗里那层图片自己的有效不透明度。
+        imgStillLoading: !!(img && img.naturalWidth === 0),
+        imgLayerEff: img ? +eff(img).toFixed(3) : 0,
+        maskEff: maskEff(),
         flight: fl ? { src: cur(fl), nw: fl.naturalWidth, op: getComputedStyle(fl).opacity, eff: +eff(fl).toFixed(3), rect: rect(fl) } : null,
         anims: anims() };
     };
@@ -340,11 +379,27 @@ const openSnippet = flipAfter => `(async () => {
   ok(fs.length > 0 && fs.every(f => norm(f.flight.src) === norm(P.thumb)),
     `★ ⑥ 飞行图层的地址 = 屏幕上真正可见的那张低清图（期望 ${norm(P.thumb)}，实际 ${fs.length ? norm(fs[0].flight.src) : '-'}）`);
   ok(fs.every(f => Math.abs(Number(f.flight.eff) - 1) < 0.01), '★ ⑥ 飞行图层的有效不透明度全程 = 1（图片没有在淡出）');
-  ok(F.every(f => f.modalOp === '1' && !f.modalHide),
-    `★ ⑥ 这一场合成里没有任何淡出：#imageModal 全程 opacity=1、不挂 .modal-hide（帧内 opacity 取值 ${[...new Set(F.map(f => f.modalOp))].join('/')}）`);
+  // ★★ 下面两条（以及 ⑧ 的"正常关闭"那条）在本轮改过**判据的落点**，语义没变，
+  //    改的是"蒙版画在哪一层"。
+  //    改前：黑色蒙版是 .modal 自己的 background，蒙版与图片同层 ⇒ 淡蒙版就是淡图片。
+  //          为了满足"图片不叠淡出"，加载中关闭那一支只好连蒙版一起不淡，
+  //          于是用例把"没有任何淡出"当成正确行为钉在这里。
+  //    改后：蒙版独立成 #modalBackdrop（.modal 的子元素），图片在 .modal-content 里。
+  //          "图片不叠淡出"由"图片不在蒙版那一层"保证（飞行图层有效不透明度仍全程=1，
+  //          见上面那条未改动的断言），蒙版则任何关闭路径都照常渐隐 ——
+  //          这正是用户本轮的要求：「原图未加载好时点关闭，蒙版不是渐变消失而是直接消失」。
+  //    所以这里不再要求"整场没有淡出"，而是：
+  //      · #imageModal 自己（含全部图片层）全程 opacity=1（图片不许被淡）；
+  //      · 唯一的 opacity 动画只能落在蒙版层 #modalBackdrop 上，且必须是渐隐。
+  ok(F.every(f => f.modalOp === '1'),
+    `★ ⑥ #imageModal 全程 opacity=1（图片所在的那一层一次都没有被淡；帧内 opacity 取值 ${[...new Set(F.map(f => f.modalOp))].join('/')}）`);
   const fadeAnims = F.reduce((acc, f) => acc.concat(f.anims), []).filter(a => a.inModal && a.props.indexOf('opacity') >= 0);
-  ok(fadeAnims.length === 0,
-    `★ ⑥ getAnimations() 里没有任何 opacity 动画（${fadeAnims.length ? fadeAnims.map(a => a.name + '@' + a.target).join('、') : '无'}），只有几何动画`);
+  const offMaskFade = fadeAnims.filter(a => a.name !== 'modalBackdropOut' || !/modalBackdrop/.test(a.target));
+  ok(offMaskFade.length === 0,
+    `★ ⑥ 场上唯一的 opacity 动画只允许是蒙版层的渐隐（modalBackdropOut@modalBackdrop）；越界的有 ${offMaskFade.length} 条${offMaskFade.length ? '：' + offMaskFade.map(a => a.name + '@' + a.target).join('、') : ''}`);
+  const maskVals = F.map(f => Number(f.maskEff)).filter(v => v >= 0);
+  ok(maskVals.length > 0 && maskVals.filter(v => v > 0.02 && v < 0.98).length >= 3,
+    `★ ⑥ 加载中关闭：蒙版层确实在渐隐（中间态帧数 ${maskVals.filter(v => v > 0.02 && v < 0.98).length}，取值 ${maskVals.slice(0, 6).join('/')}…）—— 改前这一支是"蒙版硬切消失"`);
   ok(F.some(f => f.anims.some(a => a.inModal && a.props.indexOf('transform') >= 0 || a.name === 'transform')),
     '⑥ 确实在跑几何（transform）动画');
   const rects = fs.map(f => f.flight.rect.map(v => v).join(','));
@@ -480,6 +535,99 @@ console.log('\n══════ ⑧ 回归：加载完成后的正常关闭/�
     `★ ⑧ 正常翻面：停在反面且原图可见（src=${norm(st.src)} nw=${st.nw} 有效不透明度=${st.eff}）`);
   await evaluate('closeModal()');
   await sleep(600);
+}
+
+// ── ⑨ 用户本轮报的那条：加载中点关闭，蒙版必须**渐隐**（不是硬切） ──────────
+//   用户原话：「当原图未加载好的时候就点击关闭大图，那个黑色的蒙版不是像原图那样
+//   渐变消失，而是直接消失。」
+//
+//   逐帧实测（改前）：
+//     · 加载中关闭：#imageModal computed opacity 全程 ["1"×56]，蒙版所在层与图片
+//       同层，没有任何中间值 → 第 22 帧 display:none，蒙版"啪"地消失；整场
+//       getAnimations() 只有 transform@modal-flight
+//     · 正常关闭（对照）：opacity 从 1 经 14 个中间值（0.993/0.986/…/0.270）降到 0.13
+//   根因：蒙版以前是 .modal 自己的 background，与图片同层；"图片不许叠淡出"与
+//   "蒙版要淡"在同一条 opacity 上互斥，当时选了前者 ⇒ 蒙版硬切。
+//   修法：蒙版独立成 #modalBackdrop（.modal 的子元素），退出动画挂在它身上
+//   （.modal.modal-hide .modal-backdrop { animation: modalBackdropOut … }）。
+//
+//   ★ 这一节必须**独立重开一次加载中场景**：⑥ 那一场已经在前面跑完了，
+//     不能靠它的帧数据（那时蒙版层还不在这条断言的时间窗里）。
+//   ★ 不削弱 ⑥ 的任何一条：⑥ 量的是"飞行图层扛哪张图 + 图片不淡"，
+//     ⑨ 量的是"蒙版有没有渐隐"，两者互补。
+console.log('\n══════ ⑨ 加载中关闭：蒙版逐帧渐隐（本轮修复） ══════\n');
+{
+  imgHold = /image\/comm\/KP04057-1\.jpg/; imgDelayMs = 0; heldIds = [];
+  await boot('notes/commemorative');
+  await installSampler();
+  const P9 = JSON.parse(await evaluate(openSnippet(0)));
+  ok(!P9.err, `⑨ 点开正面格子（${P9.err || norm(P9.img1)}）`);
+  await sleep(700);
+  const pre9 = JSON.parse(await evaluate('window.__LS.snap()'));
+  ok(pre9.imgStillLoading === true && pre9.ovBackdrop === true,
+    `⑨ 前置：点关闭的这一刻原图确实还没就绪（主图 naturalWidth=${pre9.imgNw}），屏幕上是垫底低清图`);
+  await evaluate('window.__LS.start()');
+  const t9 = Date.now();
+  await evaluate(`document.querySelector('#imageModal .modal-close').click()`);
+  await sleep(800);
+  const F9 = JSON.parse(await evaluate('window.__LS.stop()'));
+  const fs9 = F9.filter(f => f.flight);
+  const px9 = fs9.filter(f => f.flight.nw > 0).length;
+  const hides9 = F9.filter(f => f.modalHide).length;
+  console.log(`  采样 ${F9.length} 帧；其中原图仍未就绪 ${F9.filter(f => f.imgStillLoading).length} 帧、飞行图层 ${fs9.length} 帧（有像素 ${px9} 帧）、挂 .modal-hide ${hides9} 帧`);
+
+  // (1) 确实是"加载中"这一场 —— 否则下面的断言没有分辨力
+  ok(F9.some(f => f.imgStillLoading), '⑨ (1) 这一场里确实出现过"原图还没就绪"的帧（量的是加载中那条路径）');
+  // (2) 蒙版逐帧渐隐
+  const mv = F9.map(f => Number(f.maskEff));
+  const interp = mv.filter(v => v > 0.02 && v < 0.98);
+  const drops = [];
+  for (let i = 1; i < mv.length; i++) drops.push(+(mv[i - 1] - mv[i]).toFixed(4));
+  const maxDrop = drops.length ? Math.max(...drops) : 0;
+  console.log(`  蒙版层有效不透明度逐帧：${mv.slice(0, 24).join(' / ')}${mv.length > 24 ? ' …' : ''}`);
+  ok(interp.length >= 4,
+    `★ ⑨ (2) 蒙版**逐帧渐隐**：中间态帧数 ${interp.length}（改前是 0 —— 蒙版硬切消失；正常关闭对照是 14）`);
+  ok(interp.length >= 1 && interp[0] >= 0.5 && interp[interp.length - 1] <= 0.5,
+    `★ ⑨ (2) 渐隐是**从暗到亮**的斜坡（首个中间值 ${interp[0]} ≥ 0.5、末个 ${interp[interp.length - 1]} ≤ 0.5），不是"先亮后暗"或抖动`);
+  ok(maxDrop <= 0.6,
+    `★ ⑨ (2) 没有任何单帧跳变（相邻帧最大跌幅 ${maxDrop} ≤ 0.6 —— 硬切会是 1.0；实测 300ms 的缓动最大单帧跌幅约 0.15）`);
+  // (3) 蒙版淡出的时长确实落在 CSS 的 --dur-3 上，不是瞬时的
+  const fadeT = (() => {
+    const below = F9.findIndex(f => Number(f.maskEff) < 0.98);
+    if (below < 0) return -1;
+    const back = F9.findIndex((f, i) => i > below && Number(f.maskEff) <= 0.001);
+    return back < 0 ? -1 : F9[back].t - F9[below].t;
+  })();
+  console.log(`  关闭到蒙版落到 0 约 ${fadeT}ms（CSS --dur-3 = 300ms）`);
+  ok(fadeT >= 150 && fadeT <= 450,
+    `★ ⑨ (3) 蒙版从开始变淡到全黑消失约 ${fadeT}ms，落在 --dur-3(300ms) 的量级（150~450ms）—— 不是"1~2 帧内到 0"`);
+  // (4) 反面：图片本身仍然没有被淡（否则就是把图片淡出和飞回又叠回去了）
+  ok(fs9.length > 0 && fs9.every(f => Math.abs(Number(f.flight.eff) - 1) < 0.01),
+    `★ ⑨ (4) 飞行图层（= 图片本身）的有效不透明度全程 = 1（${fs9.length} 帧）—— 叠加淡出那个历史 bug 没有回来`);
+  ok(fs9.length > 0 && fs9.every(f => f.flight.op === '1'),
+    '★ ⑨ (4) 飞行图层元素自己的 computed opacity 也全程 = 1（它是蒙版层的兄弟，不受蒙版淡出影响）');
+  // (5) 几何动画照旧在跑（"飞回原位"没被这次改动碰坏）
+  // ★ 采样时机的关系：`flight` 可能在第 0 帧还是 null（元素刚建出来、样式尚未落定），
+  //   所以先滤掉没有 flight 对象的帧，再做几何判定。
+  const ready9 = fs9.filter(f => f.flight && f.flight.rect);
+  const rects9 = ready9.map(f => f.flight.rect.join(','));
+  const grid9 = Array.isArray(P9.target) ? P9.target : null;
+  ok(new Set(rects9).size >= 3, `★ ⑨ (5) 同时仍在飞回原位（${new Set(rects9).size} 个不同矩形，末帧 ${rects9.length ? rects9[rects9.length - 1] : '-'} vs 格子 ${grid9 ? grid9.join(',') : '?'}）`);
+  const last9 = ready9.length ? ready9[ready9.length - 1].flight.rect : null;
+  ok(!!grid9 && !!last9 && Math.abs(last9[0] - grid9[0]) <= 3 && Math.abs(last9[1] - grid9[1]) <= 3,
+    `★ ⑨ (5) 落点仍是缩略图格子本来的位置（${last9 ? last9.slice(0, 2).join(',') : '-'} vs ${grid9 ? grid9.slice(0, 2).join(',') : '?'}）`);
+  const elapsed9 = Date.now() - t9;
+  // (6) 收尾干净
+  await sleep(400);
+  ok(await evaluate(`!document.querySelector('.modal-flight')`) === true, `⑨ (6) 飞行结束后飞行图层已清理（采样窗约 ${elapsed9}ms）`);
+  ok(await evaluate(`getComputedStyle(document.getElementById('imageModal')).display === 'none'`) === true, '⑨ (6) 弹窗真的收掉了（没有卡在半透明/半显示）');
+  ok(await evaluate(`document.getElementById('modalImg').style.opacity === ''`) === true, '⑨ (6) 收尾时主图的内联 opacity 已清空（不留给下次打开）');
+  ok(await evaluate(`(()=>{ const m=document.getElementById('imageModal');
+      return m.classList.contains('modal-hide') === false && m.classList.contains('modal-show') === false; })()`) === true,
+    '⑨ (6) 收尾时 .modal-hide / .modal-show 都摘掉了（下次打开不会停在蒙版透明或跳过一次入场动画）');
+  heldIds.forEach(id => { send('Fetch.continueRequest', { requestId: id }).catch(() => { }); });
+  heldIds = [];
+  await sleep(400);
 }
 
 for (const id of heldIds) { try { await send('Fetch.continueRequest', { requestId: id }); } catch { } }

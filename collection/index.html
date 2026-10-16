@@ -166,6 +166,17 @@
 
 <!-- 图片弹窗 -->
 <div id="imageModal" class="modal">
+    <!-- ★ 黑色蒙版单独一层（以前它就是 .modal 自己的 background，与图片同一层）。
+         为什么要分开：关闭时"蒙版渐隐"与"图片飞回缩略图"是两条独立的动画，
+         而 CSS 的 opacity 是继承性的 —— 淡父元素必然连图片一起淡。
+         分层之后：蒙版层走 .modal-backdrop 的淡出，图片（.modal-content 及里面的
+         #modalImg / 垫底层）与整只查看器一起保持 opacity:1，
+         飞行图层扛着图片飞回去，两者互不干扰。
+         ★ 仍然必须是 #imageModal 的**子元素**（不能挪到外面、也不能换成 ::before）：
+           ① .modal.modal-show 的入场淡入是整只查看器一起淡入，靠的正是父子 opacity 相乘；
+           ② .modal 是 z-index:1000 的层叠上下文，蒙版留在里面才天然压在图片之下、
+              又高于页面内容之上（.modal-content / 提示语 / ‹ › 依次是 1 / 1001 / 1001）。 -->
+    <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true"></div>
     <div class="modal-close" onclick="closeModal()">×</div>
     <div class="modal-content" id="modalContent">
         <div class="image-container" id="imageContainer">
