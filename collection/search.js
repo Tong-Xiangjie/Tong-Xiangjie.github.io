@@ -542,7 +542,7 @@ function updateSearchUIForMode() {
     // 通用搜索栏（纸币/硬币）：占位文字 + 点击/实时切换
     const modeSearch = getEffectiveSearchMode();
     const isClick = modeSearch === SEARCH_MODE.CLICK;
-    ui.placeholder = '全站范围都能搜哦';
+    ui.placeholder = '整个板块都能搜哦';
     ui.selectHidden = false;
     ui.toggleHidden = false;
     ui.toggleText = isClick ? '□' : '■';

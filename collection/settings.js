@@ -205,13 +205,13 @@ function renderSettingsPage() {
     html += `</div>`;
 
     // 文章搜索（模糊搜索 / 同义扩展）
-    // ★ 从搜索栏搬过来的。放在「我的」是因为它是一条**偏好**（默认关、存 localStorage、
+    // ★ 从搜索栏搬过来的。放在「我的」是因为它是一条**偏好**（默认开、存 localStorage、
     //   不进 URL），和「网格直接用原图」「自动预缓存」同类，而不是一次搜索的状态。
     html += `<div class="settings-section">`;
     html += `<h3>文章搜索模式偏好</h3>`;
     html += renderToggleRow('articleFuzzySwitch', '模糊搜索',
         articleFuzzyOn(), 'toggleArticleFuzzy()',
-        '开启后，检索词依据同义词表扩展为同义项一并参与匹配，可覆盖正式名称与俗称、简称之间的对应关系；命中结果合并为单一列表并按相关性排序。召回范围相应扩大，会包含相关但非精确匹配的条目；仅作用于文章板块。');
+        '开启后，您所输入的检索词将依据同义词表扩展为同义项与原词一并参与匹配。命中结果不再区分板块，而是根据相关性进行排序展示。该功能仅作用于文章板块。');
     html += `</div>`;
 
     // 网格画质
@@ -227,7 +227,7 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="clearCacheBtn" onclick="clearImageCache()"><span id="clearCacheText">清除图片缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片将被Service Worker缓存到本地，支持离线查看。若图片更换后依旧显示旧图，请点击此按钮并刷新网页</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">图片将被Service Worker缓存到本地，支持离线查看。若图片更换后依旧显示旧图，请点击此按钮并刷新网页。</p>`;
     html += `</div>`;
 
     // 文章缓存
@@ -236,7 +236,7 @@ function renderSettingsPage() {
     html += `<div class="export-buttons">`;
     html += `<button class="export-btn" id="clearArticleCacheBtn" onclick="clearArticleCache()"><span id="clearArticleCacheText">清除文章缓存</span></button>`;
     html += `</div>`;
-    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中。若文章修改后依旧显示旧内容，请点击此按钮并刷新网页</p>`;
+    html += `<p class="export-hint" style="font-size:0.75rem;color:var(--text-secondary);margin-top:6px;">文章正文缓存在内存中。若文章修改后依旧显示旧内容，请点击此按钮并刷新网页。</p>`;
     html += `</div>`;
 
     // 离线预缓存

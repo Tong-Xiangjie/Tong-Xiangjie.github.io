@@ -472,7 +472,7 @@ const MODE_REGISTRY = {
         // 所以整段交给它自己配置（文案与 search.js 里原实现逐字一致）。
         searchUi: function (ui) {
             const titleMode = (typeof articleSearchMode !== 'undefined' && articleSearchMode === 'title');
-            ui.placeholder = '只在当前板块里翻哦';
+            ui.placeholder = '在您选定的范围内查找文章';
             // ★ 必须为 true：文章板块要**藏掉**那个"全字段搜索"下拉框。
             //   原实现是 `select.classList.add('hidden')`；重构时误写成 false，
             //   结果文章页左上角多出一个"全字段搜索"选择框（用户报的回归）。

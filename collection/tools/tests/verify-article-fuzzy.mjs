@@ -130,23 +130,24 @@ await send('Page.navigate', { url: BASE + '#articles' });
 await sleep(3000);
 await enterArticles();
 
-console.log('\n══════ ⓪ 搜索栏恢复原样；开关搬进「我的」且默认关、能持久化 ══════');
+console.log('\n══════ ⓪ 搜索栏恢复原样；开关搬进「我的」且默认开、能持久化 ══════');
 {
   // 搜索栏里不该再有模糊按钮，提示文字也不该再提模糊
   ok(await evaluate(`(()=>!document.getElementById('fuzzyToggle'))()`), '搜索栏里已无模糊按钮（UI 已还原）');
   const tip0 = await evaluate(`(()=>{const e=document.getElementById('searchTip');return e?e.textContent:''})()`);
   console.log(`  搜索栏提示：${tip0}`);
   ok(!tip0.includes('模糊'), '搜索栏提示文字不再含模糊字样（已还原）');
-  ok(await evaluate(`articleFuzzyOn()`) === false, '模糊默认 = 关');
+  // ★ 用户要求：模糊搜索**默认开**（这不是放水，是需求变更）。
+  ok(await evaluate(`articleFuzzyOn()`) === true, '模糊默认 = 开（未设置过偏好的首访）');
 
-  // 开关应在「我的 → 文章搜索」里，且默认是关
+  // 开关应在「我的 → 文章搜索」里，且默认是开
   await evaluate(`(()=>{ if(typeof onTabClick==='function') onTabClick('settings'); return true; })()`);
   await sleep(1500);
   const sw = await evaluate(`(()=>{const e=document.getElementById('articleFuzzySwitch');
     return e?{on:e.classList.contains('on'),aria:e.getAttribute('aria-checked')}:null})()`);
   console.log(`  「我的」里的模糊开关: ${JSON.stringify(sw)}`);
   ok(sw !== null, '「我的」页面里有模糊开关（id=articleFuzzySwitch）');
-  ok(sw && sw.on === false && sw.aria === 'false', '「我的」里的模糊开关默认是关的');
+  ok(sw && sw.on === true && sw.aria === 'true', '「我的」里的模糊开关默认是开的');
 
   // ★ 「我的」界面的开关一律居右（用户要求）。这是几何要求就用几何验证：
   //   开关到卡片右边缘的距离必须明显小于到左边缘的距离，且标签在开关左边。
@@ -167,19 +168,24 @@ console.log('\n══════ ⓪ 搜索栏恢复原样；开关搬进「我
   ok(geoms.every(g => g.gapRight < g.gapLeft), '所有开关都靠右（到右边缘的距离 < 到左边缘的距离）');
   ok(geoms.every(g => g.labelLeftOfSwitch), '每个开关的标签都在开关左侧');
 
-  // 就当用户在「我的」里点了一下
+  // 就当用户在「我的」里点了一下：默认是开 → 点一下应当变成关
   await evaluate(`(()=>{ toggleArticleFuzzy(); return true; })()`);
   await sleep(500);
-  ok(await evaluate(`articleFuzzyOn()`) === true, '点一下后模糊＝开');
-  ok(await evaluate(`(()=>document.getElementById('articleFuzzySwitch').classList.contains('on'))()`), '开关外观同步为开');
+  ok(await evaluate(`articleFuzzyOn()`) === false, '点一下后模糊＝关');
+  ok(await evaluate(`(()=>document.getElementById('articleFuzzySwitch').classList.contains('on'))()`) === false, '开关外观同步为关');
 
-  // 持久化：整页重载后仍是开
+  // 持久化：整页重载后仍是关 —— 已存偏好（'0'）必须压过默认值（开）
   await send('Page.navigate', { url: 'about:blank' });
   await sleep(400);
   await send('Page.navigate', { url: BASE + '#articles' });
   await sleep(3000);
   await enterArticles();
-  ok(await evaluate(`articleFuzzyOn()`) === true, '刷新后模糊设置仍保留（已存 localStorage）');
+  ok(await evaluate(`articleFuzzyOn()`) === false, '刷新后仍是关（★ 已存偏好优先于默认值）');
+
+  // 再点回开：后面的用例都假定「模糊开」，这里收尾复原
+  await evaluate(`(()=>{ toggleArticleFuzzy(); return true; })()`);
+  await sleep(400);
+  ok(await evaluate(`articleFuzzyOn()`) === true, '再点一下回到开（后续用例的前提）');
 }
 
 console.log('\n══════ ① 标题口径（标题 + 模糊开）══════');

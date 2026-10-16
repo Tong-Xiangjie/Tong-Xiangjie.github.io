@@ -20,7 +20,7 @@
 let articleSynonymTable = null;      // { generatedAt, source, terms: { 词: [扩张词…] } }
 let articleSynonymPromise = null;    // 加载 Promise（重复调用拿到同一个，避免重复请求）
 
-// ★ 模糊搜索（同义扩展）开关。默认**关**（用户要求：默认为关闭）。
+// ★ 模糊搜索（同义扩展）开关。默认**开**（用户要求：默认为打开）。
 //   它现在是「我的 → 文章搜索」里的一个设置项，与「网格直接用原图」「自动预缓存」
 //   同类，所以两条约定都向那两项看齐：
 //     ① 不进 URL —— URL 只描述"在看什么"（板块/分类/关键词/标全），不描述偏好；
@@ -29,8 +29,9 @@ let articleSynonymPromise = null;    // 加载 Promise（重复调用拿到同�
 //   状态只有 localStorage 这一个来源，不再另设全局变量，避免两处打架。
 const ARTICLE_FUZZY_KEY = 'collection-article-fuzzy';
 
+// 默认开：只有显式存过 '0'（用户在「我的」里关过）才算关，其余（含从没设置过的 null）都算开。
 function articleFuzzyOn() {
-  try { return localStorage.getItem(ARTICLE_FUZZY_KEY) === '1'; } catch (e) { return false; }
+  try { return localStorage.getItem(ARTICLE_FUZZY_KEY) !== '0'; } catch (e) { return true; }
 }
 
 function setArticleFuzzy(on) {

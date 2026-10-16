@@ -15,7 +15,7 @@
 
 const PRECACHE_CONCURRENCY = 3;
 const PRECACHE_STORE_PREFIX = 'collection-images';   // 与 sw.js 的 CACHE_NAME 前缀一致
-const PRECACHE_AUTO_KEY = 'precache-auto';           // localStorage：'0' 表示关闭自动预缓存
+const PRECACHE_AUTO_KEY = 'precache-auto';           // localStorage：'1' 开 / '0' 关；默认关
 const PRECACHE_CHIP_HIDE_DELAY = 2200;
 
 let precacheQueue = [];
@@ -26,8 +26,9 @@ let precacheChipTimer = null;
 const precacheSeen = new Set();  // 本会话已排队 / 已命中的 URL，避免重复处理
 
 // ========== 开关与网络条件 ==========
+// 默认关：只有显式存过 '1'（用户在「我的」里开过）才算开，其余（含从没设置过的 null）都算关。
 function precacheAutoEnabled() {
-    try { return localStorage.getItem(PRECACHE_AUTO_KEY) !== '0'; } catch (e) { return true; }
+    try { return localStorage.getItem(PRECACHE_AUTO_KEY) === '1'; } catch (e) { return false; }
 }
 
 function setPrecacheAuto(on) {
