@@ -26,6 +26,12 @@
 //   E. 反向验证：把三处改动退回旧实现，**必须能测出位移** —— 证明 D 不是空断言；
 //   F. 首屏可读内容没被推迟：新旧实现在同一台机器上跑同一页，FCP / 首屏可见时刻
 //      不许因为字体处理而变差（差分自校准，不写死绝对毫秒）。
+//   G. 站点入口页（仓库根 index.html）：同样零位移 + 反向验证。
+//   H. 另外三页 academic/ · time/ · time_awful/（family 名是 "OCRB10"，与上面那个不同名、
+//      同一个 woff）：preload 与 @font-face 必须解析到同一个真实文件、display 取值按页
+//      （time 用 block：整屏就是 OCR-B 数字；academic/time_awful 用 swap：中文内容页，
+//      block 会把连中文在内的整段文字一起藏起来）、提前 load() 必须在那张样式表之后。
+//   I. 动态：这三页"改前先按回退字体排过一遍（首帧宽 ≠ 末帧宽）、改后逐帧零位移"。
 //
 // 注：无头 Chrome 里会关掉 Service Worker 注册 —— 否则 SW 会喂**旧版** CSS/JS，
 //     测到的可能是缓存里的老资源（这正是"本地全绿、线上仍旧"的经典坑）。
@@ -565,6 +571,217 @@ try {
   ok(rootNew.errors.length <= rootOld.errors.length,
      `入口页这处改动没新增 JS 报错（新 ${rootNew.errors.length} 条 ≤ 旧 ${rootOld.errors.length} 条）`);
   MODE = 'normal';
+
+  // ---------- H. 另外三页（academic / time / time_awful）：同一套办法 ----------
+  // 这三页的 @font-face family 叫 "OCRB10"（与 collection 的 OCRB10PitchBT-Regular **不同名**），
+  // 但指向仓库里同一个 woff（font/OCRB10PitchBT-Regular.woff）。用户裁定一并修掉：
+  // 同样是 preload + 尽早 document.fonts.load()，font-display 按各页情况选。
+  console.log('\n══════ H. 三页静态：preload 与 @font-face 同文件 / display 取值 / 提前 load 在样式表之后 ══════');
+  // ★ 这里的期望 display 值不是照抄 collection 的 block：三页各自的选择理由写在自己的
+  //   @font-face 注释里，改这张表就必须回去改注释（有意的"双人复核"）。
+  //   实测依据（60ms RTT，逐帧）：
+  //     · time：整屏内容就是 OCR-B 数字，回退字体排一遍再换 = 钟面跳 +108.71px → block；
+  //       字体人为延迟 1.5s 时 swap 会在回退字体上先画一遍再跳，block 全程不画错字体。
+  //     · academic / time_awful：正文以中文为主的内容/应用页，block 会把**连中文在内**的
+  //       整段文字一起藏到字体到手为止（block-cjk 实测），字体取不到时代价太大 → swap。
+  const PAGES = [
+    { rel: 'academic/index.html', display: 'swap', probes: ['.sub'], clsMax: null,
+      note: '内容页（中文正文为主）→ swap：字体取不到也要保证整页可读' },
+    { rel: 'time/index.html', display: 'block', probes: ['.footer-line', '#timeDisplay'], clsMax: 0.001,
+      note: '整屏就是 OCR-B 数字 → block：宁可等字体也不先画错字体' },
+    { rel: 'time_awful/index.html', display: 'swap', probes: ['.boot-sub', '.tb-badge'], clsMax: 0.002,
+      note: '应用型页面（启动屏 + 搜索 + 面板）→ swap：同 academic' }
+  ];
+  for (const pg of PAGES) {
+    const src = await readFile(join(ROOT, pg.rel), 'utf8');
+    const pl = /<link rel="preload" as="font" type="font\/woff" href="([^"]+)"([^>]*)>/.exec(src);
+    const fm = /@font-face\s*\{[^}]*font-family:\s*"OCRB10"[^}]*\}/.exec(src);
+    const faceSrc = fm ? (/src:\s*url\('([^']+)'\)/.exec(fm[0]) || [])[1] : '';
+    const faceDisplay = fm ? (/font-display:\s*(\w+)/.exec(fm[0]) || [])[1] : '';
+    const kickAt = src.indexOf(`document.fonts.load('1em "OCRB10"')`);
+    const styleEnd = kickAt > 0 ? src.lastIndexOf('</style>', kickAt) : -1;
+    // ★ 必须取**这张样式表里**最后一条 @font-face：注释里也会出现 "@font-face" 这几个字
+    //   （第一版就是被自己注释里的字面量骗了，faceAt 落到了 </style> 之后而误报红）
+    const faceAt = styleEnd > 0 ? src.lastIndexOf('@font-face', styleEnd) : -1;
+    const dir = pg.rel.slice(0, pg.rel.lastIndexOf('/'));
+    const hrefAbs = pl ? join(ROOT, dir, decodeURIComponent(pl[1])) : '';
+    const srcAbs = faceSrc ? join(ROOT, dir, faceSrc) : '';
+    NOTE(`${pg.rel}：preload=${pl ? pl[1] : '(无)'}  @font-face.src=${faceSrc}  display=${faceDisplay}  ${pg.note}`);
+    ok(!!pl && /\bcrossorigin\b/.test(pl[2]),
+       `${pg.rel}：有 as="font" 且带 crossorigin 的 preload（字体请求必须带凭据模式，否则会二次下载）`);
+    ok(!!fm && faceSrc.endsWith('font/OCRB10PitchBT-Regular.woff'),
+       `${pg.rel}：@font-face 的 family 是 OCRB10 且 src 指向那个共用的 woff（${faceSrc}）`);
+    ok(hrefAbs !== '' && hrefAbs === srcAbs && existsSync(hrefAbs),
+       `★ ${pg.rel}：preload 的 href 与 @font-face 的 src 解析到**同一个真实文件**（${hrefAbs}）—— 预加载的正是要用的字形`);
+    ok(faceDisplay === pg.display,
+       `★ ${pg.rel}：font-display 是选定的 ${pg.display}（实际 ${faceDisplay}）`);
+    ok(kickAt > 0 && faceAt > 0 && faceAt < styleEnd && kickAt > styleEnd,
+       `★ ${pg.rel}：提前 load() 落在定义 @font-face 的那张样式表**之后**（表内 @font-face@${faceAt} < </style>@${styleEnd} < load@${kickAt}）—— 否则 CSSOM 里没有这条规则，load 会解析成空家族名直接 resolve`);
+  }
+
+  // ---------- I. 三页动态：改前有位移、改后零位移 ----------
+  // 采样口径与前两节不同，多两处防伪报：
+  //   ① 只比**尺寸**（宽/高）：academic 面板有 500ms fadeInUp(translateY) 入场动画，
+  //      每帧 x/y 本来就在动，那是设计不是字体问题；
+  //   ② 只有"**文字没变**、尺寸却变了"才算位移：时钟每秒换数字、time_awful 的
+  //      "0%→55%→100%" 也会改宽度，拿它当位移会误报。
+  const mkPageSampler = sels => `(function () {
+  try { Object.defineProperty(navigator, 'serviceWorker', { get: () => undefined }); } catch (e) {}
+  var SEL = ${JSON.stringify(sels)};
+  var rec = { frames: [], cls: 0, shiftN: 0, errors: [] };
+  window.__pg = rec;
+  window.addEventListener('error', function (e) { rec.errors.push(String(e.message).slice(0, 140)); });
+  try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { rec.cls += e.value; rec.shiftN++; }); }).observe({ type: 'layout-shift', buffered: true }); } catch (e) {}
+  function face() {
+    var f = Array.from(document.fonts).filter(function (x) { return x.family.replace(/^"|"$/g, '') === 'OCRB10'; })[0];
+    return f ? f.status + '/' + (f.display || '?') : '(无)';
+  }
+  function snap() {
+    var out = [];
+    SEL.forEach(function (sel) {
+      var els = document.querySelectorAll(sel);
+      for (var i = 0; i < Math.min(els.length, 2); i++) {
+        var el = els[i], r = el.getBoundingClientRect();
+        out.push([sel, +r.x.toFixed(2), +r.y.toFixed(2), +r.width.toFixed(2), +r.height.toFixed(2), (el.textContent || '').trim().slice(0, 24)]);
+      }
+    });
+    return { t: +performance.now().toFixed(1), rects: out, face: face() };
+  }
+  var n = 0;
+  (function frame() { rec.frames.push(snap()); if (++n < 240) requestAnimationFrame(frame); })();
+  window.__pgAnalyze = function () {
+    var per = {}, changed = [];
+    rec.frames.forEach(function (f) {
+      f.rects.forEach(function (r) {
+        var k = r[0], e = per[k] || (per[k] = { first: null, last: null, wseries: [] });
+        if (e.last && e.last.text === r[5] && (Math.abs(e.last.rect[2] - r[3]) > 0.01 || Math.abs(e.last.rect[3] - r[4]) > 0.01)) {
+          changed.push({ t: f.t, el: k, from: e.last.rect.slice(2), to: r.slice(3), prevFace: e.last.face, face: f.face });
+        }
+        if (!e.wseries.length || e.wseries[e.wseries.length - 1][1] !== r[3]) e.wseries.push([f.t, r[3]]);
+        if (!e.first) e.first = { t: f.t, rect: r.slice(1), text: r[5], face: f.face };
+        e.last = { t: f.t, rect: r.slice(1), text: r[5], face: f.face };
+      });
+    });
+    var firstRects = rec.frames.filter(function (f) { return f.rects.length > 0; })[0] || null;
+    var w = performance.getEntriesByType('resource').filter(function (e) { return /\\.woff2?$/i.test(e.name); });
+    // 主图（academic 那张 1.72MB 的 headphoto.png）的时序：J 小节要比"字体 vs 主图"
+    var im = performance.getEntriesByType('resource').filter(function (e) { return /headphoto\\.png$/i.test(e.name); })[0];
+    var clock = document.querySelector('#timeDisplay');
+    return {
+      frames: rec.frames.length, firstRects: firstRects, cls: +rec.cls.toFixed(5), shiftN: rec.shiftN,
+      changedCount: changed.length, changed: changed.slice(0, 6), per: per, errors: rec.errors,
+      clockText: clock ? clock.textContent.replace(/\\s+/g, ' ').trim().slice(0, 24) : null,
+      fontRes: w.length ? { name: w[0].name.split('/').pop(), start: +w[0].startTime.toFixed(1), end: +w[0].responseEnd.toFixed(1) } : null,
+      imgRes: im ? { name: im.name.split('/').pop(), start: +im.startTime.toFixed(1), end: +im.responseEnd.toFixed(1), size: im.decodedBodySize } : null
+    };
+  };
+})();`;
+
+  async function loadPage(rel, sels) {
+    if (scriptId) { try { await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: scriptId }); } catch {} scriptId = null; }
+    await send('Page.navigate', { url: 'about:blank' });
+    await sleep(120);
+    const r = await send('Page.addScriptToEvaluateOnNewDocument', { source: mkPageSampler(sels), runImmediately: true });
+    scriptId = r.identifier;
+    await send('Network.emulateNetworkConditions', { offline: false, latency: LATENCY, downloadThroughput: -1, uploadThroughput: -1 });
+    await send('Page.navigate', { url: BASE.replace('/collection/', '/') + rel });
+    await sleep(4600);
+    return await evaluate('window.__pgAnalyze()');
+  }
+
+  console.log('\n══════ I. 三页逐帧：改前先按回退字体排过一遍，改后零位移 ══════');
+  const pageSummary = [];
+  for (const pg of PAGES) {
+    MODE = 'normal';
+    const nw = await loadPage(pg.rel, pg.probes);
+    const nwFirst = nw.firstRects || { t: null, face: '?' };
+    const nwFallback = Object.values(nw.per).filter(e => e.first && e.first.rect[2] !== e.last.rect[2]);
+    const nwTexts = Object.values(nw.per).map(e => (e.last && e.last.text) || '');
+    NOTE(`【改后】${pg.rel}：${nw.frames} 帧，首帧量到矩形 t=${nwFirst.t}ms 字体=${nwFirst.face}，字体请求 ${JSON.stringify(nw.fontRes)}，CLS=${nw.cls}（${nw.shiftN} 条）`);
+    for (const k of Object.keys(nw.per)) NOTE(`    ${k} 首帧宽 ${nw.per[k].first.rect[2]}px → 末帧宽 ${nw.per[k].last.rect[2]}px，宽度序列（有变化才记）${JSON.stringify(nw.per[k].wseries)}`);
+    ok(nwTexts.some(t => t && t.length > 1), `${pg.rel}：页面正常渲染出可测文字（${JSON.stringify(nwTexts.filter(Boolean))}）`);
+    ok(nw.changedCount === 0,
+       `★ ${pg.rel}：逐帧尺寸零位移（${nw.frames} 帧、0 次变化）`);
+    if (nw.changedCount) for (const c of nw.changed) console.log(`      ✗ t=${c.t}ms ${c.el} ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}（${c.prevFace} → ${c.face}）`);
+    ok(nwFallback.length === 0,
+       `★ ${pg.rel}：${Object.keys(nw.per).length} 个探针**第一帧量到的就是最终尺寸**（没有任何一个先按回退字体排过版）`);
+    ok(nw.fontRes && nwFirst.t !== null && nw.fontRes.end <= nwFirst.t + 50,
+       `★ ${pg.rel}：字体在文字第一次被量到之前/同时就绪（字体到手 ${nw.fontRes ? nw.fontRes.end : '?'}ms ≤ 首帧 ${nwFirst.t}ms + 50ms 容差）`);
+    if (pg.clsMax !== null) {
+      ok(nw.cls <= pg.clsMax, `★ ${pg.rel}：CLS ${nw.cls} ≤ ${pg.clsMax}（旧实现是 0.02187 / 0.0300 那一档）`);
+    } else {
+      // 这一页的 CLS 被它自己的 500ms fadeInUp 入场动画 + JS 渲染站点列表主导，
+      // 与字体无关，硬钉阈值只会变成随机红绿 —— 所以这里只记录不断言。
+      NOTE(`${pg.rel}：CLS=${nw.cls} 不设断言（这一页自己的入场动画 + JS 列表渲染就占满了 CLS，与字体无关）`);
+    }
+    if (pg.rel === 'time/index.html') {
+      ok(/^\d{2}:\d{2}:\d{2}/.test(nw.clockText || ''),
+         `★ time：钟面仍然正常走字（#timeDisplay = "${nw.clockText}"）`);
+    }
+
+    MODE = 'legacy';
+    const od = await loadPage(pg.rel, pg.probes);
+    const odFirst = od.firstRects || { t: null, face: '?' };
+    const odFallback = Object.values(od.per).filter(e => e.first && e.first.rect[2] !== e.last.rect[2]);
+    const odJump = Math.max(0, ...Object.values(od.per).map(e => (e.first && e.last) ? Math.abs(e.last.rect[2] - e.first.rect[2]) : 0));
+    NOTE(`【改前】${pg.rel}：${od.frames} 帧，首帧 t=${odFirst.t}ms 字体=${odFirst.face}，字体请求 ${JSON.stringify(od.fontRes)}，CLS=${od.cls}`);
+    for (const k of Object.keys(od.per)) NOTE(`    ${k} 宽度序列（有变化才记）${JSON.stringify(od.per[k].wseries)}`);
+    NOTE(`【改前】尺寸位移 ${od.changedCount} 次` + (od.changed.length ? `，例如 t=${od.changed[0].t}ms ${od.changed[0].el} ${JSON.stringify(od.changed[0].from)} → ${JSON.stringify(od.changed[0].to)}（${od.changed[0].prevFace} → ${od.changed[0].face}）` : ''));
+    ok(od.changedCount > 0,
+       `★ 反向验证：${pg.rel} 退回旧实现确实会跳（${od.changedCount} 次尺寸变化，最大 ${odJump.toFixed(2)}px）—— 所以"改后零位移"不是空断言`);
+    ok(odFallback.length > 0,
+       `★ 反向验证：${pg.rel} 旧实现里${odFallback.length} 个探针**先按回退字体排过版**（首帧宽 ≠ 末帧宽）`);
+    ok(odJump >= 2,
+       `★ 探针有分辨力：${pg.rel} 回退字体与 OCR-B 的宽度差 ${odJump.toFixed(2)}px（≥2px，帧采样必定抓到）`);
+    ok(nw.errors.length <= od.errors.length,
+       `${pg.rel}：这处改动没新增 JS 报错（新 ${nw.errors.length} 条 ≤ 旧 ${od.errors.length} 条）`);
+    MODE = 'normal';
+    pageSummary.push({ rel: pg.rel, display: pg.display, nwChanged: nw.changedCount, odChanged: od.changedCount,
+      jump: odJump, nwFirst: nwFirst.t, odFirst: odFirst.t, nwCls: nw.cls, odCls: od.cls,
+      nwFont: nw.fontRes ? nw.fontRes.end : null, odFont: od.fontRes ? od.fontRes.end : null });
+  }
+  ok(patched.pages > 0, `三页 legacy 替换都真的生效了（${patched.pages} 次文件替换）`);
+  console.log('\n  ── 三页汇总（改前 / 改后）──');
+  for (const s of pageSummary) {
+    console.log(`  ${s.rel.padEnd(24)} display=${s.display.padEnd(5)} 尺寸位移 ${s.odChanged} → ${s.nwChanged} 次（最大跳 ${s.jump.toFixed(2)}px）  首字出现 ${s.odFirst}ms → ${s.nwFirst}ms（+${(s.nwFirst - s.odFirst).toFixed(0)}ms 是"等字体"的代价）  字体到手 ${s.odFont} → ${s.nwFont}ms  CLS ${s.odCls} → ${s.nwCls}`);
+  }
+
+  // ---------- J. academic 主图：加载优先级压到最低，别和字体抢 ----------
+  // 用户裁定：不许内联字体、不许改入场动画，改为"把主图加载优先级调到最后"。
+  // 手段只有三个 HTML 属性（见 academic/index.html 主图上的注释），这里把"属性真的在"
+  // 与"引擎里真的生效（字体不晚于主图）"两件事分别钉住。
+  console.log('\n══════ J. academic 主图降优先级：静态属性 + 字体不晚于主图 ══════');
+  {
+    const src = await readFile(join(ROOT, 'academic', 'index.html'), 'utf8');
+    const m = /<img[^>]*class="logo-icon"[^>]*>/.exec(src);
+    const tag = m ? m[0].replace(/\s+/g, ' ') : '';
+    NOTE(`主图标签：${tag.slice(0, 220)}`);
+    ok(!!m, 'academic/index.html 里主图 <img class="logo-icon"> 还在（没被删掉）');
+    ok(/src="\.\.\/image\/headphoto\.png"/.test(tag),
+       '主图 src 仍是原图 ../image/headphoto.png（没有换成低清占位）');
+    ok(/\bfetchpriority="low"/.test(tag),
+       '★ 主图带 fetchpriority="low" —— 实测引擎里它的请求优先级从 Medium 掉到 Low（同一套 CDP 抓的 initialPriority，字体仍是 High）');
+    ok(/\bdecoding="async"/.test(tag),
+       '★ 主图带 decoding="async" —— 2048x1562 的解码不占主线程、不顶掉首绘');
+    ok(/\bloading="eager"/.test(tag) && !/\bloading="lazy"/.test(tag),
+       '★ 主图是显式 loading="eager" 且不是 lazy —— 首屏主图不许"滚不到就不加载"');
+    const imgFile = await stat(join(ROOT, 'image', 'headphoto.png'));
+    ok(imgFile.size >= 1000000,
+       `主图还是那张大图（${(imgFile.size / 1048576).toFixed(2)}MB / 2048x1562）—— 要的是"优先级最后"，不是"不加载/换小图"`);
+    MODE = 'normal';
+    const a = await loadPage('academic/index.html', ['.sub']);
+    NOTE(`资源时序（60ms RTT、无缓存）：字体 ${JSON.stringify(a.fontRes)}  主图 ${JSON.stringify(a.imgRes)}`);
+    NOTE(`主图属性（页面上读回来的）：见 I 小节；首绘/FCP=${a.firstRects ? a.firstRects.t : '?'}ms（FCP/LCP 由那张主图 + 它父容器的 500ms fadeInUp 动画决定，见交付说明）`);
+    ok(!!a.fontRes && !!a.imgRes, '两侧资源计时都取到了（下面两条不是空断言）');
+    // 容差 30/40ms：两边都在同一拍发出，资源计时的 start 只有 rAF 级精度，钉死 0ms 会随机红
+    ok(a.fontRes && a.imgRes && a.fontRes.start <= a.imgRes.start + 30,
+       `★ 字体请求起点不晚于主图（字体 ${a.fontRes ? a.fontRes.start : '?'}ms ≤ 主图 ${a.imgRes ? a.imgRes.start : '?'}ms + 30ms 容差）`);
+    ok(a.fontRes && a.imgRes && a.fontRes.end <= a.imgRes.end + 40,
+       `★ 字体到手也不晚于主图（字体 ${a.fontRes ? a.fontRes.end : '?'}ms ≤ 主图 ${a.imgRes ? a.imgRes.end : '?'}ms + 40ms 容差）—— 主图不再和字体抢那一段带宽`);
+    ok(a.changedCount === 0 && Object.values(a.per).every(e => e.first.rect[2] === e.last.rect[2]),
+       `★ 降主图优先级没有把字体那处的零位移弄回去（.sub 首帧宽=${Object.values(a.per)[0] ? Object.values(a.per)[0].first.rect[2] : '?'}px = 末帧宽，逐帧尺寸位移 ${a.changedCount} 次）`);
+    MODE = 'normal';
+  }
 
   console.log(`\nconsole.error: ${consoleErrors.length ? consoleErrors.join(' | ') : '（无）'}`);
   console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);

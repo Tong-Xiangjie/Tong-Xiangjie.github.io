@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>学术搜索入口</title>
+    <!-- 字体预加载：与下面 @font-face 的 src 必须是同一个文件。
+         提前建连/取字，配合 </style> 之后那句 document.fonts.load()，
+         让 OCR-B 在首帧排版前就绪，避免西文/数字先按回退字体排一遍再跳一下。 -->
+    <link rel="preload" as="font" type="font/woff" href="../font/OCRB10PitchBT-Regular.woff" crossorigin>
     <style>
         /* ═══ 字体 ═══ */
         @font-face {
@@ -12,6 +16,10 @@
             src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
             font-weight: normal;
             font-style: normal;
+            /* 这一页 OCR-B 挂在 body 字体栈首位、页面上以中文正文为主，
+               所以坚持 swap：万一字体取不到，整页文字仍然可读（只是西文/数字用回退字体）。
+               实测 block 会把**连中文在内**的整段文字一起藏到字体到手为止（见 collection/tools/tests/verify-ocrb-init.mjs），
+               对内容页代价太大。不跳一下靠的是上面的 preload + 下面的提前 load，不靠 display 取值。 */
             font-display: swap;
         }
 
@@ -358,13 +366,34 @@
             .title-btn { font-size: 0.6rem; padding: 0.1rem 0.5rem; }
         }
     </style>
+    <!-- 提前把 OCR-B 拉起来（必须放在定义 @font-face 的样式表**之后**，
+         否则 CSSOM 里还没有这条规则，load() 会解析成空家族名直接 resolve）。
+         与 preload 的区别：preload 只取字节，load() 还会驱动 FontFace 的解析与"就绪"，
+         让它赶在首帧排版之前完成。写错也不影响页面，只回退成"迟一拍"。 -->
+    <script>try{if(document.fonts&&document.fonts.load)document.fonts.load('1em "OCRB10"');}catch(e){}</script>
 </head>
 <body>
 <div class="glass-panel" id="appRoot">
     <div class="content">
         <div class="dashboard">
             <div class="logo-area" style="margin-bottom: 1rem;">
-                <img src="../image/headphoto.png" class="logo-icon" alt="学术搜索门户图标">
+                <!-- 主图（2048x1562 / 1.72MB，实际只显示 120x120）故意压到**最低**加载优先级：
+                     它和 OCR-B 的 woff 抢同一段带宽，而它是纯装饰、晚一点出现无感；
+                     字体晚到却会让整页西文与数字先按回退字体排一遍 —— 那就是"跳一下"。
+                     所以：fetchpriority="low" 让它在网络队列里排到最后（Chrome/Edge/Safari 认这个，
+                     不认的浏览器只当普通图片、直接忽略）；
+                     decoding="async" 让 1.72MB 的解码别占着主线程、别把首绘顶掉；
+                     loading="eager" 是**显式**写死的：它是首屏主图，绝不能 lazy 成"滚不到就不加载"。
+                     ★ 没有把它挪出 DOM、也没有改成"首绘后再注入"：它撑在 h1 上面撑开 .logo-area
+                     的高度，挪走/后注入会让 h1 先上移再落回（那才是真的 CLS）；也没有换低清占位
+                     （要的是"优先级最后"，不是"不加载"）。 -->
+                <!-- 小图：显示尺寸只有 120x120（object-fit: contain，实际可视 120x91.5），
+                     原来却让浏览器下 2048x1562 / 1.72MB 的原图 —— LCP 被它自己拖到本机 ~0.7s、
+                     8Mbps 慢链路 ~2.0s。现在改指 256x195 / 57.9KB 的等比缩图（30 倍小，
+                     2.13 倍于显示宽度，并且仍是 eager + fetchpriority="low"）。
+                     原图 image/headphoto.png **没有改动**：站点根 index.html 还有 3 处在用它。 -->
+                <img src="../image/headphoto-256.png" class="logo-icon" alt="学术搜索门户图标"
+                     loading="eager" fetchpriority="low" decoding="async">
                 <h1>学术搜索入口</h1>
                 <div class="sub">ACADEMIC SEARCH PORTAL</div>
             </div>

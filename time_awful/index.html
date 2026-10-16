@@ -7,7 +7,14 @@
 <script>
 try { if (localStorage.getItem('clockTheme') === 'dark') document.documentElement.classList.add('dark-mode'); } catch(e){}
 </script>
+<!-- 字体预加载：与下面 @font-face 的 src 必须是同一个文件。
+     提前建连/取字，配合 </style> 之后那句 document.fonts.load()，
+     让 OCR-B 在首帧排版前就绪，避免启动屏/顶栏上的西文与数字先按回退字体排一遍再跳一下。 -->
+<link rel="preload" as="font" type="font/woff" href="../font/OCRB10PitchBT-Regular.woff" crossorigin>
 <style>
+/* font-display 保持 swap：这一页是应用型页面（启动屏 + 搜索 + 面板），以中文为主，
+   万一字体取不到必须保证整页文字可读；实测 block 会把连中文在内的整段文字一起藏到字体到手为止。
+   不跳一下靠的是上面的 preload + 下面的提前 load，不靠 display 取值。 */
 @font-face {
     font-family: "OCRB10";
     src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
@@ -1259,6 +1266,11 @@ body.vip-mode .clock-block { margin-top:3vh; }
     .tb-card-img { height:96px; font-size:2.4rem; }
 }
 </style>
+<!-- 提前把 OCR-B 拉起来（必须放在定义 @font-face 的样式表**之后**，
+     否则 CSSOM 里还没有这条规则，load() 会解析成空家族名直接 resolve）。
+     与 preload 的区别：preload 只取字节，load() 还会驱动 FontFace 的解析与"就绪"，
+     让它赶在首帧排版之前完成。写错也不影响页面，只回退成"迟一拍"。 -->
+<script>try{if(document.fonts&&document.fonts.load)document.fonts.load('1em "OCRB10"');}catch(e){}</script>
 </head>
 <body>
 

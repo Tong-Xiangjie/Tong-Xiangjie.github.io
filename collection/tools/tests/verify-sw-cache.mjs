@@ -19,10 +19,31 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 const hits = new Map();
 const bump = p => hits.set(p, (hits.get(p) || 0) + 1);
 let swVariant = false;
+// ---------- A2 补充断言用的"可变量"（都在 ⑧ 节里用） ----------
+// 都是**磁盘上不存在的合成 URL**，只经过 SW，不去碰真实的 layout.css / 真实图片：
+//   ① .css 合成资源：用来模拟"服务端换了内容"（一次重新部署）；
+//   ② /notecollection/image/ 下的合成图片：路径落在 IMAGE_PATH_RE 里（才走图片策略），
+//      而页面从来不会请求它 —— 所以不会和页面自己的图片加载抢时序。
+const PROBE = '/collection/tools/tests/__sw-probe.css';
+let probeBody = 'A';
+const PROBE_IMG = '/notecollection/image/__sw-probe.jpg';
+let probeImgBody = 'AAAAAAAA';
 const server = createServer(async (req, res) => {
   try {
     const p = decodeURIComponent(req.url.split('?')[0].split('#')[0]);
     bump(p);
+    if (p === PROBE) {
+      const b = Buffer.from(`/* probe-${probeBody} */\n`, 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Content-Length': b.length, 'Cache-Control': 'public, max-age=600' });
+      res.end(b);
+      return;
+    }
+    if (p === PROBE_IMG) {
+      const b = Buffer.from(`\xff\xd8\xff\xe0/*${probeImgBody}*/`, 'binary');
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': b.length, 'Cache-Control': 'public, max-age=600' });
+      res.end(b);
+      return;
+    }
     let full = join(ROOT, p);
     if (p.endsWith('/')) full = join(ROOT, p, 'index.html');
     if (!existsSync(full) || (await stat(full)).isDirectory()) { res.writeHead(404).end('nf'); return; }
@@ -247,6 +268,113 @@ ok(/ASSET_CACHE/.test(swSrc) && /networkFirstAsset/.test(swSrc), '★ 新增了�
 ok(/SKIP_WAITING/.test(swSrc), '仍支持 SKIP_WAITING 消息（settings 的「清除图片缓存」要用）');
 ok(/IMAGE_PATH_RE/.test(swSrc), '仍限定只缓存藏品图片目录');
 ok(/stale-while-revalidate/.test(swSrc), '图片策略注释仍在（stale-while-revalidate 未改）');
+
+console.log('\n══════ ⑧ A2 补充：之前没有任何断言覆盖的几件事 ══════\n');
+console.log('     （①字体也 network-first ②在线改了内容立刻可见，不只是"打到服务器" ③断网回退到最新一份');
+console.log('       ④图片真是 SWR：不会永久钉在旧版本 ⑤根 sw.js 不缓存 ⑥两个缓存不串台）\n');
+
+// ⑧ 自己把 HTTP 缓存清掉再关掉：下面断言的是 **SW 的行为**，不能被浏览器 HTTP 缓存顶包，
+//    否则"立刻拿到新内容"这类断言会因为 HTTP 缓存命中而假红。
+await send('Network.clearBrowserCache');
+await send('Network.setCacheDisabled', { cacheDisabled: true });
+await requireLoad('⑧');
+
+// ⑧-1 字体：ASSET_RE 里写了 woff2?，但在此次补充之前没有任何断言碰过字体。
+const FONT = '/font/OCRB10PitchBT-Regular.woff';
+if (existsSync(join(ROOT, FONT))) {
+  const fb = hits.get(FONT) || 0;
+  const fr = await evaluate(`fetch(${JSON.stringify(FONT)}).then(r => r.status).catch(e => 'ERR:' + e.message)`);
+  await sleep(250);
+  const fa = hits.get(FONT) || 0;
+  ok(fr === 200, `字体能取到（HTTP ${fr}）`);
+  ok(fa > fb, `★ 在线时 woff 字体也优先走网络（计数 ${fb} → ${fa}）—— 字体没有落在"缓存优先"那一支里`);
+} else {
+  ok(false, `字体测试对象不存在（${FONT}），⑧-1 无法判定`);
+}
+
+// ⑧-2 "在线永远拿最新"的实质：服务端内容一变，下一次请求拿到的是**新内容**。
+// ③ 只断言了"又打到服务器"，没断言拿到的确实是新的 —— 两者不是一回事。
+probeBody = 'A';
+const pr1 = await evaluate(`fetch(${JSON.stringify(PROBE)}).then(r => r.text()).catch(e => 'ERR:' + e.message)`);
+ok(typeof pr1 === 'string' && pr1.includes('probe-A'), `在线首次取到的是网络上的当前版本（${String(pr1).slice(0, 32)}）`);
+probeBody = 'B';
+const pr2 = await evaluate(`fetch(${JSON.stringify(PROBE)}).then(r => r.text()).catch(e => 'ERR:' + e.message)`);
+ok(typeof pr2 === 'string' && pr2.includes('probe-B'), '★ 服务端内容一变，下一次请求立刻拿到新版本（在线绝不吃旧缓存）');
+
+// ⑧-3 断网时回退到"最后一次在线看到的那一份"，而不是部署前的旧版
+await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+const pr3 = await evaluate(`fetch(${JSON.stringify(PROBE)}).then(r => r.text()).catch(e => 'ERR:' + (e.message || e))`);
+ok(typeof pr3 === 'string' && pr3.includes('probe-B'),
+  '★ 断网后取到的是缓存里最新的一份（probe-B，不是部署前的 probe-A）—— network-first 真的把缓存刷新过', String(pr3).slice(0, 40));
+await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+await sleep(250);
+
+// ⑧-4 图片：证明它是**真的 stale-while-revalidate**，而不是"缓存了就永远不更新"。
+// ② 只断言了"第二次没打到服务器"，那既能是 cache-first（永不更新）也能是 SWR；
+// "缓存最终变成新内容"这一条才能证明图片不会被永久钉在旧版本上。
+const probeImgLen = () => evaluate(`(async () => {
+  const k = (await caches.keys()).find(x => x.startsWith('collection-images'));
+  if (!k) return -1;
+  const c = await caches.open(k);
+  const r = await c.match(${JSON.stringify(PROBE_IMG)});
+  return r ? (await r.arrayBuffer()).byteLength : -1;
+})()`);
+const pib = hits.get(PROBE_IMG) || 0;
+const firstStatus = await evaluate(`fetch(${JSON.stringify(PROBE_IMG)}).then(r => r.status).catch(e => 'ERR:' + e.message)`);
+ok(firstStatus === 200, `合成藏品图能取到（HTTP ${firstStatus}）`);
+ok((hits.get(PROBE_IMG) || 0) > pib, `第一次请求走了服务器（计数 ${pib} → ${hits.get(PROBE_IMG) || 0}）—— 新图片会被写进缓存`);
+let lenBefore = -1;
+for (let i = 0; i < 60; i++) { lenBefore = await probeImgLen(); if (lenBefore > 0) break; await sleep(120); }
+ok(lenBefore > 0, `这张图已被写进 collection-images 缓存（${lenBefore} 字节）`);
+if (lenBefore > 0) {
+  probeImgBody = 'BBBBBBBBBBBB';                 // 服务端换成"新一版"（比上一版长 4 字节）
+  const imgHitsBefore = hits.get(PROBE_IMG) || 0;
+  const servedLen = await evaluate(`fetch(${JSON.stringify(PROBE_IMG)}).then(r => r.arrayBuffer()).then(b => b.byteLength).catch(() => -1)`);
+  ok(servedLen === lenBefore,
+    `★ 第二次请求**立刻**返回缓存里的那一份（${servedLen} 字节）—— 这就是"缓存优先，不阻塞"`, `期望 ${lenBefore}`);
+  let revalidated = false;
+  for (let i = 0; i < 50; i++) { if ((hits.get(PROBE_IMG) || 0) > imgHitsBefore) { revalidated = true; break; } await sleep(100); }
+  ok(revalidated, `★ stale-while-revalidate：返回缓存的同时，后台确实发起了再验证请求（服务器计数 ${imgHitsBefore} → ${hits.get(PROBE_IMG) || 0}）`);
+  let newLen = -1;
+  for (let i = 0; i < 60; i++) { newLen = await probeImgLen(); if (newLen > 0 && newLen !== lenBefore) break; await sleep(120); }
+  ok(newLen > 0 && newLen !== lenBefore,
+    `★ 后台把新版本写回了缓存（${lenBefore} → ${newLen} 字节）—— 图片不会被永久钉在旧版本上`);
+}
+// 断网后应当能取到"刚才后台更新后的那一份"
+await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+const offProbe = await evaluate(`fetch(${JSON.stringify(PROBE_IMG)}).then(r => r.arrayBuffer()).then(b => b.byteLength).catch(() => -1)`);
+ok(offProbe > lenBefore, `断网后仍能取到这张图，且是后台更新过的新版本（${offProbe} 字节 > 升级前 ${lenBefore}）`);
+await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+
+// ⑧-5 根目录 sw.js 的 scope 是 /（整站）。它现在是纯网络直通 —— 这条断言守住方向：
+// 它一旦开始缓存，整站用户就可能拿到旧页面，而它并不在 ⑦ 的静态检查范围内。
+const rootSw = await readFile('sw.js', 'utf8');
+ok(!/caches\s*\.|cache\.put\s*\(|CACHE_NAME|cache\.add\s*\(/.test(rootSw),
+  '★ 根 sw.js（scope = /）不做任何缓存，是纯网络直通 —— 不可能让整站用户拿到旧文件');
+ok(/respondWith\(\s*fetch\(/.test(rootSw), '根 sw.js 只把请求原样交给网络（在线永远最新）');
+
+// ⑧-6 两个缓存不串台：藏品图不该进资源缓存，资源缓存的东西也不该进图片缓存
+ok(await evaluate(`(async () => {
+  const ak = (await caches.keys()).find(k => k.startsWith('collection-assets'));
+  if (!ak) return 'no-assets-cache';
+  const c = await caches.open(ak);
+  return (await c.match(${JSON.stringify(PROBE_IMG)}, { ignoreSearch: true })) ? 'present' : 'absent';
+})()`) === 'absent', '★ 藏品图没有被写进资源缓存（两个缓存不串台）');
+const IMG_PATH_SRC = /^\/(?:(?:notecollection|coincollection)\/(?:readmes\/)?image\/|funcollection\/[^/]+\/images\/)/;
+const strayImages = await evaluate(`(async () => {
+  const ik = (await caches.keys()).find(k => k.startsWith('collection-images'));
+  if (!ik) return 'no-images-cache';
+  const c = await caches.open(ik);
+  const ks = await c.keys();
+  return JSON.stringify(ks.map(r => new URL(r.url).pathname).filter(p => !${IMG_PATH_SRC}.test(p)));
+})()`);
+ok(strayImages === '[]', '★ 图片缓存里只有藏品图目录下的路径（没有把页面/脚本混进去）', String(strayImages));
+
+// ⑧-7 静态：资源缓存同样"带版本号 + 前缀限定清理"（⑦ 只断言了图片那一份 CACHE_NAME）
+ok(/const\s+ASSET_CACHE\s*=\s*'collection-assets-v\d+'/.test(swSrc), '★ 资源缓存名带版本号（collection-assets-vN）');
+ok(/const\s+ASSET_PREFIX\s*=\s*'collection-assets-'/.test(swSrc),
+  '资源缓存的清理有独立前缀常量（不会误删图片缓存，也不会误删别的应用）');
+ok(/const\s+ASSET_RE[\s\S]{0,320}woff2\?/.test(swSrc), '资源策略的覆盖范围里包含字体（woff/woff2）');
 
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 if (fails.length) { console.log('  失败项：'); fails.forEach(f => console.log('    · ' + f)); }

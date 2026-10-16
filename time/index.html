@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>全屏时钟</title>
 
+<!-- 字体预加载：与下面 @font-face 的 src 必须是同一个文件。
+     提前建连/取字，配合 </style> 之后那句 document.fonts.load()，
+     让 OCR-B 在首帧排版前就绪，避免钟面先按回退字体排一遍再跳一下。 -->
+<link rel="preload" as="font" type="font/woff" href="../font/OCRB10PitchBT-Regular.woff" crossorigin>
+
 <!-- 提前应用主题，避免刷新时白屏闪烁 -->
 <script>
     try {
@@ -21,7 +26,11 @@
         src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
         font-weight: normal;
         font-style: normal;
-        font-display: swap;
+        /* 这一页整屏内容就是 OCR-B 数字（钟面 min(15vw,28vh)），
+           回退字体排一遍再换字 = 全屏数字宽度跳 +108.71px，是"跳一下"最刺眼的形态，
+           而页面上没有别的正文要看，所以选 block：宁可等字体到了再画，也不先画错字体。
+           实测（字体人为延迟 1.5s）：swap 会在回退字体上先画一遍再跳，block 全程不画错字体。 */
+        font-display: block;
     }
 
     * {
@@ -203,6 +212,11 @@
         }
     }
 </style>
+<!-- 提前把 OCR-B 拉起来（必须放在定义 @font-face 的样式表**之后**，
+     否则 CSSOM 里还没有这条规则，load() 会解析成空家族名直接 resolve）。
+     与 preload 的区别：preload 只取字节，load() 还会驱动 FontFace 的解析与"就绪"，
+     让它赶在首帧排版之前完成。写错也不影响页面，只回退成"迟一拍"。 -->
+<script>try{if(document.fonts&&document.fonts.load)document.fonts.load('1em "OCRB10"');}catch(e){}</script>
 </head>
 <body>
 
