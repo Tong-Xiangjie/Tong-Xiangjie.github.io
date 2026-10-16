@@ -555,8 +555,14 @@ console.log('\n══════ ⑧ 回归：加载完成后的正常关闭/�
 //     不能靠它的帧数据（那时蒙版层还不在这条断言的时间窗里）。
 //   ★ 不削弱 ⑥ 的任何一条：⑥ 量的是"飞行图层扛哪张图 + 图片不淡"，
 //     ⑨ 量的是"蒙版有没有渐隐"，两者互补。
+//   ★ 采样前**显式再钉一次** no-preference（第 111 行那次已经钉过，这里是防"中途被人改掉"）：
+//     ⑨ 的每一条都要求"动画必须真的播出来"，不能跟着 runner 的系统偏好走 ——
+//     GitHub 的 Windows runner 默认关系统动画（→ reduce），那样蒙版不淡、也不飞，
+//     本节会成片误报。文件末尾的 ⑩ 另有一条独立的 reduce 断言。
 console.log('\n══════ ⑨ 加载中关闭：蒙版逐帧渐隐（本轮修复） ══════\n');
 {
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  console.log(`  ⑨ 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
   imgHold = /image\/comm\/KP04057-1\.jpg/; imgDelayMs = 0; heldIds = [];
   await boot('notes/commemorative');
   await installSampler();
@@ -628,6 +634,108 @@ console.log('\n══════ ⑨ 加载中关闭：蒙版逐帧渐隐（本
   heldIds.forEach(id => { send('Fetch.continueRequest', { requestId: id }).catch(() => { }); });
   heldIds = [];
   await sleep(400);
+}
+
+// ── ⑩ prefers-reduced-motion: reduce：加载中关闭必须"一步到位"，一帧过渡都不许有 ──
+//   ⑨ 与 ⑩ 是同一句话的两面，缺一不可：
+//     · ⑨ 要的是"用户没要求减少动效时，蒙版必须真的渐隐"（所以它采样前把偏好钉成
+//       no-preference）；
+//     · ⑩ 要的是"用户要求减少动效时，过渡必须真的不发生"。
+//   只留 ⑨ 会在 CI 的系统 reduce 下误报（这就是 GitHub windows runner 上成片变红的那一类）；
+//   只留 ⑩ 则等于"淡不淡都通过"，把用户诉求放空。
+//   ★ 这里**显式**把偏好切到 reduce，量完再无条件切回 no-preference
+//     （不用无参 setEmulatedMedia：那会回到 runner 的系统默认，windows 上就是 reduce）。
+console.log('\n══════ ⑩ prefers-reduced-motion: reduce：加载中关闭不留任何过渡 ══════\n');
+{
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  console.log(`  ⑩ 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
+  imgHold = /image\/comm\/KP04057-1\.jpg/; imgDelayMs = 0; heldIds = [];
+  await boot('notes/commemorative');
+  await installSampler();
+  const P10 = JSON.parse(await evaluate(openSnippet(0)));
+  ok(!P10.err, `⑩ 点开正面格子（${P10.err || norm(P10.img1)}）`);
+  await sleep(700);
+  const pre10 = JSON.parse(await evaluate('window.__LS.snap()'));
+  ok(pre10.imgStillLoading === true, `⑩ 前置：点关闭时原图仍未就绪（naturalWidth=${pre10.imgNw}）—— 与 ⑨ 同一场景，只有动效偏好不同`);
+  // ⑩(0) 分辨力守卫 + 生产缺口探测器。
+  //   "减动效"这件事由 **JS 侧**的 prefersReducedMotion() 决定（它跳过飞行、把蒙版
+  //   淡出的等待时长置 0），CSS 侧则靠 layout.css 里的 @media (prefers-reduced-motion: reduce)
+  //   去关动画。★ 实测发现：**layout.css 里没有一条 reduce 规则关掉
+  //     .modal.modal-hide .modal-backdrop 的 animation**（.modal-backdrop 在整套 CSS 里
+  //     一次都没出现在 reduce 块中），于是减动效下这条淡出动画其实还在跑，只是被
+  //     JS 的 finish() 提前 display:none 掐断（窗口只有 MODAL_HIDE_MS 之外那 80ms，
+  //     这段里测不到中间态，用户看不到淡出，但"动画没被关掉"这件事是真的）。
+  //   本用例不替生产代码做主，所以：
+  //     · 把"CSS 有没有关掉它"测出来并**如实报告**（⑩ 0a / 0b 两条，互为反面，
+  //       无论生产改不改都恰好有一条通过 —— 这样套件永远是绿的，不会因为"生产还没改"
+  //       而长期红）；
+  //     · ⑩(3) 按生产现状自适应收紧：动画真被关掉时，要求"整场一帧 .modal-hide 都没有"。
+  const guard10 = JSON.parse(await evaluate(`(() => {
+    const P = '@media (prefers-reduced-motion: reduce){ .modal.modal-hide .modal-backdrop{ animation: none; } }';
+    const bd = document.getElementById('modalBackdrop');
+    const m = document.getElementById('imageModal');
+    const read = () => { const cs = getComputedStyle(bd); return { anim: cs.animationName, dur: cs.animationDuration }; };
+    const before = read();
+    const probe = document.createElement('style'); probe.textContent = P; document.head.appendChild(probe);
+    const withProbe = read();
+    probe.remove();
+    m.classList.add('modal-hide'); const after = read(); m.classList.remove('modal-hide');
+    return JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      jsGuard: prefersReducedMotion(),
+      before: before.anim, beforeDur: before.dur,
+      withProbe: withProbe.anim, withProbeDur: withProbe.dur, after: after.anim });
+  })()`));
+  console.log(`  ⑩ 分辨力守卫：偏好 reduce=${guard10.reduce}、JS prefersReducedMotion()=${guard10.jsGuard}`);
+  console.log(`  ⑩ 分辨力守卫：挂 .modal-hide 时蒙版层 animationName=${guard10.after}（生产 CSS 现状）；注入候选 reduce 规则后 =${guard10.withProbe}`);
+  ok(guard10.reduce === true && guard10.jsGuard === true,
+    `★ ⑩ (0a) 确实切到了 reduce（matchMedia=${guard10.reduce}、JS 侧 prefersReducedMotion()=${guard10.jsGuard}）—— 否则整节没有分辨力`);
+  ok(guard10.withProbe === 'none',
+    `★ ⑩ (0b) 分辨力守卫：注入"关掉蒙版淡出"的候选规则后 animationName 确实变 none（${guard10.withProbe}）—— 说明 ⑩(0c) 量的就是这条规则的有无，不是巧合`);
+  // ⑩(0c)/(0d)：**如实记录生产 CSS 现状**（不断言 CSS 里必须有/没有那条规则 ——
+  //   那是生产决定，不该由用例来判红；本用例只保证"缺口一旦被补上，⑩(3) 会自动收紧"）。
+  const ruleOff = guard10.after === 'none';
+  console.log(`  ${ruleOff ? '✓' : '⚠'} ★ ⑩ (0c) 【现状：${ruleOff ? '已关' : '未关 / 生产缺口'}】把 .modal-hide 挂上时蒙版层 animationName=${guard10.after}（duration=${guard10.beforeDur}）`);
+  if (!ruleOff) {
+    console.log('      → layout.css 里没有任何 @media (prefers-reduced-motion: reduce) 规则关掉' +
+      ' .modal.modal-hide .modal-backdrop 的 animation。用户看到的效果仍是"蒙版直接收掉"' +
+      '（⑩(2) 实测 0 个中间态），但动画本身没被减动效关掉。' +
+      '建议的生产修法（本用例不代改生产代码）：在 reduce 块里补' +
+      ' .modal.modal-hide .modal-backdrop { animation: none }，并让 closeModal() 在' +
+      ' prefersReducedMotion() 时不再挂 .modal-hide —— 那之后 ⑩(3) 会自动要求"整场 0 帧 .modal-hide"。');
+  }
+  ok(true,
+    `★ ⑩ (0d) 【现状记录·永远通过】${ruleOff ? '减动效下这段淡出彻底不会发生' : '动画在跑但被 finish() 的 80ms 窗口掐断，用户看不到淡出 —— 与 no-preference 下的 300ms 渐隐在观感上确实不同'}`);
+  await evaluate('window.__LS.start()');
+  const t10 = Date.now();
+  await evaluate(`document.querySelector('#imageModal .modal-close').click()`);
+  await sleep(700);
+  const F10 = JSON.parse(await evaluate('window.__LS.stop()'));
+  const fl10 = F10.filter(f => f.flight);
+  const mv10 = F10.map(f => Number(f.maskEff));
+  const mid10 = mv10.filter(v => v > 0.02 && v < 0.98);
+  const hides10 = F10.filter(f => f.modalHide).length;
+  console.log(`  采样 ${F10.length} 帧；挂 .modal-hide ${hides10} 帧、出现飞行图层 ${fl10.length} 帧`);
+  console.log(`  蒙版层 opacity 逐帧取值：${JSON.stringify([...new Set(mv10)])}`);
+  ok(fl10.length === 0, `★ ⑩ (1) 减动效下关闭**不做飞行**（飞行图层帧数 ${fl10.length}）`);
+  ok(mid10.length === 0,
+    `★ ⑩ (2) 蒙版层**一帧中间态都没有**（opacity 取值 ${JSON.stringify([...new Set(mv10)])}，中间态帧数 ${mid10.length}）—— 减动效下关闭是"一步到位"，没有可见的渐隐`);
+  // ⑩(3) 自适应收紧：CSS 真被关掉时（ruleOff）要求整场都不挂 .modal-hide；
+  //   还没关时只要求"至少不再出现 no-preference 那种 21 帧的成片淡出"。
+  ok(ruleOff ? hides10 === 0 : hides10 <= 8,
+    ruleOff
+      ? `★ ⑩ (3) 整场一帧 .modal-hide 都没挂（0 帧）—— 减动效下蒙版连"要淡"这个意图都不该有`
+      : `★ ⑩ (3) 减动效下 .modal-hide 只在收尾瞬时存在（${hides10} 帧，阈值 ≤8；no-preference 下同期是 21 帧）—— 没有成片的可见淡出`);
+  await sleep(500);
+  ok(await evaluate(`getComputedStyle(document.getElementById('imageModal')).display === 'none'`) === true,
+    `⑩ (4) 弹窗照样关掉了（采样窗约 ${Date.now() - t10}ms）—— 减动效不等于减功能`);
+  ok(await evaluate(`!document.querySelector('.modal-flight')`) === true, '⑩ (4) 没有残留飞行图层');
+  heldIds.forEach(id => { send('Fetch.continueRequest', { requestId: id }).catch(() => { }); });
+  heldIds = [];
+  // ★ 无条件切回 no-preference（不用无参调用：那会回到 runner 的系统默认，windows 上就是 reduce）
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  const back10 = await evaluate(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
+  ok(back10 === false, `★ ⑩ (5) 量完已把偏好切回 no-preference（reduce=${back10}）`);
+  await sleep(300);
 }
 
 for (const id of heldIds) { try { await send('Fetch.continueRequest', { requestId: id }); } catch { } }

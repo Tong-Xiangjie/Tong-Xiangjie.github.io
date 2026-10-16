@@ -35,6 +35,16 @@ ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && pending.has(m.
 const send = (method, params = {}) => new Promise((resolve, reject) => { const id = ++msgId; pending.set(id, { resolve, reject }); ws.send(JSON.stringify({ id, method, params })); });
 async function evaluate(e) { const r = await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw new Error('异常: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text)); return r.result.value; }
 await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
+// ★ 钉死媒体偏好（沿用 verify-close-anim.mjs / verify-lightbox-close.mjs 等十多个既有用例的写法）。
+//   为什么必须显式设：**GitHub 的 Windows runner 默认关系统动画**，Chrome 于是报
+//   `prefers-reduced-motion: reduce`，站点自己那条
+//     @media (prefers-reduced-motion: reduce) { .content-enter-nav { animation: none } }
+//   就会把导航过渡合理地关掉 —— 而 E 节量的正是"过渡有没有播"，于是同一份代码
+//   在 ubuntu 上绿、在 windows 上红（CI #74 实测：E4/E5/E7/E9 四条红，
+//   animationName=["none"]、animationDuration=["1e-05s"]）。
+//   这里把偏好设成 no-preference，假设就变成了保证：E 节永远在
+//   "用户没有要求减少动效"这个前提下断言；"reduce 时确实不动画"另由 E14 单独量。
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
 const warns = [];
 ws.addEventListener('message', ev => { const m = JSON.parse(ev.data); if (m.method === 'Runtime.consoleAPICalled' && ['warning','error'].includes(m.params.type)) warns.push(m.params.type + ': ' + m.params.args.map(a => a.value || a.description || '').join(' ').slice(0,110)); });
 
@@ -65,6 +75,13 @@ for (let i = 0; i < 220; i++) { await new Promise(r => setTimeout(r, 320)); try 
 //   所以只要采到 navContentIn 就一定是这次点击引起的。
 // ══════════════════════════════════════════════════════════════
 console.log('\nE. 概览 → 详情：过渡必须是"逐帧渐变"而不是突变');
+// ★ 采样前再钉一次：这一节要求"过渡必须播得出来"，不能跟着 runner 的系统偏好走。
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+{
+  const mm = await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    noPref: matchMedia('(prefers-reduced-motion: no-preference)').matches })`);
+  console.log(`  媒体偏好（本节点采样前显式钉死）：${mm}`);
+}
 const navAnim = JSON.parse(await evaluate(`(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (typeof navigateFromOverview !== 'function') return JSON.stringify({ err: 'navigateFromOverview 不存在' });
@@ -146,6 +163,65 @@ let fail = 0;
   chk(/content-enter-nav/.test(endFrame.cls || ''), `E12 过渡类名挂在这个容器上（class="${(endFrame.cls || '').slice(0, 60)}"）`);
   chk(navAnim.endFirstChild !== 'overview-header', `E13 容器里装的确实是目标分类的内容（首个孩子=${navAnim.endFirstChild}）`);
   if (srcSnap) console.log(`  （源容器快照：${srcSnap.id} / ${srcSnap.cls}）`);
+}
+
+// ── E14：prefers-reduced-motion: reduce 下，同一动作**必须一帧中间态都没有** ──────
+//   这一条与 E4 是同一句话的两面，缺一不可：
+//     · E4 要的是"没要求减少动效时，过渡必须真的播"（所以上面先把偏好钉成 no-preference）；
+//     · E14 要的是"用户要求减少动效时，过渡必须真的不播"。
+//   只留 E4 会在 CI 的系统 reduce 下误报（CI #74 的 4 条红就是这么来的）；
+//   只留 E14 则等于"有没有动画都通过"，把用户的诉求放空。
+//   ★ 不依赖 runner 的系统设置：这里**显式**把偏好切到 reduce，量完再无条件切回
+//     no-preference（用无参 setEmulatedMedia 会把所有 feature 覆盖清掉、回到浏览器默认，
+//     那在 windows runner 上又变回 reduce，后面的 B/C/D 段就危险了）。
+console.log('\nE14. prefers-reduced-motion: reduce：同一动作一帧中间态都不许有');
+{
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  const reduced = JSON.parse(await evaluate(`(async () => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const frames = [];
+    const frame = () => { const c = getRenderContainer(); if (c) { const cs = getComputedStyle(c);
+      frames.push({ op: cs.opacity, anim: cs.animationName, dur: cs.animationDuration, cls: c.className }); } };
+    const mmReduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const jsGuard = (typeof prefersReducedMotion === 'function') ? prefersReducedMotion() : null;
+    // 回到全局概览，再点一条
+    currentMode = 'notes'; isSettingsMode = false;
+    currentView = 'overview'; currentCategoryId = null; currentSubId = null;
+    switchToCurrentContainer(); renderOverview();
+    await sleep(250);
+    const el = document.querySelector('.search-result-item');
+    if (!el) return JSON.stringify({ err: '概览里没有条目', mmReduce: mmReduce, jsGuard: jsGuard });
+    el.click();
+    await new Promise(r => requestAnimationFrame(() => { frame(); r(); }));
+    for (let i = 0; i < 8; i++) { await sleep(25); frame(); }
+    await sleep(300); frame();
+    const c = getRenderContainer(); const cs = c ? getComputedStyle(c) : null;
+    return JSON.stringify({ mmReduce: mmReduce, jsGuard: jsGuard, frames: frames,
+      endOp: cs ? cs.opacity : '', endAnim: cs ? cs.animationName : '',
+      endDur: cs ? cs.animationDuration : '',
+      endKey: getContainerKey(), kids: c ? c.children.length : -1 });
+  })()`));
+  const ops14 = (reduced.frames || []).map(f => parseFloat(f.op));
+  const mid14 = ops14.filter(v => v > 0.02 && v < 0.98);
+  const anims14 = [...new Set((reduced.frames || []).map(f => f.anim))];
+  console.log(`  偏好：matchMedia(reduce)=${reduced.mmReduce}、JS prefersReducedMotion()=${reduced.jsGuard}`);
+  console.log(`  opacity 逐帧：${ops14.join(' / ')}`);
+  console.log(`  animationName 取值：${JSON.stringify(anims14)}；animationDuration=${JSON.stringify(reduced.endDur)}`);
+  const chk14 = (cond, msg) => { if (cond) { console.log('   ✓ ' + msg); } else { console.log('   ✗ ' + msg); fail++; } };
+  chk14(reduced.mmReduce === true && reduced.jsGuard === true,
+    `★ E14 (1) 确实切到了 reduce（matchMedia=${reduced.mmReduce}、JS 侧 prefersReducedMotion()=${reduced.jsGuard}）—— 否则这条断言没有分辨力`);
+  chk14(!reduced.err, `E14 (2) 这一场照样完成了导航（${reduced.err || reduced.endKey}）`);
+  chk14(mid14.length === 0,
+    `★ E14 (3) reduce 下**一帧中间态都没有**（opacity 全程 ${JSON.stringify([...new Set(ops14)])}，中间态帧数 ${mid14.length}）`);
+  chk14(anims14.length > 0 && anims14.every(a => a === 'none'),
+    `★ E14 (4) .content-enter-nav 的动画被真正关掉了（animationName 取值 ${JSON.stringify(anims14)}）—— 靠的就是 layout.css 里那条 @media (prefers-reduced-motion: reduce){.content-enter-nav{animation:none}}`);
+  chk14(reduced.endOp === '1', `E14 (5) reduce 下直接落终态（opacity=${reduced.endOp}），没有卡在 0`);
+  chk14(reduced.kids > 0, `E14 (6) 内容照常渲染出来（容器 ${reduced.endKey} 有 ${reduced.kids} 个子元素）—— 减动效不等于减功能`);
+  // ★ 无条件切回 no-preference（**不用**无参调用：那会回到 runner 的系统默认，
+  //   在 windows 上就是 reduce，后面的 A/B/C/D 段会被连累）
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  const back = await evaluate(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
+  chk14(back === false, `★ E14 (7) 量完已把偏好切回 no-preference（reduce=${back}）—— 后面的 A/B/C/D 段不受影响`);
 }
 
 const r = await evaluate(`(async () => {
