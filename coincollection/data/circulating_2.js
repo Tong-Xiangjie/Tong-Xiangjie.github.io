@@ -43,8 +43,8 @@ const circulating_2Data = {
                     purchaseDate: "2026年6月19日",
                     catalogNumber: "",
                     remark: "发行分币的最后一年，关门币。",
-                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating/2018-001-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating/2018-001-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_2/2018-001-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_2/2018-001-2.jpg"
                 }
             ]
         }

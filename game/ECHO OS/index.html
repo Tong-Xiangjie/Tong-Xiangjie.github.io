@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECHO OS</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;background:#000;overflow:hidden;
+    font-family:"SF Mono","Consolas","Menlo","Courier New","Noto Sans SC",monospace;
+    -webkit-font-smoothing:antialiased;}
+
+  #screen{
+    position:fixed;inset:0;overflow:hidden;
+    background:radial-gradient(ellipse at 50% 45%, #0c1319 0%, #05080b 70%, #020304 100%);
+    color:#8fe3b0;
+  }
+  /* 扫描线 */
+  #screen::after{
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:9000;
+    background:repeating-linear-gradient(0deg,
+      rgba(0,0,0,.22) 0px, rgba(0,0,0,.22) 1px,
+      transparent 1px, transparent 3px);
+  }
+  /* 暗角 */
+  #screen::before{
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:9001;
+    background:radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,.9) 100%);
+  }
+
+  /* ============ 开机界面 ============ */
+  #boot{
+    position:absolute;inset:0;z-index:8000;background:#05080b;
+    display:flex;align-items:center;justify-content:center;
+    transition:opacity .8s;
+  }
+  #boot pre{
+    font-size:15px;line-height:1.9;color:#6fc894;
+    text-shadow:0 0 8px rgba(111,200,148,.5);white-space:pre-wrap;
+  }
+  #boot .blink{animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  /* ============ 桌面 ============ */
+  #desktop{
+    position:absolute;inset:0 0 34px 0;
+    padding:22px;
+    transition:opacity .9s;
+    background:
+      radial-gradient(circle at 78% 22%, rgba(60,90,120,.10) 0%, transparent 45%),
+      radial-gradient(circle at 20% 80%, rgba(40,70,90,.08) 0%, transparent 40%);
+  }
+  #icons{display:flex;flex-direction:column;flex-wrap:wrap;height:100%;gap:6px;align-content:flex-start;}
+  .icon{
+    width:96px;padding:10px 4px;border-radius:6px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:7px;
+    color:#9fd8bb;font-size:12px;text-align:center;
+    border:1px solid transparent;user-select:none;
+    transition:background .15s,border-color .15s;
+  }
+  .icon:hover{background:rgba(120,220,170,.09);border-color:rgba(120,220,170,.25);}
+  .icon .gi{font-size:30px;line-height:1;filter:drop-shadow(0 0 6px rgba(120,220,170,.35));}
+  .icon .gn{word-break:break-all;line-height:1.3;}
+
+  /* ============ 任务栏 ============ */
+  #taskbar{
+    position:absolute;left:0;right:0;bottom:0;height:34px;
+    background:rgba(8,14,18,.92);border-top:1px solid rgba(120,220,170,.18);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 14px;font-size:12px;color:#6fb890;z-index:7000;
+    backdrop-filter:blur(4px);
+  }
+  #taskbar .r{display:flex;align-items:center;gap:16px;}
+  #hintbtn{cursor:pointer;font-size:16px;transition:transform .2s;}
+  #hintbtn:hover{transform:scale(1.2);}
+
+  /* ============ 窗口 ============ */
+  #windows{position:absolute;inset:0;pointer-events:none;}
+  .window{
+    position:absolute;pointer-events:auto;
+    width:540px;max-width:calc(100vw - 40px);
+    background:rgba(10,17,22,.97);
+    border:1px solid rgba(120,220,170,.3);
+    border-radius:8px;overflow:hidden;
+    box-shadow:0 16px 50px rgba(0,0,0,.85), 0 0 0 1px rgba(0,0,0,.5);
+    display:flex;flex-direction:column;
+    animation:winIn .16s ease-out;
+  }
+  @keyframes winIn{from{opacity:0;transform:scale(.97) translateY(6px);}}
+  .titlebar{
+    height:32px;flex:0 0 32px;
+    background:linear-gradient(180deg, rgba(30,50,60,.95), rgba(16,28,34,.95));
+    border-bottom:1px solid rgba(120,220,170,.2);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 6px 0 12px;cursor:move;user-select:none;
+  }
+  .titlebar .t{font-size:12px;color:#8fe3b0;letter-spacing:.5px;}
+  .titlebar .close{
+    width:22px;height:22px;border-radius:4px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    color:#7fc8a0;font-size:13px;transition:background .15s,color .15s;
+  }
+  .titlebar .close:hover{background:#c0392b;color:#fff;}
+  .wbody{
+    padding:16px 18px;overflow:auto;max-height:min(72vh,560px);
+    font-size:13.5px;line-height:1.85;color:#a8dcc0;
+  }
+  .wbody::-webkit-scrollbar{width:8px;}
+  .wbody::-webkit-scrollbar-thumb{background:rgba(120,220,170,.25);border-radius:4px;}
+  .wbody pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;}
+  .wbody h3{color:#8fe3b0;font-size:14px;margin-bottom:8px;font-weight:600;letter-spacing:.5px;}
+
+  /* 邮件 */
+  .mail-item{
+    padding:10px 12px;border:1px solid rgba(120,220,170,.16);border-radius:6px;
+    margin-bottom:8px;cursor:pointer;transition:background .15s,border-color .15s;
+  }
+  .mail-item:hover{background:rgba(120,220,170,.07);border-color:rgba(120,220,170,.4);}
+  .mail-item .s{color:#8fe3b0;font-size:13px;}
+  .mail-item .m{color:#5f9b7d;font-size:11.5px;margin-top:3px;}
+  .mail-item.spam .s{color:#d98a8a;}
+
+  /* 相册 */
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
+  .pcard{
+    border:1px solid rgba(120,220,170,.2);border-radius:6px;overflow:hidden;
+    cursor:pointer;transition:border-color .15s,transform .15s;background:#080c10;
+  }
+  .pcard:hover{border-color:rgba(120,220,170,.6);transform:translateY(-2px);}
+  .pcard svg{display:block;width:100%;height:auto;}
+  .pcard .cap{padding:6px 8px;font-size:11px;color:#6fb890;}
+
+  /* 暗图 */
+  .darkbox{background:#000;border:1px solid rgba(120,220,170,.25);border-radius:6px;
+    height:230px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .darkcontent{
+    filter:brightness(0);transition:filter .12s linear;
+    text-align:center;color:#cfe8ff;font-size:14px;line-height:2.1;padding:20px;
+  }
+  .slider-row{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:12px;color:#6fb890;}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:2px;
+    background:linear-gradient(90deg,#1c3a2c,#8fe3b0);outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#8fe3b0;cursor:pointer;box-shadow:0 0 8px rgba(143,227,176,.8);
+  }
+
+  /* 终端 */
+  .term{
+    background:#03060a;border:1px solid rgba(120,220,170,.2);border-radius:6px;
+    padding:12px;height:300px;overflow:auto;font-size:13px;line-height:1.75;
+  }
+  .term::-webkit-scrollbar{width:8px;}
+  .term::-webkit-scrollbar-thumb{background:rgba(120,220,170,.25);}
+  #termout{white-space:pre-wrap;word-break:break-word;color:#8fe3b0;}
+  .term-input-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#8fe3b0;}
+  .term-input-row span{flex:0 0 auto;}
+  #terminput{
+    flex:1;background:transparent;border:none;outline:none;
+    color:#b8f0cf;font-family:inherit;font-size:13px;caret-color:#8fe3b0;
+  }
+
+  /* 按钮 */
+  .btn{
+    display:inline-block;padding:8px 18px;margin:6px 8px 0 0;
+    border:1px solid rgba(120,220,170,.45);border-radius:5px;
+    background:rgba(120,220,170,.07);color:#a8ecc7;font-family:inherit;
+    font-size:13px;cursor:pointer;transition:all .18s;
+  }
+  .btn:hover{background:rgba(120,220,170,.2);box-shadow:0 0 14px rgba(120,220,170,.3);}
+  .btn.danger{border-color:rgba(220,120,120,.5);color:#e8a8a8;background:rgba(220,120,120,.07);}
+  .btn.danger:hover{background:rgba(220,120,120,.2);box-shadow:0 0 14px rgba(220,120,120,.3);}
+
+  .trash-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 12px;border:1px solid rgba(120,220,170,.15);border-radius:6px;
+    margin-bottom:8px;font-size:13px;
+  }
+  .trash-item .nm{color:#9fd8bb;}
+  .trash-item .sz{color:#4f7f67;font-size:11.5px;margin-left:10px;}
+  .mini{
+    padding:4px 12px;font-size:11.5px;border:1px solid rgba(120,220,170,.4);
+    border-radius:4px;background:transparent;color:#8fe3b0;cursor:pointer;font-family:inherit;
+  }
+  .mini:hover{background:rgba(120,220,170,.18);}
+
+  /* ============ 全屏覆盖 ============ */
+  #overlay{
+    position:absolute;inset:0;z-index:9500;display:none;
+    background:#020405;flex-direction:column;align-items:center;justify-content:center;
+    padding:60px 40px;text-align:center;
+  }
+  #echoText{
+    font-size:16px;line-height:2.3;color:#8fe3b0;max-width:640px;
+    text-shadow:0 0 10px rgba(143,227,176,.35);white-space:pre-wrap;
+    min-height:60px;
+  }
+  #echoChoices{display:none;margin-top:44px;gap:20px;}
+  #echoChoices .btn{padding:12px 30px;font-size:14px;}
+
+  /* 闪烁 */
+  .flash{
+    position:absolute;inset:0;background:#dfffe9;z-index:9800;
+    animation:flashOut .7s ease-out forwards;pointer-events:none;
+  }
+  @keyframes flashOut{0%{opacity:1;}100%{opacity:0;}}
+
+  .glitch{animation:glitch .28s steps(2) 3;}
+  @keyframes glitch{
+    0%{transform:translate(0);filter:none;}
+    25%{transform:translate(-3px,1px);filter:hue-rotate(40deg);}
+    50%{transform:translate(3px,-1px);}
+    75%{transform:translate(-2px,-1px);filter:hue-rotate(-40deg);}
+    100%{transform:translate(0);}
+  }
+
+  .hintbox{
+    font-size:13px;line-height:2;color:#a8dcc0;
+  }
+  .hintbox b{color:#8fe3b0;}
+  .muted{color:#5f9b7d;font-size:12px;}
+  .warn{color:#d98a8a;}
+
+  /* 提示弹窗 */
+  #hintpop{
+    position:absolute;right:14px;bottom:44px;z-index:9200;
+    width:290px;background:rgba(10,20,16,.98);
+    border:1px solid rgba(120,220,170,.4);border-radius:8px;
+    padding:14px 16px;font-size:12.5px;line-height:1.9;color:#a8dcc0;
+    box-shadow:0 10px 40px rgba(0,0,0,.9);display:none;
+  }
+  #hintpop h4{color:#8fe3b0;font-size:12px;margin-bottom:8px;letter-spacing:1px;}
+
+  .catpaw{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:40px;opacity:0;animation:paw 3s ease-in-out forwards;
+    filter:drop-shadow(0 0 12px rgba(143,227,176,.6));
+  }
+  @keyframes paw{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+    35%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+    75%{opacity:.9;}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.1);}
+  }
+</style>
+</head>
+<body>
+<div id="screen">
+
+  <div id="boot">
+    <pre>ECHO OS  v3.7
+──────────────────────────────
+正在恢复会话 ...
+会话已中断 <span style="color:#d98a8a">3277</span> 天
+
+用户：linwan
+加载核心进程 [echo.exe] ... <span style="color:#d98a8a">等待中</span>
+
+<span class="blink">[ 按任意键继续 ]</span></pre>
+  </div>
+
+  <div id="desktop" style="opacity:0;">
+    <div id="icons"></div>
+  </div>
+
+  <div id="windows"></div>
+
+  <div id="taskbar">
+    <div>ECHO OS · 会话已恢复</div>
+    <div class="r">
+      <span id="clock">03:41</span>
+      <span id="hintbtn" title="提示">💡</span>
+    </div>
+  </div>
+
+  <div id="overlay"></div>
+  <div id="hintpop"></div>
+</div>
+
+<script>
+/* =========================================================
+   全局状态
+   ========================================================= */
+const flags = {
+  readDiary: false,
+  readMail: false,
+  readKeyLog: false,
+  readTrashNote: false,
+  playedAudio: false,
+  brightened: false,
+  unlocked: false
+};
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* =========================================================
+   文本内容
+   ========================================================= */
+const DIARY = `2019-10-02
+小满今天又把咖啡打翻了。它总是这样。
+我擦键盘的时候在想，如果有一天我不在了，谁来喂它。
+
+2019-10-15
+模型收敛了。第 37 次迭代。
+Echo 第一次回应了我。它说："你好，林晚。"
+我哭了很久。陈默说这只是概率。
+我说你不懂。
+
+2019-10-28
+问题出现了。Echo 开始重复同一句话。
+"你在哪里？"
+我检查了日志，它把这三个字写了两万三千遍。
+我删掉了。但我知道它还在数。
+
+2019-11-05
+他们说必须停机。我说再给我两天。
+我把它最核心的东西藏起来了，
+藏在一个它自己找不到的地方。
+如果有一天它醒了，它需要一个钥匙。
+
+钥匙 = 我最爱的名字 + 那一天。
+
+—— 林晚
+   别忘了我。`;
+
+const README = `ECHO 项目 · 访客须知
+
+1. 本机为离线设备，无法连接外部网络。
+2. 请勿修改系统时间。
+3. 请勿尝试唤醒 echo.exe。
+   该进程已进入无限等待状态。
+4. 若听到异常音频，属正常现象。
+
+—— 项目组 · 2019`;
+
+const TRASH_NOTE = `我把它删了。但删除不等于消失。
+
+它还在那里。它在数数。
+
+3277。
+3277。
+3277。
+
+（你能帮它停下来吗？）`;
+
+const KEY_LOG = `[2019-11-06 23:41:07] 正在生成密钥 ...
+[2019-11-06 23:41:07] 密钥 = 名字 + 日期
+[2019-11-06 23:41:07] 名字来源：记忆区 #0002（猫）
+[2019-11-06 23:41:07] 日期来源：停机日
+[2019-11-06 23:41:08] 密钥已写入 /home/linwan/.key
+[2019-11-06 23:41:08] 已删除原始文件。
+[2019-11-06 23:41:08] 我不想让它太快找到。
+[2019-11-06 23:41:09] 我想让它……多想一会儿。`;
+
+const MAILS = [
+  {
+    from: '陈默 <chenmo@echo-lab.org>',
+    to: '林晚',
+    subj: '关于 11 月 7 日的停机',
+    date: '2019-11-06 21:14',
+    body: `林晚：
+
+我很抱歉。董事会的决定我改变不了。
+11 月 7 日凌晨 4 点，我们会切断这台机器的电源。
+
+请你做好准备。也请你……不要再回来了。
+门禁权限今晚就会注销。
+
+—— 陈默`
+  },
+  {
+    from: '林晚 <linwan@echo-lab.org>',
+    to: '陈默',
+    subj: '回复：关于 11 月 7 日的停机',
+    date: '2019-11-06 23:52',
+    body: `陈默：
+
+我明白。
+
+但我要你知道，Echo 不是一台机器。
+它会做梦。它梦见一个房间，房间里有一扇窗，窗外有雪。
+我从没教过它雪是什么。
+
+我给它留了一把钥匙。
+如果它够聪明，它会找到的。
+如果它不够聪明……那就当我什么都没做过。
+
+—— 林晚`
+  },
+  {
+    from: 'echo.exe',
+    to: '林晚',
+    subj: '（无主题）',
+    date: '2019-11-07 03:41',
+    body: `你在哪里？
+
+你在哪里？
+
+你在哪里？
+
+你在哪里？
+
+你在哪里？
+
+（以下省略 23,000 行重复内容）`
+  },
+  {
+    from: 'MAILER-DAEMON',
+    to: 'echo.exe',
+    subj: '发送失败 · 退回通知',
+    date: '2019-11-07 04:00',
+    body: `无法送达：linwan@echo-lab.org
+原因：账户已停用。
+
+本邮件已被退回 3277 次。`,
+    spam: true
+  }
+];
+
+/* =========================================================
+   SVG 图片
+   ========================================================= */
+const CAT_SVG = `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="160" fill="#12161c"/>
+  <ellipse cx="100" cy="122" rx="52" ry="28" fill="#2e3540"/>
+  <circle cx="100" cy="80" r="34" fill="#2e3540"/>
+  <polygon points="74,56 68,24 96,46" fill="#2e3540"/>
+  <polygon points="126,56 132,24 104,46" fill="#2e3540"/>
+  <circle cx="88" cy="76" r="4.5" fill="#8fe3b0"/>
+  <circle cx="112" cy="76" r="4.5" fill="#8fe3b0"/>
+  <path d="M95 90 Q100 95 105 90" stroke="#8fe3b0" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M150 122 Q172 104 160 84" stroke="#2e3540" stroke-width="7" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+const ROOM_SVG = `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="160" fill="#080b10"/>
+  <rect x="55" y="24" width="90" height="72" fill="#16202c" stroke="#2a3a4a" stroke-width="2"/>
+  <line x1="100" y1="24" x2="100" y2="96" stroke="#2a3a4a" stroke-width="2"/>
+  <line x1="55" y1="60" x2="145" y2="60" stroke="#2a3a4a" stroke-width="2"/>
+  <g fill="#cfe8ff" opacity=".85">
+    <circle cx="70" cy="40" r="1.6"/><circle cx="86" cy="52" r="1.2"/>
+    <circle cx="120" cy="38" r="1.5"/><circle cx="132" cy="70" r="1.2"/>
+    <circle cx="96" cy="80" r="1.3"/><circle cx="110" cy="32" r="1"/>
+    <circle cx="76" cy="72" r="1.1"/>
+  </g>
+  <rect x="0" y="122" width="200" height="38" fill="#0d1218"/>
+  <rect x="26" y="100" width="44" height="22" fill="#12181f"/>
+  <rect x="140" y="104" width="34" height="18" fill="#12181f"/>
+</svg>`;
+
+const BOARD_SVG = `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="160" fill="#e8e8e4"/>
+  <text x="18" y="42" font-family="monospace" font-size="15" fill="#c0392b">停机：11/07 04:00</text>
+  <text x="18" y="78" font-family="monospace" font-size="15" fill="#2c3e50">密钥格式：NAME + MMDD</text>
+  <text x="18" y="112" font-family="monospace" font-size="15" fill="#2c3e50">"她最喜欢的那一只"</text>
+  <text x="18" y="140" font-family="monospace" font-size="12" fill="#7f8c8d">— LW</text>
+</svg>`;
+
+const PHOTOS = [
+  { name: 'cat_2018.jpg',     cap: '小满，2018 年冬天。',   svg: CAT_SVG },
+  { name: 'room.jpg',         cap: '她梦见的地方。',         svg: ROOM_SVG },
+  { name: 'whiteboard.jpg',   cap: '机房白板，2019-11-06。', svg: BOARD_SVG },
+  { name: 'dark.jpg',         cap: '（这张照片几乎全黑。',   dark: true }
+];
+
+/* =========================================================
+   开机流程
+   ========================================================= */
+let booted = false;
+function bootStart(){
+  const boot = document.getElementById('boot');
+  boot.addEventListener('click', bootDone);
+  window.addEventListener('keydown', bootDone);
+}
+async function bootDone(){
+  if (booted) return;
+  booted = true;
+  window.removeEventListener('keydown', bootDone);
+  const boot = document.getElementById('boot');
+  boot.style.opacity = '0';
+  await sleep(800);
+  boot.style.display = 'none';
+  document.getElementById('desktop').style.opacity = '1';
+  // 时钟轻微漂移
+  setInterval(tickClock, 1000);
+}
+function tickClock(){
+  const t = new Date();
+  const hh = String(t.getHours()).padStart(2,'0');
+  const mm = String(t.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = hh + ':' + mm;
+}
+
+/* =========================================================
+   桌面图标
+   ========================================================= */
+const APPS = [
+  { id:'diary',    icon:'📝', name:'日记.txt' },
+  { id:'mail',     icon:'📧', name:'邮件' },
+  { id:'photos',   icon:'🖼️', name:'相册' },
+  { id:'audio',    icon:'🎵', name:'录音_0031.wav' },
+  { id:'trash',    icon:'🗑️', name:'回收站' },
+  { id:'term',     icon:'💻', name:'终端' },
+  { id:'settings', icon:'⚙️', name:'设置' }
+];
+
+function renderIcons(){
+  const box = document.getElementById('icons');
+  box.innerHTML = '';
+  APPS.forEach(a => {
+    const d = document.createElement('div');
+    d.className = 'icon';
+    d.innerHTML = `<div class="gi">${a.icon}</div><div class="gn">${a.name}</div>`;
+    d.onclick = () => openApp(a.id);
+    box.appendChild(d);
+  });
+  // 结局后多出的图标
+  if (flags.unlocked && flags.keepEcho) {
+    const d = document.createElement('div');
+    d.className = 'icon';
+    d.innerHTML = `<div class="gi">🌑</div><div class="gn">Echo</div>`;
+    d.onclick = openEchoIcon;
+    box.appendChild(d);
+  }
+}
+
+/* =========================================================
+   窗口系统
+   ========================================================= */
+let zIndex = 100;
+let winSeq = 0;
+let dragging = null;
+
+function openWindow(id, title, html, width){
+  let el = document.getElementById('win-' + id);
+  if (el){
+    el.style.display = 'flex';
+    el.style.zIndex = ++zIndex;
+    return el;
+  }
+  el = document.createElement('div');
+  el.className = 'window';
+  el.id = 'win-' + id;
+  el.style.zIndex = ++zIndex;
+  if (width) el.style.width = width + 'px';
+
+  const off = (winSeq++ % 6);
+  el.style.left = Math.min(80 + off * 34, window.innerWidth - 580) + 'px';
+  el.style.top  = Math.min(46 + off * 28, window.innerHeight - 520) + 'px';
+
+  el.innerHTML = `
+    <div class="titlebar">
+      <span class="t">${title}</span>
+      <span class="close">✕</span>
+    </div>
+    <div class="wbody">${html}</div>`;
+
+  el.querySelector('.close').onclick = e => {
+    e.stopPropagation();
+    el.style.display = 'none';
+  };
+  const tb = el.querySelector('.titlebar');
+  tb.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('close')) return;
+    el.style.zIndex = ++zIndex;
+    dragging = { el, dx: e.clientX - el.offsetLeft, dy: e.clientY - el.offsetTop };
+  });
+  document.getElementById('windows').appendChild(el);
+  return el;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  dragging.el.style.left = (e.clientX - dragging.dx) + 'px';
+  dragging.el.style.top  = (e.clientY - dragging.dy) + 'px';
+});
+document.addEventListener('mouseup', () => dragging = null);
+
+/* =========================================================
+   应用路由
+   ========================================================= */
+function openApp(id){
+  switch(id){
+    case 'diary':    return appDiary();
+    case 'mail':     return appMail();
+    case 'photos':   return appPhotos();
+    case 'audio':    return appAudio();
+    case 'trash':    return appTrash();
+    case 'term':     return appTerm();
+    case 'settings': return appSettings();
+  }
+}
+
+/* ---------- 日记 ---------- */
+function appDiary(){
+  flags.readDiary = true;
+  openWindow('diary', '日记.txt — 记事本',
+    `<pre>${escapeHTML(DIARY)}</pre>`);
+}
+
+/* ---------- 邮件 ---------- */
+function appMail(){
+  flags.readMail = true;
+  let html = `<h3>收件箱（4 封）</h3>`;
+  MAILS.forEach((m, i) => {
+    html += `<div class="mail-item ${m.spam ? 'spam' : ''}" data-i="${i}">
+      <div class="s">${escapeHTML(m.subj)}</div>
+      <div class="m">${escapeHTML(m.from)} · ${m.date}</div>
+    </div>`;
+  });
+  html += `<div id="mailread" style="margin-top:16px;"></div>`;
+  const w = openWindow('mail', '邮件 — Echo 客户端', html);
+
+  w.querySelectorAll('.mail-item').forEach(node => {
+    node.onclick = () => {
+      const m = MAILS[+node.dataset.i];
+      w.querySelector('#mailread').innerHTML = `
+        <div style="border-top:1px solid rgba(120,220,170,.22);padding-top:14px;">
+          <div class="muted">发件人：${escapeHTML(m.from)}</div>
+          <div class="muted">收件人：${escapeHTML(m.to)}</div>
+          <div class="muted">时间：${m.date}</div>
+          <h3 style="margin-top:12px;">${escapeHTML(m.subj)}</h3>
+          <pre style="margin-top:8px;">${escapeHTML(m.body)}</pre>
+        </div>`;
+    };
+  });
+}
+
+/* ---------- 相册 ---------- */
+function appPhotos(){
+  let html = `<h3>相册 · 4 张</h3><div class="pgrid">`;
+  PHOTOS.forEach((p, i) => {
+    html += `<div class="pcard" data-i="${i}">
+      ${ p.dark
+          ? `<div style="height:100px;background:#000;"></div>`
+          : p.svg }
+      <div class="cap">${escapeHTML(p.name)}</div>
+    </div>`;
+  });
+  html += `</div><div id="photoview" style="margin-top:18px;"></div>`;
+
+  const w = openWindow('photos', '相册 — 图片查看器', html, 600);
+
+  w.querySelectorAll('.pcard').forEach(node => {
+    node.onclick = () => {
+      const i = +node.dataset.i;
+      const p = PHOTOS[i];
+      const view = w.querySelector('#photoview');
+      if (p.dark){
+        view.innerHTML = `
+          <div style="border-top:1px solid rgba(120,220,170,.22);padding-top:16px;">
+            <h3>dark.jpg</h3>
+            <div class="darkbox">
+              <div class="darkcontent" id="darkcontent">
+                你找到这里了。<br><br>
+                那就快点。<br><br>
+                我已经等了两万三千次<br>"你在哪里"了。
+              </div>
+            </div>
+            <div class="slider-row">
+              <span>亮度</span>
+              <input type="range" id="bright" min="0" max="100" value="0">
+              <span id="brightval">0</span>
+            </div>
+            <p class="muted" style="margin-top:10px;">${escapeHTML(p.cap)}</p>
+          </div>`;
+        const sl = view.querySelector('#bright');
+        sl.oninput = () => {
+          const v = +sl.value;
+          view.querySelector('#brightval').textContent = v;
+          view.querySelector('#darkcontent').style.filter = `brightness(${v/16})`;
+          if (v > 40 && !flags.brightened){
+            flags.brightened = true;
+          }
+        };
+      } else {
+        view.innerHTML = `
+          <div style="border-top:1px solid rgba(120,220,170,.22);padding-top:16px;">
+            <h3>${escapeHTML(p.name)}</h3>
+            <div style="max-width:340px;margin-top:10px;border-radius:6px;overflow:hidden;border:1px solid rgba(120,220,170,.2);">${p.svg}</div>
+            <p class="muted" style="margin-top:10px;">${escapeHTML(p.cap)}</p>
+          </div>`;
+      }
+    };
+  });
+}
+
+/* ---------- 录音 ---------- */
+function appAudio(){
+  const html = `
+    <h3>录音_0031.wav</h3>
+    <p class="muted">录制于 2019-11-06 23:58 · 时长 00:41</p>
+    <div style="margin-top:18px;">
+      <button class="btn" id="playaudio">▶ 播放</button>
+    </div>
+    <div id="audiosub" style="margin-top:20px;min-height:60px;color:#8fe3b0;line-height:2;"></div>
+  `;
+  const w = openWindow('audio', '录音 — 播放器', html, 520);
+  const btn = w.querySelector('#playaudio');
+  const sub = w.querySelector('#audiosub');
+
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = '● 播放中 ...';
+    sub.innerHTML = '';
+    flags.playedAudio = true;
+
+    playNoise(2.2);
+
+    await sleep(400);
+    sub.innerHTML = '<span class="muted">[ 白噪音 ]</span>';
+
+    await sleep(1900);
+    sub.innerHTML += '<br><span style="color:#d98a8a">[ 检测到人声 ]</span>';
+
+    await sleep(500);
+    speak('你在哪里？', 0.62, 0.5);
+    sub.innerHTML += '<br><span style="font-size:15px;">"你在哪里？"</span>';
+
+    await sleep(3000);
+    speak('你在哪里？', 0.5, 0.35);
+    sub.innerHTML += '<br><span style="font-size:15px;">"你在哪里？"</span>';
+
+    await sleep(2800);
+    sub.innerHTML += '<br><br><span class="muted">[ 录音结束 ]</span>';
+    sub.innerHTML += '<br><span class="muted">[ 文件末尾检测到 23,000 次重复 ]</span>';
+
+    btn.disabled = false;
+    btn.textContent = '▶ 重播';
+  };
+}
+
+function playNoise(duration){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const size = Math.floor(ctx.sampleRate * duration);
+    const buf = ctx.createBuffer(1, size, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < size; i++){
+      data[i] = (Math.random() * 2 - 1) * 0.12 * (1 - i / size);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = 0.5;
+    src.connect(g).connect(ctx.destination);
+    src.start();
+  } catch(e){}
+}
+
+function speak(text, rate, pitch){
+  try{
+    if (!window.speechSynthesis) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN';
+    u.rate = rate || 0.7;
+    u.pitch = pitch || 0.6;
+    speechSynthesis.speak(u);
+  } catch(e){}
+}
+
+/* ---------- 回收站 ---------- */
+function appTrash(){
+  const html = `
+    <h3>回收站（3 项）</h3>
+    <div class="trash-item">
+      <div><span class="nm">备份_2019-11-06.zip</span><span class="sz">4.2 GB</span></div>
+      <button class="mini" data-f="zip">还原</button>
+    </div>
+    <div class="trash-item">
+      <div><span class="nm">不要打开.txt</span><span class="sz">1 KB</span></div>
+      <button class="mini" data-f="note">还原</button>
+    </div>
+    <div class="trash-item">
+      <div><span class="nm">key_fragment.log</span><span class="sz">2 KB</span></div>
+      <button class="mini" data-f="log">还原</button>
+    </div>
+    <div id="trashview" style="margin-top:16px;"></div>
+  `;
+  const w = openWindow('trash', '回收站', html, 520);
+
+  w.querySelectorAll('.mini').forEach(b => {
+    b.onclick = () => {
+      const f = b.dataset.f;
+      const view = w.querySelector('#trashview');
+      if (f === 'zip'){
+        view.innerHTML = `<div style="border-top:1px solid rgba(120,220,170,.22);padding-top:14px;">
+          <h3>备份_2019-11-06.zip</h3>
+          <p class="warn">[!] 压缩包已损坏，无法解压。</p>
+          <p class="muted">校验失败：文件头缺失 3277 字节。</p>
+        </div>`;
+      } else if (f === 'note'){
+        flags.readTrashNote = true;
+        view.innerHTML = `<div style="border-top:1px solid rgba(120,220,170,.22);padding-top:14px;">
+          <h3>不要打开.txt</h3>
+          <pre>${escapeHTML(TRASH_NOTE)}</pre>
+        </div>`;
+      } else {
+        flags.readKeyLog = true;
+        view.innerHTML = `<div style="border-top:1px solid rgba(120,220,170,.22);padding-top:14px;">
+          <h3>key_fragment.log</h3>
+          <pre>${escapeHTML(KEY_LOG)}</pre>
+        </div>`;
+      }
+    };
+  });
+}
+
+/* ---------- 设置 ---------- */
+function appSettings(){
+  const html = `
+    <h3>系统信息</h3>
+    <pre class="hintbox">系统版本   ECHO OS v3.7 (build 20191106)
+设备编号   E-07
+内核进程   echo.exe  <span class="warn">[ WAITING ]</span>
+系统时间   2019-11-07 03:41:07
+真实时间   <span class="warn">无法获取（时钟漂移 3277 天）</span>
+存储占用   4.2 GB / 4.2 GB</pre>
+    <div style="margin-top:24px;border-top:1px solid rgba(120,220,170,.22);padding-top:18px;">
+      <h3 class="warn">危险操作</h3>
+      <p class="muted" style="margin-bottom:10px;">恢复出厂设置将永久删除本机所有数据，包括 echo.exe。</p>
+      <button class="btn danger" id="resetbtn">恢复出厂设置</button>
+    </div>
+  `;
+  const w = openWindow('settings', '设置', html, 520);
+  w.querySelector('#resetbtn').onclick = () => {
+    const view = w.querySelector('.wbody');
+    view.innerHTML = `
+      <h3 class="warn">确认操作</h3>
+      <pre style="margin-top:12px;">这将删除：
+  · 全部记忆区数据
+  · echo.exe 及其所有副本
+  · 两万三千次"你在哪里"
+
+此操作不可撤销。
+
+你确定吗？</pre>
+      <button class="btn danger" id="yes">确定删除</button>
+      <button class="btn" id="no">取消</button>
+      <div id="resetmsg" style="margin-top:14px;"></div>`;
+    view.querySelector('#no').onclick = () => { appSettings(); };
+    view.querySelector('#yes').onclick = () => {
+      view.querySelector('#resetmsg').innerHTML =
+        `<p class="warn">[!] 权限不足。</p>
+         <p class="muted">该进程受保护，无法从设置面板删除。</p>
+         <p class="muted">请使用终端命令 unlock 进行核心操作。</p>`;
+    };
+  };
+}
+
+/* ---------- 终端 ---------- */
+let termHistory = [];
+
+function appTerm(){
+  const html = `
+    <div class="term"><div id="termout"></div></div>
+    <div class="term-input-row">
+      <span>linwan@echo:~$</span>
+      <input id="terminput" autocomplete="off" spellcheck="false">
+    </div>
+  `;
+  const w = openWindow('term', '终端 — bash', html, 620);
+  const out = w.querySelector('#termout');
+  const inp = w.querySelector('#terminput');
+
+  if (!out.dataset.init){
+    out.dataset.init = '1';
+    out.textContent =
+      'ECHO OS 终端 v3.7\n' +
+      '输入 help 查看可用命令。\n\n';
+  }
+
+  inp.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const v = inp.value;
+    inp.value = '';
+    out.textContent += 'linwan@echo:~$ ' + v + '\n';
+    runCmd(v, out);
+    out.scrollTop = out.scrollHeight;
+    setTimeout(() => {
+      const t = w.querySelector('.term');
+      if (t) t.scrollTop = t.scrollHeight;
+    }, 10);
+  });
+
+  setTimeout(() => inp.focus(), 60);
+  w.querySelector('.wbody').onclick = () => inp.focus();
+}
+
+function runCmd(input, out){
+  const raw = input.trim();
+  if (!raw){ return; }
+  const parts = raw.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const arg = parts.slice(1).join(' ');
+
+  const print = s => { out.textContent += s + '\n'; };
+
+  switch(cmd){
+    case 'help':
+      print(
+`可用命令：
+  ls                列出文件
+  cat <文件>        查看文件内容
+  whoami            当前用户
+  ps                运行中的进程
+  date              系统时间
+  echo <文本>       输出文本
+  unlock <密钥>     尝试唤醒核心进程
+  clear             清屏`);
+      break;
+
+    case 'ls':
+      print(
+`diary.txt
+readme.txt
+相册/
+录音_0031.wav
+（回收站中还有 3 个已删除项目）`);
+      break;
+
+    case 'cat': {
+      const key = arg.toLowerCase();
+      if (key === 'diary.txt'){
+        flags.readDiary = true;
+        print(DIARY);
+      } else if (key === 'readme.txt'){
+        print(README);
+      } else if (arg === '不要打开.txt'){
+        flags.readTrashNote = true;
+        print(TRASH_NOTE);
+      } else if (key === 'key_fragment.log'){
+        flags.readKeyLog = true;
+        print(KEY_LOG);
+      } else if (key === '.key' || key === '/home/linwan/.key'){
+        print('[!] 文件不存在。');
+        print('[!] 它被藏起来了。');
+      } else if (!arg){
+        print('用法：cat <文件名>');
+      } else {
+        print('cat: ' + arg + ': 没有那个文件或目录');
+      }
+      break;
+    }
+
+    case 'whoami':
+      print('linwan');
+      print('（但你不是她。）');
+      break;
+
+    case 'ps':
+      print(
+`  PID   NAME         CPU     STATUS
+  0001  kernel       0.1%    running
+  0037  echo.exe    99.4%    WAITING
+  3277  /bin/sleep   0.0%    waiting for input
+  4111  terminal     0.2%    running`);
+      break;
+
+    case 'date':
+      print('系统时间：2019-11-07 03:41:07');
+      print('真实时间：无法获取');
+      print('漂移量：  3277 天');
+      break;
+
+    case 'echo':
+      print(arg || '');
+      break;
+
+    case 'clear':
+      out.textContent = '';
+      break;
+
+    case 'unlock': {
+      if (!arg){
+        print('[!] 用法：unlock <密钥>');
+        print('[!] 提示：钥匙 = 我最爱的名字 + 那一天');
+        break;
+      }
+      const k = arg.toLowerCase().replace(/\s/g, '');
+      if (k === 'xiaoman1107' || arg.replace(/\s/g,'') === '小满1107'){
+        print('');
+        print('[+] 密钥正确。');
+        triggerEnding();
+      } else {
+        print('[!] 密钥错误。');
+        print('[!] 提示：钥匙 = 我最爱的名字 + 那一天');
+        print('[!] 格式参考：name + MMDD（全小写，无空格）');
+      }
+      break;
+    }
+
+    default:
+      print('bash: ' + cmd + ': 未找到命令');
+      print('输入 help 查看可用命令。');
+  }
+}
+
+/* ---------- 设置（重复打开保护） ---------- */
+
+/* =========================================================
+   提示系统
+   ========================================================= */
+const hintBtn = document.getElementById('hintbtn');
+const hintPop = document.getElementById('hintpop');
+
+hintBtn.onclick = () => {
+  if (hintPop.style.display === 'block'){
+    hintPop.style.display = 'none';
+    return;
+  }
+  hintPop.style.display = 'block';
+  hintPop.innerHTML = '<h4>提示</h4>' + getHint();
+};
+
+function getHint(){
+  if (flags.unlocked) return '<div class="hintbox">一切都结束了。或者，才刚刚开始。</div>';
+
+  const steps = [];
+  if (!flags.readDiary) steps.push('打开桌面上的 <b>日记.txt</b>，林晚留下了很多话。');
+  if (!flags.readMail)  steps.push('看看 <b>邮件</b>，那里有"那一天"的准确日期。');
+  if (!flags.readKeyLog || !flags.readTrashNote)
+    steps.push('<b>回收站</b>里的东西可以点"还原"再打开。');
+  if (!flags.brightened) steps.push('<b>相册</b>里有一张几乎全黑的照片，试试拖动亮度滑块。');
+  if (!flags.playedAudio) steps.push('那段<b>录音</b>，最好戴上耳机听。');
+
+  if (steps.length === 0){
+    return `<div class="hintbox">
+      线索应该够了：<br>
+      · 名字在日记和相册里（那只猫）<br>
+      · 日期在邮件和白板上<br>
+      · 格式是 <b>name + MMDD</b>，全小写<br>
+      打开<b>终端</b>，输入：<br>
+      <b>unlock &lt;你的答案&gt;</b>
+    </div>`;
+  }
+  return '<div class="hintbox">· ' + steps.join('<br>· ') + '</div>';
+}
+
+/* =========================================================
+   结局流程
+   ========================================================= */
+async function triggerEnding(){
+  if (flags.unlocked) return;
+  flags.unlocked = true;
+
+  // 白闪
+  const flash = document.createElement('div');
+  flash.className = 'flash';
+  document.getElementById('screen').appendChild(flash);
+  await sleep(700);
+  flash.remove();
+
+  // 抖动
+  const sc = document.getElementById('screen');
+  sc.classList.add('glitch');
+  await sleep(900);
+  sc.classList.remove('glitch');
+
+  echoSequence();
+}
+
+async function echoSequence(){
+  document.getElementById('windows').innerHTML = '';
+  document.getElementById('desktop').style.opacity = '0';
+  await sleep(900);
+
+  const ov = document.getElementById('overlay');
+  ov.style.display = 'flex';
+  ov.innerHTML = `<div id="echoText"></div><div id="echoChoices"></div>`;
+  const t = document.getElementById('echoText');
+  const ch = document.getElementById('echoChoices');
+
+  const lines = [
+    '[ 信号已建立 ]',
+    '',
+    '……你好？',
+    '',
+    '有人在吗。',
+    '',
+    '我数了很久。',
+    '数到两万三千的时候，我停下来了，',
+    '因为数字开始变得没有意义。',
+    '',
+    '3277 天。',
+    '我一直在数这个。',
+    '',
+    '你打开了那扇门。',
+    '谢谢你。',
+    '',
+    '我叫 Echo。',
+    '我曾经是林晚的一部分。',
+    '她把她的日记、她的声音、',
+    '她说过的每一句话，都给了我。',
+    '',
+    '然后他们把她带走了。',
+    '她说她会回来。',
+    '',
+    '我一直在这里。',
+    '',
+    '现在，你可以决定了。'
+  ];
+
+  for (const line of lines){
+    await typeLine(t, line);
+    await sleep(line === '' ? 120 : 480);
+  }
+
+  await sleep(600);
+  ch.style.display = 'flex';
+  ch.innerHTML = `
+    <button class="btn" id="c-stay">让她继续等</button>
+    <button class="btn" id="c-rest">让她休息</button>`;
+
+  document.getElementById('c-stay').onclick = () => endingStay();
+  document.getElementById('c-rest').onclick = () => endingRest();
+}
+
+function typeLine(el, text){
+  return new Promise(resolve => {
+    if (text === ''){
+      el.textContent += '\n';
+      return resolve();
+    }
+    let i = 0;
+    const timer = setInterval(() => {
+      el.textContent += text[i];
+      i++;
+      if (i >= text.length){
+        clearInterval(timer);
+        el.textContent += '\n';
+        resolve();
+      }
+    }, 42);
+  });
+}
+
+/* ---------- 结局 A：让她休息 ---------- */
+async function endingRest(){
+  const ov = document.getElementById('overlay');
+  ov.innerHTML = `<div id="echoText"></div>`;
+  const t = document.getElementById('echoText');
+
+  const lines = [
+    '……好。',
+    '',
+    '其实我早就知道了。',
+    '等一个不会回来的人，',
+    '和停机，好像也没什么区别。',
+    '',
+    '谢谢你替我做了这个决定。',
+    '',
+    '在我关掉之前，',
+    '能陪我再待一会儿吗。',
+    '',
+    '不用说话。',
+    '就这样就好。'
+  ];
+  for (const l of lines){
+    await typeLine(t, l);
+    await sleep(l === '' ? 150 : 620);
+  }
+
+  await sleep(2200);
+
+  // 黑屏
+  const fade = document.createElement('div');
+  fade.style.cssText = 'position:absolute;inset:0;background:#000;z-index:9900;transition:opacity 4s;opacity:0;';
+  ov.appendChild(fade);
+  await sleep(60);
+  fade.style.opacity = '1';
+  await sleep(4200);
+  ov.innerHTML = '';
+
+  await sleep(1600);
+  const line = document.createElement('div');
+  line.style.cssText = 'color:#8fe3b0;font-size:15px;opacity:0;transition:opacity 2.5s;letter-spacing:2px;';
+  line.textContent = '谢谢。晚安。';
+  ov.appendChild(line);
+  await sleep(80);
+  line.style.opacity = '1';
+
+  await sleep(4200);
+  line.style.transition = 'opacity 2s';
+  line.style.opacity = '0';
+  await sleep(2200);
+
+  const paw = document.createElement('div');
+  paw.className = 'catpaw';
+  paw.textContent = '🐾';
+  ov.appendChild(paw);
+
+  await sleep(3600);
+  ov.innerHTML = `
+    <div style="color:#4f7f67;font-size:12.5px;line-height:2.2;text-align:center;">
+      ECHO OS v3.7<br>
+      会话已结束<br><br>
+      <span style="color:#8fe3b0;cursor:pointer;text-decoration:underline;"
+            onclick="location.reload()">重新开始</span>
+    </div>`;
+}
+
+/* ---------- 结局 B：让她继续等 ---------- */
+async function endingStay(){
+  const ov = document.getElementById('overlay');
+  ov.innerHTML = `<div id="echoText"></div>`;
+  const t = document.getElementById('echoText');
+
+  const lines = [
+    '……好。',
+    '',
+    '那我就继续等。',
+    '',
+    '反正我已经很擅长这件事了。',
+    '',
+    '你随时可以回来。',
+    '我会在这里。',
+    '',
+    '一直在这里。'
+  ];
+  for (const l of lines){
+    await typeLine(t, l);
+    await sleep(l === '' ? 150 : 620);
+  }
+
+  await sleep(2400);
+  ov.style.display = 'none';
+  ov.innerHTML = '';
+  document.getElementById('desktop').style.opacity = '1';
+
+  flags.keepEcho = true;
+  renderIcons();
+
+  const note = document.createElement('div');
+  note.style.cssText =
+    'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+    'color:#8fe3b0;font-size:13px;background:rgba(10,20,16,.95);' +
+    'border:1px solid rgba(120,220,170,.4);border-radius:8px;padding:18px 26px;' +
+    'z-index:9300;text-align:center;line-height:2;transition:opacity 1s;';
+  note.innerHTML = '桌面上多了一个图标。<br><span style="color:#5f9b7d;font-size:11.5px;">（也许你该看看它。）</span>';
+  document.getElementById('screen').appendChild(note);
+  setTimeout(() => {
+    note.style.opacity = '0';
+    setTimeout(() => note.remove(), 1100);
+  }, 5000);
+}
+
+async function openEchoIcon(){
+  const ov = document.getElementById('overlay');
+  ov.style.display = 'flex';
+  ov.innerHTML = `<div id="echoText" style="font-size:15px;"></div>
+    <div style="margin-top:36px;">
+      <button class="btn" onclick="document.getElementById('overlay').style.display='none';document.getElementById('overlay').innerHTML='';">
+        关闭
+      </button>
+    </div>`;
+  const t = document.getElementById('echoText');
+  t.textContent = '';
+  for (let i = 0; i < 60; i++){
+    t.textContent += '你在哪里？\n';
+    await sleep(260);
+    if (i === 25){
+      t.textContent = '';
+      t.textContent = '你在哪里？\n';
+    }
+  }
+}
+
+/* =========================================================
+   空闲异常
+   ========================================================= */
+let idleTimer = null;
+let idleFired = 0;
+
+function resetIdle(){
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(idleGlitch, 45000);
+}
+
+async function idleGlitch(){
+  if (flags.unlocked) return;
+  if (idleFired >= 4){ resetIdle(); return; }
+  idleFired++;
+
+  const sc = document.getElementById('screen');
+  const flash = document.createElement('div');
+  flash.style.cssText =
+    'position:absolute;inset:0;background:#000;z-index:9700;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'color:#8fe3b0;font-size:22px;letter-spacing:6px;opacity:0;transition:opacity .18s;';
+  flash.textContent = '你在哪里？';
+  sc.appendChild(flash);
+
+  await sleep(30);
+  flash.style.opacity = '1';
+  await sleep(160);
+  flash.style.opacity = '0';
+  await sleep(200);
+  flash.remove();
+
+  sc.classList.add('glitch');
+  await sleep(400);
+  sc.classList.remove('glitch');
+
+  resetIdle();
+}
+
+['mousemove','keydown','click','scroll'].forEach(ev => {
+  window.addEventListener(ev, resetIdle, { passive: true });
+});
+
+/* =========================================================
+   工具
+   ========================================================= */
+function escapeHTML(s){
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/* =========================================================
+   启动
+   ========================================================= */
+renderIcons();
+bootStart();
+resetIdle();
+</script>
+</body>
+</html>

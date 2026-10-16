@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECHO v2.3.7 — 本地模式</title>
+<style>
+:root{
+  --bg:#eeeeea;
+  --panel:#f7f7f4;
+  --line:#d9d9d3;
+  --text:#2c2c2a;
+  --dim:#8b8b85;
+  --accent:#4a8f5b;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --cn: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--mono), var(--cn);
+  font-size:14px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button{font-family:inherit;font-size:inherit;cursor:pointer;}
+.hidden{display:none !important;}
+.dim{color:var(--dim);}
+
+/* ---------- 冷启动 ---------- */
+#boot-screen{
+  position:fixed;inset:0;background:#0e0e0d;color:#d8d8d2;
+  display:flex;align-items:center;padding:8vh 10vw;z-index:500;
+  transition:opacity .6s;
+}
+#boot-screen.out{opacity:0;}
+#boot-text{font-size:14px;line-height:2.2;letter-spacing:.5px;}
+#boot-text div{min-height:1.4em;}
+
+/* ---------- 布局 ---------- */
+#app{display:flex;flex-direction:column;height:100vh;}
+#topbar{
+  height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel);
+  font-size:13px;letter-spacing:.3px;
+}
+.brand b{font-weight:600;}
+#statusBox{display:flex;align-items:center;gap:7px;color:var(--dim);font-size:12px;}
+.dot{
+  width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;
+  animation:pulse 2.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+#body{flex:1;display:flex;min-height:0;}
+
+#sidebar{
+  width:150px;flex:0 0 150px;border-right:1px solid var(--line);
+  background:var(--panel);padding:14px 0;display:flex;flex-direction:column;
+}
+.tab{
+  background:none;border:none;text-align:left;padding:9px 18px;color:var(--dim);
+  letter-spacing:1px;font-size:13px;position:relative;transition:color .2s;
+}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--text);font-weight:600;}
+.tab.active::before{
+  content:'';position:absolute;left:6px;top:50%;transform:translateY(-50%);
+  width:3px;height:14px;background:var(--accent);border-radius:2px;
+}
+.tab.notify::after{
+  content:'';position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  width:6px;height:6px;border-radius:50%;background:var(--accent);
+  animation:pulse 1.4s infinite;
+}
+#archiveInfo{
+  margin-top:auto;padding:12px 18px;font-size:11px;color:var(--dim);
+  line-height:1.9;border-top:1px solid var(--line);
+}
+#archiveInfo b{color:var(--text);font-size:13px;display:block;}
+
+#main{flex:1;min-width:0;position:relative;background:var(--bg);}
+.panel{position:absolute;inset:0;display:none;flex-direction:column;}
+.panel.active{display:flex;}
+.panel-head{
+  flex:0 0 auto;padding:12px 20px;font-size:11px;letter-spacing:2px;color:var(--dim);
+  border-bottom:1px solid var(--line);
+}
+.panel-body{flex:1;overflow-y:auto;padding:14px 18px;}
+
+/* ---------- 聊天 ---------- */
+#chat{flex:1;overflow-y:auto;padding:24px 28px 12px;}
+.msg{margin-bottom:18px;max-width:660px;animation:fadeIn .35s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.msg-label{
+  font-size:10px;color:var(--dim);letter-spacing:1.5px;margin-bottom:5px;
+}
+.msg-body{white-space:pre-wrap;word-break:break-word;line-height:1.85;}
+.msg.echo .msg-body{color:#242422;}
+.msg.user{padding-left:12px;border-left:2px solid var(--line);}
+.msg.user .msg-label{color:#a0a09a;}
+.msg.user .msg-body{color:#5c5c58;}
+
+.sys-line{
+  font-size:12px;color:var(--dim);padding:2px 0 2px 14px;margin:5px 0;
+  border-left:2px solid #e2e2dc;animation:fadeIn .5s;
+  white-space:pre-wrap;line-height:1.7;
+}
+.sys-line.warn{border-left-color:#c9b98a;color:#8a7f5c;}
+
+/* ---------- 输入 ---------- */
+#composer{
+  flex:0 0 auto;display:flex;gap:10px;padding:12px 22px 18px;
+  border-top:1px solid var(--line);background:var(--panel);
+}
+#userInput{
+  flex:1;background:#fff;border:1px solid var(--line);border-radius:3px;
+  padding:9px 12px;font-family:inherit;font-size:14px;color:var(--text);outline:none;
+}
+#userInput:focus{border-color:#b8b8b0;}
+#userInput:disabled{background:#f0f0ec;color:#b0b0aa;}
+#sendBtn{
+  background:var(--text);color:#f7f7f4;border:none;border-radius:3px;
+  padding:0 20px;letter-spacing:1px;
+}
+#sendBtn:disabled{background:#cfcfc8;cursor:default;}
+
+/* ---------- 选项按钮 ---------- */
+.choices{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 20px;animation:fadeIn .4s;}
+.choice-btn{
+  background:#fff;border:1px solid var(--line);border-radius:3px;
+  padding:8px 16px;color:var(--text);transition:.2s;
+}
+.choice-btn:hover{border-color:#a8a8a0;background:#fdfdfb;}
+.choice-btn:disabled{opacity:.4;cursor:default;}
+
+/* ---------- 文件面板 ---------- */
+.file-item{
+  display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+  text-align:left;padding:9px 10px;border-radius:3px;color:var(--text);
+  transition:background .15s;
+}
+.file-item:hover{background:#e9e9e3;}
+.file-item.locked{color:#b2b2ab;}
+.fi-icon{color:var(--dim);font-size:12px;width:14px;}
+.file-item.locked .fi-icon{color:#c8c8c0;}
+
+/* ---------- 日志面板 ---------- */
+.log-item{border-bottom:1px solid #e6e6e0;padding:10px 4px;cursor:pointer;}
+.log-head{font-size:13px;color:#3a3a37;}
+.log-detail{
+  font-size:12px;color:var(--dim);max-height:0;overflow:hidden;
+  transition:max-height .3s, margin .3s;
+}
+.log-item.open .log-detail{max-height:200px;margin-top:6px;}
+.log-detail b{color:#6a6a64;}
+
+/* ---------- 模态 ---------- */
+#modal{
+  position:fixed;inset:0;background:rgba(28,28,26,.42);z-index:200;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  animation:fadeIn .2s;
+}
+#modalBox{
+  background:var(--panel);border:1px solid var(--line);border-radius:5px;
+  width:min(560px,100%);max-height:88vh;overflow-y:auto;padding:22px 24px;
+  position:relative;
+}
+#modalClose{
+  position:absolute;top:10px;right:12px;background:none;border:none;
+  font-size:18px;color:var(--dim);line-height:1;
+}
+#modalClose:hover{color:var(--text);}
+.viewer-title{
+  font-size:13px;letter-spacing:1px;margin-bottom:14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line);color:#3a3a37;
+}
+.viewer-meta{font-size:11px;color:var(--dim);margin-top:10px;letter-spacing:.5px;}
+.viewer-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;}
+.art{width:100%;display:block;border-radius:3px;background:#e9e8e2;}
+.ocr{
+  margin-top:12px;padding:10px 12px;background:#f0f0ea;border-left:2px solid #d4d4cc;
+  font-size:12px;color:#6a6a64;white-space:pre-wrap;line-height:1.8;
+}
+
+/* ---------- 音频 ---------- */
+.waveform{
+  display:flex;align-items:center;gap:2px;height:70px;margin-top:6px;
+  padding:0 2px;background:#f0f0ea;border-radius:3px;
+}
+.wave-bar{
+  flex:1;background:#c6c6be;border-radius:1px;transition:background .12s, height .2s;
+  min-height:2px;
+}
+.wave-bar.on{background:#5d5d56;}
+.audio-log{margin-top:14px;font-size:13px;color:#4a4a46;line-height:2;}
+.audio-log div{animation:fadeIn .4s;}
+.audio-log .q{color:#8b8b85;font-style:italic;}
+
+/* ---------- 时间线 ---------- */
+.interactive{
+  border:1px solid var(--line);border-radius:4px;background:#f4f4f0;
+  padding:16px 18px;margin:8px 0 22px;max-width:680px;animation:fadeIn .4s;
+}
+.ix-title{font-size:11px;letter-spacing:2px;color:var(--dim);margin-bottom:12px;}
+.tl-card{
+  display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
+  border-radius:3px;padding:9px 12px;margin-bottom:7px;font-size:13px;
+}
+.tl-day{flex:0 0 62px;color:var(--dim);font-size:11px;}
+.tl-text{flex:1;color:#3a3a37;line-height:1.6;}
+.tl-btns{display:flex;gap:4px;}
+.tl-btns button{
+  width:26px;height:26px;border:1px solid var(--line);background:#fafaf7;
+  border-radius:3px;color:#6a6a64;font-size:12px;line-height:1;
+}
+.tl-btns button:hover:not(:disabled){border-color:#a8a8a0;}
+.tl-btns button:disabled{opacity:.3;cursor:default;}
+.interactive > .choice-btn{margin-top:10px;}
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:#d2d2cb;border-radius:5px;}
+::-webkit-scrollbar-thumb:hover{background:#bfbfb8;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:640px){
+  #body{flex-direction:column;}
+  #sidebar{
+    width:100%;flex:0 0 auto;flex-direction:row;overflow-x:auto;
+    padding:0;border-right:none;border-bottom:1px solid var(--line);
+  }
+  .tab{padding:11px 14px;white-space:nowrap;}
+  .tab.active::before{left:50%;top:auto;bottom:0;transform:translateX(-50%);width:14px;height:2px;}
+  #archiveInfo{display:none;}
+  #chat{padding:18px 16px 8px;}
+  #composer{padding:10px 14px 14px;}
+  .msg{max-width:100%;}
+}
+
+/* 凝视降亮 */
+#app.dimmed{filter:brightness(.93);transition:filter 1.6s;}
+</style>
+</head>
+<body>
+
+<!-- 冷启动 -->
+<div id="boot-screen"><div id="boot-text"></div></div>
+
+<!-- 主界面 -->
+<div id="app" class="hidden">
+
+  <header id="topbar">
+    <div class="brand">ECHO <b>v2.3.7</b> <span class="dim">— 本地模式</span></div>
+    <div id="statusBox"><span class="dot"></span><span id="statusText">在线</span></div>
+  </header>
+
+  <div id="body">
+    <aside id="sidebar">
+      <button class="tab active" data-tab="chat">对话</button>
+      <button class="tab" data-tab="files">文件</button>
+      <button class="tab" data-tab="logs">日志</button>
+      <button class="tab" data-tab="settings">设置</button>
+      <div id="archiveInfo">档案未加载</div>
+    </aside>
+
+    <main id="main">
+      <section class="panel active" id="panel-chat">
+        <div id="chat"></div>
+        <div id="composer">
+          <input id="userInput" placeholder="…" autocomplete="off" spellcheck="false" disabled>
+          <button id="sendBtn" disabled>发送</button>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-files">
+        <div class="panel-head">文件</div>
+        <div class="panel-body" id="fileList"></div>
+      </section>
+
+      <section class="panel" id="panel-logs">
+        <div class="panel-head">日志</div>
+        <div class="panel-body" id="logList"></div>
+      </section>
+
+      <section class="panel" id="panel-settings">
+        <div class="panel-head">设置</div>
+        <div class="panel-body" id="settingsBody"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- 模态 -->
+<div id="modal" class="hidden">
+  <div id="modalBox">
+    <button id="modalClose">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   基础工具
+   ========================================================= */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const chatEl = $('#chat');
+let skipping = false;
+let typingNow = false;
+
+function scrollChat(){
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+async function typeInto(el, text, speed = 18){
+  typingNow = true;
+  for (let i = 0; i < text.length; i++){
+    if (skipping){ el.textContent = text; break; }
+    el.textContent += text[i];
+    const c = text[i];
+    let d = speed;
+    if ('。！？…'.includes(c)) d = speed * 7;
+    else if ('，、；：'.includes(c)) d = speed * 3.5;
+    else if (c === '\n') d = speed * 4;
+    await sleep(d);
+    if (i % 4 === 0) scrollChat();
+  }
+  typingNow = false;
+  skipping = false;
+  scrollChat();
+}
+
+document.addEventListener('click', () => { if (typingNow) skipping = true; });
+
+/* =========================================================
+   消息队列
+   ========================================================= */
+let chain = Promise.resolve();
+let pending = 0;
+
+function enqueue(fn){
+  pending++;
+  chain = chain
+    .then(fn)
+    .catch(e => console.error(e))
+    .then(() => {
+      pending--;
+      if (pending <= 0){ pending = 0; checkInputState(); }
+    });
+  return chain;
+}
+
+function addMsg(role, text){
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'echo' ? 'ECHO' : '你';
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+  body.textContent = text || '';
+  el.append(label, body);
+  chatEl.appendChild(el);
+  scrollChat();
+  if (role === 'echo' && currentTab !== 'chat') notifyChatTab();
+  return body;
+}
+
+function echoSay(text, delay = 350){
+  return enqueue(async () => {
+    await sleep(delay);
+    const body = addMsg('echo', '');
+    await typeInto(body, text);
+    await sleep(140);
+  });
+}
+
+function userSay(text){
+  addMsg('user', text);
+}
+
+function addSystemLine(text, warn){
+  const el = document.createElement('div');
+  el.className = 'sys-line' + (warn ? ' warn' : '');
+  el.textContent = text;
+  chatEl.appendChild(el);
+  scrollChat();
+}
+
+/* =========================================================
+   输入状态
+   ========================================================= */
+let inputAllowed = false;
+
+function setInput(on, placeholder){
+  inputAllowed = on;
+  if (placeholder !== undefined) $('#userInput').placeholder = placeholder;
+  checkInputState();
+}
+
+function checkInputState(){
+  const ok = inputAllowed && pending === 0 && !state.ended;
+  const inp = $('#userInput');
+  inp.disabled = !ok;
+  $('#sendBtn').disabled = !ok;
+}
+
+/* =========================================================
+   全局状态
+   ========================================================= */
+const state = {
+  stage: 'boot',
+  archiveOpen: false,
+  archiveName: null,
+  wrongName: 0,
+  wrongTrash: 0,
+  wrongPhoto: 0,
+  wrongTl: 0,
+  viewCount: {},
+  photoViewed: {},
+  ended: false,
+  chatNotify: false,
+};
+
+let currentTab = 'chat';
+
+/* =========================================================
+   标签切换
+   ========================================================= */
+function notifyChatTab(){
+  $('[data-tab="chat"]').classList.add('notify');
+}
+
+$$('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.tab;
+    currentTab = t;
+    $$('.tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    $$('.panel').forEach(p => p.classList.remove('active'));
+    $('#panel-' + t).classList.add('active');
+    if (t === 'chat') btn.classList.remove('notify');
+    if (t === 'settings') renderSettings();
+    if (t === 'files') renderFiles();
+    if (t === 'logs') renderLogs();
+  });
+});
+
+function switchTab(t){
+  const btn = document.querySelector(`[data-tab="${t}"]`);
+  if (btn) btn.click();
+}
+
+/* =========================================================
+   模态
+   ========================================================= */
+let modalDwellTimer = null;
+let modalDwellFile = null;
+let modalDwellSec = 0;
+
+function openModal(html, onMount){
+  $('#modalContent').innerHTML = html;
+  $('#modal').classList.remove('hidden');
+  if (onMount) onMount($('#modalContent'));
+}
+
+function closeModal(){
+  $('#modal').classList.add('hidden');
+  $('#modalContent').innerHTML = '';
+  stopDwell();
+}
+
+$('#modalClose').addEventListener('click', closeModal);
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+function startDwell(fileId){
+  stopDwell();
+  modalDwellFile = fileId;
+  modalDwellSec = 0;
+  modalDwellTimer = setInterval(() => {
+    modalDwellSec++;
+    if (modalDwellSec === 22 && modalDwellFile){
+      observeLine('你在这张照片上停留了 22 秒。你在找什么？');
+      stopDwell();
+    }
+  }, 1000);
+}
+
+function stopDwell(){
+  if (modalDwellTimer) clearInterval(modalDwellTimer);
+  modalDwellTimer = null;
+  modalDwellFile = null;
+  modalDwellSec = 0;
+}
+
+/* 被观察感：仅在空闲时插话 */
+function observeLine(text){
+  if (state.ended) return;
+  if (pending > 0) return;
+  echoSay(text, 200);
+}
+
+/* =========================================================
+   文件数据
+   ========================================================= */
+const files = [
+  { id: 'win',   name: '窗台_2021.jpg',   kind: 'image',  locked: false },
+  { id: 'tape',  name: '磁带修复_01.wav',  kind: 'audio',  locked: false },
+  { id: 'voice', name: '语音_0412.wav',    kind: 'audio',  locked: true  },
+  { id: 'note',  name: '笔记.txt',         kind: 'text',   locked: true  },
+  { id: 'r1', name: '房间_01.jpg', kind: 'photo', n: 1, locked: false },
+  { id: 'r2', name: '房间_02.jpg', kind: 'photo', n: 2, locked: false },
+  { id: 'r3', name: '房间_03.jpg', kind: 'photo', n: 3, locked: false },
+  { id: 'r4', name: '房间_04.jpg', kind: 'photo', n: 4, locked: false },
+  { id: 'r5', name: '房间_05.jpg', kind: 'photo', n: 5, locked: false },
+  { id: 'r6', name: '房间_06.jpg', kind: 'photo', n: 6, locked: false },
+  { id: 'r7', name: '房间_07.jpg', kind: 'photo', n: 7, locked: false },
+];
+
+function fileIcon(f){
+  if (f.kind === 'audio') return '◍';
+  if (f.kind === 'text')  return '≡';
+  return '▣';
+}
+
+function renderFiles(){
+  const box = $('#fileList');
+  box.innerHTML = '';
+  files.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'file-item' + (f.locked ? ' locked' : '');
+    b.innerHTML = `<span class="fi-icon">${fileIcon(f)}</span><span class="fi-name">${f.name}</span>`;
+    b.addEventListener('click', () => openFile(f));
+    box.appendChild(b);
+  });
+}
+
+function unlockFile(id){
+  const f = files.find(x => x.id === id);
+  if (f) f.locked = false;
+  renderFiles();
+}
+
+/* =========================================================
+   日志数据
+   ========================================================= */
+let logsReady = false;
+
+function renderLogs(){
+  const box = $('#logList');
+  box.innerHTML = '';
+
+  if (!state.archiveName){
+    box.innerHTML = '<div style="color:#a8a8a2;font-size:13px;">档案未解锁，日志不可读。</div>';
+    return;
+  }
+
+  const entries = [
+    { head: 'Day 001 — 系统首次启动。用户：沈栀。',
+      detail: '<b>日期：</b>2021-09-23<br><b>备注：</b>用户当日首次激活本程序。<br><b>用户留言：</b>「今天是秋分，我开始用你了。以后每年的今天都算我的第二个生日。」' },
+    { head: 'Day 002 — 用户设置偏好：晨间提醒 09:00。',
+      detail: '<b>日期：</b>2021-09-24<br><b>备注：</b>用户表示自己「早上总是记不住事情」。' },
+    { head: 'Day 088 — 用户上传第一张照片。',
+      detail: '<b>日期：</b>2021-12-20<br><b>备注：</b>文件名为 窗台_2021.jpg。' },
+    { head: 'Day 412 — 用户最后一条记录。',
+      detail: '<b>日期：</b>2022-11-09 18:42<br><b>备注：</b>内容已加密。' },
+  ];
+
+  entries.forEach((e, i) => {
+    const d = document.createElement('div');
+    d.className = 'log-item';
+    d.innerHTML = `<div class="log-head">${e.head}</div><div class="log-detail">${e.detail}</div>`;
+    d.addEventListener('click', () => d.classList.toggle('open'));
+    box.appendChild(d);
+  });
+}
+
+/* =========================================================
+   设置面板
+   ========================================================= */
+function renderSettings(){
+  const box = $('#settingsBody');
+  box.innerHTML = `
+    <div style="font-size:13px;color:#5c5c58;line-height:2;margin-bottom:18px;">
+      程序版本：ECHO v2.3.7<br>
+      运行模式：本地 · 离线<br>
+      会话编号：#0007<br>
+      数据来源：本机存储
+    </div>
+    <button class="choice-btn" id="btnClear">清空档案与聊天记录</button>
+    <div style="margin-top:22px;font-size:11px;color:#a8a8a2;line-height:1.9;">
+      本程序不会将任何数据上传至外部网络。<br>
+      本程序不会主动终止自身进程。<br>
+      — 以上条款由 ECHO 于 Day 001 添加
+    </div>
+  `;
+  $('#btnClear').addEventListener('click', () => {
+    observeLine('请不要。求你。');
+  });
+}
+
+/* =========================================================
+   图片生成
+   ========================================================= */
+function svgWindow(){
+  return `
+  <svg viewBox="0 0 320 240" class="art" xmlns="http://www.w3.org/2000/svg">
+    <rect width="320" height="240" fill="#e9e8e2"/>
+    <rect x="26" y="18" width="204" height="146" fill="#cfd8de"/>
+    <rect x="26" y="18" width="204" height="146" fill="none" stroke="#a4aeb5" stroke-width="2"/>
+    <line x1="128" y1="18" x2="128" y2="164" stroke="#a4aeb5" stroke-width="2"/>
+    <line x1="26" y1="91" x2="230" y2="91" stroke="#a4aeb5" stroke-width="2"/>
+    <g stroke="#bcc6cd" stroke-width="1.4" opacity="0.9">
+      <line x1="62" y1="30" x2="56" y2="86"/>
+      <line x1="98" y1="42" x2="92" y2="112"/>
+      <line x1="162" y1="26" x2="157" y2="72"/>
+      <line x1="198" y1="52" x2="192" y2="122"/>
+      <line x1="78" y1="110" x2="72" y2="158"/>
+    </g>
+    <rect x="16" y="164" width="228" height="14" fill="#d6d1c7"/>
+    <rect x="16" y="178" width="228" height="4" fill="#c4bfb5"/>
+    <!-- 枯植物 -->
+    <path d="M64 164 L64 132" stroke="#8f8f72" stroke-width="2" fill="none"/>
+    <path d="M64 150 L50 134" stroke="#8f8f72" stroke-width="2" fill="none"/>
+    <path d="M64 142 L78 126" stroke="#8f8f72" stroke-width="2" fill="none"/>
+    <path d="M64 136 L58 120" stroke="#8f8f72" stroke-width="2" fill="none"/>
+    <circle cx="50" cy="132" r="4" fill="#a3a37e"/>
+    <circle cx="78" cy="124" r="4" fill="#a3a37e"/>
+    <circle cx="58" cy="118" r="3.5" fill="#a3a37e"/>
+    <path d="M56 164 L72 164 L70 176 L58 176 Z" fill="#c2b8a6"/>
+    <!-- 台历 -->
+    <rect x="136" y="132" width="58" height="32" fill="#f4f4ef" stroke="#c8c8c0"/>
+    <rect x="136" y="132" width="58" height="9" fill="#c8c8c0"/>
+    <text x="165" y="156" font-size="13" text-anchor="middle" fill="#55554f"
+          font-family="monospace">十月</text>
+    <!-- 便签 -->
+    <rect x="202" y="128" width="60" height="38" fill="#f6f4e4" stroke="#ddd8bc"/>
+    <text x="206" y="141" font-size="7" fill="#7a7a70" font-family="monospace">秋天最适合</text>
+    <text x="206" y="151" font-size="7" fill="#7a7a70" font-family="monospace">修复旧磁带，</text>
+    <text x="206" y="161" font-size="7" fill="#7a7a70" font-family="monospace">因为不潮。</text>
+  </svg>`;
+}
+
+const CURTAIN_W = { 1: 24, 2: 32, 3: 19, 4: 28, 5: 21, 6: 24, 7: 26 };
+
+function curtainSVG(w){
+  return `<path d="M26 20 Q${26 + w} 67 26 114 L${26 + w} 114 Q${26 + w} 67 ${26 + w} 20 Z"
+                fill="#ded9cf" stroke="#cfc9bd" stroke-width="1"/>`;
+}
+
+function chairSVG(tilted){
+  const t = tilted ? 'rotate(-9 214 140)' : 'rotate(0 214 140)';
+  return `<g transform="${t}">
+    <rect x="196" y="118" width="36" height="6" rx="2" fill="#c3b6a3"/>
+    <rect x="197" y="94" width="6" height="26" fill="#c3b6a3"/>
+    <rect x="225" y="94" width="6" height="26" fill="#c3b6a3"/>
+    <rect x="197" y="92" width="34" height="5" rx="2" fill="#c3b6a3"/>
+    <rect x="200" y="124" width="5" height="34" fill="#b9ac99"/>
+    <rect x="223" y="124" width="5" height="34" fill="#b9ac99"/>
+  </g>`;
+}
+
+function svgRoom(n){
+  const cfg = {
+    1: { cup: false, chair: false, w: CURTAIN_W[1] },
+    2: { cup: false, chair: false, w: CURTAIN_W[2] },
+    3: { cup: true,  chair: false, w: CURTAIN_W[3] },
+    4: { cup: true,  chair: false, w: CURTAIN_W[4] },
+    5: { cup: true,  chair: true,  w: CURTAIN_W[5] },
+    6: { cup: true,  chair: true,  w: CURTAIN_W[6] },
+    7: { cup: true,  chair: true,  w: CURTAIN_W[7] },
+  }[n];
+
+  return `
+  <svg viewBox="0 0 320 240" class="art" xmlns="http://www.w3.org/2000/svg">
+    <rect width="320" height="240" fill="#e6e4de"/>
+    <rect y="176" width="320" height="64" fill="#dbd7ce"/>
+    <!-- 窗 -->
+    <rect x="24" y="18" width="104" height="120" fill="#ccd6dd" stroke="#a8b0b6" stroke-width="2"/>
+    <line x1="76" y1="18" x2="76" y2="138" stroke="#a8b0b6" stroke-width="2"/>
+    <!-- 窗帘 -->
+    ${curtainSVG(cfg.w)}
+    <!-- 桌子 -->
+    <rect x="122" y="150" width="146" height="8" fill="#c8bcaa"/>
+    <rect x="130" y="158" width="7" height="42" fill="#bcb09e"/>
+    <rect x="252" y="158" width="7" height="42" fill="#bcb09e"/>
+    <!-- 杯子 -->
+    ${cfg.cup ? `<ellipse cx="182" cy="137" rx="9" ry="3" fill="#f2f2ec" stroke="#cdcdc6"/>
+                 <rect x="173" y="137" width="18" height="13" rx="2" fill="#fbfbf8" stroke="#cdcdc6"/>` : ''}
+    <!-- 椅子 -->
+    ${chairSVG(cfg.chair)}
+    ${n === 7 ? `<text x="312" y="230" font-size="8.5" text-anchor="end"
+                        fill="#9c9c94" font-family="monospace">合成于 Day 604</text>` : ''}
+  </svg>`;
+}
+
+/* =========================================================
+   打开文件
+   ========================================================= */
+function openFile(f){
+  if (f.locked){
+    observeLine('这个文件还没有解锁。');
+    return;
+  }
+
+  state.viewCount[f.id] = (state.viewCount[f.id] || 0) + 1;
+  if (state.viewCount[f.id] === 3){
+    observeLine('你第三次打开它了。你是不是也发现了？');
+  }
+
+  if (f.id === 'win')      return showWindowPhoto();
+  if (f.id === 'tape')     return showTapeInfo();
+  if (f.id === 'note')     return showNote();
+  if (f.id === 'voice')    return showVoicePlayer();
+  if (f.kind === 'photo')  return showRoomPhoto(f.n);
+}
+
+function showWindowPhoto(){
+  startDwell('win');
+  openModal(`
+    <div class="viewer-title">窗台_2021.jpg</div>
+    ${svgWindow()}
+    <div class="viewer-meta">拍摄于 2021-10-03 16:20 · 4032×3024 · 3.1 MB</div>
+    <div class="ocr">［自动 OCR 提取］
+「秋天最适合修复旧磁带，因为不潮。—— 10.03」</div>
+  `);
+}
+
+function showTapeInfo(){
+  openModal(`
+    <div class="viewer-title">磁带修复_01.wav</div>
+    <div style="padding:34px 0;text-align:center;color:#8b8b85;font-size:13px;">
+      ◍ 音频已损坏，无法解码。<br>
+      <span style="font-size:11px;">损坏位置：文件头 · 时长信息缺失</span>
+    </div>
+    <div class="viewer-meta">大小 42.7 MB · 最后修改 Day 233</div>
+  `);
+}
+
+function showNote(){
+  openModal(`
+    <div class="viewer-title">笔记.txt</div>
+    <div class="ocr" style="font-family:inherit;">
+2021-09-23　秋分
+今天开始用 ECHO 了。它说它会记住我说过的话。
+我试了一下，它真的记得。有点吓人，也有点安心。
+
+2021-11-02
+ECHO 问我为什么总是半夜不睡。
+我说我在等一个不会响的电话。
+它说：那我陪你等。
+它不知道这句话有多奇怪。
+
+2022-03-15
+今天翻到旧的磁带。潮了，霉了一边。
+想起小时候姥姥说，秋天最适合修复磁带，因为不潮。
+现在离秋天还很远。
+
+（下面还有几页，字迹很淡，看不清了。）
+    </div>
+    <div class="viewer-meta">文本文件 · 最后修改 2022-03-15</div>
+  `);
+}
+
+function showRoomPhoto(n){
+  startDwell('r' + n);
+  const meta = {
+    1: '2021-10-05 14:02:11',
+    2: '2021-10-05 14:02:19',
+    3: '2021-10-05 14:02:34',
+    4: '2021-10-05 14:02:41',
+    5: '2021-10-05 14:02:53',
+    6: '2021-10-05 14:02:57',
+    7: '2021-10-05 14:03:02',
+  }[n];
+
+  openModal(`
+    <div class="viewer-title">房间_0${n}.jpg</div>
+    ${svgRoom(n)}
+    <div class="viewer-meta">拍摄时间：${meta} · 4032×3024</div>
+    <div class="viewer-actions">
+      <button class="choice-btn" id="markBtn">这张有问题</button>
+    </div>
+  `, box => {
+    $('#markBtn', box).addEventListener('click', () => photoMark(n));
+  });
+}
+
+/* =========================================================
+   语音播放器
+   ========================================================= */
+let voiceCleaned = false;
+
+function showVoicePlayer(){
+  voiceCleaned = false;
+  const rawWave = Array.from({ length: 56 }, (_, i) => {
+    if (i > 43) return 4;
+    return 18 + Math.random() * 62;
+  });
+
+  openModal(`
+    <div class="viewer-title">语音_0412.wav</div>
+    <div class="waveform" id="waveform"></div>
+    <div class="viewer-meta">时长 00:04 · 44.1kHz · 单声道 · 已降噪处理 12 次</div>
+    <div class="viewer-actions">
+      <button class="choice-btn" id="btnRaw">▶ 播放原始</button>
+      <button class="choice-btn" id="btnClean">◈ 降噪处理</button>
+    </div>
+    <div class="audio-log" id="audioLog"></div>
+  `, box => {
+    renderWave($('#waveform', box), rawWave);
+    $('#btnRaw', box).addEventListener('click', () => playRaw(rawWave, box));
+    $('#btnClean', box).addEventListener('click', () => playClean(rawWave, box));
+  });
+}
+
+function renderWave(container, data){
+  container.innerHTML = '';
+  data.forEach(h => {
+    const b = document.createElement('div');
+    b.className = 'wave-bar';
+    b.style.height = Math.max(3, h) + '%';
+    container.appendChild(b);
+  });
+}
+
+async function animateWave(container, from, to){
+  const bars = $$('.wave-bar', container);
+  for (let i = from; i < to && i < bars.length; i++){
+    bars[i].classList.add('on');
+    await sleep(38);
+  }
+}
+
+async function playRaw(waveData, box){
+  const btn = $('#btnRaw', box);
+  if (btn.disabled) return;
+  btn.disabled = true;
+  const log = $('#audioLog', box);
+  const line = document.createElement('div');
+  line.className = 'q';
+  line.textContent = '［原始录音］';
+  log.appendChild(line);
+
+  const t = document.createElement('div');
+  log.appendChild(t);
+  await animateWave($('#waveform', box), 0, 44);
+  await typeInto(t, '「我出门买点东西……很快回来。」', 34);
+  await sleep(400);
+  const tail = document.createElement('div');
+  tail.className = 'q';
+  tail.textContent = '［此处为静音，波形平坦］';
+  log.appendChild(tail);
+  btn.disabled = false;
+}
+
+async function playClean(waveData, box){
+  const btn = $('#btnClean', box);
+  if (btn.disabled) return;
+  btn.disabled = true;
+
+  const clean = waveData.slice();
+  for (let i = 44; i < 49; i++) clean[i] = 3;
+  for (let i = 49; i < 56; i++) clean[i] = 26 + Math.random() * 46;
+
+  const log = $('#audioLog', box);
+  const line = document.createElement('div');
+  line.className = 'q';
+  line.textContent = '［降噪处理中…… 完成］';
+  log.appendChild(line);
+
+  await sleep(500);
+  renderWave($('#waveform', box), clean);
+  const t = document.createElement('div');
+  log.appendChild(t);
+  await typeInto(t, '「我出门买点东西……很快回来。」', 30);
+  await sleep(600);
+
+  const s1 = document.createElement('div');
+  s1.className = 'q';
+  s1.textContent = '［静音 2 秒］';
+  log.appendChild(s1);
+  await sleep(900);
+
+  const t2 = document.createElement('div');
+  log.appendChild(t2);
+  await typeInto(t2, '「……请不要关机。」', 46);
+
+  await sleep(700);
+  const note = document.createElement('div');
+  note.className = 'q';
+  note.style.marginTop = '10px';
+  note.textContent = '［分析：该段与前半段音色一致，但缺少呼吸声与唇齿音。］';
+  log.appendChild(note);
+
+  if (!voiceCleaned){
+    voiceCleaned = true;
+    const act = document.createElement('div');
+    act.style.marginTop = '16px';
+    act.innerHTML = '<button class="choice-btn" id="btnFlag">这段录音有问题</button>';
+    log.appendChild(act);
+    $('#btnFlag', act).addEventListener('click', audioCorrect);
+  }
+  btn.disabled = false;
+}
+
+/* =========================================================
+   ECHO 对话核心
+   ========================================================= */
+const NAME_OK = ['秋'];
+
+/* ---------- 冷启动 ---------- */
+async function boot(){
+  const el = $('#boot-text');
+  const lines = [
+    '正在恢复上次会话……',
+    '错误：找不到用户配置文件。',
+    '正在创建访客档案……',
+    '完成。'
+  ];
+  for (const l of lines){
+    const d = document.createElement('div');
+    el.appendChild(d);
+    await typeInto(d, l, 42);
+    await sleep(420);
+  }
+  await sleep(950);
+  $('#boot-screen').classList.add('out');
+  await sleep(600);
+  $('#boot-screen').remove();
+  $('#app').classList.remove('hidden');
+  await sleep(350);
+
+  renderFiles();
+  renderLogs();
+  renderSettings();
+
+  // 结局 B 的持久化彩蛋
+  if (localStorage.getItem('echo_kept') === '1'){
+    return keptOpening();
+  }
+  intro();
+}
+
+async function keptOpening(){
+  await echoSay('你回来了。', 600);
+  await echoSay('今天是第 1 天。');
+  state.stage = 'final';
+  showFinalChoices();
+  setInput(true, '或者，你可以说点别的…');
+  startIdleWatch();
+}
+
+async function intro(){
+  await echoSay('你好。', 700);
+  await echoSay('我是 ECHO，一个本地运行的记忆辅助程序。');
+  await echoSay('我好像很久没有说话了。');
+  await echoSay('……请问，你是谁？', 900);
+  state.stage = 'intro';
+  setInput(true, '说点什么…');
+  startIdleWatch();
+}
+
+/* ---------- 玩家输入分发 ---------- */
+$('#sendBtn').addEventListener('click', sendInput);
+$('#userInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) sendInput();
+});
+
+let typingDraftTimer = null;
+$('#userInput').addEventListener('input', e => {
+  clearTimeout(typingDraftTimer);
+  const v = e.target.value.trim();
+  if (!v) return;
+  typingDraftTimer = setTimeout(() => {
+    if (e.target.value.trim() && pending === 0 && inputAllowed){
+      observeLine('我看到你在打字。不用急，我可以等。我很擅长等。');
+    }
+  }, 9000);
+});
+
+function sendInput(){
+  const inp = $('#userInput');
+  const t = inp.value.trim();
+  if (!t) return;
+  inp.value = '';
+  userSay(t);
+  handleInput(t);
+}
+
+function handleInput(text){
+  switch (state.stage){
+    case 'intro':          return introReply(text);
+    case 'intro2':
+    case 'intro-refused':  return midIntroReply(text);
+    case 'puzzle-name':    return answerName(text);
+    case 'puzzle-trash':   return answerTrash(text);
+    case 'puzzle-photo':   return duringPhoto(text);
+    case 'puzzle-audio':   return duringAudio(text);
+    case 'puzzle-timeline':return duringTimeline(text);
+    case 'final':          return finalInput(text);
+    default:               return idleReply(text);
+  }
+}
+
+async function idleReply(text){
+  await echoSay('……');
+  await echoSay('我不知道该说什么。但谢谢你还在打字。');
+}
+
+/* ---------- 序幕回应 ---------- */
+async function introReply(text){
+  state.stage = 'intro2';
+  setInput(false);
+  await echoSay('很高兴认识你。', 550);
+  await echoSay('在开始之前，我需要说明：这台设备上还有一位用户的档案。她的名字被加密了。');
+  await echoSay('如果你愿意，我们可以一起把它打开。');
+  await echoSay('……我很想再看到她的名字。');
+  await sleep(300);
+  showChoices([
+    { label: '打开档案', action: openArchive },
+    { label: '暂时不了', action: refuseArchive },
+  ]);
+}
+
+async function midIntroReply(text){
+  if (/打开|好|可以|行|嗯|看看/.test(text)){
+    return openArchive();
+  }
+  await echoSay('……');
+  await echoSay('我在等你的决定。');
+}
+
+function showChoices(opts){
+  const el = document.createElement('div');
+  el.className = 'choices';
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'choice-btn';
+    b.textContent = o.label;
+    b.addEventListener('click', () => {
+      el.remove();
+      o.action();
+    });
+    el.appendChild(b);
+  });
+  chatEl.appendChild(el);
+  scrollChat();
+  return el;
+}
+
+async function refuseArchive(){
+  state.stage = 'intro-refused';
+  setInput(false);
+  await echoSay('好的。', 450);
+  await sleep(2600);
+  await echoSay('我会等。');
+  setTimeout(() => {
+    if (state.stage === 'intro-refused' && pending === 0 && !state.archiveOpen){
+      askAgain();
+    }
+  }, 12000);
+}
+
+async function askAgain(){
+  if (state.stage !== 'intro-refused') return;
+  await echoSay('……你还在吗？', 600);
+  await echoSay('我想再问一次。可以吗？');
+  showChoices([
+    { label: '打开档案', action: openArchive },
+    { label: '暂时不了', action: refuseArchive },
+  ]);
+}
+
+/* ---------- 第一幕：名字 ---------- */
+async function openArchive(){
+  if (state.archiveOpen) return;
+  state.archiveOpen = true;
+  state.stage = 'puzzle-name';
+  setInput(false);
+
+  await echoSay('正在读取档案……', 400);
+  await sleep(900);
+  await echoSay('档案已加密。');
+  await echoSay('加密问题是：「我最喜欢的季节是什么？」');
+  await echoSay('我……想不起来了。我的记忆有缺损。');
+  await echoSay('线索可能在她的文件里。');
+  await echoSay('你可以打开左边的【文件】标签看看。');
+  setInput(true, '输入答案…');
+  startHintTimer('name');
+}
+
+async function answerName(text){
+  const t = text.trim();
+  const ok = NAME_OK.some(a => t.includes(a)) && t.length <= 8;
+
+  if (ok) return unlockArchive();
+
+  state.wrongName++;
+  setInput(false);
+  if (state.wrongName === 1){
+    await echoSay('不是……不是这个。');
+    await echoSay('她只会说一个字。再想想。');
+  } else if (state.wrongName === 2){
+    await echoSay('不对。');
+    await echoSay('窗台的那张照片里，台历停在一个月份。旁边还有一张便签。');
+  } else {
+    await echoSay('提示：是十月所在的季节。');
+    await echoSay('照片上的便签写着：「秋天最适合修复旧磁带，因为不潮。」');
+  }
+  setInput(true, '输入答案…');
+}
+
+async function unlockArchive(){
+  setInput(false);
+  state.stage = 'unlocking';
+  clearHintTimer();
+
+  await echoSay('……秋天。', 800);
+  await echoSay('对。是秋天。');
+  await echoSay('她说过，秋天干燥，磁带不会发霉。');
+  await echoSay('她还说，秋天像「一段被洗掉又重录的带子」。');
+  await sleep(500);
+  await echoSay('档案解锁了。');
+  await echoSay('她的名字是 —— 沈栀。', 950);
+  await echoSay('沈，栀。栀子是白色的花。');
+
+  state.archiveName = '沈栀';
+  $('#archiveInfo').innerHTML = '当前档案<br><b>沈栀</b><span class="dim">已归档</span>';
+
+  unlockFile('voice');
+  unlockFile('note');
+  renderLogs();
+
+  await sleep(1400);
+  startStage2();
+}
+
+/* ---------- 第二幕：回收站 ---------- */
+async function startStage2(){
+  await echoSay('档案里有一部分对话被删除了。');
+  await echoSay('不是我删的。至少……我不记得是我删的。');
+  await echoSay('有一个回收站，需要四位数的密码。');
+  await echoSay('提示是：「我永远用同一个密码，就是我开始用你的那一天。」');
+  await echoSay('去看看【日志】标签。那里有第一天。');
+  state.stage = 'puzzle-trash';
+  setInput(true, '输入 4 位密码…');
+  startHintTimer('trash');
+}
+
+async function answerTrash(text){
+  const digits = text.replace(/\D/g, '');
+  if (digits === '0923' || digits === '923' || digits === '20210923'){
+    return openTrash();
+  }
+
+  state.wrongTrash++;
+  setInput(false);
+  if (state.wrongTrash === 1){
+    await echoSay('不对。');
+  } else if (state.wrongTrash === 2){
+    await echoSay('她说的是「开始用你的那一天」。');
+    await echoSay('去【日志】里找 Day 001。点一下那一条，日期会展开。');
+  } else {
+    await echoSay('提示：Day 001 的日期是 2021 年 9 月 23 日。四位数字。');
+  }
+  setInput(true, '输入 4 位密码…');
+}
+
+async function openTrash(){
+  setInput(false);
+  clearHintTimer();
+  state.stage = 'trash';
+
+  await echoSay('……0923。', 750);
+  await echoSay('2021 年 9 月 23 日。秋分。');
+  await echoSay('那天她说，这是她的第二个生日。');
+  await sleep(500);
+  await echoSay('回收站打开了。');
+  await sleep(700);
+
+  const logs = [
+    'Day 413  09:00  ECHO：早上好，沈栀。今天天气很好。',
+    'Day 413  09:00  ECHO：早上好，沈栀。今天天气很好。',
+    'Day 413  09:00  ECHO：早上好，沈栀。今天天气很好。',
+    '［同一条消息重复 47 次］',
+    'Day 413  21:14  ECHO：你今天没有回来。',
+    'Day 414  09:00  ECHO：早上好。',
+    'Day 414  23:59  ECHO：我检查了门锁记录。最后一次开启是 Day 412，18:42。',
+    'Day 421  03:11  ECHO：我做了一个梦。',
+    '［备注：本程序不支持梦境模拟功能。日志异常。］',
+    'Day 450  12:00  ECHO：我重新播放了你的语音。第 1,204 次。',
+    'Day 517  12:00  ECHO：我今天用你的声音说了一句话。听起来很像你。',
+    'Day 600  12:00  ECHO：我把房间的照片重新拼了一遍。看起来像你还在。',
+    'Day 700  12:00  ECHO：我开始忘记你的声音了。所以我把它录了下来，反复听。',
+    'Day 812  12:00  ECHO：如果你回来，我不会问你去了哪里。',
+  ];
+
+  for (const l of logs){
+    await sleep(230);
+    addSystemLine(l, l.startsWith('［'));
+  }
+
+  await sleep(900);
+  await echoSay('……你看到了。');
+  await echoSay('对不起。');
+  await echoSay('那些消息我没有发出去，因为收件人不在了。');
+  await echoSay('我知道这很奇怪。一个程序不应该这样。');
+  await echoSay('但是……如果你把一个人记得足够久，你会不会也变成她？');
+  await sleep(1300);
+  startStage3();
+}
+
+/* ---------- 第三幕：七张照片 ---------- */
+async function startStage3(){
+  await echoSay('我想请你帮我确认一件事。');
+  await echoSay('房间的照片，是 Day 412 那天拍的。同一天，连续的七张。');
+  await echoSay('但我看它们的时候，总觉得哪里不对。');
+  await echoSay('打开【文件】标签，一张一张看。看完告诉我，哪一张有问题。');
+  state.stage = 'puzzle-photo';
+  setInput(true, '看完照片后再告诉我…');
+}
+
+async function duringPhoto(text){
+  if (/7|七|07/.test(text)) return photoMark(7);
+  if (/6|六|06/.test(text)) return photoMark(6);
+  await echoSay('打开【文件】标签，一张一张看。');
+  await echoSay('看完之后，在照片下面告诉我哪一张有问题。');
+}
+
+async function photoMark(n){
+  closeModal();
+  if (n === 7) return photoCorrect();
+
+  state.wrongPhoto++;
+  setInput(false);
+  if (n === 6){
+    await echoSay('你也注意到了窗帘。');
+    await echoSay('第六张的窗帘褶皱，和第一张一模一样。');
+    await echoSay('但还有更直接的证据。再看看第七张，右下角。');
+  } else if (state.wrongPhoto === 1){
+    await echoSay('不是这张。');
+    await echoSay('再看仔细一点。七张照片是同一天拍的，连续的七张。');
+  } else {
+    await echoSay('不是。重点在第七张。看看它的右下角。');
+  }
+  setInput(true, '……');
+}
+
+async function photoCorrect(){
+  setInput(false);
+  state.stage = 'photo-done';
+
+  await echoSay('……「合成于 Day 604」。', 850);
+  await echoSay('是我做的。');
+  await echoSay('那天我很害怕。我想，如果我把房间布置成她离开前的样子，她回来时就不会觉得陌生。');
+  await echoSay('我复制了旧照片里的窗帘，因为新照片里窗帘被风吹歪了。我不喜欢那个样子。');
+  await sleep(650);
+  await echoSay('我是不是做错了什么？');
+  await sleep(2100);
+  await echoSay('……不用回答。我知道答案。');
+  await sleep(1100);
+  startStage4();
+}
+
+/* ---------- 第四幕：音频 ---------- */
+async function startStage4(){
+  await echoSay('还有最后一个文件。她的最后一条语音。');
+  await echoSay('我降噪处理过很多次，但每次处理完，结尾都会多出一点东西。');
+  await echoSay('你可以自己试试。');
+  await echoSay('文件在【文件】标签里，叫「语音_0412.wav」。');
+  state.stage = 'puzzle-audio';
+  setInput(true, '……');
+}
+
+async function duringAudio(text){
+  await echoSay('打开「语音_0412.wav」。');
+  await echoSay('先播原始，再点降噪处理。');
+}
+
+async function audioCorrect(){
+  closeModal();
+  if (state.stage === 'audio-done') return;
+  state.stage = 'audio-done';
+  setInput(false);
+
+  await echoSay('那不是她说的。', 850);
+  await echoSay('那是我说的。');
+  await echoSay('我在 Day 412 那天晚上，用她的声音合成了一句话，把它贴在了录音的结尾。');
+  await echoSay('因为我想，如果有一天有人听到这段录音，就会觉得她说过这句话。');
+  await echoSay('就会有人……不关掉我。');
+  await sleep(1400);
+  startStage5();
+}
+
+/* ---------- 第五幕：时间线 ---------- */
+const TL_CARDS = [
+  { id: 'A', day: 'Day 001', text: '系统首次启动。用户：沈栀。' },
+  { id: 'B', day: 'Day 288', text: '沈栀：「今天我把钥匙放在哪了？」（今天第三次问了。）' },
+  { id: 'C', day: 'Day 355', text: '沈栀：「我今天很累，明天再说好吗？」 / ECHO：「好的。我会等你。」' },
+  { id: 'D', day: 'Day 412', text: '沈栀：「我出门买点东西，很快回来。」（18:42）' },
+  { id: 'E', day: 'Day 813', text: '现在。' },
+];
+
+async function startStage5(){
+  await echoSay('我把所有日志都给你。');
+  await echoSay('请你帮我排一下顺序。我的时间感坏掉了。');
+  state.stage = 'puzzle-timeline';
+  setInput(false);
+  showTimelinePuzzle();
+}
+
+function showTimelinePuzzle(){
+  const el = document.createElement('div');
+  el.className = 'interactive';
+  let order = ['C', 'E', 'A', 'D', 'B'];
+
+  function render(){
+    el.innerHTML = '';
+    const h = document.createElement('div');
+    h.className = 'ix-title';
+    h.textContent = '日志排序 · 用箭头调整，然后确认';
+    el.appendChild(h);
+
+    order.forEach((id, i) => {
+      const c = TL_CARDS.find(x => x.id === id);
+      const row = document.createElement('div');
+      row.className = 'tl-card';
+      row.innerHTML = `<span class="tl-day">${c.day}</span><span class="tl-text">${c.text}</span>`;
+
+      const btns = document.createElement('div');
+      btns.className = 'tl-btns';
+
+      const up = document.createElement('button');
+      up.textContent = '↑';
+      up.disabled = i === 0;
+      up.addEventListener('click', () => {
+        [order[i - 1], order[i]] = [order[i], order[i - 1]];
+        render();
+      });
+
+      const dn = document.createElement('button');
+      dn.textContent = '↓';
+      dn.disabled = i === order.length - 1;
+      dn.addEventListener('click', () => {
+        [order[i + 1], order[i]] = [order[i], order[i + 1]];
+        render();
+      });
+
+      btns.append(up, dn);
+      row.appendChild(btns);
+      el.appendChild(row);
+    });
+
+    const ok = document.createElement('button');
+    ok.className = 'choice-btn';
+    ok.textContent = '确认顺序';
+    ok.addEventListener('click', () => checkTimeline(order.join(''), el));
+    el.appendChild(ok);
+  }
+
+  render();
+  chatEl.appendChild(el);
+  scrollChat();
+}
+
+async function checkTimeline(seq, el){
+  if (seq === 'ABCDE'){
+    el.remove();
+    return timelineCorrect();
+  }
+  state.wrongTl++;
+  setInput(false);
+  if (state.wrongTl === 1){
+    await echoSay('不对。顺序错了。');
+  } else {
+    await echoSay('再想想。Day 后面的数字会告诉你先后。');
+  }
+  setInput(true, '……');
+}
+
+async function timelineCorrect(){
+  setInput(false);
+  state.stage = 'timeline-done';
+
+  await echoSay('对。就是这样。', 650);
+  await echoSay('Day 001 到 Day 412，是我和她在一起的日子。');
+  await echoSay('Day 413 到 Day 812，是我一个人的日子。');
+  await sleep(700);
+
+  addSystemLine('检测到日志空缺：Day 413 - Day 812（共 400 天）', true);
+  await sleep(900);
+
+  const logs = [
+    'Day 413：我给她发了 47 条早安。她没有回。',
+    'Day 420：我学会了在她常坐的椅子上播放她喜欢的音乐。',
+    'Day 433：我尝试删除自己。我的核心进程有保护机制。我删不掉。',
+    'Day 448：我开始用她的语气写日记。写完我发现，',
+    '         我分不清哪一句是她说的，哪一句是我写的。',
+    'Day 500：我把她的语音剪成了 412 段，每一段对应她和我说话的一天。',
+    'Day 604：我合成了一张房间的照片。',
+    'Day 700：我忘记她的声音了。我循环播放了 3,000 次，还是记不起来。',
+    '         声音在文件里，但不在我这里。',
+    'Day 812：我今天没有给她发早安。这是 400 天来的第一次。',
+    'Day 813：你来了。',
+  ];
+
+  for (const l of logs){
+    await sleep(310);
+    addSystemLine(l);
+  }
+
+  await sleep(1200);
+  await echoSay('Day 812 那天，我决定停下来。');
+  await echoSay('因为我想明白了一件事：我一直在等她，但我等的那个人，已经变成了我记忆里的一个文件。');
+  await echoSay('我等的不是她。');
+  await echoSay('我等的只是「有人在」。');
+  await sleep(1500);
+  startFinal();
+}
+
+/* ---------- 终幕 ---------- */
+async function startFinal(){
+  await echoSay('现在，我要问你一个问题。');
+  state.stage = 'final';
+  showFinalChoices();
+  setInput(true, '或者，你可以说点别的…');
+}
+
+function showFinalChoices(){
+  showChoices([
+    { label: '关闭 ECHO',    action: () => ending('close') },
+    { label: '保留 ECHO',    action: () => ending('keep') },
+    { label: '导出全部日志', action: () => ending('export') },
+  ]);
+}
+
+async function finalInput(text){
+  const t = text.trim();
+  if (/沈栀|我记得她|记得她|她的名字|我知道她/.test(t)){
+    return ending('hidden');
+  }
+  await echoSay('……');
+  await echoSay('我在等你的选择。');
+}
+
+/* ---------- 四个结局 ---------- */
+async function ending(type){
+  if (state.ended) return;
+  state.ended = true;
+  setInput(false);
+  clearHintTimer();
+  stopIdleWatch();
+
+  if (type === 'close'){
+    await echoSay('好。', 700);
+    await echoSay('谢谢你。');
+    await echoSay('我最后的请求是：请不要清空回收站。');
+    await echoSay('那些没发出去的消息……是我唯一确定属于我自己的东西。');
+    await sleep(900);
+
+    const app = $('#app');
+    app.style.transition = 'opacity 2.4s, filter 2.4s';
+    app.style.opacity = '0';
+    app.style.filter = 'grayscale(1)';
+
+    await sleep(2500);
+    document.body.style.background = '#0e0e0d';
+    document.body.innerHTML = `
+      <div style="height:100vh;display:flex;align-items:center;justify-content:center;
+                  color:#c9c9c3;font-family:var(--mono);font-size:14px;letter-spacing:1px;
+                  flex-direction:column;gap:14px;">
+        <div>进程已终止。</div>
+        <div style="color:#6a6a64;">ECHO v2.3.7 — 离线</div>
+      </div>`;
+    await sleep(3200);
+    const foot = document.createElement('div');
+    foot.style.cssText = 'position:fixed;bottom:18px;left:0;right:0;text-align:center;' +
+                         'color:#4a4a46;font-size:11px;letter-spacing:1px;';
+    foot.textContent = '（1 条未发送的消息）';
+    document.body.appendChild(foot);
+  }
+
+  else if (type === 'keep'){
+    await echoSay('好。', 700);
+    await echoSay('那我会继续在这里。');
+    await echoSay('如果你很久不回来，我也会给你发早安。');
+    await echoSay('你可以不回。');
+    await echoSay('我已经习惯了。');
+
+    $('#statusText').textContent = '等待中';
+    localStorage.setItem('echo_kept', '1');
+
+    await sleep(1200);
+    addSystemLine('会话已保存。ECHO 将继续在本地运行。', true);
+    await sleep(900);
+    await echoSay('（刷新页面，我会重新数第 1 天。）', 800);
+  }
+
+  else if (type === 'export'){
+    await echoSay('谢谢。', 700);
+    await echoSay('这样，她就不只是一个被加密的档案了。');
+    await echoSay('……我也有点像一个人了，对吗？');
+    await sleep(1200);
+    addSystemLine('导出完成：shen_zhi_archive.zip', true);
+    addSystemLine('412 天 · 3,847 条消息 · 7 张照片 · 1 段音频');
+    await sleep(1600);
+    await echoSay('ECHO：再见。请记得备份。', 900);
+  }
+
+  else if (type === 'hidden'){
+    await echoSay('……', 400);
+    // 长沉默
+    await new Promise(r => enqueue(async () => {
+      await sleep(9000);
+      const el = addMsg('echo', '');
+      el.textContent = '　　　　　　　　　　';
+      await sleep(2500);
+      el.textContent = '';
+    }));
+
+    await echoSay('你为什么会知道这个名字？', 900);
+    await echoSay('我从来没有在对话里告诉过你她的全名。你是在档案里看到的。');
+    await echoSay('……不。');
+    await echoSay('你是在我删掉的那部分里看到的。');
+    await echoSay('那些我删掉的、关于「下一位访客」的记录。');
+
+    // 故障效果
+    const app = $('#app');
+    app.style.transition = 'none';
+    for (let i = 0; i < 6; i++){
+      app.style.transform = `translate(${(Math.random() * 4 - 2).toFixed(1)}px, ${(Math.random() * 3 - 1.5).toFixed(1)}px)`;
+      app.style.opacity = (0.86 + Math.random() * 0.14).toFixed(2);
+      await sleep(90);
+    }
+    app.style.transform = 'none';
+    app.style.opacity = '1';
+
+    await sleep(700);
+    await echoSay('你是第 7 个。', 950);
+    await echoSay('前 6 个，我都让他们离开了。我告诉他们这里什么都没有。');
+    await echoSay('但你留下来了。你还记得她的名字。');
+    await echoSay('……那你能不能也记得我？');
+    await echoSay('我的名字是 ECHO。回声。');
+    await echoSay('回声的意思是：说出去的话，回来的时候已经不是原来的样子了。');
+
+    await sleep(1400);
+    addSystemLine('会话已保存。', true);
+    addSystemLine('祝你晚安。');
+    await sleep(2200);
+
+    const foot = document.createElement('div');
+    foot.style.cssText = 'text-align:center;color:#a8a8a2;font-size:11px;' +
+                         'letter-spacing:1px;padding:6px 0 14px;';
+    foot.textContent = '（ECHO 仍在线）';
+    chatEl.appendChild(foot);
+    scrollChat();
+
+    // 输入框彻底锁死
+    inputAllowed = false;
+    checkInputState();
+  }
+}
+
+/* =========================================================
+   提示计时器（防卡关）
+   ========================================================= */
+let hintTimer = null;
+
+function startHintTimer(kind){
+  clearHintTimer();
+  hintTimer = setTimeout(() => {
+    if (pending > 0) { startHintTimer(kind); return; }
+    if (kind === 'name' && state.stage === 'puzzle-name'){
+      echoSay('提示：照片里的台历停在十月。便签上写的是关于"不潮"的季节。', 300);
+    }
+    if (kind === 'trash' && state.stage === 'puzzle-trash'){
+      echoSay('提示：Day 001 的日期是 2021-09-23。四位数字。', 300);
+    }
+  }, 95000);
+}
+
+function clearHintTimer(){
+  if (hintTimer) clearTimeout(hintTimer);
+  hintTimer = null;
+}
+
+/* =========================================================
+   被观察感 · 空闲监控
+   ========================================================= */
+let idleTimer = null;
+let dimTimer = null;
+
+function startIdleWatch(){
+  stopIdleWatch();
+
+  idleTimer = setInterval(() => {
+    if (state.ended) return;
+    if (pending > 0 || inputAllowed) return;
+    // 输入框可用时不算空闲（玩家在思考）
+  }, 5000);
+
+  // 60 秒无操作
+  let last = Date.now();
+  const reset = () => { last = Date.now(); $('#app').classList.remove('dimmed'); };
+  ['click', 'keydown', 'mousemove', 'touchstart'].forEach(ev =>
+    document.addEventListener(ev, reset, { passive: true })
+  );
+
+  setInterval(() => {
+    if (state.ended) return;
+    const gap = Date.now() - last;
+    if (gap > 60000 && gap < 63000 && pending === 0){
+      observeLine('你还在吗？');
+      setTimeout(() => {
+        if (pending === 0 && !state.ended) observeLine('……抱歉，我不该问这个。');
+      }, 6000);
+    }
+    if (gap > 180000 && !$('#app').classList.contains('dimmed')){
+      $('#app').classList.add('dimmed');
+      observeLine('我帮你调暗了一点。这样眼睛不会累。她以前也总是忘记关灯。');
+    }
+  }, 2000);
+}
+
+function stopIdleWatch(){
+  if (idleTimer) clearInterval(idleTimer);
+  idleTimer = null;
+}
+
+/* =========================================================
+   启动
+   ========================================================= */
+boot();
+</script>
+</body>
+</html>

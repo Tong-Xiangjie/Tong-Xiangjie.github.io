@@ -84,6 +84,34 @@ const coincommData = {
                 }
             ]
         },
+        // ==================== 内蒙古40周年 ====================
+        {
+            seriesName: "内蒙古自治区成立四十周年普通纪念币",
+            year: 1987,
+            copies: [
+                {
+                    copyId: 17389898,
+                    country: "中华人民共和国",
+                    year: 1987,
+                    issueDate: "1987年月日",
+                    mint: "",
+                    material: "铜镍合金",
+                    diameter: "30mm",
+                    weight: "9.3g",
+                    edge: "连续丝齿",
+                    design: "",
+                    mintage: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "60元",
+                    purchaseDate: "2026年9月4日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/17389898-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/17389898-2.jpg"
+                }
+            ]
+        },
         // ==================== 建国40周年（4层） ====================
         {
             seriesName: "中华人民共和国成立四十周年普通纪念币",
@@ -109,6 +137,64 @@ const coincommData = {
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1989gj40-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1989gj40-2.jpg"
+                }
+            ]
+        },
+        // ==================== 亚运会系列（5层，有多品种） ====================
+        {
+            seriesName: "第十一届亚洲运动会普通纪念币",
+            year: 1990,
+            varieties: [
+                {
+                    varietyName: "射箭",
+                    copies: [
+                        {
+                            copyId: 19065585,
+                            country: "中华人民共和国",
+                            year: 1990,
+                            issueDate: "1990年8月22日",
+                            mint: "上海造币厂",
+                            material: "钢芯镀镍",
+                            diameter: "30mm",
+                            weight: "8.5g",
+                            edge: "",
+                            design: "",
+                            mintage: "1280.4万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "25元",
+                            purchaseDate: "2026年9月4日",
+                            catalogNumber: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "舞剑",
+                    copies: [
+                        {
+                            copyId: 19065610,
+                            country: "中华人民共和国",
+                            year: 1990,
+                            issueDate: "1990年8月22日",
+                            mint: "上海造币厂",
+                            material: "钢芯镀镍",
+                            diameter: "30mm",
+                            weight: "8.5g",
+                            edge: "",
+                            design: "",
+                            mintage: "1280.4万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "25元",
+                            purchaseDate: "2026年9月4日",
+                            catalogNumber: "",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065610-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065610-2.jpg"
+                        }
+                    ]
                 }
             ]
         },
@@ -143,7 +229,7 @@ const coincommData = {
                         }
                     ]
                 }
-                // 可继续添加：金丝猴、白鳍豚、华南虎等
+                // 可继续添加
             ]
         },
         // ==================== 珍稀动物系列（5层，有多品种） ====================
