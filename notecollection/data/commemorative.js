@@ -1,7 +1,7 @@
 const commemorativeData = {
     name: "纪念钞",
     icon: null,
-    desc: "Commemorative",
+    desc: "Commemorative Banknotes",
     // 详情页字段配置
     detailFields: [
         { key: "version", label: "冠字号码" },

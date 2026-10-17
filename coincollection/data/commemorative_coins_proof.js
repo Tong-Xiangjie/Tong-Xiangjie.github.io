@@ -2,7 +2,7 @@
 const pfcoincommData = {
     name: "精制纪念币",
     icon: null,
-    desc: "Circulating Commemorative Coin",
+    desc: "Proof Commemorative Coins",
     detailFields: [
         { key: "country", label: "发行国家/地区" },
         { key: "year", label: "发行年份" },

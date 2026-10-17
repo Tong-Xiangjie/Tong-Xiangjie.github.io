@@ -2,7 +2,7 @@
 const coincommData = {
     name: "普通纪念币",
     icon: null,
-    desc: "Circulating Commemorative Coin",
+    desc: "Circulating Commemorative Coins",
     detailFields: [
         { key: "country", label: "发行国家/地区" },
         { key: "year", label: "发行年份" },
@@ -165,7 +165,7 @@ const coincommData = {
                             price: "25元",
                             purchaseDate: "2026年9月4日",
                             catalogNumber: "Sun-J15a",
-                            remark: "该套纪念币上首次使用英文。正面图案为中华人民共和国国名、第十一届亚运会会徽及北京工人体育场，背面图案为男舞剑运动员与吉祥物熊猫盼盼。",
+                            remark: "该套纪念币为我国第一套币面上使用英文的纪念币。正面图案为中华人民共和国国名、第十一届亚运会会徽及北京工人体育场，背面图案为男舞剑运动员与吉祥物熊猫盼盼。",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065610-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065610-2.jpg"
                         }
@@ -190,7 +190,7 @@ const coincommData = {
                             price: "25元",
                             purchaseDate: "2026年9月4日",
                             catalogNumber: "Sun-J16a",
-                            remark: "该套纪念币上首次使用英文。正面图案为中华人民共和国国名、第十一届亚运会会徽及北京工人体育场，背面图案为女射箭运动员与吉祥物熊猫盼盼。",
+                            remark: "该套纪念币为我国第一套币面上使用英文的纪念币。正面图案为中华人民共和国国名、第十一届亚运会会徽及北京工人体育场，背面图案为女射箭运动员与吉祥物熊猫盼盼。",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-2.jpg"
                         }
@@ -198,43 +198,9 @@ const coincommData = {
                 }
             ]
         },
-        // ==================== 伟人系列（5层，有多品种） ====================
-        {
-            seriesName: "伟人系列纪念币",
-            year: 1993,
-            varieties: [
-                {
-                    varietyName: "朱德诞辰110周年",
-                    copies: [
-                        {
-                            copyId: 15777876,
-                            country: "中华人民共和国",
-                            year: 1996,
-                            issueDate: "1996年11月27日",
-                            denomination: "1元",
-                            mint: "",
-                            material: "钢芯镀镍",
-                            diameter: "25mm",
-                            weight: "6.05g",
-                            edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
-                            mintage: "1000万",
-                            grade: "MS66",
-                            gradingCompany: "ACG",
-                            price: "30元",
-                            purchaseDate: "2026年8月26日",
-                            catalogNumber: "",
-                            remark: "正面主景为朱德故居并刊国名及年号，背面为朱德素描像及纪念字样。",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1996zd-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1996zd-2.jpg"
-                        }
-                    ]
-                }
-                // 可继续添加
-            ]
-        },
         // ==================== 珍稀动物系列（5层，有多品种） ====================
         {
-            seriesName: "珍稀动物纪念币",
+            seriesName: "中国珍稀野生动物纪念币",
             year: 1993,
             varieties: [
                 {
@@ -294,6 +260,34 @@ const coincommData = {
                 }
             ]
         },
+        // ==================== 朱德诞辰110周年 ====================
+        {
+            seriesName: "朱德诞辰110周年纪念币",
+            year: 1996,
+            copies: [
+                {
+                    copyId: 15777876,
+                    country: "中华人民共和国",
+                    year: 1996,
+                    issueDate: "1996年11月27日",
+                    denomination: "1元",
+                    mint: "",
+                    material: "钢芯镀镍",
+                    diameter: "25mm",
+                    weight: "6.05g",
+                    edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
+                    mintage: "1000万",
+                    grade: "MS66",
+                    gradingCompany: "ACG",
+                    price: "30元",
+                    purchaseDate: "2026年8月26日",
+                    catalogNumber: "",
+                    remark: "正面主景为朱德故居并刊国名及年号，背面为朱德素描像及纪念字样。",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1996zd-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1996zd-2.jpg"
+                }
+            ]
+        },
         // ==================== 迎接新世纪（4层） ====================
         {
             seriesName: "迎接新世纪纪念币",
@@ -325,7 +319,7 @@ const coincommData = {
         },
         // ==================== 世界文化遗产系列（5层，有多品种） ====================
         {
-            seriesName: "世界文化遗产系列纪念币",
+            seriesName: "世界文化和自然遗产纪念币",
             year: 2022,
             varieties: [
                 {
@@ -384,7 +378,7 @@ const coincommData = {
         },
         // ==================== 国家公园系列（5层，有多品种） ====================
         {
-            seriesName: "国家公园系列纪念币",
+            seriesName: "中国国家公园纪念币",
             year: 2023,
             varieties: [
                 {
@@ -401,7 +395,7 @@ const coincommData = {
                             issueDate: "2023年8月29日",
                             denomination: "10元",
                             mint: "沈阳造币厂",
-                            material: "双金属",
+                            material: "双色铜合金",
                             diameter: "27mm",
                             weight: "9.2g",
                             edge: "交替丝齿",
@@ -431,7 +425,7 @@ const coincommData = {
                             issueDate: "2023年8月29日",
                             denomination: "10元",
                             mint: "沈阳造币厂",
-                            material: "双金属",
+                            material: "双色铜合金",
                             diameter: "27mm",
                             weight: "9.2g",
                             edge: "交替丝齿",
