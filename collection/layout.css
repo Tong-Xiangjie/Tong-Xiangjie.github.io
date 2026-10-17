@@ -2697,9 +2697,13 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
      （悬浮泡、点格子筛选、elementFromPoint 全不受影响）。z-index 保持 auto：
      悬浮泡自身是 z-index: 20，仍然在光圈之上。
    ★ 只"向外"发光：box-shadow 只画在伪元素边框盒**之外** ⇒ 格子内部（色块/文字）像素不变。
-     2px 实边 + 6px 柔光，强度按"一眼能看出聚焦在这几个月、又不刺眼"定：
-     桌面相邻格间距 4px、手机 2px，都大于"实边 2px"，最外圈柔光即便被邻格压住也不影响"边缘发光"。
-   ★ 颜色取站点既有主题色 `var(--theme)`（下面那行 rgba 是给不支持 color-mix 的老浏览器的兜底，
+   ★★★ 用户第四次追加口径（最终形态）：「好像原来的那圈无渐变的光圈还在，和渐变的叠在一起，
+      我希望只有一层」。⇒ **只留一层柔光**：`0 0 10px 2px`（blur > 0、spread 2px），
+      一条 box-shadow 就是全部光源 —— 不再有 0 blur 的"实圈"，所以不会出现"实圈 + 渐变色"两圈叠一起。
+      （历史：先做过"2px 实圈 + 柔光"两层 → 后来在实圈外再叠 3 层做梯度淡化；两版都因为最内那圈
+       blur = 0 而看起来是"两圈"。单层高斯柔光的剖面从贴边第一档起就单调变淡、末端连续趋近 0，
+       既满足"最外围淡化"，也不再有多余的那一圈；见 verify-hm-glow.mjs 的"无实圈量化"。）
+   ★ 颜色取站点既有主题色 `var(--theme)`（上面那行 rgba 是给不支持 color-mix 的老浏览器的兜底，
      用的就是本文件顶部 :root 里 --theme 的默认值 #1677ff，不是另造的品牌色）。
    ★ 不加动画/过渡：发光是静态的（换筛选时整块重渲染，新元素上没有"从无到有"的过渡可言），
      reduce 下天然静止；本文件既有的 reduce 兜底块里已把 `.tl-heatmap-cell::after` 一起关掉。 */
@@ -2709,23 +2713,21 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     inset: -1px;                        /* 盖到格子的 1px 边框上 ⇒ 光圈贴住可见小方块的边缘 */
     border-radius: 4px;
     pointer-events: none;               /* 别抢格子的 hover/click（见上面的说明） */
-    box-shadow:
-        0 0 0 2px rgba(22, 119, 255, 0.3),
-        0 0 6px 2px rgba(22, 119, 255, 0.16);
-    box-shadow:
-        0 0 0 2px color-mix(in srgb, var(--theme) 30%, transparent),
-        0 0 6px 2px color-mix(in srgb, var(--theme) 16%, transparent);
+    box-shadow:                         /* 兜底（老浏览器）：主题色默认值 #1677ff 的同款单层柔光 */
+        0 0 10px 2px rgba(22, 119, 255, 0.5);
+    box-shadow:                         /* ★ 只有这一层：blur 10px 的柔光（无 0 blur 实圈） */
+        0 0 10px 2px color-mix(in srgb, var(--theme) 50%, transparent);
 }
 /* ★★★ 用户 2026-XX：「暗色下不太显眼，可以调成白光」。
-   暗色主题下主题蓝在深底上对比不足 ⇒ 暗色改用**白光**（2px 实边白 85% + 8px 柔光白 35%）。
+   暗色主题下主题蓝在深底上对比不足 ⇒ 暗色改用**白光**（同样是**一层柔光**：0 0 10px 2px、alpha 0.9，
+   白光在深底上够显眼；同样没有 0 blur 的实圈）。
    ★ 浅色主题**绝不用白光**（白光照在白底/浅底上几乎看不见）⇒ 浅色保持上面的主题色方案。
    ★ 判定**沿用站点既有的暗色机制**：`html[data-color-scheme="dark"]`（collection/theme.js 的
      applyColorScheme() 按 设置里的"明暗"= 跟随系统/亮/暗 写在 <html> 上，跟随系统时看
      prefers-color-scheme）—— 不新造机制。这里覆盖整条 box-shadow ⇒ 暗色下不会残留蓝色。 */
 html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     box-shadow:
-        0 0 0 2px rgba(255, 255, 255, 0.85),
-        0 0 8px 3px rgba(255, 255, 255, 0.35);
+        0 0 10px 2px rgba(255, 255, 255, 0.9);
 }
 .tl-heatmap-row {
     display: grid;

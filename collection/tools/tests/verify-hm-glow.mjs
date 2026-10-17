@@ -14,6 +14,8 @@
 //
 // 光色：浅色主题 = 站点主题色 var(--theme)；**暗色主题 = 白光**（用户：「暗色下不太显眼，可以调成白光」），
 //   暗色判定沿用站点既有机制 html[data-color-scheme="dark"]（theme.js 的 applyColorScheme() 写的）。
+// 光形：**只有一层柔光**（blur > 0、无 blur = 0 的"实圈"）—— 用户：「好像原来的那圈无渐变的光圈还在，
+//   和渐变的叠在一起，我希望只有一层」。（更早还要求过"最外围淡化，不要硬边"，单层高斯柔光天然满足。）
 //
 // 断言覆盖：
 //   ① 静态：判定判据源码（必须"年月都具体"+ 逐格比对格子自己的 data-year/data-month）、类只加在格子上、
@@ -37,16 +39,48 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
 
 // box-shadow / 颜色解析（rgba() 与 Chrome 的 color(srgb …) 两种序列化都认）—— 静态节与运行时节共用
+// 顶层逗号切分（括号感知：color-mix(in srgb, var(--theme) 30%, transparent) 里的逗号不算分隔符）
+const splitTop = (s) => {
+  const out = []; let d = 0, cur = '';
+  for (const ch of String(s)) {
+    if (ch === '(') d++;
+    else if (ch === ')') d--;
+    if (ch === ',' && d === 0) { out.push(cur); cur = ''; } else cur += ch;
+  }
+  out.push(cur);
+  return out.map(x => x.trim()).filter(Boolean);
+};
+// 取一层的颜色 token：函数式的（color-mix()/rgba()）要**配平括号**地整段取出来，
+// 否则 `p.replace(color,'')` 会把后面的 px 数字一起吃掉（color-mix 里还有 var(--theme) 嵌套）。
+const pickColorToken = (p) => {
+  const m = /color-mix\(|color\(|rgba?\(|#[0-9a-fA-F]{3,8}|transparent|currentcolor/.exec(p);
+  if (!m) return '';
+  if (/\($/.test(m[0])) {
+    let d = 0;
+    for (let i = m.index; i < p.length; i++) {
+      if (p[i] === '(') d++;
+      else if (p[i] === ')') { d--; if (d === 0) return p.slice(m.index, i + 1); }
+    }
+    return p.slice(m.index);
+  }
+  return m[0];
+};
 const parseShadow = (s) => {
   const str = String(s || '').trim();
   if (!str || str === 'none') return [];
-  return str.split(/,(?![^(]*\))/).map(part => {
+  return splitTop(str).map(part => {
     const p = part.trim();
     const inset = /(^|\s)inset(\s|$)/.test(p);
-    const color = (p.match(/color\([^)]*\)|rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}|transparent|currentcolor/) || [])[0] || '';
+    const color = pickColorToken(p);
     const nums = (p.replace(color, '').replace(/\binset\b/, '').match(/-?[\d.]+px/g) || []).map(v => parseFloat(v));
     return { inset, color, nums, blur: nums[2] ?? 0, spread: nums[3] ?? 0, raw: p };
   });
+};
+// 源码里 color-mix(in srgb, var(--theme) 30%, transparent) 的强度 = 括号里那个百分比
+const srcAlpha = (layer) => {
+  const s = String(layer);
+  if (/color-mix\(/.test(s)) { const m = s.match(/var\(--theme\)\s+([\d.]+)%/); return m ? +m[1] / 100 : NaN; }
+  return alphaOf(s);
 };
 const rgbOf = (c) => {
   const s = String(c);
@@ -117,8 +151,21 @@ const flowProps = declared.filter(p => /^(margin|margin-\w+|padding|padding-\w+|
 ok(flowProps.length === 0,
   `① ★★★ 发光规则里没有会改动版式的属性（声明的属性：${[...new Set(declared)].join(', ')}${flowProps.length ? '；违规：' + flowProps.join(',') : ''}）`);
 const lightLayers0 = parseShadow(effective);
-ok(lightLayers0.length >= 2 && lightLayers0.every(l => !l.inset) && lightLayers0.some(l => l.blur === 0 && l.spread >= 1) && lightLayers0.some(l => l.blur >= 4 && l.spread >= 1),
-  `① ★★ 浅色发光是"实边 + 外柔光"两层且只向外（${lightLayers0.map(l => `${l.blur}px/${l.spread}px`).join(' + ')}）`);
+const lA = lightLayers0.map(l => srcAlpha(l.raw));
+// ★★★ 用户第三次追加口径（最终）：「好像原来的那圈无渐变的光圈还在，和渐变的叠在一起，我希望只有一层」
+//   ⇒ 去掉所有 blur = 0 的"实圈"层，**只留一层柔和的光**（blur > 0、spread 适中）。
+//   浅色 = 0 0 10px 2px color-mix(--theme 50%)（一层柔光，强度一处来源）。
+console.log(`     浅色发光层：${lightLayers0.map((l, i) => `${l.blur}px/${l.spread}px@${lA[i]}`).join(' → ') || '(无)'}`);
+ok(lightLayers0.length === 1 && !lightLayers0[0].inset,
+  `① ★★★ 浅色发光**只有一层**（${lightLayers0.length} 层，只向外/无 inset）—— 用户否掉的就是"实圈 + 柔光"两圈叠在一起`);
+ok(lightLayers0.every(l => l.blur > 0),
+  `① ★★★ 浅色这一层是**柔光**（blur ${lightLayers0.map(l => l.blur).join('/')}px > 0）—— 不存在 0 blur 的"无渐变实圈"`);
+ok(lightLayers0.every(l => l.spread >= 1),
+  `① ★★ 这一层有 spread（${lightLayers0.map(l => l.spread).join('/')}px ≥ 1）⇒ 光贴着格子边缘，而不是缩在远处`);
+ok(lA.every(a => a > 0.2 && a <= 0.9),
+  `① ★★ 单层强度克制（alpha ${lA.join('/')} ∈ (0.2, 0.9]）：够看得见、又不糊成一团`);
+ok(lightLayers0.some(l => l.blur >= 8 && l.spread >= 1),
+  '① ★★ blur ≥ 8px ⇒ 从贴边往外是连续变淡的梯度（这是"渐变柔光"本身，不是硬边）');
 const rmGuard = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]{0,400}?\.tl-heatmap-cell\.hm-month-glow::after\s*\{[^}]*\}/.exec(cssCode);
 ok(!!rmGuard && /animation\s*:\s*none/.test(rmGuard[0]),
   `① ★ reduced-motion 兜底：${rmGuard ? rmGuard[0].replace(/\s+/g, ' ').slice(0, 140) : '（没有）'}`);
@@ -129,10 +176,16 @@ ok(/255,\s*255,\s*255/.test(darkRule),
 const darkShadow = withPx(([...darkRule.matchAll(/box-shadow\s*:([^;]*);/g)].pop() || [])[1] || '');
 console.log(`     暗色白光：${darkShadow.replace(/\s+/g, ' ')}`);
 const dParsed = parseShadow(darkShadow);
-ok(dParsed.length >= 2 && dParsed.every(l => !l.inset) && dParsed.some(l => l.blur === 0 && l.spread >= 1) && dParsed.some(l => l.blur >= 6 && l.spread >= 1),
-  `① ★★ 暗色白光同样是"实边 + 外柔光"两层且只向外（${dParsed.map(l => `${l.blur}px/${l.spread}px`).join(' + ')}）`);
-ok(dParsed.map(l => alphaOf(l.color)).every(a => a >= 0.3 && a <= 0.9),
-  `① ★★ 暗色白光强度克制（alpha ${dParsed.map(l => alphaOf(l.color)).join(' / ')}，都在 0.3~0.9）`);
+const dA = dParsed.map(l => srcAlpha(l.raw));
+console.log(`     暗色发光层：${dParsed.map((l, i) => `${l.blur}px/${l.spread}px@${dA[i]}`).join(' → ') || '(无)'}`);
+ok(dParsed.length === 1 && !dParsed[0].inset && dParsed.every(l => l.blur > 0),
+  `① ★★★ 暗色白光同样是**只有一层柔光**（${dParsed.length} 层，blur ${dParsed.map(l => l.blur).join('/')}px > 0）—— 暗色下也不再有实圈`);
+ok(dParsed.every(l => l.spread >= 1),
+  `① ★★ 暗色这一层也带 spread（${dParsed.map(l => l.spread).join('/')}px ≥ 1）`);
+ok(dA.every(a => a > 0.2 && a <= 0.95),
+  `① ★★ 暗色白光单层强度克制（alpha ${dA.join(' / ')}，白光在深底上要够亮）`);
+ok(dParsed.some(l => l.blur >= 8),
+  '① ★★ 暗色 blur ≥ 8px ⇒ 同样是贴边往外连续变淡的柔光');
 ok(!/html\[data-color-scheme="dark"\]\s*\.tl-heatmap-cell\.hm-month-glow::after[^}]*var\(--theme\)/.test(darkRule),
   '① ★★ 暗色那条不掺主题色（覆盖整条 box-shadow，暗色下不会蓝白叠加）');
 
@@ -196,10 +249,23 @@ const PROBE_FN = `window.__glow = ()=>{
   const dataRows = [...hm.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)')];
   const cells = [...hm.querySelectorAll('.tl-heatmap-cell')].map(c => {
     const after = getComputedStyle(c, '::after');
+    const before = getComputedStyle(c, '::before');
+    const fill = c.querySelector('.tl-hm-fill');
+    const fcs = fill ? getComputedStyle(fill) : null;
+    const own = getComputedStyle(c);
     return { year: c.dataset.year, month: c.dataset.month, amount: +c.dataset.amount,
       glow: c.classList.contains('hm-month-glow'), cls: c.className,
       rect: R(c), afterContent: after.content, afterShadow: after.boxShadow,
-      afterPosition: after.position, afterPointer: after.pointerEvents };
+      afterPosition: after.position, afterPointer: after.pointerEvents,
+      // ★ 用户第三次追加口径："原来那圈无渐变的光圈还在、和渐变的叠在一起" ⇒ 逐项取证：
+      //   发光格上**全部**可能的描边/阴影来源（元素自身 + ::before + ::after + 色块子元素）。
+      ownShadow: own.boxShadow, ownOutline: own.outlineStyle, ownOutlineW: own.outlineWidth,
+      ownBorder: [own.borderTopStyle, own.borderTopWidth, own.borderTopColor].join('|'),
+      ownRadius: own.borderRadius,
+      beforeContent: before.content, beforeShadow: before.boxShadow,
+      fillShadow: fcs ? fcs.boxShadow : '(无色块)',
+      fillOutline: fcs ? fcs.outlineStyle : 'none', fillOutlineW: fcs ? fcs.outlineWidth : '0px',
+      fillBorder: fcs ? [fcs.borderTopStyle, fcs.borderTopWidth].join('|') : 'none|0px' };
   });
   const ps = getComputedStyle(hm, '::before');
   return Object.assign(info, {
@@ -318,23 +384,39 @@ ok(one.shadow === 'none' && one.glowOnContainer === 0 && /none/.test(one.contain
   `② ★★ 容器始终没有发光（box-shadow=${one.shadow}）—— 光只在那一格上，不是整块热力图`);
 
 // ─────────── ③ 发光格样式与形态 ───────────
-console.log('\n══════ ③ 发光形态：格子自己的边缘发光（出流伪元素 + 主题色两层）══════\n');
+console.log('\n══════ ③ 发光形态：格子自己的边缘发光（出流伪元素 + 一层柔光，且只有一个光源）══════\n');
 const gCell = rOne.got[0] || { afterShadow: 'none', afterContent: 'none', afterPosition: '', afterPointer: '' };
 const gShadow = parseShadow(gCell.afterShadow);
 console.log(`     发光格样式：::after content=${gCell.afterContent}｜position=${gCell.afterPosition}｜pointer-events=${gCell.afterPointer}`);
 console.log(`     box-shadow：${gShadow.map(l => l.raw).join('\n                 ')}`);
 ok(gCell.afterPosition === 'absolute' && gCell.afterPointer === 'none',
   `③ ★★ 发光伪元素出流且不吃事件（position=${gCell.afterPosition}、pointer-events=${gCell.afterPointer}）`);
-ok(gShadow.length >= 2 && gShadow.every(l => !l.inset), `③ ★★ 发光是**多层**（${gShadow.length} 层，无 inset ⇒ 只向外）`);
-const ring = gShadow.find(l => l.blur === 0 && l.spread >= 1);
-const haloL = gShadow.find(l => l.blur >= 4 && l.spread >= 1);
-ok(!!ring, `③ ★ 有一圈"实边"（blur 0、spread ≥ 1px）：${ring ? ring.raw : '（没有）'}`);
-ok(!!haloL, `③ ★★ 有一圈"外柔光"（blur ≥ 4px 且 spread ≥ 1px）：${haloL ? haloL.raw : '（没有）'}`);
+ok(gShadow.length === 1 && gShadow.every(l => !l.inset),
+  `③ ★★★ 发光**只有一层**（${gShadow.length} 层，无 inset ⇒ 只向外）：用户要的"只有一层"`);
+ok(gShadow.every(l => l.blur > 0 && l.spread >= 1),
+  `③ ★★★ 这一层是 blur > 0 的**柔光**（blur ${gShadow.map(l => l.blur).join('/')}px、spread ${gShadow.map(l => l.spread).join('/')}px）—— 没有任何 0 blur 的实圈`);
+// ★ 用户第三次追加口径：排查"是不是还有别的光源" —— 发光格上除了这个 ::after，不许有第二处描边/阴影
+const gState = (probeObj) => probeObj.cells.find(c => c.glow) || {};
+const gNow = gState(one);
+console.log(`     发光格自身：box-shadow=${gNow.ownShadow}｜outline=${gNow.ownOutline}(${gNow.ownOutlineW})｜border=${gNow.ownBorder}`);
+console.log(`     ::before：content=${gNow.beforeContent}｜box-shadow=${gNow.beforeShadow}`);
+console.log(`     .tl-hm-fill 色块：box-shadow=${gNow.fillShadow}｜outline=${gNow.fillOutline}(${gNow.fillOutlineW})｜border=${gNow.fillBorder}`);
+const gOther = one.cells.find(c => !c.glow) || {};
+ok(gNow.beforeShadow === 'none' && (gNow.beforeContent === 'none' || gNow.beforeContent === 'normal'),
+  `③ ★★★ 发光格**没有别的伪元素光源**（::before content=${gNow.beforeContent}、box-shadow=${gNow.beforeShadow}）`);
+ok((gNow.fillShadow === 'none' || !gNow.fillShadow) && gNow.fillOutline === 'none' && /^none\|/.test(gNow.fillBorder || 'none|'),
+  `③ ★★★ 色块子元素 .tl-hm-fill 没有阴影/描边（box-shadow=${gNow.fillShadow}、outline-style=${gNow.fillOutline}、border=${gNow.fillBorder}）—— 不是第二个光源`);
+ok(gNow.ownShadow === 'none' || gNow.ownShadow === gOther.ownShadow,
+  `③ ★★★ 发光格**元素自身**没有额外阴影（自身 box-shadow=${gNow.ownShadow}；与同图未发光格 ${gOther.ownShadow} 一致或为 none）`);
+ok(gNow.ownBorder === gOther.ownBorder && gNow.ownOutline === 'none',
+  `③ ★★★ 发光格的自身描边 = 全站格子的既有 1px 网格边框（${gNow.ownBorder}，与未发光格逐值相同）、outline-style=${gNow.ownOutline} ⇒ 发光**没有**引入第二圈`);
+ok(gNow.ownRadius === gOther.ownRadius,
+  `③ ★★ 圆角也与未发光格一致（${gNow.ownRadius}）`);
 const themeRgb = rgbOf(base.theme);
 ok(gShadow.every(l => { const t = rgbOf(l.color); return t && themeRgb && t.join(',') === themeRgb.join(','); }),
   `③ ★★ 浅色发光颜色 = 主题色 --theme=${base.theme}（不写死新品牌色）：${gShadow.map(l => l.color).join(' ｜ ')}`);
-ok(gShadow.map(l => alphaOf(l.color)).every(a => a > 0.03 && a <= 0.5),
-  `③ ★ 强度克制：每层 alpha ∈ (0.03, 0.5]（实测 ${gShadow.map(l => alphaOf(l.color)).join(' / ')}）`);
+ok(gShadow.map(l => alphaOf(l.color)).every(a => a > 0.2 && a <= 0.9),
+  `③ ★ 强度克制：alpha ∈ (0.2, 0.9]（实测 ${gShadow.map(l => alphaOf(l.color)).join(' / ')}）`);
 
 // ─────────── ④ 零位移（逐值 + 逐帧） ───────────
 console.log('\n══════ ④ 零位移：容器/每行/图例/每一个格子的矩形与尺寸逐值不变 ══════\n');
@@ -379,15 +461,16 @@ const bandAt = (baseImg, img, rect, dpr, dLo, dHi) => {
   const inset = Math.max(2, sc(6));
   const out = {};
   const scan = (name, ax0, ax1, ay0, ay1) => {
-    let n = 0, area = 0, maxd = 0;
+    let n = 0, area = 0, maxd = 0, sum = 0;
     for (let y = Math.max(0, ay0); y < Math.min(img.height, ay1); y++) for (let x = Math.max(0, ax0); x < Math.min(img.width, ax1); x++) {
       area++;
       const p = pixelAt(baseImg, x, y), q = pixelAt(img, x, y);
       const dd = Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2]));
       if (dd > 0) n++;
       if (dd > maxd) maxd = dd;
+      sum += dd;
     }
-    out[name] = { n, area, maxd };
+    out[name] = { n, area, maxd, sum };
   };
   scan('上', x0 + inset, x1 - inset, y0 - b, y0 - a);
   scan('下', x0 + inset, x1 - inset, y1 + a, y1 + b);
@@ -451,22 +534,87 @@ ok(!!br, '⑤ ★★★ 四个角上的格子都量到了（最上/最下/最左
 
 // ─────────── ⑥ 两种主题：暗色白光 / 浅色主题色 ───────────
 console.log('\n══════ ⑥ 暗色 = 白光、浅色 = 主题色（强度剖面 + 颜色互相排除）══════\n');
+// ★★ 细分箱强度剖面（用户口径："最外围要淡化、末端不能有硬边" + "不要那圈无渐变的实圈"）：
+//   14 档连续分箱，**末端（6-20px）用 2px 细档** —— 单层高斯柔光的尾巴就落在这里，
+//   粗档（2-4px 宽）会把"最后一档非零/峰值"这个残留比算高（实测 0.088 vs 细分后 0.015），
+//   那是测量分辨率的假象、不是硬边。每档给四边合计的平均通道差（meanD）与最大通道差（maxd）：
+//   单调性看 meanD（对单像素噪声稳），阶梯类指标看 maxd（= 档内缘处的强度，不受档宽影响）。
+const BINS = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 6], [6, 8], [8, 10], [10, 12], [12, 14], [14, 16], [16, 18], [18, 20], [20, 26], [26, 32]];
 const profileOf = (baseImg, img, p, label) => {
   const cell = p.cells.find(c => c.glow);
+  const sides = ['上', '下', '左', '右'];
   if (!cell) {
     console.log(`     ${label} 强度剖面：**没有发光格可量**（这一态一个都没发光）`);
     const dummy = (lo, hi) => ({ lo, hi, n: 0, area: 0, maxd: -1, meanD: -1 });
-    return { cell: { year: '(无)', month: '' }, rows: [[0, 1], [1, 2], [2, 4], [4, 8], [8, 14], [14, 20], [20, 32]].map(([a, b]) => dummy(a, b)), peak: dummy(0, 1), far: dummy(20, 32) };
+    return { cell: { year: '(无)', month: '' }, rows: BINS.map(([a, b]) => dummy(a, b)), peak: dummy(0, 1), far: dummy(20, 26) };
   }
-  const bins = [[0, 1], [1, 2], [2, 4], [4, 8], [8, 14], [14, 20], [20, 32]];
-  const rows = bins.map(([lo, hi]) => {
+  const rows = BINS.map(([lo, hi]) => {
     const st = bandAt(baseImg, img, cell.rect, p.dpr, lo, hi);
-    const sides = ['上', '下', '左', '右'];
-    return { lo, hi, n: sides.reduce((a, s) => a + st[s].n, 0), area: sides.reduce((a, s) => a + st[s].area, 0), maxd: Math.max(...sides.map(s => st[s].maxd)) };
+    const area = sides.reduce((a, s) => a + st[s].area, 0);
+    const sum = sides.reduce((a, s) => a + st[s].sum, 0);
+    return { lo, hi, n: sides.reduce((a, s) => a + st[s].n, 0), area, sum,
+      maxd: Math.max(...sides.map(s => st[s].maxd)), meanD: +(sum / area).toFixed(2) };
   });
-  console.log(`     ${label} 强度剖面（离 ${cell.year}/${cell.month} 格边缘的距离 → 四边合计的最大通道差）：`);
-  rows.forEach(r => console.log(`       ${String(r.lo).padStart(2)}-${String(r.hi).padStart(2)}px : 最大Δ${String(r.maxd).padStart(3)}（变化像素 ${r.n}/${r.area}）`));
-  return { cell, rows, peak: rows[0], far: rows[6] };
+  console.log(`     ${label} 强度剖面（离 ${cell.year}/${cell.month} 格边缘的距离 → 四边合计）：`);
+  rows.forEach(r => console.log(`       ${String(r.lo).padStart(2)}-${String(r.hi).padStart(2)}px : 平均Δ${String(r.meanD).padStart(6)} 最大Δ${String(r.maxd).padStart(4)}（变化像素 ${r.n}/${r.area}）`));
+  return { cell, rows, peak: rows[0], far: rows[rows.length - 1] };
+};
+// "没有实圈 / 没有硬边"的量化（用户第二次「最外围淡化」+ 第三次「只留一层、不要那圈无渐变的光圈」）：
+//   ① 末端残留比 = 最后一个非零档 / 第一档（硬边 ⇒ 接近 1）
+//   ② 最大相邻落差比 = max(meanD[i]-meanD[i+1]) / meanD[0]
+//   ③ 外圈（3px 起）每一步的落差比
+//   ④ ★ 头部台阶比 = 贴边三档内的最大落差比（"实圈"特征：前两档几乎一样高 = 平台，第三档突然掉一半）
+//   阈值依据（均为本次实测）：
+//     实圈版（旧）：头部台阶比 0.4342/0.4081… 见报告；只留实圈：1.0；无发光：峰值≈0
+//     单层柔光版（新）：见运行输出
+const NO_HARD_EDGE = { tailResid: 0.06, stepRatio: 0.45, outerStep: 0.4, headStep: 0.25, plateau: 0.97, tailMax: 2 };
+const hardEdgeMetrics = (P) => {
+  // ★ 阶梯类指标用**每档的峰值**当profile值（= 该档内缘处的强度）：分箱宽度不等（1/1/1/1/2/3/3/4/4/6/6px），
+  //   用"档内平均"会把宽档的均值拉低、凭空造出一个台阶（实测把 0.20 抬成 0.41）。峰值对"硬边"同样敏感，
+  //   且不受档宽影响。平均值仍然照常打印，并用来判"单调不增"。
+  const m = P.rows.map(r => Math.max(0, r.meanD));
+  const v = P.rows.map(r => Math.max(0, r.maxd));
+  const first = Math.max(1e-9, v[0]);
+  // 末端残留比 = **归零前那一档**的强度 / 峰值（就是"最后掉到 0 的那一步有多高"）：
+  //   硬边（只留实圈）⇒ 1.0；单层柔光 ⇒ 尾巴已经衰减到峰值的几个百分点才归零。
+  //   （不用"最后一档非零"是因为它取决于探测阈值，会随分箱粗细漂移。）
+  let lastNZ = 0;
+  for (let i = v.length - 2; i >= 0; i--) { if (v[i] > 0 && v[i + 1] === 0) { lastNZ = i; break; } }
+  if (!v[lastNZ]) lastNZ = v.findIndex(x => x > 0);
+  let step = 0, stepAt = '', outer = 0, outerAt = '';
+  for (let i = 0; i + 1 < v.length; i++) {
+    const d = (v[i] - v[i + 1]) / first;
+    if (d > step) { step = d; stepAt = `${P.rows[i].lo}-${P.rows[i].hi}→${P.rows[i + 1].lo}-${P.rows[i + 1].hi}px`; }
+    if (P.rows[i].lo >= 3 && d > outer) { outer = d; outerAt = `${P.rows[i].lo}-${P.rows[i].hi}→${P.rows[i + 1].lo}-${P.rows[i + 1].hi}px`; }
+  }
+  // 头部（离格边 4px 以内）的最大落差比 + 前两档的"平台度"（v[1]/v[0]，越接近 1 越像实圈）
+  const headEnd = P.rows.findIndex(r => r.lo >= 4);
+  const head = v.slice(0, headEnd < 0 ? 4 : headEnd);
+  let headStep = 0, headAt = '';
+  for (let i = 0; i + 1 < head.length; i++) {
+    const d = (head[i] - head[i + 1]) / first;
+    if (d > headStep) { headStep = d; headAt = `${P.rows[i].lo}-${P.rows[i].hi}→${P.rows[i + 1].lo}-${P.rows[i + 1].hi}px`; }
+  }
+  return { tailResid: +(v[lastNZ] / first).toFixed(4), lastNZ, stepRatio: +step.toFixed(4), stepAt,
+    outerStep: +outer.toFixed(4), outerAt, headStep: +headStep.toFixed(4), headAt,
+    plateau: +(v[1] / first).toFixed(4), tailMax: Math.max(...P.rows.slice(-2).map(r => r.maxd)), m, v };
+};
+const assertNoHardEdge = (P, label, theme) => {
+  const H = hardEdgeMetrics(P);
+  const monoM = H.m.every((x, i) => i === 0 || x <= H.m[i - 1] + 0.6);
+  const monoV = H.v.every((x, i) => i === 0 || x <= H.v[i - 1] + 2);
+  console.log(`     ${label} 无实圈量化：头部(≤4px)最大落差比 ${H.headStep}（阈值 ≤${NO_HARD_EDGE.headStep}，出现在 ${H.headAt}）｜平台度 band1/band0 = ${H.plateau}（硬边特征≈1；阈值 ≤${NO_HARD_EDGE.plateau}）｜末端残留比 ${H.tailResid}（≤${NO_HARD_EDGE.tailResid}）｜最大相邻落差比 ${H.stepRatio}（≤${NO_HARD_EDGE.stepRatio}，${H.stepAt}）｜外圈(≥3px) ${H.outerStep}（≤${NO_HARD_EDGE.outerStep}）｜末端两档最大Δ ${H.tailMax}（≤${NO_HARD_EDGE.tailMax}）`);
+  ok(monoM && monoV, `⑥ ★★★ ${theme}：强度**随距离单调不增**（${H.m.length} 档平均Δ：${H.m.join(' → ')}｜峰值Δ：${H.v.join(' → ')}）`);
+  ok(H.headStep <= NO_HARD_EDGE.headStep,
+    `⑥ ★★★ ${theme}：贴边 4px 内**没有"平台后骤降"**（头部最大落差比 ${H.headStep} ≤ ${NO_HARD_EDGE.headStep}，出现在 ${H.headAt}）—— 这正是"无渐变实圈"的特征：旧实圈版实测 0.43/0.41、只留实圈 1.0`);
+  ok(H.plateau <= NO_HARD_EDGE.plateau,
+    `⑥ ★★★ ${theme}：贴边前两档不是平台（band1/band0 = ${H.plateau} ≤ ${NO_HARD_EDGE.plateau}）⇒ 从第一档起就在变淡，是渐变而不是实圈（旧实圈版 0.96/0.98 就是那个平台）`);
+  ok(H.tailMax <= NO_HARD_EDGE.tailMax, `⑥ ★★★ ${theme}：20px 之外两档最大Δ ${H.tailMax} ≤ ${NO_HARD_EDGE.tailMax} ⇒ 末端**已经淡到 0**（连续趋近，不是截断）`);
+  ok(H.tailResid <= NO_HARD_EDGE.tailResid, `⑥ ★★★ ${theme}：末端残留比 ${H.tailResid} ≤ ${NO_HARD_EDGE.tailResid}（归零前那一档 ${P.rows[H.lastNZ].lo}-${P.rows[H.lastNZ].hi}px 的强度只有峰值的 ${(H.tailResid * 100).toFixed(1)}%）⇒ 最外围是"淡到看不见才归零"，不是硬边`);
+  ok(H.stepRatio <= NO_HARD_EDGE.stepRatio, `⑥ ★★★ ${theme}：最大相邻落差比 ${H.stepRatio} ≤ ${NO_HARD_EDGE.stepRatio}（没有"一整档还亮着、下一档突然归零"的台阶；只留实圈的写法是 1.0）`);
+  ok(H.outerStep <= NO_HARD_EDGE.outerStep, `⑥ ★★★ ${theme}：3px 以外每一步落差比 ${H.outerStep} ≤ ${NO_HARD_EDGE.outerStep}（出现在 ${H.outerAt}）⇒ 外围是连续梯度`);
+  ok(P.peak.meanD >= 25 && P.peak.n >= P.peak.area * 0.5,
+    `⑥ ★★★ ${theme}：贴边那 0-1px 仍然够亮（平均Δ${P.peak.meanD}、最大Δ${P.peak.maxd}，变化像素 ${P.peak.n}/${P.peak.area}）⇒ 只有一层也看得见`);
 };
 // 颜色（像素级）：边缘 0-1px 带上的平均亮度与通道极差 ⇒ 白光 vs 主题色互相排除
 const edgeColorStats = (baseImg, img, rect, dpr) => {
@@ -497,17 +645,14 @@ const lightCell = lightProbe.cells.find(c => c.glow) || { afterShadow: 'none' };
 const lightLayers = parseShadow(lightCell.afterShadow);
 ok(lightAttr === 'light' && lightProbe.scheme === 'light',
   `⑥ ★★ 站点的"明暗"机制切到浅色（html[data-color-scheme]="${lightAttr}"，由 theme.js 的 applyColorScheme() 写）`);
-ok(lightLayers.length >= 2 && lightLayers.every(l => (rgbOf(l.color) || []).join(',') === themeRgb.join(',')),
-  `⑥ ★★★ 浅色下发光 = 主题色系（${lightLayers.map(l => l.color).join(' ｜ ')} == --theme=${lightProbe.theme}）`);
+ok(lightLayers.length === 1 && lightLayers.every(l => l.blur > 0) && lightLayers.every(l => (rgbOf(l.color) || []).join(',') === themeRgb.join(',')),
+  `⑥ ★★★ 浅色下发光 = **一层主题色柔光**（${lightLayers.length} 层、blur ${lightLayers.map(l => l.blur).join('/')}px；${lightLayers.map(l => l.color).join(' ｜ ')} == --theme=${lightProbe.theme}）`);
 ok(lightLayers.every(l => !(rgbOf(l.color) || []).every(v => v === 255)),
   '⑥ ★★★ 浅色下发光**不是白光**（白光照在白底/浅底上几乎看不见）');
 const lightPair = await pairFor(lightProbe, '浅色');
 const lightP = profileOf(lightPair.withoutGlow, lightPair.withGlow, lightProbe, '浅色');
 const lightEdge = edgeColorStats(lightPair.withoutGlow, lightPair.withGlow, lightCell.rect, lightProbe.dpr);
-ok(lightP.peak.maxd >= 50 && lightP.peak.n >= lightP.peak.area * 0.5,
-  `⑥ ★★★ 浅色：紧贴格子边缘那 0-1px 峰值足够高（最大Δ${lightP.peak.maxd}，变化像素 ${lightP.peak.n}/${lightP.peak.area}）`);
-ok(lightP.peak.maxd > lightP.rows[3].maxd && lightP.rows[3].maxd >= lightP.rows[4].maxd && lightP.rows[5].maxd <= 3 && lightP.far.maxd <= 3,
-  `⑥ ★★★ 浅色：随距离单调衰减、14px 之外基本为 0（0-1px Δ${lightP.peak.maxd} → 4-8px Δ${lightP.rows[3].maxd} → 8-14px Δ${lightP.rows[4].maxd} → 14-20px Δ${lightP.rows[5].maxd} → 20-32px Δ${lightP.far.maxd}）`);
+assertNoHardEdge(lightP, '浅色', '浅色');
 ok(lightEdge.spread >= 40, `⑥ ★★★ 浅色边缘像素明显带蓝色（平均通道极差 ${lightEdge.spread} ≥ 40、平均亮度 ${lightEdge.lum}）⇒ 不是白光（像素级互相排除）`);
 await restoreGlow(TOP_Y, '10');
 // 浅色下"用户改主题色 ⇒ 发光跟着变"仍然成立
@@ -522,7 +667,7 @@ const restored = await probe();
 const swCell = swapped.cells.find(c => c.glow) || { afterShadow: 'none' };
 const swLayers = parseShadow(swCell.afterShadow);
 ok(swapped.theme.replace(/\s/g, '') === 'rgb(200,30,90)', `⑥ 临时把 --theme 改成 ${swapped.theme}`);
-ok(swLayers.length >= 2 && swLayers.every(l => (rgbOf(l.color) || []).join(',') === '200,30,90'),
+ok(swLayers.length === 1 && swLayers.every(l => (rgbOf(l.color) || []).join(',') === '200,30,90'),
   `⑥ ★★ 浅色下格子发光跟着 --theme 变（${swLayers.map(l => l.color).join(' ｜ ')}）⇒ 用的是站点变量，不是写死色`);
 const restoredCell = restored.cells.find(c => c.glow) || { afterShadow: 'none' };
 ok(JSON.stringify(parseShadow(restoredCell.afterShadow).map(l => rgbOf(l.color))) === JSON.stringify(gShadow.map(l => rgbOf(l.color))),
@@ -533,22 +678,22 @@ const darkProbe = await probe();
 const darkCell = darkProbe.cells.find(c => c.glow) || { afterShadow: 'none' };
 const darkLayers = parseShadow(darkCell.afterShadow);
 ok(darkAttr === 'dark' && darkProbe.scheme === 'dark', `⑥ ★★ 站点的"明暗"机制切到暗色（html[data-color-scheme]="${darkAttr}"）`);
-ok(darkLayers.length >= 2 && darkLayers.every(l => (rgbOf(l.color) || []).join(',') === '255,255,255'),
-  `⑥ ★★★ 暗色下发光 = **白光**（${darkLayers.map(l => l.color).join(' ｜ ')}）`);
+ok(darkLayers.length === 1 && darkLayers.every(l => (rgbOf(l.color) || []).join(',') === '255,255,255'),
+  `⑥ ★★★ 暗色下发光 = **一层白光**（${darkLayers.length} 层；${darkLayers.map(l => l.color).join(' ｜ ')}）`);
 const dRgb = darkLayers.map(l => rgbOf(l.color) || []);
 ok(dRgb.every(c => c[0] === 255 && c[1] === 255 && c[2] === 255) && !dRgb.some(c => c.join(',') === themeRgb.join(',')),
   `⑥ ★★★ 暗色下**不是蓝色/主题色**（互相排除：${dRgb.map(c => c.join(',')).join(' ｜ ')} ≠ --theme=${darkProbe.theme}）`);
-const dRing = darkLayers.find(l => l.blur === 0 && l.spread >= 1);
-const dHalo = darkLayers.find(l => l.blur >= 6 && l.spread >= 1);
-ok(!!dRing && !!dHalo && darkLayers.map(l => alphaOf(l.color)).every(a => a >= 0.3 && a <= 0.9),
-  `⑥ ★★ 暗色白光形态：2px 实边 + 柔光（${darkLayers.map(l => alphaOf(l.color)).join(' / ')}）`);
+ok(darkLayers.every(l => l.blur > 0 && l.spread >= 1) && darkLayers.map(l => alphaOf(l.color)).every(a => a > 0.2 && a <= 0.95),
+  `⑥ ★★★ 暗色这一层同样是 blur > 0 的柔光、无实圈（blur ${darkLayers.map(l => l.blur).join('/')}px、spread ${darkLayers.map(l => l.spread).join('/')}px、alpha ${darkLayers.map(l => alphaOf(l.color)).join(' / ')}）`);
+const dpAlphas = darkLayers.map(l => alphaOf(l.color));
+ok(dpAlphas.length === 1,
+  `⑥ ★★★ 暗色实际渲染也只有 ${darkLayers.length} 层（alpha ${dpAlphas.join(' / ')}）⇒ 暗色下不会出现"实圈 + 柔光"两圈`);
 const darkPair = await pairFor(darkProbe, '暗色');
 const darkP = profileOf(darkPair.withoutGlow, darkPair.withGlow, darkProbe, '暗色');
 const darkEdge = edgeColorStats(darkPair.withoutGlow, darkPair.withGlow, darkCell.rect, darkProbe.dpr);
-ok(darkP.peak.maxd >= 100 && darkP.peak.n >= darkP.peak.area * 0.5,
-  `⑥ ★★★ 暗色：0-1px 峰值更高（最大Δ${darkP.peak.maxd}，变化像素 ${darkP.peak.n}/${darkP.peak.area}）—— 比浅色那档（Δ${lightP.peak.maxd}）更"一眼看得见"`);
-ok(darkP.peak.maxd > darkP.rows[3].maxd && darkP.rows[3].maxd >= darkP.rows[4].maxd && darkP.rows[5].maxd <= 3 && darkP.far.maxd <= 3,
-  `⑥ ★★★ 暗色：随距离单调衰减、14px 之外基本为 0（0-1px Δ${darkP.peak.maxd} → 4-8px Δ${darkP.rows[3].maxd} → 8-14px Δ${darkP.rows[4].maxd} → 14-20px Δ${darkP.rows[5].maxd} → 20-32px Δ${darkP.far.maxd}）—— 亮但不炸眼`);
+assertNoHardEdge(darkP, '暗色', '暗色');
+ok(darkP.peak.maxd >= 100,
+  `⑥ ★★★ 暗色：0-1px 峰值更高（最大Δ${darkP.peak.maxd}）—— 比浅色那档（Δ${lightP.peak.maxd}）更"一眼看得见"`);
 ok(darkEdge.spread <= 40 && darkEdge.lum >= 140,
   `⑥ ★★★ 暗色边缘像素是"白光"（平均通道极差 ${darkEdge.spread} ≤ 40、平均亮度 ${darkEdge.lum} ≥ 140）⇒ 在白底上看不见的白光在这里正好显眼`);
 await restoreGlow(TOP_Y, '10');
@@ -650,8 +795,8 @@ const hoverProbe = async (sel) => {
 const hGlow = await hoverProbe(`document.querySelector('.tl-heatmap-cell.hm-month-glow')`);
 ok(hGlow && /rgba?\(0, 0, 0/.test(hGlow.hoverShadow || '') && /matrix\(1\.0[1-9]/.test(hGlow.fillTransform || ''),
   `⑧ ★★★ 悬浮发光格：既有的悬浮投影与"色块放大 4%"照旧生效（box-shadow=${hGlow && hGlow.hoverShadow}｜fill transform=${hGlow && hGlow.fillTransform}）`);
-ok(hGlow && parseShadow(hGlow.afterShadow).length >= 2,
-  `⑧ ★★ 悬浮时发光**没有被悬浮样式顶掉**（::after 仍是多层：${hGlow && String(hGlow.afterShadow).slice(0, 60)}…）`);
+ok(hGlow && parseShadow(hGlow.afterShadow).length === 1,
+  `⑧ ★★ 悬浮时发光**没有被悬浮样式顶掉**（::after 仍是那一层柔光：${hGlow && String(hGlow.afterShadow).slice(0, 60)}…）`);
 ok(hGlow && hGlow.tipOpacity === '1' && hGlow.tipVis === 'visible',
   `⑧ ★★★ 悬浮泡照常弹出（opacity=${hGlow && hGlow.tipOpacity}、visibility=${hGlow && hGlow.tipVis}）`);
 const hPlain = await hoverProbe(`[...document.querySelectorAll('.tl-heatmap-cell')].find(c=>!c.classList.contains('hm-month-glow'))`);
@@ -671,7 +816,7 @@ await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-m
 await sleep(400);
 const rd = await probe();
 const rdShadow = (rd.cells.find(c => c.glow) || { afterShadow: 'none' }).afterShadow;
-ok(parseShadow(npShadow).length >= 2, `⑨ no-preference 下发光在（${String(npShadow).slice(0, 50)}…）`);
+ok(parseShadow(npShadow).length === 1, `⑨ no-preference 下那一层柔光在（${String(npShadow).slice(0, 50)}…）`);
 ok(rdShadow === npShadow, `⑨ ★★★ reduce 下发光**完全静止**（::after box-shadow 与 no-preference 逐字相同）`);
 const anim = JSON.parse(await evaluate(`(()=>{ const c=document.querySelector('.tl-heatmap-cell.hm-month-glow');
   if(!c) return JSON.stringify({ cell:'(无发光格)', after:'(无发光格)', cellTr:'(无发光格)' });
@@ -749,6 +894,13 @@ ok(JSON.stringify(base.rect) === JSON.stringify(reenter.rect) && cellsEq(base.ce
   '⑪ ★★ 重回拾年后容器/格子矩形仍与最初基线一致（容差 0.5px）');
 await boot('notes');
 await openYears();
+// 重新加载后 app 启动是异步的：等热力图（24 格）真的渲染出来再取状态，别把"还没渲染"当成结论
+for (let i = 0; i < 40; i++) {
+  const p = await probe().catch(() => null);
+  if (p && p.found && Array.isArray(p.cells) && p.cells.length === 24) break;
+  await sleep(300);
+}
+await sleep(400);
 const cold = await probe();
 ok(cold.filterMonth === '全部' && zeroGlow(cold), `⑪ ★ 重新加载页面后月份筛选回到"全部" ⇒ 0 格发光（${cold.glowCells} 格）`);
 

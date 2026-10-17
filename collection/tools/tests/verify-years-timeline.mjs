@@ -83,6 +83,31 @@ console.log('\n══════ ③ 单月发光（静态：只有"某年某�
   const lightShadow = (rule.match(/box-shadow\s*:[^;]*;/g) || []).slice(-1)[0] || '';
   ok(!/255,\s*255,\s*255/.test(lightShadow),
     '③ ★★★ 浅色/默认那条发光保持主题色、**不是白光**（白光照在白底上几乎看不见）');
+  // 用户追加口径：「好像原来的那圈无渐变的光圈还在，和渐变的叠在一起，我希望只有一层」
+  //   ⇒ 发光只允许**一层**，且必须是 blur > 0 的柔光（0 blur 的"实圈"= 用户否掉的那一圈）。
+  //   层数 = box-shadow 值里**顶层逗号**数 + 1（括号感知：color-mix(...) 里的逗号不算；
+  //   也不能按 px 个数算 —— 偏移量可以写无单位的 0）；blur = 每层的第 3 个长度。
+  const layersOf = (t) => ((t || '').match(/box-shadow\s*:([^;]*);/g) || []).map(decl => {
+    const v = decl.replace(/^box-shadow\s*:/, '').replace(/;\s*$/, '').trim();
+    if (!v) return { n: 0, blurs: [] };
+    const parts = []; let d = 0, cur = '';
+    for (const ch of v) {
+      if (ch === '(') d++; else if (ch === ')') d--;
+      if (ch === ',' && d === 0) { parts.push(cur); cur = ''; } else cur += ch;
+    }
+    parts.push(cur);
+    const blurs = parts.filter(p => p.trim()).map(p => {
+      const px = (p.match(/-?[\d.]+px|\b0\b/g) || []);
+      return parseFloat(px[2] ?? '0');   // 0 0 <blur> <spread>
+    });
+    return { n: parts.filter(x => x.trim()).length, blurs };
+  });
+  const lL = layersOf(rule).slice(-1)[0] || { n: 0, blurs: [] };
+  const dL = layersOf(darkRule).slice(-1)[0] || { n: 0, blurs: [] };
+  ok(lL.n === 1 && dL.n === 1,
+    `③ ★★★ 发光**只有一层**（浅色 ${lL.n} 层 / 暗色 ${dL.n} 层）—— 用户否掉的是"实圈 + 柔光"叠成两圈`);
+  ok(lL.blurs.every(b => b > 0) && dL.blurs.every(b => b > 0),
+    `③ ★★★ 这一层是 blur > 0 的**柔光**（浅色 blur ${lL.blurs.join('/')}px / 暗色 blur ${dL.blurs.join('/')}px）⇒ 没有 blur = 0 的"无渐变光圈"`);
 }
 
 // ─────────── 起服务 + 无头浏览器 ───────────

@@ -3599,8 +3599,11 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
     `⑦-g ★★★ ④「2026 年 10 月」：**恰好 1 格**发光，且就是 ${gYMcell.y}/${gYMcell.m} 那一格（逐格枚举一致）`);
   ok(gYM.cells.filter(c => !c.glow).every(c => c.content === 'none'),
     `⑦-g ★★★ 其余 ${gYM.cells.length - 1} 个格子一个都不发光（连发光伪元素都没生成）`);
-  ok(nLayers(gYMcell.shadow) >= 2 && /px/.test(gYMcell.shadow || ''),
-    `⑦-g ★★★ 发光格的边缘发光 = 多层 box-shadow（${nLayers(gYMcell.shadow)} 层）：${gYMcell.shadow}`);
+  // 用户口径：「原来的那圈无渐变的光圈还在，和渐变的叠在一起，我希望只有一层」⇒ 只允许一层、且 blur > 0
+  const glowBlurs = (String(gYMcell.shadow || '').match(/(?:^|,)\s*(?:color\([^)]*\)|rgba?\([^)]*\))?\s*-?[\d.]+px\s+-?[\d.]+px\s+(-?[\d.]+px)/g) || [])
+    .map(s => parseFloat((s.match(/(-?[\d.]+px)\s*$/) || [])[1]));
+  ok(nLayers(gYMcell.shadow) === 1 && glowBlurs.length === 1 && glowBlurs[0] > 0 && /px/.test(gYMcell.shadow || ''),
+    `⑦-g ★★★ 发光 = **只有一层柔光**（${nLayers(gYMcell.shadow)} 层、blur ${glowBlurs.join('/')}px > 0）⇒ 没有 blur=0 的"无渐变实圈"叠在外面：${gYMcell.shadow}`);
   ok(gYMcell.position === 'absolute' && gYMcell.pointer === 'none',
     `⑦-g ★★ 发光伪元素出流且不吃事件（position=${gYMcell.position}、pointer-events=${gYMcell.pointer}）⇒ 不参与布局、不抢 hover/点击`);
   ok(gYM.containerShadow === 'none' && gYM.glowOnContainer === 0,
@@ -3620,8 +3623,8 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
   await sleep(300);
   const gNP = await gp();
   const npCell = gNP.cells.find(c => c.glow) || {};
-  ok(nLayers(npCell.shadow) >= 2 && npCell.anim === 'none',
-    `⑦-g ★★★ no-preference 下发光在且没有动画（格子的发光伪元素 animation-name=${npCell.anim}）`);
+  ok(nLayers(npCell.shadow) === 1 && npCell.anim === 'none',
+    `⑦-g ★★★ no-preference 下那一层柔光在且没有动画（${nLayers(npCell.shadow)} 层、animation-name=${npCell.anim}）`);
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await sleep(300);
   const gRD = await gp();
