@@ -133,7 +133,11 @@ function measureContrast(png, rect, bgPoints) {
 
 // 未授权页的对比度硬门槛（0 反差 = 用户实测的"白底白画"）
 const CONTRAST_MIN = 120;   // 笔画芯 vs 背景的**最大**亮度差
-const CONTRAST_MEAN_MIN = 100;   // 笔画像素的**平均**亮度差
+const CONTRAST_MEAN_MIN = 100;   // 图标：笔画像素的**平均**亮度差
+// ★ 文案单独用一个更宽的平均阈值：字比图标细得多，笔画像素里抗锯齿边缘占比高，
+//   而各平台字体渲染不同（CI 的 ubuntu 实测平均只有 ~80，最大值 149 仍然达标）——
+//   所以"没被看见"这个 bug 由**最大值**阈值兜底（白底白画是 0 反差），平均只做粗筛。
+const TEXT_MEAN_MIN = 60;
 
 // ── 目录扫描（口径的唯一来源：现算，不写死）────────────────────────────────
 function walkHtml(dir, { skipTools }) {
@@ -707,8 +711,9 @@ try {
             ok(iconC.maxDiff >= CONTRAST_MIN && iconC.meanDiff >= CONTRAST_MEAN_MIN,
                 `★ [像素] ${label}：图标与背景反差达标（最大 ${iconC.maxDiff} ≥ ${CONTRAST_MIN}、平均 ${iconC.meanDiff} ≥ ${CONTRAST_MEAN_MIN}；笔画 rgb(${iconC.strokeRGB.join(',')}) vs 背景 rgb(${iconC.bgRGB.join(',')})）`,
                 iconC.maxDiff < CONTRAST_MIN ? `← 反差 ${iconC.maxDiff}：图标与背景几乎同色（"白底白画"就是这种 0 反差）` : '');
-            ok(textC.maxDiff >= CONTRAST_MIN && textC.meanDiff >= CONTRAST_MEAN_MIN,
-                `★ [像素] ${label}：文案「${DENIED_TEXT}」与背景反差达标（最大 ${textC.maxDiff} ≥ ${CONTRAST_MIN}、平均 ${textC.meanDiff} ≥ ${CONTRAST_MEAN_MIN}；笔画 rgb(${textC.strokeRGB.join(',')}) vs 背景 rgb(${textC.bgRGB.join(',')})）`);
+            ok(textC.maxDiff >= CONTRAST_MIN && textC.meanDiff >= TEXT_MEAN_MIN,
+                `★ [像素] ${label}：文案「${DENIED_TEXT}」与背景反差达标（最大 ${textC.maxDiff} ≥ ${CONTRAST_MIN}、平均 ${textC.meanDiff} ≥ ${TEXT_MEAN_MIN}；笔画 rgb(${textC.strokeRGB.join(',')}) vs 背景 rgb(${textC.bgRGB.join(',')})）`,
+                textC.maxDiff < CONTRAST_MIN ? `← 反差 ${textC.maxDiff}：文案与背景几乎同色` : '');
         }
         // 汇总：六个组合里不许有任何一个是"几乎同色"
         const worstIcon = rows.reduce((a, r) => (r.iconC.maxDiff < a.iconC.maxDiff ? r : a), rows[0]);

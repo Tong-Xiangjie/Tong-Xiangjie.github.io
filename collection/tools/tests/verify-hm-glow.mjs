@@ -792,6 +792,11 @@ const hoverProbe = async (sel) => {
       tipOpacity: tip?getComputedStyle(tip).opacity:null, tipVis: tip?getComputedStyle(tip).visibility:null,
       afterShadow: getComputedStyle(cell,'::after').boxShadow }); })()`));
 };
+// ★ 媒体偏好必须在这里再钉一次：本文件上面 ⑨ 段显式设过 prefers-reduced-motion: reduce，
+//   而 CI 的 runner（windows / ubuntu 都出现过）默认也是 reduce ⇒ 不钉回 no-preference 的话，
+//   站点 CSS 在 reduce 下不放大色块，这条"悬浮 4% 放大照旧"就会在 CI 上红（fill transform=none）。
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+await sleep(400);
 const hGlow = await hoverProbe(`document.querySelector('.tl-heatmap-cell.hm-month-glow')`);
 ok(hGlow && /rgba?\(0, 0, 0/.test(hGlow.hoverShadow || '') && /matrix\(1\.0[1-9]/.test(hGlow.fillTransform || ''),
   `⑧ ★★★ 悬浮发光格：既有的悬浮投影与"色块放大 4%"照旧生效（box-shadow=${hGlow && hGlow.hoverShadow}｜fill transform=${hGlow && hGlow.fillTransform}）`);
