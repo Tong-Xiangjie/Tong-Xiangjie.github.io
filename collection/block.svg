@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 
+    【保留原始网站标志（古钱币）】
+  -->
+  <g fill="none" stroke="#000000" stroke-linejoin="round">
+    <!-- 外郭 -->
+    <circle cx="100" cy="100" r="84" stroke-width="12"/>
+    <!-- 内郭 -->
+    <circle cx="100" cy="100" r="66" stroke-width="5"/>
+    <!-- 方孔 -->
+    <rect x="74" y="74" width="52" height="52" rx="2" stroke-width="12"/>
+  </g>
+
+  <!-- 铭文：銅（上）の（下）幣（右）紀（左） -->
+  <g fill="#000000"
+     font-family="'Source Han Sans SC','Noto Sans CJK SC','PingFang SC','Microsoft YaHei',sans-serif"
+     font-weight="900" font-size="26" text-anchor="middle" dominant-baseline="central">
+    <text x="100" y="52">銅</text>
+    <text x="100" y="148">の</text>
+    <text x="148" y="100">幣</text>
+    <text x="52" y="100">紀</text>
+  </g>
+
+  <!-- 
+    【右下角大号挂锁】
+  -->
+  <g fill="none" stroke="#000000" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 锁环（半圆形）：缩短了垂直部分（V 从 118 改为 132） -->
+    <path d="M 136 146 V 132 A 20 20 0 0 1 176 132 V 146" />
+    <!-- 锁身（带圆角的矩形） -->
+    <rect x="124" y="146" width="64" height="46" rx="8" />
+  </g>
+  
+  <!-- 钥匙孔（上圆下长条样式） -->
+  <!-- 上半部分圆孔 -->
+  <g fill="#000000">
+    <circle cx="156" cy="162" r="7" />
+  </g>
+  
+  <!-- 下半部分长条 -->
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round">
+    <line x1="156" y1="169" x2="156" y2="180" />
+  </g>
+</svg>

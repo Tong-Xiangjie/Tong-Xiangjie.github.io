@@ -3,6 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- gate:begin（collection 站入口门禁：由 `node collection/tools/gate.mjs apply` 注入，请勿手改） -->
+    <meta name="robots" content="noindex,nofollow">
+    <style id="collection-gate-guard">
+    /* ★ 兜底隐藏：门禁没放行之前整页不可见。这段 CSS 就写在 <head> 里，
+       所以**关掉 JavaScript 也进不去**（而且下面 ::before 那句提示照样显示）。
+       用 visibility 而不是 display:none：display:none 会让布局塌成 0，
+       连提示本身都画不出来，用户只看到一片白。 */
+    html:not(.gate-ok) {
+        visibility: hidden !important;
+    }
+    /* 关 JS（或脚本还没跑完）时的提示：画在根元素上，不依赖 body 是否存在 */
+    html:not(.gate-ok):not(.gate-denied)::before {
+        content: "你无权访问。";
+        visibility: visible !important;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2147483000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        text-align: center;
+        background: #f6f7f9;
+        color: #1f2328;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    /* 脚本把页面内容换掉之后的那只盒子；它是整页唯一允许露出来的东西 */
+    .gate-denied-box,
+    .gate-denied-box * {
+        visibility: visible !important;
+    }
+    .gate-denied-box {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2147483000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        text-align: center;
+        background: #f6f7f9;
+        color: #1f2328;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-user-select: text;
+        user-select: text;
+    }
+    /* 未授权页的图标：collection/block.svg（站点主人自己画的，描边是**写死的纯黑**，
+       所以暗色下必须翻白 —— 不改 SVG，只在本页加 filter）。 */
+    .gate-denied-box .gate-denied-icon {
+        display: block;
+        width: 160px;
+        max-width: 60vw;
+        height: auto;
+        margin: 0 0 1.1rem;
+    }
+    .gate-denied-box .gate-denied-text {
+        margin: 0;
+        max-width: 100%;
+    }
+    @media (prefers-color-scheme: dark) {
+        html:not(.gate-ok):not(.gate-denied)::before,
+        .gate-denied-box { background: #14171c; color: #e8eaed; }
+        /* 图标黑描边 → 翻成白的；浅色下不加任何 filter，保持原画 */
+        .gate-denied-box .gate-denied-icon { filter: invert(1); }
+    }
+    html[data-color-scheme="dark"]:not(.gate-ok):not(.gate-denied)::before,
+    html[data-color-scheme="dark"] .gate-denied-box { background: #14171c; color: #e8eaed; }
+    html[data-color-scheme="light"]:not(.gate-ok):not(.gate-denied)::before,
+    html[data-color-scheme="light"] .gate-denied-box { background: #f6f7f9; color: #1f2328; }
+    </style>
+    <script id="collection-gate-boot">
+    /* ★ 必须同步、必须放在 <head> 最前面：命中下面任意一条就立刻放行，用户看不到任何延迟。
+       ① 本地开发（localhost / 127.0.0.1 / ::1）—— 46 个回归套件全靠它，少一条就全红；
+       ② file: 协议 —— 双击打开本地 HTML 文件（站点主人的习惯用法，也必须能用）；
+       ③ 本机已通过校验：localStorage 里的"标记"等于**当前令牌哈希的前 16 位**。
+          标记与哈希绑定，所以 gate.mjs new 换令牌之后，所有老设备自动失效。
+       ⚠ ①②只加 gate-ok 类，**不写 localStorage 标记** —— 免得本地放行污染线上判定。
+       ⚠ 下面这个 MARK 字面量由 gate.mjs apply 写成 collection/gate.js 里
+          GATE_HASHES[0] 的前 16 位，别手改。 */
+    (function () {
+        try {
+            var html = document.documentElement;
+            var host = location.hostname.replace(/^\[|\]$/g, '');
+            // 本地开发与本地文件打开一律放行（与 collection/gate.js 里那份判定一致）
+            if (location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+                html.classList.add('gate-ok');
+                return;
+            }
+            if (localStorage.getItem('collection-gate') === '63bccacf1f6ddf9a') { html.classList.add('gate-ok'); }
+        } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
+    })();
+    </script>
+    <script src="./gate.js"></script>
+    <!-- gate:end -->
     <title>铜の币纪主站</title>
     <script>
         // ★ 在任何样式/绘制之前先把明暗与主题色定下来，否则暗色下会先闪一下白屏。

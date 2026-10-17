@@ -20,6 +20,23 @@ node collection/tools/tests/verify-sw-cache.mjs      # 单跑某一个（也能�
 
 退出码：`0` 通过 / `1` 有断言失败 / `2` 环境问题（例如找不到 Chrome）/ `3` 跳过（缺本地工件）。
 
+## collection 入口门禁（链接令牌）
+
+`collection/` 是单页应用，**只有 `collection/index.html` 一个 HTML 入口**，所以门禁只挂在它上面；
+以后往 `collection/` 里加 JS / 数据文件**不需要任何改动**。工具在 `collection/tools/gate.mjs`：
+
+```bash
+node collection/tools/gate.mjs new      # 生成新令牌：哈希写进 collection/gate.js，明文写到家目录 gate-token.txt
+node collection/tools/gate.mjs link     # 用家目录里的明文令牌打印完整链接
+node collection/tools/gate.mjs apply    # 幂等地给 collection/**/*.html（排除 tools/**）注入门禁三样；--dry-run 只打印
+node collection/tools/gate.mjs check    # 现算覆盖清单并断言带齐三样 + robots.txt + 全仓库无明文令牌；有缺件 exit 1
+```
+
+`check` 已经接进 `.github/workflows/regression.yml`（在跑回归用例之前执行）：
+将来谁往 `collection/` 里加了没挂门禁的 HTML 入口，CI 会直接红。
+验收在 `verify-gate.mjs`（静态覆盖 + robots + 明文令牌扫描 + apply 幂等 + CDP 行为：
+localhost / file:// / `#k=` / `?k=` / 错误令牌 / 深链路由不被清片段破坏 / 关 JS / crypto.subtle 不可用）。
+
 要求：**Node 22+**（用例里用了全局 `WebSocket` 与 `fetch`）、本机有 Chrome/Chromium。
 Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想手动指定就设这个环境变量。
 找不到 Chrome 时用例会以 `exit=2` 退出并打印一句提示。

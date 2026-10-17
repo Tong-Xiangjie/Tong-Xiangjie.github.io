@@ -64,6 +64,15 @@ jobs:
           node --version
           node -e "console.log('chrome:', process.env.CHROME_PATH || '(auto)')"
 
+      # ★ collection 入口门禁自检：从目录现算"应覆盖清单"，断言每个 collection/**/*.html
+      #   （排除 collection/tools/**）都带齐三样（meta noindex + 兜底隐藏 CSS + 同步 gate.js），
+      #   并校验 robots.txt、哈希格式、"全仓库不含明文令牌"。
+      #   放在跑用例**之前**：将来谁往 collection/ 里加了没挂门禁的 HTML 入口，这里立刻红，
+      #   不用人肉记得去改。（这个纯静态仓库没有构建步骤，只能靠 CI 当"构建期的守卫"。）
+      #   这一条只用 node 内置模块，不依赖 Chrome。
+      - name: collection 门禁自检
+        run: node collection/tools/gate.mjs check
+
       - name: 数据自检 + 全部回归用例
         run: node collection/tools/tests/run.mjs
 
