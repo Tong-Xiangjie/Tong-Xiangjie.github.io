@@ -182,6 +182,22 @@ function renderCategoryOverview(cat) {
             html += `<div class="name">${escapeHtml(displayName)}</div>`;
             html += `<div class="detail">`;
             if (c.version) html += `${escapeHtml(c.version)} · `;
+            // ★ 评级公司在分数**前面**、中间恰好一个半角空格（`PCGS MS67`）—— 与
+            //   overview.js 的 renderOverviewGroup() 同一口径（那边管全局概览 #coins，
+            //   这里管分类概览 #coins/<父分类>；两处都是"概览"，用户要求一起改）。
+            //   与详情页的色块（下面 renderCopiesList：公司 + 空格 + 分数）也是同一口径。
+            //   · 公司键名 gradingCompany（分数是 grade/condition），纸币没有这个字段
+            //     ⇒ 对纸币恒等变换。
+            //   · 仍然按板块分流（isCoinBoardLayout()），纸币/其它板块文本逐字不变。
+            //   · 没有公司时不加前缀：不留前导空格、不出现 undefined/null
+            //     （含字符串 "undefined"/"null" 那种坏值）。
+            //   ★ 为什么这段逻辑在两处各写一遍、不抽公共函数：verify-flip-state.mjs 会按
+            //     花括号配平把本文件里的单个函数抽出来塞进 vm 跑，抽出去的函数若引用别处
+            //     定义的新函数就会 ReferenceError；所以本文件保持自包含，两边一致性由
+            //     verify-coin-overview-company.mjs 同时覆盖两条路由来守（那边 ① 与 ② 两节）。
+            const rawCompany = (typeof c.gradingCompany === 'string' && isCoinBoardLayout()) ? c.gradingCompany.trim() : '';
+            const companyText = (rawCompany && rawCompany !== 'undefined' && rawCompany !== 'null') ? rawCompany : '';
+            if (companyText) html += `${escapeHtml(companyText)} `;
             if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
             if (c.year) html += `${c.year}年发行`;
             if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;

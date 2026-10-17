@@ -140,6 +140,20 @@ function renderOverviewGroup(label, items) {
         html += `<div class="name">${escapeHtml(displayName)}</div>`;
         html += `<div class="detail">`;
         if (c.version) html += `${escapeHtml(c.version)} · `;
+        // ★ 评级公司放在分数**前面**，中间恰好一个半角空格：`PCGS MS67`（用户要求：
+        //   「PCGS MS67 之间是普通空格不是点」）。原来只渲染分数（`MS67 · 1984年发行…`）。
+        //   · 公司键名与详情页（category-view.js 的 renderCopiesList）同源：硬币是
+        //     `gradingCompany`（分数是 `grade`；纸币那边没有这个字段，公司名本来就写在
+        //     `condition` 里，如 "ACG 66E"），所以这里对纸币是**恒等变换**。
+        //   · 仍然按板块分流（判据与详情页的 isCoinBoardLayout() 同源：currentMode），
+        //     纸币/其它板块的条目文本一个字符都不变 —— 由 verify-coin-overview-company.mjs
+        //     的基线守卫逐条比对（379 条纸币概览文本 + 全表 sha256）。
+        //   · 数据里没有公司时不加任何前缀：不留前导空格、不出现 undefined/null
+        //     （除了挡掉 null/undefined 本身，还挡掉字符串 "undefined"/"null" 那种
+        //       CSV 导入常见的坏值 —— 它们不是评级公司，不能当公司名印在概览上）。
+        const rawCompany = (typeof c.gradingCompany === 'string' && isCoinBoardLayout()) ? c.gradingCompany.trim() : '';
+        const companyText = (rawCompany && rawCompany !== 'undefined' && rawCompany !== 'null') ? rawCompany : '';
+        if (companyText) html += `${escapeHtml(companyText)} `;
         if (c.condition || c.grade) html += `${escapeHtml(c.condition || c.grade)} · `;
         if (c.year) html += `${c.year}年发行`;
         if (catalogDisplay) html += ` · ${escapeHtml(catalogDisplay)}`;

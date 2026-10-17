@@ -83,6 +83,7 @@ Chrome 路径由 runner 解析一次并用 `CHROME_PATH` 传给子进程；想�
 | `verify-roundtrip.mjs` | 设置页 / 搜索 / 板块互切之后定位是否还在 |
 | `verify-close-scroll.mjs` | 关闭板块再点开，概览页要回到顶部 |
 | `verify-4issues.mjs` | 价格列表展开态跨板块保持、模糊搜索说明、概览页滚动状态 |
+| `verify-coin-overview-company.mjs` | 硬币**概览**条目第二行的评级公司前缀：`PCGS MS67 · 1984年发行 · Sun-J2a1`（公司+恰好一个**半角空格**+分数；全局概览 `#coins` 与分类概览 `#coins/<父分类>` 两条路由都验）。公司取自数据 `gradingCompany` 原文（不写死 PCGS），没有公司时不加前缀、不留前导空格、不出现 undefined/null；另把纸币概览全表 379 条文本的 sha256 与前后若干条原文钉死，守住"其它板块逐字未变" |
 
 **界面细节 / 静态校验**
 | 文件 | 管什么 |
