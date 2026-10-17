@@ -1831,6 +1831,33 @@ function buildMonthHeatmap(items) {
     }
 
     const allActive = (timelineFilterYear === '全部' && timelineFilterMonth === '全部');
+    // ★★★ 用户 2026-XX（**两次修正后收口，前面两版都别再来回改**）：
+    //   第一次：「不是，发光效果是要求热力图那个**月份的小方块**边缘发光，怎么变成了热力图发光？」
+    //     ⇒ 发光对象是**月份"格子"本身**，**不是**整块热力图、也不是网格的外框。早前那一版把光画在
+    //       容器/网格外框上，已撤掉（layout.css 里 `.tl-heatmap.hm-single-month` 那套规则、容器的
+    //       position: relative、以及为算外框宽度而引入的 --hm-gap 全部删除，容器样式回到改动前）。
+    //   第二次（最终口径）：「**只有单个月分发光**」+ 追问里明确选「选'历年 X 月'（年份=全部）时，
+    //     干脆不发光」 ⇒ 判据收紧成：**只有"年份"与"月份"都落在具体的某一个值上**（唯一确定一个
+    //     格子）时才发光，其余一律不发光。于是：
+    //       · 2026 年 10 月（年+月都具体）⇒ **恰好那 1 格**发光；
+    //       · 历年 7 月（年=全部、月=07）⇒ **0 格**（**不是**每一年都亮一排）；
+    //       · 只筛某一年（月=全部）⇒ **0 格**；全部时间 ⇒ **0 格**。
+    //   ⇒ 判据 = ① 月份落在唯一一个月上（`timelineFilterMonth` 只会是 '全部' 或 '01'…'12'）；
+    //            ② 年份落在具体某一年上（`timelineFilterYear`，'全部' ⇒ 不发光）；
+    //            ③ ①② 都成立（`glowOne`）才在下面 12 格的循环里**逐格比对格子自己的年月**
+    //               （`glowMonth === m + 1 && String(y) === glowYear`）—— 唯一确定的那一格亮。
+    //   ★ 为什么必须"逐格"比对而不是去看筛选出的那几条记录：热力图是"历年全景"，它渲染的是
+    //     validItems 里出现过的**所有年份**（年份筛选只筛下面那张列表、不会让热力图少渲染行），
+    //     所以"只亮一格"这件事只能由发光自己拿格子自己的 data-year/data-month 来判定
+    //     （早前只按月份发光时实测"2025 年 10 月"那格会跟着亮，一共 2 格）。
+    //   · 用 Number()/String() 归一化，'7' 与 '07'、2026 与 '2026' 都能对上
+    //     （下拉里的值一定是补零的两位，applyTimelineFilter 也补零）。
+    //   · 样式全在 layout.css 的 `.tl-heatmap-cell.hm-month-glow`：格子自己的**出流伪元素** +
+    //     box-shadow（只用边缘发光，不碰尺寸/间距/盒子模型）⇒ 格子/行/图例/容器的矩形逐值不变。
+    //   · 类只加在**拾年专题**的月份格子上；别的板块根本没有热力图，不会被误伤。
+    const glowYear = (timelineFilterYear === '全部') ? '' : String(timelineFilterYear);
+    const glowMonth = (timelineFilterMonth !== '全部') ? Number(timelineFilterMonth) : 0;
+    const glowOne = (glowYear !== '' && glowMonth > 0);   // 年月都具体 ⇒ 唯一确定一个格子
     let html = `<div class="tl-heatmap">`;
 
     // 表头：左上角"全部"（点它回到全部时间）+ 12 个月份（点它看历年这个月）
@@ -1897,7 +1924,10 @@ function buildMonthHeatmap(items) {
             const onClass = o > 0 ? ' tl-hm-on' : '';
             const label = tipOf(`${y}年${m + 1}月`, c.npn, c.npsum, feeAt(y, m));
             const edge = m === 0 ? ' tl-hm-first' : (m === 11 ? ' tl-hm-last' : '');
-            html += `<div class="tl-heatmap-cell${edge}${onClass}"${styleAttr} tabindex="0" role="button"` +
+            // ★ 这一格是否就是"年月都筛上"唯一确定的那一格（见 buildMonthHeatmap 开头的口径）：
+            //   拿**格子自己的** y / m 与筛选的年月逐格比对 ⇒ 只有一格会得到 hm-month-glow。
+            const glow = (glowOne && glowMonth === m + 1 && String(y) === glowYear) ? ' hm-month-glow' : '';
+            html += `<div class="tl-heatmap-cell${edge}${onClass}${glow}"${styleAttr} tabindex="0" role="button"` +
                 ` data-year="${y}" data-month="${String(m + 1).padStart(2, '0')}"` +
                 ` data-amount="${Math.round(c.npsum * 10) / 10}" data-bright="${bright.toFixed(3)}"` +
                 ` data-alpha="${o > 0 ? o : ''}"` +

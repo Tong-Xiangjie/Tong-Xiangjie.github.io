@@ -443,7 +443,8 @@ function renderCopiesList(copies, detailFields, displayName, accV) {
         //   数据里 grade 是分数（硬币 "MS67"）、gradingCompany 是评级公司（硬币 "ACG"）；
         //   纸币那边没有 gradingCompany 字段，公司名本来就写在 condition 里（"ACG 66E"），
         //   所以这段拼接对纸币是**恒等变换**，两个板块不会互相误伤
-        //   （verify-copy-detail-text.mjs 把纸币前 12 条文本原样钉死守着这件事）。
+        //   （verify-copy-detail-text.mjs 对纸币全表逐条按数据现算比对守着这件事；
+        //     该用例只钉渲染行为、不钉数据内容，所以正常编辑数据不会假红）。
         const gradeText = c.condition || c.grade || '';
         const companyText = c.gradingCompany || '';
         const chipText = companyText ? (gradeText ? companyText + ' ' + gradeText : companyText) : gradeText;

@@ -28,6 +28,63 @@ ok(/periodTotal/.test(hdr) && /你一共花了/.test(hdr), '② 标语由"这段
 ok(/config\.slogan/.test(hdr), '② 一件都没记价格时仍回退到原来的标语（不硬说 0 元）');
 ok(/item\.copy\.price/.test(hdr), '② 金额口径与每天那条"这天，你一共花了X元"一致');
 
+// ─────────── ③ 单月发光（用户 2026-XX，**两次修正后收口**）───────────
+//   「拾年那里，假如选取了单个月份，可以让这个热力图的边缘有发光效果。**仅限于选取单个月**。」
+//   修正一：「不是，发光效果是要求热力图那个**月份的小方块**边缘发光，怎么变成了热力图发光？」
+//           ⇒ 发光对象 = **月份格子自己**；整块热力图/网格外框发光那套已撤掉。
+//   修正二：「**只有单个月分发光**」+ 追问里明确选「选"历年 X 月"（年份=全部）时，干脆不发光」
+//           ⇒ 判据收紧成"**年份与月份都落在具体的某一个值上**（唯一确定一个格子）才发光"，
+//             于是「历年 X 月」0 格、「只筛某一年」0 格、「全部时间」0 格、「某年某月」恰好 1 格。
+// 只做静态收口（逐格判据、类加在格子上、样式只用不参与布局的属性、reduced-motion 兜底）；
+// 运行时行为（四种状态的逐格枚举、逐格四边像素证据、零位移、两主题光色、其它板块不误伤）
+// 在 verify-hm-glow.mjs，主用例 verify-heatmap.mjs 里也有一节 ⑦-g 盯着它。
+console.log('\n══════ ③ 单月发光（静态：只有"某年某月"唯一那一格发光）══════\n');
+{
+  const cssSp = readFileSync('collection/layout.css', 'utf8');
+  const cssCode = cssSp.replace(/\/\*[\s\S]*?\*\//g, '');   // 先去注释，别被这次改动写的长注释带偏
+  const hmBuilder = sp.slice(sp.indexOf('function buildMonthHeatmap'), sp.indexOf('\nfunction applyTimelineFilter'));
+  ok(/const\s+glowMonth\s*=\s*\(\s*timelineFilterMonth\s*!==\s*'全部'\s*\)\s*\?\s*Number\(timelineFilterMonth\)\s*:\s*0/.test(hmBuilder),
+    '③ ★★ 判据原文之一：月份必须落在唯一一个月上（timelineFilterMonth !== \'全部\' 才取月份数字）' +
+    ' —— "全部月份"（含"只筛某一年"）**不**发光');
+  ok(/const\s+glowYear\s*=\s*\(\s*timelineFilterYear\s*===\s*'全部'\s*\)\s*\?\s*''\s*:\s*String\(timelineFilterYear\)/.test(hmBuilder),
+    '③ ★★ 判据原文之二：年份必须落在具体某一年上（glowYear，\'全部\' ⇒ 空串）' +
+    ' —— 热力图是"历年全景"、年份筛选不让它少渲染行，所以"只亮一格"必须由发光自己按年收窄');
+  ok(/const\s+glowOne\s*=\s*\(\s*glowYear\s*!==\s*''\s*&&\s*glowMonth\s*>\s*0\s*\)/.test(hmBuilder),
+    '③ ★★★ 判据原文之三：**年月都具体**才发光（glowOne）—— 「历年 X 月」（年份=全部）按用户口径"干脆不发光"');
+  ok(/const\s+glow\s*=\s*\(\s*glowOne\s*&&\s*glowMonth\s*===\s*m\s*\+\s*1\s*&&\s*String\(y\)\s*===\s*glowYear\s*\)\s*\?\s*'\s*hm-month-glow'\s*:\s*''/.test(hmBuilder),
+    '③ ★★★ 逐格判据：拿 12 格循环里的 m/y 与筛选的年月逐格比对 —— 唯一确定的那一格才亮');
+  ok(!/glowYear\s*===\s*''\s*\|\|/.test(hmBuilder),
+    '③ ★★★ 上一版"历年 X 月每格都亮"的放松写法（glowYear === \'\' || …）**已经不在了**（不留过时的绿）');
+  ok(/tl-heatmap-cell\$\{edge\}\$\{onClass\}\$\{glow\}/.test(hmBuilder),
+    '③ ★★★ 状态类只加在**月份格子** `.tl-heatmap-cell` 的 class 上（不是容器/行/标签）');
+  // 注释里也会提到这两个类名（说明用）⇒ 判"容器上没有状态类"必须用**去掉注释的代码**
+  const hmCode = hmBuilder.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  ok(/<div class="tl-heatmap">/.test(hmCode) && !/hm-single-month/.test(hmCode),
+    '③ ★★ 容器上**没有**任何发光状态类（"整块热力图发光"那一版已撤掉）');
+  const codeOnly = sp.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  ok((codeOnly.match(/hm-month-glow/g) || []).length === 1, '③ 全站只有这一处**代码**写这个类（不扩散）');
+  ok(!/hm-single-month/.test(codeOnly) && !/\.tl-heatmap\.hm-single-month/.test(cssCode),
+    '③ ★★ 整块发光那套（容器状态类 + 容器的发光伪元素规则）在 JS 与 CSS 里都已删除');
+  ok(!/--hm-gap/.test(cssCode), '③ ★★ 为"算整块发光框宽度"引入的 --hm-gap 也已删除（容器样式回到改动前）');
+  const rule = (cssCode.match(/\.tl-heatmap-cell\.hm-month-glow::after\s*\{[^}]*\}/) || [''])[0];
+  ok(/box-shadow\s*:/.test(rule), `③ ★★ 发光画在**格子自己的 ::after** 上、用 box-shadow 实现：${rule.replace(/\s+/g, ' ').slice(0, 170)}`);
+  ok(/var\(--theme\)/.test((rule.match(/box-shadow\s*:[^;]*;/g) || []).slice(-1)[0] || ''),
+    '③ ★ 生效的那条 box-shadow 取站点既有主题色 var(--theme)（不写死新品牌色）');
+  ok(/position\s*:\s*absolute/.test(rule) && /pointer-events\s*:\s*none/.test(rule),
+    '③ ★★ 发光伪元素出流（position: absolute）且不吃事件（pointer-events: none）⇒ 不参与布局、不抢 hover/点击');
+  ok(!/(?:^|[{;\s])(margin|padding|border(?!-radius)|height|width|float|display|font|gap|flex|grid|zoom|contain)[a-z-]*\s*:/.test(rule),
+    '③ ★★ 发光规则里没有任何会改动版式的属性（只用 box-shadow + 自身定位；border-radius 只是圆角、不影响布局）');
+  const rm = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]{0,400}?\.tl-heatmap-cell\.hm-month-glow::after[^{]*\{[^}]*\}/.exec(cssCode);
+  ok(!!rm && /animation\s*:\s*none/.test(rm[0]), '③ ★ reduced-motion 下显式关掉动画（本实现是静态发光，这条是约定/兜底）');
+  // 暗色 = 白光（用户追加口径：「暗色下不太显眼，可以调成白光」）；浅色 = 主题色（不许用白光）
+  const darkRule = (cssCode.match(/html\[data-color-scheme="dark"\]\s*\.tl-heatmap-cell\.hm-month-glow::after\s*\{[^}]*\}/) || [''])[0];
+  ok(/255,\s*255,\s*255/.test(darkRule),
+    `③ ★★★ 暗色主题下发光改成白光（选择器 = html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after，沿用站点既有的明暗机制、不新造）：${darkRule.replace(/\s+/g, ' ').slice(0, 170)}`);
+  const lightShadow = (rule.match(/box-shadow\s*:[^;]*;/g) || []).slice(-1)[0] || '';
+  ok(!/255,\s*255,\s*255/.test(lightShadow),
+    '③ ★★★ 浅色/默认那条发光保持主题色、**不是白光**（白光照在白底上几乎看不见）');
+}
+
 // ─────────── 起服务 + 无头浏览器 ───────────
 const ROOT = process.cwd();
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.txt': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };

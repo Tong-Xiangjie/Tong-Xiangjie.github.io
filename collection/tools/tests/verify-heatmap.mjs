@@ -3537,6 +3537,115 @@ console.log('\n══════ ⑦-f 增强前后顶栏行高严格相等（C
   await sleep(200);
 }
 
+// ─────────── ⑦-g 单月发光（用户 2026-XX，**两次修正后收口**）───────────
+//   「拾年那里，假如选取了单个月份，可以让这个热力图的边缘有发光效果。**仅限于选取单个月**。」
+//   修正一：「不是，发光效果是要求热力图那个**月份的小方块**边缘发光，怎么变成了热力图发光？」
+//   修正二：「**只有单个月分发光**」+ 追问里明确选「选"历年 X 月"（年份=全部）时，干脆不发光」。
+// 口径：**只有"年份"与"月份"都落在具体的某一个值上（唯一确定一个格子）时**，才给**那一格**发光：
+//   2026 年 10 月 ⇒ 恰好 1 格；历年 7 月（年份=全部）⇒ 0 格；只筛某一年（月=全部）⇒ 0 格；全部时间 ⇒ 0 格。
+//   **不是**整块热力图/网格外框发光（那一版画在容器的出流 ::before 上，已按用户要求删除；
+//   这里断言"容器上没有任何发光状态类/阴影"）。
+// 发光画在**格子自己的出流伪元素** `::after` 上（出流 + pointer-events:none ⇒ 零位移、不吃命中；
+//   也避免和格子既有的 :hover/:focus-visible 的 box-shadow 抢同一条声明）。
+// 完整版（逐格四边像素证据、两主题光色与强度剖面、其它板块不误伤、逐帧零位移）在 verify-hm-glow.mjs；
+// 这一节让**热力图主用例**也把它盯住：逐格集合 / 多层 box-shadow / 零位移 / 只在单格 / reduced-motion / 手机。
+console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的那一格"边缘发光 ══════\n');
+{
+  const glowProbe = `(()=>{
+    const root = (typeof getRenderContainer === 'function' && getRenderContainer()) || document;
+    const hm = [...root.querySelectorAll('.tl-heatmap')].find(e => e.getBoundingClientRect().width > 1);
+    if (!hm) return JSON.stringify({ found: false });
+    const R = (e) => { const r = e.getBoundingClientRect(); return [+r.left.toFixed(3), +r.top.toFixed(3), +r.width.toFixed(3), +r.height.toFixed(3)]; };
+    const cells = [...hm.querySelectorAll('.tl-heatmap-cell')].map(c => ({
+      y: c.dataset.year, m: c.dataset.month, glow: c.classList.contains('hm-month-glow'),
+      content: getComputedStyle(c, '::after').content, shadow: getComputedStyle(c, '::after').boxShadow,
+      position: getComputedStyle(c, '::after').position, pointer: getComputedStyle(c, '::after').pointerEvents,
+      anim: getComputedStyle(c, '::after').animationName, rect: R(c) }));
+    return JSON.stringify({ found: true, cls: hm.className,
+      glowOnContainer: root.querySelectorAll('.hm-single-month').length,
+      glowClassAnywhere: document.querySelectorAll('.hm-month-glow').length,
+      containerShadow: getComputedStyle(hm).boxShadow, hmBefore: getComputedStyle(hm, '::before').content,
+      rect: R(hm), rows: [...hm.querySelectorAll('.tl-heatmap-row')].map(R),
+      legend: (() => { const l = hm.querySelector('.tl-heatmap-legend'); return l ? R(l) : null; })(),
+      rowCount: hm.querySelectorAll('.tl-heatmap-row:not(.tl-hm-head)').length,
+      cells, glowCells: cells.filter(c => c.glow).length,
+      filterYear: (typeof timelineFilterYear !== 'undefined') ? timelineFilterYear : null,
+      filterMonth: (typeof timelineFilterMonth !== 'undefined') ? timelineFilterMonth : null });
+  })()`;
+  const gp = async () => JSON.parse(await evaluate(glowProbe));
+  const setF = async (y, m) => { await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(${JSON.stringify(y)}, ${JSON.stringify(m)}); return 1; })()`); await sleep(1000); };
+  const nLayers = (s) => { const t = String(s || '').trim(); return (!t || t === 'none') ? 0 : t.split(/,(?![^(]*\))/).length; };
+  const sameGeo = (a, b) => JSON.stringify([a.rect, a.rows, a.legend, a.cells.map(c => c.rect)]) === JSON.stringify([b.rect, b.rows, b.legend, b.cells.map(c => c.rect)]);
+  const glowSetEqual = (p, pick) => JSON.stringify(p.cells.filter(c => c.glow).map(c => c.y + '/' + c.m).sort()) === JSON.stringify(p.cells.filter(pick).map(c => c.y + '/' + c.m).sort());
+  const noGlowAtAll = (p) => p.glowCells === 0 && p.glowClassAnywhere === 0 && p.containerShadow === 'none' && /none/.test(p.hmBefore) && p.cells.every(c => c.content === 'none');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+  await setF('全部', '全部');
+  const gAll = await gp();
+  ok(gAll.found && noGlowAtAll(gAll),
+    `⑦-g ★★★ ①选"全部时间"：**0 格**发光（.hm-month-glow=${gAll.glowClassAnywhere}、容器状态类=${gAll.glowOnContainer}、格子发光伪元素全未生成）`);
+  await setF(2026, '全部');
+  const gYearOnly = await gp();
+  ok(gYearOnly.filterMonth === '全部' && noGlowAtAll(gYearOnly),
+    '⑦-g ★★★ ②「只筛某一年」（2026 年、月份=全部）：**0 格**发光 —— "仅限于选取单个月"这条口径的反面');
+  await setF('全部', '07');
+  const gHist = await gp();
+  ok(gHist.filterYear === '全部' && gHist.filterMonth === '07' && noGlowAtAll(gHist),
+    '⑦-g ★★★ ③「历年 7 月」（年份=全部、月=07）：**0 格**发光 —— 用户明确选的口径，不是"一排 7 月都亮"');
+  await setF(2026, '10');
+  const gYM = await gp();
+  const gYMcell = gYM.cells.find(c => c.glow) || {};
+  ok(gYM.glowCells === 1 && gYMcell.y === '2026' && gYMcell.m === '10' && glowSetEqual(gYM, c => c.y === '2026' && c.m === '10'),
+    `⑦-g ★★★ ④「2026 年 10 月」：**恰好 1 格**发光，且就是 ${gYMcell.y}/${gYMcell.m} 那一格（逐格枚举一致）`);
+  ok(gYM.cells.filter(c => !c.glow).every(c => c.content === 'none'),
+    `⑦-g ★★★ 其余 ${gYM.cells.length - 1} 个格子一个都不发光（连发光伪元素都没生成）`);
+  ok(nLayers(gYMcell.shadow) >= 2 && /px/.test(gYMcell.shadow || ''),
+    `⑦-g ★★★ 发光格的边缘发光 = 多层 box-shadow（${nLayers(gYMcell.shadow)} 层）：${gYMcell.shadow}`);
+  ok(gYMcell.position === 'absolute' && gYMcell.pointer === 'none',
+    `⑦-g ★★ 发光伪元素出流且不吃事件（position=${gYMcell.position}、pointer-events=${gYMcell.pointer}）⇒ 不参与布局、不抢 hover/点击`);
+  ok(gYM.containerShadow === 'none' && gYM.glowOnContainer === 0,
+    '⑦-g ★★ 发光**没有**画在容器上（容器 box-shadow 仍是 none、容器无状态类）—— 用户要求的是"格子"发光');
+  ok(sameGeo(gAll, gYM),
+    `⑦-g ★★★ 切到"唯一一格发光"前后容器/每一行/图例/每一个格子的矩形**逐值不变**（容器 ${JSON.stringify(gAll.rect)} → ${JSON.stringify(gYM.rect)}；${gYM.cells.length} 个格子逐值相同）`);
+  await setF(2025, '10');
+  const gB = await gp();
+  ok(gB.glowCells === 1 && glowSetEqual(gB, c => c.y === '2025' && c.m === '10') && gB.cells.filter(c => c.y === '2026' && c.m === '10').every(c => !c.glow),
+    `⑦-g ★★★ 换年份 2026/10 → 2025/10：仍然恰好 1 格，且 2026 那格已熄灭（现在是 ${gB.cells.filter(c => c.glow).map(c => c.y + '/' + c.m).join('')}）`);
+  await setF('全部', '全部');
+  const gBack = await gp();
+  ok(noGlowAtAll(gBack), '⑦-g ★★★ 单格 → 全部：发光完全消失（一格不剩、连伪元素都不生成）');
+  // reduced-motion：两种媒体下都必须"没有动画"，且 reduce 下发光静止（逐字相同）
+  await setF(2026, '10');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  await sleep(300);
+  const gNP = await gp();
+  const npCell = gNP.cells.find(c => c.glow) || {};
+  ok(nLayers(npCell.shadow) >= 2 && npCell.anim === 'none',
+    `⑦-g ★★★ no-preference 下发光在且没有动画（格子的发光伪元素 animation-name=${npCell.anim}）`);
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await sleep(300);
+  const gRD = await gp();
+  const rdCell = gRD.cells.find(c => c.glow) || {};
+  ok(rdCell.shadow === npCell.shadow && rdCell.anim === 'none',
+    `⑦-g ★★★ reduce 下发光**完全静止**（box-shadow 与 no-preference 逐字相同）且 animation-name=${rdCell.anim}`);
+  await send('Emulation.setEmulatedMedia', { features: [] });
+  // 手机 375px：断点不同（格子更小、列间距 2px）⇒ 光圈贴着每格自己的盒子，发光必须照样正确且不横向溢出
+  await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
+  await sleep(800);
+  await setF(2026, '10');
+  const gMob = await gp();
+  ok(gMob.found && gMob.glowCells === 1 && glowSetEqual(gMob, c => c.y === '2026' && c.m === '10'),
+    `⑦-g ★★★ 375px 下仍是"2026/10 那 1 格"发光（逐格枚举一致）`);
+  await setF('全部', '07');
+  const gMobHist = await gp();
+  ok(noGlowAtAll(gMobHist), '⑦-g ★★ 375px 下「历年 7 月」同样是 0 格发光（断点不影响判据）');
+  const mobOverflow = await evaluate(`document.documentElement.scrollWidth - window.innerWidth`);
+  ok(mobOverflow <= 1, `⑦-g ★ 375px 下加发光后页面仍不横向溢出（scrollWidth - innerWidth = ${mobOverflow}）`);
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(400);
+  await setF('全部', '全部');
+}
+
 // 收尾：回到全部时间
 await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
 await sleep(900);

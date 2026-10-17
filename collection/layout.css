@@ -2679,6 +2679,54 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
        横向越界的部分本来就该被裁掉（年份侧边泡由 JS 的 clampHeatmapTip 保证不出屏）。 */
     overflow-x: clip;
 }
+/* ★★★ 用户 2026-XX（**修正一次后收口**）：「不是，发光效果是要求热力图那个**月份的小方块**
+   边缘发光，怎么变成了热力图发光？」
+   ⇒ 发光对象 = **筛中的那个月对应的格子本身**（`.tl-heatmap-cell`，每一年各一格，可能多格同时发光）。
+     "整块热力图/网格外框发光"那一版（`.tl-heatmap.hm-single-month::before` + 容器的 position: relative
+     + 为算外框宽度引入的 --hm-gap）已按用户要求**整体撤掉**，容器样式回到改动前的原样。
+   判定与加类在 special.js 的 buildMonthHeatmap：月份筛选落在唯一一个月上（timelineFilterMonth
+   !== '全部'）时，逐格比对格子自己的月份（`glowMonth === m + 1`）—— 历年 7 月 ⇒ 每一年的 7 月格子
+   都发光；2026 年 10 月 ⇒ 只有那 1 格；"全部时间 / 只筛某一年" ⇒ 一格都不发光。
+   ★ 为什么画在**格子自己的出流伪元素**上，而不是把 box-shadow 写在格子上：
+     格子上已经有 `:hover { box-shadow: … }`（悬浮投影）和 `:focus-visible { box-shadow: … }`
+     （键盘聚焦环）两条规则在写同一条声明 ⇒ 发光若也写在格子上，谁在后面谁赢，
+     悬浮/聚焦时发光会被顶掉（或反过来把既有的悬浮/聚焦反馈弄没）。伪元素各画各的，互不干扰。
+   ★ 出流 + 不吃事件：`position: absolute` + `inset: -1px`（正好盖到格子那 1px 边框上，
+     光圈贴住"看得见的小方块"边缘；格子有 border-radius: 3px，这里配 4px）+
+     `pointer-events: none` ⇒ 不参与布局、不占宽高、不改盒子模型，也不抢 hover/点击
+     （悬浮泡、点格子筛选、elementFromPoint 全不受影响）。z-index 保持 auto：
+     悬浮泡自身是 z-index: 20，仍然在光圈之上。
+   ★ 只"向外"发光：box-shadow 只画在伪元素边框盒**之外** ⇒ 格子内部（色块/文字）像素不变。
+     2px 实边 + 6px 柔光，强度按"一眼能看出聚焦在这几个月、又不刺眼"定：
+     桌面相邻格间距 4px、手机 2px，都大于"实边 2px"，最外圈柔光即便被邻格压住也不影响"边缘发光"。
+   ★ 颜色取站点既有主题色 `var(--theme)`（下面那行 rgba 是给不支持 color-mix 的老浏览器的兜底，
+     用的就是本文件顶部 :root 里 --theme 的默认值 #1677ff，不是另造的品牌色）。
+   ★ 不加动画/过渡：发光是静态的（换筛选时整块重渲染，新元素上没有"从无到有"的过渡可言），
+     reduce 下天然静止；本文件既有的 reduce 兜底块里已把 `.tl-heatmap-cell::after` 一起关掉。 */
+.tl-heatmap-cell.hm-month-glow::after {
+    content: '';
+    position: absolute;                 /* 出流：不参与布局，不动任何元素盒 */
+    inset: -1px;                        /* 盖到格子的 1px 边框上 ⇒ 光圈贴住可见小方块的边缘 */
+    border-radius: 4px;
+    pointer-events: none;               /* 别抢格子的 hover/click（见上面的说明） */
+    box-shadow:
+        0 0 0 2px rgba(22, 119, 255, 0.3),
+        0 0 6px 2px rgba(22, 119, 255, 0.16);
+    box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--theme) 30%, transparent),
+        0 0 6px 2px color-mix(in srgb, var(--theme) 16%, transparent);
+}
+/* ★★★ 用户 2026-XX：「暗色下不太显眼，可以调成白光」。
+   暗色主题下主题蓝在深底上对比不足 ⇒ 暗色改用**白光**（2px 实边白 85% + 8px 柔光白 35%）。
+   ★ 浅色主题**绝不用白光**（白光照在白底/浅底上几乎看不见）⇒ 浅色保持上面的主题色方案。
+   ★ 判定**沿用站点既有的暗色机制**：`html[data-color-scheme="dark"]`（collection/theme.js 的
+     applyColorScheme() 按 设置里的"明暗"= 跟随系统/亮/暗 写在 <html> 上，跟随系统时看
+     prefers-color-scheme）—— 不新造机制。这里覆盖整条 box-shadow ⇒ 暗色下不会残留蓝色。 */
+html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.85),
+        0 0 8px 3px rgba(255, 255, 255, 0.35);
+}
 .tl-heatmap-row {
     display: grid;
     /* ★ 第 1 列用钉死的 px（--hm-ycol），不用 em/auto/min-content：
@@ -3005,6 +3053,9 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 @media (prefers-reduced-motion: reduce) {
     .tl-heatmap-cell, .tl-heatmap-tip { transition: none; }
     .tl-heatmap-cell:hover > .tl-hm-fill { transform: none; }
+    /* 单月发光的伪元素是静态的（只画一条 box-shadow），这里显式声明是"约定"：
+       将来若有人给发光加呼吸/脉冲动画，必须在 reduce 下一起关掉。 */
+    .tl-heatmap-cell.hm-month-glow::after { animation: none; transition: none; }
 }
 /* 手机：格子、间距、字号一起按视口缩小（用户要求"窄屏不换行，只整体缩小"），
    padding-top 是给最上面那一行的泡留的：手机上表头那行只有 ~19px 高，
