@@ -15,7 +15,7 @@
     }
     /* 关 JS（或脚本还没跑完）时的提示：画在根元素上，不依赖 body 是否存在 */
     html:not(.gate-ok):not(.gate-denied)::before {
-        content: "你无权访问。";
+        content: "暂无访问权限";
         visibility: visible !important;
         position: fixed;
         top: 0;
@@ -60,29 +60,47 @@
         -webkit-user-select: text;
         user-select: text;
     }
-    /* 未授权页的图标：collection/block.svg（站点主人自己画的，描边是**写死的纯黑**，
-       所以暗色下必须翻白 —— 不改 SVG，只在本页加 filter）。 */
+    /* 未授权页的图标：collection/block.svg（站点主人自己画的**原画颜色不许被依赖**：
+       描边原来是纯黑，但用户随时可能改色，所以用 filter 强制成纯黑/纯白）。
+       ★★ 主题来源必须**成对出现**：下面四组规则里，背景与图标**必须由同一组选择器决定**。
+          曾经踩过的坑（用户实测）——背景同时写在 @media (prefers-color-scheme) 与
+          html[data-color-scheme] 两套来源里，而图标只写在媒体查询那一套里：
+          于是"系统暗色 + 站点主题浅色"时背景被判成浅色 #f6f7f9、图标却仍带着媒体查询
+          给的 invert(1) ⇒ **白底白画**。以后改任何一组，都必须连图标一起改。 */
     .gate-denied-box .gate-denied-icon {
         display: block;
         width: 160px;
         max-width: 60vw;
         height: auto;
         margin: 0 0 1.1rem;
+        /* 浅色（默认/兜底）：无论原画什么颜色，一律渲染成纯黑 */
+        filter: brightness(0);
     }
     .gate-denied-box .gate-denied-text {
         margin: 0;
         max-width: 100%;
     }
+    /* ① 系统偏好：浅色 —— 背景 + 图标成对 */
+    @media (prefers-color-scheme: light) {
+        html:not(.gate-ok):not(.gate-denied)::before,
+        .gate-denied-box { background: #f6f7f9; color: #1f2328; }
+        .gate-denied-box .gate-denied-icon { filter: brightness(0); }
+    }
+    /* ① 系统偏好：暗色 —— 背景 + 图标成对 */
     @media (prefers-color-scheme: dark) {
         html:not(.gate-ok):not(.gate-denied)::before,
         .gate-denied-box { background: #14171c; color: #e8eaed; }
-        /* 图标黑描边 → 翻成白的；浅色下不加任何 filter，保持原画 */
-        .gate-denied-box .gate-denied-icon { filter: invert(1); }
+        .gate-denied-box .gate-denied-icon { filter: brightness(0) invert(1); }
     }
+    /* ② 站点主题 html[data-color-scheme]（优先级高于媒体查询，所以**必须自带图标规则**）：
+          暗色 —— 背景 + 图标成对 */
     html[data-color-scheme="dark"]:not(.gate-ok):not(.gate-denied)::before,
     html[data-color-scheme="dark"] .gate-denied-box { background: #14171c; color: #e8eaed; }
+    html[data-color-scheme="dark"] .gate-denied-box .gate-denied-icon { filter: brightness(0) invert(1); }
+    /* ② 站点主题：浅色 —— 背景 + 图标成对（少写下面这一行，就是用户实测到的"白底白画"） */
     html[data-color-scheme="light"]:not(.gate-ok):not(.gate-denied)::before,
     html[data-color-scheme="light"] .gate-denied-box { background: #f6f7f9; color: #1f2328; }
+    html[data-color-scheme="light"] .gate-denied-box .gate-denied-icon { filter: brightness(0); }
     </style>
     <script id="collection-gate-boot">
     /* ★ 必须同步、必须放在 <head> 最前面：命中下面任意一条就立刻放行，用户看不到任何延迟。
