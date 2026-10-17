@@ -15,7 +15,7 @@
     }
     /* 关 JS（或脚本还没跑完）时的提示：画在根元素上，不依赖 body 是否存在 */
     html:not(.gate-ok):not(.gate-denied)::before {
-        content: "你无权访问。";
+        content: "暂无访问权限";
         visibility: visible !important;
         position: fixed;
         top: 0;

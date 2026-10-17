@@ -6,7 +6,7 @@
 //      robots.txt、哈希格式、全仓库不含明文令牌、非 collection 入口**不带**门禁、
 //      gate.mjs apply 幂等 + check 缺件必须 exit 非 0；
 //   ② 行为（自带无头 Chrome + CDP）：localhost 放行、未授权时内容不可见且只显示
-//      「你无权访问。」、#k= / ?k= 正确令牌放行并清片段、错误令牌拒绝、
+//      「暂无访问权限」、#k= / ?k= 正确令牌放行并清片段、错误令牌拒绝、
 //      带令牌 + 深链路由时路由不丢、标记与"当前令牌哈希前 16 位"绑定（换令牌后老设备失效）、
 //      关掉 JavaScript 也进不去、crypto.subtle 不可用时不放行。
 //
@@ -38,7 +38,7 @@ const ROBOTS = join(ROOT, 'robots.txt');
 const TOKEN_FILE = join(homedir(), 'gate-token.txt');
 const MARK_LEN = 16;
 const KEY = 'collection-gate';
-const DENIED_TEXT = '你无权访问。';
+const DENIED_TEXT = '暂无访问权限';
 const DENIED_TITLE = '无法访问';
 const GATE_SRC_TAG = './gate.js';   // 入口里必须用相对路径引用门禁脚本（见 verify-vendor 与 file:// 两条理由）
 const GATE_URL_PATH = '/collection/gate.js';   // 浏览器最终请求到的地址（相对路径解析后的结果）
@@ -593,7 +593,7 @@ try {
         await evaluate(`(() => { try { localStorage.removeItem(${JSON.stringify(KEY)}); } catch (e) { } return true; })()`);
         const f = await visit(fileUrl, `document.documentElement.classList.contains('gate-ok')`);
         ok(f.gateOk && !f.gateDenied, `[file://] ★ 本地文件打开直接放行（html 带 gate-ok）：${fileUrl}`);
-        ok(!f.visibleText.includes('你无权访问。'), `[file://] ★ 不出现「你无权访问。」（可见文本开头 ${JSON.stringify(f.visibleText.slice(0, 40))}）`);
+        ok(!f.visibleText.includes('暂无访问权限'), `[file://] ★ 不出现「暂无访问权限」（可见文本开头 ${JSON.stringify(f.visibleText.slice(0, 40))}）`);
         ok(f.htmlVisibility === 'visible' && f.leaks.length > 0, `[file://] ★ 内容真的可见（html visibility=${f.htmlVisibility}，越界可见元素 ${f.leaks.length} 个）`);
         ok(!/^[0-9a-f]{16}$/.test(String(f.mark)), `[file://] ★ 本地放行不写 localStorage 标记（ls=${f.mark}）`);
     }
@@ -626,7 +626,7 @@ try {
         })()`);
         ok(leftovers === '[]', `[127.0.0.2] ★ 页面（DOM 与可见文本）里不残留原站标志性文本（残留 ${leftovers}）`);
     }
-    ok(!/你无权访问。/.test(String(deny.beforeContent)),
+    ok(!/暂无访问权限/.test(String(deny.beforeContent)),
         `[127.0.0.2] 脚本接管后 CSS 兜底提示不再重复显示（::before content=${deny.beforeContent}）`);
 
     // ── 2b. 未授权页的图标：collection/block.svg（站点主人自己画的，必须在、必须真的显示）──
@@ -838,7 +838,7 @@ try {
         const hasGateOk = attrs.some((v, i) => v === 'class' && /gate-ok/.test(attrs[i + 1] || ''));
         const outer = (await send('DOM.getOuterHTML', { nodeId: doc.root.nodeId })).outerHTML;
         ok(!hasGateOk, '★ [关 JS] html 上没有 gate-ok（脚本没跑）');
-        ok(/html:not\(\.gate-ok\)/.test(outer) && /content:\s*"你无权访问。"/.test(outer),
+        ok(/html:not\(\.gate-ok\)/.test(outer) && /content:\s*"暂无访问权限"/.test(outer),
             '★ [关 JS] 兜底隐藏 CSS 与 ::before 提示都在页面里（不需要脚本）');
     }
     await send('Emulation.setScriptExecutionDisabled', { value: false });
