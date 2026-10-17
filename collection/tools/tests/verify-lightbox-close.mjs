@@ -266,10 +266,28 @@ const norm = u => String(u || '').replace(/^https?:\/\/[^/]+/i, '');
 let imgHold = null;      // 命中它的图片请求按 imgDelayMs 处理（0 = 挂住不放行）
 let imgDelayMs = 0;
 let heldIds = [];
+// ★ ⑪ 追加（不动上面任何既有分支）：受控的"首载失败"规则。
+//   命中 imgFailPat 的图片请求，在**还没见过 retry=** 之前一律回 404 —— 这就是用户看到
+//   的"这张图一开始没加载出来"；等他点了右下角刷新按钮，retryFailedImages() 会把真实
+//   地址拼上 ?retry=… 再请求一次，那一刻之后就不再挡（= 刷新之后图真的回来了）。
+//   imgFailPat 默认 null ⇒ 对 ⑥~⑩ 的行为零影响。
+let imgFailPat = null;
+let imgFailSeen = false;
 async function onPaused(p) {
   try {
     const u = p.request.url;
     const local = u.startsWith(LIVE) ? LOCAL + u.slice(LIVE.length) : u;
+    if (imgFailPat && imgFailPat.test(u)) {
+      if (/[?&]retry=/.test(u)) imgFailSeen = true;
+      if (!imgFailSeen) {
+        await send('Fetch.fulfillRequest', {
+          requestId: p.requestId, responseCode: 404, responsePhrase: 'Not Found',
+          responseHeaders: [{ name: 'Content-Type', value: 'text/plain' }],
+          body: Buffer.from('nf').toString('base64')
+        });
+        return;
+      }
+    }
     if (imgHold && imgHold.test(u)) {
       if (imgDelayMs > 0) await sleep(imgDelayMs);
       else { heldIds.push(p.requestId); return; }   // 一直挂着 = "原图还在下载"
@@ -735,6 +753,177 @@ console.log('\n══════ ⑩ prefers-reduced-motion: reduce：加载中
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
   const back10 = await evaluate(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
   ok(back10 === false, `★ ⑩ (5) 量完已把偏好切回 no-preference（reduce=${back10}）`);
+  await sleep(300);
+}
+
+// ── ⑪ 首载失败的图，经右下角刷新按钮加载回来之后，点开仍必须是"从缩略图飞入" ──
+//   用户报：「假如图片一开始没有加载出来，然后通过右下角的刷新刷出来了，这时点开刚加载
+//   出来的图片变成大图的动画会消失，退化为淡入。」
+//   复现：CDP Fetch 把 1989gj40-1 的缩略图/原图请求在"没见到 retry= 之前"一律回 404
+//   （= 首载失败）→ 点右下角 #imgRetryFab（重试会带上 ?retry=…）→ 那张图变成加载成功。
+//   这一节只**追加**断言：正常图（1989gj40-2）当对照，刷新回来的图必须与它同款飞行。
+console.log('\n══════ ⑪ 刷新回来的图片：点开时仍要有"从缩略图飞入"的 transform 动画 ══════\n');
+{
+  imgFailPat = /coincollection\/image\/(thumb\/)?commemorative\/1989gj40-1\.jpg/;
+  imgFailSeen = false;
+  imgHold = null; imgDelayMs = 0; heldIds = [];
+  await boot('coins/commemorative_coins/coincomm/s3');
+  for (let i = 0; i < 60; i++) { const n = await evaluate(`document.querySelectorAll('.copy-item').length`).catch(() => 0); if (n > 0) break; await sleep(300); }
+  await installSampler();
+  const coinCells = await evaluate(`document.querySelectorAll('.copy-item').length`);
+  ok(coinCells > 0, `⑪ 前置：硬币分类内容页渲染出了藏品条目（.copy-item ${coinCells} 个）`);
+
+  // 点开某个格子并采样：不写正则，直接用 URL 子串定位（openModal 的 onclick 参数就是图片地址）
+  const openAndSample = async (sub) => {
+    const P = JSON.parse(await evaluate(`(async () => {
+      const re = /openModal\\('([^']+)',\\s*'([^']+)'\\)/;
+      let el = null, mm = null;
+      for (const w of document.querySelectorAll('[onclick]')) {
+        const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
+        if (m2 && m2[1].indexOf(${JSON.stringify(sub)}) >= 0) { el = w; mm = m2; break; }
+      }
+      if (!el) return JSON.stringify({ err: '没找到图片格子' });
+      const th = el.querySelector('img') || el;
+      th.scrollIntoView({ block: 'center' });
+      await new Promise(r => setTimeout(r, 400));
+      const from = imageContentRect(th);
+      const pre = { src: th.getAttribute('src'), failed: th.classList.contains('img-failed'), nw: th.naturalWidth,
+        retrySrc: th.dataset.retrySrc || '', box: [Math.round(from.left), Math.round(from.top), Math.round(from.width), Math.round(from.height)] };
+      window.__LS.start();
+      th.click();
+      await new Promise(r => requestAnimationFrame(() => r()));
+      const want = modalContainRect(from.width / from.height);
+      return JSON.stringify({ err: '', img1: mm[1], pre: pre, want: [Math.round(want.left), Math.round(want.top), Math.round(want.width), Math.round(want.height)] });
+    })()`));
+    if (P.err) return { P: P, F: [] };
+    await sleep(800);
+    const F = JSON.parse(await evaluate('window.__LS.stop()'));
+    return { P: P, F: F };
+  };
+  // 判定：必须"有飞行图层 + 逐帧在动 + 跑的是 transform + 起飞点是缩略图 + 落点对位"，
+  // 并且飞行期间主图被藏起来（= 画面由飞行图层扛着，而不是主图淡入）。
+  const checkFly = (tag, human, P, F) => {
+    const fs = F.filter(f => f.flight && f.flight.rect);
+    const rects = fs.map(f => f.flight.rect.join(','));
+    const tfFrames = F.filter(f => f.anims.some(a => a.inModal && a.props.indexOf('transform') >= 0 && /modal-flight/.test(String(a.target)))).length;
+    console.log(`  ${tag} 采样 ${F.length} 帧；有飞行图层 ${fs.length} 帧；不同矩形 ${new Set(rects).size} 个；飞行图层 transform 帧 ${tfFrames} 帧`);
+    if (fs.length) console.log(`  ${tag} 首帧 ${fs[0].flight.rect.join(',')} → 末帧 ${fs[fs.length - 1].flight.rect.join(',')}；期望落到 ${P.want.join(',')}；格子 ${P.pre.box.join(',')}`);
+    ok(fs.length >= 3, `★ ${tag} ${human}：点开生成了飞行图层（${fs.length} 帧）—— 没有退化成"直接淡入"`);
+    ok(new Set(rects).size >= 3, `★ ${tag} ${human}：飞行图层逐帧在动（${new Set(rects).size} 个不同矩形）`);
+    ok(tfFrames >= 3, `★ ${tag} ${human}：跑的确实是 transform 几何动画（transform 帧 ${tfFrames}）—— 不是"只有 opacity"的退化`);
+    const first = fs.length ? fs[0].flight.rect : null;
+    const last = fs.length ? fs[fs.length - 1].flight.rect : null;
+    ok(!!first && first[2] < P.want[2] / 2, `★ ${tag} ${human}：起飞时还是缩略图那一小格（首帧宽 ${first ? first[2] : '-'}px < 全屏 ${P.want[2]}px 的一半）`);
+    ok(!!last && Math.abs(last[0] - P.want[0]) <= 3 && Math.abs(last[1] - P.want[1]) <= 3 && Math.abs(last[2] - P.want[2]) <= 3 && Math.abs(last[3] - P.want[3]) <= 3,
+      `★ ${tag} ${human}：落点对位 = 全屏 contain 那一格（末帧 ${last ? last.join(',') : '-'} vs 期望 ${P.want.join(',')}）`);
+    ok(fs.length > 0 && fs.every(f => Number(f.imgEff) < 0.01),
+      `★ ${tag} ${human}：飞行期间主图确实被藏起来、画面由飞行图层扛着（主图有效不透明度 ${fs.length ? fs[0].imgEff : '-'}）—— 这条就是"飞入"与"淡入"的分水岭`);
+    ok(fs.length > 0 && fs.every(f => Number(f.flight.eff) > 0.99), `★ ${tag} ${human}：飞行图层本身全程不透明（没有叠一层淡出/淡入）`);
+    return fs.length;
+  };
+
+  // ⑪-a 对照：没失败过的第二面（同一批数据、同一页）
+  const ctl = await openAndSample('1989gj40-2.jpg');
+  ok(!ctl.P.err, `⑪ (a) 对照：点开正常图 1989gj40-2（${ctl.P.err || norm(ctl.P.img1)}）`);
+  if (!ctl.P.err) {
+    ok(ctl.P.pre.failed === false && ctl.P.pre.nw > 0, `⑪ (a) 前置：这张图是正常加载好的（.img-failed=${ctl.P.pre.failed}、naturalWidth=${ctl.P.pre.nw}）`);
+    checkFly('⑪ (a)', '正常图（对照）', ctl.P, ctl.F);
+  }
+  await evaluate(`closeModal()`);
+  await sleep(900);
+
+  // ⑪-b 首载失败的前置：目标格子确实进了占位态、右下角刷新按钮亮着
+  const PRE = JSON.parse(await evaluate(`(() => {
+    const re = /openModal\\('([^']+)'/;
+    let el = null;
+    for (const w of document.querySelectorAll('[onclick]')) {
+      const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
+      if (m2 && m2[1].indexOf('1989gj40-1.jpg') >= 0) { el = w.querySelector('img') || w; break; }
+    }
+    if (!el) return JSON.stringify({ err: '没找到 1989gj40-1 的格子' });
+    const fab = document.getElementById('imgRetryFab');
+    return JSON.stringify({ err: '', src: el.getAttribute('src'), failed: el.classList.contains('img-failed'),
+      retrySrc: el.dataset.retrySrc || '', fabShown: !!(fab && fab.classList.contains('show')),
+      failedSize: (typeof failedImages !== 'undefined') ? failedImages.size : -1 });
+  })()`));
+  console.log(`  ⑪ (b) 受控 404 生效=${imgFailSeen === false}；格子 src=${String(PRE.src).slice(0, 46)}…（.img-failed=${PRE.failed}、data-retry-src=${PRE.retrySrc}）`);
+  ok(!PRE.err && PRE.failed === true && /^data:image\//.test(String(PRE.src)),
+    `⑪ (b) 前置：这张图首载失败、已经落到占位态（.img-failed=${PRE.failed}）`);
+  ok(PRE.retrySrc === 'https://tong-xiangjie.github.io/coincollection/image/commemorative/1989gj40-1.jpg',
+    `⑪ (b) 前置：占位态记下了真实地址，刷新才有得可刷（data-retry-src=${PRE.retrySrc}）`);
+  ok(PRE.fabShown === true, `⑪ (b) 前置：右下角刷新按钮亮着（failedImages.size=${PRE.failedSize}）`);
+
+  // ⑪-c 点右下角刷新按钮 → 那张图加载成功
+  const RET = JSON.parse(await evaluate(`(async () => {
+    const re = /openModal\\('([^']+)'/;
+    let el = null;
+    for (const w of document.querySelectorAll('[onclick]')) {
+      const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
+      if (m2 && m2[1].indexOf('1989gj40-1.jpg') >= 0) { el = w.querySelector('img') || w; break; }
+    }
+    if (!el) return JSON.stringify({ err: '没找到 1989gj40-1 的格子' });
+    const fab = document.getElementById('imgRetryFab');
+    if (!fab) return JSON.stringify({ err: '没有 #imgRetryFab' });
+    const wasFailed = el.classList.contains('img-failed');
+    fab.click();
+    for (let i = 0; i < 80; i++) { if (el.complete && el.naturalWidth > 0) break; await new Promise(r => setTimeout(r, 100)); }
+    await new Promise(r => setTimeout(r, 300));
+    return JSON.stringify({ err: '', wasFailed: wasFailed, src: el.getAttribute('src'), complete: el.complete,
+      nw: el.naturalWidth, failed: el.classList.contains('img-failed'),
+      fabShown: !!(fab && fab.classList.contains('show')),
+      failedSize: (typeof failedImages !== 'undefined') ? failedImages.size : -1 });
+  })()`));
+  console.log(`  ⑪ (c) 点刷新后 src=${RET.src}`);
+  ok(RET.err === '' && RET.wasFailed === true, `⑪ (c) 点的是右下角刷新按钮，且点之前它确实在占位态（${RET.err || 'ok'}）`);
+  ok(RET.complete === true && RET.nw > 0 && RET.failed === false,
+    `★ ⑪ (c) 刷新之后这张图真的加载出来了（naturalWidth=${RET.nw}、.img-failed=${RET.failed}）`);
+  ok(/\?retry=/.test(String(RET.src)),
+    `★ ⑪ (c) 它现在的地址带着重试标记（这就是"刷新回来的图"与普通图唯一的差别）：${RET.src}`);
+  ok(RET.fabShown === false && RET.failedSize === 0, `⑪ (c) 刷新按钮收掉了、失败队列清空（size=${RET.failedSize}）`);
+
+  // ⑪-d 关键：点开这张"刷新回来的图"，必须和正常图同款飞入
+  const ret = await openAndSample('1989gj40-1.jpg');
+  ok(!ret.P.err, `⑪ (d) 点开刷新回来的 1989gj40-1（${ret.P.err || norm(ret.P.img1)}）`);
+  if (!ret.P.err) {
+    ok(ret.P.pre.failed === false && ret.P.pre.nw > 0 && /\?retry=/.test(String(ret.P.pre.src)),
+      `⑪ (d) 前置：点开的就是那张刷新回来的图（src=${ret.P.pre.src}）`);
+    checkFly('⑪ (d)', '刷新回来的图', ret.P, ret.F);
+
+    // ⑪ (d2) 对称性：这张图关闭时也要缩回**它自己那一格**（关闭时的来源格子解析同样
+    //   不能因为 src 上多了 `?retry=…` 而落空 —— 落空的话就又变成"直接淡出"）。
+    await evaluate(`window.__LS.start()`);
+    await evaluate(`closeModal()`);
+    await sleep(850);
+    const CF = JSON.parse(await evaluate('window.__LS.stop()'));
+    const cfs = CF.filter(f => f.flight && f.flight.rect);
+    const cLast = cfs.length ? cfs[cfs.length - 1].flight.rect : null;
+    const cTf = CF.filter(f => f.anims.some(a => a.inModal && a.props.indexOf('transform') >= 0 && /modal-flight/.test(String(a.target)))).length;
+    console.log(`  ⑪ (d2) 关闭采样 ${CF.length} 帧；飞行图层 ${cfs.length} 帧；transform 帧 ${cTf}；末帧 ${cLast ? cLast.join(',') : '-'}；该图格子 ${ret.P.pre.box.join(',')}`);
+    ok(cfs.length >= 3 && cTf >= 3,
+      `★ ⑪ (d2) 关闭时同样有 transform 缩回动画（飞行 ${cfs.length} 帧 / transform ${cTf} 帧）—— 开与关对称，没有因为 ?retry= 落空`);
+    ok(!!cLast && Math.abs(cLast[2] - ret.P.pre.box[2]) <= 4 && Math.abs(cLast[3] - ret.P.pre.box[3]) <= 4,
+      `★ ⑪ (d2) 关闭落点回到它自己那一小格（末帧 ${cLast ? cLast.join(',') : '-'} vs 格子 ${ret.P.pre.box.join(',')}）`);
+    await sleep(300);
+  } else {
+    await evaluate(`closeModal()`);
+    await sleep(900);
+  }
+
+  // ⑪-e 独立断言：减动效（reduce）下同一张图**不该**飞（与 ⑪-d 互为反面，缺一不可）
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  console.log(`  ⑪ (e) 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
+  const red = await openAndSample('1989gj40-1.jpg');
+  const redFlight = red.F.filter(f => f.flight).length;
+  const modalShown = await evaluate(`getComputedStyle(document.getElementById('imageModal')).display`);
+  console.log(`  ⑪ (e) reduce 下采样 ${red.F.length} 帧；飞行图层 ${redFlight} 帧；弹窗 display=${modalShown}`);
+  ok(redFlight === 0, `★ ⑪ (e) 用户要求减少动效时，刷新回来的图同样不做飞行（飞行图层 ${redFlight} 帧）`);
+  ok(modalShown === 'flex', `★ ⑪ (e) 减动效不等于减功能：大图照常打开（display=${modalShown}）`);
+  await evaluate(`closeModal()`);
+  await sleep(700);
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  ok(await evaluate(`!prefersReducedMotion()`) === true, '★ ⑪ (e) 量完已把偏好切回 no-preference（后面的收尾不受影响）');
+  imgFailPat = null;
+  imgFailSeen = false;
   await sleep(300);
 }
 

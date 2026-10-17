@@ -358,12 +358,36 @@ function renderSeriesList(data, title) {
     if (typeof schedulePrecacheCurrentView === 'function') schedulePrecacheCurrentView();
 }
 
+// ★ 当前渲染的是不是硬币板块。
+//   为什么需要它：renderCopiesList() 是**纸币与硬币共用**的（renderCategoryContent 两条
+//   板块路径都走它），而这次改的「评级色块 + 色块之后一个空格 + 材质/直径/重量并成一行」
+//   是**硬币板块**的版式（用户指定）。纸币那边的色块本来就是数据里现成的 condition
+//   （"ACG 66E"，公司名已经在里面了），条目文本一个字都不该变 —— 所以色块与年份之间
+//   那个空格要按板块分流（材质/直径/重量三字段纸币数据里根本没有，天然不变）。
+//   判据用 currentMode（与 getData() / getModeDef() 同源），不靠猜。
+function isCoinBoardLayout() {
+    return typeof currentMode !== 'undefined' && typeof MODE !== 'undefined' && currentMode === MODE.COINS;
+}
+
 function renderCopiesList(copies, detailFields, displayName, accV) {
     if (!copies || copies.length === 0) {
         // 行内空状态：用 18px 的小图（这块默认只有一行文字，块级大图会把列表撑开）
         return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">' +
                emptyArt('collection', true) + '啥都木有</div>';
     }
+    // ★ 条目「第三行」（目录编号 / 材质 / 直径 / 重量 合并成的那一行）的两个常量。
+    //   SPEC_SEP：字段之间的分隔符 = **全角空格 U+3000**。用户原话「间隔可以宽一点，
+    //     例如全角空格」，半角空格太挤。只用 join(SPEC_SEP)，所以它只会出现在字段
+    //     **之间** —— 字段缺失时跳过、只剩一个字段时没有分隔符，因此天然不会出现
+    //     连续全角空格，也不会留下首尾全角空格。
+    //   TRIM_EDGE：去掉值**首尾**的空白（半角与全角都去），值内部一律不动 ——
+    //     用户明确「值本身保持原样照抄，不要在值中间做替换」。
+    //   ★ 为什么放在函数内部而不是模块级：本仓库的校验脚本会按标记把本文件切成几段再拼成
+    //     category-view.modal.js 跑（见 verify-flip-state.mjs 的 getModalSource），模块级常量
+    //     有落在切片之外的风险（gridThumbForUrl 里的 URL_CANDIDATE_SELECTORS 踩过同一个坑）。
+    //     第二行（色块与年份之间）按用户答复**保持半角一个空格**，这里不涉及。
+    const SPEC_SEP = '\u3000';
+    const TRIM_EDGE = /^[\s\u3000]+|[\s\u3000]+$/g;
     // ★ accV：本条列表属于哪个品种（无品种层时传 -1）。
     //   data-copy-index 是 **全局** 序号（openCopyDetail 需要它去 copyDetailList 取数据），
     //   data-copy-vindex 才是**品种内**序号 —— 深链接里的 cIdx 指的是后者。
@@ -397,17 +421,47 @@ function renderCopiesList(copies, detailFields, displayName, accV) {
         }
 
         html += `<div>`;
-        if (c.condition || c.grade) html += `<span class="condition">${escapeHtml(c.condition || c.grade)}</span>`;
-        if (c.gradingCompany) html += `<span class="meta">${escapeHtml(c.gradingCompany)}</span>`;
-        if (c.year) html += `<span class="meta">${c.year}年发行</span>`;
-        if (c.purchaseDate) html += `<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`;
+        // ★ 评级合成**一个**色块：评级公司在前、分数在后，中间恰好一个半角空格
+        //   （原来是 <span class="condition">MS67</span><span class="meta">ACG</span>
+        //     两个块、顺序还是反的 —— 用户要的是「ACG MS67」一个色块）。
+        //   数据里 grade 是分数（硬币 "MS67"）、gradingCompany 是评级公司（硬币 "ACG"）；
+        //   纸币那边没有 gradingCompany 字段，公司名本来就写在 condition 里（"ACG 66E"），
+        //   所以这段拼接对纸币是**恒等变换**，两个板块不会互相误伤
+        //   （verify-copy-detail-text.mjs 把纸币前 12 条文本原样钉死守着这件事）。
+        const gradeText = c.condition || c.grade || '';
+        const companyText = c.gradingCompany || '';
+        const chipText = companyText ? (gradeText ? companyText + ' ' + gradeText : companyText) : gradeText;
+        const chipHtml = chipText ? `<span class="condition">${escapeHtml(chipText)}</span>` : '';
+
+        // 年份与购藏信息：文字与分隔符与改动前**逐字一致**，只在色块与它之间补一个空格
+        const metaParts = [];
+        if (c.year) metaParts.push(`<span class="meta">${c.year}年发行</span>`);
+        if (c.purchaseDate) metaParts.push(`<span class="meta"> · ${escapeHtml(c.purchaseDate)}</span>`);
         if (c.price) {
             const priceText = String(c.price).includes('元') ? c.price : c.price + '元';
-            html += `<span class="meta">以${escapeHtml(priceText)}的价格购入</span>`;
+            metaParts.push(`<span class="meta">以${escapeHtml(priceText)}的价格购入</span>`);
         }
+        // 色块与非空时，色块与后面那段文字之间恰好一个空格（色块本身没有后续时不留尾随空格）。
+        // ★ 这个空格是硬币板块的版式：纸币条目文本必须逐字不变，所以按板块分流。
+        html += chipHtml + ((chipHtml && metaParts.length && isCoinBoardLayout()) ? ' ' : '') + metaParts.join('');
         html += `</div>`;
-        if (catalogDisplay) html += `<div class="meta">${escapeHtml(catalogDisplay)}</div>`;
-        if (c.material) html += `<div class="meta">材质：${escapeHtml(c.material)}</div>`;
+
+        // ★ 第三行 = 目录编号 + 材质 + 直径 + 重量，合并成**一行**。
+        //   各字段之间用**全角空格 U+3000**（SPEC_SEP）分隔 —— 见函数开头那两个常量的说明：
+        //   分隔符只加在字段**之间**，所以字段缺失时不会留下连续全角空格 / 首尾全角空格
+        //   （只有一个字段时压根没有分隔符）。
+        //   直径/重量一律**原样照抄数据值**：数据里写 "外接圆直径30mm" 就照写
+        //   （不做正则抽数 / 单位补全 / 汉字剥离 —— 用户明确要求"不用过滤"）；
+        //   值内部一个字都不动，只用 TRIM_EDGE 去掉首尾空白。
+        //   只有字段在数据里不存在（undefined/null/空串/纯空白）时才不渲染它：
+        //   绝不填空字符串、undefined、null、0 或"未知"。
+        const specParts = [];
+        if (catalogDisplay) specParts.push(escapeHtml(catalogDisplay));
+        for (const v of [c.material, c.diameter, c.weight]) {
+            const s = (v === undefined || v === null) ? '' : String(v).replace(TRIM_EDGE, '');
+            if (s) specParts.push(escapeHtml(s));
+        }
+        if (specParts.length) html += `<div class="meta">${specParts.join(SPEC_SEP)}</div>`;
         if (c.remark) html += `<div class="meta">${escapeHtml(c.remark)}</div>`;
         html += `</div>`;
         html += `</div>`;
@@ -1079,15 +1133,18 @@ function openModal(imgSrc1, imgSrc2) {
     const sourceEl = lastModalSourceImg;
     const sourceSrc = (sourceEl && typeof sourceEl.getAttribute === 'function')
         ? sourceEl.getAttribute('src') : '';
-    // 来源本身就是"要显示的原图"且已加载完（文章配图）：连垫底图都不用，
-    // 顺带省掉一次注定 404 的缩略图请求（文章配图没有生成缩略图）
+    // ★ 比较一律走 sameImageUrl()（忽略查询串），不能再用 `===`：
+    //   右下角刷新按钮刷回来的图，元素 src 带着 `?retry=…` 重试尾巴，而 imgSrc1 是
+    //   数据里的裸地址 —— 直接比字符串会把这张图判成"不是同一个来源"，于是
+    //   sourceIsFull / canFly 双双落空，生长动画整段被跳过（退化成淡入）。
+    //   判据与 user 报的那个 bug 一一对应，见 core.js 里 sameImageUrl() 的注释。
     const sourceIsFull = !!sourceEl && sourceEl.tagName === 'IMG' && sourceEl.complete === true &&
-        (sourceEl.currentSrc || sourceSrc) === imgSrc1;
+        sameImageUrl(sourceEl.currentSrc || sourceSrc, imgSrc1);
     const backdrop = currentModalBackdrop(sourceIsFull);
     const canFly = !prefersReducedMotion() && !!sourceEl && sourceEl.isConnected &&
         typeof sourceEl.getBoundingClientRect === 'function' &&
-        // 来源可能挂在缩略图上，也可能直接是原图，两种都认
-        (sourceSrc === imgSrc1 || (!!backdrop && sourceSrc === backdrop));
+        // 来源可能挂在缩略图上，也可能直接是原图（刷回来的那张就是原图），两种都认
+        (sameImageUrl(sourceSrc, imgSrc1) || (!!backdrop && sameImageUrl(sourceSrc, backdrop)));
 
     cancelModalFlight();
     // 关键：关闭时给蒙版挂的 .modal-hide 若残留，蒙版会一直停在对它生效的

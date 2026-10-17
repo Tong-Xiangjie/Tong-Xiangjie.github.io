@@ -130,6 +130,23 @@ function getThumbUrl(path, subDir = 'comm') {
     return SITE_BASE + m[1] + '/thumb/' + dir + stem + '.jpg';
 }
 
+// ★ 判断两个图片地址是不是**同一张图**（忽略查询串 / 锚点）。
+//   为什么必须忽略查询串：图片重试（retryFailedImages）会把真实地址后面拼一个
+//   `?retry=<时间戳+随机串>` 再请求一次，加载成功后元素的 src 就永久带着这个尾巴；
+//   而所有 `openModal(...)` 的调用点传进来的都是**数据里的裸地址**。
+//   于是"用户点右下角刷新刷回来的这张图"和"数据里那张图"在做 `===` 比较时被判成
+//   两张不同的图，飞入动画的 canFly 判据因此不成立、整段生长动画被跳过，
+//   退化成蒙版淡入 —— 就是用户报的
+//   「假如图片一开始没有加载出来，然后通过右下角的刷新刷出来了，这时点开刚加载出来的
+//     图片变成大图的动画会消失，退化为淡入」。
+//   去查询串的写法与 imgFallback() 里那条 `cur.split('?')[0] !== nextUrl` 保持一致：
+//   本仓库的图片地址就是文件路径，唯一的查询串来源就是重试标记。
+function sameImageUrl(a, b) {
+    const cut = u => String(u || '').split('#')[0].split('?')[0];
+    const x = cut(a), y = cut(b);
+    return !!x && x === y;
+}
+
 // 属性值转义：URL 直接拼进 src="..." 时，引号会截断属性
 function escapeAttr(url) {
     if (!url) return '';
