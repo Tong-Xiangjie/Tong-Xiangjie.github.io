@@ -1,13 +1,14 @@
-// data/commemorative.js
+// data/commemorative_coins.js
 const coincommData = {
-    name: "纪念币",
+    name: "普通纪念币",
     icon: null,
-    desc: "Commemorative",
+    desc: "Circulating Commemorative Coin",
     detailFields: [
         { key: "country", label: "发行国家/地区" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
         { key: "mint", label: "造币厂" },
+        { key: "denomination", label: "面值" },
         { key: "material", label: "材质" },
         { key: "diameter", label: "直径" },
         { key: "weight", label: "重量" },
@@ -18,29 +19,28 @@ const coincommData = {
         { key: "grade", label: "评级分数" },
         { key: "price", label: "购入价格" },
         { key: "purchaseDate", label: "购入日期" },
-        { key: "catalogNumber", label: "目录编号" },
-        { key: "design", label: "设计元素" },
+        { key: "catalogNumber", label: "目录编号" }
     ],
     series: [
         // ==================== 建国35周年（5层） ====================
         {
-            seriesName: "中华人民共和国成立三十五周年普通纪念币",
+            seriesName: "中华人民共和国成立三十五周年纪念币",
             year: 1984,
             varieties: [
                 {
                     varietyName: "舞者欢庆",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 89387685,
                             country: "中华人民共和国",
                             year: 1984,
-                            issueDate: "1984年",
+                            issueDate: "1984年10月1日",
+                            denomination: "1元",
                             mint: "上海造币厂",
                             material: "铜镍合金",
                             diameter: "30mm",
                             weight: "9.32g",
                             edge: "连续丝齿",
-                            design: "",
                             mintage: "879.3万",
                             grade: "MS67",
                             gradingCompany: "PCGS",
@@ -58,27 +58,27 @@ const coincommData = {
         },
         // ==================== 国际和平年（4层） ====================
         {
-            seriesName: "国际和平年普通纪念币",
+            seriesName: "国际和平年纪念币",
             year: 1986,
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 20912587,
                     country: "中华人民共和国",
                     year: 1986,
                     issueDate: "1986年9月20日",
+                    denomination: "1元",
                     mint: "上海造币厂、沈阳造币厂",
-                    material: "铜镍合金（75%铜，25%镍）",
+                    material: "铜镍合金",
                     diameter: "30mm",
                     weight: "9.32g",
                     edge: "连续丝齿",
-                    design: "正面为中华人民共和国国徽（1950年9月20日启用版本），上方刊“中华人民共和国”国名，下方刊“1986”年号；背面主图为一位坐姿少女面朝右方伸展右臂，身旁环绕四只和平鸽，下方刊“国际和平年”主题字样，左侧有邓小平同志手书的“和平”二字，右下方标注“壹圆”面值。",
                     mintage: "2704.8万",
                     grade: "MS67",
                     gradingCompany: "ACG",
                     price: "69元",
                     purchaseDate: "2026年4月3日",
-                    catalogNumber: "KM# 130",
-                    remark: "",
+                    catalogNumber: "Sun-J6a",
+                    remark: "该币的正面图案为中华人民共和国国名、国徽和1986年的年号；其背面图案为“和平”雕像、“和平”及“国际和平年”的中文主题文字和“壹圆”等字样，一个少女坐在一块石头上，回首伸臂召唤着身边栖息和飞翔的和平鸽，旁边是邓小平手书的行书“和平”二字，少女身上飘逸顺滑的长裙和身后刀劈斧削般的巨石形成的刚与柔、轻盈与凝重、粗砺与顺滑等强烈对比，极具美感。",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1986gjhpn1-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1986gjhpn1-2.jpg"
                 }
@@ -86,27 +86,27 @@ const coincommData = {
         },
         // ==================== 内蒙古40周年 ====================
         {
-            seriesName: "内蒙古自治区成立四十周年普通纪念币",
+            seriesName: "内蒙古自治区成立四十周年纪念币",
             year: 1987,
             copies: [
                 {
                     copyId: 17389898,
                     country: "中华人民共和国",
                     year: 1987,
-                    issueDate: "1987年月日",
-                    mint: "",
+                    issueDate: "1987年7月30日",
+                    denomination: "1元",
+                    mint: "沈阳造币厂",
                     material: "铜镍合金",
                     diameter: "30mm",
                     weight: "9.3g",
                     edge: "连续丝齿",
-                    design: "",
-                    mintage: "",
+                    mintage: "905.4万",
                     grade: "MS67",
                     gradingCompany: "ACG",
                     price: "60元",
                     purchaseDate: "2026年9月4日",
-                    catalogNumber: "",
-                    remark: "",
+                    catalogNumber: "Sun-J7a",
+                    remark: "内蒙古自治区成立于1947年5月1日，是我国最早设立的省级民族自治地方。该枚纪念币正面图案为内蒙古自治区人大常委会办公楼图景及“内蒙古自治区成立四十周年”字样，并刊国名、年号；背面图案为放牧图及“内蒙古自治区成立四十周年”的蒙古文字及“1947－1987”字样并刊面额。",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/17389898-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/17389898-2.jpg"
                 }
@@ -114,26 +114,26 @@ const coincommData = {
         },
         // ==================== 建国40周年（4层） ====================
         {
-            seriesName: "中华人民共和国成立四十周年普通纪念币",
+            seriesName: "中华人民共和国成立四十周年纪念币",
             year: 1989,
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 20908817,
                     country: "中华人民共和国",
                     year: 1989,
                     issueDate: "1989年9月28日",
+                    denomination: "1元",
                     mint: "上海造币厂",
                     material: "铜镍合金",
                     diameter: "30mm",
                     weight: "9.32g",
                     edge: "连续丝齿",
-                    design: "正面为中华人民共和国国徽，上方刊“中华人民共和国”国名，下方刊“1989”年号；背面主图为人民大会堂，上方刊“中华人民共和国成立四十周年”字样，下方刊“1949-1989”及“壹圆”面值。",
                     mintage: "2100万",
                     grade: "MS67",
                     gradingCompany: "ACG",
                     price: "74元",
                     purchaseDate: "2025年12月14日",
-                    catalogNumber: "KM# 220",
+                    catalogNumber: "Sun-J14a",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1989gj40-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1989gj40-2.jpg"
@@ -142,35 +142,10 @@ const coincommData = {
         },
         // ==================== 亚运会系列（5层，有多品种） ====================
         {
-            seriesName: "第十一届亚洲运动会普通纪念币",
+            seriesName: "第十一届亚洲运动会纪念币",
             year: 1990,
             varieties: [
                 {
-                    varietyName: "射箭",
-                    copies: [
-                        {
-                            copyId: 19065585,
-                            country: "中华人民共和国",
-                            year: 1990,
-                            issueDate: "1990年8月22日",
-                            mint: "上海造币厂",
-                            material: "钢芯镀镍",
-                            diameter: "30mm",
-                            weight: "8.5g",
-                            edge: "",
-                            design: "",
-                            mintage: "1280.4万",
-                            grade: "MS67",
-                            gradingCompany: "ACG",
-                            price: "25元",
-                            purchaseDate: "2026年9月4日",
-                            catalogNumber: "",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-2.jpg"
-                        }
-                    ]
-                },{
                     varietyName: "舞剑",
                     copies: [
                         {
@@ -178,21 +153,46 @@ const coincommData = {
                             country: "中华人民共和国",
                             year: 1990,
                             issueDate: "1990年8月22日",
+                            denomination: "1元",
                             mint: "上海造币厂",
                             material: "钢芯镀镍",
                             diameter: "30mm",
                             weight: "8.5g",
                             edge: "",
-                            design: "",
                             mintage: "1280.4万",
                             grade: "MS67",
                             gradingCompany: "ACG",
                             price: "25元",
                             purchaseDate: "2026年9月4日",
-                            catalogNumber: "",
-                            remark: "",
+                            catalogNumber: "Sun-J15a",
+                            remark: "该套纪念币上首次使用英文。正面图案为中华人民共和国国名、第十一届亚运会会徽及北京工人体育场，背面图案为男舞剑运动员与吉祥物熊猫盼盼。",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065610-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065610-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "射箭",
+                    copies: [
+                        {
+                            copyId: 19065585,
+                            country: "中华人民共和国",
+                            year: 1990,
+                            issueDate: "1990年8月22日",
+                            denomination: "1元",
+                            mint: "上海造币厂",
+                            material: "钢芯镀镍",
+                            diameter: "30mm",
+                            weight: "8.5g",
+                            edge: "",
+                            mintage: "1280.4万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "25元",
+                            purchaseDate: "2026年9月4日",
+                            catalogNumber: "Sun-J16a",
+                            remark: "该套纪念币上首次使用英文。正面图案为中华人民共和国国名、第十一届亚运会会徽及北京工人体育场，背面图案为女射箭运动员与吉祥物熊猫盼盼。",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/19065585-2.jpg"
                         }
                     ]
                 }
@@ -200,7 +200,7 @@ const coincommData = {
         },
         // ==================== 伟人系列（5层，有多品种） ====================
         {
-            seriesName: "伟人系列普通纪念币",
+            seriesName: "伟人系列纪念币",
             year: 1993,
             varieties: [
                 {
@@ -210,20 +210,20 @@ const coincommData = {
                             copyId: 15777876,
                             country: "中华人民共和国",
                             year: 1996,
-                            issueDate: "1996年",
+                            issueDate: "1996年11月27日",
+                            denomination: "1元",
                             mint: "",
                             material: "钢芯镀镍",
                             diameter: "25mm",
                             weight: "6.05g",
                             edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
-                            design: "",
                             mintage: "1000万",
                             grade: "MS66",
                             gradingCompany: "ACG",
                             price: "30元",
                             purchaseDate: "2026年8月26日",
                             catalogNumber: "",
-                            remark: "",
+                            remark: "正面主景为朱德故居并刊国名及年号，背面为朱德素描像及纪念字样。",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1996zd-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1996zd-2.jpg"
                         }
@@ -234,29 +234,29 @@ const coincommData = {
         },
         // ==================== 珍稀动物系列（5层，有多品种） ====================
         {
-            seriesName: "珍稀动物普通纪念币",
+            seriesName: "珍稀动物纪念币",
             year: 1993,
             varieties: [
                 {
                     varietyName: "大熊猫",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 21535931,
                             country: "中华人民共和国",
                             year: 1993,
-                            issueDate: "1993年",
+                            issueDate: "1993年6月15日",
+                            denomination: "5元",
                             mint: "沈阳造币厂",
                             material: "紫铜",
                             diameter: "32mm",
                             weight: "13.2g",
                             edge: "连续丝齿",
-                            design: "正面为中华人民共和国国徽，上方刊“中华人民共和国”国名，下方刊“1993”年号；背面主图为一对嬉戏的大熊猫，上方刊“中国珍稀野生动物”字样，下方刊“大熊猫”及“5元”面值。",
                             mintage: "600万",
                             grade: "MS67",
                             gradingCompany: "ACG",
                             price: "118元",
                             purchaseDate: "2025年12月16日",
-                            catalogNumber: "KM# 469",
+                            catalogNumber: "Sun-J27b1",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1993panda-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1993panda-2.jpg"
@@ -268,26 +268,26 @@ const coincommData = {
         },
         // ==================== 抗战胜利50周年（4层） ====================
         {
-            seriesName: "中国抗日战争和世界反法西斯战争胜利五十周年普通纪念币",
+            seriesName: "中国抗日战争和世界反法西斯战争胜利五十周年纪念币",
             year: 1995,
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 19128535,
                     country: "中华人民共和国",
                     year: 1995,
                     issueDate: "1995年8月31日",
+                    denomination: "1元",
                     mint: "上海造币厂",
-                    material: "钢芯镀镍（约91%铁，1.2%碳，8%镍）",
+                    material: "钢芯镀镍",
                     diameter: "25mm",
                     weight: "6.05g",
                     edge: "“ZHONGGUO”与三枚五角星滚字（共两组）",
-                    design: "正面为长城、“中华人民共和国”国名及“1995”年号；背面为战士握枪与百姓挥刀杀敌的场景，背景有旗帜和地球，并刊面额、“1945-1995”字样、“中国人民抗日战争和世界反法西斯战争胜利五十周年”主题文字。",
                     mintage: "1000万",
                     grade: "MS68",
                     gradingCompany: "ACG",
                     price: "33元",
                     purchaseDate: "2026年4月7日",
-                    catalogNumber: "KM# 711",
+                    catalogNumber: "Sun-J31a",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1995fxs1-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1995fxs1-2.jpg"
@@ -296,14 +296,15 @@ const coincommData = {
         },
         // ==================== 迎接新世纪（4层） ====================
         {
-            seriesName: "迎接新世纪普通纪念币",
+            seriesName: "迎接新世纪纪念币",
             year: 2000,
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 86931613,
                     country: "中华人民共和国",
                     year: 2000,
                     issueDate: "2000年11月28日",
+                    denomination: "10元",
                     mint: "上海造币厂",
                     material: "双色铜合金（外环黄铜，内芯白铜）",
                     diameter: "25.5mm",
@@ -315,254 +316,39 @@ const coincommData = {
                     gradingCompany: "ACG",
                     price: "15元",
                     purchaseDate: "2026年3月2日",
-                    catalogNumber: "KM# 1300",
+                    catalogNumber: "Sun-J53a",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/2000xsj1-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/2000xsj1-2.jpg"
                 }
             ]
         },
-        // ==================== 奥运系列（5层，有多品种） ====================
-        {
-            seriesName: "第29届奥林匹克运动会纪念币",
-            year: 2022,
-            varieties: [
-                {
-                    varietyName: "第一组 游泳",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2008,
-                            issueDate: "2006年9月20日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF65",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-1-1-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-1-1-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第一组 举重",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2008,
-                            issueDate: "2006年9月20日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF69",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-1-2-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-1-2-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第二组 体操",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2007,
-                            issueDate: "2007年6月20日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF64",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-2-1-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-2-1-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第二组 射箭",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2007,
-                            issueDate: "2007年6月20日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF64",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-2-2-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-2-2-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第二组 乒乓球",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2007,
-                            issueDate: "2007年6月20日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF66",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-2-3-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-2-3-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第三组 足球",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2008,
-                            issueDate: "2008年6月18日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF68",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-3-1-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-3-1-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第三组 击剑",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2008,
-                            issueDate: "2008年6月18日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF68",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-3-2-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-3-2-2.jpg"
-                        }
-                    ]
-                },
-                {
-                    varietyName: "第三组 五项",
-                    copies: [
-                        {
-                            copyId: 1,
-                            country: "中华人民共和国",
-                            year: 2008,
-                            issueDate: "2008年6月18日",
-                            mint: "未知",
-                            material: "黄铜合金",
-                            diameter: "25mm",
-                            weight: "6.75g",
-                            edge: "交替丝齿",
-                            design: "",
-                            mintage: "2万",
-                            grade: "PF66",
-                            gradingCompany: "ACG",
-                            price: "57.5元",
-                            purchaseDate: "2026年7月10日",
-                            catalogNumber: "Unlisted",
-                            remark: "",
-                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-3-3-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/P2008-3-3-2.jpg"
-                        }
-                    ]
-                }
-            ]
-        },
         // ==================== 世界文化遗产系列（5层，有多品种） ====================
         {
-            seriesName: "世界文化遗产系列普通纪念币",
+            seriesName: "世界文化遗产系列纪念币",
             year: 2022,
             varieties: [
                 {
                     varietyName: "峨眉山-乐山大佛",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 90152939,
                             country: "中华人民共和国",
-                            year: 2022,
-                            issueDate: "2022年",
+                            year: 2023,
+                            issueDate: "2023年4月7日",
+                            denomination: "5元",
                             mint: "沈阳造币厂",
                             material: "铜合金",
                             diameter: "外接圆直径30mm",
                             weight: "11.56g",
                             edge: "交替丝齿",
-                            design: "正面主图为中华人民共和国国徽，内缘上方刊“中华人民共和国”国名，下方刊“2022”年号；背面主图为峨眉山-乐山大佛风景，刊“世界文化和自然遗产”字样及“5元”面值。",
                             mintage: "1.2亿",
                             grade: "MS69",
                             gradingCompany: "ACG",
                             price: "22.5元",
                             purchaseDate: "2026年4月8日",
                             catalogNumber: "Unlisted",
-                            remark: "",
+                            remark: "2022年1月21日，2022年普通纪念币发行计划发布，中国人民银行计划发行世界文化和自然遗产——峨眉山-乐山大佛普通纪念币。受疫情影响，该枚纪念币未能如期发行。2023年1月12日，2023年普通纪念币发行计划发布，世界文化和自然遗产——峨眉山-乐山大佛普通纪念币由2022年调整为2023年发布。纪念币正面所标注年号记为“2022”。",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/2023emei-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/2023emei-2.jpg"
                         }
@@ -572,23 +358,23 @@ const coincommData = {
                     varietyName: "黄山",
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 90158034,
                             country: "中华人民共和国",
-                            year: 2022,
-                            issueDate: "2022年",
+                            year: 2023,
+                            issueDate: "2023年4月7日",
+                            denomination: "5元",
                             mint: "沈阳造币厂",
                             material: "铜合金",
                             diameter: "外接圆直径30mm",
                             weight: "11.56g",
                             edge: "交替丝齿",
-                            design: "正面主图为中华人民共和国国徽，内缘上方刊“中华人民共和国”国名，下方刊“2022”年号；背面主图为黄山风景（迎客松），刊“世界文化和自然遗产”字样及“5元”面值。",
                             mintage: "1.2亿",
                             grade: "MS69",
                             gradingCompany: "ACG",
                             price: "22.5元",
                             purchaseDate: "2026年4月8日",
                             catalogNumber: "Unlisted",
-                            remark: "",
+                            remark: "2022年1月21日，2022年普通纪念币发行计划发布，中国人民银行计划发行世界文化和自然遗产——黄山普通纪念币。受疫情影响，该枚纪念币未能如期发行。2023年1月12日，2023年普通纪念币发行计划发布，世界文化和自然遗产——黄山普通纪念币由2022年调整为2023年发布。纪念币正面所标注年号记为“2022”。",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/2023huangshan-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/2023huangshan-2.jpg"
                         }
@@ -598,7 +384,7 @@ const coincommData = {
         },
         // ==================== 国家公园系列（5层，有多品种） ====================
         {
-            seriesName: "国家公园系列普通纪念币",
+            seriesName: "国家公园系列纪念币",
             year: 2023,
             varieties: [
                 {
@@ -609,16 +395,16 @@ const coincommData = {
                     },
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 90195487,
                             country: "中华人民共和国",
                             year: 2023,
-                            issueDate: "2023年",
+                            issueDate: "2023年8月29日",
+                            denomination: "10元",
                             mint: "沈阳造币厂",
                             material: "双金属",
                             diameter: "27mm",
                             weight: "9.2g",
                             edge: "交替丝齿",
-                            design: "正面主图为中华人民共和国国徽，上方刊“中华人民共和国”国名，下方刊“2023”年号；背面主图为三江源国家公园自然景观，刊“三江源国家公园”字样及“10元”面值。",
                             mintage: "8000万",
                             grade: "MS69",
                             gradingCompany: "ACG",
@@ -639,16 +425,16 @@ const coincommData = {
                     },
                     copies: [
                         {
-                            copyId: 1,
+                            copyId: 90185483,
                             country: "中华人民共和国",
                             year: 2023,
-                            issueDate: "2023年",
+                            issueDate: "2023年8月29日",
+                            denomination: "10元",
                             mint: "沈阳造币厂",
                             material: "双金属",
                             diameter: "27mm",
                             weight: "9.2g",
                             edge: "交替丝齿",
-                            design: "正面主图为中华人民共和国国徽，上方刊“中华人民共和国”国名，下方刊“2023”年号；背面主图为大熊猫国家公园自然景观，刊“大熊猫国家公园”字样及“10元”面值。",
                             mintage: "8000万",
                             grade: "MS69",
                             gradingCompany: "ACG",

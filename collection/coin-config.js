@@ -8,10 +8,10 @@ const coinCategoryTree = [
         //   dataKey、没拿到 source 的代码都会指错板块，价格列表按分类筛选也得靠
         //   (dataKey, source) 两字段一起比才不串。改成全局唯一的名字，这类隐患从根上没了。
         //   dataVar 仍是 coincommData（数据文件里的变量名不变），data-loader 用它取变量。
-        dataKey: 'coinCommemorativeData',
-        dataVar: 'coincommData',
-        dataFile: '../coincollection/data/commemorative_coins.js',
-        children: null
+        children: [
+            { id: 'coincomm', name: '普通纪念币', dataKey: 'coincommData', dataFile: '../coincollection/data/commemorative_coins.js' },
+            { id: 'pfcoincomm', name: '精制纪念币', dataKey: 'pfcoincommData', dataFile: '../coincollection/data/commemorative_coins_proof.js' }
+        ]
     },
     {
         id: 'circulating_coins',
