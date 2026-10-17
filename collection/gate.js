@@ -15,7 +15,7 @@
  *      取令牌（`#k=` 优先，兼容 `?k=`）→ 同步把 k 参数从地址栏抹掉
  *      （**只删 k，其余 hash 深链路由原样保留**）→ 异步 SHA-256 →
  *      与配置区里的哈希做**恒定时间比较** → 对就加 `gate-ok` 并写标记；
- *      不对就保持隐藏、把页面内容整个换掉，只显示「暂无访问权限」。
+ *      不对就保持隐藏、把页面内容整个换掉，只显示「你无权访问。」。
  *
  * 为什么这样写：
  *   · 隐藏开关是 html 上的 `gate-ok` 类，兜底 CSS 写在 HTML 的 <head> 里，
@@ -42,7 +42,7 @@
     var STORAGE_KEY = 'collection-gate';   // 带命名空间，避开站点既有键
     var MARK_LEN = 16;                     // 标记 = 当前哈希的前 16 位十六进制
     var PARAM = 'k';                       // 令牌参数名：#k=<令牌> / ?k=<令牌>
-    var DENIED_TEXT = '暂无访问权限';       // 未授权时页面里唯一可见的文字（逐字）
+    var DENIED_TEXT = '你无权访问。';       // 未授权时页面里唯一可见的文字（逐字）
     var DENIED_TITLE = '无法访问';          // 未授权时的 document.title（逐字，故意不带句号）
     var ICON_SRC = '/collection/block.svg'; // 未授权页的图标（站点主人自己的画；加载失败就藏掉）
     // ───────────────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@
     // ①b 本地开发与"本地文件打开"一律放行，与 head 里那份判定完全一致：
     //     file: 协议的 location.hostname 是空串，既不在 localhost 白名单里、
     //     也不是安全上下文（crypto.subtle 不可用），不特判的话双击打开本地 HTML
-    //     会直接看到「暂无访问权限」—— 站点主人就是这么用的，必须放行。
+    //     会直接看到「你无权访问。」—— 站点主人就是这么用的，必须放行。
     //     这里只加类、**不写 localStorage 标记**（本地放行不污染线上判定）。
     if (location.protocol === 'file:') { html.classList.add('gate-ok'); return; }
     var hostName = location.hostname.replace(/^\[|\]$/g, '');
