@@ -31,7 +31,6 @@
         --gate-in-bd: #9aa3ad;
         --gate-btn-bg: #1f2328;
         --gate-btn-fg: #f6f7f9;
-        --gate-err: #b3261e;
     }
     /* ① 系统偏好：浅色 —— 背景 + 图标成对（同一组选择器） */
     @media (prefers-color-scheme: light) {
@@ -44,8 +43,7 @@
             --gate-in-bd: #9aa3ad;
             --gate-btn-bg: #1f2328;
             --gate-btn-fg: #f6f7f9;
-            --gate-err: #b3261e;
-        }
+            }
     }
     /* ① 系统偏好：暗色 —— 背景 + 图标成对 */
     @media (prefers-color-scheme: dark) {
@@ -58,8 +56,7 @@
             --gate-in-bd: #5b6673;
             --gate-btn-bg: #e8eaed;
             --gate-btn-fg: #14171c;
-            --gate-err: #ff8a80;
-        }
+            }
     }
     /* ② 站点主题 html[data-color-scheme]（优先级高于媒体查询，所以**必须自带图标**）：
           暗色 —— 背景 + 图标成对 */
@@ -72,7 +69,6 @@
         --gate-in-bd: #5b6673;
         --gate-btn-bg: #e8eaed;
         --gate-btn-fg: #14171c;
-        --gate-err: #ff8a80;
     }
     /* ② 站点主题：浅色 —— 背景 + 图标成对
           （少写 --gate-icon 这一行，就是用户实测到的"白底白画"） */
@@ -85,7 +81,6 @@
         --gate-in-bd: #9aa3ad;
         --gate-btn-bg: #1f2328;
         --gate-btn-fg: #f6f7f9;
-        --gate-err: #b3261e;
     }
     /* 关 JS（或脚本还没跑完）时的提示：画在根元素上，不依赖 body 是否存在。
        背景/前景全部取自上面那组变量 ⇒ 与图标**必然同源**。 */
@@ -160,31 +155,42 @@
         max-width: 20rem;
         margin: 1.25rem 0 0;
     }
+    .gate-denied-box .gate-denied-input,
+    .gate-denied-box .gate-denied-submit {
+        /* 输入框与按钮**等高**（2rem = 32px，box-sizing:border-box 把边框算进去）、
+           **同圆角**、内边距收紧 —— 改前是 padding .5rem + font 1rem，实测 43.59px 高，
+           现在压到 32px。用户要的"矮一点"指的是**高度**，不是字号。 */
+        box-sizing: border-box;
+        height: 2rem;
+        line-height: 1;
+        font-family: inherit;
+        border-radius: .375rem;
+    }
     .gate-denied-box .gate-denied-input {
         flex: 1 1 auto;
         min-width: 0;
-        padding: .5rem .6rem;
-        font: inherit;
-        border-radius: .375rem;
+        padding: 0 .55rem;
+        /* ★ 输入框字号**必须 ≥16px**：iOS Safari 对 font-size < 16px 的输入框，
+           聚焦时会**自动放大整页**（页面会跳一下、还得手动缩回去）。
+           所以这里固定 1rem，不要为了"看起来更小"往下调。 */
+        font-size: 1rem;
         border: 1px solid var(--gate-in-bd);
         background: var(--gate-in-bg);
         color: var(--gate-in-fg);
     }
     .gate-denied-box .gate-denied-submit {
         flex: 0 0 auto;
-        padding: .5rem .9rem;
-        font: inherit;
-        border-radius: .375rem;
+        padding: 0 .8rem;
+        /* 按钮不可聚焦、不触发 iOS 自动放大，所以可以比输入框小一号（高度仍与输入框一致） */
+        font-size: .875rem;
         border: 1px solid var(--gate-btn-bg);
         background: var(--gate-btn-bg);
         color: var(--gate-btn-fg);
         cursor: pointer;
     }
-    .gate-denied-box .gate-denied-error {
-        margin: .75rem 0 0;
-        color: var(--gate-err);
-    }
-    .gate-denied-box .gate-denied-error[hidden] {
+    /* 注意：这里**没有** .gate-denied-error 之类的错误文本样式 —— 输错口令走原生 alert()，
+       页面上不放任何错误文本 ⇒ 一次失败尝试零版面变化（图片不会移位）。 */
+    .gate-denied-box [hidden] {
         display: none !important;
     }
     </style>

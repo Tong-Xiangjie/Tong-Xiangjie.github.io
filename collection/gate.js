@@ -57,8 +57,14 @@
     var DENIED_TEXT = '暂无访问权限';       // 未授权页上那句提示（逐字）
     var DENIED_TITLE = '无法访问';          // 未授权时的 document.title（逐字，故意不带句号）
     var ICON_SRC = '/collection/block.svg'; // 未授权页的图标（站点主人自己的画；加载失败就藏掉）
-    var WRONG_TEXT = '口令不正确';          // 输入错口令时唯一的中性提示（不透露"接近/不接近"）
-    var SUBMIT_TEXT = '提交';
+    // 输错口令时的提示走**原生 alert**，页面上**不放任何错误文本节点**：
+    // 内联一行字会把 flex 居中的整块内容顶偏 —— 实测（改前）图标/文案/输入框/按钮
+    // 整体位移 18.8px，用户明确要求"防止出现一排字导致图片整体移位"。
+    // 文案逐字由 CDP 在对话框上核对（对话框文案不进 DOM、不占版面）。
+    var WRONG_TEXT = '非法密钥！';          // 逐字，全角感叹号
+    var SUBMIT_TEXT = '验证';
+    // 占位提示（逐字，六个汉字）：只说"做什么"，不含长度/格式/示例 —— 不能透露口令的形态。
+    var INPUT_PLACEHOLDER = '请输入通行密钥';
     var DEBUG = /(?:^|[?&])gatedebug=1(?:&|$)/.test(location.search);  // 只有显式打开才打日志
     // ───────────────────────────────────────────────────────────────────────
 
@@ -77,11 +83,11 @@
     //    不可能再发生（用户实测过这个 bug：背景写在两套来源里、图标只写一套）。
     //    注意：这份和 gate.mjs 注入到 <head> 的那份（GUARD_STYLE）必须口径一致。
     var DENIED_CSS = [
-        ':root{--gate-bg:#f6f7f9;--gate-fg:#1f2328;--gate-icon:brightness(0);--gate-in-bg:#ffffff;--gate-in-fg:#1f2328;--gate-in-bd:#9aa3ad;--gate-btn-bg:#1f2328;--gate-btn-fg:#f6f7f9;--gate-err:#b3261e;}',
-        '@media (prefers-color-scheme: light){:root{--gate-bg:#f6f7f9;--gate-fg:#1f2328;--gate-icon:brightness(0);--gate-in-bg:#ffffff;--gate-in-fg:#1f2328;--gate-in-bd:#9aa3ad;--gate-btn-bg:#1f2328;--gate-btn-fg:#f6f7f9;--gate-err:#b3261e;}}',
-        '@media (prefers-color-scheme: dark){:root{--gate-bg:#14171c;--gate-fg:#e8eaed;--gate-icon:brightness(0) invert(1);--gate-in-bg:#1b1f26;--gate-in-fg:#e8eaed;--gate-in-bd:#5b6673;--gate-btn-bg:#e8eaed;--gate-btn-fg:#14171c;--gate-err:#ff8a80;}}',
-        'html[data-color-scheme="dark"]{--gate-bg:#14171c;--gate-fg:#e8eaed;--gate-icon:brightness(0) invert(1);--gate-in-bg:#1b1f26;--gate-in-fg:#e8eaed;--gate-in-bd:#5b6673;--gate-btn-bg:#e8eaed;--gate-btn-fg:#14171c;--gate-err:#ff8a80;}',
-        'html[data-color-scheme="light"]{--gate-bg:#f6f7f9;--gate-fg:#1f2328;--gate-icon:brightness(0);--gate-in-bg:#ffffff;--gate-in-fg:#1f2328;--gate-in-bd:#9aa3ad;--gate-btn-bg:#1f2328;--gate-btn-fg:#f6f7f9;--gate-err:#b3261e;}',
+        ':root{--gate-bg:#f6f7f9;--gate-fg:#1f2328;--gate-icon:brightness(0);--gate-in-bg:#ffffff;--gate-in-fg:#1f2328;--gate-in-bd:#9aa3ad;--gate-btn-bg:#1f2328;--gate-btn-fg:#f6f7f9;}',
+        '@media (prefers-color-scheme: light){:root{--gate-bg:#f6f7f9;--gate-fg:#1f2328;--gate-icon:brightness(0);--gate-in-bg:#ffffff;--gate-in-fg:#1f2328;--gate-in-bd:#9aa3ad;--gate-btn-bg:#1f2328;--gate-btn-fg:#f6f7f9;}}',
+        '@media (prefers-color-scheme: dark){:root{--gate-bg:#14171c;--gate-fg:#e8eaed;--gate-icon:brightness(0) invert(1);--gate-in-bg:#1b1f26;--gate-in-fg:#e8eaed;--gate-in-bd:#5b6673;--gate-btn-bg:#e8eaed;--gate-btn-fg:#14171c;}}',
+        'html[data-color-scheme="dark"]{--gate-bg:#14171c;--gate-fg:#e8eaed;--gate-icon:brightness(0) invert(1);--gate-in-bg:#1b1f26;--gate-in-fg:#e8eaed;--gate-in-bd:#5b6673;--gate-btn-bg:#e8eaed;--gate-btn-fg:#14171c;}',
+        'html[data-color-scheme="light"]{--gate-bg:#f6f7f9;--gate-fg:#1f2328;--gate-icon:brightness(0);--gate-in-bg:#ffffff;--gate-in-fg:#1f2328;--gate-in-bd:#9aa3ad;--gate-btn-bg:#1f2328;--gate-btn-fg:#f6f7f9;}',
         'html,body{margin:0;padding:0;}',
         '.gate-denied-box{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483000;',
         'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;text-align:center;',
@@ -89,61 +95,56 @@
         'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif;',
         'font-size:16px;line-height:1.6;-webkit-user-select:text;user-select:text;}',
         '.gate-denied-box *{visibility:visible !important;}',
-        '.gate-denied-icon{display:block;width:160px;max-width:60vw;height:auto;margin:0 0 1.1rem;filter:var(--gate-icon);}',
-        '.gate-denied-text{margin:0;max-width:100%;}',
-        '.gate-denied-form{display:flex;gap:.5rem;width:100%;max-width:20rem;margin:1.25rem 0 0;}',
-        '.gate-denied-input{flex:1 1 auto;min-width:0;padding:.5rem .6rem;font:inherit;border-radius:.375rem;',
+        // ⚠ 组件规则必须与 gate.mjs 注入到 <head> 的那份（GUARD_STYLE）**选择器写法完全一致**
+        //   （都带 .gate-denied-box 前缀）。原因：_被拒文档自己那份样式**排在 head 那份后面**，
+        //   只有两者**特异度相同**时才能由"后写的赢"来决定结果；早先这里写成
+        //   .gate-denied-icon / .gate-denied-input（0,1,0），而 head 那份是
+        //   .gate-denied-box .gate-denied-icon（0,2,0）—— 于是 head 那份永远赢，
+        //   只改这份 CSS 在页面上**一点效果都没有**（实测：把 height 改成 44px，量出来还是 32px）。
+        '.gate-denied-box .gate-denied-icon{display:block;width:160px;max-width:60vw;height:auto;margin:0 0 1.1rem;filter:var(--gate-icon);}',
+        '.gate-denied-box .gate-denied-text{margin:0;max-width:100%;}',
+        '.gate-denied-box .gate-denied-form{display:flex;gap:.5rem;width:100%;max-width:20rem;margin:1.25rem 0 0;}',
+        // 输入框与按钮**等高**（都 2rem = 32px，box-sizing:border-box 让边框也算进去）、
+        // **同圆角**、内边距收紧（左右 .55rem / .8rem、上下 0）——
+        // 改前是 padding .5rem + font 1rem ⇒ 实测 43.59px 高，现在压到 32px。
+        // ★ 用户要的"矮一点"指的是**高度**，不是字号。
+        '.gate-denied-box .gate-denied-input,.gate-denied-box .gate-denied-submit{box-sizing:border-box;height:2rem;line-height:1;border-radius:.375rem;font-family:inherit;}',
+        // ★ 输入框字号**必须 ≥16px**：iOS Safari 对 font-size < 16px 的输入框，
+        //   聚焦时会**自动放大整页**（页面跳一下、还得手动缩回去）—— 所以固定 1rem。
+        '.gate-denied-box .gate-denied-input{flex:1 1 auto;min-width:0;padding:0 .55rem;font-size:1rem;',
         'border:1px solid var(--gate-in-bd);background:var(--gate-in-bg);color:var(--gate-in-fg);}',
-        '.gate-denied-submit{flex:0 0 auto;padding:.5rem .9rem;font:inherit;border-radius:.375rem;',
+        // 按钮不可聚焦、不触发 iOS 自动放大，所以可以比输入框小一号（高度仍与输入框一致）
+        '.gate-denied-box .gate-denied-submit{flex:0 0 auto;padding:0 .8rem;font-size:.875rem;',
         'border:1px solid var(--gate-btn-bg);background:var(--gate-btn-bg);color:var(--gate-btn-fg);cursor:pointer;}',
-        '.gate-denied-error{margin:.75rem 0 0;color:var(--gate-err);}',
-        '.gate-denied-error[hidden],[hidden]{display:none !important;}'
+        // 注意：这里**没有** .gate-denied-error 之类的错误文本样式 —— 错误提示走 alert()。
+        // [hidden] 只留给"拿不到 crypto.subtle 就把整个表单藏起来"那条路。
+        '.gate-denied-box [hidden]{display:none !important;}'
     ].join('');
 
     var DENIED_INNER = '<img class="gate-denied-icon" src="' + ICON_SRC + '" alt="" aria-hidden="true">'
         + '<p class="gate-denied-text">' + DENIED_TEXT + '</p>'
-        // onsubmit="return false"：万一下面那段脚本没绑上（脚本被禁等），按回车也**不会**把
-        // 表单当 GET 提交走（否则地址栏会变成 ...index.html?，既难看又像"泄漏了参数"）
+        // onsubmit="return false"：万一下面那段绑定没挂上（比如 document.open 被禁），
+        // 按回车也**不会**把表单当 GET 提交走（否则地址栏会变成 ...index.html?，既难看又像"泄漏了参数"）
         + '<form class="gate-denied-form" autocomplete="off" onsubmit="return false">'
-        + '<input class="gate-denied-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="访问口令">'
+        + '<input class="gate-denied-input" type="text" placeholder="' + INPUT_PLACEHOLDER + '"'
+        + ' autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="通行密钥">'
         + '<button class="gate-denied-submit" type="submit">' + SUBMIT_TEXT + '</button>'
-        + '</form>'
-        + '<p class="gate-denied-error" hidden>' + WRONG_TEXT + '</p>';
+        + '</form>';
+    // ★ 提示盒里**没有**错误文本节点：输错口令走 wrAlert()（原生对话框）。
+    //   这样一次失败尝试**零版面变化**（图片/文案/输入框/按钮的 rect 逐值不变）。
 
-    // 输入框路径与链接路径共用同一套算法常量（哈希表 / 存储键 / 标记长度）
-    var SUBMIT_JS = '(function(){'
-        + 'var H=' + JSON.stringify(GATE_HASHES) + ';'
-        + 'var K=' + JSON.stringify(STORAGE_KEY) + ';'
-        + 'var L=' + MARK_LEN + ';'
-        + 'function hex(u8){var o="",i;for(i=0;i<u8.length;i++)o+=(u8[i]<16?"0":"")+u8[i].toString(16);return o;}'
-        + 'function ct(a,b){if(typeof a!=="string"||typeof b!=="string")return false;'
-        + 'var n=a.length>b.length?a.length:b.length,d=a.length^b.length,i;'
-        + 'for(i=0;i<n;i++){d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);}return d===0;}'
-        + 'function run(){'
-        + 'var f=document.querySelector(".gate-denied-form"),inp=document.querySelector(".gate-denied-input"),'
-        + 'err=document.querySelector(".gate-denied-error"),sub=window.crypto&&window.crypto.subtle,busy=false;'
-        // 拿不到 crypto.subtle（非安全上下文）就**不显示输入框**：没法校验，给了只会误导
-        + 'if(!f||!inp||!sub||typeof sub.digest!=="function"||typeof window.TextEncoder!=="function"){if(f)f.hidden=true;return;}'
-        + 'f.addEventListener("submit",function(ev){'
-        + 'ev.preventDefault();if(busy)return;var v=inp.value;if(!v)return;busy=true;err.hidden=true;'
-        + 'var bytes;try{bytes=new TextEncoder().encode(v);}catch(e){busy=false;err.hidden=false;return;}'
-        + 'sub.digest("SHA-256",bytes).then(function(d){'
-        + 'var h=hex(new Uint8Array(d)),m=null,i;'
-        + 'for(i=0;i<H.length;i++){if(ct(h,H[i])&&m===null)m=H[i];}'
-        + 'if(m===null){busy=false;err.hidden=false;inp.select();return;}'
-        + 'try{localStorage.setItem(K,m.slice(0,L));}catch(e){}'
-        + 'var clean=location.pathname+location.search+location.hash;'
-        + 'try{location.replace(clean);}catch(e){location.reload();}'
-        + '},function(){busy=false;err.hidden=false;});'
-        + '});}'
-        // ★ 这段脚本放在 body 末尾（提示盒之后），所以元素一定已经在了，直接 run() 就行。
-        //   不能等 DOMContentLoaded：document.close() 之后那个事件不一定还会来 ——
-        //   实测（DOMContentLoaded 版本）表单根本没绑上，回车会走浏览器原生 GET 提交。
-        + 'run();'
-        + '})();';
+    // ★ 这里**不再**往被拒文档里内联一段提交脚本：写进去的文档里一个 <script> 都没有。
+    //   为什么：那段脚本的源码文本会算进 document.body.textContent（"非法密钥！"这类
+    //   字面量会被当成页面文本），而且等于把"哈希表 + 比较算法"又抄了第二份。
+    //   现在提交行为由**本文件**的 bindForm() 在 document.close() 之后**同步**绑上：
+    //     · 元素此时一定已经在了（同一段代码里紧接着就重新触发过图标的 src）；
+    //     · 不用等 DOMContentLoaded（document.close() 之后那个事件不一定还会来，
+    //       早先的版本就是因此没绑上、回车走了浏览器原生 GET 提交）；
+    //     · 链接路径与输入框路径共用**同一份** verifyToken()/ctEqual()，不再有第二份实现。
+    //   安全网：DENIED_INNER 的表单上留着 onsubmit="return false"。
 
     function deniedDoc(scheme) {
-        // ★ 结构：<head> 只有 meta/title/style，脚本放 <body> 末尾。
+        // ★ 结构：<head> 只有 meta/title/style，<body> 只有提示盒 —— 零脚本。
         //   ⚠ 这里**不写 <html> 上的 class 由外层负责**：写出来的 <html> 起始标签会被
         //     解析器并到"当前那个 html 元素"上（属性合并），所以 class="gate-denied"
         //     与 data-color-scheme 都会落到同一个根元素上 —— 正是我们要的。
@@ -152,9 +153,7 @@
             + '<meta name="robots" content="noindex,nofollow">'
             + '<title>' + DENIED_TITLE + '</title>'
             + '<style>' + DENIED_CSS + '</style>'
-            + '</head><body><div class="gate-denied-box" role="alert">' + DENIED_INNER + '</div>'
-            + '<script>' + SUBMIT_JS + '</' + 'script>'
-            + '</body></html>';
+            + '</head><body><div class="gate-denied-box" role="alert">' + DENIED_INNER + '</div></body></html>';
     }
 
     // ── 入口判定：**必须在所有定义之后调用** ────────────────────────────────
@@ -252,6 +251,9 @@
                 var iconEl = document.querySelector('.gate-denied-icon');
                 if (iconEl) iconEl.src = iconEl.getAttribute('src');
             } catch (e4) { }
+            // 表单在这里**同步**绑上（写进去的文档里没有脚本，见 deniedDoc 上面那段注释）。
+            // 元素此刻一定已经在了：上面刚查过图标元素就是因为这个。
+            try { bindForm(document.querySelector('.gate-denied-box')); } catch (e5) { }
             return;
         } catch (e) { log('[collection-gate] document.write failed', e); }
         // 兜底（document.open/write 被环境禁掉时）：清空 DOM + 塞进同一份提示盒。
@@ -274,31 +276,47 @@
         } catch (e2) { }
     }
 
-    // 兜底路径用：给已经塞进 DOM 的提示盒绑上同一个提交行为
+    // ── 给提示盒里的表单绑提交行为（主路径与兜底路径共用这一个实现）──────────
+    // ★ 失败提示走**原生 alert**，页面上不放错误文本 ⇒ 一次失败尝试**零版面变化**
+    //   （用户实测过内联那行字会把整块内容顶偏 18.8px）。
+    // ★ 校验走 verifyToken()：与链接令牌**同一条路径**（同一份 SHA-256 + 同一份
+    //   恒定时间比较），不存在"输入框那条路更松"的可能。
     function bindForm(root) {
+        if (!root) return;
         var img = root.querySelector('.gate-denied-icon');
         if (img) img.onerror = function () { if (img.parentNode) img.parentNode.removeChild(img); };
         var f = root.querySelector('.gate-denied-form');
-        if (!f) return;
         var inp = root.querySelector('.gate-denied-input');
-        var err = root.querySelector('.gate-denied-error');
+        if (!f || !inp) return;
         var subtle = (window.crypto && window.crypto.subtle) || null;
+        // 拿不到 crypto.subtle（非安全上下文）就**不显示输入框**：没法校验，给了只会误导
         if (!subtle || typeof subtle.digest !== 'function' || typeof window.TextEncoder !== 'function') {
             f.hidden = true;
             return;
         }
+        var busy = false;
         f.addEventListener('submit', function (ev) {
             ev.preventDefault();
+            if (busy) return;
             if (!inp.value) return;
-            err.hidden = true;
+            busy = true;
             verifyToken(inp.value, subtle, function (mark) {
-                if (!mark) { err.hidden = false; inp.select(); return; }
+                busy = false;
+                if (!mark) {
+                    inp.select();
+                    try { wrAlert(); } catch (e) { }
+                    return;
+                }
                 allow(mark);
                 var cleanUrl = location.pathname + location.search + location.hash;
                 try { location.replace(cleanUrl); } catch (e2) { location.reload(); }
             });
         });
     }
+
+    // 输错口令的唯一反馈：原生对话框（不进 DOM ⇒ 不占版面、零位移）。
+    // 文案中性：不透露"接近 / 不接近"，也不给次数、长度之类的暗示。
+    function wrAlert() { window.alert(WRONG_TEXT); }
 
     // ── 校验一条口令 ────────────────────────────────────────────────────────
     // 链接路径与输入框路径**走的是同一个函数**：同一次 SHA-256 + 同一次

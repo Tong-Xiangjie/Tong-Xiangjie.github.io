@@ -40,9 +40,11 @@ const MARK_LEN = 16;
 const KEY = 'collection-gate';
 const DENIED_TEXT = '暂无访问权限';
 const DENIED_TITLE = '无法访问';
-const SUBMIT_TEXT = '提交';           // 被拒页上口令框的按钮文字
-const WRONG_TEXT = '口令不正确';       // 输错口令时唯一那句中性提示
-// 被拒页上正常应该看到的**全部**文字：一句提示 + 一个按钮（输入框是空的，没有文本节点）
+const SUBMIT_TEXT = '验证';           // 被拒页上口令框的按钮文字（逐字）
+const WRONG_TEXT = '非法密钥！';       // 输错口令时原生 alert 的文案（逐字，全角感叹号）
+const PLACEHOLDER = '请输入通行密钥';   // 输入框的 placeholder（逐字，六个汉字）
+// 被拒页上正常应该看到的**全部**文字：一句提示 + 一个按钮
+// （placeholder **不算**可见文本，它是属性、不是文本节点 —— 别把它算进来）
 const DENIED_VISIBLE = DENIED_TEXT + SUBMIT_TEXT;
 const CONSOLE_PREFIX = '[collection-gate]';   // 我们自己的 console 前缀（默认一条都不许有）
 const GATE_SRC_TAG = './gate.js';   // 入口里必须用相对路径引用门禁脚本（见 verify-vendor 与 file:// 两条理由）
@@ -55,6 +57,15 @@ const ok = (c, m, extra) => {
 };
 const rel = p => relative(ROOT, p).split(sep).join('/');
 const sha256 = s => createHash('sha256').update(s, 'utf8').digest('hex');
+
+// placeholder 之类的"给用户看的提示"**不许**透露口令的形态：长度、格式、示例、内部参数名都不行。
+// （用户要的是"只说做什么"，不是"告诉我们口令长什么样"。）
+const HINT_WORDS = ['43', '位', '格式', '示例', '例如', '比如', '#k=', 'k=', '哈希', 'SHA', '长度', '字符', '令牌', '口令', 'token'];
+function verifyNoHints(text, label) {
+    const hit = HINT_WORDS.filter(s => String(text).includes(s));
+    ok(hit.length === 0,
+        `★ ${label} 里没有任何长度/格式/示例/内部参数名之类的暗示（命中 ${JSON.stringify(hit)}）`);
+}
 
 // ── 极简 PNG 解码 + 像素反差测量 ────────────────────────────────────────────
 // 「未授权页的图标/文字与背景反差够不够」必须**真的量像素**，不能只看 computed
@@ -359,6 +370,84 @@ ok(missing.length === 0,
     ok(deniedBlocks.length >= 5, `★ [gate.js 被拒文档] 同样是五组变量块（实际 ${deniedBlocks.length} 组）`);
     ok(/--gate-icon:brightness\(0\)/.test(implCss) && /--gate-icon:brightness\(0\) invert\(1\)/.test(implCss),
         '★ [gate.js 被拒文档] 同样用 brightness(0) / brightness(0) invert(1) 强制纯黑/纯白');
+
+    // ── ★ 两份 CSS 的**选择器写法必须一模一样**（这里防的是一个真踩过的坑）──────
+    // 被拒文档自己那份 <style> 排在 head 那份**后面**，所以只有**特异度相同**时
+    // 才轮得到它说了算。早先被拒文档里写的是 .gate-denied-input（0,1,0），head 那份
+    // 是 .gate-denied-box .gate-denied-input（0,2,0）⇒ head 永远赢，
+    // **单独改被拒文档那份 CSS 在页面上一点效果都没有**（实测：height 改成 44px，
+    // 量出来还是 32px）。这条断言把两边的选择器集合钉成完全相同。
+    {
+        const COMPONENTS = ['gate-denied-icon', 'gate-denied-text', 'gate-denied-form', 'gate-denied-input', 'gate-denied-submit'];
+        const componentSelectors = (cssText) => {
+            const out = new Set(), bad = [];
+            const stripped = cssText.replace(/\/\*[\s\S]*?\*\//g, '');   // 先去掉 CSS 注释，注释里也有类名
+            for (const m of stripped.matchAll(/([^{}@;]+)\{/g)) {
+                for (const raw of m[1].split(',')) {
+                    const s = raw.trim();
+                    if (!s || s.startsWith('@')) continue;
+                    if (!COMPONENTS.some(c => s.includes(c)) && !s.includes('[hidden]')) continue;
+                    out.add(s);
+                    if (!/^\.gate-denied-box (?:\.gate-denied-(?:icon|text|form|input|submit)|\[hidden\])$/.test(s)) bad.push(s);
+                }
+            }
+            return { list: [...out].sort(), bad };
+        };
+        // head 那份：从 collection/index.html 的 <style id="collection-gate-guard"> 里取
+        const headCss = (/<style id="collection-gate-guard">([\s\S]*?)<\/style>/.exec(readFileSync(join(COLLECTION, 'index.html'), 'utf8')) || [, ''])[1];
+        // 被拒文档那份：implCss 是 JS 源码里那段数组字面量，把所有单引号字符串拼起来才是 CSS
+        const implCssText = [...implCss.matchAll(/'([^']*)'/g)].map(m => m[1]).join('');
+        const headSel = componentSelectors(headCss);
+        const implSel = componentSelectors(implCssText);
+        console.log(`      · head 组件选择器（${headSel.list.length} 个）：${JSON.stringify(headSel.list)}`);
+        console.log(`      · 被拒文档组件选择器（${implSel.list.length} 个）：${JSON.stringify(implSel.list)}`);
+        ok(headSel.bad.length === 0 && implSel.bad.length === 0,
+            `★ 两份 CSS 里凡是碰组件类的选择器都带 .gate-denied-box 前缀（不带前缀的：head ${JSON.stringify(headSel.bad)}、被拒文档 ${JSON.stringify(implSel.bad)}）`);
+        ok(implSel.list.length >= 5 && JSON.stringify(implSel.list) === JSON.stringify(headSel.list),
+            `★ 两份 CSS 的组件选择器集合**完全相同**（各 ${implSel.list.length} 个）—— 特异度一致，被拒文档那份才能真的生效`);
+        const norm = s => s.replace(/\s+/g, '');
+        ok(norm(implCssText).includes('height:2rem') && norm(implCssText).includes('font-size:1rem') && norm(implCssText).includes('font-size:.875rem'),
+            '★ [被拒文档 CSS] 输入框/按钮是矮的（height:2rem），且输入框 1rem / 按钮 .875rem');
+        ok(norm(headCss).includes('height:2rem') && norm(headCss).includes('font-size:1rem') && norm(headCss).includes('font-size:.875rem'),
+            '★ [head 兜底 CSS] 同一套矮尺寸与同一套字号（两份必须一致，否则改了一边不生效）');
+        // ★★ 把"两份口径必须一致"钉死到**声明级**：同一个选择器在两份里归一化后的声明串
+        //    必须逐字相同。这样"两份 CSS 重复维护"就不再是隐患 —— 谁改了一边都会立刻红。
+        const ruleDecls = (cssText) => {
+            const map = new Map();
+            const stripped = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
+            for (const m of stripped.matchAll(/([^{}@;]+)\{([^{}]*)\}/g)) {
+                // 声明按"属性:值"逐条归一化**并排序**：同一条规则里声明的先后不影响结果
+                // （两条 CSS 里我写的顺序未必一致），但**值**不一样必须抓出来。
+                const decls = m[2].split(';').map(d => d.replace(/\s+/g, '').trim()).filter(Boolean);
+                if (!decls.length) continue;
+                for (const raw of m[1].split(',')) {
+                    const s = raw.trim();
+                    if (!s || s.startsWith('@')) continue;
+                    if (!COMPONENTS.some(c => s.includes(c)) && !s.includes('[hidden]')) continue;
+                    map.set(s, [...(map.get(s) || []), ...decls].sort());
+                }
+            }
+            return map;
+        };
+        const headRules = ruleDecls(headCss), implRules = ruleDecls(implCssText);
+        const mismatched = [];
+        for (const [sel, decls] of headRules) {
+            if (!implRules.has(sel)) { mismatched.push(`${sel}: 被拒文档那份没有这条规则`); continue; }
+            if (JSON.stringify(implRules.get(sel)) !== JSON.stringify(decls))
+                mismatched.push(`${sel}: head「${decls.join(';')}」≠ 被拒文档「${implRules.get(sel).join(';')}」`);
+        }
+        for (const sel of implRules.keys()) if (!headRules.has(sel)) mismatched.push(`${sel}: head 那份没有这条规则`);
+        ok(mismatched.length === 0,
+            `★ 两份 CSS 的组件规则**声明级完全一致**（${headRules.size} 条规则，不一致 ${mismatched.length} 条）—— 重复维护不再是隐患`,
+            mismatched.slice(0, 3).join(' | '));
+        // ★ 输入框字号 ≥16px（iOS Safari 聚焦自动放大整页的守门人）
+        //   注意：字号写在 `.gate-denied-box .gate-denied-input` 这条**具体规则**里，
+        //   下面用的是合并后的声明表（把同一选择器的多条规则合起来看）。
+        const headInput = (headRules.get('.gate-denied-box .gate-denied-input') || []).join(';');
+        const implInput = (implRules.get('.gate-denied-box .gate-denied-input') || []).join(';');
+        ok(headInput.includes('font-size:1rem') && implInput.includes('font-size:1rem') && !headInput.includes('font-size:.875rem'),
+            `★ 两份 CSS 里输入框字号都是 1rem=16px（head「${headInput}」）—— 低于 16px 时 iOS Safari 聚焦会**自动放大整页**`);
+    }
 }
 
 // 明文令牌：整个仓库（不含 .git）都不许出现
@@ -506,6 +595,12 @@ let msgId = 0; const pending = new Map();
 let events = [];   // { kind: 'exception' | 'console' | 'browserlog', text }
 const eventsSince = i => events.slice(i);
 const countKind = (evs, kind) => evs.filter(e => e.kind === kind).length;
+// ── 原生对话框取证（输错口令走 alert）───────────────────────────────────────
+// ★ 真浏览器里 alert 是**阻塞**的：不接管的话 Runtime.evaluate 会一直挂着、用例卡死。
+//   所以监听 Page.javascriptDialogOpening，记下文案后立刻 Page.handleJavaScriptDialog
+//   关掉（headless 下没有人能点确定）。不接管会在第一次错口令处直接停住。
+let dialogs = [];   // { type, message }
+const dialogsSince = i => dialogs.slice(i);
 const ws = new WebSocket(await (async () => { for (let i = 0; i < 80; i++) { try { const l = await (await fetch(`http://127.0.0.1:${DP}/json/list`)).json(); const p = l.find(t => t.type === 'page'); if (p?.webSocketDebuggerUrl) return p.webSocketDebuggerUrl; } catch { } await sleep(250); } throw new Error('CDP 未就绪'); })());
 await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 ws.onmessage = ev => {
@@ -513,6 +608,11 @@ ws.onmessage = ev => {
     if (m.method === 'Runtime.exceptionThrown') events.push({ kind: 'exception', text: String(m.params?.exceptionDetails?.text || 'exception') + ' :: ' + String(m.params?.exceptionDetails?.exception?.description || '').split('\n')[0] });
     if (m.method === 'Runtime.consoleAPICalled') events.push({ kind: 'console', text: m.params.type + ': ' + (m.params.args || []).map(a => a.value ?? a.description ?? a.type).join(' ') });
     if (m.method === 'Log.entryAdded') events.push({ kind: 'browserlog', text: m.params.entry.source + '.' + m.params.entry.level + ': ' + String(m.params.entry.text).slice(0, 120) });
+    // ★ 对话框必须立刻关掉，否则页面 JS 一直阻塞在 alert() 上（用例会卡死）
+    if (m.method === 'Page.javascriptDialogOpening') {
+        dialogs.push({ type: m.params.type, message: m.params.message });
+        send('Page.handleJavaScriptDialog', { accept: true }).catch(() => { });
+    }
     if (m.id && pending.has(m.id)) { const { res, rej } = pending.get(m.id); pending.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); }
 };
 function send(method, params = {}) { return new Promise((res, rej) => { const i = ++msgId; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); }); }
@@ -580,7 +680,32 @@ const PROBE = `(() => {
         docLen: document.documentElement.outerHTML.length,
         siteGlobals: SITE_GLOBALS.filter(k => k in window),
         formHidden: (() => { const f = document.querySelector('.gate-denied-form'); return f ? f.hidden : null; })(),
-        errHidden: (() => { const e = document.querySelector('.gate-denied-error'); return e ? e.hidden : null; })(),
+        // ★ 错误提示改走原生 alert 之后：页面里**不许**再有任何错误元素/错误文本节点。
+        //   hasErrEl：连 .gate-denied-error 这个元素都不该存在；
+        //   inlineWrong：渲染出来的文本节点里不许出现错误文案；
+        //   （注意区分：'非法密钥！' 这个字面量在 **collection/gate.js** 里 —— 那是外部文件，
+        //     不算页面文本；被拒文档里零脚本，所以 body.textContent 里也不会有它。）
+        hasErrEl: !!document.querySelector('.gate-denied-error'),
+        inlineWrong: (() => {
+            const t = [];
+            (function w(n) { if (n.nodeType === 3) { t.push(n.nodeValue); return; } if (n.nodeType !== 1) return;
+                if (n.tagName === 'SCRIPT' || n.tagName === 'STYLE') return; for (const c of n.childNodes) w(c); })(document.body);
+            const s = t.join(' ');
+            return { wrongText: s.includes(${JSON.stringify(WRONG_TEXT)}), oldText: s.includes('口令不正确'), anyText: s.trim() };
+        })(),
+        placeholder: (() => { const i = document.querySelector('.gate-denied-input'); return i ? i.getAttribute('placeholder') : null; })(),
+        submitText: (() => { const b = document.querySelector('.gate-denied-submit'); return b ? b.textContent : null; })(),
+        rects: (() => {
+            const g = s => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect();
+                return [b.x, b.y, b.width, b.height].map(v => Math.round(v * 100) / 100); };
+            return { box: g('.gate-denied-box'), icon: g('.gate-denied-icon'), text: g('.gate-denied-text'),
+                     form: g('.gate-denied-form'), input: g('.gate-denied-input'), button: g('.gate-denied-submit') };
+        })(),
+        formStyle: (() => {
+            const i = document.querySelector('.gate-denied-input'), b = document.querySelector('.gate-denied-submit');
+            const cs = e => e ? { h: getComputedStyle(e).height, font: getComputedStyle(e).fontSize, radius: getComputedStyle(e).borderRadius, pad: getComputedStyle(e).padding, box: getComputedStyle(e).boxSizing } : null;
+            return { input: cs(i), button: cs(b) };
+        })(),
         mark: (() => { try { return localStorage.getItem(${JSON.stringify(KEY)}); } catch (e) { return '(throw)'; } })(),
         hash: location.hash,
         search: location.search,
@@ -615,6 +740,26 @@ async function visit(url, waitExpr, settle = 1400) {
     const p = await probe();
     p.events = eventsSince(start);
     return p;
+}
+
+// ── 往被拒页的输入框里打字并点「验证」────────────────────────────────────────
+// ★ 错口令会弹原生 alert：headless 下没人点"确定"，页面 JS 会**一直阻塞**在
+//   alert() 上 —— 所以上面的 ws.onmessage 收到 Page.javascriptDialogOpening 就立刻
+//   Page.handleJavaScriptDialog({accept:true})。这里先记下标再点，就能精确拿到
+//   "这一次提交"到底弹了几个对话框、文案是什么。
+//   ⚠ 这一步的 evaluate 调用会等到对话框被关掉才返回（alert 是阻塞的），
+//     所以下面 await 的其实是"点击 + 对话框关闭"整件事，不是卡住。
+async function submitValue(v, settle = 1500) {
+    const start = dialogs.length;
+    await evaluate(`(() => {
+        const i = document.querySelector('.gate-denied-input');
+        if (!i) return false;
+        i.value = ${JSON.stringify(v)};
+        document.querySelector('.gate-denied-submit').click();
+        return true;
+    })()`);
+    await sleep(settle);
+    return dialogsSince(start);
 }
 
 try {
@@ -667,19 +812,30 @@ try {
     ok(!deny.gateOk, '[127.0.0.2] 无令牌 ⇒ 不放行（html 上没有 gate-ok）');
     ok(deny.deniedText === DENIED_TEXT, `[127.0.0.2] ★ 提示文字逐字等于 ${JSON.stringify(DENIED_TEXT)}（实际 ${JSON.stringify(deny.deniedText)}）`);
     ok(deny.visibleText === DENIED_VISIBLE,
-        `[127.0.0.2] ★ 可见文本逐字等于 ${JSON.stringify(DENIED_VISIBLE)}（提示 + 提交按钮；实际 ${JSON.stringify(deny.visibleText)}）`);
+        `[127.0.0.2] ★ 可见文本逐字等于 ${JSON.stringify(DENIED_VISIBLE)}（提示 + 按钮；placeholder 是属性、不算可见文本；实际 ${JSON.stringify(deny.visibleText)}）`);
     ok(deny.title === DENIED_TITLE, `[127.0.0.2] ★ document.title 逐字等于 ${JSON.stringify(DENIED_TITLE)}（实际 ${JSON.stringify(deny.title)}）`);
     ok(deny.titles.length === 1 && deny.titles[0] === DENIED_TITLE,
         `[127.0.0.2] ★ 文档里只有一个 <title> 且逐字是「${DENIED_TITLE}」（实际 ${JSON.stringify(deny.titles)}）`);
-    // document.write 出来的是一份**最小文档**：body 只有提示盒 + 它自己的那段脚本
-    ok(deny.bodyKids === 2 && deny.bodyTags.join(',') === 'DIV,SCRIPT' && deny.boxChildren === 4,
-        `[127.0.0.2] ★ 文档被整个换掉了（body 子元素 ${deny.bodyKids} 个：${deny.bodyTags.join('+')}；提示盒里有 ${deny.boxChildren} 个子元素）`);
+    // document.write 出来的是一份**最小文档**：body 里只有提示盒，**零脚本**
+    ok(deny.bodyKids === 1 && deny.bodyTags.join(',') === 'DIV' && deny.boxChildren === 3,
+        `[127.0.0.2] ★ 文档被整个换掉了（body 子元素 ${deny.bodyKids} 个：${deny.bodyTags.join('+')}；提示盒里有 ${deny.boxChildren} 个子元素：图标+文案+表单）`);
+    ok(deny.bodyText.trim() === DENIED_VISIBLE,
+        `[127.0.0.2] ★ body.textContent 逐字就是那两段文字（实际 ${JSON.stringify(deny.bodyText.trim())}）—— 提示盒里没有脚本、也没有错误文本节点`);
     ok(deny.leaks.length === 0, `[127.0.0.2] ★ 除了提示盒子，没有任何元素可见（越界 ${deny.leaks.length} 个）`, JSON.stringify(deny.leaks.slice(0, 20)));
-    ok(deny.scriptCount === 3 && deny.linkCount === 0,
-        `[127.0.0.2] ★ 站点资源一个都没进来（<script> ${deny.scriptCount} 个=引导+门禁+提示页自己那段，<link> ${deny.linkCount} 个）`);
+    ok(deny.scriptCount === 2 && deny.linkCount === 0,
+        `[127.0.0.2] ★ 站点资源一个都没进来（<script> ${deny.scriptCount} 个=引导+门禁脚本，被拒文档里 0 个脚本；<link> ${deny.linkCount} 个）`);
     ok(deny.docLen < 40000, `[127.0.0.2] ★ 整个文档只剩提示页那点东西（documentElement 长度 ${deny.docLen}，原站首页是 50 万+）`);
+    // ★ 要求 ①：页面上**没有**任何错误文本，错误元素连存在都不该存在
+    ok(deny.hasErrEl === false, '[127.0.0.2] ★ 页面里不存在 .gate-denied-error 元素（错误提示已经改走原生 alert）');
+    ok(deny.inlineWrong.wrongText === false && deny.inlineWrong.oldText === false,
+        `[127.0.0.2] ★ 渲染出的文本节点里没有错误文案（${JSON.stringify(deny.inlineWrong.anyText)}）`);
     ok(!/暂无访问权限/.test(String(deny.beforeContent)),
         `[127.0.0.2] 关 JS 用的 CSS 兜底提示不再重复显示（::before content=${deny.beforeContent}）`);
+    // ★ 要求 ②：placeholder 逐字、且不含长度/格式/示例
+    ok(deny.placeholder === PLACEHOLDER,
+        `[127.0.0.2] ★ placeholder 逐字等于 ${JSON.stringify(PLACEHOLDER)}（实际 ${JSON.stringify(deny.placeholder)}）`);
+    verifyNoHints(deny.placeholder, '[127.0.0.2] placeholder');
+    ok(deny.submitText === SUBMIT_TEXT, `[127.0.0.2] 按钮文字逐字是 ${JSON.stringify(SUBMIT_TEXT)}（实际 ${JSON.stringify(deny.submitText)}）`);
     {
         const leftovers = await evaluate(`(() => {
             const bad = [];
@@ -1030,30 +1186,58 @@ try {
         })()`));
         ok(attrs.type === 'text' && attrs.ac === 'off' && attrs.acl === 'off' && attrs.sc === 'false',
             `★ 输入框属性齐了（type=${attrs.type}、autocomplete=${attrs.ac}、autocapitalize=${attrs.acl}、spellcheck=${attrs.sc}）`);
-        ok(attrs.placeholder === null && attrs.title === null && attrs.action === null,
-            `★ 输入框上没有任何"示例/格式/长度"提示（placeholder=${attrs.placeholder}、title=${attrs.title}），表单也没有 action`);
-        ok(attrs.btn === SUBMIT_TEXT, `提交按钮文字逐字是「${SUBMIT_TEXT}」（实际 ${JSON.stringify(attrs.btn)}）`);
-        ok(f0.gateOk === false && f0.errHidden === true,
-            `★ 刚进来时错误提示是藏着的（errHidden=${f0.errHidden}），可见文本 ${JSON.stringify(f0.visibleText)}`);
+        ok(attrs.placeholder === PLACEHOLDER,
+            `★ placeholder 逐字等于 ${JSON.stringify(PLACEHOLDER)}（实际 ${JSON.stringify(attrs.placeholder)}）`);
+        verifyNoHints(attrs.placeholder, 'placeholder');
+        ok(attrs.title === null && attrs.action === null,
+            `★ 输入框上没有 title、表单也没有 action（title=${attrs.title}、action=${attrs.action}）`);
+        ok(attrs.btn === SUBMIT_TEXT, `按钮文字逐字是「${SUBMIT_TEXT}」（实际 ${JSON.stringify(attrs.btn)}）`);
+        ok(f0.gateOk === false && f0.hasErrEl === false,
+            `★ 刚进来就是被拒状态、且页面里没有错误元素（hasErrEl=${f0.hasErrEl}），可见文本 ${JSON.stringify(f0.visibleText)}`);
         ok(f0.events.filter(e => e.kind === 'exception').length === 0,
             `★ 错误令牌被拒时同样 0 条未捕获异常（实际 ${f0.events.filter(e => e.kind === 'exception').length} 条）`);
 
-        // ① 错口令：仍被拒、只给一句中性提示、不写标记、刷新后仍被拒
-        const submit = (v) => evaluate(`(() => {
-            const i = document.querySelector('.gate-denied-input');
-            i.value = ${JSON.stringify(v)};
-            document.querySelector('.gate-denied-submit').click();
-            return true;
-        })()`);
-        await submit('definitely-not-the-token');
-        await sleep(1500);
+        // ① 错口令：弹**原生 alert**、页面零变化、仍被拒、不写标记、刷新后仍被拒
+        const d1 = await submitValue('definitely-not-the-token');
         const w = await probe();
+        console.log(`      · 错口令这一次的对话框：${JSON.stringify(d1)}`);
+        ok(d1.length === 1 && d1[0].type === 'alert' && d1[0].message === WRONG_TEXT,
+            `★ [错口令] 原生 alert 恰好被调用 **1 次**，文案逐字是 ${JSON.stringify(WRONG_TEXT)}（实际 ${d1.length} 次：${JSON.stringify(d1.map(x => x.message))}）`);
         ok(w.gateOk === false && w.mark === null,
             `★ [错口令] 仍然被拒、**没有写标记**（ls=${w.mark}）`);
-        ok(w.visibleText === DENIED_VISIBLE + WRONG_TEXT,
-            `★ [错口令] 只多了一句中性提示，逐字是 ${JSON.stringify(DENIED_VISIBLE + WRONG_TEXT)}（实际 ${JSON.stringify(w.visibleText)}）`);
-        ok(!/\d/.test(w.visibleText.replace(DENIED_TEXT, '')) && !/次|长度|接近|相似/.test(w.visibleText),
-            '★ [错口令] 提示里没有剩余次数 / 长度 / "接近"之类的任何暗示');
+        ok(w.hasErrEl === false && w.inlineWrong.wrongText === false && w.inlineWrong.oldText === false,
+            `★ [错口令] 页面里**没有**任何错误文本节点（渲染文本逐字 ${JSON.stringify(w.inlineWrong.anyText)}）`);
+        ok(w.visibleText === DENIED_VISIBLE,
+            `★ [错口令] 可见文本一点没变，仍然逐字是 ${JSON.stringify(DENIED_VISIBLE)}（实际 ${JSON.stringify(w.visibleText)}）`);
+        // ★★ 用户的核心诉求：**零位移**（"防止出现一排字导致图片整体移位"）
+        {
+            const diff = [];
+            for (const k of ['box', 'icon', 'text', 'form', 'input', 'button']) {
+                const a = JSON.stringify(f0.rects[k]), b = JSON.stringify(w.rects[k]);
+                if (a !== b) diff.push(`${k}: ${a} → ${b}`);
+            }
+            console.log(`      · 失败尝试前后 rect（x,y,w,h）`);
+            for (const k of ['icon', 'text', 'input', 'button']) console.log(`          ${k.padEnd(7)}前 ${JSON.stringify(f0.rects[k])}  后 ${JSON.stringify(w.rects[k])}`);
+            ok(diff.length === 0,
+                `★ [错口令] **零位移**：图标/文案/表单/输入框/按钮的 getBoundingClientRect() 逐值相同（${diff.length} 处不同 ${diff.join('；')}）`,
+                diff.join(' | '));
+            ok(f0.rects.button[3] === f0.rects.input[3],
+                `★ 输入框与按钮**等高**（都是 ${f0.rects.input[3]}px）`);
+        }
+        // ③ 输入框/按钮真的"矮一点"了（改前实测 43.59px）
+        ok(f0.rects.input[3] >= 28 && f0.rects.input[3] <= 36,
+            `★ 输入框高度压到 ${f0.rects.input[3]}px（改前 43.59px；CSS height=${f0.formStyle.input.h}、box-sizing=${f0.formStyle.input.box}）`);
+        ok(f0.formStyle.input.radius === f0.formStyle.button.radius,
+            `★ 输入框与按钮圆角一致（都是 ${f0.formStyle.input.radius}）`);
+        // ★ 输入框字号 ≥16px：**iOS Safari 对 font-size < 16px 的输入框，聚焦时会自动放大整页**
+        //   （页面会跳一下、还得手动缩回去）。用户要的"矮一点"是**高度**，不是字小，
+        //   所以这条卡死在 16px —— 以后谁为了"好看"把输入框字号调小，这里立刻红。
+        ok(parseFloat(f0.formStyle.input.font) >= 16,
+            `★ 输入框字号 ≥16px 才能躲开 iOS Safari 聚焦自动放大整页（实测 ${f0.formStyle.input.font}，要求 ≥16px）`);
+        ok(parseFloat(f0.formStyle.button.font) < parseFloat(f0.formStyle.input.font) && parseFloat(f0.formStyle.button.font) >= 12,
+            `★ 按钮字号比输入框小一号但不至于过小（按钮 ${f0.formStyle.button.font}、输入框 ${f0.formStyle.input.font}；按钮不可聚焦、不触发 iOS 自动放大）`);
+        ok(!/\d/.test(String(d1[0].message)) && !/次|长度|接近|相似/.test(String(d1[0].message)),
+            '★ [错口令] alert 文案里没有剩余次数 / 长度 / "接近"之类的任何暗示');
         const afterReload = await visit(urlOn(H.alt, ''),
             `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
         ok(afterReload.gateOk === false && afterReload.mark === null,
@@ -1063,7 +1247,8 @@ try {
         await setStorage(H.alt, null);
         const f1 = await visit(urlOn(H.alt, '#k=' + WRONG_TOKEN),
             `document.querySelector('.gate-denied-input')`);
-        await submit(TEST_TOKEN);
+        const d2 = await submitValue(TEST_TOKEN, 800);
+        ok(d2.length === 0, `★ [对口径] 正确口令**不弹**任何对话框（实际 ${d2.length} 个）`);
         const released = await waitFor(`document.documentElement.classList.contains('gate-ok')`, 9000);
         ok(released, '★ [对口径] 提交正确口令 ⇒ 自动重新加载后放行（location.replace 掉的还是同一个地址）');
         await sleep(1500);
@@ -1075,15 +1260,20 @@ try {
         ok(okRun.bodyText.length > 40 && okRun.leaks.length > 0,
             `★ [对口径] 放行后站点内容真的渲染出来了（body 文本 ${okRun.bodyText.length} 字、越界可见元素 ${okRun.leaks.length} 个）`);
         ok(f1.events.filter(e => e.kind === 'exception').length === 0, '★ [对口径] 提交过程中也没有未捕获异常');
+        ok(dialogs.length === 1, `★ 整轮只出现过 1 个对话框（就是那次错口令；实际 ${dialogs.length} 个）—— 404 探测之类不会误弹`);
 
-        // ③ 与链接路径**同一条校验路径**（静态自证：同一个 SHA-256 + 同一个恒定时间比较）
+        // ③ 与链接路径**同一条校验路径**（静态自证：现在只有一份实现，两个入口都调它）
         const impl = readFileSync(GATE_JS, 'utf8');
         const ctCount = (impl.match(/function ctEqual\(/g) || []).length;
         ok(ctCount === 1, `★ 恒定时间比较函数只有一份实现（ctEqual 定义 ${ctCount} 次）—— 链接与输入框共用`);
-        ok(/var SUBMIT_JS = '\(function\(\)\{'[\s\S]*?function ct\(a,b\)/.test(impl),
-            '★ 输入框那段脚本里也用的是**恒定时间比较**（长度差异折进 diff、逐字符异或、不提前退出）');
+        ok(!/SUBMIT_JS/.test(impl) && !/function ct\(a,b\)/.test(impl),
+            '★ 被拒文档里**不再内联任何脚本**（第二份哈希/比较实现已经删掉，写进去的文档零 <script>）');
         ok(/function verifyToken\(candidate, subtleApi, cb\)/.test(impl) && /verifyToken\(token, subtle, /.test(impl) && /verifyToken\(inp\.value, subtle, /.test(impl),
             '★ 链接路径与输入框路径都调用同一个 verifyToken()');
+        ok(/function wrAlert\(\) \{ window\.alert\(WRONG_TEXT\)/.test(impl) && !/\.gate-denied-error/.test(impl.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')),
+            '★ 错误提示只有 alert() 这一条路，源码里（去掉注释后）没有任何 .gate-denied-error 残留');
+        ok(impl.includes("placeholder=\"' + INPUT_PLACEHOLDER + '\"") || /placeholder="' \+ INPUT_PLACEHOLDER/.test(impl),
+            '★ placeholder 由常量 INPUT_PLACEHOLDER 注入（改文案只动一处）');
     }
 
     // ── 12. 整轮控制台账本：放行路径也不许有未捕获异常 ──
