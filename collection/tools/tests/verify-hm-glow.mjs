@@ -27,6 +27,9 @@
 //   ⑤ 命中测试与交互：发光格命中仍是它自己、邻格不漂移、hover 高亮/悬浮泡照旧；
 //   ⑥ 两种主题：光色正确且互相排除 + 按距离分箱的强度剖面（峰值够、衰减快）；
 //   ⑦ reduced-motion 下发光静止无动画；⑧ 其它板块不误伤 + 重回拾年/重新加载；⑨ 手机 375px 断点。
+//   ★ 平台相关项（⑧ 的"悬浮 4% 放大"）按 `matchMedia('(hover: none)')` 分支断言：
+//     有 hover 能力 ⇒ 放大照旧；无 hover 能力（触摸设备 / ubuntu headless）⇒ 按 layout.css:2982-2986 的设计**不放大**，
+//     并把"4% 放大"标成 ○ 跳过（保留检查、写明原因，绝不当成缺陷）。
 import { createServer } from 'node:http';
 import { readFile, stat, mkdtemp } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
@@ -35,8 +38,11 @@ import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { decodePng, pixelAt } from './lib/pixel.mjs';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ 平台相关（环境无该能力、断言本身在该平台不可能有值）时用 skip：**保留**这条检查、不计通过也不计失败，
+//   但必须把"为什么在本环境没有断言值"写清楚（否则就成了假绿）。计数单独打出来，退出码只看 fail。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 // box-shadow / 颜色解析（rgba() 与 Chrome 的 color(srgb …) 两种序列化都认）—— 静态节与运行时节共用
 // 顶层逗号切分（括号感知：color-mix(in srgb, var(--theme) 30%, transparent) 里的逗号不算分隔符）
@@ -775,6 +781,8 @@ ok(hit.glowSelf && /tl-heatmap-cell/.test(hit.glowCls || ''), `⑧ ★★★ 发
 ok(hit.neighbour, `⑧ ★★★ 紧挨发光格的邻格中心命中邻格自己（${hit.neighbourCls}）—— 没有"盖住邻格导致命中漂移"`);
 ok(hit.otherSelf, '⑧ ★★ 未发光格中心命中也正常');
 ok(hit.labelSelf, '⑧ ★★ 年份标签中心命中也正常');
+// 钉法与两个分支见下面那段"平台口径"注释；HMGLOW_HOVER 只为本地自证用（默认按桌面钉）
+const curScheme = await evaluate(`(()=>{ const m=document.documentElement.getAttribute('data-color-scheme'); return m==='dark'?'dark':'light'; })()`);
 const hoverProbe = async (sel) => {
   const pt = JSON.parse(await evaluate(`(()=>{ const e=${sel}; if(!e) return JSON.stringify(null); const r=e.getBoundingClientRect();
     return JSON.stringify([Math.round((r.left+r.width/2)*100)/100, Math.round((r.top+r.height/2)*100)/100]); })()`));
@@ -792,14 +800,72 @@ const hoverProbe = async (sel) => {
       tipOpacity: tip?getComputedStyle(tip).opacity:null, tipVis: tip?getComputedStyle(tip).visibility:null,
       afterShadow: getComputedStyle(cell,'::after').boxShadow }); })()`));
 };
-// ★ 媒体偏好必须在这里再钉一次：本文件上面 ⑨ 段显式设过 prefers-reduced-motion: reduce，
-//   而 CI 的 runner（windows / ubuntu 都出现过）默认也是 reduce ⇒ 不钉回 no-preference 的话，
-//   站点 CSS 在 reduce 下不放大色块，这条"悬浮 4% 放大照旧"就会在 CI 上红（fill transform=none）。
-await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+// ★★ 平台口径（这条曾在 CI 上因"环境差异"报红，**不是功能缺陷**，以后别再改产品 CSS）：
+//   `.tl-heatmap-cell:hover > .tl-hm-fill { transform: scale(1.04) }`（layout.css:2810）只在**有 hover 能力**的环境生效：
+//     · `@media (hover: none)`（layout.css:2982-2986）⇒ 色块**有意不放大**（触摸/无 hover 能力的设备）；
+//     · `@media (prefers-reduced-motion: reduce)`（layout.css:3055-3057）⇒ 同样不放大。
+//   ubuntu 的 headless Chrome 报 `hover: none` ⇒ computed transform 就是 `none`，而 `:hover` 的阴影规则不受
+//   `hover: hover` 限制、照样命中（实测阴影确实在）⇒ 旧写法"无条件要求 matrix(1.04)"在该平台**永远不可能绿**。
+//   所以：① 先把媒体特征尽量钉成桌面（hover:hover / pointer:fine / reduced-motion:no-preference / color-scheme 显式钉住）；
+//        ② 再读 `matchMedia('(hover: none)' / '(prefers-reduced-motion: reduce)')` 看**钉后实际**的平台能力；
+//        ③ 有 hover 能力且非 reduce ⇒ 断言 4% 放大照旧；否则 ⇒ 断言"按 CSS 规定**不放大**"，
+//           并把"4% 放大"标成 ○ 跳过（保留检查、写明原因；环境恢复时它自动回到断言）。
+//   本地自证（本机 Chrome 实测**不支持**用 CDP 模拟 hover/pointer：钉 hover:none 后 matchMedia 仍报 hover:hover）：
+//     `HMGLOW_HOVER=none node …` 假装平台报了 hover:none，并注入一条等价于 layout.css:2982-2986 的临时覆盖样式
+//     （只加在页面里、不进产品文件）⇒ 走"按设计不放大 + ○ 跳过"分支（自证该分支能真的断言到东西）；
+//     `HMGLOW_HOVER=none HMGLOW_TOUCH_INJECT=0 node …` 不注入覆盖 ⇒ 该分支必须变红（自证不是假绿）。
+//     CI 的 ubuntu 是平台真的报 hover:none，不需要这两个开关。
+const HOVER_WANT = 'hover';
+const FORCE_NO_HOVER = process.env.HMGLOW_HOVER === 'none';
+const TOUCH_INJECT = FORCE_NO_HOVER && process.env.HMGLOW_TOUCH_INJECT !== '0';
+try {
+  await send('Emulation.setEmulatedMedia', { features: [
+    { name: 'prefers-reduced-motion', value: 'no-preference' },
+    { name: 'prefers-color-scheme', value: curScheme },
+    { name: 'hover', value: HOVER_WANT },
+    { name: 'pointer', value: 'fine' },
+    { name: 'any-hover', value: HOVER_WANT },
+    { name: 'any-pointer', value: 'fine' },
+  ] });
+} catch (e) {
+  // 有的平台/Chrome 版本不接受 hover/pointer 这类特征名（本机实测是"接受但忽略"，别的版本可能直接报错）
+  // ⇒ 退回只钉 reduced-motion + color-scheme，能力判断一律以 matchMedia 实读为准，绝不让钉失败把整个用例带崩。
+  await send('Emulation.setEmulatedMedia', { features: [
+    { name: 'prefers-reduced-motion', value: 'no-preference' },
+    { name: 'prefers-color-scheme', value: curScheme },
+  ] });
+  console.log(`     悬浮环境：钉 hover/pointer 被拒（${String((e && e.message) || e).slice(0, 80)}）⇒ 退回只钉 reduced-motion + color-scheme，按 matchMedia 实读能力分支`);
+}
 await sleep(400);
+if (TOUCH_INJECT) {
+  await evaluate(`(()=>{ const s=document.createElement('style'); s.id='__hmglow_touch_probe';
+    /* 等价于 layout.css:2982-2986 的 @media (hover: none) { … transform: none }（只在自证时临时注入页面） */
+    s.textContent='.tl-heatmap-cell:hover > .tl-hm-fill { transform: none !important; }';
+    document.head.appendChild(s); return 1; })()`);
+  await sleep(200);
+}
+const hoverEnv = JSON.parse(await evaluate(`JSON.stringify({
+  hover: matchMedia('(hover: hover)').matches, noHover: matchMedia('(hover: none)').matches,
+  fine: matchMedia('(pointer: fine)').matches, coarse: matchMedia('(pointer: coarse)').matches,
+  reduce: matchMedia('(prefers-reduced-motion: reduce)').matches })`));
+const noHoverPlatform = hoverEnv.noHover || FORCE_NO_HOVER;
+const scaleExpected = !(noHoverPlatform || hoverEnv.reduce);
+console.log(`     悬浮环境：钉 hover:${HOVER_WANT}/pointer:fine ⇒ 实读 hover:hover=${hoverEnv.hover}、hover:none=${hoverEnv.noHover}、pointer:fine=${hoverEnv.fine}、pointer:coarse=${hoverEnv.coarse}、reduced-motion:reduce=${hoverEnv.reduce}${FORCE_NO_HOVER ? `、自证开关 HMGLOW_HOVER=none（注入等价覆盖=${TOUCH_INJECT}）` : ''} ⇒ 走【${scaleExpected ? '有 hover 能力且非 reduce ⇒ 4% 放大' : '无 hover 能力 / reduce ⇒ 按产品设计不放大'}】分支`);
 const hGlow = await hoverProbe(`document.querySelector('.tl-heatmap-cell.hm-month-glow')`);
-ok(hGlow && /rgba?\(0, 0, 0/.test(hGlow.hoverShadow || '') && /matrix\(1\.0[1-9]/.test(hGlow.fillTransform || ''),
-  `⑧ ★★★ 悬浮发光格：既有的悬浮投影与"色块放大 4%"照旧生效（box-shadow=${hGlow && hGlow.hoverShadow}｜fill transform=${hGlow && hGlow.fillTransform}）`);
+if (scaleExpected) {
+  ok(hGlow && /rgba?\(0, 0, 0/.test(hGlow.hoverShadow || '') && /matrix\(1\.0[1-9]/.test(hGlow.fillTransform || ''),
+    `⑧ ★★★ 悬浮发光格：既有的悬浮投影与"色块放大 4%"照旧生效（box-shadow=${hGlow && hGlow.hoverShadow}｜fill transform=${hGlow && hGlow.fillTransform}）`);
+} else {
+  const why = hoverEnv.noHover
+    ? `本平台 hover: none（触摸/无 hover 能力）`
+    : hoverEnv.reduce
+      ? `本平台 prefers-reduced-motion: reduce（CDP 钉 no-preference 未生效）`
+      : `自证开关 HMGLOW_HOVER=none 假装平台无 hover 能力（本机实读 hover:none=false${TOUCH_INJECT ? '，并临时注入了一条等价于 @media (hover: none) 的覆盖样式' : ''}）`;
+  ok(hGlow && /rgba?\(0, 0, 0/.test(hGlow.hoverShadow || '') && hGlow.fillTransform === 'none',
+    `⑧ ★★★ 悬浮发光格：${why} ⇒ 色块**按产品设计不放大**（fill transform=${hGlow && hGlow.fillTransform}）、悬浮投影照旧（box-shadow=${hGlow && hGlow.hoverShadow}）—— 见 layout.css:2982-2986 @media (hover: none) / 3055-3057 @media (prefers-reduced-motion: reduce)`);
+  skip(`⑧ ★★★ 悬浮"色块放大 4%"（layout.css:2810 的 scale(1.04)）：${why} ⇒ 该平台按设计就是不放大，这条在本环境没有断言值 —— 不是缺陷、不要改产品 CSS`);
+}
+if (TOUCH_INJECT) await evaluate(`(()=>{ const s=document.getElementById('__hmglow_touch_probe'); if(s) s.remove(); return 1; })()`);
 ok(hGlow && parseShadow(hGlow.afterShadow).length === 1,
   `⑧ ★★ 悬浮时发光**没有被悬浮样式顶掉**（::after 仍是那一层柔光：${hGlow && String(hGlow.afterShadow).slice(0, 60)}…）`);
 ok(hGlow && hGlow.tipOpacity === '1' && hGlow.tipVis === 'visible',
@@ -909,6 +975,7 @@ await sleep(400);
 const cold = await probe();
 ok(cold.filterMonth === '全部' && zeroGlow(cold), `⑪ ★ 重新加载页面后月份筛选回到"全部" ⇒ 0 格发光（${cold.glowCells} 格）`);
 
+if (skipped) console.log(`\n  （其中 ○ 跳过 ${skipped} 条：本平台无该能力 / 该断言在此环境不可判定，保留检查但不计通过、不计失败）`);
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
