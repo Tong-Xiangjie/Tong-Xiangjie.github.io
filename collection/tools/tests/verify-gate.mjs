@@ -38,6 +38,9 @@ const ROBOTS = join(ROOT, 'robots.txt');
 const TOKEN_FILE = join(homedir(), 'gate-token.txt');
 const MARK_LEN = 16;
 const KEY = 'collection-gate';
+// ★ 站点"明暗选择"的 localStorage 键：**从 theme.js 里现场读出来**（不在这里再抄一份第三份），
+//   门禁 gate.js 用的键由下面的"漂移守门"断言与它对齐。
+const SCHEME_KEY = (/const COLOR_SCHEME_KEY\s*=\s*'([^']+)'/.exec(readFileSync(join(COLLECTION, 'theme.js'), 'utf8')) || [, 'collection-color-scheme'])[1];
 const DENIED_TEXT = '暂无访问权限';
 const DENIED_TITLE = '无法访问';
 const SUBMIT_TEXT = '验证';           // 被拒页上口令框的按钮文字（逐字）
@@ -445,8 +448,54 @@ ok(missing.length === 0,
         //   下面用的是合并后的声明表（把同一选择器的多条规则合起来看）。
         const headInput = (headRules.get('.gate-denied-box .gate-denied-input') || []).join(';');
         const implInput = (implRules.get('.gate-denied-box .gate-denied-input') || []).join(';');
-        ok(headInput.includes('font-size:1rem') && implInput.includes('font-size:1rem') && !headInput.includes('font-size:.875rem'),
+        ok(headInput.includes('font-size:1rem') && implInput.includes('font-size:1rem')
+            && !headInput.includes('font-size:.875rem') && !implInput.includes('font-size:.875rem'),
             `★ 两份 CSS 里输入框字号都是 1rem=16px（head「${headInput}」）—— 低于 16px 时 iOS Safari 聚焦会**自动放大整页**`);
+    }
+
+    // ── ★ 明暗"漂移守门"：门禁读的主题键名/取值集合必须与站点 theme.js 完全一致 ──
+    // 用户提的缺口：被拒页的明暗必须和"进去以后"一样 —— 站内选过明/暗就用那个选择，
+    // 没选过才跟随系统。判定语义在 collection/theme.js（**只读不改**，这里只读它来对表）：
+    //   theme.js:58  const COLOR_SCHEME_KEY   = 'collection-color-scheme';
+    //   theme.js:59  const COLOR_SCHEME_MODES = ['system', 'light', 'dark'];
+    // 门禁在被拒时**自己**读一遍 localStorage（theme.js 那时已被 document.write 换掉、
+    // 根本没机会跑）。只要它抄错键名或抄错取值集合，这里立刻红。
+    {
+        const themeSrc = readFileSync(join(COLLECTION, 'theme.js'), 'utf8');
+        const gateSrc = readFileSync(GATE_JS, 'utf8');
+        const pick = (src, name, kind) => {
+            const m = kind === 'array'
+                ? new RegExp(`(?:const|var)\\s+${name}\\s*=\\s*\\[([^\\]]*)\\]`).exec(src)
+                : new RegExp(`(?:const|var)\\s+${name}\\s*=\\s*'([^']*)'`).exec(src);
+            return m ? m[1] : null;
+        };
+        const themeKey = pick(themeSrc, 'COLOR_SCHEME_KEY');
+        const gateKey = pick(gateSrc, 'COLOR_SCHEME_KEY');
+        const themeModes = pick(themeSrc, 'COLOR_SCHEME_MODES', 'array');
+        const gateModes = pick(gateSrc, 'COLOR_SCHEME_MODES', 'array');
+        const list = s => (s || '').split(',').map(x => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+        console.log(`      · theme.js: COLOR_SCHEME_KEY=${JSON.stringify(themeKey)} COLOR_SCHEME_MODES=${JSON.stringify(list(themeModes))}`);
+        console.log(`      · gate.js : COLOR_SCHEME_KEY=${JSON.stringify(gateKey)} COLOR_SCHEME_MODES=${JSON.stringify(list(gateModes))}`);
+        ok(themeKey && gateKey && themeKey === gateKey,
+            `★ [漂移守门] gate.js 读的 localStorage 键名与 theme.js:58 的 COLOR_SCHEME_KEY 一致（theme「${themeKey}」vs gate「${gateKey}」）`);
+        ok(themeModes && gateModes && JSON.stringify(list(themeModes)) === JSON.stringify(list(gateModes)),
+            `★ [漂移守门] 取值集合与 theme.js:59 的 COLOR_SCHEME_MODES 一致（theme ${JSON.stringify(list(themeModes))} vs gate ${JSON.stringify(list(gateModes))}）`);
+        ok(list(gateModes).length === 3 && list(gateModes).indexOf('system') >= 0
+            && list(gateModes).indexOf('light') >= 0 && list(gateModes).indexOf('dark') >= 0,
+            '★ [漂移守门] 三档齐全：system / light / dark');
+        // 语义也要对上：dark⇒暗、light⇒亮、其余(含 null/非法值/读异常)⇒跟随系统
+        ok(/mode === 'dark'[\s\S]{0,160}return true/.test(gateSrc) && /mode === 'light'[\s\S]{0,160}return false/.test(gateSrc),
+            '★ [漂移守门] 显式选择优先：存 dark⇒暗色、存 light⇒亮色（不被系统偏好覆盖）');
+        ok(/COLOR_SCHEME_MODES\.indexOf\(m\) >= 0 \? m : 'system'/.test(gateSrc),
+            '★ [漂移守门] 非法值/没有值/读抛异常一律当 system（与 theme.js:64 同一写法）');
+        ok(!/getAttribute\('data-color-scheme'\)/.test(gateSrc),
+            '★ [漂移守门] gate.js **整份文件都不读** html[data-color-scheme]（它只负责**写**）—— 拒绝时那个属性通常还不存在（theme.js 被挡在后面），读它就只能跟随系统，正是用户提的缺口');
+        // 应用方式与 theme.js:82-83 一致：属性 + style.colorScheme 两个都要设
+        const applyFn = (/function applyDeniedScheme[\s\S]*?\n    \}/.exec(gateSrc) || [''])[0];
+        ok(/setAttribute\('data-color-scheme'/.test(applyFn) && /style\.colorScheme\s*=/.test(applyFn),
+            '★ [漂移守门] 被拒页同时设 data-color-scheme 与 style.colorScheme（原生控件也跟着变，与 theme.js:82-83 同口径）');
+        ok(/storedColorSchemeMode\(\) !== 'system'/.test(gateSrc),
+            '★ [漂移守门] 系统偏好变化时**只在 system 模式**跟随（显式选过就不跟，与 theme.js:142 一致）');
     }
 }
 
@@ -731,6 +780,18 @@ async function setStorage(host, mark) {
     await evaluate(mark === null
         ? `(() => { try { localStorage.removeItem(${JSON.stringify(KEY)}); } catch (e) { } return true; })()`
         : `(() => { try { localStorage.setItem(${JSON.stringify(KEY)}, ${JSON.stringify(mark)}); } catch (e) { } return true; })()`);
+}
+// 「站内选过明/暗」的写入方式与 theme.js 的 setColorSchemeMode() 等价：写同一个键。
+// value=null ⇒ 删掉（"没记录用户的选择"）。
+async function setColorScheme(host, value, clearMark = true) {
+    await goto(urlOn(host, ''));
+    await sleep(700);
+    await evaluate(`(() => { try {
+        ${value === null
+            ? `localStorage.removeItem(${JSON.stringify(SCHEME_KEY)});`
+            : `localStorage.setItem(${JSON.stringify(SCHEME_KEY)}, ${JSON.stringify(value)});`}
+        ${clearMark ? `localStorage.removeItem(${JSON.stringify(KEY)});` : ''}
+    } catch (e) { } return true; })()`);
 }
 async function visit(url, waitExpr, settle = 1400) {
     const start = events.length;   // 记下起点：这次访问期间冒出来的异常/控制台都归它
@@ -1052,6 +1113,118 @@ try {
         await sleep(300);
     }
 
+    // ── 2d. ★★ 被拒页的明暗必须与"进去以后"一致（用户提的缺口）──────────────
+    // 用户原话：锁住的页面的明暗应该和打开后要是一样的；如果没记录用户在内部网站的
+    // 选择就默认跟随系统；如果用户在网站里选了明/暗然后被锁住（F12 里
+    // localStorage.removeItem('collection-gate') 即可），就应该用这个明/暗。
+    // 这里**照用户的复现路径**走：先落地到该 origin → 写入「站内选择」+ 删掉门禁标记
+    // → 重新访问（这就是"选过之后被锁"）→ 量被拒页的明暗；再用正确口令进去，
+    // 量站点的明暗 —— 两者必须同类（亮/暗），而且 color-scheme 也要一致。
+    {
+        const readDeniedScheme = () => evaluate(`JSON.stringify((() => {
+            const el = document.documentElement, box = document.querySelector('.gate-denied-box');
+            const cs = getComputedStyle(el);
+            const toRgb = s => {
+                const h = /^#([0-9a-f]{6})$/i.exec((s || '').trim());
+                if (h) return [parseInt(h[1].slice(0,2),16), parseInt(h[1].slice(2,4),16), parseInt(h[1].slice(4,6),16)];
+                const m = /rgba?\\(([^)]+)\\)/.exec(s || '');
+                return m ? m[1].split(',').map(x => parseFloat(x)).slice(0,3) : null;
+            };
+            const lum = c => c ? Math.round(0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]) : null;
+            const gateBg = cs.getPropertyValue('--gate-bg').trim();
+            const boxBg = box ? getComputedStyle(box).backgroundColor : null;
+            return {
+                denied: !!box, attr: el.getAttribute('data-color-scheme'),
+                styleColorScheme: el.style.colorScheme || null, computedColorScheme: cs.colorScheme || null,
+                gateBg, boxBg, gateBgLum: lum(toRgb(gateBg)), boxBgLum: lum(toRgb(boxBg)),
+                iconFilter: getComputedStyle(document.querySelector('.gate-denied-icon')).filter
+            };
+        })())`);
+        const readSiteScheme = () => evaluate(`JSON.stringify((() => {
+            const el = document.documentElement, cs = getComputedStyle(el);
+            const toRgb = s => {
+                const h = /^#([0-9a-f]{6})$/i.exec((s || '').trim());
+                if (h) return [parseInt(h[1].slice(0,2),16), parseInt(h[1].slice(2,4),16), parseInt(h[1].slice(4,6),16)];
+                const m = /rgba?\\(([^)]+)\\)/.exec(s || '');
+                return m ? m[1].split(',').map(x => parseFloat(x)).slice(0,3) : null;
+            };
+            const lum = c => c ? Math.round(0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]) : null;
+            const bg = cs.getPropertyValue('--bg').trim(), text = cs.getPropertyValue('--text').trim();
+            return {
+                allowed: el.classList.contains('gate-ok'), title: document.title,
+                attr: el.getAttribute('data-color-scheme'),
+                styleColorScheme: el.style.colorScheme || null, computedColorScheme: cs.colorScheme || null,
+                bg, text, bgLum: lum(toRgb(bg)), textLum: lum(toRgb(text)),
+                bodyBg: getComputedStyle(document.body).backgroundColor
+            };
+        })())`);
+        // 「站内选过明/暗」的写入方式就是站点的 setColorSchemeMode()：写 localStorage 一个键
+        // 然后重算。这里只写键（等价），随后 **照用户给的 F12 路径**删掉门禁标记。
+        const seedChoice = (value) => setColorScheme(H.alt, value, true);
+        const cases = [
+            // [名字, localStorage 里的选择, 系统偏好, 期望明暗, 是否还要"进去以后"量一遍]
+            ['存 light + 系统暗（★ 用户报的就是这一组）', 'light', 'dark', 'light', true],
+            ['存 dark + 系统亮', 'dark', 'light', 'dark', true],
+            ['无存储值 + 系统亮 ⇒ 跟随系统', null, 'light', 'light', false],
+            ['无存储值 + 系统暗 ⇒ 跟随系统', null, 'dark', 'dark', false],
+            ['存 system + 系统暗 ⇒ 跟随系统', 'system', 'dark', 'dark', false],
+            ['存非法值 weird + 系统暗 ⇒ 当 system', 'weird', 'dark', 'dark', false]
+        ];
+        for (const [label, stored, sys, want, checkSite] of cases) {
+            await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: sys }] });
+            await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+            await seedChoice(stored);
+            const deniedRun = await visit(urlOn(H.alt, ''), `!!document.querySelector('.gate-denied-box')`, 900);
+            const d = JSON.parse(await readDeniedScheme());
+            // 真的渲染结果：截屏取被拒页左上角的像素（提示盒铺满整屏，那一点一定是它的底色）
+            const shot = decodePng(Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+            const dPix = [shot.data[4 * shot.ch], shot.data[4 * shot.ch + 1], shot.data[4 * shot.ch + 2]];
+            const dPixLum = Math.round(0.2126 * dPix[0] + 0.7152 * dPix[1] + 0.0722 * dPix[2]);
+            const dClass = d.gateBgLum < 128 ? 'dark' : 'light';
+            const iconWhite = /invert\(1\)/.test(d.iconFilter);
+            console.log(`      ${label.padEnd(34)} 被拒页 attr=${String(d.attr).padEnd(5)} color-scheme=${String(d.computedColorScheme).padEnd(6)}`
+                + ` --gate-bg=${d.gateBg} (亮度 ${d.gateBgLum}) 像素 ${dPixLum} 图标${iconWhite ? '白' : '黑'}`);
+            ok(deniedRun.gateDenied === true && d.denied === true && deniedRun.gateOk === false,
+                `★ [明暗] ${label}：确实被拒（gate-denied=${deniedRun.gateDenied}、gate-ok=${deniedRun.gateOk}、提示盒在=${d.denied}）`);
+            ok(d.attr === want && d.styleColorScheme === want && d.computedColorScheme === want,
+                `★ [明暗] ${label}：根元素上 data-color-scheme / style.colorScheme / 计算值**三个都是 ${want}**`
+                + `（实际 attr=${d.attr}、style=${d.styleColorScheme}、computed=${d.computedColorScheme}）`);
+            ok(dClass === want && dPixLum < 128 === (want === 'dark'),
+                `★ [明暗] ${label}：**实际渲染**是${want === 'dark' ? '暗' : '亮'}的`
+                + `（--gate-bg ${d.gateBg} 亮度 ${d.gateBgLum}、截屏像素 rgb(${dPix.join(',')}) 亮度 ${dPixLum}）`);
+            ok(iconWhite === (want === 'dark'),
+                `★ [明暗] ${label}：图标与背景相反（背景${want === 'dark' ? '暗' : '亮'} ⇒ 图标${want === 'dark' ? '纯白' : '纯黑'}，filter=${d.iconFilter}）`);
+            if (checkSite) {
+                // 再用正确口令进去，量**站点自己**的明暗 —— 必须和被拒页同类
+                await submitValue(TEST_TOKEN, 1200);
+                await waitFor(`document.documentElement.classList.contains('gate-ok') && document.title !== ${JSON.stringify(DENIED_TITLE)}`, 8000).catch(() => { });
+                await sleep(1200);
+                const s = JSON.parse(await readSiteScheme());
+                const shot2 = decodePng(Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+                const sPix = [shot2.data[4 * shot2.ch], shot2.data[4 * shot2.ch + 1], shot2.data[4 * shot2.ch + 2]];
+                const sPixLum = Math.round(0.2126 * sPix[0] + 0.7152 * sPix[1] + 0.0722 * sPix[2]);
+                const sClass = s.bgLum < 128 ? 'dark' : 'light';
+                console.log(`      ${''.padEnd(34)} 进去后 attr=${String(s.attr).padEnd(5)} color-scheme=${String(s.computedColorScheme).padEnd(6)}`
+                    + ` --bg=${s.bg} (亮度 ${s.bgLum}) --text=${s.text} 像素 ${sPixLum} 标题=${JSON.stringify(s.title)}`);
+                ok(s.allowed === true, `★ [明暗] ${label}：口令进去后站点真的放行了（title=${JSON.stringify(s.title)}）`);
+                ok(sClass === dClass,
+                    `★ [明暗] ${label}：**进去以后的明暗 == 锁住时的明暗**（被拒页「${dClass}」亮度 ${d.gateBgLum}/像素 ${dPixLum}，站点「${sClass}」亮度 ${s.bgLum}/像素 ${sPixLum}）—— 这就是用户要的"一致"`);
+                ok(sPixLum < 128 === (dPixLum < 128),
+                    `★ [明暗] ${label}：两边**截屏像素**的明暗也一致（被拒页 ${dPixLum} vs 站点 ${sPixLum}）`);
+                ok(s.computedColorScheme === d.computedColorScheme && s.attr === d.attr,
+                    `★ [明暗] ${label}：两边 color-scheme / data-color-scheme 完全相同`
+                    + `（被拒 page ${d.computedColorScheme}/${d.attr} vs 站点 ${s.computedColorScheme}/${s.attr}）`);
+                // 进去以后把门禁标记清掉，恢复"被锁"状态，供后面几段用
+                await evaluate(`(() => { try { localStorage.removeItem(${JSON.stringify(KEY)}); } catch (e) { } return true; })()`);
+            }
+        }
+        // 清理：模拟的明暗偏好还原、站内选择也清掉（别影响后面几段）
+        await send('Emulation.setEmulatedMedia', { features: [] });
+        await evaluate(`(() => { try { localStorage.removeItem(${JSON.stringify(SCHEME_KEY)}); localStorage.removeItem(${JSON.stringify(KEY)}); } catch (e) { } return true; })()`);
+        await send('Emulation.clearDeviceMetricsOverride');
+        await sleep(200);
+    }
+
     // ── 3. #k=<正确令牌> ⇒ 放行 + 写标记 + 片段被清掉 ──
     await setStorage(H.alt, null);
     const hashOkRun = await visit(urlOn(H.alt, '#k=' + TEST_TOKEN), `document.documentElement.classList.contains('gate-ok')`);
@@ -1115,11 +1288,34 @@ try {
 
     // ── 8. 关掉 JavaScript 也进不去 ──
     await setStorage(H.alt, null);
+    // ★ 顺便如实量一条**无法避免的边界**：关 JS 时读不到 localStorage，
+    //   所以被拒页**只能跟随系统**、无法遵守用户在站内选过的明暗。
+    //   这里故意把站内选择写成 light、系统模拟成 dark（两种来源冲突），
+    //   然后断言关 JS 时页面渲染出来是**暗**的（= 跟系统，而不是跟用户选择）
+    //   —— 不假装它也遵守用户选择。
+    await evaluate(`(() => { try { localStorage.setItem(${JSON.stringify(SCHEME_KEY)}, 'light'); } catch (e) { } return true; })()`);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
     await send('Emulation.setScriptExecutionDisabled', { value: true });
     await goto(urlOn(H.alt, ''));
     await sleep(2500);
     let noJs = null;
     try { noJs = await probe(); } catch (e) { noJs = null; }
+    {
+        // 关 JS 时 Runtime.evaluate 也被禁掉，所以这一段的取证走 CDP 的 DOM 层
+        const doc = await send('DOM.getDocument', { depth: -1 });
+        const outer = (await send('DOM.getOuterHTML', { nodeId: doc.root.nodeId })).outerHTML;
+        const htmlTag = (/<html[^>]*>/i.exec(outer) || [''])[0];
+        ok(!/data-color-scheme/i.test(htmlTag),
+            `★ [关 JS] html 起始标签上没有 data-color-scheme（${htmlTag.slice(0, 60)}…）—— 读不到 localStorage，**只能跟随系统**，无法遵守用户的选择（这是无法避免的边界，不假装它守）`);
+        ok(/@media\s*\(prefers-color-scheme:\s*dark\)/.test(outer) && /@media\s*\(prefers-color-scheme:\s*light\)/.test(outer),
+            '★ [关 JS] 明暗只能靠 CSS 里那两组 @media (prefers-color-scheme) 兜底（跟随系统）');
+        const shotNoJs = decodePng(Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+        const p = [shotNoJs.data[4 * shotNoJs.ch], shotNoJs.data[4 * shotNoJs.ch + 1], shotNoJs.data[4 * shotNoJs.ch + 2]];
+        const pLum = Math.round(0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]);
+        console.log(`      · [关 JS] 存储=light + 系统=dark（冲突）⇒ 截图左上角像素 rgb(${p.join(',')}) 亮度 ${pLum}`);
+        ok(pLum < 128,
+            `★ [关 JS] 存储的显式选择（light）**不被遵守**，页面跟随系统渲染成暗的（像素 rgb(${p.join(',')}) 亮度 ${pLum} < 128）—— 如实断言这条边界`);
+    }
     if (noJs) {
         ok(!noJs.gateOk && noJs.htmlVisibility === 'hidden', '★ [关 JS] 没有 gate-ok、html 仍然隐藏在（脚本根本没跑）');
         ok(noJs.leaks.filter(l => !/noscript/i.test(l)).length === 0, `★ [关 JS] 页面内容不可见（越界可见元素 ${noJs.leaks.length} 个）`);
@@ -1136,6 +1332,9 @@ try {
             '★ [关 JS] 兜底隐藏 CSS 与 ::before 提示都在页面里（不需要脚本）');
     }
     await send('Emulation.setScriptExecutionDisabled', { value: false });
+    // 关 JS 那段的现场还原：模拟的明暗偏好与站内选择都清掉，别影响后面几段
+    await send('Emulation.setEmulatedMedia', { features: [] });
+    await setColorScheme(H.alt, null, true);
 
     // ── 9. crypto.subtle 不可用（非安全上下文 / 老浏览器）⇒ 不放行 ──
     await setStorage(H.alt, null);

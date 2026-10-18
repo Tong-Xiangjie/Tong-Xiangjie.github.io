@@ -65,6 +65,18 @@
     var SUBMIT_TEXT = '验证';
     // 占位提示（逐字，六个汉字）：只说"做什么"，不含长度/格式/示例 —— 不能透露口令的形态。
     var INPUT_PLACEHOLDER = '请输入通行密钥';
+    // ── 明暗：必须与**站点主题同一套语义** ─────────────────────────────────
+    // ★ 下面这两个字面量必须与 collection/theme.js:58-59 的
+    //   COLOR_SCHEME_KEY / COLOR_SCHEME_MODES **完全一致**
+    //   （verify-gate.mjs 里有"漂移守门"断言：谁改了 theme.js 的键名或取值集合就会红）。
+    //   为什么门禁要**自己再读一遍** localStorage：站点真正的判定在 theme.js 里，
+    //   而 theme.js 是**被门禁挡在后面的站点脚本** —— 一旦拒绝，文档立刻被
+    //   document.write 换掉，theme.js 根本没机会跑，也就不会留下
+    //   html[data-color-scheme]。早先这里只读那个属性 ⇒ 属性通常不存在 ⇒
+    //   被拒页只能退回 @media 跟随系统 ⇒ 用户在站内选过亮色、系统是暗色时，
+    //   会看到"锁住的页是暗的、进去以后是亮的"（用户提的就是这个缺口）。
+    var COLOR_SCHEME_KEY = 'collection-color-scheme';      // ★ 必须与 theme.js:58 一致
+    var COLOR_SCHEME_MODES = ['system', 'light', 'dark'];  // ★ 必须与 theme.js:59 一致
     var DEBUG = /(?:^|[?&])gatedebug=1(?:&|$)/.test(location.search);  // 只有显式打开才打日志
     // ───────────────────────────────────────────────────────────────────────
 
@@ -74,6 +86,55 @@
     function log() {
         if (!DEBUG) return;
         try { console.log.apply(console, Array.prototype.slice.call(arguments)); } catch (e) { }
+    }
+
+    // ── 明暗语义：逐条照抄 theme.js:61-76，不另立一套 ───────────────────────
+    //   存的是 'dark' ⇒ 暗色；'light' ⇒ 亮色；'system' / 其它值 / 没有 /
+    //   读 localStorage 抛异常 ⇒ **跟随系统**（matchMedia）。
+    function storedColorSchemeMode() {
+        try {
+            var m = localStorage.getItem(COLOR_SCHEME_KEY);
+            return COLOR_SCHEME_MODES.indexOf(m) >= 0 ? m : 'system';
+        } catch (e) {
+            return 'system';
+        }
+    }
+    function systemPrefersDark() {
+        try {
+            return typeof window.matchMedia === 'function'
+                && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch (e) { return false; }
+    }
+    function deniedIsDark() {
+        var mode = storedColorSchemeMode();
+        if (mode === 'dark') return true;    // ★ 用户存过的显式选择**优先**，不被系统偏好覆盖
+        if (mode === 'light') return false;
+        return systemPrefersDark();          // 只有 system（含非法值/读不到）才跟随系统
+    }
+    // 应用方式与 theme.js:82-83 保持一致：**根元素上同时**设
+    //   data-color-scheme（让上面那两组 html[data-color-scheme] 变量块生效）
+    //   与 style.colorScheme（让输入框、滚动条等原生控件也跟着变）。
+    function applyDeniedScheme(scheme) {
+        try {
+            html.setAttribute('data-color-scheme', scheme);
+            html.style.colorScheme = scheme;
+        } catch (e) { }
+    }
+    // 系统偏好在页面打开期间变了 ⇒ **只在我们处于 system 模式时**跟着变（与 theme.js:138-146 一致）。
+    // 用户显式选过 light/dark 就不跟 —— 否则"我明明选了亮色，系统一换它就变暗了"。
+    function watchSystemColorScheme() {
+        if (typeof window.matchMedia !== 'function') return;
+        var mq;
+        try { mq = window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return; }
+        if (!mq) return;
+        var onChange = function () {
+            if (storedColorSchemeMode() !== 'system') return;
+            applyDeniedScheme(systemPrefersDark() ? 'dark' : 'light');
+        };
+        try {
+            if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onChange);
+            else if (typeof mq.addListener === 'function') mq.addListener(onChange);
+        } catch (e) { }
     }
 
     // ── 被拒页：整份最小文档 ────────────────────────────────────────────────
@@ -228,14 +289,14 @@
     //   后面还没执行的站点 <script> 一条都不跑（控制台里因此没有任何未捕获异常）。
     function deny(reason) {
         log('[collection-gate] denied:', reason);
-        var scheme = null;
-        try {
-            var s = html.getAttribute('data-color-scheme');
-            if (s === 'dark' || s === 'light') scheme = s;
-        } catch (e) { }
+        // ★ 明暗：**用户在站内选过的选择优先**，没存过才跟随系统（语义照抄 theme.js）。
+        //   必须在 document.write 之前算好并应用：写进去的 <html> 起始标签虽然也会
+        //   带上 data-color-scheme，但先把根元素设好可以避免"写文档那一瞬间"闪一下。
+        var scheme = deniedIsDark() ? 'dark' : 'light';
         // 兜底 CSS 里那条 ::before 提示（给"关 JS"用的）在这里要关掉：提示盒自己就是提示，
         // 不关的话两句话会叠在一起。
         try { html.classList.add('gate-denied'); } catch (e) { }
+        applyDeniedScheme(scheme);
         // 注意：**不要**在这里 document.title = DENIED_TITLE —— 文档里还没有 <title>，
         // 这一句会凭空造一个，写进去的那句又造一个，结果页面里有两个 <title>。
         // 标题由写进去的 <title> 负责。
@@ -251,6 +312,11 @@
                 var iconEl = document.querySelector('.gate-denied-icon');
                 if (iconEl) iconEl.src = iconEl.getAttribute('src');
             } catch (e4) { }
+            // 写完再应用一次（幂等）：保证根元素上 data-color-scheme 与
+            // style.colorScheme **两个都在**（原生控件颜色靠后者）。
+            applyDeniedScheme(scheme);
+            // 系统偏好变化时只在 system 模式跟随（见 watchSystemColorScheme）。
+            watchSystemColorScheme();
             // 表单在这里**同步**绑上（写进去的文档里没有脚本，见 deniedDoc 上面那段注释）。
             // 元素此刻一定已经在了：上面刚查过图标元素就是因为这个。
             try { bindForm(document.querySelector('.gate-denied-box')); } catch (e5) { }
@@ -272,6 +338,8 @@
             box.setAttribute('role', 'alert');
             box.innerHTML = DENIED_INNER;
             body.appendChild(box);
+            applyDeniedScheme(scheme);
+            watchSystemColorScheme();
             bindForm(box);
         } catch (e2) { }
     }
