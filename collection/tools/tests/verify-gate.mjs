@@ -40,6 +40,11 @@ const MARK_LEN = 16;
 const KEY = 'collection-gate';
 const DENIED_TEXT = '暂无访问权限';
 const DENIED_TITLE = '无法访问';
+const SUBMIT_TEXT = '提交';           // 被拒页上口令框的按钮文字
+const WRONG_TEXT = '口令不正确';       // 输错口令时唯一那句中性提示
+// 被拒页上正常应该看到的**全部**文字：一句提示 + 一个按钮（输入框是空的，没有文本节点）
+const DENIED_VISIBLE = DENIED_TEXT + SUBMIT_TEXT;
+const CONSOLE_PREFIX = '[collection-gate]';   // 我们自己的 console 前缀（默认一条都不许有）
 const GATE_SRC_TAG = './gate.js';   // 入口里必须用相对路径引用门禁脚本（见 verify-vendor 与 file:// 两条理由）
 const GATE_URL_PATH = '/collection/gate.js';   // 浏览器最终请求到的地址（相对路径解析后的结果）
 
@@ -295,35 +300,65 @@ ok(missing.length === 0,
 }
 
 // 未授权页的图标（collection/block.svg）：颜色一律由 filter 强制（不依赖原画颜色），
-// 而且**背景与图标必须成对**出现在每一套主题来源里。
-// ★ 这一组断言就是用户实测那个 bug（白底白画）的静态判据：
-//   背景写在两套来源（@media / html[data-color-scheme]）里、图标只写一套 ⇒ 数量对不上。
+// 而且**背景与图标必须由同一组选择器决定** —— 现在这件事是**结构上**保证的：
+// 五组 --gate-* 变量块里，每一组都同时给出 --gate-bg 与 --gate-icon，组件层只消费变量。
+// ★ 这一组断言就是用户实测那个 bug（白底白画）的静态判据。
 {
     const head = (readFileSync(ENTRIES[0], 'utf8').match(/<head[^>]*>([\s\S]*?)<\/head>/i) || [, ''])[1];
-    const dark = 'brightness\\(0\\)\\s+invert\\(1\\)';
-    const black = 'brightness\\(0\\)(?!\\s+invert)';
-    const pairs = [
-        { name: '系统浅色 @media (prefers-color-scheme: light)', bg: /@media\s*\(prefers-color-scheme:\s*light\)\s*\{[\s\S]*?\.gate-denied-box\s*\{[^}]*background:\s*#f6f7f9/, icon: new RegExp(`@media\\s*\\(prefers-color-scheme:\\s*light\\)\\s*\\{[\\s\\S]*?\\.gate-denied-icon\\s*\\{[^}]*filter:\\s*${black}`), want: 'brightness(0)（纯黑）' },
-        { name: '系统暗色 @media (prefers-color-scheme: dark)', bg: /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{[\s\S]*?\.gate-denied-box\s*\{[^}]*background:\s*#14171c/, icon: new RegExp(`@media\\s*\\(prefers-color-scheme:\\s*dark\\)\\s*\\{[\\s\\S]*?\\.gate-denied-icon\\s*\\{[^}]*filter:\\s*${dark}`), want: 'brightness(0) invert(1)（纯白）' },
-        { name: '站点主题 html[data-color-scheme="dark"]', bg: /html\[data-color-scheme="dark"\]\s*\.gate-denied-box\s*\{[^}]*background:\s*#14171c/, icon: new RegExp(`html\\[data-color-scheme="dark"\\]\\s*\\.gate-denied-box\\s*\\.gate-denied-icon\\s*\\{[^}]*filter:\\s*${dark}`), want: 'brightness(0) invert(1)（纯白）' },
-        { name: '站点主题 html[data-color-scheme="light"]', bg: /html\[data-color-scheme="light"\]\s*\.gate-denied-box\s*\{[^}]*background:\s*#f6f7f9/, icon: new RegExp(`html\\[data-color-scheme="light"\\]\\s*\\.gate-denied-box\\s*\\.gate-denied-icon\\s*\\{[^}]*filter:\\s*${black}`), want: 'brightness(0)（纯黑）' }
+
+    // 「变量块成对」的通用判据：凡是声明了 --gate-bg 的规则块，必须同时声明 --gate-icon。
+    // 这条判据对格式免疫（只管 `{...}` 里有没有那两行），gate.mjs 的多行写法与
+    // gate.js 里被拒文档的单行写法都能用。
+    const pairCheck = (css, label) => {
+        const blocks = css.match(/\{[^{}]*--gate-bg:[^{}]*\}/g) || [];
+        const missing = blocks.filter(b => !/--gate-icon\s*:/.test(b));
+        const iconOnly = (css.match(/\{[^{}]*--gate-icon:[^{}]*\}/g) || []).filter(b => !/--gate-bg\s*:/.test(b));
+        ok(blocks.length >= 5 && missing.length === 0,
+            `★ [${label}] 每一处「设背景」（--gate-bg）都成对设了图标（--gate-icon）：${blocks.length} 处，缺 ${missing.length} 处`,
+            missing.length ? '← 这正是"白底白画"的成因：只改了背景、没改图标' : '');
+        ok(iconOnly.length === 0,
+            `★ [${label}] 没有"只设图标不设背景"的孤儿规则块（${iconOnly.length} 处）`);
+        return blocks;
+    };
+    const headBlocks = pairCheck(head, '入口 head 兜底 CSS');
+
+    // 四套主题来源 + 默认兜底，逐个点名，缺一个就红
+    const scopes = [
+        ['默认兜底 :root', /:root\s*\{[^{}]*--gate-bg:\s*#f6f7f9[^{}]*--gate-icon:\s*brightness\(0\)(?!\s+invert)/, '浅色 → brightness(0)（纯黑）'],
+        ['系统浅色 @media (prefers-color-scheme: light)', /@media\s*\(prefers-color-scheme:\s*light\)\s*\{\s*:root\s*\{[^{}]*--gate-bg:\s*#f6f7f9[^{}]*--gate-icon:\s*brightness\(0\)(?!\s+invert)/, '浅色 → brightness(0)（纯黑）'],
+        ['系统暗色 @media (prefers-color-scheme: dark)', /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root\s*\{[^{}]*--gate-bg:\s*#14171c[^{}]*--gate-icon:\s*brightness\(0\)\s+invert\(1\)/, '暗色 → brightness(0) invert(1)（纯白）'],
+        ['站点主题 html[data-color-scheme="dark"]', /html\[data-color-scheme="dark"\]\s*\{[^{}]*--gate-bg:\s*#14171c[^{}]*--gate-icon:\s*brightness\(0\)\s+invert\(1\)/, '暗色 → brightness(0) invert(1)（纯白）'],
+        ['站点主题 html[data-color-scheme="light"]', /html\[data-color-scheme="light"\]\s*\{[^{}]*--gate-bg:\s*#f6f7f9[^{}]*--gate-icon:\s*brightness\(0\)(?!\s+invert)/, '浅色 → brightness(0)（纯黑）']
     ];
-    for (const p of pairs) {
-        const hasBg = p.bg.test(head), hasIcon = p.icon.test(head);
-        ok(hasBg && hasIcon,
-            `★ 「${p.name}」背景与图标成对（背景=${hasBg ? '有' : '缺'}，图标=${hasIcon ? '有' : '缺'}，图标应为 ${p.want}）`,
-            hasBg && !hasIcon ? '← 这正是"白底白画"的成因：只改了背景、没改图标' : '');
+    for (const [name, re, want] of scopes) {
+        const hit = re.test(head);
+        ok(hit, `★ 「${name}」同一组选择器里同时给出背景与图标（${want}）`,
+            hit ? '' : '← 少写 --gate-icon，就是用户实测的"白底白画"');
     }
-    // 兜底（默认/浅色）：原画颜色不许被依赖，一律 brightness(0) 压成纯黑
-    ok(/\.gate-denied-box\s*\.gate-denied-icon\s*\{[^}]*filter:\s*brightness\(0\)(?!\s+invert)/.test(head),
-        '★ 默认（浅色兜底）图标 filter: brightness(0) —— 与原画颜色无关，一律纯黑');
-    // 数量不变量：每一处"给盒子设背景"都必须配一处"给图标设 filter"
-    const bgCount = (head.match(/\.gate-denied-box\s*\{[^}]*background:/g) || []).length;
-    const iconCount = (head.match(/\.gate-denied-icon\s*\{[^}]*filter:/g) || []).length;
+    // 组件层**只消费变量**，不许自己写死颜色（否则两套来源又会打架）
+    ok(/\.gate-denied-icon\s*\{[^}]*filter:\s*var\(--gate-icon\)/.test(head),
+        '★ 图标规则只写 filter: var(--gate-icon)（颜色来源唯一，组件层不写死）');
+    ok(/\.gate-denied-box\s*\{[^}]*background:\s*var\(--gate-bg\)/.test(head),
+        '★ 提示盒只写 background: var(--gate-bg)（与图标同一个来源）');
+    ok(/html:not\(\.gate-ok\):not\(\.gate-denied\)::before\s*\{[\s\S]*?background:\s*var\(--gate-bg\)/.test(head),
+        '★ 关 JS 那句 ::before 提示的背景也取自同一组变量');
+    // 数量不变量（旧口径保留）：几处 --gate-bg 就该有几处 --gate-icon
+    const bgCount = (head.match(/--gate-bg\s*:/g) || []).length;
+    const iconCount = (head.match(/--gate-icon\s*:/g) || []).length;
     ok(bgCount === iconCount && bgCount >= 5,
-        `★ 主题规则成对的数量不变量：设背景 ${bgCount} 处 == 设图标 filter ${iconCount} 处（≥5：默认 + 系统浅/暗 + 站点浅/暗）`);
+        `★ 主题变量成对的数量不变量：--gate-bg ${bgCount} 处 == --gate-icon ${iconCount} 处（≥5：默认 + 系统浅/暗 + 站点浅/暗）`);
+    ok(headBlocks.some(b => /brightness\(0\)/.test(b)) && headBlocks.some(b => /invert\(1\)/.test(b)),
+        '★ 两种滤镜都在：brightness(0)（纯黑）与 brightness(0) invert(1)（纯白）');
     ok(/block\.svg/.test(head), '未授权页引用了 collection/block.svg');
     ok(existsSync(join(COLLECTION, 'block.svg')), 'collection/block.svg 文件存在');
+
+    // ★ 被拒文档是 gate.js 现场 document.write 出来的，它自带一份同样的变量块 ——
+    //   两份必须同口径，否则"脚本路径"和"关 JS 路径"会长得不一样。
+    const implCss = (/var DENIED_CSS = \[([\s\S]*?)\]\.join\(''\);/.exec(readFileSync(GATE_JS, 'utf8')) || [, ''])[1];
+    const deniedBlocks = pairCheck(implCss, 'gate.js 被拒文档 CSS');
+    ok(deniedBlocks.length >= 5, `★ [gate.js 被拒文档] 同样是五组变量块（实际 ${deniedBlocks.length} 组）`);
+    ok(/--gate-icon:brightness\(0\)/.test(implCss) && /--gate-icon:brightness\(0\) invert\(1\)/.test(implCss),
+        '★ [gate.js 被拒文档] 同样用 brightness(0) / brightness(0) invert(1) 强制纯黑/纯白');
 }
 
 // 明文令牌：整个仓库（不含 .git）都不许出现
@@ -463,12 +498,21 @@ const DP = 18800;
 const child = spawn(chromePath, ['--headless=new', `--remote-debugging-port=${DP}`, `--user-data-dir=${userDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,900', ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), 'about:blank'], { stdio: 'ignore' });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let msgId = 0; const pending = new Map(); const pageErrors = [];
+let msgId = 0; const pending = new Map();
+// ── 控制台取证 ──────────────────────────────────────────────────────────────
+// 被拒页面必须做到：**未捕获异常 0 条**、**页面自己打的控制台输出 0 条**。
+// 浏览器自身产的 Log 条目（比如"preload 了但没用上"的警告、网络错误）单独归一类，
+// 只作展示、不作断言 —— 那是浏览器的话，不是我们的话。
+let events = [];   // { kind: 'exception' | 'console' | 'browserlog', text }
+const eventsSince = i => events.slice(i);
+const countKind = (evs, kind) => evs.filter(e => e.kind === kind).length;
 const ws = new WebSocket(await (async () => { for (let i = 0; i < 80; i++) { try { const l = await (await fetch(`http://127.0.0.1:${DP}/json/list`)).json(); const p = l.find(t => t.type === 'page'); if (p?.webSocketDebuggerUrl) return p.webSocketDebuggerUrl; } catch { } await sleep(250); } throw new Error('CDP 未就绪'); })());
 await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.method === 'Runtime.exceptionThrown') pageErrors.push(m.params?.exceptionDetails?.text || 'exception');
+    if (m.method === 'Runtime.exceptionThrown') events.push({ kind: 'exception', text: String(m.params?.exceptionDetails?.text || 'exception') + ' :: ' + String(m.params?.exceptionDetails?.exception?.description || '').split('\n')[0] });
+    if (m.method === 'Runtime.consoleAPICalled') events.push({ kind: 'console', text: m.params.type + ': ' + (m.params.args || []).map(a => a.value ?? a.description ?? a.type).join(' ') });
+    if (m.method === 'Log.entryAdded') events.push({ kind: 'browserlog', text: m.params.entry.source + '.' + m.params.entry.level + ': ' + String(m.params.entry.text).slice(0, 120) });
     if (m.id && pending.has(m.id)) { const { res, rej } = pending.get(m.id); pending.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); }
 };
 function send(method, params = {}) { return new Promise((res, rej) => { const i = ++msgId; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); }); }
@@ -513,18 +557,30 @@ const PROBE = `(() => {
         leaks.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\\s+/).join('.') : ''));
     }
     const before = getComputedStyle(html, '::before');
+    // 站点标志性全局：只要站点脚本跑过一条，这些里就会冒出东西（被拒时应为空）
+    const SITE_GLOBALS = ['toolbox', 'stats', 'special', 'router', 'navigateToCopy', 'setColorSchemeMode', 'openSeries', 'appText'];
     return JSON.stringify({
         gateOk: html.classList.contains('gate-ok'),
         gateDenied: html.classList.contains('gate-denied'),
         htmlVisibility: getComputedStyle(html).visibility,
         title: document.title,
+        titles: [...document.querySelectorAll('title')].map(t => t.textContent.trim()),
         bodyText: bodyText,
         visibleText: visParts.join('').replace(/\\s+/g, ' ').trim(),
         bodyKids: document.body ? document.body.children.length : -1,
+        bodyTags: document.body ? [...document.body.children].map(c => c.tagName) : [],
         firstKid: document.body && document.body.children[0] ? document.body.children[0].className : '',
+        boxChildren: (document.querySelector('.gate-denied-box') || { children: [] }).children.length,
+        deniedText: (document.querySelector('.gate-denied-text') || {}).textContent || null,
         leaks: leaks,
         beforeContent: before.content,
         beforeVisibility: before.visibility,
+        scriptCount: document.scripts.length,
+        linkCount: document.querySelectorAll('link').length,
+        docLen: document.documentElement.outerHTML.length,
+        siteGlobals: SITE_GLOBALS.filter(k => k in window),
+        formHidden: (() => { const f = document.querySelector('.gate-denied-form'); return f ? f.hidden : null; })(),
+        errHidden: (() => { const e = document.querySelector('.gate-denied-error'); return e ? e.hidden : null; })(),
         mark: (() => { try { return localStorage.getItem(${JSON.stringify(KEY)}); } catch (e) { return '(throw)'; } })(),
         hash: location.hash,
         search: location.search,
@@ -552,14 +608,21 @@ async function setStorage(host, mark) {
         : `(() => { try { localStorage.setItem(${JSON.stringify(KEY)}, ${JSON.stringify(mark)}); } catch (e) { } return true; })()`);
 }
 async function visit(url, waitExpr, settle = 1400) {
+    const start = events.length;   // 记下起点：这次访问期间冒出来的异常/控制台都归它
     await goto(url);
     if (waitExpr) { await waitFor(waitExpr); await sleep(settle); }
     else await sleep(4500);
-    return probe();
+    const p = await probe();
+    p.events = eventsSince(start);
+    return p;
 }
 
 try {
     await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
+    // Log domain：浏览器自己产的条目（preload 警告、网络错误）也收进来，便于报告里如实展示
+    await send('Log.enable');
+
+    let debugConsoleCount = 0;   // ?gatedebug=1 那次刻意打开的日志条数（整轮账本里要扣掉）
 
     const H = { loop: '127.0.0.1', alt: '127.0.0.2', name: 'localhost' };
     console.log(`  测试服务器：http://<host>:${PORT}${PATHNAME}`);
@@ -600,18 +663,24 @@ try {
 
     // ── 2. 无标记无令牌 ⇒ 拒绝，内容不可见 ──
     await setStorage(H.alt, null);
-    const deny = await visit(urlOn(H.alt, ''), `document.body && document.body.textContent.trim() === ${JSON.stringify(DENIED_TEXT)}`);
-    ok(!deny.gateOk && deny.gateDenied, '[127.0.0.2] 无令牌 ⇒ 不放行（html 没有 gate-ok，带 gate-denied）');
-    ok(deny.htmlVisibility === 'hidden', '[127.0.0.2] ★ html 的 visibility 是 hidden');
-    ok(deny.bodyText === DENIED_TEXT, `[127.0.0.2] ★ 页面（DOM）里只剩这一句：${JSON.stringify(deny.bodyText)}`);
-    ok(deny.visibleText === DENIED_TEXT, `[127.0.0.2] ★ 可见文本逐字等于 ${JSON.stringify(DENIED_TEXT)}（实际 ${JSON.stringify(deny.visibleText)}）`);
+    const deny = await visit(urlOn(H.alt, ''), `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
+    ok(!deny.gateOk, '[127.0.0.2] 无令牌 ⇒ 不放行（html 上没有 gate-ok）');
+    ok(deny.deniedText === DENIED_TEXT, `[127.0.0.2] ★ 提示文字逐字等于 ${JSON.stringify(DENIED_TEXT)}（实际 ${JSON.stringify(deny.deniedText)}）`);
+    ok(deny.visibleText === DENIED_VISIBLE,
+        `[127.0.0.2] ★ 可见文本逐字等于 ${JSON.stringify(DENIED_VISIBLE)}（提示 + 提交按钮；实际 ${JSON.stringify(deny.visibleText)}）`);
     ok(deny.title === DENIED_TITLE, `[127.0.0.2] ★ document.title 逐字等于 ${JSON.stringify(DENIED_TITLE)}（实际 ${JSON.stringify(deny.title)}）`);
-    ok(deny.bodyKids === 1 && deny.firstKid === 'gate-denied-box', `[127.0.0.2] ★ DOM 层面把原内容清掉了（body 子元素 ${deny.bodyKids} 个：${deny.firstKid}）`);
-    ok(deny.leaks.length === 0, `[127.0.0.2] ★ 除了提示盒子，没有任何元素可见（越界 ${deny.leaks.length} 个）`, JSON.stringify(deny.leaks));
+    ok(deny.titles.length === 1 && deny.titles[0] === DENIED_TITLE,
+        `[127.0.0.2] ★ 文档里只有一个 <title> 且逐字是「${DENIED_TITLE}」（实际 ${JSON.stringify(deny.titles)}）`);
+    // document.write 出来的是一份**最小文档**：body 只有提示盒 + 它自己的那段脚本
+    ok(deny.bodyKids === 2 && deny.bodyTags.join(',') === 'DIV,SCRIPT' && deny.boxChildren === 4,
+        `[127.0.0.2] ★ 文档被整个换掉了（body 子元素 ${deny.bodyKids} 个：${deny.bodyTags.join('+')}；提示盒里有 ${deny.boxChildren} 个子元素）`);
+    ok(deny.leaks.length === 0, `[127.0.0.2] ★ 除了提示盒子，没有任何元素可见（越界 ${deny.leaks.length} 个）`, JSON.stringify(deny.leaks.slice(0, 20)));
+    ok(deny.scriptCount === 3 && deny.linkCount === 0,
+        `[127.0.0.2] ★ 站点资源一个都没进来（<script> ${deny.scriptCount} 个=引导+门禁+提示页自己那段，<link> ${deny.linkCount} 个）`);
+    ok(deny.docLen < 40000, `[127.0.0.2] ★ 整个文档只剩提示页那点东西（documentElement 长度 ${deny.docLen}，原站首页是 50 万+）`);
+    ok(!/暂无访问权限/.test(String(deny.beforeContent)),
+        `[127.0.0.2] 关 JS 用的 CSS 兜底提示不再重复显示（::before content=${deny.beforeContent}）`);
     {
-        const titleState = await evaluate(`JSON.stringify([...document.querySelectorAll('title')].map(t => t.textContent.trim()))`);
-        ok(titleState === JSON.stringify([DENIED_TITLE]),
-            `[127.0.0.2] ★ 文档里只剩一个 <title> 且逐字是「${DENIED_TITLE}」，原站标题不残留（实际 ${titleState}）`);
         const leftovers = await evaluate(`(() => {
             const bad = [];
             const bodyHtml = document.body ? document.body.innerHTML : '';
@@ -625,6 +694,37 @@ try {
             return JSON.stringify(bad);
         })()`);
         ok(leftovers === '[]', `[127.0.0.2] ★ 页面（DOM 与可见文本）里不残留原站标志性文本（残留 ${leftovers}）`);
+    }
+
+    // ── 2a. ★ 任务 A：被拒时**干净地同归于尽** —— 控制台里不许有异常、也不许有我们的日志 ──
+    // 用户实测的报错就是这一段：
+    //     [collection-gate] no-token
+    //     Uncaught (in promise) TypeError: Cannot read properties of null (reading 'classList')
+    {
+        const exc = deny.events.filter(e => e.kind === 'exception');
+        const own = deny.events.filter(e => e.kind === 'console' && e.text.includes(CONSOLE_PREFIX));
+        const anyConsole = deny.events.filter(e => e.kind === 'console');
+        const browserLogs = deny.events.filter(e => e.kind === 'browserlog');
+        console.log(`      · 本次被拒页控制台取证：未捕获异常 ${exc.length} 条；页面 console 输出 ${anyConsole.length} 条（其中我们自己的 ${own.length} 条）；浏览器自身 Log 条目 ${browserLogs.length} 条`);
+        for (const e of deny.events) console.log(`          [${e.kind}] ${String(e.text).slice(0, 110)}`);
+        ok(exc.length === 0,
+            `★ [控制台] 无令牌被拒：未捕获异常 **0 条**（实际 ${exc.length} 条）—— document.open/write/close 把解析器停住了，站点脚本一条都没跑`,
+            exc.slice(0, 3).map(e => e.text).join(' | '));
+        ok(anyConsole.length === 0,
+            `★ [控制台] 无令牌被拒：页面 console 输出 0 条（实际 ${anyConsole.length} 条）`,
+            anyConsole.slice(0, 3).map(e => e.text).join(' | '));
+        ok(own.length === 0,
+            `★ [控制台] 无令牌被拒：门禁自己一条日志都没打（${CONSOLE_PREFIX}… 共 ${own.length} 条；只有 gatedebug=1 时才允许打）`);
+        ok(deny.siteGlobals.length === 0,
+            `★ [站点脚本] 无令牌被拒：站点标志性全局一个都没挂上（${JSON.stringify(deny.siteGlobals)}）—— 后面的站点 <script> 根本没执行`);
+        // gatedebug=1 时**才**允许有我们自己的日志：这是"开关真的存在"的自证
+        const dbg = await visit(urlOn(H.alt, '?gatedebug=1'),
+            `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
+        const dbgOwn = dbg.events.filter(e => e.kind === 'console' && e.text.includes(CONSOLE_PREFIX));
+        ok(dbgOwn.length > 0,
+            `★ [控制台] ?gatedebug=1 时门禁日志**才**出现（${dbgOwn.length} 条：${dbgOwn.slice(0, 2).map(e => e.text).join(' / ')}）—— 开关有效，不是把日志删了了事`);
+        ok(dbg.gateOk === false, '[控制台] 带 gatedebug=1 也照样拒绝（开关不改变判定）');
+        debugConsoleCount = dbgOwn.length;   // 整轮账本里要扣掉这几次"刻意打开"的日志
     }
     ok(!/暂无访问权限/.test(String(deny.beforeContent)),
         `[127.0.0.2] 脚本接管后 CSS 兜底提示不再重复显示（::before content=${deny.beforeContent}）`);
@@ -659,6 +759,8 @@ try {
     {
         await send('Emulation.setDeviceMetricsOverride', { width: 800, height: 600, deviceScaleFactor: 1, mobile: false });
         await sleep(300);
+        // 输入框默认是空的（没有文字像素可量），先打点东西进去，才能量"输入框文字 vs 输入框底色"
+        await evaluate(`(() => { const i = document.querySelector('.gate-denied-input'); if (i) i.value = 'A1b2C3'; return true; })()`);
         const combos = [
             ['light', null], ['light', 'dark'], ['light', 'light'],
             ['dark', null], ['dark', 'dark'], ['dark', 'light']
@@ -674,12 +776,16 @@ try {
                 const box = document.querySelector('.gate-denied-box');
                 const img = document.querySelector('.gate-denied-icon');
                 const txt = document.querySelector('.gate-denied-text');
-                if (!box || !img || !txt) return JSON.stringify({ missing: true });
+                const inp = document.querySelector('.gate-denied-input');
+                const btn = document.querySelector('.gate-denied-submit');
+                if (!box || !img || !txt || !inp || !btn) return JSON.stringify({ missing: true });
                 const r = e => { const b = e.getBoundingClientRect(); return { left: b.left, top: b.top, width: b.width, height: b.height, right: b.right, bottom: b.bottom }; };
                 return JSON.stringify({
-                    box: r(box), img: r(img), txt: r(txt),
+                    box: r(box), img: r(img), txt: r(txt), inp: r(inp), btn: r(btn),
                     bg: getComputedStyle(box).backgroundColor,
                     iconFilter: getComputedStyle(img).filter,
+                    inpBg: getComputedStyle(inp).backgroundColor, inpFg: getComputedStyle(inp).color,
+                    btnBg: getComputedStyle(btn).backgroundColor, btnFg: getComputedStyle(btn).color,
                     attr: document.documentElement.getAttribute('data-color-scheme'),
                     dpr: window.devicePixelRatio, sx: window.scrollX, sy: window.scrollY,
                     innerW: window.innerWidth, innerH: window.innerHeight
@@ -699,13 +805,26 @@ try {
                 [geo.img.left + geo.img.width / 2, geo.img.bottom + 6],
                 [geo.box.left + 8, geo.box.top + 8]
             ];
+            // 输入框/按钮的背景取样点必须落在**它们自己的底色**上（不是盒子的底色）：
+            // 取框内上下各 3px 的四处（文字在垂直中间，这四处一定是纯底色）
+            const ownBgPts = (r) => [
+                [r.left + r.width * 0.3, r.top + 3],
+                [r.left + r.width * 0.7, r.top + 3],
+                [r.left + r.width * 0.3, r.bottom - 3],
+                [r.left + r.width * 0.7, r.bottom - 3]
+            ];
             const iconC = measureContrast(png, sh(geo.img, 0), bgPts);
             const textC = measureContrast(png, sh(geo.txt, 0), bgPts);
+            const inpC = measureContrast(png, sh(geo.inp, 0), ownBgPts(geo.inp));
+            const btnC = measureContrast(png, sh(geo.btn, 0), ownBgPts(geo.btn));
             const label = `系统=${sys} 站点=${attr === null ? '（无属性）' : attr}`;
-            rows.push({ sys, attr, label, iconC, textC, geo, pngW: png.w, pngH: png.h });
+            rows.push({ sys, attr, label, iconC, textC, inpC, btnC, geo, pngW: png.w, pngH: png.h });
             console.log(`      ${label.padEnd(26)} 背景 ${JSON.stringify(geo.bg).padEnd(20)} 图标 filter=${String(geo.iconFilter).padEnd(24)}`
                 + ` 图标 芯${iconC.strokeLum}/底${iconC.bgLum} 反差 最大${iconC.maxDiff} 平均${iconC.meanDiff}（${iconC.strokePixels} 像素）`
                 + ` | 文案 芯${textC.strokeLum}/底${textC.bgLum} 反差 最大${textC.maxDiff} 平均${textC.meanDiff}`);
+            console.log(`      ${''.padEnd(26)} 输入框底 ${JSON.stringify(geo.inpBg).padEnd(20)} 字 ${JSON.stringify(geo.inpFg).padEnd(20)}`
+                + ` 反差 最大${inpC.maxDiff} 平均${inpC.meanDiff}（芯${inpC.strokeLum}/底${inpC.bgLum}）`
+                + ` | 按钮底 ${JSON.stringify(geo.btnBg)} 字 ${JSON.stringify(geo.btnFg)} 反差 最大${btnC.maxDiff} 平均${btnC.meanDiff}（芯${btnC.strokeLum}/底${btnC.bgLum}）`);
             ok(png.w === geo.innerW * geo.dpr && png.h === geo.innerH * geo.dpr,
                 `[像素] ${label}：截屏尺寸与视口一致（${png.w}×${png.h} vs ${geo.innerW}×${geo.innerH} @${geo.dpr}x）—— 采样坐标可信`);
             ok(iconC.maxDiff >= CONTRAST_MIN && iconC.meanDiff >= CONTRAST_MEAN_MIN,
@@ -714,20 +833,33 @@ try {
             ok(textC.maxDiff >= CONTRAST_MIN && textC.meanDiff >= TEXT_MEAN_MIN,
                 `★ [像素] ${label}：文案「${DENIED_TEXT}」与背景反差达标（最大 ${textC.maxDiff} ≥ ${CONTRAST_MIN}、平均 ${textC.meanDiff} ≥ ${TEXT_MEAN_MIN}；笔画 rgb(${textC.strokeRGB.join(',')}) vs 背景 rgb(${textC.bgRGB.join(',')})）`,
                 textC.maxDiff < CONTRAST_MIN ? `← 反差 ${textC.maxDiff}：文案与背景几乎同色` : '');
+            ok(inpC.maxDiff >= CONTRAST_MIN && inpC.meanDiff >= TEXT_MEAN_MIN,
+                `★ [像素] ${label}：输入框里的字与输入框底色反差达标（最大 ${inpC.maxDiff} ≥ ${CONTRAST_MIN}、平均 ${inpC.meanDiff} ≥ ${TEXT_MEAN_MIN}；字 rgb(${inpC.strokeRGB.join(',')}) vs 底 rgb(${inpC.bgRGB.join(',')})）`,
+                inpC.maxDiff < CONTRAST_MIN ? `← 反差 ${inpC.maxDiff}：输入框里的字和它的底色几乎同色` : '');
+            ok(btnC.maxDiff >= CONTRAST_MIN && btnC.meanDiff >= TEXT_MEAN_MIN,
+                `★ [像素] ${label}：按钮文字与按钮底色反差达标（最大 ${btnC.maxDiff} ≥ ${CONTRAST_MIN}、平均 ${btnC.meanDiff} ≥ ${TEXT_MEAN_MIN}；字 rgb(${btnC.strokeRGB.join(',')}) vs 底 rgb(${btnC.bgRGB.join(',')})）`,
+                btnC.maxDiff < CONTRAST_MIN ? `← 反差 ${btnC.maxDiff}：按钮文字和按钮底色几乎同色` : '');
         }
         // 汇总：六个组合里不许有任何一个是"几乎同色"
         const worstIcon = rows.reduce((a, r) => (r.iconC.maxDiff < a.iconC.maxDiff ? r : a), rows[0]);
         const worstText = rows.reduce((a, r) => (r.textC.maxDiff < a.textC.maxDiff ? r : a), rows[0]);
+        const worstInp = rows.reduce((a, r) => (r.inpC.maxDiff < a.inpC.maxDiff ? r : a), rows[0]);
+        const worstBtn = rows.reduce((a, r) => (r.btnC.maxDiff < a.btnC.maxDiff ? r : a), rows[0]);
         ok(rows.every(r => r.iconC.maxDiff >= CONTRAST_MIN),
             `★ 六种主题组合里**没有任何一个**出现"图标与背景几乎同色"（最差是「${worstIcon.label}」=${worstIcon.iconC.maxDiff}）`);
         ok(rows.every(r => r.textC.maxDiff >= CONTRAST_MIN),
             `★ 六种主题组合里**没有任何一个**出现"文案与背景几乎同色"（最差是「${worstText.label}」=${worstText.textC.maxDiff}）`);
+        ok(rows.every(r => r.inpC.maxDiff >= CONTRAST_MIN && r.btnC.maxDiff >= CONTRAST_MIN),
+            `★ 六种主题组合里**没有任何一个**出现"输入框/按钮的字与底色几乎同色"（输入框最差「${worstInp.label}」=${worstInp.inpC.maxDiff}，按钮最差「${worstBtn.label}」=${worstBtn.btnC.maxDiff}）`);
+        // 输入框/按钮的底色也必须跟着主题翻转（浅色底/深色底），否则会在某一套主题下变成"浅底浅字"
+        ok(rows.every(r => r.geo.inpBg !== r.geo.bg || r.geo.inpFg === r.geo.bg),
+            `★ 六种组合里输入框/按钮的底色确实随主题变（${rows.map(r => `${r.label.replace('系统=', '').replace(' 站点=', '/')}→底${r.inpC.bgLum}`).join('，')}）`);
         // 图标颜色确实被 filter 强制成纯黑/纯白（与背景明暗相反）
         ok(rows.every(r => (r.iconC.strokeLum < 60) !== (r.iconC.bgLum < 128)),
             `★ 六种组合里图标的实际像素颜色都与背景明暗相反（${
                 rows.map(r => `${r.label}:芯${r.iconC.strokeLum}/底${r.iconC.bgLum}`).join('，')}）`);
         await send('Emulation.setEmulatedMedia', { features: [] });
-        await evaluate(`(() => { document.documentElement.removeAttribute('data-color-scheme'); return true; })()`);
+        await evaluate(`(() => { document.documentElement.removeAttribute('data-color-scheme'); const i = document.querySelector('.gate-denied-input'); if (i) i.value = ''; return true; })()`);
         await send('Emulation.clearDeviceMetricsOverride');
         await sleep(300);
     }
@@ -737,21 +869,27 @@ try {
         await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 1, mobile: true });
         await sleep(300);
         const small = await probe();
-        ok(small.leaks.length === 0 && small.visibleText === DENIED_TEXT, `[127.0.0.2] 375×667 手机视口下同样只剩提示（越界 ${small.leaks.length} 个）`);
+        ok(small.leaks.length === 0 && small.visibleText === DENIED_VISIBLE, `[127.0.0.2] 375×667 手机视口下同样只剩提示（越界 ${small.leaks.length} 个）`);
         const geo = JSON.parse(await evaluate(`(() => {
             const i = document.querySelector('.gate-denied-icon');
             const t = document.querySelector('.gate-denied-text');
+            const f = document.querySelector('.gate-denied-form');
+            const n = document.querySelector('.gate-denied-input');
+            const b = document.querySelector('.gate-denied-submit');
             const r = i ? i.getBoundingClientRect() : null, rt = t ? t.getBoundingClientRect() : null;
+            const rf = f ? f.getBoundingClientRect() : null, rn = n ? n.getBoundingClientRect() : null, rb = b ? b.getBoundingClientRect() : null;
+            const box = e => e ? [Math.round(e.left), Math.round(e.right), Math.round(e.width)] : null;
             return JSON.stringify({
                 innerW: window.innerWidth, scrollW: document.documentElement.scrollWidth,
-                img: r ? [Math.round(r.left), Math.round(r.right), Math.round(r.width)] : null,
-                text: rt ? [Math.round(rt.left), Math.round(rt.right)] : null
+                img: box(r), text: box(rt), form: box(rf), input: box(rn), btn: box(rb)
             });
         })()`));
         ok(geo.img && geo.img[0] >= 0 && geo.img[1] <= geo.innerW,
             `[127.0.0.2] ★ 375px 窄屏下图标不横向溢出（img=[左${geo.img && geo.img[0]}, 右${geo.img && geo.img[1]}, 宽${geo.img && geo.img[2]}]，innerWidth=${geo.innerW}）`);
         ok(geo.text && geo.text[0] >= 0 && geo.text[1] <= geo.innerW,
             `[127.0.0.2] ★ 375px 窄屏下文案不横向溢出（text=[左${geo.text && geo.text[0]}, 右${geo.text && geo.text[1]}]）`);
+        ok(geo.input && geo.btn && geo.input[0] >= 0 && geo.btn[1] <= geo.innerW && geo.input[2] > 40,
+            `[127.0.0.2] ★ 375px 窄屏下口令输入框 + 按钮都放得下、输入框也没被挤成 0 宽（输入框=[左${geo.input && geo.input[0]}, 右${geo.input && geo.input[1]}, 宽${geo.input && geo.input[2]}]，按钮=[左${geo.btn && geo.btn[0]}, 右${geo.btn && geo.btn[1]}]）`);
         ok(geo.scrollW <= geo.innerW + 1,
             `[127.0.0.2] ★ 375px 窄屏下整页没有横向滚动（scrollWidth=${geo.scrollW} ≤ innerWidth=${geo.innerW}）`);
         await send('Emulation.clearDeviceMetricsOverride');
@@ -776,9 +914,9 @@ try {
 
     // ── 5. 错误令牌 ⇒ 拒绝 ──
     await setStorage(H.alt, null);
-    const wrong = await visit(urlOn(H.alt, '#k=' + TEST_TOKEN.split('').reverse().join('')), `document.body && document.body.textContent.trim() === ${JSON.stringify(DENIED_TEXT)}`);
-    ok(!wrong.gateOk && wrong.gateDenied, '[错误令牌] ★ 被拒绝');
-    ok(wrong.visibleText === DENIED_TEXT && wrong.leaks.length === 0, `[错误令牌] ★ 内容不可见，只剩 ${JSON.stringify(wrong.visibleText)}`);
+    const wrong = await visit(urlOn(H.alt, '#k=' + TEST_TOKEN.split('').reverse().join('')), `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
+    ok(!wrong.gateOk, '[错误令牌] ★ 被拒绝');
+    ok(wrong.visibleText === DENIED_VISIBLE && wrong.leaks.length === 0, `[错误令牌] ★ 内容不可见，只剩 ${JSON.stringify(wrong.visibleText)}`);
 
     // ── 6. 带令牌 + 深链路由：路由必须还在，而且真的跳过去了 ──
     const ROUTE = 'coins/commemorative_coins/coincomm/s3';
@@ -810,9 +948,9 @@ try {
 
     const OLD_MARK = sha256('an-old-token-that-was-rotated-away').slice(0, MARK_LEN);
     await setStorage(H.alt, OLD_MARK);
-    const stale = await visit(urlOn(H.alt, ''), `document.body && document.body.textContent.trim() === ${JSON.stringify(DENIED_TEXT)}`);
-    ok(!stale.gateOk && stale.gateDenied, `★ [标记=上一个令牌的值] 被拒绝（换令牌后老设备自动失效）`);
-    ok(stale.visibleText === DENIED_TEXT, `[标记=上一个令牌的值] 内容不可见，只剩 ${JSON.stringify(stale.visibleText)}`);
+    const stale = await visit(urlOn(H.alt, ''), `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
+    ok(!stale.gateOk, `★ [标记=上一个令牌的值] 被拒绝（换令牌后老设备自动失效）`);
+    ok(stale.visibleText === DENIED_VISIBLE, `[标记=上一个令牌的值] 内容不可见，只剩 ${JSON.stringify(stale.visibleText)}`);
 
     const back = await visit(urlOn(H.alt, '#k=' + TEST_TOKEN), `document.documentElement.classList.contains('gate-ok')`);
     ok(back.gateOk && back.mark === SERVE_MARK, '★ [换回当前令牌链接] 重新放行并把标记更新为当前值');
@@ -857,8 +995,10 @@ try {
     const noSubtle = await probe();
     const subtleGone = await evaluate(`typeof crypto.subtle`);
     ok(subtleGone === 'undefined', `[crypto.subtle 不可用] 探针生效（typeof crypto.subtle = ${subtleGone}）`);
-    ok(!noSubtle.gateOk && noSubtle.gateDenied, '★ [crypto.subtle 不可用] 即使令牌正确也不放行（宁挡勿放）');
+    ok(!noSubtle.gateOk, '★ [crypto.subtle 不可用] 即使令牌正确也不放行（宁挡勿放）');
     ok(noSubtle.visibleText === DENIED_TEXT, `[crypto.subtle 不可用] 内容不可见，只剩 ${JSON.stringify(noSubtle.visibleText)}`);
+    ok(noSubtle.formHidden === true,
+        '★ [crypto.subtle 不可用] 输入框被藏起来了（没法校验就不给框，免得误导用户以为能试出口令）');
     await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: pre.identifier });
 
     // ── 10. 未授权时"内容不可见"的判定方式自证：探针必须能分辨可见 / 不可见 ──
@@ -868,11 +1008,99 @@ try {
     ok(allowProbe.leaks.length > 0 && allowProbe.visibleText.length > 40 && allowProbe.htmlVisibility === 'visible',
         `★ 放行时同一个探针报"有内容可见"（越界可见元素 ${allowProbe.leaks.length} 个、可见文本 ${allowProbe.visibleText.length} 字）—— 说明它不是在无脑返回空`);
     await setStorage(H.alt, null);
-    const denyProbe = await visit(urlOn(H.alt, ''), `document.body && document.body.textContent.trim() === ${JSON.stringify(DENIED_TEXT)}`);
-    ok(denyProbe.leaks.length === 0 && denyProbe.visibleText === DENIED_TEXT,
+    const denyProbe = await visit(urlOn(H.alt, ''), `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
+    ok(denyProbe.leaks.length === 0 && denyProbe.visibleText === DENIED_VISIBLE,
         `★ 拒绝时同一个探针报"只剩提示"（越界 0 个、可见文本 ${JSON.stringify(denyProbe.visibleText)}）`);
 
-    console.log(`\n  页面运行时异常（未授权时会清空 body，站点脚本可能报错，不影响门禁判定）：${pageErrors.length} 条`);
+    // ── 11. ★ 任务 B：被拒页上的口令输入框（用户主动要求）──────────────────
+    // 再次强调：**它不增加任何安全性**，只是省掉"链接里的 #k= 被聊天软件吃掉"的麻烦。
+    {
+        console.log('\n  ── 被拒页的口令输入框 ──');
+        await setStorage(H.alt, null);
+        const WRONG_TOKEN = TEST_TOKEN.split('').reverse().join('');
+        const f0 = await visit(urlOn(H.alt, '#k=' + WRONG_TOKEN),
+            `document.querySelector('.gate-denied-form') && document.querySelector('.gate-denied-input')`);
+        const attrs = JSON.parse(await evaluate(`(() => {
+            const i = document.querySelector('.gate-denied-input'), b = document.querySelector('.gate-denied-submit');
+            return JSON.stringify(i ? {
+                type: i.getAttribute('type'), ac: i.getAttribute('autocomplete'), acl: i.getAttribute('autocapitalize'),
+                sc: i.getAttribute('spellcheck'), placeholder: i.getAttribute('placeholder'), title: i.getAttribute('title'),
+                btn: b ? b.textContent : null, action: document.querySelector('.gate-denied-form').getAttribute('action')
+            } : { missing: true });
+        })()`));
+        ok(attrs.type === 'text' && attrs.ac === 'off' && attrs.acl === 'off' && attrs.sc === 'false',
+            `★ 输入框属性齐了（type=${attrs.type}、autocomplete=${attrs.ac}、autocapitalize=${attrs.acl}、spellcheck=${attrs.sc}）`);
+        ok(attrs.placeholder === null && attrs.title === null && attrs.action === null,
+            `★ 输入框上没有任何"示例/格式/长度"提示（placeholder=${attrs.placeholder}、title=${attrs.title}），表单也没有 action`);
+        ok(attrs.btn === SUBMIT_TEXT, `提交按钮文字逐字是「${SUBMIT_TEXT}」（实际 ${JSON.stringify(attrs.btn)}）`);
+        ok(f0.gateOk === false && f0.errHidden === true,
+            `★ 刚进来时错误提示是藏着的（errHidden=${f0.errHidden}），可见文本 ${JSON.stringify(f0.visibleText)}`);
+        ok(f0.events.filter(e => e.kind === 'exception').length === 0,
+            `★ 错误令牌被拒时同样 0 条未捕获异常（实际 ${f0.events.filter(e => e.kind === 'exception').length} 条）`);
+
+        // ① 错口令：仍被拒、只给一句中性提示、不写标记、刷新后仍被拒
+        const submit = (v) => evaluate(`(() => {
+            const i = document.querySelector('.gate-denied-input');
+            i.value = ${JSON.stringify(v)};
+            document.querySelector('.gate-denied-submit').click();
+            return true;
+        })()`);
+        await submit('definitely-not-the-token');
+        await sleep(1500);
+        const w = await probe();
+        ok(w.gateOk === false && w.mark === null,
+            `★ [错口令] 仍然被拒、**没有写标记**（ls=${w.mark}）`);
+        ok(w.visibleText === DENIED_VISIBLE + WRONG_TEXT,
+            `★ [错口令] 只多了一句中性提示，逐字是 ${JSON.stringify(DENIED_VISIBLE + WRONG_TEXT)}（实际 ${JSON.stringify(w.visibleText)}）`);
+        ok(!/\d/.test(w.visibleText.replace(DENIED_TEXT, '')) && !/次|长度|接近|相似/.test(w.visibleText),
+            '★ [错口令] 提示里没有剩余次数 / 长度 / "接近"之类的任何暗示');
+        const afterReload = await visit(urlOn(H.alt, ''),
+            `document.body && document.body.textContent.includes(${JSON.stringify(DENIED_TEXT)})`);
+        ok(afterReload.gateOk === false && afterReload.mark === null,
+            '★ [错口令] 刷新之后仍然被拒（没有留下任何"过了一半"的状态）');
+
+        // ② 对口径：放行 + 写标记 + k 参数被摘掉 + 内容真的渲染出来
+        await setStorage(H.alt, null);
+        const f1 = await visit(urlOn(H.alt, '#k=' + WRONG_TOKEN),
+            `document.querySelector('.gate-denied-input')`);
+        await submit(TEST_TOKEN);
+        const released = await waitFor(`document.documentElement.classList.contains('gate-ok')`, 9000);
+        ok(released, '★ [对口径] 提交正确口令 ⇒ 自动重新加载后放行（location.replace 掉的还是同一个地址）');
+        await sleep(1500);
+        const okRun = await probe();
+        ok(okRun.gateOk && okRun.mark === SERVE_MARK,
+            `★ [对口径] 标记写成了当前哈希前 ${MARK_LEN} 位（ls=${okRun.mark}）`);
+        ok(!/[#&?]k=/.test(okRun.href) && !okRun.href.includes(TEST_TOKEN),
+            `★ [对口径] 地址栏里没有令牌（${okRun.href}）`);
+        ok(okRun.bodyText.length > 40 && okRun.leaks.length > 0,
+            `★ [对口径] 放行后站点内容真的渲染出来了（body 文本 ${okRun.bodyText.length} 字、越界可见元素 ${okRun.leaks.length} 个）`);
+        ok(f1.events.filter(e => e.kind === 'exception').length === 0, '★ [对口径] 提交过程中也没有未捕获异常');
+
+        // ③ 与链接路径**同一条校验路径**（静态自证：同一个 SHA-256 + 同一个恒定时间比较）
+        const impl = readFileSync(GATE_JS, 'utf8');
+        const ctCount = (impl.match(/function ctEqual\(/g) || []).length;
+        ok(ctCount === 1, `★ 恒定时间比较函数只有一份实现（ctEqual 定义 ${ctCount} 次）—— 链接与输入框共用`);
+        ok(/var SUBMIT_JS = '\(function\(\)\{'[\s\S]*?function ct\(a,b\)/.test(impl),
+            '★ 输入框那段脚本里也用的是**恒定时间比较**（长度差异折进 diff、逐字符异或、不提前退出）');
+        ok(/function verifyToken\(candidate, subtleApi, cb\)/.test(impl) && /verifyToken\(token, subtle, /.test(impl) && /verifyToken\(inp\.value, subtle, /.test(impl),
+            '★ 链接路径与输入框路径都调用同一个 verifyToken()');
+    }
+
+    // ── 12. 整轮控制台账本：放行路径也不许有未捕获异常 ──
+    {
+        const excAll = events.filter(e => e.kind === 'exception');
+        const ownAll = events.filter(e => e.kind === 'console' && e.text.includes(CONSOLE_PREFIX));
+        const consoleAll = events.filter(e => e.kind === 'console');
+        const browserLogs = events.filter(e => e.kind === 'browserlog');
+        console.log('\n  ── 整轮控制台账本（本次进程内所有导航）──');
+        console.log(`     未捕获异常 ${excAll.length} 条；页面 console 输出 ${consoleAll.length} 条（其中 ${CONSOLE_PREFIX} 前缀 ${ownAll.length} 条，其余 ${debugConsoleCount} 条是 ?gatedebug=1 那次刻意打开的）；浏览器自身 Log 条目 ${browserLogs.length} 条`);
+        for (const e of excAll.slice(0, 5)) console.log(`       [异常] ${String(e.text).slice(0, 130)}`);
+        for (const e of browserLogs.slice(0, 5)) console.log(`       [浏览器] ${String(e.text).slice(0, 130)}`);
+        ok(excAll.length === 0, `★ 整轮 0 条未捕获异常（实际 ${excAll.length} 条）`);
+        ok(consoleAll.length === ownAll.length && ownAll.length === debugConsoleCount,
+            `★ 整轮页面 console 输出只有 ?gatedebug=1 那次刻意打的 ${debugConsoleCount} 条，其余一律为 0（实际共 ${consoleAll.length} 条）`);
+    }
+
     console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);
 } finally {
     try { ws.close(); } catch { }
