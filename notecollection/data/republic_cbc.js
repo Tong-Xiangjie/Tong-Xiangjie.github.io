@@ -42,7 +42,7 @@ const republic_cbcData = {
                             price: "100元",
                             purchaseDate: "2026年9月4日",
                             krause: "197h",
-                            remark: "单面号码；绿色签名",
+                            remark: "单面号码；绿色签名。此张纸币为后期印刷版本。冠号的两个前缀字母“SX”实际上分别代表地名“上海（Shanghai）”以及与该纸币的面额相对应的罗马数字“Ⅹ”。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/SX975747QJ-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/SX975747QJ-2.jpg"
                         }
@@ -175,7 +175,7 @@ const republic_cbcData = {
                             price: "88元",
                             purchaseDate: "2026年10月14日",
                             krause: "217a",
-                            remark: "",
+                            remark: "冠号的后缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916-2.jpg"
                         }
@@ -198,7 +198,7 @@ const republic_cbcData = {
                             price: "78元",
                             purchaseDate: "2026年7月17日",
                             krause: "218a",
-                            remark: "",
+                            remark: "冠号的后缀字母“X”实际上代表罗马数字“Ⅹ”，与该纸币的面额“10”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/CV684686X-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/CV684686X-2.jpg"
                         }
@@ -221,7 +221,7 @@ const republic_cbcData = {
                             price: "228元",
                             purchaseDate: "2026年7月17日",
                             krause: "220a",
-                            remark: "",
+                            remark: "冠号的后缀字母“C”实际上代表罗马数字“Ⅽ”，与该纸币的面额“100”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/CP840041C-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/CP840041C-2.jpg"
                         }
@@ -273,7 +273,7 @@ const republic_cbcData = {
                             price: "59元",
                             purchaseDate: "2026年8月24日",
                             krause: "213a",
-                            remark: "",
+                            remark: "冠号的后缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-2.jpg"
                         },{
