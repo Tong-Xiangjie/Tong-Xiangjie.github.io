@@ -22,6 +22,56 @@ const circulating_4Data = {
     ],
     series: [
         // 示例系列（请在此添加您的流通币藏品）
-        
+        {
+            seriesName: "1991～2001年 5角",
+            year: "1991～2001",
+            copies: [
+                {
+                    copyId: 21205699,
+                    country: "中华人民共和国",
+                    year: 1991,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "铜锌合金（黄铜）",
+                    diameter: "20.5mm",
+                    weight: "3.8g",
+                    edge: "间断丝齿",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "55元",
+                    purchaseDate: "2026年10月19日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21205699-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21205699-2.jpg"
+                }
+            ]
+        },{
+            seriesName: "1991～2000年 1元",
+            year: "1991～2000",
+            copies: [
+                {
+                    copyId: 85516853,
+                    country: "中华人民共和国",
+                    year: 1999,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "钢芯镀镍",
+                    diameter: "25mm",
+                    weight: "6.05g",
+                    edge: "光边",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "25元",
+                    purchaseDate: "2026年10月19日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/85516853-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/85516853-2.jpg"
+                }
+            ]
+        }
     ]
 };
