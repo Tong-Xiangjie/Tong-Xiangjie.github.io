@@ -23,7 +23,7 @@ const circulating_4Data = {
     series: [
         // 示例系列（请在此添加您的流通币藏品）
         {
-            seriesName: "1991～2001年 5角",
+            seriesName: "1991～2001年 5角 梅花",
             year: "1991～2001",
             copies: [
                 {
@@ -48,7 +48,7 @@ const circulating_4Data = {
                 }
             ]
         },{
-            seriesName: "1991～2000年 1元",
+            seriesName: "1991～2000年 1元 牡丹",
             year: "1991～2000",
             copies: [
                 {
