@@ -45,6 +45,25 @@ const circulating_4Data = {
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21205699-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21205699-2.jpg"
+                },{
+                    copyId: 20836106,
+                    country: "中华人民共和国",
+                    year: 1995,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "铜锌合金（黄铜）",
+                    diameter: "20.5mm",
+                    weight: "3.8g",
+                    edge: "间断丝齿",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "35元",
+                    purchaseDate: "2026年10月20日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/20836106-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/20836106-2.jpg"
                 }
             ]
         },{
@@ -52,6 +71,25 @@ const circulating_4Data = {
             year: "1991～2000",
             copies: [
                 {
+                    copyId: 85513562,
+                    country: "中华人民共和国",
+                    year: 1996,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "钢芯镀镍",
+                    diameter: "25mm",
+                    weight: "6.05g",
+                    edge: "光边",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "25元",
+                    purchaseDate: "2026年10月20日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/85513562-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/85513562-2.jpg"
+                },{
                     copyId: 85516853,
                     country: "中华人民共和国",
                     year: 1999,
