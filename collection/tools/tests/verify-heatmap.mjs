@@ -409,10 +409,10 @@ ok(expectMatrix.totalAmount === expectMatrix.rawAmount,
   `② ★★★ 两条总口径恒等：Σ裸币价+评级费支出 == Σ录入价（${expectMatrix.totalAmount} == ${expectMatrix.rawAmount}）—— 7670 与 7193.5 的差就是这么来的`);
 
 // ─────────── ②-c 悬浮提示：第一行不含评级费、第二/三行按需出现 ───────────
-// 用户 2026-10 的三行形态（以 2026年10月 为例）：
-//   2026年10月，共购入9件，合计1114元        ← **不含**评级费（否则均价被抬高）
+// 用户 2026-10 的三行形态（以 2026年10月 为例；数字随后来的数据更新而变）：
+//   2026年10月，共购入10件，合计1194元       ← **不含**评级费（否则均价被抬高）
 //   另对34件藏品进行评级，评级费用 810 元
-//   当月合计支出1924元                       ← 1114 + 810，只在有评级费时出现
+//   当月合计支出2004元                       ← 1194 + 810，只在有评级费时出现
 console.log('\n══════ ②-c 悬浮提示：合计不含评级费 + 评级费单独成行 ══════\n');
 // 独立复算：从**台账原始数据**（页面数据文件）重算每月评级费件数与金额，
 // 不读页面算好的任何东西 —— 否则这里就变成"用页面验证页面"了。
@@ -520,20 +520,22 @@ if (oct) {
   console.log('     2026年10月 实际提示文本：');
   lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
   const octExp = expectFees['2026/10'];
-  // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ裸币价）：
-  //     2026年10月，共购入8件，合计1114元      ← 用户原话写的是"9件"，实测数据是 **8 件 / 1114 元**
-  //                                              （collectAllCopies 与实际遍历两条独立路径都是 8 件 1114 元）
+  // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ裸币价）。用户原话写的是"9件"；
+  //    **数据后来更新过**：2026-10 新增 2 枚（55 元 + 25 元，购入日期 2026年10月19日）
+  //    ⇒ 原来那版 8 件 / 1114 元 变成 10 件 / 1194 元（原始数据文件独立数一遍 = 10 条 / Σ1194；
+  //      collectAllCopies 与实际遍历两条独立路径也是 10 件 1194 元）。
+  //     2026年10月，共购入10件，合计1194元
   //     另对26件藏品进行评级，评级费用810元
-  //     合计支出1924元
+  //     合计支出2004元
   const octCell = expectMatrix.cells['2026/10'];
-  ok(/^2026年10月，共购入\d+件，合计1114元$/.test(lines[0]),
-    `②-c ★★★ 第一行合计 == 1114（实际「${lines[0]}」）`);
-  ok(!/1924/.test(lines[0]), `②-c ★★★ 第一行里**不出现** 1924（实际「${lines[0]}」）`);
+  ok(/^2026年10月，共购入\d+件，合计1194元$/.test(lines[0]),
+    `②-c ★★★ 第一行合计 == 1194（实际「${lines[0]}」）`);
+  ok(!/2004/.test(lines[0]), `②-c ★★★ 第一行里**不出现** 2004（实际「${lines[0]}」）`);
   ok(/^另对[\d]+件藏品进行评级，评级费用810元$/.test(lines[1] || ''),
     `②-c ★★★ 第二行 == 「另对xx件藏品进行评级，评级费用810元」（数字两侧无空格；实际「${lines[1]}」）`);
-  ok(lines[2] === '合计支出1924元',
-    `②-c ★★★ 第三行 == 「合计支出1924元」（1114 + 810；实际「${lines[2]}」）`);
-  ok(octCell && octCell.npn === 8 && Math.abs(octCell.npsum - 1114) <= 0.01,
+  ok(lines[2] === '合计支出2004元',
+    `②-c ★★★ 第三行 == 「合计支出2004元」（1194 + 810；实际「${lines[2]}」）`);
+  ok(octCell && octCell.npn === 10 && Math.abs(octCell.npsum - 1194) <= 0.01,
     `②-c ★★★ 独立复算该月 = ${octCell && octCell.npn} 件 / Σ裸币价 ${octCell && octCell.npsum} 元`);  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
     `②-c ★★★ 台账该月评级 = 26 件 / 810 元（实际 ${octExp.k} 件 / ${octExp.amount} 元）`);
   // aria-label 也要是同一套文本（aria 走 escapeAttr，会带编码后的 <strong> 标签）
@@ -564,18 +566,21 @@ if (onlyFee) {
   console.log('     （数据里没有"只有评级费、无购入"的月份，跳过该分支）');
 }
 
-// ─────────── ②-d 「共购入 N 件」的 N 到底是多少：8 还是 9 ───────────
-// 用户举的例子是 2026 年 10 月「共购入 9 件，合计 1114 元」，页面给的是 8 件。
+// ─────────── ②-d 「共购入 N 件」的 N 到底是多少（历史争议 8 还是 9） ───────────
+// 用户举的例子是 2026 年 10 月「共购入 9 件，合计 1114 元」，当时页面给的是 8 件。
 // 查证结论（三条互不相干的路径 + 页面 DOM 逐条点数）：
-//   · 数据源：`grep 'purchaseDate: "2026年10月' notecollection/data/*.js` ⇒ **正好 8 条**，
-//     而且 8 条的 price 全部有值（200/98/88/88/115/70/70/385 = 1114）⇒ **不是"有件没价格被漏算"**；
-//   · `collectAllCopies()` 在页面里跑一遍 ⇒ 2026/10 = 8 件 / Σprice 1114；
-//   · 时间轴 DOM 上「2026年10月」那一段 ⇒ **9 张卡片**，其中第 6 张是
+//   · 数据源：按 purchaseDate 落在 2026 年 10 月逐条数 ⇒ 当时**正好 8 条**，
+//     而且 8 条的 price 全部有值（200/98/88/88/115/70/70/385 = 1114）⇒ 不是"有件没价格被漏算"；
+//   · `collectAllCopies()` 在页面里跑一遍 ⇒ 当时 2026/10 = 8 件 / Σprice 1114；
+//   · 时间轴 DOM 上「2026年10月」那一段 ⇒ 当时 **9 张卡片**，其中第 6 张是
 //     「评级费｜评级公司：ACG｜…｜送评日期：2026年9月6日」（付款日期 2026-10-01）
 //     ⇒ 用户数的 9 = **8 件藏品 + 1 条评级费卡片**。
+//   ★★ 数据后来更新（并行那条线）：2026-10 又添了 2 枚（55 元 + 25 元，购入日期 2026年10月19日）
+//      ⇒ 现在是 **10 件藏品 / Σ1194 元**，DOM 上 11 张卡片、跨 **4 天**；原始数据文件独立数一遍
+//        同样是 10 条 / Σ1194（见 ②-c 的注释）。
 //   ⇒ 所以「共购入 N 件」的 N 按**藏品件数**记（评级费那条已经单独出在第二行，
 //     再并进第一行就是一行里数两次）。这里把三条路径和 DOM 都钉住。
-console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是 8 件（9 张卡片 = 8 藏品 + 1 评级费） ══════\n');
+console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是 10 件（11 张卡片 = 10 藏品 + 1 评级费） ══════\n');
 {
   const octTips = tipsAll.find(t => t.y === '2026' && Number(t.m) === 10);
   const octWant = expectMatrix.cells['2026/10'] || { pn: 0, psum: 0 };
@@ -637,8 +642,8 @@ console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是
     `②-d ★★★ 时间轴 DOM 上「2026年10月」共 ${domOct && domOct.total} 张卡片 = 藏品 ${octItems.length} 件 + **评级费卡片 ${domOct && domOct.feeCards} 张**（这就是用户数的"9"）`);
   ok(!!domOct && domOct.feeCards === 1,
     `②-d ★★ 那一张多出来的卡片是评级费条目（${domOct && JSON.stringify(domOct.items.filter(w => /评级费/.test(w.txt)).map(w => w.txt))}）`);
-  ok(!!domOct && domOct.days.length === 3 && domOct.days.join(',') === '2026年10月14日,2026年10月13日,2026年10月1日',
-    `②-d ★ 那 9 张卡片分布在 3 天里（${domOct && domOct.days.join(' / ')}）—— 9 条并没有第 9 件藏品`);
+  ok(!!domOct && domOct.days.length === 4 && domOct.days.join(',') === '2026年10月19日,2026年10月14日,2026年10月13日,2026年10月1日',
+    `②-d ★ 那些卡片分布在 4 天里（${domOct && domOct.days.join(' / ')}）—— 多出来的那张是评级费卡片，不是第 11 件藏品`);
 }
 
 // ─────────── ②-e 以"每日合计之和"为准对账（用户 2026-10 的判据） ───────────
@@ -1508,8 +1513,8 @@ console.log('\n══════ ③-e 填色金额 == 泡第一行"合计"（�
   ok(bad.length === 0,
     `③-e ★★★ 每个有色格子的**填色金额** == 它泡第一行的"合计"（不一致：${bad.map(b => b.key + ' ' + b.amt + '≠' + b.tipSum).join('；') || '无'}）`);
   const octP = pairs.find(p => p.key === '2026/10');
-  ok(!!octP && octP.amt === 1114 && octP.tipSum === 1114,
-    `③-e ★★★ 2026/10 这一格：填色 ${octP && octP.amt} == 泡里合计 ${octP && octP.tipSum} == 1114（上一版这里是 1924，评级费被算进了填色）`);
+  ok(!!octP && octP.amt === 1194 && octP.tipSum === 1194,
+    `③-e ★★★ 2026/10 这一格：填色 ${octP && octP.amt} == 泡里合计 ${octP && octP.tipSum} == 1194（上一版这里是 2004，评级费被算进了填色）`);
   const febP = pairs.find(p => p.key === '2026/02');
   ok(!!febP && Math.abs(febP.amt - 7194) <= 1,
     `③-e ★★★ 2026/02 这一格：填色 ${febP && febP.amt}（= 裸币口径 7193.5，用户手算逐日之和 7194；上一版这里是 7670，因为泡第一行用了 Σ录入价）`);
@@ -1901,6 +1906,11 @@ ok(!/(25|50|75)\s*%/.test(gradBody),
 // alpha 解析：rgba(r,g,b,a) 的第 4 个分量，或 color(srgb r g b / a) 的斜杠后分量；rgb() 视为 1
 const alphaOf = (c) => {
   const s = String(c);
+  // ★ 页面自己的 timelineHeatmapColorCss() 现在返回 color-mix(in srgb, var(--theme) NN%, transparent)
+  //   （颜色跟着主题变量走，不再写死 rgba 蓝）⇒ 这里也要能读出它的 alpha：
+  //   与 transparent 混合时结果 alpha = NN%。
+  const cm = s.match(/color-mix\([\s\S]*?([\d.]+)%\s*,\s*transparent\s*\)/);
+  if (cm) return parseFloat(cm[1]) / 100;
   const srgb = s.match(/color\(\s*srgb\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)(?:\s*\/\s*([\d.eE+-]+%?))?/);
   if (srgb) {
     if (srgb[4] == null) return 1;
@@ -3652,6 +3662,94 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
 // 收尾：回到全部时间
 await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
 await sleep(900);
+
+// ══════════════ ⑧ 渐变条的颜色**不许写死默认蓝**（用户："拾年的那个渐变条写死了是默认的蓝色"）══════════════
+// ★ 判据：条带渐变两端的颜色必须等于**当时**的 --theme（主题变量），而且**不等于**默认主题蓝
+//   #1677ff / #4096ff；换成非默认主题色（红 #d92121）后条带必须跟着变；暗色下同样成立。
+//   取证全部来自"计算出来的 background-image"（不看源码措辞），所以 CSS/JS 怎么分工都能判。
+console.log('\n══════ ⑧ 渐变条颜色跟随主题变量（不写死默认蓝）══════\n');
+const DEFAULT_BLUES = ['22,119,255', '64,150,255'];   // #1677ff / #4096ff，站点 :root 里的默认值
+const parseBarStops = (bg) => {
+  const s = String(bg || '');
+  const body = (s.match(/linear-gradient\(([^]*)\)$/) || [, ''])[1];
+  return body.split(/,(?![^(]*\))/).map(part => {
+    const t = part.trim();
+    const color = (t.match(/^(color\([^)]*\)|rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}|transparent)/) || [])[1] || '';
+    return color ? { color, rgb: (rgbTriple(color) || []).join(','), alpha: alphaOf(color) } : null;
+  }).filter(Boolean);
+};
+const BAR_THEME_PROBE = `(()=>{
+  const cs = getComputedStyle;
+  const bar = [...document.querySelectorAll('.tl-hm-legend-bar')].find(b => b.getBoundingClientRect().width > 1)
+           || document.querySelector('.tl-hm-legend-bar');
+  return JSON.stringify({
+    found: !!bar,
+    scheme: document.documentElement.getAttribute('data-color-scheme'),
+    theme: cs(document.documentElement).getPropertyValue('--theme').trim(),
+    barImage: bar ? cs(bar).backgroundImage : null,
+    inline: bar ? bar.getAttribute('style') : null,
+    // 页面的 alpha 直线常量（top-level const ⇒ 全局词法作用域里取得到）
+    hmAlpha: (typeof HM_ALPHA_MIN === 'number' && typeof HM_ALPHA_MAX === 'number') ? [HM_ALPHA_MIN, HM_ALPHA_MAX] : null
+  });
+})()`;
+const barFollowsTheme = async (label, wantRgb) => {
+  const d = JSON.parse(await evaluate(BAR_THEME_PROBE));
+  const stopList = parseBarStops(d.barImage);
+  const themeRgb = (rgbTriple(d.theme) || []).join(',');
+  const themeIsDefaultBlue = DEFAULT_BLUES.includes(themeRgb);
+  console.log(`     ${label}（${d.scheme}）：--theme=${d.theme}｜条带两端 = ${stopList.map(s => s.color + '@α' + s.alpha).join(' , ')}｜行内 style=${d.inline === null ? '(无)' : JSON.stringify(d.inline)}`);
+  ok(stopList.length === 2 && stopList.every(s => s.rgb === themeRgb),
+    `⑧ ★★★ ${label}：条带渐变两端的颜色都 = 当前主题色 --theme=${d.theme}（实测 ${stopList.map(s => s.rgb).join(' ｜ ')}）`);
+  if (wantRgb || !themeIsDefaultBlue) {
+    ok(stopList.length === 2 && stopList.every(s => !DEFAULT_BLUES.includes(s.rgb)),
+      `⑧ ★★★ ${label}：条带两端**都不是默认蓝** #1677ff/#4096ff（实测 ${stopList.map(s => s.rgb).join(' ｜ ')}）—— 用户报的"写死了默认蓝色"就是换色也不改`);
+  } else {
+    console.log(`     ○ 跳过：当前主题本身就是默认蓝 ${d.theme} ⇒ "≠默认蓝"这一条在这一步无意义（换色那一步才是判据）`);
+  }
+  if (wantRgb) ok(stopList.every(s => s.rgb === wantRgb),
+    `⑧ ★★★ ${label}：条带两端确实变成了刚换上的主题色 rgb(${wantRgb})（实测 ${stopList.map(s => s.rgb).join(' ｜ ')}）`);
+  ok(!d.inline || !/(gradient|rgb|color-mix|#)/i.test(d.inline),
+    `⑧ ★★ ${label}：条带的**行内 style 里没有任何颜色/渐变**（${d.inline === null ? 'style 属性都没有' : JSON.stringify(d.inline)}）⇒ 颜色只来自 CSS 里的主题变量，JS 不参与配色`);
+  if (d.hmAlpha) {
+    const want = d.hmAlpha.map(a => Math.round(a * 10000) / 100);
+    ok(stopList.length === 2 && Math.abs(stopList[0].alpha - d.hmAlpha[0]) < 1e-6 && Math.abs(stopList[1].alpha - d.hmAlpha[1]) < 1e-6,
+      `⑧ ★★★ ${label}：两端 alpha 仍等于页面自己的色阶端点 HM_ALPHA_MIN/MAX = ${d.hmAlpha.join('/')}（实测 ${stopList.map(s => s.alpha).join('/')}）`);
+    // 两处数值不许各写一套：CSS 源文里那条渐变规则的两个百分比必须等于页面常量
+    const barRule = (css.match(/(?:^|\n)\.tl-hm-legend-bar \{[^}]*\}/g) || []).find(x => /background-image/.test(x)) || '';
+    const pcts = [...barRule.matchAll(/var\(--theme\)\s+([\d.]+)%/g)].map(m => +m[1]);
+    ok(pcts.length === 2 && pcts[0] === want[0] && pcts[1] === want[1],
+      `⑧ ★★★ ${label}：CSS 里的两个百分比（${pcts.join('/')}%）与 JS 常量 ${d.hmAlpha.join('/')} 逐值相等 ⇒ 色阶只有一条直线，不会各写一套`);
+    const barRuleCode = barRule.replace(/\/\*[\s\S]*?\*\//g, '');   // 注释里提到历史色值不算硬编码
+    ok(/background-image:\s*linear-gradient\(to right/.test(barRuleCode) && /var\(--theme\)/.test(barRuleCode) && !/(22,\s*119,\s*255|#1677ff|#4096ff)/.test(barRuleCode),
+      `⑧ ★★★ ${label}：CSS 的 .tl-hm-legend-bar 里只有 var(--theme) 的渐变，没有任何写死的蓝（${barRule.replace(/\s+/g, ' ').slice(0, 90)}…）`);
+  }
+  return d;
+};
+{
+  const before = JSON.parse(await evaluate(BAR_THEME_PROBE));
+  ok(before.found && !!before.theme, `⑧ 拾年热力图下面的色阶条带在页面里（--theme=${before.theme}）`);
+  // ① 当前（默认主题色）下就已经是"跟随变量、不是写死的默认蓝"——默认主题恰好就是默认蓝，所以
+  //    这里只能证明"跟随"，"不是写死"由下面换色那一步证明（换了还不改 = 写死）。
+  await barFollowsTheme('默认主题色', null);
+  // ② 换成**非默认**主题色（设置里的红色预设 #d92121）：条带必须跟着变
+  const applied = await evaluate(`(()=>{ if (typeof setTheme==='function') { setTheme('#d92121'); return 1; } return 0; })()`);
+  ok(applied === 1, '⑧ 用站内 setTheme("#d92121") 换主题色（红色预设；setTheme 会把选择写进 localStorage，切明暗后仍生效）');
+  await sleep(500);
+  const red = await barFollowsTheme('换成红色主题 #d92121（浅色）', '217,33,33');
+  ok(red.theme.replace(/\s/g, '').toLowerCase().indexOf('d92121') >= 0 || (rgbTriple(red.theme) || []).join(',') === '217,33,33',
+    `⑧ ★★ 站点的 --theme 也确实变成了红色（${red.theme}）`);
+  // ③ 暗色下同样必须跟随（不是"只在浅色下跟上"）
+  await setMode('dark');
+  const redDark = await barFollowsTheme('红色主题 + 暗色', '217,33,33');
+  ok(redDark.scheme === 'dark', `⑧ ★★ 已切到暗色（data-color-scheme=${redDark.scheme}）`);
+  // ④ 还原：回到浅色 + 原本的主题色，并确认条带**跟着还原**
+  await setMode('light');
+  const restored = await evaluate(`(()=>{ if (typeof setTheme==='function') { setTheme(${JSON.stringify(before.theme)}); return 1; } return 0; })()`);
+  await sleep(500);
+  const back = await barFollowsTheme('还原回原主题色', null);
+  ok(restored === 1 && (rgbTriple(back.theme) || []).join(',') === (rgbTriple(before.theme) || []).join(','),
+    `⑧ ★★★ 换回原主题色后 --theme 也还原（${before.theme} → ${back.theme}）—— 后面/别的用例看到的是原状态`);
+}
 
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);

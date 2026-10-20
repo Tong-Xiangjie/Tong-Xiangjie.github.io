@@ -1402,9 +1402,14 @@ function timelineHeatmapTiers(maxAmount) {
 //   7193，而泡里写的是 7670 ⇒ 用户拿"2026 年 2 月逐日明细手算的 7194"一对就发现不对。
 //   verify-heatmap 里有断言：五档金额 == 实时最大月合计 × {0,¼,½,¾,1}（四舍五入）。
 
-// 图例条带 / 热力图格子共用的**取色**：金额 → `rgba(主题蓝, alpha)`。
+// 图例条带 / 热力图格子共用的**取色**：金额 → `color-mix(in srgb, var(--theme) α%, transparent)`。
+//   ★ 色相 = 主题变量，不再写死默认主题蓝（原来返回 `rgba(22, 119, 255, α)`）；
+//     α 仍是 hmAlphaOf() 那条直线，与 CSS 里 `.tl-hm-legend-bar` 的两个端点同源。
+//   ★ 本函数目前没有产品调用方（条带颜色由 CSS 独家负责，JS 不写颜色），
+//     verify-heatmap 会读它的 α 来核对"CSS 与 JS 是同一条色阶直线"。
 function timelineHeatmapColorCss(amount, maxAmount) {
-    return `rgba(22, 119, 255, ${hmAlphaOf(amount, maxAmount)})`;
+    const pct = Math.round(hmAlphaOf(amount, maxAmount) * 10000) / 100;
+    return `color-mix(in srgb, var(--theme) ${pct}%, transparent)`;
 }
 
 // 图例条带：**一条连续渐变**（不是几个色块），0/25/50/75/100% 五处标注该档金额，
@@ -1416,9 +1421,12 @@ function timelineHeatmapColorCss(amount, maxAmount) {
 //   两个端点就是 hmAlphaOf 的上下限（HM_ALPHA_MIN / HM_ALPHA_MAX），
 //   与热力图格子的 opacity 是**同一条直线**，所以"值为 v 的格子"与"条上 v/max 处"必然相等。
 //   ★ 5 个金额标签 + 3 根竖杠照旧保留 —— 它们只是**刻度标注**，不参与配色。
+//   ★★★ 颜色**不在这里**：这条渐变的色相与两端 alpha 全在 CSS 的 `.tl-hm-legend-bar` 里
+//     （`color-mix(in srgb, var(--theme) 6%/95%, transparent)`）。这里以前内联写死
+//     `rgba(22, 119, 255, …)`（默认主题蓝 #1677ff）⇒ 用户报「拾年的那个渐变条写死了是默认的蓝色」。
+//     JS 现在**一个颜色都不写**，只出结构 ⇒ "换个主题色不跟随"在结构上不可能再发生。
 function timelineHeatmapLegendHtml(maxAmount) {
     const tiers = timelineHeatmapTiers(maxAmount);
-    const stops = `rgba(22, 119, 255, ${HM_ALPHA_MIN}), rgba(22, 119, 255, ${HM_ALPHA_MAX})`;
     let html = `<div class="tl-heatmap-legend">`;
     html += `<span class="tl-hm-legend-spacer"></span>`;      // 与热力图的年份列同宽
     html += `<span class="tl-hm-legend-slot">`;               // 与那 12 个格子同宽
@@ -1431,7 +1439,7 @@ function timelineHeatmapLegendHtml(maxAmount) {
     //     带 background-color：0/25/50/75/100% 全是 rgb(22,119,255)（纯色！）
     //     同渐变去掉 background-color：rgb(217,225,237) → rgb(20,112,239) 一路变深（真渐变）
     //   ⇒ 渐变必须**独占**条带的涂色层。CSS 里也钉了"条带 background-color 必须透明"的断言。
-    html += `<span class="tl-hm-legend-bar tl-hm-on" style="background-image:linear-gradient(to right, ${stops})"></span>`;
+    html += `<span class="tl-hm-legend-bar tl-hm-on"></span>`;
     // 刻度：25/50/75 三根竖杠（0% 与 100% 是条带两端，不画）
     html += `<span class="tl-hm-legend-marks">`;
     for (const t of tiers) {

@@ -2691,14 +2691,20 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
      格子上已经有 `:hover { box-shadow: … }`（悬浮投影）和 `:focus-visible { box-shadow: … }`
      （键盘聚焦环）两条规则在写同一条声明 ⇒ 发光若也写在格子上，谁在后面谁赢，
      悬浮/聚焦时发光会被顶掉（或反过来把既有的悬浮/聚焦反馈弄没）。伪元素各画各的，互不干扰。
-   ★ 出流 + 不吃事件：`position: absolute` + `inset: -1px`（正好盖到格子那 1px 边框上，
-     光圈贴住"看得见的小方块"边缘；格子有 border-radius: 3px，这里配 4px）+
-     `pointer-events: none` ⇒ 不参与布局、不占宽高、不改盒子模型，也不抢 hover/点击
-     （悬浮泡、点格子筛选、elementFromPoint 全不受影响）。z-index 保持 auto：
-     悬浮泡自身是 z-index: 20，仍然在光圈之上。
+   ★ 出流 + 不吃事件：`position: absolute` + `inset: 0`（与色块 `.tl-hm-fill` 的 `inset: 0` 是
+      **同一个盒子** = 格子的 padding box）+ `pointer-events: none` ⇒ 不参与布局、不占宽高、
+      不改盒子模型，也不抢 hover/点击（悬浮泡、点格子筛选、elementFromPoint 全不受影响）。
+      z-index 保持 auto：悬浮泡自身是 z-index: 20，仍然在光圈之上。
+   ★★★ 用户第五次口径（本次修的 bug）：「热力图的光晕和对应的色块之间存在一圈缝隙，会比较显眼」。
+      成因：原来 `inset: -1px`（光圈盒 = 格子的**边框盒**）**加上** `box-shadow` 的 spread 2px
+      ⇒ 光晕内沿离色块边缘约 3px，中间正好夹着 1px 中性 `--border`，看起来就是
+      "色块 — 一圈缝 — 光晕"；`border-radius: 4px` 与格子的 3px 也不一致，四角同样露缝。
+      ⇒ 现在：`inset: 0`（与色块同一个盒子）+ `border-radius: 3px`（与格子/色块一致）+
+      spread 0（`0 0 10px 0`）⇒ 光晕**紧贴色块边缘**开始、向外连续变淡（剖面"贴边即最大、
+      单调不增、没有先降后升的凹陷"；见 verify-hm-glow.mjs 的"贴合/无凹陷"量化）。
    ★ 只"向外"发光：box-shadow 只画在伪元素边框盒**之外** ⇒ 格子内部（色块/文字）像素不变。
    ★★★ 用户第四次追加口径（最终形态）：「好像原来的那圈无渐变的光圈还在，和渐变的叠在一起，
-      我希望只有一层」。⇒ **只留一层柔光**：`0 0 10px 2px`（blur > 0、spread 2px），
+      我希望只有一层」。⇒ **只留一层柔光**：`0 0 10px 0`（blur > 0；spread 按第五次口径改成了 0），
       一条 box-shadow 就是全部光源 —— 不再有 0 blur 的"实圈"，所以不会出现"实圈 + 渐变色"两圈叠一起。
       （历史：先做过"2px 实圈 + 柔光"两层 → 后来在实圈外再叠 3 层做梯度淡化；两版都因为最内那圈
        blur = 0 而看起来是"两圈"。单层高斯柔光的剖面从贴边第一档起就单调变淡、末端连续趋近 0，
@@ -2710,16 +2716,16 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .tl-heatmap-cell.hm-month-glow::after {
     content: '';
     position: absolute;                 /* 出流：不参与布局，不动任何元素盒 */
-    inset: -1px;                        /* 盖到格子的 1px 边框上 ⇒ 光圈贴住可见小方块的边缘 */
-    border-radius: 4px;
+    inset: 0;                           /* 与色块 .tl-hm-fill 同一个盒子 ⇒ 光圈从色块边缘就开始 */
+    border-radius: 3px;                 /* 与格子 / .tl-hm-fill 一致（原来 4px，四角会露缝） */
     pointer-events: none;               /* 别抢格子的 hover/click（见上面的说明） */
     box-shadow:                         /* 兜底（老浏览器）：主题色默认值 #1677ff 的同款单层柔光 */
-        0 0 10px 2px rgba(22, 119, 255, 0.5);
-    box-shadow:                         /* ★ 只有这一层：blur 10px 的柔光（无 0 blur 实圈） */
-        0 0 10px 2px color-mix(in srgb, var(--theme) 50%, transparent);
+        0 0 10px 0 rgba(22, 119, 255, 0.5);
+    box-shadow:                         /* ★ 只有这一层：blur 10px、spread 0（贴住色块，无 0 blur 实圈） */
+        0 0 10px 0 color-mix(in srgb, var(--theme) 50%, transparent);
 }
 /* ★★★ 用户 2026-XX：「暗色下不太显眼，可以调成白光」。
-   暗色主题下主题蓝在深底上对比不足 ⇒ 暗色改用**白光**（同样是**一层柔光**：0 0 10px 2px、alpha 0.9，
+   暗色主题下主题蓝在深底上对比不足 ⇒ 暗色改用**白光**（同样是**一层柔光**：0 0 10px 0、alpha 0.9，
    白光在深底上够显眼；同样没有 0 blur 的实圈）。
    ★ 浅色主题**绝不用白光**（白光照在白底/浅底上几乎看不见）⇒ 浅色保持上面的主题色方案。
    ★ 判定**沿用站点既有的暗色机制**：`html[data-color-scheme="dark"]`（collection/theme.js 的
@@ -2727,7 +2733,7 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
      prefers-color-scheme）—— 不新造机制。这里覆盖整条 box-shadow ⇒ 暗色下不会残留蓝色。 */
 html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     box-shadow:
-        0 0 10px 2px rgba(255, 255, 255, 0.9);
+        0 0 10px 0 rgba(255, 255, 255, 0.9);
 }
 .tl-heatmap-row {
     display: grid;
@@ -2887,6 +2893,18 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     height: 8px;                  /* 与山河图例条带同高 */
     border: 1px solid var(--border);
     border-radius: 4px;
+    /* ★★★ 用户第六次口径：「拾年的那个渐变条写死了是默认的蓝色」。
+       原来这条渐变由 special.js 内联 `background-image:linear-gradient(to right,
+       rgba(22,119,255,0.06), rgba(22,119,255,0.95))` —— 颜色写死成**默认主题蓝 #1677ff**，
+       与所选主题色无关（换主题色后条带还是蓝的）。
+       ⇒ 现在整条渐变**只用主题变量**、JS 完全不参与颜色：色相 = `var(--theme)`，
+         两端 alpha = 6% / 95%（= special.js 的 HM_ALPHA_MIN / HM_ALPHA_MAX，与热力图格子的
+         opacity 是**同一条直线**；这两处数值由 verify-heatmap 的断言钉住，不许各写一套）。
+       ★ 只写 background-image，**绝不**再写 background-color / background 简写：条带同时有底色时，
+         半透明渐变会把底色透出来、整条看成纯色（详见本文件上方那段历史教训）。 */
+    background-image: linear-gradient(to right,
+        color-mix(in srgb, var(--theme) 6%, transparent),
+        color-mix(in srgb, var(--theme) 95%, transparent));
 }
 .tl-hm-legend-marks { position: absolute; left: 0; right: 0; top: 0; height: 8px; }
 /* 中间三个节点的竖杠刻度（0% 与 100% 在条带两端，不画） */
