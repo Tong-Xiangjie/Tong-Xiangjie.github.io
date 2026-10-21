@@ -76,7 +76,7 @@ const shanheScenes = [
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1940-10.jpg' },
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币1元', year: 1943, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1943-1.jpg' },
     { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1943, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1943-10.jpg' },
-    { province: 'jiangsu',   city: '苏州（苏E）', scene: '江南水乡', denom: '国库券5元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnsx-5.jpg' },
+    { province: 'jiangsu',   city: '苏州（苏E/苏U）', scene: '江南水乡', denom: '国库券5元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnsx-5.jpg' },
     
     // ===== 江西 =====
     { province: 'jiangxi',   city: '吉安（赣D）', scene: '井冈山', denom: '第四套人民币100元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jgs-90100.jpg' },
