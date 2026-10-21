@@ -8,8 +8,11 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ "数据里当前没有这个场景"⇒ 单独计数、既不计通过也不计失败，但必须打印原因。
+//   （以前这类地方是 `console.log(...); return null;` —— 既没判红也没计数，读起来却像没事。）
+const skip = (m) => { skipped++; console.log(`  ○ 跳过（数据里当前没有该场景）：${m}`); };
 
 console.log('══════ ① 静态：两处代码都在 ══════\n');
 const sp = readFileSync('collection/special.js', 'utf8');
@@ -160,7 +163,7 @@ async function boot(hash) {
 const openYears = async () => {
   const id = await evaluate(`(()=>{
     const t = (typeof specialCategoryTree !== 'undefined' && specialCategoryTree) ? specialCategoryTree : [];
-    const hit = t.find(c => /拾年|时间轴/.test(c.name || '')) || t.find(c => c.id === 'years');
+    const hit = t.find(c => /拾年|时间轴/.test(c.name || '')) || t.find(c => c.id === 'timeline');
     if (!hit) return '';
     if (typeof onSpecialOverviewItemClick === 'function') onSpecialOverviewItemClick(hit.id);
     return hit.id;
@@ -268,7 +271,10 @@ const expectSum = (year, month) => evaluate(`(()=>{
 console.log('\n══════ ② 标语：所选时间段一共花了多少 ══════\n');
 await boot('notes');
 const sid = await openYears();
-ok(!!sid, `进入币海拾年（${sid || '没找到'}）`);
+// ★ 兜底的 id 必须是时间轴自己的 'timeline'（special-bridge.js）——
+//   这里原来写的是 'years' = 年份图鉴：只要还有任何一个专题在，"进入币海拾年"就绿了
+//   （恒真），真出问题时又会点开另一个专题、把失败伪装成"标语为空"。
+ok(sid === 'timeline', `进入币海拾年（specialCategoryTree 里命中的 id = "${sid || '没找到'}"，应为 "timeline"）`);
 const s0 = await state();
 ok(!!s0.slogan, `标题下的标语现在是：「${s0.slogan}」`);
 ok(/你一共花了\s*\d+\s*元/.test(s0.slogan || ''), '标语换成了"…你一共花了 N 元"');
@@ -283,7 +289,12 @@ ok(!/在|里/.test((s0.slogan || '').replace('到目前为止', '')), `措辞里
 console.log('\n══════ ③ 换筛选后回到顶部 ══════\n');
 const scrollTest = async (label, setter, plantStale) => {
   const pre = await state();
-  if (pre.scrollable < 80) { console.log(`      （${label}：内容不够长，跳过滚动检查，余量 ${pre.scrollable}px）`); return null; }
+  if (pre.scrollable < 80) {
+    // ★ 原来这里只 console.log 然后 return null：既不判红也不计数（假跳过）。
+    //   内容不够长是"这份数据当前没有可滚的场景"，明确记成跳过。
+    skip(`${label}：时间轴内容不够长（可滚 ${pre.scrollable}px < 80px），"换筛选后回到顶部"没有可判对象`);
+    return null;
+  }
   // 种一个"上次记住的旧位置"，模拟真实场景：缓存里明明有值，换筛选时必须作废
   if (plantStale) {
     await evaluate(`(()=>{ if (typeof selectedSpecial !== 'undefined' && selectedSpecial) {
@@ -302,7 +313,14 @@ const scrollTest = async (label, setter, plantStale) => {
   return { scrolled, after };
 };
 const years = s0.opts.filter(v => v !== '全部');
-if (years.length === 0) { ok(false, '年份下拉里没有可选的年份，无法验证'); }
+if (years.length === 0) {
+  // ★ 年份下拉是**按数据生成的**（special.js 里 availableYears 来自带日期的条目）。
+  //   所以"没有年份"要先分清是"这份数据里根本没有带日期的藏品"（⇒ 跳过）
+  //   还是"数据里有、下拉却是空的"（⇒ 产品 bug，必须判红）。
+  const anyDated = (await expectSum('全部', '全部')).n;
+  if (anyDated === 0) skip('没有任何带购买/付款日期的条目，年份下拉只有"全部"可选，"换年份"没有可判对象');
+  else ok(false, `数据里有 ${anyDated} 件带日期的条目，但年份下拉里一个具体年份都没有（下拉是空的）`);
+}
 else {
   const y = years[years.length - 1];
   const r1 = await scrollTest(`换到 ${y} 年`, `(()=>{ const s=document.getElementById('timelineYearFilter'); s.value=${JSON.stringify(y)}; s.dispatchEvent(new Event('change')); return 1; })()`, true);
@@ -316,27 +334,52 @@ else {
     ok(new RegExp(y).test(r1.after.slogan), `措辞里带上了年份（${r1.after.slogan}）`);
     ok(r1.after.slogan.indexOf('在') < 0 && r1.after.slogan.indexOf('里') < 0, `年份那句没有"在/里"（${r1.after.slogan}）`);
   }
-  const r2 = await scrollTest('换月份', `(()=>{ const s=document.getElementById('timelineMonthFilter'); s.value='07'; s.dispatchEvent(new Event('change')); return 1; })()`);
-  if (r2) {
-    ok(r2.after.month === '07', '③ 月份筛选生效（07 月）');
-    ok(r2.after.scrollTop === 0, `★ 换月份后也回到顶部（scrollTop ${r2.scrolled.scrollTop} → ${r2.after.scrollTop}）`);
-    const em = await expectSum(r2.after.year, '07');
-    const gm = parseInt((r2.after.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
-    ok(gm === em.sum, `07 月的金额也一致：${gm} 元 = 独立重算 ${em.sum} 元（${em.n} 件）`);
-    ok(/7月/.test(r2.after.slogan), `措辞里带上了月份（${r2.after.slogan}）`);
-    ok(r2.after.slogan.indexOf('在') < 0 && r2.after.slogan.indexOf('里') < 0, `年+月那句也没有"在/里"（${r2.after.slogan}）`);
+  // ★ 月份**不再写死 '07'**。月份下拉本身固定列 01~12（special.js），但"7 月有没有记录"
+  //   完全取决于数据：写死 07 时，一旦数据里没有 7 月的条目，页面会按设计回退到原来的
+  //   静态标语（"一件都没记价格时仍回退"），于是 `页面的数字 === 独立重算的 0` 必然不成立
+  //   —— 那是站主改数据的假红，不是回归。这里改成：用测试自己的独立口径先扫一遍数据，
+  //   挑一个"全部年份下有记录、且当前选中的年份 y 下也有记录"的月份来测。
+  const ALL_MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+  const monthsInY = [];
+  for (const m of ALL_MONTHS) {
+    const s = await expectSum(y, m);
+    if (s.n > 0) monthsInY.push({ m, sum: s.sum, n: s.n });
   }
-  // 只选月份（年份回到全部）：措辞应是"历年7月，你一共花了N元"
-  await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='全部'; s.dispatchEvent(new Event('change')); return 1; })()`);
-  await sleep(800);
-  const rm = await state();
-  const em2 = await expectSum('全部', '07');
-  const gm2 = parseInt((rm.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
-  ok(/^历年7月，你一共花了/.test(rm.slogan || ''), `只选月份时措辞是"历年7月，…"（${rm.slogan}）`);
-  ok(gm2 === em2.sum, `只选月份时的金额也一致：${gm2} 元 = 独立重算 ${em2.sum} 元（${em2.n} 件）`);
+  if (monthsInY.length === 0) {
+    skip(`${y} 年里没有任何带月份的购买/付款记录，"换月份 / 历年 X 月"整节跳过`);
+  } else {
+    const mon = monthsInY[0].m;
+    const monLabel = parseInt(mon, 10);
+    console.log(`  （月份样本从数据里现算：${y} 年有记录的月份 = ${monthsInY.map(x => x.m).join('/')}，取 ${mon}）`);
+    const r2 = await scrollTest(`换月份（${mon}）`, `(()=>{ const s=document.getElementById('timelineMonthFilter'); s.value=${JSON.stringify(mon)}; s.dispatchEvent(new Event('change')); return 1; })()`);
+    if (r2) {
+      ok(r2.after.month === mon, `③ 月份筛选生效（${mon} 月）`);
+      ok(r2.after.scrollTop === 0, `★ 换月份后也回到顶部（scrollTop ${r2.scrolled.scrollTop} → ${r2.after.scrollTop}）`);
+      const em = await expectSum(r2.after.year, mon);
+      const gm = parseInt((r2.after.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
+      ok(gm === em.sum, `${mon} 月的金额也一致：${gm} 元 = 独立重算 ${em.sum} 元（${em.n} 件）`);
+      ok(new RegExp(`${monLabel}月`).test(r2.after.slogan), `措辞里带上了月份（${r2.after.slogan}）`);
+      ok(r2.after.slogan.indexOf('在') < 0 && r2.after.slogan.indexOf('里') < 0, `年+月那句也没有"在/里"（${r2.after.slogan}）`);
+    }
+    // 只选月份（年份回到全部）：措辞应是"历年7月，你一共花了N元"
+    // ★ 这里必须**自己**把月份设上：上一步 scrollTest 在"筛出来的列表太短"时会整段跳过
+    //   （连 setter 都没执行），直接依赖它的话，这一步其实测的是"全部+全部"
+    //   —— 一旦数据里最新那个年份只有一两条记录，就会变成假红（实测踩到过）。
+    await evaluate(`(()=>{ const m=document.getElementById('timelineMonthFilter'); if (!m) return 0; m.value=${JSON.stringify(mon)}; m.dispatchEvent(new Event('change')); return 1; })()`);
+    await sleep(500);
+    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='全部'; s.dispatchEvent(new Event('change')); return 1; })()`);
+    await sleep(800);
+    const rm = await state();
+    const em2 = await expectSum('全部', mon);
+    const gm2 = parseInt((rm.slogan.match(/一共花了\s*(\d+)\s*元/) || [])[1], 10);
+    ok(new RegExp(`^历年${monLabel}月，你一共花了`).test(rm.slogan || ''), `只选月份时措辞是"历年${monLabel}月，…"（${rm.slogan}）`);
+    ok(gm2 === em2.sum, `只选月份时的金额也一致：${gm2} 元 = 独立重算 ${em2.sum} 元（${em2.n} 件）`);
+  }
   // 换"最新/最早"（排序）也要回到顶部（用户追加要求）
   const preSort = await state();
-  if (preSort.scrollable < 80) { console.log(`      （排序：内容不够长，跳过，余量 ${preSort.scrollable}px）`); }
+  if (preSort.scrollable < 80) {
+    skip(`排序：时间轴内容不够长（可滚 ${preSort.scrollable}px < 80px），"换排序后回到顶部"没有可判对象`);
+  }
   else {
     await evaluate(`(()=>{ getRenderContainer().scrollTop = ${Math.min(420, preSort.scrollable)}; return 1; })()`);
     await sleep(350);
@@ -394,8 +437,20 @@ else {
   await evaluate(`(()=>{ delete specialPageCaches['__other_special__']; delete specialPageCaches['__overview__']; return 1; })()`);
 }
 
-// ─────────── ⑤ 滚动记忆机制自检（信息，不判失败）───────────
-console.log('\n══════ ⑤ 滚动记忆机制自检（信息）══════\n');
+// ─────────── ⑤ 滚动记忆机制自检 ───────────
+// ★ 这一节原来是 `ok(true, '⑤ 机制自检已输出（信息性，不影响结论）')` —— 一条恒真断言，
+//   日志里却是个绿色 ✓。现在改成三条**真断言**：
+//     · 当前容器 key 注册的滚动容器 == 正在渲染的那个（滚动记忆链路的前提）；
+//     · 容器真的能滚到 300px（否则"存下 300"这条没有意义）；
+//     · saveFullState() 必须把 300 存进**页面自己某个滚动记忆桶**里（不再给某个具体桶
+//       做快照：存进 specialPageCaches 还是 modeStates 由当前模式/视图决定，写死一个
+//       桶就等于把实现细节钉死，换个板块就假红）。
+console.log('\n══════ ⑤ 滚动记忆机制自检 ══════\n');
+// ★ 先把筛选复位到"全部/全部"：④ 节留下的是"最后一个年份 + 某月"，数据里那个年份
+//   可能只筛出一两条记录，容器根本滚不动 —— 那样"存下的位置 == 实际位置"就没有可判对象。
+await evaluate(`(()=>{ const set=(id,v)=>{ const el=document.getElementById(id); if (el) { el.value=v; el.dispatchEvent(new Event('change')); } };
+  set('timelineYearFilter','全部'); set('timelineMonthFilter','全部'); return 1; })()`);
+await sleep(800);
 const mech = JSON.parse(await evaluate(`(()=>{
   const key = getContainerKey();
   const vc = viewScrollContainers[key];
@@ -408,20 +463,40 @@ const mech = JSON.parse(await evaluate(`(()=>{
   if (app) app.scrollTop = 300;
   out.appAfterSet = app ? Math.round(app.scrollTop) : -1;
   if (typeof saveFullState === 'function') saveFullState();
-  out.saved = (typeof selectedSpecial !== 'undefined' && selectedSpecial && specialPageCaches[selectedSpecial]) ? specialPageCaches[selectedSpecial].scrollY : null;
+  // 把页面所有可能的"滚动记忆落点"都读出来（不写死某一个桶）
+  out.stored = {
+    specialPageCaches: (typeof selectedSpecial !== 'undefined' && selectedSpecial && specialPageCaches[selectedSpecial]) ? specialPageCaches[selectedSpecial].scrollY : null,
+    overviewCache: (specialPageCaches && specialPageCaches['__overview__']) ? specialPageCaches['__overview__'].scrollY : null,
+    modeOverview: (typeof modeStates !== 'undefined' && modeStates[currentMode]) ? (modeStates[currentMode].overviewScrollY ?? null) : null,
+    modeCategory: (typeof modeStates !== 'undefined' && modeStates[currentMode]) ? (modeStates[currentMode].categoryScrollY ?? null) : null,
+    modeSearch: (typeof modeStates !== 'undefined' && modeStates[currentMode]) ? (modeStates[currentMode].searchScrollY ?? null) : null,
+    settings: (typeof settingsPageCache !== 'undefined' && settingsPageCache) ? settingsPageCache.scrollY : null
+  };
+  out.saved = out.stored.specialPageCaches;
   if (app) app.scrollTop = 0;
   return JSON.stringify(out);
 })()`));
 console.log(`      容器 key = ${mech.key}；viewScrollContainers[key] 与 getRenderContainer() ${mech.same ? '是同一个元素' : '不是同一个元素'}`);
 console.log(`      viewScrollContainers[key] = ${mech.vcTag}（可滚 ${mech.vcRoom}px）`);
 console.log(`      getRenderContainer()     = ${mech.appTag}（可滚 ${mech.appRoom}px，设 300 后读回 ${mech.appAfterSet}px）`);
-console.log(`      saveFullState() 存下的是 ${mech.saved}px`);
-if (!mech.same) console.log('      ⚠ 两者不同一：时间轴"返回再进来记住位置"这条链路本来就对不上（与本次改动无关；本次只加了换筛选时清零）');
-else if (mech.saved !== mech.appAfterSet) console.log('      ⚠ 存下的位置与实际滚动位置不一致（与本次改动无关）');
-else console.log('      ✓ 保存链路一致');
-ok(true, '⑤ 机制自检已输出（信息性，不影响结论）');
+console.log(`      saveFullState() 之后页面各滚动记忆桶 = ${JSON.stringify(mech.stored)}`);
+ok(mech.same === true,
+   `⑤ 容器 key「${mech.key}」注册的滚动容器就是当前正在渲染的那个（${mech.vcTag}）—— 滚动记忆链路的前提`);
+if (mech.appRoom < 300) {
+  skip(`当前筛选下时间轴内容不够长（可滚 ${mech.appRoom}px < 300px），"存下的位置 == 实际位置"没有可判对象`);
+} else {
+  ok(mech.appAfterSet === 300,
+     `⑤ 时间轴容器真的能滚到 300px（设 300 读回 ${mech.appAfterSet}px，可滚 ${mech.appRoom}px）—— 下面那条不是空断言`);
+  if (!mech.same) {
+    skip('viewScrollContainers[key] 与 getRenderContainer() 不是同一个元素（改动前就存在），"存下的位置 == 实际位置"没有可比对象');
+  } else {
+    const storedVals = Object.entries(mech.stored).filter(([, v]) => v !== null);
+    ok(storedVals.some(([, v]) => v === mech.appAfterSet),
+       `⑤ saveFullState() 没有把位置丢掉：300 出现在页面自己的滚动记忆里（${storedVals.map(([k, v]) => k + '=' + v).join(' / ') || '（一个桶都没写）'}）`);
+  }
+}
 
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
 

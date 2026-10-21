@@ -395,7 +395,93 @@ const SAMPLER = `(function () {
   };
 })();`;
 
-const DEEP = 'index.html#notes/rmb/rmb3/s0,2,3/v0.0,2.0,3.0';
+// ══════════════════ 现算冷启动深链 ══════════════════
+// ★ 原来这里写死 `index.html#notes/rmb/rmb3/s0,2,3/v0.0,2.0,3.0` —— 那是**数据快照**：
+//   站主删掉/改名 rmb3、调整它的系列顺序、或把某些系列的藏品改成没有 version（冠号），
+//   这一页就渲染不出 .version-text，下面 D/E 那一整批"冠号零位移"的断言会集体假红，
+//   而且从日志上看不出是"数据变了"还是"产品回归了"。
+//   现在从**页面自己的分类树 + 已加载的数据**现算：
+//     ① 遍历 categoryTree，取带 dataKey/dataFile 的纸币叶子（URL 段最多两级，见 router.js）；
+//     ② 在它的数据里挑前 3 个"含冠号"的系列（有品种层的取第一个含冠号的品种）；
+//     ③ 拼成 s<…>/v<…> 深链，真的导航过去确认渲染出了 .version-text；
+//     ④ 同时用 window.DATA_MAP 现算"这个展开范围内应该有几个冠号"作为期望值带回去。
+//   —— 这样站主怎么改数据，这条用例都跟着数据走，不会假红也不会失去分辨力。
+let DEEP = '';
+async function computeDeepLink() {
+  await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await send('Page.navigate', { url: BASE + 'index.html#notes' });
+  for (let i = 0; i < 80; i++) {
+    const ready = await evaluate(`(()=>typeof categoryTree!=='undefined' && !!window.DATA_MAP && Object.keys(window.DATA_MAP).length > 0 && !!document.querySelector('.view-scroll-container'))()`).catch(() => false);
+    if (ready) break;
+    await sleep(250);
+  }
+  await sleep(700);
+  const cands = JSON.parse(await evaluate(`(()=>{
+    const out = [];
+    const walk = (list, path) => {
+      for (const c of (list || [])) {
+        const p = path.concat(String(c.id));
+        // URL 里只表达 分类 / 子分类 两级（router.js：rest[0]=catId, rest[1]=subId）
+        if (c.dataKey && c.dataFile && p.length <= 2) {
+          const d = window.DATA_MAP ? window.DATA_MAP[c.dataKey] : null;
+          if (d && Array.isArray(d.series)) {
+            const targets = [];
+            for (let si = 0; si < d.series.length && targets.length < 3; si++) {
+              const s = d.series[si];
+              if (!s) continue;
+              if (s.varieties) {
+                let vi = -1;
+                for (let k = 0; k < s.varieties.length; k++) {
+                  const v = s.varieties[k];
+                  if (v && (v.copies || []).some(cp => cp && cp.version)) { vi = k; break; }
+                }
+                if (vi >= 0) targets.push({ kind: 'v', si: si, vi: vi });
+              } else if ((s.copies || []).some(cp => cp && cp.version)) {
+                targets.push({ kind: 's', si: si, vi: -1 });
+              }
+            }
+            if (targets.length) out.push({ path: p, key: c.dataKey, targets: targets });
+          }
+        }
+        if (c.children) walk(c.children, p);
+      }
+    };
+    walk((typeof categoryTree !== 'undefined' ? categoryTree : []), []);
+    return JSON.stringify(out.slice(0, 12));
+  })()`));
+  for (const c of cands.slice(0, 4)) {
+    const series = [...new Set(c.targets.map(t => t.si))].sort((a, b) => a - b);
+    const vs = c.targets.filter(t => t.kind === 'v').map(t => t.si + '.' + t.vi).sort();
+    const route = 'notes/' + c.path.join('/') + '/s' + series.join(',') + (vs.length ? '/v' + vs.join(',') : '');
+    await send('Page.navigate', { url: BASE + 'index.html#' + route });
+    let got = 0;
+    for (let i = 0; i < 60; i++) {
+      got = await evaluate(`document.querySelectorAll('.version-text').length`).catch(() => 0);
+      if (got > 0) break;
+      await sleep(250);
+    }
+    const hashNow = await evaluate(`location.hash`).catch(() => '');
+    // 深链必须真的被页面接受（地址栏没把 s 段规范化掉）：否则说明这些下标在数据里
+    // 已经越界/失效，该换下一个候选，而不是拿一个"回落到分类级"的页面继续测。
+    const accepted = hashNow.includes('/s' + series.join(','));
+    if (got > 0 && accepted) {
+      // 期望值从 window.DATA_MAP 现算（与渲染管线相互独立的口径）
+      const chk = JSON.parse(await evaluate(`(()=>{
+        const d = window.DATA_MAP[${JSON.stringify(c.key)}];
+        let expect = 0, cards = 0;
+        for (const s of (d.series || [])) {
+          const lists = s.varieties ? s.varieties.map(v => (v || {}).copies || []) : [s.copies || []];
+          for (const copies of lists) for (const cp of copies) { cards++; if (cp && cp.version) expect++; }
+        }
+        return JSON.stringify({ expect: expect, cards: cards, hash: location.hash });
+      })()`));
+      NOTE(`深链候选「${route}」：DOM 渲染出 ${got} 个 .version-text；数据现算 ${chk.expect} 个（该分类共 ${chk.cards} 枚藏品，地址栏 ${chk.hash}）`);
+      return { route: route, dom: got, expectVersions: chk.expect, cards: chk.cards, targets: c.targets.length };
+    }
+    NOTE(`深链候选「${route}」没有渲染出冠号、或地址栏没保住 s 段（DOM ${got} 个，hash=${hashNow}），换下一个候选`);
+  }
+  return null;
+}
 
 // 一轮冷启动：新文档 + 逐帧采样
 // ★ 采样脚本必须**只挂一份**：Page.addScriptToEvaluateOnNewDocument 会累积，
@@ -491,13 +577,36 @@ try {
   const consoleErrors = [];
   ws.addEventListener('message', ev => { const m = JSON.parse(ev.data); if (m.method === 'Runtime.consoleAPICalled' && ['error'].includes(m.params.type)) consoleErrors.push(m.params.args.map(a => a.value || a.description || '').join(' ').slice(0, 160)); });
 
+  // ---------- 深链从数据现算（不写死 rmb/rmb3/s0,2,3） ----------
+  const deep = await computeDeepLink();
+  if (deep) {
+    DEEP = 'index.html#' + deep.route;
+    NOTE(`冷启动深链从数据现算：${DEEP}（展开 ${deep.targets} 个目标，数据里带 version 的藏品 ${deep.expectVersions} 个）`);
+  } else {
+    fail++;
+    console.log('  ✗ 现算深链失败：categoryTree 里找不到任何"含冠号（version）"的纸币分类 —— 下面的冷启动断言没有可判对象');
+    DEEP = 'index.html#notes';
+  }
+
   // ---------- D. 冷启动零位移 ----------
   console.log('\n══════ D. 冷启动逐帧：冠号矩形零位移 + 首帧时字体已 loaded ══════');
   MODE = 'normal';
   const norm = await coldLoad();
   NOTE(`采样 ${norm.totalFrames} 帧，其中有冠号的 ${norm.textFrames} 帧；FCP=${norm.fcp === null ? '?' : norm.fcp.toFixed(0)}ms，首屏可见 t=${norm.appShownAt === null ? '?' : norm.appShownAt.toFixed(0)}ms`);
   NOTE(`数据文件动态插入 ${norm.dataAppended} 个，实测峰值并行 ${norm.dataPeak}`);
-  ok(norm.textFrames > 5, `冷启动确实渲染出了冠号（${norm.textFrames} 帧含 .version-text，共 n=${norm.last ? norm.last.n : 0} 个）`);
+  // ★ 原来这里写死 `norm.textFrames > 5` —— 一句"至少发生了一些"的阈值，帧数随数据量/机器
+  //   快慢变（数据越大、冠号出现越晚，含冠号的帧就越少），属于会随数据假红的快照。
+  //   现在改成两条**期望值由页面/数据现算**的断言：
+  //     ① 渲染出来的冠号个数 == 从 window.DATA_MAP 现算的"该深链展开范围内带 version 的藏品数"
+  //        （渲染管线 vs 数据，两个独立口径；数据里加/删藏品都跟着走）；
+  //     ② 要判"零位移"至少得有 2 帧含冠号 —— 只有 1 帧的话 changedCount===0 是空断言。
+  const deepOk = !!deep && !!norm.first && !!norm.last
+    && norm.first.n === norm.last.n && norm.last.n === deep.expectVersions;
+  ok(deepOk,
+     `★ 深链渲染出的冠号数 == 从数据现算的期望值（首帧 n=${norm.first ? norm.first.n : '?'} / 末帧 n=${norm.last ? norm.last.n : '?'}，`
+     + `数据里该展开范围内带 version 的藏品 ${deep ? deep.expectVersions : '?'} 个；深链 ${DEEP}）`);
+  ok(norm.textFrames >= 2,
+     `冷启动确实采样到多帧含冠号（${norm.textFrames} 帧含 .version-text / 共 ${norm.totalFrames} 帧）—— ≥2 帧"零位移"才有分辨力`);
   if (norm.first) {
     NOTE(`首个可见帧 t=${norm.first.t}ms  字体状态=${norm.first.face}  rects=${JSON.stringify(norm.first.rects)}`);
     NOTE(`最后一个可见帧 t=${norm.last.t}ms  rects=${JSON.stringify(norm.last.rects)}`);
@@ -538,7 +647,24 @@ try {
   NOTE(`加载屏报的总数 N=${norm.progressTotal}，实测插入 ${norm.dataAppended} 个、峰值并行 ${norm.dataPeak}`);
   ok(norm.dataAppended === norm.progressTotal,
      `实测插入的数据 <script> 个数 == 加载屏报的总数（${norm.dataAppended} == ${norm.progressTotal}）`);
-  ok(norm.dataAppended >= 60, `数据文件数量合理（${norm.dataAppended} 个 ≥ 60）`);
+  // ★ 原来这里是 `norm.dataAppended >= 60` —— "数据文件数量合理"的写死阈值（数据快照）：
+  //   站主合并/删掉一批数据文件就会假红。改成与**页面自己的另一个口径**比：
+  //   在页面上用产品自己的 walkTree() 重新走一遍分类树，算出"应该加载多少个文件"，
+  //   再和"真的插了几个 <script>"对齐 —— 两条路径不同（一条是树遍历、一条是加载池），
+  //   任何一边漏文件/多插文件都会露馅。注意不能用 loadAllData() 的返回值：它 resolve
+  //   的是 undefined（data-loader.js 里那个 async IIFE 没有 return），读 .total 会抛异常。
+  const expectLoad = JSON.parse(await evaluate(`(()=>{
+    const seen = new Set();
+    const add = (srcs) => { for (const s of (srcs || [])) if (s && s.file) seen.add(s.file); };
+    add(walkTree(categoryTree, []));
+    add(walkTree(coinCategoryTree, []));
+    for (const c of (window.SPECIAL_CONFIGS || [])) if (c.dataFile && c.dataKey) seen.add(c.dataFile);
+    return JSON.stringify({ total: seen.size, failed: (window.__dataLoadFailures || []).length });
+  })()`));
+  NOTE(`页面上用 walkTree() 重新走分类树算出的文件总数 = ${expectLoad.total}，加载失败 ${expectLoad.failed} 个`);
+  ok(expectLoad.total > 0 && norm.dataAppended === expectLoad.total,
+     `实测插入的数据 <script> 个数 == 页面自己按分类树重算的文件总数（${norm.dataAppended} == ${expectLoad.total}）`);
+  ok(expectLoad.failed === 0, `没有任何数据文件加载失败（页面自报失败 ${expectLoad.failed} 个）`);
   ok(norm.dataPeak === EXPECTED_CONCURRENCY,
      `★ 实测峰值并行数 == ${EXPECTED_CONCURRENCY}（实际 ${norm.dataPeak}）—— 常量真的生效，不是摆设`);
   NOTE(`字体请求（新实现）：${JSON.stringify(norm.fontRes)}`);

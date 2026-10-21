@@ -50,8 +50,11 @@ async function evaluate(e) {
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.text + ' ' + (r.exceptionDetails.exception?.description || ''));
   return r.result.value;
 }
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★★ 数据里**当前没有**这个场景 → 记 `○ 跳过`：不计通过、也不计失败（并打印原因）。
+//   为什么：以前这种地方写成 `ok(true, '…跳过…')`，汇总里出现一个绿色 ✓，读起来像"验证过了"。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过（数据里当前没有该场景）： ${m}`); };
 
 async function boot(hash) {
   await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#${hash}` });
@@ -1025,11 +1028,17 @@ try {
   for (const r of (N.rows || [])) console.log(`      行 ${r}`);
   console.log(`    蒙版 url=${N.maskUrl}（SVG 解码 ${N.svgOk} ${N.svgW}x${N.svgH}）`);
   console.log(`    主题色：浅色 ${N.lightColor} / 深色 ${N.darkColor}`);
-  ok(N.count > 0, `前置：找到了数据里没有图片的条目（${N.count} 个：块 ${N.blocks} + 降级图 ${N.failedCount}）`);
+  // ★ 这条原先是 `ok(N.count > 0, …)` —— 那是**数据快照**：站主把缺图的条目补齐之后就会假红。
+  //   现在数据里确实没有缺图条目时记 `○ 跳过`（下面的判据全部随之跳过），而不是判红。
+  if (N.count === 0) {
+    skip(`"数据里存在没有图片的条目"：当前 ${N.count} 个（块 ${N.blocks} + 降级图 ${N.failedCount}）⇒ 无图占位这一组判据跳过`);
+  }
   if (N.count === 0 && N.diag) console.log(`    诊断：hash=${N.diag.hash} rmb3Data已加载=${N.diag.hasRmb3} .copy-thumb=${N.diag.copyThumb} .no-img=${N.diag.noImgAny} .img-failed=${N.diag.failed} img=${N.diag.imgs}\n    页面文本：${N.diag.text}`);
   if (N.count > 0) {
     if (!N.isImg) ok(N.text === '暂无图片', `★ 无图文案已统一为「暂无图片」（实际「${N.text}」）`);
-    else ok(true, `（这条走的是"有名字但文件不存在"的降级路，没有「暂无图片」文案，只考蒙版与颜色）`);
+    // ★ 这里原来是 `else ok(true, …)` —— 一条恒真的"假装通过"（日志里是绿色 ✓）。
+    //   "有名字但文件不存在"的降级路本来就没有「暂无图片」文案可查，所以只记录、不计通过。
+    else console.log('    · 本步不适用（不计入通过）：这条走的是"有名字但文件不存在"的降级路，没有「暂无图片」文案，只考蒙版与颜色');
     ok(/img-placeholder\.svg/.test(N.mask), `★ 无图位置用古钱币当蒙版（mask=${N.mask}）`);
     ok(N.svgOk === 'load' && N.svgW > 0 && N.svgH > 0,
        `★ 古钱币 SVG 本身能解码（${N.svgOk} ${N.svgW}x${N.svgH}）—— 坏 XML 会在这里露馅`);
@@ -1318,7 +1327,7 @@ try {
   // 收尾：媒体模拟恢复默认，免得影响后续用例
   await send('Emulation.setEmulatedMedia', { features: [] });
 
-  console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);
+  console.log(`\n──────── 通过 ${pass} / 失败 ${fail}${skipped ? ` / ○ 跳过 ${skipped}` : ''} ────────`);
   process.exitCode = fail ? 1 : 0;
 } catch (e) {
   console.log('!! 异常: ' + (e && e.stack ? e.stack : String(e)));

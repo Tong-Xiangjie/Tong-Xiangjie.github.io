@@ -15,8 +15,12 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, msg) => { if (c) { pass++; console.log('  ✓ ' + msg); } else { fail++; console.log('  ✗ ' + msg); } };
+// ★ "数据里当前没有这个场景"（例如本地/CI 没有 notecollection/data/*，价格列表只有寥寥几行）
+//   ⇒ skip：保留这条检查、单独计数、既不计通过也不计失败，但必须把原因打出来。
+//   （以前这些地方写的是 ok(true, '…跳过…')，在汇总里显示成绿色 ✓ —— 那是假绿。）
+const skip = (msg) => { skipped++; console.log('  ○ 跳过 ' + msg); };
 
 // ══════════════════════════════════════════════════════════════
 console.log('══════ ① 静态：分割线挂在列表体上、行有 FLIP 用的 key、有进入动画 ══════\n');
@@ -93,6 +97,20 @@ await evaluate(`(()=>{ const w=document.querySelector('.price-list-wrapper'); if
   const b=document.getElementById('priceListBody'); if (b && !b.classList.contains('open')) document.querySelector('.price-list-header').click(); return true; })()`);
 await sleep(1000);
 
+// ★ 数据规模从数据现算：下面所有"行数够不够多"的门槛都用它，
+//   不再写死 50 / 100 / 20 这些"我这台机器上有多少条"的常数。
+//   TOTAL_ITEMS = 当前价格列表的**全部条目数**（= 不筛分类时应当渲染的行数基线）。
+const DATA = JSON.parse(await evaluate(`(()=>{
+  try {
+    const all = (typeof collectAllCopies === 'function') ? collectAllCopies() : [];
+    const cats = (typeof buildPriceFilterCategories === 'function') ? buildPriceFilterCategories() : [];
+    const per = cats.map(c => filterPricesByCategory(all, { dataKey: c.dataKey, source: c.source }).length);
+    return JSON.stringify({ TOTAL_ITEMS: all.length, CATS: cats.length, MAX_CAT: per.length ? Math.max(...per) : 0,
+      PER: per.slice(0, 3), err: null });
+  } catch (e) { return JSON.stringify({ TOTAL_ITEMS: 0, CATS: 0, MAX_CAT: 0, PER: [], err: String(e && e.message || e) }); }
+})()`));
+console.log(`  数据现算：全部条目 ${DATA.TOTAL_ITEMS} 条、分类 ${DATA.CATS} 个、最大分类 ${DATA.MAX_CAT} 条${DATA.err ? '（' + DATA.err + '）' : ''}`);
+
 // ══════════════════════════════════════════════════════════════
 console.log('\n══════ ② 每条都带大类前缀 ══════\n');
 const CATS = JSON.parse(await evaluate(`(()=>{
@@ -103,7 +121,7 @@ const PREFIX = JSON.parse(await evaluate(`(()=>{
   const rows = [...document.querySelectorAll('#priceListBody .price-list-item')];
   const names = rows.map(r => (r.querySelector('.price-list-name').textContent || '').trim());
   return JSON.stringify({ 行数: rows.length, 前三条: names.slice(0, 3),
-    后三条: names.slice(-3), 示例: names.filter(n => /澳门格兰披治|枣红|1角/.test(n)).slice(0, 4) });
+    后三条: names.slice(-3), 全部: names.length, 形如大类前缀: names.filter(n => /^[^-]+ - /.test(n)).length });
 })()`));
 console.log('  分类清单：' + CATS.slice(0, 4).join(' / ') + (CATS.length > 4 ? ' …共 ' + CATS.length + ' 个' : ''));
 console.log('  前三条：' + JSON.stringify(PREFIX.前三条, null, 0));
@@ -118,12 +136,14 @@ const fullCount = JSON.parse(await evaluate(`(()=>{
 })()`));
 ok(fullCount.有前缀 === fullCount.全部,
   `★ ② 全部 ${fullCount.全部} 行都有大类前缀（用户要求：每条都要有）`);
-// ★ 举例形态这条要真实数据里的那些藏品（澳门格兰披治/枣红/1角）；无数据环境（CI）跳过。
-if (PREFIX.行数 > 50) {
-  ok(PREFIX.示例.length > 0 && /^[^-]+ - /.test(PREFIX.示例[0]),
-    `② 用户举的例子形态正确：「${PREFIX.示例[0] || '（没找到样例）'}」`);
+// ★ 以前这里写死了"用户举的例子"（澳门格兰披治 / 枣红 / 1角）：站主一改数据就假红。
+//   现在只判**形态**：DOM 里第一条（及抽查的行）是否形如 `大类 - 名称`。这是产品契约，
+//   与具体是哪件藏品无关。
+if (PREFIX.行数 > 0) {
+  ok(PREFIX.形如大类前缀 === PREFIX.全部,
+    `② DOM 里 ${PREFIX.全部} 行的名称都是「大类 - 名称」的形态（首条：「${PREFIX.前三条[0] || ''}」）`);
 } else {
-  ok(true, `② 无数据环境（列表 ${PREFIX.行数} 行），用户举例的藏品不在其中，跳过这项`);
+  skip(`价格列表当前 0 行（无数据环境），"首条形如大类 - 名称"没有可判对象`);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -189,21 +209,39 @@ console.log(`  采样 ${FLIP.采样} 帧（列表 ${FLIP.行数} 行），其中
 ok(FLIP.行还在, '④ 切换后那一行还在（FLIP 靠 data-pl-key 认人）');
 // ★ 无数据环境（CI 没有 notecollection/data/*）下列表只有寥寥几行，换顺序后行根本不会换位置，
 //   这里就没有位移可量 —— 阈值断言只在真实数据下才有意义。
-if (FLIP.行数 > 20) {
+//   门槛不再写死 20：改成"数据里确实有这么多条目"（DATA.TOTAL_ITEMS 现算），
+//   且渲染出来的行数与数据规模对得上。
+if (DATA.TOTAL_ITEMS > 20 && FLIP.行数 > 20) {
+  ok(FLIP.行数 <= DATA.TOTAL_ITEMS, `④ 渲染出的 ${FLIP.行数} 行没有超出数据里的 ${DATA.TOTAL_ITEMS} 条条目`);
   ok(FLIP.有位移的帧 >= 3, `★ ④ 切换排序时有 FLIP 位移帧（${FLIP.有位移的帧} 帧；修之前这里是 0，内容瞬间跳走）`);
 } else {
-  ok(true, `④ 行数只有 ${FLIP.行数}（无数据环境），没有可位移的行，跳过这项阈值断言`);
+  skip(`数据里只有 ${DATA.TOTAL_ITEMS} 条、列表 ${FLIP.行数} 行，换顺序后行基本不换位置，没有可位移的行`);
 }
 ok(FLIP.顺序正确, '④ 切换后列表确实是新顺序（降序）');
 ok(!FLIP.结束后的内联.transform && !FLIP.结束后的内联.transition,
   `★ ④ 动画结束后不留内联 style（transform="${FLIP.结束后的内联.transform}" transition="${FLIP.结束后的内联.transition}"）`);
 
 // 切到某个分类：汇总行要"下滑展开"（max-height 从 0 长到自然高度），筛掉时"上滑收起"
+// ★ 一个分类都没有时（无数据环境）下面的取值会直接抛 TypeError（整个用例以异常收场），
+//   所以这里先探一下有几个分类，0 个就整节 skip 掉。
+const CAT_COUNT = await evaluate(`(()=>{ const f=document.getElementById('priceFilterSelect'); return f ? [...f.options].filter(o=>o.value && o.value!=='all').length : -1; })()`);
+if (CAT_COUNT < 1) {
+  skip(`筛选下拉里一个分类都没有（${CAT_COUNT} 个；无数据环境），④ 的"汇总行展开/收起"整节跳过`);
+}
 const SUMANI = JSON.parse(await evaluate(`(async()=>{
   const f = document.getElementById('priceFilterSelect'), sum = document.getElementById('priceListSummary');
   const b = document.getElementById('priceListBody');
-  const cat = [...f.options].filter(o => o.value !== 'all')[0];
+  const cat = [...f.options].filter(o => o.value && o.value !== 'all')[0];
+  if (!cat) return JSON.stringify({ 无分类: true });
   const rowsBefore = b.querySelectorAll('.price-list-item').length;
+  // ★ 该分类在数据里有多少件（现算）：筛选后渲染出的行数应当与之相等，而不是一个写死的门槛。
+  //   取值走 currentPriceListData()（= 首屏与切换共用的那套计算），不自己猜 select value 的含义。
+  let catItems = -1;
+  try {
+    const keep = priceFilter; priceFilter = cat.value;
+    catItems = currentPriceListData().filteredPrices.length;
+    priceFilter = keep;
+  } catch (e) { catItems = -1; }
   const hiddenBefore = !sum.style.display || sum.style.display === 'none';
   const px = v => Math.round((parseFloat(v) || 0) * 10) / 10;
   const frames = [];
@@ -229,12 +267,15 @@ const SUMANI = JSON.parse(await evaluate(`(async()=>{
       collapse.push([Math.round(performance.now() - t1), px(cs.maxHeight), sum.style.display]);
       if (performance.now() - t1 < 520) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
   const shrunk = collapse.map(c => c[1]).filter(h => h > 0);
-  return JSON.stringify({ 分类: (cat.textContent || '').trim(), 切前行数: rowsBefore,
+  return JSON.stringify({ 无分类: false, 分类: (cat.textContent || '').trim(), 切前行数: rowsBefore, 该类数据条数: catItems,
     切后行数: b.querySelectorAll('.price-list-item').length, 切前汇总隐藏: hiddenBefore,
     瞬间: justAfter, 展开中间帧数: grown.length, 展开前几帧: frames.slice(0, 6), 展开末帧: frames[frames.length - 1],
     展开后: mid, 收起中间帧数: shrunk.length, 收起末帧: collapse[collapse.length - 1],
     收起后: { 类: sum.className, 内联maxH: sum.style.maxHeight, display: sum.style.display } });
 })()`));
+if (SUMANI.无分类) {
+  skip('切分类时拿不到任何可选分类，④ 的"汇总行展开/收起"断言跳过');
+} else {
 console.log(`  展开中间帧 ${SUMANI.展开中间帧数} 帧（前几帧 max-height ${JSON.stringify(SUMANI.展开前几帧.map(f => f[1]))}，末帧 opacity ${SUMANI.展开末帧[2]}）`);
 console.log(`  收起中间帧 ${SUMANI.收起中间帧数} 帧，末帧 ${JSON.stringify(SUMANI.收起末帧)}`);
 ok(SUMANI.切前汇总隐藏 && SUMANI.瞬间.display === 'block', '④ 筛选生效后汇总行显示出来（既有行为不变）');
@@ -244,8 +285,16 @@ ok(!/pl-enter/.test(SUMANI.瞬间.类), '④ 汇总行不再用一次性淡入�
 ok(SUMANI.展开后.内联maxH === 'none', '④ 展开结束后放开高度上限（窗口变窄、文字换行也不会被裁）');
 ok(SUMANI.收起中间帧数 >= 2 && SUMANI.收起末帧[2] === 'none',
   `★ ④ 汇总行是"上滑收起"（滑到 0 之后才 display:none，末帧 ${JSON.stringify(SUMANI.收起末帧)}）`);
-ok(SUMANI.展开后.行数 > 0 && SUMANI.展开后.行数 <= SUMANI.切前行数, `④ 筛选后行数变少或不变（${SUMANI.切前行数} → ${SUMANI.展开后.行数}）`);
+// ★ "行数 > 0"这条门槛：改成与该分类在数据里的件数现算比对（不再写死规模代理）
+if (SUMANI.该类数据条数 > 0) {
+  ok(SUMANI.展开后.行数 === SUMANI.该类数据条数,
+    `④ 筛到「${SUMANI.分类}」后行数 = 该分类在数据里的件数（${SUMANI.展开后.行数} = ${SUMANI.该类数据条数}）`);
+} else {
+  skip(`「${SUMANI.分类}」在数据里的件数读不到（${SUMANI.该类数据条数}），"行数 = 数据件数"跳过`);
+}
+ok(SUMANI.展开后.行数 <= SUMANI.切前行数, `④ 筛选后行数变少或不变（${SUMANI.切前行数} → ${SUMANI.展开后.行数}）`);
 ok(/该板块总投入/.test(SUMANI.展开后.汇总文字), `④ 汇总内容仍然正确（${SUMANI.展开后.汇总文字}）`);
+}
 // 复位
 await evaluate(`(()=>{ const s=document.getElementById('priceSortSelect'); s.value='default'; s.dispatchEvent(new Event('change')); return 1; })()`);
 await sleep(600);
@@ -298,16 +347,18 @@ const JANK = JSON.parse(await evaluate(`(async()=>{
 console.log(`  切回全部：同步 ${JANK.同步}ms；前 6 帧 ${JANK.前6帧.join('/')}（最长 ${JANK.滑动期最长帧}ms）；` +
   `长任务 ${JANK.长任务.length} 个（最长 ${JANK.最长长任务}ms）；淡入行 ${JANK.淡入行}/${JANK.行数}`);
 ok(JANK.行数 > 0, `④b 收起路径能跑通（${JANK.行数} 行）`);
-if (JANK.行数 > 100) {
-  // 阈值断言只在"真实大列表"下有意义；CI 上如果没有数据文件（行数很少）就只留静态那几条
+// ★ 门槛不再是写死的 100：改成"数据里确实有这么多条目、列表也确实渲染出了它们"（现算）。
+//   小列表（无数据环境）下换帧数本来就没有可量性，这里记 ○ 跳过；阈值断言一条都不删。
+if (DATA.TOTAL_ITEMS > 20 && JANK.行数 > 20) {
+  ok(JANK.行数 <= DATA.TOTAL_ITEMS, `④b 收起后重建的行数没有超出数据里的 ${DATA.TOTAL_ITEMS} 条（${JANK.行数} 行）`);
   ok(JANK.同步 < 45, `★ ④b 收起时的同步耗时降下来了（${JANK.同步}ms；修之前实测 58ms）`);
   ok(JANK.滑动期最长帧 < 40, `★ ④b 收起滑动期间不掉帧（前 6 帧最长 ${JANK.滑动期最长帧}ms；修之前 59ms 且连续 4 帧 >25ms）`);
-  ok(JANK.淡入行 <= 40, `★ ④b 新行的淡入按一屏封顶（${JANK.淡入行} 行，不是 394 行全挂）`);
+  ok(JANK.淡入行 <= 40, `★ ④b 新行的淡入按一屏封顶（${JANK.淡入行} 行，不是 ${JANK.行数} 行全挂）`);
   // 这条是用户第二次报的"还是相当卡顿"：修之前这里有 141~172ms 的长任务
   ok(JANK.最长长任务 < 130,
     `★ ④b 收起期间没有长任务卡住主线程（最长 ${JANK.最长长任务}ms，共 ${JANK.长任务.length} 个；修之前 141~172ms）`);
 } else {
-  ok(true, `④b 行数只有 ${JANK.行数}（没有数据文件），跳过耗时阈值断言`);
+  skip(`数据显示 ${DATA.TOTAL_ITEMS} 条、收起后 ${JANK.行数} 行，列表太小，耗时/帧数阈值没有可量性`);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -318,7 +369,10 @@ const TOGGLE = JSON.parse(await evaluate(`(async()=>{
   const f=document.getElementById('priceFilterSelect');
   const sum=document.getElementById('priceListSummary');
   const cats=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all');
-  if (cats.length<2) return JSON.stringify({ 跳过:'分类只有 '+cats.length+' 个' });
+  // ★ 原来是 return 一个 {跳过:…} 就"走了"，可页面脚本 return 不影响 Node 这边继续往下跑：
+  //   后面 ok(TOGGLE.有栏目 === true) 会拿 undefined 假红、Math.min(...[]) 还会算成 Infinity。
+  //   现在把"没数据"如实带出来，由 Node 侧整节 ○ 跳过。
+  if (cats.length<2) return JSON.stringify({ 跳过:true, 分类数:cats.length });
   f.value=cats[0]; f.dispatchEvent(new Event('change',{bubbles:true}));
   await new Promise(r=>setTimeout(r,700));
   const 有栏目=sum.classList.contains('shown');
@@ -334,10 +388,14 @@ const TOGGLE = JSON.parse(await evaluate(`(async()=>{
   f.value='all'; f.dispatchEvent(new Event('change',{bubbles:true}));
   await new Promise(res=>{ const tick=()=>{ 收起帧.push(Math.round(sum.getBoundingClientRect().height));
       if (performance.now()-t1<500) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
-  return JSON.stringify({ 分类数:cats.length, 有栏目, display:frames[0]&&frames[0].d,
+  return JSON.stringify({ 跳过:false, 分类数:cats.length, 有栏目, display:frames[0]&&frames[0].d,
     中间值, 最小高度:Math.min(...frames.map(x=>x.h)), 最大高度:Math.max(...frames.map(x=>x.h)),
     收起中间帧:new Set(收起帧).size, 收起末:收起帧[收起帧.length-1], 收起后display:sum.style.display });
 })()`));
+if (TOGGLE.跳过) {
+  // ★ 整节 return（不再往下跑），而不是假装通过
+  skip(`分类只有 ${TOGGLE.分类数} 个（无数据环境），④c"分类↔分类/切回全部"的动画断言整节跳过`);
+} else {
 console.log(`  分类→分类：display=${TOGGLE.display}，max-height 中间值 ${TOGGLE.中间值} 个，高度 ${TOGGLE.最小高度}~${TOGGLE.最大高度}；` +
   `切回全部：${TOGGLE.收起中间帧} 个中间高度，末 ${TOGGLE.收起末}px`);
 ok(TOGGLE.有栏目 === true, '④c 切到分类后汇总行确实在（前情）');
@@ -346,6 +404,7 @@ ok(TOGGLE.display === 'block' && TOGGLE.中间值 === 0,
 ok(TOGGLE.最小高度 > 0, `★ ④c 分类→分类时汇总行不会被压扁再弹开（最小高度 ${TOGGLE.最小高度}px）`);
 ok(TOGGLE.收起中间帧 > 2, `★ ④c 切回「全部藏品」= 栏目消失，仍然有收起动画（${TOGGLE.收起中间帧} 个中间高度）`);
 ok(TOGGLE.收起后display === 'none', '④c 收完之后真的收掉了（display:none）');
+}
 
 // ══════════════════════════════════════════════════════════════
 // 用户第三次："还是卡顿" / "甚至更加卡" —— 根因是**整页跟着汇总行上下动**：
@@ -359,6 +418,8 @@ const STATIC = JSON.parse(await evaluate(`(async()=>{
   const card=document.querySelector('.stats-chart-card');
   const sum=document.getElementById('priceListSummary');
   const cat=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all')[0];
+  // ★ 一个分类都没有时 cat 是 undefined，下面 f.value=cat / Math.min(...[]) 会假红或抛异常
+  if (!cat) return JSON.stringify({ 无分类:true, 分类数:0 });
   const watch=()=>[Math.round(card.getBoundingClientRect().top), Math.round(card.getBoundingClientRect().height),
                    Math.round(body.getBoundingClientRect().height)];
   // 先展开（切到分类）
@@ -387,6 +448,9 @@ const STATIC = JSON.parse(await evaluate(`(async()=>{
     汇总display:sum.style.display, 内联maxH:sum.style.maxHeight,
     残余sumExpanding:!!document.querySelector('.price-list-wrapper.sum-expanding') });
 })()`));
+if (STATIC.无分类) {
+  skip('筛选下拉里一个分类都没有（无数据环境），④d"卡片以下一动不动"整节跳过');
+} else {
 console.log(`  卡片 top 档数 ${STATIC.卡片档}（范围 ${JSON.stringify(STATIC.卡片范围)}）；列表高度档数 ${STATIC.列表档}（范围 ${JSON.stringify(STATIC.列表范围)}）`);
 console.log(`  展开后 ${JSON.stringify(STATIC.展开后)} → 收起后 ${JSON.stringify(STATIC.收起后)}（absorb ${STATIC.展开absorb} → ${STATIC.收起absorb}）`);
 ok(STATIC.卡片档 === 1,
@@ -401,6 +465,7 @@ ok(STATIC.汇总display === 'none' && STATIC.内联maxH === '' && !STATIC.残余
   `④d 收起后不留痕迹（display=${STATIC.汇总display} maxH="${STATIC.内联maxH}" 残留类=${STATIC.残余sumExpanding}）`);
 ok(STATIC.线 && STATIC.线.内层 !== '0px' && STATIC.线.外层 === '0px',
   `★ ④d 标题「价格列表」与汇总行之间有分割线（内层 ${STATIC.线 && STATIC.线.内层}，外层 ${STATIC.线 && STATIC.线.外层}）—— 线必须在内层：外层要能在 max-height:0 时收到 0 高度，否则收起末段会顶 17px`);
+}
 
 // ══════════════════════════════════════════════════════════════
 // 用户："价格列表没有展开的时候，这个小栏目收不起来" —— 列表收起时没有东西可以吸收，
@@ -412,6 +477,8 @@ const CLOSED = JSON.parse(await evaluate(`(async()=>{
   if (body.classList.contains('open')) { head.click(); await new Promise(r=>setTimeout(r,700)); }   // 先收起列表
   const 列表开着=body.classList.contains('open');
   const cat=[...f.options].map(o=>o.value).filter(v=>v&&v!=='all')[0];
+  // ★ 一个分类都没有时 cat 是 undefined ⇒ f.value=cat 之后根本不筛选，后面全在判错状态
+  if (!cat) return JSON.stringify({ 无分类:true, 分类数:0 });
   f.value=cat; f.dispatchEvent(new Event('change',{bubbles:true}));
   await new Promise(r=>setTimeout(r,700));
   const 展开后={ display:sum.style.display, 高:Math.round(sum.getBoundingClientRect().height),
@@ -422,10 +489,13 @@ const CLOSED = JSON.parse(await evaluate(`(async()=>{
   await new Promise(res=>{ const tick=()=>{ 帧.push(Math.round((parseFloat(getComputedStyle(sum).maxHeight)||0)*10)/10);
       if (performance.now()-t0<600) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
   await new Promise(r=>setTimeout(r,300));
-  return JSON.stringify({ 列表开着, 展开后, 位移档:[...new Set(帧)].length, 前几帧:帧.slice(0,10),
+  return JSON.stringify({ 无分类:false, 列表开着, 展开后, 位移档:[...new Set(帧)].length, 前几帧:帧.slice(0,10),
     收起后display:sum.style.display, 收起后高:Math.round(sum.getBoundingClientRect().height),
     内联maxH:sum.style.maxHeight, body内联maxH:body.style.maxHeight });
 })()`));
+if (CLOSED.无分类) {
+  skip('筛选下拉里一个分类都没有（无数据环境），④e"列表收起时汇总行照样能收起"整节跳过');
+} else {
 console.log(`  列表开着=${CLOSED.列表开着}；展开后 ${JSON.stringify(CLOSED.展开后)}`);
 console.log(`  收起：${CLOSED.位移档} 档（前几帧 ${JSON.stringify(CLOSED.前几帧)}）→ display=${CLOSED.收起后display}，高 ${CLOSED.收起后高}`);
 ok(CLOSED.列表开着 === false && CLOSED.展开后.display === 'block' && CLOSED.展开后.高 > 20,
@@ -433,6 +503,7 @@ ok(CLOSED.列表开着 === false && CLOSED.展开后.display === 'block' && CLOS
 ok(CLOSED.位移档 >= 3, `★ ④e 列表收起时收起仍然有滑动动画（${CLOSED.位移档} 档）`);
 ok(CLOSED.收起后display === 'none' && CLOSED.内联maxH === '' && CLOSED.收起后高 === 0,
   `★ ④e 列表收起时汇总行真的收得起来（display=${CLOSED.收起后display}，高 ${CLOSED.收起后高}，内联 maxH="${CLOSED.内联maxH}"）`);
+}
 
 // ══════════════════════════════════════════════════════════════
 console.log('\n══════ ⑤ 展开有动画（全部条目错开出现）══════\n');
@@ -444,6 +515,8 @@ const EXPAND = JSON.parse(await evaluate(`(async()=>{
     残留类: b.querySelectorAll('.price-list-item.pl-enter').length };
   head.click();                              // 展开
   const all = [...b.querySelectorAll('.price-list-item')];
+  // ★ 列表一行都没有时（无数据环境）全空，下面 all[all.length-1] 会直接抛异常 —— 如实带出来由 Node 侧跳过
+  if (!all.length) return JSON.stringify({ 无行:true, 收起时: closed, 行数:0 });
   const toMs = v => { const n = parseFloat(v) || 0; return /ms$/.test(v) ? n : n * 1000; };
   const info = all.map(r => ({ 类: r.className, 延迟: toMs(getComputedStyle(r).animationDelay),
     动画: getComputedStyle(r).animationName, 不透明度: Number(getComputedStyle(r).opacity) }));
@@ -462,6 +535,9 @@ const EXPAND = JSON.parse(await evaluate(`(async()=>{
     结束后: { 动画都停了: after.every(r => r.动画 === 'none'), 都不透明: after.every(r => r.不透明度 === 1),
       残留内联延迟: after.filter(r => r.内联延迟).length } });
 })()`));
+if (EXPAND.无行) {
+  skip('价格列表一行都没有（无数据环境），⑤"展开动画/错开延迟"整节跳过');
+} else {
 console.log(`  ${EXPAND.行数} 行全部挂动画=${EXPAND.带动画的行数}，前 5 个延迟 ${EXPAND.延迟.slice(0, 5).join('/')}ms，最大 ${EXPAND.最大延迟}ms`);
 ok(EXPAND.收起时.open === false && EXPAND.收起时.高 === 0, '⑤ 先能收起（高度归零）');
 ok(EXPAND.带动画的行数 === EXPAND.行数,
@@ -476,6 +552,7 @@ ok(EXPAND.展开1帧高 < EXPAND.展开1600ms高, `⑤ 展开是渐变的（1 �
 ok(EXPAND.结束后.动画都停了 && EXPAND.结束后.都不透明 && EXPAND.结束后.残留内联延迟 === 0,
   `⑤ 动画结束后全部恢复常态、内联延迟清干净（残留 ${EXPAND.结束后.残留内联延迟} 条）`);
 ok(EXPAND.收起时.残留类 === 0 && EXPAND.收起时.残留延迟 === 0, '⑤ 收起时上一轮的动画类/延迟都已清掉');
+}
 
 // ══════════════════════════════════════════════════════════════
 console.log('\n══════ ⑥ 减弱动效：不做动画，但功能照常 ══════\n');
@@ -490,27 +567,32 @@ const RM = JSON.parse(await evaluate(`(async()=>{
   sel.value = 'asc'; sel.dispatchEvent(new Event('change', { bubbles: true }));
   await new Promise(res => { const tick = () => {
       const row = b.querySelector('.price-list-item');
-      frames.push(getComputedStyle(row).transform);
+      frames.push(row ? getComputedStyle(row).transform : 'no-row');
       if (performance.now() - t0 < 300) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
-  const anyMoved = frames.some(t => t !== 'none' && t !== 'matrix(1, 0, 0, 1, 0, 0)');
+  const anyMoved = frames.some(t => t !== 'none' && t !== 'matrix(1, 0, 0, 1, 0, 0)' && t !== 'no-row');
   const rows = [...b.querySelectorAll('.price-list-item')].slice(0, 3);
   const anim = rows.map(r => getComputedStyle(r).animationName);
   const nums = [...b.querySelectorAll('.price-list-value')].map(e => parseFloat(e.textContent)).filter(n => !isNaN(n));
   let asc = true; for (let i = 1; i < nums.length; i++) if (nums[i] < nums[i - 1]) asc = false;
-  return JSON.stringify({ 切换前: before, 有位移帧: anyMoved, 行的动画: anim, 升序正确: asc && nums.length > 3,
-    内联: b.querySelector('.price-list-item').style.transform });
+  const first = b.querySelector('.price-list-item');
+  return JSON.stringify({ 行数: rows.length, 切换前: before, 有位移帧: anyMoved, 行的动画: anim, 升序正确: asc && nums.length > 3,
+    内联: first ? first.style.transform : '' });
 })()`));
 console.log('  ' + JSON.stringify(RM));
 ok(RM.有位移帧 === false, '★ ⑥ 减弱动效时不播 FLIP（不位移）');
-ok(RM.行的动画.every(a => a === 'none'), `⑥ 减弱动效时也不播进入动画（${RM.行的动画.join('/')}）`);
-ok(RM.升序正确, '⑥ 减弱动效时排序功能照常（内容仍然正确换了）');
+if (RM.行数 > 0) {
+  ok(RM.行的动画.every(a => a === 'none'), `⑥ 减弱动效时也不播进入动画（${RM.行的动画.join('/')}）`);
+  ok(RM.升序正确, '⑥ 减弱动效时排序功能照常（内容仍然正确换了）');
+} else {
+  skip('价格列表一行都没有（无数据环境），⑥ 的"不播进入动画 / 排序照常"跳过');
+}
 await evaluate(`(()=>{ const s=document.getElementById('priceSortSelect'); s.value='default'; s.dispatchEvent(new Event('change')); return 1; })()`);
 await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
 
 // ══════════════════════════════════════════════════════════════
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 
 try { ws.close(); } catch { }
 try { child.kill(); } catch { }

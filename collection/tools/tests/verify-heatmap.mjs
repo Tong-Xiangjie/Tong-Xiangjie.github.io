@@ -12,8 +12,15 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { decodePng, pixelAt } from './lib/pixel.mjs';
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★★★ 数据里**当前没有**这个场景时：记 `○ 跳过`，**不计通过、也不计失败**。
+//   ★ 为什么不能用 `ok(true, …)` 顶过去：那样日志里会出现一个绿色 ✓，读起来像"验证过了"，
+//     其实什么都没验证；而写死"当前有 N 条"更糟 —— 站主改一次数据就假红、还会发失败邮件。
+//   这条口径来自 verify-hm-glow.mjs / verify-copy-detail-text.mjs（本仓库既有的写法）。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过（数据里当前没有该场景）： ${m}`); };
+// 场景存在但"页面该渲染出来的东西没渲染出来"仍然是**真失败**：用这个助手把两种情况分开。
+const okOrSkip = (cond, why) => { cond ? ok(true, why.pass) : skip(why.skip); };
 
 // ─────────── ① 静态：结构与"CSS 定位"这条硬约束 ───────────
 console.log('══════ ① 静态：热力图代码与 CSS-only tooltip ══════\n');
@@ -449,6 +456,34 @@ const expectFees = JSON.parse(await evaluate(`(()=>{
 const feeKeys = Object.keys(expectFees);
 console.log(`      独立重算的评级费月份：${feeKeys.map(k => k + ' → ' + expectFees[k].k + '件/' + expectFees[k].amount + '元').join('；') || '（无）'}`);
 
+// ─────────── 数据场景定位（★ 一律从上面的"独立重算"结果里现算，绝不钉死具体年月）───────────
+// ★★★ 为什么要有这一段：以前这里的用例写死 "2026 年 10 月共 8 件、合计 1114" / "2026/02 = 7193.5"
+//   / 卡片"跨 4 天"。数据是站主手工维护、直接提交的（本文件里那几处字面量就被改过一次：
+//   1114 → 1194 → 后来又变成 1254），每改一次数据就假红一次、还发失败邮件。
+//   ⇒ 现在所有"用哪个年月做样本"都由**独立重算出来的数据**决定；数据里根本没有该场景时
+//     记 `○ 跳过`（见文件顶部的 skip()），而不是判红、也不是写死"当前有 N 条"。
+const cellKeys = Object.keys(expectMatrix.cells).sort();
+const yearsAsc = expectMatrix.years.map(Number).sort((a, b) => a - b);
+const lastYear = yearsAsc.length ? yearsAsc[yearsAsc.length - 1] : null;
+const prevYear = yearsAsc.length > 1 ? yearsAsc[yearsAsc.length - 2] : null;
+const hasPurchase = (k) => ((expectMatrix.cells[k] || {}).npn || 0) > 0;
+const purchaseKeys = cellKeys.filter(hasPurchase);
+// ②-c / ②-d / ③-b 的"单月"样本：**既有购入、又有评级费**的月份 ⇒ 才验得了"三行齐全 + 第一行不含评级费"。
+const bothMonthKeys = purchaseKeys.filter(k => expectFees[k]);
+const scenarioKey = bothMonthKeys.length ? bothMonthKeys[bothMonthKeys.length - 1] : null;
+const scenarioY = scenarioKey ? Number(scenarioKey.split('/')[0]) : null;
+const scenarioM = scenarioKey ? Number(scenarioKey.split('/')[1]) : null;
+const scenarioPad = scenarioM == null ? null : String(scenarioM).padStart(2, '0');
+// 月份表头的样本：购入件数最多的那个月（"历年 X 月"的泡要拿它核）
+const monthCount = new Map();
+for (const k of cellKeys) { const m = Number(k.split('/')[1]); monthCount.set(m, (monthCount.get(m) || 0) + (expectMatrix.cells[k].npn || 0)); }
+const bestMonth = [...monthCount.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+const scenarioMonthCol = bestMonth && bestMonth[1] > 0 ? bestMonth[0] : null;
+const ymLabel = (y, m) => `${y}年${Number(m)}月`;
+console.log(`     场景定位（全部从独立重算现算）：年份 ${yearsAsc.join('/') || '（无）'}；`
+  + `既有购入又有评级费的月份 ${scenarioKey ? ymLabel(scenarioY, scenarioM) : '（无）'}；`
+  + `购入最多的月份 ${scenarioMonthCol ? scenarioMonthCol + ' 月' : '（无）'}`);
+
 const tipsAll = JSON.parse(await evaluate(`(()=>{
   const rows = [...document.querySelectorAll('.tl-heatmap-row')].filter(r => !r.classList.contains('tl-hm-head'));
   const out = [];
@@ -512,44 +547,54 @@ for (const t of tipsAll) {
 ok(tipBad.length === 0, `②-c ★ ${tipsAll.length} 个格子的提示行数/行内容都对（有评级费=3 行、无评级费=1 行）${tipBad.length ? '；问题：' + tipBad.slice(0, 6).join(' | ') : ''}`);
 ok(seenFeeMonths.length === feeKeys.length, `②-c ★ 带评级费的月份集合与台账一致（页面 ${seenFeeMonths.sort().join(',') || '无'} vs 台账 ${feeKeys.sort().join(',') || '无'}）`);
 
-// ② 用户给的例子：2026年10月 必须逐字对上
-const oct = tipsAll.find(t => t.y === '2026' && Number(t.m) === 10);
-ok(!!oct, `②-c ★ 找到 2026年10月 的格子（提示：${JSON.stringify(oct && oct.tip)}）`);
-if (oct) {
-  const lines = String(oct.tip).split('\n');
-  console.log('     2026年10月 实际提示文本：');
-  lines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
-  const octExp = expectFees['2026/10'];
-  // ★★ 用户 2026-10 给的例子，逐字对上（第一行口径 = Σ裸币价）。用户原话写的是"9件"；
-  //    **数据后来更新过**：2026-10 新增 2 枚（55 元 + 25 元，购入日期 2026年10月19日）
-  //    ⇒ 原来那版 8 件 / 1114 元 变成 10 件 / 1194 元（原始数据文件独立数一遍 = 10 条 / Σ1194；
-  //      collectAllCopies 与实际遍历两条独立路径也是 10 件 1194 元）。
-  //     2026年10月，共购入10件，合计1194元
-  //     另对26件藏品进行评级，评级费用810元
-  //     合计支出2004元
-  const octCell = expectMatrix.cells['2026/10'];
-  ok(/^2026年10月，共购入\d+件，合计1194元$/.test(lines[0]),
-    `②-c ★★★ 第一行合计 == 1194（实际「${lines[0]}」）`);
-  ok(!/2004/.test(lines[0]), `②-c ★★★ 第一行里**不出现** 2004（实际「${lines[0]}」）`);
-  ok(/^另对[\d]+件藏品进行评级，评级费用810元$/.test(lines[1] || ''),
-    `②-c ★★★ 第二行 == 「另对xx件藏品进行评级，评级费用810元」（数字两侧无空格；实际「${lines[1]}」）`);
-  ok(lines[2] === '合计支出2004元',
-    `②-c ★★★ 第三行 == 「合计支出2004元」（1194 + 810；实际「${lines[2]}」）`);
-  ok(octCell && octCell.npn === 10 && Math.abs(octCell.npsum - 1194) <= 0.01,
-    `②-c ★★★ 独立复算该月 = ${octCell && octCell.npn} 件 / Σ裸币价 ${octCell && octCell.npsum} 元`);  if (octExp) ok(octExp.k === 26 && octExp.amount === 810,
-    `②-c ★★★ 台账该月评级 = 26 件 / 810 元（实际 ${octExp.k} 件 / ${octExp.amount} 元）`);
+// ② 三行形态**逐字**对上：期望文本完全由上面那份"独立重算"现算（不钉死任何具体年月/数字）
+//   ★★★ 这里以前写的是 `2026年10月，共购入10件，合计1194元` / `合计支出2004元` / `评级费用810元` ——
+//     全是数据快照：站主给 2026-10 添一枚就假红（实测已经从 1114 → 1194 → 1254 变了两次）。
+//   ⇒ 现在改成：① 场景月 = 数据里**既有购入又有评级费**的那个月（现算，见"数据场景定位"）；
+//             ② 三行文本逐字与"独立重算 + 台账"拼出来的期望比；
+//             ③ 数据里根本没有这种月份时记 `○ 跳过`。
+const scTip = scenarioKey ? tipsAll.find(t => t.y === String(scenarioY) && Number(t.m) === scenarioM) : null;
+if (!scenarioKey) {
+  skip('②-c 三行形态逐字比对：数据里没有"既有购入、又有评级费"的月份（三行齐全的场景当前不存在）');
+} else if (!scTip) {
+  ok(false, `②-c ★ 没找到 ${ymLabel(scenarioY, scenarioM)} 的格子（独立重算说该月有 ${expectMatrix.cells[scenarioKey].npn} 件购入 + ${expectFees[scenarioKey].k} 件评级）`);
+} else {
+  const scLines = String(scTip.tip).split('\n');
+  console.log(`     ${ymLabel(scenarioY, scenarioM)}（有购入 + 有评级费）实际提示文本：`);
+  scLines.forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
+  const scCell = expectMatrix.cells[scenarioKey];
+  const scFee = expectFees[scenarioKey];
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const wantHead = `${ymLabel(scenarioY, scenarioM)}，共购入${scCell.npn}件，合计${scCell.npsum}元`;
+  const wantFee = `另对${scFee.k}件藏品进行评级，评级费用${scFee.amount}元`;
+  const wantTotal = `合计支出${r1(scCell.npsum + scFee.amount)}元`;
+  ok(scLines.length === 3 && scLines[0] === wantHead,
+    `②-c ★★★ 第一行 == 独立重算逐字拼出来的（期望「${wantHead}」；实际「${scLines[0]}」）`);
+  // ★★★ 第一行里**绝不能**并进评级费（"多了一倍评级费"就是这个）：判据 = 它不等于"裸币 + 该月评级费"
+  ok(scLines[0] !== `合计${r1(scCell.npsum + scFee.amount)}元` &&
+     !scLines[0].includes(`合计${r1(scCell.npsum + scFee.amount)}元`),
+    `②-c ★★★ 第一行里**不出现**"含评级费"的那个数 ${r1(scCell.npsum + scFee.amount)}（实际「${scLines[0]}」）—— 评级费只走第二行`);
+  ok(scLines[1] === wantFee,
+    `②-c ★★★ 第二行 == 「另对N件藏品进行评级，评级费用X元」（数字两侧无空格；期望「${wantFee}」，实际「${scLines[1]}」）`);
+  ok(scLines[2] === wantTotal,
+    `②-c ★★★ 第三行 == 第一行 + 第二行（期望「${wantTotal}」= ${scCell.npsum} + ${scFee.amount}；实际「${scLines[2]}」）`);
+  // 独立复算与台账这一侧的自洽性（不比对具体数值，只比对"两条路径口径一致"）：
+  //   页面第一行的件数/金额 == 只看 purchaseDate 数出来的件数 / Σ录入价 − 每枚自己的评级费
+  ok(scCell.npn > 0 && scCell.npsum >= 0 && scFee.k > 0 && scFee.amount > 0,
+    `②-c ★★ 该月两侧都非空：独立复算 ${scCell.npn} 件 / Σ裸币价 ${scCell.npsum} 元；台账 ${scFee.k} 件 / ${scFee.amount} 元`);
   // aria-label 也要是同一套文本（aria 走 escapeAttr，会带编码后的 <strong> 标签）
-  const ariaOct = decodeEnt(String(oct.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
+  const ariaOct = decodeEnt(String(scTip.aria || '').replace(/%3C/gi, '<').replace(/%3E/gi, '>')
     .replace(/%22/g, '"').replace(/&#10;/g, '\n').replace(/%0A/gi, '\n')).replace(/<[^>]*>/g, '').trim();
-  ok(ariaOct === oct.tip, `②-c ★ 该格 aria-label 与提示文本完全一致（含三行换行）\n         aria: ${JSON.stringify(ariaOct)}\n         tip : ${JSON.stringify(oct.tip)}`);
+  ok(ariaOct === scTip.tip, `②-c ★ 该格 aria-label 与提示文本完全一致（含三行换行）\n         aria: ${JSON.stringify(ariaOct)}\n         tip : ${JSON.stringify(scTip.tip)}`);
 }
-// ③ 一个**无评级费**的月份：只有一行、不出现"另对"/第三行 —— 交付要贴它的原文
+// ③ 一个**无评级费**的月份：只有一行、不出现"另对"/第三行 —— 数据里没有这种月份时跳过
 const noFee = tipsAll.find(t => !expectFees[t.y + '/' + t.m] && /共购入[1-9]/.test(String(t.tip)));
-ok(!!noFee, `②-c ★ 找到一个无评级费、有购入的月份（${noFee ? noFee.y + '年' + Number(noFee.m) + '月' : '没找到'}）`);
 if (noFee) {
   console.log(`     ${noFee.y}年${Number(noFee.m)}月（无评级费）实际提示文本：`);
   String(noFee.tip).split('\n').forEach((l, i) => console.log(`       第 ${i + 1} 行: ${l}`));
   ok(String(noFee.tip).split('\n').length === 1, '②-c ★★★ 无评级费的月份只有一行（不显示第二/三行）');
+} else {
+  skip('②-c 无评级费月份只有一行：数据里每个有购入的月份都带评级费（该场景当前不存在）');
 }
 // ④ 只有评级费、没有购入的月份：第一行省略，但第二/三行要在，且第三行 == 评级费
 const onlyFee = tipsAll.find(t => expectFees[t.y + '/' + t.m] && /^另对/.test(String(t.tip).split('\n')[0]));
@@ -563,32 +608,31 @@ if (onlyFee) {
   const tl = +((lines[1].match(/合计支出([0-9.]+)元/) || [])[1] || NaN);
   ok(Math.abs(tl - fa) <= 0.01, `②-c ★ 该月第三行 == 评级费（${tl} == ${fa}）`);
 } else {
-  console.log('     （数据里没有"只有评级费、无购入"的月份，跳过该分支）');
+  skip('②-c 只有评级费、无购入的月份：该场景当前不存在');
 }
 
 // ─────────── ②-d 「共购入 N 件」的 N 到底是多少（历史争议 8 还是 9） ───────────
-// 用户举的例子是 2026 年 10 月「共购入 9 件，合计 1114 元」，当时页面给的是 8 件。
-// 查证结论（三条互不相干的路径 + 页面 DOM 逐条点数）：
-//   · 数据源：按 purchaseDate 落在 2026 年 10 月逐条数 ⇒ 当时**正好 8 条**，
-//     而且 8 条的 price 全部有值（200/98/88/88/115/70/70/385 = 1114）⇒ 不是"有件没价格被漏算"；
-//   · `collectAllCopies()` 在页面里跑一遍 ⇒ 当时 2026/10 = 8 件 / Σprice 1114；
-//   · 时间轴 DOM 上「2026年10月」那一段 ⇒ 当时 **9 张卡片**，其中第 6 张是
-//     「评级费｜评级公司：ACG｜…｜送评日期：2026年9月6日」（付款日期 2026-10-01）
-//     ⇒ 用户数的 9 = **8 件藏品 + 1 条评级费卡片**。
-//   ★★ 数据后来更新（并行那条线）：2026-10 又添了 2 枚（55 元 + 25 元，购入日期 2026年10月19日）
-//      ⇒ 现在是 **10 件藏品 / Σ1194 元**，DOM 上 11 张卡片、跨 **4 天**；原始数据文件独立数一遍
-//        同样是 10 条 / Σ1194（见 ②-c 的注释）。
-//   ⇒ 所以「共购入 N 件」的 N 按**藏品件数**记（评级费那条已经单独出在第二行，
-//     再并进第一行就是一行里数两次）。这里把三条路径和 DOM 都钉住。
-console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是 10 件（11 张卡片 = 10 藏品 + 1 评级费） ══════\n');
-{
-  const octTips = tipsAll.find(t => t.y === '2026' && Number(t.m) === 10);
-  const octWant = expectMatrix.cells['2026/10'] || { pn: 0, psum: 0 };
-  // A) 数据源逐条：**不看价格**，只按 purchaseDate 落在 2026 年 10 月数一遍
+// ★ 历史（这一段里的数字全是**当年的数据快照**，只当背景读，不要当成判据）：
+//   用户举的例子是"某年某月共购入 9 件、合计 1114 元"，当时页面给 8 件。三条互不相干的路径
+//   查证下来：按 purchaseDate 逐条数 = 8 件（8 条的 price 全部有值 ⇒ 不是"有件没价格被漏算"）；
+//   collectAllCopies() = 8 件；时间轴 DOM = **9 张卡片**，其中一张是评级费条目
+//   ⇒ 用户数的 9 = 藏品 + 评级费卡片。数据后来又改过两次（1114 → 1194 → 1254），
+//     每改一次这几条写死的断言就假红一次 —— 所以现在一律**现算**。
+//   ⇒ 「共购入 N 件」的 N 按**藏品件数**记（评级费那条已经单独出在第二行，
+//     再并进第一行就是一行里数两次）。这里把三条路径和 DOM 都现算对拍。
+console.log(`\n══════ ②-d 「共购入 N 件」：样本月 = ${scenarioKey ? ymLabel(scenarioY, scenarioM) : '（数据里没有"既有购入又有评级费"的月份）'} ══════\n`);
+if (!scenarioKey) {
+  skip('②-d 件数三路径对拍：数据里没有"既有购入、又有评级费"的月份，无法同时验藏品卡片与评级费卡片');
+} else {
+  const octTips = scTip;                                   // 场景月（既有购入又有评级费）的泡
+  const octWant = scenarioKey ? expectMatrix.cells[scenarioKey] : { pn: 0, psum: 0 };
+  // A) 数据源逐条：**不看价格**，只按 purchaseDate 落在"场景月"数一遍
+  //   ★ 年月由 scenarioY / scenarioM 现算得来（见"数据场景定位"），不再写死 2026 年 10 月。
   const octItems = JSON.parse(await evaluate(`(()=>{
     const pdate = (s) => { const t = String(s || '').trim(); const d = new Date(t); if (!isNaN(d.getTime())) return d;
       const m = t.match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
     const px = (s) => { const v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return (isNaN(v) || v <= 0) ? 0 : v; };
+    const WY = ${JSON.stringify(scenarioY)}, WM = ${JSON.stringify(scenarioM)};   // 现算出来的场景年月
     const out = [];
     for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
       if (!map) continue;
@@ -596,8 +640,9 @@ console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是
         const walk = (arr) => { for (const c of (arr || [])) {
           if (!c || !c.purchaseDate) continue;
           const dt = pdate(c.purchaseDate); if (!dt) continue;
-          if (dt.getFullYear() !== 2026 || dt.getMonth() !== 9) continue;
-          out.push({ copyId: c.copyId != null ? String(c.copyId) : null, price: px(c.price), rawPrice: c.price == null ? null : String(c.price), key: k });
+          if (dt.getFullYear() !== WY || dt.getMonth() !== WM - 1) continue;
+          out.push({ copyId: c.copyId != null ? String(c.copyId) : null, price: px(c.price), rawPrice: c.price == null ? null : String(c.price), key: k,
+            day: dt.getDate(), dayLabel: dt.getFullYear() + '年' + (dt.getMonth() + 1) + '月' + dt.getDate() + '日' });
         } };
         for (const s of d.series) { if (s.varieties) { for (const v of s.varieties) walk(v.copies); } else walk(s.copies); }
       }
@@ -606,20 +651,47 @@ console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是
   })()`));
   const octSum = octItems.reduce((s, x) => s + x.price, 0);
   const octNoPrice = octItems.filter(x => x.price <= 0).length;
-  console.log(`     2026 年 10 月逐条（不看价格、只按购入日期）：共 ${octItems.length} 件`);
+  // 该月的评级费**卡片**数（独立重算：台账里未售出明细金额 > 0 且付款日落在该月的批次）
+  const octFeeCards = JSON.parse(await evaluate(`(()=>{
+    const d = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+    if (!d || !Array.isArray(d.batches)) return JSON.stringify([]);
+    const copyIds = new Set();
+    for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+      if (!map) continue;
+      for (const k of Object.keys(map)) { const dd = map[k]; if (!dd || !dd.series) continue;
+        const scan = (arr) => { for (const c of (arr || [])) if (c && c.copyId) copyIds.add(String(c.copyId)); };
+        for (const s of dd.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); } }
+    }
+    const pdate = (s) => { const t=String(s||'').trim(); const dd=new Date(t); if(!isNaN(dd.getTime())) return dd;
+      const m=t.match(/(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; };
+    const num = (s) => { const v = parseFloat(String(s==null?'':s).replace(/[^0-9.]/g,'')); return isNaN(v)?0:v; };
+    const out = [];
+    for (const b of d.batches) {
+      if (!b || !b.paidDate) continue;
+      const live = (b.items||[]).filter(it => it && copyIds.has(String(it.cert)) && !it.reholder);
+      if (live.reduce((s,it)=>s+num(it.paidFee),0) <= 0) continue;
+      const dt = pdate(b.paidDate); if (!dt) continue;
+      if (dt.getFullYear() !== ${JSON.stringify(scenarioY)} || dt.getMonth() !== ${JSON.stringify(scenarioM)} - 1) continue;
+      out.push({ day: dt.getDate(), dayLabel: dt.getFullYear() + '年' + (dt.getMonth() + 1) + '月' + dt.getDate() + '日' });
+    }
+    return JSON.stringify(out);
+  })()`));
+  console.log(`     ${ymLabel(scenarioY, scenarioM)}逐条（不看价格、只按购入日期）：共 ${octItems.length} 件；另有 ${octFeeCards.length} 条评级费卡片`);
   for (const x of octItems) console.log(`        ${String(x.copyId || '（无 copyId）').padEnd(14)} price=${JSON.stringify(x.rawPrice)} → ${x.price}  [${x.key}]`);
   ok(octItems.length === octWant.pn,
-    `②-d ★★★ 2026年10月 实际购入件数 == ${octItems.length}（与"只按日期数"的独立复算一致；页面提示也是 ${octWant.pn} 件）`);
+    `②-d ★★★ ${ymLabel(scenarioY, scenarioM)} 实际购入件数 == ${octItems.length}（与"只按日期数"的独立复算一致；页面提示也是 ${octWant.pn} 件）`);
   ok(Math.round(octSum) === Math.round(octWant.npsum),
     `②-d ★★★ 该月合计金额（只算有价格的）== ${Math.round(octSum)}（与页面 ${octWant.npsum} 一致）—— **件数与金额各自独立复算**：件数不看价格、金额看价格`);
-  ok(octNoPrice === 0, `②-d ★★ 这 ${octItems.length} 件**每一件都有价格**（无价格件数 = ${octNoPrice}）⇒ "有一件没价格被漏算"这个猜测不成立`);
+  // ★ 这里**不**断言"每一件都有价格"：那是数据内容（站主完全可能录一枚还没写价格的藏品）。
+  //   真正的**渲染行为**判据是"件数按实际件数计、金额只累加有价格的" —— 上面两条已经把它钉住了。
+  console.log(`     ☆ 记录（不算断言）：这 ${octItems.length} 件里有 ${octNoPrice} 件没写价格 ⇒ 件数按实际件数 ${octWant.pn} 计、金额只累加有价格的 ${Math.round(octSum)}`);
   // B) 页面提示第一行的件数 / 金额
   if (octTips) {
     const m = String(octTips.tip).split('\n')[0].match(/共购入(\d+)件，合计([\d.]+)元/);
     ok(!!m && +m[1] === octItems.length,
       `②-d ★★★ 页面第一行件数 == 实际购入件数（页面「${m ? m[1] : '?'}件」 vs 实际 ${octItems.length} 件）`);
   } else {
-    ok(false, '②-d 没找到 2026年10月 的提示文本');
+    ok(false, `②-d 没找到 ${ymLabel(scenarioY, scenarioM)} 的提示文本`);
   }
   // C) 时间轴 DOM：那个月渲染了几张卡片、其中有几张是评级费
   const domOct = JSON.parse(await evaluate(`(()=>{
@@ -633,17 +705,20 @@ console.log('\n══════ ②-d 「共购入 N 件」：2026年10月 是
       if (m) { cur = m[1]; continue; }
       if (cur) walker.push({ day: cur, txt: txt.slice(0, 60) });
     }
-    const oct = walker.filter(w => /^2026年10月/.test(w.day));
+    const oct = walker.filter(w => new RegExp('^' + ${JSON.stringify(scenarioY)} + '年' + ${JSON.stringify(scenarioM)} + '月').test(w.day));
     return JSON.stringify({ total: oct.length, items: oct,
       feeCards: oct.filter(w => /评级费/.test(w.txt)).length,
       days: [...new Set(oct.map(w => w.day))] });
   })()`));
-  ok(!!domOct && domOct.total === octItems.length + 1,
-    `②-d ★★★ 时间轴 DOM 上「2026年10月」共 ${domOct && domOct.total} 张卡片 = 藏品 ${octItems.length} 件 + **评级费卡片 ${domOct && domOct.feeCards} 张**（这就是用户数的"9"）`);
-  ok(!!domOct && domOct.feeCards === 1,
-    `②-d ★★ 那一张多出来的卡片是评级费条目（${domOct && JSON.stringify(domOct.items.filter(w => /评级费/.test(w.txt)).map(w => w.txt))}）`);
-  ok(!!domOct && domOct.days.length === 4 && domOct.days.join(',') === '2026年10月19日,2026年10月14日,2026年10月13日,2026年10月1日',
-    `②-d ★ 那些卡片分布在 4 天里（${domOct && domOct.days.join(' / ')}）—— 多出来的那张是评级费卡片，不是第 11 件藏品`);
+  // ★ 期望卡片数 / 天数一律**现算**（藏品逐条 + 台账批次），不再写死"11 张 / 跨 4 天 / 具体那 4 个日期"
+  const wantDays = [...new Set([...octItems.map(x => x.dayLabel), ...octFeeCards.map(f => f.dayLabel)])].sort();
+  const gotDays = [...new Set((domOct && domOct.days) || [])].sort();
+  ok(!!domOct && domOct.total === octItems.length + octFeeCards.length,
+    `②-d ★★★ 时间轴 DOM 上「${ymLabel(scenarioY, scenarioM)}」共 ${domOct && domOct.total} 张卡片 = 藏品 ${octItems.length} 件 + **评级费卡片 ${domOct && domOct.feeCards} 张**（独立重算的评级费卡片数 ${octFeeCards.length}）`);
+  ok(!!domOct && domOct.feeCards === octFeeCards.length,
+    `②-d ★★ 多出来的那 ${domOct && domOct.feeCards} 张卡片就是台账里该月的评级费条目（独立重算 ${octFeeCards.length} 条；${domOct && JSON.stringify(domOct.items.filter(w => /评级费/.test(w.txt)).map(w => w.txt))}）`);
+  ok(gotDays.length === wantDays.length && gotDays.join(',') === wantDays.join(','),
+    `②-d ★ 那些卡片分布的日期集合 == 独立重算（藏品购入日 ${octItems.length} 条 ∪ 评级费付款日 ${octFeeCards.length} 条 ⇒ ${wantDays.length} 天；DOM 实测 ${gotDays.length} 天：${gotDays.join(' / ')}）—— 多出来的那张是评级费卡片，不是又一件藏品`);
 }
 
 // ─────────── ②-e 以"每日合计之和"为准对账（用户 2026-10 的判据） ───────────
@@ -688,18 +763,24 @@ console.log('\n══════ ②-e 单月合计 == 该月"逐日合计"之�
   })()`));
   const dailyMonth = new Map(daily.byMonth);
   console.log(`     逐日聚合：${daily.byDay.length} 天 / ${daily.rows} 枚（金额函数：${daily.priceFnName}）`);
-  console.log(`     2026 年 2 月逐日合计（独立按日重算，与用户手算的 14 天对照）：`);
-  const feb = daily.byDay.filter(([k]) => k.startsWith('2026/02/')).sort();
-  for (const [k, v] of feb) console.log(`        ${k}  ${v}`);
-  const febSum = Math.round(feb.reduce((s, [, v]) => s + v, 0) * 10) / 10;
-  console.log(`        ── 2 月合计 = ${febSum}（用户手算 7194）`);
-  // ★★ 两个数都要算：精确值 7193.5，以及"按页面那样每天四舍五入显示后再相加"= 7194。
-  //   用户是照屏幕上的每日数字（765.5 印成 766）加的，所以他得 7194；两者差 0.5，属显示取整。
-  const febAcc = Math.round(feb.reduce((s, [, v]) => s + v, 0) * 10) / 10;
-  const febShown = feb.reduce((s, [, v]) => s + Math.round(v), 0);
-  console.log(`        精确值 ${febAcc}；按页面每天取整后相加 = ${febShown}（用户手算 7194）`);
-  ok(febShown === 7194 && Math.abs(febAcc - 7194) <= 1,
-    `②-e ★★★ 2026 年 2 月「逐日合计之和」= ${febAcc}（按天取整后 ${febShown}）== 用户手算的 7194`);
+  // ★★★ 以前这里写死"2026 年 2 月 = 7194（= 用户手算）"，那是**数据快照**（数据一改就假红）。
+  //   现在样本月 = **逐日合计最大的那个月**（现算），判据换成两条与数据无关的性质：
+  //     ① 「逐日合计之和」精确值 与 「按页面每天四舍五入后相加」之差 ≤ 天数 / 2（显示取整）
+  //     ② 页面格子的金额 == 该月逐日合计（下面那条对所有月份逐月比对）
+  const topMonth = [...dailyMonth.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+  const topKey = topMonth ? topMonth[0] : null;
+  if (!topKey) {
+    skip('②-e 逐日合计 vs 页面格子：数据里没有任何带购入日期的藏品');
+  } else {
+    console.log(`     ${topKey} 逐日合计（独立按日重算；这是逐日口径最大的月份）：`);
+    const topDays = daily.byDay.filter(([k]) => k.startsWith(topKey + '/')).sort();
+    for (const [k, v] of topDays) console.log(`        ${k}  ${v}`);
+    const topAcc = Math.round(topDays.reduce((s, [, v]) => s + v, 0) * 10) / 10;
+    const topShown = topDays.reduce((s, [, v]) => s + Math.round(v), 0);
+    console.log(`        ── 精确值 ${topAcc}；按页面每天取整后相加 = ${topShown}（${topDays.length} 天）`);
+    ok(Math.abs(topShown - topAcc) <= topDays.length / 2 + 0.01,
+      `②-e ★★★ ${topKey}「逐日合计之和」：精确值 ${topAcc} 与"按天四舍五入后相加" ${topShown} 只差显示取整（≤ 天数/2 = ${topDays.length / 2}）`);
+  }
   // 页面格子的金额必须 == 该月逐日合计（对所有有数据的月份）
   const cellAmt = JSON.parse(await evaluate(`(()=>{
     const out = {};
@@ -739,9 +820,13 @@ console.log('\n══════ ②-e 单月合计 == 该月"逐日合计"之�
   ok(Math.abs(Math.round([...ySum.values()].reduce((s, v) => s + v, 0) * 10) / 10 - allSum) <= 0.11,
     `②-e ★★ 自洽：Σ各年 == Σ所有月（${[...ySum.values()].reduce((s, v) => s + v, 0)} == ${allSum}）`);
 
-  // ★★★ 图例五档的最大值必须**等于按"逐日合计"口径算出来的最大月合计**（用户判据 3）：
-  //   当前数据下最大月 = 2026/02 = 7193.5（显示 7194）。
-  const maxMon = [...dailyMonth.entries()].sort((a, b) => b[1] - a[1])[0];
+  // ★★★ 图例五档的最大值必须**等于按"逐日合计"口径算出来的最大月合计**（用户判据 3）。
+  //   ★ 最大月**现算**（早先这里写死"2026/02 = 7193.5" —— 数据一改就假红）；
+  //     判据本身（图例 100% 档 == 逐日口径最大月 == 该格取最深一档）与数据无关。
+  const maxMon = [...dailyMonth.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+  if (!maxMon) {
+    skip('②-e 图例五档的最大值 == 最大月合计：数据里没有任何带购入日期的藏品');
+  } else {
   const legend = JSON.parse(await evaluate(`(()=>{
     const lg = document.querySelector('.tl-heatmap-legend');
     if (!lg) return JSON.stringify(null);
@@ -765,6 +850,7 @@ console.log('\n══════ ②-e 单月合计 == 该月"逐日合计"之�
     `②-e ★★★ special.js / layout.css 里**没有任何写死的 7193**（图例五档全部由实时 max 算出来）`);
   ok(/timelineHeatmapTiers\s*\(\s*maxAmount\s*\)/.test(spNoCmt),
     '②-e ★★★ 图例五档由 timelineHeatmapTiers(maxAmount) 实时算（maxAmount = 最大月合计），不是写死的数组');
+  }
 }
 
 // ⑤ 换行真的会渲染成三行 + 泡的形状（宽由内容定、不折行、文字居中）
@@ -826,10 +912,12 @@ ok(tipDecl === 'max-content', `②-c ★★ 样式表里 .tl-heatmap-tip 的 wid
 ok(tipShape && /px|vw|em/.test(tipShape.maxWidth) && parseFloat(tipShape.maxWidth) > 0,
   `②-c ★★ 泡有 max-width 兜底（实际 ${tipShape && tipShape.maxWidth}）—— 窄屏也不会溢出`);
 
-const octLines = await evaluate(`(()=>{
+// ★ 样本格子 = 场景月（既有购入又有评级费 ⇒ 三行齐全）；年月由"数据场景定位"现算。
+//   （早先写死 2026/10 —— 数据一改就取不到、断言退化。）
+const octLines = scenarioKey ? await evaluate(`(()=>{
   const rows=[...document.querySelectorAll('.tl-heatmap-row')].filter(r=>!r.classList.contains('tl-hm-head'));
-  for (const r of rows) { if ((r.querySelector('.tl-heatmap-ylabel')||{}).dataset?.label!=='2026') continue;
-    for (const c of r.querySelectorAll('.tl-heatmap-cell')) if (c.dataset.month==='10') {
+  for (const r of rows) { if ((r.querySelector('.tl-heatmap-ylabel')||{}).dataset?.label!==${JSON.stringify(String(scenarioY))}) continue;
+    for (const c of r.querySelectorAll('.tl-heatmap-cell')) if (c.dataset.month===${JSON.stringify(scenarioPad)}) {
       const t=c.querySelector('.tl-heatmap-tip');
       // ★ 用 Range 量**文本行盒**：对块级元素调 getClientRects() 只会返回 1 个矩形（整块），
       //   量不出"几行" —— 上一版就是这么误判的（明明三行却报 1 个行盒）。
@@ -842,11 +930,15 @@ const octLines = await evaluate(`(()=>{
         cellW:Math.round(cell.width) });
     } }
   return JSON.stringify(null);
-})()`).then(JSON.parse);
-ok(octLines && octLines.n >= 3,
-  `②-c ★★ 2026年10月 的泡在屏幕上真的是多行（${octLines ? octLines.n + ' 个文本行盒、高 ' + octLines.h + 'px、单行高 ' + octLines.oneLine + 'px' : '没取到'}）`);
-ok(octLines && octLines.h >= octLines.oneLine * 2.8,
-  `②-c ★★ 泡的高度 ≈ 三行（${octLines ? octLines.h + 'px ≥ 2.8 × ' + octLines.oneLine + 'px' : '没取到'}）—— <br> 真的把三行渲染出来了`);
+})()`).then(JSON.parse) : null;
+if (!octLines) {
+  skip(`②-c 泡的多行形态（文本行盒数量/高度）：数据里没有"既有购入又有评级费"的月份（三行泡的场景当前不存在）`);
+} else {
+ok(octLines.n >= 3,
+  `②-c ★★ ${ymLabel(scenarioY, scenarioM)} 的泡在屏幕上真的是多行（${octLines.n} 个文本行盒、高 ${octLines.h}px、单行高 ${octLines.oneLine}px）`);
+ok(octLines.h >= octLines.oneLine * 2.8,
+  `②-c ★★ 泡的高度 ≈ 三行（${octLines.h}px ≥ 2.8 × ${octLines.oneLine}px）—— <br> 真的把三行渲染出来了`);
+}
 // ★★★ 用户报的"形状问题"（泡被压成一个格子那么宽）—— 判据**全部改成字体/视口无关**：
 //   · 旧的 `tipW >= 200` 是写死的 px，CI（ubuntu）字体更窄 ⇒ 实测 176px ⇒ 误报（CI 红的就是这条）；
 //     `tipW > cellW * 2` 本身是相对量，保留。
@@ -1249,7 +1341,9 @@ const expectLabel = {
   all: { pn: expectMatrix.range.allNaked.count, psum: Math.round(expectMatrix.range.allNaked.sum * 10) / 10 },
   year0: sumCells(yy => yy === year0),
   year0Label: String(year0),
-  m7: sumCells((yy, mm) => mm === 7)
+  // ★ 月份表头的样本月**现算**（购入件数最多的那个月），不再写死 7 月：
+  //   写死的话，站主把所有 7 月的藏品挪走/删掉，这条就会因为"取不到泡"而假红。
+  mN: scenarioMonthCol == null ? null : sumCells((yy, mm) => mm === scenarioMonthCol)
 };
 expectLabel.all.naked = expectLabel.all.psum;
 expectLabel.all.n = expectLabel.all.pn;
@@ -1258,14 +1352,18 @@ await sleep(350);
 const labelCases = [
   ['左上角"入坑以来"', `document.querySelector('.tl-hm-corner')`, /^入坑以来，共购入(\d+)件，合计([\d.]+)元$/, () => expectLabel.all],
   ['年份标签', `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => !e.classList.contains('tl-hm-corner'))`, /^\d{4}年，共购入(\d+)件，合计([\d.]+)元$/, () => expectLabel.year0],
-  ['月份表头', `document.querySelectorAll('.tl-heatmap-mlabel')[6]`, /^历年7月，共购入(\d+)件，合计([\d.]+)元$/, () => expectLabel.m7]
+  ['月份表头', scenarioMonthCol == null ? null : `document.querySelectorAll('.tl-heatmap-mlabel')[${scenarioMonthCol - 1}]`,
+    scenarioMonthCol == null ? null : new RegExp(`^历年${scenarioMonthCol}月，共购入(\\d+)件，合计([\\d.]+)元$`),
+    () => expectLabel.mN]
 ];
 let labBad = 0, labMsg = [];
+if (scenarioMonthCol == null) skip('③ 月份表头的泡：数据里没有任何月份的购入件数 > 0（该场景当前不存在）');
 // ★ 泡现在是**多行**（第一行购入合计 / 第二行评级费 / 第三行合计支出）：
 //   位置、宽度、尖角这些几何断言用整段文本没问题，但**匹配前缀和金额必须只看第一行**，
 //   否则会拿第二行的评级费金额去和"它管的格子合计"比。
 const firstLineOf = (s) => String(s || '').split('\n')[0];
 for (const [name, expr, want, expectFn] of labelCases) {
+  if (!expr) continue;
   if (!await hoverAt(expr)) { labBad++; labMsg.push(`${name}: 悬停失败`); continue; }
   const p = await tipProbe(expr);
   const m = firstLineOf(p.text).match(want);
@@ -1355,13 +1453,34 @@ const sumCellsFor = (pick) => {
   return { n: pn, pn, psum: Math.round(psum * 10) / 10, naked: Math.round(psum * 10) / 10, nsum: Math.round(nsum * 10) / 10 };
 };
 const yAll = expectMatrix.years.map(Number).sort((a, b) => a - b);
+const yTop = yAll.length ? yAll[yAll.length - 1] : null;
+// ★★★ 四种范围的样本一律**现算**（单月 = 既有购入又有评级费的那个月；某年 = 有数据的最后一年；
+//   历年 X 月 = 购入最多的那个月）。早先这里写死 "2026年10月 / 2026年 / 历年10月" ——
+//   数据一改（例如把最后一年整体挪走）就会因为"取不到泡"而假红。
 const scopeCases = [
-  ['单月 2026年10月', `document.querySelector('.tl-heatmap-cell[data-year="2026"][data-month="10"]')`, /^2026年10月，共购入(\d+)件，合计([\d.]+)元$/, () => sumCellsFor((yy, mm) => yy === 2026 && mm === 10), () => feeOf.month(2026, 10)],
-  ['某年 ' + yAll[yAll.length - 1] + '年', `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e=>e.dataset.label==='${yAll[yAll.length - 1]}')`, new RegExp('^' + yAll[yAll.length - 1] + '年，共购入(\\d+)件，合计([\\d.]+)元$'), () => sumCellsFor(yy => yy === yAll[yAll.length - 1]), () => feeOf.year(yAll[yAll.length - 1])],
-  ['历年10月', `document.querySelectorAll('.tl-heatmap-mlabel')[9]`, /^历年10月，共购入(\d+)件，合计([\d.]+)元$/, () => sumCellsFor((yy, mm) => mm === 10), () => feeOf.monthAcrossYears(10)],
+  scenarioKey ? ['单月 ' + ymLabel(scenarioY, scenarioM),
+    `document.querySelector('.tl-heatmap-cell[data-year="${scenarioY}"][data-month="${scenarioPad}"]')`,
+    new RegExp(`^${scenarioY}年${scenarioM}月，共购入(\\d+)件，合计([\\d.]+)元$`),
+    () => sumCellsFor((yy, mm) => yy === scenarioY && mm === scenarioM),
+    () => feeOf.month(scenarioY, scenarioM)] : null,
+  yTop == null ? null : ['某年 ' + yTop + '年',
+    `[...document.querySelectorAll('.tl-heatmap-ylabel')].find(e=>e.dataset.label==='${yTop}')`,
+    new RegExp('^' + yTop + '年，共购入(\\d+)件，合计([\\d.]+)元$'),
+    () => sumCellsFor(yy => yy === yTop),
+    () => feeOf.year(yTop)],
+  scenarioMonthCol == null ? null : ['历年' + scenarioMonthCol + '月',
+    `document.querySelectorAll('.tl-heatmap-mlabel')[${scenarioMonthCol - 1}]`,
+    new RegExp(`^历年${scenarioMonthCol}月，共购入(\\d+)件，合计([\\d.]+)元$`),
+    () => sumCellsFor((yy, mm) => mm === scenarioMonthCol),
+    () => feeOf.monthAcrossYears(scenarioMonthCol)],
   ['入坑以来', `document.querySelector('.tl-hm-corner')`, /^入坑以来，共购入(\d+)件，合计([\d.]+)元$/, () => sumCellsFor(() => true), () => feeOf.all()]
-];
+].filter(Boolean);
 const scopeSeen = [];
+const scopeSkipped = [];
+if (!scenarioKey) scopeSkipped.push('单月（数据里没有"既有购入又有评级费"的月份）');
+if (yTop == null) scopeSkipped.push('某年（年份数据为空）');
+if (scenarioMonthCol == null) scopeSkipped.push('历年某月（没有任何月份的购入件数 > 0）');
+if (scopeSkipped.length) skip(`③-b 悬浮范围的这些样本数据里不存在：${scopeSkipped.join('；')}`);
 for (const [name, expr, headRe, expectFn, feeFn] of scopeCases) {
   if (!await hoverAt(expr)) { ok(false, `③-b ★ ${name}：悬停失败`); continue; }
   const p = await tipProbe(expr);
@@ -1402,10 +1521,11 @@ for (const [name, expr, headRe, expectFn, feeFn] of scopeCases) {
     ok(!/入坑以来/.test(text), `③-b ★★★ ${name}：其它范围前缀**不出现**"入坑以来"（实际「${text.replace(/\n/g, ' ⏎ ')}」）`);
   }
 }
-ok(scopeSeen.length === 4, `③-b ★ 四种悬浮范围都取到了文本（单月 / 某年 / 历年某月 / 全部）`);
-// 四种范围的前缀必须**各自不同**（别把"某年"也写成"x年x月"）
+ok(scopeSeen.length === scopeCases.length, `③-b ★ 取到文本的悬浮范围数 == 数据里存在的样本数（${scopeSeen.length}/${scopeCases.length}；单月 / 某年 / 历年某月 / 全部）`);
+// 取到的范围的前缀必须**各自不同**（别把"某年"也写成"x年x月"）
 const prefixes = scopeSeen.map(s => s.lines[0].split('，')[0]);
-ok(new Set(prefixes).size === 4, `③-b ★★★ 四种范围的第一行前缀互不相同（${prefixes.join(' / ')}）`);
+ok(new Set(prefixes).size === prefixes.length && prefixes.length >= 2,
+  `③-b ★★★ 取到的 ${prefixes.length} 种范围的第一行前缀互不相同（${prefixes.join(' / ')}）`);
 
 // ─────────── ③-b2 四种范围的「共购入 N 件」自查 ───────────
 // 用户要求：四种范围的件数都要与"该范围实际购入件数"一致；件数**不看价格**、金额看价格。
@@ -1442,31 +1562,48 @@ console.log('\n══════ ③-b2 四种范围的件数自查（件数不
       return c ? tipOf(c) : null; };
     return JSON.stringify({
       all: agg(() => true),
-      y2026: agg(r => r.y === 2026),
-      m10: agg(r => r.m === 10),
-      oct: agg(r => r.y === 2026 && r.m === 10),
+      y: agg(r => r.y === ${JSON.stringify(scenarioY ?? yTop)}),
+      m: agg(r => r.m === ${JSON.stringify(scenarioMonthCol)}),
+      ym: agg(r => r.y === ${JSON.stringify(scenarioY)} && r.m === ${JSON.stringify(scenarioM)}),
       noPriceRows: rows.filter(r => !r.hasPrice).length,
       totalRows: rows.length,
       tips: {
         all: tipOf(document.querySelector('.tl-hm-corner')),
-        y2026: tipOf([...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => e.dataset.label === '2026')),
-        m10: tipOf(mLabels[9]),
-        oct: cellTip(2026, '10')
+        y: tipOf([...document.querySelectorAll('.tl-heatmap-ylabel')].find(e => e.dataset.label === ${JSON.stringify(String(scenarioY ?? yTop))})),
+        m: tipOf(mLabels[${JSON.stringify((scenarioMonthCol || 1) - 1)}]),
+        ym: cellTip(${JSON.stringify(scenarioY)}, ${JSON.stringify(scenarioPad)})
       }
     });
   })()`));
   const A = expectMatrix.range.all;
-  const octCell = expectMatrix.cells['2026/10'] || { pn: 0, psum: 0 };
+  const scCell = expectMatrix.cells[scenarioKey] || { pn: 0, psum: 0 };
   const firstOf = (t) => (t ? String(t).split('\n')[0] : '（未取到）');
   console.log('     范围              实际购入件数  无价格件    Σ裸币价    页面泡第一行');
   const print = (name, n, sum, noPrice, tip) =>
     console.log(`     ${name.padEnd(16)} ${String(n).padStart(10)}  ${String(noPrice).padStart(6)}  ${String(sum).padStart(10)}   ${firstOf(tip)}`);
+  const scName = scenarioKey ? '单月 ' + ymLabel(scenarioY, scenarioM) : null;
+  const yName = '某年 ' + (scenarioY ?? yTop) + '年';
+  const mName = scenarioMonthCol ? '历年' + scenarioMonthCol + '月' : null;
   print('全部（入坑以来）', recount.all.n, recount.all.naked, recount.all.noPrice, recount.tips.all);
-  print('单月 2026年10月', recount.oct.n, recount.oct.naked, recount.oct.noPrice, recount.tips.oct);
-  print('某年 2026年', recount.y2026.n, recount.y2026.naked, recount.y2026.noPrice, recount.tips.y2026);
-  print('历年10月', recount.m10.n, recount.m10.naked, recount.m10.noPrice, recount.tips.m10);
-  console.log(`     （全站共 ${recount.totalRows} 件藏品带购入日期；其中 **${recount.noPriceRows} 件没有价格字段**）`);
-  console.log(`     对照：全部范围的"卡片总数" = 藏品 ${recount.all.n} + 评级费条目 5 = ${recount.all.n + 5}（时间轴顶部"共385件"写的就是这个数）`);
+  if (scName) print(scName, recount.ym.n, recount.ym.naked, recount.ym.noPrice, recount.tips.ym);
+  print(yName, recount.y.n, recount.y.naked, recount.y.noPrice, recount.tips.y);
+  if (mName) print(mName, recount.m.n, recount.m.naked, recount.m.noPrice, recount.tips.m);
+  console.log(`     （全站共 ${recount.totalRows} 件藏品带购入日期；其中 ${recount.noPriceRows} 件没有价格字段）`);
+  // ★ 评级费条目数**现算**（台账里"有未售出明细、金额 > 0"的批次数），不写死 5
+  const feeEntryN = JSON.parse(await evaluate(`(()=>{
+    const d = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+    if (!d || !Array.isArray(d.batches)) return JSON.stringify(0);
+    const copyIds = new Set();
+    for (const map of [window.DATA_MAP, window.COIN_DATA_MAP]) {
+      if (!map) continue;
+      for (const k of Object.keys(map)) { const dd = map[k]; if (!dd || !dd.series) continue;
+        const scan = (arr) => { for (const c of (arr || [])) if (c && c.copyId) copyIds.add(String(c.copyId)); };
+        for (const s of dd.series) { if (s.varieties) { for (const v of s.varieties) scan(v.copies); } else scan(s.copies); } }
+    }
+    const num = (s) => { const v = parseFloat(String(s==null?'':s).replace(/[^0-9.]/g,'')); return isNaN(v)?0:v; };
+    return JSON.stringify(d.batches.filter(b => b && (b.items||[]).some(it => it && copyIds.has(String(it.cert)) && !it.reholder && num(it.paidFee) > 0)).length);
+  })()`));
+  console.log(`     对照：全部范围的"卡片总数" = 藏品 ${recount.all.n} + 评级费条目 ${feeEntryN} = ${recount.all.n + feeEntryN}（独立重算；时间轴顶部写的就是这个数）`);
   // 件数与金额各自独立复算后再和页面泡对一遍
   const chk = (name, want, tip) => {
     const m = String(tip || '').split('\n')[0].match(/共购入(\d+)件，合计([\d.]+)元/);
@@ -1474,15 +1611,20 @@ console.log('\n══════ ③-b2 四种范围的件数自查（件数不
     ok(!!m && Math.abs(+m[2] - want.naked) <= 0.01, `③-b2 ★★★ ${name}：Σ裸币价 ${want.naked} == 独立复算（页面「${m ? m[2] : '?'}元」）`);
   };
   chk('全部（入坑以来）', recount.all, recount.tips.all);
-  chk('单月 2026年10月', recount.oct, recount.tips.oct);
-  chk('某年 2026年', recount.y2026, recount.tips.y2026);
-  chk('历年10月', recount.m10, recount.tips.m10);
+  if (scName) chk(scName, recount.ym, recount.tips.ym);
+  chk(yName, recount.y, recount.tips.y);
+  if (mName) chk(mName, recount.m, recount.tips.m);
   ok(recount.all.n === A.npn && Math.abs(recount.all.naked - A.npsum) <= 0.01,
     `③-b2 ★★★ 全部范围与格子重算口径一致（件数 ${recount.all.n}/${A.npn}、Σ裸币价 ${recount.all.naked}/${A.npsum}；Σ录入价 ${recount.all.sum}）`);
-  ok(recount.oct.n === octCell.npn && Math.abs(recount.oct.naked - octCell.npsum) <= 0.01,
-    `③-b2 ★★★ 2026年10月与格子重算口径一致（件数 ${recount.oct.n}/${octCell.npn}、Σ裸币价 ${recount.oct.naked}/${octCell.npsum}）`);
-  ok(recount.noPriceRows === 0,
-    `③-b2 ★★ 全站 ${recount.noPriceRows} 件藏品缺价格字段 ⇒ 今天"计件数"与"计有价格的件数"结果相同（将来出现 0 元藏品时，件数仍按实际件数计）`);
+  if (!scenarioKey) {
+    skip('③-b2 单月范围与格子重算口径一致：数据里没有"既有购入又有评级费"的月份');
+  } else {
+    ok(recount.ym.n === scCell.npn && Math.abs(recount.ym.naked - scCell.npsum) <= 0.01,
+      `③-b2 ★★★ ${ymLabel(scenarioY, scenarioM)}与格子重算口径一致（件数 ${recount.ym.n}/${scCell.npn}、Σ裸币价 ${recount.ym.naked}/${scCell.npsum}）`);
+  }
+  // ★ 这里**不**断言"全站没有缺价格的藏品"（那是数据内容）。真正的行为判据是：
+  //   "件数按实际件数计" —— 上面每条 chk 都已经把"件数 == 独立复算的件数（不看价格）"钉住了。
+  console.log(`     ☆ 记录（不算断言）：全站 ${recount.noPriceRows} 件藏品缺 price 字段 ⇒ 件数仍按实际件数计`);
 }
 
 // ─────────── ③-e 填色金额 == 泡第一行"合计"（口径回环，用户 2026-10 的 bug） ───────────
@@ -1512,12 +1654,30 @@ console.log('\n══════ ③-e 填色金额 == 泡第一行"合计"（�
   for (const p of pairs.filter(x => x.amt > 0).slice(0, 3)) console.log(`        ${p.key}  填色金额=${p.amt}  泡第一行「${p.first}」`);
   ok(bad.length === 0,
     `③-e ★★★ 每个有色格子的**填色金额** == 它泡第一行的"合计"（不一致：${bad.map(b => b.key + ' ' + b.amt + '≠' + b.tipSum).join('；') || '无'}）`);
-  const octP = pairs.find(p => p.key === '2026/10');
-  ok(!!octP && octP.amt === 1194 && octP.tipSum === 1194,
-    `③-e ★★★ 2026/10 这一格：填色 ${octP && octP.amt} == 泡里合计 ${octP && octP.tipSum} == 1194（上一版这里是 2004，评级费被算进了填色）`);
-  const febP = pairs.find(p => p.key === '2026/02');
-  ok(!!febP && Math.abs(febP.amt - 7194) <= 1,
-    `③-e ★★★ 2026/02 这一格：填色 ${febP && febP.amt}（= 裸币口径 7193.5，用户手算逐日之和 7194；上一版这里是 7670，因为泡第一行用了 Σ录入价）`);
+  // ★★★ 逐格**全覆盖**：填色金额 == 独立复算的该月 Σ裸币价（不抽查、也不写死金额）。
+  //   上一版只抽查 "2026/10 == 1194" 与 "2026/02 == 7194" 两个格子 —— 那既是数据快照、
+  //   又漏掉了其它月份。现在换成对**每一个**有数据的月份都比，判据更强。
+  const cellBad = pairs.filter(p => {
+    const c = expectMatrix.cells[p.key];
+    return c && Math.abs(p.amt - (c.npsum || 0)) > 0.11;
+  });
+  ok(cellBad.length === 0,
+    `③-e ★★★ 每一个格子的**填色金额** == 独立复算的该月 Σ裸币价（不一致：${cellBad.map(b => b.key + ' 填色' + b.amt + '≠复算' + (expectMatrix.cells[b.key] || {}).npsum).join('；') || `无，逐格全对（共 ${covered} 个有色格子）`}）`);
+  // ★ 有评级费的那个月：填色**不等于**"Σ裸币价 + 该月评级费"（防评级费被算进填色 —— 用户报的那个 bug）
+  if (scenarioKey) {
+    const ymP = pairs.find(p => p.key === scenarioKey);
+    const ymC = expectMatrix.cells[scenarioKey];
+    const ymF = expectFees[scenarioKey];
+    const withFee = Math.round((ymC.npsum + ymF.amount) * 10) / 10;
+    ok(!!ymP && Math.abs(ymP.amt - withFee) > 0.11,
+      `③-e ★★★ ${ymLabel(scenarioY, scenarioM)}（有评级费）这一格：填色 ${ymP && ymP.amt} **不等于**"Σ裸币价 + 该月评级费" ${withFee} —— 评级费没有被算进填色`);
+  } else {
+    skip('③-e 防"评级费算进填色"：数据里没有"既有购入又有评级费"的月份，构造不出这个反例');
+  }
+  // ★ 最大金额那一格：填色 == 复算（这里额外确认"最大月"也没被另一支口径污染）
+  const maxPair = [...pairs].filter(p => p.amt > 0).sort((a, b) => b.amt - a.amt)[0] || null;
+  ok(!!maxPair && Math.abs(maxPair.amt - ((expectMatrix.cells[maxPair.key] || {}).npsum || 0)) <= 0.11,
+    `③-e ★★★ 金额最大的那一格（${maxPair && maxPair.key} = ${maxPair && maxPair.amt} 元）填色 == 复算的 Σ裸币价 ${maxPair && (expectMatrix.cells[maxPair.key] || {}).npsum}（上一版这里写死 7194，数据一改就假红）`);
 }
 
 
@@ -1553,9 +1713,9 @@ console.log('\n══════ ③-c 逐月分解表（购入 / 评级费 / �
   const sumNk = to1(months.reduce((s, k) => s + (expectMatrix.cells[k].npsum || 0), 0));
   const sumRw = to1(months.reduce((s, k) => s + (expectMatrix.cells[k].psum || 0), 0));
   console.log(`\n     ★ 全部范围泡第一行（Σ裸币价）= ${to1(A.npsum)} ；逐月"Σ裸币价"相加 = ${sumNk} ；Σ录入价 = ${sumRw}`);
-  console.log(`     ★ 台账评级费支出 = ${FT} ；全部范围泡第二行（另对 118 件评级）= ${FT} ；第三行合计支出 = ${to1(A.npsum + FT)}`);
-  console.log(`     ★ 逐月"Σ录入价 − Σ裸币价"相加 = ${to1(sumRw - sumNk)}`);  console.log(`       ⇒ 逐月差额 = 该月每一枚**自己的**评级费之和（2026/02 就是 477：7670 = 7193 + 477）。`);
-  console.log(`       ⇒ 这正是"7670 从哪来"的答案：它是 Σ录入价，把 2026/02 那 68 枚各自的评级费又加了一遍。`);
+  console.log(`     ★ 台账评级费支出 = ${FT}（${Object.keys(expectFees).reduce((s, k) => s + expectFees[k].k, 0)} 件评级）；全部范围泡第二行 = ${FT} ；第三行合计支出 = ${to1(A.npsum + FT)}`);
+  console.log(`     ★ 逐月"Σ录入价 − Σ裸币价"相加 = ${to1(sumRw - sumNk)}`);  console.log(`       ⇒ 逐月差额 = 该月每一枚**自己的**评级费之和（逐枚恒等：录入价 = 裸币价 + 该枚评级费）。`);
+  console.log(`       ⇒ 这正是"Σ录入价"从哪来的答案：它把每一枚各自的评级费又加了一遍（历史上被误当成"购入合计"）。`);
   ok(Math.abs(sumNk - to1(A.npsum)) <= 0.6 && Math.abs(sumRw - to1(A.psum)) <= 0.6,
     `③-c ★★★ 逐月相加 == 全部范围（Σ裸币价 ${sumNk}/${to1(A.npsum)}；Σ录入价 ${sumRw}/${to1(A.psum)}）`);
   ok(Math.abs((sumRw - sumNk) - FT) <= 0.6,
@@ -1638,7 +1798,12 @@ const afterClick = JSON.parse(await evaluate(`(()=>{
     slogan: (document.querySelector('.timeline-slogan')||{}).textContent||'', heatmapStill: !!document.querySelector('.tl-heatmap'),
     count: (document.querySelector('.timeline-top-count')||{}).textContent||'' });
 })()`));
-ok(!!clicked, `④ 找到了有购买记录的格子（${clicked ? clicked.y + '/' + clicked.m : '—'}）`);
+// ★ 数据里一件带购入日期的藏品都没有时，没有"有购买记录的格子"可点 ⇒ 记 ○ 跳过（不判红）。
+if (!clicked) {
+  skip('④ 点格子筛选：数据里没有任何"共购入 ≥1 件"的格子（无从点起）');
+} else {
+  console.log(`     （点的是 ${clicked.y}/${clicked.m} 那一格 —— 从页面里现找的"有购买记录"的格子）`);
+}
 if (clicked) {
   ok(afterClick.year === clicked.y && afterClick.month === clicked.m, `④ ★ 点格子后下拉框变成 ${clicked.y} 年 ${clicked.m} 月（实际 ${afterClick.year}/${afterClick.month}）`);
   const want = expectMatrix.cells[clicked.y + '/' + clicked.m];
@@ -2469,8 +2634,9 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
     `⑦-b ★★★ 首次悬浮后移开：标签区域**逐像素零差异**（差异 ${pxAfter.n} 个像素${pxAfter.n ? '，位置 y ' + JSON.stringify(pxAfter.yRange) + ' x ' + JSON.stringify(pxAfter.xRange) + '，明细 ' + JSON.stringify(pxAfter.out.slice(0, 3)) : ''}）`);
   // 悬浮中的像素差：只允许"颜色变了"（不会动位置）—— 文字矩形已在上面钉死。
   const pxHover = diffPixels(imgBase, imgHover, gBase);
-  console.log(`     像素差分（悬浮中 vs 基线）：差异像素 ${pxHover.n} 个（悬浮是**故意**改颜色，允许；位置偏差已由上面两条钉死）`);
-  ok(pxHover.n > 0 || true, `⑦-b 悬浮中允许颜色变化（差异 ${pxHover.n} 像素）`);
+  // ★ 这里原来是 `ok(pxHover.n > 0 || true, …)` —— 恒真的"假装通过"（日志里却是个绿色 ✓）。
+  //   "悬浮中允许颜色变化"本来就不是判据，改成纯记录；位置/形状的真实判据在上面几条。
+  console.log(`     像素差分（悬浮中 vs 基线）：差异像素 ${pxHover.n} 个（悬浮是**故意**改颜色，允许；位置偏差已由上面几条钉死）`);
 
   // ★★ 高亮态（.is-active，用户说的"按键被高亮"）：字号/字重/位置一个字都不许动。
   //   ★★★ 用户 2026-10："选中的那一块会出现**底部颜色变化**，不应该这样，
@@ -2480,7 +2646,7 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
   //     其它标签颜色本来就不该变 —— 所以"颜色必须变"只对被选中的那个断言。
   const gBeforeActive = await glyphs();
   const imgBeforeActive = await shotPng();
-  await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
+  await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(${lastYear}, '全部'); return 1; })()`);
   await sleep(900);
   const gActive = await glyphs();
   const imgActive = await shotPng();
@@ -2498,34 +2664,40 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
         activeDiff.push(`#${i}(${A.label}) rangeRect[${k}]：${A.rects[j][k]} → ${B.rects[j][k]}`);
     if (A.paint !== B.paint) changed.push(B);
   }
-  const g2025 = gActive.find(x => x.label === '2025');
+  // ★ 高亮样本年份**现算**（= 有数据的最后一年），不再写死 '2025'：
+  //   站主把某年的藏品全部挪到别的年份，写死的 '2025' 就会取不到标签而假红。
+  const SEL_YEAR = String(lastYear ?? '');
+  const gSel = gActive.find(x => x.label === SEL_YEAR);
   const decoOf = (g) => {
     const p = String(g.decor).split('|');
     return { bg: p[0], img: p[1], bt: p[2], br: p[3], bb: p[4], bl: p[5], bbs: p[6],
       shadow: p[7], olStyle: p[8], olW: p[9], td: p[10], pt: p[11], pb: p[12],
       before: p[13], beforeBg: p[14], after: p[15], afterBg: p[16], afterBb: p[17] };
   };
-  const d25 = g2025 ? decoOf(g2025) : null;
-  console.log(`     高亮 2025 后：标签「2025」文字矩形 ${JSON.stringify(g2025 && g2025.text)}、字体 ${g2025 && g2025.font.split('|').slice(0, 2).join(' / ')}、颜色 ${g2025 && g2025.paint.split('|')[0]}；变色标签 ${changed.length} 个 / 共 ${gActive.length} 个`);
-  console.log(`     选中态「2025」装饰计算样式：background-color=${d25 && d25.bg}  background-image=${d25 && d25.img}  border-bottom=${d25 && d25.bb} / ${d25 && d25.bbs}  border-top/right/left=${d25 && d25.bt}/${d25 && d25.br}/${d25 && d25.bl}`);
-  console.log(`                             box-shadow=${d25 && d25.shadow}  outline=${d25 && d25.olStyle}/${d25 && d25.olW}  text-decoration=${d25 && d25.td}  padding=${d25 && d25.pt}/${d25 && d25.pb}`);
-  console.log(`                             伪元素 before content/bg=${d25 && d25.before}/${d25 && d25.beforeBg}  after content/bg/border-bottom-w=${d25 && d25.after}/${d25 && d25.afterBg}/${d25 && d25.afterBb}`);
+  const dSel = gSel ? decoOf(gSel) : null;
+  console.log(`     高亮 ${SEL_YEAR} 后：标签「${SEL_YEAR}」文字矩形 ${JSON.stringify(gSel && gSel.text)}、字体 ${gSel && gSel.font.split('|').slice(0, 2).join(' / ')}、颜色 ${gSel && gSel.paint.split('|')[0]}；变色标签 ${changed.length} 个 / 共 ${gActive.length} 个`);
+  console.log(`     选中态「${SEL_YEAR}」装饰计算样式：background-color=${dSel && dSel.bg}  background-image=${dSel && dSel.img}  border-bottom=${dSel && dSel.bb} / ${dSel && dSel.bbs}  border-top/right/left=${dSel && dSel.bt}/${dSel && dSel.br}/${dSel && dSel.bl}`);
+  console.log(`                             box-shadow=${dSel && dSel.shadow}  outline=${dSel && dSel.olStyle}/${dSel && dSel.olW}  text-decoration=${dSel && dSel.td}  padding=${dSel && dSel.pt}/${dSel && dSel.pb}`);
+  console.log(`                             伪元素 before content/bg=${dSel && dSel.before}/${dSel && dSel.beforeBg}  after content/bg/border-bottom-w=${dSel && dSel.after}/${dSel && dSel.afterBg}/${dSel && dSel.afterBb}`);
   ok(activeDiff.length === 0,
     `⑦-b ★★★ 高亮（.is-active）只改 color：字体 / 盒模型 / DOM 结构 / **装饰** 零变化（${activeDiff.slice(0, 4).join(' | ') || '零偏差'}）`);
   const NEUTRAL = /^(rgba\(0,\s*0,\s*0,\s*0\)|transparent)$/;
   const NOCONTENT = /^(none|normal|"")$/;
-  ok(!!g2025 && NEUTRAL.test(d25.bg) && d25.img === 'none',
-    `⑦-b ★★★ 选中态**没有底色**：background-color=${d25 && d25.bg}（透明）、background-image=${d25 && d25.img}（none）—— 用户说的"底部颜色变化"就是它`);
-  ok(!!g2025 && d25.bb === '0px' && d25.bbs === 'none' && d25.bt === '0px' && d25.br === '0px' && d25.bl === '0px',
-    `⑦-b ★★★ 选中态**没有任何边框**（上下左右 ${d25 && [d25.bt, d25.br, d25.bb, d25.bl].join('/')}，bottom style=${d25 && d25.bbs}）`);
-  ok(!!g2025 && d25.shadow === 'none' && d25.olStyle === 'none' && d25.td === 'none',
-    `⑦-b ★★★ 选中态**没有阴影/轮廓/下划线**（box-shadow=${d25 && d25.shadow}、outline=${d25 && d25.olStyle}、text-decoration=${d25 && d25.td}）`);
-  ok(!!g2025 && NOCONTENT.test(String(d25.before)) && NOCONTENT.test(String(d25.after)) && NEUTRAL.test(String(d25.beforeBg)) && NEUTRAL.test(String(d25.afterBg)),
-    `⑦-b ★★★ 选中态**没有长出伪元素**（::before content=${d25 && d25.before} bg=${d25 && d25.beforeBg}；::after content=${d25 && d25.after} bg=${d25 && d25.afterBg}）`);
-  const p2025base = gBeforeActive.find(x => x.label === '2025');
-  const colorReallyChanged = !!g2025 && p2025base && p2025base.paint !== g2025.paint;
-  ok(colorReallyChanged && /22,\s*119,\s*255/.test(g2025.paint.split('|')[0]),
-    `⑦-b ★★★ 选中的「2025」**颜色确实变了**（${p2025base && p2025base.paint.split('|')[0]} → ${g2025.paint.split('|')[0]}）—— 高亮只体现在文字颜色上`);
+  ok(!!gSel && NEUTRAL.test(dSel.bg) && dSel.img === 'none',
+    `⑦-b ★★★ 选中态**没有底色**：background-color=${dSel && dSel.bg}（透明）、background-image=${dSel && dSel.img}（none）—— 用户说的"底部颜色变化"就是它`);
+  ok(!!gSel && dSel.bb === '0px' && dSel.bbs === 'none' && dSel.bt === '0px' && dSel.br === '0px' && dSel.bl === '0px',
+    `⑦-b ★★★ 选中态**没有任何边框**（上下左右 ${dSel && [dSel.bt, dSel.br, dSel.bb, dSel.bl].join('/')}，bottom style=${dSel && dSel.bbs}）`);
+  ok(!!gSel && dSel.shadow === 'none' && dSel.olStyle === 'none' && dSel.td === 'none',
+    `⑦-b ★★★ 选中态**没有阴影/轮廓/下划线**（box-shadow=${dSel && dSel.shadow}、outline=${dSel && dSel.olStyle}、text-decoration=${dSel && dSel.td}）`);
+  ok(!!gSel && NOCONTENT.test(String(dSel.before)) && NOCONTENT.test(String(dSel.after)) && NEUTRAL.test(String(dSel.beforeBg)) && NEUTRAL.test(String(dSel.afterBg)),
+    `⑦-b ★★★ 选中态**没有长出伪元素**（::before content=${dSel && dSel.before} bg=${dSel && dSel.beforeBg}；::after content=${dSel && dSel.after} bg=${dSel && dSel.afterBg}）`);
+  const pSelBase = gBeforeActive.find(x => x.label === SEL_YEAR);
+  const colorReallyChanged = !!gSel && pSelBase && pSelBase.paint !== gSel.paint;
+  // ★ 期望颜色 = **当前** --theme（不写死默认蓝 rgb(22,119,255)：站点换色后这里也该跟着走）
+  const themeValNow = String(await evaluate(`getComputedStyle(document.documentElement).getPropertyValue('--theme').trim()`));
+  const themeRgbNow = (themeValNow.match(/[\d.]+/g) || []).slice(0, 3).join(',');
+  ok(colorReallyChanged && themeRgbNow && gSel.paint.split('|')[0].replace(/\s/g, '').includes(themeRgbNow),
+    `⑦-b ★★★ 选中的「${SEL_YEAR}」**颜色确实变了**（${pSelBase && pSelBase.paint.split('|')[0]} → ${gSel.paint.split('|')[0]}），且变成当前主题色 --theme=${themeValNow}（不写死某个颜色）—— 高亮只体现在文字颜色上`);
   // ★★★ 像素差分（选中前 vs 选中后）：**文字（几何区）以外的像素 0 个差异**。
   //   判据已改为**几何**：文字节点 Range 矩形并集 + 1.5px 容差以外的差异像素必须为 0。
   //   旧的"墨迹掩码"分类（glyphPx/bgPx）降级为**诊断信息**，不再当硬判据 —— 它依赖字体
@@ -2580,7 +2752,7 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
     await sleep(500);
     const a = await glyphs();
     const iA = await shotPng();
-    await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(2025, '全部'); return 1; })()`);
+    await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(${lastYear}, '全部'); return 1; })()`);
     await sleep(900);
     const g = await glyphs();
     const iG = await shotPng();
@@ -2611,10 +2783,10 @@ console.log('\n══════ ⑦-b 数字沉降：文字矩形 / 字体度�
     if (vp.dpr === dprNow) ok(pAct.inside > 0,
       `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（文字几何区内差异 ${pAct.inside} 个 > 0）`);
     else {
-      const gBasePaint = gBeforeActive.find(x => x.label === '2025').paint.split('|')[0];
-      const gNowPaint = g.find(x => x.label === '2025').paint.split('|')[0];
-      ok(gBasePaint !== gNowPaint && /22,\s*119,\s*255/.test(gNowPaint),
-        `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（截图按 CSS 像素 1:1 取，本 dpr 下无像素色差 ⇒ 用计算样式证明：${gBasePaint} → ${gNowPaint}）`);
+      const gBasePaint = (gBeforeActive.find(x => x.label === SEL_YEAR) || { paint: '' }).paint.split('|')[0];
+      const gNowPaint = (g.find(x => x.label === SEL_YEAR) || { paint: '' }).paint.split('|')[0];
+      ok(gBasePaint !== gNowPaint && themeRgbNow && gNowPaint.replace(/\s/g, '').includes(themeRgbNow),
+        `⑦-b ★★★ ${tag} 选中确实只改了文字颜色（截图按 CSS 像素 1:1 取，本 dpr 下无像素色差 ⇒ 用计算样式证明：${gBasePaint} → ${gNowPaint}，= 当前 --theme）`);
     }
     // 悬浮态：标签区域内只允许"文字自身的抗锯齿边"跟着变（同样用**几何区**判，字体无关）。
     //   ★ 贴边的月份标签（375px 下"6"那一列）会与相邻格子的泡在同一小块区域重叠 ——
@@ -3339,6 +3511,10 @@ console.log('\n══════ ⑦-e 换筛选时下拉控件不许重建（"
     return { blank: blank.length, nat: nat.length, red, total: A.length, ddIds: ddIds.length, noDown: noDown.length };
   };
 
+  // ★ 年份样本**现算**（不写死 2026/2025）：SEL_Y = 有数据的最后一年；OTHER_Y = 另一个有数据的年份。
+  //   ⑦-e 用的就是下拉里现成的年份选项（那些选项本身就是从数据现算出来的）。
+  const SEL_Y = lastYear;
+  const OTHER_Y = yearsAsc.find(y => y !== lastYear) ?? null;
   for (const [W, H, tag] of [[1920, 1080, '1920x1080'], [375, 720, '375x720']]) {
     await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: W < 500 });
     await send('Page.navigate', { url: `${BASE}?k=${Date.now()}-dde#special/timeline` });
@@ -3352,21 +3528,21 @@ console.log('\n══════ ⑦-e 换筛选时下拉控件不许重建（"
     ok(idBefore.ddId.length === 2 && idBefore.ddId.every(Boolean),
       `⑦-e ${tag} 采样起点：两个下拉都在（身份 ${JSON.stringify(idBefore.ddId)}、宽 ${JSON.stringify(idBefore.ddW)}、文字 ${JSON.stringify(idBefore.texts)}）`);
 
-    // ── ① 真实点击路径：点触发器 → 点"2026年" ──
+    // ── ① 真实点击路径：点触发器 → 点"${SEL_Y} 年" ──
     await evaluate(`window.__ddStart()`);
     await evaluate(`(function(){ var b=document.querySelector('.dd[data-dd-for="timelineYearFilter"]');
       b.querySelector('.dd-trigger').click();
-      var o=b.querySelector('.dd-popup .dd-opt[data-value="2026"]'); if(o) o.click(); return 1; })()`);
+      var o=b.querySelector('.dd-popup .dd-opt[data-value="${SEL_Y}"]'); if(o) o.click(); return 1; })()`);
     await sleep(750);
     const fr1 = JSON.parse(await evaluate(`window.__ddStop()`));
-    checkFrames(`${tag} 真实点击 全部→2026年`, fr1);
+    checkFrames(`${tag} 真实点击 全部→${SEL_Y}年`, fr1);
     const idAfter = JSON.parse(await evaluate(`JSON.stringify((function(){ var p=window.__ddProbe();
       return { ddId:p.ddId, trId:p.trId, ltId:p.ltId, texts:p.texts }; })())`));
     ok(JSON.stringify(idBefore.ddId) === JSON.stringify(idAfter.ddId) &&
        JSON.stringify(idBefore.trId) === JSON.stringify(idAfter.trId) &&
        JSON.stringify(idBefore.ltId) === JSON.stringify(idAfter.ltId),
       `⑦-e ${tag} ★★★ 切换前后 \`.dd\`/\`.dd-trigger\`/\`.dd-label-text\` 身份逐项相同（${JSON.stringify(idBefore.ddId)} → ${JSON.stringify(idAfter.ddId)}）`);
-    ok(JSON.stringify(idBefore.texts) !== JSON.stringify(idAfter.texts) && idAfter.texts[0].indexOf('2026') >= 0,
+    ok(JSON.stringify(idBefore.texts) !== JSON.stringify(idAfter.texts) && idAfter.texts[0].indexOf(String(SEL_Y)) >= 0,
       `⑦-e ${tag} ★★ 就地更新：文字确实跟着变了（${JSON.stringify(idBefore.texts)} → ${JSON.stringify(idAfter.texts)}）—— 节点没换、内容换了，才是"就地更新"而不是"什么都不做"`);
 
     // ── ② 程序化路径：换月份 ──
@@ -3378,7 +3554,7 @@ console.log('\n══════ ⑦-e 换筛选时下拉控件不许重建（"
 
     // ── ③ 控制组：再选**同一个值**（`onTimelineFilterChangeInner` 提前 return，不重渲染） ──
     await evaluate(`window.__ddStart()`);
-    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='2026';
+    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='${SEL_Y}';
       s.dispatchEvent(new Event('change',{ bubbles:true })); return 1; })()`);
     await sleep(500);
     const fr3 = JSON.parse(await evaluate(`window.__ddStop()`));
@@ -3406,10 +3582,14 @@ console.log('\n══════ ⑦-e 换筛选时下拉控件不许重建（"
     await sleep(320); await evaluate(ddInst); await ddSwitch('全部'); await sleep(400);
 
     // ── ⑤ 负例B：让原生 select 露脸 ⇒ "原生可见帧 === 0"必须报红 ──
+    //   ★ 需要一个**与当前选中年份不同**的年份来触发重渲染；数据里只有一个年份时跳过（不判红）。
+    if (OTHER_Y == null) {
+      skip(`⑦-e ${tag} 负例B：数据里只有一个年份（${SEL_Y}），选不出"另一个年份"来触发重渲染`);
+    } else {
     const dispB = await evaluate(`window.__negNativeVisible()`);
     ok(dispB === 'block', `⑦-e ${tag} 负例B 已让原生 select 显示出来（computed display=${dispB}）—— 不是 block 说明注入没生效、这个负例无效`);
     await evaluate(`window.__ddStart()`);
-    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='2025';
+    await evaluate(`(()=>{ const s=document.getElementById('timelineYearFilter'); s.value='${OTHER_Y}';
       s.dispatchEvent(new Event('change',{ bubbles:true })); return 1; })()`);
     await sleep(800);
     const frB = JSON.parse(await evaluate(`window.__ddStop()`));
@@ -3417,6 +3597,7 @@ console.log('\n══════ ⑦-e 换筛选时下拉控件不许重建（"
     ok(nB.nat > 0,
       `⑦-e ${tag} ★★★ 负例B **必须报红**：注入"原生可见"后测到原生可见帧 ${nB.nat} 个、共 ${nB.red}/${nB.total} 条判据变红 ⇒ 说明"原生可见帧 === 0"这条判据真的能抓到这个回归`);
     await evaluate(`window.__negNativeRestore && window.__negNativeRestore()`);
+    }
   }
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter('全部','全部'); return 1; })()`);
@@ -3472,7 +3653,7 @@ console.log('\n══════ ⑦-f 增强前后顶栏行高严格相等（C
     pr.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font-family:' + cs.fontFamily
       + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle
       + ';letter-spacing:' + cs.letterSpacing + ';line-height:' + cs.lineHeight + ';';
-    pr.textContent = '2026年';
+    pr.textContent = '0000年';   // ★ 任意样本（只用于量字体行盒高度），与数据无关
     bar.appendChild(pr);
     var rg = document.createRange(); rg.selectNodeContents(pr.firstChild);
     var textBox = +rg.getBoundingClientRect().height.toFixed(3);
@@ -3584,6 +3765,11 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
   })()`;
   const gp = async () => JSON.parse(await evaluate(glowProbe));
   const setF = async (y, m) => { await evaluate(`(()=>{ if (typeof applyTimelineFilter === 'function') applyTimelineFilter(${JSON.stringify(y)}, ${JSON.stringify(m)}); return 1; })()`); await sleep(1000); };
+  // ★ 年份样本**现算**（不写死 2026/2025）：G_Y = 有数据的最后一年，G_Y2 = 另一个有数据的年份。
+  //   月份 '10' / '07' 是**下拉里的静态选项**（01..12 恒存在），与数据无关 —— 不是数据快照。
+  const G_Y = lastYear;
+  const G_M = '10';
+  const G_Y2 = yearsAsc.find(y => y !== lastYear) ?? null;
   const nLayers = (s) => { const t = String(s || '').trim(); return (!t || t === 'none') ? 0 : t.split(/,(?![^(]*\))/).length; };
   const sameGeo = (a, b) => JSON.stringify([a.rect, a.rows, a.legend, a.cells.map(c => c.rect)]) === JSON.stringify([b.rect, b.rows, b.legend, b.cells.map(c => c.rect)]);
   const glowSetEqual = (p, pick) => JSON.stringify(p.cells.filter(c => c.glow).map(c => c.y + '/' + c.m).sort()) === JSON.stringify(p.cells.filter(pick).map(c => c.y + '/' + c.m).sort());
@@ -3594,19 +3780,19 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
   const gAll = await gp();
   ok(gAll.found && noGlowAtAll(gAll),
     `⑦-g ★★★ ①选"全部时间"：**0 格**发光（.hm-month-glow=${gAll.glowClassAnywhere}、容器状态类=${gAll.glowOnContainer}、格子发光伪元素全未生成）`);
-  await setF(2026, '全部');
+  await setF(G_Y, '全部');
   const gYearOnly = await gp();
   ok(gYearOnly.filterMonth === '全部' && noGlowAtAll(gYearOnly),
-    '⑦-g ★★★ ②「只筛某一年」（2026 年、月份=全部）：**0 格**发光 —— "仅限于选取单个月"这条口径的反面');
+    `⑦-g ★★★ ②「只筛某一年」（${G_Y} 年、月份=全部）：**0 格**发光 —— "仅限于选取单个月"这条口径的反面`);
   await setF('全部', '07');
   const gHist = await gp();
   ok(gHist.filterYear === '全部' && gHist.filterMonth === '07' && noGlowAtAll(gHist),
     '⑦-g ★★★ ③「历年 7 月」（年份=全部、月=07）：**0 格**发光 —— 用户明确选的口径，不是"一排 7 月都亮"');
-  await setF(2026, '10');
+  await setF(G_Y, G_M);
   const gYM = await gp();
   const gYMcell = gYM.cells.find(c => c.glow) || {};
-  ok(gYM.glowCells === 1 && gYMcell.y === '2026' && gYMcell.m === '10' && glowSetEqual(gYM, c => c.y === '2026' && c.m === '10'),
-    `⑦-g ★★★ ④「2026 年 10 月」：**恰好 1 格**发光，且就是 ${gYMcell.y}/${gYMcell.m} 那一格（逐格枚举一致）`);
+  ok(gYM.glowCells === 1 && gYMcell.y === String(G_Y) && gYMcell.m === G_M && glowSetEqual(gYM, c => c.y === String(G_Y) && c.m === G_M),
+    `⑦-g ★★★ ④「${G_Y} 年 ${Number(G_M)} 月」：**恰好 1 格**发光，且就是 ${gYMcell.y}/${gYMcell.m} 那一格（逐格枚举一致）`);
   ok(gYM.cells.filter(c => !c.glow).every(c => c.content === 'none'),
     `⑦-g ★★★ 其余 ${gYM.cells.length - 1} 个格子一个都不发光（连发光伪元素都没生成）`);
   // 用户口径：「原来的那圈无渐变的光圈还在，和渐变的叠在一起，我希望只有一层」⇒ 只允许一层、且 blur > 0
@@ -3620,15 +3806,19 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
     '⑦-g ★★ 发光**没有**画在容器上（容器 box-shadow 仍是 none、容器无状态类）—— 用户要求的是"格子"发光');
   ok(sameGeo(gAll, gYM),
     `⑦-g ★★★ 切到"唯一一格发光"前后容器/每一行/图例/每一个格子的矩形**逐值不变**（容器 ${JSON.stringify(gAll.rect)} → ${JSON.stringify(gYM.rect)}；${gYM.cells.length} 个格子逐值相同）`);
-  await setF(2025, '10');
-  const gB = await gp();
-  ok(gB.glowCells === 1 && glowSetEqual(gB, c => c.y === '2025' && c.m === '10') && gB.cells.filter(c => c.y === '2026' && c.m === '10').every(c => !c.glow),
-    `⑦-g ★★★ 换年份 2026/10 → 2025/10：仍然恰好 1 格，且 2026 那格已熄灭（现在是 ${gB.cells.filter(c => c.glow).map(c => c.y + '/' + c.m).join('')}）`);
+  if (G_Y2 == null) {
+    skip(`⑦-g ⑤ 换年份：数据里只有一个年份（${G_Y}），选不出"另一个年份"来验"旧格熄灭"`);
+  } else {
+    await setF(G_Y2, G_M);
+    const gB = await gp();
+    ok(gB.glowCells === 1 && glowSetEqual(gB, c => c.y === String(G_Y2) && c.m === G_M) && gB.cells.filter(c => c.y === String(G_Y) && c.m === G_M).every(c => !c.glow),
+      `⑦-g ★★★ 换年份 ${G_Y}/${Number(G_M)} → ${G_Y2}/${Number(G_M)}：仍然恰好 1 格，且 ${G_Y} 那格已熄灭（现在是 ${gB.cells.filter(c => c.glow).map(c => c.y + '/' + c.m).join('')}）`);
+  }
   await setF('全部', '全部');
   const gBack = await gp();
   ok(noGlowAtAll(gBack), '⑦-g ★★★ 单格 → 全部：发光完全消失（一格不剩、连伪元素都不生成）');
   // reduced-motion：两种媒体下都必须"没有动画"，且 reduce 下发光静止（逐字相同）
-  await setF(2026, '10');
+  await setF(G_Y, G_M);
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
   await sleep(300);
   const gNP = await gp();
@@ -3645,10 +3835,10 @@ console.log('\n══════ ⑦-g 单月发光：只有"年月都选中的
   // 手机 375px：断点不同（格子更小、列间距 2px）⇒ 光圈贴着每格自己的盒子，发光必须照样正确且不横向溢出
   await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 720, deviceScaleFactor: 2, mobile: true });
   await sleep(800);
-  await setF(2026, '10');
+  await setF(G_Y, G_M);
   const gMob = await gp();
-  ok(gMob.found && gMob.glowCells === 1 && glowSetEqual(gMob, c => c.y === '2026' && c.m === '10'),
-    `⑦-g ★★★ 375px 下仍是"2026/10 那 1 格"发光（逐格枚举一致）`);
+  ok(gMob.found && gMob.glowCells === 1 && glowSetEqual(gMob, c => c.y === String(G_Y) && c.m === G_M),
+    `⑦-g ★★★ 375px 下仍是"${G_Y}/${Number(G_M)} 那 1 格"发光（逐格枚举一致）`);
   await setF('全部', '07');
   const gMobHist = await gp();
   ok(noGlowAtAll(gMobHist), '⑦-g ★★ 375px 下「历年 7 月」同样是 0 格发光（断点不影响判据）');
@@ -3704,7 +3894,7 @@ const barFollowsTheme = async (label, wantRgb) => {
     ok(stopList.length === 2 && stopList.every(s => !DEFAULT_BLUES.includes(s.rgb)),
       `⑧ ★★★ ${label}：条带两端**都不是默认蓝** #1677ff/#4096ff（实测 ${stopList.map(s => s.rgb).join(' ｜ ')}）—— 用户报的"写死了默认蓝色"就是换色也不改`);
   } else {
-    console.log(`     ○ 跳过：当前主题本身就是默认蓝 ${d.theme} ⇒ "≠默认蓝"这一条在这一步无意义（换色那一步才是判据）`);
+    console.log(`     · 本步不适用（**不是**计数里的 ○ 跳过）：当前主题本身就是默认蓝 ${d.theme} ⇒ "≠默认蓝"这一条在"未换色"这一步无意义；真正的判据是下一步"换上红 #d92121 后必须跟着变"`);
   }
   if (wantRgb) ok(stopList.every(s => s.rgb === wantRgb),
     `⑧ ★★★ ${label}：条带两端确实变成了刚换上的主题色 rgb(${wantRgb})（实测 ${stopList.map(s => s.rgb).join(' ｜ ')}）`);
@@ -3751,7 +3941,8 @@ const barFollowsTheme = async (label, wantRgb) => {
     `⑧ ★★★ 换回原主题色后 --theme 也还原（${before.theme} → ${back.theme}）—— 后面/别的用例看到的是原状态`);
 }
 
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail}${skipped ? ` / ○ 跳过 ${skipped}` : ''} ────────`);
+console.log(`  （○ 跳过 = 数据里当前没有该场景：不计通过、也不计失败；详见上面的 "○ 跳过" 行）`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
 

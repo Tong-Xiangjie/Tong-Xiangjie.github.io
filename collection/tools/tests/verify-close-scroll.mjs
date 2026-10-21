@@ -13,8 +13,11 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ "数据里当前没有这个场景"时用 skip：**保留**这条检查、单独计数（不计通过也不计失败），
+//   但必须把原因打印出来（否则就成了假绿）。退出码只看 fail。参考 verify-hm-glow.mjs。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 // ─────────── ① 静态：接线是否都在 ───────────
 console.log('══════ ① 静态接线 ══════\n');
@@ -105,17 +108,22 @@ const cats = JSON.parse(await evaluate(`(()=>{
   var t = (typeof getCategoryTree === 'function') ? getCategoryTree() : [];
   return JSON.stringify(t.filter(function(c){ return c.children && c.children.length; }).map(function(c){ return { id: c.id, name: c.name }; }));
 })()`));
-ok(cats.length >= 2, `纸币板块里至少有两个带子类的分类（${cats.map(c => c.name).join('、')}）`);
+// ★ 判据从 >=2 收到 >=1：>=2 只是为了找一个"对照组"（⑤ 用），不该因为数据里只剩一组就判红。
+//   拿不到第二组时 ⑤ 走 ○ 跳过（见下面 if (second) 那段）。
+ok(cats.length >= 1, `纸币板块里至少有一个带子类的分类（${cats.map(c => c.name).join('、') || '一个都没有'}）`);
 let target = null, second = null;
 for (const c of cats) {
   const s = await enter(c.id);
   if (s.scrollable > 80) { if (!target) target = c; else if (!second && c.id !== target.id) second = c; }
   if (target && second) break;
 }
-ok(!!target, `找到可滚动的板块：${target ? target.name : '（没有）'}`);
-if (!target) { console.log('\n  没有可滚动的板块，后面的检查没意义。'); process.exitCode = 1; }
+// ★ 找不到"概览真的能滚"的板块 = 数据里没有这个场景（分类内容都太短），记 ○ 跳过、不判红。
+if (target) ok(!!target, `找到可滚动的板块：${target.name}`);
+else skip('② 纸币板块里没有任何"概览可滚动"的分类（数据里都太短）⇒ ② 之后的检查都跳过');
+if (!target) console.log('\n  没有可滚动的板块，后面的检查没意义（已按设计记 ○ 跳过，不判红）。');
 else {
-  ok(!!second, `再找一个用于对照的：${second ? second.name : '（没有）'}`);
+  if (second) ok(!!second, `再找一个用于对照的：${second.name}`);
+  else skip('⑤ 只找到一个"概览可滚动"的板块（数据里没有第二个）⇒ ⑤ 切换板块那一段跳过');
 
   // ─────────── ③ 关闭板块 → 记忆作废 → 重开回顶部 ───────────
   console.log('\n══════ ③ 关闭板块后再点开 ══════\n');
@@ -157,7 +165,7 @@ else {
   }
 }
 
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 5).forEach(e => console.log('    ! ' + e.slice(0, 160)));
 

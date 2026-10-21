@@ -128,7 +128,11 @@ console.log('=== 1. 回归检查：旧「全字段」能搜到的，新实现是
 let regress = 0;
 // ★ 除"回归对比"之外的断言（copyId 命中、目录编号变体、噪声检查…）也各自记一笔，
 //   否则它们失败时进程照样退出 0。
-let softFail = 0;
+let pass = 0, fail = 0, skipped = 0;
+const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ "数据里当前没有这个场景"⇒ 单独计数、既不计通过也不计失败，但必须打印原因。
+//   （以前这些地方是"打印一个 · 或无条件 ✓ 就完事"—— 既不判红也不计数，是假绿。）
+const skip = (m) => { skipped++; console.log(`  ○ 跳过（数据里当前没有该场景）：${m}`); };
 for (const e of entries) {
   // 构造"旧能搜到"的关键词集合：旧文本里的每个词元
   const oldText = e.hv
@@ -171,22 +175,29 @@ function searchAll(type, rawKeyword, matchFn) {
 }
 const withCopyId = entries.filter(e => e.copy.copyId);
 console.log(`  有 copyId 的条目 ${withCopyId.length} 条`);
-for (const e of withCopyId.slice(0, 4)) {
-  const id = String(e.copy.copyId);
-  const hits = searchAll(SEARCH_TYPE.COPYID, id, (en, plan) => {
+if (withCopyId.length === 0) {
+  // ★ 数据里还没有任何带评级编号的藏品 ⇒ 明确跳过（原来会在这里直接 withCopyId[0] 抛异常）
+  skip('没有任何带 copyId（评级编号）的藏品，"按评级编号搜索"没有可判对象');
+} else {
+  for (const e of withCopyId.slice(0, 4)) {
+    const id = String(e.copy.copyId);
+    const hits = searchAll(SEARCH_TYPE.COPYID, id, (en, plan) => {
+      const v = String(en.copy.copyId || '');
+      return v.toLowerCase().includes(plan.keyword) || (!!plan.norm && normalizeForSearch(v).includes(plan.norm));
+    });
+    // ★ 期望值现算：这个编号就是从这条藏品身上取的，所以它**必须**能把自己搜出来
+    //   （原来只看 hits.length >= 1，编号取错/搜到别人也算过）。
+    ok(hits.includes(e), `搜评级编号 "${id}"（取自该条藏品）→ 命中 ${hits.length} 条，其中包含它自己`);
+  }
+  // 部分匹配（copyId 可能是数字，统一 String()）—— 取真实编号的前 7 位现算
+  const partial = String(withCopyId[0].copy.copyId).slice(0, 7);
+  const ph = searchAll(SEARCH_TYPE.COPYID, partial, (en, plan) => {
     const v = String(en.copy.copyId || '');
     return v.toLowerCase().includes(plan.keyword) || (!!plan.norm && normalizeForSearch(v).includes(plan.norm));
   });
-    if (hits.length < 1) softFail++;
-    console.log(`  "${id}" → 命中 ${hits.length} 条 ${hits.length >= 1 ? '✓' : '✗'}`);
+  // ★ 真断言（原来这里是无条件打印 ✓）：前 7 位必须至少命中那条藏品自己
+  ok(ph.includes(withCopyId[0]), `部分匹配 "${partial}"（该编号前 7 位）→ ${ph.length} 条，其中包含原条目`);
 }
-// 部分匹配（copyId 可能是数字，统一 String()）
-const partial = String(withCopyId[0].copy.copyId).slice(0, 7);
-const ph = searchAll(SEARCH_TYPE.COPYID, partial, (en, plan) => {
-  const v = String(en.copy.copyId || '');
-  return v.toLowerCase().includes(plan.keyword) || (!!plan.norm && normalizeForSearch(v).includes(plan.norm));
-});
-console.log(`  部分匹配 "${partial}" → ${ph.length} 条 ✓`);
 
 console.log('\n=== 4. 目录编号前缀无关（这是 B3 的修复）===');
 const krauseMatch = (en, plan) => {
@@ -207,21 +218,27 @@ for (const e of withKrause) {
   if (m && !/^pick$/i.test(m[1])) samples.push([e, raw, m[1]]);
 }
 console.log(`  非 Pick# 前缀样例 ${samples.length} 个：`);
-for (const [e, raw, prefix] of samples.slice(0, 6)) {
-  // 各种写法都要能命中
-  const variants = [raw, raw.replace(/\s+/g, ''), raw.toUpperCase(), prefix.toLowerCase() + '#' + raw.replace(/^[A-Za-z]+\s*[-#]\s*/, '')];
-  const ok = variants.every(v => searchAll(SEARCH_TYPE.KRAUSE, v, krauseMatch).length >= 1);
-  if (!ok) softFail++;
-  console.log(`    ${ok ? '✓' : '✗'} "${raw}"  变体 ${variants.length} 种全部命中`);
+if (samples.length === 0) {
+  skip('数据里当前没有非 Pick# 前缀（KM# / SUN# 之类）的目录编号，"前缀无关"没有真实样本');
+} else {
+  for (const [e, raw, prefix] of samples.slice(0, 6)) {
+    // 各种写法都要能命中。★ 期望值现算：raw / prefix 都取自这条藏品自己的目录编号，
+    //   所以"必须命中"这件事完全由数据决定，换数据不会假红（除非数据里真的没有它了）。
+    const variants = [raw, raw.replace(/\s+/g, ''), raw.toUpperCase(), prefix.toLowerCase() + '#' + raw.replace(/^[A-Za-z]+\s*[-#]\s*/, '')];
+    const hits = variants.map(v => searchAll(SEARCH_TYPE.KRAUSE, v, krauseMatch));
+    ok(hits.every(h => h.includes(e)), `"${raw}"（来自数据）变体 ${variants.length} 种全部命中它自己`);
+  }
 }
 // Pick# 老写法必须继续可用
 const pickSample = withKrause.find(e => /^\d/.test(String(e.copy.catalogNumber || e.copy.krause)));
-if (pickSample) {
+if (!pickSample) {
+  skip('数据里当前没有"纯数字（Pick# 老写法）"的目录编号，"Pick# 写法"没有可判对象');
+} else {
   const raw = String(pickSample.copy.catalogNumber || pickSample.copy.krause);
   for (const v of [raw, 'Pick# ' + raw, 'Pick#' + raw, 'pick# ' + raw]) {
-    const n = searchAll(SEARCH_TYPE.KRAUSE, v, krauseMatch).length;
-    if (n < 1) softFail++;
-    console.log(`  ${n >= 1 ? '✓' : '✗'} "Pick# " 写法 "${v}" → ${n} 条`);
+    const hits = searchAll(SEARCH_TYPE.KRAUSE, v, krauseMatch);
+    // ★ 期望值现算：这几种写法都指向这条藏品自己的编号，必须命中它自己。
+    ok(hits.includes(pickSample), `"Pick# " 写法 "${v}" → ${hits.length} 条，其中包含该编号所属藏品`);
   }
 }
 
@@ -233,16 +250,44 @@ console.log('\n=== 5. 噪声检查：图片路径不该被"全字段"搜到 ==='
 // 搜 'https' 命中 1 条属于正确行为，不是噪声。
 for (const kw of ['jpg', 'tong-xiangjie.github.io', '/image/']) {
   const n = searchAll(SEARCH_TYPE.ALL, kw, (e, plan) => newMatchAll(e.copy, e.series, e.variety, plan)).length;
-  if (n !== 0) softFail++;
-  console.log(`  ${n === 0 ? '✓' : '✗'} 搜 "${kw}" → ${n} 条命中（应为 0）`);
+  ok(n === 0, `搜 "${kw}" → ${n} 条命中（应为 0：图片字段不可搜、正文里的站内链接不算）`);
 }
-console.log('\n=== 6. 有效检索词应正常命中 ===');
-for (const kw of ['水印', '评级', '中国人民银行', '银', 'KM#', '130', 'Sun-J2a1']) {
+console.log('\n=== 6. 有效检索词应正常命中（关键词与期望值都从数据现算）===');
+// ★ 原来这里是写死的 ['水印','评级','中国人民银行','银','KM#','130','Sun-J2a1']，
+//   而且**只打印不判定**（n>0 画 ✓、n=0 画 ·，既不判红也不计数）——
+//   那是"当前这份数据里刚好有这些词"的快照：站主删/改数据后它悄悄变 · ，
+//   用例照样退出 0（假绿）；反过来若给它加上真断言，又会变成假红。
+//   现在分两路：
+//     ① 从**数据本身**现算关键词（真实系列名 / 目录编号 / 评级编号），必然该命中 → ok() 真判；
+//     ② 保留那几个内容词，但先独立扫一遍语料：语料里确实有它才判"必须命中"，
+//        语料里当前没有就 ○ 跳过（单独计数 + 打印原因）。
+const corpusHas = (kw) => {
+  const k = String(kw).toLowerCase();
+  return entries.some(e => collectSearchFields(e.copy, e.series, e.variety).some(v => String(v).toLowerCase().includes(k)));
+};
+const derived = [];
+if (samples.length) derived.push([samples[0][1], '目录编号（取自数据，非 Pick# 前缀）']);
+if (withKrause.length) derived.push([String(withKrause[0].copy.catalogNumber || withKrause[0].copy.krause), '目录编号（取自数据）']);
+if (entries.length) derived.push([entries[0].series.seriesName, '系列名（取自数据）']);
+if (withCopyId.length) derived.push([String(withCopyId[0].copy.copyId), '评级编号（取自数据）']);
+const usedKw = new Set();
+for (const [kw, why] of derived) {
+  if (!kw || usedKw.has(kw)) continue;
+  usedKw.add(kw);
   const n = searchAll(SEARCH_TYPE.ALL, kw, (e, plan) => newMatchAll(e.copy, e.series, e.variety, plan)).length;
-  console.log(`  ${n > 0 ? '✓' : '·'} 搜 "${kw}" → ${n} 条`);
+  ok(n >= 1, `搜「${kw}」（${why}）→ ${n} 条`);
+}
+for (const kw of ['水印', '评级', '中国人民银行', '银', 'KM#', '130', 'Sun-J2a1']) {
+  if (!corpusHas(kw)) {
+    skip(`语料里当前没有任何字段含「${kw}」，无法判"必须能命中"`);
+    continue;
+  }
+  const n = searchAll(SEARCH_TYPE.ALL, kw, (e, plan) => newMatchAll(e.copy, e.series, e.variety, plan)).length;
+  ok(n >= 1, `搜「${kw}」（独立扫语料确认它确实存在）→ ${n} 条`);
 }
 
 // ★ 失败必须反映到退出码上（原来只打印 ✗ 就结束，外部按退出码判定会误判为通过）。
-const totalBad = regress + softFail;
-if (totalBad > 0) console.log(`\n❌ ${totalBad} 处失败（回归 ${regress} + 断言 ${softFail}）`);
+const totalBad = regress + fail;
+if (totalBad > 0) console.log(`\n❌ ${totalBad} 处失败（回归 ${regress} + 断言 ${fail}）`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${totalBad} / 跳过 ${skipped} ────────`);
 process.exit(totalBad === 0 ? 0 : 1);

@@ -48,8 +48,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail++; console.log('  ✗ ' + m); } };
+// ★ "语料里当前没有这个场景"⇒ 单独计数、既不计通过也不计失败，但必须打印原因。
+const skip = (m) => { skipped++; console.log('  ○ 跳过（数据里当前没有该场景）：' + m); };
 
 // 在文章板块里搜一个词，返回按 DOM 顺序解析出的分组与条目
 const SEARCH_JS = (q) => `(async()=>{
@@ -304,8 +306,19 @@ await sleep(1500);
   const items = res.out.filter(r => r.type === 'item').length;
   console.log(`  「奥运」模糊关 → 命中条目 ${items} 个, 分组: ${groups.join(' / ') || '（无）'}, 空状态: ${res.empty}`);
   ok(!hasPart, '不出现「精确匹配/同义扩展命中」分区标题');
-  ok(items === 0, '模糊关下「奥运」按标题字面确实无结果（语料标题里没有"奥运"）');
-  ok(res.empty === true, '0 结果时正常显示空状态占位');
+  // ★ 原来这里写死「items === 0」，理由却是"语料标题里没有奥运" —— 那是**语料的快照**：
+  //   站主哪天加一篇标题含"奥运"的文章，这条就假红。改成从语料现算期望值：
+  //   模糊关 = 纯字面，所以标题口径的命中数必须等于"标题里字面含该词的篇数"。
+  const exp0 = JSON.parse(await evaluate(`(()=>{
+    const k='奥运', norm = s => String(s||'').toLowerCase();
+    const hit = collectedArticles.filter(a => norm(a.title).includes(k));
+    return JSON.stringify({ n: hit.length, total: collectedArticles.length, titles: hit.map(a=>a.title).slice(0,3) });
+  })()`));
+  console.log(`  语料现算：共 ${exp0.total} 篇，标题里字面含「奥运」的 ${exp0.n} 篇 ${exp0.n ? JSON.stringify(exp0.titles) : ''}`);
+  ok(items === exp0.n,
+    `模糊关下「奥运」的标题字面命中数 == 从语料现算的篇数（DOM ${items} vs 标题含"奥运" ${exp0.n} 篇）`);
+  if (exp0.n === 0) ok(res.empty === true, '0 结果时正常显示空状态占位');
+  else skip(`语料里现有 ${exp0.n} 篇标题含「奥运」，0 结果才出现的空状态占位没有可判对象`);
 }
 {
   const res = await evaluate(SEARCH_JS('中国人民银行'));
@@ -453,16 +466,38 @@ console.log('\n══════ ⑦ 深链接直进全文搜索：正文索引
   //     ② 深链接冷启动的结果与"同一条查询走常规路径"的结果**逐项相同**。
   const exp = await evaluate(`(()=>{
     const t=articleSynonymTable&&articleSynonymTable.terms; if(!t) return 'null';
+    if (!articleFuzzyOn()) return 'fuzzy-off';
     for(const k of Object.keys(t)){ const e=getArticleExpansions(k);
       if(e.length) return JSON.stringify({k,n:e.length,sample:e.slice(0,3)}); }
     return 'none';
   })()`);
-  if (exp === 'null' || exp === 'none') {
-    ok(false, '冷启动后同义扩展机制可用（没找到任何能扩展的键）');
+  if (exp === 'null') {
+    ok(false, '冷启动后同义词表可用（表没加载出来 ⇒ 扩展机制无从谈起）');
+  } else if (exp === 'fuzzy-off') {
+    ok(false, '冷启动后模糊开关是开的（关着的话 getArticleExpansions 一律返回空，"扩展可用"就成了空话）');
+  } else if (exp === 'none') {
+    skip('同义词表里有键、但当前没有任何"能产生扩展"的键，"扩展机制可用"没有可判对象');
   } else {
     const e = JSON.parse(exp);
     console.log(`  冷启动后扩展机制：键「${e.k}」→ ${e.n} 条（${e.sample.join(' / ')}）`);
-    ok(true, '冷启动后同义扩展机制可用');
+    // ★ 这里原来是 `ok(true, '冷启动后同义扩展机制可用')` —— 恒真断言（上面已经确认
+    //   e.n > 0，那个 ok(true) 什么也没验证）。改成真断言：把扩展结果拿回表里对账 ——
+    //   每一条都必须能在表的某个键的扩展清单里找到出处、不许重复、不许把查询词自己
+    //   当扩展词、不许超过上限。扩展机制被改坏（凭空造词/自环/超限）时这里必红。
+    const chk = JSON.parse(await evaluate(`(()=>{
+      const t = articleSynonymTable.terms, k = ${JSON.stringify(e.k)};
+      const allValues = new Set();
+      for (const key of Object.keys(t)) for (const v of (t[key]||[])) allValues.add(String(v).toLowerCase());
+      const got = getArticleExpansions(k).map(x => String(x).toLowerCase());
+      return JSON.stringify({ got: got.length, tableValues: allValues.size,
+        allFromTable: got.every(x => allValues.has(x)),
+        noDup: new Set(got).size === got.length,
+        noSelf: !got.includes(k.toLowerCase()),
+        withinCap: got.length <= ARTICLE_MAX_EXPANSIONS });
+    })()`));
+    ok(chk.got > 0 && chk.allFromTable && chk.noDup && chk.noSelf && chk.withinCap,
+      `冷启动后同义扩展机制可用，且扩展项条条有出处（键「${e.k}」→ ${chk.got} 条；表内扩展值共 ${chk.tableValues} 个：`
+      + `有出处=${chk.allFromTable}、无重复=${chk.noDup}、不含查询词自己=${chk.noSelf}、未超上限=${chk.withinCap}）`);
   }
 
   await evaluate(`(()=>{const i=document.getElementById('searchInput');
@@ -797,7 +832,7 @@ console.log('\n══════ ⑩ 全文提示词：重建搜索栏后不能
     '★ 反向验证：缓存已空但标志位粘住时，旧实现确实无条件说"准备好啦"—— 探针是灵敏的');
 }
 
-console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ws.close(); child.kill(); server.close();
 await rm(userDir, { recursive: true, force: true }).catch(() => { });
 process.exit(fail ? 1 : 0);

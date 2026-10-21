@@ -20,8 +20,10 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ "数据里/页面上当前没有这个场景"⇒ 单独计数、既不计通过也不计失败，但必须打印原因。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过（当前没有该场景）：${m}`); };
 
 // ══════════════════════════════════════════════════════════════
 console.log('══════ ① 静态：原生条必须在 CSS 里提前收掉（不能等 JS） ══════\n');
@@ -266,15 +268,32 @@ await send('Page.navigate', { url: `${BASE}?t=${Date.now()}#notes` });
 for (let i = 0; i < 140; i++) { const r = await evaluate(`document.readyState === 'complete' && !!document.querySelector('.view-scroll-container')`).catch(() => false); if (r) break; await sleep(120); }
 await sleep(1200);
 // 打开"币海拾年"（时间轴）——它的月份下拉有 13 个选项，够超出弹层 max-height(280px)
+// ★ 兜底那一段原来写的是 `c.id === 'years'`，而 special-bridge.js 里
+//   'years' 是**年份图鉴**、时间轴的 id 是 'timeline'。后果有两层：
+//     ① 断言"能打开币海拾年"其实是恒真的 —— 只要 specialCategoryTree 里还有
+//        任何一个专题（比如年份图鉴），兜底就会命中、onSpecialOverviewItemClick 就会
+//        返回 true，跟时间轴在不在完全无关；
+//     ② 真出问题时它点开的是**另一个专题**，随后拿不到 #timelineMonthFilter，
+//        下面的 `document.getElementById('timelineMonthFilter').__dd.trigger.click()`
+//        会直接抛异常把整个用例带崩（不是报红，是崩）。
+//   现在兜底改成时间轴自己的 id，并且把"打开的是哪个 id"作为断言的一部分。
 const opened = await evaluate(`(()=>{
   const t = (typeof specialCategoryTree !== 'undefined' && specialCategoryTree) ? specialCategoryTree : [];
-  const hit = t.find(c => /拾年|时间轴/.test(c.name || '')) || t.find(c => c.id === 'years');
-  if (hit && typeof onSpecialOverviewItemClick === 'function') { onSpecialOverviewItemClick(hit.id); return true; }
-  return false;
+  const hit = t.find(c => /拾年|时间轴/.test(c.name || '')) || t.find(c => c.id === 'timeline');
+  if (!hit || typeof onSpecialOverviewItemClick !== 'function') return '';
+  onSpecialOverviewItemClick(hit.id);
+  return String(hit.id);
 })()`);
-for (let i = 0; i < 60; i++) { if (await evaluate(`!!document.getElementById('timelineMonthFilter')`)) break; await sleep(250); }
+let filterReady = false;
+for (let i = 0; i < 60; i++) { if (await evaluate(`!!document.getElementById('timelineMonthFilter')`)) { filterReady = true; break; } await sleep(250); }
 await sleep(900);
-ok(opened, '⑤ 能打开"币海拾年"时间轴（拿它的月份下拉做样本）');
+ok(opened === 'timeline', `⑤ 打开的是时间轴专题本身（specialCategoryTree 里命中的 id = "${opened || '（没找到）'}"，应为 "timeline"）`);
+ok(filterReady, '⑤ 时间轴的月份下拉真的出现了（#timelineMonthFilter）—— 下面"弹层里的滑块"那节的样本前提');
+
+if (!filterReady) {
+  skip('拿不到 #timelineMonthFilter，⑤"下拉弹层里的滑块要浮在弹层之上"整节跳过（上一行已经把它记成失败）');
+}
+if (filterReady) {
 
 const POPUP = `(()=>{
   const m = document.getElementById('timelineMonthFilter');
@@ -381,8 +400,9 @@ if (!pp.err) {
       `⑤ 弹层收起后滑块不再显示（display=${closed.滑块显示}；no-bar = 弹层被重建、记录已 unmount，滑块同样没了；记录还在=${closed.记录还在} 弹层在DOM=${closed.弹层还在DOM}）`);
   }
 }
+}
 
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
 

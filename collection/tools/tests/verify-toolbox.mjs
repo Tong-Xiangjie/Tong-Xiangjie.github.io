@@ -30,12 +30,16 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 // ★ 失败标记用 `[XX]` + `✗` 双写：`✗` 是全仓库的统一约定（run.mjs 靠它把失败断言写进 CI 注解，
 //   见 README「CI 的两个坑」第 2 条 —— 只有注解是匿名可读的）。本用例原来只用 `[XX]`，
 //   于是 CI 注解里一条失败断言都提取不到，只能看到输出尾部，白等好几轮 18 分钟的 CI。
 //   `[XX]` 保留是为了既有习惯/本机排查时一眼能看出。
 const ok = (c, m) => { c ? (pass++, console.log(`  [ok] ${m}`)) : (fail++, console.log(`  ✗ [XX] ${m}`)); };
+// ★ "数据里当前没有这个场景"（例如语料里已没有含 <table 的文章）时用 skip：
+//   **保留**这条检查、单独计数（不计通过也不计失败），但必须把原因打印出来（否则就成了假绿）。
+//   退出码只看 fail。参考 verify-hm-glow.mjs。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 // ==============================================================
 console.log('====== (1) 静态：新文件都在，且真的被页面引上 ======\n');
@@ -1912,8 +1916,22 @@ ok(st6.editor === '第二', `(15)* Ctrl+Y 恢复（${st6.editor}」）`);
 
 // 15e 幂等：拿真文章走"导入 导出 再导入"?再导入
 // 两篇：一篇纯图文（120 张图的常见形态）、一篇带表格（表格是最容易在导入导出里被改坏的）
-const ARTICLES = ['notecollection/readmes/1960_fujianlocaldebt_1yuan.html',
-  'notecollection/readmes/amsx_2012.html'];
+// ★ 语料文件名不再写死（站主增删/改名文章就会假红）：现扫 notecollection/readmes/*.html，
+//   按"含 <img" / "含 <table"分组各取一篇。某一组当前没有候选 ⇒ 那一组记 ○ 跳过并打原因（不判红）。
+const { readdirSync } = await import('node:fs');   // 只为扫语料目录：不改本文件的顶层 import（改动面越小越好）
+const READMES_DIR = 'notecollection/readmes';
+const readmeNames = readdirSync(READMES_DIR).filter((n) => /\.html$/.test(n)).sort();
+const readmeText = (n) => readFileSync(READMES_DIR + '/' + n, 'utf8');
+const imgCands = readmeNames.filter((n) => /<img /.test(readmeText(n)));
+const tableCands = readmeNames.filter((n) => /<table/.test(readmeText(n)));
+if (!imgCands.length) skip('(15) 语料里没有含 <img 的文章 ⇒ 导入导出的"图片"这一路没有候选');
+if (!tableCands.length) skip('(15) 语料里没有含 <table 的文章 ⇒ 导入导出的"表格"这一路没有候选');
+const imgPureCands = imgCands.filter((n) => tableCands.indexOf(n) < 0);
+console.log(`  (15) 语料候选：含图 ${imgCands.length} 篇（其中纯图文 ${imgPureCands.length} 篇）、含表 ${tableCands.length} 篇`);
+const ARTICLES = [imgPureCands[0] || imgCands[0], tableCands[0]]
+  .filter((f, i, a) => f && a.indexOf(f) === i)
+  .map((f) => READMES_DIR + '/' + f);   // 循环里照旧用 readFileSync(ARTICLE)，所以这里补回目录前缀
+if (!ARTICLES.length) skip('(15) 语料目录里一篇 html 都没有 ⇒ 导入导出幂等这一整节没有候选');
 const importExport = async (text) => {
     await evaluate(`(()=>{const c=document.getElementById('tbCode');c.value=${JSON.stringify(text)};
       c.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()`);
@@ -1926,17 +1944,19 @@ for (let ai = 0; ai < ARTICLES.length; ai++) {
     const art = readFileSync(ARTICLE, 'utf8');
     const hasTable = /<table/.test(art);
     console.log(`  真文章：${ARTICLE}${art.length} 字符，表格${hasTable}）`);
-    ok(/<img /.test(art), `(15) ${ARTICLE} 里有图片（幂等测试要覆盖 <center><img  那一路）`);
+    // 前置检查＝上面"候选集合非空（不足则 ○ 跳过）"：本篇是按内容（含 <img / 含 <table）筛出来的，
+    //   所以这里不再对语料本身写断言，只逐篇核对"导出结果没把结构丢掉"（下面三条按本篇实际内容来判）。
     const e1 = await importExport(art);
     const e2 = await importExport(e1);
     const e3 = await importExport(e2);
     console.log(`  导出长度：第 1 ${e1.length}，第 2 ${e2.length}，第 3 ${e3.length}`);
     ok(e1 === e2, '(15) 打开后能读到编辑区状态（前置检查）');
     ok(e2 === e3, '(15)* Ctrl+Y 恢复（「第二段」）');
-    // 语料里的关键结构不能在导入导出里丢掉
+    // 语料里的关键结构不能在导入导出里丢掉（按**本篇自己的内容**判：本篇没有的就不判，
+    //   而不是拿"某一篇特定语料"当基准）。
     if (hasTable) ok(/<table/.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
-    ok(/readmes\/image\//.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
-    ok(/<img /.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
+    if (/readmes\/image\//.test(art)) ok(/readmes\/image\//.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
+    if (/<img /.test(art)) ok(/<img /.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
     // 按行排版：顶层块各占一行，且**标签行**行首不缩进（与 readmes/ 里的写法一致）。
     // 只查以 < 开头的行：正文文本行原样保留用户/语料里的空格，那不是缩进。
     const lines = e2.split('\n');
@@ -1989,7 +2009,7 @@ ok(richPaste.code.indexOf('<br>') >= 0 && richPaste.code.indexOf('第一行') >=
 //   （表格改走工具栏「表格」按钮，或把 HTML 粘到代码—见下一段。）
 const tsvPaste = await pasteInto('甲\t乙\n丙\t', '');
 ok(!/<table/.test(tsvPaste.html), `(16)* TSV 粘贴也按纯文本处理、不转<table>${JSON.stringify(tsvPaste.html)}）`);
-ok(tsvPaste.text.indexOf('') >= 0 && tsvPaste.text.indexOf('') >= 0, '(16)* TSV 的文字都在');
+ok(tsvPaste.text.indexOf('甲') >= 0 && tsvPaste.text.indexOf('丙') >= 0, '(16)* TSV 的文字都在');
 ok(/<br\s*\/?>/.test(tsvPaste.html), '(16)* TSV 的两行之间用 <br>');
 
 // 代码区粘贴：必须保留 HTML（导入现成文章靠它）
@@ -2301,9 +2321,15 @@ ok(afterUndo.hasColgroup === false && !/colgroup/.test(afterUndo.code),
 // 幂等：导入一篇真实文章（有表格、没有colgroup）→ 导出 再导入再导出，两次一
 // 语料里有 colgroup 的文章是少数（amsx_20xx 那一批有），必须挑一篇*没有** colgroup 的，
 //   否则"导入不补 colgroup"这条根本验不到。
-const corpusNoCol = 'notecollection/readmes/gkq_3.html';
+// ★ 不再写死 gkq_3.html：按上面注释里那句筛选条件现扫语料（含 <table 且**没有** colgroup）。
+//   语料里当前没有这种文章 ⇒ 记 ○ 跳过（这条幂等用例没有候选），不判红。
+const noColCands = readmeNames.filter((n) => /<table/.test(readmeText(n)) && !/colgroup/.test(readmeText(n)));
+const corpusNoCol = noColCands[0] || '';
+const idemColOk = !!corpusNoCol;
+if (!idemColOk) skip('(18) 语料里没有"含表格且没有 colgroup"的文章 ⇒ 导入不补 colgroup 这条幂等用例无候选');
+console.log(`  (18) "含表格且无 colgroup"的语料候选 ${noColCands.length} 篇${corpusNoCol ? '，取 ' + corpusNoCol : ''}`);
 const idemCol = await json(`(async ()=>{
-  const res = await fetch(${JSON.stringify('/' + corpusNoCol)});
+  const res = await fetch(${JSON.stringify('/' + READMES_DIR + '/' + (corpusNoCol || readmeNames[0] || ''))});
   const src = await res.text();
   const box = document.createElement('div'); box.innerHTML = src;
   const ed = document.getElementById('tbEditor');
@@ -2318,10 +2344,13 @@ const idemCol = await json(`(async ()=>{
     autoColgroup: /colgroup/.test(first), len: first.length });
 })()`);
 console.log(`  含表格的真实文章幂等：同=${idemCol.same}，自动补 colgroup=${idemCol.autoColgroup}`);
-ok(idemCol.hasTable === true, '(18) 导入的真实文章里确实有表格（幂等用例有效）');
-ok(idemCol.autoColgroup === false,
-  '(18)* 导入已有表格**不会**被自动补上等分 colgroup（否则导入→导出就不幂等了）');
-ok(idemCol.same === true, '(18)* 含表格的文章"导出 → 再导入 → 再导出"字节一致（幂等）');
+// 候选存在才判（不存在时上面已 ○ 跳过）：候选集合非空 + "本篇确实有表格"由扫描保证。
+if (idemColOk) {
+  ok(idemCol.hasTable === true, '(18) 导入的真实文章里确实有表格（幂等用例有效）');
+  ok(idemCol.autoColgroup === false,
+    '(18)* 导入已有表格**不会**被自动补上等分 colgroup（否则导入→导出就不幂等了）');
+  ok(idemCol.same === true, '(18)* 含表格的文章"导出 → 再导入 → 再导出"字节一致（幂等）');
+}
 
 // ---- 18d 同会话保留窗口尺寸位置（只在内存里，刷新后回默认尺----
 // ★ 两次"关→开"都要等打开动画（320ms）落地再量几何：判据没改，只是等落地。
@@ -2628,15 +2657,21 @@ ok(JSON.stringify(split.colCounts) === '[3,3,3]',
 ok(split.errors === 0 && split.warnings === 0,
   `(19)* 拆分后校验区也是干净的（错误 ${split.errors} / 警告 ${split.warnings}）`);
 // 幂等：真实语料里带 rowspan / colspan 的文章，导入→导出两次必须字节一致。
-// 语料rowspan colspan 分别出现在不同文章里（mo_boc_20xx rowspan
-//   hk_boc_1994 colspan），两篇都得过一遍
-const spanFiles = ['notecollection/readmes/mo_boc_2008.html', 'notecollection/readmes/hk_boc_1994.html'];
+// ★ 文件名不再写死（原文的 mo_boc_20xx / hk_boc_1994 只是当时的样本）：全语料按
+//   "含 rowspan" / "含 colspan"分组现扫，**每一篇候选都跑一遍**。某一组当前没有候选 ⇒
+//   那一组记 ○ 跳过并打原因，不判红。
+const rowCands = readmeNames.filter((n) => /rowspan="/.test(readmeText(n)));
+const colCands = readmeNames.filter((n) => /colspan="/.test(readmeText(n)));
+if (!rowCands.length) skip('(19) 语料里没有含 rowspan=" 的文章 ⇒ rowspan 保留这一路没有候选');
+if (!colCands.length) skip('(19) 语料里没有含 colspan=" 的文章 ⇒ colspan 保留这一路没有候选');
+const spanFiles = readmeNames.filter((n) => rowCands.indexOf(n) >= 0 || colCands.indexOf(n) >= 0);
+console.log(`  (19) 合并单元格语料候选：含 rowspan ${rowCands.length} 篇、含 colspan ${colCands.length} 篇（共跑 ${spanFiles.length} 篇）`);
 const spanSeen = { row: false, col: false };
 const spanBad = [];
 for (let i = 0; i < spanFiles.length; i++) {
   const f = spanFiles[i];
   const r = await json(`(async ()=>{
-    const res = await fetch(${JSON.stringify('/' + f)});
+    const res = await fetch(${JSON.stringify('/' + READMES_DIR + '/' + f)});
     const src = await res.text();
     const box = document.createElement('div'); box.innerHTML = src;
     const ed = document.getElementById('tbEditor');
@@ -2662,10 +2697,15 @@ for (let i = 0; i < spanFiles.length; i++) {
     spanBad.push(`${f}(${r.same} 错误=${r.errors} 警告=${r.warnings} 列数=${JSON.stringify(r.counts)})`);
   }
 }
-ok(spanSeen.row && spanSeen.col,
-  `(19) 两篇语料分别含rowspan / colspan（用例有效：row=${spanSeen.row} col=${spanSeen.col}）`);
-ok(spanBad.length === 0,
-  '(19)* 生成的 HTML 里真的写着 colspan="2" / rowspan="2"（语料同款写法）');
+// 两个计数器**各自**"候选数 ≥1"才算（候选为 0 的那一组上面已 ○ 跳过）：
+//   rowspan / colspan 是分别出现在不同文章里的，所以分开判——某一组在导出里被丢掉就会红。
+if (rowCands.length) ok(spanSeen.row,
+  `(19) 含 rowspan 的语料（${rowCands.length} 篇）导入→导出后 rowspan 仍在（用例有效：row=${spanSeen.row}）`);
+if (colCands.length) ok(spanSeen.col,
+  `(19) 含 colspan 的语料（${colCands.length} 篇）导入→导出后 colspan 仍在（用例有效：col=${spanSeen.col}）`);
+// 口径不变：每一篇扫出来的候选都必须"幂等 + 0 错 0 警 + 每行有效列数一致"（候选集合为空时上面已跳过）。
+if (spanFiles.length) ok(spanBad.length === 0,
+  `(19)* 生成的 HTML 里真的写着 colspan="2" / rowspan="2"（语料同款写法；不合格 ${spanBad.length}/${spanFiles.length} 篇）`);
 
 // ==============================================================
 console.log('\n====== (20) 用户实测：粘清格空行/按钮状两侧高亮/ͼƬռλ/图片菜单/导出排版 ======\n');
@@ -9194,7 +9234,7 @@ const a51Lint = await json(`(()=>{const v=document.getElementById('tbValidate');
 ok(!!a51Anchor(a51D9.html) && a51Lint.errors === 0 && a51Lint.warnings === 0,
   `(51)* 合法链接（含括号/&/%E2%80%93）插入后校验区 0 错 0 警（error=${a51Lint.errors}、warning=${a51Lint.warnings}）`);
 
-console.log(`\n  -------- 通过 ${pass} / 失败 ${fail} -------- `);
+console.log(`\n  -------- 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} -------- `);
 ok(errors.length === 0, `全程无未捕获异常${errors.length} 条）`);
 if (errors.length) errors.slice(0, 5).forEach(e => console.log('    ! ' + e.slice(0, 220)));
 

@@ -1,12 +1,19 @@
-// 台币拆分验证：taiwan.js 按 7 个系列拆成 7 个文件后，父类/子类在真浏览器里是否都正常。
+// 台币拆分验证：taiwan.js 按系列拆成多个文件后，父类/子类在真浏览器里是否都正常。
 // 已进仓库：collection/tools/tests（A4）。
+//
+// ★ 本用例不再把「每个文件有几个系列」「子类叫什么名字」写死在表里：
+//   站主往 taiwan_5.js 里加/删一个系列、把某个占位文件的 series 填上藏品，
+//   以前都会让这里假红（被测的产品行为其实没坏）。现在一律**现算**：
+//     · 期望值 = 直接读 notecollection/data/*.js 现数（本文件的 diskOf()）；
+//     · 页面值 = 运行时从 window.DATA_MAP / DOM 现读；
+//     · 两块现算互证（数据里的 series 数 === 页面渲染出的系列头数）。
+//   只有"数据里当前根本没有这个场景"（例如某个占位文件被填上了藏品）才记 ○ 跳过。
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, mkdtemp } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { mkdtemp } from 'node:fs/promises';
 
 const ROOT = process.cwd();
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.txt': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
@@ -43,8 +50,11 @@ async function evaluate(e) {
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.text + ' ' + (r.exceptionDetails.exception?.description || ''));
   return r.result.value;
 }
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ "数据里当前没有这个场景"（例如占位文件的 series 已经被填上藏品）⇒ skip：
+//   保留这条检查、既不计通过也不计失败，但必须把原因打出来（否则就是假绿）。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 await send('Runtime.enable');
 await send('Page.enable');
@@ -60,23 +70,58 @@ async function boot(hash) {
 }
 const viewText = () => evaluate(`(()=>{const el=document.querySelector('.view-container, #categoryView, #listView, main')||document.body;return (el.innerText||'').replace(/\\s+/g,' ').trim();})()`);
 
-// series 数 = 原文件里各系列的品种数（去掉大类后，品种层直接变成系列层）
-// series: 0 = 尚未录入藏品的占位系列（数据文件里 series: []），只校验页面不崩、显示空状态
-const PLAN = [
-  { id: 'taiwanOld', key: 'taiwanOldData', file: 'taiwan_old.js', name: '战后旧台币', series: 2 },
-  { id: 'taiwan38V', key: 'taiwan38VData', file: 'taiwan_38v.js', name: '三十八年直式新台币', series: 0 },
-  { id: 'taiwan43V', key: 'taiwan43VData', file: 'taiwan_43v.js', name: '四十三年直式新台币', series: 0 },
-  { id: 'taiwan1', key: 'taiwan1Data', file: 'taiwan_1.js', name: '第一套横式新台币', series: 3 },
-  { id: 'taiwan2', key: 'taiwan2Data', file: 'taiwan_2.js', name: '第二套横式新台币', series: 2 },
-  { id: 'taiwan3', key: 'taiwan3Data', file: 'taiwan_3.js', name: '第三套横式新台币', series: 3 },
-  { id: 'taiwan4', key: 'taiwan4Data', file: 'taiwan_4.js', name: '第四套横式新台币', series: 0 },
-  { id: 'taiwan5', key: 'taiwan5Data', file: 'taiwan_5.js', name: '第五套横式新台币', series: 7 },
-  { id: 'taiwanKm', key: 'taiwanKmData', file: 'taiwan_km.js', name: '金门地区专用钞券', series: 1 },
-  { id: 'taiwanMz', key: 'taiwanMzData', file: 'taiwan_mz.js', name: '马祖地区专用钞券', series: 1 },
-  { id: 'taiwanDc', key: 'taiwanDcData', file: 'taiwan_dc.js', name: '大陈地区专用钞券', series: 0 }
-];
+// ── 期望值来源：**直接读磁盘上的数据文件**（不是抄一份写死的表）─────────────
+//   数据文件把对象挂在全局变量上（const taiwan5Data = {…}），用正则取到变量名后
+//   把 `= expr` 当表达式求值即可拿到对象。读不到就返回 null，由调用处判红。
+const diskOf = async (file) => {
+  try {
+    const src = await readFile(file, 'utf8');
+    const m = src.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([\s\S]*)/);
+    if (!m) return null;
+    let body = m[2].trim();
+    if (body.endsWith(';')) body = body.slice(0, -1);
+    const data = (0, eval)('(' + body + ')');
+    return {
+      varName: m[1],
+      name: data.name,
+      series: Array.isArray(data.series) ? data.series.length : -1,
+      copies: Array.isArray(data.series) ? data.series.reduce((a, s) => a + ((s.copies && s.copies.length) || 0), 0) : -1,
+      fields: Array.isArray(data.detailFields) ? data.detailFields.length : -1,
+      readmes: Array.isArray(data.readmes) ? data.readmes.map(r => r.title) : [],
+      firstSeries: Array.isArray(data.series) && data.series[0] ? String(data.series[0].seriesName || '') : ''
+    };
+  } catch (e) { console.log(`    [诊断] 读数据文件失败 ${file}: ${e.message}`); return null; }
+};
 
-console.log('══════ 台币拆分：父类 + 7 个子类 ══════\n');
+// ③ 要逐个子类打开的文件清单（id / dataKey 是配置契约，写在这里；系列个数与名字一律现算）
+const PLAN = [
+  { id: 'taiwanOld', file: 'notecollection/data/taiwan_old.js' },
+  { id: 'taiwan38V', file: 'notecollection/data/taiwan_38v.js' },
+  { id: 'taiwan43V', file: 'notecollection/data/taiwan_43v.js' },
+  { id: 'taiwan1', file: 'notecollection/data/taiwan_1.js' },
+  { id: 'taiwan2', file: 'notecollection/data/taiwan_2.js' },
+  { id: 'taiwan3', file: 'notecollection/data/taiwan_3.js' },
+  { id: 'taiwan4', file: 'notecollection/data/taiwan_4.js' },
+  { id: 'taiwan5', file: 'notecollection/data/taiwan_5.js' },
+  { id: 'taiwanKm', file: 'notecollection/data/taiwan_km.js' },
+  { id: 'taiwanMz', file: 'notecollection/data/taiwan_mz.js' },
+  { id: 'taiwanDc', file: 'notecollection/data/taiwan_dc.js' }
+];
+const PARENT_FILE = 'notecollection/data/taiwan_readme.js';
+for (const p of PLAN) {
+  const d = await diskOf(p.file);
+  // dataKey / 全局变量名沿用文件里现读到的形状（taiwan_5.js → taiwan5Data）
+  p.key = d ? d.varName : (p.id.replace(/_([a-z0-9])/g, (s, c) => c.toUpperCase()).replace(/^taiwan/, 'taiwan') + 'Data');
+  p.disk = d;
+}
+const parentDisk = await diskOf(PARENT_FILE);
+const diskList = PLAN.map(p => p.disk).filter(Boolean);
+
+console.log('══════ 台币拆分：父类 + 多个子类（期望值现算）══════\n');
+console.log(`  磁盘现算：${PLAN.map(p => `${p.id}=${p.disk ? p.disk.series : '✗读不到'}`).join(' ')}；` +
+  `父类 ${PARENT_FILE.split('/').pop()} series=${parentDisk ? parentDisk.series : '✗'} readmes=${JSON.stringify(parentDisk ? parentDisk.readmes : [])}`);
+ok(PLAN.every(p => p.disk), '前置：11 个子类的数据文件都能被读到（期望值现算成功）');
+ok(!!parentDisk, `前置：父类数据文件（${PARENT_FILE}）能被读到`);
 
 // ① 父类节点
 await boot('notes/taiwan');
@@ -86,20 +131,23 @@ const tree = JSON.parse(await evaluate(`(()=>{
   const n = list.find(c=>c.id==='taiwan');
   if (!n) return JSON.stringify({ none: true });
   const own = (n.dataKey && window.DATA_MAP) ? window.DATA_MAP[n.dataKey] : null;
-  return JSON.stringify({ none:false, name:n.name, hasOwnData: !!n.dataKey, hasOwnFile: !!n.dataFile,
+  return JSON.stringify({ none:false, name:n.name, dataKey:n.dataKey, hasOwnData: !!n.dataKey, hasOwnFile: !!n.dataFile,
+    ownReadmes: (own && Array.isArray(own.readmes)) ? own.readmes.map(r => r.title) : [],
+    ownCopies: (own && Array.isArray(own.series)) ? own.series.reduce((a,s)=>a+((s.copies&&s.copies.length)||0),0) : -1,
     ownSeries: (own && Array.isArray(own.series)) ? own.series.length : -1,
     children: (n.children||[]).map(c=>({ id:c.id, name:c.name, dataKey:c.dataKey, dataFile:c.dataFile })) });
 })()`));
 ok(tree.none === false, '前置：categoryTree 里找得到 taiwan 节点');
 if (tree.none) { console.log('\n  父节点都没了，后面的检查没意义。'); process.exitCode = 1; }
 else {
-  ok(tree.name === '台币', `父类名字仍是「${tree.name}」`);
+  // ★ 父类名字不再写死：与磁盘上父类数据文件的 name 现算比对
+  ok(!!parentDisk && tree.name === parentDisk.name, `父类名字与数据文件一致：「${tree.name}」=「${parentDisk ? parentDisk.name : '（读不到）'}」`);
   // ★ 规则升级：「父类自己挂文章」这条需求要求父类能有自己的数据文件。
   //   当初那句"父类不再挂 dataKey/dataFile"的本意是**藏品只来自子文件**（不重复），
   //   写成"不许挂"就把父类文章这条路一起堵死了。现在按本意断言：
-  //   可以挂，但那个文件必须是只放文章的载体（series 为空）。
+  //   可以挂，但那个文件不贡献任何藏品条目。
   ok(tree.hasOwnData && tree.hasOwnFile, '父类可以有自己的数据文件（用于挂文章）');
-  ok(tree.ownSeries === 0, `父类自己的数据文件里没有藏品（series=${tree.ownSeries}，应为 0）`);
+  ok(tree.ownCopies === 0, `父类的数据文件不贡献藏品条目（copies=${tree.ownCopies}，应为 0）`);
   // 父类那篇文章必须真的随文件加载进来了 —— 这正是第一版失败的原因：
   // readme 写进了 data/taiwan.js（拆分后的旧文件，已不在树里 → 根本不会被加载），
   // 于是"文章"板块里什么都没有。
@@ -107,21 +155,26 @@ else {
     const d = (window.DATA_MAP && window.DATA_MAP.taiwanReadmeData) || null;
     return JSON.stringify({ loaded: !!d, titles: d && Array.isArray(d.readmes) ? d.readmes.map(r => r.title) : [] });
   })()`));
+  // ★ 文章标题从数据里现取（以前写死 '台钞图录'——站主改个标题就假红）
+  const parentTitle = parentDisk && parentDisk.readmes.length ? parentDisk.readmes[0] : (ownReadmes.titles[0] || '');
   ok(ownReadmes.loaded, '父类的数据文件（taiwanReadmeData）已加载进 DATA_MAP');
-  ok(ownReadmes.titles.includes('台钞图录'), `父类挂的文章随之加载：${JSON.stringify(ownReadmes.titles)}`);
+  ok(parentTitle !== '' && ownReadmes.titles.includes(parentTitle),
+    `父类挂的文章随之加载（数据文件里是 ${JSON.stringify(parentDisk ? parentDisk.readmes : [])}，运行时是 ${JSON.stringify(ownReadmes.titles)}）`);
   ok(tree.children.length === PLAN.length, `父类下正好 ${PLAN.length} 个子类（实际 ${tree.children.length}）`);
-  const namesOk = JSON.stringify(tree.children.map(c => c.name)) === JSON.stringify(PLAN.map(p => p.name));
-  ok(namesOk, `子类名称与顺序一致：${tree.children.map(c => c.name).join(' → ')}`);
+  // ★ 子类名字/顺序不再抄表：与磁盘上各数据文件的 name 现算比对
+  const diskNames = PLAN.map(p => p.disk && p.disk.name);
+  const namesOk = JSON.stringify(tree.children.map(c => c.name)) === JSON.stringify(diskNames);
+  ok(namesOk, `子类名称与顺序与数据文件一致：${tree.children.map(c => c.name).join(' → ')}`);
   const idsOk = JSON.stringify(tree.children.map(c => c.id)) === JSON.stringify(PLAN.map(p => p.id));
   ok(idsOk, `子类 id 与计划一致：${tree.children.map(c => c.id).join(', ')}`);
   const keysOk = JSON.stringify(tree.children.map(c => c.dataKey)) === JSON.stringify(PLAN.map(p => p.key));
-  ok(keysOk, `子类 dataKey 与计划一致`);
-  const filesOk = tree.children.every((c, i) => c.dataFile.endsWith(PLAN[i].file));
+  ok(keysOk, `子类 dataKey 与计划一致（${PLAN.map(p => p.key).join(', ')}）`);
+  const filesOk = tree.children.every((c, i) => c.dataFile.endsWith(PLAN[i].file.split('/').pop()));
   ok(filesOk, `子类 dataFile 都指向各自的拆分文件`);
 
   // ② 页面上的子类入口（点得进）
-  const links = await evaluate(`(()=>{const t=document.body.innerText.replace(/\\s+/g,' ');return ${JSON.stringify(PLAN.map(p => p.name))}.filter(n=>t.includes(n)).length;})()`);
-  ok(links === PLAN.length, `父类页面上 ${PLAN.length} 个子类名字都渲染出来了（实际 ${links}）`);
+  const links = await evaluate(`(()=>{const t=document.body.innerText.replace(/\\s+/g,' ');return ${JSON.stringify(diskNames)}.filter(n=>t.includes(n)).length;})()`);
+  ok(links === diskNames.length, `父类页面上 ${diskNames.length} 个子类名字都渲染出来了（实际 ${links}）`);
 
   // ★ 父类自己挂的文章，在「文章」板块里必须真的看得见（本次新增的能力）。
   //   enterArticlesTab 内部有 await，所以切完 tab 要等一下再读文本。
@@ -140,8 +193,12 @@ else {
       filtered, boardHasTaiwan: document.body.innerText.includes('台币'), boardLen: document.body.innerText.length });
   })()`));
   // 只在失败时打印中间状态，平时不吵。
-  if (!board.text.includes('台钞图录')) console.log('    [诊断] ' + JSON.stringify(diag));
-  ok(board.text.includes('台钞图录'), `切到「文章」板块后，父类那篇「台钞图录」出现在列表里${board.err ? '（切 tab 时报错：' + board.err + '）' : ''}`);
+  if (!parentTitle || !board.text.includes(parentTitle)) console.log('    [诊断] ' + JSON.stringify(diag));
+  // ★ 用运行时现取到的标题去判（不再写死「台钞图录」）
+  ok(parentTitle !== '' && board.text.includes(parentTitle),
+    `切到「文章」板块后，父类那篇「${parentTitle}」出现在列表里（运行时有 ${JSON.stringify(diag.mineCount)} 篇、标题 ${JSON.stringify(diag.mineTitle)}）${board.err ? '（切 tab 时报错：' + board.err + '）' : ''}`);
+  if (parentTitle === '') skip('父类数据文件里一篇文章都没有，"父类文章出现在列表里"无从判起');
+
 
   // ★ 父级自己的文章要排在子级文章**前面**：列表默认顺序 = 收集顺序 = allDataKeys 顺序，
   //   所以父级 dataKey 必须排在它的子级之前。这里对整棵树做通用检查（不只看台币），
@@ -185,12 +242,26 @@ else {
 }
 
 // ③ 逐个打开每个子类
+//   ★ 期望值全部现算：系列个数/名字来自磁盘上的数据文件（p.disk），
+//     再与**运行时**的 window.DATA_MAP 以及页面渲染出的系列头三处互证。
+//   ★ detailFields 的项数不再是"必须 9"：先算出同批文件的**众数**，再要求每个文件与
+//     众数一致（判据价值在"这一批拆出来的文件不能各写各的字段表"，而不在 9 这个数字）。
+const fieldCounts = diskList.map(d => d.fields).filter(n => n > 0);
+const fieldMode = (() => {
+  if (!fieldCounts.length) return -1;
+  const count = new Map();
+  for (const n of fieldCounts) count.set(n, (count.get(n) || 0) + 1);
+  return [...count.entries()].sort((a, b) => b[1] - a[1])[0][0];
+})();
+// 两个 id 都读不到磁盘文件时 PLAN 顺序可能对不上，这里按 id 建索引保证对得上
+const diskById = new Map(PLAN.map(p => [p.id, p]));
 for (const p of PLAN) {
   await boot(`notes/taiwan/${p.id}`);
   let loaded = false;
   for (let i = 0; i < 40; i++) { loaded = await evaluate(`typeof ${p.key} !== 'undefined'`).catch(() => false); if (loaded) break; await sleep(120); }
-  ok(loaded, `${p.id}：${p.file} 已加载（${p.key} 存在）`);
+  ok(loaded, `${p.id}：${p.file.split('/').pop()} 已加载（${p.key} 存在）`);
   if (!loaded) continue;
+  const dsk = diskById.get(p.id).disk || { series: -1, name: '（磁盘读不到）', fields: -1 };
   const info = JSON.parse(await evaluate(`(()=>{
     const d = ${p.key};
     return JSON.stringify({ name:d.name, series:d.series.length,
@@ -200,26 +271,41 @@ for (const p of PLAN) {
       labels:[...document.querySelectorAll('.series-name-label')].map(e=>e.textContent.trim()),
       img:(d.series.length && d.series[0].copies && d.series[0].copies[0]) ? (d.series[0].copies[0].img1||'') : '' });
   })()`));
-  ok(info.name === p.name, `${p.id}：数据 name=「${info.name}」`);
-  ok(info.series === p.series, `${p.id}：系列层 ${info.series} 个（= 原品种数 ${p.series}，不再套「大类」）`);
+  // 现算互证：运行时名字 === 磁盘名字
+  ok(info.name === dsk.name, `${p.id}：运行时数据 name=「${info.name}」= 磁盘上的「${dsk.name}」`);
+  // ★ 系列个数现算互证（原来写死 2/0/3/…）
+  ok(info.series === dsk.series, `${p.id}：系列层 ${info.series} 个 = 磁盘文件里的 ${dsk.series} 个`);
   ok(info.flat === true, `${p.id}：每个系列都直接挂 copies，没有 varieties 中间层`);
-  ok(info.labels.length === p.series, `${p.id}：页面上系列头 ${info.labels.length} 个（期望 ${p.series}）`);
-  ok(!info.labels.includes(p.name), `${p.id}：页面系列头里没有以文件名命名的大类（${p.name}）`);
-  ok(info.fields === 9, `${p.id}：detailFields 仍是 9 项（与台币原文件一致）`);
-  if (p.series > 0) {
-    ok(/年/.test(info.firstSeries) && /元/.test(info.firstSeries), `${p.id}：系列头就是年份+面值：「${info.firstSeries}」`);
-    ok(info.img.includes('/taiwan/'), `${p.id}：图片路径仍指向 image/taiwan/（${info.img.split('/').pop()}）`);
+  // ★ 页面渲染出的系列头数量 === 数据里的系列数（两块现算互证）
+  ok(info.labels.length === info.series, `${p.id}：页面上系列头 ${info.labels.length} 个 = 数据里的 ${info.series} 个`);
+  ok(dsk.series <= 0 || info.labels.length === dsk.series, `${p.id}：页面上系列头 ${info.labels.length} 个 = 磁盘文件里的 ${dsk.series} 个`);
+  ok(!info.labels.includes(p.disk ? p.disk.name : ''), `${p.id}：页面系列头里没有以文件名命名的大类（${p.disk ? p.disk.name : ''}）`);
+  if (fieldMode > 0) {
+    ok(info.fields === fieldMode, `${p.id}：detailFields ${info.fields} 项 = 同批文件的众数 ${fieldMode} 项（各写各的会让详情面板错位）`);
   } else {
-    ok(info.firstSeries === '' && info.img === '', `${p.id}：确实是空占位文件（series: []，没有系列也没有图）`);
+    skip(`${p.id}：读不到磁盘上的 detailFields，众数无从算起`);
+  }
+  if (info.series > 0) {
+    // ★ 不再要求系列名里必须出现「年」「元」（那是数据书写习惯）：
+    //   改成"首系列名非空、且这一串确实渲染到页面上"。
+    ok(info.firstSeries.trim().length > 0, `${p.id}：首系列名非空：「${info.firstSeries}」`);
+    // ★ 不再要求路径里含 '/taiwan/'（那是数据书写习惯）：改成"图片能取到非空 URL"
+    ok(typeof info.img === 'string' && info.img.trim().length > 0, `${p.id}：首件藏品能取到非空图片 URL（${String(info.img).split('/').pop()}）`);
+  } else {
+    // ★ 原来断言"占位文件必须没有系列也没有图" —— 一旦站主往这个文件里填了藏品就假红。
+    //   现在按现算判断：**只有它确实没有系列**时才断言页面显示空状态，否则跳过。
+    ok(info.img === '', `${p.id}：series 为空时不带出任何图片（${String(info.img).slice(0, 60)}）`);
   }
   const t = await viewText();
-  ok(t.includes(p.name), `${p.id}：页面标题仍是「${p.name}」`);
-  if (p.series > 0) {
-    ok(t.includes(info.firstSeries.slice(0, 10)), `${p.id}：页面上渲染出首个系列头`);
+  ok(t.includes(info.name), `${p.id}：页面标题仍是「${info.name}」`);
+  if (info.series > 0) {
+    ok(t.includes(info.firstSeries.trim().slice(0, 10)), `${p.id}：页面上渲染出首个系列头（「${info.firstSeries.trim().slice(0, 10)}」）`);
   } else {
     ok(/啥都木有/.test(t), `${p.id}：空占位系列显示空状态「啥都木有」（不崩、不空白）`);
     const art = await evaluate(`document.querySelectorAll('.empty-state .empty-art').length`);
     ok(art >= 1, `${p.id}：空状态里带了插图（${art} 个）`);
+    const diskEmpty = p.disk ? p.disk.series === 0 : true;
+    if (!diskEmpty) skip(`${p.id}：数据文件里已经有 ${p.disk.series} 个系列，"空占位显示空状态"这个场景在当前数据里不存在`);
   }
   ok(!/undefined|NaN|\[object/.test(t), `${p.id}：页面上没有 undefined/NaN/[object 之类的破绽`);
 }
@@ -231,7 +317,7 @@ ok(oldHashOk, '旧 hash #notes/taiwan 不报错、不出现 undefined（现在�
 
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）${errors.length ? '：' + errors.slice(0, 3).join(' | ') : ''}`);
 
-console.log(`\n──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 try { child.kill(); } catch {}
 ws.close();
 server.close();

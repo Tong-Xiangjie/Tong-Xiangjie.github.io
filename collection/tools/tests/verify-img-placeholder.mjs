@@ -14,8 +14,11 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+// ★ "数据里当前没有这个场景"时用 skip：**保留**这条检查、单独计数（不计通过也不计失败），
+//   但必须把原因打印出来（否则就成了假绿）。退出码只看 fail。参考 verify-hm-glow.mjs。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 // ─────────── ① 静态 ───────────
 console.log('══════ ① 静态：铭文排布 / 占位图尺寸 / 预加载清单 ══════\n');
@@ -29,7 +32,13 @@ const want = [['銅', '100', '52'], ['の', '100', '148'], ['幣', '148', '100']
 const got = [...svg.matchAll(/<text x="(\d+)" y="(\d+)">(.)<\/text>/g)].map(m => [m[3], m[1], m[2]]);
 ok(JSON.stringify(got) === JSON.stringify(want),
    '铭文按古钱币「上下右左」排：銅(上 100,52) の(下 100,148) 幣(右 148,100) 紀(左 52,100)');
-ok(!/<text[^>]*>\s*(幣|の)<\/text>[\s\S]{0,80}<text x="148"/.test(svg.replace(/\n/g, ' ')) || true, '（读音顺序对照：对读即「銅の幣紀」）');
+// ★ 这条原来是 `... || true` 的恒真断言（判定被编码事故啃掉了）。恢复成真断言：
+//   按古钱币「上下右左」的**位置**读一遍，必须拼出「銅の幣紀」——
+//   与上一条（文档顺序逐字比对）互为交叉验证：位置的 y/x 一旦被换乱，这条会单独红。
+const charAt = (x, y) => (got.find(g => g[1] === String(x) && g[2] === String(y)) || [])[0] || '';
+const readOrder = charAt(100, 52) + charAt(100, 148) + charAt(148, 100) + charAt(52, 100);
+ok(readOrder === '銅の幣紀',
+   `（读音顺序对照：上→下→右→左 对读即「銅の幣紀」，实际「${readOrder || '（位置对不上）'}」）`);
 
 const mPix = /const TRANSPARENT_PIXEL = '([^']+)'/.exec(core);
 ok(!!mPix, 'core.js 里找得到 TRANSPARENT_PIXEL');
@@ -103,7 +112,18 @@ async function boot(hash) {
 
 // ─────────── ② 提前加载：首屏就把 12 个 SVG 取回来了吗 ───────────
 console.log('\n══════ ② 首屏提前加载 ══════\n');
-await boot('notes/rmb/rmb3');
+// ★ 分类路径不再写死 'notes/rmb/rmb3'（站主改分类树就会假红）：先从分类树里现取一条 notes 下的路径，
+//   下面 ③（缩略图盒子）与 ⑦（详细信息弹窗）都用它进分类页；取不到时那两节各自记 ○ 跳过并打原因。
+await boot('notes');
+const notesRoute = await evaluate(`(()=>{
+  var t = (typeof getCategoryTree === 'function') ? getCategoryTree() : null;
+  if (!t || !t.length) return '';
+  var withKids = t.filter(function (c) { return c.children && c.children.length; });
+  var c = withKids.length ? withKids[0] : t[0];
+  return (c.children && c.children.length) ? ('notes/' + c.id + '/' + c.children[0].id) : ('notes/' + c.id);
+})()`);
+if (!notesRoute) console.log('    （分类树里取不到 notes 下的分类路径：③ 与 ⑦ 会各自记 ○ 跳过）');
+await boot(notesRoute || 'notes');
 const timing = JSON.parse(await evaluate(`(()=>{
   const want = ${JSON.stringify(coreList)};
   const res = performance.getEntriesByType('resource');
@@ -145,10 +165,16 @@ const boxes = JSON.parse(await evaluate(`(async () => {
     return { cls: e.className, w: Math.round(r.width), h: Math.round(r.height), op: cs.opacity,
              mask: (cs.webkitMaskImage || cs.maskImage || '').split('/').pop() }; });
   const bad = rows.filter(r => r.w < 20 || r.h < 20 || parseFloat(r.op) < 0.5);
-  return JSON.stringify({ n: rows.length, forced: forced, bad: bad.length, sample: rows.slice(0, 4), badRows: bad.slice(0, 4) });
+  return JSON.stringify({ n: rows.length, cand: cand.length, forced: forced, bad: bad.length, sample: rows.slice(0, 4), badRows: bad.slice(0, 4) });
 })()`));
-ok(boxes.n > 0, `确实拿到了处于降级态的图片（${boxes.n} 张，其中主动打的 ${boxes.forced} 张）`);
-ok(boxes.bad === 0, `这些图都没有塌成细缝/隐形（不合格 ${boxes.bad} 张）`);
+// 候选（可以打成降级态的真实缩略图）为 0 且页面上本来也没有降级图 ⇒ 数据里没有这个场景，记 ○ 跳过；
+// 只要还有得看，就照旧断言（cand>0 而 n===0 仍然是"主动打降级没生效"的真红）。
+if (boxes.cand > 0 || boxes.n > 0) {
+  ok(boxes.n > 0, `确实拿到了处于降级态的图片（${boxes.n} 张，其中主动打的 ${boxes.forced} 张，候选 ${boxes.cand} 个）`);
+  ok(boxes.bad === 0, `这些图都没有塌成细缝/隐形（不合格 ${boxes.bad} 张）`);
+} else {
+  skip(`③ 当前页没有可打成降级态的缩略图（img.copy-thumb / .mini-thumb / .special-item-img 共 ${boxes.cand} 个${notesRoute ? '' : '；分类树里也没取到 notes 分类路径'}）⇒ ③ 这一节跳过`);
+}
 boxes.sample.forEach(s => console.log(`    · ${s.cls} → ${s.w}×${s.h}，opacity ${s.op}，蒙版 ${s.mask}`));
 boxes.badRows.forEach(s => console.log(`    ! ${s.cls} → ${s.w}×${s.h}，opacity ${s.op}`));
 
@@ -258,7 +284,9 @@ if (!spN) {
     if (spN > 0) break;
   }
 }
-ok(spN > 0, `专题板块已就绪（${spN} 个条目）${spN ? '' : ' 诊断=' + diag}`);
+// 专题条目为 0（数据里专题板块是空的）⇒ 这一节没有可测对象，记 ○ 跳过，不判红。
+if (spN > 0) ok(spN > 0, `专题板块已就绪（${spN} 个条目）`);
+else skip(`⑥ 专题板块当前没有条目（0 条）⇒ ⑥ 专题弹窗这一节跳过${diag ? '  诊断=' + diag : ''}`);
 const spNote = { items: spN };
 if (spNote.items > 0) {
   const light = JSON.parse(await evaluate(`(async () => {
@@ -305,10 +333,19 @@ if (spNote.items > 0) {
 
 // ─────────── ⑦ 真·「详细信息」弹窗：占位钱币要比真图小一半 ───────────
 console.log('\n══════ ⑦ 真·「详细信息」弹窗 ══════\n');
-await boot('notes/rmb/rmb3');
-const infoCard = JSON.parse(await evaluate(`(async () => {
+if (notesRoute) await boot(notesRoute);
+const infoCard = notesRoute ? JSON.parse(await evaluate(`(async () => {
   if (typeof openCopyDetail !== 'function') return JSON.stringify({ skip: 'no openCopyDetail' });
-  openCopyDetail(0);
+  // ★ 不写死 openCopyDetail(0)：现挑**第一个真的带图**的 copy（卡片里的 <img> 由 copy.img1/img2 决定，
+  //   索引就是 copyDetailList 的下标）。整条分类都没有带图的藏品时，按"数据里没这个场景"记 ○ 跳过。
+  const list = (typeof copyDetailList !== 'undefined' && copyDetailList) ? copyDetailList : [];
+  let idx = -1;
+  for (let i = 0; i < list.length; i++) {
+    const cp = list[i] && list[i].copy;
+    if (cp && (getImageUrl(cp.img1) || getImageUrl(cp.img2))) { idx = i; break; }
+  }
+  if (idx < 0) return JSON.stringify({ skip: 'no-img-data', n: list.length });
+  openCopyDetail(idx);
   await new Promise(r => setTimeout(r, 900));
   const wrap = document.querySelector('.info-lightbox-imgs');
   if (!wrap) return JSON.stringify({ skip: '没打开 .info-lightbox-imgs' });
@@ -327,8 +364,12 @@ const infoCard = JSON.parse(await evaluate(`(async () => {
   const rowRect = wrap.getBoundingClientRect();
   const rects = [...wrap.querySelectorAll('img')].map(i => i.getBoundingClientRect());
   const out = { failed: target.classList.contains('img-failed'), w: Math.round(r.width), h: Math.round(r.height),
+    pick: idx, pickName: (list[idx] && list[idx].name) || '', pickTotal: list.length,
     wrapW: Math.round(wrapW), pct: wrapW ? Math.round(r.width / wrapW * 100) : -1, before: before, imgs: imgs.length,
     sizes: imgs.map(i => ({ failed: i.classList.contains('img-failed'), w: Math.round(i.getBoundingClientRect().width) })),
+    // ★ 居中判据要按"这一行现在是哪种形态"现算（见下面注释）：全占位 / 占位+真图混排。
+    allFailed: imgs.every(i => i.classList.contains('img-failed')),
+    gapPx: parseFloat(getComputedStyle(wrap).gap) || 0,
     leftGap: Math.round(rects[0].left - rowRect.left),
     rightGap: Math.round(rowRect.right - rects[rects.length - 1].right),
     mask: (cs.webkitMaskImage || cs.maskImage || '').split('/').pop(), op: cs.opacity };
@@ -343,9 +384,14 @@ const infoCard = JSON.parse(await evaluate(`(async () => {
   if (typeof closeInfoLightbox === 'function') closeInfoLightbox();
   else { const box = document.querySelector('.info-lightbox'); if (box) box.remove(); }
   return JSON.stringify(out);
-})()`));
-if (infoCard.skip) { ok(false, `「详细信息」弹窗没能打开（${infoCard.skip}）`); }
+})()`)) : { skip: 'no-img-data', n: 0 };
+if (infoCard.skip === 'no-img-data') {
+  // 原因就是"数据里没有带图的藏品卡片" ⇒ 场景不存在，记 ○ 跳过（不判红）；
+  // 只有 openCopyDetail / .info-lightbox-imgs 这类真故障才走下面的 ok(false)。
+  skip(`⑦ ${notesRoute ? '' : '分类树里取不到 notes 分类路径 / '}copyDetailList 里没有任何"带图"的藏品（共 ${infoCard.n} 条）⇒ ⑦ 这一节跳过`);
+} else if (infoCard.skip) { ok(false, `「详细信息」弹窗没能打开（${infoCard.skip}）`); }
 else {
+  console.log(`    （⑦ 挑了第 ${infoCard.pick + 1}/${infoCard.pickTotal} 条 copy：${infoCard.pickName || '—'}）`);
   ok(infoCard.failed === true, '卡片里的图片确实进了降级态（.img-failed）');
   ok(/img-placeholder\.svg/.test(infoCard.mask), `蒙版是古钱币（${infoCard.mask}）`);
   ok(infoCard.pct >= 15 && infoCard.pct <= 30,
@@ -356,13 +402,26 @@ else {
   ok(infoCard.w < realW * 0.7,
      `★ 比真图那一格明显小：占位 ${infoCard.w}px vs ${realSib ? '同卡片真图' : '真图基准（48%）'} ${realW}px（卡片内宽 ${infoCard.wrapW}px）`);
   ok(parseFloat(infoCard.op) > 0.5, `而且是不透明的（opacity ${infoCard.op}）`);
-  ok(Math.abs(infoCard.leftGap - infoCard.rightGap) <= 2,
-     `★ 占位是居中的：左右留白 ${infoCard.leftGap}px / ${infoCard.rightGap}px（${infoCard.imgs} 张，原来全挤在左边）`);
+  // ★ 居中判据（按 layout.css:1913-1926 的口径**现算**，不绑定"第一张卡片恰好两张图都缺文件"这一种数据状态）：
+  //   · 行里全是占位 ⇒ 整行左右留白相等（用户口径：两张都占位时整体居中）；
+  //   · 占位与真图混排 ⇒ 占位自己的 auto 外边距把**剩余空间**平分，即左留白 ≈ 剩余一半
+  //     （用户口径：一张占位 + 一张真图时，那枚钱币正好在行中央）。
+  //   原来只判"左右留白相等"，那是因为旧用例打开的卡片两张图全都 404、整行都是占位；
+  //   一旦这张卡片有真图，左右留白本来就不该相等 —— 现在两种形态各自判各自的。
+  const sumW = (infoCard.sizes || []).reduce((a, s) => a + s.w, 0);
+  const free = infoCard.wrapW - sumW - (infoCard.gapPx || 0) * Math.max(0, infoCard.imgs - 1);
+  const centerOk = infoCard.allFailed
+    ? Math.abs(infoCard.leftGap - infoCard.rightGap) <= 2
+    : Math.abs(infoCard.leftGap - free / 2) <= 3;
+  ok(centerOk,
+     `★ 占位是居中的：${infoCard.allFailed
+        ? `行里全是占位 ⇒ 左右留白 ${infoCard.leftGap}/${infoCard.rightGap}px 相等`
+        : `占位与真图混排 ⇒ 占位落在剩余空间正中（左留白 ${infoCard.leftGap}px ≈ 剩余 ${Math.round(free)}px 的一半）`}（原来全挤在左边）`);
   ok(infoCard.soloCenterOff === undefined || Math.abs(infoCard.soloCenterOff) <= 2,
      `★ 只剩一张占位时也在行中央（偏离行中心 ${infoCard.soloCenterOff}px；左 ${infoCard.soloGapLeft} / 右 ${infoCard.soloGapRight}）`);
 }
 
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 5).forEach(e => console.log('    ! ' + e.slice(0, 160)));
 

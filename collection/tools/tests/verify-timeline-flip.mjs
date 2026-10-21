@@ -14,8 +14,12 @@ import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m, extra = '') => { c ? (pass++, console.log(`  ✓ ${m}${extra ? '  ' + extra : ''}`)) : (fail++, console.log(`  ✗ ${m}${extra ? '  ' + extra : ''}`)); };
+// ★ "数据里当前没有这个场景"（例如时间轴配置不在、或时间轴当前 0 条目）时用 skip：
+//   **保留**这条检查、单独计数（不计通过也不计失败），但必须把原因打印出来。退出码只看 fail。
+//   参考 verify-hm-glow.mjs。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 // ─────────── ① 静态：守卫与 FLIP 的形态 ───────────
 console.log('══════ ① 静态：重复点击守卫 + FLIP 实现 ══════\n');
@@ -113,17 +117,29 @@ await evaluate(`(()=>{
 const resetFlip = () => evaluate(`(()=>{ window.__flip = { item: [], ghost: [], article: [] }; return 1; })()`);
 
 // 走真实入口进时间轴：专题 tab → 专题概览 → 时间轴卡片
+// ★ 专题 id 不再写死 'timeline'（它是 special-bridge.js 的静态配置，不是手工数据）：
+//   从 specialCategoryTree 里按 id / 名称现找；找不到说明这个专题配置不在了 ⇒ 后面几节 ○ 跳过。
 await evaluate(`onTabClick('special')`).catch(e => console.log('  切专题 tab 失败：' + e.message));
 await sleep(900);
-await evaluate(`onSpecialOverviewItemClick('timeline')`).catch(e => console.log('  进时间轴失败：' + e.message));
+const timelineId = await evaluate(`(()=>{
+  const t = (typeof specialCategoryTree !== 'undefined' && specialCategoryTree) ? specialCategoryTree : [];
+  const hit = t.find(c => c.id === 'timeline')
+    || t.find(c => /时间轴|拾年|timeline/i.test(String(c.id || '') + ' ' + String(c.name || '')));
+  return hit ? hit.id : '';
+})()`);
+if (timelineId) await evaluate(`onSpecialOverviewItemClick(${JSON.stringify(timelineId)})`).catch(e => console.log('  进时间轴失败：' + e.message));
 await sleep(1200);
 let itemCount = await evaluate(`document.querySelectorAll('.timeline-item').length`).catch(() => 0);
-if (!itemCount) {                                        // 兜底：直接渲染
-  await evaluate(`(()=>{ selectedSpecial = 'timeline'; currentMode = MODE.SPECIAL; renderTimelineContent(getSpecialConfigs().find(c => c.id === 'timeline'), {}); return 1; })()`).catch(() => {});
+if (!itemCount && timelineId) {                          // 兜底：直接渲染
+  await evaluate(`(()=>{ const id = ${JSON.stringify(timelineId)}; selectedSpecial = id; currentMode = MODE.SPECIAL; renderTimelineContent(getSpecialConfigs().find(c => c.id === id), {}); return 1; })()`).catch(() => {});
   await sleep(900);
   itemCount = await evaluate(`document.querySelectorAll('.timeline-item').length`).catch(() => 0);
 }
-ok(itemCount > 0, `时间轴列表渲染出来了（${itemCount} 个条目）`);
+// ★ 条目为 0（数据里时间轴没有条目）= 场景不存在 ⇒ 记 ○ 跳过，② ③ ⑤ 这几节都依赖它，一并跳过。
+const timelineUsable = !!timelineId && itemCount > 0;
+if (timelineUsable) ok(itemCount > 0, `时间轴列表渲染出来了（${itemCount} 个条目）`);
+else if (!timelineId) skip('时间轴入口不在（specialCategoryTree 里找不到 timeline / 时间轴）⇒ ② ③ ⑤ 这几节跳过');
+else skip(`时间轴当前没有条目（${itemCount} 条）⇒ ② ③ ⑤ 这几节跳过（数据里时间轴为空）`);
 
 // 计数器：把 renderTimelineContent 包一层，数它被调用了几次
 await evaluate(`(()=>{ if (!window.__rtCount) { window.__rtCount = 0; const orig = window.renderTimelineContent; window.renderTimelineContent = function () { window.__rtCount++; return orig.apply(this, arguments); }; } return 1; })()`);
@@ -173,7 +189,7 @@ const clickYear = (i) => evaluate(`(()=>{ const y = [...document.querySelectorAl
 
 // ─────────── ② 反复点同一时间段：不重渲染 ───────────
 console.log('\n══════ ② 反复点同一个时间段不该反复刷新 ══════\n');
-{
+if (timelineUsable) {
   await clickCorner(); await sleep(900);                    // 起点：全部
   const base = await count();
   const hadItem = await evaluate(`document.querySelectorAll('.timeline-item').length`);
@@ -208,7 +224,7 @@ console.log('\n══════ ② 反复点同一个时间段不该反复刷
 
 // ─────────── ③ 真换时间段：搜索式进出场 ───────────
 console.log('\n══════ ③ 换时间段时条目自己滑进滑出 ══════\n');
-{
+if (timelineUsable) {
   // A. 全部 → 某一年：删掉大量条目 → 应有退场替身；保留条目应有 FLIP 位移
   await resetProbe();
   await clickYear(0);
@@ -231,7 +247,8 @@ console.log('\n══════ ③ 换时间段时条目自己滑进滑出 �
   ok(bClean === 0, `★ 动画结束后同样不留残留（残留 ${bClean} 个）`);
   ok(await evaluate(`document.querySelectorAll('.timeline-flip-ghost').length`) === 0, '退场替身也清干净了');
   // 屏幕外的条目不播（否则一次三百多个元素一起动画会卡）：播的数量应远小于总条目数
-  ok(b.total > 100 && b.moving < b.total, `★ 只给可视区附近的条目播动画（播 ${b.moving} 个，共 ${b.total} 个，屏幕外的直接落位）`);
+  // ★ 原来写死 `b.total > 100`（数据规模代理：数据一少就假红）⇒ 改成只判"有条目可播、且确实只播了一部分"。
+  ok(b.total > 0 && b.moving < b.total, `★ 只给可视区附近的条目播动画（播 ${b.moving} 个，共 ${b.total} 个，屏幕外的直接落位）`);
   okNoHScroll(b, '放开筛选');
 }
 
@@ -256,11 +273,11 @@ console.log('\n══════ ④ 文章版块的进出场 ═════�
 // 用户反馈"缺少从无到有的动画"：上一屏是空状态时一个 .timeline-item 都没有，
 // 早先 playTimelineFlip 见到 snap.items 为空就提前返回，于是新条目直接蹦出来。
 console.log('\n══════ ⑤ 空 ↔ 有 两个方向都要有动画 ══════\n');
-{
+if (timelineUsable) {
   // ★ ④ 刚把界面切到文章版块，得先回到时间轴 —— 否则点的是留在旧容器里的热力图 DOM。
   await evaluate(`onTabClick('special')`).catch(() => {});
   await sleep(700);
-  await evaluate(`onSpecialOverviewItemClick('timeline')`).catch(() => {});
+  if (timelineId) await evaluate(`onSpecialOverviewItemClick(${JSON.stringify(timelineId)})`).catch(() => {});
   await sleep(1100);
   const backOnTimeline = await evaluate(`document.querySelectorAll('.tl-heatmap-cell').length`);
   ok(backOnTimeline > 0, `回到时间轴（热力图 ${backOnTimeline} 个格子）`);
@@ -280,29 +297,34 @@ console.log('\n══════ ⑤ 空 ↔ 有 两个方向都要有动画 �
     enterCls: !!document.querySelector('.empty-state.timeline-empty-enter'),
     text: (document.querySelector('.empty-state') || {}).textContent ? document.querySelector('.empty-state').textContent.slice(0, 24) : ''
   })`));
-  ok(emptyCell !== 'none', `找到一个 0 件的格子并点了它（${emptyCell}）`);
-  ok(emptyState.items === 0 && emptyState.empty, `列表变成空状态（条目 ${emptyState.items} 个）`);
-  ok(emptyState.enterCls, '★ 空状态自己有淡入（.timeline-empty-enter，从"有"到"无"不是硬蹦出来）');
+  // ★ 热力图上没有"共购入0件"的格子（数据里每个格子都有条目）= 场景不存在 ⇒ 这一段记 ○ 跳过、不判红。
+  if (emptyCell === 'none') {
+    skip('⑤ 热力图上找不到"共购入0件"的空格子（数据里每个时间段都有条目）⇒ 空↔有这一段跳过');
+  } else {
+    ok(emptyCell !== 'none', `找到一个 0 件的格子并点了它（${emptyCell}）`);
+    ok(emptyState.items === 0 && emptyState.empty, `列表变成空状态（条目 ${emptyState.items} 个）`);
+    ok(emptyState.enterCls, '★ 空状态自己有淡入（.timeline-empty-enter，从"有"到"无"不是硬蹦出来）');
 
-  // 从空状态放开到"全部"：这就是"从无到有"，必须有滑入动画
-  await resetProbe();
-  await clickCorner();
-  await sleep(900);
-  const fromEmpty = (await probe()).at(-1) || { enter: 0, moving: 0, total: 0, ghosts: 0 };
-  ok(fromEmpty.total > 0, `放开后列表又满了（${fromEmpty.total} 个条目）`);
-  ok(fromEmpty.enter > 0,
-    `★ 从空状态放开时新条目有滑入动画（${fromEmpty.enter} 个处于 translateX(40px) 起始态）—— 这就是"从无到有的动画"`);
-  okNoHScroll(fromEmpty, '从空状态放开');
-  const cleanAfter = await evaluate(`[...document.querySelectorAll('.timeline-item')].filter(e => (e.style.transform || '') !== '' || (e.style.opacity || '') !== '').length`);
-  ok(cleanAfter === 0, `动画结束后不留残留（残留 ${cleanAfter} 个）`);
-  ok(await evaluate(`document.querySelectorAll('.timeline-flip-ghost').length`) === 0, '退场替身也清干净了');
+    // 从空状态放开到"全部"：这就是"从无到有"，必须有滑入动画
+    await resetProbe();
+    await clickCorner();
+    await sleep(900);
+    const fromEmpty = (await probe()).at(-1) || { enter: 0, moving: 0, total: 0, ghosts: 0 };
+    ok(fromEmpty.total > 0, `放开后列表又满了（${fromEmpty.total} 个条目）`);
+    ok(fromEmpty.enter > 0,
+      `★ 从空状态放开时新条目有滑入动画（${fromEmpty.enter} 个处于 translateX(40px) 起始态）—— 这就是"从无到有的动画"`);
+    okNoHScroll(fromEmpty, '从空状态放开');
+    const cleanAfter = await evaluate(`[...document.querySelectorAll('.timeline-item')].filter(e => (e.style.transform || '') !== '' || (e.style.opacity || '') !== '').length`);
+    ok(cleanAfter === 0, `动画结束后不留残留（残留 ${cleanAfter} 个）`);
+    ok(await evaluate(`document.querySelectorAll('.timeline-flip-ghost').length`) === 0, '退场替身也清干净了');
+  }
 
   // 收尾：回到全部时间
   await evaluate(`applyTimelineFilter('全部','全部')`);
   await sleep(600);
 }
 
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 console.log(`  ${pageErrors.length === 0 ? '✓' : '✗'} 未捕获异常（${pageErrors.length} 条）${pageErrors.length ? '：' + pageErrors.slice(0, 2).join(' | ') : ''}`);
 try { ws.close(); } catch {}
 child.kill(); server.close();

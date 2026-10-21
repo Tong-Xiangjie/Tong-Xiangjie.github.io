@@ -22,8 +22,14 @@ const ROOT = path.resolve(COL, '..');            // 仓库根
 
 const errors = [];
 const warns = [];
+const skips = [];
 const err = (m) => errors.push(m);
 const warn = (m) => warns.push(m);
+// ★★ 数据里**当前没有**这个场景时记 `○ 跳过`：不计 ERROR、也不计通过。
+//   为什么要有它：报告里"某个具体批次号的支出应为 1602 元 / 留档应为 1615.5 元"这类**数据快照**
+//   断言，站主一改台账（删一批、改一行折后价）就会假红并触发 CI 失败邮件。
+//   能改成"逐批恒等式现算"的都改了；只有"该形态在当前数据里根本不存在"时才落到这里。
+const skip = (m) => { skips.push(m); console.log(`  ○ 跳过（数据里当前没有该场景）： ${m}`); };
 
 const read = (p) => fs.readFileSync(p, 'utf8');
 const exists = (p) => fs.existsSync(p);
@@ -283,8 +289,9 @@ if (!labelIssues) console.log('  全部一致');
 //     · 明细**只保留匹配得上藏品 copyId 的行**（匹配不上 = 已售出，已在数据里剔除），
 //       所以"匹配上的明细之和 == 该批 paidFee（支出）"必须成立；
 //       xlsx 表格上的**实收留档值**另存为 sheetPaidFee/sheetListFee，单独校验它 ≥ 支出；
-//     · 批次 4 的汇总块字面写作"1,615元"（显示舍入），真值 1615.5 —— 这里按 1615.5 守；
-//     · 5 批逐批之和必须等于 totals.paidFee；
+//     · 某个批次的汇总块可能把 1615.5 字面写成"1,615元"（显示舍入）—— 一律以台账字段为准，
+//       **不写死任何批次号与金额**（见下面 ④）；
+//     · 逐批之和必须等于 totals.paidFee；
 //     · 付款日期必须齐全且唯一（按付款日期计入支出的前提）；
 //     · 送评日期 ≠ 付款日期（别拿文件名前 8 位当付款日期）。
 //   ★ 判据（用户裁定）：判"已售出"的唯一依据就是"台账某行的 cert 在藏品 copyId 里
@@ -293,10 +300,6 @@ if (grading) {
     console.log('\n==== 评级费台账 ====');
     const num = (s) => { const n = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : 0; };
     const round1 = (n) => Math.round(n * 10) / 10;
-    const B4 = 'PJ20260615262532';                 // 批次 4：字面 1,615 是显示舍入，真值 1615.5
-    // ★ 支出口径（用户裁定 2026-10）剔掉那 1 行换壳（13.5）⇒ 支出 1602；留档仍是 1615.5
-    const B4_EXPECT = 1602;
-    const B4_SHEET_EXPECT = 1615.5;
 
     // 藏品侧 copyId 全集：台账里留下的每一行都必须能匹配上（匹配不上就该已经被剔除）
     const copyIds = new Set(gradingCopyIds || []);
@@ -345,18 +348,32 @@ if (grading) {
         }
     }
 
-    // ④ 批次 4 的钉死值（该批无已售出行，但含 1 行换壳 ⇒ 支出 = 留档 − 13.5）
-    const b4 = grading.batches.find(x => x.pj === B4);
-    if (!b4) err(`评级费批次缺少 ${B4}`);
-    else if (num(b4.paidFee) !== B4_EXPECT) err(`评级费批次 4（${B4}）支出应为 ${B4_EXPECT} 元（剔掉 13.5 换壳），实际 ${b4.paidFee}`);
-    else if (num(b4.sheetPaidFee) !== B4_SHEET_EXPECT) err(`评级费批次 4（${B4}）的留档实收应为 ${B4_SHEET_EXPECT} 元（该批无已售出行），实际 ${b4.sheetPaidFee}`);
+    // ④ 定向核对："**无**已售出行、但含换壳行"的批次 —— 它的"留档实收 − 支出"只可能来自换壳，
+    //   所以必须逐分对上（历史上那个批次就是这个形态：汇总块字面写"1,615元"是显示舍入，
+    //   真值 1615.5，支出 1602 = 1615.5 − 13.5）。
+    //   ★ 这里**不再写死批次号与那两个金额**（那是数据快照，站主删一批/改一行折后价就假红），
+    //     改成按形态现找；当前台账里没有这种批次时记 `○ 跳过`、不判 ERROR。
+    const rhOnlyBatches = grading.batches.filter(b => (Number(b.reholderCount) || 0) > 0 && (Number(b.soldCount) || 0) === 0);
+    if (rhOnlyBatches.length === 0) {
+        skip('"无已售出行、但含换壳行"的批次（定向核对 留档实收 − 支出 == 换壳金额）');
+    } else {
+        for (const b of rhOnlyBatches) {
+            const diff = round1(num(b.sheetPaidFee) - num(b.paidFee));
+            const rh = round1(num(b.reholderPaidFee || '0元'));
+            const mineNoRh = (b.items || []).filter(i => !i.reholder);
+            const sumNoRh = round1(mineNoRh.reduce((s, i) => s + num(i.paidFee), 0));
+            if (diff !== rh) err(`评级费批次 ${b.pj}：无已售出行 ⇒ 留档实收 ${b.sheetPaidFee} − 支出 ${b.paidFee} = ${diff} 应等于换壳金额 ${rh} 元`);
+            if (round1(num(b.paidFee)) !== sumNoRh) err(`评级费批次 ${b.pj}：支出 ${b.paidFee} ≠ 该批非换壳明细之和 ${sumNoRh} 元`);
+        }
+        console.log(`  ④ 无已售出但含换壳的批次 ${rhOnlyBatches.length} 个：留档实收 − 支出 == 换壳金额（逐批恒等，未写死批次号/金额）`);
+    }
 
     // ⑤ 逐批之和 == totals（支出与留档两套都要对）
     const sumPaidAll = round1(grading.batches.reduce((s, b) => s + num(b.paidFee), 0));
     const sumListAll = round1(grading.batches.reduce((s, b) => s + num(b.listFee), 0));
     const sumSheetPaid = round1(grading.batches.reduce((s, b) => s + num(b.sheetPaidFee), 0));
     const sumSheetList = round1(grading.batches.reduce((s, b) => s + num(b.sheetListFee), 0));
-    // ★ 件数按**支出侧**（剔除换壳）求和：totals.itemCount = 118（119 行明细 − 1 行换壳）
+    // ★ 件数按**支出侧**（剔除换壳）求和：totals.itemCount == 所有批次的非换壳明细行数之和
     const rowCount = grading.batches.reduce((s, b) => s + (b.items || []).filter(i => !i.reholder).length, 0);
     if (grading.totals) {
         if (sumPaidAll !== num(grading.totals.paidFee)) err(`评级费总计：逐批之和 ${sumPaidAll} ≠ totals.paidFee ${grading.totals.paidFee}`);
@@ -492,7 +509,7 @@ const byKind = { notes: 0, coins: 0, fun: 0 };
 for (const r of reports) byKind[r.kind] = (byKind[r.kind] || 0) + r.copies;
 console.log('藏品: ' + reports.reduce((s, r) => s + r.copies, 0) + ' 件' +
     '（纸币 ' + byKind.notes + ' / 硬币 ' + byKind.coins + ' / 专题 ' + byKind.fun + '）');
-console.log('ERROR ' + errors.length + ' 条, WARN ' + warns.length + ' 条');
+console.log('ERROR ' + errors.length + ' 条, WARN ' + warns.length + ' 条' + (skips.length ? ', ○ 跳过 ' + skips.length + ' 条' : ''));
 if (errors.length) { console.log('\nERROR:'); errors.forEach(e => console.log('  ✗ ' + e)); }
 if (warns.length) { console.log('\nWARN:'); warns.forEach(w => console.log('  ! ' + w)); }
 console.log('='.repeat(56));

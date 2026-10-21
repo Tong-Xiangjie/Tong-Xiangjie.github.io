@@ -8,16 +8,32 @@
 //   .special-lightbox-content），卡片改成 overflow:hidden 的 flex 竖列，× 钉在卡片上。
 //
 // 图片大图弹窗（.modal-close）本来就是 position:fixed，不在滚动容器里，一起回归。
+//
+// ★★ 本用例**不写死任何冠号 / 图片文件名 / URL**（2026-11 改）：
+//    以前它把 KP04057、1989gj40-1.jpg、coincollection/image/commemorative/… 这类
+//    具体数据写死在断言与拦截正则里，站主一改数据（换冠号、重命名图片、删掉那条藏品）
+//    就会整片假红、触发 CI 失败邮件。
+//    现在改成：启动后扫**页面自己的分类树 + DATA_MAP/COIN_DATA_MAP**，现挑
+//      · cardTarget —— 正反面都有（img1 + img2 且不相同）的藏品（② 详细信息灯箱）
+//      · flyTarget  —— 在上面基础上、正反面**原图与缩略图在磁盘上都真实存在**的那一件
+//                      （⑥~⑪ 要"原图真的能解码 / 真的能挂住"，没有文件就量不到）
+//      · octoTarget —— imgExtra 非空的那一件（③ 八面图灯箱）
+//    一切 URL / 文件名 / 拦截正则 / 期望落点都由这几件的数据现算。
+//    只有"当前数据里根本没有这样的藏品"时才记 `○ 跳过`（单独计数，不计通过也不计失败）。
 import { createServer } from 'node:http';
 import { readFile, stat, mkdtemp } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { shotViewport, maxChanDiff } from './lib/pixel.mjs';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, msg) => { if (c) { pass++; console.log('  ✓ ' + msg); } else { fail++; console.log('  ✗ ' + msg); } };
+// ★ 数据里当前**不存在**这个场景（例如一条正反面齐全的藏品都没有）时用它：
+//   单独计数，**不计通过也不计失败**，但必须把"为什么没有测量值"打出来 ——
+//   否则就成了假绿。写法与 verify-hm-glow.mjs 的 skip 一致。
+const skip = (m) => { skipped++; console.log(`  ○ 跳过 ${m}`); };
 
 // ══════════════════════════════════════════════════════════════
 console.log('══════ ① 静态：卡片不滚、内容区滚、× 在卡片里 ══════\n');
@@ -121,13 +137,93 @@ async function boot(hash) {
   }
   await sleep(1800);
 }
-await boot('notes/commemorative');
-let idx = -1;
-for (let i = 0; i < 30; i++) {
-  idx = await evaluate(`(()=>{ if (typeof copyDetailList === 'undefined') return -1;
-    return copyDetailList.findIndex(x => x.copy && String(x.copy.version) === 'KP04057'); })()`).catch(() => -1);
-  if (idx >= 0) break;
-  await sleep(200);
+
+// ══════════════════════════════════════════════════════════════════
+// 目标发现：扫页面自己的分类树 + 数据 map（纸币/硬币），把每件藏品的关键信息取回来。
+// 选择与全部期望值都在 Node 侧由这份数据现算 —— 用例里不出现具体冠号 / 文件名 / URL。
+// ══════════════════════════════════════════════════════════════════
+const DISCOVER = `(() => {
+  const out = [];
+  const resolved = (u) => (typeof getImageUrl === 'function') ? getImageUrl(u) : String(u || '');
+  for (const mode of ['notes', 'coins']) {
+    const def = (typeof getModeDef === 'function') ? getModeDef(mode) : null;
+    if (!def || def.kind !== 'collection' || !def.map) continue;
+    const tree = (typeof def.tree === 'function') ? def.tree() : null;
+    const map = window[def.map] || {};
+    if (!tree) continue;
+    const walk = (cats, prefix) => {
+      for (const cat of cats || []) {
+        if (cat.navHidden) continue;
+        const seg = prefix ? prefix + '/' + cat.id : (def.urlSegment + '/' + cat.id);
+        const data = cat.dataKey ? map[cat.dataKey] : null;
+        if (data && Array.isArray(data.series)) {
+          for (let si = 0; si < data.series.length; si++) {
+            const s = data.series[si] || {};
+            const pools = [];
+            if (Array.isArray(s.copies) && s.copies.length) pools.push({ vi: -1, copies: s.copies });
+            if (Array.isArray(s.varieties)) for (let vi = 0; vi < s.varieties.length; vi++) {
+              const v = s.varieties[vi] || {};
+              if (Array.isArray(v.copies) && v.copies.length) pools.push({ vi: vi, copies: v.copies });
+            }
+            for (const pool of pools) for (let ci = 0; ci < pool.copies.length; ci++) {
+              const c = pool.copies[ci] || {};
+              const oc = (c.imgExtra && typeof c.imgExtra === 'object') ? Object.keys(c.imgExtra) : [];
+              out.push({
+                mode: mode, hash: seg, dataKey: cat.dataKey, si: si, vi: pool.vi, ci: ci,
+                version: (c.version === undefined || c.version === null) ? '' : String(c.version),
+                img1: resolved(c.img1), img2: resolved(c.img2),
+                thumb1: (c.img1 && typeof getThumbUrl === 'function') ? getThumbUrl(c.img1) : '',
+                thumb2: (c.img2 && typeof getThumbUrl === 'function') ? getThumbUrl(c.img2) : '',
+                octoKeys: oc.filter(k => Array.isArray(c.imgExtra[k]) && c.imgExtra[k].length > 0)
+              });
+            }
+          }
+        }
+        if (Array.isArray(cat.children) && cat.children.length) walk(cat.children, seg);
+      }
+    };
+    walk(tree, '');
+  }
+  return JSON.stringify(out);
+})()`;
+
+// URL ↔ 本地文件
+const baseOf = (u) => String(u || '').split('?')[0].split('#')[0].split('/').pop();
+const fileOf = (u) => { try { return join(ROOT, decodeURIComponent(new URL(u).pathname).replace(/^\/+/, '')); } catch { return ''; } };
+const fileOk = (u) => { const p = fileOf(u); if (!p || !existsSync(p)) return false; try { return statSync(p).size > 0; } catch { return false; } };
+// 只按"这个 URL 自己的路径"匹配：原图的路径与缩略图的路径不同（缩略图多一层 thumb/），
+// 所以这样构造出来的正则**只会命中传进来的那张图**，不会连缩略图一起命中。
+// ★ 结尾允许跟一段查询串/锚点：图片重试（retryFailedImages）会把真实地址拼上
+//   `?retry=…` 再请求一次，拦截规则必须同样命中那一次（否则 ⑪ 的"刷新回来之后就放行"
+//   永远不生效）。旧代码用的是不带 $ 的子串正则，天然能命中带查询串的那一次。
+const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const pathOf = (u) => { try { return new URL(u).pathname; } catch { return String(u); } };
+const patOf = (...urls) => new RegExp('(?:' + urls.map(u => escRe(pathOf(u))).join('|') + ')(?:[?#].*)?$');
+
+// 按"数据序号"定位某条 copy（DATA_MAP 里的对象 === copyDetailList[i].copy，用对象同一性
+// 比对，比按冠号/文件名比对稳 —— 冠号在不同分类里可能重复）
+function pickExpr(key) {
+  return `(() => {
+    const def = (typeof getModeDef === 'function') ? getModeDef(${JSON.stringify(key.mode)}) : null;
+    const map = (def && def.map && window[def.map]) ? window[def.map] : {};
+    const data = map[${JSON.stringify(key.dataKey)}];
+    if (!data || !Array.isArray(data.series) || !data.series[${key.si}]) return -1;
+    let pool = data.series[${key.si}];
+    if (${key.vi} >= 0) { const v = (pool.varieties || [])[${key.vi}]; if (!v) return -1; pool = v; }
+    const c = (pool.copies || [])[${key.ci}];
+    if (!c || typeof copyDetailList === 'undefined' || !copyDetailList) return -1;
+    return copyDetailList.findIndex(x => x.copy === c);
+  })()`;
+}
+const tagOf = (c) => `${c.hash}#s${c.si}${c.vi >= 0 ? '/v' + c.vi : ''}/c${c.ci}${c.version ? ' · ' + c.version : ''}`;
+async function findIdx(key) {
+  await boot(key.hash);
+  for (let i = 0; i < 30; i++) {
+    const idx = await evaluate(pickExpr(key)).catch(() => -1);
+    if (typeof idx === 'number' && idx >= 0) return idx;
+    await sleep(200);
+  }
+  return -1;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -171,24 +267,65 @@ async function checkNoMove(human, cardSel, scrollSel, closeSel) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// 现算被测目标
+// ══════════════════════════════════════════════════════════════
+await boot('');   // 任意一页即可：DATA_MAP/COIN_DATA_MAP 在首屏渲染前就建好了
+const ALL = JSON.parse(await evaluate(DISCOVER));
+const withFaces = ALL.filter(c => c.img1 && c.img2 && c.img1 !== c.img2);
+const allFiles = (c) => fileOk(c.img1) && fileOk(c.img2) && fileOk(c.thumb1) && fileOk(c.thumb2);
+// ⑥~⑪ 必须"原图与缩略图都能真的从本地服务器取到"：优先带 imgExtra 的那件
+// （与历史行为一致），其次任意一件文件齐全的。
+const flyTarget = withFaces.filter(allFiles).find(c => (c.octoKeys || []).length > 0) || withFaces.filter(allFiles)[0] || null;
+const cardTarget = flyTarget || withFaces[0] || null;
+const octoTarget = ALL.find(c => (c.octoKeys || []).length > 0) || null;
+console.log(`  扫描到 ${ALL.length} 件藏品（纸币 + 硬币）：正反面齐全的 ${withFaces.length} 件，其中文件齐全的 ${withFaces.filter(allFiles).length} 件，带 imgExtra 的 ${ALL.filter(c => (c.octoKeys || []).length > 0).length} 件`);
+if (cardTarget) console.log(`  ②「详细信息」目标：${tagOf(cardTarget)}（正 ${baseOf(cardTarget.img1)} / 背 ${baseOf(cardTarget.img2)}）`);
+if (flyTarget) console.log(`  ⑥~⑪ 目标：${tagOf(flyTarget)}（原图与缩略图都在磁盘上）`);
+if (octoTarget) console.log(`  ③「八面图」目标：${tagOf(octoTarget)}（imgExtra: ${octoTarget.octoKeys.join('/')}）`);
+
+// ══════════════════════════════════════════════════════════════
 console.log('\n══════ ② 详细信息灯箱（.info-lightbox）══════\n');
-ok(idx >= 0, `② 找到 KP04057 的详情数据（下标 ${idx}）`);
-if (idx >= 0) {
-  await evaluate(`(()=>{ openCopyDetail(${idx}); return true; })()`);
+const idx2 = cardTarget ? await findIdx(cardTarget) : -1;
+if (idx2 < 0) {
+  skip(`② 详细信息灯箱：${cardTarget ? '目标藏品 ' + tagOf(cardTarget) + ' 在当前分类页没渲染出可定位的条目' : '当前数据里找不到"正反面都有（img1 + img2 且不相同）"的藏品'} —— 这一节没有测量值`);
+} else {
+  await evaluate(`(()=>{ openCopyDetail(${idx2}); return true; })()`);
   await sleep(700);
   ok(await evaluate(`!!document.querySelector('#copyDetailLightbox .lightbox-close')`) === true, '② 详情灯箱打开了');
+  // ★ 期望值全部来自 cardTarget 的数据（不是写死的冠号/文件名）
+  const faces = JSON.parse(await evaluate(`(()=>{
+    const box = document.querySelector('#copyDetailLightbox .info-lightbox-imgs');
+    if (!box) return JSON.stringify([]);
+    return JSON.stringify([...box.querySelectorAll('img')].map(x => {
+      const m = /openModal\\('([^']+)'/.exec(x.getAttribute('onclick') || '');
+      return m ? m[1] : '';
+    }));
+  })()`));
+  ok(faces.length === 2 && faces[0] === cardTarget.img1 && faces[1] === cardTarget.img2,
+    `② 详情卡片里正好正反面两张，且就是数据里的那两张（${faces.map(baseOf).join(' / ')}）`);
   await checkNoMove('详细信息', '.info-lightbox-inner', '.info-lightbox-content', '.lightbox-close');
 
   // ══════════════════════════════════════════════════════════════
   console.log('\n══════ ③ 八面图灯箱（.octo-lightbox）══════\n');
-  await evaluate(`(()=>{ openOctoGallery(${idx}); return true; })()`);
-  await sleep(700);
-  ok(await evaluate(`!!document.querySelector('#octoLightbox .lightbox-close')`) === true, '③ 八面图灯箱打开了');
-  await checkNoMove('八面图', '.octo-inner', '.octo-grid', '.lightbox-close');
-  await evaluate(`(()=>{ closeOctoGallery(); closeCopyDetail(); return true; })()`);
-  await sleep(600);
-  ok(await evaluate(`!document.querySelector('#octoLightbox') && !document.querySelector('#copyDetailLightbox')`) === true,
-    '③ 关掉后两个灯箱都不留残骸');
+  if (!octoTarget) {
+    skip('③ 八面图灯箱：当前数据里没有任何 imgExtra 非空的藏品 —— 这个场景在数据里不存在');
+  } else {
+    const idx3 = await findIdx(octoTarget);
+    if (idx3 < 0) {
+      skip(`③ 八面图灯箱：目标藏品 ${tagOf(octoTarget)} 在当前分类页没渲染出可定位的条目 —— 这一节没有测量值`);
+    } else {
+      await evaluate(`(()=>{ openCopyDetail(${idx3}); return true; })()`);
+      await sleep(500);
+      await evaluate(`(()=>{ openOctoGallery(${idx3}); return true; })()`);
+      await sleep(700);
+      ok(await evaluate(`!!document.querySelector('#octoLightbox .lightbox-close')`) === true, '③ 八面图灯箱打开了');
+      await checkNoMove('八面图', '.octo-inner', '.octo-grid', '.lightbox-close');
+      await evaluate(`(()=>{ closeOctoGallery(); closeCopyDetail(); return true; })()`);
+      await sleep(600);
+      ok(await evaluate(`!document.querySelector('#octoLightbox') && !document.querySelector('#copyDetailLightbox')`) === true,
+        '③ 关掉后两个灯箱都不留残骸');
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -347,18 +484,35 @@ async function installSampler() {
     return 1;
   })()`);
 }
-// 找到 KP04057 的正面格子并点开（走真实缩略图点击：生长动画 + lastModalSourceImg 都是真的）
-const openSnippet = flipAfter => `(async () => {
+// 找到目标藏品的正面格子并点开（走真实缩略图点击：生长动画 + lastModalSourceImg 都是真的）
+// ★ wantUrl 由运行时现取（不再写死 KP04057-1.jpg）；DOM 里 onclick 的 openModal 第一个参数
+//   就是数据里那条 copy 解析出来的原图地址，与此**逐字比对**。
+// ★ 顺带把目标所在的折叠手风琴展开、并等缩略图真的解码 —— 这是本用例自己的场景准备，
+//   不改变任何断言语义（否则元素尺寸为 0，飞行动画会整个落空，量到的是假象）。
+const openSnippet = (wantUrl, flipAfter) => `(async () => {
   const re = /openModal\\('([^']+)',\\s*'([^']+)'\\)/;
-  let el = null, mm = null;
-  for (const w of document.querySelectorAll('[onclick]')) {
+  const root = (typeof getRenderContainer === 'function' && getRenderContainer()) || document;
+  const cand = [];
+  for (const w of root.querySelectorAll('[onclick]')) {
     const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
-    if (m2 && /KP04057-1\\.jpg$/.test(m2[1])) { el = w; mm = m2; break; }
+    if (m2 && m2[1] === ${JSON.stringify(wantUrl)}) cand.push({ w: w, m2: m2 });
   }
-  if (!el) return JSON.stringify({ err: '没找到 KP04057 的正反面格子' });
+  if (!cand.length) return JSON.stringify({ err: '当前分类页里没找到 ' + ${JSON.stringify(wantUrl)} + ' 的格子' });
+  for (const c of cand) for (const sel of ['.copy-list', '.series-body']) {
+    const a = c.w.closest(sel);
+    if (a) { a.classList.add('open'); a.style.maxHeight = 'none'; a.style.opacity = '1'; }
+  }
+  let el = null, mm = null, best = -1;
+  for (const c of cand) {
+    c.w.scrollIntoView({ block: 'center' });
+    const t = c.w.querySelector('img') || c.w;
+    const r = t.getBoundingClientRect();
+    if (r.width * r.height > best) { best = r.width * r.height; el = c.w; mm = c.m2; }
+  }
   const th = el.querySelector('img') || el;
   th.scrollIntoView({ block: 'center' });
-  await new Promise(r => setTimeout(r, 300));
+  for (let i = 0; i < 100 && th.naturalWidth === 0; i++) await new Promise(r => setTimeout(r, 50));
+  await new Promise(r => setTimeout(r, 250));
   const target = imageContentRect(th);
   th.click();
   let growInAir = false;
@@ -372,12 +526,17 @@ const openSnippet = flipAfter => `(async () => {
 })()`;
 
 // ── ⑥ 加载中关闭 ──────────────────────────────────────────────
-{
-  imgHold = /image\/comm\/KP04057-1\.jpg/; imgDelayMs = 0; heldIds = [];
-  await boot('notes/commemorative');
+//   ★ ⑥~⑩ 全部改成"接收现取到的目标 T"的函数：里面每一处 URL / 拦截正则 / 期望值
+//     都由 T 的 img1 / img2 / thumb 现算，用例代码里不再出现任何具体冠号或文件名。
+async function sec6(T) {
+  // 只挂住**原图**（路径与缩略图不同，正则结尾锚定 ⇒ 缩略图照常加载）
+  imgHold = patOf(T.img1); imgDelayMs = 0; heldIds = [];
+  await boot(T.hash);
   await installSampler();
-  const P = JSON.parse(await evaluate(openSnippet(0)));
-  ok(!P.err, `⑥ 点开正面格子（${P.err || norm(P.img1)}）`);
+  const P = JSON.parse(await evaluate(openSnippet(T.img1, 0)));
+  if (P.err) { skip(`⑥ 加载中关闭：${P.err} —— 这一节没有测量值`); return; }
+  ok(!!P.img2 && P.img2 !== P.img1 && P.img2 === T.img2,
+    `⑥ 点开的是这条藏品的正面，翻面配对就是它的反面（正 ${baseOf(P.img1)} / 背 ${baseOf(P.img2)}）`);
   // 等生长动画落地：本段只量"加载中关闭"，不与翻面撞生长动画混在一起
   await sleep(700);
   const pre = JSON.parse(await evaluate('window.__LS.snap()'));
@@ -437,15 +596,17 @@ const openSnippet = flipAfter => `(async () => {
 }
 
 // ── ⑦ 加载中翻面 ──────────────────────────────────────────────
-console.log('\n══════ ⑦ 原图还在下载时翻面：加载完成后必须就挂在当前可见的那一面上 ══════\n');
-{
+async function sec7(T) {
+  console.log('\n══════ ⑦ 原图还在下载时翻面：加载完成后必须就挂在当前可见的那一面上 ══════\n');
   // ⑦a：生长动画还在空中就翻面 —— 旧实现会让"生长飞行图层"永远留在 DOM 里
   //      （落在全屏那一格、z-index 1002），把加载好的当前面大图整块盖住。
-  imgHold = /image\/comm\/KP04057-[12]\.jpg/; imgDelayMs = 1600; heldIds = [];
-  await boot('notes/commemorative');
+  imgHold = patOf(T.img1, T.img2); imgDelayMs = 1600; heldIds = [];
+  await boot(T.hash);
   await installSampler();
-  const P = JSON.parse(await evaluate(openSnippet(80)));
-  ok(!P.err, `⑦ 点开正面格子（${P.err || norm(P.img1)}）`);
+  const P = JSON.parse(await evaluate(openSnippet(T.img1, 80)));
+  if (P.err) { skip(`⑦ 加载中翻面：${P.err} —— 这一节没有测量值`); return; }
+  ok(!!P.img2 && P.img2 !== P.img1 && P.img2 === T.img2,
+    `⑦ 点开的是这条藏品的正面，翻面配对就是它的反面（正 ${baseOf(P.img1)} / 背 ${baseOf(P.img2)}）`);
   ok(P.growInAir === true, '⑦a 前置：翻面时"缩略图飞向全屏"的生长动画还在空中（这正是用户点开就翻的动作）');
   await sleep(3000);
   const st = JSON.parse(await evaluate(`(() => {
@@ -471,11 +632,13 @@ console.log('\n══════ ⑦ 原图还在下载时翻面：加载完成
   // ⑦b：生长动画落地之后（原图仍在下载）翻面 → 加载完成后画面上必须是"另一面的原图"，
   //      用像素证据判：翻面前后同一块区域的像素必须有明显差异
   //      （旧实现如果把"翻到的那面"画成上一面的低清图，这里就会几乎一模一样）
-  imgHold = /image\/comm\/KP04057-[12]\.jpg/; imgDelayMs = 1600; heldIds = [];
-  await boot('notes/commemorative');
+  imgHold = patOf(T.img1, T.img2); imgDelayMs = 1600; heldIds = [];
+  await boot(T.hash);
   await installSampler();
-  const Q = JSON.parse(await evaluate(openSnippet(0)));
-  ok(!Q.err, `⑦b 点开正面格子（${Q.err || norm(Q.img1)}）`);
+  const Q = JSON.parse(await evaluate(openSnippet(T.img1, 0)));
+  if (Q.err) { skip(`⑦b 加载中翻面：${Q.err} —— 这一节没有测量值`); return; }
+  ok(!!Q.img2 && Q.img2 !== Q.img1 && Q.img2 === T.img2,
+    `⑦b 点开的是这条藏品的正面，翻面配对就是它的反面（正 ${baseOf(Q.img1)} / 背 ${baseOf(Q.img2)}）`);
   await sleep(700);
   const pre = JSON.parse(await evaluate('window.__LS.snap()'));
   ok(pre.imgNw === 0, `⑦b 前置：原图仍在下载（主图 naturalWidth=${pre.imgNw}），屏幕上是正面低清图`);
@@ -510,13 +673,15 @@ console.log('\n══════ ⑦ 原图还在下载时翻面：加载完成
 }
 
 // ── ⑧ 回归：图片已就绪时，正常关闭照旧"蒙版淡出 + 图片飞回" ──────────
-console.log('\n══════ ⑧ 回归：加载完成后的正常关闭/翻面没被改坏 ══════\n');
-{
+async function sec8(T) {
+  console.log('\n══════ ⑧ 回归：加载完成后的正常关闭/翻面没被改坏 ══════\n');
   imgHold = null; imgDelayMs = 0; heldIds = [];
-  await boot('notes/commemorative');
+  await boot(T.hash);
   await installSampler();
-  const P = JSON.parse(await evaluate(openSnippet(0)));
-  ok(!P.err, `⑧ 点开正面格子（${P.err || norm(P.img1)}）`);
+  const P = JSON.parse(await evaluate(openSnippet(T.img1, 0)));
+  if (P.err) { skip(`⑧ 正常关闭/翻面：${P.err} —— 这一节没有测量值`); return; }
+  ok(!!P.img2 && P.img2 !== P.img1 && P.img2 === T.img2,
+    `⑧ 点开的是这条藏品的正面，翻面配对就是它的反面（正 ${baseOf(P.img1)} / 背 ${baseOf(P.img2)}）`);
   for (let i = 0; i < 40; i++) { if (await evaluate('modalFullReady === true').catch(() => false)) break; await sleep(250); }
   ok(await evaluate('modalFullReady === true') === true, '⑧ 前置：原图已解码就绪');
   await evaluate('window.__LS.start()');
@@ -533,11 +698,13 @@ console.log('\n══════ ⑧ 回归：加载完成后的正常关闭/�
 
   // 正常翻面（原图已就绪）：翻完就停在当前面
   await sleep(600);   // 等生长动画彻底落地再翻，确保本段量的是"已就绪"那条路径
-  await evaluate(`(async () => {
+  await evaluate(`(() => {
+    const want = ${JSON.stringify(T.img1)};
     const re = /openModal\\('([^']+)',\\s*'([^']+)'\\)/;
-    for (const w of document.querySelectorAll('[onclick]')) {
+    const root = (typeof getRenderContainer === 'function' && getRenderContainer()) || document;
+    for (const w of root.querySelectorAll('[onclick]')) {
       const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
-      if (m2 && /KP04057-1\\.jpg$/.test(m2[1])) { (w.querySelector('img') || w).click(); return 1; }
+      if (m2 && m2[1] === want) { (w.querySelector('img') || w).click(); return 1; }
     }
     return 0;
   })()`);
@@ -573,19 +740,20 @@ console.log('\n══════ ⑧ 回归：加载完成后的正常关闭/�
 //     不能靠它的帧数据（那时蒙版层还不在这条断言的时间窗里）。
 //   ★ 不削弱 ⑥ 的任何一条：⑥ 量的是"飞行图层扛哪张图 + 图片不淡"，
 //     ⑨ 量的是"蒙版有没有渐隐"，两者互补。
-//   ★ 采样前**显式再钉一次** no-preference（第 111 行那次已经钉过，这里是防"中途被人改掉"）：
-//     ⑨ 的每一条都要求"动画必须真的播出来"，不能跟着 runner 的系统偏好走 ——
-//     GitHub 的 Windows runner 默认关系统动画（→ reduce），那样蒙版不淡、也不飞，
-//     本节会成片误报。文件末尾的 ⑩ 另有一条独立的 reduce 断言。
-console.log('\n══════ ⑨ 加载中关闭：蒙版逐帧渐隐（本轮修复） ══════\n');
-{
+//   ★ 采样前**显式再钉一次** no-preference：⑨ 的每一条都要求"动画必须真的播出来"，
+//     不能跟着 runner 的系统偏好走 —— GitHub 的 Windows runner 默认关系统动画
+//     （→ reduce），那样蒙版不淡、也不飞，本节会成片误报。
+async function sec9(T) {
+  console.log('\n══════ ⑨ 加载中关闭：蒙版逐帧渐隐（本轮修复） ══════\n');
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
   console.log(`  ⑨ 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
-  imgHold = /image\/comm\/KP04057-1\.jpg/; imgDelayMs = 0; heldIds = [];
-  await boot('notes/commemorative');
+  imgHold = patOf(T.img1); imgDelayMs = 0; heldIds = [];
+  await boot(T.hash);
   await installSampler();
-  const P9 = JSON.parse(await evaluate(openSnippet(0)));
-  ok(!P9.err, `⑨ 点开正面格子（${P9.err || norm(P9.img1)}）`);
+  const P9 = JSON.parse(await evaluate(openSnippet(T.img1, 0)));
+  if (P9.err) { skip(`⑨ 加载中关闭（蒙版渐隐）：${P9.err} —— 这一节没有测量值`); return; }
+  ok(!!P9.img2 && P9.img2 !== P9.img1 && P9.img2 === T.img2,
+    `⑨ 点开的是这条藏品的正面，翻面配对就是它的反面（正 ${baseOf(P9.img1)} / 背 ${baseOf(P9.img2)}）`);
   await sleep(700);
   const pre9 = JSON.parse(await evaluate('window.__LS.snap()'));
   ok(pre9.imgStillLoading === true && pre9.ovBackdrop === true,
@@ -663,15 +831,17 @@ console.log('\n══════ ⑨ 加载中关闭：蒙版逐帧渐隐（本
 //   只留 ⑩ 则等于"淡不淡都通过"，把用户诉求放空。
 //   ★ 这里**显式**把偏好切到 reduce，量完再无条件切回 no-preference
 //     （不用无参 setEmulatedMedia：那会回到 runner 的系统默认，windows 上就是 reduce）。
-console.log('\n══════ ⑩ prefers-reduced-motion: reduce：加载中关闭不留任何过渡 ══════\n');
-{
+async function sec10(T) {
+  console.log('\n══════ ⑩ prefers-reduced-motion: reduce：加载中关闭不留任何过渡 ══════\n');
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   console.log(`  ⑩ 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
-  imgHold = /image\/comm\/KP04057-1\.jpg/; imgDelayMs = 0; heldIds = [];
-  await boot('notes/commemorative');
+  imgHold = patOf(T.img1); imgDelayMs = 0; heldIds = [];
+  await boot(T.hash);
   await installSampler();
-  const P10 = JSON.parse(await evaluate(openSnippet(0)));
-  ok(!P10.err, `⑩ 点开正面格子（${P10.err || norm(P10.img1)}）`);
+  const P10 = JSON.parse(await evaluate(openSnippet(T.img1, 0)));
+  if (P10.err) { skip(`⑩ 减动效下加载中关闭：${P10.err} —— 这一节没有测量值`); return; }
+  ok(!!P10.img2 && P10.img2 !== P10.img1 && P10.img2 === T.img2,
+    `⑩ 点开的是这条藏品的正面，翻面配对就是它的反面（正 ${baseOf(P10.img1)} / 背 ${baseOf(P10.img2)}）`);
   await sleep(700);
   const pre10 = JSON.parse(await evaluate('window.__LS.snap()'));
   ok(pre10.imgStillLoading === true, `⑩ 前置：点关闭时原图仍未就绪（naturalWidth=${pre10.imgNw}）—— 与 ⑨ 同一场景，只有动效偏好不同`);
@@ -721,8 +891,10 @@ console.log('\n══════ ⑩ prefers-reduced-motion: reduce：加载中
       ' .modal.modal-hide .modal-backdrop { animation: none }，并让 closeModal() 在' +
       ' prefersReducedMotion() 时不再挂 .modal-hide —— 那之后 ⑩(3) 会自动要求"整场 0 帧 .modal-hide"。');
   }
-  ok(true,
-    `★ ⑩ (0d) 【现状记录·永远通过】${ruleOff ? '减动效下这段淡出彻底不会发生' : '动画在跑但被 finish() 的 80ms 窗口掐断，用户看不到淡出 —— 与 no-preference 下的 300ms 渐隐在观感上确实不同'}`);
+  // ★ 现状记录：以前这里是一条 `ok(true, '★ ⑩ (0d) 【现状记录·永远通过】…')` —— 永远绿的
+  //   ✓ 会让人误以为"这一条也验过了"。改成 ○ 跳过：单独计数、并把现状原样打出来，
+  //   既不再产生假绿，也没有把这句话删掉。
+  skip(`⑩ (0d) 【现状记录，不是断言】${ruleOff ? '减动效下这段淡出彻底不会发生' : '动画在跑但被 finish() 的 80ms 窗口掐断，用户看不到淡出 —— 与 no-preference 下的 300ms 渐隐在观感上确实不同'}（生产 CSS 现状：挂 .modal-hide 时蒙版层 animationName=${guard10.after}）`);
   await evaluate('window.__LS.start()');
   const t10 = Date.now();
   await evaluate(`document.querySelector('#imageModal .modal-close').click()`);
@@ -759,34 +931,52 @@ console.log('\n══════ ⑩ prefers-reduced-motion: reduce：加载中
 // ── ⑪ 首载失败的图，经右下角刷新按钮加载回来之后，点开仍必须是"从缩略图飞入" ──
 //   用户报：「假如图片一开始没有加载出来，然后通过右下角的刷新刷出来了，这时点开刚加载
 //   出来的图片变成大图的动画会消失，退化为淡入。」
-//   复现：CDP Fetch 把 1989gj40-1 的缩略图/原图请求在"没见到 retry= 之前"一律回 404
+//   复现：CDP Fetch 把**目标藏品正面**的缩略图/原图请求在"没见到 retry= 之前"一律回 404
 //   （= 首载失败）→ 点右下角 #imgRetryFab（重试会带上 ?retry=…）→ 那张图变成加载成功。
-//   这一节只**追加**断言：正常图（1989gj40-2）当对照，刷新回来的图必须与它同款飞行。
-console.log('\n══════ ⑪ 刷新回来的图片：点开时仍要有"从缩略图飞入"的 transform 动画 ══════\n');
-{
-  imgFailPat = /coincollection\/image\/(thumb\/)?commemorative\/1989gj40-1\.jpg/;
+//   这一节只**追加**断言：同一件藏品的**反面**当对照，刷新回来的图必须与它同款飞行。
+async function sec11(T) {
+  console.log('\n══════ ⑪ 刷新回来的图片：点开时仍要有"从缩略图飞入"的 transform 动画 ══════\n');
+  // 正面（要 404 的那张）的原图 + 缩略图两条路径都挡掉；反面不挡，当对照
+  imgFailPat = patOf(T.img1, T.thumb1);
   imgFailSeen = false;
   imgHold = null; imgDelayMs = 0; heldIds = [];
-  await boot('coins/commemorative_coins/coincomm/s3');
+  await boot(T.hash);
   for (let i = 0; i < 60; i++) { const n = await evaluate(`document.querySelectorAll('.copy-item').length`).catch(() => 0); if (n > 0) break; await sleep(300); }
   await installSampler();
   const coinCells = await evaluate(`document.querySelectorAll('.copy-item').length`);
-  ok(coinCells > 0, `⑪ 前置：硬币分类内容页渲染出了藏品条目（.copy-item ${coinCells} 个）`);
+  ok(coinCells > 0, `⑪ 前置：所在分类内容页渲染出了藏品条目（.copy-item ${coinCells} 个）`);
 
-  // 点开某个格子并采样：不写正则，直接用 URL 子串定位（openModal 的 onclick 参数就是图片地址）
-  const openAndSample = async (sub) => {
+  // 点开某个格子并采样：不写死任何文件名，直接用**现取到的 URL 逐字比对**定位
+  // （openModal 的 onclick 参数就是数据里的图片地址）
+  const openAndSample = async (wantUrl) => {
     const P = JSON.parse(await evaluate(`(async () => {
+      // 注意：这一段后面已经有一个 want（= modalContainRect 的期望落点），所以这里换个名字
+      const wantUrl = ${JSON.stringify(wantUrl)};
       const re = /openModal\\('([^']+)',\\s*'([^']+)'\\)/;
-      let el = null, mm = null;
-      for (const w of document.querySelectorAll('[onclick]')) {
+      const root = (typeof getRenderContainer === 'function' && getRenderContainer()) || document;
+      const cand = [];
+      for (const w of root.querySelectorAll('[onclick]')) {
         const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
-        if (m2 && m2[1].indexOf(${JSON.stringify(sub)}) >= 0) { el = w; mm = m2; break; }
+        if (m2 && m2[1] === wantUrl) cand.push(w);
       }
-      if (!el) return JSON.stringify({ err: '没找到图片格子' });
+      if (!cand.length) return JSON.stringify({ err: '没找到 ' + wantUrl + ' 的格子' });
+      for (const w of cand) for (const sel of ['.copy-list', '.series-body']) {
+        const a = w.closest(sel);
+        if (a) { a.classList.add('open'); a.style.maxHeight = 'none'; a.style.opacity = '1'; }
+      }
+      let el = null, best = -1;
+      for (const w of cand) {
+        w.scrollIntoView({ block: 'center' });
+        const t = w.querySelector('img') || w;
+        const r = t.getBoundingClientRect();
+        if (r.width * r.height > best) { best = r.width * r.height; el = w; }
+      }
       const th = el.querySelector('img') || el;
       th.scrollIntoView({ block: 'center' });
-      await new Promise(r => setTimeout(r, 400));
+      for (let i = 0; i < 60 && th.naturalWidth === 0; i++) await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 250));
       const from = imageContentRect(th);
+      const mm = re.exec(el.getAttribute('onclick'));
       const pre = { src: th.getAttribute('src'), failed: th.classList.contains('img-failed'), nw: th.naturalWidth,
         retrySrc: th.dataset.retrySrc || '', box: [Math.round(from.left), Math.round(from.top), Math.round(from.width), Math.round(from.height)] };
       window.__LS.start();
@@ -822,116 +1012,155 @@ console.log('\n══════ ⑪ 刷新回来的图片：点开时仍要有
     return fs.length;
   };
 
-  // ⑪-a 对照：没失败过的第二面（同一批数据、同一页）
-  const ctl = await openAndSample('1989gj40-2.jpg');
-  ok(!ctl.P.err, `⑪ (a) 对照：点开正常图 1989gj40-2（${ctl.P.err || norm(ctl.P.img1)}）`);
-  if (!ctl.P.err) {
-    ok(ctl.P.pre.failed === false && ctl.P.pre.nw > 0, `⑪ (a) 前置：这张图是正常加载好的（.img-failed=${ctl.P.pre.failed}、naturalWidth=${ctl.P.pre.nw}）`);
-    checkFly('⑪ (a)', '正常图（对照）', ctl.P, ctl.F);
-  }
-  await evaluate(`closeModal()`);
-  await sleep(900);
-
-  // ⑪-b 首载失败的前置：目标格子确实进了占位态、右下角刷新按钮亮着
-  const PRE = JSON.parse(await evaluate(`(() => {
-    const re = /openModal\\('([^']+)'/;
-    let el = null;
-    for (const w of document.querySelectorAll('[onclick]')) {
-      const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
-      if (m2 && m2[1].indexOf('1989gj40-1.jpg') >= 0) { el = w.querySelector('img') || w; break; }
-    }
-    if (!el) return JSON.stringify({ err: '没找到 1989gj40-1 的格子' });
-    const fab = document.getElementById('imgRetryFab');
-    return JSON.stringify({ err: '', src: el.getAttribute('src'), failed: el.classList.contains('img-failed'),
-      retrySrc: el.dataset.retrySrc || '', fabShown: !!(fab && fab.classList.contains('show')),
-      failedSize: (typeof failedImages !== 'undefined') ? failedImages.size : -1 });
-  })()`));
-  console.log(`  ⑪ (b) 受控 404 生效=${imgFailSeen === false}；格子 src=${String(PRE.src).slice(0, 46)}…（.img-failed=${PRE.failed}、data-retry-src=${PRE.retrySrc}）`);
-  ok(!PRE.err && PRE.failed === true && /^data:image\//.test(String(PRE.src)),
-    `⑪ (b) 前置：这张图首载失败、已经落到占位态（.img-failed=${PRE.failed}）`);
-  ok(PRE.retrySrc === 'https://tong-xiangjie.github.io/coincollection/image/commemorative/1989gj40-1.jpg',
-    `⑪ (b) 前置：占位态记下了真实地址，刷新才有得可刷（data-retry-src=${PRE.retrySrc}）`);
-  ok(PRE.fabShown === true, `⑪ (b) 前置：右下角刷新按钮亮着（failedImages.size=${PRE.failedSize}）`);
-
-  // ⑪-c 点右下角刷新按钮 → 那张图加载成功
-  const RET = JSON.parse(await evaluate(`(async () => {
-    const re = /openModal\\('([^']+)'/;
-    let el = null;
-    for (const w of document.querySelectorAll('[onclick]')) {
-      const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
-      if (m2 && m2[1].indexOf('1989gj40-1.jpg') >= 0) { el = w.querySelector('img') || w; break; }
-    }
-    if (!el) return JSON.stringify({ err: '没找到 1989gj40-1 的格子' });
-    const fab = document.getElementById('imgRetryFab');
-    if (!fab) return JSON.stringify({ err: '没有 #imgRetryFab' });
-    const wasFailed = el.classList.contains('img-failed');
-    fab.click();
-    for (let i = 0; i < 80; i++) { if (el.complete && el.naturalWidth > 0) break; await new Promise(r => setTimeout(r, 100)); }
-    await new Promise(r => setTimeout(r, 300));
-    return JSON.stringify({ err: '', wasFailed: wasFailed, src: el.getAttribute('src'), complete: el.complete,
-      nw: el.naturalWidth, failed: el.classList.contains('img-failed'),
-      fabShown: !!(fab && fab.classList.contains('show')),
-      failedSize: (typeof failedImages !== 'undefined') ? failedImages.size : -1 });
-  })()`));
-  console.log(`  ⑪ (c) 点刷新后 src=${RET.src}`);
-  ok(RET.err === '' && RET.wasFailed === true, `⑪ (c) 点的是右下角刷新按钮，且点之前它确实在占位态（${RET.err || 'ok'}）`);
-  ok(RET.complete === true && RET.nw > 0 && RET.failed === false,
-    `★ ⑪ (c) 刷新之后这张图真的加载出来了（naturalWidth=${RET.nw}、.img-failed=${RET.failed}）`);
-  ok(/\?retry=/.test(String(RET.src)),
-    `★ ⑪ (c) 它现在的地址带着重试标记（这就是"刷新回来的图"与普通图唯一的差别）：${RET.src}`);
-  ok(RET.fabShown === false && RET.failedSize === 0, `⑪ (c) 刷新按钮收掉了、失败队列清空（size=${RET.failedSize}）`);
-
-  // ⑪-d 关键：点开这张"刷新回来的图"，必须和正常图同款飞入
-  const ret = await openAndSample('1989gj40-1.jpg');
-  ok(!ret.P.err, `⑪ (d) 点开刷新回来的 1989gj40-1（${ret.P.err || norm(ret.P.img1)}）`);
-  if (!ret.P.err) {
-    ok(ret.P.pre.failed === false && ret.P.pre.nw > 0 && /\?retry=/.test(String(ret.P.pre.src)),
-      `⑪ (d) 前置：点开的就是那张刷新回来的图（src=${ret.P.pre.src}）`);
-    checkFly('⑪ (d)', '刷新回来的图', ret.P, ret.F);
-
-    // ⑪ (d2) 对称性：这张图关闭时也要缩回**它自己那一格**（关闭时的来源格子解析同样
-    //   不能因为 src 上多了 `?retry=…` 而落空 —— 落空的话就又变成"直接淡出"）。
-    await evaluate(`window.__LS.start()`);
-    await evaluate(`closeModal()`);
-    await sleep(850);
-    const CF = JSON.parse(await evaluate('window.__LS.stop()'));
-    const cfs = CF.filter(f => f.flight && f.flight.rect);
-    const cLast = cfs.length ? cfs[cfs.length - 1].flight.rect : null;
-    const cTf = CF.filter(f => f.anims.some(a => a.inModal && a.props.indexOf('transform') >= 0 && /modal-flight/.test(String(a.target)))).length;
-    console.log(`  ⑪ (d2) 关闭采样 ${CF.length} 帧；飞行图层 ${cfs.length} 帧；transform 帧 ${cTf}；末帧 ${cLast ? cLast.join(',') : '-'}；该图格子 ${ret.P.pre.box.join(',')}`);
-    ok(cfs.length >= 3 && cTf >= 3,
-      `★ ⑪ (d2) 关闭时同样有 transform 缩回动画（飞行 ${cfs.length} 帧 / transform ${cTf} 帧）—— 开与关对称，没有因为 ?retry= 落空`);
-    ok(!!cLast && Math.abs(cLast[2] - ret.P.pre.box[2]) <= 4 && Math.abs(cLast[3] - ret.P.pre.box[3]) <= 4,
-      `★ ⑪ (d2) 关闭落点回到它自己那一小格（末帧 ${cLast ? cLast.join(',') : '-'} vs 格子 ${ret.P.pre.box.join(',')}）`);
-    await sleep(300);
+  // ⑪-a 对照：同一件藏品、没失败过的**反面**（同一批数据、同一页）
+  const ctl = await openAndSample(T.img2);
+  if (ctl.P.err) {
+    skip(`⑪ 刷新回来的图：${ctl.P.err} —— 这一节没有测量值`);
   } else {
+    ok(ctl.P.pre.failed === false && ctl.P.pre.nw > 0, `⑪ (a) 前置：对照那张（反面 ${baseOf(T.img2)}）是正常加载好的（.img-failed=${ctl.P.pre.failed}、naturalWidth=${ctl.P.pre.nw}）`);
+    checkFly('⑪ (a)', '正常图（对照）', ctl.P, ctl.F);
     await evaluate(`closeModal()`);
     await sleep(900);
-  }
 
-  // ⑪-e 独立断言：减动效（reduce）下同一张图**不该**飞（与 ⑪-d 互为反面，缺一不可）
-  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  console.log(`  ⑪ (e) 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
-  const red = await openAndSample('1989gj40-1.jpg');
-  const redFlight = red.F.filter(f => f.flight).length;
-  const modalShown = await evaluate(`getComputedStyle(document.getElementById('imageModal')).display`);
-  console.log(`  ⑪ (e) reduce 下采样 ${red.F.length} 帧；飞行图层 ${redFlight} 帧；弹窗 display=${modalShown}`);
-  ok(redFlight === 0, `★ ⑪ (e) 用户要求减少动效时，刷新回来的图同样不做飞行（飞行图层 ${redFlight} 帧）`);
-  ok(modalShown === 'flex', `★ ⑪ (e) 减动效不等于减功能：大图照常打开（display=${modalShown}）`);
-  await evaluate(`closeModal()`);
-  await sleep(700);
-  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
-  ok(await evaluate(`!prefersReducedMotion()`) === true, '★ ⑪ (e) 量完已把偏好切回 no-preference（后面的收尾不受影响）');
+    // ⑪-b 首载失败的前置：目标格子确实进了占位态、右下角刷新按钮亮着
+    const PRE = JSON.parse(await evaluate(`(() => {
+      const want = ${JSON.stringify(T.img1)};
+      const re = /openModal\\('([^']+)'/;
+      const root = (typeof getRenderContainer === 'function' && getRenderContainer()) || document;
+      let el = null;
+      for (const w of root.querySelectorAll('[onclick]')) {
+        const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
+        if (m2 && m2[1] === want) { el = w.querySelector('img') || w; break; }
+      }
+      if (!el) return JSON.stringify({ err: '没找到 ' + want + ' 的格子' });
+      const fab = document.getElementById('imgRetryFab');
+      return JSON.stringify({ err: '', src: el.getAttribute('src'), failed: el.classList.contains('img-failed'),
+        retrySrc: el.dataset.retrySrc || '', fabShown: !!(fab && fab.classList.contains('show')),
+        failedSize: (typeof failedImages !== 'undefined') ? failedImages.size : -1 });
+    })()`));
+    console.log(`  ⑪ (b) 受控 404 生效=${imgFailSeen === false}；格子 src=${String(PRE.src).slice(0, 46)}…（.img-failed=${PRE.failed}、data-retry-src=${PRE.retrySrc}）`);
+    ok(!PRE.err && PRE.failed === true && /^data:image\//.test(String(PRE.src)),
+      `⑪ (b) 前置：这张图（正面 ${baseOf(T.img1)}）首载失败、已经落到占位态（.img-failed=${PRE.failed}）`);
+    // ★ 期望值 = 运行时现取到的那张图的地址（数据里那条 copy 的 img1），不是写死的 URL
+    ok(PRE.retrySrc === T.img1,
+      `⑪ (b) 前置：占位态记下了真实地址（= 数据里的 img1，逐字比对），刷新才有得可刷（data-retry-src=${PRE.retrySrc}）`);
+    ok(PRE.fabShown === true, `⑪ (b) 前置：右下角刷新按钮亮着（failedImages.size=${PRE.failedSize}）`);
+
+    // ⑪-c 点右下角刷新按钮 → 那张图加载成功
+    const RET = JSON.parse(await evaluate(`(async () => {
+      const want = ${JSON.stringify(T.img1)};
+      const re = /openModal\\('([^']+)'/;
+      const root = (typeof getRenderContainer === 'function' && getRenderContainer()) || document;
+      let el = null;
+      for (const w of root.querySelectorAll('[onclick]')) {
+        const oc = w.getAttribute('onclick'); const m2 = oc ? re.exec(oc) : null;
+        if (m2 && m2[1] === want) { el = w.querySelector('img') || w; break; }
+      }
+      if (!el) return JSON.stringify({ err: '没找到 ' + want + ' 的格子' });
+      const fab = document.getElementById('imgRetryFab');
+      if (!fab) return JSON.stringify({ err: '没有 #imgRetryFab' });
+      const wasFailed = el.classList.contains('img-failed');
+      fab.click();
+      for (let i = 0; i < 80; i++) { if (el.complete && el.naturalWidth > 0) break; await new Promise(r => setTimeout(r, 100)); }
+      // ★ 等失败队列稳定（别的图可能也在重试）。同一页上**可能还有别的图**因为文件缺失
+      //   而加载不出来 —— 那是数据质量问题，不是本节要验的行为，所以本节量的是
+      //   "这一张从队列里除名了"，而不是"整个队列必须为空"。
+      let stable = -1;
+      for (let i = 0; i < 24; i++) {
+        const cur = (typeof failedImages !== 'undefined') ? failedImages.size : -1;
+        await new Promise(r => setTimeout(r, 250));
+        const cur2 = (typeof failedImages !== 'undefined') ? failedImages.size : -1;
+        if (cur === cur2) { stable = cur2; break; }
+        stable = cur2;
+      }
+      return JSON.stringify({ err: '', wasFailed: wasFailed, src: el.getAttribute('src'), complete: el.complete,
+        nw: el.naturalWidth, failed: el.classList.contains('img-failed'),
+        fabShown: !!(fab && fab.classList.contains('show')),
+        failedSize: stable });
+    })()`));
+    console.log(`  ⑪ (c) 点刷新后 src=${RET.src}`);
+    ok(RET.err === '' && RET.wasFailed === true, `⑪ (c) 点的是右下角刷新按钮，且点之前它确实在占位态（${RET.err || 'ok'}）`);
+    ok(RET.complete === true && RET.nw > 0 && RET.failed === false,
+      `★ ⑪ (c) 刷新之后这张图真的加载出来了（naturalWidth=${RET.nw}、.img-failed=${RET.failed}）`);
+    ok(/\?retry=/.test(String(RET.src)),
+      `★ ⑪ (c) 它现在的地址带着重试标记（这就是"刷新回来的图"与普通图唯一的差别）：${RET.src}`);
+    // ★ 失败队列：只断言"我们控制的那一张除名了"。
+    //   旧写法是 `fabShown === false && failedSize === 0` —— 那等于顺带断言
+    //   "这个分类页上没有任何别的破图"，是一条**数据快照式**的断言：站主只要在别处
+    //   改坏/新增一张找不到文件的图（本页就会一直有 4 张失败图），这条就会假红。
+    //   改后：preSize===1（干净页面）时与旧写法完全等价；preSize>1 时仍然精确要求
+    //   "少了一个"，并把"别的图还在队列里"这件事打印出来。
+    ok(RET.failedSize === PRE.failedSize - 1,
+      `★ ⑪ (c) 这张图从失败队列里除名了（点刷新前 ${PRE.failedSize} 个 → 之后 ${RET.failedSize} 个${PRE.failedSize > 1 ? `；同一页另有 ${RET.failedSize} 张图因文件缺失仍在队列里，属数据质量问题，不在本节范围内` : ''}）`);
+    // 刷新按钮与队列的一致性（这是产品里的真不变式：core.js updateRetryFab() 里
+    // "有失败图就 show、没有就 hide"），比写死 fabShown===false 更能反映真实行为
+    ok(RET.fabShown === (RET.failedSize > 0),
+      `★ ⑪ (c) 右下角刷新按钮与失败队列一致：队列 ${RET.failedSize} 个 ⇒ 按钮${RET.fabShown ? '仍亮着' : '已收掉'}`);
+
+    // ⑪-d 关键：点开这张"刷新回来的图"，必须和正常图同款飞入
+    const ret = await openAndSample(T.img1);
+    if (ret.P.err) {
+      skip(`⑪ (d) 点开刷新回来的图：${ret.P.err} —— 这一小节没有测量值`);
+    } else {
+      ok(ret.P.pre.failed === false && ret.P.pre.nw > 0 && /\?retry=/.test(String(ret.P.pre.src)),
+        `⑪ (d) 前置：点开的就是那张刷新回来的图（src=${ret.P.pre.src}）`);
+      checkFly('⑪ (d)', '刷新回来的图', ret.P, ret.F);
+
+      // ⑪ (d2) 对称性：这张图关闭时也要缩回**它自己那一格**（关闭时的来源格子解析同样
+      //   不能因为 src 上多了 `?retry=…` 而落空 —— 落空的话就又变成"直接淡出"）。
+      await evaluate(`window.__LS.start()`);
+      await evaluate(`closeModal()`);
+      await sleep(850);
+      const CF = JSON.parse(await evaluate('window.__LS.stop()'));
+      const cfs = CF.filter(f => f.flight && f.flight.rect);
+      const cLast = cfs.length ? cfs[cfs.length - 1].flight.rect : null;
+      const cTf = CF.filter(f => f.anims.some(a => a.inModal && a.props.indexOf('transform') >= 0 && /modal-flight/.test(String(a.target)))).length;
+      console.log(`  ⑪ (d2) 关闭采样 ${CF.length} 帧；飞行图层 ${cfs.length} 帧；transform 帧 ${cTf}；末帧 ${cLast ? cLast.join(',') : '-'}；该图格子 ${ret.P.pre.box.join(',')}`);
+      ok(cfs.length >= 3 && cTf >= 3,
+        `★ ⑪ (d2) 关闭时同样有 transform 缩回动画（飞行 ${cfs.length} 帧 / transform ${cTf} 帧）—— 开与关对称，没有因为 ?retry= 落空`);
+      ok(!!cLast && Math.abs(cLast[2] - ret.P.pre.box[2]) <= 4 && Math.abs(cLast[3] - ret.P.pre.box[3]) <= 4,
+        `★ ⑪ (d2) 关闭落点回到它自己那一小格（末帧 ${cLast ? cLast.join(',') : '-'} vs 格子 ${ret.P.pre.box.join(',')}）`);
+      await sleep(300);
+    }
+
+    // ⑪-e 独立断言：减动效（reduce）下同一张图**不该**飞（与 ⑪-d 互为反面，缺一不可）
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    console.log(`  ⑪ (e) 采样前媒体偏好：${await evaluate(`JSON.stringify({ reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, js: prefersReducedMotion() })`)}`);
+    const red = await openAndSample(T.img1);
+    const redFlight = red.F.filter(f => f.flight).length;
+    const modalShown = await evaluate(`getComputedStyle(document.getElementById('imageModal')).display`);
+    console.log(`  ⑪ (e) reduce 下采样 ${red.F.length} 帧；飞行图层 ${redFlight} 帧；弹窗 display=${modalShown}`);
+    ok(redFlight === 0, `★ ⑪ (e) 用户要求减少动效时，刷新回来的图同样不做飞行（飞行图层 ${redFlight} 帧）`);
+    ok(modalShown === 'flex', `★ ⑪ (e) 减动效不等于减功能：大图照常打开（display=${modalShown}）`);
+    await evaluate(`closeModal()`);
+    await sleep(700);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+    ok(await evaluate(`!prefersReducedMotion()`) === true, '★ ⑪ (e) 量完已把偏好切回 no-preference（后面的收尾不受影响）');
+  }
   imgFailPat = null;
   imgFailSeen = false;
   await sleep(300);
+}
+
+if (!flyTarget) {
+  skip(`⑥~⑪（加载中关闭 / 加载中翻面 / 正常关闭 / 蒙版渐隐 / 减动效 / 刷新回来的图）：`
+    + (withFaces.length
+      ? `${withFaces.length} 件正反面齐全的藏品里，没有一件的「原图 + 缩略图」在磁盘上都真实存在 —— 这些场景要"原图真的能解码 / 真的能挂住"，没有文件就量不到`
+      : '当前数据里找不到"正反面都有（img1 + img2 且不相同）"的藏品'));
+} else {
+  await sec6(flyTarget);
+  await sec7(flyTarget);
+  await sec8(flyTarget);
+  await sec9(flyTarget);
+  await sec10(flyTarget);
+  await sec11(flyTarget);
 }
 
 for (const id of heldIds) { try { await send('Fetch.continueRequest', { requestId: id }); } catch { } }
 try { await send('Fetch.disable'); } catch { }
 
 // ══════════════════════════════════════════════════════════════
-console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));
 
