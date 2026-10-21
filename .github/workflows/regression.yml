@@ -26,13 +26,22 @@
 name: 回归用例
 
 on:
-  # ★ 2026-10-15 已恢复 push 自动触发。此前的失败邮件根因都已修掉：
+  # ★★ 2026-10-21 起**关闭 push 自动触发**（用户决定）：
+  #   每次 push 到 main 都会自动跑一轮双平台回归，一旦有红就发 GitHub 失败邮件；
+  #   用户明确要求"把会发邮件的那个功能关掉"，所以改成**只手动触发**。
+  #   ⇒ 想跑：仓库 → Actions → 左侧「回归用例」→ Run workflow（workflow_dispatch）。
+  #   ⇒ 想恢复自动：把下面两行加回来即可
+  #        push:
+  #          branches: [main]
+  #
+  #   ★ 历史教训仍然有效（将来手动跑或重新打开自动跑时先看这三类"本地全绿、CI 全红"：
+  #     都与环境有关，不是产品坏了）：
   #   · CI 上 Chrome 报 prefers-reduced-motion: reduce，而用例断言"动画应该播" → 用例启动时钉死 no-preference
   #   · 断言里写死机器相关的量：窗口尺寸(14)、采样帧数(20)、按字体宽度写死的 px 阈值 → 改成按视口/相对判据
   #   · verify-sw-cache：测试服务器给 sw.js 也发了 max-age=600，导致 SW 更新被 HTTP 缓存挡住 → 只对 sw.js 发 no-cache
-  #   若将来再出现"本地全绿、CI 全红"，先按上面三类找（都与环境有关，不是产品坏了）。
-  push:
-    branches: [main]
+  #   · 2026-10-21 追加：verify-ocrb-init 的两条"反向验证"（验证"退回旧实现确实会跳"）在 windows runner
+  #     上会因字体加载时序不同而红 —— 站点本身没问题，是这类"反向验证"断言依赖环境时序。
+  #
   # 允许在 Actions 页面手动触发（改完用例想立刻验证时很有用）
   workflow_dispatch:
 
