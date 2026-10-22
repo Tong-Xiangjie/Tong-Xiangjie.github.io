@@ -1,12 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- 设置里"还没添加自定义颜色"：一块调色盘 -->
-  <g fill="none" stroke="#000000" stroke-width="12" stroke-linejoin="round">
-    <circle cx="100" cy="100" r="64"/>
+  <!-- 调色盘主体与颜料槽 -->
+  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 调色盘外轮廓 -->
+    <path d="M 38 112
+             C 32 78 56 44 96 36
+             C 134 28 166 48 170 84
+             C 174 118 150 150 114 160
+             C 78 170 44 148 38 112 Z"
+          stroke-width="10"/>
+
+    <!-- 拇指孔 -->
+    <ellipse cx="88" cy="122" rx="16" ry="20" stroke-width="8"/>
+
+    <!-- 颜料槽 -->
+    <circle cx="72" cy="72" r="10" stroke-width="5"/>
+    <circle cx="104" cy="60" r="10" stroke-width="5"/>
+    <circle cx="136" cy="70" r="10" stroke-width="5"/>
+    <circle cx="154" cy="98" r="9" stroke-width="5"/>
+    <circle cx="140" cy="126" r="9" stroke-width="5"/>
   </g>
+
+  <!-- 部分颜料槽内保留少量黑色颜料点 -->
   <g fill="#000000">
-    <circle cx="78" cy="80" r="9"/>
-    <circle cx="122" cy="80" r="9"/>
-    <circle cx="78" cy="122" r="9"/>
-    <circle cx="122" cy="122" r="9"/>
+    <circle cx="72" cy="72" r="4"/>
+    <circle cx="104" cy="60" r="4"/>
+    <circle cx="136" cy="70" r="4"/>
+  </g>
+
+  <!-- 底部画笔 -->
+  <g fill="none" stroke="#000000" stroke-width="5"
+     stroke-linecap="round" stroke-linejoin="round">
+    <line x1="52" y1="176" x2="148" y2="176"/>
+    <line x1="52" y1="186" x2="148" y2="186"/>
+    <polyline points="52,176 34,181 52,186"/>
+    <line x1="148" y1="176" x2="158" y2="181"/>
+    <line x1="148" y1="186" x2="158" y2="181"/>
+  </g>
+
+  <!-- 少量星点与点缀 -->
+  <g fill="#000000">
+    <circle cx="30" cy="58" r="3"/>
+    <circle cx="178" cy="56" r="3"/>
+    <circle cx="166" cy="150" r="3"/>
+    <circle cx="26" cy="150" r="2.5"/>
+  </g>
+
+  <g fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round">
+    <path d="M 28 82 L 22 76 M 28 82 L 34 76 M 28 82 L 22 88 M 28 82 L 34 88"/>
+    <path d="M 184 120 L 178 114 M 184 120 L 190 114 M 184 120 L 178 126 M 184 120 L 190 126"/>
   </g>
 </svg>

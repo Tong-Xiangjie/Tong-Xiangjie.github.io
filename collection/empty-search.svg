@@ -1,11 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- 搜索无结果：放大镜里照出一枚古钱币 -->
+  <!-- 搜索无结果：放大镜里照出网站标志（古钱币） -->
   <g fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="88" cy="84" r="50"/>
     <line x1="124" y1="120" x2="164" y2="160"/>
   </g>
-  <g fill="none" stroke="#000000" stroke-width="5" stroke-linejoin="round">
-    <circle cx="88" cy="84" r="24"/>
-    <rect x="78" y="74" width="20" height="20" rx="2"/>
+
+  <!-- 标志：方孔圆钱 —— 外郭 + 内郭 + 方孔 + 铭文「銅の幣紀」
+       原图以 (100,100) 为圆心、外缘半径 90；
+       平移至放大镜圆心 (88,84) 并缩放 0.42 → 外缘半径约 37.8 -->
+  <g transform="translate(46 42) scale(0.42)">
+    <g fill="none" stroke="#000000" stroke-linejoin="round">
+      <circle cx="100" cy="100" r="84" stroke-width="12"/>
+      <circle cx="100" cy="100" r="66" stroke-width="5"/>
+      <rect x="74" y="74" width="52" height="52" rx="2" stroke-width="12"/>
+    </g>
+
+    <g fill="#000000"
+       font-family="'Source Han Sans SC','Noto Sans CJK SC','Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif"
+       font-weight="900" font-size="26" text-anchor="middle" dominant-baseline="central">
+      <text x="100" y="52">銅</text>
+      <text x="100" y="148">の</text>
+      <text x="148" y="100">幣</text>
+      <text x="52" y="100">紀</text>
+    </g>
   </g>
 </svg>
