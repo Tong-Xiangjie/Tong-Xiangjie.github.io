@@ -113,6 +113,7 @@ const shanheScenes = [
 
     // ===== 上海 =====
     { province: 'shanghai',  city: '黄浦区', scene: '上海中国银行总行大厦', denom: '中国银行法币10元', year: 1937, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zgyhdl-1937-10.jpg' },
+    { province: 'shanghai',  city: '嘉定区', scene: '上海汽车制造厂', denom: '国库券5元', year: 1989, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/shqcc-5.jpg', remark: "安亭镇位于嘉定区西部，和江苏昆山花桥交界。这里也是上海国际汽车城所在地，上汽大众（原上海大众）的重要汽车制造基地就设在安亭，所以常被称为“安亭基地”。"},
     
     // ===== 香港 =====
     { province: 'xianggang', city: '南区', scene: '浅水湾', denom: '中国银行港币20元', year: 2010, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hkboc-qsw-20.jpg' },
@@ -128,7 +129,10 @@ const shanheScenes = [
     
     // ===== 浙江 =====
     { province: 'zhejiang',  city: '杭州（浙A）', scene: '西湖-三潭印月', denom: '外汇兑换券1元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-fec1.jpg' },
-    { province: 'zhejiang',  city: '杭州（浙A）', scene: '西湖-三潭印月', denom: '第五套人民币1元', year: "1999/2019", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-191.jpg' }
+    { province: 'zhejiang',  city: '杭州（浙A）', scene: '西湖-三潭印月', denom: '第五套人民币1元', year: "1999/2019", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-191.jpg' },
+    { province: 'zhejiang',  city: '舟山（浙L）', scene: '普陀山法雨寺钟楼', denom: '中国农民银行法币1元', year: 1941, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/fyszl-fbc-411.jpg' }
+    
+
 ];
 
 // 省份拼音 → 中文简称（地图标注用）
