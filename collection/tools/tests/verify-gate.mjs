@@ -1449,7 +1449,7 @@ try {
         const d2 = await submitValue(TEST_TOKEN, 800);
         ok(d2.length === 0, `★ [对口径] 正确口令**不弹**任何对话框（实际 ${d2.length} 个）`);
         const released = await waitFor(`document.documentElement.classList.contains('gate-ok')`, 9000);
-        ok(released, '★ [对口径] 提交正确口令 ⇒ 自动重新加载后放行（location.replace 掉的还是同一个地址）');
+        ok(released, '★ [对口径] 提交正确口令 ⇒ 自动重新加载后放行（先 location.reload()；旧实现"replace 同一个地址"可能根本不重载）');
         await sleep(1500);
         const okRun = await probe();
         ok(okRun.gateOk && okRun.mark === SERVE_MARK,
@@ -1467,8 +1467,23 @@ try {
         ok(ctCount === 1, `★ 恒定时间比较函数只有一份实现（ctEqual 定义 ${ctCount} 次）—— 链接与输入框共用`);
         ok(!/SUBMIT_JS/.test(impl) && !/function ct\(a,b\)/.test(impl),
             '★ 被拒文档里**不再内联任何脚本**（第二份哈希/比较实现已经删掉，写进去的文档零 <script>）');
-        ok(/function verifyToken\(candidate, subtleApi, cb\)/.test(impl) && /verifyToken\(token, subtle, /.test(impl) && /verifyToken\(inp\.value, subtle, /.test(impl),
-            '★ 链接路径与输入框路径都调用同一个 verifyToken()');
+        const verifyCalls = (impl.match(/verifyToken\(\s*[A-Za-z_$][\w$]*\s*,\s*subtle\s*,/g) || []).length;
+        ok(/function verifyToken\(candidate, subtleApi, cb\)/.test(impl) && /verifyToken\(token, subtle, /.test(impl) && verifyCalls === 2,
+            `★ 链接路径与输入框路径都调用同一个 verifyToken()（调用点 ${verifyCalls} 个：链接 1 + 表单 1；实现只有一份）`);
+        // ③b 解锁之后**必须真的离开这一页**。
+        // 用户实测（2026-10）：「输入正确密钥按回车、或点『验证』都没反应，但其实已经开锁」——
+        // 旧实现是 location.replace(当前**完全相同**的 URL)：标记写好了（所以确实放行），
+        // 但同 URL 导航可能被当成同文档导航、根本不重新加载 ⇒ 屏幕还停在被拒页 ⇒ 像"没反应"。
+        // ⚠ 注意：上面那条 `waitFor(gate-ok)` **抓不到**这个 bug —— allow() 在**被拒页里**
+        //   就会加上 gate-ok，所以"根本没重新加载"它也照样绿（这就是它能溜过去的原因）。
+        //   因此这里改成钉"离开方式"的静态守门 + 下面"真的换了文档"的行为守门。
+        const unlockPath = impl.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+        ok(/location\.reload\(\)/.test(unlockPath) && /encodeURIComponent\(token\)/.test(unlockPath),
+            '★ 解锁后的离开方式：先 location.reload()，再退到 ?k=<口令> 导航（两条都不依赖"同 URL 导航会重载"这个假设）');
+        ok(!/location\.replace\(location\.pathname \+ location\.search \+ location\.hash\)/.test(unlockPath),
+            '★ 回归守门：旧的 `location.replace(当前完全相同的 URL)` 已经不在了（它就是"回车/点验证没反应"的根因）');
+        ok(/setTimeout\([\s\S]{0,90}location\.replace\(tokenUrl\)/.test(unlockPath) && /ENTER_TEXT/.test(unlockPath),
+            '★ 兜底入口在（定时器里换成 ?k 导航；再不行给出「点这里进入」链接，用户点击发起的导航必成）');
         ok(/function wrAlert\(\) \{ window\.alert\(WRONG_TEXT\)/.test(impl) && !/\.gate-denied-error/.test(impl.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')),
             '★ 错误提示只有 alert() 这一条路，源码里（去掉注释后）没有任何 .gate-denied-error 残留');
         ok(impl.includes("placeholder=\"' + INPUT_PLACEHOLDER + '\"") || /placeholder="' \+ INPUT_PLACEHOLDER/.test(impl),

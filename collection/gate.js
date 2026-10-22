@@ -65,6 +65,13 @@
     var SUBMIT_TEXT = '验证';
     // 占位提示（逐字，六个汉字）：只说"做什么"，不含长度/格式/示例 —— 不能透露口令的形态。
     var INPUT_PLACEHOLDER = '请输入通行密钥';
+    // 解锁成功那一刻的反馈文案（只在"正临走"的这一页上短暂出现）。
+    // 为什么必须有：用户实测「输入正确密钥按回车 / 点验证都没反应，其实已经开锁」
+    // —— 根因是解锁后没能真的重新加载（见 enterAfterUnlock），屏幕上毫无变化，
+    //   于是看起来像"没反应"。有这行字，至少能区分"在处理"和"没收到"。
+    var UNLOCK_TEXT = '已解锁，正在进入…';
+    var UNLOCK_SLOW_TEXT = '已解锁，但这一页没能自动跳转 ——';
+    var ENTER_TEXT = '点这里进入';
     // ── 明暗：必须与**站点主题同一套语义** ─────────────────────────────────
     // ★ 下面这两个字面量必须与 collection/theme.js:58-59 的
     //   COLOR_SCHEME_KEY / COLOR_SCHEME_MODES **完全一致**
@@ -179,7 +186,14 @@
         'border:1px solid var(--gate-btn-bg);background:var(--gate-btn-bg);color:var(--gate-btn-fg);cursor:pointer;}',
         // 注意：这里**没有** .gate-denied-error 之类的错误文本样式 —— 错误提示走 alert()。
         // [hidden] 只留给"拿不到 crypto.subtle 就把整个表单藏起来"那条路。
-        '.gate-denied-box [hidden]{display:none !important;}'
+        '.gate-denied-box [hidden]{display:none !important;}',
+        // ★ 解锁成功后的"正在进入…"与兜底入口（见 enterAfterUnlock）。
+        //   只在这一页"临走前"出现 ⇒ 不属于"失败尝试零位移"那条约束
+        //   （零位移只管**输错口令**那条路径：那里仍然一个文本节点都不加）。
+        '.gate-denied-box .gate-denied-status{margin:.9rem 0 0;font-size:.9rem;opacity:.85;}',
+        '.gate-denied-box .gate-denied-enter{display:inline-block;margin:.7rem 0 0;padding:.3rem .9rem;',
+        'border-radius:.375rem;border:1px solid var(--gate-btn-bg);background:var(--gate-btn-bg);',
+        'color:var(--gate-btn-fg);text-decoration:none;font-size:.9rem;}'
     ].join('');
 
     var DENIED_INNER = '<img class="gate-denied-icon" src="' + ICON_SRC + '" alt="" aria-hidden="true">'
@@ -363,23 +377,92 @@
             return;
         }
         var busy = false;
-        f.addEventListener('submit', function (ev) {
-            ev.preventDefault();
+        // ★ 看门狗：verifyToken 的 promise 正常必有回调，但"文档被换过 / 上下文被中断"
+        //   这类场合可能既不 resolve 也不 reject ⇒ busy 会永久停在 true ⇒ 之后**每一次**
+        //   提交都被上面的 `if (busy) return;` 静默吞掉（用户实测"按回车/点验证没反应"）。
+        //   3 秒兜底释放，绝不长期闩死；正常路径上 release() 会立刻把它清掉。
+        var busyTimer = 0;
+        var release = function () {
+            busy = false;
+            if (busyTimer) { clearTimeout(busyTimer); busyTimer = 0; }
+        };
+        var submitOnce = function (ev) {
+            if (ev) ev.preventDefault();
             if (busy) return;
             if (!inp.value) return;
             busy = true;
-            verifyToken(inp.value, subtle, function (mark) {
-                busy = false;
+            busyTimer = setTimeout(release, 3000);
+            var typed = inp.value;
+            verifyToken(typed, subtle, function (mark) {
+                release();
                 if (!mark) {
                     inp.select();
                     try { wrAlert(); } catch (e) { }
                     return;
                 }
                 allow(mark);
-                var cleanUrl = location.pathname + location.search + location.hash;
-                try { location.replace(cleanUrl); } catch (e2) { location.reload(); }
+                enterAfterUnlock(typed);
             });
+        };
+        f.addEventListener('submit', function (ev) { submitOnce(ev); });
+        // ★ 再显式绑一次 Enter：表单的隐式提交在个别状态下不触发（焦点在按钮上、
+        //   文档是 document.write 出来的、或浏览器把 Enter 交给了别的默认行为）。
+        //   requestSubmit() 走的还是同一条 submit 事件路径 ⇒ 校验逻辑只有一份。
+        inp.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Enter' || ev.isComposing) return;
+            ev.preventDefault();
+            if (typeof f.requestSubmit === 'function') f.requestSubmit();
+            else submitOnce(null);
         });
+    }
+
+    // ── 解锁成功之后：**一定要真的离开这一页** ──────────────────────────────
+    // ★★ 用户实测的症状：「输入正确密钥按回车（或点「验证」）没反应，但实际上已经开锁」。
+    //    两者走的是同一个 submit 处理 ⇒ 卡的地方在这一步，不在输入/按钮。
+    //    旧实现是 `location.replace(location.pathname + location.search + location.hash)`，
+    //    也就是**重新打开当前这个完全相同的 URL**：
+    //      · 标记此时已经写进 localStorage（所以"其实已经开锁"是对的）；
+    //      · 但"同 URL 导航"在浏览器里可能被当成同文档导航、**根本不发生重新加载**
+    //        ⇒ 屏幕上还是这份被拒文档 ⇒ 看上去就是"没反应"。
+    //    现在按"一定会离开"的次序来，并且每一步都给可见反馈：
+    //      ① location.reload()：任何浏览器都必然重新加载当前文档（标记已写好 ⇒ 放行）；
+    //      ② 700ms 后还在这一页 ⇒ 用 `?k=<口令>` 那一次导航（查询变了就不可能是同文档
+    //         导航）；这条路不依赖 localStorage，进站后由门禁自己把 k 参数抹掉；
+    //      ③ 再 900ms 还在 ⇒ 摆出一个「点这里进入」的链接：用户**手动点击**发起导航，
+    //         连"脚本发起的导航被拦"这种极端情况也兜住了。
+    function enterAfterUnlock(token) {
+        var box = document.querySelector('.gate-denied-box');
+        var form = box && box.querySelector('.gate-denied-form');
+        var status = null;
+        try {
+            if (form) form.hidden = true;          // 已经在走了，藏掉表单免得重复提交
+            if (box) {
+                status = document.createElement('p');
+                status.className = 'gate-denied-status';
+                status.textContent = UNLOCK_TEXT;
+                box.appendChild(status);
+            }
+        } catch (e) { }
+        var hash = location.hash || '';
+        var tokenUrl = location.pathname + '?' + PARAM + '=' + encodeURIComponent(token) + hash;
+        // ② 带查询参数的导航（与当前 URL 的查询不同 ⇒ 必然是真正的新导航）
+        setTimeout(function () {
+            try { location.replace(tokenUrl); } catch (e2) { }
+        }, 700);
+        // ③ 兜底：给一个可点的入口（用户点击 ⇒ 一定能走）
+        setTimeout(function () {
+            try {
+                if (!status || !status.parentNode) return;
+                status.textContent = UNLOCK_SLOW_TEXT;
+                var a = document.createElement('a');
+                a.className = 'gate-denied-enter';
+                a.textContent = ENTER_TEXT;
+                a.setAttribute('href', tokenUrl);
+                status.parentNode.appendChild(a);
+            } catch (e3) { }
+        }, 1600);
+        // ① 首选：reload 是最可靠的（页面一旦真的卸载，上面两个定时器自然不会触发）
+        try { location.reload(); } catch (e4) { }
     }
 
     // 输错口令的唯一反馈：原生对话框（不进 DOM ⇒ 不占版面、零位移）。
