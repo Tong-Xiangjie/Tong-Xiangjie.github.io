@@ -1,46 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <defs>
-    <!-- 顶部行名弧线：半径 44，文字顶部约到 r=56，不贴内圈 r=60 -->
-    <path id="coinTopArc" d="M 56 100 A 44 44 0 0 1 144 100" fill="none"/>
-    <!-- 底部年份弧线：半径 55，底部约 y=155，对应原来底部小点的位置 -->
-    <path id="coinYearArc" d="M 45 100 A 55 55 0 0 0 155 100" fill="none"/>
-  </defs>
-
-  <!-- 硬币外圈与内圈，保持不动 -->
-  <g fill="none" stroke="#000000" stroke-linejoin="round">
-    <circle cx="100" cy="100" r="72" stroke-width="10"/>
-    <circle cx="100" cy="100" r="60" stroke-width="3"/>
+  <!-- 硬币板块空：两枚空白硬币 -->
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linejoin="round">
+    <circle cx="68" cy="104" r="42"/>
   </g>
-
-  <!-- 外圈与内圈之间：一整圈防伪小点，大小与原来一致（直径 3） -->
-  <circle cx="100" cy="100" r="64.5"
-          fill="none" stroke="#000000" stroke-width="3"
-          stroke-linecap="round" stroke-dasharray="0.01 11.257"/>
-
-  <!-- 顶部行名：沿弧线排布，字间留空隙 -->
-  <text font-family="sans-serif" font-weight="bold" fill="#000000"
-        font-size="12" letter-spacing="2">
-    <textPath href="#coinTopArc" startOffset="50%" text-anchor="middle">中国人民很行</textPath>
-  </text>
-
-  <!-- 中央大号数字 1：整体上移一点点 -->
-  <text x="100" y="120" text-anchor="middle"
-        font-family="sans-serif" font-weight="bold" fill="#000000" font-size="54">1</text>
-
-  <!-- 右下角“元”：同步上移，下端与“1”下端平齐 -->
-  <text x="138" y="120" text-anchor="middle"
-        font-family="sans-serif" font-weight="bold" fill="#000000" font-size="14">元</text>
-
-  <!-- 左下角拼音 YI / YUAN：同步上移，YUAN 下端与“1”下端平齐；YI 内部留空隙 -->
-  <g font-family="sans-serif" font-weight="bold" fill="#000000"
-     text-anchor="middle" font-size="9">
-    <text x="62" y="110" letter-spacing="2.5">YI</text>
-    <text x="62" y="120">YUAN</text>
+  <g fill="none" stroke="#000000" stroke-width="5" stroke-linejoin="round">
+    <circle cx="68" cy="104" r="27"/>
   </g>
-
-  <!-- 底部年份：环绕，数字间留空隙 -->
-  <text font-family="sans-serif" font-weight="bold" fill="#000000"
-        font-size="9" letter-spacing="2.5">
-    <textPath href="#coinYearArc" startOffset="50%" text-anchor="middle">2007</textPath>
-  </text>
+  <g fill="#000000">
+    <circle cx="68" cy="104" r="7"/>
+  </g>
+  <g fill="none" stroke="#000000" stroke-width="10" stroke-linejoin="round">
+    <circle cx="152" cy="60" r="26"/>
+  </g>
 </svg>

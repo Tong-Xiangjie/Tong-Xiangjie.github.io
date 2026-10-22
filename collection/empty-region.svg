@@ -1,69 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- 天空区域：太阳、光线、云朵、飞鸟 -->
-  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 太阳本体 -->
-    <circle cx="150" cy="50" r="18" stroke-width="8"/>
-    
-    <!-- 太阳光芒 -->
-    <line x1="150" y1="20" x2="150" y2="10" stroke-width="6"/>
-    <line x1="150" y1="80" x2="150" y2="90" stroke-width="6"/>
-    <line x1="120" y1="50" x2="110" y2="50" stroke-width="6"/>
-    <line x1="180" y1="50" x2="190" y2="50" stroke-width="6"/>
-    <line x1="128" y1="28" x2="120" y2="20" stroke-width="6"/>
-    <line x1="172" y1="72" x2="180" y2="80" stroke-width="6"/>
-    <line x1="172" y1="28" x2="180" y2="20" stroke-width="6"/>
-    <line x1="128" y1="72" x2="120" y2="80" stroke-width="6"/>
-
-    <!-- 云朵 -->
-    <path d="M 30 60 Q 40 45 55 55 Q 70 45 80 55 Q 90 50 95 60" stroke-width="6"/>
-    <path d="M 160 70 Q 170 60 180 65 Q 190 60 195 70" stroke-width="6"/>
-
-    <!-- 飞鸟 -->
-    <path d="M 40 40 Q 45 35 50 40 Q 55 35 60 40" stroke-width="4"/>
-    <path d="M 70 30 Q 73 27 76 30 Q 79 27 82 30" stroke-width="3"/>
-    <path d="M 100 45 Q 103 42 106 45 Q 109 42 112 45" stroke-width="3"/>
+  <!-- 山河板块空：远山、地平线与水面 -->
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linejoin="round">
+    <circle cx="146" cy="52" r="18"/>
   </g>
-
-  <!-- 山河区域：远山、雪顶、地平线 -->
-  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 背景远山（较细的线条） -->
-    <polyline points="0,152 30,100 60,120 100,75 140,110 170,85 200,152" stroke-width="8"/>
-    
-    <!-- 背景雪顶 -->
-    <path d="M 92 88 L 100 75 L 108 88 M 100 75 L 100 84" stroke-width="3"/>
-
-    <!-- 地平线 -->
-    <line x1="10" y1="152" x2="190" y2="152" stroke-width="8"/>
+  <g fill="none" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20,152 62,84 90,116 118,62 160,152"/>
   </g>
-
-  <!-- 水面区域：多层水波、涟漪、帆船 -->
-  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 水面波浪（近景） -->
-    <polyline points="10,182 30,170 50,182 70,170 90,182 110,170 130,182 150,170 170,182 190,170" stroke-width="6"/>
-    
-    <!-- 水面波浪（中景） -->
-    <polyline points="15,192 35,185 55,192 75,185 95,192 115,185 135,192 155,185 175,192 195,185" stroke-width="4"/>
-    
-    <!-- 水面波浪（远景） -->
-    <polyline points="20,200 40,195 60,200 80,195 100,200 120,195 140,200 160,195 180,200 200,195" stroke-width="3"/>
-
-    <!-- 水面涟漪细节 -->
-    <path d="M 60 175 Q 65 170 70 175" stroke-width="3"/>
-    <path d="M 140 175 Q 145 170 150 175" stroke-width="3"/>
-
-    <!-- 帆船 -->
-    <polyline points="80,165 95,165 90,155 85,155 80,165" stroke-width="4"/>
-    <line x1="87.5" y1="165" x2="87.5" y2="145" stroke-width="3"/>
-    <polyline points="87.5,145 87.5,160 80,160" stroke-width="3"/>
+  <g fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round">
+    <line x1="20" y1="152" x2="160" y2="152"/>
   </g>
-
-  <!-- 前景点缀：松树剪影 -->
-  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 左侧松树 -->
-    <path d="M 25 152 L 25 140 L 20 140 L 25 125 L 30 140 L 25 140" stroke-width="4"/>
-    
-    <!-- 右侧松树 -->
-    <path d="M 180 152 L 180 135 L 175 135 L 180 120 L 185 135 L 180 135" stroke-width="4"/>
-    <path d="M 190 152 L 190 130 L 185 130 L 190 115 L 195 130 L 190 130" stroke-width="4"/>
+  <g fill="none" stroke="#000000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22,182 42,170 62,182 82,170 102,182 122,170 142,182 162,170 178,180"/>
   </g>
 </svg>
