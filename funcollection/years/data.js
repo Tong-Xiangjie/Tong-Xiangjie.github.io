@@ -44,7 +44,7 @@ const banknoteYears = [
     { year: 2024, name: "俄乌战争2周年纪念钞", krause: "Pick# 134", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2024-wkl.jpg" },
 
     // ==================== 阿尔巴尼亚 ====================
-    { year: 1976, name: "3列克", krause: "Pick# 41", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/1976-albania-3.jpg" },
+    { year: 1976, name: "阿尔巴尼亚 3列克", krause: "Pick# 41", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/1976-albania-3.jpg" },
     
     // ==================== 国库券 ====================    
     { year: 1982, name: "1982年国库券 1元", krause: "Pick# Unlisted", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/1982-gkq1y.jpg" },

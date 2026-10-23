@@ -22,6 +22,31 @@ const circulating_5Data = {
     ],
     series: [
         // 示例系列（请在此添加您的流通币藏品）
-        
+        {
+            seriesName: "1999～2018年 1角 兰花",
+            year: "1999～2018",
+            copies: [
+                {
+                    copyId: 23003082,
+                    country: "中华人民共和国",
+                    year: 1999,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "铝镁合金",
+                    diameter: "19mm",
+                    weight: "1.12g",
+                    edge: "光边",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "20元",
+                    purchaseDate: "2026年10月23日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_2/23003082-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_2/23003082-2.jpg"
+                }
+            ]
+        }
     ]
 };

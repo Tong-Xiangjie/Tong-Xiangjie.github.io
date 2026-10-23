@@ -27,7 +27,7 @@ const circulating_2Data = {
             year: "1955～2018",
             copies: [
                 {
-                    copyId: 1,
+                    copyId: 16021502,
                     country: "中华人民共和国",
                     year: 2018,
                     issueDate: "---",

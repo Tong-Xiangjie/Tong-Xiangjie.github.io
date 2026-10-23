@@ -46,6 +46,25 @@ const circulating_4Data = {
                     img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21205699-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21205699-2.jpg"
                 },{
+                    copyId: 21317362,
+                    country: "中华人民共和国",
+                    year: 1992,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "铜锌合金（黄铜）",
+                    diameter: "20.5mm",
+                    weight: "3.8g",
+                    edge: "间断丝齿",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "40元",
+                    purchaseDate: "2026年10月23日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21317362-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/21317362-2.jpg"
+                },{
                     copyId: 20836106,
                     country: "中华人民共和国",
                     year: 1995,
@@ -64,6 +83,25 @@ const circulating_4Data = {
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/20836106-1.jpg",
                     img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/20836106-2.jpg"
+                },{
+                    copyId: 20950071,
+                    country: "中华人民共和国",
+                    year: 2000,
+                    issueDate: "---",
+                    mint: "---",
+                    material: "铜锌合金（黄铜）",
+                    diameter: "20.5mm",
+                    weight: "3.8g",
+                    edge: "间断丝齿",
+                    design: "",
+                    grade: "MS67",
+                    gradingCompany: "ACG",
+                    price: "40元",
+                    purchaseDate: "2026年10月23日",
+                    catalogNumber: "",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/20950071-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_4/20950071-2.jpg"
                 }
             ]
         },{
