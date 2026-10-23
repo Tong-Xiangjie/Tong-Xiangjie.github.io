@@ -479,8 +479,17 @@ function renderLightboxContent(contentEl, config) {
     html += `</div></div>`;
 
     if (imgUrl) {
+        // ★ 大图弹窗的图片与站内其它弹窗用**同一套**规则：铺满 + object-fit: contain。
+        //   原来写的是 max-width/max-height:100% + width:auto —— max-* **只缩不放**，
+        //   于是图片小于 55vh 的框时就按**自身像素尺寸**显示：用户实测 `1953-001.jpg`
+        //   只有 394×296，而其它图 822~1812，同一屏里就"小一圈"（点开才小）。
+        //   改成 100%×100% 后一律拉齐；本专题的图恰好全是 4:3（已逐张量过 48/48），
+        //   contain 既不会裁切也不会留边。
+        //   阴影同时从 box-shadow 换成 filter: drop-shadow —— box-shadow 是贴着
+        //   **元素盒子**画的，铺满后一旦 contain 在图外留边，就会看到"阴影框一大圈、
+        //   图在里头"，而 drop-shadow 跟着**实际画出的像素**走，观感与改前一致。
         html += `<div style="height:55vh;display:flex;align-items:center;justify-content:center;margin-bottom:12px;overflow:hidden;">`;
-        html += `<img src="${imgUrl}"${thumbFallbackAttr('')} alt="${escapeAttr(item.name || item.scene || '')}" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`;
+        html += `<img src="${imgUrl}"${thumbFallbackAttr('')} alt="${escapeAttr(item.name || item.scene || '')}" style="width:100%;height:100%;object-fit:contain;border-radius:6px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.1));">`;
         html += `</div>`;
     } else {
         // 和列表里的 .no-img 一样：自绘古钱币（由 .special-lightbox-nopic::before 提供）＋一行字

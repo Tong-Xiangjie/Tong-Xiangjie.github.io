@@ -60,6 +60,12 @@ ok(/\.special-lightbox-nopic::before \{[^}]*width:\s*56px[^}]*height:\s*56px/.te
 ok(/\.modal-img\.img-failed \{[^}]*mask-size:\s*min\(90px/.test(css), '大图弹窗的钱币被单独限成 min(90px, 17vw)（用户反馈 180px 还大，再减半）');
 ok(/\.info-lightbox-imgs img\.img-failed \{[^}]*width:\s*24%/.test(css), '「详细信息」弹窗里的占位钱币是真图的一半（48% → 24%）');
 ok(sp.indexOf('class="special-lightbox-nopic">暂无图片') >= 0, 'special.js 的「暂无图片」那一档改成带钱币的结构，文案没变');
+// ★ 漂移守门：④ 里那个 fixture 是**手抄** special.js 的样式串，两者一旦不一致，
+//   ④ 就变成在测一个"已经不存在的布局"。这里直接钉住源码那一行。
+ok(/style="width:100%;height:100%;object-fit:contain;border-radius:6px;filter:drop-shadow\(/.test(sp),
+   '专题大图弹窗的图片是"铺满 + contain"（低分辨率原图一律拉齐，不再按自身像素显示）');
+ok(!/max-width:100%;max-height:100%;width:auto;object-fit:contain/.test(sp),
+   '旧的 max-* 写法已经不在了（那正是"点开才小一圈"的根因：max-* 只缩不放）');
 
 // ─────────── 起服务 + 无头浏览器 ───────────
 const ROOT = process.cwd();
@@ -189,8 +195,10 @@ const autos = JSON.parse(await evaluate(`(async () => {
   const a = mk('<div class="octo-faces"><div class="octo-face"><img class="img-failed img-loaded" src="' + PIX + '"></div></div>');
   // 详细信息卡片：.info-lightbox-imgs img { width:48% } 无高度
   const b = mk('<div class="info-lightbox-imgs"><img class="img-failed img-loaded" src="' + PIX + '"></div>');
-  // 专题大图弹窗：max-width:100%; max-height:100%; width:auto，坐在 55vh 的 flex 容器里
-  const c = mk('<div class="special-lightbox-content" style="width:900px"><div style="height:55vh;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img class="img-failed img-loaded" src="' + PIX + '" style="max-width:100%;max-height:100%;width:auto;object-fit:contain;"></div></div>');
+  // 专题大图弹窗：width/height:100% + object-fit:contain（与站内其它弹窗同一套），
+  // 坐在 55vh 的 flex 容器里。原来这里是 max-width/max-height:100% + width:auto，
+  // 那只缩不放 ⇒ 低分辨率原图（如 1953-001.jpg 394×296）会按自身像素显示、比别的图小一圈。
+  const c = mk('<div class="special-lightbox-content" style="width:900px"><div style="height:55vh;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img class="img-failed img-loaded" src="' + PIX + '" style="width:100%;height:100%;object-fit:contain;"></div></div>');
   // ★ 必须等这张 data URI 真的 load 完再量：没加载完时固有尺寸是 0，量出来永远是 0×0
   const wait = (im) => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; });
   await Promise.all([].concat([...a.querySelectorAll('img')], [...b.querySelectorAll('img')], [...c.querySelectorAll('img')]).map(wait));
