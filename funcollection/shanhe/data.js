@@ -3,8 +3,8 @@
 // scene/denom/year 为示例，请替换为真实纸币主景；img 为占位路径，请填真实图片 URL
 const shanheScenes = [
     // ===== 安徽 =====
-    { province: 'anhui',      city: '安庆（皖H）', scene: '振风塔', denom: '中央银行金圆券1角', year: 1946, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/aqzft-1946.jpg' },
-    { province: 'anhui',      city: '黄山（皖J）', scene: '黄山', denom: '外汇兑换券5元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hs-fec5.jpg' },
+    { province: 'anhui',      city: '安庆市（皖H）', scene: '振风塔', denom: '中央银行金圆券1角', year: 1946, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/aqzft-1946.jpg' },
+    { province: 'anhui',      city: '黄山市（皖J）', scene: '黄山', denom: '外汇兑换券5元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hs-fec5.jpg' },
 
     // ===== 澳门 =====
     { province: 'aomen',     city: '风顺堂区', scene: '妈祖阁', denom: '中国银行澳门币10元', year: "2008/2013", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/mzg-am20.jpg' },
@@ -17,6 +17,7 @@ const shanheScenes = [
     { province: 'aomen',     city: '大堂区-嘉模堂区', scene: '嘉乐庇总督大桥（澳氹大桥）', denom: '大西洋银行澳门币10元', year: 2001, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/addq-ambnu10.jpg' },
     
     // ===== 北京 =====
+    { province: 'beijing',   city: '朝阳区', scene: '工人体育馆', denom: '亚运会纪念币', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/grtyg-1991yy.jpg' },
     { province: 'beijing',   city: '朝阳区', scene: '国家体育场（鸟巢）', denom: '奥运纪念钞', year: 2008, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/nc-2008ay.jpg' },
     { province: 'beijing',   city: '朝阳区', scene: '国家体育场（鸟巢）', denom: '奥运纪念钞（香港）', year: 2008, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/nc-2008ay_hk.jpg' },
     { province: 'beijing',   city: '朝阳区', scene: '国家体育场（鸟巢）', denom: '奥运纪念钞（澳门）', year: 2008, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/nc-2008ay_mo.jpg' },
@@ -35,7 +36,8 @@ const shanheScenes = [
     { province: 'chongqing', city: '奉节县', scene: '长江三峡-夔门', denom: '外汇兑换券10元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/sx-fec10.jpg' },
     { province: 'chongqing', city: '奉节县', scene: '长江三峡-夔门', denom: '第五套人民币10元', year: "1999/2005", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/sx-9910.jpg' },
     { province: 'chongqing', city: '奉节县', scene: '长江三峡-夔门', denom: '第五套人民币10元', year: 2019, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/sx-1910.jpg' },
-
+    { province: 'chongqing', city: '忠县', scene: '石宝寨', denom: '中央银行金圆券1元', year: 1945, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zxsbz-1945.jpg', remark: "石宝寨位于重庆市忠县，坐落于长江北岸，被誉为“江上明珠”。它是一座建在巨石上的全木结构建筑，以其独特的匠心和无钉榫卯工艺闻名，被称为“世界八大奇异建筑之一”。" },
+    
     // ===== 福建 =====
     { province: 'fujian',    city: '厦门市（闽A）', scene: '中山公园湖光阁楼', denom: '厦门劝业银行日伪纸币1分', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hggg-aib1940.jpg', remark:"纸币上的湖光阁楼已不复存在，今为厦门中山公园思衡厅。" },
     { province: 'fujian',    city: '厦门市（闽A）', scene: '中山公园纪念碑', denom: '厦门劝业银行日伪纸币2角', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnb-aib1940.jpg' },
@@ -43,75 +45,83 @@ const shanheScenes = [
     { province: 'fujian',    city: '莆田市（闽B）', scene: '东圳水库', denom: '地方经济建设公债1元', year: 1960, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/dzsk-1960-1.jpg' },
 
     // ===== 广东 =====
-    { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票1角', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp01.jpg' },
-    { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票5角', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp05.jpg' },
-    { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票1元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp1.jpg' },
-    { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票5元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp5.jpg' },
-    { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票10元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp10.jpg' },
-    { province: 'guangdong',   city: '广州（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票100元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp100.jpg' },
-    { province: 'guangdong',   city: '深圳（粤B）', scene: '深圳火车站', denom: '国库券100元（三年期）', year: 1993, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/szhcz-100-3.jpg' },
+    { province: 'guangdong',   city: '广州市（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票1角', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp01.jpg' },
+    { province: 'guangdong',   city: '广州市（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票5角', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp05.jpg' },
+    { province: 'guangdong',   city: '广州市（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票1元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp1.jpg' },
+    { province: 'guangdong',   city: '广州市（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票5元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp5.jpg' },
+    { province: 'guangdong',   city: '广州市（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票10元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp10.jpg' },
+    { province: 'guangdong',   city: '广州市（粤A）', scene: '广州中山纪念堂', denom: '广东省银行大洋票100元', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsjnt-dyp100.jpg' },
+    { province: 'guangdong',   city: '深圳市（粤B）', scene: '深圳火车站', denom: '国库券100元（三年期）', year: 1993, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/szhcz-100-3.jpg' },
 
     // ===== 广西 =====
-    { province: 'guangxi',   city: '桂林（桂C）', scene: '象鼻山', denom: '外汇兑换券50元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xbs-fec50.jpg' },
-    { province: 'guangxi',   city: '桂林（桂C）', scene: '桂林山水', denom: '国库券100元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/glss-100.jpg' },
-    { province: 'guangxi',   city: '桂林（桂C）', scene: '桂林山水', denom: '第五套人民币20元', year: "1999/2005", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/glss-0520.jpg' },
-    { province: 'guangxi',   city: '桂林（桂C）', scene: '桂林山水', denom: '第五套人民币20元', year: 2019, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/glss-1920.jpg' },
+    { province: 'guangxi',   city: '桂林市（桂C）', scene: '象鼻山', denom: '外汇兑换券50元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xbs-fec50.jpg' },
+    { province: 'guangxi',   city: '桂林市（桂C）', scene: '桂林山水', denom: '国库券100元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/glss-100.jpg' },
+    { province: 'guangxi',   city: '桂林市（桂C）', scene: '桂林山水', denom: '第五套人民币20元', year: "1999/2005", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/glss-0520.jpg' },
+    { province: 'guangxi',   city: '桂林市（桂C）', scene: '桂林山水', denom: '第五套人民币20元', year: 2019, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/glss-1920.jpg' },
     
     // ===== 贵州 =====
-    { province: 'guizhou',   city: '贵阳（贵A）', scene: '贵州省银行旧址', denom: '贵州省银行银元辅币券1分', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/gzsyh-1949-001.jpg' },
-    { province: 'guizhou',   city: '安顺（贵G）', scene: '黄果树瀑布', denom: '外汇兑换券1角', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hgspb-fec01.jpg' },
+    { province: 'guizhou',   city: '贵阳市（贵A）', scene: '贵州省银行旧址', denom: '贵州省银行银元辅币券1分', year: 1949, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/gzsyh-1949-001.jpg' },
+    { province: 'guizhou',   city: '安顺市（贵G）', scene: '黄果树瀑布', denom: '外汇兑换券1角', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hgspb-fec01.jpg' },
 
     // ===== 河北 =====
-    { province: 'hebei',     city: '秦皇岛（冀C）', scene: '山海关', denom: '中央银行东北九省流通券100元', year: 1945, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/shg-dbjs100.jpg' },
-    { province: 'hebei',     city: '张家口（冀G）', scene: '国家跳台滑雪中心（雪如意）', denom: '冬奥纪念钞（雪上运动）', year: 2022, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xry-2022xsyd.jpg' },
+    { province: 'hebei',     city: '秦皇岛市（冀C）', scene: '山海关', denom: '中央银行东北九省流通券100元', year: 1945, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/shg-dbjs100.jpg' },
+    { province: 'hebei',     city: '张家口市（冀G）', scene: '国家跳台滑雪中心（雪如意）', denom: '冬奥纪念钞（雪上运动）', year: 2022, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xry-2022xsyd.jpg' },
 
     // ===== 湖北 =====
-    { province: 'hubei',     city: '武汉（鄂A）', scene: '黄鹤楼', denom: '中央银行法币券5元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zyyh-hhl-5.jpg', remark: "另有说法认为图中是湖南岳阳楼或现已损毁的重庆（原四川万县）钟鼓楼（望江楼）。" },
+    { province: 'hubei',     city: '武汉市（鄂A）', scene: '黄鹤楼', denom: '中央银行法币券5元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zyyh-hhl-5.jpg', remark: "另有说法认为图中是湖南岳阳楼或现已损毁的重庆（原四川万县）钟鼓楼（望江楼）。" },
 
     // ===== 吉林 =====
-    { province: 'jilin',   city: '吉林（吉B）', scene: '丰满水电站', denom: '第二套人民币5角', year: 1953, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/fmsdz-1953-05.jpg', remark: "丰满水电站位于吉林省吉林市丰满区。币面上为老坝，于2018年12月开始爆破拆除，现仅遗留有老坝左右岸各一段坝体作为历史遗迹永久矗立在原址。" },
+    { province: 'jilin',   city: '吉林市（吉B）', scene: '丰满水电站', denom: '第二套人民币5角', year: 1953, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/fmsdz-1953-05.jpg', remark: "丰满水电站位于吉林省吉林市丰满区。币面上为老坝，于2018年12月开始爆破拆除，现仅遗留有老坝左右岸各一段坝体作为历史遗迹永久矗立在原址。" },
     
     // ===== 江苏 =====
-    { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币1角', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1940-01.jpg' },
-    { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1940-10.jpg' },
-    { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币1元', year: 1943, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1943-1.jpg' },
-    { province: 'jiangsu',   city: '南京（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1943, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1943-10.jpg' },
-    { province: 'jiangsu',   city: '苏州（苏E/苏U）', scene: '江南水乡', denom: '国库券5元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnsx-5.jpg' },
+    { province: 'jiangsu',   city: '南京市（苏A）', scene: '中山陵', denom: '中央储备银行国币1角', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1940-01.jpg' },
+    { province: 'jiangsu',   city: '南京市（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1940, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1940-10.jpg' },
+    { province: 'jiangsu',   city: '南京市（苏A）', scene: '中山陵', denom: '中央储备银行国币1元', year: 1943, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1943-1.jpg' },
+    { province: 'jiangsu',   city: '南京市（苏A）', scene: '中山陵', denom: '中央储备银行国币10元', year: 1943, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/njzsl-1943-10.jpg' },
+    { province: 'jiangsu',   city: '苏州市（苏E/苏U）', scene: '江南水乡', denom: '国库券5元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jnsx-5.jpg' },
     
     // ===== 江西 =====
-    { province: 'jiangxi',   city: '吉安（赣D）', scene: '井冈山', denom: '第四套人民币100元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jgs-90100.jpg' },
-
+    { province: 'jiangxi',   city: '吉安市（赣D）', scene: '井冈山', denom: '第四套人民币100元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/jgs-90100.jpg' },
+    
+    // ===== 内蒙古 =====
+    { province: 'neimenggu',   city: '呼和浩特市（蒙A）', scene: '内蒙古自治区人大常委会办公楼', denom: '内蒙古自治区成立40周年纪念币', year: 1987, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/rdcwhbgl-1987.jpg' },
+    
+    // ===== 四川 =====
+    { province: 'sichuan',    city: '南充市（川R）', scene: '朱德故居', denom: '朱德诞辰110周年纪念币', year: 1996, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zdgj-1996.jpg' },
+    
     // ===== 山西 =====
-    { province: 'shanxi',    city: '临汾（晋L）', scene: '壶口瀑布-东岸', denom: '第四套人民币50元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hkpb-9050.jpg' },
-
+    { province: 'shanxi',    city: '临汾市（晋L）', scene: '壶口瀑布-东岸', denom: '第四套人民币50元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hkpb-9050.jpg' },
+    
     // ===== 陕西 =====
-    { province: 'shanxiHZ',  city: '延安（陕J）', scene: '壶口瀑布-西岸', denom: '第四套人民币50元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hkpb-9050.jpg' },
+    { province: 'shanxiHZ',  city: '延安市（陕J）', scene: '壶口瀑布-西岸', denom: '第四套人民币50元', year: "1980/1990", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hkpb-9050.jpg' },
 
     // ===== 台湾 =====
-    { province: 'taiwan',    city: '台北', scene: '台北总统府', denom: '台湾省10元', year: 1960, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/ztf-1960-10.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾省10元', year: 1969, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-1969-10.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾省50元', year: 1970, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-1970-50.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾省100元', year: 2000, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-5-100.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '阳明山中山楼', denom: '台湾省50元', year: 1972, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-1972-50.jpg' },
-    { province: 'taiwan',    city: '台北', scene: '台湾中央银行大楼', denom: '新台币发行50周年纪念钞', year: 1999, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zyyh-1999.jpg' },
+    { province: 'taiwan',    city: '台北市', scene: '台北总统府', denom: '台湾省10元', year: 1960, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/ztf-1960-10.jpg' },
+    { province: 'taiwan',    city: '台北市', scene: '阳明山中山楼', denom: '台湾省10元', year: 1969, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-1969-10.jpg' },
+    { province: 'taiwan',    city: '台北市', scene: '阳明山中山楼', denom: '台湾省50元', year: 1970, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-1970-50.jpg' },
+    { province: 'taiwan',    city: '台北市', scene: '阳明山中山楼', denom: '台湾省100元', year: 2000, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-5-100.jpg' },
+    { province: 'taiwan',    city: '台北市', scene: '阳明山中山楼', denom: '台湾省50元', year: 1972, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsl-1972-50.jpg' },
+    { province: 'taiwan',    city: '台北市', scene: '台湾中央银行大楼', denom: '新台币发行50周年纪念钞', year: 1999, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zyyh-1999.jpg' },
     { province: 'taiwan',    city: '花莲县', scene: '象鼻隧道', denom: '台湾省1元', year: 1961, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xbsd-1961-1.jpg', remark: "象鼻隧道位于旧苏花公路（台9丁线）的姑姑子断崖上，属于清水断崖的最北段，行政区划上隶属于花莲县秀林乡。该路段因1971年和平隧道开通后废弃，现属高风险区域。" },
     { province: 'taiwan',    city: '云林县', scene: '北港净水厂', denom: '台湾省5元', year: 1961, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/bgjsc-1961-5.jpg', remark: "准确来说是云林县北港镇自来水厂（北港净水厂）水塔建筑。"},
     { province: 'taiwan',    city: '云林县-彰化县', scene: '西螺大桥（浊水溪大桥）', denom: '台湾省10元', year: 1960, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xldq-1960-10.jpg' },
 
-
     // ===== 西藏 =====
-    { province: 'xizang',    city: '拉萨（藏A）', scene: '布达拉宫', denom: '第五套人民币50元', year: "1999/2005", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/bdlg-0550.jpg' },
-    { province: 'xizang',    city: '日喀则（藏D）', scene: '珠穆朗玛峰', denom: '第四套人民币10元', year: 1980, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zmlmf-8010.jpg' },
+    { province: 'xizang',    city: '拉萨市（藏A）', scene: '布达拉宫', denom: '第五套人民币50元', year: "1999/2005", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/bdlg-0550.jpg' },
+    { province: 'xizang',    city: '日喀则市（藏D）', scene: '珠穆朗玛峰', denom: '第四套人民币10元', year: 1980, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zmlmf-8010.jpg' },
 
     // ===== 山东 =====
-    { province: 'shandong',  city: '济宁（鲁H）', scene: '杏坛', denom: '中央银行兑换券1角', year: 1931, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xt-zyyh01.jpg' },
-    { province: 'shandong',  city: '济宁（鲁H）', scene: '洙水桥', denom: '中央银行兑换券2角', year: 1931, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsq-zyyh02.jpg' },
-    { province: 'shandong',  city: '济宁（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券1元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/kmdcd-zyyh1936-1.jpg' },
-    { province: 'shandong',  city: '济宁（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券10元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/kmdcd-zyyh1936-10.jpg' },
-    { province: 'shandong',  city: '济宁（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券100元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/kmdcd-zyyh1936-100.jpg' },
-    { province: 'shandong',  city: '泰安（鲁J）', scene: '泰山', denom: '第五套人民币5元', year: 2020, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/ts-205.jpg' },
+    { province: 'shandong',  city: '济宁市（鲁H）', scene: '杏坛', denom: '中央银行兑换券1角', year: 1931, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xt-zyyh01.jpg' },
+    { province: 'shandong',  city: '济宁市（鲁H）', scene: '洙水桥', denom: '中央银行兑换券2角', year: 1931, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zsq-zyyh02.jpg' },
+    { province: 'shandong',  city: '济宁市（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券1元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/kmdcd-zyyh1936-1.jpg' },
+    { province: 'shandong',  city: '济宁市（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券10元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/kmdcd-zyyh1936-10.jpg' },
+    { province: 'shandong',  city: '济宁市（鲁H）', scene: '曲阜孔庙大成殿', denom: '中央银行法币券100元', year: 1936, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/kmdcd-zyyh1936-100.jpg' },
+    { province: 'shandong',  city: '泰安市（鲁J）', scene: '泰山', denom: '第五套人民币5元', year: 2020, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/ts-205.jpg' },
 
     // ===== 上海 =====
+    { province: 'shanghai',  city: '黄浦区', scene: '上海大清邮政局', denom: '交通银行法币5元', year: 1914, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/dqyzj-1914-5.jpg', remark: "这是上海大清邮政局在上海历史上的第二个办公地点，也就是北京路9号的“新厦”。这栋建筑今已经不复存在，原址上建起了新的楼房。" },
+    { province: 'shanghai',  city: '黄浦区', scene: '旧上海海关大楼', denom: '交通银行法币10元', year: 1914, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hgdl-1914-10.jpg', remark: "图中的江海关旧楼是1893年建成的第二代教堂式关署，位于汉口路外滩，1925年被拆除后在原址重建为现今的海关大楼。" },
+    { province: 'shanghai',  city: '黄浦区', scene: '上海江海关大楼', denom: '中央银行关金券20元', year: 1930, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hgdl-1930-20.jpg', remark: "1927年落成的江海关大楼（今上海海关大楼）位于外滩中山东一路13号，是带亚洲第一大钟的第三代海关建筑，也是外滩地标和全国重点文物保护单位。" },
     { province: 'shanghai',  city: '黄浦区', scene: '上海中国银行总行大厦', denom: '中国银行法币10元', year: 1937, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/zgyhdl-1937-10.jpg' },
     { province: 'shanghai',  city: '嘉定区', scene: '上海汽车制造厂', denom: '国库券5元', year: 1989, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/shqcc-5.jpg', remark: "安亭镇位于嘉定区西部，和江苏昆山花桥交界。这里也是上海国际汽车城所在地，上汽大众（原上海大众）的重要汽车制造基地就设在安亭，所以常被称为“安亭基地”。"},
     
@@ -124,13 +134,13 @@ const shanheScenes = [
     { province: 'xianggang', city: '中西区-湾仔区', scene: '中区及湾仔商业楼群', denom: '中国银行港币20元', year: 1994, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/hkboc-wdlyg-20.jpg' },
     
     // ===== 云南 =====
-    { province: 'yunnan',    city: '昆明（云A）', scene: '云南石林', denom: '国库券10元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/ynsl-10.jpg' },
+    { province: 'yunnan',    city: '昆明市（云A）', scene: '云南石林', denom: '国库券10元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/ynsl-10.jpg' },
     { province: 'yunnan',    city: '西双版纳傣族自治州（云K）', scene: '曼飞龙白塔', denom: '国库券50元', year: 1991, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/mflbt-50.jpg' },
     
     // ===== 浙江 =====
-    { province: 'zhejiang',  city: '杭州（浙A）', scene: '西湖-三潭印月', denom: '外汇兑换券1元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-fec1.jpg' },
-    { province: 'zhejiang',  city: '杭州（浙A）', scene: '西湖-三潭印月', denom: '第五套人民币1元', year: "1999/2019", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-191.jpg' },
-    { province: 'zhejiang',  city: '舟山（浙L）', scene: '普陀山法雨寺钟楼', denom: '中国农民银行法币1元', year: 1941, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/fyszl-fbc-411.jpg' }
+    { province: 'zhejiang',  city: '杭州市（浙A）', scene: '西湖-三潭印月', denom: '外汇兑换券1元', year: 1979, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-fec1.jpg' },
+    { province: 'zhejiang',  city: '杭州市（浙A）', scene: '西湖-三潭印月', denom: '第五套人民币1元', year: "1999/2019", img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/xh-191.jpg' },
+    { province: 'zhejiang',  city: '舟山市（浙L）', scene: '普陀山法雨寺钟楼', denom: '中国农民银行法币1元', year: 1941, img: 'https://tong-xiangjie.github.io/funcollection/shanhe/images/fyszl-fbc-411.jpg' }
     
 
 ];
