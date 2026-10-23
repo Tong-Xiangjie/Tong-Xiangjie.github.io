@@ -33,6 +33,8 @@ const banknoteYears = [
     { year: 2008, name: "第29届奥林匹克运动会纪念钞", krause: "Pick# 908", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2008-ay.jpg" },
     { year: 2015, name: "航天纪念钞", krause: "Pick# 910a", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2015-ht.jpg" },
     { year: 2018, name: "人民币发行七十周年纪念钞", krause: "Pick# 911", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2018-rmb70.jpg" },
+    { year: 2022, name: "第24届冬季奥林匹克运动会纪念钞（冰上运动）", krause: "Pick# 916", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2022-dabsyd.jpg" },
+    { year: 2022, name: "第24届冬季奥林匹克运动会纪念钞（雪上运动）", krause: "Pick# 917", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2022-daxsyd.jpg" },
     { year: 2024, name: "龙年贺岁纪念钞", krause: "Pick# 920", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2024-long.jpg" },
     { year: 2025, name: "蛇年贺岁纪念钞", krause: "Pick# 921", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2025-she.jpg" },
     { year: 2026, name: "马年贺岁纪念钞", krause: "Pick# 922", yearImg: "https://tong-xiangjie.github.io/funcollection/years/images/2026-ma.jpg" },
