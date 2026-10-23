@@ -43,8 +43,8 @@ const circulating_5Data = {
                     purchaseDate: "2026年10月23日",
                     catalogNumber: "",
                     remark: "",
-                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_2/23003082-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_2/23003082-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/coincollection/image/circulating_5/23003082-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/coincollection/image/circulating_5/23003082-2.jpg"
                 }
             ]
         }
