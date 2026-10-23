@@ -92,18 +92,26 @@ function buildRoute() {
             if (currentSubId !== null && currentSubId !== undefined && currentSubId !== '') {
                 seg.push('g' + encodeURIComponent(String(currentSubId)));
             }
+            // ★★ 下面这些"子视图段"**只属于它自己的专题**（用户实测的 bug）：
+            //   在山河切到"列表"→ 返回专题 → 再打开别的专题，别的专题的深链里
+            //   就带上了 view-list；刷新时还原端又拿这个段去切山河视图 ⇒ 报错。
+            //   根因：shanheViewMode / timelineSortOrder / timelineFilter* 都是**全局变量**，
+            //   切专题时不会重置，所以写入端必须按"当前是不是它的专题"收口
+            //   （还原端 applyRoute 里另有一道同样的守门，手改/旧链接也不会再出事）。
+            const isShanheSpecial = String(selectedSpecial) === 'shanhe';
+            const isTimelineSpecial = String(selectedSpecial) === 'timeline';
             // 山河专题的两个视图
-            if (typeof shanheViewMode === 'string' && shanheViewMode !== 'map') {
+            if (isShanheSpecial && typeof shanheViewMode === 'string' && shanheViewMode !== 'map') {
                 seg.push('view-' + shanheViewMode);
             }
             // 时间轴专题的排序与筛选（只在非默认值时才写进 URL，保持链接简短）
-            if (typeof timelineSortOrder === 'string' && timelineSortOrder !== 'desc') {
+            if (isTimelineSpecial && typeof timelineSortOrder === 'string' && timelineSortOrder !== 'desc') {
                 seg.push('order-' + timelineSortOrder);
             }
-            if (typeof timelineFilterYear === 'string' && timelineFilterYear && timelineFilterYear !== '全部') {
+            if (isTimelineSpecial && typeof timelineFilterYear === 'string' && timelineFilterYear && timelineFilterYear !== '全部') {
                 seg.push('y-' + encodeURIComponent(timelineFilterYear));
             }
-            if (typeof timelineFilterMonth === 'string' && timelineFilterMonth && timelineFilterMonth !== '全部') {
+            if (isTimelineSpecial && typeof timelineFilterMonth === 'string' && timelineFilterMonth && timelineFilterMonth !== '全部') {
                 seg.push('m-' + encodeURIComponent(timelineFilterMonth));
             }
         }
@@ -674,10 +682,15 @@ function applySpecialSubView(route) {
             }
         }
     }
-    if (route.shanheView && typeof shanheViewMode === 'string' && shanheViewMode !== route.shanheView) {
+    // ★ 还原端也只认"当前专题就是它自己的专题"（与 buildRoute 那道守门成对）。
+    //   手改过的/早先泄漏出去的链接（例如 #special/timeline/view-list）必须被**忽略**，
+    //   而不是拿它去切山河视图 —— 那正是"刷新后出错"的来源。
+    if (typeof selectedSpecial !== 'undefined' && String(selectedSpecial) === 'shanhe'
+        && route.shanheView && typeof shanheViewMode === 'string' && shanheViewMode !== route.shanheView) {
         if (typeof shanheSwitchView === 'function') shanheSwitchView(route.shanheView);
     }
-    if (route.timelineOrder && typeof timelineSortOrder === 'string' && timelineSortOrder !== route.timelineOrder) {
+    if (typeof selectedSpecial !== 'undefined' && String(selectedSpecial) === 'timeline'
+        && route.timelineOrder && typeof timelineSortOrder === 'string' && timelineSortOrder !== route.timelineOrder) {
         if (typeof setTimelineOrder === 'function') setTimelineOrder(route.timelineOrder);
     }
     const yearSelect = document.getElementById('timelineYearFilter');

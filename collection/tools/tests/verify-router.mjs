@@ -285,6 +285,19 @@ const fieldCases = [
    r => r.articleIndex === 2 && r.categoryId === 'coins' && r.searchKeyword === 'PMG' && r.searchMode === 'fulltext', '四段都要在'],
   ['文章无关键词时不产生 q/sm 段', `currentMode='articles'; currentArticleView='list'; currentArticleIndex=-1; currentArticleCategory='all'; articleSearchKeyword=''; articleSearchMode='title';`,
    r => (r.searchKeyword === undefined || r.searchKeyword === '') && r.searchMode === null, '不该凭空生出搜索段'],
+  // ★★ 子视图段的"归属"守门（用户实测 bug：山河列表视图泄漏到别的专题，
+  //    刷新时还原端又拿它去切山河视图 ⇒ 出错。根因是这些状态是全局变量、
+  //    切专题不重置，所以写入端必须按"当前专题是不是它的专题"收口。）
+  ['山河的列表视图要写进它自己的深链', `currentMode='special'; selectedSpecial='shanhe'; currentSubId=null; shanheViewMode='list';`,
+   r => r.configId === 'shanhe' && r.shanheView === 'list', 'shanheView 应为 list'],
+  ['山河残留的列表视图不许泄漏到别的专题', `currentMode='special'; selectedSpecial='timeline'; currentSubId=null; shanheViewMode='list';`,
+   r => r.configId === 'timeline' && !r.shanheView, '别的专题的 URL 里不该出现 view- 段'],
+  ['山河残留的列表视图不许泄漏到普通专题', `currentMode='special'; selectedSpecial='denom'; currentSubId=null; shanheViewMode='list';`,
+   r => r.configId === 'denom' && !r.shanheView, '别的专题的 URL 里不该出现 view- 段'],
+  ['时间轴残留的排序/筛选不许泄漏到山河', `currentMode='special'; selectedSpecial='shanhe'; currentSubId=null; shanheViewMode='map'; timelineSortOrder='asc'; timelineFilterYear='2020'; timelineFilterMonth='5';`,
+   r => r.configId === 'shanhe' && !r.timelineOrder && !r.timelineYear && !r.timelineMonth, '山河的 URL 里不该出现 order-/y-/m- 段'],
+  ['时间轴自己的排序/筛选照旧写进去', `currentMode='special'; selectedSpecial='timeline'; currentSubId=null; timelineSortOrder='asc'; timelineFilterYear='2020'; timelineFilterMonth='5';`,
+   r => r.configId === 'timeline' && r.timelineOrder === 'asc' && r.timelineYear === '2020' && r.timelineMonth === '5', '时间轴自己的段必须保住'],
 ];
 for (const [label, setup, pred, what] of fieldCases) {
   const route = run(`(function(){ ${setup} return buildRoute(); })()`);
@@ -354,6 +367,22 @@ for (const [hash, expr, label] of applyCases) {
   const ok = run(`(function(){ return !!(${expr}); })()`);
   check(ok, `applyRoute(${hash}) → ${label}`);
 }
+
+// ---------- 6b. applyRoute 的子视图段"归属"守门 ----------
+log('\n=== 6b. 别的专题带着山河的 view- 段时必须被忽略（用户实测的刷新出错）===');
+run(`shanheViewMode='map'; selectedSpecial=null; isSettingsMode=false; currentView='overview'; currentCategoryId=null;`);
+await run(`applyRoute('#special/shanhe/view-list')`);
+await new Promise(r => setTimeout(r, 260));
+check(run(`shanheViewMode === 'list'`),
+  '山河自己的 #special/shanhe/view-list 照旧生效（列表视图）',
+  `shanheViewMode=${run(`shanheViewMode`)}`);
+
+run(`shanheViewMode='map'; selectedSpecial=null; isSettingsMode=false; currentView='overview'; currentCategoryId=null;`);
+await run(`applyRoute('#special/timeline/view-list')`);
+await new Promise(r => setTimeout(r, 260));
+check(run(`shanheViewMode === 'map'`),
+  '别的专题带着 view-list 时不许去切山河视图（泄漏段被忽略 ⇒ 刷新不再出错）',
+  `shanheViewMode=${run(`shanheViewMode`)}`);
 
 log('');
 log(problems === 0 ? '✅ 路由验证全部通过' : `⚠ ${problems} 处失败`);
