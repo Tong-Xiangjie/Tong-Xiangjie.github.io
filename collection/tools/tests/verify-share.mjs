@@ -231,7 +231,7 @@ section('⑧ 集成守门：门禁侧行为');
     const guard = watch.slice(watch.indexOf('shareScopeMatch(rec.p, location.hash)) return;'));
     check(/history\.replaceState/.test(guard) && !/deny\(/.test(guard.replace(/deny\('share-expired'\)/g, '')),
         '★ 越界时用 history.replaceState 拨回 + 提示，**不调用 deny()**（deny 是 document.write，会把 SPA 换掉）');
-    check(/这一页不在分享范围内/.test(watch), '越界会给出可见提示（用户知道为什么被拨回）');
+    check(/当前页面暂未开放分享哦/.test(watch), '越界会给出可见提示（用户知道为什么被拨回）');
 
     // ★★ 站内导航用的是 history.replaceState（不触发 hashchange），所以光挂 hashchange
     //   等于没挂 —— 用户实测"相当于给了全部的门户密钥"。必须把 syncRoute 也包住。
@@ -261,7 +261,9 @@ section('⑧ 集成守门：门禁侧行为');
         '★ 分享会话（sessionStorage）也优先于管理员标记（管理员刷新不许跑出范围）');
     check(/if \(shareRec\.e && Date\.now\(\) > shareRec\.e\) \{[\s\S]{0,120}denyShare\('expired'\)/.test(GATE),
         '★ 会话过期 ⇒ 拒绝（管理员同样被拒，不会因为本地标记放行）');
-    check(/function hasAdminMark\(/.test(GATE) && /shareToast\('当前页面暂未开放分享哦(´･_･`)', hasAdminMark\(\)\)/.test(GATE),
+    // ★ 这里必须用字符串包含而不是正则：文案里有 (´･_･`) 这种括号，塞进正则会变成分组。
+    check(/function hasAdminMark\(/.test(GATE)
+        && GATE.includes("shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark())"),
         '管理员被困在分享范围时有「退出分享模式」出口（清会话记录后重载）');
     check(/sessionStorage\.removeItem\(SHARE_SESSION_KEY\)/.test(GATE),
         '退出分享模式 = 清掉本标签页的会话记录');
@@ -293,8 +295,8 @@ section('⑧ 集成守门：门禁侧行为');
     const clauses = shareInner.match(/gate-denied-text/g) || [];
     check(clauses.length === 1,
         `★ 只有**一句**提示文案（gate-denied-text 出现 ${clauses.length} 次，应为 1）`);
-    check(/分享链接不可用，可能已过期或不在分享范围内/.test(GATE),
-        '★ 这句统一文案同时覆盖"过期"和"范围外"两种原因');
+    check(GATE.includes('分享链接错误或已失效'),
+        '★ 这句统一文案同时覆盖"过期"和"范围外"两种原因（文案由用户定稿）');
     check(!/SHARE_DENIED\.(expired|outofscope|badformat)/.test(GATE),
         '没有按原因分支的文案表（原因只写进日志，不写进页面）');
     check(/以管理员身份进入全站/.test(shareInner) && /href="\.\/"/.test(shareInner),
