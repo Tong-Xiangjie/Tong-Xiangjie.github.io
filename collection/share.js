@@ -61,6 +61,16 @@ function shareEnsureStyle() {
 }
 
 // 当前深链 / 范围（都以"按下快捷键那一刻"为准）
+// ★ 生成链接的 base 一律落到"目录"上。
+//   从 /collection/index.html 打开时 location.pathname 带着 index.html —— 直接拼进去，
+//   链接就成了 .../index.html?share=…（能开，但难看，也和"分享的是这个站"不符）。
+//   统一剥掉 index.html 并补尾部斜杠；/collection 由 Pages 301 补斜杠，这里也兜住。
+function shareBaseUrl() {
+    var p = String(location.pathname || '/').replace(/index\.html?$/i, '');
+    if (p.charAt(p.length - 1) !== '/') p += '/';
+    return location.origin + p;
+}
+
 function shareCurrentHash() {
     try { if (typeof buildRoute === 'function') return String(buildRoute() || ''); } catch (e) { }
     return String(location.hash || '').replace(/^#/, '');
@@ -204,7 +214,7 @@ function shareRefresh() {
     } else {
         btn.disabled = false;
         btn.style.opacity = '';
-        linkEl.value = shareBuildUrl(shareCurrentScope(), exp, shareCurrentHash(), location.origin + location.pathname);
+        linkEl.value = shareBuildUrl(shareCurrentScope(), exp, shareCurrentHash(), shareBaseUrl());
     }
     mask.querySelector('#shareMsg').textContent = '';
 }

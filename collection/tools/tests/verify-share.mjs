@@ -59,6 +59,19 @@ section('② 范围折算：字段名必须用 parseRoute 的真实字段');
     check(scopeOf({ mode: 'articles', articleIndex: 12 }) === 'articles', '文章 → 整块 articles');
     check(scopeOf({ mode: 'special', configId: 'shanhe', shanheView: 'list' }) === 'special/shanhe', '山河列表视图 → special/shanhe');
     check(scopeOf(null) === '', '空 route → 空范围（调用方据此禁用复制）');
+
+    // ★★ 分类分支的字段名是 **catId**（router.js:293），不是 categoryId ✗ ——
+    //    这条线上真错过一次：只读 categoryId ⇒ 纸币/硬币的 p 退化成整个板块，
+    //    "只放行一页"静默失效。两个名字都读，并盯住 router.js 的字段不漂移。
+    check(scopeOf({ mode: 'notes', catId: 'rmb3' }) === 'notes/rmb3', '★ 真实字段名 catId → notes/rmb3');
+    check(scopeOf({ mode: 'coins', catId: 'commemorative_coins' }) === 'coins/commemorative_coins', '★ 硬币也要带分类，不能塌成 coins');
+    check(scopeOf({ mode: 'notes', categoryId: 'rmb3' }) === 'notes/rmb3', 'categoryId 也认（文章分支用的就是它）');
+    const ROUTER = read('collection/router.js');
+    const routerCatId = /catId:\s*safeDecode\(rest\[0\]\)/.test(ROUTER);
+    check(routerCatId && /route\.catId/.test(CORE),
+        '★ 漂移守门：router.js 仍返回 catId、share-core.js 仍读它（任何一边改名都会红）');
+    check(/configId:\s*parts\.length/.test(ROUTER) && /route\.configId/.test(CORE),
+        '专题分支 configId 两边对齐（#special/years → special/years）');
 }
 
 section('③ 前缀匹配必须落在 / 边界上');
@@ -78,13 +91,19 @@ section('④ 校验：格式 / 有效期 / 范围');
     const now = 1767225600000;                       // 固定"现在"，避免依赖真实时钟
     const future = { p: 'notes/rmb3', e: now + 86400e3, i: 'aa11bb22' };
     const noExp = { p: 'notes/rmb3', i: 'aa11bb22' };
-    const past = { p: 'notes/rmb3', e: now - 1000, i: 'aa11bb22' };
+    const past = { p: 'notes/rmb3', e: now - 10 * 60e3, i: 'aa11bb22' };
+    const justPast = { p: 'notes/rmb3', e: now - 60e3, i: 'aa11bb22' };
     const wrong = { p: 'notes/rmb4', e: now + 86400e3, i: 'aa11bb22' };
 
     let r = checkToken(encode(future), 'notes/rmb3/s1/v1.0', now);
     check(r.ok === true, '未过期 + 范围内 → 放行');
     r = checkToken(encode(past), 'notes/rmb3', now);
     check(r.ok === false && r.reason === 'expired', '★ 过期 → 拒绝（reason=expired）', r.reason);
+    // ★ 时钟宽限：收件人本机时间比发送方快几分钟是常态，没有宽限的话"1 小时"档
+    //   可能刚发出就打不开（用户反馈的"有时看不了"）。5 分钟内仍然放行。
+    r = checkToken(encode(justPast), 'notes/rmb3', now);
+    check(r.ok === true, '只管到边界：刚过期 1 分钟仍在 5 分钟宽限内 → 放行');
+    check(sandbox.SHARE_CLOCK_GRACE_MS === 5 * 60e3, '宽限值就是 5 分钟（不会让过期链接长期有效）');
     r = checkToken(encode(noExp), 'notes/rmb3', now);
     check(r.ok === true, '不写 e（跟随站点令牌）→ 不放过期，只看范围');
     r = checkToken('这不是令牌', 'notes/rmb3', now);
@@ -110,6 +129,23 @@ section('⑤ 查询串读写（摘参时不能碰别的参数）');
     const st3 = stripQuery('?share=ABC');
     check(st3.hit === true && st3.search === '', '只有 share 时摘成空串（不是 "?"）');
     check(PARAM === 'share' && SESSION_KEY === 'collection-share', '参数名与会话键就是这两个');
+}
+
+section('⑤b hash 形态令牌 + "深链丢了"的判断');
+{
+    const { shareFromHash: fromHash, shareStripHash: stripHash, shareLooksLikeRoute: looks } = sandbox;
+    check(fromHash('#notes/rmb3&share=ABC') === 'ABC', '从 hash 里也能取出 share=（客户端把 query 挪到 # 之后）');
+    check(fromHash('#notes/rmb3') === '', 'hash 里没有 share 时返回空串');
+    const st = stripHash('#notes/rmb3&share=ABC');
+    check(st.hit === true && st.hash === '#notes/rmb3', `摘掉后 hash 仍是合法深链（${st.hash}）`);
+    check(stripHash('#notes/rmb3').hit === false, '没有 share 就原样返回、hit=false');
+    check(looks('notes/rmb3') === true && looks('special/years/shanhe') === true, '认得出站内路由');
+    check(looks('wechat_redirect') === false && looks('') === false && looks('notesx') === false,
+        '★ 客户端塞的锚点 / 空 / 形近词都不算路由（按"深链丢了"处理）');
+    const COREJS = read('collection/core.js');
+    const modesBlock = (/MODE_URL_SEGMENTS\s*=\s*\{[\s\S]*?\n\s*\}/.exec(COREJS) || [''])[0];
+    check(['notes', 'coins', 'special', 'articles', 'settings'].every(m => modesBlock.includes(m)),
+        '★ 漂移守门：SHARE_MODES 的 5 个板块名在 core.js 的 MODE_URL_SEGMENTS 里都有');
 }
 
 section('⑥ 拼链接：query 归门禁、hash 归路由');
@@ -210,7 +246,7 @@ section('⑧ 集成守门：门禁侧行为');
 
     // ★ "有时分享链接看不了"：客户端吃掉 # 之后整段 ⇒ hash 为空 ⇒ 范围校验必然失败。
     const denyFn = pull('tryShareOrDeny');
-    check(/reason === 'outofscope' && !bareHash/.test(denyFn) && /history\.replaceState/.test(denyFn),
+    check(/lostDeepLink/.test(denyFn) && /!bareHash/.test(denyFn) && /history\.replaceState/.test(denyFn),
         '★ hash 被客户端吃掉（空 hash）时把深链补回范围首页再放行，而不是直接拒绝');
 
     // ★★ 管理员与分享必须分开、且分享优先（用户明确要求：
@@ -223,12 +259,50 @@ section('⑧ 集成守门：门禁侧行为');
     const iRec = GATE.indexOf('var shareRec = readShareRec();');
     check(iRec > 0 && iRec < iStored,
         '★ 分享会话（sessionStorage）也优先于管理员标记（管理员刷新不许跑出范围）');
-    check(/if \(shareRec\.e && Date\.now\(\) > shareRec\.e\) \{[\s\S]{0,120}deny\('share-expired'\)/.test(GATE),
+    check(/if \(shareRec\.e && Date\.now\(\) > shareRec\.e\) \{[\s\S]{0,120}denyShare\('expired'\)/.test(GATE),
         '★ 会话过期 ⇒ 拒绝（管理员同样被拒，不会因为本地标记放行）');
     check(/function hasAdminMark\(/.test(GATE) && /shareToast\('这一页不在分享范围内，已回到分享页', hasAdminMark\(\)\)/.test(GATE),
         '管理员被困在分享范围时有「退出分享模式」出口（清会话记录后重载）');
     check(/sessionStorage\.removeItem\(SHARE_SESSION_KEY\)/.test(GATE),
         '退出分享模式 = 清掉本标签页的会话记录');
+
+    // ── 审计确认的三条"有时看不了"根因（都已核实是我这边的真问题）──
+    check(/shareFromHash\(location\.hash\)/.test(GATE) && /shareStripHash\(/.test(GATE),
+        '★ share 也有 hash 兜底（客户端把 query 丢到 # 之后，或整段重排时仍能取到令牌）');
+    check(/shareLooksLikeRoute\(bareHash\)/.test(GATE) && /lostDeepLink/.test(GATE),
+        '★ fragment 被改写成 #wechat_redirect 这类锚点时按"深链丢了"放行，而不是硬拒');
+    check(/\+ SHARE_PARAM \+ '=' \+ shareTok/.test(GATE),
+        '★ 拒绝前把令牌放回地址栏（摘参数在判定之前，不补回来刷新就没法重试）');
+    check(/sessionStorage\.removeItem\(SHARE_SESSION_KEY\)/.test(pull('allow')),
+        '★ 用 k= 明确登录一次即结束分享模式（否则管理员在同一标签点主令牌链接会被拨回分享页）');
+    const SHARE_SRC = read('collection/share.js');
+    check(SHARE_SRC.includes('function shareBaseUrl(') && SHARE_SRC.includes(".replace(/index\\.html?$/i, '')"),
+        '生成链接的 base 剥掉 index.html（从 /collection/index.html 打开也生成目录链接）');
+
+    // ★★ 分享被拒必须用**专属页面**，不能复用"暂无访问权限 + 输入通行密钥"那页
+    //    （用户明确要求：不应该用通用的那个）。收分享链接的人手里没有密钥，
+    //    给输入框只会误导；而且"过期"和"范围外"是两种要说清楚的不同原因。
+    check(/function denyShare\(/.test(GATE) && /denyShare\(r\.reason\)/.test(GATE),
+        '★ 分享被拒走 denyShare()，不再落到通用 deny()');
+    check(!/deny\('share-'/.test(GATE), '旧写法 deny(\'share-…\') 已经全部换掉');
+    const shareInner = pull('shareDeniedInner');
+    check(shareInner.length > 0, 'shareDeniedInner 存在');
+    check(!/<input/.test(shareInner) && !/gate-denied-form/.test(shareInner) && !/验证/.test(shareInner),
+        '★ 专属页里**没有输入框、没有验证按钮**（收链接的人没有密钥，给了只会误导）');
+    // ★ 用户要求：**统一一句**，不分支说明"过期"还是"范围外"。
+    const clauses = shareInner.match(/gate-denied-text/g) || [];
+    check(clauses.length === 1,
+        `★ 只有**一句**提示文案（gate-denied-text 出现 ${clauses.length} 次，应为 1）`);
+    check(/分享链接不可用，可能已过期或不在分享范围内/.test(GATE),
+        '★ 这句统一文案同时覆盖"过期"和"范围外"两种原因');
+    check(!/SHARE_DENIED\.(expired|outofscope|badformat)/.test(GATE),
+        '没有按原因分支的文案表（原因只写进日志，不写进页面）');
+    check(/以管理员身份进入全站/.test(shareInner) && /href="\.\/"/.test(shareInner),
+        '管理员落到这里时有出口（进入全站，靠本机标记；仅在有有效标记时出现）');
+    // 通用页一个字都不许动（verify-gate 有逐字断言：暂无访问权限 / 请输入通行密钥 / 验证）
+    check(/var DENIED_TEXT = '暂无访问权限'/.test(GATE) && /请输入通行密钥/.test(GATE)
+        && /class="gate-denied-form"/.test(GATE),
+        '通用拒绝页保持原样（暂无访问权限 + 输入框 + 验证，逐字不变）');
 }
 
 console.log('');

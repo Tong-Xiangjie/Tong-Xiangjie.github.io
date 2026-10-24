@@ -58,15 +58,19 @@ function shareB64UrlDecode(text) {
 //   #notes/rmb3                → notes/rmb3
 //   #articles/12               → articles
 //   #special/denom/g10000元    → special/denom     （子类不写进范围）
-// ★ 字段名以 router.js 的 parseRoute 实际返回为准：分类树板块是 categoryId，
-//   专题是 configId/groupId —— **没有** catId/subId 这两个字段（写了会静默退化，
-//   范围会大出一整块，等于多放行一大片）。
+// ★ 字段名以 router.js 的 parseRoute **真实返回值**为准，而且它有两条分支用了不同的名字：
+//   · 分类分支（#notes/rmb3、#coins/commemorative_coins）返回 **catId / subId**（router.js:293）；
+//   · 文章分支返回 categoryId（router.js:229），专题分支返回 configId（router.js:249）。
+//   早先这里只读 categoryId ⇒ 纸币/硬币的 p 永远退化成整个板块（notes / coins），
+//   "只放行一页"静默失效。现在两个都读 ⇒ 任何一边改名都不会再静默放宽。
+//   （verify-share 里有对 router.js 字段的漂移守门：router 换了名字会红。）
 function shareScopeOf(route) {
     if (!route || !route.mode) return '';
     if (route.mode === 'special') return route.configId ? 'special/' + route.configId : 'special';
     if (route.mode === 'articles') return 'articles';
     if (route.mode === 'settings') return 'settings';
-    return route.categoryId ? route.mode + '/' + route.categoryId : route.mode;
+    var cat = route.categoryId || route.catId || null;
+    return cat ? route.mode + '/' + cat : route.mode;
 }
 
 // 前缀匹配必须落在 '/' 边界上：notes/rmb3 放行 notes/rmb3 与 notes/rmb3/s1/v1.0，
@@ -121,13 +125,59 @@ function shareDecode(token) {
 
 // ── 校验：格式 / 有效期 / 范围 三件事 ───────────────────────────────────────
 // 返回值带 reason，便于门禁给出区分的日志（badformat / expired / outofscope）。
+//
+// ★ 允许量：`e` 是**发送方**写死的绝对时间戳，判过期却是拿**收件人**的本机时钟比，
+//   两边差几分钟很常见（手机时间没同步、跨时区、发送方时钟快）。没有宽限的话，
+//   选"1 小时"的链接可能刚发出就在对方手机上打不开，换台设备又能开 —— 正是用户
+//   反馈的"有时分享链接也看不了"。这里给 5 分钟宽限：只影响"刚好卡在边界"的链接，
+//   不会让过期链接长期有效。
+var SHARE_CLOCK_GRACE_MS = 5 * 60 * 1000;
+
 function shareCheck(token, hash, nowMs) {
     var payload = shareDecode(token);
     if (!payload) return { ok: false, reason: 'badformat' };
     var now = (typeof nowMs === 'number') ? nowMs : Date.now();
-    if (payload.e && now > payload.e) return { ok: false, reason: 'expired', payload: payload };
+    if (payload.e && now > payload.e + SHARE_CLOCK_GRACE_MS) {
+        return { ok: false, reason: 'expired', payload: payload };
+    }
     if (!shareScopeMatch(payload.p, hash)) return { ok: false, reason: 'outofscope', payload: payload };
     return { ok: true, payload: payload };
+}
+
+// ── hash 形态的令牌 ────────────────────────────────────────────────────────
+// 为什么需要：k= 一直有"片段优先、查询串兜底"两条路（stripParamFromHash / stripParamFromSearch），
+// 而 share 只有查询串一条 ⇒ 有些客户端会重排/丢弃 query、或把它挪到 '#' 之后，
+// 于是 shareTok 恒为空，收件人只会看到"暂无访问权限"。
+// 这里把 hash 当查询串看（'#notes/rmb3&share=XXX' → 取 XXX），补上同一条兜底。
+function shareFromHash(hash) {
+    var h = String(hash || '').replace(/^#/, '');
+    if (!h || h.indexOf(SHARE_PARAM + '=') < 0) return '';
+    return shareFromQuery('?' + h);
+}
+
+function shareStripHash(hash) {
+    var raw = String(hash || '');
+    var h = raw.replace(/^#/, '');
+    if (!h) return { hash: raw, hit: false };
+    var st = shareStripQuery('?' + h);
+    if (!st.hit) return { hash: raw, hit: false };
+    return { hash: '#' + st.search.replace(/^\?/, ''), hit: true };
+}
+
+// ── 这段 hash 像不像站内路由 ────────────────────────────────────────────────
+// 用途：客户端把 fragment 改写成 '#wechat_redirect' 这类东西时，深链其实丢了，
+// 但也不能因此就把人挡在门外（那不是"越界"，是"没拿到地址"）。
+// 名单必须与 collection/core.js 的 MODE_URL_SEGMENTS 一致 —— verify-share 会比对，
+// 那边加了板块这里忘了改，用例会红。
+var SHARE_MODES = ['notes', 'coins', 'special', 'articles', 'settings'];
+
+function shareLooksLikeRoute(hash) {
+    var h = String(hash || '').replace(/^#/, '').split('&')[0].replace(/\/+$/, '');
+    if (!h) return false;
+    var first = h.split('/')[0];
+    // 认不出来的首段一律视为"不是路由"—— 宁可当作深链丢失、按范围首页放行，
+    // 也不要因为客户端加了个锚点就把整条分享链接废掉。
+    return SHARE_MODES.indexOf(first) >= 0;
 }
 
 // ── 查询串读写（gate.js 读令牌 / 摘参数都用这两个）──────────────────────────

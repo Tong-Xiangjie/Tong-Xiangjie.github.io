@@ -222,6 +222,77 @@
     //     · 链接路径与输入框路径共用**同一份** verifyToken()/ctEqual()，不再有第二份实现。
     //   安全网：DENIED_INNER 的表单上留着 onsubmit="return false"。
 
+    // ── 分享被拒的**专属**页面 ─────────────────────────────────────────────
+    // 为什么不复用 deny() 那一页：那一页是"站主自己没拿到授权"的场景 —— 文案是
+    // 「暂无访问权限」+ 一个让你**输入通行密钥**的输入框。收分享链接的人手里没有密钥，
+    // 给输入框只会让他以为"输点什么就能进"；而"链接过期了"和"这一页不在范围内"
+    // 是两种完全不同、都需要说清楚的原因（用户要求：不要用通用的那一页）。
+    // 所以这里另起一页：图标 + 一句结论 + 一句怎么办，**没有输入框、没有验证按钮**。
+    // 结构照旧保持"零脚本 + 单提示盒"，守门 CSS（gate-denied 类）同样要挂上，
+    // 否则 CSS 兜底那句 ::before 会和提示盒叠在一起。
+    // ★ 文案用**统一一句**（用户要求）：不区分"过期"还是"范围外"。
+    //   附带的两个好处：① 收链接的人无法据此判断"这一页到底存不存在"；
+    //   ② 将来加新原因（签名坏了、被撤销…）不用再加一份文案，也不会漏掉某条分支。
+    //   具体原因只写进控制台日志（?gatedebug=1 才看得到），不写进页面。
+    var SHARE_DENIED_TITLE = '无法查看这个分享';
+    var SHARE_DENIED_TEXT = '分享链接不可用，可能已过期或不在分享范围内；请让分享者重新发一条。';
+
+    function shareDeniedInner() {
+        var inner = '<img class="gate-denied-icon" src="' + ICON_SRC + '" alt="" aria-hidden="true">'
+            + '<p class="gate-denied-text">' + SHARE_DENIED_TEXT + '</p>';
+        // 管理员落到这里时也给一条出路（仅在有有效本机标记时出现）。
+        if (hasAdminMark()) {
+            inner += '<a class="gate-denied-enter" href="./">以管理员身份进入全站</a>';
+        }
+        return inner;
+    }
+
+    function shareDeniedDoc(scheme) {
+        return '<html lang="zh-CN" class="gate-denied"' + (scheme ? ' data-color-scheme="' + scheme + '"' : '') + '><head>'
+            + '<meta charset="UTF-8">'
+            + '<meta name="robots" content="noindex,nofollow">'
+            + '<title>' + SHARE_DENIED_TITLE + '</title>'
+            + '<style>' + DENIED_CSS + '</style>'
+            + '</head><body><div class="gate-denied-box" role="alert">' + shareDeniedInner() + '</div></body></html>';
+    }
+
+    function denyShare(kind) {
+        log('[collection-gate] share denied:', kind);
+        var scheme = deniedIsDark() ? 'dark' : 'light';
+        try { html.classList.add('gate-denied'); } catch (e) { }
+        applyDeniedScheme(scheme);
+        try {
+            document.open();
+            document.write(shareDeniedDoc(scheme));
+            document.close();
+            try { window.stop(); } catch (e3) { }
+            try {
+                var iconEl = document.querySelector('.gate-denied-icon');
+                if (iconEl) iconEl.src = iconEl.getAttribute('src');
+            } catch (e4) { }
+            applyDeniedScheme(scheme);
+            watchSystemColorScheme();
+            return;
+        } catch (e) { log('[collection-gate] share document.write failed', e); }
+        // 兜底（document.open/write 被环境禁掉）：清空 DOM，塞进同一份提示盒。
+        try {
+            var body = document.body || document.documentElement;
+            while (body.firstChild) body.removeChild(body.firstChild);
+            if (body !== document.body) {
+                var b2 = document.createElement('body');
+                document.documentElement.appendChild(b2);
+                body = b2;
+            }
+            var box = document.createElement('div');
+            box.className = 'gate-denied-box';
+            box.setAttribute('role', 'alert');
+            box.innerHTML = shareDeniedInner();
+            body.appendChild(box);
+            applyDeniedScheme(scheme);
+            watchSystemColorScheme();
+        } catch (e2) { }
+    }
+
     function deniedDoc(scheme) {
         // ★ 结构：<head> 只有 meta/title/style，<body> 只有提示盒 —— 零脚本。
         //   ⚠ 这里**不写 <html> 上的 class 由外层负责**：写出来的 <html> 起始标签会被
@@ -265,15 +336,30 @@
         var shareStripBase = fromSearch.hit ? fromSearch.search : location.search;
         shareTok = (typeof shareFromQuery === 'function') ? shareFromQuery(shareStripBase) : '';
         var shareStrip = (typeof shareStripQuery === 'function') ? shareStripQuery(shareStripBase) : { search: shareStripBase, hit: false };
+        // ★ hash 形态兜底：k= 一直是"片段优先、查询串兜底"，share 早先只有查询串一条路
+        //   ⇒ 客户端重排/丢弃 query、或把它挪到 '#' 之后时，shareTok 恒为空，收件人
+        //   只会看到"暂无访问权限"。这里补上同一条兜底（'#notes/rmb3&share=XXX'）。
+        var hashShare = { hash: '', hit: false };
+        if (!shareTok && typeof shareFromHash === 'function') {
+            var hashTok = shareFromHash(location.hash);
+            if (hashTok) {
+                shareTok = hashTok;
+                if (typeof shareStripHash === 'function') hashShare = shareStripHash(location.hash);
+            }
+        }
 
         // ③ 只要出现了 k（或 share）参数就**同步**抹掉它。为什么必须同步、且必须在这里做：
         //    站内路由大量使用 location.hash（#coins/... 、#coins/...&k=xxx 这种形态），
         //    router.js 在 DOMContentLoaded 读 location.hash。若等异步摘要回来再清，
         //    路由可能已经读到带 k 的脏 hash。这里只摘掉这两段，其余段**原样拼接**。
-        if (fromHash.hit || fromSearch.hit || shareStrip.hit) {
+        if (fromHash.hit || fromSearch.hit || shareStrip.hit || hashShare.hit) {
+            var cleanHash = fromHash.hit ? fromHash.hash : location.hash;
+            if (hashShare.hit) {
+                cleanHash = (typeof shareStripHash === 'function') ? shareStripHash(cleanHash).hash : cleanHash;
+            }
             var clean = location.pathname
                 + shareStrip.search
-                + (fromHash.hit ? fromHash.hash : location.hash);
+                + cleanHash;
             try {
                 history.replaceState(history.state, '', clean);
             } catch (e) { /* replaceState 失败就留着，功能优先于整洁 */ }
@@ -304,7 +390,7 @@
         if (shareRec) {
             if (shareRec.e && Date.now() > shareRec.e) {
                 try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e2) { }
-                deny('share-expired'); return;
+                denyShare('expired'); return;
             }
             if (!shareStillOk(shareRec)) {
                 // 越界（例如手改地址栏后刷新）：先把 hash 拨回范围首页再放行。
@@ -532,6 +618,10 @@
     // ── 放行 ────────────────────────────────────────────────────────────────
     function allow(mark) {
         try { localStorage.setItem(STORAGE_KEY, mark); } catch (e) { /* 隐私模式，忽略 */ }
+        // ★ 用 k= 明确登录一次 ⇒ 当场结束本标签页的分享模式。
+        //   否则"分享优先"会让管理员在同一标签里点主令牌链接时又被拨回分享页，
+        //   看起来像"怎么点都跳回去"。刷新（没有 k=）仍然受分享范围约束 —— 那条不变。
+        try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e) { /* 隐私模式，忽略 */ }
         html.classList.add('gate-ok');
     }
 
@@ -574,12 +664,15 @@
             var r = shareCheck(shareTok, location.hash, Date.now());
             if (r.ok) { allowShare(r.payload); return; }
             // ★ 一条真实的失败路径（用户实测"有时分享链接也看不了"）：
-            //   微信/QQ 之类客户端会把 URL 里 '#' 之后整段吃掉，于是 location.hash 为空
-            //   ⇒ 范围校验必然失败 ⇒ 收件人只看到"暂无访问权限"。
-            //   这不是链接坏了，而是深链丢了：把深链**补回**范围首页再放行。
+            //   ① 微信/QQ 之类客户端会把 URL 里 '#' 之后整段吃掉 ⇒ hash 为空；
+            //   ② 有些客户端/中转还会把 fragment 改写成 '#wechat_redirect' 这类锚点 ⇒
+            //      hash 非空但根本不是站内路由。
+            //   两种都不是"越界"，而是"深链丢了"：按范围首页放行，别让人对着拒绝页发呆。
             //   （用 replaceState，不新增历史记录、也不触发 hashchange。）
             var bareHash = String(location.hash || '').replace(/^#/, '').trim();
-            if (r.reason === 'outofscope' && !bareHash) {
+            var lostDeepLink = !bareHash
+                || (typeof shareLooksLikeRoute === 'function' && !shareLooksLikeRoute(bareHash));
+            if (r.reason === 'outofscope' && lostDeepLink) {
                 allowShare(r.payload);
                 try {
                     history.replaceState(history.state, '', location.pathname + location.search + '#' + r.payload.p);
@@ -587,7 +680,13 @@
                 return;
             }
             if (DEBUG) console.log('[gate] 分享令牌被拒：' + r.reason);
-            deny('share-' + r.reason);
+            // ★ 把令牌放回地址栏再写拒绝页：摘参数发生在判定之前，不补回来的话，
+            //   刷新/后退之后连"拿原链接重试一次"都做不到（地址栏已经干净了）。
+            try {
+                history.replaceState(history.state, '',
+                    location.pathname + '?' + SHARE_PARAM + '=' + shareTok + location.hash);
+            } catch (e0) { }
+            denyShare(r.reason);
             return;
         }
         deny(reason || 'no-token');
