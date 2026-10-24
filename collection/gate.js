@@ -914,6 +914,9 @@
     //   .rating-tab[data-mode="notes"] 这种普通控件误判成越界、把页面自己锁坏。
     function shareRouteOf(el) {
         if (!el || !el.getAttribute) return null;
+        // ★ 绝不判自己家的 UI（提示条与分享弹窗）：用户实测"退出分享模式"点了没反应，
+        //   就是我把它当成站内入口锁住了（它是 <a href="./"> 或 onclick="exitShareMode()"）。
+        if (el.closest && el.closest('.gate-share-toast,.share-toast,.share-mask,.share-box')) return null;
         var t = shareClickTarget(el);
         if (t !== null) return t;
 
@@ -939,8 +942,14 @@
         }
 
         // ② 内联 onclick 里的 id：取引号里的标识符，再按"是模式名还是分类 id"拼成路由。
+        //    ★ 只认**导航类**处理器（侧边栏/导航/分类/模式…），并且排除 exit/close/copy/switch
+        //      这类动作 —— 否则"退出分享模式"、"关闭"、评分表切换（switchRatingMode）
+        //      都会被误判成越界入口、连带被锁死（用户实测的就是这个）。
         var oc = el.getAttribute('onclick') || '';
-        if (oc) {
+        var fn = (oc.match(/^\s*([A-Za-z_$][\w$]*)\s*\(/) || [])[1] || '';
+        var isNav = /sidebar|nav|cat|mode|goto|route|jump|menu/i.test(fn)
+            && !/exit|close|copy|quit|leave|switch|toggle/i.test(fn);
+        if (oc && isNav) {
             var m = oc.match(/'([a-zA-Z0-9_\-]+)'/g) || oc.match(/"([a-zA-Z0-9_\-]+)"/g) || [];
             for (i = 0; i < m.length; i++) {
                 var idv = m[i].replace(/^['"]|['"]$/g, '');
