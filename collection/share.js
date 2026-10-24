@@ -16,13 +16,14 @@
    ============================================================================ */
 
 // 档位（相邻跨度约 ×24 / ×7 / ×4，足够大 ⇒ 用户不用纠结"3 天还是 5 天"）
+// ★ 只留档位名，不再写"随手发一下 / 你抽空看看"这类说明（用户要求全部删掉）。
 var SHARE_TIERS = [
-    { id: 'h1',     label: '1 小时',        ms: 3600e3,        hint: '随手发一下，看完就完' },
-    { id: 'd1',     label: '1 天',          ms: 86400e3,       hint: '今天之内看（默认）' },
-    { id: 'd7',     label: '7 天',          ms: 7 * 86400e3,   hint: '你抽空看看' },
-    { id: 'd30',    label: '30 天',         ms: 30 * 86400e3,  hint: '给固定的人（小圈子、家人）' },
-    { id: 'custom', label: '自定义',        ms: 0,             hint: '自己选到某天某时某分' },
-    { id: 'site',   label: '跟随站点令牌',  ms: -1,            hint: '不设过期；换站点令牌即全部作废' }
+    { id: 'h1',     label: '1 小时',        ms: 3600e3 },
+    { id: 'd1',     label: '1 天',          ms: 86400e3 },
+    { id: 'd7',     label: '7 天',          ms: 7 * 86400e3 },
+    { id: 'd30',    label: '30 天',         ms: 30 * 86400e3 },
+    { id: 'custom', label: '自定义',        ms: 0 },
+    { id: 'site',   label: '跟随站点令牌',  ms: -1 }
 ];
 var SHARE_DEFAULT_TIER = 'd1';
 
@@ -30,12 +31,17 @@ var shareDialogEl = null;
 var shareTier = SHARE_DEFAULT_TIER;
 var shareStyleDone = false;
 
+// ★ 暗色适配：弹窗挂在 body 下，颜色都走站点自己的 CSS 变量，根元素上的
+//   html[data-color-scheme="dark"]（见 layout.css）会把这套变量整体换掉。
+//   注意变量名必须用站点真实的那些：卡片是 --card-bg，**不是** --bg-card ——
+//   写错名字时 var() 会一直取兜底的 #fff，于是"深色模式下弹窗还是白的"。
+//   另外 color-scheme 已经由站点在根元素上设了，输入框/滚动条会跟着变深色。
 function shareEnsureStyle() {
     if (shareStyleDone) return;
     shareStyleDone = true;
     var css = [
         '.share-mask{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;}',
-        '.share-box{width:min(94vw,560px);max-height:88vh;overflow:auto;background:var(--bg-card,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:18px 18px 14px;font-size:.9rem;}',
+        '.share-box{width:min(94vw,560px);max-height:88vh;overflow:auto;background:var(--card-bg,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:18px 18px 14px;font-size:.9rem;}',
         '.share-title{font-size:1.05rem;font-weight:700;margin:0 0 10px;}',
         '.share-row{display:flex;gap:8px;align-items:baseline;margin:4px 0;line-height:1.5;}',
         '.share-k{flex:0 0 auto;color:var(--text-secondary,#666);}',
@@ -43,16 +49,21 @@ function shareEnsureStyle() {
         '.share-tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;margin:12px 0 6px;}',
         '.share-tier{border:1px solid var(--border,#ddd);border-radius:8px;padding:6px 8px;cursor:pointer;background:transparent;color:inherit;text-align:left;font-size:.85rem;}',
         '.share-tier.on{border-color:var(--theme,#1677ff);box-shadow:inset 0 0 0 1px var(--theme,#1677ff);}',
-        '.share-tier small{display:block;color:var(--text-secondary,#666);font-size:.7rem;margin-top:2px;}',
         '.share-custom{margin:6px 0 2px;}',
         '.share-custom input{font:inherit;padding:4px 6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;}',
         '.share-exp{margin:8px 0;color:var(--text-secondary,#666);}',
-        '.share-exp.bad{color:#d4380d;}',
+        '.share-exp.bad{color:#ff7875;}',
         '.share-link{width:100%;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;resize:vertical;}',
         '.share-acts{display:flex;gap:8px;align-items:center;margin-top:10px;}',
         '.share-btn{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid var(--theme,#1677ff);background:var(--theme,#1677ff);color:#fff;cursor:pointer;}',
         '.share-btn.ghost{background:transparent;color:inherit;border-color:var(--border,#ddd);}',
-        '.share-msg{color:var(--text-secondary,#666);}'
+        '.share-msg{color:var(--text-secondary,#666);}',
+        // 深色下把遮罩压得更实、阴影更沉，并给"危险/过期"那句换一个在深底上够亮的红。
+        'html[data-color-scheme="dark"] .share-mask{background:rgba(0,0,0,.62);}',
+        'html[data-color-scheme="dark"] .share-box{box-shadow:0 12px 40px rgba(0,0,0,.6);}',
+        'html[data-color-scheme="dark"] .share-exp.bad{color:#ff9c8f;}',
+        // 站点还没跑起来（theme.js 未执行）时按系统偏好兜一层。
+        '@media (prefers-color-scheme: dark){html:not([data-color-scheme="light"]) .share-mask{background:rgba(0,0,0,.62);}}'
     ].join('\n');
     var s = document.createElement('style');
     s.id = 'shareStyle';
@@ -159,8 +170,6 @@ function shareOpenDialog() {
         '<button class="share-btn ghost" id="shareClose">关闭</button>',
         '<span class="share-msg" id="shareMsg"></span>',
         '</div>',
-        '<div style="margin-top:8px;color:var(--text-secondary,#666);font-size:.75rem;">',
-        '范围内可自由浏览；跳到范围外会被挡回分享页。有效期由浏览器判定（软限制）。</div>',
         '</div>'
     ].join('');
     document.body.appendChild(mask);
@@ -172,9 +181,8 @@ function shareOpenDialog() {
         var b = document.createElement('button');
         b.className = 'share-tier';
         b.setAttribute('data-tier', t.id);
-        b.innerHTML = '<span></span><small></small>';
+        b.innerHTML = '<span></span>';
         b.querySelector('span').textContent = t.label;
-        b.querySelector('small').textContent = t.hint;
         b.addEventListener('click', function () {
             shareTier = t.id;
             mask.querySelector('#shareCustom').style.display = (t.id === 'custom') ? '' : 'none';
@@ -250,7 +258,7 @@ function shareCopyLink() {
         if (shareDialogEl) shareDialogEl.querySelector('#shareMsg').textContent = okText;
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(function () { done('已复制 ✓'); }, function () { done(shareFallbackCopy(url)); });
+        navigator.clipboard.writeText(url).then(function () { done('链接复制成功！'); }, function () { done(shareFallbackCopy(url)); });
     } else {
         done(shareFallbackCopy(url));
     }
@@ -262,7 +270,7 @@ function shareFallbackCopy(url) {
     var el = shareDialogEl && shareDialogEl.querySelector('#shareLink');
     try {
         if (el) { el.focus(); el.select(); }
-        if (document.execCommand && document.execCommand('copy')) return '已复制 ✓';
+        if (document.execCommand && document.execCommand('copy')) return '链接复制成功！';
     } catch (e) { }
     return '请手动复制（已全选）';
 }

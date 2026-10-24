@@ -242,7 +242,7 @@
             + '<p class="gate-denied-text">' + SHARE_DENIED_TEXT + '</p>';
         // 管理员落到这里时也给一条出路（仅在有有效本机标记时出现）。
         if (hasAdminMark()) {
-            inner += '<a class="gate-denied-enter" href="./">以管理员身份进入全站</a>';
+            inner += '<a class="gate-denied-enter" href="./">以管理员身份进入</a>';
         }
         return inner;
     }

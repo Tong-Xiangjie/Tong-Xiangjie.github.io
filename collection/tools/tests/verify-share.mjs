@@ -315,6 +315,23 @@ section('⑧ 集成守门：门禁侧行为');
     check(SHARE_SRC.includes('function shareBaseUrl(') && SHARE_SRC.includes(".replace(/index\\.html?$/i, '')"),
         '生成链接的 base 剥掉 index.html（从 /collection/index.html 打开也生成目录链接）');
 
+    // ★ 用户要求：弹窗里那些说明文字全部删掉（档位只留名字）。
+    check(!/hint:/.test(SHARE_SRC) && !/<small>/.test(SHARE_SRC),
+        '★ 档位说明（"随手发一下 / 你抽空看看"这类）已全部删除，只留档位名');
+    check(!/范围内可自由浏览|软限制|挡回分享页/.test(SHARE_SRC),
+        '★ 弹窗里那段"范围内可自由浏览…有效期由浏览器判定"的说明也已删除');
+
+    // ★ 用户要求：弹窗要适配黑夜模式。
+    //   变量名必须用站点真实的那套（layout.css: --card-bg/--text/--border/--text-secondary）；
+    //   写成 --bg-card 会一直取兜底 #fff ⇒ 深色下弹窗还是白的。
+    check(SHARE_SRC.includes('background:var(--card-bg,#fff)') && !/var\(--bg-card/.test(SHARE_SRC),
+        '★ 弹窗底色走站点真实的 --card-bg（深色模式下自动变深）');
+    check(/html\[data-color-scheme="dark"\] \.share-mask/.test(SHARE_SRC)
+        && /html\[data-color-scheme="dark"\] \.share-exp\.bad/.test(SHARE_SRC),
+        '★ 有 html[data-color-scheme="dark"] 分支（遮罩更实、过期那句换成深底上够亮的红）');
+    check(/@media \(prefers-color-scheme: dark\)/.test(SHARE_SRC) && /html:not\(\[data-color-scheme="light"\]\)/.test(SHARE_SRC),
+        '主题还没跑起来时按系统偏好兜一层（且不覆盖用户显式选的浅色）');
+
     // ★ 用户两条定稿：share 必须一直留在地址栏；分享页标题是"铜の币纪主站 | 来自分享"。
     check(!/shareStrip\.search/.test(GATE),
         '★ 不再把 ?share= 从地址栏摘掉（只摘 k）—— 否则同标签开过管理员页后，刷新分享页会变成管理员');
@@ -357,7 +374,7 @@ section('⑧ 集成守门：门禁侧行为');
         '★ 这句统一文案同时覆盖"过期"和"范围外"两种原因（文案由用户定稿）');
     check(!/SHARE_DENIED\.(expired|outofscope|badformat)/.test(GATE),
         '没有按原因分支的文案表（原因只写进日志，不写进页面）');
-    check(/以管理员身份进入全站/.test(shareInner) && /href="\.\/"/.test(shareInner),
+    check(/以管理员身份进入/.test(shareInner) && /href="\.\/"/.test(shareInner),
         '管理员落到这里时有出口（进入全站，靠本机标记；仅在有有效标记时出现）');
     // 通用页一个字都不许动（verify-gate 有逐字断言：暂无访问权限 / 请输入通行密钥 / 验证）
     check(/var DENIED_TEXT = '暂无访问权限'/.test(GATE) && /请输入通行密钥/.test(GATE)
