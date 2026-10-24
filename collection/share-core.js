@@ -101,6 +101,45 @@ function shareSelSig(hash) {
     return segs.join('|');
 }
 
+// 从签名里取"用到了哪些系列下标"：s 段的数字 + v 段的 si 部分。
+// 例：s0,4,8 → [0,4,8]；s0|v0.1 → [0]；v2.0 → [2]；空 ⇒ []。
+function shareSelIdx(sig) {
+    var out = [];
+    var segs = String(sig || '').split('|');
+    for (var i = 0; i < segs.length; i++) {
+        var s = segs[i];
+        if (!s) continue;
+        if (s.charAt(0) === 's') {
+            var nums = s.slice(1).split(',');
+            for (var j = 0; j < nums.length; j++) if (nums[j] !== '') out.push(nums[j]);
+        } else if (s.charAt(0) === 'v') {
+            var pairs = s.slice(1).split(',');
+            for (var k = 0; k < pairs.length; k++) {
+                var si = String(pairs[k]).split('.')[0];
+                if (si !== '') out.push(si);
+            }
+        }
+    }
+    return out;
+}
+
+// ★ 单张/多张那一档到底放行什么 —— 这里按"**子集**"判，不是全等。
+//   为什么改（用户实测 C 的问题）：分享 s0,4,8 之后，收件人在列表页点开第 0 张，
+//   hash 会变成 notes/commemorative/s0 —— 全等判定下这是"不一致"⇒ 被拨回，
+//   结果"那几张反而点不开了"。用户的本意是"只有这几张能看"，那子集才是对的：
+//     · 列表页（没有选择段）⇒ 放行；
+//     · 只用到白名单里的系列（s0、s4,s8、s0/v0.1 这类）⇒ 放行；
+//     · 用到任何白名单外的系列（s1、s0,9 …）⇒ 拒绝。
+//   白名单里没有 s 段（极少数、只有 v 段的情况）⇒ 退回全等，保持旧语义。
+function shareSelAllowed(allowSel, hash) {
+    var want = shareSelIdx(allowSel);
+    var got = shareSelIdx(shareSelSig(hash));
+    if (!want.length) return shareSelSig(hash) === allowSel;
+    if (!got.length) return true;
+    for (var i = 0; i < got.length; i++) if (want.indexOf(got[i]) < 0) return false;
+    return true;
+}
+
 // 前缀匹配必须落在 '/' 边界上：notes/rmb3 放行 notes/rmb3 与 notes/rmb3/s1/v1.0，
 // 但**不放行** notes/rmb3x / notes/rmb4 / notes。hash 里可能还挂着 &k= 之类，先切掉。
 //
@@ -118,9 +157,8 @@ function shareScopeMatch(scope, hash, allowSel) {
     var inPrefix = (h === p) || (h.slice(0, p.length + 1) === p + '/');
     if (!inPrefix) return false;
     if (!allowSel) return true;
-    var sig = shareSelSig(hash);
-    if (!sig) return true;          // 列表页 / 没选中任何东西
-    return sig === allowSel;
+    // allowSel 存在 ⇒ 单张/多张那一档：列表页放行，选择段必须是白名单的子集（见 shareSelAllowed）。
+    return shareSelAllowed(allowSel, hash);
 }
 
 // ── payload 组装 / 解析 ─────────────────────────────────────────────────────

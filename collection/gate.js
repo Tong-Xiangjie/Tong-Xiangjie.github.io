@@ -845,6 +845,60 @@
         } catch (e) { /* 按不住动画也不能让回拨失败 */ }
     }
 
+    // ★ 用户实测：分享模式里点"范围外的入口"（例如「我的」）会**真的跳进去、整页刷新一次**。
+    //   原因：那些入口是普通 <a href>，浏览器直接换页，既不经过 syncRoute 也不走 hashchange，
+    //   我们只能在事后才发现越界 ⇒ 观感就是"点一下又刷新了"。
+    //   做法（用户原话："建议先判断而不是先刷新"）：在**捕获阶段拦下点击**，先判范围；
+    //   越界就 preventDefault/stopPropagation —— 页面不动、地址栏也不动、也不播放任何动画。
+    //   放走的情形：外站链接、新标签打开（target=_blank / 带修饰键 / 中键）、非 http(s) 协议、
+    //   纯锚点（那是 hashchange 那条路管的）、以及判定在范围内的链接。
+    function shareClickTarget(a) {
+        try {
+            var href = a.getAttribute('href') || '';
+            if (!href) return null;
+            if (/^(javascript|mailto|tel|blob|data):/i.test(href)) return null;
+            var u = new URL(href, location.href);
+            if (u.origin !== location.origin) return null;
+            var h = u.hash || '';
+            // 纯锚点（href="#xxx"）：只判"看起来像站内路由"的那些。像 <a href="#"> 这种
+            // 拿来做纯 JS 按钮的写法不能被误伤，非路由锚点（#、#wechat_redirect…）直接放走。
+            if (href.charAt(0) === '#' && u.pathname === location.pathname) {
+                var bare = h.replace(/^#/, '');
+                if (!bare) return null;
+                if (typeof shareLooksLikeRoute === 'function' && !shareLooksLikeRoute(bare)) return null;
+                return h;
+            }
+            // 换到站内**另一个页面**（不只是换 hash）也算越界：分享的是这一套 SPA。
+            if (u.pathname !== location.pathname) return '';
+            return h || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function shareClickGuard(e) {
+        if (e.defaultPrevented || (e.button !== undefined && e.button !== 0)) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        var rec = null;
+        try {
+            var raw = sessionStorage.getItem(SHARE_SESSION_KEY);
+            rec = raw ? JSON.parse(raw) : null;
+        } catch (e1) { return; }
+        if (!rec || !rec.p) return;
+        var t = e.target;
+        var a = (t && t.closest) ? t.closest('a[href]') : null;
+        if (!a || a.getAttribute('target') === '_blank') return;
+        var target = shareClickTarget(a);
+        if (target === null) return;
+        if (shareScopeMatch(rec.p, target, rec.a)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
+    }
+
+    // 捕获阶段安装：早于任何站内委托处理器（也早于浏览器默认的跳转）。
+    try { document.addEventListener('click', shareClickGuard, true); } catch (e) { }
+
     // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
     // 但管理员总得有个显式出路）。
     function hasAdminMark() {

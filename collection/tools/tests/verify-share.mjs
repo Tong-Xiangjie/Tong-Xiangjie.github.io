@@ -164,8 +164,12 @@ section('⑤c 单张 / 选定多张（选择段白名单 a）');
     check(M(P, '#notes/commemorative/s0,4,8', 's0,4,8') === true, '选中的这几张 ⇒ 放行');
     check(M(P, '#notes/commemorative', 's0,4,8') === true, '★ 所在列表页 ⇒ 放行（用户定稿：能看列表）');
     check(M(P, '#notes/commemorative/s1', 's0,4,8') === false, '★ 点开别的那一张 ⇒ 拒绝');
-    check(M(P, '#notes/commemorative/s0,4', 's0,4,8') === false, '★ 少选一张的同一页 ⇒ 拒绝');
-    check(M(P, '#notes/commemorative/s0', 's0,4,8') === false, '★ 单选其中一张 ⇒ 拒绝');
+    // ★ 子集语义（用户实测 C 的 bug：全等判定下"打开其中一张"会被拨回，那几张反而点不开）
+    check(M(P, '#notes/commemorative/s0', 's0,4,8') === true, '★ 列表里点开白名单里的某一张 ⇒ 放行（子集）');
+    check(M(P, '#notes/commemorative/s4,8', 's0,4,8') === true, '★ 其中几张的组合 ⇒ 放行');
+    check(M(P, '#notes/commemorative/s0/v0.1', 's0,4,8') === true, '★ 进到白名单某一张的图片 ⇒ 放行');
+    check(M(P, '#notes/commemorative/s0,4,9', 's0,4,8') === false, '★ 掺进白名单外的系列 ⇒ 拒绝');
+    check(M(P, '#notes/commemorative/s0,4', 's0,4,8') === true, '少选一张（子集）⇒ 放行');
     check(M(P, '#notes/other/s0,4,8', 's0,4,8') === false, '别的分类照旧被前缀挡掉');
     check(M(P, '#notes/commemorative/s1', '') === true, '没有 a 时行为逐条不变（老链接向后兼容）');
     check(M('notes', '#notes/commemorative/s1') === true, '板块级分享不受选择段影响');
@@ -355,6 +359,23 @@ section('⑧ 集成守门：门禁侧行为');
         '★ hashchange 守门：先按住动画再拨回地址');
     check(pull('watchShareNavigation').indexOf('shareInstant();') > 0,
         '★ syncRoute 收口：越界时同样先按住动画');
+
+    // ★ 用户实测 A/B：「我的」这类入口是普通 <a href>，浏览器直接换页 ⇒ 刷新一次。
+    //   必须"先判断再决定放不放走"，在捕获阶段拦点击。
+    const clickGuard = pull('shareClickGuard');
+    check(/addEventListener\('click', shareClickGuard, true\)/.test(GATE),
+        '★ 捕获阶段拦点击（早于站内委托处理器与浏览器默认跳转）');
+    check(/e\.preventDefault\(\)/.test(clickGuard) && /e\.stopPropagation\(\)/.test(clickGuard)
+        && /shareScopeMatch\(rec\.p, target, rec\.a\)/.test(clickGuard),
+        '★ 越界点击直接 preventDefault：页面不动、地址栏不动、不刷新');
+    check(/e\.metaKey \|\| e\.ctrlKey \|\| e\.shiftKey \|\| e\.altKey/.test(clickGuard)
+        && /target'\) === '_blank'/.test(clickGuard),
+        '新标签打开（修饰键 / target=_blank）不拦，交还浏览器');
+    check(/u\.pathname !== location\.pathname/.test(GATE),
+        '★ 换到站内另一个页面也算越界（分享的是这一套 SPA）');
+
+    // 档位按钮文字居中（用户要求）
+    check(/\.share-tier\{[^}]*text-align:center/.test(SHARE_SRC), '★ 档位按钮文字居中');
 
     // ★★ 分享被拒必须用**专属页面**，不能复用"暂无访问权限 + 输入通行密钥"那页
     //    （用户明确要求：不应该用通用的那个）。收分享链接的人手里没有密钥，

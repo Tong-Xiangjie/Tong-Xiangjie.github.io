@@ -47,7 +47,7 @@ function shareEnsureStyle() {
         '.share-k{flex:0 0 auto;color:var(--text-secondary,#666);}',
         '.share-v{flex:1 1 auto;word-break:break-all;font-family:ui-monospace,Consolas,monospace;}',
         '.share-tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;margin:12px 0 6px;}',
-        '.share-tier{border:1px solid var(--border,#ddd);border-radius:8px;padding:6px 8px;cursor:pointer;background:transparent;color:inherit;text-align:left;font-size:.85rem;}',
+        '.share-tier{border:1px solid var(--border,#ddd);border-radius:8px;padding:6px 8px;cursor:pointer;background:transparent;color:inherit;text-align:center;font-size:.85rem;}',
         '.share-tier.on{border-color:var(--theme,#1677ff);box-shadow:inset 0 0 0 1px var(--theme,#1677ff);}',
         '.share-custom{margin:6px 0 2px;}',
         '.share-custom input{font:inherit;padding:4px 6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;}',
