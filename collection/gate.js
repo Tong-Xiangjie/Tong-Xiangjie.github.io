@@ -1108,6 +1108,11 @@
     function shareInstallGuards() {
         if (window.__gateShareGuards) return;
         window.__gateShareGuards = 1;
+        // ★ hashchange 守卫也必须在这里装：它原来是写在 run() 末尾那一串里的，
+        //   同样走不到 —— CDP 实测为证：页内把 hash 改成 #settings，浏览器只把地址
+        //   "悄悄拨回"了范围首页（进不去「我的」，但也没显示被挡页面）。
+        //   watchShareNavigation 内部有 __gateShareSynced 标志，重复调用是幂等的。
+        try { watchShareScope(); } catch (e) { }
         try {
             window.addEventListener('pointerdown', shareBlockClick, true);
             window.addEventListener('mousedown', shareBlockClick, true);
