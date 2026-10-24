@@ -289,12 +289,36 @@
                 stored = null;
             }
         } catch (e) { /* 隐私模式下 localStorage 会抛，当成没有标记 */ }
-        if (stored) { allow(stored); return; }
+        // ★★ 分享令牌与管理员标记**必须分开、且分享优先**（用户明确要求）。
+        //   带着 share 进站 ⇒ 这一趟一律按分享规则判，管理员也不例外：
+        //     · 有效 ⇒ 放行，但只在这个范围里（管理员也出不去）；
+        //     · 过期 / 范围不符 ⇒ 拒绝，连管理员也看不到这一页。
+        //   所以这段必须排在下面"本机管理员标记"**之前** —— 否则管理员一点开过期链接，
+        //   就被自己 localStorage 里的全站标记放过去了，分享的语义就没了。
+        //   （管理员要回全站：关掉这个标签页，或点提示里的「退出分享模式」。）
+        if (shareTok) { tryShareOrDeny('no-token'); return; }
 
-        // ④b 本标签页已有的分享会话（sessionStorage）：刷新之后仍然有效，
-        //     关掉标签页就没了 —— 这正是"临时分享"该有的寿命。
+        // ④b 本标签页已有的分享会话（sessionStorage）：**同样优先于**管理员标记，
+        //     否则管理员刷新一下就跑到分享范围外面去了。关标签页即失效（临时分享的寿命）。
         var shareRec = readShareRec();
-        if (shareRec && shareStillOk(shareRec)) { allowShare(shareRec); return; }
+        if (shareRec) {
+            if (shareRec.e && Date.now() > shareRec.e) {
+                try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e2) { }
+                deny('share-expired'); return;
+            }
+            if (!shareStillOk(shareRec)) {
+                // 越界（例如手改地址栏后刷新）：先把 hash 拨回范围首页再放行。
+                // **不调用 deny()** —— 那是 document.write，会把 SPA 换掉，人就回不去了。
+                try {
+                    history.replaceState(history.state, '', location.pathname + location.search + '#' + shareRec.p);
+                } catch (e3) { }
+            }
+            allowShare(shareRec);
+            return;
+        }
+
+        // ④ 管理员标记兜底：值必须等于某个授权哈希的前 MARK_LEN 位。
+        if (stored) { allow(stored); return; }
 
         // ⑤ 没有 k 令牌 → 看有没有分享令牌，都没有才拒绝（提示文档）
         if (!token) { tryShareOrDeny('no-token'); return; }
@@ -588,7 +612,7 @@
             try {
                 history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
             } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
-            shareToast('这一页不在分享范围内，已回到分享页');
+            shareToast('这一页不在分享范围内，已回到分享页', hasAdminMark());
         }, true);
         watchShareNavigation();
     }
@@ -616,7 +640,7 @@
                     var target = '';
                     try { target = (typeof buildRoute === 'function') ? String(buildRoute() || '') : ''; } catch (e) { target = ''; }
                     if (!shareScopeMatch(rec.p, target)) {
-                        shareToast('这一页不在分享范围内，已回到分享页');
+                        shareToast('这一页不在分享范围内，已回到分享页', hasAdminMark());
                         var back = location.pathname + location.search + '#' + rec.p;
                         try { history.replaceState(history.state, '', back); } catch (e2) { }
                         // 越界那一页此时通常已经被渲染了（侧边栏是"先改状态+渲染，再 syncRoute"），
@@ -639,19 +663,45 @@
 
     // 顶部小提示，自动消失。它只出现在"已放行的 SPA"里，与被拒文档无关，
     // 所以不进 DENIED_CSS（那份 CSS 要求逐条镜像 gate.mjs 的 GUARD_STYLE）。
-    function shareToast(text) {
+    // canExit：管理员在本标签页里被困在分享范围时，给一个显式出口
+    //（清掉会话记录并重载 ⇒ 回到全站；不是管理员的人看到也没有意义，故按凭据控制）。
+    function shareToast(text, canExit) {
         try {
             var old = document.getElementById('gateShareToast');
             if (old && old.parentNode) old.parentNode.removeChild(old);
             var d = document.createElement('div');
             d.id = 'gateShareToast';
-            d.textContent = text;
             d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:4000;'
                 + 'background:rgba(0,0,0,.82);color:#fff;padding:8px 14px;border-radius:999px;'
                 + 'font-size:.85rem;max-width:92vw;text-align:center;pointer-events:none;';
+            var span = document.createElement('span');
+            span.textContent = text;
+            d.appendChild(span);
+            if (canExit) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = '退出分享模式';
+                b.style.cssText = 'margin-left:8px;pointer-events:auto;cursor:pointer;font:inherit;'
+                    + 'border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;'
+                    + 'border-radius:999px;padding:2px 10px;';
+                b.addEventListener('click', function () {
+                    try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e) { }
+                    location.reload();
+                });
+                d.appendChild(b);
+            }
             document.body.appendChild(d);
-            setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 2600);
+            setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, canExit ? 6000 : 2600);
         } catch (e) { /* 提示失败不影响放行 */ }
+    }
+
+    // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
+    // 但管理员总得有个显式出路）。
+    function hasAdminMark() {
+        try {
+            var s = localStorage.getItem(STORAGE_KEY);
+            return !!(s && markMatches(s));
+        } catch (e) { return false; }
     }
 
     // ── 工具函数 ────────────────────────────────────────────────────────────
