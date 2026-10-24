@@ -71,6 +71,28 @@ function shareBaseUrl() {
     return location.origin + p;
 }
 
+// ★ 放行范围怎么算（用户定稿的三档，这里先做**自动识别**，手动改选是下一步）：
+//   · 当前深链里有选择段（如 notes/commemorative/s0,4,8）⇒ 只放行"选中的这几张"：
+//     范围 = 到分类为止，另带一个选择段签名 a（列表页仍可看，点别的那张会被拨回）；
+//   · 没选任何东西 ⇒ 只按前缀放行（板块级 / 分类级 —— 分类里含子分类时收得更紧，见 shareScopeOf）。
+// 判断"有几张"只为窗口里给人看，不参与安全判定（判定在 share-core.js 的 shareScopeMatch）。
+function shareSelectedCount() {
+    var segs = String(shareSelSig(shareCurrentHash())).split('|');
+    var n = 0;
+    for (var i = 0; i < segs.length; i++) {
+        if (!segs[i]) continue;
+        n += segs[i].slice(1).split(',').length;
+    }
+    return n;
+}
+
+function shareScopeLabel() {
+    var scope = shareCurrentScope();
+    var n = shareSelectedCount();
+    if (!n) return scope;
+    return scope + '，且仅选中的 ' + n + ' 张';
+}
+
 function shareCurrentHash() {
     try { if (typeof buildRoute === 'function') return String(buildRoute() || ''); } catch (e) { }
     return String(location.hash || '').replace(/^#/, '');
@@ -170,7 +192,7 @@ function shareOpenDialog() {
     mask.addEventListener('click', function (e) { if (e.target === mask) shareCloseDialog(); });
 
     mask.querySelector('#shareHash').textContent = '#' + shareCurrentHash();
-    mask.querySelector('#shareScope').textContent = shareCurrentScope();
+    mask.querySelector('#shareScope').textContent = shareScopeLabel();
     shareRefresh();
     setTimeout(function () { mask.querySelector('#shareCopy').focus(); }, 0);
 }
@@ -214,7 +236,8 @@ function shareRefresh() {
     } else {
         btn.disabled = false;
         btn.style.opacity = '';
-        linkEl.value = shareBuildUrl(shareCurrentScope(), exp, shareCurrentHash(), shareBaseUrl());
+        linkEl.value = shareBuildUrl(shareCurrentScope(), exp, shareCurrentHash(), shareBaseUrl(),
+            shareSelSig(shareCurrentHash()));
     }
     mask.querySelector('#shareMsg').textContent = '';
 }

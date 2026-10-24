@@ -70,19 +70,57 @@ function shareScopeOf(route) {
     if (route.mode === 'articles') return 'articles';
     if (route.mode === 'settings') return 'settings';
     var cat = route.categoryId || route.catId || null;
-    return cat ? route.mode + '/' + cat : route.mode;
+    if (!cat) return route.mode;
+    var scope = route.mode + '/' + cat;
+    // ★ 选了子分类 ⇒ 范围收到子分类（"分享人民币下面的某个系列"就是这一档）；
+    //   想放宽到整个分类，在分享窗口里改选"当前分类"即可（那是手动覆盖要做的事）。
+    //   不带上 subId 的话，从子分类分享出去会静默放宽到整个分类。
+    if (route.subId) return scope + '/' + route.subId;
+    return scope;
+}
+
+// ★ 选择段签名（"单张 / 选定多张"这一档靠它）。
+//   背景：多选**本来就在路由里** —— #notes/commemorative/s0,4,8 表示在这个分类里选了
+//   第 0、4、8 个系列（router.js:300 把它解析成 sIdxList）。所以"仅分享选中的这几张"
+//   不需要另造界面，只要把 hash 里的选择段(s/v/c)取出来、归一化成一个签名即可。
+//   归一化：段内按逗号拆开、排序后拼回，这样 s0,4,8 与 s0,8,4 视为同一个签名。
+//   没有选择段 ⇒ 返回空串（= 列表页），调用方据此判断"是不是列表页"。
+function shareSelSig(hash) {
+    var h = String(hash || '').replace(/^#/, '').split('&')[0];
+    if (!h) return '';
+    var parts = h.split('/');
+    var segs = [];
+    for (var i = 0; i < parts.length; i++) {
+        if (!/^[svc][\d.,]+$/.test(parts[i])) continue;
+        var head = parts[i].charAt(0);
+        var body = parts[i].slice(1).split(',').filter(function (x) { return x !== ''; });
+        body.sort();
+        segs.push(head + body.join(','));
+    }
+    segs.sort();
+    return segs.join('|');
 }
 
 // 前缀匹配必须落在 '/' 边界上：notes/rmb3 放行 notes/rmb3 与 notes/rmb3/s1/v1.0，
 // 但**不放行** notes/rmb3x / notes/rmb4 / notes。hash 里可能还挂着 &k= 之类，先切掉。
-function shareScopeMatch(scope, hash) {
+//
+// 第三个参数 allowSel = 令牌里的选择段签名（payload.a，可缺省）：
+//   · 缺省 ⇒ 老行为：只看前缀（板块级 / 小板块级都是这一档）；
+//   · 存在 ⇒ **单张/多张**那一档，按用户定稿的规则：
+//       - 当前 hash 没有选择段 ⇒ 放行（**列表页可以看**，用户明确选了这一条）；
+//       - 有选择段 ⇒ 必须与签名完全一致（点别的那张 / 改选别的组合都被拨回）。
+function shareScopeMatch(scope, hash, allowSel) {
     var clean = function (s) {
         return String(s || '').replace(/^#/, '').split('&')[0].replace(/^\/+/, '').replace(/\/+$/, '');
     };
     var h = clean(hash), p = clean(scope);
     if (!p) return false;
-    if (h === p) return true;
-    return h.slice(0, p.length + 1) === p + '/';
+    var inPrefix = (h === p) || (h.slice(0, p.length + 1) === p + '/');
+    if (!inPrefix) return false;
+    if (!allowSel) return true;
+    var sig = shareSelSig(hash);
+    if (!sig) return true;          // 列表页 / 没选中任何东西
+    return sig === allowSel;
 }
 
 // ── payload 组装 / 解析 ─────────────────────────────────────────────────────
@@ -100,9 +138,11 @@ function shareRandId() {
     return hex.slice(0, 8);
 }
 
-function shareBuildPayload(scope, expMs) {
+function shareBuildPayload(scope, expMs, allowSel) {
     var payload = { p: String(scope || '') };
     if (expMs) payload.e = Math.floor(expMs);
+    // a = 只放行这几个选中项的签名（缺省 ⇒ 整块放行）。见 shareScopeMatch 的说明。
+    if (allowSel) payload.a = String(allowSel);
     payload.i = shareRandId();
     return payload;
 }
@@ -119,6 +159,8 @@ function shareDecode(token) {
         var o = JSON.parse(shareB64UrlDecode(head));
         if (!o || typeof o !== 'object' || typeof o.p !== 'string' || !o.p) return null;
         if (o.e !== undefined && o.e !== null && !(typeof o.e === 'number' && isFinite(o.e))) return null;
+        // a（选择段签名）若出现必须是字符串；类型不对就整条判为坏令牌。
+        if (o.a !== undefined && o.a !== null && typeof o.a !== 'string') return null;
         return o;
     } catch (e) { return null; }
 }
@@ -140,7 +182,7 @@ function shareCheck(token, hash, nowMs) {
     if (payload.e && now > payload.e + SHARE_CLOCK_GRACE_MS) {
         return { ok: false, reason: 'expired', payload: payload };
     }
-    if (!shareScopeMatch(payload.p, hash)) return { ok: false, reason: 'outofscope', payload: payload };
+    if (!shareScopeMatch(payload.p, hash, payload.a)) return { ok: false, reason: 'outofscope', payload: payload };
     return { ok: true, payload: payload };
 }
 
@@ -212,7 +254,7 @@ function shareStripQuery(search) {
 }
 
 // ── 拼链接（base / hash 由调用方给，保持本文件与 DOM、location 无关）────────
-function shareBuildUrl(scope, expMs, routeHash, base) {
-    var token = shareEncode(shareBuildPayload(scope, expMs));
+function shareBuildUrl(scope, expMs, routeHash, base, allowSel) {
+    var token = shareEncode(shareBuildPayload(scope, expMs, allowSel));
     return String(base || '') + '?' + SHARE_PARAM + '=' + token + '#' + String(routeHash || '');
 }

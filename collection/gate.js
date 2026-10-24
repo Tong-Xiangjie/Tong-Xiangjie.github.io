@@ -352,16 +352,23 @@
         //    站内路由大量使用 location.hash（#coins/... 、#coins/...&k=xxx 这种形态），
         //    router.js 在 DOMContentLoaded 读 location.hash。若等异步摘要回来再清，
         //    路由可能已经读到带 k 的脏 hash。这里只摘掉这两段，其余段**原样拼接**。
-        if (fromHash.hit || fromSearch.hit || shareStrip.hit || hashShare.hit) {
+        // ③ 只摘 k：**share 一律留在地址栏**（用户要求）。
+        //    为什么 share 不能摘：摘掉之后"这一趟是分享来的"这个事实只剩下 sessionStorage
+        //    一份记录 —— 一旦同标签里开过管理员页面（?k= 会按设计清掉分享会话），
+        //    回头刷新分享页就变成管理员了，正是用户遇到的那个坑。令牌留在 URL 里，
+        //    刷新/后退/书签都还会按分享规则判。
+        //    hash 形态的 share（#notes/rmb3&share=…）仍然要摘：router.js 是按 '/' 切 hash 的，
+        //    留着会把 catId 读成 "rmb3&share=…"。
+        if (fromHash.hit || fromSearch.hit || hashShare.hit) {
             var cleanHash = fromHash.hit ? fromHash.hash : location.hash;
             if (hashShare.hit) {
                 cleanHash = (typeof shareStripHash === 'function') ? shareStripHash(cleanHash).hash : cleanHash;
             }
-            var clean = location.pathname
-                + shareStrip.search
-                + cleanHash;
             try {
-                history.replaceState(history.state, '', clean);
+                // 注意这里用 fromSearch.search（k 已被摘掉的版本），而不是整段丢掉 query ——
+                // share 参数留在原地，k 消失。
+                history.replaceState(history.state, '',
+                    location.pathname + (fromSearch.hit ? fromSearch.search : location.search) + cleanHash);
             } catch (e) { /* replaceState 失败就留着，功能优先于整洁 */ }
         }
 
@@ -642,17 +649,36 @@
         } catch (e) { return null; }
     }
 
-    // 会话是否仍然可用：没过期，且**当前 hash** 仍在范围内。
+    // 会话是否仍然可用：没过期，且**当前 hash** 仍在范围内（含"仅选中这几张"的白名单）。
     function shareStillOk(rec) {
         if (!rec) return false;
         if (rec.e && Date.now() > rec.e) return false;
-        return shareScopeMatch(rec.p, location.hash);
+        return shareScopeMatch(rec.p, location.hash, rec.a);
     }
+
+    // 分享模式下的标题（用户定稿）。被拒文档的标题由 denyShare 自己那份 <title> 负责，
+    // 与这里无关；这里只管"放行之后的 SPA"。
+    var SHARE_TITLE = '铜の币纪主站 | 来自分享';
 
     function allowShare(rec) {
         html.classList.add('gate-ok');
         try {
-            sessionStorage.setItem(SHARE_SESSION_KEY, JSON.stringify({ p: rec.p, e: rec.e || 0 }));
+            if (document.title !== SHARE_TITLE) document.title = SHARE_TITLE;
+            // ★ 站内各视图会按自己的需要改写 document.title（router/main 那几处），
+            //   不守一下的话"来自分享"这个标题几秒后就被覆盖了。用 MutationObserver 盯着
+            //   <title> 的文本，只在被改走时改回来（相同就不动 ⇒ 不会自激循环）。
+            var titleEl = document.querySelector('title');
+            if (titleEl && !window.__gateShareTitleWatch) {
+                window.__gateShareTitleWatch = true;
+                try {
+                    new MutationObserver(function () {
+                        if (document.title !== SHARE_TITLE) document.title = SHARE_TITLE;
+                    }).observe(titleEl, { childList: true, characterData: true, subtree: true });
+                } catch (e2) { /* 老浏览器没有 MutationObserver：至少第一次设置生效 */ }
+            }
+        } catch (e) { }
+        try {
+            sessionStorage.setItem(SHARE_SESSION_KEY, JSON.stringify({ p: rec.p, a: rec.a || '', e: rec.e || 0 }));
         } catch (e) { /* 隐私模式，忽略 */ }
         watchShareScope();
         if (DEBUG) console.log('[gate] 分享令牌通过：范围 ' + rec.p
@@ -707,7 +733,7 @@
                 deny('share-expired');
                 return;
             }
-            if (shareScopeMatch(rec.p, location.hash)) return;
+            if (shareScopeMatch(rec.p, location.hash, rec.a)) return;
             try {
                 history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
             } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
@@ -738,7 +764,7 @@
                 if (rec) {
                     var target = '';
                     try { target = (typeof buildRoute === 'function') ? String(buildRoute() || '') : ''; } catch (e) { target = ''; }
-                    if (!shareScopeMatch(rec.p, target)) {
+                    if (!shareScopeMatch(rec.p, target, rec.a)) {
                         shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
                         var back = location.pathname + location.search + '#' + rec.p;
                         try { history.replaceState(history.state, '', back); } catch (e2) { }

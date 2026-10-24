@@ -34,6 +34,8 @@ const {
     shareCheck: checkToken, shareFromQuery: fromQuery, shareStripQuery: stripQuery,
     shareBuildUrl: buildUrl, SHARE_PARAM: PARAM, SHARE_SESSION_KEY: SESSION_KEY,
 } = sandbox;
+// ⑤c 用的短别名（不动上面那组名字，避免碰到已有断言）
+const sbEncode = encode, sbDecode = decode, sbCheck = checkToken;
 
 section('① base64url 往返（URL 里不能出现 + / =）');
 {
@@ -148,6 +150,37 @@ section('⑤b hash 形态令牌 + "深链丢了"的判断');
         '★ 漂移守门：SHARE_MODES 的 5 个板块名在 core.js 的 MODE_URL_SEGMENTS 里都有');
 }
 
+section('⑤c 单张 / 选定多张（选择段白名单 a）');
+{
+    const { shareSelSig: sig, shareScopeMatch: match3 } = sandbox;
+    const M = (s, h, a) => match3(s, h, a);
+    // 用户给的例子：file:///…/index.html#notes/commemorative/s0,4,8 就是在"纪念钞"里选了 3 张
+    check(sig('#notes/commemorative/s0,4,8') === 's0,4,8', '从路由里取出选择段签名（s0,4,8）');
+    check(sig('#notes/commemorative/s0,8,4') === 's0,4,8', '★ 段内排序归一化：s0,8,4 与 s0,4,8 视为同一组');
+    check(sig('#notes/commemorative') === '', '没有选择段 ⇒ 空签名（= 列表页）');
+    check(sig('#coins/x/s1/v2.0') === 's1|v2.0', 's 与 v 段一起出现时都能取到');
+
+    const P = 'notes/commemorative';
+    check(M(P, '#notes/commemorative/s0,4,8', 's0,4,8') === true, '选中的这几张 ⇒ 放行');
+    check(M(P, '#notes/commemorative', 's0,4,8') === true, '★ 所在列表页 ⇒ 放行（用户定稿：能看列表）');
+    check(M(P, '#notes/commemorative/s1', 's0,4,8') === false, '★ 点开别的那一张 ⇒ 拒绝');
+    check(M(P, '#notes/commemorative/s0,4', 's0,4,8') === false, '★ 少选一张的同一页 ⇒ 拒绝');
+    check(M(P, '#notes/commemorative/s0', 's0,4,8') === false, '★ 单选其中一张 ⇒ 拒绝');
+    check(M(P, '#notes/other/s0,4,8', 's0,4,8') === false, '别的分类照旧被前缀挡掉');
+    check(M(P, '#notes/commemorative/s1', '') === true, '没有 a 时行为逐条不变（老链接向后兼容）');
+    check(M('notes', '#notes/commemorative/s1') === true, '板块级分享不受选择段影响');
+
+    const t = encode(buildPayload(P, 0, 's0,4,8'));
+    check(decode(t).a === 's0,4,8', 'payload 里带上 a（生成 → 解码一致）');
+    check(checkToken(t, '#notes/commemorative/s0,4,8', 0).ok === true, 'shareCheck 认这一组选中项');
+    check(checkToken(t, '#notes/commemorative/s1', 0).reason === 'outofscope', '★ shareCheck 会把"改成别的张"判成越界');
+    check(checkToken(encode(buildPayload(P, 0, 's0,4,8')), '#notes/commemorative', 0).ok === true, 'shareCheck 对列表页放行');
+
+    // 子分类也要收进范围（否则从子分类分享出去会静默放宽到整个分类）
+    check(scopeOf({ mode: 'notes', catId: 'rmb3', subId: 's2' }) === 'notes/rmb3/s2', '★ 带 subId 时范围收到子分类');
+    check(scopeOf({ mode: 'notes', catId: 'rmb3', subId: null }) === 'notes/rmb3', '没有 subId 时仍是分类');
+}
+
 section('⑥ 拼链接：query 归门禁、hash 归路由');
 {
     const url = buildUrl('notes/rmb3', 1767225600000, 'notes/rmb3/s1/v1.0', 'https://x/collection/');
@@ -216,7 +249,7 @@ section('⑧ 集成守门：门禁侧行为');
         return '';
     };
     check(/shareFromQuery\(/.test(GATE) && /shareStripQuery\(/.test(GATE),
-        '门禁读 ?share= 并**同步**摘掉它（与 k= 同一时机）');
+        '门禁读 ?share=（shareStripQuery 用来算"摘掉 k 之后"的那份 query，据此取出令牌）');
     check(/function tryShareOrDeny\(/.test(GATE) && /shareCheck\(shareTok, location\.hash, Date\.now\(\)\)/.test(GATE),
         '用 share-core.js 的 shareCheck 判"格式/有效期/范围"');
     check(/function readShareRec\(/.test(GATE) && /sessionStorage\.getItem\(SHARE_SESSION_KEY\)/.test(GATE),
@@ -230,7 +263,7 @@ section('⑧ 集成守门：门禁侧行为');
     const watch = pull('watchShareScope');
     check(/addEventListener\('hashchange',[\s\S]*?\}, true\)/.test(watch),
         '★ hashchange 守门在**捕获阶段**（早于 router.js 自己挂的那个）');
-    const guard = watch.slice(watch.indexOf('shareScopeMatch(rec.p, location.hash)) return;'));
+    const guard = watch.slice(watch.indexOf('shareScopeMatch(rec.p, location.hash, rec.a)) return;'));
     check(/history\.replaceState/.test(guard) && !/deny\(/.test(guard.replace(/deny\('share-expired'\)/g, '')),
         '★ 越界时用 history.replaceState 拨回 + 提示，**不调用 deny()**（deny 是 document.write，会把 SPA 换掉）');
     check(/当前页面暂未开放分享哦/.test(watch), '越界会给出可见提示（用户知道为什么被拨回）');
@@ -272,8 +305,7 @@ section('⑧ 集成守门：门禁侧行为');
 
     // ── 审计确认的三条"有时看不了"根因（都已核实是我这边的真问题）──
     check(/shareFromHash\(location\.hash\)/.test(GATE) && /shareStripHash\(/.test(GATE),
-        '★ share 也有 hash 兜底（客户端把 query 丢到 # 之后，或整段重排时仍能取到令牌）');
-    check(/shareLooksLikeRoute\(bareHash\)/.test(GATE) && /lostDeepLink/.test(GATE),
+        '★ share 也有 hash 兜底（客户端把 query 丢到 # 之后，或整段重排时仍能取到令牌）');    check(/shareLooksLikeRoute\(bareHash\)/.test(GATE) && /lostDeepLink/.test(GATE),
         '★ fragment 被改写成 #wechat_redirect 这类锚点时按"深链丢了"放行，而不是硬拒');
     check(/\+ SHARE_PARAM \+ '=' \+ shareTok/.test(GATE),
         '★ 拒绝前把令牌放回地址栏（摘参数在判定之前，不补回来刷新就没法重试）');
@@ -282,6 +314,16 @@ section('⑧ 集成守门：门禁侧行为');
     const SHARE_SRC = read('collection/share.js');
     check(SHARE_SRC.includes('function shareBaseUrl(') && SHARE_SRC.includes(".replace(/index\\.html?$/i, '')"),
         '生成链接的 base 剥掉 index.html（从 /collection/index.html 打开也生成目录链接）');
+
+    // ★ 用户两条定稿：share 必须一直留在地址栏；分享页标题是"铜の币纪主站 | 来自分享"。
+    check(!/shareStrip\.search/.test(GATE),
+        '★ 不再把 ?share= 从地址栏摘掉（只摘 k）—— 否则同标签开过管理员页后，刷新分享页会变成管理员');
+    check(GATE.includes("'?share='") || /SHARE_PARAM \+ '=' \+ shareTok/.test(GATE),
+        '被拒时也把 share 放回地址栏（与"一直可见"一致）');
+    check(GATE.includes('铜の币纪主站 | 来自分享'),
+        '★ 分享模式的标题逐字为「铜の币纪主站 | 来自分享」（文案由用户定稿）');
+    check(/new MutationObserver\(/.test(pull('allowShare')),
+        '标题有人守：站内视图改写 document.title 后会被改回分享标题');
 
     // ★★ 分享被拒必须用**专属页面**，不能复用"暂无访问权限 + 输入通行密钥"那页
     //    （用户明确要求：不应该用通用的那个）。收分享链接的人手里没有密钥，
