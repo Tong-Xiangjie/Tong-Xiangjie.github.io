@@ -234,8 +234,8 @@
     //   附带的两个好处：① 收链接的人无法据此判断"这一页到底存不存在"；
     //   ② 将来加新原因（签名坏了、被撤销…）不用再加一份文案，也不会漏掉某条分支。
     //   具体原因只写进控制台日志（?gatedebug=1 才看得到），不写进页面。
-    var SHARE_DENIED_TITLE = '无法查看这个分享';
-    var SHARE_DENIED_TEXT = '分享链接不可用，可能已过期或不在分享范围内；请让分享者重新发一条。';
+    var SHARE_DENIED_TITLE = '分享链接失效';
+    var SHARE_DENIED_TEXT = '分享链接错误或已失效';
 
     function shareDeniedInner() {
         var inner = '<img class="gate-denied-icon" src="' + ICON_SRC + '" alt="" aria-hidden="true">'
@@ -711,7 +711,7 @@
             try {
                 history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
             } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
-            shareToast('这一页不在分享范围内，已回到分享页', hasAdminMark());
+            shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
         }, true);
         watchShareNavigation();
     }
@@ -739,7 +739,7 @@
                     var target = '';
                     try { target = (typeof buildRoute === 'function') ? String(buildRoute() || '') : ''; } catch (e) { target = ''; }
                     if (!shareScopeMatch(rec.p, target)) {
-                        shareToast('这一页不在分享范围内，已回到分享页', hasAdminMark());
+                        shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
                         var back = location.pathname + location.search + '#' + rec.p;
                         try { history.replaceState(history.state, '', back); } catch (e2) { }
                         // 越界那一页此时通常已经被渲染了（侧边栏是"先改状态+渲染，再 syncRoute"），

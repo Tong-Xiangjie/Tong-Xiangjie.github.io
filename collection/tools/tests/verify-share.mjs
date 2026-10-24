@@ -261,7 +261,7 @@ section('⑧ 集成守门：门禁侧行为');
         '★ 分享会话（sessionStorage）也优先于管理员标记（管理员刷新不许跑出范围）');
     check(/if \(shareRec\.e && Date\.now\(\) > shareRec\.e\) \{[\s\S]{0,120}denyShare\('expired'\)/.test(GATE),
         '★ 会话过期 ⇒ 拒绝（管理员同样被拒，不会因为本地标记放行）');
-    check(/function hasAdminMark\(/.test(GATE) && /shareToast\('这一页不在分享范围内，已回到分享页', hasAdminMark\(\)\)/.test(GATE),
+    check(/function hasAdminMark\(/.test(GATE) && /shareToast\('当前页面暂未开放分享哦(´･_･`)', hasAdminMark\(\)\)/.test(GATE),
         '管理员被困在分享范围时有「退出分享模式」出口（清会话记录后重载）');
     check(/sessionStorage\.removeItem\(SHARE_SESSION_KEY\)/.test(GATE),
         '退出分享模式 = 清掉本标签页的会话记录');
