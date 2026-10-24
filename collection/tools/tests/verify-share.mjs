@@ -325,6 +325,20 @@ section('⑧ 集成守门：门禁侧行为');
     check(/new MutationObserver\(/.test(pull('allowShare')),
         '标题有人守：站内视图改写 document.title 后会被改回分享标题');
 
+    // ★ 越界回拨不许重播入场动画（用户要求：点不能看的地方不该像刷新一样再入场一次）。
+    const inst = pull('shareInstant');
+    check(inst.length > 0 && /animation:none !important/.test(inst) && /transition:none !important/.test(inst),
+        '★ 回拨期间按住 CSS 动画/过渡（各板块入场动画就是 CSS 动画，重渲染会再播一遍）');
+    check(GATE.includes("'gate-share-instant'") && /classList\.add\(SHARE_NOANIM_CLASS\)/.test(inst)
+        && /classList\.remove\(SHARE_NOANIM_CLASS\)/.test(inst),
+        '按住动画用的是 html 上的临时类，且会自动摘掉（不能一直按住）');
+    const hashGuard = pull('watchShareScope');
+    check(hashGuard.indexOf('shareInstant();') > 0
+        && hashGuard.indexOf('shareInstant();') < hashGuard.indexOf('history.replaceState'),
+        '★ hashchange 守门：先按住动画再拨回地址');
+    check(pull('watchShareNavigation').indexOf('shareInstant();') > 0,
+        '★ syncRoute 收口：越界时同样先按住动画');
+
     // ★★ 分享被拒必须用**专属页面**，不能复用"暂无访问权限 + 输入通行密钥"那页
     //    （用户明确要求：不应该用通用的那个）。收分享链接的人手里没有密钥，
     //    给输入框只会误导；而且"过期"和"范围外"是两种要说清楚的不同原因。

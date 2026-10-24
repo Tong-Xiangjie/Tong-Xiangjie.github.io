@@ -734,6 +734,7 @@
                 return;
             }
             if (shareScopeMatch(rec.p, location.hash, rec.a)) return;
+            shareInstant();
             try {
                 history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
             } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
@@ -766,6 +767,7 @@
                     try { target = (typeof buildRoute === 'function') ? String(buildRoute() || '') : ''; } catch (e) { target = ''; }
                     if (!shareScopeMatch(rec.p, target, rec.a)) {
                         shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
+                        shareInstant();
                         var back = location.pathname + location.search + '#' + rec.p;
                         try { history.replaceState(history.state, '', back); } catch (e2) { }
                         // 越界那一页此时通常已经被渲染了（侧边栏是"先改状态+渲染，再 syncRoute"），
@@ -818,6 +820,29 @@
             document.body.appendChild(d);
             setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, canExit ? 6000 : 2600);
         } catch (e) { /* 提示失败不影响放行 */ }
+    }
+
+    // ★ 越界回拨时**不要看动画**（用户要求：点不能看的地方不应该像刷新一样重播入场动画）。
+    //   为什么会有动画：侧边栏/标签栏是"先改状态 + 渲染，再 syncRoute"，等我们发现越界时
+    //   界面已经换过去了；要拨回来就得再渲染一次（applyRoute），而各板块的入场动画是
+    //   CSS 动画 ⇒ 元素一重渲染就又播一遍，观感就是"点一下，整页又入场了一次"。
+    //   这里在回拨的那一小段时间把 animation/transition 整体按住（加一个 html 类，
+    //   结束后摘掉），页面结构与地址栏照旧拨回，只是过程中没有动画。
+    var SHARE_NOANIM_CLASS = 'gate-share-instant';
+    function shareInstant(ms) {
+        try {
+            if (!document.getElementById('gateShareInstantStyle')) {
+                var st = document.createElement('style');
+                st.id = 'gateShareInstantStyle';
+                st.textContent = '.' + SHARE_NOANIM_CLASS + ' *,.' + SHARE_NOANIM_CLASS + ' *::before,'
+                    + '.' + SHARE_NOANIM_CLASS + ' *::after{animation:none !important;transition:none !important;}';
+                (document.head || document.documentElement).appendChild(st);
+            }
+            html.classList.add(SHARE_NOANIM_CLASS);
+            setTimeout(function () {
+                try { html.classList.remove(SHARE_NOANIM_CLASS); } catch (e) { }
+            }, ms || 400);
+        } catch (e) { /* 按不住动画也不能让回拨失败 */ }
     }
 
     // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
