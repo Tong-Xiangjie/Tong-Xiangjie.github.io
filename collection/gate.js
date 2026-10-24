@@ -1173,6 +1173,31 @@
             });
         }
         try { watchShareHistory(); } catch (e) { }
+
+        // ★ 持久化的「退出分享模式」出口，**只给本机管理员看**。
+        //   用户实测原话："退出分享模式是针对管理员的吗?好像没有用" —— 因为那个按钮挂在
+        //   瞬时 toast 上，一闪就没了，CDP 里连找都找不到。改成左下角常驻小按钮：
+        //   收链接的人没有本机管理员标记 ⇒ 看不到它（不影响收件人的界面）。
+        function shareAddExitButton() {
+            if (document.getElementById('gate-share-exit')) return;
+            if (typeof hasAdminMark === 'function' && !hasAdminMark()) return;
+            var b = document.createElement('button');
+            b.id = 'gate-share-exit';
+            b.type = 'button';
+            b.textContent = '退出分享模式';
+            b.setAttribute('style', 'position:fixed;right:14px;bottom:14px;z-index:2147483000;'
+                + 'padding:8px 14px;border-radius:999px;border:1px solid rgba(127,127,127,.45);'
+                + 'background:rgba(255,255,255,.94);color:#333;font:13px/1.2 system-ui,-apple-system,"Microsoft YaHei",sans-serif;'
+                + 'cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.18);');
+            b.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e2) { }
+                location.reload();          // 回到管理员自己的完整站点
+            }, true);
+            (document.body || document.documentElement).appendChild(b);
+        }
+        try { shareAddExitButton(); } catch (e) { }
         // ★ hashchange 守卫也必须在这里装：它原来是写在 run() 末尾那一串里的，
         //   同样走不到 —— CDP 实测为证：页内把 hash 改成 #settings，浏览器只把地址
         //   "悄悄拨回"了范围首页（进不去「我的」，但也没显示被挡页面）。
@@ -1213,6 +1238,7 @@
                 // 站内启动期可能先写个中间态路由，不能因此误判。
                 window.__gateShareArmed = 1;
                 shareLockAnchors();
+                shareAddExitButton();   // 常驻出口可能被站内重渲染冲掉，跟着心跳补回来
             }, 500);
         } catch (e) { }
     }
