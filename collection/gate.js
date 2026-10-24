@@ -899,7 +899,7 @@
         try {
             var st = document.createElement('style');
             st.id = 'gateShareLockStyle';
-            st.textContent = '.gate-share-locked{opacity:.45;cursor:not-allowed;pointer-events:none !important;}'
+            st.textContent = '.gate-share-locked{opacity:.3;filter:grayscale(1);cursor:not-allowed;pointer-events:none !important;}'
                 + '.gate-share-locked *{pointer-events:none !important;}';
             (document.head || document.documentElement).appendChild(st);
         } catch (e) { }
