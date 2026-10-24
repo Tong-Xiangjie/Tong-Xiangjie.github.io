@@ -742,10 +742,16 @@
     //   在**捕获阶段**（早于 router.js 自己挂的 hashchange）把 hash 拨回范围首页，
     //   用 history.replaceState —— 它**不触发** hashchange，所以 router 稍后读到的
     //   就是拨回后的 hash，越界那一页根本不会被渲染（连一帧闪都不会有）。
+    // "没有深链" / "客户端自己改写的锚点" —— 这两种都不算越界，守卫、心跳、拦写入都用它豁免。
+    function shareHashIsLostDeepLink(hash) {
+        var h = String(hash || '').replace(/^#/, '').trim();
+        return h === '' || /^(?:wechat_redirect|weibo_redirect|wxfrom|from=|tt_daymode|utm_)/i.test(h);
+    }
+
     function watchShareScope() {
         if (window.__gateShareScopeWatched) return;   // 幂等：解析期装一次，allowShare 再调一次也不重复
         window.__gateShareScopeWatched = 1;
-        window.addEventListener('hashchange', function () {
+        var onScope = function () {
             var rec = readShareRec();
             if (!rec) return;
             if (rec.e && Date.now() > rec.e) {          // 会话期间到期：按过期处理
@@ -753,19 +759,20 @@
                 deny('share-expired');
                 return;
             }
+            // ★ 空 hash（把深链删了）与客户端改写的锚点（微信的 #wechat_redirect）都不算越界：
+            //   落到范围首页即可 —— 与加载路径的"丢了深链"保持一致（CDP 实测：页内删成空 hash
+            //   之前会被判被挡，属于误伤）。
+            if (shareHashIsLostDeepLink(location.hash)) return;
             if (shareScopeMatch(rec.p, location.hash, rec.a)) return;
-            // ★ 用户要求：手改深链（或后退）越界 ⇒ 直接给"被挡页面（分享链接非法）"。
-            //   为什么不再"拨回地址+提示"：拨回时应用那边可能已经按旧 hash 渲染过了 ——
-            //   用户实测"手动把深链改成 settings 能卡进「我的」"就是这么发生的。
-            //   denyShare 是 document.write，整页换成拒绝文档，应用再想渲染也没机会。
             denyShare('outofscope');
             return;
-            shareInstant();
-            try {
-                history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
-            } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
-            shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
-        }, true);
+        };
+        // ★★ 必须**同时**听 popstate：改 fragment 时浏览器先派发 popstate、后派发 hashchange，
+        //   而 router.js 在 popstate 阶段就会把不认识的路由当场改写回合法路由
+        //   （CDP 实测：页内改成 #settings / #settings/anything 总是漏，而 #coins / #nonsense
+        //   挡得住 —— 差别就在"router 认不认得这个 mode、要不要当场归一化"）。
+        window.addEventListener('popstate', onScope, true);
+        window.addEventListener('hashchange', onScope, true);
         watchShareNavigation();
     }
 
@@ -1149,7 +1156,7 @@
                 var u = String(url), i = u.indexOf('#');
                 if (i < 0) return false;                          // 不带 hash 的写入与分享范围无关
                 var hash = u.slice(i);
-                if (hash === '#' || hash === '') return false;    // "没有深链"不是非法
+                if (shareHashIsLostDeepLink(hash)) return false;  // "没有深链"/客户端锚点不是非法
                 if (shareScopeMatch(rec.p, hash, rec.a)) return false;
                 denyShare('outofscope');
                 return true;
@@ -1200,7 +1207,7 @@
                 //   这样：我读到时 location.hash 已经变回 #notes/commemorative ⇒ 判定"没越界"）。
                 //   这里不看事件、只看当前 URL ⇒ 与注册顺序彻底无关，改了就一定被抓到。
                 var hh = String(location.hash || '');
-                if (hh === '' || hh === '#') { shareLockAnchors(); return; }   // 完全没有深链 ⇒ 不算越界
+                if (shareHashIsLostDeepLink(hh)) { shareLockAnchors(); return; }
                 if (!shareScopeMatch(r.p, hh, r.a)) { denyShare('outofscope'); return; }
                 // 见过合法地址之后才允许"拦写入"（见 watchShareHistory）：
                 // 站内启动期可能先写个中间态路由，不能因此误判。

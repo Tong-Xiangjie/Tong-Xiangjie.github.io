@@ -274,12 +274,15 @@ section('⑧ 集成守门：门禁侧行为');
     check(/sessionStorage\.setItem\(SHARE_SESSION_KEY/.test(allowShare), '只在 sessionStorage 记一条会话');
 
     const watch = pull('watchShareScope');
-    check(/addEventListener\('hashchange',[\s\S]*?\}, true\)/.test(watch),
-        '★ hashchange 守门在**捕获阶段**（早于 router.js 自己挂的那个）');
+    check(/addEventListener\('popstate', onScope, true\)/.test(watch) && /addEventListener\('hashchange', onScope, true\)/.test(watch),
+        '★ 守门同时听 popstate 与 hashchange、都在**捕获阶段**：改 fragment 时浏览器先派发 popstate，router.js 正是在那一阶段把不认识的路由当场归一化掉');
     const guard = watch.slice(watch.indexOf('shareScopeMatch(rec.p, location.hash, rec.a)) return;'));
-    check(/history\.replaceState/.test(guard) && !/deny\(/.test(guard.replace(/deny\('share-expired'\)/g, '')),
-        '★ 越界时用 history.replaceState 拨回 + 提示，**不调用 deny()**（deny 是 document.write，会把 SPA 换掉）');
-    check(/当前页面暂未开放分享哦/.test(watch), '越界会给出可见提示（用户知道为什么被拨回）');
+    check(/denyShare\('outofscope'\)/.test(guard),
+        '★ 越界（手改深链/后退）⇒ 直接给"被挡页面"，不再拨回：用户实测地址被拨回时应用已按旧 hash 渲染过，等于能卡进「我的」');
+    check(!/history\.replaceState/.test(guard) && !/shareToast\(/.test(watch),
+        '★ 守门里不再保留"拨回地址 + 提示"那套（那套只留给 syncRoute 那层，用于站内点击）');
+    check(/shareHashIsLostDeepLink/.test(watch),
+        '空 hash（深链被删）与客户端改写的锚点（#wechat_redirect 之类）不算越界：落到范围首页即可');
 
     // ★★ 站内导航用的是 history.replaceState（不触发 hashchange），所以光挂 hashchange
     //   等于没挂 —— 用户实测"相当于给了全部的门户密钥"。必须把 syncRoute 也包住。
@@ -362,12 +365,16 @@ section('⑧ 集成守门：门禁侧行为');
     check(GATE.includes("'gate-share-instant'") && /classList\.add\(SHARE_NOANIM_CLASS\)/.test(inst)
         && /classList\.remove\(SHARE_NOANIM_CLASS\)/.test(inst),
         '按住动画用的是 html 上的临时类，且会自动摘掉（不能一直按住）');
-    const hashGuard = pull('watchShareScope');
-    check(hashGuard.indexOf('shareInstant();') > 0
-        && hashGuard.indexOf('shareInstant();') < hashGuard.indexOf('history.replaceState'),
-        '★ hashchange 守门：先按住动画再拨回地址');
+    // ★★ 手改深链的兜底：不看事件、只看地址栏（CDP 实测：router.js 会抢先把非法路由
+    //   replaceState 归一化掉，靠 hashchange 只能挡住它不认得的那部分）。
+    check(/history\[name\]/.test(GATE) && /'replaceState', 'pushState'/.test(GATE) && /__gateShareHistoryWatched/.test(GATE),
+        '★ 包住 history.replaceState / pushState：谁往地址栏写范围外的 hash 就直接给拒绝页，且这次写入不执行');
+    check(/__gateShareArmed/.test(GATE),
+        '拦写入前先"见过一次合法地址"（__gateShareArmed）—— 站内启动期的中间态路由不能误判成越界');
+    check(/shareScopeMatch\(r\.p, hh, r\.a\)/.test(GATE) && /setInterval\(function \(\) \{\s*var r = shareRecNow\(\);/.test(GATE),
+        '★ 另外还有 500ms 心跳直接盯 address bar（与事件顺序、与"是谁写的"都无关）');
     check(pull('watchShareNavigation').indexOf('shareInstant();') > 0,
-        '★ syncRoute 收口：越界时同样先按住动画');
+        '★ syncRoute 收口：站内点击越界时先按住动画再拨回（这条路径保留，用于点击而不是手改地址）');
 
     // ★ 用户实测 A/B：「我的」这类入口是普通 <a href>，浏览器直接换页 ⇒ 刷新一次。
     //   必须"先判断再决定放不放走"，而且要在 window 捕获阶段（比 document 捕获更早）。
