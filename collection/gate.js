@@ -668,8 +668,7 @@
             //   不守一下的话"来自分享"这个标题几秒后就被覆盖了。用 MutationObserver 盯着
             //   <title> 的文本，只在被改走时改回来（相同就不动 ⇒ 不会自激循环）。
             var titleEl = document.querySelector('title');
-            if (titleEl && !window.__gateShareTitleWatch) {
-                window.__gateShareTitleWatch = true;
+            if (titleEl && !window.__gateShareTitleWatch) {                window.__gateShareTitleWatch = true;
                 try {
                     new MutationObserver(function () {
                         if (document.title !== SHARE_TITLE) document.title = SHARE_TITLE;
@@ -774,6 +773,7 @@
                         // 所以再把范围内的路由应用一次，把内容和地址栏一起拨回去。
                         if (typeof applyRoute === 'function') {
                             try { applyRoute('#' + rec.p); } catch (e3) { }
+                            shareLockAnchors();
                         }
                         return undefined;
                     }
@@ -876,28 +876,97 @@
         }
     }
 
-    function shareClickGuard(e) {
-        if (e.defaultPrevented || (e.button !== undefined && e.button !== 0)) return;
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        var rec = null;
+    // 分享模式下的会话记录（点击守门、"锁按钮"、禁再分享都要用）
+    function shareRecNow() {
         try {
             var raw = sessionStorage.getItem(SHARE_SESSION_KEY);
-            rec = raw ? JSON.parse(raw) : null;
-        } catch (e1) { return; }
-        if (!rec || !rec.p) return;
+            var rec = raw ? JSON.parse(raw) : null;
+            return (rec && rec.p) ? rec : null;
+        } catch (e) { return null; }
+    }
+
+    var shareLockStyleDone = false;
+    function shareEnsureLockStyle() {
+        if (shareLockStyleDone) return;
+        shareLockStyleDone = true;
+        try {
+            var st = document.createElement('style');
+            st.id = 'gateShareLockStyle';
+            st.textContent = '.gate-share-locked{opacity:.45;cursor:not-allowed;}';
+            (document.head || document.documentElement).appendChild(st);
+        } catch (e) { }
+    }
+
+    // ★ 用户要求："把这些点不了的按键锁住"。
+    //   分享模式下，扫一遍所有链接，点了会越界的就灰掉 + 禁点（cursor:not-allowed）。
+    //   能算出去哪儿的只有 <a href>（同源、非新标签、非纯 JS 锚点）⇒ 只有这些能被"锁"；
+    //   其余按钮靠下面的 window 捕获拦截。每次路由变化后重算一遍（站内会重渲染导航）。
+    function shareLockAnchors() {
+        var rec = shareRecNow();
+        if (!rec) return;
+        shareEnsureLockStyle();
+        try {
+            var list = document.querySelectorAll('a[href]');
+            for (var i = 0; i < list.length; i++) {
+                var a = list[i];
+                var t = shareClickTarget(a);
+                if (t === null) continue;
+                if (shareScopeMatch(rec.p, t, rec.a)) a.classList.remove('gate-share-locked');
+                else a.classList.add('gate-share-locked');
+            }
+        } catch (e) { }
+    }
+
+    var shareLastBlockAt = 0;
+    function shareBlockClick(e) {
+        var rec = shareRecNow();
+        if (!rec) return;
+        if (e.defaultPrevented || (e.button !== undefined && e.button !== 0)) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var t = e.target;
         var a = (t && t.closest) ? t.closest('a[href]') : null;
         if (!a || a.getAttribute('target') === '_blank') return;
         var target = shareClickTarget(a);
         if (target === null) return;
         if (shareScopeMatch(rec.p, target, rec.a)) return;
+        // 越界：把这次事件整条按死。pointerdown / mousedown / click 都拦 ——
+        // 用户实测"点了还是进得去"，就是有入口在 pointerdown/mousedown 阶段就动手了。
         e.preventDefault();
         e.stopPropagation();
-        shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        var now = Date.now();
+        if (now - shareLastBlockAt > 500) {          // 一次点击会来三个事件，只提示一次
+            shareLastBlockAt = now;
+            shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
+        }
     }
 
-    // 捕获阶段安装：早于任何站内委托处理器（也早于浏览器默认的跳转）。
-    try { document.addEventListener('click', shareClickGuard, true); } catch (e) { }
+    // ★ 分享链接不能再被分享：Ctrl+Shift+S 在分享模式下直接吃掉。
+    //   gate.js 在 share.js 之前加载，所以这个 window 捕获监听比 share.js 的先注册，
+    //   同级同阶段下先跑，stopImmediatePropagation 就能让分享弹窗根本不出现。
+    function shareBlockReshare(e) {
+        if (!shareRecNow()) return;
+        var k = e.key || '';
+        if (!(e.ctrlKey && e.shiftKey && (k === 'S' || k === 's'))) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+
+    // ★ 装在 **window** 的捕获阶段：比 document 上的捕获更早，
+    //   站内任何委托处理器（哪怕它自己也注册在捕获阶段）都抢不到这次点击。
+    try {
+        window.addEventListener('pointerdown', shareBlockClick, true);
+        window.addEventListener('mousedown', shareBlockClick, true);
+        window.addEventListener('click', shareBlockClick, true);
+        window.addEventListener('keydown', shareBlockReshare, true);
+    } catch (e) { }
+
+    // 站内导航是异步渲染的（首屏可能还没建好），分享模式下隔一会儿补扫两次，把该灰的链接灰掉。
+    try {
+        setTimeout(shareLockAnchors, 1200);
+        setTimeout(shareLockAnchors, 2600);
+    } catch (e) { }
 
     // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
     // 但管理员总得有个显式出路）。

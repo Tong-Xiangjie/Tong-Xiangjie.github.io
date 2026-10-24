@@ -361,18 +361,39 @@ section('⑧ 集成守门：门禁侧行为');
         '★ syncRoute 收口：越界时同样先按住动画');
 
     // ★ 用户实测 A/B：「我的」这类入口是普通 <a href>，浏览器直接换页 ⇒ 刷新一次。
-    //   必须"先判断再决定放不放走"，在捕获阶段拦点击。
-    const clickGuard = pull('shareClickGuard');
-    check(/addEventListener\('click', shareClickGuard, true\)/.test(GATE),
-        '★ 捕获阶段拦点击（早于站内委托处理器与浏览器默认跳转）');
-    check(/e\.preventDefault\(\)/.test(clickGuard) && /e\.stopPropagation\(\)/.test(clickGuard)
+    //   必须"先判断再决定放不放走"，而且要在 window 捕获阶段（比 document 捕获更早）。
+    const GATE_SRC = read('collection/gate.js');
+    const GATE_IDX_SHARE_TAG = GATE_SRC.indexOf('shareBlockReshare');
+    const GATE_IDX_SHAREJS_TAG = GATE_SRC.length;   // gate.js 内部无所谓，加载顺序看 index.html
+    const HTML_SRC = read('collection/index.html');
+    check(HTML_SRC.indexOf('gate.js?v=') < HTML_SRC.indexOf('share.js'),
+        'index.html 里 gate.js 排在 share.js 之前（Ctrl+Shift+S 的拦截才能先注册）');
+    const clickGuard = pull('shareBlockClick');
+    check(/window\.addEventListener\('click', shareBlockClick, true\)/.test(GATE)
+        && /window\.addEventListener\('pointerdown', shareBlockClick, true\)/.test(GATE)
+        && /window\.addEventListener\('mousedown', shareBlockClick, true\)/.test(GATE),
+        '★ 在 window 捕获阶段拦 pointerdown/mousedown/click（有入口在更早的阶段就跳走了）');
+    check(/e\.preventDefault\(\)/.test(clickGuard) && /stopImmediatePropagation/.test(clickGuard)
         && /shareScopeMatch\(rec\.p, target, rec\.a\)/.test(clickGuard),
-        '★ 越界点击直接 preventDefault：页面不动、地址栏不动、不刷新');
+        '★ 越界点击整条按死：页面不动、地址栏不动、不刷新');
     check(/e\.metaKey \|\| e\.ctrlKey \|\| e\.shiftKey \|\| e\.altKey/.test(clickGuard)
         && /target'\) === '_blank'/.test(clickGuard),
         '新标签打开（修饰键 / target=_blank）不拦，交还浏览器');
     check(/u\.pathname !== location\.pathname/.test(GATE),
         '★ 换到站内另一个页面也算越界（分享的是这一套 SPA）');
+    // ★ 用户要求"把点不了的按键锁住"：越界的链接灰掉 + 禁点
+    check(/gate-share-locked/.test(GATE) && /cursor:not-allowed/.test(GATE)
+        && /document\.querySelectorAll\('a\[href\]'\)/.test(pull('shareLockAnchors')),
+        '★ 分享模式下把越界的链接灰掉（.gate-share-locked / not-allowed）');
+    check(/shareLockAnchors\(\)/.test(pull('watchShareNavigation')) && /setTimeout\(shareLockAnchors/.test(GATE),
+        '每次路由变化后重算一次，另外首屏异步渲染后补扫两次');
+    // ★ 用户要求：分享链接不能再被分享
+    check(/window\.addEventListener\('keydown', shareBlockReshare, true\)/.test(GATE)
+        && /if \(!shareRecNow\(\)\) return;/.test(pull('shareBlockReshare')),
+        '★ 分享模式下 Ctrl+Shift+S 被吃掉（分享链接不能再分享）');
+    // 生效还依赖"gate.js 先于 share.js 注册同一个 keydown"，静态确认一下加载顺序。
+    check(HTML_SRC.indexOf('gate.js?v=') < HTML_SRC.indexOf('share.js'),
+        'gate.js 的脚本标签排在 share.js 之前（同级同阶段：先注册先执行）');
 
     // 档位按钮文字居中（用户要求）
     check(/\.share-tier\{[^}]*text-align:center/.test(SHARE_SRC), '★ 档位按钮文字居中');
