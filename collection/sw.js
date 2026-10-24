@@ -167,6 +167,22 @@ self.addEventListener('fetch', (event) => {
     }
 });
 
+// ③ 文档（HTML）导航：同样强制绕过 HTTP 缓存。
+//    ★ 为什么必须单独做：GitHub Pages 给 HTML 发的是 Cache-Control: max-age=600
+//      （10 分钟）。HTML 被缓存 ⇒ 里面那两个 <script src="…?v=…"> 的版本戳也是旧的
+//      ⇒ 浏览器照旧加载**旧脚本**，于是"代码明明改了，页面表现没变"（用户实测的
+//      "还是一样？是因为缓存吗"）。脚本带 ?v= 只能解决脚本自身的缓存，解决不了
+//      "拿到旧 HTML"这件事，所以这里把导航请求也按 cache:'reload' 走网络。
+//    离线时仍然退回缓存（可用性只增不减）。
+self.addEventListener('fetch', (event) => {
+    const request = event.request;
+    if (request.mode !== 'navigate') return;
+    event.respondWith(
+        fetch(request, { cache: 'reload' })
+            .catch(() => caches.match(request).then(r => r || Response.error()))
+    );
+});
+
 // ★ 支持 SKIP_WAITING 消息
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
