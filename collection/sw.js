@@ -60,7 +60,9 @@ function isCacheable(response) {
 // 与图片策略的区别就是"谁优先"：
 //   图片 = 缓存优先（图不会随便变，省流量最要紧）
 //   资源 = 网络优先（代码会天天改，宁可多一次请求也绝不吃旧代码）
-const ASSET_CACHE = 'collection-assets-v1';
+// ★ 版本号 +1 的时机（本次即是）：策略本身变了。v2 = fetch 强制 reload（绕开 HTTP 缓存）
+//   + 去掉 ignoreSearch + 入口脚本带 ?v=。改这个名字会让 activate 清掉 v1 的旧资源缓存。
+const ASSET_CACHE = 'collection-assets-v2';
 // ★ 资源缓存的版本号只在"资源缓存策略本身变化"时才需要 +1：
 //   在线时每次请求都会用网络结果覆盖缓存，不存在"卡住更新"的问题。
 const ASSET_PREFIX = 'collection-assets-';
@@ -81,10 +83,16 @@ function shouldCacheAsset(request) {
     return ASSET_RE.test(url.pathname) || url.pathname.charAt(url.pathname.length - 1) === '/';
 }
 
-// 网络优先：成功就用网络（顺手更新缓存），失败才退回缓存，两者都没有就报网络错误
+// 网络优先：成功就用网络（顺手更新缓存），失败才退回缓存，两者都没有就报网络错误。
+// ★ fetch(..., { cache: 'reload' })：强制绕过 HTTP 缓存。
+//   不加这个，Service Worker 自己的 fetch 照样吃浏览器 HTTP 缓存的旧副本，
+//   而线上这些文件是 Cache-Control: max-age=600 ⇒ 表现就是用户实测的
+//   "同一条分享链接换个浏览器就好了、过一会儿又好了"（旧 gate.js 根本不认 ?share=，直接拒）。
+//   ASSET_RE 管的只是 html/js/css 这类小体积代码资源（图走上面那条图片策略），
+//   多一次网络请求换"绝不发旧代码"，与上面那句策略说明一致。
 function networkFirstAsset(request) {
     return caches.open(ASSET_CACHE).then(cache =>
-        fetch(request)
+        fetch(request, { cache: 'reload' })
             .then(response => {
                 if (isCacheable(response)) {
                     const clone = response.clone();
@@ -92,7 +100,9 @@ function networkFirstAsset(request) {
                 }
                 return response;
             })
-            .catch(() => cache.match(request, { ignoreSearch: true })
+            // ★ 不用 ignoreSearch：入口里两个门禁脚本现在带 ?v=<内容哈希>，精确匹配才拿得到
+            //   对应版本；带上 ignoreSearch 反而会把"没版本号"的旧副本配出来（正是要避免的事）。
+            .catch(() => cache.match(request)
                 .then(cached => cached || Response.error()))
     );
 }

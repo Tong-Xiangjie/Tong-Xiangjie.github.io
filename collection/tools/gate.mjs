@@ -245,6 +245,11 @@ const bootScript = (mark) => `<script id="collection-gate-boot">
    ② file: 协议 —— 双击打开本地 HTML 文件（站点主人的习惯用法，也必须能用）；
    ③ 本机已通过校验：localStorage 里的"标记"等于**当前令牌哈希的前 16 位**。
       标记与哈希绑定，所以 gate.mjs new 换令牌之后，所有老设备自动失效。
+      ④ ★ 例外：URL 里带 share 令牌时**不许**在这里放行 —— 带着分享链接进站，
+         这一趟必须由 gate.js 按分享规则判（范围/有效期），管理员也不例外。
+         否则"本机有全站标记"的浏览器会在 <head> 就被放行，gate.js 里的分享判定
+         整段不执行 ⇒ 同一链接在装了标记的浏览器里畅通无阻、在干净浏览器里被拒，
+         用户看到的就是"是否被拒绝和浏览器有关"。
    ⚠ ①②只加 gate-ok 类，**不写 localStorage 标记** —— 免得本地放行污染线上判定。
    ⚠ 下面这个 MARK 字面量由 gate.mjs apply 写成 collection/gate.js 里
       GATE_HASHES[0] 的前 16 位，别手改。 */
@@ -257,7 +262,10 @@ const bootScript = (mark) => `<script id="collection-gate-boot">
             html.classList.add('gate-ok');
             return;
         }
-        if (localStorage.getItem('collection-gate') === '${mark}') { html.classList.add('gate-ok'); }
+        // ★ 带分享令牌时不能在这里放行：交给 gate.js 按分享规则判（见上面 ④）。
+        //   查 search 与 hash 两处，与 gate.js 的"片段优先、查询串兜底"一致。
+        var hasShare = (location.search + location.hash).indexOf('share=') >= 0;
+        if (!hasShare && localStorage.getItem('collection-gate') === '${mark}') { html.classList.add('gate-ok'); }
     } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
 })();
 </script>`;
@@ -271,10 +279,24 @@ const bootScript = (mark) => `<script id="collection-gate-boot">
 //      根绝对路径在 file:// 下会 404。
 // 所以按"从该入口所在目录到 collection/gate.js"现算 —— 将来 collection/ 下出现更深
 // 层的入口（collection/xxx/y.html）也能自动算成 ../gate.js。
+// ★ 版本戳（?v=<内容哈希>）。
+//   为什么需要：门禁与分享的判定全在这两个脚本里，只要浏览器/CDN/Service Worker 还拿着
+//   **旧副本**，表现就是"同一条分享链接换个浏览器就好了 / 等十分钟又好了"——
+//   旧 gate.js 根本不认识 ?share=，会直接拒绝。用内容哈希当版本号：文件一改 URL 就变，
+//   立刻绕过所有缓存层；内容不变则 URL 不变，apply --dry-run 仍然是"改 0"（幂等）。
+function contentVersion(file) {
+    try { return createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 8); }
+    catch (e) { return ''; }
+}
+function withVersion(url, file) {
+    const v = contentVersion(file);
+    return v ? `${url}?v=${v}` : url;
+}
+
 function scriptTagFor(htmlFile) {
     let rel = relative(dirname(htmlFile), GATE_JS).split(sep).join('/');
     if (!rel.startsWith('.')) rel = './' + rel;
-    return `<script src="${rel}"></script>`;
+    return `<script src="${withVersion(rel, GATE_JS)}"></script>`;
 }
 
 // ★ 分享令牌的纯函数层（collection/share-core.js）必须排在 gate.js **之前**：
@@ -284,7 +306,7 @@ function scriptTagFor(htmlFile) {
 function shareCoreTagFor(htmlFile) {
     let rel = relative(dirname(htmlFile), join(ROOT, 'collection', 'share-core.js')).split(sep).join('/');
     if (!rel.startsWith('.')) rel = './' + rel;
-    return `<script src="${rel}"></script>`;
+    return `<script src="${withVersion(rel, join(ROOT, 'collection', 'share-core.js'))}"></script>`;
 }
 
 const headBlock = (mark, htmlFile) => [
@@ -423,12 +445,29 @@ function cmdCheck() {
         const why = [];
         if (!/<meta[^>]+name=["']robots["'][^>]*content=["']noindex\s*,\s*nofollow["']/i.test(head)) why.push('缺 <meta name="robots" content="noindex,nofollow">');
         if (!/html:not\(\.gate-ok\)\s*\{[^}]*visibility:\s*hidden/i.test(head)) why.push('缺兜底隐藏 CSS（html:not(.gate-ok){visibility:hidden}）');
-        const tag = head.match(/<script[^>]+src=["']([^"']*gate\.js)["'][^>]*>/i);
+        const tag = head.match(/<script[^>]+src=["']([^"']*gate\.js(?:\?[^"']*)?)["'][^>]*>/i);
         if (!tag) why.push('缺同步 <script src="…/gate.js">');
         else {
-            const resolvedScript = resolve(dirname(f), tag[1]);
-            if (resolvedScript !== GATE_JS) why.push(`<script src="${tag[1]}"> 解析到 ${REL(resolvedScript)}，应为 ${REL(GATE_JS)}`);
+            const srcRaw = tag[1];
+            const resolvedScript = resolve(dirname(f), srcRaw.split('?')[0]);
+            if (resolvedScript !== GATE_JS) why.push(`<script src="${srcRaw}"> 解析到 ${REL(resolvedScript)}，应为 ${REL(GATE_JS)}`);
             if (/\b(defer|async)\b/i.test(tag[0])) why.push('gate.js 带了 defer/async，必须是同步脚本');
+            // ★ 版本戳必须是**当前内容哈希**：加 ?v= 是为了避免"改了 gate.js，但浏览器/Service
+            //   Worker 还拿着旧副本"（旧 gate.js 不认 ?share= ⇒ 同一链接时好时坏）。
+            //   戳过期就说明 apply 没重跑 ⇒ 拿到旧脚本的人会看到旧行为。
+            const gotV = /[?&]v=([0-9a-f]+)/i.exec(srcRaw);
+            const wantV = contentVersion(GATE_JS);
+            if (wantV && !gotV) why.push('gate.js 缺 ?v=<内容哈希> 版本戳（应重跑 gate.mjs apply）');
+            else if (wantV && gotV[1] !== wantV) why.push(`gate.js 的 ?v=${gotV[1]} 不是当前内容哈希（应重跑 gate.mjs apply）`);
+        }
+        // 分享令牌的纯函数层同样要带当前版本戳（门禁在 <head> 里同步用它）。
+        const coreTag = head.match(/<script[^>]+src=["']([^"']*share-core\.js(?:\?[^"']*)?)["'][^>]*>/i);
+        if (!coreTag) why.push('缺 share-core.js（gate.js 判 ?share= 要用它）');
+        else {
+            const gotCv = /[?&]v=([0-9a-f]+)/i.exec(coreTag[1]);
+            const wantCv = contentVersion(join(ROOT, 'collection', 'share-core.js'));
+            if (wantCv && !gotCv) why.push('share-core.js 缺 ?v=<内容哈希> 版本戳（应重跑 gate.mjs apply）');
+            else if (wantCv && gotCv[1] !== wantCv) why.push(`share-core.js 的 ?v=${gotCv[1]} 不是当前内容哈希（应重跑 gate.mjs apply）`);
         }
         if (!/<!-- gate:begin/.test(head) || !/<!-- gate:end -->/.test(head)) why.push('缺 <!-- gate:begin --> … <!-- gate:end --> 标记');
         const boot = head.match(/<script id="collection-gate-boot">[\s\S]*?<\/script>/i);

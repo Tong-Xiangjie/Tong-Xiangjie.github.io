@@ -164,8 +164,10 @@ section('⑦ 集成守门：脚本顺序与快捷键');
     // ★ 锚点必须落在**门禁块内的 script 标签**上：块里的注释（bootScript / GUARD_STYLE）
     //   本身就写着 "gate.js" 字样，用 indexOf('gate.js') 会命中注释、把顺序判反。
     const block = (/<!-- gate:begin[\s\S]*?<!-- gate:end -->/.exec(IDX) || [''])[0];
-    const iCore = block.indexOf('src="./share-core.js"');
-    const iGate = block.indexOf('src="./gate.js"');
+    // 注意：两个门禁脚本现在带版本戳（src="./share-core.js?v=<内容哈希>"），
+    // 所以只比到文件名，不要带结尾引号。
+    const iCore = block.indexOf('src="./share-core.js');
+    const iGate = block.indexOf('src="./gate.js');
     const iRouter = IDX.indexOf('src="router.js"');
     const iShare = IDX.indexOf('src="share.js"');
     check(iCore > 0 && iGate > 0 && iCore < iGate,

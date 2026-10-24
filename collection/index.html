@@ -200,6 +200,11 @@
        ② file: 协议 —— 双击打开本地 HTML 文件（站点主人的习惯用法，也必须能用）；
        ③ 本机已通过校验：localStorage 里的"标记"等于**当前令牌哈希的前 16 位**。
           标记与哈希绑定，所以 gate.mjs new 换令牌之后，所有老设备自动失效。
+          ④ ★ 例外：URL 里带 share 令牌时**不许**在这里放行 —— 带着分享链接进站，
+             这一趟必须由 gate.js 按分享规则判（范围/有效期），管理员也不例外。
+             否则"本机有全站标记"的浏览器会在 <head> 就被放行，gate.js 里的分享判定
+             整段不执行 ⇒ 同一链接在装了标记的浏览器里畅通无阻、在干净浏览器里被拒，
+             用户看到的就是"是否被拒绝和浏览器有关"。
        ⚠ ①②只加 gate-ok 类，**不写 localStorage 标记** —— 免得本地放行污染线上判定。
        ⚠ 下面这个 MARK 字面量由 gate.mjs apply 写成 collection/gate.js 里
           GATE_HASHES[0] 的前 16 位，别手改。 */
@@ -212,12 +217,15 @@
                 html.classList.add('gate-ok');
                 return;
             }
-            if (localStorage.getItem('collection-gate') === '63bccacf1f6ddf9a') { html.classList.add('gate-ok'); }
+            // ★ 带分享令牌时不能在这里放行：交给 gate.js 按分享规则判（见上面 ④）。
+            //   查 search 与 hash 两处，与 gate.js 的"片段优先、查询串兜底"一致。
+            var hasShare = (location.search + location.hash).indexOf('share=') >= 0;
+            if (!hasShare && localStorage.getItem('collection-gate') === '63bccacf1f6ddf9a') { html.classList.add('gate-ok'); }
         } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
     })();
     </script>
-    <script src="./share-core.js"></script>
-    <script src="./gate.js"></script>
+    <script src="./share-core.js?v=ad69fa06"></script>
+    <script src="./gate.js?v=dbc0f26a"></script>
     <!-- gate:end -->
     <title>铜の币纪主站</title>
     <script>

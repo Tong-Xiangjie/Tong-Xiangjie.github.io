@@ -241,12 +241,15 @@ for (const f of ENTRIES) {
     const why = [];
     if (!/<meta[^>]+name=["']robots["'][^>]*content=["']noindex\s*,\s*nofollow["']/i.test(head)) why.push('缺 meta noindex,nofollow');
     if (!/html:not\(\.gate-ok\)\s*\{[^}]*visibility:\s*hidden/i.test(head)) why.push('缺兜底隐藏 CSS');
-    const tag = head.match(/<script[^>]+src=["']([^"']*gate\.js)["'][^>]*>/i);
+    // ★ 引用带版本戳（src="./gate.js?v=<内容哈希>"，见 gate.mjs 的 withVersion）⇒
+    //   这里要允许可选的 ?v=…，否则"文件明明挂上了"却报缺件。
+    const tag = head.match(/<script[^>]+src=["']([^"']*gate\.js(?:\?[^"']*)?)["'][^>]*>/i);
     if (!tag) why.push('缺同步 gate.js');
     else {
         // 引用必须是**相对路径**且真的解析到 collection/gate.js：
         // 根绝对路径 /collection/gate.js 会被 verify-vendor 判成缺件，且在 file:// 下必 404
-        const got = resolve(dirname(f), tag[1]);
+        // （解析前先切掉 ?v=…：那只影响缓存键，不影响文件位置）
+        const got = resolve(dirname(f), tag[1].split('?')[0]);
         if (got !== GATE_JS) why.push(`<script src="${tag[1]}"> 解析到 ${rel(got)}，应为 ${rel(GATE_JS)}`);
         if (/\b(defer|async)\b/i.test(tag[0])) why.push('gate.js 带了 defer/async');
     }
