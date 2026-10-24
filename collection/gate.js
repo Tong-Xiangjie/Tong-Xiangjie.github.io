@@ -42,6 +42,19 @@
 (function () {
     'use strict';
 
+    // ★★ 越界 hashchange 必须**比站内 router 更早**听到 —— 这里是唯一足够早的地方。
+    //   CDP 实测（无头 Chrome）暴露的最后一个缺口：
+    //     页内把 hash 改成 #coins  → 被挡 ✓（router 认得这个路由，不改写地址）
+    //     页内把 hash 改成 #settings → 漏 ✗（router **不认得**这个路由，在自己的
+    //       hashchange 处理器里直接 replaceState 改写回合法路由；我的守卫是在
+    //       run()/allowShare 里才注册的，等它执行时 location.hash 已经变回合法值，
+    //       于是"越界"看起来不存在）
+    //   所以：在解析 gate.js 的当下（<head>，早于 router.js 等所有站内脚本）就把
+    //   守卫挂上。函数声明会提升，这里调用 watchShareScope() 是安全的。
+    //   它内部对 hashchange 用的是**捕获**阶段 ⇒ 即使 router 也用捕获，也轮不到
+    //   它先跑；退一步说，即便它先跑，我这里读到的一定还是那个非法 hash。
+    try { watchShareScope(); } catch (e) { }
+
     // ── 配置区 ──────────────────────────────────────────────────────────────
     // 只放 SHA-256 的十六进制（64 位小写），永不放明文令牌。
     // 只支持**一个**生效令牌（换令牌 = 用 gate.mjs new 替换），
@@ -725,6 +738,8 @@
     //   用 history.replaceState —— 它**不触发** hashchange，所以 router 稍后读到的
     //   就是拨回后的 hash，越界那一页根本不会被渲染（连一帧闪都不会有）。
     function watchShareScope() {
+        if (window.__gateShareScopeWatched) return;   // 幂等：解析期装一次，allowShare 再调一次也不重复
+        window.__gateShareScopeWatched = 1;
         window.addEventListener('hashchange', function () {
             var rec = readShareRec();
             if (!rec) return;
@@ -760,7 +775,9 @@
         var wrap = function () {
             if (typeof window.syncRoute !== 'function') {
                 // router.js 在文档末尾加载，gate.js 在 head 里 —— 所以这里要等它出现。
-                if (++tries <= 40) setTimeout(wrap, 100);
+                // ★ 蹲守时间给足 15 秒：解析期就调用时（早于站内所有脚本），
+                //   中间还要加载上百个数据脚本，4 秒（40×100ms）不够稳。
+                if (++tries <= 150) setTimeout(wrap, 100);
                 return;
             }
             if (window.__gateShareSynced) return;
