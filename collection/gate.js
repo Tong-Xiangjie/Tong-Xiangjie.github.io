@@ -901,23 +901,56 @@
     // 候选元素：带 href 的链接 + 任何"看着像站内入口"的元素（站内导航常写成
     // <a data-mode="mine"> 或 <div data-route="notes/x">，没有 href，光靠 a[href] 抓不到）。
     var SHARE_LOCK_SEL = 'a[href],[data-mode],[data-route],[data-href],[data-hash],'
-        + '[data-view],[data-target],[data-nav]';
+        + '[data-view],[data-target],[data-nav],[onclick]';
 
-    // 尽力猜"点这个会去哪"：先信 <a href>，再看元素上的路由线索。
-    // ★ 只认"像站内路由"的值 —— 多段路径，或者正好是站点的一个模式名（SHARE_MODES）。
-    //   否则会把普通 UI 上的 data-view="table" 这类误判成越界、把页面自己锁坏。
+    // 尽力猜"点这个会去哪"。三种入口（都是站内真实写法）：
+    //   ① <a href="#mode/cat">          ⇒ 真值
+    //   ② <div class="sidebar-item" onclick="onSidebarItemClick('rmb3')">
+    //      —— 侧边栏/文章侧边栏就是这种：没有 href 也没有 data-*，只有内联 onclick，
+    //         里面那个 id 只是"分类 id"，要配上**当前模式**才是完整路由（notes/rmb3）。
+    //   ③ <div data-mode="settings">     ⇒ 元素上的路由线索
+    // ★ 只认"像站内路由"的值：多段路径，或正好是站点模式名（SHARE_MODES）；
+    //   且裸模式名只认导航类容器（nav/sidebar/menu/bottom）—— 否则会把页面里的
+    //   .rating-tab[data-mode="notes"] 这种普通控件误判成越界、把页面自己锁坏。
     function shareRouteOf(el) {
         if (!el || !el.getAttribute) return null;
         var t = shareClickTarget(el);
         if (t !== null) return t;
+
+        var mode = '';
+        try {
+            if (typeof parseRoute === 'function') mode = (parseRoute(location.hash).mode || '');
+        } catch (e) { }
+        if (!mode) mode = String(location.hash || '').replace(/^#/, '').split('/')[0] || '';
+
         var keys = ['data-href', 'data-route', 'data-hash', 'data-target', 'data-nav', 'data-mode', 'data-view'];
-        for (var i = 0; i < keys.length; i++) {
-            var v = el.getAttribute(keys[i]);
+        var i, v;
+        for (i = 0; i < keys.length; i++) {
+            v = el.getAttribute(keys[i]);
             if (!v) continue;
             v = String(v).trim().replace(/^#/, '').replace(/^\/+/, '');
             if (!v) continue;
             if (v.indexOf('/') >= 0) return '#' + v;
-            if (typeof SHARE_MODES !== 'undefined' && SHARE_MODES.indexOf(v.split('/')[0]) >= 0) return '#' + v;
+            if (typeof SHARE_MODES !== 'undefined' && SHARE_MODES.indexOf(v.split('/')[0]) >= 0) {
+                if (el.closest && el.closest('[class*="nav"],[class*="sidebar"],[class*="menu"],[class*="bottom"]')) {
+                    return '#' + v;
+                }
+            }
+        }
+
+        // ② 内联 onclick 里的 id：取引号里的标识符，再按"是模式名还是分类 id"拼成路由。
+        var oc = el.getAttribute('onclick') || '';
+        if (oc) {
+            var m = oc.match(/'([a-zA-Z0-9_\-]+)'/g) || oc.match(/"([a-zA-Z0-9_\-]+)"/g) || [];
+            for (i = 0; i < m.length; i++) {
+                var idv = m[i].replace(/^['"]|['"]$/g, '');
+                if (!idv || idv === el.tagName) continue;
+                if (typeof SHARE_MODES !== 'undefined' && SHARE_MODES.indexOf(idv) >= 0) return '#' + idv;
+                if (/^[a-z0-9_\-]+$/i.test(idv)) {
+                    if (mode && mode !== idv) return '#' + mode + '/' + idv;
+                    return '#' + idv;
+                }
+            }
         }
         return null;
     }

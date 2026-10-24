@@ -162,7 +162,7 @@ function shareOpenDialog() {
         '<div class="share-tiers" id="shareTiers"></div>',
         '<div class="share-custom" id="shareCustom" style="display:none;">过期时间：',
         '<input type="datetime-local" step="60" id="shareCustomInput"> ',
-        '<span style="color:var(--text-secondary,#666);">（到分钟；必须晚于现在）</span></div>',
+        '<span style="color:var(--text-secondary,#666);">（不允许早于当前系统时间）</span></div>',
         '<div class="share-exp" id="shareExp"></div>',
         '<textarea class="share-link" id="shareLink" rows="3" readonly></textarea>',
         '<div class="share-acts">',
