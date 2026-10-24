@@ -733,6 +733,12 @@
                 return;
             }
             if (shareScopeMatch(rec.p, location.hash, rec.a)) return;
+            // ★ 用户要求：手改深链（或后退）越界 ⇒ 直接给"被挡页面（分享链接非法）"。
+            //   为什么不再"拨回地址+提示"：拨回时应用那边可能已经按旧 hash 渲染过了 ——
+            //   用户实测"手动把深链改成 settings 能卡进「我的」"就是这么发生的。
+            //   denyShare 是 document.write，整页换成拒绝文档，应用再想渲染也没机会。
+            denyShare('outofscope');
+            return;
             shareInstant();
             try {
                 history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
@@ -1049,6 +1055,9 @@
                 shareLockAnchors();
             }, 300);
         }).observe(document.documentElement, { childList: true, subtree: true });
+        // ★ 再补一个定时兜底：站内重渲染会把我们加的灰化类**整个冲掉**（用户实测 C：
+        //   条目还是亮的），所以分享模式下每 500ms 重扫一次，被冲掉就马上补上。
+        setInterval(function () { if (shareRecNow()) shareLockAnchors(); }, 500);
     } catch (e) { }
 
     // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
