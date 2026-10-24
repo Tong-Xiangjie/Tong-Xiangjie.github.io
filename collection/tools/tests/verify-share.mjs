@@ -196,6 +196,22 @@ section('⑧ 集成守门：门禁侧行为');
     check(/history\.replaceState/.test(guard) && !/deny\(/.test(guard.replace(/deny\('share-expired'\)/g, '')),
         '★ 越界时用 history.replaceState 拨回 + 提示，**不调用 deny()**（deny 是 document.write，会把 SPA 换掉）');
     check(/这一页不在分享范围内/.test(watch), '越界会给出可见提示（用户知道为什么被拨回）');
+
+    // ★★ 站内导航用的是 history.replaceState（不触发 hashchange），所以光挂 hashchange
+    //   等于没挂 —— 用户实测"相当于给了全部的门户密钥"。必须把 syncRoute 也包住。
+    const wrapNav = pull('watchShareNavigation');
+    check(wrapNav.length > 0 && /window\.syncRoute = function/.test(wrapNav),
+        '★ 包住了 window.syncRoute（站内导航的唯一出口）—— 否则收链接的人点侧边栏就能逛全站');
+    check(/__gateShareSynced/.test(wrapNav) && /setTimeout\(wrap, 100\)/.test(wrapNav),
+        '包装只做一次，并且会等 router.js 加载完（它在文档末尾、gate.js 在 head）');
+    check(/applyRoute\('\#' \+ rec\.p\)/.test(wrapNav),
+        '越界时连内容一起拨回（侧边栏是"先渲染、再 syncRoute"，只改地址栏会留下越界画面）');
+    check(/watchShareNavigation\(\)/.test(watch), 'watchShareScope 里确实去装了这层包装');
+
+    // ★ "有时分享链接看不了"：客户端吃掉 # 之后整段 ⇒ hash 为空 ⇒ 范围校验必然失败。
+    const denyFn = pull('tryShareOrDeny');
+    check(/reason === 'outofscope' && !bareHash/.test(denyFn) && /history\.replaceState/.test(denyFn),
+        '★ hash 被客户端吃掉（空 hash）时把深链补回范围首页再放行，而不是直接拒绝');
 }
 
 console.log('');

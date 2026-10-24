@@ -549,6 +549,19 @@
         if (shareTok && typeof shareCheck === 'function') {
             var r = shareCheck(shareTok, location.hash, Date.now());
             if (r.ok) { allowShare(r.payload); return; }
+            // ★ 一条真实的失败路径（用户实测"有时分享链接也看不了"）：
+            //   微信/QQ 之类客户端会把 URL 里 '#' 之后整段吃掉，于是 location.hash 为空
+            //   ⇒ 范围校验必然失败 ⇒ 收件人只看到"暂无访问权限"。
+            //   这不是链接坏了，而是深链丢了：把深链**补回**范围首页再放行。
+            //   （用 replaceState，不新增历史记录、也不触发 hashchange。）
+            var bareHash = String(location.hash || '').replace(/^#/, '').trim();
+            if (r.reason === 'outofscope' && !bareHash) {
+                allowShare(r.payload);
+                try {
+                    history.replaceState(history.state, '', location.pathname + location.search + '#' + r.payload.p);
+                } catch (e) { }
+                return;
+            }
             if (DEBUG) console.log('[gate] 分享令牌被拒：' + r.reason);
             deny('share-' + r.reason);
             return;
@@ -577,6 +590,51 @@
             } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
             shareToast('这一页不在分享范围内，已回到分享页');
         }, true);
+        watchShareNavigation();
+    }
+
+    // ★★ 站内导航**根本不走 hashchange**。
+    //   collection/router.js 的 syncRoute() 用的是 history.**replaceState**（它自己的注释里
+    //   也写着"只用 replaceState，永不 pushState"），而 replaceState 不触发 hashchange
+    //   ⇒ 只挂 hashchange 的话，收链接的人点侧边栏/标签栏就能逛全站 —— 用户实测的原话是
+    //   "相当于给了全部的门户密钥"。站内所有导航最终都会调 syncRoute()，所以把那一层包住：
+    //   越界时不放行原来那次同步，改为把地址与内容一起拨回分享范围（并给提示）。
+    function watchShareNavigation() {
+        var tries = 0;
+        var wrap = function () {
+            if (typeof window.syncRoute !== 'function') {
+                // router.js 在文档末尾加载，gate.js 在 head 里 —— 所以这里要等它出现。
+                if (++tries <= 40) setTimeout(wrap, 100);
+                return;
+            }
+            if (window.__gateShareSynced) return;
+            window.__gateShareSynced = true;
+            var orig = window.syncRoute;
+            window.syncRoute = function (replace) {
+                var rec = readShareRec();
+                if (rec) {
+                    var target = '';
+                    try { target = (typeof buildRoute === 'function') ? String(buildRoute() || '') : ''; } catch (e) { target = ''; }
+                    if (!shareScopeMatch(rec.p, target)) {
+                        shareToast('这一页不在分享范围内，已回到分享页');
+                        var back = location.pathname + location.search + '#' + rec.p;
+                        try { history.replaceState(history.state, '', back); } catch (e2) { }
+                        // 越界那一页此时通常已经被渲染了（侧边栏是"先改状态+渲染，再 syncRoute"），
+                        // 所以再把范围内的路由应用一次，把内容和地址栏一起拨回去。
+                        if (typeof applyRoute === 'function') {
+                            try { applyRoute('#' + rec.p); } catch (e3) { }
+                        }
+                        return undefined;
+                    }
+                }
+                return orig.apply(window, arguments);
+            };
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { setTimeout(wrap, 0); });
+        } else {
+            setTimeout(wrap, 0);
+        }
     }
 
     // 顶部小提示，自动消失。它只出现在"已放行的 SPA"里，与被拒文档无关，
