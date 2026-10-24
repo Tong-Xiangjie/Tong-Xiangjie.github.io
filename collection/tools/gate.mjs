@@ -277,11 +277,22 @@ function scriptTagFor(htmlFile) {
     return `<script src="${rel}"></script>`;
 }
 
+// ★ 分享令牌的纯函数层（collection/share-core.js）必须排在 gate.js **之前**：
+//   门禁在 <head> 里**同步**判 `?share=`，要用到那里的 shareCheck/shareFromQuery。
+//   它与 gate.js 同在 collection/ 下，所以相对路径就是把文件名换掉即可
+//   （同样的理由见上面那段：相对路径在 Pages / 本地 http / file:// 下都成立）。
+function shareCoreTagFor(htmlFile) {
+    let rel = relative(dirname(htmlFile), join(ROOT, 'collection', 'share-core.js')).split(sep).join('/');
+    if (!rel.startsWith('.')) rel = './' + rel;
+    return `<script src="${rel}"></script>`;
+}
+
 const headBlock = (mark, htmlFile) => [
     '<!-- gate:begin（collection 站入口门禁：由 `node collection/tools/gate.mjs apply` 注入，请勿手改） -->',
     '<meta name="robots" content="noindex,nofollow">',
     GUARD_STYLE,
     bootScript(mark),
+    shareCoreTagFor(htmlFile),
     scriptTagFor(htmlFile),
     '<!-- gate:end -->'
 ].join('\n');

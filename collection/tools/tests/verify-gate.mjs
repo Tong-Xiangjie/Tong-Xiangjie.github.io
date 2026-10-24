@@ -883,8 +883,8 @@ try {
     ok(deny.bodyText.trim() === DENIED_VISIBLE,
         `[127.0.0.2] ★ body.textContent 逐字就是那两段文字（实际 ${JSON.stringify(deny.bodyText.trim())}）—— 提示盒里没有脚本、也没有错误文本节点`);
     ok(deny.leaks.length === 0, `[127.0.0.2] ★ 除了提示盒子，没有任何元素可见（越界 ${deny.leaks.length} 个）`, JSON.stringify(deny.leaks.slice(0, 20)));
-    ok(deny.scriptCount === 2 && deny.linkCount === 0,
-        `[127.0.0.2] ★ 站点资源一个都没进来（<script> ${deny.scriptCount} 个=引导+门禁脚本，被拒文档里 0 个脚本；<link> ${deny.linkCount} 个）`);
+    ok(deny.scriptCount === 3 && deny.linkCount === 0,
+        `[127.0.0.2] ★ 站点资源一个都没进来（<script> ${deny.scriptCount} 个=引导+share-core+门禁脚本，被拒文档里 0 个脚本；<link> ${deny.linkCount} 个）`);
     ok(deny.docLen < 40000, `[127.0.0.2] ★ 整个文档只剩提示页那点东西（documentElement 长度 ${deny.docLen}，原站首页是 50 万+）`);
     // ★ 要求 ①：页面上**没有**任何错误文本，错误元素连存在都不该存在
     ok(deny.hasErrEl === false, '[127.0.0.2] ★ 页面里不存在 .gate-denied-error 元素（错误提示已经改走原生 alert）');

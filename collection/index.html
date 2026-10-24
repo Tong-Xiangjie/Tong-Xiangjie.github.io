@@ -216,6 +216,7 @@
         } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }
     })();
     </script>
+    <script src="./share-core.js"></script>
     <script src="./gate.js"></script>
     <!-- gate:end -->
     <title>铜の币纪主站</title>
@@ -633,6 +634,11 @@
 
 <!-- ========== ★ 深链接路由（hash，无需服务端配合） ========== -->
 <script src="router.js"></script>
+
+<!-- ========== ★ 分享窗口（Ctrl+Shift+S）==========
+     依赖 router.js 的 buildRoute()/parseRoute() 来算"按下快捷键那一刻的深链"，
+     所以必须排它后面。令牌那一层的纯函数在 share-core.js（head 里、gate.js 之前）。 -->
+<script src="share.js"></script>
 
 <!-- ========== 入口 ========== -->
 <script src="main.js"></script>

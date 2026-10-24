@@ -88,6 +88,10 @@
     // ───────────────────────────────────────────────────────────────────────
 
     var html = document.documentElement;
+    // ★ 分享令牌必须是 **IIFE 级**变量：run() 里从 ?share= 读出来（随后地址栏就被抹掉了），
+    //   而真正用它的 tryShareOrDeny() 是 IIFE 级的独立函数 —— 写成 run() 的局部变量会
+    //   ReferenceError（verify-gate 就是这么把这个 bug 抓住的：整份被拒文档都没写出来）。
+    var shareTok = '';
 
     // 门禁自己的日志：默认**一声不响**（被拒时控制台里不该有我们主动打的东西）
     function log() {
@@ -255,13 +259,20 @@
         var fromSearch = stripParamFromSearch(location.search);
         var token = fromHash.token || fromSearch.token;
 
-        // ③ 只要出现了 k 参数就**同步**抹掉它。为什么必须同步、且必须在这里做：
+        // ②b 分享令牌 ?share=…（L2）。读取与摘除都和 k= 同一时机、同样**同步**：
+        //     摘晚了 router.js 会从 location.search 里读到它（虽然它不解析，但没必要留着）；
+        //     顺带把令牌从地址栏拿掉，免得留在历史记录/截图里。
+        var shareStripBase = fromSearch.hit ? fromSearch.search : location.search;
+        shareTok = (typeof shareFromQuery === 'function') ? shareFromQuery(shareStripBase) : '';
+        var shareStrip = (typeof shareStripQuery === 'function') ? shareStripQuery(shareStripBase) : { search: shareStripBase, hit: false };
+
+        // ③ 只要出现了 k（或 share）参数就**同步**抹掉它。为什么必须同步、且必须在这里做：
         //    站内路由大量使用 location.hash（#coins/... 、#coins/...&k=xxx 这种形态），
         //    router.js 在 DOMContentLoaded 读 location.hash。若等异步摘要回来再清，
-        //    路由可能已经读到带 k 的脏 hash。这里只摘掉 k 段，其余段**原样拼接**。
-        if (fromHash.hit || fromSearch.hit) {
+        //    路由可能已经读到带 k 的脏 hash。这里只摘掉这两段，其余段**原样拼接**。
+        if (fromHash.hit || fromSearch.hit || shareStrip.hit) {
             var clean = location.pathname
-                + (fromSearch.hit ? fromSearch.search : location.search)
+                + shareStrip.search
                 + (fromHash.hit ? fromHash.hash : location.hash);
             try {
                 history.replaceState(history.state, '', clean);
@@ -280,8 +291,13 @@
         } catch (e) { /* 隐私模式下 localStorage 会抛，当成没有标记 */ }
         if (stored) { allow(stored); return; }
 
-        // ⑤ 没有令牌 → 拒绝（把提示文档写进去）
-        if (!token) { deny('no-token'); return; }
+        // ④b 本标签页已有的分享会话（sessionStorage）：刷新之后仍然有效，
+        //     关掉标签页就没了 —— 这正是"临时分享"该有的寿命。
+        var shareRec = readShareRec();
+        if (shareRec && shareStillOk(shareRec)) { allowShare(shareRec); return; }
+
+        // ⑤ 没有 k 令牌 → 看有没有分享令牌，都没有才拒绝（提示文档）
+        if (!token) { tryShareOrDeny('no-token'); return; }
 
         // ⑥ 算令牌的 SHA-256 再比。crypto.subtle **只在安全上下文可用**：
         //    线上 https、本地 http://localhost / http://127.0.0.1 都是安全上下文，
@@ -291,7 +307,9 @@
 
         verifyToken(token, subtle, function (mark) {
             if (mark) { allow(mark); return; }
-            deny('bad-token');
+            // k 不对时**再看一眼分享令牌**：两个参数同时出现（例如从分享链接跳回总入口）
+            // 不该因为其中一个坏掉就整页拒绝。
+            tryShareOrDeny('bad-token');
         });
     }
 
@@ -491,6 +509,91 @@
     function allow(mark) {
         try { localStorage.setItem(STORAGE_KEY, mark); } catch (e) { /* 隐私模式，忽略 */ }
         html.classList.add('gate-ok');
+    }
+
+    // ── 分享令牌（L2 软限制，Ctrl+Shift+S 生成）─────────────────────────────
+    // 与 k= 的三点不同：
+    //  ① 通过后**不写** localStorage 全站标记（那是 k= 的待遇），只写 sessionStorage
+    //     —— 关掉标签页就失效，符合"临时分享"的直觉；
+    //  ② 只放行 payload.p 这个前缀范围内的路由（范围 = 按下快捷键那一刻的深链）；
+    //  ③ L2 不验签（边界见 share-core.js 顶部），所以这里判的是"格式 / 有效期 / 范围"。
+    // 纯函数共用 share-core.js：门禁只管"怎么用"，不管"怎么算"。
+    function readShareRec() {
+        try {
+            var raw = sessionStorage.getItem(SHARE_SESSION_KEY);
+            if (!raw) return null;
+            var o = JSON.parse(raw);
+            if (!o || typeof o.p !== 'string' || !o.p) return null;
+            return o;
+        } catch (e) { return null; }
+    }
+
+    // 会话是否仍然可用：没过期，且**当前 hash** 仍在范围内。
+    function shareStillOk(rec) {
+        if (!rec) return false;
+        if (rec.e && Date.now() > rec.e) return false;
+        return shareScopeMatch(rec.p, location.hash);
+    }
+
+    function allowShare(rec) {
+        html.classList.add('gate-ok');
+        try {
+            sessionStorage.setItem(SHARE_SESSION_KEY, JSON.stringify({ p: rec.p, e: rec.e || 0 }));
+        } catch (e) { /* 隐私模式，忽略 */ }
+        watchShareScope();
+        if (DEBUG) console.log('[gate] 分享令牌通过：范围 ' + rec.p
+            + (rec.e ? '，到 ' + new Date(rec.e).toLocaleString() : '，不过期'));
+    }
+
+    function tryShareOrDeny(reason) {
+        if (shareTok && typeof shareCheck === 'function') {
+            var r = shareCheck(shareTok, location.hash, Date.now());
+            if (r.ok) { allowShare(r.payload); return; }
+            if (DEBUG) console.log('[gate] 分享令牌被拒：' + r.reason);
+            deny('share-' + r.reason);
+            return;
+        }
+        deny(reason || 'no-token');
+    }
+
+    // ★ 越界导航的处理方式：**绝不调用 deny()**。
+    //   deny() 是 document.open/write/close，会把整个 SPA 换掉 —— 用户就回不去分享页了
+    //   （只能手动刷新），体验上等于"点一下就崩"。这里改成：
+    //   在**捕获阶段**（早于 router.js 自己挂的 hashchange）把 hash 拨回范围首页，
+    //   用 history.replaceState —— 它**不触发** hashchange，所以 router 稍后读到的
+    //   就是拨回后的 hash，越界那一页根本不会被渲染（连一帧闪都不会有）。
+    function watchShareScope() {
+        window.addEventListener('hashchange', function () {
+            var rec = readShareRec();
+            if (!rec) return;
+            if (rec.e && Date.now() > rec.e) {          // 会话期间到期：按过期处理
+                try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e) { }
+                deny('share-expired');
+                return;
+            }
+            if (shareScopeMatch(rec.p, location.hash)) return;
+            try {
+                history.replaceState(history.state, '', location.pathname + location.search + '#' + rec.p);
+            } catch (e) { /* 拨不回去也只能算了，至少提示到位 */ }
+            shareToast('这一页不在分享范围内，已回到分享页');
+        }, true);
+    }
+
+    // 顶部小提示，自动消失。它只出现在"已放行的 SPA"里，与被拒文档无关，
+    // 所以不进 DENIED_CSS（那份 CSS 要求逐条镜像 gate.mjs 的 GUARD_STYLE）。
+    function shareToast(text) {
+        try {
+            var old = document.getElementById('gateShareToast');
+            if (old && old.parentNode) old.parentNode.removeChild(old);
+            var d = document.createElement('div');
+            d.id = 'gateShareToast';
+            d.textContent = text;
+            d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:4000;'
+                + 'background:rgba(0,0,0,.82);color:#fff;padding:8px 14px;border-radius:999px;'
+                + 'font-size:.85rem;max-width:92vw;text-align:center;pointer-events:none;';
+            document.body.appendChild(d);
+            setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 2600);
+        } catch (e) { /* 提示失败不影响放行 */ }
     }
 
     // ── 工具函数 ────────────────────────────────────────────────────────────
