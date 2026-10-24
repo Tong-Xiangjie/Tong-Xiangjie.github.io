@@ -178,7 +178,11 @@ function shareRandId() {
 
 function shareBuildPayload(scope, expMs, allowSel) {
     var payload = { p: String(scope || '') };
-    if (expMs) payload.e = Math.floor(expMs);
+    if (expMs) {
+        payload.e = Math.floor(expMs);
+        // s = 签发时刻：有了它才能按"这个令牌本来多长命"来算时钟宽限。
+        payload.s = Date.now();
+    }
     // a = 只放行这几个选中项的签名（缺省 ⇒ 整块放行）。见 shareScopeMatch 的说明。
     if (allowSel) payload.a = String(allowSel);
     payload.i = shareRandId();
@@ -211,13 +215,28 @@ function shareDecode(token) {
 //   选"1 小时"的链接可能刚发出就在对方手机上打不开，换台设备又能开 —— 正是用户
 //   反馈的"有时分享链接也看不了"。这里给 5 分钟宽限：只影响"刚好卡在边界"的链接，
 //   不会让过期链接长期有效。
+// ★ 时钟宽限：收件人本机时间和发送者不可能完全一致，卡在 e 那一毫秒会"明明没过期却打不开"。
+//   但固定 5 分钟是错的（用户实测：自定义 1 分钟的链接，过期后还能开 —— 5 分钟的宽限把
+//   1 分钟档整个吞掉了）。改成**按这个令牌本来的生命期**算，并夹在 3 秒 ~ 5 分钟之间：
+//     1 分钟档 ⇒ 3 秒；1 小时档 ⇒ 3 分钟；1 天 / 30 天 ⇒ 顶到 5 分钟。
+//   老令牌（payload 里没有 s，签发时刻未知）退一个 30 秒的中庸值。
 var SHARE_CLOCK_GRACE_MS = 5 * 60 * 1000;
+function shareGraceMs(payload) {
+    var e = payload && typeof payload.e === 'number' ? payload.e : 0;
+    if (!e) return 0;                                   // 跟随站点令牌（不设过期）⇒ 没有宽限一说
+    var s = payload && typeof payload.s === 'number' ? payload.s : 0;
+    if (!s || s >= e) return 30000;
+    var g = Math.round((e - s) * 0.05);
+    if (g > SHARE_CLOCK_GRACE_MS) g = SHARE_CLOCK_GRACE_MS;
+    if (g < 3000) g = 3000;
+    return g;
+}
 
 function shareCheck(token, hash, nowMs) {
     var payload = shareDecode(token);
     if (!payload) return { ok: false, reason: 'badformat' };
     var now = (typeof nowMs === 'number') ? nowMs : Date.now();
-    if (payload.e && now > payload.e + SHARE_CLOCK_GRACE_MS) {
+    if (payload.e && now > payload.e + shareGraceMs(payload)) {
         return { ok: false, reason: 'expired', payload: payload };
     }
     if (!shareScopeMatch(payload.p, hash, payload.a)) return { ok: false, reason: 'outofscope', payload: payload };

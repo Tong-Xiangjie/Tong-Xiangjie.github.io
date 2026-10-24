@@ -102,10 +102,19 @@ section('④ 校验：格式 / 有效期 / 范围');
     r = checkToken(encode(past), 'notes/rmb3', now);
     check(r.ok === false && r.reason === 'expired', '★ 过期 → 拒绝（reason=expired）', r.reason);
     // ★ 时钟宽限：收件人本机时间比发送方快几分钟是常态，没有宽限的话"1 小时"档
-    //   可能刚发出就打不开（用户反馈的"有时看不了"）。5 分钟内仍然放行。
+    //   可能刚发出就打不开（用户反馈的"有时看不了"）。但宽限要按令牌本来的生命期算：
+    //   固定 5 分钟会把"自定义 1 分钟"这种短档整个吞掉（用户实测的 bug）。
+    const hourAgo = { p: 'notes/rmb3', s: now - 3600e3, e: now - 60e3, i: 'x' };   // 1 小时档，过期 1 分钟
+    const gracePayload = encode(hourAgo);
+    r = checkToken(gracePayload, 'notes/rmb3', now);
+    check(r.ok === true, '1 小时档刚过期 1 分钟 ⇒ 仍在按生命期算的宽限内 → 放行');
+    const minAgo = { p: 'notes/rmb3', s: now - 60e3, e: now - 10e3, i: 'x' };      // 1 分钟档，过期 10 秒
+    r = checkToken(encode(minAgo), 'notes/rmb3', now);
+    check(r.ok === false && r.reason === 'expired', '★ 1 分钟档过期 10 秒 ⇒ 拒绝（宽限只有 3 秒）', r.reason);
     r = checkToken(encode(justPast), 'notes/rmb3', now);
-    check(r.ok === true, '只管到边界：刚过期 1 分钟仍在 5 分钟宽限内 → 放行');
-    check(sandbox.SHARE_CLOCK_GRACE_MS === 5 * 60e3, '宽限值就是 5 分钟（不会让过期链接长期有效）');
+    check(r.ok === false && r.reason === 'expired',
+        '★ 签发时就已过期的令牌 ⇒ 拒绝（不再被固定 5 分钟宽限救活）', r.reason);
+    check(sandbox.SHARE_CLOCK_GRACE_MS === 5 * 60e3, '宽限上限仍是 5 分钟（长档最多多活 5 分钟）');
     r = checkToken(encode(noExp), 'notes/rmb3', now);
     check(r.ok === true, '不写 e（跟随站点令牌）→ 不放过期，只看范围');
     r = checkToken('这不是令牌', 'notes/rmb3', now);
@@ -388,6 +397,24 @@ section('⑧ 集成守门：门禁侧行为');
     check(/shareLockAnchors\(\)/.test(pull('watchShareNavigation')) && /setTimeout\(shareLockAnchors/.test(GATE),
         '每次路由变化后重算一次，另外首屏异步渲染后补扫两次');
     // ★ 用户要求：分享链接不能再被分享
+    check(/window\.addEventListener\('pointerup', shareBlockClick, true\)/.test(GATE)
+        && /window\.addEventListener\('mouseup', shareBlockClick, true\)/.test(GATE)
+        && /window\.addEventListener\('touchstart', shareBlockClick, true\)/.test(GATE),
+        '★ 指针全阶段都拦（用户实测"等更长时间才刷新" ⇒ 有入口绑在 pointerup/mouseup 上）');
+    check(/\.gate-share-locked\{[^}]*pointer-events:none !important/.test(GATE)
+        && /\.gate-share-locked \*\{pointer-events:none !important/.test(GATE),
+        '★ 越界链接直接 pointer-events:none（浏览器根本不把事件交给它，连它子元素一起锁）');
+
+    // ★ 时钟宽限必须按生命期算（用户实测：自定义 1 分钟的链接过期后还能开）
+    const graceMs = sandbox.shareGraceMs;
+    check(graceMs({ e: 1, s: 0 }) === 30000, '老令牌（没写签发时刻）⇒ 30 秒');
+    check(graceMs({ e: 60000, s: 0 + 1 }) === 3000, '★ 1 分钟档 ⇒ 只给 3 秒（原来固定 5 分钟把它吞了）');
+    check(graceMs({ e: 3600000, s: 1 }) === 180000, '1 小时档 ⇒ 3 分钟');
+    check(graceMs({ e: 86400000, s: 1 }) === 300000, '1 天档 ⇒ 顶到 5 分钟');
+    check(graceMs({ e: 0, s: 0 }) === 0 && graceMs(null) === 0, '不设过期（跟随站点令牌）⇒ 无宽限');
+    check(sandbox.shareEncode(sandbox.shareBuildPayload('notes/x', 60000)).length > 0
+        && sandbox.shareDecode(sandbox.shareEncode(sandbox.shareBuildPayload('notes/x', 60000))).s > 0,
+        '★ 生成的令牌带上签发时刻 s（宽限才能按生命期算）');
     check(/window\.addEventListener\('keydown', shareBlockReshare, true\)/.test(GATE)
         && /if \(!shareRecNow\(\)\) return;/.test(pull('shareBlockReshare')),
         '★ 分享模式下 Ctrl+Shift+S 被吃掉（分享链接不能再分享）');

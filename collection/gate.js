@@ -892,7 +892,8 @@
         try {
             var st = document.createElement('style');
             st.id = 'gateShareLockStyle';
-            st.textContent = '.gate-share-locked{opacity:.45;cursor:not-allowed;}';
+            st.textContent = '.gate-share-locked{opacity:.45;cursor:not-allowed;pointer-events:none !important;}'
+                + '.gate-share-locked *{pointer-events:none !important;}';
             (document.head || document.documentElement).appendChild(st);
         } catch (e) { }
     }
@@ -958,6 +959,9 @@
     try {
         window.addEventListener('pointerdown', shareBlockClick, true);
         window.addEventListener('mousedown', shareBlockClick, true);
+        window.addEventListener('pointerup', shareBlockClick, true);
+        window.addEventListener('mouseup', shareBlockClick, true);
+        window.addEventListener('touchstart', shareBlockClick, true);
         window.addEventListener('click', shareBlockClick, true);
         window.addEventListener('keydown', shareBlockReshare, true);
     } catch (e) { }
