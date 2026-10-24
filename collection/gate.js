@@ -1193,7 +1193,11 @@
                 e.preventDefault();
                 e.stopPropagation();
                 try { sessionStorage.removeItem(SHARE_SESSION_KEY); } catch (e2) { }
-                location.reload();          // 回到管理员自己的完整站点
+                // ★ 不能只 reload：地址栏里还挂着 ?share=<令牌>，刷新后令牌分支会**原样
+                //   再放行一次**，等于退不出去（CDP 实测：会话没清、锁定还在）。
+                //   必须把 share 参数和深链一起丢掉，回到管理员自己的站点。
+                var q = location.search.replace(/[?&]share=[^&]*/g, '').replace(/^&/, '?');
+                location.replace(location.pathname + q);
             }, true);
             (document.body || document.documentElement).appendChild(b);
         }
