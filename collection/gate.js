@@ -709,8 +709,13 @@
             //   两种都不是"越界"，而是"深链丢了"：按范围首页放行，别让人对着拒绝页发呆。
             //   （用 replaceState，不新增历史记录、也不触发 hashchange。）
             var bareHash = String(location.hash || '').replace(/^#/, '').trim();
+            //   ★ 但"宽容"只留给**客户端自己改写的锚点**（微信的 #wechat_redirect 之类）：
+            //     除此之外任何"非空、又不认识"的 hash（手打的 #settings、#settings/anything、
+            //     #nonsense、别的板块 /notes/rmb3 …）都要按**非法分享链接**处理 ⇒ 拒绝页。
+            //     CDP 实测：原先那条 "!shareLooksLikeRoute(bareHash) ⇒ 也算丢了深链" 会把
+            //     #nonsense 放行并改写成范围首页，等于手改深链可以绕过范围。
             var lostDeepLink = !bareHash
-                || (typeof shareLooksLikeRoute === 'function' && !shareLooksLikeRoute(bareHash));
+                || /^(?:wechat_redirect|weibo_redirect|wxfrom|from=|tt_daymode|utm_)/i.test(bareHash);
             if (r.reason === 'outofscope' && lostDeepLink) {
                 allowShare(r.payload);
                 try {
@@ -1125,6 +1130,42 @@
     function shareInstallGuards() {
         if (window.__gateShareGuards) return;
         window.__gateShareGuards = 1;
+
+        // ★★ 手改深链的**最终**解法：包住 history.replaceState / pushState。
+        //   为什么前面几招都不够：window 上的 hashchange **不区分捕获/冒泡**（事件 target
+        //   就是 window，按注册顺序跑），router.js 在自己的 hashchange 处理器里会把不认识的
+        //   路由**当场改写掉**（replaceState），等守卫或 500ms 心跳去读 location.hash 时，
+        //   非法值已经不存在了。CDP 实测：页内改成 #coins / #nonsense / #notes/rmb3 都挡得住，
+        //   改成 #settings / #settings/anything 就漏（地址被改写成 #notes/commemorative）。
+        //   所以改成拦"写入动作"本身：只要有人往地址栏写**范围外的 hash**，立刻换成拒绝页，
+        //   且这次写入不再执行。与事件顺序无关，也与"是谁写的"无关。
+        function watchShareHistory() {
+            if (window.__gateShareHistoryWatched) return;
+            window.__gateShareHistoryWatched = 1;
+            var bad = function (url) {
+                if (!window.__gateShareArmed) return false;      // 站内启动期的中间态不误判
+                var rec = readShareRec();
+                if (!rec || url === undefined || url === null) return false;
+                var u = String(url), i = u.indexOf('#');
+                if (i < 0) return false;                          // 不带 hash 的写入与分享范围无关
+                var hash = u.slice(i);
+                if (hash === '#' || hash === '') return false;    // "没有深链"不是非法
+                if (shareScopeMatch(rec.p, hash, rec.a)) return false;
+                denyShare('outofscope');
+                return true;
+            };
+            ['replaceState', 'pushState'].forEach(function (name) {
+                var orig = window.history[name];
+                if (typeof orig !== 'function') return;
+                window.history[name] = function (st, ti, url) {
+                    var stop = false;
+                    try { stop = bad(url); } catch (e) { }
+                    if (stop) return undefined;                   // 越界写入不执行，地址停在原处
+                    return orig.apply(window.history, arguments);
+                };
+            });
+        }
+        try { watchShareHistory(); } catch (e) { }
         // ★ hashchange 守卫也必须在这里装：它原来是写在 run() 末尾那一串里的，
         //   同样走不到 —— CDP 实测为证：页内把 hash 改成 #settings，浏览器只把地址
         //   "悄悄拨回"了范围首页（进不去「我的」，但也没显示被挡页面）。
@@ -1158,7 +1199,12 @@
                 //   抢先把不认识的路由 replaceState 改写回合法路由（CDP 实测 #settings 就是
                 //   这样：我读到时 location.hash 已经变回 #notes/commemorative ⇒ 判定"没越界"）。
                 //   这里不看事件、只看当前 URL ⇒ 与注册顺序彻底无关，改了就一定被抓到。
-                if (!shareScopeMatch(r.p, location.hash, r.a)) { denyShare('outofscope'); return; }
+                var hh = String(location.hash || '');
+                if (hh === '' || hh === '#') { shareLockAnchors(); return; }   // 完全没有深链 ⇒ 不算越界
+                if (!shareScopeMatch(r.p, hh, r.a)) { denyShare('outofscope'); return; }
+                // 见过合法地址之后才允许"拦写入"（见 watchShareHistory）：
+                // 站内启动期可能先写个中间态路由，不能因此误判。
+                window.__gateShareArmed = 1;
                 shareLockAnchors();
             }, 500);
         } catch (e) { }
