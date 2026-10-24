@@ -392,8 +392,15 @@ section('⑧ 集成守门：门禁侧行为');
         '★ 换到站内另一个页面也算越界（分享的是这一套 SPA）');
     // ★ 用户要求"把点不了的按键锁住"：越界的链接灰掉 + 禁点
     check(/gate-share-locked/.test(GATE) && /cursor:not-allowed/.test(GATE)
-        && /document\.querySelectorAll\('a\[href\]'\)/.test(pull('shareLockAnchors')),
-        '★ 分享模式下把越界的链接灰掉（.gate-share-locked / not-allowed）');
+        && /document\.querySelectorAll\(SHARE_LOCK_SEL\)/.test(pull('shareLockAnchors')),
+        '★ 分享模式下把越界的入口灰掉（.gate-share-locked / not-allowed）');
+    // ★ 用户实测"我的"锁不住：它不是 a[href]。改成按元素上的路由线索判断，并且
+    //   只认"像站内路由"的值（多段路径，或正好是站点模式名），免得把页面自己的 UI 锁坏。
+    check(/a\[href\],\[data-mode\],\[data-route\]/.test(GATE)
+        && /SHARE_MODES\.indexOf\(v\.split\('\/'\)\[0\]\)/.test(GATE),
+        '★ 无 href 的入口（data-mode/data-route…）也纳入判定，且只认真正的路由值');
+    check(/new MutationObserver\(/.test(pull('SHARE_LOCK_SEL')) === false && /new MutationObserver\(/.test(GATE),
+        '★ 盯着 DOM 变化：晚渲染出来的导航也会被锁（1.2s/2.6s 定时扫会漏）');
     check(/shareLockAnchors\(\)/.test(pull('watchShareNavigation')) && /setTimeout\(shareLockAnchors/.test(GATE),
         '每次路由变化后重算一次，另外首屏异步渲染后补扫两次');
     // ★ 用户要求：分享链接不能再被分享

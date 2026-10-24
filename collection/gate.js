@@ -898,19 +898,42 @@
         } catch (e) { }
     }
 
+    // 候选元素：带 href 的链接 + 任何"看着像站内入口"的元素（站内导航常写成
+    // <a data-mode="mine"> 或 <div data-route="notes/x">，没有 href，光靠 a[href] 抓不到）。
+    var SHARE_LOCK_SEL = 'a[href],[data-mode],[data-route],[data-href],[data-hash],'
+        + '[data-view],[data-target],[data-nav]';
+
+    // 尽力猜"点这个会去哪"：先信 <a href>，再看元素上的路由线索。
+    // ★ 只认"像站内路由"的值 —— 多段路径，或者正好是站点的一个模式名（SHARE_MODES）。
+    //   否则会把普通 UI 上的 data-view="table" 这类误判成越界、把页面自己锁坏。
+    function shareRouteOf(el) {
+        if (!el || !el.getAttribute) return null;
+        var t = shareClickTarget(el);
+        if (t !== null) return t;
+        var keys = ['data-href', 'data-route', 'data-hash', 'data-target', 'data-nav', 'data-mode', 'data-view'];
+        for (var i = 0; i < keys.length; i++) {
+            var v = el.getAttribute(keys[i]);
+            if (!v) continue;
+            v = String(v).trim().replace(/^#/, '').replace(/^\/+/, '');
+            if (!v) continue;
+            if (v.indexOf('/') >= 0) return '#' + v;
+            if (typeof SHARE_MODES !== 'undefined' && SHARE_MODES.indexOf(v.split('/')[0]) >= 0) return '#' + v;
+        }
+        return null;
+    }
+
     // ★ 用户要求："把这些点不了的按键锁住"。
-    //   分享模式下，扫一遍所有链接，点了会越界的就灰掉 + 禁点（cursor:not-allowed）。
-    //   能算出去哪儿的只有 <a href>（同源、非新标签、非纯 JS 锚点）⇒ 只有这些能被"锁"；
-    //   其余按钮靠下面的 window 捕获拦截。每次路由变化后重算一遍（站内会重渲染导航）。
+    //   分享模式下扫一遍候选入口，点了会越界的就灰掉 + 禁点（cursor:not-allowed）。
+    //   锁上之后浏览器**根本不把指针事件交给它**，所以不依赖拦截时机。
     function shareLockAnchors() {
         var rec = shareRecNow();
         if (!rec) return;
         shareEnsureLockStyle();
         try {
-            var list = document.querySelectorAll('a[href]');
+            var list = document.querySelectorAll(SHARE_LOCK_SEL);
             for (var i = 0; i < list.length; i++) {
                 var a = list[i];
-                var t = shareClickTarget(a);
+                var t = shareRouteOf(a);
                 if (t === null) continue;
                 if (shareScopeMatch(rec.p, t, rec.a)) a.classList.remove('gate-share-locked');
                 else a.classList.add('gate-share-locked');
@@ -925,9 +948,9 @@
         if (e.defaultPrevented || (e.button !== undefined && e.button !== 0)) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var t = e.target;
-        var a = (t && t.closest) ? t.closest('a[href]') : null;
-        if (!a || a.getAttribute('target') === '_blank') return;
-        var target = shareClickTarget(a);
+        var el = (t && t.closest) ? t.closest(SHARE_LOCK_SEL) : null;
+        if (!el || el.getAttribute('target') === '_blank') return;
+        var target = shareRouteOf(el);
         if (target === null) return;
         if (shareScopeMatch(rec.p, target, rec.a)) return;
         // 越界：把这次事件整条按死。pointerdown / mousedown / click 都拦 ——
@@ -970,6 +993,20 @@
     try {
         setTimeout(shareLockAnchors, 1200);
         setTimeout(shareLockAnchors, 2600);
+    } catch (e) { }
+
+    // ★ 定时补扫会漏：导航可能是数据加载完之后（3 秒、5 秒…）才渲染出来的，扫早了就没有它。
+    //   改成盯着 DOM：只要有新增节点就重算一次（节流 300ms，避免大规模渲染时反复全量扫描）。
+    try {
+        var shareLockTimer = 0;
+        new MutationObserver(function () {
+            if (!shareRecNow()) return;
+            if (shareLockTimer) return;
+            shareLockTimer = setTimeout(function () {
+                shareLockTimer = 0;
+                shareLockAnchors();
+            }, 300);
+        }).observe(document.documentElement, { childList: true, subtree: true });
     } catch (e) { }
 
     // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
