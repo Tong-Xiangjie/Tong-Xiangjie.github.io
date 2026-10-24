@@ -1149,7 +1149,18 @@
         } catch (e) { }
         try {
             setTimeout(shareLockAnchors, 200);
-            setInterval(function () { if (shareRecNow()) shareLockAnchors(); }, 500);
+            setInterval(function () {
+                var r = shareRecNow();
+                if (!r) return;
+                // ★★ 最后一道保险，也是"手改深链"那条的最终解法：每 500ms 直接看**地址栏**。
+                //   为什么不能只靠 hashchange：window 上的 hashchange **不区分捕获/冒泡**
+                //   （target 就是 window），谁先注册谁先跑；router.js 在自己的处理器里会
+                //   抢先把不认识的路由 replaceState 改写回合法路由（CDP 实测 #settings 就是
+                //   这样：我读到时 location.hash 已经变回 #notes/commemorative ⇒ 判定"没越界"）。
+                //   这里不看事件、只看当前 URL ⇒ 与注册顺序彻底无关，改了就一定被抓到。
+                if (!shareScopeMatch(r.p, location.hash, r.a)) { denyShare('outofscope'); return; }
+                shareLockAnchors();
+            }, 500);
         } catch (e) { }
     }
 
