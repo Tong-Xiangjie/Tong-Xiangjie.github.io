@@ -971,6 +971,44 @@
         return null;
     }
 
+    // ★ 分类**内部**的"张"（用户要的那一条：只放行建国纪念钞，其他纪念钞也要灰）。
+    //   实测结构（无头 Chrome 抓的真实 DOM）：
+    //     <div class="series-year-header" onclick="toggleSeries('notes_category_commemorative-s1', this)">
+    //     <div class="variety-header"    onclick="toggleVariety('notes_category_commemorative-v11-0', this)">
+    //     <span class="copy-detail-link" onclick="openCopyDetail(0)">
+    //   前两者 key 里带 -s<序号> / -v<序号>-<版别> ⇒ 正好能和白名单 a 里的系列序号对比。
+    function shareSeriesIdxOf(oc) {
+        var m = String(oc || '').match(/-(?:s|v)(\d+)(?:-\d+)?/);
+        return m ? m[1] : null;
+    }
+
+    // 锁住/放开一个系列头**后面**的主体（到下个系列头为止），让"这一张"的明细也一起灰。
+    function shareLockSeriesBody(header, lock) {
+        var el = header.nextElementSibling, guard = 0;
+        while (el && guard++ < 80) {
+            var oc = (el.getAttribute && el.getAttribute('onclick')) || '';
+            if (/toggleSeries|toggleVariety/.test(oc)) break;
+            if (lock) el.classList.add('gate-share-locked');
+            else el.classList.remove('gate-share-locked');
+            el = el.nextElementSibling;
+        }
+    }
+
+    function shareLockSeriesItems(rec) {
+        if (!rec || !rec.a) return;                    // 板块级/分类级分享：内容都在范围内，不动
+        var allow = shareSelIdx(rec.a);
+        var list = document.querySelectorAll('.series-year-header,.variety-header');
+        for (var i = 0; i < list.length; i++) {
+            var h = list[i];
+            var si = shareSeriesIdxOf(h.getAttribute('onclick'));
+            if (si === null) continue;
+            var ok = allow.indexOf(si) >= 0;
+            if (ok) h.classList.remove('gate-share-locked');
+            else h.classList.add('gate-share-locked');
+            shareLockSeriesBody(h, !ok);
+        }
+    }
+
     // ★ 用户要求："把这些点不了的按键锁住"。
     //   分享模式下扫一遍候选入口，点了会越界的就灰掉 + 禁点（cursor:not-allowed）。
     //   锁上之后浏览器**根本不把指针事件交给它**，所以不依赖拦截时机。
@@ -987,6 +1025,7 @@
                 if (shareScopeMatch(rec.p, t, rec.a)) a.classList.remove('gate-share-locked');
                 else a.classList.add('gate-share-locked');
             }
+            shareLockSeriesItems(rec);
         } catch (e) { }
     }
 
