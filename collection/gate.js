@@ -662,6 +662,7 @@
 
     function allowShare(rec) {
         html.classList.add('gate-ok');
+        try { shareInstallGuards(); } catch (e) { }
         try {
             if (document.title !== SHARE_TITLE) document.title = SHARE_TITLE;
             // ★ 站内各视图会按自己的需要改写 document.title（router/main 那几处），
@@ -1059,6 +1060,37 @@
         //   条目还是亮的），所以分享模式下每 500ms 重扫一次，被冲掉就马上补上。
         setInterval(function () { if (shareRecNow()) shareLockAnchors(); }, 500);
     } catch (e) { }
+
+    // ★★ 显式安装入口（关键修复）。
+    //   gate.js 的 run() 在每条分支末尾都会 return（分享令牌、本机管理员标记、k 校验…），
+    //   所以文件末尾这些"立即执行"的注册语句在部分路径下**根本走不到** ——
+    //   线上文件里代码明明在（用户核对过），行为却和没改一样，原因就在这里。
+    //   现在由 allowShare()（分享模式放行的必经之处）显式调用；固定间隔只装一次。
+    function shareInstallGuards() {
+        if (window.__gateShareGuards) return;
+        window.__gateShareGuards = 1;
+        try {
+            window.addEventListener('pointerdown', shareBlockClick, true);
+            window.addEventListener('mousedown', shareBlockClick, true);
+            window.addEventListener('pointerup', shareBlockClick, true);
+            window.addEventListener('mouseup', shareBlockClick, true);
+            window.addEventListener('touchstart', shareBlockClick, true);
+            window.addEventListener('click', shareBlockClick, true);
+            window.addEventListener('keydown', shareBlockReshare, true);
+        } catch (e) { }
+        try {
+            var t = 0;
+            new MutationObserver(function () {
+                if (!shareRecNow()) return;
+                if (t) return;
+                t = setTimeout(function () { t = 0; shareLockAnchors(); }, 300);
+            }).observe(document.documentElement, { childList: true, subtree: true });
+        } catch (e) { }
+        try {
+            setTimeout(shareLockAnchors, 200);
+            setInterval(function () { if (shareRecNow()) shareLockAnchors(); }, 500);
+        } catch (e) { }
+    }
 
     // 本机是否有有效的管理员标记（给「退出分享模式」按钮用：分享模式对管理员也生效，
     // 但管理员总得有个显式出路）。
