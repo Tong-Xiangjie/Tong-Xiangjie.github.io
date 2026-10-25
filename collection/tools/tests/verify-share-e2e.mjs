@@ -683,6 +683,28 @@ async function main() {
         Number(minLocked) > 0, '逐帧最小锁定数=' + minLocked);
     await unmark();
 
+    console.log('=== 12. 文章分享精确到篇 / 小板块 ===');
+    await unmark(); await mark();
+    const TOK12 = mint('articles/0', '', 3600 * 1000);
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK12}&_=${n++}#articles/0` });
+    await settle();
+    check('精确到"某一篇"的分享链接能正常打开（gate-ok、停在那一篇、没被弹回）',
+        (await evalJs("document.documentElement.classList.contains('gate-ok')")) === true
+        && (await evalJs('location.hash')) === '#articles/0',
+        'hash=' + await evalJs('location.hash') + '  title=' + await evalJs('String(document.title)'));
+    check('文章页里范围外的入口确实被锁（不是全开）',
+        (await evalJs("document.querySelectorAll('.gate-share-locked').length")) > 0,
+        '被锁元素=' + await evalJs("document.querySelectorAll('.gate-share-locked').length")
+        + '  其中文章项=' + await evalJs("document.querySelectorAll('.gate-share-locked[onclick^=\"openArticleReader(\"]').length"));
+    // 页内手改到"别的篇号"必须被拦住（这条正是靠 shareRouteOf 认 openArticleReader 才成立）
+    await evalJs("(()=>{location.hash='articles/1';return 1;})()");
+    await sleep(1600);
+    const artTitle = await evalJs('String(document.title)');
+    check('页内改成范围外的另一篇 ⇒ 被拦（拒绝页 / 仍在原篇），不会静默放过去',
+        (await evalJs('location.hash')) !== '#articles/1' || /失效|无法访问/.test(String(artTitle)),
+        'hash=' + await evalJs('location.hash') + '  title=' + artTitle);
+    await unmark();
+
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();
     process.exit(fail ? 1 : 0);

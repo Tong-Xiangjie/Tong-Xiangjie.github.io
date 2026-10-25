@@ -982,6 +982,25 @@
         //      这类动作 —— 否则"退出分享模式"、"关闭"、评分表切换（switchRatingMode）
         //      都会被误判成越界入口、连带被锁死（用户实测的就是这个）。
         var oc = el.getAttribute('onclick') || '';
+        // ★★ 文章板块的两个入口（用户要求"文章分享精确到篇/小板块"，靠这两条才锁得住）：
+        //   ① 列表项：onclick="openArticleReader(12)" —— 参数是**不带引号的数字**，
+        //      函数名里也没有 sidebar/nav/cat 这些词 ⇒ 下面那两条判据全都抓不到它，
+        //      结果是"返回 null = 不锁" ⇒ 精确范围会静默失效（别人照样点开任意一篇）。
+        //      文章的身份就是"序号（+ 可选的小板块 c-<分类>）"，正好是范围的前缀。
+        //   ② 小板块侧边栏：onclick="onArticleSidebarClick('<分类 id>')" ⇒ 真路由带 c- 前缀，
+        //      不带前缀的话连"本小板块自己"都会显示成锁住的。
+        var am = oc.match(/^\s*openArticleReader\s*\(\s*(\d+)/);
+        if (am) {
+            var aRoute = 'articles/' + am[1];
+            try {
+                if (typeof currentArticleCategory === 'string' && currentArticleCategory && currentArticleCategory !== 'all') {
+                    aRoute += '/c-' + encodeURIComponent(currentArticleCategory);
+                }
+            } catch (e) { }
+            return '#' + aRoute;
+        }
+        var sm = oc.match(/^\s*onArticleSidebarClick\s*\(\s*'([^']+)'/);
+        if (sm) return '#articles/c-' + encodeURIComponent(sm[1]);
         var fn = (oc.match(/^\s*([A-Za-z_$][\w$]*)\s*\(/) || [])[1] || '';
         var isNav = /sidebar|nav|cat|mode|goto|route|jump|menu/i.test(fn)
             && !/exit|close|copy|quit|leave|switch|toggle/i.test(fn);

@@ -67,7 +67,20 @@ function shareB64UrlDecode(text) {
 function shareScopeOf(route) {
     if (!route || !route.mode) return '';
     if (route.mode === 'special') return route.configId ? 'special/' + route.configId : 'special';
-    if (route.mode === 'articles') return 'articles';
+    // ★ 用户要求：文章分享要**精确到"篇 / 小板块"**（原来这里写死 'articles' ⇒ 分享一篇文章
+    //   等于把整个文章区都放行了）。真实 hash 形状（router.js buildRoute 的写法与顺序）：
+    //     #articles                        整个板块（全部分类）
+    //     #articles/12                     某一篇（12 = 文章序号，站内就是这么当身份用的）
+    //     #articles/c-<分类>               小板块
+    //     #articles/12/c-<分类>            小板块里的某一篇
+    //     #articles/…/q-<词>/sm-<模式>      搜索列表（两段都排在后面 ⇒ 前缀匹配自然覆盖）
+    //   范围必须是 hash 的**前缀** ⇒ 顺序不能反：序号在前、c- 在后。
+    if (route.mode === 'articles') {
+        var aseg = ['articles'];
+        if (typeof route.articleIndex === 'number' && route.articleIndex >= 0) aseg.push(String(route.articleIndex));
+        if (route.categoryId) aseg.push('c-' + encodeURIComponent(route.categoryId));
+        return aseg.join('/');
+    }
     if (route.mode === 'settings') return 'settings';
     var cat = route.categoryId || route.catId || null;
     if (!cat) return route.mode;

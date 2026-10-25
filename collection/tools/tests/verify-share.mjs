@@ -58,7 +58,9 @@ section('② 范围折算：字段名必须用 parseRoute 的真实字段');
     check(scopeOf({ mode: 'coins', categoryId: 'commemorative_coins' }) === 'coins/commemorative_coins', '硬币分类');
     check(scopeOf({ mode: 'notes', categoryId: null, view: 'overview' }) === 'notes', '板块总览 → 只有板块名');
     check(scopeOf({ mode: 'special', configId: 'denom', groupId: '10000元' }) === 'special/denom', '专题 → 到 configId 为止（不写子类）');
-    check(scopeOf({ mode: 'articles', articleIndex: 12 }) === 'articles', '文章 → 整块 articles');
+    // ★ 本条原来写的是"文章 → 整块 articles"（旧行为：分享一篇 = 放行整个文章区）。
+    //   用户要求精确到篇/小板块后，这里改成新语义：带序号 ⇒ 精确到那一篇。
+    check(scopeOf({ mode: 'articles', articleIndex: 12 }) === 'articles/12', '文章 → 精确到那一篇（articles/12）');
     check(scopeOf({ mode: 'special', configId: 'shanhe', shanheView: 'list' }) === 'special/shanhe', '山河列表视图 → special/shanhe');
     check(scopeOf(null) === '', '空 route → 空范围（调用方据此禁用复制）');
 
@@ -100,6 +102,21 @@ section('③ 前缀匹配必须落在 / 边界上');
     check(match('notes/rmb/rmb3', 'coins/search/x') === false, '别的板块的搜索路由不放行');
     check(match('notes/rmb/rmb3', 'notes/rmb/rmb3/search/x') === true, '范围内路径下的 search 段本来就合法（前缀规则放行）');
     check(match('', 'notes/rmb3') === false, '空范围一律不放行');
+    // ★ 文章分享精确到"篇 / 小板块"（原来 shareScopeOf 对 articles 写死返回 'articles'
+    //   ⇒ 分享一篇文章等于把整个文章区都放行；用户要求收窄）。
+    check(scopeOf({ mode: 'articles', articleIndex: -1, categoryId: null }) === 'articles', '文章板块（全部分类）→ articles');
+    check(scopeOf({ mode: 'articles', articleIndex: 12, categoryId: null }) === 'articles/12', '某一篇 → articles/12（精确到篇）');
+    check(scopeOf({ mode: 'articles', articleIndex: -1, categoryId: 'water' }) === 'articles/c-water', '小板块 → articles/c-water');
+    check(scopeOf({ mode: 'articles', articleIndex: 12, categoryId: 'water' }) === 'articles/12/c-water',
+        '小板块里的某一篇 → 序号在前、c- 在后（必须是 hash 的前缀）');
+    check(match('articles/12', 'articles/12') === true && match('articles/12', 'articles/13') === false,
+        '只放行那一篇，别的篇不放行');
+    check(match('articles/c-water', 'articles/c-water') === true && match('articles/c-water', 'articles/c-ink') === false,
+        '只放行那个小板块，兄弟小板块不放行');
+    check(match('articles/12', 'articles/12/q-水印/sm-title') === true,
+        '该篇里的搜索状态（q-/sm- 段排在后面）不影响放行');
+    check(match('articles/c-water', 'articles/12') === false, '小板块范围不放行"不带分类"的裸篇号');
+    check(match('articles/12', 'articles') === true, '板块列表仍可看（祖先放行），别篇会被锁灰/点不动');
 }
 
 section('④ 校验：格式 / 有效期 / 范围');
