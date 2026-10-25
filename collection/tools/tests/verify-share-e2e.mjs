@@ -472,8 +472,8 @@ async function main() {
         '被锁的概览条目=' + await evalJs("document.querySelectorAll('.search-result-group .gate-share-locked').length"));
     await go('notes/rmb/rmb3');
     await evalJs('(()=>{prevSearchResults=null;return 1;})()');
-    check('分享模式下搜索框被禁用',
-        (await evalJs("(()=>{const i=document.getElementById('searchInput');return !!i && i.disabled;})()")) === true,
+    check('分享模式下搜索框可用，只是文案提示范围（placeholder=仅在可见范围内搜索）',
+        (await evalJs("(()=>{const i=document.getElementById('searchInput');return !!i && !i.disabled && i.getAttribute('placeholder')==='仅在可见范围内搜索';})()")) === true,
         'placeholder=' + await evalJs("(()=>{const i=document.getElementById('searchInput');return i?i.getAttribute('placeholder'):'无输入框';})()"));
     await evalJs("(()=>{const el=document.getElementById('searchInput');if(!el)return 1;el.value='银行';el.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()");
     await sleep(1200);
@@ -493,6 +493,65 @@ async function main() {
         && (await evalJs("document.querySelectorAll('.name').length")) < 82,
         'hash ' + hashBefore + ' → ' + await evalJs('location.hash')
         + '  渲染件数=' + await evalJs("document.querySelectorAll('.name').length"));
+    await unmark();
+
+    console.log('=== 11. 搜索整条锁死 / 概览条目能点进去 / 侧边栏不再闪白 ===');
+    await unmark(); await mark();
+    const TOK11 = mint('notes/rmb/rmb3', '', 3600 * 1000);
+    const go11 = async (hash) => {
+        await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK11}&_=${n++}#${hash}` });
+        await settle();
+    };
+    await go11('notes/rmb/rmb3');
+    check('搜索框 placeholder 是「仅在可见范围内搜索」',
+        (await evalJs("(()=>{const i=document.getElementById('searchInput');return i?i.getAttribute('placeholder'):'';})()")) === '仅在可见范围内搜索',
+        String(await evalJs("(()=>{const i=document.getElementById('searchInput');return i?i.getAttribute('placeholder'):'(无输入框)';})()")));
+    check('搜索框**可用**（分享模式下打开搜索，只是范围受限）',
+        (await evalJs("(()=>{const i=document.getElementById('searchInput');return !!i && !i.disabled && getComputedStyle(i).pointerEvents!=='none';})()")) === true,
+        'disabled=' + await evalJs("(()=>{const i=document.getElementById('searchInput');return i?i.disabled:'-';})()"));
+    check('整条搜索栏没有被锁（Ω / 搜索 / 分类下拉 / 重置 都能点）',
+        (await evalJs("document.querySelectorAll('.search-bar .gate-share-locked').length")) === 0,
+        '被锁控件=' + await evalJs("document.querySelectorAll('.search-bar .gate-share-locked').length"));
+    // 真搜一次：视图要切到 search、结果要出来、而且**只可能来自范围内**
+    await evalJs("(()=>{const el=document.getElementById('searchInput');el.focus();el.value='人民币';el.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()");
+    await sleep(2200);
+    const sView = await evalJs("typeof currentView!=='undefined'?currentView:'?'");
+    const sKeys = await evalJs("JSON.stringify([...new Set((prevSearchResults||[]).map(r=>r.dataKey))])");
+    const sItems = await evalJs("document.querySelectorAll('.search-result-item').length");
+    check('分享页里搜索能正常渲染（视图切到 search、条目出得来）',
+        sView === 'search' && sItems > 0, '视图=' + sView + ' 条目=' + sItems + ' 结果数=' + await evalJs('(prevSearchResults||[]).length'));
+    check('搜索只在范围内出结果（只可能来自 rmb3Data）',
+        (await evalJs("(prevSearchResults||[]).length")) > 0
+        && (await evalJs("(prevSearchResults||[]).every(r=>r.dataKey==='rmb3Data')")) === true,
+        '来源=' + sKeys);
+    await go11('notes/rmb/rmb3');
+    await evalJs("(()=>{const el=document.getElementById('searchInput');el.focus();el.value='纪念';el.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()");
+    await sleep(2200);
+    check('只命中范围外的关键词 ⇒ 一条都不给（搜「纪念」= 纪念钞，范围外）',
+        (await evalJs('(prevSearchResults||[]).length')) === 0,
+        '结果数=' + await evalJs('(prevSearchResults||[]).length'));
+    // 概览条目要能点进去（用户实测「概览页正常显示，但是无法从概览页点进去」）
+    await go11('notes/rmb');
+    const itemRect = await evalJs("(()=>{const e=document.querySelector('.search-result-item');if(!e)return null;const r=e.getBoundingClientRect();return {x:Math.round(r.left+Math.min(40,r.width/2)),y:Math.round(r.top+r.height/2)};})()");
+    check('祖先概览里有可点的条目', !!itemRect, JSON.stringify(itemRect));
+    if (itemRect) {
+        const viewBefore = await evalJs("typeof currentView!=='undefined'?currentView:'?'");
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: itemRect.x, y: itemRect.y, button: 'left', clickCount: 1 });
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: itemRect.x, y: itemRect.y, button: 'left', clickCount: 1 });
+        await sleep(1600);
+        const viewAfter = await evalJs("typeof currentView!=='undefined'?currentView:'?'");
+        check('从概览点条目真的进得去（不再被点击守卫拦掉）',
+            viewAfter !== viewBefore || (await evalJs('location.hash')) !== ('#notes/rmb'),
+            '视图 ' + viewBefore + ' → ' + viewAfter + '  hash=' + await evalJs('location.hash'));
+    }
+    // 侧边栏不再闪白：点完侧边栏后**逐帧**采样锁定数，最小值必须 > 0
+    await go11('notes/rmb/rmb3');
+    await evalJs("(()=>{window.__min=9999;let i=0;const tick=()=>{const c=document.querySelectorAll('.sidebar-item.gate-share-locked,.sidebar-child.gate-share-locked').length;if(c<window.__min)window.__min=c;if(++i<12)requestAnimationFrame(tick);};requestAnimationFrame(tick);return 1;})()");
+    await evalJs("(()=>{const e=document.querySelector('.sidebar-child[onclick*=rmb3]');if(e)e.click();return 1;})()");
+    await sleep(1400);
+    const minLocked = await evalJs('window.__min');
+    check('重渲染后侧边栏逐帧采样都不出现"未锁"窗口（不再闪白）',
+        Number(minLocked) > 0, '逐帧最小锁定数=' + minLocked);
     await unmark();
 
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');

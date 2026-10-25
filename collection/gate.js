@@ -1054,24 +1054,29 @@
     // ★ 用户要求："把这些点不了的按键锁住"。
     //   分享模式下扫一遍候选入口，点了会越界的就灰掉 + 禁点（cursor:not-allowed）。
     //   锁上之后浏览器**根本不把指针事件交给它**，所以不依赖拦截时机。
-    // ★ 分享模式：搜索也锁掉（用户明确要求，实测症状是"搜索栏没有锁住 ⇒ 一搜就强制
-    //   刷新、丢失浏览进度"）。搜索结果是跨分类的，即使内容被应用层裁过，这一下也已经把
-    //   浏览进度冲掉了；直接禁用最省事、也最符合用户的预期。
-    //   禁用输入框就够挡住"边打边搜"和回车（禁用的 input 拿不到焦点）；顺带把同一格里
-    //   的模式切换/重置按钮也锁上，免得"重置"把结果区刷掉。
-    function shareLockSearch() {
+    // ★ 分享模式下的搜索：**打开**，但只在本范围里搜（用户要求）。
+    //   这里只做两件事：把 placeholder 换成提示文案、把标题写成说明。
+    //   真正的"范围"由 search.js 保证 —— 它拿同一个谓词（shareRouteAllowed ⇒
+    //   shareScopeMatch，含选择段白名单）过滤 results，所以搜出来的必然在范围内。
+    //   放行 `<mode>/search/...` 这个**路由**是必需的（见 share-core.js 里那段注释），
+    //   否则结果算得出来、视图却切不过去 ⇒ 什么都看不到。
+    //   注意：输入框**不能**禁用、整条栏也**不能**锁（用户明确要求搜索可用）。
+    //   每次扫描都重设一遍：站内重渲染会把 placeholder 冲回原文案。
+    function shareHintSearch() {
         try {
             var inp = document.getElementById('searchInput');
             if (!inp) return;
-            if (!inp.disabled) {
-                inp.disabled = true;
-                inp.setAttribute('placeholder', '分享模式：搜索不可用');
-                inp.title = '分享链接里不开放搜索';
-                inp.classList.add('gate-share-locked');
-                if (inp.parentElement) {
-                    var btns = inp.parentElement.querySelectorAll('button,[onclick]');
-                    for (var i = 0; i < btns.length; i++) btns[i].classList.add('gate-share-locked');
-                }
+            if (inp.getAttribute('placeholder') !== '仅在可见范围内搜索') {
+                inp.setAttribute('placeholder', '仅在可见范围内搜索');
+            }
+            inp.title = '分享链接：只在分享范围内搜索';
+            // 保险：万一被更早的版本/别处加过灰化类，这里清掉（分享模式必须能搜）。
+            inp.classList.remove('gate-share-locked');
+            inp.disabled = false;
+            var bar = document.querySelector('.search-bar');
+            if (bar) {
+                var kids = bar.querySelectorAll('.gate-share-locked');
+                for (var i = 0; i < kids.length; i++) kids[i].classList.remove('gate-share-locked');
             }
         } catch (e) { }
     }
@@ -1080,7 +1085,7 @@
         var rec = shareRecNow();
         if (!rec) return;
         shareEnsureLockStyle();
-        shareLockSearch();
+        shareHintSearch();
         try {
             var list = document.querySelectorAll(SHARE_LOCK_SEL);
             for (var i = 0; i < list.length; i++) {
@@ -1110,6 +1115,11 @@
         var t = e.target;
         var el = (t && t.closest) ? t.closest(SHARE_LOCK_SEL) : null;
         if (!el || el.getAttribute('target') === '_blank') return;
+        // ★ 概览 / 结果列表里的条目放行：它们渲染时已经按范围裁过（范围外的根本不渲染），
+        //   这里再按"锚点路由"拦一次，就会把范围内的条目也拦掉 —— 用户实测的
+        //   「概览页正常显示，但是无法从概览页点进去」就是这个（灰化那半边已经放过了，
+        //   点击守卫这半边漏了）。
+        if (el.closest && el.closest('.search-result-group')) return;
         var target = shareRouteOf(el);
         if (target === null) return;
         if (shareScopeMatch(rec.p, target, rec.a)) return;
@@ -1267,14 +1277,15 @@
             window.addEventListener('keydown', shareBlockReshare, true);
         } catch (e) { }
         try {
-            var t = 0;
             new MutationObserver(function () {
                 if (!shareRecNow()) return;
-                if (t) return;
-                // ★ 60ms（原来 300ms）：用户在 share 模式下点侧边栏时，重渲染出来的新节点
-                //   会有约 300ms 处于"没被锁"的状态 ⇒ 视觉上"锁住的部分闪白一下再变灰"。
-                //   这个防抖是给批量改 DOM 用的，60ms 足够合并一次渲染里的多次 mutation。
-                t = setTimeout(function () { t = 0; shareLockAnchors(); }, 60);
+                // ★★ 直接同步扫，**不 defer**（原来 300ms、后来 60ms 都不行）。
+                //   MutationObserver 回调是**微任务**：它在当前这次渲染的 DOM 改动之后、
+                //   浏览器绘制下一帧之前跑完 ⇒ 在这里同步把灰化类贴上，用户绝对不会看到
+                //   "锁住的部分先闪白一下再变灰"。CDP 实测：defer 60ms 时侧边栏的锁定数
+                //   有约 81ms 是 0（整条侧边栏都是亮的）；改成同步后这个窗口消失。
+                //   不会死循环：我们只改 class（属性），而这里只观察 childList。
+                shareLockAnchors();
             }).observe(document.documentElement, { childList: true, subtree: true });
         } catch (e) { }
         try {

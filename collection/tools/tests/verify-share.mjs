@@ -93,6 +93,12 @@ section('③ 前缀匹配必须落在 / 边界上');
     check(match('notes/rmb/rmb3', 'notes/rmb/rmb4') === false, '兄弟子分类不放行');
     check(match('notes/rmb/rmb3', 'notes/rm') === false, '非边界前缀（notes/rm）不算祖先');
     check(match('notes/rmb/rmb3', 'coin') === false, '别的板块不算祖先');
+    // ★ 用户要求「搜索功能打开，但只在展示的部分内搜索」⇒ 本板块的 search 路由要放行，
+    //   否则结果算得出来、视图却切不过去（什么都看不到）。安全性靠 search.js 那份过滤。
+    check(match('notes/rmb/rmb3', 'notes/search/人民币') === true, '本板块的搜索路由放行');
+    check(match('notes/rmb/rmb3', 'notes/search') === true, '空关键词的搜索路由也放行');
+    check(match('notes/rmb/rmb3', 'coins/search/x') === false, '别的板块的搜索路由不放行');
+    check(match('notes/rmb/rmb3', 'notes/rmb/rmb3/search/x') === true, '范围内路径下的 search 段本来就合法（前缀规则放行）');
     check(match('', 'notes/rmb3') === false, '空范围一律不放行');
 }
 

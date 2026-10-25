@@ -165,6 +165,18 @@ function shareScopeMatch(scope, hash, allowSel) {
     //   （用户实测的 B/C/E/F 四条现象都是这一个原因）。
     //   注意只认"沿范围往上"的严格前缀：兄弟分类（notes/rmb3 vs notes/rmb/rmb3）不受影响。
     var inAncestor = (h !== '') && (p.slice(0, h.length + 1) === h + '/');
+    // ★★ 本板块的**搜索路由**（notes/search/<关键词>）也放行 —— 用户要求
+    //   「搜索功能打开，但只在展示的部分内搜索」。
+    //   为什么必须放行"路由"这一层：搜索会把视图切到 #<mode>/search/<kw>，
+    //   这个 hash 既不是范围本身、也不是它的祖先 ⇒ 被历史写入拦截挡住 ⇒
+    //   结果算出来了（search.js 里已经按范围过滤过）却**渲染不出来**（CDP 实测：
+    //   分享页搜「人民币」拿到 25 条、全是 rmb3Data，但视图没切到 search、items=0）。
+    //   安全性由应用层保证：search.js 的 results 过滤用的是同一个谓词（含选择段白名单），
+    //   所以搜出来的东西一定在范围内；别的板块的 search 路由不放行。
+    //   ★ 这条必须在下面那个"既不是范围内也不是祖先 ⇒ false"的早退**之前**，
+    //     否则永远走不到（第一版就踩了这个坑，用例当场抓住）。
+    var modeOf = p.split('/')[0];
+    if (h === modeOf + '/search' || h.indexOf(modeOf + '/search/') === 0) return true;
     if (!inPrefix && !inAncestor) return false;
     if (!inPrefix) return true;                    // 祖先 = 概览：放行，不再看选择段
     if (!allowSel) return true;
