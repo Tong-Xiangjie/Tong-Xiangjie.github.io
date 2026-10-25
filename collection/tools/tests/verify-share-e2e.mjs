@@ -427,6 +427,20 @@ async function main() {
     check('两个下拉与提示同处一行、整行不溢出',
         timeRow.sameRow === true && Number(timeRow.overflow) <= 1 && timeRow.wrap === 'nowrap',
         '同一行=' + timeRow.sameRow + ' 溢出=' + timeRow.overflow + ' flexWrap=' + timeRow.wrap + ' 下拉宽=' + timeRow.selW + 'px');
+    // ★ 用户反馈："自定义那里出现了两列一样的东西（其中一个是原生下拉）" —— 站点 dropdown.js
+    //   把我们运行时插入的 <select> 也接管成自己的 .dd 壳，于是两个都露出来了。
+    //   现在这四个 id 的 .dd 壳会被摘掉 ⇒ 每个字段只应剩一个控件（我们自己的原生下拉）。
+    //   现在改成纯 CSS 藏它的壳（JS 删不掉：它的 MutationObserver 会重建），
+    //   所以判据是"可见的控件只有一套"：站点壳必须不可见 + 我们的原生下拉可见且够宽。
+    check('站点自绘下拉壳被藏起来（不再并排两套）',
+        (await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].every(function(id){var b=document.querySelector('.dd[data-dd-for=\"'+id+'\"]');return !b || getComputedStyle(b).display==='none';})")) === true,
+        await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].map(function(id){var b=document.querySelector('.dd[data-dd-for=\"'+id+'\"]');return id+'壳='+(b?getComputedStyle(b).display:'无');}).join(' ')"));
+    check('四个下拉各自只显示一个、且真的可见（宽 > 0）',
+        (await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].every(function(id){var e=document.getElementById(id);return !!e && getComputedStyle(e).display!=='none' && e.getBoundingClientRect().width>10;})")) === true,
+        await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].map(function(id){var e=document.getElementById(id);return id+'='+(e?Math.round(e.getBoundingClientRect().width)+'px/'+getComputedStyle(e).display:'无');}).join(' ')"));
+    check('时分那一行只有 4 个**可见**子元素（没有并排的壳占位）',
+        (await evalJs("(()=>{const r=document.querySelector('.share-sub-box .share-time');return [...r.children].filter(e=>getComputedStyle(e).display!=='none').length;})()")) === 4,
+        '可见子元素数=' + await evalJs("(()=>{const r=document.querySelector('.share-sub-box .share-time');return [...r.children].filter(e=>getComputedStyle(e).display!=='none').length;})()"));
     const actEdge = await evalJs("(()=>{const edge=(box,sel)=>{const b=document.querySelector(box);const bs=[...document.querySelectorAll(sel)];if(!b||!bs.length)return null;const pad=parseFloat(getComputedStyle(b).paddingRight)||0;const last=bs[bs.length-1].getBoundingClientRect();return Math.round((b.getBoundingClientRect().right-pad)-last.right);};return {main:edge('.share-box','.share-box .share-acts .share-btn'),pick:edge('.share-sub-box','.share-sub-box .share-acts .share-btn')};})()");
     check('两排按钮都居右（最右按钮的边缘与容器内容区对齐，误差 ≤2px）',
         Math.abs(Number(actEdge.main)) <= 2 && Math.abs(Number(actEdge.pick)) <= 2,

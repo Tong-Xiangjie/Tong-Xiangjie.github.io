@@ -110,6 +110,11 @@ function shareEnsureStyle() {
         '.share-time{display:flex;align-items:center;gap:4px;margin-top:8px;flex-wrap:nowrap;}',
         '.share-time-k{color:var(--text-secondary,#666);flex:0 0 auto;}',
         '.share-sub-box .share-time-sel{display:inline-block !important;font:inherit;font-size:.82rem;padding:2px 2px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;width:3.6em;flex:0 0 auto;text-align:center;cursor:pointer;}',
+        // ★ 站点的 dropdown.js 会把我们这四个 <select> 也接管成 `.dd` 壳（data-dd-for 就是
+        //   我们的 id）—— 于是"原生一个 + 自绘一个"并排出现（用户实测：两列一样的）。
+        //   用 JS 删没用：它的 MutationObserver 会把壳重建回来。所以改成纯 CSS 隐藏它的壳，
+        //   只留我们自己的原生下拉（上面那条 !important 负责让它可见）。
+        '.dd[data-dd-for="shareCalYear"],.dd[data-dd-for="shareCalMonth"],.dd[data-dd-for="shareHour"],.dd[data-dd-for="shareMin"]{display:none !important;}',
         '.share-hint{color:var(--text-secondary,#666);font-size:.72rem;white-space:nowrap;}',
         '.share-exp{margin:0;color:var(--text-secondary,#666);}',
         '.share-exp.bad{color:#ff7875;}',
@@ -295,6 +300,7 @@ function shareCalRender(mask) {
             + (c.past ? ' disabled' : '') + '>' + c.d + '</button>';
     }
     grid.innerHTML = html;
+    shareDropSiteDd();
 }
 
 // 把 shareCustomMs 同步到界面（已选时间文字 + 时分下拉 + 日历高亮 + 年/月下拉）
@@ -308,6 +314,44 @@ function shareSyncCustom(mask) {
     shareCalRender(mask);
 }
 
+// ★★ 站点自绘下拉（dropdown.js）的冲突处理。
+//   背景：站点把页面里的原生 <select> 藏起来（@media(pointer:fine){select{display:none}}），
+//   再用 dropdown.js 生成一个 .dd 壳当作可见控件，并用 data-dd-for="<select 的 id>" 对应。
+//   我们这四个下拉（年/月/时/分）是**运行时**才插进 DOM 的，两条路一起生效 ⇒
+//   用户看到"两列一样的东西"（其中一个就是原生下拉）。
+//   处理：把这四个 id 对应的 .dd 壳直接摘掉，只保留我们自己的原生下拉
+//   （它们的 display 已用 !important 顶开，不会被站点 CSS 藏掉）。
+//   为什么不在生成时只做一次：站点可能在之后又"接管"一次，所以秒级定时器里也顺手清一次。
+var SHARE_SEL_IDS = ['shareCalYear', 'shareCalMonth', 'shareHour', 'shareMin'];
+function shareIsMySelId(v) {
+    var s = String(v || '').replace(/^#/, '');
+    for (var i = 0; i < SHARE_SEL_IDS.length; i++) if (s === SHARE_SEL_IDS[i]) return true;
+    return false;
+}
+function shareDropSiteDd() {
+    try {
+        // ① 按 data-dd-for 清（值可能是 'shareHour' 也可能是 '#shareHour'，所以先规范化；
+        //    再兜一层"包含"匹配，免得站点换了写法就漏）
+        var boxes = document.querySelectorAll('.dd[data-dd-for]');
+        for (var i = 0; i < boxes.length; i++) {
+            var v = boxes[i].getAttribute('data-dd-for');
+            if (!shareIsMySelId(v) && String(v).indexOf('share') < 0) continue;
+            if (boxes[i].parentNode) boxes[i].parentNode.removeChild(boxes[i]);
+        }
+        // ② 再按"兄弟位置"清一遍：站点是插在我的 select 旁边的，不管它的属性怎么写都能抓到
+        for (var j = 0; j < SHARE_SEL_IDS.length; j++) {
+            var sel = document.getElementById(SHARE_SEL_IDS[j]);
+            if (!sel || !sel.parentNode) continue;
+            var sibs = sel.parentNode.children;
+            for (var k = sibs.length - 1; k >= 0; k--) {
+                var e = sibs[k];
+                if (e !== sel && e.classList && e.classList.contains('dd')) e.parentNode.removeChild(e);
+            }
+            if (sel.__dd) { try { delete sel.__dd; } catch (e2) { sel.__dd = null; } }
+        }
+    } catch (e) { }
+}
+
 // ── 第二个弹窗：选择失效时间（确定 = 保留，取消 = 回到打开前的值） ──────────
 function sharePickShow(mask) {
     if (!mask) return;
@@ -319,6 +363,11 @@ function sharePickShow(mask) {
     pick.style.display = '';
     void pick.offsetWidth;                    // 先落一次 opacity:0，动画才起得来
     pick.className = 'share-sub-mask on';
+    // 站点可能在弹窗出现之后才来"接管"我的下拉，所以在头几帧里多清几次
+    shareDropSiteDd();
+    setTimeout(function () { shareDropSiteDd(); }, 60);
+    setTimeout(function () { shareDropSiteDd(); }, 300);
+    setTimeout(function () { shareDropSiteDd(); }, 900);
 }
 function sharePickHide(mask, revert) {
     if (!mask) return;
@@ -525,7 +574,10 @@ function shareUpdateExpLine() {
     if (el.className !== cls) el.className = cls;
     return st;
 }
-setInterval(function () { if (shareDialogEl) shareUpdateExpLine(); }, 1000);
+setInterval(function () {
+    if (!shareDialogEl) return;
+    shareUpdateExpLine();
+}, 1000);
 
 // 重算链接/预览（档位、自定义时间任何变化都走这里）
 function shareRefresh() {
