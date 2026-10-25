@@ -512,10 +512,41 @@ function performSearchAndRender(rawKeyword, type) {
     }
   }
 
+  // ★ 分享模式：搜索结果也只保留**分享范围内**的藏品。
+  //   不加这一步的话，收件人在搜索框里随便打两个字就能把范围外的藏品全捞出来
+  //   （用户实测：「搜索输入东西也会刷新」）。口径与概览页完全一致：
+  //   shareRouteAllowed 用的就是门禁那套 shareScopeMatch，非分享模式一律放行。
+  if (typeof shareRouteAllowed === 'function') {
+    const modeSeg = String(location.hash || '').replace(/^#/, '').split('/')[0] || 'notes';
+    results = results.filter(function (r) {
+      const base = shareSearchRouteBase(r.dataKey);
+      if (!base) return true;                    // 认不出来就放行：宁可多留，不可误裁
+      let h = modeSeg + '/' + base + '/s' + r.sIdx;
+      if (r.vIdx !== null && r.vIdx !== undefined) h += '/v' + r.vIdx;
+      return shareRouteAllowed(h);
+    });
+  }
+
   applySearchResultsDiff(results, keyword);
   prevSearchResults = results;
   prevSearchKeyword = keyword;
   isFirstSearch = false;
+}
+
+// 搜索结果里只有 dataKey，没有路由 id —— 这里把 dataKey 折回它在分类树里的路由段。
+// 规则与 router.js 一致：挂了 dataKey 的子分类用**自己的 id**（如 rmb3），
+// 顶层分类（没有 children）用**分类自己的 id**（如 commemorative）；父分类的名字不进路由。
+function shareSearchRouteBase(dataKey) {
+  try {
+    for (const cat of getCategoryTree()) {
+      if (cat.children && cat.children.length > 0) {
+        for (const sub of cat.children) if (sub.dataKey === dataKey) return sub.id;
+      } else if (cat.dataKey === dataKey) {
+        return cat.id;
+      }
+    }
+  } catch (e) { }
+  return '';
 }
 
 // ============================================================

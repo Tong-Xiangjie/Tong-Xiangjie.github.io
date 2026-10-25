@@ -161,6 +161,25 @@ function shareScopeMatch(scope, hash, allowSel) {
     return shareSelAllowed(allowSel, hash);
 }
 
+// ★ 给**应用层**用的判断：这条路由现在允许看吗？
+//   为什么需要它：分享模式下有些"换视图"是**页内**发生的 —— 最典型的是点侧边栏里
+//   当前分类（core.js：点已选中的分类 = 回到概览），URL 一点不变 ⇒ 门禁那层
+//   （只看地址栏）根本察觉不到，收件人于是在概览里看到全部 380 件藏品。
+//   用户的要求是「可以看概览页，但只显示部分数据」——所以在**取数的地方**用这个过滤。
+//   判定和门禁**同一套**（shareScopeMatch：范围前缀 + 选择段白名单），不另立标准；
+//   不是分享模式（没有会话记录）时一律放行，应用层可以无条件调用。
+function shareRouteAllowed(hash) {
+    try {
+        var raw = sessionStorage.getItem(SHARE_SESSION_KEY);
+        if (!raw) return true;
+        var rec = JSON.parse(raw);
+        if (!rec || !rec.p) return true;
+        return shareScopeMatch(rec.p, hash, rec.a || '');
+    } catch (e) {
+        return true;
+    }
+}
+
 // ── payload 组装 / 解析 ─────────────────────────────────────────────────────
 function shareRandId() {
     var bytes = new Uint8Array(4);

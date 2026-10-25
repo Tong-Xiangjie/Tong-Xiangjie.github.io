@@ -74,6 +74,21 @@ function renderOverview() {
         }
     }
 
+    // ★ 分享模式：概览页只显示**分享范围内**的藏品。
+    //   用户要求：「还是应该要可以看概览页，不过只显示出来部分数据」。
+    //   为什么必须在这里拦：点侧边栏里当前那个分类，core.js 会**页内换视图**回到概览，
+    //   URL 一字不变 ⇒ 门禁（只看地址栏）察觉不到，收件人就能在概览里看到全部 380 件。
+    //   判定用 share-core.js 的 shareRouteAllowed（与门禁同一谓词，非分享模式一律放行），
+    //   所以 board/category/selection 三档、以及 a=s1,6 这种只放行几个系列的情况都自动管住。
+    if (typeof shareRouteAllowed === 'function') {
+        const modeSeg = String(location.hash || '').replace(/^#/, '').split('/')[0] || 'notes';
+        allItems = allItems.filter(function (it) {
+            let h = modeSeg + '/' + (it.subId || it.catId) + '/s' + it.si;
+            if (it.hasVarieties && it.vi !== null && it.vi !== undefined) h += '/v' + it.vi;
+            return shareRouteAllowed(h);
+        });
+    }
+
     // ★ 板块中文名从注册表取（原来是 `=== MODE.NOTES ? '纸币' : '硬币'` ——
     //   一旦有第三个板块，硬币分支就会被错误地复用给新板块）。
     //   局部变量故意不叫 modeLabel，避免遮蔽 core.js 里的同名函数。

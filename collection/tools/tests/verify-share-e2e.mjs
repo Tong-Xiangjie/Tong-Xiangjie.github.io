@@ -365,6 +365,64 @@ async function main() {
     check('关闭走退出动画（点击后仍在 → 450ms 后消失）', goneNow === true && goneLater === false, 'now=' + goneNow + ' later=' + goneLater);
     await unmark();
 
+    console.log('=== 8. 分享模式下的概览页与搜索：只显示范围内数据 ===');
+    // 用户要求：「还是应该要可以看概览页，不过只显示出来部分数据」。
+    // 为什么必须测：点侧边栏里当前那个分类会**页内换视图**回到概览，URL 一字不变，
+    // 门禁（只看地址栏）察觉不到 ⇒ 收件人能在概览里看到全部 380 件。
+    const searchFor = async kw => {
+        await evalJs(`(()=>{const el=document.querySelector('#searchInput');el.focus();el.value=${JSON.stringify(kw)};el.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()`);
+        await sleep(1900);
+        return evalJs("document.querySelectorAll('.name').length");
+    };
+    // ★ 判据用**应用自己的结果数组**（prevSearchResults）而不是某个 DOM 类名：
+    //   搜索结果在分享页里不一定渲染出 .name（那是概览的标记），但过滤器作用的对象
+    //   正是这个数组，所以它才是"搜索有没有被范围裁掉"的直接证据。
+    const searchCount = async kw => {
+        await evalJs("(()=>{prevSearchResults=null;return 1;})()");
+        await evalJs(`(()=>{const el=document.querySelector('#searchInput');el.focus();el.value=${JSON.stringify(kw)};el.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()`);
+        await sleep(1900);
+        return evalJs("(prevSearchResults||[]).length");
+    };
+    await unmark(); await mark();
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}` });
+    await settle();
+    const ownerHits = await searchCount('银行');
+    const ownerHits2 = await searchCount('澳门');
+    check('完整站点：搜「银行」有结果（对照组）', ownerHits > 0, 'owner=' + ownerHits);
+    check('完整站点：搜「澳门」有结果（范围内容关键词的对照）', ownerHits2 > 16, 'owner=' + ownerHits2);
+
+    await unmark(); await mark();          // unmark 会把上一步的分享会话清掉
+    // ★ 这一节要用**只有范围、没有选择白名单**的令牌：带 a=s1,6 时概览/搜索本来就
+    //   只该给 s1、s6 里那几件，拿"整个纪念钞 61 件"当预期会误判（踩过一次）。
+    const TOK_CAT = mint('notes/commemorative', '', 3600 * 1000);
+    const scopedLoad = async () => {
+        await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK_CAT}&_=${n++}#notes/commemorative` });
+        await settle();
+        await waitFor("document.querySelectorAll('.gate-share-locked').length>0", 8000);
+    };
+    const overviewCount = async () => {
+        await evalJs("(()=>{ if (typeof renderOverview === 'function') renderOverview(); return 1; })()");
+        await sleep(1300);
+        return evalJs("document.querySelectorAll('.name').length");
+    };
+    await scopedLoad();
+    const ovCat = await overviewCount();
+    check('分享模式：概览页可看，但只显示范围内的藏品',
+        ovCat > 0 && ovCat < 380, '概览=' + ovCat + '（范围=纪念钞全部 47 件；全站概览 380）');
+    await scopedLoad();
+    const shareHits = await searchCount('银行');
+    check('分享模式：搜「银行」拿不到范围外的藏品', shareHits < ownerHits, 'share=' + shareHits + ' owner=' + ownerHits);
+    await scopedLoad();
+    const inScopeHits = await searchCount('澳门');
+    check('分享模式：范围内的关键词仍然搜得到（没把搜索弄坏）',
+        inScopeHits > 0 && inScopeHits < ownerHits2, 'share=' + inScopeHits + ' owner=' + ownerHits2);
+    // 选择级（a=s1,6）：概览只该给 s1、s6 里那几件
+    await load(n++, 'notes/commemorative');
+    const ovSel = await overviewCount();
+    check('选择级分享：概览只剩白名单里的系列（比整类少得多）', ovSel > 0 && ovSel < ovCat,
+        '选择级=' + ovSel + ' 整类=' + ovCat);
+    await unmark();
+
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();
     process.exit(fail ? 1 : 0);
