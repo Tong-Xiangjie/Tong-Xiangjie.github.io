@@ -936,6 +936,10 @@
             var st = document.createElement('style');
             st.id = 'gateShareLockStyle';
             st.textContent = '.gate-share-locked{opacity:.3;filter:grayscale(1);cursor:not-allowed;pointer-events:none !important;}'
+                // ★ 「只让它点不动、但不要变灰」用这个：用户实测——搜索栏和下面部分的那条
+                //   分界线跟着一起变灰就看不清了。所以整条搜索栏只加 inert（拦事件），
+                //   变灰只给里面该灰的小元素（提示句/「标 全」按钮/输入框）。
+                + '.gate-share-inert,.gate-share-inert *{pointer-events:none !important;}'
                 + '.gate-share-locked *{pointer-events:none !important;}';
             (document.head || document.documentElement).appendChild(st);
         } catch (e) { }
@@ -1016,6 +1020,35 @@
             var recNowA = shareRecNow();
             var scopeNowA = (recNowA && recNowA.p) ? String(recNowA.p) : '';
             if (/^articles\/\d+/.test(scopeNowA)) return '#share-locked-sidebar';
+            if (scopeNowA && scopeNowA !== 'articles') {
+                var mCatA = scopeNowA.match(/c-([^/]+)/);
+                var scopeCatA = mCatA ? decodeURIComponent(mCatA[1]) : '';
+                if (scopeCatA && scopeCatA !== sm[1]) {
+                    // ★ 父子关系**从 DOM 看**，别再问分类树：分享模式下 articleCategoryTree 会被
+                    //   裁成只剩共享的那一个分类（实测 length 可以是 1）⇒ 问不到子类，用户看到
+                    //   的就是"父类项和子类项全被锁、可点=0"。DOM 里条目本来就是嵌套的，
+                    //   包含关系就是父子关系（祖先=回概览；子孙=范围内的子类）。
+                    var scopeItem = null;
+                    try {
+                        var itemsAll = document.querySelectorAll('[onclick*=onArticleSidebarClick]');
+                        for (var q = 0; q < itemsAll.length; q++) {
+                            var ocq = itemsAll[q].getAttribute('onclick') || '';
+                            if (ocq.indexOf("'" + scopeCatA + "'") >= 0) { scopeItem = itemsAll[q]; break; }
+                        }
+                    } catch (e5) { }
+                    if (scopeItem && !(scopeItem.contains(el) || el.contains(scopeItem))) {
+                        // ★ 这个侧边栏是**缩进式**的（子项并不嵌在父项元素内部，是兄弟节点 +
+                        //   更大的左缩进）⇒ 包含判定不够用，再看缩进：
+                        //   更靠左 = 祖先（回概览）；更靠右 = 子孙（范围内的子类）；同一缩进 = 同级 ⇒ 锁。
+                        var lx = 0, sx = 0;
+                        try { lx = el.getBoundingClientRect().left; sx = scopeItem.getBoundingClientRect().left; } catch (e6) { }
+                        if (Math.abs(lx - sx) < 2) return '#share-locked-sidebar';
+                    }
+                    // 放行时统一回"范围自己那一条"路由：既保证 shareScopeMatch 一定判为允许
+                    // （分类树被裁时它认不出祖先/子孙），又不影响真正跳转（跳转是页面 onclick 干的）。
+                    return '#articles/c-' + encodeURIComponent(scopeCatA);
+                }
+            }
             return '#articles/c-' + encodeURIComponent(sm[1]);
         }
         // ★ 文章阅读页的「← 返回文章列表」= closeArticleReader()。函数名里带 close ⇒ 被
@@ -1140,44 +1173,40 @@
             }
             if (bar) {
                 if (lockSearch) {
-                    bar.classList.add('gate-share-locked');
-                    // ★ 「标 / 全」那个切换按钮与「现在是按标题找（边打边搜）…」这句提示
-                    //   也要一起灰掉锁住（用户明确要求）。实测它们不都在 .search-bar 里
-                    //   （.search-bar 锁了，"标"还能点），所以从 #searchTip 往上找那一小块容器：
-                    //   只在它够小（≤24 个后代）时锁，免得把整页都灰了。
+                    // ★ 整条搜索栏只"点不动"，**不整条变灰**：用户实测——搜索栏和下面部分
+                    //   之间那条分界线跟着变灰就看不清了。所以：
+                    //   · .gate-share-inert ⇒ 只是 pointer-events:none（分界线/边框保持原样）
+                    //   · 变灰只给 #searchTip（那句「点"标"字能切到全文索引」）与「标/全」按钮
+                    bar.classList.remove('gate-share-locked');
+                    bar.classList.add('gate-share-inert');
                     var tipEl = document.getElementById('searchTip');
-                    if (tipEl) {
-                        tipEl.classList.add('gate-share-locked');
-                        var tipBox = tipEl.parentElement;
-                        if (tipBox && tipBox !== document.body && tipBox.querySelectorAll('*').length <= 24) {
-                            tipBox.classList.add('gate-share-locked');
+                    if (tipEl) tipEl.classList.add('gate-share-locked');
+                    // 「标 / 全」那个按钮：文本就是单个字，找它最稳的办法是按文本找。
+                    try {
+                        var cands = bar.querySelectorAll('button,span,div,a');
+                        for (var ci2 = 0; ci2 < cands.length; ci2++) {
+                            var ce = cands[ci2];
+                            if (ce.children && ce.children.length) continue;
+                            var tx = (ce.textContent || '').trim();
+                            if (tx === '标' || tx === '全') { ce.classList.add('gate-share-locked'); break; }
                         }
-                    }
+                    } catch (e4) { }
                 } else {
                     // 保险：允许搜索时清掉可能被更早版本/别处加上的灰化类（分享模式必须能搜）。
                     //   ⚠ 这条清理**只能**在允许搜索时做：否则会把上面那把锁解掉。
                     bar.classList.remove('gate-share-locked');
+                    bar.classList.remove('gate-share-inert');
                     var kids = bar.querySelectorAll('.gate-share-locked');
                     for (var i = 0; i < kids.length; i++) kids[i].classList.remove('gate-share-locked');
                     var tipEl2 = document.getElementById('searchTip');
-                    if (tipEl2) {
-                        tipEl2.classList.remove('gate-share-locked');
-                        if (tipEl2.parentElement) tipEl2.parentElement.classList.remove('gate-share-locked');
-                    }
+                    if (tipEl2) tipEl2.classList.remove('gate-share-locked');
                 }
             } else {
-                // 没有 .search-bar（版面差异）时，至少把提示句/切换那块按同一规则处理。
+                // 没有 .search-bar（版面差异）时，至少把提示句按同一规则处理。
                 var tipEl3 = document.getElementById('searchTip');
                 if (tipEl3) {
-                    if (lockSearch) {
-                        tipEl3.classList.add('gate-share-locked');
-                        if (tipEl3.parentElement && tipEl3.parentElement.querySelectorAll('*').length <= 24) {
-                            tipEl3.parentElement.classList.add('gate-share-locked');
-                        }
-                    } else {
-                        tipEl3.classList.remove('gate-share-locked');
-                        if (tipEl3.parentElement) tipEl3.parentElement.classList.remove('gate-share-locked');
-                    }
+                    if (lockSearch) tipEl3.classList.add('gate-share-locked');
+                    else tipEl3.classList.remove('gate-share-locked');
                 }
             }
         } catch (e) { }
@@ -1229,7 +1258,15 @@
                     continue;
                 }
                 var t = shareRouteOf(a);
-                if (t === null) continue;
+                if (t === null) {
+                    // ★ 侧边栏条目必须每次都被判到。万一某一次拿不到路由（DOM 还没渲染好、
+                    //   分类树被裁成只剩共享那一个分类…），别把上一轮留下的灰锁永远留着 ——
+                    //   用户实测的"父类项/子类项全灰、可点=0"就是这个：灰锁没人清。
+                    if (a.getAttribute && /onArticleSidebarClick/.test(a.getAttribute('onclick') || '')) {
+                        a.classList.remove('gate-share-locked');
+                    }
+                    continue;
+                }
                 if (shareScopeMatch(rec.p, t, rec.a)) a.classList.remove('gate-share-locked');
                 else a.classList.add('gate-share-locked');
             }

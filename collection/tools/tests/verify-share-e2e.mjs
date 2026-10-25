@@ -722,9 +722,9 @@ async function main() {
     // ★ 用户要求：精确到某一篇 ⇒ **整个搜索栏**锁住（含下拉/切换/重置），placeholder 换成
     //   「搜索功能暂不可用」。锁而不弹提示条（.gate-share-locked 是 pointer-events:none，
     //   根本点不动 —— 提示条是下策）。
-    const sbar = await evalJs("({locked:!!document.querySelector('.search-bar.gate-share-locked'),ph:String((document.getElementById('searchInput')||{}).placeholder||''),dis:!!(document.getElementById('searchInput')||{}).disabled})");
-    check('精确到某一篇：搜索栏整体锁住 + placeholder「搜索功能暂不可用」+ 输入框禁用',
-        sbar.locked === true && sbar.ph === '搜索功能暂不可用' && sbar.dis === true,
+    const sbar = await evalJs("({inert:!!document.querySelector('.search-bar.gate-share-inert'),grey:!!document.querySelector('.search-bar.gate-share-locked'),ph:String((document.getElementById('searchInput')||{}).placeholder||''),dis:!!(document.getElementById('searchInput')||{}).disabled})");
+    check('精确到某一篇：搜索栏整体点不动（inert）、**不变灰**、placeholder + 输入框禁用',
+        sbar.inert === true && sbar.grey === false && sbar.ph === '搜索功能暂不可用' && sbar.dis === true,
         JSON.stringify(sbar));
     // ★ 用户追加要求：「点"标"字能切到全文索引」这句提示（#searchTip）也要一起灰掉锁住。
     const tipLock = await evalJs("(()=>{const t=document.getElementById('searchTip');if(!t)return 'absent';return {tip:t.classList.contains('gate-share-locked'),box:!!(t.parentElement&&t.parentElement.classList.contains('gate-share-locked'))};})()");
@@ -781,19 +781,36 @@ async function main() {
     check('子类范围：父类侧边栏项可点（与纸币/硬币一致：能回概览）',
         treeInfo.parentState === 'absent' || treeInfo.parentState === 'open',
         JSON.stringify(treeInfo));
+    // ★ 用户实测 bug：子类范围里点父类 ⇒ 应该看到"范围内全部可见内容"的概览，
+    //   但整列变成**全灰**（列表项路由此刻没有分类段 ⇒ 被判越界）。样例用票证（9 个子类）。
+    const tp = await evalJs("(()=>{try{const t=articleCategoryTree||[];const p=t.find(c=>c&&c.id==='ticket');if(!p||!p.children||!p.children.length)return {pid:'',cid:''};return {pid:p.id,cid:p.children[0].id,n:p.children.length};}catch(e){return {err:String(e)};}})()");
+    if (tp && tp.pid && tp.cid) {
+        await unmark(); await mark();
+        const TOKt = mint('articles/c-' + tp.cid, '', 3600 * 1000);
+        await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOKt}&_=${n++}#articles/c-${tp.pid}` });
+        await settle(); await sleep(1600);
+        const tInfo = await evalJs("({items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,locked:document.querySelectorAll('[onclick^=\"openArticleReader(\"].gate-share-locked').length,barGrey:!!document.querySelector('.search-bar.gate-share-locked'),barInert:!!document.querySelector('.search-bar.gate-share-inert')})");
+        check('子类范围里点父类：概览不是全灰（票证样例：' + tp.pid + ' ← ' + tp.cid + '）',
+            Number(tInfo.items) >= 0 && Number(tInfo.locked) === 0, JSON.stringify(tInfo));
+        check('子类范围里点父类：搜索栏没被误锁（这一档搜索本来就该可用）',
+            tInfo.barGrey === false && tInfo.barInert === false, JSON.stringify(tInfo));
+        await unmark();
+    } else {
+        check('子类范围里点父类：票证样例取不到分类树（跳过）', true, JSON.stringify(tp));
+    }
     // ★ 用户口径：父类范围 ⇒ 概览只显示范围内（可展示）的文章，且该父类侧边栏项可点。
     //   ⚠ 父类 id 不能写死：本地数据里未必有那个分类的文章（写 prcAidPrinted 会得到 0 条，
     //   那是"过滤正确"而不是 bug）。这里从 articleCategoryTree 现查出 macau_boc 的父类，
     //   保证这个父类在本地确实挂着文章（它的子树就是那 11 篇）。
-    const parentId = await evalJs("(()=>{try{const t=articleCategoryTree||[];for(const c of t){if(c&&c.children&&c.children.some(s=>s&&s.id==='macau_boc'))return c.id;}return '';}catch(e){return '';}})()");
+    const parentId = await evalJs("(()=>{try{const t=articleCategoryTree||[];return t.find(c=>c&&c.id==='ticket')?'ticket':'';}catch(e){return '';}})()");
     await unmark(); await mark();
     const TOK12p = mint('articles/c-' + parentId, '', 3600 * 1000);
     await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK12p}&_=${n++}#articles` });
     await settle(); await sleep(1500);
-    const pInfo = await evalJs("({total:(typeof collectedArticles!=='undefined'?collectedArticles.length:-1),items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,sb:[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')].length,clickable:[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')].filter(x=>!x.classList.contains('gate-share-locked')).length})");
-    check('父类范围：概览只显示范围内的文章（有内容、且不超过全量）',
-        Number(pInfo.items) > 0 && Number(pInfo.items) <= Number(pInfo.total),
-        '父类=' + (parentId || '没查到') + ' 概览=' + pInfo.items + ' 全量=' + pInfo.total);
+    const pInfo = await evalJs("({total:(typeof collectedArticles!=='undefined'?collectedArticles.length:-1),items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,lockedItems:document.querySelectorAll('[onclick^=\"openArticleReader(\"].gate-share-locked').length,sb:[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')].length,clickable:[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')].filter(x=>!x.classList.contains('gate-share-locked')).length})");
+    check('父类范围：概览不是全灰、且不超过全量（票证样例）',
+        Number(pInfo.items) <= Number(pInfo.total) && Number(pInfo.lockedItems) === 0,
+        '父类=' + (parentId || '没查到') + ' 概览=' + pInfo.items + ' 全量=' + pInfo.total + ' 其中被锁=' + pInfo.lockedItems);
     check('父类范围：该父类侧边栏项可点（取不到侧边栏时只记录）',
         Number(pInfo.sb) === 0 || Number(pInfo.clickable) >= 1,
         '侧边栏项=' + pInfo.sb + ' 其中可点=' + pInfo.clickable);

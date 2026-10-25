@@ -231,7 +231,15 @@ function shareScopeMatch(scope, hash, allowSel) {
         //   （见 window.__shareCatIsUnder，gate.js 用 articleCategoryTree 生成）。
         //   表不在时退化成"必须完全相等"，即安全侧。
         if (pCat !== null) {
-            if (hCat === null) return false;
+            if (hCat === null) {
+                // ★ hash 里没有分类段（只有 articles/<序号>）：这是**列表条目**那一档 ——
+                //   列表项的路由是 openArticleReader(<序号>)，当 currentArticleCategory 是
+                //   all/空（例如刚点进父类概览）时它就没有分类段。与纸币/硬币的
+                //   "祖先 = 概览：放行，不再看选择段"同一口径 ⇒ 放行。
+                //   范围外的文章由**应用层**保证不出现（article.js 的 shareArticleCatIds 过滤），
+                //   所以用户实测的"点父类后整页全灰"就是这么来的。
+                return hIdx !== null;
+            }
             // ★ 与纸币/硬币完全同一套口径：inPrefix（子树）+ inAncestor（祖先）都能看。
             //   share-core 不认识分类树 ⇒ 由页面挂表（window.__shareCatIsUnder）。
             //   表不在时退化成"必须完全相等"（安全侧）。
