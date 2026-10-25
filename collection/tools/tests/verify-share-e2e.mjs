@@ -752,6 +752,12 @@ async function main() {
     check('小板块范围里文章项没有被锁（点得进去，不是全灰）',
         Number(catLock.items) > 0 && Number(catLock.locked) === 0,
         '文章项=' + catLock.items + ' 其中被锁=' + catLock.locked);
+    // ★ 用户要求：精确范围（篇/小板块）下侧边栏要**全部**锁定，不能靠它换分类。
+    //   （侧边栏在有些视口/视图里不渲染 ⇒ 取不到时只记录，不判红。）
+    const sbLock = await evalJs("(()=>{const a=[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')];return {n:a.length,locked:a.filter(x=>x.classList.contains('gate-share-locked')).length};})()");
+    check('小板块范围里文章侧边栏被全部锁定（取不到侧边栏时只记录）',
+        Number(sbLock.n) === 0 || Number(sbLock.locked) === Number(sbLock.n),
+        '侧边栏项=' + sbLock.n + ' 其中被锁=' + sbLock.locked);
     await unmark();
 
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');

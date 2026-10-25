@@ -376,7 +376,8 @@ section('⑧ 集成守门：门禁侧行为');
         '★ 会话过期 ⇒ 拒绝（管理员同样被拒，不会因为本地标记放行）');
     // ★ 这里必须用字符串包含而不是正则：文案里有 (´･_･`) 这种括号，塞进正则会变成分组。
     check(/function hasAdminMark\(/.test(GATE)
-        && GATE.includes("shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark())"),
+        && GATE.includes("shareToast('当前页面暂未开放分享哦(´･_･`)')")
+        && !/shareToast\('当前页面暂未开放分享哦\(´･_･`\)', hasAdminMark\(\)\)/.test(GATE),
         '管理员被困在分享范围时有「退出分享模式」出口（清会话记录后重载）');
     check(/sessionStorage\.removeItem\(SHARE_SESSION_KEY\)/.test(GATE),
         '退出分享模式 = 清掉本标签页的会话记录');

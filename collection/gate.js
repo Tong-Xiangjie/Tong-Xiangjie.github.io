@@ -806,7 +806,9 @@
                     var target = '';
                     try { target = (typeof buildRoute === 'function') ? String(buildRoute() || '') : ''; } catch (e) { target = ''; }
                     if (!shareScopeMatch(rec.p, target, rec.a)) {
-                        shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
+                        // ★ 用户要求：提示条里**不要**再放「退出分享模式」——右下角那个常驻按钮
+                        //   已经有了（shareAddExitButton）。所以这里不再传 canExit。
+                        shareToast('当前页面暂未开放分享哦(´･_･`)');
                         shareInstant();
                         var back = location.pathname + location.search + '#' + rec.p;
                         try { history.replaceState(history.state, '', back); } catch (e2) { }
@@ -1005,7 +1007,16 @@
             return '#' + aRoute;
         }
         var sm = oc.match(/^\s*onArticleSidebarClick\s*\(\s*'([^']+)'/);
-        if (sm) return '#articles/c-' + encodeURIComponent(sm[1]);
+        if (sm) {
+            // ★ 用户要求：精确到篇/小板块的分享里，文章侧边栏要**全部**锁定（不然收件人能靠
+            //   它换分类，等于绕开范围）；只有"整个文章区"那种板块级分享才放行。
+            //   我们按当前会话范围判断（shareRecNow 就在同一个闭包里），精确范围时返回一个
+            //   任何范围都匹配不上的落点 ⇒ 该侧边栏项被锁；点也被 shareBlockClick 拦住。
+            var recNowA = shareRecNow();
+            var scopeNowA = (recNowA && recNowA.p) ? String(recNowA.p) : '';
+            if (scopeNowA && scopeNowA !== 'articles') return '#share-locked-sidebar';
+            return '#articles/c-' + encodeURIComponent(sm[1]);
+        }
         // ★ 文章阅读页的「← 返回文章列表」= closeArticleReader()。函数名里带 close ⇒ 被
         //   下面 isNav 的黑名单排除、返回 null = **不锁**。它的真落点是**文章列表**
         //   #articles[/c-<分类>] ⇒ 整块/小板块分享里照常可用，而"精确到某一篇"的分享里
@@ -1168,7 +1179,7 @@
         var now = Date.now();
         if (now - shareLastBlockAt > 500) {          // 一次点击会来三个事件，只提示一次
             shareLastBlockAt = now;
-            shareToast('当前页面暂未开放分享哦(´･_･`)', hasAdminMark());
+            shareToast('当前页面暂未开放分享哦(´･_･`)');
         }
     }
 
@@ -1296,6 +1307,19 @@
                 var q = location.search.replace(/[?&]share=[^&]*/g, '').replace(/^&/, '?');
                 location.replace(location.pathname + q);
             }, true);
+            // ★ 用户实测："右下角那个按钮没有做黑夜的适配"（它是内联白底 + #333 字）。
+            //   站点的黑夜开关是 html[data-color-scheme="dark"]；"跟随系统"那一档用
+            //   @media (prefers-color-scheme: dark) + html:not([data-color-scheme="light"])
+            //   —— 与 share.js 里现成的深色规则同一套写法。内联样式优先级高 ⇒ 必须 !important。
+            if (!document.getElementById('gateShareExitStyle')) {
+                try {
+                    var st2 = document.createElement('style');
+                    st2.id = 'gateShareExitStyle';
+                    st2.textContent = 'html[data-color-scheme="dark"] #gate-share-exit{background:rgba(38,38,38,.94) !important;color:#e9e9e9 !important;border-color:rgba(210,210,210,.32) !important;box-shadow:0 2px 10px rgba(0,0,0,.5) !important;}'
+                        + '@media (prefers-color-scheme: dark){html:not([data-color-scheme="light"]) #gate-share-exit{background:rgba(38,38,38,.94) !important;color:#e9e9e9 !important;border-color:rgba(210,210,210,.32) !important;box-shadow:0 2px 10px rgba(0,0,0,.5) !important;}}';
+                    document.head.appendChild(st2);
+                } catch (e3) { }
+            }
             (document.body || document.documentElement).appendChild(b);
         }
         try { shareAddExitButton(); } catch (e) { }
