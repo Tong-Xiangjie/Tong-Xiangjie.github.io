@@ -432,13 +432,28 @@ async function main() {
     //   现在这四个 id 的 .dd 壳会被摘掉 ⇒ 每个字段只应剩一个控件（我们自己的原生下拉）。
     //   现在改成纯 CSS 藏它的壳（JS 删不掉：它的 MutationObserver 会重建），
     //   所以判据是"可见的控件只有一套"：站点壳必须不可见 + 我们的原生下拉可见且够宽。
-    check('站点自绘下拉壳被藏起来（不再并排两套）',
-        (await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].every(function(id){var b=document.querySelector('.dd[data-dd-for=\"'+id+'\"]');return !b || getComputedStyle(b).display==='none';})")) === true,
-        await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].map(function(id){var b=document.querySelector('.dd[data-dd-for=\"'+id+'\"]');return id+'壳='+(b?getComputedStyle(b).display:'无');}).join(' ')"));
-    check('四个下拉各自只显示一个、且真的可见（宽 > 0）',
-        (await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].every(function(id){var e=document.getElementById(id);return !!e && getComputedStyle(e).display!=='none' && e.getBoundingClientRect().width>10;})")) === true,
-        await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].map(function(id){var e=document.getElementById(id);return id+'='+(e?Math.round(e.getBoundingClientRect().width)+'px/'+getComputedStyle(e).display:'无');}).join(' ')"));
-    check('时分那一行只有 4 个**可见**子元素（没有并排的壳占位）',
+    // ★★ 用户裁定：**保留站点自绘的下拉**（不要原生那套）。站点 dropdown.js 会在原生
+    //   select 前面插一个 .dd 盒子（按钮 + .dd-popup），原生由站点 CSS 藏起来。
+    //   所以判据是：四个 .dd 盒子存在且可见 + 四个原生 select 都被藏起来（不是并排两套）。
+    check('四个下拉用的是站点自绘那套（.dd 盒子存在且可见）',
+        (await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].every(function(id){var b=document.querySelector('.dd[data-dd-for=\"'+id+'\"]');return !!b && getComputedStyle(b).display!=='none' && b.getBoundingClientRect().width>10;})")) === true,
+        await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].map(function(id){var b=document.querySelector('.dd[data-dd-for=\"'+id+'\"]');return id+'='+(b?Math.round(b.getBoundingClientRect().width)+'px/'+getComputedStyle(b).display:'无壳');}).join(' ')"));
+    check('原生 select 没有跟着露出来（桌面上应被站点 CSS 藏住）',
+        (await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].every(function(id){var e=document.getElementById(id);return !e || getComputedStyle(e).display==='none';})")) === true,
+        await evalJs("['shareCalYear','shareCalMonth','shareHour','shareMin'].map(function(id){var e=document.getElementById(id);return id+'='+(e?getComputedStyle(e).display:'无');}).join(' ')"));
+    // ★ 用户要求：年 / 月两个下拉各占可用宽度的一半（原来被压得太扁）
+    const ymW = await evalJs("(()=>{const h=document.querySelector('.share-sub-box .share-cal-head');if(!h)return null;const y=document.querySelector('.dd[data-dd-for=\"shareCalYear\"]'),m=document.querySelector('.dd[data-dd-for=\"shareCalMonth\"]');if(!y||!m)return null;return {head:Math.round(h.getBoundingClientRect().width),y:Math.round(y.getBoundingClientRect().width),m:Math.round(m.getBoundingClientRect().width)};})()");
+    check('年/月两个下拉各占可用宽度的一半左右（横向不再压扁）',
+        !!ymW && ymW.y >= ymW.head * 0.3 && ymW.m >= ymW.head * 0.3 && Math.abs(ymW.y - ymW.m) <= 4,
+        '行宽=' + (ymW && ymW.head) + ' 年=' + (ymW && ymW.y) + 'px 月=' + (ymW && ymW.m) + 'px');
+    // 自绘下拉要真的能用：点开小时 → 点一个选项 ⇒ 原生 select 的值与失效时间文案都要跟着变
+    const ddPick = await evalJs("(()=>{const box=document.querySelector('.dd[data-dd-for=\"shareHour\"]');if(!box)return {err:'no-box'};box.querySelector('.dd-trigger').click();const opts=[...box.querySelectorAll('.dd-popup .dd-opt')];if(!opts.length)return {err:'no-opt'};const t=opts[7]||opts[opts.length-1];const want=t.getAttribute('data-value');t.click();return {want:want,got:(document.getElementById('shareHour')||{}).value,exp:(document.querySelector('#shareExp')||{}).textContent||''};})()");
+    //   （只验"原生 select 的值被自绘下拉同步了"；文案是否更新由上面"小时变化会更新
+    //    失效时间那句"那条单独负责 —— 此处文案可能正处于上一条用例留下的报错句状态。）
+    check('用自绘下拉选小时 ⇒ 原生 select 的值跟着变（站点那套同步链路通）',
+        ddPick && !ddPick.err && String(ddPick.got) === String(ddPick.want),
+        JSON.stringify(ddPick).slice(0, 180));
+    check('时分那一行只有 4 个**可见**子元素（两个自绘盒子 + 冒号 + 提示）',
         (await evalJs("(()=>{const r=document.querySelector('.share-sub-box .share-time');return [...r.children].filter(e=>getComputedStyle(e).display!=='none').length;})()")) === 4,
         '可见子元素数=' + await evalJs("(()=>{const r=document.querySelector('.share-sub-box .share-time');return [...r.children].filter(e=>getComputedStyle(e).display!=='none').length;})()"));
     const actEdge = await evalJs("(()=>{const edge=(box,sel)=>{const b=document.querySelector(box);const bs=[...document.querySelectorAll(sel)];if(!b||!bs.length)return null;const pad=parseFloat(getComputedStyle(b).paddingRight)||0;const last=bs[bs.length-1].getBoundingClientRect();return Math.round((b.getBoundingClientRect().right-pad)-last.right);};return {main:edge('.share-box','.share-box .share-acts .share-btn'),pick:edge('.share-sub-box','.share-sub-box .share-acts .share-btn')};})()");
@@ -475,6 +490,11 @@ async function main() {
     await evalJs("(()=>{if(window.__realNow)Date.now=window.__realNow;return 1;})()");
     check('那句"当前系统时间"每秒自己走（不是停在打开那一刻）',
         /系统时间/.test(String(clock1)) && clock1 !== clock2, clock1 + '  →  ' + clock2);
+    // ★ 必须把自定义时间恢复成**未来**的值：上面为了看"现在几点"把它设成了过去，
+    //   如果不还原，后面"点取消回滚"那条比较的文案里含**当前分钟** ⇒ 跨分钟就判不等
+    //   （实测 2026-10-25 18:47 → 18:48 被当成"回滚失败"，是假红）。
+    await evalJs("(()=>{shareCustomMs = Date.now() + 3*3600e3; shareRefresh(); return 1;})()");
+    await sleep(200);
 
     await evalJs("document.querySelector('#shareClose').click()");
     const goneNow = await evalJs("!!document.querySelector('.share-mask')");
@@ -703,6 +723,12 @@ async function main() {
     check('页内改成范围外的另一篇 ⇒ 被拦（拒绝页 / 仍在原篇），不会静默放过去',
         (await evalJs('location.hash')) !== '#articles/1' || /失效|无法访问/.test(String(artTitle)),
         'hash=' + await evalJs('location.hash') + '  title=' + artTitle);
+    // ★ 用户要求：精确到某一篇的分享里，「← 返回文章列表」要锁住（它落到范围外）。
+    //   注意：本地数据里 articles/0 这一篇不一定存在（阅读页可能压根没渲染）⇒ 按钮取不到时
+    //   本条只做记录、不判红；逻辑本身由 verify-share.mjs 里那条 match() 断言把关。
+    const backBtn = await evalJs("(()=>{const b=document.querySelector('.back-btn, [onclick*=closeArticleReader]');return b? (b.classList.contains('gate-share-locked')?'locked':'unlocked') : 'absent';})()");
+    check('单篇分享里「返回文章列表」按钮被锁住（该篇没渲染出按钮时只记录）',
+        backBtn === 'locked' || backBtn === 'absent', '返回按钮锁状态=' + backBtn);
     await unmark();
 
     // ★ 小板块范围（真实分类 id 取自 config.js：macau_boc）：数据**必须还在**。
@@ -718,6 +744,14 @@ async function main() {
         Number(catData.arts) > 0 && Number(catData.tree) > 0, '文章数=' + catData.arts + ' 分类树=' + catData.tree);
     check('小板块范围下文章列表真的渲染出来了（可见文章项 > 0）',
         Number(catData.items) > 0, '可见文章项=' + catData.items + ' 被锁=' + catData.locked);
+    // ★★ 用户实测的 bug：小板块分享里"文章全灰，一篇都看不到"。上一轮我只验了"列表渲染
+    //    出来了"，没验"它们可不可点" —— 真正的毛病是 items 的路由带序号
+    //    （articles/12/c-macau_boc），而范围 articles/c-macau_boc 没有序号 ⇒ 纯前缀判定
+    //    把每一项都判成越界。现在按段判定 ⇒ 这个范围里的文章项**一个都不该被锁**。
+    const catLock = await evalJs("({items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,locked:document.querySelectorAll('[onclick^=\"openArticleReader(\"].gate-share-locked').length})");
+    check('小板块范围里文章项没有被锁（点得进去，不是全灰）',
+        Number(catLock.items) > 0 && Number(catLock.locked) === 0,
+        '文章项=' + catLock.items + ' 其中被锁=' + catLock.locked);
     await unmark();
 
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');

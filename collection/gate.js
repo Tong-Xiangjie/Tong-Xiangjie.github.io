@@ -255,7 +255,12 @@
             + '<p class="gate-denied-text">' + SHARE_DENIED_TEXT + '</p>';
         // 管理员落到这里时也给一条出路（仅在有有效本机标记时出现）。
         if (hasAdminMark()) {
-            inner += '<a class="gate-denied-enter" href="./">以管理员身份进入</a>';
+            // ★ 用户实测："点击『以管理员身份进入』还是锁定状态、侧边栏会闪；但右下角那个按钮
+        //   点进去就没问题。" 差别就在分享**会话记录**（SHARE_SESSION_KEY）：右下角那个
+        //   按钮会先清掉它再重载（见本文件 1287 行），而这个链接只是跳回 ./ ⇒ 记录还在
+        //   ⇒ 新页面仍按"分享访客"跑锁定那套（侧边栏闪一下、范围照旧）。
+        //   所以这里跳转前先清掉会话记录 —— 它才是"我进了分享模式"的唯一凭据。
+        inner += '<a class="gate-denied-enter" href="./" onclick="try{sessionStorage.removeItem(\'' + SHARE_SESSION_KEY + '\');}catch(e){}">以管理员身份进入</a>';
         }
         return inner;
     }
@@ -1001,6 +1006,19 @@
         }
         var sm = oc.match(/^\s*onArticleSidebarClick\s*\(\s*'([^']+)'/);
         if (sm) return '#articles/c-' + encodeURIComponent(sm[1]);
+        // ★ 文章阅读页的「← 返回文章列表」= closeArticleReader()。函数名里带 close ⇒ 被
+        //   下面 isNav 的黑名单排除、返回 null = **不锁**。它的真落点是**文章列表**
+        //   #articles[/c-<分类>] ⇒ 整块/小板块分享里照常可用，而"精确到某一篇"的分享里
+        //   它落到范围外 ⇒ 自动被锁（用户要求："分享单篇时应该把返回文章列表按钮锁定"）。
+        if (/^\s*closeArticleReader\s*\(/.test(oc)) {
+            var lr = 'articles';
+            try {
+                if (typeof currentArticleCategory === 'string' && currentArticleCategory && currentArticleCategory !== 'all') {
+                    lr += '/c-' + encodeURIComponent(currentArticleCategory);
+                }
+            } catch (e) { }
+            return '#' + lr;
+        }
         var fn = (oc.match(/^\s*([A-Za-z_$][\w$]*)\s*\(/) || [])[1] || '';
         var isNav = /sidebar|nav|cat|mode|goto|route|jump|menu/i.test(fn)
             && !/exit|close|copy|quit|leave|switch|toggle/i.test(fn);

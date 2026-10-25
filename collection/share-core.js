@@ -190,6 +190,30 @@ function shareScopeMatch(scope, hash, allowSel) {
     //     否则永远走不到（第一版就踩了这个坑，用例当场抓住）。
     var modeOf = p.split('/')[0];
     if (h === modeOf + '/search' || h.indexOf(modeOf + '/search/') === 0) return true;
+    // ★★ 文章板块必须按**段**判，不能用纯前缀/祖先：
+    //   文章 hash 的段顺序是「序号在前、c-<分类>在后」（router.js buildRoute），而"小板块"
+    //   范围 articles/c-X 是**没有序号**的前缀 ⇒ 前缀判定会把 items 的
+    //   articles/12/c-X 判成越界（用户实测："分享小板块时文章全灰，一篇都看不到"；
+    //   父类同理）。规则：
+    //     · 板块根 articles 照旧放行（列表页 = 概览，范围内的篇才可点）；
+    //     · 范围里有篇号 ⇒ hash 的篇号必须一致（精确到篇）；
+    //     · 范围里有 c-<分类> ⇒ hash 的分类必须一致（精确到小板块/父类）；
+    //     · q-<词>/sm-<模式> 两个搜索段忽略。
+    if (p === 'articles' || p.indexOf('articles/') === 0) {
+        if (h === 'articles') return true;
+        if (h.indexOf('articles/') !== 0) return false;
+        var ps = p.split('/').slice(1);
+        var hs = h.split('/').slice(1).filter(function (x) {
+            return x.indexOf('q-') !== 0 && x.indexOf('sm-') !== 0;
+        });
+        var pIdx = null, pCat = null, i2, s2;
+        for (i2 = 0; i2 < ps.length; i2++) { s2 = ps[i2]; if (s2.indexOf('c-') === 0) pCat = s2; else pIdx = s2; }
+        var hIdx = null, hCat = null;
+        for (i2 = 0; i2 < hs.length; i2++) { s2 = hs[i2]; if (s2.indexOf('c-') === 0) hCat = s2; else hIdx = s2; }
+        if (pIdx !== null && hIdx !== pIdx) return false;
+        if (pCat !== null && hCat !== pCat) return false;
+        return true;
+    }
     if (!inPrefix && !inAncestor) return false;
     if (!inPrefix) return true;                    // 祖先 = 概览：放行，不再看选择段
     if (!allowSel) return true;

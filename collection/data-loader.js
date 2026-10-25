@@ -142,6 +142,11 @@ function shareScopeSegments() {
 function shareDataKeep(file) {
     const seg = shareScopeSegments();
     if (!seg) return true;
+    // ★ 文章板块**不裁剪**：文章数据文件名按**分类 id** 命名，而分享范围可能是"父类"
+    //   （#articles/c-prcAidPrinted），它的数据散在一堆**子类**文件里 ⇒ 拿父类 id 去比
+    //   文件名必然比不中 ⇒ 用户实测"分享父类的一篇都看不到"。文章那边的越界由门禁 +
+    //   锁定那套负责（范围外的入口点不动），所以这里整块放行（"多留无害"）。
+    if (String(seg[0] || '').toLowerCase() === 'articles') return true;
     const path = String(file || '').toLowerCase();
     if (path.indexOf('/data/') < 0) return true;
     // ★ 范围段可能**带前缀**：小板块是 c-<分类 id>（#articles/c-macau_boc）、搜索是 q-/sm-。

@@ -117,6 +117,17 @@ section('③ 前缀匹配必须落在 / 边界上');
         '该篇里的搜索状态（q-/sm- 段排在后面）不影响放行');
     check(match('articles/c-water', 'articles/12') === false, '小板块范围不放行"不带分类"的裸篇号');
     check(match('articles/12', 'articles') === true, '板块列表仍可看（祖先放行），别篇会被锁灰/点不动');
+    // ★ 精确到篇时，「← 返回文章列表」（落点 = 文章列表）必须落在范围外 ⇒ 锁住。
+    check(match('articles/0/c-commemorative', 'articles/c-commemorative') === false,
+        '单篇范围不放行"返回文章列表"的落点（所以要被锁）');
+    //   ⚠ 这里不能用 GATE：它在本文件后面（311 行）才 const ⇒ TDZ ReferenceError
+    //   （实测：整个套件一个字都没打印就崩了）。用 read() 就地读一份，read 在 14 行。
+    const gateForArticle = read('collection/gate.js');
+    check(gateForArticle.indexOf("closeArticleReader") >= 0,
+        'gate.js 认得出「← 返回文章列表」= closeArticleReader()（否则它返回 null、永远不锁）');
+    check(gateForArticle.indexOf("以管理员身份进入") >= 0
+        && gateForArticle.split('\n').some(function (l) { return l.indexOf('gate-denied-enter') >= 0 && l.indexOf('removeItem') >= 0; }),
+        '「以管理员身份进入」跳转前会清掉分享会话记录（否则进去后仍是锁定状态、侧边栏会闪）');
 }
 
 section('④ 校验：格式 / 有效期 / 范围');

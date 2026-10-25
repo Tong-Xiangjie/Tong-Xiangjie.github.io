@@ -97,7 +97,7 @@ function shareEnsureStyle() {
         //   （它用自绘下拉替换原生 select）⇒ 我们的 select 必须显式写 display，
         //   否则计算出来就是 display:none（探针实测：#shareHour 宽 0px、整行塌成 4 行）。
         //   类选择器的优先级高于元素选择器，不需要 !important。
-        '.share-sub-box .share-cal-sel{display:inline-block !important;font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;min-width:0;cursor:pointer;}',
+        '.share-sub-box .share-cal-sel{font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;min-width:0;cursor:pointer;}',
         // ★ 行高写死 + 永远 5 行日期格 ⇒ 4 行 / 5 行 / 6 行的月份，格子区高度完全一样
         '.share-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:30px;gap:2px;}',
         '.share-cal-w{color:var(--text-secondary,#666);text-align:center;font-size:.72rem;line-height:30px;}',
@@ -109,12 +109,19 @@ function shareEnsureStyle() {
         // ── 时分：改成下拉栏（用户要求：不要 +/- 步进） ─────────────────────
         '.share-time{display:flex;align-items:center;gap:4px;margin-top:8px;flex-wrap:nowrap;}',
         '.share-time-k{color:var(--text-secondary,#666);flex:0 0 auto;}',
-        '.share-sub-box .share-time-sel{display:inline-block !important;font:inherit;font-size:.82rem;padding:2px 2px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;width:3.6em;flex:0 0 auto;text-align:center;cursor:pointer;}',
-        // ★ 站点的 dropdown.js 会把我们这四个 <select> 也接管成 `.dd` 壳（data-dd-for 就是
-        //   我们的 id）—— 于是"原生一个 + 自绘一个"并排出现（用户实测：两列一样的）。
-        //   用 JS 删没用：它的 MutationObserver 会把壳重建回来。所以改成纯 CSS 隐藏它的壳，
-        //   只留我们自己的原生下拉（上面那条 !important 负责让它可见）。
-        '.dd[data-dd-for="shareCalYear"],.dd[data-dd-for="shareCalMonth"],.dd[data-dd-for="shareHour"],.dd[data-dd-for="shareMin"]{display:none !important;}',
+        // ★ 原生 select 的样式只在**触屏端**看得见（站点在 pointer:fine 下把原生藏起来、
+        //   改成自绘 .dd）。所以这里**绝不能**写 display —— 上一版我写了
+        //   `display:inline-block !important` 把原生那套顶开 ⇒ 桌面上就变成
+        //   "自绘 + 原生"两套并排（用户实测："两列一样的东西，其中一个是原生下拉栏"）。
+        '.share-sub-box .share-time-sel{font:inherit;font-size:.82rem;padding:2px 2px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;width:3.6em;flex:0 0 auto;text-align:center;cursor:pointer;}',
+        // ★ 站点自绘下拉的宽度由 `--dd-w` 控制（dropdown.js 的注释就是为这个留的口子），
+        //   默认 124px 对我们太宽 ⇒ 按上下文收窄：时/分各 3.6em、年 4.6em、月 3.4em。
+        //   自绘盒子里就是按钮 + 弹出层，弹出层是盒子的子元素 ⇒ 天然叠在我的遮罩之上。
+        // ★ 用户要求：年 / 月这两个下拉**各占可用宽度的一半**（原来 4.6em / 3.4em 横向压太扁）。
+        //   它们是 .share-cal-head 这个 flex 行的子项 ⇒ flex:1 1 0 正好把"两个箭头之外的
+        //   宽度"均分给它们两个。
+        '.share-sub-box .dd[data-dd-for="shareCalYear"],.share-sub-box .dd[data-dd-for="shareCalMonth"]{flex:1 1 0;width:auto;min-width:0;--dd-w:100%;}',
+        '.share-sub-box .dd[data-dd-for="shareHour"],.share-sub-box .dd[data-dd-for="shareMin"]{--dd-w:3.6em;}',
         '.share-hint{color:var(--text-secondary,#666);font-size:.72rem;white-space:nowrap;}',
         '.share-exp{margin:0;color:var(--text-secondary,#666);}',
         '.share-exp.bad{color:#ff7875;}',
@@ -300,7 +307,7 @@ function shareCalRender(mask) {
             + (c.past ? ' disabled' : '') + '>' + c.d + '</button>';
     }
     grid.innerHTML = html;
-    shareDropSiteDd();
+    shareRefreshDd();
 }
 
 // 把 shareCustomMs 同步到界面（已选时间文字 + 时分下拉 + 日历高亮 + 年/月下拉）
@@ -328,6 +335,24 @@ function shareIsMySelId(v) {
     for (var i = 0; i < SHARE_SEL_IDS.length; i++) if (s === SHARE_SEL_IDS[i]) return true;
     return false;
 }
+// ★★ 站点自绘下拉（dropdown.js）的对接。
+//   结论（用户裁定）：**保留站点自绘的那套**，原生 <select> 由站点 CSS 藏起来。
+//   · 站点在 pointer:fine 下把原生 select 藏掉，并在它**前面**插入一个 .dd 盒子
+//     （按钮 + .dd-popup 弹出层）；触屏端它故意不接管，直接用系统原生下拉 —— 两种
+//     情况我们的代码都不用管，读 select.value / 监听 change 都照旧有效。
+//   · 主动触发：window.refreshCustomDropdownsNow() 就是它的 scan（dropdown.js 导出）。
+//     我们这四个下拉是运行时插进 DOM 的，主动调一次最稳（不然得等它自己的时机）。
+//   · 宽度：它按 `--dd-w` 走（CSS 里已按上下文收窄）。
+//   ⚠ 上一版我做了相反的事（强行 display 原生 + 隐藏 .dd 盒子），那是错的，已撤回；
+//     shareDropSiteDd 保留但**不再调用**（它删盒子，跟现在的策略相反）。
+function shareRefreshDd() {
+    try {
+        if (typeof window.refreshCustomDropdownsNow === 'function') window.refreshCustomDropdownsNow();
+        else if (typeof window.refreshCustomDropdowns === 'function') window.refreshCustomDropdowns();
+    } catch (e) { }
+}
+
+// ⚠ 已废弃（保留仅为历史可读，别再调用）：删站点的 .dd 盒子 —— 与"保留自绘"相反。
 function shareDropSiteDd() {
     try {
         // ① 按 data-dd-for 清（值可能是 'shareHour' 也可能是 '#shareHour'，所以先规范化；
@@ -363,11 +388,9 @@ function sharePickShow(mask) {
     pick.style.display = '';
     void pick.offsetWidth;                    // 先落一次 opacity:0，动画才起得来
     pick.className = 'share-sub-mask on';
-    // 站点可能在弹窗出现之后才来"接管"我的下拉，所以在头几帧里多清几次
-    shareDropSiteDd();
-    setTimeout(function () { shareDropSiteDd(); }, 60);
-    setTimeout(function () { shareDropSiteDd(); }, 300);
-    setTimeout(function () { shareDropSiteDd(); }, 900);
+    // 让站点把我们的四个 <select> 换成它自绘的下拉（.dd）；插进去之后再扫一次最稳
+    shareRefreshDd();
+    setTimeout(shareRefreshDd, 60);
 }
 function sharePickHide(mask, revert) {
     if (!mask) return;
