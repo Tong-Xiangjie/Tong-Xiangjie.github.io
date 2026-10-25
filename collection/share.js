@@ -371,7 +371,7 @@ function shareRefresh() {
         expEl.textContent = '分享链接将永久有效，请谨慎选择此项';
     } else {
         expEl.className = 'share-exp';
-        expEl.textContent = '距离失效时间' + shareHumanTime(exp) + '还剩' + shareHumanLeft(exp);
+        expEl.textContent = '距离失效时间 ' + shareHumanTime(exp) + ' ' + shareHumanLeft(exp);
     }
 
     var linkEl = mask.querySelector('#shareLink');
