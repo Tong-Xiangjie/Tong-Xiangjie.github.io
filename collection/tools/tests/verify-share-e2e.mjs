@@ -443,10 +443,56 @@ async function main() {
         + ' 复制=' + await evalJs("document.querySelectorAll('.copy-detail-link').length"));
     check('子分类分享：侧边栏里**范围内**的第三套人民币可点（不再被锁）',
         (await evalJs('(()=>{const e=document.querySelector(".sidebar-child[onclick*=rmb3]");return e? !e.classList.contains("gate-share-locked") : "not-found";})()')) === true);
-    check('子分类分享：侧边栏里范围外的父分类仍被锁',
-        (await evalJs('(()=>{const e=[...document.querySelectorAll(".sidebar-item")].find(x=>/rmb/.test(x.getAttribute("onclick")||"") && !/rmb3/.test(x.getAttribute("onclick")||""));return e? e.classList.contains("gate-share-locked") : "not-found";})()')) === true);
+    check('子分类分享：祖先分组（人民币）可点 —— 回概览要走这条路',
+        (await evalJs('(()=>{const e=[...document.querySelectorAll(".sidebar-item")].find(x=>/onSidebarItemClick\\(.rmb.\\)/.test(x.getAttribute("onclick")||""));return e? !e.classList.contains("gate-share-locked") : "not-found";})()')) === true);
+    check('子分类分享：兄弟分类（纪念钞）仍被锁',
+        (await evalJs('(()=>{const e=[...document.querySelectorAll(".sidebar-item")].find(x=>/commemorative/.test(x.getAttribute("onclick")||""));return e? e.classList.contains("gate-share-locked") : "not-found";})()')) === true);
     const ovSub = await overviewCount();
     check('子分类分享：概览页只给这个子分类的藏品', ovSub > 0 && ovSub < 380, '概览=' + ovSub + '（全站 380）');
+    await unmark();
+
+    console.log('=== 10. 概览可看但内容被裁 + 搜索锁住 + 点当前分类能回概览 ===');
+    // 用户要求：「可以看概览页，但只显示部分数据」；「概览不展示 = 直接不显示，不是变灰」。
+    // 关键：概览路由是范围的**祖先**（notes / notes/rmb），以前被判越界 ⇒ 一点就被弹回／重刷。
+    await unmark(); await mark();
+    const TOK10 = mint('notes/rmb/rmb3', '', 3600 * 1000);
+    const go = async (hash) => {
+        await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK10}&_=${n++}#${hash}` });
+        await settle();
+    };
+    await go('notes/rmb');
+    check('祖先概览（分类概览 #notes/rmb）可以进，不再被弹回',
+        (await evalJs("document.documentElement.classList.contains('gate-ok')")) === true,
+        'title=' + await evalJs('String(document.title)'));
+    const ovRmb = await evalJs("document.querySelectorAll('.name').length");
+    check('分类概览只渲染范围内的藏品（范围外的直接不显示，不是变灰）',
+        ovRmb > 0 && ovRmb < 82, '渲染件数=' + ovRmb + '（rmb 全组是 82）');
+    check('概览里保留的都是**没被锁**的（可点）',
+        (await evalJs("document.querySelectorAll('.search-result-group .gate-share-locked').length")) === 0,
+        '被锁的概览条目=' + await evalJs("document.querySelectorAll('.search-result-group .gate-share-locked').length"));
+    await go('notes/rmb/rmb3');
+    await evalJs('(()=>{prevSearchResults=null;return 1;})()');
+    check('分享模式下搜索框被禁用',
+        (await evalJs("(()=>{const i=document.getElementById('searchInput');return !!i && i.disabled;})()")) === true,
+        'placeholder=' + await evalJs("(()=>{const i=document.getElementById('searchInput');return i?i.getAttribute('placeholder'):'无输入框';})()"));
+    await evalJs("(()=>{const el=document.getElementById('searchInput');if(!el)return 1;el.value='银行';el.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()");
+    await sleep(1200);
+    // 真实用户点不进被禁用的输入框（上面已断言 disabled），所以正常路径不会触发搜索；
+    // 这里故意用合成事件绕过去，确认**万一跑了也只可能出范围内的数据**（rmb3Data）。
+    check('万一搜索被触发，结果也只可能来自范围内（rmb3Data）',
+        (await evalJs("(prevSearchResults||[]).every(r=>r.dataKey==='rmb3Data')")) === true,
+        '结果数=' + await evalJs('(prevSearchResults||[]).length')
+        + ' 来源=' + await evalJs("JSON.stringify([...new Set((prevSearchResults||[]).map(r=>r.dataKey))])"));
+    // 点侧边栏里"当前这个分类" ⇒ core.js 的既有行为是回到概览，不该被门禁弹回
+    const hashBefore = await evalJs('location.hash');
+    await evalJs('(()=>{const e=document.querySelector(".sidebar-child[onclick*=rmb3]");if(e)e.click();return 1;})()');
+    await sleep(2200);
+    check('点侧边栏"当前分类"能回到概览且不被弹回',
+        (await evalJs("document.documentElement.classList.contains('gate-ok')")) === true
+        && (await evalJs("document.querySelectorAll('.name').length")) > 0
+        && (await evalJs("document.querySelectorAll('.name').length")) < 82,
+        'hash ' + hashBefore + ' → ' + await evalJs('location.hash')
+        + '  渲染件数=' + await evalJs("document.querySelectorAll('.name').length"));
     await unmark();
 
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');

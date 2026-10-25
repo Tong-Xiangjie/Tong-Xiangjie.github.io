@@ -1054,14 +1054,44 @@
     // ★ 用户要求："把这些点不了的按键锁住"。
     //   分享模式下扫一遍候选入口，点了会越界的就灰掉 + 禁点（cursor:not-allowed）。
     //   锁上之后浏览器**根本不把指针事件交给它**，所以不依赖拦截时机。
+    // ★ 分享模式：搜索也锁掉（用户明确要求，实测症状是"搜索栏没有锁住 ⇒ 一搜就强制
+    //   刷新、丢失浏览进度"）。搜索结果是跨分类的，即使内容被应用层裁过，这一下也已经把
+    //   浏览进度冲掉了；直接禁用最省事、也最符合用户的预期。
+    //   禁用输入框就够挡住"边打边搜"和回车（禁用的 input 拿不到焦点）；顺带把同一格里
+    //   的模式切换/重置按钮也锁上，免得"重置"把结果区刷掉。
+    function shareLockSearch() {
+        try {
+            var inp = document.getElementById('searchInput');
+            if (!inp) return;
+            if (!inp.disabled) {
+                inp.disabled = true;
+                inp.setAttribute('placeholder', '分享模式：搜索不可用');
+                inp.title = '分享链接里不开放搜索';
+                inp.classList.add('gate-share-locked');
+                if (inp.parentElement) {
+                    var btns = inp.parentElement.querySelectorAll('button,[onclick]');
+                    for (var i = 0; i < btns.length; i++) btns[i].classList.add('gate-share-locked');
+                }
+            }
+        } catch (e) { }
+    }
+
     function shareLockAnchors() {
         var rec = shareRecNow();
         if (!rec) return;
         shareEnsureLockStyle();
+        shareLockSearch();
         try {
             var list = document.querySelectorAll(SHARE_LOCK_SEL);
             for (var i = 0; i < list.length; i++) {
                 var a = list[i];
+                // ★ 概览 / 结果列表里的条目**不锁**：渲染时已经按范围裁过了（范围外的
+                //   根本不渲染，用户要的就是"直接不显示"）。再按"锚点路由"判一次，只会把
+                //   范围内的条目也锁灰 —— 用户实测的"概览页可见但是灰色不可点击"就是这个。
+                if (a.closest && a.closest('.search-result-group')) {
+                    a.classList.remove('gate-share-locked');
+                    continue;
+                }
                 var t = shareRouteOf(a);
                 if (t === null) continue;
                 if (shareScopeMatch(rec.p, t, rec.a)) a.classList.remove('gate-share-locked');
@@ -1241,7 +1271,10 @@
             new MutationObserver(function () {
                 if (!shareRecNow()) return;
                 if (t) return;
-                t = setTimeout(function () { t = 0; shareLockAnchors(); }, 300);
+                // ★ 60ms（原来 300ms）：用户在 share 模式下点侧边栏时，重渲染出来的新节点
+                //   会有约 300ms 处于"没被锁"的状态 ⇒ 视觉上"锁住的部分闪白一下再变灰"。
+                //   这个防抖是给批量改 DOM 用的，60ms 足够合并一次渲染里的多次 mutation。
+                t = setTimeout(function () { t = 0; shareLockAnchors(); }, 60);
             }).observe(document.documentElement, { childList: true, subtree: true });
         } catch (e) { }
         try {

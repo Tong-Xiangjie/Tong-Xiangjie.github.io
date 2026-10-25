@@ -155,7 +155,18 @@ function shareScopeMatch(scope, hash, allowSel) {
     var h = clean(hash), p = clean(scope);
     if (!p) return false;
     var inPrefix = (h === p) || (h.slice(0, p.length + 1) === p + '/');
-    if (!inPrefix) return false;
+    // ★★ 范围的**祖先路由**（板块概览 notes、父分组 notes/rmb）也要放行。
+    //   用户要求：「可以看概览页，但只显示部分数据」；还明确说「概览不展示 = 直接不显示，
+    //   而不是变灰」。所以这里放开"能进概览"，**内容**那半由应用层过滤兜住：
+    //     · overview.js        全局概览：范围内没有的藏品**不渲染**
+    //     · category-view.js   分类概览：同上
+    //   不放开的话：点"当前分类"会回到概览路由（core.js：点已选中的分类 = 回到概览），
+    //   立刻被判越界 ⇒ 弹回／重刷 ⇒ 收件人永远看不到概览，浏览进度也丢了
+    //   （用户实测的 B/C/E/F 四条现象都是这一个原因）。
+    //   注意只认"沿范围往上"的严格前缀：兄弟分类（notes/rmb3 vs notes/rmb/rmb3）不受影响。
+    var inAncestor = (h !== '') && (p.slice(0, h.length + 1) === h + '/');
+    if (!inPrefix && !inAncestor) return false;
+    if (!inPrefix) return true;                    // 祖先 = 概览：放行，不再看选择段
     if (!allowSel) return true;
     // allowSel 存在 ⇒ 单张/多张那一档：列表页放行，选择段必须是白名单的子集（见 shareSelAllowed）。
     return shareSelAllowed(allowSel, hash);

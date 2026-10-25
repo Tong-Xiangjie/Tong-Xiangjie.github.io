@@ -142,6 +142,19 @@ function renderCategoryOverview(cat) {
         }
     }
 
+    // ★ 分享模式：分类概览也只显示**分享范围内**的藏品 —— 范围外的**直接不渲染**，
+    //   不是变灰（用户原话：「概览不展示指的是直接不显示出来，而不是把不显示的变成灰色」）。
+    //   与 overview.js 全局概览同一口径、同一个谓词（shareRouteAllowed ⇒ shareScopeMatch）。
+    //   子分类的路由是**三段** notes/<父id>/<子id>，父 id 不能丢。
+    if (typeof shareRouteAllowed === 'function') {
+        const modeSeg = String(location.hash || '').replace(/^#/, '').split('/')[0] || 'notes';
+        allItems = allItems.filter(function (it) {
+            let h = modeSeg + '/' + it.catId + (it.subId ? '/' + it.subId : '') + '/s' + it.si;
+            if (it.hasVarieties && it.vi !== null && it.vi !== undefined) h += '/v' + it.vi;
+            return shareRouteAllowed(h);
+        });
+    }
+
     let html = `<div class="overview-header"><h2>${escapeHtml(cat.name)}</h2><p>共${allItems.length}件藏品</p></div>`;
     if (allItems.length === 0) {
         html += '<div class="empty-state">' + emptyArt('collection') + '啥都木有</div>';

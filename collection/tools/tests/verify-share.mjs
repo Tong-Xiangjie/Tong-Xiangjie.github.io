@@ -84,7 +84,15 @@ section('③ 前缀匹配必须落在 / 边界上');
     check(match('notes/rmb3', 'notes/rmb3/s1/v1.0&k=xxx') === true, 'hash 里残留 &k= 时先切掉再比');
     check(match('notes/rmb3', 'notes/rmb3x') === false, '★ rmb3x 不放行（不能靠字符串前缀蒙混）');
     check(match('notes/rmb3', 'notes/rmb4') === false, '别的分类不放行');
-    check(match('notes/rmb3', 'notes') === false, '更浅的路径不放行');
+    // ★ 用户要求「可以看概览页，但只显示部分数据」⇒ 范围的**祖先路由**（板块概览 notes、
+    //   父分组 notes/rmb）要放行；内容那半由应用层过滤兜住（范围外的藏品直接不渲染）。
+    //   但只有"沿范围往上、且落在 / 边界上"的才算祖先 —— 兄弟分类、非边界前缀仍不放行。
+    check(match('notes/rmb3', 'notes') === true, '板块概览放行（能看概览，内容由应用层裁）');
+    check(match('notes/rmb/rmb3', 'notes/rmb') === true, '父分组概览放行（回概览要走这条路）');
+    check(match('notes/rmb/rmb3', 'notes/rmb/rmb3') === true, '自己当然放行');
+    check(match('notes/rmb/rmb3', 'notes/rmb/rmb4') === false, '兄弟子分类不放行');
+    check(match('notes/rmb/rmb3', 'notes/rm') === false, '非边界前缀（notes/rm）不算祖先');
+    check(match('notes/rmb/rmb3', 'coin') === false, '别的板块不算祖先');
     check(match('', 'notes/rmb3') === false, '空范围一律不放行');
 }
 
