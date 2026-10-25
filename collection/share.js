@@ -2,10 +2,10 @@
    分享窗口 —— Ctrl+Shift+S（Edge/Firefox 用 Alt+Shift+S）
    ----------------------------------------------------------------------------
    · 范围：**按下快捷键那一刻的深链**（buildRoute()）折算成"到分类为止"的前缀，
-     窗口里会同时显示「当前深链」和「放行范围」两行，复制前可以核对。
+     窗口里会同时显示「当前所在深链」和「分享可见范围」两行，复制前可以核对。
    · 时效：1 小时 / 1 天（默认）/ 7 天 / 30 天 / 自定义到某天某时某分 / 永久
      （永久 = 不写 e，靠 gate.mjs new 轮换站点令牌来撤销）。
-   · 链接：{origin}{pathname}?share=<payload>#<当前深链>
+   · 链接：{origin}{pathname}?share=<payload>#<当前所在深链>
      —— query 归门禁、hash 归路由（顺序不能反，URL 规范里 query 必须在 hash 前）。
 
    ★ 快捷键为什么在**捕获阶段**、并且 stopPropagation：
@@ -117,7 +117,7 @@ function shareEnsureStyle() {
     document.head.appendChild(s);
 }
 
-// 当前深链 / 范围（都以"按下快捷键那一刻"为准）
+// 当前所在深链 / 范围（都以"按下快捷键那一刻"为准）
 // ★ 生成链接的 base 一律落到"目录"上。
 //   从 /collection/index.html 打开时 location.pathname 带着 index.html —— 直接拼进去，
 //   链接就成了 .../index.html?share=…（能开，但难看，也和"分享的是这个站"不符）。
@@ -128,8 +128,8 @@ function shareBaseUrl() {
     return location.origin + p;
 }
 
-// ★ 放行范围怎么算（用户定稿的三档，这里做**自动识别**）：
-//   · 当前深链里有选择段（如 notes/commemorative/s0,4,8）⇒ 只放行"选中的这几张"：
+// ★ 分享可见范围怎么算（用户定稿的三档，这里做**自动识别**）：
+//   · 当前所在深链里有选择段（如 notes/commemorative/s0,4,8）⇒ 只放行"选中的这几张"：
 //     范围 = 到分类为止，另带一个选择段签名 a（列表页仍可看，点别的那张会被拨回）；
 //   · 没选任何东西 ⇒ 只按前缀放行（板块级 / 分类级 —— 分类里含子分类时收得更紧，见 shareScopeOf）。
 // 判断"有几张"只为窗口里给人看，不参与安全判定（判定在 share-core.js 的 shareScopeMatch）。
@@ -147,7 +147,7 @@ function shareScopeLabel() {
     var scope = shareCurrentScope();
     var n = shareSelectedCount();
     if (!n) return scope;
-    return scope + '，且仅选中的 ' + n + ' 张';
+    return scope + '中选定的几件藏品';
 }
 
 function shareCurrentHash() {
@@ -240,8 +240,8 @@ function shareOpenDialog() {
     mask.innerHTML = [
         '<div class="share-box" role="dialog" aria-label="分享这一页">',
         '<div class="share-title">分享这一页</div>',
-        '<div class="share-row"><span class="share-k">当前深链</span><span class="share-v" id="shareHash"></span></div>',
-        '<div class="share-row"><span class="share-k">放行范围</span><span class="share-v" id="shareScope"></span></div>',
+        '<div class="share-row"><span class="share-k">当前所在深链</span><span class="share-v" id="shareHash"></span></div>',
+        '<div class="share-row"><span class="share-k">分享可见范围</span><span class="share-v" id="shareScope"></span></div>',
         '<div class="share-tiers" id="shareTiers"></div>',
         '<div class="share-custom" id="shareCustom" style="display:none;">',
         '<div class="share-cal">',
@@ -365,14 +365,13 @@ function shareRefresh() {
     var expEl = mask.querySelector('#shareExp');
     if (bad) {
         expEl.className = 'share-exp bad';
-        expEl.textContent = '请选一个晚于现在的时间（现在是 ' + shareHumanTime(Date.now()) + '）';
+        expEl.textContent = '链接失效时间不能早于当前系统时间（' + shareHumanTime(Date.now()) + '）！';
     } else if (exp === null) {
         expEl.className = 'share-exp';
-        expEl.textContent = '永久有效：不设过期时间，要撤销就轮换站点令牌（gate.mjs new）——换了令牌，所有旧链接一起作废。';
+        expEl.textContent = '分享链接将永久有效，请谨慎选择此项';
     } else {
         expEl.className = 'share-exp';
-        expEl.textContent = '失效：' + shareHumanTime(exp) + '（' + shareHumanLeft(exp) + '）'
-            + (t && t.ms > 30 * 86400e3 ? '　提示：更长期建议用「永久」。' : '');
+        expEl.textContent = '距离失效时间' + shareHumanTime(exp) + '还剩' + shareHumanLeft(exp);
     }
 
     var linkEl = mask.querySelector('#shareLink');
