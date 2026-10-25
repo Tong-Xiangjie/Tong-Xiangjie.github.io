@@ -423,6 +423,32 @@ async function main() {
         '选择级=' + ovSel + ' 整类=' + ovCat);
     await unmark();
 
+    console.log('=== 9. 子分类分享：真路由是三段 notes/rmb/rmb3 ===');
+    // 实测结论（用户报"第三套人民币啥都点不了"）：子分类的真路由是 notes/<父id>/<子id>。
+    // #notes/rmb3 是**无效**路由 ⇒ 应用回退到概览 ⇒ 概览条目路由与范围对不上 ⇒ 全灰。
+    // 另外 shareRouteOf 以前只取 onSidebarChildClick('rmb','rmb3') 的**第一个** id，
+    // 拼出 notes/rmb ⇒ 连范围内的子分类自己都被锁死。
+    await unmark(); await mark();
+    const TOK_SUB = mint('notes/rmb/rmb3', '', 3600 * 1000);
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK_SUB}&_=${n++}#notes/rmb/rmb3` });
+    await settle();
+    await waitFor("document.querySelectorAll('.gate-share-locked').length>0", 8000);
+    check('子分类分享：落在分类页而不是概览（三段路由才认）',
+        (await evalJs("typeof currentView!=='undefined' && currentView==='category'")) === true,
+        'currentView=' + await evalJs("typeof currentView!=='undefined'?currentView:'?"));
+    check('子分类分享：分类页内容渲染完整（系列头 + 复制链接都在）',
+        (await evalJs("document.querySelectorAll('.series-year-header').length")) >= 8
+        && (await evalJs("document.querySelectorAll('.copy-detail-link').length")) >= 20,
+        '系列=' + await evalJs("document.querySelectorAll('.series-year-header').length")
+        + ' 复制=' + await evalJs("document.querySelectorAll('.copy-detail-link').length"));
+    check('子分类分享：侧边栏里**范围内**的第三套人民币可点（不再被锁）',
+        (await evalJs('(()=>{const e=document.querySelector(".sidebar-child[onclick*=rmb3]");return e? !e.classList.contains("gate-share-locked") : "not-found";})()')) === true);
+    check('子分类分享：侧边栏里范围外的父分类仍被锁',
+        (await evalJs('(()=>{const e=[...document.querySelectorAll(".sidebar-item")].find(x=>/rmb/.test(x.getAttribute("onclick")||"") && !/rmb3/.test(x.getAttribute("onclick")||""));return e? e.classList.contains("gate-share-locked") : "not-found";})()')) === true);
+    const ovSub = await overviewCount();
+    check('子分类分享：概览页只给这个子分类的藏品', ovSub > 0 && ovSub < 380, '概览=' + ovSub + '（全站 380）');
+    await unmark();
+
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();
     process.exit(fail ? 1 : 0);

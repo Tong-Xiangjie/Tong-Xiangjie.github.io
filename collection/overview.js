@@ -83,7 +83,11 @@ function renderOverview() {
     if (typeof shareRouteAllowed === 'function') {
         const modeSeg = String(location.hash || '').replace(/^#/, '').split('/')[0] || 'notes';
         allItems = allItems.filter(function (it) {
-            let h = modeSeg + '/' + (it.subId || it.catId) + '/s' + it.si;
+            // ★ 子分类的真路由是**三段**：notes/<父id>/<子id>。
+            //   实测：#notes/rmb/rmb3 才进第三套人民币的分类页；
+            //   #notes/rmb3 被应用当成无效路由、**回退到概览**。
+            //   所以父 id（it.catId）不能丢 —— 丢了就会把范围内的子分类整页裁空。
+            let h = modeSeg + '/' + it.catId + (it.subId ? '/' + it.subId : '') + '/s' + it.si;
             if (it.hasVarieties && it.vi !== null && it.vi !== undefined) h += '/v' + it.vi;
             return shareRouteAllowed(h);
         });

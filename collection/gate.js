@@ -987,9 +987,22 @@
             && !/exit|close|copy|quit|leave|switch|toggle/i.test(fn);
         if (oc && isNav) {
             var m = oc.match(/'([a-zA-Z0-9_\-]+)'/g) || oc.match(/"([a-zA-Z0-9_\-]+)"/g) || [];
+            var ids = [];
             for (i = 0; i < m.length; i++) {
-                var idv = m[i].replace(/^['"]|['"]$/g, '');
-                if (!idv || idv === el.tagName) continue;
+                var idv0 = m[i].replace(/^['"]|['"]$/g, '');
+                if (!idv0 || idv0 === el.tagName) continue;
+                ids.push(idv0);
+            }
+            // ★ 两段式导航（子分类）：侧边栏是 onSidebarChildClick('rmb', 'rmb3')，
+            //   而子分类的真路由是**三段** notes/rmb/rmb3（父 id 也在里面，实测确认；
+            //   notes/rmb3 会被应用当成无效路由、回退到概览）。
+            //   以前这里只取**第一个** id ⇒ 拼出 notes/rmb ⇒ 反而把**范围内的子分类自己**
+            //   锁死了：用户实测"第三套人民币整页啥都点不了、侧边栏也全部锁住"。
+            if (ids.length >= 2 && typeof SHARE_MODES !== 'undefined' && SHARE_MODES.indexOf(ids[0]) < 0) {
+                return '#' + (mode ? mode + '/' : '') + ids[0] + '/' + ids[1];
+            }
+            for (i = 0; i < ids.length; i++) {
+                var idv = ids[i];
                 if (typeof SHARE_MODES !== 'undefined' && SHARE_MODES.indexOf(idv) >= 0) return '#' + idv;
                 if (/^[a-z0-9_\-]+$/i.test(idv)) {
                     if (mode && mode !== idv) return '#' + mode + '/' + idv;

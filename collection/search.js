@@ -534,13 +534,15 @@ function performSearchAndRender(rawKeyword, type) {
 }
 
 // 搜索结果里只有 dataKey，没有路由 id —— 这里把 dataKey 折回它在分类树里的路由段。
-// 规则与 router.js 一致：挂了 dataKey 的子分类用**自己的 id**（如 rmb3），
-// 顶层分类（没有 children）用**分类自己的 id**（如 commemorative）；父分类的名字不进路由。
+// 规则与 router.js 一致（实测确认）：
+//   · 挂了 dataKey 的子分类 ⇒ 路由是**三段** notes/<父id>/<子id>（如 notes/rmb/rmb3）；
+//     少一段（notes/rmb3）会被应用当成无效路由、回退到概览。
+//   · 顶层分类（没有 children）⇒ 路由是两段 notes/<分类id>（如 notes/commemorative）。
 function shareSearchRouteBase(dataKey) {
   try {
     for (const cat of getCategoryTree()) {
       if (cat.children && cat.children.length > 0) {
-        for (const sub of cat.children) if (sub.dataKey === dataKey) return sub.id;
+        for (const sub of cat.children) if (sub.dataKey === dataKey) return cat.id + '/' + sub.id;
       } else if (cat.dataKey === dataKey) {
         return cat.id;
       }
