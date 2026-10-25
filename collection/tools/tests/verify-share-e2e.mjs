@@ -408,8 +408,11 @@ async function main() {
     await evalJs("document.querySelector('#sharePickCancel').click()");
     await sleep(400);
     const afterCancel = await evalJs("document.querySelector('#shareExp').textContent");
+    // ⚠ 这句文案里带着**实时系统时间**（每秒刷新，分钟一翻就变一次）⇒ 直接比对原文会
+    //   偶发假红（实测 20:11 → 20:12）。比之前先把 HH:MM 归一化，只比真正该回滚的部分。
+    const normExp = (s) => String(s).replace(/\d{1,2}:\d{2}(:\d{2})?/g, 'HH:MM').replace(/\s+/g, ' ').trim();
     check('第二个弹窗点「取消」回滚到打开前的值',
-        beforeCancel !== midCancel && afterCancel === beforeCancel,
+        normExp(beforeCancel) !== normExp(midCancel) && normExp(afterCancel) === normExp(beforeCancel),
         beforeCancel + ' → ' + midCancel + ' → 取消后 ' + afterCancel);
     check('取消后弹窗收起（display:none）',
         (await evalJs("getComputedStyle(document.querySelector('#sharePickMask')).display")) === 'none',
@@ -723,6 +726,11 @@ async function main() {
     check('精确到某一篇：搜索栏整体锁住 + placeholder「搜索功能暂不可用」+ 输入框禁用',
         sbar.locked === true && sbar.ph === '搜索功能暂不可用' && sbar.dis === true,
         JSON.stringify(sbar));
+    // ★ 用户追加要求：「点"标"字能切到全文索引」这句提示（#searchTip）也要一起灰掉锁住。
+    const tipLock = await evalJs("(()=>{const t=document.getElementById('searchTip');if(!t)return 'absent';return {tip:t.classList.contains('gate-share-locked'),box:!!(t.parentElement&&t.parentElement.classList.contains('gate-share-locked'))};})()");
+    check('精确到某一篇：「标/全」那句提示也灰掉锁住',
+        tipLock === 'absent' || (tipLock && tipLock.tip === true),
+        JSON.stringify(tipLock));
     // 页内手改到"别的篇号"必须被拦住（这条正是靠 shareRouteOf 认 openArticleReader 才成立）
     await evalJs("(()=>{location.hash='articles/1';return 1;})()");
     await sleep(1600);
@@ -767,6 +775,12 @@ async function main() {
     check('子类范围：侧边栏里"该分类/其父类"可点、其余锁住（取不到侧边栏时只记录）',
         Number(sbLock.n) === 0 || (Number(sbLock.locked) < Number(sbLock.n) && Number(sbLock.locked) >= 1),
         '侧边栏项=' + sbLock.n + ' 其中被锁=' + sbLock.locked);
+    // ★ 与纸币/硬币完全同一口径（用户："主要是和纸币硬币要一样的逻辑"）：
+    //   子类范围里，**父类那一项必须可点**（祖先 = 回概览，概览只显示范围内文章）。
+    const treeInfo = await evalJs("(()=>{try{const t=articleCategoryTree||[];const q=id=>{const el=document.querySelector('[onclick*=onArticleSidebarClick][onclick*=\"'+id+'\"]');return el?(el.classList.contains('gate-share-locked')?'locked':'open'):'absent';};for(const c of t){if(c&&c.children&&c.children.some(s=>s&&s.id==='macau_boc')){return {parent:c.id,parentState:q(c.id),subs:c.children.map(s=>s.id),subStates:c.children.map(s=>q(s.id))};}}return {parent:'',parentState:'absent',subs:[],subStates:[]};}catch(e){return {err:String(e)};}})()");
+    check('子类范围：父类侧边栏项可点（与纸币/硬币一致：能回概览）',
+        treeInfo.parentState === 'absent' || treeInfo.parentState === 'open',
+        JSON.stringify(treeInfo));
     // ★ 用户口径：父类范围 ⇒ 概览只显示范围内（可展示）的文章，且该父类侧边栏项可点。
     //   ⚠ 父类 id 不能写死：本地数据里未必有那个分类的文章（写 prcAidPrinted 会得到 0 条，
     //   那是"过滤正确"而不是 bug）。这里从 articleCategoryTree 现查出 macau_boc 的父类，
@@ -783,6 +797,11 @@ async function main() {
     check('父类范围：该父类侧边栏项可点（取不到侧边栏时只记录）',
         Number(pInfo.sb) === 0 || Number(pInfo.clickable) >= 1,
         '侧边栏项=' + pInfo.sb + ' 其中可点=' + pInfo.clickable);
+    // ★ 与纸币/硬币一致：父类范围里**全部子类**侧边栏项都可点（子树 = inPrefix）。
+    const pKids = await evalJs("(()=>{const pid=" + JSON.stringify(parentId) + ";try{const t=articleCategoryTree||[];const p=t.find(c=>c&&c.id===pid);if(!p||!p.children)return {n:0,open:0,absent:0};const q=id=>{const el=document.querySelector('[onclick*=onArticleSidebarClick][onclick*=\"'+id+'\"]');if(!el)return 'absent';return el.classList.contains('gate-share-locked')?'locked':'open';};const st=p.children.map(s=>q(s.id));return {n:p.children.length,open:st.filter(x=>x==='open').length,absent:st.filter(x=>x==='absent').length,locked:st.filter(x=>x==='locked').length};}catch(e){return {err:String(e)};}})()");
+    check('父类范围：全部子类侧边栏项都可点（与纸币/硬币一致）',
+        Number(pKids.n) === 0 || Number(pKids.locked) === 0,
+        JSON.stringify(pKids));
     // ★ 用户口径：子类范围 ⇒ 概览只显示这个子类的文章 ⇒ 严格少于全量
     await unmark(); await mark();
     const TOK12s = mint('articles/c-macau_boc', '', 3600 * 1000);

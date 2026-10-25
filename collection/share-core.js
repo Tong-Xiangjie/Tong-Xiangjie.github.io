@@ -232,7 +232,10 @@ function shareScopeMatch(scope, hash, allowSel) {
         //   表不在时退化成"必须完全相等"，即安全侧。
         if (pCat !== null) {
             if (hCat === null) return false;
-            if (hCat !== pCat && !shareCatIsUnder(hCat, pCat)) return false;
+            // ★ 与纸币/硬币完全同一套口径：inPrefix（子树）+ inAncestor（祖先）都能看。
+            //   share-core 不认识分类树 ⇒ 由页面挂表（window.__shareCatIsUnder）。
+            //   表不在时退化成"必须完全相等"（安全侧）。
+            if (hCat !== pCat && !shareCatIsUnder(hCat, pCat) && !shareCatIsUnder(pCat, hCat)) return false;
         }
         return true;
     }

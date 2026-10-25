@@ -1008,24 +1008,15 @@
         }
         var sm = oc.match(/^\s*onArticleSidebarClick\s*\(\s*'([^']+)'/);
         if (sm) {
-            // ★ 文章侧边栏的可点规则（用户最终口径）：
-            //   · 整块分享（范围就是 articles）⇒ 全部可用；
-            //   · 精确到"某一篇" ⇒ 全部锁（用户："分享单篇，整个搜索栏…都要锁定"那一档，
-            //     侧边栏也不该让人换分类）；
-            //   · 父类 / 子类范围 ⇒ 允许"这个分类自己"和它的**祖先**（就像分享「人民币」/
-            //     「第三套人民币」那样），同级与别的分支一律锁。
-            //   祖先关系由 sharePublishArticleCatTree() 挂上来的表判断。
+            // ★ 文章侧边栏 = **纸币/硬币同一套逻辑**（用户口径："主要是和纸币硬币要一样的逻辑"）：
+            //   范围内的整棵子树 + 它的祖先都能点（祖先 = 回概览，概览只显示范围内文章），
+            //   同级与别的分支锁住。这里直接把自然路由交回 shareScopeMatch 判 —— 它现在
+            //   对文章分类段也做了 inPrefix(子树) / inAncestor(祖先)，与纸币硬币一致。
+            //   唯一的例外：精确到"某一篇"的分享 ⇒ 侧边栏全锁（那一档连搜索栏都是锁的）。
             var recNowA = shareRecNow();
             var scopeNowA = (recNowA && recNowA.p) ? String(recNowA.p) : '';
-            if (!scopeNowA || scopeNowA === 'articles') return '#articles/c-' + encodeURIComponent(sm[1]);
             if (/^articles\/\d+/.test(scopeNowA)) return '#share-locked-sidebar';
-            var mCat = scopeNowA.match(/c-([^/]+)/);
-            var scopeCat = mCat ? decodeURIComponent(mCat[1]) : '';
-            var underFn = (typeof window.__shareCatIsUnder === 'function') ? window.__shareCatIsUnder : null;
-            if (scopeCat && (sm[1] === scopeCat || (underFn && underFn(scopeCat, sm[1])))) {
-                return '#articles/c-' + encodeURIComponent(sm[1]);
-            }
-            return '#share-locked-sidebar';
+            return '#articles/c-' + encodeURIComponent(sm[1]);
         }
         // ★ 文章阅读页的「← 返回文章列表」= closeArticleReader()。函数名里带 close ⇒ 被
         //   下面 isNav 的黑名单排除、返回 null = **不锁**。它的真落点是**文章列表**
@@ -1150,12 +1141,43 @@
             if (bar) {
                 if (lockSearch) {
                     bar.classList.add('gate-share-locked');
+                    // ★ 「标 / 全」那个切换按钮与「现在是按标题找（边打边搜）…」这句提示
+                    //   也要一起灰掉锁住（用户明确要求）。实测它们不都在 .search-bar 里
+                    //   （.search-bar 锁了，"标"还能点），所以从 #searchTip 往上找那一小块容器：
+                    //   只在它够小（≤24 个后代）时锁，免得把整页都灰了。
+                    var tipEl = document.getElementById('searchTip');
+                    if (tipEl) {
+                        tipEl.classList.add('gate-share-locked');
+                        var tipBox = tipEl.parentElement;
+                        if (tipBox && tipBox !== document.body && tipBox.querySelectorAll('*').length <= 24) {
+                            tipBox.classList.add('gate-share-locked');
+                        }
+                    }
                 } else {
                     // 保险：允许搜索时清掉可能被更早版本/别处加上的灰化类（分享模式必须能搜）。
                     //   ⚠ 这条清理**只能**在允许搜索时做：否则会把上面那把锁解掉。
                     bar.classList.remove('gate-share-locked');
                     var kids = bar.querySelectorAll('.gate-share-locked');
                     for (var i = 0; i < kids.length; i++) kids[i].classList.remove('gate-share-locked');
+                    var tipEl2 = document.getElementById('searchTip');
+                    if (tipEl2) {
+                        tipEl2.classList.remove('gate-share-locked');
+                        if (tipEl2.parentElement) tipEl2.parentElement.classList.remove('gate-share-locked');
+                    }
+                }
+            } else {
+                // 没有 .search-bar（版面差异）时，至少把提示句/切换那块按同一规则处理。
+                var tipEl3 = document.getElementById('searchTip');
+                if (tipEl3) {
+                    if (lockSearch) {
+                        tipEl3.classList.add('gate-share-locked');
+                        if (tipEl3.parentElement && tipEl3.parentElement.querySelectorAll('*').length <= 24) {
+                            tipEl3.parentElement.classList.add('gate-share-locked');
+                        }
+                    } else {
+                        tipEl3.classList.remove('gate-share-locked');
+                        if (tipEl3.parentElement) tipEl3.parentElement.classList.remove('gate-share-locked');
+                    }
                 }
             }
         } catch (e) { }
