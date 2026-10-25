@@ -119,6 +119,34 @@ function walkTree(cats, out) {
     return out;
 }
 
+// ★ 分享模式：收件人只要分享范围那一份数据，范围外的**根本不下载**。
+//   背景（实测）：收件人打开分享链接时，这个加载器照样把 73 个数据文件全下下来
+//   （约 595KB），而分享范围之外的内容他既看不到、也点不动（gate.js 会灰化锁定）。
+//   保守边界（宁可不省也不许省错）：
+//     · 只在"范围落到具体分类"（p 至少两段，如 notes/commemorative）时生效；
+//       板块级分享（notes / coins）、以及非分享访问一律照旧全下；
+//     · 只过滤数据文件，且匹配方式很松：路径里命中本范围的分类名或板块名就保留
+//       （文件名就带分类 id，如 commemorative ⇒ ../notecollection/data/commemorative.js），
+//       多留无害、少留才会出事；
+//     · 与门禁的范围判定天然一致：范围外的深层链接会被拒（连页面都进不去），
+//       所以不存在"页面在范围外却需要它那份数据"的情况。
+//   行为由 verify-share-e2e.mjs 兜底（裁剪后仍要求 21 灰 / 2 亮）。
+function shareScopeSegments() {
+    try {
+        const rec = JSON.parse(sessionStorage.getItem('collection-share') || 'null');
+        const seg = String((rec && rec.p) || '').split('/').filter(Boolean);
+        return seg.length >= 2 ? seg : null;
+    } catch (e) { return null; }
+}
+
+function shareDataKeep(file) {
+    const seg = shareScopeSegments();
+    if (!seg) return true;
+    const path = String(file || '').toLowerCase();
+    if (path.indexOf('/data/') < 0) return true;
+    return path.indexOf(seg[seg.length - 1].toLowerCase()) >= 0 || path.indexOf(seg[0].toLowerCase()) >= 0;
+}
+
 function loadScript(file) {
     return new Promise((resolve, reject) => {
         if (!file) { reject(new Error('loadScript 收到空文件路径')); return; }
@@ -158,6 +186,7 @@ function loadAllData(onProgress) {
         const seen = new Set();
         for (const s of allSources) {
             if (!s.file || seen.has(s.file)) continue;
+            if (!shareDataKeep(s.file)) continue;    // ★ 分享模式：范围外的数据不下
             seen.add(s.file);
             files.push(s.file);
         }

@@ -222,6 +222,21 @@ async function main() {
     })()`);
     console.log('  [weight] scripts/JS-KB/all-KB/data-KB = ' + weight);
 
+    // 分享模式"只加载该范围的数据"：数据脚本是 data-loader.js 动态注入的，
+    // 它在分享模式下直接不下范围外的文件。这里按**语义**断言（而不是比数字）：
+    // 页面里所有 /data/ 脚本都必须命中本范围的分类名/板块名。
+    const fullDataCount = ['config.js', 'coin-config.js', 'special-bridge.js']
+        .reduce((acc, f) => acc + ((readFileSync(join(COLLECTION, f), 'utf8').match(/dataFile\s*:/g) || []).length), 0);
+    await load(n++, 'notes/commemorative');
+    await waitFor("document.querySelectorAll('.gate-share-locked').length>100", 12000);
+    const dataSrcs = await evalJs("[...document.querySelectorAll('script[src]')].map(s=>s.getAttribute('src')||'').filter(u=>u.indexOf('/data/')>=0)");
+    const outside = (dataSrcs || []).filter(u => !/commemorative|notes/.test(u.toLowerCase()));
+    check('分享页里有数据文件（裁剪没裁过头）', (dataSrcs || []).length > 0, 'data=' + (dataSrcs || []).length + ' full=' + fullDataCount);
+    check('分享模式没有下载范围外的数据文件', outside.length === 0, JSON.stringify(outside.slice(0, 3)));
+    check('数据文件数量确实少于全量', (dataSrcs || []).length < fullDataCount, 'now=' + (dataSrcs || []).length + ' full=' + fullDataCount);
+    check('裁剪之后页面仍然正常渲染（21 灰 / 2 亮）',
+        (await evalJs("[document.querySelectorAll('.series-year-header.gate-share-locked').length, document.querySelectorAll('.series-year-header[onclick]:not(.gate-share-locked)').length].join('/')")) === '21/2');
+
     console.log('=== 4. admin vs share isolation ===');
     await mark();
     check('admin on share link is still scoped', (await load(n++, 'notes/commemorative')) === 'allow' && (await evalJs("document.querySelectorAll('.gate-share-locked').length")) > 100);
