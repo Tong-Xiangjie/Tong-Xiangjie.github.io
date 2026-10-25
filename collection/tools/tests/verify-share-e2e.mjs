@@ -790,8 +790,8 @@ async function main() {
         await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOKt}&_=${n++}#articles/c-${tp.pid}` });
         await settle(); await sleep(1600);
         const tInfo = await evalJs("({items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,locked:document.querySelectorAll('[onclick^=\"openArticleReader(\"].gate-share-locked').length,barGrey:!!document.querySelector('.search-bar.gate-share-locked'),barInert:!!document.querySelector('.search-bar.gate-share-inert')})");
-        check('子类范围里点父类：概览不是全灰（票证样例：' + tp.pid + ' ← ' + tp.cid + '）',
-            Number(tInfo.items) >= 0 && Number(tInfo.locked) === 0, JSON.stringify(tInfo));
+        check('子类范围里点父类：概览不是全灰、而且**确实有篇**（票证样例 ' + tp.pid + ' ← ' + tp.cid + '）',
+            Number(tInfo.items) > 0 && Number(tInfo.locked) === 0, JSON.stringify(tInfo));
         check('子类范围里点父类：搜索栏没被误锁（这一档搜索本来就该可用）',
             tInfo.barGrey === false && tInfo.barInert === false, JSON.stringify(tInfo));
         await unmark();

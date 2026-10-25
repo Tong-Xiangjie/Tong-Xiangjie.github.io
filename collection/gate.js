@@ -1024,25 +1024,12 @@
                 var mCatA = scopeNowA.match(/c-([^/]+)/);
                 var scopeCatA = mCatA ? decodeURIComponent(mCatA[1]) : '';
                 if (scopeCatA && scopeCatA !== sm[1]) {
-                    // ★ 父子关系**从 DOM 看**，别再问分类树：分享模式下 articleCategoryTree 会被
-                    //   裁成只剩共享的那一个分类（实测 length 可以是 1）⇒ 问不到子类，用户看到
-                    //   的就是"父类项和子类项全被锁、可点=0"。DOM 里条目本来就是嵌套的，
-                    //   包含关系就是父子关系（祖先=回概览；子孙=范围内的子类）。
-                    var scopeItem = null;
-                    try {
-                        var itemsAll = document.querySelectorAll('[onclick*=onArticleSidebarClick]');
-                        for (var q = 0; q < itemsAll.length; q++) {
-                            var ocq = itemsAll[q].getAttribute('onclick') || '';
-                            if (ocq.indexOf("'" + scopeCatA + "'") >= 0) { scopeItem = itemsAll[q]; break; }
-                        }
-                    } catch (e5) { }
-                    if (scopeItem && !(scopeItem.contains(el) || el.contains(scopeItem))) {
-                        // ★ 这个侧边栏是**缩进式**的（子项并不嵌在父项元素内部，是兄弟节点 +
-                        //   更大的左缩进）⇒ 包含判定不够用，再看缩进：
-                        //   更靠左 = 祖先（回概览）；更靠右 = 子孙（范围内的子类）；同一缩进 = 同级 ⇒ 锁。
-                        var lx = 0, sx = 0;
-                        try { lx = el.getBoundingClientRect().left; sx = scopeItem.getBoundingClientRect().left; } catch (e6) { }
-                        if (Math.abs(lx - sx) < 2) return '#share-locked-sidebar';
+                    // ★ 父子关系从 config.js 的**完整** categoryTree 判（shareCatAncestorOf）：
+                    //   分享模式下 articleCategoryTree 会被裁成只剩共享的那一个分类
+                    //   （实测 length 可为 1）⇒ 问不到子类，用户看到"父类项/子类项全灰、可点=0"。
+                    //   祖先（回概览）与子孙（范围内的子类）都放行，同级与别的分支锁。
+                    if (!shareCatAncestorOf(scopeCatA, sm[1]) && !shareCatAncestorOf(sm[1], scopeCatA)) {
+                        return '#share-locked-sidebar';
                     }
                     // 放行时统一回"范围自己那一条"路由：既保证 shareScopeMatch 一定判为允许
                     // （分类树被裁时它认不出祖先/子孙），又不影响真正跳转（跳转是页面 onclick 干的）。
@@ -1181,16 +1168,26 @@
                     bar.classList.add('gate-share-inert');
                     var tipEl = document.getElementById('searchTip');
                     if (tipEl) tipEl.classList.add('gate-share-locked');
-                    // 「标 / 全」那个按钮：文本就是单个字，找它最稳的办法是按文本找。
+                    // ★ 用户明确说这几个**可以灰**：「全字段搜索」标签、「搜索」、「重置」
+                    //   （只有那条**分界线**不能灰 ⇒ 整条栏只加 inert、不整条加 locked）。
                     try {
-                        var cands = bar.querySelectorAll('button,span,div,a');
-                        for (var ci2 = 0; ci2 < cands.length; ci2++) {
-                            var ce = cands[ci2];
-                            if (ce.children && ce.children.length) continue;
-                            var tx = (ce.textContent || '').trim();
-                            if (tx === '标' || tx === '全') { ce.classList.add('gate-share-locked'); break; }
+                        var greySel = ['#searchBtn', '#searchReset', '#searchSubmit', '.search-btn', '.search-reset',
+                            '#searchSelect', '.search-select', '.search-field-label'];
+                        for (var gi = 0; gi < greySel.length; gi++) {
+                            var gs = bar.querySelectorAll(greySel[gi]);
+                            for (var gj = 0; gj < gs.length; gj++) gs[gj].classList.add('gate-share-locked');
                         }
-                    } catch (e4) { }
+                        var gAll = bar.querySelectorAll('button,select,label,span,div,a');
+                        for (var gk = 0; gk < gAll.length; gk++) {
+                            var ge = gAll[gk];
+                            if (ge.children && ge.children.length) continue;
+                            var gtx = (ge.textContent || '').trim();
+                            if (gtx === '搜索' || gtx === '重置' || gtx === '全字段搜索' || gtx === '标' || gtx === '全') {
+                                ge.classList.add('gate-share-locked');
+                                if (ge.parentElement && ge.parentElement.children.length <= 2) ge.parentElement.classList.add('gate-share-locked');
+                            }
+                        }
+                    } catch (e7) { }
                 } else {
                     // 保险：允许搜索时清掉可能被更早版本/别处加上的灰化类（分享模式必须能搜）。
                     //   ⚠ 这条清理**只能**在允许搜索时做：否则会把上面那把锁解掉。
@@ -1215,6 +1212,24 @@
     // ★ 把文章板块的"子类 → 父类"关系挂给 share-core 的范围判定。
     //   它自己不认识分类树（纯判定模块，Node 里也跑），所以由页面在分享模式下发一张表：
     //   分享"父类"时，它的子类文章/子类侧边栏要算在范围内（用户要求）。
+    // ★ 用 config.js 的**完整** categoryTree 判"ancestor 是不是 child 的父类"。
+    //   为什么不问 articleCategoryTree：分享模式下它会被裁成只剩共享的那一个分类
+    //   （实测 length 可为 1）⇒ 判不出父子，父类项/子类项会全被锁（用户实测"可点=0"）。
+    function shareCatAncestorOf(ancestor, child) {
+        try {
+            var t = (typeof categoryTree !== 'undefined') ? categoryTree : null;
+            if (!t || !ancestor || !child) return false;
+            for (var i = 0; i < t.length; i++) {
+                var c = t[i];
+                if (!c || !c.children || c.id !== ancestor) continue;
+                for (var j = 0; j < c.children.length; j++) {
+                    if (c.children[j] && c.children[j].id === child) return true;
+                }
+            }
+        } catch (e) { }
+        return false;
+    }
+
     function sharePublishArticleCatTree() {
         try {
             // ★ 先挂导出：下面可能因为分类树还没建好（TDZ/空表）而 return，

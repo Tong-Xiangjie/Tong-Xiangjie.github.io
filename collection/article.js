@@ -264,7 +264,10 @@ function shareArticleCatIds(a) {
   if (a.category) ids.push(a.category);
   if (a.parentCategory && ids.indexOf(a.parentCategory) < 0) ids.push(a.parentCategory);
   try {
-    var t = (typeof articleCategoryTree !== 'undefined') ? articleCategoryTree : null;
+    // ★ 用 config.js 的**完整** categoryTree 查（分享模式下 articleCategoryTree 会被裁成
+    //   只剩共享的那一个分类 ⇒ 查不到子类归属 ⇒ 子类范围会筛出 0 篇，用户实测"为什么是 0 篇"）。
+    var t0 = (typeof categoryTree !== "undefined") ? categoryTree : null;
+    var t = (t0 && t0.length) ? t0 : ((typeof articleCategoryTree !== "undefined") ? articleCategoryTree : null);
     if (t && a.dataKey) {
       for (var i = 0; i < t.length; i++) {
         var c = t[i];
