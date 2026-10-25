@@ -321,11 +321,18 @@ async function main() {
     await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='自定义').click()");
     await sleep(350);
     check('选「自定义」后出现自绘月历（>=28 个日期格）', (await evalJs("document.querySelectorAll('.share-cal-d').length")) >= 28);
-    const hourBefore = await evalJs("document.querySelector('#shareHour').textContent");
-    await evalJs("document.querySelector('.share-step[data-unit=hour] button[data-step=\"1\"]').click()");
-    await sleep(250);
-    const hourAfter = await evalJs("document.querySelector('#shareHour').textContent");
-    check('自绘时分步进可用（小时 +1）', hourBefore !== hourAfter, hourBefore + ' → ' + hourAfter);
+    // ★ 用户要求：日历时间选择做成**第二个弹窗**；时/分改成**下拉栏**（不要 +/- 步进）
+    check('自定义时间选择器是独立的第二个弹窗（显示中，且叠在主窗之上）',
+        (await evalJs("(()=>{const p=document.querySelector('#sharePickMask');if(!p)return false;const st=getComputedStyle(p);const mz=Number(getComputedStyle(document.querySelector('.share-mask')).zIndex);return st.display!=='none'&&Number(st.zIndex)>mz;})()")) === true,
+        'z=' + await evalJs("(()=>{const p=document.querySelector('#sharePickMask');return p?getComputedStyle(p).zIndex+'（主窗 '+getComputedStyle(document.querySelector('.share-mask')).zIndex+'）':'-';})()"));
+    check('小时/分钟是下拉栏（24 / 60 项），已经没有 +/- 步进按钮',
+        (await evalJs("(()=>{const h=document.querySelector('#shareHour'),m=document.querySelector('#shareMin');return !!h&&!!m&&h.tagName==='SELECT'&&m.tagName==='SELECT'&&h.options.length===24&&m.options.length===60&&document.querySelectorAll('.share-step button').length===0;})()")) === true,
+        await evalJs("(()=>{const h=document.querySelector('#shareHour'),m=document.querySelector('#shareMin');return (h?h.tagName+'/'+h.options.length:'-')+' · '+(m?m.tagName+'/'+m.options.length:'-')+' · 步进按钮='+document.querySelectorAll('.share-step button').length;})()"));
+    const valBefore = await evalJs("document.querySelector('#sharePickVal').textContent");
+    await evalJs("(()=>{const h=document.querySelector('#shareHour');h.value=String((Number(h.value)+3)%24);h.dispatchEvent(new Event('change',{bubbles:true}));return 1;})()");
+    await sleep(300);
+    const valAfter = await evalJs("document.querySelector('#sharePickVal').textContent");
+    check('改「小时」下拉后主窗的失效时间跟着变', valBefore !== valAfter, valBefore + ' → ' + valAfter);
     check('自定义档的链接带 e', (await evalJs(payloadOf)).e !== undefined, JSON.stringify(await evalJs(payloadOf)).slice(0, 60));
     await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='永久').click()");
     await sleep(350);
@@ -357,12 +364,73 @@ async function main() {
     check('月历每行不超过 7 个日期格', Number(perRow) <= 7, 'max=' + perRow);
     check('月历日期格点得到（没有被遮挡）',
         (await evalJs("(()=>{const d=document.querySelector('.share-cal-d:not(:disabled)');if(!d)return false;const r=d.getBoundingClientRect();return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===d;})()")) === true);
+    // ★ 用户要求：日期格**永远 5 行**，4 行/5 行/6 行的月份上下高度必须完全一样
+    check('年份/月份各有一个下拉栏（可选到 2027 / 2026）',
+        (await evalJs("(()=>{const y=document.querySelector('#shareCalYear'),m=document.querySelector('#shareCalMonth');return !!y&&!!m&&y.tagName==='SELECT'&&m.tagName==='SELECT'&&y.options.length>=12&&m.options.length===12&&[...y.options].some(o=>o.value==='2027')&&[...y.options].some(o=>o.value==='2026');})()")) === true,
+        await evalJs("(()=>{const y=document.querySelector('#shareCalYear'),m=document.querySelector('#shareCalMonth');return (y?y.options.length:'-')+' 个年份 / '+(m?m.options.length:'-')+' 个月份';})()"));
+    const ymSet = async (y, m) => {
+        await evalJs("(()=>{const y1=document.querySelector('#shareCalYear'),m1=document.querySelector('#shareCalMonth');y1.value='" + y + "';m1.value='" + m + "';y1.dispatchEvent(new Event('change',{bubbles:true}));return 1;})()");
+        await sleep(320);
+    };
+    const gridShape = "(()=>{const g=document.querySelector('#shareCalGrid');return {h:Math.round(g.getBoundingClientRect().height),n:g.children.length,d:document.querySelectorAll('.share-cal-d').length,hdr:document.querySelectorAll('.share-cal-w').length};})()";
+    await ymSet(2027, 1);       // 6 行的月份（2027-01-01 是周五，31 天 ⇒ 36 格）
+    const g6 = await evalJs(gridShape);
+    await ymSet(2026, 2);       // 4 行的月份（2026-02-01 是周日，28 天 ⇒ 28 格）
+    const g4 = await evalJs(gridShape);
+    await ymSet(2026, 3);       // 5 行的月份（参照）
+    const g5 = await evalJs(gridShape);
+    check('6 行的月份：多出来的格子平移到第一行，总格子仍固定 5 行（7 表头 + 35）',
+        g6.n === 42 && g6.d === 31 && g6.hdr === 7, JSON.stringify(g6));
+    check('4 行的月份：末尾补一行空，总格子也是 7 + 35',
+        g4.n === 42 && g4.d === 28 && g4.hdr === 7, JSON.stringify(g4));
+    check('4 行 / 5 行 / 6 行三种月份的日历高度完全一致（上下高度固定）',
+        g4.h === g5.h && g5.h === g6.h, '4行=' + g4.h + '  5行=' + g5.h + '  6行=' + g6.h);
+    check('链接展示栏不可拉伸（resize:none）',
+        (await evalJs("getComputedStyle(document.querySelector('#shareLink')).resize")) === 'none',
+        String(await evalJs("getComputedStyle(document.querySelector('#shareLink')).resize")));
+    // 位置级验证（不只是数量）：2027-01 的第 31 天必须在**第一行**，且落在「日」那一列
+    await ymSet(2027, 1);
+    const wrap = await evalJs("(()=>{const g=document.querySelector('#shareCalGrid');const sun=g.querySelector('.share-cal-w').getBoundingClientRect().left;const b=[...g.querySelectorAll('.share-cal-d')].find(x=>x.getAttribute('data-day')==='31');if(!b)return null;const r=b.getBoundingClientRect();const rows=[...new Set([...g.querySelectorAll('.share-cal-d')].map(x=>Math.round(x.getBoundingClientRect().top)))].sort(function(a,b){return a-b;});return {col:Math.round(r.left)===Math.round(sun),row:Math.round(r.top)===rows[0],dayRows:rows.length};})()");
+    check('6 行月：第 31 天平移到第一行，且列仍是「日」列（星期语义没乱）',
+        !!wrap && wrap.col === true && wrap.row === true && wrap.dayRows === 5, JSON.stringify(wrap));
+    await ymSet(2026, 2);
+    const shape4 = await evalJs("(()=>{const g=document.querySelector('#shareCalGrid');const d=new Set([...g.querySelectorAll('.share-cal-d')].map(x=>Math.round(x.getBoundingClientRect().top)));const all=new Set([...g.children].map(x=>Math.round(x.getBoundingClientRect().top)));return {dayRows:d.size,gridRows:all.size};})()");
+    check('4 行月：日期只占 4 行，最后一行整行留空（格子区仍 5 行 + 表头 1 行）',
+        Number(shape4.dayRows) === 4 && Number(shape4.gridRows) === 6, JSON.stringify(shape4));
+    // 「取消」要回滚到打开弹窗那一刻的值（第二个弹窗该有的语义）
+    await evalJs("document.querySelector('#sharePickOk').click()");
+    await sleep(350);
+    await evalJs("document.querySelector('#sharePickOpen').click()");
+    await sleep(350);
+    const beforeCancel = await evalJs("document.querySelector('#sharePickVal').textContent");
+    await ymSet(2027, 8);
+    const midCancel = await evalJs("document.querySelector('#sharePickVal').textContent");
+    await evalJs("document.querySelector('#sharePickCancel').click()");
+    await sleep(400);
+    const afterCancel = await evalJs("document.querySelector('#sharePickVal').textContent");
+    check('第二个弹窗点「取消」回滚到打开前的值',
+        beforeCancel !== midCancel && afterCancel === beforeCancel,
+        beforeCancel + ' → ' + midCancel + ' → 取消后 ' + afterCancel);
+    check('取消后弹窗收起（display:none）',
+        (await evalJs("getComputedStyle(document.querySelector('#sharePickMask')).display")) === 'none',
+        String(await evalJs("getComputedStyle(document.querySelector('#sharePickMask')).display")));
 
     await evalJs("document.querySelector('#shareClose').click()");
     const goneNow = await evalJs("!!document.querySelector('.share-mask')");
     await sleep(450);
     const goneLater = await evalJs("!!document.querySelector('.share-mask')");
     check('关闭走退出动画（点击后仍在 → 450ms 后消失）', goneNow === true && goneLater === false, 'now=' + goneNow + ' later=' + goneLater);
+    // ★ 用户要求：快捷键打开时**什么都不选中**（原来焦点会落在「复制链接」上）
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', modifiers: 10, key: 'S', code: 'KeyS', windowsVirtualKeyCode: 83 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: 10, key: 'S', code: 'KeyS', windowsVirtualKeyCode: 83 });
+    await sleep(600);
+    check('快捷键打开时没有任何东西被选中（焦点不在按钮上、没有文字选区）',
+        (await evalJs("(()=>{const a=document.activeElement;const s=window.getSelection();const ok=(!a)||a===document.body||a===document.documentElement;return ok && String(s||'')==='';})()")) === true,
+        'activeElement=' + await evalJs("document.activeElement?(document.activeElement.tagName+(document.activeElement.id?'#'+document.activeElement.id:'')):'null'")
+        + ' 选区=' + JSON.stringify(await evalJs("String(window.getSelection())"))
+        + ' 弹窗在=' + await evalJs("!!document.querySelector('.share-mask')"));
+    await evalJs("document.querySelector('#shareClose') && document.querySelector('#shareClose').click()");
+    await sleep(400);
     await unmark();
 
     console.log('=== 8. 分享模式下的概览页与搜索：只显示范围内数据 ===');

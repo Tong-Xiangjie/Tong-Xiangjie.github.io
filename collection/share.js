@@ -72,29 +72,42 @@ function shareEnsureStyle() {
         '.share-tier{flex:1 1 0;min-width:0;border:1px solid var(--border,#ddd);border-radius:8px;padding:6px 2px;cursor:pointer;background:transparent;color:inherit;text-align:center;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
         '.share-tier.on{border-color:var(--theme,#1677ff);box-shadow:inset 0 0 0 1px var(--theme,#1677ff);}',
         '@media (max-width:430px){.share-tier{font-size:.72rem;padding:6px 1px;}.share-tiers{gap:4px;}}',
-        // ── 自定义时间：自己画的月历 + 时分步进 ────────────────────────────
+        // ── 自定义时间：主窗只显示"已选时间 + 选择按钮"，选择器是**第二个弹窗** ──
+        //   （用户要求：日历时间选择单独做成一个弹窗，不再塞在主窗里撑高它。）
         '.share-custom{margin:8px 0 2px;}',
-        '.share-cal{border:1px solid var(--border,#ddd);border-radius:10px;padding:8px;max-width:296px;}',
-        '.share-cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}',
-        '.share-cal-title{font-weight:600;font-size:.86rem;}',
-        '.share-cal-nav{font:inherit;width:26px;height:26px;line-height:1;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;cursor:pointer;}',
+        '.share-pick-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}',
+        '.share-pick-val{font-family:ui-monospace,Consolas,monospace;font-weight:600;}',
+        // 第二个弹窗：挂在 .share-mask 之下（不是 .share-box 里 —— 那个盒子有 transform
+        // + overflow:auto，fixed 子元素会被它当包含块并裁掉），z-index 更高一层。
+        '.share-sub-mask{position:fixed;inset:0;z-index:3100;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .18s ease;}',
+        '.share-sub-mask.on{opacity:1;}',
+        '.share-sub-mask.closing{opacity:0;}',
+        '.share-sub-box{width:min(94vw,340px);max-height:88vh;overflow:auto;background:var(--card-bg,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:16px 16px 12px;font-size:.9rem;opacity:0;transform:translateY(10px) scale(.985);transition:opacity .18s ease,transform .22s cubic-bezier(.22,.9,.28,1.06);}',
+        '.share-sub-mask.on .share-sub-box{opacity:1;transform:none;}',
+        '.share-sub-mask.closing .share-sub-box{opacity:0;transform:translateY(6px) scale(.985);transition-duration:.15s;}',
+        '.share-sub-title{font-size:.98rem;font-weight:700;margin:0 0 10px;}',
+        // ── 月历 ───────────────────────────────────────────────────────────
+        '.share-cal{border:1px solid var(--border,#ddd);border-radius:10px;padding:8px;}',
+        '.share-cal-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;}',
+        '.share-cal-nav{font:inherit;width:26px;height:26px;line-height:1;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;cursor:pointer;flex:0 0 auto;}',
         '.share-cal-nav:hover{border-color:var(--theme,#1677ff);}',
-        '.share-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}',
-        '.share-cal-w{color:var(--text-secondary,#666);text-align:center;font-size:.72rem;padding:2px 0;}',
-        '.share-cal-d{font:inherit;font-size:.8rem;padding:5px 0;border:0;border-radius:6px;background:transparent;color:inherit;cursor:pointer;text-align:center;}',
+        '.share-cal-sel{font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;min-width:0;}',
+        // ★ 行高写死 + 永远 5 行日期格 ⇒ 4 行 / 5 行 / 6 行的月份，格子区高度完全一样
+        '.share-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:26px;gap:2px;}',
+        '.share-cal-w{color:var(--text-secondary,#666);text-align:center;font-size:.72rem;line-height:26px;}',
+        '.share-cal-x{display:block;}',
+        '.share-cal-d{font:inherit;font-size:.8rem;border:0;border-radius:6px;background:transparent;color:inherit;cursor:pointer;text-align:center;}',
         '.share-cal-d:hover:not(:disabled){background:rgba(22,119,255,.14);}',
         '.share-cal-d.on{background:var(--theme,#1677ff);color:#fff;}',
         '.share-cal-d:disabled{opacity:.3;cursor:not-allowed;}',
+        // ── 时分：改成下拉栏（用户要求：不要 +/- 步进） ─────────────────────
         '.share-time{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}',
         '.share-time-k{color:var(--text-secondary,#666);}',
-        '.share-step{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border,#ddd);border-radius:8px;padding:2px 4px;}',
-        '.share-step button{font:inherit;width:20px;height:20px;line-height:1;border:0;border-radius:5px;background:transparent;color:inherit;cursor:pointer;}',
-        '.share-step button:hover{background:rgba(22,119,255,.14);}',
-        '.share-step b{font-variant-numeric:tabular-nums;min-width:2.1em;text-align:center;font-weight:600;}',
+        '.share-time-sel{font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;}',
         '.share-hint{color:var(--text-secondary,#666);font-size:.78rem;}',
         '.share-exp{margin:8px 0;color:var(--text-secondary,#666);}',
         '.share-exp.bad{color:#ff7875;}',
-        '.share-link{width:100%;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;resize:vertical;}',
+        '.share-link{width:100%;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;resize:none;overflow:auto;}',
         '.share-acts{display:flex;gap:8px;align-items:center;margin-top:10px;}',
         '.share-btn{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid var(--theme,#1677ff);background:var(--theme,#1677ff);color:#fff;cursor:pointer;}',
         '.share-btn.ghost{background:transparent;color:inherit;border-color:var(--border,#ddd);}',
@@ -109,7 +122,7 @@ function shareEnsureStyle() {
         // 站点还没跑起来（theme.js 未执行）时按系统偏好兜一层。
         '@media (prefers-color-scheme: dark){html:not([data-color-scheme="light"]) .share-mask{background:rgba(0,0,0,.62);}}',
         // 谁关掉了动画就别给他动画（前庭敏感）。
-        '@media (prefers-reduced-motion: reduce){.share-mask,.share-box,.share-msg{transition:none !important;}}'
+        '@media (prefers-reduced-motion: reduce){.share-mask,.share-box,.share-msg,.share-sub-mask,.share-sub-box{transition:none !important;}}'
     ].join('\n');
     var s = document.createElement('style');
     s.id = 'shareStyle';
@@ -190,44 +203,127 @@ function shareExpForTier(tierId, customValue) {
     return isFinite(ms) ? ms : NaN;
 }
 
-// ── 自绘日历（月视图）与时分步进 ──────────────────────────────────────────
+// ── 自绘日历（月视图）与时分下拉 ──────────────────────────────────────────
 // 为什么不用 <input type="datetime-local">：深色模式下原生控件会突然变白、
 // 样式完全不受站点控制，而且各浏览器长相差别很大；自己画也更符合本站的观感。
+// ★ 用户要求：日期格**永远 5 行**（大多数月份正好 5 行），上下高度必须恒定
+//   · 6 行的月份（如 2027-01）：把最后一行多出来的格子**平移到第一行**的空位上
+//     —— 本月初的空位数量必然 ≥ 多出来的格子数（offset ≥ (offset+天数)-35 恒成立），
+//     而且这几格落在"它本来就该在的星期列"上（列的语义不会错）；
+//   · 4 行的月份（如 2026-02）：末尾补一整行空。
+//   这样翻月时窗口不会一跳一跳。
+var SHARE_CAL_ROWS = 5;                       // 日期格固定行数
+var sharePickPrevMs = 0;                      // 打开第二个弹窗时的值（取消要回滚）
+var sharePickClosing = false;
+
+function shareHourOpts() {
+    var a = [];
+    for (var i = 0; i < 24; i++) a.push({ v: i, t: sharePad2(i) });
+    return a;
+}
+function shareMinOpts() {
+    var a = [];
+    for (var i = 0; i < 60; i++) a.push({ v: i, t: sharePad2(i) });
+    return a;
+}
+// 填下拉栏并选中（重建 option 再设 value —— 简单可靠，60 个 option 的开销可忽略）
+function shareFillSelect(el, list, sel) {
+    if (!el) return;
+    var cur = String(sel);
+    var html = '';
+    for (var i = 0; i < list.length; i++) html += '<option value="' + list[i].v + '">' + list[i].t + '</option>';
+    el.innerHTML = html;
+    el.value = cur;
+    if (el.value !== cur && el.options.length) el.selectedIndex = 0;
+}
 function shareCalRender(mask) {
     if (!mask) return;
-    var titleEl = mask.querySelector('#shareCalTitle');
     var grid = mask.querySelector('#shareCalGrid');
     if (!grid) return;
     var base = new Date(shareCalMonth);
-    if (titleEl) titleEl.textContent = base.getFullYear() + ' 年 ' + (base.getMonth() + 1) + ' 月';
-    var daysInMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
-    var startWeekday = new Date(base.getFullYear(), base.getMonth(), 1).getDay();
+    var y = base.getFullYear(), m = base.getMonth();
+    // 年份、月份各一个下拉栏（用户要求「年份月份最好也要分别多设计一个下拉栏」），
+    // ‹ › 翻月按钮保留，两条路都能用。
+    var ySel = mask.querySelector('#shareCalYear');
+    if (ySel) {
+        var years = [], thisYear = new Date().getFullYear();
+        for (var yy = thisYear - 1; yy <= thisYear + 20; yy++) years.push({ v: yy, t: yy + ' 年' });
+        shareFillSelect(ySel, years, y);
+    }
+    var mSel = mask.querySelector('#shareCalMonth');
+    if (mSel) {
+        var months = [];
+        for (var mm = 1; mm <= 12; mm++) months.push({ v: mm, t: mm + ' 月' });
+        shareFillSelect(mSel, months, m + 1);
+    }
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var startWeekday = new Date(y, m, 1).getDay();
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var sel = new Date(shareCustomMs); sel.setHours(0, 0, 0, 0);
     var week = ['日', '一', '二', '三', '四', '五', '六'];
+    var days = [];
+    for (var b = 0; b < startWeekday; b++) days.push({ blank: 1 });
+    for (var d = 1; d <= daysInMonth; d++) {
+        var day = new Date(y, m, d);
+        days.push({ d: d, past: day.getTime() < today.getTime(), on: day.getTime() === sel.getTime() });
+    }
+    var cap = 7 * SHARE_CAL_ROWS;
+    var over = days.length - cap;
+    if (over > 0) {
+        // 6 行的月份：把最后 over 格**平移到第一行的那几个空位上**（空位被它们占掉，
+        // 总格数正好回到 35）。第一版写成"拼在前面 + 保留原数组"⇒ 变成 36 格、又多出一行，
+        // 用例（n===42）当场抓住。列仍然是对的：这几格落在它们本来该在的星期列上。
+        days = days.slice(cap).concat(days.slice(over, cap));
+    } else {
+        for (var p = 0; p < -over; p++) days.push({ blank: 1 });
+    }
     var html = '';
     for (var w = 0; w < 7; w++) html += '<span class="share-cal-w">' + week[w] + '</span>';
-    for (var b = 0; b < startWeekday; b++) html += '<span></span>';
-    for (var d = 1; d <= daysInMonth; d++) {
-        var day = new Date(base.getFullYear(), base.getMonth(), d);
-        var past = day.getTime() < today.getTime();
-        var on = day.getTime() === sel.getTime();
-        html += '<button type="button" class="share-cal-d' + (on ? ' on' : '') + '" data-day="' + d + '"'
-            + (past ? ' disabled' : '') + '>' + d + '</button>';
+    for (var j = 0; j < days.length; j++) {
+        var c = days[j];
+        if (c.blank) { html += '<span class="share-cal-x"></span>'; continue; }
+        html += '<button type="button" class="share-cal-d' + (c.on ? ' on' : '') + '" data-day="' + c.d + '"'
+            + (c.past ? ' disabled' : '') + '>' + c.d + '</button>';
     }
     grid.innerHTML = html;
 }
 
-// 把 shareCustomMs 同步到界面（数字 + 日历高亮 + 显示月份）
+// 把 shareCustomMs 同步到界面（已选时间文字 + 时分下拉 + 日历高亮 + 年/月下拉）
 function shareSyncCustom(mask) {
     if (!mask) return;
     var dt = new Date(shareCustomMs);
-    var h = mask.querySelector('#shareHour');
-    var mi = mask.querySelector('#shareMin');
-    if (h) h.textContent = sharePad2(dt.getHours());
-    if (mi) mi.textContent = sharePad2(dt.getMinutes());
+    shareFillSelect(mask.querySelector('#shareHour'), shareHourOpts(), dt.getHours());
+    shareFillSelect(mask.querySelector('#shareMin'), shareMinOpts(), dt.getMinutes());
+    var val = mask.querySelector('#sharePickVal');
+    if (val) val.textContent = shareHumanTime(shareCustomMs);
     shareCalMonth = new Date(dt.getFullYear(), dt.getMonth(), 1).getTime();
     shareCalRender(mask);
+}
+
+// ── 第二个弹窗：选择失效时间（确定 = 保留，取消 = 回到打开前的值） ──────────
+function sharePickShow(mask) {
+    if (!mask) return;
+    var pick = mask.querySelector('#sharePickMask');
+    if (!pick) return;
+    sharePickPrevMs = shareCustomMs;
+    sharePickClosing = false;
+    shareSyncCustom(mask);
+    pick.style.display = '';
+    void pick.offsetWidth;                    // 先落一次 opacity:0，动画才起得来
+    pick.className = 'share-sub-mask on';
+}
+function sharePickHide(mask, revert) {
+    if (!mask) return;
+    var pick = mask.querySelector('#sharePickMask');
+    if (!pick || sharePickClosing || pick.style.display === 'none') return;
+    sharePickClosing = true;
+    if (revert) { shareCustomMs = sharePickPrevMs; shareSyncCustom(mask); shareRefresh(); }
+    pick.className = 'share-sub-mask closing';
+    setTimeout(function () {
+        pick.style.display = 'none';
+        pick.className = 'share-sub-mask';
+        sharePickClosing = false;
+    }, 150);
 }
 
 function shareOpenDialog() {
@@ -244,20 +340,10 @@ function shareOpenDialog() {
         '<div class="share-row"><span class="share-k">分享可见范围</span><span class="share-v" id="shareScope"></span></div>',
         '<div class="share-tiers" id="shareTiers"></div>',
         '<div class="share-custom" id="shareCustom" style="display:none;">',
-        '<div class="share-cal">',
-        '<div class="share-cal-head">',
-        '<button type="button" class="share-cal-nav" data-move="-1" aria-label="上个月">‹</button>',
-        '<span class="share-cal-title" id="shareCalTitle"></span>',
-        '<button type="button" class="share-cal-nav" data-move="1" aria-label="下个月">›</button>',
-        '</div>',
-        '<div class="share-cal-grid" id="shareCalGrid"></div>',
-        '</div>',
-        '<div class="share-time">',
-        '<span class="share-time-k">时间</span>',
-        '<span class="share-step" data-unit="hour"><button type="button" data-step="-1" aria-label="减一小时">−</button><b id="shareHour">00</b><button type="button" data-step="1" aria-label="加一小时">+</button></span>',
-        '<span class="share-time-k">:</span>',
-        '<span class="share-step" data-unit="min"><button type="button" data-step="-1" aria-label="减一分钟">−</button><b id="shareMin">00</b><button type="button" data-step="1" aria-label="加一分钟">+</button></span>',
-        '<span class="share-hint">（不允许早于当前系统时间）</span>',
+        '<div class="share-pick-row">',
+        '<span class="share-time-k">失效时间</span>',
+        '<b class="share-pick-val" id="sharePickVal"></b>',
+        '<button type="button" class="share-btn ghost" id="sharePickOpen">选择时间…</button>',
         '</div>',
         '</div>',
         '<div class="share-exp" id="shareExp"></div>',
@@ -266,6 +352,32 @@ function shareOpenDialog() {
         '<button class="share-btn" id="shareCopy">复制链接</button>',
         '<button class="share-btn ghost" id="shareClose">关闭</button>',
         '<span class="share-msg" id="shareMsg"></span>',
+        '</div>',
+        '</div>',
+        // ── 第二个弹窗：选择失效时间（用户要求"日历时间单独再做一个弹窗"） ──
+        '<div class="share-sub-mask" id="sharePickMask" style="display:none;">',
+        '<div class="share-sub-box" role="dialog" aria-label="选择失效时间">',
+        '<div class="share-sub-title">选择失效时间</div>',
+        '<div class="share-cal">',
+        '<div class="share-cal-head">',
+        '<button type="button" class="share-cal-nav" data-move="-1" aria-label="上个月">‹</button>',
+        '<select class="share-cal-sel" id="shareCalYear" aria-label="年份"></select>',
+        '<select class="share-cal-sel" id="shareCalMonth" aria-label="月份"></select>',
+        '<button type="button" class="share-cal-nav" data-move="1" aria-label="下个月">›</button>',
+        '</div>',
+        '<div class="share-cal-grid" id="shareCalGrid"></div>',
+        '</div>',
+        '<div class="share-time">',
+        '<span class="share-time-k">时间</span>',
+        '<select class="share-time-sel" id="shareHour" aria-label="小时"></select>',
+        '<span class="share-time-k">:</span>',
+        '<select class="share-time-sel" id="shareMin" aria-label="分钟"></select>',
+        '<span class="share-hint">（不允许早于当前系统时间）</span>',
+        '</div>',
+        '<div class="share-acts">',
+        '<button class="share-btn" id="sharePickOk">确定</button>',
+        '<button class="share-btn ghost" id="sharePickCancel">取消</button>',
+        '</div>',
         '</div>',
         '</div>'
     ].join('');
@@ -286,8 +398,9 @@ function shareOpenDialog() {
             shareTier = t.id;
             if (t.id === 'custom' && !shareCustomMs) shareCustomMs = Date.now() + 86400e3;
             mask.querySelector('#shareCustom').style.display = (t.id === 'custom') ? '' : 'none';
-            if (t.id === 'custom') shareSyncCustom(mask);
             shareRefresh();
+            if (t.id === 'custom') sharePickShow(mask);   // 直接开第二个弹窗，省一次点击
+            else sharePickHide(mask, false);              // 离开自定义档就把选择器收掉
         });
         tiersHost.appendChild(b);
     });
@@ -311,18 +424,43 @@ function shareOpenDialog() {
         shareSyncCustom(mask);
         shareRefresh();
     });
-    // 时分步进（步长都是 1 —— 粒度到分钟，和原来 datetime-local step=60 一致）
-    Array.prototype.forEach.call(mask.querySelectorAll('.share-step button'), function (b) {
-        b.addEventListener('click', function () {
-            var unit = b.parentNode.getAttribute('data-unit');
-            var dir = Number(b.getAttribute('data-step'));
-            var dt = new Date(shareCustomMs);
-            if (unit === 'hour') dt.setHours(dt.getHours() + dir);
-            else dt.setMinutes(dt.getMinutes() + dir);
-            shareCustomMs = dt.getTime();
-            shareSyncCustom(mask);
-            shareRefresh();
-        });
+    // 年 / 月下拉栏：换月时保留"日"，超出当月天数就夹到月末
+    var onYm = function () {
+        var yEl = mask.querySelector('#shareCalYear'), mEl = mask.querySelector('#shareCalMonth');
+        var y = Number(yEl && yEl.value) || new Date().getFullYear();
+        var m = (Number(mEl && mEl.value) || 1) - 1;
+        var old = new Date(shareCustomMs);
+        var last = new Date(y, m + 1, 0).getDate();
+        shareCustomMs = new Date(y, m, Math.min(old.getDate(), last), old.getHours(), old.getMinutes(), 0, 0).getTime();
+        shareSyncCustom(mask);
+        shareRefresh();
+    };
+    if (mask.querySelector('#shareCalYear')) mask.querySelector('#shareCalYear').addEventListener('change', onYm);
+    if (mask.querySelector('#shareCalMonth')) mask.querySelector('#shareCalMonth').addEventListener('change', onYm);
+
+    // 时 / 分下拉栏（用户要求：不要 +/- 步进）
+    //   ★ 这里**不**调 shareSyncCustom：那会把下拉的 option 重建一遍，正在操作的元素
+    //     会被换掉（焦点/滚动位置全丢）。只更新主窗上那行"已选时间"文字。
+    var onTime = function () {
+        var hEl = mask.querySelector('#shareHour'), mEl = mask.querySelector('#shareMin');
+        var dt = new Date(shareCustomMs);
+        dt.setHours(Number(hEl && hEl.value) || 0);
+        dt.setMinutes(Number(mEl && mEl.value) || 0);
+        dt.setSeconds(0, 0);
+        shareCustomMs = dt.getTime();
+        var val = mask.querySelector('#sharePickVal');
+        if (val) val.textContent = shareHumanTime(shareCustomMs);
+        shareRefresh();
+    };
+    if (mask.querySelector('#shareHour')) mask.querySelector('#shareHour').addEventListener('change', onTime);
+    if (mask.querySelector('#shareMin')) mask.querySelector('#shareMin').addEventListener('change', onTime);
+
+    // 第二个弹窗的开关
+    mask.querySelector('#sharePickOpen').addEventListener('click', function () { sharePickShow(mask); });
+    mask.querySelector('#sharePickOk').addEventListener('click', function () { sharePickHide(mask, false); });
+    mask.querySelector('#sharePickCancel').addEventListener('click', function () { sharePickHide(mask, true); });
+    mask.querySelector('#sharePickMask').addEventListener('click', function (e) {
+        if (e.target === mask.querySelector('#sharePickMask')) sharePickHide(mask, true);
     });
 
     mask.querySelector('#shareCopy').addEventListener('click', shareCopyLink);
@@ -333,7 +471,13 @@ function shareOpenDialog() {
     mask.querySelector('#shareScope').textContent = shareScopeLabel();
     if (!shareCustomMs) shareCustomMs = Date.now() + 86400e3;   // 自定义档默认 = 现在 + 1 天
     shareRefresh();
-    setTimeout(function () { mask.querySelector('#shareCopy').focus(); }, 0);
+    // ★ 用户要求：快捷键打开时**什么都不选中**。原来把焦点给了「复制链接」，
+    //   按钮上留一个焦点框，看着就像"被选中了"。这里把焦点和文字选区一起清干净。
+    try {
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        var sel = window.getSelection && window.getSelection();
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+    } catch (e) { }
 }
 
 // 关闭：先播退出动画，再摘掉节点（150ms 后，和 CSS 里的时长对齐）

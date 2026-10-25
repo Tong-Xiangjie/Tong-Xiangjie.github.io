@@ -262,9 +262,20 @@ section('⑦ 集成守门：脚本顺序与快捷键');
     const SHARE_CODE = SHARE.replace(/^\s*\/\/.*$/gm, '');
     check(!/<input type="datetime-local"/.test(SHARE_CODE), '自定义档不再用原生 datetime-local（改成自绘控件）');
     check(/share-cal-grid/.test(SHARE) && /shareCalRender/.test(SHARE), '自绘月历：有日历网格与渲染函数');
-    check(/data-unit="hour"/.test(SHARE) && /data-unit="min"/.test(SHARE) && /setMinutes\(dt\.getMinutes\(\) \+ dir\)/.test(SHARE),
-        '自绘时分步进：时/分各一对加减，粒度 1 分钟');
-    check(/请选一个晚于现在的时间/.test(SHARE) && /btn\.disabled = true/.test(SHARE),
+    // ★ 用户要求：时/分改成下拉栏（不要 +/- 步进）；日历时间选择做成独立的第二个弹窗；
+    //   日期格永远 5 行（4 行/6 行的月份高度也必须一样）；链接栏不可拉伸；年/月各一个下拉。
+    check(/id="shareHour"/.test(SHARE) && /id="shareMin"/.test(SHARE) && /shareHourOpts/.test(SHARE) && /shareMinOpts/.test(SHARE) && !/data-step=/.test(SHARE),
+        '时/分改成下拉栏（24 / 60 项），不再有 +/- 步进按钮');
+    check(/share-sub-mask/.test(SHARE) && /id="sharePickMask"/.test(SHARE) && /sharePickShow/.test(SHARE) && /sharePickHide/.test(SHARE),
+        '日历时间选择是独立的第二个弹窗（取消会回滚）');
+    check(/SHARE_CAL_ROWS = 5/.test(SHARE) && /days\.slice\(cap\)\.concat\(days\.slice\(over, cap\)\)/.test(SHARE),
+        '日期格固定 5 行：6 行的月份把多出的格子平移到第一行（占掉第一行的空位）');
+    check(/shareCalYear/.test(SHARE) && /shareCalMonth/.test(SHARE) && /share-cal-sel/.test(SHARE),
+        '年、月各有一个下拉栏');
+    check(/\.share-link\{[^}]*resize:none/.test(SHARE), '链接展示栏不可拉伸（resize:none）');
+    check(/用户要求：快捷键打开时\*\*什么都不选中\*\*/.test(SHARE) && !/shareCopy'\)\.focus\(\)/.test(SHARE),
+        '快捷键打开时不选中任何东西（不再把焦点丢给「复制链接」）');
+    check(/链接失效时间不能早于当前系统时间/.test(SHARE) && /btn\.disabled = true/.test(SHARE),
         '自定义选了过去的时间 → 提示并禁用复制（不让发出一个已过期的链接）');
     check(/shareScopeOf\(parseRoute\('#' \+ buildRoute\(\)\)\)/.test(SHARE),
         '★ 范围取自"按下快捷键那一刻的深链"（buildRoute → parseRoute → shareScopeOf）');
