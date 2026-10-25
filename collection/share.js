@@ -276,10 +276,19 @@ function shareFallbackCopy(url) {
 }
 
 // ── 快捷键：window 捕获阶段，先于工具箱那层 ────────────────────────────────
+// ★ 两套组合键：Ctrl/Cmd+Shift+S（Chrome/Chromium 可用）与 Alt+Shift+S（备用）。
+//   为什么必须有第二套：Edge 把 Ctrl+Shift+S 绑给了浏览器自带的「网页捕获」、
+//   Firefox 绑给了「截图」—— 那是**浏览器级**快捷键，网页 side 的 preventDefault
+//   挡不住（用户实测：Edge 里按 Ctrl+Shift+S 弹的是截图，不是我们的分享窗）。
+//   Alt+Shift+S 三家浏览器都没占用，也不与 Windows 输入法切换（Alt+Shift 松开才切）打架。
+//   想改组合键就改这里 + gate.js 里 shareBlockReshare 的两处判定，两边必须一致，
+//   否则分享模式下会出现"按了没反应但也没被拦住"的缝。
 function shareShortcutHandler(e) {
-    if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
     var k = String(e.key || '').toLowerCase();
-    if (k !== 's') return;                      // 只认 Ctrl/Cmd+Shift+S，别的组合一律放过
+    if (k !== 's') return;                                   // 只认 S，别的组合一律放过
+    var ctrlCombo = (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey;
+    var altCombo = e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey;
+    if (!ctrlCombo && !altCombo) return;
     // ★ 抢在所有人之前：toolbox.js:8507 的 Ctrl+B/I/U/S 分支不检查 shiftKey，
     //   不 stopPropagation 的话在工具箱里会同时触发"删除线"。
     e.preventDefault();

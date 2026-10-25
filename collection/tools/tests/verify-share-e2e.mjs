@@ -162,12 +162,13 @@ async function main() {
         await sleep(1200); await settle(6000);
         return verdict();
     };
-    const hotkey = async () => {
-        await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', modifiers: 10, windowsVirtualKeyCode: 83, nativeVirtualKeyCode: 83, code: 'KeyS', key: 'S' });
+    const hotkey = async (mods = 10) => {                 // 10 = Ctrl+Shift，9 = Alt+Shift
+        await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', modifiers: mods, windowsVirtualKeyCode: 83, nativeVirtualKeyCode: 83, code: 'KeyS', key: 'S' });
         await sleep(120);
-        await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: 10, windowsVirtualKeyCode: 83, nativeVirtualKeyCode: 83, code: 'KeyS', key: 'S' });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: mods, windowsVirtualKeyCode: 83, nativeVirtualKeyCode: 83, code: 'KeyS', key: 'S' });
         await sleep(900);
     };
+    const closeShareDialog = () => evalJs("(()=>{const b=document.querySelector('#shareClose'); if(b) b.click(); return true;})()");
     const mark = () => evalJs(`localStorage.setItem('collection-gate', '${adminMark}')`);
     const unmark = () => evalJs("localStorage.removeItem('collection-gate'); sessionStorage.clear()");
 
@@ -264,6 +265,37 @@ async function main() {
     await load(n++, 'notes/commemorative');
     check('recipient sees no exit button', (await evalJs("!!document.getElementById('gate-share-exit')")) === false);
     check('recipient page is still scoped', (await evalJs("document.querySelectorAll('.gate-share-locked').length")) > 100);
+
+    console.log('=== 6. 快捷键：Ctrl/Cmd+Shift+S 与 Alt+Shift+S ===');
+    // Edge 的 Ctrl+Shift+S 是浏览器自带的「网页捕获」、Firefox 是「截图」，网页挡不住，
+    // 所以备用组合键 Alt+Shift+S 必须同样可用；两套在分享模式下都必须被吃掉。
+    await mark();
+    // ★ 必须把上一步的分享会话清掉：sessionStorage 跨同标签页导航存活，
+    //   留着它 gate.js 会当成"还在分享模式"把快捷键吃掉（这本身也是个真实缺陷：
+    //   管理员从分享链接直接回自己站点时会有僵尸会话，见下面的"回自己站点"用例）。
+    await unmark();
+    await mark();
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}` });
+    await settle();
+    console.log('  [dbg] url=' + await evalJs('location.href')
+        + '  gateOk=' + await evalJs("document.documentElement.classList.contains('gate-ok')")
+        + '  mark=' + await evalJs("localStorage.getItem('collection-gate')")
+        + '  title=' + await evalJs('document.title')
+        + '  shareOpenDialog=' + await evalJs("typeof shareOpenDialog")
+        + '  mask=' + await evalJs("!!document.querySelector('.share-mask')"));
+    await hotkey(10);
+    check('完整站点：Ctrl+Shift+S 打开分享窗', (await evalJs("!!document.querySelector('.share-mask')")) === true);
+    await closeShareDialog(); await sleep(400);
+    await hotkey(9);
+    check('完整站点：Alt+Shift+S 打开分享窗（Edge/Firefox 用这个）', (await evalJs("!!document.querySelector('.share-mask')")) === true);
+    await closeShareDialog(); await sleep(400);
+    await load(n++, 'notes/commemorative');
+    await waitFor("document.querySelectorAll('.gate-share-locked').length>100", 12000);
+    await hotkey(10);
+    check('分享模式：Ctrl+Shift+S 被吃掉（不能再分享）', (await evalJs("!!document.querySelector('.share-mask')")) === false);
+    await hotkey(9);
+    check('分享模式：Alt+Shift+S 也被吃掉', (await evalJs("!!document.querySelector('.share-mask')")) === false);
+    await unmark();
 
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();

@@ -1082,13 +1082,20 @@
         }
     }
 
-    // ★ 分享链接不能再被分享：Ctrl+Shift+S 在分享模式下直接吃掉。
+    // ★ 分享链接不能再被分享：分享快捷键在分享模式下直接吃掉。
+    //   与 share.js 的 shareShortcutHandler 必须**逐字对应**（两套组合键都要拦）：
+    //   Ctrl/Cmd+Shift+S（Chrome）与 Alt+Shift+S（Edge/Firefox —— 它们的 Ctrl+Shift+S
+    //   被浏览器自己的截图/网页捕获占着，网页挡不住，所以备用组合键必须一起拦，
+    //   否则分享模式下按 Alt+Shift+S 会漏出分享弹窗）。
     //   gate.js 在 share.js 之前加载，所以这个 window 捕获监听比 share.js 的先注册，
     //   同级同阶段下先跑，stopImmediatePropagation 就能让分享弹窗根本不出现。
     function shareBlockReshare(e) {
         if (!shareRecNow()) return;
         var k = e.key || '';
-        if (!(e.ctrlKey && e.shiftKey && (k === 'S' || k === 's'))) return;
+        if (!(k === 'S' || k === 's')) return;
+        var ctrlCombo = e.ctrlKey && e.shiftKey && !e.altKey;
+        var altCombo = e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey;
+        if (!ctrlCombo && !altCombo) return;
         e.preventDefault();
         e.stopPropagation();
         if (e.stopImmediatePropagation) e.stopImmediatePropagation();
