@@ -2477,7 +2477,13 @@ function renderTimelineContent(config, opts) {
     let html = `<div class="timeline-top-bar">`;
     html += `<button class="back-btn" onclick="backFromTimeline()">← 返回专题</button>`;
     html += `<div class="timeline-top-right">`;
-    html += `<span class="timeline-top-count">共${filteredItems.length}件</span>`;
+    // ★★ 用户裁定：「评一次级不应该算进件数里面」（指的就是这个下拉栏左侧的"共xx件"）。
+    //   filteredItems 里混着**评级费条目**（type === 'fee'，gradingFeeEntries() 生产，
+    //   见本文件 1700 行那段的口径说明），直接取 length 会把"评一次级"数成一件藏品。
+    //   这里只数藏品；评级费条目**仍然照常显示**在时间轴上（用户之前裁定"评级费出现在
+    //   币海拾年里"），只是不进件数。
+    const timelinePieceCount = filteredItems.reduce((n, it) => n + (it.type === 'fee' ? 0 : 1), 0);
+    html += `<span class="timeline-top-count">共${timelinePieceCount}件</span>`;
 
     html += `<select class="timeline-filter-select" id="timelineYearFilter" onchange="onTimelineFilterChange()">`;
     for (const y of availableYears) {

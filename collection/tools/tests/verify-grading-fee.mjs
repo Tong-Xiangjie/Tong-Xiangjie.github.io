@@ -1348,8 +1348,11 @@ try {
     })()`);
     const topCount = await evaluate(`(document.querySelector('.timeline-top-count')||{}).textContent || ''`);
     const topN = NUM(topCount);
-    ok(topN === baseline + ENTRY_DATES.length,
-        `时间轴条目数 = 藏品（填了购入日期的）${baseline} + 评级费 ${ENTRY_DATES.length} = ${baseline + ENTRY_DATES.length}（实际「${topCount}」）`);
+    // ★★ 用户裁定（本条原先是断言旧行为）：下拉栏左侧那个「共xx件」**不把评级算进件数**。
+    //   所以现在是：件数 = 只数藏品（填了购入日期的）= baseline；而时间轴上的**条目**总数
+    //   仍然是 baseline + 评级费 ENTRY_DATES.length（评级费照常显示在时间轴上，只是不计数）。
+    ok(topN === baseline,
+        `时间轴「共 N 件」只数藏品 = ${baseline}（实际「${topCount}」；另有评级费 ${ENTRY_DATES.length} 条只显示、不计入件数）`);
     ok(topN !== copyCount, `评级费是**独立的一份条目数据**、没有混进 collectAllCopies()（藏品口径 ${copyCount} ≠ 时间轴 ${topN}）`);
 
     // ⑫-7 「我的」页在真实页面上也没被改：资金投入还是两行、且不含评级费
