@@ -74,15 +74,17 @@ function shareEnsureStyle() {
         '@media (max-width:430px){.share-tier{font-size:.72rem;padding:6px 1px;}.share-tiers{gap:4px;}}',
         // ── 自定义时间：主窗只显示"已选时间 + 选择按钮"，选择器是**第二个弹窗** ──
         //   （用户要求：日历时间选择单独做成一个弹窗，不再塞在主窗里撑高它。）
-        '.share-custom{margin:8px 0 2px;}',
-        '.share-pick-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}',
-        '.share-pick-val{font-family:ui-monospace,Consolas,monospace;font-weight:600;}',
+        // ★ 第二轮反馈：主窗里单占一行会让整个框变高 ⇒ 把「选择时间」小按钮**并到
+        //   "失效时间"那一行的右端**（行高不变 ⇒ 弹窗高度不随档位变化）。
+        '.share-exp-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:8px 0;}',
+        '.share-mini{font:inherit;font-size:.76rem;line-height:1.25;padding:0 6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;cursor:pointer;flex:0 0 auto;}',
+        '.share-mini:hover{border-color:var(--theme,#1677ff);}',
         // 第二个弹窗：挂在 .share-mask 之下（不是 .share-box 里 —— 那个盒子有 transform
         // + overflow:auto，fixed 子元素会被它当包含块并裁掉），z-index 更高一层。
         '.share-sub-mask{position:fixed;inset:0;z-index:3100;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .18s ease;}',
         '.share-sub-mask.on{opacity:1;}',
         '.share-sub-mask.closing{opacity:0;}',
-        '.share-sub-box{width:min(94vw,340px);max-height:88vh;overflow:auto;background:var(--card-bg,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:16px 16px 12px;font-size:.9rem;opacity:0;transform:translateY(10px) scale(.985);transition:opacity .18s ease,transform .22s cubic-bezier(.22,.9,.28,1.06);}',
+        '.share-sub-box{width:min(94vw,380px);max-height:88vh;overflow:auto;background:var(--card-bg,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:16px 16px 12px;font-size:.9rem;opacity:0;transform:translateY(10px) scale(.985);transition:opacity .18s ease,transform .22s cubic-bezier(.22,.9,.28,1.06);}',
         '.share-sub-mask.on .share-sub-box{opacity:1;transform:none;}',
         '.share-sub-mask.closing .share-sub-box{opacity:0;transform:translateY(6px) scale(.985);transition-duration:.15s;}',
         '.share-sub-title{font-size:.98rem;font-weight:700;margin:0 0 10px;}',
@@ -91,24 +93,31 @@ function shareEnsureStyle() {
         '.share-cal-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;}',
         '.share-cal-nav{font:inherit;width:26px;height:26px;line-height:1;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;cursor:pointer;flex:0 0 auto;}',
         '.share-cal-nav:hover{border-color:var(--theme,#1677ff);}',
-        '.share-cal-sel{font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;min-width:0;}',
+        // ★ 站点在 layout.css 里写了 `@media (pointer:fine){ select{display:none} }`
+        //   （它用自绘下拉替换原生 select）⇒ 我们的 select 必须显式写 display，
+        //   否则计算出来就是 display:none（探针实测：#shareHour 宽 0px、整行塌成 4 行）。
+        //   类选择器的优先级高于元素选择器，不需要 !important。
+        '.share-sub-box .share-cal-sel{display:inline-block !important;font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;min-width:0;cursor:pointer;}',
         // ★ 行高写死 + 永远 5 行日期格 ⇒ 4 行 / 5 行 / 6 行的月份，格子区高度完全一样
-        '.share-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:26px;gap:2px;}',
-        '.share-cal-w{color:var(--text-secondary,#666);text-align:center;font-size:.72rem;line-height:26px;}',
+        '.share-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:30px;gap:2px;}',
+        '.share-cal-w{color:var(--text-secondary,#666);text-align:center;font-size:.72rem;line-height:30px;}',
         '.share-cal-x{display:block;}',
         '.share-cal-d{font:inherit;font-size:.8rem;border:0;border-radius:6px;background:transparent;color:inherit;cursor:pointer;text-align:center;}',
         '.share-cal-d:hover:not(:disabled){background:rgba(22,119,255,.14);}',
         '.share-cal-d.on{background:var(--theme,#1677ff);color:#fff;}',
         '.share-cal-d:disabled{opacity:.3;cursor:not-allowed;}',
         // ── 时分：改成下拉栏（用户要求：不要 +/- 步进） ─────────────────────
-        '.share-time{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}',
-        '.share-time-k{color:var(--text-secondary,#666);}',
-        '.share-time-sel{font:inherit;font-size:.82rem;padding:3px 4px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;}',
-        '.share-hint{color:var(--text-secondary,#666);font-size:.78rem;}',
-        '.share-exp{margin:8px 0;color:var(--text-secondary,#666);}',
+        '.share-time{display:flex;align-items:center;gap:4px;margin-top:8px;flex-wrap:nowrap;}',
+        '.share-time-k{color:var(--text-secondary,#666);flex:0 0 auto;}',
+        '.share-sub-box .share-time-sel{display:inline-block !important;font:inherit;font-size:.82rem;padding:2px 2px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;width:3.6em;flex:0 0 auto;text-align:center;cursor:pointer;}',
+        '.share-hint{color:var(--text-secondary,#666);font-size:.72rem;white-space:nowrap;}',
+        '.share-exp{margin:0;color:var(--text-secondary,#666);}',
         '.share-exp.bad{color:#ff7875;}',
         '.share-link{width:100%;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;padding:6px;border:1px solid var(--border,#ddd);border-radius:6px;background:transparent;color:inherit;resize:none;overflow:auto;}',
-        '.share-acts{display:flex;gap:8px;align-items:center;margin-top:10px;}',
+        // ★ 用户要求：整排靠右（复制链接/关闭、确定/取消），而「链接复制成功！」就贴在
+        //   「复制链接」**左边**（所以它必须排在按钮之前，且**不能**给 auto 外边距 ——
+        //   探针实测：auto 挂在最后一个兄弟上会把按钮一起顶到左边缘）。
+        '.share-acts{display:flex;gap:8px;align-items:center;margin-top:10px;justify-content:flex-end;}',
         '.share-btn{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid var(--theme,#1677ff);background:var(--theme,#1677ff);color:#fff;cursor:pointer;}',
         '.share-btn.ghost{background:transparent;color:inherit;border-color:var(--border,#ddd);}',
         // ── 复制成功：淡入，3 秒后淡出 ─────────────────────────────────────
@@ -294,8 +303,7 @@ function shareSyncCustom(mask) {
     var dt = new Date(shareCustomMs);
     shareFillSelect(mask.querySelector('#shareHour'), shareHourOpts(), dt.getHours());
     shareFillSelect(mask.querySelector('#shareMin'), shareMinOpts(), dt.getMinutes());
-    var val = mask.querySelector('#sharePickVal');
-    if (val) val.textContent = shareHumanTime(shareCustomMs);
+    // 失效时间的文字由 shareRefresh 写在 #shareExp 上（不再有单独的 #sharePickVal 行）
     shareCalMonth = new Date(dt.getFullYear(), dt.getMonth(), 1).getTime();
     shareCalRender(mask);
 }
@@ -339,19 +347,18 @@ function shareOpenDialog() {
         '<div class="share-row"><span class="share-k">当前所在深链</span><span class="share-v" id="shareHash"></span></div>',
         '<div class="share-row"><span class="share-k">分享可见范围</span><span class="share-v" id="shareScope"></span></div>',
         '<div class="share-tiers" id="shareTiers"></div>',
-        '<div class="share-custom" id="shareCustom" style="display:none;">',
-        '<div class="share-pick-row">',
-        '<span class="share-time-k">失效时间</span>',
-        '<b class="share-pick-val" id="sharePickVal"></b>',
-        '<button type="button" class="share-btn ghost" id="sharePickOpen">选择时间…</button>',
-        '</div>',
-        '</div>',
+        '<div class="share-exp-line">',
         '<div class="share-exp" id="shareExp"></div>',
+        '<button type="button" class="share-mini" id="sharePickOpen" style="display:none;">选择时间</button>',
+        '</div>',
         '<textarea class="share-link" id="shareLink" rows="3" readonly></textarea>',
         '<div class="share-acts">',
+        // ★ 提示放在两个按钮**之前**：那一排是 justify-content:flex-end（按钮统统靠右），
+        //   「链接复制成功！」靠 margin-right:auto 顶到最左。放在按钮后面的话，auto 外边距
+        //   会把按钮一起顶到左边去（探针实测：按钮贴着左边缘、右边空 359px）。
+        '<span class="share-msg" id="shareMsg"></span>',
         '<button class="share-btn" id="shareCopy">复制链接</button>',
         '<button class="share-btn ghost" id="shareClose">关闭</button>',
-        '<span class="share-msg" id="shareMsg"></span>',
         '</div>',
         '</div>',
         // ── 第二个弹窗：选择失效时间（用户要求"日历时间单独再做一个弹窗"） ──
@@ -368,7 +375,6 @@ function shareOpenDialog() {
         '<div class="share-cal-grid" id="shareCalGrid"></div>',
         '</div>',
         '<div class="share-time">',
-        '<span class="share-time-k">时间</span>',
         '<select class="share-time-sel" id="shareHour" aria-label="小时"></select>',
         '<span class="share-time-k">:</span>',
         '<select class="share-time-sel" id="shareMin" aria-label="分钟"></select>',
@@ -397,7 +403,6 @@ function shareOpenDialog() {
         b.addEventListener('click', function () {
             shareTier = t.id;
             if (t.id === 'custom' && !shareCustomMs) shareCustomMs = Date.now() + 86400e3;
-            mask.querySelector('#shareCustom').style.display = (t.id === 'custom') ? '' : 'none';
             shareRefresh();
             if (t.id === 'custom') sharePickShow(mask);   // 直接开第二个弹窗，省一次点击
             else sharePickHide(mask, false);              // 离开自定义档就把选择器收掉
@@ -448,9 +453,7 @@ function shareOpenDialog() {
         dt.setMinutes(Number(mEl && mEl.value) || 0);
         dt.setSeconds(0, 0);
         shareCustomMs = dt.getTime();
-        var val = mask.querySelector('#sharePickVal');
-        if (val) val.textContent = shareHumanTime(shareCustomMs);
-        shareRefresh();
+        shareRefresh();          // 失效时间显示在 #shareExp 那一行上，由它统一刷新
     };
     if (mask.querySelector('#shareHour')) mask.querySelector('#shareHour').addEventListener('change', onTime);
     if (mask.querySelector('#shareMin')) mask.querySelector('#shareMin').addEventListener('change', onTime);
@@ -495,29 +498,52 @@ function shareCloseDialog() {
     }, 150);
 }
 
+// 档位 → 过期状态（bad = 时间无效/已过期）
+function shareExpState() {
+    var exp = shareExpForTier(shareTier, shareCustomMs);
+    var bad = (typeof exp === 'number' && !isFinite(exp)) || (exp !== null && exp <= Date.now());
+    return { exp: exp, bad: bad };
+}
+// 失效时间那一行该显示什么（"现在是 …" / "还有 …" 都来自这里）
+function shareExpText(st) {
+    if (st.bad) return '链接失效时间不能早于当前系统时间（' + shareHumanTime(Date.now()) + '）！';
+    if (st.exp === null) return '分享链接将永久有效，请谨慎选择此项';
+    return '距离失效时间 ' + shareHumanTime(st.exp) + ' ' + shareHumanLeft(st.exp);
+}
+// ★ 用户要求：句子里那个"系统时间"要**实时刷新**。所以单独抽一个"只更新这一行"的函数，
+//   挂一个 1 秒的定时器反复调它。为什么不能直接每秒跑 shareRefresh()：那会把
+//   「链接复制成功！」那句一起清掉（它靠 #shareMsg，shareRefresh 每次都会重置它），
+//   也会白白重排整个弹窗。这里只在文字真的变了才写 DOM，开销可以忽略。
+function shareUpdateExpLine() {
+    if (!shareDialogEl) return null;
+    var el = shareDialogEl.querySelector('#shareExp');
+    if (!el) return null;
+    var st = shareExpState();
+    var txt = shareExpText(st);
+    if (el.textContent !== txt) el.textContent = txt;
+    var cls = 'share-exp' + (st.bad ? ' bad' : '');
+    if (el.className !== cls) el.className = cls;
+    return st;
+}
+setInterval(function () { if (shareDialogEl) shareUpdateExpLine(); }, 1000);
+
 // 重算链接/预览（档位、自定义时间任何变化都走这里）
 function shareRefresh() {
     if (!shareDialogEl) return;
     var mask = shareDialogEl;
-    var exp = shareExpForTier(shareTier, shareCustomMs);
-    var bad = (typeof exp === 'number' && !isFinite(exp)) || (exp !== null && exp <= Date.now());
+    var exp = shareExpState().exp;
     var t = SHARE_TIERS.filter(function (x) { return x.id === shareTier; })[0];
     Array.prototype.forEach.call(mask.querySelectorAll('.share-tier'), function (b) {
         b.className = 'share-tier' + (b.getAttribute('data-tier') === shareTier ? ' on' : '');
     });
 
     var expEl = mask.querySelector('#shareExp');
-    if (bad) {
-        expEl.className = 'share-exp bad';
-        expEl.textContent = '链接失效时间不能早于当前系统时间（' + shareHumanTime(Date.now()) + '）！';
-    } else if (exp === null) {
-        expEl.className = 'share-exp';
-        expEl.textContent = '分享链接将永久有效，请谨慎选择此项';
-    } else {
-        expEl.className = 'share-exp';
-        expEl.textContent = '距离失效时间 ' + shareHumanTime(exp) + ' ' + shareHumanLeft(exp);
-    }
-
+    var st = shareUpdateExpLine() || shareExpState();
+    var bad = st.bad;
+    // 「选择时间」小按钮只在自定义档露出来。它和失效时间同处一行（.share-exp-line），
+    // 高度只有 .76rem + 1px 边框 ⇒ 比这行文字还矮 ⇒ 弹窗总高度不随档位变化。
+    var pickBtn = mask.querySelector('#sharePickOpen');
+    if (pickBtn) pickBtn.style.display = (shareTier === 'custom') ? '' : 'none';
     var linkEl = mask.querySelector('#shareLink');
     var btn = mask.querySelector('#shareCopy');
     if (bad) {

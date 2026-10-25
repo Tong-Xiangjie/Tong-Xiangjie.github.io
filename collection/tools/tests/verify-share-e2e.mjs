@@ -328,10 +328,10 @@ async function main() {
     check('小时/分钟是下拉栏（24 / 60 项），已经没有 +/- 步进按钮',
         (await evalJs("(()=>{const h=document.querySelector('#shareHour'),m=document.querySelector('#shareMin');return !!h&&!!m&&h.tagName==='SELECT'&&m.tagName==='SELECT'&&h.options.length===24&&m.options.length===60&&document.querySelectorAll('.share-step button').length===0;})()")) === true,
         await evalJs("(()=>{const h=document.querySelector('#shareHour'),m=document.querySelector('#shareMin');return (h?h.tagName+'/'+h.options.length:'-')+' · '+(m?m.tagName+'/'+m.options.length:'-')+' · 步进按钮='+document.querySelectorAll('.share-step button').length;})()"));
-    const valBefore = await evalJs("document.querySelector('#sharePickVal').textContent");
+    const valBefore = await evalJs("document.querySelector('#shareExp').textContent");
     await evalJs("(()=>{const h=document.querySelector('#shareHour');h.value=String((Number(h.value)+3)%24);h.dispatchEvent(new Event('change',{bubbles:true}));return 1;})()");
     await sleep(300);
-    const valAfter = await evalJs("document.querySelector('#sharePickVal').textContent");
+    const valAfter = await evalJs("document.querySelector('#shareExp').textContent");
     check('改「小时」下拉后主窗的失效时间跟着变', valBefore !== valAfter, valBefore + ' → ' + valAfter);
     check('自定义档的链接带 e', (await evalJs(payloadOf)).e !== undefined, JSON.stringify(await evalJs(payloadOf)).slice(0, 60));
     await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='永久').click()");
@@ -402,18 +402,65 @@ async function main() {
     await sleep(350);
     await evalJs("document.querySelector('#sharePickOpen').click()");
     await sleep(350);
-    const beforeCancel = await evalJs("document.querySelector('#sharePickVal').textContent");
+    const beforeCancel = await evalJs("document.querySelector('#shareExp').textContent");
     await ymSet(2027, 8);
-    const midCancel = await evalJs("document.querySelector('#sharePickVal').textContent");
+    const midCancel = await evalJs("document.querySelector('#shareExp').textContent");
     await evalJs("document.querySelector('#sharePickCancel').click()");
     await sleep(400);
-    const afterCancel = await evalJs("document.querySelector('#sharePickVal').textContent");
+    const afterCancel = await evalJs("document.querySelector('#shareExp').textContent");
     check('第二个弹窗点「取消」回滚到打开前的值',
         beforeCancel !== midCancel && afterCancel === beforeCancel,
         beforeCancel + ' → ' + midCancel + ' → 取消后 ' + afterCancel);
     check('取消后弹窗收起（display:none）',
         (await evalJs("getComputedStyle(document.querySelector('#sharePickMask')).display")) === 'none',
         String(await evalJs("getComputedStyle(document.querySelector('#sharePickMask')).display")));
+    // ★ 用户第三轮反馈：时分那行去掉「时间」二字、两个下拉收窄且整行不换行；两排按钮居右；
+    //   「选择时间…」的省略号去掉。
+    await evalJs("document.querySelector('#sharePickOpen').click()");
+    await sleep(350);
+    const timeRow = await evalJs("(()=>{const r=document.querySelector('.share-sub-box .share-time');const h=document.querySelector('#shareHour'),m=document.querySelector('#shareMin'),k=r.querySelector('.share-hint');return {labels:[...r.querySelectorAll('.share-time-k')].map(x=>x.textContent.trim()),sameRow:Math.round(h.getBoundingClientRect().top)===Math.round(m.getBoundingClientRect().top),overflow:r.scrollWidth-r.clientWidth,wrap:getComputedStyle(r).flexWrap,selW:Math.round(h.getBoundingClientRect().width),hintBottom:Math.round(k.getBoundingClientRect().bottom),rowBottom:Math.round(r.getBoundingClientRect().bottom)};})()");
+    check('时分那行已经去掉「时间」二字',
+        timeRow.labels.indexOf('时间') < 0, '该行剩下的 .share-time-k = ' + JSON.stringify(timeRow.labels));
+    // 判据说明：不能用"子元素 top 去重 == 1"——align-items:center 下，高度不同的子元素
+    // （下拉 vs 提示文字）top 本来就不一样，那不是换行。正确判据是：两个下拉在同一行
+    // （top 相同）且整行不横向溢出。第一版判据写错，害我以为还在换行。
+    check('两个下拉与提示同处一行、整行不溢出',
+        timeRow.sameRow === true && Number(timeRow.overflow) <= 1 && timeRow.wrap === 'nowrap',
+        '同一行=' + timeRow.sameRow + ' 溢出=' + timeRow.overflow + ' flexWrap=' + timeRow.wrap + ' 下拉宽=' + timeRow.selW + 'px');
+    const actEdge = await evalJs("(()=>{const edge=(box,sel)=>{const b=document.querySelector(box);const bs=[...document.querySelectorAll(sel)];if(!b||!bs.length)return null;const pad=parseFloat(getComputedStyle(b).paddingRight)||0;const last=bs[bs.length-1].getBoundingClientRect();return Math.round((b.getBoundingClientRect().right-pad)-last.right);};return {main:edge('.share-box','.share-box .share-acts .share-btn'),pick:edge('.share-sub-box','.share-sub-box .share-acts .share-btn')};})()");
+    check('两排按钮都居右（最右按钮的边缘与容器内容区对齐，误差 ≤2px）',
+        Math.abs(Number(actEdge.main)) <= 2 && Math.abs(Number(actEdge.pick)) <= 2,
+        JSON.stringify(actEdge) + ' acts.justifyContent=' + await evalJs("getComputedStyle(document.querySelector('.share-box .share-acts')).justifyContent")
+        + ' 主窗 height/marginRight=' + await evalJs("getComputedStyle(document.querySelector('#shareMsg')).marginRight"));
+    check('「选择时间」按钮文案没有省略号',
+        (await evalJs("document.querySelector('#sharePickOpen').textContent.trim()")) === '选择时间',
+        JSON.stringify(await evalJs("document.querySelector('#sharePickOpen').textContent")));
+    await evalJs("document.querySelector('#sharePickOk').click()");
+    await sleep(300);
+    // ★ 用户反馈：「选『自定义』会让整个分享框变高」⇒ 现在按钮并进失效时间那一行，
+    //   高度必须与别的档位一模一样（实测差值 ≤2px）。
+    const boxH = async () => Number(await evalJs("Math.round(document.querySelector('.share-box').getBoundingClientRect().height)"));
+    await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='1 天').click()");
+    await sleep(350);
+    const hDay = await boxH();
+    await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='自定义').click()");
+    await sleep(450);
+    const hCustom = await boxH();
+    check('选「自定义」不再让分享框变高（高度差 ≤2px）',
+        Math.abs(hDay - hCustom) <= 2,
+        '1 天=' + hDay + 'px · 自定义=' + hCustom + 'px · 差=' + Math.abs(hDay - hCustom) + 'px');
+    // ★ 用户要求：句子里那个"现在是 YYYY-MM-DD HH:MM"要**实时刷新**，不能停在打开那一刻。
+    //   验证办法：把自定义时间设成过去（走"系统时间"那句话），再把页面里的 Date.now
+    //   人为拨快 61 秒，等定时器跑一拍 —— 文字必须跟着变。
+    await evalJs("(()=>{shareCustomMs = Date.now()-61000; shareRefresh(); return 1;})()");
+    await sleep(250);
+    const clock1 = await evalJs("document.querySelector('#shareExp').textContent");
+    await evalJs("(()=>{window.__realNow=Date.now;Date.now=function(){return window.__realNow.call(Date)+61000;};return 1;})()");
+    await sleep(1500);
+    const clock2 = await evalJs("document.querySelector('#shareExp').textContent");
+    await evalJs("(()=>{if(window.__realNow)Date.now=window.__realNow;return 1;})()");
+    check('那句"当前系统时间"每秒自己走（不是停在打开那一刻）',
+        /系统时间/.test(String(clock1)) && clock1 !== clock2, clock1 + '  →  ' + clock2);
 
     await evalJs("document.querySelector('#shareClose').click()");
     const goneNow = await evalJs("!!document.querySelector('.share-mask')");
