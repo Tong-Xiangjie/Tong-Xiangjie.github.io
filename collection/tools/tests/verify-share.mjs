@@ -236,11 +236,20 @@ section('⑦ 集成守门：脚本顺序与快捷键');
         '再按一次是关闭（同一个组合永远只表示分享）');
 
     const ids = ['h1', 'd1', 'd7', 'd30', 'custom', 'site'];
-    check(ids.every(id => SHARE.includes(`id: '${id}'`)), '六个档位齐全：1 小时 / 1 天 / 7 天 / 30 天 / 自定义 / 跟随站点令牌');
+    check(ids.every(id => SHARE.includes(`id: '${id}'`)), '六个档位齐全：1 小时 / 1 天 / 7 天 / 30 天 / 自定义 / 永久');
+    check(/label: '永久'/.test(SHARE) && /ms: -1/.test(SHARE),
+        '★ 第六档文案是「永久」（机制没变：ms=-1 ⇒ 不写 e，靠轮换站点令牌撤销）');
     check(/SHARE_DEFAULT_TIER = 'd1'/.test(SHARE), '默认档是 1 天');
     check(/ms: 3600e3/.test(SHARE) && /ms: 86400e3/.test(SHARE) && /ms: 7 \* 86400e3/.test(SHARE) && /ms: 30 \* 86400e3/.test(SHARE),
         '四档毫秒值与约定一致（3600e3 / 86400e3 / 7*86400e3 / 30*86400e3）');
-    check(/type="datetime-local" step="60"/.test(SHARE), '自定义档用 datetime-local，粒度到分钟');
+    // ★ 自定义时间改成自己画的月历 + 时分步进：原生 datetime-local 在深色模式下会变白、
+    //   样式不受控。断言时**先剥掉行注释**——文件里那句"为什么不用 <input type=
+    //   datetime-local>"的说明本身就会误伤正则（这个坑踩过一次了）。
+    const SHARE_CODE = SHARE.replace(/^\s*\/\/.*$/gm, '');
+    check(!/<input type="datetime-local"/.test(SHARE_CODE), '自定义档不再用原生 datetime-local（改成自绘控件）');
+    check(/share-cal-grid/.test(SHARE) && /shareCalRender/.test(SHARE), '自绘月历：有日历网格与渲染函数');
+    check(/data-unit="hour"/.test(SHARE) && /data-unit="min"/.test(SHARE) && /setMinutes\(dt\.getMinutes\(\) \+ dir\)/.test(SHARE),
+        '自绘时分步进：时/分各一对加减，粒度 1 分钟');
     check(/请选一个晚于现在的时间/.test(SHARE) && /btn\.disabled = true/.test(SHARE),
         '自定义选了过去的时间 → 提示并禁用复制（不让发出一个已过期的链接）');
     check(/shareScopeOf\(parseRoute\('#' \+ buildRoute\(\)\)\)/.test(SHARE),

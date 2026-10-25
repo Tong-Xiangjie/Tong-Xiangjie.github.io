@@ -297,6 +297,74 @@ async function main() {
     check('分享模式：Alt+Shift+S 也被吃掉', (await evalJs("!!document.querySelector('.share-mask')")) === false);
     await unmark();
 
+    console.log('=== 7. UI：一排档位 / 复制成功淡入淡出 / 进出动画 / 自绘时间 / 永久 ===');
+    await unmark(); await mark();
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}` });
+    await settle();
+    await hotkey(10);
+    check('弹窗出现且带 on 类（淡入动画的终点类）', (await evalJs("!!document.querySelector('.share-mask.on')")) === true);
+    const rows = await evalJs("[...document.querySelectorAll('.share-tier')].map(b=>Math.round(b.getBoundingClientRect().top)).join(',')");
+    const tops = String(rows).split(',').map(Number);
+    check('六个档位排成一排（top 完全相同）', tops.length === 6 && new Set(tops).size === 1, 'tops=' + rows);
+    check('档位文案：1 小时/1 天/7 天/30 天/自定义/永久',
+        (await evalJs("[...document.querySelectorAll('.share-tier')].map(b=>b.textContent.trim()).join('/')")) === '1 小时/1 天/7 天/30 天/自定义/永久');
+    const payloadOf = "(()=>{const v=document.querySelector('#shareLink').value;const s=v.split('share=')[1];const t=s.split('#')[0];const b=t.replace(/-/g,'+').replace(/_/g,'/');try{return JSON.parse(atob(b+'==='.slice((b.length+3)%4)));}catch(e){return {err:String(e)};}})()";
+    await evalJs("document.querySelector('#shareCopy').click()");
+    await sleep(700);
+    check('点复制后「复制成功」淡入（.on + 有文案）',
+        (await evalJs("(()=>{const m=document.querySelector('#shareMsg');return !!m && m.className.indexOf('on')>=0 && m.textContent.length>0;})()")) === true,
+        String(await evalJs("document.querySelector('#shareMsg').textContent")));
+    await sleep(3400);
+    check('3 秒后自动淡出（不再是 .on）',
+        (await evalJs("document.querySelector('#shareMsg').className.indexOf('on')<0")) === true,
+        String(await evalJs("document.querySelector('#shareMsg').className")));
+    await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='自定义').click()");
+    await sleep(350);
+    check('选「自定义」后出现自绘月历（>=28 个日期格）', (await evalJs("document.querySelectorAll('.share-cal-d').length")) >= 28);
+    const hourBefore = await evalJs("document.querySelector('#shareHour').textContent");
+    await evalJs("document.querySelector('.share-step[data-unit=hour] button[data-step=\"1\"]').click()");
+    await sleep(250);
+    const hourAfter = await evalJs("document.querySelector('#shareHour').textContent");
+    check('自绘时分步进可用（小时 +1）', hourBefore !== hourAfter, hourBefore + ' → ' + hourAfter);
+    check('自定义档的链接带 e', (await evalJs(payloadOf)).e !== undefined, JSON.stringify(await evalJs(payloadOf)).slice(0, 60));
+    await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='永久').click()");
+    await sleep(350);
+    check('选「永久」后链接不带 e（机制没变，仍是靠轮换令牌撤销）', (await evalJs(payloadOf)).e === undefined);
+    // ── 外观的"数字验收"（我这个模型看不了截图，就用可测量的量兜住）──────────
+    check('档位文字没被截断（一排真的塞得下）',
+        (await evalJs("[...document.querySelectorAll('.share-tier')].every(b=>b.scrollWidth<=b.clientWidth+1)")) === true,
+        await evalJs("[...document.querySelectorAll('.share-tier')].map(b=>b.scrollWidth+'/'+b.clientWidth).join(' ')"));
+    check('弹窗没有横向溢出',
+        (await evalJs("(()=>{const b=document.querySelector('.share-box');return b.scrollWidth<=b.clientWidth+1;})()")) === true,
+        String(await evalJs("(()=>{const b=document.querySelector('.share-box');return b.scrollWidth+'/'+b.clientWidth;})()")));
+    check('淡入动画结束时面板不透明度=1',
+        Number(await evalJs("getComputedStyle(document.querySelector('.share-box')).opacity")) > 0.99,
+        String(await evalJs("getComputedStyle(document.querySelector('.share-box')).opacity")));
+    await evalJs("document.documentElement.setAttribute('data-color-scheme','dark')");
+    await sleep(250);
+    const darkBg = String(await evalJs("getComputedStyle(document.querySelector('.share-box')).backgroundColor"));
+    const darkAvg = (darkBg.match(/\d+/g) || []).slice(0, 3).reduce((a, b) => a + Number(b), 0) / 3;
+    check('深色模式下弹窗底色真的变深（不是白底）', /rgb/.test(darkBg) && darkAvg < 128, darkBg);
+    await evalJs("document.documentElement.setAttribute('data-color-scheme','light')");
+    await sleep(200);
+    await evalJs("[...document.querySelectorAll('.share-tier')].find(b=>b.textContent.trim()==='自定义').click()");
+    await sleep(300);
+    // 首行可能因"当月 1 号是星期几"而短（前面补空格子），所以不能要求每行都 7 个日期格：
+    // 正确判据是**正好 7 列**（列 x 坐标去重）+ 每行不超过 7 个。
+    const colLefts = await evalJs("(()=>{const s=new Set();document.querySelectorAll('.share-cal-d').forEach(d=>s.add(Math.round(d.getBoundingClientRect().left)));return s.size;})()");
+    check('自绘月历正好 7 列', colLefts === 7, 'cols=' + colLefts);
+    const perRow = await evalJs("(()=>{const t={};document.querySelectorAll('.share-cal-d').forEach(d=>{const k=Math.round(d.getBoundingClientRect().top);t[k]=(t[k]||0)+1});return Math.max.apply(null,Object.values(t));})()");
+    check('月历每行不超过 7 个日期格', Number(perRow) <= 7, 'max=' + perRow);
+    check('月历日期格点得到（没有被遮挡）',
+        (await evalJs("(()=>{const d=document.querySelector('.share-cal-d:not(:disabled)');if(!d)return false;const r=d.getBoundingClientRect();return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===d;})()")) === true);
+
+    await evalJs("document.querySelector('#shareClose').click()");
+    const goneNow = await evalJs("!!document.querySelector('.share-mask')");
+    await sleep(450);
+    const goneLater = await evalJs("!!document.querySelector('.share-mask')");
+    check('关闭走退出动画（点击后仍在 → 450ms 后消失）', goneNow === true && goneLater === false, 'now=' + goneNow + ' later=' + goneLater);
+    await unmark();
+
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();
     process.exit(fail ? 1 : 0);
