@@ -705,6 +705,21 @@ async function main() {
         'hash=' + await evalJs('location.hash') + '  title=' + artTitle);
     await unmark();
 
+    // ★ 小板块范围（真实分类 id 取自 config.js：macau_boc）：数据**必须还在**。
+    //   之前 shareDataKeep 拿 'c-macau_boc' 去比文件名（数据文件按分类 id 命名）
+    //   ⇒ 文章数据被整段丢掉，页面显示"共 0 篇 / 还没有文章哦"（线上实测）。
+    const TOK12b = mint('articles/c-macau_boc', '', 3600 * 1000);
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK12b}&_=${n++}#articles/c-macau_boc` });
+    await settle();
+    const catData = await evalJs("({arts:(typeof collectedArticles!=='undefined'?collectedArticles.length:-1),tree:(typeof articleCategoryTree!=='undefined'?articleCategoryTree.length:-1),items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,locked:document.querySelectorAll('.gate-share-locked').length,hash:location.hash,ok:document.documentElement.classList.contains('gate-ok')})");
+    check('小板块范围（articles/c-macau_boc）能打开且停在那个小板块',
+        catData.ok === true && catData.hash === '#articles/c-macau_boc', 'hash=' + catData.hash + ' gate-ok=' + catData.ok);
+    check('小板块范围下文章数据没被裁剪掉（篇数/分类树都不是 0）',
+        Number(catData.arts) > 0 && Number(catData.tree) > 0, '文章数=' + catData.arts + ' 分类树=' + catData.tree);
+    check('小板块范围下文章列表真的渲染出来了（可见文章项 > 0）',
+        Number(catData.items) > 0, '可见文章项=' + catData.items + ' 被锁=' + catData.locked);
+    await unmark();
+
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();
     process.exit(fail ? 1 : 0);

@@ -144,7 +144,20 @@ function shareDataKeep(file) {
     if (!seg) return true;
     const path = String(file || '').toLowerCase();
     if (path.indexOf('/data/') < 0) return true;
-    return path.indexOf(seg[seg.length - 1].toLowerCase()) >= 0 || path.indexOf(seg[0].toLowerCase()) >= 0;
+    // ★ 范围段可能**带前缀**：小板块是 c-<分类 id>（#articles/c-macau_boc）、搜索是 q-/sm-。
+    //   数据文件是按**分类 id**命名的（…/data/…/macau_boc.js），拿 'c-macau_boc' 去比文件名
+    //   永远比不中 ⇒ 分享某个小板块时文章数据被整段丢掉。线上实测：范围 articles 时
+    //   70 篇 / 分类树 10 条；范围 articles/c-macau_boc 时 0 篇 / 分类树 0 条（"还没有文章哦"）。
+    //   所以比之前先把前缀去掉，并且"任一段命中即保留"（本文件开头就写了"多留无害"）。
+    const toks = [];
+    for (const s of seg) {
+        const t = String(s || '').toLowerCase();
+        if (!t) continue;
+        toks.push(t);
+        toks.push(t.replace(/^(c|q|sm)-/, ''));
+    }
+    for (const t of toks) if (t && path.indexOf(t) >= 0) return true;
+    return false;
 }
 
 function loadScript(file) {
