@@ -1008,14 +1008,24 @@
         }
         var sm = oc.match(/^\s*onArticleSidebarClick\s*\(\s*'([^']+)'/);
         if (sm) {
-            // ★ 用户要求：精确到篇/小板块的分享里，文章侧边栏要**全部**锁定（不然收件人能靠
-            //   它换分类，等于绕开范围）；只有"整个文章区"那种板块级分享才放行。
-            //   我们按当前会话范围判断（shareRecNow 就在同一个闭包里），精确范围时返回一个
-            //   任何范围都匹配不上的落点 ⇒ 该侧边栏项被锁；点也被 shareBlockClick 拦住。
+            // ★ 文章侧边栏的可点规则（用户最终口径）：
+            //   · 整块分享（范围就是 articles）⇒ 全部可用；
+            //   · 精确到"某一篇" ⇒ 全部锁（用户："分享单篇，整个搜索栏…都要锁定"那一档，
+            //     侧边栏也不该让人换分类）；
+            //   · 父类 / 子类范围 ⇒ 允许"这个分类自己"和它的**祖先**（就像分享「人民币」/
+            //     「第三套人民币」那样），同级与别的分支一律锁。
+            //   祖先关系由 sharePublishArticleCatTree() 挂上来的表判断。
             var recNowA = shareRecNow();
             var scopeNowA = (recNowA && recNowA.p) ? String(recNowA.p) : '';
-            if (scopeNowA && scopeNowA !== 'articles') return '#share-locked-sidebar';
-            return '#articles/c-' + encodeURIComponent(sm[1]);
+            if (!scopeNowA || scopeNowA === 'articles') return '#articles/c-' + encodeURIComponent(sm[1]);
+            if (/^articles\/\d+/.test(scopeNowA)) return '#share-locked-sidebar';
+            var mCat = scopeNowA.match(/c-([^/]+)/);
+            var scopeCat = mCat ? decodeURIComponent(mCat[1]) : '';
+            var underFn = (typeof window.__shareCatIsUnder === 'function') ? window.__shareCatIsUnder : null;
+            if (scopeCat && (sm[1] === scopeCat || (underFn && underFn(scopeCat, sm[1])))) {
+                return '#articles/c-' + encodeURIComponent(sm[1]);
+            }
+            return '#share-locked-sidebar';
         }
         // ★ 文章阅读页的「← 返回文章列表」= closeArticleReader()。函数名里带 close ⇒ 被
         //   下面 isNav 的黑名单排除、返回 null = **不锁**。它的真落点是**文章列表**
@@ -1112,20 +1122,70 @@
     //   每次扫描都重设一遍：站内重渲染会把 placeholder 冲回原文案。
     function shareHintSearch() {
         try {
+            var rec = shareRecNow();
+            var scope = (rec && rec.p) ? String(rec.p) : '';
+            // ★ 用户要求：**精确到"某一篇"的分享**（范围 articles/<序号>…）⇒ 整个搜索栏都锁掉
+            //   （含"标/全"切换、重置这些下拉与按钮），placeholder 显示「搜索功能暂不可用」。
+            //   其余档位（整块 / 父类 / 子类）都能搜，但只在可见范围内搜。
+            //   锁的方式是给 .search-bar 加 .gate-share-locked（pointer-events:none）+
+            //   输入框 disabled ⇒ 根本点不动、也不会触发顶部提示条（提示条是下策）。
+            var lockSearch = /^articles\/\d+/.test(scope);
             var inp = document.getElementById('searchInput');
-            if (!inp) return;
-            if (inp.getAttribute('placeholder') !== '仅在可见范围内搜索') {
-                inp.setAttribute('placeholder', '仅在可见范围内搜索');
-            }
-            inp.title = '分享链接：只在分享范围内搜索';
-            // 保险：万一被更早的版本/别处加过灰化类，这里清掉（分享模式必须能搜）。
-            inp.classList.remove('gate-share-locked');
-            inp.disabled = false;
             var bar = document.querySelector('.search-bar');
-            if (bar) {
-                var kids = bar.querySelectorAll('.gate-share-locked');
-                for (var i = 0; i < kids.length; i++) kids[i].classList.remove('gate-share-locked');
+            if (inp) {
+                if (lockSearch) {
+                    if (inp.getAttribute('placeholder') !== '搜索功能暂不可用') {
+                        inp.setAttribute('placeholder', '搜索功能暂不可用');
+                    }
+                    inp.title = '分享链接：这一篇的范围里不开放搜索';
+                    inp.disabled = true;
+                } else {
+                    if (inp.getAttribute('placeholder') !== '仅在可见范围内搜索') {
+                        inp.setAttribute('placeholder', '仅在可见范围内搜索');
+                    }
+                    inp.title = '分享链接：只在分享范围内搜索';
+                    inp.disabled = false;
+                }
             }
+            if (bar) {
+                if (lockSearch) {
+                    bar.classList.add('gate-share-locked');
+                } else {
+                    // 保险：允许搜索时清掉可能被更早版本/别处加上的灰化类（分享模式必须能搜）。
+                    //   ⚠ 这条清理**只能**在允许搜索时做：否则会把上面那把锁解掉。
+                    bar.classList.remove('gate-share-locked');
+                    var kids = bar.querySelectorAll('.gate-share-locked');
+                    for (var i = 0; i < kids.length; i++) kids[i].classList.remove('gate-share-locked');
+                }
+            }
+        } catch (e) { }
+    }
+
+    // ★ 把文章板块的"子类 → 父类"关系挂给 share-core 的范围判定。
+    //   它自己不认识分类树（纯判定模块，Node 里也跑），所以由页面在分享模式下发一张表：
+    //   分享"父类"时，它的子类文章/子类侧边栏要算在范围内（用户要求）。
+    function sharePublishArticleCatTree() {
+        try {
+            // ★ 先挂导出：下面可能因为分类树还没建好（TDZ/空表）而 return，
+            //   但导出的函数必须一直在，应用层过滤时才调得到。
+            window.publishShareArticleCatTree = sharePublishArticleCatTree;
+            window.shareScopeNow = function () {
+                try { var r = shareRecNow(); return (r && r.p) ? String(r.p) : ''; } catch (e) { return ''; }
+            };
+            var tree = (typeof articleCategoryTree !== 'undefined') ? articleCategoryTree : null;
+            if (!tree || !tree.length) return;
+            window.__shareCatIsUnder = function (child, ancestor) {
+                var c = String(child), a = String(ancestor);
+                if (c === a) return true;
+                for (var i = 0; i < tree.length; i++) {
+                    var cat = tree[i];
+                    if (!cat || !cat.children || cat.id !== a) continue;
+                    for (var j = 0; j < cat.children.length; j++) {
+                        if (cat.children[j] && cat.children[j].id === c) return true;
+                    }
+                }
+                return false;
+            };
         } catch (e) { }
     }
 
@@ -1133,6 +1193,7 @@
         var rec = shareRecNow();
         if (!rec) return;
         shareEnsureLockStyle();
+        sharePublishArticleCatTree();
         shareHintSearch();
         try {
             var list = document.querySelectorAll(SHARE_LOCK_SEL);

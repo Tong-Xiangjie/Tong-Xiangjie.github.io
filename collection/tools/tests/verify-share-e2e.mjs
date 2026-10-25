@@ -716,6 +716,13 @@ async function main() {
         (await evalJs("document.querySelectorAll('.gate-share-locked').length")) > 0,
         '被锁元素=' + await evalJs("document.querySelectorAll('.gate-share-locked').length")
         + '  其中文章项=' + await evalJs("document.querySelectorAll('.gate-share-locked[onclick^=\"openArticleReader(\"]').length"));
+    // ★ 用户要求：精确到某一篇 ⇒ **整个搜索栏**锁住（含下拉/切换/重置），placeholder 换成
+    //   「搜索功能暂不可用」。锁而不弹提示条（.gate-share-locked 是 pointer-events:none，
+    //   根本点不动 —— 提示条是下策）。
+    const sbar = await evalJs("({locked:!!document.querySelector('.search-bar.gate-share-locked'),ph:String((document.getElementById('searchInput')||{}).placeholder||''),dis:!!(document.getElementById('searchInput')||{}).disabled})");
+    check('精确到某一篇：搜索栏整体锁住 + placeholder「搜索功能暂不可用」+ 输入框禁用',
+        sbar.locked === true && sbar.ph === '搜索功能暂不可用' && sbar.dis === true,
+        JSON.stringify(sbar));
     // 页内手改到"别的篇号"必须被拦住（这条正是靠 shareRouteOf 认 openArticleReader 才成立）
     await evalJs("(()=>{location.hash='articles/1';return 1;})()");
     await sleep(1600);
@@ -755,9 +762,37 @@ async function main() {
     // ★ 用户要求：精确范围（篇/小板块）下侧边栏要**全部**锁定，不能靠它换分类。
     //   （侧边栏在有些视口/视图里不渲染 ⇒ 取不到时只记录，不判红。）
     const sbLock = await evalJs("(()=>{const a=[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')];return {n:a.length,locked:a.filter(x=>x.classList.contains('gate-share-locked')).length};})()");
-    check('小板块范围里文章侧边栏被全部锁定（取不到侧边栏时只记录）',
-        Number(sbLock.n) === 0 || Number(sbLock.locked) === Number(sbLock.n),
+    // ★ 用户最终口径：子类范围里，**该分类自己与它的父类**可点（像分享「第三套人民币」
+    //   那样能从父类概览进去），同级与别的分支锁住。取不到侧边栏时只记录。
+    check('子类范围：侧边栏里"该分类/其父类"可点、其余锁住（取不到侧边栏时只记录）',
+        Number(sbLock.n) === 0 || (Number(sbLock.locked) < Number(sbLock.n) && Number(sbLock.locked) >= 1),
         '侧边栏项=' + sbLock.n + ' 其中被锁=' + sbLock.locked);
+    // ★ 用户口径：父类范围 ⇒ 概览只显示范围内（可展示）的文章，且该父类侧边栏项可点。
+    //   ⚠ 父类 id 不能写死：本地数据里未必有那个分类的文章（写 prcAidPrinted 会得到 0 条，
+    //   那是"过滤正确"而不是 bug）。这里从 articleCategoryTree 现查出 macau_boc 的父类，
+    //   保证这个父类在本地确实挂着文章（它的子树就是那 11 篇）。
+    const parentId = await evalJs("(()=>{try{const t=articleCategoryTree||[];for(const c of t){if(c&&c.children&&c.children.some(s=>s&&s.id==='macau_boc'))return c.id;}return '';}catch(e){return '';}})()");
+    await unmark(); await mark();
+    const TOK12p = mint('articles/c-' + parentId, '', 3600 * 1000);
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK12p}&_=${n++}#articles` });
+    await settle(); await sleep(1500);
+    const pInfo = await evalJs("({total:(typeof collectedArticles!=='undefined'?collectedArticles.length:-1),items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length,sb:[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')].length,clickable:[...document.querySelectorAll('[onclick*=onArticleSidebarClick]')].filter(x=>!x.classList.contains('gate-share-locked')).length})");
+    check('父类范围：概览只显示范围内的文章（有内容、且不超过全量）',
+        Number(pInfo.items) > 0 && Number(pInfo.items) <= Number(pInfo.total),
+        '父类=' + (parentId || '没查到') + ' 概览=' + pInfo.items + ' 全量=' + pInfo.total);
+    check('父类范围：该父类侧边栏项可点（取不到侧边栏时只记录）',
+        Number(pInfo.sb) === 0 || Number(pInfo.clickable) >= 1,
+        '侧边栏项=' + pInfo.sb + ' 其中可点=' + pInfo.clickable);
+    // ★ 用户口径：子类范围 ⇒ 概览只显示这个子类的文章 ⇒ 严格少于全量
+    await unmark(); await mark();
+    const TOK12s = mint('articles/c-macau_boc', '', 3600 * 1000);
+    await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOK12s}&_=${n++}#articles` });
+    await settle(); await sleep(1500);
+    const sInfo = await evalJs("({total:(typeof collectedArticles!=='undefined'?collectedArticles.length:-1),items:document.querySelectorAll('[onclick^=\"openArticleReader(\"]').length})");
+    check('子类范围：概览只显示这个子类的文章（严格少于全量）',
+        Number(sInfo.items) > 0 && Number(sInfo.items) < Number(sInfo.total),
+        '概览=' + sInfo.items + ' 全量=' + sInfo.total);
+    await unmark();
     await unmark();
 
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');

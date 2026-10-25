@@ -253,8 +253,36 @@ function collectAllArticles() {
   buildArticleCategoryTree();
 }
 
-function collectFromSource(data, dataKey, sourceType) {
-  const catInfo = findArticleCategoryInfo(dataKey, sourceType);
+// ★ 分享模式用：这篇文章"可能属于哪几个分类 id"。
+//   为什么不能只看 a.category：子类文章的 category 常常就是**父类 id**（站点自己的兜底
+//   判据见下面 1485 行那段 `a.category === current || a.parentCategory === current`），
+//   拿它去比"子类范围"必然落空 ⇒ 概览会被清空（实测：概览=0）。所以再按 dataKey 到分类树
+//   里查一次真实归属（树的每个节点都有 dataKey），把候选都收集起来，命中任一即保留。
+function shareArticleCatIds(a) {
+  var ids = [];
+  if (!a) return ids;
+  if (a.category) ids.push(a.category);
+  if (a.parentCategory && ids.indexOf(a.parentCategory) < 0) ids.push(a.parentCategory);
+  try {
+    var t = (typeof articleCategoryTree !== 'undefined') ? articleCategoryTree : null;
+    if (t && a.dataKey) {
+      for (var i = 0; i < t.length; i++) {
+        var c = t[i];
+        if (!c) continue;
+        if (c.dataKey && c.dataKey === a.dataKey && ids.indexOf(c.id) < 0) ids.push(c.id);
+        if (c.children) {
+          for (var j = 0; j < c.children.length; j++) {
+            var s = c.children[j];
+            if (s && s.dataKey === a.dataKey && ids.indexOf(s.id) < 0) ids.push(s.id);
+          }
+        }
+      }
+    }
+  } catch (e) { }
+  return ids;
+}
+
+function collectFromSource(data, dataKey, sourceType) {  const catInfo = findArticleCategoryInfo(dataKey, sourceType);
   const groupPath = buildGroupPath(sourceType, catInfo);
 
   if (data.readme && data.readme.title && data.readme.content) {
@@ -1485,6 +1513,60 @@ function getFilteredArticles() {
         articles = collectedArticles.filter(a => a.category === currentArticleCategory || a.parentCategory === currentArticleCategory);
       }
     }
+  }
+
+  // ★ 分享模式：只保留**分享范围内**的文章（用户口径："父类/子类的概览只显示可以展示的文章"）。
+  //   判据用站点自己的字段：category = 子类 id，parentCategory = 父类 id；路由里带上文章在
+  //   collectedArticles 里的**全局序号**，交给门禁那套 shareRouteAllowed —— 它在非分享模式
+  //   下一律放行，父类范围会自动放行它的子类（share-core 的 __shareCatIsUnder 钩子）。
+  //   拿不到分类的条目不擅自藏（宁可多显示）。放在分类筛选之后、搜索排序之前 ⇒
+  //   分享模式下搜索也只在可见范围内（搜索结果是在这个数组上继续算的）。
+  if (typeof shareRouteAllowed === 'function') {
+    // ★ 先确保"子类 → 父类"表已挂上（尽最大努力；分类树可能还没建好，失败也不影响下面）。
+    try { if (typeof window.publishShareArticleCatTree === 'function') window.publishShareArticleCatTree(); } catch (e) { }
+    // ★ 本地算一份"范围内的分类集合"：scope 的那个分类 + （它是父类时）它的所有子类。
+    //   为什么不能只靠 shareRouteAllowed + 钩子：钩子在"分类树还没建好"那一段挂不上
+    //   （articleCategoryTree 是 let，初始化前 typeof 会抛 TDZ），父类范围的子类文章
+    //   就会被按"必须完全相等"判掉 —— 实测概览=0。这里直接用同一棵树自己算，稳。
+    var scopeCatForList = '';
+    try {
+      var sc0 = (typeof window.shareScopeNow === 'function') ? String(window.shareScopeNow() || '') : '';
+      var mc0 = sc0.match(/c-([^/]+)/);
+      if (mc0) scopeCatForList = decodeURIComponent(mc0[1]);
+    } catch (e) { }
+    var allowCatForList = null;
+    if (scopeCatForList) {
+      allowCatForList = {};
+      allowCatForList[scopeCatForList] = 1;
+      try {
+        var t0 = (typeof articleCategoryTree !== 'undefined') ? articleCategoryTree : null;
+        if (t0) {
+          for (var ci = 0; ci < t0.length; ci++) {
+            var c0 = t0[ci];
+            if (!c0 || c0.id !== scopeCatForList || !c0.children) continue;
+            for (var cj = 0; cj < c0.children.length; cj++) {
+              var s0 = c0.children[cj];
+              if (s0 && s0.id) allowCatForList[s0.id] = 1;
+            }
+          }
+        }
+      } catch (e) { }
+    }
+    articles = articles.filter(function (a) {
+      var ids = shareArticleCatIds(a);
+      if (!ids.length) return true;
+      var gi = collectedArticles.indexOf(a);
+      var idx = (gi >= 0 ? gi : 0);
+      // ① 本地集合命中 ⇒ 范围内
+      if (allowCatForList) {
+        for (var k = 0; k < ids.length; k++) if (allowCatForList[ids[k]]) return true;
+      }
+      // ② 再走门禁那套（非分享模式 / 整块范围一律放行）
+      for (var i = 0; i < ids.length; i++) {
+        if (shareRouteAllowed('articles/' + idx + '/c-' + encodeURIComponent(ids[i]))) return true;
+      }
+      return false;
+    });
   }
 
   // ★ 返回值是「条目数组」：每条带 matchType / matchedTerms / matchedField。

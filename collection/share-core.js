@@ -161,6 +161,20 @@ function shareSelAllowed(allowSel, hash) {
 //   · 存在 ⇒ **单张/多张**那一档，按用户定稿的规则：
 //       - 当前 hash 没有选择段 ⇒ 放行（**列表页可以看**，用户明确选了这一条）；
 //       - 有选择段 ⇒ 必须与签名完全一致（点别的那张 / 改选别的组合都被拨回）。
+// ★ 文章板块的"子类 → 父类"关系钩子。
+//   share-core 是纯判定模块（Node 里也能直接跑），它不该认识站点的分类树；
+//   所以由页面在分享模式下发一张判定函数上来（gate.js 用 articleCategoryTree 生成）。
+//   没有它就是 false ⇒ 退化成"分类必须完全相等"（安全侧）。
+function shareCatIsUnder(child, ancestor) {
+    try {
+        var fn = (typeof window !== 'undefined') && window.__shareCatIsUnder;
+        if (typeof fn === 'function') {
+            return !!fn(String(child).replace(/^c-/, ''), String(ancestor).replace(/^c-/, ''));
+        }
+    } catch (e) { }
+    return false;
+}
+
 function shareScopeMatch(scope, hash, allowSel) {
     var clean = function (s) {
         return String(s || '').replace(/^#/, '').split('&')[0].replace(/^\/+/, '').replace(/\/+$/, '');
@@ -211,7 +225,15 @@ function shareScopeMatch(scope, hash, allowSel) {
         var hIdx = null, hCat = null;
         for (i2 = 0; i2 < hs.length; i2++) { s2 = hs[i2]; if (s2.indexOf('c-') === 0) hCat = s2; else hIdx = s2; }
         if (pIdx !== null && hIdx !== pIdx) return false;
-        if (pCat !== null && hCat !== pCat) return false;
+        // ★ 分类这一段：相等，**或者** hash 里的分类是范围分类的**子类** ——
+        //   分享"父类"时它的子类文章当然要能看（用户："分享父类…概览只显示可以展示的文章"）。
+        //   父子关系 share-core 自己不认识（它是纯判定模块），由页面挂一张表告诉它
+        //   （见 window.__shareCatIsUnder，gate.js 用 articleCategoryTree 生成）。
+        //   表不在时退化成"必须完全相等"，即安全侧。
+        if (pCat !== null) {
+            if (hCat === null) return false;
+            if (hCat !== pCat && !shareCatIsUnder(hCat, pCat)) return false;
+        }
         return true;
     }
     if (!inPrefix && !inAncestor) return false;
