@@ -831,6 +831,28 @@ async function main() {
     await unmark();
     await unmark();
 
+    // ═══════ 13. 分享范围必须"真的有内容"（第三轮评估报告 P0-1 的回归）═══════
+    // 事故：范围 notes/ticket（票证 47 件）分享出去，收件人看到「共0件藏品」+ 空白页；
+    // coins/circulating_coins（8 件）同样变 0。根因：data-loader 用"文件路径里含范围段
+    // 字符串"裁员，而票证的子类文件叫 pvpb.js / nedb.js / lecb.js …（不含 "ticket"）、
+    // 流通硬币的子类叫 circulating_5.js …（不含 "circulating_coins"）⇒ 全被裁掉。
+    // 以前只断言"侧栏灰/亮个数"，没断言"范围内有内容" —— 这条补的就是这个洞。
+    for (const [scopeLabel, scope, want] of [
+        ['notes/ticket（票证）', 'notes/ticket', 47],
+        ['coins/circulating_coins（流通硬币）', 'coins/circulating_coins', 8]
+    ]) {
+        await unmark(); await mark();
+        const TOKX = mint(scope, '', 3600 * 1000);
+        await send('Page.navigate', { url: `http://${HOST}:${port}${PAGE}?share=${TOKX}&_=${n++}#${scope}` });
+        await settle(); await sleep(1800);
+        // ⚠ 别只截前若干字判：侧边栏文字排在前面，计数（共47件藏品）在更后面
+        const info = await evalJs("(()=>{const t=(document.body.innerText||'').replace(/\\s+/g,' ');return {txt:t,zero:/共\\s*0\\s*件/.test(t)};})()");
+        check('范围 ' + scopeLabel + ' 分享出去**有内容**（应为 ' + want + ' 件，不是「共0件」）',
+            new RegExp('共\\s*' + want + '\\s*件').test(info.txt) && info.zero === false,
+            (info.txt.match(/.{0,60}共\s*\d+\s*件.{0,40}/) || [info.txt.slice(0, 120)])[0]);
+        await unmark();
+    }
+
     console.log('──────── 通过 ' + pass + ' / 失败 ' + fail + ' ────────');
     cleanup();
     process.exit(fail ? 1 : 0);

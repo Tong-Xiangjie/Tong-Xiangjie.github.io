@@ -139,30 +139,54 @@ function shareScopeSegments() {
     } catch (e) { return null; }
 }
 
+// ★ 分享模式：按**配置树白名单**裁剪（不再用"路径里含范围段字符串"那种碰运气的匹配）。
+//   事故（第三轮评估报告 P0-1，已定位到行）：范围 notes/ticket（票证 47 件）时，票证的
+//   子类文件叫 pvpb.js / nedb.js / lecb.js / dscc.js / mpc.js / fec.js …，**都不含** "ticket"
+//   ⇒ 全被裁掉 ⇒ 收件人看到「共0件藏品」+ 空白页；范围 coins/circulating_coins（8 件）同理
+//   （子类叫 circulating_5.js …，不含 circulating_coins）。而 notes/rmb、notes/taiwan 能过，
+//   纯属子类文件名**恰好**含父类 id —— 也就是说这套裁剪从上线起就是碰运气的。
+//   现在改成：在配置树里找到范围那个分类节点，收集**它自己 + 全部后代**的 dataFile
+//   （按 basename 比对），只下这一集合；树没就绪 / 找不到那个节点 ⇒ 退化为**不裁**
+//   （"宁可不省，也不许省错"）。
+function shareFileNameOf(f) {
+    return String(f || '').split('/').pop().toLowerCase();
+}
+
+function shareScopeKeepSet() {
+    try {
+        const seg = shareScopeSegments();
+        if (!seg) return null;                          // 板块级分享（notes / coins）⇒ 不裁
+        // 文章板块照旧**不裁**：文章数据文件名按分类 id 命名，而范围可能是父类，它的数据
+        // 散在一堆子类文件里（同样的坑）；文章那边的越界由门禁 + 锁定那套负责。
+        if (String(seg[0] || '').toLowerCase() === 'articles') return null;
+        const catId = String(seg[1] || '').toLowerCase().replace(/^(c|q|sm)-/, '');
+        if (!catId) return null;
+        const trees = [];
+        try { if (typeof categoryTree !== 'undefined' && categoryTree) trees.push(categoryTree); } catch (e) { }
+        try { if (typeof coinCategoryTree !== 'undefined' && coinCategoryTree) trees.push(coinCategoryTree); } catch (e) { }
+        if (!trees.length) return null;                 // 配置树没就绪 ⇒ 不裁（安全侧）
+        const set = new Set();
+        const walk = (node) => {
+            if (!node) return false;
+            let hit = (String(node.id || '').toLowerCase() === catId);
+            if (hit && node.dataFile) set.add(shareFileNameOf(node.dataFile));
+            if (node.children) {
+                for (const c of node.children) { if (walk(c)) hit = true; }
+            }
+            return hit;
+        };
+        let found = false;
+        for (const t of trees) { for (const n of t) { if (walk(n)) found = true; } }
+        return (found && set.size) ? set : null;        // 找不到那个分类 ⇒ 不裁（安全侧）
+    } catch (e) { return null; }
+}
+
 function shareDataKeep(file) {
-    const seg = shareScopeSegments();
-    if (!seg) return true;
-    // ★ 文章板块**不裁剪**：文章数据文件名按**分类 id** 命名，而分享范围可能是"父类"
-    //   （#articles/c-prcAidPrinted），它的数据散在一堆**子类**文件里 ⇒ 拿父类 id 去比
-    //   文件名必然比不中 ⇒ 用户实测"分享父类的一篇都看不到"。文章那边的越界由门禁 +
-    //   锁定那套负责（范围外的入口点不动），所以这里整块放行（"多留无害"）。
-    if (String(seg[0] || '').toLowerCase() === 'articles') return true;
     const path = String(file || '').toLowerCase();
     if (path.indexOf('/data/') < 0) return true;
-    // ★ 范围段可能**带前缀**：小板块是 c-<分类 id>（#articles/c-macau_boc）、搜索是 q-/sm-。
-    //   数据文件是按**分类 id**命名的（…/data/…/macau_boc.js），拿 'c-macau_boc' 去比文件名
-    //   永远比不中 ⇒ 分享某个小板块时文章数据被整段丢掉。线上实测：范围 articles 时
-    //   70 篇 / 分类树 10 条；范围 articles/c-macau_boc 时 0 篇 / 分类树 0 条（"还没有文章哦"）。
-    //   所以比之前先把前缀去掉，并且"任一段命中即保留"（本文件开头就写了"多留无害"）。
-    const toks = [];
-    for (const s of seg) {
-        const t = String(s || '').toLowerCase();
-        if (!t) continue;
-        toks.push(t);
-        toks.push(t.replace(/^(c|q|sm)-/, ''));
-    }
-    for (const t of toks) if (t && path.indexOf(t) >= 0) return true;
-    return false;
+    const set = shareScopeKeepSet();
+    if (!set) return true;                              // 不裁（板块级 / 文章 / 树不可用）
+    return set.has(shareFileNameOf(path));
 }
 
 function loadScript(file) {
