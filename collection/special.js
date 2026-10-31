@@ -147,6 +147,21 @@ function buildGroupCategories(config, items) {
             .map(d => ({ id: d, name: d, dataKey: config.id }));
     }
 
+    // ★ 通用字段分组（如展会专题的 groupBy: 'group'）：直接按该字段的值分组，
+    //   顺序取**首次出现**的顺序（数据里怎么写，侧边栏就怎么排）。
+    //   ⚠ year / denom 两条老分支在上面，一字未动 —— 新增专题才走这里。
+    if (groupField !== 'year') {
+        const seen = [];
+        const hit = new Set();
+        for (const item of items) {
+            const k = item[groupField];
+            if (!k || hit.has(k)) continue;
+            hit.add(k); seen.push(k);
+        }
+        if (seen.length === 0) return null;
+        return seen.map(k => ({ id: k, name: k, dataKey: config.id }));
+    }
+
     const years = new Set();
     for (const item of items) if (item.year) years.add(item.year);
     if (years.size === 0) return null;
@@ -344,6 +359,9 @@ function renderSpecialContent() {
     if (currentSubId) {
         if (groupField === 'denom') {
             filteredItems = items.filter(item => (item.denom || '') === currentSubId);
+        } else if (groupField !== 'year') {
+            // ★ 通用字段分组（展会专题等）：按该字段的值筛。year / denom 老分支不动。
+            filteredItems = items.filter(item => String(item[groupField] || '') === String(currentSubId));
         } else {
             const decadeStart = parseInt(currentSubId);
             if (!isNaN(decadeStart)) {
@@ -357,16 +375,21 @@ function renderSpecialContent() {
 
     const groups = {};
     for (const item of filteredItems) {
-        const key = groupField === 'denom' ? (item.denom || '未知') : (item.year || '未知');
+        const key = groupField === 'denom' ? (item.denom || '未知')
+            : (groupField === 'year' ? (item.year || '未知') : (item[groupField] || '未知'));
         if (!groups[key]) groups[key] = [];
         groups[key].push(item);
     }
-    const sortedKeys = Object.keys(groups).sort((a, b) => {
-        if (a === '未知') return 1;
-        if (b === '未知') return -1;
-        if (groupField === 'denom') return compareDenom(a, b);
-        return parseInt(b) - parseInt(a);
-    });
+    // ★ 通用字段分组保持"首次出现"的顺序（Object.keys 对字符串键本就按插入序）；
+    //   year 按年代倒序、denom 按面额大小，两条老逻辑原样。
+    const sortedKeys = (groupField !== 'year' && groupField !== 'denom')
+        ? Object.keys(groups)
+        : Object.keys(groups).sort((a, b) => {
+            if (a === '未知') return 1;
+            if (b === '未知') return -1;
+            if (groupField === 'denom') return compareDenom(a, b);
+            return parseInt(b) - parseInt(a);
+        });
 
     specialItemsList = [];
     for (const key of sortedKeys) for (const item of groups[key]) specialItemsList.push(item);

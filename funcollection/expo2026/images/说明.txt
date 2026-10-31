@@ -1,0 +1,12 @@
+照片放这个目录，命名与 copyId 对应：
+
+  26BICE01-1.jpg   ← 正面
+  26BICE01-2.jpg   ← 背面（可选）
+
+命名规则和站点其它板块一致（{copyId}-1.jpg / {copyId}-2.jpg），
+所以 data.js 里的 img / img2 直接写：
+
+  https://tong-xiangjie.github.io/funcollection/expo2026/images/26BICE01-1.jpg
+
+⚠ 一定要**成对**上传（有 -1 就要有 -2 时两张都传）；
+   报告里那 44 张破图就是"数据录了、文件没上传"造成的。
