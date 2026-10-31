@@ -139,8 +139,19 @@ function compareDenom(a, b) {
 function buildGroupCategories(config, items) {
     const groupField = config.groupBy || 'year';
 
-    // ★ 用户口径（「泉行纪胜」）：侧边栏**只列一层"活动名"**，不再按门票/纸币/邮票细分子类；
-    //   右侧列表照旧按 groupBy 分组显示（右边不变）。singleGroupName 就是那唯一一条的名字。
+    // ★ 用户口径：侧边栏列的是**每一次活动**（"未来还有别的会"就多一条），而不是
+    //   门票/纸币/邮票这类子类。活动名取自数据字段（config.eventField，约定写 event）；
+    //   数据里还没写这个字段时，退回 singleGroupName 那一条（兼容旧写法）。
+    if (config.eventField) {
+        const seen = [];
+        const hit = new Set();
+        for (const item of items) {
+            const k = item[config.eventField];
+            if (!k || hit.has(k)) continue;
+            hit.add(k); seen.push(k);
+        }
+        if (seen.length) return seen.map(k => ({ id: k, name: k, dataKey: config.id }));
+    }
     if (config.singleGroupName) {
         return [{ id: '__all__', name: config.singleGroupName, dataKey: config.id }];
     }
@@ -384,6 +395,9 @@ function renderSpecialContent() {
         if (currentSubId === '__all__') {
             // ★ 单一分组（侧边栏只有"活动名"那一条）⇒ 点它就是看全部，不做任何筛选。
             filteredItems = items;
+        } else if (config.eventField && items.some(it => it[config.eventField])) {
+            // ★ 侧边栏选中的是"某一次活动" ⇒ 只看这次活动的收获。
+            filteredItems = items.filter(it => String(it[config.eventField] || '') === String(currentSubId));
         } else if (groupField === 'denom') {
             filteredItems = items.filter(item => (item.denom || '') === currentSubId);
         } else if (groupField !== 'year') {
@@ -400,21 +414,26 @@ function renderSpecialContent() {
         }
     }
 
+    // ★ 没选活动时，右侧按**活动**分段（用户口径：未来的别的会才不会混到一起）；
+    //   选了某一次活动之后，分段回到数据里的 group（门票/纸币/邮票…）—— 与之前一致。
+    const activeGroupField = (!currentSubId && config.eventField && filteredItems.some(it => it[config.eventField]))
+        ? config.eventField : groupField;
+
     const groups = {};
     for (const item of filteredItems) {
-        const key = groupField === 'denom' ? (item.denom || '未知')
-            : (groupField === 'year' ? (item.year || '未知') : (item[groupField] || '未知'));
+        const key = activeGroupField === 'denom' ? (item.denom || '未知')
+            : (activeGroupField === 'year' ? (item.year || '未知') : (item[activeGroupField] || '未知'));
         if (!groups[key]) groups[key] = [];
         groups[key].push(item);
     }
     // ★ 通用字段分组保持"首次出现"的顺序（Object.keys 对字符串键本就按插入序）；
     //   year 按年代倒序、denom 按面额大小，两条老逻辑原样。
-    const sortedKeys = (groupField !== 'year' && groupField !== 'denom')
+    const sortedKeys = (activeGroupField !== 'year' && activeGroupField !== 'denom')
         ? Object.keys(groups)
         : Object.keys(groups).sort((a, b) => {
             if (a === '未知') return 1;
             if (b === '未知') return -1;
-            if (groupField === 'denom') return compareDenom(a, b);
+            if (activeGroupField === 'denom') return compareDenom(a, b);
             return parseInt(b) - parseInt(a);
         });
 
@@ -474,8 +493,13 @@ function renderSpecialContent() {
                 const g2 = i2 ? gridImg(item.img2) : null;
                 html += `<div class="search-result-item" ${dIdx >= 0 ? `onclick="openCopyDetail(${dIdx})"` : `onclick="openSpecialLightbox(${index})"`}>`;
                 html += `<div class="dual-thumb">`;
-                if (g1) html += `<img class="mini-thumb" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="O_o">`;
-                if (g2) html += `<img class="mini-thumb" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="o_O">`;
+                // ★ 缩略图要能点开大图（用户实测："点击小图不能变成大图"）：
+                //   与纸币/硬币概览页 overview.js 的写法一致 —— 阻止冒泡（否则会去开详情卡片）
+                //   再调 openModal(正面, 背面)。
+                const big1 = i1 ? escapeAttr(i1) : '';
+                const big2 = escapeAttr(i2 || i1 || '');
+                if (g1) html += `<img class="mini-thumb" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="O_o" onclick="event.stopPropagation(); openModal('${big1}', '${big2}')">`;
+                if (g2) html += `<img class="mini-thumb" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="o_O" onclick="event.stopPropagation(); openModal('${big2}', '${big1}')">`;
                 if (!g1 && !g2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">还木有图片</div>`;
                 html += `</div>`;
                 html += `<div class="info">`;

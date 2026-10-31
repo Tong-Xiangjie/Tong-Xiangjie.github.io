@@ -49,8 +49,11 @@ window.SPECIAL_CONFIGS = [
         dataKey: 'expo2026Data',
         dataFile: '../funcollection/expo2026/data.js',
         dataVar: 'expo2026Items',
-        groupBy: 'group',              // 右侧列表的分组（门票/纸币/邮票…）——右边不变
-        singleGroupName: '2026年第30届北京国际钱币博览会',   // ★ 侧边栏只列这一条
+        groupBy: 'group',              // 选中某次活动后，右侧按它分组（右边不变）
+        // ★ 侧边栏列"每一次活动"：数据里每条写 event: "2026年第30届北京国际钱币博览会"，
+        //   将来别的会就自动多一条（不会混到一起）。没写 event 时退回下面那条 singleGroupName。
+        eventField: 'event',
+        singleGroupName: '2026年第30届北京国际钱币博览会',   // 兼容：数据还没写 event 时的唯一一条
         itemStyle: 'overview',     // ★ 内部用"纸币/硬币概览页"那套条目 UI
         // ★ 详情卡片的字段表放在**数据文件里**（用户口径）：
         //   funcollection/expo2026/data.js 末尾的 expo2026Meta.detailFields。
