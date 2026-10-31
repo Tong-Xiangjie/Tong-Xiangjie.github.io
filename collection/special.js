@@ -470,7 +470,10 @@ function renderSpecialContent() {
             lastEventName = groupEvent[key];
             let evCount = 0;
             for (const k2 of sortedKeys) if (groupEvent[k2] === lastEventName) evCount += groups[k2].length;
-            html += `<div class="special-event-header" style="margin:16px 0 6px;font-size:0.95rem;font-weight:700;color:var(--theme);border-bottom:1px solid var(--border);padding-bottom:5px;">${escapeHtml(lastEventName)} <span style="font-weight:400;font-size:0.8rem;opacity:.78;">${evCount}件</span></div>`;
+            // ★ 用户口径：大标题「可以用白色即可」—— 不设 color，继承正文色
+            //   （layout.css 的 --text：深色主题下就是白色 #e8eaed，与分组小标题同色；
+            //    浅色主题下自动变黑，否则白字会看不见）。边框给个兜底色防变量缺失。
+            html += `<div class="special-event-header" style="margin:16px 0 6px;font-size:0.95rem;font-weight:700;border-bottom:1px solid var(--border, rgba(128,128,128,.35));padding-bottom:5px;">${escapeHtml(lastEventName)} <span style="font-weight:400;font-size:0.8rem;color:var(--text-secondary);">${evCount}件</span></div>`;
         }
         // ★ 用户口径：展会专题内部要"和普通纸币/硬币的概览页一样的 UI"。
         //   itemStyle: 'overview' ⇒ 复用概览页那套结构与 class
