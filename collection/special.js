@@ -398,6 +398,15 @@ function renderSpecialContent() {
     if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">正在看：${escapeHtml(currentSubId)}</p>`;
     html += `</div>`;
 
+    // ★ 用户口径：「点开之后最好也是纸币硬币点开之后的样子」。
+    //   category-view.js 的详细信息卡片读的是 copyDetailList（{copy, name, detailFields}），
+    //   点击时调 openCopyDetail(idx)。这里按同一契约登记一份，于是展会专题点开
+    //   就是**同一个**详情卡片（标题/双图/字段行/备注的排版完全同源）。
+    //   每个条目都直接进详情（不像概览页那样先跳分类），因为专题里本来就没有分类页。
+    if (config.itemStyle === 'overview') {
+        try { if (typeof copyDetailList !== 'undefined' && Array.isArray(copyDetailList)) copyDetailList = []; } catch (e) { }
+    }
+
     for (const key of sortedKeys) {
         const group = groups[key];
         // ★ 用户口径：展会专题内部要"和普通纸币/硬币的概览页一样的 UI"。
@@ -411,11 +420,32 @@ function renderSpecialContent() {
             html += `<div class="search-group-header">${escapeHtml(key)} <span class="count">${group.length}件</span></div>`;
             for (const item of group) {
                 const index = specialItemsList.indexOf(item);
+                // ★ 登记进详细信息卡片（对齐 category-view.js 的契约）：
+                //   · 卡片读 copy.img1/img2，专题数据里写的是 img ⇒ 这里补一版映射；
+                //   · detailFields 来自配置（special-bridge.js），**不写进用户的数据文件**；
+                //   · 标题用「分组 - 名称」，与纸币那边的「系列 - 选题」写法一致。
+                let dIdx = -1;
+                try {
+                    if (typeof copyDetailList !== 'undefined' && Array.isArray(copyDetailList)) {
+                        const KIND_CN = { note: '纸币', coin: '硬币', ancient: '古钱币', stamp: '邮票', other: '其它' };
+                        const copy = Object.assign({}, item, {
+                            img1: item.img1 || item.img,
+                            img2: item.img2,
+                            kindName: KIND_CN[item.kind] || item.kind
+                        });
+                        dIdx = copyDetailList.length;
+                        copyDetailList.push({
+                            copy: copy,
+                            name: (item.group ? item.group + ' - ' : '') + (item.name || ''),
+                            detailFields: config.detailFields || []
+                        });
+                    }
+                } catch (e) { }
                 const i1 = item.img ? getImageUrl(item.img) : '';
                 const i2 = item.img2 ? getImageUrl(item.img2) : '';
                 const g1 = i1 ? gridImg(item.img) : null;
                 const g2 = i2 ? gridImg(item.img2) : null;
-                html += `<div class="search-result-item" onclick="openSpecialLightbox(${index})">`;
+                html += `<div class="search-result-item" ${dIdx >= 0 ? `onclick="openCopyDetail(${dIdx})"` : `onclick="openSpecialLightbox(${index})"`}>`;
                 html += `<div class="dual-thumb">`;
                 if (g1) html += `<img class="mini-thumb" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="O_o">`;
                 if (g2) html += `<img class="mini-thumb" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="o_O">`;

@@ -48,6 +48,22 @@ window.SPECIAL_CONFIGS = [
         dataFile: '../funcollection/expo2026/data.js',
         dataVar: 'expo2026Items',
         groupBy: 'group',
-        itemStyle: 'overview'      // ★ 内部用"纸币/硬币概览页"那套条目 UI
+        itemStyle: 'overview',     // ★ 内部用"纸币/硬币概览页"那套条目 UI
+        // ★ 点开后的详细信息卡片字段（形状与各数据文件的 detailFields 同源）；
+        //   键名对齐数据里的实名：version 冠字号码 / grader 评级公司 / condition 评级结果 /
+        //   copyId 留档编号 / price 购入价格 / purchaseDate 到手日期。
+        //   放在配置里而不是数据文件里 —— 用户随时在改那份数据，代码侧不碰它。
+        detailFields: [
+            { key: 'copyId', label: '留档编号' },
+            { key: 'kindName', label: '种类' },
+            { key: 'version', label: '冠字号码 / 流水号' },
+            { key: 'bank', label: '发行方' },
+            { key: 'denomination', label: '面值' },
+            { key: 'year', label: '发行年份' },
+            { key: 'grader', label: '评级公司' },
+            { key: 'condition', label: '评级结果' },
+            { key: 'price', label: '购入价格' },
+            { key: 'purchaseDate', label: '到手日期' }
+        ]
     }
 ];
