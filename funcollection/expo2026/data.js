@@ -57,9 +57,10 @@ const IMG_BASE = "https://tong-xiangjie.github.io/funcollection/expo2026/images/
 
 const expo2026Items = [
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE01",
         name: "2026年第30届北京国际钱币博览会 参观券",
-        group: "票证 - 门票",
+        group: "纸币 - 票证 - 门票",
         kind: "admission_ticket",
         bank: "中国金币集团有限公司",
         year: 2026,
@@ -73,6 +74,7 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE01-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE02",
         name: "第四套人民币 1980年 5角",
         group: "纸币 - 人民币",
@@ -90,6 +92,7 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE02-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE03",
         name: "1993年 郑板桥作品选 20分 兰竹石大中堂",
         group: "纸币 - 邮票",
@@ -107,8 +110,9 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE03-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE04",
-        name: "2017年 河北雄安新区设立纪念 1.2元+1.2元=2.4元 新起点、新使命（一套2枚）",
+        name: "2017年 河北雄安新区设立纪念 1.20元 新起点 / 1.20元 新使命（一套2枚）",
         group: "纸币 - 邮票",
         kind: "stamp",
         bank: "中国邮政",
@@ -124,6 +128,7 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE04-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE05",
         name: "朝鲜 ½전（Chon） 野生动物系列纪念币 盘羊",
         group: "硬币 - 外国硬币",
@@ -142,6 +147,7 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE05-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE08",
         name: "北宋 天圣元宝 小平 隐郭",
         group: "硬币 - 古钱币",
@@ -158,6 +164,7 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE08-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE06",
         name: "北宋 元丰通宝 小平 四出（篆书）",
         group: "硬币 - 古钱币",
@@ -174,6 +181,7 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE06-02.jpg"
     },
     {
+        event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE07",
         name: "北宋 元丰通宝 小平 阔缘（真书）",
         group: "硬币 - 古钱币",
@@ -190,4 +198,3 @@ const expo2026Items = [
         img2: IMG_BASE + "26BICE07-02.jpg"
     }
 ];
-
