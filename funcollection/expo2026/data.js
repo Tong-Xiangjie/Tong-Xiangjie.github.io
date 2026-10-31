@@ -19,7 +19,6 @@
 //   copyId     必填。唯一身份，见上。
 //   name       必填。条目名称。
 //   group      侧边栏分组名（中文，专题按它分类）
-//   kind       种类：note 纸币 | coin 硬币 | ancient 古钱币 | stamp 邮票 | other 其它
 //   version    冠字号码 / 流水号
 //   grader     评级公司；condition 评级结果/分数
 //   remark     备注
@@ -49,7 +48,7 @@ const expo2026Meta = {
         { key: "grader", label: "评级公司" },
         { key: "condition", label: "评级得分" },
         { key: "price", label: "购入价格" },
-        { key: "purchaseDate", label: "获赠日期" }
+        { key: "purchaseDate", label: "购入日期" }
     ]
 };
 
@@ -60,8 +59,8 @@ const expo2026Items = [
         event: "2026年第30届北京国际钱币博览会",   // 侧边栏与大标题用的活动名（将来别的会写别的）
         copyId: "26BICE01",
         name: "2026年第30届北京国际钱币博览会 参观券",
-        group: "纸币 - 票证 - 门票",
-        kind: "admission_ticket",
+        group: "纸币 - 票证",
+        kind: "纸币 - 票证",
         bank: "中国金币集团有限公司",
         year: 2026,
         version: "05888",
@@ -78,7 +77,7 @@ const expo2026Items = [
         copyId: "26BICE02",
         name: "第四套人民币 1980年 5角",
         group: "纸币 - 人民币",
-        kind: "rmb4",
+        kind: "纸币 - 人民币",
         bank: "中国人民银行",
         year: 1980,
         version: "B6M7227077",
@@ -96,7 +95,7 @@ const expo2026Items = [
         copyId: "26BICE03",
         name: "1993年 郑板桥作品选 20分 兰竹石大中堂",
         group: "纸币 - 邮票",
-        kind: "stamp",
+        kind: "纸币 - 邮票",
         bank: "中国邮政",
         year: 1993,
         version: "1993-15 (6-3)T",
@@ -114,7 +113,7 @@ const expo2026Items = [
         copyId: "26BICE04",
         name: "2017年 河北雄安新区设立纪念 1.20元 新起点 / 1.20元 新使命（一套2枚）",
         group: "纸币 - 邮票",
-        kind: "stamp",
+        kind: "纸币 - 邮票",
         bank: "中国邮政",
         year: 2017,
         version: "2017-30 (2-1)/(2-2)J",
@@ -132,7 +131,7 @@ const expo2026Items = [
         copyId: "26BICE05",
         name: "朝鲜 ½전（Chon） 野生动物系列纪念币 盘羊",
         group: "硬币 - 外国硬币",
-        kind: "foreign_coin",
+        kind: "硬币 - 外国硬币",
         bank: "朝鲜中央银行",
         year: 2002,
         denomination: "½Chon（半钱）",
@@ -151,7 +150,7 @@ const expo2026Items = [
         copyId: "26BICE08",
         name: "北宋 天圣元宝 小平 隐郭",
         group: "硬币 - 古钱币",
-        kind: "ancient",
+        kind: "硬币 - 古钱币",
         bank: "北宋政府",
         year: 1023,
         grader: "斗泉",
@@ -168,7 +167,7 @@ const expo2026Items = [
         copyId: "26BICE06",
         name: "北宋 元丰通宝 小平 四出（篆书）",
         group: "硬币 - 古钱币",
-        kind: "ancient",
+        kind: "硬币 - 古钱币",
         bank: "北宋政府",
         year: 1078,
         grader: "国正评级",
@@ -185,7 +184,7 @@ const expo2026Items = [
         copyId: "26BICE07",
         name: "北宋 元丰通宝 小平 阔缘（真书）",
         group: "硬币 - 古钱币",
-        kind: "ancient",
+        kind: "硬币 - 古钱币",
         bank: "北宋政府",
         year: 1078,
         grader: "国正评级",
