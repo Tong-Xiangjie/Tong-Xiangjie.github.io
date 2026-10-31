@@ -480,7 +480,8 @@ function renderSpecialContent() {
                 else if (item.condition) parts.push(escapeHtml(item.condition));
                 if (item.year) parts.push(escapeHtml(String(item.year)) + '年');
                 if (item.denomination) parts.push(escapeHtml(item.denomination));
-                if (item.copyId) parts.push(escapeHtml(item.copyId));
+                // ★ 用户口径：概览式条目行末尾**不要**再缀留档编号（26BICExx）——
+                //   点开详情卡片里的「藏品编号」已经有了，行里重复显示只是噪声。
                 html += parts.join(' · ');
                 html += `</div></div>`;
                 html += `<div class="index-num">#${index + 1}</div>`;
