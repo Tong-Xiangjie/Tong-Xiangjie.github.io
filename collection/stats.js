@@ -157,24 +157,19 @@ function computeStats(typeFilter) {
     for (const item of filtered) {
         const cond = item.copy.condition || item.copy.grade || '';
 
-        // 处理「真品」特殊情况
-        if (cond.includes('真品')) {
-            if (!gradeMap['真品']) gradeMap['真品'] = { prefixes: new Set(['']), count: 0 };
-            gradeMap['真品'].count++;
-            continue;
-        }
-
-        // ★ 新增：处理「UNC」特殊情况（如 "ACG UNC"）
-        if (cond.includes('UNC') && !cond.match(/\d/)) {
-            // 只处理不包含数字的 UNC（避免把 "UNC 65" 也抓进来，虽然这种情况较少）
-            if (!gradeMap['UNC']) gradeMap['UNC'] = { prefixes: new Set(['']), count: 0 };
-            gradeMap['UNC'].count++;
-            continue;
-        }
+        // ★ 用户口径（2026-10）：只要**不是数字评分**，评级统计里一律记为「非数值」——
+        //   UNC、真品、暂未评级、各种文字品相全部合并成「非数值」这一个桶，
+        //   不再像原来那样「真品」「UNC」各占一行。
+        //   完全空白的 condition 仍然算 ungraded（「未评级」），与文字品相区分开。
+        // ★ 用户口径：「未评级当然还是写成未评级」⇒ 空 condition，以及数据里写的
+        //   「暂未评级 / 暂无评级 / 无评级 / 未评级」这类**没评级**的文字，都归到 ungraded
+        //   （显示为「未评级」），不混进「非数值」。其余非数字的文字品相才是「非数值」。
+        if (!cond.trim() || /未评级|暂无评级|无评级/.test(cond)) { ungraded++; continue; }
 
         const parsed = parseGrade(cond);
         if (!parsed) {
-            ungraded++;
+            if (!gradeMap['非数值']) gradeMap['非数值'] = { prefixes: new Set(['']), count: 0 };
+            gradeMap['非数值'].count++;
             continue;
         }
 
@@ -188,19 +183,11 @@ function computeStats(typeFilter) {
     const sortedGrades = Object.entries(gradeMap)
         .map(([score, g]) => {
             const prefixes = [...g.prefixes].filter(Boolean).sort();
-            const label = score === '真品' ? '真品'
-                : score === 'UNC' ? 'UNC'
+            const label = score === '非数值' ? '非数值'
                 : (prefixes.length ? prefixes.join('/') + score : score);
-            
-            // ★ 排序值计算
-            let sortVal;
-            if (score === '真品') {
-                sortVal = -1;
-            } else if (score === 'UNC') {
-                sortVal = 0;  // 排在数字分数之后、真品之前
-            } else {
-                sortVal = parseFloat(score.replace('E', '.5'));
-            }
+
+            // ★ 排序值计算：「非数值」永远排在所有数字分数之后
+            const sortVal = score === '非数值' ? -1 : parseFloat(score.replace('E', '.5'));
             return [label, g.count, sortVal];
         })
         .sort((a, b) => b[2] - a[2])
