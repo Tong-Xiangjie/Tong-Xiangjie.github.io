@@ -139,6 +139,12 @@ function compareDenom(a, b) {
 function buildGroupCategories(config, items) {
     const groupField = config.groupBy || 'year';
 
+    // ★ 用户口径（「泉行纪胜」）：侧边栏**只列一层"活动名"**，不再按门票/纸币/邮票细分子类；
+    //   右侧列表照旧按 groupBy 分组显示（右边不变）。singleGroupName 就是那唯一一条的名字。
+    if (config.singleGroupName) {
+        return [{ id: '__all__', name: config.singleGroupName, dataKey: config.id }];
+    }
+
     if (groupField === 'denom') {
         const set = new Set();
         for (const item of items) if (item.denom) set.add(item.denom);
@@ -375,7 +381,10 @@ function renderSpecialContent() {
 
     let filteredItems = items;
     if (currentSubId) {
-        if (groupField === 'denom') {
+        if (currentSubId === '__all__') {
+            // ★ 单一分组（侧边栏只有"活动名"那一条）⇒ 点它就是看全部，不做任何筛选。
+            filteredItems = items;
+        } else if (groupField === 'denom') {
             filteredItems = items.filter(item => (item.denom || '') === currentSubId);
         } else if (groupField !== 'year') {
             // ★ 通用字段分组（展会专题等）：按该字段的值筛。year / denom 老分支不动。
@@ -413,7 +422,7 @@ function renderSpecialContent() {
     for (const key of sortedKeys) for (const item of groups[key]) specialItemsList.push(item);
 
     let html = `<div class="overview-header"><h2>${escapeHtml(config.name)}</h2>`;
-    if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">正在看：${escapeHtml(currentSubId)}</p>`;
+    if (currentSubId) html += `<p style="font-size:0.8rem;color:var(--theme);">正在看：${escapeHtml(currentSubId === '__all__' ? (config.singleGroupName || '全部') : currentSubId)}</p>`;
     html += `</div>`;
 
     // ★ 用户口径：「点开之后最好也是纸币硬币点开之后的样子」。

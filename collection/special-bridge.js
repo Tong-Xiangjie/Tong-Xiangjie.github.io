@@ -36,18 +36,21 @@ window.SPECIAL_CONFIGS = [
         slogan: '集藏历岁，鉴物观心',
         view: 'timeline'
     },
-    // ===== 新增：2026年北京国际钱币博览会 · 展会收获（赠品）=====
-    //   混装专题：门票 / 纸币 / 外国硬币 / 古钱币（铜钱）/ 邮票。
+    // ===== 新增：泉行纪胜 · 活动中得到的赠品 =====
+    //   外层是"活动赠品"这个大类；里面的每一次活动（如 2026 北京国际钱币博览会）
+    //   作为**内层一层**列在侧边栏里，**不再**按门票/纸币/邮票细分子类（用户口径）；
+    //   右侧列表照旧按数据里的 group 分组显示。
     //   每一件都有唯一 copyId（号段 26BICExx）；将来录进正式藏品时照抄同一个
     //   copyId ⇒ 全站认作同一件，不会重复计数（见 funcollection/expo2026/data.js 头注）。
     {
         id: 'expo2026',
-        name: '2026年北京国际钱币博览会',
-        slogan: '钱博一日，收得四方物',
+        name: '泉行纪胜',
+        slogan: '踏会寻珍，以币留痕',
         dataKey: 'expo2026Data',
         dataFile: '../funcollection/expo2026/data.js',
         dataVar: 'expo2026Items',
-        groupBy: 'group',
+        groupBy: 'group',              // 右侧列表的分组（门票/纸币/邮票…）——右边不变
+        singleGroupName: '2026年第30届北京国际钱币博览会',   // ★ 侧边栏只列这一条
         itemStyle: 'overview',     // ★ 内部用"纸币/硬币概览页"那套条目 UI
         // ★ 详情卡片的字段表放在**数据文件里**（用户口径）：
         //   funcollection/expo2026/data.js 末尾的 expo2026Meta.detailFields。
