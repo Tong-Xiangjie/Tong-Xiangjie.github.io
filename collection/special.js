@@ -177,6 +177,24 @@ function buildGroupCategories(config, items) {
         .map(d => ({ id: d, name: d, dataKey: config.id }));
 }
 
+// ★ 详情卡片的字段表：**以数据文件为准**（用户口径：「这些东西最好写在 funcollection
+//   的 data 里面」）。配置里只写数据变量名（detailFieldsVar），这里解析出来：
+//     · 数据里可以写成 { detailFields: [...] } 这样的对象，也可以直接是数组；
+//     · 变量是 const 声明（不在 window 上），所以用 (0,eval)(name) 取全局词法绑定；
+//     · 解析不到时回退到配置里内联的 detailFields（老写法仍然可用）。
+function specialDetailFields(config) {
+    if (!config) return [];
+    if (config.detailFieldsVar) {
+        try {
+            const name = String(config.detailFieldsVar);
+            const v = (name in window) ? window[name] : (0, eval)(name);
+            if (Array.isArray(v)) return v;
+            if (v && Array.isArray(v.detailFields)) return v.detailFields;
+        } catch (e) { }
+    }
+    return config.detailFields || [];
+}
+
 function syncSpecialGroupChildren(config) {
     if (!config || config.view === 'timeline' || config.view === 'map' || !config.dataKey) return;
     const data = getData(config.dataKey);
@@ -437,7 +455,7 @@ function renderSpecialContent() {
                         copyDetailList.push({
                             copy: copy,
                             name: (item.group ? item.group + ' - ' : '') + (item.name || ''),
-                            detailFields: config.detailFields || []
+                            detailFields: specialDetailFields(config)
                         });
                     }
                 } catch (e) { }

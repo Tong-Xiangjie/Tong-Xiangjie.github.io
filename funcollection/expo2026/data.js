@@ -8,7 +8,7 @@
 //
 // ★ copyId = 唯一身份（重要）
 //   本专题每一件都必须有一个 copyId，号段：**26BICExx**
-//     · 26 = 2026 年，BICE = Beijing International Coin Expo，xx = 两位序号
+//     · 26 = 2026 年，BICE = Beijing International Coin Exposition，xx = 两位序号
 //       （26BICE01、26BICE02 ……；超过 99 件就顺着写 26BICE100）
 //     · 将来这件东西要录进正式藏品（notecollection/… 或 coincollection/…）时，
 //       **照抄同一个 copyId** ⇒ 全站认得出是同一件，不会重复计数。
@@ -37,15 +37,15 @@ const expo2026Items = [
 
     {
         copyId: "26BICE01",
-        name: "2026北京国际钱币博览会 门票",
-        group: "门票与纪念",
+        name: "2026年第30届北京国际钱币博览会 参观券",
+        group: "门票",
         kind: "other",
         version: "05888",
-        condition: "未评级",
+        condition: "暂未评级",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "展会纪念"],
-        remark: "参观 2026 年北京国际钱币博览会所得",
+        remark: "参观2026年第30届北京国际钱币博览会所得。非常幸运地得到了这样的号码。",
         img: IMG_BASE + "26BICE01-01.jpg",
         img2: IMG_BASE + "26BICE01-02.jpg"
     },
@@ -58,7 +58,7 @@ const expo2026Items = [
         grader: "源泰评级",
         condition: "真品",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品"],
         remark: "「80年5角」",
         img: IMG_BASE + "26BICE02-01.jpg",
@@ -72,7 +72,7 @@ const expo2026Items = [
         grader: "CSIS",
         condition: "真品",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "邮票"],
         img: IMG_BASE + "26BICE03-01.jpg",
         img2: IMG_BASE + "26BICE03-02.jpg"
@@ -85,7 +85,7 @@ const expo2026Items = [
         grader: "HDGS",
         condition: "真品",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "邮票"],
         img: IMG_BASE + "26BICE04-01.jpg",
         img2: IMG_BASE + "26BICE04-02.jpg"
@@ -101,7 +101,7 @@ const expo2026Items = [
         grader: "TQG",
         condition: "MS63",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "外币"],
         remark: "铝币；盘羊（大角羊 / Bighorn Sheep）",
         img: IMG_BASE + "26BICE05-01.jpg",
@@ -115,7 +115,7 @@ const expo2026Items = [
         grader: "国正评级",
         condition: "真品",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "古钱币"],
         remark: "北宋元丰通宝两枚之一（篆书）",
         img: IMG_BASE + "26BICE06-01.jpg",
@@ -129,7 +129,7 @@ const expo2026Items = [
         grader: "国正评级",
         condition: "真品",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "古钱币"],
         remark: "北宋元丰通宝两枚之一（行书）",
         img: IMG_BASE + "26BICE07-01.jpg",
@@ -143,7 +143,7 @@ const expo2026Items = [
         grader: "斗泉",
         condition: "真品",
         price: 0,
-        purchaseDate: "2026-10-27",
+        purchaseDate: "2026年10月27日",
         tags: ["赠品", "古钱币"],
         remark: "用户原记「天元圣宝」，疑为北宋天圣元宝，待核对",
         img: IMG_BASE + "26BICE08-01.jpg",
@@ -151,3 +151,24 @@ const expo2026Items = [
     }
 
 ];
+
+// ══════════════════════════════════════════════════════════════════════════
+// 详细信息卡片（点开某一件后弹出的那张卡）里显示的字段与顺序
+//   · 写法与各板块数据文件的 detailFields 同源，代码只负责读它；
+//   · key 必须对应上面条目里的字段名（kindName 是代码按 kind 映射出的中文种类）；
+//   · 某项为空时那一行自动不显示（与纸币/硬币的行为一致）。
+// ══════════════════════════════════════════════════════════════════════════
+const expo2026Meta = {
+    detailFields: [
+        { key: "copyId", label: "留档编号" },
+        { key: "kindName", label: "种类" },
+        { key: "version", label: "冠字号码 / 流水号" },
+        { key: "bank", label: "发行方" },
+        { key: "denomination", label: "面值" },
+        { key: "year", label: "发行年份" },
+        { key: "grader", label: "评级公司" },
+        { key: "condition", label: "评级结果" },
+        { key: "price", label: "购入价格" },
+        { key: "purchaseDate", label: "到手日期" }
+    ]
+};
