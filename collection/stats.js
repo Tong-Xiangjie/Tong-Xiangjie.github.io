@@ -135,7 +135,10 @@ function computeStats(typeFilter) {
         const ps = item.copy.price;
         if (ps) {
             const num = parseFloat(String(ps).replace(/[^0-9.]/g, ''));
-            if (!isNaN(num) && num > 0) {
+            // ★ 0 元也是「有价格」（用户口径：展会赠品「转正」后价格写 0，必须能出现在
+            //   价格列表里）。原来这里是 num > 0，于是 0 被打成 noPrice ⇒ 列表里显示
+            //   「-」、也不算进「已记录价格」与均价分母。判据改成「能解析出数字且非负」。
+            if (!isNaN(num) && num >= 0) {
                 prices.push({ value: num, name: item.seriesName, version: item.copy.version || '', dataKey: item.dataKey, type: item.type });
             } else {
                 prices.push({ value: -1, name: item.seriesName, version: item.copy.version || '', noPrice: true, dataKey: item.dataKey, type: item.type });
@@ -720,7 +723,7 @@ function exportCSV() {
             (typeof modeLabel === 'function') ? modeLabel(item.type) : item.type, exportCategoryLabel(item), item.seriesName,
             c.version || '', c.year || '', c.condition || c.grade || '',
             c.gradingCompany || '', c.catalogNumber || c.krause || '',
-            c.price || '', c.purchaseDate || '', c.material || '', c.remark || ''
+            (c.price === 0 ? 0 : (c.price || '')), c.purchaseDate || '', c.material || '', c.remark || ''
         ].map(esc);
         csv += row.join(',') + '\n';
     }
