@@ -414,26 +414,33 @@ function renderSpecialContent() {
         }
     }
 
-    // ★ 没选活动时，右侧按**活动**分段（用户口径：未来的别的会才不会混到一起）；
-    //   选了某一次活动之后，分段回到数据里的 group（门票/纸币/邮票…）—— 与之前一致。
-    const activeGroupField = (!currentSubId && config.eventField && filteredItems.some(it => it[config.eventField]))
-        ? config.eventField : groupField;
+    // ★ 用户口径：没选活动时，右侧是**两级**——「活动」（上级标题）+「group」（下级标题，
+    //   如 纸币 - 票证 - 门票）；选中某一次活动后，回到只按 group 分段（右边不变）。
+    const useEventLevel = !!(config.eventField && !currentSubId && filteredItems.some(it => it[config.eventField]));
+    const EV_SEP = '\u0000';          // 复合键分隔符（不会出现在正常文案里）
 
     const groups = {};
+    const groupLabel = {};            // 复合键 → 显示用的 group 名
+    const groupEvent = {};            // 复合键 → 所属活动名
     for (const item of filteredItems) {
-        const key = activeGroupField === 'denom' ? (item.denom || '未知')
-            : (activeGroupField === 'year' ? (item.year || '未知') : (item[activeGroupField] || '未知'));
+        const base = groupField === 'denom' ? (item.denom || '未知')
+            : (groupField === 'year' ? (item.year || '未知') : (item[groupField] || '未知'));
+        const ev = useEventLevel ? String(item[config.eventField] || '未注明活动') : '';
+        const key = useEventLevel ? (ev + EV_SEP + base) : base;
+        groupLabel[key] = base;
+        groupEvent[key] = ev;
         if (!groups[key]) groups[key] = [];
         groups[key].push(item);
     }
     // ★ 通用字段分组保持"首次出现"的顺序（Object.keys 对字符串键本就按插入序）；
-    //   year 按年代倒序、denom 按面额大小，两条老逻辑原样。
-    const sortedKeys = (activeGroupField !== 'year' && activeGroupField !== 'denom')
+    //   year 按年代倒序、denom 按面额大小，两条老逻辑原样。两级模式下按插入序，
+    //   这样同一个活动的各个 group 自然挨在一起。
+    const sortedKeys = (useEventLevel || (groupField !== 'year' && groupField !== 'denom'))
         ? Object.keys(groups)
         : Object.keys(groups).sort((a, b) => {
             if (a === '未知') return 1;
             if (b === '未知') return -1;
-            if (activeGroupField === 'denom') return compareDenom(a, b);
+            if (groupField === 'denom') return compareDenom(a, b);
             return parseInt(b) - parseInt(a);
         });
 
@@ -453,8 +460,18 @@ function renderSpecialContent() {
         try { if (typeof copyDetailList !== 'undefined' && Array.isArray(copyDetailList)) copyDetailList = []; } catch (e) { }
     }
 
+    let lastEventName = null;
     for (const key of sortedKeys) {
         const group = groups[key];
+        const label = groupLabel[key] || key;
+        // ★ 两级显示：换到另一个活动时，先打一条"活动"大标题（= group 的上级标题），
+        //   标题右侧跟上这次活动的件数。选中某次活动后 useEventLevel 为假 ⇒ 不出现。
+        if (useEventLevel && groupEvent[key] !== lastEventName) {
+            lastEventName = groupEvent[key];
+            let evCount = 0;
+            for (const k2 of sortedKeys) if (groupEvent[k2] === lastEventName) evCount += groups[k2].length;
+            html += `<div class="special-event-header" style="margin:16px 0 6px;font-size:0.95rem;font-weight:700;color:var(--theme);border-bottom:1px solid var(--border);padding-bottom:5px;">${escapeHtml(lastEventName)} <span style="font-weight:400;font-size:0.8rem;opacity:.78;">${evCount}件</span></div>`;
+        }
         // ★ 用户口径：展会专题内部要"和普通纸币/硬币的概览页一样的 UI"。
         //   itemStyle: 'overview' ⇒ 复用概览页那套结构与 class
         //   （search-result-group / search-group-header / search-result-item /
@@ -463,7 +480,7 @@ function renderSpecialContent() {
         //   其它专题（年份/面额）不带这个开关 ⇒ 走下面的老分支，行为一字不变。
         if (config.itemStyle === 'overview') {
             html += `<div class="search-result-group">`;
-            html += `<div class="search-group-header">${escapeHtml(key)} <span class="count">${group.length}件</span></div>`;
+            html += `<div class="search-group-header">${escapeHtml(label)} <span class="count">${group.length}件</span></div>`;
             for (const item of group) {
                 const index = specialItemsList.indexOf(item);
                 // ★ 登记进详细信息卡片（对齐 category-view.js 的契约）：
