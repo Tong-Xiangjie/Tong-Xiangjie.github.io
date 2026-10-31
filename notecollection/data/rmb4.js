@@ -211,6 +211,23 @@ const rmb4Data = {
                     depositOnlyDate: "",
                     withdrawnDate: "",
                     size: "125mm*58mm"
+                },{
+                    copyId: "26BICE02",
+                    year: 1980,
+                    version: "B6M7227077",
+                    bank: "中国人民银行",
+                    condition: "源泰评级 真品",
+                    price: "0元",
+                    purchaseDate: "2026年10月31日",
+                    krause: "883b",
+                    wmk: "无水印/Without watermark",
+                    issueDate: "1987年4月27日",
+                    remark: "2026年第30届北京国际钱币博览会上注册“赵涌在线”转转盘抽奖获赠。其实这个软件早就已经注册过了。这张号码其实也还不错。",
+                    img1: "https://tong-xiangjie.github.io/funcollection/expo2026/images/26BICE02-01.jpg",
+                    img2: "https://tong-xiangjie.github.io/funcollection/expo2026/images/26BICE02-02.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "125mm*58mm"
                 }
             ]
         },
