@@ -400,6 +400,47 @@ function renderSpecialContent() {
 
     for (const key of sortedKeys) {
         const group = groups[key];
+        // ★ 用户口径：展会专题内部要"和普通纸币/硬币的概览页一样的 UI"。
+        //   itemStyle: 'overview' ⇒ 复用概览页那套结构与 class
+        //   （search-result-group / search-group-header / search-result-item /
+        //     dual-thumb / mini-thumb / info → name + detail / index-num），
+        //   所以样式、缩略图、评级 chip 的写法与概览页**同源**，不是另画一套。
+        //   其它专题（年份/面额）不带这个开关 ⇒ 走下面的老分支，行为一字不变。
+        if (config.itemStyle === 'overview') {
+            html += `<div class="search-result-group">`;
+            html += `<div class="search-group-header">${escapeHtml(key)} <span class="count">${group.length}件</span></div>`;
+            for (const item of group) {
+                const index = specialItemsList.indexOf(item);
+                const i1 = item.img ? getImageUrl(item.img) : '';
+                const i2 = item.img2 ? getImageUrl(item.img2) : '';
+                const g1 = i1 ? gridImg(item.img) : null;
+                const g2 = i2 ? gridImg(item.img2) : null;
+                html += `<div class="search-result-item" onclick="openSpecialLightbox(${index})">`;
+                html += `<div class="dual-thumb">`;
+                if (g1) html += `<img class="mini-thumb" src="${escapeAttr(g1.src)}"${thumbFallbackAttr(g1.fallback)} loading="lazy" decoding="async" alt="O_o">`;
+                if (g2) html += `<img class="mini-thumb" src="${escapeAttr(g2.src)}"${thumbFallbackAttr(g2.fallback)} loading="lazy" decoding="async" alt="o_O">`;
+                if (!g1 && !g2) html += `<div class="mini-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.5rem;">还木有图片</div>`;
+                html += `</div>`;
+                html += `<div class="info">`;
+                html += `<div class="name">${escapeHtml(item.name || '')}</div>`;
+                html += `<div class="detail">`;
+                // ★ 统一拼数组再 join：避免"评级公司/年份/面额缺一个"时留下连续两个 · ，
+                //   写法与概览页的 detail 行一致（公司在前、分数在后，中间一个半角空格）。
+                const parts = [];
+                if (item.version) parts.push(escapeHtml(item.version));
+                if (item.grader) parts.push(escapeHtml(item.grader) + (item.condition ? ' ' + escapeHtml(item.condition) : ''));
+                else if (item.condition) parts.push(escapeHtml(item.condition));
+                if (item.year) parts.push(escapeHtml(String(item.year)) + '年');
+                if (item.denomination) parts.push(escapeHtml(item.denomination));
+                if (item.copyId) parts.push(escapeHtml(item.copyId));
+                html += parts.join(' · ');
+                html += `</div></div>`;
+                html += `<div class="index-num">#${index + 1}</div>`;
+                html += `</div>`;
+            }
+            html += `</div>`;
+            continue;
+        }
         html += `<div class="special-year-section">`;
         html += `<div class="special-year-title">${escapeHtml(key)} <span class="count">${group.length}件</span></div>`;
         html += `<div class="special-year-grid">`;

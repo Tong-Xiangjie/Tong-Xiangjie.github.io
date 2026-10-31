@@ -47,6 +47,7 @@ window.SPECIAL_CONFIGS = [
         dataKey: 'expo2026Data',
         dataFile: '../funcollection/expo2026/data.js',
         dataVar: 'expo2026Items',
-        groupBy: 'group'
+        groupBy: 'group',
+        itemStyle: 'overview'      // ★ 内部用"纸币/硬币概览页"那套条目 UI
     }
 ];
