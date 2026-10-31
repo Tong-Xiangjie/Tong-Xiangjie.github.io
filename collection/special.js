@@ -492,11 +492,16 @@ function renderSpecialContent() {
                 let dIdx = -1;
                 try {
                     if (typeof copyDetailList !== 'undefined' && Array.isArray(copyDetailList)) {
+                        // ★ 用户口径：「kind 这个分类没必要，可以只要 group」——
+                        //   种类优先取 group 的第一段（group 写作「纸币 - 人民币」「硬币 - 古钱币」，
+                        //   第一段就是种类）；没写 group 时才退回旧的 kind 映射；再不行留空
+                        //   （详情卡片对空值会自动省略那一行）。⇒ 数据里可以不再写 kind。
                         const KIND_CN = { note: '纸币', coin: '硬币', ancient: '古钱币', stamp: '邮票', other: '其它' };
+                        const groupKind = item.group ? String(item.group).split(' - ')[0].trim() : '';
                         const copy = Object.assign({}, item, {
                             img1: item.img1 || item.img,
                             img2: item.img2,
-                            kindName: KIND_CN[item.kind] || item.kind
+                            kindName: item.kindName || groupKind || KIND_CN[item.kind] || item.kind || ''
                         });
                         dIdx = copyDetailList.length;
                         copyDetailList.push({
