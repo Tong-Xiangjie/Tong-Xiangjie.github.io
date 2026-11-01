@@ -201,7 +201,7 @@ const coincommData = {
         // ==================== 珍稀动物系列（5层，有多品种） ====================
         {
             seriesName: "中国珍稀野生动物纪念币",
-            year: 1993,
+            year: "1993～1999",
             varieties: [
                 {
                     varietyName: "大熊猫",
@@ -216,20 +216,144 @@ const coincommData = {
                             material: "紫铜",
                             diameter: "32mm",
                             weight: "13.2g",
-                            edge: "连续丝齿",
+                            edge: "间断丝齿",
                             mintage: "600万",
                             grade: "MS67",
                             gradingCompany: "ACG",
                             price: "118元",
                             purchaseDate: "2025年12月16日",
-                            catalogNumber: "Sun-J27b1",
+                            catalogNumber: "Sun-J27a",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1993panda-1.jpg",
                             img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/1993panda-2.jpg"
                         }
                     ]
+                },{
+                    varietyName: "白鳍豚",
+                    copies: [
+                        {
+                            copyId: 61827521,
+                            country: "中华人民共和国",
+                            year: 1996,
+                            issueDate: "1996年12月18日",
+                            denomination: "5元",
+                            mint: "沈阳造币厂",
+                            material: "紫铜",
+                            diameter: "32mm",
+                            weight: "13.5g",
+                            edge: "间断丝齿",
+                            mintage: "600万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "45元",
+                            purchaseDate: "2026年11月1日",
+                            catalogNumber: "Sun-J36a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61827521-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61827521-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "华南虎",
+                    copies: [
+                        {
+                            copyId: 61826989,
+                            country: "中华人民共和国",
+                            year: 1996,
+                            issueDate: "1996年12月18日",
+                            denomination: "5元",
+                            mint: "沈阳造币厂",
+                            material: "紫铜",
+                            diameter: "32mm",
+                            weight: "13.5g",
+                            edge: "间断丝齿",
+                            mintage: "600万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "45元",
+                            purchaseDate: "2026年11月1日",
+                            catalogNumber: "Sun-J37a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61826989-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61826989-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "扬子鳄",
+                    copies: [
+                        {
+                            copyId: 61822329,
+                            country: "中华人民共和国",
+                            year: 1998,
+                            issueDate: "1998年10月23日",
+                            denomination: "5元",
+                            mint: "沈阳造币厂",
+                            material: "紫铜",
+                            diameter: "32mm",
+                            weight: "13.5g",
+                            edge: "间断丝齿",
+                            mintage: "600万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "45元",
+                            purchaseDate: "2026年11月1日",
+                            catalogNumber: "Sun-J44a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61822329-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61822329-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "中华鲟",
+                    copies: [
+                        {
+                            copyId: 61822256,
+                            country: "中华人民共和国",
+                            year: 1999,
+                            issueDate: "1999年7月15日",
+                            denomination: "5元",
+                            mint: "沈阳造币厂",
+                            material: "紫铜",
+                            diameter: "32mm",
+                            weight: "13.5g",
+                            edge: "间断丝齿",
+                            mintage: "600万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "45元",
+                            purchaseDate: "2026年11月1日",
+                            catalogNumber: "Sun-J46a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61822256-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61822256-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "金斑喙凤蝶",
+                    copies: [
+                        {
+                            copyId: 61827628,
+                            country: "中华人民共和国",
+                            year: 1999,
+                            issueDate: "1999年7月15日",
+                            denomination: "5元",
+                            mint: "沈阳造币厂",
+                            material: "紫铜",
+                            diameter: "32mm",
+                            weight: "13.5g",
+                            edge: "间断丝齿",
+                            mintage: "600万",
+                            grade: "MS67",
+                            gradingCompany: "ACG",
+                            price: "45元",
+                            purchaseDate: "2026年11月1日",
+                            catalogNumber: "Sun-J47a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61827628-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/61827628-2.jpg"
+                        }
+                    ]
                 }
-                // 可继续添加：金丝猴、白鳍豚、华南虎等
             ]
         },
         // ==================== 抗战胜利50周年（4层） ====================

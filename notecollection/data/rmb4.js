@@ -60,6 +60,23 @@ const rmb4Data = {
                     withdrawnDate: "",
                     size: "115mm*52mm"
                 },{
+                    copyId: 19930079,
+                    year: 1980,
+                    version: "ZJ00965775",
+                    bank: "中国人民银行",
+                    condition: "ACG 67E",
+                    price: "33元",
+                    purchaseDate: "2025年11月1日",
+                    krause: "881ar",
+                    wmk: "无水印/Without watermark",
+                    issueDate: "1988年9月22日",
+                    remark: "二冠补号",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/rmb4/19930079-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/rmb4/19930079-2.jpg",
+                    depositOnlyDate: "",
+                    withdrawnDate: "",
+                    size: "115mm*52mm"
+                },{
                     copyId: 19681877,
                     year: 1980,
                     version: "F1W9199663",
