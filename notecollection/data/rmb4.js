@@ -66,7 +66,7 @@ const rmb4Data = {
                     bank: "中国人民银行",
                     condition: "ACG 67E",
                     price: "33元",
-                    purchaseDate: "2025年11月1日",
+                    purchaseDate: "2026年11月1日",
                     krause: "881ar",
                     wmk: "无水印/Without watermark",
                     issueDate: "1988年9月22日",
