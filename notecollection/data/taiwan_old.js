@@ -30,7 +30,8 @@ const taiwanOldData = {
                     krause: "1935",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-2.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-2.jpg"
+,
                     // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                     imgExtra: {
                         sideLight: ["https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-4.jpg"],
@@ -39,8 +40,24 @@ const taiwanOldData = {
                     },
                 }
             ]
-        },
-        {
+        },{
+            seriesName: "第一批 中华民国三十五年（1946年） 5元",
+            copies: [
+                {
+                    copyId: 0,
+                    year: 1946,
+                    version: "AE611028",
+                    bank: "台湾银行",
+                    condition: "暂未评级",
+                    price: "127元",
+                    purchaseDate: "2026年11月1日",
+                    krause: "1936",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AE611028-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AE611028-2.jpg"
+                }
+            ]
+        },{
             seriesName: "第一批 中华民国三十五年（1946年） 10元",
             copies: [
                 {
@@ -54,13 +71,31 @@ const taiwanOldData = {
                     krause: "1937",
                     remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-2.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-2.jpg"
+,
                     // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                     imgExtra: {
                         sideLight: ["https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-4.jpg"],
                         transmit:  ["https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-6.jpg"],
                         uv:        ["https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/CA609471-8.jpg"]
                     },
+                }
+            ]
+        },{
+            seriesName: "第二批 中华民国三十五年（1946年） 100元 中央版",
+            copies: [
+                {
+                    copyId: 0,
+                    year: 1946,
+                    version: "KZ238255",
+                    bank: "台湾银行",
+                    condition: "暂未评级",
+                    price: "178元",
+                    purchaseDate: "2026年11月1日",
+                    krause: "1939",
+                    remark: "",
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/KZ238255-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/KZ238255-2.jpg"
                 }
             ]
         }

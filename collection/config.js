@@ -113,6 +113,7 @@ const categoryTree = [
             { id: 'republic_pbkc', name: '贵州省银行', dataKey: 'republic_pbkcData', dataFile: '../notecollection/data/republic_pbkc.js' },
             { id: 'republic_thnb', name: '海南银行', dataKey: 'republic_thnbData', dataFile: '../notecollection/data/republic_thnb.js' },
             // —— 特殊/其他 ——
+            { id: 'republic_cibc', name: '震义银行', dataKey: 'republic_cibcData', dataFile: '../notecollection/data/republic_cibc.js' },
             { id: 'republic_spb', name: '南方人民银行', dataKey: 'republic_spbData', dataFile: '../notecollection/data/republic_spb.js' },
             { id: 'republic_mfrc', name: '中华民国财政部', dataKey: 'republic_mfrcData', dataFile: '../notecollection/data/republic_mfrc.js' }
         ]

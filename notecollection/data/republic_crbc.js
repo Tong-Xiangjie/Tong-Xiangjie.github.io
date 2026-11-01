@@ -49,6 +49,29 @@ const republic_crbcData = {
                         }
                     ]
                 },{
+                    varietyName: "1940年 5角 华成版 南京中山陵",
+                    copies: [
+                        {
+                            copyId: 17705572,
+                            year: 1940,
+                            version: "G182594H",
+                            bank: "中央储备银行",
+                            print: "华成印刷有限公司/WPC",
+                            signature1: "总裁（Governor）：周佛海（F.H. Chow）",
+                            signature2: "副总裁（Vice Governor）：钱大櫆（T.K. Chien）",
+                            issueDate: "民国二十九年（1940年）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 65E",
+                            price: "196元",
+                            purchaseDate: "2026年11月1日",
+                            krause: "J7a",
+                            remark: "【版别：紫色版】",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/17705572-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/17705572-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "1940年 5元 南京中山陵",
                     copies: [
                         {
@@ -161,7 +184,8 @@ const republic_crbcData = {
                             krause: "J20a",
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-2.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-2.jpg"
+,
                             // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
                             imgExtra: {
                                 sideLight: ["https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/republic_crbc/1943-10-17-4.jpg"],
