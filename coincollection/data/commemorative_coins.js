@@ -7,6 +7,7 @@ const coincommData = {
         { key: "country", label: "发行国家/地区" },
         { key: "year", label: "发行年份" },
         { key: "issueDate", label: "发行日期" },
+        { key: "version", label: "编号" },
         { key: "mint", label: "造币厂" },
         { key: "denomination", label: "面值" },
         { key: "material", label: "材质" },
@@ -522,7 +523,7 @@ const coincommData = {
                             material: "双色铜合金",
                             diameter: "27mm",
                             weight: "9.2g",
-                            edge: "交替丝齿",
+                            edge: "斜全齿间隔半齿",
                             mintage: "8000万",
                             grade: "MS69",
                             gradingCompany: "ACG",
@@ -552,7 +553,7 @@ const coincommData = {
                             material: "双色铜合金",
                             diameter: "27mm",
                             weight: "9.2g",
-                            edge: "交替丝齿",
+                            edge: "斜全齿间隔半齿",
                             mintage: "8000万",
                             grade: "MS69",
                             gradingCompany: "ACG",
@@ -588,6 +589,44 @@ const coincommData = {
                         content: "file:readmes/2026_wuyishan_release.html"
                     },
                     copies: []
+                }
+            ]
+        },
+        // ==================== 京剧系列（5层，有多品种） ====================
+        {
+            seriesName: "中国京剧艺术纪念币",
+            year: "2023～2026",
+            varieties: [
+                {
+                    varietyName: "旦角",
+                    readme: {
+                        title: "中国京剧艺术——旦角纪念币发行公告",
+                        content: "file:readmes/2024_jingju_dan_release.html"
+                    },
+                    copies: [
+                        {
+                            copyId: 26852948,
+                            country: "中华人民共和国",
+                            year: 2024,
+                            issueDate: "2024年11月19日",
+                            version: "No.13569",
+                            denomination: "5元",
+                            mint: "上海造币厂",
+                            material: "黄铜合金",
+                            diameter: "30mm",
+                            weight: "13g",
+                            edge: "疏密齿",
+                            mintage: "6000万",
+                            grade: "MS69",
+                            gradingCompany: "ACG",
+                            price: "55元",
+                            purchaseDate: "2026年11月2日",
+                            catalogNumber: "Unlisted",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/coincollection/image/commemorative/26852948-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/coincollection/image/commemorative/26852948-2.jpg"
+                        }
+                    ]
                 }
             ]
         }
