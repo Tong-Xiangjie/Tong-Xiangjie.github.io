@@ -792,14 +792,18 @@ console.log('\n══════ ②-e 单月合计 == 该月"逐日合计"之�
   })()`));
   const monthBad = [];
   let nMon = 0;
+  // ★ 用户口径（本次修正）：格子的填色金额 = **当月总价** = 该月"逐日合计（裸币口径）" + 该月评级费。
+  //   两个数都在泡里写着（第一行 = 逐日合计，第三行 = 合计支出），这条比的是恒等式。
+  const feeOfMonth = (mk) => (expectFees[mk] && expectFees[mk].amount) || 0;
   for (const [mk, v] of dailyMonth) {
     const [y, m] = mk.split('/');
     const got = cellAmt[y + '/' + m];
+    const want = Math.round((v + feeOfMonth(mk)) * 10) / 10;
     nMon++;
-    if (got === undefined || Math.abs(got - v) > 0.11) monthBad.push(`${mk}: 格子 ${got} ≠ 逐日 ${v}`);
+    if (got === undefined || Math.abs(got - want) > 0.11) monthBad.push(`${mk}: 格子 ${got} ≠ 逐日 ${v} + 该月评级费 ${feeOfMonth(mk)} = ${want}`);
   }
   ok(monthBad.length === 0,
-    `②-e ★★★ 全部 ${nMon} 个月：格子金额 == 该月"逐日合计之和"（不一致：${monthBad.join('；') || '无'}）`);
+    `②-e ★★★ 全部 ${nMon} 个月：格子金额 == 该月"逐日合计之和" + 该月评级费（不一致：${monthBad.join('；') || '无'}）`);
   // 全年合计 == 各月之和；全部合计 == 所有月之和（自洽性）
   const ySum = new Map(), allSum = Math.round([...dailyMonth.values()].reduce((s, v) => s + v, 0) * 10) / 10;
   for (const [mk, v] of dailyMonth) { const y = mk.split('/')[0]; ySum.set(y, Math.round(((ySum.get(y) || 0) + v) * 10) / 10); }
@@ -1631,8 +1635,9 @@ console.log('\n══════ ③-b2 四种范围的件数自查（件数不
 // 用户原话："热力图的价格还是不对"。根因：**格子取色与泡第一行用了两支不同口径** ——
 //   泡第一行曾经是 `cell.psum`（Σ录入价，2026/02 = 7670），而逐日"这天你一共花了"与
 //   页面自己的每日合计是**裸币价**（2026/02 = 7193.5 ≈ 用户手算的 7194）。
-// 现在两处统一到 **cell.npsum** ⇒ 逐格断言 `data-amount` == 泡第一行"合计" == 逐日之和。
-console.log('\n══════ ③-e 填色金额 == 泡第一行"合计"（逐格回环） ══════\n');
+// 现在取色口径 = **当月总价**（Σ裸币价 + 当月评级费）= 泡**第三行**「合计支出」那个数。
+// ⇒ 逐格断言 `data-amount` == 泡第三行"合计支出"（没有第三行的月份 == 泡第一行"合计"）。
+console.log('\n══════ ③-e 填色金额 == 泡第三行"合计支出"（逐格回环） ══════\n');
 {
   const pairs = JSON.parse(await evaluate(`(()=>{
     const out = [];
@@ -1641,43 +1646,57 @@ console.log('\n══════ ③-e 填色金额 == 泡第一行"合计"（�
       for (const c of r.querySelectorAll('.tl-heatmap-cell')) {
         const t = c.querySelector('.tl-heatmap-tip');
         const txt = window.__tipText ? window.__tipText(t) : '';
-        // ★ 只取**第一行**的"合计"（第三行也叫"合计支出"，不能混）
-        const m = String(txt).split('\\n')[0].match(/合计([\\d.]+)元/);
-        out.push({ key: y + '/' + c.dataset.month, amt: +(c.dataset.amount || 0), tipSum: m ? +m[1] : null, first: String(txt).split('\\n')[0] });
+        const lines = String(txt).split('\\n');
+        // ★ 第一行「合计X元」（购入金额，裸币口径）；第三行「合计支出Z元」（= 第一行 + 第二行评级费）
+        const m1 = (lines[0] || '').match(/合计([\\d.]+)元/);
+        const m3 = (lines[2] || '').match(/合计支出([\\d.]+)元/);
+        out.push({ key: y + '/' + c.dataset.month, amt: +(c.dataset.amount || 0), tipSum: m1 ? +m1[1] : null,
+                   tipTotal: m3 ? +m3[1] : null, first: lines[0] || '', third: lines[2] || '' });
       }
     }
     return JSON.stringify(out);
   })()`));
-  const bad = pairs.filter(p => p.amt > 0 && (p.tipSum === null || Math.abs(p.amt - p.tipSum) > 0.11));
+  // ★ 用户口径：填色就用"悬浮框计算的那个" —— 泡有第三行（有评级费）时用第三行，否则用第一行。
+  const wantAmtOf = (p) => (p.tipTotal != null ? p.tipTotal : p.tipSum);
+  const bad = pairs.filter(p => p.amt > 0 && (wantAmtOf(p) === null || Math.abs(p.amt - wantAmtOf(p)) > 0.11));
   const covered = pairs.filter(p => p.amt > 0).length;
   console.log(`     有色的格子 ${covered} 个；样例：`);
-  for (const p of pairs.filter(x => x.amt > 0).slice(0, 3)) console.log(`        ${p.key}  填色金额=${p.amt}  泡第一行「${p.first}」`);
+  for (const p of pairs.filter(x => x.amt > 0).slice(0, 3)) {
+    console.log(`        ${p.key}  填色金额=${p.amt}  泡第一行「${p.first}」${p.third ? '  第三行「' + p.third + '」' : ''}`);
+  }
   ok(bad.length === 0,
-    `③-e ★★★ 每个有色格子的**填色金额** == 它泡第一行的"合计"（不一致：${bad.map(b => b.key + ' ' + b.amt + '≠' + b.tipSum).join('；') || '无'}）`);
-  // ★★★ 逐格**全覆盖**：填色金额 == 独立复算的该月 Σ裸币价（不抽查、也不写死金额）。
+    `③-e ★★★ 每个有色格子的**填色金额** == 它泡里的总价（有第三行取第三行、否则第一行）（不一致：${bad.map(b => b.key + ' ' + b.amt + '≠' + wantAmtOf(b)).join('；') || '无'}）`);
+  // ★★★ 逐格**全覆盖**：填色金额 == 独立复算的该月「Σ裸币价 + 该月评级费」。
   //   上一版只抽查 "2026/10 == 1194" 与 "2026/02 == 7194" 两个格子 —— 那既是数据快照、
   //   又漏掉了其它月份。现在换成对**每一个**有数据的月份都比，判据更强。
+  const wantTotalOf = (key) => {
+    const c = expectMatrix.cells[key] || {};
+    const f = expectFees[key];
+    return Math.round(((c.npsum || 0) + ((f && f.amount) || 0)) * 10) / 10;
+  };
   const cellBad = pairs.filter(p => {
     const c = expectMatrix.cells[p.key];
-    return c && Math.abs(p.amt - (c.npsum || 0)) > 0.11;
+    return c && Math.abs(p.amt - wantTotalOf(p.key)) > 0.11;
   });
   ok(cellBad.length === 0,
-    `③-e ★★★ 每一个格子的**填色金额** == 独立复算的该月 Σ裸币价（不一致：${cellBad.map(b => b.key + ' 填色' + b.amt + '≠复算' + (expectMatrix.cells[b.key] || {}).npsum).join('；') || `无，逐格全对（共 ${covered} 个有色格子）`}）`);
-  // ★ 有评级费的那个月：填色**不等于**"Σ裸币价 + 该月评级费"（防评级费被算进填色 —— 用户报的那个 bug）
+    `③-e ★★★ 每一个格子的**填色金额** == 独立复算的该月「Σ裸币价 + 该月评级费」（不一致：${cellBad.map(b => b.key + ' 填色' + b.amt + '≠复算' + wantTotalOf(b.key)).join('；') || `无，逐格全对（共 ${covered} 个有色格子）`}）`);
+  // ★★★ 有评级费的那个月：填色**等于**"Σ裸币价 + 该月评级费" —— 评级费**要**算进填色
+  //   （用户 2026-XX：「热力图用来计算颜色深浅的价格似乎没有包含评级费？应该按照总价来判定颜色」
+  //    「就用当月的总价，就是悬浮框计算的那个」；上一版这条断言是反的。）
   if (scenarioKey) {
     const ymP = pairs.find(p => p.key === scenarioKey);
     const ymC = expectMatrix.cells[scenarioKey];
     const ymF = expectFees[scenarioKey];
     const withFee = Math.round((ymC.npsum + ymF.amount) * 10) / 10;
-    ok(!!ymP && Math.abs(ymP.amt - withFee) > 0.11,
-      `③-e ★★★ ${ymLabel(scenarioY, scenarioM)}（有评级费）这一格：填色 ${ymP && ymP.amt} **不等于**"Σ裸币价 + 该月评级费" ${withFee} —— 评级费没有被算进填色`);
+    ok(!!ymP && Math.abs(ymP.amt - withFee) <= 0.11,
+      `③-e ★★★ ${ymLabel(scenarioY, scenarioM)}（有评级费）这一格：填色 ${ymP && ymP.amt} **等于**"Σ裸币价 + 该月评级费" ${withFee} —— 评级费已计入填色，与泡第三行一致`);
   } else {
     skip('③-e 防"评级费算进填色"：数据里没有"既有购入又有评级费"的月份，构造不出这个反例');
   }
   // ★ 最大金额那一格：填色 == 复算（这里额外确认"最大月"也没被另一支口径污染）
   const maxPair = [...pairs].filter(p => p.amt > 0).sort((a, b) => b.amt - a.amt)[0] || null;
-  ok(!!maxPair && Math.abs(maxPair.amt - ((expectMatrix.cells[maxPair.key] || {}).npsum || 0)) <= 0.11,
-    `③-e ★★★ 金额最大的那一格（${maxPair && maxPair.key} = ${maxPair && maxPair.amt} 元）填色 == 复算的 Σ裸币价 ${maxPair && (expectMatrix.cells[maxPair.key] || {}).npsum}（上一版这里写死 7194，数据一改就假红）`);
+  ok(!!maxPair && Math.abs(maxPair.amt - wantTotalOf(maxPair.key)) <= 0.11,
+    `③-e ★★★ 金额最大的那一格（${maxPair && maxPair.key} = ${maxPair && maxPair.amt} 元）填色 == 复算的「Σ裸币价 + 该月评级费」${maxPair && wantTotalOf(maxPair.key)}（上一版这里写死 7194，数据一改就假红）`);
 }
 
 

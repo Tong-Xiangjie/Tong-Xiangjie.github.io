@@ -1916,8 +1916,8 @@ function buildMonthHeatmap(items) {
     //   ⇒ 三个数各说各话的根源就是"填色用一支口径、泡用另一支"。现在统一成 `npsum`：
     //       泡第一行合计 == 格子取色金额 == 图例五档金额 == Σ(该月逐日"这天你一共花了")
     //       == 2026/02 的 7193（用户手算 7194，差的是 7193.5 的显示取整）。
-    let maxAmount = 0;
-    for (const y of years) for (const c of byYear.get(y)) if (c.npsum > maxAmount) maxAmount = c.npsum;
+    // ★ maxAmount（色阶上限）改到下面**评级费映射建好之后**再算 —— 现在的取色口径是
+    //   「当月总价」= Σ裸币价 + 当月评级费（见下面 cellAmount 那段注释）。
 
     // 标签的泡里也要有"多少件、多少钱"（用户要求）：
     //   年份 = 全年合计；月份 = 历年这个月的合计；"全部" = 全部时间合计
@@ -2002,6 +2002,22 @@ function buildMonthHeatmap(items) {
         feeByYm.set(key, cur);
     }
     const feeAt = (y, m) => feeByYm.get(y + '-' + m) || null;
+
+    // ★★★ 用户口径（本次修正）：「热力图用来计算颜色深浅的『价格』……应该按照『总价』来判定
+    //   颜色」「就用当月的总价，就是悬浮框计算的那个」「悬浮框的价格是准确的」。
+    //   ⇒ 取色金额 = 该格「Σ裸币价 + 当月评级费（按付款日期落位）」 —— 就是悬浮框**第三行**
+    //     「合计支出X元」那个数，一字不差。悬浮框三段文字**一个字都不改**，
+    //     只是让 填色 / data-amount / 图例五档 全部对齐到它。
+    //   · 历史沿革：最早用 c.sum（口径混乱）→ 2026-10 整支改成 c.npsum（纯裸币 = 泡第一行）
+    //     → 本次改成 npsum + 当月评级费（= 泡第三行「合计支出」）。三处同源，逐格可验。
+    const cellAmount = (y, m) => {
+        const c = (byYear.get(y) || [])[m];
+        if (!c) return 0;
+        const f = feeAt(y, m);
+        return Math.round((c.npsum + ((f && f.amount) || 0)) * 10) / 10;
+    };
+    let maxAmount = 0;
+    for (const y of years) for (let m = 0; m < 12; m++) { const t = cellAmount(y, m); if (t > maxAmount) maxAmount = t; }
     // 「历年这个月」= 各年这个月的合计（购入 + 评级费都要跨年累加）
     const monthFee = Array.from({ length: 12 }, () => ({ k: 0, amount: 0 }));
     for (const [key, v] of feeByYm) {
@@ -2099,15 +2115,19 @@ function buildMonthHeatmap(items) {
             //   o > 0 只为沿用既有 CSS 钩子（--hm-o / .tl-hm-on），0 元时干脆不写这两个东西。
             // ★ 取色与泡泡**同一个金额**（cell.npsum = 裸币价）：这样"最深的格子"就是
             //   图例 100% 那档、"泡里第一行的合计"也等于这个数，三处永远一致。
-            const o = (c.npsum > 0) ? timelineHeatmapOpacity(c.npsum, maxAmount) : 0;
+            // ★ 取色金额 = **当月总价**（cellAmount = Σ裸币价 + 当月评级费）—— 就是泡泡第三行
+            //   「合计支出」那个数：这样"最深的格子"就是图例 100% 那档，且与泡里的支出对齐。
+            //   （泡泡文字本身不动，它一直是对的。）
+            const amt = cellAmount(y, m);
+            const o = (amt > 0) ? timelineHeatmapOpacity(amt, maxAmount) : 0;
             // ★★ 格子 = 主题蓝实色 + 该档 alpha，与图例条带**同一个函数、同一组 5 档 alpha**。
             //   底色的实色统一走 CSS 里的 .tl-hm-fill（background: var(--theme)），
             //   这里只写 opacity ⇒ 主题色换了格子跟着换，而"图例↔格子 alpha 逐档相等"不变。
-            const bright = (maxAmount > 0) ? Math.min(1, c.npsum / maxAmount) : 0;
+            const bright = (maxAmount > 0) ? Math.min(1, amt / maxAmount) : 0;
             // --hm-src = 这一格的原始金额；--hm-bright = 0→1 的档位比例（最亮那档 = 1）；
             // --hm-o 就是这一档的 alpha（CSS 直接用它当 opacity）。
             const styleAttr = o > 0
-                ? ` style="--hm-o:${Math.round(o * 1000) / 1000};--hm-src:${Math.round(c.npsum * 10) / 10};--hm-bright:${bright.toFixed(3)}"`
+                ? ` style="--hm-o:${Math.round(o * 1000) / 1000};--hm-src:${amt};--hm-bright:${bright.toFixed(3)}"`
                 : '';
             // tl-hm-on 只为"有金额"的格子加：深色主题那条压暗滤镜只该作用在它们身上
             const onClass = o > 0 ? ' tl-hm-on' : '';
@@ -2118,7 +2138,7 @@ function buildMonthHeatmap(items) {
             const glow = (glowOne && glowMonth === m + 1 && String(y) === glowYear) ? ' hm-month-glow' : '';
             html += `<div class="tl-heatmap-cell${edge}${onClass}${glow}"${styleAttr} tabindex="0" role="button"` +
                 ` data-year="${y}" data-month="${String(m + 1).padStart(2, '0')}"` +
-                ` data-amount="${Math.round(c.npsum * 10) / 10}" data-bright="${bright.toFixed(3)}"` +
+                ` data-amount="${amt}" data-bright="${bright.toFixed(3)}"` +
                 ` data-alpha="${o > 0 ? o : ''}"` +
                 ` aria-label="${escapeAttr(label)}" onclick="onHeatmapCellClick(${y}, ${m + 1})">` +
                 `<i class="tl-hm-fill"></i><span class="tl-heatmap-tip">${tipHtml(`${y}年${m + 1}月`, c.npn, c.npsum, feeAt(y, m))}</span></div>`;
