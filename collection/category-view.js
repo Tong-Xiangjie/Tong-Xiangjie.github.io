@@ -305,6 +305,15 @@ function renderSeriesList(data, title) {
         const series = data.series[si];
         const seriesId = seriesScopeId(accScope, si);
 
+        // ★ 「全部展开」档：进入分类时自动全开。
+        //   不能只在渲染里加 open 类（会被进入时的 closeAllAccordions() 扫掉），
+        //   所以延后补开。只安排一次，且仅在 autoExpandAll() 为真（档位为 all 且该分类无记忆）时。
+        if (si === 0 && autoExpandAll(getCategoryScope()) && !window.__autoExpandScheduled) {
+            window.__autoExpandScheduled = 1;
+            const runAll = () => { try { openListsIn(document); document.querySelectorAll('.series-body').forEach(b => { if (!b.classList.contains('open')) { b.classList.add('open'); b.style.maxHeight = 'none'; } const ic = document.getElementById('icon-' + String(b.id || '').replace(/^body-/, '')); if (ic) ic.classList.add('open'); }); openListsIn(document); } catch (e) { } };
+            requestAnimationFrame(runAll); setTimeout(runAll, 300); setTimeout(runAll, 700);
+        }
+
         // ★ 空系列：既没有品种，也没有条目。这种系列**不能**渲染成可点击的头 ——
         //   点下去三角形会转（open 类加上了），但系列体里什么都没有，scrollHeight=0，
         //   视觉上就是「点了没反应」。用户报的"概览跳转点不开"最终定位到这里：
@@ -324,7 +333,7 @@ function renderSeriesList(data, title) {
         }
 
         // 本系列是否要在本次渲染里直接展开
-        const openSeries = wantSeries.has(si);
+        const openSeries = wantSeries.has(si) || autoExpandAll(getCategoryScope());
 
         let seriesTotal = 0;
         if (series.varieties) {
@@ -348,7 +357,7 @@ function renderSeriesList(data, title) {
                 const uid = varietyScopeId(accScope, si, vi);
                 // 目标品种：仅在目标系列内部才认，避免在别的系列里误展开同序号品种
                 // ★ 用 si.vi 复合键：新品种段能跨系列（v1.0,3.2），只比 vi 会串台
-                const openVariety = openSeries && wantVarieties.has(si + '.' + vi);
+                const openVariety = openSeries && (wantVarieties.has(si + '.' + vi) || autoExpandAll(getCategoryScope()));
 
                 html += `<div class="variety-row">`;
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}', this)">`;
@@ -515,7 +524,41 @@ function syncFocusAndRoute() {
     if (typeof syncRoute === 'function') syncRoute();
 }
 
+// ★ 统一的“补开”工具（三档共用）：把指定系列体内的品种体打开，
+//   并预热每个品种的**第一张原图**（用户反馈“点开小板块第一张会卡一下”）。
+function openListsIn(root) {
+    if (!root) return 0;
+    let n = 0;
+    Array.prototype.slice.call(root.querySelectorAll('.variety-row')).forEach(row => {
+        const list = row.querySelector('.copy-list');
+        if (!list) return;
+        const first = list.querySelector('img');
+        if (first) warmImage(first);
+        if (list.classList.contains('open')) return;
+        list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
+        const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
+        if (ic) ic.classList.add('open');
+        n++;
+    });
+    return n;
+}
+// ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
+function warmImage(im) {
+    try {
+        im.loading = 'eager';
+        if (im.decode) im.decode().catch(() => { });
+        const full = im.getAttribute('data-full') || im.getAttribute('data-original') || null;
+        if (full && !im.__warmed) { im.__warmed = 1; const p = new Image(); p.src = full; }
+    } catch (e) { }
+}
+// ★ 悬停预热：指到哪张就把那张的原图拉下来（不预热全部，省流量）。
+document.addEventListener('pointerover', function (e) {
+    const im = e.target && e.target.closest ? e.target.closest('.copy-list img') : null;
+    if (im) warmImage(im);
+}, { passive: true });
+
 function toggleSeries(id, hintEl) {
+    markExpandMemory(getCategoryScope());
     // ★ 用户口径（三档）：点开“父亲标题”（系列）后展开到哪一层
     //   —— 'series：只展开系列本身（原行为）；'copies：展开到单张（默认）；
     //   'all：连同类其它系列一起展开到单张。只在“点之前该系列是关的”时生效，
@@ -527,30 +570,11 @@ function toggleSeries(id, hintEl) {
         window.__expandDbg = { depth: depth, fired: !!(sBodyEl && !sBodyEl.classList.contains('open')), hasEl: !!sBodyEl };
         if (depth !== 'series' && sBodyEl && !sBodyEl.classList.contains('open')) {
             const openInside = () => {
-                // ★ 预热：缩略图原本要等展开那一刻才开始加载/解码，
-                //   动画里跟着卡；这里先 eager + decode 把它们预热掉。
-                const warm = (root) => {
-                    Array.prototype.slice.call(root.querySelectorAll('img')).forEach(im => {
-                        im.loading = 'eager';
-                        if (im.decode) { try { im.decode().catch(() => { }); } catch (e) { } }
-                    });
-                };
                 try {
                     const roots = depth === 'all'
                         ? Array.prototype.slice.call(document.querySelectorAll('.series-body'))
                         : [sBodyEl];
-                    roots.forEach(warm);
-                    let n = 0;
-                    roots.forEach(root => {
-                        Array.prototype.slice.call(root.querySelectorAll('.variety-row')).forEach(row => {
-                            const list = row.querySelector('.copy-list');
-                            if (!list || list.classList.contains('open')) return;
-                            list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
-                            const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
-                            if (ic) ic.classList.add('open');
-                            n++;
-                        });
-                    });
+                    const n = roots.reduce((acc, r) => acc + openListsIn(r), 0);
                     window.__expandDbg.opened = (window.__expandDbg.opened || 0) + n;
                 } catch (e) { window.__expandDbg.err2 = String(e && e.message || e); }
             };

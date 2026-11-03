@@ -1015,7 +1015,16 @@ function setExpandDepth(v) {
     try { localStorage.setItem(EXPAND_DEPTH_KEY, (v === 'series' || v === 'all') ? v : 'copies'); } catch (e) { }
 }
 
+// ★ 「全部展开」档专用：进入分类时就把系列/品种全部展开。
+//   一旦这个分类被用户动过（展开或收起过），就不再干预，一律按记忆 ⇒ 收起照样被记住。
+//   ★ 只在 'all' 档生效，不碰记忆本身的收集逻辑。
+const EXPAND_MEMO_PREFIX = 'collection-expand-memorized-';
+function markExpandMemory(scope) { try { localStorage.setItem(EXPAND_MEMO_PREFIX + String(scope || ''), '1'); } catch (e) { } }
+function hasExpandMemory(scope) { try { return localStorage.getItem(EXPAND_MEMO_PREFIX + String(scope || '')) === '1'; } catch (e) { return false; } }
+function autoExpandAll(scope) { return expandDepth() === 'all' && !hasExpandMemory(scope); }
+
 function collectScopedExpanded() {
+
     const scope = getCategoryScope();
     const seriesPrefix = 'body-' + scope + '-s';
     const varietyPrefix = 'list-' + scope + '-v';
