@@ -528,32 +528,41 @@ function syncFocusAndRoute() {
 //   并预热每个品种的**第一张原图**（用户反馈“点开小板块第一张会卡一下”）。
 function openListsIn(root) {
     if (!root) return 0;
-    // ★ 分帧摊开：一帧只打开一个品种体。一次性全开会在同一帧里
-    //   做掉几十个条目的布局与图片解码，就是“点开卡一下”的来源。
+    // ★ 用户反馈：“就是有图片的那个会卡” ⇒ 卡的不是布局，是**图片解码/绘制**。
+    //   所以：先把要打开的列表里**所有**图片 eager + decode（含 data-src 惰加载），
+    //   等它们就绪（最多等1.2s）再揭开 ⇒ 揭开那一刻已经有像素，不再现场解码。
     const rows = Array.prototype.slice.call(root.querySelectorAll('.variety-row'));
     const todo = [];
+    const imgs = [];
     rows.forEach(row => {
         const list = row.querySelector('.copy-list');
         if (!list) return;
-        const first = list.querySelector('img');
-        if (first) warmImage(first);
+        Array.prototype.slice.call(list.querySelectorAll('img')).forEach(im => imgs.push(im));
         if (!list.classList.contains('open')) todo.push(list);
     });
+    if (!todo.length) return 0;
     const openOne = (list) => {
-        // ★ 不做 max-height 过渡：动画 max-height 会让浏览器**每一帧重排**
-        //   整棵子树，这就是“怎么摊开都掉帧”的根因（用户反馈：开始终卡）。
-        //   这里直接一步到位：一次布局、零逐帧重排（相当于提前全部渲染）。
+        // 不走 max-height 过渡（动画 max-height 会每帧重排整棵子树）：一步到位。
         list.style.transition = 'none';
         list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
         const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
         if (ic) ic.classList.add('open');
-        // 下一帧恢复：以后手点这个品种时仍然有原本的开合动画。
         requestAnimationFrame(() => { list.style.transition = ''; });
     };
-    todo.forEach((list, i) => {
-        if (i === 0) { openOne(list); return; }
-        requestAnimationFrame(() => requestAnimationFrame(() => openOne(list)));
+    const reveal = () => {
+        todo.forEach((list, i) => {
+            if (i === 0) { openOne(list); return; }
+            requestAnimationFrame(() => requestAnimationFrame(() => openOne(list)));
+        });
+    };
+    const jobs = imgs.map(im => {
+        try {
+            warmImage(im);
+            if (im.decode) return im.decode().catch(() => { });
+        } catch (e) { }
+        return Promise.resolve();
     });
+    Promise.race([Promise.allSettled(jobs), new Promise(r => setTimeout(r, 1200))]).then(reveal, reveal);
     return todo.length;
 }
 // ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
@@ -561,6 +570,10 @@ function warmImage(im) {
     try {
         im.loading = 'eager';
         if (im.decode) im.decode().catch(() => { });
+        if (!im.getAttribute('src') || /^data:/.test(im.getAttribute('src') || '')) {
+            const s = im.getAttribute('data-src') || im.getAttribute('data-lazy-src') || null;
+            if (s) im.src = s;
+        }
         const full = im.getAttribute('data-full') || im.getAttribute('data-original') || null;
         if (full && !im.__warmed) { im.__warmed = 1; const p = new Image(); p.src = full; }
     } catch (e) { }
