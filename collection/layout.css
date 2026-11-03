@@ -3817,3 +3817,91 @@ textarea:focus-visible {
 @media (prefers-reduced-motion: reduce) {
     .dd-trigger, .dd-popup, .dd-caret, .dd { transition: none; }
 }
+/* ===== 透明玻璃界面风格 =====
+   三层正交：明暗（data-color-scheme）× 主题色（--theme）× 界面风格（data-ui-style）。
+   变量由 theme.js 的 applyTheme() 和 index.html head 里那份镜像写成，这里只管：
+   底层底纹 + 面板磨砂 + 可读性豁免 + 降级。
+   ★ 玻璃模式下 --bg 是 rgba(...,0)（由 applyTheme 写入），所以底纹必须由 body 画，
+     否则面板后面什么都没有，backdrop-filter 磨不到东西 = 只有"半透明色块"没有"玻璃"。 */
+/* 底层：html 给实色兜底，body 全透明，极光画在 body::before 上并用 z-index:-1 沉到最底。
+   ★ 为什么不用 z-index:0/1 那种"内容层抬升"的写法：那会新建层叠上下文，
+     站点的灯箱/底栏/下拉都是靠既有 z-index 排序的，一动就可能出"盖不住/被盖住"的回归。
+     负层不需要改任何既有 z-index，风险最低。 */
+html[data-ui-style="glass"] { background: var(--bg-solid, #eef4ff); }
+html[data-ui-style="glass"] body { background: transparent; }
+html[data-ui-style="glass"] body::before {
+    content: '';
+    position: fixed;
+    inset: -30%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(38% 38% at 28% 32%, color-mix(in srgb, var(--theme) 42%, transparent), transparent 70%),
+        radial-gradient(34% 34% at 72% 62%, color-mix(in srgb, var(--theme-light) 45%, transparent), transparent 70%),
+        radial-gradient(46% 46% at 52% 46%, color-mix(in srgb, var(--theme) 26%, transparent), transparent 72%);
+    filter: blur(48px) saturate(1.3);
+    animation: glass-aurora 44s linear infinite;
+    will-change: transform;
+}
+/* 只转 transform（合成层），不碰 background-position：后者每帧重绘整页底色，页面一长就是灾难 */
+@keyframes glass-aurora {
+    from { transform: rotate(0deg) scale(1.05); }
+    to   { transform: rotate(360deg) scale(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-ui-style="glass"] body::before { animation: none; }
+}
+html[data-ui-style="glass"] .content { background: transparent; }
+
+/* 面板层统一磨砂。★ 只加在**容器级**：价格列表有 394 行且每行 content-visibility:auto，
+   绝不给 .price-list-item 这种单行元素加 blur，否则直接卡死。 */
+html[data-ui-style="glass"] .top-search-container,
+html[data-ui-style="glass"] .sidebar,
+html[data-ui-style="glass"] .search-result-group,
+html[data-ui-style="glass"] .series-year-row,
+html[data-ui-style="glass"] .price-list-wrapper,
+html[data-ui-style="glass"] .stat-card,
+html[data-ui-style="glass"] .stats-money,
+html[data-ui-style="glass"] .stats-bars,
+html[data-ui-style="glass"] .stats-chart-card,
+html[data-ui-style="glass"] .toggle-card,
+html[data-ui-style="glass"] .saved-colors,
+html[data-ui-style="glass"] .special-overview-card,
+html[data-ui-style="glass"] .special-item-card,
+html[data-ui-style="glass"] .special-overview-bar,
+html[data-ui-style="glass"] .bottom-tabbar,
+html[data-ui-style="glass"] .info-lightbox-inner,
+html[data-ui-style="glass"] .octo-inner,
+html[data-ui-style="glass"] .dd-popup,
+html[data-ui-style="glass"] .symbol-panel {
+    /* 玻璃靠三件事一起出来：磨砂 + 斜向高光渐变 + 内高光边。只有 blur 会像"半透明色块"。 */
+    backdrop-filter: blur(16px) saturate(180%) brightness(1.06);
+    -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(1.06);
+    background-image: linear-gradient(140deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(255, 255, 255, 0.02) 62%, rgba(255, 255, 255, 0.10) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38), 0 10px 28px -18px rgba(0, 0, 0, 0.45);
+}
+
+/* 全屏看图 / 长文阅读保持实色：可读性优先，也省性能 */
+html[data-ui-style="glass"] .article-reader,
+html[data-ui-style="glass"] .modal-content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* 引擎不支持 backdrop-filter：退回实色底（仍是"换肤"，只是不磨砂） */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html[data-ui-style="glass"] body { background: var(--bg-solid, #eef4ff); }
+}
+/* 系统「减少透明度」：同样退回实色，并摘掉所有磨砂 */
+@media (prefers-reduced-transparency: reduce) {
+    html[data-ui-style="glass"] body { background: var(--bg-solid, #eef4ff); }
+    html[data-ui-style="glass"] .content { background: var(--bg-solid, #eef4ff); }
+    html[data-ui-style="glass"] [class] {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+}
+
+/* 玻璃的"内高光边"要按明暗分开调：浅色下 0.38 太白会糊，暗色下太弱又看不出玻璃边 */
+html[data-ui-style="glass"][data-color-scheme="light"] body::before { opacity: 0.55; }
+html[data-ui-style="glass"][data-color-scheme="dark"] body::before { opacity: 0.75; }

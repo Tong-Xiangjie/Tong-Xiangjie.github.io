@@ -239,6 +239,11 @@
                     window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 el.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
                 el.style.colorScheme = dark ? 'dark' : 'light';
+                // ★ 界面风格（标准/透明玻璃）：和 theme.js 的 getUIStyle() 一致。
+                //   属性在这里就写上，即使没有 app-theme 也不影响分流。
+                var glassOn = false;
+                try { glassOn = localStorage.getItem('collection-ui-style') === 'glass'; } catch (e3) { }
+                el.setAttribute('data-ui-style', glassOn ? 'glass' : 'standard');
 
                 // ★ 这里必须把 applyTheme() 会写的**整套**变量都预置上，不能只设 --theme。
                 //   只设 --theme 的后果（实测铜色 #b87333）：
@@ -290,6 +295,29 @@
                         '--card-bg': '#ffffff', '--border': L(0.78), '--thumb-bg': L(0.82),
                         '--text': '#000000', '--text-secondary': '#666666'
                     };
+                    // ★ 玻璃风格要把算出来的实色包成 rgba —— 必须和 theme.js 的 applyTheme()
+                    //   **逐值一致**（verify-theme-init.mjs 守着），否则刷新会先闪一帧实色再变玻璃。
+                    if (glassOn) {
+                        var ha = function (hex, a) {
+                            var x = String(hex).replace('#', '');
+                            return 'rgba(' + parseInt(x.substr(0, 2), 16) + ',' + parseInt(x.substr(2, 2), 16) + ',' + parseInt(x.substr(4, 2), 16) + ',' + a + ')';
+                        };
+                        vars['--bg-solid'] = vars['--bg'];
+                        vars['--bg'] = ha(vars['--bg'], 0);
+                        if (dark) {
+                            vars['--bg-light'] = ha(vars['--bg-light'], 0.55);
+                            vars['--sidebar-bg'] = ha(vars['--sidebar-bg'], 0.50);
+                            vars['--card-bg'] = ha(vars['--card-bg'], 0.55);
+                            vars['--border'] = 'rgba(255,255,255,0.14)';
+                            vars['--thumb-bg'] = ha(vars['--thumb-bg'], 0.45);
+                        } else {
+                            vars['--bg-light'] = ha(vars['--bg-light'], 0.55);
+                            vars['--sidebar-bg'] = ha(vars['--sidebar-bg'], 0.45);
+                            vars['--card-bg'] = 'rgba(255,255,255,0.55)';
+                            vars['--border'] = 'rgba(255,255,255,0.55)';
+                            vars['--thumb-bg'] = ha(vars['--thumb-bg'], 0.45);
+                        }
+                    }
                     for (var k in vars) el.style.setProperty(k, vars[k]);
                 }
             } catch (e) { /* 隐私模式下 localStorage 会抛，忽略即可 */ }

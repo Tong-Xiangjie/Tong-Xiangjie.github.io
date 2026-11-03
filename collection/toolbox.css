@@ -926,3 +926,22 @@ body.tb-col-resize { user-select: none; -webkit-user-select: none; cursor: col-r
 @media (pointer: coarse), (max-width: 600px) {
     #toolboxOpenBtn { display: none !important; }
 }
+
+/* ===== 透明玻璃界面风格（工具箱是独立样式文件，变量跟着站点走，但磨砂要自己加） =====
+   不加这段，工具箱面板会变成"半透明但没磨砂"的色块，和主体视觉不统一。 */
+html[data-ui-style="glass"] .tb-card,
+html[data-ui-style="glass"] .tb-dialog-card,
+html[data-ui-style="glass"] .tb-tmenu,
+html[data-ui-style="glass"] .tb-toast {
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+@media (prefers-reduced-transparency: reduce) {
+    html[data-ui-style="glass"] .tb-card,
+    html[data-ui-style="glass"] .tb-dialog-card,
+    html[data-ui-style="glass"] .tb-tmenu,
+    html[data-ui-style="glass"] .tb-toast {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+}

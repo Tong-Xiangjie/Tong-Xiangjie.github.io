@@ -134,6 +134,16 @@ function setColorSchemeMode(mode) {
     }
 }
 
+function setUIStyle(style) {
+    if (UI_STYLE_MODES.indexOf(style) < 0) return;
+    try { localStorage.setItem(UI_STYLE_KEY, style); } catch (e) {}
+    // 和明暗/主题色一样走补间窗口：整套变量一起变，不补间页面会"跳"
+    withThemeAnim(function () { applyTheme(localStorage.getItem('app-theme') || defaultTheme); });
+    if (typeof window.refreshShanheColors === 'function') {
+        window.refreshShanheColors();
+    }
+}
+
 // 跟随系统时，系统切换了要跟着变
 function watchSystemColorScheme() {
     if (typeof window.matchMedia !== 'function') return;
@@ -145,9 +155,40 @@ function watchSystemColorScheme() {
     else if (typeof mq.addListener === 'function') mq.addListener(onChange);
 }
 
+// ========== 界面风格（标准 / 透明玻璃） ==========
+// ★ 和「明暗」「主题色」并列的第三个正交维度：明暗管亮/暗，主题色管色相，
+//   界面风格管"面板是实色还是磨砂玻璃"。三者互不影响（11 预设色 × 明暗 × 风格）。
+//   玻璃模式的变量必须**分层**：只有 body 有实色底纹，面板是半透明 + blur；
+//   若把 --bg 也直接半透明，两层半透明叠加会发浑，而且后面没有东西可"磨砂"。
+const UI_STYLE_KEY = 'collection-ui-style';
+const UI_STYLE_MODES = ['standard', 'glass'];
+
+function getUIStyle() {
+    try {
+        const v = localStorage.getItem(UI_STYLE_KEY);
+        return UI_STYLE_MODES.indexOf(v) >= 0 ? v : 'standard';
+    } catch (e) {
+        return 'standard';
+    }
+}
+
+function isGlassStyle() { return getUIStyle() === 'glass'; }
+
+// hex → rgba（玻璃模式专用）。只处理 #rgb / #rrggbb，和 head 里那份镜像保持一致；
+// 用 rgba(x,y,z,0) 而不是字面量 transparent：部分引擎对 hex→transparent 的插值会"渐隐成黑"。
+function withAlpha(hex, a) {
+    const h = String(hex).replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+
 function applyTheme(color) {
     const dark = isDarkScheme();
+    const glass = isGlassStyle();
     const el = document.documentElement;
+
+    // 让 CSS 能按风格分流（玻璃模式的规则全部挂在 html[data-ui-style="glass"] 上）
+    el.setAttribute('data-ui-style', glass ? 'glass' : 'standard');
 
     // 强调色本身不变：变了会让「主题色实心按钮 + 白字」的对比度掉下来
     el.style.setProperty('--theme', color);
@@ -170,26 +211,29 @@ function applyTheme(color) {
 
     if (dark) {
         // 暗色：底色往黑里压（保留主题色倾向），文字反过来
-        el.style.setProperty('--bg', darkenColor(color, 0.94));
-        el.style.setProperty('--bg-light', darkenColor(color, 0.90));
-        el.style.setProperty('--sidebar-bg', darkenColor(color, 0.92));
+        // ★ --bg-solid 是玻璃模式的"兜底实色"（--bg 在玻璃下是 rgba(...,0)，很多地方还需要一个实色）
+        el.style.setProperty('--bg-solid', darkenColor(color, 0.94));
+        el.style.setProperty('--bg', glass ? withAlpha(darkenColor(color, 0.94), 0) : darkenColor(color, 0.94));
+        el.style.setProperty('--bg-light', glass ? withAlpha(darkenColor(color, 0.90), 0.55) : darkenColor(color, 0.90));
+        el.style.setProperty('--sidebar-bg', glass ? withAlpha(darkenColor(color, 0.92), 0.50) : darkenColor(color, 0.92));
         // ★ 卡片/次级底：比 --bg 亮一档，否则卡片和背景对比度只有 1.03:1（几乎分不开）
-        el.style.setProperty('--card-bg', darkenColor(color, 0.86));
+        el.style.setProperty('--card-bg', glass ? withAlpha(darkenColor(color, 0.86), 0.55) : darkenColor(color, 0.86));
         // ★ 边界色：纯乘法压暗会把 --border 压到和 --bg 只差 1.3:1（11 个预设色全部如此），
         //   输入框、卡片、返回按钮的边框在暗色下全部"消失"。
         //   实测：darken(0.70) 后再提亮 0.30，全色板才够 WCAG 1.4.11 要求的 3:1
         //   （只提亮 0.18 只有 2.0~2.6:1，仍不达标）。
-        el.style.setProperty('--border', lightenColor(darkenColor(color, 0.70), 0.30));
-        el.style.setProperty('--thumb-bg', darkenColor(color, 0.80));
+        el.style.setProperty('--border', glass ? 'rgba(255,255,255,0.14)' : lightenColor(darkenColor(color, 0.70), 0.30));
+        el.style.setProperty('--thumb-bg', glass ? withAlpha(darkenColor(color, 0.80), 0.45) : darkenColor(color, 0.80));
         el.style.setProperty('--text', '#e8eaed');
         el.style.setProperty('--text-secondary', '#9aa0a6');
     } else {
-        el.style.setProperty('--bg', lightenColor(color, 0.92));
-        el.style.setProperty('--bg-light', lightenColor(color, 0.96));
-        el.style.setProperty('--sidebar-bg', lightenColor(color, 0.86));
-        el.style.setProperty('--card-bg', '#ffffff');
-        el.style.setProperty('--border', lightenColor(color, 0.78));
-        el.style.setProperty('--thumb-bg', lightenColor(color, 0.82));
+        el.style.setProperty('--bg-solid', lightenColor(color, 0.92));
+        el.style.setProperty('--bg', glass ? withAlpha(lightenColor(color, 0.92), 0) : lightenColor(color, 0.92));
+        el.style.setProperty('--bg-light', glass ? withAlpha(lightenColor(color, 0.96), 0.55) : lightenColor(color, 0.96));
+        el.style.setProperty('--sidebar-bg', glass ? withAlpha(lightenColor(color, 0.86), 0.45) : lightenColor(color, 0.86));
+        el.style.setProperty('--card-bg', glass ? 'rgba(255,255,255,0.55)' : '#ffffff');
+        el.style.setProperty('--border', glass ? 'rgba(255,255,255,0.55)' : lightenColor(color, 0.78));
+        el.style.setProperty('--thumb-bg', glass ? withAlpha(lightenColor(color, 0.82), 0.45) : lightenColor(color, 0.82));
         el.style.setProperty('--text', '#000000');
         el.style.setProperty('--text-secondary', '#666666');
     }

@@ -158,6 +158,13 @@ function renderSettingsPage() {
     ], getColorSchemeMode(), 'setColorSchemeMode');
     html += `</div>`;
 
+    // 界面风格（与「明暗」「主题色」并列的第三个维度），开关式：默认关闭 = 标准实色
+    html += `<div class="settings-section">`;
+    html += `<h3>界面风格</h3>`;
+    html += renderToggleRow('uiStyleSwitch', '透明玻璃', isGlassStyle(), 'toggleUIStyle()',
+        '打开后所有面板改用背景模糊（backdrop-filter）做出磨砂质感。低端设备上会比标准风格更耗电；系统开启「减少透明度」时会自动退回实色。');
+    html += `</div>`;
+
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
@@ -464,6 +471,13 @@ if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then =
 // ========== 网格画质：缩略图 / 原图 ==========
 // 默认缩略图（冷启动一个板块约 1~2MB，原图要 40~100MB）；缓存热了之后两者一样快，
 // 所以给个开关让"想要更清晰"的时候自己开。
+// ★ 界面风格开关：和「使用原图」「模糊搜索」同一种写法（setSwitchState 局部刷新，不整页重渲染）
+function toggleUIStyle() {
+    const next = !isGlassStyle();
+    setUIStyle(next ? 'glass' : 'standard');
+    setSwitchState('uiStyleSwitch', next);
+}
+
 function toggleGridOriginal() {
     const next = !(typeof gridUseOriginal === 'function' && gridUseOriginal());
     setGridUseOriginal(next);
