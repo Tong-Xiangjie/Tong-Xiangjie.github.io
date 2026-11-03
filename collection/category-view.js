@@ -526,6 +526,18 @@ function syncFocusAndRoute() {
 
 // ★ 统一的“补开”工具（三档共用）：把指定系列体内的品种体打开，
 //   并预热每个品种的**第一张原图**（用户反馈“点开小板块第一张会卡一下”）。
+// ★ 预热容器内**全部**图片（不等，只发起）：点击那一刻就开始，
+//   等系列体动画结束时它们已经就绪 ⇒ 第二下揭开时不再现场解码。
+function warmImagesIn(root) {
+    if (!root) return [];
+    const jobs = [];
+    Array.prototype.slice.call(root.querySelectorAll('img')).forEach(im => {
+        try { warmImage(im); if (im.decode) jobs.push(im.decode().catch(() => { })); } catch (e) { }
+    });
+    return jobs;
+}
+
+// ★ 展开时把该系列下各品种体打开（与自动全开共用同一套逻辑）：
 function openListsIn(root) {
     if (!root) return 0;
     // ★ 用户反馈：“就是有图片的那个会卡” ⇒ 卡的不是布局，是**图片解码/绘制**。
@@ -604,7 +616,7 @@ function toggleSeries(id, hintEl) {
                     
                 } catch (e) {  }
             };
-            setTimeout(openInside, 340); setTimeout(openInside, 800);
+            // ★ 用户口径（分两下）：第一下只铺开“不带图片的那层”            //   （系列体 + 品种行，由站点自己的动画完成，零解码、零额外布局）；            //   第二下等动画结束、且图片已就绪，才把图片层丝滑地摊开。            warmImagesIn(sBodyEl);   // 第一下就开始预热（只发起，不等）            let revealed = false;            const reveal = () => { if (revealed) return; revealed = true; openInside(); };            try { sBodyEl.addEventListener('transitionend', reveal, { once: true }); } catch (e) { }            setTimeout(reveal, 700);   // 兜底（没有 transition 时也能触发）
         }
     } catch (e) { }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
