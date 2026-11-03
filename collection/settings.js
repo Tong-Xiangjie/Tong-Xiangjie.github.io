@@ -161,8 +161,8 @@ function renderSettingsPage() {
     // 界面风格（与「明暗」「主题色」并列的第三个维度），开关式：默认关闭 = 标准实色
     html += `<div class="settings-section">`;
     html += `<h3>界面风格</h3>`;
-    html += renderToggleRow('uiStyleSwitch', '透明玻璃', isGlassStyle(), 'toggleUIStyle()',
-        '打开后所有面板改用背景模糊（backdrop-filter）做出磨砂质感。低端设备上会比标准风格更耗电；系统开启「减少透明度」时会自动退回实色。');
+    html += renderToggleRow('uiStyleSwitch', '液体玻璃', isGlassStyle(), 'toggleUIStyle()',
+        '液体玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
     html += `</div>`;
 
     html += `<div class="settings-section">`;

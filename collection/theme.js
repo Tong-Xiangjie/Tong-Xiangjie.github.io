@@ -137,6 +137,7 @@ function setColorSchemeMode(mode) {
 function setUIStyle(style) {
     if (UI_STYLE_MODES.indexOf(style) < 0) return;
     try { localStorage.setItem(UI_STYLE_KEY, style); } catch (e) {}
+    if (style === 'glass') ensureGlassOrbs(true); else stopGlassOrbDrift();
     // 和明暗/主题色一样走补间窗口：整套变量一起变，不补间页面会"跳"
     withThemeAnim(function () { applyTheme(localStorage.getItem('app-theme') || defaultTheme); });
     if (typeof window.refreshShanheColors === 'function') {
@@ -182,6 +183,125 @@ function withAlpha(hex, a) {
     return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
 }
 
+// ★ 背景层（液体玻璃的底），三件事必须说清楚：
+//   1) 尺寸/位置/浓淡/形状只能由 JS 生成 —— CSS 随机不了；
+//   2) 轨迹**不能用 CSS 关键帧**：关键帧路径固定， alternate 来回跑必然可预测。
+//      改成 JS 逐帧：朝随机目标点缓动，到达后重新随机 ⇒ 轨迹是永不重复的折线；
+//      同时**平移 + 旋转 + 缩放**（所以球有圆/椭圆/条三种形状，条的旋转才看得出）；
+//   3) **数量也在变**：每个球有随机寿命，到点淡出移除、同时补一个新的。
+function orbRnd(a, b) { return a + Math.random() * (b - a); }
+
+function spawnGlassOrb() {
+    try {
+        var host = window.__glassOrbHost;
+        if (!host) return;
+        var o = document.createElement('i');
+        var r = Math.random(), w, h;
+        if (r < 0.45) { w = orbRnd(22, 60); h = w * orbRnd(0.9, 1.1); }        // 圆
+        else if (r < 0.8) { w = orbRnd(34, 78); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
+        else { w = orbRnd(16, 32); h = w * orbRnd(1.6, 2.6); }                 // 竖条
+        o.style.left = orbRnd(-15, 95).toFixed(1) + '%';
+        o.style.top = orbRnd(-15, 95).toFixed(1) + '%';
+        o.style.width = w.toFixed(1) + 'vmin';
+        o.style.height = h.toFixed(1) + 'vmin';
+        o.style.background = (Math.random() < 0.5)
+            ? 'radial-gradient(closest-side, var(--theme), transparent 72%)'
+            : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
+        o.style.opacity = '0';
+        o.style.transition = 'opacity ' + orbRnd(3, 7).toFixed(1) + 's ease-in-out';
+        o.style.transform = 'translate3d(0,0,0) rotate(0deg) scale(1)';
+        host.appendChild(o);
+        var st = {
+            el: o, x: 0, y: 0, tx: orbRnd(-20, 20), ty: orbRnd(-20, 20), k: orbRnd(0.0012, 0.005),
+            rot: orbRnd(0, 360), vr: orbRnd(-0.09, 0.09),
+            sc: 1, ts: orbRnd(0.85, 1.25), ks: orbRnd(0.002, 0.006),
+            life: orbRnd(9000, 26000), born: Date.now()
+        };
+        window.__glassOrbState.push(st);
+        requestAnimationFrame(function () { try { o.style.opacity = String(Math.round(orbRnd(22, 46)) / 100); } catch (e) { } });
+    } catch (e) { }
+}
+
+function recycleGlassOrb(st) {
+    try {
+        st.el.style.opacity = '0';
+        var el = st.el;
+        setTimeout(function () { try { if (el.parentNode) el.parentNode.removeChild(el); } catch (e) { } }, 7000);
+        var arr = window.__glassOrbState, i = arr.indexOf(st);
+        if (i >= 0) arr.splice(i, 1);
+        spawnGlassOrb();   // 补一个新的 ⇒ 死掉一个、生一个，数量在波动
+    } catch (e) { }
+}
+
+function ensureGlassOrbs(rebuild) {
+    try {
+        var host = document.getElementById('glassOrbs');
+        if (host && !rebuild) return;
+        if (host) { while (host.firstChild) host.removeChild(host.firstChild); }
+        else {
+            host = document.createElement('div');
+            host.id = 'glassOrbs';
+            host.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(host);
+        }
+        window.__glassOrbHost = host;
+        window.__glassOrbState = [];
+        var n = 4 + Math.floor(Math.random() * 4);   // 起始 4~7 个
+        for (var i = 0; i < n; i++) spawnGlassOrb();
+        startGlassOrbDrift();
+    } catch (e) { }
+}
+
+var __orbRaf = 0;
+function startGlassOrbDrift() {
+    if (__orbRaf) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (document.hidden) return;
+    var step = function () {
+        var orbs = window.__glassOrbState || [];
+        var now = Date.now();
+        for (var i = orbs.length - 1; i >= 0; i--) {
+            var o = orbs[i];
+            if (now - o.born > o.life) { o.life = Infinity; recycleGlassOrb(o); continue; }
+            if (Math.abs(o.tx - o.x) < 0.6 && Math.abs(o.ty - o.y) < 0.6) {
+                o.tx = (Math.random() * 2 - 1) * 22;      // 到了就换下一个随机目标
+                o.ty = (Math.random() * 2 - 1) * 22;
+                o.k = 0.0012 + Math.random() * 0.0045;
+                o.vr = (Math.random() * 2 - 1) * 0.09;    // 角速度也随机变
+            }
+            o.x += (o.tx - o.x) * o.k;
+            o.y += (o.ty - o.y) * o.k;
+            o.rot += o.vr;
+            if (o.rot > 360) o.rot -= 360;
+            if (o.rot < 0) o.rot += 360;
+            if (Math.random() < 0.004) o.ts = 0.85 + Math.random() * 0.4;
+            o.sc += (o.ts - o.sc) * o.ks;
+            o.el.style.transform = 'translate3d(' + o.x.toFixed(2) + 'vmax,' + o.y.toFixed(2) + 'vmax,0) rotate(' + o.rot.toFixed(1) + 'deg) scale(' + o.sc.toFixed(3) + ')';
+        }
+        __orbRaf = requestAnimationFrame(step);
+    };
+    __orbRaf = requestAnimationFrame(step);
+}
+function stopGlassOrbDrift() {
+    if (__orbRaf) { cancelAnimationFrame(__orbRaf); __orbRaf = 0; }
+}
+// ★ 减弱动效可能在**运行中**被打开（系统设置里改、或省的 API 切），所以不能只在启动时判断一次：
+//   媒体查询一变就停/启。用户实测报过"开了减弱动效球还在动"。
+try {
+    var mqReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var onReduceMotionChange = function () {
+        if (mqReduceMotion.matches) stopGlassOrbDrift();
+        else if (document.documentElement.getAttribute('data-ui-style') === 'glass') startGlassOrbDrift();
+    };
+    if (typeof mqReduceMotion.addEventListener === 'function') mqReduceMotion.addEventListener('change', onReduceMotionChange);
+    else if (typeof mqReduceMotion.addListener === 'function') mqReduceMotion.addListener(onReduceMotionChange);
+} catch (e) { }
+
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopGlassOrbDrift();
+    else if (document.documentElement.getAttribute('data-ui-style') === 'glass') startGlassOrbDrift();
+});
+
 function applyTheme(color) {
     const dark = isDarkScheme();
     const glass = isGlassStyle();
@@ -189,6 +309,7 @@ function applyTheme(color) {
 
     // 让 CSS 能按风格分流（玻璃模式的规则全部挂在 html[data-ui-style="glass"] 上）
     el.setAttribute('data-ui-style', glass ? 'glass' : 'standard');
+    if (glass) ensureGlassOrbs(false); else stopGlassOrbDrift();
 
     // 强调色本身不变：变了会让「主题色实心按钮 + 白字」的对比度掉下来
     el.style.setProperty('--theme', color);
@@ -229,11 +350,11 @@ function applyTheme(color) {
     } else {
         el.style.setProperty('--bg-solid', lightenColor(color, 0.92));
         el.style.setProperty('--bg', glass ? withAlpha(lightenColor(color, 0.92), 0) : lightenColor(color, 0.92));
-        el.style.setProperty('--bg-light', glass ? withAlpha(lightenColor(color, 0.96), 0.55) : lightenColor(color, 0.96));
-        el.style.setProperty('--sidebar-bg', glass ? withAlpha(lightenColor(color, 0.86), 0.45) : lightenColor(color, 0.86));
-        el.style.setProperty('--card-bg', glass ? 'rgba(255,255,255,0.55)' : '#ffffff');
-        el.style.setProperty('--border', glass ? 'rgba(255,255,255,0.55)' : lightenColor(color, 0.78));
-        el.style.setProperty('--thumb-bg', glass ? withAlpha(lightenColor(color, 0.82), 0.45) : lightenColor(color, 0.82));
+        el.style.setProperty('--bg-light', glass ? withAlpha(lightenColor(color, 0.96), 0.60) : lightenColor(color, 0.96));
+        el.style.setProperty('--sidebar-bg', glass ? withAlpha(lightenColor(color, 0.86), 0.55) : lightenColor(color, 0.86));
+        el.style.setProperty('--card-bg', glass ? 'rgba(255,255,255,0.62)' : '#ffffff');
+        el.style.setProperty('--border', glass ? 'rgba(255,255,255,0.80)' : lightenColor(color, 0.78));
+        el.style.setProperty('--thumb-bg', glass ? withAlpha(lightenColor(color, 0.82), 0.50) : lightenColor(color, 0.82));
         el.style.setProperty('--text', '#000000');
         el.style.setProperty('--text-secondary', '#666666');
     }
