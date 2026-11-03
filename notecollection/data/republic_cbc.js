@@ -273,7 +273,7 @@ const republic_cbcData = {
                             price: "59元",
                             purchaseDate: "2026年8月24日",
                             krause: "213a",
-                            remark: "冠号的后缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
+                            remark: "冠号的前缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-2.jpg"
                         },{
