@@ -350,7 +350,10 @@
                           'html[data-booting] .sidebar, html[data-booting] .sidebar-toggle { opacity: 0 !important; pointer-events: none !important; }' +
                           // Whole bottom bar is hidden while loading (the user's call): then the active-tab
                           // colour question disappears entirely, and it slides up when the data is ready.
-                          'html[data-booting] .bottom-tabbar { opacity: 0 !important; transform: translateY(100%) !important; pointer-events: none !important; }';
+                          'html[data-booting] .bottom-tabbar { opacity: 0 !important; transform: translateY(100%) !important; pointer-events: none !important; }' +
+                          // Loading text should sit in the middle of the (now empty) page, not where
+                          // it used to be relative to the search bar / sidebar / tab bar.
+                          'html[data-booting] #loadingContainer { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; text-align: center !important; }';
         (document.head || document.documentElement).appendChild(st);
     })();
     window.__booting = true;
