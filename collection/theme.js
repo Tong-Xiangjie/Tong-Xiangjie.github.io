@@ -661,11 +661,11 @@ function themeSignature() {
                 prev = (cs.getPropertyValue('--bg-solid') || cs.getPropertyValue('--bg') || '').trim() || null;
             } catch (e) { }
             var r = origApplyTheme.apply(this, arguments);
-            var sig = themeSignature();
+            var sig = (function () { try { return document.documentElement.getAttribute('data-ui-style') || ''; } catch (e) { return ''; } })();   // ★ 只看界面风格：重绘时这个值不变 ⇒ 不会闪
             if (sig !== lastSig) {          // ★ 真的变了才淡；重复调用同一主题完全不动
                 lastSig = sig;
                 themeCrossFade();
-                // themeFadeOverlay(prev);  // 保底关闭：先保证不闪
+                themeFadeOverlay(prev);  // 保底关闭：先保证不闪
             }
             return r;
         };
