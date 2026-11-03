@@ -214,6 +214,13 @@ function renderSettingsPage() {
         '开启后，您所输入的检索词将依据同义词表扩展为同义项与原词一并参与匹配。命中结果不再区分板块，而是根据相关性进行排序展示。该功能仅作用于文章板块。');
     html += `</div>`;
 
+    // ★ 展开深度（三档）：只管“点开系列（父亲标题）后展开到哪一层”。
+    html += `<div class="settings-section">`;
+    html += `<h3>藏品展开方式</h3>`;
+    html += renderSegmented('expandDepthSeg', '点开系列后', [['series', '只展开系列'], ['copies', '展开到单张'], ['all', '全部展开']], expandDepth(), 'pickExpandDepth');
+    html += `<div class="toggle-desc">默认为「展开到单张」：点开系列后会一路展开到每一张藏品。无论选哪一档，未点击时不会自动展开任何系列，您手动展开或收起过的系列也都会被记住。</div>`;
+    html += `</div>`;
+
     // 网格画质
     html += `<div class="settings-section">`;
     html += `<h3>网格图片画质</h3>`;
@@ -347,6 +354,13 @@ function renderToggleRow(id, label, on, onclickExpr, desc) {
         + `</div>`
         + `</div>`
         + (desc ? `<div class="toggle-desc">${desc}</div>` : '');
+}
+
+// 展开深度三档（配合 renderSegmented 的 'pickExpandDepth'）。
+// 只写偏好，然后让 router 按当前地址重渲染一次（hashchange）。
+function pickExpandDepth(v) {
+    setExpandDepth(v);
+    try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { }
 }
 
 function setSwitchState(id, on) {

@@ -1000,6 +1000,21 @@ function accordionTargetOf(hintEl, domId, localSel) {
 //   只查活动容器时，一旦活动容器为空或发生漂移，就会收集到"空状态"，
 //   恢复阶段再把用户原本开着的系列全关掉 —— 表现为"展开状态莫名丢失"。
 //   改成按前缀收集后：既不串台（前缀不同），也不丢状态（不依赖活动容器）。
+// ============================================================
+// ★ 展开深度（三档，用户口径）：只控制“点开系列（父亲标题）后展开到哪一层”。
+//   'series' = 只展开系列本身（以前的行为）；
+//   'copies' = 展开到单张（默认）；
+//   'all'    = 连同类其它系列一起展开到单张。
+//   ★ 不点击时任何系列都不默认展开；也不碰记忆/收起/深链接/搜索等任何其它逻辑。
+// ============================================================
+const EXPAND_DEPTH_KEY = 'collection-expand-depth';
+function expandDepth() {
+    try { const v = localStorage.getItem(EXPAND_DEPTH_KEY); return (v === 'series' || v === 'all') ? v : 'copies'; } catch (e) { return 'copies'; }
+}
+function setExpandDepth(v) {
+    try { localStorage.setItem(EXPAND_DEPTH_KEY, (v === 'series' || v === 'all') ? v : 'copies'); } catch (e) { }
+}
+
 function collectScopedExpanded() {
     const scope = getCategoryScope();
     const seriesPrefix = 'body-' + scope + '-s';

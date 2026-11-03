@@ -516,6 +516,38 @@ function syncFocusAndRoute() {
 }
 
 function toggleSeries(id, hintEl) {
+    // ★ 用户口径（三档）：点开“父亲标题”（系列）后展开到哪一层
+    //   —— 'series：只展开系列本身（原行为）；'copies：展开到单张（默认）；
+    //   'all：连同类其它系列一起展开到单张。只在“点之前该系列是关的”时生效，
+    //   收起时不动别人；不碰原有任何判断。
+    try {
+        const depth = expandDepth();
+        const sRowEl = hintEl && hintEl.closest ? hintEl.closest('.series-year-row') : null;
+        const sBodyEl = sRowEl ? sRowEl.querySelector('.series-body') : null;
+        window.__expandDbg = { depth: depth, fired: !!(sBodyEl && !sBodyEl.classList.contains('open')), hasEl: !!sBodyEl };
+        if (depth !== 'series' && sBodyEl && !sBodyEl.classList.contains('open')) {
+            const openInside = () => {
+                try {
+                    const roots = depth === 'all'
+                        ? Array.prototype.slice.call(document.querySelectorAll('.series-body'))
+                        : [sBodyEl];
+                    let n = 0;
+                    roots.forEach(root => {
+                        Array.prototype.slice.call(root.querySelectorAll('.variety-row')).forEach(row => {
+                            const list = row.querySelector('.copy-list');
+                            if (!list || list.classList.contains('open')) return;
+                            list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
+                            const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
+                            if (ic) ic.classList.add('open');
+                            n++;
+                        });
+                    });
+                    window.__expandDbg.opened = (window.__expandDbg.opened || 0) + n;
+                } catch (e) { window.__expandDbg.err2 = String(e && e.message || e); }
+            };
+            setTimeout(openInside, 0); setTimeout(openInside, 250); setTimeout(openInside, 600);
+        }
+    } catch (e) { window.__expandDbg = { err: String(e && e.message || e) }; }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
     const icon = accordionTargetOf(hintEl, 'icon-' + id, '.series-expand-icon');
     if (!body) {
