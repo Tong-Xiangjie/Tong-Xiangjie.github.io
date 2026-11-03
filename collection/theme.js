@@ -205,7 +205,8 @@ const GLASS_BG_PRESETS = {
     nebula: { n: [3, 6], size: [55, 118], blur: 92, op: [16, 34], life: [20000, 48000] },
     grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] },
     // 光带 = 背景里几条拉长的柔和光晕（不是浮在界面上的白线：那就是用户说的"浮在上面有点丑"）
-    sheen:  { n: [3, 6], size: [55, 135], blur: 72, op: [14, 26], life: [18000, 42000], streak: true }
+    // 条带细、模糊小于厚度才看得出是"带"：之前 72px 模糊配 100~490px 厚度，直接糊成球（实测像星云）
+    sheen:  { n: [4, 7], size: [50, 120], blur: 34, op: [16, 30], life: [18000, 42000], streak: true }
 };
 function getGlassBg() {
     try {
@@ -219,7 +220,12 @@ function glassBgPreset() { return GLASS_BG_PRESETS[getGlassBg()] || GLASS_BG_PRE
 function setGlassBg(v) {
     if (GLASS_BG_MODES.indexOf(v) < 0) return;
     try { localStorage.setItem(GLASS_BG_KEY, v); } catch (e) { }
-    if (isGlassStyle()) ensureGlassOrbs(true);
+    if (isGlassStyle()) {
+        // 换背景也给一层过渡：新球是淡入的（各自 inline opacity transition），不至于"啪"地替换
+        try { document.documentElement.classList.add('glass-switching'); } catch (e) { }
+        setTimeout(function () { try { document.documentElement.classList.remove('glass-switching'); } catch (e) { } }, 380);
+        ensureGlassOrbs(true);   // background switched
+    }
 }
 
 // ★ 流动光感：一条大斜向光带，JS 缓慢漂移（随机目标，不可预测）。
@@ -295,7 +301,7 @@ function spawnGlassOrb() {
         var P = glassBgPreset();
         var o = document.createElement('i');
         var r = Math.random(), w, h;
-        if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.10, 0.26); }   // 光带档：一律细长条
+        if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.045, 0.115); }   // 光带档：一律细长条（厚度 4.5%~11.5%）
         else if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
         else if (r < 0.8) { w = orbRnd(P.size[0] * 1.2, P.size[1] * 1.25); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
         else { w = orbRnd(P.size[0] * 0.6, P.size[1] * 0.6); h = w * orbRnd(1.6, 2.6); }                 // 竖条
@@ -307,6 +313,7 @@ function spawnGlassOrb() {
             ? 'radial-gradient(closest-side, var(--theme), transparent 72%)'
             : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
         o.style.filter = 'blur(' + P.blur + 'px)';
+        if (P.streak) o.style.borderRadius = '999px';
         o.style.opacity = '0';
         o.style.transition = 'opacity ' + orbRnd(3, 7).toFixed(1) + 's ease-in-out';
         o.style.transform = 'translate3d(0,0,0) rotate(0deg) scale(1)';

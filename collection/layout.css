@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --theme: #1677ff;
     --bg: #eef4ff;
     --bg-light: #f6f9ff;
@@ -10,97 +10,97 @@
     --thumb-bg: #dce6f0;
     --theme-light: #4096ff;
 
-    /* ===== 行悬停底色 token =====
-       "整行可点"的元素（搜索结果行、侧边栏分类/子分类、系列年份、品种表头）
-       悬停时要有一个看得出来的背景变化。
+    /* ===== 琛屾偓鍋滃簳鑹?token =====
+       "鏁磋鍙偣"鐨勫厓绱狅紙鎼滅储缁撴灉琛屻€佷晶杈规爮鍒嗙被/瀛愬垎绫汇€佺郴鍒楀勾浠姐€佸搧绉嶈〃澶达級
+       鎮仠鏃惰鏈変竴涓湅寰楀嚭鏉ョ殑鑳屾櫙鍙樺寲銆?
 
-       ★ 两个坑，都踩过：
-       ① 原来统一写 rgba(0,0,0,0.04~0.05)（黑色蒙层）—— 深色下就是
-          rgb(1,7,15) → rgb(0,6,14)，实测对比度 1.005，等于没有反馈。
-          方向必须反过来：浅色加深、深色**提亮**。
-       ② 一开始按"页面底色派生一个实色"来做（深色 lighten 0.14）。
-          在页面底色上是 1.40 很好看，但铺到侧边栏底色上只剩 1.11 ——
-          因为 token 是按 --bg 算的，而侧边栏底色本来就更亮，
-          同一个实色落上去变化就小了。
-          → 改成**半透明 overlay**：同一透明度铺在 --bg / --bg-light /
-            --sidebar-bg / --card-bg 四种真实底色上，实测深色 0.14 得到
-            1.39~1.47、浅色 0.10 得到 1.25，四种底色几乎一致。
-       所以这里用 rgba 而不是实色，主题切换只需换颜色方向，不用重算。 */
+       鈽?涓や釜鍧戯紝閮借俯杩囷細
+       鈶?鍘熸潵缁熶竴鍐?rgba(0,0,0,0.04~0.05)锛堥粦鑹茶挋灞傦級鈥斺€?娣辫壊涓嬪氨鏄?
+          rgb(1,7,15) 鈫?rgb(0,6,14)锛屽疄娴嬪姣斿害 1.005锛岀瓑浜庢病鏈夊弽棣堛€?
+          鏂瑰悜蹇呴』鍙嶈繃鏉ワ細娴呰壊鍔犳繁銆佹繁鑹?*鎻愪寒**銆?
+       鈶?涓€寮€濮嬫寜"椤甸潰搴曡壊娲剧敓涓€涓疄鑹?鏉ュ仛锛堟繁鑹?lighten 0.14锛夈€?
+          鍦ㄩ〉闈㈠簳鑹蹭笂鏄?1.40 寰堝ソ鐪嬶紝浣嗛摵鍒颁晶杈规爮搴曡壊涓婂彧鍓?1.11 鈥斺€?
+          鍥犱负 token 鏄寜 --bg 绠楃殑锛岃€屼晶杈规爮搴曡壊鏈潵灏辨洿浜紝
+          鍚屼竴涓疄鑹茶惤涓婂幓鍙樺寲灏卞皬浜嗐€?
+          鈫?鏀规垚**鍗婇€忔槑 overlay**锛氬悓涓€閫忔槑搴﹂摵鍦?--bg / --bg-light /
+            --sidebar-bg / --card-bg 鍥涚鐪熷疄搴曡壊涓婏紝瀹炴祴娣辫壊 0.14 寰楀埌
+            1.39~1.47銆佹祬鑹?0.10 寰楀埌 1.25锛屽洓绉嶅簳鑹插嚑涔庝竴鑷淬€?
+       鎵€浠ヨ繖閲岀敤 rgba 鑰屼笉鏄疄鑹诧紝涓婚鍒囨崲鍙渶鎹㈤鑹叉柟鍚戯紝涓嶇敤閲嶇畻銆?*/
     --row-hover-bg: rgba(0, 0, 0, 0.10);
 
-    /* ===== 安全区域 token =====
-       index.html 声明了 viewport-fit=cover，让页面铺满刘海屏（配合暗色底不出现白边）。
-       但"铺满"之后，底部 Tab、左侧栏、内容右侧就会压到刘海 / Home Indicator 底下。
-       这里把四个安全区内边距收成 token，只在真正贴边的容器上使用；
-       桌面端 env() 恒为 0，行为与改动前完全一致。 */
+    /* ===== 瀹夊叏鍖哄煙 token =====
+       index.html 澹版槑浜?viewport-fit=cover锛岃椤甸潰閾烘弧鍒樻捣灞忥紙閰嶅悎鏆楄壊搴曚笉鍑虹幇鐧借竟锛夈€?
+       浣?閾烘弧"涔嬪悗锛屽簳閮?Tab銆佸乏渚ф爮銆佸唴瀹瑰彸渚у氨浼氬帇鍒板垬娴?/ Home Indicator 搴曚笅銆?
+       杩欓噷鎶婂洓涓畨鍏ㄥ尯鍐呰竟璺濇敹鎴?token锛屽彧鍦ㄧ湡姝ｈ创杈圭殑瀹瑰櫒涓婁娇鐢紱
+       妗岄潰绔?env() 鎭掍负 0锛岃涓轰笌鏀瑰姩鍓嶅畬鍏ㄤ竴鑷淬€?*/
     --sat: env(safe-area-inset-top, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
     --sar: env(safe-area-inset-right, 0px);
 
-    /* ===== 底部 Tab 高度 =====
-       ★ 这个值由 JS 实测写入（core.js 的 measureTabbarHeight），不要写死。
-       为什么不能硬编码：Tab 栏的高度由 .tab-item 的 rem 字号决定，而 rem 跟着
-       浏览器「默认字号」和「文字缩放」走。按 10px 内边距 + 0.85rem 行盒 +
-       1px 边框估算出的 41px 只在根字号 16px 时成立，实测偏差：
-         根字号 16px → Tab 栏 41px（吻合）
-         根字号 20px → Tab 栏 46px
-         根字号 24px → Tab 栏 51px
-         根字号 28px → Tab 栏 56px
-         文字缩放 200% → Tab 栏 61px
-       一旦失配，弹窗图片盒子（高度 = 视口 - 这个值）的下边界就会越过 Tab 栏
-       顶部，图片内容重新画到 5 个 Tab 上 —— 正是"文章/其他大图还是会覆盖 tab"。
-       这里保留的 41px 只是 CSS 侧的兜底（JS 尚未执行时的首帧），
-       JS 会把实测值写成内联属性覆盖它。 */
+    /* ===== 搴曢儴 Tab 楂樺害 =====
+       鈽?杩欎釜鍊肩敱 JS 瀹炴祴鍐欏叆锛坈ore.js 鐨?measureTabbarHeight锛夛紝涓嶈鍐欐銆?
+       涓轰粈涔堜笉鑳界‖缂栫爜锛歍ab 鏍忕殑楂樺害鐢?.tab-item 鐨?rem 瀛楀彿鍐冲畾锛岃€?rem 璺熺潃
+       娴忚鍣ㄣ€岄粯璁ゅ瓧鍙枫€嶅拰銆屾枃瀛楃缉鏀俱€嶈蛋銆傛寜 10px 鍐呰竟璺?+ 0.85rem 琛岀洅 +
+       1px 杈规浼扮畻鍑虹殑 41px 鍙湪鏍瑰瓧鍙?16px 鏃舵垚绔嬶紝瀹炴祴鍋忓樊锛?
+         鏍瑰瓧鍙?16px 鈫?Tab 鏍?41px锛堝惢鍚堬級
+         鏍瑰瓧鍙?20px 鈫?Tab 鏍?46px
+         鏍瑰瓧鍙?24px 鈫?Tab 鏍?51px
+         鏍瑰瓧鍙?28px 鈫?Tab 鏍?56px
+         鏂囧瓧缂╂斁 200% 鈫?Tab 鏍?61px
+       涓€鏃﹀け閰嶏紝寮圭獥鍥剧墖鐩掑瓙锛堥珮搴?= 瑙嗗彛 - 杩欎釜鍊硷級鐨勪笅杈圭晫灏变細瓒婅繃 Tab 鏍?
+       椤堕儴锛屽浘鐗囧唴瀹归噸鏂扮敾鍒?5 涓?Tab 涓?鈥斺€?姝ｆ槸"鏂囩珷/鍏朵粬澶у浘杩樻槸浼氳鐩?tab"銆?
+       杩欓噷淇濈暀鐨?41px 鍙槸 CSS 渚х殑鍏滃簳锛圝S 灏氭湭鎵ц鏃剁殑棣栧抚锛夛紝
+       JS 浼氭妸瀹炴祴鍊煎啓鎴愬唴鑱斿睘鎬ц鐩栧畠銆?*/
     --tabbar-h: 41px;
 
-    /* ===== 动效 token =====
-       三档时长 + 四条曲线，替代原来"处处 0.2s ease"的单调感。
-       --ease-out  进入（快进慢停）  --ease-in  退出（慢起快出）
-       --ease-inout 状态互变         --ease-spring 强调性出现（带轻微回弹） */
-    --dur-1: 0.14s;   /* 微反馈：hover / 按压 / 图标旋转 */
-    --dur-2: 0.22s;   /* 小面板：手风琴、下拉、提示 */
-    --dur-3: 0.3s;    /* 视图切换、弹层、侧边栏 */
-    /* 展开/收起专用时长。比 --dur-2 略长：手风琴要展开的是一整块列表，
-       0.22s 在低端机上只摊得到 ~9 帧，掉帧全落在起步最显眼的位置；
-       0.28s 实测帧数 9→16、最长帧间隔 84ms→40ms，卡顿感消失。
-       同样不直接动 --dur-2（它还被侧边栏宽度/搜索框等 20 多处使用）。 */
+    /* ===== 鍔ㄦ晥 token =====
+       涓夋。鏃堕暱 + 鍥涙潯鏇茬嚎锛屾浛浠ｅ師鏉?澶勫 0.2s ease"鐨勫崟璋冩劅銆?
+       --ease-out  杩涘叆锛堝揩杩涙參鍋滐級  --ease-in  閫€鍑猴紙鎱㈣捣蹇嚭锛?
+       --ease-inout 鐘舵€佷簰鍙?        --ease-spring 寮鸿皟鎬у嚭鐜帮紙甯﹁交寰洖寮癸級 */
+    --dur-1: 0.14s;   /* 寰弽棣堬細hover / 鎸夊帇 / 鍥炬爣鏃嬭浆 */
+    --dur-2: 0.22s;   /* 灏忛潰鏉匡細鎵嬮鐞淬€佷笅鎷夈€佹彁绀?*/
+    --dur-3: 0.3s;    /* 瑙嗗浘鍒囨崲銆佸脊灞傘€佷晶杈规爮 */
+    /* 灞曞紑/鏀惰捣涓撶敤鏃堕暱銆傛瘮 --dur-2 鐣ラ暱锛氭墜椋庣惔瑕佸睍寮€鐨勬槸涓€鏁村潡鍒楄〃锛?
+       0.22s 鍦ㄤ綆绔満涓婂彧鎽婂緱鍒?~9 甯э紝鎺夊抚鍏ㄨ惤鍦ㄨ捣姝ユ渶鏄剧溂鐨勪綅缃紱
+       0.28s 瀹炴祴甯ф暟 9鈫?6銆佹渶闀垮抚闂撮殧 84ms鈫?0ms锛屽崱椤挎劅娑堝け銆?
+       鍚屾牱涓嶇洿鎺ュ姩 --dur-2锛堝畠杩樿渚ц竟鏍忓搴?鎼滅储妗嗙瓑 20 澶氬浣跨敤锛夈€?*/
     --dur-accordion: 0.28s;
-    /* 视图入场淡入。比 --dur-2 慢：换版块是全屏内容整体替换，
-       0.22s 淡完显得"闪一下"、来不及看清过渡，实测反馈偏短。
-       单独开一个变量，避免为了改它而连带拖慢手风琴/下拉那些小面板。 */
+    /* 瑙嗗浘鍏ュ満娣″叆銆傛瘮 --dur-2 鎱細鎹㈢増鍧楁槸鍏ㄥ睆鍐呭鏁翠綋鏇挎崲锛?
+       0.22s 娣″畬鏄惧緱"闂竴涓?銆佹潵涓嶅強鐪嬫竻杩囨浮锛屽疄娴嬪弽棣堝亸鐭€?
+       鍗曠嫭寮€涓€涓彉閲忥紝閬垮厤涓轰簡鏀瑰畠鑰岃繛甯︽嫋鎱㈡墜椋庣惔/涓嬫媺閭ｄ簺灏忛潰鏉裤€?*/
     --dur-enter: 0.36s;
     --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
     --ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
     --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    /* ★ 展开/收起（手风琴）专用缓动。
-       不能直接借用 --ease-inout：它最陡的一段紧贴起点，对"收起"这种反向动画
-       来说等于第一步就把大半位移走完，剩下的时间几乎不动 —— 实测收起时
-       25% 时间点已完成 81%，观感是"猛地一收、然后卡住"。
-       这条在起点附近更平缓，把位移均摊到全程（实测 25%→29%、50%→74%）。
-       只给 max-height 类手风琴用，别动 --ease-inout 本身：它还管着
-       .switch / .switch-knob / .seg-btn / 顶部搜索框 / 侧边栏宽度等一堆控件。 */
+    /* 鈽?灞曞紑/鏀惰捣锛堟墜椋庣惔锛変笓鐢ㄧ紦鍔ㄣ€?
+       涓嶈兘鐩存帴鍊熺敤 --ease-inout锛氬畠鏈€闄＄殑涓€娈电揣璐磋捣鐐癸紝瀵?鏀惰捣"杩欑鍙嶅悜鍔ㄧ敾
+       鏉ヨ绛変簬绗竴姝ュ氨鎶婂ぇ鍗婁綅绉昏蛋瀹岋紝鍓╀笅鐨勬椂闂村嚑涔庝笉鍔?鈥斺€?瀹炴祴鏀惰捣鏃?
+       25% 鏃堕棿鐐瑰凡瀹屾垚 81%锛岃鎰熸槸"鐚涘湴涓€鏀躲€佺劧鍚庡崱浣?銆?
+       杩欐潯鍦ㄨ捣鐐归檮杩戞洿骞崇紦锛屾妸浣嶇Щ鍧囨憡鍒板叏绋嬶紙瀹炴祴 25%鈫?9%銆?0%鈫?4%锛夈€?
+       鍙粰 max-height 绫绘墜椋庣惔鐢紝鍒姩 --ease-inout 鏈韩锛氬畠杩樼鐫€
+       .switch / .switch-knob / .seg-btn / 椤堕儴鎼滅储妗?/ 渚ц竟鏍忓搴︾瓑涓€鍫嗘帶浠躲€?*/
     --ease-accordion: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* ===== 明暗切换的"补间" =====
-   用户报："切换白天黑夜的时候，有一部分的颜色是突变的（那些框的背景色，
-   比如评级/年代柱状图的背景）"。
-   因为整套配色就是下面这几个变量，切换时变量**瞬间**换值，凡吃变量的地方
-   （背景、边框、文字、SVG 的 fill/stroke）就一起跳 ——
-   .stat-bar-track 吃 --thumb-bg、.stat-bar-fill 吃 --theme，正是那些柱状图。
+/* ===== 鏄庢殫鍒囨崲鐨?琛ラ棿" =====
+   鐢ㄦ埛鎶ワ細"鍒囨崲鐧藉ぉ榛戝鐨勬椂鍊欙紝鏈変竴閮ㄥ垎鐨勯鑹叉槸绐佸彉鐨勶紙閭ｄ簺妗嗙殑鑳屾櫙鑹诧紝
+   姣斿璇勭骇/骞翠唬鏌辩姸鍥剧殑鑳屾櫙锛?銆?
+   鍥犱负鏁村閰嶈壊灏辨槸涓嬮潰杩欏嚑涓彉閲忥紝鍒囨崲鏃跺彉閲?*鐬棿**鎹㈠€硷紝鍑″悆鍙橀噺鐨勫湴鏂?
+   锛堣儗鏅€佽竟妗嗐€佹枃瀛椼€丼VG 鐨?fill/stroke锛夊氨涓€璧疯烦 鈥斺€?
+   .stat-bar-track 鍚?--thumb-bg銆?stat-bar-fill 鍚?--theme锛屾鏄偅浜涙煴鐘跺浘銆?
 
-   这里特意**不**走"临时给所有元素加 transition"那条路：那会把元素自己正在跑的
-   transition 覆盖掉，把 transform 动画打断成硬切 —— 比如外观那块刚做好的明暗
-   滑块，点"暗"时它正在滑，恰好会被打断。
-   改法：用 @property 把颜色变量本身注册成可插值类型，只给变量加过渡 ——
-   变量逐帧插值，所有消费者自动跟着补间，一个元素都不用碰。
+   杩欓噷鐗规剰**涓?*璧?涓存椂缁欐墍鏈夊厓绱犲姞 transition"閭ｆ潯璺細閭ｄ細鎶婂厓绱犺嚜宸辨鍦ㄨ窇鐨?
+   transition 瑕嗙洊鎺夛紝鎶?transform 鍔ㄧ敾鎵撴柇鎴愮‖鍒?鈥斺€?姣斿澶栬閭ｅ潡鍒氬仛濂界殑鏄庢殫
+   婊戝潡锛岀偣"鏆?鏃跺畠姝ｅ湪婊戯紝鎭板ソ浼氳鎵撴柇銆?
+   鏀规硶锛氱敤 @property 鎶婇鑹插彉閲忔湰韬敞鍐屾垚鍙彃鍊肩被鍨嬶紝鍙粰鍙橀噺鍔犺繃娓?鈥斺€?
+   鍙橀噺閫愬抚鎻掑€硷紝鎵€鏈夋秷璐硅€呰嚜鍔ㄨ窡鐫€琛ラ棿锛屼竴涓厓绱犻兘涓嶇敤纰般€?
 
-   兼容性：不支持 @property 的浏览器（Chrome < 85 / Safari < 16.4 / Firefox < 128）
-   只是退回"瞬间切换"的老行为，不会出错。
-   .theme-anim 这个类只在切换的那一小段时间挂上（theme.js 的 withThemeAnim），
-   平时不挂 —— 常驻会让以后每次改这些变量都变慢，hover 反馈也会发糊。 */
+   鍏煎鎬э細涓嶆敮鎸?@property 鐨勬祻瑙堝櫒锛圕hrome < 85 / Safari < 16.4 / Firefox < 128锛?
+   鍙槸閫€鍥?鐬棿鍒囨崲"鐨勮€佽涓猴紝涓嶄細鍑洪敊銆?
+   .theme-anim 杩欎釜绫诲彧鍦ㄥ垏鎹㈢殑閭ｄ竴灏忔鏃堕棿鎸備笂锛坱heme.js 鐨?withThemeAnim锛夛紝
+   骞虫椂涓嶆寕 鈥斺€?甯搁┗浼氳浠ュ悗姣忔鏀硅繖浜涘彉閲忛兘鍙樻參锛宧over 鍙嶉涔熶細鍙戠硦銆?*/
 @property --theme { syntax: '<color>'; inherits: true; initial-value: #1677ff; }
 @property --theme-light { syntax: '<color>'; inherits: true; initial-value: #4096ff; }
 @property --bg { syntax: '<color>'; inherits: true; initial-value: #eef4ff; }
@@ -127,19 +127,19 @@ html.theme-anim {
                 --row-hover-bg var(--dur-3) var(--ease-inout);
 }
 
-/* ★ 补间期间，元素自带的颜色过渡必须让位。
-   用户报："主题色变化时间不一样，整个网站的大背景的变化时间显然要长一些"。
-   根因：变量已经在插值了，而元素自己那条 transition 是在**追一个移动的目标**，
-   必然比变量晚到位。实测换主题色（#1677ff → #d92121）：
-     --bg / body 背景 335ms、--theme 365ms、.sidebar 349ms，
-     而 .content（自带 transition: background var(--dur-2)）到 494ms 才停。
-   为什么整条 transition 都关掉、而不是只挑颜色那几个属性：CSS 没法从一条
-   transition 简写里单独摘掉 background/color 而保留 transform/width。
-   代价是补间那 0.3s 内别的属性过渡也变成瞬时 —— 这个窗口是用户点一下触发的，
-   实际不会同时有别的动画在跑，可以接受。
-   两个例外必须保住，它们此刻正在动：
-     .seg-pill —— 明暗滑块正在滑，关掉就变硬切（刚做的功能就废了）；
-     .seg-btn  —— 选中项文字要跟着滑块渐白，关掉会"啪"地变白。 */
+/* 鈽?琛ラ棿鏈熼棿锛屽厓绱犺嚜甯︾殑棰滆壊杩囨浮蹇呴』璁╀綅銆?
+   鐢ㄦ埛鎶ワ細"涓婚鑹插彉鍖栨椂闂翠笉涓€鏍凤紝鏁翠釜缃戠珯鐨勫ぇ鑳屾櫙鐨勫彉鍖栨椂闂存樉鐒惰闀夸竴浜?銆?
+   鏍瑰洜锛氬彉閲忓凡缁忓湪鎻掑€间簡锛岃€屽厓绱犺嚜宸遍偅鏉?transition 鏄湪**杩戒竴涓Щ鍔ㄧ殑鐩爣**锛?
+   蹇呯劧姣斿彉閲忔櫄鍒颁綅銆傚疄娴嬫崲涓婚鑹诧紙#1677ff 鈫?#d92121锛夛細
+     --bg / body 鑳屾櫙 335ms銆?-theme 365ms銆?sidebar 349ms锛?
+     鑰?.content锛堣嚜甯?transition: background var(--dur-2)锛夊埌 494ms 鎵嶅仠銆?
+   涓轰粈涔堟暣鏉?transition 閮藉叧鎺夈€佽€屼笉鏄彧鎸戦鑹查偅鍑犱釜灞炴€э細CSS 娌℃硶浠庝竴鏉?
+   transition 绠€鍐欓噷鍗曠嫭鎽樻帀 background/color 鑰屼繚鐣?transform/width銆?
+   浠ｄ环鏄ˉ闂撮偅 0.3s 鍐呭埆鐨勫睘鎬ц繃娓′篃鍙樻垚鐬椂 鈥斺€?杩欎釜绐楀彛鏄敤鎴风偣涓€涓嬭Е鍙戠殑锛?
+   瀹為檯涓嶄細鍚屾椂鏈夊埆鐨勫姩鐢诲湪璺戯紝鍙互鎺ュ彈銆?
+   涓や釜渚嬪蹇呴』淇濅綇锛屽畠浠鍒绘鍦ㄥ姩锛?
+     .seg-pill 鈥斺€?鏄庢殫婊戝潡姝ｅ湪婊戯紝鍏虫帀灏卞彉纭垏锛堝垰鍋氱殑鍔熻兘灏卞簾浜嗭級锛?
+     .seg-btn  鈥斺€?閫変腑椤规枃瀛楄璺熺潃婊戝潡娓愮櫧锛屽叧鎺変細"鍟?鍦板彉鐧姐€?*/
 html.theme-anim :not(.seg-pill):not(.seg-btn),
 html.theme-anim :not(.seg-pill):not(.seg-btn)::before,
 html.theme-anim :not(.seg-pill):not(.seg-btn)::after {
@@ -150,15 +150,15 @@ html.theme-anim :not(.seg-pill):not(.seg-btn)::after {
     html.theme-anim { transition: none; }
 }
 
-/* ===== 暗色底（JS 跑起来之前的临时底色）=====
-   真正的暗色调色板是 theme.js 的 applyTheme() 按主题色算出来写在内联样式上的
-   （内联优先级更高，会覆盖这里）。这一块只负责"别闪白"：head 里的内联脚本会先
-   打上 data-color-scheme，页面首次绘制就已是深色。 */
+/* ===== 鏆楄壊搴曪紙JS 璺戣捣鏉ヤ箣鍓嶇殑涓存椂搴曡壊锛?====
+   鐪熸鐨勬殫鑹茶皟鑹叉澘鏄?theme.js 鐨?applyTheme() 鎸変富棰樿壊绠楀嚭鏉ュ啓鍦ㄥ唴鑱旀牱寮忎笂鐨?
+   锛堝唴鑱斾紭鍏堢骇鏇撮珮锛屼細瑕嗙洊杩欓噷锛夈€傝繖涓€鍧楀彧璐熻矗"鍒棯鐧?锛歨ead 閲岀殑鍐呰仈鑴氭湰浼氬厛
+   鎵撲笂 data-color-scheme锛岄〉闈㈤娆＄粯鍒跺氨宸叉槸娣辫壊銆?*/
 
-/* 行悬停底色：深色方向反过来。
-   实测（铺在 --bg / --bg-light / --sidebar-bg / --card-bg 四种真实底色上）：
-     白色 0.14 → 对比度 1.39 ~ 1.47
-   同一透明度在四种底色上几乎一致，所以不需要按底色分别算。 */
+/* 琛屾偓鍋滃簳鑹诧細娣辫壊鏂瑰悜鍙嶈繃鏉ャ€?
+   瀹炴祴锛堥摵鍦?--bg / --bg-light / --sidebar-bg / --card-bg 鍥涚鐪熷疄搴曡壊涓婏級锛?
+     鐧借壊 0.14 鈫?瀵规瘮搴?1.39 ~ 1.47
+   鍚屼竴閫忔槑搴﹀湪鍥涚搴曡壊涓婂嚑涔庝竴鑷达紝鎵€浠ヤ笉闇€瑕佹寜搴曡壊鍒嗗埆绠椼€?*/
 html[data-color-scheme="dark"] {
     --row-hover-bg: rgba(255, 255, 255, 0.14);
 }
@@ -175,25 +175,25 @@ html[data-color-scheme="dark"] {
 }
 html[data-color-scheme="light"] { color-scheme: light; }
 
-/* ===== OCRB 字体 =====
-   ★ 这个 family 全仓库只被 .copy-info .version-text（藏品卡上的冠号）用，
-     所以它什么时候就绪，只影响那一小块文字。
-   ★ 为什么 font-display 从 swap 改成 block（用户报的"总是会跳一下"）：
-       swap = 字体没到时**先用回退字体画一遍**，字体到位后再重排一次。
-       冠号是等宽感很强的 OCR-B，回退字体比它窄：逐帧实测每个冠号宽度会
-       99.15→103.89px / 92.74→98.16px（+4.7~5.4px），就是看到的那个"跳"。
-       block = 字体没就绪时那一段**先不画**（Chrome 的 block 期约 3s），
-       绝不会"先按回退字体排版、再跳成真字体"。
-   ★ 为什么敢用 block（不会把冠号藏很久）：
-       ① index.html 里已经 <link rel=preload as=font>，字节和样式表并行取；
-       ② main.js 开头还会主动 document.fonts.load() 一次，把 FontFace 状态
-          提前置成 loaded —— 这一步 preload 做不到：preload 只把字节放进缓存，
-          第一个用到它的元素仍会走一次"先按回退排版、拿到字体后再重排"的异步流程；
-       ③ 冠号要等 72 个数据文件加载完、卡片渲染时才出现（实测 t≈1.2s），
-          而字体 t≈150ms 就 loaded —— block 期实际根本不会发生。
-       verify-ocrb-init.mjs 会逐帧断言"冠号可见期间宽度零位移"。
-   ★ 兜底：字体真取不到（404 / 离线首访且 SW 未命中）时，block 期结束
-      （约 3s）会自动落回字体栈后面的系统字体，不会永久不显示。 */
+/* ===== OCRB 瀛椾綋 =====
+   鈽?杩欎釜 family 鍏ㄤ粨搴撳彧琚?.copy-info .version-text锛堣棌鍝佸崱涓婄殑鍐犲彿锛夌敤锛?
+     鎵€浠ュ畠浠€涔堟椂鍊欏氨缁紝鍙奖鍝嶉偅涓€灏忓潡鏂囧瓧銆?
+   鈽?涓轰粈涔?font-display 浠?swap 鏀规垚 block锛堢敤鎴锋姤鐨?鎬绘槸浼氳烦涓€涓?锛夛細
+       swap = 瀛椾綋娌″埌鏃?*鍏堢敤鍥為€€瀛椾綋鐢讳竴閬?*锛屽瓧浣撳埌浣嶅悗鍐嶉噸鎺掍竴娆°€?
+       鍐犲彿鏄瓑瀹芥劅寰堝己鐨?OCR-B锛屽洖閫€瀛椾綋姣斿畠绐勶細閫愬抚瀹炴祴姣忎釜鍐犲彿瀹藉害浼?
+       99.15鈫?03.89px / 92.74鈫?8.16px锛?4.7~5.4px锛夛紝灏辨槸鐪嬪埌鐨勯偅涓?璺?銆?
+       block = 瀛椾綋娌″氨缁椂閭ｄ竴娈?*鍏堜笉鐢?*锛圕hrome 鐨?block 鏈熺害 3s锛夛紝
+       缁濅笉浼?鍏堟寜鍥為€€瀛椾綋鎺掔増銆佸啀璺虫垚鐪熷瓧浣?銆?
+   鈽?涓轰粈涔堟暍鐢?block锛堜笉浼氭妸鍐犲彿钘忓緢涔咃級锛?
+       鈶?index.html 閲屽凡缁?<link rel=preload as=font>锛屽瓧鑺傚拰鏍峰紡琛ㄥ苟琛屽彇锛?
+       鈶?main.js 寮€澶磋繕浼氫富鍔?document.fonts.load() 涓€娆★紝鎶?FontFace 鐘舵€?
+          鎻愬墠缃垚 loaded 鈥斺€?杩欎竴姝?preload 鍋氫笉鍒帮細preload 鍙妸瀛楄妭鏀捐繘缂撳瓨锛?
+          绗竴涓敤鍒板畠鐨勫厓绱犱粛浼氳蛋涓€娆?鍏堟寜鍥為€€鎺掔増銆佹嬁鍒板瓧浣撳悗鍐嶉噸鎺?鐨勫紓姝ユ祦绋嬶紱
+       鈶?鍐犲彿瑕佺瓑 72 涓暟鎹枃浠跺姞杞藉畬銆佸崱鐗囨覆鏌撴椂鎵嶅嚭鐜帮紙瀹炴祴 t鈮?.2s锛夛紝
+          鑰屽瓧浣?t鈮?50ms 灏?loaded 鈥斺€?block 鏈熷疄闄呮牴鏈笉浼氬彂鐢熴€?
+       verify-ocrb-init.mjs 浼氶€愬抚鏂█"鍐犲彿鍙鏈熼棿瀹藉害闆朵綅绉?銆?
+   鈽?鍏滃簳锛氬瓧浣撶湡鍙栦笉鍒帮紙404 / 绂荤嚎棣栬涓?SW 鏈懡涓級鏃讹紝block 鏈熺粨鏉?
+      锛堢害 3s锛変細鑷姩钀藉洖瀛椾綋鏍堝悗闈㈢殑绯荤粺瀛椾綋锛屼笉浼氭案涔呬笉鏄剧ず銆?*/
 @font-face {
     font-family: 'OCRB10PitchBT-Regular';
     src: url('../font/OCRB10PitchBT-Regular.woff') format('woff');
@@ -217,16 +217,16 @@ body {
 .app-layout {
     display: flex;
     flex-direction: column;
-    /* 100vh 在移动端是"地址栏收起时"的大视口，地址栏一展开底部 Tab 就被推出屏幕。
-       先写 100vh 兜底，再用 100dvh（动态视口）覆盖；不支持 dvh 的浏览器忽略第二行。 */
+    /* 100vh 鍦ㄧЩ鍔ㄧ鏄?鍦板潃鏍忔敹璧锋椂"鐨勫ぇ瑙嗗彛锛屽湴鍧€鏍忎竴灞曞紑搴曢儴 Tab 灏辫鎺ㄥ嚭灞忓箷銆?
+       鍏堝啓 100vh 鍏滃簳锛屽啀鐢?100dvh锛堝姩鎬佽鍙ｏ級瑕嗙洊锛涗笉鏀寔 dvh 鐨勬祻瑙堝櫒蹇界暐绗簩琛屻€?*/
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
 }
 
-/* ========== 搜索栏 ========== */
+/* ========== 鎼滅储鏍?========== */
 .top-search-container {
-    /* 横屏刘海在左/右时，搜索框会压到传感器区，这里让出安全区 */
+    /* 妯睆鍒樻捣鍦ㄥ乏/鍙虫椂锛屾悳绱㈡浼氬帇鍒颁紶鎰熷櫒鍖猴紝杩欓噷璁╁嚭瀹夊叏鍖?*/
     padding: 8px calc(14px + var(--sar)) 8px calc(14px + var(--sal));
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
@@ -247,29 +247,29 @@ body {
 }
 
 /* ============================================================
-   ★★★ 冷启动（深链接 / 直达 / 刷新 `#special/...`）时，搜索栏必须**第一次绘制前就已收起**。
-   不这么做的后果（用户 2026 反复反馈的"数字沉降"，桌面 1920 必现）：
-     这个搜索栏的高是**参与布局**的（`.app-layout` 是 `flex-direction: column`，
-     它在 `.body-row` 上面），所以它一塌陷，整个 `.body-row` 就被顶上去了。
-     实测时序（1920x1080 冷启动，`Page.navigate` 到 `#special/timeline`）：
-       t=557.9ms  `hidden` 被 router 加上（此时加载遮罩刚开始淡出）
-       t=561.6ms  `max-height / padding / opacity` 过渡开始（`--dur-3: 0.3s`）
-       t=746.2ms  时间线渲染 ⇒ 热力图**第一次出现**，此刻搜索栏才收到 54.2px
-       t=870.8ms  过渡结束，搜索栏收到 1px（只剩 border-bottom）
-     ⇒ 热力图的**文档绝对 top** 在 198.25 → 145 之间滑了 **53.25px**，年份/月份两排
-       一起往下沉（网格上边缘整体下移），且停在最终位置不回弹。
-     ⇒ 1440x900 / 1366x768 之所以"看不见"：那两个宽度下收起的**起点**更低，
-       router 加 `hidden` 时过渡已经基本走完（实测热力图全程只有 145 一个取值）。
-       而 1920 宽下搜索栏起始 70px 高，0.3s 的过渡正好压在渲染点上。
-   ★ 为什么用 `html[data-hm-cold]`：本站没有服务端，HTML 是静态的，无法在 HTML 里
-     预置 `hidden`（那是 router 按 URL 决定的）。这个属性由 `special.js` 在**解析期**
-     （早于任何元素首次绘制）按 URL 一次性打上，且**只对 `#special/...` 的深链接**打 ——
-     站内点进来的路径上搜索栏**早已收起**，本来就没有这一帧，不受影响。
-   ★ `display: none` 是刻意的：`max-height: 0` + `padding` 过渡在"首次绘制"这一刻
-     仍会按 flex 布局参与一轮（`max-height` 过渡期间中间值都参与布局），
-     只有 `display: none` 能保证它**第一帧就不占任何高度**。
-   ★ 属性会在几帧后由 `special.js` 摘掉，此后 `hidden` 类（过渡正常）接管，
-     所以"从专题返回普通板块时搜索栏滑出来"的动画一点没变。
+   鈽呪槄鈽?鍐峰惎鍔紙娣遍摼鎺?/ 鐩磋揪 / 鍒锋柊 `#special/...`锛夋椂锛屾悳绱㈡爮蹇呴』**绗竴娆＄粯鍒跺墠灏卞凡鏀惰捣**銆?
+   涓嶈繖涔堝仛鐨勫悗鏋滐紙鐢ㄦ埛 2026 鍙嶅鍙嶉鐨?鏁板瓧娌夐檷"锛屾闈?1920 蹇呯幇锛夛細
+     杩欎釜鎼滅储鏍忕殑楂樻槸**鍙備笌甯冨眬**鐨勶紙`.app-layout` 鏄?`flex-direction: column`锛?
+     瀹冨湪 `.body-row` 涓婇潰锛夛紝鎵€浠ュ畠涓€濉岄櫡锛屾暣涓?`.body-row` 灏辫椤朵笂鍘讳簡銆?
+     瀹炴祴鏃跺簭锛?920x1080 鍐峰惎鍔紝`Page.navigate` 鍒?`#special/timeline`锛夛細
+       t=557.9ms  `hidden` 琚?router 鍔犱笂锛堟鏃跺姞杞介伄缃╁垰寮€濮嬫贰鍑猴級
+       t=561.6ms  `max-height / padding / opacity` 杩囨浮寮€濮嬶紙`--dur-3: 0.3s`锛?
+       t=746.2ms  鏃堕棿绾挎覆鏌?鈬?鐑姏鍥?*绗竴娆″嚭鐜?*锛屾鍒绘悳绱㈡爮鎵嶆敹鍒?54.2px
+       t=870.8ms  杩囨浮缁撴潫锛屾悳绱㈡爮鏀跺埌 1px锛堝彧鍓?border-bottom锛?
+     鈬?鐑姏鍥剧殑**鏂囨。缁濆 top** 鍦?198.25 鈫?145 涔嬮棿婊戜簡 **53.25px**锛屽勾浠?鏈堜唤涓ゆ帓
+       涓€璧峰線涓嬫矇锛堢綉鏍间笂杈圭紭鏁翠綋涓嬬Щ锛夛紝涓斿仠鍦ㄦ渶缁堜綅缃笉鍥炲脊銆?
+     鈬?1440x900 / 1366x768 涔嬫墍浠?鐪嬩笉瑙?锛氶偅涓や釜瀹藉害涓嬫敹璧风殑**璧风偣**鏇翠綆锛?
+       router 鍔?`hidden` 鏃惰繃娓″凡缁忓熀鏈蛋瀹岋紙瀹炴祴鐑姏鍥惧叏绋嬪彧鏈?145 涓€涓彇鍊硷級銆?
+       鑰?1920 瀹戒笅鎼滅储鏍忚捣濮?70px 楂橈紝0.3s 鐨勮繃娓℃濂藉帇鍦ㄦ覆鏌撶偣涓娿€?
+   鈽?涓轰粈涔堢敤 `html[data-hm-cold]`锛氭湰绔欐病鏈夋湇鍔＄锛孒TML 鏄潤鎬佺殑锛屾棤娉曞湪 HTML 閲?
+     棰勭疆 `hidden`锛堥偅鏄?router 鎸?URL 鍐冲畾鐨勶級銆傝繖涓睘鎬х敱 `special.js` 鍦?*瑙ｆ瀽鏈?*
+     锛堟棭浜庝换浣曞厓绱犻娆＄粯鍒讹級鎸?URL 涓€娆℃€ф墦涓婏紝涓?*鍙 `#special/...` 鐨勬繁閾炬帴**鎵?鈥斺€?
+     绔欏唴鐐硅繘鏉ョ殑璺緞涓婃悳绱㈡爮**鏃╁凡鏀惰捣**锛屾湰鏉ュ氨娌℃湁杩欎竴甯э紝涓嶅彈褰卞搷銆?
+   鈽?`display: none` 鏄埢鎰忕殑锛歚max-height: 0` + `padding` 杩囨浮鍦?棣栨缁樺埗"杩欎竴鍒?
+     浠嶄細鎸?flex 甯冨眬鍙備笌涓€杞紙`max-height` 杩囨浮鏈熼棿涓棿鍊奸兘鍙備笌甯冨眬锛夛紝
+     鍙湁 `display: none` 鑳戒繚璇佸畠**绗竴甯у氨涓嶅崰浠讳綍楂樺害**銆?
+   鈽?灞炴€т細鍦ㄥ嚑甯у悗鐢?`special.js` 鎽樻帀锛屾鍚?`hidden` 绫伙紙杩囨浮姝ｅ父锛夋帴绠★紝
+     鎵€浠?浠庝笓棰樿繑鍥炴櫘閫氭澘鍧楁椂鎼滅储鏍忔粦鍑烘潵"鐨勫姩鐢讳竴鐐规病鍙樸€?
    ============================================================ */
 html[data-hm-cold] .top-search-container {
     display: none;
@@ -407,7 +407,7 @@ html[data-hm-cold] .top-search-container {
     pointer-events: none;
 }
 
-/* ========== 特殊字符面板 ========== */
+/* ========== 鐗规畩瀛楃闈㈡澘 ========== */
 .symbol-panel {
     position: absolute;
     top: calc(100% + 6px);
@@ -424,17 +424,17 @@ html[data-hm-cold] .top-search-container {
     max-height: 260px;
     overflow-y: auto;
     display: none;
-    /* ★ 出现/消失动画：淡入 + 从触发按钮那侧"长"出来（面板挂在搜索框右上角，
-       所以 transform-origin 取 top right）。
-       进出的 transition 分别写在"进入后的状态"和"基础状态"里 —— 过渡取的是变化**之后**
-       那条规则上的值，于是打开用 --dur-2/--ease-out（小面板档），关闭用更短的
-       --dur-1/--ease-in，收起比展开利落一点。 */
+    /* 鈽?鍑虹幇/娑堝け鍔ㄧ敾锛氭贰鍏?+ 浠庤Е鍙戞寜閽偅渚?闀?鍑烘潵锛堥潰鏉挎寕鍦ㄦ悳绱㈡鍙充笂瑙掞紝
+       鎵€浠?transform-origin 鍙?top right锛夈€?
+       杩涘嚭鐨?transition 鍒嗗埆鍐欏湪"杩涘叆鍚庣殑鐘舵€?鍜?鍩虹鐘舵€?閲?鈥斺€?杩囨浮鍙栫殑鏄彉鍖?*涔嬪悗**
+       閭ｆ潯瑙勫垯涓婄殑鍊硷紝浜庢槸鎵撳紑鐢?--dur-2/--ease-out锛堝皬闈㈡澘妗ｏ級锛屽叧闂敤鏇寸煭鐨?
+       --dur-1/--ease-in锛屾敹璧锋瘮灞曞紑鍒╄惤涓€鐐广€?*/
     opacity: 0;
     transform: translateY(-6px) scale(0.98);
     transform-origin: top right;
     transition: opacity var(--dur-1) var(--ease-in), transform var(--dur-1) var(--ease-in);
 }
-/* 进入布局（display:block），但还不可见 —— 由 symbol-picker.js 结算一次样式后再挂 .open */
+/* 杩涘叆甯冨眬锛坉isplay:block锛夛紝浣嗚繕涓嶅彲瑙?鈥斺€?鐢?symbol-picker.js 缁撶畻涓€娆℃牱寮忓悗鍐嶆寕 .open */
 .symbol-panel.shown {
     display: block;
 }
@@ -444,8 +444,8 @@ html[data-hm-cold] .top-search-container {
     transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 @media (prefers-reduced-motion: reduce) {
-    /* ★ .open 那条规则的优先级比 .symbol-panel 高，所以这里必须把两个状态都写上，
-       否则"进入"这一侧仍会走 .symbol-panel.open 里的 0.22s 补间，兜底只兜住一半。 */
+    /* 鈽?.open 閭ｆ潯瑙勫垯鐨勪紭鍏堢骇姣?.symbol-panel 楂橈紝鎵€浠ヨ繖閲屽繀椤绘妸涓や釜鐘舵€侀兘鍐欎笂锛?
+       鍚﹀垯"杩涘叆"杩欎竴渚т粛浼氳蛋 .symbol-panel.open 閲岀殑 0.22s 琛ラ棿锛屽厹搴曞彧鍏滀綇涓€鍗娿€?*/
     .symbol-panel, .symbol-panel.open { transition: none; }
 }
 
@@ -498,7 +498,7 @@ html[data-hm-cold] .top-search-container {
     border-color: var(--theme);
 }
 
-/* ========== 主体 ========== */
+/* ========== 涓讳綋 ========== */
 .body-row {
     display: flex;
     flex: 1;
@@ -545,20 +545,20 @@ html[data-hm-cold] .top-search-container {
     border-right-color: transparent;
     overflow: hidden;
     pointer-events: none;
-    /* ★★★ 关键（用户"冷启动才沉降"的根因就在这一行）：
-       `.sidebar` 基类把 width / min-width 也放进了 transition。于是"专题页需要收起侧栏"
-       这个**站点自己发起**的状态切换，会把宽度 200px → 0 逐帧插值 0.22s；
-       而 .body-row 是 flex 行、.content 是 flex:1 —— 侧栏每变窄一帧，**内容列就重新布局一帧**，
-       整块（含热力图）跟着横向挪一次。冷启动时这条路径恰好发生在专题内容渲染的同一次任务里：
-       热力图已经量好、泡泡已经 clamp 过，宽度却还在从 1253 长到 1255、heatmap 的位置还在往上爬，
-       用户此时一悬浮，高亮/泡泡就拿这份"还在动"的几何定了位，随后文字相对内容列永久偏了一点
-       （并且因为初始量到的容器宽度偏小，之后不会再被纠正 —— 这就是"不会回到原来的地方"）。
-       实测（冷启动逐帧采样）：t=684ms 年份数字 x=359.000 sx=19.328 side=3.328，
-       t=701ms → 357.828 / 17 / 1，t=756ms 才落到 357.828 / 17 / 1 终值 —— 一共挪了 64px。
-       修法：这条"站点发起"的收起**不做宽度动画**（宽度一帧到位），只保留 `.sidebar` 自己的
-       透明度淡出（下面 opacity/border-right-color 仍在过渡表里）—— 既没有"逐帧重排"，
-       观感上仍是"淡出，而不是啪地消失"。用户手动折叠走的是 `.sidebar.collapsed` 那条规则，
-       它的动画保持原样、不受这里影响。 */
+    /* 鈽呪槄鈽?鍏抽敭锛堢敤鎴?鍐峰惎鍔ㄦ墠娌夐檷"鐨勬牴鍥犲氨鍦ㄨ繖涓€琛岋級锛?
+       `.sidebar` 鍩虹被鎶?width / min-width 涔熸斁杩涗簡 transition銆備簬鏄?涓撻椤甸渶瑕佹敹璧蜂晶鏍?
+       杩欎釜**绔欑偣鑷繁鍙戣捣**鐨勭姸鎬佸垏鎹紝浼氭妸瀹藉害 200px 鈫?0 閫愬抚鎻掑€?0.22s锛?
+       鑰?.body-row 鏄?flex 琛屻€?content 鏄?flex:1 鈥斺€?渚ф爮姣忓彉绐勪竴甯э紝**鍐呭鍒楀氨閲嶆柊甯冨眬涓€甯?*锛?
+       鏁村潡锛堝惈鐑姏鍥撅級璺熺潃妯悜鎸竴娆°€傚喎鍚姩鏃惰繖鏉¤矾寰勬伆濂藉彂鐢熷湪涓撻鍐呭娓叉煋鐨勫悓涓€娆′换鍔￠噷锛?
+       鐑姏鍥惧凡缁忛噺濂姐€佹场娉″凡缁?clamp 杩囷紝瀹藉害鍗磋繕鍦ㄤ粠 1253 闀垮埌 1255銆乭eatmap 鐨勪綅缃繕鍦ㄥ線涓婄埇锛?
+       鐢ㄦ埛姝ゆ椂涓€鎮诞锛岄珮浜?娉℃场灏辨嬁杩欎唤"杩樺湪鍔?鐨勫嚑浣曞畾浜嗕綅锛岄殢鍚庢枃瀛楃浉瀵瑰唴瀹瑰垪姘镐箙鍋忎簡涓€鐐?
+       锛堝苟涓斿洜涓哄垵濮嬮噺鍒扮殑瀹瑰櫒瀹藉害鍋忓皬锛屼箣鍚庝笉浼氬啀琚籂姝?鈥斺€?杩欏氨鏄?涓嶄細鍥炲埌鍘熸潵鐨勫湴鏂?锛夈€?
+       瀹炴祴锛堝喎鍚姩閫愬抚閲囨牱锛夛細t=684ms 骞翠唤鏁板瓧 x=359.000 sx=19.328 side=3.328锛?
+       t=701ms 鈫?357.828 / 17 / 1锛宼=756ms 鎵嶈惤鍒?357.828 / 17 / 1 缁堝€?鈥斺€?涓€鍏辨尓浜?64px銆?
+       淇硶锛氳繖鏉?绔欑偣鍙戣捣"鐨勬敹璧?*涓嶅仛瀹藉害鍔ㄧ敾**锛堝搴︿竴甯у埌浣嶏級锛屽彧淇濈暀 `.sidebar` 鑷繁鐨?
+       閫忔槑搴︽贰鍑猴紙涓嬮潰 opacity/border-right-color 浠嶅湪杩囨浮琛ㄩ噷锛夆€斺€?鏃㈡病鏈?閫愬抚閲嶆帓"锛?
+       瑙傛劅涓婁粛鏄?娣″嚭锛岃€屼笉鏄暘鍦版秷澶?銆傜敤鎴锋墜鍔ㄦ姌鍙犺蛋鐨勬槸 `.sidebar.collapsed` 閭ｆ潯瑙勫垯锛?
+       瀹冪殑鍔ㄧ敾淇濇寔鍘熸牱銆佷笉鍙楄繖閲屽奖鍝嶃€?*/
     transition: opacity var(--dur-2) var(--ease-out),
                 border-right-color var(--dur-2) var(--ease-out);
 }
@@ -579,7 +579,7 @@ html[data-hm-cold] .top-search-container {
     opacity: 1;
 }
 
-/* ========== 侧边栏 ========== */
+/* ========== 渚ц竟鏍?========== */
 .sidebar {
     width: 200px;
     min-width: 200px;
@@ -587,14 +587,14 @@ html[data-hm-cold] .top-search-container {
     border-right: 1px solid var(--border);
     overflow-y: auto;
     overflow-x: hidden;
-    /* 左内边距让出安全区（横屏刘海）；加在滚动容器自身而非内容上，
-       这样滚动时整块列表一起平移，不会出现"文字滑到刘海下面" */
+    /* 宸﹀唴杈硅窛璁╁嚭瀹夊叏鍖猴紙妯睆鍒樻捣锛夛紱鍔犲湪婊氬姩瀹瑰櫒鑷韩鑰岄潪鍐呭涓婏紝
+       杩欐牱婊氬姩鏃舵暣鍧楀垪琛ㄤ竴璧峰钩绉伙紝涓嶄細鍑虹幇"鏂囧瓧婊戝埌鍒樻捣涓嬮潰" */
     padding: 8px 0 8px var(--sal);
     flex-shrink: 0;
-    /* 折叠是"宽度变化 → 内容列重新布局"，这一步无法避免（除非改成 transform 抽屉）。
-       能去掉的都去掉了：border-width 从不变化（纯空转）、padding 变化只影响侧栏内部
-       （被 overflow:hidden 裁掉，几乎看不见）却要额外重排。
-       时长从 0.3s 收到 0.22s —— 重排持续的时间越短，掉帧窗口越小，也更利落。 */
+    /* 鎶樺彔鏄?瀹藉害鍙樺寲 鈫?鍐呭鍒楅噸鏂板竷灞€"锛岃繖涓€姝ユ棤娉曢伩鍏嶏紙闄ら潪鏀规垚 transform 鎶藉眽锛夈€?
+       鑳藉幓鎺夌殑閮藉幓鎺変簡锛歜order-width 浠庝笉鍙樺寲锛堢函绌鸿浆锛夈€乸adding 鍙樺寲鍙奖鍝嶄晶鏍忓唴閮?
+       锛堣 overflow:hidden 瑁佹帀锛屽嚑涔庣湅涓嶈锛夊嵈瑕侀澶栭噸鎺掋€?
+       鏃堕暱浠?0.3s 鏀跺埌 0.22s 鈥斺€?閲嶆帓鎸佺画鐨勬椂闂磋秺鐭紝鎺夊抚绐楀彛瓒婂皬锛屼篃鏇村埄钀姐€?*/
     transition: width var(--dur-2) var(--ease-inout),
                 min-width var(--dur-2) var(--ease-inout),
                 opacity var(--dur-2) var(--ease-out),
@@ -608,14 +608,14 @@ html[data-hm-cold] .top-search-container {
     border-right-color: transparent;
 }
 
-/* 侧边栏的入场动画容器。
-   渲染时每个 .sidebar-item / .sidebar-children 都被套在这一层里，由 JS
-   （sidebar.js replaySidebarEnter）给它挂 sidebarEnter 动画。
-   为什么需要单独一层：.sidebar 自己用 transition 管着 opacity（折叠态 .collapsed
-   靠它淡出），而 CSS 动画优先级高于 transition 的目标值 —— 在 .sidebar 上挂
-   opacity 关键帧会把折叠淡出整个盖掉。
-   为什么不用 .content-enter/contentFadeIn：那套是给 viewScrollContainers 的
-   滚动容器用的，侧边栏要的是"从左侧滑入"以呼应它是左侧栏的身份。 */
+/* 渚ц竟鏍忕殑鍏ュ満鍔ㄧ敾瀹瑰櫒銆?
+   娓叉煋鏃舵瘡涓?.sidebar-item / .sidebar-children 閮借濂楀湪杩欎竴灞傞噷锛岀敱 JS
+   锛坰idebar.js replaySidebarEnter锛夌粰瀹冩寕 sidebarEnter 鍔ㄧ敾銆?
+   涓轰粈涔堥渶瑕佸崟鐙竴灞傦細.sidebar 鑷繁鐢?transition 绠＄潃 opacity锛堟姌鍙犳€?.collapsed
+   闈犲畠娣″嚭锛夛紝鑰?CSS 鍔ㄧ敾浼樺厛绾ч珮浜?transition 鐨勭洰鏍囧€?鈥斺€?鍦?.sidebar 涓婃寕
+   opacity 鍏抽敭甯т細鎶婃姌鍙犳贰鍑烘暣涓洊鎺夈€?
+   涓轰粈涔堜笉鐢?.content-enter/contentFadeIn锛氶偅濂楁槸缁?viewScrollContainers 鐨?
+   婊氬姩瀹瑰櫒鐢ㄧ殑锛屼晶杈规爮瑕佺殑鏄?浠庡乏渚ф粦鍏?浠ュ懠搴斿畠鏄乏渚ф爮鐨勮韩浠姐€?*/
 .sidebar-inner {
     display: block;
     width: 100%;
@@ -637,8 +637,8 @@ html[data-hm-cold] .top-search-container {
     justify-content: center;
     font-size: 0.85rem;
     color: var(--text-secondary);
-    /* 折叠时这个按钮的 width / min-width / padding / opacity / border 都不会变化，
-       原先给它们加过渡纯属空转，只保留实际会变的 hover 背景与文字色。 */
+    /* 鎶樺彔鏃惰繖涓寜閽殑 width / min-width / padding / opacity / border 閮戒笉浼氬彉鍖栵紝
+       鍘熷厛缁欏畠浠姞杩囨浮绾睘绌鸿浆锛屽彧淇濈暀瀹為檯浼氬彉鐨?hover 鑳屾櫙涓庢枃瀛楄壊銆?*/
     transition: background var(--dur-1) ease, color var(--dur-1) ease;
     padding: 0;
     flex-shrink: 0;
@@ -694,18 +694,18 @@ html[data-hm-cold] .top-search-container {
 .sidebar-children {
     max-height: 0;
     overflow: hidden;
-    /* ★ 展开/收起过渡由 sidebar.js 的 syncSidebarAccordion() +
-       setSidebarPanelOpen() 驱动。renderSidebar() 会整体重建 innerHTML，
-       新面板一出现就带着 .open，单靠 CSS 永远等不到"从 0 到有"的过程
-       （本注释历史上据此认定这条过渡"不会触发"）。现在那边做状态差分，
-       并用内容真实高度驱动 max-height，过渡因此真正生效且不会拖尾。 */
+    /* 鈽?灞曞紑/鏀惰捣杩囨浮鐢?sidebar.js 鐨?syncSidebarAccordion() +
+       setSidebarPanelOpen() 椹卞姩銆俽enderSidebar() 浼氭暣浣撻噸寤?innerHTML锛?
+       鏂伴潰鏉夸竴鍑虹幇灏卞甫鐫€ .open锛屽崟闈?CSS 姘歌繙绛変笉鍒?浠?0 鍒版湁"鐨勮繃绋?
+       锛堟湰娉ㄩ噴鍘嗗彶涓婃嵁姝よ瀹氳繖鏉¤繃娓?涓嶄細瑙﹀彂"锛夈€傜幇鍦ㄩ偅杈瑰仛鐘舵€佸樊鍒嗭紝
+       骞剁敤鍐呭鐪熷疄楂樺害椹卞姩 max-height锛岃繃娓″洜姝ょ湡姝ｇ敓鏁堜笖涓嶄細鎷栧熬銆?*/
     transition: max-height var(--dur-accordion) var(--ease-accordion);
 }
 .sidebar-children.open {
-    /* 这个 2000px 只是"展开态"的语义上限，过渡区间不靠它 ——
-       sidebar.js 的 setSidebarPanelOpen() 会量出内容真实高度作为起止值，
-       动画结束后把 inline max-height 清掉，此处的值便不再参与渲染。
-       留着是为了让"没有 JS 参与"时展开态仍然成立。 */
+    /* 杩欎釜 2000px 鍙槸"灞曞紑鎬?鐨勮涔変笂闄愶紝杩囨浮鍖洪棿涓嶉潬瀹?鈥斺€?
+       sidebar.js 鐨?setSidebarPanelOpen() 浼氶噺鍑哄唴瀹圭湡瀹為珮搴︿綔涓鸿捣姝㈠€硷紝
+       鍔ㄧ敾缁撴潫鍚庢妸 inline max-height 娓呮帀锛屾澶勭殑鍊间究涓嶅啀鍙備笌娓叉煋銆?
+       鐣欑潃鏄负浜嗚"娌℃湁 JS 鍙備笌"鏃跺睍寮€鎬佷粛鐒舵垚绔嬨€?*/
     max-height: 2000px;
 }
 
@@ -725,27 +725,27 @@ html[data-hm-cold] .top-search-container {
 .sidebar-child.active {
     color: var(--theme);
     font-weight: bold;
-    /* ★ 这里原来也是 rgba(0,0,0,0.04)：深色下选中项的背景和普通项一模一样
-       （对比度 1.00），"当前选中"只靠文字变色撑着。换成同一个 token。 */
+    /* 鈽?杩欓噷鍘熸潵涔熸槸 rgba(0,0,0,0.04)锛氭繁鑹蹭笅閫変腑椤圭殑鑳屾櫙鍜屾櫘閫氶」涓€妯′竴鏍?
+       锛堝姣斿害 1.00锛夛紝"褰撳墠閫変腑"鍙潬鏂囧瓧鍙樿壊鎾戠潃銆傛崲鎴愬悓涓€涓?token銆?*/
     background: var(--row-hover-bg);
 }
 .sidebar-child .child-text {
     display: inline-block;
     white-space: nowrap;
-    max-width: 100%; /* 保证不溢出父容器 */
+    max-width: 100%; /* 淇濊瘉涓嶆孩鍑虹埗瀹瑰櫒 */
 }
 
-/* ========== 内容区 ========== */
+/* ========== 鍐呭鍖?========== */
 .content {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
-    /* 左右各让出安全区（横屏刘海），上下由父级 app-layout 的 dvh 与 tabbar 处理 */
+    /* 宸﹀彸鍚勮鍑哄畨鍏ㄥ尯锛堟í灞忓垬娴凤級锛屼笂涓嬬敱鐖剁骇 app-layout 鐨?dvh 涓?tabbar 澶勭悊 */
     padding: 16px calc(8px + var(--sar)) 16px calc(16px + var(--sal));
     background: var(--bg);
-    /* 只留背景色过渡（主题切换时淡入）；width / min-width / flex / padding / opacity
-       在这里都是空转 —— 内容列是用 flex:1 分配宽度的，没有显式 width 可插值，
-       而且它本来就跟着侧栏的宽度逐帧变化，再叠一层过渡只会互相打架。 */
+    /* 鍙暀鑳屾櫙鑹茶繃娓★紙涓婚鍒囨崲鏃舵贰鍏ワ級锛泈idth / min-width / flex / padding / opacity
+       鍦ㄨ繖閲岄兘鏄┖杞?鈥斺€?鍐呭鍒楁槸鐢?flex:1 鍒嗛厤瀹藉害鐨勶紝娌℃湁鏄惧紡 width 鍙彃鍊硷紝
+       鑰屼笖瀹冩湰鏉ュ氨璺熺潃渚ф爮鐨勫搴﹂€愬抚鍙樺寲锛屽啀鍙犱竴灞傝繃娓″彧浼氫簰鐩告墦鏋躲€?*/
     transition: background var(--dur-2) ease;
 }
 
@@ -755,10 +755,10 @@ html[data-hm-cold] .top-search-container {
     overflow: hidden;
 }
 
-/* 视图容器进入动画（#app 已不再用于渲染，原 #app.content-enter / appFadeIn 是死代码，已删除） */
-/* 视图切换：纯交叉淡入，不做位移。
-   以前这里是 translateY(10px) 的"向上淡入"，而视图切换是全站最高频的动效，
-   导致「处处向上淡入」的观感。纯淡入没有方向感，正好适合"同一位置换内容"。 */
+/* 瑙嗗浘瀹瑰櫒杩涘叆鍔ㄧ敾锛?app 宸蹭笉鍐嶇敤浜庢覆鏌擄紝鍘?#app.content-enter / appFadeIn 鏄浠ｇ爜锛屽凡鍒犻櫎锛?*/
+/* 瑙嗗浘鍒囨崲锛氱函浜ゅ弶娣″叆锛屼笉鍋氫綅绉汇€?
+   浠ュ墠杩欓噷鏄?translateY(10px) 鐨?鍚戜笂娣″叆"锛岃€岃鍥惧垏鎹㈡槸鍏ㄧ珯鏈€楂橀鐨勫姩鏁堬紝
+   瀵艰嚧銆屽澶勫悜涓婃贰鍏ャ€嶇殑瑙傛劅銆傜函娣″叆娌℃湁鏂瑰悜鎰燂紝姝ｅソ閫傚悎"鍚屼竴浣嶇疆鎹㈠唴瀹?銆?*/
 .content-enter {
     animation: contentFadeIn var(--dur-enter) var(--ease-out);
 }
@@ -767,20 +767,20 @@ html[data-hm-cold] .top-search-container {
     to { opacity: 1; }
 }
 
-/* 「概览 → 分类详情」的过渡（点概览里的条目钻进某一类）。
-   ★ 为什么需要：这条路以前完全没有动画 —— navigateFromOverview() 把概览容器
-     innerHTML 清掉、切到分类容器、renderCurrentCategory() 直接写新 DOM，
-     整个过程一帧内完成，用户看到的就是"突变"（逐帧实测：容器 opacity 全程 1、
-     animationName 全程 none、没有任何中间帧；对照侧边栏切分类那条路有 16 帧斜坡）。
-   ★ 为什么不像换板块那样直接用 .content-enter：
-     那个是 --dur-enter(0.36s) 的纯淡入，给"整页换板块"用的。点一条条目是
-     同板块内往下钻一层，0.36s 偏拖，而且纯淡入没有方向感。
-     这里取 0.2s（--dur-3 与 --dur-2 之间那一档）+ 极轻的上移 6px：
-     往下一层的观感由这 6px 交代，克制到不抢内容。
-   ★ 关键帧是独立的 navContentIn（不是 .content-enter 用的 contentFadeIn）：
-     两者动画名、类名都不重叠，所以既不会互相覆盖，也不会误触发对方的重置逻辑。
-   ★ 位移方向是"从下往上归位"（from translateY(6px) → to 0）：
-     新内容从下方轻轻落回原位，读起来就是"钻进下一层"。 */
+/* 銆屾瑙?鈫?鍒嗙被璇︽儏銆嶇殑杩囨浮锛堢偣姒傝閲岀殑鏉＄洰閽昏繘鏌愪竴绫伙級銆?
+   鈽?涓轰粈涔堥渶瑕侊細杩欐潯璺互鍓嶅畬鍏ㄦ病鏈夊姩鐢?鈥斺€?navigateFromOverview() 鎶婃瑙堝鍣?
+     innerHTML 娓呮帀銆佸垏鍒板垎绫诲鍣ㄣ€乺enderCurrentCategory() 鐩存帴鍐欐柊 DOM锛?
+     鏁翠釜杩囩▼涓€甯у唴瀹屾垚锛岀敤鎴风湅鍒扮殑灏辨槸"绐佸彉"锛堥€愬抚瀹炴祴锛氬鍣?opacity 鍏ㄧ▼ 1銆?
+     animationName 鍏ㄧ▼ none銆佹病鏈変换浣曚腑闂村抚锛涘鐓т晶杈规爮鍒囧垎绫婚偅鏉¤矾鏈?16 甯ф枩鍧★級銆?
+   鈽?涓轰粈涔堜笉鍍忔崲鏉垮潡閭ｆ牱鐩存帴鐢?.content-enter锛?
+     閭ｄ釜鏄?--dur-enter(0.36s) 鐨勭函娣″叆锛岀粰"鏁撮〉鎹㈡澘鍧?鐢ㄧ殑銆傜偣涓€鏉℃潯鐩槸
+     鍚屾澘鍧楀唴寰€涓嬮捇涓€灞傦紝0.36s 鍋忔嫋锛岃€屼笖绾贰鍏ユ病鏈夋柟鍚戞劅銆?
+     杩欓噷鍙?0.2s锛?-dur-3 涓?--dur-2 涔嬮棿閭ｄ竴妗ｏ級+ 鏋佽交鐨勪笂绉?6px锛?
+     寰€涓嬩竴灞傜殑瑙傛劅鐢辫繖 6px 浜や唬锛屽厠鍒跺埌涓嶆姠鍐呭銆?
+   鈽?鍏抽敭甯ф槸鐙珛鐨?navContentIn锛堜笉鏄?.content-enter 鐢ㄧ殑 contentFadeIn锛夛細
+     涓よ€呭姩鐢诲悕銆佺被鍚嶉兘涓嶉噸鍙狅紝鎵€浠ユ棦涓嶄細浜掔浉瑕嗙洊锛屼篃涓嶄細璇Е鍙戝鏂圭殑閲嶇疆閫昏緫銆?
+   鈽?浣嶇Щ鏂瑰悜鏄?浠庝笅寰€涓婂綊浣?锛坒rom translateY(6px) 鈫?to 0锛夛細
+     鏂板唴瀹逛粠涓嬫柟杞昏交钀藉洖鍘熶綅锛岃璧锋潵灏辨槸"閽昏繘涓嬩竴灞?銆?*/
 @keyframes navContentIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: none; }
@@ -788,22 +788,22 @@ html[data-hm-cold] .top-search-container {
 .content-enter-nav {
     animation: navContentIn 0.2s var(--ease-out);
 }
-/* 尊重"减少动态效果"：沿用站内既有写法（.timeline-empty-enter / .dd-* 那几处），
-   直接 animation:none 落到终态，一帧中间态都不给。
-   ★ 必须显式写这一条：JS 侧的 triggerViewAnimation() 有 prefersReducedMotion() 守卫，
-     但这个新函数走的是 CSS 动画，没有 CSS 兜底就会在 reduce 下照播。 */
+/* 灏婇噸"鍑忓皯鍔ㄦ€佹晥鏋?锛氭部鐢ㄧ珯鍐呮棦鏈夊啓娉曪紙.timeline-empty-enter / .dd-* 閭ｅ嚑澶勶級锛?
+   鐩存帴 animation:none 钀藉埌缁堟€侊紝涓€甯т腑闂存€侀兘涓嶇粰銆?
+   鈽?蹇呴』鏄惧紡鍐欒繖涓€鏉★細JS 渚х殑 triggerViewAnimation() 鏈?prefersReducedMotion() 瀹堝崼锛?
+     浣嗚繖涓柊鍑芥暟璧扮殑鏄?CSS 鍔ㄧ敾锛屾病鏈?CSS 鍏滃簳灏变細鍦?reduce 涓嬬収鎾€?*/
 @media (prefers-reduced-motion: reduce) {
     .content-enter-nav { animation: none; }
 }
 
-/* ========== 概览页 ========== */
+/* ========== 姒傝椤?========== */
 .overview-header {
     margin-bottom: 16px;
 }
 .overview-header h2 { font-size: 1.3rem; }
 .overview-header p { font-size: 0.8rem; color: var(--text-secondary); }
 
-/* ========== 搜索结果/概览分组 ========== */
+/* ========== 鎼滅储缁撴灉/姒傝鍒嗙粍 ========== */
 .search-result-group { margin-bottom: 12px; }
 .search-group-header {
     display: flex;
@@ -837,7 +837,7 @@ html[data-hm-cold] .top-search-container {
 .search-result-item .info .detail { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
 .search-result-item .index-num { color: var(--text-secondary); font-size: 0.7rem; flex-shrink: 0; margin-left: auto; padding-left: 8px; }
 
-/* ========== 系列/年份层级 ========== */
+/* ========== 绯诲垪/骞翠唤灞傜骇 ========== */
 .series-container { display: flex; flex-direction: column; gap: 8px; }
 .series-year-row {
     background: var(--card-bg);
@@ -854,18 +854,18 @@ html[data-hm-cold] .top-search-container {
     background: var(--bg-light);
     transition: background 0.15s;
 }
-/* ★ 原来这里是 var(--sidebar-bg)：它是"侧边栏的底色"，比这一行的 --bg-light
-   还要**暗**，所以悬停时不是提亮而是压暗 —— 深色下实测 rgb(3,17,36) →
-   rgb(2,10,20)，对比度 1.051，等于把这一行按了下去，观感也不对。
-   统一改用行悬停 token（深色提亮 / 浅色加深）。 */
+/* 鈽?鍘熸潵杩欓噷鏄?var(--sidebar-bg)锛氬畠鏄?渚ц竟鏍忕殑搴曡壊"锛屾瘮杩欎竴琛岀殑 --bg-light
+   杩樿**鏆?*锛屾墍浠ユ偓鍋滄椂涓嶆槸鎻愪寒鑰屾槸鍘嬫殫 鈥斺€?娣辫壊涓嬪疄娴?rgb(3,17,36) 鈫?
+   rgb(2,10,20)锛屽姣斿害 1.051锛岀瓑浜庢妸杩欎竴琛屾寜浜嗕笅鍘伙紝瑙傛劅涔熶笉瀵广€?
+   缁熶竴鏀圭敤琛屾偓鍋?token锛堟繁鑹叉彁浜?/ 娴呰壊鍔犳繁锛夈€?*/
 .series-year-header:hover { background: var(--row-hover-bg); }
 .series-name-label { font-weight: bold; font-size: 1rem; flex: 1; min-width: 0; }
 .series-count-badge { background: var(--theme); color: #fff; font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; margin-right: 8px; flex-shrink: 0; }
 .series-expand-icon { font-size: 0.7rem; color: var(--text-secondary); transition: transform var(--dur-2) var(--ease-out); flex-shrink: 0; }
 .series-expand-icon.open { transform: rotate(180deg); }
-/* 空系列：数据里既没有品种也没有条目。这种行**不给**可展开的样子 ——
-   没有三角形、不显示手型光标，否则点下去三角形会转、但里面没有内容可长开，
-   用户看到的就是「点了没反应」（详见 category-view.js 的 isEmptySeries 分支）。 */
+/* 绌虹郴鍒楋細鏁版嵁閲屾棦娌℃湁鍝佺涔熸病鏈夋潯鐩€傝繖绉嶈**涓嶇粰**鍙睍寮€鐨勬牱瀛?鈥斺€?
+   娌℃湁涓夎褰€佷笉鏄剧ず鎵嬪瀷鍏夋爣锛屽惁鍒欑偣涓嬪幓涓夎褰細杞€佷絾閲岄潰娌℃湁鍐呭鍙暱寮€锛?
+   鐢ㄦ埛鐪嬪埌鐨勫氨鏄€岀偣浜嗘病鍙嶅簲銆嶏紙璇﹁ category-view.js 鐨?isEmptySeries 鍒嗘敮锛夈€?*/
 .series-year-row-empty { background: transparent; }
 .series-year-header-empty { cursor: default; }
 .series-year-header-empty:hover { background: transparent; }
@@ -881,19 +881,19 @@ html[data-hm-cold] .top-search-container {
     transition: max-height var(--dur-accordion) var(--ease-accordion), opacity var(--dur-accordion) var(--ease-out);
     opacity: 0;
 }
-/* 展开时不写死 max-height：由 animateAccordion() 量出内容真实高度再过渡（原因见 core.js）。
-   这里写 none 只是 JS 未介入时的兜底（例如 restoreExpandedStates 直接加类）。 */
+/* 灞曞紑鏃朵笉鍐欐 max-height锛氱敱 animateAccordion() 閲忓嚭鍐呭鐪熷疄楂樺害鍐嶈繃娓★紙鍘熷洜瑙?core.js锛夈€?
+   杩欓噷鍐?none 鍙槸 JS 鏈粙鍏ユ椂鐨勫厹搴曪紙渚嬪 restoreExpandedStates 鐩存帴鍔犵被锛夈€?*/
 .series-body.open { max-height: none; opacity: 1; }
-/* ★ 第一条分割线画在 .series-body 自己身上，而不是它的第一个 .variety-row 上。
-   原因（用户报的 ③「小标题与图片之间的分割线消失」）：
-   .series-body 是 overflow:hidden + opacity 过渡 —— 也就是一个会被合成的裁剪容器。
-   第一个 .variety-row 的 border-top 正好落在它的裁剪边界（容器 padding box 的第一行）上，
-   容器顶部与边框又常常落在分数设备像素上；此时裁剪矩形取整 + 合成层光栅化会把这一行
-   像素吃掉，表现为"那条线没了"，而且展开得越多越容易撞上、位置还没规律。
-   元素**自身**的边框不受自身 overflow 裁剪，所以挪上来就绕开了这个边界。
-   视觉完全等价：同色、同 1px、同一位置（.series-body 无 padding，第一个 .variety-row
-   的 border-top 本来就在它的顶边上）。
-   :has(> .variety-row) 是为了让"没有品种层、只有条目列表"的系列保持原样（不加这条线）。 */
+/* 鈽?绗竴鏉″垎鍓茬嚎鐢诲湪 .series-body 鑷繁韬笂锛岃€屼笉鏄畠鐨勭涓€涓?.variety-row 涓娿€?
+   鍘熷洜锛堢敤鎴锋姤鐨?鈶€屽皬鏍囬涓庡浘鐗囦箣闂寸殑鍒嗗壊绾挎秷澶便€嶏級锛?
+   .series-body 鏄?overflow:hidden + opacity 杩囨浮 鈥斺€?涔熷氨鏄竴涓細琚悎鎴愮殑瑁佸壀瀹瑰櫒銆?
+   绗竴涓?.variety-row 鐨?border-top 姝ｅソ钀藉湪瀹冪殑瑁佸壀杈圭晫锛堝鍣?padding box 鐨勭涓€琛岋級涓婏紝
+   瀹瑰櫒椤堕儴涓庤竟妗嗗張甯稿父钀藉湪鍒嗘暟璁惧鍍忕礌涓婏紱姝ゆ椂瑁佸壀鐭╁舰鍙栨暣 + 鍚堟垚灞傚厜鏍呭寲浼氭妸杩欎竴琛?
+   鍍忕礌鍚冩帀锛岃〃鐜颁负"閭ｆ潯绾挎病浜?锛岃€屼笖灞曞紑寰楄秺澶氳秺瀹规槗鎾炰笂銆佷綅缃繕娌¤寰嬨€?
+   鍏冪礌**鑷韩**鐨勮竟妗嗕笉鍙楄嚜韬?overflow 瑁佸壀锛屾墍浠ユ尓涓婃潵灏辩粫寮€浜嗚繖涓竟鐣屻€?
+   瑙嗚瀹屽叏绛変环锛氬悓鑹层€佸悓 1px銆佸悓涓€浣嶇疆锛?series-body 鏃?padding锛岀涓€涓?.variety-row
+   鐨?border-top 鏈潵灏卞湪瀹冪殑椤惰竟涓婏級銆?
+   :has(> .variety-row) 鏄负浜嗚"娌℃湁鍝佺灞傘€佸彧鏈夋潯鐩垪琛?鐨勭郴鍒椾繚鎸佸師鏍凤紙涓嶅姞杩欐潯绾匡級銆?*/
 .series-body.open:has(> .variety-row) { border-top: 1px solid var(--border); }
 .series-body.open > .variety-row:first-child { border-top: none; }
 
@@ -923,16 +923,16 @@ html[data-hm-cold] .top-search-container {
     opacity: 0;
 }
 .copy-list.open { max-height: none; opacity: 1; }
-/* ★ 同理（见上面 .series-body 那段）：第一条 .copy-item 的分割线挪到 .copy-list 自己身上。
-   这条正是用户举例的那一处 ——「"50元 云南风光"与下面那一条具体条目之间」，
-   即某个品种的第一条藏品项，它的 border-top 原本正好压在 .copy-list 的裁剪边界上。
-   :has(> .copy-item) 让"啥都木有"的空品种保持原样（那里本来就没有这条线）。 */
+/* 鈽?鍚岀悊锛堣涓婇潰 .series-body 閭ｆ锛夛細绗竴鏉?.copy-item 鐨勫垎鍓茬嚎鎸埌 .copy-list 鑷繁韬笂銆?
+   杩欐潯姝ｆ槸鐢ㄦ埛涓句緥鐨勯偅涓€澶?鈥斺€斻€?50鍏?浜戝崡椋庡厜"涓庝笅闈㈤偅涓€鏉″叿浣撴潯鐩箣闂淬€嶏紝
+   鍗虫煇涓搧绉嶇殑绗竴鏉¤棌鍝侀」锛屽畠鐨?border-top 鍘熸湰姝ｅソ鍘嬪湪 .copy-list 鐨勮鍓竟鐣屼笂銆?
+   :has(> .copy-item) 璁?鍟ラ兘鏈ㄦ湁"鐨勭┖鍝佺淇濇寔鍘熸牱锛堥偅閲屾湰鏉ュ氨娌℃湁杩欐潯绾匡級銆?*/
 .copy-list.open:has(> .copy-item) { border-top: 1px solid var(--border); }
 .copy-list.open > .copy-item:first-child { border-top: none; }
-/* ★ 空品种（“啥都木有”）同样要有这条线：用户要求与其他小标题一致。 */
+/* 鈽?绌哄搧绉嶏紙鈥滃暐閮芥湪鏈夆€濓級鍚屾牱瑕佹湁杩欐潯绾匡細鐢ㄦ埛瑕佹眰涓庡叾浠栧皬鏍囬涓€鑷淬€?*/
 .copy-list.open:has(> .copy-list-empty) { border-top: 1px solid var(--border); }
 
-/* ========== 藏品项 ========== */
+/* ========== 钘忓搧椤?========== */
 .copy-item {
     display: flex;
     align-items: center;
@@ -949,7 +949,7 @@ html[data-hm-cold] .top-search-container {
 .copy-thumb { width: 56px; height: 40px; object-fit: contain; background: var(--thumb-bg); border-radius: 4px; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
 .copy-thumb:hover { opacity: 0.7; }
 .copy-thumb.no-img { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0; color: var(--text-secondary); background: var(--thumb-bg); }
-/* ★ 56×40 的格子放不下「暂无图片」四个字：只放自绘的古钱币（详见文件末尾的缺图占位段） */
+/* 鈽?56脳40 鐨勬牸瀛愭斁涓嶄笅銆屾殏鏃犲浘鐗囥€嶅洓涓瓧锛氬彧鏀捐嚜缁樼殑鍙ら挶甯侊紙璇﹁鏂囦欢鏈熬鐨勭己鍥惧崰浣嶆锛?*/
 .copy-thumb.no-img::before { content: ''; width: 34px; height: 26px; }
 
 .copy-info { flex: 1; min-width: 0; font-size: 0.8rem; line-height: 1.5; }
@@ -957,11 +957,11 @@ html[data-hm-cold] .top-search-container {
     display: flex;
     align-items: center;
     gap: 6px;
-    /* ★ 手机上侧边栏展开时内容区只剩约 255px，冠号 + 「详细信息」摆不下。
-       原来 flex 默认 nowrap，两个子项又都 white-space: nowrap，
-       min-content 就等于整段文字、谁也收缩不了，于是整行直接顶出屏幕
-       （用户报的「ⅩⅠⅩ7361948 详细信息 这一行被挤出屏幕」）。
-       允许换行后，「详细信息」会落到第二行，而不是被推出去。 */
+    /* 鈽?鎵嬫満涓婁晶杈规爮灞曞紑鏃跺唴瀹瑰尯鍙墿绾?255px锛屽啝鍙?+ 銆岃缁嗕俊鎭€嶆憜涓嶄笅銆?
+       鍘熸潵 flex 榛樿 nowrap锛屼袱涓瓙椤瑰張閮?white-space: nowrap锛?
+       min-content 灏辩瓑浜庢暣娈垫枃瀛椼€佽皝涔熸敹缂╀笉浜嗭紝浜庢槸鏁磋鐩存帴椤跺嚭灞忓箷
+       锛堢敤鎴锋姤鐨勩€屸叐鈪犫叐7361948 璇︾粏淇℃伅 杩欎竴琛岃鎸ゅ嚭灞忓箷銆嶏級銆?
+       鍏佽鎹㈣鍚庯紝銆岃缁嗕俊鎭€嶄細钀藉埌绗簩琛岋紝鑰屼笉鏄鎺ㄥ嚭鍘汇€?*/
     flex-wrap: wrap;
     font-size: 0.75rem;
     color: var(--text);
@@ -971,10 +971,10 @@ html[data-hm-cold] .top-search-container {
     display: inline-block;
     transform: scaleX(0.9);
     transform-origin: left center;
-    /* ★ 原来是 white-space: nowrap：冠号比容器还宽时只能撑出屏幕。
-       改成"能换行、但只在放不下时才断"—— overflow-wrap: anywhere 只在
-       整段确实摆不下时才拆词，正常宽度下冠号依然完整地待在一行里。
-       min-width/max-width 一起给，保证它愿意收缩。 */
+    /* 鈽?鍘熸潵鏄?white-space: nowrap锛氬啝鍙锋瘮瀹瑰櫒杩樺鏃跺彧鑳芥拺鍑哄睆骞曘€?
+       鏀规垚"鑳芥崲琛屻€佷絾鍙湪鏀句笉涓嬫椂鎵嶆柇"鈥斺€?overflow-wrap: anywhere 鍙湪
+       鏁存纭疄鎽嗕笉涓嬫椂鎵嶆媶璇嶏紝姝ｅ父瀹藉害涓嬪啝鍙蜂緷鐒跺畬鏁村湴寰呭湪涓€琛岄噷銆?
+       min-width/max-width 涓€璧风粰锛屼繚璇佸畠鎰挎剰鏀剁缉銆?*/
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
@@ -997,15 +997,15 @@ html[data-hm-cold] .top-search-container {
     margin-left: 6px;
     white-space: nowrap;
 }
-/* ★ 悬停不要下划线（用户原话："「详细信息」鼠标放上去不要有下划线"）。
-   可点性由 --theme 配色 + cursor: pointer 承担；原来这条 :hover 下划线整条去掉。 */
+/* 鈽?鎮仠涓嶈涓嬪垝绾匡紙鐢ㄦ埛鍘熻瘽锛?銆岃缁嗕俊鎭€嶉紶鏍囨斁涓婂幓涓嶈鏈変笅鍒掔嚎"锛夈€?
+   鍙偣鎬х敱 --theme 閰嶈壊 + cursor: pointer 鎵挎媴锛涘師鏉ヨ繖鏉?:hover 涓嬪垝绾挎暣鏉″幓鎺夈€?*/
 
-/* ========== 系列标题 ========== */
+/* ========== 绯诲垪鏍囬 ========== */
 .series-header { margin-bottom: 16px; }
 .series-header h2 { font-size: 1.3rem; color: var(--text); margin-bottom: 4px; }
 .series-header .series-desc { font-size: 0.85rem; color: var(--text-secondary); }
 
-/* ========== 文章阅读器 ========== */
+/* ========== 鏂囩珷闃呰鍣?========== */
 .article-reader {
     max-width: 800px;
     margin: 0 auto;
@@ -1016,16 +1016,16 @@ html[data-hm-cold] .top-search-container {
 .article-reader p { margin: 12px 0; }
 .article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); cursor: zoom-in; }
 .article-reader center { display: block; text-align: center; }
-/* ★ 文章正文里的表格：正文是 readmes/*.html 里的**原始 HTML**，里面写死了浅色底，
-   50 篇里 31 篇有表、共 49 张，其中 38 行的表头写成
-     <tr style="background-color: #f5f7fa; …">      （另有 2 × #fafbfc）
-   黑夜模式下正文是浅色字（--text: #e8eaed），压在写死的浅色底上就看不见了 ——
-   用户原话："类似于「中国银行鼠年生肖贺岁钞」文章中的表头在黑夜模式下看不清文字 …
-   表头底部不要白色"。这里统一交给主题变量：表头 --bg-light、框线 --border。
-   ★ 不需要 !important：表头底色写在 th 上，而写死的那条挂在 tr 上 ——
-     tr 的背景先画、cell 的背景后画，th 的底色正好把那一条盖住（查过：没有任何
-     一处把 background-color 写在 <th> 上）。只有 <td> 上那 2 处例外，见下面的
-     深色专用规则。 */
+/* 鈽?鏂囩珷姝ｆ枃閲岀殑琛ㄦ牸锛氭鏂囨槸 readmes/*.html 閲岀殑**鍘熷 HTML**锛岄噷闈㈠啓姝讳簡娴呰壊搴曪紝
+   50 绡囬噷 31 绡囨湁琛ㄣ€佸叡 49 寮狅紝鍏朵腑 38 琛岀殑琛ㄥご鍐欐垚
+     <tr style="background-color: #f5f7fa; 鈥?>      锛堝彟鏈?2 脳 #fafbfc锛?
+   榛戝妯″紡涓嬫鏂囨槸娴呰壊瀛楋紙--text: #e8eaed锛夛紝鍘嬪湪鍐欐鐨勬祬鑹插簳涓婂氨鐪嬩笉瑙佷簡 鈥斺€?
+   鐢ㄦ埛鍘熻瘽锛?绫讳技浜庛€屼腑鍥介摱琛岄紶骞寸敓鑲栬春宀侀挒銆嶆枃绔犱腑鐨勮〃澶村湪榛戝妯″紡涓嬬湅涓嶆竻鏂囧瓧 鈥?
+   琛ㄥご搴曢儴涓嶈鐧借壊"銆傝繖閲岀粺涓€浜ょ粰涓婚鍙橀噺锛氳〃澶?--bg-light銆佹绾?--border銆?
+   鈽?涓嶉渶瑕?!important锛氳〃澶村簳鑹插啓鍦?th 涓婏紝鑰屽啓姝荤殑閭ｆ潯鎸傚湪 tr 涓?鈥斺€?
+     tr 鐨勮儗鏅厛鐢汇€乧ell 鐨勮儗鏅悗鐢伙紝th 鐨勫簳鑹叉濂芥妸閭ｄ竴鏉＄洊浣忥紙鏌ヨ繃锛氭病鏈変换浣?
+     涓€澶勬妸 background-color 鍐欏湪 <th> 涓婏級銆傚彧鏈?<td> 涓婇偅 2 澶勪緥澶栵紝瑙佷笅闈㈢殑
+     娣辫壊涓撶敤瑙勫垯銆?*/
 .article-reader table { color: var(--text); }
 .article-reader table th,
 .article-reader table td { color: var(--text); }
@@ -1033,13 +1033,13 @@ html[data-hm-cold] .top-search-container {
     background-color: var(--bg-light);
     font-weight: 600;
 }
-/* 已经带 border="1" 的表格（27/31 篇）把框线换成主题色；
-   没有 border 属性的表格保持原样，不凭空多出线条。 */
+/* 宸茬粡甯?border="1" 鐨勮〃鏍硷紙27/31 绡囷級鎶婃绾挎崲鎴愪富棰樿壊锛?
+   娌℃湁 border 灞炴€х殑琛ㄦ牸淇濇寔鍘熸牱锛屼笉鍑┖澶氬嚭绾挎潯銆?*/
 .article-reader table[border] { border: 1px solid var(--border); }
 .article-reader table[border] th,
 .article-reader table[border] td { border: 1px solid var(--border); }
-/* 极少数把浅色底直接写在 <td> 上的（2 处）：深色下换成半透明灰，字才看得见。
-   这里必须 !important —— 压的是内容里的**内联**样式，而且只在深色模式生效。 */
+/* 鏋佸皯鏁版妸娴呰壊搴曠洿鎺ュ啓鍦?<td> 涓婄殑锛? 澶勶級锛氭繁鑹蹭笅鎹㈡垚鍗婇€忔槑鐏帮紝瀛楁墠鐪嬪緱瑙併€?
+   杩欓噷蹇呴』 !important 鈥斺€?鍘嬬殑鏄唴瀹归噷鐨?*鍐呰仈**鏍峰紡锛岃€屼笖鍙湪娣辫壊妯″紡鐢熸晥銆?*/
 html[data-color-scheme="dark"] .article-reader table td[style*="background-color"] {
     background-color: rgba(255, 255, 255, 0.08) !important;
 }
@@ -1055,7 +1055,7 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     line-height: 1.5;
 }
 
-/* ========== 弹窗 ========== */
+/* ========== 寮圭獥 ========== */
 .modal {
     display: none;
     position: fixed;
@@ -1063,57 +1063,57 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     left: 0;
     width: 100%;
     height: 100%;
-    /* ★ 黑色的蒙版**不在这里**，在子元素 .modal-backdrop 上（见它的规则）。
-       原因：关闭时要求"蒙版渐隐、图片不跟着淡"（用户原话：「原图还没有加载好的
-       时候就点击关闭大图，那个黑色的蒙版不是像原图那样渐变消失，而是直接消失」，
-       同时他此前明确要求过「加载中关闭时不要给图片本身叠淡出」）。
-       以前蒙版就是这个 background，和图片同在一个元素上，CSS 的 opacity 一淡
-       就连图片一起淡 —— 两者只能二选一。分层之后各淡各的。
-       这里显式写 transparent：别让任何继承/兜底又把底色画回去，
-       否则蒙版层淡出之后仍有一层不透明的黑挡着，等于没淡。 */
+    /* 鈽?榛戣壊鐨勮挋鐗?*涓嶅湪杩欓噷**锛屽湪瀛愬厓绱?.modal-backdrop 涓婏紙瑙佸畠鐨勮鍒欙級銆?
+       鍘熷洜锛氬叧闂椂瑕佹眰"钂欑増娓愰殣銆佸浘鐗囦笉璺熺潃娣?锛堢敤鎴峰師璇濓細銆屽師鍥捐繕娌℃湁鍔犺浇濂界殑
+       鏃跺€欏氨鐐瑰嚮鍏抽棴澶у浘锛岄偅涓粦鑹茬殑钂欑増涓嶆槸鍍忓師鍥鹃偅鏍锋笎鍙樻秷澶憋紝鑰屾槸鐩存帴娑堝け銆嶏紝
+       鍚屾椂浠栨鍓嶆槑纭姹傝繃銆屽姞杞戒腑鍏抽棴鏃朵笉瑕佺粰鍥剧墖鏈韩鍙犳贰鍑恒€嶏級銆?
+       浠ュ墠钂欑増灏辨槸杩欎釜 background锛屽拰鍥剧墖鍚屽湪涓€涓厓绱犱笂锛孋SS 鐨?opacity 涓€娣?
+       灏辫繛鍥剧墖涓€璧锋贰 鈥斺€?涓よ€呭彧鑳戒簩閫変竴銆傚垎灞備箣鍚庡悇娣″悇鐨勩€?
+       杩欓噷鏄惧紡鍐?transparent锛氬埆璁╀换浣曠户鎵?鍏滃簳鍙堟妸搴曡壊鐢诲洖鍘伙紝
+       鍚﹀垯钂欑増灞傛贰鍑轰箣鍚庝粛鏈変竴灞備笉閫忔槑鐨勯粦鎸＄潃锛岀瓑浜庢病娣°€?*/
     background: transparent;
     z-index: 1000;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    /* ★ 不留底部 Tab 栏的让位（曾经有 padding-bottom: var(--tabbar-h)）。
-       大图弹窗铺满整个视口，图片盒子一直落到屏幕最底部，下面不留黑边。
-       代价：放大/缩小时图片内容可能盖到底部 5 个 Tab 上 —— 这是明确接受的
-       取舍（用户决定：不考虑下面的 Tab，优先保证大图不留空档）。
-       注意：蒙版本身（.modal-backdrop 的 rgba 背景）本来就铺满整屏，所以弹窗打开时
-       底部 Tab 依然被压暗、不可点。 */
-    /* 注意：这里**不能**放裁切。实测把 overflow: hidden / overflow: clip /
-       contain: paint / clip-path: inset(0) 加在 .modal 上（430×860 移动视口，
-       图片 2.5 倍 + 下移 300px），底部 41px 的 Tab 栏条带里仍有 95.6% 的像素是
-       图片内容，四种写法一个都挡不住 —— 因为缩放图层 #imageContainer 被
-       translate3d 提升成了独立合成层，祖先的裁切对它不生效。
-       真正有效的裁切容器是 .modal-content（见该规则）。 */
+    /* 鈽?涓嶇暀搴曢儴 Tab 鏍忕殑璁╀綅锛堟浘缁忔湁 padding-bottom: var(--tabbar-h)锛夈€?
+       澶у浘寮圭獥閾烘弧鏁翠釜瑙嗗彛锛屽浘鐗囩洅瀛愪竴鐩磋惤鍒板睆骞曟渶搴曢儴锛屼笅闈笉鐣欓粦杈广€?
+       浠ｄ环锛氭斁澶?缂╁皬鏃跺浘鐗囧唴瀹瑰彲鑳界洊鍒板簳閮?5 涓?Tab 涓?鈥斺€?杩欐槸鏄庣‘鎺ュ彈鐨?
+       鍙栬垗锛堢敤鎴峰喅瀹氾細涓嶈€冭檻涓嬮潰鐨?Tab锛屼紭鍏堜繚璇佸ぇ鍥句笉鐣欑┖妗ｏ級銆?
+       娉ㄦ剰锛氳挋鐗堟湰韬紙.modal-backdrop 鐨?rgba 鑳屾櫙锛夋湰鏉ュ氨閾烘弧鏁村睆锛屾墍浠ュ脊绐楁墦寮€鏃?
+       搴曢儴 Tab 渚濈劧琚帇鏆椼€佷笉鍙偣銆?*/
+    /* 娉ㄦ剰锛氳繖閲?*涓嶈兘**鏀捐鍒囥€傚疄娴嬫妸 overflow: hidden / overflow: clip /
+       contain: paint / clip-path: inset(0) 鍔犲湪 .modal 涓婏紙430脳860 绉诲姩瑙嗗彛锛?
+       鍥剧墖 2.5 鍊?+ 涓嬬Щ 300px锛夛紝搴曢儴 41px 鐨?Tab 鏍忔潯甯﹂噷浠嶆湁 95.6% 鐨勫儚绱犳槸
+       鍥剧墖鍐呭锛屽洓绉嶅啓娉曚竴涓兘鎸′笉浣?鈥斺€?鍥犱负缂╂斁鍥惧眰 #imageContainer 琚?
+       translate3d 鎻愬崌鎴愪簡鐙珛鍚堟垚灞傦紝绁栧厛鐨勮鍒囧瀹冧笉鐢熸晥銆?
+       鐪熸鏈夋晥鐨勮鍒囧鍣ㄦ槸 .modal-content锛堣璇ヨ鍒欙級銆?*/
 }
 .modal-content {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* ★ 盒子铺满整个视口（曾经是 height: calc(100dvh - var(--tabbar-h))）。
-       配合 .modal 不再留底部让位，盒子从 y=0 一直到屏幕最底，与视口严丝合缝，
-       大图下面不会再有那一段黑边。
-       这里保留 max-height 是为了 dvh 不被支持时的回退，height 才是实际生效值。 */
+    /* 鈽?鐩掑瓙閾烘弧鏁翠釜瑙嗗彛锛堟浘缁忔槸 height: calc(100dvh - var(--tabbar-h))锛夈€?
+       閰嶅悎 .modal 涓嶅啀鐣欏簳閮ㄨ浣嶏紝鐩掑瓙浠?y=0 涓€鐩村埌灞忓箷鏈€搴曪紝涓庤鍙ｄ弗涓濆悎缂濓紝
+       澶у浘涓嬮潰涓嶄細鍐嶆湁閭ｄ竴娈甸粦杈广€?
+       杩欓噷淇濈暀 max-height 鏄负浜?dvh 涓嶈鏀寔鏃剁殑鍥為€€锛宧eight 鎵嶆槸瀹為檯鐢熸晥鍊笺€?*/
     position: relative;
     cursor: default;
-    /* ★ 必须显式抬到蒙版层（z-index:0）之上：这一层现在与蒙版是**兄弟**，
-       而它在 DOM 里排在蒙版之后，本来就会后画 —— 但显式给值更经得住以后
-       DOM 顺序被调。给了 z-index 就自成一个层叠上下文，于是里面
-       #modalImgOverlay.backdrop-layer 的 z-index:-1 只在**这一层内部**生效
-       （与它原来在 .modal 里的语义完全一致：垫底图仍在主图之下）。 */
+    /* 鈽?蹇呴』鏄惧紡鎶埌钂欑増灞傦紙z-index:0锛変箣涓婏細杩欎竴灞傜幇鍦ㄤ笌钂欑増鏄?*鍏勫紵**锛?
+       鑰屽畠鍦?DOM 閲屾帓鍦ㄨ挋鐗堜箣鍚庯紝鏈潵灏变細鍚庣敾 鈥斺€?浣嗘樉寮忕粰鍊兼洿缁忓緱浣忎互鍚?
+       DOM 椤哄簭琚皟銆傜粰浜?z-index 灏辫嚜鎴愪竴涓眰鍙犱笂涓嬫枃锛屼簬鏄噷闈?
+       #modalImgOverlay.backdrop-layer 鐨?z-index:-1 鍙湪**杩欎竴灞傚唴閮?*鐢熸晥
+       锛堜笌瀹冨師鏉ュ湪 .modal 閲岀殑璇箟瀹屽叏涓€鑷达細鍨簳鍥句粛鍦ㄤ富鍥句箣涓嬶級銆?*/
     z-index: 1;
     max-width: 100vw;
     margin: auto;
     max-height: 100vh;
     max-height: 100dvh;
     height: 100dvh;
-    /* ★ 这里同时是整条链路上**唯一有效**的裁切容器：overflow: hidden 加在
-       .modal-content 上时，缩放平移的 #imageContainer（高度可达 2048px）会被
-       真正裁在它的边界内；同样的声明加在父级 .modal 上则完全无效
-       （实测见 .modal 的注释）。 */
+    /* 鈽?杩欓噷鍚屾椂鏄暣鏉￠摼璺笂**鍞竴鏈夋晥**鐨勮鍒囧鍣細overflow: hidden 鍔犲湪
+       .modal-content 涓婃椂锛岀缉鏀惧钩绉荤殑 #imageContainer锛堥珮搴﹀彲杈?2048px锛変細琚?
+       鐪熸瑁佸湪瀹冪殑杈圭晫鍐咃紱鍚屾牱鐨勫０鏄庡姞鍦ㄧ埗绾?.modal 涓婂垯瀹屽叏鏃犳晥
+       锛堝疄娴嬭 .modal 鐨勬敞閲婏級銆?*/
     overflow: hidden;
 }
 .image-container {
@@ -1126,78 +1126,78 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
 .modal-img {
     display: block;
     width: 100vw;
-    /* ★ 图片盒子铺满整个视口（曾经减掉底部 Tab 栏的 --tabbar-h）。
-       减掉之后 object-fit: contain 会把图片内容排在"Tab 栏以上"，屏幕最底部
-       就空出一段黑边 —— 用户不要这段空档。现在图片与视口同高，
-       contain 保证整图可见，多余部分由纸色背景填充，不会有黑边。
-       代价：放大时图片内容可以盖到底部 Tab 上（明确接受的取舍）。 */
+    /* 鈽?鍥剧墖鐩掑瓙閾烘弧鏁翠釜瑙嗗彛锛堟浘缁忓噺鎺夊簳閮?Tab 鏍忕殑 --tabbar-h锛夈€?
+       鍑忔帀涔嬪悗 object-fit: contain 浼氭妸鍥剧墖鍐呭鎺掑湪"Tab 鏍忎互涓?锛屽睆骞曟渶搴曢儴
+       灏辩┖鍑轰竴娈甸粦杈?鈥斺€?鐢ㄦ埛涓嶈杩欐绌烘。銆傜幇鍦ㄥ浘鐗囦笌瑙嗗彛鍚岄珮锛?
+       contain 淇濊瘉鏁村浘鍙锛屽浣欓儴鍒嗙敱绾歌壊鑳屾櫙濉厖锛屼笉浼氭湁榛戣竟銆?
+       浠ｄ环锛氭斁澶ф椂鍥剧墖鍐呭鍙互鐩栧埌搴曢儴 Tab 涓婏紙鏄庣‘鎺ュ彈鐨勫彇鑸嶏級銆?*/
     height: 100vh;
-    /* dvh 覆盖：地址栏展开/收起时图片不会溢出或留黑边 */
+    /* dvh 瑕嗙洊锛氬湴鍧€鏍忓睍寮€/鏀惰捣鏃跺浘鐗囦笉浼氭孩鍑烘垨鐣欓粦杈?*/
     height: 100dvh;
     object-fit: contain;
     pointer-events: none;
-    /* ★ 必须让主图参与层叠并压在垫底层之上。
-       #modalImgOverlay 带 z-index，会自成一个层叠层级；
-       而 #modalImg 原本是静态定位、z-index:auto，实测会被垫底图盖住
-       （注入纯色图做像素判定：屏幕中心读到的是垫底层的颜色）。
-       这里显式给主图定位与层级，保证"原图永远盖在垫底缩略图上"。 */
+    /* 鈽?蹇呴』璁╀富鍥惧弬涓庡眰鍙犲苟鍘嬪湪鍨簳灞備箣涓娿€?
+       #modalImgOverlay 甯?z-index锛屼細鑷垚涓€涓眰鍙犲眰绾э紱
+       鑰?#modalImg 鍘熸湰鏄潤鎬佸畾浣嶃€亃-index:auto锛屽疄娴嬩細琚灚搴曞浘鐩栦綇
+       锛堟敞鍏ョ函鑹插浘鍋氬儚绱犲垽瀹氾細灞忓箷涓績璇诲埌鐨勬槸鍨簳灞傜殑棰滆壊锛夈€?
+       杩欓噷鏄惧紡缁欎富鍥惧畾浣嶄笌灞傜骇锛屼繚璇?鍘熷浘姘歌繙鐩栧湪鍨簳缂╃暐鍥句笂"銆?*/
     position: relative;
     z-index: 2;
 }
 
-/* ========== 正反面翻面动画 ==========
-   做法：把"翻过去"拆成两半，两半都跑在同一套 keyframes 上，靠 container
-   animation-name 切换方向 —— 这样只用两个动画名就能拿到四个阶段
-   （收起/展开 × 正面/反面）。
+/* ========== 姝ｅ弽闈㈢炕闈㈠姩鐢?==========
+   鍋氭硶锛氭妸"缈昏繃鍘?鎷嗘垚涓ゅ崐锛屼袱鍗婇兘璺戝湪鍚屼竴濂?keyframes 涓婏紝闈?container
+   animation-name 鍒囨崲鏂瑰悜 鈥斺€?杩欐牱鍙敤涓や釜鍔ㄧ敾鍚嶅氨鑳芥嬁鍒板洓涓樁娈?
+   锛堟敹璧?灞曞紑 脳 姝ｉ潰/鍙嶉潰锛夈€?
 
-   为什么用 scaleX 压缩而不是 rotateY：
-   ★ #modalImg 是 100vw × 100dvh + object-fit: contain，图片只占视口中间一条
-     （纸币约 1.7:1），元素盒子远大于图片本身。rotateY 会绕**盒子中心**转，
-     观感是"图片绕着屏幕上某个点自转"，而不是"这张纸币翻过来"。
-   ★ scaleX 只压宽度，轴线天然落在屏幕中线上 —— 与纸币自身的竖轴重合，
-     任何宽高比都成立。
-   时序（由 JS 驱动）：
-     前半 90ms：当前面 scaleX 1→0，新面把 src 换好并保持压扁隐藏
-     后半 90ms：新面 scaleX 0→1
-   合计 180ms —— 比共享元素飞行（320ms）短，符合"轻量二次操作"的节奏。 */
-/* ★ 翻面"压扁"终态的宽度比例 —— **唯一来源**。
-   翻面动画有四个地方要写同一个值：CSS 基态、modalFlipOut 的 to、
-   modalFlipIn 的 from、以及 JS 在前后半之间钉住终态用的内联 transform。
-   四处各写一遍数字，改一处漏一处就会让"收起来的位置"和"展开的起点"对不上，
-   中间闪一下。所以抽成变量，JS 那边也直接引用 var()。
+   涓轰粈涔堢敤 scaleX 鍘嬬缉鑰屼笉鏄?rotateY锛?
+   鈽?#modalImg 鏄?100vw 脳 100dvh + object-fit: contain锛屽浘鐗囧彧鍗犺鍙ｄ腑闂翠竴鏉?
+     锛堢焊甯佺害 1.7:1锛夛紝鍏冪礌鐩掑瓙杩滃ぇ浜庡浘鐗囨湰韬€俽otateY 浼氱粫**鐩掑瓙涓績**杞紝
+     瑙傛劅鏄?鍥剧墖缁曠潃灞忓箷涓婃煇涓偣鑷浆"锛岃€屼笉鏄?杩欏紶绾稿竵缈昏繃鏉?銆?
+   鈽?scaleX 鍙帇瀹藉害锛岃酱绾垮ぉ鐒惰惤鍦ㄥ睆骞曚腑绾夸笂 鈥斺€?涓庣焊甯佽嚜韬殑绔栬酱閲嶅悎锛?
+     浠讳綍瀹介珮姣旈兘鎴愮珛銆?
+   鏃跺簭锛堢敱 JS 椹卞姩锛夛細
+     鍓嶅崐 90ms锛氬綋鍓嶉潰 scaleX 1鈫?锛屾柊闈㈡妸 src 鎹㈠ソ骞朵繚鎸佸帇鎵侀殣钘?
+     鍚庡崐 90ms锛氭柊闈?scaleX 0鈫?
+   鍚堣 180ms 鈥斺€?姣斿叡浜厓绱犻琛岋紙320ms锛夌煭锛岀鍚?杞婚噺浜屾鎿嶄綔"鐨勮妭濂忋€?*/
+/* 鈽?缈婚潰"鍘嬫墎"缁堟€佺殑瀹藉害姣斾緥 鈥斺€?**鍞竴鏉ユ簮**銆?
+   缈婚潰鍔ㄧ敾鏈夊洓涓湴鏂硅鍐欏悓涓€涓€硷細CSS 鍩烘€併€乵odalFlipOut 鐨?to銆?
+   modalFlipIn 鐨?from銆佷互鍙?JS 鍦ㄥ墠鍚庡崐涔嬮棿閽変綇缁堟€佺敤鐨勫唴鑱?transform銆?
+   鍥涘鍚勫啓涓€閬嶆暟瀛楋紝鏀逛竴澶勬紡涓€澶勫氨浼氳"鏀惰捣鏉ョ殑浣嶇疆"鍜?灞曞紑鐨勮捣鐐?瀵逛笉涓婏紝
+   涓棿闂竴涓嬨€傛墍浠ユ娊鎴愬彉閲忥紝JS 閭ｈ竟涔熺洿鎺ュ紩鐢?var()銆?
 
-   取值：0（完全压扁）。原因是用户反馈——原先的 0.06 在一半处会留下一根
-   6% 宽、整幅高的窄条，看起来像"一个细长的长方形"，而不是"纸币转到了侧面"；
-   先改成 0.004 后用户仍觉得不够，直接压到 0 最干净。
-   scale3d(0,1,1) 会让元素在横向上退化成零宽，配合 0.25 不透明度完全看不见，
-   而 transform-origin: center center 保证它是"从中间收成一条线"而不是缩到一边。
-   想调就改这一个数。 */
+   鍙栧€硷細0锛堝畬鍏ㄥ帇鎵侊級銆傚師鍥犳槸鐢ㄦ埛鍙嶉鈥斺€斿師鍏堢殑 0.06 鍦ㄤ竴鍗婂浼氱暀涓嬩竴鏍?
+   6% 瀹姐€佹暣骞呴珮鐨勭獎鏉★紝鐪嬭捣鏉ュ儚"涓€涓粏闀跨殑闀挎柟褰?锛岃€屼笉鏄?绾稿竵杞埌浜嗕晶闈?锛?
+   鍏堟敼鎴?0.004 鍚庣敤鎴蜂粛瑙夊緱涓嶅锛岀洿鎺ュ帇鍒?0 鏈€骞插噣銆?
+   scale3d(0,1,1) 浼氳鍏冪礌鍦ㄦí鍚戜笂閫€鍖栨垚闆跺锛岄厤鍚?0.25 涓嶉€忔槑搴﹀畬鍏ㄧ湅涓嶈锛?
+   鑰?transform-origin: center center 淇濊瘉瀹冩槸"浠庝腑闂存敹鎴愪竴鏉＄嚎"鑰屼笉鏄缉鍒颁竴杈广€?
+   鎯宠皟灏辨敼杩欎竴涓暟銆?*/
 .modal-img, .modal-img-overlay {
     --flip-collapse: 0;
     transform-origin: center center;
     backface-visibility: hidden;
 }
 .modal-img-overlay {
-    /* 与 .modal-img 同框同形，DOM 里在它之后 —— 所以它天然盖在主图上面。
-       但主图会在原图就绪后淡入（见上），那时它会盖住这一层。
-       这一层有两个用途，互不冲突：
-         1. 垫底缩略图：原图解码完成前，它扛着同一张图的 320px 缩略图，
-            原图就绪后由主图淡入盖住 → 没有"低清直接跳高清"的硬切。
-         2. 翻面动画的旧面（历史用途）—— 现已停用，见 category-view.js 的 modalFlip()。
-       基态（下方 transform/opacity）是给翻面 keyframes 当插值起点用的静默态：
-       没有 src 时它什么都不画，但**仍会占一个 --flip-collapse 宽（现在是 0）、0.25 不透明的盒子**，
-       所以不用它时必须 display:none（clearModalFlipLayer 的 hide 参数负责）。 */
+    /* 涓?.modal-img 鍚屾鍚屽舰锛孌OM 閲屽湪瀹冧箣鍚?鈥斺€?鎵€浠ュ畠澶╃劧鐩栧湪涓诲浘涓婇潰銆?
+       浣嗕富鍥句細鍦ㄥ師鍥惧氨缁悗娣″叆锛堣涓婏級锛岄偅鏃跺畠浼氱洊浣忚繖涓€灞傘€?
+       杩欎竴灞傛湁涓や釜鐢ㄩ€旓紝浜掍笉鍐茬獊锛?
+         1. 鍨簳缂╃暐鍥撅細鍘熷浘瑙ｇ爜瀹屾垚鍓嶏紝瀹冩墰鐫€鍚屼竴寮犲浘鐨?320px 缂╃暐鍥撅紝
+            鍘熷浘灏辩华鍚庣敱涓诲浘娣″叆鐩栦綇 鈫?娌℃湁"浣庢竻鐩存帴璺抽珮娓?鐨勭‖鍒囥€?
+         2. 缈婚潰鍔ㄧ敾鐨勬棫闈紙鍘嗗彶鐢ㄩ€旓級鈥斺€?鐜板凡鍋滅敤锛岃 category-view.js 鐨?modalFlip()銆?
+       鍩烘€侊紙涓嬫柟 transform/opacity锛夋槸缁欑炕闈?keyframes 褰撴彃鍊艰捣鐐圭敤鐨勯潤榛樻€侊細
+       娌℃湁 src 鏃跺畠浠€涔堥兘涓嶇敾锛屼絾**浠嶄細鍗犱竴涓?--flip-collapse 瀹斤紙鐜板湪鏄?0锛夈€?.25 涓嶉€忔槑鐨勭洅瀛?*锛?
+       鎵€浠ヤ笉鐢ㄥ畠鏃跺繀椤?display:none锛坈learModalFlipLayer 鐨?hide 鍙傛暟璐熻矗锛夈€?*/
     position: absolute;
     left: 0;
     top: 0;
     display: block;
     width: 100%;
-    /* 与 .modal-img 严格同框同形，所以要一起减掉底部 Tab 栏的高度，
-       否则垫底缩略图会比主图多出下面一条，翻面/淡入时露馅。
-       ★ 这里必须是 position: absolute 而**不是** fixed：fixed 会让这一层
-       相对视口定位、脱离 .modal-content，于是 .modal-content 的
-       overflow: hidden 对它无效，它就还能画到下面 5 个 Tab 上。
-       改成 absolute 后它被钉在 .modal-content 内，和主图一起受裁切。 */
+    /* 涓?.modal-img 涓ユ牸鍚屾鍚屽舰锛屾墍浠ヨ涓€璧峰噺鎺夊簳閮?Tab 鏍忕殑楂樺害锛?
+       鍚﹀垯鍨簳缂╃暐鍥句細姣斾富鍥惧鍑轰笅闈竴鏉★紝缈婚潰/娣″叆鏃堕湶棣呫€?
+       鈽?杩欓噷蹇呴』鏄?position: absolute 鑰?*涓嶆槸** fixed锛歠ixed 浼氳杩欎竴灞?
+       鐩稿瑙嗗彛瀹氫綅銆佽劚绂?.modal-content锛屼簬鏄?.modal-content 鐨?
+       overflow: hidden 瀵瑰畠鏃犳晥锛屽畠灏辫繕鑳界敾鍒颁笅闈?5 涓?Tab 涓娿€?
+       鏀规垚 absolute 鍚庡畠琚拤鍦?.modal-content 鍐咃紝鍜屼富鍥句竴璧峰彈瑁佸垏銆?*/
     height: 100%;
     object-fit: contain;
     pointer-events: none;
@@ -1205,19 +1205,19 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     transform: scale3d(var(--flip-collapse), 1, 1);
     opacity: 0.25;
 }
-/* 当「垫底缩略图层」用时：满幅、不透明、无压缩，并且**压在主图下面**，
-   让主图解码完成后淡入盖住它（配合 .modal-img 的 opacity transition）。
-   选择器比 .modal-img-overlay 多一个类，权重更高，所以能盖过上面的基态。
-   z-index 必须显式设成 -1：#modalImgOverlay 在 DOM 里位于 #modalImg **之后**，
-   默认会盖在主图上方；垫底场景需要它在下。实测（注入纯色图做像素判定：
-   垫底=洋红、主图=青，读屏幕中心像素）：
-     z-index: 1 或 0  → 读到洋红，主图被完全盖住（青色像素数 0）
-     z-index: -1      → 读到青色，正确
-   0/1 都不行是因为 #modalImg 的 z-index(2) 落在 flex 子项的层叠顺序里，
-   垫底层必须降到主图所在层叠层之下。-1 不会跑到 .modal 外面：
-   .modal 自己有 z-index:1000，是个层叠上下文，负值只在它内部生效。
-   翻面动画时用不到它（modalFlip 会把它 display:none），所以这个 z-index
-   不会影响翻面。 */
+/* 褰撱€屽灚搴曠缉鐣ュ浘灞傘€嶇敤鏃讹細婊″箙銆佷笉閫忔槑銆佹棤鍘嬬缉锛屽苟涓?*鍘嬪湪涓诲浘涓嬮潰**锛?
+   璁╀富鍥捐В鐮佸畬鎴愬悗娣″叆鐩栦綇瀹冿紙閰嶅悎 .modal-img 鐨?opacity transition锛夈€?
+   閫夋嫨鍣ㄦ瘮 .modal-img-overlay 澶氫竴涓被锛屾潈閲嶆洿楂橈紝鎵€浠ヨ兘鐩栬繃涓婇潰鐨勫熀鎬併€?
+   z-index 蹇呴』鏄惧紡璁炬垚 -1锛?modalImgOverlay 鍦?DOM 閲屼綅浜?#modalImg **涔嬪悗**锛?
+   榛樿浼氱洊鍦ㄤ富鍥句笂鏂癸紱鍨簳鍦烘櫙闇€瑕佸畠鍦ㄤ笅銆傚疄娴嬶紙娉ㄥ叆绾壊鍥惧仛鍍忕礌鍒ゅ畾锛?
+   鍨簳=娲嬬孩銆佷富鍥?闈掞紝璇诲睆骞曚腑蹇冨儚绱狅級锛?
+     z-index: 1 鎴?0  鈫?璇诲埌娲嬬孩锛屼富鍥捐瀹屽叏鐩栦綇锛堥潚鑹插儚绱犳暟 0锛?
+     z-index: -1      鈫?璇诲埌闈掕壊锛屾纭?
+   0/1 閮戒笉琛屾槸鍥犱负 #modalImg 鐨?z-index(2) 钀藉湪 flex 瀛愰」鐨勫眰鍙犻『搴忛噷锛?
+   鍨簳灞傚繀椤婚檷鍒颁富鍥炬墍鍦ㄥ眰鍙犲眰涔嬩笅銆?1 涓嶄細璺戝埌 .modal 澶栭潰锛?
+   .modal 鑷繁鏈?z-index:1000锛屾槸涓眰鍙犱笂涓嬫枃锛岃礋鍊煎彧鍦ㄥ畠鍐呴儴鐢熸晥銆?
+   缈婚潰鍔ㄧ敾鏃剁敤涓嶅埌瀹冿紙modalFlip 浼氭妸瀹?display:none锛夛紝鎵€浠ヨ繖涓?z-index
+   涓嶄細褰卞搷缈婚潰銆?*/
 .modal-img-overlay.backdrop-layer {
     display: block;
     z-index: -1;
@@ -1226,11 +1226,11 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     transition: opacity 110ms var(--ease-out);
 }
 
-/* 收起（旧面被压扁带出） */
+/* 鏀惰捣锛堟棫闈㈣鍘嬫墎甯﹀嚭锛?*/
 .modal-img.flip-out, .modal-img-overlay.flip-out {
     animation: modalFlipOut 90ms var(--ease-in) forwards;
 }
-/* 展开（新面从压扁状态展开） */
+/* 灞曞紑锛堟柊闈粠鍘嬫墎鐘舵€佸睍寮€锛?*/
 .modal-img.flip-in, .modal-img-overlay.flip-in {
     animation: modalFlipIn 90ms var(--ease-out) forwards;
 }
@@ -1242,16 +1242,16 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     from { transform: scale3d(var(--flip-collapse), 1, 1); opacity: 0.25; }
     to   { transform: scale3d(1, 1, 1); opacity: 1; }
 }
-/* 翻面动画进行中：把实时缩放（Hammer / 滚轮写在 #imageContainer 上的 transform）
-   压回 1 倍。否则用户放大到 3 倍时翻面，被压扁的是"放大后的容器"，
-   收起来的位置和展开后的位置对不上，看起来像闪一下。
-   直接归零到 1 比"保持缩放一起翻"更简单，也不会让动画脱离视口。 */
+/* 缈婚潰鍔ㄧ敾杩涜涓細鎶婂疄鏃剁缉鏀撅紙Hammer / 婊氳疆鍐欏湪 #imageContainer 涓婄殑 transform锛?
+   鍘嬪洖 1 鍊嶃€傚惁鍒欑敤鎴锋斁澶у埌 3 鍊嶆椂缈婚潰锛岃鍘嬫墎鐨勬槸"鏀惧ぇ鍚庣殑瀹瑰櫒"锛?
+   鏀惰捣鏉ョ殑浣嶇疆鍜屽睍寮€鍚庣殑浣嶇疆瀵逛笉涓婏紝鐪嬭捣鏉ュ儚闂竴涓嬨€?
+   鐩存帴褰掗浂鍒?1 姣?淇濇寔缂╂斁涓€璧风炕"鏇寸畝鍗曪紝涔熶笉浼氳鍔ㄧ敾鑴辩瑙嗗彛銆?*/
 .modal.modal-flipping #imageContainer { transform: none !important; }
 
 .modal-close {
     position: fixed;
-    /* 让出安全区：横屏时刘海在左/右、竖屏时顶部有传感器区，
-       关闭按钮原本固定 20px，贴边的机型会压到刘海下面点不到 */
+    /* 璁╁嚭瀹夊叏鍖猴細妯睆鏃跺垬娴峰湪宸?鍙炽€佺珫灞忔椂椤堕儴鏈変紶鎰熷櫒鍖猴紝
+       鍏抽棴鎸夐挳鍘熸湰鍥哄畾 20px锛岃创杈圭殑鏈哄瀷浼氬帇鍒板垬娴蜂笅闈㈢偣涓嶅埌 */
     top: calc(20px + var(--sat));
     right: calc(20px + var(--sar));
     width: 30px;
@@ -1272,7 +1272,7 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
 }
 .modal-close:hover { background: rgba(0, 0, 0, 0.8); }
 
-/* 正反面切换：圆形按钮，只有两张不同的图时才显示（JS 给 .modal 加 .multi-img） */
+/* 姝ｅ弽闈㈠垏鎹細鍦嗗舰鎸夐挳锛屽彧鏈変袱寮犱笉鍚岀殑鍥炬椂鎵嶆樉绀猴紙JS 缁?.modal 鍔?.multi-img锛?*/
 .modal-nav {
     position: fixed;
     top: 50%;
@@ -1282,7 +1282,7 @@ html[data-color-scheme="dark"] .article-reader table td[style*="background-color
     display: none;
     align-items: center;
     justify-content: center;
-    padding-bottom: 3px;          /* ‹ › 的视觉居中微调 */
+    padding-bottom: 3px;          /* 鈥?鈥?鐨勮瑙夊眳涓井璋?*/
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.45);
     color: #fff;
@@ -1314,9 +1314,9 @@ body.modal-open {
 }
 .modal-tip {
     position: fixed;
-    /* ★ 回到 bottom: 20px（曾经是 calc(20px + var(--tabbar-h))）。
-       大图弹窗不再为底部 Tab 栏让位，所以提示语也跟着回到贴近屏幕底部；
-       否则它会悬在半空、和大图下边缘对不齐。 */
+    /* 鈽?鍥炲埌 bottom: 20px锛堟浘缁忔槸 calc(20px + var(--tabbar-h))锛夈€?
+       澶у浘寮圭獥涓嶅啀涓哄簳閮?Tab 鏍忚浣嶏紝鎵€浠ユ彁绀鸿涔熻窡鐫€鍥炲埌璐磋繎灞忓箷搴曢儴锛?
+       鍚﹀垯瀹冧細鎮湪鍗婄┖銆佸拰澶у浘涓嬭竟缂樺涓嶉綈銆?*/
     bottom: 20px;
     left: 0;
     right: 0;
@@ -1326,43 +1326,43 @@ body.modal-open {
     pointer-events: none;
     z-index: 1001;
 }
-/* 提示语按指针类型区分：触摸设备讲手势，鼠标设备讲鼠标操作。
-   用 (hover/pointer) 而不是屏幕宽度判断 —— 触屏笔记本插上鼠标也能得到正确文案。 */
+/* 鎻愮ず璇寜鎸囬拡绫诲瀷鍖哄垎锛氳Е鎽歌澶囪鎵嬪娍锛岄紶鏍囪澶囪榧犳爣鎿嶄綔銆?
+   鐢?(hover/pointer) 鑰屼笉鏄睆骞曞搴﹀垽鏂?鈥斺€?瑙﹀睆绗旇鏈彃涓婇紶鏍囦篃鑳藉緱鍒版纭枃妗堛€?*/
 .modal-tip .tip-mouse { display: none; }
 @media (hover: hover) and (pointer: fine) {
     .modal-tip .tip-touch { display: none; }
     .modal-tip .tip-mouse { display: inline; }
 }
-/* ★ 单面图没有另一面可翻，提示语里就不该出现"滑动翻面"（用户要求）。
-   判据与左右两个翻面按钮完全一致：打开弹窗时 JS 会按"有没有第二张不同的图"
-   给 .modal 挂 .multi-img（category-view.js: modal.classList.toggle('multi-img', !!currentModalImg2)）。
-   父级 .tip-touch 在鼠标设备上本来就是 display:none，所以这里只管触摸那一份。 */
+/* 鈽?鍗曢潰鍥炬病鏈夊彟涓€闈㈠彲缈伙紝鎻愮ず璇噷灏变笉璇ュ嚭鐜?婊戝姩缈婚潰"锛堢敤鎴疯姹傦級銆?
+   鍒ゆ嵁涓庡乏鍙充袱涓炕闈㈡寜閽畬鍏ㄤ竴鑷达細鎵撳紑寮圭獥鏃?JS 浼氭寜"鏈夋病鏈夌浜屽紶涓嶅悓鐨勫浘"
+   缁?.modal 鎸?.multi-img锛坈ategory-view.js: modal.classList.toggle('multi-img', !!currentModalImg2)锛夈€?
+   鐖剁骇 .tip-touch 鍦ㄩ紶鏍囪澶囦笂鏈潵灏辨槸 display:none锛屾墍浠ヨ繖閲屽彧绠¤Е鎽搁偅涓€浠姐€?*/
 .modal-tip .tip-flip { display: none; }
 .modal.multi-img .modal-tip .tip-flip { display: inline; }
-/* 原图还没加载完：提示语换成"原图加载中…"（此时缩放/拖动被禁用，见 initPinchZoom） */
+/* 鍘熷浘杩樻病鍔犺浇瀹岋細鎻愮ず璇崲鎴?鍘熷浘鍔犺浇涓€?锛堟鏃剁缉鏀?鎷栧姩琚鐢紝瑙?initPinchZoom锛?*/
 .modal-tip .tip-loading { display: none; }
 .modal.modal-loading .modal-tip .tip-touch,
 .modal.modal-loading .modal-tip .tip-mouse { display: none; }
 .modal.modal-loading .modal-tip .tip-loading { display: inline; }
 
-/* 大图共享元素过渡：从缩略图位置生长到全屏（关闭时缩回）
-   飞行层是独立元素，不使用 #imageContainer，因此不会干扰 Hammer 的捏合缩放。 */
+/* 澶у浘鍏变韩鍏冪礌杩囨浮锛氫粠缂╃暐鍥句綅缃敓闀垮埌鍏ㄥ睆锛堝叧闂椂缂╁洖锛?
+   椋炶灞傛槸鐙珛鍏冪礌锛屼笉浣跨敤 #imageContainer锛屽洜姝や笉浼氬共鎵?Hammer 鐨勬崗鍚堢缉鏀俱€?*/
 .modal.modal-show { animation: modalBackdropIn var(--dur-2) var(--ease-out); }
 @keyframes modalBackdropIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
-/* ========== 黑色蒙版（#modalBackdrop）==========
-   它是 .modal 的子元素、铺满整屏，是**唯一**画黑色的那一层。
-   为什么单独一层：关闭时"蒙版渐隐"与"图片飞回缩略图"必须彼此独立 —— 淡父元素
-   会连图片一起淡（见 .modal 的注释与 index.html 里那段的说明）。
-   层级（都在 .modal 这个 z-index:1000 的层叠上下文内部）：
-     · 本层 z-index:0  —— 压住页面内容（.modal 的 z-index 已经做了这件事）；
-     · .modal-content z-index:1  —— 图片在本层之上；
-     · .modal-close / .modal-tip / .modal-nav z-index:1001 —— 最上面的控件；
-     · .modal-flight（在 .modal **外面**）z-index:1002 —— 飞行中的图片在最上面。
-   ★ 不能用 ::before 代替：伪元素没法单独拿一个类名去挂退出动画，
-     也没法在 JS 侧按元素查（用例要能量它的 opacity）。 */
+/* ========== 榛戣壊钂欑増锛?modalBackdrop锛?=========
+   瀹冩槸 .modal 鐨勫瓙鍏冪礌銆侀摵婊℃暣灞忥紝鏄?*鍞竴**鐢婚粦鑹茬殑閭ｄ竴灞傘€?
+   涓轰粈涔堝崟鐙竴灞傦細鍏抽棴鏃?钂欑増娓愰殣"涓?鍥剧墖椋炲洖缂╃暐鍥?蹇呴』褰兼鐙珛 鈥斺€?娣＄埗鍏冪礌
+   浼氳繛鍥剧墖涓€璧锋贰锛堣 .modal 鐨勬敞閲婁笌 index.html 閲岄偅娈电殑璇存槑锛夈€?
+   灞傜骇锛堥兘鍦?.modal 杩欎釜 z-index:1000 鐨勫眰鍙犱笂涓嬫枃鍐呴儴锛夛細
+     路 鏈眰 z-index:0  鈥斺€?鍘嬩綇椤甸潰鍐呭锛?modal 鐨?z-index 宸茬粡鍋氫簡杩欎欢浜嬶級锛?
+     路 .modal-content z-index:1  鈥斺€?鍥剧墖鍦ㄦ湰灞備箣涓婏紱
+     路 .modal-close / .modal-tip / .modal-nav z-index:1001 鈥斺€?鏈€涓婇潰鐨勬帶浠讹紱
+     路 .modal-flight锛堝湪 .modal **澶栭潰**锛墇-index:1002 鈥斺€?椋炶涓殑鍥剧墖鍦ㄦ渶涓婇潰銆?
+   鈽?涓嶈兘鐢?::before 浠ｆ浛锛氫吉鍏冪礌娌℃硶鍗曠嫭鎷夸竴涓被鍚嶅幓鎸傞€€鍑哄姩鐢伙紝
+     涔熸病娉曞湪 JS 渚ф寜鍏冪礌鏌ワ紙鐢ㄤ緥瑕佽兘閲忓畠鐨?opacity锛夈€?*/
 .modal-backdrop {
     position: absolute;
     left: 0;
@@ -1373,20 +1373,20 @@ body.modal-open {
     z-index: 0;
     pointer-events: none;
 }
-/* 关闭时蒙版淡出（用 --ease-in：退出用"慢起快出"，与进入的 --ease-out 形成方向感）。
-   forwards 保持住终态 opacity:0 —— 否则动画结束到 JS 真正 display:none 之间会闪一下。
-   ★ 动画挂在**蒙版层**上，不是挂在 .modal 上 —— 这是"蒙版淡、图片不淡"的关键。
-     .modal-hide 这个类名仍然挂在 .modal 上（它是"正在关闭"的公共标记，
-     各处用例与 JS 都靠它判断状态），只是它驱动的动画落在蒙版这一层。
-   ★ 任何关闭路径都走这一条（含"原图还没加载完就关闭"）：以前加载中那一支
-     为了不让图片被淡掉，索性连蒙版也不淡（用户看到的"蒙版直接消失"就是这个）。
-     现在图片不在这一层里，蒙版可以照常淡。 */
+/* 鍏抽棴鏃惰挋鐗堟贰鍑猴紙鐢?--ease-in锛氶€€鍑虹敤"鎱㈣捣蹇嚭"锛屼笌杩涘叆鐨?--ease-out 褰㈡垚鏂瑰悜鎰燂級銆?
+   forwards 淇濇寔浣忕粓鎬?opacity:0 鈥斺€?鍚﹀垯鍔ㄧ敾缁撴潫鍒?JS 鐪熸 display:none 涔嬮棿浼氶棯涓€涓嬨€?
+   鈽?鍔ㄧ敾鎸傚湪**钂欑増灞?*涓婏紝涓嶆槸鎸傚湪 .modal 涓?鈥斺€?杩欐槸"钂欑増娣°€佸浘鐗囦笉娣?鐨勫叧閿€?
+     .modal-hide 杩欎釜绫诲悕浠嶇劧鎸傚湪 .modal 涓婏紙瀹冩槸"姝ｅ湪鍏抽棴"鐨勫叕鍏辨爣璁帮紝
+     鍚勫鐢ㄤ緥涓?JS 閮介潬瀹冨垽鏂姸鎬侊級锛屽彧鏄畠椹卞姩鐨勫姩鐢昏惤鍦ㄨ挋鐗堣繖涓€灞傘€?
+   鈽?浠讳綍鍏抽棴璺緞閮借蛋杩欎竴鏉★紙鍚?鍘熷浘杩樻病鍔犺浇瀹屽氨鍏抽棴"锛夛細浠ュ墠鍔犺浇涓偅涓€鏀?
+     涓轰簡涓嶈鍥剧墖琚贰鎺夛紝绱㈡€ц繛钂欑増涔熶笉娣★紙鐢ㄦ埛鐪嬪埌鐨?钂欑増鐩存帴娑堝け"灏辨槸杩欎釜锛夈€?
+     鐜板湪鍥剧墖涓嶅湪杩欎竴灞傞噷锛岃挋鐗堝彲浠ョ収甯告贰銆?*/
 .modal.modal-hide .modal-backdrop { animation: modalBackdropOut var(--dur-3) var(--ease-in) forwards; }
 @keyframes modalBackdropOut {
     to { opacity: 0; }
 }
-/* 通用弹层淡出（专题灯箱、详细信息卡片）。
-   !important 是为了盖掉它们原本内联或样式表里的"进入"动画声明。 */
+/* 閫氱敤寮瑰眰娣″嚭锛堜笓棰樼伅绠便€佽缁嗕俊鎭崱鐗囷級銆?
+   !important 鏄负浜嗙洊鎺夊畠浠師鏈唴鑱旀垨鏍峰紡琛ㄩ噷鐨?杩涘叆"鍔ㄧ敾澹版槑銆?*/
 .lightbox-hide {
     animation: lightboxFadeOut var(--dur-2) var(--ease-in) forwards !important;
     pointer-events: none;
@@ -1396,15 +1396,15 @@ body.modal-open {
 }
 .modal-flight {
     position: fixed;
-    z-index: 1002;              /* 高于 .modal(1000) 与 .modal-close/.modal-tip(1001) */
-    object-fit: fill;           /* 宽高已按图片比例算好，不需要 contain */
+    z-index: 1002;              /* 楂樹簬 .modal(1000) 涓?.modal-close/.modal-tip(1001) */
+    object-fit: fill;           /* 瀹介珮宸叉寜鍥剧墖姣斾緥绠楀ソ锛屼笉闇€瑕?contain */
     border-radius: 4px;
     pointer-events: none;
     will-change: transform;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 
-/* ========== 底部Tab ========== */
+/* ========== 搴曢儴Tab ========== */
 .bottom-tabbar {
     display: flex;
     background: var(--card-bg);
@@ -1412,9 +1412,9 @@ body.modal-open {
     flex-shrink: 0;
     position: relative;
     z-index: 100;
-    /* ★ Home Indicator 会让出：底部 Tab 是"贴底"元素，加了这个内边距后
-       5 个 Tab 才不会被 iPhone 底部横条压住 / 误触。
-       桌面端与不支持 env() 的浏览器取 0，视觉零变化。 */
+    /* 鈽?Home Indicator 浼氳鍑猴細搴曢儴 Tab 鏄?璐村簳"鍏冪礌锛屽姞浜嗚繖涓唴杈硅窛鍚?
+       5 涓?Tab 鎵嶄笉浼氳 iPhone 搴曢儴妯潯鍘嬩綇 / 璇Е銆?
+       妗岄潰绔笌涓嶆敮鎸?env() 鐨勬祻瑙堝櫒鍙?0锛岃瑙夐浂鍙樺寲銆?*/
     padding-bottom: var(--sab);
 }
 .tab-item {
@@ -1430,7 +1430,7 @@ body.modal-open {
 .tab-item.active { color: var(--theme); font-weight: bold; }
 .tab-item:hover { color: var(--text); }
 
-/* ========== 返回按钮 ========== */
+/* ========== 杩斿洖鎸夐挳 ========== */
 .back-bar {
     margin-bottom: 10px;
     position: sticky;
@@ -1442,12 +1442,12 @@ body.modal-open {
 .back-btn { background: none; border: 1px solid var(--border); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: var(--text); transition: background 0.15s; }
 .back-btn:hover { background: var(--sidebar-bg); }
 
-/* ========== 空状态 ========== */
+/* ========== 绌虹姸鎬?========== */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 0.9rem; }
 
-/* ★ 时间轴的空状态淡入：从"有"筛到"无"时，条目会滑出去（playTimelineFlip 的退场替身），
-   空状态自己也该跟着淡入，而不是硬蹦出来。只挂在 .timeline-empty-enter 上，
-   其它板块的 .empty-state 不受影响。 */
+/* 鈽?鏃堕棿杞寸殑绌虹姸鎬佹贰鍏ワ細浠?鏈?绛涘埌"鏃?鏃讹紝鏉＄洰浼氭粦鍑哄幓锛坧layTimelineFlip 鐨勯€€鍦烘浛韬級锛?
+   绌虹姸鎬佽嚜宸变篃璇ヨ窡鐫€娣″叆锛岃€屼笉鏄‖韫﹀嚭鏉ャ€傚彧鎸傚湪 .timeline-empty-enter 涓婏紝
+   鍏跺畠鏉垮潡鐨?.empty-state 涓嶅彈褰卞搷銆?*/
 @keyframes timelineEmptyIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: none; }
@@ -1457,8 +1457,8 @@ body.modal-open {
     .timeline-empty-enter { animation: none; }
 }
 
-/* 空状态插图：自绘线稿 SVG 当蒙版（和缺图占位 img-placeholder.svg 同一套做法）。
-   颜色不写在 SVG 里，而是由这里的 background-color 给，所以跟着主题自动变。 */
+/* 绌虹姸鎬佹彃鍥撅細鑷粯绾跨 SVG 褰撹挋鐗堬紙鍜岀己鍥惧崰浣?img-placeholder.svg 鍚屼竴濂楀仛娉曪級銆?
+   棰滆壊涓嶅啓鍦?SVG 閲岋紝鑰屾槸鐢辫繖閲岀殑 background-color 缁欙紝鎵€浠ヨ窡鐫€涓婚鑷姩鍙樸€?*/
 .empty-art, .empty-art-sm {
   background-color: var(--text-secondary);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
@@ -1466,7 +1466,7 @@ body.modal-open {
   -webkit-mask-size: contain; mask-size: contain;
 }
 .empty-art { display: block; width: 84px; height: 84px; margin: 0 auto 14px; }
-/* 行内小图（例如设置页「还没添加自定义颜色哦」那种一句话提示）；必须排在 .empty-art 之后覆盖尺寸 */
+/* 琛屽唴灏忓浘锛堜緥濡傝缃〉銆岃繕娌℃坊鍔犺嚜瀹氫箟棰滆壊鍝︺€嶉偅绉嶄竴鍙ヨ瘽鎻愮ず锛夛紱蹇呴』鎺掑湪 .empty-art 涔嬪悗瑕嗙洊灏哄 */
 .empty-art-sm { display: inline-block; width: 18px; height: 18px; margin: 0 6px 0 0; vertical-align: -4px; }
 .empty-art-search { -webkit-mask-image: url('empty-search.svg'); mask-image: url('empty-search.svg'); }
 .empty-art-notes { -webkit-mask-image: url('empty-notes.svg'); mask-image: url('empty-notes.svg'); }
@@ -1480,7 +1480,7 @@ body.modal-open {
 .empty-art-stats { -webkit-mask-image: url('empty-stats.svg'); mask-image: url('empty-stats.svg'); }
 .empty-art-color { -webkit-mask-image: url('empty-color.svg'); mask-image: url('empty-color.svg'); }
 
-/* ========== 设置页 ========== */
+/* ========== 璁剧疆椤?========== */
 .settings-page { max-width: 800px; margin: 0 auto; }
 .settings-page h2 { font-size: 1.3rem; margin-bottom: 20px; }
 .settings-section { margin-bottom: 24px; }
@@ -1505,15 +1505,15 @@ body.modal-open {
 .saved-color-item .remove-color-btn:hover { background: #d92121; color: #fff; }
 .empty-colors-hint { color: var(--text-secondary); font-size: 0.8rem; margin: 4px 0; text-align: center; }
 
-/* ========== 数据导出 ========== */
+/* ========== 鏁版嵁瀵煎嚭 ========== */
 .export-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .export-btn { padding: 8px 16px; background: var(--theme); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: background-color 0.2s ease, opacity 0.15s; }
 .export-btn:hover { opacity: 0.85; }
 
-/* ========== 开关卡片（自动预缓存 / 网格画质） ==========
-   设计约定：浅色卡片 = "状态/设置项"，主题色实心按钮 = "立即执行的动作"。
-   两者的视觉语言分开，且不排在同一行 —— 之前开关裸着、下面紧跟一排实心按钮，
-   看着像两套东西硬凑在一起。 */
+/* ========== 寮€鍏冲崱鐗囷紙鑷姩棰勭紦瀛?/ 缃戞牸鐢昏川锛?==========
+   璁捐绾﹀畾锛氭祬鑹插崱鐗?= "鐘舵€?璁剧疆椤?锛屼富棰樿壊瀹炲績鎸夐挳 = "绔嬪嵆鎵ц鐨勫姩浣?銆?
+   涓よ€呯殑瑙嗚璇█鍒嗗紑锛屼笖涓嶆帓鍦ㄥ悓涓€琛?鈥斺€?涔嬪墠寮€鍏宠８鐫€銆佷笅闈㈢揣璺熶竴鎺掑疄蹇冩寜閽紝
+   鐪嬬潃鍍忎袱濂椾笢瑗跨‖鍑戝湪涓€璧枫€?*/
 .toggle-card {
     background: var(--bg-light);
     border: 1px solid var(--border);
@@ -1529,35 +1529,35 @@ body.modal-open {
 .toggle-card-top {
     display: flex;
     align-items: center;
-    /* ★ 开关一律靠右（用户要求：「我的」界面的开关按键全部居右）。
-       设置页有 500px 宽，开关贴着标签放左边时，几行开关的竖排位置参差不齐；
-       拉到右端后所有开关对齐成一条竖线，也更接近系统设置的观感。
-       注意：这条是**用户明确要求**改的，早期注释里"紧挨着标签更好"的说法已作废，
-       别改回 flex-start。 */
+    /* 鈽?寮€鍏充竴寰嬮潬鍙筹紙鐢ㄦ埛瑕佹眰锛氥€屾垜鐨勩€嶇晫闈㈢殑寮€鍏虫寜閿叏閮ㄥ眳鍙筹級銆?
+       璁剧疆椤垫湁 500px 瀹斤紝寮€鍏宠创鐫€鏍囩鏀惧乏杈规椂锛屽嚑琛屽紑鍏崇殑绔栨帓浣嶇疆鍙傚樊涓嶉綈锛?
+       鎷夊埌鍙崇鍚庢墍鏈夊紑鍏冲榻愭垚涓€鏉＄珫绾匡紝涔熸洿鎺ヨ繎绯荤粺璁剧疆鐨勮鎰熴€?
+       娉ㄦ剰锛氳繖鏉℃槸**鐢ㄦ埛鏄庣‘瑕佹眰**鏀圭殑锛屾棭鏈熸敞閲婇噷"绱ф尐鐫€鏍囩鏇村ソ"鐨勮娉曞凡浣滃簾锛?
+       鍒敼鍥?flex-start銆?*/
     justify-content: space-between;
     gap: 10px;
 }
 .toggle-label { font-size: 0.85rem; font-weight: 500; color: var(--text); }
-/* ★ 开关下方的补充说明。放在卡片**外面**（用户要求："放在按钮下面"）——
-   卡片整块是点击区，说明放里面会变成"点文字也跟着切开关"。
-   左边距对齐卡片内容（卡片 padding 12px + 1px 边框 = 13px）。 */
+/* 鈽?寮€鍏充笅鏂圭殑琛ュ厖璇存槑銆傛斁鍦ㄥ崱鐗?*澶栭潰**锛堢敤鎴疯姹傦細"鏀惧湪鎸夐挳涓嬮潰"锛夆€斺€?
+   鍗＄墖鏁村潡鏄偣鍑诲尯锛岃鏄庢斁閲岄潰浼氬彉鎴?鐐规枃瀛椾篃璺熺潃鍒囧紑鍏?銆?
+   宸﹁竟璺濆榻愬崱鐗囧唴瀹癸紙鍗＄墖 padding 12px + 1px 杈规 = 13px锛夈€?*/
 .toggle-desc {
     font-size: 0.72rem;
     color: var(--text-secondary);
     line-height: 1.5;
     margin: 6px 0 0 13px;
 }
-/* 说明把两张卡片隔开了，.toggle-card + .toggle-card 就选不中，间距改由这里给 */
+/* 璇存槑鎶婁袱寮犲崱鐗囬殧寮€浜嗭紝.toggle-card + .toggle-card 灏遍€変笉涓紝闂磋窛鏀圭敱杩欓噷缁?*/
 .toggle-desc + .toggle-card { margin-top: 8px; }
-/* 动作区的分组小标题（把"开关"和"按钮"在视觉上分开） */
+/* 鍔ㄤ綔鍖虹殑鍒嗙粍灏忔爣棰橈紙鎶?寮€鍏?鍜?鎸夐挳"鍦ㄨ瑙変笂鍒嗗紑锛?*/
 .actions-caption {
     font-size: 0.75rem;
     color: var(--text-secondary);
     margin: 12px 0 6px;
 }
-/* 三态分段控件（跟随系统 / 亮 / 暗） */
+/* 涓夋€佸垎娈垫帶浠讹紙璺熼殢绯荤粺 / 浜?/ 鏆楋級 */
 .segmented {
-    position: relative;          /* ★ 滑动高亮块靠绝对定位，见下面的 .seg-pill */
+    position: relative;          /* 鈽?婊戝姩楂樹寒鍧楅潬缁濆瀹氫綅锛岃涓嬮潰鐨?.seg-pill */
     display: flex;
     gap: 2px;
     margin-top: 8px;
@@ -1565,10 +1565,10 @@ body.modal-open {
     background: var(--thumb-bg);
     border-radius: 8px;
 }
-/* ★ 选中高亮 = 一块会左右滑动的滑块。
-   原来是给 .active 按钮自己换背景（硬切，明暗切换那三个选项之间"啪"地跳）。
-   几何不写死在 CSS 里：JS 量出选中项的 left/width 写进 --seg-x / --seg-w，
-   所以选项文字变长、窗口缩放、字体换掉都能自动跟正。 */
+/* 鈽?閫変腑楂樹寒 = 涓€鍧椾細宸﹀彸婊戝姩鐨勬粦鍧椼€?
+   鍘熸潵鏄粰 .active 鎸夐挳鑷繁鎹㈣儗鏅紙纭垏锛屾槑鏆楀垏鎹㈤偅涓変釜閫夐」涔嬮棿"鍟?鍦拌烦锛夈€?
+   鍑犱綍涓嶅啓姝诲湪 CSS 閲岋細JS 閲忓嚭閫変腑椤圭殑 left/width 鍐欒繘 --seg-x / --seg-w锛?
+   鎵€浠ラ€夐」鏂囧瓧鍙橀暱銆佺獥鍙ｇ缉鏀俱€佸瓧浣撴崲鎺夐兘鑳借嚜鍔ㄨ窡姝ｃ€?*/
 .seg-pill {
     position: absolute;
     top: 2px;
@@ -1578,15 +1578,15 @@ body.modal-open {
     transform: translateX(var(--seg-x, 0px));
     background: var(--theme);
     border-radius: 6px;
-    pointer-events: none;        /* 别挡住按钮点击 */
+    pointer-events: none;        /* 鍒尅浣忔寜閽偣鍑?*/
     transition: transform var(--dur-2) var(--ease-inout),
                 width var(--dur-2) var(--ease-inout);
 }
-/* 首帧摆位、窗口缩放时不要"从最左边滑过来"，那是噪声。
-   ★ 不限定 .segmented：纸币/硬币的 .rating-tabs 也用同一个滑块（见上面）。 */
+/* 棣栧抚鎽嗕綅銆佺獥鍙ｇ缉鏀炬椂涓嶈"浠庢渶宸﹁竟婊戣繃鏉?锛岄偅鏄櫔澹般€?
+   鈽?涓嶉檺瀹?.segmented锛氱焊甯?纭竵鐨?.rating-tabs 涔熺敤鍚屼竴涓粦鍧楋紙瑙佷笂闈級銆?*/
 .seg-no-anim .seg-pill { transition: none; }
 .seg-btn {
-    position: relative;          /* ★ 压在滑块上面，文字才看得见 */
+    position: relative;          /* 鈽?鍘嬪湪婊戝潡涓婇潰锛屾枃瀛楁墠鐪嬪緱瑙?*/
     z-index: 1;
     flex: 1;
     padding: 6px 4px;
@@ -1597,12 +1597,12 @@ body.modal-open {
     font-size: 0.78rem;
     font-family: inherit;
     cursor: pointer;
-    /* 背景不在这里过渡了（交给滑块），只留文字颜色 */
+    /* 鑳屾櫙涓嶅湪杩欓噷杩囨浮浜嗭紙浜ょ粰婊戝潡锛夛紝鍙暀鏂囧瓧棰滆壊 */
     transition: color var(--dur-2) var(--ease-inout);
 }
 .seg-btn:hover { color: var(--text); }
 .seg-btn.active {
-    background: transparent;     /* ★ 高亮改由 .seg-pill 画 */
+    background: transparent;     /* 鈽?楂樹寒鏀圭敱 .seg-pill 鐢?*/
     color: #fff;
     font-weight: 500;
 }
@@ -1630,10 +1630,10 @@ body.modal-open {
 .switch.on .switch-knob { transform: translateX(20px); }
 @media (prefers-reduced-motion: reduce) {
     .switch, .switch-knob, .toggle-card { transition: none; }
-    .seg-pill { transition: none; }   /* ★ 明暗那块的滑动高亮也不滑，直接到位 */
+    .seg-pill { transition: none; }   /* 鈽?鏄庢殫閭ｅ潡鐨勬粦鍔ㄩ珮浜篃涓嶆粦锛岀洿鎺ュ埌浣?*/
 }
 
-/* ========== 统计样式 ========== */
+/* ========== 缁熻鏍峰紡 ========== */
 .stats-summary-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
 .stat-card { background: var(--bg-light); border: 1px solid var(--border); border-radius: 8px; padding: 12px 8px; text-align: center; }
 .stat-num { font-size: 1.5rem; font-weight: bold; color: var(--theme); line-height: 1.3; }
@@ -1654,7 +1654,7 @@ body.modal-open {
 .stat-bar-fill.year { background: var(--theme); }
 .stat-bar-count { font-size: 0.8rem; color: var(--text); min-width: 36px; text-align: right; flex-shrink: 0; }
 
-/* ========== 价格列表 ========== */
+/* ========== 浠锋牸鍒楄〃 ========== */
 .price-list-wrapper { margin-top: 10px; background: var(--bg-light); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .price-list-header {
     display: flex;
@@ -1665,10 +1665,10 @@ body.modal-open {
     font-size: 0.85rem;
     gap: 8px;
 }
-/* ★ 用 > 收窄：原来写的是 `.price-list-header span:first-child`，
-   它会命中**任何**在父元素里排第一的 span —— 包括自绘下拉里那两个 .dd-label
-   （它们是 .dd-trigger 的第一个子元素），于是价格列表那两个下拉显示的值被染成
-   灰色加粗，和别的下拉（搜索类型/时间轴）不一致。这一条本来只想管"价格列表"这个标题。 */
+/* 鈽?鐢?> 鏀剁獎锛氬師鏉ュ啓鐨勬槸 `.price-list-header span:first-child`锛?
+   瀹冧細鍛戒腑**浠讳綍**鍦ㄧ埗鍏冪礌閲屾帓绗竴鐨?span 鈥斺€?鍖呮嫭鑷粯涓嬫媺閲岄偅涓や釜 .dd-label
+   锛堝畠浠槸 .dd-trigger 鐨勭涓€涓瓙鍏冪礌锛夛紝浜庢槸浠锋牸鍒楄〃閭ｄ袱涓笅鎷夋樉绀虹殑鍊艰鏌撴垚
+   鐏拌壊鍔犵矖锛屽拰鍒殑涓嬫媺锛堟悳绱㈢被鍨?鏃堕棿杞达級涓嶄竴鑷淬€傝繖涓€鏉℃湰鏉ュ彧鎯崇"浠锋牸鍒楄〃"杩欎釜鏍囬銆?*/
 .price-list-header > span:first-child { font-weight: bold; color: var(--text-secondary); }
 .price-list-controls { display: flex; gap: 6px; margin-left: auto; }
 .price-sort-select,
@@ -1691,36 +1691,36 @@ body.modal-open {
     transition: max-height var(--dur-3) var(--ease-inout), opacity var(--dur-3) var(--ease-out);
     opacity: 0;
 }
-/* 这里的 420px 是有意的：价格列表本身就是"固定高度 + 内部滚动"的面板，
-   内容通常远超 420px，所以不存在手风琴那种"插值跑空"的问题。 */
+/* 杩欓噷鐨?420px 鏄湁鎰忕殑锛氫环鏍煎垪琛ㄦ湰韬氨鏄?鍥哄畾楂樺害 + 鍐呴儴婊氬姩"鐨勯潰鏉匡紝
+   鍐呭閫氬父杩滆秴 420px锛屾墍浠ヤ笉瀛樺湪鎵嬮鐞撮偅绉?鎻掑€艰窇绌?鐨勯棶棰樸€?*/
 .price-list-body.open { max-height: 420px; opacity: 1; overflow-y: auto; transition: max-height var(--dur-1) var(--ease-in); }
-/* ★ 汇总行收起时让出的那一段，由列表自己吸收（列表顶边上移、可视区变高、底边不动）。
-   这样"卡片外框总高"在收起/展开过程中恒定 → 卡片以下（统计图表卡片、整页外观设置）
-   一个像素都不用重排重绘。用户三次反馈的"卡"，根子就是整页跟着汇总行上下动：
-   动 max-height 是布局动画，下面那一大段每帧都要重排重绘，机器稍慢就是掉帧。
-   --pl-sum-h 由 JS 按汇总行实高写入（见 settings.js 的 setPriceSummaryShown）。 */
+/* 鈽?姹囨€昏鏀惰捣鏃惰鍑虹殑閭ｄ竴娈碉紝鐢卞垪琛ㄨ嚜宸卞惛鏀讹紙鍒楄〃椤惰竟涓婄Щ銆佸彲瑙嗗尯鍙橀珮銆佸簳杈逛笉鍔級銆?
+   杩欐牱"鍗＄墖澶栨鎬婚珮"鍦ㄦ敹璧?灞曞紑杩囩▼涓亽瀹?鈫?鍗＄墖浠ヤ笅锛堢粺璁″浘琛ㄥ崱鐗囥€佹暣椤靛瑙傝缃級
+   涓€涓儚绱犻兘涓嶇敤閲嶆帓閲嶇粯銆傜敤鎴蜂笁娆″弽棣堢殑"鍗?锛屾牴瀛愬氨鏄暣椤佃窡鐫€姹囨€昏涓婁笅鍔細
+   鍔?max-height 鏄竷灞€鍔ㄧ敾锛屼笅闈㈤偅涓€澶ф姣忓抚閮借閲嶆帓閲嶇粯锛屾満鍣ㄧ◢鎱㈠氨鏄帀甯с€?
+   --pl-sum-h 鐢?JS 鎸夋眹鎬昏瀹為珮鍐欏叆锛堣 settings.js 鐨?setPriceSummaryShown锛夈€?*/
 .price-list-body.open.absorb { max-height: calc(420px + var(--pl-sum-h, 67px)); }
-/* 展开时列表在"让位"，用入场时长（和汇总行的 --dur-2/--ease-out 同步，
-   两条 max-height 用同一时长同一条缓动，任意时刻两者之和 = 定值，外框纹丝不动） */
+/* 灞曞紑鏃跺垪琛ㄥ湪"璁╀綅"锛岀敤鍏ュ満鏃堕暱锛堝拰姹囨€昏鐨?--dur-2/--ease-out 鍚屾锛?
+   涓ゆ潯 max-height 鐢ㄥ悓涓€鏃堕暱鍚屼竴鏉＄紦鍔紝浠绘剰鏃跺埢涓よ€呬箣鍜?= 瀹氬€硷紝澶栨绾逛笣涓嶅姩锛?*/
 .price-list-wrapper.sum-expanding .price-list-body.open { transition: max-height var(--dur-2) var(--ease-out); }
-/* ★ 标题行/汇总 与"具体价格行"之间的分割线：**不能**挂在"第一行"的 border-top 上 ——
-   列表体是滚动容器，第一行的 border-top 会跟着内容一起滚走，滚下去之后标题行下面就是空的
-   （用户报的"标题栏目和具体价格栏之间缺少一条分割线"）。
-   所以线画在列表体自己身上：它在滚动区域之外，永远紧贴标题行。 */
+/* 鈽?鏍囬琛?姹囨€?涓?鍏蜂綋浠锋牸琛?涔嬮棿鐨勫垎鍓茬嚎锛?*涓嶈兘**鎸傚湪"绗竴琛?鐨?border-top 涓?鈥斺€?
+   鍒楄〃浣撴槸婊氬姩瀹瑰櫒锛岀涓€琛岀殑 border-top 浼氳窡鐫€鍐呭涓€璧锋粴璧帮紝婊氫笅鍘讳箣鍚庢爣棰樿涓嬮潰灏辨槸绌虹殑
+   锛堢敤鎴锋姤鐨?鏍囬鏍忕洰鍜屽叿浣撲环鏍兼爮涔嬮棿缂哄皯涓€鏉″垎鍓茬嚎"锛夈€?
+   鎵€浠ョ嚎鐢诲湪鍒楄〃浣撹嚜宸辫韩涓婏細瀹冨湪婊氬姩鍖哄煙涔嬪锛屾案杩滅揣璐存爣棰樿銆?*/
 .price-list-body.open { border-top: 1px solid var(--border); }
-/* 这时第一行自己的 border-top 就是重复的一条了，去掉（其余行仍靠它做行分隔） */
+/* 杩欐椂绗竴琛岃嚜宸辩殑 border-top 灏辨槸閲嶅鐨勪竴鏉′簡锛屽幓鎺夛紙鍏朵綑琛屼粛闈犲畠鍋氳鍒嗛殧锛?*/
 .price-list-body.open .price-list-item:first-child { border-top: none; }
 
-/* ★ 行的进入动画（展开时全部条目错开淡入；切换筛选时新行淡入）
-   backwards：带延迟的行在延迟期间保持 from 状态（否则会先亮一下再动）。 */
+/* 鈽?琛岀殑杩涘叆鍔ㄧ敾锛堝睍寮€鏃跺叏閮ㄦ潯鐩敊寮€娣″叆锛涘垏鎹㈢瓫閫夋椂鏂拌娣″叆锛?
+   backwards锛氬甫寤惰繜鐨勮鍦ㄥ欢杩熸湡闂翠繚鎸?from 鐘舵€侊紙鍚﹀垯浼氬厛浜竴涓嬪啀鍔級銆?*/
 @keyframes pl-row-in {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: none; }
 }
 .pl-enter { animation: pl-row-in var(--dur-2) var(--ease-out) backwards; }
-/* ★ 错开延迟由 JS 逐行写 animation-delay（settings.js 的 playPriceListRowsIn）：
-   条数不定，CSS 里用 nth-child 只能写到固定条数；而且间隔要按总条数压缩
-   （40 多条 × 30ms 会长到 1.4s，看着像卡住）。动画结束 JS 会把延迟和内联样式清掉。 */
+/* 鈽?閿欏紑寤惰繜鐢?JS 閫愯鍐?animation-delay锛坰ettings.js 鐨?playPriceListRowsIn锛夛細
+   鏉℃暟涓嶅畾锛孋SS 閲岀敤 nth-child 鍙兘鍐欏埌鍥哄畾鏉℃暟锛涜€屼笖闂撮殧瑕佹寜鎬绘潯鏁板帇缂?
+   锛?0 澶氭潯 脳 30ms 浼氶暱鍒?1.4s锛岀湅鐫€鍍忓崱浣忥級銆傚姩鐢荤粨鏉?JS 浼氭妸寤惰繜鍜屽唴鑱旀牱寮忔竻鎺夈€?*/
 @media (prefers-reduced-motion: reduce) {
     .pl-enter { animation: none; }
 }
@@ -1731,12 +1731,12 @@ body.modal-open {
     font-size: 0.78rem;
     border-top: 1px solid var(--border);
     gap: 8px;
-    /* ★ 真实数据下这个列表有 394 行，视口里只看得到十几行。
-       屏幕外的行没必要参与布局/绘制 —— 每次切换排序筛选重建整片内容时，
-       这里正是"汇总行收起卡顿"的主要来源（实测同步 58ms、之后还有 4 帧 >25ms）。
-       content-visibility: auto 让浏览器跳过屏幕外行的渲染；contain-intrinsic-size
-       先给个占位高度（6+6 padding + 1px 边框 + 单行文字 ≈ 32px），
-       加了 auto 前缀后浏览器会记住真实尺寸，估不准也会自我修正。 */
+    /* 鈽?鐪熷疄鏁版嵁涓嬭繖涓垪琛ㄦ湁 394 琛岋紝瑙嗗彛閲屽彧鐪嬪緱鍒板崄鍑犺銆?
+       灞忓箷澶栫殑琛屾病蹇呰鍙備笌甯冨眬/缁樺埗 鈥斺€?姣忔鍒囨崲鎺掑簭绛涢€夐噸寤烘暣鐗囧唴瀹规椂锛?
+       杩欓噷姝ｆ槸"姹囨€昏鏀惰捣鍗￠】"鐨勪富瑕佹潵婧愶紙瀹炴祴鍚屾 58ms銆佷箣鍚庤繕鏈?4 甯?>25ms锛夈€?
+       content-visibility: auto 璁╂祻瑙堝櫒璺宠繃灞忓箷澶栬鐨勬覆鏌擄紱contain-intrinsic-size
+       鍏堢粰涓崰浣嶉珮搴︼紙6+6 padding + 1px 杈规 + 鍗曡鏂囧瓧 鈮?32px锛夛紝
+       鍔犱簡 auto 鍓嶇紑鍚庢祻瑙堝櫒浼氳浣忕湡瀹炲昂瀵革紝浼颁笉鍑嗕篃浼氳嚜鎴戜慨姝ｃ€?*/
     content-visibility: auto;
     contain-intrinsic-size: auto 32px;
 }
@@ -1744,23 +1744,23 @@ body.modal-open {
 .price-list-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .price-list-value { font-weight: bold; color: var(--theme); flex-shrink: 0; text-align: right; min-width: 60px; }
 .price-list-value.no-price { color: var(--text-secondary); font-weight: normal; }
-/* ★ 汇总行做"下滑展开 / 上滑收起"（用户要求："直接用上滑收起下滑展开就行"）。
-   收起态用 --dur-1/--ease-in（出场）、展开态用 --dur-2/--ease-out（入场），
-   和站内其它进出动画一个约定。max-height 的具体数值由 JS 按实测高度给
-   （见 settings.js 的 setPriceSummaryShown），这里只提供"起点 0"和过渡。
-   ★ 竖向内边距**不再**参与过渡：padding 恒定，max-height 才是唯一变量，
-   这样它和列表吸收的那段（.price-list-body.open.absorb）能用同一条曲线精确互补，
-   卡片外框总高在动画过程中恒定 —— 页面下方因此完全不动（三次"卡"的解法）。
-   ★ 不做淡入淡出：元素是从 display:none 出来的，透明度没有可过渡的起点（试过，
-   实测量到第一帧就已经是 1）；而且用户要的就是纯粹的上下滑动。 */
+/* 鈽?姹囨€昏鍋?涓嬫粦灞曞紑 / 涓婃粦鏀惰捣"锛堢敤鎴疯姹傦細"鐩存帴鐢ㄤ笂婊戞敹璧蜂笅婊戝睍寮€灏辫"锛夈€?
+   鏀惰捣鎬佺敤 --dur-1/--ease-in锛堝嚭鍦猴級銆佸睍寮€鎬佺敤 --dur-2/--ease-out锛堝叆鍦猴級锛?
+   鍜岀珯鍐呭叾瀹冭繘鍑哄姩鐢讳竴涓害瀹氥€俶ax-height 鐨勫叿浣撴暟鍊肩敱 JS 鎸夊疄娴嬮珮搴︾粰
+   锛堣 settings.js 鐨?setPriceSummaryShown锛夛紝杩欓噷鍙彁渚?璧风偣 0"鍜岃繃娓°€?
+   鈽?绔栧悜鍐呰竟璺?*涓嶅啀**鍙備笌杩囨浮锛歱adding 鎭掑畾锛宮ax-height 鎵嶆槸鍞竴鍙橀噺锛?
+   杩欐牱瀹冨拰鍒楄〃鍚告敹鐨勯偅娈碉紙.price-list-body.open.absorb锛夎兘鐢ㄥ悓涓€鏉℃洸绾跨簿纭簰琛ワ紝
+   鍗＄墖澶栨鎬婚珮鍦ㄥ姩鐢昏繃绋嬩腑鎭掑畾 鈥斺€?椤甸潰涓嬫柟鍥犳瀹屽叏涓嶅姩锛堜笁娆?鍗?鐨勮В娉曪級銆?
+   鈽?涓嶅仛娣″叆娣″嚭锛氬厓绱犳槸浠?display:none 鍑烘潵鐨勶紝閫忔槑搴︽病鏈夊彲杩囨浮鐨勮捣鐐癸紙璇曡繃锛?
+   瀹炴祴閲忓埌绗竴甯у氨宸茬粡鏄?1锛夛紱鑰屼笖鐢ㄦ埛瑕佺殑灏辨槸绾补鐨勪笂涓嬫粦鍔ㄣ€?*/
 .price-list-summary {
     background: var(--bg-light);
     max-height: 0;
     overflow: hidden;
     transition: max-height var(--dur-1) var(--ease-in);
 }
-/* ★ 内边距和这条分割线都挂在内层：外层因此能在 max-height:0 时真正收到 0 高度。
-   挂在外层的话，收起末段这 16px padding + 1px 边框还占着布局，下面会被顶起来 17px。 */
+/* 鈽?鍐呰竟璺濆拰杩欐潯鍒嗗壊绾块兘鎸傚湪鍐呭眰锛氬灞傚洜姝よ兘鍦?max-height:0 鏃剁湡姝ｆ敹鍒?0 楂樺害銆?
+   鎸傚湪澶栧眰鐨勮瘽锛屾敹璧锋湯娈佃繖 16px padding + 1px 杈规杩樺崰鐫€甯冨眬锛屼笅闈細琚《璧锋潵 17px銆?*/
 .price-list-summary-inner { padding: 8px 14px; border-top: 1px solid var(--border); }
 .price-list-summary.shown {
     max-height: none;
@@ -1774,11 +1774,11 @@ body.modal-open {
 .price-list-summary-row span:last-child { font-weight: bold; color: var(--text); }
 .price-list-empty { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem; }
 
-/* ========== 评级切换选项卡 ========== */
-/* ★「统计图表」卡片（用户设计）：评级得分统计 + 藏品年代统计 是联动的，放进同一个圆角矩形，
-   币种切换挪到卡片顶上；两条**小节标题各占一条柱状图的高度、居中**
-   （"占一条柱状图高度 / 可居左或居中"说的是这两条标题）。
-   一条柱状图的高度 = .stat-bar-row 的 28px（轨道 18px + 上下 padding 5px）。 */
+/* ========== 璇勭骇鍒囨崲閫夐」鍗?========== */
+/* 鈽呫€岀粺璁″浘琛ㄣ€嶅崱鐗囷紙鐢ㄦ埛璁捐锛夛細璇勭骇寰楀垎缁熻 + 钘忓搧骞翠唬缁熻 鏄仈鍔ㄧ殑锛屾斁杩涘悓涓€涓渾瑙掔煩褰紝
+   甯佺鍒囨崲鎸埌鍗＄墖椤朵笂锛涗袱鏉?*灏忚妭鏍囬鍚勫崰涓€鏉℃煴鐘跺浘鐨勯珮搴︺€佸眳涓?*
+   锛?鍗犱竴鏉℃煴鐘跺浘楂樺害 / 鍙眳宸︽垨灞呬腑"璇寸殑鏄繖涓ゆ潯鏍囬锛夈€?
+   涓€鏉℃煴鐘跺浘鐨勯珮搴?= .stat-bar-row 鐨?28px锛堣建閬?18px + 涓婁笅 padding 5px锛夈€?*/
 .stats-chart-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -1788,30 +1788,30 @@ body.modal-open {
 .stats-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .stats-chart-name { font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); }
 h3.stats-chart-sub {
-    height: 28px;                 /* = 一条柱状图的高度 */
+    height: 28px;                 /* = 涓€鏉℃煴鐘跺浘鐨勯珮搴?*/
     line-height: 28px;
     margin: 0;
     text-align: center;
     font-size: 0.9rem;
     color: var(--text-secondary);
 }
-/* ★ 选中高亮做成"滑动块"（用户要求："纸币 硬币 ←这个也做成滑动块"）：
-   active 的背景不再由 tab 自己画（原来是 .rating-tab.active 硬切 background:var(--theme)），
-   而是复用「明暗」那套 .seg-pill —— JS 量出选中项的 left/width 写进 --seg-x/--seg-w，
-   切换时滑块滑过去（见 settings.js 的 layoutSegmented）。 */
+/* 鈽?閫変腑楂樹寒鍋氭垚"婊戝姩鍧?锛堢敤鎴疯姹傦細"绾稿竵 纭竵 鈫愯繖涓篃鍋氭垚婊戝姩鍧?锛夛細
+   active 鐨勮儗鏅笉鍐嶇敱 tab 鑷繁鐢伙紙鍘熸潵鏄?.rating-tab.active 纭垏 background:var(--theme)锛夛紝
+   鑰屾槸澶嶇敤銆屾槑鏆椼€嶉偅濂?.seg-pill 鈥斺€?JS 閲忓嚭閫変腑椤圭殑 left/width 鍐欒繘 --seg-x/--seg-w锛?
+   鍒囨崲鏃舵粦鍧楁粦杩囧幓锛堣 settings.js 鐨?layoutSegmented锛夈€?*/
 .rating-tabs { position: relative; display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--bg-light); }
 .rating-tabs .seg-pill { top: 0; bottom: 0; border-radius: 5px; }
-/* ★ 去掉了两项之间的 border-right 分隔线：以前 active 自己的背景盖着看不出来，
-   换成滑块之后，这条线（z-index 在滑块之上）会从滑块上划过去，看着像多了一根竖杠
-   （用户："纸币，样本之间多了一条竖着的杠"）。分段控件的选中态由滑块表达，不需要再加线。 */
+/* 鈽?鍘绘帀浜嗕袱椤逛箣闂寸殑 border-right 鍒嗛殧绾匡細浠ュ墠 active 鑷繁鐨勮儗鏅洊鐫€鐪嬩笉鍑烘潵锛?
+   鎹㈡垚婊戝潡涔嬪悗锛岃繖鏉＄嚎锛坺-index 鍦ㄦ粦鍧椾箣涓婏級浼氫粠婊戝潡涓婂垝杩囧幓锛岀湅鐫€鍍忓浜嗕竴鏍圭珫鏉?
+   锛堢敤鎴凤細"绾稿竵锛屾牱鏈箣闂村浜嗕竴鏉＄珫鐫€鐨勬潬"锛夈€傚垎娈垫帶浠剁殑閫変腑鎬佺敱婊戝潡琛ㄨ揪锛屼笉闇€瑕佸啀鍔犵嚎銆?*/
 .rating-tab { position: relative; z-index: 1; padding: 3px 14px; font-size: 0.75rem; cursor: pointer; user-select: none; background: transparent; color: var(--text-secondary); transition: color 0.15s; }
 .rating-tab:hover:not(.active) { background: var(--sidebar-bg); }
 .rating-tab.active { color: #fff; }
 
-/* 切换币种时不再整块淡出淡入：柱状图长度自己长/缩，卡片高度平滑收缩（见 animateChartSwitch） */
+/* 鍒囨崲甯佺鏃朵笉鍐嶆暣鍧楁贰鍑烘贰鍏ワ細鏌辩姸鍥鹃暱搴﹁嚜宸遍暱/缂╋紝鍗＄墖楂樺害骞虫粦鏀剁缉锛堣 animateChartSwitch锛?*/
 
-/* ★ 图表切换动画（用户设计）：柱状图位置不动、只伸缩；行左右的文字淡出→换内容→淡入。
-   柱子本身在 .stat-bar-fill（自带 width 过渡），文字在这里单独控透明度。 */
+/* 鈽?鍥捐〃鍒囨崲鍔ㄧ敾锛堢敤鎴疯璁★級锛氭煴鐘跺浘浣嶇疆涓嶅姩銆佸彧浼哥缉锛涜宸﹀彸鐨勬枃瀛楁贰鍑衡啋鎹㈠唴瀹光啋娣″叆銆?
+   鏌卞瓙鏈韩鍦?.stat-bar-fill锛堣嚜甯?width 杩囨浮锛夛紝鏂囧瓧鍦ㄨ繖閲屽崟鐙帶閫忔槑搴︺€?*/
 .stat-bar-label, .stat-bar-count { transition: opacity var(--dur-1) var(--ease-in); }
 .stat-bar-row.text-out .stat-bar-label,
 .stat-bar-row.text-out .stat-bar-count { opacity: 0; }
@@ -1823,7 +1823,7 @@ h3.stats-chart-sub {
     .stat-bar-row.text-in .stat-bar-count { transition: none; }
 }
 
-/* ========== 灯箱通用 ========== */
+/* ========== 鐏閫氱敤 ========== */
 .lightbox-close {
     position: absolute;
     top: 10px;
@@ -1841,15 +1841,15 @@ h3.stats-chart-sub {
     transition: color 0.15s, background 0.15s;
     z-index: 10;
     user-select: none;
-    /* ★ 内容现在会从 × 底下滚过去（见 .info-lightbox-inner 的说明），所以给它一块
-       和卡片同色的底：不滚时看不见（和卡片一个色），滚过来的内容不会穿过 ×，
-       × 始终看得清。 */
+    /* 鈽?鍐呭鐜板湪浼氫粠 脳 搴曚笅婊氳繃鍘伙紙瑙?.info-lightbox-inner 鐨勮鏄庯級锛屾墍浠ョ粰瀹冧竴鍧?
+       鍜屽崱鐗囧悓鑹茬殑搴曪細涓嶆粴鏃剁湅涓嶈锛堝拰鍗＄墖涓€涓壊锛夛紝婊氳繃鏉ョ殑鍐呭涓嶄細绌胯繃 脳锛?
+       脳 濮嬬粓鐪嬪緱娓呫€?*/
     background: var(--card-bg);
 }
 .lightbox-close:hover { color: var(--theme); background: var(--bg-light); }
 
 .special-lightbox-inner { animation: lightboxIn var(--dur-2) var(--ease-out); overflow: hidden; display: flex; flex-direction: column; }
-/* ★ 同 .info-lightbox-inner：滚动放在内容区，卡片不滚，右上角 × 才不会跟着走 */
+/* 鈽?鍚?.info-lightbox-inner锛氭粴鍔ㄦ斁鍦ㄥ唴瀹瑰尯锛屽崱鐗囦笉婊氾紝鍙充笂瑙?脳 鎵嶄笉浼氳窡鐫€璧?*/
 .special-lightbox-content { overflow-y: auto; min-height: 0; }
 @keyframes lightboxIn {
     from { opacity: 0; transform: scale(0.94); }
@@ -1873,7 +1873,7 @@ h3.stats-chart-sub {
     opacity: 0.6;
 }
 
-/* ========== 详细信息卡片 ========== */
+/* ========== 璇︾粏淇℃伅鍗＄墖 ========== */
 .info-lightbox {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -1891,10 +1891,10 @@ h3.stats-chart-sub {
     max-width: 520px;
     width: 100%;
     max-height: 88vh;
-    /* ★ 滚动放在内容区（见下一条），卡片自己不滚 —— 这样右上角的 × 才不跟着内容走。
-       原来是 overflow-y:auto 写在卡片上、× 又是卡片的 absolute 子元素：绝对定位的基准
-       是卡片的 padding box，而它属于**被滚动的内容坐标**，所以一滚 × 就跟着上去了
-       （用户："弹窗可滚动，但右上角 × 不应随滚动移动"）。 */
+    /* 鈽?婊氬姩鏀惧湪鍐呭鍖猴紙瑙佷笅涓€鏉★級锛屽崱鐗囪嚜宸变笉婊?鈥斺€?杩欐牱鍙充笂瑙掔殑 脳 鎵嶄笉璺熺潃鍐呭璧般€?
+       鍘熸潵鏄?overflow-y:auto 鍐欏湪鍗＄墖涓娿€伱?鍙堟槸鍗＄墖鐨?absolute 瀛愬厓绱狅細缁濆瀹氫綅鐨勫熀鍑?
+       鏄崱鐗囩殑 padding box锛岃€屽畠灞炰簬**琚粴鍔ㄧ殑鍐呭鍧愭爣**锛屾墍浠ヤ竴婊?脳 灏辫窡鐫€涓婂幓浜?
+       锛堢敤鎴凤細"寮圭獥鍙粴鍔紝浣嗗彸涓婅 脳 涓嶅簲闅忔粴鍔ㄧЩ鍔?锛夈€?*/
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -1916,15 +1916,15 @@ h3.stats-chart-sub {
     cursor: zoom-in;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-/* ★「详细信息」弹窗里的缺图占位：比真图小一半（48% → 24%）。
-   真图是两张并排各占 48%，而占位只是一枚灰钱币，跟真图一样大就太抢眼了
-   （用户原话："详细信息弹窗里面的这个古钱币图片可以小点 … 还要缩小，现在一半大左右"）。
-   高度由占位图自带的 1:1 固有比例决定，不用写死。
-   ★ 变窄之后左边会空一大截（用户："大小可以，但是没有居中"），所以再让它自己居中：
-     flex 行里的 auto 外边距会把剩余空间平分，于是
-       · 只有一张占位（另一张真图）→ 这张钱币正好在行中央；
-       · 两张都占位 → 左右两侧留白相等，整体仍是居中；
-     真图（没有 img-failed 类名）的 48% 并排布局一点不动。 */
+/* 鈽呫€岃缁嗕俊鎭€嶅脊绐楅噷鐨勭己鍥惧崰浣嶏細姣旂湡鍥惧皬涓€鍗婏紙48% 鈫?24%锛夈€?
+   鐪熷浘鏄袱寮犲苟鎺掑悇鍗?48%锛岃€屽崰浣嶅彧鏄竴鏋氱伆閽卞竵锛岃窡鐪熷浘涓€鏍峰ぇ灏卞お鎶㈢溂浜?
+   锛堢敤鎴峰師璇濓細"璇︾粏淇℃伅寮圭獥閲岄潰鐨勮繖涓彜閽卞竵鍥剧墖鍙互灏忕偣 鈥?杩樿缂╁皬锛岀幇鍦ㄤ竴鍗婂ぇ宸﹀彸"锛夈€?
+   楂樺害鐢卞崰浣嶅浘鑷甫鐨?1:1 鍥烘湁姣斾緥鍐冲畾锛屼笉鐢ㄥ啓姝汇€?
+   鈽?鍙樼獎涔嬪悗宸﹁竟浼氱┖涓€澶ф埅锛堢敤鎴凤細"澶у皬鍙互锛屼絾鏄病鏈夊眳涓?锛夛紝鎵€浠ュ啀璁╁畠鑷繁灞呬腑锛?
+     flex 琛岄噷鐨?auto 澶栬竟璺濅細鎶婂墿浣欑┖闂村钩鍒嗭紝浜庢槸
+       路 鍙湁涓€寮犲崰浣嶏紙鍙︿竴寮犵湡鍥撅級鈫?杩欏紶閽卞竵姝ｅソ鍦ㄨ涓ぎ锛?
+       路 涓ゅ紶閮藉崰浣?鈫?宸﹀彸涓や晶鐣欑櫧鐩哥瓑锛屾暣浣撲粛鏄眳涓紱
+     鐪熷浘锛堟病鏈?img-failed 绫诲悕锛夌殑 48% 骞舵帓甯冨眬涓€鐐逛笉鍔ㄣ€?*/
 .info-lightbox-imgs img.img-failed {
     width: 24%;
     margin-left: auto;
@@ -1942,14 +1942,14 @@ h3.stats-chart-sub {
 .detail-label { color: var(--text-secondary); flex-shrink: 0; margin-right: 12px; }
 .detail-value { color: var(--text); text-align: right; word-break: break-all; }
 
-/* ========== 完整八面图（ACG 出图：正/背之外的 侧光 / 透光 / 荧光 各两张） ==========
-   入口在详情卡片最后一行「完整八面图 / 点击查看」，只有那半截是链接。
-   ★ 层级刻意与 .modal 同值（1000），靠"插在 #imageModal 之前"决定上下：
-     详情卡片(999) < 八面图(1000) < 图片大图弹窗(1000，在 DOM 里更靠后)。
-     于是"点缩略图看大图 → 关掉大图 → 回到八面图"天然成立，
-     不需要在代码里手写"谁临时隐藏、谁再恢复"。 */
+/* ========== 瀹屾暣鍏潰鍥撅紙ACG 鍑哄浘锛氭/鑳屼箣澶栫殑 渚у厜 / 閫忓厜 / 鑽у厜 鍚勪袱寮狅級 ==========
+   鍏ュ彛鍦ㄨ鎯呭崱鐗囨渶鍚庝竴琛屻€屽畬鏁村叓闈㈠浘 / 鐐瑰嚮鏌ョ湅銆嶏紝鍙湁閭ｅ崐鎴槸閾炬帴銆?
+   鈽?灞傜骇鍒绘剰涓?.modal 鍚屽€硷紙1000锛夛紝闈?鎻掑湪 #imageModal 涔嬪墠"鍐冲畾涓婁笅锛?
+     璇︽儏鍗＄墖(999) < 鍏潰鍥?1000) < 鍥剧墖澶у浘寮圭獥(1000锛屽湪 DOM 閲屾洿闈犲悗)銆?
+     浜庢槸"鐐圭缉鐣ュ浘鐪嬪ぇ鍥?鈫?鍏虫帀澶у浘 鈫?鍥炲埌鍏潰鍥?澶╃劧鎴愮珛锛?
+     涓嶉渶瑕佸湪浠ｇ爜閲屾墜鍐?璋佷复鏃堕殣钘忋€佽皝鍐嶆仮澶?銆?*/
 .octo-link {
-    /* 用户要求：不要下划线。靠主题色 + 手型光标表示可点，横向也不占额外高度。 */
+    /* 鐢ㄦ埛瑕佹眰锛氫笉瑕佷笅鍒掔嚎銆傞潬涓婚鑹?+ 鎵嬪瀷鍏夋爣琛ㄧず鍙偣锛屾í鍚戜篃涓嶅崰棰濆楂樺害銆?*/
     color: var(--theme);
     cursor: pointer;
 }
@@ -1967,22 +1967,22 @@ h3.stats-chart-sub {
 .octo-inner {
     background: var(--card-bg);
     border-radius: 12px;
-    /* ★ 尺寸对齐详情卡片（.info-lightbox-inner：520px / 88vh）—— 用户要求"和原来的
-       弹窗差不多大就行"。八面图只是"正背面之外再看六张"，不必铺满屏幕；
-       要看细节点开大图即可（大图有缩放和拖动）。 */
+    /* 鈽?灏哄瀵归綈璇︽儏鍗＄墖锛?info-lightbox-inner锛?20px / 88vh锛夆€斺€?鐢ㄦ埛瑕佹眰"鍜屽師鏉ョ殑
+       寮圭獥宸笉澶氬ぇ灏辫"銆傚叓闈㈠浘鍙槸"姝ｈ儗闈箣澶栧啀鐪嬪叚寮?锛屼笉蹇呴摵婊″睆骞曪紱
+       瑕佺湅缁嗚妭鐐瑰紑澶у浘鍗冲彲锛堝ぇ鍥炬湁缂╂斁鍜屾嫋鍔級銆?*/
     max-width: 520px;
     width: 100%;
     max-height: 88vh;
-    /* ★ 同上：滚动交给 .octo-grid，卡片本身不滚，× 才能钉在右上角 */
+    /* 鈽?鍚屼笂锛氭粴鍔ㄤ氦缁?.octo-grid锛屽崱鐗囨湰韬笉婊氾紝脳 鎵嶈兘閽夊湪鍙充笂瑙?*/
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    position: relative;                 /* .lightbox-close 的定位基准 */
+    position: relative;                 /* .lightbox-close 鐨勫畾浣嶅熀鍑?*/
     padding: 16px 20px 20px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
 }
-/* 每类光照占一行（用户：电脑上竖着排、3 排），一行里放正、背两张。
-   auto-fit 那套三栏已废弃：一行一类，宽度全给图，图自然就大了 3 倍。 */
+/* 姣忕被鍏夌収鍗犱竴琛岋紙鐢ㄦ埛锛氱數鑴戜笂绔栫潃鎺掋€? 鎺掞級锛屼竴琛岄噷鏀炬銆佽儗涓ゅ紶銆?
+   auto-fit 閭ｅ涓夋爮宸插簾寮冿細涓€琛屼竴绫伙紝瀹藉害鍏ㄧ粰鍥撅紝鍥捐嚜鐒跺氨澶т簡 3 鍊嶃€?*/
 .octo-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -1999,30 +1999,30 @@ h3.stats-chart-sub {
     margin-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
-/* ★ 不再用"固定形状的格子"（aspect-ratio 盒子已删）：一行只放两张，
-   给一个固定宽度，高度交给图片自己的比例 —— 固定宽度、高度自适应，绝不拉伸。
-   flex-grow 保持 0：六张图宽度完全一致（正/背之间、三排之间都一致），
-   这样侧光那种竖向图和透光/荧光那种横向图才真的可对比；
-   两张整体再由 justify-content: center 在行内居中。
-   ★ 基准宽度 220px 是按"弹窗 520px、内容宽 484px"配的：2×220+12=452 放得下两张，
-   留 32px 余量给居中（太小会挤成一张一行，太大又浪费）。
-   flex-wrap 让它在窄屏（手机）自己从"两张并排"变成"一张一行"（换行按 flex 基准
-   宽度判断），不用写断点；换行后依然靠 justify-content: center 左右居中。
-   固定宽度下两张高度不同时，align-items: center 让它们的中线对齐。 */
+/* 鈽?涓嶅啀鐢?鍥哄畾褰㈢姸鐨勬牸瀛?锛坅spect-ratio 鐩掑瓙宸插垹锛夛細涓€琛屽彧鏀句袱寮狅紝
+   缁欎竴涓浐瀹氬搴︼紝楂樺害浜ょ粰鍥剧墖鑷繁鐨勬瘮渚?鈥斺€?鍥哄畾瀹藉害銆侀珮搴﹁嚜閫傚簲锛岀粷涓嶆媺浼搞€?
+   flex-grow 淇濇寔 0锛氬叚寮犲浘瀹藉害瀹屽叏涓€鑷达紙姝?鑳屼箣闂淬€佷笁鎺掍箣闂撮兘涓€鑷达級锛?
+   杩欐牱渚у厜閭ｇ绔栧悜鍥惧拰閫忓厜/鑽у厜閭ｇ妯悜鍥炬墠鐪熺殑鍙姣旓紱
+   涓ゅ紶鏁翠綋鍐嶇敱 justify-content: center 鍦ㄨ鍐呭眳涓€?
+   鈽?鍩哄噯瀹藉害 220px 鏄寜"寮圭獥 520px銆佸唴瀹瑰 484px"閰嶇殑锛?脳220+12=452 鏀惧緱涓嬩袱寮狅紝
+   鐣?32px 浣欓噺缁欏眳涓紙澶皬浼氭尋鎴愪竴寮犱竴琛岋紝澶ぇ鍙堟氮璐癸級銆?
+   flex-wrap 璁╁畠鍦ㄧ獎灞忥紙鎵嬫満锛夎嚜宸变粠"涓ゅ紶骞舵帓"鍙樻垚"涓€寮犱竴琛?锛堟崲琛屾寜 flex 鍩哄噯
+   瀹藉害鍒ゆ柇锛夛紝涓嶇敤鍐欐柇鐐癸紱鎹㈣鍚庝緷鐒堕潬 justify-content: center 宸﹀彸灞呬腑銆?
+   鍥哄畾瀹藉害涓嬩袱寮犻珮搴︿笉鍚屾椂锛宎lign-items: center 璁╁畠浠殑涓嚎瀵归綈銆?*/
 .octo-faces {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    align-items: center;        /* 固定宽度 → 上下居中 */
-    justify-content: center;    /* 两张整体在行内居中；换行成竖排后 → 左右居中 */
+    align-items: center;        /* 鍥哄畾瀹藉害 鈫?涓婁笅灞呬腑 */
+    justify-content: center;    /* 涓ゅ紶鏁翠綋鍦ㄨ鍐呭眳涓紱鎹㈣鎴愮珫鎺掑悗 鈫?宸﹀彸灞呬腑 */
 }
 .octo-face {
-    flex: 0 1 220px;            /* 固定宽度：不伸长，六张同宽 */
-    min-width: 0;               /* 窄屏时等比收缩，仍保持同宽 */
+    flex: 0 1 220px;            /* 鍥哄畾瀹藉害锛氫笉浼搁暱锛屽叚寮犲悓瀹?*/
+    min-width: 0;               /* 绐勫睆鏃剁瓑姣旀敹缂╋紝浠嶄繚鎸佸悓瀹?*/
 }
 .octo-face img {
     width: 100%;
-    height: auto;               /* 按自己的比例，不拉伸 */
+    height: auto;               /* 鎸夎嚜宸辩殑姣斾緥锛屼笉鎷変几 */
     display: block;
     border-radius: 6px;
     cursor: zoom-in;
@@ -2036,7 +2036,7 @@ h3.stats-chart-sub {
     margin-top: 4px;
 }
 
-/* ========== 数据加载 ========== */
+/* ========== 鏁版嵁鍔犺浇 ========== */
 .data-loading {
     display: flex;
     flex-direction: column;
@@ -2056,7 +2056,7 @@ h3.stats-chart-sub {
     50% { opacity: 0.55; }
 }
 
-/* ========== 图片重试 ========== */
+/* ========== 鍥剧墖閲嶈瘯 ========== */
 .img-retry-fab {
     position: fixed;
     right: 16px;
@@ -2104,8 +2104,8 @@ h3.stats-chart-sub {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-/* ========== 离线预缓存指示器 ========== */
-/* 放在左下角，避开右下角的图片重试按钮（.img-retry-fab） */
+/* ========== 绂荤嚎棰勭紦瀛樻寚绀哄櫒 ========== */
+/* 鏀惧湪宸︿笅瑙掞紝閬垮紑鍙充笅瑙掔殑鍥剧墖閲嶈瘯鎸夐挳锛?img-retry-fab锛?*/
 .precache-chip {
     position: fixed;
     left: 16px;
@@ -2147,14 +2147,14 @@ h3.stats-chart-sub {
     padding: 0 2px;
 }
 
-/* ========== 缓存按钮固定宽度 ========== */
+/* ========== 缂撳瓨鎸夐挳鍥哄畾瀹藉害 ========== */
 #clearCacheBtn, #clearArticleCacheBtn {
     width: 132px;
     padding: 6px 0;
     text-align: center;
 }
 
-/* ========== 方寸山河地图 ========== */
+/* ========== 鏂瑰灞辨渤鍦板浘 ========== */
 .shanhe-map-wrap {
     margin-top: 12px;
     display: flex;
@@ -2176,46 +2176,46 @@ h3.stats-chart-sub {
     background: transparent;
 }
 .shanhe-map-wrap .state {
-    /* ★ 描边走主题变量（旧值是写死的 #999，换主题/明暗都不变） */
+    /* 鈽?鎻忚竟璧颁富棰樺彉閲忥紙鏃у€兼槸鍐欐鐨?#999锛屾崲涓婚/鏄庢殫閮戒笉鍙橈級 */
     stroke: var(--border);
     stroke-width: 1;
     stroke-linejoin: round;
     transition: fill 0.2s ease;
 }
-/* ★ SVG 文件自带 37 条独立的白色描边层（fill="none" stroke="#FFFFFF"），
-   它们**没有** .state class，所以 JS 的 applyShanheStyling / refreshShanheColors
-   （都只遍历 .state）永远碰不到它们 —— 深色下就是一张永远发光的白轮廓网。
-   不去改那个 1.76MB 的 SVG（改了要重新导出，还容易被下次导出覆盖），
-   在 CSS 里收掉即可：表现属性(attribute)的优先级低于任何样式表规则。
-   ★ 只改 stroke，**绝不碰 fill**：这些层是靠 fill="none" 维持"纯描边"的，
-     一旦给它们填色就会在地图上糊出一片实心块（实测确认它们全都 fill="none"）。 */
+/* 鈽?SVG 鏂囦欢鑷甫 37 鏉＄嫭绔嬬殑鐧借壊鎻忚竟灞傦紙fill="none" stroke="#FFFFFF"锛夛紝
+   瀹冧滑**娌℃湁** .state class锛屾墍浠?JS 鐨?applyShanheStyling / refreshShanheColors
+   锛堥兘鍙亶鍘?.state锛夋案杩滅涓嶅埌瀹冧滑 鈥斺€?娣辫壊涓嬪氨鏄竴寮犳案杩滃彂鍏夌殑鐧借疆寤撶綉銆?
+   涓嶅幓鏀归偅涓?1.76MB 鐨?SVG锛堟敼浜嗚閲嶆柊瀵煎嚭锛岃繕瀹规槗琚笅娆″鍑鸿鐩栵級锛?
+   鍦?CSS 閲屾敹鎺夊嵆鍙細琛ㄧ幇灞炴€?attribute)鐨勪紭鍏堢骇浣庝簬浠讳綍鏍峰紡琛ㄨ鍒欍€?
+   鈽?鍙敼 stroke锛?*缁濅笉纰?fill**锛氳繖浜涘眰鏄潬 fill="none" 缁存寔"绾弿杈?鐨勶紝
+     涓€鏃︾粰瀹冧滑濉壊灏变細鍦ㄥ湴鍥句笂绯婂嚭涓€鐗囧疄蹇冨潡锛堝疄娴嬬‘璁ゅ畠浠叏閮?fill="none"锛夈€?*/
 .shanhe-map-wrap svg polygon:not(.state),
 .shanhe-map-wrap svg path:not(.state) {
     stroke: var(--border);
 }
-/* ★ 另外有 3 个没有 class 的 fill="#BFBFBF" 实心小块（崇明岛一带），
-   没有任何 JS 管它们，深色下永远是灰块 —— 按主题底色收掉。
-   用 fill-rule 属性把它们和上面那批"fill=none 的描边层"区分开。 */
+/* 鈽?鍙﹀鏈?3 涓病鏈?class 鐨?fill="#BFBFBF" 瀹炲績灏忓潡锛堝磭鏄庡矝涓€甯︼級锛?
+   娌℃湁浠讳綍 JS 绠″畠浠紝娣辫壊涓嬫案杩滄槸鐏板潡 鈥斺€?鎸変富棰樺簳鑹叉敹鎺夈€?
+   鐢?fill-rule 灞炴€ф妸瀹冧滑鍜屼笂闈㈤偅鎵?fill=none 鐨勬弿杈瑰眰"鍖哄垎寮€銆?*/
 .shanhe-map-wrap svg polygon:not(.state)[fill-rule] {
     fill: var(--bg-light);
 }
 .shanhe-map-wrap .state:hover { fill: var(--theme) !important; }
-/* ★ 深色下 --theme 常是深蓝/墨绿，压在接近纯黑的 --bg 上几乎看不出变化，
-   悬停反馈就丢了。换亮一档的 --theme-light。
-   ★ 这个 !important 必须保留：它压的是 special.js 写的**内联** style.fill，
-     删掉 hover 效果直接失效。所以深色覆盖只能用"更高特异性 + 同样 !important"。 */
+/* 鈽?娣辫壊涓?--theme 甯告槸娣辫摑/澧ㄧ豢锛屽帇鍦ㄦ帴杩戠函榛戠殑 --bg 涓婂嚑涔庣湅涓嶅嚭鍙樺寲锛?
+   鎮仠鍙嶉灏变涪浜嗐€傛崲浜竴妗ｇ殑 --theme-light銆?
+   鈽?杩欎釜 !important 蹇呴』淇濈暀锛氬畠鍘嬬殑鏄?special.js 鍐欑殑**鍐呰仈** style.fill锛?
+     鍒犳帀 hover 鏁堟灉鐩存帴澶辨晥銆傛墍浠ユ繁鑹茶鐩栧彧鑳界敤"鏇撮珮鐗瑰紓鎬?+ 鍚屾牱 !important"銆?*/
 html[data-color-scheme="dark"] .shanhe-map-wrap .state:hover {
     fill: var(--theme-light, var(--theme)) !important;
 }
 .shanhe-map-wrap .shanhe-label {
     font-size: var(--label-size, 12px);
     font-weight: bold;
-    /* ★ 旧值 #444 在深色 --bg 上只有 2.08:1，基本看不见；
-       改走 --text（亮 #000 / 暗 #e8eaed）。
-       ★ stroke 垫底不是可选项：标签是压在省份色块上的，
-       --text 在满色省份（--theme-light）上只有约 2:1，
-       必须靠"跟着底色走的描边"在字周围开出一圈底色环才同时覆盖深浅两种省色。
-       paint-order: stroke 让描边画在文字下面而不是糊住笔画。 */
+    /* 鈽?鏃у€?#444 鍦ㄦ繁鑹?--bg 涓婂彧鏈?2.08:1锛屽熀鏈湅涓嶈锛?
+       鏀硅蛋 --text锛堜寒 #000 / 鏆?#e8eaed锛夈€?
+       鈽?stroke 鍨簳涓嶆槸鍙€夐」锛氭爣绛炬槸鍘嬪湪鐪佷唤鑹插潡涓婄殑锛?
+       --text 鍦ㄦ弧鑹茬渷浠斤紙--theme-light锛変笂鍙湁绾?2:1锛?
+       蹇呴』闈?璺熺潃搴曡壊璧扮殑鎻忚竟"鍦ㄥ瓧鍛ㄥ洿寮€鍑轰竴鍦堝簳鑹茬幆鎵嶅悓鏃惰鐩栨繁娴呬袱绉嶇渷鑹层€?
+       paint-order: stroke 璁╂弿杈圭敾鍦ㄦ枃瀛椾笅闈㈣€屼笉鏄硦浣忕瑪鐢汇€?*/
     fill: var(--text);
     stroke: var(--bg);
     stroke-width: var(--label-stroke, 2px);
@@ -2223,8 +2223,8 @@ html[data-color-scheme="dark"] .shanhe-map-wrap .state:hover {
     pointer-events: none;
     paint-order: stroke;
 }
-/* 计数数字：旧值 --theme 压在满色省份上，五种预设主题色全部低于 3:1
-   （橙主题最差 1.36:1，等于消失）。同样靠描边垫底解决。 */
+/* 璁℃暟鏁板瓧锛氭棫鍊?--theme 鍘嬪湪婊¤壊鐪佷唤涓婏紝浜旂棰勮涓婚鑹插叏閮ㄤ綆浜?3:1
+   锛堟涓婚鏈€宸?1.36:1锛岀瓑浜庢秷澶憋級銆傚悓鏍烽潬鎻忚竟鍨簳瑙ｅ喅銆?*/
 .shanhe-map-wrap .shanhe-label-count {
     font-weight: bold;
     fill: var(--theme);
@@ -2232,11 +2232,11 @@ html[data-color-scheme="dark"] .shanhe-map-wrap .state:hover {
     stroke-width: var(--label-stroke, 2px);
     paint-order: stroke;
 }
-/* ★ 悬停放大后的标签是白字，描边必须跟着"压在什么底上"选：
-   白天模式的 --bg 是浅色（#eef4ff），白字配浅色描边等于糊成一片 —— 用户原话：
-   "山河地图在白天模式下鼠标悬浮在省份上方，文字应该有黑色描边，否则看不清"。
-   所以默认（白天）改成黑色描边：白字压黑边，压在任何省色上都读得清。
-   paint-order: stroke 由上面的 .shanhe-label 继承，描边仍然画在文字下面。 */
+/* 鈽?鎮仠鏀惧ぇ鍚庣殑鏍囩鏄櫧瀛楋紝鎻忚竟蹇呴』璺熺潃"鍘嬪湪浠€涔堝簳涓?閫夛細
+   鐧藉ぉ妯″紡鐨?--bg 鏄祬鑹诧紙#eef4ff锛夛紝鐧藉瓧閰嶆祬鑹叉弿杈圭瓑浜庣硦鎴愪竴鐗?鈥斺€?鐢ㄦ埛鍘熻瘽锛?
+   "灞辨渤鍦板浘鍦ㄧ櫧澶╂ā寮忎笅榧犳爣鎮诞鍦ㄧ渷浠戒笂鏂癸紝鏂囧瓧搴旇鏈夐粦鑹叉弿杈癸紝鍚﹀垯鐪嬩笉娓?銆?
+   鎵€浠ラ粯璁わ紙鐧藉ぉ锛夋敼鎴愰粦鑹叉弿杈癸細鐧藉瓧鍘嬮粦杈癸紝鍘嬪湪浠讳綍鐪佽壊涓婇兘璇诲緱娓呫€?
+   paint-order: stroke 鐢变笂闈㈢殑 .shanhe-label 缁ф壙锛屾弿杈逛粛鐒剁敾鍦ㄦ枃瀛椾笅闈€?*/
 .shanhe-map-wrap .shanhe-label.active {
     font-size: calc(var(--label-size, 12px) * 1.2);
     fill: #fff;
@@ -2244,7 +2244,7 @@ html[data-color-scheme="dark"] .shanhe-map-wrap .state:hover {
     stroke-width: var(--label-stroke, 1.5);
 }
 .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { fill: #fff; stroke: #000; }
-/* 深色模式维持原样：那里 --bg 本来就是深色，白字 + 深色描边已经够清楚 */
+/* 娣辫壊妯″紡缁存寔鍘熸牱锛氶偅閲?--bg 鏈潵灏辨槸娣辫壊锛岀櫧瀛?+ 娣辫壊鎻忚竟宸茬粡澶熸竻妤?*/
 html[data-color-scheme="dark"] .shanhe-map-wrap .shanhe-label.active { stroke: var(--bg); }
 html[data-color-scheme="dark"] .shanhe-map-wrap .shanhe-label.active .shanhe-label-count { stroke: var(--bg); }
 
@@ -2258,15 +2258,15 @@ html[data-color-scheme="dark"] .shanhe-map-wrap .shanhe-label.active .shanhe-lab
     flex-shrink: 0;
     margin-left: -200px;
 }
-/* ★ 深色底上纯黑 10% 投影几乎不可见，卡片与地图底失去层次
-   （深色下 --card-bg 与 --bg 只差 1.02–1.07:1，全靠 1px border 分界）。 */
+/* 鈽?娣辫壊搴曚笂绾粦 10% 鎶曞奖鍑犱箮涓嶅彲瑙侊紝鍗＄墖涓庡湴鍥惧簳澶卞幓灞傛
+   锛堟繁鑹蹭笅 --card-bg 涓?--bg 鍙樊 1.02鈥?.07:1锛屽叏闈?1px border 鍒嗙晫锛夈€?*/
 html[data-color-scheme="dark"] .shanhe-map-inset {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 .shanhe-map-inset svg { width: 100%; height: auto; display: block; }
-/* 图例：与地图用同一套变量，明暗切换都自洽。
-   深色下地图是"越多数越亮"，亮色下是"越多数越蓝"，
-   所以这条渐变条两端就是 --bg-light 与 --theme-light —— 与 fillForCount 的端点一致。 */
+/* 鍥句緥锛氫笌鍦板浘鐢ㄥ悓涓€濂楀彉閲忥紝鏄庢殫鍒囨崲閮借嚜娲姐€?
+   娣辫壊涓嬪湴鍥炬槸"瓒婂鏁拌秺浜?锛屼寒鑹蹭笅鏄?瓒婂鏁拌秺钃?锛?
+   鎵€浠ヨ繖鏉℃笎鍙樻潯涓ょ灏辨槸 --bg-light 涓?--theme-light 鈥斺€?涓?fillForCount 鐨勭鐐逛竴鑷淬€?*/
 .shanhe-map-legend {
     display: flex;
     align-items: center;
@@ -2304,16 +2304,16 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     100% { transform: translateX(200%); width: 40%; }
 }
 
-/* ★ 断点集中在文件末尾的说明里；此处与 .sidebar 的 768px 对齐。
-   原来这里是 760px，而 .sidebar 用 768px、special.js 的 isMobile 也用 760px，
-   在 760~768px 这段窄平板宽度上会出现"侧栏按手机收窄、山河图却按桌面排版"的错配。 */
+/* 鈽?鏂偣闆嗕腑鍦ㄦ枃浠舵湯灏剧殑璇存槑閲岋紱姝ゅ涓?.sidebar 鐨?768px 瀵归綈銆?
+   鍘熸潵杩欓噷鏄?760px锛岃€?.sidebar 鐢?768px銆乻pecial.js 鐨?isMobile 涔熺敤 760px锛?
+   鍦?760~768px 杩欐绐勫钩鏉垮搴︿笂浼氬嚭鐜?渚ф爮鎸夋墜鏈烘敹绐勩€佸北娌冲浘鍗存寜妗岄潰鎺掔増"鐨勯敊閰嶃€?*/
 @media (max-width: 768px) {
     .shanhe-map-wrap { padding-right: 0; gap: 10px; }
     .shanhe-map-wrap > svg { max-height: 60vh; }
     .shanhe-map-inset { width: 85%; margin-left: 0; }
 }
 
-/* ========== 方寸山河：视图切换 + 列表视图 ========== */
+/* ========== 鏂瑰灞辨渤锛氳鍥惧垏鎹?+ 鍒楄〃瑙嗗浘 ========== */
 .shanhe-header-row {
     display: flex;
     align-items: center;
@@ -2392,14 +2392,14 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     font-size: 0.65rem;
     color: var(--text-secondary);
 }
-/* ★ 缺图时中间放自绘的古钱币（原来只有「还木有图片」字样） */
+/* 鈽?缂哄浘鏃朵腑闂存斁鑷粯鐨勫彜閽卞竵锛堝師鏉ュ彧鏈夈€岃繕鏈ㄦ湁鍥剧墖銆嶅瓧鏍凤級 */
 .shanhe-list-cell .no-img::before {
     content: '';
     width: 46px;
     height: 46px;
 }
-/* 地图 ⇄ 列表 是有方向感的切换，用横向滑动表达方向（而不是又一次"向上淡入"）。
-   两个类定义在 .content-enter 之后，因此会覆盖它的动画声明。 */
+/* 鍦板浘 鈬?鍒楄〃 鏄湁鏂瑰悜鎰熺殑鍒囨崲锛岀敤妯悜婊戝姩琛ㄨ揪鏂瑰悜锛堣€屼笉鏄張涓€娆?鍚戜笂娣″叆"锛夈€?
+   涓や釜绫诲畾涔夊湪 .content-enter 涔嬪悗锛屽洜姝や細瑕嗙洊瀹冪殑鍔ㄧ敾澹版槑銆?*/
 .shanhe-view-enter-right { animation: shanheEnterRight var(--dur-3) var(--ease-out); }
 .shanhe-view-enter-left  { animation: shanheEnterLeft  var(--dur-3) var(--ease-out); }
 @keyframes shanheEnterRight {
@@ -2411,7 +2411,7 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     to { opacity: 1; transform: none; }
 }
 
-/* ========== 专题内容页样式 ========== */
+/* ========== 涓撻鍐呭椤垫牱寮?========== */
 .special-content h2 { font-size: 1.3rem; margin-bottom: 4px; }
 .special-year-section { margin: 18px 0; }
 .special-year-title {
@@ -2473,7 +2473,7 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 }
 .special-item-krause { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
 
-/* ========== 专题概览卡片网格 ========== */
+/* ========== 涓撻姒傝鍗＄墖缃戞牸 ========== */
 .special-overview-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2515,7 +2515,7 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     white-space: nowrap;
 }
 
-/* ========== 时间轴 ========== */
+/* ========== 鏃堕棿杞?========== */
 .timeline-top-bar {
     display: flex;
     align-items: center;
@@ -2554,60 +2554,60 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     outline: none;
     cursor: pointer;
     height: 28px;
-    /* ★★★ 冷启动"整块往下沉一下、再也不回去"的第二条真凶
-       （第一条是 .sidebar 的 width 过渡，见本文件里那段注释）。
-       因果链（375×720 冷启动，rAF 逐帧实测，见 verify-heatmap.mjs ⑦-d）：
-         t≈700ms  renderTimelineContent 写 innerHTML ⇒ `.timeline-top-right` 里只有
-                  「件数 + 两个排序按钮」= 46.9 + 75.9×2 + 8×2 = **198.7px**，一行放得下，
-                  top-bar 高 **80px**（两个 <select> 此时被 `@media (pointer: fine){select{display:none}}`
-                  藏着，自绘的 `.dd` 包壳还不存在 ⇒ 不占宽，宽度为 0）；
-         t≈757ms  dropdown.js 的 MutationObserver（32ms 去抖 + 一帧 rAF）才把两个 <select>
-                  换成 `.dd`（**84px 固定宽**，见下面 .dd[data-dd-for]）⇒ 控件总宽变成
-                  366.6px > 容器 343px ⇒ flex-wrap 换行 ⇒ top-bar 高 **80 → 116px**
-                  ⇒ 下方热力图**整块被推下 36px**；
-         t≈805ms  顶部搜索条收起动画结束。
-       热力图自己在这段时间里一动没动（⑦-c 五态全绿），但"第一次悬浮"正落在这之后
-       ⇒ 看起来就是"一悬浮就沉下去，而且回不来"。用户"直接刷新会有、从站内点进来没有"
-       也得到解释：站内进来时 `select` 早已被增强过、`.dd` 已存在，没有这个中间态。
-       ★ 修法：**不给原生 <select> 设宽度**（它被 display:none，设多宽都不占位；真正占位的是
-         后来才生成的 `.dd` 包壳），而是**把这一行的高度从第一帧起就定死** ——
-         见下面 `@media (max-width: 600px)` 里的 `.timeline-top-right { min-height: 78px }`
-         （= 换行后的最终高度）。高度不再由"控件是 2 个还是 4 个"决定 ⇒ 热力图一动不动。
-       ★ 另外 special.js 在 `app.innerHTML = html` 之后还调了一次
-         `window.refreshCustomDropdowns()`，尽量把建壳提前（它内部只是安排一帧 rAF，
-         所以只能"尽量"，不能保证同任务完成 —— 上面的 min-height 才是可靠的那一层）。
-       这里保留 width 只是让原生 <select> 在**触屏**（dropdown.js 主动不接管、原生控件
-       直接露脸）下也有个稳定宽度，与 .dd 的固定宽同源，避免触屏上换行时机不同。 */
+    /* 鈽呪槄鈽?鍐峰惎鍔?鏁村潡寰€涓嬫矇涓€涓嬨€佸啀涔熶笉鍥炲幓"鐨勭浜屾潯鐪熷嚩
+       锛堢涓€鏉℃槸 .sidebar 鐨?width 杩囨浮锛岃鏈枃浠堕噷閭ｆ娉ㄩ噴锛夈€?
+       鍥犳灉閾撅紙375脳720 鍐峰惎鍔紝rAF 閫愬抚瀹炴祴锛岃 verify-heatmap.mjs 鈶?d锛夛細
+         t鈮?00ms  renderTimelineContent 鍐?innerHTML 鈬?`.timeline-top-right` 閲屽彧鏈?
+                  銆屼欢鏁?+ 涓や釜鎺掑簭鎸夐挳銆? 46.9 + 75.9脳2 + 8脳2 = **198.7px**锛屼竴琛屾斁寰椾笅锛?
+                  top-bar 楂?**80px**锛堜袱涓?<select> 姝ゆ椂琚?`@media (pointer: fine){select{display:none}}`
+                  钘忕潃锛岃嚜缁樼殑 `.dd` 鍖呭３杩樹笉瀛樺湪 鈬?涓嶅崰瀹斤紝瀹藉害涓?0锛夛紱
+         t鈮?57ms  dropdown.js 鐨?MutationObserver锛?2ms 鍘绘姈 + 涓€甯?rAF锛夋墠鎶婁袱涓?<select>
+                  鎹㈡垚 `.dd`锛?*84px 鍥哄畾瀹?*锛岃涓嬮潰 .dd[data-dd-for]锛夆噿 鎺т欢鎬诲鍙樻垚
+                  366.6px > 瀹瑰櫒 343px 鈬?flex-wrap 鎹㈣ 鈬?top-bar 楂?**80 鈫?116px**
+                  鈬?涓嬫柟鐑姏鍥?*鏁村潡琚帹涓?36px**锛?
+         t鈮?05ms  椤堕儴鎼滅储鏉℃敹璧峰姩鐢荤粨鏉熴€?
+       鐑姏鍥捐嚜宸卞湪杩欐鏃堕棿閲屼竴鍔ㄦ病鍔紙鈶?c 浜旀€佸叏缁匡級锛屼絾"绗竴娆℃偓娴?姝ｈ惤鍦ㄨ繖涔嬪悗
+       鈬?鐪嬭捣鏉ュ氨鏄?涓€鎮诞灏辨矇涓嬪幓锛岃€屼笖鍥炰笉鏉?銆傜敤鎴?鐩存帴鍒锋柊浼氭湁銆佷粠绔欏唴鐐硅繘鏉ユ病鏈?
+       涔熷緱鍒拌В閲婏細绔欏唴杩涙潵鏃?`select` 鏃╁凡琚寮鸿繃銆乣.dd` 宸插瓨鍦紝娌℃湁杩欎釜涓棿鎬併€?
+       鈽?淇硶锛?*涓嶇粰鍘熺敓 <select> 璁惧搴?*锛堝畠琚?display:none锛岃澶氬閮戒笉鍗犱綅锛涚湡姝ｅ崰浣嶇殑鏄?
+         鍚庢潵鎵嶇敓鎴愮殑 `.dd` 鍖呭３锛夛紝鑰屾槸**鎶婅繖涓€琛岀殑楂樺害浠庣涓€甯ц捣灏卞畾姝?* 鈥斺€?
+         瑙佷笅闈?`@media (max-width: 600px)` 閲岀殑 `.timeline-top-right { min-height: 78px }`
+         锛? 鎹㈣鍚庣殑鏈€缁堥珮搴︼級銆傞珮搴︿笉鍐嶇敱"鎺т欢鏄?2 涓繕鏄?4 涓?鍐冲畾 鈬?鐑姏鍥句竴鍔ㄤ笉鍔ㄣ€?
+       鈽?鍙﹀ special.js 鍦?`app.innerHTML = html` 涔嬪悗杩樿皟浜嗕竴娆?
+         `window.refreshCustomDropdowns()`锛屽敖閲忔妸寤哄３鎻愬墠锛堝畠鍐呴儴鍙槸瀹夋帓涓€甯?rAF锛?
+         鎵€浠ュ彧鑳?灏介噺"锛屼笉鑳戒繚璇佸悓浠诲姟瀹屾垚 鈥斺€?涓婇潰鐨?min-height 鎵嶆槸鍙潬鐨勯偅涓€灞傦級銆?
+       杩欓噷淇濈暀 width 鍙槸璁╁師鐢?<select> 鍦?*瑙﹀睆**锛坉ropdown.js 涓诲姩涓嶆帴绠°€佸師鐢熸帶浠?
+       鐩存帴闇茶劯锛変笅涔熸湁涓ǔ瀹氬搴︼紝涓?.dd 鐨勫浐瀹氬鍚屾簮锛岄伩鍏嶈Е灞忎笂鎹㈣鏃舵満涓嶅悓銆?*/
     width: var(--dd-w, 96px);
 }
-/* ★★★ CI 专用真凶（ubuntu-latest，verify-heatmap ⑦-d 在 84484b3f 上抓到 16 条红）：
-   "原生 <select> → 自绘 .dd" 的**那次增强**会改变顶栏那一行的高度，于是下面整块
-   相对 `.body-row` 的 Y 也一次性挪一下。
-   CI 实测：`.timeline-top-bar` 高度 [45, 42]、相对 .body-row 的 Y [132, 129]。
+/* 鈽呪槄鈽?CI 涓撶敤鐪熷嚩锛坲buntu-latest锛寁erify-heatmap 鈶?d 鍦?84484b3f 涓婃姄鍒?16 鏉＄孩锛夛細
+   "鍘熺敓 <select> 鈫?鑷粯 .dd" 鐨?*閭ｆ澧炲己**浼氭敼鍙橀《鏍忛偅涓€琛岀殑楂樺害锛屼簬鏄笅闈㈡暣鍧?
+   鐩稿 `.body-row` 鐨?Y 涔熶竴娆℃€ф尓涓€涓嬨€?
+   CI 瀹炴祴锛歚.timeline-top-bar` 楂樺害 [45, 42]銆佺浉瀵?.body-row 鐨?Y [132, 129]銆?
 
-   为什么本机（Windows）看不到：`.timeline-filter-select` 写死了 `height: 28px`，
-   而 `.dd-trigger` 的高度是**字体度量相关**的 —— `padding: 2px` + `1px` 边框 +
-   一行 `line-height: 1.5`（见下面 `.dd-trigger` 那段）。本机默认字体下它只有 **24px**，
-   比 28px 矮，所以"这一行里最高的元素"是那两个 `.timeline-sort-btn`（也是 28px）
-   ⇒ 换不换自绘都还是 28px，看不出问题。
-   换一套字体度量就不一样了 —— 本机实测 `.dd-trigger` 会跑到 28px 的两侧：
-   monospace 13px → 26px、Georgia 15px → 29px、Liberation Serif 14px → 27px、
-   Times 17px → 32px、DejaVu Sans 12px → 24px（原生 `<select>` 恒为 28px）。
-   **只要两条路的盒高不严格相等，行高就会在增强那一帧跳一下。**
-   本机直接复现（%TEMP%/hmdiag/rowshift.mjs）：注入 `.dd-trigger { height: 32px }`
-   立刻得到顶栏 46 → 49、相对 .body-row 的 Y 144 → **147**（差 3.00px），与 CI 同型。
+   涓轰粈涔堟湰鏈猴紙Windows锛夌湅涓嶅埌锛歚.timeline-filter-select` 鍐欐浜?`height: 28px`锛?
+   鑰?`.dd-trigger` 鐨勯珮搴︽槸**瀛椾綋搴﹂噺鐩稿叧**鐨?鈥斺€?`padding: 2px` + `1px` 杈规 +
+   涓€琛?`line-height: 1.5`锛堣涓嬮潰 `.dd-trigger` 閭ｆ锛夈€傛湰鏈洪粯璁ゅ瓧浣撲笅瀹冨彧鏈?**24px**锛?
+   姣?28px 鐭紝鎵€浠?杩欎竴琛岄噷鏈€楂樼殑鍏冪礌"鏄偅涓や釜 `.timeline-sort-btn`锛堜篃鏄?28px锛?
+   鈬?鎹笉鎹㈣嚜缁橀兘杩樻槸 28px锛岀湅涓嶅嚭闂銆?
+   鎹竴濂楀瓧浣撳害閲忓氨涓嶄竴鏍蜂簡 鈥斺€?鏈満瀹炴祴 `.dd-trigger` 浼氳窇鍒?28px 鐨勪袱渚э細
+   monospace 13px 鈫?26px銆丟eorgia 15px 鈫?29px銆丩iberation Serif 14px 鈫?27px銆?
+   Times 17px 鈫?32px銆丏ejaVu Sans 12px 鈫?24px锛堝師鐢?`<select>` 鎭掍负 28px锛夈€?
+   **鍙涓ゆ潯璺殑鐩掗珮涓嶄弗鏍肩浉绛夛紝琛岄珮灏变細鍦ㄥ寮洪偅涓€甯ц烦涓€涓嬨€?*
+   鏈満鐩存帴澶嶇幇锛?TEMP%/hmdiag/rowshift.mjs锛夛細娉ㄥ叆 `.dd-trigger { height: 32px }`
+   绔嬪埢寰楀埌椤舵爮 46 鈫?49銆佺浉瀵?.body-row 鐨?Y 144 鈫?**147**锛堝樊 3.00px锛夛紝涓?CI 鍚屽瀷銆?
 
-   修法（方案 (a)：让两条路的**盒模型高度**取同一个值，而不是去猜某台机器上的 px）：
-   把"这一行控件的高度"抽成一个 CSS 变量，`.timeline-filter-select` 与
-   `.dd-trigger` 都吃它 ⇒ 原生也好、自绘也好，都是同一个 border-box 高度，
-   字体只影响盒**内部**的文字基线，不再影响盒高 ⇒ 行高在增强前后天然相等。
-   `box-sizing: border-box` 是本文件全局的（见顶部 `*`），所以这个值就是含边框的实高。
-   取值 28px 与原来 `.timeline-filter-select { height: 28px }` 完全一致
-   ⇒ **本机观感不变**（增强前后都还是 28px）；只是把 `.dd-trigger` 从"恰好等于 28px"
-   改成"确定等于 28px"，并去掉竖向 padding（`.dd-trigger` 本来就是
-   `display:flex; align-items:center`，竖向居中由 flex 负责，padding 只会把盒撑高）。
-   断言见 verify-heatmap.mjs ⑦-f：用"文字行盒"（`Range.getBoundingClientRect()`）探针
-   在 6 种字体度量下验"增强前后盒高严格相等"，并把"中和修复后必须不相等"作为负例。 */
+   淇硶锛堟柟妗?(a)锛氳涓ゆ潯璺殑**鐩掓ā鍨嬮珮搴?*鍙栧悓涓€涓€硷紝鑰屼笉鏄幓鐚滄煇鍙版満鍣ㄤ笂鐨?px锛夛細
+   鎶?杩欎竴琛屾帶浠剁殑楂樺害"鎶芥垚涓€涓?CSS 鍙橀噺锛宍.timeline-filter-select` 涓?
+   `.dd-trigger` 閮藉悆瀹?鈬?鍘熺敓涔熷ソ銆佽嚜缁樹篃濂斤紝閮芥槸鍚屼竴涓?border-box 楂樺害锛?
+   瀛椾綋鍙奖鍝嶇洅**鍐呴儴**鐨勬枃瀛楀熀绾匡紝涓嶅啀褰卞搷鐩掗珮 鈬?琛岄珮鍦ㄥ寮哄墠鍚庡ぉ鐒剁浉绛夈€?
+   `box-sizing: border-box` 鏄湰鏂囦欢鍏ㄥ眬鐨勶紙瑙侀《閮?`*`锛夛紝鎵€浠ヨ繖涓€煎氨鏄惈杈规鐨勫疄楂樸€?
+   鍙栧€?28px 涓庡師鏉?`.timeline-filter-select { height: 28px }` 瀹屽叏涓€鑷?
+   鈬?**鏈満瑙傛劅涓嶅彉**锛堝寮哄墠鍚庨兘杩樻槸 28px锛夛紱鍙槸鎶?`.dd-trigger` 浠?鎭板ソ绛変簬 28px"
+   鏀规垚"纭畾绛変簬 28px"锛屽苟鍘绘帀绔栧悜 padding锛坄.dd-trigger` 鏈潵灏辨槸
+   `display:flex; align-items:center`锛岀珫鍚戝眳涓敱 flex 璐熻矗锛宲adding 鍙細鎶婄洅鎾戦珮锛夈€?
+   鏂█瑙?verify-heatmap.mjs 鈶?f锛氱敤"鏂囧瓧琛岀洅"锛坄Range.getBoundingClientRect()`锛夋帰閽?
+   鍦?6 绉嶅瓧浣撳害閲忎笅楠?澧炲己鍓嶅悗鐩掗珮涓ユ牸鐩哥瓑"锛屽苟鎶?涓拰淇鍚庡繀椤讳笉鐩哥瓑"浣滀负璐熶緥銆?*/
 .timeline-top-bar {
     --tl-ctl-h: 28px;
 }
@@ -2616,25 +2616,25 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
         height: var(--tl-ctl-h, 28px);
     padding-top: 0;
     padding-bottom: 0;
-    overflow: hidden;                   /* 盒高被钉死后，别让超出的行盒把视觉撑破 */
+    overflow: hidden;                   /* 鐩掗珮琚拤姝诲悗锛屽埆璁╄秴鍑虹殑琛岀洅鎶婅瑙夋拺鐮?*/
 }
 
 .timeline-filter-select { height: var(--tl-ctl-h, 28px); }
 .timeline-filter-select:hover { border-color: var(--theme); }
 .timeline-filter-select:focus { border-color: var(--theme); }
 @media (max-width: 600px) {
-    /* 与下面 `.dd[data-dd-for="timelineYearFilter"]` 那条同值，见上面注释 */
+    /* 涓庝笅闈?`.dd[data-dd-for="timelineYearFilter"]` 閭ｆ潯鍚屽€硷紝瑙佷笂闈㈡敞閲?*/
     .timeline-filter-select { width: var(--dd-w, 84px); }
-    /* ★★★ 冷启动"整块往下沉一下"的第二条真凶的**真正修法**在这里。
-       窄屏时这一行放不下 5 个控件，必然换行；而"还没换成自绘下拉"的那一小段里
-       两个 <select> 是 display:none（不占宽），一行放得下 ⇒ top-bar 只有 80px；
-       等 dropdown.js 把 `.dd`（84px 固定宽）建好 ⇒ 换行 ⇒ 80 → 116px
-       ⇒ **下方热力图整块被推下 36px**（详见上面 .timeline-filter-select 那段注释）。
-       修法：给这一行一个**从一开始就成立**的最小高度（= 换行后的最终高度），
-       于是"控件从 2 个变成 4 个"只让内容自己排列，行的高度不动 ⇒ 热力图一动不动。
-       这个值只影响窄屏、只在 top-bar 内部，不改变任何控件的宽度/位置。
-       实测（375×720 冷启动，rAF 逐帧）：min-height:78px ⇒ top-bar 恒为 116px、
-       热力图相对 .body-row 的 Y 偏移全程只有一个取值。 */
+    /* 鈽呪槄鈽?鍐峰惎鍔?鏁村潡寰€涓嬫矇涓€涓?鐨勭浜屾潯鐪熷嚩鐨?*鐪熸淇硶**鍦ㄨ繖閲屻€?
+       绐勫睆鏃惰繖涓€琛屾斁涓嶄笅 5 涓帶浠讹紝蹇呯劧鎹㈣锛涜€?杩樻病鎹㈡垚鑷粯涓嬫媺"鐨勯偅涓€灏忔閲?
+       涓や釜 <select> 鏄?display:none锛堜笉鍗犲锛夛紝涓€琛屾斁寰椾笅 鈬?top-bar 鍙湁 80px锛?
+       绛?dropdown.js 鎶?`.dd`锛?4px 鍥哄畾瀹斤級寤哄ソ 鈬?鎹㈣ 鈬?80 鈫?116px
+       鈬?**涓嬫柟鐑姏鍥炬暣鍧楄鎺ㄤ笅 36px**锛堣瑙佷笂闈?.timeline-filter-select 閭ｆ娉ㄩ噴锛夈€?
+       淇硶锛氱粰杩欎竴琛屼竴涓?*浠庝竴寮€濮嬪氨鎴愮珛**鐨勬渶灏忛珮搴︼紙= 鎹㈣鍚庣殑鏈€缁堥珮搴︼級锛?
+       浜庢槸"鎺т欢浠?2 涓彉鎴?4 涓?鍙鍐呭鑷繁鎺掑垪锛岃鐨勯珮搴︿笉鍔?鈬?鐑姏鍥句竴鍔ㄤ笉鍔ㄣ€?
+       杩欎釜鍊煎彧褰卞搷绐勫睆銆佸彧鍦?top-bar 鍐呴儴锛屼笉鏀瑰彉浠讳綍鎺т欢鐨勫搴?浣嶇疆銆?
+       瀹炴祴锛?75脳720 鍐峰惎鍔紝rAF 閫愬抚锛夛細min-height:78px 鈬?top-bar 鎭掍负 116px銆?
+       鐑姏鍥剧浉瀵?.body-row 鐨?Y 鍋忕Щ鍏ㄧ▼鍙湁涓€涓彇鍊笺€?*/
     .timeline-top-right { min-height: 78px; }
 }
 
@@ -2659,180 +2659,180 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 .timeline-header h2 { font-size: 1.4rem; font-weight: bold; }
 .timeline-slogan { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0; }
 
-/* ===== 币海拾年 · 按月份热力图（年 × 月） =====
-   格子深浅 = 当月花了多少钱（--hm-lv1..5；0 档是"这个月没买"）。
-   tooltip 是**纯 CSS**：格子里预置好 .tl-heatmap-tip，悬停/聚焦时显示，位置由 CSS 决定
-   （JS 不设 left/top，也不写内联 style —— 手机上点一下也一样好用，不会因滚动/缩放错位）。
-   首尾两列往回收，免得贴着容器边缘被切掉。
-   触摸设备没有 hover，所以 :focus（点一下=聚焦）也要能显示；触摸下 :focus-visible
-   不一定触发，这里靠 @media (hover: none) 单独补一条。 */
+/* ===== 甯佹捣鎷惧勾 路 鎸夋湀浠界儹鍔涘浘锛堝勾 脳 鏈堬級 =====
+   鏍煎瓙娣辨祬 = 褰撴湀鑺变簡澶氬皯閽憋紙--hm-lv1..5锛? 妗ｆ槸"杩欎釜鏈堟病涔?锛夈€?
+   tooltip 鏄?*绾?CSS**锛氭牸瀛愰噷棰勭疆濂?.tl-heatmap-tip锛屾偓鍋?鑱氱劍鏃舵樉绀猴紝浣嶇疆鐢?CSS 鍐冲畾
+   锛圝S 涓嶈 left/top锛屼篃涓嶅啓鍐呰仈 style 鈥斺€?鎵嬫満涓婄偣涓€涓嬩篃涓€鏍峰ソ鐢紝涓嶄細鍥犳粴鍔?缂╂斁閿欎綅锛夈€?
+   棣栧熬涓ゅ垪寰€鍥炴敹锛屽厤寰楄创鐫€瀹瑰櫒杈圭紭琚垏鎺夈€?
+   瑙︽懜璁惧娌℃湁 hover锛屾墍浠?:focus锛堢偣涓€涓?鑱氱劍锛変篃瑕佽兘鏄剧ず锛涜Е鎽镐笅 :focus-visible
+   涓嶄竴瀹氳Е鍙戯紝杩欓噷闈?@media (hover: none) 鍗曠嫭琛ヤ竴鏉°€?*/
 .tl-heatmap {
-    /* 格子边长：正方形（用户要求"格子弄成小正方形，高度和现在的一样"），
-       宽高共用这一个变量，取值范围与之前的高度一致（20~34px）。 */
+    /* 鏍煎瓙杈归暱锛氭鏂瑰舰锛堢敤鎴疯姹?鏍煎瓙寮勬垚灏忔鏂瑰舰锛岄珮搴﹀拰鐜板湪鐨勪竴鏍?锛夛紝
+       瀹介珮鍏辩敤杩欎竴涓彉閲忥紝鍙栧€艰寖鍥翠笌涔嬪墠鐨勯珮搴︿竴鑷达紙20~34px锛夈€?*/
     --hm-cell: clamp(24px, 5vw, 42px);
-    /* ★★★ 年份/月份那一列（网格第 1 列）的宽度**用绝对长度钉死，不用 em**。
-       为什么必须这样（这是"首次悬浮后数字沉降"这类一次性布局变更的根）：
-       `em` 的解析依赖**元素自己的 font-size**，而字号又可能被选中态/悬浮态/字体回退
-       （font-family 换一个字体、字体加载后 swap）改变 ⇒ 列宽跟着变 ⇒ 后面的 12 个格子
-       与月份标签整体重排（"下沉一点点"）。改成 px 之后，这一列的宽度在任何状态下
-       都只由这条声明决定，**与字体、字号、内容、状态完全无关** —— 不可能再被撑开或压缩。
-       取值与旧写法等价：桌面 0.8rem 字号下 3.4em == 43.52px（旧实测列宽就是 43.52px），
-       手机 0.72rem 字号下 2.6em == 29.952px（见下面 @media 里的同名声明）。 */
+    /* 鈽呪槄鈽?骞翠唤/鏈堜唤閭ｄ竴鍒楋紙缃戞牸绗?1 鍒楋級鐨勫搴?*鐢ㄧ粷瀵归暱搴﹂拤姝伙紝涓嶇敤 em**銆?
+       涓轰粈涔堝繀椤昏繖鏍凤紙杩欐槸"棣栨鎮诞鍚庢暟瀛楁矇闄?杩欑被涓€娆℃€у竷灞€鍙樻洿鐨勬牴锛夛細
+       `em` 鐨勮В鏋愪緷璧?*鍏冪礌鑷繁鐨?font-size**锛岃€屽瓧鍙峰張鍙兘琚€変腑鎬?鎮诞鎬?瀛椾綋鍥為€€
+       锛坒ont-family 鎹竴涓瓧浣撱€佸瓧浣撳姞杞藉悗 swap锛夋敼鍙?鈬?鍒楀璺熺潃鍙?鈬?鍚庨潰鐨?12 涓牸瀛?
+       涓庢湀浠芥爣绛炬暣浣撻噸鎺掞紙"涓嬫矇涓€鐐圭偣"锛夈€傛敼鎴?px 涔嬪悗锛岃繖涓€鍒楃殑瀹藉害鍦ㄤ换浣曠姸鎬佷笅
+       閮藉彧鐢辫繖鏉″０鏄庡喅瀹氾紝**涓庡瓧浣撱€佸瓧鍙枫€佸唴瀹广€佺姸鎬佸畬鍏ㄦ棤鍏?* 鈥斺€?涓嶅彲鑳藉啀琚拺寮€鎴栧帇缂┿€?
+       鍙栧€间笌鏃у啓娉曠瓑浠凤細妗岄潰 0.8rem 瀛楀彿涓?3.4em == 43.52px锛堟棫瀹炴祴鍒楀灏辨槸 43.52px锛夛紝
+       鎵嬫満 0.72rem 瀛楀彿涓?2.6em == 29.952px锛堣涓嬮潰 @media 閲岀殑鍚屽悕澹版槑锛夈€?*/
     --hm-ycol: 43.52px;
     margin: 14px 0 18px;
-    /* ★★ 横向不许出现滚动条：拖动/动画期间万一有溢出，滚动条会占掉宽度、把整块网格挤窄
-       （也就是"数字横着挪一下"）。`clip` 只裁切、**不建立滚动容器**（不会像 hidden 那样
-       把 overflow-y 算成 auto），所以纵向仍然照旧。热力图的泡是绝对定位的浮层，
-       横向越界的部分本来就该被裁掉（年份侧边泡由 JS 的 clampHeatmapTip 保证不出屏）。 */
+    /* 鈽呪槄 妯悜涓嶈鍑虹幇婊氬姩鏉★細鎷栧姩/鍔ㄧ敾鏈熼棿涓囦竴鏈夋孩鍑猴紝婊氬姩鏉′細鍗犳帀瀹藉害銆佹妸鏁村潡缃戞牸鎸ょ獎
+       锛堜篃灏辨槸"鏁板瓧妯潃鎸竴涓?锛夈€俙clip` 鍙鍒囥€?*涓嶅缓绔嬫粴鍔ㄥ鍣?*锛堜笉浼氬儚 hidden 閭ｆ牱
+       鎶?overflow-y 绠楁垚 auto锛夛紝鎵€浠ョ旱鍚戜粛鐒剁収鏃с€傜儹鍔涘浘鐨勬场鏄粷瀵瑰畾浣嶇殑娴眰锛?
+       妯悜瓒婄晫鐨勯儴鍒嗘湰鏉ュ氨璇ヨ瑁佹帀锛堝勾浠戒晶杈规场鐢?JS 鐨?clampHeatmapTip 淇濊瘉涓嶅嚭灞忥級銆?*/
     overflow-x: clip;
 }
-/* ★★★ 用户 2026-XX（**修正一次后收口**）：「不是，发光效果是要求热力图那个**月份的小方块**
-   边缘发光，怎么变成了热力图发光？」
-   ⇒ 发光对象 = **筛中的那个月对应的格子本身**（`.tl-heatmap-cell`，每一年各一格，可能多格同时发光）。
-     "整块热力图/网格外框发光"那一版（`.tl-heatmap.hm-single-month::before` + 容器的 position: relative
-     + 为算外框宽度引入的 --hm-gap）已按用户要求**整体撤掉**，容器样式回到改动前的原样。
-   判定与加类在 special.js 的 buildMonthHeatmap：月份筛选落在唯一一个月上（timelineFilterMonth
-   !== '全部'）时，逐格比对格子自己的月份（`glowMonth === m + 1`）—— 历年 7 月 ⇒ 每一年的 7 月格子
-   都发光；2026 年 10 月 ⇒ 只有那 1 格；"全部时间 / 只筛某一年" ⇒ 一格都不发光。
-   ★ 为什么画在**格子自己的出流伪元素**上，而不是把 box-shadow 写在格子上：
-     格子上已经有 `:hover { box-shadow: … }`（悬浮投影）和 `:focus-visible { box-shadow: … }`
-     （键盘聚焦环）两条规则在写同一条声明 ⇒ 发光若也写在格子上，谁在后面谁赢，
-     悬浮/聚焦时发光会被顶掉（或反过来把既有的悬浮/聚焦反馈弄没）。伪元素各画各的，互不干扰。
-   ★ 出流 + 不吃事件：`position: absolute` + `inset: 0`（与色块 `.tl-hm-fill` 的 `inset: 0` 是
-      **同一个盒子** = 格子的 padding box）+ `pointer-events: none` ⇒ 不参与布局、不占宽高、
-      不改盒子模型，也不抢 hover/点击（悬浮泡、点格子筛选、elementFromPoint 全不受影响）。
-      z-index 保持 auto：悬浮泡自身是 z-index: 20，仍然在光圈之上。
-   ★★★ 用户第五次口径（本次修的 bug）：「热力图的光晕和对应的色块之间存在一圈缝隙，会比较显眼」。
-      成因：原来 `inset: -1px`（光圈盒 = 格子的**边框盒**）**加上** `box-shadow` 的 spread 2px
-      ⇒ 光晕内沿离色块边缘约 3px，中间正好夹着 1px 中性 `--border`，看起来就是
-      "色块 — 一圈缝 — 光晕"；`border-radius: 4px` 与格子的 3px 也不一致，四角同样露缝。
-      ⇒ 现在：`inset: 0`（与色块同一个盒子）+ `border-radius: 3px`（与格子/色块一致）+
-      spread 0（`0 0 10px 0`）⇒ 光晕**紧贴色块边缘**开始、向外连续变淡（剖面"贴边即最大、
-      单调不增、没有先降后升的凹陷"；见 verify-hm-glow.mjs 的"贴合/无凹陷"量化）。
-   ★ 只"向外"发光：box-shadow 只画在伪元素边框盒**之外** ⇒ 格子内部（色块/文字）像素不变。
-   ★★★ 用户第四次追加口径（最终形态）：「好像原来的那圈无渐变的光圈还在，和渐变的叠在一起，
-      我希望只有一层」。⇒ **只留一层柔光**：`0 0 10px 0`（blur > 0；spread 按第五次口径改成了 0），
-      一条 box-shadow 就是全部光源 —— 不再有 0 blur 的"实圈"，所以不会出现"实圈 + 渐变色"两圈叠一起。
-      （历史：先做过"2px 实圈 + 柔光"两层 → 后来在实圈外再叠 3 层做梯度淡化；两版都因为最内那圈
-       blur = 0 而看起来是"两圈"。单层高斯柔光的剖面从贴边第一档起就单调变淡、末端连续趋近 0，
-       既满足"最外围淡化"，也不再有多余的那一圈；见 verify-hm-glow.mjs 的"无实圈量化"。）
-   ★ 颜色取站点既有主题色 `var(--theme)`（上面那行 rgba 是给不支持 color-mix 的老浏览器的兜底，
-     用的就是本文件顶部 :root 里 --theme 的默认值 #1677ff，不是另造的品牌色）。
-   ★ 不加动画/过渡：发光是静态的（换筛选时整块重渲染，新元素上没有"从无到有"的过渡可言），
-     reduce 下天然静止；本文件既有的 reduce 兜底块里已把 `.tl-heatmap-cell::after` 一起关掉。 */
+/* 鈽呪槄鈽?鐢ㄦ埛 2026-XX锛?*淇涓€娆″悗鏀跺彛**锛夛細銆屼笉鏄紝鍙戝厜鏁堟灉鏄姹傜儹鍔涘浘閭ｄ釜**鏈堜唤鐨勫皬鏂瑰潡**
+   杈圭紭鍙戝厜锛屾€庝箞鍙樻垚浜嗙儹鍔涘浘鍙戝厜锛熴€?
+   鈬?鍙戝厜瀵硅薄 = **绛涗腑鐨勯偅涓湀瀵瑰簲鐨勬牸瀛愭湰韬?*锛坄.tl-heatmap-cell`锛屾瘡涓€骞村悇涓€鏍硷紝鍙兘澶氭牸鍚屾椂鍙戝厜锛夈€?
+     "鏁村潡鐑姏鍥?缃戞牸澶栨鍙戝厜"閭ｄ竴鐗堬紙`.tl-heatmap.hm-single-month::before` + 瀹瑰櫒鐨?position: relative
+     + 涓虹畻澶栨瀹藉害寮曞叆鐨?--hm-gap锛夊凡鎸夌敤鎴疯姹?*鏁翠綋鎾ゆ帀**锛屽鍣ㄦ牱寮忓洖鍒版敼鍔ㄥ墠鐨勫師鏍枫€?
+   鍒ゅ畾涓庡姞绫诲湪 special.js 鐨?buildMonthHeatmap锛氭湀浠界瓫閫夎惤鍦ㄥ敮涓€涓€涓湀涓婏紙timelineFilterMonth
+   !== '鍏ㄩ儴'锛夋椂锛岄€愭牸姣斿鏍煎瓙鑷繁鐨勬湀浠斤紙`glowMonth === m + 1`锛夆€斺€?鍘嗗勾 7 鏈?鈬?姣忎竴骞寸殑 7 鏈堟牸瀛?
+   閮藉彂鍏夛紱2026 骞?10 鏈?鈬?鍙湁閭?1 鏍硷紱"鍏ㄩ儴鏃堕棿 / 鍙瓫鏌愪竴骞? 鈬?涓€鏍奸兘涓嶅彂鍏夈€?
+   鈽?涓轰粈涔堢敾鍦?*鏍煎瓙鑷繁鐨勫嚭娴佷吉鍏冪礌**涓婏紝鑰屼笉鏄妸 box-shadow 鍐欏湪鏍煎瓙涓婏細
+     鏍煎瓙涓婂凡缁忔湁 `:hover { box-shadow: 鈥?}`锛堟偓娴姇褰憋級鍜?`:focus-visible { box-shadow: 鈥?}`
+     锛堥敭鐩樿仛鐒︾幆锛変袱鏉¤鍒欏湪鍐欏悓涓€鏉″０鏄?鈬?鍙戝厜鑻ヤ篃鍐欏湪鏍煎瓙涓婏紝璋佸湪鍚庨潰璋佽耽锛?
+     鎮诞/鑱氱劍鏃跺彂鍏変細琚《鎺夛紙鎴栧弽杩囨潵鎶婃棦鏈夌殑鎮诞/鑱氱劍鍙嶉寮勬病锛夈€備吉鍏冪礌鍚勭敾鍚勭殑锛屼簰涓嶅共鎵般€?
+   鈽?鍑烘祦 + 涓嶅悆浜嬩欢锛歚position: absolute` + `inset: 0`锛堜笌鑹插潡 `.tl-hm-fill` 鐨?`inset: 0` 鏄?
+      **鍚屼竴涓洅瀛?* = 鏍煎瓙鐨?padding box锛? `pointer-events: none` 鈬?涓嶅弬涓庡竷灞€銆佷笉鍗犲楂樸€?
+      涓嶆敼鐩掑瓙妯″瀷锛屼篃涓嶆姠 hover/鐐瑰嚮锛堟偓娴场銆佺偣鏍煎瓙绛涢€夈€乪lementFromPoint 鍏ㄤ笉鍙楀奖鍝嶏級銆?
+      z-index 淇濇寔 auto锛氭偓娴场鑷韩鏄?z-index: 20锛屼粛鐒跺湪鍏夊湀涔嬩笂銆?
+   鈽呪槄鈽?鐢ㄦ埛绗簲娆″彛寰勶紙鏈淇殑 bug锛夛細銆岀儹鍔涘浘鐨勫厜鏅曞拰瀵瑰簲鐨勮壊鍧椾箣闂村瓨鍦ㄤ竴鍦堢紳闅欙紝浼氭瘮杈冩樉鐪笺€嶃€?
+      鎴愬洜锛氬師鏉?`inset: -1px`锛堝厜鍦堢洅 = 鏍煎瓙鐨?*杈规鐩?*锛?*鍔犱笂** `box-shadow` 鐨?spread 2px
+      鈬?鍏夋檿鍐呮部绂昏壊鍧楄竟缂樼害 3px锛屼腑闂存濂藉す鐫€ 1px 涓€?`--border`锛岀湅璧锋潵灏辨槸
+      "鑹插潡 鈥?涓€鍦堢紳 鈥?鍏夋檿"锛沗border-radius: 4px` 涓庢牸瀛愮殑 3px 涔熶笉涓€鑷达紝鍥涜鍚屾牱闇茬紳銆?
+      鈬?鐜板湪锛歚inset: 0`锛堜笌鑹插潡鍚屼竴涓洅瀛愶級+ `border-radius: 3px`锛堜笌鏍煎瓙/鑹插潡涓€鑷达級+
+      spread 0锛坄0 0 10px 0`锛夆噿 鍏夋檿**绱ц创鑹插潡杈圭紭**寮€濮嬨€佸悜澶栬繛缁彉娣★紙鍓栭潰"璐磋竟鍗虫渶澶с€?
+      鍗曡皟涓嶅銆佹病鏈夊厛闄嶅悗鍗囩殑鍑归櫡"锛涜 verify-hm-glow.mjs 鐨?璐村悎/鏃犲嚬闄?閲忓寲锛夈€?
+   鈽?鍙?鍚戝"鍙戝厜锛歜ox-shadow 鍙敾鍦ㄤ吉鍏冪礌杈规鐩?*涔嬪** 鈬?鏍煎瓙鍐呴儴锛堣壊鍧?鏂囧瓧锛夊儚绱犱笉鍙樸€?
+   鈽呪槄鈽?鐢ㄦ埛绗洓娆¤拷鍔犲彛寰勶紙鏈€缁堝舰鎬侊級锛氥€屽ソ鍍忓師鏉ョ殑閭ｅ湀鏃犳笎鍙樼殑鍏夊湀杩樺湪锛屽拰娓愬彉鐨勫彔鍦ㄤ竴璧凤紝
+      鎴戝笇鏈涘彧鏈変竴灞傘€嶃€傗噿 **鍙暀涓€灞傛煍鍏?*锛歚0 0 10px 0`锛坆lur > 0锛泂pread 鎸夌浜旀鍙ｅ緞鏀规垚浜?0锛夛紝
+      涓€鏉?box-shadow 灏辨槸鍏ㄩ儴鍏夋簮 鈥斺€?涓嶅啀鏈?0 blur 鐨?瀹炲湀"锛屾墍浠ヤ笉浼氬嚭鐜?瀹炲湀 + 娓愬彉鑹?涓ゅ湀鍙犱竴璧枫€?
+      锛堝巻鍙诧細鍏堝仛杩?2px 瀹炲湀 + 鏌斿厜"涓ゅ眰 鈫?鍚庢潵鍦ㄥ疄鍦堝鍐嶅彔 3 灞傚仛姊害娣″寲锛涗袱鐗堥兘鍥犱负鏈€鍐呴偅鍦?
+       blur = 0 鑰岀湅璧锋潵鏄?涓ゅ湀"銆傚崟灞傞珮鏂煍鍏夌殑鍓栭潰浠庤创杈圭涓€妗ｈ捣灏卞崟璋冨彉娣°€佹湯绔繛缁秼杩?0锛?
+       鏃㈡弧瓒?鏈€澶栧洿娣″寲"锛屼篃涓嶅啀鏈夊浣欑殑閭ｄ竴鍦堬紱瑙?verify-hm-glow.mjs 鐨?鏃犲疄鍦堥噺鍖?銆傦級
+   鈽?棰滆壊鍙栫珯鐐规棦鏈変富棰樿壊 `var(--theme)`锛堜笂闈㈤偅琛?rgba 鏄粰涓嶆敮鎸?color-mix 鐨勮€佹祻瑙堝櫒鐨勫厹搴曪紝
+     鐢ㄧ殑灏辨槸鏈枃浠堕《閮?:root 閲?--theme 鐨勯粯璁ゅ€?#1677ff锛屼笉鏄彟閫犵殑鍝佺墝鑹诧級銆?
+   鈽?涓嶅姞鍔ㄧ敾/杩囨浮锛氬彂鍏夋槸闈欐€佺殑锛堟崲绛涢€夋椂鏁村潡閲嶆覆鏌擄紝鏂板厓绱犱笂娌℃湁"浠庢棤鍒版湁"鐨勮繃娓″彲瑷€锛夛紝
+     reduce 涓嬪ぉ鐒堕潤姝紱鏈枃浠舵棦鏈夌殑 reduce 鍏滃簳鍧楅噷宸叉妸 `.tl-heatmap-cell::after` 涓€璧峰叧鎺夈€?*/
 .tl-heatmap-cell.hm-month-glow::after {
     content: '';
-    position: absolute;                 /* 出流：不参与布局，不动任何元素盒 */
-    inset: 0;                           /* 与色块 .tl-hm-fill 同一个盒子 ⇒ 光圈从色块边缘就开始 */
-    border-radius: 3px;                 /* 与格子 / .tl-hm-fill 一致（原来 4px，四角会露缝） */
-    pointer-events: none;               /* 别抢格子的 hover/click（见上面的说明） */
-    box-shadow:                         /* 兜底（老浏览器）：主题色默认值 #1677ff 的同款单层柔光 */
+    position: absolute;                 /* 鍑烘祦锛氫笉鍙備笌甯冨眬锛屼笉鍔ㄤ换浣曞厓绱犵洅 */
+    inset: 0;                           /* 涓庤壊鍧?.tl-hm-fill 鍚屼竴涓洅瀛?鈬?鍏夊湀浠庤壊鍧楄竟缂樺氨寮€濮?*/
+    border-radius: 3px;                 /* 涓庢牸瀛?/ .tl-hm-fill 涓€鑷达紙鍘熸潵 4px锛屽洓瑙掍細闇茬紳锛?*/
+    pointer-events: none;               /* 鍒姠鏍煎瓙鐨?hover/click锛堣涓婇潰鐨勮鏄庯級 */
+    box-shadow:                         /* 鍏滃簳锛堣€佹祻瑙堝櫒锛夛細涓婚鑹查粯璁ゅ€?#1677ff 鐨勫悓娆惧崟灞傛煍鍏?*/
         0 0 10px 0 rgba(22, 119, 255, 0.5);
-    box-shadow:                         /* ★ 只有这一层：blur 10px、spread 0（贴住色块，无 0 blur 实圈） */
+    box-shadow:                         /* 鈽?鍙湁杩欎竴灞傦細blur 10px銆乻pread 0锛堣创浣忚壊鍧楋紝鏃?0 blur 瀹炲湀锛?*/
         0 0 10px 0 color-mix(in srgb, var(--theme) 50%, transparent);
 }
-/* ★★★ 用户 2026-XX：「暗色下不太显眼，可以调成白光」。
-   暗色主题下主题蓝在深底上对比不足 ⇒ 暗色改用**白光**（同样是**一层柔光**：0 0 10px 0、alpha 0.9，
-   白光在深底上够显眼；同样没有 0 blur 的实圈）。
-   ★ 浅色主题**绝不用白光**（白光照在白底/浅底上几乎看不见）⇒ 浅色保持上面的主题色方案。
-   ★ 判定**沿用站点既有的暗色机制**：`html[data-color-scheme="dark"]`（collection/theme.js 的
-     applyColorScheme() 按 设置里的"明暗"= 跟随系统/亮/暗 写在 <html> 上，跟随系统时看
-     prefers-color-scheme）—— 不新造机制。这里覆盖整条 box-shadow ⇒ 暗色下不会残留蓝色。 */
+/* 鈽呪槄鈽?鐢ㄦ埛 2026-XX锛氥€屾殫鑹蹭笅涓嶅お鏄剧溂锛屽彲浠ヨ皟鎴愮櫧鍏夈€嶃€?
+   鏆楄壊涓婚涓嬩富棰樿摑鍦ㄦ繁搴曚笂瀵规瘮涓嶈冻 鈬?鏆楄壊鏀圭敤**鐧藉厜**锛堝悓鏍锋槸**涓€灞傛煍鍏?*锛? 0 10px 0銆乤lpha 0.9锛?
+   鐧藉厜鍦ㄦ繁搴曚笂澶熸樉鐪硷紱鍚屾牱娌℃湁 0 blur 鐨勫疄鍦堬級銆?
+   鈽?娴呰壊涓婚**缁濅笉鐢ㄧ櫧鍏?*锛堢櫧鍏夌収鍦ㄧ櫧搴?娴呭簳涓婂嚑涔庣湅涓嶈锛夆噿 娴呰壊淇濇寔涓婇潰鐨勪富棰樿壊鏂规銆?
+   鈽?鍒ゅ畾**娌跨敤绔欑偣鏃㈡湁鐨勬殫鑹叉満鍒?*锛歚html[data-color-scheme="dark"]`锛坈ollection/theme.js 鐨?
+     applyColorScheme() 鎸?璁剧疆閲岀殑"鏄庢殫"= 璺熼殢绯荤粺/浜?鏆?鍐欏湪 <html> 涓婏紝璺熼殢绯荤粺鏃剁湅
+     prefers-color-scheme锛夆€斺€?涓嶆柊閫犳満鍒躲€傝繖閲岃鐩栨暣鏉?box-shadow 鈬?鏆楄壊涓嬩笉浼氭畫鐣欒摑鑹层€?*/
 html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     box-shadow:
         0 0 10px 0 rgba(255, 255, 255, 0.9);
 }
 .tl-heatmap-row {
     display: grid;
-    /* ★ 第 1 列用钉死的 px（--hm-ycol），不用 em/auto/min-content：
-       列宽不许依赖内容（标签文字宽度）或字号，否则任何一次交互导致的字形/字体变化
-       都会改列宽、把整行（含 12 个格子）一起挪动。 */
+    /* 鈽?绗?1 鍒楃敤閽夋鐨?px锛?-hm-ycol锛夛紝涓嶇敤 em/auto/min-content锛?
+       鍒楀涓嶈渚濊禆鍐呭锛堟爣绛炬枃瀛楀搴︼級鎴栧瓧鍙凤紝鍚﹀垯浠讳綍涓€娆′氦浜掑鑷寸殑瀛楀舰/瀛椾綋鍙樺寲
+       閮戒細鏀瑰垪瀹姐€佹妸鏁磋锛堝惈 12 涓牸瀛愶級涓€璧锋尓鍔ㄣ€?*/
     grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell));
-    justify-content: center;            /* 整块热力图在内容区里居中（用户要求） */
+    justify-content: center;            /* 鏁村潡鐑姏鍥惧湪鍐呭鍖洪噷灞呬腑锛堢敤鎴疯姹傦級 */
     gap: 4px;
     margin-bottom: 4px;
-    /* 兜底：哪怕将来有人给行加了 border/padding，也不许长出滚动条来挤宽度 */
+    /* 鍏滃簳锛氬摢鎬曞皢鏉ユ湁浜虹粰琛屽姞浜?border/padding锛屼篃涓嶈闀垮嚭婊氬姩鏉℃潵鎸ゅ搴?*/
     scrollbar-width: none;
 }
 .tl-heatmap-row::-webkit-scrollbar { width: 0; height: 0; }
 .tl-heatmap-ylabel, .tl-heatmap-mlabel {
-    position: relative;                 /* 悬浮泡的定位基准 */
+    position: relative;                 /* 鎮诞娉＄殑瀹氫綅鍩哄噯 */
     display: flex;
     align-items: center;
     height: var(--hm-cell);
-    font-size: 0.8rem;                  /* 用户要求"年份、月份、全部"字号大一点 */
+    font-size: 0.8rem;                  /* 鐢ㄦ埛瑕佹眰"骞翠唤銆佹湀浠姐€佸叏閮?瀛楀彿澶т竴鐐?*/
     color: var(--text-secondary);
-    white-space: nowrap;                /* 窄屏也不许换行：年份/月份/全部 各自只占一行 */
+    white-space: nowrap;                /* 绐勫睆涔熶笉璁告崲琛岋細骞翠唤/鏈堜唤/鍏ㄩ儴 鍚勮嚜鍙崰涓€琛?*/
     cursor: pointer;
     border-radius: 3px;
     transition: color 0.12s ease;
 }
 .tl-heatmap-ylabel:hover, .tl-heatmap-mlabel:hover { color: var(--theme); }
-/* 当前筛选对应的那一行 / 那一列 / 那个"全部"标出来，否则点了不知道选中了哪儿。
-   ★★★ 用户反复反馈的「年份/月份首次高亮后数字会沉降一点点，而且回不去」的真凶就在这里：
-   老写法用 `font-weight: bold` 做高亮 —— 字重一变，**字形本身的墨迹框就变了**
-   （笔画变粗、ink 高度 +1px、字宽也变），而 `getBoundingClientRect()` 量的是**行盒**，
-   行盒在定高 42px 的 flex 盒里居中 ⇒ 行盒一个像素都不动，所以"外框零偏差"的断言全绿，
-   但屏幕上的数字确实换了一副字形、看起来往下沉了一点。
-   ★★★ 用户 2026-10 又指出：中途试过的"加一层浅色底"会在文字下方画出一块色块
-   （看起来像"底部颜色变化"）—— 也不要。
-   ⇒ 高亮**只准改 color**：不碰任何字体属性（字重/字号/字体/字距/行高/vertical-align），
-     也不画任何底色/边框/阴影/伪元素。
-     于是"选中"前后**除文字本身的颜色外，像素级完全一致** —— verify-heatmap 里有断言盯着
-     （计算样式 + CDP 截图逐像素差分，文字区以外的差异像素必须为 0）。 */
+/* 褰撳墠绛涢€夊搴旂殑閭ｄ竴琛?/ 閭ｄ竴鍒?/ 閭ｄ釜"鍏ㄩ儴"鏍囧嚭鏉ワ紝鍚﹀垯鐐逛簡涓嶇煡閬撻€変腑浜嗗摢鍎裤€?
+   鈽呪槄鈽?鐢ㄦ埛鍙嶅鍙嶉鐨勩€屽勾浠?鏈堜唤棣栨楂樹寒鍚庢暟瀛椾細娌夐檷涓€鐐圭偣锛岃€屼笖鍥炰笉鍘汇€嶇殑鐪熷嚩灏卞湪杩欓噷锛?
+   鑰佸啓娉曠敤 `font-weight: bold` 鍋氶珮浜?鈥斺€?瀛楅噸涓€鍙橈紝**瀛楀舰鏈韩鐨勫ⅷ杩规灏卞彉浜?*
+   锛堢瑪鐢诲彉绮椼€乮nk 楂樺害 +1px銆佸瓧瀹戒篃鍙橈級锛岃€?`getBoundingClientRect()` 閲忕殑鏄?*琛岀洅**锛?
+   琛岀洅鍦ㄥ畾楂?42px 鐨?flex 鐩掗噷灞呬腑 鈬?琛岀洅涓€涓儚绱犻兘涓嶅姩锛屾墍浠?澶栨闆跺亸宸?鐨勬柇瑷€鍏ㄧ豢锛?
+   浣嗗睆骞曚笂鐨勬暟瀛楃‘瀹炴崲浜嗕竴鍓瓧褰€佺湅璧锋潵寰€涓嬫矇浜嗕竴鐐广€?
+   鈽呪槄鈽?鐢ㄦ埛 2026-10 鍙堟寚鍑猴細涓€旇瘯杩囩殑"鍔犱竴灞傛祬鑹插簳"浼氬湪鏂囧瓧涓嬫柟鐢诲嚭涓€鍧楄壊鍧?
+   锛堢湅璧锋潵鍍?搴曢儴棰滆壊鍙樺寲"锛夆€斺€?涔熶笉瑕併€?
+   鈬?楂樹寒**鍙噯鏀?color**锛氫笉纰颁换浣曞瓧浣撳睘鎬э紙瀛楅噸/瀛楀彿/瀛椾綋/瀛楄窛/琛岄珮/vertical-align锛夛紝
+     涔熶笉鐢讳换浣曞簳鑹?杈规/闃村奖/浼厓绱犮€?
+     浜庢槸"閫変腑"鍓嶅悗**闄ゆ枃瀛楁湰韬殑棰滆壊澶栵紝鍍忕礌绾у畬鍏ㄤ竴鑷?* 鈥斺€?verify-heatmap 閲屾湁鏂█鐩潃
+     锛堣绠楁牱寮?+ CDP 鎴浘閫愬儚绱犲樊鍒嗭紝鏂囧瓧鍖轰互澶栫殑宸紓鍍忕礌蹇呴』涓?0锛夈€?*/
 .tl-heatmap-ylabel.is-active, .tl-heatmap-mlabel.is-active {
     color: var(--theme);
-    background: none;                   /* ★ 显式声明：不许有底色（含 background-image） */
-    border: none;                       /* ★ 不许有下边框等任何装饰边 */
-    box-shadow: none;                   /* ★ 不许有阴影 */
+    background: none;                   /* 鈽?鏄惧紡澹版槑锛氫笉璁告湁搴曡壊锛堝惈 background-image锛?*/
+    border: none;                       /* 鈽?涓嶈鏈変笅杈规绛変换浣曡楗拌竟 */
+    box-shadow: none;                   /* 鈽?涓嶈鏈夐槾褰?*/
 }
-/* ★★★ 除 color / background / border / box-shadow 外**一个属性都不许动** ——
-   尤其不许碰 padding：标签的 padding-right（年份靠右对齐用的 4px）一旦变成 0，
-   文字会整体右移 4px，虽然不算"沉降"但会真的挪位置（`text[left] 352.266 → 356.266`）。
-   verify-heatmap 里对 geom（含 padding）逐值断言。 */
+/* 鈽呪槄鈽?闄?color / background / border / box-shadow 澶?*涓€涓睘鎬ч兘涓嶈鍔?* 鈥斺€?
+   灏ゅ叾涓嶈纰?padding锛氭爣绛剧殑 padding-right锛堝勾浠介潬鍙冲榻愮敤鐨?4px锛変竴鏃﹀彉鎴?0锛?
+   鏂囧瓧浼氭暣浣撳彸绉?4px锛岃櫧鐒朵笉绠?娌夐檷"浣嗕細鐪熺殑鎸綅缃紙`text[left] 352.266 鈫?356.266`锛夈€?
+   verify-heatmap 閲屽 geom锛堝惈 padding锛夐€愬€兼柇瑷€銆?*/
 .tl-heatmap-ylabel.is-active::before, .tl-heatmap-ylabel.is-active::after,
 .tl-heatmap-mlabel.is-active::before, .tl-heatmap-mlabel.is-active::after {
-    content: none;                      /* ★ 选中态不许长出任何伪元素 */
+    content: none;                      /* 鈽?閫変腑鎬佷笉璁搁暱鍑轰换浣曚吉鍏冪礌 */
 }
 .tl-heatmap-ylabel { justify-content: flex-end; padding-right: 4px; font-variant-numeric: tabular-nums; }
 .tl-heatmap-mlabel { justify-content: center; }
 .tl-hm-head { margin-bottom: 2px; }
 .tl-hm-head .tl-heatmap-ylabel { justify-content: center; padding-right: 0; font-size: 0.72rem; }
-/* ★ 左上角那个范围选择器**文字仍是"全部"**（用户两次修正后收口：只有**泡里**的全范围
-   统计提示才写"入坑以来，"）。这一格落在**定宽的第一列**里，文字一宽就会把 grid 的第一列
-   撑开、整块热力图（以及复用同一套网格的图例条）跟着右移错位 ⇒ 它不许参与撑列。 */
+/* 鈽?宸︿笂瑙掗偅涓寖鍥撮€夋嫨鍣?*鏂囧瓧浠嶆槸"鍏ㄩ儴"**锛堢敤鎴蜂袱娆′慨姝ｅ悗鏀跺彛锛氬彧鏈?*娉￠噷**鐨勫叏鑼冨洿
+   缁熻鎻愮ず鎵嶅啓"鍏ュ潙浠ユ潵锛?锛夈€傝繖涓€鏍艰惤鍦?*瀹氬鐨勭涓€鍒?*閲岋紝鏂囧瓧涓€瀹藉氨浼氭妸 grid 鐨勭涓€鍒?
+   鎾戝紑銆佹暣鍧楃儹鍔涘浘锛堜互鍙婂鐢ㄥ悓涓€濂楃綉鏍肩殑鍥句緥鏉★級璺熺潃鍙崇Щ閿欎綅 鈬?瀹冧笉璁稿弬涓庢拺鍒椼€?*/
 .tl-hm-head .tl-heatmap-ylabel.tl-hm-corner { min-width: 0; }
-/* ★ 泡里的**数字/件数**加粗（用户要求"金额数字/件数都加粗"），标签文字保持正常字重。 */
+/* 鈽?娉￠噷鐨?*鏁板瓧/浠舵暟**鍔犵矖锛堢敤鎴疯姹?閲戦鏁板瓧/浠舵暟閮藉姞绮?锛夛紝鏍囩鏂囧瓧淇濇寔姝ｅ父瀛楅噸銆?*/
 .tl-hm-num { font-weight: 700; font-style: normal; }
 
 .tl-heatmap-cell {
-    position: relative;                 /* tooltip 的定位基准 */
+    position: relative;                 /* tooltip 鐨勫畾浣嶅熀鍑?*/
     width: var(--hm-cell);
     height: var(--hm-cell);
     border: 1px solid var(--border);
     border-radius: 3px;
-    background: var(--bg-light);        /* 0 档：这个月没买 */
+    background: var(--bg-light);        /* 0 妗ｏ細杩欎釜鏈堟病涔?*/
     cursor: pointer;
     outline: none;
     transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-/* ★ 悬停只轻轻放大一点点：原来 1.12 那一档用户反馈"变大幅度过大"。
-   ★★ 缩放放在**色块**上而不是格子上：tooltip 是格子的子元素，格子一缩放它也会被放大 4%，
-   于是"量宽度时还在热力图内、悬停动画结束后又冒出去 2px"（实测就是这么来的）。
-   缩放色块的视觉效果一样，但泡的位置/字号不再随悬停变化。 */
+/* 鈽?鎮仠鍙交杞绘斁澶т竴鐐圭偣锛氬師鏉?1.12 閭ｄ竴妗ｇ敤鎴峰弽棣?鍙樺ぇ骞呭害杩囧ぇ"銆?
+   鈽呪槄 缂╂斁鏀惧湪**鑹插潡**涓婅€屼笉鏄牸瀛愪笂锛歵ooltip 鏄牸瀛愮殑瀛愬厓绱狅紝鏍煎瓙涓€缂╂斁瀹冧篃浼氳鏀惧ぇ 4%锛?
+   浜庢槸"閲忓搴︽椂杩樺湪鐑姏鍥惧唴銆佹偓鍋滃姩鐢荤粨鏉熷悗鍙堝啋鍑哄幓 2px"锛堝疄娴嬪氨鏄繖涔堟潵鐨勶級銆?
+   缂╂斁鑹插潡鐨勮瑙夋晥鏋滀竴鏍凤紝浣嗘场鐨勪綅缃?瀛楀彿涓嶅啀闅忔偓鍋滃彉鍖栥€?*/
 .tl-heatmap-cell:hover > .tl-hm-fill { transform: scale(1.04); }
 .tl-heatmap-cell:hover { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16); z-index: 3; }
 .tl-heatmap-cell:focus-visible { box-shadow: 0 0 0 2px var(--theme); z-index: 3; }
-/* 深浅：**同一支主题蓝 + 透明度**（用户五轮反馈后的最终配色）。
-   色相永远取 --theme（自动跟随用户选的 app 主题色），深浅只由 opacity 表达；
-   金额最小的格子"接近透明"，最大的一档最深（0.95）。
-   ★ 三条历史教训记在这里，别再走回去：
-     ① 最早 0% 是 transparent、25% 就接近满色 ⇒ "渐变只在前 25%"（用户两轮反馈）；
-     ② 中途试过 color-mix(--theme-light p%, --theme) ⇒ 四档通道差只有 0.02~0.04，
-        肉眼一片同色（同一个问题的另一种表现）；
-     ③ 也试过"用浅→深实色" ⇒ 起点变成发白的浅蓝，用户明确说"还是之前那个配色，
-        钱最少的接近透明"。所以**颜色永远是 --theme，只动 opacity**。
-   opacity 的值由 JS 按 hmAlphaOf() 写成内联 --hm-o（与图例条带同一条线性关系）。 */
+/* 娣辨祬锛?*鍚屼竴鏀富棰樿摑 + 閫忔槑搴?*锛堢敤鎴蜂簲杞弽棣堝悗鐨勬渶缁堥厤鑹诧級銆?
+   鑹茬浉姘歌繙鍙?--theme锛堣嚜鍔ㄨ窡闅忕敤鎴烽€夌殑 app 涓婚鑹诧級锛屾繁娴呭彧鐢?opacity 琛ㄨ揪锛?
+   閲戦鏈€灏忕殑鏍煎瓙"鎺ヨ繎閫忔槑"锛屾渶澶х殑涓€妗ｆ渶娣憋紙0.95锛夈€?
+   鈽?涓夋潯鍘嗗彶鏁欒璁板湪杩欓噷锛屽埆鍐嶈蛋鍥炲幓锛?
+     鈶?鏈€鏃?0% 鏄?transparent銆?5% 灏辨帴杩戞弧鑹?鈬?"娓愬彉鍙湪鍓?25%"锛堢敤鎴蜂袱杞弽棣堬級锛?
+     鈶?涓€旇瘯杩?color-mix(--theme-light p%, --theme) 鈬?鍥涙。閫氶亾宸彧鏈?0.02~0.04锛?
+        鑲夌溂涓€鐗囧悓鑹诧紙鍚屼竴涓棶棰樼殑鍙︿竴绉嶈〃鐜帮級锛?
+     鈶?涔熻瘯杩?鐢ㄦ祬鈫掓繁瀹炶壊" 鈬?璧风偣鍙樻垚鍙戠櫧鐨勬祬钃濓紝鐢ㄦ埛鏄庣‘璇?杩樻槸涔嬪墠閭ｄ釜閰嶈壊锛?
+        閽辨渶灏戠殑鎺ヨ繎閫忔槑"銆傛墍浠?*棰滆壊姘歌繙鏄?--theme锛屽彧鍔?opacity**銆?
+   opacity 鐨勫€肩敱 JS 鎸?hmAlphaOf() 鍐欐垚鍐呰仈 --hm-o锛堜笌鍥句緥鏉″甫鍚屼竴鏉＄嚎鎬у叧绯伙級銆?*/
 .tl-hm-fill {
     position: absolute;
     inset: 0;
@@ -2842,47 +2842,47 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     pointer-events: none;
     transition: transform 0.12s ease;
 }
-/* ★★ 深色模式下**不做任何特殊处理**（这里曾经有一条 brightness 压暗规则，已删除）：
-   ① 用户明确说"接近透明在深色背景上更接近背景色，这是符合预期的，别为了可见性把它加白"；
-      同理，压暗也属于"为了好看而动色阶"，会把"图例 ↔ 热力图逐档相等"这条硬要求变得更难验证。
-   ② 实测过：`html[data-color-scheme="dark"] .tl-hm-on .tl-hm-legend-bar { filter: … }`
-      在真机上根本不匹配（同一个元素 `.tl-hm-on` 和 `.tl-hm-legend-bar` 单独都 matches、
-      组合成后代选择器就 false —— 而同样写法作用在 .tl-hm-fill 上却是 true）。
-      这种"规则写了但静默不生效"最容易骗过 review：看起来有深色适配，实际只有格子被改了、
-      条带没改 ⇒ 深色下图例和热力图就不是一套颜色了。所以**删掉整条规则**，
-      两边都交给同一份 alpha 色阶，深色浅色完全一致。 */
+/* 鈽呪槄 娣辫壊妯″紡涓?*涓嶅仛浠讳綍鐗规畩澶勭悊**锛堣繖閲屾浘缁忔湁涓€鏉?brightness 鍘嬫殫瑙勫垯锛屽凡鍒犻櫎锛夛細
+   鈶?鐢ㄦ埛鏄庣‘璇?鎺ヨ繎閫忔槑鍦ㄦ繁鑹茶儗鏅笂鏇存帴杩戣儗鏅壊锛岃繖鏄鍚堥鏈熺殑锛屽埆涓轰簡鍙鎬ф妸瀹冨姞鐧?锛?
+      鍚岀悊锛屽帇鏆椾篃灞炰簬"涓轰簡濂界湅鑰屽姩鑹查樁"锛屼細鎶?鍥句緥 鈫?鐑姏鍥鹃€愭。鐩哥瓑"杩欐潯纭姹傚彉寰楁洿闅鹃獙璇併€?
+   鈶?瀹炴祴杩囷細`html[data-color-scheme="dark"] .tl-hm-on .tl-hm-legend-bar { filter: 鈥?}`
+      鍦ㄧ湡鏈轰笂鏍规湰涓嶅尮閰嶏紙鍚屼竴涓厓绱?`.tl-hm-on` 鍜?`.tl-hm-legend-bar` 鍗曠嫭閮?matches銆?
+      缁勫悎鎴愬悗浠ｉ€夋嫨鍣ㄥ氨 false 鈥斺€?鑰屽悓鏍峰啓娉曚綔鐢ㄥ湪 .tl-hm-fill 涓婂嵈鏄?true锛夈€?
+      杩欑"瑙勫垯鍐欎簡浣嗛潤榛樹笉鐢熸晥"鏈€瀹规槗楠楄繃 review锛氱湅璧锋潵鏈夋繁鑹查€傞厤锛屽疄闄呭彧鏈夋牸瀛愯鏀逛簡銆?
+      鏉″甫娌℃敼 鈬?娣辫壊涓嬪浘渚嬪拰鐑姏鍥惧氨涓嶆槸涓€濂楅鑹蹭簡銆傛墍浠?*鍒犳帀鏁存潯瑙勫垯**锛?
+      涓よ竟閮戒氦缁欏悓涓€浠?alpha 鑹查樁锛屾繁鑹叉祬鑹插畬鍏ㄤ竴鑷淬€?*/
 
-/* ---------- 色阶图例（0/25/50/75/100%）----------
-   ★ 只保留三样东西：渐变指示条 + 中间三根竖杠 + 五个居中的金额标签。
-   没有任何标题文字、也没有"少 → 多"这类注解（用户明确去掉）。
-   ★ **宽度与热力条逐像素一致**：这里把图例做成热力图行的"几何双胞胎" ——
-   同一套 grid-template-columns（含 --hm-cell）、同一个 gap、同一个 justify-content: center，
-   而且**不设 width: max-content**（那会让它按自身内容收缩、于是整体左移 20px，
-   与居中的热力图行错位 —— 实测过）。两块宽度相同 ⇒ 居中对齐后每一条网格线都对得上。
-   ★ 条带是一条**连续渐变**（background-image 由 JS 按热力图同一取色函数写成
-   linear-gradient 的 color stop），不是几个离散色块。 */
+/* ---------- 鑹查樁鍥句緥锛?/25/50/75/100%锛?---------
+   鈽?鍙繚鐣欎笁鏍蜂笢瑗匡細娓愬彉鎸囩ず鏉?+ 涓棿涓夋牴绔栨潬 + 浜斾釜灞呬腑鐨勯噾棰濇爣绛俱€?
+   娌℃湁浠讳綍鏍囬鏂囧瓧銆佷篃娌℃湁"灏?鈫?澶?杩欑被娉ㄨВ锛堢敤鎴锋槑纭幓鎺夛級銆?
+   鈽?**瀹藉害涓庣儹鍔涙潯閫愬儚绱犱竴鑷?*锛氳繖閲屾妸鍥句緥鍋氭垚鐑姏鍥捐鐨?鍑犱綍鍙岃優鑳? 鈥斺€?
+   鍚屼竴濂?grid-template-columns锛堝惈 --hm-cell锛夈€佸悓涓€涓?gap銆佸悓涓€涓?justify-content: center锛?
+   鑰屼笖**涓嶈 width: max-content**锛堥偅浼氳瀹冩寜鑷韩鍐呭鏀剁缉銆佷簬鏄暣浣撳乏绉?20px锛?
+   涓庡眳涓殑鐑姏鍥捐閿欎綅 鈥斺€?瀹炴祴杩囷級銆備袱鍧楀搴︾浉鍚?鈬?灞呬腑瀵归綈鍚庢瘡涓€鏉＄綉鏍肩嚎閮藉寰椾笂銆?
+   鈽?鏉″甫鏄竴鏉?*杩炵画娓愬彉**锛坆ackground-image 鐢?JS 鎸夌儹鍔涘浘鍚屼竴鍙栬壊鍑芥暟鍐欐垚
+   linear-gradient 鐨?color stop锛夛紝涓嶆槸鍑犱釜绂绘暎鑹插潡銆?*/
 .tl-heatmap-legend {
     display: grid;
-    /* ★★★ 第一列必须与 .tl-heatmap-row **用同一个变量**，不许再用 em。
-       这个坑刚好被这次改动抓出来：图例的 font-size 是**继承来的 16px**（它自己不设字号，
-       只有金额标签 .tl-hm-legend-tick 是 0.68rem），所以旧写法 `2.6em` 实际解析成
-       **41.6px**；而热力图行的字号是 0.8rem/0.72rem ⇒ 2.6em 只有 29.95px。
-       于是图例的"金额标签槽"（grid-column: 2 / -1）被第一条轨道挤窄了，
-       实测桌面 81..346 vs 热力条 75..340 —— 图上每一条网格线都错开 6px。
-       改成共用 --hm-ycol 后两边逐像素同一个网格，"图例 ↔ 热力图"那边宽度自然相等。 */
+    /* 鈽呪槄鈽?绗竴鍒楀繀椤讳笌 .tl-heatmap-row **鐢ㄥ悓涓€涓彉閲?*锛屼笉璁稿啀鐢?em銆?
+       杩欎釜鍧戝垰濂借杩欐鏀瑰姩鎶撳嚭鏉ワ細鍥句緥鐨?font-size 鏄?*缁ф壙鏉ョ殑 16px**锛堝畠鑷繁涓嶈瀛楀彿锛?
+       鍙湁閲戦鏍囩 .tl-hm-legend-tick 鏄?0.68rem锛夛紝鎵€浠ユ棫鍐欐硶 `2.6em` 瀹為檯瑙ｆ瀽鎴?
+       **41.6px**锛涜€岀儹鍔涘浘琛岀殑瀛楀彿鏄?0.8rem/0.72rem 鈬?2.6em 鍙湁 29.95px銆?
+       浜庢槸鍥句緥鐨?閲戦鏍囩妲?锛坓rid-column: 2 / -1锛夎绗竴鏉¤建閬撴尋绐勪簡锛?
+       瀹炴祴妗岄潰 81..346 vs 鐑姏鏉?75..340 鈥斺€?鍥句笂姣忎竴鏉＄綉鏍肩嚎閮介敊寮€ 6px銆?
+       鏀规垚鍏辩敤 --hm-ycol 鍚庝袱杈归€愬儚绱犲悓涓€涓綉鏍硷紝"鍥句緥 鈫?鐑姏鍥?閭ｈ竟瀹藉害鑷劧鐩哥瓑銆?*/
     grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell));
     justify-content: center;
     gap: 2px;
     align-items: start;
     margin-top: 10px;
-    /* ★ 与 .tl-heatmap-row 同一条保险：图例也必须与热力图**逐像素同一个网格**，
-       宽度不许被滚动条或字体影响（图例与热力图错位是用户明确点过的老问题）。 */
+    /* 鈽?涓?.tl-heatmap-row 鍚屼竴鏉′繚闄╋細鍥句緥涔熷繀椤讳笌鐑姏鍥?*閫愬儚绱犲悓涓€涓綉鏍?*锛?
+       瀹藉害涓嶈琚粴鍔ㄦ潯鎴栧瓧浣撳奖鍝嶏紙鍥句緥涓庣儹鍔涘浘閿欎綅鏄敤鎴锋槑纭偣杩囩殑鑰侀棶棰橈級銆?*/
     scrollbar-width: none;
     overflow-x: clip;
 }
 .tl-heatmap-legend::-webkit-scrollbar { width: 0; height: 0; }
-/* 桌面（>480px）跟热力图一样用同一个年份列 + 4px 间距（否则第一列宽度差一档）。
-   ★ 上面 base 规则已经与数据行完全一致，这里只需要补 gap（2px → 4px）。 */
+/* 妗岄潰锛?480px锛夎窡鐑姏鍥句竴鏍风敤鍚屼竴涓勾浠藉垪 + 4px 闂磋窛锛堝惁鍒欑涓€鍒楀搴﹀樊涓€妗ｏ級銆?
+   鈽?涓婇潰 base 瑙勫垯宸茬粡涓庢暟鎹瀹屽叏涓€鑷达紝杩欓噷鍙渶瑕佽ˉ gap锛?px 鈫?4px锛夈€?*/
 @media (min-width: 481px) {
     .tl-heatmap-legend {
         grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell));
@@ -2893,28 +2893,28 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 .tl-hm-legend-slot {
     grid-column: 2 / -1;
     position: relative;
-    padding-bottom: 17px;         /* 给下面的金额标签留位置 */
+    padding-bottom: 17px;         /* 缁欎笅闈㈢殑閲戦鏍囩鐣欎綅缃?*/
 }
 .tl-hm-legend-bar {
     display: block;
-    height: 8px;                  /* 与山河图例条带同高 */
+    height: 8px;                  /* 涓庡北娌冲浘渚嬫潯甯﹀悓楂?*/
     border: 1px solid var(--border);
     border-radius: 4px;
-    /* ★★★ 用户第六次口径：「拾年的那个渐变条写死了是默认的蓝色」。
-       原来这条渐变由 special.js 内联 `background-image:linear-gradient(to right,
-       rgba(22,119,255,0.06), rgba(22,119,255,0.95))` —— 颜色写死成**默认主题蓝 #1677ff**，
-       与所选主题色无关（换主题色后条带还是蓝的）。
-       ⇒ 现在整条渐变**只用主题变量**、JS 完全不参与颜色：色相 = `var(--theme)`，
-         两端 alpha = 6% / 95%（= special.js 的 HM_ALPHA_MIN / HM_ALPHA_MAX，与热力图格子的
-         opacity 是**同一条直线**；这两处数值由 verify-heatmap 的断言钉住，不许各写一套）。
-       ★ 只写 background-image，**绝不**再写 background-color / background 简写：条带同时有底色时，
-         半透明渐变会把底色透出来、整条看成纯色（详见本文件上方那段历史教训）。 */
+    /* 鈽呪槄鈽?鐢ㄦ埛绗叚娆″彛寰勶細銆屾嬀骞寸殑閭ｄ釜娓愬彉鏉″啓姝讳簡鏄粯璁ょ殑钃濊壊銆嶃€?
+       鍘熸潵杩欐潯娓愬彉鐢?special.js 鍐呰仈 `background-image:linear-gradient(to right,
+       rgba(22,119,255,0.06), rgba(22,119,255,0.95))` 鈥斺€?棰滆壊鍐欐鎴?*榛樿涓婚钃?#1677ff**锛?
+       涓庢墍閫変富棰樿壊鏃犲叧锛堟崲涓婚鑹插悗鏉″甫杩樻槸钃濈殑锛夈€?
+       鈬?鐜板湪鏁存潯娓愬彉**鍙敤涓婚鍙橀噺**銆丣S 瀹屽叏涓嶅弬涓庨鑹诧細鑹茬浉 = `var(--theme)`锛?
+         涓ょ alpha = 6% / 95%锛? special.js 鐨?HM_ALPHA_MIN / HM_ALPHA_MAX锛屼笌鐑姏鍥炬牸瀛愮殑
+         opacity 鏄?*鍚屼竴鏉＄洿绾?*锛涜繖涓ゅ鏁板€肩敱 verify-heatmap 鐨勬柇瑷€閽変綇锛屼笉璁稿悇鍐欎竴濂楋級銆?
+       鈽?鍙啓 background-image锛?*缁濅笉**鍐嶅啓 background-color / background 绠€鍐欙細鏉″甫鍚屾椂鏈夊簳鑹叉椂锛?
+         鍗婇€忔槑娓愬彉浼氭妸搴曡壊閫忓嚭鏉ャ€佹暣鏉＄湅鎴愮函鑹诧紙璇﹁鏈枃浠朵笂鏂归偅娈靛巻鍙叉暀璁級銆?*/
     background-image: linear-gradient(to right,
         color-mix(in srgb, var(--theme) 6%, transparent),
         color-mix(in srgb, var(--theme) 95%, transparent));
 }
 .tl-hm-legend-marks { position: absolute; left: 0; right: 0; top: 0; height: 8px; }
-/* 中间三个节点的竖杠刻度（0% 与 100% 在条带两端，不画） */
+/* 涓棿涓変釜鑺傜偣鐨勭珫鏉犲埢搴︼紙0% 涓?100% 鍦ㄦ潯甯︿袱绔紝涓嶇敾锛?*/
 .tl-hm-legend-mark {
     position: absolute;
     top: -2px;
@@ -2925,13 +2925,13 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     transform: translateX(-50%);
     pointer-events: none;
 }
-/* 金额标签：以对应位置为**中心**（left:X% + translateX(-50%)），只写金额。
-   不可点击：纯 <span>，既不渲染 <a>/href，也把手型光标和命中都关掉。 */
+/* 閲戦鏍囩锛氫互瀵瑰簲浣嶇疆涓?*涓績**锛坙eft:X% + translateX(-50%)锛夛紝鍙啓閲戦銆?
+   涓嶅彲鐐瑰嚮锛氱函 <span>锛屾棦涓嶆覆鏌?<a>/href锛屼篃鎶婃墜鍨嬪厜鏍囧拰鍛戒腑閮藉叧鎺夈€?*/
 .tl-hm-legend-ticks { position: absolute; left: 0; right: 0; top: 13px; height: 14px; }
 .tl-hm-legend-tick {
     position: absolute;
     top: 0;
-    transform: translateX(-50%);   /* ★ 居中语义，不改成两端贴边 */
+    transform: translateX(-50%);   /* 鈽?灞呬腑璇箟锛屼笉鏀规垚涓ょ璐磋竟 */
     font-size: 0.68rem;
     line-height: 1.2;
     color: var(--text-secondary);
@@ -2947,53 +2947,53 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     position: absolute;
     left: 50%;
     bottom: calc(100% + 7px);
-    /* 水平位移用一个变量：靠边的列把它改成 0，让 tooltip 往容器里侧贴。
-       这样"显示/收起"两条规则不用给每个列各写一遍。 */
+    /* 姘村钩浣嶇Щ鐢ㄤ竴涓彉閲忥細闈犺竟鐨勫垪鎶婂畠鏀规垚 0锛岃 tooltip 寰€瀹瑰櫒閲屼晶璐淬€?
+       杩欐牱"鏄剧ず/鏀惰捣"涓ゆ潯瑙勫垯涓嶇敤缁欐瘡涓垪鍚勫啓涓€閬嶃€?*/
     transform: translateX(var(--hm-tx, -50%)) translateY(3px);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    /* ★★ 三行文字用 `<br>` 分行（见 special.js 的 tipHtml），**不是** `\n`：
-       泡的宽度必须由内容决定（max-content = 最长那一行的宽度）。
-       踩过的坑：早先写成 `white-space: pre-line` + `\n`，pre-line 让泡的首选宽度
-       塌成"最长的一个词"，泡被压成**一个热力图格子那么宽**、三行挤成竖排。
-       现在：nowrap（每行自己不折）+ width:max-content（宽度跟最长行走）
-       + max-width（超长时兜底折行，窄屏也不溢出屏幕）。 */
+    /* 鈽呪槄 涓夎鏂囧瓧鐢?`<br>` 鍒嗚锛堣 special.js 鐨?tipHtml锛夛紝**涓嶆槸** `\n`锛?
+       娉＄殑瀹藉害蹇呴』鐢卞唴瀹瑰喅瀹氾紙max-content = 鏈€闀块偅涓€琛岀殑瀹藉害锛夈€?
+       韪╄繃鐨勫潙锛氭棭鍏堝啓鎴?`white-space: pre-line` + `\n`锛宲re-line 璁╂场鐨勯閫夊搴?
+       濉屾垚"鏈€闀跨殑涓€涓瘝"锛屾场琚帇鎴?*涓€涓儹鍔涘浘鏍煎瓙閭ｄ箞瀹?*銆佷笁琛屾尋鎴愮珫鎺掋€?
+       鐜板湪锛歯owrap锛堟瘡琛岃嚜宸变笉鎶橈級+ width:max-content锛堝搴﹁窡鏈€闀胯璧帮級
+       + max-width锛堣秴闀挎椂鍏滃簳鎶樿锛岀獎灞忎篃涓嶆孩鍑哄睆骞曪級銆?*/
     white-space: nowrap;
     width: max-content;
     max-width: min(92vw, 34em);
-    /* ★ 用户要求："几行字居中展示" —— 每行各自水平居中（不是整块左对齐）。
-       配合 width:max-content，泡宽 = 最长那一行，短行也居中，看着才是"几行字居中"。 */
+    /* 鈽?鐢ㄦ埛瑕佹眰锛?鍑犺瀛楀眳涓睍绀? 鈥斺€?姣忚鍚勮嚜姘村钩灞呬腑锛堜笉鏄暣鍧楀乏瀵归綈锛夈€?
+       閰嶅悎 width:max-content锛屾场瀹?= 鏈€闀块偅涓€琛岋紝鐭涔熷眳涓紝鐪嬬潃鎵嶆槸"鍑犺瀛楀眳涓?銆?*/
     text-align: center;
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.7rem;
-    /* ★★★ 用户反复反馈的"数字沉降"：泡是**按钮的子元素**，凡是"继承自按钮"的字体属性
-       都会跟着按钮的选中/悬浮态变（老代码按钮用 font-weight: bold 高亮，泡就整体变粗；
-       按钮一旦改 line-height / letter-spacing / font-size，泡的行盒也跟着变）。
-       泡里的文字与按钮无关 ⇒ 这里把**会影响字形与行盒的字体属性全部显式钉死**，
-       一律不继承。于是"泡在不在、按钮高亮不高亮"都改不了泡里文字的度量。
-       ★ `font: inherit` 只用来清掉继承来的简写，紧接着逐项覆盖成固定值。 */
+    /* 鈽呪槄鈽?鐢ㄦ埛鍙嶅鍙嶉鐨?鏁板瓧娌夐檷"锛氭场鏄?*鎸夐挳鐨勫瓙鍏冪礌**锛屽嚒鏄?缁ф壙鑷寜閽?鐨勫瓧浣撳睘鎬?
+       閮戒細璺熺潃鎸夐挳鐨勯€変腑/鎮诞鎬佸彉锛堣€佷唬鐮佹寜閽敤 font-weight: bold 楂樹寒锛屾场灏辨暣浣撳彉绮楋紱
+       鎸夐挳涓€鏃︽敼 line-height / letter-spacing / font-size锛屾场鐨勮鐩掍篃璺熺潃鍙橈級銆?
+       娉￠噷鐨勬枃瀛椾笌鎸夐挳鏃犲叧 鈬?杩欓噷鎶?*浼氬奖鍝嶅瓧褰笌琛岀洅鐨勫瓧浣撳睘鎬у叏閮ㄦ樉寮忛拤姝?*锛?
+       涓€寰嬩笉缁ф壙銆備簬鏄?娉″湪涓嶅湪銆佹寜閽珮浜笉楂樹寒"閮芥敼涓嶄簡娉￠噷鏂囧瓧鐨勫害閲忋€?
+       鈽?`font: inherit` 鍙敤鏉ユ竻鎺夌户鎵挎潵鐨勭畝鍐欙紝绱ф帴鐫€閫愰」瑕嗙洊鎴愬浐瀹氬€笺€?*/
     font: inherit;
     font-size: 0.7rem;
-    /* ★★★ 用户 2026-10：「"全部"那个泡，可以不用全部加粗，改成和普通泡泡一样」。
-       根因：泡是**范围按钮的子元素**，而"当前选中"的按钮会加 `.is-active { font-weight: bold }`
-       （左上角"全部"默认就是选中态）⇒ 整只泡**继承**了 700 的粗体。
-       泡的文字与按钮无关，所以这里显式钉住 normal（只让 .tl-hm-num 的金额/件数保持 700）。 */
+    /* 鈽呪槄鈽?鐢ㄦ埛 2026-10锛氥€?鍏ㄩ儴"閭ｄ釜娉★紝鍙互涓嶇敤鍏ㄩ儴鍔犵矖锛屾敼鎴愬拰鏅€氭场娉′竴鏍枫€嶃€?
+       鏍瑰洜锛氭场鏄?*鑼冨洿鎸夐挳鐨勫瓙鍏冪礌**锛岃€?褰撳墠閫変腑"鐨勬寜閽細鍔?`.is-active { font-weight: bold }`
+       锛堝乏涓婅"鍏ㄩ儴"榛樿灏辨槸閫変腑鎬侊級鈬?鏁村彧娉?*缁ф壙**浜?700 鐨勭矖浣撱€?
+       娉＄殑鏂囧瓧涓庢寜閽棤鍏筹紝鎵€浠ヨ繖閲屾樉寮忛拤浣?normal锛堝彧璁?.tl-hm-num 鐨勯噾棰?浠舵暟淇濇寔 700锛夈€?*/
     font-weight: normal;
     font-style: normal;
     letter-spacing: normal;
     word-spacing: normal;
     vertical-align: baseline;
     line-height: 1.3;
-    /* 反色：浅色主题下深底浅字，深色主题下浅底深字，两边都读得清 */
+    /* 鍙嶈壊锛氭祬鑹蹭富棰樹笅娣卞簳娴呭瓧锛屾繁鑹蹭富棰樹笅娴呭簳娣卞瓧锛屼袱杈归兘璇诲緱娓?*/
     background: var(--text);
     color: var(--bg);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
     z-index: 20;
     transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
 }
-/* 显示 / 收起：格子和标签共用一套（标签的泡是它的直接子元素） */
+/* 鏄剧ず / 鏀惰捣锛氭牸瀛愬拰鏍囩鍏辩敤涓€濂楋紙鏍囩鐨勬场鏄畠鐨勭洿鎺ュ瓙鍏冪礌锛?*/
 .tl-heatmap-cell:hover > .tl-heatmap-tip,
 .tl-heatmap-cell:focus-visible > .tl-heatmap-tip,
 .tl-heatmap-ylabel:hover > .tl-heatmap-tip,
@@ -3008,15 +3008,15 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     .tl-heatmap-cell:focus > .tl-heatmap-tip,
     .tl-heatmap-ylabel:focus > .tl-heatmap-tip,
     .tl-heatmap-mlabel:focus > .tl-heatmap-tip { opacity: 1; visibility: visible; transform: translateX(var(--hm-tx, -50%)) translateY(0); }
-    .tl-heatmap-cell:hover > .tl-hm-fill { transform: none; }      /* 触摸设备别跟着"悬停"放大 */
+    .tl-heatmap-cell:hover > .tl-hm-fill { transform: none; }      /* 瑙︽懜璁惧鍒窡鐫€"鎮仠"鏀惧ぇ */
 }
-/* ★ 水平位置由 JS 在悬停/聚焦时算一次（clampHeatmapTip）：**能居中就居中**，
-   只有会越出热力图左右边界时才往里挤；--hm-tx 是被挤的位移量，--hm-arrow 让尖角
-   在那之后仍然指着方块中心。这里只留默认值（居中），不写死"哪几列不居中"。 */
+/* 鈽?姘村钩浣嶇疆鐢?JS 鍦ㄦ偓鍋?鑱氱劍鏃剁畻涓€娆★紙clampHeatmapTip锛夛細**鑳藉眳涓氨灞呬腑**锛?
+   鍙湁浼氳秺鍑虹儹鍔涘浘宸﹀彸杈圭晫鏃舵墠寰€閲屾尋锛?-hm-tx 鏄鎸ょ殑浣嶇Щ閲忥紝--hm-arrow 璁╁皷瑙?
+   鍦ㄩ偅涔嬪悗浠嶇劧鎸囩潃鏂瑰潡涓績銆傝繖閲屽彧鐣欓粯璁ゅ€硷紙灞呬腑锛夛紝涓嶅啓姝?鍝嚑鍒椾笉灞呬腑"銆?*/
 .tl-heatmap-tip::after {
     content: '';
     position: absolute;
-    top: calc(100% - 1px);              /* 和圆角框重叠 1px：否则抗锯齿会在接缝留一条深色细线 */
+    top: calc(100% - 1px);              /* 鍜屽渾瑙掓閲嶅彔 1px锛氬惁鍒欐姉閿娇浼氬湪鎺ョ紳鐣欎竴鏉℃繁鑹茬粏绾?*/
     left: var(--hm-arrow, 50%);
     margin-left: -5px;
     width: 0;
@@ -3025,10 +3025,10 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     border-top: 6px solid var(--text);
     border-bottom: none;
 }
-/* ★ 年份标签的泡：整体挪到年份**右边**，尖角长在泡的**左侧竖边**上、横着指向年份（用户指定）。
-   它不参与 JS 的居中/纠偏（clampHeatmapTip 对年份直接跳过），位置由 CSS 定死 —— 就在数字右边。 */
+/* 鈽?骞翠唤鏍囩鐨勬场锛氭暣浣撴尓鍒板勾浠?*鍙宠竟**锛屽皷瑙掗暱鍦ㄦ场鐨?*宸︿晶绔栬竟**涓娿€佹í鐫€鎸囧悜骞翠唤锛堢敤鎴锋寚瀹氾級銆?
+   瀹冧笉鍙備笌 JS 鐨勫眳涓?绾犲亸锛坈lampHeatmapTip 瀵瑰勾浠界洿鎺ヨ烦杩囷級锛屼綅缃敱 CSS 瀹氭 鈥斺€?灏卞湪鏁板瓧鍙宠竟銆?*/
 .tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner) > .tl-heatmap-tip {
-    left: calc(100% + 4px);             /* 贴着数字右边（用户要求"再左移一点"） */
+    left: calc(100% + 4px);             /* 璐寸潃鏁板瓧鍙宠竟锛堢敤鎴疯姹?鍐嶅乏绉讳竴鐐?锛?*/
     right: auto;
     top: 50%;
     bottom: auto;
@@ -3039,31 +3039,31 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 .tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner):focus > .tl-heatmap-tip {
     transform: translateY(-50%) translateX(0);
 }
-/* 左侧竖边上的尖角：朝左指（border-right 有色、left 边收成 0 → 一个左指三角） */
+/* 宸︿晶绔栬竟涓婄殑灏栬锛氭湞宸︽寚锛坆order-right 鏈夎壊銆乴eft 杈规敹鎴?0 鈫?涓€涓乏鎸囦笁瑙掞級 */
 .tl-heatmap-row .tl-heatmap-ylabel:not(.tl-hm-corner) > .tl-heatmap-tip::after {
     top: 50%;
     bottom: auto;
     left: auto;
-    right: calc(100% - 1px);            /* 和圆角框重叠 1px，去掉接缝那条细线 */
+    right: calc(100% - 1px);            /* 鍜屽渾瑙掓閲嶅彔 1px锛屽幓鎺夋帴缂濋偅鏉＄粏绾?*/
     margin: -5px 0 0 0;
     border: 5px solid transparent;
     border-right: 6px solid var(--text);
     border-left: none;
 }
-/* 表头那一行（"全部" + 12 个月份）的泡往下弹：它们上面已经没有空间了，尖角改成朝上。
-   间距压到"往上叠 2px"（用户两次要求"向上移动一点"），贴着数字、箭头也就更靠近数字本身。 */
+/* 琛ㄥご閭ｄ竴琛岋紙"鍏ㄩ儴" + 12 涓湀浠斤級鐨勬场寰€涓嬪脊锛氬畠浠笂闈㈠凡缁忔病鏈夌┖闂翠簡锛屽皷瑙掓敼鎴愭湞涓娿€?
+   闂磋窛鍘嬪埌"寰€涓婂彔 2px"锛堢敤鎴蜂袱娆¤姹?鍚戜笂绉诲姩涓€鐐?锛夛紝璐寸潃鏁板瓧銆佺澶翠篃灏辨洿闈犺繎鏁板瓧鏈韩銆?*/
 .tl-hm-head .tl-heatmap-tip { bottom: auto; top: calc(100% - 2px); transform: translateX(var(--hm-tx, -50%)) translateY(-3px); }
 .tl-hm-head .tl-heatmap-tip::after {
     top: auto;
-    bottom: calc(100% - 1px);           /* 同样重叠 1px，去掉接缝那条细线 */
+    bottom: calc(100% - 1px);           /* 鍚屾牱閲嶅彔 1px锛屽幓鎺夋帴缂濋偅鏉＄粏绾?*/
     border-top: none;
     border-bottom: 6px solid var(--text);
 }
-/* ★★ 最上面那一年的数据行：泡**往下弹**（尖角朝上）。
-   为什么：泡默认一律朝上弹，而第一行上面只有**表头一行 + 14px**（.tl-heatmap 的 padding-top
-   就是 14px，且用户明确要求"热力图到上方的距离跟以前一样"，不能加大）—— 容不下三行的泡
-   （约 52px），会从热力图的上边界探出去。往下弹就完全落在热力图的纵向范围内。
-   ★ 只改泡的定位（top/bottom/尖角），**不动任何间距**，所以悬浮前后布局零变化。 */
+/* 鈽呪槄 鏈€涓婇潰閭ｄ竴骞寸殑鏁版嵁琛岋細娉?*寰€涓嬪脊**锛堝皷瑙掓湞涓婏級銆?
+   涓轰粈涔堬細娉￠粯璁や竴寰嬫湞涓婂脊锛岃€岀涓€琛屼笂闈㈠彧鏈?*琛ㄥご涓€琛?+ 14px**锛?tl-heatmap 鐨?padding-top
+   灏辨槸 14px锛屼笖鐢ㄦ埛鏄庣‘瑕佹眰"鐑姏鍥惧埌涓婃柟鐨勮窛绂昏窡浠ュ墠涓€鏍?锛屼笉鑳藉姞澶э級鈥斺€?瀹逛笉涓嬩笁琛岀殑娉?
+   锛堢害 52px锛夛紝浼氫粠鐑姏鍥剧殑涓婅竟鐣屾帰鍑哄幓銆傚線涓嬪脊灏卞畬鍏ㄨ惤鍦ㄧ儹鍔涘浘鐨勭旱鍚戣寖鍥村唴銆?
+   鈽?鍙敼娉＄殑瀹氫綅锛坱op/bottom/灏栬锛夛紝**涓嶅姩浠讳綍闂磋窛**锛屾墍浠ユ偓娴墠鍚庡竷灞€闆跺彉鍖栥€?*/
 .tl-heatmap-row.tl-hm-first-row .tl-heatmap-tip {
     bottom: auto;
     top: calc(100% + 7px);
@@ -3075,27 +3075,27 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     border-top: none;
     border-bottom: 6px solid var(--text);
 }
-/* 注：泡一律朝上弹（容身在 .tl-hm-head 那一行里），只有表头那行与**第一行数据**朝下。
-   试过"最早那一年朝下弹"，桌面没问题，但手机上下面只剩一行、会溢出下边界 6px。 */
+/* 娉細娉′竴寰嬫湞涓婂脊锛堝韬湪 .tl-hm-head 閭ｄ竴琛岄噷锛夛紝鍙湁琛ㄥご閭ｈ涓?*绗竴琛屾暟鎹?*鏈濅笅銆?
+   璇曡繃"鏈€鏃╅偅涓€骞存湞涓嬪脊"锛屾闈㈡病闂锛屼絾鎵嬫満涓婁笅闈㈠彧鍓╀竴琛屻€佷細婧㈠嚭涓嬭竟鐣?6px銆?*/
 @media (prefers-reduced-motion: reduce) {
     .tl-heatmap-cell, .tl-heatmap-tip { transition: none; }
     .tl-heatmap-cell:hover > .tl-hm-fill { transform: none; }
-    /* 单月发光的伪元素是静态的（只画一条 box-shadow），这里显式声明是"约定"：
-       将来若有人给发光加呼吸/脉冲动画，必须在 reduce 下一起关掉。 */
+    /* 鍗曟湀鍙戝厜鐨勪吉鍏冪礌鏄潤鎬佺殑锛堝彧鐢讳竴鏉?box-shadow锛夛紝杩欓噷鏄惧紡澹版槑鏄?绾﹀畾"锛?
+       灏嗘潵鑻ユ湁浜虹粰鍙戝厜鍔犲懠鍚?鑴夊啿鍔ㄧ敾锛屽繀椤诲湪 reduce 涓嬩竴璧峰叧鎺夈€?*/
     .tl-heatmap-cell.hm-month-glow::after { animation: none; transition: none; }
 }
-/* 手机：格子、间距、字号一起按视口缩小（用户要求"窄屏不换行，只整体缩小"），
-   padding-top 是给最上面那一行的泡留的：手机上表头那行只有 ~19px 高，
-   泡往上弹需要 ~32px，不留就会顶出热力图的上边界。 */
+/* 鎵嬫満锛氭牸瀛愩€侀棿璺濄€佸瓧鍙蜂竴璧锋寜瑙嗗彛缂╁皬锛堢敤鎴疯姹?绐勫睆涓嶆崲琛岋紝鍙暣浣撶缉灏?锛夛紝
+   padding-top 鏄粰鏈€涓婇潰閭ｄ竴琛岀殑娉＄暀鐨勶細鎵嬫満涓婅〃澶撮偅琛屽彧鏈?~19px 楂橈紝
+   娉″線涓婂脊闇€瑕?~32px锛屼笉鐣欏氨浼氶《鍑虹儹鍔涘浘鐨勪笂杈圭晫銆?*/
 @media (max-width: 480px) {
     .tl-heatmap { --hm-cell: clamp(16px, 5.4vw, 22px); --hm-ycol: 29.952px; padding-top: 14px; }
-    /* ★ 手机上第一列同样用钉死的 px（2.6em @ 0.72rem == 29.952px，与旧写法等值），
-       不许用 em —— 列宽不许随字号/字体变化，否则一交互整块网格就横向重排。 */
+    /* 鈽?鎵嬫満涓婄涓€鍒楀悓鏍风敤閽夋鐨?px锛?.6em @ 0.72rem == 29.952px锛屼笌鏃у啓娉曠瓑鍊硷級锛?
+       涓嶈鐢?em 鈥斺€?鍒楀涓嶈闅忓瓧鍙?瀛椾綋鍙樺寲锛屽惁鍒欎竴浜や簰鏁村潡缃戞牸灏辨í鍚戦噸鎺掋€?*/
     .tl-heatmap-row { grid-template-columns: var(--hm-ycol) repeat(12, var(--hm-cell)); gap: 2px; }
     .tl-heatmap-ylabel, .tl-heatmap-mlabel { font-size: 0.72rem; }
     .tl-heatmap-ylabel { padding-right: 2px; }
-    /* 图例在手机上：网格照旧复用上面那套（在同一个 @media 里 --hm-cell 已经缩小），
-       只把字号压小一档；条带宽度仍与热力条严格一致。 */
+    /* 鍥句緥鍦ㄦ墜鏈轰笂锛氱綉鏍肩収鏃у鐢ㄤ笂闈㈤偅濂楋紙鍦ㄥ悓涓€涓?@media 閲?--hm-cell 宸茬粡缂╁皬锛夛紝
+       鍙妸瀛楀彿鍘嬪皬涓€妗ｏ紱鏉″甫瀹藉害浠嶄笌鐑姏鏉′弗鏍间竴鑷淬€?*/
     .tl-hm-legend-tick { font-size: 0.62rem; }
 }
 
@@ -3103,15 +3103,15 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     display: flex;
     flex-direction: column;
     padding-left: 12px;
-    /* ★ 换筛选时的进出场（special.js 的 playTimelineFlip）会把条目先 translateX(40px) 再落位，
-       而 CSS 变换会撑大**可滚动溢出区** —— 于是动画期间整页冒出一条横向滚动条
-       （用户反馈："左右滑动的时候会出现左右方向的滚动条，这也是之前出现过的问题"）。
-       把横向溢出裁掉即可，注意必须用 overflow-x: clip 而不是 hidden：
-       · clip 不会把本元素变成滚动容器，纵向仍是 visible（如果用 hidden，
-         横向 hidden + 纵向 visible 会被浏览器算成 overflow-y: auto，
-         列表自己长出第二条纵向滚动条，反而更糟）；
-       · 这里是整条链路上能拦住它的那一层 —— 条目都在 .timeline-body 里，
-         而热力图的悬浮泡是它的**兄弟**节点（不在里面），不会被误裁。 */
+    /* 鈽?鎹㈢瓫閫夋椂鐨勮繘鍑哄満锛坰pecial.js 鐨?playTimelineFlip锛変細鎶婃潯鐩厛 translateX(40px) 鍐嶈惤浣嶏紝
+       鑰?CSS 鍙樻崲浼氭拺澶?*鍙粴鍔ㄦ孩鍑哄尯** 鈥斺€?浜庢槸鍔ㄧ敾鏈熼棿鏁撮〉鍐掑嚭涓€鏉℃í鍚戞粴鍔ㄦ潯
+       锛堢敤鎴峰弽棣堬細"宸﹀彸婊戝姩鐨勬椂鍊欎細鍑虹幇宸﹀彸鏂瑰悜鐨勬粴鍔ㄦ潯锛岃繖涔熸槸涔嬪墠鍑虹幇杩囩殑闂"锛夈€?
+       鎶婃í鍚戞孩鍑鸿鎺夊嵆鍙紝娉ㄦ剰蹇呴』鐢?overflow-x: clip 鑰屼笉鏄?hidden锛?
+       路 clip 涓嶄細鎶婃湰鍏冪礌鍙樻垚婊氬姩瀹瑰櫒锛岀旱鍚戜粛鏄?visible锛堝鏋滅敤 hidden锛?
+         妯悜 hidden + 绾靛悜 visible 浼氳娴忚鍣ㄧ畻鎴?overflow-y: auto锛?
+         鍒楄〃鑷繁闀垮嚭绗簩鏉＄旱鍚戞粴鍔ㄦ潯锛屽弽鑰屾洿绯燂級锛?
+       路 杩欓噷鏄暣鏉￠摼璺笂鑳芥嫤浣忓畠鐨勯偅涓€灞?鈥斺€?鏉＄洰閮藉湪 .timeline-body 閲岋紝
+         鑰岀儹鍔涘浘鐨勬偓娴场鏄畠鐨?*鍏勫紵**鑺傜偣锛堜笉鍦ㄩ噷闈級锛屼笉浼氳璇銆?*/
     overflow-x: clip;
 }
 .timeline-date-header {
@@ -3174,17 +3174,17 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     gap: 14px;
     align-items: flex-start;
     padding: 4px 0;
-    /* ★ 「图片离左边那条竖线太远」：竖线画在 .timeline-left::after 上（left:50%），
-       所以竖线右边缘到卡片左边缘的空隙 = 左列剩下一半 + .timeline-item 的 gap。
-       为了让**内容**贴近竖线又**不动竖线本身**（竖线是分组/热力图的视觉基准），
-       这里不缩左列宽度（那会把竖线一起往左拽），而是把卡片整体向左拉一段。
-       默认 0px，只在 >600px（竖线与卡片同排的布局）下由下面那条媒体查询打开，
-       免得把手机端（竖线已隐藏、卡片本来就从最左边开始）的内容推出屏幕。 */
+    /* 鈽?銆屽浘鐗囩宸﹁竟閭ｆ潯绔栫嚎澶繙銆嶏細绔栫嚎鐢诲湪 .timeline-left::after 涓婏紙left:50%锛夛紝
+       鎵€浠ョ珫绾垮彸杈圭紭鍒板崱鐗囧乏杈圭紭鐨勭┖闅?= 宸﹀垪鍓╀笅涓€鍗?+ .timeline-item 鐨?gap銆?
+       涓轰簡璁?*鍐呭**璐磋繎绔栫嚎鍙?*涓嶅姩绔栫嚎鏈韩**锛堢珫绾挎槸鍒嗙粍/鐑姏鍥剧殑瑙嗚鍩哄噯锛夛紝
+       杩欓噷涓嶇缉宸﹀垪瀹藉害锛堥偅浼氭妸绔栫嚎涓€璧峰線宸︽嫿锛夛紝鑰屾槸鎶婂崱鐗囨暣浣撳悜宸︽媺涓€娈点€?
+       榛樿 0px锛屽彧鍦?>600px锛堢珫绾夸笌鍗＄墖鍚屾帓鐨勫竷灞€锛変笅鐢变笅闈㈤偅鏉″獟浣撴煡璇㈡墦寮€锛?
+       鍏嶅緱鎶婃墜鏈虹锛堢珫绾垮凡闅愯棌銆佸崱鐗囨湰鏉ュ氨浠庢渶宸﹁竟寮€濮嬶級鐨勫唴瀹规帹鍑哄睆骞曘€?*/
     --tl-card-pull: 0px;
     margin-left: calc(-1 * var(--tl-card-pull));
 }
-/* >600px 才向左拉：宽屏固定 48px；往窄走按 (视口 - 454px) 线性收，
-   到 601px 附近正好收成 0，与 ≤600px 的 0px 无缝接上。 */
+/* >600px 鎵嶅悜宸︽媺锛氬灞忓浐瀹?48px锛涘線绐勮蛋鎸?(瑙嗗彛 - 454px) 绾挎€ф敹锛?
+   鍒?601px 闄勮繎姝ｅソ鏀舵垚 0锛屼笌 鈮?00px 鐨?0px 鏃犵紳鎺ヤ笂銆?*/
 @media (min-width: 601px) {
     .timeline-card {
         --tl-card-pull: clamp(0px, calc(100vw - 454px), 48px);
@@ -3215,7 +3215,7 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     border: 1px solid var(--border);
     border-radius: 4px;
 }
-/* ★ 缺图时中间放自绘的古钱币（原来只有「无图」两个字） */
+/* 鈽?缂哄浘鏃朵腑闂存斁鑷粯鐨勫彜閽卞竵锛堝師鏉ュ彧鏈夈€屾棤鍥俱€嶄袱涓瓧锛?*/
 .timeline-no-img::before {
     content: '';
     width: 38px;
@@ -3225,11 +3225,11 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 .timeline-name { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
 .timeline-meta { font-size: 0.75rem; color: var(--text-secondary); }
 
-/* ---- 评级费条目：两行紧凑卡片，不占图片位 ------------------------------------
-   费用条目不是藏品，没有图片这回事。所以渲染时**根本不生成** .timeline-images
-   容器（连「暂无图片」占位也不生成，见 special.js 的 isFee 分支）；下面这几条只
-   负责把这一行排成   评级费(大标题) [ACG(圆角标签)] / 送评日期：… · 单号：… · 评级收费：… 下载清单
-   配色只取既有的 --theme / --text-secondary / --border，不新增任何色值。 */
+/* ---- 璇勭骇璐规潯鐩細涓よ绱у噾鍗＄墖锛屼笉鍗犲浘鐗囦綅 ------------------------------------
+   璐圭敤鏉＄洰涓嶆槸钘忓搧锛屾病鏈夊浘鐗囪繖鍥炰簨銆傛墍浠ユ覆鏌撴椂**鏍规湰涓嶇敓鎴?* .timeline-images
+   瀹瑰櫒锛堣繛銆屾殏鏃犲浘鐗囥€嶅崰浣嶄篃涓嶇敓鎴愶紝瑙?special.js 鐨?isFee 鍒嗘敮锛夛紱涓嬮潰杩欏嚑鏉″彧
+   璐熻矗鎶婅繖涓€琛屾帓鎴?  璇勭骇璐?澶ф爣棰? [ACG(鍦嗚鏍囩)] / 閫佽瘎鏃ユ湡锛氣€?路 鍗曞彿锛氣€?路 璇勭骇鏀惰垂锛氣€?涓嬭浇娓呭崟
+   閰嶈壊鍙彇鏃㈡湁鐨?--theme / --text-secondary / --border锛屼笉鏂板浠讳綍鑹插€笺€?*/
 .timeline-card--fee {
     flex-direction: column;
     gap: 4px;
@@ -3240,18 +3240,18 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 }
 .timeline-fee-main {
     display: flex;
-    /* ★ 按文字基线对齐（不是 center）：第一行里大标题 0.9rem、链接 0.75rem，
-       行盒高度不同，center 会让链接相对大标题略微上浮。 */
+    /* 鈽?鎸夋枃瀛楀熀绾垮榻愶紙涓嶆槸 center锛夛細绗竴琛岄噷澶ф爣棰?0.9rem銆侀摼鎺?0.75rem锛?
+       琛岀洅楂樺害涓嶅悓锛宑enter 浼氳閾炬帴鐩稿澶ф爣棰樼暐寰笂娴€?*/
     align-items: baseline;
-    flex-wrap: wrap;                /* 375px 下太挤时允许换行，不许撑出横向滚动条 */
+    flex-wrap: wrap;                /* 375px 涓嬪お鎸ゆ椂鍏佽鎹㈣锛屼笉璁告拺鍑烘í鍚戞粴鍔ㄦ潯 */
     gap: 8px;
     min-width: 0;
 }
-/* 第一行：评级费【大标题】 [评级公司：ACG]【主题色圆角标签】 下载清单
-   ★ 大标题不再 flex:1 独占整行 —— 后面还有「标签/链接」两样要跟着排，
-   所以改成 flex-shrink:0 的自然宽度，中间留一点空隙（gap），整体靠左。
-   ★ 链接在最右端：用 margin-left:auto 把它推到行尾（用户要求"移到第一行的 acg 后面"，
-   放行尾既紧跟标签、又不会挤在中间被省略号切掉）。 */
+/* 绗竴琛岋細璇勭骇璐广€愬ぇ鏍囬銆?[璇勭骇鍏徃锛欰CG]銆愪富棰樿壊鍦嗚鏍囩銆?涓嬭浇娓呭崟
+   鈽?澶ф爣棰樹笉鍐?flex:1 鐙崰鏁磋 鈥斺€?鍚庨潰杩樻湁銆屾爣绛?閾炬帴銆嶄袱鏍疯璺熺潃鎺掞紝
+   鎵€浠ユ敼鎴?flex-shrink:0 鐨勮嚜鐒跺搴︼紝涓棿鐣欎竴鐐圭┖闅欙紙gap锛夛紝鏁翠綋闈犲乏銆?
+   鈽?閾炬帴鍦ㄦ渶鍙崇锛氱敤 margin-left:auto 鎶婂畠鎺ㄥ埌琛屽熬锛堢敤鎴疯姹?绉诲埌绗竴琛岀殑 acg 鍚庨潰"锛?
+   鏀捐灏炬棦绱ц窡鏍囩銆佸張涓嶄細鎸ゅ湪涓棿琚渷鐣ュ彿鍒囨帀锛夈€?*/
 .timeline-fee-title {
     flex-shrink: 0;
     min-width: 0;
@@ -3261,9 +3261,9 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* ★ 主题色圆角标签，文字 = 「评级公司：」+ 数据里的 graderShort（用户确认前缀也放进去）。
-   第一行原本是  [标签"评级费"] + 大标题"评级公司：xxx"，
-   现在改成      "评级费"当大标题 + [标签"评级公司：ACG"] + 下载清单。 */
+/* 鈽?涓婚鑹插渾瑙掓爣绛撅紝鏂囧瓧 = 銆岃瘎绾у叕鍙革細銆? 鏁版嵁閲岀殑 graderShort锛堢敤鎴风‘璁ゅ墠缂€涔熸斁杩涘幓锛夈€?
+   绗竴琛屽師鏈槸  [鏍囩"璇勭骇璐?] + 澶ф爣棰?璇勭骇鍏徃锛歺xx"锛?
+   鐜板湪鏀规垚      "璇勭骇璐?褰撳ぇ鏍囬 + [鏍囩"璇勭骇鍏徃锛欰CG"] + 涓嬭浇娓呭崟銆?*/
 .timeline-fee-tag {
     flex-shrink: 0;
     background: var(--theme);
@@ -3274,8 +3274,8 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     border-radius: 10px;
     white-space: nowrap;
 }
-/* 第二行：各字段以 · 分隔。分隔符用 ::before 画，DOM 里就不必塞分隔节点，
-   换行时收尾那一项不会留下一个孤零零的 ·。 */
+/* 绗簩琛岋細鍚勫瓧娈典互 路 鍒嗛殧銆傚垎闅旂鐢?::before 鐢伙紝DOM 閲屽氨涓嶅繀濉炲垎闅旇妭鐐癸紝
+   鎹㈣鏃舵敹灏鹃偅涓€椤逛笉浼氱暀涓嬩竴涓闆堕浂鐨?路銆?*/
 .timeline-fee-sub {
     display: flex;
     flex-wrap: wrap;
@@ -3286,21 +3286,21 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 }
 .timeline-fee-sub .fee-f + .fee-f::before { content: '\00B7'; margin-right: 6px; }
 .timeline-fee-sub .fee-f { white-space: nowrap; }
-/* 「下载清单」= 正文里那种行内链接：下划线 + 新窗口。现在在**第一行**行尾。
-   ★ 字号：**不许继承第一行大标题的字号**（用户反馈"几个字太大，应该是普通字号大小"），
-   显式写成和第二行字段一样的 0.75rem。字号是写死的绝对值，所以不管第一行将来怎么调都不受影响。
-   ★ 垂直对齐：第一行是 align-items:center 的 flex，大标题(0.9rem 粗体)与链接(0.75rem)
-   的**行盒**不同高，纯 center 会让链接文字相对大标题略微上浮。这里改成
-   align-items:baseline（见 .timeline-fee-main）+ 链接自带 line-height:1.5，
-   两者按文字基线对齐，看上去是"一行字"，不会突兀地上下错位。
-   ★ 刻意**不写 color** —— 正文（.article-reader）里也没有任何 a 的着色规则，
-   链接色来自浏览器对 color-scheme 的默认映射。这里同样不干预，
-   两处链接色就自然一致（写 color:inherit 反而会变成正文灰、与正文链接不一致）。
-   ★ 它不在 .fee-f 那一族里，所以不会吃到 ".fee-f + .fee-f::before" 那个分隔符。 */
+/* 銆屼笅杞芥竻鍗曘€? 姝ｆ枃閲岄偅绉嶈鍐呴摼鎺ワ細涓嬪垝绾?+ 鏂扮獥鍙ｃ€傜幇鍦ㄥ湪**绗竴琛?*琛屽熬銆?
+   鈽?瀛楀彿锛?*涓嶈缁ф壙绗竴琛屽ぇ鏍囬鐨勫瓧鍙?*锛堢敤鎴峰弽棣?鍑犱釜瀛楀お澶э紝搴旇鏄櫘閫氬瓧鍙峰ぇ灏?锛夛紝
+   鏄惧紡鍐欐垚鍜岀浜岃瀛楁涓€鏍风殑 0.75rem銆傚瓧鍙锋槸鍐欐鐨勭粷瀵瑰€硷紝鎵€浠ヤ笉绠＄涓€琛屽皢鏉ユ€庝箞璋冮兘涓嶅彈褰卞搷銆?
+   鈽?鍨傜洿瀵归綈锛氱涓€琛屾槸 align-items:center 鐨?flex锛屽ぇ鏍囬(0.9rem 绮椾綋)涓庨摼鎺?0.75rem)
+   鐨?*琛岀洅**涓嶅悓楂橈紝绾?center 浼氳閾炬帴鏂囧瓧鐩稿澶ф爣棰樼暐寰笂娴€傝繖閲屾敼鎴?
+   align-items:baseline锛堣 .timeline-fee-main锛? 閾炬帴鑷甫 line-height:1.5锛?
+   涓よ€呮寜鏂囧瓧鍩虹嚎瀵归綈锛岀湅涓婂幓鏄?涓€琛屽瓧"锛屼笉浼氱獊鍏€鍦颁笂涓嬮敊浣嶃€?
+   鈽?鍒绘剰**涓嶅啓 color** 鈥斺€?姝ｆ枃锛?article-reader锛夐噷涔熸病鏈変换浣?a 鐨勭潃鑹茶鍒欙紝
+   閾炬帴鑹叉潵鑷祻瑙堝櫒瀵?color-scheme 鐨勯粯璁ゆ槧灏勩€傝繖閲屽悓鏍蜂笉骞查锛?
+   涓ゅ閾炬帴鑹插氨鑷劧涓€鑷达紙鍐?color:inherit 鍙嶈€屼細鍙樻垚姝ｆ枃鐏般€佷笌姝ｆ枃閾炬帴涓嶄竴鑷达級銆?
+   鈽?瀹冧笉鍦?.fee-f 閭ｄ竴鏃忛噷锛屾墍浠ヤ笉浼氬悆鍒?".fee-f + .fee-f::before" 閭ｄ釜鍒嗛殧绗︺€?*/
 .timeline-fee-link {
     flex-shrink: 0;
-    margin-left: auto;              /* 推到第一行行尾 */
-    font-size: 0.75rem;             /* = 第二行 .timeline-fee-sub 的字号 */
+    margin-left: auto;              /* 鎺ㄥ埌绗竴琛岃灏?*/
+    font-size: 0.75rem;             /* = 绗簩琛?.timeline-fee-sub 鐨勫瓧鍙?*/
     line-height: 1.5;
     white-space: nowrap;
     text-decoration: underline;
@@ -3308,12 +3308,12 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 }
 .timeline-fee-link:hover { opacity: 0.8; }
 
-/* ========== 响应式 ========== */
+/* ========== 鍝嶅簲寮?========== */
 @media (max-width: 768px) {
     .sidebar {
-        width: 25%;               /* 占父容器宽度的四分之一，约 25% */
-        min-width: 120px;         /* 防止太窄，确保文字可读 */
-        max-width: 200px;         /* 防止太宽，占用过多空间 */
+        width: 25%;               /* 鍗犵埗瀹瑰櫒瀹藉害鐨勫洓鍒嗕箣涓€锛岀害 25% */
+        min-width: 120px;         /* 闃叉澶獎锛岀‘淇濇枃瀛楀彲璇?*/
+        max-width: 200px;         /* 闃叉澶锛屽崰鐢ㄨ繃澶氱┖闂?*/
     }
     .copy-item { padding: 6px 10px 6px 30px; }
     .variety-header { padding: 10px 10px 10px 24px; }
@@ -3350,29 +3350,29 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
     .timeline-left::after { display: none; }
     .timeline-dot { margin-top: 0; }
     .timeline-card { flex-direction: column; }
-    /* 评级费卡片在手机上：收紧内边距与间隙；第二行本来就允许换行，
-       375px 下逐字段折行也不会溢出。 */
+    /* 璇勭骇璐瑰崱鐗囧湪鎵嬫満涓婏細鏀剁揣鍐呰竟璺濅笌闂撮殭锛涚浜岃鏈潵灏卞厑璁告崲琛岋紝
+       375px 涓嬮€愬瓧娈垫姌琛屼篃涓嶄細婧㈠嚭銆?*/
     .timeline-card--fee { padding: 8px 10px; gap: 3px; }
     .timeline-fee-main { gap: 6px; }
     .timeline-fee-tag { font-size: 0.64rem; padding: 1px 6px; }
     .timeline-fee-title { font-size: 0.85rem; }
     .timeline-fee-sub { font-size: 0.72rem; gap: 2px 5px; }
     .timeline-fee-sub .fee-f + .fee-f::before { margin-right: 5px; }
-    /* ★ 手机上图片必须能收缩（用户报的「币海拾年图片宽度超出手机屏幕」）。
-       原来这里只有 `.timeline-img { width: 100%; }`，但：
-         · 父级 .timeline-images 是 `display:flex; flex-shrink:0`（不允许收缩）
-         · .timeline-card 在手机上变成 `flex-direction: column`，
-           而它的 `align-items: flex-start` 会让子项按**内容宽度**排
-       于是 .timeline-images 的宽度要按"内容的最大宽度"算，而 `width:100%` 的图片
-       其最大宽度恰恰就是**图片自身的固有宽度**（大图上千 px）—— 两者互相撑，
-       整行就直接超出屏幕宽度。
-       现在：容器显式占满整行并允许收缩，图片按 flex 均分剩余宽度、绝不超出。
-       注意 width:100% 必须写，因为 align-items:flex-start 不会替它撑满。 */
+    /* 鈽?鎵嬫満涓婂浘鐗囧繀椤昏兘鏀剁缉锛堢敤鎴锋姤鐨勩€屽竵娴锋嬀骞村浘鐗囧搴﹁秴鍑烘墜鏈哄睆骞曘€嶏級銆?
+       鍘熸潵杩欓噷鍙湁 `.timeline-img { width: 100%; }`锛屼絾锛?
+         路 鐖剁骇 .timeline-images 鏄?`display:flex; flex-shrink:0`锛堜笉鍏佽鏀剁缉锛?
+         路 .timeline-card 鍦ㄦ墜鏈轰笂鍙樻垚 `flex-direction: column`锛?
+           鑰屽畠鐨?`align-items: flex-start` 浼氳瀛愰」鎸?*鍐呭瀹藉害**鎺?
+       浜庢槸 .timeline-images 鐨勫搴﹁鎸?鍐呭鐨勬渶澶у搴?绠楋紝鑰?`width:100%` 鐨勫浘鐗?
+       鍏舵渶澶у搴︽伆鎭板氨鏄?*鍥剧墖鑷韩鐨勫浐鏈夊搴?*锛堝ぇ鍥句笂鍗?px锛夆€斺€?涓よ€呬簰鐩告拺锛?
+       鏁磋灏辩洿鎺ヨ秴鍑哄睆骞曞搴︺€?
+       鐜板湪锛氬鍣ㄦ樉寮忓崰婊℃暣琛屽苟鍏佽鏀剁缉锛屽浘鐗囨寜 flex 鍧囧垎鍓╀綑瀹藉害銆佺粷涓嶈秴鍑恒€?
+       娉ㄦ剰 width:100% 蹇呴』鍐欙紝鍥犱负 align-items:flex-start 涓嶄細鏇垮畠鎾戞弧銆?*/
     .timeline-images { width: 100%; flex-shrink: 1; align-items: flex-start; }
     .timeline-img {
         width: auto;
         flex: 1 1 0;
-        min-width: 0;          /* flex 子项默认 min-width:auto，不置 0 就不肯收缩 */
+        min-width: 0;          /* flex 瀛愰」榛樿 min-width:auto锛屼笉缃?0 灏变笉鑲敹缂?*/
         max-width: 100%;
         height: auto;
         max-height: 160px;
@@ -3417,14 +3417,14 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
   font-size: 0.8rem;
 }
 .search-result-item .info {
-  flex: 1 1 0;          /* 占据剩余空间，但允许收缩 */
-  min-width: 0;          /* 防止内容溢出 */
+  flex: 1 1 0;          /* 鍗犳嵁鍓╀綑绌洪棿锛屼絾鍏佽鏀剁缉 */
+  min-width: 0;          /* 闃叉鍐呭婧㈠嚭 */
 }
 .search-result-item .index-num {
   color: var(--text-secondary);
   font-size: 0.7rem;
-  flex-shrink: 0;        /* 永远不被压缩 */
-  margin-left: auto;     /* 推到最右侧 */
+  flex-shrink: 0;        /* 姘歌繙涓嶈鍘嬬缉 */
+  margin-left: auto;     /* 鎺ㄥ埌鏈€鍙充晶 */
   padding-left: 8px;
   text-align: right;
 }
@@ -3438,10 +3438,10 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 }
 
 /* ============================================================
-   ★ 图片加载淡入
-   未加载完的图片保持透明，加载完成后由 core.js 的 setupImageFadeIn() 打上
-   .img-loaded 再淡入 —— 消除网格里"色块 → 图片"的硬切。
-   三重保障（load 事件 / MutationObserver / 定时兜底）确保不会有图片永久隐形。
+   鈽?鍥剧墖鍔犺浇娣″叆
+   鏈姞杞藉畬鐨勫浘鐗囦繚鎸侀€忔槑锛屽姞杞藉畬鎴愬悗鐢?core.js 鐨?setupImageFadeIn() 鎵撲笂
+   .img-loaded 鍐嶆贰鍏?鈥斺€?娑堥櫎缃戞牸閲?鑹插潡 鈫?鍥剧墖"鐨勭‖鍒囥€?
+   涓夐噸淇濋殰锛坙oad 浜嬩欢 / MutationObserver / 瀹氭椂鍏滃簳锛夌‘淇濅笉浼氭湁鍥剧墖姘镐箙闅愬舰銆?
    ============================================================ */
 .mini-thumb:not(.img-loaded),
 .copy-thumb:not(.img-loaded),
@@ -3452,7 +3452,7 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 .special-lightbox-content img:not(.img-loaded) {
     opacity: 0;
 }
-/* 这几处原本没有 opacity 过渡，统一在末尾声明（避免被前面的 transform 过渡覆盖） */
+/* 杩欏嚑澶勫師鏈病鏈?opacity 杩囨浮锛岀粺涓€鍦ㄦ湯灏惧０鏄庯紙閬垮厤琚墠闈㈢殑 transform 杩囨浮瑕嗙洊锛?*/
 .timeline-img,
 .article-reader img,
 .special-lightbox-content img {
@@ -3460,16 +3460,16 @@ html[data-color-scheme="dark"] .tl-heatmap-cell.hm-month-glow::after {
 }
 
 /* ============================================================
-   ★ 缺图占位：自绘古钱币（collection/img-placeholder.svg）
-   数据里没图（未评级的藏品一律没有图片）、或图片 404 降级，都显示这枚钱币。
-   这里把 SVG 当**蒙版**用、颜色交给主题变量，这是关键：
-   <img src> 与 background-image 都拿不到 currentColor，只有
-   "mask-image + background-color: var(...)" 才能让占位跟着主题走
-   （深色主题自动变浅，将来换主题色也一起变）。
-   三处"数据里就没图"的占位用 ::before 画；404 降级的 <img> 直接染自己。
-   蒙版按 alpha 取值，所以 SVG 里的线条是纯黑不透明、其余透明。
-   选择器权重与 .shanhe-list-cell img 同为 (0,1,1)，靠"位置在后"取胜，
-   所以这一段必须留在文件末尾。
+   鈽?缂哄浘鍗犱綅锛氳嚜缁樺彜閽卞竵锛坈ollection/img-placeholder.svg锛?
+   鏁版嵁閲屾病鍥撅紙鏈瘎绾х殑钘忓搧涓€寰嬫病鏈夊浘鐗囷級銆佹垨鍥剧墖 404 闄嶇骇锛岄兘鏄剧ず杩欐灇閽卞竵銆?
+   杩欓噷鎶?SVG 褰?*钂欑増**鐢ㄣ€侀鑹蹭氦缁欎富棰樺彉閲忥紝杩欐槸鍏抽敭锛?
+   <img src> 涓?background-image 閮芥嬁涓嶅埌 currentColor锛屽彧鏈?
+   "mask-image + background-color: var(...)" 鎵嶈兘璁╁崰浣嶈窡鐫€涓婚璧?
+   锛堟繁鑹蹭富棰樿嚜鍔ㄥ彉娴咃紝灏嗘潵鎹富棰樿壊涔熶竴璧峰彉锛夈€?
+   涓夊"鏁版嵁閲屽氨娌″浘"鐨勫崰浣嶇敤 ::before 鐢伙紱404 闄嶇骇鐨?<img> 鐩存帴鏌撹嚜宸便€?
+   钂欑増鎸?alpha 鍙栧€硷紝鎵€浠?SVG 閲岀殑绾挎潯鏄函榛戜笉閫忔槑銆佸叾浣欓€忔槑銆?
+   閫夋嫨鍣ㄦ潈閲嶄笌 .shanhe-list-cell img 鍚屼负 (0,1,1)锛岄潬"浣嶇疆鍦ㄥ悗"鍙栬儨锛?
+   鎵€浠ヨ繖涓€娈靛繀椤荤暀鍦ㄦ枃浠舵湯灏俱€?
    ============================================================ */
 .copy-thumb.no-img::before,
 .shanhe-list-cell .no-img::before,
@@ -3489,29 +3489,29 @@ img.img-failed {
 .copy-thumb.no-img::before { content: ''; width: 34px; height: 26px; }
 .shanhe-list-cell .no-img::before { content: ''; width: 46px; height: 46px; }
 .timeline-no-img::before { content: ''; width: 38px; height: 34px; }
-/* 专题大图弹窗里"数据压根没图"的那一档：原来只有一行「暂无图片」，一并补上钱币 */
+/* 涓撻澶у浘寮圭獥閲?鏁版嵁鍘嬫牴娌″浘"鐨勯偅涓€妗ｏ細鍘熸潵鍙湁涓€琛屻€屾殏鏃犲浘鐗囥€嶏紝涓€骞惰ˉ涓婇挶甯?*/
 .special-lightbox-nopic { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .special-lightbox-nopic::before { content: ''; width: 56px; height: 56px; }
-/* 大图弹窗坐在深色遮罩上，浅色主题的 --text-secondary 太深会看不见，单独给中性灰。
-   ★ 还要单独把蒙版限小：.modal-img 是 100vw×100dvh 铺满整个视口，
-     默认 contain 会把钱币画得跟屏幕一样大 —— 这里给个固定小尺寸居中显示。
-     尺寸按用户反馈再减半：180px → 90px（窄屏按 17vw 等比缩）。 */
+/* 澶у浘寮圭獥鍧愬湪娣辫壊閬僵涓婏紝娴呰壊涓婚鐨?--text-secondary 澶繁浼氱湅涓嶈锛屽崟鐙粰涓€х伆銆?
+   鈽?杩樿鍗曠嫭鎶婅挋鐗堥檺灏忥細.modal-img 鏄?100vw脳100dvh 閾烘弧鏁翠釜瑙嗗彛锛?
+     榛樿 contain 浼氭妸閽卞竵鐢诲緱璺熷睆骞曚竴鏍峰ぇ 鈥斺€?杩欓噷缁欎釜鍥哄畾灏忓昂瀵稿眳涓樉绀恒€?
+     灏哄鎸夌敤鎴峰弽棣堝啀鍑忓崐锛?80px 鈫?90px锛堢獎灞忔寜 17vw 绛夋瘮缂╋級銆?*/
 .modal-img.img-failed {
     background-color: #9aa2ad;
     -webkit-mask-size: min(90px, 17vw);
     mask-size: min(90px, 17vw);
 }
-/* ★ 降级成占位后**不该点得开**：点开的大图还是那张缺图，白跑一趟。
-   这里用 pointer-events 而不是去删内联 onclick —— 万一下载重试把真图找回来了，
-   撤掉 .img-failed 它就又能点开了。
-   注意：只有 <img> 需要，.no-img 那几处本来就是不可点的 div。 */
+/* 鈽?闄嶇骇鎴愬崰浣嶅悗**涓嶈鐐瑰緱寮€**锛氱偣寮€鐨勫ぇ鍥捐繕鏄偅寮犵己鍥撅紝鐧借窇涓€瓒熴€?
+   杩欓噷鐢?pointer-events 鑰屼笉鏄幓鍒犲唴鑱?onclick 鈥斺€?涓囦竴涓嬭浇閲嶈瘯鎶婄湡鍥炬壘鍥炴潵浜嗭紝
+   鎾ゆ帀 .img-failed 瀹冨氨鍙堣兘鐐瑰紑浜嗐€?
+   娉ㄦ剰锛氬彧鏈?<img> 闇€瑕侊紝.no-img 閭ｅ嚑澶勬湰鏉ュ氨鏄笉鍙偣鐨?div銆?*/
 img.img-failed {
     pointer-events: none;
     cursor: default;
 }
 
 /* ============================================================
-   ★ 初始化加载完成后的交接（进度条淡出 → 内容淡入）
+   鈽?鍒濆鍖栧姞杞藉畬鎴愬悗鐨勪氦鎺ワ紙杩涘害鏉℃贰鍑?鈫?鍐呭娣″叆锛?
    ============================================================ */
 .loading-fade-out {
     animation: loadingFadeOut 0.22s ease forwards;
@@ -3522,35 +3522,35 @@ img.img-failed {
 }
 
 /* ============================================================
-   ★ 键盘焦点可见（无障碍 / WCAG 2.4.7）
-   背景：全站有 5 处 `outline: none`（.search-select、.search-input、
-   .symbol-trigger、.price-sort-select/.price-filter-select、.timeline-filter-select）
-   把浏览器默认焦点环去掉了，却没有补上替代样式 —— 结果是纯键盘用户
-   （Tab / Shift+Tab 导航）看不到自己现在停在哪个控件上，无法使用。
-   这里统一补一个可见焦点环：
-     · 用 :focus-visible 而不是 :focus —— 鼠标点击、触屏点按不会出现焦点环
-       （这也是原来那些 outline:none 想达到的效果），只有键盘操作才出现。
-     · 颜色取主题色，暗色下用 --theme-light（applyTheme 会按对比度调整它）。
-     · 用 outline + outline-offset 而不是 box-shadow：不受元素 overflow/圆角裁剪，
-       也不会改变布局（outline 不占空间，不会引起重排）。
+   鈽?閿洏鐒︾偣鍙锛堟棤闅滅 / WCAG 2.4.7锛?
+   鑳屾櫙锛氬叏绔欐湁 5 澶?`outline: none`锛?search-select銆?search-input銆?
+   .symbol-trigger銆?price-sort-select/.price-filter-select銆?timeline-filter-select锛?
+   鎶婃祻瑙堝櫒榛樿鐒︾偣鐜幓鎺変簡锛屽嵈娌℃湁琛ヤ笂鏇夸唬鏍峰紡 鈥斺€?缁撴灉鏄函閿洏鐢ㄦ埛
+   锛圱ab / Shift+Tab 瀵艰埅锛夌湅涓嶅埌鑷繁鐜板湪鍋滃湪鍝釜鎺т欢涓婏紝鏃犳硶浣跨敤銆?
+   杩欓噷缁熶竴琛ヤ竴涓彲瑙佺劍鐐圭幆锛?
+     路 鐢?:focus-visible 鑰屼笉鏄?:focus 鈥斺€?榧犳爣鐐瑰嚮銆佽Е灞忕偣鎸変笉浼氬嚭鐜扮劍鐐圭幆
+       锛堣繖涔熸槸鍘熸潵閭ｄ簺 outline:none 鎯宠揪鍒扮殑鏁堟灉锛夛紝鍙湁閿洏鎿嶄綔鎵嶅嚭鐜般€?
+     路 棰滆壊鍙栦富棰樿壊锛屾殫鑹蹭笅鐢?--theme-light锛坅pplyTheme 浼氭寜瀵规瘮搴﹁皟鏁村畠锛夈€?
+     路 鐢?outline + outline-offset 鑰屼笉鏄?box-shadow锛氫笉鍙楀厓绱?overflow/鍦嗚瑁佸壀锛?
+       涔熶笉浼氭敼鍙樺竷灞€锛坥utline 涓嶅崰绌洪棿锛屼笉浼氬紩璧烽噸鎺掞級銆?
    ============================================================ */
 :focus-visible {
     outline: 2px solid var(--theme);
     outline-offset: 2px;
 }
-/* 暗色主题下 --theme 可能在深色底上偏暗，用浅一档的主题色更清楚 */
+/* 鏆楄壊涓婚涓?--theme 鍙兘鍦ㄦ繁鑹插簳涓婂亸鏆楋紝鐢ㄦ祬涓€妗ｇ殑涓婚鑹叉洿娓呮 */
 html[data-color-scheme="dark"] :focus-visible {
     outline-color: var(--theme-light, var(--theme));
 }
-/* 不支持 :focus-visible 的旧浏览器（Safari < 15.4 / Firefox < 85）：
-   这些浏览器会直接忽略上面两条规则，等于没有焦点环。
-   下面的后半段选择器（:focus:not(:focus-visible)）在**支持**的浏览器里把
-   鼠标点击的焦点环去掉，在不支持的浏览器里整条规则失效（不会误删键盘焦点环）。 */
+/* 涓嶆敮鎸?:focus-visible 鐨勬棫娴忚鍣紙Safari < 15.4 / Firefox < 85锛夛細
+   杩欎簺娴忚鍣ㄤ細鐩存帴蹇界暐涓婇潰涓ゆ潯瑙勫垯锛岀瓑浜庢病鏈夌劍鐐圭幆銆?
+   涓嬮潰鐨勫悗鍗婃閫夋嫨鍣紙:focus:not(:focus-visible)锛夊湪**鏀寔**鐨勬祻瑙堝櫒閲屾妸
+   榧犳爣鐐瑰嚮鐨勭劍鐐圭幆鍘绘帀锛屽湪涓嶆敮鎸佺殑娴忚鍣ㄩ噷鏁存潯瑙勫垯澶辨晥锛堜笉浼氳鍒犻敭鐩樼劍鐐圭幆锛夈€?*/
 :focus:not(:focus-visible) {
     outline: none;
 }
-/* 输入类控件本身已有 border-color 变化作为焦点反馈，再叠一个 2px 外环略重，
-   改成内描边式的细环，既清楚又不显得笨重。 */
+/* 杈撳叆绫绘帶浠舵湰韬凡鏈?border-color 鍙樺寲浣滀负鐒︾偣鍙嶉锛屽啀鍙犱竴涓?2px 澶栫幆鐣ラ噸锛?
+   鏀规垚鍐呮弿杈瑰紡鐨勭粏鐜紝鏃㈡竻妤氬張涓嶆樉寰楃閲嶃€?*/
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
@@ -3559,8 +3559,8 @@ textarea:focus-visible {
 }
 
 /* ============================================================
-   ★ 减少动态效果（无障碍）
-   尊重系统设置：动效与平滑滚动全部降为瞬时。
+   鈽?鍑忓皯鍔ㄦ€佹晥鏋滐紙鏃犻殰纰嶏級
+   灏婇噸绯荤粺璁剧疆锛氬姩鏁堜笌骞虫粦婊氬姩鍏ㄩ儴闄嶄负鐬椂銆?
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -3572,30 +3572,30 @@ textarea:focus-visible {
 }
 
 /* ============================================================
-   ★ 响应式断点约定（改动前请先看这里）
-   全站只保留三档，按"内容放不下才收"来分，不要新增临时数字：
-     768px —— 平板/大屏手机：侧栏收窄到 25%、方寸山河图改竖排、山河内嵌图字号放大
-     600px —— 竖屏手机：时间轴改纵向堆叠、灯箱左右箭头加大
-     520px —— 窄屏手机：顶部搜索栏改单行挤压
-   special.js 里 `isMobile` 的 matchMedia 判断也必须是 768px，否则会出现
-   "CSS 按手机排版、JS 按桌面排版"的错配（历史上 760/768 混用过）。
+   鈽?鍝嶅簲寮忔柇鐐圭害瀹氾紙鏀瑰姩鍓嶈鍏堢湅杩欓噷锛?
+   鍏ㄧ珯鍙繚鐣欎笁妗ｏ紝鎸?鍐呭鏀句笉涓嬫墠鏀?鏉ュ垎锛屼笉瑕佹柊澧炰复鏃舵暟瀛楋細
+     768px 鈥斺€?骞虫澘/澶у睆鎵嬫満锛氫晶鏍忔敹绐勫埌 25%銆佹柟瀵稿北娌冲浘鏀圭珫鎺掋€佸北娌冲唴宓屽浘瀛楀彿鏀惧ぇ
+     600px 鈥斺€?绔栧睆鎵嬫満锛氭椂闂磋酱鏀圭旱鍚戝爢鍙犮€佺伅绠卞乏鍙崇澶村姞澶?
+     520px 鈥斺€?绐勫睆鎵嬫満锛氶《閮ㄦ悳绱㈡爮鏀瑰崟琛屾尋鍘?
+   special.js 閲?`isMobile` 鐨?matchMedia 鍒ゆ柇涔熷繀椤绘槸 768px锛屽惁鍒欎細鍑虹幇
+   "CSS 鎸夋墜鏈烘帓鐗堛€丣S 鎸夋闈㈡帓鐗?鐨勯敊閰嶏紙鍘嗗彶涓?760/768 娣风敤杩囷級銆?
    ============================================================ */
 
 /* ============================================================
-   ★ 自绘滚动条（逻辑在 scrollbar.js）
-   为什么要自己写：原生滚动条**占布局宽度**。主滚动区一出现纵向滚动条，可用宽度
-   就少掉约 15px（Windows Chrome），整页内容横向缩一下 —— 用户原话："总是容易把
-   整个网站横向变窄一点点"。
-   所以这里在 **CSS 里提前**把这些滚动容器的原生纵向条收成 0 宽（不等 JS）：
-   否则首屏会先按"有原生条"的宽度排版，等 JS 发现并加 .cscroll-host 再收回，
-   宽度要弹一下 —— 那一下仍然是被压缩过的。
-   ★ 自绘条本身是 position: fixed 的浮层（见下面 .cscroll-bar），不参与布局，
-     所以内容区宽度**永远**不含滚动条。
-   ★ 这份清单列的是"本站的滚动容器"。其中 .view-scroll-container / #app 的 overflow
-     是 core.js / main.js 用**内联样式**给的（CSS 里搜不到 overflow-y:auto），
-     所以别指望靠 overflow 声明反推，这里按 class/id 直接提前收掉。
-   ★ 以后新增滚动容器，把选择器也加进这份清单（JS 也会兜底加 .cscroll-host，
-     但那是"先占宽后收回"，会闪；加在这里才是提前收掉）。
+   鈽?鑷粯婊氬姩鏉★紙閫昏緫鍦?scrollbar.js锛?
+   涓轰粈涔堣鑷繁鍐欙細鍘熺敓婊氬姩鏉?*鍗犲竷灞€瀹藉害**銆備富婊氬姩鍖轰竴鍑虹幇绾靛悜婊氬姩鏉★紝鍙敤瀹藉害
+   灏卞皯鎺夌害 15px锛圵indows Chrome锛夛紝鏁撮〉鍐呭妯悜缂╀竴涓?鈥斺€?鐢ㄦ埛鍘熻瘽锛?鎬绘槸瀹规槗鎶?
+   鏁翠釜缃戠珯妯悜鍙樼獎涓€鐐圭偣"銆?
+   鎵€浠ヨ繖閲屽湪 **CSS 閲屾彁鍓?*鎶婅繖浜涙粴鍔ㄥ鍣ㄧ殑鍘熺敓绾靛悜鏉℃敹鎴?0 瀹斤紙涓嶇瓑 JS锛夛細
+   鍚﹀垯棣栧睆浼氬厛鎸?鏈夊師鐢熸潯"鐨勫搴︽帓鐗堬紝绛?JS 鍙戠幇骞跺姞 .cscroll-host 鍐嶆敹鍥烇紝
+   瀹藉害瑕佸脊涓€涓?鈥斺€?閭ｄ竴涓嬩粛鐒舵槸琚帇缂╄繃鐨勩€?
+   鈽?鑷粯鏉℃湰韬槸 position: fixed 鐨勬诞灞傦紙瑙佷笅闈?.cscroll-bar锛夛紝涓嶅弬涓庡竷灞€锛?
+     鎵€浠ュ唴瀹瑰尯瀹藉害**姘歌繙**涓嶅惈婊氬姩鏉°€?
+   鈽?杩欎唤娓呭崟鍒楃殑鏄?鏈珯鐨勬粴鍔ㄥ鍣?銆傚叾涓?.view-scroll-container / #app 鐨?overflow
+     鏄?core.js / main.js 鐢?*鍐呰仈鏍峰紡**缁欑殑锛圕SS 閲屾悳涓嶅埌 overflow-y:auto锛夛紝
+     鎵€浠ュ埆鎸囨湜闈?overflow 澹版槑鍙嶆帹锛岃繖閲屾寜 class/id 鐩存帴鎻愬墠鏀舵帀銆?
+   鈽?浠ュ悗鏂板婊氬姩瀹瑰櫒锛屾妸閫夋嫨鍣ㄤ篃鍔犺繘杩欎唤娓呭崟锛圝S 涔熶細鍏滃簳鍔?.cscroll-host锛?
+     浣嗛偅鏄?鍏堝崰瀹藉悗鏀跺洖"锛屼細闂紱鍔犲湪杩欓噷鎵嶆槸鎻愬墠鏀舵帀锛夈€?
    ============================================================ */
 .view-scroll-container,
 #app,
@@ -3608,8 +3608,8 @@ textarea:focus-visible {
 .timeline-body,
 .dd-popup,
 .cscroll-host {
-    scrollbar-width: none;          /* Firefox：收掉原生条（FF 不支持分轴，两个方向一起收） */
-    -ms-overflow-style: none;       /* 旧 Edge */
+    scrollbar-width: none;          /* Firefox锛氭敹鎺夊師鐢熸潯锛團F 涓嶆敮鎸佸垎杞达紝涓や釜鏂瑰悜涓€璧锋敹锛?*/
+    -ms-overflow-style: none;       /* 鏃?Edge */
 }
 .view-scroll-container::-webkit-scrollbar,
 #app::-webkit-scrollbar,
@@ -3621,36 +3621,36 @@ textarea:focus-visible {
 .octo-inner::-webkit-scrollbar,
 .timeline-body::-webkit-scrollbar,
 .cscroll-host::-webkit-scrollbar {
-    width: 0;                       /* ★ 只收纵向（width）：万一真有横向滚动的地方，
-                                       它的横向原生条仍然保留，不会失去指示 */
+    width: 0;                       /* 鈽?鍙敹绾靛悜锛坵idth锛夛細涓囦竴鐪熸湁妯悜婊氬姩鐨勫湴鏂癸紝
+                                       瀹冪殑妯悜鍘熺敓鏉′粛鐒朵繚鐣欙紝涓嶄細澶卞幓鎸囩ず */
     height: 0;
 }
 
 .cscroll-bar {
-    position: fixed;                /* ★ 不用 absolute：那要求容器是定位基准，
-                                       会把容器里绝对定位的后代（如 .tl-heatmap-tip）带偏 */
-    z-index: 60;                    /* 在内容之上、弹窗(1000)之下 */
+    position: fixed;                /* 鈽?涓嶇敤 absolute锛氶偅瑕佹眰瀹瑰櫒鏄畾浣嶅熀鍑嗭紝
+                                       浼氭妸瀹瑰櫒閲岀粷瀵瑰畾浣嶇殑鍚庝唬锛堝 .tl-heatmap-tip锛夊甫鍋?*/
+    z-index: 60;                    /* 鍦ㄥ唴瀹逛箣涓娿€佸脊绐?1000)涔嬩笅 */
     border-radius: 999px;
     opacity: 0;
     visibility: hidden;
-    pointer-events: none;           /* 不显示时不吃事件 */
+    pointer-events: none;           /* 涓嶆樉绀烘椂涓嶅悆浜嬩欢 */
     transition: opacity var(--dur-2) var(--ease-out), visibility var(--dur-2);
 }
 .cscroll-bar.cscroll-on {
     opacity: 1;
     visibility: visible;
-    pointer-events: auto;           /* 显示时才可拖/可点 */
+    pointer-events: auto;           /* 鏄剧ず鏃舵墠鍙嫋/鍙偣 */
 }
-/* 滑块：比原生条细很多（视觉 4px，命中带是 10px，见 scrollbar.js 的 TRACK —— 细归细，
-   抓取范围没变），颜色用站点自己的 --text-secondary 调透明度 —— 会自动跟着明暗主题走，
-   不用为暗色再写一套。
-   悬停/拖动**只变亮、不变粗**（用户明确要求：放上去不用变粗，亮度像现在这样变化即可）。 */
+/* 婊戝潡锛氭瘮鍘熺敓鏉＄粏寰堝锛堣瑙?4px锛屽懡涓甫鏄?10px锛岃 scrollbar.js 鐨?TRACK 鈥斺€?缁嗗綊缁嗭紝
+   鎶撳彇鑼冨洿娌″彉锛夛紝棰滆壊鐢ㄧ珯鐐硅嚜宸辩殑 --text-secondary 璋冮€忔槑搴?鈥斺€?浼氳嚜鍔ㄨ窡鐫€鏄庢殫涓婚璧帮紝
+   涓嶇敤涓烘殫鑹插啀鍐欎竴濂椼€?
+   鎮仠/鎷栧姩**鍙彉浜€佷笉鍙樼矖**锛堢敤鎴锋槑纭姹傦細鏀句笂鍘讳笉鐢ㄥ彉绮楋紝浜害鍍忕幇鍦ㄨ繖鏍峰彉鍖栧嵆鍙級銆?*/
 .cscroll-thumb {
     width: 4px;
     height: 100%;
-    margin: 0 auto;                 /* 在 10px 命中带里居中 */
+    margin: 0 auto;                 /* 鍦?10px 鍛戒腑甯﹂噷灞呬腑 */
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.18);                                        /* 不支持 color-mix 时的兜底 */
+    background: rgba(0, 0, 0, 0.18);                                        /* 涓嶆敮鎸?color-mix 鏃剁殑鍏滃簳 */
     background: color-mix(in srgb, var(--text-secondary, #888) 42%, transparent);
     transition: background-color var(--dur-1) ease;
 }
@@ -3663,24 +3663,24 @@ textarea:focus-visible {
 }
 
 /* ============================================================
-   ★ 自绘下拉栏（逻辑在 dropdown.js）
-   用户要求：① 不用系统默认的下拉；② 触发器**固定宽度**，写不下的像侧边栏那样压扁；
-             ③ 弹出时有动画。
-   ★ 原生 <select> 没删，只是 display:none 藏起来继续持有状态：
-     .value / .options / .selectedIndex / change 是全站既有契约（stats.js、router.js、
-     special.js 都在用，十几个用例也在用 `s.value='x'; dispatchEvent(change)`）。
-     看得见的只有下面这一层。所以这里绝不要给 .dd-native 加 pointer-events 之外的花样。
-   ★ 压扁靠的是 .dd-label 的 min-width:0 + ellipsis：flex 子项默认 min-width:auto
-     会被内容撑开，固定宽度就形同虚设 —— 这一条是"写不下就压扁"的关键。
+   鈽?鑷粯涓嬫媺鏍忥紙閫昏緫鍦?dropdown.js锛?
+   鐢ㄦ埛瑕佹眰锛氣憼 涓嶇敤绯荤粺榛樿鐨勪笅鎷夛紱鈶?瑙﹀彂鍣?*鍥哄畾瀹藉害**锛屽啓涓嶄笅鐨勫儚渚ц竟鏍忛偅鏍峰帇鎵侊紱
+             鈶?寮瑰嚭鏃舵湁鍔ㄧ敾銆?
+   鈽?鍘熺敓 <select> 娌″垹锛屽彧鏄?display:none 钘忚捣鏉ョ户缁寔鏈夌姸鎬侊細
+     .value / .options / .selectedIndex / change 鏄叏绔欐棦鏈夊绾︼紙stats.js銆乺outer.js銆?
+     special.js 閮藉湪鐢紝鍗佸嚑涓敤渚嬩篃鍦ㄧ敤 `s.value='x'; dispatchEvent(change)`锛夈€?
+     鐪嬪緱瑙佺殑鍙湁涓嬮潰杩欎竴灞傘€傛墍浠ヨ繖閲岀粷涓嶈缁?.dd-native 鍔?pointer-events 涔嬪鐨勮姳鏍枫€?
+   鈽?鍘嬫墎闈犵殑鏄?.dd-label 鐨?min-width:0 + ellipsis锛歠lex 瀛愰」榛樿 min-width:auto
+     浼氳鍐呭鎾戝紑锛屽浐瀹氬搴﹀氨褰㈠悓铏氳 鈥斺€?杩欎竴鏉℃槸"鍐欎笉涓嬪氨鍘嬫墎"鐨勫叧閿€?
    ============================================================ */
-/* ★ 原生 <select> 的提前隐藏**只限细指针（鼠标）环境**，不能无条件藏。
-  dropdown.js 开头就有一句：pointer: coarse（触屏）时直接不接管 —— 移动端靠的就是
-  系统原生下拉（"触屏就用系统原生的，更好用"）。无条件藏掉的话，移动端就成了
-  "自绘的不出现、原生的也被禁用"，什么都不剩。用户实测报过这一条。
-  条件与 JS 那句对齐（JS 判 coarse，这里用 fine），且媒体特性不支持时不匹配 ——
-  即"藏不掉"这个方向是安全的（宁可闪一下原生控件，也不能什么都不显示）。
-  下面那条 .dd-fail 是给增强中途抛错的 select 兜底：那时它没有 .dd-native，
-  会被上面的规则藏掉，必须显式放出来。 */
+/* 鈽?鍘熺敓 <select> 鐨勬彁鍓嶉殣钘?*鍙檺缁嗘寚閽堬紙榧犳爣锛夌幆澧?*锛屼笉鑳芥棤鏉′欢钘忋€?
+  dropdown.js 寮€澶村氨鏈変竴鍙ワ細pointer: coarse锛堣Е灞忥級鏃剁洿鎺ヤ笉鎺ョ 鈥斺€?绉诲姩绔潬鐨勫氨鏄?
+  绯荤粺鍘熺敓涓嬫媺锛?瑙﹀睆灏辩敤绯荤粺鍘熺敓鐨勶紝鏇村ソ鐢?锛夈€傛棤鏉′欢钘忔帀鐨勮瘽锛岀Щ鍔ㄧ灏辨垚浜?
+  "鑷粯鐨勪笉鍑虹幇銆佸師鐢熺殑涔熻绂佺敤"锛屼粈涔堥兘涓嶅墿銆傜敤鎴峰疄娴嬫姤杩囪繖涓€鏉°€?
+  鏉′欢涓?JS 閭ｅ彞瀵归綈锛圝S 鍒?coarse锛岃繖閲岀敤 fine锛夛紝涓斿獟浣撶壒鎬т笉鏀寔鏃朵笉鍖归厤 鈥斺€?
+  鍗?钘忎笉鎺?杩欎釜鏂瑰悜鏄畨鍏ㄧ殑锛堝畞鍙棯涓€涓嬪師鐢熸帶浠讹紝涔熶笉鑳戒粈涔堥兘涓嶆樉绀猴級銆?
+  涓嬮潰閭ｆ潯 .dd-fail 鏄粰澧炲己涓€旀姏閿欑殑 select 鍏滃簳锛氶偅鏃跺畠娌℃湁 .dd-native锛?
+  浼氳涓婇潰鐨勮鍒欒棌鎺夛紝蹇呴』鏄惧紡鏀惧嚭鏉ャ€?*/
 @media (pointer: fine) {
     select {
         display: none;
@@ -3694,19 +3694,19 @@ textarea:focus-visible {
 }
 .dd {
     display: inline-block;
-    width: var(--dd-w, 128px);          /* ★ 固定宽度；各上下文可用 --dd-w 覆盖 */
+    width: var(--dd-w, 128px);          /* 鈽?鍥哄畾瀹藉害锛涘悇涓婁笅鏂囧彲鐢?--dd-w 瑕嗙洊 */
     max-width: 100%;
     vertical-align: middle;
-    font-size: 0.75rem;                 /* 与原 .price-sort-select / .timeline-filter-select 一致 */
+    font-size: 0.75rem;                 /* 涓庡師 .price-sort-select / .timeline-filter-select 涓€鑷?*/
 }
-/* 各处的固定宽度：按"原来内容大概多长"定，写不下的压扁省略（不再让控件宽度随内容变）。
-   筛选项是"人民币 - 第一套人民币"这种长名字，给宽一点；年/月只有"全部 / 2024年"，给窄一点。
-   改宽度只动这里，不要回 JS 里写数字。 */
+/* 鍚勫鐨勫浐瀹氬搴︼細鎸?鍘熸潵鍐呭澶ф澶氶暱"瀹氾紝鍐欎笉涓嬬殑鍘嬫墎鐪佺暐锛堜笉鍐嶈鎺т欢瀹藉害闅忓唴瀹瑰彉锛夈€?
+   绛涢€夐」鏄?浜烘皯甯?- 绗竴濂椾汉姘戝竵"杩欑闀垮悕瀛楋紝缁欏涓€鐐癸紱骞?鏈堝彧鏈?鍏ㄩ儴 / 2024骞?锛岀粰绐勪竴鐐广€?
+   鏀瑰搴﹀彧鍔ㄨ繖閲岋紝涓嶈鍥?JS 閲屽啓鏁板瓧銆?*/
 .dd[data-dd-for="priceFilterSelect"] { --dd-w: 168px; }
 .dd[data-dd-for="timelineYearFilter"],
 .dd[data-dd-for="timelineMonthFilter"] { --dd-w: 96px; }
 @media (max-width: 600px) {
-    /* 窄屏：固定宽度也要收，不然两个控件就把标题行挤爆 */
+    /* 绐勫睆锛氬浐瀹氬搴︿篃瑕佹敹锛屼笉鐒朵袱涓帶浠跺氨鎶婃爣棰樿鎸ょ垎 */
     .dd { --dd-w: 124px; }
     .dd[data-dd-for="priceFilterSelect"] { --dd-w: 132px; }
     .dd[data-dd-for="timelineYearFilter"],
@@ -3729,34 +3729,34 @@ textarea:focus-visible {
     text-align: left;
     transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
 }
-/* ★ 搜索栏下拉外壳的收起/释放（文章板块不显示它）：
-   用宽度塌缩 + 淡出做过渡，而不是 display:none 瞬间消失。
-   .dd 本来就是固定宽 --dd-w，max-width 从 --dd-w 到 0 就是“收起”，
-   取消 .hidden 时自然“释放”；只影响带 .hidden 的外壳。 */
-/* ★ 用户反馈：希望下拉栏“压扁”而不是移出屏幕，且收起时搜索框要**同时**左移。   之前 max-width 收窄看着“先缩后跳”，是因为外壳缩了、内层控件还是硬块（被编澑在原宽）；   现在给外壳一个**明确的 width 起点**（width 可插值），塌缩时外壳与内容一起被压扁，   而 width 参与布局 ⇒ 搜索框从第一帧起就跟着左移（不再分两拍）。 */
+/* 鈽?鎼滅储鏍忎笅鎷夊澹崇殑鏀惰捣/閲婃斁锛堟枃绔犳澘鍧椾笉鏄剧ず瀹冿級锛?
+   鐢ㄥ搴﹀缂?+ 娣″嚭鍋氳繃娓★紝鑰屼笉鏄?display:none 鐬棿娑堝け銆?
+   .dd 鏈潵灏辨槸鍥哄畾瀹?--dd-w锛宮ax-width 浠?--dd-w 鍒?0 灏辨槸鈥滄敹璧封€濓紝
+   鍙栨秷 .hidden 鏃惰嚜鐒垛€滈噴鏀锯€濓紱鍙奖鍝嶅甫 .hidden 鐨勫澹炽€?*/
+/* 鈽?鐢ㄦ埛鍙嶉锛氬笇鏈涗笅鎷夋爮鈥滃帇鎵佲€濊€屼笉鏄Щ鍑哄睆骞曪紝涓旀敹璧锋椂鎼滅储妗嗚**鍚屾椂**宸︾Щ銆?  涔嬪墠 max-width 鏀剁獎鐪嬬潃鈥滃厛缂╁悗璺斥€濓紝鏄洜涓哄澹崇缉浜嗐€佸唴灞傛帶浠惰繕鏄‖鍧楋紙琚紪婢戝湪鍘熷锛夛紱   鐜板湪缁欏澹充竴涓?*鏄庣‘鐨?width 璧风偣**锛坵idth 鍙彃鍊硷級锛屽缂╂椂澶栧３涓庡唴瀹逛竴璧疯鍘嬫墎锛?  鑰?width 鍙備笌甯冨眬 鈬?鎼滅储妗嗕粠绗竴甯ц捣灏辫窡鐫€宸︾Щ锛堜笉鍐嶅垎涓ゆ媿锛夈€?*/
 .dd { width: var(--dd-w, 128px); max-width: none; overflow: hidden; transition: width 0.2s ease, opacity 0.2s ease, margin-left 0.2s ease; }
 .dd.hidden {
     width: 0;
     opacity: 0;
     margin-left: 0;
-    /* ★ .search-bar 是 gap:6px：压扁到 0 后仍会留下一个间距，这里用负右边距抵消，搜索框紧贴左边。 */
+    /* 鈽?.search-bar 鏄?gap:6px锛氬帇鎵佸埌 0 鍚庝粛浼氱暀涓嬩竴涓棿璺濓紝杩欓噷鐢ㄨ礋鍙宠竟璺濇姷娑堬紝鎼滅储妗嗙揣璐村乏杈广€?*/
     margin-right: -6px;
     pointer-events: none;
 }
 .dd-trigger:hover { border-color: var(--theme); }
-/* 与全站焦点环约定一致（见文件末尾"键盘焦点可见"一节）：只有键盘操作才出现 */
+/* 涓庡叏绔欑劍鐐圭幆绾﹀畾涓€鑷达紙瑙佹枃浠舵湯灏?閿洏鐒︾偣鍙"涓€鑺傦級锛氬彧鏈夐敭鐩樻搷浣滄墠鍑虹幇 */
 .dd-trigger:focus-visible { outline: 2px solid var(--theme); outline-offset: 1px; }
 .dd-label {
     flex: 1 1 auto;
-    min-width: 0;                       /* ★ 关键：不加这条，固定宽度压不住长文字 */
-    overflow: hidden;                   /* 只做"兜底裁剪"：JS 压缩没跑起来时最多裁掉，不会把触发器撑开 */
+    min-width: 0;                       /* 鈽?鍏抽敭锛氫笉鍔犺繖鏉★紝鍥哄畾瀹藉害鍘嬩笉浣忛暱鏂囧瓧 */
+    overflow: hidden;                   /* 鍙仛"鍏滃簳瑁佸壀"锛欽S 鍘嬬缉娌¤窇璧锋潵鏃舵渶澶氳鎺夛紝涓嶄細鎶婅Е鍙戝櫒鎾戝紑 */
     white-space: nowrap;
-    /* ★ 这里**不能**加 text-overflow: ellipsis：省略号是按布局宽度画的（transform 不改变布局），
-       压扁之后文字视觉上明明放得下，却还会在右边缘多画一个"…" —— 用户明确说不要省略号。 */
+    /* 鈽?杩欓噷**涓嶈兘**鍔?text-overflow: ellipsis锛氱渷鐣ュ彿鏄寜甯冨眬瀹藉害鐢荤殑锛坱ransform 涓嶆敼鍙樺竷灞€锛夛紝
+       鍘嬫墎涔嬪悗鏂囧瓧瑙嗚涓婃槑鏄庢斁寰椾笅锛屽嵈杩樹細鍦ㄥ彸杈圭紭澶氱敾涓€涓?鈥? 鈥斺€?鐢ㄦ埛鏄庣‘璇翠笉瑕佺渷鐣ュ彿銆?*/
 }
-/* ★ 真正干活的元素：inline-block = 盒子宽就是文字宽，scaleX(可用/文字) 才能正好压满。
-   放在 .dd-label 里，.dd-label 负责"固定宽度夹住"，它负责"按比例压扁"。
-   （用户要求：像侧边栏那样横向压扁，不是加省略号。） */
+/* 鈽?鐪熸骞叉椿鐨勫厓绱狅細inline-block = 鐩掑瓙瀹藉氨鏄枃瀛楀锛宻caleX(鍙敤/鏂囧瓧) 鎵嶈兘姝ｅソ鍘嬫弧銆?
+   鏀惧湪 .dd-label 閲岋紝.dd-label 璐熻矗"鍥哄畾瀹藉害澶逛綇"锛屽畠璐熻矗"鎸夋瘮渚嬪帇鎵?銆?
+   锛堢敤鎴疯姹傦細鍍忎晶杈规爮閭ｆ牱妯悜鍘嬫墎锛屼笉鏄姞鐪佺暐鍙枫€傦級 */
 .dd-label-text {
     display: inline-block;
     white-space: nowrap;
@@ -3774,38 +3774,38 @@ textarea:focus-visible {
 .dd-open .dd-caret { transform: rotate(180deg); }
 
 .dd-popup {
-    /* ★ fixed：不会被 .price-list-body / .timeline-header 这类 overflow 容器裁掉
-       （原生 select 的弹层是浏览器画的，所以没这个问题；自己画就必须绕开裁剪）。 */
+    /* 鈽?fixed锛氫笉浼氳 .price-list-body / .timeline-header 杩欑被 overflow 瀹瑰櫒瑁佹帀
+       锛堝師鐢?select 鐨勫脊灞傛槸娴忚鍣ㄧ敾鐨勶紝鎵€浠ユ病杩欎釜闂锛涜嚜宸辩敾灏卞繀椤荤粫寮€瑁佸壀锛夈€?*/
     position: fixed;
-    z-index: 900;                       /* 内容之上、弹窗(1000)之下 */
-    /* ★ 宽度不在这里定：dropdown.js 的 place() 会把它钉成**和触发器一样宽**，
-       长选项靠 .dd-opt 的 ellipsis 压扁，而不是把弹层撑宽（用户要求）。
-       这里只兜底一个下界，别让它塌成一条线。 */
+    z-index: 900;                       /* 鍐呭涔嬩笂銆佸脊绐?1000)涔嬩笅 */
+    /* 鈽?瀹藉害涓嶅湪杩欓噷瀹氾細dropdown.js 鐨?place() 浼氭妸瀹冮拤鎴?*鍜岃Е鍙戝櫒涓€鏍峰**锛?
+       闀块€夐」闈?.dd-opt 鐨?ellipsis 鍘嬫墎锛岃€屼笉鏄妸寮瑰眰鎾戝锛堢敤鎴疯姹傦級銆?
+       杩欓噷鍙厹搴曚竴涓笅鐣岋紝鍒瀹冨鎴愪竴鏉＄嚎銆?*/
     min-width: 72px;
     max-height: 280px;
-    overflow-y: auto;                   /* 选项多时滚动，滚动条由 scrollbar.js 自绘 */
+    overflow-y: auto;                   /* 閫夐」澶氭椂婊氬姩锛屾粴鍔ㄦ潯鐢?scrollbar.js 鑷粯 */
     padding: 4px;
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 6px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
     font-size: 0.75rem;
-    /* ★ 弹出动画 */
+    /* 鈽?寮瑰嚭鍔ㄧ敾 */
     opacity: 0;
     transform: translateY(-4px);
     transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 .dd.dd-open .dd-popup { opacity: 1; transform: none; }
-.dd:not(.dd-open) .dd-popup { pointer-events: none; }   /* 收起动画期间不吃点击 */
+.dd:not(.dd-open) .dd-popup { pointer-events: none; }   /* 鏀惰捣鍔ㄧ敾鏈熼棿涓嶅悆鐐瑰嚮 */
 .dd-opt {
     padding: 4px 8px;
     border-radius: 4px;
     color: var(--text);
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;                   /* 兜底（同 .dd-label） */
+    overflow: hidden;                   /* 鍏滃簳锛堝悓 .dd-label锛?*/
 }
-/* 选项文字同样用 inline-block + scaleX 压扁（见 .dd-label-text 的注释） */
+/* 閫夐」鏂囧瓧鍚屾牱鐢?inline-block + scaleX 鍘嬫墎锛堣 .dd-label-text 鐨勬敞閲婏級 */
 .dd-opt-text {
     display: inline-block;
     white-space: nowrap;
@@ -3817,19 +3817,19 @@ textarea:focus-visible {
 @media (prefers-reduced-motion: reduce) {
     .dd-trigger, .dd-popup, .dd-caret, .dd { transition: none; }
 }
-/* ===== 透明玻璃界面风格 =====
-   三层正交：明暗（data-color-scheme）× 主题色（--theme）× 界面风格（data-ui-style）。
-   变量由 theme.js 的 applyTheme() 和 index.html head 里那份镜像写成，这里只管：
-   底层底纹 + 面板磨砂 + 可读性豁免 + 降级。
-   ★ 玻璃模式下 --bg 是 rgba(...,0)（由 applyTheme 写入），所以底纹必须由 body 画，
-     否则面板后面什么都没有，backdrop-filter 磨不到东西 = 只有"半透明色块"没有"玻璃"。 */
-/* 底层：html 给实色兜底，body 全透明，背景层 #glassOrbs 用 z-index:-1 沉到最底。
-   ★ 用负层而不是"抬升内容层"：抬升会新建层叠上下文，站点灯箱/底栏/下拉全靠既有 z-index 排序，
-     一动就可能出"盖不住/被盖住"的回归；负层不需要改任何既有 z-index。
-   ★ 球由 theme.js 生成（圆/椭圆/条三种形状，尺寸、位置、浓淡、寿命随机），
-     运动是 JS 逐帧的**平移 + 旋转 + 缩放**，并且**故意不用 CSS 关键帧** ——
-     关键帧路径固定，来回跑必然可预测（用户报的正是这个）。数量也会随寿命上下波动。
-   ★ 深色用 screen 提亮，浅色不用混合模式（白底上 screen 等于白给）。 */
+/* ===== 閫忔槑鐜荤拑鐣岄潰椋庢牸 =====
+   涓夊眰姝ｄ氦锛氭槑鏆楋紙data-color-scheme锛壝?涓婚鑹诧紙--theme锛壝?鐣岄潰椋庢牸锛坉ata-ui-style锛夈€?
+   鍙橀噺鐢?theme.js 鐨?applyTheme() 鍜?index.html head 閲岄偅浠介暅鍍忓啓鎴愶紝杩欓噷鍙锛?
+   搴曞眰搴曠汗 + 闈㈡澘纾ㄧ爞 + 鍙鎬ц眮鍏?+ 闄嶇骇銆?
+   鈽?鐜荤拑妯″紡涓?--bg 鏄?rgba(...,0)锛堢敱 applyTheme 鍐欏叆锛夛紝鎵€浠ュ簳绾瑰繀椤荤敱 body 鐢伙紝
+     鍚﹀垯闈㈡澘鍚庨潰浠€涔堥兘娌℃湁锛宐ackdrop-filter 纾ㄤ笉鍒颁笢瑗?= 鍙湁"鍗婇€忔槑鑹插潡"娌℃湁"鐜荤拑"銆?*/
+/* 搴曞眰锛歨tml 缁欏疄鑹插厹搴曪紝body 鍏ㄩ€忔槑锛岃儗鏅眰 #glassOrbs 鐢?z-index:-1 娌夊埌鏈€搴曘€?
+   鈽?鐢ㄨ礋灞傝€屼笉鏄?鎶崌鍐呭灞?锛氭姮鍗囦細鏂板缓灞傚彔涓婁笅鏂囷紝绔欑偣鐏/搴曟爮/涓嬫媺鍏ㄩ潬鏃㈡湁 z-index 鎺掑簭锛?
+     涓€鍔ㄥ氨鍙兘鍑?鐩栦笉浣?琚洊浣?鐨勫洖褰掞紱璐熷眰涓嶉渶瑕佹敼浠讳綍鏃㈡湁 z-index銆?
+   鈽?鐞冪敱 theme.js 鐢熸垚锛堝渾/妞渾/鏉′笁绉嶅舰鐘讹紝灏哄銆佷綅缃€佹祿娣°€佸鍛介殢鏈猴級锛?
+     杩愬姩鏄?JS 閫愬抚鐨?*骞崇Щ + 鏃嬭浆 + 缂╂斁**锛屽苟涓?*鏁呮剰涓嶇敤 CSS 鍏抽敭甯?* 鈥斺€?
+     鍏抽敭甯ц矾寰勫浐瀹氾紝鏉ュ洖璺戝繀鐒跺彲棰勬祴锛堢敤鎴锋姤鐨勬鏄繖涓級銆傛暟閲忎篃浼氶殢瀵垮懡涓婁笅娉㈠姩銆?
+   鈽?娣辫壊鐢?screen 鎻愪寒锛屾祬鑹蹭笉鐢ㄦ贩鍚堟ā寮忥紙鐧藉簳涓?screen 绛変簬鐧界粰锛夈€?*/
 html[data-ui-style="glass"] { background: var(--bg-solid, #eef4ff); }
 html[data-ui-style="glass"] body { background: transparent; }
 html[data-ui-style="glass"] #glassOrbs {
@@ -3852,7 +3852,7 @@ html[data-ui-style="glass"] #glassOrbs > i {
 }
 html[data-ui-style="glass"][data-color-scheme="light"] #glassOrbs > i { mix-blend-mode: normal; }
 html[data-ui-style="glass"][data-color-scheme="dark"] #glassOrbs > i { mix-blend-mode: screen; }
-/* 减弱动效：球原地静止（JS 那边也不会启动漂移） */
+/* 鍑忓急鍔ㄦ晥锛氱悆鍘熷湴闈欐锛圝S 閭ｈ竟涔熶笉浼氬惎鍔ㄦ紓绉伙級 */
 @media (prefers-reduced-motion: reduce) {
     html[data-ui-style="glass"] #glassOrbs { animation: none; opacity: 1; }
 }@media (prefers-reduced-motion: reduce) {
@@ -3860,8 +3860,8 @@ html[data-ui-style="glass"][data-color-scheme="dark"] #glassOrbs > i { mix-blend
 }
 html[data-ui-style="glass"] .content { background: transparent; }
 
-/* 面板层统一磨砂。★ 只加在**容器级**：价格列表有 394 行且每行 content-visibility:auto，
-   绝不给 .price-list-item 这种单行元素加 blur，否则直接卡死。 */
+/* 闈㈡澘灞傜粺涓€纾ㄧ爞銆傗槄 鍙姞鍦?*瀹瑰櫒绾?*锛氫环鏍煎垪琛ㄦ湁 394 琛屼笖姣忚 content-visibility:auto锛?
+   缁濅笉缁?.price-list-item 杩欑鍗曡鍏冪礌鍔?blur锛屽惁鍒欑洿鎺ュ崱姝汇€?*/
 html[data-ui-style="glass"] .top-search-container,
 html[data-ui-style="glass"] .sidebar,
 html[data-ui-style="glass"] .search-result-group,
@@ -3877,25 +3877,25 @@ html[data-ui-style="glass"] .special-overview-card,
 html[data-ui-style="glass"] .special-item-card,
 html[data-ui-style="glass"] .bottom-tabbar,
 html[data-ui-style="glass"] .placeholder-never-matches {
-    /* 玻璃靠三件事一起出来：磨砂 + 斜向高光渐变 + 内高光边。只有 blur 会像"半透明色块"。 */
+    /* 鐜荤拑闈犱笁浠朵簨涓€璧峰嚭鏉ワ細纾ㄧ爞 + 鏂滃悜楂樺厜娓愬彉 + 鍐呴珮鍏夎竟銆傚彧鏈?blur 浼氬儚"鍗婇€忔槑鑹插潡"銆?*/
     backdrop-filter: blur(18px) saturate(185%) brightness(1.05);
     -webkit-backdrop-filter: blur(18px) saturate(185%) brightness(1.05);
     background-image: linear-gradient(140deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(255, 255, 255, 0.02) 62%, rgba(255, 255, 255, 0.10) 100%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38), 0 10px 28px -18px rgba(0, 0, 0, 0.45);
 }
 
-/* 全屏看图 / 长文阅读保持实色：可读性优先，也省性能 */
+/* 鍏ㄥ睆鐪嬪浘 / 闀挎枃闃呰淇濇寔瀹炶壊锛氬彲璇绘€т紭鍏堬紝涔熺渷鎬ц兘 */
 html[data-ui-style="glass"] .article-reader,
 html[data-ui-style="glass"] .modal-content {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 
-/* 引擎不支持 backdrop-filter：退回实色底（仍是"换肤"，只是不磨砂） */
+/* 寮曟搸涓嶆敮鎸?backdrop-filter锛氶€€鍥炲疄鑹插簳锛堜粛鏄?鎹㈣偆"锛屽彧鏄笉纾ㄧ爞锛?*/
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     html[data-ui-style="glass"] body { background: var(--bg-solid, #eef4ff); }
 }
-/* 系统「减少透明度」：同样退回实色，并摘掉所有磨砂 */
+/* 绯荤粺銆屽噺灏戦€忔槑搴︺€嶏細鍚屾牱閫€鍥炲疄鑹诧紝骞舵憳鎺夋墍鏈夌（鐮?*/
 @media (prefers-reduced-transparency: reduce) {
     html[data-ui-style="glass"] body { background: var(--bg-solid, #eef4ff); }
     html[data-ui-style="glass"] .content { background: var(--bg-solid, #eef4ff); }
@@ -3905,11 +3905,11 @@ html[data-ui-style="glass"] .modal-content {
     }
 }
 
-/* 玻璃的"内高光边"要按明暗分开调：浅色下 0.38 太白会糊，暗色下太弱又看不出玻璃边 */
+/* 鐜荤拑鐨?鍐呴珮鍏夎竟"瑕佹寜鏄庢殫鍒嗗紑璋冿細娴呰壊涓?0.38 澶櫧浼氱硦锛屾殫鑹蹭笅澶急鍙堢湅涓嶅嚭鐜荤拑杈?*/
 
-/* ===== 亮色玻璃单独加强 =====
-   亮色下"透明白 + 白底"天然对比不足，只靠 blur 会发糊：压上高光、再补一层柔和投影把面板托起来，
-   玻璃的立体感才出来（暗色本身分得开，不需要）。 */
+/* ===== 浜壊鐜荤拑鍗曠嫭鍔犲己 =====
+   浜壊涓?閫忔槑鐧?+ 鐧藉簳"澶╃劧瀵规瘮涓嶈冻锛屽彧闈?blur 浼氬彂绯婏細鍘嬩笂楂樺厜銆佸啀琛ヤ竴灞傛煍鍜屾姇褰辨妸闈㈡澘鎵樿捣鏉ワ紝
+   鐜荤拑鐨勭珛浣撴劅鎵嶅嚭鏉ワ紙鏆楄壊鏈韩鍒嗗緱寮€锛屼笉闇€瑕侊級銆?*/
 html[data-ui-style="glass"][data-color-scheme="light"] .top-search-container,
 html[data-ui-style="glass"][data-color-scheme="light"] .sidebar,
 html[data-ui-style="glass"][data-color-scheme="light"] .search-result-group,
@@ -3929,9 +3929,9 @@ html[data-ui-style="glass"][data-color-scheme="light"] .placeholder-never-matche
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.40), 0 12px 28px -18px rgba(15, 23, 42, 0.32);
 }
 
-/* ===== 流动光感：一条大斜向光带在界面下方缓慢漂移（JS 逐帧随机目标，零重绘） ===== */
-/* 光带浮层已取消：光带档改为背景里的条状光晕（见 theme.js 的 streak 预设） */
-/* ===== 网格风格：细线网格（两层 repeating-linear-gradient） ===== */
+/* ===== 娴佸姩鍏夋劅锛氫竴鏉″ぇ鏂滃悜鍏夊甫鍦ㄧ晫闈笅鏂圭紦鎱㈡紓绉伙紙JS 閫愬抚闅忔満鐩爣锛岄浂閲嶇粯锛?===== */
+/* 鍏夊甫娴眰宸插彇娑堬細鍏夊甫妗ｆ敼涓鸿儗鏅噷鐨勬潯鐘跺厜鏅曪紙瑙?theme.js 鐨?streak 棰勮锛?*/
+/* ===== 缃戞牸椋庢牸锛氱粏绾跨綉鏍硷紙涓ゅ眰 repeating-linear-gradient锛?===== */
 html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     position: absolute;
     inset: -25%;
@@ -3948,7 +3948,7 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     html[data-ui-style="glass"] #glassOrbs > u.glass-grid { display: none; }
 }
 
-/* ===== 设置页里的背景风格动态预览卡 ===== */
+/* ===== 璁剧疆椤甸噷鐨勮儗鏅鏍煎姩鎬侀瑙堝崱 ===== */
 .glass-previews { display: flex; gap: 10px; padding: 4px 0 2px; }
 .glass-preview-card {
     flex: 1;
@@ -4016,7 +4016,7 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
 }
 @keyframes gfx-sheen { from { transform: translate3d(-18%, 0, 0); } to { transform: translate3d(18%, 0, 0); } }
 
-/* ===== 背景风格区块：只在液体玻璃开启时出现，展开/收起走过渡（丝滑） ===== */
+/* ===== 鑳屾櫙椋庢牸鍖哄潡锛氬彧鍦ㄦ恫浣撶幓鐠冨紑鍚椂鍑虹幇锛屽睍寮€/鏀惰捣璧拌繃娓★紙涓濇粦锛?===== */
 .glass-bg-section {
     max-height: 0;
     opacity: 0;
@@ -4024,11 +4024,11 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     padding-top: 0;
     padding-bottom: 0;
     margin-top: 0;
-    transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease, padding 0.32s ease, margin 0.32s ease;
+    transition: max-height 0.44s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.36s ease, padding 0.44s ease, margin 0.44s ease;
     pointer-events: none;
 }
 .glass-bg-section.open {
-    max-height: 320px;
+    max-height: 420px;
     opacity: 1;
     padding-top: 14px;
     padding-bottom: 14px;
@@ -4037,13 +4037,13 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
 }
 @media (prefers-reduced-motion: reduce) { .glass-bg-section { transition: none; } }
 
-/* 预览里的线条也要"随机"：角度/时长由 JS 写成变量 */
+/* 棰勮閲岀殑绾挎潯涔熻"闅忔満"锛氳搴?鏃堕暱鐢?JS 鍐欐垚鍙橀噺 */
 .glass-preview .gfx-grid { transform: rotate(var(--gr, 0deg)); }
 .glass-preview .gfx-sheen { transform: rotate(var(--sa, 115deg)); }
 
-/* ===== 玻璃开关的平滑切换 =====
-   之前开关一按，模糊/透明/阴影是"啪"地换过去（CSS 变量不过渡）。
-   切换期间挂 .glass-switching，只给这些面板属性加过渡，380ms 后由 JS 摘掉。 */
+/* ===== 鐜荤拑寮€鍏崇殑骞虫粦鍒囨崲 =====
+   涔嬪墠寮€鍏充竴鎸夛紝妯＄硦/閫忔槑/闃村奖鏄?鍟?鍦版崲杩囧幓锛圕SS 鍙橀噺涓嶈繃娓★級銆?
+   鍒囨崲鏈熼棿鎸?.glass-switching锛屽彧缁欒繖浜涢潰鏉垮睘鎬у姞杩囨浮锛?80ms 鍚庣敱 JS 鎽樻帀銆?*/
 html.glass-switching .sidebar,
 html.glass-switching main,
 html.glass-switching .top-search-container,
@@ -4057,4 +4057,28 @@ html.glass-switching .series-year-row {
 }
 @media (prefers-reduced-motion: reduce) {
     html.glass-switching .sidebar, html.glass-switching main { transition: none !important; }
+}
+
+/* ===== 鐜荤拑闈㈡澘鐨勫父椹昏繃娓★紙淇?涓婚鍒囨崲/寮€鍏崇獊鍙?锛?====
+   鈽?鏍瑰洜锛氱幓鐠冮潰鏉跨殑棰滆壊鏈変竴閮ㄥ垎鏄?background-image 娓愬彉锛岃€?*娓愬彉涓嶅彲鎻掑€?* 鈥斺€?
+     涓婚鑹蹭竴鍙橈紝娓愬彉鏄?鍟?鍦版崲鎺夛紝鎵€浠ョ湅璧锋潵绐佸彉銆?
+   鈽?鍔炴硶锛氱粰鎵€鏈?*鍙彃鍊?*鐨勫睘鎬э紙鑳屾櫙鑹?杈规/闃村奖/鏂囧瓧鑹?妯＄硦锛夋寕甯搁┗杩囨浮锛?
+     娓愬彉閭ｉ儴鍒嗚窡鐫€鍩虹鑹蹭竴璧?鍖?杩囧幓锛岃鎰熷氨椤轰簡銆?
+   鈽?鍙寕鍦?html[data-ui-style="glass"] 涓嬶細鏍囧噯椋庢牸鏈潵灏辫蛋绔欑偣鑷繁鐨?theme-anim 鏈哄埗锛屼笉閲嶅鎺ョ銆?
+   鈽?鐢?!important 鏄洜涓虹珯鐐规湁鑻ュ共澶?background 绠€鍐欎細瑕嗙洊鑳屾櫙鑹诧紱杩欎簺閫夋嫨鍣ㄥ拰鎵嬮鐞寸殑
+     .series-body/.copy-list 浜掍笉閲嶅彔锛屼笉浼氬奖鍝嶅睍寮€鏀惰捣銆?*/
+html[data-ui-style="glass"] .sidebar,
+html[data-ui-style="glass"] main,
+html[data-ui-style="glass"] .top-search-container,
+html[data-ui-style="glass"] .bottom-tabbar,
+/* .settings-section 故意不放进常驻列表：它自己有 max-height 过渡（背景风格区块的展开/收起），
+html[data-ui-style="glass"] .card,
+html[data-ui-style="glass"] .series-year-row,
+html[data-ui-style="glass"] .variety-row,
+html[data-ui-style="glass"] .copy-item {
+   !important 会把它顶掉，导致那个区块反而突变（实测过）。 */
+    transition: background-color 0.34s ease, border-color 0.34s ease, box-shadow 0.34s ease, color 0.34s ease, backdrop-filter 0.34s ease, -webkit-backdrop-filter 0.34s ease, opacity 0.34s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-ui-style="glass"] .sidebar, html[data-ui-style="glass"] main { transition: none !important; }
 }

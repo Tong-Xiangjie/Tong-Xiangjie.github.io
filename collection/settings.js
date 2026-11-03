@@ -488,9 +488,18 @@ if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then =
 // 所以给个开关让"想要更清晰"的时候自己开。
 // ★ 界面风格开关：和「使用原图」「模糊搜索」同一种写法（setSwitchState 局部刷新，不整页重渲染）
 // ★ 点背景风格卡：选完立刻重渲染，让高亮跟过去（预览是 CSS 动画，重渲染后重新生成）
+// ★ 切换背景风格**不要整页重渲染**：
+//   ① 重渲染会把滚动位置弹回去（用户反馈"滚动被强行拉到某处"）；
+//   ② 预览小场景会整体重建，动画从头开始，看起来"突变"。
+//   所以这里只做两件事：换背景 + 就地更新卡片高亮。
 function pickGlassBg(v) {
     setGlassBg(v);
-    if (typeof renderSettingsPage === 'function') renderSettingsPage();
+    var cards = document.querySelectorAll('.glass-preview-card');
+    for (var i = 0; i < cards.length; i++) {
+        var oc = cards[i].getAttribute('onclick') || '';
+        if (oc.indexOf("'" + v + "'") >= 0) cards[i].classList.add('active');
+        else cards[i].classList.remove('active');
+    }
 }
 
 function toggleUIStyle() {
