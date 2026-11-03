@@ -481,7 +481,17 @@ function applyTheme(color) {
     const el = document.documentElement;
 
     // 让 CSS 能按风格分流（玻璃模式的规则全部挂在 html[data-ui-style="glass"] 上）
+        // ★ 只在这里（用户点开关）开闸，切完调一次溶解，然后关闸。
+    //   页面重绘不会经过这里 ⇒ 不可能再闪。
+    var __prevBg = null;
+    try {
+        var __cs = window.getComputedStyle(document.documentElement);
+        __prevBg = (__cs.getPropertyValue('--bg-solid') || __cs.getPropertyValue('--bg') || '').trim() || null;
+    } catch (e) { }
+    window.__glassUserAction = true;
     el.setAttribute('data-ui-style', glass ? 'glass' : 'standard');
+    // ★ 注意：动画由 applyTheme 包装在开闸后统一调用，这里不能再调一次（否则会铺两层遮罽）。
+    setTimeout(function () { window.__glassUserAction = false; }, 700);
     if (glass) ensureGlassOrbs(false); else { stopGlassOrbDrift(); fadeOutGlassOrbs(); }
 
 // ★ 背景层的样式全部绑在 html[data-ui-style="glass"] 上，属性一翻、球就没有任何定位/滤镜了，
@@ -607,6 +617,7 @@ document.addEventListener('DOMContentLoaded', function () {
 //   把所有内部瞬变（底色、卡片、模糊、背景层）都包成一次平滑的交叉淡入。
 function themeCrossFade() {
     try {
+        if (!window.__glassUserAction) return;   // ★ 只有用户点开关时才放行；页面重绘一律不动
         if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         var el = document.getElementById('app') || document.body;
         if (!el || !el.animate) return;
@@ -623,6 +634,7 @@ function themeCrossFade() {
 //   用户看到的是“旧样子溶解成新样子”——这是唯一不受层叠影响的保证。
 function themeFadeOverlay(prevBg) {
     try {
+        if (!window.__glassUserAction) return;   // ★ 只有用户点开关时才放行；页面重绘一律不动
         if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         if (!prevBg) return;
         var d = document.createElement('div');
