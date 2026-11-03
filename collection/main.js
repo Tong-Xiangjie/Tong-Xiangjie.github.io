@@ -66,9 +66,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Reveal with the Web Animations API: same props/duration/easing as the site tab-switch
         // transition (max-height + opacity for the search bar, opacity for the sidebar), but
         // independent of the cascade -- removing !important rules alone did not animate.
+        // ★ 这一屏本来就不该有的外壳，入场动画不要碰（否则会「先放出来、再被视图收掉」= 闪现）。
+        //   我的 / 特殊页本身不收搜索栏和侧边栏，直接进这两屏时它们其实一直是收起态：
+        //   旧代码无条件把它们 hidden 摘掉并把搜索栏 max-height 推到 600，于是先闪出来、
+        //   渲染后被视图自己的收起状态撤掉 —— 用户报的「我的出现搜索栏 + 侧边栏闪现又消失」。
+        var bootChromeHidden = (function () {
+            var top = (location.hash || '').replace(/^#/, '').split('/')[0];
+            return top === 'settings' || top === 'special';
+        })();
         var bootRevealAnim = (function () {
             var out = [];
-            var sc = document.querySelector('.top-search-container');
+            var sc = bootChromeHidden ? null : document.querySelector('.top-search-container');
             if (sc) out.push(sc.animate([
                 { maxHeight: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px' },
                 { maxHeight: '600px', opacity: 1 }
@@ -76,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Sidebar: collapse -> expand, matching the site tab-switch (its base class already
             // transitions width/min-width; only the "special page" hide disables the width part).
             var bootRevealWidth = 0;
-            var sb = document.querySelector('.sidebar');
+            var sb = bootChromeHidden ? null : document.querySelector('.sidebar');
             if (sb) {
                 var w = Math.round(sb.getBoundingClientRect().width) || 0;
                 bootRevealWidth = w;
@@ -88,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     out.push(sb.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
                 }
             }
-            var stg = document.querySelector('.sidebar-toggle');
+            var stg = bootChromeHidden ? null : document.querySelector('.sidebar-toggle');
             if (stg) out.push(stg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
             // Bottom tab bar: slide up from the bottom edge while fading in (same 0.3s family).
             var bootRevealBar = document.querySelector('.bottom-tabbar');
@@ -108,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             var bootStyle = document.getElementById('boot-hide-style');
             if (bootStyle && bootStyle.parentNode) bootStyle.parentNode.removeChild(bootStyle);
             // ★ 去掉启动期的 hidden，随即由站点自己的过渡展开（max-height / opacity）。
-            ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
+            [].concat(bootChromeHidden ? [] : ['.top-search-container', '.sidebar', '.sidebar-toggle']).forEach(function (sel) {
                 var el = document.querySelector(sel);
                 if (el) { el.style.display = ''; if (el.classList) el.classList.remove('hidden'); }
             });

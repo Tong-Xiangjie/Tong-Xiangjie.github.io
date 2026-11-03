@@ -3930,19 +3930,7 @@ html[data-ui-style="glass"][data-color-scheme="light"] .placeholder-never-matche
 }
 
 /* ===== 流动光感：一条大斜向光带在界面下方缓慢漂移（JS 逐帧随机目标，零重绘） ===== */
-html[data-ui-style="glass"] #glassOrbs > b.glass-sheen {
-    position: absolute;
-    inset: -40%;
-    display: block;
-    background: repeating-linear-gradient(115deg, transparent 0 7%, rgba(255, 255, 255, 0.085) 7% 8.6%, transparent 8.6% 17%);
-    filter: blur(22px);
-    mix-blend-mode: screen;
-    will-change: transform;
-}
-html[data-ui-style="glass"][data-color-scheme="light"] #glassOrbs > b.glass-sheen {
-    background: repeating-linear-gradient(115deg, transparent 0 7%, color-mix(in srgb, var(--theme) 24%, transparent) 7% 8.6%, transparent 8.6% 17%);
-    mix-blend-mode: normal;
-}
+/* 光带浮层已取消：光带档改为背景里的条状光晕（见 theme.js 的 streak 预设） */
 /* ===== 网格风格：细线网格（两层 repeating-linear-gradient） ===== */
 html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     position: absolute;
@@ -3957,7 +3945,6 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     will-change: transform;
 }
 @media (prefers-reduced-transparency: reduce) {
-    html[data-ui-style="glass"] #glassOrbs > b.glass-sheen,
     html[data-ui-style="glass"] #glassOrbs > u.glass-grid { display: none; }
 }
 
@@ -4028,3 +4015,46 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     animation: gfx-sheen 7s linear infinite;
 }
 @keyframes gfx-sheen { from { transform: translate3d(-18%, 0, 0); } to { transform: translate3d(18%, 0, 0); } }
+
+/* ===== 背景风格区块：只在液体玻璃开启时出现，展开/收起走过渡（丝滑） ===== */
+.glass-bg-section {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease, padding 0.32s ease, margin 0.32s ease;
+    pointer-events: none;
+}
+.glass-bg-section.open {
+    max-height: 320px;
+    opacity: 1;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    margin-top: 12px;
+    pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) { .glass-bg-section { transition: none; } }
+
+/* 预览里的线条也要"随机"：角度/时长由 JS 写成变量 */
+.glass-preview .gfx-grid { transform: rotate(var(--gr, 0deg)); }
+.glass-preview .gfx-sheen { transform: rotate(var(--sa, 115deg)); }
+
+/* ===== 玻璃开关的平滑切换 =====
+   之前开关一按，模糊/透明/阴影是"啪"地换过去（CSS 变量不过渡）。
+   切换期间挂 .glass-switching，只给这些面板属性加过渡，380ms 后由 JS 摘掉。 */
+html.glass-switching .sidebar,
+html.glass-switching main,
+html.glass-switching .top-search-container,
+html.glass-switching .bottom-tabbar,
+html.glass-switching .settings-section,
+html.glass-switching .card,
+html.glass-switching .notes-card,
+html.glass-switching .variety-row,
+html.glass-switching .series-year-row {
+    transition: background-color 0.32s ease, background-image 0.32s ease, backdrop-filter 0.32s ease, -webkit-backdrop-filter 0.32s ease, box-shadow 0.32s ease, border-color 0.32s ease, color 0.32s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html.glass-switching .sidebar, html.glass-switching main { transition: none !important; }
+}

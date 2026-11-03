@@ -135,6 +135,12 @@ function setColorSchemeMode(mode) {
 }
 
 function setUIStyle(style) {
+    // ★ 玻璃开关的"突变"：模糊/透明是瞬间换的（CSS 变量本身不会过渡）。
+    //   这里在切换期间挂一个 glass-switching 类，由 CSS 给出 backdrop-filter / 背景 / 阴影 的过渡，
+    //   350ms 后摘掉，避免影响其它交互。
+    var root = document.documentElement;
+    try { root.classList.add('glass-switching'); } catch (e) { }
+    setTimeout(function () { try { root.classList.remove('glass-switching'); } catch (e) { } }, 380);
     if (UI_STYLE_MODES.indexOf(style) < 0) return;
     try { localStorage.setItem(UI_STYLE_KEY, style); } catch (e) {}
     if (style === 'glass') ensureGlassOrbs(true); else stopGlassOrbDrift();
@@ -194,16 +200,22 @@ function orbRnd(a, b) { return a + Math.random() * (b - a); }
 // ★ 背景风格（仅液体玻璃下生效）：同一套生成器，只换参数。
 //   无论哪种风格，运动都是 JS 逐帧的随机目标漂移（不用 CSS 关键帧，避免固定路径来回跑）。
 const GLASS_BG_KEY = 'collection-glass-bg';
-const GLASS_BG_MODES = ['orbs', 'nebula', 'grid'];
+const GLASS_BG_MODES = ['nebula', 'grid', 'sheen'];
 const GLASS_BG_PRESETS = {
-    orbs:   { n: [4, 8], size: [22, 68],  blur: 56, op: [22, 46], life: [9000, 26000] },
-    nebula: { n: [3, 5], size: [55, 115], blur: 92, op: [16, 30], life: [20000, 48000] },
-    grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] }
+    nebula: { n: [3, 6], size: [55, 118], blur: 92, op: [16, 34], life: [20000, 48000] },
+    grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] },
+    // 光带 = 背景里几条拉长的柔和光晕（不是浮在界面上的白线：那就是用户说的"浮在上面有点丑"）
+    sheen:  { n: [3, 6], size: [55, 135], blur: 72, op: [14, 26], life: [18000, 42000], streak: true }
 };
 function getGlassBg() {
-    try { var v = localStorage.getItem(GLASS_BG_KEY); if (v === 'minimal') v = 'grid'; return GLASS_BG_MODES.indexOf(v) >= 0 ? v : 'orbs'; } catch (e) { return 'orbs'; }
+    try {
+        var v = localStorage.getItem(GLASS_BG_KEY);
+        if (v === 'orbs') v = 'nebula';      // 彩球已合并进星云（两者视觉区分度太低）
+        if (v === 'minimal') v = 'grid';
+        return GLASS_BG_MODES.indexOf(v) >= 0 ? v : 'nebula';
+    } catch (e) { return 'nebula'; }
 }
-function glassBgPreset() { return GLASS_BG_PRESETS[getGlassBg()] || GLASS_BG_PRESETS.orbs; }
+function glassBgPreset() { return GLASS_BG_PRESETS[getGlassBg()] || GLASS_BG_PRESETS.nebula; }
 function setGlassBg(v) {
     if (GLASS_BG_MODES.indexOf(v) < 0) return;
     try { localStorage.setItem(GLASS_BG_KEY, v); } catch (e) { }
@@ -211,14 +223,13 @@ function setGlassBg(v) {
 }
 
 // ★ 流动光感：一条大斜向光带，JS 缓慢漂移（随机目标，不可预测）。
+// ★ 光带不再是独立浮层：之前它是一条白色斜线盖在界面上（用户：“浮在上面有点丑”、
+//   “三个都有的洞动白线去掉”、“光带线条也应该是背景里面的”）。
+//   现在光带档 = 背景里几条拉长的柔和光晕（见上面的 streak 预设），跟球同一套 JS 漂移。
 function ensureGlassSheen(host) {
-    try {
-        var s = host.querySelector('b.glass-sheen');
-        if (!s) { s = document.createElement('b'); s.className = 'glass-sheen'; s.setAttribute('aria-hidden', 'true'); host.appendChild(s); }
-        window.__glassSheen = { el: s, x: 0, y: 0, tx: orbRnd(-28, 28), ty: orbRnd(-14, 14), rot: orbRnd(100, 140), vr: orbRnd(-0.012, 0.012), k: 0.0009 };
-    } catch (e) { }
+    try { var old = host.querySelector('b.glass-sheen'); if (old && old.parentNode) old.parentNode.removeChild(old); } catch (e) { }
+    window.__glassSheen = null;
 }
-
 // ★ 网格风格：一层细线格，一样由 JS 漂移（平移 + 轻微旋转）。
 function ensureGlassGrid(host) {
     try {
@@ -243,8 +254,9 @@ function initGlassPreviews() {
     for (var bi = 0; bi < boxes.length; bi++) {
         (function (box) {
             var kind = box.getAttribute('data-glass-preview');
+            box.innerHTML = '';   // ★ 先清空：否则重复调用会叠加两份场景
             var scene = document.createElement('span'); scene.className = 'gfx';
-            var n = kind === 'grid' ? 0 : (kind === 'nebula' ? 3 : 4);
+            var n = (kind === 'nebula' || kind === 'sheen') ? (kind === 'nebula' ? 3 : 4) : 0;   // 星云=球，光带=条，网格=只有网格
             for (var i = 0; i < n; i++) {
                 var o = document.createElement('i');
                 o.className = 'gfx-orb';
@@ -252,15 +264,23 @@ function initGlassPreviews() {
                 o.style.left = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.top = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.width = size + '%';
-                o.style.height = size + '%';
+                o.style.height = (kind === 'sheen' ? Math.max(8, Math.round(size * 0.22)) : size) + '%';
+                if (kind === 'sheen') o.style.borderRadius = '999px';
                 o.style.opacity = String(Math.round(orbRnd(30, 55)) / 100);
                 o.style.background = (i % 2 === 0) ? 'radial-gradient(closest-side, var(--theme), transparent 72%)' : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
                 o.style.animationDuration = orbRnd(6, 13).toFixed(1) + 's';
                 o.style.animationDelay = '-' + orbRnd(0, 8).toFixed(1) + 's';
                 scene.appendChild(o);
             }
-            if (kind === 'grid') { var g = document.createElement('u'); g.className = 'gfx-grid'; scene.appendChild(g); }
-            var sh = document.createElement('b'); sh.className = 'gfx-sheen'; scene.appendChild(sh);
+            if (kind === 'grid') {
+                var g = document.createElement('u');
+                g.className = 'gfx-grid';
+                g.style.animationDuration = orbRnd(7, 15).toFixed(1) + 's';
+                g.style.animationDelay = '-' + orbRnd(0, 9).toFixed(1) + 's';
+                g.style.setProperty('--gr', orbRnd(-3, 3).toFixed(2) + 'deg');
+                scene.appendChild(g);
+            }
+            // ★ 白色线条只在「光带」卡里出现：真实背景里它也只在光带档存在，预览不能骗人
             box.innerHTML = '';
             box.appendChild(scene);
         })(boxes[bi]);
@@ -275,7 +295,8 @@ function spawnGlassOrb() {
         var P = glassBgPreset();
         var o = document.createElement('i');
         var r = Math.random(), w, h;
-        if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
+        if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.10, 0.26); }   // 光带档：一律细长条
+        else if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
         else if (r < 0.8) { w = orbRnd(P.size[0] * 1.2, P.size[1] * 1.25); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
         else { w = orbRnd(P.size[0] * 0.6, P.size[1] * 0.6); h = w * orbRnd(1.6, 2.6); }                 // 竖条
         o.style.left = orbRnd(-15, 95).toFixed(1) + '%';

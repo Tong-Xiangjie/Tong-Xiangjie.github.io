@@ -165,11 +165,11 @@ function renderSettingsPage() {
         '液体玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
     html += `</div>`;
 
-    // 背景风格：三张动态预览卡（点击即选，比纯文字分段控件直观）
-    html += `<div class="settings-section">`;
+    // 背景风格：四张动态预览卡（点击即选）。★ 只在液体玻璃开启时出现 —— 折叠态靠 CSS 过渡丝滑展开。
+    html += '<div class="settings-section glass-bg-section' + (isGlassStyle() ? ' open' : '') + '" id="glassBgSection"' + (isGlassStyle() ? '' : ' aria-hidden="true"') + '>';
     html += `<h3>背景风格</h3>`;
     html += `<div class="glass-previews">`;
-    [['orbs', '彩球'], ['nebula', '星云'], ['grid', '网格']].forEach(function (opt) {
+    [['nebula', '星云'], ['grid', '网格'], ['sheen', '光带']].forEach(function (opt) {
         var on = getGlassBg() === opt[0] ? ' active' : '';
         html += '<button type="button" class="glass-preview-card' + on + '" onclick="pickGlassBg(\'' + opt[0] + '\')">';
         html += '<span class="glass-preview" data-glass-preview="' + opt[0] + '"></span>';
@@ -177,7 +177,7 @@ function renderSettingsPage() {
         html += '</button>';
     });
     html += `</div>`;
-    html += `<div class="toggle-desc">仅「液体玻璃」开启时生效。彩球：大小不一的彩球缓慢漂移；星云：更大更模糊、更慢；网格：细线网格缓慢平移转动。三种的运动都是随机目标漂移，不会按固定路线来回。</div>`;
+    html += `<div class="toggle-desc">星云：大小不一的彩球缓慢漂移（更大更模糊、更慢）；网格：细线网格平移转动；光带：一条斜向光带流动。三者运动都是随机目标漂移，不会按固定路线来回。</div>`;
     html += `</div>`;
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
@@ -497,6 +497,13 @@ function toggleUIStyle() {
     const next = !isGlassStyle();
     setUIStyle(next ? 'glass' : 'standard');
     setSwitchState('uiStyleSwitch', next);
+    // ★ 背景风格区块只在玻璃开启时出现，并且用 CSS 过渡丝滑展开/收起
+    const sec = document.getElementById('glassBgSection');
+    if (sec) {
+        if (next) { sec.removeAttribute('aria-hidden'); if (typeof initGlassPreviews === 'function') initGlassPreviews(); }
+        else sec.setAttribute('aria-hidden', 'true');
+        requestAnimationFrame(function () { sec.classList.toggle('open', next); });
+    }
 }
 
 function toggleGridOriginal() {
