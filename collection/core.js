@@ -1018,9 +1018,13 @@ function setExpandDepth(v) {
 // ★ 「全部展开」档专用：进入分类时就把系列/品种全部展开。
 //   一旦这个分类被用户动过（展开或收起过），就不再干预，一律按记忆 ⇒ 收起照样被记住。
 //   ★ 只在 'all' 档生效，不碰记忆本身的收集逻辑。
-const EXPAND_MEMO_PREFIX = 'collection-expand-memorized-';
-function markExpandMemory(scope) { try { localStorage.setItem(EXPAND_MEMO_PREFIX + String(scope || ''), '1'); } catch (e) { } }
-function hasExpandMemory(scope) { try { return localStorage.getItem(EXPAND_MEMO_PREFIX + String(scope || '')) === '1'; } catch (e) { return false; } }
+// ★ “用户动过这个分类”的标记：**只活在当前页面会话里**。
+//   页面内：你收起过的分类不会被“全部展开”档重新撞开（按你的状态）；
+//   刷新后：站点自己的展开记忆本来就不跨刷新，若把标记存 localStorage 反而会刷新后“全关”，
+//   所以这里只用内存（刷新后回到该档的默认）。（不碰站点自己的记忆机制）
+const __expandMemorized = Object.create(null);
+function markExpandMemory(scope) { try { __expandMemorized[String(scope || '')] = 1; } catch (e) { } }
+function hasExpandMemory(scope) { try { return __expandMemorized[String(scope || '')] === 1; } catch (e) { return false; } }
 function autoExpandAll(scope) { return expandDepth() === 'all' && !hasExpandMemory(scope); }
 
 function collectScopedExpanded() {

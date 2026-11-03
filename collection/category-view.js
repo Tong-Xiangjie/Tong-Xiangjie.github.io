@@ -566,8 +566,7 @@ function toggleSeries(id, hintEl) {
     try {
         const depth = expandDepth();
         const sRowEl = hintEl && hintEl.closest ? hintEl.closest('.series-year-row') : null;
-        const sBodyEl = sRowEl ? sRowEl.querySelector('.series-body') : null;
-        window.__expandDbg = { depth: depth, fired: !!(sBodyEl && !sBodyEl.classList.contains('open')), hasEl: !!sBodyEl };
+        const sBodyEl = sRowEl ? sRowEl.querySelector('.series-body') : null;;
         if (depth !== 'series' && sBodyEl && !sBodyEl.classList.contains('open')) {
             const openInside = () => {
                 try {
@@ -575,12 +574,12 @@ function toggleSeries(id, hintEl) {
                         ? Array.prototype.slice.call(document.querySelectorAll('.series-body'))
                         : [sBodyEl];
                     const n = roots.reduce((acc, r) => acc + openListsIn(r), 0);
-                    window.__expandDbg.opened = (window.__expandDbg.opened || 0) + n;
-                } catch (e) { window.__expandDbg.err2 = String(e && e.message || e); }
+                    
+                } catch (e) {  }
             };
             requestAnimationFrame(openInside); setTimeout(openInside, 160);
         }
-    } catch (e) { window.__expandDbg = { err: String(e && e.message || e) }; }
+    } catch (e) { }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
     const icon = accordionTargetOf(hintEl, 'icon-' + id, '.series-expand-icon');
     if (!body) {
@@ -595,6 +594,7 @@ function toggleSeries(id, hintEl) {
 }
 
 function toggleVariety(id, hintEl) {
+    markExpandMemory(getCategoryScope());
     const list = accordionTargetOf(hintEl, 'list-' + id, '.copy-list');
     const icon = accordionTargetOf(hintEl, 'icon-' + id, '.variety-expand-icon');
     if (!list) {
