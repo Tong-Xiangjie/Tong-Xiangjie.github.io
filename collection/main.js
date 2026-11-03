@@ -73,10 +73,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                 { maxHeight: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px' },
                 { maxHeight: '600px', opacity: 1 }
             ], { duration: 300, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }));
-            ['.sidebar', '.sidebar-toggle'].forEach(function (sel) {
-                var el = document.querySelector(sel);
-                if (el) out.push(el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
-            });
+            // Sidebar: collapse -> expand, matching the site tab-switch (its base class already
+            // transitions width/min-width; only the "special page" hide disables the width part).
+            var bootRevealWidth = 0;
+            var sb = document.querySelector('.sidebar');
+            if (sb) {
+                var w = Math.round(sb.getBoundingClientRect().width) || 0;
+                bootRevealWidth = w;
+                if (w > 0) {
+                    out.push(sb.animate([{ width: '0px', minWidth: '0px', opacity: 0 },
+                                        { width: w + 'px', minWidth: w + 'px', opacity: 1 }],
+                                       { duration: 300, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }));
+                } else {
+                    out.push(sb.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
+                }
+            }
+            var stg = document.querySelector('.sidebar-toggle');
+            if (stg) out.push(stg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
             return out;
         })();
         try {
@@ -100,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             try {
                 ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
                     var el = document.querySelector(sel);
-                    if (el) { el.style.transition = ''; el.style.maxHeight = ''; el.style.opacity = ''; }
+                    if (el) { el.style.transition = ''; el.style.maxHeight = ''; el.style.opacity = ''; el.style.width = ''; el.style.minWidth = ''; }
                 });
             } catch (e) { }
         }, 400);
