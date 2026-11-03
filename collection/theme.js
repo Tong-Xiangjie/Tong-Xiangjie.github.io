@@ -191,15 +191,93 @@ function withAlpha(hex, a) {
 //   3) **数量也在变**：每个球有随机寿命，到点淡出移除、同时补一个新的。
 function orbRnd(a, b) { return a + Math.random() * (b - a); }
 
+// ★ 背景风格（仅液体玻璃下生效）：同一套生成器，只换参数。
+//   无论哪种风格，运动都是 JS 逐帧的随机目标漂移（不用 CSS 关键帧，避免固定路径来回跑）。
+const GLASS_BG_KEY = 'collection-glass-bg';
+const GLASS_BG_MODES = ['orbs', 'nebula', 'grid'];
+const GLASS_BG_PRESETS = {
+    orbs:   { n: [4, 8], size: [22, 68],  blur: 56, op: [22, 46], life: [9000, 26000] },
+    nebula: { n: [3, 5], size: [55, 115], blur: 92, op: [16, 30], life: [20000, 48000] },
+    grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] }
+};
+function getGlassBg() {
+    try { var v = localStorage.getItem(GLASS_BG_KEY); if (v === 'minimal') v = 'grid'; return GLASS_BG_MODES.indexOf(v) >= 0 ? v : 'orbs'; } catch (e) { return 'orbs'; }
+}
+function glassBgPreset() { return GLASS_BG_PRESETS[getGlassBg()] || GLASS_BG_PRESETS.orbs; }
+function setGlassBg(v) {
+    if (GLASS_BG_MODES.indexOf(v) < 0) return;
+    try { localStorage.setItem(GLASS_BG_KEY, v); } catch (e) { }
+    if (isGlassStyle()) ensureGlassOrbs(true);
+}
+
+// ★ 流动光感：一条大斜向光带，JS 缓慢漂移（随机目标，不可预测）。
+function ensureGlassSheen(host) {
+    try {
+        var s = host.querySelector('b.glass-sheen');
+        if (!s) { s = document.createElement('b'); s.className = 'glass-sheen'; s.setAttribute('aria-hidden', 'true'); host.appendChild(s); }
+        window.__glassSheen = { el: s, x: 0, y: 0, tx: orbRnd(-28, 28), ty: orbRnd(-14, 14), rot: orbRnd(100, 140), vr: orbRnd(-0.012, 0.012), k: 0.0009 };
+    } catch (e) { }
+}
+
+// ★ 网格风格：一层细线格，一样由 JS 漂移（平移 + 轻微旋转）。
+function ensureGlassGrid(host) {
+    try {
+        var want = getGlassBg() === 'grid';
+        var g = host.querySelector('u.glass-grid');
+        if (want && !g) {
+            g = document.createElement('u');
+            g.className = 'glass-grid';
+            g.setAttribute('aria-hidden', 'true');
+            host.appendChild(g);
+        } else if (!want && g) { g.parentNode.removeChild(g); }
+        if (want && g) window.__glassGrid = { el: g, x: 0, y: 0, tx: orbRnd(-14, 14), ty: orbRnd(-14, 14), rot: orbRnd(-6, 6), vr: orbRnd(-0.006, 0.006), k: 0.0008 };
+        else window.__glassGrid = null;
+    } catch (e) { }
+}
+
+// ★ 设置页里的三个“动态小预览”：用 CSS 动画（每个盒子随机时长/延迟，不会同步），
+//   零 JS 开销。它只是缩略图，真正的背景仍然是上面那套 JS 漂移。
+function initGlassPreviews() {
+    var boxes = document.querySelectorAll('[data-glass-preview]');
+    if (!boxes.length) return;
+    for (var bi = 0; bi < boxes.length; bi++) {
+        (function (box) {
+            var kind = box.getAttribute('data-glass-preview');
+            var scene = document.createElement('span'); scene.className = 'gfx';
+            var n = kind === 'grid' ? 0 : (kind === 'nebula' ? 3 : 4);
+            for (var i = 0; i < n; i++) {
+                var o = document.createElement('i');
+                o.className = 'gfx-orb';
+                var size = Math.round(orbRnd(kind === 'nebula' ? 40 : 22, kind === 'nebula' ? 90 : 62));
+                o.style.left = Math.round(orbRnd(-10, 80)) + '%';
+                o.style.top = Math.round(orbRnd(-10, 80)) + '%';
+                o.style.width = size + '%';
+                o.style.height = size + '%';
+                o.style.opacity = String(Math.round(orbRnd(30, 55)) / 100);
+                o.style.background = (i % 2 === 0) ? 'radial-gradient(closest-side, var(--theme), transparent 72%)' : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
+                o.style.animationDuration = orbRnd(6, 13).toFixed(1) + 's';
+                o.style.animationDelay = '-' + orbRnd(0, 8).toFixed(1) + 's';
+                scene.appendChild(o);
+            }
+            if (kind === 'grid') { var g = document.createElement('u'); g.className = 'gfx-grid'; scene.appendChild(g); }
+            var sh = document.createElement('b'); sh.className = 'gfx-sheen'; scene.appendChild(sh);
+            box.innerHTML = '';
+            box.appendChild(scene);
+        })(boxes[bi]);
+    }
+}
+
+
 function spawnGlassOrb() {
     try {
         var host = window.__glassOrbHost;
         if (!host) return;
+        var P = glassBgPreset();
         var o = document.createElement('i');
         var r = Math.random(), w, h;
-        if (r < 0.45) { w = orbRnd(22, 60); h = w * orbRnd(0.9, 1.1); }        // 圆
-        else if (r < 0.8) { w = orbRnd(34, 78); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
-        else { w = orbRnd(16, 32); h = w * orbRnd(1.6, 2.6); }                 // 竖条
+        if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
+        else if (r < 0.8) { w = orbRnd(P.size[0] * 1.2, P.size[1] * 1.25); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
+        else { w = orbRnd(P.size[0] * 0.6, P.size[1] * 0.6); h = w * orbRnd(1.6, 2.6); }                 // 竖条
         o.style.left = orbRnd(-15, 95).toFixed(1) + '%';
         o.style.top = orbRnd(-15, 95).toFixed(1) + '%';
         o.style.width = w.toFixed(1) + 'vmin';
@@ -207,6 +285,7 @@ function spawnGlassOrb() {
         o.style.background = (Math.random() < 0.5)
             ? 'radial-gradient(closest-side, var(--theme), transparent 72%)'
             : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
+        o.style.filter = 'blur(' + P.blur + 'px)';
         o.style.opacity = '0';
         o.style.transition = 'opacity ' + orbRnd(3, 7).toFixed(1) + 's ease-in-out';
         o.style.transform = 'translate3d(0,0,0) rotate(0deg) scale(1)';
@@ -215,10 +294,10 @@ function spawnGlassOrb() {
             el: o, x: 0, y: 0, tx: orbRnd(-20, 20), ty: orbRnd(-20, 20), k: orbRnd(0.0012, 0.005),
             rot: orbRnd(0, 360), vr: orbRnd(-0.09, 0.09),
             sc: 1, ts: orbRnd(0.85, 1.25), ks: orbRnd(0.002, 0.006),
-            life: orbRnd(9000, 26000), born: Date.now()
+            life: orbRnd(P.life[0], P.life[1]), born: Date.now()
         };
         window.__glassOrbState.push(st);
-        requestAnimationFrame(function () { try { o.style.opacity = String(Math.round(orbRnd(22, 46)) / 100); } catch (e) { } });
+        requestAnimationFrame(function () { try { o.style.opacity = String(Math.round(orbRnd(P.op[0], P.op[1])) / 100); } catch (e) { } });
     } catch (e) { }
 }
 
@@ -246,13 +325,66 @@ function ensureGlassOrbs(rebuild) {
         }
         window.__glassOrbHost = host;
         window.__glassOrbState = [];
-        var n = 4 + Math.floor(Math.random() * 4);   // 起始 4~7 个
+        ensureGlassSheen(host);
+        ensureGlassGrid(host);
+        var P0 = glassBgPreset();
+        var n = P0.n[0] + Math.floor(Math.random() * (P0.n[1] - P0.n[0] + 1));   // 按风格取数量
         for (var i = 0; i < n; i++) spawnGlassOrb();
         startGlassOrbDrift();
     } catch (e) { }
 }
 
 var __orbRaf = 0;
+
+function stepOrb(o, now) {
+    if (now - o.born > o.life) { o.life = Infinity; recycleGlassOrb(o); return; }
+    if (Math.abs(o.tx - o.x) < 0.6 && Math.abs(o.ty - o.y) < 0.6) {
+        o.tx = (Math.random() * 2 - 1) * 22;
+        o.ty = (Math.random() * 2 - 1) * 22;
+        o.k = 0.0012 + Math.random() * 0.0045;
+        o.vr = (Math.random() * 2 - 1) * 0.09;
+    }
+    o.x += (o.tx - o.x) * o.k;
+    o.y += (o.ty - o.y) * o.k;
+    o.rot += o.vr;
+    if (o.rot > 360) o.rot -= 360;
+    if (o.rot < 0) o.rot += 360;
+    if (Math.random() < 0.004) o.ts = 0.85 + Math.random() * 0.4;
+    o.sc += (o.ts - o.sc) * o.ks;
+    o.el.style.transform = 'translate3d(' + o.x.toFixed(2) + 'vmax,' + o.y.toFixed(2) + 'vmax,0) rotate(' + o.rot.toFixed(1) + 'deg) scale(' + o.sc.toFixed(3) + ')';
+}
+
+// 光带：自己也是一套随机目标漂移（跟球同一个循环，省一个 rAF）
+function stepSheen() {
+    var sh = window.__glassSheen;
+    if (!sh) return;
+    if (Math.abs(sh.tx - sh.x) < 0.8 && Math.abs(sh.ty - sh.y) < 0.8) {
+        sh.tx = (Math.random() * 2 - 1) * 30;
+        sh.ty = (Math.random() * 2 - 1) * 16;
+        sh.vr = (Math.random() * 2 - 1) * 0.014;
+        sh.k = 0.0006 + Math.random() * 0.0012;
+    }
+    sh.x += (sh.tx - sh.x) * sh.k;
+    sh.y += (sh.ty - sh.y) * sh.k;
+    sh.rot += sh.vr;
+    sh.el.style.transform = 'translate3d(' + sh.x.toFixed(2) + 'vmax,' + sh.y.toFixed(2) + 'vmax,0) rotate(' + sh.rot.toFixed(2) + 'deg)';
+}
+
+// 网格：平移 + 轻微旋转，同样随机目标
+function stepGrid() {
+    var g = window.__glassGrid;
+    if (!g) return;
+    if (Math.abs(g.tx - g.x) < 0.5 && Math.abs(g.ty - g.y) < 0.5) {
+        g.tx = (Math.random() * 2 - 1) * 16;
+        g.ty = (Math.random() * 2 - 1) * 16;
+        g.vr = (Math.random() * 2 - 1) * 0.008;
+    }
+    g.x += (g.tx - g.x) * g.k;
+    g.y += (g.ty - g.y) * g.k;
+    g.rot += g.vr;
+    g.el.style.transform = 'translate3d(' + g.x.toFixed(2) + 'vmax,' + g.y.toFixed(2) + 'vmax,0) rotate(' + g.rot.toFixed(2) + 'deg)';
+}
+
 function startGlassOrbDrift() {
     if (__orbRaf) return;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -260,24 +392,9 @@ function startGlassOrbDrift() {
     var step = function () {
         var orbs = window.__glassOrbState || [];
         var now = Date.now();
-        for (var i = orbs.length - 1; i >= 0; i--) {
-            var o = orbs[i];
-            if (now - o.born > o.life) { o.life = Infinity; recycleGlassOrb(o); continue; }
-            if (Math.abs(o.tx - o.x) < 0.6 && Math.abs(o.ty - o.y) < 0.6) {
-                o.tx = (Math.random() * 2 - 1) * 22;      // 到了就换下一个随机目标
-                o.ty = (Math.random() * 2 - 1) * 22;
-                o.k = 0.0012 + Math.random() * 0.0045;
-                o.vr = (Math.random() * 2 - 1) * 0.09;    // 角速度也随机变
-            }
-            o.x += (o.tx - o.x) * o.k;
-            o.y += (o.ty - o.y) * o.k;
-            o.rot += o.vr;
-            if (o.rot > 360) o.rot -= 360;
-            if (o.rot < 0) o.rot += 360;
-            if (Math.random() < 0.004) o.ts = 0.85 + Math.random() * 0.4;
-            o.sc += (o.ts - o.sc) * o.ks;
-            o.el.style.transform = 'translate3d(' + o.x.toFixed(2) + 'vmax,' + o.y.toFixed(2) + 'vmax,0) rotate(' + o.rot.toFixed(1) + 'deg) scale(' + o.sc.toFixed(3) + ')';
-        }
+        for (var i = orbs.length - 1; i >= 0; i--) stepOrb(orbs[i], now);
+        stepSheen();
+        stepGrid();
         __orbRaf = requestAnimationFrame(step);
     };
     __orbRaf = requestAnimationFrame(step);

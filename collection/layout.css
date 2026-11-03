@@ -3928,3 +3928,103 @@ html[data-ui-style="glass"][data-color-scheme="light"] .placeholder-never-matche
     background-image: linear-gradient(140deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 45%, rgba(255, 255, 255, 0.10) 65%, rgba(255, 255, 255, 0.45) 100%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.40), 0 12px 28px -18px rgba(15, 23, 42, 0.32);
 }
+
+/* ===== 流动光感：一条大斜向光带在界面下方缓慢漂移（JS 逐帧随机目标，零重绘） ===== */
+html[data-ui-style="glass"] #glassOrbs > b.glass-sheen {
+    position: absolute;
+    inset: -40%;
+    display: block;
+    background: repeating-linear-gradient(115deg, transparent 0 7%, rgba(255, 255, 255, 0.085) 7% 8.6%, transparent 8.6% 17%);
+    filter: blur(22px);
+    mix-blend-mode: screen;
+    will-change: transform;
+}
+html[data-ui-style="glass"][data-color-scheme="light"] #glassOrbs > b.glass-sheen {
+    background: repeating-linear-gradient(115deg, transparent 0 7%, color-mix(in srgb, var(--theme) 24%, transparent) 7% 8.6%, transparent 8.6% 17%);
+    mix-blend-mode: normal;
+}
+/* ===== 网格风格：细线网格（两层 repeating-linear-gradient） ===== */
+html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
+    position: absolute;
+    inset: -25%;
+    display: block;
+    background-image:
+        repeating-linear-gradient(0deg, color-mix(in srgb, var(--theme) 30%, transparent) 0 1px, transparent 1px 46px),
+        repeating-linear-gradient(90deg, color-mix(in srgb, var(--theme) 30%, transparent) 0 1px, transparent 1px 46px);
+    -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 78%);
+    mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 78%);
+    opacity: 0.55;
+    will-change: transform;
+}
+@media (prefers-reduced-transparency: reduce) {
+    html[data-ui-style="glass"] #glassOrbs > b.glass-sheen,
+    html[data-ui-style="glass"] #glassOrbs > u.glass-grid { display: none; }
+}
+
+/* ===== 设置页里的背景风格动态预览卡 ===== */
+.glass-previews { display: flex; gap: 10px; padding: 4px 0 2px; }
+.glass-preview-card {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.glass-preview-card:hover { transform: translateY(-1px); }
+.glass-preview-card.active {
+    border-color: var(--theme);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme) 35%, transparent);
+}
+.glass-preview {
+    position: relative;
+    display: block;
+    height: 62px;
+    border-radius: 7px;
+    overflow: hidden;
+    background: var(--bg-solid, #eef4ff);
+}
+.glass-preview-name { display: block; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); text-align: center; }
+.glass-preview-card.active .glass-preview-name { color: var(--theme); font-weight: 600; }
+.glass-preview .gfx { position: absolute; inset: 0; display: block; }
+.glass-preview .gfx-orb {
+    position: absolute;
+    display: block;
+    border-radius: 50%;
+    filter: blur(10px);
+    animation-name: gfx-float;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+@keyframes gfx-float {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to   { transform: translate3d(14%, -12%, 0) scale(1.18); }
+}
+.glass-preview .gfx-grid {
+    position: absolute;
+    inset: -20%;
+    display: block;
+    background-image:
+        repeating-linear-gradient(0deg, color-mix(in srgb, var(--theme) 34%, transparent) 0 1px, transparent 1px 12px),
+        repeating-linear-gradient(90deg, color-mix(in srgb, var(--theme) 34%, transparent) 0 1px, transparent 1px 12px);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 80%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 80%);
+    animation: gfx-grid 9s ease-in-out infinite alternate;
+}
+@keyframes gfx-grid {
+    from { transform: translate3d(-3%, -2%, 0) rotate(-1.5deg); }
+    to   { transform: translate3d(3%, 2%, 0) rotate(1.5deg); }
+}
+.glass-preview .gfx-sheen {
+    position: absolute;
+    inset: -30%;
+    display: block;
+    background: repeating-linear-gradient(115deg, transparent 0 14%, rgba(255, 255, 255, 0.22) 14% 18%, transparent 18% 34%);
+    filter: blur(6px);
+    animation: gfx-sheen 7s linear infinite;
+}
+@keyframes gfx-sheen { from { transform: translate3d(-18%, 0, 0); } to { transform: translate3d(18%, 0, 0); } }

@@ -165,6 +165,20 @@ function renderSettingsPage() {
         '液体玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
     html += `</div>`;
 
+    // 背景风格：三张动态预览卡（点击即选，比纯文字分段控件直观）
+    html += `<div class="settings-section">`;
+    html += `<h3>背景风格</h3>`;
+    html += `<div class="glass-previews">`;
+    [['orbs', '彩球'], ['nebula', '星云'], ['grid', '网格']].forEach(function (opt) {
+        var on = getGlassBg() === opt[0] ? ' active' : '';
+        html += '<button type="button" class="glass-preview-card' + on + '" onclick="pickGlassBg(\'' + opt[0] + '\')">';
+        html += '<span class="glass-preview" data-glass-preview="' + opt[0] + '"></span>';
+        html += '<span class="glass-preview-name">' + opt[1] + '</span>';
+        html += '</button>';
+    });
+    html += `</div>`;
+    html += `<div class="toggle-desc">仅「液体玻璃」开启时生效。彩球：大小不一的彩球缓慢漂移；星云：更大更模糊、更慢；网格：细线网格缓慢平移转动。三种的运动都是随机目标漂移，不会按固定路线来回。</div>`;
+    html += `</div>`;
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;
@@ -300,6 +314,7 @@ function renderSettingsPage() {
     // ★ 设置页是整体重建 innerHTML 的，滑块每次都得重新量一次位置
     //   （animate=false：重渲染时"滑过去"没意义，直接摆正）
     layoutAllSegmented(false);
+    if (typeof initGlassPreviews === 'function') initGlassPreviews();   // 背景风格的动态小预览
 
     // ★ 延迟恢复滚动
     if (settingsPageCache && settingsPageCache.scrollY) {
@@ -472,6 +487,12 @@ if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then =
 // 默认缩略图（冷启动一个板块约 1~2MB，原图要 40~100MB）；缓存热了之后两者一样快，
 // 所以给个开关让"想要更清晰"的时候自己开。
 // ★ 界面风格开关：和「使用原图」「模糊搜索」同一种写法（setSwitchState 局部刷新，不整页重渲染）
+// ★ 点背景风格卡：选完立刻重渲染，让高亮跟过去（预览是 CSS 动画，重渲染后重新生成）
+function pickGlassBg(v) {
+    setGlassBg(v);
+    if (typeof renderSettingsPage === 'function') renderSettingsPage();
+}
+
 function toggleUIStyle() {
     const next = !isGlassStyle();
     setUIStyle(next ? 'glass' : 'standard');
