@@ -543,9 +543,9 @@ function openListsIn(root) {
         if (i >= heads.length) return;
         const h = heads[i++];
         try { h.click(); } catch (e) { }   // 就是人手点一下品种头
-        setTimeout(step, 180);            // 等这一层开完再点下一个
+        setTimeout(step, 140);            // 等这一层开完再点下一个（略快一点）
     };
-    setTimeout(step, 120);
+    setTimeout(step, 90);
     return heads.length;
 }
 // ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
@@ -589,7 +589,7 @@ function toggleSeries(id, hintEl) {
             };
             // ★ 用户口径：模仿人类点击 —— 先点大系列（走站点自身动画展开），
             //   开完后再一个个点小系列（品种头）；不做图片预热、不改 class、不关动画。
-            setTimeout(openInside, 420); setTimeout(openInside, 900);
+            setTimeout(openInside, 340); setTimeout(openInside, 760);
         }
     } catch (e) { }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
