@@ -897,6 +897,9 @@ html[data-hm-cold] .top-search-container {
 .series-body.open:has(> .variety-row) { border-top: 1px solid var(--border); }
 .series-body.open > .variety-row:first-child { border-top: none; }
 
+/* divider policy: solid ONLY between different varieties (below); everywhere else in the
+   board (series header -> first variety, variety heading -> first note, note -> note) uses a
+   finer dashed line so the hierarchy reads at a glance. */
 .variety-row { border-top: 1px solid var(--border); }
 .variety-header {
     display: flex;
@@ -924,10 +927,10 @@ html[data-hm-cold] .top-search-container {
    这条正是用户举例的那一处 ——「"50元 云南风光"与下面那一条具体条目之间」，
    即某个品种的第一条藏品项，它的 border-top 原本正好压在 .copy-list 的裁剪边界上。
    :has(> .copy-item) 让"啥都木有"的空品种保持原样（那里本来就没有这条线）。 */
-.copy-list.open:has(> .copy-item) { border-top: 1px solid var(--border); }
+.copy-list.open:has(> .copy-item) { border-top: 1px dashed var(--border); border-top-color: color-mix(in srgb, var(--border) 55%, transparent); }
 .copy-list.open > .copy-item:first-child { border-top: none; }
 /* ★ 空品种（“啥都木有”）同样要有这条线：用户要求与其他小标题一致。 */
-.copy-list.open:has(> .copy-list-empty) { border-top: 1px solid var(--border); }
+.copy-list.open:has(> .copy-list-empty) { border-top: 1px dashed var(--border); border-top-color: color-mix(in srgb, var(--border) 55%, transparent); }
 
 /* ========== 藏品项 ========== */
 .copy-item {
@@ -935,7 +938,8 @@ html[data-hm-cold] .top-search-container {
     align-items: center;
     gap: 12px;
     padding: 6px 14px 6px 40px;
-    border-top: 1px solid var(--border);
+    border-top: 1px dashed var(--border);
+    border-top-color: color-mix(in srgb, var(--border) 55%, transparent);
 }
 .copy-item:last-child { border-bottom: none; }
 
