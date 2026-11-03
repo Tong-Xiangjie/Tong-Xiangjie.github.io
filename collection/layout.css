@@ -3863,26 +3863,7 @@ html[data-ui-style="glass"] .content { background: transparent; }
 /* 闈㈡澘灞傜粺涓€纾ㄧ爞銆傗槄 鍙姞鍦?*瀹瑰櫒绾?*锛氫环鏍煎垪琛ㄦ湁 394 琛屼笖姣忚 content-visibility:auto锛?
    缁濅笉缁?.price-list-item 杩欑鍗曡鍏冪礌鍔?blur锛屽惁鍒欑洿鎺ュ崱姝汇€?*/
 html[data-ui-style="glass"] .top-search-container,
-html[data-ui-style="glass"] .sidebar,
-html[data-ui-style="glass"] .search-result-group,
-html[data-ui-style="glass"] .series-year-row,
-html[data-ui-style="glass"] .price-list-wrapper,
-html[data-ui-style="glass"] .stat-card,
-html[data-ui-style="glass"] .stats-money,
-html[data-ui-style="glass"] .stats-bars,
-html[data-ui-style="glass"] .stats-chart-card,
-html[data-ui-style="glass"] .toggle-card,
-html[data-ui-style="glass"] .saved-colors,
-html[data-ui-style="glass"] .special-overview-card,
-html[data-ui-style="glass"] .special-item-card,
-html[data-ui-style="glass"] .bottom-tabbar,
-html[data-ui-style="glass"] .placeholder-never-matches {
-    /* 鐜荤拑闈犱笁浠朵簨涓€璧峰嚭鏉ワ細纾ㄧ爞 + 鏂滃悜楂樺厜娓愬彉 + 鍐呴珮鍏夎竟銆傚彧鏈?blur 浼氬儚"鍗婇€忔槑鑹插潡"銆?*/
-    backdrop-filter: blur(18px) saturate(185%) brightness(1.05);
-    -webkit-backdrop-filter: blur(18px) saturate(185%) brightness(1.05);
-    background-image: linear-gradient(140deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(255, 255, 255, 0.02) 62%, rgba(255, 255, 255, 0.10) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38), 0 10px 28px -18px rgba(0, 0, 0, 0.45);
-}
+
 
 /* 鍏ㄥ睆鐪嬪浘 / 闀挎枃闃呰淇濇寔瀹炶壊锛氬彲璇绘€т紭鍏堬紝涔熺渷鎬ц兘 */
 html[data-ui-style="glass"] .article-reader,
@@ -4067,20 +4048,7 @@ html.glass-switching .series-year-row {
    鈽?鍙寕鍦?html[data-ui-style="glass"] 涓嬶細鏍囧噯椋庢牸鏈潵灏辫蛋绔欑偣鑷繁鐨?theme-anim 鏈哄埗锛屼笉閲嶅鎺ョ銆?
    鈽?鐢?!important 鏄洜涓虹珯鐐规湁鑻ュ共澶?background 绠€鍐欎細瑕嗙洊鑳屾櫙鑹诧紱杩欎簺閫夋嫨鍣ㄥ拰鎵嬮鐞寸殑
      .series-body/.copy-list 浜掍笉閲嶅彔锛屼笉浼氬奖鍝嶅睍寮€鏀惰捣銆?*/
-html[data-ui-style="glass"] .sidebar,
-html[data-ui-style="glass"] main,
-html[data-ui-style="glass"] .top-search-container,
-html[data-ui-style="glass"] .bottom-tabbar,
-/* .settings-section 故意不放进常驻列表：它自己有 max-height 过渡（背景风格区块的展开/收起），
-html[data-ui-style="glass"] .card,
-html[data-ui-style="glass"] .series-year-row,
-html[data-ui-style="glass"] .variety-row,
-html[data-ui-style="glass"] .copy-item {
-   !important 会把它顶掉，导致那个区块反而突变（实测过）。 */
-    transition: background-color 0.34s ease, border-color 0.34s ease, box-shadow 0.34s ease, color 0.34s ease, backdrop-filter 0.34s ease, -webkit-backdrop-filter 0.34s ease, opacity 0.34s ease !important;
-}
-@media (prefers-reduced-motion: reduce) {
-    html[data-ui-style="glass"] .sidebar, html[data-ui-style="glass"] main { transition: none !important; }
+
 }
 
 /* ===== 覆盖式常驻过渡（放在文件最后，后者胜，确保一定生效）=====
@@ -4104,3 +4072,30 @@ html[data-ui-style="glass"] .copy-item {
 @media (prefers-reduced-motion: reduce) {
     .sidebar, .top-search-container, main, .bottom-tabbar { transition: none !important; }
 }
+
+/* ===== 模糊的淡入淡出（开关不再跳）=====
+   ★ 为什么必须这么做：backdrop-filter 从 none 到 blur(18px) **不可插值**，种在面板上时
+     开关一瞬间必然跳（用户反复反馈"还是突变"）。改成种在伪元素上，只过渡 opacity —— 一定能插值。
+   ★ 伪元素用 z-index:-1 沉到面板背景之下：面板自己的半透明底色仍在其上，文字在背景之上，
+     所以内容是清晰的，只有面板背后的东西被模糊（这正是玻璃想要的效果）。
+   ★ 顺带好处：面板本身不再带 backdrop-filter ⇒ 不再创建包含块，浮层里 fixed 子元素不会被带偏
+     （之前"特殊字符图层不对"就是这个问题）。
+   ★ 由 theme.js 给这四个容器加 .glass-blur-host（并只在其 position 为 static 时才补 relative）。 */
+.glass-blur-host { position: relative; }
+.glass-blur-host::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+    backdrop-filter: blur(18px) saturate(185%) brightness(1.05);
+    -webkit-backdrop-filter: blur(18px) saturate(185%) brightness(1.05);
+    opacity: 0;
+    transition: opacity 0.36s ease;
+}
+html[data-ui-style="glass"] .glass-blur-host::before { opacity: 1; }
+@media (prefers-reduced-transparency: reduce) {
+    .glass-blur-host::before { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .glass-blur-host::before { transition: none; } }

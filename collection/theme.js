@@ -200,8 +200,10 @@ function orbRnd(a, b) { return a + Math.random() * (b - a); }
 // ★ 背景风格（仅液体玻璃下生效）：同一套生成器，只换参数。
 //   无论哪种风格，运动都是 JS 逐帧的随机目标漂移（不用 CSS 关键帧，避免固定路径来回跑）。
 const GLASS_BG_KEY = 'collection-glass-bg';
-const GLASS_BG_MODES = ['nebula', 'grid', 'sheen'];
+const GLASS_BG_MODES = ['orbs', 'nebula', 'grid', 'sheen'];
 const GLASS_BG_PRESETS = {
+    // 彩球：正圆、数量多、比星云小（用户要求与星云区分：“数量多一点、是正圆形、大小比星云小一点”）
+    orbs:   { n: [7, 12], size: [14, 40], blur: 46, op: [20, 40], life: [9000, 24000], circle: true },
     nebula: { n: [3, 6], size: [55, 118], blur: 92, op: [16, 34], life: [20000, 48000] },
     grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] },
     // 光带 = 背景里几条拉长的柔和光晕（不是浮在界面上的白线：那就是用户说的"浮在上面有点丑"）
@@ -212,7 +214,6 @@ const GLASS_BG_PRESETS = {
 function getGlassBg() {
     try {
         var v = localStorage.getItem(GLASS_BG_KEY);
-        if (v === 'orbs') v = 'nebula';      // 彩球已合并进星云（两者视觉区分度太低）
         if (v === 'minimal') v = 'grid';
         return GLASS_BG_MODES.indexOf(v) >= 0 ? v : 'nebula';
     } catch (e) { return 'nebula'; }
@@ -233,6 +234,20 @@ function setGlassBg(v) {
 // ★ 光带不再是独立浮层：之前它是一条白色斜线盖在界面上（用户：“浮在上面有点丑”、
 //   “三个都有的洞动白线去掉”、“光带线条也应该是背景里面的”）。
 //   现在光带档 = 背景里几条拉长的柔和光晕（见上面的 streak 预设），跟球同一套 JS 漂移。
+// \u2605 \u7ed9\u56db\u4e2a\u5927\u5bb9\u5668\u6302 .glass-blur-host\uff1a\u6a21\u7cca\u7531\u4f2a\u5143\u7d20\u505a\uff08opacity \u53ef\u63d2\u503c\uff09\uff0c
+//   \u9762\u677f\u81ea\u5df1\u4e0d\u518d\u5e26 backdrop-filter\u3002\u53ea\u5728 position \u4e3a static \u65f6\u8865 relative\uff0c
+//   \u907f\u514d\u628a\u539f\u672c fixed/sticky \u7684\u5143\u7d20\u6539\u6389\u3002
+function ensureGlassBlurHosts() {
+    try {
+        ['.sidebar', '.top-search-container', '.bottom-tabbar', '.content', 'main'].forEach(function (sel) {
+            var el = document.querySelector(sel);
+            if (!el) return;
+            if (window.getComputedStyle(el).position === 'static') el.style.position = 'relative';
+            el.classList.add('glass-blur-host');
+        });
+    } catch (e) { }
+}
+
 function ensureGlassSheen(host) {
     try { var old = host.querySelector('b.glass-sheen'); if (old && old.parentNode) old.parentNode.removeChild(old); } catch (e) { }
     window.__glassSheen = null;
@@ -263,16 +278,19 @@ function initGlassPreviews() {
             var kind = box.getAttribute('data-glass-preview');
             box.innerHTML = '';   // ★ 先清空：否则重复调用会叠加两份场景
             var scene = document.createElement('span'); scene.className = 'gfx';
-            var n = (kind === 'nebula' || kind === 'sheen') ? (kind === 'nebula' ? 3 : 4) : 0;   // 星云=球，光带=条，网格=只有网格
+            // 彩球=8 个小正圆，星云=3 个大的，光带=6 条直线，网格=只有网格
+            var n = kind === 'orbs' ? 8 : (kind === 'nebula' ? 3 : (kind === 'sheen' ? 6 : 0));
             for (var i = 0; i < n; i++) {
                 var o = document.createElement('i');
                 o.className = 'gfx-orb';
-                var size = Math.round(orbRnd(kind === 'nebula' ? 40 : 22, kind === 'nebula' ? 90 : 62));
+                var size = Math.round(kind === 'orbs' ? orbRnd(8, 16) : orbRnd(kind === 'nebula' ? 40 : 22, kind === 'nebula' ? 90 : 62));
                 o.style.left = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.top = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.width = size + '%';
-                o.style.height = (kind === 'sheen' ? Math.max(3, Math.round(size * 0.09)) : size) + '%';
-                if (kind === 'sheen') { o.style.borderRadius = '999px'; o.style.filter = 'blur(4px)'; }
+                o.style.height = kind === 'sheen' ? (Math.max(3, Math.round(size * 0.09)) + '%') : 'auto';   // 非光带：高度交给 aspect-ratio，否则正圆被压扁
+                if (kind === 'sheen') { o.style.borderRadius = '999px'; o.style.filter = 'blur(2px)'; o.style.opacity = '0.85'; o.style.width = Math.min(96, Math.round(size * 1.5)) + '%'; }
+                // ★ 预览盒是扁的，width/height 都用 % 时高度按盒高算，正圆会被压扁 ⇒ 用 aspect-ratio 锁正圆
+                o.style.aspectRatio = (kind === 'sheen' ? 'auto' : '1 / 1');
                 o.style.opacity = String(Math.round(orbRnd(30, 55)) / 100);
                 o.style.background = (i % 2 === 0) ? 'radial-gradient(closest-side, var(--theme), transparent 72%)' : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
                 o.style.animationDuration = orbRnd(6, 13).toFixed(1) + 's';
@@ -303,6 +321,7 @@ function spawnGlassOrb() {
         var o = document.createElement('i');
         var r = Math.random(), w, h;
         if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.012, 0.04); }   // 光带档：细直线（厚度 1.2%~4%）
+        else if (P.circle) { w = orbRnd(P.size[0], P.size[1]); h = w; }   // 彩球档：一律正圆（宽高相等）
         else if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
         else if (r < 0.8) { w = orbRnd(P.size[0] * 1.2, P.size[1] * 1.25); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
         else { w = orbRnd(P.size[0] * 0.6, P.size[1] * 0.6); h = w * orbRnd(1.6, 2.6); }                 // 竖条
@@ -326,7 +345,8 @@ function spawnGlassOrb() {
             life: orbRnd(P.life[0], P.life[1]), born: Date.now()
         };
         window.__glassOrbState.push(st);
-        requestAnimationFrame(function () { try { o.style.opacity = String(Math.round(orbRnd(P.op[0], P.op[1])) / 100); } catch (e) { } });
+        // 光带档固定高一点的透明度：预览里要看得清（实测随机 0.36~0.52 太淡）
+        requestAnimationFrame(function () { try { o.style.opacity = String(P.streak ? 0.9 : Math.round(orbRnd(P.op[0], P.op[1])) / 100); } catch (e) { } });
     } catch (e) { }
 }
 
@@ -344,7 +364,7 @@ function recycleGlassOrb(st) {
 function ensureGlassOrbs(rebuild) {
     try {
         var host = document.getElementById('glassOrbs');
-        if (host && !rebuild) return;
+        if (host && !rebuild) { ensureGlassBlurHosts(); return; }
         if (host) { while (host.firstChild) host.removeChild(host.firstChild); }
         else {
             host = document.createElement('div');
@@ -354,6 +374,7 @@ function ensureGlassOrbs(rebuild) {
         }
         window.__glassOrbHost = host;
         window.__glassOrbState = [];
+        ensureGlassBlurHosts();
         ensureGlassSheen(host);
         ensureGlassGrid(host);
         var P0 = glassBgPreset();

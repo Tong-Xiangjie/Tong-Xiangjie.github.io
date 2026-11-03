@@ -169,7 +169,7 @@ function renderSettingsPage() {
     html += '<div class="settings-section glass-bg-section' + (isGlassStyle() ? ' open' : '') + '" id="glassBgSection"' + (isGlassStyle() ? '' : ' aria-hidden="true"') + '>';
     html += `<h3>背景风格</h3>`;
     html += `<div class="glass-previews">`;
-    [['nebula', '星云'], ['grid', '网格'], ['sheen', '光带']].forEach(function (opt) {
+    [['orbs', '彩球'], ['nebula', '星云'], ['grid', '网格'], ['sheen', '光带']].forEach(function (opt) {
         var on = getGlassBg() === opt[0] ? ' active' : '';
         html += '<button type="button" class="glass-preview-card' + on + '" onclick="pickGlassBg(\'' + opt[0] + '\')">';
         html += '<span class="glass-preview" data-glass-preview="' + opt[0] + '"></span>';
@@ -177,7 +177,7 @@ function renderSettingsPage() {
         html += '</button>';
     });
     html += `</div>`;
-    html += `<div class="toggle-desc">星云：大小不一的彩球缓慢漂移（更大更模糊、更慢）；网格：细线网格平移转动；光带：一条斜向光带流动。三者运动都是随机目标漂移，不会按固定路线来回。</div>`;
+    html += `<div class="toggle-desc">彩球：许多小正圆缓慢漂移；星云：更大更模糊、更慢；网格：细线网格平移转动；光带：几条斜向直线流动。四者的运动都是随机目标漂移，不会按固定路线来回。</div>`;
     html += `</div>`;
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
