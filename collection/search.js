@@ -596,6 +596,27 @@ function updateSearchUIForMode() {
   if (!select || !toggle || !tip) return;
 
   select.classList.toggle('hidden', !!ui.selectHidden);
+  // ★ 用户反馈：文章板块不应出现「全字段搜索」下拉栏。
+  //   原因：可见的不是原生 select（它早已 display:none），而是 dropdown.js
+  //   生成的自定义外壳 .dd（含 .dd-trigger / .dd-label-text）。原来只藏了 select，
+  //   外壳还在 ⇒ 文章页仍能看到那个下拉。现在外壳一起藏（class + 行内样式，双保险）。
+  //   ★ 外壳是 dropdown.js 在搜索栏配置**之后**才生成的，所以当场取不到，
+  //     必须延后重试（幂等，多试几次也无害）。
+  //   ★ 外壳不是 #searchType 的祖先（dropdown.js 会替换 select 并保留旧壳），
+  //     所以改成按**搜索栏容器**整片处理：里面所有 .dd 外壳一起隐/显。
+  //     延后重试是因为外壳可能在配置之后才生成（幂等，多试几次无害）。
+  const hideDdShell = () => {
+    const bar = (select.closest && select.closest('.top-search-container')) || document.body || document;
+    const shells = bar.querySelectorAll ? bar.querySelectorAll('.dd') : [];
+    for (let k = 0; k < shells.length; k++) {
+      shells[k].classList.toggle('hidden', !!ui.selectHidden);
+      shells[k].style.display = ui.selectHidden ? 'none' : '';
+    }
+  };
+  hideDdShell();
+  setTimeout(hideDdShell, 0);
+  setTimeout(hideDdShell, 120);
+  setTimeout(hideDdShell, 400);
   toggle.classList.toggle('hidden', !!ui.toggleHidden);
   if (ui.toggleText !== undefined) toggle.textContent = ui.toggleText;
   if (ui.toggleTitle !== undefined) toggle.title = ui.toggleTitle;
