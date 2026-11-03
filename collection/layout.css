@@ -2607,11 +2607,12 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
 }
 .dd[data-dd-for="timelineYearFilter"] .dd-trigger,
 .dd[data-dd-for="timelineMonthFilter"] .dd-trigger {
-    height: var(--tl-ctl-h, 28px);
+        height: var(--tl-ctl-h, 28px);
     padding-top: 0;
     padding-bottom: 0;
     overflow: hidden;                   /* 盒高被钉死后，别让超出的行盒把视觉撑破 */
 }
+
 .timeline-filter-select { height: var(--tl-ctl-h, 28px); }
 .timeline-filter-select:hover { border-color: var(--theme); }
 .timeline-filter-select:focus { border-color: var(--theme); }
@@ -3726,14 +3727,11 @@ textarea:focus-visible {
    用宽度塌缩 + 淡出做过渡，而不是 display:none 瞬间消失。
    .dd 本来就是固定宽 --dd-w，max-width 从 --dd-w 到 0 就是“收起”，
    取消 .hidden 时自然“释放”；只影响带 .hidden 的外壳。 */
-.dd { transition: opacity 0.2s ease, max-width 0.2s ease, padding 0.2s ease, margin 0.2s ease, border 0.2s ease; }
+.dd { transition: opacity 0.2s ease, max-width 0.2s ease, margin 0.2s ease; }
 .dd.hidden {
     opacity: 0;
     max-width: 0;
-    padding: 0;
     margin: 0;
-    border: none;
-    pointer-events: none;
     overflow: hidden;
     pointer-events: none;
 }
