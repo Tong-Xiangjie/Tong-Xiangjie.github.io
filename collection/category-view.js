@@ -605,6 +605,13 @@ function toggleSeries(id, hintEl) {
             // ★ 用户口径：模仿人类点击 —— 先点大系列（走站点自身动画展开），
             //   开完后再一个个点小系列（品种头）；不做图片预热、不改 class、不关动画。
             setTimeout(openInside, 340); setTimeout(openInside, 760);
+                    // ★ 档位②的 openInside 是分步展开（每步 140ms，8 个品种约 1.1s），
+                    //   所以在它跑完之后再补一次“用户展开态”快照，否则最后一个品种会漏掉。
+                    //   只在仍停留在同一分类时才写，避免导航离开时把好快照覆盖成空（实测踩过这个坑）。
+                    try {
+                        const __memScope = getCategoryScope();
+                        setTimeout(function () { try { if (getCategoryScope() === __memScope && typeof snapshotExpandMemory === 'function') snapshotExpandMemory(__memScope); } catch (e) { } }, 1400);
+                    } catch (e) { }
         }
     } catch (e) { }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
