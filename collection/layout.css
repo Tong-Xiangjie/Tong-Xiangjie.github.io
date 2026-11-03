@@ -4099,3 +4099,7 @@ html[data-ui-style="glass"] .glass-blur-host::before { opacity: 1; }
     .glass-blur-host::before { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .glass-blur-host::before { transition: none; } }
+
+/* ===== 关玻璃：整层先淡出再移除（否则"啪"地没了 = 突变） ===== */
+#glassOrbs { transition: opacity 0.34s ease; }
+#glassOrbs.glass-orbs-out { opacity: 0 !important; }

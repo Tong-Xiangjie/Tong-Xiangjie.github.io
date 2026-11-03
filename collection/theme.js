@@ -203,7 +203,7 @@ const GLASS_BG_KEY = 'collection-glass-bg';
 const GLASS_BG_MODES = ['orbs', 'nebula', 'grid', 'sheen'];
 const GLASS_BG_PRESETS = {
     // 彩球：正圆、数量多、比星云小（用户要求与星云区分：“数量多一点、是正圆形、大小比星云小一点”）
-    orbs:   { n: [7, 12], size: [14, 40], blur: 46, op: [20, 40], life: [9000, 24000], circle: true },
+    orbs:   { n: [9, 14], size: [8, 22],  blur: 40, op: [20, 40], life: [9000, 24000], circle: true },
     nebula: { n: [3, 6], size: [55, 118], blur: 92, op: [16, 34], life: [20000, 48000] },
     grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] },
     // 光带 = 背景里几条拉长的柔和光晕（不是浮在界面上的白线：那就是用户说的"浮在上面有点丑"）
@@ -364,6 +364,7 @@ function recycleGlassOrb(st) {
 function ensureGlassOrbs(rebuild) {
     try {
         var host = document.getElementById('glassOrbs');
+        if (host) host.classList.remove('glass-orbs-out');   // 重新打开玻璃：先取消淡出
         if (host && !rebuild) { ensureGlassBlurHosts(); return; }
         if (host) { while (host.firstChild) host.removeChild(host.firstChild); }
         else {
@@ -476,7 +477,20 @@ function applyTheme(color) {
 
     // 让 CSS 能按风格分流（玻璃模式的规则全部挂在 html[data-ui-style="glass"] 上）
     el.setAttribute('data-ui-style', glass ? 'glass' : 'standard');
-    if (glass) ensureGlassOrbs(false); else stopGlassOrbDrift();
+    if (glass) ensureGlassOrbs(false); else { stopGlassOrbDrift(); fadeOutGlassOrbs(); }
+
+// ★ 背景层的样式全部绑在 html[data-ui-style="glass"] 上，属性一翻、球就没有任何定位/滤镜了，
+//   于是"啪"地消失（用户反复说"还是突变"）。这里先加一层淡出类、等过渡完再把整层移除。
+function fadeOutGlassOrbs() {
+    try {
+        var host = document.getElementById('glassOrbs');
+        if (!host) return;
+        host.classList.add('glass-orbs-out');
+        setTimeout(function () {
+            try { if (host.parentNode) host.parentNode.removeChild(host); } catch (e) { }
+        }, 340);
+    } catch (e) { }
+}
 
     // 强调色本身不变：变了会让「主题色实心按钮 + 白字」的对比度掉下来
     el.style.setProperty('--theme', color);
