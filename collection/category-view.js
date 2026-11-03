@@ -528,19 +528,27 @@ function syncFocusAndRoute() {
 //   并预热每个品种的**第一张原图**（用户反馈“点开小板块第一张会卡一下”）。
 function openListsIn(root) {
     if (!root) return 0;
-    let n = 0;
-    Array.prototype.slice.call(root.querySelectorAll('.variety-row')).forEach(row => {
+    // ★ 分帧摊开：一帧只打开一个品种体。一次性全开会在同一帧里
+    //   做掉几十个条目的布局与图片解码，就是“点开卡一下”的来源。
+    const rows = Array.prototype.slice.call(root.querySelectorAll('.variety-row'));
+    const todo = [];
+    rows.forEach(row => {
         const list = row.querySelector('.copy-list');
         if (!list) return;
         const first = list.querySelector('img');
         if (first) warmImage(first);
-        if (list.classList.contains('open')) return;
+        if (!list.classList.contains('open')) todo.push(list);
+    });
+    const openOne = (list) => {
         list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
         const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
         if (ic) ic.classList.add('open');
-        n++;
+    };
+    todo.forEach((list, i) => {
+        if (i === 0) { openOne(list); return; }
+        requestAnimationFrame(() => requestAnimationFrame(() => openOne(list)));
     });
-    return n;
+    return todo.length;
 }
 // ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
 function warmImage(im) {
@@ -577,7 +585,7 @@ function toggleSeries(id, hintEl) {
                     
                 } catch (e) {  }
             };
-            requestAnimationFrame(openInside); setTimeout(openInside, 160);
+            setTimeout(openInside, 340); setTimeout(openInside, 800);
         }
     } catch (e) { }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
