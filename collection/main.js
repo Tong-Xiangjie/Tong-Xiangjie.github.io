@@ -90,6 +90,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             var stg = document.querySelector('.sidebar-toggle');
             if (stg) out.push(stg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
+            // Bottom tab bar: slide up from the bottom edge while fading in (same 0.3s family).
+            var bootRevealBar = document.querySelector('.bottom-tabbar');
+            if (bootRevealBar) out.push(bootRevealBar.animate([
+                { opacity: 0, transform: 'translateY(100%)' },
+                { opacity: 1, transform: 'translateY(0)' }
+            ], { duration: 300, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }));
             return out;
         })();
         try {
@@ -111,9 +117,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Let the inline styles the animations may have set settle back to the stylesheet values.
         setTimeout(function () {
             try {
-                ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
+                ['.top-search-container', '.sidebar', '.sidebar-toggle', '.bottom-tabbar'].forEach(function (sel) {
                     var el = document.querySelector(sel);
-                    if (el) { el.style.transition = ''; el.style.maxHeight = ''; el.style.opacity = ''; el.style.width = ''; el.style.minWidth = ''; }
+                    if (el) { el.style.transition = ''; el.style.maxHeight = ''; el.style.opacity = ''; el.style.width = ''; el.style.minWidth = ''; el.style.transform = ''; }
                 });
             } catch (e) { }
         }, 400);

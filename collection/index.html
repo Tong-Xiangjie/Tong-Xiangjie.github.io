@@ -343,16 +343,14 @@
         var st = document.createElement('style');
         st.id = 'boot-hide-style';
         // ★ 只隐搜索栏/侧边栏；底部 Tab 一律不动（站点用行内样式给选中 Tab 上色，动了就会把它的高亮抹掉）。
-        // ★ 底部 Tab：只用 CSS 压住“选中”样式（color/font-weight），不写行内样式。
-        //   之前两次出错都是因为动了行内样式：站点靠行内样式给选中 Tab 上色，我一清就把它高亮抹了。
-        //   用 inherit 而不是写死颜色：普通 Tab 本来就是从底部栏继承颜色，这样两者一定一致。
         // ★ 不能用 display:none：display 不能过渡，数据到了只能“啪”地出现。
         //   这里改成站点自己“切换板块”用的那几个属性（参见 layout.css 的 .top-search-container/.hidden 与 .sidebar-hidden），
         //   就能直接复用站点的过渡：搜索栏高度展开、侧边栏淡入。
         st.textContent = 'html[data-booting] .top-search-container { max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; opacity: 0 !important; border-color: transparent !important; }' +
                           'html[data-booting] .sidebar, html[data-booting] .sidebar-toggle { opacity: 0 !important; pointer-events: none !important; }' +
-                          'html[data-booting] .tab-item.active { color: inherit !important; font-weight: normal !important; }';
-                          'html[data-booting] .tab-item.active { color: inherit !important; font-weight: normal !important; }';
+                          // Whole bottom bar is hidden while loading (the user's call): then the active-tab
+                          // colour question disappears entirely, and it slides up when the data is ready.
+                          'html[data-booting] .bottom-tabbar { opacity: 0 !important; transform: translateY(100%) !important; pointer-events: none !important; }';
         (document.head || document.documentElement).appendChild(st);
     })();
     window.__booting = true;
