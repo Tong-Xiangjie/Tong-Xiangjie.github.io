@@ -683,3 +683,26 @@ function themeSignature() {
         };
     } catch (e) { }
 })();
+
+// ================= LIQUID-GLASS-DISABLED =================
+// 用户决定：液态玻璃整体停用。原因是它会让整页闪（覆盖整页的背景层带入场动画，重播时整页淡入）。
+// 这里做三件事，保证任何入口都回不到玻璃模式：
+//   1) 启动即强制 data-ui-style=standard，并清掉本地残留；
+//   2) 把 setUIStyle 换成空实现（设置页的开关即使被程序化点到也不会生效）；
+//   3) 移除已存在的背景层元素。
+// 想恢复这个功能：删掉本段即可（其余玻璃代码都还在，互不影响）。
+(function () {
+    function forceStandard() {
+        try { document.documentElement.setAttribute('data-ui-style', 'standard'); } catch (e) { }
+        try { localStorage.setItem('collection-ui-style', 'standard'); } catch (e) { }
+        try {
+            var h = document.getElementById('glassOrbs');
+            if (h && h.parentNode) h.parentNode.removeChild(h);
+        } catch (e) { }
+    }
+    forceStandard();
+    try {
+        setUIStyle = function () { forceStandard(); return false; };
+    } catch (e) { }
+    try { document.addEventListener('DOMContentLoaded', forceStandard); } catch (e) { }
+})();

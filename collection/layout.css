@@ -4103,3 +4103,8 @@ html[data-ui-style="glass"] .glass-blur-host::before { opacity: 1; }
 /* ===== 关玻璃：整层先淡出再移除（否则"啪"地没了 = 突变） ===== */
 #glassOrbs { transition: opacity 0.34s ease; }
 #glassOrbs.glass-orbs-out { opacity: 0 !important; }
+
+/* LIQUID-GLASS-DISABLED: 液态玻璃已停用 —— 从「我的」里隐藏开关与背景风格区块 */
+.settings-row:has(#uiStyleSwitch) { display: none !important; }
+#uiStyleSwitch { display: none !important; }
+.glass-bg-section { display: none !important; }
