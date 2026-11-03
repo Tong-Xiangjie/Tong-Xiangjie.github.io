@@ -613,12 +613,44 @@ function themeCrossFade() {
         el.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 340, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
     } catch (e) { }
 }
+// ★★ 真正稳的做法：旧底色遮罩 + 淡出（溶解式过渡）★★
+//   为什么之前那么多次都没用：
+//   ① CSS 过渡在这套层叠里不可靠（main.js 已经写过这个结论）；
+//   ② 给 #app 做 WAAPI 淡入也盖不住**整页底色**——底色是画在 html/视口画布上的，
+//      元素的 opacity 管不到它，所以底色仍然是一帧翻转（用户：还是突变）。
+//   现在：切换前先记下旧的实色底（--bg-solid 始终是不透明色），切换后在最上层
+//   铺一块同色遮罩并 WAAPI 淡出 0.36s。遮罩下面发生什么都无所谓，
+//   用户看到的是“旧样子溶解成新样子”——这是唯一不受层叠影响的保证。
+function themeFadeOverlay(prevBg) {
+    try {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (!prevBg) return;
+        var d = document.createElement('div');
+        d.className = 'theme-fade-overlay';
+        d.setAttribute('aria-hidden', 'true');
+        d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483000;background:' + prevBg + ';';
+        (document.body || document.documentElement).appendChild(d);
+        var anim = null;
+        if (d.animate) anim = d.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 360, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
+        var kill = function () { try { if (d.parentNode) d.parentNode.removeChild(d); } catch (e) { } };
+        if (anim) anim.onfinish = kill;
+        setTimeout(kill, 900);
+        return d;
+    } catch (e) { }
+}
 (function () {
     try {
         var origApplyTheme = applyTheme;
         applyTheme = function () {
+            // ★ 必须在切换**之前**记下旧底色（切完就没了）
+            var prev = null;
+            try {
+                var cs = window.getComputedStyle(document.documentElement);
+                prev = (cs.getPropertyValue('--bg-solid') || cs.getPropertyValue('--bg') || '').trim() || null;
+            } catch (e) { }
             var r = origApplyTheme.apply(this, arguments);
             themeCrossFade();
+            themeFadeOverlay(prev);
             return r;
         };
     } catch (e) { }
