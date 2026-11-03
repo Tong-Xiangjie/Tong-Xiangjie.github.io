@@ -189,7 +189,7 @@ function withAlpha(hex, a) {
     return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
 }
 
-// ★ 背景层（液体玻璃的底），三件事必须说清楚：
+// ★ 背景层（液态玻璃的底），三件事必须说清楚：
 //   1) 尺寸/位置/浓淡/形状只能由 JS 生成 —— CSS 随机不了；
 //   2) 轨迹**不能用 CSS 关键帧**：关键帧路径固定， alternate 来回跑必然可预测。
 //      改成 JS 逐帧：朝随机目标点缓动，到达后重新随机 ⇒ 轨迹是永不重复的折线；
@@ -197,7 +197,7 @@ function withAlpha(hex, a) {
 //   3) **数量也在变**：每个球有随机寿命，到点淡出移除、同时补一个新的。
 function orbRnd(a, b) { return a + Math.random() * (b - a); }
 
-// ★ 背景风格（仅液体玻璃下生效）：同一套生成器，只换参数。
+// ★ 背景风格（仅液态玻璃下生效）：同一套生成器，只换参数。
 //   无论哪种风格，运动都是 JS 逐帧的随机目标漂移（不用 CSS 关键帧，避免固定路径来回跑）。
 const GLASS_BG_KEY = 'collection-glass-bg';
 const GLASS_BG_MODES = ['orbs', 'nebula', 'grid', 'sheen'];
@@ -209,7 +209,7 @@ const GLASS_BG_PRESETS = {
     // 光带 = 背景里几条拉长的柔和光晕（不是浮在界面上的白线：那就是用户说的"浮在上面有点丑"）
     // 条带细、模糊小于厚度才看得出是"带"：之前 72px 模糊配 100~490px 厚度，直接糊成球（实测像星云）
     // 用户要的是"一条条直线"：厚度 1.2%~4%（约 10~40px），模糊 8px 以免糊成块
-    sheen:  { n: [5, 8], size: [50, 125], blur: 8, op: [18, 34], life: [18000, 42000], streak: true }
+    sheen:  { n: [5, 8], size: [50, 125], blur: 42, op: [10, 22], life: [18000, 42000], streak: true, thick: [4, 24] }
 };
 function getGlassBg() {
     try {
@@ -288,6 +288,7 @@ function initGlassPreviews() {
                 o.style.top = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.width = size + '%';
                 o.style.height = kind === 'sheen' ? (Math.max(3, Math.round(size * 0.09)) + '%') : 'auto';   // 非光带：高度交给 aspect-ratio，否则正圆被压扁
+                if (kind === 'sheen') { o.style.width = '135%'; o.style.left = orbRnd(-28, -6).toFixed(1) + '%'; o.style.height = orbRnd(22, 58).toFixed(1) + '%'; }   // 预览里也做成无限延伸 + 粗细不一
                 if (kind === 'sheen') { o.style.borderRadius = '999px'; o.style.filter = 'blur(2px)'; o.style.opacity = '0.85'; o.style.width = Math.min(96, Math.round(size * 1.5)) + '%'; }
                 // ★ 预览盒是扁的，width/height 都用 % 时高度按盒高算，正圆会被压扁 ⇒ 用 aspect-ratio 锁正圆
                 o.style.aspectRatio = (kind === 'sheen' ? 'auto' : '1 / 1');
@@ -320,7 +321,7 @@ function spawnGlassOrb() {
         var P = glassBgPreset();
         var o = document.createElement('i');
         var r = Math.random(), w, h;
-        if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.012, 0.04); }   // 光带档：细直线（厚度 1.2%~4%）
+        if (P.streak) { w = 260; h = orbRnd(P.thick[0], P.thick[1]); o.classList.add('glass-streak'); }   // 光带档：宽度稍后强制 260vw（左右都伸出屏外 = 无限延伸），粗细随机 0.8~6vmin
         else if (P.circle) { w = orbRnd(P.size[0], P.size[1]); h = w; }   // 彩球档：一律正圆（宽高相等）
         else if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
         else if (r < 0.8) { w = orbRnd(P.size[0] * 1.2, P.size[1] * 1.25); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
@@ -329,6 +330,10 @@ function spawnGlassOrb() {
         o.style.top = orbRnd(-15, 95).toFixed(1) + '%';
         o.style.width = w.toFixed(1) + 'vmin';
         o.style.height = h.toFixed(1) + 'vmin';
+        // ★ 用户要求：光带要"无限延伸、可以粗一点、粗细不一"
+        //   ① 宽度给 260vw（远超视口）② left 收在 -160%~-60%（整条线永远横跨屏幕，看不到两端）
+        //   ③ 粗细由 preset.thick 随机（0.8~6vmin），所以每条线粗细不同；漂移逻辑本身没动。
+        if (P.streak) { o.style.width = '260vw'; o.style.left = orbRnd(-160, -60).toFixed(1) + '%'; }
         // ★ 用 background-color 而不是 radial-gradient：渐变里的颜色不可插值，
         //   主题色一变就是"啪"地跳（用户：没有中间态、还是突变）。纯色 + 已有的 blur() 一样柔和，但能过渡。
         o.style.backgroundColor = (Math.random() < 0.5) ? 'var(--theme)' : 'var(--theme-light)';
@@ -592,3 +597,29 @@ document.addEventListener('DOMContentLoaded', function () {
     watchSystemColorScheme();
     loadTheme();
 });
+
+// ★★ 一处修好“开关 + 主题色卡片 + 背景”三件事的突变 ★★
+//   实测证据：开关后 150ms，body 底色已经从实色变成透明、
+//   模糊层的 ::before opacity 也已经是 1 —— 没有任何过渡在跑。
+//   这和 main.js 里入场动画的结论一致：CSS 过渡在这套层叠里靠不住
+//   （“removing !important rules alone did not animate”），得用 Web Animations API。
+//   所以在 applyTheme 外包一层：任何主题/风格变化后，给 #app 做一次 0.34s 的淡入，
+//   把所有内部瞬变（底色、卡片、模糊、背景层）都包成一次平滑的交叉淡入。
+function themeCrossFade() {
+    try {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var el = document.getElementById('app') || document.body;
+        if (!el || !el.animate) return;
+        el.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 340, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
+    } catch (e) { }
+}
+(function () {
+    try {
+        var origApplyTheme = applyTheme;
+        applyTheme = function () {
+            var r = origApplyTheme.apply(this, arguments);
+            themeCrossFade();
+            return r;
+        };
+    } catch (e) { }
+})();

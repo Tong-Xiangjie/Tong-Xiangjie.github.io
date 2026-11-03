@@ -161,11 +161,11 @@ function renderSettingsPage() {
     // 界面风格（与「明暗」「主题色」并列的第三个维度），开关式：默认关闭 = 标准实色
     html += `<div class="settings-section">`;
     html += `<h3>界面风格</h3>`;
-    html += renderToggleRow('uiStyleSwitch', '液体玻璃', isGlassStyle(), 'toggleUIStyle()',
-        '液体玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
+    html += renderToggleRow('uiStyleSwitch', '液态玻璃', isGlassStyle(), 'toggleUIStyle()',
+        '液态玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
     html += `</div>`;
 
-    // 背景风格：四张动态预览卡（点击即选）。★ 只在液体玻璃开启时出现 —— 折叠态靠 CSS 过渡丝滑展开。
+    // 背景风格：四张动态预览卡（点击即选）。★ 只在液态玻璃开启时出现 —— 折叠态靠 CSS 过渡丝滑展开。
     html += '<div class="settings-section glass-bg-section' + (isGlassStyle() ? ' open' : '') + '" id="glassBgSection"' + (isGlassStyle() ? '' : ' aria-hidden="true"') + '>';
     html += `<h3>背景风格</h3>`;
     html += `<div class="glass-previews">`;
