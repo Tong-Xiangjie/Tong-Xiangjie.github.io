@@ -610,7 +610,6 @@ function updateSearchUIForMode() {
     const shells = bar.querySelectorAll ? bar.querySelectorAll('.dd') : [];
     for (let k = 0; k < shells.length; k++) {
       shells[k].classList.toggle('hidden', !!ui.selectHidden);
-      shells[k].style.display = ui.selectHidden ? 'none' : '';
     }
   };
   hideDdShell();
