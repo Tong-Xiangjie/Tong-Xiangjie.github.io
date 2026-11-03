@@ -530,23 +530,31 @@ function syncFocusAndRoute() {
 // ★ 展开时把该系列下各品种体打开（与自动全开共用同一套逻辑）：
 function openListsIn(root) {
     if (!root) return 0;
-    // ★ 用户口径：模仿人类点击 —— 先点大系列，等它开完，再**一个一个**点小系列（品种）。
-    //   不预加载图片（占位图先顶着）；也不改 class、不关动画。
-    //   之前卡的原因就是大小两层**同时**开，现在拆成两步并错开。
-    const heads = Array.prototype.slice.call(root.querySelectorAll('.variety-header')).filter(h => {
-        const row = h.closest('.variety-row');
-        const list = row ? row.querySelector('.copy-list') : null;
-        return !!list && !list.classList.contains('open');
-    });
-    let i = 0;
+    // ★ 模仿人类点击：先点大系列（已开），再一个个点小系列（品种）。
+    //   ★ 不能一开始把品种头抓成快照：点击会触发 syncFocusAndRoute()，
+    //     中途 DOM 可能被替换，快照里后面的节点就失效了 ⇒ “展开一半就停”
+    //     （品种越多越容易撞上，如广东省银行大洋票）。
+    //     现在每一步都**重新查**“下一个还没展开的品种头”，并在 root 脱离时回退到按 id 重新取。
+    const bodyId = root.id || null;
+    const pick = () => {
+        const scope = document.contains(root) ? root : (bodyId ? document.getElementById(bodyId) : null) || root;
+        if (!scope || !scope.querySelectorAll) return null;
+        return Array.prototype.slice.call(scope.querySelectorAll('.variety-header')).find(el => {
+            const row = el.closest('.variety-row');
+            const list = row ? row.querySelector('.copy-list') : null;
+            return !!list && !list.classList.contains('open');
+        }) || null;
+    };
+    let guard = 0;
     const step = () => {
-        if (i >= heads.length) return;
-        const h = heads[i++];
-        try { h.click(); } catch (e) { }   // 就是人手点一下品种头
-        setTimeout(step, 140);            // 等这一层开完再点下一个（略快一点）
+        if (guard++ > 400) return;              // 防止意外死循环
+        const h = pick();
+        if (!h) return;
+        try { h.click(); } catch (e) { }        // 就是人手点一下品种头
+        setTimeout(step, 140);                  // 等这一层开完再点下一个
     };
     setTimeout(step, 90);
-    return heads.length;
+    return pick() ? 1 : 0;
 }
 // ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
 function warmImage(im) {
