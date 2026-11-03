@@ -3959,9 +3959,9 @@ html[data-ui-style="glass"] #glassOrbs > u.glass-grid {
     color: var(--text);
     font: inherit;
     cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
-.glass-preview-card:hover { transform: translateY(-1px); }
+/* 预览卡不做悬浮上浮（用户要求） */
 .glass-preview-card.active {
     border-color: var(--theme);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme) 35%, transparent);
@@ -4081,4 +4081,26 @@ html[data-ui-style="glass"] .copy-item {
 }
 @media (prefers-reduced-motion: reduce) {
     html[data-ui-style="glass"] .sidebar, html[data-ui-style="glass"] main { transition: none !important; }
+}
+
+/* ===== 覆盖式常驻过渡（放在文件最后，后者胜，确保一定生效）=====
+   ★ 前一轮的教训：
+   ① 规则绑了 html[data-ui-style="glass"] —— 关玻璃的一瞬间属性变成 standard，规则当场失效 ⇒ 模糊/颜色
+      根本没有过渡（用户："没有中间态，还是突变"）。这里改成**与模式无关**，开关两个方向都过渡。
+   ② 球/光带原来的颜色写在 radial-gradient 里，渐变不可插值 ⇒ 主题色一变就跳。已在 theme.js 改成
+      background-color（配合 blur 做柔和边缘），这里给背景层加上颜色过渡。
+   ★ 必须把站点自己的动画属性一起写上，否则 shorthand 会把它们顶掉：
+     侧边栏 width/min-width、顶部搜索框 max-height/padding。
+   ★ 与 .series-body/.copy-list 无交集，不影响手风琴。 */
+.sidebar, .top-search-container, main, .bottom-tabbar {
+    transition: background-color 0.34s ease, border-color 0.34s ease, box-shadow 0.34s ease, color 0.34s ease,
+                backdrop-filter 0.34s ease, -webkit-backdrop-filter 0.34s ease, opacity 0.34s ease,
+                width 0.32s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+                max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1), padding-top 0.32s ease, padding-bottom 0.32s ease !important;
+}
+#glassOrbs > i, #glassOrbs > u, #glassOrbs > b {
+    transition: background-color 0.34s ease, opacity 0.34s ease, filter 0.34s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+    .sidebar, .top-search-container, main, .bottom-tabbar { transition: none !important; }
 }

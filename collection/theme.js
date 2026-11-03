@@ -206,7 +206,8 @@ const GLASS_BG_PRESETS = {
     grid:   { n: [0, 0], size: [30, 70],  blur: 70, op: [14, 24], life: [15000, 30000] },
     // 光带 = 背景里几条拉长的柔和光晕（不是浮在界面上的白线：那就是用户说的"浮在上面有点丑"）
     // 条带细、模糊小于厚度才看得出是"带"：之前 72px 模糊配 100~490px 厚度，直接糊成球（实测像星云）
-    sheen:  { n: [4, 7], size: [50, 120], blur: 34, op: [16, 30], life: [18000, 42000], streak: true }
+    // 用户要的是"一条条直线"：厚度 1.2%~4%（约 10~40px），模糊 8px 以免糊成块
+    sheen:  { n: [5, 8], size: [50, 125], blur: 8, op: [18, 34], life: [18000, 42000], streak: true }
 };
 function getGlassBg() {
     try {
@@ -270,8 +271,8 @@ function initGlassPreviews() {
                 o.style.left = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.top = Math.round(orbRnd(-10, 80)) + '%';
                 o.style.width = size + '%';
-                o.style.height = (kind === 'sheen' ? Math.max(8, Math.round(size * 0.22)) : size) + '%';
-                if (kind === 'sheen') o.style.borderRadius = '999px';
+                o.style.height = (kind === 'sheen' ? Math.max(3, Math.round(size * 0.09)) : size) + '%';
+                if (kind === 'sheen') { o.style.borderRadius = '999px'; o.style.filter = 'blur(4px)'; }
                 o.style.opacity = String(Math.round(orbRnd(30, 55)) / 100);
                 o.style.background = (i % 2 === 0) ? 'radial-gradient(closest-side, var(--theme), transparent 72%)' : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
                 o.style.animationDuration = orbRnd(6, 13).toFixed(1) + 's';
@@ -301,7 +302,7 @@ function spawnGlassOrb() {
         var P = glassBgPreset();
         var o = document.createElement('i');
         var r = Math.random(), w, h;
-        if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.045, 0.115); }   // 光带档：一律细长条（厚度 4.5%~11.5%）
+        if (P.streak) { w = orbRnd(P.size[0], P.size[1]); h = w * orbRnd(0.012, 0.04); }   // 光带档：细直线（厚度 1.2%~4%）
         else if (r < 0.45) { w = orbRnd(P.size[0], P.size[1] * 0.85); h = w * orbRnd(0.9, 1.1); }   // 圆
         else if (r < 0.8) { w = orbRnd(P.size[0] * 1.2, P.size[1] * 1.25); h = w * orbRnd(0.26, 0.5); }   // 横条（旋转看得见）
         else { w = orbRnd(P.size[0] * 0.6, P.size[1] * 0.6); h = w * orbRnd(1.6, 2.6); }                 // 竖条
@@ -309,13 +310,13 @@ function spawnGlassOrb() {
         o.style.top = orbRnd(-15, 95).toFixed(1) + '%';
         o.style.width = w.toFixed(1) + 'vmin';
         o.style.height = h.toFixed(1) + 'vmin';
-        o.style.background = (Math.random() < 0.5)
-            ? 'radial-gradient(closest-side, var(--theme), transparent 72%)'
-            : 'radial-gradient(closest-side, var(--theme-light), transparent 72%)';
+        // ★ 用 background-color 而不是 radial-gradient：渐变里的颜色不可插值，
+        //   主题色一变就是"啪"地跳（用户：没有中间态、还是突变）。纯色 + 已有的 blur() 一样柔和，但能过渡。
+        o.style.backgroundColor = (Math.random() < 0.5) ? 'var(--theme)' : 'var(--theme-light)';
+        o.style.transition = 'background-color 0.34s ease, opacity ' + orbRnd(3, 7).toFixed(1) + 's ease-in-out';
         o.style.filter = 'blur(' + P.blur + 'px)';
         if (P.streak) o.style.borderRadius = '999px';
         o.style.opacity = '0';
-        o.style.transition = 'opacity ' + orbRnd(3, 7).toFixed(1) + 's ease-in-out';
         o.style.transform = 'translate3d(0,0,0) rotate(0deg) scale(1)';
         host.appendChild(o);
         var st = {
