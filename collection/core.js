@@ -1024,6 +1024,17 @@ function setExpandDepth(v) {
 //   所以这里只用内存（刷新后回到该档的默认）。（不碰站点自己的记忆机制）
 const __expandMemorized = Object.create(null);
 function markExpandMemory(scope) { try { __expandMemorized[String(scope || '')] = 1; } catch (e) { } }
+// ★ 按分类存一份“用户展开态”快照：用户每次手动展开/收起都会走 markExpandMemory，
+//   此刻 DOM 已是最新状态。为什么不用 focusSeries：它在“本次没有 reveal 指令”时会被清空，
+//   所以那句“手动展开或收起过的系列按您的习惯保留”一直没兑现。
+//   （记忆仍只存在内存、不跨刷新，与原口径一致；不动 collectScopedExpanded 的语义。）
+function snapshotExpandMemory(scope) {
+    try {
+        if (!window.__expandMemoryByScope) window.__expandMemoryByScope = Object.create(null);
+        window.__expandMemoryByScope[String(scope || '')] = collectScopedExpanded();
+    } catch (e) { }
+}
+function markExpandMemory(scope) { try { __expandMemorized[String(scope || '')] = 1; } catch (e) { } snapshotExpandMemory(scope); }
 function hasExpandMemory(scope) { try { return __expandMemorized[String(scope || '')] === 1; } catch (e) { return false; } }
 function autoExpandAll(scope) { return expandDepth() === 'all' && !hasExpandMemory(scope); }
 

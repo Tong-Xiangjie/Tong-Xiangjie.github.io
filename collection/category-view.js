@@ -268,6 +268,13 @@ function renderSeriesList(data, title) {
     //     统一在这里转成集合，下面按集合判定，两条来源就不会各写一套逻辑。
     const wantSeries = new Set();
     const wantVarieties = new Set();
+    // ★ 记忆接线：站点已经会把“用户手动展开/收起过的展开态”反推到 focusSeries / focusVariety
+    //   （见 core.js 的 collectScopedExpanded / focusFromDom），但渲染时从来没用上，所以那句“按您的习惯保留”一直是空的。
+    //   这里把它们当作“本分类的记忆”接进来；只认当前作用域的 id，不跨分类串台。
+    //   ★ 用 id 直接比对（而不是拆字符串拼 si.vi），这样不依赖 id 的拼接格式。
+    const memSnap = ((window.__expandMemoryByScope || {})[accScope]) || {};
+    const memSeriesIds = new Set((memSnap.expandedSeries || []).map(String));
+    const memVarietyIds = new Set((memSnap.expandedVarieties || []).map(String));
     if (reveal) {
         const sList = (reveal.sIdxList && reveal.sIdxList.length)
             ? reveal.sIdxList
@@ -333,7 +340,7 @@ function renderSeriesList(data, title) {
         }
 
         // 本系列是否要在本次渲染里直接展开
-        const openSeries = wantSeries.has(si) || autoExpandAll(getCategoryScope());
+        const openSeries = wantSeries.has(si) || memSeriesIds.has(seriesId) || autoExpandAll(getCategoryScope());
 
         let seriesTotal = 0;
         if (series.varieties) {
@@ -357,7 +364,7 @@ function renderSeriesList(data, title) {
                 const uid = varietyScopeId(accScope, si, vi);
                 // 目标品种：仅在目标系列内部才认，避免在别的系列里误展开同序号品种
                 // ★ 用 si.vi 复合键：新品种段能跨系列（v1.0,3.2），只比 vi 会串台
-                const openVariety = openSeries && (wantVarieties.has(si + '.' + vi) || autoExpandAll(getCategoryScope()));
+                const openVariety = openSeries && (wantVarieties.has(si + '.' + vi) || memVarietyIds.has(uid) || autoExpandAll(getCategoryScope()));
 
                 html += `<div class="variety-row">`;
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}', this)">`;
