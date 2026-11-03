@@ -331,6 +331,38 @@
          站内从此没有任何外部依赖：CDN 被墙/抽风时不会再"静默丢失缩放功能"，
          断网（走 SW 资源缓存）时也能正常加载。仍然 defer，不阻塞首屏解析。 -->
     <script defer src="vendor/hammer.min.js"></script>
+    <script>
+    /* ★ 启动期（数据还在跑）：不显示搜索栏、空侧边栏，也不预先点亮“纸币”。
+       标记用 window.__booting（不能用 <html> 上的 class：站点会整体重写 className），
+       并且在数据就绪前反复保持（站点启动会重建外壳）。数据就绪时由 main.js 恢复。
+       ★ 插在最后一个 </head> 之前：文件开头的说明注释里也有 "<head>" 字样。 */
+    // ★ 首帧就要隐好：光靠 JS 会在“外壳已解析、定时器还没跑到”的那一帧闪一下（实测 104 帧里有 1 帧）。
+    //   用 data- 属性 + !important 样式表：属性不会被 className 重写抹掉，而这张表插在本文件内联 <style> 之后，能压住它。
+    document.documentElement.setAttribute('data-booting', '');
+    (function () {
+        var st = document.createElement('style');
+        st.id = 'boot-hide-style';
+        st.textContent = 'html[data-booting] .top-search-container, html[data-booting] .sidebar, html[data-booting] .sidebar-toggle { display: none !important; }' +
+                          'html[data-booting] .tab-item.active { opacity: 0.45 !important; filter: grayscale(1) !important; }';
+        (document.head || document.documentElement).appendChild(st);
+    })();
+    window.__booting = true;
+    function __bootHide() {
+        if (!window.__booting) return;
+        var sc = document.querySelector('.top-search-container');
+        // ★ 只加 .hidden 不够：该类的 max-height:0 会被本文件后面那块内联 <style> 压住
+        //   （实测：加了 hidden，搜索栏高度仍是 99）⇒ 用行内 display:none 钉死。
+        if (sc) { sc.classList.add('hidden'); sc.style.display = 'none'; }
+        var sb = document.querySelector('.sidebar');
+        if (sb) sb.style.display = 'none';
+        var st = document.querySelector('.sidebar-toggle');
+        if (st) st.style.display = 'none';
+        var tb = document.querySelector('.tab-item.active');
+        if (tb) { tb.style.opacity = '0.45'; tb.style.filter = 'grayscale(1)'; }
+    }
+    __bootHide();
+    window.__bootTimer = setInterval(__bootHide, 40);
+    </script>
 </head>
 <body>
 

@@ -58,6 +58,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     // ★ 加载完成：进度条先淡出，再渲染并让内容淡入（不再硬切）
     function revealContent() {
         loadingContainer.style.display = 'none';
+        // ★ 数据就绪：停表 + 恢复启动期隐掉的外壳（见 index.html 的 __bootHide）。
+        try {
+            if (window.__bootTimer) { clearInterval(window.__bootTimer); window.__bootTimer = null; }
+            window.__booting = false;
+            document.documentElement.removeAttribute('data-booting');
+            ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
+                var el = document.querySelector(sel);
+                if (el) { el.style.display = ''; if (el.classList) el.classList.remove('hidden'); }
+            });
+            var bootTab = document.querySelector('.tab-item.active');
+            if (bootTab) { bootTab.style.opacity = ''; bootTab.style.filter = ''; }
+        } catch (e) { }
         appEl.style.display = 'block';
         appEl.innerHTML = '';
 
