@@ -526,57 +526,27 @@ function syncFocusAndRoute() {
 
 // ★ 统一的“补开”工具（三档共用）：把指定系列体内的品种体打开，
 //   并预热每个品种的**第一张原图**（用户反馈“点开小板块第一张会卡一下”）。
-// ★ 预热容器内**全部**图片（不等，只发起）：点击那一刻就开始，
-//   等系列体动画结束时它们已经就绪 ⇒ 第二下揭开时不再现场解码。
-function warmImagesIn(root) {
-    if (!root) return [];
-    const jobs = [];
-    Array.prototype.slice.call(root.querySelectorAll('img')).forEach(im => {
-        try { warmImage(im); if (im.decode) jobs.push(im.decode().catch(() => { })); } catch (e) { }
-    });
-    return jobs;
-}
 
 // ★ 展开时把该系列下各品种体打开（与自动全开共用同一套逻辑）：
 function openListsIn(root) {
     if (!root) return 0;
-    // ★ 用户反馈：“就是有图片的那个会卡” ⇒ 卡的不是布局，是**图片解码/绘制**。
-    //   所以：先把要打开的列表里**所有**图片 eager + decode（含 data-src 惰加载），
-    //   等它们就绪（最多等1.2s）再揭开 ⇒ 揭开那一刻已经有像素，不再现场解码。
-    const rows = Array.prototype.slice.call(root.querySelectorAll('.variety-row'));
-    const todo = [];
-    const imgs = [];
-    rows.forEach(row => {
-        const list = row.querySelector('.copy-list');
-        if (!list) return;
-        Array.prototype.slice.call(list.querySelectorAll('img')).forEach(im => imgs.push(im));
-        if (!list.classList.contains('open')) todo.push(list);
+    // ★ 用户口径：模仿人类点击 —— 先点大系列，等它开完，再**一个一个**点小系列（品种）。
+    //   不预加载图片（占位图先顶着）；也不改 class、不关动画。
+    //   之前卡的原因就是大小两层**同时**开，现在拆成两步并错开。
+    const heads = Array.prototype.slice.call(root.querySelectorAll('.variety-header')).filter(h => {
+        const row = h.closest('.variety-row');
+        const list = row ? row.querySelector('.copy-list') : null;
+        return !!list && !list.classList.contains('open');
     });
-    if (!todo.length) return 0;
-    const openOne = (list) => {
-        // 不走 max-height 过渡（动画 max-height 会每帧重排整棵子树）：一步到位。
-        list.style.transition = 'none';
-        list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
-        const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
-        if (ic) ic.classList.add('open');
-        requestAnimationFrame(() => { list.style.transition = ''; });
+    let i = 0;
+    const step = () => {
+        if (i >= heads.length) return;
+        const h = heads[i++];
+        try { h.click(); } catch (e) { }   // 就是人手点一下品种头
+        setTimeout(step, 180);            // 等这一层开完再点下一个
     };
-    // ★ 用户反馈：「迟迟没有展开的第二步」——原来等的是“全部图片解码完”这
-    //   一个**总闸门**（最多 1.2s），图一多/一慢就整体干等。现改为**按品种各自就绪就开**：
-    //   每个品种最多等 350ms（超时先展开，图像随后补上），再轻微错峰，
-    //   既不会整体卡住，也不会同一帧一起绘制。
-    let frame = 0;
-    todo.forEach(list => {
-        const jobs = [];
-        Array.prototype.slice.call(list.querySelectorAll('img')).forEach(im => {
-            try { warmImage(im); if (im.decode) jobs.push(im.decode().catch(() => { })); } catch (e) { }
-        });
-        Promise.race([Promise.allSettled(jobs), new Promise(r => setTimeout(r, 350))]).then(() => {
-            const wait = (frame++) * 24;   // 轻微错峰，避免同一帧一起绘制
-            if (wait === 0) openOne(list); else setTimeout(() => openOne(list), wait);
-        });
-    });
-    return todo.length;
+    setTimeout(step, 120);
+    return heads.length;
 }
 // ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
 function warmImage(im) {
@@ -617,7 +587,9 @@ function toggleSeries(id, hintEl) {
                     
                 } catch (e) {  }
             };
-            // ★ 用户口径（分两下）：第一下只铺开“不带图片的那层”            //   （系列体 + 品种行，由站点自己的动画完成，零解码、零额外布局）；            //   第二下等动画结束、且图片已就绪，才把图片层丝滑地摊开。            warmImagesIn(sBodyEl);   // 第一下就开始预热（只发起，不等）            let revealed = false;            const reveal = () => { if (revealed) return; revealed = true; openInside(); };            try { sBodyEl.addEventListener('transitionend', reveal, { once: true }); } catch (e) { }            setTimeout(reveal, 700);   // 兜底（没有 transition 时也能触发）
+            // ★ 用户口径：模仿人类点击 —— 先点大系列（走站点自身动画展开），
+            //   开完后再一个个点小系列（品种头）；不做图片预热、不改 class、不关动画。
+            setTimeout(openInside, 420); setTimeout(openInside, 900);
         }
     } catch (e) { }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');
