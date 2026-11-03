@@ -3727,12 +3727,15 @@ textarea:focus-visible {
    用宽度塌缩 + 淡出做过渡，而不是 display:none 瞬间消失。
    .dd 本来就是固定宽 --dd-w，max-width 从 --dd-w 到 0 就是“收起”，
    取消 .hidden 时自然“释放”；只影响带 .hidden 的外壳。 */
-.dd { transition: opacity 0.2s ease, max-width 0.2s ease, margin 0.2s ease; }
+/* ★ 用户反馈：收起时**搜索框要同时左移**，而不是先缩完再跳。
+   原来靠 max-width 收宽：max-width 不参与排布重算的“位置”感，输入框要等容器缩到寿命尽头才回到左边 ⇒ 分出先后。
+   现在改成**负 margin-left**（margin 直接参与布局），与透明度同步过渡，
+   输入框会从第一帧开始就跟着左移。 --dd-w 默认 128px， gap 同 .search-bar 的 6px。 */
+.dd { transition: opacity 0.2s ease, margin-left 0.2s ease, transform 0.2s ease; }
 .dd.hidden {
     opacity: 0;
-    max-width: 0;
-    margin: 0;
-    overflow: hidden;
+    margin-left: calc(-1 * var(--dd-w, 128px) - 6px);
+    transform: translateX(-8px);
     pointer-events: none;
 }
 .dd-trigger:hover { border-color: var(--theme); }
