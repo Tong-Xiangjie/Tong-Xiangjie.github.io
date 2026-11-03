@@ -540,9 +540,15 @@ function openListsIn(root) {
         if (!list.classList.contains('open')) todo.push(list);
     });
     const openOne = (list) => {
+        // ★ 不做 max-height 过渡：动画 max-height 会让浏览器**每一帧重排**
+        //   整棵子树，这就是“怎么摊开都掉帧”的根因（用户反馈：开始终卡）。
+        //   这里直接一步到位：一次布局、零逐帧重排（相当于提前全部渲染）。
+        list.style.transition = 'none';
         list.classList.add('open'); list.style.maxHeight = 'none'; list.style.opacity = '1';
         const ic = document.getElementById('icon-' + String(list.id || '').replace(/^list-/, ''));
         if (ic) ic.classList.add('open');
+        // 下一帧恢复：以后手点这个品种时仍然有原本的开合动画。
+        requestAnimationFrame(() => { list.style.transition = ''; });
     };
     todo.forEach((list, i) => {
         if (i === 0) { openOne(list); return; }
