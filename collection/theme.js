@@ -638,19 +638,35 @@ function themeFadeOverlay(prevBg) {
         return d;
     } catch (e) { }
 }
+// ★★ 关键修正：只有“真的变了”才淡 ★★
+//   上一版把淡入挂在 applyTheme 上，而“我的”每次重绘都会调用 applyTheme
+//   （同步调色板/卡片状态）⇒ 每渲染一次就铺一层遮罩 = 整个页面在闪。
+//   现在先取签名（界面风格 + 明暗 + 主题色），只有签名真变了才跑淡入/遮罩。
+function themeSignature() {
+    try {
+        var el = document.documentElement;
+        var cs = window.getComputedStyle(el);
+        return [el.getAttribute('data-ui-style'), el.getAttribute('data-color-scheme'),
+            (cs.getPropertyValue('--theme') || '').trim(), (cs.getPropertyValue('--theme-light') || '').trim()].join('|');
+    } catch (e) { return 'no-sig'; }
+}
 (function () {
     try {
         var origApplyTheme = applyTheme;
+        var lastSig = themeSignature();
         applyTheme = function () {
-            // ★ 必须在切换**之前**记下旧底色（切完就没了）
             var prev = null;
             try {
                 var cs = window.getComputedStyle(document.documentElement);
                 prev = (cs.getPropertyValue('--bg-solid') || cs.getPropertyValue('--bg') || '').trim() || null;
             } catch (e) { }
             var r = origApplyTheme.apply(this, arguments);
-            themeCrossFade();
-            themeFadeOverlay(prev);
+            var sig = themeSignature();
+            if (sig !== lastSig) {          // ★ 真的变了才淡；重复调用同一主题完全不动
+                lastSig = sig;
+                themeCrossFade();
+                // themeFadeOverlay(prev);  // 保底关闭：先保证不闪
+            }
             return r;
         };
     } catch (e) { }
