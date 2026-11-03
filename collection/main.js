@@ -59,7 +59,28 @@ document.addEventListener('DOMContentLoaded', async function() {
     function revealContent() {
         loadingContainer.style.display = 'none';
         // ★ 数据就绪：停表 + 恢复启动期隐掉的外壳（见 index.html 的 __bootHide）。
+        // ★ 分两帧做：#app 在加载期是 display:none，子元素从未布局过，
+        //   若在“可见 + 撤销启动期样式”同一帧完成，首帧计算值就是终值，过渡不会触发。
+        //   所以先让它“可见但仍是收起态”布局一帧（保留启动期样式），下一帧再放开。
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+        // Reveal with the Web Animations API: same props/duration/easing as the site tab-switch
+        // transition (max-height + opacity for the search bar, opacity for the sidebar), but
+        // independent of the cascade -- removing !important rules alone did not animate.
+        var bootRevealAnim = (function () {
+            var out = [];
+            var sc = document.querySelector('.top-search-container');
+            if (sc) out.push(sc.animate([
+                { maxHeight: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px' },
+                { maxHeight: '600px', opacity: 1 }
+            ], { duration: 300, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }));
+            ['.sidebar', '.sidebar-toggle'].forEach(function (sel) {
+                var el = document.querySelector(sel);
+                if (el) out.push(el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' }));
+            });
+            return out;
+        })();
         try {
+
             if (window.__bootTimer) { clearInterval(window.__bootTimer); window.__bootTimer = null; }
             window.__booting = false;
             document.documentElement.removeAttribute('data-booting');
@@ -67,11 +88,23 @@ document.addEventListener('DOMContentLoaded', async function() {
             //   （实测出现过“属性没了、外观还是启动期那套”的情况）。
             var bootStyle = document.getElementById('boot-hide-style');
             if (bootStyle && bootStyle.parentNode) bootStyle.parentNode.removeChild(bootStyle);
+            // ★ 去掉启动期的 hidden，随即由站点自己的过渡展开（max-height / opacity）。
             ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
                 var el = document.querySelector(sel);
                 if (el) { el.style.display = ''; if (el.classList) el.classList.remove('hidden'); }
             });
+        
         } catch (e) { }
+        // Let the inline styles the animations may have set settle back to the stylesheet values.
+        setTimeout(function () {
+            try {
+                ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
+                    var el = document.querySelector(sel);
+                    if (el) { el.style.transition = ''; el.style.maxHeight = ''; el.style.opacity = ''; }
+                });
+            } catch (e) { }
+        }, 400);
+        }); });
         appEl.style.display = 'block';
         appEl.innerHTML = '';
 
