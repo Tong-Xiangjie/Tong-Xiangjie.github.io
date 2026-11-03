@@ -63,12 +63,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (window.__bootTimer) { clearInterval(window.__bootTimer); window.__bootTimer = null; }
             window.__booting = false;
             document.documentElement.removeAttribute('data-booting');
+            // ★ 把启动期那张 !important 样式表一并移除：光移除属性不够保险
+            //   （实测出现过“属性没了、外观还是启动期那套”的情况）。
+            var bootStyle = document.getElementById('boot-hide-style');
+            if (bootStyle && bootStyle.parentNode) bootStyle.parentNode.removeChild(bootStyle);
             ['.top-search-container', '.sidebar', '.sidebar-toggle'].forEach(function (sel) {
                 var el = document.querySelector(sel);
                 if (el) { el.style.display = ''; if (el.classList) el.classList.remove('hidden'); }
             });
-            var bootTab = document.querySelector('.tab-item.active');
-            if (bootTab) { bootTab.style.opacity = ''; bootTab.style.filter = ''; }
         } catch (e) { }
         appEl.style.display = 'block';
         appEl.innerHTML = '';

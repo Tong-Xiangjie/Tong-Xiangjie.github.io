@@ -342,8 +342,8 @@
     (function () {
         var st = document.createElement('style');
         st.id = 'boot-hide-style';
-        st.textContent = 'html[data-booting] .top-search-container, html[data-booting] .sidebar, html[data-booting] .sidebar-toggle { display: none !important; }' +
-                          'html[data-booting] .tab-item.active { opacity: 0.45 !important; filter: grayscale(1) !important; }';
+        // ★ 只隐搜索栏/侧边栏；底部 Tab 一律不动（站点用行内样式给选中 Tab 上色，动了就会把它的高亮抹掉）。
+        st.textContent = 'html[data-booting] .top-search-container, html[data-booting] .sidebar, html[data-booting] .sidebar-toggle { display: none !important; }';
         (document.head || document.documentElement).appendChild(st);
     })();
     window.__booting = true;
@@ -357,8 +357,6 @@
         if (sb) sb.style.display = 'none';
         var st = document.querySelector('.sidebar-toggle');
         if (st) st.style.display = 'none';
-        var tb = document.querySelector('.tab-item.active');
-        if (tb) { tb.style.opacity = '0.45'; tb.style.filter = 'grayscale(1)'; }
     }
     __bootHide();
     window.__bootTimer = setInterval(__bootHide, 40);
