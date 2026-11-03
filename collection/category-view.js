@@ -527,10 +527,19 @@ function toggleSeries(id, hintEl) {
         window.__expandDbg = { depth: depth, fired: !!(sBodyEl && !sBodyEl.classList.contains('open')), hasEl: !!sBodyEl };
         if (depth !== 'series' && sBodyEl && !sBodyEl.classList.contains('open')) {
             const openInside = () => {
+                // ★ 预热：缩略图原本要等展开那一刻才开始加载/解码，
+                //   动画里跟着卡；这里先 eager + decode 把它们预热掉。
+                const warm = (root) => {
+                    Array.prototype.slice.call(root.querySelectorAll('img')).forEach(im => {
+                        im.loading = 'eager';
+                        if (im.decode) { try { im.decode().catch(() => { }); } catch (e) { } }
+                    });
+                };
                 try {
                     const roots = depth === 'all'
                         ? Array.prototype.slice.call(document.querySelectorAll('.series-body'))
                         : [sBodyEl];
+                    roots.forEach(warm);
                     let n = 0;
                     roots.forEach(root => {
                         Array.prototype.slice.call(root.querySelectorAll('.variety-row')).forEach(row => {
@@ -545,7 +554,7 @@ function toggleSeries(id, hintEl) {
                     window.__expandDbg.opened = (window.__expandDbg.opened || 0) + n;
                 } catch (e) { window.__expandDbg.err2 = String(e && e.message || e); }
             };
-            setTimeout(openInside, 0); setTimeout(openInside, 250); setTimeout(openInside, 600);
+            requestAnimationFrame(openInside); setTimeout(openInside, 160);
         }
     } catch (e) { window.__expandDbg = { err: String(e && e.message || e) }; }
     const body = accordionTargetOf(hintEl, 'body-' + id, '.series-body');

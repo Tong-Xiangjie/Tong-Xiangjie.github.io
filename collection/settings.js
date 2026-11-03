@@ -216,9 +216,9 @@ function renderSettingsPage() {
 
     // ★ 展开深度（三档）：只管“点开系列（父亲标题）后展开到哪一层”。
     html += `<div class="settings-section">`;
-    html += `<h3>藏品展开方式</h3>`;
+    html += `<h3>藏品展开程度</h3>`;
     html += renderSegmented('expandDepthSeg', '点开系列后', [['series', '只展开系列'], ['copies', '展开到单张'], ['all', '全部展开']], expandDepth(), 'pickExpandDepth');
-    html += `<div class="toggle-desc">默认为「展开到单张」：点开系列后会一路展开到每一张藏品。无论选哪一档，未点击时不会自动展开任何系列，您手动展开或收起过的系列也都会被记住。</div>`;
+    html += `<div class="toggle-desc">选择点开系列（父亲标题）后的展开程度。默认为「展开到单张」，点开系列后将一路展开至每一张藏品，无需逐条点开；选择「只展开系列」则仅展开系列本身。无论选择哪一档，未点击时均不会自动展开任何系列，您手动展开或收起过的系列也将按您的习惯保留。</div>`;
     html += `</div>`;
 
     // 网格画质
