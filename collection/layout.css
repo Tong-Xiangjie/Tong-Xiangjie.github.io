@@ -926,6 +926,8 @@ html[data-hm-cold] .top-search-container {
    :has(> .copy-item) 让"啥都木有"的空品种保持原样（那里本来就没有这条线）。 */
 .copy-list.open:has(> .copy-item) { border-top: 1px solid var(--border); }
 .copy-list.open > .copy-item:first-child { border-top: none; }
+/* ★ 空品种（“啥都木有”）同样要有这条线：用户要求与其他小标题一致。 */
+.copy-list.open:has(> .copy-list-empty) { border-top: 1px solid var(--border); }
 
 /* ========== 藏品项 ========== */
 .copy-item {

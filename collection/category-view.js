@@ -410,7 +410,7 @@ function isCoinBoardLayout() {
 function renderCopiesList(copies, detailFields, displayName, accV) {
     if (!copies || copies.length === 0) {
         // 行内空状态：用 18px 的小图（这块默认只有一行文字，块级大图会把列表撑开）
-        return '<div style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">' +
+        return '<div class="copy-list-empty" style="padding:8px;font-size:0.8rem;color:var(--text-secondary);">' +
                emptyArt('collection', true) + '啥都木有</div>';
     }
     // ★ 条目「第三行」（目录编号 / 材质 / 直径 / 重量 合并成的那一行）的两个常量。
