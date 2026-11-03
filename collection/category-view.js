@@ -561,20 +561,21 @@ function openListsIn(root) {
         if (ic) ic.classList.add('open');
         requestAnimationFrame(() => { list.style.transition = ''; });
     };
-    const reveal = () => {
-        todo.forEach((list, i) => {
-            if (i === 0) { openOne(list); return; }
-            requestAnimationFrame(() => requestAnimationFrame(() => openOne(list)));
+    // ★ 用户反馈：「迟迟没有展开的第二步」——原来等的是“全部图片解码完”这
+    //   一个**总闸门**（最多 1.2s），图一多/一慢就整体干等。现改为**按品种各自就绪就开**：
+    //   每个品种最多等 350ms（超时先展开，图像随后补上），再轻微错峰，
+    //   既不会整体卡住，也不会同一帧一起绘制。
+    let frame = 0;
+    todo.forEach(list => {
+        const jobs = [];
+        Array.prototype.slice.call(list.querySelectorAll('img')).forEach(im => {
+            try { warmImage(im); if (im.decode) jobs.push(im.decode().catch(() => { })); } catch (e) { }
         });
-    };
-    const jobs = imgs.map(im => {
-        try {
-            warmImage(im);
-            if (im.decode) return im.decode().catch(() => { });
-        } catch (e) { }
-        return Promise.resolve();
+        Promise.race([Promise.allSettled(jobs), new Promise(r => setTimeout(r, 350))]).then(() => {
+            const wait = (frame++) * 24;   // 轻微错峰，避免同一帧一起绘制
+            if (wait === 0) openOne(list); else setTimeout(() => openOne(list), wait);
+        });
     });
-    Promise.race([Promise.allSettled(jobs), new Promise(r => setTimeout(r, 1200))]).then(reveal, reveal);
     return todo.length;
 }
 // ★ 预热单张图片：缩略图 eager+decode，原图（点开后看的那张）用 Image 预加载。
