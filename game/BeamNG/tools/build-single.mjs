@@ -88,12 +88,15 @@ for (const mod of modules.values()) {
 let html = await readFile(resolve(ROOT, 'index.html'), 'utf8');
 const css = await readFile(resolve(ROOT, 'css/style.css'), 'utf8');
 html = html.replace(/<link rel="stylesheet" href="css\/style\.css">/, `<style>\n${css}\n</style>`);
+// index.html 末尾是一段引导脚本：file:// 下跳单文件版，http(s) 下注入 js/main.js。
+// 单文件版里两个分支都不需要了，整段换成 import map + 直接 import 入口。
+const bootRe = /<!--\s*入口。[\s\S]*?<\/script>\s*(?=<\/body>)/;
+if (!bootRe.test(html)) throw new Error('没找到 index.html 末尾的引导脚本');
 html = html.replace(
-  /<script type="module" src="js\/main\.js"><\/script>/,
+  bootRe,
   `<script type="importmap">\n${JSON.stringify({ imports: importMap }, null, 2)}\n</script>\n` +
-  `<script type="module">import '${modules.get(entry).id}';</script>`,
+  `<script type="module">import '${modules.get(entry).id}';</script>\n`,
 );
-if (!html.includes('type="importmap"')) throw new Error('没找到入口 <script type="module" src="js/main.js">');
 
 const banner = `<!--
   撞不坏 · 软体车辆物理沙盒 —— 单文件构建

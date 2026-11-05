@@ -295,15 +295,6 @@ table.keys kbd {
 }
 
 </style>
-<script>
-// 直接双击打开（file://）时，浏览器会以 CORS 为由拒绝加载 ES module，
-// 结果是页面画出来了、按钮全是死的。这里自动切到自包含的单文件版：
-// 它的模块用 data:URL 内联，file:// 下也能跑。
-// 想在本机跑多文件版，用 `node tools/serve.mjs 8811` 起个服务再访问。
-if (location.protocol === 'file:' && !/BeamNG-single/.test(location.pathname)) {
-  location.replace('dist/BeamNG-single.html' + location.search + location.hash);
-}
-</script>
 </head>
 <body>
 <canvas id="scene"></canvas>
