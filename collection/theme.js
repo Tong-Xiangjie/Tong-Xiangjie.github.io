@@ -97,6 +97,14 @@ const THEME_ANIM_CLASS = 'theme-anim';
 const THEME_ANIM_MS = 320;          // 比 --dur-3(0.3s) 略长，保证过渡跑完再摘类
 let themeAnimTimer = 0;
 
+// ★ 这一次 applyTheme 是"初始化落值"还是"用户改主题"。
+//   区分它是因为底下的溶解遮罩是**整屏不透明**的：开屏时铺上去，盖的正好是加载屏，
+//   实测（screencast 逐帧）t≈120ms 铺上 --bg-solid、360ms 才淡完，加载文字
+//   在"正在准备 → 进度条"那一下整整消失 100ms 以上再淡回来 —— 用户报的"文字闪一下"。
+//   只有用户主动改主题才该看到溶解，初始化这一趟本来就该一步到位
+//   （loadTheme() 的注释也是这个意思：初始化不补间）。
+let themeInitCall = false;
+
 function themeAnimAllowed() {
     return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
@@ -111,9 +119,14 @@ function withThemeAnim(fn, animate) {
         //   最终值（视作"没有过渡"），补间就时有时无。
         void el.offsetWidth;
     }
+    // ★ animate === false 就是"初始化"（loadTheme → applyColorScheme(false)）。
+    //   存旧值再还原，别把嵌套调用里的用户操作也一起误判成初始化。
+    const prevInitCall = themeInitCall;
+    themeInitCall = (animate === false);
     try {
         return fn();
     } finally {
+        themeInitCall = prevInitCall;
         if (on) {
             if (themeAnimTimer) clearTimeout(themeAnimTimer);
             themeAnimTimer = setTimeout(function () {
@@ -654,30 +667,50 @@ function themeFadeOverlay(prevBg) {
 //   上一版把淡入挂在 applyTheme 上，而“我的”每次重绘都会调用 applyTheme
 //   （同步调色板/卡片状态）⇒ 每渲染一次就铺一层遮罩 = 整个页面在闪。
 //   现在先取签名（界面风格 + 明暗 + 主题色），只有签名真变了才跑淡入/遮罩。
+//
+//   ★ 签名必须读**内联样式**（el.style），不能读 getComputedStyle：
+//     layout.css 用 @property 把 --theme/--theme-light 注册成了可过渡的颜色，
+//     又给 html.theme-anim 挂了 transition —— 于是改完变量的**同一帧**里
+//     getComputedStyle 拿到的还是过渡起点（旧值），前后一比永远"没变"，
+//     用户真的换了主题反而不会溶解（实测：换铜色后签名仍是 rgb(22,119,255)）。
+//     内联样式是"写进去就是什么"，不受过渡影响。
+//   ★ --bg-solid 也要算进去：明暗是靠 applyColorScheme 先翻 data-color-scheme、
+//     再调 applyTheme 的，签名前后取的都是新 scheme，光靠 --theme-light 分辨不出
+//     黑白切换 —— 像 #ffffff 这种色，L(0.35) 和 L(0.4) 都是 #ffffff，
+//     切日夜就漏了。--bg-solid 由主题色按明暗分别派生（暗：压暗 / 亮：提亮），
+//     任何颜色下两个模式都不相等。
 function themeSignature() {
     try {
         var el = document.documentElement;
-        var cs = window.getComputedStyle(el);
+        var st = el.style;
         return [el.getAttribute('data-ui-style'), el.getAttribute('data-color-scheme'),
-            (cs.getPropertyValue('--theme') || '').trim(), (cs.getPropertyValue('--theme-light') || '').trim()].join('|');
+            (st.getPropertyValue('--theme') || '').trim(), (st.getPropertyValue('--theme-light') || '').trim(),
+            (st.getPropertyValue('--bg-solid') || '').trim()].join('|');
     } catch (e) { return 'no-sig'; }
 }
 (function () {
     try {
         var origApplyTheme = applyTheme;
-        var lastSig = themeSignature();
         applyTheme = function () {
             var prev = null;
             try {
                 var cs = window.getComputedStyle(document.documentElement);
                 prev = (cs.getPropertyValue('--bg-solid') || cs.getPropertyValue('--bg') || '').trim() || null;
             } catch (e) { }
+            // ★ 签名必须**前后各取一次**再比。原先这里是"变之前存一份 themeSignature()、
+            //   变之后只取 data-ui-style"，两边根本不是一个东西 ⇒ 永远不相等 ⇒
+            //   连开机那一趟 applyTheme 都被当成"主题变了"，于是首屏盖了一层整屏遮罩，
+            //   把加载屏的"正在准备 / 进度"整块字抹掉再淡回来。
+            var before = themeSignature();
             var r = origApplyTheme.apply(this, arguments);
-            var sig = (function () { try { return document.documentElement.getAttribute('data-ui-style') || ''; } catch (e) { return ''; } })();   // ★ 只看界面风格：重绘时这个值不变 ⇒ 不会闪
-            if (sig !== lastSig) {          // ★ 真的变了才淡；重复调用同一主题完全不动
-                lastSig = sig;
-                themeCrossFade();
-                themeFadeOverlay(prev);  // 保底关闭：先保证不闪
+            var after = themeSignature();
+            if (after !== before) {         // ★ 真的变了才淡；重复调用同一主题完全不动
+                // ★ 初始化那一趟只落值，不铺遮罩（themeInitCall 见 withThemeAnim）：
+                //   这时首屏还压在加载屏上，铺上去等于把加载文字藏起来。
+                if (!themeInitCall) {
+                    themeCrossFade();
+                    themeFadeOverlay(prev);  // 保底关闭：先保证不闪
+                }
             }
             return r;
         };
