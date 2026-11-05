@@ -283,22 +283,23 @@ export class StreetLights {
    */
   update(dt, camPos, night) {
     this.night = night;
-    const on = night > 0.02;
-    this.group.visible = on;
-    if (!on) {
-      for (const pl of this.realLights) { pl.visible = false; pl.intensity = 0; }
-      return;
-    }
-    this.glowMat.opacity = night;
-    this.poolMat.opacity = night * 0.85;
-    // 低画质只留"假的"：灯头自发光 + 地面光池。几盏真实点光是逐像素成本，
-    // 集显和软件渲染上省下来很可观。
+    // 路灯是**常亮**的：白天也开着（灯头照样自发光、地面照样有光池，只是被太阳
+    // 压得不起眼），入夜全亮。以前这里是 `night > 0.02` 才显示整个 group ——
+    // 白天连灯杆都一起消失了，看起来就是"没有路灯"。
+    // 灯头比地面光池更"实"一点：白天阳光一压，光池几乎看不见，灯头那点亮是
+    // 唯一能看出"路灯开着"的东西。
+    const lit = 0.5 + 0.5 * night;                 // 灯头自发光
+    const pool = 0.22 + 0.78 * night;              // 地面光池
+    const power = 0.35 + 0.65 * night;             // 真实点光
+    this.group.visible = true;
+    this.glowMat.opacity = lit;
+    this.poolMat.opacity = pool * 0.85;
     if (this.realEnabled === false) {
       for (const pl of this.realLights) { pl.visible = false; pl.intensity = 0; }
       return;
     }
 
-    // 每 0.3 秒重新挑一次最近的三根灯杆（每帧挑会在边界上闪）
+    // 每 0.3 秒重新挑一次最近的几根灯杆（每帧挑会在边界上闪）
     this._t += dt;
     if (this._t >= 0.3) {
       this._t = 0;
@@ -317,7 +318,7 @@ export class StreetLights {
       if (!l) { pl.visible = false; pl.intensity = 0; continue; }
       pl.visible = true;
       pl.position.set(l.x + l.side.x * 1.8, l.y + LAMP_HEIGHT - 0.5, l.z + l.side.z * 1.8);
-      pl.intensity = 620 * night;
+      pl.intensity = 620 * power;
     }
   }
 

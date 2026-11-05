@@ -254,12 +254,16 @@ export class Game {
     this.effects.update(dtReal, this.vehicle, this.world.world);
 
     // --- 灯光 -------------------------------------------------------------
-    // night 来自太阳高度；'on' 强制全亮（白天也能看灯），'off' 全关。
+    // 这里有两个概念，以前混成了一个，出过"路灯不常亮"的毛病：
+    //   nf  = 天色（来自太阳高度）—— 路灯用它，路灯是常亮的（白天也亮，只是暗些）；
+    //   lit = 灯光开关（auto 跟天色 / on 强制全亮 / off 全关）—— 只管车灯、飞机灯，
+    //         关车灯不该把路灯也关掉。
     const nf = this.view.nightFactor ?? 0;
-    this.night = this.lightsMode === 'on' ? 1 : this.lightsMode === 'off' ? 0 : nf;
-    this.streetLights.update(dtReal, this.camera.position, this.night);
-    this.carLights.update(dtReal, this.vehicle, this.night, this.vehicleMode === 'car');
-    this.planeLights.update(dtReal, this.plane.enabled ? this.night : 0);
+    const lit = this.lightsMode === 'on' ? 1 : this.lightsMode === 'off' ? 0 : nf;
+    this.night = nf;
+    this.streetLights.update(dtReal, this.camera.position, nf);
+    this.carLights.update(dtReal, this.vehicle, lit, this.vehicleMode === 'car');
+    this.planeLights.update(dtReal, this.plane.enabled ? lit : 0);
 
     this.audio.update(dtReal, this._audioState());
     this.hud.update(dtReal, {
