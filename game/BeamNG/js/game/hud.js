@@ -125,14 +125,15 @@ export class Hud {
     this._width('flThrBar', this.el.flThrBar, plane.throttle * 100);
     this._text('flG', plane.gLoad.toFixed(1));
     const crashed = plane.state === 3;
-    this._text('flState', crashed ? (plane.burning ? '坠毁·燃烧' : '坠毁')
+    this._text('flState', crashed ? '坠毁 · 按 T 回跑道头'
       : plane.mode === 'parked' ? '停车' : plane.stalled ? '失速' : '飞行');
     if (this.el.flWarn) {
-      const warn = plane.stalled && !crashed;
+      const warn = plane.stalled || plane.assist;
       if (this._cache.flWarn !== warn) {
         this._cache.flWarn = warn;
         this.el.flWarn.classList.toggle('hidden', !warn);
       }
+      if (warn) this.el.flWarn.textContent = plane.stalled ? '失速！' : '低空保护';
     }
   }
 

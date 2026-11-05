@@ -116,7 +116,7 @@ const _q = new THREE.Quaternion();
 // ============================================================================
 //  路灯
 // ============================================================================
-const MAX_REAL_LIGHTS = 3;      // 同时存在的真实点光数量
+const MAX_REAL_LIGHTS = 6;      // 同时存在的真实点光数量
 const LAMP_STEP = 30;           // 沿路每隔多少米一根
 const LAMP_HEIGHT = 7.6;
 
@@ -178,7 +178,9 @@ export class StreetLights {
     glowBox.dispose();
     this.glowGeo = bake(glowParts);
     this.glowMat = new THREE.MeshBasicMaterial({
-      color: 0xffe0a8, transparent: true, opacity: 0, depthWrite: false, fog: true,
+      // fog:false —— 灯是光源，本来就该透过雾看得见。开着雾的话远处那排灯会
+      // 直接糊进夜色里，看起来就成了"走到跟前才亮"。
+      color: 0xffe0a8, transparent: true, opacity: 0, depthWrite: false, fog: false,
     });
     const glowMesh = new THREE.Mesh(this.glowGeo, this.glowMat);
     glowMesh.matrixAutoUpdate = false;
@@ -203,7 +205,7 @@ export class StreetLights {
     this.poolGeo = bake(poolParts);
     this.poolMat = new THREE.MeshBasicMaterial({
       map: this.poolTex, transparent: true, opacity: 0, depthWrite: false,
-      blending: THREE.AdditiveBlending, fog: true,
+      blending: THREE.AdditiveBlending, fog: false,
     });
     const poolMesh = new THREE.Mesh(this.poolGeo, this.poolMat);
     poolMesh.matrixAutoUpdate = false;
@@ -303,7 +305,7 @@ export class StreetLights {
       const near = [];
       for (const l of this.lamps) {
         const d = (l.x - camPos.x) ** 2 + (l.z - camPos.z) ** 2;
-        if (d > 160 * 160) continue;
+        if (d > 300 * 300) continue;
         near.push({ l, d });
       }
       near.sort((a, b) => a.d - b.d);
@@ -364,7 +366,7 @@ export class CarLights {
     this.poolGeo = quad;
     this.poolMat = new THREE.MeshBasicMaterial({
       map: this.tex, transparent: true, opacity: 0, depthWrite: false,
-      blending: THREE.AdditiveBlending, fog: true,
+      blending: THREE.AdditiveBlending, fog: false,
     });
     this.pool = new THREE.Mesh(this.poolGeo, this.poolMat);
     this.pool.matrixAutoUpdate = true;

@@ -109,7 +109,10 @@ export class ChaseCamera {
       const wx = pos.x + right.x * _p.x + up.x * _p.y + fwd.x * _p.z;
       const wy = pos.y + right.y * _p.x + up.y * _p.y + fwd.y * _p.z;
       const wz = pos.z + right.z * _p.x + up.z * _p.y + fwd.z * _p.z;
-      this.pos.lerp(_p.set(wx, wy, wz), Math.min(1, dt * 26));
+      // 座舱/引擎盖是**刚性**挂在机体上的，位置不能做平滑。原来这里 lerp(dt*26)，
+      // 飞机飞到 150 m/s 时会留下 ~1.5 m 的稳态滞后，视角直接掉到座椅后面，
+      // 看着就是"座舱视角不对"。要平滑的只有视线方向。
+      this.pos.set(wx, wy, wz);
       cam.position.copy(this.pos);
       // 看向车头前方一点
       void _q; void _m;

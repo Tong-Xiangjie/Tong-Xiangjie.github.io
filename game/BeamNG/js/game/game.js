@@ -235,6 +235,9 @@ export class Game {
     this.view3d.update();
     const flyTarget = this.flying ? this.plane : this.vehicle;
     this.camera3p.update(dtReal, flyTarget, { airborne: flyTarget.airborne });
+    // 座舱视角时把座舱盖藏掉：相机就在气泡舱里面，不藏的话整屏都是 0.42 透明度的
+    // 玻璃，外面什么都看不清。
+    if (this.flying) this.plane.setCockpitView(this.camera3p.mode === 'cockpit');
     this.view.follow(flyTarget.position);
     this.world.update(this.camera.position);
     if (this.plane) {
@@ -443,12 +446,15 @@ export class Game {
 
   respawn() {
     if (this.vehicleMode === 'plane') {
-      // 飞机模式：回到跑道头重新起飞
+      // 飞机模式：不管是在飞、停着、还是已经炸成残骸，一律回到跑道头重新起飞
+      this.plane.enabled = true;
       this.plane._park();
       this.plane.mode = 'player';
+      this.plane.group.visible = true;
       this.camera3p.snap(this.plane, this.world.terrain);
       this.effects.clear();
-      this.hud.toast('飞机已回到跑道头');
+      this.hud.hideResult();
+      this.hud.toast(this.plane.alive ? '飞机回到跑道头，可以重新起飞' : '残骸已清理，飞机回到跑道头');
       return;
     }
     this.vehicle.resetAt(this.world.world, 0, 4, 0);

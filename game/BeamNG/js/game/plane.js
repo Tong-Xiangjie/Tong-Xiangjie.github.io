@@ -41,6 +41,22 @@ const MAX_BANK_CMD = 1.22;   // 最大坡度 ≈70°
 // 操纵力矩用的动压下限。真实动压决定舵效，低速时舵效本来就小，但键盘玩家会觉得
 // "按键没反应"。给操纵力矩单独设一个动压地板（气动力仍用真实动压），低速也跟手。
 const CTRL_QS_MIN = 30000;
+// 舵面的"生效条件"。真机上舵面力矩 ∝ 动压，速度太低就是压不动飞机；这里再加一道
+// 硬门槛，因为停机时按 A/D 就能把飞机滚翻、按 ↓ 就能把机头按进跑道，全是穿模。
+const CTRL_V_MIN = 17;       // m/s（≈61 km/h）以下舵面彻底无效
+const CTRL_V_SPAN = 13;      // 到 30 m/s（≈108 km/h）恢复全权限
+// 低于这个离地高度，下沉率被限制在"一定能在撞地前停住"的包线内（低空保护）。
+const CTRL_AGL_MIN = 40;     // m
+// 地面效应：贴地时升力略增 + 下沉被托一下。只在地面效应真实存在的范围内
+// （一个翼展 ≈ 8 m），而且做得很轻 —— 弄大了就是"莫名其妙自己往上飘"。
+const GE_AGL = 10;           // m
+const GE_LIFT = 0.12;        // 额外升力比例（贴地时）
+const GE_SINK_DAMP = 0.55;   // 下沉阻尼系数 1/s
+// 低空保护（只对玩家生效）：下沉率被限制在"一定能在撞地前停住"的包线内，
+// 也就是 sqrt(2·a·h)。a≈6.5 m/s²，取的就是"接地那一刻下沉率一定还在 8.5 m/s
+// 坠毁线以内"。22 m 处允许 16.9 m/s，5 m 处允许 8.1 m/s，贴地只剩 4 m/s ——
+// 正常落地完全够用，但"一推杆就扎穿地面"不会再发生。
+const SINK_STOP_A = 6.5;
 
 export const PLANE_MODE_LABEL = { parked: '停机', ai: '电脑驾驶', player: '你驾驶' };
 
@@ -140,9 +156,14 @@ export class Plane {
     this._forceDive = false;
     this._willCrash = false;
     this._aiTarget = null;
+    this._justCrashed = false;
+    this._acc = 0;
     this.onGround = true;
     this.ias = 0;
     this.alpha = 0;
+    this.stalled = false;
+    this.gLoad = 1;
+    this.omega.set(0, 0, 0);
     this._restoreMesh();
     this._syncFromQuat();
     this._syncMesh();
@@ -205,9 +226,11 @@ export class Plane {
     add(fuse, body, 0, 0, 0);
     const nose = new THREE.ConeGeometry(1.05, 2.2, 16);
     nose.rotateZ(-Math.PI / 2);
-    add(nose, accent, 7.3, 0, 0);
+    const noseMesh = add(nose, accent, 7.3, 0, 0);
     const cab = new THREE.SphereGeometry(1.0, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    add(cab, glass, 3.4, 0.62, 0);
+    const cabMesh = add(cab, glass, 3.4, 0.62, 0);
+    this.parts.nose = noseMesh;
+    this.parts.cab = cabMesh;
 
     // 主翼（带上反角）
     const wingGeo = new THREE.BoxGeometry(3.4, 0.26, 15.5);
@@ -335,16 +358,17 @@ export class Plane {
       this._step(h, vehicle, effects, controls);
       this._acc -= h;
       steps++;
+      if (this.state === STATE.CRASHED) { this._acc = 0; break; }
     }
     if (steps === 32) this._acc = 0;
     if (steps === 0) return;                  // 这一步还不够一个子步，等下一帧
     this._spinProps(dt);
     this._syncMesh();
-    this._checkImpact(dt, effects);
   }
 
   /** 一个固定子步。 */
   _step(h, vehicle, effects, controls) {
+    if (this.state === STATE.CRASHED) return;
     if (controls) {
       this.mode = 'player';
       this._playerStep(h, controls);
@@ -356,17 +380,37 @@ export class Plane {
       this.brake = 1;
       this._integrate(h);
     }
+    // 撞击检测**每个子步都做**。原来一帧只查一次：300 km/h 时一帧飞 6 m，
+    // 建筑和山脊都能整根穿过去（"水平穿模"）。
+    this._checkImpact(h, effects);
   }
 
   /** 玩家操纵：读入操纵量，交给气动模型。 */
   _playerStep(dt, c) {
     this.throttle += (c.throttle - this.throttle) * Math.min(1, dt * 2.6);
     this.brake = c.brake ? 1 : 0;
+    let pitch = c.pitch ?? 0;
+    let roll = c.roll ?? 0;
+    const agl = this.pos.y - this.world.groundHeight(this.pos.x, this.pos.z);
+    // 高度条件：轮子在地上就不许压坡度，不然机翼直接扫进地面（也是穿模）
+    if (this.onGround) roll *= 0.25;
+    // 注意：这里**不**动升降舵。之前试过"低空自动带一点拉杆"（自动拉平），
+    // 结果玩家会觉得机头莫名其妙自己往上抬 —— 操纵量必须只来自玩家。
+    // "推杆/下沉要有高度条件"改由下面的下沉率包线来管，手感上不突兀。
+    this.assist = false;
     this._flightStep(dt, {
-      pitch: c.pitch ?? 0,                  // 升降舵
-      roll: c.roll ?? 0,                    // 副翼
+      pitch,                                // 升降舵
+      roll,                                 // 副翼
       yaw: (c.yaw ?? 0) * 0.8,              // 方向舵（留点余量给风标稳定性）
     });
+    // 高度条件：低空限制下沉率。这是"低空保护"，只帮玩家；电脑驾驶那架不设限，
+    // 该死的时候还是要让它炸。
+    // 只在**还没接地**的时候限：接地之后必须让起落架接管，否则这里每步把下沉速度
+    // 按回去，等于自己把飞机按进地里（起落架刚把人托起来就又被推下去）。
+    if (!this.onGround && agl < CTRL_AGL_MIN && this.vel.y < 0) {
+      const maxSink = Math.sqrt(2 * SINK_STOP_A * Math.max(1.2, agl));
+      if (-this.vel.y > maxSink) { this.vel.y = -maxSink; this.assist = true; }
+    }
   }
 
   /** 电脑驾驶：沿用原来的"航迹自动驾驶"，但输出的操纵量走同一套气动模型。 */
@@ -391,7 +435,9 @@ export class Plane {
         this._steerTo(t.x, t.z, t.y + 6, dt, true);
         this.throttle = 1;
         const agl = this.pos.y - this.world.groundHeight(this.pos.x, this.pos.z);
-        if (agl < 42) {
+        // 拉起来的高度留足余量：现在每个物理子步都查撞地、还会往前 5 m 采样机头，
+        // 拉到 42 m 才开始改平已经不够了（会啃到山脊）。
+        if (agl < 55) {
           if (this._willCrash) this._aiTarget = { pitch: -2, roll: 0, yaw: 0 };
           else { this.state = STATE.CRUISE; this._cool = 16 + this._rng() * 20; }
         }
@@ -471,6 +517,14 @@ export class Plane {
     const side = qd * WING_AREA * CY;
     const thrust = THRUST_MAX * this.throttle;
 
+    // 地面效应：离地一个翼展以内，下洗被地面压住 —— 多一份升力 + 一份下沉阻尼。
+    // 这也是"下沉要满足高度条件"：低速贴地时不会再一头栽进地形里。
+    let ge = 0;
+    if (!this.onGround) {
+      const agl = this.pos.y - this.world.groundHeight(this.pos.x, this.pos.z);
+      if (agl < GE_AGL) ge = 1 - Math.max(0, agl) / GE_AGL;
+    }
+
     // 升力方向：垂直于气流、躺在机体对称面里。小攻角下与机体上方向差别就是 α，
     // 这里直接取机体上方向，够用而且省一次叉乘。
     const F = this._force.set(0, 0, 0);
@@ -478,6 +532,10 @@ export class Plane {
     if (speed > 1e-4) F.addScaledVector(vhat, -drag);
     F.addScaledVector(this._up, lift);
     F.addScaledVector(this._right, side);
+    if (ge > 0) {
+      F.addScaledVector(this._up, lift * GE_LIFT * ge);
+      if (v.y < 0) F.y -= v.y * MASS * GE_SINK_DAMP * ge;   // v.y<0，所以这是向上的托力
+    }
     F.y -= MASS * G;
 
     // --- 力矩（机体轴：x=滚转, y=偏航, z=俯仰；机头 +X、上 +Y、右 +Z）---
@@ -486,7 +544,10 @@ export class Plane {
     // 就一直翻），但键盘上那样子根本飞不稳 —— 目标是"像开车一样"能上手。
     // 偏航保持角速度指令，方向舵本来就是拿来修侧滑和地面滑行转向的。
     const qs = qd * WING_AREA;
-    const qsC = Math.max(qs, CTRL_QS_MIN);          // 操纵力矩用（带地板）
+    // 舵面权限：速度条件。低于 CTRL_V_MIN 舵面完全无效（停着按 A/D、↓ 都动不了），
+    // 到 CTRL_V_SPAN 以上恢复全权限。下面的动压地板只负责"正常速度下跟手"。
+    const auth = Math.max(0, Math.min(1, (speed - CTRL_V_MIN) / CTRL_V_SPAN));
+    const qsC = Math.max(qs, CTRL_QS_MIN) * auth;    // 操纵力矩用（带地板 + 速度权限）
     const bank = this._bankAngle();
     const wantBank = cmd.roll * MAX_BANK_CMD;
     const rollM = qsC * ((wantBank - bank) * 0.70 - this.omega.x * 0.32);
@@ -581,8 +642,12 @@ export class Plane {
     this.frame.up.copy(up);
     this.frame.right.copy(right);
     this.frame.pos.copy(this.pos);
-    this.cockpitPoint.copy(this.pos).addScaledVector(f, 3.2).addScaledVector(up, 1.15);
-    this.hoodPoint.copy(this.pos).addScaledVector(f, 6.2).addScaledVector(up, 0.55);
+    // 注意：这两个点是**机体坐标系**里的偏移（x=右、y=上、z=机头方向），
+    // 跟汽车那边的约定一致 —— camera.js 会拿 right/up/fwd 三个基向量去乘。
+    // 以前这里写成了世界坐标（pos + fwd*3.2 …），相机再拿它乘一遍基向量，
+    // 结果就是座舱视角被甩到几百米外，看起来完全不对。
+    this.cockpitPoint.set(0, 1.15, 3.2);
+    this.hoodPoint.set(0, 0.62, 6.2);
     this.pitchAngle = Math.asin(Math.max(-1, Math.min(1, f.y)));
     this._pitchAngleCache = this.pitchAngle;
   }
@@ -635,10 +700,21 @@ export class Plane {
   _checkImpact(dt, effects) {
     const groundY = this.world.groundHeight(this.pos.x, this.pos.z);
     const speed = this.vel.length();
-    // 机体（不是起落架）拍在地上。要求同时有下降率，这样贴着地面平飞
-    // （低空通场）不会莫名其妙算坠毁，一头扎下去才算。
-    if (this.pos.y - groundY < 0.9 && this.vel.y < -1.5 && speed > 30) { this._crash(); return; }
-    const r = 3.0;
+
+    // 1) 机体埋进地形。**不再要求有下降率** —— 原来写了 vel.y < -1.5 才判，
+    //    结果平飞一头撞进山坡/山脊能直接"水平穿模"穿过去。现在只要机身中心
+    //    离地不足 1.0 m（起落架已经没入地面 1 m）就算拍在地上。
+    if (this.pos.y - groundY < 1.0 && speed > 25) { this._crash(); return; }
+
+    // 2) 机头采样：5 m 外的地形高过机头，说明已经插进山里了。只看机体中心会
+    //    慢半拍 —— 300 km/h 时一帧能飞 5 m，正好从山脊中间穿过去。
+    if (speed > 15) {
+      const f = this.frame.fwd;
+      const ny = this.world.groundHeight(this.pos.x + f.x * 5, this.pos.z + f.z * 5);
+      if (this.pos.y + f.y * 5 < ny + 0.2) { this._crash(); return; }
+    }
+
+    const r = 2.6;
     const out = Plane._contactBuf;
     const n = this.world.collectContacts(this.pos.x, this.pos.y, this.pos.z, r, out, 4);
     const terrainInList = this.pos.y - r < groundY + 0.6;
@@ -774,9 +850,17 @@ export class Plane {
 
   setEnabled(v) { this.enabled = v; this.group.visible = v; }
 
+  /** 座舱视角：把座舱盖藏掉（相机就在里面），还有机头那截也别挡视线。 */
+  setCockpitView(on) {
+    if (this._cockpitView === on) return;
+    this._cockpitView = on;
+    if (this.parts.cab) this.parts.cab.visible = !on;
+    if (this.parts.nose) this.parts.nose.visible = !on;
+  }
+
   /** 相机/菜单用的一行状态。 */
   statusText() {
-    if (this.state === STATE.CRASHED) return this.burning ? '已坠毁 · 燃烧中' : '已坠毁';
+    if (this.state === STATE.CRASHED) return this.burning ? '已坠毁 · 按 T 回跑道头' : '已坠毁 · 按 T 回跑道头';
     if (this.mode === 'parked') return '停在跑道上';
     if (this.stalled) return '失速！';
     return `${(this.ias * 3.6).toFixed(0)} km/h · ${this.pos.y.toFixed(0)} m`;
