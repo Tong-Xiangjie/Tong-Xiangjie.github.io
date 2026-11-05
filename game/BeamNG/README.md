@@ -159,6 +159,8 @@ node tools/build-single.mjs          # → dist/BeamNG-single.html（约 1.3 MB�
 
 `drive` / `brake` / `slalom` 三个场景是按**仿真时间**推进的——headless 里渲染只有 8 fps，按墙上时间测会把 8 秒压成 2.5 秒物理时间，读数全是错的。
 
+浏览器里的数字会有几个百分点的run-to-run波动（headless 掉帧导致子步追赶的时机不同，撞墙瞬间的姿态因此略有差异），比如 `crash` 的平均溃缩在 32.6~33.2 cm 之间。Node 侧完全确定性，同一份输入每次结果一模一样。
+
 ---
 
 ## 目录结构
