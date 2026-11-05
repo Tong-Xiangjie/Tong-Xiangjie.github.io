@@ -36,7 +36,11 @@ const K_INDUCED = 0.052;
 // 掉速直到失速，键盘玩家会习惯性一直按着 ↑，那样体验太差。
 const THRUST_MAX = 7000;    // N（双发）
 const I_ROLL = 1600, I_PITCH = 3200, I_YAW = 2600;
-const MAX_PITCH_CMD = 0.35;  // 玩家能指令的最大俯仰角 ≈20°
+const MAX_PITCH_CMD = 0.62;  // 玩家能指令的最大俯仰角 ≈35°
+const MAX_BANK_CMD = 1.22;   // 最大坡度 ≈70°
+// 操纵力矩用的动压下限。真实动压决定舵效，低速时舵效本来就小，但键盘玩家会觉得
+// "按键没反应"。给操纵力矩单独设一个动压地板（气动力仍用真实动压），低速也跟手。
+const CTRL_QS_MIN = 30000;
 
 export const PLANE_MODE_LABEL = { parked: '停机', ai: '电脑驾驶', player: '你驾驶' };
 
@@ -359,9 +363,9 @@ export class Plane {
     this.throttle += (c.throttle - this.throttle) * Math.min(1, dt * 2.6);
     this.brake = c.brake ? 1 : 0;
     this._flightStep(dt, {
-      pitch: (c.pitch ?? 0) * 0.85,         // 升降舵
-      roll: (c.roll ?? 0),                  // 副翼
-      yaw: (c.yaw ?? 0) * 0.55,             // 方向舵
+      pitch: c.pitch ?? 0,                  // 升降舵
+      roll: c.roll ?? 0,                    // 副翼
+      yaw: (c.yaw ?? 0) * 0.8,              // 方向舵（留点余量给风标稳定性）
     });
   }
 
@@ -387,7 +391,7 @@ export class Plane {
         this._steerTo(t.x, t.z, t.y + 6, dt, true);
         this.throttle = 1;
         const agl = this.pos.y - this.world.groundHeight(this.pos.x, this.pos.z);
-        if (agl < 34) {
+        if (agl < 42) {
           if (this._willCrash) this._aiTarget = { pitch: -2, roll: 0, yaw: 0 };
           else { this.state = STATE.CRUISE; this._cool = 16 + this._rng() * 20; }
         }
@@ -409,8 +413,10 @@ export class Plane {
     while (err > Math.PI) err -= Math.PI * 2;
     while (err < -Math.PI) err += Math.PI * 2;
     const bank = this._bankAngle();
+    // 目标坡度（弧度，最多 57°），再换算成"占最大坡度的比例"当副翼指令。
+    // 内环已经是姿态指令了，这里不能再叠一层自己算的角速度阻尼，不然两个环打架。
     const wantBank = Math.max(-1.0, Math.min(1.0, err * (attack ? 1.9 : 1.5)));
-    const roll = Math.max(-1, Math.min(1, (wantBank - bank) * 1.7 - this.omega.x * 0.10));
+    const roll = Math.max(-1, Math.min(1, (wantBank - bank) / MAX_BANK_CMD));
     // 爬升/俯冲：正 = 抬头
     const dy = alt - this.pos.y;
     let pitch;
@@ -480,15 +486,16 @@ export class Plane {
     // 就一直翻），但键盘上那样子根本飞不稳 —— 目标是"像开车一样"能上手。
     // 偏航保持角速度指令，方向舵本来就是拿来修侧滑和地面滑行转向的。
     const qs = qd * WING_AREA;
+    const qsC = Math.max(qs, CTRL_QS_MIN);          // 操纵力矩用（带地板）
     const bank = this._bankAngle();
-    const wantBank = cmd.roll * 1.05;                          // ±60°
-    const rollM = qs * ((wantBank - bank) * 0.30 - this.omega.x * 0.22);
-    const wantPitch = cmd.pitch * MAX_PITCH_CMD;               // 玩家 ±20°；AI 俯冲会给 -2 越界值
-    const pitchM = qs * ((wantPitch - this.pitchAngle) * 0.55 - this.omega.z * 0.30)
+    const wantBank = cmd.roll * MAX_BANK_CMD;
+    const rollM = qsC * ((wantBank - bank) * 0.70 - this.omega.x * 0.32);
+    const wantPitch = cmd.pitch * MAX_PITCH_CMD;    // AI 俯冲会给 -2 这种越界值
+    const pitchM = qsC * ((wantPitch - this.pitchAngle) * 0.80 - this.omega.z * 0.34)
       - alpha * qs * 0.03;
     // 偏航：绕机体 +Y 的正角速度把机头往左带（右手系），所以操纵项取负。
     // 后一项是风标稳定性：侧滑自动回正。
-    const yawM = qs * (-cmd.yaw * 0.0437 - this.omega.y * 0.0873) - beta * qs * 0.15;
+    const yawM = qsC * (-cmd.yaw * 0.085 - this.omega.y * 0.10) - beta * qs * 0.15;
     this._lastYaw = cmd.yaw ?? 0;
 
     const ax = F.x / MASS, ay = F.y / MASS, az = F.z / MASS;
