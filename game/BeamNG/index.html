@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>撞不坏 · 软体车辆物理沙盒</title>
+<meta name="description" content="浏览器里的软体车辆物理沙盒：整车由质点与梁构成，碰撞会真实溃缩，悬挂、轮胎、传动系统全部实时求解。">
+<link rel="icon" href="data:,"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<!-- ======================= HUD ======================= -->
+<div id="hud" class="hud hidden">
+  <!-- 左下：仪表 -->
+  <div class="panel gauges">
+    <div class="speedo">
+      <div class="big"><span id="hud-speed">0</span><i>km/h</i></div>
+      <div class="bar"><b id="hud-rpm-bar"></b></div>
+      <div class="sub"><span id="hud-rpm">0</span> rpm<i class="gear" id="hud-gear">N</i></div>
+    </div>
+    <div class="lamps">
+      <span class="lamp" id="lamp-abs">ABS</span>
+      <span class="lamp" id="lamp-tc">TC</span>
+      <span class="lamp" id="lamp-shift">换挡</span>
+    </div>
+  </div>
+
+  <!-- 右下：小地图 + 状态 -->
+  <div class="panel right">
+    <canvas id="minimap" width="170" height="170"></canvas>
+    <div class="rows">
+      <div><span>车型</span><b id="hud-car">—</b></div>
+      <div><span>路面</span><b id="hud-surface">—</b></div>
+      <div><span>视角</span><b id="hud-camera">—</b></div>
+      <div><span>模式</span><b id="hud-mode">—</b></div>
+      <div><span>计时</span><b id="hud-timer">--:--.--</b></div>
+      <div><span>最好</span><b id="hud-best">--:--.--</b></div>
+      <div><span>FPS</span><b id="hud-fps">—</b></div>
+    </div>
+  </div>
+
+  <!-- 左上：车损 -->
+  <div class="panel damage">
+    <div class="title">车损 <b id="hud-damage">0%</b></div>
+    <div class="bar wide"><b id="hud-damage-bar"></b></div>
+    <div class="regions" id="hud-regions"></div>
+    <div class="gcircle"><i id="hud-gdot"></i><span id="hud-gforce">0.00</span><em>g</em></div>
+    <div class="fuelrow">油量 <i class="bar thin"><b id="hud-fuel"></b></i></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="hint">
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 驾驶 ·
+    <kbd>空格</kbd> 手刹 · <kbd>C</kbd> 视角 · <kbd>R</kbd> 重置 ·
+    <kbd>M</kbd> 手/自动 · <kbd>P</kbd> 回放 · <kbd>Esc</kbd> 菜单
+  </div>
+</div>
+
+<!-- ======================= 暂停按钮（触屏） ======================= -->
+<button id="btn-menu" class="corner-btn hidden" title="菜单">☰</button>
+<button id="btn-camera" class="corner-btn right hidden" title="切换视角">◉</button>
+
+<!-- ======================= 结算面板 ======================= -->
+<div id="result" class="result">
+  <h2 class="result-title">结果</h2>
+  <div class="result-rows"></div>
+  <button id="result-close" class="btn">继续</button>
+</div>
+
+<!-- ======================= 主菜单 ======================= -->
+<div id="menu" class="overlay">
+  <div class="card">
+    <h1>撞不坏<span>软体车辆物理沙盒</span></h1>
+    <p class="lead">
+      每一辆车都由 300 多个质点与 1300 多根梁实时求解。撞上去会真的凹进去，
+      悬挂几何会变形，轮胎会打滑，传动会断油——全部在浏览器里跑，没有任何预烘焙动画。
+    </p>
+
+    <div class="section">
+      <div class="label">选车</div>
+      <div id="car-list" class="cards"></div>
+    </div>
+
+    <div class="section">
+      <div class="label">模式</div>
+      <div id="mode-list" class="chips"></div>
+    </div>
+
+    <div class="section row">
+      <div>
+        <div class="label">画质</div>
+        <select id="set-quality">
+          <option value="low">低（省电）</option>
+          <option value="medium">中</option>
+          <option value="high" selected>高</option>
+          <option value="ultra">极高</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">时间</div>
+        <input id="set-time" type="range" min="0" max="1" step="0.01" value="0.34">
+      </div>
+      <div>
+        <div class="label">车漆</div>
+        <input id="set-paint" type="color" value="#b4232b">
+      </div>
+      <div>
+        <div class="label">音量</div>
+        <input id="set-volume" type="range" min="0" max="1" step="0.02" value="0.7">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btn-start" class="btn primary">开始驾驶</button>
+      <button id="btn-help" class="btn">操作说明</button>
+    </div>
+    <p class="foot">建议使用 Chrome / Edge · 需要 WebGL2 · 全部物理与渲染都在本地运行</p>
+  </div>
+</div>
+
+<!-- ======================= 操作说明 ======================= -->
+<div id="help" class="overlay dim hidden">
+  <div class="card narrow">
+    <h2>操作</h2>
+    <table class="keys">
+      <tr><td><kbd>W</kbd> / <kbd>↑</kbd></td><td>油门</td></tr>
+      <tr><td><kbd>S</kbd> / <kbd>↓</kbd></td><td>刹车 / 倒车</td></tr>
+      <tr><td><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></td><td>转向</td></tr>
+      <tr><td><kbd>空格</kbd></td><td>手刹（甩尾）</td></tr>
+      <tr><td><kbd>Shift</kbd></td><td>踩离合（断动力）</td></tr>
+      <tr><td><kbd>1</kbd>–<kbd>6</kbd> / <kbd>0</kbd> / <kbd>V</kbd></td><td>手动挂挡 / 空挡 / 倒挡</td></tr>
+      <tr><td><kbd>M</kbd></td><td>自动 / 手动 切换</td></tr>
+      <tr><td><kbd>C</kbd></td><td>切换视角（跟车 / 车内 / 引擎盖 / 自由 / 电影）</td></tr>
+      <tr><td><kbd>P</kbd></td><td>回放最近 12 秒</td></tr>
+      <tr><td><kbd>R</kbd></td><td>就地重置（扶正，保持朝向）</td></tr>
+      <tr><td><kbd>T</kbd></td><td>回到出生点</td></tr>
+      <tr><td><kbd>H</kbd> / <kbd>Ctrl</kbd></td><td>喇叭 / 慢动作</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>菜单</td></tr>
+      <tr><td>手柄</td><td>左摇杆转向 · RT 油门 · LT 刹车 · A 手刹</td></tr>
+    </table>
+    <div class="tips">
+      <p><b>自由视角</b>：切到「自由」后可以用鼠标拖动环绕、滚轮拉近拉远。</p>
+      <p><b>看溃缩</b>：选「碰撞试验」，全油门撞墙，注意车头 40~50 cm 的压溃与 g 值读数。</p>
+    </div>
+    <button id="help-close" class="btn">返回</button>
+  </div>
+</div>
+
+<!-- 入口。不直接写 <script type="module" src>：file:// 下浏览器会因为 CORS
+     拒绝加载 ES module（页面画得出来、按钮全是死的），所以这里先判断协议。
+     放在 body 末尾，是为了让 DOM 已经就绪再注入模块。 -->
+<script>
+(function () {
+  if (location.protocol === 'file:') {
+    // 双击打开：切到自包含的单文件版（模块用 data:URL 内联，file:// 能跑）
+    location.replace('dist/BeamNG-single.html' + location.search + location.hash);
+    return;
+  }
+  const s = document.createElement('script');
+  s.type = 'module';
+  s.src = 'js/main.js';
+  document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>

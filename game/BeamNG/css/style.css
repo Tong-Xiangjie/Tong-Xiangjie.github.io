@@ -1,0 +1,281 @@
+/* ==========================================================================
+   撞不坏 · 界面样式
+   深色仪表 + 毛玻璃面板，尽量把画面留给车。
+   ========================================================================== */
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(14, 20, 27, 0.72);
+  --panel-line: rgba(255, 255, 255, 0.12);
+  --text: #e9eef4;
+  --dim: #93a1b0;
+  --accent: #ffb03a;
+  --accent2: #4fd1ff;
+  --danger: #ff5347;
+  --ok: #4fbf74;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  background: var(--bg); color: var(--text); overflow: hidden;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+}
+
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.hidden { display: none !important; }
+
+/* ------------------------------------------------------------------ HUD */
+.hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+.panel {
+  position: absolute;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* 左下仪表 */
+.gauges { left: 18px; bottom: 18px; min-width: 250px; }
+.speedo .big { display: flex; align-items: baseline; gap: 6px; }
+.speedo .big span {
+  font-size: 54px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -1px;
+}
+.speedo .big i { font-style: normal; color: var(--dim); font-size: 14px; }
+.bar {
+  position: relative; height: 8px; border-radius: 5px; margin: 10px 0 6px;
+  background: rgba(255, 255, 255, 0.10); overflow: hidden;
+}
+.bar b {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  transition: width 0.06s linear;
+}
+.bar.wide { height: 10px; }
+.bar.thin { height: 6px; flex: 1; margin: 0; display: inline-block; vertical-align: middle; }
+.bar b.hot { background: linear-gradient(90deg, var(--accent), var(--danger)); }
+.speedo .sub { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 13px; }
+.gear {
+  margin-left: auto; font-style: normal; font-size: 26px; font-weight: 700;
+  color: var(--text); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.gear.hot { color: var(--danger); }
+
+.lamps { display: flex; gap: 6px; margin-top: 8px; }
+.lamp {
+  font-size: 11px; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 5px;
+  border: 1px solid var(--panel-line); color: var(--dim); opacity: 0.45;
+}
+.lamp.on { opacity: 1; color: #0b0f14; background: var(--accent); border-color: var(--accent); }
+
+/* 右下 */
+.panel.right { right: 18px; bottom: 18px; width: 200px; }
+#minimap {
+  width: 170px; height: 170px; display: block; margin: 0 auto 8px;
+  border-radius: 50%; border: 1px solid var(--panel-line);
+  background: rgba(8, 12, 16, 0.6);
+}
+.rows div { display: flex; justify-content: space-between; font-size: 12.5px; padding: 1.5px 0; }
+.rows span { color: var(--dim); }
+.rows b { font-variant-numeric: tabular-nums; }
+
+/* 左上 */
+.panel.damage { left: 18px; top: 18px; width: 232px; }
+.panel.damage .title { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); }
+.panel.damage .title b { color: var(--text); }
+.panel.damage .bar b { background: linear-gradient(90deg, var(--ok), var(--accent), var(--danger)); }
+.regions { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; margin: 8px 0 6px; }
+.region { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dim); }
+.region i { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.region b { display: block; height: 100%; width: 0%; background: var(--ok); }
+.gcircle {
+  position: relative; width: 76px; height: 76px; margin: 8px auto 4px;
+  border-radius: 50%; border: 1px solid var(--panel-line);
+  display: flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.gcircle::before, .gcircle::after {
+  content: ''; position: absolute; background: rgba(255, 255, 255, 0.09);
+}
+.gcircle::before { left: 50%; top: 6px; bottom: 6px; width: 1px; }
+.gcircle::after { top: 50%; left: 6px; right: 6px; height: 1px; }
+.gcircle i {
+  position: absolute; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); left: -3.5px; top: -3.5px;
+  transform: translate(38px, 38px); will-change: transform;
+}
+.gcircle span { font-size: 19px; font-weight: 700; }
+.gcircle em { font-style: normal; font-size: 11px; color: var(--dim); margin-left: 2px; }
+.fuelrow { font-size: 11px; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+.fuelrow .bar b { background: linear-gradient(90deg, #6fe0a8, #4fd1ff); }
+
+/* 提示条 */
+.toast {
+  position: absolute; left: 50%; top: 76px; transform: translate(-50%, -12px);
+  background: rgba(10, 14, 19, 0.86); border: 1px solid var(--panel-line);
+  padding: 9px 18px; border-radius: 10px; font-size: 14px;
+  opacity: 0; transition: opacity 0.22s, transform 0.22s; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.hint {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  font-size: 12px; color: rgba(233, 238, 244, 0.5); white-space: nowrap;
+}
+.hint kbd {
+  display: inline-block; padding: 1px 5px; margin: 0 1px;
+  border: 1px solid var(--panel-line); border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06); font-family: inherit; font-size: 11px;
+}
+
+/* 触屏按钮 */
+.corner-btn {
+  position: fixed; z-index: 12; width: 46px; height: 46px; border-radius: 12px;
+  border: 1px solid var(--panel-line); background: var(--panel); color: var(--text);
+  font-size: 20px; backdrop-filter: blur(8px); cursor: pointer;
+}
+.corner-btn { left: 18px; top: 18px; }
+.corner-btn.right { left: auto; right: 18px; top: 18px; }
+
+/* --------------------------------------------------------------- 结算 */
+.result {
+  position: fixed; z-index: 30; left: 50%; top: 50%;
+  transform: translate(-50%, -46%) scale(0.96);
+  width: min(420px, 90vw); padding: 22px;
+  background: rgba(12, 17, 23, 0.94); border: 1px solid var(--panel-line);
+  border-radius: 16px; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.result.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+.result h2 { margin: 0 0 14px; font-size: 19px; }
+.result-rows .row {
+  display: flex; justify-content: space-between; padding: 7px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08); font-size: 14px;
+}
+.result-rows .row span { color: var(--dim); }
+.result-rows .row b { font-variant-numeric: tabular-nums; }
+.result .btn { margin-top: 18px; width: 100%; }
+
+/* --------------------------------------------------------------- 菜单 */
+.overlay {
+  position: fixed; inset: 0; z-index: 40; display: flex; justify-content: center;
+  /* align-items:center + overflow:auto 是个经典坑：内容比视口高的时候
+     顶部会被裁掉且永远滚不到（scrollTop 不能为负），"返回"按钮就点不到了。
+     用 safe center 让它超高时自动退回顶部对齐。 */
+  align-items: flex-start;
+  align-items: safe center;
+  background: radial-gradient(circle at 30% 20%, rgba(30, 50, 70, 0.75), rgba(4, 7, 10, 0.94));
+  padding: 20px; overflow: auto;
+}
+.overlay.dim { background: rgba(4, 7, 10, 0.86); }
+.overlay.hidden { display: none; }
+
+.card {
+  width: min(760px, 96vw); background: rgba(13, 18, 24, 0.92);
+  border: 1px solid var(--panel-line); border-radius: 18px; padding: 26px 28px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  /* 内容超过视口就在卡片内部滚动，页面本身永远不出现"够不到的按钮" */
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow: auto; overscroll-behavior: contain;
+  flex: 0 0 auto;
+}
+.card.narrow { width: min(520px, 96vw); }
+.card h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: 1px; }
+.card h1 span { display: block; font-size: 13px; font-weight: 400; color: var(--dim); letter-spacing: 3px; margin-top: 4px; }
+.card h2 { margin: 0 0 16px; font-size: 20px; }
+.lead { color: var(--dim); font-size: 13.5px; line-height: 1.75; margin: 14px 0 18px; }
+
+.section { margin-bottom: 18px; }
+.section.row { display: flex; gap: 18px; flex-wrap: wrap; }
+.section.row > div { flex: 1; min-width: 120px; }
+.label { font-size: 12px; color: var(--dim); margin-bottom: 7px; letter-spacing: 1px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.car-card {
+  border: 1px solid var(--panel-line); border-radius: 12px; padding: 12px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  background: rgba(255, 255, 255, 0.02);
+}
+.car-card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.3); }
+.car-card.active { border-color: var(--accent); background: rgba(255, 176, 58, 0.10); }
+.car-card b { display: block; font-size: 15px; margin-bottom: 3px; }
+.car-card i { font-style: normal; font-size: 12px; color: var(--dim); line-height: 1.5; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 8px 14px; border-radius: 20px; border: 1px solid var(--panel-line);
+  cursor: pointer; font-size: 13px; transition: all 0.15s; background: rgba(255, 255, 255, 0.02);
+}
+.chip:hover { border-color: rgba(255, 255, 255, 0.3); }
+.chip.active { background: var(--accent); color: #10151b; border-color: var(--accent); font-weight: 600; }
+
+select, input[type="range"], input[type="color"] {
+  width: 100%; background: rgba(255, 255, 255, 0.05); color: var(--text);
+  border: 1px solid var(--panel-line); border-radius: 8px; padding: 7px 9px; font-size: 13px;
+  font-family: inherit;
+}
+input[type="color"] { height: 36px; padding: 3px; }
+input[type="range"] { padding: 0; height: 30px; accent-color: var(--accent); }
+
+.actions { display: flex; gap: 12px; margin-top: 8px; }
+.btn {
+  flex: 1; padding: 12px 20px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--panel-line); background: rgba(255, 255, 255, 0.06);
+  color: var(--text); font-size: 15px; font-family: inherit; transition: all 0.15s;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.12); }
+.btn.primary { background: var(--accent); color: #10151b; border-color: var(--accent); font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.08); }
+
+.foot { color: rgba(147, 161, 176, 0.7); font-size: 11.5px; margin: 16px 0 0; text-align: center; }
+
+table.keys { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.keys td { padding: 6px 4px; border-bottom: 1px dashed rgba(255, 255, 255, 0.08); }
+table.keys td:first-child { width: 42%; color: var(--dim); white-space: nowrap; }
+table.keys kbd {
+  display: inline-block; padding: 1px 6px; margin-right: 3px;
+  border: 1px solid var(--panel-line); border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06); font-family: inherit; font-size: 12px;
+}
+.tips { margin: 14px 0 6px; font-size: 12.5px; color: var(--dim); line-height: 1.7; }
+.tips p { margin: 4px 0; }
+.tips b { color: var(--text); }
+
+/* 说明页的"返回"钉在卡片底部：小窗口下滚不滚都看得见 */
+.card > .btn:last-child { position: sticky; bottom: -1px; margin-top: 16px; width: 100%; }
+#help-close {
+  background: linear-gradient(rgba(24, 31, 40, 0.86), rgba(17, 22, 29, 0.98));
+  backdrop-filter: blur(8px);
+}
+
+/* 矮视口（笔记本 + 浏览器工具栏）压缩排版，尽量不用滚动 */
+@media (max-height: 680px) {
+  .overlay { padding: 10px; }
+  .card { padding: 16px 18px; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); }
+  .card h1 { font-size: 24px; }
+  .card h2 { font-size: 17px; margin-bottom: 8px; }
+  .lead { margin: 8px 0 12px; line-height: 1.55; }
+  .section { margin-bottom: 12px; }
+  table.keys { font-size: 12.5px; }
+  table.keys td { padding: 2px 4px; }
+  .tips { margin: 8px 0 4px; font-size: 11.5px; }
+  .tips p:last-child { display: none; }
+  .btn { padding: 9px 16px; font-size: 14px; }
+}
+
+@media (max-width: 720px) {
+  .panel.right { display: none; }
+  .speedo .big span { font-size: 40px; }
+  .gauges { min-width: 190px; padding: 9px 11px; }
+  .panel.damage { width: 178px; padding: 9px 11px; }
+  .hint { display: none; }
+}
