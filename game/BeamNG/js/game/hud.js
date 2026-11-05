@@ -34,6 +34,17 @@ export class Hud {
       tcLight: $('lamp-tc'),
       shiftLight: $('lamp-shift'),
       fuel: $('hud-fuel'),
+      panelCar: $('panel-car'),
+      panelFlight: $('panel-flight'),
+      flState: $('fl-state'),
+      flIas: $('fl-ias'),
+      flAlt: $('fl-alt'),
+      flVs: $('fl-vs'),
+      flHdg: $('fl-hdg'),
+      flThr: $('fl-thr'),
+      flG: $('fl-g'),
+      flThrBar: $('fl-thr-bar'),
+      flWarn: $('fl-warn'),
     };
     this._cache = {};
     this._toastTimer = 0;
@@ -84,7 +95,50 @@ export class Hud {
   }
 
   update(dt, ctx) {
-    const { vehicle, game, camera } = ctx;
+    const flying = !!ctx.plane;
+    // 开飞机的时候把车速表/车损面板换成飞行仪表 —— 飞机没有挡位、油量和车损，
+    // 继续显示车的数据会全是 0，看着像坏了。
+    if (this.el.panelCar) this.el.panelCar.classList.toggle('hidden', flying);
+    if (this.el.panelFlight) this.el.panelFlight.classList.toggle('hidden', !flying);
+    // 车辆仪表照常更新（面板藏起来了看不见，开销可以忽略），公共字段由它写；
+    // 开飞机时再用飞行仪表覆盖掉"车型/模式"两行。
+    this._updateCar(dt, ctx);
+    if (flying) {
+      this._updateFlight(ctx.plane);
+      this._text('car', '飞机');
+      this._text('mode', '飞行');
+    }
+  }
+
+  /** 飞行仪表：空速 / 高度 / 升降率 / 航向 / 油门 / 过载 / 失速告警。 */
+  _updateFlight(plane) {
+    this._text('flIas', (plane.ias * 3.6).toFixed(0));
+    // 高度显示离地高度（AGL）：跑道上读 0，落地前一眼能看出还剩多少
+    const agl = Math.max(0, plane.pos.y - plane.world.groundHeight(plane.pos.x, plane.pos.z));
+    this._text('flAlt', agl.toFixed(0));
+    const vs = plane.vel.y;
+    this._text('flVs', (vs >= 0 ? '+' : '') + vs.toFixed(1));
+    // 航向按罗盘惯例：0 = 北（-Z），顺时针增加
+    const hdg = (Math.atan2(plane.frame.fwd.x, -plane.frame.fwd.z) * 180 / Math.PI + 360) % 360;
+    this._text('flHdg', hdg.toFixed(0).padStart(3, '0'));
+    this._text('flThr', (plane.throttle * 100).toFixed(0));
+    this._width('flThrBar', this.el.flThrBar, plane.throttle * 100);
+    this._text('flG', plane.gLoad.toFixed(1));
+    const crashed = plane.state === 3;
+    this._text('flState', crashed ? (plane.burning ? '坠毁·燃烧' : '坠毁')
+      : plane.mode === 'parked' ? '停车' : plane.stalled ? '失速' : '飞行');
+    if (this.el.flWarn) {
+      const warn = plane.stalled && !crashed;
+      if (this._cache.flWarn !== warn) {
+        this._cache.flWarn = warn;
+        this.el.flWarn.classList.toggle('hidden', !warn);
+      }
+    }
+  }
+
+  /** 车辆仪表。 */
+  _updateCar(dt, ctx) {
+    const { vehicle, game } = ctx;
     // 速度带符号：倒车直接显示负数（vehicle.speedKmh 本来就是沿车头方向的投影）
     const kmh = vehicle.speedKmh;
     const reversing = kmh < -0.5;
@@ -170,6 +224,9 @@ export class Hud {
     const W = this.el.map.width, H = this.el.map.height;
     const s = game.mapScale ?? 0.055;
     const cx = W / 2, cy = H / 2;
+    // 开飞机时小地图跟着飞机走，不然地图中心还停在那台停在原地的车上
+    const fx = ctx?.plane ? ctx.plane.position.x : vehicle.position.x;
+    const fz = ctx?.plane ? ctx.plane.position.z : vehicle.position.z;
     c.clearRect(0, 0, W, H);
     c.save();
     c.beginPath();
@@ -185,18 +242,19 @@ export class Hud {
         c.lineWidth = Math.max(1.5, road.width * s * 0.8);
         c.beginPath();
         for (let i = 0; i < road.points.length; i++) {
-          const x = cx + (road.points[i][0] - vehicle.position.x) * s * 8;
-          const y = cy + (road.points[i][1] - vehicle.position.z) * s * 8;
+          const x = cx + (road.points[i][0] - fx) * s * 8;
+          const y = cy + (road.points[i][1] - fz) * s * 8;
           if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
         }
         c.stroke();
       }
     }
-    // 车
-    const heading = Math.atan2(vehicle.frame.fwd.x, -vehicle.frame.fwd.z);
+    // 自机标记（开车是车，开飞机是飞机）
+    const self = ctx?.plane ?? vehicle;
+    const heading = Math.atan2(self.frame.fwd.x, -self.frame.fwd.z);
     c.translate(cx, cy);
     c.rotate(heading);
-    c.fillStyle = '#ff5a4d';
+    c.fillStyle = ctx?.plane ? '#5ad1ff' : '#ff5a4d';
     c.beginPath();
     c.moveTo(0, -6); c.lineTo(4, 5); c.lineTo(0, 3); c.lineTo(-4, 5);
     c.closePath();

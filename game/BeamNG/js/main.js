@@ -15,7 +15,7 @@ const DEFAULT = {
   time: 0.34,
   paint: '#b4232b',
   volume: 0.7,
-  plane: 'on',
+  plane: 'drive',
 };
 
 function loadSettings() {
@@ -96,7 +96,7 @@ async function startGame() {
   if (started) { closeMenu(); return; }
   started = true;
   if (!game) createGame();
-  game.setPlaneEnabled(settings.plane === 'on');
+  game.setPlaneMode(settings.plane);
   $('menu').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('btn-menu').classList.remove('hidden');
@@ -189,17 +189,20 @@ $('set-paint').addEventListener('input', (e) => {
   settings.paint = e.target.value; saveSettings(settings);
   game?.view3d.setPaint(parseInt(settings.paint.slice(1), 16));
 });
-// 飞机：开关 + 手动让它掉下来
+// 飞机：开关 + 直接坐进去
 $('set-plane').value = settings.plane;
 $('set-plane').addEventListener('change', (e) => {
   settings.plane = e.target.value; saveSettings(settings);
-  game?.setPlaneEnabled(settings.plane === 'on');
+  game?.setPlaneMode(settings.plane);
 });
-$('btn-plane-crash').addEventListener('click', () => {
+$('btn-plane-board').addEventListener('click', () => {
   if (!game) return;
-  if (settings.plane !== 'on') { settings.plane = 'on'; saveSettings(settings); $('set-plane').value = 'on'; game.setPlaneEnabled(true); }
-  closeMenu();                       // 关掉菜单才看得到它往下掉
-  game.plane.forceCrash();
+  if (settings.plane === 'off') { settings.plane = 'drive'; saveSettings(settings); $('set-plane').value = 'drive'; }
+  game.setPlaneMode(settings.plane === 'ai' ? 'drive' : settings.plane);
+  // 先把飞机摆到跑道头，再关菜单 —— 关了菜单才看得见
+  game.plane._park();
+  game.enterPlane();
+  closeMenu();
 });
 $('set-volume').value = String(settings.volume);
 $('set-volume').addEventListener('input', (e) => {

@@ -17,6 +17,7 @@ export const KEYMAP = {
   slowKey: ['ControlLeft'],
   hornKey: ['KeyH'],
   respawnKey: ['KeyT'],
+  planeKey: ['KeyF'],
 };
 
 export const DEFAULT_SETTINGS = {
@@ -39,7 +40,7 @@ export class Input {
       throttle: 0, brake: 0, steer: 0, handbrake: 0, clutch: undefined,
       gearMode: 'auto', selectGear: null,
     };
-    this.actions = { reset: false, camera: false, horn: false, respawn: false };
+    this.actions = { reset: false, camera: false, horn: false, respawn: false, plane: false };
     this.gamepadIndex = null;
     this.usingGamepad = false;
     this.analogSteer = 0;
@@ -65,7 +66,38 @@ export class Input {
   }
 
   any(codes) { for (const c of codes) if (this.keys.has(c)) return true; return false; }
+
   anyPressed(codes) { for (const c of codes) if (this.pressed.has(c)) return true; return false; }
+
+  /**
+   * 飞行操纵。不用 update() 那套 {throttle,brake,steer} —— 那个是给车用的
+   * （↑↓ 是油门/刹车），飞机需要独立的俯仰/滚转/偏航三轴，所以直接读原始键集：
+   *   W / S    油门增减（S 在地面也是刹车）
+   *   ↑ / ↓    升降舵（拉杆 / 推杆）
+   *   ← / →    方向舵
+   *   A / D    副翼（滚转）
+   *   空格     刹车
+   *   Shift    加力（油门直接拉满）
+   */
+  planeControls(out = {}) {
+    const k = this.keys;
+    const boost = k.has('ShiftLeft') || k.has('ShiftRight');
+    out.throttle = boost ? 1 : (k.has('KeyW') ? 1 : 0);
+    out.pitch = (k.has('ArrowUp') ? 1 : 0) - (k.has('ArrowDown') ? 1 : 0);   // ↑ = 拉杆抬头
+    out.roll = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+    out.yaw = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0);
+    out.brake = k.has('Space') || k.has('KeyS');
+    // 手柄也支持：左摇杆 = 滚转/俯仰，RT = 油门，LT = 刹车
+    if (this.usingGamepad) {
+      out.roll += this.analogSteer ?? 0;
+      out.pitch += this.analogPitch ?? 0;
+      if ((this.analogThrottle ?? 0) > 0.05) out.throttle = Math.max(out.throttle, this.analogThrottle);
+      if ((this.analogBrake ?? 0) > 0.05) out.brake = true;
+    }
+    out.roll = Math.max(-1, Math.min(1, out.roll));
+    out.pitch = Math.max(-1, Math.min(1, out.pitch));
+    return out;
+  }
 
   /**
    * 丢弃所有按住的键。暂停/打开菜单时调用：否则按 Esc 那一刻松开的键
@@ -88,6 +120,7 @@ export class Input {
     const rz = pad.axes[2] ?? 0;
     const dead = (v) => (Math.abs(v) < 0.09 ? 0 : v);
     this.analogSteer = dead(ax);
+    this.analogPitch = -dead(pad.axes[1] ?? 0);      // 手柄上推 = 推杆低头
     // 有些手柄用 Z 轴当油门/刹车
     const rt = pad.buttons[7]?.value ?? 0;
     const lt = pad.buttons[6]?.value ?? 0;
@@ -152,6 +185,7 @@ export class Input {
 
     // 一次性动作
     this.actions.reset = this.anyPressed(KEYMAP.resetKey) || this.pressed.has('PadReset');
+    this.actions.plane = this.anyPressed(KEYMAP.planeKey);
     this.actions.camera = this.anyPressed(KEYMAP.cameraKey) || this.pressed.has('PadCamera');
     this.actions.horn = this.any(KEYMAP.hornKey) || this.pressed.has('PadHorn');
     this.actions.respawn = this.anyPressed(KEYMAP.respawnKey);

@@ -40,13 +40,28 @@
     </div>
   </div>
 
-  <!-- 左上：车损 -->
-  <div class="panel damage">
+  <!-- 左上：车损（开飞机的时候换成飞行仪表） -->
+  <div class="panel damage" id="panel-car">
     <div class="title">车损 <b id="hud-damage">0%</b></div>
     <div class="bar wide"><b id="hud-damage-bar"></b></div>
     <div class="regions" id="hud-regions"></div>
     <div class="gcircle"><i id="hud-gdot"></i><span id="hud-gforce">0.00</span><em>g</em></div>
     <div class="fuelrow">油量 <i class="bar thin"><b id="hud-fuel"></b></i></div>
+  </div>
+
+  <!-- 左上：飞行仪表（只有开飞机的时候显示） -->
+  <div class="panel flight hidden" id="panel-flight">
+    <div class="title">飞行 <b id="fl-state">降落</b></div>
+    <div class="fgrid">
+      <div><span>空速</span><b id="fl-ias">0</b><i>km/h</i></div>
+      <div><span>高度</span><b id="fl-alt">0</b><i>m</i></div>
+      <div><span>升降</span><b id="fl-vs">0</b><i>m/s</i></div>
+      <div><span>航向</span><b id="fl-hdg">0</b><i>°</i></div>
+      <div><span>油门</span><b id="fl-thr">0</b><i>%</i></div>
+      <div><span>过载</span><b id="fl-g">1.0</b><i>g</i></div>
+    </div>
+    <div class="bar wide"><b id="fl-thr-bar"></b></div>
+    <div class="fl-warn hidden" id="fl-warn">失速 · 推杆加速</div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -116,17 +131,18 @@
       <div>
         <div class="label">飞机</div>
         <select id="set-plane">
-          <option value="on" selected>巡航（会俯冲）</option>
+          <option value="drive" selected>可以自己开</option>
+          <option value="ai">电脑驾驶</option>
           <option value="off">关闭</option>
         </select>
       </div>
       <div>
-        <div class="label">空中</div>
-        <button id="btn-plane-crash" class="btn small">让它掉下来</button>
+        <div class="label">上机</div>
+        <button id="btn-plane-board" class="btn small">坐进飞机</button>
       </div>
       <div>
         <div class="label">状态</div>
-        <span id="plane-state" class="state">巡航中</span>
+        <span id="plane-state" class="state">停在跑道上</span>
       </div>
     </div>
 
@@ -156,8 +172,26 @@
       <tr><td><kbd>T</kbd></td><td>回到出生点</td></tr>
       <tr><td><kbd>H</kbd> / <kbd>Ctrl</kbd></td><td>喇叭 / 慢动作</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>菜单</td></tr>
+      <tr><td><kbd>F</kbd></td><td><b>上机 / 下机（飞机）</b></td></tr>
       <tr><td>手柄</td><td>左摇杆转向 · RT 油门 · LT 刹车 · A 手刹</td></tr>
     </table>
+    <h2>开飞机</h2>
+    <table class="keys">
+      <tr><td><kbd>W</kbd> / <kbd>Shift</kbd></td><td>油门（Shift = 加力）</td></tr>
+      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>升降舵：↑ 拉杆抬头，↓ 推杆低头</td></tr>
+      <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td>副翼：滚转（压上坡度就会自己转弯）</td></tr>
+      <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>方向舵（地面滑行转向也靠它）</td></tr>
+      <tr><td><kbd>空格</kbd> / <kbd>S</kbd></td><td>刹车（地面）</td></tr>
+      <tr><td><kbd>R</kbd></td><td>就地拉平（失速下坠、翻过来时救命）</td></tr>
+      <tr><td><kbd>C</kbd></td><td>切换视角（跟车 / 座舱 / 引擎盖 / 自由…）</td></tr>
+    </table>
+    <div class="tips">
+      <p><b>怎么上机</b>：飞机停在出生点往南那条跑道上，开过去按 <kbd>F</kbd>；
+      也可以在菜单里把「飞机」设成「可以自己开」后直接点「坐进飞机」。</p>
+      <p><b>起飞</b>：按住 <kbd>W</kbd> 滑跑，到 110 km/h 左右拉杆（<kbd>↑</kbd>）。
+      速度掉到 90 km/h 以下会失速掉高度。</p>
+      <p><b>坠毁</b>：接地垂直速度超过 8.5 m/s 就炸，起火后残骸会持续烧 46 秒。</p>
+    </div>
     <div class="tips">
       <p><b>自由视角</b>：切到「自由」后可以用鼠标拖动环绕、滚轮拉近拉远。</p>
       <p><b>看溃缩</b>：选「碰撞试验」，全油门撞墙，注意车头 40~50 cm 的压溃与 g 值读数。</p>

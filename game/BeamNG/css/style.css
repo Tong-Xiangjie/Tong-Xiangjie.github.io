@@ -91,6 +91,23 @@ html, body {
 
 /* 左上 */
 .panel.damage { left: 18px; top: 18px; width: 232px; }
+/* 飞行仪表：和车损面板同一位置，开飞机时互相顶替 */
+.panel.flight { left: 18px; top: 18px; width: 232px; }
+.panel.flight .title { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); }
+.panel.flight .title b { color: var(--text); }
+.panel.flight .bar b { background: linear-gradient(90deg, var(--ok), var(--accent)); }
+.fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 9px 0 8px; }
+.fgrid > div { display: flex; align-items: baseline; gap: 4px; font-size: 11px; color: var(--dim); }
+.fgrid span { min-width: 26px; }
+.fgrid b { font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; }
+.fgrid i { font-style: normal; font-size: 10px; opacity: 0.7; }
+.fl-warn {
+  margin-top: 7px; padding: 4px 8px; border-radius: 6px; text-align: center;
+  font-size: 12px; letter-spacing: 0.08em;
+  color: #ffd9d0; background: rgba(224, 70, 60, 0.28); border: 1px solid rgba(224, 70, 60, 0.55);
+  animation: flWarn 0.7s steps(2, end) infinite;
+}
+@keyframes flWarn { 50% { opacity: 0.35; } }
 .panel.damage .title { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); }
 .panel.damage .title b { color: var(--text); }
 .panel.damage .bar b { background: linear-gradient(90deg, var(--ok), var(--accent), var(--danger)); }

@@ -50,9 +50,12 @@ export class Game {
     this.scene.add(this.view3d.group);
     if (this.view?.q?.iterations) this.vehicle.body.iterations = this.view.q.iterations;
 
-    // 天上那架飞机会绕圈巡航，隔一阵俯冲一次，撞了就爆炸起火
+    // 天上那架飞机：默认停在跑道上等玩家上机，也可以交给电脑开
     this.plane = new Plane(this.world.world, { rng: opts.rng });
     this.scene.add(this.plane.group);
+    this.planeMode = 'drive';
+    this.flying = false;
+    this._pctrl = { throttle: 0, pitch: 0, roll: 0, yaw: 0, brake: false };
 
     this.mode = 'free';
     this.modeLabel = '自由驾驶';
@@ -75,28 +78,68 @@ export class Game {
     this.view.follow(this.vehicle.position);
   }
 
-  /** 飞机开关（菜单里的"飞机"选项）。关掉就整架藏起来，也不再推进它。 */
-  setPlaneEnabled(on) {
-    this.planeOn = !!on;
+  /** 飞机开关/模式（菜单里的"飞机"选项）：'drive' | 'ai' | 'off'。 */
+  setPlaneMode(mode) {
+    this.planeMode = mode;
     if (!this.plane) return;
-    this.plane.setEnabled(!!on);
-    if (on) {
-      // 重新打开时让它回到天上巡航，别停在上一局的残骸状态
-      if (!this.plane.alive) this.plane.reset();
-      else this.plane.group.visible = true;
+    if (mode === 'off') {
+      if (this.flying) this.exitPlane(true);
+      this.plane.setEnabled(false);
+      return;
     }
+    this.plane.setEnabled(true);
+    if (this.flying) return;
+    // 从坠毁/停机切到电脑驾驶时重新放一架到天上
+    if (mode === 'ai') this.plane._setMode('ai');
+    else this.plane._setMode('parked');
   }
 
-  /** 飞机状态文字，给菜单里那行"状态"用。带距离，站着不动也能看出它在动。 */
+  /** 上机：把镜头和 HUD 交给飞机。 */
+  enterPlane() {
+    if (!this.plane || !this.planeOn) return false;
+    if (this.plane.state === 3 && !this.plane.burning) this.plane._park();
+    this.plane.board();
+    this.flying = true;
+    this._savedCamMode = this.camera3p.mode;
+    this.camera3p.setMode('chase');
+    this.camera3p.snap(this.plane);
+    this.hud.toast(this.plane.mode === 'parked' && !this.plane.airborne
+      ? '上机：W 加油门滑跑起飞 · ↑↓ 俯仰 · ←→ 方向舵 · A/D 滚转 · F 下机'
+      : '已接管飞机 · ↑↓ 俯仰 · A/D 滚转 · ←→ 方向舵', 6);
+    return true;
+  }
+
+  /** 下机：镜头还给车。空中不允许，会顶掉。 */
+  exitPlane(force = false) {
+    if (!this.flying) return false;
+    if (!force && this.plane.airborne) {
+      this.hud.toast('空中不能下机 —— 先落地或拉平贴地', 3);
+      return false;
+    }
+    this.flying = false;
+    this.plane.unboard();
+    this.camera3p.setMode(this._savedCamMode ?? 'chase');
+    this.camera3p.snap(this.vehicle);
+    this.hud.toast('回到车里', 2);
+    return true;
+  }
+
+  setPlaneEnabled(on) { this.setPlaneMode(on ? 'drive' : 'off'); }
+
+  /** 飞机状态文字，给菜单里那行"状态"用。 */
   planeStatusText() {
     if (!this.plane || !this.planeOn) return '已关闭';
+    if (this.flying) return `你驾驶 · ${this.plane.statusText()}`;
     const p = this.plane.pos;
     const v = this.vehicle.position;
     const d = Math.hypot(p.x - v.x, p.z - v.z);
     if (!this.plane.alive) return this.plane.burning ? '已坠毁 · 燃烧中' : '已坠毁';
-    const phase = this.plane.state === 1 ? '俯冲中' : '巡航中';
+    if (this.plane.mode === 'parked') return `停在跑道上 · 距你 ${d.toFixed(0)} m`;
+    const phase = this.plane.state === 2 ? '俯冲中' : '电脑巡航';
     return `${phase} · ${p.y.toFixed(0)} m · 距你 ${d.toFixed(0)} m`;
   }
+
+  get planeOn() { return this.plane ? this.plane.enabled : false; }
 
   _makeVehicle(preset) {
     const spec = CAR_PRESETS[preset] ?? CAR_PRESETS.sedan;
@@ -135,7 +178,17 @@ export class Game {
       const m = this.camera3p.nextMode();
       this.hud.toast(`视角：${CAMERA_LABELS[m]}`);
     }
-    if (this.input.actions.reset) this.resetVehicle();
+    if (this.input.actions.plane) {
+      if (this.flying) this.exitPlane();
+      else this.enterPlane();
+    }
+    if (this.input.actions.reset) {
+      if (this.flying) {
+        // 飞机上按 R 就地拉平：翻过来/失速掉高度时救命用
+        this.plane.recover();
+        this.hud.toast('姿态已拉平', 2);
+      } else this.resetVehicle();
+    }
     if (this.input.actions.respawn) this.respawn();
 
     if (!this.paused) {
@@ -158,16 +211,19 @@ export class Game {
 
     // 渲染同步
     this.view3d.update();
-    this.camera3p.update(dtReal, this.vehicle, { airborne: this.vehicle.airborne });
-    this.view.follow(this.vehicle.position);
+    const flyTarget = this.flying ? this.plane : this.vehicle;
+    this.camera3p.update(dtReal, flyTarget, { airborne: flyTarget.airborne });
+    this.view.follow(flyTarget.position);
     this.world.update(this.camera.position);
     if (this.plane) {
-      this.plane.update(this.paused ? 0 : dtReal, this.vehicle, this.effects);
+      const pctrl = (!this.paused && this.flying) ? this.input.planeControls(this._pctrl) : null;
+      this.plane.update(this.paused ? 0 : dtReal, this.vehicle, this.effects, pctrl);
       if (this.plane._justCrashed) {
         this.plane._justCrashed = false;
         // 炸在车旁边就把车掀一下，顺便提示一句
         const hit = this.plane.blast(this.vehicle);
-        this.hud.toast(hit > 0 ? '飞机坠毁 —— 冲击波把你掀了' : '飞机坠毁起火', 4);
+        if (this.flying) this.hud.toast('坠毁！', 4);
+        else this.hud.toast(hit > 0 ? '飞机坠毁 —— 冲击波把你掀了' : '飞机坠毁起火', 4);
       }
     }
     this.effects.update(dtReal, this.vehicle, this.world.world);
@@ -175,6 +231,7 @@ export class Game {
     this.hud.update(dtReal, {
       vehicle: this.vehicle, game: this, camera: this.camera3p,
       cameraLabel: CAMERA_LABELS[this.camera3p.mode], fps: this.fps,
+      plane: this.flying ? this.plane : null,
     });
     this.view.render();
   }
