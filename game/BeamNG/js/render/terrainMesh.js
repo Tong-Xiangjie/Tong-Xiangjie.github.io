@@ -37,6 +37,10 @@ export class TerrainMesh {
 
     this.material = new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 0.97, metalness: 0.0, dithering: true,
+      // 双面：默认的 FrontSide 会背面剔除，相机一旦进到山体/地面里面（俯冲擦地、
+      // 跟车相机被地形挡住、低空贴着山坡飞）就会直接看穿地形，连"地面下面的太阳"
+      // 都能看见。地形是高度场，从上往下看背面本来就全被正面挡着，双面的代价很小。
+      side: THREE.DoubleSide,
     });
     this.disposeList = [this.material];
   }
@@ -286,6 +290,7 @@ export class RoadMesh {
       emissive: emissive ?? 0x000000, polygonOffset: true,
       polygonOffsetFactor: -1.5 - layer * 0.4,
       polygonOffsetUnits: -2 - layer * 3,
+      side: THREE.DoubleSide,          // 同上：路面/场坪也不许被看穿
     });
     this.materials.set(key, m);
     this.disposeList.push(m);

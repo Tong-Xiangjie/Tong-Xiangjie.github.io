@@ -195,6 +195,7 @@ export class Plane {
     if (this.parts.wingL) this.parts.wingL.rotation.z = 0;
     if (this.parts.wingR) this.parts.wingR.rotation.z = 0;
     if (this._light) this._light.intensity = 0;
+    if (this.parts.fire) this.parts.fire.visible = false;
     this._burn = 0;
     this._smoke = 0;
   }
@@ -281,6 +282,98 @@ export class Plane {
     }
 
     this.group.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+    this._buildCockpit();
+    this._buildFire();
+  }
+
+  /**
+   * 机体上的明火：外焰 + 亮芯两层面片球，加色混合。
+   * 位置固定在机体上，所以残骸怎么翻都能看见；机头前面那两簇是给座舱视角看的。
+   */
+  _buildFire() {
+    const g = new THREE.Group();
+    g.visible = false;
+    this.group.add(g);
+    this.parts.fire = g;
+    this.fires = [];
+    const outer = new THREE.MeshBasicMaterial({
+      color: 0xff7a1e, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    });
+    const core = new THREE.MeshBasicMaterial({
+      color: 0xffdc90, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    });
+    this.materials.push(outer, core);
+    // 机头两簇（座舱/引擎盖视角正前方）+ 两个发动机短舱 + 两处翼根
+    const spots = [
+      [6.0, 0.1, 0.55], [6.0, 0.1, -0.55],
+      [7.4, -0.2, 1.0], [7.4, -0.2, -1.0],
+      [2.0, 0.1, 4.4], [2.0, 0.1, -4.4],
+      [0.3, 0.5, 2.6], [0.3, 0.5, -2.6],
+    ];
+    for (const [x, y, z] of spots) {
+      const o = new THREE.Mesh(Plane._flameGeo, outer);
+      o.position.set(x, y, z);
+      const c = new THREE.Mesh(Plane._coreGeo, core);
+      c.position.set(x, y, z);
+      g.add(o, c);
+      this.fires.push({ outer: o, core: c, phase: this._rng() * 6.28 });
+    }
+    g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  }
+
+  /**
+   * 座舱内装：仪表板 + 几块背光表 + 操纵杆 + 油门杆 + 两侧控制台。
+   * 只在"车内"视角显示（setCockpitView），别的视角看着就是一堆多余的方块。
+   * 全部用机体系坐标：x=机头方向、y=上、z=右。
+   */
+  _buildCockpit() {
+    const g = new THREE.Group();
+    g.visible = false;
+    this.group.add(g);
+    this.parts.cockpit = g;
+
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1a1d21, roughness: 0.72, metalness: 0.25 });
+    const tubeMat = new THREE.MeshStandardMaterial({ color: 0x2b2f35, roughness: 0.5, metalness: 0.5 });
+    // 背光仪表：自发光，夜里也亮
+    const gaugeMat = new THREE.MeshStandardMaterial({
+      color: 0x0d1013, emissive: 0x37d8a6, emissiveIntensity: 1.5, roughness: 0.4,
+    });
+    const warnMat = new THREE.MeshStandardMaterial({
+      color: 0x140b08, emissive: 0xff7a22, emissiveIntensity: 1.1, roughness: 0.4,
+    });
+    this.materials.push(panelMat, tubeMat, gaugeMat, warnMat);
+
+    const put = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.rotation.set(rx, ry, rz);
+      g.add(m);
+      return m;
+    };
+
+    // 仪表板：坐在座舱里往前下方看的那块板
+    put(new THREE.BoxGeometry(0.5, 0.62, 1.62), panelMat, 4.15, 0.66, 0);
+    // 板面上四块表（朝后对着飞行员）+ 一块橙色的警告灯
+    for (const [i, z] of [-0.54, -0.18, 0.18, 0.54].entries()) {
+      put(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 12), i === 3 ? warnMat : gaugeMat,
+        3.88, 0.74, z, 0, 0, Math.PI / 2);
+    }
+    // 中央操纵杆：杆身 + 握把（在座椅前方，画面下半部分）
+    put(new THREE.CylinderGeometry(0.045, 0.055, 0.62, 8), tubeMat, 2.35, 0.42, 0, 0, 0, -0.12);
+    put(new THREE.SphereGeometry(0.085, 10, 8), tubeMat, 2.28, 0.74, 0);
+    // 油门杆（左侧）
+    put(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), tubeMat, 2.7, 0.36, -0.82, 0.35);
+    put(new THREE.SphereGeometry(0.07, 8, 6), warnMat, 2.78, 0.58, -0.9);
+    // 两侧控制台
+    for (const s of [-1, 1]) {
+      put(new THREE.BoxGeometry(1.5, 0.34, 0.16), panelMat, 3.3, 0.28, s * 0.86);
+    }
+    // 座椅靠背（在相机后面，转身能看见）
+    put(new THREE.BoxGeometry(0.22, 0.9, 0.86), panelMat, 1.5, 0.85, 0, 0, 0, 0.16);
+
+    g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
   }
 
   _spinProps(dt) {
@@ -647,7 +740,10 @@ export class Plane {
     // 以前这里写成了世界坐标（pos + fwd*3.2 …），相机再拿它乘一遍基向量，
     // 结果就是座舱视角被甩到几百米外，看起来完全不对。
     this.cockpitPoint.set(0, 1.15, 3.2);
-    this.hoodPoint.set(0, 0.62, 6.2);
+    // 引擎盖视角要高过机身蒙皮。以前是 (0, 0.62, 6.2)：机身在那个位置半径还有
+    // ~0.98 m，相机整个埋在机身里面，看到的"挡着的那层东西"就是机身内壁。
+    // 现在抬到蒙皮之上、座舱盖之前，往前能看到机头和转起来的螺旋桨。
+    this.hoodPoint.set(0, 1.18, 4.4);
     this.pitchAngle = Math.asin(Math.max(-1, Math.min(1, f.y)));
     this._pitchAngleCache = this.pitchAngle;
   }
@@ -802,6 +898,7 @@ export class Plane {
       this._burn -= dt;
       const f = Math.min(1, this._burn / 30);
       if (this._light) this._light.intensity = f * (16 + Math.sin(this._t * 21) * 3 + Math.random() * 3);
+      this._flickerFire(f);
       if (fx && fx.enabled) {
         this._smoke -= dt;
         if (this._smoke <= 0) {
@@ -819,6 +916,26 @@ export class Plane {
       }
     } else if (this._light && this._light.intensity > 0) {
       this._light.intensity *= Math.max(0, 1 - dt * 0.6);
+    }
+  }
+
+  /**
+   * 机体上的明火（挂在 group 上，所以跟着残骸走）。
+   *
+   * 世界坐标的爆炸粒子是给外面看的：一坐进司机室/引擎盖视角，火球在相机后面、
+   * 相机又在座舱里，基本什么都看不到。所以另做一层贴在机体上的火苗，机头前面
+   * 特意放了两簇，这样座舱里往前看就是一片火。
+   */
+  _flickerFire(f) {
+    const g = this.parts.fire;
+    if (!g) return;
+    g.visible = true;
+    for (const fl of this.fires) {
+      const k = 0.6 + 0.4 * Math.sin(this._t * 15 + fl.phase) + 0.22 * Math.sin(this._t * 33 + fl.phase * 2.3);
+      const s = Math.max(0.22, k) * (0.55 + 0.75 * f);
+      fl.outer.scale.setScalar(s * 1.15);
+      fl.core.scale.setScalar(s * 0.7);
+      fl.outer.rotation.z += 0.0;   // 位置固定，只靠缩放闪
     }
   }
 
@@ -850,12 +967,13 @@ export class Plane {
 
   setEnabled(v) { this.enabled = v; this.group.visible = v; }
 
-  /** 座舱视角：把座舱盖藏掉（相机就在里面），还有机头那截也别挡视线。 */
+  /** 座舱视角：露出仪表板/操纵杆，把座舱盖和机头罩藏掉（相机就在里面）。 */
   setCockpitView(on) {
     if (this._cockpitView === on) return;
     this._cockpitView = on;
     if (this.parts.cab) this.parts.cab.visible = !on;
     if (this.parts.nose) this.parts.nose.visible = !on;
+    if (this.parts.cockpit) this.parts.cockpit.visible = on;
   }
 
   /** 相机/菜单用的一行状态。 */
@@ -873,4 +991,6 @@ export class Plane {
 }
 
 Plane._contactBuf = new Float64Array(5 * 8);
+Plane._flameGeo = new THREE.IcosahedronGeometry(0.62, 1);
+Plane._coreGeo = new THREE.IcosahedronGeometry(0.36, 1);
 const _UP_AXIS = new THREE.Vector3(0, 1, 0);
