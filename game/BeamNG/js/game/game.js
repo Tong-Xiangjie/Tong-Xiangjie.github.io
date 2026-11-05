@@ -8,6 +8,7 @@ import * as THREE from '../../vendor/three.module.js';
 import { SceneView } from '../render/scene.js';
 import { VehicleView } from '../render/bodyMesh.js';
 import { Effects } from '../render/effects.js';
+import { StreetLights, CarLights, PlaneLights } from '../render/lights.js';
 import { Plane } from './plane.js';
 import { Vehicle } from '../vehicle/vehicle.js';
 import { CAR_PRESETS } from '../vehicle/spec.js';
@@ -55,7 +56,17 @@ export class Game {
     this.scene.add(this.plane.group);
     this.planeMode = 'drive';
     this.flying = false;
+    this.vehicleMode = 'car';
     this._pctrl = { throttle: 0, pitch: 0, roll: 0, yaw: 0, brake: false };
+
+    // --- 灯光：路灯 + 车灯 + 飞机灯 ---------------------------------------
+    // night 由太阳高度算（SceneView.nightFactor），'auto' 时夜里自动开。
+    this.lightsMode = 'auto';          // 'auto' | 'on' | 'off'
+    this.night = 0;
+    this.streetLights = new StreetLights(this.scene, this.world);
+    this.streetLights.addColliders(this.world);
+    this.carLights = new CarLights(this.scene, this.view3d);
+    this.planeLights = new PlaneLights(this.plane);
 
     this.mode = 'free';
     this.modeLabel = '自由驾驶';
@@ -78,55 +89,62 @@ export class Game {
     this.view.follow(this.vehicle.position);
   }
 
-  /** 飞机开关/模式（菜单里的"飞机"选项）：'drive' | 'ai' | 'off'。 */
+  /**
+   * 电脑飞机：'ai'（天上巡航，会俯冲扑你）| 'parked'（停在跑道上当景物）| 'off'。
+   * 'drive' 是旧设置里的值，等价于 parked。
+   */
   setPlaneMode(mode) {
+    if (mode === 'drive') mode = 'parked';
     this.planeMode = mode;
     if (!this.plane) return;
-    if (mode === 'off') {
-      if (this.flying) this.exitPlane(true);
-      this.plane.setEnabled(false);
-      return;
-    }
+    if (mode === 'off') { this.plane.setEnabled(false); return; }
     this.plane.setEnabled(true);
-    if (this.flying) return;
-    // 从坠毁/停机切到电脑驾驶时重新放一架到天上
-    if (mode === 'ai') this.plane._setMode('ai');
-    else this.plane._setMode('parked');
+    if (this.vehicleMode === 'plane') return;    // 玩家正在开，别去动它
+    this.plane._setMode(mode === 'ai' ? 'ai' : 'parked');
   }
 
-  /** 上机：把镜头和 HUD 交给飞机。 */
-  enterPlane() {
-    if (!this.plane || !this.planeOn) return false;
-    if (this.plane.state === 3 && !this.plane.burning) this.plane._park();
-    this.plane.board();
-    this.flying = true;
-    this._savedCamMode = this.camera3p.mode;
-    this.camera3p.setMode('chase');
-    this.camera3p.snap(this.plane);
-    this.hud.toast(this.plane.mode === 'parked' && !this.plane.airborne
-      ? '上机：W 加油门滑跑起飞 · ↑↓ 俯仰 · ←→ 方向舵 · A/D 滚转 · F 下机'
-      : '已接管飞机 · ↑↓ 俯仰 · A/D 滚转 · ←→ 方向舵', 6);
-    return true;
-  }
-
-  /** 下机：镜头还给车。空中不允许，会顶掉。 */
-  exitPlane(force = false) {
-    if (!this.flying) return false;
-    if (!force && this.plane.airborne) {
-      this.hud.toast('空中不能下机 —— 先落地或拉平贴地', 3);
-      return false;
+  /**
+   * 载具模式：'car' | 'plane'。两者是**并列**的，同一时间只玩一个 ——
+   * 开飞机的时候汽车的油门/转向被屏蔽（只剩手刹，停在一边），
+   * 开车的时候飞机是景物或者由电脑驾驶，不能再"下车走过去上机"。
+   */
+  setVehicleMode(mode) {
+    const plane = this.plane;
+    if (!plane) return;
+    this.vehicleMode = mode;
+    if (mode === 'plane') {
+      plane.setEnabled(true);
+      plane._setMode('player');      // 坠毁了会重新给一架，停回跑道头
+      this.flying = true;
+      this.camera3p.setMode('chase');
+      this.camera3p.snap(plane);
+      this.view.follow(plane.position);
+      // 汽车挪到场坪边上停着，别挡在跑道上
+      this.vehicle.resetAt(this.world.world, 26, -26, 0.6);
+      this.hud.toast('飞机模式 · W 加油门滑跑起飞 · ↑↓ 俯仰 · A/D 滚转 · ←→ 方向舵 · R 拉平', 6);
+    } else {
+      this.flying = false;
+      plane._setMode(this.planeMode === 'ai' ? 'ai' : 'parked');
+      this.camera3p.setMode('chase');
+      this.camera3p.snap(this.vehicle, this.world.terrain);
+      this.hud.toast('汽车模式 · 菜单里可以切回飞机', 2.5);
     }
-    this.flying = false;
-    this.plane.unboard();
-    this.camera3p.setMode(this._savedCamMode ?? 'chase');
-    this.camera3p.snap(this.vehicle);
-    this.hud.toast('回到车里', 2);
-    return true;
+    this.effects.clear();
+    this.input?.clear?.();
   }
 
-  setPlaneEnabled(on) { this.setPlaneMode(on ? 'drive' : 'off'); }
+  /** 灯光：'auto'（夜里自动开）| 'on' | 'off'。 */
+  setLightsMode(mode) {
+    this.lightsMode = mode;
+    const label = mode === 'on' ? '车灯常开' : mode === 'off' ? '车灯关闭' : '车灯自动（夜间亮）';
+    this.hud.toast(label, 2);
+  }
 
-  /** 飞机状态文字，给菜单里那行"状态"用。 */
+  nextLightsMode() {
+    this.setLightsMode(this.lightsMode === 'auto' ? 'on' : this.lightsMode === 'on' ? 'off' : 'auto');
+  }
+
+  /** 载具状态文字，给菜单里那行"状态"用。 */
   planeStatusText() {
     if (!this.plane || !this.planeOn) return '已关闭';
     if (this.flying) return `你驾驶 · ${this.plane.statusText()}`;
@@ -178,10 +196,7 @@ export class Game {
       const m = this.camera3p.nextMode();
       this.hud.toast(`视角：${CAMERA_LABELS[m]}`);
     }
-    if (this.input.actions.plane) {
-      if (this.flying) this.exitPlane();
-      else this.enterPlane();
-    }
+    if (this.input.actions.lights) this.nextLightsMode();
     if (this.input.actions.reset) {
       if (this.flying) {
         // 飞机上按 R 就地拉平：翻过来/失速掉高度时救命用
@@ -190,6 +205,13 @@ export class Game {
       } else this.resetVehicle();
     }
     if (this.input.actions.respawn) this.respawn();
+    // 开飞机的时候汽车不许被开走：油门/转向/挡位全部摁住，只留手刹。
+    // （两者是并列的载具，不能同时能玩。）
+    if (this.vehicleMode === 'plane') {
+      ctrl.throttle = 0; ctrl.brake = 1; ctrl.steer = 0;
+      ctrl.handbrake = 1; ctrl.clutch = undefined; ctrl.selectGear = null;
+      ctrl.gearMode = 'auto';
+    }
 
     if (!this.paused) {
       this._acc += dtReal;
@@ -227,6 +249,15 @@ export class Game {
       }
     }
     this.effects.update(dtReal, this.vehicle, this.world.world);
+
+    // --- 灯光 -------------------------------------------------------------
+    // night 来自太阳高度；'on' 强制全亮（白天也能看灯），'off' 全关。
+    const nf = this.view.nightFactor ?? 0;
+    this.night = this.lightsMode === 'on' ? 1 : this.lightsMode === 'off' ? 0 : nf;
+    this.streetLights.update(dtReal, this.camera.position, this.night);
+    this.carLights.update(dtReal, this.vehicle, this.night, this.vehicleMode === 'car');
+    this.planeLights.update(dtReal, this.plane.enabled ? this.night : 0);
+
     this.audio.update(dtReal, this._audioState());
     this.hud.update(dtReal, {
       vehicle: this.vehicle, game: this, camera: this.camera3p,
@@ -411,6 +442,15 @@ export class Game {
   }
 
   respawn() {
+    if (this.vehicleMode === 'plane') {
+      // 飞机模式：回到跑道头重新起飞
+      this.plane._park();
+      this.plane.mode = 'player';
+      this.camera3p.snap(this.plane, this.world.terrain);
+      this.effects.clear();
+      this.hud.toast('飞机已回到跑道头');
+      return;
+    }
     this.vehicle.resetAt(this.world.world, 0, 4, 0);
     this.camera3p.snap(this.vehicle, this.world.terrain);
     this.effects.clear();
@@ -466,6 +506,11 @@ export class Game {
     this.view.setQuality(name);
     this.world.setViewDistance(this.view.q.viewDistance);
     this.effects.setBudget(name === 'low' ? 0.35 : name === 'ultra' ? 1.8 : 1);
+    // 低画质把"真实灯光"（点光/聚光）关掉，只留自发光和地面光池
+    const real = name !== 'low';
+    if (this.streetLights) this.streetLights.realEnabled = real;
+    if (this.carLights) this.carLights.realEnabled = real;
+    if (this.planeLights) this.planeLights.realEnabled = real;
     // 物理质量也跟着档位走：梁的迭代次数直接决定车体刚度的手感与耗时
     const it = this.view.q.iterations ?? 10;
     if (this.vehicle?.body) this.vehicle.body.iterations = it;
@@ -499,6 +544,9 @@ export class Game {
     this.camera3p.dispose();
     this.view3d.dispose();
     this.effects.dispose();
+    this.streetLights?.dispose();
+    this.carLights?.dispose();
+    this.planeLights?.dispose();
     this.plane?.dispose();
     this.world.dispose();
     this.view.dispose();

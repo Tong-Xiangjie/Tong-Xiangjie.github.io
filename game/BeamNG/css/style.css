@@ -91,6 +91,14 @@ html, body {
 
 /* 左上 */
 .panel.damage { left: 18px; top: 18px; width: 232px; }
+/* 时间快捷按钮：白天 / 黄昏 / 夜晚 */
+.timeset { display: flex; gap: 4px; margin-top: 5px; }
+.timeset .mini {
+  flex: 1; padding: 3px 0; font-size: 11px; cursor: pointer;
+  color: var(--dim); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-line); border-radius: 5px;
+}
+.timeset .mini:hover { color: var(--text); background: rgba(255, 255, 255, 0.12); }
 /* 飞行仪表：和车损面板同一位置，开飞机时互相顶替 */
 .panel.flight { left: 18px; top: 18px; width: 232px; }
 .panel.flight .title { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); }

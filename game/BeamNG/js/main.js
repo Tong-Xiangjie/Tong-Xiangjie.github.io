@@ -15,7 +15,9 @@ const DEFAULT = {
   time: 0.34,
   paint: '#b4232b',
   volume: 0.7,
-  plane: 'drive',
+  plane: 'ai',
+  vehicle: 'car',
+  lights: 'auto',
 };
 
 function loadSettings() {
@@ -73,6 +75,33 @@ function buildModeChips() {
   }
 }
 
+// 载具：汽车 / 飞机，并列二选一（同一时间只玩一个）
+const VEHICLES = [
+  { id: 'car', name: '汽车', desc: '软体车辆，能撞能翻，场地里随便开' },
+  { id: 'plane', name: '飞机', desc: '直接坐在驾驶舱里，从跑道头起飞' },
+];
+
+function buildVehicleCards() {
+  const host = $('vehicle-list');
+  if (!host) return;
+  host.innerHTML = '';
+  for (const v of VEHICLES) {
+    const el = document.createElement('div');
+    el.className = `chip${v.id === settings.vehicle ? ' active' : ''}`;
+    el.dataset.id = v.id;
+    el.textContent = v.name;
+    el.title = v.desc;
+    el.addEventListener('click', () => {
+      settings.vehicle = v.id;
+      saveSettings(settings);
+      host.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.dataset.id === v.id));
+      if (game) game.setVehicleMode(v.id);
+      refreshPlaneStatus();
+    });
+    host.appendChild(el);
+  }
+}
+
 // ------------------------------------------------------------------ 启动
 function createGame() {
   const canvas = $('scene');
@@ -85,6 +114,9 @@ function createGame() {
   game.setQuality(settings.quality);
   game.setTimeOfDay(settings.time);
   game.setMode(settings.mode);
+  game.setPlaneMode(settings.plane);
+  game.setLightsMode(settings.lights);
+  if (settings.vehicle === 'plane') game.setVehicleMode('plane');
   game.audio.setVolume(settings.volume);
   window.__game = game;      // 方便在控制台里调参
   return game;
@@ -97,6 +129,7 @@ async function startGame() {
   started = true;
   if (!game) createGame();
   game.setPlaneMode(settings.plane);
+  if (settings.vehicle === 'plane' && game.vehicleMode !== 'plane') game.setVehicleMode('plane');
   $('menu').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('btn-menu').classList.remove('hidden');
@@ -184,6 +217,20 @@ $('set-time').addEventListener('input', (e) => {
   settings.time = parseFloat(e.target.value); saveSettings(settings);
   game?.setTimeOfDay(settings.time);
 });
+// 时间快捷按钮（白天 / 黄昏 / 夜晚）
+for (const b of document.querySelectorAll('.timeset .mini')) {
+  b.addEventListener('click', () => {
+    settings.time = parseFloat(b.dataset.time);
+    saveSettings(settings);
+    $('set-time').value = String(settings.time);
+    game?.setTimeOfDay(settings.time);
+  });
+}
+$('set-lights').value = settings.lights;
+$('set-lights').addEventListener('change', (e) => {
+  settings.lights = e.target.value; saveSettings(settings);
+  game?.setLightsMode(settings.lights);
+});
 $('set-paint').value = settings.paint;
 $('set-paint').addEventListener('input', (e) => {
   settings.paint = e.target.value; saveSettings(settings);
@@ -194,15 +241,6 @@ $('set-plane').value = settings.plane;
 $('set-plane').addEventListener('change', (e) => {
   settings.plane = e.target.value; saveSettings(settings);
   game?.setPlaneMode(settings.plane);
-});
-$('btn-plane-board').addEventListener('click', () => {
-  if (!game) return;
-  if (settings.plane === 'off') { settings.plane = 'drive'; saveSettings(settings); $('set-plane').value = 'drive'; }
-  game.setPlaneMode(settings.plane === 'ai' ? 'drive' : settings.plane);
-  // 先把飞机摆到跑道头，再关菜单 —— 关了菜单才看得见
-  game.plane._park();
-  game.enterPlane();
-  closeMenu();
 });
 $('set-volume').value = String(settings.volume);
 $('set-volume').addEventListener('input', (e) => {
@@ -228,6 +266,7 @@ window.addEventListener('keydown', unlock);
 
 buildCarCards();
 buildModeChips();
+buildVehicleCards();
 createGame();
 onResize();
 
@@ -236,4 +275,7 @@ const qs = new URLSearchParams(location.search);
 if (qs.has('preset')) settings.preset = qs.get('preset');
 if (qs.has('mode')) settings.mode = qs.get('mode');
 if (qs.has('quality')) settings.quality = qs.get('quality');
+if (qs.has('time')) { settings.time = parseFloat(qs.get('time')); game?.setTimeOfDay(settings.time); $('set-time').value = String(settings.time); }
+if (qs.has('vehicle')) { settings.vehicle = qs.get('vehicle'); game?.setVehicleMode(settings.vehicle); }
+if (qs.has('lights')) { settings.lights = qs.get('lights'); game?.setLightsMode(settings.lights); }
 if (qs.has('autostart')) startGame();

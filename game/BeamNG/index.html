@@ -116,6 +116,11 @@
       <div>
         <div class="label">时间</div>
         <input id="set-time" type="range" min="0" max="1" step="0.01" value="0.34">
+        <div class="timeset">
+          <button class="mini" data-time="0.34">白天</button>
+          <button class="mini" data-time="0.75">黄昏</button>
+          <button class="mini" data-time="0.02">夜晚</button>
+        </div>
       </div>
       <div>
         <div class="label">车漆</div>
@@ -125,24 +130,34 @@
         <div class="label">音量</div>
         <input id="set-volume" type="range" min="0" max="1" step="0.02" value="0.7">
       </div>
+      <div>
+        <div class="label">灯光</div>
+        <select id="set-lights">
+          <option value="auto" selected>自动（夜间亮）</option>
+          <option value="on">常开</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 载具是并列的：选汽车就只开车，选飞机就只开飞机 -->
+    <div class="section">
+      <div class="label">载具（选一个，同一时间只玩一个）</div>
+      <div class="chips" id="vehicle-list"></div>
     </div>
 
     <div class="section row">
       <div>
-        <div class="label">飞机</div>
+        <div class="label">电脑飞机</div>
         <select id="set-plane">
-          <option value="drive" selected>可以自己开</option>
-          <option value="ai">电脑驾驶</option>
-          <option value="off">关闭</option>
+          <option value="ai" selected>巡航（会俯冲扑你）</option>
+          <option value="parked">停在跑道上</option>
+          <option value="off">不出现</option>
         </select>
       </div>
       <div>
-        <div class="label">上机</div>
-        <button id="btn-plane-board" class="btn small">坐进飞机</button>
-      </div>
-      <div>
         <div class="label">状态</div>
-        <span id="plane-state" class="state">停在跑道上</span>
+        <span id="plane-state" class="state">巡航中</span>
       </div>
     </div>
 
@@ -171,11 +186,14 @@
       <tr><td><kbd>R</kbd></td><td>就地重置（扶正，保持朝向）</td></tr>
       <tr><td><kbd>T</kbd></td><td>回到出生点</td></tr>
       <tr><td><kbd>H</kbd> / <kbd>Ctrl</kbd></td><td>喇叭 / 慢动作</td></tr>
+      <tr><td><kbd>L</kbd></td><td><b>灯光：自动 → 常开 → 关闭</b></td></tr>
       <tr><td><kbd>Esc</kbd></td><td>菜单</td></tr>
-      <tr><td><kbd>F</kbd></td><td><b>上机 / 下机（飞机）</b></td></tr>
       <tr><td>手柄</td><td>左摇杆转向 · RT 油门 · LT 刹车 · A 手刹</td></tr>
     </table>
     <h2>开飞机</h2>
+    <p>飞机和汽车是<b>并列</b>的两种载具：菜单里「载具」选汽车就只开车，选飞机就只开飞机，
+    同一时间只玩一个。选了飞机就直接坐在驾驶舱里，飞机停在出生点往南那条跑道上
+    （就是直线加速跑道）。按 <kbd>Esc</kbd> 回菜单就能换回汽车。</p>
     <table class="keys">
       <tr><td><kbd>W</kbd> / <kbd>Shift</kbd></td><td>油门（Shift = 加力）</td></tr>
       <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>升降舵：↑ 拉杆抬头（最多 35°），↓ 推杆低头，松杆自动回平</td></tr>
@@ -186,11 +204,13 @@
       <tr><td><kbd>C</kbd></td><td>切换视角（跟车 / 座舱 / 引擎盖 / 自由…）</td></tr>
     </table>
     <div class="tips">
-      <p><b>怎么上机</b>：飞机停在出生点往南那条跑道上，开过去按 <kbd>F</kbd>；
-      也可以在菜单里把「飞机」设成「可以自己开」后直接点「坐进飞机」。</p>
+      <p><b>怎么上机</b>：菜单里「载具」选「飞机」—— 飞机和汽车是并列的两种载具，
+      同一时间只玩一个，不能开车过去再上机。飞机停在出生点往南那条跑道上，
+      选飞机就是从跑道头起飞。</p>
       <p><b>起飞</b>：按住 <kbd>W</kbd> 滑跑，到 110 km/h 左右拉杆（<kbd>↑</kbd>）。
       速度掉到 90 km/h 以下会失速掉高度。</p>
       <p><b>坠毁</b>：接地垂直速度超过 8.5 m/s 就炸，起火后残骸会持续烧 46 秒。</p>
+      <p><b>夜间</b>：飞机有着陆灯、航行灯（左红右绿尾白）和频闪，按 <kbd>L</kbd> 手动开关。</p>
     </div>
     <div class="tips">
       <p><b>自由视角</b>：切到「自由」后可以用鼠标拖动环绕、滚轮拉近拉远。</p>

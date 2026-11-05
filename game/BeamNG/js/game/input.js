@@ -17,7 +17,7 @@ export const KEYMAP = {
   slowKey: ['ControlLeft'],
   hornKey: ['KeyH'],
   respawnKey: ['KeyT'],
-  planeKey: ['KeyF'],
+  lightsKey: ['KeyL'],
 };
 
 export const DEFAULT_SETTINGS = {
@@ -40,7 +40,7 @@ export class Input {
       throttle: 0, brake: 0, steer: 0, handbrake: 0, clutch: undefined,
       gearMode: 'auto', selectGear: null,
     };
-    this.actions = { reset: false, camera: false, horn: false, respawn: false, plane: false };
+    this.actions = { reset: false, camera: false, horn: false, respawn: false, lights: false };
     this.gamepadIndex = null;
     this.usingGamepad = false;
     this.analogSteer = 0;
@@ -185,7 +185,7 @@ export class Input {
 
     // 一次性动作
     this.actions.reset = this.anyPressed(KEYMAP.resetKey) || this.pressed.has('PadReset');
-    this.actions.plane = this.anyPressed(KEYMAP.planeKey);
+    this.actions.lights = this.anyPressed(KEYMAP.lightsKey);
     this.actions.camera = this.anyPressed(KEYMAP.cameraKey) || this.pressed.has('PadCamera');
     this.actions.horn = this.any(KEYMAP.hornKey) || this.pressed.has('PadHorn');
     this.actions.respawn = this.anyPressed(KEYMAP.respawnKey);

@@ -31,6 +31,16 @@ uniform vec3 uHorizon;
 uniform vec3 uGround;
 uniform vec3 uSunColor;
 uniform float uHaze;
+uniform float uNight;
+// 星星：把方向映射到格子，格点里按哈希随机点亮几颗
+float starField(vec3 d) {
+  vec3 p = d * 190.0;
+  vec3 c = floor(p);
+  float h = fract(sin(dot(c, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+  if (h < 0.988) return 0.0;
+  float dd = length(p - (c + 0.5));
+  return smoothstep(0.45, 0.0, dd) * (h - 0.988) * 83.0;
+}
 void main() {
   vec3 d = normalize(vWorld);
   float h = clamp(d.y, -1.0, 1.0);
@@ -42,6 +52,7 @@ void main() {
   col += uSunColor * pow(sun, 900.0) * 14.0;              // 太阳本体
   col += uSunColor * pow(sun, 8.0) * uHaze * 0.35;        // 太阳附近的散射
   col += uSunColor * pow(sun, 2.0) * uHaze * 0.06;        // 逆光时的整体提亮
+  col += vec3(0.85, 0.90, 1.0) * starField(d) * uNight * smoothstep(-0.02, 0.20, h);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -95,6 +106,7 @@ export class SceneView {
       uGround: { value: new THREE.Color(0x555049) },
       uSunColor: { value: new THREE.Color(0xfff0d0) },
       uHaze: { value: 0.6 },
+      uNight: { value: 0 },
     };
     this.sky = new THREE.Mesh(
       new THREE.SphereGeometry(4200, 32, 20),
@@ -147,12 +159,23 @@ export class SceneView {
     this.skyUniforms.uSunColor.value.copy(sunCol);
     this.skyUniforms.uHaze.value = 0.25 + dusk * 1.1;
 
+    // 夜间因子：给路灯/车灯/飞机灯用（0 = 白天，1 = 深夜）。
+    // 太阳落到 -0.24 以下就全黑，这样黄昏时灯会自然亮起来。
+    const night = 1 - Math.max(0, Math.min(1, (elev + 0.06) / 0.30));
+    this.nightFactor = night;
+    this.skyUniforms.uNight.value = Math.max(0, night * 1.2 - 0.15);
+    // 夜里星星要看得见，天顶别压得太亮
+    if (night > 0) zenith.lerp(new THREE.Color(0x05070f), night * 0.65);
+    this.skyUniforms.uZenith.value.copy(zenith);
+
     const sunI = Math.max(0.02, day) * (2.9 - dusk * 0.7);
     this.sun.intensity = sunI;
     this.sun.color.copy(sunCol);
-    this.hemi.intensity = 0.28 + day * 0.85;
+    // 夜里留一点"月光"：半球光压到很低但别到 0，否则除了灯光什么都看不见
+    this.hemi.intensity = 0.20 + day * 0.93;
     this.hemi.color.copy(horizon).lerp(new THREE.Color(0xffffff), 0.45);
-    this.ambient.intensity = 0.06 + day * 0.16;
+    this.hemi.groundColor.setHex(night > 0.5 ? 0x1a2028 : 0x4a4235);
+    this.ambient.intensity = 0.05 + day * 0.17;
     this.renderer.toneMappingExposure = 1.15 - dusk * 0.18;
 
     const fogCol = horizon.clone().lerp(zenith, 0.25);
