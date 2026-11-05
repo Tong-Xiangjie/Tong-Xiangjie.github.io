@@ -62,6 +62,9 @@ html, body {
 .bar.thin { height: 6px; flex: 1; margin: 0; display: inline-block; vertical-align: middle; }
 .bar b.hot { background: linear-gradient(90deg, var(--accent), var(--danger)); }
 .speedo .sub { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 13px; }
+/* 倒车：数字本身是负的，再给个颜色省得一晃眼看漏 */
+#hud.reversing .speedo .big span { color: #ffb03a; }
+#hud.reversing .speedo .big i::before { content: '倒车 · '; }
 .gear {
   margin-left: auto; font-style: normal; font-size: 26px; font-weight: 700;
   color: var(--text); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums;

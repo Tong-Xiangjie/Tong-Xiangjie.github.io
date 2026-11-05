@@ -8,6 +8,7 @@ import * as THREE from '../../vendor/three.module.js';
 import { SceneView } from '../render/scene.js';
 import { VehicleView } from '../render/bodyMesh.js';
 import { Effects } from '../render/effects.js';
+import { Plane } from './plane.js';
 import { Vehicle } from '../vehicle/vehicle.js';
 import { CAR_PRESETS } from '../vehicle/spec.js';
 import { GameWorld } from './world.js';
@@ -49,6 +50,10 @@ export class Game {
     this.scene.add(this.view3d.group);
     if (this.view?.q?.iterations) this.vehicle.body.iterations = this.view.q.iterations;
 
+    // 天上那架飞机会绕圈巡航，隔一阵俯冲一次，撞了就爆炸起火
+    this.plane = new Plane(this.world.world, { rng: opts.rng });
+    this.scene.add(this.plane.group);
+
     this.mode = 'free';
     this.modeLabel = '自由驾驶';
     this.timer = 0;
@@ -68,6 +73,29 @@ export class Game {
     this._started = false;
     this.camera3p.snap(this.vehicle, this.world.terrain);
     this.view.follow(this.vehicle.position);
+  }
+
+  /** 飞机开关（菜单里的"飞机"选项）。关掉就整架藏起来，也不再推进它。 */
+  setPlaneEnabled(on) {
+    this.planeOn = !!on;
+    if (!this.plane) return;
+    this.plane.setEnabled(!!on);
+    if (on) {
+      // 重新打开时让它回到天上巡航，别停在上一局的残骸状态
+      if (!this.plane.alive) this.plane.reset();
+      else this.plane.group.visible = true;
+    }
+  }
+
+  /** 飞机状态文字，给菜单里那行"状态"用。带距离，站着不动也能看出它在动。 */
+  planeStatusText() {
+    if (!this.plane || !this.planeOn) return '已关闭';
+    const p = this.plane.pos;
+    const v = this.vehicle.position;
+    const d = Math.hypot(p.x - v.x, p.z - v.z);
+    if (!this.plane.alive) return this.plane.burning ? '已坠毁 · 燃烧中' : '已坠毁';
+    const phase = this.plane.state === 1 ? '俯冲中' : '巡航中';
+    return `${phase} · ${p.y.toFixed(0)} m · 距你 ${d.toFixed(0)} m`;
   }
 
   _makeVehicle(preset) {
@@ -133,6 +161,15 @@ export class Game {
     this.camera3p.update(dtReal, this.vehicle, { airborne: this.vehicle.airborne });
     this.view.follow(this.vehicle.position);
     this.world.update(this.camera.position);
+    if (this.plane) {
+      this.plane.update(this.paused ? 0 : dtReal, this.vehicle, this.effects);
+      if (this.plane._justCrashed) {
+        this.plane._justCrashed = false;
+        // 炸在车旁边就把车掀一下，顺便提示一句
+        const hit = this.plane.blast(this.vehicle);
+        this.hud.toast(hit > 0 ? '飞机坠毁 —— 冲击波把你掀了' : '飞机坠毁起火', 4);
+      }
+    }
     this.effects.update(dtReal, this.vehicle, this.world.world);
     this.audio.update(dtReal, this._audioState());
     this.hud.update(dtReal, {
@@ -405,6 +442,7 @@ export class Game {
     this.camera3p.dispose();
     this.view3d.dispose();
     this.effects.dispose();
+    this.plane?.dispose();
     this.world.dispose();
     this.view.dispose();
     this.audio.dispose();

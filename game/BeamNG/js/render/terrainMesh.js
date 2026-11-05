@@ -184,29 +184,125 @@ export class RoadMesh {
     this.disposeList = [];
     this.lift = opts.lift ?? 0.035;
     this.seg = opts.seg ?? 2.0;
-    for (const road of terrain.roads) this._buildRoad(road);
-    for (const pad of terrain.pads) this._buildPad(pad);
+    // 每铺一层路面/场坪就往后排一个深度偏置。
+    // 原因：这些面都是"贴在解析地形之上"的共面薄片，跑道、环路、混凝土场坪
+    // 在出生点附近大面积重叠。以前 _matFor 按材质缓存，所有沥青路共用同一个
+    //材质、同一个 lift 和同一个 polygonOffset —— 重叠处深度完全相等，
+    // GPU 每帧随便挑一个赢，于是那段路一直在闪。
+    // polygonOffsetUnits 的单位就是深度缓冲能分辨的最小差值，所以给每层
+    // 递增的单位偏置可以得到一个与距离无关、稳定的胜负关系。
+    this._layer = 0;
+    for (const road of terrain.roads) this._buildRoad(road, this._layer++);
+    for (const pad of terrain.pads) this._buildPad(pad, this._layer++);
+    // 水面单独一组：半透明、不写深度，要最后画
+    this.waterGroup = new THREE.Group();
+    this.group.add(this.waterGroup);
+    for (const ch of terrain.channels) this._buildWater(ch);
   }
 
-  _matFor(material, emissive) {
-    const key = material.id;
+  /**
+   * 水面。水位取"挖之前的地面 - 0.45"，而不是"挖完的河床 + 多少"。
+   * 差別很关键：河床是挖出来的，用河床推水位的话，只要河道所在的地形本身
+   * 比较平（这里两岸只比河床高一点点），水面就会高过河岸淹掉大片地面。
+   * 挖之前的地面 = height() + cut()，因为 cut 就是从地形上纯减掉的量。
+   * 再夹一次上游/下游河岸高度，防止起伏地形上水从低的一侧漫出去。
+   */
+  _buildWater(ch) {
+    const t = this.terrain;
+    const pts = ch.points;
+    if (pts.length < 2) return;
+    const levelAt = (x, z, nx, nz) => {
+      const ground = t.height(x, z) + ch.cut(x, z);   // 未开挖的地面
+      let wl = ground - 0.45;
+      // 两侧河岸（用未开挖高度）兜底
+      const d = ch.half + ch.bank * 0.85;
+      const b1 = t.height(x + nx * d, z + nz * d) + ch.cut(x + nx * d, z + nz * d);
+      const b2 = t.height(x - nx * d, z - nz * d) + ch.cut(x - nx * d, z - nz * d);
+      const bank = Math.min(b1, b2);
+      if (wl > bank - 0.2) wl = bank - 0.2;
+      return wl;
+    };
+    // 先把折线细分，并算出每个采样点的水位
+    const samples = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i][0], az = pts[i][1];
+      const bx = pts[i + 1][0], bz = pts[i + 1][1];
+      const len = Math.hypot(bx - ax, bz - az);
+      const steps = Math.max(2, Math.ceil(len / 8));
+      const nx = -(bz - az) / Math.max(1e-6, len), nz = (bx - ax) / Math.max(1e-6, len);
+      for (let s = 0; s < steps; s++) {
+        const u = s / steps;
+        const x = ax + (bx - ax) * u, z = az + (bz - az) * u;
+        samples.push({ x, z, y: levelAt(x, z, nx, nz) });
+      }
+    }
+    const last = pts[pts.length - 1];
+    samples.push({ x: last[0], z: last[1], y: levelAt(last[0], last[1], 0, 0) });
+    // 滑动平均（窗口 5）
+    const smooth = samples.map((p, i) => {
+      let sum = 0, n = 0;
+      for (let k = -2; k <= 2; k++) {
+        const q = samples[i + k];
+        if (q) { sum += q.y; n++; }
+      }
+      return { x: p.x, z: p.z, y: sum / n };
+    });
+    const positions = [];
+    const wide = ch.half * 0.97;
+    for (let i = 0; i < smooth.length - 1; i++) {
+      const a = smooth[i], b = smooth[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const len = Math.max(1e-6, Math.hypot(dx, dz));
+      const nx = -dz / len, nz = dx / len;          // 横向法向
+      const alx = a.x + nx * wide, alz = a.z + nz * wide;
+      const arx = a.x - nx * wide, arz = a.z - nz * wide;
+      const blx = b.x + nx * wide, blz = b.z + nz * wide;
+      const brx = b.x - nx * wide, brz = b.z - nz * wide;
+      positions.push(alx, a.y, alz, brx, b.y, brz, arx, a.y, arz);
+      positions.push(alx, a.y, alz, blx, b.y, blz, brx, b.y, brz);
+    }
+    if (!positions.length) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    g.computeVertexNormals();
+    if (!this._waterMat) {
+      this._waterMat = new THREE.MeshStandardMaterial({
+        color: 0x2a6f86, roughness: 0.12, metalness: 0.25,
+        transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -24,
+      });
+      this.disposeList.push(this._waterMat);
+    }
+    const mesh = new THREE.Mesh(g, this._waterMat);
+    mesh.renderOrder = 2;
+    this.waterGroup.add(mesh);
+  }
+
+  _matFor(material, layer = 0, emissive) {
+    const key = `${material.id}#${layer}`;
     if (this.materials.has(key)) return this.materials.get(key);
     const m = new THREE.MeshStandardMaterial({
       color: material.color, roughness: 0.86, metalness: 0.02,
-      emissive: emissive ?? 0x000000, polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -2,
+      emissive: emissive ?? 0x000000, polygonOffset: true,
+      polygonOffsetFactor: -1.5 - layer * 0.4,
+      polygonOffsetUnits: -2 - layer * 3,
     });
     this.materials.set(key, m);
     this.disposeList.push(m);
     return m;
   }
 
-  _buildRoad(road) {
+  /** 这一层的几何抬升量：与深度偏置一起保证重叠面不会打架。 */
+  _liftFor(layer) { return this.lift + layer * 0.004; }
+
+  _buildRoad(road, layer = 0) {
     const t = this.terrain;
     const pts = road.points;
     if (pts.length < 2) return;
     const positions = [];
     const colors = [];
     const half = road.half;
+    const lift = this._liftFor(layer);
     const col = new THREE.Color(road.material.color);
     const lineCol = new THREE.Color(0xe8e2c8);
     for (let i = 0; i < pts.length - 1; i++) {
@@ -215,12 +311,12 @@ export class RoadMesh {
       const len = Math.hypot(bx - ax, bz - az);
       const steps = Math.max(1, Math.ceil(len / this.seg));
       // 法向
-      let nx = -(bz - az) / Math.max(1e-6, len);
-      let nz = (bx - ax) / Math.max(1e-6, len);
+      const nx = -(bz - az) / Math.max(1e-6, len);
+      const nz = (bx - ax) / Math.max(1e-6, len);
       for (let s = 0; s < steps; s++) {
         const t0 = s / steps, t1 = (s + 1) / steps;
-        const p0 = this._edge(t, ax + (bx - ax) * t0, az + (bz - az) * t0, nx, nz, half);
-        const p1 = this._edge(t, ax + (bx - ax) * t1, az + (bz - az) * t1, nx, nz, half);
+        const p0 = this._edge(t, ax + (bx - ax) * t0, az + (bz - az) * t0, nx, nz, half, lift);
+        const p1 = this._edge(t, ax + (bx - ax) * t1, az + (bz - az) * t1, nx, nz, half, lift);
         // 两个三角形：p0.l, p0.r, p1.r / p0.l, p1.r, p1.l
         positions.push(...p0.l, ...p1.r, ...p0.r);
         positions.push(...p0.l, ...p1.l, ...p1.r);
@@ -235,22 +331,23 @@ export class RoadMesh {
     g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     g.computeVertexNormals();
-    const mesh = new THREE.Mesh(g, this._matFor(road.material));
+    const mesh = new THREE.Mesh(g, this._matFor(road.material, layer));
     mesh.receiveShadow = true;
     this.group.add(mesh);
   }
 
-  _edge(t, x, z, nx, nz, half) {
+  _edge(t, x, z, nx, nz, half, lift = this.lift) {
     const lx = x + nx * half, lz = z + nz * half;
     const rx = x - nx * half, rz = z - nz * half;
     return {
-      l: [lx, t.height(lx, lz) + this.lift, lz],
-      r: [rx, t.height(rx, rz) + this.lift, rz],
+      l: [lx, t.height(lx, lz) + lift, lz],
+      r: [rx, t.height(rx, rz) + lift, rz],
     };
   }
 
-  _buildPad(pad) {
+  _buildPad(pad, layer = 0) {
     const t = this.terrain;
+    const lift = this._liftFor(layer);
     // PadRect 存的是 cos(-angle)/sin(-angle)，这里做逆旋转把局部角点变回世界坐标
     const c = pad.cos ?? 1, s = pad.sin ?? 0;
     const corners = [[-pad.hx, -pad.hz], [pad.hx, -pad.hz], [pad.hx, pad.hz], [-pad.hx, pad.hz]];
@@ -258,14 +355,14 @@ export class RoadMesh {
     const world = corners.map(([lx, lz]) => {
       const wx = pad.cx + lx * c + lz * s;
       const wz = pad.cz - lx * s + lz * c;
-      return [wx, t.height(wx, wz) + this.lift, wz];
+      return [wx, t.height(wx, wz) + lift, wz];
     });
     pos.push(...world[0], ...world[2], ...world[1]);
     pos.push(...world[0], ...world[3], ...world[2]);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.computeVertexNormals();
-    const mesh = new THREE.Mesh(g, this._matFor(pad.material ?? MATERIALS.CONCRETE));
+    const mesh = new THREE.Mesh(g, this._matFor(pad.material ?? MATERIALS.CONCRETE, layer));
     mesh.receiveShadow = true;
     this.group.add(mesh);
   }

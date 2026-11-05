@@ -43,8 +43,30 @@ export class GameWorld {
       mountainStart: 420,
       flat: { cx: 0, cz: 0, radius: 70, blend: 70 },
       roads: this._roadLayout(),
-      pads: [{ cx: 0, cz: 0, hx: 38, hz: 38, material: MATERIALS.CONCRETE, falloff: 8 }],
+      channels: this._channelLayout(),
+      pads: [
+        { cx: 0, cz: 0, hx: 38, hz: 38, material: MATERIALS.CONCRETE, falloff: 8 },
+        // 断桥引道：把桥轴线整成一条水平的堤，两岸同高，桥面才有地方落。
+        // 河道是在场坪之后挖的，所以正中那段还是会被切成河谷。
+        // 往西给到 x=68：起跳坡前需要一段又平又直的加速路，太短的话
+        // 到坡口只有七八十，缺口根本飞不过去。
+        { cx: 168, cz: 184, hx: 100, hz: 11, material: MATERIALS.CONCRETE, falloff: 9, tag: 'bridgepad' },
+      ],
     });
+    // 把断桥引道的台面高度对齐支路末端。_target 是 height() 里惰性求值的，
+    // 构造完再写完全来得及。
+    // 不对齐会很难看：支路在自己末端会把地形拉回它的自然高程（比引道低 3 米），
+    // 桥台前就是一个 3 米深的坑，车根本上不了桥。
+    this.bridgePad = this.terrain.pads.find((p) => p.tag === 'bridgepad') ?? null;
+    if (this.bridgePad) {
+      const link = this.terrain.roads.find((r) => r.points === this._linkRoad.points);
+      const jx = 104, jz = 180;
+      // 复刻 height() 里道路那一步的目标值，接缝处就完全连续
+      const roadTarget = this.terrain.baseHeight(jx, jz) * 0.35 + this.terrain._roadLevel(link, jx, jz) * 0.65;
+      // 就取路面高程本身，不加余量：道路那一步是 lerp(h, target, w*0.9)，
+      // 只要堤面等于 target，接缝处算出来就还是 target，一步都不会差。
+      this.bridgePad._target = roadTarget;
+    }
     this.statics = new StaticWorld(10);
     this.world = new CollisionWorld(this.terrain, this.statics);
 
@@ -83,18 +105,116 @@ export class GameWorld {
       loop.push([Math.cos(a) * r, Math.sin(a) * r + 40]);
     }
     roads.push({ points: loop, width: 11, material: MATERIALS.ASPHALT, blend: 8 });
-    // 连接场坪与环路的支路
-    roads.push({ points: [[0, 90], [60, 150], [140, 175]], width: 9, material: MATERIALS.ASPHALT, blend: 6 });
+    // 连接场坪与环路的支路。
+    // 起点原来是 (0,90) —— 那正好在跑道中间，支路斜着压在跑道上 30 米，
+    // 出生点看到的那段闪烁就是这个共面重叠。改成从跑道东缘起步。
+    // 末端停在断桥引道西边，桥面高度就对齐这条路的末端高程。
+    this._linkRoad = { points: [[7, 95], [60, 148], [104, 180]], width: 9, material: MATERIALS.ASPHALT, blend: 6 };
+    roads.push(this._linkRoad);
     // 越野土路
     roads.push({ points: [[-30, -60], [-140, -150], [-260, -120], [-330, 30]], width: 8, material: MATERIALS.DIRT, blend: 10 });
     return roads;
   }
 
+  /**
+   * 河道。放在场坪以东：从北边一路向南偏东，穿过支路（断桥就在那个交叉口）
+   * 和环路，形成两处涉水点。沟底比两岸低 3.8 m，车冲进去会被水迅速拖停。
+   */
+  _channelLayout() {
+    return [{
+      points: [[138, 330], [166, 190], [186, 40], [198, -130]],
+      width: 38, depth: 3.8, bank: 14, material: MATERIALS.WATER,
+    }];
+  }
+
   // --- 静态道具 -----------------------------------------------------------
-  /** 加一个盒子（物理 + 视觉）。hx/hy/hz 是半尺寸。 */
+  /**
+   * 断桥 + 跳台区（场坪以东，横跨那条河）。
+   *
+   *   x 轴向东，桥面沿 x 展开，河心在 x≈166：
+   *     [126 .. 164] 近岸桥面 → [164 .. 192] 塌掉的缺口（28 m） → [192 .. 232] 远岸桥面
+   *   整条轴线站在 bridgepad 这块水平堤上，所以两岸同高、桥面是平的；
+   *   起跳坡就架在近岸这头，坡口对着缺口。
+   */
+  _stuntLayout(H) {
+    const z = 184;
+    // 引道台面高度（和 bridgepad 的 _target 一致），所有构件都从它推出来
+    const padY = this.bridgePad?._target ?? H(184, z);
+    const halfZ = 5.6;
+
+    // 桥面顶 = 堤面，也就是和引道、支路齐平（真桥就是这样，桥面不会比路面高一截）
+    const deckTop = padY;
+    const deck = (cx, hx) => {
+      this.addBox(cx, deckTop - 0.45, z, hx, 0.45, halfZ, 'concrete',
+        { material: MATERIALS.CONCRETE, tag: 'bridge' });
+    };
+    deck(139, 25);     // 近岸跨：x 114..164
+    // 远岸跨：x 175..231，缺口 11 m。缺口宽度是量出来的：这台车从引道
+    // 全油门到坡口只有 89 km/h，实测飞 35 m 落到 179，再宽就过不去了。
+    // （换条更长的柏油直线助跑能到 110+，那时余量就很充裕。）
+    deck(203, 28);
+    // 桥墩：从河床一直顶到桥底。河床离桥底太近的地方不立墩——
+    // 否则桥台旁边会冒出一截混凝土桩穿过桥面，车直接撞停在上面。
+    const pierTop = deckTop - 0.9;
+    for (const px of [146, 156, 192, 202]) {
+      const bed = H(px, z);
+      const hgt = pierTop - bed;
+      if (hgt < 0.5) continue;
+      this.addCylinder(px, bed + hgt / 2, z, 1.05, hgt, 'concrete',
+        { seg: 12, material: MATERIALS.CONCRETE, tag: 'pier' });
+    }
+    // 护栏：缺口两侧断掉，一眼看得出桥塌了
+    for (const [cx, hx] of [[139, 25], [203, 28]]) {
+      for (const s of [-1, 1]) {
+        this.addBox(cx, deckTop + 0.42, z + s * (halfZ - 0.25), hx, 0.42, 0.22, 'metal', { tag: 'railing' });
+      }
+    }
+    // 塌下去的那两跨，斜插在河里
+    const waterY = H(166, z) + 3.8 * 0.55;
+    this.addBox(172, waterY - 0.6, z - 4.6, 12, 0.42, halfZ * 0.9, 'concrete',
+      { material: MATERIALS.CONCRETE, roll: -0.5, yaw: 0.14, tag: 'bridgefall' });
+    this.addBox(182, waterY - 1.9, z + 4.0, 8, 0.42, halfZ * 0.7, 'concrete',
+      { material: MATERIALS.CONCRETE, roll: 0.34, yaw: -0.22, tag: 'bridgefall' });
+
+    // 起跳坡：架在近岸桥面上，坡口比桥面高 3.6 m，正对缺口。
+    // 中心高度要让"低端上表面"正好落在桥面上（center.y = deckTop + L·sinθ - T·cosθ），
+    // 否则坡脚会翘出一条几十厘米的坎，车顶上去就停住。
+    // 试过把坡加到 4.2 m（12°）：仰角是大了，但爬坡吃掉的速度更多，
+    // 实测反而少飞 1.8 m。最后还是靠把缺口收到 11 m 解决。
+    const rampL = 10, rampT = 0.3, rise = 3.6;
+    const roll = Math.atan2(rise, rampL * 2);
+    this.addBox(134, deckTop + rampL * Math.sin(roll) - rampT * Math.cos(roll), z,
+      rampL, rampT, 5.4, 'metal', { material: MATERIALS.CONCRETE, roll, tag: 'bigramp' });
+    // 远岸落地坡（让落点是个斜面，别直接砸在平桥上）
+    this.addBox(186, deckTop + 0.5, z, 6, 0.28, 5.4, 'metal',
+      { material: MATERIALS.CONCRETE, roll: -Math.atan2(1.4, 12), tag: 'landing' });
+
+    // 场坪旁边的两个练习跳台（一个矮一个高，落点都是平地）
+    for (const [cx, cz, len, rs] of [[-34, -18, 9, 1.5], [30, -34, 13, 2.4]]) {
+      const y = H(cx, cz);
+      const rl = Math.atan2(rs, len * 2);
+      this.addBox(cx, y + rs * 0.5 + 0.12, cz, len, 0.28, 4.0, 'metal',
+        { material: MATERIALS.CONCRETE, roll: rl, tag: 'jumpramp' });
+      for (let i = 0; i < 4; i++) {
+        const t = i / 3;
+        const px = cx - len + t * len * 2;
+        const hh = 0.28 + rs * 0.5 * t;
+        this.addBox(px, y + hh * 0.5, cz, 0.8, hh * 0.5, 3.6, 'concrete', { tag: 'rampfill' });
+      }
+      for (const s of [-1, 1]) {
+        const mx = cx + len * 3.2, mz = cz + s * 3.2;
+        this.addCylinder(mx, H(mx, mz) + 0.35, mz, 0.19, 0.7, 'red',
+          { seg: 10, material: MATERIALS.CONCRETE, tag: 'cone' });
+      }
+    }
+  }
+
+
+  /** 加一个盒子（物理 + 视觉）。hx/hy/hz 是半尺寸。roll 用来做斜坡。 */
   addBox(cx, cy, cz, hx, hy, hz, look = 'concrete', opts = {}) {
     const body = StaticBody.box(cx, cy, cz, hx, hy, hz, opts.yaw ?? 0, opts.pitch ?? 0,
-      opts.material ?? MATERIALS.CONCRETE, { tag: opts.tag ?? look, breakable: !!opts.breakable, mass: opts.mass ?? Infinity });
+      opts.material ?? MATERIALS.CONCRETE,
+      { tag: opts.tag ?? look, breakable: !!opts.breakable, mass: opts.mass ?? Infinity, roll: opts.roll ?? 0 });
     this.statics.add(body);
     const geo = this._boxGeo();
     const mesh = new THREE.Mesh(geo, this._mat(look));
@@ -168,6 +288,8 @@ export class GameWorld {
       this.addBox(x, y + 0.6, z, 4.0, 0.6, 9.0, 'concrete', { pitch: -0.22, yaw, tag: 'ramp' });
       this.addBox(x, y + 0.32, z + 8.6 * Math.cos(yaw) * -1, 4.0, 0.32, 2.0, 'metal', { yaw, tag: 'rampbase' });
     }
+
+    this._stuntLayout(H);
 
     // --- 集装箱堆场（可撞散） -------------------------------------------
     const colors = ['red', 'blue', 'green'];

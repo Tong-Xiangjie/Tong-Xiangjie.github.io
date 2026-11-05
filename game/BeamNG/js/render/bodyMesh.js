@@ -11,6 +11,9 @@ import { quadKind } from '../vehicle/spec.js';
 
 const KIND_INDEX = { body: 0, glass: 1, roof: 2, sill: 3, underbody: 4 };
 const MATERIAL_ORDER = ['body', 'glass', 'roof', 'sill', 'underbody'];
+// 细节件（大灯/尾灯/格栅/裙边）另开材质槽，追加在五个车身槽后面
+const DETAIL_INDEX = { headlight: 5, taillight: 6, trim: 7, grille: 8 };
+const DETAIL_COUNT = 4;
 
 /** 车身默认材质组：烤漆 / 玻璃 / 车顶 / 门槛裙边 / 底盘。 */
 function buildMaterials(paint, opts = {}) {
@@ -27,6 +30,26 @@ function buildMaterials(paint, opts = {}) {
     new THREE.MeshStandardMaterial({ color: paint, roughness: 0.3, metalness: 0.3, vertexColors: true }),
     new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.82, metalness: 0.1, vertexColors: true }),
     new THREE.MeshStandardMaterial({ color: 0x17171a, roughness: 0.95, metalness: 0.0, vertexColors: true }),
+    // 大灯：暖白自发光，夜里/阴影里也认得出是辆车
+    new THREE.MeshStandardMaterial({
+      color: 0xf2f0e4, emissive: 0xfff0c8, emissiveIntensity: 0.9, roughness: 0.18, metalness: 0.5,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
+    }),
+    // 尾灯
+    new THREE.MeshStandardMaterial({
+      color: 0x8e1414, emissive: 0xff2a12, emissiveIntensity: 0.7, roughness: 0.24, metalness: 0.3,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
+    }),
+    // 裙边/包围：哑光黑塑料，把圆筒一样的车身切出层次
+    new THREE.MeshStandardMaterial({
+      color: 0x1a1c20, roughness: 0.86, metalness: 0.12,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8,
+    }),
+    // 格栅
+    new THREE.MeshStandardMaterial({
+      color: 0x101216, roughness: 0.5, metalness: 0.7,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
+    }),
   ];
 }
 
@@ -64,9 +87,16 @@ export class VehicleView {
     const stations = geometry.stations;
     const ringSize = geometry.ringSize;
 
-    // 顶点：物理节点一一对应（+ 前后两个封口中心点）
+    // 顶点：物理节点一一对应（+ 前后两个封口中心点 + 细节件顶点）
     const capFront = n, capRear = n + 1;
-    const vcount = n + 2;
+    this._details = [];
+    const detailQuad = this._planDetails(geometry, n);
+    const dOff = n + 2;
+    // 注意：_details.length 才是顶点数（每个四边形 4 个），不是四边形个数。
+    // 按四边形个数开缓冲区的话索引会越界，而且 computeVertexNormals 读到
+    // 数组外面会得到 undefined，法线直接变 NaN。
+    const vcount = n + 2 + this._details.length;
+    void detailQuad.length;
     const pos = new Float32Array(vcount * 3);
     const baseCol = new Float32Array(vcount * 3);
     // 出厂位置做基础顶点色（车顶稍亮、底盘暗）
@@ -79,7 +109,7 @@ export class VehicleView {
     baseCol[capFront * 3] = baseCol[capFront * 3 + 1] = baseCol[capFront * 3 + 2] = 0.9;
     baseCol[capRear * 3] = baseCol[capRear * 3 + 1] = baseCol[capRear * 3 + 2] = 0.9;
 
-    const buckets = [[], [], [], [], []];
+    const buckets = [[], [], [], [], [], [], [], [], []];
     for (let si = 0; si < stations.length - 1; si++) {
       const a = stations[si].ring;
       const b = stations[si + 1].ring;
@@ -99,6 +129,13 @@ export class VehicleView {
       const last = stations[stations.length - 1].ring;
       buckets[0].push(last[k], last[k2], capRear);
     }
+    // 细节件：每个四边形推两个三角，顶点是细节顶点里的下标
+    for (const d of detailQuad) {
+      const b = buckets[d.slot];
+      b.push(dOff + d.i0, dOff + d.i2, dOff + d.i1);
+      b.push(dOff + d.i0, dOff + d.i3, dOff + d.i2);
+    }
+    void DETAIL_COUNT;
 
     const total = buckets.reduce((s, b) => s + b.length, 0);
     const index = new Uint32Array(total);
@@ -123,6 +160,62 @@ export class VehicleView {
     this.mesh = new THREE.Mesh(g, this.materials);
     this.mesh.frustumCulled = false;
     void MATERIAL_ORDER;
+  }
+
+  // -------------------------------------------------------------------------
+  /**
+   * 规划细节件（大灯/尾灯/格栅/裙边）。
+   *
+   * 关键点：细节顶点不是独立的固定几何，而是"车身某个四边形上的一个双线性
+   * 采样点"，记下 4 个物理节点下标和 4 个权重。这样撞凹、撕裂、断裂的时候
+   * 大灯会跟着那块钣金一起走，不会飘在半空。
+   * 又因为采样点就落在车身表面上，材质用 polygonOffset 压住 z-fighting
+   * 就够了，不需要往外顶出厚度。
+   *
+   * 环的编号：0 底中 1 底右 2 门槛右 3 肩右 4 玻璃右 5 顶右 6 顶中
+   *           7 顶左 8 玻璃左 9 肩左 10 门槛左 11 底左
+   * 站点 0 是车头，最后一个是车尾。
+   */
+  _planDetails(geometry, n) {
+    const stations = geometry.stations;
+    const ringSize = geometry.ringSize;
+    const lastSi = stations.length - 1;
+    const out = [];
+    this._details = [];
+
+    /** 在 si→si+1 站的第 k 个四边形上，按 (u,v) 取一个点。 */
+    const push = (slot, si, k, uvs) => {
+      const q = [
+        stations[si].ring[k], stations[si].ring[(k + 1) % ringSize],
+        stations[si + 1].ring[(k + 1) % ringSize], stations[si + 1].ring[k],
+      ];
+      const base = this._details.length;
+      for (const [u, v] of uvs) {
+        // 双线性：p = (1-u)(1-v)q0 + u(1-v)q1 + u·v·q2 + (1-u)v·q3
+        this._details.push({
+          q,
+          w: [(1 - u) * (1 - v), u * (1 - v), u * v, (1 - u) * v],
+        });
+      }
+      out.push({ slot, i0: base, i1: base + 1, i2: base + 2, i3: base + 3 });
+    };
+
+    // 大灯：车头第一节，肩部那块板（右侧 k=3，左侧 k=8 镜像）
+    push(DETAIL_INDEX.headlight, 0, 3, [[0.06, 0.30], [0.72, 0.30], [0.72, 0.68], [0.06, 0.68]]);
+    push(DETAIL_INDEX.headlight, 0, 8, [[0.06, 0.32], [0.72, 0.32], [0.72, 0.70], [0.06, 0.70]]);
+    // 尾灯：车尾最后一节，同样的位置
+    push(DETAIL_INDEX.taillight, lastSi - 1, 3, [[0.10, 0.26], [0.80, 0.26], [0.80, 0.62], [0.10, 0.62]]);
+    push(DETAIL_INDEX.taillight, lastSi - 1, 8, [[0.10, 0.28], [0.80, 0.28], [0.80, 0.64], [0.10, 0.64]]);
+    // 格栅：车头第一节的底面往上一点，横跨中间两块
+    push(DETAIL_INDEX.grille, 0, 0, [[0.30, 0.34], [0.78, 0.34], [0.78, 0.80], [0.30, 0.80]]);
+    // 侧裙：底下两块（右下 k=1 / 左下 k=10），从车头一路拉到车尾会用掉太多顶点，
+    // 这里只铺前四节，视觉上已经足够把"圆筒"切出腰线
+    for (let si = 0; si < Math.min(4, lastSi); si++) {
+      push(DETAIL_INDEX.trim, si, 1, [[0, 0.22], [1, 0.22], [1, 0.74], [0, 0.74]]);
+      push(DETAIL_INDEX.trim, si, 10, [[0, 0.22], [1, 0.22], [1, 0.74], [0, 0.74]]);
+    }
+    void n;
+    return out;
   }
 
   // -------------------------------------------------------------------------
@@ -206,6 +299,18 @@ export class VehicleView {
     const capF = n * 3, capR = (n + 1) * 3;
     pos[capF] = fx * kf; pos[capF + 1] = fy * kf; pos[capF + 2] = fz * kf;
     pos[capR] = rx * kr; pos[capR + 1] = ry * kr; pos[capR + 2] = rz * kr;
+    // 细节件：按权重把对应车身节点混合出来，跟着钣金一起变形
+    const det = this._details;
+    if (det) {
+      let o = (n + 2) * 3;
+      for (let d = 0; d < det.length; d++) {
+        const q = det[d].q, w = det[d].w;
+        pos[o] = w[0] * body.px[q[0]] + w[1] * body.px[q[1]] + w[2] * body.px[q[2]] + w[3] * body.px[q[3]];
+        pos[o + 1] = w[0] * body.py[q[0]] + w[1] * body.py[q[1]] + w[2] * body.py[q[2]] + w[3] * body.py[q[3]];
+        pos[o + 2] = w[0] * body.pz[q[0]] + w[1] * body.pz[q[1]] + w[2] * body.pz[q[2]] + w[3] * body.pz[q[3]];
+        o += 3;
+      }
+    }
     posAttr.needsUpdate = true;
     colAttr.needsUpdate = true;
     this.meshGeometry.computeVertexNormals();

@@ -14,6 +14,8 @@ export const MATERIALS = {
   SAND: { id: 4, name: '沙地', mu: 0.45, rolling: 0.090, dust: 1.00, color: 0xc2a878, drag: 0.010 },
   GRAVEL: { id: 5, name: '碎石', mu: 0.70, rolling: 0.035, dust: 0.55, color: 0x77726a, drag: 0.003 },
   MUD: { id: 6, name: '泥浆', mu: 0.34, rolling: 0.120, dust: 0.40, color: 0x3d2f22, drag: 0.014 },
+  // 水：轮子几乎抓不住地，而且滚阻/阻力极大 —— 冲进河里会被迅速拖停
+  WATER: { id: 7, name: '河水', mu: 0.22, rolling: 0.30, dust: 0.0, color: 0x2f5f70, drag: 0.16 },
 };
 export const MATERIAL_LIST = Object.values(MATERIALS);
 
@@ -62,14 +64,78 @@ class RoadStrip {
   }
 }
 
+/**
+ * 河道：沿折线挖一条沟，两边是缓坡河岸。
+ * 和道路正好相反——道路是把地形整平到路面高度，河道是把地形往下削。
+ * 沟底比岸顶低 depth，河岸在 bank 范围内平滑过渡回原始地形。
+ */
+class Channel {
+  constructor(points, width, depth, bank = 18, material = MATERIALS.WATER) {
+    this.points = points;
+    this.width = width;
+    this.half = width * 0.5;
+    this.depth = depth;
+    this.bank = bank;
+    this.material = material;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const p of points) {
+      if (p[0] < minX) minX = p[0];
+      if (p[0] > maxX) maxX = p[0];
+      if (p[1] < minZ) minZ = p[1];
+      if (p[1] > maxZ) maxZ = p[1];
+    }
+    const pad = this.half + bank + 0.5;
+    this.minX = minX - pad; this.maxX = maxX + pad;
+    this.minZ = minZ - pad; this.maxZ = maxZ + pad;
+  }
+
+  inRange(x, z) {
+    return x >= this.minX && x <= this.maxX && z >= this.minZ && z <= this.maxZ;
+  }
+
+  /** 到中线的距离。 */
+  distToCenter(x, z) {
+    const pts = this.points;
+    let best = Infinity;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i][0], az = pts[i][1];
+      const bx = pts[i + 1][0], bz = pts[i + 1][1];
+      const dx = bx - ax, dz = bz - az;
+      const len2 = dx * dx + dz * dz;
+      let t = len2 > 1e-9 ? ((x - ax) * dx + (z - az) * dz) / len2 : 0;
+      t = clamp(t, 0, 1);
+      const cx = ax + dx * t, cz = az + dz * t;
+      const d = Math.hypot(x - cx, z - cz);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  /** 挖掉的深度：河心最深，河岸平滑收敛到 0。 */
+  cut(x, z) {
+    const d = this.distToCenter(x, z);
+    if (d > this.half + this.bank) return 0;
+    if (d <= this.half) {
+      // 河底保持平坦，边缘略微收一下，免得出现刀切一样的直角
+      const e = smoothstep((d - (this.half - 3)) / 3);
+      return this.depth * (1 - e * 0.18);
+    }
+    return this.depth * 0.82 * (1 - smoothstep((d - this.half) / this.bank));
+  }
+
+  /** 水面高度：给定的河心基准高度。 */
+  waterLevelAt(baseH) { return baseH - this.depth * 0.45; }
+}
+
 /** 矩形场坪：混凝土台、停车场之类。 */
 class PadRect {
-  constructor(cx, cz, halfX, halfZ, angle, material, falloff = 3) {
+  constructor(cx, cz, halfX, halfZ, angle, material, falloff = 3, tag = undefined) {
     this.cx = cx; this.cz = cz;
     this.hx = halfX; this.hz = halfZ;
     this.cos = Math.cos(-angle); this.sin = Math.sin(-angle);
     this.material = material;
     this.falloff = falloff;
+    this.tag = tag;
     // 旋转后的 AABB 半径，用来做 O(1) 剔除
     const c = Math.abs(this.cos), s = Math.abs(this.sin);
     this.radX = halfX * c + halfZ * s + falloff + 0.5;
@@ -109,7 +175,10 @@ export class Terrain {
     this.detail = new Noise2D(this.seed ^ 0x9e3779b9);
     this.flat = opts.flat ?? { cx: 0, cz: 0, radius: 60, blend: 40 };
     this.roads = (opts.roads ?? []).map((r) => new RoadStrip(r.points, r.width, r.material ?? MATERIALS.ASPHALT, r.blend ?? 5));
-    this.pads = (opts.pads ?? []).map((p) => new PadRect(p.cx, p.cz, p.hx, p.hz, p.angle ?? 0, p.material ?? MATERIALS.CONCRETE, p.falloff ?? 3));
+    this.pads = (opts.pads ?? []).map((p) => new PadRect(p.cx, p.cz, p.hx, p.hz, p.angle ?? 0, p.material ?? MATERIALS.CONCRETE, p.falloff ?? 3, p.tag));
+    this.channels = (opts.channels ?? []).map((c) => new Channel(
+      c.points, c.width ?? 30, c.depth ?? 3.0, c.bank ?? 18, c.material ?? MATERIALS.WATER,
+    ));
     this.mountains = opts.mountains ?? 1;
     this.mountainStart = opts.mountainStart ?? 260;
     this.detailAmount = opts.detail ?? 0.25;
@@ -171,6 +240,13 @@ export class Terrain {
         const target = this.baseHeight(x, z) * 0.35 + this._roadLevel(road, x, z) * 0.65;
         h = lerp(h, target, w * 0.9);
       }
+    }
+    // 河道最后挖，才能把穿过河床的路面一起切下去（涉水路段）
+    for (let i = 0; i < this.channels.length; i++) {
+      const ch = this.channels[i];
+      if (!ch.inRange(x, z)) continue;
+      const cut = ch.cut(x, z);
+      if (cut > 0.001) h -= cut;
     }
     const m = this.flatMask(x, z);
     if (m < 1) {
@@ -267,6 +343,12 @@ export class Terrain {
    * @param {number} [slope] 已知的坡度（1 - n.y），传入可省掉 4 次高度采样
    */
   materialAt(x, z, slope = null) {
+    // 河心优先：水面以下就是水，轮子下去基本抓不住地
+    for (let i = 0; i < this.channels.length; i++) {
+      const ch = this.channels[i];
+      if (!ch.inRange(x, z)) continue;
+      if (ch.distToCenter(x, z) <= ch.half * 0.94) return MATERIALS.WATER;
+    }
     // 道路与场坪优先
     let bestW = 0, mat = null;
     for (let i = 0; i < this.pads.length; i++) {

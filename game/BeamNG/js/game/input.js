@@ -67,6 +67,15 @@ export class Input {
   any(codes) { for (const c of codes) if (this.keys.has(c)) return true; return false; }
   anyPressed(codes) { for (const c of codes) if (this.pressed.has(c)) return true; return false; }
 
+  /**
+   * 丢弃所有按住的键。暂停/打开菜单时调用：否则按 Esc 那一刻松开的键
+   * 会一直留在 keys 里，回到游戏后车还挂着油门往前冲。
+   */
+  clear() {
+    this.keys.clear();
+    this.pressed.clear();
+  }
+
   /** 手柄：左摇杆转向、扳机油门/刹车，A 手刹，X 重置，Y 视角。 */
   _pollGamepad() {
     if (typeof navigator === 'undefined' || !navigator.getGamepads) return false;

@@ -37,6 +37,7 @@ export class Hud {
     };
     this._cache = {};
     this._toastTimer = 0;
+    this.root = document.getElementById('hud');   // 倒车时给整个 HUD 挂个状态类
     this.mapCtx = this.el.map?.getContext('2d') ?? null;
     this.mapScale = 0.22;
     this._mapTick = 0;
@@ -84,8 +85,11 @@ export class Hud {
 
   update(dt, ctx) {
     const { vehicle, game, camera } = ctx;
-    const kmh = Math.abs(vehicle.speedKmh);
+    // 速度带符号：倒车直接显示负数（vehicle.speedKmh 本来就是沿车头方向的投影）
+    const kmh = vehicle.speedKmh;
+    const reversing = kmh < -0.5;
     this._text('speed', kmh.toFixed(0));
+    if (this.root) this.root.classList.toggle('reversing', reversing);
     const rpm = vehicle.drivetrain.rpm;
     const redline = vehicle.spec.engine.redline ?? 6800;
     this._text('rpm', rpm.toFixed(0));

@@ -15,6 +15,7 @@ const DEFAULT = {
   time: 0.34,
   paint: '#b4232b',
   volume: 0.7,
+  plane: 'on',
 };
 
 function loadSettings() {
@@ -90,9 +91,12 @@ function createGame() {
 }
 
 async function startGame() {
-  if (started) return;
+  // 已经开过局了：这个按钮就是"继续"。原来这里直接 return，
+  // 于是按 Esc 弹出的菜单里点"开始驾驶"什么都不会发生，游戏一直卡在暂停。
+  if (started) { closeMenu(); return; }
   started = true;
   if (!game) createGame();
+  game.setPlaneEnabled(settings.plane === 'on');
   $('menu').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('btn-menu').classList.remove('hidden');
@@ -117,13 +121,38 @@ function onResize() {
 
 function openMenu() {
   $('help').classList.add('hidden');   // 说明页开着的时候按菜单，别两层叠一起
+  // 开局之后这个菜单就是暂停菜单，按钮语义改成"继续"
+  if (started) {
+    $('menu').querySelector('h1').innerHTML = '已暂停<span>软体车辆物理沙盒</span>';
+    $('btn-start').textContent = '继续驾驶';
+    if (game) game.input?.clear?.();
+  }
   $('menu').classList.remove('hidden');
   if (game) game.paused = true;
+  refreshPlaneStatus();
+}
+
+/** 菜单里那行飞机状态。菜单开着的时候每 0.4 秒刷一次。 */
+let _planeStatusTimer = null;
+function refreshPlaneStatus() {
+  const el = $('plane-state');
+  if (!el) return;
+  const tick = () => {
+    if ($('menu').classList.contains('hidden')) {
+      clearInterval(_planeStatusTimer);
+      _planeStatusTimer = null;
+      return;
+    }
+    el.textContent = game ? game.planeStatusText() : '巡航中';
+  };
+  tick();
+  if (!_planeStatusTimer) _planeStatusTimer = setInterval(tick, 400);
 }
 function closeMenu() {
   $('menu').classList.add('hidden');
   if (game) game.paused = false;
   if (game) game._last = performance.now();
+  if (game) game.input?.clear?.();      // 菜单里按过的键不要带进游戏
 }
 
 // ------------------------------------------------------------------ 绑定
@@ -159,6 +188,18 @@ $('set-paint').value = settings.paint;
 $('set-paint').addEventListener('input', (e) => {
   settings.paint = e.target.value; saveSettings(settings);
   game?.view3d.setPaint(parseInt(settings.paint.slice(1), 16));
+});
+// 飞机：开关 + 手动让它掉下来
+$('set-plane').value = settings.plane;
+$('set-plane').addEventListener('change', (e) => {
+  settings.plane = e.target.value; saveSettings(settings);
+  game?.setPlaneEnabled(settings.plane === 'on');
+});
+$('btn-plane-crash').addEventListener('click', () => {
+  if (!game) return;
+  if (settings.plane !== 'on') { settings.plane = 'on'; saveSettings(settings); $('set-plane').value = 'on'; game.setPlaneEnabled(true); }
+  closeMenu();                       // 关掉菜单才看得到它往下掉
+  game.plane.forceCrash();
 });
 $('set-volume').value = String(settings.volume);
 $('set-volume').addEventListener('input', (e) => {

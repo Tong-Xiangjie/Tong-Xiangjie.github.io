@@ -50,7 +50,8 @@ export class ChaseCamera {
     this._onWheel = (e) => {
       if (this.mode !== 'orbit') return;
       e.preventDefault();
-      this.orbitDist = Math.max(2.5, Math.min(60, this.orbitDist * (1 + Math.sign(e.deltaY) * 0.12)));
+      // 滚轮拉近的最近距离给到 4.5：再近就钻进车壳里了，画面全是车身内壁
+    this.orbitDist = Math.max(4.5, Math.min(60, this.orbitDist * (1 + Math.sign(e.deltaY) * 0.12)));
     };
     this.dom.addEventListener('pointerdown', this._onDown);
     this.dom.addEventListener('pointermove', this._onMove);
@@ -162,9 +163,9 @@ export class ChaseCamera {
     const az = (_p.z - this.pos.z) * k - this.vel.z * damp;
     this.vel.x += ax * dt; this.vel.y += ay * dt; this.vel.z += az * dt;
     this.pos.x += this.vel.x * dt; this.pos.y += this.vel.y * dt; this.pos.z += this.vel.z * dt;
-    // 别钻到地下
+    // 别钻到地下、也别被墙和山头挡住
     cam.position.copy(this.pos);
-    this._clampAboveGround(vehicle);
+    this._avoidObstacles(vehicle);
     const lead = 5.5;
     _p.set(pos.x + f.fwd.x * lead, pos.y + 0.85, pos.z + f.fwd.z * lead);
     this.look.lerp(_p, Math.min(1, dt * (this.mode === 'crash' ? 3 : 11)));
@@ -179,6 +180,47 @@ export class ChaseCamera {
     if (!w || !w.terrain) return;
     const h = w.terrain.height(this.pos.x, this.pos.z) + 1.15;
     if (this.pos.y < h) { this.pos.y = h; this.vel.y = Math.max(0, this.vel.y); }
+  }
+
+  /**
+   * 相机避让。两类障碍分开处理：
+   *  · 地形：只夹相机脚下那一格不够用 —— 车停在坡下、相机在坡外的时候，
+   *    中间那座山头会把车整个挡住，画面里只剩一片土。这里沿"车→相机"
+   *    采样几处地形高度，把相机抬到看得见车的位置。
+   *  · 静态体（墙、楼、集装箱）：朝相机打一条射线，命中就把相机拉到障碍
+   *    前面 —— 也就是通常说的"被挡住就把镜头怼近"。
+   * 之前两件事都没做，所以贴墙停车、坡下掉头这类视角经常被挡死。
+   */
+  _avoidObstacles(vehicle) {
+    const w = vehicle.world;
+    if (!w || !w.terrain) return;
+    const ox = vehicle.position.x, oy = vehicle.position.y + 0.95, oz = vehicle.position.z;
+
+    // --- 地形抬升 ---
+    let need = -Infinity;
+    for (let i = 1; i <= 6; i++) {
+      const t = i / 6;
+      const x = ox + (this.pos.x - ox) * t;
+      const z = oz + (this.pos.z - oz) * t;
+      const h = w.terrain.height(x, z) + 0.6;
+      if (h > need) need = h;
+    }
+    if (this.pos.y < need) { this.pos.y = need; this.vel.y = Math.max(0, this.vel.y); }
+
+    // --- 静态体：把镜头拉近 ---
+    let dx = this.pos.x - ox, dy = this.pos.y - oy, dz = this.pos.z - oz;
+    const len = Math.hypot(dx, dy, dz);
+    if (len < 1.5) return;
+    dx /= len; dy /= len; dz /= len;
+    const hit = w.raycast(ox, oy, oz, dx, dy, dz, len);
+    if (hit && hit.body && hit.t > 0.9) {
+      const keep = Math.max(1.4, hit.t - 0.75);
+      this.pos.x = ox + dx * keep;
+      this.pos.y = oy + dy * keep;
+      this.pos.z = oz + dz * keep;
+      // 别让弹簧再把它顶回墙里
+      this.vel.x *= 0.25; this.vel.y *= 0.25; this.vel.z *= 0.25;
+    }
   }
 
   steerBias(vehicle) {
