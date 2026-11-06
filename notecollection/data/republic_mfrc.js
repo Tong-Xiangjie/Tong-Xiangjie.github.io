@@ -57,6 +57,10 @@ const republic_mfrcData = {
                     ]
                 },{
                     varietyName: "1919年 1元",
+                    readme: {
+                        title: "同号段纸币评级得分情况",
+                        content: "file:readmes/mfrc_1919_1yuan_grading.html"
+                    },
                     copies: [
                         {
                             copyId: 27104091,

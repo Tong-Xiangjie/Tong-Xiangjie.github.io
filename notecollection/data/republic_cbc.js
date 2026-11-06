@@ -299,7 +299,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国二十八年（1939年） 永宁版 法币券",
+            seriesName: "中华民国二十八年（1939年） 美商永宁版 法币券",
             year: "1939",
             varieties: [
                 {
