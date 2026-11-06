@@ -19,6 +19,10 @@ const republic_cbcData = {
         { key: "purchaseDate", label: "购入日期" },
         { key: "krause", label: "纸币目录编号" }
     ],
+    readmes: [
+        { title: "民国纸币签名人物图鉴 | 中央银行篇", content: "file:readmes/republic_signatures_on_notes.html" },
+        { title: "民国纸币签名版别图鉴 | 中央银行篇", content: "file:readmes/republic_signatures_on_notes_editions.html" }
+    ],
     series: [
         {
             seriesName: "中华民国十七年（1928年） 美钞版 兑换券·大洋券",
