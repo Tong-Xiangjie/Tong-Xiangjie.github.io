@@ -70,14 +70,19 @@ function shareScopeOf(route) {
     // ★ 用户要求：文章分享要**精确到"篇 / 小板块"**（原来这里写死 'articles' ⇒ 分享一篇文章
     //   等于把整个文章区都放行了）。真实 hash 形状（router.js buildRoute 的写法与顺序）：
     //     #articles                        整个板块（全部分类）
-    //     #articles/12                     某一篇（12 = 文章序号，站内就是这么当身份用的）
+    //     #articles/a-<slug>               某一篇（稳定键；老写法是序号 12，两个都认）
     //     #articles/c-<分类>               小板块
-    //     #articles/12/c-<分类>            小板块里的某一篇
+    //     #articles/a-<slug>/c-<分类>      小板块里的某一篇
     //     #articles/…/q-<词>/sm-<模式>      搜索列表（两段都排在后面 ⇒ 前缀匹配自然覆盖）
-    //   范围必须是 hash 的**前缀** ⇒ 顺序不能反：序号在前、c- 在后。
+    //   范围必须是 hash 的**前缀** ⇒ 顺序不能反：篇段在前、c- 在后。
+    //   ★★ 篇段必须用 parseRoute 原样记下来的那个字符串（route.articleSegment），
+    //   不要自己拼 String(articleIndex)：范围是前缀匹配，拼成序号而地址栏里是
+    //   a-<slug> 时，范围跟收件人落地的 hash 就差一个字 ⇒ 放行范围会静默失效
+    //   （分享页"共 0 篇"或整页被弹回）。这也正好让老序号链接与新的稳定键链接各自自洽。
     if (route.mode === 'articles') {
         var aseg = ['articles'];
-        if (typeof route.articleIndex === 'number' && route.articleIndex >= 0) aseg.push(String(route.articleIndex));
+        if (typeof route.articleSegment === 'string' && route.articleSegment) aseg.push(route.articleSegment);
+        else if (typeof route.articleIndex === 'number' && route.articleIndex >= 0) aseg.push(String(route.articleIndex));
         if (route.categoryId) aseg.push('c-' + encodeURIComponent(route.categoryId));
         return aseg.join('/');
     }

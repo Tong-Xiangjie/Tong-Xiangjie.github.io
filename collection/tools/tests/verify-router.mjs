@@ -212,6 +212,14 @@ const parseCases = [
   ['#notes/search/%E6%B0%B4%E5%8D%B0', r => r.view === 'search' && r.searchType === 'all' && r.searchKeyword === '水印'],
   ['#articles', r => r.mode === 'articles' && r.articleIndex === -1],
   ['#articles/12', r => r.mode === 'articles' && r.articleIndex === 12],
+  // ★ 文章的"稳定键"段（新写法）：只记下来、不当成序号解析（解析要等数据收集完，
+  //   见 tab-switcher.js 的 enterArticlesTab）。老序号段两个字段都要有，因为
+  //   shareScopeOf 要用 articleSegment 拼"与地址栏同形的范围"。
+  ['#articles/a-macau_boc100years', r => r.mode === 'articles' && r.articleSlug === 'macau_boc100years'
+      && r.articleSegment === 'a-macau_boc100years' && r.articleIndex === -1],
+  ['#articles/a-macau_boc100years/c-macau_boc', r => r.articleSlug === 'macau_boc100years' && r.categoryId === 'macau_boc'],
+  ['#articles/12/c-coins', r => r.articleIndex === 12 && r.articleSegment === '12' && r.categoryId === 'coins'],
+  ['#articles/a-x/q-%E6%B0%B4%E5%8D%B0/sm-title', r => r.articleSlug === 'x' && r.searchKeyword === '水印' && r.searchMode === 'title'],
   ['#settings', r => r.mode === 'settings'],
   ['#special', r => r.mode === 'special' && r.configId === null],
   ['#special/shanhe', r => r.mode === 'special' && r.configId === 'shanhe'],

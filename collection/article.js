@@ -234,6 +234,67 @@ function articleSearchTip(fulltextState) {
   return '现在是全文索引（边打边搜），点“全”字能切回按标题找 | 全文还在加载中，稍等一下下～';
 }
 
+// ---------- 文章深链的"稳定键"(slug) ----------
+// 用户报的问题（原话）：
+//   「现在文章的深链是序号，假如到时分享了某个链接，但是在分享的文章前增加/删除了
+//     文章，就会导致错位，有没有解决方法？」
+// 确实会错位，而且比"前面增删"更宽：深链里的序号是 collectedArticles 的**全局下标**，
+//   而这个数组是按 allDataKeys → data.series[] → varieties[] → readme 的顺序拼出来的，
+//   所以**任何位置**（哪怕别的分类、别的数据文件）增删一篇，后面所有文章的下标全部后移。
+//   实测推演：在共享出去的第 3 篇前面插一篇，#articles/3 就从《中国银行龙年生肖贺岁钞》
+//   变成了《纪念中国银行成立一百周年澳门币》。
+//
+// 解法：URL 里写稳定键，下标只在内存里用（容器 key articles_reader_<index>、滚动记忆、
+//   上一篇/下一篇、翻页全都不动，所以只动路由那一层）。
+//   键不由数据提供 —— 每篇文章本来就有一个稳定身份 contentPath（形如 file:readmes/xxx.html），
+//   它已经是 articleContentCache / articlePlainTextCache / precache 的键，是站内公认的
+//   文章身份，所以**不需要改任何数据**，直接派生成 URL 里能用的短 slug。
+//   实测 74 篇里只有 1 例同名（同一个 readme 文件被两个系列引用），所以取"先到先得"：
+//   重名时链接指向第一条（内容本来就一样），其余那条仍可从列表点开。
+function articleSlugOf(a) {
+  let p = String((a && a.contentPath) || '');
+  if (p.startsWith('file:')) p = p.substring(5);
+  p = p.split('/').pop() || p;                  // 只取文件名
+  p = p.replace(/\.[A-Za-z0-9]+$/, '');         // 去掉扩展名
+  p = p.replace(/[^A-Za-z0-9_.-]+/g, '-');      // URL 安全化
+  p = p.replace(/^[-.]+|[-.]+$/g, '');          // 掐掉首尾的 -/. （好看，也不容易被误截）
+  return p;
+}
+
+// 建 slug → 下标表，并把 slug 挂到每篇文章上（buildRoute 生成深链要用）。
+// ★ 单独成函数是为了能用例直接调用它模拟"数据变了"（verify-article-deeplink-stable）。
+function buildArticleSlugIndex() {
+  articleSlugIndex = {};
+  for (let i = 0; i < collectedArticles.length; i++) {
+    const slug = articleSlugOf(collectedArticles[i]);
+    collectedArticles[i].slug = slug;
+    if (slug && articleSlugIndex[slug] === undefined) articleSlugIndex[slug] = i;   // 先到先得
+  }
+}
+
+// slug → 下标。查不到（文章被删、链接抄错）返回 -1，由调用方决定怎么退化。
+function articleIndexOfSlug(slug) {
+  const s = String(slug || '');
+  if (!s) return -1;
+  const i = articleSlugIndex[s];
+  return (typeof i === 'number' && i >= 0 && i < collectedArticles.length) ? i : -1;
+}
+
+// ★ 下标 → URL 里的"篇"段。**全站只有这一处生成这个段**，三处调用方必须同形：
+//     · router.js 的 buildRoute()      —— 写地址栏（分享出去的链接就是它）
+//     · gate.js 的 shareRouteOf()      —— 认列表项 onclick="openArticleReader(12)" 的目标路由
+//     · 本文件按范围过滤文章时调用的 shareRouteAllowed()
+//   为什么必须收口：范围是 hash 的**前缀**，只要有一处拼的是 `12`、另一处是 `a-<slug>`，
+//   就会变成"范围里明明有这一篇，收件人却点不动/整页被过滤成 0 篇"——
+//   这种事故 2026-08 已经因为文章范围那套逻辑踩过一次（见 shareScopeOf 的注释）。
+//   拿不到 slug（数据还没收集）才退回序号：链接仍然能用，只是不抗增删。
+function articleRouteSegment(index) {
+  const a = (typeof collectedArticles !== 'undefined' && collectedArticles) ? collectedArticles[index] : null;
+  if (!a) return String(index);
+  const slug = a.slug || articleSlugOf(a);
+  return slug ? ('a-' + slug) : String(index);
+}
+
 // ---------- 收集文章 ----------
 function collectAllArticles() {
   collectedArticles = [];
@@ -249,6 +310,11 @@ function collectAllArticles() {
     if (!data || !data.series) continue;
     collectFromSource(data, dataKey, MODE.COINS);
   }
+
+  // ★ 顺手把深链要用的稳定键表建出来（见上面 articleSlugOf 的说明）。
+  //   放在这里而不是惰性地第一次用到时建：这张表必须与 collectedArticles 同一份数据快照，
+  //   分开建迟早会出现"表里有、数组里没有"的错位。
+  buildArticleSlugIndex();
 
   buildArticleCategoryTree();
 }
@@ -1565,8 +1631,11 @@ function getFilteredArticles() {
         for (var k = 0; k < ids.length; k++) if (allowCatForList[ids[k]]) return true;
       }
       // ② 再走门禁那套（非分享模式 / 整块范围一律放行）
+      //   ★ 篇段必须用 articleRouteSegment()（稳定键），与 buildRoute 写进 hash 的**逐字相同** ——
+      //     范围是 hash 前缀，这里拼成序号而地址栏里是 a-<slug> 的话，
+      //     分享页会把范围内本该能看的文章全过滤掉（"共 0 篇"）。
       for (var i = 0; i < ids.length; i++) {
-        if (shareRouteAllowed('articles/' + idx + '/c-' + encodeURIComponent(ids[i]))) return true;
+        if (shareRouteAllowed('articles/' + articleRouteSegment(idx) + '/c-' + encodeURIComponent(ids[i]))) return true;
       }
       return false;
     });

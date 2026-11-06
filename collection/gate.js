@@ -1000,9 +1000,15 @@
         //      文章的身份就是"序号（+ 可选的小板块 c-<分类>）"，正好是范围的前缀。
         //   ② 小板块侧边栏：onclick="onArticleSidebarClick('<分类 id>')" ⇒ 真路由带 c- 前缀，
         //      不带前缀的话连"本小板块自己"都会显示成锁住的。
+        //   ★★ 篇段必须调 articleRouteSegment()，不能自己拼 'articles/' + 序号：
+        //      地址栏里写的是稳定键 a-<slug>（见 article.js 顶部），范围是 hash 的**前缀**，
+        //      这里拼出序号就与范围对不上 ⇒ 范围内那一篇反而被判越界、显示成锁住点不动。
         var am = oc.match(/^\s*openArticleReader\s*\(\s*(\d+)/);
         if (am) {
-            var aRoute = 'articles/' + am[1];
+            var aSeg = (typeof articleRouteSegment === 'function')
+                ? articleRouteSegment(parseInt(am[1], 10))
+                : am[1];
+            var aRoute = 'articles/' + aSeg;
             try {
                 if (typeof currentArticleCategory === 'string' && currentArticleCategory && currentArticleCategory !== 'all') {
                     aRoute += '/c-' + encodeURIComponent(currentArticleCategory);

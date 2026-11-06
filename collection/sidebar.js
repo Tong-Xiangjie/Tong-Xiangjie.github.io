@@ -375,15 +375,24 @@ function onSidebarItemClickInner(catId) {
     if (currentMode === MODE.SPECIAL) {
         if (selectedSpecial === catId) {
             // 点击已选中的专题：返回概览
-            // 和分类一样：关闭即离开，滚动记忆作废（专题模式没有这套记忆，属于无害兜底）
+            // ★ 离开前先把这个专题的滚动位置存下来（专题**有**自己那套记忆：
+            //   specialPageCaches[selectedSpecial]，见 core.js 的 rememberSpecialScroll）。
+            //   原来这里写的是"专题模式没有这套记忆"，是过时的注释。
+            rememberSpecialScroll();
             if (typeof forgetCategoryScroll === 'function') forgetCategoryScroll();
             selectedSpecial = null;
             currentCategoryId = null;
             currentSubId = null;
             renderSpecialOverview();
+            // ★ 概览自己也有记忆（specialPageCaches['__overview__']），没有就回顶部 ——
+            //   不摆这一下，概览会顶着刚才那个专题的进度出现。
+            settleSpecialScroll();
             return;
         }
         // 选中专题，清除年代筛选
+        // ★ 顺序不能反：rememberSpecialScroll() 靠 selectedSpecial 认路，
+        //   必须在覆盖它**之前**调用，否则存下来的是新专题的 key、旧位置就丢了。
+        rememberSpecialScroll();
         selectedSpecial = catId;
         currentCategoryId = catId;
         currentSubId = null;
@@ -391,6 +400,9 @@ function onSidebarItemClickInner(catId) {
         renderSpecialContent();
         applySpecialLayout();      // ★ 从侧边栏进入河山也强制全屏
         triggerViewAnimation();
+        // ★ 所有专题共用 'special_container' 这一个容器，而它不会被复位 ——
+        //   必须显式摆到**本专题自己**的位置，否则新专题会沿用上一个专题的滚动进度。
+        settleSpecialScroll();
         return;
     }
 

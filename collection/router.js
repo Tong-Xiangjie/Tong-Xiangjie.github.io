@@ -59,7 +59,13 @@ function buildRoute() {
     if (currentMode === MODE.ARTICLES) {
         seg.push('articles');
         if (currentArticleView === VIEW.READER && currentArticleIndex >= 0) {
-            seg.push(String(currentArticleIndex));
+            // ★ 篇段用"稳定键"（a-<slug>）而不是序号：序号是 collectedArticles 的全局下标，
+            //   前面增删一篇就会让分享出去的链接指到**别的**文章（用户报的问题，见
+            //   article.js 顶部 articleSlugOf 的说明）。生成与解析都收口在
+            //   articleRouteSegment() / articleIndexOfSlug() 里，别在这儿手拼。
+            seg.push((typeof articleRouteSegment === 'function')
+                ? articleRouteSegment(currentArticleIndex)
+                : String(currentArticleIndex));
         }
         // ★ 侧边栏选中的分类/子分类也要进 URL，否则文章深链接"不灵敏"：
         //   同一个 #articles/12 会因为侧边栏停在不同分类而显示不同的列表，
@@ -223,10 +229,10 @@ function parseRoute(hash) {
     if (headMode === MODE.SETTINGS) return { mode: 'settings' };
 
     if (headMode === MODE.ARTICLES) {
-        // ★ 序号段 / 分类段 / 搜索段可以任意顺序出现，所以逐段判定而不是写死
-        //   parts[1]/parts[2]：#articles/12、#articles/c-xxx、#articles/q-水印/sm-title
+        // ★ 篇段 / 分类段 / 搜索段可以任意顺序出现，所以逐段判定而不是写死
+        //   parts[1]/parts[2]：#articles/a-<slug>、#articles/c-xxx、#articles/q-水印/sm-title
         //   以及它们的任意组合都认。
-        const r = { mode: 'articles', articleIndex: -1, categoryId: null, searchKeyword: undefined, searchMode: null };
+        const r = { mode: 'articles', articleIndex: -1, articleSegment: null, articleSlug: null, categoryId: null, searchKeyword: undefined, searchMode: null };
         for (const p of parts.slice(1)) {
             if (p.startsWith('c-')) { r.categoryId = safeDecode(p.slice(2)); continue; }
             if (p.startsWith('q-')) { r.searchKeyword = safeDecode(p.slice(2)); continue; }
@@ -239,8 +245,14 @@ function parseRoute(hash) {
             //   持久化设置（不再是每条链接都带的状态），这里**照旧吞掉不报错**，
             //   免得老链接落到 parseInt 上被当成文章序号。
             if (p.startsWith('fz-')) continue;
+            // ★ a-<slug>：文章的"稳定键"段（新链接）。这里**只原样记下来**，不解析成下标 ——
+            //   收集文章是惰性的（只在进入文章板块时才跑），首次直进深链接时
+            //   collectedArticles 还是空数组，在这儿解析一律得 -1，
+            //   分享出去的链接会静默退化成"打开列表页"。真正的解析在 enterArticlesTab()。
+            //   原样记下来还兼职一件事：shareScopeOf 要用它拼范围（范围必须是 hash 的前缀）。
+            if (p.startsWith('a-')) { r.articleSegment = p; r.articleSlug = safeDecode(p.slice(2)); continue; }
             const idx = parseInt(p, 10);
-            if (Number.isFinite(idx)) r.articleIndex = idx;
+            if (Number.isFinite(idx)) { r.articleIndex = idx; r.articleSegment = p; }
         }
         return r;
     }
@@ -420,8 +432,12 @@ async function applyRoute(hash, opts) {
             }
             if (route.searchMode) articleSearchMode = route.searchMode;
             articleState = Object.assign({}, articleState, {
-                currentView: route.articleIndex >= 0 ? VIEW.READER : VIEW.LIST,
+                currentView: (route.articleIndex >= 0 || route.articleSlug) ? VIEW.READER : VIEW.LIST,
                 currentIndex: route.articleIndex >= 0 ? route.articleIndex : -1,
+                // ★ 稳定键原样带进快照：此刻数据可能还没收集，解析不了 → 放到
+                //   enterArticlesTab()（它在 collectAllArticles() 之后，那里才认得 slug）。
+                //   没有键就显式清掉，免得上一篇文章的键在这里复活。
+                articleSlug: route.articleSlug || null,
                 // ★ 分类也要吃进快照：enterArticlesTab 是从 articleState 恢复
                 //   currentArticleCategory 的，不写的话链接里的分类段无效。
                 currentCategory: route.categoryId || 'all',

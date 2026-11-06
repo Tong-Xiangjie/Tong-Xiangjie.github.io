@@ -577,6 +577,10 @@ let articlePlainTextCache = {};
 let articleSearchKeyword = '';
 let articleSearchMode = 'title';
 let articleCategoryTree = [];
+// ★ 文章深链的稳定键表（slug → 下标）。为什么需要它见 article.js 的 articleSlugOf()：
+//   深链里的"序号"是 collectedArticles 的下标，前面增删一篇会让后面所有文章的
+//   分享链接指到**别的**文章；所以 URL 里改带稳定 slug，这张表把 slug 解回下标。
+let articleSlugIndex = {};
 
 // ========== 独立滚动容器系统 ==========
 const viewScrollContainers = {};
@@ -701,6 +705,47 @@ function restoreCategoryScroll() {
         if (el.scrollTop !== y) el.scrollTop = y;
     });
     return y;
+}
+
+// ========== 专题的滚动位置记忆 ==========
+// 用户报的现象（原话）：「不同专题之间似乎滚动程度会相互影响？」
+//
+// 根因是两件事凑在一起：
+//   ① MODE_REGISTRY 里 special 的 containerKey() 是**固定**的 'special_container'
+//      —— 年份图鉴 / 面额大观 / 方寸山河 / 币海拾年 共用同一个滚动容器；
+//      而 switchViewContainer() 是有意"不清空内容、不重置滚动"的（内容由各渲染函数自理）。
+//   ② 每个专题各自的位置存在 specialPageCaches[selectedSpecial] 里，但它**只在
+//      saveFullState()**（切板块、进设置页）时才写。专题之间互跳的入口
+//      （侧边栏点专题名、点专题概览卡片）全是"直接覆盖 selectedSpecial"，
+//      一覆盖就再也拿不到旧 key，旧位置从此没人记。
+//   合起来就是：进一个从没去过的专题时，既没有记忆可还原、也没人把容器复位，
+//   新专题就顶着**上一个专题**的滚动位置打开。实测：年份图鉴滚到 320px 后
+//   切面额大观（首次），面额大观也从 320px 开始，且 specialPageCaches 全空。
+//
+// 收口成这一对：离开前 remember()，进入后 settle()。
+// 注意别把"进专题"和"专题内部换筛选/换子类"混为一谈：后者不能动滚动位置
+//（那条路由各渲染函数自己的缓存还原负责，见 special.js 的 rerenderTimeline）。
+function rememberSpecialScroll() {
+    if (currentMode !== MODE.SPECIAL || isSettingsMode) return;
+    // ★ 必须复用 saveFullState()：它里面本来就是"按 selectedSpecial 归档"的那份实现
+    //   （专题存 scrollY+currentSubId、地图只存 currentSubId、没选专题就存 __overview__），
+    //   在这里再写一遍等于多一份会漂移的实现。
+    //   ★ 也只能在改 selectedSpecial **之前**调用 —— 它就是靠这个变量认路的。
+    saveFullState();
+}
+
+function settleSpecialScroll() {
+    if (currentMode !== MODE.SPECIAL || isSettingsMode) return;
+    // 目标页自己的记忆：专题用它的 id，概览用 '__overview__'；没有记忆就是顶部。
+    const key = (selectedSpecial === null || selectedSpecial === undefined) ? '__overview__' : selectedSpecial;
+    const cache = specialPageCaches[key];
+    const y = (cache && cache.scrollY) ? cache.scrollY : 0;
+    const el = viewScrollContainers[getContainerKey()];
+    if (!el) return;
+    // ★ 先逼一次布局再设：刚写完 innerHTML 时浏览器还没算出新的 scrollHeight，
+    //   这时候设一个偏大的值会被钳到**旧**内容的上限（渲染函数里那句"等一帧"同一个原因）。
+    void el.scrollHeight;
+    el.scrollTop = y;
 }
 
 // ========== 文章板块的滚动位置记忆 ==========

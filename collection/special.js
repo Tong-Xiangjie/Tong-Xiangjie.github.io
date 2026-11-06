@@ -288,10 +288,20 @@ function renderSpecialOverview() {
 
 // ========== 点击专题 ==========
 function onSpecialOverviewItemClick(configId, initialGroup) {
+    // ★ 进专题前先存**离开的那个**（专题概览，或上一个专题）的滚动位置。
+    //   必须在下面那句 `selectedSpecial = configId`（在 Inner 里）之前 ——
+    //   rememberSpecialScroll() 是靠 selectedSpecial 认路的。
+    //   深链接也走这个函数（router.js 里"模拟点击"），所以这一处收口全覆盖。
+    rememberSpecialScroll();
     // ★ 收口写 URL（深链接）：这是专题内的导航/筛选动作，完成后同步地址栏
     try {
         onSpecialOverviewItemClickInner(configId, initialGroup);
     } finally {
+        // ★ 放进 finally：Inner 里地图/时间轴那两支是提前 return 的，
+        //   写在函数末尾会漏掉它们（"从概览进地图"正好是最容易漏的一条）。
+        //   所有专题共用 'special_container' 一个容器且没人复位，
+        //   不摆这一下，新专题就会顶着上一个专题的滚动进度打开。
+        settleSpecialScroll();
         if (typeof syncRoute === 'function') syncRoute();
     }
 }
@@ -751,6 +761,9 @@ function backFromShanheToOverviewInner() {
     shanheMapCache = null;
     if (shanheListRO) { shanheListRO.disconnect(); shanheListRO = null; }
     renderSpecialOverview();
+    // ★ 概览有它自己的记忆（specialPageCaches['__overview__']），没有就回顶部 ——
+    //   它是和所有专题共用的那一个容器，不摆就还停在山河的进度上。
+    settleSpecialScroll();
 }
 
 function shanheListCols(app) {
@@ -1500,6 +1513,8 @@ function backFromTimelineInner() {
     currentCategoryId = null;
     currentSubId = null;
     renderSpecialOverview();
+    // ★ 同 backFromShanheToOverviewInner：把容器摆到概览自己的位置上（没记忆就是顶部）。
+    settleSpecialScroll();
 }
 
 // ---------- 按月份热力图（年 × 月） ----------

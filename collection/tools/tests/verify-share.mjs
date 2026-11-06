@@ -109,6 +109,13 @@ section('③ 前缀匹配必须落在 / 边界上');
     check(scopeOf({ mode: 'articles', articleIndex: -1, categoryId: 'water' }) === 'articles/c-water', '小板块 → articles/c-water');
     check(scopeOf({ mode: 'articles', articleIndex: 12, categoryId: 'water' }) === 'articles/12/c-water',
         '小板块里的某一篇 → 序号在前、c- 在后（必须是 hash 的前缀）');
+    // ★ 新写法（稳定键 a-<slug>）：范围必须用 parseRoute **原样记下来**的那个段，
+    //   不能自己拼序号 —— 范围是 hash 前缀，拼错一个字就会与收件人落地的 hash 对不上。
+    check(scopeOf({ mode: 'articles', articleSegment: 'a-macau_boc100years', articleIndex: -1, categoryId: null }) === 'articles/a-macau_boc100years',
+        '稳定键那一篇 → articles/a-macau_boc100years（原样进范围，不还原成序号）');
+    check(match('articles/a-macau_boc100years', 'articles/a-macau_boc100years') === true
+        && match('articles/a-macau_boc100years', 'articles/a-amsx_2012') === false,
+        '稳定键范围只放行那一篇（换了 slug 也没有松开成整块放行）');
     check(match('articles/12', 'articles/12') === true && match('articles/12', 'articles/13') === false,
         '只放行那一篇，别的篇不放行');
     check(match('articles/c-water', 'articles/c-water') === true && match('articles/c-water', 'articles/c-ink') === false,

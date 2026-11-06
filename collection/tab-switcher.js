@@ -434,6 +434,20 @@ function enterArticlesTab() {
 
     if (collectedArticles.length === 0) collectAllArticles();
 
+    // ★ 深链里的文章"稳定键"（a-<slug>）在这里才解析成下标 —— 必须等上面那句
+    //   collectAllArticles() 跑完。它是**惰性**的（只在进入文章板块时跑），
+    //   首次直进深链接时 collectedArticles 还是空的，所以 parseRoute 里故意不解析
+    //   （在那儿解析一律得 -1 ⇒ 分享出去的链接会静默退化成"打开列表页"）。
+    //   键查不到 = 那篇文章被删了（或链接抄错）⇒ 退回列表，而不是停在一个空阅读器上。
+    if (articleState.articleSlug) {
+        const bySlug = (typeof articleIndexOfSlug === 'function') ? articleIndexOfSlug(articleState.articleSlug) : -1;
+        if (bySlug >= 0) articleState.currentIndex = bySlug;
+        else articleState.currentView = VIEW.LIST;
+        // 用完即弃：这一步之后一律以内存里的下标为准（saveFullState() 重新快照 articleState
+        // 时本来也不会带上它，这里显式清掉是为了"同一次会话里别留着上一篇文章的键"）。
+        articleState.articleSlug = null;
+    }
+
     currentArticleView = articleState.currentView || VIEW.LIST;
     currentArticleCategory = articleState.currentCategory || 'all';
     currentArticleIndex = (articleState.currentIndex !== undefined && articleState.currentIndex >= 0)
