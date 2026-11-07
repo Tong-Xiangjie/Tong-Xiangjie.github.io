@@ -27,6 +27,9 @@ series: [
             varieties: [
                 {
                     varietyName: "1914年 5元 火车头",
+                    readmes: [
+                        { title: "民国三年版交通银行伍圆券精制版假钞分析", content: "file:readmes/republic_1914_5_yuan_fake_note_zhihu_lee.html" }
+                    ],
                     copies: [
                         {
                             copyId: 26073358,
