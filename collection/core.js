@@ -734,6 +734,24 @@ function rememberSpecialScroll() {
     saveFullState();
 }
 
+// 读回"上次离开这个专题时停在哪个子类 / 哪个省"。
+//
+// ★ 这个"读出口"是补上来的：写入口（saveFullState 的 SPECIAL 分支）一直是好的
+//   —— 离开板块时 onTabClickInner 先 saveFullState()，所以切走那一刻的位置、
+//   子类（山河就是省份）都已经归档了。但**从来没有人把它读回来**：
+//   全站只有路由（applySpecialSubView）会在深链接时还原子类，而
+//   "切到别的板块再切回来"这条路是 enterSpecialTab 里一句 `currentSubId = null`，
+//   把子类连同省份一起清掉了。
+//   山河的症状最明显（用户实测）：点进某个省时 shanheViewMode 被设成 'list'
+//   （那是为了让深链带上 view-list），切回来时"视图模式还在、省份没了"，
+//   渲染出来正好是**列表视图** —— 既不是他看的那个省，也不是地图。
+function restoreSpecialSubId(id) {
+    if (id === null || id === undefined) return null;
+    const cache = specialPageCaches[id];
+    // 用 || 而不是 ??：空字符串同样是"没有子类"（'' 是 selectedSpecial 的哨兵之一）
+    return (cache && cache.currentSubId) ? cache.currentSubId : null;
+}
+
 function settleSpecialScroll() {
     if (currentMode !== MODE.SPECIAL || isSettingsMode) return;
     // 目标页自己的记忆：专题用它的 id，概览用 '__overview__'；没有记忆就是顶部。

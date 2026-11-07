@@ -12,6 +12,13 @@ let shanheMapCache = null;
 function dropShanheMapCache() { shanheMapCache = null; }
 let shanheViewMode = 'map';
 
+// ★ "这次渲染是地图⇄列表切换"的标记（作用是**让页头原地不动**，见 shanheBodyFor）。
+//   置位期间渲染不播容器整页淡入 —— triggerViewAnimation() 是加在滚动容器上的，
+//   页头也在那个容器里，于是切视图时页头会跟着淡/位移。
+//   为什么要一个模块级标记：地图那条路是异步的（fetch SVG），淡入发生在 await 之后，
+//   渲染函数入口把它捕获进局部变量再往下传，异步补完时才知道"这次别动页头"。
+let shanheKeepHeaderOnce = false;
+
 // ★ 时间轴排序状态
 let timelineSortOrder = 'desc';
 let timelineFilterYear = '全部';
@@ -734,14 +741,29 @@ function shanheSwitchViewInner(view) {
     const config = getSpecialConfigs().find(c => c.id === selectedSpecial);
     if (!config) return;
 
-    const app = getRenderContainer();
-    if (app) {
-        // 进入方向：去列表从右侧滑入，回地图从左侧滑入（有方向感，而不是又一次"向上淡入"）
-        app.classList.remove('shanhe-view-enter', 'shanhe-view-enter-left', 'shanhe-view-enter-right');
-        void app.offsetWidth;
-        app.classList.add(view === 'list' ? 'shanhe-view-enter-right' : 'shanhe-view-enter-left');
+    // ★ 切视图时页头（返回专题 / 标题 / 地图·列表按钮）必须原地不动 —— 用户原话：
+    //   「在切换地图和列表视图的时候，← 返回专题 / 方寸山河 / 点击查看山河壮阔 /
+    //     地 图 / 列 表这些最好都不要动，应该固定，只有下面的东西动」。
+    //   两件事配合才做得到：① 渲染只重画 .shanhe-view-body（见 shanheBodyFor）；
+    //   ② 不播容器整页淡入（下面这个标记），方向感交给内容区自己的横向滑入。
+    shanheKeepHeaderOnce = true;
+    try {
+        renderShanheContent(config);
+    } finally {
+        shanheKeepHeaderOnce = false;
     }
-    renderShanheContent(config);
+    shanheSlideBody(view);
+}
+
+// 内容区的横向滑入：去列表从右侧滑入，回地图从左侧滑入（有方向感，而不是又一次"向上淡入"）。
+// ★ 动画加在**内容区**上而不是整个滚动容器上：容器里还有页头，加在容器上页头会一起滑。
+function shanheSlideBody(dir) {
+    const app = getRenderContainer();
+    const body = app ? app.querySelector('.shanhe-view-body') : null;
+    if (!body) return;
+    body.classList.remove('shanhe-view-enter-left', 'shanhe-view-enter-right');
+    void body.offsetWidth;      // 强制回流：连点两次同一个方向也要重播，而不是硬切
+    body.classList.add(dir === 'list' ? 'shanhe-view-enter-right' : 'shanhe-view-enter-left');
 }
 
 function backFromShanheToOverview() {
@@ -774,6 +796,10 @@ function shanheListCols(app) {
 
 function renderShanheList(config) {
     const app = getRenderContainer();
+    // ★ 页头是否原地不动：切视图时为 true（见 shanheKeepHeaderOnce 的说明）
+    const keepHeader = shanheKeepHeaderOnce;
+    const body = shanheBodyFor(config);
+    if (!body) return;
     const data = getData(config.dataKey);
     const items = data ? (data.items || data) : [];
 
@@ -795,11 +821,11 @@ function renderShanheList(config) {
     for (const g of sortedGroups) for (const item of g.items) flat.push({ group: g, item });
     specialItemsList = flat.map(f => f.item);
 
-    let html = shanheHeaderHtml(config);
+    let html = '';
     if (flat.length === 0) {
         html += '<div class="empty-state">' + emptyArt('shanhe') + '还……还没有风景(╥_╥)</div>';
-        app.innerHTML = html;
-        triggerViewAnimation();
+        body.innerHTML = html;
+        if (!keepHeader) triggerViewAnimation();
         return;
     }
 
@@ -841,7 +867,7 @@ function renderShanheList(config) {
     }
     html += `</div>`;
 
-    app.innerHTML = html;
+    body.innerHTML = html;
 
     // ★★★ 恢复专题滚动（列表视图） ★★★
     if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
@@ -849,7 +875,7 @@ function renderShanheList(config) {
             app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
         }, 50);
     }
-    triggerViewAnimation();
+    if (!keepHeader) triggerViewAnimation();
 
     if (shanheListRO) shanheListRO.disconnect();
     shanheListRO = new ResizeObserver(() => {
@@ -872,26 +898,58 @@ function shanheHeaderHtml(config) {
     html += `<div class="overview-header shanhe-header-row">`;
     html += `<div><h2>${escapeHtml(config.name)}</h2><p>点击查看山河壮阔</p></div>`;
     html += `<div class="shanhe-view-toggle">`;
-    html += `<button class="shanhe-view-btn ${shanheViewMode === 'map' ? 'active' : ''}" onclick="shanheSwitchView('map')">地 图</button>`;
-    html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" onclick="shanheSwitchView('list')">列 表</button>`;
+    // data-view 是给"页头原地不动时同步高亮"用的（见 shanheBodyFor）：
+    // 页头不再每次重建，就不能靠模板里的 active 类了，必须能按名字找到按钮。
+    html += `<button class="shanhe-view-btn ${shanheViewMode === 'map' ? 'active' : ''}" data-view="map" onclick="shanheSwitchView('map')">地 图</button>`;
+    html += `<button class="shanhe-view-btn ${shanheViewMode === 'list' ? 'active' : ''}" data-view="list" onclick="shanheSwitchView('list')">列 表</button>`;
     html += `</div>`;
     html += `</div>`;
-    // ★ 图例只在地图视图显示：这条色阶说明的是"省份颜色越深 = 藏品越多"，
-    //   而列表视图里省份根本没有上色，摆在那里只是一行无意义的说明
-    //   （用户要求：山河的列表那里不用显示"藏品数量 / 少 → 多"）。
-    //   原来是列表和地图共用这个头部，所以两个视图都会出现。
-    if (shanheViewMode === 'map') {
-        // ★ 图例：原来地图完全没有说明"颜色深浅代表什么"，
-        //   加上深色模式曾经把渐变方向弄反（没数据的省份最亮），
-        //   颜色语义就更猜不出来了。这条渐变条直接复用 --bg-light → --theme-light，
-        //   所以它和地图用的是同一套颜色，明暗切换都自洽。
-        html += `<div class="shanhe-map-legend">`;
-        html += `<span class="shanhe-legend-label">藏品数量</span>`;
-        html += `<span class="shanhe-legend-bar"></span>`;
-        html += `<span class="shanhe-legend-label">少 → 多</span>`;
-        html += `</div>`;
-    }
     return html;
+}
+
+// 图例属于**内容区**，不属于页头：它说的是"省份颜色越深 = 藏品越多"，
+// 而列表视图里省份根本没上色，摆在那里只是一行无意义的说明
+// （用户要求：山河的列表那里不用显示"藏品数量 / 少 → 多"）。
+// 放在内容区还有个好处：切视图时它跟着内容一起滑入/滑出，页头一个字节都不用动。
+function shanheLegendHtml() {
+    // 复用 --bg-light → --theme-light，与地图用的是同一套颜色，明暗切换都自洽
+    return `<div class="shanhe-map-legend">`
+        + `<span class="shanhe-legend-label">藏品数量</span>`
+        + `<span class="shanhe-legend-bar"></span>`
+        + `<span class="shanhe-legend-label">少 → 多</span>`
+        + `</div>`;
+}
+
+// ========== 方寸山河：页头固定 + 内容区 ==========
+// 用户要求（原话）：「在切换地图和列表视图的时候，← 返回专题 / 方寸山河 /
+//   点击查看山河壮阔 / 地 图 / 列 表这些最好都不要动，应该固定，只有下面的东西动」。
+//
+// 原来每个渲染函数都是 `app.innerHTML = shanheHeaderHtml(config) + 内容`，于是
+// "切视图"= 整页重建 + 整容器播横向滑入动画，页头跟着一起闪、一起滑。
+//
+// 现在把内容区摘成一个子容器 .shanhe-view-body：
+//   · 页头只在"当前挂的不是这套页头"时才重建；
+//   · 渲染函数只往 .shanhe-view-body 里写（地图节点也挂进它里面，
+//     否则下次 body.innerHTML 换不掉它、地图会叠在列表上）；
+//   · 横向滑入动画只加在 .shanhe-view-body 上（见 shanheSlideBody）。
+//
+// 怎么判断"当前挂的是不是这套页头"：认这个子容器在不在。
+//   省份详情页是**另一套**页头（"← 返回地图" + 省份名，见 renderShanheProvince），
+//   它整页替换容器内容 ⇒ 子容器随之消失 ⇒ 从省份页回地图时该重建就重建。
+function shanheBodyFor(config) {
+    const app = getRenderContainer();
+    if (!app) return null;
+    let body = app.querySelector('.shanhe-view-body');
+    if (!body) {
+        app.innerHTML = shanheHeaderHtml(config) + '<div class="shanhe-view-body"></div>';
+        body = app.querySelector('.shanhe-view-body');
+    }
+    // 页头留在原地时，唯一需要跟着变的是"哪个视图按钮高亮"
+    // （图例不在这里，它跟着内容区走）
+    app.querySelectorAll('.shanhe-view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-view') === shanheViewMode);
+    });
+    return body;
 }
 
 // ========== 方寸山河：地图 ==========
@@ -917,9 +975,13 @@ function applyShanheStyling(svg, items, config) {
     buildShanheInset(svg, countByProvince, maxCount, themeLightRGB, config);
 }
 
-function loadShanheViaObject(app, config, items, mapFile) {
+function loadShanheViaObject(app, config, items, mapFile, keepHeader) {
     return new Promise((resolve, reject) => {
-        const loadEl = app.querySelector('.shanhe-map-loading');
+        // ★ 地图节点要挂进**内容区**（页头之外那块），不能挂到滚动容器上：
+        //   挂容器上的话它就成了页头的兄弟，下一次 body.innerHTML 换内容时换不掉它，
+        //   切到列表后地图还在那儿叠着。
+        const body = shanheBodyFor(config) || app;
+        const loadEl = body.querySelector('.shanhe-map-loading');
         // ★★★ 保留进度条，只更新文字 ★★★
         const textEl = loadEl?.querySelector('.loading-text');
         if (textEl) textEl.textContent = '正在把地图搬过来（本地模式）……';
@@ -950,7 +1012,7 @@ function loadShanheViaObject(app, config, items, mapFile) {
                 const wrap = document.createElement('div');
                 wrap.className = 'shanhe-map-wrap';
                 wrap.appendChild(svg);
-                app.appendChild(wrap);
+                body.appendChild(wrap);
 
                 applyShanheStyling(svg, items, config);
 
@@ -961,7 +1023,7 @@ function loadShanheViaObject(app, config, items, mapFile) {
                         app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
                     }, 50);
                 }
-                triggerViewAnimation();
+                if (!keepHeader) triggerViewAnimation();
                 resolve();
             } catch (err) {
                 reject(err);
@@ -976,13 +1038,17 @@ function loadShanheViaObject(app, config, items, mapFile) {
         if (loadEl) {
             loadEl.parentNode.insertBefore(obj, loadEl);
         } else {
-            app.appendChild(obj);
+            body.appendChild(obj);
         }
     });
 }
 
 async function renderShanheContent(config) {
     const app = getRenderContainer();
+    // ★ 在入口就捕获"这次渲染是不是切视图"：地图那条路是异步的（fetch SVG，
+    //   补完时可能已经过了几十上百毫秒），到那时模块级标记早被清掉了，
+    //   所以必须在这里存进局部变量跟着往下走（见 shanheKeepHeaderOnce）。
+    const keepHeader = shanheKeepHeaderOnce;
     const data = getData(config.dataKey);
     const items = data ? (data.items || data) : [];
     const mapFile = config.mapFile || 'china_map.svg';
@@ -1005,25 +1071,29 @@ async function renderShanheContent(config) {
             return;
         }
 
+        // ★ 页头固定、图例跟着内容区走（见 shanheBodyFor / shanheLegendHtml）
+        const body = shanheBodyFor(config);
+        if (!body) return;
+
         // ★★★ 构建带脉冲条的加载提示 ★★★
-        app.innerHTML = shanheHeaderHtml(config) +
+        body.innerHTML = shanheLegendHtml() +
             `<div class="shanhe-map-loading">
                 <div class="loading-text">且待万里山河在你面前徐徐展开</div>
                 <div class="shanhe-map-loading-bar"><div class="fill"></div></div>
              </div>`;
-        const loadEl = app.querySelector('.shanhe-map-loading');
+        const loadEl = body.querySelector('.shanhe-map-loading');
 
         if (shanheMapCache && shanheMapCache.wrap) {
-            const removeLoad = app.querySelector('.shanhe-map-loading');
+            const removeLoad = body.querySelector('.shanhe-map-loading');
             if (removeLoad) removeLoad.remove();
             shanheMapCache.wrap.querySelectorAll('.shanhe-label.active').forEach(t => t.classList.remove('active'));
-            app.appendChild(shanheMapCache.wrap);
+            body.appendChild(shanheMapCache.wrap);
             if (selectedSpecial && specialPageCaches[selectedSpecial]?.scrollY !== undefined) {
                 setTimeout(() => {
                     app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
                 }, 50);
             }
-            triggerViewAnimation();
+            if (!keepHeader) triggerViewAnimation();
             return;
         }
 
@@ -1031,7 +1101,7 @@ async function renderShanheContent(config) {
 
         try {
             if (isFileProtocol) {
-                await loadShanheViaObject(app, config, items, mapFile);
+                await loadShanheViaObject(app, config, items, mapFile, keepHeader);
             } else {
                 const currentRequestId = ++shanheRequestId;
                 const res = await fetch(mapFile);
@@ -1039,17 +1109,17 @@ async function renderShanheContent(config) {
                 const svgText = await res.text();
 
                 if (currentRequestId !== shanheRequestId) return;
-                if (!app.contains(loadEl)) return;
+                if (!body.contains(loadEl)) return;
 
                 const wrap = document.createElement('div');
                 wrap.className = 'shanhe-map-wrap';
                 wrap.innerHTML = svgText;
-                app.appendChild(wrap);
+                body.appendChild(wrap);
 
                 const svg = wrap.querySelector('svg');
                 if (!svg) throw new Error('SVG中未找到<svg>');
 
-                const removeLoad = app.querySelector('.shanhe-map-loading');
+                const removeLoad = body.querySelector('.shanhe-map-loading');
                 if (removeLoad) removeLoad.remove();
                 shanheMapCache = { wrap };
 
@@ -1060,11 +1130,13 @@ async function renderShanheContent(config) {
                         app.scrollTop = specialPageCaches[selectedSpecial].scrollY || 0;
                     }, 50);
                 }
-                triggerViewAnimation();
+                if (!keepHeader) triggerViewAnimation();
             }
         } catch (e) {
-            if (app.contains(loadEl)) {
-                app.innerHTML = shanheHeaderHtml(config) +
+            if (body.contains(loadEl)) {
+                // ★ 只换内容区：出错时页头（返回专题/标题/视图切换）照样在原处，
+                //   用户还能从这儿切到列表或返回，不至于被困在一个"什么都没有"的页面上。
+                body.innerHTML =
                     `<div class="empty-state">地图……它……它不见力(╥_╥)<br><span style="font-size:0.75rem;color:var(--text-secondary);">报错信息：${escapeHtml(e.message)}</span></div>`;
             }
         }
@@ -1155,9 +1227,18 @@ function setupShanheState(el, pid, count, maxCount, themeLightRGB, config, svg, 
     // ★★★ 点击省份时保存当前地图状态 ★★★
     el.addEventListener('click', () => {
         saveFullState(); // 保存滚动和当前省份
+        // ★ 进省份 = 一次导航，视图模式跟着变成 list 是为了让深链写出 view-list
+        //   （省份详情本身是第三张页面，见 renderShanheProvince）。
         shanheViewMode = 'list';
         currentSubId = pid;
-        renderShanheContent(config);
+        try {
+            renderShanheContent(config);
+        } finally {
+            // ★ 收口写 URL：这里原来**没有**同步地址栏，后果是"点进某个省之后刷新
+            //   或分享，回到的是地图 / 列表"—— 地址栏还停在 #special/shanhe。
+            //   本文件里其它导航入口（切换视图、返回专题、返回地图）都是这个写法。
+            if (typeof syncRoute === 'function') syncRoute();
+        }
         setTimeout(() => {
             const provinceName = shanheProvinceNames[pid] || pid;
             const strips = document.querySelectorAll('.shanhe-list-strip');

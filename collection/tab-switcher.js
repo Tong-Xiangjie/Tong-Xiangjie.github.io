@@ -170,7 +170,17 @@ function enterSpecialFromTab() {
         }
         settingsReturnState = null;
     } else {
-        currentSubId = null;
+        // ★ 不能无条件清空 currentSubId：它是"我在这个专题里的哪个子类"，
+        //   山河那张地图上就是"我在哪个省"。
+        //   离开板块时 onTabClickInner 已经先 saveFullState() 把子类归档进
+        //   specialPageCaches 了（见 core.js 的 restoreSpecialSubId 注释），
+        //   这里把它读回来 —— 和"从设置页返回"那条路（上面 restore 分支读
+        //   settingsReturnState.currentSubId）保持同一套语义：切走再回来 = 还在原处。
+        //   用户实测的 bug：点进某个省 → 切到纸币 → 切回专题，落在**列表视图**
+        //   （视图模式还是 list、省份却被清成了 null）。
+        currentSubId = (typeof restoreSpecialSubId === 'function')
+            ? restoreSpecialSubId(selectedSpecial)
+            : null;
         if (selectedSpecial !== null && selectedSpecial !== undefined) {
             currentCategoryId = selectedSpecial;
         }

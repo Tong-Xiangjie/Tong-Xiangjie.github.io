@@ -705,6 +705,31 @@ function applySpecialSubView(route) {
         && route.shanheView && typeof shanheViewMode === 'string' && shanheViewMode !== route.shanheView) {
         if (typeof shanheSwitchView === 'function') shanheSwitchView(route.shanheView);
     }
+    // ★ 山河的"省"也要还原，而且必须放在上面那段**之后**：
+    //   山河的省不是 groupBy 自动生成的子类（走不到上面那段 children 的匹配），
+    //   它自己就是 currentSubId，而 shanheSwitchViewInner() 会清 currentSubId
+    //   （切视图 = 退出省份），顺序反了就会被它抹掉。
+    //   ★ 写入口一直是好的：buildRoute 会把省写成 g<省> 段（#special/shanhe/gxianggang/view-list）；
+    //   缺的只是"读回来"—— 结果是刷新或分享那条链接会掉到地图/列表上，
+    //   与用户报的"切 tab 回来变列表"是同一件事的两个入口。
+    //   校验用**数据里真有的省份**（而不是链接里那串）：写了已删除的省份就安静退回地图，
+    //   不会卡在一个空页面上 —— 与上面 children 校验同一个口径。
+    if (typeof selectedSpecial !== 'undefined' && String(selectedSpecial) === 'shanhe'
+        && route.groupId) {
+        const cfg = (typeof getSpecialConfigs === 'function') ? getSpecialConfigs().find(c => c.id === 'shanhe') : null;
+        const data = (cfg && typeof getData === 'function') ? getData(cfg.dataKey) : null;
+        const items = data ? (data.items || data) : [];
+        const known = items.some(it => String(it.province) === String(route.groupId));
+        if (known && String(currentSubId || '') !== String(route.groupId)) {
+            currentSubId = route.groupId;
+            if (cfg && typeof renderShanheContent === 'function') renderShanheContent(cfg);
+            // ★ 必须再同步一次地址栏：上面 shanheSwitchView() 那一步会顺手把 URL 改写成
+            //   "不带省的列表"（换视图 = 退出省份，它自己的 finally 里就 syncRoute 了），
+            //   而这里又把省还回来了 —— 不同步的话页面停在某个省、地址栏却写着列表，
+            //   刷新一下位置就丢了。
+            if (typeof syncRoute === 'function') syncRoute();
+        }
+    }
     if (typeof selectedSpecial !== 'undefined' && String(selectedSpecial) === 'timeline'
         && route.timelineOrder && typeof timelineSortOrder === 'string' && timelineSortOrder !== route.timelineOrder) {
         if (typeof setTimelineOrder === 'function') setTimelineOrder(route.timelineOrder);
