@@ -18,10 +18,10 @@ on:
   push:
     branches: [main]
     paths:
-      # game/ 下的任何改动都可能让名单过期（新增/删除/改名游戏）
+      # game/ 下的任何改动都可能让名单过期（新增/删除/改名游戏）。
+      # 生成物 game/index.json 不单独排除：它由本 workflow 提交，commit message 带
+      # [skip ci]，本来就不会再触发一次。
       - 'game/**'
-      # 但这个名字本身就是生成物，它变了不用再跑一次
-      - '!game/index.json'
       # 本 workflow 自身改动时也跑一次，便于验证
       - '.github/workflows/game-index.yml'
   workflow_dispatch:
