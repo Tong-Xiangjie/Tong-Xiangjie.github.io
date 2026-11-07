@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --theme: #1677ff;
     --bg: #eef4ff;
     --bg-light: #f6f9ff;
@@ -1016,6 +1016,28 @@ html[data-hm-cold] .top-search-container {
 .article-reader p { margin: 12px 0; }
 .article-reader img { max-width: 100%; height: auto; display: block; margin: 10px auto; border-radius: 6px; aspect-ratio: auto 5 / 3; background: var(--thumb-bg); cursor: zoom-in; }
 .article-reader center { display: block; text-align: center; }
+/* ★ 正文里的"引用 / 注释块"：写法是行内样式
+     <p style="background:var(--bg);border-left:3px solid var(--theme);padding:…">
+   （正文是 readmes/*.html 里的**原始 HTML**：23 处，18 个 div + 5 个 p。）
+   ★ 问题：那个 background:var(--bg) 里的 --bg 就是**页面底色**（实测 .content / body
+     都是 --bg，.article-reader 自己没有底色），铺上去等于没铺 —— 用户看到的就只剩
+     左边那条主题色竖线（"原本填充色应该和其他不一样"）。
+   ★ 为什么不在内容里改：23 处分散在 11 个 readme 里，改内容是一次性劳动，而且以后
+     新文章照抄这个写法还会再错。所以在阅读器这一层统一给个底色，一处生效。
+   ★ 必须 !important：压的是内容里的**行内**样式（与下面表头那条同理）。
+   ★ 底色取 --row-hover-bg（= 暗色 rgba(255,255,255,0.14) / 浅色 rgba(0,0,0,0.10)）。
+     为什么是它、而不是 --card-bg 这种"实色面板"：
+       ① 它本来就是**半透明浮层**，与"引用块=一层浅浅的底"是同一个用法；
+       ② 全站只有它按"铺在四种真实底色上都量过对比度"设计过（theme.js 里那段实测：
+          深色 1.39~1.47、浅色 1.25），而 --card-bg / --bg-light 相对页面底只有
+          1.07 / 1.03 —— 后者按站里自己的口径就是"几乎分不开"，等于没修；
+       ③ 它已经用 @property 注册、并挂在 html.theme-anim 的过渡表里，
+          切换明暗/主题色时会跟着一起补间，不会因为改了这一处又多出一个"突变点"。
+   ★ 选择器匹配"有 border-left 且描边是 solid var(--theme)"：只认这一种写法，
+     gkq_zhihu.html 里那种金色描边（#daa520）不属于此列，保持原样。 */
+.article-reader [style*="border-left"][style*="solid var(--theme)"] {
+    background-color: var(--row-hover-bg, rgba(0, 0, 0, 0.08)) !important;
+}
 /* 鈽?鏂囩珷姝ｆ枃閲岀殑琛ㄦ牸锛氭鏂囨槸 readmes/*.html 閲岀殑**鍘熷 HTML**锛岄噷闈㈠啓姝讳簡娴呰壊搴曪紝
    50 绡囬噷 31 绡囨湁琛ㄣ€佸叡 49 寮狅紝鍏朵腑 38 琛岀殑琛ㄥご鍐欐垚
      <tr style="background-color: #f5f7fa; 鈥?>      锛堝彟鏈?2 脳 #fafbfc锛?
