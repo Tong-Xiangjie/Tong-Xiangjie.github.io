@@ -158,27 +158,39 @@ function renderSettingsPage() {
     ], getColorSchemeMode(), 'setColorSchemeMode');
     html += `</div>`;
 
-    // 界面风格（与「明暗」「主题色」并列的第三个维度），开关式：默认关闭 = 标准实色
-    html += `<div class="settings-section">`;
-    html += `<h3>界面风格</h3>`;
-    html += renderToggleRow('uiStyleSwitch', '液态玻璃', isGlassStyle(), 'toggleUIStyle()',
-        '液态玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
-    html += `</div>`;
+    // 界面风格（与「明暗」「主题色」并列的第三个维度），开关式：默认关闭 = 标准实色。
+    //
+    // ★ 液态玻璃当前**封存**（见 theme.js 的 LIQUID-GLASS-DISABLED）：这一整块都不渲染 ——
+    //   连「界面风格」小节标题一起去掉。为什么连标题也去掉：这一节里只有"液态玻璃"
+    //   这一个开关，留下标题就是一行空标题；上一版就是只藏了小开关，标题、标签、
+    //   那段说明照旧显示在「我的」里（用户实测报的就是这个）。
+    //   「背景风格」那四张预览卡同理：它们是液态玻璃的参数，玻璃都没了，摆着只会误导。
+    //   想恢复这个功能：删掉 theme.js 那段 + 这里这个 if（其余代码都还在）。
+    const glassShelved = (typeof window !== 'undefined'
+        && typeof window.isLiquidGlassShelved === 'function'
+        && window.isLiquidGlassShelved());
+    if (!glassShelved) {
+        html += `<div class="settings-section">`;
+        html += `<h3>界面风格</h3>`;
+        html += renderToggleRow('uiStyleSwitch', '液态玻璃', isGlassStyle(), 'toggleUIStyle()',
+            '液态玻璃：面板用背景模糊（backdrop-filter）做出磨砂质感，背景是缓慢漂移、大小不一的彩球。低端设备上会比标准风格更耗电；系统开启「减少透明度」或「减弱动效」时会自动退回实色 / 静止。');
+        html += `</div>`;
 
-    // 背景风格：四张动态预览卡（点击即选）。★ 只在液态玻璃开启时出现 —— 折叠态靠 CSS 过渡丝滑展开。
-    html += '<div class="settings-section glass-bg-section' + (isGlassStyle() ? ' open' : '') + '" id="glassBgSection"' + (isGlassStyle() ? '' : ' aria-hidden="true"') + '>';
-    html += `<h3>背景风格</h3>`;
-    html += `<div class="glass-previews">`;
-    [['orbs', '彩球'], ['nebula', '星云'], ['grid', '网格'], ['sheen', '光带']].forEach(function (opt) {
-        var on = getGlassBg() === opt[0] ? ' active' : '';
-        html += '<button type="button" class="glass-preview-card' + on + '" onclick="pickGlassBg(\'' + opt[0] + '\')">';
-        html += '<span class="glass-preview" data-glass-preview="' + opt[0] + '"></span>';
-        html += '<span class="glass-preview-name">' + opt[1] + '</span>';
-        html += '</button>';
-    });
-    html += `</div>`;
-    html += `<div class="toggle-desc">彩球：许多小正圆缓慢漂移；星云：更大更模糊、更慢；网格：细线网格平移转动；光带：几条斜向直线流动。四者的运动都是随机目标漂移，不会按固定路线来回。</div>`;
-    html += `</div>`;
+        // 背景风格：四张动态预览卡（点击即选）。★ 只在液态玻璃开启时出现 —— 折叠态靠 CSS 过渡丝滑展开。
+        html += '<div class="settings-section glass-bg-section' + (isGlassStyle() ? ' open' : '') + '" id="glassBgSection"' + (isGlassStyle() ? '' : ' aria-hidden="true"') + '>';
+        html += `<h3>背景风格</h3>`;
+        html += `<div class="glass-previews">`;
+        [['orbs', '彩球'], ['nebula', '星云'], ['grid', '网格'], ['sheen', '光带']].forEach(function (opt) {
+            var on = getGlassBg() === opt[0] ? ' active' : '';
+            html += '<button type="button" class="glass-preview-card' + on + '" onclick="pickGlassBg(\'' + opt[0] + '\')">';
+            html += '<span class="glass-preview" data-glass-preview="' + opt[0] + '"></span>';
+            html += '<span class="glass-preview-name">' + opt[1] + '</span>';
+            html += '</button>';
+        });
+        html += `</div>`;
+        html += `<div class="toggle-desc">彩球：许多小正圆缓慢漂移；星云：更大更模糊、更慢；网格：细线网格平移转动；光带：几条斜向直线流动。四者的运动都是随机目标漂移，不会按固定路线来回。</div>`;
+        html += `</div>`;
+    }
     html += `<div class="settings-section">`;
     html += `<h3>主题色</h3>`;
     html += `<div class="theme-colors" id="settingsThemeColors">`;

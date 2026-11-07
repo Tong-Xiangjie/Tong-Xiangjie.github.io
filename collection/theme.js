@@ -719,11 +719,12 @@ function themeSignature() {
 
 // ================= LIQUID-GLASS-DISABLED =================
 // 用户决定：液态玻璃整体停用。原因是它会让整页闪（覆盖整页的背景层带入场动画，重播时整页淡入）。
-// 这里做三件事，保证任何入口都回不到玻璃模式：
+// 这里做四件事，保证任何入口都回不到玻璃模式：
 //   1) 启动即强制 data-ui-style=standard，并清掉本地残留；
 //   2) 把 setUIStyle 换成空实现（设置页的开关即使被程序化点到也不会生效）；
-//   3) 移除已存在的背景层元素。
-// 想恢复这个功能：删掉本段即可（其余玻璃代码都还在，互不影响）。
+//   3) 移除已存在的背景层元素；
+//   4) 挂一个"已封存"判据给「我的」，让设置页**整块不渲染**（见下面 isLiquidGlassShelved）。
+// 想恢复这个功能：删掉本段 + 删掉 settings.js 里那一处 if 即可（其余玻璃代码都还在，互不影响）。
 (function () {
     function forceStandard() {
         try { document.documentElement.setAttribute('data-ui-style', 'standard'); } catch (e) { }
@@ -738,4 +739,15 @@ function themeSignature() {
         setUIStyle = function () { forceStandard(); return false; };
     } catch (e) { }
     try { document.addEventListener('DOMContentLoaded', forceStandard); } catch (e) { }
+
+    // ★ 「我的」用的判据：为真时设置页不渲染「界面风格」（液态玻璃开关）与「背景风格」两节。
+    //
+    //   为什么必须有个显式判据，而不是继续靠 CSS 藏：上一版就是 CSS 藏的
+    //   （layout.css 末尾三条 display:none），但 renderToggleRow() 生成的行是
+    //   `.toggle-card`，那条 `.settings-row:has(#uiStyleSwitch)` **永远匹配不上** ⇒
+    //   只藏掉了小开关，标题「界面风格」+ 标签「液态玻璃」+ 那段说明照旧显示在
+    //   「我的」里（用户实测："封存了，界面风格还是显示在我的"）。
+    //   用 CSS 藏的另一个毛病：元素还在 DOM 里，任何人读一下 DOM/无障碍树都能看见
+    //   一个"没有开关的开关说明"。
+    window.isLiquidGlassShelved = function () { return true; };
 })();
