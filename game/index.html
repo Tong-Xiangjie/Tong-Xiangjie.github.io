@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>游戏入口 · 跳转</title>
+  <meta name="description" content="game/ 目录下全部游戏的跳转入口：运行时读 GitHub 目录，新加游戏不用手工维护。">
+  <link rel="preload" as="font" type="font/woff" href="/font/OCRB10PitchBT-Regular.woff" crossorigin>
+  <style>
+    /* ═══ 字体：和站点总入口同一套（OCR-B 管西文，中文走思源/系统黑体） ═══ */
+    @font-face {
+      font-family: "OCRB10";
+      src: url('/font/OCRB10PitchBT-Regular.woff') format('woff');
+      font-weight: normal; font-style: normal; font-display: swap;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #000;
+      --card: #0b0d10;
+      --card-hi: #12161b;
+      --line: rgba(255, 255, 255, 0.10);
+      --line-hi: rgba(255, 255, 255, 0.26);
+      --fg: #e9eef4;
+      --dim: rgba(233, 238, 244, 0.52);
+      --dim2: rgba(233, 238, 244, 0.30);
+      --accent: #ffd479;
+    }
+    html, body { min-height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC", "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
+      padding: clamp(1.1rem, 3vw, 2.6rem);
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; }
+
+    /* ═══ 头部 ═══ */
+    header { margin-bottom: clamp(1.2rem, 3vw, 2.2rem); }
+    h1 {
+      font-size: clamp(1.9rem, 6vw, 3.2rem);
+      letter-spacing: 0.16em; font-weight: normal; line-height: 1.05;
+    }
+    h1 b { color: var(--accent); font-weight: normal; }
+    .sub { color: var(--dim); font-size: clamp(0.78rem, 2.2vw, 0.92rem); margin-top: 0.55rem; letter-spacing: 0.04em; }
+    .sub code { color: var(--dim2); }
+    .tools {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+      margin-top: 1.15rem;
+    }
+    #q {
+      flex: 1 1 16rem; min-width: 0;
+      background: var(--card); color: var(--fg);
+      border: 1px solid var(--line); border-radius: 0.7rem;
+      padding: 0.62rem 0.85rem; font: inherit; font-size: 0.92rem;
+      outline: none; transition: border-color .18s ease, background .18s ease;
+      user-select: text;
+    }
+    #q:focus { border-color: var(--line-hi); background: var(--card-hi); }
+    #q::placeholder { color: var(--dim2); }
+    button.mini {
+      background: var(--card); color: var(--dim);
+      border: 1px solid var(--line); border-radius: 0.7rem;
+      padding: 0.62rem 0.9rem; font: inherit; font-size: 0.88rem;
+      cursor: pointer; transition: all .18s ease; white-space: nowrap;
+    }
+    button.mini:hover { color: var(--fg); border-color: var(--line-hi); background: var(--card-hi); }
+    button.mini[disabled] { opacity: 0.45; cursor: default; }
+    #meta { color: var(--dim2); font-size: 0.8rem; letter-spacing: 0.03em; margin-left: auto; text-align: right; }
+    #meta b { color: var(--dim); font-weight: normal; }
+
+    /* ═══ 卡片网格 ═══ */
+    .grid {
+      display: grid; gap: clamp(0.7rem, 1.6vw, 1rem);
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+    }
+    .card {
+      position: relative; display: block; overflow: hidden;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 1rem; padding: 1rem 1.05rem 1.05rem;
+      text-decoration: none; color: inherit;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .card::before {                       /* 每张卡一个自己的色相光晕（按目录名散列） */
+      content: ''; position: absolute; inset: -40% 55% 55% -10%;
+      background: radial-gradient(closest-side, hsl(var(--hue) 90% 60% / 0.30), transparent 70%);
+      opacity: 0; transition: opacity .22s ease; pointer-events: none;
+    }
+    .card:hover, .card:focus-visible {
+      transform: translateY(-3px); border-color: var(--line-hi); background: var(--card-hi); outline: none;
+    }
+    .card:hover::before, .card:focus-visible::before { opacity: 1; }
+    .card-top { display: flex; align-items: center; gap: 0.7rem; }
+    .mono {
+      width: 2.35rem; height: 2.35rem; flex: 0 0 auto;
+      display: grid; place-items: center; border-radius: 0.65rem;
+      font-size: 1.06rem; letter-spacing: 0;
+      color: hsl(var(--hue) 92% 74%);
+      background: hsl(var(--hue) 70% 30% / 0.22);
+      border: 1px solid hsl(var(--hue) 80% 60% / 0.34);
+    }
+    .titles { min-width: 0; }
+    .t { font-size: 1.02rem; line-height: 1.3; word-break: break-word; }
+    .p { color: var(--dim2); font-size: 0.76rem; margin-top: 0.2rem; letter-spacing: 0.02em; }
+    .p span { color: var(--dim); }
+    .d { color: var(--dim); font-size: 0.84rem; line-height: 1.55; margin-top: 0.6rem; }
+    .badges { position: absolute; top: 0.7rem; right: 0.7rem; display: flex; gap: 0.3rem; }
+    .badge {
+      font-size: 0.66rem; letter-spacing: 0.06em; padding: 0.12rem 0.4rem;
+      border-radius: 0.4rem; color: var(--dim); border: 1px solid var(--line);
+      background: rgba(0, 0, 0, 0.35);
+    }
+    .badge.new { color: #0b0d10; background: var(--accent); border-color: transparent; }
+    .badge.copy { color: #ffb4a2; border-color: rgba(255, 180, 162, 0.35); }
+
+    /* ═══ 状态提示 ═══ */
+    .msg {
+      grid-column: 1 / -1; color: var(--dim); font-size: 0.9rem;
+      border: 1px dashed var(--line); border-radius: 1rem; padding: 1.4rem; text-align: center;
+    }
+    .msg a { color: var(--accent); }
+    footer {
+      margin-top: 1.6rem; padding-top: 0.9rem; border-top: 1px solid var(--line);
+      color: var(--dim2); font-size: 0.74rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.1rem;
+    }
+    footer a { color: var(--dim); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+    .skel { height: 4.9rem; border-radius: 1rem; background: linear-gradient(100deg, #0b0d10, #14181e, #0b0d10); background-size: 200% 100%; animation: sh 1.2s linear infinite; }
+    @keyframes sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    @media (prefers-reduced-motion: reduce) { .skel { animation: none; } .card, .card::before { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>GAME <b>INDEX</b></h1>
+      <p class="sub">下面这些是 <code>game/</code> 里能直接玩的入口。名单<b>运行时</b>从 GitHub 目录读，
+        新加一个 <code>game/xxx/index.html</code> 就会自动出现在这里，不用改这个页面。</p>
+      <div class="tools">
+        <input id="q" type="search" placeholder="搜索游戏…    / 聚焦 · 回车打开第一个 · Esc 清空" autocomplete="off" spellcheck="false">
+        <button class="mini" id="refresh" title="重新拉取 GitHub 目录（有 60 次/小时的匿名限额，会缓存）">↻ 刷新名单</button>
+        <span id="meta"></span>
+      </div>
+    </header>
+    <main class="grid" id="list"></main>
+    <footer>
+      <span id="src">读取中…</span>
+      <a href="/" style="margin-left:auto">← 回站点总入口</a>
+    </footer>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const OWNER = 'Tong-Xiangjie';
+  const REPO = 'Tong-Xiangjie.github.io';
+  const API = `https://api.github.com/repos/${OWNER}/${REPO}/contents/game`;
+  const CACHE_KEY = 'game-index:cache:v1';
+  const TTL = 6 * 60 * 60 * 1000;      // 6 小时：API 匿名限额只有 60 次/小时
+  const COOLDOWN = 20 * 1000;          // 手动刷新也至少间隔 20 秒
+
+  const $ = (id) => document.getElementById(id);
+  const listEl = $('list'), metaEl = $('meta'), srcEl = $('src'), qEl = $('q');
+
+  /** 目录名 -> 稳定色相，让每张卡有自己的颜色，又不需要人工配色。 */
+  function hueOf(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0) % 360;
+  }
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const kb = (n) => (n >= 1024 ? (n / 1024).toFixed(n < 10240 ? 1 : 0) + ' KB' : n + ' B');
+
+  function readCache() {
+    try {
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      return c && Array.isArray(c.dirs) ? c : null;
+    } catch { return null; }
+  }
+  function writeCache(dirs) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), dirs })); } catch { /* 隐私模式 */ }
+  }
+
+  /** ① 静态名单：先出内容，离线/被限流也能用（由 tools/build-index.mjs 生成） */
+  async function loadManifest() {
+    try {
+      const r = await fetch('./index.json', { cache: 'no-cache' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      return Array.isArray(j.games) ? j.games : null;
+    } catch { return null; }
+  }
+
+  /** ② 实时名单：GitHub Contents API 列出 game/ 下的目录 */
+  async function fetchLive() {
+    const r = await fetch(API + '?ref=' + encodeURIComponent('main'), {
+      headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 403 ? '（API 限流）' : ''));
+    const j = await r.json();
+    if (!Array.isArray(j)) throw new Error('返回格式不对');
+    return j.filter((e) => e && e.type === 'dir' && e.name && !e.name.startsWith('.')).map((e) => e.name);
+  }
+
+  /** 名单里没有的目录：只取那个 index.html 的头 4 KB 解析标题/描述（Range 请求） */
+  async function probe(dir) {
+    const out = { dir, title: dir, desc: '', bytes: 0, fresh: true };
+    try {
+      const r = await fetch('./' + encodeURIComponent(dir) + '/index.html', { headers: { Range: 'bytes=0-4095' } });
+      if (!r.ok) return out;
+      const head = await r.text();
+      const t = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (t) out.title = t[1].replace(/\s+/g, ' ').trim() || dir;
+      const m = head.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([\s\S]*?)["']/i);
+      if (m) out.desc = m[1].replace(/\s+/g, ' ').trim();
+      const len = (r.headers.get('Content-Range') || '').split('/')[1];
+      if (len) out.bytes = +len || 0;
+    } catch { /* 保留默认值 */ }
+    return out;
+  }
+
+  // ── 渲染 ────────────────────────────────────────────────────────────────
+  let games = [];        // 当前展示的名单
+  let query = '';
+
+  function cardHTML(g) {
+    const hue = hueOf(g.dir);
+    const badges = [
+      g.fresh ? '<i class="badge new">新</i>' : '',
+      g.copy ? '<i class="badge">副本</i>' : (g.dup ? '<i class="badge copy">重复</i>' : ''),
+    ].join('');
+    const initial = (g.title || g.dir).trim().slice(0, 1).toUpperCase();
+    return `<a class="card" style="--hue:${hue}" href="./${encodeURIComponent(g.dir)}/" data-dir="${esc(g.dir)}">
+      ${badges ? `<span class="badges">${badges}</span>` : ''}
+      <span class="card-top">
+        <span class="mono">${esc(initial)}</span>
+        <span class="titles">
+          <span class="t">${esc(g.title)}</span>
+          <span class="p">/${esc(g.dir)}/${g.bytes ? ' · <span>' + kb(g.bytes) + '</span>' : ''}</span>
+        </span>
+      </span>
+      ${g.desc ? `<span class="d">${esc(g.desc)}</span>` : ''}
+    </a>`;
+  }
+
+  function render() {
+    const q = query.trim().toLowerCase();
+    const shown = q
+      ? games.filter((g) => (g.title + ' ' + g.dir + ' ' + (g.desc || '')).toLowerCase().includes(q))
+      : games;
+    if (!games.length) {
+      listEl.innerHTML = `<div class="msg">还没读到名单。<br>点右上角「↻ 刷新名单」，或看看
+        <a href="https://github.com/${OWNER}/${REPO}/tree/main/game" target="_blank" rel="noopener">GitHub 上的 game/ 目录</a>。</div>`;
+    } else if (!shown.length) {
+      listEl.innerHTML = `<div class="msg">没有匹配「${esc(query)}」的游戏。</div>`;
+    } else {
+      listEl.innerHTML = shown.map(cardHTML).join('');
+    }
+    metaEl.innerHTML = games.length
+      ? `<b>${shown.length}</b>${q ? ' / ' + games.length : ''} 个入口`
+      : '';
+  }
+
+  function skeleton(n = 6) {
+    listEl.innerHTML = Array.from({ length: n }, () => '<div class="skel"></div>').join('');
+  }
+
+  // ── 组装名单：静态名单打底，实时名单补齐/纠正 ─────────────────────────────
+  function merge(manifest, dirs, probed) {
+    const byDir = new Map();
+    for (const g of (manifest || [])) byDir.set(g.dir, { ...g });
+    if (dirs) {
+      const set = new Set(dirs);
+      for (const g of byDir.values()) if (!set.has(g.dir)) byDir.delete(g.dir);   // 目录没了就下线
+      for (const d of dirs) {
+        if (byDir.has(d)) continue;
+        const p = (probed || []).find((x) => x.dir === d);
+        byDir.set(d, p || { dir: d, title: d, desc: '', bytes: 0, fresh: true });
+      }
+    }
+    const out = [...byDir.values()].sort((a, b) => a.dir.localeCompare(b.dir, 'zh'));
+    const seen = new Map();
+    for (const g of out) {
+      const k = (g.title || '') + '\u0000' + (g.desc || '');
+      if (seen.has(k)) g.dup = true; else seen.set(k, g.dir);
+    }
+    return out;
+  }
+
+  let lastFetch = 0;
+  async function refresh(force) {
+    if (force && Date.now() - lastFetch < COOLDOWN) {
+      srcEl.textContent = `刚刚已经读过一次名单了，${Math.ceil((COOLDOWN - (Date.now() - lastFetch)) / 1000)} 秒后可以再读（GitHub API 匿名限额 60 次/小时）`;
+      return;
+    }
+    lastFetch = Date.now();
+    const cached = readCache();
+    let dirs = null, err = null;
+    if (cached && !force && Date.now() - cached.at < TTL) {
+      dirs = cached.dirs;
+      srcEl.textContent = `名单：本地缓存（${new Date(cached.at).toLocaleString('zh-CN')}） · ${dirs.length} 个目录`;
+    } else {
+      try {
+        dirs = await fetchLive();
+        writeCache(dirs);
+        srcEl.textContent = `名单：GitHub API 实时读取 · ${dirs.length} 个目录`;
+      } catch (e) {
+        err = e;
+        dirs = cached ? cached.dirs : null;
+      }
+    }
+    // 名单里没见过的目录，现场探一下标题
+    const known = new Set(games.map((g) => g.dir));
+    const unknown = (dirs || []).filter((d) => !known.has(d) && !(manifestDirs || new Set()).has(d));
+    const probed = unknown.length ? await Promise.all(unknown.map(probe)) : [];
+    games = merge(manifestRaw, dirs, probed);
+    if (!dirs && err) {
+      srcEl.textContent = `名单：静态 index.json（GitHub API 读取失败：${err.message}）`;
+    } else if (dirs) {
+      srcEl.textContent += (probed.length ? ` · 新增 ${probed.map((p) => p.dir).join('、')}` : ' · 与静态名单一致');
+    }
+    render();
+  }
+
+  // ── 启动 ────────────────────────────────────────────────────────────────
+  let manifestRaw = null, manifestDirs = null;
+  (async () => {
+    skeleton();
+    manifestRaw = await loadManifest();
+    if (manifestRaw) {
+      manifestDirs = new Set(manifestRaw.map((g) => g.dir));
+      games = merge(manifestRaw, null, null);
+      render();
+      srcEl.textContent = `名单：静态 index.json · ${manifestRaw.length} 个游戏（正在核对实时目录…）`;
+    }
+    await refresh(false);
+  })();
+
+  // ── 交互 ────────────────────────────────────────────────────────────────
+  qEl.addEventListener('input', () => { query = qEl.value; render(); });
+  qEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { qEl.value = ''; query = ''; render(); qEl.blur(); }
+    if (e.key === 'Enter') {
+      const first = listEl.querySelector('.card');
+      if (first) location.href = first.getAttribute('href');
+    }
+  });
+  addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== qEl) { e.preventDefault(); qEl.focus(); qEl.select(); }
+  });
+  const btn = $('refresh');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; btn.textContent = '读取中…';
+    try { await refresh(true); } finally { btn.disabled = false; btn.textContent = '↻ 刷新名单'; }
+  });
+
+  // 调试/自动化测试用的把手（和 game 里 window.__game 一个路子）：
+  // 可以强制重读名单、看当前名单、直接调探测逻辑。
+  window.__gameIndex = {
+    refresh: (force) => { lastFetch = 0; return refresh(force !== false); },   // 跳过冷却，测试用
+    games: () => games.map((g) => ({ ...g })),
+    probe,
+    merge,
+    source: () => srcEl.textContent,
+  };
+})();
+</script>
+</body>
+</html>

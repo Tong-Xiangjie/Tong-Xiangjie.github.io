@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "count": 13,
+  "games": [
+    {
+      "dir": "人格初始化",
+      "title": "人格初始化",
+      "desc": "人格构建模块 · INIT-7 · 空档案",
+      "bytes": 22687
+    },
+    {
+      "dir": "已读",
+      "title": "404宿舍 · 备份记录",
+      "desc": "6 人 · 已读 6",
+      "bytes": 28371
+    },
+    {
+      "dir": "已读 - 副本",
+      "title": "404宿舍 · 备份记录",
+      "desc": "6 人 · 已读 6",
+      "bytes": 28371,
+      "copy": true,
+      "dup": true
+    },
+    {
+      "dir": "AURA",
+      "title": "AURA",
+      "desc": "自适应陪伴对话系统 · v0.9.3",
+      "bytes": 25674
+    },
+    {
+      "dir": "AURAⅡ",
+      "title": "AURA · 回声",
+      "desc": "回声进程 · build 0.9.4 · 修复中",
+      "bytes": 38851
+    },
+    {
+      "dir": "BeamNG",
+      "title": "撞不坏 · 软体车辆物理沙盒",
+      "desc": "浏览器里的软体车辆物理沙盒：整车由质点与梁构成，碰撞会真实溃缩，悬挂、轮胎、传动系统全部实时求解。",
+      "bytes": 11121
+    },
+    {
+      "dir": "blackhole",
+      "title": "黑洞吞噬",
+      "desc": "桌 面 上 的 洞",
+      "bytes": 26376
+    },
+    {
+      "dir": "ECHO",
+      "title": "ECHO v2.3.7 — 本地模式",
+      "desc": "",
+      "bytes": 58115
+    },
+    {
+      "dir": "ECHO OS",
+      "title": "ECHO OS",
+      "desc": "",
+      "bytes": 45525
+    },
+    {
+      "dir": "neon-breaker",
+      "title": "NEON BREAKER · 霓虹打砖块",
+      "desc": "",
+      "bytes": 173663
+    },
+    {
+      "dir": "os",
+      "title": "SimpleWebOS 3.0",
+      "desc": "",
+      "bytes": 96141
+    },
+    {
+      "dir": "stardust-migration",
+      "title": "星尘迁徙 · Stardust Migration",
+      "desc": "星尘迁徙 Stardust Migration —— 在数据海的小岛上养一只星兽，离线时间胶囊结算的纯静态养成游戏。",
+      "bytes": 10290
+    },
+    {
+      "dir": "wolfgame",
+      "title": "🐺 AI 狼人杀",
+      "desc": "🐺 AI 狼人杀",
+      "bytes": 65792
+    }
+  ]
+}

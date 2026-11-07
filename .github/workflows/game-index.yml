@@ -1,0 +1,69 @@
+# 自动维护 game/index.json —— game/index.html 那个跳转页的"静态保底名单"。
+#
+# 背景：GitHub Pages 是纯静态托管，没有目录列表接口。跳转页的第一选择是运行时
+# 查 GitHub Contents API（真正的动态，加游戏不用管任何事），但匿名 API 只有
+# 60 次/小时，还会因为断网/被墙而失败。所以再落一份静态名单，页面先读它（瞬间
+# 出内容），再用 API 的结果补齐。
+#
+# 这个 workflow 做的事：只要 game/ 里有改动，就重跑 tools/build-index.mjs，
+# 把更新后的 index.json 提交回仓库。脚本本身是"内容没变就不动文件"的，所以
+# 平时不会有空提交。
+#
+# ★ 和 thumbs.yml 一样，下面所有 run: 的正文刻意只用 ASCII：
+#   GitHub Actions 会把 run 内容写成临时脚本文件，Windows PowerShell 5.1 若按
+#   ANSI(GBK) 解码 UTF-8 无 BOM 脚本，中文字符串里的引号会被截断成非法 token。
+name: 生成游戏入口名单
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # game/ 下的任何改动都可能让名单过期（新增/删除/改名游戏）
+      - 'game/**'
+      # 但这个名字本身就是生成物，它变了不用再跑一次
+      - '!game/index.json'
+      # 本 workflow 自身改动时也跑一次，便于验证
+      - '.github/workflows/game-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: game-index-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 生成 game/index.json
+        run: node game/tools/build-index.mjs
+
+      - name: 提交名单
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -e
+          echo "repo=$GITHUB_REPOSITORY branch=$BRANCH event=$GITHUB_EVENT_NAME"
+          if [ -z "$(git status --porcelain -- game/index.json)" ]; then
+            echo "game/index.json 无变化，无需提交。"
+            exit 0
+          fi
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- game/index.json
+          # [skip ci]：这个提交不再触发本 workflow
+          git commit -m 'chore: auto-generate game index [skip ci]'
+          git pull --rebase --autostash origin "$BRANCH"
+          git push origin "HEAD:$BRANCH"
+          # 校验真的推进去了，不靠退出码自说自话
+          local_sha=$(git rev-parse HEAD)
+          remote_sha=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
+          echo "local=$local_sha remote=$remote_sha"
+          test "$local_sha" = "$remote_sha"
