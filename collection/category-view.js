@@ -317,7 +317,12 @@ function renderSeriesList(data, title) {
         //   所以延后补开。只安排一次，且仅在 autoExpandAll() 为真（档位为 all 且该分类无记忆）时。
         if (si === 0 && autoExpandAll(getCategoryScope()) && !window.__autoExpandScheduled) {
             window.__autoExpandScheduled = 1;
-            const runAll = () => { try { openListsIn(document); document.querySelectorAll('.series-body').forEach(b => { if (!b.classList.contains('open')) { b.classList.add('open'); b.style.maxHeight = 'none'; } const ic = document.getElementById('icon-' + String(b.id || '').replace(/^body-/, '')); if (ic) ic.classList.add('open'); }); openListsIn(document); } catch (e) { } };
+            const runAll = () => { try { openListsIn(document); document.querySelectorAll('.series-body').forEach(b => { if (!b.classList.contains('open')) { b.classList.add('open'); b.style.maxHeight = 'none'; } const ic = document.getElementById('icon-' + String(b.id || '').replace(/^body-/, '')); if (ic) ic.classList.add('open'); }); openListsIn(document);
+                // ★ 这一档已经替这些系列开过一次了 ⇒ 记成"档位已用过"。
+                //   于是你把它收起、再点开时，档位不再插手（不会把里面手动收起的品种又撞开），
+                //   一律按你自己留下的状态 —— 与 toggleSeries 里 firstExpand 是同一件事。
+                try { const __sc = getCategoryScope(); document.querySelectorAll('.series-body').forEach(function (b) { const sid = String(b.id || '').replace(/^body-/, ''); if (sid) markSeriesDepthUsed(__sc, sid); }); } catch (e) { }
+            } catch (e) { } };
             requestAnimationFrame(runAll); setTimeout(runAll, 300); setTimeout(runAll, 700);
         }
 
@@ -582,17 +587,37 @@ document.addEventListener('pointerover', function (e) {
     if (im) warmImage(im);
 }, { passive: true });
 
+// ★ 「这个系列本次会话里已经用过一次档位了吗」。
+//   用户口径原话：「只有在这个小系列第一次展开的时候才使用这里的展开程度，否则就应该用记忆」。
+//   为什么需要它：原来每次点开一个关着的系列，都会按档位把里面的品种重新全开一遍 ——
+//   于是你手动收起来的品种，收起系列再点开又冒出来了，设置页那句
+//   「手动展开或收起过的系列均将按您的习惯保留」就是这么落空的。
+//   ★ 只活在当前页面会话里，和站点自己的展开记忆一样不跨刷新（刷新后第一次展开重新按档位算）。
+const __seriesDepthUsed = Object.create(null);
+function seriesDepthUsed(scope, id) {
+    try { return __seriesDepthUsed[String(scope) + '|' + String(id)] === 1; } catch (e) { return false; }
+}
+function markSeriesDepthUsed(scope, id) {
+    try { __seriesDepthUsed[String(scope) + '|' + String(id)] = 1; } catch (e) { }
+}
+
 function toggleSeries(id, hintEl) {
-    markExpandMemory(getCategoryScope());
+    const depthScope = getCategoryScope();
     // ★ 用户口径（三档）：点开“父亲标题”（系列）后展开到哪一层
     //   —— 'series：只展开系列本身（原行为）；'copies：展开到单张（默认）；
-    //   'all：连同类其它系列一起展开到单张。只在“点之前该系列是关的”时生效，
-    //   收起时不动别人；不碰原有任何判断。
+    //   'all：连同类其它系列一起展开到单张。
+    //   ★ 三档都只在这个系列**第一次展开**时生效（见上面 seriesDepthUsed）；收起不受影响，
+    //     也不会让别人动 —— 收起只关自己，别人开着的照旧开着。
     try {
         const depth = expandDepth();
         const sRowEl = hintEl && hintEl.closest ? hintEl.closest('.series-year-row') : null;
-        const sBodyEl = sRowEl ? sRowEl.querySelector('.series-body') : null;;
-        if (depth !== 'series' && sBodyEl && !sBodyEl.classList.contains('open')) {
+        const sBodyEl = sRowEl ? sRowEl.querySelector('.series-body') : null;
+        // ★ 「第一次展开」认的是"这次点击会把它打开"：收起那一下不该把首次机会用掉，
+        //   否则收起再点开就轮到记忆了（那样也不是错的，但会少给用户一次档位体验）。
+        const willOpen = !!(sBodyEl && !sBodyEl.classList.contains('open'));
+        const firstExpand = willOpen && !seriesDepthUsed(depthScope, id);
+        if (willOpen) markSeriesDepthUsed(depthScope, id);
+        if (depth !== 'series' && firstExpand) {
             const openInside = () => {
                 try {
                     const roots = depth === 'all'
@@ -624,11 +649,16 @@ function toggleSeries(id, hintEl) {
     // 用精确高度过渡，避免固定 max-height 造成的"弹开后空跑"
     animateAccordion(body, !body.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
+    // ★ 快照必须**在改完 class 之后**拍。原来 markExpandMemory() 写在函数第一行，
+    //   拍到的是点击**之前**的状态 ⇒ 你收起一个品种，记忆里记的却是"它还开着"，
+    //   下次渲染又替你打开（与上面"档位覆盖记忆"是同一个毛病的两半）。
+    //   animateAccordion() 是同步加/去 'open' 类的（只有 max-height 走过渡），所以这里紧接着拍
+    //   就是用户看到的最终状态；档位那次异步补开另有一趟 1400ms 的补拍（见上）。
+    markExpandMemory(depthScope);
     syncFocusAndRoute();
 }
 
 function toggleVariety(id, hintEl) {
-    markExpandMemory(getCategoryScope());
     const list = accordionTargetOf(hintEl, 'list-' + id, '.copy-list');
     const icon = accordionTargetOf(hintEl, 'icon-' + id, '.variety-expand-icon');
     if (!list) {
@@ -637,6 +667,8 @@ function toggleVariety(id, hintEl) {
     }
     animateAccordion(list, !list.classList.contains('open'));
     if (icon) icon.classList.toggle('open');
+    // ★ 同上：快照要在 class 改完之后拍，否则记忆里存的是点击前的状态（正好是反的）。
+    markExpandMemory(getCategoryScope());
     syncFocusAndRoute();
 }
 

@@ -251,7 +251,7 @@ function renderSettingsPage() {
     html += `<div class="settings-section">`;
     html += `<h3>藏品展开程度</h3>`;
     html += renderSegmented('expandDepthSeg', '点开系列后', [['series', '只展开系列'], ['copies', '展开到单张'], ['all', '全部展开']], expandDepth(), 'pickExpandDepth');
-    html += `<div class="toggle-desc">选择查看藏品时的展开程度。「只展开系列」仅在点开系列后展开系列本身；「展开到单张」为默认档，点开系列后将一路展开至每一张藏品；「全部展开」则在进入分类时即展开全部系列与品种。无论选择哪一档，您手动展开或收起过的系列均将按您的习惯保留。</div>`;
+    html += `<div class="toggle-desc">选择查看藏品时的展开程度。「只展开系列」仅在点开系列后展开系列本身；「展开到单张」为默认档，点开系列后将一路展开至每一张藏品；「全部展开」则在进入分类时即展开全部系列与品种。展开程度只在某个系列<b>第一次</b>展开时生效；之后你在里面手动开过、收过的品种，本次浏览期间都按你的习惯保留（刷新后重新按档位算）。</div>`;
     html += `</div>`;
 
     // 网格画质
