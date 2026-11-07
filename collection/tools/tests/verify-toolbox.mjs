@@ -8002,8 +8002,15 @@ await evaluate(`(()=>{const ed=document.getElementById('tbEditor'); ed.focus();
   ed.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true})); return 1;})()`);
 await sleep(700);
 const u6c = await u48Shot();
-ok(u6c.code === '<p>甲段</p>\n<br>\n<p>乙段</p>' && u6c.ps === 2 && u6c.text === '甲段乙段',
-  `(48)* 案例7·只有 HTML 的剪贴板：块级边界不丢，两段各成 <p>（实际 ${JSON.stringify(u6c.code)}）`);
+// ★ 期望里**不能有**那根 <br>（原来钉的是 '<p>甲段</p>\n<br>\n<p>乙段</p>'）：
+//   剪贴板里两份内容（text/html + text/plain）本来就是同一份文档的两种写法，
+//   纯文本那份里"块与块之间的空行"是复制方加的结构分隔，不是用户敲的空行。
+//   照旧补一根出来，就是用户报的"正文里原本没有空行的图片，用着用着全都多了空行"
+//   —— 块级边界照旧各成一个 <p>（本用例要守的正是这个），但那根空行是凭空多出来的。
+//   只有纯文本的剪贴板（自己敲、记事本复制）口径一个字没改，见上面几条例 7 用例。
+//   专项守这条的是 collection/tools/tests/verify-toolbox-rich-paste.mjs。
+ok(u6c.code === '<p>甲段</p>\n<p>乙段</p>' && u6c.ps === 2 && u6c.text === '甲段乙段',
+  `(48)* 案例7·只有 HTML 的剪贴板：块级边界不丢，两段各成 <p>、段间不多空行（实际 ${JSON.stringify(u6c.code)}）`);
 
 // —— 48C 撤回删到全空之后的提示语（用户案例 8）——
 // ★ 关键口径：**"只有空行"算空** —— 撤回/删空之后编辑区常常只剩一根根级 `<br>`，

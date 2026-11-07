@@ -4768,7 +4768,18 @@ function toolboxHtmlToPlainLines(html) {
 //   · **空行 = 段落分界** → 拆成两段（连续多个空行只算一次分界，不产生空段）；
 //   · **段内单个换行 = 行内换行** → `<br>`；
 //   · 首尾空行不产生空的 <p>（"无多余空块/空行"）。
-function toolboxPlainTextParas(text) {
+//
+// ★★ 第二个参数 fromHtml：这段文字是**从富文本剪贴板推出来的**（剪贴板里同时带 text/html）。
+//   为什么必须区分：从网页/文档里复制时，剪贴板那份 text/plain 里**块级元素之间本来就是空行**
+//   —— 浏览器给的是 `<p>甲</p><p>乙</p>` → 文本 "甲\n\n乙"。可这里的规则是"空行 = 用户故意留的空行
+//   → 补一根独立 <br>"，两条一撞：**每一个块边界都凭空长出一个空行**。
+//   用户实测的原话是"正文里原本没有空行的图片，用着用着全都多了空行"，而且**只出现在块与块之间**
+//   （他那篇文章里被删掉的那 9 根，全在"图注块 → 图片块"之间）；图片/图注各自成块，所以每张图都中招。
+//   富文本搬运时，段间那个空行是**复制方加的结构分隔**，不是用户敲的 —— 于是每段少算一个：
+//   剩下的空行才是用户真的多留的（源里真有个空的 <p> 时，剪贴板文本是 "甲\n\n\n乙"，
+//   结构分隔扣掉一个、剩下那一根照旧变成 <br>，不会一刀切全删掉）。
+//   只带纯文本时（记事本复制、自己敲）一个字都不改，见本用例 verify-toolbox-rich-paste.mjs 的 ②③。
+function toolboxPlainTextParas(text, fromHtml) {
     // ★ 换行/行分隔符先统一：`\r\n`、`\r`（Windows / 老 Mac 剪贴板）、U+2028 / U+2029
     //   （某些网页、PDF 复制出来的"段落分隔符"）一律当成普通换行。
     const t = toolboxNormalizeNewlines(text);
@@ -4789,7 +4800,10 @@ function toolboxPlainTextParas(text) {
         const seg = parts[i].replace(/^[^\S\n\r]+/, '').replace(/[^\S\n\r]+$/, '');
         // ★ 这个段**前面**那一坨分隔符在 parts[i-1]（i 是偶数，说明 i-1 是捕获到的分隔符）
         const sepBefore = (i > 0) ? (parts[i - 1] || '') : '';
-        const blanks = sepBefore ? Math.max(0, (sepBefore.match(/\n/g) || []).length - 1) : 0;
+        // ★ fromHtml：富文本搬运来的空行里，有一个是复制方插的**结构分隔**（见函数顶上那段），
+        //   扣掉它，剩下的才算用户真留的空行（扣到 0 为止，不会变成负数）。
+        const blanks = sepBefore
+            ? Math.max(0, (sepBefore.match(/\n/g) || []).length - 1 - (fromHtml ? 1 : 0)) : 0;
         if (!seg) continue;                        // 首尾的空行不产生段落，也不留空行
         const lines = seg.split('\n');
         let h = '';
@@ -4870,7 +4884,10 @@ function toolboxPastePlain(text, html) {
     // ★ 判据从"正则里有没有空行"改成"解析出来是不是超过一段"：空行里的空白种类很多
     //   （全角空格 / 制表符 / U+00A0 / CRLF），交给 toolboxPlainTextParas 一处判定，
     //   两边口径不会再分叉（用户实测 bug 2 就是这里漏掉的）。
-    const paras = toolboxPlainTextParas(src);
+    // ★ 第二个参数 = 剪贴板里**同时带了 text/html**：这份 text 是"复制方给的富文本"，
+    //   里面的空行是它自己插的块间结构分隔（浏览器复制网页必然如此），不是用户敲的空行 ——
+    //   见 toolboxPlainTextParas 顶上那段（"每张图都多出一个空行"的根因就在这一处口径）。
+    const paras = toolboxPlainTextParas(src, !!html);
     const at = live || toolboxLiveRange();
     if (paras.length > 1) {
         toolboxPasteParagraphs(paras, at);
