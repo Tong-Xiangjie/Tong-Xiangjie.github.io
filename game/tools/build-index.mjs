@@ -17,7 +17,7 @@
  * 这个脚本本身也被 .github/workflows/game-index.yml 调用：往 game/ 里推东西时
  * 自动重跑并把 index.json 提交回仓库，所以新增游戏不需要手工维护这份名单。
  */
-import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
@@ -90,18 +90,23 @@ async function collect() {
     const index = join(GAME_DIR, e.name, 'index.html');
     if (!existsSync(index)) continue;
     const html = await readFile(index, 'utf8');
-    const st = await stat(index);
     games.push({
       dir: e.name,
       // 优先用目录名做入口路径：GitHub Pages 会按目录名做 302 -> .../ 的重定向，
       // 带中文/罗马数字的目录名也一样能用（页面里再做一次 encodeURI）。
       title: titleOf(html, e.name),
       desc: descOf(html),
-      bytes: st.size,
+      // ★ 字节数必须与平台无关：Windows 检出是 CRLF（多出约 1 字节/行），Linux
+      //   runner 是 LF，直接 stat 出来的大小能差好几 KB —— 于是 workflow 每次跑
+      //   都会"发现"文件变了，天天提交一次空改动。仓库里存的是 LF，所以按 LF
+      //   折算才是 GitHub Pages 真正发出的字节数，也才能跨平台稳定。
+      bytes: Buffer.byteLength(html.replace(/\r\n/g, '\n'), 'utf8'),
       copy: isCopy(e.name) || undefined,
     });
   }
-  games.sort((a, b) => a.dir.localeCompare(b.dir, 'zh'));
+  // 排序也用逐码位比较，不用 localeCompare('zh')：后者依赖 ICU 版本和语言数据，
+  // runner 上的 Node 与本地不同就可能排出不同顺序，同样会造成无意义的重排提交。
+  games.sort((a, b) => (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0));
   // 同名的（比如「已读」和「已读 - 副本」）在后一个上打重复标
   const seen = new Map();
   for (const g of games) {

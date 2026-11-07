@@ -164,6 +164,12 @@
   const $ = (id) => document.getElementById(id);
   const listEl = $('list'), metaEl = $('meta'), srcEl = $('src'), qEl = $('q');
 
+  // 哪些目录不算游戏：隐藏目录、下划线目录，以及放资源的常见名字。
+  // game/ 里除了游戏还有 tools/（生成名单的脚本就在里面），不排掉的话它会当成
+  // 一个游戏列出来，点进去 404。
+  const SKIP = new Set(['tools', 'node_modules', 'assets', 'img', 'images', 'css', 'js', 'lib', 'vendor', 'dist', 'font', 'fonts', 'shared']);
+  const isGameDir = (n) => !!n && !n.startsWith('.') && !n.startsWith('_') && !SKIP.has(n.toLowerCase());
+
   /** 目录名 -> 稳定色相，让每张卡有自己的颜色，又不需要人工配色。 */
   function hueOf(s) {
     let h = 2166136261;
@@ -205,16 +211,21 @@
     if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 403 ? '（API 限流）' : ''));
     const j = await r.json();
     if (!Array.isArray(j)) throw new Error('返回格式不对');
-    return j.filter((e) => e && e.type === 'dir' && e.name && !e.name.startsWith('.')).map((e) => e.name);
+    return j.filter((e) => e && e.type === 'dir' && isGameDir(e.name)).map((e) => e.name);
   }
 
-  /** 名单里没有的目录：只取那个 index.html 的头 4 KB 解析标题/描述（Range 请求） */
+  /**
+   * 名单里没有的目录：只取那个 index.html 的头 4 KB 解析标题/描述（Range 请求）。
+   * 取不到 index.html 就说明它不是游戏（ok:false），调用方直接丢掉 —— 这是判断
+   * "能不能玩"的唯一硬标准。
+   */
   async function probe(dir) {
-    const out = { dir, title: dir, desc: '', bytes: 0, fresh: true };
+    const out = { dir, title: dir, desc: '', bytes: 0, fresh: true, ok: false };
     try {
       const r = await fetch('./' + encodeURIComponent(dir) + '/index.html', { headers: { Range: 'bytes=0-4095' } });
       if (!r.ok) return out;
       const head = await r.text();
+      out.ok = true;
       const t = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
       if (t) out.title = t[1].replace(/\s+/g, ' ').trim() || dir;
       const m = head.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([\s\S]*?)["']/i);
@@ -284,7 +295,9 @@
         byDir.set(d, p || { dir: d, title: d, desc: '', bytes: 0, fresh: true });
       }
     }
-    const out = [...byDir.values()].sort((a, b) => a.dir.localeCompare(b.dir, 'zh'));
+    // 逐码位排序，和 tools/build-index.mjs 保持一致：不用 localeCompare('zh')，
+    // 它依赖 ICU 语言数据，页面、本地脚本、CI runner 可能排得不一样。
+    const out = [...byDir.values()].sort((a, b) => (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0));
     const seen = new Map();
     for (const g of out) {
       const k = (g.title || '') + '\u0000' + (g.desc || '');
@@ -315,10 +328,13 @@
         dirs = cached ? cached.dirs : null;
       }
     }
-    // 名单里没见过的目录，现场探一下标题
+    // 名单里没见过的目录，现场探一下：拿不到 index.html 的（比如 tools/）不是游戏
     const known = new Set(games.map((g) => g.dir));
     const unknown = (dirs || []).filter((d) => !known.has(d) && !(manifestDirs || new Set()).has(d));
-    const probed = unknown.length ? await Promise.all(unknown.map(probe)) : [];
+    const probedAll = unknown.length ? await Promise.all(unknown.map(probe)) : [];
+    const probed = probedAll.filter((p) => p.ok);
+    const dropped = probedAll.filter((p) => !p.ok).map((p) => p.dir);
+    if (dirs) dirs = dirs.filter((d) => !dropped.includes(d));      // 404 的目录不算入口
     games = merge(manifestRaw, dirs, probed);
     if (!dirs && err) {
       srcEl.textContent = `名单：静态 index.json（GitHub API 读取失败：${err.message}）`;
