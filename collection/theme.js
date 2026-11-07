@@ -97,20 +97,16 @@ const THEME_ANIM_CLASS = 'theme-anim';
 const THEME_ANIM_MS = 320;          // 比 --dur-3(0.3s) 略长，保证过渡跑完再摘类
 let themeAnimTimer = 0;
 
-// ★ 这一次 applyTheme 是"初始化落值"还是"用户改主题"。
-//   区分它是因为底下的溶解遮罩是**整屏不透明**的：开屏时铺上去，盖的正好是加载屏，
-//   实测（screencast 逐帧）t≈120ms 铺上 --bg-solid、360ms 才淡完，加载文字
-//   在"正在准备 → 进度条"那一下整整消失 100ms 以上再淡回来 —— 用户报的"文字闪一下"。
-//   只有用户主动改主题才该看到溶解，初始化这一趟本来就该一步到位
-//   （loadTheme() 的注释也是这个意思：初始化不补间）。
-let themeInitCall = false;
-
 function themeAnimAllowed() {
     return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
 function withThemeAnim(fn, animate) {
     const el = document.documentElement;
+    // ★ animate === false 只用于"初始化落值"（loadTheme → applyColorScheme(false)）：
+    //   这时 head 里的内联脚本已经把同样的值写好了，再挂补间窗口没有意义，
+    //   反而会让首屏多挂一个类。（原来的判断还兼着"别在加载屏上铺溶解遮罩"，
+    //   遮罩撤掉之后这条语义只剩这一半，参数保留是因为调用方就是这么用的。）
     const on = (animate !== false) && themeAnimAllowed();
     if (on) {
         el.classList.add(THEME_ANIM_CLASS);
@@ -119,14 +115,9 @@ function withThemeAnim(fn, animate) {
         //   最终值（视作"没有过渡"），补间就时有时无。
         void el.offsetWidth;
     }
-    // ★ animate === false 就是"初始化"（loadTheme → applyColorScheme(false)）。
-    //   存旧值再还原，别把嵌套调用里的用户操作也一起误判成初始化。
-    const prevInitCall = themeInitCall;
-    themeInitCall = (animate === false);
     try {
         return fn();
     } finally {
-        themeInitCall = prevInitCall;
         if (on) {
             if (themeAnimTimer) clearTimeout(themeAnimTimer);
             themeAnimTimer = setTimeout(function () {
@@ -494,17 +485,7 @@ function applyTheme(color) {
     const el = document.documentElement;
 
     // 让 CSS 能按风格分流（玻璃模式的规则全部挂在 html[data-ui-style="glass"] 上）
-        // ★ 只在这里（用户点开关）开闸，切完调一次溶解，然后关闸。
-    //   页面重绘不会经过这里 ⇒ 不可能再闪。
-    var __prevBg = null;
-    try {
-        var __cs = window.getComputedStyle(document.documentElement);
-        __prevBg = (__cs.getPropertyValue('--bg-solid') || __cs.getPropertyValue('--bg') || '').trim() || null;
-    } catch (e) { }
-    window.__glassUserAction = true;
     el.setAttribute('data-ui-style', glass ? 'glass' : 'standard');
-    // ★ 注意：动画由 applyTheme 包装在开闸后统一调用，这里不能再调一次（否则会铺两层遮罽）。
-    setTimeout(function () { window.__glassUserAction = false; }, 700);
     if (glass) ensureGlassOrbs(false); else { stopGlassOrbDrift(); fadeOutGlassOrbs(); }
 
 // ★ 背景层的样式全部绑在 html[data-ui-style="glass"] 上，属性一翻、球就没有任何定位/滤镜了，
@@ -621,102 +602,30 @@ document.addEventListener('DOMContentLoaded', function () {
     loadTheme();
 });
 
-// ★★ 一处修好“开关 + 主题色卡片 + 背景”三件事的突变 ★★
-//   实测证据：开关后 150ms，body 底色已经从实色变成透明、
-//   模糊层的 ::before opacity 也已经是 1 —— 没有任何过渡在跑。
-//   这和 main.js 里入场动画的结论一致：CSS 过渡在这套层叠里靠不住
-//   （“removing !important rules alone did not animate”），得用 Web Animations API。
-//   所以在 applyTheme 外包一层：任何主题/风格变化后，给 #app 做一次 0.34s 的淡入，
-//   把所有内部瞬变（底色、卡片、模糊、背景层）都包成一次平滑的交叉淡入。
-function themeCrossFade() {
-    try {
-        if (!window.__glassUserAction) return;   // ★ 只有用户点开关时才放行；页面重绘一律不动
-        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        var el = document.getElementById('app') || document.body;
-        if (!el || !el.animate) return;
-        el.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 340, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
-    } catch (e) { }
-}
-// ★★ 真正稳的做法：旧底色遮罩 + 淡出（溶解式过渡）★★
-//   为什么之前那么多次都没用：
-//   ① CSS 过渡在这套层叠里不可靠（main.js 已经写过这个结论）；
-//   ② 给 #app 做 WAAPI 淡入也盖不住**整页底色**——底色是画在 html/视口画布上的，
-//      元素的 opacity 管不到它，所以底色仍然是一帧翻转（用户：还是突变）。
-//   现在：切换前先记下旧的实色底（--bg-solid 始终是不透明色），切换后在最上层
-//   铺一块同色遮罩并 WAAPI 淡出 0.36s。遮罩下面发生什么都无所谓，
-//   用户看到的是“旧样子溶解成新样子”——这是唯一不受层叠影响的保证。
-function themeFadeOverlay(prevBg) {
-    try {
-        if (!window.__glassUserAction) return;   // ★ 只有用户点开关时才放行；页面重绘一律不动
-        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        if (!prevBg) return;
-        var d = document.createElement('div');
-        d.className = 'theme-fade-overlay';
-        d.setAttribute('aria-hidden', 'true');
-        d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483000;background:' + prevBg + ';';
-        (document.body || document.documentElement).appendChild(d);
-        var anim = null;
-        if (d.animate) anim = d.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 360, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
-        var kill = function () { try { if (d.parentNode) d.parentNode.removeChild(d); } catch (e) { } };
-        if (anim) anim.onfinish = kill;
-        setTimeout(kill, 900);
-        return d;
-    } catch (e) { }
-}
-// ★★ 关键修正：只有“真的变了”才淡 ★★
-//   上一版把淡入挂在 applyTheme 上，而“我的”每次重绘都会调用 applyTheme
-//   （同步调色板/卡片状态）⇒ 每渲染一次就铺一层遮罩 = 整个页面在闪。
-//   现在先取签名（界面风格 + 明暗 + 主题色），只有签名真变了才跑淡入/遮罩。
+// ★★ 为什么这里**没有**"整屏溶解遮罩"了（原来是有的，被撤掉了）★★
 //
-//   ★ 签名必须读**内联样式**（el.style），不能读 getComputedStyle：
-//     layout.css 用 @property 把 --theme/--theme-light 注册成了可过渡的颜色，
-//     又给 html.theme-anim 挂了 transition —— 于是改完变量的**同一帧**里
-//     getComputedStyle 拿到的还是过渡起点（旧值），前后一比永远"没变"，
-//     用户真的换了主题反而不会溶解（实测：换铜色后签名仍是 rgb(22,119,255)）。
-//     内联样式是"写进去就是什么"，不受过渡影响。
-//   ★ --bg-solid 也要算进去：明暗是靠 applyColorScheme 先翻 data-color-scheme、
-//     再调 applyTheme 的，签名前后取的都是新 scheme，光靠 --theme-light 分辨不出
-//     黑白切换 —— 像 #ffffff 这种色，L(0.35) 和 L(0.4) 都是 #ffffff，
-//     切日夜就漏了。--bg-solid 由主题色按明暗分别派生（暗：压暗 / 亮：提亮），
-//     任何颜色下两个模式都不相等。
-function themeSignature() {
-    try {
-        var el = document.documentElement;
-        var st = el.style;
-        return [el.getAttribute('data-ui-style'), el.getAttribute('data-color-scheme'),
-            (st.getPropertyValue('--theme') || '').trim(), (st.getPropertyValue('--theme-light') || '').trim(),
-            (st.getPropertyValue('--bg-solid') || '').trim()].join('|');
-    } catch (e) { return 'no-sig'; }
-}
-(function () {
-    try {
-        var origApplyTheme = applyTheme;
-        applyTheme = function () {
-            var prev = null;
-            try {
-                var cs = window.getComputedStyle(document.documentElement);
-                prev = (cs.getPropertyValue('--bg-solid') || cs.getPropertyValue('--bg') || '').trim() || null;
-            } catch (e) { }
-            // ★ 签名必须**前后各取一次**再比。原先这里是"变之前存一份 themeSignature()、
-            //   变之后只取 data-ui-style"，两边根本不是一个东西 ⇒ 永远不相等 ⇒
-            //   连开机那一趟 applyTheme 都被当成"主题变了"，于是首屏盖了一层整屏遮罩，
-            //   把加载屏的"正在准备 / 进度"整块字抹掉再淡回来。
-            var before = themeSignature();
-            var r = origApplyTheme.apply(this, arguments);
-            var after = themeSignature();
-            if (after !== before) {         // ★ 真的变了才淡；重复调用同一主题完全不动
-                // ★ 初始化那一趟只落值，不铺遮罩（themeInitCall 见 withThemeAnim）：
-                //   这时首屏还压在加载屏上，铺上去等于把加载文字藏起来。
-                if (!themeInitCall) {
-                    themeCrossFade();
-                    themeFadeOverlay(prev);  // 保底关闭：先保证不闪
-                }
-            }
-            return r;
-        };
-    } catch (e) { }
-})();
-
+//   历史：明暗/主题色刚做出来时，为了让"底色、卡片、模糊、背景层"一起变不显得突，
+//   试过三招 —— 给 #app 做 WAAPI 淡入（opacity 0.5 → 1）、再在最上层铺一块
+//   旧底色的**整屏不透明**遮罩淡出（.theme-fade-overlay，z-index 2147483000）。
+//
+//   撤掉的原因（用户报的"切换亮暗的时候整体文字等等会闪动"，逐帧实测）：
+//   切亮→暗时 t≈96~116ms，那块遮罩 opacity=1 盖住整屏，同时 #app 被压到 0.5
+//   —— 两者相乘"文字可见度"**归零**，然后 350ms 才淡回来。用户看到的就是
+//   整页文字先被抹掉、再淡出来。它盖的是文字，不只是底色，所以这个手段本身
+//   就是闪烁源，不是解药。
+//
+//   为什么现在可以不要它：底色/文字/卡片色都是 CSS 变量，layout.css 用
+//   @property 把它们注册成可插值类型，html.theme-anim 那一小段给变量挂上过渡。
+//   逐帧实测（亮→暗，55 帧）：body 底色、--text、h3 文字色**各有 18 个中间值**，
+//   而且"有遮罩"和"没遮罩"两种情况下中间值个数**完全一样** ——
+//   说明平滑是变量插值给的，遮罩一点没帮忙，只是把文字盖住了。
+//   （@property 不支持的老浏览器会退回"瞬间切换"，这与 layout.css 里写的口径一致，
+//    也是可以接受的降级。）
+//
+//   所以：.theme-anim 那个补间窗口 + 变量插值留着，遮罩/淡入一律不留。
+//   想验证这条：collection/tools/tests/verify-theme-switch-smooth.mjs
+//   同时守两个方向 —— 切换时不许有整屏遮罩、不许有 #app 掉不透明度，
+//   但底色/文字色**必须**出现足够多的中间值（否则就成了"更快但更硬的突变"）。
 // ================= LIQUID-GLASS-DISABLED =================
 // 用户决定：液态玻璃整体停用。原因是它会让整页闪（覆盖整页的背景层带入场动画，重播时整页淡入）。
 // 这里做四件事，保证任何入口都回不到玻璃模式：
