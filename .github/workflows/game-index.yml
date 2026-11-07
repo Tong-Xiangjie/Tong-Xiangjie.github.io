@@ -17,13 +17,11 @@ name: 生成游戏入口名单
 on:
   push:
     branches: [main]
-    paths:
-      # game/ 下的任何改动都可能让名单过期（新增/删除/改名游戏）。
-      # 生成物 game/index.json 不单独排除：它由本 workflow 提交，commit message 带
-      # [skip ci]，本来就不会再触发一次。
-      - 'game/**'
-      # 本 workflow 自身改动时也跑一次，便于验证
-      - '.github/workflows/game-index.yml'
+  # 这里刻意**不写 paths 过滤**：本来写的是 `game/**` + 本文件，但实测两次 push
+  # （一次改 game/ 下的文件、一次只改本文件）都没触发，去掉负向模式也不行，原因
+  # 不明。而这件事本身很便宜：脚本是"内容没变就不写文件"的，跑一次几秒钟，没变
+  # 化时 workflow 直接退出、不产生提交。少一个变量比省那几秒重要。
+  # （本 workflow 自己提交的 index.json 带 [skip ci]，不会再触发自己。）
   workflow_dispatch:
 
 permissions:
