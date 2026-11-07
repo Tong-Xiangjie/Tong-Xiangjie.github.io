@@ -3941,6 +3941,39 @@ function toolboxSplitBlockAt(blk, r) {
     blk.parentNode.insertBefore(nb, blk.nextSibling);
     return nb;
 }
+// 光标**前面**这一段里还有没有内容（用来判断"是不是停在段首"）。
+// ★ 为什么要单独问一句：切段是靠 Range.extractContents() 做的，它不区分"段首"和"段中" ——
+//   段首切完，前半段是个空壳，于是"空壳升格成空行"那条规则会把 `<center>`/`<div>` 这类
+//   带结构的块整个吃掉（用户实测：图片/图注、表格旁边按 Enter 结构就乱）。见 toolboxInsertParagraph ③。
+// ★ 量不出来时按"有内容"返回：那种情况下走原来的切段路，等于保持既有行为，不会把正常情况改坏。
+function toolboxBlockHasContentBeforeCaret(blk, r) {
+    if (!blk || !r || !r.startContainer) return true;
+    try {
+        const before = document.createRange();
+        before.setStart(blk, 0);
+        before.setEnd(r.startContainer, r.startOffset);
+        if (before.collapsed) return false;
+        // 有可见文字（空白/零宽不算）→ 段首之前就有内容
+        if (String(before.toString() || '').replace(/[\s\u00a0\u200b]+/g, '').length) return true;
+        // 文字为空也要看有没有"本身就是内容"的节点（图片/表格这类 void 元素）
+        const frag = before.cloneContents();
+        return !!(frag && frag.querySelector && frag.querySelector('img,table,hr,video'));
+    } catch (e) { return true; }
+}
+// 光标是不是在**表格里面**（祖先里有 <table>）。
+// ★ 用途见 toolboxInsertParagraph：切段是"从光标处 extractContents 到这一段末尾"，
+//   而光标在单元格里时，那一段是**整张表的外壳** —— 一下回车就把表劈成两个表。
+function toolboxCaretInTable(r, ed) {
+    if (!r || !r.startContainer) return false;
+    try {
+        let n = r.startContainer;
+        while (n && n !== ed) {
+            if (n.nodeType === 1 && String(n.tagName || '').toUpperCase() === 'TABLE') return true;
+            n = n.parentNode;
+        }
+    } catch (e) { }
+    return false;
+}
 // ---------- 空行 ↔ 段落的动态互转（用户口径） ----------
 // 正文 = 一个"行序列"：**有文字的行 = `<p>内容</p>`**，**空行 = 一个独立成行的 `<br>`**。
 // 两者随用户输入自动互转，触发点只有一处 —— 编辑区的 input 事件（见 initToolboxDOM）：
@@ -4387,6 +4420,14 @@ function toolboxInsertParagraph() {
         toolboxWrapStrayTopLevel(ed);
         blk = toolboxTopBlockOf(r.startContainer, ed);
     }
+    // ★★ 光标在**表格里面**（单元格里）按回车：绝不切段。
+    //    切段是"从光标处 extractContents 到这一段末尾"，而这一段是**整张表的外壳 DIV** ——
+    //    实测按一下回车就把表劈成两个表（1 表 6 格 → 2 表 7 格，首行还只剩一半文字），
+    //    这正是用户说的"表格也是类似"。表格里回车的自然含义是"在单元格内换行"：
+    //    走 Shift+Enter 那条路（就地插一根 `<br>`），表格结构一个节点都不动。
+    if (blk.querySelector && blk.querySelector('table') && toolboxCaretInTable(r, ed)) {
+        return toolboxEnterBreak();
+    }
     // ① 光标压根不在任何块里（停在根上/空行上）→ 就地开一个新段，光标进新段
     if (!blk) {
         if (!toolboxParagraphAtRoot(r)) return false;
@@ -4424,6 +4465,36 @@ function toolboxInsertParagraph() {
     // ③ 普通情况：在光标处把这一段切成两段，光标进新段。
     //    先把"落脚用"的标记节点（data-tb-caret 的 <br>）从切点上请出去 ——
     //    它只是给光标找的落脚点，不该跟着内容搬进新段。
+    // ★★ 例外（用户实测：在图片/图注旁边换行，结构就乱了）：光标停在这一段的**最开头**、
+    //    而且这一段**不是普通段落**（`<center>` 图片/图注、`<div>` 引用块或表格外壳…）时，
+    //    绝不切段。两条理由都实测过：
+    //      · 切段（toolboxSplitBlockAt）会把这一段的内容整个搬进一个**新建**的块，而它只复制
+    //        `style` —— `id`/`class`/`data-*` 全丢；而且它只认得 <p>/<div>/<blockquote>/<h1-6>，
+    //        其余一律退化成 `<p>`（图注按一次 Enter 就从 `<center>` 变 `<p>`）；
+    //      · 空掉的前半段还会被下面"前半段被切空 → 变一根独立 `<br>`"那条规则吃掉，
+    //        于是标签和样式一起消失。
+    //    正确做法与 Word/Docs 一致：在它**前面**插一个新空段，原块一个字不动。
+    //    （普通 `<p>` 不走这条：`<p>` 的前半段本身就是个段落，"空段落升格成空行"是用户
+    //      定的口径 —— `<p>甲</p>` 段首回车得到 `<br>` + `<p>甲</p>`，这里一个字不改。）
+    if (String(blk.tagName || '').toUpperCase() !== 'P' && !toolboxBlockHasContentBeforeCaret(blk, r)) {
+        const np = document.createElement('p');
+        np.appendChild(document.createElement('br'));          // 新空段的落脚行
+        blk.parentNode.insertBefore(np, blk);
+        try {
+            const nr = document.createRange();
+            nr.setStart(np, 0);
+            nr.collapse(true);
+            const sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+        } catch (e) {}
+        toolboxSnapClear();
+        toolboxSaveRange();
+        toolboxCaretHolderSweep();
+        toolboxRefresh();
+        toolboxUndoPush(false, true);          // ★ forced：新空段不进源码，这一步必须自己入栈
+        toolboxKeepFocus();
+        return true;
+    }
     const nb = toolboxSplitBlockAt(blk, r);
     if (!nb) return false;
     while (nb.firstChild && toolboxIsCaretOrBlankNode(nb.firstChild)) nb.removeChild(nb.firstChild);
@@ -4450,7 +4521,7 @@ function toolboxInsertParagraph() {
     toolboxSaveRange();
     toolboxCaretHolderSweep();
     toolboxRefresh();
-    toolboxUndoPush(false);
+    toolboxUndoPush(false, true);          // ★ forced：段尾回车分出的空段不进源码，必须自己入栈
     toolboxKeepFocus();
     return true;
 }
@@ -6584,6 +6655,85 @@ function toolboxNodeAtPath(root, path) {
     }
     return n;
 }
+// ＝＝ 光标的"结构坐标"：第几个内容块 + 块内第几个字 ＝＝
+// ★ 为什么还要这一份（用户实测：正文里打完字按 Ctrl+Z，光标掉到编辑区根上、或者跳到图注里）：
+//   指纹（toolboxSelectionFingerprint）认的是"光标周围那段文字"，可撤回掉的偏偏就是刚敲的
+//   那几个字 —— 新 DOM 里那段文字已经不存在，指纹必然定位失败；那条路一失败，旧代码要么
+//   盲信一个**已经过期**的子节点路径（于是落到路径现在指着的那个节点上：图注里），
+//   要么什么都不做（DOM 重建后选区本来就已经掉到根上）。
+//   结构坐标不依赖节点身份，也不需要那段文字还在：块序号对不上就落到最后一块末尾（回车被
+//   撤回时，光标本来就该回到前一段末尾），块内字数变少就往块尾夹。
+// ★ 只数**元素块**、且跳过"光标托"（data-tb-caret）：托是随光标来去的临时节点，
+//   把它算进去会让序号随每次落脚漂移，反而不可靠。
+function toolboxContentBlocks(ed) {
+    const out = [];
+    if (!ed) return out;
+    for (let i = 0; i < ed.childNodes.length; i++) {
+        const c = ed.childNodes[i];
+        if (c.nodeType !== 1) continue;
+        if (c.getAttribute && c.getAttribute(TOOLBOX_CARET_ATTR)) continue;
+        out.push(c);
+    }
+    return out;
+}
+function toolboxSelStructPos(ed, r) {
+    if (!ed || !r || !r.startContainer) return null;
+    const blocks = toolboxContentBlocks(ed);
+    if (!blocks.length) return null;
+    try {
+        let top = r.startContainer;
+        while (top && top.parentNode !== ed) top = top.parentNode;
+        const idx = (top && top.nodeType === 1) ? blocks.indexOf(top) : -1;
+        if (idx >= 0) {
+            const before = document.createRange();
+            before.setStart(blocks[idx], 0);
+            before.setEnd(r.startContainer, r.startOffset);
+            return { blk: idx, off: before.toString().length };
+        }
+        // 光标挂在**根**上（块与块之间的缝隙）：算作"前一个内容块的末尾"
+        const kids = ed.childNodes;
+        const raw = (r.startContainer === ed)
+            ? r.startOffset
+            : Array.prototype.indexOf.call(kids, r.startContainer) + 1;
+        let seen = -1;
+        for (let k = 0; k < kids.length && k < raw; k++) {
+            if (kids[k].nodeType === 1 && blocks.indexOf(kids[k]) >= 0) seen++;
+        }
+        if (seen < 0) return { blk: 0, off: 0 };              // 前面没有块 → 落到第一个块的开头
+        return { blk: seen, off: String(blocks[seen].textContent || '').length };
+    } catch (e) { return null; }
+}
+function toolboxRangeFromStructPos(ed, sp) {
+    if (!ed || !sp) return null;
+    const blocks = toolboxContentBlocks(ed);
+    if (!blocks.length) return null;
+    const last = blocks.length - 1;
+    // 目标块已经被这一步撤回掉了（例如刚按 Enter 分出来的那个空段）→ 落到**最后一块的末尾**：
+    // 回车被撤回 = 两段又合并回一段，光标本来就该在前一段末尾（Word/Docs 的合并点也一样）。
+    const gone = (sp.blk > last);
+    const blk = blocks[gone ? last : Math.max(0, Math.min(sp.blk, last))];
+    if (!blk) return null;
+    const off = gone ? Infinity : Math.max(0, sp.off | 0);
+    const walker = document.createTreeWalker(blk, NodeFilter.SHOW_TEXT, null);
+    let acc = 0, hit = null, at = 0;
+    while (walker.nextNode()) {
+        const t = walker.currentNode;
+        const len = String(t.nodeValue || '').length;
+        if (off <= acc + len) { hit = t; at = off - acc; break; }
+        acc += len;
+    }
+    try {
+        const r = document.createRange();
+        if (hit) {
+            r.setStart(hit, Math.max(0, Math.min(at, String(hit.nodeValue || '').length)));
+            r.collapse(true);
+        } else {
+            r.selectNodeContents(blk);                       // 块里没有文字（空段/纯图片块）：块尾
+            r.collapse(false);
+        }
+        return r;
+    } catch (e) { return null; }
+}
 function toolboxSnapshotSel() {
     const ed = toolboxTpl && toolboxTpl.editor;
     if (!ed) return null;
@@ -6600,8 +6750,28 @@ function toolboxSnapshotSel() {
         //   不依赖任何旧偏移/旧节点（见 toolboxRestoreSnapshotSel）。
         let fp = null;
         try { fp = toolboxSelectionFingerprint(r, ed); } catch (e) { fp = null; }
-        return { a: a, ao: r.startOffset, b: b, bo: r.endOffset, fp: fp };
+        // ★ 再存一份**结构坐标**（见上面那段说明）：指纹会因为"被撤回掉的那几个字在新 DOM 里
+        //   已经不存在"而定位失败，它不依赖节点身份，专治"Ctrl+Z 之后光标瞬移到别处/掉到根上"。
+        let sp = null;
+        try { sp = toolboxSelStructPos(ed, r); } catch (e) { sp = null; }
+        return { a: a, ao: r.startOffset, b: b, bo: r.endOffset, fp: fp, sp: sp };
     } catch (e) { return null; }
+}
+// 落点与快照里的**结构坐标**是不是同一个内容块（用于校验指纹那条路）。
+// ★ 为什么必须有这道校验（用户实测：正文段末尾打字后 Ctrl+Z，光标跳到图注里）：
+//   指纹是按"光标前后各 20 字"去当前 DOM 里找位置的，而正文段的**前文里常常正好含有
+//   图注那串字**（图注就在上面几行）—— 于是它匹配到了图注里那一份，落点整块跑偏。
+//   结构坐标（第几个内容块）不参与文字匹配，正好用来当"这块地方对不对"的守门人。
+//   · 没存结构坐标（老快照/量不出来）→ 返回 true，保持既有行为；
+//   · 结构坐标指向的块已被删掉（例如回车分出来的空段被撤回）→ 与"夹到最后一个块"的
+//     预期比较（与 toolboxRangeFromStructPos 的夹取口径一致）。
+function toolboxStructAgrees(ed, r, sp) {
+    if (!sp) return true;
+    const n = toolboxContentBlocks(ed).length;
+    if (!n) return false;
+    const cur = toolboxSelStructPos(ed, r);
+    if (!cur) return false;
+    return cur.blk === Math.max(0, Math.min(sp.blk, n - 1));
 }
 // 落点是不是"同一段文字的同一位置附近"（±1 字符：指纹里的前后文对得上就算数）
 function toolboxSelClose(a, b) {
@@ -6626,7 +6796,8 @@ function toolboxRestoreSnapshotSel(snap) {
             const good = got && got.ok && got.collapsed === snap.fp.collapsed
                 && toolboxSelClose(got.text, snap.fp.text)
                 && toolboxSelClose(got.after, snap.fp.after)
-                && toolboxSelClose(got.before, snap.fp.before);
+                && toolboxSelClose(got.before, snap.fp.before)
+                && toolboxStructAgrees(ed, r2, snap.sp);       // ★ 再问一句"是不是同一个内容块"
             if (good) {
                 toolboxSelectRange(r2);
                 try { toolboxRange = r2.cloneRange(); } catch (e) {}
@@ -6634,7 +6805,19 @@ function toolboxRestoreSnapshotSel(snap) {
             }
         }
     }
-    // ② 退回"子节点路径"，但落点必须和指纹对得上；对不上就换"锚点前那段文字之后"的光标；
+    // ② 结构坐标（第几个内容块 + 块内第几个字）：指纹定位不了时靠它兜住 ——
+    //    撤回场景里指纹最容易失效的就是"刚敲的那几个字被撤掉了"，那正是用户报的那一类。
+    //    放在"子节点路径"**之前**：旧路径是上一次 DOM 的坐标，重解析后指到别的节点上是常态
+    //    （用户实测：正文段里按回车再 Ctrl+Z，光标跑到图注里去了）。
+    if (snap.sp) {
+        const rs = toolboxRangeFromStructPos(ed, snap.sp);
+        if (rs) {
+            toolboxSelectRange(rs);
+            try { toolboxRange = rs.cloneRange(); } catch (e) {}
+            return;
+        }
+    }
+    // ③ 退回"子节点路径"，但落点必须和指纹对得上；对不上就换"锚点前那段文字之后"的光标；
     //   再不行就**什么都不做**。
     //   ★ 绝不 toolboxCaretAtEnd()：那正是"光标瞬移到文首/文末"的来源。
     try {
@@ -6667,14 +6850,52 @@ function toolboxRestoreSnapshotSel(snap) {
     }
 }
 
-function toolboxUndoSnapshot() {
-    return { code: toolboxCodeText(), sel: toolboxSnapshotSel() };
+// 编辑区的"结构指纹"：每个内容块的标签 + 可见字数 + 块内 <br> 数（不算光标托）。
+// ★ 为什么需要它（用户实测：在段尾按回车之后再 Ctrl+Z，光标"跳到别的地方"）：
+//   回车在段尾分出来的那个空段是**瞬态**的 —— 导出时被 toolboxDropEmptyBlocks 摘掉，
+//   于是源码字符串和上一步**一模一样**：toolboxUndoPush 那句"内容没变就不入栈"就把这
+//   一下回车整个跳过了。撤回栈里没有这一步，用户按 Ctrl+Z 撤掉的就是**更早**的一次改动，
+//   光标于是跑到别处去。
+//   结构指纹正好能把两种情形分开：**多出一个空段**（结构变了 → 必须入栈）和
+//   **光标只是挪了个位置**（结构不变 → 绝不能入栈，否则方向键会堆出一串空记录：
+//   编辑区的 keyup 里也在调 toolboxUndoSoon）。
+function toolboxEditorSignature() {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return '';
+    const parts = [];
+    for (let i = 0; i < ed.childNodes.length; i++) {
+        const c = ed.childNodes[i];
+        if (c.nodeType === 3) {
+            if (String(c.nodeValue || '').replace(/[\s\u00a0\u200b]+/g, '').length) parts.push('裸文本');
+            continue;
+        }
+        if (c.nodeType !== 1) continue;
+        if (c.getAttribute && c.getAttribute(TOOLBOX_CARET_ATTR)) continue;   // 光标托不算结构
+        const tag = (c.tagName === 'BR') ? 'br' : c.tagName;
+        const brs = c.querySelectorAll ? c.querySelectorAll('br').length : 0;
+        parts.push(tag + ':' + String(c.textContent || '').length + ':' + brs);
+    }
+    return parts.join('|');
 }
-function toolboxUndoPush(merge) {
+function toolboxUndoSnapshot() {
+    return { code: toolboxCodeText(), sig: toolboxEditorSignature(), sel: toolboxSnapshotSel() };
+}
+function toolboxUndoPush(merge, forced) {
     if (toolboxUndo.busy || toolboxSyncBusy) return;
     const snap = toolboxUndoSnapshot();
     const top = toolboxUndo.stack[toolboxUndo.index];
-    if (top && top.code === snap.code) return;                 // 内容没变：不入栈
+    // ★ "内容没变"仍然以**源码字符串**为准（打字、代码区输入这些路保持不变）。
+    //   唯一的例外是**结构化编辑点自己声明**（forced，见回车那两处调用）：
+    //   回车在段尾/段首分出来的空段是**瞬态**的 —— 导出时被 toolboxDropEmptyBlocks 摘掉，
+    //   源码一字不差；只看源码就等于"这一下回车没发生"，用户按 Ctrl+Z 会跨过它撤到更早一步，
+    //   光标于是"跳到别的地方"（用户实测）。这些点声明 forced 后就能入栈。
+    //   为什么不让判据自己变成"看编辑区结构"：编辑区自己会为了光标落脚增删空段壳
+    //   （toolboxBlankLineCaretHost / 落脚段），那不是用户的内容变化 —— 那样会压出一串空记录，
+    //   连"Ctrl+Y 恢复"都会恢复到错的那一格（verify-toolbox 的 (15) 用例正是这么红的）。
+    //   forced 再去重一次：源码与结构指纹都和栈顶一样时，说明这一步已经记过了。
+    if (top && top.code === snap.code) {
+        if (!forced || top.sig === snap.sig) return;
+    }
     const now = Date.now();
     if (merge && toolboxUndo.index > 0 && (now - toolboxUndo.lastAt) < TOOLBOX_UNDO_MERGE_MS) {
         // 连续打字：把上一条替换掉，而不是一直堆 —— 否则长按 Ctrl+Z 要按几十次
@@ -6711,7 +6932,7 @@ function toolboxUndoReset() {
         ? (toolboxEditorEmpty() ? '' : toolboxFormatHtml(toolboxParseBox(toolboxCleanHtml())))
         : toolboxCodeText();
     toolboxUndo = {
-        stack: [{ code: base, sel: toolboxSnapshotSel() }],
+        stack: [{ code: base, sig: toolboxEditorSignature(), sel: toolboxSnapshotSel() }],
         index: 0, lastAt: 0, busy: false, timer: 0
     };
     toolboxUndoButtons();
