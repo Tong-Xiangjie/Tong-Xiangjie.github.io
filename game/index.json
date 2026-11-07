@@ -6,19 +6,19 @@
       "dir": "人格初始化",
       "title": "人格初始化",
       "desc": "人格构建模块 · INIT-7 · 空档案",
-      "bytes": 22687
+      "bytes": 21874
     },
     {
       "dir": "已读",
       "title": "404宿舍 · 备份记录",
       "desc": "6 人 · 已读 6",
-      "bytes": 28371
+      "bytes": 27590
     },
     {
       "dir": "已读 - 副本",
       "title": "404宿舍 · 备份记录",
       "desc": "6 人 · 已读 6",
-      "bytes": 28371,
+      "bytes": 27590,
       "copy": true,
       "dup": true
     },
@@ -26,13 +26,13 @@
       "dir": "AURA",
       "title": "AURA",
       "desc": "自适应陪伴对话系统 · v0.9.3",
-      "bytes": 25674
+      "bytes": 24820
     },
     {
       "dir": "AURAⅡ",
       "title": "AURA · 回声",
       "desc": "回声进程 · build 0.9.4 · 修复中",
-      "bytes": 38851
+      "bytes": 37607
     },
     {
       "dir": "BeamNG",
@@ -44,19 +44,19 @@
       "dir": "blackhole",
       "title": "黑洞吞噬",
       "desc": "桌 面 上 的 洞",
-      "bytes": 26376
+      "bytes": 25516
     },
     {
       "dir": "ECHO",
       "title": "ECHO v2.3.7 — 本地模式",
       "desc": "",
-      "bytes": 58115
+      "bytes": 56474
     },
     {
       "dir": "ECHO OS",
       "title": "ECHO OS",
       "desc": "",
-      "bytes": 45525
+      "bytes": 44192
     },
     {
       "dir": "neon-breaker",
@@ -68,7 +68,7 @@
       "dir": "os",
       "title": "SimpleWebOS 3.0",
       "desc": "",
-      "bytes": 96141
+      "bytes": 94178
     },
     {
       "dir": "stardust-migration",
@@ -80,7 +80,7 @@
       "dir": "wolfgame",
       "title": "🐺 AI 狼人杀",
       "desc": "🐺 AI 狼人杀",
-      "bytes": 65792
+      "bytes": 64558
     }
   ]
 }
