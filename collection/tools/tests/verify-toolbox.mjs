@@ -1784,13 +1784,18 @@ const syncOut = await json(`(()=>{const c=document.getElementById('tbCode').valu
   return JSON.stringify({ code:c, lines:lines.length,
     blank:lines.filter(function(l){return !l.trim();}).length,
     lead:lines.filter(function(l){return /^[ \\t]/.test(l);}).length,
+    leadOther:lines.filter(function(l){return /^[ \\t]+</.test(l) && !/^[ \\t]+<\\/?t[dh][ >]/.test(l);}),
     centerLine:lines.some(function(l){return /^<center>/.test(l);}),
     tableLine:lines.some(function(l){return /^<table>/.test(l);}) });})()`);
 ok(/补一/.test(syncOut.code), '(15)* 编辑区改动 → 代码区实时更新');
 ok(syncOut.lines > 1, `(15)* 生成HTML 按行排版，不是挤成一行（${syncOut.lines} 行）`);
 ok(syncOut.centerLine && syncOut.tableLine,
   '(15)* 每个顶层块各占一行（<center>… 与 <table> 都从行首开始）');
-ok(syncOut.lead === 0, `(15) 行首不缩进（与readmes/ 现有文章一致，缩进行数 ${syncOut.lead}）`);
+// ★ 2024 更正：表格现在**会缩进**（用户要求表格代码要有换行 + 缩进），所以"缩进行数必须为 0"
+//   已经不成立。判据改成更准确的那条：**缩进只许出现在表格内部**（单元格 <td>/<th>），
+//   顶层块的标签行（<center>/<table>/<p>…）仍然必须从行首开始。
+ok(syncOut.leadOther.length === 0,
+  `(15) 行首不缩进（缩进只许在表格内部；实测越界缩进行 ${syncOut.leadOther.length} 行${syncOut.leadOther.length ? '：' + JSON.stringify(syncOut.leadOther.slice(0, 3)) : ''}，表格内缩进 ${syncOut.lead} 行）`);
 ok(syncOut.blank === 0, `(15) 没有多余空行（空行${syncOut.blank} 行）`);
 console.log('  导出样例：\n' + syncOut.code.split('\n').slice(0, 8).map(l => '    ' + l).join('\n'));
 
@@ -1950,20 +1955,22 @@ for (let ai = 0; ai < ARTICLES.length; ai++) {
     const e2 = await importExport(e1);
     const e3 = await importExport(e2);
     console.log(`  导出长度：第 1 ${e1.length}，第 2 ${e2.length}，第 3 ${e3.length}`);
-    ok(e1 === e2, '(15) 打开后能读到编辑区状态（前置检查）');
+    ok(e1 === e2, '(15) 真文章：导出第 1 遍与第 2 遍逐字节一致（排版是稳定不动点）');
     ok(e2 === e3, '(15)* Ctrl+Y 恢复（「第二段」）');
     // 语料里的关键结构不能在导入导出里丢掉（按**本篇自己的内容**判：本篇没有的就不判，
     //   而不是拿"某一篇特定语料"当基准）。
-    if (hasTable) ok(/<table/.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
-    if (/readmes\/image\//.test(art)) ok(/readmes\/image\//.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
-    if (/<img /.test(art)) ok(/<img /.test(e2), '(15) 打开后能读到编辑区状态（前置检查）');
+    if (hasTable) ok(/<table/.test(e2), '(15) 真文章：导入导出没丢掉 <table>');
+    if (/readmes\/image\//.test(art)) ok(/readmes\/image\//.test(e2), '(15) 真文章：没丢掉 readmes/image/ 图片路径');
+    if (/<img /.test(art)) ok(/<img /.test(e2), '(15) 真文章：没丢掉 <img>');
     // 按行排版：顶层块各占一行，且**标签行**行首不缩进（与 readmes/ 里的写法一致）。
     // 只查以 < 开头的行：正文文本行原样保留用户/语料里的空格，那不是缩进。
+    // ★ 2024 更正：表格内部的单元格现在会缩进两格（用户要求），所以"缩进行数必须为 0"
+    //   改成"缩进只许出现在表格内部"——顶层块的标签行仍然必须从行首开始。
     const lines = e2.split('\n');
     const tagLines = lines.filter((l) => /^\s*</.test(l));
-    const indented = tagLines.filter((l) => /^[ \t]/.test(l));
+    const indented = tagLines.filter((l) => /^[ \t]/.test(l) && !/^[ \t]+<\/?t[dh][ >]/.test(l));
     ok(lines.length > 1 && indented.length === 0,
-      '(15) 打开后能读到编辑区状态（前置检查）');
+      `(15) 真文章：每个顶层块各占一行、行首不缩进（缩进只许在表格内部；越界 ${indented.length} 行）`);
 }
 
 // ==============================================================
@@ -3294,13 +3301,29 @@ const e3 = await evaluate(`(()=>{toolboxApplyCodeToEditor(document.getElementByI
   return document.getElementById('tbCode').value;})()`);
 await sleep(300);
 ok(e1 === e2 && e2 === e3, '(20)* 导出→导入→导出 三次结果字节一致（排版稳定幂等）');
-ok(!/<center>\n/.test(e1) && !/\n<\/center>/.test(e1) && !/<td[^>]*>\n/.test(e1) && !/<tr[^>]*>\n/.test(e1),
-  `(20)* 输出里没有"块内换行"（<center>\n / \n</center> / <td…>\n）`);
+// ★ 2024 更正：<tr> 现在自己占一行（表格骨架各自成行，用户要求），所以这里不再禁止
+//   `<tr…>\n`；"块内换行"禁止的是**内容全是行内的块**被拆开 —— `<center>…</center>` 与
+//   单元格 `<td><br></td>`（里面的 <br>/<img> 都算行内）。
+//   ★ 标签名必须带词边界：`<th[^>]*>` 会把 **<thead>** 也匹配上（老正则就埋着这个坑，
+//     以前 `<thead>` 后面不换行才没暴露；表格骨架改成一标签一行之后就命中了）。
+//   断言自带诊断：命中哪个模式、命中处前后文都打出来，省得下次再靠猜。
+const wrapPats = [['<center>\\n', /<center>\n/], ['\\n</center>', /\n<\/center>/],
+  ['<td…>\\n', /<td\b[^>]*>\n/], ['<th…>\\n', /<th\b[^>]*>\n/]];
+const wrapHits = [];
+for (const [name, re] of wrapPats) {
+  const m = re.exec(e1);
+  if (m) wrapHits.push(`${name}@${m.index}（…${JSON.stringify(e1.slice(Math.max(0, m.index - 24), m.index + 16))}…）`);
+}
+ok(wrapHits.length === 0,
+  `(20)* 输出里没有"块内换行"（内容全是行内的块不许拆开；表格骨架自己占行是另一条规则）${wrapHits.length ? ' 命中：' + wrapHits.join('、') : ''}`);
 ok(/<center><img[^>]*><\/center>/.test(e1),
   '(20)* <center> 里的图片一行写完（<center><img src="readmes/image/a.jpg" width="80%"></center>）');
-// ★ 事故修复：`<\/th>` / `<\/td>` 被啃成 `/th>` `/td>`（正则里变成裸斜杠），永远匹配不上。
-ok(/<tr><th><\/th><\/tr>/.test(e1) && /<tr><td><br><\/td><td><\/td><\/tr>/.test(e1),
-  `(20)* tr/td 一行写完、单元格里的 <br> 留在同一行（${JSON.stringify(String(e1).slice(0, 120))}）`);
+// ★ 2024 更正：以前这里是"<tr> 与单元格都一行写完"，现在表格骨架**各自占一行**
+//   （用户要求表格代码要有换行 + 缩进）。判定改成：
+//     · 每个 <tr> 自己一行、每个单元格自己一行；
+//     · **单元格里的 `<br>` 仍留在同一行**（这条老口径没变：内容全是行内的单元格不拆行）。
+ok(/^\s*<tr>$/m.test(e1) && /^\s*<th><\/th>$/m.test(e1) && /^\s*<td><br><\/td>$/m.test(e1) && /^\s*<td><\/td>$/m.test(e1),
+  `(20)* 每个 tr/单元格各占一行、单元格里的 <br> 留在同一行（表格片段：${JSON.stringify(((e1.match(/<table[\s\S]*?<\/table>/) || ['(没找到表格)'])[0]).slice(0, 200))}）`);
 // 空单元格里多余的 <br>：做一次操作后应被清掉（操作范围内清理）
 await evaluate(`(()=>{const ed=document.getElementById('tbEditor');
   ed.innerHTML='<table><tbody><tr><td><br></td><td></td></tr></tbody></table><p>外层</p>';

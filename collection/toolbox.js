@@ -56,7 +56,7 @@ const TOOLBOX_VOID_TAGS = ['BR', 'IMG', 'HR', 'COL', 'INPUT', 'WBR'];
 //   没有列进来的（以及 display:inline/flex 的）一律当行内，宁可不换行也不冒险。
 const TOOLBOX_BLOCK_TAGS = ['CENTER', 'DIV', 'P', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD',
     'CAPTION', 'COLGROUP', 'COL', 'UL', 'OL', 'LI', 'DL', 'DT', 'DD', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-    'HR', 'BLOCKQUOTE', 'PRE', 'VIDEO'];
+    'HR', 'BLOCKQUOTE', 'PRE', 'VIDEO', 'STYLE'];
 // 站内字号刻度（em）：粘贴进来的 px 字号就近吸附到这些值上，见 toolboxNormalizeStyle。
 const TOOLBOX_FONT_SCALE = [0.66, 0.7, 0.72, 0.75, 0.78, 0.8, 0.85, 0.9, 0.95, 1, 1.1, 1.2, 1.3, 1.5, 1.6, 2];
 // 允许出现在正文里的标签（其余一律拆成纯文本，见 sanitizeToolboxNode）。
@@ -67,10 +67,15 @@ const TOOLBOX_FONT_SCALE = [0.66, 0.7, 0.72, 0.75, 0.78, 0.8, 0.85, 0.9, 0.95, 1
 const TOOLBOX_OK_TAGS = ['P', 'DIV', 'SPAN', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL',
     'BR', 'HR', 'A', 'IMG', 'CENTER', 'BLOCKQUOTE', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR',
     'TH', 'TD', 'CAPTION', 'COLGROUP', 'COL', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-    'UL', 'OL', 'LI', 'DL', 'DT', 'DD', 'SMALL', 'MARK', 'SUB', 'SUP', 'PRE', 'CODE', 'VIDEO'];
-// 正文里**绝对不能**出现的标签：文章渲染会把它们剥掉（article.js），
-// 带进来只会是"看起来写了、其实不生效"，所以校验里算错误。
-const TOOLBOX_BAD_TAGS = ['script', 'style', 'iframe'];
+    'UL', 'OL', 'LI', 'DL', 'DT', 'DD', 'SMALL', 'MARK', 'SUB', 'SUP', 'PRE', 'CODE', 'VIDEO', 'STYLE'];
+// 正文里**绝对不能**出现的标签。★ 这里曾经也禁 <style>，理由是"文章渲染会把它们剥掉"——
+//   **这条理由量下来是错的**（2024 复核）：文章页 renderArticleReader 是把 readme 文件
+//   **原样 innerHTML 注入**的（collection/article.js），`<style>` 与 `class` 都会照常生效；
+//   会删 `<style>` 的只有 stripHtml —— 那是**纯文本检索**用的（搜索/摘要），与渲染无关。
+//   于是禁 `<style>` 的后果是：用户把带 `<style>` 的标准表格代码贴进代码区，**校验直接报错**
+//   （实测报 "Line 6：不允许的标签 <style>"，他手写的那篇文章就是这么写的）。
+//   script/iframe 仍然禁：它们注入后本来就不执行/不渲染，写进来只会"看起来写了、其实不生效"。
+const TOOLBOX_BAD_TAGS = ['script', 'iframe'];
 
 let toolboxLoaded = false;     // DOM 是否已就绪（initToolboxDOM 跑过）
 let toolboxTpl = null;         // 用到的元素缓存，避免到处 getElementById
@@ -184,8 +189,34 @@ function sanitizeToolboxNode(root) {
     //    —— 用户粘来的正文不该凭空丢字。
     //    注意 video 不在删除名单里：语料里真有 5 篇用 <center><video controls src="video/…">
     //    （hk_boc_2018_promo 等），删掉就等于导入时把视频丢了。
-    const kill = root.querySelectorAll('script,style,link,meta,iframe,object,embed,form,input,button,textarea,select,svg,canvas,audio,noscript,template,base');
+    //    ★ <style> 也不删（2024 更正）：用户手写的文章就是"<style> 定义 .signature-table，
+    //      表格用 class 引用"，文章页原样注入后它是真生效的 —— 删掉等于每次一编辑就把
+    //      表格样式清空。见 TOOLBOX_BAD_TAGS 上面的说明。
+    const kill = root.querySelectorAll('script,link,meta,iframe,object,embed,form,input,button,textarea,select,svg,canvas,audio,noscript,template,base');
     for (let i = 0; i < kill.length; i++) { try { kill[i].remove(); } catch (e) {} }
+    // ★ style 块里被点名的 class 要留住（见下面属性白名单里的 class 那一条）
+    const styleText = (function () {
+        let s = '';
+        const st = root.querySelectorAll('style');
+        for (let i = 0; i < st.length; i++) s += String(st[i].textContent || '') + '\n';
+        return s;
+    })();
+    const classKept = function (el, val) {
+        const name = String(val || '').trim();
+        if (!name) return false;
+        // 表格一族：语料里就是靠 class 挂表格样式的（.signature-table），一律留
+        if (TOOLBOX_TABLE_STRUCT_TAGS.indexOf(el.tagName) >= 0) return true;
+        // 其余标签：只留"这份内容自己的 <style> 确实点名了它"的 class —— 粘来的网页杂质
+        // （class="MsoNormal" 之类）照旧清掉，而用户自己写的 .my-block 这类能活下来。
+        if (!styleText) return false;
+        const names = name.split(/\s+/);
+        for (let i = 0; i < names.length; i++) {
+            const n = names[i].replace(/[^A-Za-z0-9_\-]/g, '');
+            if (!n) continue;
+            if (new RegExp('\\.' + n.replace(/[-]/g, '\\-') + '(?![A-Za-z0-9_\\-])').test(styleText)) return true;
+        }
+        return false;
+    };
     const all = root.querySelectorAll('*');
     for (let i = 0; i < all.length; i++) {
         const el = all[i];
@@ -199,9 +230,14 @@ function sanitizeToolboxNode(root) {
         for (let k = 0; k < attrs.length; k++) {
             const name = attrs[k].name.toLowerCase();
             const val = attrs[k].value;
+            // ★ class 只有"这份内容自己的 <style> 点名了它"（或表格一族）才留：用户手写的
+            //   `.signature-table { … }` + `<table class="signature-table">` 是他文章排版的一部分，
+            //   清掉就等于把表格样式删了；粘来的网页杂质 class 照旧清掉。
+            const keptClass = (name === 'class') ? classKept(el, val) : false;
             let keep = (name === 'colspan' || name === 'rowspan' || name === 'width'
                 || name === 'style' || name === 'href' || name === 'src' || name === 'controls'
                 || name === 'poster' || name === 'alt' || name === 'title' || name === 'target' || name === 'rel'
+                || keptClass
                 // ★ 光标托必须活过净化（带 tb- 前缀，不属于外部粘贴的杂质）；导出前会被摘掉。
                 || name === 'data-tb-caret');
             if (!keep) { try { el.removeAttribute(attrs[k].name); } catch (e) {} continue; }
@@ -345,15 +381,42 @@ function toolboxIsFlexBox(el) {
     return /display\s*:\s*(inline-)?flex/i.test(st);
 }
 
+// 单元格里有没有**块级**子元素？—— 用结构口径（toolboxIsStructBlock，flex 容器算块级）。
+// ★ 不能直接用 toolboxIsInlineOnly：它把 display:flex 的容器也算成"行内"（那是为了让并排图组
+//   整行保持一行），于是一个"带并排图组的单元格"会被判成"内容全是行内"，图组又和 <td> 挤回
+//   一整行（用户实测：单元格一行 300+ 字符）。排版要的是"里面有没有块级东西"，用这条。
+function toolboxCellHasBlockChild(cell) {
+    const kids = cell.childNodes;
+    for (let i = 0; i < kids.length; i++) {
+        const k = kids[i];
+        if (k.nodeType === 1 && TOOLBOX_VOID_TAGS.indexOf(k.tagName) < 0 && toolboxIsStructBlock(k)) return true;
+    }
+    return false;
+}
+
 // ========== 序列化的换行策略 ==========
 // ★ 用户点名的最大问题：导出的换行"极其随意" —— 同一份结构，输入里换行不同就排得不同。
 //   现在的规则**完全忽略输入里的空白/换行**，只按标签结构重建：
 //     · 块级节点之间换行；
 //     · 块**内部**一律不换行（块内若还有块级子节点，就在那些子节点之间换行）；
-//     · <tr>/<td>/<th> 必须**一行写完**（单元格里的 <br> 也留在同一行）；
+//     · 表格：骨架标签（table/thead/tbody/tfoot/colgroup/tr）**各自占一行**、彼此同缩进
+//       （与用户手写的那篇签名图鉴一致：`<div>` 与 `<table>` 齐平、`<thead>/<tr>` 也齐平），
+//       单元格（td/th）比它所在的行多缩进两格；单元格内容全是行内时一行写完（单元格里的
+//       `<br>` 也留在同一行，与语料一致），里面有块级（并排图组、嵌套表…）时撑开写：
+//       `<td>` 一行、子节点再多缩进两格、`</td>` 一行；
 //     · 行内元素之间绝不插换行。
 //   于是"同一份 DOM 不论从哪来，导出结果完全一致"（幂等）。
-const TOOLBOX_ONELINE_TAGS = ['TR', 'TD', 'TH'];
+// ★ 表格为什么改了（用户实测）：以前 `<tr>/<td>/<th>` 一律"一行写完"，一个 5 列的表格
+//   运行时导出成**一整行几百个字符**（用户贴出来的就是那样：`<tbody>` 下面就一行），
+//   读不了也改不了。现在按上一条排版，形态与用户手写的那篇
+//   republic_signatures_on_notes_editions.html 里的表格一致。
+// ★ 缩进只加在表格内部：正文那些 `<p>/<div>/<center>` 的排版一个字没动（既有的幂等与
+//   用例都按老样子）。
+// ★ 表格里"自己占一行、彼此同缩进"的**骨架**标签（单元格不在里面：单元格比所在行多缩进
+//   两格，内容全是行内时一行写完，另走一条 —— 见 toolboxFormatHtml）。
+// ★ 与 TOOLBOX_TABLE_STRUCT_TAGS 的区别：那个是"结构判断"用的全量表格标签（含 td/th），
+//   给取消引用/调块那些地方认"这是表格里的东西"；这里是**排版**用的骨架集合，两者别互相顶替。
+const TOOLBOX_TABLE_FRAME_TAGS = ['TABLE', 'THEAD', 'TBODY', 'TFOOT', 'COLGROUP', 'TR'];
 
 // 纯空白文本节点在序列化里的处理（这是"忽略输入换行"的关键）：
 //   · 不含换行的纯空白（行内的一个空格）：折叠成一个空格**保留** ——
@@ -492,7 +555,9 @@ function toolboxFormatHtml(box, rec) {
     let acc = 0;        // 已产出文本的绝对长度（用来把"行内相对位置"换算成绝对偏移）
 
     // 把一层的子节点序列排成若干行：块级各自成行，行内贴着当前行
-    function emit(parent) {
+    // ★ ind = 这一层的缩进层级（**只在表格内部**递增，见文件头"序列化的换行策略"）。
+    // ★ inCell = 这一层是"单元格里的内容"：单元格里的并排图组要排成"一张图一行"。
+    function emit(parent, ind, inCell) {
         let line = '';
         let lnodes = [];        // 当前行里已记录的文本节点（start/end 相对这一行）
         // 追加一段文字；node 传了就顺手记下它在行里的位置
@@ -501,16 +566,21 @@ function toolboxFormatHtml(box, rec) {
             line += str;
         }
         // 产出一行（先把这一行里的相对位置换算成源码绝对偏移，再加进 out）
-        function pushLine(text, nodes) {
+        // ★ atInd 可选：指定这一行的缩进层级（单元格比所在行多一层，见下面表格那几段）；
+        //   不传就是当前层的层级。
+        function pushLine(text, nodes, atInd) {
+            const lvl = (atInd === undefined || atInd === null) ? ind : atInd;
+            const p = lvl > 0 ? '  '.repeat(lvl) : '';
             if (rec && nodes) {
                 for (let k = 0; k < nodes.length; k++) {
                     if (nodes[k].end > nodes[k].start) {
-                        rec.push({ node: nodes[k].node, srcStart: acc + nodes[k].start, srcEnd: acc + nodes[k].end });
+                        // ★ 行首缩进也算进源码偏移（不算的话，代码区高亮会整体左移 p.length 个字符）
+                        rec.push({ node: nodes[k].node, srcStart: acc + p.length + nodes[k].start, srcEnd: acc + p.length + nodes[k].end });
                     }
                 }
             }
-            out.push(text);
-            acc += text.length + 1;         // +1 = out.join('\n') 的那个换行
+            out.push(p + text);
+            acc += p.length + text.length + 1;         // +1 = out.join('\n') 的那个换行
         }
         const flush = function () {
             // ★ 行首/行尾的空白会被 trim 掉，记录的位置要跟着平移（否则偏移会整体偏几个字符）
@@ -553,6 +623,18 @@ function toolboxFormatHtml(box, rec) {
             if (n.nodeType !== 1) continue;                   // 注释等一律不输出
             const tag = n.tagName.toLowerCase();
             const open = '<' + tag + toolboxAttrsOf(n) + '>';
+            // ★ <style> 块：**整块原样输出**（CSS 文本一律不转义 —— 转义会把 `>`/`&` 弄坏，
+            //   而 CSS 里 `>` 是子选择器）。它不属于正文，但用户手写的文章就是用 `<style>`
+            //   + `class` 给表格配样式的（见 TOOLBOX_BAD_TAGS 上面那段），必须逐字节保住。
+            if (n.tagName === 'STYLE') {
+                flush();
+                pushLine(open, null);
+                const css = String(n.textContent || '').replace(/^[ \t]*\n/, '').replace(/\s+$/, '');
+                const cssLines = css ? css.split('\n') : [];
+                for (let k = 0; k < cssLines.length; k++) pushLine(cssLines[k], null);
+                pushLine('</' + tag + '>', null);
+                continue;
+            }
             if (TOOLBOX_VOID_TAGS.indexOf(n.tagName) >= 0) {
                 // ★ 走到这里的是"块容器的一级孩子"里的空元素。其中 **根级 `<br>` = 用户留的
                 //   一个空行**，按用户要求"代码勤换行、一个块一行"——它自己占一行；
@@ -563,14 +645,55 @@ function toolboxFormatHtml(box, rec) {
                 line += open;
                 continue;
             }
-            // 表格的行/单元格必须**一行写完**（含里面的 <br>）：td 里再换行会让
-            // 一行的内容被拆成三行（用户贴出来的那篇文章里就有）
-            if (TOOLBOX_ONELINE_TAGS.indexOf(n.tagName) >= 0) {
-                const rel = [];
-                const inner = toolboxFormatInline(n, rel);
-                const base = line.length + open.length;
-                if (rec) { for (let k = 0; k < rel.length; k++) lnodes.push({ node: rel[k].node, start: base + rel[k].start, end: base + rel[k].end }); }
-                line += open + inner + '</' + tag + '>';
+            // ★ 表格骨架（table/thead/tbody/tfoot/colgroup/tr）：各自占一行。
+            //   骨架之间**不再层层加缩进** —— 用户的表就是这样写的（`<div>` 与 `<table>` 齐平，
+            //   `<thead>/<tr>` 也齐平），生成器的产出与这里逐字节一致。
+            if (TOOLBOX_TABLE_FRAME_TAGS.indexOf(n.tagName) >= 0) {
+                flush();
+                pushLine(open, null);
+                emit(n, ind, false);
+                pushLine('</' + tag + '>', null);
+                continue;
+            }
+            // ★ 单元格 / 表题：比它所在的行多缩进两格。内容全是行内 → 一行写完（单元格里的
+            //   `<br>` 也留在同一行，与语料一致）；里面有块级（并排图组、嵌套表…）→ 撑开写，
+            //   子节点再多缩进两格。
+            if (n.tagName === 'TD' || n.tagName === 'TH' || n.tagName === 'CAPTION') {
+                flush();
+                const cInd = ind + 1;
+                if (!toolboxCellHasBlockChild(n)) {
+                    const rel = [];
+                    const inner = toolboxFormatInline(n, rel);
+                    const nodes = [];
+                    if (rec) { for (let k = 0; k < rel.length; k++) nodes.push({ node: rel[k].node, start: open.length + rel[k].start, end: open.length + rel[k].end }); }
+                    pushLine(open + inner + '</' + tag + '>', nodes, cInd);
+                } else {
+                    pushLine(open, null, cInd);
+                    emit(n, cInd + 1, true);
+                    pushLine('</' + tag + '>', null, cInd);
+                }
+                continue;
+            }
+            // ★ 单元格里的并排图组：一张图一行（图片 src 很长，挤一行没法读）；
+            //   图组自己比单元格内容再缩进两格，与用户手写的那篇一致。
+            //   单元格外面的 flex 容器仍然整体保持一行（见下一条）。
+            if (inCell && toolboxIsFlexBox(n)) {
+                flush();
+                pushLine(open, null);
+                const ck = n.childNodes;
+                for (let k = 0; k < ck.length; k++) {
+                    const c = ck[k];
+                    if (!c || c.nodeType !== 1) continue;              // 空白/注释跳过
+                    const ctag = c.tagName.toLowerCase();
+                    const copen = '<' + ctag + toolboxAttrsOf(c) + '>';
+                    if (TOOLBOX_VOID_TAGS.indexOf(c.tagName) >= 0) { pushLine(copen, null, ind + 1); continue; }
+                    const rel = [];
+                    const inner = toolboxFormatInline(c, rel);
+                    const nodes = [];
+                    if (rec) { for (let q = 0; q < rel.length; q++) nodes.push({ node: rel[q].node, start: copen.length + rel[q].start, end: copen.length + rel[q].end }); }
+                    pushLine(copen + inner + '</' + ctag + '>', nodes, ind + 1);
+                }
+                pushLine('</' + tag + '>', null);
                 continue;
             }
             // flex 容器（并排图片那一行）整体保持一行：里面全是并排的图，
@@ -597,13 +720,13 @@ function toolboxFormatHtml(box, rec) {
             }
             flush();                                          // 块级：先收掉手上这行
             pushLine(open, null);
-            emit(n);
+            emit(n, ind, false);
             pushLine('</' + tag + '>', null);
         }
         flush();
     }
 
-    emit(box);
+    emit(box, 0, false);
     return out.join('\n');
 }
 
@@ -4384,6 +4507,10 @@ function toolboxEnterBreak() {
         const nr = toolboxCaretIntoNearBlock(ed, r.startContainer, r.startOffset);
         if (nr) { r = nr; blk = toolboxTopBlockOf(r.startContainer, ed); }
     }
+    // ★ 光标落在 `<style>` 块里（CSS 文本上）：这一段里的回车/换行**什么都不做**。
+    //   CSS 被拆成两半等于样式直接坏掉，而用户根本不会想在编辑区里编辑样式文本
+    //   （要改样式就在代码区改原文）。返回 true = "这一下已经处理掉了"，别落到浏览器默认行为。
+    if (blk && blk.tagName === 'STYLE') return true;
     if (!toolboxInsertBreakNodes(r)) return false;
     toolboxCaretHolderSweep();
     toolboxRefresh();
@@ -4420,6 +4547,8 @@ function toolboxInsertParagraph() {
         toolboxWrapStrayTopLevel(ed);
         blk = toolboxTopBlockOf(r.startContainer, ed);
     }
+    // ★ 光标落在 `<style>` 块里：回车什么都不做（理由同 toolboxEnterBreak —— 别把 CSS 切坏）
+    if (blk.tagName === 'STYLE') return true;
     // ★★ 光标在**表格里面**（单元格里）按回车：绝不切段。
     //    切段是"从光标处 extractContents 到这一段末尾"，而这一段是**整张表的外壳 DIV** ——
     //    实测按一下回车就把表劈成两个表（1 表 6 格 → 2 表 7 格，首行还只剩一半文字），
@@ -4736,14 +4865,16 @@ function toolboxStackRow(imgs, mode, size, sharedCaption) {
 }
 
 // ========== 表格 ==========
-// 表体缩进。语料里的缩进并不统一（4 空格/8 空格都有），这里统一 8 空格：
-// 正好是 code 区两级缩进，复制出来整齐。
+// 表体行的生成。★ 与代码区的排版**必须一致**（用户口径：表格代码要换行 + 缩进）：
+//   `<tr>` 自己一行、每个单元格一行、单元格比 `<tr>` 多缩进两格。
+//   这里是生成器的产出，编辑区导出走的是 toolboxFormatHtml —— 两边形状一样，
+//   用户插完表格在代码区看到的就是这个形态，不会"插进去一个样、导出又一个样"。
 function toolboxTableRowHtml(cells, isHeader) {
     const tag = isHeader ? 'th' : 'td';
     const style = isHeader ? TOOLBOX_TABLE_HEAD_STYLE : (TOOLBOX_TABLE_CELL_STYLE + 'text-align:center;');
-    let s = '        <tr>';
+    let s = '<tr>\n';
     for (let i = 0; i < cells.length; i++) {
-        s += '<' + tag + ' style="' + style + '">' + toolboxEsc(cells[i]) + '</' + tag + '>';
+        s += '  <' + tag + ' style="' + style + '">' + toolboxEsc(cells[i]) + '</' + tag + '>\n';
     }
     return s + '</tr>';
 }
@@ -4751,24 +4882,25 @@ function toolboxTableRowHtml(cells, isHeader) {
 // 生成一整张表。hasHeader=true 时第一行进 <thead> 用 <th>；否则全部进 <tbody>。
 // ★ 透明背景：表头只加 background:var(--bg)，**绝不**写 #f5f7fa/#fafbfc 这类写死的
 //   浅色底 —— 那种在暗色模式下正文（浅色字）压上去会看不清。
+// ★ 缩进层级与 toolboxFormatHtml 的表格排版一一对应（表/thead/tbody/tr 在 0，单元格在 2）。
 function toolboxBuildTable(rows, cols, hasHeader, data) {
     const r = Math.max(1, Math.min(60, parseInt(rows, 10) || 1));
     const c = Math.max(1, Math.min(20, parseInt(cols, 10) || 1));
     const head = !!hasHeader;
     const bodyStart = head ? 1 : 0;
     let html = '<div style="overflow-x:auto;margin:1rem 0;">\n';
-    html += '  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">\n';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">\n';
     if (head) {
-        html += '    <thead>\n';
+        html += '<thead>\n';
         html += toolboxTableRowHtml(toolboxPickCells(data, 0, c), true) + '\n';
-        html += '    </thead>\n';
+        html += '</thead>\n';
     }
-    html += '    <tbody>\n';
+    html += '<tbody>\n';
     for (let i = bodyStart; i < r; i++) {
         html += toolboxTableRowHtml(toolboxPickCells(data, i, c), false) + '\n';
     }
-    html += '    </tbody>\n';
-    html += '  </table>\n';
+    html += '</tbody>\n';
+    html += '</table>\n';
     html += '</div>';
     return html;
 }

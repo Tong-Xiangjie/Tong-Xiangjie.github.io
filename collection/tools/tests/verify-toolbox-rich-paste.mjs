@@ -138,8 +138,13 @@ try {
   ok(two.unmarked === 1,
     `保留 1 根空行 <br>（实际 ${two.unmarked} 根）—— 不是把用户留的空行一起删掉`);
 
-  // ─────────── ④ 不误伤：真实文章走"代码区导入"，逐字不变 ───────────
-  console.log('\n══════ ④ 不误伤：真实文章的代码区往返仍然逐字幂等 ══════\n');
+  // ─────────── ④ 不误伤：真实文章走"代码区导入"，内容与结构逐字不变 ───────────
+  // ★ 2024 更正：这里以前断言"代码区逐字不变"，但**表格排版现在会规范化**
+  //   （用户明确要求表格代码要有换行+缩进，这一篇的表恰好是"一整行写完"的老写法）。
+  //   所以改成断言**两件事**，这两件才是本用例真正守的东西：
+  //     · 抹掉标签之间的空白后**逐字节相同** —— 内容、结构、属性一个字符都没变；
+  //     · `<br>` 一个不多一个不少 —— 这正是本用例的主题（粘贴不许凭空多出空行）。
+  console.log('\n══════ ④ 不误伤：真实文章走"代码区导入"，内容/结构不变、<br> 不多不少 ══════\n');
   const articlePath = join(ROOT, 'notecollection', 'readmes', 'republic_1914_5_yuan_fake_note_zhihu_lee.html');
   const article = await readFile(articlePath, 'utf8');
   const rt = await J(`
@@ -150,12 +155,18 @@ try {
     var c1 = code.value;
     toolboxRefresh(); await __sleep(200);
     var c2 = code.value;
+    var squash = function (s) { return String(s).replace(/\\r\\n?/g, '\\n').replace(/>\\s+</g, '><').replace(/\\s+/g, ' ').trim(); };
     var un = 0;
     for (var i = 0; i < ed.childNodes.length; i++) { var c = ed.childNodes[i];
       if (c.nodeType === 1 && c.tagName === 'BR' && !c.getAttribute('data-tb-caret')) un++; }
-    return { same: c1 === c2, unmarked: un, br: (src.match(/<br[^>]*>/gi) || []).length };
+    return { same: c1 === c2, contentSame: squash(c1) === squash(c2),
+             br1: (c1.match(/<br[^>]*>/gi) || []).length, br2: (c2.match(/<br[^>]*>/gi) || []).length,
+             unmarked: un, br: (src.match(/<br[^>]*>/gi) || []).length };
   `);
-  ok(rt.same === true, '代码区 → 编辑区 → 代码区，逐字不变');
+  ok(rt.contentSame === true,
+    `编辑区导出之后，内容与结构逐字不变（只允许表格的换行/缩进被规范化）${rt.same ? ' —— 连排版也逐字相同' : ''}`);
+  ok(rt.br1 === rt.br2,
+    `<br> 一个不多一个不少（${rt.br1} → ${rt.br2}）—— 没有凭空多出空行`);
   ok(rt.unmarked === 1,
     `文章里独立成行的 <br> 保持原样（实际 ${rt.unmarked} 根 —— 用户手敲的那一根）`);
 } finally {
