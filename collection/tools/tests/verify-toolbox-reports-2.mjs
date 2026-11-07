@@ -712,6 +712,70 @@ console.log('\n⑨ 文章末尾没有空行时，点末尾空白处要自动补�
   ok(j2.brs === j1.brs && j2.code === j1.before, `⑨ 点正文内容里不会凭空加空行（根级 <br> 仍是 ${j2.brs} 根）`);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n⑩ 往左边（正文区）粘表格也变成真表格');
+{
+  // 先在页面上放一份"左边预览"用的 <style> + 一张表格，模拟从预览里复制
+  const k1 = await J(`
+    toolboxCloseDialog();
+    var st = document.createElement('style');
+    st.textContent = '.paste-table { border-collapse: collapse; width: 100%; }\\n'
+      + '.paste-table th, .paste-table td { border: 1px solid #999; padding: 0.4rem; text-align: center; }';
+    document.head.appendChild(st);
+    var host = document.createElement('div'); host.id = 'leftPane2';
+    host.innerHTML = '<div style="overflow-x:auto;margin:1rem 0;">'
+      + '<table class="paste-table"><thead><tr><th>列一</th><th>列二</th></tr></thead>'
+      + '<tbody><tr><td>甲</td><td>乙</td></tr></tbody></table></div>';
+    document.body.appendChild(host);
+    await window.__toEditor('<p>上面一段</p>');
+    await __sleep(1000);
+    await window.__caretEnd();
+    var ed = toolboxTpl.editor;
+    var dt = new DataTransfer();
+    dt.setData('text/html', host.innerHTML);
+    dt.setData('text/plain', '列一\\t列二\\n甲\\t乙');
+    ed.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    await __sleep(1400);
+    var t = ed.querySelector('table');
+    return { tables: ed.querySelectorAll('table').length,
+             styles: ed.querySelectorAll('style').length,
+             blocks: window.__blocks(),
+             cls: t ? String(t.getAttribute('class') || '(被剥掉)') : '(没有表格)',
+             collapse: t ? getComputedStyle(t).borderCollapse : '(无)',
+             tdBorder: t ? getComputedStyle(t.querySelector('td')).borderTopWidth : '(无)',
+             text: String(ed.textContent || '').replace(/\\s+/g, ''),
+             code: window.__code() };
+  `);
+  ok(k1.tables === 1, `⑩ 粘进来的是一张**真表格**（编辑区里 ${k1.tables} 张）—— 以前是一行纯文字`);
+  ok(k1.cls === 'paste-table', `⑩ 表格的 class 活着（${JSON.stringify(k1.cls)}）`);
+  ok(k1.styles >= 1 && /\.paste-table/.test(k1.code), `⑩ 样式规则一起带过来了（<style> ${k1.styles} 块，代码区里有 .paste-table）`);
+  ok(k1.collapse === 'collapse' && k1.tdBorder === '1px', `⑩ 样式真的生效（border-collapse=${k1.collapse}、单元格边框 ${k1.tdBorder}）`);
+  ok(k1.text.indexOf('列一') >= 0 && k1.text.indexOf('甲') >= 0 && k1.text.indexOf('乙') >= 0 && k1.text.indexOf('上面一段') >= 0,
+    `⑩ 表格内容与原有段落一个字没丢（${JSON.stringify(k1.text)}）`);
+  ok(/^P,DIV/.test(k1.blocks), `⑩ 正文区结构：段落 + 表格（${k1.blocks}）`);
+}
+
+// 反向保险：夹着文字的粘贴**不许**变成表格，一个字都不许丢（这是以前 bug 2 的口径）
+{
+  const k2 = await J(`
+    await window.__toEditor('<p>上面一段</p>');
+    await __sleep(1000);
+    await window.__caretEnd();
+    var ed = toolboxTpl.editor;
+    var dt = new DataTransfer();
+    dt.setData('text/html', '<p>表格前面的话</p>' + document.getElementById('leftPane2').innerHTML + '<p>表格后面的话</p>');
+    dt.setData('text/plain', '表格前面的话\\n列一\\t列二\\n甲\\t乙\\n表格后面的话');
+    ed.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    await __sleep(1400);
+    var txt = String(ed.textContent || '').replace(/\\s+/g, '');
+    return { tables: ed.querySelectorAll('table').length, text: txt, code: window.__code() };
+  `);
+  ok(k2.tables === 0, `⑩ 夹着文字的粘贴不变成表格（编辑区里 ${k2.tables} 张）—— 仍旧纯文本落地`);
+  ok(k2.text.indexOf('表格前面的话') >= 0 && k2.text.indexOf('表格后面的话') >= 0
+    && k2.text.indexOf('列一') >= 0 && k2.text.indexOf('甲') >= 0,
+    `⑩ 前后的文字与表格里的字都在（${JSON.stringify(k2.text)}）—— 一个字没丢`);
+}
+
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ws.close(); child.kill(); server.close();
 process.exit(fail === 0 ? 0 : 1);

@@ -650,7 +650,10 @@ ok(pasteTsv.text.indexOf('币种') >= 0 && pasteTsv.text.indexOf('荷花') >= 0 
   `(8)* 三行文字都留下了一${JSON.stringify(pasteTsv.text)}）`);
 ok(pasteTsv.brs === 2, `(8)* 行与行之间用 <br> 分段控${pasteTsv.brs} 个）`);
 
-// HTML 表格（网页Excel text/html 形态）：正文区也只取纯文本
+// HTML 表格（网页/Excel 的 text/html 形态）：**整份内容只有一张表格** → 按真表格插进来。
+//   ★ 口径更新（用户明确要求："往左边粘表格也变成真表格"）：这一条以前是"只进纯文本"。
+//   注意上面那条 Tab 文本（剪贴板里只有 text/plain）**仍旧是纯文本** ——
+//   判据是"整份 HTML 除这张表之外没有任何文字/图片"，所以带文字的粘贴一个字都不会丢。
 const pasteHtml = await json(`(()=>{
   const ed = document.getElementById('tbEditor');
   ed.innerHTML = '<p><br></p>';
@@ -661,11 +664,16 @@ const pasteHtml = await json(`(()=>{
   dt.setData('text/plain', '项目\\t数值\\n甲\\t1\\n乙\\t2');
   ed.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
   const t = ed.querySelector('table');
-  return JSON.stringify({ hasTable: !!t, text: (ed.textContent || ''), code: document.getElementById('tbCode').value });
+  return JSON.stringify({ hasTable: !!t, rows: t ? t.querySelectorAll('tr').length : 0,
+    cells: t ? t.querySelectorAll('td,th').length : 0,
+    text: (ed.textContent || ''), code: document.getElementById('tbCode').value });
 })()`);
-ok(pasteHtml.hasTable === false, '(8)* 粘贴网页/Excel 的 HTML 表格也只进纯文本（不自动转表格）');
-ok(pasteHtml.text.indexOf('项目') >= 0 && pasteHtml.text.indexOf('') >= 0,
-  `(8)* HTML 表格的文字取出来了（${JSON.stringify(pasteHtml.text)}）`);
+ok(pasteHtml.hasTable === true, '(8)* 剪贴板 HTML 整份就是一张表格 → 按真表格插入（不再落成一行纯文字）');
+ok(pasteHtml.rows === 3 && pasteHtml.cells === 6, `(8)* 表格结构完整：${pasteHtml.rows} 行 / ${pasteHtml.cells} 格`);
+ok(pasteHtml.text.indexOf('项目') >= 0 && pasteHtml.text.indexOf('1') >= 0 && pasteHtml.text.indexOf('2') >= 0,
+  `(8)* 表格里的字都在（${JSON.stringify(pasteHtml.text)}）`);
+ok(/<table/.test(pasteHtml.code) && /<td[\s>]/.test(pasteHtml.code),
+  `(8)* 代码区里也是真表格（${JSON.stringify(pasteHtml.code.slice(0, 48))}）`);
 
 // 用户实测bug 2：剪贴板里同时有"文字 + 表格"时，以前只剩表格（文字丢了）
 //   现在必须两段文字都在、且不出<table>

@@ -5253,14 +5253,17 @@ function toolboxPlainTextParas(text, fromHtml) {
     return out;
 }
 
-// 正文区粘贴：**一律纯文本**。
+// 正文区粘贴：**默认纯文本**，只有一种例外（见下面的分条）。
 //
 // ★ 这里以前有一条"剪贴板里有 <table> 就自动转成 HTML 表格"的分支，用户实测后作废：
 //   复制"一段文字 + 一张表格"粘进来，只剩表格、文字全丢（bug 2）—— 因为它只认表格那一部分。
-//   现在的规则（用户明确要的默认行为）：
-//     · 只取 text/plain，换行 → <br>，颜色/字号/加粗/class/图片**一个不留**；
-//     · 剪贴板里有什么都不例外（含表格、含图片、含样式）：绝不"只取其中一部分"；
-//     · 要表格就用工具栏「表格」按钮插入，或把 HTML 粘到**代码区**（那条路照样保留 HTML）。
+//   现在的规则：
+//     · **默认**只取 text/plain，换行 → <br>，颜色/字号/加粗/class/图片一个不留；
+//     · **唯一的例外**：剪贴板里"整份内容就是一张表格"（可能裹着一层 div/center，或带一段 <style>）
+//       → 按真表格插进来，并把它用到的样式规则一起带上（用户明确要求："往左边粘表格也变成真表格"）。
+//       判据收紧到"除这张表没有任何文字/图片/视频/横线"，所以这个例外同样满足
+//       "绝不只取其中一部分"：带文字时一个字都不会被丢掉，仍旧按纯文本落地；
+//     · 想在正文里放别的东西：用工具栏按钮，或把 HTML 粘到**代码区**（那条路照样保留 HTML）。
 //
 // ★ 落点用 **paste 事件当下的实时选区**（toolboxLiveRange），不用缓存 Range：
 //   用户在段中间按 Ctrl+V，内容却跑到文章最末尾，根因就是拿了过期的缓存 Range。
@@ -5291,6 +5294,38 @@ function toolboxPasteHandler(e) {
     }
     toolboxPastePlain(text, html);
 }
+// ★★ 剪贴板 HTML 里是不是"**只有一张表格**"？是 → 返回装好内容的容器（调用方直接插入）；
+//   否则 null（调用方走纯文本那条老路）。
+//   用户明确要求："往左边粘表格也变成真表格" —— 从左边预览里复制一张表格，粘回正文区
+//   （左边那块）时，以前一律按纯文本落地，得到的是"列一 列二 甲 乙"这种一行文字。
+//   判据故意收紧到"除这张表之外没有任何文字/图片/视频/横线"（空 div/center 外壳、<style> 不算）：
+//   带文字的粘贴**一个字都不许丢**，所以只要表格外面还有东西，就仍按纯文本落地 ——
+//   这是以前"文字+表格粘进来只剩表格"那个 bug 留下的口径，不能为了表格把它推翻。
+//   ★ 样式规则必须在**净化之前**补进去：净化时"这个 class 有没有被点名"看的就是容器里的 <style>
+//     （见 sanitizeToolboxNode 里的 classKept），顺序反了表格的 class 就被剥掉了。
+function toolboxClipboardTableBox(html, existingText) {
+    const src = String(html || '');
+    if (!src || src.indexOf('<table') < 0) return null;
+    let box = null;
+    try { box = document.createElement('div'); box.innerHTML = src; } catch (e) { return null; }
+    if (box.querySelectorAll('table').length !== 1) return null;
+    const probe = box.cloneNode(true);
+    const t = probe.querySelector('table');
+    if (t && t.parentNode) t.parentNode.removeChild(t);
+    const drop = probe.querySelectorAll('style,script,meta,link,title');
+    for (let i = 0; i < drop.length; i++) if (drop[i].parentNode) drop[i].parentNode.removeChild(drop[i]);
+    if (String(probe.textContent || '').replace(/[\s\u00a0\u200b]+/g, '')) return null;   // 表格外面还有文字
+    if (probe.querySelector('img,video,hr,input')) return null;                           // 表格外面还有别的实物
+    const css = toolboxCssRulesForHtml(src, String(existingText || ''));
+    if (css) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = css;
+        while (wrap.firstChild) box.appendChild(wrap.firstChild);
+    }
+    try { sanitizeToolboxNode(box); } catch (e) { return null; }
+    return box.querySelector('table') ? box : null;
+}
+
 // 粘贴的**实际执行**部分（与 IME 无关，单独抽出来是为了"合成中推迟重放"那条路能复用它）。
 // ★ 先取实时选区，再动 DOM —— 顺序不能反：清空编辑区/删选区之后现场就没了
 function toolboxPastePlain(text, html) {
@@ -5307,6 +5342,27 @@ function toolboxPastePlain(text, html) {
     toolboxBlankLineCaretHost();
     const live = toolboxLiveRange();
     toolboxDeleteSelection(live || toolboxActiveRange());
+    // ★★ 剪贴板里**只有一张表格**（可能裹着一层 div/center，或带着一段 <style>）：
+    //   按**真表格**插进来（用户明确要求："往左边粘表格也变成真表格"）。
+    //   从左边预览里复制一张表格粘回正文区，以前一律按纯文本落地，得到的是
+    //   "列一 列二 甲 乙"这种一行文字 —— 表格结构、class、样式全没了。
+    //   判据收紧到"除了这张表没有别的文字/图片"（见 toolboxClipboardTableBox）：
+    //   只要表格外面还有东西，仍旧按纯文本落地 —— 带文字的粘贴一个字都不许丢，
+    //   这条口径是以前"文字+表格粘进来只剩表格"那个 bug 留下的，不能为了表格把它推翻。
+    if (html) {
+        const tbox = toolboxClipboardTableBox(html, (toolboxTpl && toolboxTpl.editor) ? toolboxTpl.editor.innerHTML : '');
+        if (tbox) {
+            const atT = live || toolboxLiveRange();
+            if (toolboxInsertHtml(tbox.innerHTML, atT, true)) {
+                toolboxCaretHolderSweep();
+                toolboxRefresh();
+                toolboxUndoPush(false);
+                toolboxKeepFocus();
+                toolboxToast(tbox.querySelector('style') ? '已按表格插入（样式规则一起带上了）' : '已按表格插入');
+                return;
+            }
+        }
+    }
     // 只有 HTML（比如从网页复制带样式的一段）：把块级边界换成换行再剥标签，
     // 段落边界不会像"换成空格"那样被吃掉（见 toolboxHtmlToPlainLines）。
     const src = text || toolboxHtmlToPlainLines(html);
