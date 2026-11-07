@@ -13,6 +13,7 @@ const republic_communicationsData = {
         { key: "issueDate", label: "发行日期" },
         { key: "withdrawnDate", label: "停止流通日期" },
         { key: "size", label: "标准尺寸" },
+        { key: "wmk", label: "水印" },
         { key: "copyId", label: "评级证书编号" },
         { key: "condition", label: "评级分数" },
         { key: "price", label: "购入价格" },
@@ -25,7 +26,7 @@ series: [
             year: "1914",
             varieties: [
                 {
-                    varietyName: "1914年 5元 正火车头 背上海大清邮政局",
+                    varietyName: "1914年 5元 火车头",
                     copies: [
                         {
                             copyId: 26073358,
@@ -33,8 +34,8 @@ series: [
                             version: "SB648728R",
                             bank: "交通银行",
                             print: "美国钞票公司/ABNC",
-                            signature1: "经理（Manager）：唐寿民（S.M. Tang）",
-                            signature2: "经理（Manager）：王子崧（J.S. Wong）",
+                            signature1: "董事长：王子崧（J.S. Wong）",
+                            signature2: "总经理：唐寿民（S.M. Tang）",
                             issueDate: "1914年10月1日",
                             withdrawnDate: "",
                             size: "79mm*162mm",
@@ -48,7 +49,7 @@ series: [
                         }
                     ]
                 },{
-                    varietyName: "1914年 10元 正上海海关大楼 背轮船",
+                    varietyName: "1914年 10元 上海海关大楼",
                     copies: [
                         {
                             copyId: 16866863,
@@ -60,14 +61,43 @@ series: [
                             purchaseDate: "2026年2月15日",
                             krause: "118q",
                             print: "美国钞票公司/ABNC",
-                            signature1: "经理（Manager）：唐寿民（S.M. Tang）",
-                            signature2: "经理（Manager）：王子崧（J.S. Wong）",
+                            signature1: "董事长：王子崧（J.S. Wong）",
+                            signature2: "总经理：唐寿民（S.M. Tang）",
                             issueDate: "1914年10月1日",
                             withdrawnDate: "",
                             size: "79mm*162mm",
                             remark: "大楼（红色） 加盖蓝上海",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/SB052887D-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/SB052887D-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国二十四年（1935年） 德纳罗版 法币券",
+            year: "1914",
+            varieties: [
+                {
+                    varietyName: "1935年 5元 帆船",
+                    copies: [
+                        {
+                            copyId: "2232983-007",
+                            year: 1935,
+                            version: "D495407M",
+                            bank: "交通银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            signature1: "董事长：王子崧（J.S. Wong）",
+                            signature2: "总经理：许敬甫（T.Y. Hsu）",
+                            issueDate: "1914年10月1日",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "PMG 64E",
+                            price: "228元",
+                            purchaseDate: "2026年11月7日",
+                            krause: "154a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/PMG2232983-007_REV.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/PMG2232983-007_OBV.jpg"
                         }
                     ]
                 }
