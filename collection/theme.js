@@ -128,14 +128,31 @@ function withThemeAnim(fn, animate) {
     }
 }
 
+// ★★ 主题一变就要重算山河地图的省份填色，但**不能同步算** —— 这是用户实测的
+//   "山河专题地图：从亮切换到暗，地图不会更新"的根因。
+//   整套配色是 CSS 变量，而它们在补间窗口里是**带过渡**的（见上面 withThemeAnim 的说明）：
+//   setProperty 之后立刻 getComputedStyle 读到的还是**过渡起点**的旧颜色，
+//   refreshShanheColors() 拿它去算省份填色，整张地图就停在旧主题上。
+//   实测（亮色 → 暗色）：
+//     · 切换时同步刷 → 空省仍是亮色的 rgb(246,250,255)、满色省 rgb(207,227,255)；
+//     · 等过渡结束再刷 → rgb(2,12,25) / rgb(32,58,93)，与"暗色下整页刷新"逐字一致。
+//   所以统一推迟到补间窗口结束之后再算（减弱动效时没有补间，下一帧即可）。
+let shanheRefreshTimer = 0;
+function refreshShanheColorsSoon() {
+    if (typeof window.refreshShanheColors !== 'function') return;
+    if (shanheRefreshTimer) clearTimeout(shanheRefreshTimer);
+    shanheRefreshTimer = setTimeout(function () {
+        shanheRefreshTimer = 0;
+        try { window.refreshShanheColors(); } catch (e) { }
+    }, themeAnimAllowed() ? THEME_ANIM_MS + 20 : 0);
+}
+
 function setColorSchemeMode(mode) {
     if (COLOR_SCHEME_MODES.indexOf(mode) < 0) return;
     try { localStorage.setItem(COLOR_SCHEME_KEY, mode); } catch (e) {}
     applyColorScheme(true);
-    // 山河地图的颜色是 JS 算出来写进 SVG 的，得让它重算
-    if (typeof window.refreshShanheColors === 'function') {
-        window.refreshShanheColors();
-    }
+    // 山河地图的颜色是 JS 算出来写进 SVG 的，得让它重算（推迟到配色过渡结束，见上）
+    refreshShanheColorsSoon();
 }
 
 function setUIStyle(style) {
@@ -150,9 +167,7 @@ function setUIStyle(style) {
     if (style === 'glass') ensureGlassOrbs(true); else stopGlassOrbDrift();
     // 和明暗/主题色一样走补间窗口：整套变量一起变，不补间页面会"跳"
     withThemeAnim(function () { applyTheme(localStorage.getItem('app-theme') || defaultTheme); });
-    if (typeof window.refreshShanheColors === 'function') {
-        window.refreshShanheColors();
-    }
+    refreshShanheColorsSoon();
 }
 
 // 跟随系统时，系统切换了要跟着变
@@ -556,16 +571,14 @@ function loadTheme() {
     applyColorScheme(false);
 }
 
-// ★ 修改：切换主题后主动刷新地图颜色
+// ★ 修改：切换主题后主动刷新地图颜色（推迟到配色过渡结束，见 refreshShanheColorsSoon）
 function setTheme(color) {
     // 换主题色也是一整套配色在换，同样补间（不然色块点了之后页面是跳的）
     withThemeAnim(function () { applyTheme(color); });
     localStorage.setItem('app-theme', color);
 
     // 若地图颜色刷新函数已定义，则调用它
-    if (typeof window.refreshShanheColors === 'function') {
-        window.refreshShanheColors();
-    }
+    refreshShanheColorsSoon();
 }
 
 // ========== 自定义颜色管理 ==========

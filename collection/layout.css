@@ -2318,12 +2318,20 @@ html[data-color-scheme="dark"] .shanhe-map-inset {
     height: 100%;
     background: var(--theme);
     border-radius: 2px;
-    animation: shanheLoadingFlow 1.2s ease-in-out infinite;
+    animation: shanheLoadingFlow 1.2s linear infinite;
 }
+/* ★ 走马灯式的不确定进度条：**只动 transform，宽度保持不动**。
+   用户实测"加载的脉冲进度条似乎动画不太对"，问题都在原来那版 keyframes 里：
+     · 宽度也在动（40% → 70% → 40%），而 translateX 的百分比基准就是元素**自身宽度** ——
+       基准一路在变，同一条动画里的位移时快时慢，看着就是走走停停；
+     · 终点只写到 translateX(200%)：条宽 40%、轨道 100%，左边缘到 200% 时右边还露着 20%，
+       条子永远滑不出轨道、下一次又从左边冒出来（像卡了一下）；
+     · 缓动写的是 ease-in-out，两端本来就慢，循环起来更明显。
+   现在：-100%（完全在轨道左边外面）→ 250%（左边缘 = 100%/40%，刚好越过轨道右边），
+   线性、无限循环 —— 匀速穿过，一次一条，边界干净。 */
 @keyframes shanheLoadingFlow {
-    0% { transform: translateX(-100%); width: 40%; }
-    50% { width: 70%; }
-    100% { transform: translateX(200%); width: 40%; }
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
 }
 
 /* 鈽?鏂偣闆嗕腑鍦ㄦ枃浠舵湯灏剧殑璇存槑閲岋紱姝ゅ涓?.sidebar 鐨?768px 瀵归綈銆?

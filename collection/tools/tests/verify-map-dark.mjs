@@ -255,6 +255,85 @@ const after = await evaluate(`(() => {
 chk('切回后主题是 dark', after.scheme, 'dark');
 chk('缓存里的地图已跟着重算（没有残留白色空省）', after.stillHasWhite, false);
 
+// ============ 就在地图上直接切明暗（用户实测的缺口） ============
+// 用户原话："山河专题地图：从亮切换到暗，地图不会更新"。
+// 根因：整套配色变量在补间窗口里是带过渡的，setColorSchemeMode() 里**同步**调
+//   refreshShanheColors() 时 getComputedStyle 读到的还是过渡起点的旧颜色，
+//   算出来的省份填色就停在旧主题上（实测：空省仍是亮色 rgb(246,250,255)）。
+// 判据不能只看"没有纯白省份"（那条太松：旧配色下空省是 rgb(246,250,255)，照样能骗过去），
+// 必须与"暗色下整页加载"的结果**逐字一致** —— 那正是 d 这一次采到的值。
+console.log('\n=== 就在地图上把亮色切到暗色：省份填色必须跟着换 ===');
+const onMap = await evaluate(`(async () => {
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const snap = () => {
+    const states = [...document.querySelectorAll('.shanhe-map-wrap svg .state')];
+    const emptyEl = states.find(el => Number(el.getAttribute('data-count') || 0) <= 0);
+    const filledEl = states.find(el => Number(el.getAttribute('data-count') || 0) > 0);
+    const cs = getComputedStyle(document.documentElement);
+    return { scheme: document.documentElement.getAttribute('data-color-scheme'),
+             bgLight: cs.getPropertyValue('--bg-light').trim(),
+             emptyFill: emptyEl ? emptyEl.style.fill : null,
+             filledFill: filledEl ? filledEl.style.fill : null,
+             whiteCount: states.filter(el => (el.style.fill || '').replace(/\\s/g, '') === 'rgb(255,255,255)').length };
+  };
+  // 上一节结束时停在"暗色 + 地图"，这里先明确回到亮色再量
+  setColorSchemeMode('light');
+  await wait(1200);
+  const before = snap();
+  setColorSchemeMode('dark');
+  await wait(1200);
+  const after = snap();
+  setColorSchemeMode('light');
+  await wait(1200);
+  const backLight = snap();
+  return { before, after, backLight };
+})()`);
+chk('切之前是亮色、空省是纯白', [onMap.before.scheme, onMap.before.emptyFill], ['light', 'rgb(255, 255, 255)']);
+chk('在地图上切暗后主题属性已变', onMap.after.scheme, 'dark');
+console.log('  · 切暗后：空省 ' + onMap.after.emptyFill + '，满色省 ' + onMap.after.filledFill + '（--bg-light = ' + onMap.after.bgLight + '）');
+chkColor('★ 切暗后空省填色 = 新的 --bg-light（不再停在亮色）', onMap.after.emptyFill, onMap.after.bgLight);
+chkColor('★ 切暗后空省 = 暗色下整页加载的值（逐字一致）', onMap.after.emptyFill, d.empty.fill);
+chkColor('★ 切暗后有数据的省 = 暗色下整页加载的值（逐字一致）', onMap.after.filledFill, d.filled.fill);
+chk('★ 切暗后一个纯白省份都不剩', onMap.after.whiteCount, 0);
+chkColor('★ 切回亮色后空省又回到纯白', onMap.backLight.emptyFill, l.empty.fill);
+
+// ============ 加载提示的走马灯进度条 ============
+// 用户原话："加载的脉冲进度条似乎动画不太对"。
+// 不变量（都是"动画看着不对"的可判定形式）：keyframes 里不许再动 width（translateX 的
+// 百分比基准就是元素宽度，基准一变位移就时快时慢）；缓动必须 linear（两端慢会看着一顿一顿）；
+// 终点要 ≥ 100/条宽% —— 低于这个值条子永远滑不出轨道、看着像卡住（原来是 200% < 250%）。
+console.log('\n=== 加载提示的走马灯进度条 ===');
+const pulse = await evaluate(`(() => {
+  let kf = null, rule = null;
+  for (const sheet of document.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+    for (const r of rules) {
+      if (r.type === CSSRule.KEYFRAMES_RULE && r.name === 'shanheLoadingFlow') kf = r;
+      if (r.selectorText === '.shanhe-map-loading-bar .fill') rule = r;
+    }
+  }
+  if (!kf) return { found: false };
+  const frames = [...kf.cssRules].map(k => ({ key: k.keyText, props: [...k.style].map(p => [p, k.style.getPropertyValue(p)]) }));
+  return { found: true, frames,
+    fillWidth: rule ? rule.style.width : null,
+    timing: rule ? rule.style.animationTimingFunction : null,
+    duration: rule ? rule.style.animationDuration : null };
+})()`);
+chk('找得到 shanheLoadingFlow 这组 keyframes', pulse.found, true);
+if (pulse.found) {
+  const props = pulse.frames.flatMap(f => f.props.map(p => p[0]));
+  const ends = pulse.frames.filter(f => f.key === 'to' || f.key === '100%').flatMap(f => f.props.filter(p => p[0] === 'transform'));
+  console.log('  · 条宽 ' + pulse.fillWidth + '，缓动 ' + pulse.timing + '，时长 ' + pulse.duration);
+  console.log('  · 关键帧: ' + JSON.stringify(pulse.frames));
+  chk('★ 关键帧只动 transform（宽度不再参与动画，位移基准才稳）', props.includes('width'), false);
+  chk('缓动是 linear（两端都不顿）', pulse.timing, 'linear');
+  const pct = ends.length ? Number((ends[0][1].match(/(-?[\d.]+)%/) || [])[1]) : NaN;
+  // 条宽 40% 时，左边缘要走满整条轨道（100%）= 元素自身宽度的 100/0.4 = 250%
+  const fillPct = pulse.fillWidth ? parseFloat(pulse.fillWidth) : NaN;
+  const need = Number.isFinite(fillPct) && fillPct > 0 ? Math.round(10000 / fillPct) : NaN;
+  chk(`★ 终点位移 ≥ ${need}%（= 100/条宽%），条子能整个滑出轨道`, Number.isFinite(pct) && pct >= need, true);
+}
+
 console.log('\n================ 汇总 ================');
 console.log(fail === 0 ? '🟢 地图深色适配全部通过' : `🔴 ${fail} 项失败`);
 console.log('console.warn/error: ' + (warns.length ? warns.slice(0, 6).join(' | ') : '（无）'));
