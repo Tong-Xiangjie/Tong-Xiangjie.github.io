@@ -180,6 +180,15 @@ window.__tableHealth = function () {
     cells: ed.querySelectorAll('th,td').length,
     firstRowText: first ? String(first.textContent || '').replace(/\s+/g, '') : '(没有行)',
     cellBr: ed.querySelectorAll('tbody td br').length,
+    // ★ 只数**真换行**：单元格里那根带 data-tb-caret 的"落脚点"是给光标站的位置，
+    //   导出/序列化时会被摘掉（见 toolboxCaretHolderMake 上的说明）—— 它不算用户的内容。
+    //   用户实测那次"表格内换行会出问题"就是因为光标落在末尾 <br> 上没地方站，
+    //   回车后打字会把换行吃掉；现在的口径是：DOM 里多一根标记、代码里只多一根 <br>。
+    cellBrReal: (function () {
+      var all = ed.querySelectorAll('tbody td br'), n = 0;
+      for (var i = 0; i < all.length; i++) if (!all[i].getAttribute('data-tb-caret')) n++;
+      return n;
+    })(),
     inCell: inCell
   };
 };
@@ -315,13 +324,13 @@ try {
       `★ 表格没被劈开（表 ${before.tables}→${after.tables} / 行 ${before.rows}→${after.rows} / 格 ${before.cells}→${after.cells}）—— 修前会变成 2 张表、还多一行`);
     ok(after.firstRowText === before.firstRowText,
       `首行单元格的文字没被搬走（「${before.firstRowText}」→「${after.firstRowText}」）`);
-    ok(after.cellBr === before.cellBr + 1,
-      `回车变成了单元格内的换行（单元格里 <br> ${before.cellBr} → ${after.cellBr}）`);
+    ok(after.cellBrReal === before.cellBrReal + 1,
+      `回车变成了单元格内的换行（真 <br> ${before.cellBrReal} → ${after.cellBrReal}；DOM 里另有 ${after.cellBr - after.cellBrReal} 根标记，导出会摘掉）`);
     ok(after.inCell === true, `光标仍在单元格里（表格里回车的自然含义：就地换行）`);
     await CtrlZ();
     const undone = await J(`return window.__tableHealth();`);
-    ok(undone.tables === 1 && undone.cells === before.cells && undone.cellBr === before.cellBr,
-      `Ctrl+Z 把这一下换行撤回（表 ${undone.tables} / 格 ${undone.cells} / 单元格 <br> ${undone.cellBr}）`);
+    ok(undone.tables === 1 && undone.cells === before.cells && undone.cellBrReal === before.cellBrReal,
+      `Ctrl+Z 把这一下换行撤回（表 ${undone.tables} / 格 ${undone.cells} / 单元格真 <br> ${undone.cellBrReal}）`);
   }
 
   // ─────────── ⑤ 一圈回车/撤回之后，导出源码逐字节不变 ───────────

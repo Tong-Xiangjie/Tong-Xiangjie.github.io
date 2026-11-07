@@ -1076,6 +1076,38 @@ function toolboxInsertHtml(html, atRange, wrapStray) {
         if (!r) r = toolboxEndRange();
     }
     if (!r) return false;
+    // ★ 插进来的东西是**块级**的（图片块 / 表格 / 引用 …），而光标正停在 `<p>` 里 —— 直接
+    //   insertNode 就是"把块塞进 <p>"这种非法嵌套：顶层归一化只好把它劈出来，尾巴上留一个
+    //   **空的 `<p></p>`**。用户看到的就是"插入图片后凭空多出一个空行，只能去右边代码区手动删"
+    //   （他还发现删那个空行会把图片一起删掉，见 toolboxBackspaceBlankLine）。
+    //   这里按编辑器的常规做法先**拆段**：光标后面的内容另起一段，块插在两段中间。
+    //   光标本来就在段尾时（最常见）后面没有内容，于是只是把块放到这一段之后 —— 一个空壳都不留。
+    if (/<(center|div|table|thead|tbody|tfoot|tr|p|h[1-6]|ul|ol|li|blockquote|pre|hr|figure|section|style)\b/i.test(html)) {
+        let host = null;
+        try { host = toolboxTopBlockOf(r.startContainer, ed); } catch (e) { host = null; }
+        if (host && host.parentNode && String(host.tagName || '').toUpperCase() === 'P') {
+            let tail = null;
+            try {
+                const after = document.createRange();
+                after.setStart(r.startContainer, r.startOffset);
+                if (host.lastChild) after.setEndAfter(host.lastChild); else after.setEnd(host, 0);
+                if (!after.collapsed) tail = after.extractContents();
+            } catch (e) { tail = null; }
+            const tailHasStuff = !!(tail && (String(tail.textContent || '').replace(/[\s\u00a0\u200b]+/g, '').length
+                || (tail.querySelector && tail.querySelector('img,br,table,hr,video'))));
+            if (tailHasStuff) {
+                const tailBlock = document.createElement('p');
+                const st = host.getAttribute('style');
+                if (st) tailBlock.setAttribute('style', st);              // 对齐等属性跟着走
+                tailBlock.appendChild(tail);
+                host.parentNode.insertBefore(tailBlock, host.nextSibling);
+            }
+            const nr = document.createRange();                            // 插入点挪到这一段之后
+            nr.setStartAfter(host);
+            nr.collapse(true);
+            r = nr;
+        }
+    }
     let ok = false, last = null;
     try {
         r.deleteContents();
@@ -2570,6 +2602,12 @@ function toolboxImgDisplaySync(root) {
         const src = String((img.getAttribute && img.getAttribute('src')) || '').trim();
         const loaded = !!(img.complete && img.naturalWidth > 0);
         const broken = !src || (img.complete && img.naturalWidth === 0);
+        // ★ 已经有占位框的，**先把文字/宽度刷新到当前的 src/alt/width**，再谈加还是删。
+        //   为什么顺序不能反：用户改了图片路径之后，新地址要重新请求，这一瞬间 img.complete
+        //   还是 false（下面那个"还在加载"分支会直接跳过），占位框里就一直留着**上一次**
+        //   检测出来的文件名 —— 用户看到的就是"改了路径，占位文字没重新检测"。
+        //   文字本来就不依赖加载结果，先跟上；加框/摘框仍旧按加载结果决定。
+        if (toolboxImgDisplayWrap(img)) toolboxImgPlaceholderSync(img);
         if (loaded) { toolboxImgPlaceholderDel(img); continue; }
         if (broken) {
             if (toolboxImgDisplayWrap(img)) toolboxImgPlaceholderSync(img);
@@ -4375,7 +4413,14 @@ function toolboxParagraphToBlankLine() {
 // 只看文字/图片/表格/视频/水平线：中间那几根 <br>、空文本、标记节点都不算内容。
 function toolboxContentAfterCaret(r) {
     const blk = toolboxTopBlockOf(r.startContainer);
-    const scope = blk || (toolboxTpl && toolboxTpl.editor);
+    // ★★ 光标在**表格单元格**里时，"这一块"必须收敛到**这个单元格**。
+    //   用整张表当范围的话，后面那些单元格（哪怕只是一个"乙"字）都会被算成"光标后面还有内容"，
+    //   于是回车插的那根 `<br>` 后面**不加落脚点**；而浏览器在"块尾 + 末尾 `<br>`"这个位置上
+    //   一打字就把那根 `<br>` 吃掉 —— 用户实测："表格内换行会出问题"（换行出来的第二行打不进去，
+    //   打完字换行就没了）。收敛到单元格之后，行为与段内分行完全一致：
+    //   `<td>甲<br><br data-tb-caret="1"></td>`，序列化时标记那根被摘掉 ⇒ 代码区还是 `<td>甲<br></td>`。
+    const cell = toolboxTableCellOf(r.startContainer, null);
+    const scope = cell || blk || (toolboxTpl && toolboxTpl.editor);
     if (!scope) return false;
     let after = null;
     try {
@@ -4548,15 +4593,20 @@ function toolboxInsertParagraph() {
         blk = toolboxTopBlockOf(r.startContainer, ed);
     }
     // ★ 光标落在 `<style>` 块里：回车什么都不做（理由同 toolboxEnterBreak —— 别把 CSS 切坏）
-    if (blk.tagName === 'STYLE') return true;
+    //   ★ 必须判空：光标停在**根上**（不在任何块里，例如刚在文章末尾插入表格/图片之后）
+    //     时 blk 是 null，这里不判空就会抛异常，把整条回车处理打断 —— 用户看到的就是
+    //     "表格插在最后，想另起一行只能在右边代码区手动加 <br>"。
+    if (blk && blk.tagName === 'STYLE') return true;
     // ★★ 光标在**表格里面**（单元格里）按回车：绝不切段。
-    //    切段是"从光标处 extractContents 到这一段末尾"，而这一段是**整张表的外壳 DIV** ——
-    //    实测按一下回车就把表劈成两个表（1 表 6 格 → 2 表 7 格，首行还只剩一半文字），
-    //    这正是用户说的"表格也是类似"。表格里回车的自然含义是"在单元格内换行"：
-    //    走 Shift+Enter 那条路（就地插一根 `<br>`），表格结构一个节点都不动。
-    if (blk.querySelector && blk.querySelector('table') && toolboxCaretInTable(r, ed)) {
-        return toolboxEnterBreak();
-    }
+    //    切段是"从光标处 extractContents 到这一段末尾"，而这一段是**整张表（或包着它的 DIV）** ——
+    //    实测按一下回车就把表劈开：单元格被甩出表格、变成表外面的一段文字。
+    //    表格里回车的自然含义是"在单元格内换行"：走 Shift+Enter 那条路（就地插一根 `<br>`），
+    //    表格结构一个节点都不动。
+    //    ★ 判据只能看**光标自己的祖先链**（toolboxCaretInTable）：以前这里多挂了一个
+    //      `blk.querySelector('table')`，而 `querySelector` **不看自己** —— 顶上那一块
+    //      本身就是 `<table>`（根级裸表，粘进来的表格最常见）时它是 false，守卫整条跳过，
+    //      于是"表格内回车"照样把表切了（用户实测："表格内换行会出问题"）。
+    if (toolboxCaretInTable(r, ed)) return toolboxEnterBreak();
     // ① 光标压根不在任何块里（停在根上/空行上）→ 就地开一个新段，光标进新段
     if (!blk) {
         if (!toolboxParagraphAtRoot(r)) return false;
@@ -4743,6 +4793,39 @@ function toolboxBackspaceBlankLine() {
     const r = toolboxLiveRange() || toolboxActiveRange();
     if (!r || !r.collapsed) return false;
     const blk = toolboxTopBlockOf(r.startContainer, ed);
+    // ★★ 光标停在**根**上（不在任何块里）时：只看紧挨着的那根根级 `<br>`。
+    //   用户实测：图片块后面自动多出来的那根空行，在编辑区里怎么删都会**连带着把图片删掉**
+    //   （点空行、退格 —— 光标其实停在根上，浏览器默认的退格会往前吞并整个块）。
+    //   空行在编辑器里就是一根根级 `<br>`，删它就该只是删它：前后块一个节点都不动。
+    if (!blk) {
+        if (r.startContainer !== ed) return false;
+        const kids = ed.childNodes;
+        const at = Math.max(0, Math.min(r.startOffset, kids.length));
+        const isBr = function (n) {
+            return !!(n && n.nodeType === 1 && n.tagName === 'BR'
+                && !(n.getAttribute && n.getAttribute(TOOLBOX_CARET_ATTR)));
+        };
+        // 光标紧贴的空行：前面那根优先（用户点空行时标停在空行之后，退格删的是它），
+        // 其次才是后面那根（标停在空行之前）。
+        const before = kids[at - 1], after = kids[at];
+        const br = isBr(before) ? before : (isBr(after) ? after : null);
+        if (!br) return false;
+        ed.removeChild(br);
+        try {
+            const nr = document.createRange();
+            nr.setStart(ed, Math.max(0, Array.prototype.indexOf.call(ed.childNodes, br)));
+            nr.collapse(true);
+            const sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+        } catch (e) {}
+        toolboxSnapClear();
+        toolboxSaveRange();
+        toolboxCaretHolderSweep();
+        toolboxRefresh();
+        toolboxUndoPush(false);
+        toolboxKeepFocus();
+        return true;
+    }
     if (!blk) return false;
     // 光标在这段的**最开头**吗（光标之前没有任何实义内容）？
     let head = null;
@@ -4792,6 +4875,70 @@ function toolboxParagraphAtRoot(r) {
     } catch (e) {}
     toolboxSnapClear();
     toolboxSaveRange();
+    return true;
+}
+
+// ★★ 点正文末尾的空白处 = "我要在这里接着写"（用户实测要求："假如文章最后没有空行，
+//   但是点击了文章最后空白的地方，就应该加上一个空行"）。
+//   实测的旧行为三种都不对：
+//     · 末尾是表格 → 光标落进表格外面那层 <div>，打字直接钻到 </table> 后面；
+//     · 末尾是段落 → 光标落进最后一段的段尾，打字接在原来那句话后面；
+//     · 末尾是图片块 → 光标回到前一段，**打的字哪儿都没去**（实测直接丢了）。
+//   统一成一条：末尾补一个根级空行（`<br>`）+ 一个落脚点，光标停在空行**下面** ——
+//   之后打字就会按"空行下面的新段落"处理（与连按两次回车得到的状态逐字一致）。
+//   · 末尾已经有空行了就不重复加（反复点末尾空白只会把光标放回去）；
+//   · 点在正文内容上、或不在最后一块下方，一概不动（返回 false，交给浏览器默认行为）。
+function toolboxEndClickBlank(e) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed || !e || (e.button != null && e.button > 0)) return false;
+    if (e.target !== ed) return false;                       // 点在内容上：交给浏览器
+    const kids = ed.childNodes;
+    let lastEl = null;
+    for (let i = kids.length - 1; i >= 0; i--) {
+        const n = kids[i];
+        if (n.nodeType === 3 && !String(n.nodeValue || '').trim()) continue;
+        if (n.nodeType === 1) lastEl = n;
+        break;
+    }
+    if (!lastEl) return false;                               // 空编辑区：正常处理
+    let box = null;
+    try { box = lastEl.getBoundingClientRect(); } catch (e1) { return false; }
+    if (!box || e.clientY <= box.bottom) return false;        // 不在最后一块下方：不动
+    e.preventDefault();
+    // 末尾是不是已经有空行了？（从后往前找第一个"实义节点"，跳过落脚标记）
+    let blank = null;
+    for (let i = kids.length - 1; i >= 0; i--) {
+        const n = kids[i];
+        if (n.nodeType === 3 && !String(n.nodeValue || '').trim()) continue;
+        if (n.nodeType === 1 && n.tagName === 'BR' && n.getAttribute(TOOLBOX_CARET_ATTR)) continue;
+        if (n.nodeType === 1 && n.tagName === 'BR') blank = n;
+        break;
+    }
+    if (!blank) {
+        blank = document.createElement('br');
+        ed.appendChild(blank);
+    }
+    // 落脚点（没有就补一个；导出时会被摘掉，代码区只留那根空行 <br>）
+    let holder = null;
+    let nx = blank.nextSibling;
+    while (nx && nx.nodeType === 3 && !String(nx.nodeValue || '').trim()) nx = nx.nextSibling;
+    if (nx && nx.nodeType === 1 && nx.tagName === 'BR' && nx.getAttribute(TOOLBOX_CARET_ATTR)) holder = nx;
+    if (!holder) {
+        holder = toolboxCaretHolderMake();
+        ed.insertBefore(holder, blank.nextSibling);
+    }
+    try {
+        const nr = document.createRange();
+        nr.setStart(ed, Array.prototype.indexOf.call(ed.childNodes, blank) + 1);
+        nr.collapse(true);
+        const sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(nr); }
+    } catch (e2) {}
+    toolboxSnapClear();
+    toolboxSaveRange();
+    toolboxFocusEditor();
+    toolboxRefresh();
+    toolboxUndoPush(false);
     return true;
 }
 
@@ -4862,6 +5009,93 @@ function toolboxStackRowHtml(imgs, mode, size, sharedCaption) {
 
 function toolboxStackRow(imgs, mode, size, sharedCaption) {
     return toolboxStackRowHtml(imgs, mode, size, sharedCaption);
+}
+// ========== 并排图片的"参数"读写（右键 → 多图参数）==========
+// 用户实测："多图的模式，右键出来却显示的是单图界面（指的是修改参数）"。
+//   并排那一行是 flex 容器（见 toolboxStackRowHtml 的注释），单独一张 <img> 上右键时，
+//   老实现只认"这是一张图"，给的是单图的「修改图片参数」（路径/宽度/占位文字）。
+//   一行 2~4 张要改的是**整行的参数**：张数、同高度/同宽度、尺寸、每张的路径与图注、
+//   以及整行的共用图注。下面三个纯查询 + 一组读写就是给那个对话框用的。
+function toolboxStackRowOf(img, ed) {
+    if (!img || !ed) return null;
+    let n = img.parentNode;
+    while (n && n !== ed) {
+        if (n.nodeType === 1 && n.querySelectorAll) {
+            const st = String((n.getAttribute && n.getAttribute('style')) || '');
+            // 容器判据与生成器一致：display:flex + 直接/间接装着 2 张以上图片
+            if (/display\s*:\s*flex/i.test(st) && n.querySelectorAll('img').length >= 2) return n;
+        }
+        n = n.parentNode;
+    }
+    return null;
+}
+function toolboxStackRowImages(row) {
+    if (!row || !row.querySelectorAll) return [];
+    const cells = row.children || [];
+    let out = [];
+    for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        if (!c.querySelectorAll) continue;
+        const inner = c.querySelectorAll('img');
+        for (let k = 0; k < inner.length; k++) out.push(inner[k]);
+    }
+    if (!out.length) out = Array.prototype.slice.call(row.querySelectorAll('img'));
+    return out;
+}
+// 整行共用图注 = 紧跟在容器后面的那条小字块（生成器就是这么放的，见 toolboxStackRowHtml）
+function toolboxStackSharedCaption(row) {
+    if (!row) return null;
+    let n = row.nextSibling;
+    while (n) {
+        if (n.nodeType === 1) return toolboxIsCaptionBlock(n) ? n : null;   // 复用既有的图注识别
+        n = n.nextSibling;
+    }
+    return null;
+}
+// 对话框字段 → { imgs, mode, size, shared }；与插入那条路**共用同一套尺寸归一**（别再抄一遍）。
+function toolboxStackFromValues(v) {
+    const n = Math.max(2, Math.min(TOOLBOX_MAX_STACK, parseInt(v.count, 10) || 2));
+    const imgs = [];
+    for (let i = 1; i <= n; i++) {
+        const src = String(v['src' + i] || '').trim();
+        if (!src) { toolboxToast('您还未填写图 ' + i + ' 的路径'); return null; }
+        imgs.push({ src: src, caption: String(v['cap' + i] || '').trim() });
+    }
+    const mode = (String(v.mode || '').trim().toLowerCase() === 'width') ? 'width' : 'height';
+    let size = String(v.size || '').trim();
+    if (mode === 'height') {
+        size = size || (TOOLBOX_STACK_HEIGHT + 'px');        // 同高度：留空 = 默认 180px
+    } else if (!size || size === (TOOLBOX_STACK_HEIGHT + 'px')) {
+        size = 'calc';                                      // 同宽度：留空 = 等分整行
+    } else if (/^\d+(\.\d+)?$/.test(size)) {
+        size = size + '%';                                  // 纯数字按百分比（与单图宽度同口径）
+    }
+    return { imgs: imgs, mode: mode, size: size, shared: String(v.sharedCap || '').trim() };
+}
+// 从**现有的这一行**反推对话框要预填的值（fill 用）
+function toolboxStackRowValues(row) {
+    const imgs = toolboxStackRowImages(row);
+    const v = { count: String(Math.max(2, Math.min(TOOLBOX_MAX_STACK, imgs.length)) || 2),
+        mode: 'height', size: '', sharedCap: '' };
+    const st = String((imgs[0] && imgs[0].getAttribute && imgs[0].getAttribute('style')) || '');
+    const hm = /height\s*:\s*([^;]+)/i.exec(st);
+    const wm = /width\s*:\s*([^;]+)/i.exec(st);
+    if (/width\s*:\s*calc\(/i.test(st)) { v.mode = 'width'; v.size = 'calc'; }
+    else if (wm && !/auto/i.test(wm[1])) { v.mode = 'width'; v.size = String(wm[1]).trim(); }
+    else if (hm) { v.mode = 'height'; v.size = String(hm[1]).trim(); }
+    for (let i = 0; i < TOOLBOX_MAX_STACK; i++) {
+        const im = imgs[i] || null;
+        v['src' + (i + 1)] = im ? String(im.getAttribute('src') || '') : '';
+        let cap = '';
+        if (im && im.parentNode && im.parentNode !== row) {
+            const sp = im.parentNode.querySelector('span');
+            if (sp && String(sp.textContent || '').trim()) cap = String(sp.textContent || '').trim();
+        }
+        v['cap' + (i + 1)] = cap;
+    }
+    const shared = toolboxStackSharedCaption(row);
+    if (shared) v.sharedCap = String(shared.textContent || '').trim();
+    return v;
 }
 
 // ========== 表格 ==========
@@ -5209,8 +5443,12 @@ function toolboxCodePasteHandler(e) {
     const el = toolboxTpl.code;
     const start = el.selectionStart == null ? el.value.length : el.selectionStart;
     const end = el.selectionEnd == null ? el.value.length : el.selectionEnd;
-    el.value = el.value.slice(0, start) + ins + el.value.slice(end);
-    const at = start + ins.length;
+    // ★★ 把这段 HTML 用到的 class 的样式规则一起带过来（见 toolboxCssRulesForHtml 上的说明）：
+    //   否则"复制左侧的表格 → 粘到代码区"得到的是有 class、没规则的裸表格（用户实测的"样式失效"）。
+    const css = toolboxCssRulesForHtml(ins, el.value.slice(0, start) + el.value.slice(end));
+    const insAll = css ? (ins + '\n' + css) : ins;
+    el.value = el.value.slice(0, start) + insAll + el.value.slice(end);
+    const at = start + insAll.length;
     try { el.setSelectionRange(at, at); } catch (e3) {}
     toolboxSyncBusy = true;
     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -5219,19 +5457,94 @@ function toolboxCodePasteHandler(e) {
     toolboxScheduleCodeToEditor();
     toolboxScheduleDraftSave();
     toolboxUndoSoon();
+    if (css) toolboxToast('已把这段内容用到的样式规则一起带上（' + (css.match(/\{/g) || []).length + ' 条）');
 }
 
-// 从"网页形态"的 HTML 里提取正文片段：去掉 <html>/<head>/<style> 这些壳，
+// 从"网页形态"的 HTML 里提取正文片段：去掉 <html>/<head> 这些壳，
 // 拿到 body 里第一层实际内容。用于代码区粘贴富文本。
+// ★★ 2024 更正：**不再删 `<style>` 块**。以前这里把 style/script/meta/link/title 一起剥掉，
+//   于是"从别处复制一段带样式的表格贴进代码区"出来的是"有 class、没规则"的裸表格 ——
+//   用户实测报的就是这条（"直接复制左侧的表格并且粘贴，表格样式会失效"）。
+//   现在 `<style>` 是合法内容（见 TOOLBOX_BAD_TAGS 那段说明），照原样带过来；
+//   script/meta/link/title 仍旧删（那些是页面壳，不是正文）。
 function toolboxClipboardHtmlToSource(html) {
     const s = String(html || '');
     if (!s) return '';
     let body = s;
     const m = s.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (m) body = m[1];
-    body = body.replace(/<(script|style|meta|link|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+    body = body.replace(/<(script|meta|link|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
     return body.replace(/^\s+|\s+$/g, '');
 }
+
+// ★★ 复制粘贴时把**样式规则**一起带过来（用户实测："直接复制左侧的表格并且粘贴，表格样式会失效"）。
+//   为什么会失效：class 跟着剪贴板走（元素属性），可定义这些 class 的 `<style>` 块不会跟着走 ——
+//   到了新内容里就成了"有 class、没规则"的裸表格。
+//   页面上那份样式是现成的（左边预览里的 <style>、或编辑区里已经导入的那份内容，都在
+//   document.styleSheets 里），直接把命中的规则抄一份带过去，导出/发布出来的文章就自带样式。
+//   · 只抄"这段 HTML 用到的 class"的规则，别的规则一条不碰；
+//   · 这份内容里**已经定义过**的 class（例如整篇导入的老文章）不再重复带；
+//   · 有上限（规则条数 / 文本长度），避免粘一张表带出一整份站点 CSS。
+function toolboxCssRulesForHtml(html, existingText) {
+    const src = String(html || '');
+    if (!src || src.indexOf('class') < 0) return '';
+    const have = String(existingText || '');
+    const names = [];
+    try {
+        const box = document.createElement('div');
+        box.innerHTML = src;
+        const all = box.querySelectorAll('[class]');
+        for (let i = 0; i < all.length; i++) {
+            const parts = String(all[i].getAttribute('class') || '').split(/\s+/);
+            for (let k = 0; k < parts.length; k++) {
+                const n = parts[k].replace(/[^A-Za-z0-9_\-]/g, '');
+                if (!n || names.indexOf(n) >= 0) continue;
+                if (have.indexOf('.' + n) >= 0) continue;           // 这份内容里已经有了
+                names.push(n);
+            }
+        }
+    } catch (e) { return ''; }
+    if (!names.length) return '';
+    const tests = names.map(function (n) {
+        return new RegExp('\\.' + n.replace(/-/g, '\\-') + '(?![A-Za-z0-9_\\-])');
+    });
+    const hit = function (sel) {
+        const t = String(sel || '');
+        for (let i = 0; i < tests.length; i++) if (tests[i].test(t)) return true;
+        return false;
+    };
+    const kept = [];
+    const push = function (css) {
+        const t = String(css || '').trim();
+        if (!t || kept.indexOf(t) >= 0) return;
+        if (kept.length >= 24 || kept.join('\n').length > 12000) return;
+        kept.push(t);
+    };
+    const sheets = document.styleSheets || [];
+    for (let i = 0; i < sheets.length; i++) {
+        let rules = null;
+        try { rules = sheets[i].cssRules || sheets[i].rules || null; } catch (e) { rules = null; }   // 跨域表读不到
+        if (!rules) continue;
+        for (let k = 0; k < rules.length; k++) {
+            const rule = rules[k];
+            if (rule.type === 1 && hit(rule.selectorText)) { push(rule.cssText); continue; }
+            if (rule.type === 4 && rule.cssRules) {                 // @media：只带命中的那几条
+                const inner = [];
+                for (let j = 0; j < rule.cssRules.length; j++) {
+                    const r2 = rule.cssRules[j];
+                    if (r2.type === 1 && hit(r2.selectorText)) inner.push(String(r2.cssText || '').trim());
+                }
+                if (inner.length) {
+                    const cond = String(rule.conditionText || (rule.media && rule.media.mediaText) || '').trim();
+                    push('@media ' + cond + ' {\n  ' + inner.join('\n  ') + '\n}');
+                }
+            }
+        }
+    }
+    if (!kept.length) return '';
+    return '<style>\n' + kept.join('\n') + '\n</style>';
+}
+
 
 // 拖进正文区：
 //   · 拖的是**纯文本**（选一段文字拖过来）→ 按纯文本插入（换行成 <br>，样式全丢）；
@@ -5976,30 +6289,11 @@ const TOOLBOX_DIALOGS = {
             { key: 'cap4', label: '第 4 张图图注', type: 'text', placeholder: '图 4 注释，可空', wide: true }
         ],
         build: function (v) {
-            const n = Math.max(2, Math.min(TOOLBOX_MAX_STACK, parseInt(v.count, 10) || 2));
-            const imgs = [];
-            for (let i = 1; i <= n; i++) {
-                const src = String(v['src' + i] || '').trim();
-                if (!src) { toolboxToast('您还未填写图 ' + i + ' 的路径'); return null; }
-                imgs.push({ src: src, caption: String(v['cap' + i] || '').trim() });
-            }
-            const mode = (String(v.mode || '').trim().toLowerCase() === 'width') ? 'width' : 'height';
-            let size = String(v.size || '').trim();
-            if (mode === 'height') {
-                // 同高度：填的就是高度，留空 = 默认 180px（值原样传下去，没有变化）
-                size = size || (TOOLBOX_STACK_HEIGHT + 'px');
-            } else if (!size || size === (TOOLBOX_STACK_HEIGHT + 'px')) {
-                // 同宽度：留空 = 等分整行（'calc' 是传给 toolboxStackRowHtml 的既有约定值）
-                size = 'calc';
-            } else if (/^\d+(\.\d+)?$/.test(size)) {
-                // ★ 语义修正（用户点名要求）：同宽度模式填的是**总宽度比例**，
-                //   与「单图插入」的宽度字段同口径 —— 只写纯数字（如 80）时按百分比处理。
-                //   这里是唯一新增的最小字符串解析；带单位（%/px/calc…）的值一字不改。
-                size = size + '%';
-            }
+            const got = toolboxStackFromValues(v);
+            if (!got) return null;
             // 整行共用的图注：留空 → 用按下按钮时选中的文字（不预填，行为保留）
-            const shared = String(v.sharedCap || '').trim() || toolboxSnapText;
-            return toolboxStackRowHtml(imgs, mode, size, shared);
+            const shared = got.shared || toolboxSnapText;
+            return toolboxStackRowHtml(got.imgs, got.mode, got.size, shared);
         },
         // 「高度/宽度值」这一格的文案随「尺寸模式」切：
         // 同高度 → 高度（px）；同宽度 → 总宽度比例（100% / 80% 这种，与单图宽度同口径）。
@@ -6023,7 +6317,93 @@ const TOOLBOX_DIALOGS = {
                         ? '填整行总宽度比例（与单图插入的宽度同口径，例如 100% / 80%；只填数字按百分比算）；留空 = 等分整行'
                         : ('填高度（留空 = ' + TOOLBOX_STACK_HEIGHT + 'px）；切到同宽度模式时改填总宽度比例');
                 }
-            }
+            },
+            // 数量一改，下面的路径/图注只留前 n 张（用户要求："这些应该根据填写的数量动态生成"）
+            onCount: function (v) { return toolboxStackCountSync(v); }
+        }
+    },
+    // 修改已有的并排图片（右键图片 → 「修改图片参数…」，只在多图行上出现）。
+    // ★ 用户实测："多图的模式，右键出来却显示的是单图界面（指的是修改参数）" —— 一行 2~4 张
+    //   要改的是**整行的参数**：张数 / 同高度还是同宽度 / 尺寸 / 每张的路径与图注 / 共用的图注。
+    //   ★ 菜单项与对话框标题与单图**同名**（用户点名要求："修改多图参数"全部替换为"修改图片参数"）——
+    //     名字一样，但多图行点进去给的是下面这套整行字段（单图给的是路径/宽度/占位文字那套）。
+    //   字段与插入那条路（上面的 stack）**同名同义**，所以尺寸那一格的动态文案（dynamic.setMode）
+    //   照样生效；尺寸归一也共用 toolboxStackFromValues 一套，不会再出现"插入一个口径、修改另一个口径"。
+    stackEdit: {
+        title: '修改图片参数',
+        fields: [
+            { key: 'count', label: '并排图片数量', type: 'number', placeholder: '留空则默认为2', min: 2, max: TOOLBOX_MAX_STACK },
+            { key: 'mode', label: '尺寸模式', type: 'segmented', value: 'height',
+              options: [{ v: 'height', label: '同高度' }, { v: 'width', label: '同宽度' }],
+              hint: '同高度：每张按同一高度缩放、宽度自适应；同宽度：每张等宽、等分整行' },
+            { key: 'size', label: '高度', type: 'text',
+              placeholder: '留空则默认为' + TOOLBOX_STACK_HEIGHT + 'px',
+              hint: '填高度（留空 = ' + TOOLBOX_STACK_HEIGHT + 'px）；同宽度模式改填总宽度比例，例如 100% / 80%' },
+            { key: 'sharedCap', label: '图组注释', type: 'text', placeholder: '留空则使用已选中文字', wide: true },
+            { key: 'src1', label: '第 1 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap1', label: '第 1 张图图注', type: 'text', placeholder: '图 1 注释，可空', wide: true },
+            { key: 'src2', label: '第 2 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap2', label: '第 2 张图图注', type: 'text', placeholder: '图 2 注释，可空', wide: true },
+            { key: 'src3', label: '第 3 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap3', label: '第 3 张图图注', type: 'text', placeholder: '图 3 注释，可空', wide: true },
+            { key: 'src4', label: '第 4 张图片路径', type: 'text', placeholder: '例如：readmes/image/……', wide: true },
+            { key: 'cap4', label: '第 4 张图图注', type: 'text', placeholder: '图 4 注释，可空', wide: true }
+        ],
+        fill: function () {
+            const ed = toolboxTpl && toolboxTpl.editor;
+            const img = toolboxImgMenuTarget;
+            const row = (img && ed) ? toolboxStackRowOf(img, ed) : null;
+            return row ? toolboxStackRowValues(row) : {};
+        },
+        apply: function (v) {
+            const ed = toolboxTpl && toolboxTpl.editor;
+            const img = toolboxImgMenuTarget;
+            const row = (img && ed) ? toolboxStackRowOf(img, ed) : null;
+            if (!row || !row.parentNode) { toolboxToast('并排图片不在了'); return null; }
+            const got = toolboxStackFromValues(v);
+            if (!got) return null;
+            const tmp = document.createElement('div');
+            tmp.innerHTML = toolboxStackRowHtml(got.imgs, got.mode, got.size, got.shared);
+            if (!tmp.firstChild) { toolboxToast('多图参数不对，没有生成出内容'); return null; }
+            // ★ 生成器产出的是**两块**：flex 容器 + 紧跟其后的整行图注 —— 两块都要换。
+            //   只插 firstChild 会把新图注丢掉（旧图注还留在原地，看着像"图注没改"）。
+            const parent = row.parentNode;
+            const oldCap = toolboxStackSharedCaption(row);
+            const frag = document.createDocumentFragment();
+            while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+            if (oldCap && oldCap.parentNode) oldCap.parentNode.removeChild(oldCap);
+            parent.insertBefore(frag, row);
+            parent.removeChild(row);
+            const fresh = (function () {
+                let n = null;
+                for (let i = 0; i < parent.childNodes.length; i++) {
+                    const c = parent.childNodes[i];
+                    if (c.nodeType === 1 && /display\s*:\s*flex/i.test(String(c.getAttribute('style') || ''))) { n = c; break; }
+                }
+                return n;
+            })();
+            toolboxImgMenuTarget = (fresh && fresh.querySelector('img')) || null;
+            toolboxImgDone(fresh || parent);
+            return true;
+        },
+        dynamic: {
+            setMode: function (mode) {
+                const on = (mode === 'width');
+                const lab = document.querySelector('label[for="tbF_size"]');
+                const inp = document.getElementById('tbF_size');
+                const hint = inp && inp.parentNode ? inp.parentNode.querySelector('.tb-hint') : null;
+                if (lab) lab.textContent = on ? '总宽度比例/宽度' : '高度';
+                if (inp) {
+                    inp.placeholder = on ? '留空则等分整行；例如 100% / 80%'
+                        : ('留空则默认为' + TOOLBOX_STACK_HEIGHT + 'px');
+                }
+                if (hint) {
+                    hint.textContent = on
+                        ? '填整行总宽度比例（与单图插入的宽度同口径，例如 100% / 80%；只填数字按百分比算）；留空 = 等分整行'
+                        : ('填高度（留空 = ' + TOOLBOX_STACK_HEIGHT + 'px）；切到同宽度模式时改填总宽度比例');
+                }
+            },
+            onCount: function (v) { return toolboxStackCountSync(v); }
         }
     },
     link: {
@@ -6083,9 +6463,22 @@ const TOOLBOX_DIALOGS = {
             if (!src) { toolboxToast('请填写图片路径'); return null; }
             const w = String(v.width || '').trim();
             const alt = String(v.alt || '').trim();
+            // ★ 改了路径，"默认生成的占位文字"必须跟着重新检测（用户实测：路径改对了，
+            //   占位框里还写着**旧文件名**）。
+            //   根因：占位文字优先取 alt，而 alt 是**插入图片时自动写成文件名**的
+            //   （见 toolboxImageBlock）——对话框又把当前 alt 预填进「占位文字」那一格，
+            //   用户只改路径、没碰这一格，于是提交上来的还是旧文件名，旧名字就永远挂在那儿。
+            //   判据：这一格还是"默认值"（空、或恰好等于**旧路径**的文件名），且路径确实变了
+            //   → 按新路径的文件名重写（与插入图片时的写法同一套）；用户自己写的说明文字
+            //   （与旧文件名不同）一个字都不动。
+            const oldSrc = String(img.getAttribute('src') || '');
+            const oldAlt = String(img.getAttribute('alt') || '');
+            const altWasDefault = !oldAlt || oldAlt === toolboxImgBaseName(oldSrc);
             img.setAttribute('src', src);
             if (w) img.setAttribute('width', w); else img.removeAttribute('width');
-            if (alt) img.setAttribute('alt', alt); else img.removeAttribute('alt');
+            if (!alt) img.removeAttribute('alt');
+            else if (altWasDefault && alt === oldAlt && src !== oldSrc) img.setAttribute('alt', toolboxImgBaseName(src));
+            else img.setAttribute('alt', alt);
             toolboxImgDone(img);
             return true;
         }
@@ -6107,6 +6500,28 @@ const TOOLBOX_DIALOGS = {
         }
     }
 };
+
+// 对话框里按字段 key 显示/隐藏**一整格**（连带它的 label 与 hint）。
+// 字段的外层就是 .tb-field，控件是它的第一层孩子 → closest 一步到位。
+function toolboxDialogFieldShow(key, show) {
+    const el = document.getElementById('tbF_' + key);
+    const box = (el && el.closest) ? el.closest('.tb-field') : null;
+    if (!box) return false;
+    box.style.display = show ? '' : 'none';
+    return true;
+}
+// 多图对话框（插入 / 修改两条路共用）：按"并排图片数量"只摆出前 n 张的路径与图注。
+// ★ 用户实测要求："这些应该根据填写的数量动态生成" —— 数量填 2、底下却把第 3、4 张的
+//   路径和图注也一律列出来（还写着"例如：readmes/image/……"），既像没生效又容易填错。
+//   留空按默认 2 张算（与 placeholder「留空则默认为2」一致）。
+function toolboxStackCountSync(val) {
+    const n = Math.max(2, Math.min(TOOLBOX_MAX_STACK, parseInt(val, 10) || 2));
+    for (let i = 1; i <= TOOLBOX_MAX_STACK; i++) {
+        toolboxDialogFieldShow('src' + i, i <= n);
+        toolboxDialogFieldShow('cap' + i, i <= n);
+    }
+    return n;
+}
 
 function toolboxOpenDialog(name) {
     const spec = TOOLBOX_DIALOGS[name];
@@ -6179,6 +6594,18 @@ function toolboxOpenDialog(name) {
     if (typeof setMode === 'function') {
         const mb = toolboxTpl.dialogBody.querySelector('.tb-segs');
         if (mb) setMode(mb.getAttribute('data-value'));
+    }
+    // 数量类字段的联动（多图对话框：数量一改，每张图的路径/图注那几格跟着收放）：
+    // 与 setMode 同一套写法 —— 打开时先跑一次，之后 input/change 都跟着跑。
+    const onCount = spec.dynamic && spec.dynamic.onCount;
+    if (typeof onCount === 'function') {
+        const cin = document.getElementById('tbF_count');
+        if (cin) {
+            const runCount = function () { onCount(String(cin.value == null ? '' : cin.value)); };
+            cin.addEventListener('input', runCount);
+            cin.addEventListener('change', runCount);
+            runCount();
+        }
     }
     toolboxTpl.dialog.style.display = 'flex';
     const first = toolboxTpl.dialogBody.querySelector('input');
@@ -8324,7 +8751,24 @@ function toolboxTableMenuEl() {
     return document.getElementById('tbTableMenu');
 }
 function toolboxMenuItems() {
-    return toolboxMenuMode === 'image' ? TOOLBOX_IM_ITEMS : TOOLBOX_TM_ITEMS;
+    if (toolboxMenuMode !== 'image') return TOOLBOX_TM_ITEMS;
+    // ★ 并排图片（多图一行）上右键：要改的是**整行参数**，给的也该是「修改图片参数…」。
+    //   用户实测报的就是"多图的模式，右键出来却显示的是单图界面（指的是修改参数）"。
+    //   宽度/对齐那几项是**单图专属**（并排图每张的尺寸由整行的参数决定，写 width 属性对
+    //   flex 项没有意义），所以在多图行上不列出来。
+    const ed = toolboxTpl && toolboxTpl.editor;
+    const img = toolboxImgMenuTarget;
+    if (img && ed && toolboxStackRowOf(img, ed)) {
+        return [
+            { act: 'img-edit', label: '修改图片参数', title: '' },
+            { sep: 1 },
+            { act: 'img-cap', label: '编辑图注' },
+            { act: 'img-cap-del', label: '删除图注' },
+            { sep: 1 },
+            { act: 'img-del', label: '删除图片' }
+        ];
+    }
+    return TOOLBOX_IM_ITEMS;
 }
 function toolboxTableMenuBuild() {
     const m = toolboxTableMenuEl();
@@ -8661,6 +9105,9 @@ function toolboxImgDelete() {
 function toolboxImgEditDialog() {
     const img = toolboxImgMenuTarget;
     if (!img) return false;
+    // ★ 多图一行（并排图片）里的图：给的是**整行参数**那个对话框，不是单图的（用户实测要求）
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (ed && toolboxStackRowOf(img, ed)) { toolboxOpenDialog('stackEdit'); return true; }
     toolboxOpenDialog('imgEdit');
     return true;
 }
@@ -9275,6 +9722,8 @@ function initToolboxDOM() {
     });
     toolboxTpl.editor.addEventListener('keyup', toolboxScheduleToolbarState);
     toolboxTpl.editor.addEventListener('mouseup', toolboxScheduleToolbarState);
+    // 点正文末尾的空白处：补一个空行、光标落到空行下面（见 toolboxEndClickBlank 的说明）
+    toolboxTpl.editor.addEventListener('mousedown', toolboxEndClickBlank);
     toolboxTpl.editor.addEventListener('input', toolboxScheduleToolbarState);
     // 代码区选中也要高亮到正文（A）：用 select/selectionchange 都拿不到 textarea 的选区变化，
     // 只能靠 keyup/mouseup/select 这几个事件（都在 textarea 自身上）
@@ -9343,8 +9792,10 @@ function initToolboxDOM() {
     //     浏览器把"按在卡片里、抬在遮罩上"的 click 派发到两者的共同祖先 —— 也就是遮罩本身，
     //     于是"在标题栏按钮上起手往外拖"会被当成点遮罩，弹窗莫名其妙就没了（用户实测）。
     let maskDown = null;
+    let dlgDown = null;                 // 同理：这一下是不是"从弹窗自己的空白区起手"的
     modal.addEventListener('pointerdown', function (e) {
         maskDown = (e.target === modal) ? { x: e.clientX, y: e.clientY } : null;
+        dlgDown = (e.target === toolboxTpl.dialog) ? { x: e.clientX, y: e.clientY } : null;
     }, true);
     modal.addEventListener('click', function (e) {
         if (e.target === modal) {
@@ -9355,6 +9806,16 @@ function initToolboxDOM() {
             return;
         }
         if (e.target === toolboxTpl.dialog) {
+            const d = dlgDown;
+            dlgDown = null;
+            // ★★ 判据与上面遮罩那条**逐条一致**：必须"在弹窗的空白处按下、又几乎没动地松开"
+            //    才算"点弹窗外面，关掉"。以前这里没有任何起手判据，于是**在弹窗里用鼠标选字、
+            //    手一滑松到弹窗外**（落点变成弹窗/遮罩）时，浏览器照样会在落点上补一个 click ——
+            //    e.target 恰好就是弹窗本身，弹窗当场被关掉（用户实测："弹窗内鼠标选取文字的时候，
+            //    假如最终落点跑到了外面，弹窗就会关闭"）。
+            //    click 的 target 是"按下处与松手处的共同祖先"，所以从输入框里起手、松到弹窗空白上
+            //    也会落到这里 —— 起手处不是弹窗自己（dlgDown 为 null）就不该关。
+            if (!d || Math.abs(e.clientX - d.x) > 6 || Math.abs(e.clientY - d.y) > 6) return;
             toolboxCloseDialog();
             toolboxFocusEditor();
             toolboxRestoreRange();

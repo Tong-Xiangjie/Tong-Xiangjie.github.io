@@ -174,10 +174,15 @@ let artOut = '';
     `导出后一行也没塞两个 <tr>/<td>（实测 ${s.twoTr} / ${s.twoTd}）—— 修前表体全挤在一行`);
   ok(s.long === 0 || s.maxLen < 460, `没有几百字符的巨行（最长 ${s.maxLen} 字符）`);
   // 单元格一行一个：三个单元格的表头检查
+  // ★ 期望值一律**从文章原文里数出来**，不写死数字：这篇文章是用户的活稿，
+  //   他会继续往里加段落和表格（2024 就加了 Pick# 213 那张表）—— 写死的话他一改文章用例就红，
+  //   而这里真正要守的是"导出后每个 <tr>/<td> 各自成行"，不是"这篇有几行"。
   const trLines = artOut.split('\n').filter(l => l.trim() === '<tr>');
   const tdLines = artOut.split('\n').filter(l => /^\s*<t[dh][ >]/.test(l));
-  ok(trLines.length === 8 && tdLines.length >= 20,
-    `<tr> 与 <td> 各自成行（<tr> ${trLines.length} 行、单元格 ${tdLines.length} 行）`);
+  const srcTr = (article.match(/<tr[ >]/g) || []).length;
+  const srcCell = (article.match(/<t[dh][ >]/g) || []).length;
+  ok(trLines.length === srcTr && tdLines.length === srcCell,
+    `<tr> 与 <td> 各自成行（<tr> ${trLines.length}/${srcTr} 行、单元格 ${tdLines.length}/${srcCell} 行）`);
   // 文字一个不丢：把两份里的文字抠出来比。
   // ★ 这里**连 <style> 里的 CSS 一起算**：那段 CSS 也是用户写的内容，导入导出必须原样活着
   //   （它曾经被 sanitizeToolboxNode 当危险标签删掉，顺带把表格样式也删了）。
@@ -193,8 +198,11 @@ let artOut = '';
     var b = document.createElement('div'); b.innerHTML = ${JSON.stringify(artOut)};
     return { td: b.querySelectorAll('td').length, table: b.querySelectorAll('table').length };
   `);
-  ok(tdCount.td === 21 && tdCount.table === 1,
-    `表格结构完好（${tdCount.table} 张表 / ${tdCount.td} 个 td）`);
+  // 同样从原文数（见上面那段说明）：导出的表格结构必须与原文一模一样，一个 td 不多不少
+  const srcTd = (article.match(/<td[ >]/g) || []).length;
+  const srcTable = (article.match(/<table[ >]/g) || []).length;
+  ok(tdCount.td === srcTd && tdCount.table === srcTable,
+    `表格结构完好（${tdCount.table}/${srcTable} 张表 / ${tdCount.td}/${srcTd} 个 td）`);
 }
 
 console.log('\n══════ ④ 单元格里的并排图组：一张图一行 ══════\n');

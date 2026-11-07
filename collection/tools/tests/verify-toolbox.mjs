@@ -158,9 +158,14 @@ ok(/function toolboxColGroup/.test(js) && /'width:' \+ s\.pct\[i\] \+ '%;'/.test
 ok(!/sessionStorage\.(get|set|remove)Item/.test(js),
   '(1)* 会话标记只用内存变量（toolboxSession），没有往 sessionStorage 里塞东西');
 // —— 表格操作（右键菜单 / 合并拆分 / 插删行列单元格）——
-// 菜单现在一个浮层两套菜单项（表格/ 图片），所以按数组分别取标签
-const tmBlock = js.slice(js.indexOf('const TOOLBOX_TM_ITEMS'), js.indexOf('const TOOLBOX_IM_ITEMS'));
-const imBlock = js.slice(js.indexOf('const TOOLBOX_IM_ITEMS'), js.indexOf('// ========== 开关弹窗'));
+// 菜单现在一个浮层两套菜单项（表格/ 图片），所以按数组分别取标签。
+// ★ 切片必须**收到数组自己的 `];`**：原来是从 TOOLBOX_TM_ITEMS 一路切到 TOOLBOX_IM_ITEMS，
+//   而这两者之间还夹着 toolboxMenuItems()（并排图片那一行会临时换一套菜单项）——
+//   那段里的 label 会被一起数进来，表格这条断言就凭空多出几项。
+const tmFrom = js.indexOf('const TOOLBOX_TM_ITEMS');
+const tmBlock = js.slice(tmFrom, js.indexOf('];', tmFrom));
+const imFrom = js.indexOf('const TOOLBOX_IM_ITEMS');
+const imBlock = js.slice(imFrom, js.indexOf('];', imFrom));
 const tmLabels = (tmBlock.match(/label:\s*'([^']+)'/g) || []).map(s => s.replace(/label:\s*'|'/g, ''));
 // ★ 下面两条的「期望值 + 文案」在编码事故里被拆坏了（文案串到了别的断言上、
 //   期望值也丢了字：'左对齐'→'左对'）。这里按 toolbox.js 里的真实标签复原。
@@ -7387,7 +7392,12 @@ await gBack42();
 const gb2 = await gShot42();
 ok(gb2.code === '<p>甲乙</p>' && gb2.text === '甲乙',
   `(42)* 再退格一次才由浏览器把两段合并（实际 ${JSON.stringify(gb2.code)}）`);
-// 点内容下方的空白 → 光标落末尾
+// 点内容下方的空白 → 末尾补一个空行、光标落到空行下面（★ 口径更新，用户这一轮明确要求：
+//   "假如文章最后没有空行，但是点击了文章最后空白的地方，就应该加上一个空行"）。
+//   老口径是"光标落进最后一段的段尾、打字接在那句话后面"——用户报的正是这个不好用；
+//   末尾是表格/图片块时更糟（打字会钻到 </table> 后面，或者干脆哪儿都不去）。
+//   现在与"连按两次回车"得到的状态一致：点一下先看见那根空行（代码区就是一根 <br>），
+//   再打字就自成一段落在末尾。见 toolboxEndClickBlank。
 await resetEditor();
 await gSet42('<p>甲</p><br><p>乙</p>');
 await sleep(240);
@@ -7395,10 +7405,13 @@ const gEndBox = await json(`(()=>{const ed=document.getElementById('tbEditor');c
   return JSON.stringify({x:Math.round(b.left+300), y:Math.round(b.bottom-6)});})()`);
 await clickAt(gEndBox.x, gEndBox.y);
 await sleep(320);
+const gEndBlank = await gShot42();
+ok(gEndBlank.code === '<p>甲</p>\n<br>\n<p>乙</p>\n<br>',
+  `(42)* 点内容下方的空白处 ⇒ 末尾当场补出一根空行 <br>（实际 ${JSON.stringify(gEndBlank.code)}）`);
 await gType42('W');
 const gEndShot = await gShot42();
-ok(gEndShot.code === '<p>甲</p>\n<br>\n<p>乙W</p>' && gEndShot.text === '甲乙W',
-  `(42)* 点内容下方的空白处再打字 ⇒ 落在文档末尾（实际 ${JSON.stringify(gEndShot.code)}）`);
+ok(gEndShot.code === '<p>甲</p>\n<br>\n<p>乙</p>\n<p>W</p>' && gEndShot.text === '甲乙W',
+  `(42)* 接着打字自成一段落在末尾（实际 ${JSON.stringify(gEndShot.code)}）`);
 
 // ==============================================================
 console.log('\n====== (43) H：上标 / 下标互斥（应用一个就把另一个摘掉） ======\n');
