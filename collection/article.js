@@ -1864,11 +1864,15 @@ function renderArticleReader(article, content) {
   const imageBase = getArticleBasePath(article.sourceType) + 'readmes/image/';
   htmlContent = htmlContent.replace(/(src\s*=\s*["']?)\s*readmes\/image\//gi, '$1' + imageBase);
 
-  let html = `<div class="back-bar">`;
+  // ★ 左列 = 上面那两个按钮 + 它下面的目录（用户："可以和 ← 返回文章列表 / ⟳ 重新加载
+  //   这两个按钮同宽度"、"就放在它们下面"），正文在右边。所以按钮要跟着进这一列，
+  //   不然目录和按钮不在同一条竖直线上（量出来会差半个屏）。
+  let html = `<div class="article-layout"><div class="article-side">`;
+  html += `<div class="back-bar">`;
   html += `<button class="back-btn" onclick="closeArticleReader()">← 返回文章列表</button>`;
   html += `<button class="back-btn" onclick="reloadArticle()" style="margin-left:8px;">⟳ 重新加载</button>`;
   html += `</div>`;
-  html += `<div class="article-reader">${htmlContent}</div>`;
+  html += `</div><div class="article-reader">${htmlContent}</div></div>`;
   app.innerHTML = html;
   requestAnimationFrame(() => { app.classList.remove('content-enter'); void app.offsetWidth; app.classList.add('content-enter'); });
 
@@ -1878,7 +1882,201 @@ function renderArticleReader(article, content) {
   if (typeof restoreArticleScroll === 'function') {
     restoreArticleScroll(articleReaderContainerKey(currentArticleIndex));
   }
+
+  // ★ 目录放在**恢复阅读位置之后**：它的"当前高亮"要按恢复后的位置算，
+  //   否则每次进来都会先亮第一条、再跳一下。
+  articleTocSetup(app, article, htmlContent);
 }
+
+// ==================== ★★★ 文章目录（TOC）★★★ ====================
+// 用户要求（原话）：
+//   · "文章板块有一些长文章，我在想能不能做一个目录点击跳转（同时目前滚动到哪里就哪里高亮）"；
+//   · "这就需要文章板块的 html 代码里有类似于 <h1><h2><h3><h4> 这样的标签，其他的标签不视为标题"；
+//   · "现在文章两侧不是有宽度是空白的吗，这些地方就可以用来放跳转的目录"；
+//   · "目录按照标题的层级缩进，例如一篇文章同时含有 <h1><h2><h4> 那就是 <h1> 为不缩进，
+//      <h2> 缩进一下，<h4> 缩进两下（注意不是四下）"；
+//   · "其中文章标题"中国代印之阿尔巴尼亚列克"无条件识别为 <h1> 类型（即便没有用这样的标签）"；
+//   · "注意点击跳转的时候不要突变，应该滚动到目标位置"。
+//
+// 三条口径，别改错：
+//   ① 只认原生 <h1>~<h6>。别的标签一律不算标题 —— 所以目录**不看** .overview-header 那种
+//      "样式上的大标题"，也不看阿尔巴尼亚那篇开头那种 `<b><span style="font-size:1.1em">`。
+//   ② 缩进 = **这篇里出现过的标题级别**排序之后的名次，而不是级别本身（用户特意强调"不是四下"）：
+//      h1/h2/h4 → 0/1/2 级；只写了 h4 的文章，h4 就是第 0 级、不缩进 —— 中间级别缺失不留空档。
+//   ③ 文章标题无条件算第 0 级条目（用户点名要求）：它没有 <h1> 标签，但必须是目录第一条，
+//      点它回到文章开头。它**也参与**②的排序，否则"只写 h4 的文章"里 h4 会被算成第 0 级。
+const ARTICLE_TOC_TAGS = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+let articleTocState = null;      // { items, scroller, onScroll, raf, nav, list }
+
+// 把正文里的标题收成目录数据。返回 null = 这篇没有原生标题（只有标题那一条的目录没有意义）。
+function articleTocCollect(reader, article) {
+  if (!reader) return null;
+  const heads = Array.prototype.slice.call(reader.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+  if (!heads.length) return null;
+  const title = String((article && article.title) || '').trim();
+  const present = [];
+  heads.forEach(h => {
+    const lv = ARTICLE_TOC_TAGS.indexOf(h.tagName);
+    if (lv >= 0 && present.indexOf(lv) < 0) present.push(lv);
+  });
+  if (present.indexOf(0) < 0) present.push(0);     // 文章标题无条件算一级（口径③）
+  present.sort((a, b) => a - b);
+  const items = [];
+  if (title) items.push({ label: title, rank: 0, el: null, id: '' });
+  heads.forEach((h, i) => {
+    const label = String(h.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!label) return;                            // 空标题不进目录（点进去也不知道去哪）
+    // ★ 文章标题已经作为第一条无条件进目录了（口径③）：正文里若**真的**写了 <h1> 而且文字
+    //   与文章标题一模一样，别再出一条 —— 用户说的是"即便没有用这样的标签也算"，不是"要两条"。
+    if (h.tagName === 'H1' && title && label === title) return;
+    let id = h.id;
+    if (!id) { id = 'article-toc-' + i; h.id = id; }
+    items.push({ label: label, rank: present.indexOf(ARTICLE_TOC_TAGS.indexOf(h.tagName)), el: h, id: id });
+  });
+  if (items.length < 2) return null;               // 只剩"文章标题"一条时不摆目录
+  return { items: items };
+}
+
+function articleTocSetup(app, article, content) {
+  // 换文章/重新渲染时先把上一份收干净：滚动监听挂在**容器**上，不清就会越挂越多
+  if (articleTocState && articleTocState.scroller && articleTocState.onScroll) {
+    try { articleTocState.scroller.removeEventListener('scroll', articleTocState.onScroll); } catch (e) { }
+    if (articleTocState.raf) { try { cancelAnimationFrame(articleTocState.raf); } catch (e) { } }
+  }
+  if (articleTocState && articleTocState.fitWidth) {
+    try { window.removeEventListener('resize', articleTocState.fitWidth); } catch (e) { }
+  }
+  articleTocState = null;
+  if (!app) return;
+  const layout = app.querySelector('.article-layout');
+  const side = app.querySelector('.article-side');
+  const reader = app.querySelector('.article-reader');
+  if (!layout || !side || !reader) return;
+  const info = articleTocCollect(reader, article);
+  if (!info) return;
+  const scroller = getRenderContainer();
+  if (!scroller) return;
+
+  const nav = document.createElement('nav');
+  nav.className = 'article-toc';
+  nav.setAttribute('aria-label', '文章目录');
+  const head = document.createElement('div');
+  head.className = 'article-toc-title';
+  head.textContent = '目录';
+  nav.appendChild(head);
+  const list = document.createElement('div');
+  list.className = 'article-toc-list';
+  info.items.forEach(function (it, i) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'article-toc-item';
+    b.setAttribute('data-rank', String(it.rank));
+    // 缩进量走 CSS 变量：样式里算，JS 不拼内联 padding（暗色/窄屏都能一处改）
+    b.style.setProperty('--toc-indent', String(it.rank));
+    b.title = it.label;
+    b.textContent = it.label;
+    b.addEventListener('click', function () { articleTocGoTo(i); });
+    list.appendChild(b);
+  });
+  nav.appendChild(list);
+  nav.style.display = 'none';                      // 先量完再显示，避免量到"目录已经把正文挤窄"的中间态
+  side.appendChild(nav);                           // ★ 放在那两个按钮**下面**（同一列）
+
+  articleTocState = { items: info.items, scroller: scroller, onScroll: null, raf: 0, nav: nav, list: list };
+  // ★ 目录栏的宽度 = 上面那排按钮宽度的 **1.5 倍**（用户："应该是 ← 返回文章列表 /
+  //   ⟳ 重新加载 这两个按钮的宽度的 1.5 倍"）：量第一个按钮的左边缘到最后一个按钮的
+  //   右边缘（两个按钮并排，中间间距一起算），再乘 1.5。
+  //   左列是绝对定位浮在空白上的（见 layout.css），所以这个宽度**不会推动正文** ——
+  //   用户同一句里还要求"文章本体不用移动位置"。
+  const fitWidth = function () {
+    if (!nav.isConnected) return;
+    const bar = side.querySelector('.back-bar');
+    const btns = bar ? bar.querySelectorAll('.back-btn') : null;
+    if (!btns || !btns.length) return;
+    const a = btns[0].getBoundingClientRect();
+    const b = btns[btns.length - 1].getBoundingClientRect();
+    const w = Math.round((b.right - a.left) * 1.5);
+    if (w > 0) nav.style.width = w + 'px';
+  };
+  fitWidth();
+  window.addEventListener('resize', fitWidth);
+  articleTocState.fitWidth = fitWidth;
+  // ★ 滚动监听挂在真正的滚动容器上，用 rAF 节流（滚动事件每秒几十次，不节流会拖慢长文章）
+  const onScroll = function () {
+    if (!articleTocState) return;
+    if (articleTocState.raf) return;
+    articleTocState.raf = requestAnimationFrame(function () {
+      if (!articleTocState) return;
+      articleTocState.raf = 0;
+      articleTocSync();
+    });
+  };
+  articleTocState.onScroll = onScroll;
+  scroller.addEventListener('scroll', onScroll, { passive: true });
+  nav.style.display = '';
+  articleTocSync();
+  // 图片是懒加载的：它们撑开高度会让后面的标题整体下移，位置变了高亮也得跟着重算。
+  // 监听放在正文上（图片都在正文里），一次渲染只挂一次。
+  try {
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(function () { articleTocSync(); });
+      ro.observe(reader);
+      articleTocState.ro = ro;
+    }
+  } catch (e) { }
+}
+
+// 当前该亮哪一条：判定线以下的最后一个标题（滚到底时点亮最后一条）。
+function articleTocSync() {
+  const st = articleTocState;
+  if (!st) return;
+  const sc = st.scroller;
+  const line = sc.getBoundingClientRect().top + 90;   // 留出"标题刚滚到上方"的一点余量
+  let idx = 0;
+  for (let i = 0; i < st.items.length; i++) {
+    const el = st.items[i].el;
+    if (!el) continue;
+    if (el.getBoundingClientRect().top <= line) idx = i; else break;
+  }
+  if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 4) idx = st.items.length - 1;
+  articleTocActive(idx);
+}
+
+function articleTocActive(idx) {
+  const st = articleTocState;
+  if (!st || !st.list) return;
+  const kids = st.list.children;
+  for (let i = 0; i < kids.length; i++) {
+    if (i === idx) kids[i].classList.add('active'); else kids[i].classList.remove('active');
+  }
+  // 目录本身太长时要看得到当前这条（只动目录自己的滚动，绝不碰页面/正文的滚动）
+  const cur = kids[idx];
+  if (cur && st.nav) {
+    const top = cur.offsetTop, bottom = top + cur.offsetHeight;
+    if (top < st.nav.scrollTop) st.nav.scrollTop = top - 8;
+    else if (bottom > st.nav.scrollTop + st.nav.clientHeight) st.nav.scrollTop = bottom - st.nav.clientHeight + 8;
+  }
+}
+
+function articleTocGoTo(i) {
+  const st = articleTocState;
+  if (!st) return;
+  const sc = st.scroller;
+  const it = st.items[i];
+  let top = 0;
+  if (it && it.el) {
+    // 目标位置 = 标题相对滚动容器的偏移（不能用 offsetTop：它是相对最近的定位祖先，
+    // 正文里有一堆 position:relative 的块，量出来会偏）
+    top = it.el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+    top = Math.max(0, Math.round(top) - 8);
+  }
+  // ★ "不要突变"（用户明确要求）：一律平滑滚动。**不写 CSS 的 scroll-behavior** ——
+  //   那会把"恢复上次阅读位置"那种一次性定位也变成动画（那条必须瞬时到位）。
+  try { sc.scrollTo({ top: top, behavior: 'smooth' }); }
+  catch (e) { sc.scrollTop = top; }
+  articleTocActive(i);        // 点了立刻高亮，不等滚动结束（否则点了没反馈）
+}
+
 
 function closeArticleReader() {
   // ★ 收口写 URL（返回列表 → 地址栏回到 #articles）

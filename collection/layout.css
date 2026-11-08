@@ -1020,6 +1020,69 @@ html[data-hm-cold] .top-search-container {
 .series-header .series-desc { font-size: 0.85rem; color: var(--text-secondary); }
 
 /* ========== 鏂囩珷闃呰鍣?========== */
+/* ========== ★★★ 文章目录（TOC）★★★ ==========
+   用户要求（原话）："现在文章两侧不是有宽度是空白的吗，这些地方就可以用来放跳转的目录"、
+   "可以和 ← 返回文章列表 / ⟳ 重新加载 这两个按钮同宽度" → 再改成"是这两个按钮宽度的 1.5 倍"、
+   "然后文章本体不用移动位置"。
+   于是：正文恢复原来的 max-width:800px + margin:0 auto **不动**；左列（按钮 + 目录）用
+   position:absolute 浮在左边那块空白上，完全不参与布局 —— 它宽也好窄也好，正文都不会挪一格。
+   ★ max-width 那道算式是**护栏**：左空白的宽度就是 (容器宽-800)/2，目录再宽也不能压到正文上
+     （窄窗口时 1.5 倍可能超出空白，这时按空白封顶；窗口够宽就老实按 1.5 倍）。 */
+.article-layout { position: relative; }
+.article-side {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    max-width: calc(50% - 400px - 8px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.article-side .back-bar { margin-bottom: 8px; }
+.article-toc {
+    width: 190px;
+    /* ★ 必须跟着父级的 max-width 一起收：子元素写了固定 width 时不会自动被父级的
+       max-width 夹住（它只会溢出），窄窗口下就会压到正文上 —— 实测漏过一次。 */
+    max-width: 100%;
+    position: sticky;
+    top: 8px;
+    max-height: calc(100vh - 120px);
+    overflow: auto;
+    padding: 6px 8px 6px 0;
+    border-right: 1px solid var(--border);
+}
+.article-toc-title { font-size: 0.78rem; color: var(--text-secondary); margin: 2px 0 6px 8px; letter-spacing: 0.05em; }
+.article-toc-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    /* ★ 缩进量 = 层级名次（JS 写在 --toc-indent 上），不是标题级别本身 —— 用户特意强调
+       "h4 缩进两下（注意不是四下）"。每级 14px。 */
+    padding: 3px 8px 3px calc(8px + var(--toc-indent, 0) * 14px);
+    border-left: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: inherit;
+}
+/* ★ 用户要求："目录栏不用背景色，直接高亮文字就行" —— hover/当前条目**只换文字颜色**，
+   不铺底色、不加底色块（原来那两条 background 已按这条删掉）。 */
+.article-toc-item:hover { color: var(--text); }
+.article-toc-item.active { color: var(--theme); }
+/* 窄屏两侧没有空白可放（正文会先被挤瘦），就把目录收掉 —— 不占正文的地方，
+   也不做抽屉：用户要的是"用两侧的空白"，不是再要一个开关。 */
+@media (max-width: 1180px) {
+    .article-toc { display: none !important; }
+}
+
 .article-reader {
     max-width: 800px;
     margin: 0 auto;
