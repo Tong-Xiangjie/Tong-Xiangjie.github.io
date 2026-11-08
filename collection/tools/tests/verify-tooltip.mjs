@@ -1,0 +1,150 @@
+// 自定义悬浮提示（tooltip）验证：collection/tools/tests/verify-tooltip.mjs
+// 用户："鼠标悬浮的时候有时会出现一个框框显示文字，那个东西叫什么来着，能不能也自己写一个，
+//        原生的有点丑" + "那个框框出现和消失的时候可以考虑加一点动画"。
+// 那个"框框"就是浏览器原生的 title 气泡（tooltip）。本用例量的是自己写的那套：
+// 悬停弹的是自己的气泡、原生气泡被掐掉（title 属性在悬停期间被挪走）、进出都有动画、
+// 长文字会换行、顶部放不下会翻到下方、离开/Esc 会收起并把 title 还回去。
+import { createServer } from 'node:http';
+import { readFileSync, statSync, existsSync } from 'node:fs';
+import { join, extname } from 'node:path';
+import { spawn } from 'node:child_process';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+const ROOT = process.cwd();
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.json': 'application/json' };
+const server = createServer((req, res) => {
+  try {
+    let p = decodeURIComponent(req.url.split('?')[0].split('#')[0]);
+    if (p.endsWith('/')) p += 'index.html';
+    const full = join(ROOT, p);
+    if (!existsSync(full) || statSync(full).isDirectory()) { res.writeHead(404).end('nf'); return; }
+    const buf = readFileSync(full);
+    res.writeHead(200, { 'Content-Type': MIME[extname(full).toLowerCase()] || 'application/octet-stream', 'Content-Length': buf.length, 'Cache-Control': 'no-store' });
+    res.end(buf);
+  } catch (e) { res.writeHead(500).end(String(e.message)); }
+});
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const BASE = `http://127.0.0.1:${server.address().port}/collection/index.html`;
+const chromePath = (process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [`${process.env.ProgramFiles}\\Google\\Chrome\\Application\\chrome.exe`, `${process.env['ProgramFiles(x86)']}\\Google\\Chrome\\Application\\chrome.exe`, '/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']).find(p => p && existsSync(p));
+if (!chromePath) { console.log('  ✗ 找不到 Chrome：请设置 CHROME_PATH'); process.exit(2); }
+const userDir = await mkdtemp(join(tmpdir(), 'cdpTip-'));
+const DP = 17540;
+const child = spawn(chromePath, ['--headless=new', `--remote-debugging-port=${DP}`, `--user-data-dir=${userDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let msgId = 0; const pending = new Map();
+const ws = new WebSocket(await (async () => { for (let i = 0; i < 100; i++) { try { const l = await (await fetch(`http://127.0.0.1:${DP}/json/list`)).json(); const p = l.find(t => t.type === 'page'); if (p?.webSocketDebuggerUrl) return p.webSocketDebuggerUrl; } catch { } await sleep(250); } throw new Error('CDP 未就绪'); })());
+await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+const errors = [];
+ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.text); if (m.id && pending.has(m.id)) { const { res, rej } = pending.get(m.id); pending.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); } };
+const send = (method, params = {}) => new Promise((res, rej) => { const i = ++msgId; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
+async function evaluate(e) {
+  const r = await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true });
+  if (r.exceptionDetails) throw new Error(r.exceptionDetails.text + ' ' + (r.exceptionDetails.exception?.description || ''));
+  return r.result.value;
+}
+const J = async e => JSON.parse(await evaluate(`(async()=>JSON.stringify(await(async()=>{ ${e} })()))()`));
+await send('Runtime.enable'); await send('Page.enable');
+await send('Page.navigate', { url: `${BASE}?t=${Date.now()}` });
+for (let i = 0; i < 140; i++) {
+  const r = await evaluate(`document.readyState==='complete'`).catch(() => false);
+  if (r) break; await sleep(120);
+}
+await sleep(700);
+await evaluate(`
+window.__mk = function (opts) {
+  var d = document.createElement('button');
+  d.type = 'button';
+  d.textContent = '靶子';
+  var old = document.getElementById('tipTarget');
+  if (old) old.parentNode.removeChild(old);
+  d.id = 'tipTarget';
+  d.setAttribute('title', opts.text);
+  d.style.cssText = 'position:fixed;left:' + opts.left + 'px;top:' + opts.top + 'px;padding:4px 10px;z-index:5;';
+  document.body.appendChild(d);
+  return 1;
+};
+window.__hover = async function () {
+  var d = document.getElementById('tipTarget');
+  d.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 620));
+  return 1;
+};
+window.__unhover = async function () {
+  var d = document.getElementById('tipTarget');
+  d.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+  await new Promise(r => setTimeout(r, 60));
+  return 1;
+};
+window.__tip = function () {
+  var t = document.querySelector('.dsh-tip');
+  if (!t) return null;
+  var a = t.getBoundingClientRect(), cs = getComputedStyle(t);
+  return { exists: true, text: String(t.textContent || ''), cls: t.className,
+    opacity: parseFloat(cs.opacity), visibility: cs.visibility, display: cs.display,
+    dur: cs.transitionDuration, top: Math.round(a.top), bottom: Math.round(a.bottom),
+    left: Math.round(a.left), right: Math.round(a.right), width: Math.round(a.width),
+    height: Math.round(a.height), maxW: cs.maxWidth, ax: cs.getPropertyValue('--tip-ax') };
+};
+window.__target = function () { var d = document.getElementById('tipTarget'); var a = d.getBoundingClientRect();
+  return { top: Math.round(a.top), left: Math.round(a.left), width: Math.round(a.width),
+    bottom: Math.round(a.bottom), title: d.getAttribute('title'), tipAttr: d.getAttribute('data-tip') }; };
+`);
+
+console.log('══════ ① 模块与样式 ══════\n');
+ok(await evaluate(`typeof window.dshTooltip === 'object' && window.dshTooltip !== null`), '① 自定义提示模块已加载（window.dshTooltip）');
+ok(await evaluate(`!!document.getElementById('dsh-tip-style')`), '① 它自己注入了样式（不依赖 layout.css）');
+
+console.log('\n══════ ② 悬停弹出的是自己的气泡 ══════\n');
+await J(`await window.__mk({ text: '这是一个提示文字', left: 600, top: 400 }); await window.__hover(); return 1;`);
+const t1 = await J(`return { tip: window.__tip(), tgt: window.__target() };`);
+ok(!!t1.tip && t1.tip.display !== 'none' && t1.tip.opacity > 0.9 && t1.tip.visibility === 'visible',
+  `② 悬停后弹出自己的气泡（opacity=${t1.tip && t1.tip.opacity}, visibility=${t1.tip && t1.tip.visibility}）`);
+ok(t1.tip && t1.tip.text === '这是一个提示文字', `② 文字就是 title 里那句（「${t1.tip && t1.tip.text}」）`);
+ok(t1.tgt.title === null && t1.tgt.tipAttr === '这是一个提示文字',
+  `② 悬停期间 title 被挪进 data-tip（title=${t1.tgt.title}）—— 原生气泡因此不会再弹`);
+ok(t1.tip && t1.tip.cls.indexOf('tip-above') >= 0 && t1.tip.bottom <= t1.tgt.top + 1,
+  `② 默认弹在元素正上方（气泡底 ${t1.tip && t1.tip.bottom} ≤ 靶子顶 ${t1.tgt.top}）`);
+ok(t1.tip && Math.abs((t1.tip.left + t1.tip.right) / 2 - (t1.tgt.left + t1.tgt.width / 2)) <= 2,
+  `② 水平居中对齐（气泡中心 ${t1.tip && Math.round((t1.tip.left + t1.tip.right) / 2)} vs 靶子中心 ${Math.round(t1.tgt.left + t1.tgt.width / 2)}）`);
+ok(t1.tip && t1.tip.width <= 360 + 30, `② 有最大宽度、不会拉成一长条（实测 ${t1.tip && t1.tip.width}px）`);
+
+console.log('\n══════ ③ 出现和消失都有动画 ══════\n');
+const inDur = parseFloat(String(t1.tip.dur).split(',')[0]);
+ok(t1.tip.cls.indexOf('tip-in') >= 0 && inDur > 0.05,
+  `③ 出现有过渡（class=${t1.tip.cls}、时长 ${inDur}s）`);
+await J(`await window.__unhover(); return 1;`);
+const mid = await J(`return window.__tip();`);
+const outDur = parseFloat(String(mid.dur).split(',')[0]);
+ok(mid && mid.cls.indexOf('tip-in') < 0 && outDur > 0.05,
+  `③ 消失也有过渡、且比出现更慢一点（进 ${inDur}s / 退 ${outDur}s）`);
+await sleep(320);
+const gone = await J(`return window.__tip();`);
+ok(gone && gone.display === 'none', `③ 动画走完才真正隐藏（display=${gone && gone.display}）`);
+const restored = await J(`return window.__target();`);
+ok(restored.title === '这是一个提示文字' && restored.tipAttr === null,
+  `③ 离开后 title 还回去了（title=「${restored.title}」）——读屏软件和测试还能读到`);
+
+console.log('\n══════ ④ 顶部放不下翻到下方 / 长文字换行 / Esc 收起 ══════\n');
+await J(`await window.__mk({ text: '贴顶的靶子', left: 600, top: 0 }); await window.__hover(); return 1;`);
+const t2 = await J(`return { tip: window.__tip(), tgt: window.__target() };`);
+ok(t2.tip && t2.tip.cls.indexOf('tip-below') >= 0 && t2.tip.top >= t2.tgt.bottom - 1,
+  `④ 贴顶时翻到元素下方（气泡顶 ${t2.tip && t2.tip.top} ≥ 靶子底 ${t2.tgt.bottom}）`);
+await J(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1;`);
+await sleep(320);
+ok((await J(`var t=window.__tip(); return t ? t.display : 'none'`)) === 'none', '④ Esc 收起气泡');
+
+const longText = '长'.repeat(200);
+await J(`await window.__mk({ text: '${longText}', left: 300, top: 300 }); await window.__hover(); return 1;`);
+const t3 = await J(`return window.__tip();`);
+ok(t3 && t3.height > 40 && t3.width <= 390,
+  `④ 超长提示会换行而不是撑成一条（宽 ${t3 && t3.width}px、高 ${t3 && t3.height}px）`);
+
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
+if (errors.length) errors.slice(0, 3).forEach(e => console.log('    ! ' + String(e).slice(0, 160)));
+try { ws.close(); } catch { }
+child.kill(); server.close();
+process.exitCode = fail ? 1 : 0;

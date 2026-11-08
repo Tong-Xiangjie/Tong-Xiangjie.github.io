@@ -747,6 +747,9 @@
      原生 select 不删，只是 display:none 藏起来继续持有 .value / options / change 契约，
      所以既有逻辑和用例一字不用改。逻辑在 dropdown.js，样式在 layout.css 末尾。 -->
 <script src="dropdown.js"></script>
+<!-- 自定义悬浮提示：接管所有 title 属性（原生那个系统气泡样式改不了，用户嫌丑）。
+     纯装饰，放最后；加载失败也不影响其余功能。 -->
+<script src="tooltip.js"></script>
 
 <!-- ========== 文章编辑器「工具箱」==========
      弹窗 DOM 写在上面（#toolboxModal，和 #imageModal 同一位置），入口在「我的」页面。
