@@ -166,7 +166,52 @@ const narrow = await J(`var cs=getComputedStyle(document.querySelector('.article
 ok(narrow.vis === 'hidden' && narrow.opacity === 0 && narrow.pe === 'none',
   `① 1100px（<1180 断点）下目录收起：visibility=${narrow.vis}、opacity=${narrow.opacity}、pointer-events=${narrow.pe}`);
 ok(narrow.dur > wideDur + 0.1,
-  `① 收起比展开慢（展开 ${wideDur}s / 收起 ${narrow.dur}s）——用户："收起的动画还是比较快，展开的动画就比较适中"`);await send('Emulation.clearDeviceMetricsOverride');
+  `① 收起比展开慢（展开 ${wideDur}s / 收起 ${narrow.dur}s）——用户："收起的动画还是比较快，展开的动画就比较适中"`);
+await send('Emulation.clearDeviceMetricsOverride');
+await sleep(300);
+
+// ─────────── ⑤ 手机版目录 ───────────
+// 用户："手机上这样的目录会有问题，你看看怎么处理比较好"、"因为手机太窄了"，
+// 同时："电脑上的不要改"。两条路都要量：手机上是另一套（浮起来的按钮 + 面板），
+// 桌面上必须还是原来那套（按钮不显示、目录在正文左侧空白里）。
+console.log('\n══════ ⑤ 手机另一套目录（桌面不许动）══════\n');
+const desk = await J(`var b=document.querySelector('.article-toc-btn'), n=document.querySelector('.article-toc');
+  var cn=getComputedStyle(n), a=n.getBoundingClientRect();
+  return { btn: b?getComputedStyle(b).display:'(没有这个按钮)', pos: cn.position, vis: cn.visibility,
+    width: Math.round(a.width), left: Math.round(a.left) };`);
+ok(desk.btn === 'none', '⑤ 桌面（1920px）下手机版「目录」按钮是 display:none —— 电脑那条路没动');
+ok(desk.pos !== 'fixed' && desk.vis === 'visible' && desk.width > 100,
+  `⑤ 桌面目录还是原来那套（position=${desk.pos}、visibility=${desk.vis}、宽 ${desk.width}px、左缘 ${desk.left}px）`);
+
+await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+await sleep(700);
+const m1 = await J(`var b=document.querySelector('.article-toc-btn'), n=document.querySelector('.article-toc');
+  var cb=getComputedStyle(b), cn=getComputedStyle(n);
+  return { btnDisp: cb.display, btnPos: cb.position, btnText: String(b.textContent||''),
+    btnBottom: Math.round(window.innerHeight - b.getBoundingClientRect().bottom),
+    tocVis: cn.visibility, tocPos: cn.position, vw: window.innerWidth };`);
+ok(m1.btnDisp !== 'none' && m1.btnPos === 'fixed' && m1.btnText === '目录',
+  `⑤ 手机上浮起一个「目录」按钮（display=${m1.btnDisp}、position=${m1.btnPos}、文字「${m1.btnText}」、距底 ${m1.btnBottom}px）`);
+ok(m1.tocVis === 'hidden', `⑤ 手机上面板默认收起（visibility=${m1.tocVis}），不占正文地方`);
+await J(`document.querySelector('.article-toc-btn').click(); return 1;`);
+await sleep(500);
+const m2 = await J(`var n=document.querySelector('.article-toc'); var a=n.getBoundingClientRect(), cs=getComputedStyle(n);
+  return { open: n.classList.contains('toc-open'), vis: cs.visibility, pos: cs.position,
+    left: Math.round(a.left), right: Math.round(a.right), vw: window.innerWidth,
+    width: Math.round(a.width), active: document.querySelector('.article-toc-btn').classList.contains('active') };`);
+ok(m2.open && m2.vis === 'visible' && m2.pos === 'fixed' && m2.active,
+  `⑤ 点一下按钮：面板作为浮层打开、按钮高亮（position=${m2.pos}）`);
+ok(m2.left >= 8 && (m2.vw - m2.right) >= 8 && m2.width <= m2.vw - 16,
+  `⑤ 面板左右各留白、不超出屏幕（左 ${m2.left} / 右 ${m2.right} / 宽 ${m2.width} / 屏宽 ${m2.vw}）`);
+const st0 = await evaluate(`Math.round(getRenderContainer().scrollTop)`);
+await J(`var it=document.querySelectorAll('.article-toc-item'); it[it.length-1].click(); return 1;`);
+await sleep(1800);
+const st1 = await J(`return { top: Math.round(getRenderContainer().scrollTop),
+  open: document.querySelector('.article-toc').classList.contains('toc-open'),
+  vis: getComputedStyle(document.querySelector('.article-toc')).visibility };`);
+ok(st1.top > st0 + 50, `⑤ 手机点最后一条真的滚过去了（${st0} → ${st1.top}）`);
+ok(st1.open === false && st1.vis === 'hidden', '⑤ 手机点完条目面板自动收起，不挡正文');
+await send('Emulation.clearDeviceMetricsOverride');
 await sleep(300);
 
 // 省略号：造一条超长标题，实测真的被截断（不是只写了 CSS）

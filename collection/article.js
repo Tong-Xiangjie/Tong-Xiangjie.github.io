@@ -1906,7 +1906,14 @@ function renderArticleReader(article, content) {
 //   ③ 文章标题无条件算第 0 级条目（用户点名要求）：它没有 <h1> 标签，但必须是目录第一条，
 //      点它回到文章开头。它**也参与**②的排序，否则"只写 h4 的文章"里 h4 会被算成第 0 级。
 const ARTICLE_TOC_TAGS = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
-let articleTocState = null;      // { items, scroller, onScroll, raf, nav, list }
+let articleTocState = null;      // { items, scroller, onScroll, raf, nav, list, fitWidth, btn }
+// ★ "点别处收起手机面板"那个 document 监听只挂一次（模块级；挂在函数里会每次换文章都多挂一个）。
+document.addEventListener('click', function () {
+  const st = articleTocState;
+  if (!st || !st.nav || !st.nav.classList.contains('toc-open')) return;
+  st.nav.classList.remove('toc-open');
+  if (st.btn) st.btn.classList.remove('active');
+});
 
 // 把正文里的标题收成目录数据。返回 null = 这篇没有原生标题（只有标题那一条的目录没有意义）。
 function articleTocCollect(reader, article) {
@@ -2001,6 +2008,32 @@ function articleTocSetup(app, article, content) {
   fitWidth();
   window.addEventListener('resize', fitWidth);
   articleTocState.fitWidth = fitWidth;
+
+  // ★★★ 手机/窄屏的另一套目录 ★★★
+  // 用户："手机上这样的目录会有问题，你看看怎么处理比较好"、"因为手机太窄了"，
+  // 同时明确"电脑上的不要改"。所以窄屏不再沿用"站在正文两侧空白里"那套，而是：
+  // 一个浮起来的「目录」按钮 + 点开的面板；样式全在 layout.css 的窄屏媒体查询里，
+  // 桌面（>1180px）下这两个元素被藏起来，**桌面那条路一个像素都不动**。
+  // 这里只负责开关：点按钮开/关、点条目跳完自动收起、点别处收起（那条监听在模块级只挂一次）。
+  const tocBtn = document.createElement('button');
+  tocBtn.type = 'button';
+  tocBtn.className = 'article-toc-btn';
+  tocBtn.setAttribute('aria-label', '文章目录');
+  tocBtn.textContent = '目录';
+  tocBtn.addEventListener('click', function (e) {
+    try { e.stopPropagation(); } catch (err) { }
+    const open = nav.classList.toggle('toc-open');
+    tocBtn.classList.toggle('active', open);
+    if (open) articleTocSync();                    // 打开时按当前位置刷一次高亮
+  });
+  side.appendChild(tocBtn);
+  // 点面板里的条目：articleTocGoTo 负责跳（平滑），这里只管窄屏下把面板收起来
+  list.addEventListener('click', function () {
+    if (!window.matchMedia || !window.matchMedia('(max-width: 820px)').matches) return;
+    nav.classList.remove('toc-open');
+    tocBtn.classList.remove('active');
+  });
+  articleTocState.btn = tocBtn;
   // ★ 滚动监听挂在真正的滚动容器上，用 rAF 节流（滚动事件每秒几十次，不节流会拖慢长文章）
   const onScroll = function () {
     if (!articleTocState) return;
