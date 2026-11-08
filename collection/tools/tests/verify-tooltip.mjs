@@ -191,6 +191,25 @@ ok(theme.before !== 'rgba(26, 26, 30, 0.96)', `⑤ 底色不再是写死的深�
 ok(theme.after === 'rgb(250, 250, 250)' && theme.fg === 'rgb(20, 20, 20)',
   `⑤ 主题换成浅色（--bg-light/--text 改成白底黑字）气泡立刻跟着变（${theme.after} / ${theme.fg}）——白天模式自动生效`);
 
+console.log('\n══════ ⑥ 小三角也有主题色描边 ══════\n');
+// 用户："小三角目前缺了主题色描边，其他没问题"
+const arrow = await J(`var t=document.querySelector('.dsh-tip');
+  var a=getComputedStyle(t,'::after'), b=getComputedStyle(t);
+  var root=document.documentElement;
+  root.style.setProperty('--border','rgb(7, 8, 9)');
+  var a2=getComputedStyle(t,'::after').borderRightColor;
+  root.style.removeProperty('--border');
+  return { cls: t.className, w: a.borderRightWidth, shown: a.borderRightColor, hidden: a.borderTopColor,
+    bubble: b.borderTopColor, themed: a2 };`);
+ok(arrow.cls.indexOf('tip-above') >= 0 && arrow.w === '1px',
+  `⑥ 朝下的小三角有 1px 描边（border-right-width=${arrow.w}）——旧版这里是 0px，等于没描边`);
+ok(arrow.shown === arrow.bubble && arrow.shown !== 'rgba(0, 0, 0, 0)',
+  `⑥ 描边用的是气泡同款主题色（箭头 ${arrow.shown} = 气泡 ${arrow.bubble}）`);
+ok(arrow.hidden === 'rgba(0, 0, 0, 0)',
+  '⑥ 只留朝外那两条边，另外两条不描（否则小三角会变成一个小方块）');
+ok(arrow.themed === 'rgb(7, 8, 9)',
+  `⑥ 描边跟着主题变量走（把 --border 改成 rgb(7,8,9) 后箭头描边立刻跟着变：${arrow.themed}）`);
+
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 3).forEach(e => console.log('    ! ' + String(e).slice(0, 160)));

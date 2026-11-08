@@ -73,11 +73,15 @@
         '  width: 8px;',
         '  height: 8px;',
         '  background: inherit;',
+        '  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));',
         '  transform: rotate(45deg);',
         '  border-radius: 1px;',
         '}',
-        '.dsh-tip.tip-above::after { bottom: -4px; left: var(--tip-ax, 50%); margin-left: -4px; }',
-        '.dsh-tip.tip-below::after { top: -4px; left: var(--tip-ax, 50%); margin-left: -4px; }'
+        // 小三角只留朝着外面那两条边（用户："小三角目前缺了主题色描边"）：
+        // 气泡在上方 → 箭头朝下 → 留右下两条边；气泡在下方 → 箭头朝上 → 留左上两条边。
+        // 边长 = 8px + 两边各 1px 描边 = 10px，所以偏移用 -5px 才能正好骑在气泡边上。
+        '.dsh-tip.tip-above::after { bottom: -5px; left: var(--tip-ax, 50%); margin-left: -5px; border-top: 0; border-left: 0; }',
+        '.dsh-tip.tip-below::after { top: -5px; left: var(--tip-ax, 50%); margin-left: -5px; border-bottom: 0; border-right: 0; }'
     ].join('\n');
 
     function injectStyle() {
