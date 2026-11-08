@@ -133,6 +133,16 @@ ok(!!toc.btns && Math.abs(toc.tocRect.l - toc.btns.left) <= 1,
   `① 目录左边缘和按钮左边缘对齐（目录 ${toc.tocRect.l}px，按钮 ${toc.btns && toc.btns.left}px）`);
 ok(!!toc.btns && toc.tocRect.t >= toc.btns.bottom - 1,
   `① 目录在按钮**下面**（按钮底 ${toc.btns && toc.btns.bottom}px ≤ 目录顶 ${toc.tocRect.t}px）`);
+// 用户的两次微调："那个分割的竖线可以去掉"、"现在太靠近那两个按钮了"、"目录两个字可以大一点"
+const tweak = await J(`var n=document.querySelector('.article-toc'), t=document.querySelector('.article-toc-title');
+  var cs=getComputedStyle(n), ts=getComputedStyle(t);
+  return { borderRight: cs.borderRightWidth + ' ' + cs.borderRightStyle, titleSize: parseFloat(ts.fontSize),
+    titleSticky: ts.position, gap: Math.round(n.getBoundingClientRect().top
+      - document.querySelector('.article-side .back-bar').getBoundingClientRect().bottom) };`);
+ok(parseFloat(tweak.borderRight) === 0, `① 目录栏那根分割竖线没了（border-right: ${tweak.borderRight}）`);
+ok(tweak.gap >= 10, `① 目录顶边在按钮底边**下面**留出了缝（实测间距 ${tweak.gap}px）`);
+ok(tweak.titleSize >= 0.9 * 16, `① "目录"二字比原来大（0.78rem=12.5px → 现在 ${tweak.titleSize}px）`);
+ok(tweak.titleSticky === 'sticky', `① "目录"钉在目录栏顶部（position: ${tweak.titleSticky}）——列表在它下面滚，最上面那条始终和它一样高`);
 
 // 窄窗口的护栏：1.5 倍可能超出左侧空白，那时按空白封顶，绝不许压到正文上
 await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });

@@ -1039,7 +1039,7 @@ html[data-hm-cold] .top-search-container {
     flex-direction: column;
     align-items: flex-start;
 }
-.article-side .back-bar { margin-bottom: 8px; }
+.article-side .back-bar { margin-bottom: 14px; }   /* 用户："现在太靠近那两个按钮了" → 把缝留出来 */
 .article-toc {
     width: 190px;
     /* ★ 必须跟着父级的 max-width 一起收：子元素写了固定 width 时不会自动被父级的
@@ -1047,12 +1047,26 @@ html[data-hm-cold] .top-search-container {
     max-width: 100%;
     position: sticky;
     top: 8px;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 140px);
     overflow: auto;
     padding: 6px 8px 6px 0;
-    border-right: 1px solid var(--border);
+    /* 用户："那个分割的竖线可以去掉" —— 原来这里有一根 border-right，已删除。 */
 }
-.article-toc-title { font-size: 0.78rem; color: var(--text-secondary); margin: 2px 0 6px 8px; letter-spacing: 0.05em; }
+/* "目录"二字：钉在目录栏顶部（列表在里面自己滚），字号按用户要求放大一点。
+   钉住之后，不管列表滚到哪一条，"最上面那条"的位置都和"目录"两个字一样高 ——
+   用户原话："目录二字因为滚动而收起后，新的总标题应该和原来的'目录'二字一样高"。
+   那层底色是页面底色，只为挡住从它底下滚过的条目（不是条目高亮那种底色块）。 */
+.article-toc-title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg);
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    margin: 0 0 6px 8px;
+    padding: 2px 0 4px;
+    letter-spacing: 0.05em;
+}
 .article-toc-item {
     display: block;
     width: 100%;
