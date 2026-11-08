@@ -66,10 +66,23 @@ window.__mk = function (opts) {
   document.body.appendChild(d);
   return 1;
 };
-window.__hover = async function () {
+window.__hover = async function (x, y, wait) {
   var d = document.getElementById('tipTarget');
-  d.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-  await new Promise(r => setTimeout(r, 620));
+  if (typeof x !== 'number') {
+    // 不给坐标就用靶子中心（真机上悬停必然伴随一次 mousemove，这里照样补上，行为才一致）
+    var a = d.getBoundingClientRect();
+    x = Math.round(a.left + a.width / 2);
+    y = Math.round(a.top + a.height / 2);
+  }
+  // ★ 顺序要紧：先 mousemove（模块用鼠标位置当锚点），再 mouseover
+  document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+  d.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: x, clientY: y }));
+  await new Promise(r => setTimeout(r, wait === 0 ? 30 : 620));
+  return 1;
+};
+window.__move = async function (x, y) {
+  document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+  await new Promise(r => setTimeout(r, 140));
   return 1;
 };
 window.__unhover = async function () {
@@ -90,6 +103,7 @@ window.__tip = function () {
 };
 window.__target = function () { var d = document.getElementById('tipTarget'); var a = d.getBoundingClientRect();
   return { top: Math.round(a.top), left: Math.round(a.left), width: Math.round(a.width),
+    height: Math.round(a.height),
     bottom: Math.round(a.bottom), title: d.getAttribute('title'), tipAttr: d.getAttribute('data-tip') }; };
 `);
 
@@ -105,8 +119,12 @@ ok(!!t1.tip && t1.tip.display !== 'none' && t1.tip.opacity > 0.9 && t1.tip.visib
 ok(t1.tip && t1.tip.text === '这是一个提示文字', `② 文字就是 title 里那句（「${t1.tip && t1.tip.text}」）`);
 ok(t1.tgt.title === null && t1.tgt.tipAttr === '这是一个提示文字',
   `② 悬停期间 title 被挪进 data-tip（title=${t1.tgt.title}）—— 原生气泡因此不会再弹`);
-ok(t1.tip && t1.tip.cls.indexOf('tip-above') >= 0 && t1.tip.bottom <= t1.tgt.top + 1,
-  `② 默认弹在元素正上方（气泡底 ${t1.tip && t1.tip.bottom} ≤ 靶子顶 ${t1.tgt.top}）`);
+// ★ 锚点从"元素矩形"改成"鼠标位置"之后，这条期望也跟着变：气泡在**鼠标**上方，
+//   而鼠标停在元素中心 —— 所以气泡底可能比元素顶还低一点（那是对的，不是回归）。
+//   真正要守的是：气泡在鼠标上方 10px 以上。
+const mouseY = t1.tgt.top + t1.tgt.height / 2;
+ok(t1.tip && t1.tip.cls.indexOf('tip-above') >= 0 && t1.tip.bottom <= mouseY - 10,
+  `② 弹在鼠标上方（气泡底 ${t1.tip && t1.tip.bottom} ≤ 鼠标 y ${Math.round(mouseY)} - 10）`);
 ok(t1.tip && Math.abs((t1.tip.left + t1.tip.right) / 2 - (t1.tgt.left + t1.tgt.width / 2)) <= 2,
   `② 水平居中对齐（气泡中心 ${t1.tip && Math.round((t1.tip.left + t1.tip.right) / 2)} vs 靶子中心 ${Math.round(t1.tgt.left + t1.tgt.width / 2)}）`);
 ok(t1.tip && t1.tip.width <= 360 + 30, `② 有最大宽度、不会拉成一长条（实测 ${t1.tip && t1.tip.width}px）`);
@@ -141,6 +159,37 @@ await J(`await window.__mk({ text: '${longText}', left: 300, top: 300 }); await 
 const t3 = await J(`return window.__tip();`);
 ok(t3 && t3.height > 40 && t3.width <= 390,
   `④ 超长提示会换行而不是撑成一条（宽 ${t3 && t3.width}px、高 ${t3 && t3.height}px）`);
+
+console.log('\n══════ ⑤ 贴着鼠标 + 白天/夜间跟主题 ══════\n');
+// 用户："有时候出现的地方会距离鼠标有点远" —— 用一个 1000px 宽的靶子把原因复现出来：
+// 鼠标放在它左边（x=180），旧实现按元素矩形居中，气泡会跑到元素中心（x≈600）去。
+await J(`await window.__mk({ text: '宽靶子', left: 100, top: 300 }); return 1;`);
+await evaluate(`document.getElementById('tipTarget').style.width='1000px';`);
+await J(`await window.__hover(180, 320); return 1;`);
+const near = await J(`return { tip: window.__tip(), tgt: window.__target() };`);
+const tipCx = (near.tip.left + near.tip.right) / 2;
+const tgtCx = near.tgt.left + near.tgt.width / 2;
+ok(Math.abs(tipCx - 180) <= 3, `⑤ 气泡贴在鼠标上（鼠标 x=180，气泡中心 ${Math.round(tipCx)}）`);
+ok(Math.abs(tipCx - tgtCx) > 200,
+  `⑤ 不再按元素居中（元素中心 ${Math.round(tgtCx)}，差 ${Math.round(Math.abs(tipCx - tgtCx))}px —— 这就是"离鼠标有点远"的来由）`);
+ok(near.tip.bottom <= 320, `⑤ 鼠标在 y=320，气泡在它上方（气泡底 ${near.tip.bottom}）`);
+await J(`await window.__move(900, 320); return 1;`);
+const moved = await J(`return window.__tip();`);
+ok(Math.abs((moved.left + moved.right) / 2 - 900) <= 3,
+  `⑤ 鼠标往右移，气泡跟着走（移到 x=900，气泡中心 ${Math.round((moved.left + moved.right) / 2)}）`);
+
+// 白天/夜间：底色/文字用主题变量（applyTheme 写在 documentElement 上的那套），不是写死的深色
+const theme = await J(`var t=document.querySelector('.dsh-tip');
+  var before=getComputedStyle(t).backgroundColor;
+  var root=document.documentElement;
+  root.style.setProperty('--bg-light','rgb(250, 250, 250)');
+  root.style.setProperty('--text','rgb(20, 20, 20)');
+  var after=getComputedStyle(t).backgroundColor, fg=getComputedStyle(t).color;
+  root.style.removeProperty('--bg-light'); root.style.removeProperty('--text');
+  return { before: before, after: after, fg: fg };`);
+ok(theme.before !== 'rgba(26, 26, 30, 0.96)', `⑤ 底色不再是写死的深色，走主题变量（当前主题下是 ${theme.before}）`);
+ok(theme.after === 'rgb(250, 250, 250)' && theme.fg === 'rgb(20, 20, 20)',
+  `⑤ 主题换成浅色（--bg-light/--text 改成白底黑字）气泡立刻跟着变（${theme.after} / ${theme.fg}）——白天模式自动生效`);
 
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);

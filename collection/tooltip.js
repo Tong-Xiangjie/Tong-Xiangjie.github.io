@@ -22,6 +22,23 @@
     var cur = null;           // 当前挂着的元素
     var showTimer = 0;
     var hideTimer = 0;
+    var rafId = 0;
+    // 鼠标位置（用户："有时候出现的地方会距离鼠标有点远" —— 原来按**元素矩形**居中，
+    // 元素一宽（整行、整块卡片），鼠标在左边、气泡却跑到中间去了）。改成贴着鼠标放。
+    var mouse = { x: 0, y: 0, ok: false };
+
+    function onMove(e) {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.ok = true;
+        // 已经弹出来的：跟着鼠标走（rAF 合并，别每个 mousemove 都排版）
+        if (!cur || !tipEl || !tipEl.classList.contains('tip-in')) return;
+        if (rafId) return;
+        rafId = requestAnimationFrame(function () {
+            rafId = 0;
+            if (cur && tipEl && tipEl.classList.contains('tip-in')) place(cur, tipEl);
+        });
+    }
 
     var CSS = [
         '.dsh-tip {',
@@ -30,8 +47,9 @@
         '  max-width: 360px;',
         '  padding: 6px 10px;',
         '  border-radius: 8px;',
-        '  background: rgba(26, 26, 30, 0.96);',
-        '  color: #f4f4f7;',
+        '  background: var(--bg-light, rgba(26, 26, 30, 0.96));',
+        '  color: var(--text, #f4f4f7);',
+        '  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));',
         '  font-size: 0.78rem;',
         '  line-height: 1.45;',
         '  white-space: normal;',
@@ -109,18 +127,24 @@
         var th = tip.offsetHeight;
         var vw = window.innerWidth || document.documentElement.clientWidth;
         var vh = window.innerHeight || document.documentElement.clientHeight;
-        var above = r.top - th - 8 >= 6;
-        var top = above ? (r.top - th - 8) : (r.bottom + 8);
-        var left = r.left + r.width / 2 - tw / 2;
+        // 锚点：有鼠标就用**鼠标位置**；键盘 focus 进来的没有鼠标，退回元素中心/上沿。
+        var ax0 = mouse.ok ? mouse.x : (r.left + r.width / 2);
+        var ay0 = mouse.ok ? mouse.y : r.top;
+        var above = ay0 - th - 14 >= 6;
+        var top = above ? (ay0 - th - 14) : (ay0 + 20);
+        var left = ax0 - tw / 2;
         var minLeft = 8;
         var maxLeft = vw - tw - 8;
         if (left < minLeft) left = minLeft;
         if (left > maxLeft) left = maxLeft;
         if (top + th > vh - 6) top = Math.max(6, vh - th - 6);
+        if (top < 6) top = 6;
         tip.style.top = Math.round(top) + 'px';
         tip.style.left = Math.round(left) + 'px';
-        // 小三角对准元素中心（在气泡内部的坐标）
-        var ax = Math.round(r.left + r.width / 2 - left);
+        // 小三角对准锚点（在气泡内部的坐标）
+        var ax = Math.round(ax0 - left);
+        if (ax < 8) ax = 8;
+        if (ax > tw - 8) ax = tw - 8;
         tip.style.setProperty('--tip-ax', ax + 'px');
         tip.classList.toggle('tip-above', above);
         tip.classList.toggle('tip-below', !above);
@@ -186,6 +210,7 @@
     }
 
     injectStyle();
+    document.addEventListener('mousemove', onMove, true);
     document.addEventListener('mouseover', onOver, true);
     document.addEventListener('mouseout', onOut, true);
     document.addEventListener('focusin', onOver, true);
