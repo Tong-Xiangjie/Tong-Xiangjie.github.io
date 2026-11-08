@@ -144,15 +144,29 @@ ok(tweak.gap >= 10, `① 目录顶边在按钮底边**下面**留出了缝（实
 ok(tweak.titleSize >= 0.9 * 16, `① "目录"二字比原来大（0.78rem=12.5px → 现在 ${tweak.titleSize}px）`);
 ok(tweak.titleSticky === 'sticky', `① "目录"钉在目录栏顶部（position: ${tweak.titleSticky}）——列表在它下面滚，最上面那条始终和它一样高`);
 
-// 窄窗口的护栏：1.5 倍可能超出左侧空白，那时按空白封顶，绝不许压到正文上
-await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
-await sleep(400);
-const narrow = await J(`var n=document.querySelector('.article-toc'), rd=document.querySelector('.article-reader');
+// 两条护栏，**两个宽度分别量**（断点是 1180px，别再把 1280 当"窄"——第一版就这么错了一次）：
+//   · 1300px：面板还在（>1180），但 1.5 倍宽度会超出左侧空白 → 必须被空白封顶、不压正文；
+//   · 1100px：面板收起 → visibility/opacity 归零、不可点，且**收起时长比展开长**（用户只要求放慢收起）。
+const wideDur = await J(`return parseFloat(getComputedStyle(document.querySelector('.article-toc')).transitionDuration)`);
+await send('Emulation.setDeviceMetricsOverride', { width: 1300, height: 900, deviceScaleFactor: 1, mobile: false });
+await sleep(500);
+const capped = await J(`var n=document.querySelector('.article-toc'), rd=document.querySelector('.article-reader');
   var a=n.getBoundingClientRect(), b=rd.getBoundingClientRect();
-  return { tocRight: Math.round(a.right), readerLeft: Math.round(b.left), visible: getComputedStyle(n).display!=='none' };`);
-ok(!narrow.visible || narrow.tocRight <= narrow.readerLeft + 1,
-  `① 窄窗口(1280px)下目录也不压正文（目录右缘 ${narrow.tocRight}px ≤ 正文左缘 ${narrow.readerLeft}px${narrow.visible ? '' : '；此宽度下目录是收起的'}）`);
-await send('Emulation.clearDeviceMetricsOverride');
+  return { tocRight: Math.round(a.right), readerLeft: Math.round(b.left), width: Math.round(a.width),
+    vis: getComputedStyle(n).visibility };`);
+ok(capped.vis === 'visible' && capped.width < 330 && capped.tocRight <= capped.readerLeft + 1,
+  `① 1300px 下目录可见、但被左侧空白封顶（宽 ${capped.width}px < 330px；右缘 ${capped.tocRight} ≤ 正文左缘 ${capped.readerLeft}）`);
+await send('Emulation.setDeviceMetricsOverride', { width: 1100, height: 900, deviceScaleFactor: 1, mobile: false });
+// ★ 必须等收起动画**跑完**再量：visibility 是在过渡结束那一刻才切成 hidden 的（0.75s 那条），
+//   等 500ms 会量到 opacity=0.075 的中间帧 —— 那是动画在走，不是没收起。
+await sleep(1300);
+const narrow = await J(`var cs=getComputedStyle(document.querySelector('.article-toc'));
+  return { vis: cs.visibility, opacity: parseFloat(cs.opacity),
+    dur: parseFloat(cs.transitionDuration), pe: cs.pointerEvents };`);
+ok(narrow.vis === 'hidden' && narrow.opacity === 0 && narrow.pe === 'none',
+  `① 1100px（<1180 断点）下目录收起：visibility=${narrow.vis}、opacity=${narrow.opacity}、pointer-events=${narrow.pe}`);
+ok(narrow.dur > wideDur + 0.1,
+  `① 收起比展开慢（展开 ${wideDur}s / 收起 ${narrow.dur}s）——用户："收起的动画还是比较快，展开的动画就比较适中"`);await send('Emulation.clearDeviceMetricsOverride');
 await sleep(300);
 
 // 省略号：造一条超长标题，实测真的被截断（不是只写了 CSS）

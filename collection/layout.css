@@ -1094,16 +1094,16 @@ html[data-hm-cold] .top-search-container {
 .article-toc-item.active { color: var(--theme); }
 /* 窄屏两侧没有空白可放（正文会先被挤瘦），就把目录收掉 —— 不占正文的地方，
    也不做抽屉：用户要的是"用两侧的空白"，不是再要一个开关。
-   ★ 用户："目录二字展开和收起的动画可以慢一点点" —— 这里原来是 display:none 一帧切换，
-     没有任何过渡。改成 opacity + visibility 渐隐：0.4s 淡出、淡完再隐藏（visibility 延迟切换，
-     否则会提前消失）；变宽回来时立刻开始淡入。面板是绝对定位浮在空白上的，淡入淡出不推正文。 */
+   ★ 用户："目录二字展开和收起的动画可以慢一点点" → 再补："收起的动画还是比较快，但是展开的
+     动画就比较适中"。CSS 过渡时长取自**变到哪个状态**：展开时元素回到基态，用基态那条（0.4s）；
+     收起时元素进入媒体查询里的状态，用这条 —— 所以只把这一条放慢到 0.75s，两边就不一样长了。 */
 .article-toc { transition: opacity 0.4s ease, visibility 0s linear 0s; }
 @media (max-width: 1180px) {
     .article-toc {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+        transition: opacity 0.75s ease, visibility 0s linear 0.75s;
     }
 }
 
