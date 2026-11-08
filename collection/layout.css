@@ -1076,9 +1076,10 @@ html[data-hm-cold] .top-search-container {
     color: var(--text-secondary);
     font-size: 0.82rem;
     line-height: 1.5;
-    /* ★ 缩进量 = 层级名次（JS 写在 --toc-indent 上），不是标题级别本身 —— 用户特意强调
-       "h4 缩进两下（注意不是四下）"。每级 14px。 */
-    padding: 3px 8px 3px calc(8px + var(--toc-indent, 0) * 14px);
+    /* ★ 缩进量 = 层级名次（JS 写在 --toc-indent 上），不是标题级别本身 ——
+       口径按用户 2026-xx 的确认："缺级别不占位，看'排名关系'"。
+       步长 20px：目录栏有 330px 宽，14px 时相邻两级几乎看不出差别（用户："缩进还不太对"）。 */
+    padding: 3px 8px 3px calc(8px + var(--toc-indent, 0) * 20px);
     border-left: 2px solid transparent;
     border-radius: 6px;
     cursor: pointer;

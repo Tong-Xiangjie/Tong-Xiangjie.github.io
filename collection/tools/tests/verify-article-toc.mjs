@@ -182,6 +182,14 @@ ok(ex.ranks.join(',') === '0,0,1,2',
 ok(ex.pads.every((p, i) => Math.abs(p - (exByRank[0] + ex.ranks[i] * exStep)) < 0.5),
   `② 每条的实际 padding-left 都等于"名次 × 每级步长"（${JSON.stringify(ex.pads)}）`);
 
+// 用户点名担心的那一对："还有 h5 没有和 h4 区分" —— 同口径下 h5 必然比 h4 深一级，实测钉住
+await openArticle('四五级', '<p>引言</p><h4>四级标题</h4><p>x</p><h5>五级标题</h5><p>y</p>', null);
+const h45 = await J(`var it=document.querySelectorAll('.article-toc-item');
+  return { labels:[].map.call(it,b=>b.textContent), ranks:[].map.call(it,b=>Number(b.getAttribute('data-rank'))),
+    pads:[].map.call(it,b=>parseFloat(getComputedStyle(b).paddingLeft)) };`);
+console.log(`  h4/h5：${JSON.stringify(h45.labels)} → 名次 ${JSON.stringify(h45.ranks)} / padding ${JSON.stringify(h45.pads)}`);
+ok(h45.ranks[1] === 1 && h45.ranks[2] === 2 && h45.pads[2] - h45.pads[1] >= 15,
+  `② h5 比 h4 深一级、且肉眼分得开（名次 ${h45.ranks[1]} vs ${h45.ranks[2]}，左缩进差 ${h45.pads[2] - h45.pads[1]}px）`);
 // ─────────── ③ 其他标签不算标题；没有原生标题就不出目录 ───────────
 console.log('\n══════ ③ 只有原生 h1~h6 才算标题 ══════\n');
 await openArticle('假标题', '<p><b style="font-size:1.6em">这是加粗的假标题</b></p><p><span style="font-size:1.3em">另一个样式假标题</span></p><div class="overview-header">样式上的大标题</div><p>正文</p>', null);
