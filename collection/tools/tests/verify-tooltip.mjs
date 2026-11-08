@@ -199,14 +199,17 @@ const arrow = await J(`var t=document.querySelector('.dsh-tip');
   root.style.setProperty('--border','rgb(7, 8, 9)');
   var a2=getComputedStyle(t,'::after').borderRightColor;
   root.style.removeProperty('--border');
-  return { cls: t.className, w: a.borderRightWidth, shown: a.borderRightColor, hidden: a.borderTopColor,
+  return { cls: t.className, w: a.borderRightWidth, shown: a.borderRightColor,
+    hiddenStyle: a.borderTopStyle, hiddenW: a.borderTopWidth,
     bubble: b.borderTopColor, themed: a2 };`);
 ok(arrow.cls.indexOf('tip-above') >= 0 && arrow.w === '1px',
   `⑥ 朝下的小三角有 1px 描边（border-right-width=${arrow.w}）——旧版这里是 0px，等于没描边`);
 ok(arrow.shown === arrow.bubble && arrow.shown !== 'rgba(0, 0, 0, 0)',
   `⑥ 描边用的是气泡同款主题色（箭头 ${arrow.shown} = 气泡 ${arrow.bubble}）`);
-ok(arrow.hidden === 'rgba(0, 0, 0, 0)',
-  '⑥ 只留朝外那两条边，另外两条不描（否则小三角会变成一个小方块）');
+// ★ 判"这条边不描"要看 border-*-style/width，不能看 color：写了 border-top: 0 之后
+//   border-top-color 照样算得出颜色（第一版就是这么写错的），真正变成 none/0px 的是 style 和 width。
+ok(arrow.hiddenStyle === 'none' && arrow.hiddenW === '0px',
+  `⑥ 只留朝外那两条边，另外两条不描（朝内那条 style=${arrow.hiddenStyle}、width=${arrow.hiddenW}，否则小三角会变成一个小方块）`);
 ok(arrow.themed === 'rgb(7, 8, 9)',
   `⑥ 描边跟着主题变量走（把 --border 改成 rgb(7,8,9) 后箭头描边立刻跟着变：${arrow.themed}）`);
 
