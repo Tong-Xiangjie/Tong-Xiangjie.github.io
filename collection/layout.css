@@ -578,6 +578,20 @@ html[data-hm-cold] .top-search-container {
     padding: 16px 8px 16px 16px;
     opacity: 1;
 }
+/* ★★ 用户亲手点 tab 切到「专题」的那一趟：恢复基类那份宽度过渡，观感与切到「我的」一致。
+   用户实测的缺口："从有侧边栏的板块切换到"专题"，似乎没有侧边栏收起的动画（参考切换到"我的"的那种）"。
+   为什么默认那趟不做动画、这一趟却要做：上面 .sidebar-hidden 那段说明的冷启动量测 bug，
+   是"程序自己发起"的收起（首屏/深链进来时和专题内容渲染在同一帧里）——那趟必须一帧到位；
+   而"人点了 tab"这趟，用户就在看这次切换本身，和切到「我的」（settings-mode，走基类过渡）
+   应当是同一种观感。JS 只在这一次临时挂 .sidebar-anim（用完就摘，见 tab-switcher.js 的
+   bodyRowHideSidebar），所以程序发起的收起不受影响。
+   ★ 特异性与 .sidebar-hidden 那条相同（0,2,1），靠**位置在后面**取胜 —— 别往上挪。 */
+.body-row.sidebar-anim .sidebar {
+    transition: width var(--dur-2) var(--ease-inout),
+                min-width var(--dur-2) var(--ease-inout),
+                opacity var(--dur-2) var(--ease-out),
+                border-right-color var(--dur-2) var(--ease-out);
+}
 
 /* ========== 渚ц竟鏍?========== */
 .sidebar {

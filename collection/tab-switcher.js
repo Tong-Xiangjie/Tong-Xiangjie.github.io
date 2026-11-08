@@ -17,7 +17,12 @@ function enterSettingsInner() {
     const searchContainer = document.querySelector('.top-search-container');
     if (searchContainer) searchContainer.classList.add('hidden');
 
+    // ★ 进来前可能正停在"专题把侧栏收起"的状态（.sidebar-hidden）。那条规则会把 width 的
+    //   过渡关掉（冷启动那趟要的），留着它，「我的」自己的收起就变成一帧到位了 —— 实测：
+    //   专题 → 我的（不经过别的板块）时动画消失。设置页的收起由 .settings-mode 负责，
+    //   这里把这顶帽子摘掉。
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
+    document.querySelector('.body-row')?.classList.remove('sidebar-hidden');
     document.querySelector('.body-row')?.classList.add('settings-mode');
 
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -72,12 +77,42 @@ function dispatchTabAction(target, fromSettings) {
     return true;
 }
 
+// ★★ "收起侧栏"这个状态，站点里有好几处会挂（专题概览、山河地图、省份详情…）。
+//   统一从这里挂，为的是把"要不要做收起动画"这件事收在一个地方：
+//     · 默认**宽度一帧到位**（冷启动那条路的量测 bug 决定的，见 layout.css 里 .sidebar-hidden 的说明）；
+//     · 只有**用户亲手点 tab** 这一次跟着做动画 —— 用户实测要求："从有侧边栏的板块切换到
+//       「专题」，似乎没有侧边栏收起的动画（参考切换到「我的」的那种）"。
+//   做法：这一次临时给 .body-row 挂 .sidebar-anim（CSS 里那条把基类的 width 过渡还回来），
+//   动画走完（--dur-2 = 0.22s，留点余量）就摘掉 —— 留着的话，之后由程序发起的收起
+//   （首屏/深链/从设置页返回）也会跟着动画，那正是当初要避免的那条路。
+let tabSwitchByUser = false;
+let sidebarAnimTimer = 0;
+function bodyRowHideSidebar() {
+    const row = document.querySelector('.body-row');
+    if (!row) return;
+    if (tabSwitchByUser) {
+        row.classList.add('sidebar-anim');
+        if (sidebarAnimTimer) clearTimeout(sidebarAnimTimer);
+        sidebarAnimTimer = setTimeout(function () {
+            sidebarAnimTimer = 0;
+            const r = document.querySelector('.body-row');
+            if (r) r.classList.remove('sidebar-anim');
+        }, 460);
+    }
+    row.classList.add('sidebar-hidden');
+}
+
 function onTabClick(target) {
+    // ★ 这一次是"用户亲手点 tab"（收起侧栏要不要做动画就看它，见 bodyRowHideSidebar）。
+    //   放在这个入口上而不是各个 enter* 里：路由/深链/从设置页返回都不经过这里，
+    //   它们该保持"一帧到位"。
+    tabSwitchByUser = true;
     // ★ try/finally 统一收口写 URL：这个函数有 6 个提前 return 分支，
     //   在每个分支里各插一次 syncRoute 太容易漏（后续新增分支也会忘）。
     try {
         onTabClickInner(target);
     } finally {
+        tabSwitchByUser = false;
         if (typeof syncRoute === 'function') syncRoute();
     }
 }
@@ -199,7 +234,7 @@ function enterSpecialFromTab() {
     switchToCurrentContainer();
 
     if (selectedSpecial === null || selectedSpecial === undefined) {
-        document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+        bodyRowHideSidebar();
         document.querySelector('.body-row')?.classList.remove('special-overview-mode');
         const btn = document.getElementById('sidebarToggle');
         if (btn) btn.style.display = 'none';

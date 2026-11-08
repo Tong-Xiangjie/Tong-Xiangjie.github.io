@@ -238,7 +238,7 @@ function renderSpecialOverview() {
     const configs = getSpecialConfigs();
 
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
-    document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+    bodyRowHideSidebar();
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = 'none';
     const sidebar = document.getElementById('sidebar');
@@ -327,7 +327,7 @@ function onSpecialOverviewItemClickInner(configId, initialGroup) {
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
 
     if (config && (config.view === 'map' || config.view === 'timeline')) {
-        document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+        bodyRowHideSidebar();
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = 'none';
         if (config.view === 'map') {
@@ -373,7 +373,7 @@ function onSpecialOverviewItemClickInner(configId, initialGroup) {
         if (restoredGroup) renderSidebar();
         triggerViewAnimation();
     } else {
-        document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+        bodyRowHideSidebar();
         const toggleBtn = document.getElementById('sidebarToggle');
         if (toggleBtn) toggleBtn.style.display = 'none';
         renderSpecialContent();
@@ -1054,7 +1054,7 @@ async function renderShanheContent(config) {
     const mapFile = config.mapFile || 'china_map.svg';
     shanheProvinceNames = window.SHANHE_PROVINCE_NAMES || {};
 
-    document.querySelector('.body-row')?.classList.add('sidebar-hidden');
+    bodyRowHideSidebar();
     document.querySelector('.body-row')?.classList.remove('special-overview-mode');
     const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.style.display = 'none';

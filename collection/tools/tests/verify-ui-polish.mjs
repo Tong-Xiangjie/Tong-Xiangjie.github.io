@@ -293,6 +293,64 @@ else {
 }
 await setScheme('light');
 
+// ─────────── ④ 侧边栏"收起"的动画：用户亲手点 tab 要动，程序发起的要一帧到位 ───────────
+// 用户原话："从有侧边栏的板块切换到「专题」，似乎没有侧边栏收起的动画（参考切换到「我的」的那种）"。
+// 判据用**逐帧宽度采样**（不是看 CSS 里有没有 transition —— 那正是原来骗过人的地方：
+// transition 写着，却被 .sidebar-hidden 那条覆盖成了一帧到位）。
+//   · 用户点 tab 切过去：≥3 种宽度（逐帧插值）；
+//   · 深链冷启动（同一个 .sidebar-hidden，但是程序发起的）：≤2 种宽度 —— 这一条是**保护**
+//     当初那个"冷启动逐帧重排把热力图量测搞歪"的修复，不能被这次改动带跑。
+console.log('\n══════ ④ 侧边栏收起：点 tab 有动画 ══════\n');
+const TRACK_FN = `window.__trackSidebar = function (ms) {
+  return new Promise(function (done) {
+    var side = document.querySelector('.sidebar'), row = document.querySelector('.body-row'), out = [];
+    var t0 = performance.now();
+    (function step() {
+      out.push({ w: Math.round(side.getBoundingClientRect().width * 100) / 100, cls: row.className });
+      if (performance.now() - t0 < ms) requestAnimationFrame(step); else done(out);
+    })();
+  });
+};`;
+const trackClick = async (clickJs, ms = 700) => JSON.parse(await evaluate(`(async () => {
+  ${TRACK_FN}
+  var p = window.__trackSidebar(${ms});
+  ${clickJs};
+  var out = await p;
+  return JSON.stringify({ frames: out.length, widths: [...new Set(out.map(o => o.w))],
+    seq: out.map(o => o.w).filter((v, i, a) => i === 0 || v !== a[i - 1]).slice(0, 6),
+    cls: out[out.length - 1].cls, animLeft: document.querySelector('.body-row').classList.contains('sidebar-anim') });
+})()`));
+const distinct = r => r.widths.length;
+
+await boot('notes/rmb/rmb3');
+ok(JSON.parse(await evaluate(`JSON.stringify({ w: Math.round(document.querySelector('.sidebar').getBoundingClientRect().width), cls: document.querySelector('.body-row').className })`)).w > 100,
+  '④ 起点在「纸币」，侧边栏是展开的');
+const toSpecial = await trackClick(`onTabClick('special')`);
+console.log(`  · 纸币→专题：${toSpecial.frames} 帧 / ${distinct(toSpecial)} 种宽度：${toSpecial.seq.join(' → ')} …`);
+ok(distinct(toSpecial) >= 3, `★ 点「专题」时侧边栏是逐帧收起的（${distinct(toSpecial)} 种宽度，不再是原来的一帧到位）`);
+ok(/sidebar-hidden/.test(toSpecial.cls), `④ 收完仍停在 sidebar-hidden（状态没变，只是过程动了）`);
+ok(toSpecial.widths[toSpecial.widths.length - 1] < 2,
+  `④ 末帧宽度归零（${toSpecial.widths[toSpecial.widths.length - 1]}px，侧栏确实收掉了）`);
+await sleep(600);
+ok(!(await evaluate(`document.querySelector('.body-row').classList.contains('sidebar-anim')`)),
+  '★ 动画类用完就摘（留着的话，程序发起的收起也会动画 —— 冷启动那条路要不得）');
+
+await boot('notes/rmb/rmb3');
+const toSettings = await trackClick(`onTabClick('settings')`);
+console.log(`  · 纸币→我的：${toSettings.frames} 帧 / ${distinct(toSettings)} 种宽度：${toSettings.seq.join(' → ')} …`);
+ok(distinct(toSettings) >= 3, `④ 切「我的」同样是逐帧收起（${distinct(toSettings)} 种宽度）—— 两者观感现在一致`);
+
+// 保护：深链冷启动进专题，仍然是一帧到位
+await boot('special/shanhe');
+await sleep(600);
+const cold = JSON.parse(await evaluate(`(async () => {
+  ${TRACK_FN}
+  var out = await window.__trackSidebar(700);
+  return JSON.stringify({ frames: out.length, widths: [...new Set(out.map(o => o.w))], cls: out[out.length - 1].cls });
+})()`));
+console.log(`  · 深链冷启动：${cold.frames} 帧 / ${distinct(cold)} 种宽度 / ${cold.cls}`);
+ok(distinct(cold) <= 2, `★ 深链冷启动仍是"宽度一帧到位"（${distinct(cold)} 种宽度）—— 当初那条量测修复没被带跑`);
+
 console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} / 跳过 ${skipped} ────────`);
 ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
 if (errors.length) errors.slice(0, 4).forEach(e => console.log('    ! ' + e.slice(0, 160)));

@@ -1764,7 +1764,9 @@ function applySpecialLayout() {
 
     if (isMap || !hasSub) {
         if (bodyRow) {
-            bodyRow.classList.add('sidebar-hidden');
+            // 统一走"收起侧栏"那个入口：用户亲手点 tab 的那一趟会带上收起动画
+            // （见 tab-switcher.js 的 bodyRowHideSidebar），程序发起的仍是一帧到位。
+            bodyRowHideSidebar();
             bodyRow.classList.remove('special-overview-mode');
         }
         if (toggleBtn) toggleBtn.style.display = 'none';
