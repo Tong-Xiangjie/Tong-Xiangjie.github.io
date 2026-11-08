@@ -542,6 +542,27 @@
                  （全有→取消、否则→给整个选区补满），可跨段落、结构与 <br> 都不动。 -->
             <button type="button" class="tb-btn" data-tb="sup" title="上标">上标</button>
             <button type="button" class="tb-btn" data-tb="sub" title="下标">下标</button>
+            <!-- ★ 标题层级（hx）：写入**原生** <h1>~<h6> 标签。用户要求："就在 BIUS 上下标
+                 那一块加一个 hx 的按钮表示选择标题的层级"、"不应该与原有的'标题'样式重复，
+                 因为这个标题是原生的 html 格式"。
+                 与「标题」按钮的分工（别混）：「标题」是**文字类型**（字号+加粗做出标题的样子，
+                 标签还是 <p>）；这个真的换成 <h1>…<h6>，因为**文章目录只认原生标题标签**
+                 （article.js 里那套 TOC：其他标签一律不算标题）。
+                 一个按钮点开选层级；不用原生 <select>（会被 dropdown.js 接管，弹层落在
+                 本弹窗 z-index 下面点不到）。 -->
+            <span class="tb-hx-wrap">
+                <button type="button" class="tb-btn tb-ic" data-tb="hx" id="tbHxBtn"
+                        title="标题层级：写入原生 h1~h6 标签（文章目录靠它认层级）">hx</button>
+                <span class="tb-hx-menu" id="tbHxMenu" hidden>
+                    <button type="button" class="tb-hx-item" data-tb="hx-1">H1</button>
+                    <button type="button" class="tb-hx-item" data-tb="hx-2">H2</button>
+                    <button type="button" class="tb-hx-item" data-tb="hx-3">H3</button>
+                    <button type="button" class="tb-hx-item" data-tb="hx-4">H4</button>
+                    <button type="button" class="tb-hx-item" data-tb="hx-5">H5</button>
+                    <button type="button" class="tb-hx-item" data-tb="hx-6">H6</button>
+                    <button type="button" class="tb-hx-item" data-tb="hx-0" title="换回普通段落标签">段落</button>
+                </span>
+            </span>
             <span class="tb-sep"></span>
             <!-- 字号五档。刻意不用 <select>：原生 select 会被 dropdown.js 接管，而它的
                  弹层是 position:fixed + z-index:900，会落到本弹窗(z-index:1200)下面点不到。 -->

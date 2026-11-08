@@ -1093,10 +1093,71 @@ html[data-hm-cold] .top-search-container {
 .article-toc-item:hover { color: var(--text); }
 .article-toc-item.active { color: var(--theme); }
 /* 窄屏两侧没有空白可放（正文会先被挤瘦），就把目录收掉 —— 不占正文的地方，
-   也不做抽屉：用户要的是"用两侧的空白"，不是再要一个开关。 */
+   也不做抽屉：用户要的是"用两侧的空白"，不是再要一个开关。
+   ★ 用户："目录二字展开和收起的动画可以慢一点点" —— 这里原来是 display:none 一帧切换，
+     没有任何过渡。改成 opacity + visibility 渐隐：0.4s 淡出、淡完再隐藏（visibility 延迟切换，
+     否则会提前消失）；变宽回来时立刻开始淡入。面板是绝对定位浮在空白上的，淡入淡出不推正文。 */
+.article-toc { transition: opacity 0.4s ease, visibility 0s linear 0s; }
 @media (max-width: 1180px) {
-    .article-toc { display: none !important; }
+    .article-toc {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+    }
 }
+
+/* ★★★ 文章正文里的原生 h1~h6 ★★★
+   以前这里一条样式都没有，正文标题全靠浏览器默认：h4 恰好和正文一样大、h5 比正文还小，
+   于是用户实测"h5 没有和 h4 区分"。这些都是**文章目录认的**原生标题，得让级别看得出来。
+   字号从 1.5rem 逐级降到 0.92rem；段落间距按"标题上面留白多一些"的常规做法（22/10）。
+   ★ 只动字号/间距/字重，不写 color 以外的排版，避免盖住正文里已有的行内样式。 */
+.article-reader h1, .article-reader h2, .article-reader h3,
+.article-reader h4, .article-reader h5, .article-reader h6 {
+    color: var(--text);
+    font-weight: 700;
+    line-height: 1.45;
+    margin: 22px 0 10px;
+}
+.article-reader h1 { font-size: 1.5rem; }
+.article-reader h2 { font-size: 1.3rem; }
+.article-reader h3 { font-size: 1.15rem; }
+.article-reader h4 { font-size: 1.05rem; }
+.article-reader h5 { font-size: 0.98rem; }
+.article-reader h6 { font-size: 0.92rem; }
+
+/* ★★★ 编辑器工具栏：标题层级（hx）按钮与它点开的面板 ★★★
+   用户要求："就在 BIUS 上下标那一块加一个 hx 的按钮表示选择标题的层级"。
+   一个按钮 + 点开选层级（不用原生 <select>：会被 dropdown.js 接管，弹层落在本弹窗下面点不到）。 */
+.tb-hx-wrap { position: relative; display: inline-flex; }
+.tb-hx-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 5;
+    display: inline-flex;
+    gap: 2px;
+    padding: 5px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-light);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+    white-space: nowrap;
+}
+.tb-hx-menu[hidden] { display: none; }
+.tb-hx-item {
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.78rem;
+    padding: 3px 7px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.tb-hx-item:hover { color: var(--theme); }
+/* 只高亮文字（与目录条目同一条口径），不铺底色块 */
+.tb-hx-item.active { color: var(--theme); font-weight: 700; }
 
 .article-reader {
     max-width: 800px;

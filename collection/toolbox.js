@@ -1848,6 +1848,27 @@ function toolboxSyncToolbarState() {
     mark('[data-tb="sign"]', !typeOff && st.sign);
     mark('[data-tb="quote"]', !typeOff && st.quote);
     mark('[data-tb="body"]', !typeOff && st.body);
+    // ★ 标题层级（hx）：光标/选区落在**原生 h1~h6** 里时点亮，并把当前级别直接写在按钮上
+    //   （"hx" → "h3"），面板里对应那一项也亮 —— 用户点开面板就知道现在是第几级。
+    //   混选/冲突时一律按"没级别"处理（和「标题」那五个同一口径）。
+    const hxEl = m.querySelector('[data-tb="hx"]');
+    let hxLv = 0;
+    if (!typeOff) {
+        const ed = toolboxTpl && toolboxTpl.editor;
+        let node = null;
+        try { const sel = window.getSelection(); node = sel && sel.anchorNode; } catch (e) { }
+        if (!node) { try { const rr = toolboxRestoreRange(); node = rr && rr.startContainer; } catch (e) { } }
+        if (node && ed) hxLv = toolboxHeadingLevelOf(node, ed);
+    }
+    if (hxEl) {
+        hxEl.classList.toggle('active', hxLv > 0);
+        hxEl.setAttribute('data-hx-level', String(hxLv));
+        if (hxEl.textContent !== (hxLv > 0 ? ('h' + hxLv) : 'hx')) hxEl.textContent = (hxLv > 0 ? ('h' + hxLv) : 'hx');
+    }
+    const hxItems = m.querySelectorAll('[data-tb^="hx-"]');
+    for (let i = 0; i < hxItems.length; i++) {
+        hxItems[i].classList.toggle('active', Number(String(hxItems[i].getAttribute('data-tb')).slice(3)) === hxLv);
+    }
 }
 
 // ========== A. 两侧选区互相对应高亮 ==========
@@ -3101,7 +3122,82 @@ function toolboxToggleInline(kind) {
     toolboxSyncToolbarState();                         // ★ 操作完立刻现场重算，不等事件
     return true;
 }
-// 「正文」= 「标题」的反操作：把选中内容恢复成正文。
+// ========== 标题层级（hx）：把**这一块**换成原生 <h1>~<h6> 标签 ==========
+// 用户要求："可以在 BIUS 上下标那一块加一个 hx 的按钮表示选择标题的层级"、
+//   "不应该与原有的'标题'样式重复，因为这个标题是原生的 html 格式"、
+//   "HTML 标准标题标签一共支持 6 级：<h1> 到 <h6>"。
+// 与「标题」按钮的分工（千万别混）：
+//   · 「标题」（data-tb="title"）= **文字类型**：靠字号 + 加粗做"标题的样子"，标签仍是 <p>；
+//   · 「hx」= 真的换成 <h1>…<h6> 标签 —— 因为**文章目录只认原生标题标签**
+//     （article.js 里那套 TOC：其他标签一律不算标题），要能进目录就必须是真标签。
+// level = 0 表示换回 <p>（面板里那一项叫"段落"）。
+// ★ 也别和「正文」混：「正文」是**清样式**（字号/加粗/居中/引用装饰），标签不动；
+//   "段落"是**换标签**（h3 → p），两件事，所以这里单独一个动作、单独一条撤回记录。
+function toolboxHeadingLevelOf(node, ed) {
+    let n = node;
+    while (n && n !== ed) {
+        if (n.nodeType === 1 && n.tagName && n.tagName.length === 2 && n.tagName.charAt(0) === 'H') {
+            const lv = Number(n.tagName.charAt(1));
+            if (lv >= 1 && lv <= 6) return lv;
+        }
+        n = n.parentNode;
+    }
+    return 0;
+}
+function toolboxHideHxMenu() {
+    const m = document.getElementById('tbHxMenu');
+    if (m) m.hidden = true;
+}
+function toolboxToggleHxMenu() {
+    const m = document.getElementById('tbHxMenu');
+    if (!m) return false;
+    m.hidden = !m.hidden;
+    return true;
+}
+function toolboxMakeHeading(level) {
+    const ed = toolboxTpl && toolboxTpl.editor;
+    if (!ed) return false;
+    toolboxFocusEditor();
+    const r = toolboxRestoreRange();
+    if (!r) return false;
+    const fp = toolboxSelCapture(ed, r);
+    const targets = toolboxBlockTargets(r, ed);
+    toolboxHideHxMenu();
+    if (!targets.length) return false;
+    const tag = (level >= 1 && level <= 6) ? ('h' + level) : 'p';
+    let changed = 0;
+    for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        if (!t || !t.parentNode) continue;
+        if (t.tagName.toLowerCase() === tag) continue;                  // 已经是这一级：不动（幂等）
+        // ★ 表格骨架（table/thead/tbody/tr/td/th…）绝不换标签：那是在拆表格结构。
+        //   单元格里的文字要变标题，得先把那句话选出来——那是"块内再分块"，不在这个按钮的职责里。
+        if (TOOLBOX_TABLE_SKELETON.indexOf(t.tagName) >= 0) continue;
+        const el = document.createElement(tag);
+        for (let a = 0; a < t.attributes.length; a++) {
+            const at = t.attributes[a];
+            if (at.name === 'id') continue;                             // id 属于旧标签（锚点），不带过去
+            try { el.setAttribute(at.name, at.value); } catch (e) { }
+        }
+        while (t.firstChild) el.appendChild(t.firstChild);
+        t.parentNode.replaceChild(el, t);
+        changed++;
+    }
+    if (!changed) return false;
+    // 收尾照抄 toolboxMakeBody 那一套（选区补回来 → 快照 → 存选区 → 草稿 → 重画 → 撤回 → 状态）
+    toolboxSelRestore(ed, fp, r);
+    toolboxSnapClear();
+    toolboxStoreRangeNow();
+    toolboxHideDraftBar();
+    toolboxScheduleDraftSave();
+    toolboxScheduleRefresh(true);
+    toolboxRefresh();
+    toolboxUndoPush(false);                        // 一次改层级 = 一条撤回记录
+    toolboxSyncToolbarState();
+    return true;
+}
+
+
 // 做的事（只动这三样，图片/表格/字号以外的排版都不碰）：
 //   · font-size 回默认（摘掉 font-size 声明）；
 //   · 加粗/斜体去掉（<b>/<strong>/<i>/<em> 拆成纯内容）；
@@ -9406,6 +9502,11 @@ function toolboxToolbarAction(act, btn) {
         // 上标 / 下标（用户新增）：与 BIUS 完全同一条字符级三态开关
         case 'sup': toolboxToggleInline('sup'); break;
         case 'sub': toolboxToggleInline('sub'); break;
+        // 标题层级（hx）：按钮点开面板，"hx-1"…"hx-6" 是面板里的六个级别项，
+        // "hx-0" = 换回普通段落。级别走**原生标签**，与上面「标题」那个文字类型无关。
+        case 'hx': toolboxToggleHxMenu(); break;
+        case 'hx-0': case 'hx-1': case 'hx-2': case 'hx-3': case 'hx-4': case 'hx-5': case 'hx-6':
+            toolboxMakeHeading(Number(String(act).slice(3))); break;
         case 'size': toolboxSize(btn ? btn.getAttribute('data-size') : '1em'); break;
         // —— 对齐 ——
         case 'align-left': toolboxExec('justifyLeft'); break;
