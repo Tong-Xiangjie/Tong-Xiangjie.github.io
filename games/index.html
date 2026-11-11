@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <title>游戏入口 · 跳转</title>
-  <meta name="description" content="game/ 目录下全部游戏的跳转入口：运行时读 GitHub 目录，新加游戏不用手工维护。">
+  <meta name="description" content="games/ 目录下全部游戏的跳转入口：运行时读 GitHub 目录，新加游戏不用手工维护。">
   <link rel="preload" as="font" type="font/woff" href="/font/OCRB10PitchBT-Regular.woff" crossorigin>
   <style>
     /* ═══ 字体：和站点总入口同一套（OCR-B 管西文，中文走思源/系统黑体） ═══ */
@@ -114,6 +114,17 @@
     .badge.new { color: #0b0d10; background: var(--accent); border-color: transparent; }
     .badge.copy { color: #ffb4a2; border-color: rgba(255, 180, 162, 0.35); }
 
+    /* ═══ 合集标题（board_games/ 里那一堆棋就归在这里）═══ */
+    .ghead {
+      display: flex; align-items: baseline; gap: 0.7rem;
+      margin: 1.5rem 0 0.7rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--line);
+      font-weight: normal; font-size: 0.82rem; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--dim);
+    }
+    .ghead:first-child { margin-top: 0; }
+    .ghead .gcount { color: var(--dim2); letter-spacing: 0.04em; font-size: 0.74rem; text-transform: none; }
+
     /* ═══ 状态提示 ═══ */
     .msg {
       grid-column: 1 / -1; color: var(--dim); font-size: 0.9rem;
@@ -135,15 +146,16 @@
   <div class="wrap">
     <header>
       <h1>GAME <b>INDEX</b></h1>
-      <p class="sub">下面这些是 <code>game/</code> 里能直接玩的入口。名单<b>运行时</b>从 GitHub 目录读，
-        新加一个 <code>game/xxx/index.html</code> 就会自动出现在这里，不用改这个页面。</p>
+      <p class="sub">下面这些是 <code>games/</code> 里能直接玩的入口，<code>board_games/</code> 这种
+        合集里的子游戏也会分成一组一起列出来。名单<b>运行时</b>从 GitHub 目录读，
+        新加一个 <code>games/xxx/index.html</code> 就会自动出现在这里，不用改这个页面。</p>
       <div class="tools">
         <input id="q" type="search" placeholder="搜索游戏…    / 聚焦 · 回车打开第一个 · Esc 清空" autocomplete="off" spellcheck="false">
         <button class="mini" id="refresh" title="重新拉取 GitHub 目录（有 60 次/小时的匿名限额，会缓存）">↻ 刷新名单</button>
         <span id="meta"></span>
       </div>
     </header>
-    <main class="grid" id="list"></main>
+    <main id="list"></main>
     <footer>
       <span id="src">读取中…</span>
       <a href="/" style="margin-left:auto">← 回站点总入口</a>
@@ -156,7 +168,7 @@
 
   const OWNER = 'Tong-Xiangjie';
   const REPO = 'Tong-Xiangjie.github.io';
-  const API = `https://api.github.com/repos/${OWNER}/${REPO}/contents/game`;
+  const API = `https://api.github.com/repos/${OWNER}/${REPO}/contents/games`;
   const CACHE_KEY = 'game-index:cache:v1';
   const TTL = 6 * 60 * 60 * 1000;      // 6 小时：API 匿名限额只有 60 次/小时
   const COOLDOWN = 20 * 1000;          // 手动刷新也至少间隔 20 秒
@@ -165,10 +177,13 @@
   const listEl = $('list'), metaEl = $('meta'), srcEl = $('src'), qEl = $('q');
 
   // 哪些目录不算游戏：隐藏目录、下划线目录，以及放资源的常见名字。
-  // game/ 里除了游戏还有 tools/（生成名单的脚本就在里面），不排掉的话它会当成
+  // games/ 里除了游戏还有 tools/（生成名单的脚本就在里面），不排掉的话它会当成
   // 一个游戏列出来，点进去 404。
   const SKIP = new Set(['tools', 'node_modules', 'assets', 'img', 'images', 'css', 'js', 'lib', 'vendor', 'dist', 'font', 'fonts', 'shared']);
   const isGameDir = (n) => !!n && !n.startsWith('.') && !n.startsWith('_') && !SKIP.has(n.toLowerCase());
+
+  /** 相对路径逐段编码：'board_games/五子棋' -> 'board_games/%E4%BA%94...' */
+  const urlPath = (rel) => rel.split('/').map(encodeURIComponent).join('/');
 
   /** 目录名 -> 稳定色相，让每张卡有自己的颜色，又不需要人工配色。 */
   function hueOf(s) {
@@ -202,9 +217,9 @@
     } catch { return null; }
   }
 
-  /** ② 实时名单：GitHub Contents API 列出 game/ 下的目录 */
-  async function fetchLive() {
-    const r = await fetch(API + '?ref=' + encodeURIComponent('main'), {
+  /** ② 实时名单：GitHub Contents API 列出 games/（或它下面某个子目录）里的目录 */
+  async function fetchDirs(rel) {
+    const r = await fetch(API + (rel ? '/' + urlPath(rel) : '') + '?ref=' + encodeURIComponent('main'), {
       headers: { Accept: 'application/vnd.github+json' },
       cache: 'no-store',
     });
@@ -213,21 +228,22 @@
     if (!Array.isArray(j)) throw new Error('返回格式不对');
     return j.filter((e) => e && e.type === 'dir' && isGameDir(e.name)).map((e) => e.name);
   }
+  const fetchLive = () => fetchDirs('');
 
   /**
    * 名单里没有的目录：只取那个 index.html 的头 4 KB 解析标题/描述（Range 请求）。
-   * 取不到 index.html 就说明它不是游戏（ok:false），调用方直接丢掉 —— 这是判断
-   * "能不能玩"的唯一硬标准。
+   * 取不到 index.html 就说明它不是游戏（ok:false）—— 这是判断"能不能玩"的唯一
+   * 硬标准；调用方还会再试一次"它是不是个合集"（见 refresh）。
    */
   async function probe(dir) {
     const out = { dir, title: dir, desc: '', bytes: 0, fresh: true, ok: false };
     try {
-      const r = await fetch('./' + encodeURIComponent(dir) + '/index.html', { headers: { Range: 'bytes=0-4095' } });
+      const r = await fetch('./' + urlPath(dir) + '/index.html', { headers: { Range: 'bytes=0-4095' } });
       if (!r.ok) return out;
       const head = await r.text();
       out.ok = true;
       const t = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      if (t) out.title = t[1].replace(/\s+/g, ' ').trim() || dir;
+      if (t) out.title = t[1].replace(/\s+/g, ' ').trim() || dir.split('/').pop();
       const m = head.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([\s\S]*?)["']/i);
       if (m) out.desc = m[1].replace(/\s+/g, ' ').trim();
       const len = (r.headers.get('Content-Range') || '').split('/')[1];
@@ -247,7 +263,7 @@
       g.copy ? '<i class="badge">副本</i>' : (g.dup ? '<i class="badge copy">重复</i>' : ''),
     ].join('');
     const initial = (g.title || g.dir).trim().slice(0, 1).toUpperCase();
-    return `<a class="card" style="--hue:${hue}" href="./${encodeURIComponent(g.dir)}/" data-dir="${esc(g.dir)}">
+    return `<a class="card" style="--hue:${hue}" href="./${urlPath(g.dir)}/" data-dir="${esc(g.dir)}">
       ${badges ? `<span class="badges">${badges}</span>` : ''}
       <span class="card-top">
         <span class="mono">${esc(initial)}</span>
@@ -260,41 +276,62 @@
     </a>`;
   }
 
+  const gridHTML = (items) => `<div class="grid">${items.map(cardHTML).join('')}</div>`;
+
   function render() {
     const q = query.trim().toLowerCase();
-    const shown = q
-      ? games.filter((g) => (g.title + ' ' + g.dir + ' ' + (g.desc || '')).toLowerCase().includes(q))
-      : games;
+    const match = (g) => `${g.title} ${g.dir} ${g.desc || ''} ${g.group || ''}`.toLowerCase().includes(q);
+    const shown = q ? games.filter(match) : games;
     if (!games.length) {
-      listEl.innerHTML = `<div class="msg">还没读到名单。<br>点右上角「↻ 刷新名单」，或看看
-        <a href="https://github.com/${OWNER}/${REPO}/tree/main/game" target="_blank" rel="noopener">GitHub 上的 game/ 目录</a>。</div>`;
+      listEl.innerHTML = `<div class="grid"><div class="msg">还没读到名单。<br>点右上角「↻ 刷新名单」，或看看
+        <a href="https://github.com/${OWNER}/${REPO}/tree/main/games" target="_blank" rel="noopener">GitHub 上的 games/ 目录</a>。</div></div>`;
     } else if (!shown.length) {
-      listEl.innerHTML = `<div class="msg">没有匹配「${esc(query)}」的游戏。</div>`;
+      listEl.innerHTML = `<div class="grid"><div class="msg">没有匹配「${esc(query)}」的游戏。</div></div>`;
     } else {
-      listEl.innerHTML = shown.map(cardHTML).join('');
+      // 单机游戏直接排；合集（board_games/ 那种）单独起一个标题，子游戏归在下面。
+      const tops = shown.filter((g) => !g.group);
+      const groups = new Map();
+      for (const g of shown) {
+        if (!g.group) continue;
+        if (!groups.has(g.group)) groups.set(g.group, []);
+        groups.get(g.group).push(g);
+      }
+      const parts = [];
+      if (tops.length) parts.push(gridHTML(tops));
+      for (const [name, items] of groups) {
+        parts.push(`<h2 class="ghead"><span>${esc(name)}</span><span class="gcount">${items.length} 个</span></h2>`);
+        parts.push(gridHTML(items));
+      }
+      listEl.innerHTML = parts.join('');
     }
+    const gcount = new Set(games.filter((g) => g.group).map((g) => g.group)).size;
     metaEl.innerHTML = games.length
-      ? `<b>${shown.length}</b>${q ? ' / ' + games.length : ''} 个入口`
+      ? `<b>${shown.length}</b>${q ? ' / ' + games.length : ''} 个入口${!q && gcount ? ` · 含 ${gcount} 个合集` : ''}`
       : '';
   }
 
   function skeleton(n = 6) {
-    listEl.innerHTML = Array.from({ length: n }, () => '<div class="skel"></div>').join('');
+    listEl.innerHTML = `<div class="grid">${Array.from({ length: n }, () => '<div class="skel"></div>').join('')}</div>`;
   }
 
   // ── 组装名单：静态名单打底，实时名单补齐/纠正 ─────────────────────────────
-  function merge(manifest, dirs, probed) {
+  // nested = 这次新发现的合集子游戏（带 group 字段）。
+  function merge(manifest, dirs, probed, nested) {
     const byDir = new Map();
     for (const g of (manifest || [])) byDir.set(g.dir, { ...g });
     if (dirs) {
       const set = new Set(dirs);
-      for (const g of byDir.values()) if (!set.has(g.dir)) byDir.delete(g.dir);   // 目录没了就下线
+      // 目录没了就下线。合集子游戏跟着它所属的合集走（合集还在就留着）。
+      for (const g of [...byDir.values()]) {
+        if (g.group ? !set.has(g.group) : !set.has(g.dir)) byDir.delete(g.dir);
+      }
       for (const d of dirs) {
         if (byDir.has(d)) continue;
         const p = (probed || []).find((x) => x.dir === d);
-        byDir.set(d, p || { dir: d, title: d, desc: '', bytes: 0, fresh: true });
+        if (p && p.ok) byDir.set(d, { ...p });        // ok:false 的是合集目录，本身不是游戏
       }
     }
+    for (const k of (nested || [])) byDir.set(k.dir, { ...k });
     // 逐码位排序，和 tools/build-index.mjs 保持一致：不用 localeCompare('zh')，
     // 它依赖 ICU 语言数据，页面、本地脚本、CI runner 可能排得不一样。
     const out = [...byDir.values()].sort((a, b) => (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0));
@@ -328,18 +365,35 @@
         dirs = cached ? cached.dirs : null;
       }
     }
-    // 名单里没见过的目录，现场探一下：拿不到 index.html 的（比如 tools/）不是游戏
-    const known = new Set(games.map((g) => g.dir));
-    const unknown = (dirs || []).filter((d) => !known.has(d) && !(manifestDirs || new Set()).has(d));
+    // 名单里没见过的目录，现场探一下：
+    //   · 有 index.html        → 是游戏，加进来；
+    //   · 没有 index.html      → 可能是个"合集"（board_games/ 里那一堆棋），再列一层，
+    //                            子游戏也都捞出来，带 group 归到合集标题下面；
+    //   · 两者都不是（tools/）  → 丢掉，不当入口。
+    const knownGroup = new Set((manifestRaw || []).filter((g) => g.group).map((g) => g.group));
+    const manifestSet = manifestDirs || new Set();
+    // 已知合集的目录不再去探它自己的 index.html（本来就没有，白挨一次 404），
+    // 它的子游戏静态名单里已经写好了。
+    const unknown = (dirs || []).filter((d) => !manifestSet.has(d) && !knownGroup.has(d));
     const probedAll = unknown.length ? await Promise.all(unknown.map(probe)) : [];
     const probed = probedAll.filter((p) => p.ok);
-    const dropped = probedAll.filter((p) => !p.ok).map((p) => p.dir);
-    if (dirs) dirs = dirs.filter((d) => !dropped.includes(d));      // 404 的目录不算入口
-    games = merge(manifestRaw, dirs, probed);
+    const nested = [];
+    const notGame = new Set();
+    for (const p of probedAll) {
+      if (p.ok) continue;
+      if (knownGroup.has(p.dir)) continue;                     // 已知合集：子游戏静态名单里就有，省一次 API
+      let subs = [];
+      try { subs = await fetchDirs(p.dir); } catch { /* 读不到就当它不是合集 */ }      const kids = (await Promise.all(subs.map((s) => probe(p.dir + '/' + s)))).filter((k) => k.ok);
+      if (kids.length) for (const k of kids) nested.push({ ...k, group: p.dir });
+      else notGame.add(p.dir);
+    }
+    if (dirs) dirs = dirs.filter((d) => !notGame.has(d));       // 既不是游戏也不是合集的目录不算入口
+    games = merge(manifestRaw, dirs, probed, nested);
     if (!dirs && err) {
       srcEl.textContent = `名单：静态 index.json（GitHub API 读取失败：${err.message}）`;
     } else if (dirs) {
-      srcEl.textContent += (probed.length ? ` · 新增 ${probed.map((p) => p.dir).join('、')}` : ' · 与静态名单一致');
+      const fresh = probed.concat(nested).map((p) => p.dir);
+      srcEl.textContent += (fresh.length ? ` · 新增 ${fresh.join('、')}` : ' · 与静态名单一致');
     }
     render();
   }
@@ -376,13 +430,14 @@
     try { await refresh(true); } finally { btn.disabled = false; btn.textContent = '↻ 刷新名单'; }
   });
 
-  // 调试/自动化测试用的把手（和 game 里 window.__game 一个路子）：
+  // 调试/自动化测试用的把手（和 games 里 window.__game 一个路子）：
   // 可以强制重读名单、看当前名单、直接调探测逻辑。
   window.__gameIndex = {
     refresh: (force) => { lastFetch = 0; return refresh(force !== false); },   // 跳过冷却，测试用
     games: () => games.map((g) => ({ ...g })),
     probe,
     merge,
+    fetchDirs,
     source: () => srcEl.textContent,
   };
 })();

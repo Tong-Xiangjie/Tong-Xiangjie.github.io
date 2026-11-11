@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>中国跳棋</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background-color: #111; font-family: sans-serif; color: #ededed; }
+  .app { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: 4px; user-select: none; cursor: pointer; transition: color 0.2s; }
+  h1:hover { color: #fff; }
+  .status { min-width: 220px; text-align: center; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; background-color: #1a1a1a; border: 1px solid #333; color: #a0a0a0; transition: all .2s; cursor: default; }
+  .status.win  { background-color: #143621; color: #5ee07f; border-color: #1e4d30; cursor: pointer; }
+  .status.lose { background-color: #3b1818; color: #ff7b72; border-color: #522020; cursor: pointer; }
+  .status.thinking { background-color: #1a2333; color: #7fb2ff; border-color: #273754; }
+  .canvas-container { position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.8); border-radius: 6px; overflow: hidden; border: 1px solid #333; }
+  canvas { display: block; background-color: #1a1a1a; cursor: pointer; touch-action: none; }
+  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  button { font: inherit; font-size: 14px; padding: 11px 26px; border-radius: 6px; border: 1px solid #333; background-color: #1a1a1a; color: #d1d1d1; cursor: pointer; outline: none; font-weight: 500; }
+  button:hover:not(:disabled) { background-color: #262626; border-color: #444; }
+  button:active:not(:disabled) { background-color: #333; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button.primary { background-color: #ededed; color: #111; border-color: #ededed; }
+  button.primary:hover:not(:disabled) { background-color: #fff; border-color: #fff; }
+
+  #import-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 999; align-items: center; justify-content: center; }
+  .modal-content { background-color: #1a1a1a; padding: 24px; border-radius: 8px; border: 1px solid #333; width: 85%; max-width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+  .modal-content h3 { margin: 0 0 16px 0; font-size: 16px; color: #ededed; font-weight: 500; }
+  .modal-content textarea { width: 100%; height: 100px; padding: 12px; border-radius: 6px; background-color: #111; border: 1px solid #333; color: #d1d1d1; font-family: monospace; font-size: 13px; resize: none; outline: none; margin-bottom: 16px; transition: border-color 0.2s; }
+  .modal-content textarea:focus { border-color: #666; }
+  .modal-btns { display: flex; gap: 12px; justify-content: center; }
+  .modal-btns button { flex: 1; padding: 10px 0; border-radius: 6px; }
+  .btn-confirm { background-color: #ededed !important; border-color: #ededed !important; color: #111 !important; font-weight: 600; }
+  .btn-confirm:hover { background-color: #fff !important; border-color: #fff !important; }
+</style>
+</head>
+<body>
+
+<div id="import-modal">
+  <div class="modal-content">
+    <h3>导入对局存档</h3>
+    <textarea id="replay-input" placeholder="请在此粘贴完整的复盘码"></textarea>
+    <div class="modal-btns">
+      <button id="btn-cancel-import">取消</button>
+      <button id="btn-confirm-import" class="btn-confirm">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <h1 id="title" title="点击导入存档">中国跳棋</h1>
+  <div class="status" id="status">点击“开始新局”</div>
+  <div class="canvas-container"><canvas id="board"></canvas></div>
+  <div class="toolbar">
+    <button id="btn-restart" class="primary">开始新局</button>
+    <button id="btn-undo" disabled>悔棋 (剩余5次)</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const statusEl = document.getElementById('status');
+  const restartBtn = document.getElementById('btn-restart');
+  const undoBtn = document.getElementById('btn-undo');
+  const titleEl = document.getElementById('title');
+  const importModal = document.getElementById('import-modal');
+  const replayInput = document.getElementById('replay-input');
+
+  const R = 20, SQRT3 = Math.sqrt(3);
+  const DIRS = [[1, -1, 0], [1, 0, -1], [0, 1, -1], [-1, 1, 0], [-1, 0, 1], [0, -1, 1]];
+  
+  let cells = [], cellMap = new Map(), pieces = new Map();
+  
+  let state = { 
+    turn: 'red', gameOver: false, selectedId: null, legalMoves: [], 
+    isJumping: false, history: [],
+    startId: null, startHistoryLen: 0,
+    aiPath: [], playerPath: [],
+    humanColor: 'red', aiColor: 'blue', replayCode: '',
+    undosLeft: 5 // 新增：悔棋剩余次数
+  };
+
+  let anim = { active: false, fromId: null, toId: null, startTime: 0, duration: 250, onComplete: null };
+  let boardPx = 0, offsetX = 0, offsetY = 0, scale = 1;
+
+  function generateBoard() {
+    cells = []; cellMap.clear(); let id = 0;
+    for (let q = -8; q <= 8; q++) {
+      for (let r = -8; r <= 8; r++) {
+        const s = -q - r;
+        if (Math.max(Math.abs(q), Math.abs(r), Math.abs(s)) > 8) continue;
+        let countBig = 0;
+        if (Math.abs(q) > 4) countBig++;
+        if (Math.abs(r) > 4) countBig++;
+        if (Math.abs(s) > 4) countBig++;
+        if (countBig > 1) continue;
+        const cell = { q, r, s, x: R * SQRT3 * (q + r / 2), y: R * 1.5 * r, id: id++ };
+        cells.push(cell); cellMap.set(`${q},${r},${s}`, cell);
+      }
+    }
+  }
+
+  const RED_CAMP = new Set(), BLUE_CAMP = new Set(), CAMP_TL = new Set(), CAMP_TR = new Set(), CAMP_BL = new Set(), CAMP_BR = new Set();
+  function initCamps() {
+    RED_CAMP.clear(); BLUE_CAMP.clear(); CAMP_TL.clear(); CAMP_TR.clear(); CAMP_BL.clear(); CAMP_BR.clear();
+    cells.forEach(c => {
+      if (c.r <= -5) BLUE_CAMP.add(c.id);
+      else if (c.r >= 5) RED_CAMP.add(c.id);
+      else if (c.s >= 5) CAMP_TL.add(c.id);
+      else if (c.q >= 5) CAMP_TR.add(c.id);
+      else if (c.q <= -5) CAMP_BL.add(c.id);
+      else if (c.s <= -5) CAMP_BR.add(c.id);
+    });
+  }
+
+  function initPieces() {
+    pieces.clear();
+    RED_CAMP.forEach(id => pieces.set(id, 'red'));
+    BLUE_CAMP.forEach(id => pieces.set(id, 'blue'));
+  }
+
+  function initCanvas() {
+    const size = Math.max(320, Math.floor(Math.min(window.innerWidth - 40, window.innerHeight - 250, 560)));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = size + 'px'; canvas.style.height = size + 'px';
+    canvas.width = Math.round(size * dpr); canvas.height = Math.round(size * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    cells.forEach(c => {
+      if (c.x < minX) minX = c.x; if (c.x > maxX) maxX = c.x;
+      if (c.y < minY) minY = c.y; if (c.y > maxY) maxY = c.y;
+    });
+    const w = maxX - minX + R * SQRT3 * 2, h = maxY - minY + R * 1.5 * 2, margin = 30;
+    scale = Math.min((size - margin * 2) / w, (size - margin * 2) / h);
+    offsetX = (size - (maxX - minX) * scale) / 2 - minX * scale;
+    offsetY = (size - (maxY - minY) * scale) / 2 - minY * scale;
+    boardPx = size;
+    draw(1);
+  }
+
+  function hexToPixel(cell) { return { x: cell.x * scale + offsetX, y: cell.y * scale + offsetY }; }
+
+  function animLoop(now) {
+    if (!anim.active) return;
+    let progress = (now - anim.startTime) / anim.duration;
+    if (progress >= 1) {
+      progress = 1;
+      anim.active = false;
+      draw(1);
+      if (anim.onComplete) anim.onComplete();
+    } else {
+      draw(progress);
+      requestAnimationFrame(animLoop);
+    }
+  }
+
+  function animate(fromId, toId, onComplete) {
+    anim.active = true;
+    anim.fromId = fromId;
+    anim.toId = toId;
+    anim.startTime = performance.now();
+    anim.onComplete = onComplete;
+    requestAnimationFrame(animLoop);
+  }
+
+  function draw(animProgress = 1) {
+    if (!cells.length) return;
+    ctx.clearRect(0, 0, boardPx, boardPx);
+    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, boardPx, boardPx);
+    const hr = R * scale, pieceR = hr * 0.7;
+
+    cells.forEach(cell => {
+      const pos = hexToPixel(cell);
+      let bg = '#222';
+      if (RED_CAMP.has(cell.id)) bg = '#4a1c1c';
+      else if (BLUE_CAMP.has(cell.id)) bg = '#1c2f4a';
+      else if (CAMP_TL.has(cell.id)) bg = '#351c4a';
+      else if (CAMP_TR.has(cell.id)) bg = '#4a2b1c';
+      else if (CAMP_BL.has(cell.id)) bg = '#4a451c';
+      else if (CAMP_BR.has(cell.id)) bg = '#1c4a21';
+
+      if (state.selectedId === cell.id) bg = '#555';
+      else if (state.legalMoves.includes(cell.id)) bg = '#777';
+
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 3 * i + Math.PI / 6;
+        const px = pos.x + hr * Math.cos(angle), py = pos.y + hr * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fillStyle = bg; ctx.fill();
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+    });
+
+    if (state.aiPath.length > 0) {
+      ctx.beginPath();
+      ctx.strokeStyle = state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc'; 
+      ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      state.aiPath.forEach((step, idx) => {
+        const p1 = hexToPixel(cells.find(c => c.id === step.from)), p2 = hexToPixel(cells.find(c => c.id === step.to));
+        if (idx === 0) ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+      });
+      ctx.stroke();
+      state.aiPath.forEach(step => {
+        const p2 = hexToPixel(cells.find(c => c.id === step.to));
+        ctx.beginPath(); ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc'; ctx.fill();
+      });
+    }
+
+    if (state.playerPath.length > 0) {
+      ctx.beginPath();
+      ctx.strokeStyle = state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc'; 
+      ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      state.playerPath.forEach((step, idx) => {
+        const p1 = hexToPixel(cells.find(c => c.id === step.from)), p2 = hexToPixel(cells.find(c => c.id === step.to));
+        if (idx === 0) ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+      });
+      ctx.stroke();
+      state.playerPath.forEach(step => {
+        const p2 = hexToPixel(cells.find(c => c.id === step.to));
+        ctx.beginPath(); ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc'; ctx.fill();
+      });
+    }
+
+    if (anim.active) {
+      const p1 = hexToPixel(cells.find(c => c.id === anim.fromId));
+      const p2 = hexToPixel(cells.find(c => c.id === anim.toId));
+      const curP = { x: p1.x + (p2.x - p1.x) * animProgress, y: p1.y + (p2.y - p1.y) * animProgress };
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(curP.x, curP.y);
+      ctx.strokeStyle = state.turn === state.aiColor ? (state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc') : (state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc');
+      ctx.lineWidth = 4; ctx.stroke();
+    }
+
+    pieces.forEach((player, id) => {
+      const cell = cells.find(c => c.id === id);
+      if (!cell) return;
+      let cx = hexToPixel(cell).x, cy = hexToPixel(cell).y;
+      if (anim.active && id === anim.fromId) {
+        const p1 = hexToPixel(cell), p2 = hexToPixel(cells.find(c => c.id === anim.toId));
+        cx = p1.x + (p2.x - p1.x) * animProgress;
+        cy = p1.y + (p2.y - p1.y) * animProgress;
+      }
+      const grad = ctx.createRadialGradient(cx - pieceR * 0.3, cy - pieceR * 0.3, pieceR * 0.1, cx, cy, pieceR);
+      if (player === 'red') { grad.addColorStop(0, '#ff6b6b'); grad.addColorStop(1, '#c92a2a'); }
+      else { grad.addColorStop(0, '#74c0fc'); grad.addColorStop(1, '#1864ab'); }
+      ctx.beginPath(); ctx.arc(cx, cy, pieceR, 0, Math.PI * 2);
+      ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
+    });
+
+    if (state.startId !== null && state.startId !== state.selectedId) {
+      const startCell = cells.find(c => c.id === state.startId);
+      if (startCell) {
+        const pos = hexToPixel(startCell);
+        ctx.globalAlpha = 0.35;
+        const grad = ctx.createRadialGradient(pos.x - pieceR * 0.3, pos.y - pieceR * 0.3, pieceR * 0.1, pos.x, pos.y, pieceR);
+        if (state.humanColor === 'red') { grad.addColorStop(0, '#ff6b6b'); grad.addColorStop(1, '#c92a2a'); }
+        else { grad.addColorStop(0, '#74c0fc'); grad.addColorStop(1, '#1864ab'); }
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, pieceR, 0, Math.PI * 2);
+        ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.globalAlpha = 1.0;
+      }
+    }
+  }
+
+  function getMoves(cell) {
+    const moves = [];
+    DIRS.forEach(d => {
+      const neighbor = cellMap.get(`${cell.q + d[0]},${cell.r + d[1]},${cell.s + d[2]}`);
+      if (neighbor && !pieces.has(neighbor.id)) moves.push(neighbor.id);
+    });
+    return moves;
+  }
+
+  function getJumps(cell) {
+    const jumps = [];
+    DIRS.forEach(d => {
+      let dist = 1, curQ = cell.q + d[0], curR = cell.r + d[1], curS = cell.s + d[2], pedal = null;
+      while (true) {
+        const c = cellMap.get(`${curQ},${curR},${curS}`);
+        if (!c) break;
+        if (pieces.has(c.id)) { pedal = c; break; }
+        curQ += d[0]; curR += d[1]; curS += d[2]; dist++;
+      }
+      if (!pedal) return;
+      let targetQ = pedal.q, targetR = pedal.r, targetS = pedal.s, blocked = false;
+      for (let i = 0; i < dist; i++) {
+        targetQ += d[0]; targetR += d[1]; targetS += d[2];
+        const t = cellMap.get(`${targetQ},${targetR},${targetS}`);
+        if (!t) { blocked = true; break; }
+        if (i < dist - 1 && pieces.has(t.id)) { blocked = true; break; }
+      }
+      if (!blocked) {
+        const finalTarget = cellMap.get(`${targetQ},${targetR},${targetS}`);
+        if (finalTarget && !pieces.has(finalTarget.id)) jumps.push(finalTarget.id);
+      }
+    });
+    return jumps;
+  }
+
+  function getAiPaths(startId) {
+    const startCell = cells.find(c => c.id === startId);
+    const results = [];
+    const queue = [{ currentId: startId, path: [startId] }];
+    const visited = new Set([startId]);
+
+    while (queue.length > 0) {
+      const { currentId, path } = queue.shift();
+      const curCell = cells.find(c => c.id === currentId);
+      const jumps = getJumps(curCell);
+      for (const nextId of jumps) {
+        if (!visited.has(nextId)) {
+          visited.add(nextId);
+          const nextPath = [...path, nextId];
+          const nextCell = cells.find(c => c.id === nextId);
+          let score = evaluateAiMove(startCell, nextCell) + nextPath.length * 2;
+          results.push({ path: nextPath, score: score });
+          queue.push({ currentId: nextId, path: nextPath });
+        }
+      }
+    }
+    return results;
+  }
+
+  function evaluateAiMove(cell, toCell) {
+    const targetCamp = state.aiColor === 'blue' ? 'red' : 'blue'; 
+    const targetR = targetCamp === 'red' ? 6 : -6; 
+    const d1 = (Math.abs(cell.q) + Math.abs(cell.r - targetR) + Math.abs(cell.s + targetR)) / 2;
+    const d2 = (Math.abs(toCell.q) + Math.abs(toCell.r - targetR) + Math.abs(toCell.s + targetR)) / 2;
+    let score = (d1 - d2) * 10;
+    
+    if (targetCamp === 'red' && RED_CAMP.has(toCell.id)) score += 100;
+    if (targetCamp === 'blue' && BLUE_CAMP.has(toCell.id)) score += 100;
+    
+    if (CAMP_TL.has(toCell.id) || CAMP_TR.has(toCell.id) || CAMP_BL.has(toCell.id) || CAMP_BR.has(toCell.id)) score -= 30;
+    return score;
+  }
+
+  function checkWin(player) {
+    const targetCamp = player === 'red' ? BLUE_CAMP : RED_CAMP;
+    let count = 0;
+    for (const id of targetCamp) if (pieces.get(id) === player) count++;
+    return count === 10;
+  }
+
+  function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
+  
+  function generateReplayCode() {
+    if (state.history.length === 0) return '';
+    let code = '';
+    let lastPlayer = null;
+    let lastToId = null;
+    
+    for (let i = 0; i < state.history.length; i++) {
+      const h = state.history[i];
+      const fromCell = cells.find(c => c.id === h.fromId);
+      const toCell = cells.find(c => c.id === h.toId);
+      const color = h.player === 'red' ? 'R' : 'B';
+      
+      if (lastPlayer !== h.player || lastToId !== h.fromId) {
+        if (lastPlayer !== null) code += ' ';
+        code += color + `${fromCell.q},${fromCell.r}`;
+      }
+      code += `>${toCell.q},${toCell.r}`;
+      
+      lastPlayer = h.player;
+      lastToId = h.toId;
+    }
+    return code;
+  }
+
+  function loadReplayCode(rawCode) {
+    const code = rawCode.trim();
+    const matches = code.match(/[RB]-?\d+,-?\d+(?:>-?\d+,-?\d+)*/g);
+    
+    if (!matches || matches.length === 0) {
+      alert('复盘码格式错误！');
+      return;
+    }
+
+    newGame(false); 
+    
+    let lastPlayer = null;
+    let winner = null;
+
+    for (const m of matches) {
+      const color = m[0] === 'R' ? 'red' : 'blue';
+      const coords = m.substring(1).split('>').map(c => {
+        const [q, r] = c.split(',').map(Number);
+        return cellMap.get(`${q},${r},${-q-r}`);
+      });
+      
+      for (let i = 0; i < coords.length - 1; i++) {
+        const fromCell = coords[i];
+        const toCell = coords[i+1];
+        if (!fromCell || !toCell) break;
+        
+        pieces.delete(fromCell.id);
+        pieces.set(toCell.id, color);
+        state.history.push({ fromId: fromCell.id, toId: toCell.id, player: color });
+        
+        if (checkWin(color)) {
+          winner = color;
+          break;
+        }
+      }
+      if (winner) break;
+      lastPlayer = color;
+    }
+
+    state.gameOver = !!winner;
+    state.turn = lastPlayer === 'red' ? 'blue' : 'red';
+    
+    state.humanColor = state.turn;
+    state.aiColor = state.turn === 'red' ? 'blue' : 'red';
+    
+    state.selectedId = null;
+    state.legalMoves = [];
+    state.isJumping = false;
+    state.startId = null;
+    state.aiPath = [];
+    state.playerPath = [];
+
+    draw();
+
+    if (winner) {
+      state.replayCode = generateReplayCode();
+      if (winner === 'red') setStatus('我早就说过AI取代不了人类。（点击复制复盘码）', 'win');
+      else setStatus('人类拉完了……（点击复制复盘码）', 'lose');
+    } else {
+      if (state.turn === state.aiColor) {
+        setStatus(`【${state.turn === 'red' ? '红方' : '蓝方'}】AI思考中……`, 'thinking');
+        setTimeout(aiTurn, 400);
+      } else {
+        setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】轮到你了！`);
+      }
+    }
+  }
+
+  function endTurn() {
+    state.selectedId = null; state.legalMoves = []; state.isJumping = false; state.startId = null;
+    state.playerPath = [];
+    state.aiPath = [];
+
+    if (checkWin('red')) { state.gameOver = true; state.replayCode = generateReplayCode(); setStatus('我早就说过AI取代不了人类。（点击复制复盘码）', 'win'); draw(); return; }
+    if (checkWin('blue')) { state.gameOver = true; state.replayCode = generateReplayCode(); setStatus('人类拉完了……（点击复制复盘码）', 'lose'); draw(); return; }
+    
+    state.turn = state.turn === 'red' ? 'blue' : 'red';
+
+    if (state.turn === state.aiColor) { 
+      setStatus(`【${state.turn === 'red' ? '红方' : '蓝方'}】AI思考中……`, 'thinking'); 
+      draw(); setTimeout(aiTurn, 400); 
+    } else { 
+      setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】轮到你了！`); 
+      draw(); 
+    }
+  }
+
+  function makePlayerMove(fromId, toId, isJump) {
+    state.history.push({ fromId, toId, player: state.humanColor });
+    pieces.delete(fromId); pieces.set(toId, state.humanColor);
+
+    if (isJump) {
+      state.playerPath.push({ from: fromId, to: toId });
+      const jumps = getJumps(cells.find(c => c.id === toId));
+      if (jumps.length > 0) {
+        state.selectedId = toId; 
+        state.legalMoves = [...jumps]; 
+        state.isJumping = true;
+        setStatus('太强了，你居然在连跳！'); 
+        draw(); 
+        return;
+      }
+    }
+    endTurn();
+  }
+
+  function aiTurn() {
+    if (state.gameOver || state.turn !== state.aiColor) return;
+    let allMoves = [];
+    state.aiPath = []; 
+
+    pieces.forEach((player, id) => {
+      if (player !== state.aiColor) return;
+      const cell = cells.find(c => c.id === id);
+      
+      getMoves(cell).forEach(toId => {
+        const toCell = cells.find(c => c.id === toId);
+        allMoves.push({ path: [id, toId], isJump: false, score: evaluateAiMove(cell, toCell) });
+      });
+
+      getAiPaths(id).forEach(p => {
+        allMoves.push({ path: p.path, isJump: true, score: p.score });
+      });
+    });
+
+    if (allMoves.length === 0) { endTurn(); return; }
+    allMoves.sort((a, b) => b.score - a.score);
+    const bestMove = allMoves[0];
+    
+    if (bestMove.isJump) {
+      executeAiPath(bestMove.path, 0);
+    } else {
+      setStatus('AI正在朝着你的基地进军……', 'thinking');
+      animate(bestMove.path[0], bestMove.path[1], () => {
+        pieces.delete(bestMove.path[0]); pieces.set(bestMove.path[1], state.aiColor);
+        state.history.push({ fromId: bestMove.path[0], toId: bestMove.path[1], player: state.aiColor });
+        draw();
+        endTurn();
+      });
+    }
+  }
+
+  function executeAiPath(path, stepIndex) {
+    if (stepIndex >= path.length - 1) { endTurn(); return; }
+    const fromId = path[stepIndex], toId = path[stepIndex + 1];
+    
+    setStatus('AI正在朝着你的基地进军……', 'thinking');
+    
+    animate(fromId, toId, () => {
+      pieces.delete(fromId); pieces.set(toId, state.aiColor);
+      state.history.push({ fromId, toId, player: state.aiColor });
+      state.aiPath.push({ from: fromId, to: toId });
+      draw();
+      setTimeout(() => executeAiPath(path, stepIndex + 1), 300);
+    });
+  }
+
+  function handleCanvasClick(clientX, clientY) {
+    if (state.gameOver || state.turn === state.aiColor || anim.active) return;
+    const rect = canvas.getBoundingClientRect(), mx = clientX - rect.left, my = clientY - rect.top;
+    const hitR = R * scale * 1.2;
+    let clickedId = null, minDist = Infinity;
+    
+    for (const cell of cells) {
+      const pos = hexToPixel(cell), dist = Math.hypot(mx - pos.x, my - pos.y);
+      if (dist < hitR && dist < minDist) { minDist = dist; clickedId = cell.id; }
+    }
+
+    if (clickedId === null) return;
+
+    if (state.startId !== null && clickedId === state.startId && clickedId !== state.selectedId) {
+       while (state.history.length > state.startHistoryLen) {
+          const last = state.history.pop();
+          pieces.delete(last.toId); pieces.set(last.fromId, state.humanColor);
+       }
+       state.selectedId = null; state.startId = null; state.legalMoves = []; state.isJumping = false; state.playerPath = [];
+       setStatus('兜兜转转你又回到了原点，选另外一颗试试'); draw(); return;
+    }
+
+    if (state.isJumping) {
+      if (clickedId === state.selectedId) { state.startId = null; endTurn(); return; }
+      if (state.legalMoves.includes(clickedId)) { makePlayerMove(state.selectedId, clickedId, true); return; }
+      return;
+    }
+
+    if (state.legalMoves.includes(clickedId)) {
+      const fromCell = cells.find(c => c.id === state.selectedId), toCell = cells.find(c => c.id === clickedId);
+      const dist = (Math.abs(fromCell.q - toCell.q) + Math.abs(fromCell.r - toCell.r) + Math.abs(fromCell.s - toCell.s)) / 2;
+      makePlayerMove(state.selectedId, clickedId, dist > 1);
+      return;
+    }
+
+    if (pieces.get(clickedId) === state.humanColor) {
+      const cell = cells.find(c => c.id === clickedId);
+      const legal = new Set([...getMoves(cell), ...getJumps(cell)]); 
+      if (legal.size > 0) {
+        state.selectedId = clickedId; state.startId = clickedId; 
+        state.startHistoryLen = state.history.length; state.playerPath = [];
+        state.legalMoves = [...legal]; state.isJumping = false; draw();
+      } else { setStatus('这颗棋子卡住了，换一颗吧'); }
+    } else {
+      state.selectedId = null; state.legalMoves = []; state.isJumping = false; state.startId = null; state.playerPath = []; draw();
+    }
+  }
+
+  canvas.addEventListener('click', (e) => handleCanvasClick(e.clientX, e.clientY));
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1) handleCanvasClick(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  statusEl.addEventListener('click', () => {
+    if (state.gameOver && state.replayCode) {
+      const oldText = statusEl.textContent;
+      const fallbackCopy = (text) => {
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.top = "-9999px";
+        document.body.appendChild(ta); ta.select();
+        try {
+          document.execCommand('copy');
+          statusEl.textContent = '已复制！点击标题可导入';
+        } catch (err) {
+          alert('自动复制失败，请手动复制：\n\n' + text);
+        }
+        document.body.removeChild(ta); setTimeout(() => { statusEl.textContent = oldText; }, 2500);
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(state.replayCode).then(() => {
+          statusEl.textContent = '已复制！点击标题可导入';
+          setTimeout(() => { statusEl.textContent = oldText; }, 2500);
+        }).catch(() => fallbackCopy(state.replayCode));
+      } else { fallbackCopy(state.replayCode); }
+    }
+  });
+
+  titleEl.addEventListener('click', () => { importModal.style.display = 'flex'; replayInput.value = ''; replayInput.focus(); });
+  document.getElementById('btn-cancel-import').addEventListener('click', () => importModal.style.display = 'none');
+  document.getElementById('btn-confirm-import').addEventListener('click', () => {
+    const code = replayInput.value.trim();
+    if (code) { loadReplayCode(code); importModal.style.display = 'none'; }
+  });
+  importModal.addEventListener('click', (e) => { if (e.target === importModal) importModal.style.display = 'none'; });
+
+  // 悔棋功能（限制5次）
+  function undo() {
+    if (state.history.length === 0 || state.gameOver || anim.active || state.undosLeft <= 0) return;
+    
+    // 扣除次数
+    state.undosLeft--;
+    undoBtn.textContent = `悔棋 (剩余${state.undosLeft}次)`;
+    if (state.undosLeft === 0) undoBtn.disabled = true;
+
+    let steps = 0;
+    while (state.history.length > 0 && steps < 2) {
+      const last = state.history.pop(); pieces.delete(last.toId); pieces.set(last.fromId, last.player); steps++;
+    }
+    state.turn = state.humanColor; state.selectedId = null; state.legalMoves = []; state.isJumping = false; state.gameOver = false; state.startId = null; state.playerPath = []; state.aiPath = [];
+    setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】轮到你了！`); draw();
+  }
+
+  function newGame(isRandom = true) {
+    generateBoard(); initCamps(); initPieces();
+    
+    if (isRandom) {
+      const isHumanFirst = Math.random() < 0.5;
+      state = { 
+        turn: isHumanFirst ? 'red' : 'blue',
+        humanColor: isHumanFirst ? 'red' : 'blue',
+        aiColor: isHumanFirst ? 'blue' : 'red',
+        gameOver: false, selectedId: null, legalMoves: [], 
+        isJumping: false, history: [],
+        startId: null, startHistoryLen: 0,
+        aiPath: [], playerPath: [], replayCode: '',
+        undosLeft: 5 // 重置悔棋次数
+      };
+    } else {
+      state = { 
+        turn: 'red',
+        humanColor: 'red',
+        aiColor: 'blue',
+        gameOver: false, selectedId: null, legalMoves: [], 
+        isJumping: false, history: [],
+        startId: null, startHistoryLen: 0,
+        aiPath: [], playerPath: [], replayCode: '',
+        undosLeft: 5 // 重置悔棋次数
+      };
+    }
+    
+    anim.active = false;
+    // 更新按钮状态
+    undoBtn.disabled = false; 
+    undoBtn.textContent = '悔棋 (剩余5次)';
+    
+    initCanvas();
+    
+    if (isRandom) {
+      if (state.turn === state.aiColor) {
+        setStatus(`【${state.turn === 'red' ? '红方' : '蓝方'}】这轮AI先移动，思考中……`, 'thinking');
+        setTimeout(aiTurn, 400);
+      } else {
+        setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】这轮你先移动`);
+      }
+    }
+  }
+
+  restartBtn.addEventListener('click', () => newGame(true));
+  undoBtn.addEventListener('click', undo);
+  window.addEventListener('resize', initCanvas);
+  newGame(true);
+})();
+</script>
+</body>
+</html>

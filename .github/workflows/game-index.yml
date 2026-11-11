@@ -1,11 +1,11 @@
-# 自动维护 game/index.json —— game/index.html 那个跳转页的"静态保底名单"。
+# 自动维护 games/index.json —— games/index.html 那个跳转页的"静态保底名单"。
 #
 # 背景：GitHub Pages 是纯静态托管，没有目录列表接口。跳转页的第一选择是运行时
 # 查 GitHub Contents API（真正的动态，加游戏不用管任何事），但匿名 API 只有
 # 60 次/小时，还会因为断网/被墙而失败。所以再落一份静态名单，页面先读它（瞬间
 # 出内容），再用 API 的结果补齐。
 #
-# 这个 workflow 做的事：只要 game/ 里有改动，就重跑 tools/build-index.mjs，
+# 这个 workflow 做的事：只要 games/ 里有改动，就重跑 tools/build-index.mjs，
 # 把更新后的 index.json 提交回仓库。脚本本身是"内容没变就不动文件"的，所以
 # 平时不会有空提交。
 #
@@ -17,8 +17,8 @@ name: 生成游戏入口名单
 on:
   push:
     branches: [main]
-  # 这里刻意**不写 paths 过滤**：本来写的是 `game/**` + 本文件，但实测两次 push
-  # （一次改 game/ 下的文件、一次只改本文件）都没触发，去掉负向模式也不行，原因
+  # 这里刻意**不写 paths 过滤**：本来写的是 `games/**` + 本文件，但实测两次 push
+  # （一次改 games/ 下的文件、一次只改本文件）都没触发，去掉负向模式也不行，原因
   # 不明。而这件事本身很便宜：脚本是"内容没变就不写文件"的，跑一次几秒钟，没变
   # 化时 workflow 直接退出、不产生提交。少一个变量比省那几秒重要。
   # （本 workflow 自己提交的 index.json 带 [skip ci]，不会再触发自己。）
@@ -40,8 +40,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 生成 game/index.json
-        run: node game/tools/build-index.mjs
+      - name: 生成 games/index.json
+        run: node games/tools/build-index.mjs
 
       - name: 提交名单
         env:
@@ -49,13 +49,13 @@ jobs:
         run: |
           set -e
           echo "repo=$GITHUB_REPOSITORY branch=$BRANCH event=$GITHUB_EVENT_NAME"
-          if [ -z "$(git status --porcelain -- game/index.json)" ]; then
-            echo "game/index.json 无变化，无需提交。"
+          if [ -z "$(git status --porcelain -- games/index.json)" ]; then
+            echo "games/index.json 无变化，无需提交。"
             exit 0
           fi
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- game/index.json
+          git add -- games/index.json
           # [skip ci]：这个提交不再触发本 workflow
           git commit -m 'chore: auto-generate game index [skip ci]'
           git pull --rebase --autostash origin "$BRANCH"

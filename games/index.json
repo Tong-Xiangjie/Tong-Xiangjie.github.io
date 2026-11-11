@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 14,
+  "count": 15,
   "games": [
     {
       "dir": "AURA",
@@ -39,6 +39,20 @@
       "bytes": 25516
     },
     {
+      "dir": "board_games/Chinese_checkers",
+      "group": "board_games",
+      "title": "中国跳棋",
+      "desc": "",
+      "bytes": 28906
+    },
+    {
+      "dir": "board_games/Five_in_a_Row",
+      "group": "board_games",
+      "title": "五子棋",
+      "desc": "",
+      "bytes": 20161
+    },
+    {
       "dir": "neon-breaker",
       "title": "NEON BREAKER · 霓虹打砖块",
       "desc": "",
@@ -59,14 +73,8 @@
     {
       "dir": "wolfgame",
       "title": "🐺 AI 狼人杀",
-      "desc": "🐺 AI 狼人杀",
+      "desc": "",
       "bytes": 64558
-    },
-    {
-      "dir": "五子棋",
-      "title": "五子棋",
-      "desc": "导入对局存档",
-      "bytes": 20161
     },
     {
       "dir": "人格初始化",

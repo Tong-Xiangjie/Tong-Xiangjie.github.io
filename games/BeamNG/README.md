@@ -18,7 +18,7 @@ node tools/serve.mjs 8811
 #       然后打开 http://127.0.0.1:8811/index.html
 ```
 
-线上地址：<https://tong-xiangjie.github.io/game/BeamNG/>（Pages 直接跑多文件版）。
+线上地址：<https://tong-xiangjie.github.io/games/BeamNG/>（Pages 直接跑多文件版）。
 
 URL 参数可以跳过菜单直接进游戏，方便截图和分享：
 

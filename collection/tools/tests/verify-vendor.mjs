@@ -61,12 +61,14 @@ const SKIP_DIRS = new Set(['node_modules', 'vendor', 'data', 'image', 'tests']);
 const CDN_EXEMPT = new Map([
   // blackhole 是历史遗留的本地小游戏页面（three.js 的示例改造而来，早已不在导航里），
   // 它引 jsdelivr 上的 three@0.128.0 与 cannon@0.6.2，暂时不改造。
-  // ★ 2026-10：小游戏从仓库根目录搬到了 game/ 下（blackhole → game/blackhole），
+  // ★ 2026-10：小游戏从仓库根目录搬到了 games/ 下（blackhole → games/blackhole），
   //   所以前缀要跟着走；两个前缀都留着，是为了"搬回去"或"只搬一半"时不会突然误红。
-  // （这条例外只覆盖这两个前缀下的文件；站点主体——collection/notecollection/answersheet/
+  // ★ 后来又整体从 game/ 改名成 games/，旧前缀一并留着，同样是为了迁移期不误红。
+  // （这条例外只覆盖这些前缀下的文件；站点主体——collection/notecollection/answersheet/
   //   coincollection/funcollection/newcollection 等——仍然一律禁止外部 CDN。）
-  ['game/blackhole/', '历史遗留的本地小游戏页面，引 jsdelivr 的 three.js/cannon.js，暂不改造'],
-  ['blackhole/', '同上；小游戏搬迁到 game/ 之前的旧路径前缀，留作兼容']
+  ['games/blackhole/', '历史遗留的本地小游戏页面，引 jsdelivr 的 three.js/cannon.js，暂不改造'],
+  ['game/blackhole/', '同上；game/ 是 games/ 改名前的前缀，留作兼容'],
+  ['blackhole/', '同上；小游戏搬迁到 games/ 之前的旧路径前缀，留作兼容']
 ]);
 const relPath = p => p.slice(ROOT.length + 1).replace(/\\/g, '/');
 const isCdnExempt = p => { const r = relPath(p); return [...CDN_EXEMPT.keys()].some(prefix => r.startsWith(prefix)); };
