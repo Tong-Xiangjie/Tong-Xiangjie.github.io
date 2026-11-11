@@ -10,9 +10,10 @@
   .app { display: flex; flex-direction: column; align-items: center; gap: 20px; }
   h1 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: 4px; user-select: none; cursor: pointer; transition: color 0.2s; }
   h1:hover { color: #fff; }
-  .status { min-width: 220px; text-align: center; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; background-color: #1a1a1a; border: 1px solid #333; color: #a0a0a0; transition: all .2s; cursor: default; }
-  .status.win  { background-color: #143621; color: #5ee07f; border-color: #1e4d30; cursor: pointer; }
-  .status.lose { background-color: #3b1818; color: #ff7b72; border-color: #522020; cursor: pointer; }
+  .status { min-width: 220px; text-align: center; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; background-color: #1a1a1a; border: 1px solid #333; color: #a0a0a0; transition: all .2s; cursor: pointer; }
+  .status:hover { background-color: #222; color: #d1d1d1; border-color: #555; }
+  .status.win  { background-color: #143621; color: #5ee07f; border-color: #1e4d30; }
+  .status.lose { background-color: #3b1818; color: #ff7b72; border-color: #522020; }
   .status.thinking { background-color: #1a2333; color: #7fb2ff; border-color: #273754; }
   .canvas-container { position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.8); border-radius: 6px; overflow: hidden; border: 1px solid #333; }
   canvas { display: block; background-color: #1a1a1a; cursor: pointer; touch-action: none; }
@@ -50,7 +51,8 @@
 
 <div class="app">
   <h1 id="title" title="点击导入存档">中国跳棋</h1>
-  <div class="status" id="status">点击“开始新局”</div>
+  <!-- 随时点击状态栏可以复制当前存档 -->
+  <div class="status" id="status" title="点击可随时复制当前半局存档">点击“开始新局”</div>
   <div class="canvas-container"><canvas id="board"></canvas></div>
   <div class="toolbar">
     <button id="btn-restart" class="primary">开始新局</button>
@@ -81,7 +83,7 @@
     startId: null, startHistoryLen: 0,
     aiPath: [], playerPath: [],
     humanColor: 'red', aiColor: 'blue', replayCode: '',
-    undosLeft: 5 // 新增：悔棋剩余次数
+    undosLeft: 5
   };
 
   let anim = { active: false, fromId: null, toId: null, startTime: 0, duration: 250, onComplete: null };
@@ -214,6 +216,7 @@
       });
     }
 
+    // 🚨 绘制玩家轨迹（现在如果发生回退，对应的线段会被直接清除）
     if (state.playerPath.length > 0) {
       ctx.beginPath();
       ctx.strokeStyle = state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc'; 
@@ -331,16 +334,22 @@
   }
 
   function evaluateAiMove(cell, toCell) {
+    const isTargetCamp = (state.aiColor === 'blue' && RED_CAMP.has(toCell.id)) || (state.aiColor === 'red' && BLUE_CAMP.has(toCell.id));
+    const isOwnCamp = (state.aiColor === 'blue' && BLUE_CAMP.has(toCell.id)) || (state.aiColor === 'red' && RED_CAMP.has(toCell.id));
+    
+    let score = 0;
+    if (isTargetCamp) score += 5000;
+    if (isOwnCamp) score -= 200;
+    if (CAMP_TL.has(toCell.id) || CAMP_TR.has(toCell.id) || CAMP_BL.has(toCell.id) || CAMP_BR.has(toCell.id)) score -= 2000;
+
     const targetCamp = state.aiColor === 'blue' ? 'red' : 'blue'; 
-    const targetR = targetCamp === 'red' ? 6 : -6; 
+    const targetR = targetCamp === 'red' ? -6 : 6; 
+    
     const d1 = (Math.abs(cell.q) + Math.abs(cell.r - targetR) + Math.abs(cell.s + targetR)) / 2;
     const d2 = (Math.abs(toCell.q) + Math.abs(toCell.r - targetR) + Math.abs(toCell.s + targetR)) / 2;
-    let score = (d1 - d2) * 10;
     
-    if (targetCamp === 'red' && RED_CAMP.has(toCell.id)) score += 100;
-    if (targetCamp === 'blue' && BLUE_CAMP.has(toCell.id)) score += 100;
-    
-    if (CAMP_TL.has(toCell.id) || CAMP_TR.has(toCell.id) || CAMP_BL.has(toCell.id) || CAMP_BR.has(toCell.id)) score -= 30;
+    score += (d1 - d2) * 20;
+    score += Math.random() * 5; 
     return score;
   }
 
@@ -469,13 +478,24 @@
     pieces.delete(fromId); pieces.set(toId, state.humanColor);
 
     if (isJump) {
-      state.playerPath.push({ from: fromId, to: toId });
+      // 🚨 核心修复：检查是否是回退。如果落点正好是上一步的起点，就把那条线弹出去，实现“轨迹撤销”
+      if (state.playerPath.length > 0) {
+        const lastStep = state.playerPath[state.playerPath.length - 1];
+        if (lastStep.from === toId) {
+          state.playerPath.pop();
+        } else {
+          state.playerPath.push({ from: fromId, to: toId });
+        }
+      } else {
+        state.playerPath.push({ from: fromId, to: toId });
+      }
+
       const jumps = getJumps(cells.find(c => c.id === toId));
       if (jumps.length > 0) {
         state.selectedId = toId; 
         state.legalMoves = [...jumps]; 
         state.isJumping = true;
-        setStatus('太强了，你居然在连跳！'); 
+        setStatus('太强了，你居然在连跳！按E键可以随时存档'); 
         draw(); 
         return;
       }
@@ -589,7 +609,8 @@
   }, { passive: false });
 
   statusEl.addEventListener('click', () => {
-    if (state.gameOver && state.replayCode) {
+    if (state.history.length > 0) {
+      const code = generateReplayCode();
       const oldText = statusEl.textContent;
       const fallbackCopy = (text) => {
         const ta = document.createElement("textarea");
@@ -597,18 +618,31 @@
         document.body.appendChild(ta); ta.select();
         try {
           document.execCommand('copy');
-          statusEl.textContent = '已复制！点击标题可导入';
+          statusEl.textContent = '✅ 已复制存档码，可随时导入';
         } catch (err) {
-          alert('自动复制失败，请手动复制：\n\n' + text);
+          prompt('请手动复制：', text);
         }
         document.body.removeChild(ta); setTimeout(() => { statusEl.textContent = oldText; }, 2500);
       };
       if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(state.replayCode).then(() => {
-          statusEl.textContent = '已复制！点击标题可导入';
+        navigator.clipboard.writeText(code).then(() => {
+          statusEl.textContent = '✅ 已复制存档码，可随时导入';
           setTimeout(() => { statusEl.textContent = oldText; }, 2500);
-        }).catch(() => fallbackCopy(state.replayCode));
-      } else { fallbackCopy(state.replayCode); }
+        }).catch(() => fallbackCopy(code));
+      } else { fallbackCopy(code); }
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'e' || e.key === 'E') {
+      if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
+      if (state.history.length === 0) return;
+      const code = generateReplayCode();
+      navigator.clipboard.writeText(code).then(() => {
+        alert('✅ 当前存档码已复制！');
+      }).catch(() => {
+        prompt('请手动复制当前存档码：', code);
+      });
     }
   });
 
@@ -620,11 +654,8 @@
   });
   importModal.addEventListener('click', (e) => { if (e.target === importModal) importModal.style.display = 'none'; });
 
-  // 悔棋功能（限制5次）
   function undo() {
     if (state.history.length === 0 || state.gameOver || anim.active || state.undosLeft <= 0) return;
-    
-    // 扣除次数
     state.undosLeft--;
     undoBtn.textContent = `悔棋 (剩余${state.undosLeft}次)`;
     if (state.undosLeft === 0) undoBtn.disabled = true;
@@ -650,7 +681,7 @@
         isJumping: false, history: [],
         startId: null, startHistoryLen: 0,
         aiPath: [], playerPath: [], replayCode: '',
-        undosLeft: 5 // 重置悔棋次数
+        undosLeft: 5
       };
     } else {
       state = { 
@@ -661,15 +692,13 @@
         isJumping: false, history: [],
         startId: null, startHistoryLen: 0,
         aiPath: [], playerPath: [], replayCode: '',
-        undosLeft: 5 // 重置悔棋次数
+        undosLeft: 5
       };
     }
     
     anim.active = false;
-    // 更新按钮状态
     undoBtn.disabled = false; 
     undoBtn.textContent = '悔棋 (剩余5次)';
-    
     initCanvas();
     
     if (isRandom) {

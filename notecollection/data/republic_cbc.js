@@ -310,6 +310,42 @@ const republic_cbcData = {
                     varietyName: "1939年 1分 灵谷塔",
                     copies: [
                         {
+                            copyId: 0,
+                            year: 1939,
+                            version: "G791313",
+                            bank: "中央银行",
+                            print: "美商永宁有限公司/UPP",
+                            signature1: "无",
+                            signature2: "无",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "56元",
+                            purchaseDate: "2026年11月11日",
+                            krause: "224a",
+                            remark: "【版别】单字轨、短厂铭。坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/G791313-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/G791313-2.jpg"
+                        },{
+                            copyId: 0,
+                            year: 1939,
+                            version: "A238768E",
+                            bank: "中央银行",
+                            print: "美商永宁有限公司/UPP",
+                            signature1: "无",
+                            signature2: "无",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "56元",
+                            purchaseDate: "2026年11月11日",
+                            krause: "224a",
+                            remark: "【版别】双字轨、短厂铭。A-E冠是短厂铭版别的最后一个冠号。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/A238768E-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/A238768E-2.jpg"
+                        },{
                             copyId: 10326949,
                             year: 1939,
                             version: "B501637D",
@@ -324,9 +360,27 @@ const republic_cbcData = {
                             price: "80元",
                             purchaseDate: "2026年6月13日",
                             krause: "224a",
-                            remark: "坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
+                            remark: "【版别】双字轨、长厂铭。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/B501637D-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/B501637D-2.jpg"
+                        },{
+                            copyId: 0,
+                            year: 1939,
+                            version: "C387934G",
+                            bank: "中央银行",
+                            print: "美商永宁有限公司/UPP",
+                            signature1: "无",
+                            signature2: "无",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "56元",
+                            purchaseDate: "2026年11月11日",
+                            krause: "224a",
+                            remark: "【版别】双字轨、长厂铭。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/C387934G-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/C387934G-2.jpg"
                         }
                     ]
                 },{
