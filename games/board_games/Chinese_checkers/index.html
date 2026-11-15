@@ -74,15 +74,19 @@
 
   const R = 20, SQRT3 = Math.sqrt(3);
   const DIRS = [[1, -1, 0], [1, 0, -1], [0, 1, -1], [-1, 1, 0], [-1, 0, 1], [0, -1, 1]];
-  
-  let cells = [], cellMap = new Map(), pieces = new Map();
-  
-  let state = { 
-    turn: 'red', gameOver: false, selectedId: null, legalMoves: [], 
+
+  let cells = [], cellMap = new Map(), cellById = new Map(), pieces = new Map();
+
+  // 颜色固定：人类永远红方（下方），AI 永远蓝方（上方）
+  const HUMAN_COLOR = 'red';
+  const AI_COLOR = 'blue';
+
+  let state = {
+    turn: 'red', gameOver: false, selectedId: null, legalMoves: [],
     isJumping: false, history: [],
     startId: null, startHistoryLen: 0,
     aiPath: [], playerPath: [],
-    humanColor: 'red', aiColor: 'blue', replayCode: '',
+    humanColor: HUMAN_COLOR, aiColor: AI_COLOR, replayCode: '',
     undosLeft: 5
   };
 
@@ -90,7 +94,7 @@
   let boardPx = 0, offsetX = 0, offsetY = 0, scale = 1;
 
   function generateBoard() {
-    cells = []; cellMap.clear(); let id = 0;
+    cells = []; cellMap.clear(); cellById.clear(); let id = 0;
     for (let q = -8; q <= 8; q++) {
       for (let r = -8; r <= 8; r++) {
         const s = -q - r;
@@ -101,7 +105,9 @@
         if (Math.abs(s) > 4) countBig++;
         if (countBig > 1) continue;
         const cell = { q, r, s, x: R * SQRT3 * (q + r / 2), y: R * 1.5 * r, id: id++ };
-        cells.push(cell); cellMap.set(`${q},${r},${s}`, cell);
+        cells.push(cell);
+        cellMap.set(`${q},${r},${s}`, cell);
+        cellById.set(cell.id, cell);
       }
     }
   }
@@ -131,7 +137,7 @@
     canvas.style.width = size + 'px'; canvas.style.height = size + 'px';
     canvas.width = Math.round(size * dpr); canvas.height = Math.round(size * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
+
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     cells.forEach(c => {
       if (c.x < minX) minX = c.x; if (c.x > maxX) maxX = c.x;
@@ -201,42 +207,41 @@
 
     if (state.aiPath.length > 0) {
       ctx.beginPath();
-      ctx.strokeStyle = state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc'; 
+      ctx.strokeStyle = state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc';
       ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       state.aiPath.forEach((step, idx) => {
-        const p1 = hexToPixel(cells.find(c => c.id === step.from)), p2 = hexToPixel(cells.find(c => c.id === step.to));
+        const p1 = hexToPixel(cellById.get(step.from)), p2 = hexToPixel(cellById.get(step.to));
         if (idx === 0) ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
       });
       ctx.stroke();
       state.aiPath.forEach(step => {
-        const p2 = hexToPixel(cells.find(c => c.id === step.to));
+        const p2 = hexToPixel(cellById.get(step.to));
         ctx.beginPath(); ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc'; ctx.fill();
       });
     }
 
-    // 🚨 绘制玩家轨迹（现在如果发生回退，对应的线段会被直接清除）
     if (state.playerPath.length > 0) {
       ctx.beginPath();
-      ctx.strokeStyle = state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc'; 
+      ctx.strokeStyle = state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc';
       ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       state.playerPath.forEach((step, idx) => {
-        const p1 = hexToPixel(cells.find(c => c.id === step.from)), p2 = hexToPixel(cells.find(c => c.id === step.to));
+        const p1 = hexToPixel(cellById.get(step.from)), p2 = hexToPixel(cellById.get(step.to));
         if (idx === 0) ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
       });
       ctx.stroke();
       state.playerPath.forEach(step => {
-        const p2 = hexToPixel(cells.find(c => c.id === step.to));
+        const p2 = hexToPixel(cellById.get(step.to));
         ctx.beginPath(); ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc'; ctx.fill();
       });
     }
 
     if (anim.active) {
-      const p1 = hexToPixel(cells.find(c => c.id === anim.fromId));
-      const p2 = hexToPixel(cells.find(c => c.id === anim.toId));
+      const p1 = hexToPixel(cellById.get(anim.fromId));
+      const p2 = hexToPixel(cellById.get(anim.toId));
       const curP = { x: p1.x + (p2.x - p1.x) * animProgress, y: p1.y + (p2.y - p1.y) * animProgress };
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(curP.x, curP.y);
       ctx.strokeStyle = state.turn === state.aiColor ? (state.aiColor === 'red' ? '#ff6b6b' : '#74c0fc') : (state.humanColor === 'red' ? '#ff6b6b' : '#74c0fc');
@@ -244,11 +249,11 @@
     }
 
     pieces.forEach((player, id) => {
-      const cell = cells.find(c => c.id === id);
+      const cell = cellById.get(id);
       if (!cell) return;
       let cx = hexToPixel(cell).x, cy = hexToPixel(cell).y;
       if (anim.active && id === anim.fromId) {
-        const p1 = hexToPixel(cell), p2 = hexToPixel(cells.find(c => c.id === anim.toId));
+        const p1 = hexToPixel(cell), p2 = hexToPixel(cellById.get(anim.toId));
         cx = p1.x + (p2.x - p1.x) * animProgress;
         cy = p1.y + (p2.y - p1.y) * animProgress;
       }
@@ -260,7 +265,7 @@
     });
 
     if (state.startId !== null && state.startId !== state.selectedId) {
-      const startCell = cells.find(c => c.id === state.startId);
+      const startCell = cellById.get(state.startId);
       if (startCell) {
         const pos = hexToPixel(startCell);
         ctx.globalAlpha = 0.35;
@@ -274,6 +279,7 @@
     }
   }
 
+  // ---------- 规则：单步 ----------
   function getMoves(cell) {
     const moves = [];
     DIRS.forEach(d => {
@@ -283,6 +289,7 @@
     return moves;
   }
 
+  // ---------- 规则：隔空长跳（保留原算法） ----------
   function getJumps(cell) {
     const jumps = [];
     DIRS.forEach(d => {
@@ -309,23 +316,21 @@
     return jumps;
   }
 
+  // ---------- AI：BFS 返回所有可达落点及其最短路径 ----------
   function getAiPaths(startId) {
-    const startCell = cells.find(c => c.id === startId);
     const results = [];
     const queue = [{ currentId: startId, path: [startId] }];
     const visited = new Set([startId]);
 
     while (queue.length > 0) {
       const { currentId, path } = queue.shift();
-      const curCell = cells.find(c => c.id === currentId);
+      const curCell = cellById.get(currentId);
       const jumps = getJumps(curCell);
       for (const nextId of jumps) {
         if (!visited.has(nextId)) {
           visited.add(nextId);
           const nextPath = [...path, nextId];
-          const nextCell = cells.find(c => c.id === nextId);
-          let score = evaluateAiMove(startCell, nextCell) + nextPath.length * 2;
-          results.push({ path: nextPath, score: score });
+          results.push({ path: nextPath, toId: nextId });
           queue.push({ currentId: nextId, path: nextPath });
         }
       }
@@ -333,24 +338,68 @@
     return results;
   }
 
-  function evaluateAiMove(cell, toCell) {
-    const isTargetCamp = (state.aiColor === 'blue' && RED_CAMP.has(toCell.id)) || (state.aiColor === 'red' && BLUE_CAMP.has(toCell.id));
-    const isOwnCamp = (state.aiColor === 'blue' && BLUE_CAMP.has(toCell.id)) || (state.aiColor === 'red' && RED_CAMP.has(toCell.id));
-    
-    let score = 0;
-    if (isTargetCamp) score += 5000;
-    if (isOwnCamp) score -= 200;
-    if (CAMP_TL.has(toCell.id) || CAMP_TR.has(toCell.id) || CAMP_BL.has(toCell.id) || CAMP_BR.has(toCell.id)) score -= 2000;
+  // ---------- AI：整盘局面评估 ----------
+  function evaluatePosition(aiColor) {
+    const targetCamp = aiColor === 'blue' ? RED_CAMP : BLUE_CAMP;
+    const targetR = aiColor === 'blue' ? 6 : -6;
 
-    const targetCamp = state.aiColor === 'blue' ? 'red' : 'blue'; 
-    const targetR = targetCamp === 'red' ? -6 : 6; 
-    
-    const d1 = (Math.abs(cell.q) + Math.abs(cell.r - targetR) + Math.abs(cell.s + targetR)) / 2;
-    const d2 = (Math.abs(toCell.q) + Math.abs(toCell.r - targetR) + Math.abs(toCell.s + targetR)) / 2;
-    
-    score += (d1 - d2) * 20;
-    score += Math.random() * 5; 
+    let inTarget = 0;
+    let totalDist = 0;
+    let sidePenalty = 0;
+
+    pieces.forEach((player, id) => {
+      if (player !== aiColor) return;
+      const cell = cellById.get(id);
+      if (targetCamp.has(id)) {
+        inTarget++;
+      } else {
+        const dist = (Math.abs(cell.q) + Math.abs(cell.r - targetR) + Math.abs(cell.s + targetR)) / 2;
+        totalDist += dist;
+        if (CAMP_TL.has(id) || CAMP_TR.has(id) || CAMP_BL.has(id) || CAMP_BR.has(id)) {
+          sidePenalty++;
+        }
+      }
+    });
+
+    let score = inTarget * 500 - totalDist * 8 - sidePenalty * 400;
+    if (inTarget === 10) {
+      score += 10000000; // 已经赢了
+    } else if (inTarget >= 8) {
+      score += Math.pow(inTarget - 7, 2) * 1500;
+    }
     return score;
+  }
+
+  // ---------- AI：模拟移动后评估 ----------
+  function evaluateMove(cand) {
+    const fromId = cand.fromId;
+    const toId = cand.path[cand.path.length - 1];
+    if (fromId === toId) return -Infinity;
+    const color = pieces.get(fromId);
+    pieces.delete(fromId);
+    pieces.set(toId, color);
+    const score = evaluatePosition(state.aiColor);
+    pieces.delete(toId);
+    pieces.set(fromId, color);
+    return score;
+  }
+
+  // ---------- AI：生成候选 ----------
+  function getAiCandidates() {
+    const candidates = [];
+    pieces.forEach((player, id) => {
+      if (player !== state.aiColor) return;
+      const cell = cellById.get(id);
+
+      getMoves(cell).forEach(toId => {
+        candidates.push({ fromId: id, path: [id, toId], isJump: false });
+      });
+
+      getAiPaths(id).forEach(p => {
+        candidates.push({ fromId: id, path: p.path, isJump: true });
+      });
+    });
+    return candidates;
   }
 
   function checkWin(player) {
@@ -361,25 +410,37 @@
   }
 
   function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
-  
+
+  function finishGame(winner) {
+    state.gameOver = true;
+    state.replayCode = generateReplayCode();
+    const humanWon = winner === state.humanColor;
+    if (humanWon) {
+      setStatus('我早就说过AI取代不了人类。（点击复制复盘码）', 'win');
+    } else {
+      setStatus('人类拉完了……（点击复制复盘码）', 'lose');
+    }
+    draw();
+  }
+
   function generateReplayCode() {
     if (state.history.length === 0) return '';
     let code = '';
     let lastPlayer = null;
     let lastToId = null;
-    
+
     for (let i = 0; i < state.history.length; i++) {
       const h = state.history[i];
-      const fromCell = cells.find(c => c.id === h.fromId);
-      const toCell = cells.find(c => c.id === h.toId);
+      const fromCell = cellById.get(h.fromId);
+      const toCell = cellById.get(h.toId);
       const color = h.player === 'red' ? 'R' : 'B';
-      
+
       if (lastPlayer !== h.player || lastToId !== h.fromId) {
         if (lastPlayer !== null) code += ' ';
         code += color + `${fromCell.q},${fromCell.r}`;
       }
       code += `>${toCell.q},${toCell.r}`;
-      
+
       lastPlayer = h.player;
       lastToId = h.toId;
     }
@@ -389,14 +450,14 @@
   function loadReplayCode(rawCode) {
     const code = rawCode.trim();
     const matches = code.match(/[RB]-?\d+,-?\d+(?:>-?\d+,-?\d+)*/g);
-    
+
     if (!matches || matches.length === 0) {
       alert('复盘码格式错误！');
       return;
     }
 
-    newGame(false); 
-    
+    newGame(false);
+
     let lastPlayer = null;
     let winner = null;
 
@@ -406,16 +467,16 @@
         const [q, r] = c.split(',').map(Number);
         return cellMap.get(`${q},${r},${-q-r}`);
       });
-      
+
       for (let i = 0; i < coords.length - 1; i++) {
         const fromCell = coords[i];
         const toCell = coords[i+1];
         if (!fromCell || !toCell) break;
-        
+
         pieces.delete(fromCell.id);
         pieces.set(toCell.id, color);
         state.history.push({ fromId: fromCell.id, toId: toCell.id, player: color });
-        
+
         if (checkWin(color)) {
           winner = color;
           break;
@@ -427,10 +488,11 @@
 
     state.gameOver = !!winner;
     state.turn = lastPlayer === 'red' ? 'blue' : 'red';
-    
-    state.humanColor = state.turn;
-    state.aiColor = state.turn === 'red' ? 'blue' : 'red';
-    
+
+    // 颜色固定：人类永远红方（下方），AI 永远蓝方（上方）
+    state.humanColor = HUMAN_COLOR;
+    state.aiColor = AI_COLOR;
+
     state.selectedId = null;
     state.legalMoves = [];
     state.isJumping = false;
@@ -442,14 +504,14 @@
 
     if (winner) {
       state.replayCode = generateReplayCode();
-      if (winner === 'red') setStatus('我早就说过AI取代不了人类。（点击复制复盘码）', 'win');
-      else setStatus('人类拉完了……（点击复制复盘码）', 'lose');
+      const winnerName = winner === 'red' ? '红方' : '蓝方';
+      setStatus(`对局已结束，${winnerName}获胜。（点击复制复盘码）`, 'win');
     } else {
       if (state.turn === state.aiColor) {
-        setStatus(`【${state.turn === 'red' ? '红方' : '蓝方'}】AI思考中……`, 'thinking');
+        setStatus('【蓝方】AI思考中……', 'thinking');
         setTimeout(aiTurn, 400);
       } else {
-        setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】轮到你了！`);
+        setStatus('【红方】轮到你了！');
       }
     }
   }
@@ -459,17 +521,17 @@
     state.playerPath = [];
     state.aiPath = [];
 
-    if (checkWin('red')) { state.gameOver = true; state.replayCode = generateReplayCode(); setStatus('我早就说过AI取代不了人类。（点击复制复盘码）', 'win'); draw(); return; }
-    if (checkWin('blue')) { state.gameOver = true; state.replayCode = generateReplayCode(); setStatus('人类拉完了……（点击复制复盘码）', 'lose'); draw(); return; }
-    
+    if (checkWin('red')) { finishGame('red'); return; }
+    if (checkWin('blue')) { finishGame('blue'); return; }
+
     state.turn = state.turn === 'red' ? 'blue' : 'red';
 
-    if (state.turn === state.aiColor) { 
-      setStatus(`【${state.turn === 'red' ? '红方' : '蓝方'}】AI思考中……`, 'thinking'); 
-      draw(); setTimeout(aiTurn, 400); 
-    } else { 
-      setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】轮到你了！`); 
-      draw(); 
+    if (state.turn === state.aiColor) {
+      setStatus('【蓝方】AI思考中……', 'thinking');
+      draw(); setTimeout(aiTurn, 400);
+    } else {
+      setStatus('【红方】轮到你了！');
+      draw();
     }
   }
 
@@ -478,7 +540,6 @@
     pieces.delete(fromId); pieces.set(toId, state.humanColor);
 
     if (isJump) {
-      // 🚨 核心修复：检查是否是回退。如果落点正好是上一步的起点，就把那条线弹出去，实现“轨迹撤销”
       if (state.playerPath.length > 0) {
         const lastStep = state.playerPath[state.playerPath.length - 1];
         if (lastStep.from === toId) {
@@ -490,50 +551,51 @@
         state.playerPath.push({ from: fromId, to: toId });
       }
 
-      const jumps = getJumps(cells.find(c => c.id === toId));
+      const jumps = getJumps(cellById.get(toId));
       if (jumps.length > 0) {
-        state.selectedId = toId; 
-        state.legalMoves = [...jumps]; 
+        state.selectedId = toId;
+        state.legalMoves = [...jumps];
         state.isJumping = true;
-        setStatus('太强了，你居然在连跳！按E键可以随时存档'); 
-        draw(); 
+        setStatus('太强了，你居然在连跳！按E键可以随时存档');
+        draw();
         return;
       }
     }
     endTurn();
   }
 
+  // ---------- AI 回合 ----------
   function aiTurn() {
     if (state.gameOver || state.turn !== state.aiColor) return;
-    let allMoves = [];
-    state.aiPath = []; 
 
-    pieces.forEach((player, id) => {
-      if (player !== state.aiColor) return;
-      const cell = cells.find(c => c.id === id);
-      
-      getMoves(cell).forEach(toId => {
-        const toCell = cells.find(c => c.id === toId);
-        allMoves.push({ path: [id, toId], isJump: false, score: evaluateAiMove(cell, toCell) });
-      });
+    const candidates = getAiCandidates();
+    if (candidates.length === 0) { endTurn(); return; }
 
-      getAiPaths(id).forEach(p => {
-        allMoves.push({ path: p.path, isJump: true, score: p.score });
-      });
-    });
+    let best = null;
+    let bestScore = -Infinity;
 
-    if (allMoves.length === 0) { endTurn(); return; }
-    allMoves.sort((a, b) => b.score - a.score);
-    const bestMove = allMoves[0];
-    
-    if (bestMove.isJump) {
-      executeAiPath(bestMove.path, 0);
+    for (const cand of candidates) {
+      const score = evaluateMove(cand);
+      if (score > bestScore) {
+        bestScore = score;
+        best = cand;
+      }
+    }
+
+    if (!best) { endTurn(); return; }
+
+    state.aiPath = [];
+
+    if (best.isJump) {
+      executeAiPath(best.path, 0);
     } else {
+      const fromId = best.path[0], toId = best.path[1];
       setStatus('AI正在朝着你的基地进军……', 'thinking');
-      animate(bestMove.path[0], bestMove.path[1], () => {
-        pieces.delete(bestMove.path[0]); pieces.set(bestMove.path[1], state.aiColor);
-        state.history.push({ fromId: bestMove.path[0], toId: bestMove.path[1], player: state.aiColor });
+      animate(fromId, toId, () => {
+        pieces.delete(fromId); pieces.set(toId, state.aiColor);
+        state.history.push({ fromId, toId, player: state.aiColor });
         draw();
+        if (checkWin(state.aiColor)) { finishGame(state.aiColor); return; }
         endTurn();
       });
     }
@@ -542,14 +604,18 @@
   function executeAiPath(path, stepIndex) {
     if (stepIndex >= path.length - 1) { endTurn(); return; }
     const fromId = path[stepIndex], toId = path[stepIndex + 1];
-    
+
     setStatus('AI正在朝着你的基地进军……', 'thinking');
-    
+
     animate(fromId, toId, () => {
       pieces.delete(fromId); pieces.set(toId, state.aiColor);
       state.history.push({ fromId, toId, player: state.aiColor });
       state.aiPath.push({ from: fromId, to: toId });
       draw();
+
+      // 连跳中途也可能已经赢了，立刻停止
+      if (checkWin(state.aiColor)) { finishGame(state.aiColor); return; }
+
       setTimeout(() => executeAiPath(path, stepIndex + 1), 300);
     });
   }
@@ -559,7 +625,7 @@
     const rect = canvas.getBoundingClientRect(), mx = clientX - rect.left, my = clientY - rect.top;
     const hitR = R * scale * 1.2;
     let clickedId = null, minDist = Infinity;
-    
+
     for (const cell of cells) {
       const pos = hexToPixel(cell), dist = Math.hypot(mx - pos.x, my - pos.y);
       if (dist < hitR && dist < minDist) { minDist = dist; clickedId = cell.id; }
@@ -583,17 +649,17 @@
     }
 
     if (state.legalMoves.includes(clickedId)) {
-      const fromCell = cells.find(c => c.id === state.selectedId), toCell = cells.find(c => c.id === clickedId);
+      const fromCell = cellById.get(state.selectedId), toCell = cellById.get(clickedId);
       const dist = (Math.abs(fromCell.q - toCell.q) + Math.abs(fromCell.r - toCell.r) + Math.abs(fromCell.s - toCell.s)) / 2;
       makePlayerMove(state.selectedId, clickedId, dist > 1);
       return;
     }
 
     if (pieces.get(clickedId) === state.humanColor) {
-      const cell = cells.find(c => c.id === clickedId);
-      const legal = new Set([...getMoves(cell), ...getJumps(cell)]); 
+      const cell = cellById.get(clickedId);
+      const legal = new Set([...getMoves(cell), ...getJumps(cell)]);
       if (legal.size > 0) {
-        state.selectedId = clickedId; state.startId = clickedId; 
+        state.selectedId = clickedId; state.startId = clickedId;
         state.startHistoryLen = state.history.length; state.playerPath = [];
         state.legalMoves = [...legal]; state.isJumping = false; draw();
       } else { setStatus('这颗棋子卡住了，换一颗吧'); }
@@ -618,7 +684,7 @@
         document.body.appendChild(ta); ta.select();
         try {
           document.execCommand('copy');
-          statusEl.textContent = '✅ 已复制存档码，可随时导入';
+          statusEl.textContent = '存档码已复制！';
         } catch (err) {
           prompt('请手动复制：', text);
         }
@@ -626,7 +692,7 @@
       };
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(code).then(() => {
-          statusEl.textContent = '✅ 已复制存档码，可随时导入';
+          statusEl.textContent = '存档码已复制！';
           setTimeout(() => { statusEl.textContent = oldText; }, 2500);
         }).catch(() => fallbackCopy(code));
       } else { fallbackCopy(code); }
@@ -639,7 +705,7 @@
       if (state.history.length === 0) return;
       const code = generateReplayCode();
       navigator.clipboard.writeText(code).then(() => {
-        alert('✅ 当前存档码已复制！');
+        alert('存档码已复制！');
       }).catch(() => {
         prompt('请手动复制当前存档码：', code);
       });
@@ -654,59 +720,64 @@
   });
   importModal.addEventListener('click', (e) => { if (e.target === importModal) importModal.style.display = 'none'; });
 
+  // ---------- 悔棋：撤销最近一个 AI 回合 + 最近一个人类回合（兼容连跳多步） ----------
   function undo() {
     if (state.history.length === 0 || state.gameOver || anim.active || state.undosLeft <= 0) return;
     state.undosLeft--;
     undoBtn.textContent = `悔棋 (剩余${state.undosLeft}次)`;
     if (state.undosLeft === 0) undoBtn.disabled = true;
 
-    let steps = 0;
-    while (state.history.length > 0 && steps < 2) {
-      const last = state.history.pop(); pieces.delete(last.toId); pieces.set(last.fromId, last.player); steps++;
+    while (state.history.length > 0 && state.history[state.history.length - 1].player === state.aiColor) {
+      const last = state.history.pop();
+      pieces.delete(last.toId); pieces.set(last.fromId, last.player);
     }
-    state.turn = state.humanColor; state.selectedId = null; state.legalMoves = []; state.isJumping = false; state.gameOver = false; state.startId = null; state.playerPath = []; state.aiPath = [];
-    setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】轮到你了！`); draw();
+    while (state.history.length > 0 && state.history[state.history.length - 1].player === state.humanColor) {
+      const last = state.history.pop();
+      pieces.delete(last.toId); pieces.set(last.fromId, last.player);
+    }
+
+    state.turn = state.humanColor;
+    state.selectedId = null;
+    state.legalMoves = [];
+    state.isJumping = false;
+    state.gameOver = false;
+    state.startId = null;
+    state.playerPath = [];
+    state.aiPath = [];
+    state.replayCode = '';
+    setStatus('【红方】轮到你了！');
+    draw();
   }
 
   function newGame(isRandom = true) {
     generateBoard(); initCamps(); initPieces();
-    
-    if (isRandom) {
-      const isHumanFirst = Math.random() < 0.5;
-      state = { 
-        turn: isHumanFirst ? 'red' : 'blue',
-        humanColor: isHumanFirst ? 'red' : 'blue',
-        aiColor: isHumanFirst ? 'blue' : 'red',
-        gameOver: false, selectedId: null, legalMoves: [], 
-        isJumping: false, history: [],
-        startId: null, startHistoryLen: 0,
-        aiPath: [], playerPath: [], replayCode: '',
-        undosLeft: 5
-      };
-    } else {
-      state = { 
-        turn: 'red',
-        humanColor: 'red',
-        aiColor: 'blue',
-        gameOver: false, selectedId: null, legalMoves: [], 
-        isJumping: false, history: [],
-        startId: null, startHistoryLen: 0,
-        aiPath: [], playerPath: [], replayCode: '',
-        undosLeft: 5
-      };
-    }
-    
+
+    // 颜色固定：人类红方（下方），AI 蓝方（上方）
+    // isRandom 只决定谁先手：true 随机先手，false 红方先手（导入用）
+    const humanFirst = isRandom ? Math.random() < 0.5 : true;
+
+    state = {
+      turn: humanFirst ? HUMAN_COLOR : AI_COLOR,
+      humanColor: HUMAN_COLOR,
+      aiColor: AI_COLOR,
+      gameOver: false, selectedId: null, legalMoves: [],
+      isJumping: false, history: [],
+      startId: null, startHistoryLen: 0,
+      aiPath: [], playerPath: [], replayCode: '',
+      undosLeft: 5
+    };
+
     anim.active = false;
-    undoBtn.disabled = false; 
+    undoBtn.disabled = false;
     undoBtn.textContent = '悔棋 (剩余5次)';
     initCanvas();
-    
+
     if (isRandom) {
       if (state.turn === state.aiColor) {
-        setStatus(`【${state.turn === 'red' ? '红方' : '蓝方'}】这轮AI先移动，思考中……`, 'thinking');
+        setStatus('这轮AI先移动，思考中……', 'thinking');
         setTimeout(aiTurn, 400);
       } else {
-        setStatus(`【${state.humanColor === 'red' ? '红方' : '蓝方'}】这轮你先移动`);
+        setStatus('这轮你先移动');
       }
     }
   }

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>从零手写的小型语言模型 · 字符级 Transformer</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2430; --line:#2b3644;
+    --fg:#e6edf3; --dim:#9aa7b4; --accent:#58a6ff; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif}
+  a{color:var(--accent)}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:24px;margin:0 0 6px}
+  h2{font-size:18px;margin:32px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:15px;margin:18px 0 8px;color:var(--dim);font-weight:600}
+  p{margin:8px 0}
+  code{font-family:var(--mono);font-size:13px;background:#0b0f14;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .lead{color:var(--dim);margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  button{font:inherit;font-weight:600;background:var(--accent);color:#04121f;border:0;border-radius:8px;padding:9px 16px;cursor:pointer}
+  button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  input[type=text],input[type=number],textarea{font:inherit;background:#0b0f14;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+  textarea{font-family:var(--mono);font-size:14px;resize:vertical}
+  label{display:block;font-size:12px;color:var(--dim);margin-bottom:2px}
+  .ctl{display:grid;grid-template-columns:1fr;gap:4px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat b{display:block;font-family:var(--mono);font-size:19px;font-weight:600}
+  .stat span{font-size:12px;color:var(--dim)}
+  .ok{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+  canvas{width:100%;height:200px;background:#0b0f14;border:1px solid var(--line);border-radius:10px;display:block}
+  .out{font-family:var(--mono);font-size:15px;line-height:2;white-space:pre-wrap;word-break:break-all;background:#0b0f14;border:1px solid var(--line);border-radius:10px;padding:12px;min-height:90px}
+  .pill{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--dim);margin-right:6px}
+  .hint{font-size:13px;color:var(--dim)}
+  details{margin-top:10px}
+  summary{cursor:pointer;color:var(--dim);font-size:13px;user-select:none}
+  details .inner{padding-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>从零手写的小型语言模型</h1>
+  <div class="lead">
+    字符级因果 Transformer。前向<strong>和</strong>反向传播全部手写，没有任何深度学习框架，
+    权重更新、AdamW、采样也都在这一个文件里。
+    点一下"开始训练"，几十秒就能看它从乱猜变成会写一点中文。
+  </div>
+
+  <div class="row" style="margin-bottom:6px">
+    <span class="pill">因果自注意力</span>
+    <span class="pill">手写反向传播</span>
+    <span class="pill">AdamW</span>
+    <span class="pill">训练/验证切分</span>
+    <span class="pill">对比 bigram 基线</span>
+  </div>
+
+  <h2>1 · 训练</h2>
+  <div class="card">
+    <div class="row" style="margin-bottom:12px">
+      <button id="btnTrain">开始训练</button>
+      <button id="btnStop" class="ghost" disabled>暂停</button>
+      <button id="btnReset" class="ghost">重新初始化</button>
+      <span class="hint" id="status">未开始</span>
+    </div>
+    <details>
+      <summary>模型超参（改动后需按"重新初始化"生效）</summary>
+      <div class="inner grid">
+        <div class="ctl"><label>宽度 d_model</label><input id="dModel" type="number" value="32" min="8" max="128" step="8"></div>
+        <div class="ctl"><label>层数</label><input id="nLayers" type="number" value="2" min="1" max="4"></div>
+        <div class="ctl"><label>注意力头数</label><input id="nHeads" type="number" value="4" min="1" max="8"></div>
+        <div class="ctl"><label>上下文长度</label><input id="ctx" type="number" value="32" min="8" max="64" step="8"></div>
+        <div class="ctl"><label>批大小</label><input id="batch" type="number" value="8" min="1" max="32"></div>
+        <div class="ctl"><label>学习率</label><input id="lr" type="number" value="0.008" min="0.0005" max="0.05" step="0.0005"></div>
+        <div class="ctl"><label>权重衰减</label><input id="wd" type="number" value="0.1" min="0" max="1" step="0.05"></div>
+        <div class="ctl"><label>最小字频</label><input id="minFreq" type="number" value="2" min="1" max="5"></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="stat"><span>训练步数</span><b id="sStep">0</b></div>
+      <div class="stat"><span>训练损失</span><b id="sTrainLoss">–</b></div>
+      <div class="stat"><span>验证损失</span><b id="sValLoss">–</b></div>
+      <div class="stat"><span>验证困惑度</span><b id="sValPpl">–</b></div>
+      <div class="stat"><span>下一字准确率</span><b id="sValAcc">–</b></div>
+      <div class="stat"><span>bigram 基线</span><b id="sBigPpl">–</b></div>
+      <div class="stat"><span>参数量</span><b id="sParams">–</b></div>
+      <div class="stat"><span>词表大小</span><b id="sVocab">–</b></div>
+      <div class="stat"><span>梯度范数</span><b id="sGnorm">–</b></div>
+    </div>
+    <h3>损失曲线（每个点 = 一次抽样评估）</h3>
+    <canvas id="chart" width="1040" height="200"></canvas>
+    <div class="hint">
+      <span style="color:#58a6ff">■</span> 训练损失
+      <span style="color:#3fb950;margin-left:12px">■</span> 验证损失
+      <span style="color:#d29922;margin-left:12px">■</span> 随机猜测 ln(V) = <span id="lnV">–</span>
+      ｜验证困惑度低于 bigram 基线才算真学到东西
+    </div>
+  </div>
+
+  <h2>2 · 存档</h2>
+  <div class="card">
+    <div class="row">
+      <button id="btnSave" class="ghost">存入浏览器</button>
+      <button id="btnLoad" class="ghost">从浏览器读取</button>
+      <button id="btnExport" class="ghost">导出文件</button>
+      <button id="btnImport" class="ghost">导入文件</button>
+      <button id="btnClearCkpt" class="ghost">删除存档</button>
+      <span class="hint" id="ckptStatus">存档包含权重与优化器状态，读回来能接着训</span>
+    </div>
+    <p class="hint" style="margin-top:10px">
+      存档是自包含的文本（float32 权重 + gzip + base64），约几百 KB。
+      用它可以把训练几千步的模型留下来，下次打开页面直接接着训或直接生成，不必重头再来。
+    </p>
+  </div>
+
+  <h2>3 · 生成</h2>
+  <div class="card">
+    <div class="ctl" style="margin-bottom:10px">
+      <label>开头（留空则从句料里随机取一段）</label>
+      <textarea id="prompt" rows="2">人之初</textarea>
+    </div>
+    <details>
+      <summary>采样参数</summary>
+      <div class="inner grid">
+        <div class="ctl"><label>生成字数</label><input id="genLen" type="number" value="80" min="10" max="400"></div>
+        <div class="ctl"><label>温度 <span id="tempV">0.8</span></label><input id="temp" type="range" min="0.1" max="1.5" step="0.05" value="0.8"></div>
+        <div class="ctl"><label>top-k <span id="topKV">40</span></label><input id="topK" type="range" min="1" max="200" step="1" value="40"></div>
+        <div class="ctl"><label>top-p <span id="topPV">0.9</span></label><input id="topP" type="range" min="0.1" max="1" step="0.01" value="0.9"></div>
+        <div class="ctl"><label>重复惩罚 <span id="rpenV">1.1</span></label><input id="rpen" type="range" min="1" max="2" step="0.05" value="1.1"></div>
+        <div class="ctl"><label>禁止重复 n-gram <span id="ngramV">3</span></label><input id="ngram" type="range" min="0" max="6" step="1" value="3"></div>
+      </div>
+    </details>
+    <div class="row" style="margin:12px 0">
+      <button id="btnGen" disabled>生成</button>
+      <span class="hint">顺序：原始概率 → 重复惩罚 → 温度 → top-k/top-p → n-gram 屏蔽 → 抽取</span>
+    </div>
+    <div class="out" id="out">（先训练一会儿，再点生成）</div>
+  </div>
+
+  <h2>4 · 关于这一版</h2>
+  <div class="card">
+    <p>
+      模型结构就是标准的 pre-LN 解码器：<code>E[token] + P[pos]</code> → 若干层「LayerNorm → 因果自注意力 → 残差 → LayerNorm → 前馈 → 残差」→ LayerNorm → 输出投影。
+      和常见实现唯一的区别是：这里的<strong>反向传播是手写的</strong>，没有用自动微分框架，
+      所以每一个中间梯度都要自己推、自己验。
+    </p>
+    <p class="hint">
+      详细的版本沿革、原先那几个"不报错但让模型学不动"的梯度 bug、
+      以及怎么用一份独立实现的 autodiff 逐参数块对拍把它抓出来，都写在
+      <code>LLM/README.md</code> 里。本页只做演示，不放那些内容。
+    </p>    <p class="hint">
+      诚实的局限：语料只有一万多字，参数量几万，纯 JS 单线程——它能学会常用搭配和短句结构，
+      学不会真正的语义。生成结果里有重复和语病是正常的，这不是 bug。
+    </p>
+  </div>
+
+</div>
+
+<script>
+/*__MODEL__*/
+
+/* ============================ 语料 ============================ */
+const CORPUS = /*__CORPUS__*/;
+
+const TRAIN_TEXT = CORPUS;
+
+/* ============================ 准备数据 ============================ */
+
+let ds = null, model = null, cfg = null;
+let step = 0, curves = [], lastVal = null, bestVal = null;
+let rnd = null, running = false;
+
+const $ = (id) => document.getElementById(id);
+
+function readCfg() {
+  const dModel = Math.max(8, Math.min(128, +$('dModel').value || 32));
+  let nHeads = Math.max(1, Math.min(8, +$('nHeads').value || 4));
+  while (dModel % nHeads !== 0 && nHeads > 1) nHeads--;
+  return {
+    dModel, nHeads,
+    nLayers: Math.max(1, Math.min(4, +$('nLayers').value || 2)),
+    ctx: Math.max(8, Math.min(64, +$('ctx').value || 32)),
+    batch: Math.max(1, Math.min(32, +$('batch').value || 8)),
+    lr: Math.max(0.0005, +$('lr').value || 0.008),
+    wd: Math.max(0, +$('wd').value || 0),
+    minFreq: Math.max(1, Math.min(5, +$('minFreq').value || 2)),
+  };
+}
+
+function initModel() {
+  cfg = readCfg();
+  ds = buildCharVocab(TRAIN_TEXT, { minFreq: cfg.minFreq, valRatio: 0.12, seed: 1234 });
+  model = new TinyTransformer({
+    vocab: ds.strs.length, dModel: cfg.dModel, nLayers: cfg.nLayers,
+    nHeads: cfg.nHeads, ctx: cfg.ctx, seed: 7,
+  });
+  rnd = mulberry32(2024);
+  step = 0; curves = []; lastVal = null; bestVal = null;
+  const big = bigramBaseline(ds.trainIds, ds.valIds, ds.strs.length);
+  model.bigram = big;
+  $('sBigPpl').textContent = big.ppl.toFixed(1);
+  $('sBigPpl').className = '';
+  $('sParams').textContent = model.nParams().toLocaleString();
+  $('sVocab').textContent = ds.strs.length;
+  $('sStep').textContent = '0';
+  $('sTrainLoss').textContent = '–';
+  $('sValLoss').textContent = '–';
+  $('sValPpl').textContent = '–';
+  $('sValAcc').textContent = '–';
+  $('sGnorm').textContent = '–';
+  $('lnV').textContent = Math.log(ds.strs.length).toFixed(3);
+  $('btnGen').disabled = !model;
+  drawChart();
+  $('status').textContent = `已初始化：训练 ${ds.trainIds.length} token / 验证 ${ds.valIds.length} token`;
+}
+
+/* ============================ 训练循环 ============================ */
+function trainBatch() {
+  const B = cfg.batch, CTX = cfg.ctx;
+  const maxStart = ds.trainIds.length - CTX - 1;
+  model.resetBatchGrads();
+  let bl = 0;
+  for (let b = 0; b < B; b++) {
+    const i = Math.floor(rnd() * maxStart);
+    const toks = ds.trainIds.slice(i, i + CTX);
+    const tgt = ds.trainIds.slice(i + 1, i + CTX + 1);
+    bl += model.forward(toks, tgt);
+    model.backward(toks, tgt);
+  }
+  const gnorm = model.clipGrads(1.0);
+  model.adamStep(cfg.lr, cfg.wd);
+  step++;
+  return { trainLoss: bl / B, gnorm };
+}
+
+function evaluateNow(maxWindows) {
+  return evaluate(model, ds.valIds, cfg.ctx, { maxWindows: maxWindows || 40, seed: 5 + step });
+}
+
+function tick() {
+  if (!running) return;
+  const t0 = performance.now();
+  let last = null;
+  while (performance.now() - t0 < 260) last = trainBatch();
+  const e = evaluateNow(40);
+  curves.push({ step, train: last.trainLoss, val: e.loss });
+  lastVal = e;
+  if (!bestVal || e.ppl < bestVal.ppl) bestVal = { ppl: e.ppl, step };
+  updateStats(last, e);
+  drawChart();
+  requestAnimationFrame(tick);
+}
+
+function updateStats(last, e) {
+  $('sStep').textContent = step.toLocaleString();
+  $('sTrainLoss').textContent = last.trainLoss.toFixed(3);
+  $('sValLoss').textContent = e.loss.toFixed(3);
+  $('sValPpl').textContent = e.ppl.toFixed(1);
+  $('sValAcc').textContent = (e.acc * 100).toFixed(1) + '%';
+  $('sGnorm').textContent = last.gnorm.toFixed(2);
+  const big = model.bigram;
+  $('sValPpl').className = e.ppl < big.ppl ? 'ok' : '';
+  $('sValAcc').className = e.acc > big.acc ? 'ok' : '';
+  $('status').textContent = `训练中 · 已 ${step.toLocaleString()} 步` +
+    (bestVal ? ` · 最好验证困惑度 ${bestVal.ppl.toFixed(1)} @ ${bestVal.step} 步` : '');
+}
+
+/* ============================ 画图 ============================ */
+function drawChart() {
+  const c = $('chart'), ctx2 = c.getContext('2d');
+  const W = c.width, H = c.height, pad = 34;
+  ctx2.clearRect(0, 0, W, H);
+  if (!curves.length) return;
+  const lnV = Math.log(ds.strs.length);
+  let lo = Infinity, hi = 0;
+  for (const p of curves) { lo = Math.min(lo, p.train, p.val); hi = Math.max(hi, p.train, p.val); }
+  lo = Math.min(lo, lnV * 0.75); hi = Math.max(hi, lnV);
+  const X = (i) => pad + (W - pad * 2) * (curves.length < 2 ? 0.5 : i / (curves.length - 1));
+  const Y = (v) => H - pad - (H - pad * 2) * ((v - lo) / Math.max(1e-6, hi - lo));
+  ctx2.strokeStyle = '#2b3644'; ctx2.lineWidth = 1;
+  ctx2.beginPath(); ctx2.moveTo(pad, pad); ctx2.lineTo(pad, H - pad); ctx2.lineTo(W - pad, H - pad); ctx2.stroke();
+  ctx2.setLineDash([4, 4]); ctx2.strokeStyle = '#d29922';
+  ctx2.beginPath(); ctx2.moveTo(pad, Y(lnV)); ctx2.lineTo(W - pad, Y(lnV)); ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.fillStyle = '#9aa7b4'; ctx2.font = '12px monospace';
+  ctx2.fillText('ln(V)=' + lnV.toFixed(2), pad + 4, Y(lnV) - 4);
+  const line = (key, color) => {
+    ctx2.strokeStyle = color; ctx2.lineWidth = 2; ctx2.beginPath();
+    curves.forEach((p, i) => { const x = X(i), y = Y(p[key]); i ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y); });
+    ctx2.stroke();
+  };
+  line('train', '#58a6ff');
+  line('val', '#3fb950');
+}
+
+/* ============================ 存档 ============================ */
+function ckptMeta() {
+  return { step, valPpl: lastVal ? lastVal.ppl : null, at: new Date().toISOString(), vocabHead: vocabFingerprint(ds.strs) };
+}
+
+async function saveCheckpoint() {
+  try {
+    $('ckptStatus').textContent = '正在打包…';
+    const str = await encodeCheckpoint(model, ckptMeta());
+    saveToStorage(str);
+    $('ckptStatus').textContent = `已存入浏览器：${step} 步，${(str.length / 1024).toFixed(0)} KB`;
+  } catch (e) {
+    $('ckptStatus').textContent = '存档失败：' + e.message;
+  }
+}
+
+async function loadCheckpoint() {
+  const str = loadFromStorage();
+  if (!str) { $('ckptStatus').textContent = '浏览器里没有存档'; return; }
+  try {
+    const meta = await loadInto(model, str);
+    restoreAfterLoad(meta);
+    $('ckptStatus').textContent = `已读取：${step} 步的权重与优化器状态，可以接着训`;
+  } catch (e) {
+    $('ckptStatus').textContent = '读取失败：' + e.message;
+  }
+}
+
+function restoreAfterLoad(meta) {
+  step = meta.step || 0;
+  curves = [];
+  running = false;
+  $('btnTrain').disabled = false;
+  $('btnStop').disabled = true;
+  const e = evaluateNow(60);
+  lastVal = e;
+  bestVal = { ppl: e.ppl, step };
+  updateStats({ trainLoss: NaN, gnorm: 0 }, e);
+  $('sTrainLoss').textContent = '–';
+  drawChart();
+  $('btnGen').disabled = false;
+}
+
+async function exportCheckpoint() {
+  try {
+    $('ckptStatus').textContent = '正在打包…';
+    const str = await encodeCheckpoint(model, ckptMeta());
+    downloadCheckpoint(str, `txj-llm-step${step}.ckpt`);
+    $('ckptStatus').textContent = `已导出 ${(str.length / 1024).toFixed(0)} KB`;
+  } catch (e) {
+    $('ckptStatus').textContent = '导出失败：' + e.message;
+  }
+}
+
+async function importCheckpoint() {
+  try {
+    const str = await pickCheckpointFile();
+    if (!str) return;
+    const meta = await loadInto(model, str);
+    restoreAfterLoad(meta);
+    $('ckptStatus').textContent = `已导入：${step} 步（${(str.length / 1024).toFixed(0)} KB）`;
+  } catch (e) {
+    $('ckptStatus').textContent = '导入失败：' + e.message;
+  }
+}
+
+function clearCheckpoint() {
+  clearStorage();
+  $('ckptStatus').textContent = '存档已删除';
+}
+
+/* ============================ 生成 ============================ */
+function generate() {
+  const prompt = $('prompt').value;
+  const n = Math.max(1, Math.min(400, +$('genLen').value || 80));
+  const unk = ds.strs.length - 1;
+  const ids = [];
+  for (const ch of prompt) {
+    const i = ds.charMap.get(ch);
+    ids.push(i === undefined ? unk : i);
+  }
+  if (!ids.length) {
+    const start = Math.floor(rnd() * (ds.trainIds.length - cfg.ctx - 1));
+    for (let i = 0; i < Math.min(8, cfg.ctx); i++) ids.push(ds.trainIds[start + i]);
+  }
+  let ctxIds = ids.slice(-cfg.ctx);
+  const outIds = ids.slice();
+  const rng = mulberry32(20240101 + step);
+  const ng = +$('ngram').value;
+  for (let k = 0; k < n; k++) {
+    model.forward(ctxIds, null);
+    // w.logits 是 [T, V]，只取最后一个位置的 V 个分数
+    const last = model.w.logits.slice((ctxIds.length - 1) * model.V, ctxIds.length * model.V);
+    const next = sampleFromLogits(last, {
+      temperature: +$('temp').value,
+      topK: +$('topK').value,
+      topP: +$('topP').value,
+      repetitionPenalty: +$('rpen').value,
+      repetitionWindow: 12,
+      recent: ctxIds.slice(-64),
+      banned: (() => {
+        const b = bannedByNgram(ctxIds, ng);
+        b.add(unk);   // unk 不能出现在生成结果里
+        return b;
+      })(),
+      rnd: rng,
+    });
+    outIds.push(next);
+    ctxIds = ctxIds.concat([next]).slice(-cfg.ctx);
+  }
+  $('out').textContent = outIds.map((i) => ds.strs[i]).join('');
+}
+
+/* ============================ 绑定 ============================ */
+function bindRange(id, out) {
+  const el = $(id), o = $(out);
+  el.addEventListener('input', () => { o.textContent = el.value; });
+}
+
+$('btnTrain').addEventListener('click', () => {
+  running = true;
+  $('btnTrain').disabled = true;
+  $('btnStop').disabled = false;
+  $('btnGen').disabled = false;
+  requestAnimationFrame(tick);
+});
+$('btnStop').addEventListener('click', () => {
+  running = false;
+  $('btnTrain').disabled = false;
+  $('btnStop').disabled = true;
+  $('status').textContent = `已暂停 · ${step.toLocaleString()} 步`;
+});
+$('btnReset').addEventListener('click', () => {
+  running = false;
+  $('btnTrain').disabled = false;
+  $('btnStop').disabled = true;
+  initModel();
+});
+$('btnGen').addEventListener('click', generate);
+$('btnSave').addEventListener('click', saveCheckpoint);
+$('btnLoad').addEventListener('click', loadCheckpoint);
+$('btnExport').addEventListener('click', exportCheckpoint);
+$('btnImport').addEventListener('click', importCheckpoint);
+$('btnClearCkpt').addEventListener('click', clearCheckpoint);
+for (const [id, out] of [['temp', 'tempV'], ['topK', 'topKV'], ['topP', 'topPV'], ['rpen', 'rpenV'], ['ngram', 'ngramV']]) bindRange(id, out);
+
+initModel();
+/* 如果浏览器里留着上次的存档，自动恢复，省得每次重训 */
+(async () => {
+  const str = loadFromStorage();
+  if (!str) return;
+  try {
+    const meta = await loadInto(model, str);
+    restoreAfterLoad(meta);
+    $('ckptStatus').textContent = `已自动恢复上次存档：${step} 步，可以接着训`;
+  } catch (e) {
+    $('ckptStatus').textContent = '上次的存档无法恢复：' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

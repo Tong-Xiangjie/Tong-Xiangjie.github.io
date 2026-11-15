@@ -25,6 +25,35 @@ const republic_cbcData = {
     ],
     series: [
         {
+            seriesName: "中华民国十三年（1924年） 美钞版 兑换券",
+            year: "1924",
+            varieties: [
+                {
+                    varietyName: "1924年 1角 广州琶洲塔",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1924,
+                            version: "M830856",
+                            bank: "广东中央银行",
+                            print: "美国钞票公司/ABNC",
+                            signature1: "经理（Manager）：黄隆生（L.S. Huang）",
+                            signature2: "总经理（General Manager）：宋子文（Tse-vung Soong）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "328元",
+                            purchaseDate: "2026年11月15日",
+                            krause: "193a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/M830856-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/M830856-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
             seriesName: "中华民国十七年（1928年） 美钞版 兑换券·大洋券",
             year: "1928",
             varieties: [
@@ -35,7 +64,7 @@ const republic_cbcData = {
                             copyId: 18171874,
                             year: 1928,
                             version: "SX975747QJ",
-                            bank: "汉口中央银行",
+                            bank: "中央银行",
                             print: "美国钞票公司/ABNC",
                             signature1: "总经理（General Manager）：李骏耀（Lee Chun-yiu）",
                             signature2: "协理（Asst. General Manager）：田亦民（Y.M. Dien）",
@@ -130,6 +159,35 @@ const republic_cbcData = {
                             remark: "洙水桥，坐落在曲阜孔林内，横跨洙水河，是通往孔子墓甬道的必经石桥，周围古柏森森，氛围肃穆庄严。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/F616958Q-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/F616958Q-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国二十五年（1936年） 中华书局版 法币券",
+            year: "1936",
+            varieties: [
+                {
+                    varietyName: "1936年 1元 宝鼎",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1936,
+                            version: "L586007",
+                            bank: "中央银行",
+                            print: "中华书局有限公司/CHB",
+                            signature1: "总裁（Governor）：孔祥熙（H.H. Kung）",
+                            signature2: "总经理（General Manager）：李觉（D.L. Lichia）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "75元",
+                            purchaseDate: "2026年11月15日",
+                            krause: "211a",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/L586007-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/L586007-2.jpg"
                         }
                     ]
                 }
@@ -314,7 +372,7 @@ const republic_cbcData = {
                             year: 1939,
                             version: "G791313",
                             bank: "中央银行",
-                            print: "美商永宁有限公司/UPP",
+                            print: "美商永宁有限公司/UPC",
                             signature1: "无",
                             signature2: "无",
                             issueDate: "",
@@ -332,7 +390,7 @@ const republic_cbcData = {
                             year: 1939,
                             version: "A238768E",
                             bank: "中央银行",
-                            print: "美商永宁有限公司/UPP",
+                            print: "美商永宁有限公司/UPC",
                             signature1: "无",
                             signature2: "无",
                             issueDate: "",
@@ -537,6 +595,35 @@ const republic_cbcData = {
                             remark: "抗战胜利后，中央印制厂于民国三十四年（1945年）九月接收原敌伪上海中央储备银行印刷厂，设立上海厂，承担货币与有价证券的印制任务。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/AA055306-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/AA055306-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国三十四年（1945年） 美商保安版 法币券",
+            year: "1945",
+            varieties: [
+                {
+                    varietyName: "1945年 1000元",
+                    copies: [
+                        {
+                            copyId: "2515511-059",
+                            year: 1945,
+                            version: "48-G 041273",
+                            bank: "中央银行",
+                            print: "美商保安钞票公司/SBNS",
+                            signature1: "总裁（Governor）：孔祥熙（H.H. Kung）",
+                            signature2: "总经理（General Manager）：李骏耀（Lee Chun-yiu）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "PMG 65E",
+                            price: "208元",
+                            purchaseDate: "2026年11月15日",
+                            krause: "290",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/PMG2515511-059_REV.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/PMG2515511-059_OBV.jpg"
                         }
                     ]
                 }
