@@ -399,7 +399,15 @@ function renderSeriesList(data, title) {
                 const uid = varietyScopeId(accScope, si, vi);
                 // 目标品种：仅在目标系列内部才认，避免在别的系列里误展开同序号品种
                 // ★ 用 si.vi 复合键：新品种段能跨系列（v1.0,3.2），只比 vi 会串台
-                const openVariety = openSeries && (wantVarieties.has(si + '.' + vi) || memVarietyIds.has(uid) || autoExpandAll(getCategoryScope()));
+                // ★★ 品种的开合**不继承系列的**（用户口径："关闭最上层后再次展开要保留关闭前的状态"）。
+                //   收起系列只是把它自己关上，里面"用户留下的品种展开态"必须照原样渲染出来：
+                //   系列体是关着的，所以此刻看不见；一旦再展开系列，就正好回到关闭前的深度。
+                //   原来写成 `openSeries && (...)`，记忆里的品种被系列的开合状态一票否决 ⇒
+                //   收起系列 + 切板块再回来，只能回到"中间那层"，还要再点一次才是单张（用户报告）。
+                //   不切板块时之所以正常，是因为 DOM 没重建、里面的 open 类还在，看着像是"记住了"。
+                //   另外这也和记忆的口径一致：collectScopedExpanded() 本来就是扫全部 .copy-list.open，
+                //   从不看父体系列开不开 —— 渲染这一侧原来比记忆更严，是两处口径不一致造成的。
+                const openVariety = wantVarieties.has(si + '.' + vi) || memVarietyIds.has(uid) || autoExpandAll(getCategoryScope());
 
                 html += `<div class="variety-row">`;
                 html += `<div class="variety-header" onclick="toggleVariety('${uid}', this)">`;
