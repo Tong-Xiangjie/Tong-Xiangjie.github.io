@@ -578,7 +578,7 @@ const republic_cbcData = {
                     varietyName: "1945年 10元",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171405,
                             year: 1945,
                             version: "AA055306",
                             bank: "中央银行",
@@ -593,8 +593,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年10月14日",
                             krause: "270",
                             remark: "抗战胜利后，中央印制厂于民国三十四年（1945年）九月接收原敌伪上海中央储备银行印刷厂，设立上海厂，承担货币与有价证券的印制任务。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/AA055306-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/AA055306-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/27171405-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/27171405-2.jpg"
                         }
                     ]
                 }
@@ -665,7 +665,7 @@ const republic_cbcData = {
                     varietyName: "1945年 1元 蒋像 重庆忠县石宝寨",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171406,
                             year: 1945,
                             version: "MU408451",
                             bank: "中央银行",
@@ -680,8 +680,8 @@ const republic_cbcData = {
                             purchaseDate: "2026年9月26日",
                             krause: "387",
                             remark: "双字轨：共505种，发行量5.05亿张。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/MU408451-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/MU408451-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/27171406-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/27171406-2.jpg"
                         }
                     ]
                 }

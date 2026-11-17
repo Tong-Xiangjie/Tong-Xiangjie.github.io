@@ -43,7 +43,7 @@ const venezuelaData = {
                     varietyName: "5玻利瓦尔（Bolivares）",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171401,
                             year: 2008,
                             version: "H45394555",
                             bank: "委内瑞拉中央银行/Central Bank of Venezuela",
@@ -54,8 +54,8 @@ const venezuelaData = {
                             size: "",
                             watermark: "",
                             remark: "2008年版，冠号：H/J。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/H45394555-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/H45394555-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171401-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171401-2.jpg"
                         }
                     ]
                 },{
@@ -214,7 +214,7 @@ const venezuelaData = {
                     varietyName: "10000玻利瓦尔（Bolivares）",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171404,
                             year: 2016,
                             version: "A00023108",
                             bank: "委内瑞拉中央银行/Central Bank of Venezuela",
@@ -225,8 +225,8 @@ const venezuelaData = {
                             size: "",
                             watermark: "",
                             remark: "2016年版，冠号：A。绿色面额数字。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/A00023108-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/A00023108-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171404-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171404-2.jpg"
                         },{
                             copyId: 25282376,
                             year: 2017,
@@ -247,7 +247,7 @@ const venezuelaData = {
                     varietyName: "20000玻利瓦尔（Bolivares）",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171403,
                             year: 2017,
                             version: "D11179878",
                             bank: "委内瑞拉中央银行/Central Bank of Venezuela",
@@ -258,15 +258,15 @@ const venezuelaData = {
                             size: "",
                             watermark: "",
                             remark: "2017年版，冠号：B/C/D。简化的3毫米宽开窗安全线，带有“BCV”字样；正面的面额数字（深红色）并非使用光变油墨（OVI）印刷。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/D11179878-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/D11179878-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171403-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171403-2.jpg"
                         }
                     ]
                 },{
                     varietyName: "100000玻利瓦尔（Bolivares）",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171402,
                             year: 2017,
                             version: "B66081008",
                             bank: "委内瑞拉中央银行/Central Bank of Venezuela",
@@ -276,9 +276,9 @@ const venezuelaData = {
                             krause: "100c",
                             size: "",
                             watermark: "",
-                            remark: "2017年版，冠号：A/B。带有“BCV 100”字样及骏马（国徽）图案的全息4开窗安全线；浅绿色/棕色面额数字。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/B66081008-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/B66081008-2.jpg"
+                            remark: "2017年版，冠号：A/B。带有“BCV 100”字样及骏马（国徽）图案的全息4开窗安全线；浅绿色/棕色面额数字。爱藏评级将此张的目录编号记为100b并不是误记。在Numista网站上明确说道“Watermark has two variations, Pick catalog codes are based on watermarks only”，即安全线的样式不用于区分目录编号，即便安全线存在多种变种。详见网址：https://en.numista.com/208841。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171402-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/venezuela/27171402-2.jpg"
                         }
                     ]
                 }

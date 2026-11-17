@@ -29,7 +29,7 @@ const republic_cibcData = {
                     varietyName: "1921年 1元 知春亭",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171407,
                             year: 1921,
                             version: "385166",
                             bank: "震义银行",
@@ -44,8 +44,31 @@ const republic_cibcData = {
                             purchaseDate: "2026年11月1日",
                             krause: "S253r",
                             remark: "库存票（Remainder），无签名、印章以及加盖地名。",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cibc/385166-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cibc/385166-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cibc/27171407-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cibc/27171407-2.jpg"
+                        }
+                    ]
+                },{
+                    varietyName: "1921年 10元 知春亭",
+                    copies: [
+                        {
+                            copyId: 0,
+                            year: 1921,
+                            version: "187367",
+                            bank: "震义银行",
+                            print: "美国钞票公司/ABNC",
+                            signature1: "经理（Manager）：---",
+                            signature2: "副总裁（President）：---",
+                            issueDate: "民国十年九月十五日（1921年9月15日）",
+                            withdrawnDate: "实际未发行",
+                            size: "",
+                            condition: "暂未评级",
+                            price: "650元",
+                            purchaseDate: "2026年11月17日",
+                            krause: "S255r",
+                            remark: "库存票（Remainder），无签名、印章以及加盖地名。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cibc/187367-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cibc/187367-2.jpg"
                         }
                     ]
                 }

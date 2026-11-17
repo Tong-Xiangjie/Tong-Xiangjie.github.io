@@ -151,7 +151,7 @@ const indonesiaData = {
                     varietyName: "500卢比（Rupiah）",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171399,
                             year: 1997,
                             version: "RAA456229",
                             bank: "印度尼西亚银行/Bank Indonesia",
@@ -162,15 +162,15 @@ const indonesiaData = {
                             size: "",
                             watermark: "",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/RAA456229-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/RAA456229-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/27171399-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/27171399-2.jpg"
                         }
                     ]
                 },{
                     varietyName: "1000卢比（Rupiah）",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171400,
                             year: 1998,
                             version: "BUD451369",
                             bank: "印度尼西亚银行/Bank Indonesia",
@@ -181,8 +181,8 @@ const indonesiaData = {
                             size: "",
                             watermark: "",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BUD451369-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/BUD451369-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/indonesia/27171400-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/indonesia/27171400-2.jpg"
                         }
                     ]
                 }

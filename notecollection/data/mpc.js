@@ -21,7 +21,7 @@ const mpcData = {
             year: "1979",
             copies: [
                 {
-                    copyId: 0,
+                    copyId: 27171411,
                     year: 1965,
                     issueDate:"1965年4月24日",
                     purchaseDate: "2026年10月1日",
@@ -32,8 +32,8 @@ const mpcData = {
                     krause: "M41",
                     wmk: "无水印/Without watermark",
                     remark: "中国人民银行受中国人民解放军中央军委委托，于1965年4月24日印发军用代金券一套六张。",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/fec/copyId-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/fec/copyId-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/fec/27171411-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/fec/27171411-2.jpg"
                 }
             ]
         }

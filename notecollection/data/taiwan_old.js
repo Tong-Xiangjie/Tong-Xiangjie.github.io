@@ -44,7 +44,7 @@ const taiwanOldData = {
             seriesName: "第一批 中华民国三十五年（1946年） 5元",
             copies: [
                 {
-                    copyId: 0,
+                    copyId: 27171408,
                     year: 1946,
                     version: "AE611028",
                     bank: "台湾银行",
@@ -53,8 +53,14 @@ const taiwanOldData = {
                     purchaseDate: "2026年11月1日",
                     krause: "1936",
                     remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AE611028-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AE611028-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-2.jpg",
+                    // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                    imgExtra: {
+                        sideLight: ["https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-4.jpg"],
+                        transmit:  ["https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-6.jpg"],
+                        uv:        ["https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171408-8.jpg"]
+                    },
                 }
             ]
         },{
@@ -85,7 +91,7 @@ const taiwanOldData = {
             seriesName: "第二批 中华民国三十五年（1946年） 100元 中央版",
             copies: [
                 {
-                    copyId: 0,
+                    copyId: 27171409,
                     year: 1946,
                     version: "KZ238255",
                     bank: "台湾银行",
@@ -94,8 +100,14 @@ const taiwanOldData = {
                     purchaseDate: "2026年11月1日",
                     krause: "1939",
                     remark: "",
-                    img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/KZ238255-1.jpg",
-                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/KZ238255-2.jpg"
+                    img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-1.jpg",
+                    img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-2.jpg",
+                    // 完整八面图：正/背之外的六张（-3/-4 侧光、-5/-6 透光、-7/-8 荧光）
+                    imgExtra: {
+                        sideLight: ["https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-3.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-4.jpg"],
+                        transmit:  ["https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-5.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-6.jpg"],
+                        uv:        ["https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-7.jpg", "https://tong-xiangjie.github.io/notecollection/image/taiwan/27171409-8.jpg"]
+                    },
                 }
             ]
         }

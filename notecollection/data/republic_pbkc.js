@@ -2,7 +2,7 @@
 const republic_pbkcData = {
     name: "民国贵州省银行",
     icon: null,
-    desc: "The Provincial Bank of Kwuichow",
+    desc: "The Provincial Bank of Kweichow",
     detailFields: [
         { key: "version", label: "冠字号码" },
         { key: "bank", label: "发行方" },

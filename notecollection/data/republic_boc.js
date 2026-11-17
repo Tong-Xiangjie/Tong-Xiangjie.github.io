@@ -98,7 +98,7 @@ const republic_bocData = {
                     varietyName: "1940年 5元 天坛祈年殿",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171410,
                             year: 1940,
                             version: "H385109B",
                             bank: "中国银行",
@@ -113,8 +113,8 @@ const republic_bocData = {
                             purchaseDate: "2026年9月26日",
                             krause: "84",
                             remark: "正背面双字轨",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/H385109B-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/H385109B-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/27171410-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_boc/27171410-2.jpg"
                         }
                     ]
                 },{

@@ -113,7 +113,7 @@ series: [
                     varietyName: "1942年 美金50元",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171412,
                             year: 1942,
                             version: "0017545",
                             bank: "交通银行",
@@ -128,15 +128,15 @@ series: [
                             purchaseDate: "2026年10月1日",
                             krause: "",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0017545-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0017545-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/27171412-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/27171412-2.jpg"
                         }
                     ]
                 },{
                     varietyName: "1942年 美金100元",
                     copies: [
                         {
-                            copyId: 0,
+                            copyId: 27171413,
                             year: 1942,
                             version: "0003309",
                             bank: "交通银行",
@@ -151,8 +151,8 @@ series: [
                             purchaseDate: "2026年10月1日",
                             krause: "",
                             remark: "",
-                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0003309-1.jpg",
-                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/0003309-2.jpg"
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/27171413-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_communications/27171413-2.jpg"
                         }
                     ]
                 }
