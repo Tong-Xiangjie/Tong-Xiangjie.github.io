@@ -293,6 +293,36 @@ function renderSeriesList(data, title) {
         focusSeries = [];
         focusVariety = [];
     }
+    // ★★ 靠"记忆"还原的展开也必须进深链（用户报告："能够记忆不同板块的展开，但是这没有在深链
+    //   上面体现 —— 点开另外一个曾经展开过的板块后，深链接总是空的，刷新后会丢失展开状态"）。
+    //   症状成因：本函数在这里把 focusSeries 清空后，下面只会拿 __expandMemoryByScope 把记忆里
+    //   的系列/品种**自动打开**（只改 DOM 的 open 类），从不回写 focusSeries ⇒ buildRoute() 的
+    //   `focusSeries.length` 为 0、s/v 段写不出来 ⇒ URL 是空的；而记忆是内存态（modeStates /
+    //   __expandMemoryByScope），刷新就没了 ⇒ 展开态彻底丢失。两条现象合起来正是用户描述的样子。
+    //   修法：渲染落地后从 DOM 重新采集一次并同步路由（focusFromDom + syncRoute）。
+    //   ★ 为什么用 focusFromDom 而不是在这里自己算 s/v：它只认 DOM 里**真正开着**的东西，
+    //     于是天然满足上面那条"本次没有展开就不许写序号"的口径（DOM 没开 → 序号自然为空），
+    //     比"渲染时先清空、之后再不管"更严格；而且它建立的 focusOwner 就是当前分类，
+    //     不会再出现"序号属于旧分类 ⇒ buildRoute 的归属校验为假 ⇒ 段被静默丢掉"。
+    //   ★ 分三次：渲染里同步加 open 类的那部分落地后一次；档位②/③那种分步异步补开
+    //     （见上面 340/760/1400 那几处 setTimeout）跑完再各补一次，否则最后几个品种会漏。
+    if (typeof syncFocusAndRoute === 'function') {
+        const resync = function () {
+            try {
+                syncFocusAndRoute();                 // 内部即 focusFromDom() + syncRoute()（只 replaceState）
+                if (st) {                            // 展开态一并重拍档，切板块回来时也一致
+                    st.focusSeries = focusSeries.slice();
+                    st.focusVariety = focusVariety.slice();
+                }
+            } catch (e) { }
+        };
+        setTimeout(resync, 0);
+        setTimeout(resync, 200);
+        setTimeout(resync, 600);
+        setTimeout(resync, 1200);
+        setTimeout(resync, 2000);
+        setTimeout(resync, 3000);
+    }
     const st = modeStates[currentMode];
     if (st) {
         st.focusOwner = accScope;

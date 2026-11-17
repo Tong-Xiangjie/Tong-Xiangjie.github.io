@@ -1,0 +1,156 @@
+// 展开状态进深链 / 刷新能恢复：collection/tools/tests/verify-expand-route.mjs
+// 用户报告（原话）："现在能够记忆不同板块的展开，但是这没有在深链上面体现。具体表现为，
+//   当点开另外一个曾经展开过的板块后，深链接总是空的，刷新后会丢失展开状态。"
+//
+// 链路（读代码 + 运行时探针确认）：手风琴开关 → toggleSeries/toggleVariety → syncFocusAndRoute()
+//   → focusFromDom()（从 .series-body.open 反推 focusSeries）→ syncRoute() → buildRoute() 写 s/v 段。
+//   这条在"用户手点"时是通的（用例①，今天就是绿的）。
+//   ✗ 断在"靠记忆自动还原"那条路：renderSeriesList() 里 `if (!reveal) { focusSeries = [] }`，
+//     之后只用 __expandMemoryByScope 里的记忆**把 DOM 打开**，从没回写 focusSeries/路由
+//     —— 于是界面显示"开着"，URL 却是空的；刷新（记忆是内存态）就全丢。
+import { createServer } from 'node:http';
+import { readFileSync, statSync, existsSync } from 'node:fs';
+import { join, extname } from 'node:path';
+import { spawn } from 'node:child_process';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
+const ROOT = process.cwd();
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
+const server = createServer((req, res) => {
+  let p = decodeURIComponent(req.url.split('?')[0].split('#')[0]);
+  if (p.endsWith('/')) p += 'index.html';
+  const full = join(ROOT, p);
+  if (!existsSync(full) || statSync(full).isDirectory()) { res.writeHead(404).end('nf'); return; }
+  const b = readFileSync(full);
+  res.writeHead(200, { 'Content-Type': MIME[extname(full).toLowerCase()] || 'application/octet-stream', 'Content-Length': b.length, 'Cache-Control': 'no-store' });
+  res.end(b);
+});
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const BASE = `http://127.0.0.1:${server.address().port}/collection/index.html`;
+const chromePath = (process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [`${process.env.ProgramFiles}\\Google\\Chrome\\Application\\chrome.exe`, `${process.env['ProgramFiles(x86)']}\\Google\\Chrome\\Application\\chrome.exe`, '/usr/bin/google-chrome']).find(p => p && existsSync(p));
+if (!chromePath) { console.log('  ✗ 找不到 Chrome'); process.exit(2); }
+const userDir = await mkdtemp(join(tmpdir(), 'cdpExpRoute-'));
+const DP = 17570;
+const child = spawn(chromePath, ['--headless=new', `--remote-debugging-port=${DP}`, `--user-data-dir=${userDir}`, '--no-first-run', '--disable-gpu', '--window-size=1440,900', 'about:blank'], { stdio: 'ignore' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let id = 0; const pend = new Map();
+const ws = new WebSocket(await (async () => { for (let i = 0; i < 100; i++) { try { const l = await (await fetch(`http://127.0.0.1:${DP}/json/list`)).json(); const p = l.find(t => t.type === 'page'); if (p?.webSocketDebuggerUrl) return p.webSocketDebuggerUrl; } catch { } await sleep(250); } throw new Error('no cdp'); })());
+await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+const errors = [];
+ws.onmessage = e => { const m = JSON.parse(e.data); if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.text); if (m.id && pend.has(m.id)) { const { res, rej } = pend.get(m.id); pend.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); } };
+const send = (method, params = {}) => new Promise((res, rej) => { const i = ++id; pend.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
+const ev = async e => { const r = await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.text); return r.result.value; };
+const J = async e => JSON.parse(await ev(`(async()=>JSON.stringify(await(async()=>{ ${e} })()))()`));
+await send('Runtime.enable'); await send('Page.enable');
+
+const openCat = '#notes/commemorative';   // 纪念钞分类：系列多、稳定
+await send('Page.navigate', { url: `${BASE}?t=${Date.now()}${openCat}` });
+for (let i = 0; i < 140; i++) { if (await ev(`document.readyState==='complete' && typeof toggleSeries==='function'`).catch(() => false)) break; await sleep(120); }
+await sleep(3000);
+
+// 页面里现成的真相读取器：只读 DOM，不碰内部变量
+await ev(`
+window.__dom = function () {
+  var ids = [].map.call(document.querySelectorAll('.series-body.open'), b => String(b.id || ''));
+  var si = ids.map(x => (/-s(\\d+)$/.exec(x) || [])[1]).filter(x => x !== undefined).map(Number).sort((a,b)=>a-b);
+  var vi = [];
+  [].forEach.call(document.querySelectorAll('.series-body.open'), function (b) {
+    var s = (/-s(\\d+)$/.exec(b.id || '') || [])[1];
+    [].forEach.call(b.querySelectorAll('.copy-list.open'), function (l) {
+      var v = (/-v\\d+-(\\d+)$/.exec(l.id || '') || [])[1];
+      if (s !== undefined && v !== undefined) vi.push(s + '.' + v);
+    });
+  });
+  return { openBodies: ids.length, series: si, varieties: vi.sort(), hash: location.hash,
+    headers: document.querySelectorAll('.series-year-header').length };
+};
+window.__seg = function (letter) {
+  var m = new RegExp('(?:^|/)' + letter + '([0-9.,]+)').exec(location.hash);
+  return m ? m[1].split(',').map(Number).sort((a,b)=>a-b) : [];
+};
+window.__go = async function (h) { location.hash = h; await new Promise(r => setTimeout(r, 2600)); return location.hash; };
+window.__clickSeries = async function (n) {
+  var h = document.querySelectorAll('.series-year-header')[n || 0];
+  if (!h) return 0; h.click();
+  await new Promise(r => setTimeout(r, 1400)); return 1;
+};
+`);
+
+console.log('══════ ① 前提：分类页与手点展开（今天就是绿的）══════\n');
+const p0 = await J(`return window.__dom();`);
+ok(p0.headers > 0, `① 进入 ${openCat} 后渲染出 ${p0.headers} 个系列头`);
+await J(`await window.__clickSeries(0); return 1;`);
+const p1 = await J(`return { d: window.__dom(), seg: window.__seg('s') };`);
+ok(p1.d.openBodies === 1 && p1.seg.length === 1 && p1.seg[0] === p1.d.series[0],
+  `① 手点展开第一个系列 → 地址栏带上 s${p1.seg.join(',')}（DOM 里开着 ${p1.d.openBodies} 个）`);
+
+// ①b 二级段也要进深链（用户给的例子就是 /s0/v0.0,0.1 这种两级）
+await J(`var b0 = document.querySelector('.series-body.open');
+  var h0 = b0 && b0.querySelector('.variety-header');
+  if (h0) h0.click();
+  return 1;`);
+await sleep(1800);
+const r1b = await J(`var opens = [], lists = document.querySelectorAll('.copy-list.open');
+  [].forEach.call(lists, function (l) {
+    var b = l.closest('.series-body');
+    var s = (/-s(\\d+)$/.exec((b && b.id) || '') || [])[1];
+    var v = (/-v\\d+-(\\d+)$/.exec(l.id || '') || [])[1];
+    if (s !== undefined && v !== undefined) opens.push(s + '.' + v);
+  });
+  return { openLists: lists.length, opens: opens.sort(), segV: window.__seg('v') };`);
+ok(r1b.openLists > 0 && r1b.segV.length === r1b.opens.length,
+  `①b 展开一个品种也写进深链（DOM 开着 v[${r1b.opens.join(',')}]，地址栏 v[${r1b.segV.join(',')}]）`);
+
+console.log('\n══════ ② 切走再回来：靠"记忆"还原的展开有没有进深链（BUG 在这里）══════\n');
+await J(`await window.__go('#notes'); return 1;`);
+await J(`await window.__go('${openCat}'); return 1;`);
+const r2 = await J(`return { d: window.__dom(), seg: window.__seg('s'), segV: window.__seg('v') };`);
+ok(r2.d.openBodies > 0,
+  `② 前提成立：记忆把 ${r2.d.openBodies} 个系列重新展开（DOM 级事实，与内部变量无关）`);
+ok(r2.seg.length === r2.d.series.length && r2.seg.join(',') === r2.d.series.join(','),
+  `② 深链必须与眼前所见一致：DOM 开着 s[${r2.d.series.join(',')}]，地址栏写着 s[${r2.seg.join(',')}]`);
+ok(r2.segV.length === (r2.d.varieties || []).length,
+  `② 品种那一级也一致：DOM 开着 v[${(r2.d.varieties || []).join(',')}]，地址栏 v[${r2.segV.join(',')}]`);
+
+console.log('\n══════ ③ 刷新之后还能不能从深链恢复 ══════\n');
+await send('Page.reload');
+for (let i = 0; i < 140; i++) { if (await ev(`document.readyState==='complete' && typeof toggleSeries==='function'`).catch(() => false)) break; await sleep(120); }
+await sleep(3000);
+await ev(`
+window.__dom = function () {
+  var ids = [].map.call(document.querySelectorAll('.series-body.open'), b => String(b.id || ''));
+  var si = ids.map(x => (/-s(\\d+)$/.exec(x) || [])[1]).filter(x => x !== undefined).map(Number).sort((a,b)=>a-b);
+  return { openBodies: ids.length, series: si, hash: location.hash };
+};
+`);
+// ★ 刷新会把页面里注入的辅助函数一起清掉，第 ④ 步之前必须重新注入（第一版漏了，脚本在 ④ 崩掉）
+await ev(`
+window.__seg = function (letter) {
+  var m = new RegExp('(?:^|/)' + letter + '([0-9.,]+)').exec(location.hash);
+  return m ? m[1].split(',').map(Number).sort((a,b)=>a-b) : [];
+};
+window.__clickSeries = async function (n) {
+  var h = document.querySelectorAll('.series-year-header')[n || 0];
+  if (!h) return 0; h.click();
+  await new Promise(r => setTimeout(r, 1600)); return 1;
+};
+`);
+const r3 = await J(`return { d: window.__dom(), seg: (function(){ var m=/(?:^|\\/)s([0-9.,]+)/.exec(location.hash); return m? m[1].split(',').map(Number):[]; })() };`);
+ok(r3.seg.length > 0, `③ 刷新后地址栏仍带着序号段 s[${r3.seg.join(',')}]`);
+ok(r3.d.openBodies > 0 && r3.d.series.join(',') === r3.seg.join(','),
+  `③ 并且真的按深链恢复成展开态（刷新后 DOM 里开着 ${r3.d.openBodies} 个系列，s[${r3.d.series.join(',')}]）`);
+
+console.log('\n══════ ④ 收起后要清理干净（别留悬挂的序号）══════\n');
+await J(`await window.__clickSeries(0); return 1;`);
+const r4 = await J(`return { d: window.__dom(), seg: window.__seg('s') };`);
+ok(r4.d.openBodies === 0 && r4.seg.length === 0,
+  `④ 收起后地址栏的 s 段一起消失（DOM ${r4.d.openBodies} 个 / 段 ${r4.seg.length} 个）`);
+
+console.log(`\n  ──────── 通过 ${pass} / 失败 ${fail} ────────`);
+ok(errors.length === 0, `全程无未捕获异常（${errors.length} 条）`);
+try { ws.close(); } catch { }
+child.kill(); server.close();
+process.exitCode = fail ? 1 : 0;

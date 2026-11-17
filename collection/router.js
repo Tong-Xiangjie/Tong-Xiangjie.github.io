@@ -759,9 +759,18 @@ function applySpecialSubView(route) {
 function syncRoute(replace) {
     if (applyingRoute) return;     // 正在应用路由，不要回写
     const route = buildRoute();
-    if (route === lastRoute) return;
-    lastRoute = route;
+    // ★★ 判重必须比**地址栏里的真实内容**，不能比缓存的 lastRoute（用户报告："深链总是空的"）。
+    //   lastRoute 只记"上一次由这里写进去的那串"，一旦地址栏被别的途径改过就和真实 URL 脱节：
+    //   粘贴/分享链接打开、前进后退、用户手改 hash、applyRoute 里的 location.hash 赋值、
+    //   甚至测试脚本赋值 —— 全都不经过这里。此后只要 buildRoute() 凑巧等于那个旧值，
+    //   `route === lastRoute` 就会静默 return，地址栏永远不被纠正。
+    //   实测复现：展开 s0（lastRoute=…/s0）→ 跳到 #notes → 再回 #notes/commemorative，
+    //   界面靠记忆把 s0 重新展开、buildRoute() 也正确算出 …/s0，但地址栏停在 …/commemorative
+    //   再也不动 —— 因为 lastRoute 还等于 …/s0。改成本地比较后，这一路立刻自愈。
+    const cur = location.pathname + location.search + (location.hash || '');
     const url = location.pathname + location.search + (route ? '#' + route : '');
+    lastRoute = route;
+    if (url === cur) return;
     try {
         history.replaceState({ route }, '', url);
     } catch (e) {
