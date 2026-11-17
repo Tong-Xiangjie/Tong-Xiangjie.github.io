@@ -63,7 +63,7 @@ const republic_cibcData = {
                             withdrawnDate: "实际未发行",
                             size: "",
                             condition: "暂未评级",
-                            price: "650元",
+                            price: "880元",
                             purchaseDate: "2026年11月17日",
                             krause: "S255r",
                             remark: "库存票（Remainder），无签名、印章以及加盖地名。",
