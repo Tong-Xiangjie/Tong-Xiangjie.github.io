@@ -1,0 +1,214 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========== CSS Variables / Theme Tokens ========== */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f5;
+  --bg-tertiary: #eeeeec;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f0ed;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5a5a;
+  --text-tertiary: #8a8a8a;
+  --text-inverse: #ffffff;
+
+  --border-color: #e5e5e3;
+  --border-strong: #d5d5d2;
+
+  --accent: #2d8a6b;
+  --accent-hover: #226f56;
+  --accent-subtle: #d4ebe3;
+
+  --status-ok: #2d8a6b;
+  --status-warn: #c98a2d;
+  --status-error: #b84a4a;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 20px rgba(0,0,0,0.10);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+html.dark {
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #151515;
+  --bg-tertiary: #1e1e1e;
+  --bg-card: #1a1a1a;
+  --bg-hover: #252525;
+
+  --text-primary: #f0f0f0;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #707070;
+  --text-inverse: #0d0d0d;
+
+  --border-color: #2a2a2a;
+  --border-strong: #3a3a3a;
+
+  --accent: #4fa989;
+  --accent-hover: #7cc1a8;
+  --accent-subtle: #1b3d32;
+
+  --status-ok: #4fa989;
+  --status-warn: #e0a54e;
+  --status-error: #d66565;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-lg: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* ========== Base ========== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* ========== Reusable Components ========== */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+  }
+  .btn:hover {
+    background-color: var(--bg-hover);
+  }
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--text-inverse);
+    border-color: transparent;
+  }
+  .btn-primary:hover {
+    background-color: var(--accent-hover);
+  }
+  .btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+  }
+  .btn-ghost:hover {
+    background-color: var(--bg-hover);
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-hover:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+  }
+
+  .input {
+    @apply w-full px-3 py-2 text-sm transition-colors duration-200;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium;
+    border-radius: var(--radius-sm);
+  }
+  .badge-ok {
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+  }
+  .badge-warn {
+    background-color: rgba(201, 138, 45, 0.15);
+    color: var(--status-warn);
+  }
+  .badge-error {
+    background-color: rgba(184, 74, 74, 0.15);
+    color: var(--status-error);
+  }
+}
+
+/* ========== Page Transition ========== */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ========== Utility ========== */
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
