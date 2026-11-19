@@ -17,7 +17,7 @@ const taiwan5Data = {
 
     series: [
         {
-            seriesName: "中华民国八十九年（2000年） 100元",
+            seriesName: "中华民国八十九年（2000年） 100元 阳明山中山楼",
             copies: [
                 {
                     copyId: 26011879,
@@ -47,7 +47,7 @@ const taiwan5Data = {
             ]
         },
         {
-            seriesName: "中华民国九十年（2001年） 200元",
+            seriesName: "中华民国九十年（2001年） 200元 台北总统府",
             copies: [
                 {
                     copyId: 26288335,
@@ -65,7 +65,7 @@ const taiwan5Data = {
             ]
         },
         {
-            seriesName: "中华民国八十九年（2000年） 安一版 500元",
+            seriesName: "中华民国八十九年（2000年） 500元 安一版 棒球队、梅花鹿",
             copies: [
                 {
                     copyId: 26626176,
@@ -83,7 +83,7 @@ const taiwan5Data = {
             ]
         },
         {
-            seriesName: "中华民国九十三年（2004年） 安二版 500元",
+            seriesName: "中华民国九十三年（2004年） 500元 安二版 棒球队、梅花鹿",
             copies: [
                 {
                     copyId: 26626177,
@@ -94,14 +94,14 @@ const taiwan5Data = {
                     price: "165元",
                     purchaseDate: "2026年3月1日",
                     krause: "1996",
-                    remark: "新版500元，正面为棒球运动图案，背面为梅花鹿。",
+                    remark: "",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/HN723051XB-1.jpg",
                     img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/HN723051XB-2.jpg"
                 }
             ]
         },
         {
-            seriesName: "中华民国八十八年（1999年） 安一版 1000元",
+            seriesName: "中华民国八十八年（1999年） 1000元 安一版 帝雉",
             copies: [
                 {
                     copyId: 26626179,
@@ -112,14 +112,14 @@ const taiwan5Data = {
                     price: "394元",
                     purchaseDate: "2026年2月14日",
                     krause: "1994",
-                    remark: "",
+                    remark: "这张纸币在台湾地区通常被称作“4个孩子”，如：“我这么辛苦工作，还不都是为了那4个孩子！”",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/BR727635YJ-1.jpg",
                     img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/BR727635YJ-2.jpg"
                 }
             ]
         },
         {
-            seriesName: "中华民国九十三年（2004年） 安二版 1000元",
+            seriesName: "中华民国九十三年（2004年） 1000元 安二版 帝雉",
             copies: [
                 {
                     copyId: 26626178,
@@ -137,7 +137,7 @@ const taiwan5Data = {
             ]
         },
         {
-            seriesName: "中华民国九十年（2001年） 2000元",
+            seriesName: "中华民国九十年（2001年） 2000元 樱花钩吻鲑",
             copies: [
                 {
                     copyId: 26626180,
