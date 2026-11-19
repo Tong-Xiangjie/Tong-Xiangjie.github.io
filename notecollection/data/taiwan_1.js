@@ -17,7 +17,7 @@ const taiwan1Data = {
 
     series: [
         {
-            seriesName: "中华民国五十年（1961年） 1元",
+            seriesName: "中华民国五十年（1961年） 1元 象鼻隧道",
             copies: [
                 {
                     copyId: 27104074,
@@ -62,7 +62,7 @@ const taiwan1Data = {
             ]
         },
         {
-            seriesName: "中华民国五十年（1961年） 5元",
+            seriesName: "中华民国五十年（1961年） 5元 北港净水厂",
             copies: [
                 {
                     copyId: 27104077,
@@ -94,7 +94,7 @@ const taiwan1Data = {
             ]
         },
         {
-            seriesName: "中华民国五十年（1961年） 红10元",
+            seriesName: "中华民国五十年（1961年） 红10元 浊水溪大桥",
             copies: [
                 {
                     copyId: 27104079,

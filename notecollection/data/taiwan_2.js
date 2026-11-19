@@ -17,7 +17,7 @@ const taiwan2Data = {
 
     series: [
         {
-            seriesName: "中华民国五十八年（1969年） 10元",
+            seriesName: "中华民国五十八年（1969年） 10元 阳明山中山楼",
             copies: [
                 {
                     copyId: 27104080,
@@ -36,7 +36,7 @@ const taiwan2Data = {
             ]
         },
         {
-            seriesName: "中华民国五十九年（1970年） 50元",
+            seriesName: "中华民国五十九年（1970年） 50元 阳明山中山楼",
             copies: [
                 {
                     copyId: 27104082,

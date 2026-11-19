@@ -17,7 +17,7 @@ const taiwanOldData = {
 
     series: [
         {
-            seriesName: "第一批 中华民国三十五年（1946年） 1元",
+            seriesName: "第一批 中华民国三十五年（1946年） 1元 料罗湾海战图",
             copies: [
                 {
                     copyId: 27104086,
@@ -28,7 +28,7 @@ const taiwanOldData = {
                     price: "153元",
                     purchaseDate: "2026年7月18日",
                     krause: "1935",
-                    remark: "",
+                    remark: "该版旧台币正面左侧图案为台湾银行总行大厦，背面椭圆形雕版为料罗湾海战（Battle of Liaoluo Bay）图，描绘的是1633年郑芝龙舰队与荷兰东印度公司舰队交战的场面。",
                     img1: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-1.jpg",
                     img2: "https://tong-xiangjie.github.io/notecollection/image/taiwan/AU972508-2.jpg"
 ,
@@ -41,7 +41,7 @@ const taiwanOldData = {
                 }
             ]
         },{
-            seriesName: "第一批 中华民国三十五年（1946年） 5元",
+            seriesName: "第一批 中华民国三十五年（1946年） 5元 料罗湾海战图",
             copies: [
                 {
                     copyId: 27171408,
@@ -64,7 +64,7 @@ const taiwanOldData = {
                 }
             ]
         },{
-            seriesName: "第一批 中华民国三十五年（1946年） 10元",
+            seriesName: "第一批 中华民国三十五年（1946年） 10元 料罗湾海战图",
             copies: [
                 {
                     copyId: 27104087,
@@ -88,7 +88,7 @@ const taiwanOldData = {
                 }
             ]
         },{
-            seriesName: "第二批 中华民国三十五年（1946年） 100元 中央版",
+            seriesName: "第二批 中华民国三十五年（1946年） 100元 中央版 料罗湾海战图",
             copies: [
                 {
                     copyId: 27171409,

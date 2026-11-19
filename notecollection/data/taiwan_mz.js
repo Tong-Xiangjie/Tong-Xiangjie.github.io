@@ -17,7 +17,7 @@ const taiwanMzData = {
 
     series: [
         {
-            seriesName: "中华民国四十三年（1954年） 1元",
+            seriesName: "中华民国四十三年（1954年） 1元 台湾银行总行大厦",
             copies: [
                 {
                     copyId: 27104073,

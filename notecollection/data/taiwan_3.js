@@ -17,7 +17,7 @@ const taiwan3Data = {
 
     series: [
         {
-            seriesName: "中华民国六十五年（1976年） 10元",
+            seriesName: "中华民国六十五年（1976年） 10元 台北总统府",
             copies: [
                 {
                     copyId: 26626181,
@@ -35,7 +35,7 @@ const taiwan3Data = {
             ]
         },
         {
-            seriesName: "中华民国六十一年（1972年） 50元",
+            seriesName: "中华民国六十一年（1972年） 50元 阳明山中山楼",
             copies: [
                 {
                     copyId: 27104083,
@@ -53,7 +53,7 @@ const taiwan3Data = {
             ]
         },
         {
-            seriesName: "中华民国六十一年（1972年） 100元",
+            seriesName: "中华民国六十一年（1972年） 100元 台北总统府",
             copies: [
                 {
                     copyId: 26626182,
