@@ -186,6 +186,21 @@
  * 收到 0。主内容区由 flex 跟着替身逐帧重算，两边天然同步。
  */
 
+/* 展开时由 JS 接管 .sider 自身的宽度（先设 0 再放开），这里只负责让它过渡。
+ * 只过渡 width / min-width —— 与收起侧用的属性集合一致，两边节奏才对称。
+ * 注意这条要能盖过应用自己的 `width:261px`：内联样式优先级更高，JS 设的是内联值。 */
+.ls-motion .sider-ac14ac {
+  transition:
+    width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
+    min-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-motion .sider-ac14ac {
+    transition: none !important;
+  }
+}
+
 /* 收起期间的替身：留在 flex 流里负责「让位」，宽度由 CSS 过渡驱动。
  *
  * 过渡的属性集合参考 collection/layout.css 的 `.sidebar`：

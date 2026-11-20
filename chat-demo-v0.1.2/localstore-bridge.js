@@ -2175,13 +2175,22 @@
    * 而是浏览器与服务端之间的 HTTP/2 连接被中途掐断了。这类故障是**瞬时**的，
    * 重试一两次基本就好了 —— 但用户看到的是「上传失败」，于是以为功能坏了。
    *
-   * 只对网络层错误（TypeError）重试；HTTP 状态码错误（4xx/5xx）是服务端明确
-   * 拒绝，重试没有意义，直接放行让应用显示真实原因。
+   * 两类瞬时故障都重试：
+   *  · 网络层错误（fetch 统一抛 TypeError）；
+   *  · 服务端临时故障（429 / 5xx）—— 网关抖动、后端过载都属于这一类，
+   *    和网络被掐断在「重试就好」这一点上没有区别。
+   * 明确拒绝（其余 4xx，如 401/400）不重试：那是参数或鉴权问题，
+   * 重试没有意义，直接放行让应用显示真实原因。
    */
   var UPLOAD_ATTEMPTS = 3;
 
   /** 上传尝试记录：出问题时能一眼看出「试了几次、每次什么错」 */
   var uploadLog = [];
+
+  /** 5xx / 429 视为瞬时故障，可以重试 */
+  function isTransientStatus(status) {
+    return status === 429 || (status >= 500 && status < 600);
+  }
 
   function recordUpload(entry) {
     try {
@@ -2220,6 +2229,25 @@
       var startedAt = Date.now();
       return makeRequest().then(
         function (res) {
+          if (res && isTransientStatus(res.status)) {
+            // 服务端临时故障：当作一次失败继续重试，并把真实状态记下来
+            recordUpload({
+              at: startedAt,
+              attempt: attempt,
+              status: 'error',
+              http: res.status,
+              error: 'HTTP ' + res.status,
+              url: info.uploadUrl
+            });
+            if (attempt >= UPLOAD_ATTEMPTS) return res;
+            warn('附件上传失败（第 ' + attempt + ' 次，HTTP ' + res.status + '），正在重试…');
+            return new Promise(function (resolve) {
+              setTimeout(resolve, 400 * attempt);
+            }).then(run).then(function (finalRes) {
+              // 重试用尽仍拿到 5xx 时，把最后一次的结果交还给应用
+              return finalRes;
+            });
+          }
           recordUpload({
             at: startedAt,
             attempt: attempt,
@@ -2529,6 +2557,8 @@
    *  （用应用自带的 --ds-transition-duration，即 0.2s） */
   var SIDER_COLLAPSE_MS = 200;
   var GHOST_CLASS = 'ls-sider-ghost';
+  /** 收起时记下的侧栏宽度；展开时侧栏还没挂载，量不到，用它来定过渡终点 */
+  var lastSiderWidth = 0;
 
   /** 真正的侧栏节点；替身克隆体里的同名节点不算 */
   function siderEl() {
@@ -2576,29 +2606,96 @@
           var olabel = openBtn.getAttribute('aria-label') || '';
           if (!/打开|expand|show|open/i.test(olabel)) return;
           busy = true;
-          // 侧栏重新挂载是异步的，用 MutationObserver 等它回来再加滑入动画
-          var frame = document.querySelector('.frame-_9fdf5') || document.body;
-          var obs = new MutationObserver(function () {
-            if (!siderEl()) return;
-            obs.disconnect();
-            setSiderAnim('enter');
-            setTimeout(function () {
-              if (document.documentElement.getAttribute(SIDER_ANIM_ATTR) === 'enter') {
-                setSiderAnim(null);
-              }
-              busy = false;
-            }, 260);
-          });
-          obs.observe(frame, { childList: true, subtree: true });
-          // 兜底：结构若变了，1 秒后收工，别把 busy 卡死
-          setTimeout(function () {
-            obs.disconnect();
+          expandSider(function () {
             busy = false;
-          }, 1000);
+          });
         }
       },
       true
     );
+  }
+
+  /**
+   * 展开：让主内容区跟着一起让位，而不是「啪」地缩回去。
+   *
+   * 收起时是主区变大、展开时是主区变小，两者都要**逐帧**变化才顺。
+   * 展开侧原来的问题是：应用重新挂载 sider 是瞬时的，主内容区会在同一帧
+   * 从 1378 跳到 1117，而侧栏只是 translate 滑入（宽度恒为 261）——
+   * 实测逐帧：e0 时 main 已经是 1117，之后 16 帧不再变化。
+   * 这就是用户说的「展开时中间那个东西是突变的」。
+   *
+   * 做法与收起对称：**让 sider 自己从 0 宽过渡到 261**，主内容区自然逐帧让位。
+   * 为什么不像收起那样另插一个替身：替身撑开与真实 sider 挂载是两个独立时序，
+   * 中间会空出一段「占位已满、侧栏还没露面」的空白（实测 520ms 内左边全是
+   * 纯背景色）。直接过渡 sider 自身的宽度，两边天然同步，也没有空窗。
+   *
+   * sider 内部的内容按 261 宽排版，收窄时只是被 overflow:hidden 裁掉，
+   * 所以过程中不会看到内容被压扁。
+   */
+  function expandSider(done) {
+    var frame = document.querySelector('.frame-_9fdf5');
+    if (!frame) {
+      done();
+      return;
+    }
+    var w = lastSiderWidth || 261;
+
+    var finished = false;
+    var cleanup = function () {
+      if (finished) return;
+      finished = true;
+      var s = siderEl();
+      if (s) {
+        s.style.removeProperty('width');
+        s.style.removeProperty('min-width');
+        s.style.removeProperty('transition');
+      }
+      setSiderAnim(null);
+      done();
+    };
+
+    // 等应用把 sider 挂回来（异步的），再接管它的宽度
+    var started = false;
+    var start = function (s) {
+      if (started || !s) return;
+      started = true;
+      s.style.transition = 'none';
+      s.style.width = '0px';
+      s.style.minWidth = '0px';
+      // 读一次强制结算，确保 0 宽已经生效，否则下面的过渡会被跳过
+      void s.offsetWidth;
+      s.style.removeProperty('transition');
+      s.style.width = w + 'px';
+      s.style.minWidth = w + 'px';
+
+      var onEnd = function (ev) {
+        if (ev.target !== s || ev.propertyName !== 'width') return;
+        s.removeEventListener('transitionend', onEnd);
+        cleanup();
+      };
+      s.addEventListener('transitionend', onEnd);
+      // 兜底：减弱动效 / 过渡被跳过时不会触发 transitionend
+      setTimeout(cleanup, SIDER_COLLAPSE_MS + 260);
+    };
+
+    var existing = siderEl();
+    if (existing) {
+      start(existing);
+      return;
+    }
+    var obs = new MutationObserver(function () {
+      var s = siderEl();
+      if (!s) return;
+      obs.disconnect();
+      setSiderAnim('enter');
+      start(s);
+    });
+    obs.observe(frame, { childList: true, subtree: true });
+    // 兜底：结构若变了，别把 busy 卡死
+    setTimeout(function () {
+      obs.disconnect();
+      if (!started) cleanup();
+    }, 1200);
   }
 
   /**
@@ -2636,6 +2733,7 @@
     sider.style.visibility = 'hidden';
 
     var w = Math.round(r.width);
+    lastSiderWidth = w;
     var ghost = document.createElement('div');
     ghost.className = GHOST_CLASS;
     ghost.setAttribute('aria-hidden', 'true');

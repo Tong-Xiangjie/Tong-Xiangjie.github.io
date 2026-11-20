@@ -275,25 +275,54 @@ const expandResult = JSON.parse(await ev(`
       if (a !== last) { flips.push(a); last = a; }
     });
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ls-sider-anim'] });
+    const mainEl = () => document.querySelector('.main-_9fdf5');
     btn.click();
-    await new Promise(r => setTimeout(r, 120));
-    const s = document.querySelector('.sider-ac14ac');
-    const during = s ? { anim: getComputedStyle(s).animationName, dur: getComputedStyle(s).animationDuration } : null;
+    // 逐帧记录主区左边缘：展开侧原来的 bug 是第一帧就直接到位
+    // （实测 e0 就是 1117 宽 / x=261，之后 16 帧纹丝不动），
+    // 所以这里必须验证「有多个中间值、且单调」，而不是只看最终值。
+    const edgeTrace = [];
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => requestAnimationFrame(() => r()));
+      edgeTrace.push(Math.round(mainEl().getBoundingClientRect().left));
+    }
     await new Promise(r => setTimeout(r, 600));
     const s2 = document.querySelector('.sider-ac14ac');
     const after = { anim: s2 ? getComputedStyle(s2).animationName : null,
       attr: document.documentElement.getAttribute('data-ls-sider-anim'),
-      mainW: Math.round(document.querySelector('.main-_9fdf5').getBoundingClientRect().width),
+      mainW: Math.round(mainEl().getBoundingClientRect().width),
+      mainX: Math.round(mainEl().getBoundingClientRect().left),
+      siderW: s2 ? Math.round(s2.getBoundingClientRect().width) : null,
+      siderInlineW: s2 ? s2.style.width : null,
+      siderInlineTransition: s2 ? s2.style.transition : null,
+      siderTransition: s2 ? getComputedStyle(s2).transitionProperty : null,
       ghost: !!document.querySelector('.ls-sider-ghost') };
     obs.disconnect();
-    return JSON.stringify({ during, after, flips });
+    const distinct = [...new Set(edgeTrace)];
+    let monotonic = true;
+    for (let i = 1; i < edgeTrace.length; i++) if (edgeTrace[i] < edgeTrace[i-1] - 2) monotonic = false;
+    let maxJump = 0;
+    for (let i = 1; i < edgeTrace.length; i++) maxJump = Math.max(maxJump, Math.abs(edgeTrace[i]-edgeTrace[i-1]));
+    return JSON.stringify({ during: null, after, flips, edgeTrace, distinct: distinct.length, monotonic, maxJump });
   })()
 `));
 console.log('    ' + JSON.stringify(expandResult, null, 2).split('\n').join('\n    '));
-check('展开时侧栏滑入', expandResult.during && expandResult.during.anim === 'ls-sider-in', JSON.stringify(expandResult.during));
+check('展开时侧栏自身在过渡宽度（不是只做位移）',
+  !!(expandResult.after && expandResult.after.siderTransition &&
+     expandResult.after.siderTransition.indexOf('width') >= 0),
+  JSON.stringify(expandResult.after));
 check('展开动画结束后标记被清掉', expandResult.after && expandResult.after.attr === null, JSON.stringify(expandResult.after));
 check('展开后主区收回', expandResult.after && expandResult.after.mainW < 1378, JSON.stringify(expandResult.after));
 check('展开动画标记只出现一次', expandResult.flips.filter((x) => x === 'enter').length === 1, JSON.stringify(expandResult.flips));
+// 回归：展开侧曾经是「主区一帧到位、只有侧栏在滑」，观感就是中间那块突变
+check('展开时主区宽度是渐变而非瞬跳（≥5 个中间值）',
+  expandResult.distinct >= 5, '不同左边缘值 ' + expandResult.distinct + ' 个: ' + JSON.stringify(expandResult.edgeTrace));
+check('展开时主区单调移动（没有来回回弹）', expandResult.monotonic === true, JSON.stringify(expandResult.edgeTrace));
+check('展开时没有单帧大跳（≤90px）', expandResult.maxJump <= 90, '最大单帧跳变 ' + expandResult.maxJump + 'px');
+check('展开结束后侧栏宽度归位', expandResult.after && expandResult.after.siderW === 261, JSON.stringify(expandResult.after));
+// 接管宽度的内联样式必须还回去，否则应用后续改版就改不动了
+check('展开结束后清掉接管用的内联宽度/过渡',
+  expandResult.after && !expandResult.after.siderInlineW && !expandResult.after.siderInlineTransition,
+  JSON.stringify(expandResult.after));
 
 // --- 交接不能闪：替身插入当帧必须与真侧栏同宽同位，且真身已隐藏 ---
 // 「真身立刻隐藏 + 替身原地接管」是消除交接闪烁的关键：
