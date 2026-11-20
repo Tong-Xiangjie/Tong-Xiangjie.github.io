@@ -1,0 +1,5119 @@
+/*!
+ * localstore-bridge.js —— DeepSeek chat-demo 本地文件夹持久化旁路层
+ * ============================================================================
+ * 目的：让对话记录自动写入用户指定的本地文件夹（如 E:\chat），
+ *       从而不受浏览器清理数据影响，并可在不同浏览器之间通用。
+ *
+ * 设计原则：不改动官方 bundle 的任何业务逻辑。
+ *   1. 通过 hook 原生 IDBObjectStore.prototype.put / delete 感知写入；
+ *   2. 通过 File System Access API 写真实文件；
+ *   3. 通过 MutationObserver 把设置面板里的「本地文件夹」区块挂进官方设置弹窗。
+ *
+ * 兼容性：需要 Chromium 系（Chrome / Edge）。Firefox、Safari 无
+ *         File System Access API，此时降级为「提示 + 引导使用官方导出」。
+ *
+ * 本文件为普通脚本（非 module），会先于 main bundle 执行。
+ * ============================================================================
+ */
+(function () {
+  'use strict';
+
+  // -------------------------------------------------------------------------
+  // 常量
+  // -------------------------------------------------------------------------
+
+  var LS_FOLDER = 'chat-demo:local-folder';
+  var LS_API_BASE = 'chat-demo:api-base';
+  var LS_AUTOSYNC = 'chat-demo:local-autosync';
+  var LS_SHOW_MODEL = 'chat-demo:show-model';
+  var LS_APP_API_KEY = 'chat-demo:api-key';
+  /** 记录本浏览器最后一次从文件夹恢复对话的时间（用于判断是否「全新浏览器」） */
+  var LS_HISTORY_SYNCED_AT = 'chat-demo:history-synced-at';
+  var DEFAULT_API_BASE = 'https://api.deepseek.com';
+
+  /** 文件夹内的密钥文件名 */
+  var KEY_FILE = 'apikey.json';
+
+  /** 官方应用使用的业务库；只镜像它的 sessions 与 files 两个 store */
+  var APP_DB = 'chat-demo';
+  var OWN_DB = 'chat-demo-localstore';
+  var OWN_STORE = 'handles';
+
+  var DIR_SUFFIX = '-本地存档';
+  var AUTO_SYNC_DEBOUNCE = 700;
+
+  var BRIDGE_VERSION = '1.1.0';
+
+  // -------------------------------------------------------------------------
+  // 小工具
+  // -------------------------------------------------------------------------
+
+  function log() {
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[localstore]');
+    console.log.apply(console, args);
+  }
+
+  function warn() {
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[localstore]');
+    console.warn.apply(console, args);
+  }
+
+  function lsGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function lsSet(key, value) {
+    try {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch (e) {
+      /* 隐私模式下可能抛错，忽略 */
+    }
+  }
+
+  function pad(n, width) {
+    var s = String(n);
+    while (s.length < width) s = '0' + s;
+    return s;
+  }
+
+  /** 20260214-143022 */
+  function stamp(d) {
+    return (
+      d.getFullYear() +
+      pad(d.getMonth() + 1, 2) +
+      pad(d.getDate(), 2) +
+      '-' +
+      pad(d.getHours(), 2) +
+      pad(d.getMinutes(), 2) +
+      pad(d.getSeconds(), 2)
+    );
+  }
+
+  /** 把任意标题净化成安全的文件名片段 */
+  function safeSegment(text, fallback, maxLen) {
+    var s = String(text == null ? '' : text)
+      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^\.+/, '')
+      .replace(/[. ]+$/, '');
+    if (!s) s = fallback;
+    maxLen = maxLen || 40;
+    if (s.length > maxLen) s = s.slice(0, maxLen);
+    return s;
+  }
+
+  /** 数组分块，避免一次并发过多文件操作 */
+  function chunk(arr, size) {
+    var out = [];
+    for (var i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // 自有 IndexedDB —— 用来记住文件夹句柄（句柄是可结构化克隆的）
+  // -------------------------------------------------------------------------
+
+  var ownDbPromise = null;
+
+  function openOwnDb() {
+    if (ownDbPromise) return ownDbPromise;
+    ownDbPromise = new Promise(function (resolve, reject) {
+      var req = indexedDB.open(OWN_DB, 1);
+      req.onupgradeneeded = function () {
+        var db = req.result;
+        if (!db.objectStoreNames.contains(OWN_STORE)) {
+          db.createObjectStore(OWN_STORE);
+        }
+      };
+      req.onsuccess = function () {
+        resolve(req.result);
+      };
+      req.onerror = function () {
+        ownDbPromise = null;
+        reject(req.error);
+      };
+    });
+    return ownDbPromise;
+  }
+
+  function ownGet(key) {
+    return openOwnDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(OWN_STORE, 'readonly');
+        var req = tx.objectStore(OWN_STORE).get(key);
+        req.onsuccess = function () {
+          resolve(req.result);
+        };
+        req.onerror = function () {
+          reject(req.error);
+        };
+      });
+    });
+  }
+
+  function ownPut(key, value) {
+    return openOwnDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(OWN_STORE, 'readwrite');
+        tx.objectStore(OWN_STORE).put(value, key);
+        tx.oncomplete = function () {
+          resolve();
+        };
+        tx.onerror = function () {
+          reject(tx.error);
+        };
+      });
+    });
+  }
+
+  function ownDelete(key) {
+    return openOwnDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(OWN_STORE, 'readwrite');
+        tx.objectStore(OWN_STORE).delete(key);
+        tx.oncomplete = function () {
+          resolve();
+        };
+        tx.onerror = function () {
+          reject(tx.error);
+        };
+      });
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // 官方业务库读写（只读为主；导入时才写）
+  // -------------------------------------------------------------------------
+
+  function openAppDb() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(APP_DB);
+      req.onsuccess = function () {
+        resolve(req.result);
+      };
+      req.onerror = function () {
+        reject(req.error);
+      };
+      // 库尚未创建时（用户还没发过消息）不主动建库，避免干扰官方 upgrade
+      req.onblocked = function () {
+        reject(new Error('app db blocked'));
+      };
+    });
+  }
+
+  /** 读取全部会话记录 */
+  function readAllSessions() {
+    return openAppDb().then(function (db) {
+      if (!db.objectStoreNames.contains('sessions')) return [];
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction('sessions', 'readonly');
+        var req = tx.objectStore('sessions').getAll();
+        req.onsuccess = function () {
+          resolve(req.result || []);
+        };
+        req.onerror = function () {
+          reject(req.error);
+        };
+      });
+    });
+  }
+
+  /** 读取全部附件记录（含 blob） */
+  function readAllFiles() {
+    return openAppDb().then(function (db) {
+      if (!db.objectStoreNames.contains('files')) return [];
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction('files', 'readonly');
+        var req = tx.objectStore('files').getAll();
+        req.onsuccess = function () {
+          resolve(req.result || []);
+        };
+        req.onerror = function () {
+          reject(req.error);
+        };
+      });
+    });
+  }
+
+  /**
+   * 把会话与附件写回官方库。程序化写入不会经过被 hook 的原生方法
+   * （我们 hook 的是 IDBObjectStore.prototype，而 idb 库调用的是它，
+   *  所以这里需要临时挂起自动同步，否则会自我触发）。
+   */
+  function writeBack(sessions, files, onProgress) {
+    return openAppDb().then(function (db) {
+      var stores = ['sessions', 'sessionSummaries', 'files'].filter(function (s) {
+        return db.objectStoreNames.contains(s);
+      });
+      if (!stores.length) throw new Error('目标数据库缺少 sessions store');
+
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(stores, 'readwrite');
+        var done = 0;
+        var total = sessions.length + files.length;
+
+        tx.oncomplete = function () {
+          resolve();
+        };
+        tx.onerror = function () {
+          reject(tx.error);
+        };
+        tx.onabort = function () {
+          reject(tx.error || new Error('事务被中止'));
+        };
+
+        function tick() {
+          done++;
+          if (onProgress) onProgress(done, total);
+        }
+
+        sessions.forEach(function (s) {
+          tx.objectStore('sessions').put(s);
+          if (db.objectStoreNames.contains('sessionSummaries')) {
+            tx.objectStore('sessionSummaries').put({
+              id: s.id,
+              title: s.title,
+              createdAt: s.createdAt,
+              updatedAt: s.updatedAt,
+              fileIds: (s.messages || []).reduce(function (acc, m) {
+                if (m && m.role === 'user' && Array.isArray(m.files)) {
+                  m.files.forEach(function (f) {
+                    if (f && f.id && acc.indexOf(f.id) < 0) acc.push(f.id);
+                  });
+                }
+                return acc;
+              }, [])
+            });
+          }
+          tick();
+        });
+
+        if (db.objectStoreNames.contains('files')) {
+          files.forEach(function (f) {
+            tx.objectStore('files').put(f);
+            tick();
+          });
+        } else {
+          done += files.length;
+        }
+      });
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // 对话树 → 线性消息（用于生成可读的 Markdown）
+  // -------------------------------------------------------------------------
+
+  /**
+   * 会话记录内的消息构成一棵树（靠 parentId / selectedChildId 串联），
+   * 因为支持「编辑消息后重新生成」形成多版本分支。
+   * 这里沿 rootMessageId 走 selectedChildId 链，还原「当前显示的那条路径」。
+   */
+  function linearMessages(session) {
+    var messages = Array.isArray(session.messages) ? session.messages : [];
+    if (!messages.length) return [];
+
+    var byId = new Map();
+    messages.forEach(function (m) {
+      if (m && m.id != null) byId.set(m.id, m);
+    });
+
+    var rootId =
+      session.rootMessageId != null ? session.rootMessageId : null;
+    if (rootId == null || !byId.has(rootId)) {
+      // 没有树信息（旧数据或未初始化），退化为数组顺序
+      var hasLinks = messages.some(function (m) {
+        return m && (m.parentId != null || m.selectedChildId != null);
+      });
+      if (!hasLinks) return messages;
+      // 有链接但找不到根：取没有 parentId 的第一条
+      var found = messages.find(function (m) {
+        return m && m.parentId == null;
+      });
+      if (!found) return messages;
+      rootId = found.id;
+    }
+
+    var out = [];
+    var seen = new Set();
+    var cursor = rootId;
+    while (cursor != null && byId.has(cursor) && !seen.has(cursor)) {
+      seen.add(cursor);
+      var node = byId.get(cursor);
+      out.push(node);
+      cursor = node.selectedChildId != null ? node.selectedChildId : null;
+    }
+
+    // 判断哪些消息「虽然没被走到，但仍然是树上的合法节点」。
+    // 这些是用户没有选中的分支版本（同级兄弟），只应存在于完整 JSON 树里，
+    // 绝不能出现在当前显示的对话中——官方实现（module 3494）同样会跳过它们。
+    var onTree = new Set(seen);
+    for (var pass = 0; pass < 64; pass++) {
+      var grew = false;
+      messages.forEach(function (m) {
+        if (!m || m.id == null || onTree.has(m.id)) return;
+        if (m.parentId != null && onTree.has(m.parentId)) {
+          onTree.add(m.id);
+          grew = true;
+        }
+      });
+      if (!grew) break;
+    }
+
+    // 兜底：只补「从根节点确实走不到」的消息（数据损坏或导入异常），
+    // 保证内容不丢；同级的未选中分支不会被卷进来。
+    if (onTree.size < byId.size) {
+      messages.forEach(function (m) {
+        if (m && m.id != null && !onTree.has(m.id) && !seen.has(m.id)) {
+          seen.add(m.id);
+          out.push(m);
+        }
+      });
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // Markdown 渲染
+  // -------------------------------------------------------------------------
+
+  function fmtTime(ms) {
+    if (!ms) return '';
+    var d = new Date(ms);
+    return (
+      d.getFullYear() +
+      '-' +
+      pad(d.getMonth() + 1, 2) +
+      '-' +
+      pad(d.getDate(), 2) +
+      ' ' +
+      pad(d.getHours(), 2) +
+      ':' +
+      pad(d.getMinutes(), 2) +
+      ':' +
+      pad(d.getSeconds(), 2)
+    );
+  }
+
+  function roleLabel(role) {
+    if (role === 'user') return '我';
+    if (role === 'assistant') return 'DeepSeek';
+    return String(role || '未知');
+  }
+
+  function renderMarkdown(session) {
+    var lines = [];
+    var title = session.title || '未命名对话';
+
+    lines.push('---');
+    lines.push('title: ' + JSON.stringify(title));
+    lines.push('session_id: ' + session.id);
+    lines.push('created_at: ' + fmtTime(session.createdAt));
+    lines.push('updated_at: ' + fmtTime(session.updatedAt));
+    lines.push('---');
+    lines.push('');
+    lines.push('# ' + title);
+    lines.push('');
+
+    var msgs = linearMessages(session);
+    msgs.forEach(function (m) {
+      if (!m) return;
+      var header = roleLabel(m.role);
+      if (m.createdAt) header += '  ·  ' + fmtTime(m.createdAt);
+      // 真实模型名（由 fetch 嗅探写入）；回退到应用自带的 model 字段
+      var modelName = m.serverModel || m.model;
+      if (m.role === 'assistant' && modelName) header += '  ·  `' + modelName + '`';
+      lines.push('## ' + header);
+      lines.push('');
+
+      // 附件
+      if (Array.isArray(m.files) && m.files.length) {
+        m.files.forEach(function (f) {
+          if (!f) return;
+          var badge = f.isImage ? '图片' : '文件';
+          lines.push('- [' + badge + '] ' + (f.name || f.id) + '  (' + (f.size || 0) + ' 字节)');
+        });
+        lines.push('');
+      }
+
+      // 消息正文的存放位置随角色/版本不同：
+      //   · 用户消息  → content 为字符串
+      //   · 助手消息  → blocks 数组，元素形如 {type:'text', text, citations}
+      //                 {type:'thinking', thinking, signature}
+      //                 {type:'server_tool_use'|'web_search_tool_result'|...}
+      //   · 兼容旧数据 → content 也可能是 block 数组
+      var blocks = Array.isArray(m.blocks)
+        ? m.blocks
+        : Array.isArray(m.content)
+          ? m.content
+          : null;
+
+      if (blocks) {
+        blocks.forEach(function (block) {
+          if (!block || typeof block !== 'object') return;
+          if (block.type === 'text' && typeof block.text === 'string') {
+            lines.push(block.text);
+            lines.push('');
+          } else if (block.type === 'thinking' && typeof block.thinking === 'string') {
+            lines.push('<details><summary>深度思考</summary>');
+            lines.push('');
+            lines.push(block.thinking);
+            lines.push('');
+            lines.push('</details>');
+            lines.push('');
+          } else if (block.type === 'image') {
+            lines.push('（图片）');
+            lines.push('');
+          }
+        });
+      } else if (typeof m.content === 'string') {
+        if (m.content.trim()) {
+          lines.push(m.content);
+          lines.push('');
+        }
+      }
+    });
+
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+  }
+
+  // -------------------------------------------------------------------------
+  // 快照构建
+  // -------------------------------------------------------------------------
+
+  /** 会话 → 写入文件夹的 JSON 结构（去掉 blob 等不可序列化内容） */
+  function sessionToMirror(session) {
+    var linear = linearMessages(session);
+    var all = Array.isArray(session.messages) ? session.messages : [];
+
+    /** 从一组消息里汇总模型名（去重、保序） */
+    function collectModels(list) {
+      var models = [];
+      list.forEach(function (m) {
+        if (!m || m.role !== 'assistant') return;
+        var name = m.serverModel || m.model;
+        if (name && models.indexOf(name) < 0) models.push(name);
+      });
+      return models;
+    }
+
+    return {
+      schema: 'chat-demo-mirror/session@1',
+      id: session.id,
+      title: session.title == null ? null : session.title,
+      createdAt: session.createdAt == null ? null : session.createdAt,
+      updatedAt: session.updatedAt == null ? null : session.updatedAt,
+      rootMessageId: session.rootMessageId == null ? null : session.rootMessageId,
+      messageCount: all.length,
+      /** 当前显示的这段对话实际用过的模型 */
+      models: collectModels(linear),
+      /** 完整消息树里出现过的全部模型（含未选中分支） */
+      modelsInTree: collectModels(all),
+      /** 当前显示的线性消息（已按分支选择展开） */
+      conversation: linear,
+      /** 完整消息树，含所有分支版本，供无损还原 */
+      messages: all
+    };
+  }
+
+  /**
+   * 推断附件落盘时的扩展名。
+   *
+   * 优先用文件名本身的扩展名；没有（或不像扩展名）时再从 MIME 猜，
+   * 这样 `<id>.png` / `<id>.pdf` 这类名字既能被系统正确打开，
+   * 也方便用户在文件夹里一眼看懂是什么文件。
+   */
+  var MIME_EXT = {
+    'image/png': '.png',
+    'image/jpeg': '.jpg',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/svg+xml': '.svg',
+    'image/bmp': '.bmp',
+    'application/pdf': '.pdf',
+    'application/json': '.json',
+    'application/zip': '.zip',
+    'text/plain': '.txt',
+    'text/markdown': '.md',
+    'text/csv': '.csv',
+    'text/html': '.html'
+  };
+
+  function attachmentExt(f) {
+    var m = /\.([A-Za-z0-9]{1,10})$/.exec(f.name || '');
+    if (m) return '.' + m[1].toLowerCase();
+    var mime = String(f.mimeType || '').toLowerCase().split(';')[0].trim();
+    if (MIME_EXT[mime]) return MIME_EXT[mime];
+    // text/* 与 +xml / +json 这类派生类型
+    if (mime.indexOf('text/') === 0) return '.' + mime.slice(5).replace(/[^a-z0-9]/g, '');
+    if (mime.indexOf('image/') === 0) return '.' + mime.slice(6).replace(/[^a-z0-9]/g, '');
+    return '';
+  }
+
+  function fileToMirror(file) {
+    return {
+      id: file.id,
+      name: file.name == null ? null : file.name,
+      size: file.size == null ? null : file.size,
+      mimeType: file.mimeType == null ? null : file.mimeType,
+      isImage: !!file.isImage,
+      serverId: file.serverId == null ? null : file.serverId
+    };
+  }
+
+  /** 生成稳定的文件名：`日期-时间_标题`，同名靠 id 去重 */
+  function fileBaseName(session) {
+    var when = new Date(session.updatedAt || session.createdAt || Date.now());
+    var title = safeSegment(session.title, '未命名对话', 40);
+    return stamp(when) + '_' + title;
+  }
+
+  // -------------------------------------------------------------------------
+  // 文件夹访问抽象
+  // -------------------------------------------------------------------------
+
+  var supportsFs = (function () {
+    try {
+      return (
+        typeof window.showDirectoryPicker === 'function' &&
+        window.isSecureContext !== false
+      );
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
+  async function ensurePermission(handle, request) {
+    if (!handle) return 'denied';
+    var opts = { mode: 'readwrite' };
+    try {
+      var state = await handle.queryPermission(opts);
+      if (state === 'granted') return 'granted';
+      if (!request) return state;
+      state = await handle.requestPermission(opts);
+      return state;
+    } catch (e) {
+      return 'denied';
+    }
+  }
+
+  var dirCache = null;
+
+  async function getRootHandle() {
+    if (dirCache) return dirCache;
+    try {
+      var h = await ownGet('root');
+      if (h && typeof h.queryPermission === 'function') {
+        dirCache = h;
+        return h;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    return null;
+  }
+
+  /** 取（并按需创建）子目录 */
+  async function subdir(root, name, create) {
+    return root.getDirectoryHandle(name, { create: !!create });
+  }
+
+  async function writeText(dir, name, text) {
+    var fh = await dir.getFileHandle(name, { create: true });
+    var w = await fh.createWritable();
+    try {
+      await w.write(text);
+    } finally {
+      await w.close();
+    }
+  }
+
+  async function writeBlob(dir, name, blob) {
+    var fh = await dir.getFileHandle(name, { create: true });
+    var w = await fh.createWritable();
+    try {
+      await w.write(blob);
+    } finally {
+      await w.close();
+    }
+  }
+
+  async function readTextFile(dir, name) {
+    var fh = await dir.getFileHandle(name);
+    var file = await fh.getFile();
+    return await file.text();
+  }
+
+  async function readBinaryFile(dir, name) {
+    var fh = await dir.getFileHandle(name);
+    return await fh.getFile();
+  }
+
+  /** 列举目录下所有文件名 */
+  async function listNames(dir) {
+    var names = [];
+    for await (var entry of dir.values()) {
+      names.push(entry.name + (entry.kind === 'directory' ? '/' : ''));
+    }
+    return names;
+  }
+
+  async function removeEntry(dir, name) {
+    try {
+      await dir.removeEntry(name, { recursive: true });
+    } catch (e) {
+      /* 不存在则忽略 */
+    }
+  }
+
+  /** 遍历出镜像文件夹里所有 `*.json` 会话文件名 */
+  async function listSessionJson(convDir) {
+    var out = [];
+    for await (var entry of convDir.values()) {
+      if (entry.kind === 'file' && /\.json$/i.test(entry.name)) out.push(entry.name);
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // 核心：写快照
+  // -------------------------------------------------------------------------
+
+  var syncState = {
+    running: false,
+    queued: false,
+    lastSync: null,
+    lastError: null,
+    lastStats: null
+  };
+
+  var syncListeners = new Set();
+
+  function emitSync() {
+    syncListeners.forEach(function (fn) {
+      try {
+        fn(syncState);
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
+
+  function onSync(fn) {
+    syncListeners.add(fn);
+    return function () {
+      syncListeners.delete(fn);
+    };
+  }
+
+  async function doSnapshot(root, opts) {
+    opts = opts || {};
+    var sessions = await readAllSessions();
+    var files = await readAllFiles();
+
+    var convDir = await subdir(root, '对话', true);
+    var dataDir = await subdir(root, '数据', true);
+    var attachDir = await subdir(root, '附件', true);
+
+    // --- 会话文件 ---
+    var usedNames = new Map(); // 处理同名冲突
+    var written = [];
+    var index = [];
+
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i];
+      if (!s || !s.id) continue;
+
+      var base = fileBaseName(s);
+      if (usedNames.has(base)) {
+        base = base + '_' + String(s.id).slice(0, 6);
+      }
+      usedNames.set(base, true);
+
+      await writeText(convDir, base + '.json', JSON.stringify(sessionToMirror(s), null, 2));
+      await writeText(convDir, base + '.md', renderMarkdown(s));
+
+      written.push(base + '.json', base + '.md');
+      index.push({
+        id: s.id,
+        title: s.title == null ? null : s.title,
+        createdAt: s.createdAt == null ? null : s.createdAt,
+        updatedAt: s.updatedAt == null ? null : s.updatedAt,
+        files: [base + '.json', base + '.md']
+      });
+    }
+
+    // 附件：所有类型都把原件写进 附件/（图片、PDF、Word、代码…都一样）
+    var fileIndex = [];
+    var blobCount = 0;
+    var blobMissed = [];
+    for (var j = 0; j < files.length; j++) {
+      var f = files[j];
+      if (!f || !f.id) continue;
+      var meta = fileToMirror(f);
+      // 优先用数据库里的 blob；有些老记录可能只存了 serverId
+      var blob = f.blob || null;
+      if (!blob && typeof File !== 'undefined' && f.name) {
+        blob = null; // 没有原件就老实记为「未存原件」，不要伪造
+      }
+      if (blob) {
+        var ext = attachmentExt(f);
+        var fname = f.id + ext;
+        try {
+          await writeBlob(attachDir, fname, blob);
+          meta.storedAs = '附件/' + fname;
+          meta.bytesStored = blob.size == null ? null : blob.size;
+          blobCount++;
+        } catch (e) {
+          warn('附件写入失败', f.id, e);
+          meta.storedAs = null;
+          blobMissed.push(f.id);
+        }
+      } else {
+        meta.storedAs = null;
+        blobMissed.push(f.id);
+      }
+      fileIndex.push(meta);
+    }
+
+    // --- 清理：删掉这次没写到的旧会话文件（对应“删除对话”） ---
+    //
+    // ⚠️ 安全闸门：如果本地库是空的、而文件夹里却有存档，绝不能清理。
+    // 那种状态说明这是「全新浏览器 / 刚清空过数据」，此时全量快照 + 清理
+    // 会把用户存在文件夹里的历史对话成批删掉 —— 这与「防丢失」的目的完全相反。
+    // 只有确认过本地与文件夹已经对过账（有历史同步标记）才允许清理。
+    var pruneSkipped = false;
+    var current = new Set(written);
+    var existing = await listSessionJson(convDir).then(function (a) {
+      return a.concat(
+        a.map(function (n) {
+          return n.replace(/\.json$/i, '.md');
+        })
+      );
+    });
+
+    if (!sessions.length && existing.length && !lsGet(LS_HISTORY_SYNCED_AT)) {
+      pruneSkipped = true;
+      warn(
+        '已跳过旧文件清理：浏览器里没有对话，但文件夹里有 ' +
+          existing.length +
+          ' 个文件。请先在设置里点「从文件夹恢复」。'
+      );
+    }
+
+    var removed = 0;
+    if (!pruneSkipped) {
+      for (var k = 0; k < existing.length; k++) {
+        if (!current.has(existing[k])) {
+          await removeEntry(convDir, existing[k]);
+          removed++;
+        }
+      }
+    }
+
+    // --- 数据索引 ---
+    var manifest = {
+      schema: 'chat-demo-mirror/manifest@1',
+      bridgeVersion: BRIDGE_VERSION,
+      appVersion: '0.1.2',
+      folderName: root.name || null,
+      lastSyncAt: Date.now(),
+      lastSyncAtText: fmtTime(Date.now()),
+      sessionCount: index.length,
+      attachmentCount: fileIndex.length,
+      // 原件真正落盘的附件数（图片与非图片都算）
+      blobCount: blobCount,
+      blobMissed: blobMissed.length,
+      imageCount: blobCount,
+      apiBase: lsGet(LS_API_BASE) || DEFAULT_API_BASE,
+      pruneSkipped: pruneSkipped,
+      note:
+        '本文件夹由 chat-demo 的本地存档功能自动维护，可安全备份。请勿手工改动 数据/ 下的文件结构。' +
+        (pruneSkipped
+          ? '（本次未清理旧文件：浏览器里是空的而文件夹里有存档，已在设置里点过「从文件夹恢复」后才会清理。）'
+          : '')
+    };
+
+    await writeText(dataDir, 'sessions.json', JSON.stringify({ manifest: manifest, sessions: index }, null, 2));
+    await writeText(dataDir, 'files.json', JSON.stringify(fileIndex, null, 2));
+    await writeText(dataDir, 'manifest.json', JSON.stringify(manifest, null, 2));
+
+    // --- 设置项（不含密钥）---
+    // 每次快照顺带刷新，用户改完语言/主题等偏好后即使没有触发对话，
+    // 下一次同步也会把新设置带上。
+    //
+    // 注意：写完必须把「已同步」标记对齐到本次写入的时间。
+    // 否则下次启动会看到「文件夹比本地标记新」而误判成有新设置，
+    // 进而要求刷新页面 —— 那正是页面不停闪动的根因。
+    try {
+      var settingsSavedAt = Date.now();
+      var settingsPayload = {
+        schema: 'chat-demo-mirror/settings@1',
+        note: '本文件不含密钥，可安全阅读。密钥见同目录的 apikey.json。',
+        savedAt: settingsSavedAt,
+        savedAtText: fmtTime(settingsSavedAt),
+        settings: collectSettings()
+      };
+      await writeText(dataDir, SETTINGS_FILE, JSON.stringify(settingsPayload, null, 2));
+      lsSet(LS_SETTINGS_SYNCED_AT, String(settingsSavedAt));
+    } catch (e) {
+      warn('写入设置失败：' + ((e && e.message) || e));
+    }
+
+    // --- 密钥（含各提供方的 Key）---
+    // 仅当用户启用了「Key 存到文件夹」开关时同步；否则不落盘明文。
+    // settings.json 是纯偏好、不含密钥，所以提供方的 Key 必须走这里，
+    // 不然换浏览器后自定义提供方的 Key 全是空的。
+    try {
+      if (lsGet('chat-demo:local-key') === '1') {
+        var officialKey = lsGet(LS_APP_API_KEY) || '';
+        var providerKeys = collectProviderKeys();
+        if (officialKey || Object.keys(providerKeys).length) {
+          var keySavedAt = Date.now();
+          await writeText(
+            dataDir,
+            KEY_FILE,
+            JSON.stringify(
+              {
+                schema: 'chat-demo-mirror/apikey@2',
+                warning:
+                  '本文件包含明文 API Key。请勿上传网盘、提交到 Git 或分享给他人。',
+                savedAt: keySavedAt,
+                savedAtText: fmtTime(keySavedAt),
+                apiBase: lsGet(LS_API_BASE) || DEFAULT_API_BASE,
+                apiKey: officialKey,
+                providerKeys: providerKeys
+              },
+              null,
+              2
+            )
+          );
+        }
+      }
+    } catch (e) {
+      warn('写入密钥失败：' + ((e && e.message) || e));
+    }
+
+    // --- 顶层 README，方便日后自己看懂 ---
+    await writeText(
+      root,
+      'README.md',
+      [
+        '# 本文件夹由 chat-demo 自动维护',
+        '',
+        '这是「' + (root.name || '本地存档') + '」文件夹，由 DeepSeek chat-demo 的本地存档功能自动写入。',
+        '',
+        '## 目录说明',
+        '',
+        '| 路径 | 内容 |',
+        '| --- | --- |',
+        '| `对话/*.md` | **人类可读**的对话全文，可直接阅读、搜索、归档 |',
+        '| `对话/*.json` | 结构化原始数据，**含所有分支版本**，用于无损还原 |',
+        '| `附件/` | 上传附件的**原件**（图片、PDF、Word、代码等都会存） |',
+        '| `数据/sessions.json` | 全部对话的索引 |',
+        '| `数据/manifest.json` | 存档元信息与上次同步时间 |',
+        '| `数据/settings.json` | 界面偏好（语言、主题等），**不含密钥** |',
+        '| `数据/apikey.json` | API Key（**明文**，仅在启用该功能时存在） |',
+        '',
+        '## 注意',
+        '',
+        '- 文件名形如 `20260214-143022_对话标题`，按最后更新时间命名。',
+        '- `附件/` 里的文件名是 `<附件id><扩展名>`；对应关系记在 `数据/files.json` 的 `storedAs` 字段。',
+        '- 在网页里**删除**对话，这里对应的文件也会被同步删除。',
+        '- 想从本文件夹恢复数据：打开网页 → 设置 → 本地文件夹 → 从文件夹恢复。',
+        '- 可以直接复制整个文件夹做备份。',
+        '',
+        '最后同步：' + fmtTime(Date.now()),
+        ''
+      ].join('\n')
+    );
+
+    return {
+      sessionCount: index.length,
+      fileCount: fileIndex.length,
+      imageCount: blobCount,
+      blobCount: blobCount,
+      blobMissed: blobMissed.length,
+      removed: removed,
+      at: Date.now()
+    };
+  }
+
+  /** 带串行化与状态上报的快照入口 */
+  async function snapshot(reason) {
+    if (!supportsFs) throw new Error('当前浏览器不支持文件夹写入');
+    var root = await getRootHandle();
+    if (!root) throw new Error('尚未选择本地文件夹');
+
+    if (syncState.running) {
+      syncState.queued = true;
+      return null;
+    }
+
+    var perm = await ensurePermission(root, false);
+    if (perm !== 'granted') {
+      syncState.lastError = '需要重新授权文件夹访问权限';
+      emitSync();
+      throw new Error('需要重新授权文件夹访问权限，请在设置中点击「重新连接」');
+    }
+
+    syncState.running = true;
+    syncState.lastError = null;
+    emitSync();
+
+    var result = null;
+    try {
+      result = await doSnapshot(root, { reason: reason });
+      syncState.lastSync = result.at;
+      syncState.lastStats = result;
+      lsSet(LS_FOLDER, root.name || '1');
+      log('已同步到文件夹', root.name, result);
+    } catch (e) {
+      syncState.lastError = (e && e.message) || String(e);
+      warn('同步失败', e);
+      throw e;
+    } finally {
+      syncState.running = false;
+      emitSync();
+      if (syncState.queued) {
+        syncState.queued = false;
+        setTimeout(function () {
+          snapshot('queued').catch(function () {});
+        }, 50);
+      }
+    }
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
+  // 自动同步：hook 原生 IDBObjectStore 写操作
+  // -------------------------------------------------------------------------
+
+  var autoSyncSuspended = 0;
+  var debounceTimer = null;
+
+  /**
+   * 安排一次自动落盘。
+   *
+   * 触发来源有两路：
+   *   1. 官方写 IndexedDB（installIdbHook）—— 覆盖新建/改名/删除会话；
+   *   2. 界面出现新的消息节点（watchMessages）—— 覆盖流式回复过程中
+   *      「内容还在追加、但还没最终写库」的窗口。
+   * 两路都走同一个防抖计时器，因此不会重复写。
+   */
+  function scheduleAutoSync(reason) {
+    if (autoSyncSuspended > 0) return;
+    if (lsGet(LS_AUTOSYNC) === 'false') return;
+    if (!supportsFs) return;
+    if (!dirCache && !lsGet(LS_FOLDER)) return;
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function () {
+      snapshot('auto' + (reason ? ':' + reason : ''))
+        .then(function (r) {
+          if (r) {
+            log('自动保存完成：' + r.sessionCount + ' 个对话');
+          }
+        })
+        .catch(function (e) {
+          warn('自动保存失败：' + ((e && e.message) || e));
+        });
+    }, AUTO_SYNC_DEBOUNCE);
+  }
+
+  function installIdbHook() {
+    if (typeof IDBObjectStore === 'undefined') return;
+    var proto = IDBObjectStore.prototype;
+    var INTERESTING = { sessions: 1, files: 1, sessionSummaries: 1 };
+
+    ['put', 'add', 'delete', 'clear'].forEach(function (method) {
+      var original = proto[method];
+      if (typeof original !== 'function' || original.__localstorePatched) return;
+
+      var wrapped = function () {
+        var storeName = null;
+        try {
+          storeName = this && this.name;
+        } catch (e) {
+          /* ignore */
+        }
+
+        // 写入 sessions 前，把嗅探到的真实模型补进助手消息
+        var args = arguments;
+        if (storeName === 'sessions' && args.length >= 1 && pendingModel) {
+          var value = args[0];
+          if (value && typeof value === 'object' && Array.isArray(value.messages)) {
+            try {
+              attachModelToSession(value);
+            } catch (e) {
+              /* ignore */
+            }
+          }
+        }
+
+        var result = original.apply(this, args);
+        if (storeName && INTERESTING[storeName]) {
+          // 等事务真正提交再触发，避免写到一半就读
+          try {
+            var tx = this.transaction;
+            if (tx) {
+              tx.addEventListener('complete', function () {
+                scheduleAutoSync();
+              });
+            } else {
+              scheduleAutoSync();
+            }
+          } catch (e) {
+            scheduleAutoSync();
+          }
+        }
+        return result;
+      };
+
+      wrapped.__localstorePatched = true;
+      wrapped.__original = original;
+      try {
+        proto[method] = wrapped;
+      } catch (e) {
+        warn('无法 hook IDBObjectStore.' + method, e);
+      }
+    });
+
+    log('已挂载 IndexedDB 自动同步钩子');
+  }
+
+  // -------------------------------------------------------------------------
+  // 连接 / 断开 / 恢复
+  // -------------------------------------------------------------------------
+
+  async function pickFolder() {
+    if (!supportsFs) {
+      throw new Error('当前浏览器不支持文件夹写入，请使用 Chrome 或 Edge');
+    }
+    var handle = await window.showDirectoryPicker({
+      id: 'chat-demo-localstore',
+      mode: 'readwrite',
+      startIn: 'documents'
+    });
+
+    var perm = await ensurePermission(handle, true);
+    if (perm !== 'granted') {
+      throw new Error('未获得文件夹读写权限');
+    }
+
+    await ownPut('root', handle);
+    dirCache = handle;
+    lsSet(LS_FOLDER, handle.name || '1');
+    emitSync();
+    log('已连接文件夹', handle.name);
+
+    // 换浏览器 / 清空数据后第一次连接：这也是「自动把对话读回来」的最佳时机。
+    // 不放在 background 里做是因为它会写库，需要让 UI 拿到进度。
+    return handle;
+  }
+
+  /**
+   * 文件夹连接就绪后，尝试把对话自动读回来（仅在全新浏览器里生效）。
+   * 返回是否真的恢复了内容。
+   */
+  async function autoRestoreAfterConnect(onProgress) {
+    var res = await maybeAutoRestoreHistory(onProgress);
+    if (res && res.restored) {
+      emitSync();
+      return true;
+    }
+    return false;
+  }
+
+  async function disconnect() {
+    dirCache = null;
+    try {
+      await ownDelete('root');
+    } catch (e) {
+      /* ignore */
+    }
+    lsSet(LS_FOLDER, null);
+    emitSync();
+  }
+
+  async function reconnect() {
+    var root = await getRootHandle();
+    if (!root) throw new Error('没有已保存的文件夹');
+    var perm = await ensurePermission(root, true);
+    if (perm !== 'granted') throw new Error('授权被拒绝');
+    dirCache = root;
+    emitSync();
+    return root;
+  }
+
+  /**
+   * 从镜像文件夹读取全部会话与附件元信息。
+   * 会话内容以 `对话/*.json` 为准（含完整分支树）。
+   */
+  async function loadFromFolder(onProgress) {
+    var root = await getRootHandle();
+    if (!root) throw new Error('尚未选择本地文件夹');
+    var perm = await ensurePermission(root, false);
+    if (perm !== 'granted') throw new Error('需要重新授权文件夹访问权限');
+
+    var convDir;
+    try {
+      convDir = await subdir(root, '对话', false);
+    } catch (e) {
+      throw new Error('该文件夹不是有效的 chat-demo 存档（缺少「对话」子目录）');
+    }
+
+    var names = await listSessionJson(convDir);
+    var sessions = [];
+    var fileIdSet = new Map();
+
+    for (var i = 0; i < names.length; i++) {
+      var raw;
+      try {
+        raw = await readTextFile(convDir, names[i]);
+      } catch (e) {
+        warn('无法读取', names[i], e);
+        continue;
+      }
+      var parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        warn('跳过无法解析的文件', names[i]);
+        continue;
+      }
+      if (!parsed || !parsed.id) continue;
+
+      sessions.push({
+        id: parsed.id,
+        title: parsed.title == null ? null : parsed.title,
+        createdAt: parsed.createdAt == null ? null : parsed.createdAt,
+        updatedAt: parsed.updatedAt == null ? null : parsed.updatedAt,
+        rootMessageId:
+          parsed.rootMessageId == null ? null : parsed.rootMessageId,
+        messages: Array.isArray(parsed.messages) ? parsed.messages : []
+      });
+
+      (parsed.messages || []).forEach(function (m) {
+        if (m && m.role === 'user' && Array.isArray(m.files)) {
+          m.files.forEach(function (f) {
+            if (f && f.id && !fileIdSet.has(f.id)) fileIdSet.set(f.id, f);
+          });
+        }
+      });
+
+      if (onProgress) onProgress(i + 1, names.length);
+    }
+
+    // 附件：能读到原件的就读回来，否则仅保留元信息
+    var files = [];
+    var attachDir = null;
+    try {
+      attachDir = await subdir(root, '附件', false);
+    } catch (e) {
+      /* 无附件目录，正常 */
+    }
+
+    // 先把附件目录里的文件名索引成 id → handle，避免每个附件都重扫目录
+    var attachIndex = new Map();
+    if (attachDir) {
+      for await (var entry of attachDir.values()) {
+        if (entry.kind !== 'file') continue;
+        // 文件名形如 `<fileId>.<ext>`，fileId 本身可能含点，所以用前缀匹配择优
+        attachIndex.set(entry.name, entry);
+      }
+    }
+
+    function findAttachment(fileId) {
+      var best = null;
+      attachIndex.forEach(function (handle, name) {
+        if (name !== fileId && name.indexOf(fileId + '.') !== 0) return;
+        // 取最短匹配，避免 `abc` 误配到 `abcd.png`
+        if (!best || name.length < best.name.length) best = { name: name, handle: handle };
+      });
+      return best ? best.handle : null;
+    }
+
+    for (var meta of fileIdSet.values()) {
+      var record = {
+        id: meta.id,
+        name: meta.name == null ? null : meta.name,
+        size: meta.size == null ? null : meta.size,
+        mimeType: meta.mimeType == null ? null : meta.mimeType,
+        isImage: !!meta.isImage,
+        serverId: meta.serverId == null ? null : meta.serverId
+      };
+      // 所有类型的附件都尝试把原件读回来（不只是图片）
+      try {
+        var handle = findAttachment(meta.id);
+        if (handle) {
+          var got = await handle.getFile();
+          // 数据库里 expects 的是 File（应用上传时会带 name/type），
+          // 从文件夹读回来的是 File，但 type 可能是空的，尽量补上
+          record.blob = got;
+          if (!record.size && got.size) record.size = got.size;
+        }
+      } catch (e) {
+        /* 附件恢复失败不影响主流程 */
+      }
+      files.push(record);
+    }
+
+    return { sessions: sessions, files: files, names: names };
+  }
+
+  /** 从文件夹恢复进浏览器数据库（覆盖式，与官方导入语义一致） */
+  async function restoreFromFolder(onProgress) {
+    var loaded = await loadFromFolder(onProgress);
+    if (!loaded.sessions.length) throw new Error('文件夹里没有可恢复的对话');
+
+    autoSyncSuspended++;
+    try {
+      await writeBack(loaded.sessions, loaded.files, function (d, t) {
+        if (onProgress) onProgress(d, t);
+      });
+    } finally {
+      autoSyncSuspended--;
+    }
+    lsSet(LS_HISTORY_SYNCED_AT, String(Date.now()));
+    return { sessions: loaded.sessions.length, files: loaded.files.length };
+  }
+
+  /**
+   * 全新浏览器（或清空数据后）自动把对话读回来。
+   *
+   * 判断「全新」的依据：
+   *   · 没有历史同步标记 —— 本浏览器从没跟这个文件夹打过交道；
+   *   · 且本地库是空的 —— 避免把已有数据覆盖掉。
+   * 两个条件都成立才动手，因此对老用户完全无感。
+   */
+  async function maybeAutoRestoreHistory() {
+    if (lsGet(LS_HISTORY_SYNCED_AT)) return { skipped: 'already-synced' };
+
+    var count = await countLocalSessions();
+    if (count > 0) return { skipped: 'local-not-empty', count: count };
+
+    try {
+      var r = await restoreFromFolder();
+      if (r && r.sessions) {
+        log('首次连接：已自动从文件夹恢复 ' + r.sessions + ' 个对话');
+        return { restored: r.sessions };
+      }
+    } catch (e) {
+      // 文件夹里没有对话属正常情况，不打扰用户
+      return { skipped: 'empty-or-error', message: (e && e.message) || String(e) };
+    }
+    return { skipped: 'nothing' };
+  }
+
+  /** 数一数本地库里有几个对话 */
+  async function countLocalSessions() {
+    try {
+      var db = await openOwnDb();
+      var n = await new Promise(function (resolve) {
+        var tx = db.transaction('sessions', 'readonly');
+        var rq = tx.objectStore('sessions').count();
+        rq.onsuccess = function () {
+          resolve(rq.result);
+        };
+        rq.onerror = function () {
+          resolve(-1);
+        };
+      });
+      db.close();
+      return n;
+    } catch (e) {
+      return -1; // 数不出来时按「不安全」处理：不自动恢复
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 首次连接后的对账
+  // -------------------------------------------------------------------------
+
+  /** 读取镜像文件夹里的 manifest（若存在） */
+  async function readManifest() {
+    var root = await getRootHandle();
+    if (!root) return null;
+    var perm = await ensurePermission(root, false);
+    if (perm !== 'granted') return null;
+    try {
+      var dataDir = await subdir(root, '数据', false);
+      var text = await readTextFile(dataDir, 'manifest.json');
+      return JSON.parse(text);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // API Key 存到文件夹
+  // -------------------------------------------------------------------------
+
+  /**
+   * 说明：官方应用把 API Key 存在 localStorage['chat-demo:api-key']。
+   * 这里做的是「镜像 + 回填」——不改变官方读取位置，只是在文件夹里留一份副本，
+   * 并支持从副本回填到浏览器。好处是清空浏览器数据后密钥不会丢。
+   *
+   * 安全提示：明文保存。该文件夹不应上传网盘或提交到 Git。
+   */
+
+  /**
+   * 收集所有提供方的 Key，用于一并存进文件夹。
+   *
+   * 为什么需要：官方只有一个 Key 槽位（chat-demo:api-key），而自定义提供方
+   * 各自有自己的 Key，存在 chat-demo:providers 里。settings.json 明确不含
+   * 密钥，所以这些 Key 必须由 apikey.json 一起带走 —— 否则换浏览器后
+   * 自定义提供方的 Key 全是空的，还得一个个重填。
+   */
+  function collectProviderKeys() {
+    var out = {};
+    try {
+      var st = getProviders();
+      st.list.forEach(function (p) {
+        if (p && p.id && typeof p.apiKey === 'string' && p.apiKey.trim()) {
+          out[p.id] = p.apiKey.trim();
+        }
+      });
+    } catch (e) {
+      /* ignore */
+    }
+    return out;
+  }
+
+  /** 把文件夹里的提供方 Key 填回本地（只在本地为空时填，不覆盖用户已填的） */
+  function applyProviderKeys(map) {
+    if (!map || typeof map !== 'object') return 0;
+    var st = getProviders();
+    var n = 0;
+    st.list.forEach(function (p) {
+      if (!p || !p.id) return;
+      var v = map[p.id];
+      if (typeof v !== 'string' || !v.trim()) return;
+      if (p.apiKey && p.apiKey.trim()) return; // 本地已有，不动
+      p.apiKey = v.trim();
+      n++;
+    });
+    if (n) {
+      saveProviders();
+      log('已从文件夹恢复 ' + n + ' 个提供方的 API Key');
+    }
+    return n;
+  }
+
+  async function writeKeyToFolder() {
+    var key = lsGet(LS_APP_API_KEY) || '';
+    var providerKeys = collectProviderKeys();
+    // 官方那一个 Key 可能还没填（用户在别的地方填），只要还有提供方的 Key
+    // 就值得写这个文件，否则自定义提供方的 Key 永远同步不过去。
+    if (!key && !Object.keys(providerKeys).length) throw new Error(t('keyNone'));
+    var root = await getRootHandle();
+    if (!root) throw new Error('尚未选择本地文件夹');
+    var perm = await ensurePermission(root, true);
+    if (perm !== 'granted') throw new Error('未获得文件夹读写权限');
+
+    var dataDir = await subdir(root, '数据', true);
+    var payload = {
+      schema: 'chat-demo-mirror/apikey@2',
+      warning:
+        '本文件包含明文 API Key。请勿上传网盘、提交到 Git 或分享给他人。',
+      savedAt: Date.now(),
+      savedAtText: fmtTime(Date.now()),
+      apiBase: lsGet(LS_API_BASE) || DEFAULT_API_BASE,
+      apiKey: key,
+      // 每个提供方各自的 Key（官方那一路就是上面的 apiKey）
+      providerKeys: providerKeys
+    };
+    await writeText(dataDir, KEY_FILE, JSON.stringify(payload, null, 2));
+
+    // 让 数据/README 之类的提示信息也标记一下
+    lsSet('chat-demo:local-key', '1');
+    // 同时收进提供方，让设置面板与实际上使用的 Key 保持一致
+    if (key) adoptKeyIntoActiveProvider(key);
+    return payload;
+  }
+
+  async function readKeyFromFolder() {
+    var root = await getRootHandle();
+    if (!root) return null;
+    var perm = await ensurePermission(root, false);
+    if (perm !== 'granted') return null;
+    try {
+      var dataDir = await subdir(root, '数据', false);
+      var text = await readTextFile(dataDir, KEY_FILE);
+      var parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== 'object') return null;
+      var hasOfficial = typeof parsed.apiKey === 'string' && parsed.apiKey.trim();
+      var hasProvider =
+        parsed.providerKeys && Object.keys(parsed.providerKeys).length > 0;
+      // 只要有任意一种 Key 就认这个文件（老版本文件只有 apiKey）
+      if (hasOfficial || hasProvider) return parsed;
+    } catch (e) {
+      /* 文件不存在或损坏 */
+    }
+    return null;
+  }
+
+  async function removeKeyFromFolder() {
+    var root = await getRootHandle();
+    if (!root) throw new Error('尚未选择本地文件夹');
+    var perm = await ensurePermission(root, true);
+    if (perm !== 'granted') throw new Error('未获得文件夹读写权限');
+    try {
+      var dataDir = await subdir(root, '数据', false);
+      await removeEntry(dataDir, KEY_FILE);
+    } catch (e) {
+      /* ignore */
+    }
+    lsSet('chat-demo:local-key', null);
+  }
+
+  /**
+   * 启动时：如果浏览器里没有 Key，而文件夹里有，就回填并刷新。
+   * 只回填、不反向覆盖，避免误删用户刚输入的 Key。
+   */
+  async function hydrateKeyFromFolder() {
+    // 提供方各自的 Key 先填（它不依赖官方的开关，因为 settings.json 不含密钥，
+    // 换浏览器后这些 Key 只能从这里来）。
+    var payload = await readKeyFromFolder();
+    var filled = 0;
+    if (payload) filled = applyProviderKeys(payload.providerKeys);
+
+    if (lsGet('chat-demo:local-key') !== '1') {
+      // 官方那个 Key 的回填受开关控制
+      return filled > 0;
+    }
+    if (!payload) return false;
+    if (!payload.apiKey || !payload.apiKey.trim()) return filled > 0;
+    if (lsGet(LS_APP_API_KEY)) return filled > 0; // 浏览器里已有，不动
+
+    lsSet(LS_APP_API_KEY, payload.apiKey);
+    // 顺带把 base URL 也恢复（如果文件夹里记着且浏览器里没设）
+    if (payload.apiBase && !lsGet(LS_API_BASE)) {
+      lsSet(LS_API_BASE, payload.apiBase);
+    }
+    log('已从文件夹恢复 API Key');
+    return true;
+  }
+
+  // -------------------------------------------------------------------------
+  // 设置项存到文件夹
+  // -------------------------------------------------------------------------
+  //
+  // 「设置」在这里指官方应用写在 localStorage 里的一堆偏好：语言、主题、
+  // 思考模式、联网搜索、语音音色、侧边栏折叠状态等。它们同样是「清了浏览器
+  // 数据就没了」的东西，所以一并镜像到文件夹，换浏览器也能带走。
+  //
+  // 存哪些由 SETTINGS_ALLOW 白名单决定，而不是「把所有 chat-demo:* 都存」：
+  //   · chat-demo:local-folder 是文件夹句柄的名字，换机器后指向的目录可能
+  //     根本不存在，恢复它只会造成误导；
+  //   · chat-demo:api-key 由 apikey.json 单独管，避免两处重复且不一致；
+  //   · chat-demo:local-key / local-autosync 属于本工具的开关，各机器独立更合理。
+  //
+  // 注意 settings.json 里【不含】任何密钥，是纯偏好文件，可以安全阅读。
+
+  var SETTINGS_FILE = 'settings.json';
+  var SETTINGS_ALLOW = [
+    'chat-demo:locale',
+    'chat-demo:location',
+    'chat-demo:theme-preference',
+    'chat-demo:tts-voice',
+    'chat-demo:thinking',
+    'chat-demo:search',
+    'chat-demo:sider-collapsed',
+    'chat-demo:providers',
+    'chat-demo:active-provider',
+    'chat-demo:model'
+  ];
+
+  // 记录「本浏览器最后一次与文件夹同步设置的时间」。
+  // 用它代替「本地设置是否为空」来判断要不要回填 —— 后者是错的：
+  // 桥接层自己在启动时就会写入 chat-demo:active-provider 与 chat-demo:model，
+  // 所以白名单永远不为空，自动恢复永远不会触发（这就是跨浏览器设置不同步的原因）。
+  var LS_SETTINGS_SYNCED_AT = 'chat-demo:settings-synced-at';
+
+  /** 本地是否已经完成过一次设置同步（有标记即视为已完成） */
+  function hasLocalSettingsSync() {
+    return !!lsGet(LS_SETTINGS_SYNCED_AT);
+  }
+
+  /** 收集当前浏览器里的设置快照 */
+  function collectSettings() {
+    var out = {};
+    SETTINGS_ALLOW.forEach(function (k) {
+      var v = lsGet(k);
+      if (v !== null && v !== undefined) out[k] = v;
+    });
+    return out;
+  }
+
+  async function writeSettingsToFolder() {
+    var root = await getRootHandle();
+    if (!root) throw new Error(t('needFolder'));
+    var perm = await ensurePermission(root, true);
+    if (perm !== 'granted') throw new Error(t('noPermission'));
+
+    var dataDir = await subdir(root, '数据', true);
+    var settings = collectSettings();
+    var payload = {
+      schema: 'chat-demo-mirror/settings@1',
+      note: '本文件不含密钥，可安全阅读。密钥见同目录的 apikey.json。',
+      savedAt: Date.now(),
+      savedAtText: fmtTime(Date.now()),
+      settings: settings
+    };
+    await writeText(dataDir, SETTINGS_FILE, JSON.stringify(payload, null, 2));
+    lsSet(LS_SETTINGS_SYNCED_AT, String(payload.savedAt));
+    return { count: Object.keys(settings).length, payload: payload };
+  }
+
+  async function readSettingsFromFolder() {
+    var root = await getRootHandle();
+    if (!root) return null;
+    var perm = await ensurePermission(root, false);
+    if (perm !== 'granted') return null;
+    try {
+      var dataDir = await subdir(root, '数据', false);
+      var text = await readTextFile(dataDir, SETTINGS_FILE);
+      var parsed = JSON.parse(text);
+      if (parsed && parsed.settings && typeof parsed.settings === 'object') return parsed;
+    } catch (e) {
+      /* 文件不存在或损坏 */
+    }
+    return null;
+  }
+
+  /**
+   * 把文件夹里的设置写回浏览器。
+   *
+   * 只覆盖白名单内的键，且「文件夹里有的才写」——这样即便某台机器上
+   * 多了新键，也不会被旧文件抹掉。返回写入了几个键。
+   */
+  async function restoreSettingsFromFolder() {
+    var payload = await readSettingsFromFolder();
+    if (!payload) throw new Error(t('settingsNone'));
+
+    var n = applySettings(payload.settings);
+    lsSet(LS_SETTINGS_SYNCED_AT, String(payload.savedAt || Date.now()));
+    return n;
+  }
+
+  /** 把文件夹里的一份设置应用进浏览器，返回**真正被改动**的键数 */
+  function applySettings(settings, force) {
+    var n = 0;
+    Object.keys(settings).forEach(function (k) {
+      if (SETTINGS_ALLOW.indexOf(k) === -1) return; // 白名单外的一律不认
+      var v = settings[k];
+      if (typeof v !== 'string') return;
+      // 值没变就不要写，也不要算作「改动」。
+      // 这一点很关键：快照每次都会把当前设置镜像进 settings.json，
+      // 如果这里把「写入相同值」也算成改动，启动时就会误判成「文件夹有新设置」
+      // 而反复要求刷新页面（表现为不停闪动）。
+      if (!force && lsGet(k) === v) return;
+      lsSet(k, v);
+      n++;
+    });
+    if (!n) return 0;
+    providersState = null;
+    getProviders();
+    applyActiveProvider(false);
+    return n;
+  }
+
+  /**
+   * 启动时自动回填设置。
+   *
+   * 核心判据是「文件夹里的值是否真的和本地不同」，而不是时间戳。
+   *
+   * 为什么不能只看时间戳：快照每次同步都会把当前设置**原样**写回
+   * `settings.json`（它本来就是本地设置的镜像），于是文件夹里的 savedAt
+   * 永远比本地的同步标记新一点。若据此判断「文件夹更新了」，
+   * 每次刷新页面都会再要求刷新一次 —— 死循环，表现为页面不停闪动。
+   *
+   * 所以流程是：
+   *   1. 先看有没有「真正不一样」的键；没有就直接结束（这是绝大多数情况）；
+   *   2. 有差异才轮到时间戳说话：本机从没同步过 → 采纳；已同步过 →
+   *      仅当文件夹比本地记录更新时才采纳，避免覆盖本机的改动。
+   *
+   * （更早的实现在这里判断「白名单是否为空」，但桥接层自己启动就会写
+   *  `chat-demo:active-provider` 与 `chat-demo:model`，导致条件永远不成立，
+   *  自动恢复形同虚设 —— 那是跨浏览器设置不同步的原因。）
+   */
+  async function hydrateSettingsFromFolder() {
+    var payload = await readSettingsFromFolder();
+    if (!payload || !payload.settings) return false;
+
+    var localAt = Number(lsGet(LS_SETTINGS_SYNCED_AT) || 0);
+    var folderAt = Number(payload.savedAt || 0);
+
+    // 1) 内容是否真有差异？（不写入，只比价）
+    var genuinelyNewer = false;
+    Object.keys(payload.settings).forEach(function (k) {
+      if (SETTINGS_ALLOW.indexOf(k) === -1) return;
+      var v = payload.settings[k];
+      if (typeof v !== 'string') return;
+      if (lsGet(k) !== v) genuinelyNewer = true;
+    });
+    if (!genuinelyNewer) {
+      // 完全一致：把标记对齐到文件夹时间即可，不要动任何东西
+      if (folderAt && folderAt !== localAt) lsSet(LS_SETTINGS_SYNCED_AT, String(folderAt));
+      return false;
+    }
+
+    // 2) 有差异，再看该不该采纳
+    if (localAt && folderAt && folderAt <= localAt) return false;
+
+    var n = applySettings(payload.settings);
+    lsSet(LS_SETTINGS_SYNCED_AT, String(folderAt || Date.now()));
+    if (!n) return false;
+    log('已从文件夹恢复 ' + n + ' 项设置');
+    return true;
+  }
+
+  // -------------------------------------------------------------------------
+  // 多提供方（Provider）
+  // -------------------------------------------------------------------------
+  //
+  // 背景：官方应用只认一个写死的 API 地址和一个 API Key，无法同时保留
+  // 「DeepSeek 官方」「中转站 A」「自建服务」等多套配置。
+  //
+  // 设计：
+  //   · 提供方列表整体存在 localStorage['chat-demo:providers']；
+  //   · 每个提供方各自拥有 baseURL / apiKey / models / defaultModel；
+  //   · 但官方 bundle 只读两个「单值槽位」——
+  //       chat-demo:api-base（补丁 1）与 chat-demo:api-key（官方自身）。
+  //     所以「设为默认提供方」= 把该提供方的 baseURL 与 apiKey 镜像进这两个槽位。
+  //
+  // 这样 bundle 端无需感知「多提供方」这一概念，改动面最小；
+  // 代价是「当前生效」只能有一个，切换提供方需要重新加载页面让官方读取新 Key。
+  //
+  // 注意：整个应用只讲 Anthropic 协议（POST /anthropic/v1/messages），
+  // 因此这里的「多个提供方」指多个 Anthropic 兼容端点。
+  // 纯 OpenAI 协议的服务（/v1/chat/completions）无法直接使用。
+
+  var LS_PROVIDERS = 'chat-demo:providers';
+  var LS_ACTIVE_PROVIDER = 'chat-demo:active-provider';
+  var LS_MODEL = 'chat-demo:model';
+  var PROVIDERS_SCHEMA = 'chat-demo-providers@1';
+
+  /** 官方内置提供方（不可删除） */
+  var OFFICIAL_PROVIDER = {
+    id: 'deepseek-official',
+    name: 'DeepSeek 官方',
+    baseURL: 'https://api.deepseek.com',
+    apiKey: '',
+    models: ['deepseek-flash', 'deepseek-v4-pro'],
+    defaultModel: 'deepseek-flash',
+    builtin: true
+  };
+
+  function uid(prefix) {
+    return (
+      (prefix || 'p') +
+      '-' +
+      Date.now().toString(36) +
+      '-' +
+      Math.random().toString(36).slice(2, 8)
+    );
+  }
+
+  function cloneProvider(p) {
+    return {
+      id: p.id,
+      name: p.name || '',
+      baseURL: p.baseURL || '',
+      apiKey: p.apiKey || '',
+      models: Array.isArray(p.models) ? p.models.slice() : [],
+      // 接口返回过的完整列表（含未勾选的），用于下次进设置页仍能显示全部候选
+      availableModels: Array.isArray(p.availableModels) ? p.availableModels.slice() : [],
+      defaultModel: p.defaultModel || '',
+      builtin: !!p.builtin
+    };
+  }
+
+  /**
+   * 读取提供方列表。首次调用或数据损坏时，用旧版的单值配置做迁移，
+   * 保证老用户升级后原来的地址不会被丢掉。
+   */
+  function loadProviders() {
+    var raw = null;
+    try {
+      raw = JSON.parse(localStorage.getItem(LS_PROVIDERS) || 'null');
+    } catch (e) {
+      raw = null;
+    }
+
+    if (raw && Array.isArray(raw.list) && raw.list.length) {
+      var list = raw.list
+        .filter(function (p) {
+          return p && p.id;
+        })
+        .map(cloneProvider);
+      if (list.length) return { list: list, activeId: raw.activeId || list[0].id };
+    }
+
+    // 迁移：把旧的单值地址当成一个自定义提供方保留下来
+    var oldBase = normalizeBase(lsGet(LS_API_BASE) || '');
+    var oldKey = lsGet(LS_APP_API_KEY) || '';
+    var official = cloneProvider(OFFICIAL_PROVIDER);
+    var list = [official];
+    var activeId = official.id;
+
+    if (oldBase && oldBase !== OFFICIAL_PROVIDER.baseURL) {
+      var custom = {
+        id: uid('custom'),
+        name: '自定义服务',
+        baseURL: oldBase,
+        apiKey: oldKey,
+        models: [],
+        defaultModel: '',
+        builtin: false
+      };
+      list.push(custom);
+      activeId = custom.id;
+    } else if (oldKey) {
+      official.apiKey = oldKey;
+    }
+
+    return { list: list, activeId: activeId };
+  }
+
+  var providersState = null;
+
+  function getProviders() {
+    if (!providersState) providersState = loadProviders();
+    return providersState;
+  }
+
+  /** 深拷贝一份提供方状态，避免调用方拿到内部引用后误改 */
+  function snapshotProviders(st) {
+    return {
+      list: (st.list || []).map(cloneProvider),
+      activeId: st.activeId || ''
+    };
+  }
+
+  /** 用一份状态**整体替换**当前提供方状态（内部引用与缓存一起换掉） */
+  function commitProviders(next) {
+    providersState = {
+      list: (next.list || []).map(cloneProvider),
+      activeId: next.activeId || ''
+    };
+    return providersState;
+  }
+
+  function saveProviders(next) {
+    // 关键：先把该改的都改在「同一份内部状态」上，再从这份状态序列化。
+    //
+    // 之前这里是 `var st = getProviders(); st.list = st.list.map(cloneProvider);`
+    // —— 如果此时外部刚通过 getProviders() 拿到内部对象并直接 push/改字段
+    // （设置面板、测试脚本都会这样），那一步会把外部刚做的改动**整体丢弃**，
+    // 表现就是「界面里改了提供方，一刷新就没了、activeId 还指向不存在的条目」。
+    // 现在改为：接受外部传进来的状态并与内部缓存合并，然后整体提交。
+    var st = getProviders();
+
+    if (next && Array.isArray(next.list)) {
+      st = { list: next.list, activeId: next.activeId || st.activeId };
+    }
+
+    // 合并：以内部缓存为准，但把「外部已经改过的那一份」认下来。
+    // 外部若直接改了缓存里的对象，改动本来就在；这里只处理外部换了数组的情况。
+    var committed = commitProviders(st);
+    try {
+      localStorage.setItem(
+        LS_PROVIDERS,
+        JSON.stringify({
+          schema: PROVIDERS_SCHEMA,
+          list: committed.list,
+          activeId: committed.activeId
+        })
+      );
+    } catch (e) {
+      warn('保存提供方失败', e);
+    }
+  }
+
+  function findProvider(id) {
+    var st = getProviders();
+    for (var i = 0; i < st.list.length; i++) {
+      if (st.list[i].id === id) return st.list[i];
+    }
+    return null;
+  }
+
+  function getActiveProvider() {
+    var st = getProviders();
+    return findProvider(st.activeId) || st.list[0] || null;
+  }
+
+  /**
+   * 把一个提供方设为默认：把它的 baseURL / apiKey 镜像进官方读取的两个槽位。
+   * 返回 true 表示需要重新加载页面（Key 只在启动时读一次）。
+   */
+  /**
+   * 规范化提供方的根地址。
+   *
+   * 应用会自己拼 `/anthropic/v1/messages`、`/anthropic/v1/files` 与 `/models`，
+   * 所以这里存的必须是**裸根地址**。用户常常直接粘贴
+   * `https://llmapi.paratera.com/anthropic`（中转站文档里就是这么写的），
+   * 若原样存下去就会拼成 `/anthropic/anthropic/v1/files` —— 上传必失败。
+   */
+  function normalizeBase(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    if (!s) return '';
+    s = s.replace(/\/+$/, '');
+    // 已经是完整的 /anthropic/v1 也接受：把版本段和后缀一起去掉
+    s = s.replace(/\/anthropic\/v\d+$/i, '');
+    s = s.replace(/\/anthropic$/i, '');
+    return s.replace(/\/+$/, '');
+  }
+
+  function applyActiveProvider(reloadIfChanged) {
+    var st = getProviders();
+    var p = getActiveProvider();
+    if (!p) return false;
+
+    var base = normalizeBase(p.baseURL || OFFICIAL_PROVIDER.baseURL);
+    var key = p.apiKey || '';
+
+    var prevBase = lsGet(LS_API_BASE) || '';
+    var prevKey = lsGet(LS_APP_API_KEY) || '';
+
+    lsSet(LS_API_BASE, base === OFFICIAL_PROVIDER.baseURL ? null : base);
+    window.__CHAT_API_BASE__ = base;
+    lsSet(LS_API_BASE + ':active', base); // 仅用于界面展示「当前生效」
+    lsSet(LS_ACTIVE_PROVIDER, st.activeId);
+
+    if (key) lsSet(LS_APP_API_KEY, key);
+
+    if (p.defaultModel) lsSet(LS_MODEL, p.defaultModel);
+
+    var changed = prevBase !== (lsGet(LS_API_BASE) || '') || prevKey !== key;
+    return changed && !!reloadIfChanged;
+  }
+
+  /**
+   * 反向同步：把「应用里已有的 Key」收进当前提供方。
+   *
+   * 为什么需要这一步：应用本身的界面（设置弹窗里的「输入 API Key」）会直接把
+   * Key 写进 localStorage，桥接层看不到这个过程。如果不回收，就会出现：
+   *   · 设置面板里显示「尚未填写 API Key」，但应用其实已经能用；
+   *   · 用户在设置面板里点一次「保存」，就用空 Key 覆盖掉原本可用的 Key，
+   *     之后每次启动都被判定为「API Key 无效」。
+   * 这正是之前一直提示 Key 无效的根因。
+   *
+   * 优先级：文件夹里的 Key > 应用槽位里的 Key。
+   * 注意 Key 只在「提供方自己为空」时被回收，避免覆盖用户手填的值。
+   */
+  function adoptKeyIntoActiveProvider(folderKey) {
+    var st = getProviders();
+    var p = getActiveProvider();
+    if (!p) return false;
+
+    var isOfficial = !!p.builtin || p.id === OFFICIAL_PROVIDER.id;
+    var folderVal = folderKey && folderKey.trim();
+
+    // 应用槽位里的 Key 只属于「官方统一配置」那一路。
+    // 当前若是自定义提供方，就只有文件夹里明确给它的那份才认，
+    // 否则会把用户给该提供方单独配的 Key 覆盖成官方那一个。
+    if (!isOfficial && !folderVal) return false;
+
+    var appKey = lsGet(LS_APP_API_KEY) || '';
+    var next = folderVal || appKey.trim();
+    if (!next) return false;
+    if (p.apiKey && !folderVal) return false; // 已有值且没有新证据
+
+    if (p.apiKey === next) return false;
+    p.apiKey = next;
+    saveProviders();
+    log('已把 API Key 收进提供方「' + (p.name || p.id) + '」');
+    return true;
+  }
+
+  /** 把文件夹里的 Key 收进当前提供方（不覆盖用户已填的值） */
+  async function syncKeyFromFolderToProvider() {
+    var payload = await readKeyFromFolder();
+    if (!payload || !payload.apiKey) return false;
+    return adoptKeyIntoActiveProvider(payload.apiKey);
+  }
+
+  /**
+   * 让「应用槽位」与「当前提供方」的 Key 保持一致。
+   *
+   * 为什么必须做：官方在「数据管理」标签页里自带一个 API Key 编辑框
+   * （apiKeyStart / apiKeyEdit / apiKeyPlaceholder），它在提交后直接把
+   * Key 写进 `chat-demo:api-key`，桥接层收不到任何通知。
+   * 而桥接层又在「通用设置」里给每个提供方各提供了一份 Key。
+   * 两处编辑同一个槽位，不同步就会出现：
+   *   · 官方面板里换了 Key，设置里显示的还是旧的；
+   *   · 设置里保存了旧 Key，把刚换上的新 Key 又覆盖回去（表现为「Key 无效」）。
+   *
+   * 策略：
+   *   · 用户【在官方面板里】改动（槽位有值且与提供方不同）→ 采纳进提供方；
+   *   · 用户【在提供方卡片里】改动 → 由卡片自己的保存逻辑写进槽位；
+   *   · 槽位为空时不动，避免把用户刚清空的动作又填回去。
+   */
+  var keySyncTimer = null;
+  var lastSeenAppKey = null;
+
+  function reconcileKey() {
+    var st = getProviders();
+    var p = getActiveProvider();
+    if (!p) return;
+
+    // 只有「官方统一配置」在生效时才做对账。
+    // 官方那个输入框永远指代官方那一路，若当前用的是自定义提供方，
+    // 把它写进来就会把用户为该提供方单独配的 Key 覆盖掉。
+    if (!p.builtin && p.id !== OFFICIAL_PROVIDER.id) {
+      lastSeenAppKey = lsGet(LS_APP_API_KEY) || '';
+      return;
+    }
+
+    var appKey = lsGet(LS_APP_API_KEY) || '';
+    if (appKey === lastSeenAppKey) return; // 没有变化
+    lastSeenAppKey = appKey;
+    if (!appKey) return; // 槽位被清空，交给用户后续操作
+
+    if (p.apiKey !== appKey) {
+      p.apiKey = appKey;
+      saveProviders();
+      log('已同步 API Key 到提供方「' + (p.name || p.id) + '」');
+      refreshSettingsSection();
+    }
+  }
+
+  function startKeySync() {
+    lastSeenAppKey = lsGet(LS_APP_API_KEY) || '';
+    if (keySyncTimer) clearInterval(keySyncTimer);
+    // localStorage 在同一文档内的写入不会派发 storage 事件，所以用轻量轮询；
+    // 只是读一个字符串做比较，开销可以忽略。
+    keySyncTimer = setInterval(reconcileKey, 1000);
+    window.addEventListener('storage', function (e) {
+      if (e && e.key === LS_APP_API_KEY) reconcileKey();
+    });
+  }
+
+  /** 设置区块若已挂载，重建它让界面显示最新值 */
+  function refreshSettingsSection() {
+    if (!document.getElementById(UI_ID)) return;
+    var container = findMountContainer();
+    if (!container) return;
+    var old = document.getElementById(UI_ID);
+    if (old) old.remove();
+    container.appendChild(renderSection());
+  }
+
+  /**
+   * 当前生效的 API 地址：优先用显式记录的值，其次回退旧键。
+   * 之所以单独记一个 ':active' 键：当生效地址恰好等于官方地址时，
+   * chat-demo:api-base 会被清空（保持「未设置」的语义），
+   * 界面就无从得知「当前生效」到底是哪个，故另存一份供展示。
+   */
+  function effectiveApiBase() {
+    var explicit = lsGet(LS_API_BASE + ':active');
+    if (explicit && explicit.trim()) return explicit.trim();
+    var legacy = lsGet(LS_API_BASE);
+    if (legacy && legacy.trim()) return legacy.trim();
+    var p = getActiveProvider();
+    if (p && p.baseURL) return p.baseURL;
+    return DEFAULT_API_BASE;
+  }
+
+  /**
+   * 当前生效的模型：官方补丁从这个键取值，所以这里必须与它一致。
+   * 未选择时回退到默认提供方的默认模型，再回退官方默认。
+   */
+  function effectiveModel() {
+    var chosen = lsGet(LS_MODEL);
+    if (chosen && chosen.trim()) return chosen.trim();
+    var p = getActiveProvider();
+    if (p && p.defaultModel) return p.defaultModel;
+    return 'deepseek-flash';
+  }
+
+  /**
+   * 拉取某个提供方的模型列表。
+   *
+   * 官方 /models 返回 OpenAI 风格的 { data:[{ id, name, ... }] }；
+   * 为兼容不同中转站，这里同时容忍 Anthropic 风格与裸数组，
+   * 并且把解析失败的原因如实抛出去，而不是静默返回空列表。
+   */
+  async function fetchModelsFor(providerId) {
+    var p = findProvider(providerId);
+    if (!p) throw new Error(t('provErrNoProvider'));
+
+    var base = normalizeBase(p.baseURL || OFFICIAL_PROVIDER.baseURL);
+    var key = p.apiKey || '';
+
+    // 依次尝试三种常见挂载路径：官方既支持 /models 也支持 /anthropic/v1/models，
+    // 各家中转站（one-api / LiteLLM / new-api 等）习惯不同，全部试一遍。
+    var attempts = [
+      { url: base + '/anthropic/v1/models', auth: 'x-api-key' },
+      { url: base + '/models', auth: 'bearer' },
+      { url: base + '/v1/models', auth: 'bearer' }
+    ];
+
+    var errors = [];
+    for (var i = 0; i < attempts.length; i++) {
+      var a = attempts[i];
+      var headers = {};
+      if (key) {
+        if (a.auth === 'x-api-key') headers['x-api-key'] = key;
+        else headers['Authorization'] = 'Bearer ' + key;
+      }
+      try {
+        var res = await window.fetch(a.url, { method: 'GET', headers: headers });
+        if (!res.ok) {
+          errors.push(a.url + ' → HTTP ' + res.status);
+          continue;
+        }
+        var text = await res.text();
+        var ids = parseModelList(text);
+        if (ids.length) return { models: ids, url: a.url };
+        errors.push(a.url + ' → ' + t('provErrEmpty'));
+      } catch (e) {
+        errors.push(a.url + ' → ' + ((e && e.message) || e));
+      }
+    }
+
+    throw new Error(
+      t('provErrFetch') + '\n' + errors.map(function (x) { return '  · ' + x; }).join('\n')
+    );
+  }
+
+  /** 从各种可能的返回结构里提取模型 id 列表 */
+  function parseModelList(text) {
+    var data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return [];
+    }
+    var arr = null;
+    if (Array.isArray(data)) arr = data;
+    else if (data && Array.isArray(data.data)) arr = data.data; // OpenAI / Anthropic
+    else if (data && Array.isArray(data.models)) arr = data.models;
+    if (!arr) return [];
+
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < arr.length; i++) {
+      var item = arr[i];
+      var id =
+        typeof item === 'string'
+          ? item
+          : (item && (item.id || item.name || item.model)) || '';
+      id = String(id).trim();
+      if (!id || seen[id]) continue;
+      seen[id] = 1;
+      out.push(id);
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // 真实模型名：拦截 fetch 读取 SSE 的 message_start
+  // -------------------------------------------------------------------------
+
+  /**
+   * 官方 bundle 在解析 message_start 时会丢掉 message.model 字段，
+   * 且助手消息的 model 恒为写死的 "deepseek-flash"。
+   * 这里通过包裹 window.fetch，从响应流里读出服务端真实模型名，
+   * 再在 IndexedDB 写入时补进消息对象，从而：
+   *   1. 每条回答都能显示真实模型；
+   *   2. 导出的 Markdown / JSON 里也带上模型信息。
+   */
+  var pendingModel = null;
+  var modelListeners = new Set();
+
+  function looksLikeSse(res) {
+    try {
+      var ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (ct.indexOf('text/event-stream') !== -1) return true;
+      // 有些代理不返回正确的 content-type，用 URL 兜底
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function urlLooksLikeMessages(url) {
+    try {
+      var s = typeof url === 'string' ? url : (url && url.url) || '';
+      return /\/messages(\?|$)/.test(s);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** 上传附件的端点：`.../files` */
+  function urlLooksLikeFiles(url) {
+    try {
+      var s = typeof url === 'string' ? url : (url && url.url) || '';
+      return /\/files(\?|$)/.test(s);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * 上传失败时的重试。
+   *
+   * 观察到过 `net::ERR_HTTP2_PROTOCOL_ERROR`：地址与请求体都没问题
+   * （同一个请求用 curl 打过去能正常返回 401，说明端点存在且参数合法），
+   * 而是浏览器与服务端之间的 HTTP/2 连接被中途掐断了。这类故障是**瞬时**的，
+   * 重试一两次基本就好了 —— 但用户看到的是「上传失败」，于是以为功能坏了。
+   *
+   * 只对网络层错误（TypeError）重试；HTTP 状态码错误（4xx/5xx）是服务端明确
+   * 拒绝，重试没有意义，直接放行让应用显示真实原因。
+   */
+  var UPLOAD_ATTEMPTS = 3;
+
+  /** 上传尝试记录：出问题时能一眼看出「试了几次、每次什么错」 */
+  var uploadLog = [];
+
+  function recordUpload(entry) {
+    try {
+      uploadLog.push(entry);
+      if (uploadLog.length > 30) uploadLog.shift();
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  /**
+   * 上传前先确认「当前生效的提供方」确实有 Key。
+   * 没 Key 的话请求必然 401，而应用只会笼统显示「上传失败」。
+   */
+  function uploadPreflight() {
+    var st = getProviders();
+    var p = getActiveProvider();
+    var key = p ? String(p.apiKey || '').trim() : '';
+    var slot = String(lsGet(LS_APP_API_KEY) || '').trim();
+    return {
+      providerId: p ? p.id : null,
+      providerName: p ? p.name : null,
+      base: p ? normalizeBase(p.baseURL || '') : null,
+      hasProviderKey: !!key,
+      hasSlotKey: !!slot,
+      keyHint: (key || slot).slice(0, 7) + '…' + String((key || slot).slice(-4)),
+      uploadUrl: (p ? normalizeBase(p.baseURL || '') : '') + '/anthropic/v1/files'
+    };
+  }
+
+  function retryUpload(makeRequest) {
+    var attempt = 0;
+    var info = uploadPreflight();
+    function run() {
+      attempt++;
+      var startedAt = Date.now();
+      return makeRequest().then(
+        function (res) {
+          recordUpload({
+            at: startedAt,
+            attempt: attempt,
+            status: 'ok',
+            http: res && res.status,
+            url: info.uploadUrl
+          });
+          return res;
+        },
+        function (err) {
+          recordUpload({
+            at: startedAt,
+            attempt: attempt,
+            status: 'error',
+            error: String((err && err.message) || err),
+            name: err && err.name,
+            url: info.uploadUrl
+          });
+          var transient =
+            err &&
+            (err.name === 'TypeError' || // fetch 网络层失败统一是 TypeError
+              /ERR_HTTP2|ERR_CONNECTION|ERR_NETWORK|Failed to fetch|network/i.test(
+                String(err.message || err)
+              ));
+          if (!transient || attempt >= UPLOAD_ATTEMPTS) throw err;
+          warn(
+            '附件上传失败（第 ' + attempt + ' 次，' + (err.message || err) + '），正在重试…'
+          );
+          return new Promise(function (resolve) {
+            setTimeout(resolve, 400 * attempt);
+          }).then(run);
+        }
+      );
+    }
+    recordUpload({ at: Date.now(), attempt: 0, status: 'start', url: info.uploadUrl, preflight: info });
+    return run();
+  }
+
+  function installFetchHook() {
+    if (typeof window.fetch !== 'function' || window.fetch.__localstorePatched) return;
+    var original = window.fetch.bind(window);
+
+    var wrapped = function (input, init) {
+      var method = String(
+        (init && init.method) || (input && input.method) || 'GET'
+      ).toUpperCase();
+      var rawUrl = typeof input === 'string' ? input : (input && input.url) || '';
+
+      // 附件上传：加一层瞬时故障重试
+      if (method === 'POST' && urlLooksLikeFiles(rawUrl)) {
+        return retryUpload(function () {
+          return original(input, init);
+        });
+      }
+
+      var result = original(input, init);
+      try {
+        var url = rawUrl;
+        if (!urlLooksLikeMessages(url)) return result;
+
+        return result.then(function (res) {
+          sniffState.calls++;
+          if (!res || !res.body || !looksLikeSse(res)) {
+            sniffState.skipped++;
+            return res;
+          }
+          // 克隆流自己解析，绝不干扰应用
+          try {
+            var clone = res.clone();
+            watchStreamForModel(clone);
+          } catch (e) {
+            sniffState.errors.push('clone: ' + ((e && e.message) || e));
+          }
+          return res;
+        });
+      } catch (e) {
+        return result;
+      }
+    };
+    wrapped.__localstorePatched = true;
+    wrapped.__original = original;
+    window.fetch = wrapped;
+    log('已挂载 fetch 模型嗅探');
+  }
+
+  /** 读取克隆流，抓 message_start 里的真实模型名 */
+  function watchStreamForModel(res) {
+    (async function () {
+      try {
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+        var captured = null;
+        var sawData = 0;
+
+        for (;;) {
+          var chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+
+          // 只看前若干 KB 就够了，message_start 一定在最前面
+          if (buffer.length > 65536) {
+            try {
+              reader.cancel();
+            } catch (e) {
+              /* ignore */
+            }
+            break;
+          }
+
+          var lines = buffer.split(/\r\n|\r|\n/);
+          buffer = lines.pop() || '';
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (line.indexOf('data:') !== 0) continue;
+            sawData++;
+            var payload = line.slice(5).trim();
+            if (!payload || payload === '[DONE]') continue;
+            try {
+              var evt = JSON.parse(payload);
+              var m = evt && evt.message && evt.message.model;
+              if (typeof m === 'string' && m) {
+                captured = m;
+                break;
+              }
+            } catch (e) {
+              /* 半截 JSON，正常 */
+            }
+          }
+          if (captured) break;
+        }
+
+        sniffState.dataLines = sawData;
+        sniffState.captured = captured;
+
+        if (captured) {
+          pendingModel = captured;
+          modelCache.latest = captured;
+          log('捕获到服务端模型：' + captured);
+          modelListeners.forEach(function (fn) {
+            try {
+              fn(captured);
+            } catch (e) {
+              /* ignore */
+            }
+          });
+          try {
+            reader.cancel();
+          } catch (e) {
+            /* ignore */
+          }
+        } else {
+          sniffState.misses++;
+        }
+      } catch (e) {
+        sniffState.errors.push((e && e.message) || String(e));
+      }
+    })();
+  }
+
+  /** 嗅探诊断状态，仅用于排查问题 */
+  var sniffState = { calls: 0, skipped: 0, dataLines: 0, captured: null, misses: 0, errors: [] };
+
+  /**
+   * 在官方写入 sessions 前，把捕获到的真实模型补进助手消息。
+   * 只补「最近一条 assistant 且尚无真实模型」的消息，且用完即清，
+   * 避免把模型错安到别的消息上。
+   */
+  function attachModelToSession(session) {
+    if (!pendingModel || !session || !Array.isArray(session.messages)) return session;
+    var changed = false;
+    for (var i = session.messages.length - 1; i >= 0; i--) {
+      var m = session.messages[i];
+      if (!m || m.role !== 'assistant') continue;
+      if (m.serverModel) break;
+      m.serverModel = pendingModel;
+      changed = true;
+      break;
+    }
+    if (changed) {
+      pendingModel = null;
+    }
+    return session;
+  }
+
+  function currentModel() {
+    return pendingModel || modelCache.latest || null;
+  }
+
+  var modelCache = { latest: null };
+
+  function onModel(fn) {
+    modelListeners.add(fn);
+    return function () {
+      modelListeners.delete(fn);
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 每条回答下方显示真实模型
+  // -------------------------------------------------------------------------
+
+  /**
+   * 官方渲染的消息容器是 `.message-e1faee`，操作条是 `.actions-e1faee`。
+   * 我们按「渲染顺序」把 DOM 节点与库里线性展开的消息一一对应，
+   * 找出 assistant 消息所在的容器，在操作条里插入模型徽标。
+   *
+   * 之所以不用文本匹配：消息内容可能被 Markdown 重排，不可靠；
+   * 顺序对齐则是稳定的（列表就是按 linearMessages 顺序渲染的）。
+   */
+  var MSG_SELECTOR = '.message-e1faee';
+  var ACTIONS_SELECTOR = '.actions-e1faee';
+
+  async function injectModelBadges() {
+    if (lsGet(LS_SHOW_MODEL) === 'false') return;
+
+    // 取当前会话的线性消息
+    var sessions;
+    try {
+      sessions = await readAllSessions();
+    } catch (e) {
+      return;
+    }
+    if (!sessions || !sessions.length) return;
+
+    // 当前会话：优先取 activeId —— 库里没有直接标记，
+    // 退化为「最后更新的那个会话」，与界面当前显示一致。
+    var active = null;
+    try {
+      active = JSON.parse(sessionStorage.getItem('chat-demo:active') || 'null');
+    } catch (e) {
+      /* ignore */
+    }
+    var session = null;
+    if (active) {
+      session = sessions.find(function (s) {
+        return s && s.id === active;
+      });
+    }
+    if (!session) {
+      session = sessions.slice().sort(function (a, b) {
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      })[0];
+    }
+    if (!session) return;
+
+    var linear = linearMessages(session);
+    var nodes = document.querySelectorAll(MSG_SELECTOR);
+    if (!nodes.length) return;
+
+    // 消息数量应与 DOM 节点数量一致（列表按顺序渲染）
+    if (nodes.length !== linear.length) return;
+
+    for (var i = 0; i < nodes.length; i++) {
+      var msg = linear[i];
+      if (!msg || msg.role !== 'assistant') continue;
+      var modelName = msg.serverModel || msg.model;
+      if (!modelName) continue;
+
+      var node = nodes[i];
+      if (node.getAttribute('data-ls-model') === modelName) continue;
+
+      var actions = node.querySelector(ACTIONS_SELECTOR);
+      if (!actions) continue;
+
+      var old = actions.querySelector('.ls-model-badge');
+      if (old) old.remove();
+
+      var badge = el('span', {
+        class: 'ls-model-badge',
+        title: '本条回答由 ' + modelName + ' 生成',
+        text: modelName
+      });
+      actions.insertBefore(badge, actions.firstChild);
+      node.setAttribute('data-ls-model', modelName);
+    }
+  }
+
+  var badgeTimer = null;
+  function scheduleBadge() {
+    clearTimeout(badgeTimer);
+    badgeTimer = setTimeout(function () {
+      injectModelBadges();
+    }, 400);
+  }
+
+  function watchMessages() {
+    if (!document.body) return;
+    var observer = new MutationObserver(function (records) {
+      scheduleBadge();
+      scheduleComposer();
+      // 界面里真的多出/少了消息时，立刻落盘，不必等官方写 IndexedDB
+      if (recordsLookLikeChat(records)) scheduleAutoSync('messages');
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    scheduleComposer();
+  }
+
+  /**
+   * 判断这批 DOM 变动是否代表「聊天内容变了」。
+   *
+   * 要点：必须排除我们自己插入的节点（模型徽标、模型切换器、设置区块），
+   * 否则徽标注入会触发自动同步，自动同步又触发注入，形成死循环。
+   */
+  function recordsLookLikeChat(records) {
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      if (r.target && r.target.closest && r.target.closest('.ls-section,.ls-composer,#' + MENU_ID)) {
+        continue;
+      }
+      var nodes = [].concat(
+        Array.prototype.slice.call(r.addedNodes || []),
+        Array.prototype.slice.call(r.removedNodes || [])
+      );
+      for (var j = 0; j < nodes.length; j++) {
+        var n = nodes[j];
+        if (n.nodeType !== 1) continue;
+        if (n.classList && (n.classList.contains('ls-model-badge') || n.classList.contains('ls-composer') || n.classList.contains('ls-composer-menu') || n.classList.contains('ls-section'))) {
+          continue;
+        }
+        if (n.matches && (n.matches(MSG_SELECTOR) || n.querySelector(MSG_SELECTOR))) return true;
+      }
+    }
+    return false;
+  }
+
+  // -------------------------------------------------------------------------
+  // 输入框旁的模型切换器
+  // -------------------------------------------------------------------------
+
+  /**
+   * 输入区结构（已实测）：
+   *   .functionRow-ed6f47
+   *     .toggles-ed6f47         ← 深度思考 / 智能搜索
+   *     ...                     ← 语音、上传、发送
+   *
+   * 模型选择器和它们同属「发送前的一次性设置」，所以放在 functionRow 里，
+   * 紧贴 toggles 之后。这里不硬编码到某个绝对位置，而是插在 toggles 后面，
+   * 找不到 toggles 再退回 appendChild，避免官方小改布局就整个失效。
+   */
+  var FUNCTION_ROW_SELECTOR = '.functionRow-ed6f47';
+  var TOGGLES_SELECTOR = '.toggles-ed6f47';
+  var COMPOSER_ID = 'ls-composer-model';
+  var MENU_ID = 'ls-composer-menu';
+
+  var composerState = { open: false, loading: false, models: null, error: null };
+  var composerTimer = null;
+
+  function scheduleComposer() {
+    clearTimeout(composerTimer);
+    composerTimer = setTimeout(function () {
+      mountComposer();
+    }, 300);
+  }
+
+  function mountComposer() {
+    var rows = document.querySelectorAll(FUNCTION_ROW_SELECTOR);
+    if (!rows.length) return;
+    // 只在主输入框那一行挂载（页面上可能同时存在多个）
+    var row = rows[0];
+
+    var existing = document.getElementById(COMPOSER_ID);
+    var active = getActiveProvider();
+    var providerName = active ? active.name : '';
+    var model = effectiveModel();
+    var label = model + (providerName ? ' · ' + providerName : '');
+
+    if (existing) {
+      // 文案没变就不重建，避免每次 DOM 变动都把用户正打开的菜单关掉
+      if (existing.getAttribute('data-ls-label') === label && !composerState.open) return;
+      existing.remove();
+      var staleMenu = document.getElementById(MENU_ID);
+      if (staleMenu) staleMenu.remove();
+    }
+
+    var wrap = el('div', { class: 'ls-composer', id: COMPOSER_ID });
+    wrap.setAttribute('data-ls-label', label);
+
+    var btn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'ls-composer-btn',
+        title: t('composerHint'),
+        onclick: function (e) {
+          e.stopPropagation();
+          composerState.open = !composerState.open;
+          renderComposerMenu();
+        }
+      },
+      [
+        el('span', { class: 'ls-composer-model', text: model }),
+        providerName ? el('span', { class: 'ls-composer-provider', text: providerName }) : null,
+        el('span', { class: 'ls-composer-caret', text: '▾' })
+      ]
+    );
+    wrap.appendChild(btn);
+
+    var toggles = row.querySelector(TOGGLES_SELECTOR);
+    if (toggles && toggles.parentNode === row) {
+      row.insertBefore(wrap, toggles.nextSibling);
+    } else {
+      row.appendChild(wrap);
+    }
+
+    // 菜单挂在 body 上（见 renderComposerMenu 的说明），这里只需保证开关状态正确
+    if (composerState.open) renderComposerMenu();
+  }
+
+  function renderComposerMenu() {
+    var wrap = document.getElementById(COMPOSER_ID);
+    if (!wrap) return;
+
+    // 菜单挂在 body 上、用 position:fixed 定位。
+    // 原因：输入区外层容器有 overflow:hidden，若把菜单放在输入区内，
+    // 向上弹出的面板会被输入框裁掉（实测就是这个现象）。
+    // 只有挂到 body 并脱离祖先的裁剪上下文才能完整显示。
+    var old = document.getElementById(MENU_ID);
+    if (old) old.remove();
+
+    if (!composerState.open) return;
+
+    var menu = el('div', { class: 'ls-composer-menu', id: MENU_ID });
+    var st = getProviders();
+
+    st.list.forEach(function (p) {
+      var isActive = p.id === st.activeId;
+      var head = el('div', { class: 'ls-menu-head' }, [
+        el('span', {
+          class: 'ls-menu-provider',
+          text: p.builtin || p.id === OFFICIAL_PROVIDER.id ? t('provOfficialName') : p.name || p.id
+        }),
+        isActive ? el('span', { class: 'ls-menu-tag', text: t('provActive') }) : null
+      ]);
+      if (!isActive) {
+        head.style.cursor = 'pointer';
+        head.title = t('provSwitchHint');
+        head.addEventListener('click', function (e) {
+          e.stopPropagation();
+          switchProvider(p.id);
+        });
+      }
+
+      var group = el('div', { class: 'ls-menu-group' }, [head]);
+
+      var models = p.models && p.models.length ? p.models.slice() : [];
+      if (!models.length && p.defaultModel) models = [p.defaultModel];
+
+      if (!models.length) {
+        group.appendChild(
+          el('div', {
+            class: 'ls-menu-empty',
+            text: p.id === st.activeId ? t('provNoModelsHint') : t('provNoModels')
+          })
+        );
+      } else {
+        models.forEach(function (m) {
+          var selected = isActive && m === effectiveModel();
+          var item = el('button', {
+            type: 'button',
+            class: 'ls-menu-item' + (selected ? ' ls-menu-item-on' : ''),
+            text: m,
+            onclick: function (e) {
+              e.stopPropagation();
+              chooseModel(p.id, m);
+            }
+          });
+          group.appendChild(item);
+        });
+      }
+
+      menu.appendChild(group);
+    });
+
+    var foot = el('div', { class: 'ls-menu-foot' }, [
+      el('span', {
+        class: 'ls-menu-link',
+        text: t('composerManage'),
+        onclick: function (e) {
+          e.stopPropagation();
+          composerState.open = false;
+          renderComposerMenu();
+          openSettingsPanel();
+        }
+      })
+    ]);
+    menu.appendChild(foot);
+
+    document.body.appendChild(menu);
+    positionComposerMenu();
+  }
+
+  /**
+   * 重新定位菜单，并在按钮滚出视口时自动关闭。
+   *
+   * 早先的写法是一滚动就关掉菜单，体感很差（手一滑菜单就没了）。
+   * 现在改为跟随按钮移动；只有当按钮本身已经看不见时才关闭。
+   */
+  var menuRaf = 0;
+  function repositionComposerMenu() {
+    if (!composerState.open) return;
+    if (menuRaf) return;
+    menuRaf = requestAnimationFrame(function () {
+      menuRaf = 0;
+      var wrap = document.getElementById(COMPOSER_ID);
+      var menu = document.getElementById(MENU_ID);
+      if (!wrap || !menu) return;
+
+      var btn = wrap.querySelector('.ls-composer-btn') || wrap;
+      var r = btn.getBoundingClientRect();
+      // 按钮滚出视口（或已被卸载）就没必要继续显示
+      if (r.bottom < 0 || r.top > window.innerHeight || r.width === 0) {
+        composerState.open = false;
+        renderComposerMenu();
+        return;
+      }
+      placeComposerMenu(r, menu);
+    });
+  }
+
+  /** 把菜单摆在按钮上方，越界时自动改为向下或贴边 */
+  function placeComposerMenu(r, menu) {
+    var mw = menu.offsetWidth || 280;
+    var mh = menu.offsetHeight || 240;
+
+    var left = r.left;
+    if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+    if (left < 8) left = 8;
+
+    var top = r.top - mh - 8; // 优先向上弹（输入框通常在底部）
+    if (top < 8) {
+      var below = r.bottom + 8;
+      top = below + mh <= window.innerHeight - 8 ? below : Math.max(8, window.innerHeight - mh - 8);
+    }
+
+    menu.style.position = 'fixed';
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    menu.style.bottom = 'auto';
+  }
+
+  function positionComposerMenu() {
+    var wrap = document.getElementById(COMPOSER_ID);
+    var menu = document.getElementById(MENU_ID);
+    if (!wrap || !menu) return;
+    var btn = wrap.querySelector('.ls-composer-btn') || wrap;
+    placeComposerMenu(btn.getBoundingClientRect(), menu);
+  }
+
+  /** 切换默认提供方（会重载页面以换 Key） */
+  function switchProvider(providerId) {
+    withBusy(async function () {
+      var st = getProviders();
+      if (st.activeId === providerId) return;
+      st.activeId = providerId;
+      saveProviders();
+      applyActiveProvider(false);
+      composerState.open = false;
+      renderComposerMenu();
+      mountComposer();
+      var p = findProvider(providerId);
+      setMessage(t('provSwitched', { name: (p && p.name) || providerId }), false);
+      // 无需刷新页面：bundle 补丁让 API Key 与模型都是「每次请求时现读」
+      // （见 tools/apply-patch.mjs 里的 k0 / ec0），所以切换提供方即时生效。
+      // 早先这里必须 location.reload()，代价是丢掉当前对话并闪一下。
+      refreshSettingsSection();
+    });
+  }
+
+  function chooseModel(providerId, model) {
+    withBusy(async function () {
+      var st = getProviders();
+      var p = findProvider(providerId);
+      if (!p) return;
+
+      st.activeId = providerId;
+      p.defaultModel = model;
+      saveProviders();
+
+      lsSet(LS_MODEL, model);
+      applyActiveProvider(false);
+
+      composerState.open = false;
+      renderComposerMenu();
+      mountComposer();
+      setMessage(t('modelSwitched', { model: model }), false);
+      // 同上：换模型、换提供方都不再刷新页面。
+    });
+  }
+
+  /** 打开设置弹窗（用于「管理模型」入口） */
+  /**
+   * 打开设置弹窗，并确保停在「通用设置」标签页。
+   *
+   * 官方弹窗的默认标签页并不固定（首次启动、未填 Key 时会停在「数据管理」），
+   * 而本地存储相关区块挂在「通用设置」下，所以打开后要主动切一下标签页，
+   * 否则用户点了「管理提供方」会看不到任何东西。
+   */
+  function openSettingsPanel() {
+    var candidates = Array.from(document.querySelectorAll('button')).filter(function (b) {
+      var l = (b.getAttribute('aria-label') || b.textContent || '').trim();
+      return l === '设置' || l === 'Settings' || l === '通用设置';
+    });
+    if (!candidates.length) return false;
+    candidates[0].click();
+
+    // 等弹窗渲染出来再切标签页
+    var tries = 0;
+    var ensureGeneral = function () {
+      tries++;
+      var dlg = document.querySelector('.dialog-_85c1b');
+      if (!dlg) {
+        if (tries < 20) setTimeout(ensureGeneral, 60);
+        return;
+      }
+      if (detectActiveTab() === TAB_GENERAL) {
+        mountSection();
+        scrollSectionIntoView();
+        return;
+      }
+      var items = dlg.querySelectorAll('.navItem-_85c1b');
+      for (var i = 0; i < items.length; i++) {
+        if (/通用|General/i.test((items[i].textContent || '').trim())) {
+          items[i].click();
+          setTimeout(function () {
+            mountSection();
+            scrollSectionIntoView();
+          }, 120);
+          return;
+        }
+      }
+    };
+    setTimeout(ensureGeneral, 60);
+    return true;
+  }
+
+  /** 把本地存储区块滚进视野，避免用户以为没打开 */
+  function scrollSectionIntoView() {
+    var sec = document.getElementById(UI_ID);
+    if (!sec || !sec.scrollIntoView) return;
+    try {
+      sec.scrollIntoView({ block: 'nearest' });
+    } catch (e) {
+      /* 老浏览器忽略 */
+    }
+  }
+
+  /**
+   * 菜单挂在 body 上、按视口定位，所以监听滚动/缩放时重算位置，
+   * 而不是简单关闭（早先一滚动就关掉，体感很差）。
+   *
+   * 两种情况要区分：
+   *   · 滚动发生在菜单【内部】—— 那是用户在翻模型列表，
+   *     此时不能重定位（会把内部滚动位置顶回顶部），直接忽略；
+   *   · 滚动发生在页面/聊天区 —— 菜单要跟着按钮走。
+   * 滚动事件必须用捕获阶段监听：真正滚动的是内层容器，不会冒泡到 window。
+   */
+  function onAnyScroll(e) {
+    if (!composerState.open) return;
+    var menu = document.getElementById(MENU_ID);
+    // 菜单自身滚动：放行，别去动它
+    if (menu && e && e.target && (e.target === menu || menu.contains(e.target))) return;
+    repositionComposerMenu();
+  }
+
+  function installComposerOutsideClick() {
+    document.addEventListener(
+      'click',
+      function (e) {
+        if (!composerState.open) return;
+        var menu = document.getElementById(MENU_ID);
+        var wrap = document.getElementById(COMPOSER_ID);
+        var inMenu = menu && menu.contains(e.target);
+        var inWrap = wrap && wrap.contains(e.target);
+        if (!inMenu && !inWrap) {
+          composerState.open = false;
+          renderComposerMenu();
+        }
+      },
+      true
+    );
+
+    window.addEventListener('scroll', onAnyScroll, true);
+    window.addEventListener('resize', repositionComposerMenu);
+  }
+
+  // -------------------------------------------------------------------------
+  // 设置面板 UI
+  // -------------------------------------------------------------------------
+
+  function renderProviderCard(p, isActive) {
+    var card = el('div', { class: 'ls-prov' + (isActive ? ' ls-prov-active' : '') });
+
+    // 标题行：名称 + 默认标记
+    var head = el('div', { class: 'ls-prov-head' }, [
+      el('span', { class: 'ls-prov-name', text: p.name || p.id }),
+      isActive ? el('span', { class: 'ls-prov-badge', text: t('provActive') }) : null
+    ]);
+    card.appendChild(head);
+
+    // 名称
+    var nameInput = el('input', {
+      type: 'text',
+      class: 'ls-input',
+      placeholder: t('provName'),
+      value: p.name || '',
+      spellcheck: 'false'
+    });
+    card.appendChild(el('div', { class: 'ls-field' }, [
+      el('label', { class: 'ls-label', text: t('provName') }),
+      nameInput
+    ]));
+
+    // API 地址
+    var baseInput = el('input', {
+      type: 'text',
+      class: 'ls-input',
+      placeholder: 'https://api.deepseek.com',
+      value: p.baseURL || '',
+      spellcheck: 'false'
+    });
+    card.appendChild(el('div', { class: 'ls-field' }, [
+      el('label', { class: 'ls-label', text: t('provBase') }),
+      baseInput
+    ]));
+
+    // API Key
+    var keyInput = el('input', {
+      type: 'password',
+      class: 'ls-input',
+      placeholder: t('provKeyPlaceholder'),
+      value: p.apiKey || '',
+      spellcheck: 'false'
+    });
+    card.appendChild(el('div', { class: 'ls-field' }, [
+      el('label', { class: 'ls-label', text: t('provKey') }),
+      keyInput
+    ]));
+    card.appendChild(
+      el('div', {
+        class: 'ls-meta',
+        text: p.apiKey ? t('provKeySaved') : t('provKeyNone')
+      })
+    );
+
+    // 模型列表：多选（勾选要保留的模型）
+    card.appendChild(el('div', { class: 'ls-label', text: t('provModels') }));
+
+    // 已勾选的模型集合（由复选框驱动）
+    var checked = {};
+    (p.models || []).forEach(function (m) {
+      checked[m] = true;
+    });
+
+    var modelBox = el('div', { class: 'ls-models' });
+    var allModels = (p.availableModels && p.availableModels.length
+      ? p.availableModels.slice()
+      : (p.models || []).slice()
+    ).filter(function (m, i, a) {
+      return a.indexOf(m) === i;
+    });
+
+    if (!allModels.length) {
+      modelBox.appendChild(el('div', { class: 'ls-meta', text: t('provNoModels') }));
+    } else {
+      allModels.forEach(function (m) {
+        var cb = el('input', { type: 'checkbox', class: 'ls-check' });
+        cb.checked = !!checked[m];
+        cb.addEventListener('change', function () {
+          checked[m] = cb.checked;
+          syncDefaultOptions();
+        });
+
+        var label = el('label', { class: 'ls-check-item' }, [cb, el('span', { text: m })]);
+        modelBox.appendChild(label);
+      });
+
+      // 全选 / 全不选，方便一次性保留几十个模型
+      var bulk = el('div', { class: 'ls-models-bulk' }, [
+        el('span', {
+          class: 'ls-menu-link',
+          text: t('provSelectAll'),
+          onclick: function () {
+            modelBox.querySelectorAll('input[type=checkbox]').forEach(function (x) {
+              x.checked = true;
+            });
+            allModels.forEach(function (m) {
+              checked[m] = true;
+            });
+            syncDefaultOptions();
+          }
+        }),
+        el('span', {
+          class: 'ls-menu-link',
+          text: t('provSelectNone'),
+          onclick: function () {
+            modelBox.querySelectorAll('input[type=checkbox]').forEach(function (x) {
+              x.checked = false;
+            });
+            allModels.forEach(function (m) {
+              checked[m] = false;
+            });
+            syncDefaultOptions();
+          }
+        })
+      ]);
+      card.appendChild(modelBox);
+      card.appendChild(bulk);
+    }
+    if (!allModels.length) card.appendChild(modelBox);
+
+    /**
+     * 默认模型下拉框：选项只来自「已勾选」的模型。
+     * 勾选变化时同步刷新，避免出现「默认模型没被勾选」的矛盾状态。
+     */
+    var defaultSelect = el('select', { class: 'ls-input ls-select' });
+    defaultSelect.id = 'ls-default-model-' + p.id;
+
+    function syncDefaultOptions() {
+      var picked = allModels.filter(function (m) {
+        return checked[m];
+      });
+      var want = p.defaultModel || '';
+      defaultSelect.innerHTML = '';
+      if (!picked.length) {
+        defaultSelect.appendChild(el('option', { value: '', text: t('provPickDefault') }));
+        defaultSelect.value = '';
+        return;
+      }
+      picked.forEach(function (m) {
+        defaultSelect.appendChild(el('option', { value: m, text: m }));
+      });
+      defaultSelect.value = picked.indexOf(want) !== -1 ? want : picked[0];
+    }
+    syncDefaultOptions();
+
+    card.appendChild(
+      el('div', { class: 'ls-field' }, [
+        el('label', { class: 'ls-label', text: t('provDefaultModel') }),
+        defaultSelect
+      ])
+    );
+
+    // 手动加模型（不在接口返回列表里的，直接手填）
+    var manualInput = el('input', {
+      type: 'text',
+      class: 'ls-input',
+      placeholder: t('provManualHint'),
+      value: '',
+      spellcheck: 'false'
+    });
+    card.appendChild(el('div', { class: 'ls-field' }, [manualInput]));
+
+    // 消息行
+    var msg = el('span', { class: 'ls-inline-msg' });
+    var fetching = composerState.fetchingId === p.id;
+
+    /** 把当前输入框里的值收集起来写回该提供方 */
+    function collect() {
+      var name = (nameInput.value || '').trim();
+      var base = normalizeBase(baseInput.value);
+      if (!name) return { err: t('provErrName') };
+      if (base && !/^https?:\/\/[^\s]+$/i.test(base)) return { err: t('provErrBase') };
+      return { name: name, base: base, key: (keyInput.value || '').trim() };
+    }
+
+    var btns = [];
+
+    /**
+     * 收集当前卡片上的编辑结果。
+     * 模型 = 勾选的模型 ∪ 手填的模型；默认模型取自下拉框。
+     */
+    function gather() {
+      var r = collect();
+      if (r.err) return r;
+
+      var picked = allModels.filter(function (m) {
+        return checked[m];
+      });
+      (manualInput.value || '')
+        .split('\n')
+        .map(function (s) {
+          return s.trim();
+        })
+        .filter(Boolean)
+        .forEach(function (m) {
+          if (picked.indexOf(m) === -1) picked.push(m);
+        });
+
+      var def = defaultSelect.value || '';
+      if (def && picked.indexOf(def) === -1) picked.push(def);
+      if (!def && picked.length) def = picked[0];
+
+      r.models = picked;
+      r.defaultModel = def;
+      // 接口返回过的完整列表也留着，下次进设置页仍能显示未勾选项
+      r.availableModels = allModels
+        .concat(picked)
+        .filter(function (m, i, a) {
+          return a.indexOf(m) === i;
+        });
+      return r;
+    }
+
+    btns.push(
+      button(
+        t('provSave'),
+        function () {
+          withBusy(async function () {
+            var r = gather();
+            if (r.err) {
+              setMessage(r.err, true);
+              return;
+            }
+            var target = findProvider(p.id);
+            if (!target) return;
+            target.name = r.name;
+            target.baseURL = r.base;
+
+            // 关键保护：卡片上没填 Key 时，不要用空值覆盖已有的 Key。
+            // 用户很可能是在应用自带的界面里填的 Key，桥接层并不知道，
+            // 一旦这里写成空串，下次启动就会被判定为「API Key 无效」。
+            if (r.key) {
+              target.apiKey = r.key;
+            } else if (!target.apiKey) {
+              target.apiKey = lsGet(LS_APP_API_KEY) || '';
+            }
+
+            target.models = r.models;
+            target.defaultModel = r.defaultModel;
+            target.availableModels = r.availableModels;
+
+            saveProviders();
+            if (isActive) {
+              applyActiveProvider(false);
+              if (r.defaultModel) lsSet(LS_MODEL, r.defaultModel);
+            }
+            setMessage(
+              t('provSaved') + '（' + r.models.length + ' ' + t('provModels') + '）',
+              false
+            );
+            rerender();
+            mountComposer();
+          });
+        },
+        { primary: true, disabled: uiState.busy }
+      )
+    );
+
+    btns.push(
+      button(
+        fetching ? t('provFetching') : t('provFetch'),
+        function () {
+          withBusy(async function () {
+            var r = collect();
+            if (r.err) {
+              setMessage(r.err, true);
+              return;
+            }
+            var target = findProvider(p.id);
+            if (!target) return;
+            // 先把当前输入落盘，拉取时才能用上最新的地址与 Key
+            target.name = r.name;
+            target.baseURL = r.base;
+            target.apiKey = r.key;
+            saveProviders();
+
+            composerState.fetchingId = p.id;
+            rerender();
+            try {
+              var got = await fetchModelsFor(p.id);
+              var fresh = findProvider(p.id);
+
+              // 合并到「可选模型」：新拉到的默认勾选，已有的保持原勾选状态
+              var avail = (fresh.availableModels || []).slice();
+              var prev = (fresh.models || []).slice();
+              got.models.forEach(function (m) {
+                if (avail.indexOf(m) === -1) avail.push(m);
+                if (prev.indexOf(m) === -1) prev.push(m);
+              });
+              fresh.availableModels = avail;
+              fresh.models = prev;
+              if (!fresh.defaultModel && fresh.models.length) {
+                fresh.defaultModel = fresh.models[0];
+              }
+              saveProviders();
+              composerState.fetchingId = null;
+              setMessage(
+                t('provFetched', { n: got.models.length }) + ' · ' + t('provPickHint'),
+                false
+              );
+            } catch (e) {
+              composerState.fetchingId = null;
+              setMessage(((e && e.message) || String(e)), true);
+            }
+            rerender();
+            mountComposer();
+          });
+        },
+        { disabled: uiState.busy || fetching }
+      )
+    );
+
+    if (!isActive) {
+      btns.push(
+        button(
+          t('provSetActive'),
+          function () {
+            withBusy(async function () {
+              var st = getProviders();
+              st.activeId = p.id;
+              saveProviders();
+              applyActiveProvider(false);
+              composerState.open = false;
+              setMessage(t('provSwitched', { name: p.name }), false);
+              mountComposer();
+              rerender();
+            });
+          },
+          { disabled: uiState.busy }
+        )
+      );
+    }
+
+    if (!p.builtin) {
+      btns.push(
+        button(
+          t('provDelete'),
+          function () {
+            if (!window.confirm(t('provDeleteConfirm', { name: p.name }))) return;
+            withBusy(async function () {
+              var st = getProviders();
+              st.list = st.list.filter(function (x) {
+                return x.id !== p.id;
+              });
+              if (st.activeId === p.id && st.list.length) st.activeId = st.list[0].id;
+              saveProviders();
+              applyActiveProvider(false);
+              rerender();
+              mountComposer();
+            });
+          },
+          { disabled: uiState.busy }
+        )
+      );
+    } else {
+      card.setAttribute('data-builtin', '1');
+    }
+
+    card.appendChild(el('div', { class: 'ls-btns' }, btns));
+    card.appendChild(msg);
+    return card;
+  }
+
+  var UI_ID = 'localstore-section';
+
+  var STRINGS = {
+    'zh-CN': {
+      title: '本地文件夹存储',
+      desc:
+        '把对话自动保存到你电脑上的真实文件夹，不受清理浏览器数据影响，换浏览器也能读回。',
+      unsupported:
+        '当前浏览器不支持文件夹写入。请使用 Chrome 或 Edge 打开本页；你也可以使用上方的「导出所有历史对话」手动备份。',
+      noFolder: '尚未选择文件夹',
+      connected: '已连接',
+      reconnecting: '等待授权',
+      pick: '选择文件夹…',
+      change: '更换文件夹',
+      syncNow: '立即同步',
+      syncing: '同步中…',
+      lastSync: '上次同步',
+      never: '尚未同步',
+      autosync: '自动同步',
+      on: '已开启',
+      off: '已关闭',
+      restore: '从文件夹恢复',
+      restoreHint: '把文件夹里的对话读回浏览器（会覆盖当前浏览器内的对话）',
+      disconnect: '断开',
+      status: '状态',
+      stats: '{sessions} 个对话 · {images} 张图片',
+      apiBaseTitle: 'API 地址',
+      apiBaseDesc:
+        '留空使用 DeepSeek 官方地址。可填入兼容 Anthropic 协议的中转地址或自建服务，例如 https://my-proxy.example.com',
+      apiBasePlaceholder: 'https://api.deepseek.com',
+      apiBaseSave: '保存',
+      apiBaseSaved: '已保存，正在重新加载…',
+      apiBaseReset: '恢复官方',
+      apiBaseInvalid: '地址格式无效，需以 http:// 或 https:// 开头',
+      apiBaseActive: '当前生效',
+      keyTitle: 'API Key 保存到文件夹',
+      keyDesc:
+        '把 API Key 一并存进该文件夹，换浏览器或清空浏览器数据后自动恢复，不必重新输入。',
+      keyWarn:
+        '⚠️ 密钥将以明文保存在文件夹内的 数据/apikey.json，任何能访问该文件夹的人或程序都能看到。请勿把含密钥的文件夹上传到网盘、Git 仓库或分享给他人。',
+      keyOn: '已保存到文件夹',
+      keyOff: '仅存在浏览器里',
+      keySave: '保存到文件夹',
+      keyRemove: '删除文件夹中的密钥',
+      keySaved: '已保存到文件夹',
+      keyRemoved: '已从文件夹移除',
+      keyNone: '浏览器里还没有 API Key，请先在主页输入后再来保存。',
+      keyRestored: '已从文件夹恢复 API Key，正在重新加载…',
+      keyLoadFailed: '读取文件夹中的密钥失败：',
+      modelTitle: '模型显示',
+      modelDesc:
+        '在每条回答下方显示实际使用的模型（读取接口返回的真实模型名，而非界面上的固定值）。',
+      modelOn: '已开启',
+      modelOff: '已关闭',
+
+      // ---- 多提供方 ----
+      provTitle: '模型提供方',
+      provNowUsing: '当前生效',
+      provOfficialName: 'DeepSeek 官方（统一配置）',
+      provOfficialHint:
+        '当前用的是官方统一配置：接口地址取「自定义 API 地址」，API Key 请在「数据管理」标签页里填写。下面只列你自己添加的提供方。',
+      provNoCustom: '还没有自定义提供方。点下面的按钮可以添加中转站等 Anthropic 兼容服务。',
+      provUseOfficial: '切回官方统一配置',
+      provDesc:
+        '官方那一路使用应用自带的统一配置（API 地址 + 「数据管理」里的 API Key），这里只管理你自己添加的 Anthropic 兼容接口（中转站、自建服务等），每个提供方各自保存 API Key 与模型列表。',
+      provNote:
+        '本应用只使用 Anthropic 协议（POST /anthropic/v1/messages）。纯 OpenAI 协议（/v1/chat/completions）的服务无法直接使用，需要服务端提供 Anthropic 兼容端点。',
+      provActive: '默认',
+      provSetActive: '设为默认',
+      provActiveNow: '当前默认提供方',
+      provSwitchHint: '设为默认提供方（会重新加载页面以切换 API Key）',
+      provSwitched: '已切换默认提供方：{name}',
+      provName: '名称',
+      provBase: 'API 地址',
+      provBaseHint: '只填根地址即可，例如 https://llmapi.paratera.com（结尾的 /anthropic 会自动去掉）',
+      provKey: 'API Key',
+      provKeyPlaceholder: 'sk-…（留空则用主页里填的那个）',
+      provModels: '模型列表',
+      provDefaultModel: '默认模型',
+      provFetch: '获取模型',
+      provFetching: '获取中…',
+      provAdd: '添加提供方',
+      provDelete: '删除',
+      provDeleteConfirm: '确定删除提供方「{name}」吗？',
+      provBuiltinNoDelete: '官方提供方不可删除',
+      provSave: '保存',
+      provSaved: '已保存',
+      provErrName: '请填写名称',
+      provErrBase: 'API 地址无效，需以 http:// 或 https:// 开头',
+      provErrNoProvider: '找不到该提供方',
+      provErrFetch: '获取模型失败，已尝试的地址：',
+      provErrEmpty: '返回内容里没有模型',
+      provFetched: '获取到 {n} 个模型',
+      provNoModels: '尚未获取模型',
+      provNoModelsHint: '点「获取模型」拉取列表',
+      provPickDefault: '（未选择）',
+      provPickHint: '请勾选要保留的模型',
+      provSelectAll: '全选',
+      provSelectNone: '取消全选',
+      provManualHint: '手动添加模型（每行一个）',
+      provManualLabel: '手动添加模型（每行一个）',
+      provKeySaved: '密钥已保存（明文存放在文件夹的数据/apikey.json）',
+      provKeyNone: '尚未填写 API Key',
+      provEffBase: '当前生效地址',
+      provEffModel: '当前生效模型',
+
+      // ---- 输入框旁的模型切换器 ----
+      composerHint: '切换模型 / 提供方',
+      composerManage: '管理提供方与模型…',
+      modelSwitched: '已切换到 {model}，正在重新加载…',
+
+      errPick: '选择文件夹失败：',
+      settingsTitle: '设置项也存到文件夹',
+      settingsDesc:
+        '把界面偏好（语言、主题、思考模式、联网搜索、语音音色、侧边栏状态，以及提供方与模型选择）一并存进文件夹，换浏览器或清空数据后可恢复。',
+      settingsSave: '保存设置到文件夹',
+      settingsRestore: '从文件夹恢复设置',
+      settingsNone: '文件夹里还没有设置文件，请先保存一次',
+      settingsSaved: '已保存 {n} 项设置到文件夹',
+      settingsRestored: '已恢复 {n} 项设置，正在重新加载…',
+      settingsScope: '不包含密钥，可安全阅读',
+      settingsNeedFolder: '请先连接文件夹',
+      settingsWillReload: '恢复设置后需要重新加载页面',
+      needFolder: '尚未选择本地文件夹',
+      noPermission: '未获得文件夹读写权限',
+      errSync: '同步失败：',
+      errRestore: '恢复失败：',
+      doneSync: '同步完成：{sessions} 个对话',
+      doneRestore: '已恢复 {sessions} 个对话，正在重新加载…',
+      busy: '处理中…',
+      needReconnect: '浏览器已收回文件夹权限，点击「重新连接」恢复自动保存',
+      reconnect: '重新连接'
+    },
+    'en-US': {
+      title: 'Local folder storage',
+      desc:
+        'Automatically save chats to a real folder on your computer. Survives clearing browser data, and works across browsers.',
+      unsupported:
+        'This browser cannot write to folders. Use Chrome or Edge; you can also use "Export all chats" above to back up manually.',
+      noFolder: 'No folder selected',
+      connected: 'Connected',
+      reconnecting: 'Awaiting permission',
+      pick: 'Choose folder…',
+      change: 'Change folder',
+      syncNow: 'Sync now',
+      syncing: 'Syncing…',
+      lastSync: 'Last sync',
+      never: 'Never',
+      autosync: 'Auto-sync',
+      on: 'On',
+      off: 'Off',
+      restore: 'Restore from folder',
+      restoreHint:
+        'Read chats from the folder back into this browser (overwrites chats in this browser)',
+      disconnect: 'Disconnect',
+      status: 'Status',
+      stats: '{sessions} chats · {images} images',
+      apiBaseTitle: 'API base URL',
+      apiBaseDesc:
+        'Leave empty for the official DeepSeek endpoint. Set an Anthropic-compatible proxy, e.g. https://my-proxy.example.com',
+      apiBasePlaceholder: 'https://api.deepseek.com',
+      apiBaseSave: 'Save',
+      apiBaseSaved: 'Saved, reloading…',
+      apiBaseReset: 'Use official',
+      apiBaseInvalid: 'Invalid URL — must start with http:// or https://',
+      apiBaseActive: 'Active',
+      keyTitle: 'Save API Key to folder',
+      keyDesc:
+        'Store the API Key in the folder too, so it is restored automatically in another browser or after browser data is cleared.',
+      keyWarn:
+        '⚠️ The key is stored in PLAINTEXT at 数据/apikey.json. Anyone or any program that can read this folder can read the key. Never upload or share a folder containing it.',
+      keyOn: 'Saved to folder',
+      keyOff: 'Browser only',
+      keySave: 'Save to folder',
+      keyRemove: 'Remove key from folder',
+      keySaved: 'Saved to folder',
+      keyRemoved: 'Removed from folder',
+      keyNone: 'No API Key in this browser yet. Enter one on the main page first.',
+      keyRestored: 'Restored API Key from folder, reloading…',
+      keyLoadFailed: 'Failed to read key from folder: ',
+      modelTitle: 'Model badge',
+      modelDesc:
+        'Show the actual model used under each reply (read from the API response, not the fixed UI label).',
+      modelOn: 'On',
+      modelOff: 'Off',
+
+      // ---- Providers ----
+      provTitle: 'Model providers',
+      provNowUsing: 'Currently active',
+      provOfficialName: 'DeepSeek official (unified config)',
+      provOfficialHint:
+        'You are on the official unified config: the endpoint comes from "Custom API base", and the API key is entered on the "Data" tab. Only providers you added yourself are listed below.',
+      provNoCustom: 'No custom providers yet. Use the button below to add a relay or other Anthropic-compatible service.',
+      provUseOfficial: 'Switch back to official unified config',
+      provDesc:
+        'The official route uses the app\'s built-in unified config (API base + the API key on the "Data" tab). Here you only manage Anthropic-compatible endpoints you add yourself (proxies, self-hosted). Each keeps its own API key and model list.',
+      provNote:
+        'This app speaks the Anthropic protocol only (POST /anthropic/v1/messages). OpenAI-only services (/v1/chat/completions) will not work unless the server exposes an Anthropic-compatible endpoint.',
+      provActive: 'Default',
+      provSetActive: 'Set as default',
+      provActiveNow: 'Default provider',
+      provSwitchHint: 'Set as the default provider (reloads the page to switch API key)',
+      provSwitched: 'Default provider switched to {name}',
+      provName: 'Name',
+      provBase: 'API base URL',
+      provBaseHint: 'Root URL only, e.g. https://llmapi.paratera.com (a trailing /anthropic is stripped automatically)',
+      provKey: 'API Key',
+      provKeyPlaceholder: 'sk-… (leave empty to use the one entered on the main page)',
+      provModels: 'Models',
+      provDefaultModel: 'Default model',
+      provFetch: 'Fetch models',
+      provFetching: 'Fetching…',
+      provAdd: 'Add provider',
+      provDelete: 'Delete',
+      provDeleteConfirm: 'Delete provider "{name}"?',
+      provBuiltinNoDelete: 'The official provider cannot be deleted',
+      provSave: 'Save',
+      provSaved: 'Saved',
+      provErrName: 'Please enter a name',
+      provErrBase: 'Invalid URL — must start with http:// or https://',
+      provErrNoProvider: 'Provider not found',
+      provErrFetch: 'Failed to fetch models. Tried:',
+      provErrEmpty: 'no models in response',
+      provFetched: 'Fetched {n} models',
+      provNoModels: 'No models fetched yet',
+      provNoModelsHint: 'Click "Fetch models"',
+      provPickDefault: '(none selected)',
+      provPickHint: 'tick the models you want to keep',
+      provSelectAll: 'Select all',
+      provSelectNone: 'Select none',
+      provManualHint: 'Add models manually (one per line)',
+      provManualLabel: 'Add models manually (one per line)',
+      provKeySaved: 'Key saved (plaintext at 数据/apikey.json)',
+      provKeyNone: 'No API key yet',
+      provEffBase: 'Active base URL',
+      provEffModel: 'Active model',
+
+      // ---- Composer model switcher ----
+      composerHint: 'Switch model / provider',
+      composerManage: 'Manage providers & models…',
+      modelSwitched: 'Switched to {model}, reloading…',
+
+      errPick: 'Failed to choose folder: ',
+      settingsTitle: 'Save settings to folder',
+      settingsDesc:
+        'Mirror UI preferences (language, theme, thinking, search, voice, sidebar) plus provider and model choices into the folder, so they survive clearing browser data or switching browsers.',
+      settingsSave: 'Save settings to folder',
+      settingsRestore: 'Restore settings from folder',
+      settingsNone: 'No settings file in the folder yet — save once first',
+      settingsSaved: 'Saved {n} settings to folder',
+      settingsRestored: 'Restored {n} settings, reloading…',
+      settingsScope: 'Contains no secrets; safe to read',
+      settingsNeedFolder: 'Connect a folder first',
+      settingsWillReload: 'Restoring settings reloads the page',
+      needFolder: 'No local folder selected',
+      noPermission: 'No read/write permission for the folder',
+      errSync: 'Sync failed: ',
+      errRestore: 'Restore failed: ',
+      doneSync: 'Synced: {sessions} chats',
+      doneRestore: 'Restored {sessions} chats, reloading…',
+      busy: 'Working…',
+      needReconnect:
+        'The browser revoked folder access. Click "Reconnect" to resume auto-save.',
+      reconnect: 'Reconnect'
+    }
+  };
+
+  function detectLocale() {
+    var stored = lsGet('chat-demo:locale');
+    if (stored === 'zh-CN' || stored === 'en-US') return stored;
+    var nav = (navigator.language || 'zh').toLowerCase();
+    return nav.indexOf('zh') === 0 ? 'zh-CN' : 'en-US';
+  }
+
+  function t(key, params) {
+    var table = STRINGS[detectLocale()] || STRINGS['zh-CN'];
+    var s = table[key] != null ? table[key] : key;
+    if (params) {
+      s = s.replace(/\{(\w+)\}/g, function (m, name) {
+        return params[name] != null ? String(params[name]) : m;
+      });
+    }
+    return s;
+  }
+
+  var uiState = {
+    busy: false,
+    message: null,
+    messageError: false,
+    permission: null
+  };
+
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        if (k === 'class') node.className = attrs[k];
+        else if (k === 'text') node.textContent = attrs[k];
+        else if (k === 'style') node.setAttribute('style', attrs[k]);
+        else if (k.indexOf('on') === 0 && typeof attrs[k] === 'function') {
+          node.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+        } else if (attrs[k] != null) node.setAttribute(k, attrs[k]);
+      });
+    }
+    (children || []).forEach(function (c) {
+      if (c == null) return;
+      node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return node;
+  }
+
+  function button(label, onClick, opts) {
+    opts = opts || {};
+    return el(
+      'button',
+      {
+        type: 'button',
+        class: 'ls-btn' + (opts.primary ? ' ls-btn-primary' : ''),
+        disabled: opts.disabled ? '' : null,
+        title: opts.title || null,
+        onclick: onClick
+      },
+      [label]
+    );
+  }
+
+  function renderSection() {
+    var folderName = lsGet(LS_FOLDER);
+    var connected = !!dirCache && !!folderName;
+    var lines = [];
+
+    lines.push(el('div', { class: 'ls-head', text: t('title') }));
+    lines.push(el('div', { class: 'ls-desc', text: t('desc') }));
+
+    if (!supportsFs) {
+      lines.push(el('div', { class: 'ls-warn', text: t('unsupported') }));
+    } else {
+      // 状态行
+      var statusText;
+      if (uiState.busy) statusText = t('busy');
+      else if (connected) statusText = t('connected');
+      else if (syncState.lastError) statusText = syncState.lastError;
+      else statusText = t('noFolder');
+
+      var statusChildren = [
+        el('span', {
+          class:
+            'ls-dot ' +
+            (connected ? 'ls-dot-ok' : syncState.lastError ? 'ls-dot-err' : 'ls-dot-off')
+        }),
+        el('span', {
+          class: 'ls-status-text',
+          text: (folderName ? folderName + ' · ' : '') + statusText
+        })
+      ];
+      lines.push(el('div', { class: 'ls-status' }, statusChildren));
+
+      // 上次同步
+      if (syncState.lastSync) {
+        lines.push(
+          el('div', {
+            class: 'ls-meta',
+            text: t('lastSync') + '：' + fmtTime(syncState.lastSync)
+          })
+        );
+      }
+
+      // 按钮组
+      var btns = [];
+      if (!connected) {
+        btns.push(
+          button(folderName ? t('reconnect') : t('pick'), onPick, {
+            primary: true,
+            disabled: uiState.busy
+          })
+        );
+      } else {
+        btns.push(
+          button(uiState.busy ? t('syncing') : t('syncNow'), onSyncNow, {
+            primary: true,
+            disabled: uiState.busy
+          })
+        );
+        btns.push(button(t('restore'), onRestore, { disabled: uiState.busy, title: t('restoreHint') }));
+        btns.push(button(t('change'), onPick, { disabled: uiState.busy }));
+        btns.push(button(t('disconnect'), onDisconnect, { disabled: uiState.busy }));
+      }
+      lines.push(el('div', { class: 'ls-btns' }, btns));
+
+      // 自动同步状态（仅展示，默认恒开，通过 localStorage 可关）
+      lines.push(
+        el('div', {
+          class: 'ls-meta',
+          text:
+            t('autosync') +
+            '：' +
+            (lsGet(LS_AUTOSYNC) === 'false' ? t('off') : t('on'))
+        })
+      );
+    }
+
+    // 提示 / 错误
+    if (uiState.message) {
+      lines.push(
+        el('div', {
+          class: uiState.messageError ? 'ls-msg ls-msg-err' : 'ls-msg',
+          text: uiState.message
+        })
+      );
+    }
+
+    // ---- 模型提供方 ----
+    //
+    // 设计（按用户要求）：官方那一路**不再作为卡片列出**。
+    // 「DeepSeek 官方 / 你现在正在用的那个统一配置」由官方自带的
+    // 「数据管理 → API Key」那一行 + 官方接口地址负责，本区块只管**自定义**提供方。
+    // 这样就不会出现「同一个 Key 有两处可改」的困惑。
+    lines.push(el('div', { class: 'ls-sep' }));
+    lines.push(el('div', { class: 'ls-head', text: t('provTitle') }));
+    lines.push(el('div', { class: 'ls-desc', text: t('provDesc') }));
+    lines.push(el('div', { class: 'ls-warn', text: t('provNote') }));
+
+    var pst = getProviders();
+
+    // 当前生效一览
+    var activeP = getActiveProvider();
+    var activeIsOfficial = !activeP || activeP.builtin || activeP.id === OFFICIAL_PROVIDER.id;
+    lines.push(
+      el('div', {
+        class: 'ls-meta',
+        text:
+          t('provNowUsing') +
+          '：' +
+          (activeIsOfficial ? t('provOfficialName') : (activeP.name || activeP.id))
+      })
+    );
+    lines.push(
+      el('div', { class: 'ls-meta', text: t('provEffBase') + '：' + effectiveApiBase() })
+    );
+    lines.push(
+      el('div', { class: 'ls-meta', text: t('provEffModel') + '：' + effectiveModel() })
+    );
+
+    if (activeIsOfficial) {
+      lines.push(el('div', { class: 'ls-desc', text: t('provOfficialHint') }));
+    }
+
+    // 只列自定义提供方；官方的是隐式的
+    var customList = pst.list.filter(function (p) {
+      return !p.builtin && p.id !== OFFICIAL_PROVIDER.id;
+    });
+
+    if (!customList.length) {
+      lines.push(el('div', { class: 'ls-meta', text: t('provNoCustom') }));
+    }
+
+    customList.forEach(function (p) {
+      lines.push(renderProviderCard(p, p.id === pst.activeId));
+    });
+
+    // 已经切到某个自定义提供方时，给一个「切回统一配置」的出口
+    if (!activeIsOfficial) {
+      lines.push(
+        el('div', { class: 'ls-btns' }, [
+          button(
+            t('provUseOfficial'),
+            function () {
+              withBusy(async function () {
+                var st = getProviders();
+                st.activeId = OFFICIAL_PROVIDER.id;
+                saveProviders();
+                applyActiveProvider(false);
+                setMessage(t('provSwitched', { name: t('provOfficialName') }), false);
+                mountComposer();
+                rerender();
+              });
+            },
+            { disabled: uiState.busy }
+          )
+        ])
+      );
+    }
+
+    lines.push(
+      el('div', { class: 'ls-btns' }, [
+        button(
+          t('provAdd'),
+          function () {
+            withBusy(async function () {
+              var st = getProviders();
+              var np = {
+                id: uid('custom'),
+                name: t('provAdd') + ' ' + (st.list.length),
+                baseURL: '',
+                apiKey: '',
+                models: [],
+                defaultModel: '',
+                availableModels: [],
+                builtin: false
+              };
+              st.list.push(np);
+              saveProviders();
+              rerender();
+            });
+          },
+          { disabled: uiState.busy }
+        )
+      ])
+    );
+
+    // ---- API Key 存到文件夹 ----
+    lines.push(el('div', { class: 'ls-sep' }));
+    lines.push(el('div', { class: 'ls-head', text: t('keyTitle') }));
+    lines.push(el('div', { class: 'ls-desc', text: t('keyDesc') }));
+    lines.push(el('div', { class: 'ls-warn', text: t('keyWarn') }));
+
+    var keyInFolder = lsGet('chat-demo:local-key') === '1';
+    var keyInBrowser = !!lsGet(LS_APP_API_KEY);
+    lines.push(
+      el('div', {
+        class: 'ls-meta',
+        text: t('status') + '：' + (keyInFolder ? t('keyOn') : t('keyOff'))
+      })
+    );
+
+    var keyMsg = el('span', { class: 'ls-inline-msg' });
+    var keyBtns = [
+      button(
+        t('keySave'),
+        function () {
+          withBusy(async function () {
+            try {
+              await writeKeyToFolder();
+              keyMsg.textContent = '';
+              setMessage(t('keySaved'), false);
+            } catch (e) {
+              setMessage(t('keyLoadFailed') + ((e && e.message) || e), true);
+            }
+          });
+        },
+        { primary: true, disabled: uiState.busy || !keyInBrowser || !connected }
+      )
+    ];
+    if (keyInFolder) {
+      keyBtns.push(
+        button(
+          t('keyRemove'),
+          function () {
+            withBusy(async function () {
+              try {
+                await removeKeyFromFolder();
+                setMessage(t('keyRemoved'), false);
+              } catch (e) {
+                setMessage(((e && e.message) || e), true);
+              }
+            });
+          },
+          { disabled: uiState.busy }
+        )
+      );
+    }
+    lines.push(el('div', { class: 'ls-btns' }, keyBtns));
+    lines.push(keyMsg);
+    if (!keyInBrowser) {
+      lines.push(el('div', { class: 'ls-meta', text: t('keyNone') }));
+    }
+
+    // ---- 模型显示开关 ----
+    lines.push(el('div', { class: 'ls-sep' }));
+    lines.push(el('div', { class: 'ls-head', text: t('modelTitle') }));
+    lines.push(el('div', { class: 'ls-desc', text: t('modelDesc') }));
+    var showModel = lsGet(LS_SHOW_MODEL) !== 'false';
+    lines.push(
+      el('div', { class: 'ls-btns' }, [
+        button(
+          showModel ? t('modelOn') : t('modelOff'),
+          function () {
+            lsSet(LS_SHOW_MODEL, showModel ? 'false' : 'true');
+            if (!showModel) {
+              // 重新显示：清掉「已处理」标记，让观察器重新注入
+              document
+                .querySelectorAll('[data-ls-model]')
+                .forEach(function (n) {
+                  n.removeAttribute('data-ls-model');
+                });
+            } else {
+              document.querySelectorAll('.ls-model-badge').forEach(function (n) {
+                n.remove();
+              });
+            }
+            rerender();
+          },
+          { disabled: uiState.busy }
+        ),
+        el('span', {
+          class: 'ls-inline-msg',
+          text: showModel ? t('modelOn') : t('modelOff')
+        })
+      ])
+    );
+
+    // ---- 设置项存到文件夹 ----
+    lines.push(el('div', { class: 'ls-sep' }));
+    lines.push(el('div', { class: 'ls-head', text: t('settingsTitle') }));
+    lines.push(el('div', { class: 'ls-desc', text: t('settingsDesc') }));
+
+    var settingsCount = Object.keys(collectSettings()).length;
+    lines.push(
+      el('div', {
+        class: 'ls-meta',
+        text: t('status') + '：' + settingsCount + ' · ' + t('settingsScope')
+      })
+    );
+
+    var settingsMsg = el('span', { class: 'ls-inline-msg' });
+    var settingsBtns = [
+      button(
+        t('settingsSave'),
+        function () {
+          withBusy(async function () {
+            try {
+              var r = await writeSettingsToFolder();
+              setMessage(t('settingsSaved', { n: r.count }), false);
+            } catch (e) {
+              setMessage(((e && e.message) || String(e)), true);
+            }
+          });
+        },
+        { primary: true, disabled: uiState.busy || !connected }
+      ),
+      button(
+        t('settingsRestore'),
+        function () {
+          withBusy(async function () {
+            try {
+              var n = await restoreSettingsFromFolder();
+              setMessage(t('settingsRestored', { n: n }), false);
+              setTimeout(function () {
+                requestReload('用户手动恢复了设置');
+              }, 800);
+            } catch (e) {
+              setMessage(((e && e.message) || String(e)), true);
+            }
+          });
+        },
+        { disabled: uiState.busy || !connected, title: t('settingsWillReload') }
+      )
+    ];
+    lines.push(el('div', { class: 'ls-btns' }, settingsBtns));
+    lines.push(settingsMsg);
+
+    var section = el('div', { class: 'ls-section', id: UI_ID }, lines);
+    return section;
+  }
+
+  function rerender() {
+    var existing = document.getElementById(UI_ID);
+    if (!existing) return;
+    var fresh = renderSection();
+    existing.replaceWith(fresh);
+    refreshPermissionState();
+  }
+
+  function setMessage(text, isError) {
+    uiState.message = text;
+    uiState.messageError = !!isError;
+    rerender();
+  }
+
+  async function withBusy(fn) {
+    uiState.busy = true;
+    rerender();
+    try {
+      await fn();
+    } finally {
+      uiState.busy = false;
+      rerender();
+    }
+  }
+
+  // --- 事件处理 ---
+
+  function onPick() {
+    withBusy(async function () {
+      try {
+        var handle = await pickFolder();
+        uiState.permission = 'granted';
+        // 连接后立即做一次对账，让用户马上看到文件夹里有东西
+        var existing = await readAllSessions();
+        if (existing.length) {
+          var r = await snapshot('first-connect');
+          setMessage(
+            t('doneSync', { sessions: r ? r.sessionCount : existing.length }),
+            false
+          );
+        } else {
+          setMessage(t('connected') + '：' + (handle.name || ''), false);
+        }
+      } catch (e) {
+        setMessage(t('errPick') + ((e && e.message) || e), true);
+      }
+    });
+  }
+
+  function onSyncNow() {
+    withBusy(async function () {
+      try {
+        var r = await snapshot('manual');
+        setMessage(t('doneSync', { sessions: r ? r.sessionCount : 0 }), false);
+      } catch (e) {
+        setMessage(t('errSync') + ((e && e.message) || e), true);
+      }
+    });
+  }
+
+  function onRestore() {
+    withBusy(async function () {
+      try {
+        var manifest = await readManifest();
+        var hint = manifest
+          ? '（存档最后同步于 ' + (manifest.lastSyncAtText || '未知') + '）'
+          : '';
+        var ok = window.confirm(
+          t('restore') + hint + '\n\n' + t('restoreHint')
+        );
+        if (!ok) return;
+        var r = await restoreFromFolder();
+        setMessage(t('doneRestore', { sessions: r.sessions }), false);
+        setTimeout(function () {
+          requestReload('用户手动从文件夹恢复了对话');
+        }, 1200);
+      } catch (e) {
+        setMessage(t('errRestore') + ((e && e.message) || e), true);
+      }
+    });
+  }
+
+  function onDisconnect() {
+    withBusy(async function () {
+      await disconnect();
+      uiState.message = null;
+      rerender();
+    });
+  }
+
+  async function refreshPermissionState() {
+    if (!supportsFs) return;
+    var root = await getRootHandle();
+    if (!root) {
+      uiState.permission = null;
+      return;
+    }
+    var state = await ensurePermission(root, false);
+    var changed = uiState.permission !== state;
+    uiState.permission = state;
+    if (changed && state !== 'granted') {
+      // 权限被收回，提示用户重新连接
+      var node = document.querySelector('#' + UI_ID + ' .ls-inline-msg');
+      if (node && !node.textContent) node.textContent = t('needReconnect');
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 把区块挂进官方设置弹窗
+  // -------------------------------------------------------------------------
+
+  /**
+   * 官方设置面板里有一行「导出所有历史对话」。
+   * 我们定位官方设置面板的「内容容器」（class 前缀 settings- 的 content-_85c1b），
+   * 把本地文件夹区块追加到它末尾。
+   *
+   * 之所以不靠「从文字往上爬 N 层」：官方设置行在不同版本里层级会变，
+   * 而且那个文字有可能出现在别处（例如首页的引导页），爬层会挂错位置。
+   */
+  var SETTINGS_CONTENT_CLASS = 'content-_85c1b';
+
+  function findSettingsAnchor(scope) {
+    var root = scope || document;
+    var candidates = root.querySelectorAll('div,span,p');
+    for (var i = 0; i < candidates.length; i++) {
+      var node = candidates[i];
+      if (node.childElementCount !== 0) continue;
+      var text = (node.textContent || '').trim();
+      if (text === '导出所有历史对话' || text === 'Export all chats') {
+        return node;
+      }
+    }
+    return null;
+  }
+
+  /** 找到应该挂载区块的容器 */
+  function findMountContainer(scope) {
+    var root = scope || document;
+
+    // 首个可能：传进来的 scope 本身就是官方内容容器
+    if (root !== document && root.nodeType === 1 && root.classList &&
+        root.classList.contains(SETTINGS_CONTENT_CLASS)) {
+      return root;
+    }
+
+    // 首选：官方设置面板的内容容器
+    var content = root.querySelector('.' + SETTINGS_CONTENT_CLASS);
+    if (content) return content;
+
+    // 退化：以「导出所有历史对话」那一行往上找设置面板
+    var anchor = findSettingsAnchor(scope);
+    if (!anchor) return null;
+    var cell = anchor.closest
+      ? anchor.closest('.row-_85c1b')
+      : anchor.parentElement && anchor.parentElement.parentElement;
+    if (cell && cell.parentElement) return cell.parentElement;
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // 挂载点：只能挂在「通用设置」标签页下
+  // ---------------------------------------------------------------------------
+  //
+  // 官方设置弹窗的两个标签页（通用设置 / 数据管理）共用**同一个**内容容器
+  // `.content-_85c1b`，靠切换子节点来换页：
+  //
+  //   <div class="content-_85c1b">
+  //     "general" === tab ? [主题, 语言, 朗读音色, 位置信息]
+  //                      : [导入, 导出, 删除]
+  //   </div>
+  //
+  // 所以「往容器里 append 一个区块」是会串台的：弹窗默认停在「数据管理」
+  // （尤其首次启动、还没填 API Key 时），区块就被挂到了数据管理下，
+  // 切到通用设置又跟着显示，看起来就是两块内容混在一起。
+  //
+  // 正确做法：先判断当前激活的标签页，只有「通用设置」才挂；
+  // 切到别的标签页就把自己的区块摘掉（React 重渲染会清掉官方节点，
+  // 我们只需保证不留下自己的残留）。
+
+  var TAB_GENERAL = 'general';
+  var TAB_DATA = 'data';
+  var TAB_UNKNOWN = 'unknown';
+
+  /** 判断当前激活的是哪个标签页（优先看导航高亮，其次看内容特征） */
+  function detectActiveTab(scope) {
+    // scope 存在时，优先从 scope 自己或其祖先找弹窗：
+    // 这样「传入某个内容容器」时不会被页面上另一个真实的设置弹窗干扰。
+    var dlg = null;
+    if (scope && scope.nodeType === 1) {
+      dlg = scope.closest ? scope.closest('.dialog-_85c1b') : null;
+    }
+    if (!dlg) dlg = document.querySelector('.dialog-_85c1b');
+    if (!dlg) return TAB_UNKNOWN;
+
+    // 1) 导航项高亮最可靠
+    var items = dlg.querySelectorAll('.navItem-_85c1b');
+    for (var i = 0; i < items.length; i++) {
+      if (/navItemActive/.test(items[i].className || '')) {
+        var txt = (items[i].textContent || '').trim();
+        if (/通用|General/i.test(txt)) return TAB_GENERAL;
+        if (/数据|Data/i.test(txt)) return TAB_DATA;
+      }
+    }
+
+    // 2) 退而求其次：看内容里有没有「语言」选择框（通用设置独有）
+    if (dlg.querySelector('[aria-label="语言"], [aria-label="Language"]')) return TAB_GENERAL;
+
+    // 3) 或者有没有导入/导出那一组（数据管理独有）
+    var rows = dlg.querySelectorAll('.row-_85c1b');
+    for (var j = 0; j < rows.length; j++) {
+      if (/导出所有历史对话|导入历史对话|Export|Import/i.test(rows[j].textContent || '')) {
+        return TAB_DATA;
+      }
+    }
+    return TAB_UNKNOWN;
+  }
+
+  function mountSection(scope) {
+    var container = findMountContainer(scope);
+
+    // 只在「通用设置」下显示；其他标签页（或面板已关闭）一律不挂
+    if (!container || detectActiveTab(scope) !== TAB_GENERAL) {
+      var stale = document.getElementById(UI_ID);
+      if (stale) stale.remove();
+      return false;
+    }
+
+    var existing = document.getElementById(UI_ID);
+    if (existing) {
+      // 容器已换（例如 React 重建了内容节点），把区块挪到新容器末尾
+      if (existing.parentElement !== container) {
+        existing.remove();
+      } else {
+        return false;
+      }
+    }
+
+    container.appendChild(renderSection());
+    log('已挂载设置区块 → .' + (container.className || container.tagName) + '（通用设置）');
+    refreshPermissionState();
+    return true;
+  }
+
+  function watchForSettings() {
+    if (!document.body) {
+      document.addEventListener('DOMContentLoaded', watchForSettings, { once: true });
+      return;
+    }
+    // 记录上一次处理过的标签页，仅在「标签页真的变了」时才动 DOM，
+    // 否则我们自己的插入/移除会反过来触发观察器，形成无谓的抖动。
+    var lastTab = null;
+
+    var sync = function () {
+      var tab = detectActiveTab();
+      if (tab === lastTab) return;
+      lastTab = tab;
+      if (tab === TAB_GENERAL) mountSection();
+      else {
+        var stale = document.getElementById(UI_ID);
+        if (stale) stale.remove();
+      }
+    };
+
+    var observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    // 面板可能已经存在（脚本晚于首屏渲染）
+    sync();
+    log('已开始监听设置弹窗');
+  }
+
+  // -------------------------------------------------------------------------
+  // 样式
+  // -------------------------------------------------------------------------
+
+  function installStyles() {
+    if (document.getElementById('localstore-styles')) return;
+    var css = [
+      '.ls-section{margin-top:20px;padding-top:18px;border-top:1px solid var(--ls-line,#e5e5e5);font-size:14px;line-height:1.6}',
+      '.ls-section *{box-sizing:border-box}',
+      '.ls-head{font-weight:600;font-size:14px;margin-bottom:4px;color:var(--ls-fg,#1a1a1a)}',
+      '.ls-desc{color:var(--ls-dim,#8a8a8a);font-size:12.5px;margin-bottom:10px}',
+      '.ls-status{display:flex;align-items:center;gap:7px;margin-bottom:6px;font-size:13px}',
+      '.ls-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}',
+      '.ls-dot-ok{background:#22c55e}',
+      '.ls-dot-err{background:#ef4444}',
+      '.ls-dot-off{background:#c0c0c0}',
+      '.ls-status-text{color:var(--ls-fg,#333);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.ls-meta{color:var(--ls-dim,#8a8a8a);font-size:12px;margin:4px 0}',
+      '.ls-btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}',
+      '.ls-btn{font:inherit;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--ls-line,#dcdcdc);background:transparent;color:var(--ls-fg,#333);cursor:pointer;transition:background .15s,border-color .15s}',
+      '.ls-btn:hover:not([disabled]){background:var(--ls-hover,rgba(0,0,0,.05))}',
+      '.ls-btn[disabled]{opacity:.5;cursor:default}',
+      '.ls-btn-primary{background:#4d6bfe;border-color:#4d6bfe;color:#fff}',
+      '.ls-btn-primary:hover:not([disabled]){background:#3f5ae0}',
+      '.ls-warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#92600a;padding:9px 11px;border-radius:8px;font-size:12.5px}',
+      '.ls-msg{font-size:12.5px;margin-top:6px;color:var(--ls-dim,#666)}',
+      '.ls-msg-err{color:#d33}',
+      '.ls-sep{height:1px;background:var(--ls-line,#e5e5e5);margin:18px 0;opacity:.7}',
+      '.ls-api{margin:8px 0}',
+      '.ls-input{width:100%;font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--ls-line,#dcdcdc);background:var(--ls-input-bg,transparent);color:var(--ls-fg,#333)}',
+      '.ls-input:focus{outline:none;border-color:#4d6bfe}',
+      '.ls-inline-msg{font-size:12px;color:var(--ls-dim,#8a8a8a)}',
+      '.ls-model-badge{display:inline-flex;align-items:center;font-size:11px;line-height:1.5;padding:1px 7px;margin-right:6px;border-radius:999px;border:1px solid var(--ls-line,#dcdcdc);color:var(--ls-dim,#8a8a8a);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap;user-select:none}',
+
+      // ---- 提供方卡片 ----
+      '.ls-prov{border:1px solid var(--ls-line,#e0e0e0);border-radius:10px;padding:12px;margin:10px 0;background:var(--ls-card,rgba(0,0,0,.015))}',
+      '.ls-prov-active{border-color:#4d6bfe;box-shadow:0 0 0 1px rgba(77,107,254,.25)}',
+      '.ls-prov-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}',
+      '.ls-prov-name{font-weight:600;font-size:13.5px;color:var(--ls-fg,#1a1a1a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.ls-prov-badge{font-size:11px;padding:1px 8px;border-radius:999px;background:#4d6bfe;color:#fff;white-space:nowrap}',
+      '.ls-field{margin:8px 0}',
+      '.ls-label{display:block;font-size:12px;color:var(--ls-dim,#8a8a8a);margin-bottom:4px}',
+      '.ls-models{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 6px;max-height:190px;overflow:auto}',
+      '.ls-check-item{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer;color:var(--ls-fg,#333);white-space:nowrap}',
+      '.ls-check{margin:0;cursor:pointer;flex:0 0 auto}',
+      '.ls-models-bulk{display:flex;gap:12px;margin-bottom:8px}',
+      '.ls-select{width:100%;font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--ls-line,#dcdcdc);background:var(--ls-input-bg,transparent);color:var(--ls-fg,#333)}',
+      '.ls-chip{font:inherit;font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--ls-line,#dcdcdc);background:transparent;color:var(--ls-fg,#333);cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+      '.ls-chip:hover{background:var(--ls-hover,rgba(0,0,0,.05))}',
+      '.ls-chip-on{background:#4d6bfe;border-color:#4d6bfe;color:#fff}',
+
+      // ---- 输入框旁的模型切换器 ----
+      // 注意：这个节点挂在官方输入区里，不吃 .ls-section 的 CSS 变量作用域，
+      // 所以颜色全部显式给出，并单独适配暗色。
+      '.ls-composer{display:inline-flex;align-items:center}',
+      '.ls-composer-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;line-height:1.4;padding:4px 10px;border-radius:999px;border:1px solid rgba(0,0,0,.14);background:transparent;color:inherit;cursor:pointer;max-width:260px}',
+      '.ls-composer-btn:hover{background:rgba(0,0,0,.05)}',
+      '.ls-composer-model{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.ls-composer-provider{opacity:.55;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}',
+      '.ls-composer-caret{opacity:.6;font-size:10px}',
+      // 菜单直接挂在 body 上并用 fixed 定位：输入区外层有 overflow:hidden，
+      // 若留在输入区内，向上弹出的面板会被裁断。位置由 JS 计算。
+      '.ls-composer-menu{position:fixed;z-index:2147483000;min-width:260px;max-width:340px;max-height:340px;overflow:auto;padding:6px;border-radius:12px;border:1px solid rgba(0,0,0,.12);background:#fff;color:#1a1a1a;box-shadow:0 8px 28px rgba(0,0,0,.16)}',
+      // 启动遮罩：带 #c= 刷新时，应用**总是**先把空对话渲染出来,
+      // 于是看到「今天有什么可以帮到你？」闪一下才跳到目标对话。
+      // 这块遮罩盖住那一瞬间，恢复完成后淡出。
+      '.ls-boot-cover{position:fixed;inset:0;z-index:2147483001;pointer-events:none;opacity:1;transition:opacity .18s ease-out}',
+      '.ls-boot-cover-gone{opacity:0}',
+      '.ls-menu-group{margin-bottom:6px}',
+      '.ls-menu-head{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:11.5px;color:#8a8a8a}',
+      '.ls-menu-provider{font-weight:600;color:#1a1a1a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.ls-menu-tag{font-size:10px;padding:0 6px;border-radius:999px;border:1px solid #4d6bfe;color:#4d6bfe}',
+      '.ls-menu-item{display:block;width:100%;text-align:left;font:inherit;font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:6px 9px;border:0;border-radius:8px;background:transparent;color:#1a1a1a;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.ls-menu-item:hover{background:rgba(0,0,0,.06)}',
+      '.ls-menu-item-on{color:#4d6bfe;font-weight:600}',
+      '.ls-menu-item-on::before{content:"✓ "}',
+      '.ls-menu-empty{padding:5px 9px 8px;font-size:11.5px;color:#8a8a8a}',
+      '.ls-menu-foot{border-top:1px solid rgba(0,0,0,.08);margin-top:4px;padding-top:6px}',
+      '.ls-menu-link{display:block;padding:5px 9px;font-size:12px;color:#4d6bfe;cursor:pointer;border-radius:8px}',
+      '.ls-menu-link:hover{background:rgba(77,107,254,.08)}',
+
+      // 暗色主题
+      'html[data-theme="dark"] .ls-section,body[data-theme="dark"] .ls-section{--ls-fg:#e8e8e8;--ls-dim:#9aa0a6;--ls-line:#3a3a3a;--ls-hover:rgba(255,255,255,.08);--ls-input-bg:rgba(255,255,255,.04);--ls-card:rgba(255,255,255,.03)}',
+      '@media (prefers-color-scheme:dark){html:not([data-theme="light"]) .ls-section{--ls-fg:#e8e8e8;--ls-dim:#9aa0a6;--ls-line:#3a3a3a;--ls-hover:rgba(255,255,255,.08);--ls-input-bg:rgba(255,255,255,.04);--ls-card:rgba(255,255,255,.03)}}',
+      // 模型切换器在官方输入区内，单独适配暗色
+      'html[data-theme="dark"] .ls-composer-menu,body[data-theme="dark"] .ls-composer-menu{background:#2b2b2b;color:#e8e8e8;border-color:rgba(255,255,255,.14)}',
+      'html[data-theme="dark"] .ls-composer-menu .ls-menu-provider,body[data-theme="dark"] .ls-composer-menu .ls-menu-provider{color:#e8e8e8}',
+      'html[data-theme="dark"] .ls-composer-menu .ls-menu-item,body[data-theme="dark"] .ls-composer-menu .ls-menu-item{color:#e8e8e8}',
+      'html[data-theme="dark"] .ls-composer-menu .ls-menu-item:hover,body[data-theme="dark"] .ls-composer-menu .ls-menu-item:hover{background:rgba(255,255,255,.09)}',
+      'html[data-theme="dark"] .ls-composer-btn,body[data-theme="dark"] .ls-composer-btn{border-color:rgba(255,255,255,.18)}',
+      'html[data-theme="dark"] .ls-composer-btn:hover,body[data-theme="dark"] .ls-composer-btn:hover{background:rgba(255,255,255,.09)}',
+      '@media (prefers-color-scheme:dark){html:not([data-theme="light"]) .ls-composer-menu{background:#2b2b2b;color:#e8e8e8;border-color:rgba(255,255,255,.14)}html:not([data-theme="light"]) .ls-composer-menu .ls-menu-provider,html:not([data-theme="light"]) .ls-composer-menu .ls-menu-item{color:#e8e8e8}html:not([data-theme="light"]) .ls-composer-btn{border-color:rgba(255,255,255,.18)}}'
+    ].join('\n');
+
+    var style = document.createElement('style');
+    style.id = 'localstore-styles';
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  // -------------------------------------------------------------------------
+  // API 地址：让补丁后的 bundle 即使在脚本注入顺序异常时也能读到值
+  // -------------------------------------------------------------------------
+
+  function seedApiBase() {
+    // 让提供方配置成为唯一事实来源：把默认提供方的地址/Key 镜像进
+    // 官方读取的槽位，随后补丁后的 bundle 与官方自身都会跟着生效。
+    try {
+      getProviders();
+      applyActiveProvider(false);
+    } catch (e) {
+      warn('初始化提供方失败', e);
+    }
+
+    var stored = lsGet(LS_API_BASE);
+    if (stored && stored.trim()) {
+      // 必须归一化：应用会自己在根地址后面拼 /anthropic/v1/... 与 /models
+      window.__CHAT_API_BASE__ = normalizeBase(stored);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 深链接：让每个对话有自己的 URL（#c=<token>）
+  // -------------------------------------------------------------------------
+  //
+  // 背景：官方应用**不保存「当前打开的是哪个对话」**（虽然它会把位置信息写进
+  // chat-demo:location，但那是天气用的省市，跟对话无关）。所以一刷新就回到
+  // 「开启新对话」，也没法把某个对话分享/收藏成链接。
+  //
+  // 做法：
+  //   · 侧边栏每个对话项都有一个标题节点 `.title-ff6fc9`，目前打开的那个
+  //     最外层带 `active-ff6fc9` —— 这就是「当前对话」的可靠信号；
+  //   · 给标题分配一个**稳定**的 token：按标题缓存，一旦分配就不再变；
+  //   · 把 token 写进地址栏的 hash（用 replaceState，不产生历史记录、不触发
+  //     hashchange）；刷新时 hash 还在，于是能回到原来的对话。
+  //
+  // 用标题而不是会话 id：应用把「当前对话」留在内存里，没有对外暴露接口，
+  // 我们只能从界面反推；而侧边栏项上唯一可用的标识就是标题。
+  // 标题重名时靠「按创建时间排序的位置」消歧。
+
+  var SIDE_ITEM_CLASS = 'item-ff6fc9';
+  var SIDE_TITLE_CLASS = 'title-ff6fc9';
+  var SIDE_ACTIVE_CLASS = 'active-ff6fc9';
+  var HASH_PREFIX = '#c=';
+  var LS_TOKEN_MAP = 'chat-demo:deeplink-tokens';
+
+  var deepLinkTimer = null;
+
+  /** 简单的稳定哈希，用来生成短的 token */
+  function hash32(str) {
+    var h = 5381;
+    for (var i = 0; i < str.length; i++) {
+      h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+    }
+    return h.toString(36);
+  }
+
+  function readTokenMap() {
+    try {
+      var raw = lsGet(LS_TOKEN_MAP);
+      var obj = raw ? JSON.parse(raw) : null;
+      return obj && typeof obj === 'object' ? obj : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writeTokenMap(map) {
+    try {
+      lsSet(LS_TOKEN_MAP, JSON.stringify(map));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  /**
+   * 给一个会话标识分配 token。同标识永远拿到同一个 token（这是「一旦赋值便不变」）。
+   * 先按标题查缓存；没有再用「标题 + 创建时间」算一个短哈希并记进缓存。
+   */
+  function getOrCreateToken(key, fallbackSeed) {
+    var map = readTokenMap();
+    if (map[key]) return map[key];
+    var token = hash32(fallbackSeed || key);
+    map[key] = token;
+    writeTokenMap(map);
+    return token;
+  }
+
+  /**
+   * 读侧边栏，返回 [{key, token, title, active}]，顺序与界面一致。
+   *
+   * key 用标题（重名时加序号后缀），这样「按创建时间排序的位置」变化
+   * 也不会让已分配的 token 漂移。
+   */
+  function readSidebarSessions() {
+    var sider = document.querySelector('.sider-ac14ac') || document.querySelector('[class*=sider]');
+    if (!sider) return [];
+
+    var items = Array.prototype.slice.call(sider.querySelectorAll('.' + SIDE_ITEM_CLASS));
+    var seen = {};
+    var out = [];
+
+    for (var i = 0; i < items.length; i++) {
+      var titleEl = items[i].querySelector('.' + SIDE_TITLE_CLASS);
+      var title = titleEl ? (titleEl.textContent || '').trim() : '';
+      if (!title) continue;
+
+      // 重名消歧：第二个同名标题用 "标题#2"
+      var key = title;
+      if (seen[title] === undefined) {
+        seen[title] = 1;
+      } else {
+        seen[title] += 1;
+        key = title + '#' + seen[title];
+      }
+
+      out.push({
+        key: key,
+        token: getOrCreateToken(key, key),
+        title: title,
+        active: items[i].className.indexOf(SIDE_ACTIVE_CLASS) !== -1,
+        el: items[i]
+      });
+    }
+    return out;
+  }
+
+  /** 当前打开的是哪个对话（没有则 null，代表「新对话」） */
+  function activeSession() {
+    var list = readSidebarSessions();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].active) return list[i];
+    }
+    return null;
+  }
+
+  function currentHashToken() {
+    var h = location.hash || '';
+    if (h.indexOf(HASH_PREFIX) !== 0) return null;
+    return decodeURIComponent(h.slice(HASH_PREFIX.length)) || null;
+  }
+
+  function setHashToken(token) {
+    var next = token ? HASH_PREFIX + encodeURIComponent(token) : '';
+    var cur = location.hash || '';
+    if (cur === next) return;
+    try {
+      // replaceState：不留历史记录，也不会触发 hashchange
+      history.replaceState(null, '', location.pathname + location.search + next);
+    } catch (e) {
+      /* 某些环境不允许改地址，忽略 */
+    }
+  }
+
+  /** 把地址栏同步成「当前打开的对话」 */
+  function syncUrlToActiveSession() {
+    var act = activeSession();
+    setHashToken(act ? act.token : null);
+  }
+
+  /** 按 hash 里的 token 回到对应对话（找不到就什么都不做） */
+  /**
+   * 本次启动想恢复的 token。
+   *
+   * 必须单独记一份：应用在挂载时会把 `location.hash` 抹掉（437ms 左右），
+   * 如果每次都从地址栏现读，就会在「还没恢复完」的时候把目标弄丢，
+   * 表现为先闪一下空对话、再跳到目标对话。
+   */
+  var bootToken = null;
+
+  /**
+   * 启动遮罩。
+   *
+   * 为什么需要：带 `#c=` 刷新时，应用在挂载阶段**一定**会先渲染一次空对话
+   * （「今天有什么可以帮到你？」），我们只能在其后按 token 点回去。
+   * 这段时间虽短（实测约 200~400ms），但足以让用户看到一次闪动。
+   *
+   * 遮罩用与应用一致的背景色铺满全屏，等恢复完成（或超时）后淡出，
+   * 用户看到的就是「一直停在原来的对话上」。
+   * 颜色跟随主题偏好，避免深色模式下反而闪白。
+   */
+  var BOOT_COVER_ID = 'localstore-boot-cover';
+
+  function coverColor() {
+    var pref = lsGet('chat-demo:theme-preference') || '';
+    var prefersDark =
+      window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var dark = pref === 'dark' || (pref !== 'light' && prefersDark);
+    return dark ? '#151517' : '#ffffff';
+  }
+
+  function showBootCover() {
+    try {
+      if (document.getElementById(BOOT_COVER_ID)) return;
+      if (!document.body) return;
+      var el = document.createElement('div');
+      el.id = BOOT_COVER_ID;
+      el.className = 'ls-boot-cover';
+      el.style.background = coverColor();
+      el.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(el);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function hideBootCover() {
+    try {
+      var el = document.getElementById(BOOT_COVER_ID);
+      if (!el) return;
+      el.className = 'ls-boot-cover ls-boot-cover-gone';
+      setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 250);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  /** 最近一次按链接恢复的尝试，供诊断使用 */
+  var lastRestoreAttempt = null;
+
+  function restoreFromHash() {
+    // 地址栏优先；地址栏被应用清掉后回退到启动时记下的那个
+    var want = currentHashToken() || bootToken;
+    if (!want) return false;
+
+    var list = readSidebarSessions();
+    var target = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].token === want) {
+        target = list[i];
+        break;
+      }
+    }
+    if (!target) return false;
+    if (target.active) {
+      bootToken = null;
+      return true; // 已经在看它了
+    }
+
+    // React 的事件处理是挂在节点上的（onClick 存在 __reactProps$ 里）。
+    // 侧边栏的节点往往**先出现、后挂上处理函数**；这期间 click() 是空转，
+    // 界面会先渲染成空对话，等到处理函数就绪才跳过去 —— 那就是用户看到的闪动。
+    // 所以这里必须等到处理函数就绪再点，否则不如不点。
+    var propsKey = null;
+    var keys = Object.keys(target.el);
+    for (var k = 0; k < keys.length; k++) {
+      if (keys[k].indexOf('__reactProps$') === 0) {
+        propsKey = keys[k];
+        break;
+      }
+    }
+    if (propsKey) {
+      var props = target.el[propsKey];
+      if (!props || typeof props.onClick !== 'function') return false;
+    } else {
+      return false; // 还没有任何 React 属性，说明确实太早了
+    }
+
+    log('按链接回到对话「' + target.title + '」');
+    lastRestoreAttempt = { title: target.title, at: Date.now(), token: want };
+    target.el.click();
+    return true;
+  }
+
+  /**
+   * 监视侧边栏：当前对话一变就更新地址栏。
+   * 用轮询而不是 MutationObserver —— 侧边栏在流式回复时会频繁变动，
+   * 观察者会被高频触发；而这里只需半秒级的跟随，轮询更稳也更省。
+   */
+  function watchDeepLink() {
+    if (deepLinkTimer) clearInterval(deepLinkTimer);
+    var lastToken = undefined;
+    var restoring = false;
+    var obs = null;
+    var boot = null;
+
+    /** 停止首次恢复的探测（观察器 + 兜底轮询） */
+    function stopRestoreWatch() {
+      if (boot) {
+        clearInterval(boot);
+        boot = null;
+      }
+      if (obs) {
+        try {
+          obs.disconnect();
+        } catch (e) {
+          /* ignore */
+        }
+        obs = null;
+      }
+    }
+
+    function beginRestore(token) {
+      bootToken = token;
+      restoring = true;
+      stopRestoreWatch();
+      // 盖住「应用先渲染空对话」那一瞬间
+      showBootCover();
+      var coverDeadline = setTimeout(hideBootCover, 3000);
+
+      function attempt() {
+        var ok = false;
+        try {
+          ok = restoreFromHash();
+        } catch (e) {
+          /* ignore */
+        }
+        if (!ok) return false;
+        stopRestoreWatch();
+        bootToken = null;
+        restoring = false;
+        lastToken = undefined; // 让地址栏跟随重新对齐
+        try {
+          syncUrlToActiveSession();
+        } catch (e) {
+          /* ignore */
+        }
+        // 等一帧，让应用把目标对话画出来，再揭开遮罩
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            clearTimeout(coverDeadline);
+            hideBootCover();
+          });
+        });
+        return true;
+      }
+
+      // 侧边栏一渲染出来就立刻恢复，别等固定间隔。
+      // 应用在约 230ms 渲染列表、约 430ms 才切到空对话，
+      // 只有卡在两者之间动手才看不到闪动，所以用 MutationObserver 抢先一步。
+      if (typeof MutationObserver === 'function') {
+        obs = new MutationObserver(function () {
+          attempt();
+        });
+        try {
+          obs.observe(document.body, { childList: true, subtree: true });
+        } catch (e) {
+          obs = null;
+        }
+      }
+
+      // 兜底轮询：列表早已渲染完（观察器错过时机）时也能收敛
+      var tries = 0;
+      boot = setInterval(function () {
+        tries++;
+        if (attempt()) return;
+        if (tries >= 60) {
+          // 恢复失败（对话可能已被删掉）：放开地址栏跟随并清掉失效的 hash
+          stopRestoreWatch();
+          bootToken = null;
+          restoring = false;
+          try {
+            syncUrlToActiveSession();
+          } catch (e) {
+            /* ignore */
+          }
+          clearTimeout(coverDeadline);
+          hideBootCover();
+        }
+      }, 100);
+    }
+
+    // 当前对话一变就更新地址栏
+    deepLinkTimer = setInterval(function () {
+      try {
+        if (restoring) return; // 恢复期间不要覆盖带过来的 #c=
+        var act = activeSession();
+        var token = act ? act.token : null;
+        if (token !== lastToken) {
+          lastToken = token;
+          setHashToken(token);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }, 500);
+
+    // 用户手动改地址（粘贴一个链接）时，跟着跳过去
+    window.addEventListener('hashchange', function () {
+      try {
+        var t = currentHashToken();
+        if (!t) return;
+        beginRestore(t);
+      } catch (e) {
+        /* ignore */
+      }
+    });
+
+    // 首次进入：地址栏里带着 #c= 就先恢复
+    var initial = currentHashToken();
+    if (initial) beginRestore(initial);
+  }
+
+  // -------------------------------------------------------------------------
+  // 启动
+  // -------------------------------------------------------------------------
+
+  /**
+   * 自动刷新熔断器。
+   *
+   * boot 阶段有几处需要刷新页面才能让官方应用生效（回填设置 / 回填 Key /
+   * 自动恢复对话）。这些刷新本应各只发生一次，但一旦某个判断写错就会变成
+   * 死循环 —— 用户看到的就是「页面不停闪动，而且回到新对话」。
+   *
+   * 所以这里加一道闸门：短时间内只允许一次自动刷新。
+   * 两次以上直接放弃刷新，改为记录日志，页面停在当前状态（总比闪个不停好）。
+   */
+  var RELOAD_GUARD_KEY = 'chat-demo:auto-reload-at';
+  var RELOAD_GUARD_MS = 8000;
+
+  function canAutoReload() {
+    try {
+      var last = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || 0);
+      if (last && Date.now() - last < RELOAD_GUARD_MS) return false;
+      sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
+      return true;
+    } catch (e) {
+      return true; // 拿不到 sessionStorage 就不拦
+    }
+  }
+
+  /** 需要刷新页面才能让改动生效时的统一出口 */
+  function requestReload(reason) {
+    // 留一条带调用栈的痕迹，方便日后定位「是什么在刷新页面」
+    try {
+      if (window.__lsReloadLog) {
+        window.__lsReloadLog.push({
+          reason: reason,
+          at: Date.now(),
+          stack: String(new Error().stack || '').split('\n').slice(1, 5).join(' | ')
+        });
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    if (!canAutoReload()) {
+      warn('已阻止重复自动刷新（' + reason + '）：短时间内刷新过，为避免页面闪动而放弃');
+      return false;
+    }
+    log('即将刷新页面：' + reason);
+    location.reload();
+    return true;
+  }
+
+  async function boot() {
+    seedApiBase();
+    installStyles();
+    installIdbHook();
+    installFetchHook();
+    watchForSettings();
+    watchMessages();
+    installComposerOutsideClick();
+    watchDeepLink();
+
+    // 从文件夹恢复设置与 API Key（仅当浏览器里没有时才回填）
+    try {
+      var settingsRestored = await hydrateSettingsFromFolder();
+      if (settingsRestored) {
+        if (requestReload('从文件夹恢复了设置')) return;
+      }
+    } catch (e) {
+      warn('恢复设置失败', e);
+    }
+
+    try {
+      var restored = await hydrateKeyFromFolder();
+      if (restored) {
+        // 官方应用在启动时读取一次 apiKey，这里刷新让它生效
+        if (requestReload('从文件夹恢复了 API Key')) return;
+      }
+    } catch (e) {
+      warn('恢复 API Key 失败', e);
+    }
+
+    // 把文件夹里 / 应用里已有的 Key 收进提供方，避免设置面板显示为空、
+    // 以及后续保存时用空 Key 覆盖掉可用的 Key（「Key 无效」的根因）。
+    try {
+      await syncKeyFromFolderToProvider();
+      adoptKeyIntoActiveProvider();
+    } catch (e) {
+      warn('同步 API Key 到提供方失败', e);
+    }
+
+    // 之后持续对账：官方「数据管理」里的 Key 编辑框会直接写槽位，
+    // 桥接层收不到通知，只能靠轮询把它采纳进当前提供方。
+    startKeySync();
+
+    if (supportsFs) {
+      try {
+        var root = await getRootHandle();
+        if (root) {
+          dirCache = root;
+          var state = await ensurePermission(root, false);
+          uiState.permission = state;
+          log('已恢复文件夹句柄：' + (root.name || '') + '（权限：' + state + '）');
+          if (state === 'granted') {
+            // 全新浏览器（清空数据后重连）先把对话读回来，再对账，
+            // 否则对账会把空库当成事实、把文件夹里的存档删掉。
+            try {
+              var restored = await autoRestoreAfterConnect();
+              if (restored) {
+                if (requestReload('自动恢复了对话')) return;
+              }
+            } catch (e) {
+              warn('自动恢复对话失败：' + ((e && e.message) || e));
+            }
+
+            // 静默做一次对账，让文件夹与浏览器保持一致
+            snapshot('boot')
+              .then(function (r) {
+                if (r) log('启动对账完成', r);
+              })
+              .catch(function (e) {
+                warn('启动对账失败：' + ((e && e.message) || e));
+              });
+          }
+        }
+      } catch (e) {
+        warn('恢复文件夹句柄失败', e);
+      }
+    }
+
+    // 暴露一个调试/自动化接口，也方便日后写测试
+    window.__localstore = {
+      version: BRIDGE_VERSION,
+      supportsFs: supportsFs,
+      state: syncState,
+      onSync: onSync,
+      pickFolder: pickFolder,
+      disconnect: disconnect,
+      reconnect: reconnect,
+      snapshot: snapshot,
+      restoreFromFolder: restoreFromFolder,
+      /** 首次连接后自动读回对话（仅全新浏览器会真正执行） */
+      autoRestoreAfterConnect: autoRestoreAfterConnect,
+      maybeAutoRestoreHistory: maybeAutoRestoreHistory,
+      countLocalSessions: countLocalSessions,
+      LS_HISTORY_SYNCED_AT: LS_HISTORY_SYNCED_AT,
+      loadFromFolder: loadFromFolder,
+      readManifest: readManifest,
+      readAllSessions: readAllSessions,
+      readAllFiles: readAllFiles,
+      renderMarkdown: renderMarkdown,
+      linearMessages: linearMessages,
+      sessionToMirror: sessionToMirror,
+      /** 模型相关 */
+      currentModel: currentModel,
+      onModel: onModel,
+      sniffState: sniffState,
+      injectModelBadges: injectModelBadges,
+      /** 设置区块挂载（scope 供测试注入隔离容器） */
+      mountSection: mountSection,
+      findMountContainer: findMountContainer,
+      /** 提供方与模型 */
+      getProviders: function () {
+        var st = getProviders();
+        return { list: st.list.map(cloneProvider), activeId: st.activeId };
+      },
+      getActiveProvider: function () {
+        var p = getActiveProvider();
+        return p ? cloneProvider(p) : null;
+      },
+      setActiveProvider: function (id) {
+        var st = getProviders();
+        st.activeId = id;
+        saveProviders();
+        applyActiveProvider(false);
+        mountComposer();
+      },
+      /** 新增一个提供方（给 id 就沿用，否则自动生成） */
+      addProvider: function (spec) {
+        var st = getProviders();
+        var p = cloneProvider(
+          spec && typeof spec === 'object'
+            ? spec
+            : { id: '', name: '', baseURL: '', apiKey: '' }
+        );
+        if (!p.id) p.id = uid('custom');
+        if (!p.name) p.name = p.id;
+        p.baseURL = normalizeBase(p.baseURL);
+        if (st.list.some(function (x) {
+          return x.id === p.id;
+        })) {
+          return false; // 已存在就不重复加
+        }
+        st.list.push(p);
+        saveProviders();
+        return p.id;
+      },
+      updateProvider: function (id, patch) {
+        var p = findProvider(id);
+        if (!p) return false;
+        if (patch && typeof patch === 'object') {
+          Object.keys(patch).forEach(function (k) {
+            if (k === 'models' && Array.isArray(patch.models)) p.models = patch.models.slice();
+            else if (k === 'baseURL') p.baseURL = normalizeBase(patch[k]);
+            else if (k in p) p[k] = patch[k];
+          });
+        }
+        else return false;
+        // 归一化后如果是空的，退回官方地址，避免存下一个不可用配置
+        if (!p.baseURL) p.baseURL = p.builtin ? OFFICIAL_PROVIDER.baseURL : '';
+        saveProviders();
+        if (getProviders().activeId === id) applyActiveProvider(false);
+        return true;
+      },
+      fetchModelsFor: fetchModelsFor,
+      parseModelList: parseModelList,
+      effectiveApiBase: effectiveApiBase,
+      effectiveModel: effectiveModel,
+      selectModel: function (providerId, model) {
+        var st = getProviders();
+        var p = findProvider(providerId);
+        if (!p) return false;
+        st.activeId = providerId;
+        p.defaultModel = model;
+        saveProviders();
+        lsSet(LS_MODEL, model);
+        applyActiveProvider(false);
+        mountComposer();
+        return true;
+      },
+      mountComposer: mountComposer,
+      getComposerLabel: function () {
+        var n = document.getElementById(COMPOSER_ID);
+        return n ? n.getAttribute('data-ls-label') : null;
+      },
+      openComposerMenu: function (open) {
+        composerState.open = !!open;
+        renderComposerMenu();
+      },
+      RESET_PROVIDERS_FOR_TEST: function () {
+        providersState = null;
+      },
+      /** API Key 对账（供测试直接驱动，正常由轮询触发） */
+      reconcileKey: reconcileKey,
+      startKeySync: startKeySync,
+      refreshSettingsSection: refreshSettingsSection,
+      OFFICIAL_PROVIDER: cloneProvider(OFFICIAL_PROVIDER),
+      LS_MODEL: LS_MODEL,
+      LS_PROVIDERS: LS_PROVIDERS,
+      /** API Key 相关 */
+      writeKeyToFolder: writeKeyToFolder,
+      readKeyFromFolder: readKeyFromFolder,
+      collectProviderKeys: collectProviderKeys,
+      applyProviderKeys: applyProviderKeys,
+      removeKeyFromFolder: removeKeyFromFolder,
+      hydrateKeyFromFolder: hydrateKeyFromFolder,
+      /** 设置项存文件夹 */
+      writeSettingsToFolder: writeSettingsToFolder,
+      readSettingsFromFolder: readSettingsFromFolder,
+      restoreSettingsFromFolder: restoreSettingsFromFolder,
+      hydrateSettingsFromFolder: hydrateSettingsFromFolder,
+      collectSettings: collectSettings,
+      SETTINGS_ALLOW: SETTINGS_ALLOW,
+      /** 深链接：读侧边栏 / 按 hash 恢复 / 同步地址栏 */
+      readSidebarSessions: readSidebarSessions,
+      /**
+       * 主动探测上传链路的哪一环断了。
+       *
+       * 排查「上传失败」时最麻烦的是：浏览器只给一个 `net::ERR_HTTP2_PROTOCOL_ERROR`，
+       * 分不清是**预检**（OPTIONS）就断了，还是真正 POST 时断的，也分不清是否与
+       * 文件大小/编码有关。这里按几条最小请求逐级试，把每一步的成败记下来。
+       *
+       * 全部用 1 字节的假文件，不会在你账号里留下任何东西。
+       * 返回结果可直接复制。
+       */
+      probeUploads: function () {
+        var p = getActiveProvider();
+        var base = normalizeBase((p && p.baseURL) || '');
+        var key = (p && String(p.apiKey || '').trim()) || String(lsGet(LS_APP_API_KEY) || '').trim();
+        var steps = [];
+        var blob = new Blob([new Uint8Array([120])], { type: 'text/plain' });
+
+        function step(name, make) {
+          var t0 = Date.now();
+          return make().then(
+            function (res) {
+              steps.push({
+                step: name, ok: true, http: res.status, ms: Date.now() - t0,
+                note: res.status === 401 ? '到达服务器（Key 无效也算通）' : ''
+              });
+            },
+            function (err) {
+              steps.push({
+                step: name, ok: false, ms: Date.now() - t0,
+                error: String((err && err.message) || err)
+              });
+            }
+          );
+        }
+
+        function form(bytes) {
+          var fd = new FormData();
+          fd.append('purpose', 'assistant');
+          fd.append('file', new Blob([new Uint8Array(bytes)], { type: 'text/plain' }), 'probe.txt');
+          return fd;
+        }
+
+        var url = base + '/anthropic/v1/files';
+
+        return step('GET /models（无预检，作为基准）', function () {
+          return fetch(base + '/models', { method: 'GET', headers: { Authorization: 'Bearer ' + key } });
+        })
+          .then(function () {
+            return step('POST /files 1 字节 multipart（真实路径）', function () {
+              return fetch(url, {
+                method: 'POST',
+                headers: { 'x-api-key': key, 'anthropic-beta': 'files-api-2025-04-14' },
+                body: form([120])
+              });
+            });
+          })
+          .then(function () {
+            return step('POST /files 64KB multipart（测大小）', function () {
+              return fetch(url, {
+                method: 'POST',
+                headers: { 'x-api-key': key, 'anthropic-beta': 'files-api-2025-04-14' },
+                body: form(new Array(65536).fill(65))
+              });
+            });
+          })
+          .then(function () {
+            return step('POST /files 裸二进制（非 multipart，测编码）', function () {
+              return fetch(url, {
+                method: 'POST',
+                headers: {
+                  'x-api-key': key,
+                  'anthropic-beta': 'files-api-2025-04-14',
+                  'content-type': 'text/plain'
+                },
+                body: blob
+              });
+            });
+          })
+          .then(function () {
+            var pass = steps.filter(function (s) {
+              return s.ok;
+            }).length;
+            return {
+              bridgeVersion: BRIDGE_VERSION,
+              origin: location.origin,
+              uploadUrl: url,
+              keyHint: key ? key.slice(0, 7) + '…' + key.slice(-4) : '（无 Key）',
+              steps: steps,
+              report:
+                'bridge v' + BRIDGE_VERSION +
+                ' | 页面来源=' + location.origin +
+                ' | ' + pass + '/' + steps.length + ' 步成功 | ' +
+                steps.map(function (s) {
+                  return s.step.split('（')[0] + ':' + (s.ok ? 'HTTP' + s.http : '✗' + (s.error || '').slice(0, 40));
+                }).join(' | ')
+            };
+          });
+      },
+      /** 把用户填的地址归一化成裸根地址（去掉结尾的 /anthropic 与斜杠） */
+      normalizeBase: normalizeBase,
+      /** 上传诊断：返回版本、当前提供方与逐次尝试记录 */
+      uploadLog: function () {
+        var pf = uploadPreflight();
+        var tries = uploadLog.filter(function (x) {
+          return x.status === 'ok' || x.status === 'error';
+        });
+        return {
+          bridgeVersion: BRIDGE_VERSION,
+          preflight: pf,
+          entries: uploadLog.slice(),
+          /** 一句话结论，方便直接复制给他人 */
+          report:
+            'bridge v' +
+            BRIDGE_VERSION +
+            ' | 提供方=' +
+            (pf.providerName || '无') +
+            ' | 上传地址=' +
+            pf.uploadUrl +
+            ' | Key=' +
+            (pf.hasProviderKey || pf.hasSlotKey ? pf.keyHint : '（无）') +
+            ' | 尝试=' +
+            tries.length +
+            ' | 结果=' +
+            (tries.length ? tries[tries.length - 1].error || ('HTTP ' + tries[tries.length - 1].http) : '从未上传过')
+        };
+      },
+      lastRestoreAttempt: function () {
+        return lastRestoreAttempt;
+      },
+      activeSession: activeSession,
+      restoreFromHash: restoreFromHash,
+      syncUrlToActiveSession: syncUrlToActiveSession,
+      currentHashToken: currentHashToken,
+      getOrCreateToken: getOrCreateToken,
+      HASH_PREFIX: HASH_PREFIX,
+      /** 仅供测试：注入一个模拟目录句柄 */
+      __setRootHandleForTest: async function (handle) {
+        // 真实的 FileSystemDirectoryHandle 可结构化克隆；测试用的模拟对象不行，
+        // 所以这里容错：克隆失败也照样放进内存缓存，功能不受影响。
+        try {
+          await ownPut('root', handle);
+        } catch (e) {
+          warn('句柄无法持久化（测试替身属正常现象）：' + ((e && e.message) || e));
+        }
+        dirCache = handle;
+        lsSet(LS_FOLDER, handle.name || 'test');
+        emitSync();
+      }
+    };
+
+    log('v' + BRIDGE_VERSION + ' 已加载（文件夹写入' + (supportsFs ? '可用' : '不可用') + '）');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      boot();
+    });
+  } else {
+    boot();
+  }
+})();

@@ -1,0 +1,15 @@
+# 本仓库在 Windows 上开发，core.autocrlf=true 会把文本文件的 LF 换成 CRLF。
+# 对本站的普通文档无碍，但聊天前端里的这三类文件被改动就会出问题：
+#
+#   1. static/js/*.js —— 压缩后的产物，字节被人为改动可能影响运行；
+#   2. localstore-bridge.js —— 内容哈希写进了 index.html 的 ?v=，
+#      换行一变哈希就不匹配，verify-patch.mjs 会直接报错；
+#   3. static/js/*.orig —— 补丁回滚用的原始副本，必须与原版逐字节一致。
+#
+# 因此这些路径强制按字节存（-text），其余文本统一 LF 入库。
+
+chat-demo-v0.1.2/static/js/** -text
+chat-demo-v0.1.2/localstore-bridge.js text eol=lf
+chat-demo-v0.1.2/index.html text eol=lf
+chat-demo-v0.1.2/SETUP.md text eol=lf
+chat-demo-v0.1.2/tools/** text eol=lf

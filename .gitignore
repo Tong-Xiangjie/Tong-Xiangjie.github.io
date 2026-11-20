@@ -1,0 +1,4 @@
+# 补丁前备份（可随时用 apply-patch.mjs 的 --check 之外的方式重新生成）
+# 原始官方 bundle 体积近 500KB，且 git 历史本身就能回溯，没必要留副本。
+chat-demo-v0.1.2/*.orig
+chat-demo-v0.1.2/**/*.orig
