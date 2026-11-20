@@ -155,11 +155,11 @@
  * 3. 侧栏
  * ------------------------------------------------------------------------- */
 
-/* 侧栏整体入场。折叠态下 `sider-ac14ac` 会被卸载，所以这是「展开时」的入场 */
+/* 侧栏整体入场：从左侧滑入（同时用于首屏出现与「展开」） */
 @keyframes ls-sider-in {
   from {
     opacity: 0;
-    transform: translate3d(-12px, 0, 0);
+    transform: translate3d(-100%, 0, 0);
   }
   to {
     opacity: 1;
@@ -168,10 +168,65 @@
 }
 
 .ls-motion .sider-ac14ac {
-  animation: ls-sider-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+  animation: ls-sider-in 0.26s var(--ls-motion-ease-out) both;
 }
 
-/* 折叠后左上角浮出的那组按钮，从上方落下 */
+/* --- 侧栏折叠 / 展开 ---
+ *
+ * 收起时没有「过渡」可做：React 会把 sider **整个从 DOM 移除**
+ * （实测 frame 的子节点只剩 main）。
+ *
+ * 而主内容区又**不能**用 `transition: width` 补动画 —— 它带 `flex: 1 1 0%`，
+ * 尺寸由 flex 布局决定，连内联 `width: 900px` 都改不动它（实测），
+ * 所以宽度过渡永远不会触发。原先的表现就是主区瞬间弹满全宽（约 7ms）、
+ * 侧栏还在慢慢滑，这个错配就是用户说的「回弹一下」。
+ *
+ * 因此收起改用「替身收拢」：桥接层在点击的捕获阶段（早于 React）把真侧栏
+ * 藏起来，并在**同一 flex 位置**插入一个同宽的替身，再用 rAF 把替身宽度
+ * 收到 0。主内容区由 flex 跟着替身逐帧重算，两边天然同步。
+ */
+
+/* 收起期间的替身：留在 flex 流里负责「让位」，宽度由 CSS 过渡驱动。
+ *
+ * 过渡的属性集合参考 collection/layout.css 的 `.sidebar`：
+ *   width / min-width 负责让位（同时过渡，否则 min-width 会卡住宽度），
+ *   opacity 负责淡出，border-right-color 单独过渡避免边框在收窄时突变。
+ *
+ * 时长用应用自带的 --ds-transition-duration（0.2s）与 --ds-ease-in-out，
+ * 与应用其它过渡保持一致；这里不发明新节奏。 */
+.ls-motion .ls-sider-ghost {
+  flex: 0 0 auto;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+  transition:
+    width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
+    min-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
+    padding-left var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
+    padding-right var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
+    opacity var(--ds-transition-duration, 0.2s) var(--ds-ease-out, ease-out),
+    border-right-color var(--ds-transition-duration, 0.2s) var(--ds-ease-out, ease-out);
+}
+
+/* 内层保持原宽，收拢时只被裁掉、不被压扁 */
+.ls-motion .ls-sider-ghost > * {
+  flex: 0 0 auto;
+}
+
+/* 减弱动态效果时不播宽度过渡，直接一帧到位（动画本来就该关掉） */
+@media (prefers-reduced-motion: reduce) {
+  .ls-motion .ls-sider-ghost {
+    transition: none !important;
+  }
+}
+
+/* 展开：从左侧滑入。桥接层在挂载瞬间打上 data 属性，动画结束就移除，
+   这样「刷新页面时的首屏」不会被重复触发。 */
+html[data-ls-sider-anim='enter'] .sider-ac14ac {
+  animation: ls-sider-in 0.26s var(--ls-motion-ease-out) both;
+}
+
+/* 折叠后左上角浮出的按钮组 */
 @keyframes ls-collapsed-in {
   from {
     opacity: 0;
@@ -354,14 +409,50 @@
  * 7. 桥接层自己注入的 UI（模型切换器与菜单）—— 这些由我们控制，可以做完整进出场
  * ------------------------------------------------------------------------- */
 
-@keyframes ls-menu-in {
+/* 上拉栏：向上展开。菜单从按钮上方「长出来」，所以从下方位移入场。
+ * 收起草稿相反 —— 往下收回去。 */
+@keyframes ls-menu-up-in {
   from {
     opacity: 0;
-    transform: translate3d(0, -6px, 0) scale(0.98);
+    transform: translate3d(0, 10px, 0) scale(0.98);
   }
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes ls-menu-up-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+}
+
+/* 向下弹出时（按钮贴近屏幕顶部）方向反过来，保证始终「从按钮那一侧长出来」 */
+@keyframes ls-menu-down-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes ls-menu-down-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.98);
   }
 }
 
@@ -375,8 +466,25 @@
   transform: scale(0.97);
 }
 
-.ls-motion .ls-composer-menu {
-  animation: ls-menu-in 0.18s var(--ls-motion-ease-out) both;
+/* 入场：默认向上展开 */
+.ls-motion .ls-composer-menu.ls-menu-open {
+  animation: ls-menu-up-in 0.18s var(--ls-motion-ease-out) both;
+}
+
+/* 向下弹出时改用反方向 */
+.ls-motion .ls-composer-menu.ls-menu-open.ls-menu-below {
+  animation-name: ls-menu-down-in;
+}
+
+/* 收起：向下收回（与入场相反）。
+ * 桥接层在关闭时先挂上这个类、等动画跑完再真正移除，见 closeComposerMenu()。 */
+.ls-motion .ls-composer-menu.ls-menu-closing {
+  animation: ls-menu-up-out 0.14s var(--ls-motion-ease) both;
+  pointer-events: none;
+}
+
+.ls-motion .ls-composer-menu.ls-menu-closing.ls-menu-below {
+  animation-name: ls-menu-down-out;
 }
 
 .ls-motion .ls-composer-menu .ls-model-row {
@@ -414,12 +522,16 @@
   .ls-motion .item-ff6fc9,
   .ls-motion .column-_7ccaf,
   .ls-motion .header-_5fa77,
+  .ls-motion .ls-sider-ghost,
+  html[data-ls-sider-anim='enter'] .sider-ac14ac,
   .ls-motion .message-e1faee,
   .ls-motion .container-_4cfe7,
   .ls-motion .attachment-ed6f47,
   .ls-motion .thumbnail-cc04e9,
   .ls-motion .toast-b959a3,
   .ls-motion .ls-composer-menu,
+  .ls-motion .ls-composer-menu.ls-menu-open,
+  .ls-motion .ls-composer-menu.ls-menu-closing,
   .ls-motion .ls-model-row,
   .ls-motion .ls-model-badge,
   .ls-motion .ls-section,

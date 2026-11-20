@@ -756,18 +756,41 @@ try {
   // 输入框旁的模型切换器（真实 DOM 注入）
   // -------------------------------------------------------------------------
   const composer = await ev(`
-    (() => {
-      // 造一个与官方同名的输入区行
-      const old = document.querySelector('.functionRow-ed6f47');
-      if (old) old.remove();
+    (async () => {
+      // 造一个与官方同名的输入区行。
+      // 必须带上 .toggles 与 .right 两组并给真实尺寸：桥接层靠
+      // 「toggles 右边缘」和「right 左边缘」来算落点，只有 toggles 时
+      // 既量不到可用宽度、也没有右侧边界，测不出真实的越界问题。
+      document.querySelectorAll('.functionRow-ed6f47').forEach((e) => e.remove());
       const row = document.createElement('div');
       row.className = 'functionRow-ed6f47';
+      row.style.cssText = 'position:fixed;left:430px;top:400px;width:780px;height:36px;display:flex;align-items:center;gap:8px';
       const toggles = document.createElement('div');
       toggles.className = 'toggles-ed6f47';
+      // 和真实布局接近：开关组约 626px（flex:1 撑开），右侧组约 116px
+      toggles.style.cssText = 'width:626px;height:28px;flex:1 1 0%';
+      const right = document.createElement('div');
+      right.className = 'right-ed6f47';
+      right.style.cssText = 'width:116px;height:32px;flex:0 0 auto;margin-left:auto';
+      // 真实开关按钮：切换器不能压到它们上面
+      const mkToggle = (text) => {
+        const b = document.createElement('button');
+        b.className = 'toggle-ed6f47';
+        b.textContent = text;
+        b.style.cssText = 'width:96px;height:28px;flex:0 0 auto;margin-right:8px';
+        return b;
+      };
+      toggles.appendChild(mkToggle('深度思考'));
+      toggles.appendChild(mkToggle('智能搜索'));
       row.appendChild(toggles);
+      row.appendChild(right);
       document.body.appendChild(row);
 
       window.__localstore.mountComposer();
+      // 定位是在 requestAnimationFrame 里做的（等布局稳定后才量得到宽度），
+      // 所以要等两帧再测量，否则会读到尚未定位的 0x0。
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
       const node = document.getElementById('ls-composer-model');
       const btn = node && node.querySelector('.ls-composer-btn');
       const label = node && node.getAttribute('data-ls-label');
@@ -780,11 +803,39 @@ try {
       const items = menu ? Array.from(menu.querySelectorAll('.ls-menu-item')).map((b) => b.textContent) : [];
       const providerHeads = menu ? Array.from(menu.querySelectorAll('.ls-menu-provider')).map((b) => b.textContent) : [];
 
+      // 定位：切换器现在挂在 body 上（position:fixed），只借用功能行的坐标摆放。
+      // 这是刻意的 —— 插进 functionRow 会被 React 每次重渲染时删掉，导致闪烁。
+      // 所以这里改验「视觉上落在功能行内、且在开关之后」，而不是 DOM 从属关系。
+      const node2 = document.getElementById('ls-composer-model');
+      const rowEl = document.querySelector('.functionRow-ed6f47');
+      const togglesEl = rowEl && rowEl.querySelector('.toggles-ed6f47');
+      const rightEl = rowEl && rowEl.querySelector('.right-ed6f47');
+      const nr = node2 && node2.getBoundingClientRect();
+      const rr = rowEl && rowEl.getBoundingClientRect();
+      const tr = togglesEl && togglesEl.getBoundingClientRect();
+      const rgr = rightEl && rightEl.getBoundingClientRect();
+      const visuallyInRow = !!(nr && rr && nr.left >= rr.left - 2 && nr.right <= rr.right + 2);
+      // 开关组是 flex:1 撑满的「占位容器」，它的右缘一直顶到右侧按钮组，
+      // 所以不能拿容器右缘当判据（切换器本来就落在这个容器右端）。
+      // 真正要保证的是：不压到任何一个开关按钮（.toggle-ed6f47）上。
+      const toggleItems = [...(togglesEl ? togglesEl.querySelectorAll('.toggle-ed6f47') : [])];
+      const lastToggleRight = toggleItems.length
+        ? Math.max(...toggleItems.map((b) => b.getBoundingClientRect().right))
+        : null;
+      const afterTogglesVisually = lastToggleRight === null || !!(nr && nr.left >= lastToggleRight - 2);
+      const clearOfRight = !!(nr && rgr && nr.right <= rgr.left + 1);
+
       window.__localstore.openComposerMenu(false);
       return {
         mounted: !!node,
-        insideRow: !!(row && row.querySelector('#ls-composer-model')),
-        afterToggles: row.children[1] === node,
+        onBody: !!node && node.parentElement === document.body,
+        positionFixed: !!node && getComputedStyle(node).position === 'fixed',
+        visuallyInRow: visuallyInRow,
+        afterTogglesVisually: afterTogglesVisually,
+        clearOfRight: clearOfRight,
+        geom: nr && rr ? { nodeL: Math.round(nr.left), nodeR: Math.round(nr.right),
+          rowL: Math.round(rr.left), rowR: Math.round(rr.right),
+          togR: tr ? Math.round(tr.right) : null, rightL: rgr ? Math.round(rgr.left) : null } : null,
         hasButton: !!btn,
         label: label,
         menuOnBody: !!menu && menu.parentElement === document.body,
@@ -795,8 +846,11 @@ try {
     })()
   `);
   check('模型切换器已挂载到输入区', composer.mounted === true, JSON.stringify(composer));
-  check('切换器位于输入区行内（而非 body）', composer.insideRow === true);
-  check('切换器排在功能开关之后', composer.afterToggles === true);
+  check('切换器挂在 body 上（避免被 React 重渲染删除）', composer.onBody === true, JSON.stringify(composer));
+  check('切换器用 fixed 定位', composer.positionFixed === true);
+  check('切换器视觉上落在功能行内', composer.visuallyInRow === true, JSON.stringify(composer));
+  check('切换器视觉上排在功能开关之后', composer.afterTogglesVisually === true, JSON.stringify(composer));
+  check('切换器不压住右侧按钮组', composer.clearOfRight === true, JSON.stringify(composer));
   check('切换器有按钮', composer.hasButton === true);
   check('切换器显示当前模型与提供方',
     typeof composer.label === 'string' && composer.label.indexOf('deepseek') !== -1,

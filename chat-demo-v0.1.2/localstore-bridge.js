@@ -2506,6 +2506,175 @@
     }, 400);
   }
 
+  /**
+   * 收起时的宽度收拢动画。
+   *
+   * 为什么不直接用「浮层滑出」：侧栏和聊天区是 flex 兄弟，主内容区的宽度
+   * 由 flex 算出来，`width` 属性对它**无效** —— 实测给它设内联
+   * `width:900px` 都纹丝不动（它带 `flex:1 1 0%`，尺寸由布局决定，
+   * 所以 `transition: width` 也就永远不触发）。结果是真侧栏被 React
+   * 移除的瞬间主区就弹满全宽（逐帧实测约 7ms），而侧栏还在慢慢滑 ——
+   * 这个错配正是用户说的「回弹一下」。
+   *
+   * 做法：真侧栏藏起来后，在**同一个 flex 位置**放一个同宽的替身，
+   * 然后把替身的宽度收到 0。主内容区的宽度由 flex 跟着替身逐帧重算，
+   * 于是两边天然同步；替身自身不需要 transition —— 它的宽度是被 rAF
+   * 逐帧写的，而「布局因宽度变化而重排」本身是即时的。
+   *
+   * 用 width 而不是 transform：这里必须真的占位，transform 不改变布局，
+   * 起不到给主区让位的作用。
+   */
+  var SIDER_ANIM_ATTR = 'data-ls-sider-anim';
+  /** 与 localstore-motion.css 里 .ls-sider-ghost 的 transition 时长保持一致
+   *  （用应用自带的 --ds-transition-duration，即 0.2s） */
+  var SIDER_COLLAPSE_MS = 200;
+  var GHOST_CLASS = 'ls-sider-ghost';
+
+  /** 真正的侧栏节点；替身克隆体里的同名节点不算 */
+  function siderEl() {
+    var s = document.querySelector('.sider-ac14ac');
+    if (s && s.closest && s.closest('.' + GHOST_CLASS)) return null;
+    return s;
+  }
+
+  function setSiderAnim(mode) {
+    try {
+      var root = document.documentElement;
+      if (mode) root.setAttribute(SIDER_ANIM_ATTR, mode);
+      else root.removeAttribute(SIDER_ANIM_ATTR);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function watchSider() {
+    var s0 = siderEl();
+    if (s0) {
+      var w0 = s0.getBoundingClientRect().width;
+      if (w0 > 0) document.documentElement.style.setProperty('--ls-sider-w', Math.round(w0) + 'px');
+    }
+
+    var busy = false;
+
+    document.addEventListener(
+      'click',
+      function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+
+        // ① 收起：换成会收拢的替身
+        var collapseBtn = t.closest('.top-ac14ac button[aria-label]');
+        if (collapseBtn) {
+          var label = collapseBtn.getAttribute('aria-label') || '';
+          if (/收起|collapse|hide/i.test(label)) collapseSider(siderEl());
+          return;
+        }
+
+        // ② 展开：折叠态那组里的「打开边栏」
+        var openBtn = t.closest('.collapsed-ac14ac button');
+        if (openBtn && !busy) {
+          var olabel = openBtn.getAttribute('aria-label') || '';
+          if (!/打开|expand|show|open/i.test(olabel)) return;
+          busy = true;
+          // 侧栏重新挂载是异步的，用 MutationObserver 等它回来再加滑入动画
+          var frame = document.querySelector('.frame-_9fdf5') || document.body;
+          var obs = new MutationObserver(function () {
+            if (!siderEl()) return;
+            obs.disconnect();
+            setSiderAnim('enter');
+            setTimeout(function () {
+              if (document.documentElement.getAttribute(SIDER_ANIM_ATTR) === 'enter') {
+                setSiderAnim(null);
+              }
+              busy = false;
+            }, 260);
+          });
+          obs.observe(frame, { childList: true, subtree: true });
+          // 兜底：结构若变了，1 秒后收工，别把 busy 卡死
+          setTimeout(function () {
+            obs.disconnect();
+            busy = false;
+          }, 1000);
+        }
+      },
+      true
+    );
+  }
+
+  /**
+   * 把真侧栏换成「会收拢的替身」，让主内容区跟着一起平滑铺开。
+   *
+   * 时序很关键：必须在点击的**捕获阶段**（早于 React 处理）完成换人，
+   * 否则 React 会先把真侧栏删掉，布局先弹一次，再补动画就晚了。
+   *
+   * 为什么必须由「宽度」驱动（而不是让侧栏浮起来滑走）：
+   *   .sider 是 `flex: 0 0 auto`，宽度就是它的布局尺寸，改宽度 = 真的让位；
+   *   而 .main 是 `flex: 1 1 0%`，宽度由 flex 算出来，连内联 width 都改不动它，
+   *   所以给 main 加 `transition: width` 永远不会触发。
+   *   结论：让**侧栏**这一侧做宽度过渡，main 会自动跟着逐帧重排。
+   *   （这一点参考了 collection/layout.css 里 `.sidebar.collapsed` 的做法。）
+   *
+   * 动画交给 CSS 过渡（见 localstore-motion.css 的 .ls-sider-ghost）：宽度变化
+   * 引起的重排本身是即时的，逐帧插值由浏览器完成，比手写 rAF 更顺、也不掉帧。
+   *
+   * 细节：
+   *  · 克隆体自带 visibility:hidden（我们刚加到真身上），要显式恢复，
+   *    否则替身整个是隐形的；
+   *  · 内层锁定原宽 + overflow:hidden，收拢时内容被裁掉而不是被压扁；
+   *  · 替身 pointer-events:none，点不到也不影响任何交互；
+   *  · 用 transitionend 清理，并留一个 setTimeout 兜底（减弱动效时不会触发
+   *    transitionend，只靠事件会留下一个永久占位的节点）。
+   */
+  function collapseSider(sider) {
+    if (!sider) return;
+    var frame = sider.parentElement;
+    if (!frame) return;
+    var r = sider.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return;
+
+    // 先藏真身：避免它和替身同时可见（重叠会闪）
+    sider.style.visibility = 'hidden';
+
+    var w = Math.round(r.width);
+    var ghost = document.createElement('div');
+    ghost.className = GHOST_CLASS;
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.style.width = w + 'px';
+    ghost.style.minWidth = w + 'px';
+    ghost.innerHTML = sider.outerHTML;
+    // 恢复克隆体自身的可见性，并锁住内层尺寸，避免收拢时被挤压变形
+    var clone = ghost.firstElementChild;
+    if (clone) {
+      clone.style.visibility = '';
+      clone.style.width = w + 'px';
+      clone.style.height = Math.round(r.height) + 'px';
+    }
+    frame.insertBefore(ghost, sider);
+
+    var removed = false;
+    var remove = function () {
+      if (removed) return;
+      removed = true;
+      if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    };
+    ghost.addEventListener('transitionend', function (ev) {
+      if (ev.target === ghost && ev.propertyName === 'width') remove();
+    });
+
+    // 下一帧再改宽度：同一帧里「插入 + 改宽度」会被合并成一次样式计算，
+    // 过渡的起始值从未被渲染，动画会被跳过（表现是瞬间收没）。
+    requestAnimationFrame(function () {
+      ghost.style.width = '0px';
+      ghost.style.minWidth = '0px';
+      ghost.style.paddingLeft = '0px';
+      ghost.style.paddingRight = '0px';
+      ghost.style.opacity = '0';
+      ghost.style.borderRightColor = 'transparent';
+    });
+    // 兜底：减弱动效时不会有 transitionend
+    setTimeout(remove, SIDER_COLLAPSE_MS + 260);
+  }
+
   function watchMessages() {
     if (!document.body) return;
     var observer = new MutationObserver(function (records) {
@@ -2562,10 +2731,12 @@
    */
   var FUNCTION_ROW_SELECTOR = '.functionRow-ed6f47';
   var TOGGLES_SELECTOR = '.toggles-ed6f47';
+  /** 功能行里右侧那一组按钮（语音/上传/发送），用来限制模型选择栏不要越界 */
+  var RIGHT_GROUP_SELECTOR = '.right-ed6f47';
   var COMPOSER_ID = 'ls-composer-model';
   var MENU_ID = 'ls-composer-menu';
 
-  var composerState = { open: false, loading: false, models: null, error: null };
+  var composerState = { open: false, loading: false, models: null, error: null, raf: 0 };
   var composerTimer = null;
 
   function scheduleComposer() {
@@ -2588,8 +2759,16 @@
     var label = model + (providerName ? ' · ' + providerName : '');
 
     if (existing) {
-      // 文案没变就不重建，避免每次 DOM 变动都把用户正打开的菜单关掉
-      if (existing.getAttribute('data-ls-label') === label && !composerState.open) return;
+      // 文案没变就**绝不**重建。
+      //
+      // 这里曾经写成 `label 没变 && !composerState.open` 才跳过 —— 意思是
+      // 「菜单开着时也重建」，本意是刷新菜单内容。但那个条件配合应用每 ~250ms
+      // 一次的 DOM 变动，就成了死循环：每次 scheduleComposer 都重建按钮与菜单，
+      // 表现是模型上拉栏**一直闪**（实测 2.5 秒内重建 8 次）。
+      //
+      // 现在按钮和菜单都挂在 body 上（见下方说明），重建对它们没有任何好处；
+      // 菜单内容由 renderComposerMenu 自己负责刷新，与挂载解耦。
+      if (existing.getAttribute('data-ls-label') === label) return;
       existing.remove();
       var staleMenu = document.getElementById(MENU_ID);
       if (staleMenu) staleMenu.remove();
@@ -2606,8 +2785,13 @@
         title: t('composerHint'),
         onclick: function (e) {
           e.stopPropagation();
-          composerState.open = !composerState.open;
-          renderComposerMenu();
+          if (composerState.open) {
+            // 关闭也走统一入口，保证退场动画一定会播
+            closeComposerMenu();
+          } else {
+            composerState.open = true;
+            renderComposerMenu();
+          }
         }
       },
       [
@@ -2618,16 +2802,108 @@
     );
     wrap.appendChild(btn);
 
-    var toggles = row.querySelector(TOGGLES_SELECTOR);
-    if (toggles && toggles.parentNode === row) {
-      row.insertBefore(wrap, toggles.nextSibling);
-    } else {
-      row.appendChild(wrap);
-    }
+    // ⚠️ 关键：**不能**插进 functionRow 里。
+    //
+    // 实测过：插进去之后，React 每次重新渲染 functionRow 都会把这个
+    // 「不认识」的节点当作多余子节点删掉，而桥接层的 MutationObserver 又把它
+    // 加回来 —— 一删一加就是每 250ms 一轮循环，表现就是模型选择栏
+    // **一直闪**（实测 3 秒内被重建 10 次）。
+    //
+    // 所以这里和菜单一样挂到 body 上、用 position:fixed 定位，
+    // 只借用 functionRow 的坐标来摆放，不进入它的子树。
+    document.body.appendChild(wrap);
+    if (!composerState.raf) startComposerLoop();
 
     // 菜单挂在 body 上（见 renderComposerMenu 的说明），这里只需保证开关状态正确
     if (composerState.open) renderComposerMenu();
   }
+
+  /**
+   * 定位模型选择栏。
+   *
+   * 落点：紧贴开关组右侧，但不越过功能行里右侧那一组（语音/上传/发送）。
+   * 早先只按 `.toggles` 的右边缘算，忽略了 `.right-ed6f47` 也会占位，
+   * 结果按钮被推到行的外面（实测超出右边界约 94px）。
+   * 所以这里同时取「右侧组的左边缘」作为上限。
+   */
+  function placeComposer() {
+    var wrap = document.getElementById(COMPOSER_ID);
+    if (!wrap) return;
+    var row = document.querySelector(FUNCTION_ROW_SELECTOR);
+    if (!row) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    var rr = row.getBoundingClientRect();
+    var toggles = row.querySelector(TOGGLES_SELECTOR);
+    var right = row.querySelector(RIGHT_GROUP_SELECTOR);
+    var tr = toggles ? toggles.getBoundingClientRect() : null;
+    var rgr = right ? right.getBoundingClientRect() : null;
+
+    var w = wrap.offsetWidth;
+    var h = wrap.offsetHeight;
+    if (!w) {
+      // 还没量到尺寸（首次布局未完成），下一帧再说
+      return;
+    }
+
+    var left = (tr && tr.width ? tr.right : rr.left + rr.width / 2) + 10;
+    // 不许压到右侧按钮组上
+    var limit = rgr && rgr.width ? rgr.left - 8 : rr.right - 8;
+    if (left + w > limit) left = limit - w;
+    // 实在放不下就藏起来，而不是硬挤成一团
+    if (left < rr.left) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    var top = rr.top + (rr.height - h) / 2;
+    wrap.style.left = Math.round(left) + 'px';
+    wrap.style.top = Math.round(top) + 'px';
+    // 整行滚出视口就藏起来，避免浮在别的内容上
+    wrap.style.display = rr.bottom < 0 || rr.top > window.innerHeight ? 'none' : '';
+  }
+
+  /**
+   * 跟随定位循环。
+   *
+   * 为什么用 rAF 轮询而不是监听 scroll/resize：输入区会因为「思考/搜索」开关、
+   * 附件列表、流式输出等不断改变高度，这些都不会触发 scroll 事件；
+   * 而位置算错的表现是按钮浮在错误的地方，比多跑一点 rAF 更糟。
+   * 每帧只做 getBoundingClientRect + 两次 style 赋值，开销可以忽略。
+   */
+  function startComposerLoop() {
+    if (composerState.raf) return;
+    var tick = function () {
+      composerState.raf = requestAnimationFrame(tick);
+      if (!document.getElementById(COMPOSER_ID)) {
+        // 已卸载，停掉循环
+        cancelAnimationFrame(composerState.raf);
+        composerState.raf = 0;
+        return;
+      }
+      placeComposer();
+      repositionComposerMenu();
+    };
+    composerState.raf = requestAnimationFrame(tick);
+  }
+
+  /**
+   * 打开菜单。
+   *
+   * 入场动画用类（.ls-menu-open）而不是写在基础样式里，是为了能**重播**：
+   * 菜单每次打开都是新建的节点，加上类时若与插入同帧，浏览器可能合并成
+   * 一次样式计算而跳过动画，所以用「先插入、隔两帧再加类」。
+   *
+   * 方向由 positionComposerMenu 写入属性后决定：
+   * 菜单默认向上展开（按钮在底部输入区），只有按钮贴近屏幕顶部、
+   * 菜单改成向下弹时才换个方向，保证永远「从按钮那一侧长出来」。
+   */
+  var MENU_OPEN_CLASS = 'ls-menu-open';
+  var MENU_CLOSING_CLASS = 'ls-menu-closing';
+  var MENU_BELOW_CLASS = 'ls-menu-below';
+  var MENU_CLOSE_MS = 140;
 
   function renderComposerMenu() {
     var wrap = document.getElementById(COMPOSER_ID);
@@ -2700,8 +2976,7 @@
         text: t('composerManage'),
         onclick: function (e) {
           e.stopPropagation();
-          composerState.open = false;
-          renderComposerMenu();
+          closeComposerMenu();
           openSettingsPanel();
         }
       })
@@ -2710,6 +2985,39 @@
 
     document.body.appendChild(menu);
     positionComposerMenu();
+    playMenuOpen(menu);
+  }
+
+  /**
+   * 收起菜单，并播放与展开相反的退场动画。
+   *
+   * 所有「关闭菜单」的入口都应该走这里，否则退场动画会时有时无。
+   * 做法：先把状态置为关闭，再给现有节点挂上 ls-menu-closing 让它往下收，
+   * 动画跑完（或兜底超时）才真正移除节点。
+   */
+  var menuCloseTimer = null;
+
+  function closeComposerMenu() {
+    composerState.open = false;
+    var menu = document.getElementById(MENU_ID);
+    if (!menu) return;
+
+    // 关掉正在跑的定位循环对该节点的后续操作
+    clearTimeout(menuCloseTimer);
+    menu.classList.remove(MENU_OPEN_CLASS);
+    menu.classList.add(MENU_CLOSING_CLASS);
+
+    var remove = function () {
+      if (menu.parentNode) menu.parentNode.removeChild(menu);
+    };
+    menu.addEventListener('animationend', function handler(ev) {
+      if (ev.target !== menu) return;
+      menu.removeEventListener('animationend', handler);
+      remove();
+    });
+    // 兜底：如果动效被系统「减弱动态效果」关掉，animationend 不会触发，
+    // 只靠事件会留下一个永远挂在页面上的菜单。
+    menuCloseTimer = setTimeout(remove, MENU_CLOSE_MS + 120);
   }
 
   /**
@@ -2732,8 +3040,7 @@
       var r = btn.getBoundingClientRect();
       // 按钮滚出视口（或已被卸载）就没必要继续显示
       if (r.bottom < 0 || r.top > window.innerHeight || r.width === 0) {
-        composerState.open = false;
-        renderComposerMenu();
+        closeComposerMenu();
         return;
       }
       placeComposerMenu(r, menu);
@@ -2750,15 +3057,43 @@
     if (left < 8) left = 8;
 
     var top = r.top - mh - 8; // 优先向上弹（输入框通常在底部）
+    var below = false;
     if (top < 8) {
-      var below = r.bottom + 8;
-      top = below + mh <= window.innerHeight - 8 ? below : Math.max(8, window.innerHeight - mh - 8);
+      var belowTop = r.bottom + 8;
+      if (belowTop + mh <= window.innerHeight - 8) {
+        top = belowTop;
+        below = true;
+      } else {
+        top = Math.max(8, window.innerHeight - mh - 8);
+      }
     }
 
     menu.style.position = 'fixed';
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
     menu.style.bottom = 'auto';
+    // 记下弹出方向，样式表据此选「向上长出来」还是「向下长出来」的动画。
+    // 类在 openComposerMenu / 这里首次定位后才会加上，所以此时改类名
+    // 不会打断已经开始的入场动画（方向类与入场类是分开的两个类）。
+    if (below) menu.classList.add(MENU_BELOW_CLASS);
+    else menu.classList.remove(MENU_BELOW_CLASS);
+  }
+
+  /**
+   * 播放入场动画：插入后隔两帧再加类。
+   *
+   * 为什么不能插入时直接带上类：同一帧里「创建节点 + 加类 + 插入」会被
+   * 浏览器合并成一次样式计算，动画的 from 状态从未被渲染过，于是被跳过
+   * （表现是菜单「啪」地直接出现，没有过渡）。
+   */
+  function playMenuOpen(menu) {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (menu && menu.parentNode && menu.id === MENU_ID) {
+          menu.classList.add(MENU_OPEN_CLASS);
+        }
+      });
+    });
   }
 
   function positionComposerMenu() {
@@ -2777,8 +3112,7 @@
       st.activeId = providerId;
       saveProviders();
       applyActiveProvider(false);
-      composerState.open = false;
-      renderComposerMenu();
+      closeComposerMenu();
       mountComposer();
       var p = findProvider(providerId);
       setMessage(t('provSwitched', { name: (p && p.name) || providerId }), false);
@@ -2802,8 +3136,7 @@
       lsSet(LS_MODEL, model);
       applyActiveProvider(false);
 
-      composerState.open = false;
-      renderComposerMenu();
+      closeComposerMenu();
       mountComposer();
       setMessage(t('modelSwitched', { model: model }), false);
       // 同上：换模型、换提供方都不再刷新页面。
@@ -2895,8 +3228,7 @@
         var inMenu = menu && menu.contains(e.target);
         var inWrap = wrap && wrap.contains(e.target);
         if (!inMenu && !inWrap) {
-          composerState.open = false;
-          renderComposerMenu();
+          closeComposerMenu();
         }
       },
       true
@@ -3233,7 +3565,7 @@
               st.activeId = p.id;
               saveProviders();
               applyActiveProvider(false);
-              composerState.open = false;
+              closeComposerMenu();
               setMessage(t('provSwitched', { name: p.name }), false);
               mountComposer();
               rerender();
@@ -4278,12 +4610,15 @@
       // ---- 输入框旁的模型切换器 ----
       // 注意：这个节点挂在官方输入区里，不吃 .ls-section 的 CSS 变量作用域，
       // 所以颜色全部显式给出，并单独适配暗色。
-      '.ls-composer{display:inline-flex;align-items:center}',
-      '.ls-composer-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;line-height:1.4;padding:4px 10px;border-radius:999px;border:1px solid rgba(0,0,0,.14);background:transparent;color:inherit;cursor:pointer;max-width:260px}',
+      '.ls-composer{display:inline-flex;align-items:center;position:fixed;z-index:900;pointer-events:auto;max-width:200px;min-width:0}',
+      '.ls-composer-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;line-height:1.4;padding:4px 10px;border-radius:999px;border:1px solid rgba(0,0,0,.14);background:transparent;color:inherit;cursor:pointer;max-width:200px;min-width:0}',
       '.ls-composer-btn:hover{background:rgba(0,0,0,.05)}',
-      '.ls-composer-model{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.ls-composer-provider{opacity:.55;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}',
-      '.ls-composer-caret{opacity:.6;font-size:10px}',
+      // 模型名可压缩并省略；提供方名与箭头不压缩。
+      // 长模型名 + 提供方名很容易顶到右侧按钮组，这里必须允许收缩，否则
+      // 按钮会被挤出功能行（实测超出约 94px）。
+      '.ls-composer-model{flex:0 1 auto;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.ls-composer-provider{flex:0 0 auto;opacity:.55;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}',
+      '.ls-composer-caret{flex:0 0 auto;opacity:.6;font-size:10px}',
       // 菜单直接挂在 body 上并用 fixed 定位：输入区外层有 overflow:hidden，
       // 若留在输入区内，向上弹出的面板会被裁断。位置由 JS 计算。
       '.ls-composer-menu{position:fixed;z-index:2147483000;min-width:260px;max-width:340px;max-height:340px;overflow:auto;padding:6px;border-radius:12px;border:1px solid rgba(0,0,0,.12);background:#fff;color:#1a1a1a;box-shadow:0 8px 28px rgba(0,0,0,.16)}',
@@ -4419,7 +4754,10 @@
    * 也不会让已分配的 token 漂移。
    */
   function readSidebarSessions() {
-    var sider = document.querySelector('.sider-ac14ac') || document.querySelector('[class*=sider]');
+    // 用 siderEl() 而不是直接 querySelector：侧栏做收起动画时，
+    // 页面上会短暂存在一个「替身浮层」，它内部也有 .sider-ac14ac，
+    // 直接查会读到替身里的旧内容。
+    var sider = siderEl();
     if (!sider) return [];
 
     var items = Array.prototype.slice.call(sider.querySelectorAll('.' + SIDE_ITEM_CLASS));
@@ -4835,6 +5173,7 @@
     installFetchHook();
     watchForSettings();
     watchMessages();
+    watchSider();
     installComposerOutsideClick();
     watchDeepLink();
 

@@ -87,6 +87,326 @@ console.log('界面动效层测试');
 console.log('='.repeat(64));
 
 // ---------------------------------------------------------------------------
+console.log('\n[0] 模型上拉栏不再被 React 反复重建（回归：曾每 250ms 闪一次）');
+// ---------------------------------------------------------------------------
+// 旧实现的根因：把按钮插进 React 的 functionRow 里，React 每次重渲染都把这个
+// 「不认识」的节点删掉，桥接层的 observer 又加回来 —— 一删一加就是闪烁。
+// 现在按钮和菜单一样挂在 body 上，应当完全不再被重建。
+const churn = JSON.parse(await ev(`
+  (async () => {
+    let btnAdded = 0, btnRemoved = 0, menuAdded = 0, menuRemoved = 0;
+    const obs = new MutationObserver((recs) => {
+      for (const r of recs) {
+        for (const n of r.addedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.id === 'ls-composer-model' || (n.querySelector && n.querySelector('#ls-composer-model'))) btnAdded++;
+          if (n.id === 'ls-composer-menu' || (n.querySelector && n.querySelector('#ls-composer-menu'))) menuAdded++;
+        }
+        for (const n of r.removedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.id === 'ls-composer-model' || (n.querySelector && n.querySelector('#ls-composer-model'))) btnRemoved++;
+          if (n.id === 'ls-composer-menu' || (n.querySelector && n.querySelector('#ls-composer-menu'))) menuRemoved++;
+        }
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    await new Promise(r => setTimeout(r, 3000));
+    obs.disconnect();
+    return JSON.stringify({ btnAdded, btnRemoved, menuAdded, menuRemoved,
+      present: !!document.getElementById('ls-composer-model') });
+  })()
+`));
+console.log('    3 秒内重建次数: ' + JSON.stringify(churn));
+check('模型按钮不再被反复重建', churn.btnAdded === 0 && churn.btnRemoved === 0, JSON.stringify(churn));
+check('模型按钮持续存在', churn.present === true);
+
+check(
+  '模型按钮挂在 body 上（不在 React 子树里）',
+  await ev(`
+    (() => {
+      const b = document.getElementById('ls-composer-model');
+      return !!b && b.parentElement === document.body;
+    })()
+  `)
+);
+check(
+  '模型按钮是 fixed 定位（不参与 functionRow 布局）',
+  await ev(`
+    (() => {
+      const b = document.getElementById('ls-composer-model');
+      return !!b && getComputedStyle(b).position === 'fixed';
+    })()
+  `)
+);
+const btnPos = JSON.parse(await ev(`
+  (() => {
+    const b = document.getElementById('ls-composer-model');
+    const row = document.querySelector('.functionRow-ed6f47');
+    if (!b || !row) return JSON.stringify(null);
+    const br = b.getBoundingClientRect(), rr = row.getBoundingClientRect();
+    return JSON.stringify({ btn: { x: Math.round(br.left), y: Math.round(br.top) },
+      row: { x: Math.round(rr.left), y: Math.round(rr.top), w: Math.round(rr.width) },
+      insideRow: br.left >= rr.left - 2 && br.right <= rr.right + 2 });
+  })()
+`));
+console.log('    定位: ' + JSON.stringify(btnPos));
+check('按钮仍对齐在输入功能行范围内', btnPos && btnPos.insideRow, JSON.stringify(btnPos));
+check('按钮没有压到右侧按钮组', btnPos && btnPos.btn.x + 220 <= btnPos.row.x + btnPos.row.w, JSON.stringify(btnPos));
+
+// 菜单打开后不再被重建
+await ev(`(() => { const b=document.querySelector('#ls-composer-model .ls-composer-btn')||document.getElementById('ls-composer-model'); if(b) b.click(); return true })()`);
+await sleep(500);
+const menuChurn = JSON.parse(await ev(`
+  (async () => {
+    let added = 0, removed = 0;
+    const obs = new MutationObserver((recs) => {
+      for (const r of recs) {
+        for (const n of r.addedNodes) if (n.nodeType === 1 && (n.id === 'ls-composer-menu' || (n.querySelector && n.querySelector('#ls-composer-menu')))) added++;
+        for (const n of r.removedNodes) if (n.nodeType === 1 && (n.id === 'ls-composer-menu' || (n.querySelector && n.querySelector('#ls-composer-menu')))) removed++;
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    await new Promise(r => setTimeout(r, 2500));
+    obs.disconnect();
+    return JSON.stringify({ added, removed, stillOpen: !!document.getElementById('ls-composer-menu') });
+  })()
+`));
+console.log('    菜单打开后 2.5 秒内: ' + JSON.stringify(menuChurn));
+check('打开的菜单不再被重建', menuChurn.added === 0 && menuChurn.removed === 0, JSON.stringify(menuChurn));
+check('菜单保持打开', menuChurn.stillOpen === true);
+// 关掉菜单，避免影响后续断言
+await ev(`(() => { const L=document.getElementById('ls-composer-menu'); if(L) L.remove(); return true })()`);
+
+// ---------------------------------------------------------------------------
+console.log('\n[0b] 侧栏折叠/展开动画');
+// ---------------------------------------------------------------------------
+// 关键回归 1：早先用「轮询 + querySelector('.sider-ac14ac')」实现，结果匹配到了
+// 替身克隆体内部的同名节点，造成「误判侧栏又挂载 → 生成新替身」的无限循环。
+// 关键回归 2：主内容区带 flex:1 1 0%，width 属性对它无效（内联 width 都改不动），
+// 所以不能靠 transition:width 补动画 —— 必须让一个「自己拥有的、在流里的」
+// 替身收拢宽度，主区才会跟着 flex 逐帧重算。
+const collapseResult = JSON.parse(await ev(`
+  (async () => {
+    const btn = document.querySelector('.top-ac14ac button[aria-label]');
+    if (!btn) return JSON.stringify({ error: '找不到收起边栏按钮' });
+
+    let ghostSpawns = 0, animFlips = [];
+    let lastAttr = document.documentElement.getAttribute('data-ls-sider-anim');
+    const obs = new MutationObserver((recs) => {
+      for (const r of recs) {
+        for (const n of r.addedNodes) {
+          if (n.nodeType === 1 && n.classList && n.classList.contains('ls-sider-ghost')) ghostSpawns++;
+        }
+      }
+      const a = document.documentElement.getAttribute('data-ls-sider-anim');
+      if (a !== lastAttr) { animFlips.push(a); lastAttr = a; }
+    });
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-ls-sider-anim'] });
+
+    const mainEl = () => document.querySelector('.main-_9fdf5');
+    const before = { siderW: Math.round((document.querySelector('.sider-ac14ac')||{getBoundingClientRect:()=>({width:0})}).getBoundingClientRect().width),
+      mainW: Math.round(mainEl().getBoundingClientRect().width) };
+
+    // 逐帧记录主内容区宽度，用来验证它是「渐变」而不是「瞬跳」
+    const mainTrace = [];
+    let ghostInfo = { exists: false };
+    btn.click();
+    for (let i = 0; i < 24; i++) {
+      await new Promise(r => requestAnimationFrame(() => r()));
+      mainTrace.push(Math.round(mainEl().getBoundingClientRect().width));
+      // 替身在收拢结束就被移除，所以要在循环里抓它的信息
+      const g = document.querySelector('.ls-sider-ghost');
+      if (g && !ghostInfo.exists) {
+        const gcs = getComputedStyle(g);
+        ghostInfo = { exists: true, flex: gcs.flex, pointerEvents: gcs.pointerEvents,
+          overflow: gcs.overflow, aria: g.getAttribute('aria-hidden'),
+          // 替身必须在 flex 流里（position:static）才能给主区让位
+          position: gcs.position,
+          parentIsFrame: String(g.parentElement.className) };
+      }
+    }
+
+    await new Promise(r => setTimeout(r, 800));
+    const after = { siderGone: !document.querySelector('.sider-ac14ac'),
+      frameChildren: [...(document.querySelector('.frame-_9fdf5')||{children:[]}).children].map(e=>String(e.className)),
+      mainW: Math.round(mainEl().getBoundingClientRect().width),
+      ghostCleaned: !document.querySelector('.ls-sider-ghost'),
+      collapsedShown: !!document.querySelector('.collapsed-ac14ac') };
+    obs.disconnect();
+
+    // 主区宽度是否单调递增（不来回跳）
+    const distinct = [...new Set(mainTrace)];
+    let monotonic = true;
+    for (let i = 1; i < mainTrace.length; i++) if (mainTrace[i] < mainTrace[i-1] - 2) monotonic = false;
+
+    return JSON.stringify({ before, ghostInfo, after, ghostSpawns, animFlips, distinctMainWidths: distinct.length, monotonic });
+  })()
+`));
+console.log('    ' + JSON.stringify(collapseResult, null, 2).split('\n').join('\n    '));
+check('收起时有替身在做收拢', collapseResult.ghostInfo && collapseResult.ghostInfo.exists === true, JSON.stringify(collapseResult.ghostInfo));
+check('替身在 flex 流里（position:static，能为主区让位）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.position === 'static', JSON.stringify(collapseResult.ghostInfo));
+check('替身不接鼠标事件', collapseResult.ghostInfo && collapseResult.ghostInfo.pointerEvents === 'none');
+check('替身裁剪溢出内容', collapseResult.ghostInfo && collapseResult.ghostInfo.overflow === 'hidden');
+check('替身对读屏隐藏', collapseResult.ghostInfo && collapseResult.ghostInfo.aria === 'true');
+check('侧栏已收起', collapseResult.after && collapseResult.after.siderGone === true);
+check('主内容区铺满全宽', collapseResult.after && collapseResult.after.mainW > collapseResult.before.mainW,
+  JSON.stringify(collapseResult.after));
+check('折叠后浮出「打开边栏」按钮组', collapseResult.after && collapseResult.after.collapsedShown === true);
+check('替身结束后被清理（不留垃圾节点）', collapseResult.after && collapseResult.after.ghostCleaned === true);
+// 回归：主区宽度必须是渐变（多个中间值），不能一两帧跳到位
+check('主内容区宽度是渐变而非瞬跳（≥5 个中间值）',
+  collapseResult.distinctMainWidths >= 5, '不同宽度值 ' + collapseResult.distinctMainWidths + ' 个');
+check('主内容区宽度单调变化（没有来回回弹）', collapseResult.monotonic === true);
+check('替身只生成 1 次（无自我误判循环）', collapseResult.ghostSpawns === 1, '实际 ' + collapseResult.ghostSpawns + ' 次');
+check('收起过程中没有动画标记反复抖动',
+  collapseResult.animFlips.filter((x) => x === 'enter').length === 0,
+  JSON.stringify(collapseResult.animFlips));
+
+// 展开回去
+const expandResult = JSON.parse(await ev(`
+  (async () => {
+    const btn = document.querySelector('.collapsed-ac14ac button[aria-label]');
+    if (!btn) return JSON.stringify({ error: '找不到打开边栏按钮' });
+    let flips = [];
+    let last = document.documentElement.getAttribute('data-ls-sider-anim');
+    const obs = new MutationObserver(() => {
+      const a = document.documentElement.getAttribute('data-ls-sider-anim');
+      if (a !== last) { flips.push(a); last = a; }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ls-sider-anim'] });
+    btn.click();
+    await new Promise(r => setTimeout(r, 120));
+    const s = document.querySelector('.sider-ac14ac');
+    const during = s ? { anim: getComputedStyle(s).animationName, dur: getComputedStyle(s).animationDuration } : null;
+    await new Promise(r => setTimeout(r, 600));
+    const s2 = document.querySelector('.sider-ac14ac');
+    const after = { anim: s2 ? getComputedStyle(s2).animationName : null,
+      attr: document.documentElement.getAttribute('data-ls-sider-anim'),
+      mainW: Math.round(document.querySelector('.main-_9fdf5').getBoundingClientRect().width),
+      ghost: !!document.querySelector('.ls-sider-ghost') };
+    obs.disconnect();
+    return JSON.stringify({ during, after, flips });
+  })()
+`));
+console.log('    ' + JSON.stringify(expandResult, null, 2).split('\n').join('\n    '));
+check('展开时侧栏滑入', expandResult.during && expandResult.during.anim === 'ls-sider-in', JSON.stringify(expandResult.during));
+check('展开动画结束后标记被清掉', expandResult.after && expandResult.after.attr === null, JSON.stringify(expandResult.after));
+check('展开后主区收回', expandResult.after && expandResult.after.mainW < 1378, JSON.stringify(expandResult.after));
+check('展开动画标记只出现一次', expandResult.flips.filter((x) => x === 'enter').length === 1, JSON.stringify(expandResult.flips));
+
+// --- 交接不能闪：替身插入当帧必须与真侧栏同宽同位，且真身已隐藏 ---
+// 「真身立刻隐藏 + 替身原地接管」是消除交接闪烁的关键：
+// 若真身还可见、替身又在同一位置，交界处就会闪。
+const handoff = JSON.parse(await ev(`
+  (async () => {
+    const btn = document.querySelector('.top-ac14ac button[aria-label]');
+    const sider = document.querySelector('.sider-ac14ac');
+    const rectBefore = sider.getBoundingClientRect();
+    btn.click();
+    // 同一帧内立即采样（不 await），检查交接状态
+    const ghost = document.querySelector('.ls-sider-ghost');
+    const gr = ghost ? ghost.getBoundingClientRect() : null;
+    // 注意：querySelector('.sider-ac14ac') 会先命中替身内部的克隆体，
+    // 所以取「真侧栏」必须排除替身内部（与桥接层 siderEl() 同样的判断）。
+    const allSiders = [...document.querySelectorAll('.sider-ac14ac')];
+    const siderNow = allSiders.find(s => !s.closest('.ls-sider-ghost'));
+    const scs = siderNow ? getComputedStyle(siderNow) : null;
+    const out = {
+      ghostExists: !!ghost,
+      ghostW: gr ? Math.round(gr.width) : null,
+      ghostLeft: gr ? Math.round(gr.left) : null,
+      siderLeft: Math.round(rectBefore.left),
+      siderW: Math.round(rectBefore.width),
+      // 真侧栏此刻应当已不可见（否则与替身重叠 → 闪）
+      realVisibility: scs ? scs.visibility : 'removed',
+      realGone: !siderNow
+    };
+    await new Promise(r => setTimeout(r, 1000));
+    return JSON.stringify(out);
+  })()
+`));
+console.log('    交接: ' + JSON.stringify(handoff));
+check('替身与真侧栏同宽同位（原地接管，不跳位）',
+  handoff.ghostW === handoff.siderW && handoff.ghostLeft === handoff.siderLeft,
+  JSON.stringify(handoff));
+check('真侧栏在替身接管时已隐藏（两者不重叠）',
+  handoff.realGone === true || handoff.realVisibility === 'hidden', JSON.stringify(handoff));
+
+// 复原：把侧栏展开回来，后面的断言都依赖展开态
+await ev(`
+  (async () => {
+    const btn = document.querySelector('.collapsed-ac14ac button[aria-label]');
+    if (btn) btn.click();
+    await new Promise(r => setTimeout(r, 800));
+    return !!document.querySelector('.sider-ac14ac');
+  })()
+`);
+await sleep(300);
+
+// ---------------------------------------------------------------------------
+console.log('\n[0c] 上拉栏展开/收起方向（向上展开，向下收起）');
+// ---------------------------------------------------------------------------
+// 关闭路径有多处（点外部、点管理模型、换提供方…），所以统一走 closeComposerMenu()，
+// 否则退场动画会时有时无。这里验证「确实有退场动画，且方向与入场相反」。
+const menuAnim = JSON.parse(await ev(`
+  (async () => {
+    const btn = document.getElementById('ls-composer-model');
+    const trigger = btn && (btn.querySelector('.ls-composer-btn') || btn);
+
+    // 打开
+    trigger.click();
+    await new Promise(r => setTimeout(r, 260));  // 等两帧 + 动画起步
+    const m1 = document.getElementById('ls-composer-menu');
+    const open = m1 ? {
+      cls: m1.className,
+      anim: getComputedStyle(m1).animationName,
+      dur: getComputedStyle(m1).animationDuration,
+      below: m1.classList.contains('ls-menu-below')
+    } : null;
+
+    // 关闭：点按钮本身（toggle）
+    trigger.click();
+    await new Promise(r => setTimeout(r, 40));
+    const m2 = document.getElementById('ls-composer-menu');
+    const closing = m2 ? {
+      cls: m2.className,
+      anim: getComputedStyle(m2).animationName,
+      pe: getComputedStyle(m2).pointerEvents
+    } : null;
+
+    // 动画结束后应当被移除
+    await new Promise(r => setTimeout(r, 400));
+    const gone = !document.getElementById('ls-composer-menu');
+
+    // 再打开一次，确认能重播（不是只播一次）
+    trigger.click();
+    await new Promise(r => setTimeout(r, 260));
+    const m3 = document.getElementById('ls-composer-menu');
+    const reopened = m3 ? getComputedStyle(m3).animationName : null;
+    if (m3) trigger.click();
+    await new Promise(r => setTimeout(r, 400));
+
+    return JSON.stringify({ open, closing, gone, reopened });
+  })()
+`));
+console.log('    ' + JSON.stringify(menuAnim, null, 2).split('\n').join('\n    '));
+check('菜单打开时有向上展开的入场动画',
+  menuAnim.open && menuAnim.open.anim === 'ls-menu-up-in', JSON.stringify(menuAnim.open));
+check('菜单带打开状态类', menuAnim.open && /ls-menu-open/.test(menuAnim.open.cls), JSON.stringify(menuAnim.open));
+check('收起时有向下收回的退场动画',
+  menuAnim.closing && menuAnim.closing.anim === 'ls-menu-up-out', JSON.stringify(menuAnim.closing));
+check('收起动画期间不接鼠标事件（防误点）',
+  menuAnim.closing && menuAnim.closing.pe === 'none', JSON.stringify(menuAnim.closing));
+check('收起草稿结束后节点被移除', menuAnim.gone === true);
+check('退场动画方向与入场相反（up-out vs up-in）',
+  menuAnim.open && menuAnim.closing &&
+    menuAnim.open.anim === 'ls-menu-up-in' && menuAnim.closing.anim === 'ls-menu-up-out',
+  JSON.stringify({ in: menuAnim.open && menuAnim.open.anim, out: menuAnim.closing && menuAnim.closing.anim }));
+check('再次打开能重播入场动画（不是只播一次）', menuAnim.reopened === 'ls-menu-up-in', String(menuAnim.reopened));
+check('按钮在底部时菜单向上弹（未走 below 分支）', menuAnim.open && menuAnim.open.below === false, JSON.stringify(menuAnim.open));
+
+// ---------------------------------------------------------------------------
 console.log('\n[1] 动效层是否正确加载');
 // ---------------------------------------------------------------------------
 check('已注入动效样式表', await ev(`!!document.getElementById('localstore-motion-css')`));
