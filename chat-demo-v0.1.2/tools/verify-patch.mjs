@@ -15,6 +15,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_JS = join(ROOT, 'static', 'js', 'main.6fd9c886.js');
 const INDEX_HTML = join(ROOT, 'index.html');
 const BRIDGE = join(ROOT, 'localstore-bridge.js');
+const MOTION_CSS = join(ROOT, 'localstore-motion.css');
 
 // 桥接标签带内容哈希做缓存击穿，所以这里用「前缀出现次数」判定
 const BRIDGE_TAG = '<script src="localstore-bridge.js';
@@ -122,6 +123,19 @@ check('旧的英文占位文案已不存在', !bundle.includes('"Enter a message
 
 // --- 桥接脚本 ---
 check('localstore-bridge.js 存在', existsSync(BRIDGE));
+check('localstore-motion.css 存在', existsSync(MOTION_CSS));
+if (existsSync(MOTION_CSS)) {
+  const motion = readFileSync(MOTION_CSS, 'utf8');
+  check('动效样式含减弱动效分支', motion.includes('prefers-reduced-motion'));
+  check('动效样式只挂 .ls-motion 下（可一键关闭）',
+    (motion.match(/^\s*\.ls-motion\s/gm) || []).length +
+      (motion.match(/\.ls-motion\s/g) || []).length > 30);
+  // 只动 opacity/transform，不动 width/height（否则触发布局重排、掉帧）
+  const animDecls = [...motion.matchAll(/animation:\s*([^;]+)/g)].map((m) => m[1]);
+  check('动画不使用 width/height',
+    !animDecls.some((d) => /width|height/.test(d)),
+    animDecls.filter((d) => /width|height/.test(d)).join(' | '));
+}
 let bridgeSource = '';
 if (existsSync(BRIDGE)) {
   const bridge = readFileSync(BRIDGE, 'utf8');

@@ -1,0 +1,454 @@
+/* ===========================================================================
+ * localstore-motion.css —— 界面切换动效层
+ *
+ * 为什么不直接改应用的 CSS：
+ *   应用是压缩后的产物，类名是哈希的（如 `dialog-_85c1b`），而且是构建产物、
+ *   没有源码，直接改会在下次升级时全部作废。所以动效单独成文件，由桥接层在
+ *   运行时注入，只做「加法」——不覆盖任何原有规则，只补 transition / animation。
+ *
+ * 设计约束（都是实测出来的，不是猜的）：
+ *   1. 应用自己的 CSS 里**没有任何 `transition: all`**（已核对 575 条规则），
+ *      所以这里的补丁不会和原有过渡打架。
+ *   2. 弹窗（`overlay-_83af2` / `dialog-_85c1b`）关闭时是**从 DOM 移除**的，
+ *      侧栏折叠时 `sider-ac14ac` 也是移除的 —— 移除了就没有「过渡」可做，
+ *      只能做入场动画。出场动画需要 JS 接管卸载时机，代价太大且易崩，
+ *      因此这里只做入场。
+ *   3. 设置页两个 tab **复用同一个** `content-_85c1b` 节点、只换子元素，
+ *      所以用 `> *` 给直接子元素做淡入，而不是给容器做。
+ *   4. 全部只动 `opacity` / `transform`（合成层属性），不动 width/height，
+ *      避免触发布局重排导致卡顿。侧栏那种需要真正改宽度的场景不做动画。
+ *   5. 统一使用应用自己的设计令牌 `--ds-transition-duration` (.2s) 与
+ *      `--ds-ease-in-out`，与原生控件的手感一致。
+ *
+ * 性能：列表项的最长延迟按 8 项封顶（`nth-child(n+9)` 之后统一 64ms），
+ * 否则长列表滚动时会看到「越往下越晚出现」的怪异效果。
+ * =========================================================================== */
+
+:root {
+  --ls-motion-dur: var(--ds-transition-duration, 0.2s);
+  --ls-motion-ease: var(--ds-ease-in-out, cubic-bezier(0.4, 0, 0.2, 1));
+  /* 入场稍慢一点：出场要快、入场要有「到位感」 */
+  --ls-motion-enter: 0.26s;
+  --ls-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------------------------------------------------------------------------
+ * 1. 弹窗与遮罩（设置、确认框等所有 _83af2 弹窗）
+ * ------------------------------------------------------------------------- */
+
+@keyframes ls-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ls-conv-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ls-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.ls-motion .overlay-_83af2 {
+  animation: ls-overlay-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+.ls-motion .content-_83af2 {
+  animation: ls-dialog-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+/* 移动端设置面板是贴着底部的抽屉，从下往上更自然，别用缩放 */
+.ls-motion .dialog-_85c1b {
+  animation-name: ls-sheet-in;
+}
+
+@keyframes ls-sheet-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 遮罩本身有 backdrop-filter，动画期间保持合成层，避免模糊重算导致掉帧 */
+.ls-motion .overlay-_83af2 {
+  will-change: opacity;
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. 设置面板内部：导航项与内容区
+ * ------------------------------------------------------------------------- */
+
+/* 导航项：官方已有 background-color 过渡，这里只补「按下有回弹」 */
+.ls-motion .navItem-_85c1b {
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .navItem-_85c1b:active {
+  transform: scale(0.97);
+}
+
+/* 切换 tab 时容器节点不变、只换子元素 —— 给直接子元素做淡入上浮 */
+@keyframes ls-panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ls-motion .content-_85c1b > * {
+  animation: ls-panel-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+/* 子元素错开一点点，读起来有「一层层铺开」的感觉。
+   封顶 8 项，避免长面板越往下越慢。 */
+.ls-motion .content-_85c1b > *:nth-child(1) { animation-delay: 0ms; }
+.ls-motion .content-_85c1b > *:nth-child(2) { animation-delay: 18ms; }
+.ls-motion .content-_85c1b > *:nth-child(3) { animation-delay: 36ms; }
+.ls-motion .content-_85c1b > *:nth-child(4) { animation-delay: 54ms; }
+.ls-motion .content-_85c1b > *:nth-child(5) { animation-delay: 64ms; }
+.ls-motion .content-_85c1b > *:nth-child(6) { animation-delay: 64ms; }
+.ls-motion .content-_85c1b > *:nth-child(7) { animation-delay: 64ms; }
+.ls-motion .content-_85c1b > *:nth-child(8) { animation-delay: 64ms; }
+.ls-motion .content-_85c1b > *:nth-child(n + 9) { animation-delay: 64ms; }
+
+/* 主题选项卡片 */
+.ls-motion .themeOption-_85c1b {
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    border-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .themeOption-_85c1b:active {
+  transform: scale(0.98);
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. 侧栏
+ * ------------------------------------------------------------------------- */
+
+/* 侧栏整体入场。折叠态下 `sider-ac14ac` 会被卸载，所以这是「展开时」的入场 */
+@keyframes ls-sider-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ls-motion .sider-ac14ac {
+  animation: ls-sider-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+/* 折叠后左上角浮出的那组按钮，从上方落下 */
+@keyframes ls-collapsed-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ls-motion .collapsed-ac14ac {
+  animation: ls-collapsed-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+/* 对话列表项：淡入 + 轻微上浮，并做克制的错开 */
+@keyframes ls-item-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ls-motion .item-ff6fc9 {
+  animation: ls-item-in 0.22s var(--ls-motion-ease-out) both;
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+/* 列表项错开只加在容器的直接子项上，避免嵌套结构里重复触发 */
+.ls-motion .list-ac14ac > .item-ff6fc9:nth-child(1) { animation-delay: 0ms; }
+.ls-motion .list-ac14ac > .item-ff6fc9:nth-child(2) { animation-delay: 16ms; }
+.ls-motion .list-ac14ac > .item-ff6fc9:nth-child(3) { animation-delay: 32ms; }
+.ls-motion .list-ac14ac > .item-ff6fc9:nth-child(4) { animation-delay: 48ms; }
+.ls-motion .list-ac14ac > .item-ff6fc9:nth-child(5) { animation-delay: 60ms; }
+.ls-motion .list-ac14ac > .item-ff6fc9:nth-child(n + 6) { animation-delay: 60ms; }
+
+/* 悬停/按下：轻微右移，给出「可点」的反馈 */
+.ls-motion .item-ff6fc9:active {
+  transform: scale(0.985);
+}
+
+/* 侧栏底部的设置按钮、新建对话按钮 */
+.ls-motion .settings-ac14ac {
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .settings-ac14ac:active {
+  transform: scale(0.98);
+}
+
+.ls-motion .newChat-ac14ac {
+  transition:
+    box-shadow 0.3s var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .newChat-ac14ac:active {
+  transform: scale(0.985);
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. 对话内容区
+ * ------------------------------------------------------------------------- */
+
+/* 切换对话时内容区重新挂载，所以做入场。
+ *
+ * ⚠️ 这里针对的是 `column-_7ccaf` 而**不是** `scroll-_7ccaf`：
+ * 实测 `scroll-_7ccaf` 的计算样式是 `display: contents`（自身不产生盒子，
+ * 尺寸恒为 0×0），给它加动画完全看不出效果。真正有盒子的是 column。
+ * 这类「选择器写对了但不生效」的坑只能靠看真实计算样式发现。 */
+.ls-motion .column-_7ccaf {
+  animation: ls-conv-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+/* 消息气泡逐条入场 */
+.ls-motion .message-e1faee {
+  animation: ls-item-in 0.22s var(--ls-motion-ease-out) both;
+}
+
+.ls-motion .container-_4cfe7 {
+  animation: ls-item-in 0.22s var(--ls-motion-ease-out) both;
+}
+
+/* 会话标题栏 */
+.ls-motion .header-_5fa77 {
+  animation: ls-panel-in 0.24s var(--ls-motion-ease-out) both;
+}
+
+/* 「停止生成」等悬浮操作按钮 */
+.ls-motion .actions-e1faee {
+  transition:
+    opacity var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+/* 「继续生成」按钮 */
+.ls-motion .continueButton-e1faee {
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .continueButton-e1faee:active {
+  transform: scale(0.98);
+}
+
+/* ---------------------------------------------------------------------------
+ * 5. 输入区
+ * ------------------------------------------------------------------------- */
+
+/* 深度思考 / 智能搜索开关：官方已有 border/background 过渡，补一个按下回弹 */
+.ls-motion .toggle-ed6f47 {
+  transition:
+    border-color var(--ls-motion-dur) var(--ls-motion-ease),
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .toggle-ed6f47:active {
+  transform: scale(0.97);
+}
+
+/* 发送按钮 */
+.ls-motion .sendButton-ed6f47 {
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    opacity var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .sendButton-ed6f47:active {
+  transform: scale(0.94);
+}
+
+/* 附件缩略图：出现时淡入放大 */
+@keyframes ls-attach-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ls-motion .attachment-ed6f47,
+.ls-motion .thumbnail-cc04e9 {
+  animation: ls-attach-in 0.2s var(--ls-motion-ease-out) both;
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. 提示 / 错误条
+ * ------------------------------------------------------------------------- */
+
+@keyframes ls-toast-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ls-motion .toast-b959a3 {
+  animation: ls-toast-in 0.22s var(--ls-motion-ease-out) both;
+}
+
+/* ---------------------------------------------------------------------------
+ * 7. 桥接层自己注入的 UI（模型切换器与菜单）—— 这些由我们控制，可以做完整进出场
+ * ------------------------------------------------------------------------- */
+
+@keyframes ls-menu-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.ls-motion .ls-composer {
+  transition:
+    background-color var(--ls-motion-dur) var(--ls-motion-ease),
+    transform var(--ls-motion-dur) var(--ls-motion-ease);
+}
+
+.ls-motion .ls-composer:active {
+  transform: scale(0.97);
+}
+
+.ls-motion .ls-composer-menu {
+  animation: ls-menu-in 0.18s var(--ls-motion-ease-out) both;
+}
+
+.ls-motion .ls-composer-menu .ls-model-row {
+  animation: ls-panel-in 0.2s var(--ls-motion-ease-out) both;
+}
+
+.ls-motion .ls-model-row:nth-child(1) { animation-delay: 0ms; }
+.ls-motion .ls-model-row:nth-child(2) { animation-delay: 12ms; }
+.ls-motion .ls-model-row:nth-child(3) { animation-delay: 24ms; }
+.ls-motion .ls-model-row:nth-child(4) { animation-delay: 36ms; }
+.ls-motion .ls-model-row:nth-child(5) { animation-delay: 44ms; }
+.ls-motion .ls-model-row:nth-child(n + 6) { animation-delay: 44ms; }
+
+.ls-motion .ls-model-badge {
+  animation: ls-attach-in 0.2s var(--ls-motion-ease-out) both;
+}
+
+.ls-motion .ls-section {
+  animation: ls-panel-in var(--ls-motion-enter) var(--ls-motion-ease-out) both;
+}
+
+/* ---------------------------------------------------------------------------
+ * 8. 无障碍：跟随系统「减弱动态效果」设置
+ *
+ * 这是硬性要求，不是可选项：前庭功能敏感的用户会因位移与缩放动画不适。
+ * 关掉动画但**保留**颜色过渡 —— 颜色变化不引起不适，还能提示状态改变。
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-motion .overlay-_83af2,
+  .ls-motion .content-_83af2,
+  .ls-motion .dialog-_85c1b,
+  .ls-motion .sider-ac14ac,
+  .ls-motion .collapsed-ac14ac,
+  .ls-motion .item-ff6fc9,
+  .ls-motion .column-_7ccaf,
+  .ls-motion .header-_5fa77,
+  .ls-motion .message-e1faee,
+  .ls-motion .container-_4cfe7,
+  .ls-motion .attachment-ed6f47,
+  .ls-motion .thumbnail-cc04e9,
+  .ls-motion .toast-b959a3,
+  .ls-motion .ls-composer-menu,
+  .ls-motion .ls-model-row,
+  .ls-motion .ls-model-badge,
+  .ls-motion .ls-section,
+  .ls-motion .content-_85c1b > * {
+    animation: none !important;
+  }
+
+  .ls-motion .navItem-_85c1b,
+  .ls-motion .themeOption-_85c1b,
+  .ls-motion .settings-ac14ac,
+  .ls-motion .newChat-ac14ac,
+  .ls-motion .toggle-ed6f47,
+  .ls-motion .sendButton-ed6f47,
+  .ls-motion .continueButton-e1faee,
+  .ls-motion .actions-e1faee,
+  .ls-motion .ls-composer {
+    transition-duration: 0.01ms !important;
+  }
+
+  /* 位移与缩放一律取消 */
+  .ls-motion .navItem-_85c1b:active,
+  .ls-motion .themeOption-_85c1b:active,
+  .ls-motion .settings-ac14ac:active,
+  .ls-motion .newChat-ac14ac:active,
+  .ls-motion .toggle-ed6f47:active,
+  .ls-motion .sendButton-ed6f47:active,
+  .ls-motion .continueButton-e1faee:active,
+  .ls-motion .item-ff6fc9:active,
+  .ls-motion .ls-composer:active {
+    transform: none !important;
+  }
+}

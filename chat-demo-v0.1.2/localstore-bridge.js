@@ -26,6 +26,8 @@
   var LS_API_BASE = 'chat-demo:api-base';
   var LS_AUTOSYNC = 'chat-demo:local-autosync';
   var LS_SHOW_MODEL = 'chat-demo:show-model';
+  /** 界面动效开关（'false' 关闭）。默认开启 */
+  var LS_MOTION = 'chat-demo:motion';
   var LS_APP_API_KEY = 'chat-demo:api-key';
   /** 记录本浏览器最后一次从文件夹恢复对话的时间（用于判断是否「全新浏览器」） */
   var LS_HISTORY_SYNCED_AT = 'chat-demo:history-synced-at';
@@ -42,7 +44,7 @@
   var DIR_SUFFIX = '-本地存档';
   var AUTO_SYNC_DEBOUNCE = 700;
 
-  var BRIDGE_VERSION = '1.1.0';
+  var BRIDGE_VERSION = '1.2.0';
 
   // -------------------------------------------------------------------------
   // 小工具
@@ -3291,6 +3293,8 @@
       lastSync: '上次同步',
       never: '尚未同步',
       autosync: '自动同步',
+      motion: '界面动效',
+      motionHint: '界面切换时的淡入与滑动效果。关掉后立即生效，无需刷新',
       on: '已开启',
       off: '已关闭',
       restore: '从文件夹恢复',
@@ -3421,6 +3425,8 @@
       lastSync: 'Last sync',
       never: 'Never',
       autosync: 'Auto-sync',
+      motion: 'Interface motion',
+      motionHint: 'Fade and slide effects when views change. Takes effect immediately',
       on: 'On',
       off: 'Off',
       restore: 'Restore from folder',
@@ -3606,6 +3612,20 @@
     lines.push(el('div', { class: 'ls-head', text: t('title') }));
     lines.push(el('div', { class: 'ls-desc', text: t('desc') }));
 
+    // 界面动效开关：与文件夹功能无关，任何浏览器都该能开关
+    lines.push(
+      el('div', { class: 'ls-row' }, [
+        el('div', { class: 'ls-row-label' }, [
+          el('div', { class: 'ls-row-title', text: t('motion') }),
+          el('div', { class: 'ls-desc', text: t('motionHint') })
+        ]),
+        button(motionEnabled() ? t('on') : t('off'), function () {
+          setMotion(!motionEnabled());
+          rerender();
+        })
+      ])
+    );
+
     if (!supportsFs) {
       lines.push(el('div', { class: 'ls-warn', text: t('unsupported') }));
     } else {
@@ -3671,6 +3691,8 @@
             (lsGet(LS_AUTOSYNC) === 'false' ? t('off') : t('on'))
         })
       );
+
+      // 界面动效开关已在函数开头加入，这里不再重复。
     }
 
     // 提示 / 错误
@@ -4215,6 +4237,11 @@
       '.ls-dot-off{background:#c0c0c0}',
       '.ls-status-text{color:var(--ls-fg,#333);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.ls-meta{color:var(--ls-dim,#8a8a8a);font-size:12px;margin:4px 0}',
+      // 带开关的一行：左边标题+说明，右边按钮
+      '.ls-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}',
+      '.ls-row-label{min-width:0;flex:1 1 auto}',
+      '.ls-row-title{font-size:13px;color:var(--ls-fg,#333);margin-bottom:2px}',
+      '.ls-row .ls-desc{margin-bottom:0}',
       '.ls-btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}',
       '.ls-btn{font:inherit;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--ls-line,#dcdcdc);background:transparent;color:var(--ls-fg,#333);cursor:pointer;transition:background .15s,border-color .15s}',
       '.ls-btn:hover:not([disabled]){background:var(--ls-hover,rgba(0,0,0,.05))}',
@@ -4466,6 +4493,63 @@
    * 表现为先闪一下空对话、再跳到目标对话。
    */
   var bootToken = null;
+
+  /**
+   * 界面动效层。
+   *
+   * 应用是压缩产物、没有源码，直接改它的 CSS 会在下次升级时全部作废，
+   * 所以动效放在独立的 localstore-motion.css 里运行时加载。这里只负责：
+   *   1. 插入 <link>（带 ?v=桥接版本，避免缓存住旧样式）；
+   *   2. 在 <html> 上加 .ls-motion 开关类 —— 所有动效规则都挂在这个类下面，
+   *      这样一旦需要关闭（设置里的开关，或浏览器不支持），能一键全灭，
+   *      不会留下一堆半生效的规则。
+   *
+   * 注意：样式文件是**可选**的。加载失败只意味着没有动效，绝不能影响
+   * 存档、上传这些主功能，所以整个过程包在 try/catch 里，失败只记日志。
+   */
+  var MOTION_CSS_ID = 'localstore-motion-css';
+  var MOTION_CLASS = 'ls-motion';
+
+  function motionEnabled() {
+    return lsGet(LS_MOTION) !== 'false';
+  }
+
+  function applyMotionClass() {
+    try {
+      var root = document.documentElement;
+      if (!root) return;
+      if (motionEnabled()) root.classList.add(MOTION_CLASS);
+      else root.classList.remove(MOTION_CLASS);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function installMotion() {
+    try {
+      applyMotionClass();
+      if (document.getElementById(MOTION_CSS_ID)) return;
+      var link = document.createElement('link');
+      link.id = MOTION_CSS_ID;
+      link.rel = 'stylesheet';
+      link.href = 'localstore-motion.css?v=' + BRIDGE_VERSION;
+      // 样式加载完再挂开关类，避免「规则已生效但类还没加」的空窗
+      link.onload = applyMotionClass;
+      link.onerror = function () {
+        warn('界面动效样式加载失败（不影响其它功能）');
+      };
+      (document.head || document.documentElement).appendChild(link);
+      log('已加载界面动效层');
+    } catch (e) {
+      warn('安装界面动效失败：' + ((e && e.message) || e));
+    }
+  }
+
+  /** 供设置面板的开关调用 */
+  function setMotion(on) {
+    lsSet(LS_MOTION, on ? 'true' : 'false');
+    applyMotionClass();
+  }
 
   /**
    * 启动遮罩。
@@ -4746,6 +4830,7 @@
   async function boot() {
     seedApiBase();
     installStyles();
+    installMotion();
     installIdbHook();
     installFetchHook();
     watchForSettings();
@@ -5056,6 +5141,9 @@
       },
       /** 把用户填的地址归一化成裸根地址（去掉结尾的 /anthropic 与斜杠） */
       normalizeBase: normalizeBase,
+      /** 界面动效开关（设置面板与测试都用它） */
+      setMotion: setMotion,
+      motionEnabled: motionEnabled,
       /** 上传诊断：返回版本、当前提供方与逐次尝试记录 */
       uploadLog: function () {
         var pf = uploadPreflight();

@@ -10,6 +10,7 @@
 
 chat-demo-v0.1.2/static/js/** -text
 chat-demo-v0.1.2/localstore-bridge.js text eol=lf
+chat-demo-v0.1.2/localstore-motion.css text eol=lf
 chat-demo-v0.1.2/index.html text eol=lf
 chat-demo-v0.1.2/SETUP.md text eol=lf
 chat-demo-v0.1.2/tools/** text eol=lf
