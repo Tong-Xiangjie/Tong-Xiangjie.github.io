@@ -31,6 +31,8 @@
   var LS_APP_API_KEY = 'chat-demo:api-key';
   /** 记录本浏览器最后一次从文件夹恢复对话的时间（用于判断是否「全新浏览器」） */
   var LS_HISTORY_SYNCED_AT = 'chat-demo:history-synced-at';
+  /** 反向同步（盯着文件夹收外部改动）的开关，'false' 关闭。默认开启 */
+  var LS_WATCH = 'chat-demo:local-watch';
   var DEFAULT_API_BASE = 'https://api.deepseek.com';
 
   /** 文件夹内的密钥文件名 */
@@ -789,11 +791,27 @@
 
     // --- 清理：删掉这次没写到的旧会话文件（对应“删除对话”） ---
     //
-    // ⚠️ 安全闸门：如果本地库是空的、而文件夹里却有存档，绝不能清理。
+    // ⚠️ 安全闸门 1：如果本地库是空的、而文件夹里却有存档，绝不能清理。
     // 那种状态说明这是「全新浏览器 / 刚清空过数据」，此时全量快照 + 清理
     // 会把用户存在文件夹里的历史对话成批删掉 —— 这与「防丢失」的目的完全相反。
     // 只有确认过本地与文件夹已经对过账（有历史同步标记）才允许清理。
+    //
+    // ⚠️ 安全闸门 2（实测踩过的数据丢失）：**反向同步对齐之前不许清理。**
+    // 用户的实际场景是「在网页版新建了几条对话」→ 文件夹里有了这些文件，
+    // 但本机 IndexedDB 里还没有。这时如果先跑了一次快照，`current` 里不含
+    // 那些会话，清理逻辑就会把文件夹里那几条**直接删掉** ——
+    // 用户的对话就这么没了，而且看起来像"同步功能坏了"。
+    //
+    // ⚠️ 安全闸门 3（真正致命的那一条）：**只清理我们上次自己写过的文件。**
+    // 光靠闸门 2 不够：轮询是异步的，在「对齐完成」到「轮询读到新文件」之间
+    // 有一个窗口，此时闸门 2 已经放行，而 sessions 列表还是导入前的旧列表，
+    // 照样会把外部刚写进来的文件删掉（实测复现：文件在 3 秒内被删，
+    // 表现成「改了文件夹里的对话，应用没反应」）。
+    // 判据用「上一次快照写在 数据/manifest.json 里的会话文件清单」：
+    // 只有上次确实由我们写出来的文件，才有资格被这次清理删掉；
+    // 认不出来的一律留着，宁可多留一份也不删用户的对话。
     var pruneSkipped = false;
+    var pruneSkipReason = '';
     var current = new Set(written);
     var existing = await listSessionJson(convDir).then(function (a) {
       return a.concat(
@@ -803,8 +821,29 @@
       );
     });
 
-    if (!sessions.length && existing.length && !lsGet(LS_HISTORY_SYNCED_AT)) {
+    // 上次清单里出现过的文件名 = 我们写过的。
+    //
+    // ⚠ 会话清单在 `数据/sessions.json` 的 `sessions` 数组里，
+    // 不在 `数据/manifest.json` —— manifest.json 只有统计信息（会话数、同步时间等）。
+    // 读错文件的结果是 mine 永远是空集，清理逻辑从此一个文件都不删，
+    // 表现成「改名之后文件夹里新旧两份都在」（实测踩过）。
+    var mine = new Set();
+    try {
+      var prevIdx = await readSessionIndex();
+      var prevSessions = (prevIdx && prevIdx.sessions) || [];
+      for (var pi = 0; pi < prevSessions.length; pi++) {
+        var fl = prevSessions[pi] && prevSessions[pi].files;
+        if (!Array.isArray(fl)) continue;
+        for (var fj = 0; fj < fl.length; fj++) mine.add(fl[fj]);
+      }
+    } catch (e) { /* 读不到就当没有，宁可不清理 */ }
+
+    if (!watchState.reconciled && existing.length) {
       pruneSkipped = true;
+      pruneSkipReason = '还没跟文件夹对过账';
+    } else if (!sessions.length && existing.length && !lsGet(LS_HISTORY_SYNCED_AT)) {
+      pruneSkipped = true;
+      pruneSkipReason = '浏览器里没有对话而文件夹里有存档';
       warn(
         '已跳过旧文件清理：浏览器里没有对话，但文件夹里有 ' +
           existing.length +
@@ -813,14 +852,26 @@
     }
 
     var removed = 0;
+    var keptForeign = [];
     if (!pruneSkipped) {
       for (var k = 0; k < existing.length; k++) {
-        if (!current.has(existing[k])) {
-          await removeEntry(convDir, existing[k]);
-          removed++;
+        var name = existing[k];
+        if (current.has(name)) continue;
+        // 不认识的文件不删 —— 可能是外部（网页版 / 另一台机器）刚放进来的
+        if (!mine.has(name)) {
+          keptForeign.push(name);
+          continue;
         }
+        await removeEntry(convDir, name);
+        removed++;
       }
     }
+    if (keptForeign.length) {
+      log('保留了 ' + keptForeign.length + ' 个不是本机写出的文件（避免删掉外部新增的对话）：' +
+        keptForeign.slice(0, 5).join('、') + (keptForeign.length > 5 ? ' …' : ''));
+    }
+    watchState.lastPrune = { removed: removed, keptForeign: keptForeign.length,
+      skipped: pruneSkipped, reason: pruneSkipReason };
 
     // --- 数据索引 ---
     var manifest = {
@@ -1013,6 +1064,16 @@
    * 两路都走同一个防抖计时器，因此不会重复写。
    */
   function scheduleAutoSync(reason) {
+    // 无论同步是否开着，都要通知外面「存档变了」。
+    //
+    // 为什么放在这里而不是只放在真正写盘的分支里：功能扩展层需要知道
+    // 什么时候该丢掉自己的缓存（例如「置顶」小节要按最后一条消息的时间重排，
+    // 而那个时间来自 IndexedDB）。如果只在开自动同步时才通知，用户一关同步
+    // 置顶排序就再也不更新了。
+    try {
+      document.dispatchEvent(new CustomEvent('localstore-changed', { detail: { reason: reason || '' } }));
+    } catch (e) { /* 老浏览器没有 CustomEvent 构造器就算了，不影响主链路 */ }
+
     if (autoSyncSuspended > 0) return;
     if (lsGet(LS_AUTOSYNC) === 'false') return;
     if (!supportsFs) return;
@@ -1118,6 +1179,11 @@
     emitSync();
     log('已连接文件夹', handle.name);
 
+    // 刚连上文件夹：把监看装上（它会自己完成一次启动对齐）
+    startFolderWatcher().catch(function (e) {
+      warn('装上文件夹监看失败：' + ((e && e.message) || e));
+    });
+
     // 换浏览器 / 清空数据后第一次连接：这也是「自动把对话读回来」的最佳时机。
     // 不放在 background 里做是因为它会写库，需要让 UI 拿到进度。
     return handle;
@@ -1138,6 +1204,7 @@
 
   async function disconnect() {
     dirCache = null;
+    stopFolderWatcher();
     try {
       await ownDelete('root');
     } catch (e) {
@@ -1145,6 +1212,539 @@
     }
     lsSet(LS_FOLDER, null);
     emitSync();
+  }
+
+  // -------------------------------------------------------------------------
+  // 反向同步：盯着文件夹，外面的改动自动收进来
+  // -------------------------------------------------------------------------
+  //
+  // 为什么需要它：原来的恢复只在「本浏览器从没同步过、且本地库是空的」时跑
+  // （maybeAutoRestoreHistory）。一旦本机已经有对话，标记位就一直是有的，
+  // 于是**在另一台机器 / 另一个浏览器上新增的对话永远不会被收进来**，
+  // 除非用户自己去点「从文件夹恢复」。实测用户就是这么被卡住的：
+  // 在 GitHub 网页版新建了好几条，本地死活看不到。
+  //
+  // 做法：定时扫「对话」目录，只认「上一次扫描之后被改过的文件」。
+  //   · 基线（baselineAt）取启动时所有文件的最大 lastModified ——
+  //     比基线旧的（包括我们自己刚写下去的）一律不动，避免「自己写 →
+  //     自己读回来 → 页面刷新」的自激循环；
+  //   · 之后任何 lastModified 变新、或新出现的文件，都读进来合并；
+  //   · 合并是按 id 覆盖（writeBack 用 put），所以不会清掉本地独有的对话。
+  //
+  // 合并完必须刷新页面：官方应用只在启动时读一次 IndexedDB，
+  // 没有监听数据库变化的机制（它自己的「导入」也是整页重载）。
+  var WATCH_INTERVAL = 3000;       // 用户在操作时的扫描间隔（接近实时）
+  var WATCH_IDLE_INTERVAL = 20000; // 闲置时的间隔，避免在大存档上空转
+  var watchTimer = null;
+  var watchState = { baselineAt: 0, imported: 0, lastScan: 0, lastError: null, enabled: false,
+    lastImported: [], hashes: null, reconciled: false, booted: false, listenersBound: false,
+    fileCount: 0 };
+
+  /** 测试开关：置为 'false' 时收完不刷新页面（无头测试里页面一刷新，
+   *  注入的模拟文件夹就没了，没法接着断言）。默认是刷新的。 */
+  function watchReloadEnabled() {
+    return lsGet('chat-demo:ls-watch-noreload') !== 'true';
+  }
+
+  function stopFolderWatcher() {
+    if (watchTimer) clearTimeout(watchTimer);
+    watchTimer = null;
+    watchState.enabled = false;
+    watchState.booted = false;
+  }
+
+  /** 扫描一次「对话」目录，返回 [{name, lastModified, size}]。
+   *
+   * ⚠ 这里**不能**用 `continue` 静默吞掉 `getFile()` 的失败。
+   * 踩过的坑：假文件系统（以及某些实现）在 `values()` 里给的是
+   * 「带 name 的裸对象」而不是 FileSystemFileHandle，`entry.getFile` 根本不存在，
+   * 被 catch 吞掉之后表现成「文件夹里明明有文件，就是永远收不进来」，
+   * 而且一句日志都没有。现在改成记进 lastError，至少有迹可循。
+   */
+  async function scanSessionFiles() {
+    var root = await getRootHandle();
+    if (!root) {
+      watchState.lastError = 'no-root';
+      return null;
+    }
+    var perm;
+    try {
+      perm = await ensurePermission(root, false);
+    } catch (e) {
+      watchState.lastError = 'perm-error:' + ((e && e.message) || e);
+      return null;
+    }
+    if (perm !== 'granted') {
+      watchState.lastError = 'perm-' + perm;
+      return null;
+    }
+    var convDir;
+    try {
+      convDir = await subdir(root, '对话', false);
+    } catch (e) {
+      watchState.lastError = 'no-conv-dir:' + ((e && e.name) || e);
+      return null; // 还没建目录，正常
+    }
+
+    var out = [];
+    var failed = null;
+    try {
+      for await (var entry of convDir.values()) {
+        if (entry.kind !== 'file') continue;
+        if (!/\.json$/i.test(entry.name)) continue;
+        var f = null;
+        try {
+          // entry 正常是 FileSystemFileHandle；万一只是个 {name} 的对象，
+          // 退一步用目录句柄自己取一次。
+          if (typeof entry.getFile === 'function') {
+            f = await entry.getFile();
+          } else if (typeof convDir.getFileHandle === 'function') {
+            var fh = await convDir.getFileHandle(entry.name, { create: false });
+            f = await fh.getFile();
+          } else {
+            throw new Error('values() 给出的项既不是句柄也不能按名字取回');
+          }
+        } catch (e) {
+          // 只记第一条，避免刷屏
+          if (!failed) failed = entry.name + ' → ' + ((e && e.message) || e);
+          continue;
+        }
+        // lastModified 正常一定有；取不到就退化成 1（比任何基线都小，
+        // 于是不会因为读不到时间就误导入）。
+        var lm = Number(f && f.lastModified);
+        out.push({
+          name: entry.name,
+          lastModified: isFinite(lm) && lm > 0 ? lm : 1,
+          size: (f && typeof f.size === 'number') ? f.size : -1
+        });
+      }
+    } catch (e) {
+      watchState.lastError = 'iterate-error:' + ((e && e.message) || e);
+      return null;
+    }
+    watchState.fileCount = out.length;
+    watchState.lastError = failed ? 'getFile-failed:' + failed : null;
+    return out;
+  }
+
+  /** 建立基线：记住启动那一刻所有文件的时间戳，之后只认比它新的 */
+  async function primeFolderWatcher() {
+    try {
+      var list = await scanSessionFiles();
+      if (!list) return false;
+      var max = 0;
+      for (var i = 0; i < list.length; i++) max = Math.max(max, list[i].lastModified);
+      watchState.baselineAt = max;
+      watchState.lastError = null;
+      return true;
+    } catch (e) {
+      watchState.lastError = (e && e.message) || String(e);
+      return false;
+    }
+  }
+
+  /** 定时扫描：发现外部新增/修改的会话就合并进来并刷新 */
+  async function pollFolderForChanges() {
+    if (syncState.running) return;                 // 自己正在写盘，先别读
+    if (document.visibilityState === 'hidden') return; // 后台标签页不用管
+    var list;
+    try {
+      list = await scanSessionFiles();
+    } catch (e) {
+      watchState.lastError = (e && e.message) || String(e);
+      return;
+    }
+    if (!list) return;
+    watchState.lastScan = Date.now();
+
+    var fresh = list.filter(function (x) {
+      return x.lastModified > watchState.baselineAt;
+    });
+    if (!fresh.length) return;
+
+    // 逐条读进来。读不动的（正在被写）跳过，下一轮再试。
+    var incoming = [];
+    var maxSeen = watchState.baselineAt;
+    var convDir = await subdir(await getRootHandle(), '对话', false);
+    for (var i = 0; i < fresh.length; i++) {
+      var raw;
+      try {
+        raw = await readTextFile(convDir, fresh[i].name);
+      } catch (e) {
+        continue;
+      }
+      var parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        continue; // 写了一半的文件，下轮再读
+      }
+      if (!parsed || !parsed.id) continue;
+      maxSeen = Math.max(maxSeen, fresh[i].lastModified);
+      incoming.push({
+        id: parsed.id,
+        title: parsed.title == null ? null : parsed.title,
+        createdAt: parsed.createdAt == null ? null : parsed.createdAt,
+        updatedAt: parsed.updatedAt == null ? null : parsed.updatedAt,
+        rootMessageId: parsed.rootMessageId == null ? null : parsed.rootMessageId,
+        messages: Array.isArray(parsed.messages) ? parsed.messages : []
+      });
+    }
+    if (!incoming.length) return;
+
+    // 只收「本地没有的」和「本地更旧的」——本地更新的说明这边的编辑还没落盘，
+    // 不能拿旧文件把它盖回去。
+    var local = await readAllSessions();
+    var localById = {};
+    for (var k = 0; k < local.length; k++) localById[local[k].id] = local[k];
+    var toWrite = incoming.filter(function (s) {
+      var l = localById[s.id];
+      if (!l) return true;
+      return (s.updatedAt || 0) > (l.updatedAt || 0);
+    });
+
+    watchState.baselineAt = maxSeen;
+    if (!toWrite.length) return;
+
+    log('文件夹里有 ' + toWrite.length + ' 个更新过的对话，正在收进来');
+    autoSyncSuspended++;
+    try {
+      await writeBack(toWrite, [], null);
+    } finally {
+      autoSyncSuspended--;
+    }
+    watchState.imported += toWrite.length;
+    watchState.lastImported = toWrite.map(function (s) { return s.title; });
+    lsSet(LS_HISTORY_SYNCED_AT, String(Date.now()));
+    emitSync();
+
+    // 页面重载才能让应用看见新数据（应用只在启动时读一次库）
+    if (watchReloadEnabled()) {
+      try {
+        location.reload();
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  /**
+   * 启动时的一次性对齐：把文件夹里**比本地新**的对话收进来。
+   *
+   * 为什么不能只靠 lastModified 基线：基线的语义是「启动那一刻就存在的文件
+   * 都当已知」，可用户真正踩的坑恰恰是「这些文件启动时就在，但本地没有」——
+   * 在网页版新建的对话被同步进文件夹之后，本机这边文件早就存在了，
+   * 只看时间戳会全部漏掉。
+   *
+   * 所以这里改成比内容：每个文件算一次哈希，只对那些
+   * 「本地没有」或「文件里的 updatedAt 比本地新」的会话动手。
+   * 哈希存下来给后面的轮询用，避免每次都重读全部文件。
+   */
+  async function reconcileFolderOnBoot() {
+    var list = await scanSessionFiles();
+    // 读不到（还没连文件夹 / 没权限）时不能算「对过账」，否则清理闸门会变成盲删。
+    // 但"目录还不存在"是另一回事：那说明这个文件夹还没写过存档，
+    // 等价于「已经对过账了，结论是一个对话都没有」，必须放行，
+    // 否则首次落盘之后清理逻辑永远不会生效。
+    if (!list) {
+      if (watchState.lastError && /^no-conv-dir/.test(watchState.lastError)) {
+        watchState.reconciled = true;
+        return 0;
+      }
+      return 0;
+    }
+    watchState.reconciled = true;
+    if (!list.length) return 0;
+    var local = await readAllSessions();
+    var localById = {};
+    for (var i = 0; i < local.length; i++) localById[local[i].id] = local[i];
+
+    var convDir = await subdir(await getRootHandle(), '对话', false);
+    var toWrite = [];
+    var hashes = {};
+    for (var k = 0; k < list.length; k++) {
+      var raw;
+      try {
+        raw = await readTextFile(convDir, list[k].name);
+      } catch (e) {
+        continue;
+      }
+      var h = strHash(raw);
+      hashes[list[k].name] = { h: h, meta: list[k].name + '|' + list[k].size + '|' + list[k].lastModified };
+      var parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        continue; // 写了一半的文件，下一轮再处理
+      }
+      if (!parsed || !parsed.id) continue;
+      var l = localById[parsed.id];
+      if (l && (parsed.updatedAt || 0) <= (l.updatedAt || 0)) continue;
+      toWrite.push(normalizeSession(parsed));
+    }
+
+    watchState.hashes = hashes;
+    watchState.baselineAt = Date.now();
+    watchState.reconciled = true;
+    if (!toWrite.length) return 0;
+
+    log('启动对齐：文件夹里有 ' + toWrite.length + ' 个更新的对话');
+    autoSyncSuspended++;
+    try {
+      await writeBack(toWrite, [], null);
+    } finally {
+      autoSyncSuspended--;
+    }
+    watchState.imported += toWrite.length;
+    watchState.lastImported = toWrite.map(function (s) { return s.title; });
+    lsSet(LS_HISTORY_SYNCED_AT, String(Date.now()));
+    emitSync();
+    // 收进来的新对话要再写回文件夹一次：文件名用的是应用自己的命名规则
+    // （`<时间>_<标题>.json`），外部那份可能叫别的名字。不补这一刀的话，
+    // 下次快照会因为"本地有、文件夹叫别的名"而多出一份重复文件。
+    //
+    // 这里必须**同步写完**（而不是丢给 autoSync 的 700ms 防抖）：
+    // 否则在对齐完成到快照执行之间有一个窗口，此时 reconciled 已经为 true，
+    // 清理闸门放开了，而当前快照的 sessions 列表还是导入前的旧列表 ——
+    // 正好会把刚收进来的那几个文件删掉。实测就是这么丢的。
+    try {
+      autoSyncSuspended++;
+      await snapshot('reverse-import');
+    } catch (e) {
+      warn('收进来之后写回文件夹失败：' + ((e && e.message) || e));
+    } finally {
+      autoSyncSuspended--;
+    }
+    return toWrite.length;
+  }
+
+  /** 把文件夹里读到的原始 JSON 归一化成应用认识的会话结构 */
+  function normalizeSession(parsed) {
+    return {
+      id: parsed.id,
+      title: parsed.title == null ? null : parsed.title,
+      createdAt: parsed.createdAt == null ? null : parsed.createdAt,
+      updatedAt: parsed.updatedAt == null ? null : parsed.updatedAt,
+      rootMessageId: parsed.rootMessageId == null ? null : parsed.rootMessageId,
+      messages: Array.isArray(parsed.messages) ? parsed.messages : []
+    };
+  }
+
+  /** 32 位字符串哈希（FNV-1a）。只用来判断「文件内容变没变」，不做安全用途。 */
+  function strHash(s) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h.toString(16);
+  }
+
+  /**
+   * 定时扫描：发现外部新增/修改的会话就合并进来并刷新。
+   *
+   * 判新规则（比单纯看时间戳可靠，也不会被"整目录重写"误触发）：
+   *   1. 先用 name|size|lastModified 做粗筛，没变过的文件连读都不用读；
+   *   2. 粗筛变了的，读内容算哈希，和上次记下的哈希比对 ——
+   *      内容没变就只是被别人重写了一遍，跳过；
+   *   3. 内容真变了，再比 updatedAt：只有文件比本地新才收，
+   *      避免把这边刚编辑还没落盘的内容用旧文件盖回去。
+   */
+  async function pollFolderForChanges() {
+    if (syncState.running) return;                 // 自己正在写盘，先别读
+    if (document.visibilityState === 'hidden') return; // 后台标签页不用管
+    var list;
+    try {
+      list = await scanSessionFiles();
+    } catch (e) {
+      watchState.lastError = (e && e.message) || String(e);
+      return;
+    }
+    if (!list) return;
+    watchState.lastScan = Date.now();
+    if (!watchState.hashes) watchState.hashes = {};
+
+    // 粗筛
+    var candidates = [];
+    for (var c = 0; c < list.length; c++) {
+      var meta = list[c].name + '|' + list[c].size + '|' + list[c].lastModified;
+      var known = watchState.hashes[list[c].name];
+      if (known && known.meta === meta) continue;
+      candidates.push(list[c]);
+    }
+    if (!candidates.length) return;
+
+    var convDir = await subdir(await getRootHandle(), '对话', false);
+    var reads = [];
+    for (var i = 0; i < candidates.length; i++) {
+      var raw;
+      try {
+        raw = await readTextFile(convDir, candidates[i].name);
+      } catch (e) {
+        continue;
+      }
+      var h = strHash(raw);
+      var prev = watchState.hashes[candidates[i].name];
+      watchState.hashes[candidates[i].name] = {
+        h: h,
+        meta: candidates[i].name + '|' + candidates[i].size + '|' + candidates[i].lastModified
+      };
+      if (prev && prev.h === h) continue;   // 内容没变，只是被重写了
+      var parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        continue; // 写了一半的文件，下一轮再读
+      }
+      if (!parsed || !parsed.id) continue;
+      reads.push(normalizeSession(parsed));
+    }
+    if (!reads.length) return;
+
+    // 只收「本地没有的」和「本地更旧的」
+    var local = await readAllSessions();
+    var localById = {};
+    for (var k = 0; k < local.length; k++) localById[local[k].id] = local[k];
+    var toWrite = reads.filter(function (s) {
+      var l = localById[s.id];
+      if (!l) return true;
+      return (s.updatedAt || 0) > (l.updatedAt || 0);
+    });
+    if (!toWrite.length) return;
+
+    log('文件夹里有 ' + toWrite.length + ' 个更新过的对话，正在收进来');
+    autoSyncSuspended++;
+    try {
+      await writeBack(toWrite, [], null);
+    } finally {
+      autoSyncSuspended--;
+    }
+    watchState.imported += toWrite.length;
+    watchState.lastImported = toWrite.map(function (s) { return s.title; });
+    lsSet(LS_HISTORY_SYNCED_AT, String(Date.now()));
+    emitSync();
+
+    // 页面重载才能让应用看见新数据（应用只在启动时读一次库）
+    if (watchReloadEnabled()) {
+      try {
+        location.reload();
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  /**
+   * 装上文件夹监看（进页面时和连上文件夹后都调一次）。
+   *
+   * 扫描节奏是自适应的：用户在操作（最近 30 秒内有鼠标/键盘/滚动）时用快节奏，
+   * 让它接近「实时」；闲置时降到慢节奏，省得在大存档上每 3 秒空读几百个文件。
+   * 标签页重新可见时立刻补一次，保证「切回来就已经是最新的」。
+   */
+  var lastActivityAt = 0;
+  function markActivity() {
+    lastActivityAt = Date.now();
+  }
+  /** 挂起 / 就绪信号。
+   *  测试需要知道「启动对齐跑完了」才好断言，否则会跟它对撞。 */
+  var watchReadyResolve = null;
+  var watchReadyPromise = null;
+  function watchReady() {
+    if (!watchReadyPromise) {
+      watchReadyPromise = new Promise(function (res) {
+        watchReadyResolve = res;
+        // 已经开始轮询说明对齐早做完了（重复调用的情况）
+        if (watchTimer) res();
+      });
+    }
+    return watchReadyPromise;
+  }
+  function markWatchReady() {
+    if (watchReadyResolve) {
+      try { watchReadyResolve(); } catch (e) { /* ignore */ }
+    }
+  }
+  function currentWatchInterval() {
+    // 测试可以用 localStorage 覆盖，免得等太久
+    var forced = Number(lsGet('chat-demo:ls-watch-ms'));
+    if (isFinite(forced) && forced > 0) return forced;
+    return (Date.now() - lastActivityAt) < 30000 ? WATCH_INTERVAL : WATCH_IDLE_INTERVAL;
+  }
+
+  async function startFolderWatcher() {
+    if (!supportsFs) return;
+    if (lsGet(LS_WATCH) === 'false') return;
+
+    // 活动监听只在第一次装上（重复注册会累积）
+    if (!watchState.listenersBound) {
+      watchState.listenersBound = true;
+      ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'focus'].forEach(function (evt) {
+        try {
+          window.addEventListener(evt, markActivity, { passive: true });
+        } catch (e) { /* ignore */ }
+      });
+      try {
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState !== 'visible') return;
+          markActivity();
+          // 切回来立刻补一次（并重新排程），保证「切回来就已经是最新的」
+          startFolderWatcher().catch(function () {});
+        });
+      } catch (e) { /* ignore */ }
+    }
+    watchState.enabled = true;
+
+    // ⚠ 没有 root 时**不能**直接开跑。
+    // 进页面时 boot() 就调了这里，而文件夹句柄要到后面才从 IndexedDB 里取出来；
+    // 早跑的结果是扫到 no-root 之后又排了定时器，之后即使句柄到位也不会再对齐
+    // —— 表现成「在网页版新建的对话怎么都收不进来」。
+    // 正确做法是：先把监听装上（等用户/后面的代码把 root 拿来），
+    // 一旦发现有 root 就补做一次启动对齐。
+    var root;
+    try {
+      root = await getRootHandle();
+    } catch (e) {
+      root = null;
+    }
+    if (!root) {
+      // 先空转着，等下一次调度或者 pickFolder / reconnect 再补
+      watchState.booted = false;
+      markWatchReady();
+      scheduleNextWatch();
+      return;
+    }
+    if (watchState.booted) {
+      markWatchReady();
+      scheduleNextWatch();
+      return;
+    }
+    watchState.booted = true;
+
+    // 有 root 了：先对齐一次（把文件夹里比本地新的收进来），再开始轮询。
+    // 顺序反了会把启动瞬间的老文件重复导入。
+    primeFolderWatcher()
+      .then(function () {
+        return reconcileFolderOnBoot();
+      })
+      .then(function (n) {
+        if (n && watchReloadEnabled()) {
+          try { location.reload(); } catch (e) { /* ignore */ }
+          return;
+        }
+        scheduleNextWatch();
+        markWatchReady();
+      })
+      .catch(function (e) {
+        watchState.lastError = (e && e.message) || String(e);
+        scheduleNextWatch();
+        markWatchReady();
+      });
+  }
+
+  /** 用 setTimeout 自排下一轮，这样节奏可以随活动状态变 */
+  function scheduleNextWatch() {
+    if (watchTimer) clearTimeout(watchTimer);
+    watchTimer = setTimeout(function () {
+      pollFolderForChanges()
+        .catch(function (e) { watchState.lastError = (e && e.message) || String(e); })
+        .then(function () { scheduleNextWatch(); });
+    }, currentWatchInterval());
   }
 
   async function reconnect() {
@@ -1343,6 +1943,27 @@
   // -------------------------------------------------------------------------
 
   /** 读取镜像文件夹里的 manifest（若存在） */
+  /**
+   * 读上一次快照写下的会话索引（`数据/sessions.json`）。
+   *
+   * 结构是 `{ manifest: {...}, sessions: [{ id, title, files: [...] }] }`。
+   * 清理逻辑靠它判断「哪些文件是本机自己写的」——这是防止把外部
+   * （网页版 / 另一台机器）新增的对话误删的关键依据。
+   */
+  async function readSessionIndex() {
+    var root = await getRootHandle();
+    if (!root) return null;
+    var perm = await ensurePermission(root, false);
+    if (perm !== 'granted') return null;
+    try {
+      var dataDir = await subdir(root, '数据', false);
+      var text = await readTextFile(dataDir, 'sessions.json');
+      return JSON.parse(text);
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function readManifest() {
     var root = await getRootHandle();
     if (!root) return null;
@@ -2924,7 +3545,7 @@
   var COMPOSER_ID = 'ls-composer-model';
   var MENU_ID = 'ls-composer-menu';
 
-  var composerState = { open: false, loading: false, models: null, error: null, raf: 0 };
+  var composerState = { open: false, loading: false, models: null, error: null, raf: 0, hiddenRetry: 0 };
   var composerTimer = null;
 
   function scheduleComposer() {
@@ -3040,10 +3661,27 @@
     // 不许压到右侧按钮组上
     var limit = rgr && rgr.width ? rgr.left - 8 : rr.right - 8;
     if (left + w > limit) left = limit - w;
-    // 实在放不下就藏起来，而不是硬挤成一团
+    // 实在放不下就藏起来，而不是硬挤成一团。
+    //
+    // ⚠ 但必须配一个「过一会儿再试一次」。原因：切换对话、换模型、附件展开时，
+    // 输入行会经历几帧中间态（宽度为 0、右侧组还没排好、整行被 React 换掉重挂），
+    // 恰好落在中间态就会算出「放不下」→ display:none。之后几何虽然恢复了，
+    // 但 rAF 循环每次都在这一分支提前 return，按钮就一直不显示 ——
+    // 用户看到的就是「切换对话后模型选择框没有了」。
+    // 加短延时重试：状态稳定后自然摆回去。
     if (left < rr.left) {
       wrap.style.display = 'none';
+      if (!composerState.hiddenRetry) {
+        composerState.hiddenRetry = setTimeout(function () {
+          composerState.hiddenRetry = 0;
+          if (document.getElementById(COMPOSER_ID)) placeComposer();
+        }, 120);
+      }
       return;
+    }
+    if (composerState.hiddenRetry) {
+      clearTimeout(composerState.hiddenRetry);
+      composerState.hiddenRetry = 0;
     }
 
     var top = rr.top + (rr.height - h) / 2;
@@ -3060,12 +3698,21 @@
    * 附件列表、流式输出等不断改变高度，这些都不会触发 scroll 事件；
    * 而位置算错的表现是按钮浮在错误的地方，比多跑一点 rAF 更糟。
    * 每帧只做 getBoundingClientRect + 两次 style 赋值，开销可以忽略。
+   *
+   * ⚠ 除了「跟随」，这里还兼任「看门狗」。
+   * placeComposer 在几何中间态下会把按钮 display:none，而中间态一旦被
+   * 卡住（切换对话、换模型、React 重挂 functionRow 都可能），
+   * 按钮就永久消失 —— 用户看到的是「模型选择框不见了」。
+   * 所以：如果按钮明明在 DOM 里、输入行也在，但显示是 none，
+   * 就强行摘掉这个 none 并重排一次。这条兜底比任何精确的时序假设都可靠。
    */
   function startComposerLoop() {
     if (composerState.raf) return;
+    var hiddenFrames = 0;
     var tick = function () {
       composerState.raf = requestAnimationFrame(tick);
-      if (!document.getElementById(COMPOSER_ID)) {
+      var wrap = document.getElementById(COMPOSER_ID);
+      if (!wrap) {
         // 已卸载，停掉循环
         cancelAnimationFrame(composerState.raf);
         composerState.raf = 0;
@@ -3073,6 +3720,18 @@
       }
       placeComposer();
       repositionComposerMenu();
+
+      // 看门狗：连续几帧都是 none 就自救
+      if (wrap.style.display === 'none') {
+        hiddenFrames++;
+        if (hiddenFrames > 3) {
+          hiddenFrames = 0;
+          wrap.style.display = '';
+          placeComposer();
+        }
+      } else {
+        hiddenFrames = 0;
+      }
     };
     composerState.raf = requestAnimationFrame(tick);
   }
@@ -5481,11 +6140,57 @@
     return true;
   }
 
+  /* ------------------------------------------------------------------------
+   * 功能扩展层（localstore-features.js / .css）
+   *
+   * 5 个附加功能（消息索引轨道、置顶对话、长消息折叠、粘贴转 .txt、搜索对话）
+   * 全部放在独立文件里，由这里加载。为什么不在桥接层里直接写：
+   *   1. 桥接层已经 5800 行了，再加功能会难以维护；
+   *   2. 这些功能大量依赖应用的 hash 类名，属于「最容易随升级失效」的部分，
+   *      单独成文件后，升级时只需检查这一个文件里的常量区；
+   *   3. 它们和存档/上传主链路无关，独立加载失败也不能影响主功能 ——
+   *      所以这里全部包在 try/catch 里，失败只记日志。
+   *
+   * 用 <script> 动态插入而不是 import：这一层要保持 ES5、无构建步骤，
+   * 与其它 localstore-*.js 的形态一致（直接双击 index.html 也能跑）。
+   * ---------------------------------------------------------------------- */
+
+  var FEATURES_JS_ID = 'localstore-features-js';
+  var FEATURES_CSS_ID = 'localstore-features-css';
+
+  function installFeatures() {
+    try {
+      if (!document.getElementById(FEATURES_CSS_ID)) {
+        var css = document.createElement('link');
+        css.id = FEATURES_CSS_ID;
+        css.rel = 'stylesheet';
+        css.href = 'localstore-features.css?v=' + BRIDGE_VERSION;
+        css.onerror = function () {
+          warn('功能扩展样式加载失败（功能仍可用，只是没有样式）');
+        };
+        (document.head || document.documentElement).appendChild(css);
+      }
+      if (document.getElementById(FEATURES_JS_ID) || window.__lsFeatures) return;
+      var js = document.createElement('script');
+      js.id = FEATURES_JS_ID;
+      js.src = 'localstore-features.js?v=' + BRIDGE_VERSION;
+      js.async = false; // 保持执行顺序，别插到应用 bundle 后面去
+      js.onerror = function () {
+        warn('功能扩展脚本加载失败（5 个附加功能不可用，主功能不受影响）');
+      };
+      (document.head || document.documentElement).appendChild(js);
+      log('已加载功能扩展层');
+    } catch (e) {
+      warn('安装功能扩展失败：' + ((e && e.message) || e));
+    }
+  }
+
   async function boot() {
     seedApiBase();
     installStyles();
     installMotion();
     installBrand();
+    installFeatures();
     installIdbHook();
     installFetchHook();
     watchForSettings();
@@ -5494,6 +6199,9 @@
     watchGreeting();
     installComposerOutsideClick();
     watchDeepLink();
+    startFolderWatcher();
+    // 反向同步：盯着文件夹，外部新增/修改的对话自动收进来。
+    // 它自己会先取句柄再对齐，这里不 await，免得拖慢首屏。
 
     // 从文件夹恢复设置与 API Key（仅当浏览器里没有时才回填）
     try {
@@ -5577,6 +6285,17 @@
       /** 首次连接后自动读回对话（仅全新浏览器会真正执行） */
       autoRestoreAfterConnect: autoRestoreAfterConnect,
       maybeAutoRestoreHistory: maybeAutoRestoreHistory,
+      /** 反向同步（盯着文件夹收外部改动）—— 只读诊断 + 手动触发 */
+      folderWatch: {
+        state: watchState,
+        prime: primeFolderWatcher,
+        reconcile: reconcileFolderOnBoot,
+        poll: pollFolderForChanges,
+        start: startFolderWatcher,
+        stop: stopFolderWatcher,
+        /** 等「启动对齐 + 首轮排程」完成 */
+        ready: watchReady
+      },
       countLocalSessions: countLocalSessions,
       LS_HISTORY_SYNCED_AT: LS_HISTORY_SYNCED_AT,
       loadFromFolder: loadFromFolder,
@@ -5848,6 +6567,10 @@
         dirCache = handle;
         lsSet(LS_FOLDER, handle.name || 'test');
         emitSync();
+        // 测试替身注入后也要把监看装上并**等它就绪**，
+        // 否则测试会跟启动对齐对撞（断言跑在导入之前，看起来像功能没生效）
+        startFolderWatcher();
+        await watchReady();
       }
     };
 

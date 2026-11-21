@@ -19,10 +19,19 @@
 /* ---------------------------------------------------------------------------
  * 1. 侧栏左上角的标题：把「API 使用 demo」换成 logo.svg
  *
+ * ⚠ 这里用 **mask** 而不是 background-image，是为了和欢迎语那只鲸鱼**同色**。
+ *
+ * logo.svg 内部把填充色写死成 #4D6BFE（= blue-500），而欢迎语的鲸鱼是
+ * mask + background-color: var(--dsw-alias-brand-primary) 染出来的。
+ * 这个 token 在**暗色主题**下解析到 blue-450 = rgb(86,134,254)，
+ * 和写死的 #4D6BFE 不是同一个颜色 —— 实测两者并排就能看出 logo 偏亮偏冷。
+ * 改成 mask 之后两者走同一个变量，亮/暗主题各自都一致。
+ *
  * 尺寸说明：图片是 285 × 41.3594（比例约 6.95），`contain` 会按比例缩放，
  * 所以**只扩大盒子不会让图变大** —— 必须让「高度」也成为限制项。
  * 盒子给 156 × 33（恰好 1.5 倍）时，contain 取 min(156/285, 33/41.36)，
  * 即按高度缩放到 33 高、约 227 宽，是原 22 高的 1.5 倍。
+ * 实测渲染为 144 × 33。
  * ------------------------------------------------------------------------- */
 .ls-brand .appName-ac14ac {
   /* 文字藏起来但**不删**：保留节点，React 重渲染不会与我们抢 */
@@ -31,10 +40,16 @@
   color: transparent !important;
   width: 156px;
   height: 33px;
-  background-image: url('images/logo.svg');
-  background-repeat: no-repeat;
-  background-position: left center;
-  background-size: contain;
+  background-color: var(--dsw-alias-brand-primary, #4d6bfe);
+  background-image: none;
+  -webkit-mask-image: url('images/logo.svg');
+  mask-image: url('images/logo.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: left center;
+  mask-position: left center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 /* 万一图片没加载出来，至少让占位高度稳定，不塌成 0 */
@@ -54,9 +69,12 @@
 
 /* 2a. 欢迎语左边
  * greeting 是 display:flex; justify-content:center; align-items:center;
- * 所以 ::before 会作为一个 flex 项排在文字前面，用 gap 控制间距。 */
+ * 所以 ::before 会作为一个 flex 项排在文字前面，用 gap 控制间距。
+ * gap 从 12px 收到 8px：用户要求鲸鱼「距离欢迎语还要更加接近一点」。
+ * 另外整块欢迎语上移 24px（translateY，纯视觉位移，不影响布局与居中计算）。 */
 .ls-brand .greeting-_1f155 {
-  gap: 12px;
+  gap: 8px;
+  transform: translateY(-24px);
 }
 
 .ls-brand .greeting-_1f155::before {
@@ -78,63 +96,59 @@
   mask-size: contain;
 }
 
-/* 2b. 侧栏顶部的「收起边栏」按钮左边
- * .top-ac14ac 是 flex + space-between：标题 | 按钮。
- * 实测标题右边到按钮左边还有约 45px 空档，32px 的鲸鱼放得下。
- * 挂在按钮上（而不是 .top 上）是为了让「标题 | 按钮」的两栏关系不变，
- * 只在按钮自己内部往左伸出一点，space-between 的布局不受影响；
- * 按钮自身 overflow 是 visible，所以不会被裁掉。 */
-.ls-brand .top-ac14ac button[aria-label]::before {
-  content: '';
-  /* display 必须显式声明：伪元素默认是 inline，宽高会失效；
-     实测不写时计算值会落到 none（鲸鱼完全不出现）。 */
-  display: block;
-  position: absolute;
-  left: -44px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 22px;
-  pointer-events: none;
-  background-color: var(--dsw-alias-brand-primary, #4d6bfe);
-  -webkit-mask-image: url('images/whale.svg');
-  mask-image: url('images/whale.svg');
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-}
-
-/* ::before 的定位上下文：按钮本身必须是定位元素 */
+/* 2b. ★ 侧栏顶部**不放**鲸鱼。
+ *
+ * 曾经在这里放过一只（挂在「收起边栏」按钮左侧），用户反馈：
+ * 「现在侧边栏上面也有这个图标，是多余的」—— 因为侧栏左上角已经是
+ * 完整的 logo.svg（本身就含鲸鱼），再补一只就重复了。
+ * 鲸鱼只保留在「没有 logo 的地方」：欢迎语左边 + 收起后的按钮组。
+ *
+ * ⚠ 别再往这里加 whale。下面这条 `position: relative` 仍然需要，
+ * 因为折叠态按钮组也在用同一套定位约定。 */
 .ls-brand .top-ac14ac button[aria-label] {
   position: relative;
 }
 
-/* 2c. 折叠态那两个按钮（打开边栏 / 开启新对话）左边各一个鲸鱼
+/* 2c. ★ 收起后的按钮组：左边放 whale，两个按钮整体**右移**让出位置
  *
- * 按钮组 .collapsedGroup 实测只有 76px 宽（两个 34px 按钮 + 2px 内边距 + 2px 间隙），
- * 组内没有位置放图标，所以两个都挂在**各自的按钮**上、用绝对定位往左伸。
- * 按钮组在侧栏内是 position:absolute; left:16px，左边有足够余地。
+ * 用户要的布局（原话）：「放在侧边栏收起后的『打开边栏 / 开启新对话』
+ * 按钮左边，这意味着这两个按钮要被挤到右边去一点」。
+ *
+ * 实测收起态几何（未改动前）：
+ *   .collapsed-ac14ac  position:absolute; left:16px; 76×40（两个 34px 按钮 + 2px 间隙）
+ *   「打开边栏」在 19..53，「开启新对话」在 55..89
+ * 侧栏宽 261，所以右边还有 170px 空着，左边却只有 16px ——
+ * 鲸鱼根本没地方放。所以把整个按钮组右移到 left:44px，鲸鱼就落在
+ * 按钮左边那段留白里，视觉上是「图标 + 两个按钮」，整体仍在侧栏内。
  *
  * ⚠ 必须用 `[aria-label="…"]` 精确区分这两个按钮。
  * 一开始用 `:first-of-type` / `:last-of-type`，结果**两个都命中了 last-of-type**
  * （实测两个鲸鱼都变成 14×10），因为 `type` 数的是「标签名」而不是 class，
  * 而按钮外面还包着 `<span class="trigger-_94788">`，两个 button 并不是同类兄弟。
- * 这种坑不好推理，直接用 aria-label 最稳（官方 aria-label 就是「打开边栏」
- * 「开启新对话」，i18n 换语言时会变，所以再补一条按位置的兜底）。
+ * 官方 aria-label 就是「打开边栏」「开启新对话」，i18n 换语言时会变，
+ * 所以每条都补了英文 + 按位置的兜底。
  */
+
+/* ★ 把按钮组右移，给鲸鱼腾位置。
+   注意改的是 .collapsed-ac14ac 的 left，不是按钮的 margin ——
+   这样组内两个按钮的相对关系完全不动，只整体平移。 */
+.ls-brand .collapsed-ac14ac {
+  left: 44px;
+  overflow: visible;
+}
+
+/* 两个按钮公用的一套鲸鱼样式 */
 .ls-brand .collapsed-ac14ac button[aria-label]::before {
   content: '';
+  /* display 必须显式声明：伪元素默认是 inline，宽高会失效；
+     实测不写时计算值会落到 none（鲸鱼完全不出现）。 */
   display: block;
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  /* 默认尺寸：给「打开边栏」那种主入口用 */
-  width: 30px;
-  height: 21px;
-  left: -36px;
+  width: 24px;
+  height: 17px;
+  left: -30px;
   pointer-events: none;
   background-color: var(--dsw-alias-brand-primary, #4d6bfe);
   -webkit-mask-image: url('images/whale.svg');
@@ -151,28 +165,23 @@
   position: relative;
 }
 
-/* 「开启新对话」在右边：鲸鱼缩到 16×11 并贴到按钮左侧 24px 处，
-   免得和「打开边栏」那只撞上。
+/* 「开启新对话」（组里第二个，右移后在 83..117）：
+   鲸鱼放得小一点并贴在它左侧 26px 处，正好落在两个按钮之间的间隙里，
+   不会碰到「打开边栏」那只。
    位置兜底：它是组里第二个 button。 */
 .ls-brand .collapsed-ac14ac button[aria-label="开启新对话"]::before,
 .ls-brand .collapsed-ac14ac button[aria-label="New chat"]::before,
 .ls-brand .collapsed-ac14ac button[aria-label]:nth-of-type(2)::before {
-  left: -24px;
+  left: -26px;
   width: 16px;
   height: 11px;
 }
 
-/* 「打开边栏」是组里第一个按钮（在 19..53）：
-   鲸鱼放 -12px 处，落在 7..37 —— 完整在屏内，且与右边那只（39..55）不重叠。
-   ⚠ 不要往左伸到 -36px：那会让鲸鱼跑到 x=-17，直接出屏被裁掉一半。 */
+/* 「打开边栏」（组里第一个，右移后在 47..81）：
+   鲸鱼落在 17..41 —— 完整在屏内，与右边那只（57..73）不重叠。 */
 .ls-brand .collapsed-ac14ac button[aria-label="打开边栏"]::before,
 .ls-brand .collapsed-ac14ac button[aria-label="Open sidebar"]::before {
-  left: -12px;
-}
-
-/* 折叠态本来没有内容区，鲸鱼别被裁掉 */
-.ls-brand .collapsed-ac14ac {
-  overflow: visible;
+  left: -30px;
 }
 
 /* ---------------------------------------------------------------------------

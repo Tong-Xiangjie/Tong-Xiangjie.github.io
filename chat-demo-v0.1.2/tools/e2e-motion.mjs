@@ -189,7 +189,7 @@ console.log('\n[0b] 侧栏折叠/展开动画');
 // 替身收拢宽度，主区才会跟着 flex 逐帧重算。
 const collapseResult = JSON.parse(await ev(`
   (async () => {
-    const btn = document.querySelector('.top-ac14ac button[aria-label]');
+    const btn = document.querySelector('.top-ac14ac button[aria-label]:not(.ls-search-btn)');
     if (!btn) return JSON.stringify({ error: '找不到收起边栏按钮' });
 
     let ghostSpawns = 0, animFlips = [];
@@ -417,7 +417,7 @@ check('展开结束后清掉接管用的内联宽度/过渡',
 // 若真身还可见、替身又在同一位置，交界处就会闪。
 const handoff = JSON.parse(await ev(`
   (async () => {
-    const btn = document.querySelector('.top-ac14ac button[aria-label]');
+    const btn = document.querySelector('.top-ac14ac button[aria-label]:not(.ls-search-btn)');
     const sider = document.querySelector('.sider-ac14ac');
     const rectBefore = sider.getBoundingClientRect();
     btn.click();
@@ -797,7 +797,7 @@ const mirror = JSON.parse(await ev(`
         tx: m ? +parseFloat(m[1].split(',')[4]).toFixed(1) : null,
         op: cs ? +Number(cs.opacity).toFixed(3) : null };
     };
-    const btn = document.querySelector('.top-ac14ac button[aria-label]');
+    const btn = document.querySelector('.top-ac14ac button[aria-label]:not(.ls-search-btn)');
     if (!btn) return JSON.stringify({ error: '找不到收起按钮' });
     // 采样**完全在页面内**调度（不能每帧 await 一次 CDP evaluate，那样只有几帧）。
     // 窗口取 500ms 是刻意的：collapseSider 里兜底 remove() 在

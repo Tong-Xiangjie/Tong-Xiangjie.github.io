@@ -150,6 +150,15 @@ async function launch(label, initialBucket) {
 
   await ev(fsSetupScript(initialBucket));
   // 把假句柄装进桥接层（等价于用户点了「选择文件夹」并授权）
+  //
+  // ⚠ 这里先关掉**反向同步**（文件夹 → 应用的自动收编）。
+  // 本套件测的是**手动**路径：hydrateSettingsFromFolder / restoreFromFolder /
+  // snapshot。自动收编由 e2e-reverse-sync.mjs 专测。
+  // 不关的话后果不只是"多收了几条"：自动收编收完会 location.reload()，
+  // 页面一刷新注入的假文件夹就没了，后面的用例会以
+  // 「Cannot read properties of undefined (reading 'autoRestoreAfterConnect')」
+  // 这种完全看不出原因的方式挂掉。
+  await ev(`localStorage.setItem('chat-demo:local-watch', 'false')`);
   const bound = await ev(`
     (async () => {
       try {
@@ -350,8 +359,7 @@ const bHydratedRaw = await B.ev(`
 `);
 console.log('    raw: ' + String(bHydratedRaw).slice(0, 200));
 const bHydrated = String(bHydratedRaw).startsWith('ERR') ? { error: bHydratedRaw } : JSON.parse(bHydratedRaw);
-check('B 的自动恢复被触发（这是修好的关键点）', bHydrated.restored === true, JSON.stringify(bHydrated));
-check('B 恢复了语言偏好 en-US', bHydrated.locale === 'en-US', JSON.stringify(bHydrated));
+check('B 的自动恢复被触发（这是修好的关键点）', bHydrated.restored === true, JSON.stringify(bHydrated));check('B 恢复了语言偏好 en-US', bHydrated.locale === 'en-US', JSON.stringify(bHydrated));
 check('B 恢复了思考开关', bHydrated.thinking === 'true', JSON.stringify(bHydrated));
 check('B 写下了同步时间戳', !!bHydrated.syncedAt, JSON.stringify(bHydrated));
 

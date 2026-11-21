@@ -504,12 +504,20 @@ const brand = JSON.parse(await ev(`
     out.htmlClass = document.documentElement.className;
     out.cssLoaded = !!document.getElementById('localstore-brand-css');
 
-    // 侧栏标题：文字被收起（font-size:0），背景换成 logo.svg
+    // 侧栏标题：文字被收起（font-size:0），图形换成 logo.svg。
+    //
+    // 用 mask 而不是 background-image 上色，是为了让 logo 和鲸鱼共用
+    // --dsw-alias-brand-primary。logo.svg 里把填充色写死成 #4D6BFE（blue-500），
+    // 而深色主题的品牌色是 blue-450 rgb(86,134,254) —— 直接当背景图时
+    // 两个图标会明显不是一个颜色（这是用户实际报过的问题）。
+    // 所以两个都要能通过：mask 优先，background 作为旧写法兜底。
     const name = document.querySelector('.appName-ac14ac');
     if (name) {
       const c = getComputedStyle(name);
+      const pick = (v) => (v || '').split('/').pop().replace(/["')]+$/, '');
       out.logo = { fontSize: c.fontSize,
-        bg: c.backgroundImage.split('/').pop().replace(/["')]+$/, ''),
+        bg: pick(c.backgroundImage),
+        mask: pick(c.webkitMaskImage || c.maskImage),
         w: Math.round(name.getBoundingClientRect().width),
         h: Math.round(name.getBoundingClientRect().height) };
     }
@@ -552,23 +560,45 @@ check('品牌样式层已加载并挂上 .ls-brand', brand.cssLoaded && /(^|\s)l
   JSON.stringify({ css: brand.cssLoaded, cls: brand.htmlClass }));
 // 只断言「确实换成了 logo、文字确实收起、盒子有实际尺寸」，
 // **不要写死具体宽高** —— logo 是用户会自己替换的素材，尺寸随时会调。
-check('侧栏标题被换成 logo.svg（文字收起 + 背景图）',
-  brand.logo && brand.logo.fontSize === '0px' && brand.logo.bg === 'logo.svg' &&
+check('侧栏标题被换成 logo.svg（文字收起 + 用 mask 上色）',
+  brand.logo && brand.logo.fontSize === '0px' &&
+  (brand.logo.mask === 'logo.svg' || brand.logo.bg === 'logo.svg') &&
   brand.logo.h >= 20 && brand.logo.w >= 60,
   JSON.stringify(brand.logo));
 check('欢迎语左边有鲸鱼图标（且确实会渲染：display 不是 none）',
   brand.greetWhale && brand.greetWhale.display !== 'none' &&
   parseFloat(brand.greetWhale.w) > 0 && brand.greetWhale.mask === 'whale.svg',
   JSON.stringify(brand.greetWhale));
-check('收起按钮左边有鲸鱼图标（且确实会渲染）',
-  brand.btnWhale && brand.btnWhale.display !== 'none' &&
-  parseFloat(brand.btnWhale.w) > 0 && brand.btnWhale.mask === 'whale.svg',
+// 回归（用户反馈「现在侧边栏上面也有这个图标，是多余的」）：
+// 展开态侧栏顶部**不该**有鲸鱼 —— 左上角 logo.svg 本身就含鲸鱼，
+// 再补一只就是重复。这条断言防止以后又有人加回去。
+//
+// 判定用 mask-image：没有 ::before 规则时，伪元素的计算值仍然是
+// display:block / width:auto（content 默认 normal），所以**不能**看 display；
+// 真正的标志是 mask-image 为 none（也就是没有鲸鱼图形）。
+check('展开态侧栏顶部的收起按钮左边没有多余鲸鱼（logo 里已经有一只了）',
+  !brand.btnWhale || brand.btnWhale.mask === 'none' || brand.btnWhale.mask === '',
   JSON.stringify(brand.btnWhale));
 // 折叠态那两个按钮（打开边栏 / 开启新对话）各有一个鲸鱼，
 // 且都不能伸到屏外（left 为负说明被裁掉了）。实测踩过：-36px 会跑到 x=-17。
 // 先收起侧栏才能看到那组按钮。
-await ev(`(function(){ var b=document.querySelector('.top-ac14ac button[aria-label]'); if(b) b.click(); })()`);
+//
+// ⚠ 选择器必须排除我们自己注入的搜索按钮（.ls-search-btn）——
+// 它也在 .top-ac14ac 里、也有 aria-label，用 `button[aria-label]` 会先命中它，
+// 结果点的是搜索按钮，侧栏根本没收起，下面整组折叠态断言全崩。
+// 用官方的 aria-label 精确定位，并补一个 :not(.ls-search-btn) 兜底。
+await ev(`(function(){
+  var b = document.querySelector('.top-ac14ac button[aria-label="收起边栏"]')
+       || document.querySelector('.top-ac14ac button[aria-label="Collapse sidebar"]')
+       || document.querySelector('.top-ac14ac button[aria-label]:not(.ls-search-btn)');
+  if (b) b.click();
+})()`);
 await sleep(1400);
+// 折叠态：两个按钮各有一只鲸鱼在其**左侧**，且都完整在屏内。
+// 用户的布局要求是「鲸鱼在按钮左边，两个按钮被挤到右边去一点」，
+// 所以除了「有鲸鱼」，还要验证：
+//   · 鲸鱼确实在按钮左边（whaleRight <= 按钮 left）
+//   · 按钮组整体右移了（第一个按钮的 left 明显大于默认的 19）
 const colWhales2 = JSON.parse(await ev(`
   JSON.stringify((function(){
     const out = [];
@@ -578,7 +608,8 @@ const colWhales2 = JSON.parse(await ev(`
       const left = r.left + parseFloat(cs.left || 0);
       out.push({ aria: b.getAttribute('aria-label'), display: cs.display,
         w: parseFloat(cs.width), h: parseFloat(cs.height),
-        screenLeft: Math.round(left), screenRight: Math.round(left + (parseFloat(cs.width) || 0)),
+        btnLeft: Math.round(r.left), btnRight: Math.round(r.right),
+        whaleLeft: Math.round(left), whaleRight: Math.round(left + (parseFloat(cs.width) || 0)),
         mask: (cs.webkitMaskImage || cs.maskImage || '').split('/').pop().replace(/["')]+$/, '') });
     });
     return out;
@@ -587,8 +618,20 @@ const colWhales2 = JSON.parse(await ev(`
 check('折叠态两个按钮各有鲸鱼，且都完整在屏内（不被裁）',
   colWhales2.length === 2 &&
   colWhales2.every((w) => w.display !== 'none' && w.w > 0 && w.mask === 'whale.svg' &&
-    w.screenLeft >= 0 && w.screenRight <= 261),
+    w.whaleLeft >= 0 && w.whaleRight <= 261),
   JSON.stringify(colWhales2));
+check('折叠态的鲸鱼都在各自按钮的左边',
+  colWhales2.length === 2 && colWhales2.every((w) => w.whaleRight <= w.btnLeft),
+  JSON.stringify(colWhales2.map((w) => ({ aria: w.aria, 鲸鱼右: w.whaleRight, 按钮左: w.btnLeft }))));
+// 用户要求「这两个按钮要被挤到右边去一点」：默认 left 是 19，右移后应明显更大
+check('折叠态的按钮组为鲸鱼腾位而右移了',
+  colWhales2.length === 2 && colWhales2[0].btnLeft >= 40,
+  '第一个按钮 left = ' + (colWhales2[0] && colWhales2[0].btnLeft) + '（默认约 19）');
+// 两只鲸鱼不能互相重叠
+check('折叠态两只鲸鱼不重叠',
+  colWhales2.length === 2 && colWhales2[0].whaleRight <= colWhales2[1].whaleLeft,
+  JSON.stringify({ 左鲸鱼右: colWhales2[0] && colWhales2[0].whaleRight,
+    右鲸鱼左: colWhales2[1] && colWhales2[1].whaleLeft }));
 // 回归：直接改官方文本节点会被 React 写回（实测 7 秒内一次都没留住），
 // 所以必须是自己插入的节点承载文案 + 官方文字 font-size:0 收起。
 check('开屏标语用自定义节点承载，官方文字被收起',
