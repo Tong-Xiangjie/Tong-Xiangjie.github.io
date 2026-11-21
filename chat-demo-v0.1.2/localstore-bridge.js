@@ -2334,6 +2334,70 @@
     }
   }
 
+  /** 判断某个 base 是不是官方地址 */
+  function isOfficialBase(base) {
+    var b = String(base || '').trim().replace(/\/+$/, '').toLowerCase();
+    if (!b) return true;                                  // 空 = 应用会用官方默认
+    return b === String(OFFICIAL_PROVIDER.baseURL).toLowerCase();
+  }
+
+  /**
+   * 真正要用来判定协议的那个「生效地址」。
+   *
+   * ⚠ 这里踩过一个坑：应用**自己的设置页**也能填 API 地址，它直接把
+   * `chat-demo:api-base` 写进 localStorage，桥接层的提供方列表完全看不到
+   * 这次改动。于是出现下面这种情况：
+   *   · 用户在应用设置页把地址改成中转站 → 应用去请求
+   *     {中转站}/anthropic/v1/messages → 中转站 401「API Key 无效」；
+   *   · 桥接层还在拿官方提供方判定协议（anthropic）→ 适配层不接管。
+   *
+   * 所以协议判定必须以「应用真正会用的地址」为准，而不是以提供方列表为准。
+   * 优先看用户显式设置的 ':active'，再看 api-base，最后才回落到提供方。
+   */
+  function effectiveBaseForProtocol() {
+    var explicit = lsGet(LS_API_BASE + ':active');
+    if (explicit && explicit.trim()) return normalizeBase(explicit.trim());
+    var legacy = lsGet(LS_API_BASE);
+    if (legacy && legacy.trim()) return normalizeBase(legacy.trim());
+    var p = activeProvider();
+    if (p && p.baseURL) return normalizeBase(p.baseURL);
+    return OFFICIAL_PROVIDER.baseURL;
+  }
+
+  /**
+   * 判定"这次请求"该走哪套协议 —— 以生效地址为准。
+   *
+   * 规则（按优先级）：
+   *   1. 提供方显式选了 anthropic / openai，且它自己就是生效的那个 → 听用户的
+   *   2. 生效地址是官方地址 → anthropic（与官方 demo 行为一致）
+   *   3. 其余（生效地址是第三方）→ openai
+   *
+   * 第 3 条这么定是因为：社区中转站（paratera、one-api、new-api 等）
+   * 几乎清一色只提供 OpenAI 协议，先按 Anthropic 去撞必然 401。
+   * 真要接 Anthropic 协议的中转，用户可以在第 1 条里显式指定。
+   */
+  function resolveProtocolLive() {
+    var p = activeProvider();
+    var live = effectiveBaseForProtocol();
+
+    // 1) 显式指定，且这个提供方确实就是生效的那个
+    var field = String((p && p.protocol) || 'auto').toLowerCase();
+    if (field === 'anthropic' || field === 'openai') {
+      var pBase = normalizeBase((p && p.baseURL) || '');
+      // 官方提供方显式选了 openai 也要认 —— 那正是"绕开 32k 上限"的用法
+      if (pBase && pBase === live) return field;
+      // 提供方与生效地址对不上（用户在应用设置页直接改了地址）：
+      // 只有地址是官方时才服从它的显式设置，否则以生效地址为准
+      if (isOfficialBase(live)) return field === 'openai' ? 'anthropic' : field;
+    }
+
+    // 2) 官方地址 → Anthropic 兼容层
+    if (isOfficialBase(live)) return 'anthropic';
+
+    // 3) 第三方地址 → OpenAI
+    return 'openai';
+  }
+
   /**
    * 把一个提供方的 baseURL 归一化成 **OpenAI 端点的父地址**。
    *
@@ -2595,10 +2659,42 @@
 
     var prevBase = lsGet(LS_API_BASE) || '';
     var prevKey = lsGet(LS_APP_API_KEY) || '';
+    var prevActive = lsGet(LS_API_BASE + ':active') || '';
 
-    lsSet(LS_API_BASE, base === OFFICIAL_PROVIDER.baseURL ? null : base);
-    window.__CHAT_API_BASE__ = base;
-    lsSet(LS_API_BASE + ':active', base); // 仅用于界面展示「当前生效」
+    /**
+     * ★ 不要覆盖用户在「应用自带设置页」里填的地址 ★
+     *
+     * 踩过的坑（用户报「第三方 API Key 无效，官方能用」的真正原因）：
+     * 应用自己的设置弹窗也能填 API 地址，它直接把 `chat-demo:api-base`
+     * 写进 localStorage，桥接层的提供方列表**完全不知道**这件事。
+     * 而启动时 seedApiBase() → applyActiveProvider(false) 会拿
+     * 「当前激活的提供方」（此时还是官方 DeepSeek）的地址去写这个槽位，
+     * 于是：
+     *   1. 用户填的中转站地址被**清成空**（官方地址的语义是"未设置"）；
+     *   2. 应用于是回落到官方地址 api.deepseek.com；
+     *   3. 但 Key 还是用户填的中转站 Key → 官方判定 Key 无效；
+     *      或者地址被改回中转站却仍在用旧 Key → 中转站判定 Key 无效。
+     * 两边的报错都像是"Key 不对"，其实是**地址被悄悄改掉了**。
+     *
+     * 修法：只要当前激活的是官方提供方、而槽位里已有一个**非官方**地址，
+     * 就认为那是用户显式填的，保留它。只有用户真的切到别的提供方时，
+     * 才用提供方的地址覆盖。这样「提供方配置」与「应用设置页」两种用法
+     * 都能正常工作，互不覆盖。
+     */
+    var desiredBase;
+    if (base === OFFICIAL_PROVIDER.baseURL) {
+      // 激活的是官方提供方：槽位里已有的非官方地址是用户手填的，保留
+      var keep = normalizeBase(prevBase || prevActive);
+      desiredBase = (keep && keep !== OFFICIAL_PROVIDER.baseURL) ? keep : '';
+    } else {
+      desiredBase = base;
+    }
+
+    lsSet(LS_API_BASE, desiredBase || null);
+    // 生效地址：优先用户手填的那个，否则用提供方的
+    var effective = desiredBase || base;
+    window.__CHAT_API_BASE__ = effective;
+    lsSet(LS_API_BASE + ':active', effective); // 仅用于界面展示与协议判定
     lsSet(LS_ACTIVE_PROVIDER, st.activeId);
 
     if (key) lsSet(LS_APP_API_KEY, key);
@@ -2767,6 +2863,8 @@
     //
     // 顺序按协议定：OpenAI 兼容的提供方先试 /v1/models（Bearer），
     // 它们通常**没有** /anthropic/v1/models，先试那个只会白等一轮。
+    // 注意这里用 resolveProtocol(p) 而不是 resolveProtocolLive()：
+    // 拉模型是"针对这个提供方"的动作，用户在卡片上按的就是它的地址。
     var attempts;
     if (resolveProtocol(p) === 'openai') {
       attempts = [
@@ -3723,16 +3821,17 @@
     });
   }
 
-  /** 判断某个请求该不该走 OpenAI 翻译 */
+  /**
+   * 判断某个请求该不该走 OpenAI 翻译。
+   *
+   * 注意用的是 resolveProtocolLive（以应用真正会用的地址为准），
+   * 而不是只看桥接层的提供方 —— 用户在应用自带设置页改地址时，
+   * 提供方列表根本不知道这件事。
+   */
   function shouldUseOpenAIProtocol(url) {
     try {
-      var p = activeProvider();
-      if (!p) return false;
-      var proto = resolveProtocol(p);
-      if (proto !== 'openai') return false;
-      // 只翻译聊天端点；附件上传另有一套，先不碰
-      var base = String(p.baseURL || '');
-      var chat = openAIChatUrl(base);
+      if (resolveProtocolLive() !== 'openai') return false;
+      var chat = openAIChatUrl(effectiveBaseForProtocol());
       if (!chat) return false;
       // 应用请求的地址里必须含有它自己拼的 /anthropic/v1/messages
       return /\/messages(\?|$)/.test(String(url || ''));
@@ -3811,9 +3910,10 @@
         var pp = activeProvider();
         traceNet({
           kind: 'skip',
-          reason: !pp ? '没有生效的提供方' : ('协议=' + resolveProtocol(pp)),
+          reason: '协议=' + resolveProtocolLive(),
           provider: pp ? pp.name : null,
-          base: pp ? pp.baseURL : null,
+          providerBase: pp ? pp.baseURL : null,
+          effectiveBase: effectiveBaseForProtocol(),
           appUrl: String(rawUrl || '').slice(0, 120)
         });
         return null;
@@ -3838,8 +3938,14 @@
         return null;
       }
 
-      var url = openAIChatUrl(p.baseURL);
-      var key = (p && p.apiKey) || lsGet(LS_APP_API_KEY) || '';
+      // 地址与 Key 都以"生效地址"为准。用户在应用自带设置页改地址时，
+      // 提供方列表里的 baseURL/apiKey 都是过期的，照它发就会 401。
+      var liveBase = effectiveBaseForProtocol();
+      var url = openAIChatUrl(liveBase);
+      var key = lsGet(LS_APP_API_KEY) || (p && p.apiKey) || '';
+      var keyFrom = lsGet(LS_APP_API_KEY)
+        ? 'app api-key'
+        : ((p && p.apiKey) ? 'provider.apiKey' : '无');
 
       var headers = {
         'Content-Type': 'application/json',
@@ -3850,13 +3956,13 @@
       var entry = traceNet({
         kind: 'openai-request',
         provider: p && p.name,
-        base: p && p.baseURL,
+        base: liveBase,
         url: url,
         model: oa.model,
         modelBefore: model,
         messages: oa.messages.length,
         key: maskKey(key),
-        keyFrom: (p && p.apiKey) ? 'provider.apiKey' : (lsGet(LS_APP_API_KEY) ? 'app api-key' : '无'),
+        keyFrom: keyFrom,
         hasTools: !!oa.tools
       });
 
@@ -7542,11 +7648,16 @@
         var p = activeProvider();
         return {
           activeProvider: p ? p.name : null,
-          baseURL: p ? p.baseURL : null,
+          providerBase: p ? p.baseURL : null,
           protocolField: p ? (p.protocol || 'auto') : null,
           protocolResolved: p ? resolveProtocol(p) : null,
-          openAIChatUrl: p ? openAIChatUrl(p.baseURL) : null,
-          openAIModelsUrl: p ? openAIModelsUrl(p.baseURL) : null,
+          // 真正决定"这次请求走哪套协议"的两个值
+          effectiveBase: effectiveBaseForProtocol(),
+          protocolLive: resolveProtocolLive(),
+          openAIChatUrl: openAIChatUrl(effectiveBaseForProtocol()),
+          openAIModelsUrl: openAIModelsUrl(effectiveBaseForProtocol()),
+          appApiBase: lsGet(LS_API_BASE) || '(空)',
+          appApiBaseActive: lsGet(LS_API_BASE + ':active') || '(空)',
           keyFromProvider: p ? maskKey(p.apiKey) : null,
           keyFromApp: maskKey(lsGet(LS_APP_API_KEY) || ''),
           trace: netTrace.slice(-6)

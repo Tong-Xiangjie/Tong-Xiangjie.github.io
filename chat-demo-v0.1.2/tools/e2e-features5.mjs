@@ -568,8 +568,10 @@ try {
     JSON.stringify(paste));
   check('不自建任何 UI（DOM 里没有 ls-paste-* 节点）',
     paste.ownUiNodes === 0, JSON.stringify({ ownUiNodes: paste.ownUiNodes }));
-  check('默认标题是「粘贴的文本（N）.txt」',
-    /^粘贴的文本（\d+）\.txt$/.test(String((paste.cards || [])[0] || '').trim()),
+  // 命名规则（用户要求，与官方一致）：取首句/前几个字作为标题，
+  // 第一份不加编号，从第二份起才有「（N）」；官方同款行为。
+  check('标题取自首句（第一行前几个字）',
+    /^粘贴进来的第 1 行文字内容/.test(String((paste.cards || [])[0] || '').trim()),
     JSON.stringify(paste.cards));
   check('走的是应用自己的附件输入框（accept 含 .txt）',
     paste.uploadInputFound === true && paste.acceptHasTxt === true,
@@ -595,8 +597,11 @@ try {
       });
     })()
   `));
-  check('多段粘贴依次编号（第 2 段是「（2）」）',
-    (paste2.cards || []).some((c) => /（2）/.test(c)),
+  // 第二段的首句与第一段不同，标题自然不同；
+  // 同名前会有「（2）」编号，这里两段首句不同，所以不该带编号。
+  check('第二段标题取自它自己的首句（内容不同则标题不同）',
+    (paste2.cards || []).some((c) => /^第二段第一行的内容/.test(c.trim())) &&
+      !(paste2.cards || []).some((c) => /（2）/.test(c)),
     JSON.stringify(paste2));
 
   /* ---------------------------------------------------------------- */
