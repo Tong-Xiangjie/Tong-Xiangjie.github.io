@@ -3508,14 +3508,16 @@
     for (var i = 0; i < a.messages.length; i++) {
       var m = a.messages[i];
       if (!m) continue;
-      // 图片/文档在 OpenAI 协议里要换成 image_url / file，这一层先不硬翻
-      if (anthropicHasMedia(m.content)) return null;
+      // 图片/文档降级成文字占位，而不是直接放弃翻译。
+      // 直接 return null 会让请求回退到 Anthropic 端点，中转站必然报错；
+      // 降级只是少一张图，整条对话还能正常走。
+      var content = anthropicHasMedia(m.content) ? degradeMediaBlocks(m.content) : m.content;
       var role = m.role === 'assistant' ? 'assistant' : 'user';
       var text;
-      if (Array.isArray(m.content)) {
+      if (Array.isArray(content)) {
         var toolResults = [];
-        for (var j = 0; j < m.content.length; j++) {
-          var b = m.content[j];
+        for (var j = 0; j < content.length; j++) {
+          var b = content[j];
           if (b && b.type === 'tool_result') {
             toolResults.push({
               role: 'tool',
@@ -3524,7 +3526,7 @@
             });
           }
         }
-        text = anthropicContentToText(m.content);
+        text = anthropicContentToText(content);
         if (toolResults.length) {
           // tool 结果必须紧跟在 assistant 的 tool_calls 之后
           for (var k = 0; k < toolResults.length; k++) msgs.push(toolResults[k]);
@@ -3533,7 +3535,7 @@
           continue;
         }
       } else {
-        text = anthropicContentToText(m.content);
+        text = anthropicContentToText(content);
       }
       msgs.push({ role: role, content: text });
     }
@@ -3740,22 +3742,101 @@
   }
 
   /**
+   * 把一条 Anthropic 消息里的图片/文档降级成文字占位。
+   *
+   * OpenAI 协议也能表达图片（image_url + base64），但各家中转站的支持面
+   * 差别很大，硬翻很容易收到 400。而**收到 400 会导致整条消息发不出去**，
+   * 比"图片变成一行说明"糟糕得多。所以这里选择降级：
+   * 明确写出这里有张图/有个附件，让模型和用户都知道，但不去猜怎么传。
+   */
+  function degradeMediaBlocks(content) {
+    if (!Array.isArray(content)) return content;
+    var out = [];
+    for (var i = 0; i < content.length; i++) {
+      var b = content[i];
+      if (!b || typeof b !== 'object') { if (b) out.push(b); continue; }
+      if (b.type === 'image') {
+        out.push({ type: 'text', text: '［这里有一张图片，当前接口协议下未能一并发送］' });
+        continue;
+      }
+      if (b.type === 'document') {
+        out.push({ type: 'text', text: '［这里有一个附件，当前接口协议下未能一并发送］' });
+        continue;
+      }
+      out.push(b);
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------------------
+   * 网络诊断
+   *
+   * 中转站返回「API Key 无效或已被删除」时，光看界面分不清是
+   *   a) 适配层根本没接管（还是打 /anthropic/v1/messages）
+   *   b) 接管了但 header / 地址 / 模型名不对
+   *   c) 被某个 catch 回退成原请求了
+   * 所以把这些决定与真实请求都记下来，可在控制台查。
+   * ---------------------------------------------------------------------- */
+
+  var netTrace = [];
+  var NET_TRACE_MAX = 40;
+  /** 未经适配层包装的原始 fetch（由 installFetchHook 赋值） */
+  var originalFetch = null;
+
+  function traceNet(entry) {
+    try {
+      entry.at = Date.now();
+      netTrace.push(entry);
+      if (netTrace.length > NET_TRACE_MAX) netTrace.shift();
+    } catch (e) { /* ignore */ }
+    return entry;
+  }
+
+  /** 把 key 打码，日志里不能出现明文 */
+  function maskKey(k) {
+    var s = String(k || '');
+    if (!s) return '(空)';
+    if (s.length <= 10) return s.slice(0, 2) + '***';
+    return s.slice(0, 6) + '***' + s.slice(-4);
+  }
+
+  /**
    * 把一次 Anthropic 请求改写成 OpenAI 请求并发出，返回值已翻回 Anthropic SSE。
    * 返回 null 表示"这次不接管"（调用方应回退到原逻辑）。
    */
   function openAIAdapterFetch(original, input, init, rawUrl) {
     try {
-      if (!shouldUseOpenAIProtocol(rawUrl)) return null;
+      if (!shouldUseOpenAIProtocol(rawUrl)) {
+        // 记一笔"没接管"，这是排查中转站报错最需要的信息
+        var pp = activeProvider();
+        traceNet({
+          kind: 'skip',
+          reason: !pp ? '没有生效的提供方' : ('协议=' + resolveProtocol(pp)),
+          provider: pp ? pp.name : null,
+          base: pp ? pp.baseURL : null,
+          appUrl: String(rawUrl || '').slice(0, 120)
+        });
+        return null;
+      }
       var bodyText = init && init.body;
-      if (typeof bodyText !== 'string') return null;
+      if (typeof bodyText !== 'string') {
+        traceNet({ kind: 'skip', reason: 'body 不是字符串（拿不到请求体）' });
+        return null;
+      }
       var a;
-      try { a = JSON.parse(bodyText); } catch (e) { return null; }
+      try { a = JSON.parse(bodyText); } catch (e) {
+        traceNet({ kind: 'skip', reason: 'body 不是 JSON' });
+        return null;
+      }
 
       var p = activeProvider();
       var model = a.model || (p && p.defaultModel) || '';
       // 模型名要映射：demo 的 deepseek-flash ↔ 公开端点的 deepseek-chat
       var oa = toOpenAIBody(a, mapModelName(model));
-      if (!oa) return null;
+      if (!oa) {
+        traceNet({ kind: 'skip', reason: '请求体无法翻译（可能含图片/文档）', model: model });
+        return null;
+      }
 
       var url = openAIChatUrl(p.baseURL);
       var key = (p && p.apiKey) || lsGet(LS_APP_API_KEY) || '';
@@ -3766,6 +3847,19 @@
       };
       if (key) headers.Authorization = 'Bearer ' + key;
 
+      var entry = traceNet({
+        kind: 'openai-request',
+        provider: p && p.name,
+        base: p && p.baseURL,
+        url: url,
+        model: oa.model,
+        modelBefore: model,
+        messages: oa.messages.length,
+        key: maskKey(key),
+        keyFrom: (p && p.apiKey) ? 'provider.apiKey' : (lsGet(LS_APP_API_KEY) ? 'app api-key' : '无'),
+        hasTools: !!oa.tools
+      });
+
       log('OpenAI 协议适配：POST ' + url + '（model=' + oa.model + '，' +
         oa.messages.length + ' 条消息）');
 
@@ -3775,7 +3869,19 @@
         body: JSON.stringify(oa),
         signal: init && init.signal
       }).then(function (res) {
+        entry.status = res && res.status;
+        try {
+          entry.ct = res && res.headers && res.headers.get('Content-Type');
+        } catch (e) { /* ignore */ }
         if (!res || !res.ok) {
+          // 把上游的错误正文抓一份，这是判断"key 无效"来源的关键
+          try {
+            res.clone().text().then(function (txt) {
+              entry.errorBody = String(txt || '').slice(0, 600);
+            }, function () { /* ignore */ });
+          } catch (e) { /* ignore */ }
+          warn('OpenAI 上游返回 HTTP ' + (res && res.status) + '：' + url +
+            '（model=' + oa.model + '，key=' + maskKey(key) + '）');
           // 让应用的错误处理照旧：交回原始响应，它会解析出 message
           return res;
         }
@@ -3783,10 +3889,12 @@
         if (ct.indexOf('text/event-stream') === -1) {
           // 上游没用 SSE（有些中转站对 stream:true 也返回整体 JSON）：
           // 直接把整体 JSON 也翻一遍
+          entry.note = '上游非 SSE，走整体 JSON 兜底';
           return res.text().then(function (txt) {
             return openAIFullBodyToAnthropicResponse(txt, model, res.status);
           });
         }
+        entry.note = 'SSE 已接管并翻译';
         var mid = 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
         var translated = res.body.pipeThrough(createOpenAItoAnthropicStream(mid, model));
         return new Response(translated, {
@@ -3798,9 +3906,14 @@
             Connection: 'keep-alive'
           }
         });
+      }, function (err) {
+        entry.error = String((err && err.message) || err);
+        warn('OpenAI 适配请求失败：' + entry.error);
+        throw err;
       });
     } catch (e) {
       warn('OpenAI 适配失败，回退到原请求', e);
+      traceNet({ kind: 'error', reason: String((e && e.message) || e) });
       return null;
     }
   }
@@ -3872,6 +3985,9 @@
   function installFetchHook() {
     if (typeof window.fetch !== 'function' || window.fetch.__localstorePatched) return;
     var original = window.fetch.bind(window);
+    // 诊断用：selfTest 要发"不经过适配层"的原始请求，才能分清
+    // 是适配层翻译错了，还是中转站本身对这个请求就不认
+    originalFetch = original;
 
     var wrapped = function (input, init) {
       var method = String(
@@ -7416,7 +7532,92 @@
       // 模型的等价名字（列表里两个名字都出现时，上面显示其中一个）
       aliases: function () { return MODEL_ALIASES; },
       mapModel: mapModelName,
-      unmapModel: unmapModelName
+      unmapModel: unmapModelName,
+      // 网络诊断：看适配层到底有没有接管、打到了哪个地址、上游怎么回的
+      trace: function () { return netTrace.slice(); },
+      lastTrace: function () { return netTrace.length ? netTrace[netTrace.length - 1] : null; },
+      clearTrace: function () { netTrace.length = 0; return 'cleared'; },
+      // 一眼看清当前状态，排查中转站问题的第一步
+      diagnose: function () {
+        var p = activeProvider();
+        return {
+          activeProvider: p ? p.name : null,
+          baseURL: p ? p.baseURL : null,
+          protocolField: p ? (p.protocol || 'auto') : null,
+          protocolResolved: p ? resolveProtocol(p) : null,
+          openAIChatUrl: p ? openAIChatUrl(p.baseURL) : null,
+          openAIModelsUrl: p ? openAIModelsUrl(p.baseURL) : null,
+          keyFromProvider: p ? maskKey(p.apiKey) : null,
+          keyFromApp: maskKey(lsGet(LS_APP_API_KEY) || ''),
+          trace: netTrace.slice(-6)
+        };
+      },
+      /**
+       * 直接测一次中转站，把每一步的真实结果打出来。
+       * 在控制台跑：await __localstore.protocol.selfTest()
+       *
+       * 会依次试「地址归一化是否正确 / 不带 key / 带 key 拉模型 /
+       * 带 key 发一次最小对话」，这样能精确定位是地址、鉴权还是模型名的问题。
+       */
+      selfTest: async function (id) {
+        var p = id ? findProvider(id) : activeProvider();
+        if (!p) return { err: '没有生效的提供方' };
+        var key = p.apiKey || lsGet(LS_APP_API_KEY) || '';
+        var chatUrl = openAIChatUrl(p.baseURL);
+        var modelsUrl = openAIModelsUrl(p.baseURL);
+        var model = mapModelName(p.defaultModel || (p.models || [])[0] || 'deepseek-chat');
+        var out = {
+          provider: p.name,
+          baseURL: p.baseURL,
+          protocol: p.protocol || 'auto',
+          resolved: resolveProtocol(p),
+          keyUsed: maskKey(key),
+          keySource: p.apiKey ? 'provider.apiKey' : (lsGet(LS_APP_API_KEY) ? 'app api-key' : '无'),
+          chatUrl: chatUrl,
+          modelsUrl: modelsUrl,
+          model: model,
+          models: null,
+          chat: null
+        };
+        // 1) 拉模型列表
+        try {
+          var r1 = await originalFetch(modelsUrl, {
+            method: 'GET',
+            headers: key ? { Authorization: 'Bearer ' + key } : {}
+          });
+          var t1 = await r1.text();
+          out.models = {
+            status: r1.status,
+            ct: r1.headers.get('Content-Type'),
+            body: t1.slice(0, 400)
+          };
+        } catch (e) {
+          out.models = { error: String((e && e.message) || e) };
+        }
+        // 2) 发一条最小对话（非流式，好读）
+        try {
+          var chatHeaders = { 'Content-Type': 'application/json' };
+          if (key) chatHeaders.Authorization = 'Bearer ' + key;
+          var r2 = await originalFetch(chatUrl, {
+            method: 'POST',
+            headers: chatHeaders,
+            body: JSON.stringify({
+              model: model,
+              messages: [{ role: 'user', content: 'hi' }],
+              stream: false
+            })
+          });
+          var t2 = await r2.text();
+          out.chat = {
+            status: r2.status,
+            ct: r2.headers.get('Content-Type'),
+            body: t2.slice(0, 600)
+          };
+        } catch (e) {
+          out.chat = { error: String((e && e.message) || e) };
+        }
+        return out;
+      }
     },
       /** 模型相关 */
       currentModel: currentModel,
