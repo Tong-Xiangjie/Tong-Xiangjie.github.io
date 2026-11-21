@@ -2362,6 +2362,45 @@
     return c.replace(/\/chat\/completions$/i, '/models');
   }
 
+  /**
+   * 模型名映射。
+   *
+   * 官方 demo 的模型名是它自己那套（deepseek-flash / deepseek-v4-pro），
+   * 而公开的 OpenAI 兼容端点只认 deepseek-chat / deepseek-reasoner。
+   * 直接把 demo 的名字发过去会 400 model_not_found，所以这里做一层映射。
+   *
+   * 保留 deepseek- 开头且已在公开名单里的名字原样通过；
+   * 认不出来的名字也原样发（中转站常有自定义名字，不该乱改）。
+   */
+  var MODEL_ALIASES = {
+    'deepseek-flash': 'deepseek-chat',
+    'deepseek-v4-pro': 'deepseek-reasoner'
+  };
+
+  function mapModelName(name) {
+    var m = String(name || '').trim();
+    if (!m) return m;
+    return MODEL_ALIASES[m] || m;
+  }
+
+  /** 反向映射：接口返回的名字换回 demo 认识的名字（用于显示与选择） */
+  function unmapModelName(name) {
+    var m = String(name || '').trim();
+    for (var k in MODEL_ALIASES) {
+      if (MODEL_ALIASES[k] === m) return k;
+    }
+    return m;
+  }
+
+  /* ---- 附件上传端点（/anthropic/v1/files）在 OpenAI 协议下没有对应物 ---- */
+
+  /**
+   * 判断某个提供方是否走 OpenAI 协议（不依赖当前激活的是谁）。
+   */
+  function providerUsesOpenAI(p) {
+    return resolveProtocol(p) === 'openai';
+  }
+
   function uid(prefix) {
     return (
       (prefix || 'p') +
@@ -3714,7 +3753,8 @@
 
       var p = activeProvider();
       var model = a.model || (p && p.defaultModel) || '';
-      var oa = toOpenAIBody(a, model);
+      // 模型名要映射：demo 的 deepseek-flash ↔ 公开端点的 deepseek-chat
+      var oa = toOpenAIBody(a, mapModelName(model));
       if (!oa) return null;
 
       var url = openAIChatUrl(p.baseURL);
@@ -3958,6 +3998,10 @@
         sniffState.captured = captured;
 
         if (captured) {
+          // 走 OpenAI 协议时上游报的是 deepseek-chat/deepseek-reasoner，
+          // 而应用这一侧认的是 deepseek-flash/deepseek-v4-pro，映射回来
+          // 免得回答下面显示的名字和模型选择器对不上。
+          captured = unmapModelName(captured);
           pendingModel = captured;
           modelCache.latest = captured;
           log('捕获到服务端模型：' + captured);
@@ -7367,8 +7411,12 @@
       },
       // 手动翻译一次请求体，便于排查（不改任何状态）
       translate: function (anthropicBody, model) {
-        return toOpenAIBody(anthropicBody, model);
-      }
+        return toOpenAIBody(anthropicBody, mapModelName(model));
+      },
+      // 模型的等价名字（列表里两个名字都出现时，上面显示其中一个）
+      aliases: function () { return MODEL_ALIASES; },
+      mapModel: mapModelName,
+      unmapModel: unmapModelName
     },
       /** 模型相关 */
       currentModel: currentModel,
