@@ -12,7 +12,8 @@
  *   [2] 消息索引轨道：编号数 == 消息数、点击能定位、active 跟随滚动
  *   [3] 置顶：菜单多一条、点击后置顶项排到最前、徽标出现、取消后复原
  *   [4] 长消息折叠：超过 8 行才折叠、展开/收起切换、动画属性存在
- *   [5] 粘贴转 .txt：大文本被拦下、小文本不拦、「粘贴原文至输入框」回填
+ *   [5] 粘贴转 .txt：过大粘贴直接变成应用自己的 .txt 附件（不自建 UI）
+ *   [5b] 启动时侧栏还没渲染完，置顶不能丢（「置顶看不到」的回归）
  *   [6] 搜索：按标题、按正文、面板开合、高亮、点击跳转
  */
 import { spawn } from 'node:child_process';
@@ -524,7 +525,7 @@ try {
     await ev(`(function(){ const b=document.querySelector('.ls-clamp__body'); return /第 20 行/.test(b.textContent); })()`));
 
   /* ---------------------------------------------------------------- */
-  console.log('\n[5] 粘贴文本过大 → .txt');
+  console.log('\n[5] 粘贴文本过大 → 原生 .txt 附件');
 
   const paste = JSON.parse(await ev(`
     (async function(){
@@ -538,16 +539,17 @@ try {
       dt.setData('text/plain', big);
       const evt = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
       ta.dispatchEvent(evt);
-      await new Promise(r => setTimeout(r, 500));
-      const tray = document.querySelector('.ls-paste-tray');
+      await new Promise(r => setTimeout(r, 1500));
+      // 「自带 UI」的判定：DOM 里不该出现任何 ls-paste-* 节点
+      const inner = document.body.innerText || '';
       const out = {
         defaultPrevented: evt.defaultPrevented,
         textareaLen: ta.value.length,
-        tray: !!tray,
-        name: (document.querySelector('.ls-paste-row__name') || {}).textContent,
-        size: (document.querySelector('.ls-paste-row__size') || {}).textContent,
-        btn: (document.querySelector('.ls-paste-row__btn') || {}).textContent,
-        stored: F.readPastes().length,
+        ownUiNodes: document.querySelectorAll('[class*=ls-paste]').length,
+        cards: (inner.split(String.fromCharCode(10)) || []).filter(l => l.indexOf('.txt') >= 0).slice(0, 4),
+        uploadInputFound: !!F.findUploadInput(),
+        acceptHasTxt: ((F.findUploadInput() || {}).accept || '').indexOf('.txt') >= 0,
+        seq: localStorage.getItem('chat-demo:ls-paste-seq'),
         bigChars: big.length
       };
       // 小文本不该被拦
@@ -555,40 +557,257 @@ try {
       dt2.setData('text/plain', '就一行小文本');
       const e2 = new ClipboardEvent('paste', { clipboardData: dt2, bubbles: true, cancelable: true });
       ta.dispatchEvent(e2);
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 400));
       out.smallPrevented = e2.defaultPrevented;
-      out.rowsAfterSmall = document.querySelectorAll('.ls-paste-row').length;
+      out.smallLooksBig = F.looksBig('就一行小文本');
       return JSON.stringify(out);
     })()
   `));
   check('大段粘贴被拦下（不再灌进输入框）',
     paste.defaultPrevented === true && paste.textareaLen === 0 && paste.bigChars > 1200,
     JSON.stringify(paste));
-  check('自动生成 .txt 文件名（粘贴文本-N.txt）',
-    /^粘贴文本-\d+\.txt$/.test(String(paste.name)), String(paste.name));
-  check('反馈条上有「粘贴原文至输入框」按钮',
-    paste.btn === '粘贴原文至输入框', String(paste.btn));
-  check('显示字数与「已转成附件」', /已转成附件/.test(String(paste.size)) && /字/.test(String(paste.size)),
-    String(paste.size));
-  check('文本被存进本地存储', paste.stored === 1, JSON.stringify({ stored: paste.stored }));
-  check('小段粘贴不受影响（不拦、不增加行）',
-    paste.smallPrevented === false && paste.rowsAfterSmall === 1, JSON.stringify(paste));
+  check('不自建任何 UI（DOM 里没有 ls-paste-* 节点）',
+    paste.ownUiNodes === 0, JSON.stringify({ ownUiNodes: paste.ownUiNodes }));
+  check('默认标题是「粘贴的文本（N）.txt」',
+    /^粘贴的文本（\d+）\.txt$/.test(String((paste.cards || [])[0] || '').trim()),
+    JSON.stringify(paste.cards));
+  check('走的是应用自己的附件输入框（accept 含 .txt）',
+    paste.uploadInputFound === true && paste.acceptHasTxt === true,
+    JSON.stringify({ f: paste.uploadInputFound, a: paste.acceptHasTxt }));
+  check('序号写进 localStorage（刷新后不重名）', Number(paste.seq) >= 1, String(paste.seq));
+  check('小段粘贴不受影响（不拦、不判为大）',
+    paste.smallPrevented === false && paste.smallLooksBig === false, JSON.stringify(paste));
 
-  const back = JSON.parse(await ev(`
+  // 再粘一段：序号要递增
+  const paste2 = JSON.parse(await ev(`
     (async function(){
-      const btn = document.querySelector('.ls-paste-row__btn');
-      btn.click();
-      await new Promise(r => setTimeout(r, 600));
       const ta = document.querySelector('textarea');
-      const F = window.__lsFeatures;
-      return JSON.stringify({ len: ta.value.length, hasLine60: /第 60 行/.test(ta.value),
-        trayGone: !document.querySelector('.ls-paste-tray'), stored: F.readPastes().length });
+      ta.focus();
+      const big = Array.from({ length: 60 }, (_, i) => '第二段第一行的内容 ' + i + ' 补足字数').join('\\n');
+      const dt = new DataTransfer();
+      dt.setData('text/plain', big);
+      ta.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      await new Promise(r => setTimeout(r, 1500));
+      const inner = document.body.innerText || '';
+      return JSON.stringify({
+        cards: (inner.split(String.fromCharCode(10)) || []).filter(l => l.indexOf('.txt') >= 0),
+        seq: localStorage.getItem('chat-demo:ls-paste-seq')
+      });
     })()
   `));
-  check('点「粘贴原文至输入框」把原文写回输入框',
-    back.len > 800 && back.hasLine60 === true, JSON.stringify(back));
-  check('回填后反馈条消失、临时存储清空',
-    back.trayGone === true && back.stored === 0, JSON.stringify(back));
+  check('多段粘贴依次编号（第 2 段是「（2）」）',
+    (paste2.cards || []).some((c) => /（2）/.test(c)),
+    JSON.stringify(paste2));
+
+  /* ---------------------------------------------------------------- */
+  console.log('\n[5b] 启动时侧栏还是空的，置顶不能丢（回归）');
+
+  // 这条是用户报的「置顶对话看不到」的回归测试。
+  // 复现：置顶一个会话后，在侧栏还没渲染出来的时候让功能层跑一遍
+  // （真实触发是启动那几秒 / 反向同步后的 reload）。
+  // 旧写法在这种情况下会把整个 .ls-pin-section remove() 掉，之后永久消失。
+  const pinBoot = JSON.parse(await ev(`
+    (async function(){
+      const F = window.__lsFeatures;
+      const items = [].slice.call(document.querySelectorAll('.item-ff6fc9'));
+      const target = items.find(i => !i.classList.contains('ls-pin-clone'));
+      if (!target) return JSON.stringify({ err: 'no item' });
+      const title = target.querySelector('.title-ff6fc9').textContent.trim();
+      F.setPinned([title]);
+      await new Promise(r => setTimeout(r, 900));
+      return JSON.stringify({ title, pinned: F.readPins() });
+    })()
+  `));
+  check('先置顶一条对话', pinBoot.pinned && pinBoot.pinned.length === 1, JSON.stringify(pinBoot));
+
+  // 把侧栏项整个挪走，模拟"应用还没读完 IndexedDB"的那一瞬间。
+  // 注意置顶小节里的克隆也要清掉 —— 它也算 .item-ff6fc9，
+  // 只要还剩一个克隆，功能层就仍能"认到"这条置顶，模拟就不成立。
+  const emptied = JSON.parse(await ev(`
+    (function(){
+      const list = document.querySelector('.list-ac14ac');
+      if (!list) return JSON.stringify({ err: 'no list' });
+      window.__pinStash = document.createDocumentFragment();
+      window.__pinStashNodes = [].slice.call(list.children)
+        .filter(c => !c.classList.contains('ls-pin-section'));
+      window.__pinStashNodes.forEach(n => window.__pinStash.appendChild(n));
+      const body = document.querySelector('.ls-pin-body');
+      if (body) body.textContent = '';
+      return JSON.stringify({ moved: window.__pinStashNodes.length,
+        itemsNow: document.querySelectorAll('.item-ff6fc9').length,
+        sectionStillThere: !!document.querySelector('.ls-pin-section') });
+    })()
+  `));
+  check('把侧栏项暂时移走（模拟未渲染完）',
+    emptied.moved > 0 && emptied.itemsNow === 0, JSON.stringify(emptied));
+
+  // 空侧栏时跑一遍功能重放 —— 旧实现在这里会删掉置顶小节
+  const duringEmpty = JSON.parse(await ev(`
+    (async function(){
+      const F = window.__lsFeatures;
+      F.refreshPinOrder();
+      window.dispatchEvent(new Event('resize'));
+      await new Promise(r => setTimeout(r, 700));
+      return JSON.stringify({
+        sectionDuringEmpty: !!document.querySelector('.ls-pin-section'),
+        cloneDuringEmpty: document.querySelectorAll('.ls-pin-clone').length,
+        pending: !!(F.pendingPins && F.pendingPins.length)
+      });
+    })()
+  `));
+  check('侧栏为空时不去删置顶小节（关键回归点）',
+    duringEmpty.sectionDuringEmpty === true, JSON.stringify(duringEmpty));
+  check('侧栏为空时把过期的克隆清掉（不留幽灵行）',
+    duringEmpty.cloneDuringEmpty === 0, JSON.stringify(duringEmpty));
+  check('记下了「还在等哪些置顶」（便于诊断）',
+    duringEmpty.pending === true, JSON.stringify(duringEmpty));
+
+  // 放回去，重试轮询应该把置顶重新显示出来
+  const restored = JSON.parse(await ev(`
+    (async function(){
+      const list = document.querySelector('.list-ac14ac');
+      const frag = window.__pinStash;
+      while (frag.firstChild) list.appendChild(frag.firstChild);
+      await new Promise(r => setTimeout(r, 2500));
+      const sec = document.querySelector('.ls-pin-section');
+      const clone = document.querySelector('.ls-pin-clone');
+      return JSON.stringify({
+        hasSection: !!sec,
+        firstChildIsPin: !!(list && list.firstElementChild === sec),
+        cloneTitle: clone ? clone.querySelector('.title-ff6fc9').textContent.trim() : null,
+        hiddenReal: document.querySelectorAll('.item-ff6fc9.ls-pin-hidden').length,
+        cloneHasAction: clone ? !!clone.querySelector('.action-ff6fc9') : null
+      });
+    })()
+  `));
+  check('侧栏回来后置顶自动重新出现（重试轮询生效）',
+    restored.hasSection === true && restored.cloneTitle === pinBoot.title,
+    JSON.stringify(restored));
+  check('置顶小节仍在最前面', restored.firstChildIsPin === true, JSON.stringify(restored));
+  check('置顶行里保留「...」按钮（否则没法取消置顶）',
+    restored.cloneHasAction === true, JSON.stringify(restored));
+
+  // 从「置顶」这一行点「...」→ 菜单里应该有「取消置顶」，点了要能取消。
+  // 这是用户明确指出的：置顶行没有「...」就没法取消置顶。
+  //
+  // ⚠ 必须用**真指针事件**（Input.dispatchMouseEvent）。
+  //   应用的菜单按钮监听的是真实的点击事件链，`el.click()` 是合成点击，
+  //   实测弹不出菜单（真身、克隆都一样）。所以这里走 CDP 真指针。
+  const cloneBtnBox = JSON.parse(await ev(`
+    (function(){
+      const clone = document.querySelector('.ls-pin-clone');
+      if (!clone) return JSON.stringify({ err: 'no clone' });
+      const b = clone.querySelector('.action-ff6fc9 button');
+      if (!b) return JSON.stringify({ err: 'no action button' });
+      const r = b.getBoundingClientRect();
+      return JSON.stringify({ hasBtn: true, w: Math.round(r.width),
+        x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) });
+    })()
+  `));
+  check('置顶行里有可用的「...」按钮', cloneBtnBox.hasBtn === true && cloneBtnBox.w > 0,
+    JSON.stringify(cloneBtnBox));
+
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cloneBtnBox.x, y: cloneBtnBox.y, buttons: 0 });
+  await sleep(250);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cloneBtnBox.x, y: cloneBtnBox.y, button: 'left', buttons: 1, clickCount: 1 });
+  await sleep(70);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cloneBtnBox.x, y: cloneBtnBox.y, button: 'left', buttons: 0, clickCount: 1 });
+  await sleep(1200);
+
+  const unpinFromClone = JSON.parse(await ev(`
+    (function(){
+      // 菜单的 class 是 menu-_5f384（不是 b81146，那是另一个组件的）
+      const menus = [].slice.call(document.querySelectorAll('.menu-_5f384'));
+      const clone = document.querySelector('.ls-pin-clone');
+      const btn = clone && clone.querySelector('.action-ff6fc9 button');
+      const br = btn ? btn.getBoundingClientRect() : null;
+      const out = { menus: menus.length };
+      if (br) out.cloneBtn = [Math.round(br.x), Math.round(br.y), Math.round(br.width), Math.round(br.height)];
+      if (menus.length) {
+        const mr = menus[0].getBoundingClientRect();
+        out.menuRect = [Math.round(mr.x), Math.round(mr.y), Math.round(mr.width), Math.round(mr.height)];
+        // 菜单左边缘应该贴着按钮左边缘（align:start）
+        out.dxToButtonLeft = Math.round(mr.x - br.left);
+        // 菜单应该在按钮下方（dy 为正且不太远）
+        out.dyFromButtonTop = Math.round(mr.top - br.top);
+        out.options = [].slice.call(menus[0].querySelectorAll('[role=menuitem]'))
+          .map(o => o.textContent.trim());
+        out.firstOption = out.options[0];
+        const pinOpt = menus[0].querySelector('.ls-pin-option');
+        out.hasPinOption = !!pinOpt;
+        if (pinOpt) {
+          pinOpt.click();
+          out.pinsAfter = JSON.parse(localStorage.getItem('chat-demo:ls-pinned') || '[]');
+        }
+      }
+      return JSON.stringify(out);
+    })()
+  `));
+  check('置顶行点「...」能弹出应用菜单', unpinFromClone.menus === 1, JSON.stringify(unpinFromClone));
+  check('菜单第一项是「取消置顶」',
+    unpinFromClone.firstOption === '取消置顶', JSON.stringify(unpinFromClone.options));
+  // 位置：用户报的是「不是点不开，是位置不对」——菜单跑到屏幕左上角。
+  // 所以这里必须断言它贴着那个按钮，而不是 (8,4) 那种角落。
+  check('菜单出现在置顶行的「...」旁边（不再跑到左上角）',
+    typeof unpinFromClone.dxToButtonLeft === 'number' &&
+    Math.abs(unpinFromClone.dxToButtonLeft) <= 24 &&
+    unpinFromClone.dyFromButtonTop > 0 && unpinFromClone.dyFromButtonTop < 80,
+    JSON.stringify({ dx: unpinFromClone.dxToButtonLeft, dy: unpinFromClone.dyFromButtonTop,
+      cloneBtn: unpinFromClone.cloneBtn, menuRect: unpinFromClone.menuRect }));
+
+  await sleep(900);
+  const afterUnpin = JSON.parse(await ev(`JSON.stringify({
+    sectionGone: !document.querySelector('.ls-pin-section'),
+    pins: JSON.parse(localStorage.getItem('chat-demo:ls-pinned') || '[]')
+  })`));
+  check('从置顶行取消置顶后分节消失、置顶清空',
+    afterUnpin.sectionGone === true && afterUnpin.pins.length === 0,
+    JSON.stringify(afterUnpin));
+
+  // 切换对话时，置顶行不能被删掉重建（用户报「点别的对话，置顶那个也在跳」）
+  const rePin = JSON.parse(await ev(`
+    (async function(){
+      const F = window.__lsFeatures;
+      const items = [].slice.call(document.querySelectorAll('.item-ff6fc9'));
+      const target = items.find(i => !i.classList.contains('ls-pin-clone'));
+      if (!target) return JSON.stringify({ err: 'no item' });
+      F.setPinned([target.querySelector('.title-ff6fc9').textContent.trim()]);
+      await new Promise(r => setTimeout(r, 900));
+      const clone = document.querySelector('.ls-pin-clone');
+      if (!clone) return JSON.stringify({ err: 'no clone after repin' });
+      // 记住这个节点本体，切换对话后核对还是同一个
+      window.__cloneRef = clone;
+      return JSON.stringify({ ok: true, title: clone.dataset.lsPinTitle });
+    })()
+  `));
+  check('重新置顶一条以做「切换对话不重建」验证', rePin.ok === true, JSON.stringify(rePin));
+
+  const otherTitle = await ev(`
+    (function(){
+      const items = [].slice.call(document.querySelectorAll('.item-ff6fc9'))
+        .filter(i => !i.classList.contains('ls-pin-clone') && !i.classList.contains('ls-pin-hidden'));
+      const other = items.find(i => i.querySelector('.title-ff6fc9').textContent.trim() !== ${JSON.stringify(rePin.title)});
+      return other ? other.querySelector('.title-ff6fc9').textContent.trim() : '';
+    })()
+  `);
+  if (otherTitle) {
+    await ev(`
+      (function(){
+        const items = [].slice.call(document.querySelectorAll('.item-ff6fc9'));
+        const other = items.find(i => !i.classList.contains('ls-pin-clone') &&
+          i.querySelector('.title-ff6fc9').textContent.trim() === ${JSON.stringify(otherTitle)});
+        if (other) other.click();
+      })()
+    `);
+    await sleep(3000);
+  }
+  const sameNode = JSON.parse(await ev(`JSON.stringify({
+    stillSameNode: window.__cloneRef === document.querySelector('.ls-pin-clone'),
+    cloneCount: document.querySelectorAll('.ls-pin-clone').length,
+    exists: !!document.querySelector('.ls-pin-clone')
+  })`));
+  check('切换对话后置顶行还是同一个节点（没有删掉重建 = 不会跳）',
+    sameNode.stillSameNode === true && sameNode.cloneCount === 1, JSON.stringify(sameNode));
 
   /* ---------------------------------------------------------------- */
   console.log('\n[6] 关键词搜索对话');

@@ -594,11 +594,15 @@ await ev(`(function(){
   if (b) b.click();
 })()`);
 await sleep(1400);
-// 折叠态：两个按钮各有一只鲸鱼在其**左侧**，且都完整在屏内。
-// 用户的布局要求是「鲸鱼在按钮左边，两个按钮被挤到右边去一点」，
-// 所以除了「有鲸鱼」，还要验证：
-//   · 鲸鱼确实在按钮左边（whaleRight <= 按钮 left）
-//   · 按钮组整体右移了（第一个按钮的 left 明显大于默认的 19）
+// 折叠态只剩下「打开边栏」这一个按钮有鲸鱼。
+//
+// ⚠ 这里原本断言「两个按钮各有鲸鱼」，那是**旧的**设计。用户后来明确说：
+//   「『打开边栏』按钮上面有一个小 whale，是多余的，要删掉」
+// 于是「开启新对话」旁边那只被删了，同时按钮组也不再为第二只鲸鱼腾位
+// （left 从 44px 收回到 16px）。断言跟着改成现在的样子：
+//   · 「打开边栏」左侧有一只鲸鱼，完整在屏内（left 不是负的）
+//   · 「开启新对话」的 ::before 必须**没有**鲸鱼（content:none / display:none）
+//   · 按钮组贴左边，不再有 40px 那种为鲸鱼留的空白
 const colWhales2 = JSON.parse(await ev(`
   JSON.stringify((function(){
     const out = [];
@@ -606,7 +610,7 @@ const colWhales2 = JSON.parse(await ev(`
       const cs = getComputedStyle(b, '::before');
       const r = b.getBoundingClientRect();
       const left = r.left + parseFloat(cs.left || 0);
-      out.push({ aria: b.getAttribute('aria-label'), display: cs.display,
+      out.push({ aria: b.getAttribute('aria-label'), display: cs.display, content: cs.content,
         w: parseFloat(cs.width), h: parseFloat(cs.height),
         btnLeft: Math.round(r.left), btnRight: Math.round(r.right),
         whaleLeft: Math.round(left), whaleRight: Math.round(left + (parseFloat(cs.width) || 0)),
@@ -615,23 +619,28 @@ const colWhales2 = JSON.parse(await ev(`
     return out;
   })())
 `));
-check('折叠态两个按钮各有鲸鱼，且都完整在屏内（不被裁）',
-  colWhales2.length === 2 &&
-  colWhales2.every((w) => w.display !== 'none' && w.w > 0 && w.mask === 'whale.svg' &&
-    w.whaleLeft >= 0 && w.whaleRight <= 261),
-  JSON.stringify(colWhales2));
-check('折叠态的鲸鱼都在各自按钮的左边',
-  colWhales2.length === 2 && colWhales2.every((w) => w.whaleRight <= w.btnLeft),
-  JSON.stringify(colWhales2.map((w) => ({ aria: w.aria, 鲸鱼右: w.whaleRight, 按钮左: w.btnLeft }))));
-// 用户要求「这两个按钮要被挤到右边去一点」：默认 left 是 19，右移后应明显更大
-check('折叠态的按钮组为鲸鱼腾位而右移了',
-  colWhales2.length === 2 && colWhales2[0].btnLeft >= 40,
-  '第一个按钮 left = ' + (colWhales2[0] && colWhales2[0].btnLeft) + '（默认约 19）');
-// 两只鲸鱼不能互相重叠
-check('折叠态两只鲸鱼不重叠',
-  colWhales2.length === 2 && colWhales2[0].whaleRight <= colWhales2[1].whaleLeft,
-  JSON.stringify({ 左鲸鱼右: colWhales2[0] && colWhales2[0].whaleRight,
-    右鲸鱼左: colWhales2[1] && colWhales2[1].whaleLeft }));
+const whaleBtn = colWhales2.find((w) => w.aria === '打开边栏' || w.aria === 'Open sidebar');
+const otherBtn = colWhales2.find((w) => w !== whaleBtn);
+check('折叠态「打开边栏」左边有一只鲸鱼，且完整在屏内（不被裁）',
+  !!whaleBtn && whaleBtn.display !== 'none' && whaleBtn.w > 0 && whaleBtn.mask === 'whale.svg' &&
+  whaleBtn.whaleLeft >= 0 && whaleBtn.whaleRight <= 261,
+  JSON.stringify(whaleBtn));
+check('折叠态的鲸鱼在按钮左边',
+  !!whaleBtn && whaleBtn.whaleRight <= whaleBtn.btnLeft,
+  JSON.stringify(whaleBtn && { aria: whaleBtn.aria, 鲸鱼右: whaleBtn.whaleRight, 按钮左: whaleBtn.btnLeft }));
+check('折叠态「开启新对话」旁边不再有多余鲸鱼（用户要求删掉）',
+  !!otherBtn && (otherBtn.display === 'none' || otherBtn.content === 'none' || otherBtn.w === 0 ||
+    otherBtn.mask !== 'whale.svg'),
+  JSON.stringify(otherBtn));
+check('折叠态按钮组不再为第二只鲸鱼腾位（左移回官方站位）',
+  !!whaleBtn && whaleBtn.btnLeft <= 40,
+  '「打开边栏」left = ' + (whaleBtn && whaleBtn.btnLeft) + '（旧设计为 44）');
+// 那只鲸鱼不能伸到侧栏外面 —— 它是靠绝对定位挂在按钮左边的，
+// 按钮离左边缘只要不够 30px 就会被裁掉半只。这条比单独量按钮位置有意义。
+check('被保留的那只鲸鱼完整落在侧栏可视区内（没被左边缘裁掉）',
+  !!whaleBtn && whaleBtn.whaleLeft >= 0,
+  JSON.stringify(whaleBtn && { 鲸鱼左: whaleBtn.whaleLeft, 鲸鱼右: whaleBtn.whaleRight,
+    按钮左: whaleBtn.btnLeft }));
 // 回归：直接改官方文本节点会被 React 写回（实测 7 秒内一次都没留住），
 // 所以必须是自己插入的节点承载文案 + 官方文字 font-size:0 收起。
 check('开屏标语用自定义节点承载，官方文字被收起',

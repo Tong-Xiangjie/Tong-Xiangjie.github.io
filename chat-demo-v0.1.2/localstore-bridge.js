@@ -3489,11 +3489,14 @@
     var observer = new MutationObserver(function (records) {
       scheduleBadge();
       scheduleComposer();
+      // React 会把 i18n 原文写回侧栏标题，跟着这个观察器一起纠回来
+      scheduleAppName();
       // 界面里真的多出/少了消息时，立刻落盘，不必等官方写 IndexedDB
       if (recordsLookLikeChat(records)) scheduleAutoSync('messages');
     });
     observer.observe(document.body, { childList: true, subtree: true });
     scheduleComposer();
+    scheduleAppName();
   }
 
   /**
@@ -5786,6 +5789,58 @@
   /** 承载随机文案的类：CSS 里用它隐藏官方文本 */
   var GREETING_CLASS = 'ls-greeting-random';
 
+  /* ------------------------------------------------------------------------
+   * 侧栏左上角的「API 使用 demo」：从 DOM 与无障碍树里抹掉
+   *
+   * appName-ac14ac 是应用 i18n 里的 `appName`（zh: "API 使用 demo"、
+   * en: "API usage demo"）。brand.css 用 font-size:0 + mask 把它换成 logo.svg，
+   * **视觉上是干净的**，但文字节点还在：
+   *   · document.body.innerText 里能读到；
+   *   · 无障碍树里是一个可读名字（实测命中 2 个节点）；
+   *   · 浏览器「页内查找」能搜到；
+   *   · 图片没加载出来时会短暂露出原文。
+   * 用户的原话是「初始化的时候似乎还有『API使用demo』这句话，你是不是没删干净」——
+   * 所以这里把文本真正换掉，而不是只靠 CSS 藏。
+   *
+   * 为什么用 MutationObserver 反复写、而不是改一次：React 重渲染会把它写回原文
+   * （和开屏标语是同一个坑，见上面的注释）。
+   * logo 是纯 CSS 画的（mask + background-color），文案是什么都不影响外观，
+   * 所以换成品牌名是安全的。
+   * ---------------------------------------------------------------------- */
+  var APP_NAME_SEL = '.appName-ac14ac';
+  var APP_NAME_TARGET = 'DeepSeek';
+  var appNameBusy = false;
+
+  function applyAppName() {
+    var el = document.querySelector(APP_NAME_SEL);
+    if (!el) return false;
+    var txt = (el.textContent || '').trim();
+    // 已经是我们的文案就什么都不做；否则（官方原文 / React 又写回来了）重写。
+    // 用「是不是目标文案」判断而不是「是不是旧文案」，这样多语言、
+    // 官方以后改文案、React hydration 覆盖等情况下都能自愈。
+    if (txt === APP_NAME_TARGET) return true;
+    el.setAttribute('data-ls-appname', '1');
+    el.textContent = APP_NAME_TARGET;
+    return true;
+  }
+
+  /**
+   * 节流调用：复用 watchMessages 那个已经在跑的全库 MutationObserver，
+   * 不再单独挂一个 —— 每个 MutationObserver 都会在每次 DOM 变动时被唤醒，
+   * 而聊天流式输出时变动是每帧都有的，多挂一个就是白白多一遍全树 querySelector。
+   * 用 requestAnimationFrame 合并同一帧内的多次触发。
+   */
+  function scheduleAppName() {
+    if (appNameBusy) return;
+    appNameBusy = true;
+    var run = function () {
+      appNameBusy = false;
+      try { applyAppName(); } catch (e) { /* ignore */ }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+    else setTimeout(run, 16);
+  }
+
   /**
    * 随机池：**照抄用户逐字给出的候选**，不再拼接。
    *
@@ -6305,6 +6360,8 @@
       renderMarkdown: renderMarkdown,
       linearMessages: linearMessages,
       sessionToMirror: sessionToMirror,
+      /** 同步刷新 React 更新（置顶行转发菜单时要用，见 findFlushSync 注释） */
+      syncFlush: syncFlush,
       /** 模型相关 */
       currentModel: currentModel,
       onModel: onModel,
@@ -6575,6 +6632,84 @@
     };
 
     log('v' + BRIDGE_VERSION + ' 已加载（文件夹写入' + (supportsFs ? '可用' : '不可用') + '）');
+  }
+
+  /* ------------------------------------------------------------------------
+   * 从 React 内部拿到 flushSync
+   *
+   * 为什么需要它：置顶小节里的行是**克隆**（没有 React fiber），所以它上面的
+   * 「...」按钮点了没反应；我们只能把点击转发给真身那个按钮。
+   * 但真身被 display:none 藏着，它量出来的矩形是 0×0，应用的浮层会把菜单
+   * 摆到屏幕左上角（用户原话：「不是点不开，是位置不对」）。
+   *
+   * 办法是在点击前后**临时**把真身的 getBoundingClientRect 换成克隆按钮的矩形。
+   * 难点在于 React 18 会把事件里的更新批处理，等事件处理结束才提交 ——
+   * 那时我们已经把矩形还原了，应用量到的还是 0×0。
+   *
+   * 所以要用 flushSync 让这次点击的更新**同步**提交完。
+   *
+   * ReactDOM 没有暴露在 window 上（是 webpack 模块内部的），但每个 React
+   * 根容器上都挂着 __reactContainer$xxx，顺着 fiber 能走到 root，
+   * 从 root.stateNode 里可以取到 ReactDOM 的导出对象，里面有 flushSync。
+   * 这条路要走通需要 DevTools 钩子或 production 下的真实 fiber ——
+   * 拿不到就返回 null，功能层会退化成"菜单可能落在左上角"，不会崩。
+   *
+   * ⚠ 这是依赖 React 内部结构的做法。React 大版本升级可能失效，
+   *   所以：整段包在 try/catch 里、拿不到就返回 null、
+   *   调用方必须有退路。绝不能因为这条路断了就让"取消置顶"不可用。
+   * ---------------------------------------------------------------------- */
+  function findFlushSync() {
+    try {
+      if (typeof window.flushSync === 'function') return window.flushSync;
+      // 找一个挂了 React 根容器的元素
+      var nodes = document.querySelectorAll('body *');
+      var rootKey = null;
+      for (var i = 0; i < nodes.length && !rootKey; i++) {
+        var ks = Object.keys(nodes[i]);
+        for (var j = 0; j < ks.length; j++) {
+          if (ks[j].indexOf('__reactContainer$') === 0) { rootKey = ks[j]; break; }
+        }
+      }
+      if (!rootKey) return null;
+      // 从任意一个 fiber 往上走到 root
+      var fiberKey = null;
+      var all = document.querySelectorAll('#root, #app, body > div, body > div *');
+      for (var a = 0; a < all.length && !fiberKey; a++) {
+        var ak = Object.keys(all[a]);
+        for (var b = 0; b < ak.length; b++) {
+          if (ak[b].indexOf('__reactFiber$') === 0) { fiberKey = ak[b]; break; }
+        }
+      }
+      if (!fiberKey) return null;
+      var fiberEl = null;
+      for (var c = 0; c < all.length; c++) { if (all[c][fiberKey]) { fiberEl = all[c]; break; } }
+      if (!fiberEl) return null;
+      var f = fiberEl[fiberKey];
+      var guard = 0;
+      while (f && f.return && guard < 500) { f = f.return; guard += 1; }
+      if (!f || !f.stateNode) return null;
+      var exportsObj = f.stateNode.current || f.stateNode;
+      if (typeof exportsObj.flushSync === 'function') return exportsObj.flushSync;
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var flushSyncFn = null;
+  /** 功能层用的同步刷新；拿不到返回 false，调用方自己兜底 */
+  function syncFlush(fn) {
+    if (!flushSyncFn) flushSyncFn = findFlushSync();
+    if (!flushSyncFn) return false;
+    try {
+      flushSyncFn(fn);
+      return true;
+    } catch (e) {
+      // flushSync 在某些时机（比如已经在渲染中）会抛错：退化成普通调用
+      warn('flushSync 调用失败，改为普通调用', e);
+      try { fn(); } catch (e2) { /* ignore */ }
+      return false;
+    }
   }
 
   if (document.readyState === 'loading') {

@@ -286,6 +286,27 @@ body.dark .ls-tip {
 }
 
 /* -------------------------------------------------------------------- *
+ * 置顶行里的「...」按钮要能露出来
+ *
+ * 应用的规则是（实测自 static/css）：
+ *     :is(.item-ff6fc9:hover, .item-ff6fc9.active-ff6fc9) .action-ff6fc9 { display: flex }
+ *     .action-ff6fc9 { display: none }
+ * 也就是说「...」只在**那一行自己被悬停或选中**时才出现。
+ *
+ * 置顶行是克隆出来的：真身被 display:none 藏着，鼠标永远碰不到它，
+ * 所以真身不可能是 :hover；而克隆本身不满足 `.item-ff6fc9:hover`
+ * 里的那条规则吗？——满足，但有个前提：**行必须是可悬停的**。
+ * 这里之所以还要自己写一条，是因为克隆行在置顶小节里，
+ * 官方那条 :is(...) 规则的选择器里 `.item-ff6fc9` 就是它自己，
+ * 按理能命中；可实测克隆的 .action 计算值一直是 none（0×0，
+ * 用户根本点不到），所以显式补一条，并且用 !important 压过官方的
+ * `.action-ff6fc9 { display: none }`（两条权重相同，后写的赢不稳）。
+ * -------------------------------------------------------------------- */
+.ls-pin-clone:hover .action-ff6fc9 {
+  display: flex !important;
+}
+
+/* -------------------------------------------------------------------- *
  * 「置顶」标题行：整行可点，右侧一个 ^ 符号，收起时翻转朝下
  * -------------------------------------------------------------------- */
 
@@ -427,124 +448,15 @@ body.dark .ls-tip {
 }
 
 /* ==================================================================== *
- * 功能 4：粘贴转 .txt 的反馈条
+ * 功能 4：过大的粘贴内容 → 本地 .txt 附件
+ *
+ * 这里**故意没有任何样式**。用户明确要求「不用自己写 UI，也不用加提示语，
+ * 直接用原生的东西，相当于拖了一个 txt 文本文档进来」。
+ * 实现是往应用的 <input type=file> 里塞一个 File 再派发 change，
+ * 之后附件卡片、上传、落盘全部是官方自己的样子。
+ *
+ * 旧版这里有一整套 .ls-paste-tray / .ls-paste-row 的反馈条样式，已删除。
  * ==================================================================== */
-
-.ls-paste-tray {
-  position: absolute;
-  left: 50%;
-  bottom: 108px;
-  transform: translateX(-50%);
-  z-index: 7;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: min(560px, calc(100% - 48px));
-  animation: ls-paste-in 0.26s var(--ls-feat-ease-out) both;
-}
-
-@keyframes ls-paste-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-.ls-paste-head {
-  padding: 0 4px 2px;
-}
-
-.ls-paste-head__text {
-  font-size: 12px;
-  color: var(--ls-feat-fg-3);
-}
-
-.ls-paste-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--ls-feat-line);
-  border-radius: 12px;
-  background: var(--ls-feat-bg);
-  box-shadow: var(--ls-feat-shadow);
-}
-
-.ls-paste-row__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--ls-feat-brand) 14%, transparent);
-  color: var(--ls-feat-brand);
-}
-
-.ls-paste-row__icon svg {
-  display: block;
-}
-
-.ls-paste-row__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.ls-paste-row__name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ls-feat-fg);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ls-paste-row__size {
-  font-size: 11px;
-  color: var(--ls-feat-fg-3);
-}
-
-.ls-paste-row__btn {
-  flex: 0 0 auto;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--ls-feat-line);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ls-feat-brand);
-  font-size: 12px;
-  font-family: inherit;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 0.18s var(--ls-feat-ease);
-}
-
-.ls-paste-row__btn:hover {
-  background: var(--ls-feat-fill-hover);
-}
-
-.ls-paste-row__x {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ls-feat-fg-3);
-  cursor: pointer;
-  transition: background-color 0.18s var(--ls-feat-ease), color 0.18s var(--ls-feat-ease);
-}
-
-.ls-paste-row__x:hover {
-  background: var(--ls-feat-fill-hover);
-  color: var(--ls-feat-fg);
-}
 
 /* ==================================================================== *
  * 功能 5：搜索

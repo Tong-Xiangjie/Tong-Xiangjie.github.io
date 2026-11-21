@@ -109,36 +109,37 @@
   position: relative;
 }
 
-/* 2c. ★ 收起后的按钮组：左边放 whale，两个按钮整体**右移**让出位置
+/* 2c. ★ 收起后的按钮组：**只在「打开边栏」左边放一只鲸鱼**
  *
- * 用户要的布局（原话）：「放在侧边栏收起后的『打开边栏 / 开启新对话』
+ * 用户要求（原话）：「放在侧边栏收起后的『打开边栏 / 开启新对话』
  * 按钮左边，这意味着这两个按钮要被挤到右边去一点」。
  *
- * 实测收起态几何（未改动前）：
- *   .collapsed-ac14ac  position:absolute; left:16px; 76×40（两个 34px 按钮 + 2px 间隙）
- *   「打开边栏」在 19..53，「开启新对话」在 55..89
- * 侧栏宽 261，所以右边还有 170px 空着，左边却只有 16px ——
- * 鲸鱼根本没地方放。所以把整个按钮组右移到 left:44px，鲸鱼就落在
- * 按钮左边那段留白里，视觉上是「图标 + 两个按钮」，整体仍在侧栏内。
+ * ⚠ 2026-…：用户又反馈「打开边栏按钮上面有一个小 whale，是多余的，要删掉」。
+ * 查出来是这里给**两个按钮都**挂了鲸鱼伪元素 —— 「开启新对话」那只
+ * 只有 16×11，挤在两个按钮之间的缝里，看起来就像多出来的小图标。
+ * 现在只保留「打开边栏」左边那一只（24×17），另一只彻底删掉。
  *
- * ⚠ 必须用 `[aria-label="…"]` 精确区分这两个按钮。
+ * 删掉第二只之后不再需要把按钮组右移：一只 24px 宽的鲸鱼 + 2px 间隙，
+ * 原本 16px 的左边距刚好放得下（鲸鱼落在 16..40，按钮从 44 开始）。
+ * 所以 left 回到官方的 16px，与展开态标题的左内边距对齐。
+ *
+ * ⚠ 必须用 `[aria-label="…"]` 精确区分按钮。
  * 一开始用 `:first-of-type` / `:last-of-type`，结果**两个都命中了 last-of-type**
  * （实测两个鲸鱼都变成 14×10），因为 `type` 数的是「标签名」而不是 class，
  * 而按钮外面还包着 `<span class="trigger-_94788">`，两个 button 并不是同类兄弟。
  * 官方 aria-label 就是「打开边栏」「开启新对话」，i18n 换语言时会变，
- * 所以每条都补了英文 + 按位置的兜底。
+ * 所以每条都补了英文兜底。
  */
 
-/* ★ 把按钮组右移，给鲸鱼腾位置。
-   注意改的是 .collapsed-ac14ac 的 left，不是按钮的 margin ——
-   这样组内两个按钮的相对关系完全不动，只整体平移。 */
+/* 按钮组回到官方位置，不再为第二只鲸鱼让位 */
 .ls-brand .collapsed-ac14ac {
-  left: 44px;
+  left: 16px;
   overflow: visible;
 }
 
-/* 两个按钮公用的一套鲸鱼样式 */
-.ls-brand .collapsed-ac14ac button[aria-label]::before {
+/* 唯一的鲸鱼：挂在「打开边栏」左边 */
+.ls-brand .collapsed-ac14ac button[aria-label="打开边栏"]::before,
+.ls-brand .collapsed-ac14ac button[aria-label="Open sidebar"]::before {
   content: '';
   /* display 必须显式声明：伪元素默认是 inline，宽高会失效；
      实测不写时计算值会落到 none（鲸鱼完全不出现）。 */
@@ -165,23 +166,13 @@
   position: relative;
 }
 
-/* 「开启新对话」（组里第二个，右移后在 83..117）：
-   鲸鱼放得小一点并贴在它左侧 26px 处，正好落在两个按钮之间的间隙里，
-   不会碰到「打开边栏」那只。
-   位置兜底：它是组里第二个 button。 */
+/* ★ 明确不给「开启新对话」加鲸鱼。
+   这条不是废代码：它把「这里曾经有第二只鲸鱼」这件事钉在样式表里，
+   并且用 !important 挡住任何后来误加的通用 `button[aria-label]::before` 规则。 */
 .ls-brand .collapsed-ac14ac button[aria-label="开启新对话"]::before,
-.ls-brand .collapsed-ac14ac button[aria-label="New chat"]::before,
-.ls-brand .collapsed-ac14ac button[aria-label]:nth-of-type(2)::before {
-  left: -26px;
-  width: 16px;
-  height: 11px;
-}
-
-/* 「打开边栏」（组里第一个，右移后在 47..81）：
-   鲸鱼落在 17..41 —— 完整在屏内，与右边那只（57..73）不重叠。 */
-.ls-brand .collapsed-ac14ac button[aria-label="打开边栏"]::before,
-.ls-brand .collapsed-ac14ac button[aria-label="Open sidebar"]::before {
-  left: -30px;
+.ls-brand .collapsed-ac14ac button[aria-label="New chat"]::before {
+  content: none !important;
+  display: none !important;
 }
 
 /* ---------------------------------------------------------------------------

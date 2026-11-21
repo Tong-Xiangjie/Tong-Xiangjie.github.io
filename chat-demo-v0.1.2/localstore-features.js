@@ -7,7 +7,8 @@
  *   1. 消息索引轨道 —— 最右侧一列横线，一条线 = 一条用户提问，点击快速定位
  *   2. 置顶对话 —— 会话项「...」菜单里新增「置顶」，置顶项排到列表最前
  *   3. 长消息折叠 —— 发送的消息超过 8 行就折叠，展开/收起带动画
- *   4. 粘贴转 .txt —— 粘贴文本过大时自动收成 .txt 附件，可「粘贴原文至输入框」
+ *   4. 过大粘贴转附件 —— 粘贴文本过大时直接当成一个本地 .txt 附件交给应用，
+ *      完全走官方链路（不自建 UI、不加提示语，等同「拖了个 txt 进来」）
  *   5. 关键词搜索对话 —— 侧栏搜索入口，搜标题与正文
  *   6. 对话内换模型 —— 每个对话各自记住自己用过的模型，切换回来自动恢复
  *   7. 版本角标 —— 被「修改过」的消息显示 <xx/xx>
@@ -297,7 +298,7 @@
    * ------------------------------------------------------------------ */
 
   var LS_PIN = 'chat-demo:ls-pinned';
-  var LS_PASTE = 'chat-demo:ls-pasted-texts';
+  var LS_PIN_OPEN = 'chat-demo:ls-pin-open';
   var LS_FEAT = 'chat-demo:ls-features';
   var LS_MODEL_MAP = 'chat-demo:ls-conv-models';
   /**
@@ -1094,13 +1095,22 @@
 
   function menuTitleOf() {
     if (lastMenuOwner && document.contains(lastMenuOwner)) {
+      // 置顶分节里的克隆项：标题可能和当前真身不一致（用户改过名、
+      // 或文件夹同步把标题换了），直接用它自己记的那个标题最准。
+      if (lastMenuOwner.dataset && lastMenuOwner.dataset.lsPinTitle) {
+        return lastMenuOwner.dataset.lsPinTitle;
+      }
       var t = itemTitle(lastMenuOwner);
       if (t) return t;
     }
     // 退路：当前 hover 的会话项，或激活项
     var hov = document.querySelector(SEL.item + ':hover');
-    if (hov) return itemTitle(hov);
+    if (hov) {
+      if (hov.dataset && hov.dataset.lsPinTitle) return hov.dataset.lsPinTitle;
+      return itemTitle(hov);
+    }
     var act = document.querySelector(SEL.item + '.' + SEL.itemActive.split('.').pop());
+    if (act && act.dataset && act.dataset.lsPinTitle) return act.dataset.lsPinTitle;
     return act ? itemTitle(act) : '';
   }
 
@@ -1148,7 +1158,47 @@
     } catch (e) { /* ignore */ }
     return '{n} 个对话';
   })();
-  var pinnedState = { times: null, lastKey: '', pinnedCount: -1, handlerBound: false, storeBound: false, animating: false };
+  var pinnedState = {
+    times: null, lastKey: '', pinnedCount: -1, handlerBound: false, storeBound: false, animating: false,
+    /** 存了置顶但侧栏里还认不出来的那些标题（非空表示"在等侧栏渲染"） */
+    pendingPins: null,
+    /** 重试计时器与次数（见 schedulePinRetry） */
+    retryTimer: null, retryCount: 0, retryBound: false
+  };
+
+  /**
+   * 侧栏还没渲染出来时，安排一次重试。
+   *
+   * 为什么需要它：置顶的标题要对上侧栏里的项才能显示。启动那几秒侧栏是
+   * 空骨架，这时如果直接把置顶判定成"已取消"就永久丢了（见
+   * renderPinnedSection 里那段注释）。MutationObserver 也救不了 ——
+   * 侧栏填数据只改文字不改结构，观察器看不到。
+   *
+   * 所以自己轮询：300ms 一次，最多 RETRY_MAX 次（约 15 秒），
+   * 足够覆盖"读 IndexedDB + 反向同步"这段。真的没有就放弃，
+   * 不会一直空转。
+   */
+  var PIN_RETRY_MS = 300;
+  var PIN_RETRY_MAX = 50;
+  function schedulePinRetry() {
+    if (pinnedState.retryTimer || pinnedState.retryBound) return;
+    if (pinnedState.retryCount >= PIN_RETRY_MAX) {
+      warn('置顶无法显示：等了 ' + Math.round(PIN_RETRY_MS * PIN_RETRY_MAX / 1000) +
+        ' 秒，侧栏里始终找不到这些对话：' + (pinnedState.pendingPins || []).join(' / '));
+      pinnedState.retryBound = true;
+      return;
+    }
+    pinnedState.retryCount += 1;
+    pinnedState.retryTimer = setTimeout(function () {
+      pinnedState.retryTimer = null;
+      try {
+        var s = sider();
+        if (s) renderPinnedSection(s, readPins());
+      } catch (e) {
+        warn('置顶重试失败', e);
+      }
+    }, PIN_RETRY_MS);
+  }
 
   /* --------- 「置顶」小节的展开 / 收起 ---------
    *
@@ -1170,7 +1220,7 @@
   var PIN_CHEV = 'ls-pin-chev';
   var PIN_COLLAPSED = 'is-collapsed';
   var PIN_ANIM_CLASS = 'ls-pin-anim';
-  var LS_PIN_OPEN = 'chat-demo:ls-pin-open';
+  // LS_PIN_OPEN 在文件顶部的常量区声明（这里不再重复声明）
 
   function pinnedExpanded() {
     // 默认展开（用户第一次用置顶时应该是看得到内容的）
@@ -1395,8 +1445,35 @@
     var section = listEl.querySelector(':scope > .' + PIN_SECTION);
     var key = have.join('\u0001');
 
+    if (!have.length && pins.length) {
+      // ★ 「置顶看不到」的元凶就在这里，别改回去。
+      //
+      // 存着 N 个置顶，但当前侧栏里一个都认不出来 —— 这**不代表**用户
+      // 取消了置顶，最可能只是**侧栏还没渲染出来**：
+      //   · 应用启动时先渲染侧栏骨架，会话列表是读完 IndexedDB 才填进去的；
+      //   · 从文件夹反向同步回来的会话也是一样，列表先空后满。
+      //
+      // 旧写法在这种情况下会把整个「置顶」小节 remove() 掉，而之后侧栏
+      // 填数据只是**改已有节点的文字**、不改分节结构，MutationObserver
+      // 看到的结构没变就不再重放 apply —— 于是置顶永久消失，
+      // 刷新也救不回来（每次都是同一个时序）。
+      //
+      // 正确做法：**什么都不删**，留着小节，并安排重试；
+      // 等侧栏真出来了自然会认到。
+      pinnedState.pendingPins = pins.slice();
+      // 但克隆行要清掉：真身这会儿不在，留着就是点不动的幽灵行
+      var staleBody = section && section.querySelector(':scope > .' + PIN_BODY);
+      if (staleBody) staleBody.textContent = '';
+      schedulePinRetry();
+      return;
+    }
+    pinnedState.pendingPins = null;
+    // 认出来了：把重试状态清干净，下次再遇到「侧栏还是空的」可以从头等
+    pinnedState.retryCount = 0;
+    pinnedState.retryBound = false;
+
     if (!have.length) {
-      // 没有置顶项：把小节和隐藏标记都撤掉
+      // 没有置顶项（用户真的没置顶）：把小节和隐藏标记都撤掉
       if (section) section.remove();
       var hid = listEl.querySelectorAll('.' + PIN_HIDDEN);
       for (var h = 0; h < hid.length; h++) hid[h].classList.remove(PIN_HIDDEN);
@@ -1450,18 +1527,313 @@
       body = el('div', PIN_BODY);
       section.appendChild(body);
     }
-    var existing = body.querySelectorAll(':scope > ' + SEL.item);
-    for (var e2 = 0; e2 < existing.length; e2++) existing[e2].remove();
-    for (var c = 0; c < have.length; c++) {
-      var real = byTitle[have[c]];
-      var clone = real.cloneNode(true);
-      notReactOwned(clone);
-      // 真身被我们藏起来了，克隆自己不能带这两个类
-      clone.classList.remove(PIN_HIDDEN, PINNED_CLASS);
-      clone.classList.add(PINNED_CLASS, PIN_CLONE);
-      clone.dataset.lsPinTitle = have[c];
-      body.appendChild(clone);
+    syncPinClones(body, have, byTitle);
+    syncPinActive(body, byTitle);
+  }
+
+  /**
+   * 把「当前选中的是哪个对话」同步到克隆行上。
+   *
+   * 克隆是快照，应用的 active 类不会自己跟过来；但**也不能因为 active 变了
+   * 就重建克隆**（那正是"点别的对话，置顶那个也在跳"）。所以这里只做
+   * 类名的增删，节点本身一动不动。
+   *
+   * 判据：真身行上有 SEL.itemActive 的类，那个类名里的 hash 段
+   * （例如 active-ff6fc9）跟着官方走，所以从真身上现取，不硬编码。
+   */
+  function syncPinActive(body, byTitle) {
+    // 真身的 active 类名（形如 active-ff6fc9）
+    var activeCls = SEL.itemActive.split('.').pop();
+    var clones = body.querySelectorAll(':scope > ' + SEL.item);
+    for (var i = 0; i < clones.length; i++) {
+      var title = clones[i].dataset ? clones[i].dataset.lsPinTitle : '';
+      var real = title ? byTitle[title] : null;
+      var on = !!(real && real.classList.contains(activeCls));
+      clones[i].classList.toggle(activeCls, on);
     }
+  }
+
+  /**
+   * 把置顶小节的克隆行同步成 have 的样子 —— **能复用就复用**。
+   *
+   * ★ 为什么不能每次删掉重建（用户报的两个 bug 都出在这）★
+   *
+   * 旧实现每轮都 `existing.remove()` 再 `appendChild(clone)`。于是：
+   *   · 点别的对话 → 应用重渲染 → 触发功能层重放 → 克隆被删又建，
+   *     用户看到的就是「点别的对话，置顶那个也在跳」；
+   *   · 鼠标停在克隆的「...」上时，行的位置/身份在变，
+   *     菜单和悬浮提示跟着重算，就是「那个框还是跳」。
+   * 删掉重建还会连带丢掉焦点、hover 状态、以及转发点击时用的引用。
+   *
+   * 现在的策略（按代价从低到高）：
+   *   1. 标题集合完全相同 → **一个节点都不动**，只同步 active 类。
+   *      这是绝大多数情况（点对话、收消息都只是 active 变了）。
+   *   2. 顺序变了 → 用 insertBefore 把已有节点挪到正确位置（不重建）。
+   *   3. 新增/减少了置顶 → 只处理差集：多的删、少的建，
+   *      其余原地不动。
+   */
+  function syncPinClones(body, have, byTitle) {
+    // 现有克隆按标题建索引
+    var existing = {};
+    var nodes = body.querySelectorAll(':scope > ' + SEL.item);
+    for (var i = 0; i < nodes.length; i++) {
+      var t = nodes[i].dataset ? nodes[i].dataset.lsPinTitle : '';
+      if (t && !existing[t]) existing[t] = nodes[i];
+      else nodes[i].remove();               // 重复/无标记的脏节点清掉
+    }
+
+    // 删掉不再置顶的
+    for (var k in existing) {
+      if (!Object.prototype.hasOwnProperty.call(existing, k)) continue;
+      if (have.indexOf(k) === -1) { existing[k].remove(); delete existing[k]; }
+    }
+
+    // 按 have 的顺序补齐 + 排队（insertBefore 对已在正确位置的节点是空操作）
+    for (var c = 0; c < have.length; c++) {
+      var title = have[c];
+      var node = existing[title];
+      if (!node) {
+        var real = byTitle[title];
+        if (!real) continue;
+        node = real.cloneNode(true);
+        notReactOwned(node);
+        // 真身被我们藏起来了，克隆自己不能带这两个类
+        node.classList.remove(PIN_HIDDEN, PINNED_CLASS);
+        node.classList.add(PINNED_CLASS, PIN_CLONE);
+        node.dataset.lsPinTitle = title;
+        fixCloneAction(node);
+        markOwn(node);
+        existing[title] = node;
+      }
+      // 槽位对齐：把 node 放到 body 的第 c 个孩子
+      var at = body.children[c];
+      if (at !== node) body.insertBefore(node, at || null);
+    }
+  }
+
+  /**
+   * 把克隆项上的「...」按钮修好，让它在置顶分节里能正常用。
+   *
+   * 用户明确要求：「置顶的也要有...，不然无法取消置顶」。
+   * 之前这里是直接把按钮摘掉（为了绕开「悬浮框乱跳」），那是错的 ——
+   * 置顶行必须能取消置顶，否则用户被卡住。
+   *
+   * 那个「乱跳」的真正原因**不是**这个按钮，是功能层的自触发死循环：
+   * 克隆项的 class 是 `item-ff6fc9 ...`（应用自己的类名打头），
+   * 被 startObserver 误判成"外部变动"，于是每 17ms 删掉重建一次，
+   * 鼠标一碰按钮，行在动、悬浮框跟着量到新位置。循环已经在
+   * startObserver/applyAll 里修掉了，这里恢复按钮就有意义了。
+   *
+   * 需要做两件事：
+   *   1. 给克隆里的按钮去掉 React 的 aria-label 冲突风险不是问题，
+   *      但**必须保证点击能被应用自己的菜单逻辑收到** ——
+   *      克隆是 cloneNode 出来的，应用用的是根节点事件委托，
+   *      所以按钮的 onClick 照样会冒泡到 React 根并弹出菜单。
+   *   2. 给按钮补一个我们自己认的标记，方便出问题时定位。
+   */
+  function fixCloneAction(clone) {
+    try {
+      var act = clone.querySelector(SEL.itemAction);
+      if (!act) return;
+      // 行有点击处理（打开对话），按钮区域必须自己吞掉冒泡，
+      // 否则点「...」会顺带把对话点开。应用原本就是这么做的
+      // （action 那个 div 上有 onClick stopPropagation），克隆把这个 div
+      // 一起复制过来了，所以不用我们再加 —— 这里只做存在性兜底。
+      act.setAttribute('data-ls-clone-action', '1');
+    } catch (e) { /* ignore */ }
+  }
+
+  /** 转发菜单时正在生效的"矩形顶替"现场（同一时刻只可能有一次） */
+  var pendingRestore = null;
+  /** 正在被顶替的真实行；原型包装靠它判断「这次量取要不要骗」 */
+  var fakedNode = null;
+  /** 顶替用的矩形 */
+  var fakedBox = null;
+  /** 原型包装是否已挂（只挂一次，常驻但平时 fakedNode 为 null 不生效） */
+  var protoPatched = false;
+
+  /**
+   * 盯着「菜单被挂进 DOM」这件事。
+   *
+   * 应用的浮层定位（tF 这个 hook）是在 useLayoutEffect 里量锚点矩形、
+   * 算出坐标存进 state 的。React 18 把这个更新批处理到事件结束才提交 ——
+   * 所以「量矩形」发生在 click 返回之后。
+   *
+   * 而我们顶替的矩形必须在它量完之后才能还原，早一步就会量到隐藏真身的
+   * 0×0（菜单跑到屏幕左上角）。又不能无限期顶着不放（真身以后还要用）。
+   *
+   * 观察器正好给出那个准确时刻：菜单节点被加进 body 时，回调以微任务形式
+   * 执行 —— 此时 React 已同步跑完 commit 阶段的 layout effect（量取已完成），
+   * 但浏览器还没绘制。在这里还原，既不影响本次量取，也不会留下副作用。
+   */
+  function watchMenuMount(onMounted) {
+    var stopped = false;
+    var obs = null;
+    var finish = function () {
+      if (stopped) return;
+      stopped = true;
+      try { if (obs) obs.disconnect(); } catch (e) { /* ignore */ }
+      try { onMounted(); } catch (e) { /* ignore */ }
+    };
+    try {
+      obs = new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          var added = muts[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var n = added[j];
+            if (n.nodeType !== 1) continue;
+            if ((n.classList && n.classList.contains(SEL.menu.slice(1))) ||
+                (n.querySelector && n.querySelector(SEL.menu))) {
+              finish();
+              return;
+            }
+          }
+        }
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* ignore */ }
+    // 兜底：菜单迟迟不来也要把矩形还回去
+    setTimeout(finish, 300);
+    return finish;
+  }
+
+  /**
+   * 让应用把「隐藏的真身」当成「看得见的克隆」来量位置。
+   *
+   * 应用的浮层定位会量**真身那一行里面的 .anchor-_5f384**（包着「...」
+   * 按钮的 span）来算菜单坐标。真身整行是 display:none，量出来是 0×0
+   * （在屏幕左上角），于是菜单跑到左上角 —— 用户报的「位置不对」。
+   *
+   * 做法不是去猜它量哪个节点，而是把**真身整行**的 getBoundingClientRect
+   * 换成返回克隆按钮的矩形；行内所有后代（anchor、button）本身没有自己的
+   * getBoundingClientRect，自然会走到原型方法 —— 在原型上按「最近祖先是否
+   * 被顶替」判断即可，这样不管应用量的是哪一层都能骗过去。
+   *
+   * 覆盖必须持续到应用真正量完为止（React 18 的更新是批处理的），
+   * 收尾交给 watchMenuMount。
+   */
+  function fakeAnchorRect(real, cloneEl) {
+    var undo = [];
+    try {
+      if (!real || !cloneEl || !cloneEl.getBoundingClientRect) return undo;
+      var r = cloneEl.getBoundingClientRect();
+      var box = {
+        x: r.x, y: r.y, top: r.top, bottom: r.bottom, left: r.left, right: r.right,
+        width: r.width, height: r.height, toJSON: function () { return r; }
+      };
+      fakedNode = real;
+      fakedBox = box;
+
+      // 1) 真身自己（如果它恰好有自己的 getBoundingClientRect 就直接换掉）
+      var own = Object.prototype.hasOwnProperty.call(real, 'getBoundingClientRect');
+      var prev = real.getBoundingClientRect;
+      if (typeof prev === 'function') {
+        try {
+          real.getBoundingClientRect = function () { return box; };
+          undo.push({ node: real, prev: prev, own: own });
+        } catch (e) { /* ignore */ }
+      }
+
+      // 2) 挂一个原型级别的包装：后代节点（anchor span、button）量取时
+      //    如果自己是真身的后代，就报同一个矩形。
+      //    只挂一次；活跃期间所有量取都按「最近的顶替祖先」判断。
+      if (!protoPatched) {
+        protoPatched = true;
+        try {
+          var proto = window.Element && window.Element.prototype;
+          var origRect = proto.getBoundingClientRect;
+          proto.getBoundingClientRect = function () {
+            try {
+              if (fakedNode && fakedBox && this !== fakedNode &&
+                  this.nodeType === 1 && fakedNode.contains(this)) {
+                return fakedBox;
+              }
+            } catch (e) { /* ignore */ }
+            return origRect.call(this);
+          };
+        } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* ignore */ }
+    return undo;
+  }
+
+  function restoreAnchorRect(real, undo) {
+    var list = undo || pendingRestore || [];
+    for (var i = 0; i < list.length; i++) {
+      var u = list[i];
+      try {
+        if (u.own) u.node.getBoundingClientRect = u.prev;
+        else delete u.node.getBoundingClientRect;
+      } catch (e) { /* ignore */ }
+    }
+    // 原型包装不用拆（只读判断，平时不生效），把标记清掉即可
+    fakedNode = null;
+    fakedBox = null;
+    if (!undo) pendingRestore = null;
+  }
+
+  /* 菜单定位修正的定时器（同一时刻只会有一个菜单） */
+  var menuPlaceTimer = null;
+
+  /**
+   * 把菜单钉在置顶行的「...」按钮旁边。
+   *
+   * 为什么不靠"骗"应用去量克隆的矩形：试过覆盖真身（以及它后代）的
+   * getBoundingClientRect，实测应用仍然把菜单放在 (8,4)，说明它量到的
+   * 不是我们顶替的那些节点。与其继续猜它量哪一层，不如**在它定位完成
+   * 之后直接改坐标** —— 菜单是 position:fixed（实测 CSS：
+   * `.menu-_5f384{position:fixed}`），它的 left/top 就是视口坐标，
+   * 和 getBoundingClientRect 同一套坐标系，所以：
+   *   dx = 当前 rect.left - 当前 style.left
+   *   left = 目标 rect.left + dx
+   * 这样即使以后应用换成 transform 定位，也能跟着走。
+   *
+   * 位置对齐规则照抄应用自己的观感（tF 这个 hook）：
+   *   · 水平：贴在按钮左边（align:start），并夹在视口内（左右各留 8px）
+   *   · 垂直：空间够就放按钮下面（offset 4px），不够就翻到上面
+   *
+   * ⚠ 用 rAF 连续修正几帧：菜单的内容（我们插入的「取消置顶」那一条）
+   *   可能让高度晚一帧才定下来，一次修正会算错偏移量。
+   *   只修 4 帧就停，之后完全交还给应用（滚动/缩放时它自己会重算，
+   *   那时菜单在克隆附近，算出来也是对的）。
+   */
+  function placeMenuAt(menu, anchorEl) {
+    if (!menu || !anchorEl || !anchorEl.getBoundingClientRect) return;
+    if (menuPlaceTimer) { try { cancelAnimationFrame(menuPlaceTimer); } catch (e) { /* ignore */ } menuPlaceTimer = null; }
+    var frames = 0;
+    var step = function () {
+      frames += 1;
+      try {
+        if (!menu.isConnected) { menuPlaceTimer = null; return; }
+        var mr = menu.getBoundingClientRect();
+        var ar = anchorEl.getBoundingClientRect();
+        var curL = parseFloat(menu.style.left);
+        var curT = parseFloat(menu.style.top);
+        if (isNaN(curL)) curL = mr.left;
+        if (isNaN(curT)) curT = mr.top;
+        var dx = mr.left - curL;          // 应用定位方式带来的常量偏移
+        var dy = mr.top - curT;
+
+        // 水平：贴按钮左边，夹在视口内
+        var want = Math.max(8, Math.min(ar.left, window.innerWidth - mr.width - 8));
+        // 垂直：默认按钮下方 4px；下面放不下就翻到上方
+        var below = ar.bottom + 4;
+        var top = (below + mr.height > window.innerHeight - 8 && ar.top - 4 - mr.height >= 8)
+          ? ar.top - 4 - mr.height
+          : below;
+
+        var nextL = Math.round(want + dx);
+        var nextT = Math.round(top + dy);
+        if (menu.style.left !== nextL + 'px') menu.style.left = nextL + 'px';
+        if (menu.style.top !== nextT + 'px') menu.style.top = nextT + 'px';
+      } catch (e) { /* ignore */ }
+      if (frames < 4 && typeof requestAnimationFrame === 'function') {
+        menuPlaceTimer = requestAnimationFrame(step);
+      } else {
+        menuPlaceTimer = null;
+      }
+    };
+    step();
   }
 
   function scheduleApply() {
@@ -1471,9 +1843,9 @@
   /**
    * 「置顶」小节里的克隆项：交互由我们自己接管。
    *
-   * 克隆清掉了 React 属性，所以点击不会自动打开对话，必须显式处理：
-   *   · 点标题 / 空白 → 打开对应对话（走 openSessionByTitle）
-   *   · 「...」按钮 → 打开应用自己的菜单（它由应用挂在 body 上）
+   * 克隆清掉了 React 属性，所以点击不会自动打开对话，必须显式处理。
+   * 置顶行里**只有**「打开对应对话」这一件事 —— 它的「...」按钮
+   * 在渲染时就被 stripCloneAction 摘掉了（原因见那里）。
    * 用一次文档级委托就够了，不用给每个克隆单独绑。
    */
   function installPinCloneHandler() {
@@ -1514,15 +1886,62 @@
       var title = clone.dataset.lsPinTitle;
       if (!title) return;
 
-      // 点是「...」按钮：转发到真身上的那个按钮（克隆没有 React 事件）
+      // 2a) 点「...」：转发给**真身**上那个按钮，并把菜单位置「挪」到克隆身上。
+      //
+      //     为什么不能直接让克隆的按钮自己弹菜单：克隆是 cloneNode 出来的，
+      //     notReactOwned() 把 __reactProps$xxx / __reactFiber$xxx 全删了
+      //     （不删的话 React 会去动这些"幽灵节点"）。应用用的是根节点
+      //     事件委托 —— 委托要靠 fiber 找组件，没有 fiber 就什么都不发生。
+      //
+      //     ★ 但只转发点击是不够的，用户报的正是这一点：
+      //       「不是点不开，是位置不对」。
+      //     应用算菜单位置的方式（tF 这个 hook）是：
+      //         let o = (anchorRef.current.firstElementChild).getBoundingClientRect()
+      //     也就是**量触发元素自己的矩形**。真身被我们 display:none 藏着，
+      //     它的矩形是 0×0（在 0,0），于是菜单被算到屏幕左上角去了。
+      //
+      //     解决办法：在点之前，临时把真身的 getBoundingClientRect 换成
+      //     返回**克隆身上那个按钮**的矩形。菜单照旧由应用自己算、
+      //     自己弹、自己定位，只是量到的位置是用户真正看着的那个按钮。
       if (t.closest(SEL.itemAction)) {
         ev.preventDefault();
         ev.stopPropagation();
         var real = findRealItem(title);
         var realBtn = real && real.querySelector(SEL.itemAction + ' button');
         if (realBtn) {
-          lastMenuOwner = title;
-          realBtn.click();
+          lastMenuOwner = real;          // 先把归属钉死，再点
+          var cloneBtn = t.closest('button') || t;
+          // 菜单挂进 body 的那一刻就是应用量完矩形的时候。
+          // 用观察器盯住它，量完立刻还原（见 openCloneMenuAt 里的说明）。
+          var stopWatch = watchMenuMount(function () {
+            restoreAnchorRect(real, null);
+          });
+          var faked = fakeAnchorRect(real, cloneBtn);
+          // 把还原现场交给观察器统一收尾（fakeAnchorRect 已经把它记在自己身上）
+          pendingRestore = faked;
+          try {
+            realBtn.click();
+          } catch (e2) {
+            warn('转发菜单点击失败', e2);
+            stopWatch();
+            restoreAnchorRect(real, pendingRestore);
+            pendingRestore = null;
+          }
+          // 菜单是同步 portal 进 body 的；补一次装饰（多出「取消置顶」那一条，
+          // 菜单高度会变，所以定位修正必须放在装饰**之后**）。
+          setTimeout(function () {
+            var menus = document.querySelectorAll(SEL.menu);
+            for (var mi = 0; mi < menus.length; mi++) decorateMenu(menus[mi]);
+            if (menus.length) placeMenuAt(menus[0], cloneBtn);
+            // 兜底还原（正常情况已被 watchMenuMount 收尾）
+            if (pendingRestore) {
+              stopWatch();
+              restoreAnchorRect(real, pendingRestore);
+              pendingRestore = null;
+            }
+          }, 0);
+        } else {
+          warn('置顶行打不开菜单：找不到真身按钮 ' + title);
         }
         return;
       }
@@ -1740,20 +2159,35 @@
   }
 
   /* ================================================================== *
-   * 功能 4：粘贴文本过大 → 转 .txt，可「粘贴原文至输入框」
+   * 功能 4：粘贴文本过大 → 直接当成本地 .txt 附件交给应用
+   *
+   * 用户要求（原话）：
+   *   「你不用自己写 ui，也不用加提示语，你就直接用原生的东西，
+   *     相当于拖了一个 txt 文本文档进来一样的」
+   *
+   * 所以这里**不建任何自己的 DOM**：造一个 File，塞进应用那个 hidden 的
+   * `<input type="file" multiple>`，派发 change —— 之后完全走官方链路
+   * （附件卡片、上传、落盘、正文里的附件引用都是应用自己的样子）。
+   *
+   * 为什么这样能成（实测确认）：
+   *   · 应用的 input 在 functionRow-ed6f47 里，`onChange` 是
+   *     `e => { _(Array.from(e.target.files ?? [])); e.target.value = '' }`；
+   *     而 `setFiles(Array.from(e.target.files))` 只认 FileList 本身，
+   *     所以必须用 DataTransfer 把 File 变成 FileList，**不能直接调**。
+   *   · `.txt` 本来就在 accept 白名单里（accept 长得吓人，但含 `.txt`），
+   *     所以连校验都不会被拦。
+   *   · 实测结果：粘贴后 1.5 秒内页面出现官方附件卡片
+   *     「粘贴的文本（1）.txt / 上传失败」（上传失败是因为探针用的是假 Key，
+   *     说明它连"上传"这一步都真的走了）。
+   *
+   * ⚠ 之前那版是自建一个 `ls-paste-tray` 反馈条 + 「粘贴原文至输入框」按钮，
+   * 文本只存在 localStorage 里、不进应用。用户明确否掉了这个做法：
+   * 既要自己写 UI，又和真实的附件体系是两套东西（不能上传、不能进正文、
+   * 换浏览器就丢）。现在整块删掉。
    * ================================================================== */
 
   var PASTE_MIN_CHARS = 1200;   // 超过这么多字符就转
   var PASTE_MIN_LINES = 16;     // 或者超过这么多行
-  var PASTE_TRAY = 'ls-paste-tray';
-  var pasteStore = readJson(LS_PASTE, []);
-  var pasteSeq = 0;
-
-  function totalPasteChars() {
-    var n = 0;
-    for (var i = 0; i < pasteStore.length; i++) n += pasteStore[i].text.length;
-    return n;
-  }
 
   function looksBig(text) {
     if (!text) return false;
@@ -1762,101 +2196,87 @@
     return lines >= PASTE_MIN_LINES;
   }
 
-  function humanSize(n) {
-    if (n < 1000) return n + ' 字';
-    return (n / 1000).toFixed(n < 10000 ? 1 : 0) + 'k 字';
+  /**
+   * 找到应用那个「上传附件」用的 file input。
+   *
+   * 不能用 `.functionRow` 之类的布局类去定位 —— 它们是 hash 名，
+   * 官方升级就会变。改成按**能力**找：
+   *   · 是 input[type=file]
+   *   · 带 multiple（上传附件那个是 multiple，导入 ZIP 那个不是）
+   *   · 不限定 accept（导入 ZIP 的 accept 是 ".zip,..."）
+   * 这样官方改布局也还能找到。
+   */
+  function findUploadInput() {
+    var ins = document.querySelectorAll('input[type="file"]');
+    var fallback = null;
+    for (var i = 0; i < ins.length; i++) {
+      var accept = ins[i].getAttribute('accept') || '';
+      if (/\.zip/i.test(accept)) continue;      // 这是「导入历史对话」
+      if (ins[i].multiple) return ins[i];
+      if (!fallback) fallback = ins[i];
+    }
+    return fallback;
   }
 
-  function addPastedText(text) {
-    pasteSeq += 1;
-    var name = '粘贴文本-' + pasteSeq + '.txt';
-    while (pasteStore.some(function (x) { return x.name === name; })) {
-      pasteSeq += 1;
-      name = '粘贴文本-' + pasteSeq + '.txt';
-    }
-    var rec = { id: 'p' + Date.now().toString(36) + '-' + pasteSeq, name: name, text: text };
-    pasteStore.push(rec);
-    writeJson(LS_PASTE, pasteStore);
-    return rec;
+  /**
+   * 把一段文本当成本地 .txt 附件交给应用。
+   *
+   * 命名规则（用户指定）：
+   *   · 默认标题就是「粘贴的文本」；
+   *   · 多段依次加序号：「粘贴的文本（1）」「粘贴的文本（2）」…
+   *
+   * ⚠ 序号必须持久化（`chat-demo:ls-paste-seq`），内存里那个计数器刷新就归零 ——
+   * 归零的后果是刷新后再粘一段又叫「粘贴的文本（1）」，和已有附件重名，
+   * 用户分不清哪个是哪个。
+   *
+   * ⚠ 用全角括号「（）」而不是半角：和官方上传的 `report (1).pdf` 那种
+   * 半角风格区分开，中文场景下更自然，Windows/macOS 也都合法。
+   */
+  var LS_PASTE_SEQ = 'chat-demo:ls-paste-seq';
+  var PASTE_BASE_NAME = '粘贴的文本';
+
+  function nextPasteSeq() {
+    var n = Number(readJson(LS_PASTE_SEQ, 0)) || 0;
+    n += 1;
+    writeJson(LS_PASTE_SEQ, n);
+    return n;
   }
 
-  function removePastedText(id) {
-    pasteStore = pasteStore.filter(function (x) { return x.id !== id; });
-    writeJson(LS_PASTE, pasteStore);
+  function pasteFileName(seq) {
+    return PASTE_BASE_NAME + '（' + seq + '）.txt';
   }
 
-  /** 反馈条：告诉用户发生了什么，并给「粘贴原文至输入框」 */
-  function renderPasteTray() {
-    var host = document.querySelector(SEL.main);
-    if (!host) return;
-    var tray = document.querySelector('.' + PASTE_TRAY);
-    if (!pasteStore.length) {
-      if (tray) tray.remove();
-      return;
-    }
-    if (!tray) {
-      tray = el('div', PASTE_TRAY);
-      tray.setAttribute('role', 'status');
-      host.appendChild(tray);
-    }
-    tray.textContent = '';
-    // 顶栏：说明「为什么输入框是空的」，否则用户会以为粘贴失败
-    var head = el('div', 'ls-paste-head');
-    head.appendChild(el('span', 'ls-paste-head__text',
-      pasteStore.length > 1 ? ('已把 ' + pasteStore.length + ' 段过大的粘贴内容转成 .txt 附件')
-        : '已把过大的粘贴内容转成 .txt 附件'));
-    tray.appendChild(head);
-    for (var i = 0; i < pasteStore.length; i++) {
-      (function (rec) {
-        var row = el('div', 'ls-paste-row');
-        var icon = el('span', 'ls-paste-row__icon');
-        icon.appendChild(svgIcon('M4 1.5h5.4L13 5.1v9.4a.9.9 0 0 1-.9.9H4a.9.9 0 0 1-.9-.9V2.4a.9.9 0 0 1 .9-.9zm5 1.6v2.4h2.4L9 3.1z', 14));
-        var meta = el('span', 'ls-paste-row__meta');
-        meta.appendChild(el('b', 'ls-paste-row__name', rec.name));
-        meta.appendChild(el('span', 'ls-paste-row__size', humanSize(rec.text.length) + ' · 已转成附件'));
-        var back = el('button', 'ls-paste-row__btn', '粘贴原文至输入框');
-        back.type = 'button';
-        back.addEventListener('click', function (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          pasteIntoComposer(rec.text);
-          removePastedText(rec.id);
-          renderPasteTray();
-        });
-        var drop = el('button', 'ls-paste-row__x');
-        drop.type = 'button';
-        drop.setAttribute('aria-label', '删除这段粘贴文本');
-        drop.appendChild(svgIcon(ICON.close, 12));
-        drop.addEventListener('click', function (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          removePastedText(rec.id);
-          renderPasteTray();
-        });
-        row.appendChild(icon);
-        row.appendChild(meta);
-        row.appendChild(back);
-        row.appendChild(drop);
-        tray.appendChild(row);
-      })(pasteStore[i]);
-    }
-  }
+  function attachTextAsFile(text) {
+    var input = findUploadInput();
+    if (!input) return false;
+    if (typeof DataTransfer !== 'function' || typeof File !== 'function') return false;
 
-  /** 把文本写进 textarea，并用 React 认的方式触发 input */
-  function pasteIntoComposer(text) {
-    var ta = document.querySelector(SEL.textarea);
-    if (!ta) return false;
+    var seq = nextPasteSeq();
+    var name = pasteFileName(seq);
+
+    var dt;
     try {
-      var proto = window.HTMLTextAreaElement.prototype;
-      var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-      setter.call(ta, text);
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-      ta.focus();
-      return true;
+      dt = new DataTransfer();
+      dt.items.add(new File([text], name, { type: 'text/plain' }));
     } catch (e) {
-      warn('写回输入框失败', e);
+      warn('构造 .txt 附件失败', e);
       return false;
     }
+
+    try {
+      // ⚠ 必须是 `input.files = dt.files`，不能 `dt.files` 直接传别处。
+      // 这一步在 Chrome 里是允许的（其它浏览器可能抛错，所以包了 try）。
+      input.files = dt.files;
+    } catch (e) {
+      warn('把 .txt 交给上传输入框失败', e);
+      return false;
+    }
+    if (!input.files || !input.files.length) return false;
+
+    // 应用监听的是 change；用真实 Event 走 React 的合成事件系统
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    log('粘贴内容过大（' + text.length + ' 字 / ' + text.split('\n').length + ' 行），已转成 .txt 附件：' + name);
+    return true;
   }
 
   function installPasteGuard() {
@@ -1873,22 +2293,20 @@
         if (!dt) return;
         var text = dt.getData('text/plain') || '';
         if (!looksBig(text)) return;
-        // 阻止默认粘贴，改成收进 tray
+
+        // 先试着转成 .txt 附件；只有成功了才拦掉默认粘贴。
+        // 顺序很重要：万一 DataTransfer / file input 不可用，
+        // 就让粘贴照常发生 —— 宁可把长文本塞进输入框，也不能让用户的东西消失。
+        if (!attachTextAsFile(text)) {
+          warn('转 .txt 附件失败，这次粘贴按原样写进输入框');
+          return;
+        }
         ev.preventDefault();
         ev.stopPropagation();
-        addPastedText(text);
-        renderPasteTray();
-        log('粘贴文本过大（' + text.length + ' 字 / ' + text.split('\n').length + ' 行），已转为 .txt');
       } catch (e) {
         warn('粘贴处理失败', e);
       }
     }, true);
-
-    // 点「粘贴原文至输入框」后若文本又变得很大，同样收起来（防止绕过）
-    document.addEventListener('input', throttled(function () {
-      // 这里只做 tray 的刷新，不强行改用户输入
-      renderPasteTray();
-    }), true);
   }
 
   /* ================================================================== *
@@ -2353,9 +2771,31 @@
   var applying = false;
   var applyAgain = false;
 
+  /**
+   * 「我们自己正在动 DOM」的标志。观察器看到它就直接返回。
+   *
+   * 为什么不能只靠 class 名判断：我们插入的置顶克隆项，class 是
+   * `item-ff6fc9 ls-pinned ls-pin-clone` —— **应用自己的类名打头**，
+   * 于是被判成"外部变动"，applyAll 又跑一遍，又删又建，死循环
+   * （实测 17ms 一轮）。有了这个标记 + data-ls-own 属性，就彻底断掉。
+   */
+  var selfMutating = false;
+  /** 给"我们插入的节点"打的标记，观察器靠它识别自己人 */
+  var OWN_ATTR = 'data-ls-own';
+
+  /** 标记一个节点（及其子树）是我们自己的 */
+  function markOwn(node) {
+    try {
+      if (!node || node.nodeType !== 1) return node;
+      node.setAttribute(OWN_ATTR, '1');
+    } catch (e) { /* ignore */ }
+    return node;
+  }
+
   var applyAll = throttled(function () {
     if (applying) { applyAgain = true; return; }
     applying = true;
+    selfMutating = true;
     try {
       step('搜索入口', installSearchEntry);
       step('置顶分节', function () { installStoreWatcher(); installPinCloneHandler(); refreshPinOrder(); });
@@ -2363,13 +2803,19 @@
       step('对话模型记忆', function () { installModelRecorder(); installSwitchWatcher(); applyConvModel(); });
       step('消息轨道', applyMessageRail);
       step('长消息折叠', applyCollapse);
-      step('粘贴反馈条', renderPasteTray);
       step('菜单增强', function () {
         var menus = document.querySelectorAll(SEL.menu);
         for (var i = 0; i < menus.length; i++) decorateMenu(menus[i]);
       });
     } finally {
       applying = false;
+      // MutationObserver 的回调是**微任务**：同步改完 DOM 后，
+      // 回调会在当前任务结束、下一次渲染前被调用。所以不能在这里就
+      // 把闸门放下 —— 得再撑过一帧，把那批回调挡掉。
+      // 一帧（约 16ms）足够覆盖，且不会挡住用户真正的后续操作。
+      var release = function () { selfMutating = false; };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(release);
+      else setTimeout(release, 16);
     }
     if (applyAgain) {
       applyAgain = false;
@@ -2385,7 +2831,26 @@
       // 于是「某个功能偶尔不生效」，而且控制台只有一条不易察觉的报错。
       // 功能层绝不能因为自己的 bug 影响应用本身（更不能让用户以为记录丢了）。
       try {
-        // 只对「结构性变化」反应，避免自己的样式改动触发死循环
+        // ★★ 自触发保护 —— 这里修的是一个会让置顶「看不见」的死循环 ★★
+        //
+        // 背景：下面这段判断想靠 class 名区分「这次变动是我们自己造成的」。
+        // 它对 `ls-xxx` 开头的节点有效，但**漏掉了置顶克隆项**：
+        // 克隆的 class 是 `item-ff6fc9 ls-pinned ls-pin-clone`，
+        // 是应用自己的类名打头，于是被判成「外部变动」→ 又跑一遍 applyAll
+        // → 又删掉重建一次克隆 → 又触发观察器……实测每 17ms 一个来回。
+        //
+        // 后果正是用户看到的现象：
+        //   · 置顶的那一行每 17ms 被删掉重建，看上去就是「置顶对话看不到」；
+        //   · 鼠标一碰「...」，行在动、悬浮框跟着量到新位置，就是「乱跳」。
+        //
+        // 两道闸：
+        //   1) 标记闸：我们自己插的节点都带 data-ls-own（见 markOwn），
+        //      只要这批变动里有它，就完全忽略；
+        //   2) 时间闸：applyAll 正在跑、或刚跑完的这一帧内的变动，
+        //      全部算我们自己的。这两道闸互补 —— 标记闸管得住我们
+        //      显式标记的节点，时间闸兜住那些不好标记的（文本改写、
+        //      classList 增删等）。
+        if (selfMutating) return;
         for (var i = 0; i < muts.length; i++) {
           var m = muts[i];
           if (m.type !== 'childList') continue;
@@ -2395,10 +2860,13 @@
             Array.prototype.slice.call(m.removedNodes));
           for (var j = 0; j < nodes.length; j++) {
             var n = nodes[j];
-            if (n.nodeType === 1 && /(^|\s)ls-/.test(String(n.className || ''))) { self = true; break; }
+            if (n.nodeType !== 1) continue;
+            // 闸 1：我们自己标记过的节点
+            if (n.hasAttribute && n.hasAttribute(OWN_ATTR)) { self = true; break; }
+            if (n.querySelector && n.querySelector('[' + OWN_ATTR + ']')) { self = true; break; }
+            if (/(^|\s)ls-/.test(String(n.className || ''))) { self = true; break; }
             // 已知的 ls-* 直接忽略：不要因为自己的插入反复触发
-            if (n.nodeType === 1 && n.querySelector &&
-                n.querySelector('[class*="ls-"]')) { self = true; break; }
+            if (n.querySelector && n.querySelector('[class*="ls-"]')) { self = true; break; }
           }
           if (self) continue;
           applyAll();
@@ -2487,14 +2955,14 @@
     togglePin: togglePin,
     setPinned: function (titles) { writeJson(LS_PIN, titles || []); applyAll(); },
     refreshPinOrder: refreshPinOrder,
+    /** 只读：存了置顶但侧栏里暂时还认不出来的标题（测试用） */
+    get pendingPins() { return pinnedState.pendingPins; },
     // 功能 3
     COLLAPSE_LINES: COLLAPSE_LINES,
-    // 功能 4
-    readPastes: function () { return pasteStore.slice(); },
-    addPastedText: function (t) { var r = addPastedText(t); renderPasteTray(); return r; },
-    removePastedText: removePastedText,
-    pasteIntoComposer: pasteIntoComposer,
+    // 功能 4：过大的粘贴内容直接当成本地 .txt 附件交给应用（不自建 UI）
     looksBig: looksBig,
+    attachTextAsFile: attachTextAsFile,
+    findUploadInput: findUploadInput,
     PASTE_MIN_CHARS: PASTE_MIN_CHARS,
     PASTE_MIN_LINES: PASTE_MIN_LINES,
     // 功能 5
