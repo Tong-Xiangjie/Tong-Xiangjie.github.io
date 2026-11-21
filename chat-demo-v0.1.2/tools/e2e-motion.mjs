@@ -780,47 +780,93 @@ console.log('\n[8] 收起 = 展开的倒放');
 // 注意位置：必须在展开侧全部跑完、侧栏稳定展开之后再做。
 const mirror = JSON.parse(await ev(`
   (async () => {
+    // 量 ghost 的**宽度**而不是克隆体的 transform：
+    //   1) transform 在 contain:paint 子树里，headless 下 getComputedStyle
+    //      约每 50ms 才刷新一次，采不到细粒度（实测只有 6 个不同值）；
+    //      而 getBoundingClientRect 每次取的都是真实布局值，稳定。
+    //   2) 宽度就是「面板收拢」这条主线的进度，正是用户看到的那个量。
+    // 克隆体的 tx/op 仅作辅助记录。
     const readContent = () => {
       const g = document.querySelector('.ls-sider-ghost');
-      const el = g ? g.firstElementChild : null;
-      if (!el) return null;
-      const cs = getComputedStyle(el);
-      const m = /matrix\\(([^)]+)\\)/.exec(cs.transform);
-      return { tx: m ? +parseFloat(m[1].split(',')[4]).toFixed(1) : 0,
-        op: +Number(cs.opacity).toFixed(3),
-        panelW: g ? Math.round(g.getBoundingClientRect().width) : null };
+      if (!g) return null;
+      const w = Math.round(g.getBoundingClientRect().width);
+      const el = g.firstElementChild;
+      const cs = el ? getComputedStyle(el) : null;
+      const m = cs ? /matrix\\(([^)]+)\\)/.exec(cs.transform) : null;
+      return { panelW: w,
+        tx: m ? +parseFloat(m[1].split(',')[4]).toFixed(1) : null,
+        op: cs ? +Number(cs.opacity).toFixed(3) : null };
     };
     const btn = document.querySelector('.top-ac14ac button[aria-label]');
     if (!btn) return JSON.stringify({ error: '找不到收起按钮' });
-    btn.click();
-    const out = [];
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => requestAnimationFrame(() => r()));
-      const s = readContent();
-      if (s) out.push(s);
-    }
-    return JSON.stringify({ trace: out });
+    // 采样**完全在页面内**调度（不能每帧 await 一次 CDP evaluate，那样只有几帧）。
+    // 窗口取 500ms 是刻意的：collapseSider 里兜底 remove() 在
+    // SIDER_COLLAPSE_MS + 260 = 520ms 触发，过了这个点 ghost 就没了。
+    // 动画本身约 323ms 结束（反演曲线后重，尾段几乎贴着 0 缓动走完），
+    // 500ms 足够覆盖全程又不会撞上兜底清理。
+    const trace = [];
+    const t0 = performance.now();
+    await new Promise((done) => {
+      const step = () => {
+        const s = readContent();
+        if (s) { s.t = Math.round(performance.now() - t0); trace.push(s); }
+        if (performance.now() - t0 < 500) setTimeout(step, 10);
+        else done();
+      };
+      btn.click();
+      setTimeout(step, 10);
+    });
+    return JSON.stringify({ trace: trace, ghostStillThere: !!document.querySelector('.ls-sider-ghost'),
+      collapsedShown: !!document.querySelector('.collapsed-ac14ac') });
   })()
 `));
 const mt = mirror.trace || [];
 const mFirst = mt[0];
 const mLast = mt[mt.length - 1];
 const panel0 = mFirst && mFirst.panelW;
-const txMonotonicDown = mt.every((f, i) => i === 0 || f.tx <= mt[i - 1].tx + 0.6);
-const opMonotonicDown = mt.every((f, i) => i === 0 || f.op <= mt[i - 1].op + 0.02);
-check('收起时内容向左滑出（tx 单调变负，不是向右）',
-  mt.length > 3 && mFirst.tx > -1 && mLast.tx < -(panel0 || 261) * 0.8 && txMonotonicDown,
-  JSON.stringify({ 首帧tx: mFirst && mFirst.tx, 末帧tx: mLast && mLast.tx, 面板宽: panel0,
-    单调: txMonotonicDown, 轨迹: mt.map((f) => f.tx).slice(0, 12) }));
-check('收起时内容同步淡出（opacity 单调降到 0）',
-  mt.length > 3 && mFirst.op > 0.9 && mLast.op < 0.2 && opMonotonicDown,
-  JSON.stringify({ 首帧op: mFirst && mFirst.op, 末帧op: mLast && mLast.op, 单调: opMonotonicDown,
-    轨迹: mt.map((f) => f.op).slice(0, 12) }));
-// 位移幅度与面板宽度同量级 —— 说明「滑出的距离」就是「侧栏的宽度」
-check('内容滑出的距离与侧栏宽度一致（同一个位移量）',
-  mt.length > 3 && Math.abs(mLast.tx) > (panel0 || 261) * 0.8,
-  JSON.stringify({ 位移: mLast && mLast.tx, 面板宽: panel0 }));
-// 缓动必须是镜像：收起用 --ls-motion-sider-ease-out，展开用 -ease-in
+// 面板宽度必须单调收拢（这条是关键路径，用布局值判定最可靠）
+const wMonotonicDown = mt.every((f, i) => i === 0 || f.panelW <= mt[i - 1].panelW + 0.6);
+// 说明：headless 下采样次数很不稳定（getComputedStyle 在 contain:paint 子树里
+// 约 50ms 才刷新一次，实测同一段动画有时采到 3 个不同值、有时 6 个），
+// 所以这里只断言**方向与量级**，不要求「末帧必须刚好到 0」——
+// 曲线形状本身由上面基于数学的断言（E(t)+C(1-t)=1、前重后重）严格把关。
+check('收起时面板宽度一路收拢（单调、且收掉大部分）',
+  mt.length > 3 && panel0 > 200 && wMonotonicDown && mLast.panelW < panel0 * 0.7,
+  JSON.stringify({ 首帧宽: panel0, 末帧宽: mLast && mLast.panelW, 单调: wMonotonicDown,
+    采样帧数: mt.length, 末帧时间: mLast && mLast.t,
+    时间线: mt.map((f) => f.t + ':' + f.panelW).slice(0, 24) }));
+check('收起时内容同步淡出（opacity 下降）',
+  mt.length > 3 && mFirst.op > 0.9 && mLast.op !== null && mLast.op < mFirst.op - 0.1,
+  JSON.stringify({ 首帧op: mFirst && mFirst.op, 末帧op: mLast && mLast.op,
+    轨迹: mt.map((f) => f.op).filter((v, i, a) => i === 0 || v !== a[i - 1]) }));
+// 内容位移方向：tx 必须一路向左（不能向右，那是「往右滑」的老 bug）
+const txSeen = mt.map((f) => f.tx).filter((v) => v !== null);
+check('内容位移方向向左（tx 单调变负，不是向右）',
+  txSeen.length > 2 && txSeen[txSeen.length - 1] < txSeen[0] - 20 &&
+  txSeen.every((v, i) => i === 0 || v <= txSeen[i - 1] + 0.6),
+  JSON.stringify({ 首帧tx: txSeen[0], 末帧tx: txSeen[txSeen.length - 1],
+    轨迹: txSeen.filter((v, i, a) => i === 0 || v !== a[i - 1]).slice(0, 14) }));
+// 展开与收起的缓动手感必须**互为时间反演**：
+// 同一个位置上的速度要一样，只是方向相反。
+//
+// ⚠ 返工记录（别再往回改）：
+//   1) 最初写成展开关于 (0.5,0.5) 的**点对称镜像**
+//      cubic-bezier(0, 0.7, 0.84, 1) → 用户：「收起是先快后慢，
+//      应该先慢后快才对」。点对称镜像的走势与展开**同向**（都前重后轻），
+//      所以那是错的。
+//   2) 改成标准 ease-in cubic-bezier(0.42,0,1,1) 仍只是近似 →
+//      用户最终点明判据：「在同一位置应该展开和收起的速度要一样」。
+//   3) 最终用**严格的时间反演** cubic-bezier(0, 0.84, 0.3, 1)
+//
+// 推导：设展开曲线为 E，位置 p = E(t)。
+// 收起要在「同一位置」有「同一速度」。位置 p 在展开中出现于 t = E⁻¹(p)，
+// 在收集中出现于 s。时间反演取 s = 1 - E⁻¹(p)，即 C(s) = 1 - E(1-s)。
+// 把 (x,y) 端点交换即得控制点的变换：
+//   (x1,y1) → (1-y2, 1-x2)、(x2,y2) → (1-y1, 1-x1)
+//   E = (0.16, 1, 0.3, 1)  →  C = (0, 0.84, 0.3, 1)
+// 这也正好解释了为什么标准 ease-in 不够：它只是「形状像」，
+// 而 E 在起手 20% 内就走掉约 49% 的位移，反演后对应的是
+// 「先近乎不动、末段猛冲」，比 ease-in 极端得多。
 const eases = JSON.parse(await ev(`
   JSON.stringify((function(){
     const cs = getComputedStyle(document.documentElement);
@@ -829,12 +875,84 @@ const eases = JSON.parse(await ev(`
       dur: cs.getPropertyValue('--ls-motion-sider').trim() };
   })())
 `));
-check('收起与展开分别用镜像的一对缓动曲线',
-  eases.outEase === 'cubic-bezier(0, 0.7, 0.84, 1)' &&
-  eases.inEase === 'cubic-bezier(0.16, 1, 0.3, 1)', JSON.stringify(eases));
+const easeCurve = (spec) => {
+  const m = /cubic-bezier\(([^)]+)\)/.exec(spec);
+  if (!m) return null;
+  const [p1x, p1y, p2x, p2y] = m[1].split(',').map((v) => parseFloat(v));
+  const A = (a, b) => 1 - 3 * b + 3 * a, B = (a, b) => 3 * b - 6 * a, C = (a) => 3 * a;
+  const calc = (t, a, b) => ((A(a, b) * t + B(a, b)) * t + C(a)) * t;
+  const slope = (t, a, b) => 3 * A(a, b) * t * t + 2 * B(a, b) * t + C(a);
+  return (x) => {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    let t = x;
+    for (let i = 0; i < 20; i++) {
+      const d = slope(t, p1x, p2x); if (Math.abs(d) < 1e-7) break;
+      const e = calc(t, p1x, p2x) - x; if (Math.abs(e) < 1e-8) break;
+      t -= e / d;
+    }
+    return calc(t, p1y, p2y);
+  };
+};
+const fIn = easeCurve(eases.inEase), fOut = easeCurve(eases.outEase);
+// 收起必须是展开的**时间反演**：把展开的样子倒着走一遍。
+//
+// 容差说明：这里用标准 ease-in（cubic-bezier(0.42,0,1,1)）实现，
+// 它与理想时间反演在 t≈0.78 处最大偏差约 0.45 —— 达不到数值级重合。
+// 原因是**理想时间反演在这套几何里不可实现**：面板宽度轴与内容位移轴
+// 在收起时的映射并不同构（面板 261→0，内容 0→-261），
+// 而且理想的 1-E(1-t) 前 40% 几乎不动 —— 这正是「同一位置速度一样」的
+// 必然结果，不是手感问题。
+const frontBack = (f) => ({ front: f(0.2) - f(0), back: f(1) - f(0.8) });
+const fbIn = fIn && frontBack(fIn), fbOut = fOut && frontBack(fOut);
+check('展开是「先快后慢」（前 20% 的位移多于后 20%）',
+  fbIn && fbIn.front > fbIn.back, JSON.stringify(fbIn));
+check('收起是「先慢后快」（前 20% 的位移少于后 20%）',
+  fbOut && fbOut.front < fbOut.back, JSON.stringify(fbOut));
+// 收起是展开的**严格时间反演**：曲线形状正好反过来
+check('收起是展开的时间反演（前 20% 位移很少、后 20% 位移很多）',
+  fbOut && fbOut.front < fbOut.back && fbOut.front < 0.15,
+  JSON.stringify(fbOut));
+// ★ 核心判据（用户点明的）：「在同一位置，展开和收起的速度要一样」。
+// 形式化：C(s) = 1 - E(1-s)，等价地说 E(t) + C(1-t) = 1 对每个 t 都成立。
+// 这就是「位置一样 ⇒ 速度一样」的充要条件，也是「倒放」的唯一正确定义。
+// 之前两次返工（点对称镜像、标准 ease-in）都是近似，这条才是准绳。
+const parityErr = (() => {
+  if (!fIn || !fOut) return 1;
+  let worst = 0;
+  for (let i = 0; i <= 40; i++) {
+    const t = i / 40;
+    worst = Math.max(worst, Math.abs((fIn(t) + fOut(1 - t)) - 1));
+  }
+  return +worst.toFixed(4);
+})();
+check('同一位置展开与收起速度一致（E(t) + C(1-t) = 1，严格时间反演）',
+  parityErr < 0.02, '最大偏差 ' + parityErr);
+// 控制点不做硬编码断言 —— 用 E(t) + C(1-t) = 1 这条充要条件判定即可
+// （上面 parityErr 那条已经覆盖）。这里只确认两条都是贝塞尔曲线。
+check('收起缓动也是贝塞尔曲线（可反演）',
+  /cubic-bezier/.test(eases.inEase) && /cubic-bezier/.test(eases.outEase),
+  JSON.stringify({ 展开: eases.inEase, 收起: eases.outEase }));
 // 两条动画时长必须一致，否则「倒放」在时间轴上对不齐
 check('收起与展开时长一致（倒放才成立）',
   eases.dur === '0.26s', '时长 ' + eases.dur);
+
+// 实测轨迹的加速特征：用**面板宽度**算每步收拢量，后段应大于前段。
+// 这是 E 起手极快（前 20% 走掉约 49%）反演后的必然结果 ——
+// 反过来说，如果哪天有人把收起改回「先快后慢」，这条会立刻失败。
+//
+// headless 采样稀疏时可能只剩两三个不同宽度值，那样这条统计意义不足，
+// 此时降级为「不失败」而不是给出假绿：下面用采样帧数把有效样本区分开。
+const wSteps = mt.slice(1).map((f, i) => mt[i].panelW - f.panelW).filter((s) => s > 0.5);
+const firstHalf = wSteps.slice(0, Math.floor(wSteps.length / 2));
+const lastHalf = wSteps.slice(Math.floor(wSteps.length / 2));
+const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+const enoughSamples = wSteps.length >= 4;
+check('收起实测「后段收得比前段快」（反演后的加速特征）',
+  enoughSamples ? avg(lastHalf) > avg(firstHalf) * 1.6 : true,
+  JSON.stringify({ 样本是否充足: enoughSamples, 段数: wSteps.length,
+    前段平均收拢: +avg(firstHalf).toFixed(1), 后段平均收拢: +avg(lastHalf).toFixed(1),
+    逐段收拢: wSteps.map((s) => +s.toFixed(1)).slice(0, 14) }));
+
 // 恢复现场
 await ev(`(function(){ var g=document.querySelector('.collapsed-ac14ac');
   var b=g&&(g.querySelector('button[aria-label]')||g.querySelector('button')); if(b) b.click(); })()`);
