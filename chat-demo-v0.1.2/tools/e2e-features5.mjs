@@ -44,9 +44,29 @@ const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe
   { stdio: 'ignore' });
 
 let cdp;
+/* 抓控制台报错：轨道没挂上时，只有这里能看到真正的原因 */
+const pageLogs = [];
+function hookLogs(client) {
+  try {
+    client.on('event', (msg) => {
+      try {
+        if (msg.method === 'Runtime.consoleAPICalled') {
+          const args = (msg.params.args || [])
+            .map((a) => (a.value !== undefined ? a.value : (a.description || a.type))).join(' ');
+          pageLogs.push('[' + msg.params.type + '] ' + String(args).slice(0, 300));
+        } else if (msg.method === 'Runtime.exceptionThrown') {
+          const d = msg.params.exceptionDetails || {};
+          const desc = (d.exception && d.exception.description) || d.text || '';
+          pageLogs.push('[EXCEPTION] ' + String(desc).slice(0, 700));
+        }
+      } catch (e) { /* ignore */ }
+    });
+  } catch (e) { /* ignore */ }
+}
 try {
   const t = await fetchPageTarget(PORT);
   cdp = await CDP.connect(t.webSocketDebuggerUrl);
+  hookLogs(cdp);
   await cdp.send('Runtime.enable');
   await cdp.send('Page.enable');
   await sleep(4000);
@@ -170,6 +190,55 @@ try {
     );
     if (ready) break;
     await sleep(500);
+  }
+
+  /**
+   * ★ 这里修的是本套件最烦人的"偶发失败" ★
+   *
+   * 原来的等待条件只等**轨道**出现。但轨道的挂载依赖应用把消息渲染出来
+   * （消息列为空时 applyMessageRail 会直接 removeRail 返回），而应用渲染
+   * 会话的时机在弱环境（headless + 首次冷启动 + 深链打开）下会很晚 ——
+   * 实测 20 秒都不够。结果就是：
+   *
+   *   · 等待循环干等 20 秒 → 轨道一直没出现
+   *   · 紧接着的断言去 getBoundingClientRect → 撞到 null → 运行异常
+   *   · 但**再晚一点**去问，collectMessages() 已经能返回 12 条了
+   *     （诊断实测：报错那一刻链路完好、collectLen=12）
+   *
+   * 也就是说这不是产品 bug，是断言跑在"消息还没渲染出来"之前。
+   * 正确的等待条件是**消息真的出现**，轨道只是它的下游产物。
+   */
+  let msgsSeen = 0;
+  for (let i = 0; i < 120; i++) {
+    msgsSeen = await ev(
+      `window.__lsFeatures ? window.__lsFeatures.collectMessages().length : 0`
+    );
+    if (msgsSeen > 0 && await ev(`!!document.querySelector('.ls-msg-rail')`)) break;
+    await sleep(500);
+  }
+  if (!msgsSeen) {
+    const dbg = await ev(`JSON.stringify({
+      hasFeatures: !!window.__lsFeatures,
+      hasMain: !!document.querySelector('.main-_9fdf5'),
+      colChildren: (document.querySelector('.column-_7ccaf') || {children:[]}).children.length,
+      siderItems: document.querySelectorAll('.item-ff6fc9').length,
+      hash: location.hash
+    })`);
+    throw new Error('会话消息一直没渲染出来，无法测轨道: ' + dbg);
+  }
+  if (!(await ev(`!!document.querySelector('.ls-msg-rail')`))) {
+    // 消息有了但轨道没挂 —— 这才是真的产品问题，值得报错。
+    // 把轨道自己的状态打出来，便于定位是哪一道闸挡住了。
+    const st = await ev(`JSON.stringify({
+      featureOn: window.__lsFeatures.featureOn ? window.__lsFeatures.featureOn('rail') : null,
+      railState: window.__lsFeatures.railState,
+      hostPos: (function(){ var h=document.querySelector('.main-_9fdf5');
+        return h ? getComputedStyle(h).position : null; })(),
+      msgs: window.__lsFeatures.collectMessages().length,
+      entries: (function(){ try { return window.__lsFeatures.collectMessages()
+        .filter(function(m){ return m.role === 'user'; }).length; } catch(e){ return 'ERR '+e.message; } })()
+    })`);
+    throw new Error('消息已渲染 ' + msgsSeen + ' 条，但消息索引轨道没挂上。状态: ' + st);
   }
 
   /* ---------------------------------------------------------------- */

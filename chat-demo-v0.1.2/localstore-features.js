@@ -695,8 +695,50 @@
     return e;
   }
 
+  /**
+   * 排到下一帧执行。
+   *
+   * ★ 这里有两条路，不能只靠 requestAnimationFrame ★
+   *
+   * rAF 只在**页面真的要绘制**时才回调：后台标签页、被节流的窗口、
+   * headless 环境下都可能长时间不触发。
+   *
+   * 而 throttled() 是**所有功能的总闸**（applyAll 就是被它包起来的），
+   * 一旦 rAF 不回调，queued 会永远停在 true —— 之后每次调用都被
+   * "同一帧内只跑一次"挡掉，**整个功能层直接死掉**。
+   *
+   * 实测故障（探针）：深链打开会话、消息渲染出 12 条、功能开关正常，
+   * 但消息索引轨道就是不出来，状态是 railState.msgCount = 0
+   * （说明 applyMessageRail 一次都没跑过）。而且时好时坏，
+   * 取决于当时环境是否触发 rAF。
+   *
+   * 修法：rAF 与 setTimeout 同时排，谁先到谁执行，另一个作废。
+   *   · rAF 在前 → 保持原有"绘制前执行"的紧时机（不产生可见跳变）；
+   *   · rAF 不来 → setTimeout 兜底，保证功能层不会停摆。
+   */
   function raf(fn) {
-    return (window.requestAnimationFrame || function (f) { return setTimeout(f, 16); })(fn);
+    var done = false;
+    var run = function () {
+      if (done) return;
+      done = true;
+      fn();
+    };
+    var id = null;
+    try {
+      if (typeof window.requestAnimationFrame === 'function') {
+        id = window.requestAnimationFrame(run);
+      }
+    } catch (e) { /* ignore */ }
+    // 兜底：16ms 内 rAF 没来就自己跑（约一帧的时间，观感一致）
+    var t = setTimeout(run, 16);
+    // rAF 已经把活干了的话，把定时器收掉
+    return {
+      cancel: function () {
+        done = true;
+        try { if (id != null) window.cancelAnimationFrame(id); } catch (e) { /* ignore */ }
+        clearTimeout(t);
+      }
+    };
   }
 
   /** 节流：同一帧内只跑一次 */
@@ -3299,13 +3341,40 @@
       });
     } finally {
       applying = false;
-      // MutationObserver 的回调是**微任务**：同步改完 DOM 后，
-      // 回调会在当前任务结束、下一次渲染前被调用。所以不能在这里就
-      // 把闸门放下 —— 得再撑过一帧，把那批回调挡掉。
-      // 一帧（约 16ms）足够覆盖，且不会挡住用户真正的后续操作。
-      var release = function () { selfMutating = false; };
+      /**
+       * MutationObserver 的回调是**微任务**：同步改完 DOM 后，回调会在当前
+       * 任务结束、下一次渲染前被调用。所以不能在这里就立刻把闸门放下 ——
+       * 至少得撑过一个任务，把那批回调挡掉。
+       *
+       * ★★ 但**不能只靠 requestAnimationFrame**（这是一次真实故障的根因）★★
+       *
+       * 原来这里只写了 requestAnimationFrame(release)。问题在于 rAF 只在
+       * **页面真的要绘制**时才触发：
+       *   · 后台标签页 / 被节流的窗口 → 不绘制 → rAF 长期不回调；
+       *   · headless 环境同理。
+       * 这时 selfMutating 会**一直停在 true**，于是观察器把之后的每一批变动
+       * 都当成"我们自己动的"直接忽略 —— applyAll 再也不跑。
+       *
+       * 实测后果（探针）：深链打开会话、消息渲染出 12 条、功能开关也是开着的，
+       * 但消息索引轨道死活不出现。诊断显示：
+       *     railState.msgCount = 0     ← applyMessageRail 一次都没跑过
+       *     featureOn = true, msgs = 12, entries = 6
+       * 而且**时好时坏**，因为是否触发 rAF 取决于环境。
+       *
+       * 修法：setTimeout(0) 与 rAF 两条路都走，谁先到算谁。
+       *   · setTimeout 保证**一定**会释放（哪怕页面不绘制）；
+       *   · rAF 仍然负责"绘制前释放"这个更紧的时机。
+       * 两者都幂等，重复调用无副作用。
+       */
+      var released = false;
+      var release = function () {
+        if (released) return;
+        released = true;
+        selfMutating = false;
+      };
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(release);
-      else setTimeout(release, 16);
+      // 兜底：即使 rAF 永远不来，也要把闸门放下（否则功能会永久失效）
+      setTimeout(release, 0);
     }
     if (applyAgain) {
       applyAgain = false;
@@ -3408,6 +3477,52 @@
     }
   }
 
+  /**
+   * ★ 功能层"永久睡死"的兜底看门狗 ★
+   *
+   * 修的是一个真实故障：深链打开会话时，应用把 12 条消息渲染出来了、
+   * 功能开关也是开的，但消息索引轨道死活不出现。诊断显示
+   *     railState.msgCount = 0
+   * 也就是 applyMessageRail **一次都没跑过** —— 尽管同一轮 applyAll 里的
+   * 「搜索入口」明明成功了（搜索按钮在），说明 applyAll 跑过。
+   *
+   * 结论：applyAll 跑过之后，**再也没被唤醒**。观察器漏掉那批变动的原因
+   * 可能不止一种（自触发闸门、rAF 被节流、批次恰好落在窗口外……），
+   * 与其继续猜，不如加一道**自限的兜底**：只要"会话已经渲染出消息，
+   * 但我们的东西还没落位"，就补一次 applyAll。
+   *
+   * 为什么不是无限轮询：只在真的缺东西时才动手，且**一定会退出** ——
+   * 轨道挂上（或超过上限）就停。正常情况下它一次都不会触发，
+   * 所以不会有性能影响。
+   */
+  function startWatchdog() {
+    if (window.__lsFeatWatchdog) return;
+    window.__lsFeatWatchdog = true;
+    var ticks = 0;
+    var LIMIT = 60;              // 60 × 400ms ≈ 24 秒
+    var timer = setInterval(function () {
+      ticks += 1;
+      var done = false;
+      try {
+        var msgs = collectMessages().length;
+        // 没消息 = 应用还没渲染，继续等（这是正常情况）
+        if (msgs > 0) {
+          // 有消息了：检查我们的东西是否落位
+          var railMissing = featureOn('rail') && !document.querySelector('.' + RAIL_CLASS);
+          if (railMissing) applyAll();
+        }
+        // 退出条件：有消息且轨道在了（或者根本没开轨道功能）
+        if (msgs > 0 && !(featureOn('rail') && !document.querySelector('.' + RAIL_CLASS))) {
+          done = true;
+        }
+      } catch (e) { /* ignore */ }
+      if (done || ticks > LIMIT) {
+        clearInterval(timer);
+        window.__lsFeatWatchdog = false;
+      }
+    }, 400);
+  }
+
   function boot() {
     try {
       // 应用是 defer 加载的 React，DOM 里先没有侧栏，所以等它出现
@@ -3421,6 +3536,7 @@
           startObserver();
           startMenuWatcher();
           startScrollWatcher();
+          startWatchdog();
           log('v' + VERSION + ' 已加载（5 个功能就位）');
           return;
         }

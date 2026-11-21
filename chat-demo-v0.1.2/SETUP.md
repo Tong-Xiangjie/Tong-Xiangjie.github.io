@@ -828,22 +828,48 @@ fetch(url, { ..., safety_check: ed, ... })    // bundle @197770
 `/v1/chat/completions` 里被引用（那是 Assistants API 的东西，普通中转站不
 支持），所以"引用式"注定走不通。把内容内联进消息，模型才真的读得到。
 
-**`purpose` 各家不同，桥接层会自动逐个试**（实测）：
+**`purpose` 各家不同，桥接层会按文件类型自动逐个试**（实测）：
 
-| 端点 | 对 `purpose` 的要求 |
-|---|---|
-| 官方 `api.deepseek.com` | 只认 `user_data` / `text_recognition` / `rich_layout_recognition`；`file` 直接 400 |
-| 中转站（one-api 系） | 认 `assistants` / `vision` / `user_data` / `batch`…；`file` 也 400 |
+| 文件 | 官方 `api.deepseek.com` | 中转站 paratera |
+|---|---|---|
+| `.txt` | ✅ `user_data` | ❌ 「文件格式暂不支持，仅支持 pptx/ppt/docx/doc/xlsx/xls/pdf」 |
+| `.pdf` | ✅ **`text_recognition`** | ✅ `user_data` |
+| `.docx` | ✅ `text_recognition` | ✅ `user_data` |
 
-`user_data` 是**两边都认**的那个，所以放在第一个试；试出结果会记在
-`chat-demo:ls-file-purpose` 里，后续不再重复试。
+官方的规律是：**PDF/文档类必须用 `text_recognition` 或
+`rich_layout_recognition`，用 `user_data` 会被拒**：
+
+```
+Files with purpose 'user_data' must be images or plain-text files,
+but this file looks like a PDF document. To upload documents,
+use purpose 'text_recognition' or 'rich_layout_recognition'.
+```
+
+所以桥接层按扩展名排 purpose 顺序：
+
+- PDF → `text_recognition` → `rich_layout_recognition` → `user_data` → …
+- 其它 → `user_data` → `assistants` → `vision` → `file` → …
+
+试出结果会记在 `chat-demo:ls-file-purpose` 里，后续不再重复试。
+
+**还有一个容易踩的坑：`purpose` 字段必须排在 `file` 字段前面。**
+官方是流式解析 multipart 的，读到 `file` 时如果还不知道 `purpose`，
+就会直接判不合法 —— **连正确的 `text_recognition` 也会被拒**：
+
+```
+... and send the 'purpose' field before the 'file' field.
+```
+
+所以重建 FormData 时必须先 append `purpose`。这个坑很隐蔽：
+用 curl 手工测是好的，只有走"重建 FormData"的路径才会复现。
+
+`user_data` 是官方与中转站**唯一都认**的值，所以非 PDF 时放第一个试。
 
 **已知限制（上游的，不是这里能修的）**：
 
 - **图片**读不出像素，只能内联成一句占位说明；
-- **部分中转站只收 Office 文档**。实测 paratera 对 `.txt` 直接回
-  「文件格式暂不支持，仅支持: pptx/ppt/docx/doc/xlsx/xls/pdf」——
-  这种情况下 `.txt` 附件仍然会失败。但它**不影响把长文本直接粘进输入框**
+- **paratera 不收 `.txt`**（回「文件格式暂不支持，仅支持:
+  pptx/ppt/docx/doc/xlsx/xls/pdf」）。但它**不影响把长文本直接粘进输入框**
   （32k 那道闸已经拿掉了），也就是"内容多"这件事本身不再需要靠附件绕过。
 
 ### 上传问题自查
