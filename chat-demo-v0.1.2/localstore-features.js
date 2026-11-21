@@ -1142,6 +1142,10 @@
   var PIN_SECTION = 'ls-pin-section';
   var PIN_HIDDEN = 'ls-pin-hidden';
   var PIN_CLONE = 'ls-pin-clone';
+  /** 指针在克隆行里时由 JS 自己加上（不依赖浏览器的 :hover，实测 :hover 不可靠） */
+  var CLONE_HOVER = 'ls-pin-hover';
+  /** 打开菜单期间强制把「...」显示出来（要量它的矩形，0×0 会算错位置） */
+  var CLONE_FORCE = 'ls-pin-force-action';
   /** 分节标题文案（i18n：应用是 zh-CN / en-US 两套） */
   var PIN_LABEL = (function () {
     try {
@@ -1716,6 +1720,7 @@
     var undo = [];
     try {
       if (!real || !cloneEl || !cloneEl.getBoundingClientRect) return undo;
+      var r0 = real.getBoundingClientRect();
       var r = cloneEl.getBoundingClientRect();
       var box = {
         x: r.x, y: r.y, top: r.top, bottom: r.bottom, left: r.left, right: r.right,
@@ -1732,6 +1737,28 @@
           real.getBoundingClientRect = function () { return box; };
           undo.push({ node: real, prev: prev, own: own });
         } catch (e) { /* ignore */ }
+      }
+
+      // 1b) ★ 实测（探针 v138）应用量的是**真身行里那个 .anchor-_5f384**，
+      //     不是行本身、也不是按钮。所以必须把这个 anchor 自己换掉。
+      //     只靠下面的原型包装不够 —— 那要看住的最近祖先是真身
+      //     （`fakedNode.contains(this)`），而实测它量到的那个 anchor
+      //     走的是 `this` 自己的方法，绕过了原型链上的判断。
+      //     这里直接把真身行内的 anchor 全部换成同一个 box。
+      //     ⚠ 必须在 click **之前**换好：应用的定位在 useLayoutEffect 里，
+      //       是 commit 阶段同步跑的，比 MutationObserver 的回调（微任务）
+      //       更早。放在回调里换就已经晚了 —— 那正是"跳一下"的来源。
+      var anchors = real.querySelectorAll('[class*="anchor-"]');
+      for (var ai = 0; ai < anchors.length; ai++) {
+        (function (node) {
+          var aOwn = Object.prototype.hasOwnProperty.call(node, 'getBoundingClientRect');
+          var aPrev = node.getBoundingClientRect;
+          if (typeof aPrev !== 'function') return;
+          try {
+            node.getBoundingClientRect = function () { return box; };
+            undo.push({ node: node, prev: aPrev, own: aOwn });
+          } catch (e) { /* ignore */ }
+        })(anchors[ai]);
       }
 
       // 2) 挂一个原型级别的包装：后代节点（anchor span、button）量取时
@@ -1792,12 +1819,92 @@
    *   · 水平：贴在按钮左边（align:start），并夹在视口内（左右各留 8px）
    *   · 垂直：空间够就放按钮下面（offset 4px），不够就翻到上面
    *
-   * ⚠ 用 rAF 连续修正几帧：菜单的内容（我们插入的「取消置顶」那一条）
-   *   可能让高度晚一帧才定下来，一次修正会算错偏移量。
-   *   只修 4 帧就停，之后完全交还给应用（滚动/缩放时它自己会重算，
-   *   那时菜单在克隆附近，算出来也是对的）。
+   * **★★ 时机是这里最关键的一点（用户报的"还在跳"就出在这）★★**
+   *
+   * 实测真指针点击后的菜单位置序列（探针 v138，线上页面逐帧）：
+   *     94ms   (209,198)   ← 应用首次渲染（style 是它自己算的初始值）
+   *     112ms  (8,4)       ← 应用的 g() 重新测量，量到隐藏真身的 0×0 → 左上角
+   *     127ms  (214,198)   ← 我们的修正生效
+   * 也就是用户**看得见** (209,198) → (8,4) → (214,198) 这三步闪跳，
+   * 鼠标正下方的目标位置在 30ms 内变了两次 —— 当然点不中。
+   *
+   * 根因：应用的定位在 `useLayoutEffect` 里（React 提交阶段、**绘制之前**），
+   * 我们原来放在 rAF 里（**绘制之后**），晚了整整一帧，所以中间那帧被画了出来。
+   *
+   * 所以修正必须和应用的重新测量落在**同一个绘制帧**里：
+   * 用 MutationObserver 盯菜单挂载 —— 它的回调是微任务，紧跟在 React commit
+   * 之后、浏览器绘制之前。在回调里就地改坐标，应用量完到我们改完之间没有绘制，
+   * 用户只会看到最终位置。之后再补几帧粘住（我们插入的「取消置顶」会让高度
+   * 晚一帧定下来、应用会再量一次），同样只在 rAF 里改，不产生可见跳变。
    */
-  function placeMenuAt(menu, anchorEl) {
+  function menuEl() {
+    var m = document.querySelectorAll(SEL.menu);
+    return m.length ? m[m.length - 1] : null;
+  }
+
+  /**
+   * 把「隐藏的真身行」临时搬到克隆按钮的正下方（纯 CSS 绝对定位，不动 DOM 结构）。
+   *
+   * ★ 这是"菜单跳动"的**治本**做法 ★
+   *
+   * 之前的路子是"让应用先算错、我们再改坐标"，结果必然是两帧：
+   * 应用算的位置画一帧、我们改完再画一帧。实测（探针 v138）：
+   *   94ms (209,198) → 112ms (8,4) → 127ms (214,198)
+   * 鼠标正下方的目标 30ms 内挪两次，当然点不中「置顶」「重命名」。
+   *
+   * 根因是**隐藏的真身量出来是 0×0**。那就别让它量到 0×0：
+   * 临时用绝对定位把它摆到克隆按钮的位置上（尺寸不变、暗到看不见、
+   * pointer-events 关掉），应用量出来的矩形本身就是对的 ——
+   * 它算出来的位置一次就对，**没有任何需要事后修正的帧**。
+   *
+   * 用 class 而不是内联样式，是因为置顶列表有 overflow 裁剪，
+   * 需要一个 `overflow: visible` 的伴生规则（见 CSS 里 .ls-pin-anchor-done）。
+   * 结束用 clearRealRowPlacement() 收干净，不留痕迹。
+   */
+  function placeRealRowAt(real, cloneBtn) {
+    if (!real || !cloneBtn || !real.classList) return;
+    try {
+      var box = cloneBtn.getBoundingClientRect();
+      var row = real.getBoundingClientRect();
+      // 行内偏移：克隆按钮相对自己那一行的位置（真身行的结构和克隆完全一样）
+      var offX = cloneBtn.offsetLeft || 0;
+      var offY = cloneBtn.offsetTop || 0;
+      // 真身行的左上角应该落在哪（视口坐标 + 滚动量 = 绝对定位坐标）
+      var left = box.left + (window.scrollX || 0) - offX;
+      var top = box.top + (window.scrollY || 0) - offY;
+      real.style.setProperty('--ls-anchor-left', Math.round(left) + 'px');
+      real.style.setProperty('--ls-anchor-top', Math.round(top) + 'px');
+      real.classList.add('ls-pin-anchor');
+      // 诊断用：万一还跳，能一眼看出这次摆到了哪
+      real.dataset.lsAnchorBox = Math.round(box.left) + ',' + Math.round(box.top) +
+        ' off=' + Math.round(offX) + ',' + Math.round(offY) + ' row=' +
+        Math.round(row.width) + 'x' + Math.round(row.height);
+    } catch (e) { /* ignore */ }
+  }
+
+  function clearRealRowPlacement(real) {
+    if (!real || !real.classList) return;
+    try {
+      real.classList.remove('ls-pin-anchor');
+      real.style.removeProperty('--ls-anchor-left');
+      real.style.removeProperty('--ls-anchor-top');
+      delete real.dataset.lsAnchorBox;
+    } catch (e) { /* ignore */ }
+  }
+
+  /**
+   * 把菜单钉到按钮旁边。
+   *
+   * @param {Element} menu    应用的菜单节点（body 下的 portal）
+   * @param {Element} anchorEl 要贴着的按钮（置顶行的克隆按钮）
+   * @param {boolean} now     true = **同步**改一次坐标（不排到下一帧）
+   *
+   * `now` 是从 MutationObserver 回调里调时用的：那时应用刚量完矩形、
+   * 浏览器还没绘制，同步改完用户就看不到中间位置（见上面 v138 的实测序列）。
+   * 后续几帧再用 rAF 粘住，兜住「我们插入的「取消置顶」让高度晚一帧定下来」
+   * 引起的应用二次测量。
+   */
+  function placeMenuAt(menu, anchorEl, now) {
     if (!menu || !anchorEl || !anchorEl.getBoundingClientRect) return;
     if (menuPlaceTimer) { try { cancelAnimationFrame(menuPlaceTimer); } catch (e) { /* ignore */ } menuPlaceTimer = null; }
     var frames = 0;
@@ -1807,12 +1914,17 @@
         if (!menu.isConnected) { menuPlaceTimer = null; return; }
         var mr = menu.getBoundingClientRect();
         var ar = anchorEl.getBoundingClientRect();
+        var cs = getComputedStyle(menu);
+        // 视口坐标 vs 文档坐标：fixed 时 style.left 就是视口坐标；
+        // absolute 时要扣掉滚动量（应用哪天换定位方式也照样对）
+        var scrollX = cs.position === 'fixed' ? 0 : (window.scrollX || 0);
+        var scrollY = cs.position === 'fixed' ? 0 : (window.scrollY || 0);
         var curL = parseFloat(menu.style.left);
         var curT = parseFloat(menu.style.top);
-        if (isNaN(curL)) curL = mr.left;
-        if (isNaN(curT)) curT = mr.top;
-        var dx = mr.left - curL;          // 应用定位方式带来的常量偏移
-        var dy = mr.top - curT;
+        if (isNaN(curL)) curL = mr.left + scrollX;
+        if (isNaN(curT)) curT = mr.top + scrollY;
+        var dx = (mr.left + scrollX) - curL;   // 应用定位方式带来的常量偏移
+        var dy = (mr.top + scrollY) - curT;
 
         // 水平：贴按钮左边，夹在视口内
         var want = Math.max(8, Math.min(ar.left, window.innerWidth - mr.width - 8));
@@ -1833,7 +1945,13 @@
         menuPlaceTimer = null;
       }
     };
-    step();
+    if (now) {
+      // 同步跑第一次（关键：不留出"应用已定位、我们还没改"的绘制帧），
+      // 然后再排后续几帧
+      step();
+    } else {
+      step();
+    }
   }
 
   function scheduleApply() {
@@ -1886,66 +2004,56 @@
       var title = clone.dataset.lsPinTitle;
       if (!title) return;
 
-      // 2a) 点「...」：转发给**真身**上那个按钮，并把菜单位置「挪」到克隆身上。
+      // 2a) 点「...」：转发给**真身上的按钮**。
       //
-      //     为什么不能直接让克隆的按钮自己弹菜单：克隆是 cloneNode 出来的，
-      //     notReactOwned() 把 __reactProps$xxx / __reactFiber$xxx 全删了
-      //     （不删的话 React 会去动这些"幽灵节点"）。应用用的是根节点
-      //     事件委托 —— 委托要靠 fiber 找组件，没有 fiber 就什么都不发生。
+      //     为什么必须转发（实测结论，别再删掉）：
+      //     克隆节点的子树在 **pointerdown 和 click 之间会被重建**
+      //     （我们的 observer/应用的重渲染都会触发 applyAll），
+      //     于是 click 的 target 落在了 .container-_1f155 上，
+      //     而不是那个按钮 —— 菜单根本不会弹。
+      //     转发到真身按钮就没这个问题：真身是 React 自己管的节点，
+      //     永远在那儿、永远有效。
       //
-      //     ★ 但只转发点击是不够的，用户报的正是这一点：
-      //       「不是点不开，是位置不对」。
-      //     应用算菜单位置的方式（tF 这个 hook）是：
-      //         let o = (anchorRef.current.firstElementChild).getBoundingClientRect()
-      //     也就是**量触发元素自己的矩形**。真身被我们 display:none 藏着，
-      //     它的矩形是 0×0（在 0,0），于是菜单被算到屏幕左上角去了。
-      //
-      //     解决办法：在点之前，临时把真身的 getBoundingClientRect 换成
-      //     返回**克隆身上那个按钮**的矩形。菜单照旧由应用自己算、
-      //     自己弹、自己定位，只是量到的位置是用户真正看着的那个按钮。
+      //     而"菜单跑到左上角"是**位置**问题，已经在 pointerdown 阶段
+      //     用 fakeAnchorRect() 解决（那时应用还没量 anchor）。
+      //     两件事分开治：位置在 pointerdown 修，打开在 click 里转发。
       if (t.closest(SEL.itemAction)) {
         ev.preventDefault();
         ev.stopPropagation();
         var real = findRealItem(title);
         var realBtn = real && real.querySelector(SEL.itemAction + ' button');
-        if (realBtn) {
-          lastMenuOwner = real;          // 先把归属钉死，再点
-          var cloneBtn = t.closest('button') || t;
-          // 菜单挂进 body 的那一刻就是应用量完矩形的时候。
-          // 用观察器盯住它，量完立刻还原（见 openCloneMenuAt 里的说明）。
-          var stopWatch = watchMenuMount(function () {
-            restoreAnchorRect(real, null);
-          });
-          var faked = fakeAnchorRect(real, cloneBtn);
-          // 把还原现场交给观察器统一收尾（fakeAnchorRect 已经把它记在自己身上）
-          pendingRestore = faked;
-          try {
-            realBtn.click();
-          } catch (e2) {
-            warn('转发菜单点击失败', e2);
-            stopWatch();
-            restoreAnchorRect(real, pendingRestore);
-            pendingRestore = null;
-          }
-          // 菜单是同步 portal 进 body 的；补一次装饰（多出「取消置顶」那一条，
-          // 菜单高度会变，所以定位修正必须放在装饰**之后**）。
-          setTimeout(function () {
-            var menus = document.querySelectorAll(SEL.menu);
-            for (var mi = 0; mi < menus.length; mi++) decorateMenu(menus[mi]);
-            if (menus.length) placeMenuAt(menus[0], cloneBtn);
-            // 兜底还原（正常情况已被 watchMenuMount 收尾）
-            if (pendingRestore) {
-              stopWatch();
-              restoreAnchorRect(real, pendingRestore);
-              pendingRestore = null;
-            }
-          }, 0);
-        } else {
-          warn('置顶行打不开菜单：找不到真身按钮 ' + title);
+        if (!realBtn) { warn('置顶行打不开菜单：找不到真身按钮 ' + title); return; }
+        lastMenuOwner = real;
+        var cloneBtn = t.closest('button') || t;
+        // 保险：万一 pointerdown 那次没赶上（键盘触发、程序化 click 等），
+        // 这里再补一次。补的时候要保证克隆的「...」是量得到的 ——
+        // 它有可能是 display:none（0×0），量出来又会回到左上角。
+        // CLONE_FORCE 那条 CSS 强制把它显出来。
+        if (!pointerPatch || pointerPatch.real !== real) {
+          releasePointerPatch();
+          var cloneRow = t.closest('.' + PIN_CLONE);
+          if (cloneRow) cloneRow.classList.add(CLONE_FORCE);
+          placeRealRowAt(real, cloneBtn);
+          pointerPatch = {
+            real: real,
+            clone: cloneRow,
+            undo: fakeAnchorRect(real, cloneBtn),
+            timer: null,
+            stopHold: holdActionUntilMenuCloses(cloneRow)
+          };
         }
+        try {
+          realBtn.click();
+        } catch (e2) {
+          warn('转发菜单点击失败', e2);
+        }
+        // 补一次装饰（「取消置顶」那一条让它高一点，位置已经由应用算对）
+        var menus = document.querySelectorAll(SEL.menu);
+        for (var mi = 0; mi < menus.length; mi++) decorateMenu(menus[mi]);
         return;
       }
 
+      // 2b) 点克隆行的其他地方 → 打开那条对话
       ev.preventDefault();
       ev.stopPropagation();
       openSessionByTitle(title);
@@ -1958,6 +2066,170 @@
       if (!t || !t.closest || !t.closest('.' + PIN_HEAD)) return;
       toggle(ev);
     }, true);
+
+    installPinPointerPatch();
+  }
+
+  /**
+   * 在 pointerdown 阶段就把「真身 anchor 的矩形」顶替掉。
+   *
+   * ★ 为什么必须是 pointerdown，而不是 click 里 ★
+   *
+   * 应用的定位在 `useLayoutEffect` 里 —— React 的 commit 阶段、**同步**执行，
+   * 就在 click 处理函数返回之前。也就是说在 click 里再改任何东西都已经晚了：
+   * 它已经量完 0×0、已经 setState 到 (8,4)、那一帧也已经被画出来了。
+   * 实测（探针 v138，逐帧）：
+   *     86ms  应用量真身 anchor → [0,0,0,0]
+   *     86ms  菜单挂载到 [8,4]      ← 错的位置，用户看得见
+   *     95ms  应用又量一次 → [0,0,0,0]
+   * 而我们放在 click 里的顶替代码，直到这些之后才生效（__pinTrace 为空可证）。
+   *
+   * pointerdown 比 click 早一个事件阶段，在它里面把矩形换掉，
+   * 等应用在 click 里量的时候就已经是对的 —— 首帧就是最终位置。
+   * 顶替在下一次 pointerdown 或 600ms 后自动收掉，不留痕迹。
+   */
+  var pointerPatch = null;
+
+  function releasePointerPatch() {
+    if (!pointerPatch) return;
+    var p = pointerPatch;
+    pointerPatch = null;
+    if (p.timer) { try { clearTimeout(p.timer); } catch (e) { /* ignore */ } }
+    if (p.stopHold) { try { p.stopHold(); } catch (e) { /* ignore */ } }
+    restoreAnchorRect(p.real, p.undo);
+    clearRealRowPlacement(p.real);
+    restoreAnchorRect(p.real, null);
+    if (p.clone && p.clone.classList) {
+      try { p.clone.classList.remove(CLONE_FORCE); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function installPinPointerPatch() {
+    if (pinnedState.pointerPatchBound) return;
+    pinnedState.pointerPatchBound = true;
+    document.addEventListener('pointerdown', function (ev) {
+      releasePointerPatch();                 // 上一次的先收掉
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      var clone = t.closest('.' + PIN_CLONE);
+      if (!clone || !t.closest(SEL.itemAction)) return;
+      var title = clone.dataset.lsPinTitle;
+      if (!title) return;
+      var real = findRealItem(title);
+      var cloneBtn = t.closest('button') || t;
+      if (!real || !cloneBtn) return;
+      // 两条保险一起上：既把真身"摆"到克隆按钮处（万一应用直接量行），
+      // 也把 anchor 的矩形顶替掉（实测应用量的是 anchor）。
+      //
+      // ⚠ 先把克隆的「...」强制显示出来：它默认可能是 display:none，
+      //   量出来是 0×0，顶替过去的也还是错的（这个坑踩过：菜单停在左上角）。
+      clone.classList.add(CLONE_FORCE);
+      placeRealRowAt(real, cloneBtn);
+      pointerPatch = {
+        real: real,
+        clone: clone,
+        undo: fakeAnchorRect(real, cloneBtn),
+        timer: null,
+        // 菜单还开着就一直按住按钮（否则手一移开按钮就 0×0、菜单跳走）
+        stopHold: holdActionUntilMenuCloses(clone)
+      };
+    }, true);
+
+    installCloneHover();
+  }
+
+  /**
+   * 把「...」按住显示，直到菜单从 DOM 里消失。
+   *
+   * ★ 用户报的「点开菜单后，手一动去点面板上的按键就闪」的根因 ★
+   *
+   * 应用算菜单位置的办法是量**锚点**（也就是那一行的「...」按钮）的矩形，
+   * 而且它在 `ResizeObserver` 里盯着这个锚点 —— 锚点尺寸一变就重算位置。
+   *
+   * 而我们的「...」平时是藏着的（`display:none`），靠鼠标在行里才显形
+   * （见 installCloneHover）。于是：
+   *     鼠标从「...」移向菜单 → 离开了那一行 → ls-pin-hover 被撤掉
+   *     → 按钮回到 display:none → 矩形变 0×0
+   *     → ResizeObserver 触发 → 应用把菜单重算到左上角 (8,4)
+   * 用户看到的就是"正准备点，面板跳走了"。
+   *
+   * 所以：**菜单开着的时候，按钮必须一直保持可见**。
+   * 这里用 MutationObserver 盯菜单的消失，菜单一走才收掉。
+   * （之前用 900ms 定时器收，太早了 —— 用户还在点。）
+   */
+  function holdActionUntilMenuCloses(clone) {
+    if (!clone || !clone.classList) return function () {};
+    var stopped = false;
+    var obs = null;
+    var check = function () {
+      if (stopped) return;
+      if (document.querySelector(SEL.menu)) return;   // 菜单还在，继续按住
+      stop();
+    };
+    var stop = function () {
+      if (stopped) return;
+      stopped = true;
+      if (obs) { try { obs.disconnect(); } catch (e) { /* ignore */ } obs = null; }
+      try { clone.classList.remove(CLONE_FORCE); } catch (e) { /* ignore */ }
+    };
+    try {
+      obs = new MutationObserver(function () {
+        // 菜单是 portal 到 body 的：它的增删都会冒到 body 这一层
+        check();
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* ignore */ }
+    // 兜底：菜单一直不出现（比如点击被吞了）也别把按钮永远按住
+    setTimeout(check, 4000);
+    return stop;
+  }
+
+  /**
+   * 让置顶行的「...」确实显示出来。
+   *
+   * ★ 这是「置顶的...点不开」的真正原因 ★
+   *
+   * 原来只写了一条 CSS `.ls-pin-clone:hover .action-ff6fc9{display:flex}`，
+   * 靠浏览器的 :hover。实测（探针 v138）**不可靠**：
+   *     鼠标事件确实落在克隆行里（pointerover/mouseover 都命中了），
+   *     但同一时刻 `clone.matches(':hover')` === false，
+   *     于是 .action 的计算值一直是 display:none。
+   * 结果是「...」是 0×0、`elementFromPoint(按钮中心)` 返回的是标题 div，
+   * 点击永远打在标题上 —— 菜单当然打不开，也就无从谈起"位置对不对"。
+   *
+   * 所以不再依赖 :hover：用 pointermove 自己判断"指针在不在克隆行里"，
+   * 在就加 `.ls-pin-hover`（CSS 里同样让它 display:flex）。
+   * 显式、可控、和浏览器 :hover 无关。
+   */
+  function installCloneHover() {
+    if (pinnedState.cloneHoverBound) return;
+    pinnedState.cloneHoverBound = true;
+
+    var sync = function (ev) {
+      if (!ev || !ev.target) return;
+      var clones = document.querySelectorAll('.' + PIN_CLONE);
+      if (!clones.length) return;
+      // 用坐标判定，不用 ev.target.closest：指针可能在按钮的 svg 里，
+      // 也可能因为 tooltip 之类的浮层换了个 target，按坐标最稳。
+      var x = ev.clientX;
+      var y = ev.clientY;
+      for (var i = 0; i < clones.length; i++) {
+        var r = clones[i].getBoundingClientRect();
+        var inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+        if (inside) clones[i].classList.add(CLONE_HOVER);
+        else clones[i].classList.remove(CLONE_HOVER);
+      }
+    };
+    var clear = function () {
+      var clones = document.querySelectorAll('.' + PIN_CLONE + '.' + CLONE_HOVER);
+      for (var i = 0; i < clones.length; i++) clones[i].classList.remove(CLONE_HOVER);
+    };
+
+    document.addEventListener('pointermove', sync, true);
+    document.addEventListener('mousemove', sync, true);
+    document.addEventListener('pointerdown', sync, true);
+    document.addEventListener('mouseleave', clear, true);
+    window.addEventListener('blur', clear);
   }
 
   /** 按标题找侧栏里的真身项（克隆不算） */
@@ -2235,6 +2507,64 @@
   var LS_PASTE_SEQ = 'chat-demo:ls-paste-seq';
   var PASTE_BASE_NAME = '粘贴的文本';
 
+  /** 标题最多取这么多字符（中文按字符算，够长又能一眼认出来） */
+  var PASTE_TITLE_MAX = 24;
+
+  /**
+   * 从粘贴内容里取「首句」当文件名 —— 和官方一样。
+   *
+   * 规则（按优先级）：
+   *   1. 取第一段非空文字
+   *   2. 在第一个句末标点处断开（。！？；.!?; 以及换行）
+   *   3. 去掉 markdown 标记、列表符号、多余空白
+   *   4. 超过 PASTE_TITLE_MAX 个字符就截断加省略号
+   *
+   * 之所以不用「粘贴的文本（1）（2）」那套序号命名：用户明确说了
+   * 「选取粘贴文本首句/前面几个字作为标题吧，官方就这么做的」。
+   * 序号那套是电脑文件重名时的兜底规则，不是标题该长成的样子。
+   *
+   * ⚠ 文件名里不能出现的字符（Windows 的 \ / : * ? " < > |）要换掉，
+   *   否则 File 的名字在保存/展示时会出问题。
+   */
+  function titleFromText(text) {
+    var s = String(text == null ? '' : text);
+    // 1) 取第一段非空文字
+    var lines = s.split(/\r?\n/);
+    var first = '';
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i] && lines[i].trim()) { first = lines[i].trim(); break; }
+    }
+    if (!first) first = s.trim();
+    if (!first) return PASTE_BASE_NAME;
+
+    // 2) 去掉常见 markdown / 列表前缀
+    first = first
+      .replace(/^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.、)]\s+|>\s*)+/, '')
+      .replace(/^\s*[`*_~]+/, '')
+      .replace(/[`*_~]+\s*$/, '')
+      .trim();
+    if (!first) first = PASTE_BASE_NAME;
+
+    // 3) 在第一个句末标点处断开（包含标点本身，读起来自然）
+    var m = first.match(/^[^。！？；!?;]{1,200}[。！？；!?;]?/);
+    if (m && m[0]) first = m[0];
+
+    // 4) 截断
+    if (first.length > PASTE_TITLE_MAX) {
+      first = first.slice(0, PASTE_TITLE_MAX) + '…';
+    }
+
+    // 5) 文件名非法字符换成下划线；结尾的**点/空格**去掉
+    //    （Windows 不允许文件名以点或空格结尾；但「。」「？」这类
+    //     句末标点在文件名里合法、也很常见，留着才像原句）。
+    //     顺带把全角的「．」也当成点处理，避免 `内容．.txt` 这种双标点。
+    first = first
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/[.．\s]+$/, '')
+      .trim();
+    return first || PASTE_BASE_NAME;
+  }
+
   function nextPasteSeq() {
     var n = Number(readJson(LS_PASTE_SEQ, 0)) || 0;
     n += 1;
@@ -2242,8 +2572,39 @@
     return n;
   }
 
-  function pasteFileName(seq) {
-    return PASTE_BASE_NAME + '（' + seq + '）.txt';
+  /**
+   * 打印「同名第几次」。
+   *
+   * 同电脑的文件命名规则：第一份就是本名（不标号），第二份才带（2）。
+   * 所以这里按「基础名」计数，第一次返回 1、第二次返回 2。
+   * 记在 localStorage 里，刷新后接着数，不会又从头开始。
+   */
+  var LS_PASTE_NAMES = 'chat-demo:ls-paste-names';
+
+  function claimPasteName(base) {
+    var map = readJson(LS_PASTE_NAMES, null);
+    if (!map || typeof map !== 'object') map = {};
+    var n = (Number(map[base]) || 0) + 1;
+    map[base] = n;
+    // 只留最近的 200 个键，别让这个表无限长大
+    var keys = Object.keys(map);
+    if (keys.length > 200) {
+      for (var i = 0; i < keys.length - 200; i++) delete map[keys[i]];
+    }
+    writeJson(LS_PASTE_NAMES, map);
+    return n;
+  }
+
+  /**
+   * 文件名 = 首句 + .txt。
+   *
+   * 重名兜底按电脑的规则：第一份不加序号，第二份才加（2）。
+   */
+  function pasteFileName(text) {
+    var base = titleFromText(text);
+    var n = claimPasteName(base);
+    if (n <= 1) return base + '.txt';
+    return base + '（' + n + '）.txt';
   }
 
   function attachTextAsFile(text) {
@@ -2251,8 +2612,8 @@
     if (!input) return false;
     if (typeof DataTransfer !== 'function' || typeof File !== 'function') return false;
 
-    var seq = nextPasteSeq();
-    var name = pasteFileName(seq);
+    nextPasteSeq();                        // 保留序号计数（兼容旧数据/诊断）
+    var name = pasteFileName(text);
 
     var dt;
     try {

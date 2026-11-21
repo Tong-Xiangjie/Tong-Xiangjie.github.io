@@ -1343,88 +1343,14 @@
     }
   }
 
-  /** 定时扫描：发现外部新增/修改的会话就合并进来并刷新 */
-  async function pollFolderForChanges() {
-    if (syncState.running) return;                 // 自己正在写盘，先别读
-    if (document.visibilityState === 'hidden') return; // 后台标签页不用管
-    var list;
-    try {
-      list = await scanSessionFiles();
-    } catch (e) {
-      watchState.lastError = (e && e.message) || String(e);
-      return;
-    }
-    if (!list) return;
-    watchState.lastScan = Date.now();
-
-    var fresh = list.filter(function (x) {
-      return x.lastModified > watchState.baselineAt;
-    });
-    if (!fresh.length) return;
-
-    // 逐条读进来。读不动的（正在被写）跳过，下一轮再试。
-    var incoming = [];
-    var maxSeen = watchState.baselineAt;
-    var convDir = await subdir(await getRootHandle(), '对话', false);
-    for (var i = 0; i < fresh.length; i++) {
-      var raw;
-      try {
-        raw = await readTextFile(convDir, fresh[i].name);
-      } catch (e) {
-        continue;
-      }
-      var parsed;
-      try {
-        parsed = JSON.parse(raw);
-      } catch (e) {
-        continue; // 写了一半的文件，下轮再读
-      }
-      if (!parsed || !parsed.id) continue;
-      maxSeen = Math.max(maxSeen, fresh[i].lastModified);
-      incoming.push({
-        id: parsed.id,
-        title: parsed.title == null ? null : parsed.title,
-        createdAt: parsed.createdAt == null ? null : parsed.createdAt,
-        updatedAt: parsed.updatedAt == null ? null : parsed.updatedAt,
-        rootMessageId: parsed.rootMessageId == null ? null : parsed.rootMessageId,
-        messages: Array.isArray(parsed.messages) ? parsed.messages : []
-      });
-    }
-    if (!incoming.length) return;
-
-    // 只收「本地没有的」和「本地更旧的」——本地更新的说明这边的编辑还没落盘，
-    // 不能拿旧文件把它盖回去。
-    var local = await readAllSessions();
-    var localById = {};
-    for (var k = 0; k < local.length; k++) localById[local[k].id] = local[k];
-    var toWrite = incoming.filter(function (s) {
-      var l = localById[s.id];
-      if (!l) return true;
-      return (s.updatedAt || 0) > (l.updatedAt || 0);
-    });
-
-    watchState.baselineAt = maxSeen;
-    if (!toWrite.length) return;
-
-    log('文件夹里有 ' + toWrite.length + ' 个更新过的对话，正在收进来');
-    autoSyncSuspended++;
-    try {
-      await writeBack(toWrite, [], null);
-    } finally {
-      autoSyncSuspended--;
-    }
-    watchState.imported += toWrite.length;
-    watchState.lastImported = toWrite.map(function (s) { return s.title; });
-    lsSet(LS_HISTORY_SYNCED_AT, String(Date.now()));
-    emitSync();
-
-    // 页面重载才能让应用看见新数据（应用只在启动时读一次库）
-    if (watchReloadEnabled()) {
-      try {
-        location.reload();
-      } catch (e) { /* ignore */ }
-    }
-  }
+  /**
+   * 定时扫描：发现外部新增/修改的会话就合并进来并刷新。
+   *
+   * ⚠ 这里以前有**两份** pollFolderForChanges（函数声明提升，后面那份
+   *   静默覆盖前面那份），前一份是只按 lastModified 基线判新的老实现。
+   *   重叠的声明很危险：改一份以为生效了、实际跑的是另一份。
+   *   已删掉旧的那份，只留下面按内容哈希判新的这份。
+   */
 
   /**
    * 启动时的一次性对齐：把文件夹里**比本地新**的对话收进来。
@@ -2796,6 +2722,266 @@
     }
   }
 
+  /* ==================================================================== *
+   * 单次请求的 token 上限（超了就本地截断，别让服务端打回来）
+   *
+   * 背景：服务端硬上限是 32768 tokens，超了直接回
+   *   `user input too long, 34112 tokens exceeds max 32768 tokens`
+   * 整个请求失败、这条消息白打。应用本身**没有任何本地上限检查**
+   * （bundle 里搜不到 32768 / exceeds max / too long），所以只能在发出前拦。
+   *
+   * 做法：请求体里算一遍估算 token 数，超了就把**最长的那些文本块**截短，
+   * 保证请求一定能过。宁可内容少一点，也不要整条失败。
+   * ==================================================================== */
+
+  /** 服务端硬上限 */
+  var REQ_TOKEN_MAX = 32768;
+  /** 留出余量给服务端可能追加的东西（系统提示、工具定义等） */
+  var REQ_TOKEN_BUDGET = 30000;
+  /** 上限可以被设置覆盖（见 localstore 设置里的 tokenLimit） */
+  var reqTokenLimit = null;
+
+  function effectiveTokenBudget() {
+    if (reqTokenLimit && reqTokenLimit > 0) {
+      // 用户设的上限就是"我要的上限"，再留 8% 余量
+      return Math.floor(reqTokenLimit * 0.92);
+    }
+    return REQ_TOKEN_BUDGET;
+  }
+
+  /**
+   * 粗略估 token 数。
+   *
+   * 不去引 tokenizer（体积/依赖都不合适）。按"字符类别"分开估，
+   * 这是业界常用的近似：
+   *   · CJK（中日韩）大约 1 字 ≈ 1 token，甚至更多
+   *   · 拉丁字母/数字大约 4 字符 ≈ 1 token
+   *   · 其它（标点、符号、emoji）按 2 字符 ≈ 1 token
+   * 偏保守（宁可高估），这样不会因为低估而被服务端打回。
+   */
+  function estimateTokens(text) {
+    if (!text) return 0;
+    var s = String(text);
+    var cjk = 0, ascii = 0, other = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i);
+      if (c >= 0x2e80 && c <= 0x9fff) cjk++;          // CJK 统一表意 + 部首
+      else if (c >= 0xac00 && c <= 0xd7af) cjk++;     // 韩文
+      else if (c >= 0x3040 && c <= 0x30ff) cjk++;     // 日文假名
+      else if (c >= 0xf900 && c <= 0xfaff) cjk++;     // CJK 兼容
+      else if (c >= 0xff00 && c <= 0xffef) cjk++;     // 全角
+      else if (c < 128) ascii++;
+      else other++;
+    }
+    return Math.ceil(cjk + ascii / 4 + other / 2);
+  }
+
+  /**
+   * 估算一段 content 的 token。
+   *
+   * ⚠ 必须同时支持两种形态，应用的正文用的就是 block 数组：
+   *   · 纯字符串        content: "……"
+   *   · block 数组      content: [{type:'text', text:'……'}, …]
+   * 之前只处理字符串，数组会被估成 0 —— 于是超限请求全都漏过去了。
+   */
+  function estimateContentTokens(c) {
+    if (!c) return 0;
+    if (typeof c === 'string') return estimateTokens(c);
+    if (Array.isArray(c)) {
+      var total = 0;
+      for (var i = 0; i < c.length; i++) {
+        var b = c[i];
+        if (!b) continue;
+        if (typeof b === 'string') { total += estimateTokens(b); continue; }
+        if (typeof b.text === 'string') total += estimateTokens(b.text);
+        // 工具调用/结果这些也占 token，用 JSON 长度粗估
+        if (b.input) total += estimateTokens(JSON.stringify(b.input)) / 2;
+        if (b.content && b.content !== b.text) total += estimateContentTokens(b.content);
+      }
+      return total;
+    }
+    return estimateTokens(String(c));
+  }
+
+  /** 估算整个请求体的 token（只看真正占 token 的字段） */
+  function estimateRequestTokens(body) {
+    if (!body || typeof body !== 'object') return 0;
+    var total = estimateContentTokens(body.system) + estimateContentTokens(body.systemPrompt);
+    var msgs = body.messages;
+    if (Array.isArray(msgs)) {
+      for (var i = 0; i < msgs.length; i++) {
+        var m = msgs[i];
+        if (!m) continue;
+        total += estimateContentTokens(m.content);
+        if (m.system) total += estimateContentTokens(m.system);
+      }
+    }
+    if (Array.isArray(body.tools)) total += estimateTokens(JSON.stringify(body.tools)) / 2;
+    return Math.ceil(total) + 8;   // 每条消息的结构开销
+  }
+
+  /**
+   * 收集请求体里所有可截断的文本片段（带"怎么写回去"的回调）。
+   * 支持 Anthropic 的两种 content 形态：纯字符串、以及 block 数组。
+   */
+  function collectTextParts(body) {
+    var parts = [];
+    function walkContent(container, key) {
+      var c = container && container[key];
+      if (typeof c === 'string') {
+        if (c) parts.push({
+          len: c.length,
+          get: function () { return container[key]; },
+          set: function (v) { container[key] = v; }
+        });
+        return;
+      }
+      if (Array.isArray(c)) {
+        for (var i = 0; i < c.length; i++) {
+          var b = c[i];
+          if (!b || typeof b !== 'object') continue;
+          if (b.type === 'text' && typeof b.text === 'string' && b.text) {
+            (function (blk) {
+              parts.push({
+                len: blk.text.length,
+                get: function () { return blk.text; },
+                set: function (v) { blk.text = v; }
+              });
+            })(b);
+          }
+        }
+      }
+    }
+    if (Array.isArray(body.messages)) {
+      for (var i = 0; i < body.messages.length; i++) walkContent(body.messages[i], 'content');
+    }
+    walkContent(body, 'system');
+    walkContent(body, 'systemPrompt');
+    return parts;
+  }
+
+  /**
+   * 把请求体压到预算内。返回 {body, trimmed, removed} 或 null（压不动）。
+   *
+   * 策略：从**最长的**文本片段开始截，一段一段削，直到总量进预算。
+   * 这样对话历史（通常短）不受影响，只有那段超长内容会被削。
+   */
+  function fitRequestToBudget(body) {
+    var budget = effectiveTokenBudget();
+    var total = estimateRequestTokens(body);
+    if (total <= budget) return { body: body, trimmed: false, removed: 0 };
+
+    var parts = collectTextParts(body);
+    if (!parts.length) return null;
+    parts.sort(function (a, b) { return b.len - a.len; });
+
+    var removedChars = 0;
+    // 每轮砍最长那一段。估算里 CJK 最费 token，所以按字符数砍是保守的。
+    for (var round = 0; round < 40 && total > budget; round++) {
+      var worst = parts[0];
+      if (!worst) break;
+      var cur = worst.get();
+      if (!cur || cur.length < 2) { parts.shift(); continue; }
+      var curTokens = estimateTokens(cur);
+      var over = total - budget;
+      if (curTokens <= over) {
+        // 这一整段都不够赔，整段清掉，继续看下一段
+        worst.set('');
+        removedChars += cur.length;
+        total -= curTokens;
+        parts.shift();
+        continue;
+      }
+      // 这一段够赔：按比例算要留多少字符（留一点余量，乘 0.95）
+      var keepRatio = Math.max(0.02, (curTokens - over) / curTokens) * 0.95;
+      var keep = Math.max(1, Math.floor(cur.length * keepRatio));
+      var cut = cur.slice(0, keep);
+      var dropped = cur.length - cut.length;
+      worst.set(cut + '\n\n…（内容过长，已在本机截断 ' + dropped + ' 字符）');
+      removedChars += dropped;
+      total = estimateRequestTokens(body);
+      if (dropped <= 0) parts.shift();
+    }
+    return { body: body, trimmed: removedChars > 0, removed: removedChars };
+  }
+
+  /** 压完给用户一个提示，不然内容少了会以为丢数据了 */
+  function noticeTrimmed(removed, tokens) {
+    try {
+      var id = 'ls-token-notice';
+      var old = document.getElementById(id);
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      var el = document.createElement('div');
+      el.id = id;
+      el.textContent = '内容超过本次请求上限（约 ' + tokens + ' tokens），' +
+        '已在本机截断 ' + removed + ' 个字符后再发送。';
+      el.style.cssText = [
+        'position:fixed', 'left:50%', 'transform:translateX(-50%)', 'bottom:28px',
+        'z-index:2147483000', 'max-width:min(560px,92vw)',
+        'padding:10px 14px', 'border-radius:10px',
+        'background:rgba(28,28,32,.96)', 'color:#fff',
+        'font-size:13px', 'line-height:1.5', 'box-shadow:0 6px 24px rgba(0,0,0,.32)',
+        'pointer-events:none'
+      ].join(';');
+      document.body.appendChild(el);
+      setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 6000);
+    } catch (e) { /* ignore */ }
+  }
+
+  /**
+   * 在 fetch 之前拦一道：把超限的请求体截断。
+   *
+   * 返回 true 表示"已经处理过了"（调用方不要再发原请求）。
+   * 这里要**重新构造 Request 并带上原来的 body 流**，所以用
+   * `init.body` 优先；应用发消息时 body 就是字符串，够用。
+   */
+  function clampRequestBody(input, init) {
+    var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    if (method !== 'POST') return false;
+    var rawUrl = typeof input === 'string' ? input : (input && input.url) || '';
+    if (!urlLooksLikeMessages(rawUrl)) return false;
+
+    var bodyText = init && init.body;
+    if (typeof bodyText !== 'string') return false;
+
+    var parsed;
+    try { parsed = JSON.parse(bodyText); } catch (e) { return false; }
+    if (!parsed || typeof parsed !== 'object') return false;
+
+    var before = estimateRequestTokens(parsed);
+    var fit;
+    try { fit = fitRequestToBudget(parsed); } catch (e) { return false; }
+    if (!fit || !fit.trimmed) return false;
+
+    var newBody = JSON.stringify(fit.body);
+    init.body = newBody;
+    log('请求超限：约 ' + before + ' tokens > 上限 ' + effectiveTokenBudget() +
+      '，已截断 ' + fit.removed + ' 字符');
+    noticeTrimmed(fit.removed, before);
+    return true;
+  }
+
+  /** 供设置界面读写 */
+  function setRequestTokenLimit(n) {
+    var v = Number(n);
+    reqTokenLimit = (v > 0 && v <= 2000000) ? Math.floor(v) : null;
+    try {
+      if (reqTokenLimit) lsSet('chat-demo:token-limit', String(reqTokenLimit));
+      else lsSet('chat-demo:token-limit', '');
+    } catch (e) { /* ignore */ }
+    return reqTokenLimit;
+  }
+
+  function loadRequestTokenLimit() {
+    try {
+      var v = Number(lsGet('chat-demo:token-limit'));
+      if (v > 0 && v <= 2000000) reqTokenLimit = Math.floor(v);
+    } catch (e) { /* ignore */ }
+    return reqTokenLimit;
+  }
+
   /** 上传附件的端点：`.../files` */
   function urlLooksLikeFiles(url) {
     try {
@@ -2940,6 +3126,14 @@
         return retryUpload(function () {
           return original(input, init);
         });
+      }
+
+      // 单次请求 token 上限：超了就在本机截断，别让服务端整条打回
+      // （服务端错误形如 `user input too long, 34112 tokens exceeds max 32768 tokens`）
+      try {
+        clampRequestBody(input, init);
+      } catch (e) {
+        sniffState.errors.push('clamp: ' + ((e && e.message) || e));
       }
 
       var result = original(input, init);
@@ -6255,6 +6449,8 @@
     installComposerOutsideClick();
     watchDeepLink();
     startFolderWatcher();
+    // 单次请求 token 上限（用户可在设置里调低；默认按服务端硬上限 32768）
+    loadRequestTokenLimit();
     // 反向同步：盯着文件夹，外部新增/修改的对话自动收进来。
     // 它自己会先取句柄再对齐，这里不 await，免得拖慢首屏。
 
@@ -6362,6 +6558,12 @@
       sessionToMirror: sessionToMirror,
       /** 同步刷新 React 更新（置顶行转发菜单时要用，见 findFlushSync 注释） */
       syncFlush: syncFlush,
+    // 单次请求 token 上限：默认 32768（服务端硬上限），可在设置里调低
+    tokenLimit: {
+      get: function () { return reqTokenLimit || REQ_TOKEN_MAX; },
+      set: setRequestTokenLimit,
+      budget: effectiveTokenBudget
+    },
       /** 模型相关 */
       currentModel: currentModel,
       onModel: onModel,

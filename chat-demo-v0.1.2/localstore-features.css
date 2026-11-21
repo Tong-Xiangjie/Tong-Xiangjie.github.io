@@ -286,6 +286,46 @@ body.dark .ls-tip {
 }
 
 /* -------------------------------------------------------------------- *
+ * 打开置顶行的「...」菜单时，把隐藏的真身行临时摆到克隆按钮下面。
+ *
+ * 为什么：应用的浮层定位量的是**真身**那一行的矩形。真身被
+ * `display:none` 藏着，量出来 0×0（在屏幕左上角），菜单就跑到左上角；
+ * 而"先让它算错、我们再改坐标"永远是两帧 —— 用户看到菜单跳一下，
+ * 鼠标下面的目标位置变了两次，点不中「置顶」「重命名」。
+ *
+ * 所以改成：点之前把真身摆到克隆按钮的位置上（尺寸不变），
+ * 应用量出来的矩形就是对的，一次算对、零帧跳动。
+ *
+ * · display:flex 压过 .ls-pin-hidden 的 display:none
+ * · opacity:0 + pointer-events:none：用户看不见也点不到
+ * · 定位用绝对定位，只为让 getBoundingClientRect 报出正确的坐标
+ * · 真身是从别的日期分节里"搬"过来的（它在 DOM 上仍留在原分节），
+ *   所以从它自己的祖先到置顶小节这一路上任何 overflow:hidden 都会把它
+ *   裁掉、矩形又变成 0×0。这里直接把置顶小节自己的裁剪放开
+ *   （正文层本来就没设 overflow，是 .ls-pin-section 那条规则带来的）。
+ *
+ * ⚠ 不能用 `:has()` —— 这个环境里 :has() 不生效（踩过）。
+ * -------------------------------------------------------------------- */
+.ls-pin-section {
+  overflow: visible !important;
+}
+
+.ls-pin-section > .ls-pin-body {
+  overflow: visible !important;
+}
+
+.item-ff6fc9.ls-pin-anchor {
+  display: flex !important;
+  position: absolute !important;
+  left: var(--ls-anchor-left, 0) !important;
+  top: var(--ls-anchor-top, 0) !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* -------------------------------------------------------------------- *
  * 置顶行里的「...」按钮要能露出来
  *
  * 应用的规则是（实测自 static/css）：
@@ -303,6 +343,18 @@ body.dark .ls-tip {
  * `.action-ff6fc9 { display: none }`（两条权重相同，后写的赢不稳）。
  * -------------------------------------------------------------------- */
 .ls-pin-clone:hover .action-ff6fc9 {
+  display: flex !important;
+}
+
+/* JS 自己加的"指针在这一行里"标记（实测 :hover 在这个环境里不可靠：
+   鼠标事件确实落在行里，但 matches(':hover') 是 false，.action 永远 none）。
+   两个一起写：哪个生效都行。 */
+.ls-pin-clone.ls-pin-hover .action-ff6fc9 {
+  display: flex !important;
+}
+
+/* 打开菜单期间强制显示「...」（要量它的矩形来定位菜单，0×0 会算到左上角） */
+.ls-pin-clone.ls-pin-force-action .action-ff6fc9 {
   display: flex !important;
 }
 
