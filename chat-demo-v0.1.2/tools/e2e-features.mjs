@@ -490,6 +490,135 @@ check(
   JSON.stringify(cleared)
 );
 
+// ---------------------------------------------------------------------------
+// 品牌外观层：侧栏 logo、鲸鱼图标、开屏标语随机化、提供方名称
+//
+// 这一层的做法容易踩两个坑，都在这里锁住：
+//   1. 伪元素不显式写 display，计算值会落到 none，图标完全不出现；
+//   2. 开屏标语不能直接改官方那个文本节点 —— React 下一次渲染会写回原文，
+//      必须另插一个自己的节点承载文案，并把官方文字用 font-size:0 收起。
+// ---------------------------------------------------------------------------
+const brand = JSON.parse(await ev(`
+  JSON.stringify((() => {
+    const out = {};
+    out.htmlClass = document.documentElement.className;
+    out.cssLoaded = !!document.getElementById('localstore-brand-css');
+
+    // 侧栏标题：文字被收起（font-size:0），背景换成 logo.svg
+    const name = document.querySelector('.appName-ac14ac');
+    if (name) {
+      const c = getComputedStyle(name);
+      out.logo = { fontSize: c.fontSize,
+        bg: c.backgroundImage.split('/').pop().replace(/["')]+$/, ''),
+        w: Math.round(name.getBoundingClientRect().width),
+        h: Math.round(name.getBoundingClientRect().height) };
+    }
+
+    // 欢迎语前的小鲸鱼
+    const g = document.querySelector('[class*="greeting-"]');
+    if (g) {
+      const b = getComputedStyle(g, '::before');
+      out.greetWhale = { display: b.display, w: b.width, h: b.height,
+        mask: (b.webkitMaskImage || b.maskImage || '').split('/').pop().replace(/["')]+$/, '') };
+      out.greeting = { ownFontSize: getComputedStyle(g).fontSize,
+        hasClass: g.classList.contains('ls-greeting-random') };
+      const span = g.querySelector('[data-ls-greeting]');
+      out.greeting.spanText = span ? span.textContent : null;
+      out.greeting.spanFontSize = span ? getComputedStyle(span).fontSize : null;
+      // 官方文字节点必须不占宽度，否则会和新文案叠字
+      out.greeting.officialWidth = (function () {
+        if (!g.firstChild || g.firstChild.nodeType !== 3) return null;
+        const rng = document.createRange(); rng.selectNodeContents(g.firstChild);
+        return Math.round(rng.getBoundingClientRect().width);
+      })();
+    }
+
+    // 收起按钮旁的小鲸鱼
+    const cb = document.querySelector('.top-ac14ac button[aria-label]');
+    if (cb) {
+      const b = getComputedStyle(cb, '::before');
+      out.btnWhale = { display: b.display, w: b.width, h: b.height, left: b.left,
+        mask: (b.webkitMaskImage || b.maskImage || '').split('/').pop().replace(/["')]+$/, '') };
+    }
+
+    // 提供方名称
+    out.officialName = window.__localstore.getProviders().list
+      .find((p) => p.id === 'deepseek-official').name;
+    out.hasOldLabel = document.body.textContent.indexOf('官方（统一配置）') >= 0;
+    return out;
+  })())
+`));
+check('品牌样式层已加载并挂上 .ls-brand', brand.cssLoaded && /(^|\s)ls-brand(\s|$)/.test(brand.htmlClass),
+  JSON.stringify({ css: brand.cssLoaded, cls: brand.htmlClass }));
+check('侧栏标题被换成 logo.svg（文字收起 + 背景图）',
+  brand.logo && brand.logo.fontSize === '0px' && brand.logo.bg === 'logo.svg' &&
+  brand.logo.h === 22 && brand.logo.w > 60,
+  JSON.stringify(brand.logo));
+check('欢迎语左边有鲸鱼图标（且确实会渲染：display 不是 none）',
+  brand.greetWhale && brand.greetWhale.display !== 'none' &&
+  parseFloat(brand.greetWhale.w) > 0 && brand.greetWhale.mask === 'whale.svg',
+  JSON.stringify(brand.greetWhale));
+check('收起按钮左边有鲸鱼图标（且确实会渲染）',
+  brand.btnWhale && brand.btnWhale.display !== 'none' &&
+  parseFloat(brand.btnWhale.w) > 0 && brand.btnWhale.mask === 'whale.svg',
+  JSON.stringify(brand.btnWhale));
+// 回归：直接改官方文本节点会被 React 写回（实测 7 秒内一次都没留住），
+// 所以必须是自己插入的节点承载文案 + 官方文字 font-size:0 收起。
+check('开屏标语用自定义节点承载，官方文字被收起',
+  brand.greeting && brand.greeting.hasClass && brand.greeting.ownFontSize === '0px' &&
+  !!brand.greeting.spanText && brand.greeting.spanFontSize === '24px' &&
+  brand.greeting.officialWidth === 0,
+  JSON.stringify(brand.greeting));
+// 标语必须来自用户给定的候选（不是官方原文）：固定池 8 条 +
+// 时段问候 4 条（前缀按当前时段替换）。
+const GREETING_POOL = [
+  '你好，有什么我能帮你的吗？',
+  '你好，我能帮什么忙吗？',
+  '你好，让我们开始聊天吧',
+  '欢迎回来，想从哪里开始？',
+  '欢迎回来，随时开始吧',
+  '嗨！今天想聊些什么？',
+  '随时开始吧',
+  '今天有什么可以帮到你？'
+];
+/** 时段问候里逗号后面的那一半 */
+const GREETING_TAILS = [
+  '今天有什么计划？',
+  '开始聊天吧',
+  '今天想聊些什么？',
+  '今天想做点什么？'
+];
+const isPooledGreeting = (s) => {
+  if (!s) return false;
+  if (GREETING_POOL.indexOf(s) !== -1) return true;
+  // 时段问候：前缀 ∈ {凌晨好,早上好,中午好,下午好,晚上好} + 全角逗号 + 尾巴之一
+  const m = /^(凌晨好|早上好|中午好|下午好|晚上好)，(.+)$/.exec(s);
+  return !!m && GREETING_TAILS.indexOf(m[2]) !== -1;
+};
+check('开屏标语来自用户给定的候选（不是官方原文）',
+  isPooledGreeting(brand.greeting && brand.greeting.spanText),
+  JSON.stringify(brand.greeting && brand.greeting.spanText));
+check('官方提供方名称已改为 DeepSeek',
+  brand.officialName === 'DeepSeek' && !brand.hasOldLabel,
+  JSON.stringify({ name: brand.officialName, hasOldLabel: brand.hasOldLabel }));
+
+// 标语确实会变：连开几次，至少出现两种不同文案
+const seen = new Set();
+for (let i = 0; i < 6; i++) {
+  await cdp.send('Page.reload');
+  await sleep(2600);
+  for (let k = 0; k < 30; k++) {
+    if (await ev(`!!document.querySelector('[data-ls-greeting]')`)) break;
+    await sleep(250);
+  }
+  const txt = await ev(`(function(){var s=document.querySelector('[data-ls-greeting]');return s?s.textContent:'';})()`);
+  if (txt) seen.add(txt);
+}
+check('多次打开会出现不同的开屏标语（确实是随机）',
+  seen.size >= 2, '出现过 ' + seen.size + ' 种: ' + [...seen].join(' / '));
+check('随机出现的标语都在候选池里',
+  [...seen].every(isPooledGreeting), JSON.stringify([...seen]));
+
 cdp.close(); chrome.kill(); server.close();
 await sleep(300);
 try { rmSync(profile, { recursive: true, force: true }); } catch {}

@@ -192,7 +192,10 @@ E:\chat\
 | --- | --- |
 | `static/js/main.6fd9c886.js` | **4 处替换**：API 根地址改为读 `localStorage`；默认模型改为调用取值器（1 处定义 + 3 处调用点） |
 | `index.html` | 注入一行 `<script src="localstore-bridge.js">`；标题改为「DeepSeek - 探索未至之境」 |
-| `localstore-bridge.js` | **新增**，全部业务逻辑（约 3700 行，含注释） |
+| `localstore-bridge.js` | **新增**，全部业务逻辑（约 5800 行，含注释） |
+| `localstore-motion.css` | **新增**，界面动效层（可被设置里的开关关掉） |
+| `localstore-brand.css` | **新增**，品牌外观层（logo / 鲸鱼图标 / 开屏标语），**不受动效开关控制** |
+| `images/logo.svg`、`images/whale.svg` | 界面上用到的两个图标 |
 | `*.orig` | 官方原始文件备份，回滚用 |
 
 技术要点：
@@ -426,6 +429,32 @@ E:\chat\
     网络层那条路径仍要覆盖，但只断言「最终成功」，不断言观测到的失败次数。
     另外，模拟端点必须放在能匹配桥接层 `/\/files(\?|$)/` 的路径上，
     否则请求根本不会被接管（`/__flaky-files` 看着像其实不匹配，白测一轮）。
+26. **品牌外观层（`localstore-brand.css`）+ 开屏标语随机化** ——
+    换 logo、加鲸鱼图标、随机标语都在这一层，与动效层分开：
+    动效可以被设置里的开关关掉，但品牌标识属于外观本身，**没有开关**。
+    做法一律是「加伪元素 / 盖一层」，不删官方节点（删了 React 下次渲染又回来）。
+
+    三个踩过的坑：
+    - **伪元素必须显式写 `display`。** 只给 `content:''` + `width/height` 时，
+      实测 `display` 的计算值会落到 `none` —— 图标完全不出现，
+      而 `mask-image`、`background-color` 全都是对的，光看这些属性会以为没问题。
+      （用 `CSS.getMatchedStylesForNode` 查也查不出是谁设的 none，加
+      `display:block` 就好。）测这类东西要**读 `getComputedStyle(el,'::before').display`**，
+      别看属性表里有没有这条规则。
+    - **开屏标语不能直接改官方那个文本节点。** 改完 React 的下一次渲染会写回原文
+      —— 实测轮询 7 秒，一次都没留住。正确做法是：给 greeting 加 `.ls-greeting-random`
+      并用 `font-size:0` 收起官方文字，再插入一个 `[data-ls-greeting]` 的 span 承载文案。
+      React 只认识它自己的文本节点，碰不到这个外来节点，所以能稳定留住。
+      验证时**不要用 `textContent`**（它会把被收起的官方文字也算进去，看着像没生效），
+      要量官方文本节点的 `Range.getBoundingClientRect().width === 0` 和 span 的字号。
+    - **内置提供方改名要连带归一化旧数据。** 只改 `OFFICIAL_PROVIDER.name`
+      不够：老浏览器里 `chat-demo:providers` 已经把旧名字持久化了，
+      读回来还是旧的。`loadProviders()` 里用 `normalizeBuiltinName()` 顺手改掉，
+      且**只认旧默认名**，用户自己起过的名字不会被覆盖。
+
+    标语池就在 `GREETING_POOL` / `GREETING_TIMED` 两个数组里（照抄用户给的候选）。
+    时段问候的前缀按时段替换，避免出现「晚上好，今天有什么计划？」这种
+    实际时刻与问候不搭的说法。
 
 ### 上传问题自查
 

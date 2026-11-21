@@ -349,6 +349,8 @@ try {
         schema: 'chat-demo-providers@1',
         activeId: 'deepseek-official',
         list: [{
+          // 故意写**旧**名字：内置提供方的名称现在统一成 'DeepSeek'，
+          // 归一化应当把旧的默认名（'DeepSeek 官方'）改过来。
           id: 'deepseek-official', name: 'DeepSeek 官方', baseURL: ${JSON.stringify(base)},
           apiKey: 'sk-local-test', models: ['deepseek-flash', 'deepseek-v4-pro'],
           defaultModel: 'deepseek-flash', builtin: true
@@ -674,7 +676,9 @@ try {
     provOps.officialBase === base,
     String(provOps.officialBase)
   );
-  check('官方提供方的名称未丢失', provOps.officialName === 'DeepSeek 官方', String(provOps.officialName));
+  // 内置提供方的名字统一成 'DeepSeek'（旧的 'DeepSeek 官方' 会被归一化掉）。
+// 这条同时保证「归一化只认旧默认名」这件事是有意的，而不是把名字弄丢。
+check('官方提供方的名称已归一化为 DeepSeek', provOps.officialName === 'DeepSeek', String(provOps.officialName));
 
   // 通过持久化层增删改：直接操作 localStorage 后重置缓存再读
   const crud = await ev(`
@@ -859,7 +863,7 @@ try {
     composer.items.indexOf('deepseek-v4-pro') !== -1,
     JSON.stringify(composer.items));
   check('菜单列出了提供方名',
-    composer.providerHeads.some((s) => s.indexOf('DeepSeek 官方') !== -1),
+    composer.providerHeads.some((s) => s.indexOf('DeepSeek') !== -1),
     JSON.stringify(composer.providerHeads));
 
   // 点菜单项应真的切换模型

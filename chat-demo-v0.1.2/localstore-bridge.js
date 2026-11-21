@@ -1710,7 +1710,7 @@
   /** 官方内置提供方（不可删除） */
   var OFFICIAL_PROVIDER = {
     id: 'deepseek-official',
-    name: 'DeepSeek 官方',
+    name: 'DeepSeek',
     baseURL: 'https://api.deepseek.com',
     apiKey: '',
     models: ['deepseek-flash', 'deepseek-v4-pro'],
@@ -1743,6 +1743,23 @@
   }
 
   /**
+   * 内置（官方）提供方的名称统一。
+   *
+   * 用户要求把界面上那个「DeepSeek 官方（统一配置）」改成「DeepSeek」。
+   * 光改 OFFICIAL_PROVIDER.name 不够：老浏览器里 LS_PROVIDERS 已经把旧名字
+   * 持久化下来了，读回来还是旧的。所以读的时候顺手归一化一次
+   * （只认旧默认名，用户自己改过的名字不会被覆盖）。
+   */
+  var BUILTIN_NAME_ALIASES = ['DeepSeek 官方', 'DeepSeek 官方（统一配置）', 'DeepSeek official (unified config)'];
+
+  function normalizeBuiltinName(p) {
+    if (p && (p.builtin || p.id === OFFICIAL_PROVIDER.id)) {
+      if (!p.name || BUILTIN_NAME_ALIASES.indexOf(p.name) !== -1) p.name = OFFICIAL_PROVIDER.name;
+    }
+    return p;
+  }
+
+  /**
    * 读取提供方列表。首次调用或数据损坏时，用旧版的单值配置做迁移，
    * 保证老用户升级后原来的地址不会被丢掉。
    */
@@ -1759,7 +1776,8 @@
         .filter(function (p) {
           return p && p.id;
         })
-        .map(cloneProvider);
+        .map(cloneProvider)
+        .map(normalizeBuiltinName);
       if (list.length) return { list: list, activeId: raw.activeId || list[0].id };
     }
 
@@ -3833,7 +3851,7 @@
       // ---- 多提供方 ----
       provTitle: '模型提供方',
       provNowUsing: '当前生效',
-      provOfficialName: 'DeepSeek 官方（统一配置）',
+      provOfficialName: 'DeepSeek',
       provOfficialHint:
         '当前用的是官方统一配置：接口地址取「自定义 API 地址」，API Key 请在「数据管理」标签页里填写。下面只列你自己添加的提供方。',
       provNoCustom: '还没有自定义提供方。点下面的按钮可以添加中转站等 Anthropic 兼容服务。',
@@ -3966,7 +3984,7 @@
       // ---- Providers ----
       provTitle: 'Model providers',
       provNowUsing: 'Currently active',
-      provOfficialName: 'DeepSeek official (unified config)',
+      provOfficialName: 'DeepSeek',
       provOfficialHint:
         'You are on the official unified config: the endpoint comes from "Custom API base", and the API key is entered on the "Data" tab. Only providers you added yourself are listed below.',
       provNoCustom: 'No custom providers yet. Use the button below to add a relay or other Anthropic-compatible service.',
@@ -5056,6 +5074,134 @@
     applyMotionClass();
   }
 
+  /* ------------------------------------------------------------------------
+   * 品牌外观层（localstore-brand.css）+ 开屏标语随机化
+   *
+   * 与动效层分开：动效可以被设置里的开关关掉，但「侧栏换成 logo」「鲸鱼图标」
+   * 是外观本身，不该跟着动效开关一起消失，所以这一层**没有开关**。
+   * ---------------------------------------------------------------------- */
+
+  var BRAND_CSS_ID = 'localstore-brand-css';
+  var BRAND_CLASS = 'ls-brand';
+
+  function installBrand() {
+    try {
+      document.documentElement.classList.add(BRAND_CLASS);
+      if (document.getElementById(BRAND_CSS_ID)) return;
+      var link = document.createElement('link');
+      link.id = BRAND_CSS_ID;
+      link.rel = 'stylesheet';
+      link.href = 'localstore-brand.css?v=' + BRIDGE_VERSION;
+      link.onerror = function () {
+        warn('品牌外观样式加载失败（不影响其它功能）');
+      };
+      (document.head || document.documentElement).appendChild(link);
+      log('已加载品牌外观层');
+    } catch (e) {
+      warn('安装品牌外观失败：' + ((e && e.message) || e));
+    }
+  }
+
+  /**
+   * 开屏标语随机化。
+   *
+   * 官方的标语是 i18n 里的一条固定文案（zh: 今天有什么能帮到你？），由 React
+   * 渲染成 `greeting-` 里的一个文本节点。
+   *
+   * ★ 不能只改那个文本节点的 nodeValue。
+   *   实测：改完之后 React 的下一次渲染会把它**写回官方文案**（轮询了 7 秒，
+   *   文本始终是原文，一次都没留住）。
+   *   所以这里改成「**盖一层**」：给 greeting 加一个自己的类，用 CSS 把官方
+   *   文字藏起来，再插入一个带 `data-ls-greeting` 的 span 承载随机文案。
+   *   React 重渲染只会动它自己认识的那个文本节点，碰不到我们这个外来节点 ——
+   *   只要它还在，就不再重复插入（用 MutationObserver 持续确认）。
+   *
+   * 时机：欢迎页只在「当前没有消息」时挂载，开新对话会重新走一遍。
+   */
+  var GREETING_SEL = '[class*="greeting-"]';
+  /** 我们的文案节点标记 */
+  var GREETING_ATTR = 'data-ls-greeting';
+  /** 承载随机文案的类：CSS 里用它隐藏官方文本 */
+  var GREETING_CLASS = 'ls-greeting-random';
+
+  /**
+   * 随机池：**照抄用户逐字给出的候选**，不再拼接。
+   *
+   * 其中三条是「早上/下午/晚上好，…」的时段问候，前缀按时段替换
+   * （凌晨/早上/中午/下午/晚上），保证不会出现「晚上好，今天有什么计划？」
+   * 里那种实际时刻与问候不搭的别扭说法。
+   */
+  var GREETING_POOL = [
+    '你好，有什么我能帮你的吗？',
+    '你好，我能帮什么忙吗？',
+    '你好，让我们开始聊天吧',
+    '欢迎回来，想从哪里开始？',
+    '欢迎回来，随时开始吧',
+    '嗨！今天想聊些什么？',
+    '随时开始吧',
+    '今天有什么可以帮到你？'
+  ];
+
+  /** 带时段前缀的三条（前缀运行时替换） */
+  var GREETING_TIMED = [
+    '早上好，今天有什么计划？',
+    '早上好，开始聊天吧',
+    '早上好，今天想聊些什么？',
+    '早上好，今天想做点什么？'
+  ];
+
+  /** 当前时段该用的问候前缀 */
+  function timeOfDayGreeting() {
+    var h = new Date().getHours();
+    return h < 5 ? '凌晨好' : h < 11 ? '早上好' : h < 13 ? '中午好' : h < 18 ? '下午好' : '晚上好';
+  }
+
+  function pickGreeting() {
+    try {
+      // 一半概率用时段问候，一半用固定池 —— 开屏更有变化
+      if (Math.random() < 0.5) {
+        var timed = GREETING_TIMED[Math.floor(Math.random() * GREETING_TIMED.length)];
+        // 把模板里的「早上好」换成当前时段
+        return timeOfDayGreeting() + timed.slice(3);
+      }
+      return GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)];
+    } catch (e) {
+      return GREETING_POOL[0];
+    }
+  }
+
+  function applyGreeting() {
+    var el = document.querySelector(GREETING_SEL);
+    // 欢迎页可能还没挂载 / 已经进入对话
+    if (!el) return false;
+    el.classList.add(GREETING_CLASS);
+    // 已经盖好就不再动（React 重渲染也不会碰这个外来节点）
+    if (el.querySelector('[' + GREETING_ATTR + ']')) return true;
+    var span = document.createElement('span');
+    span.setAttribute(GREETING_ATTR, '1');
+    span.textContent = pickGreeting();
+    el.appendChild(span);
+    log('开屏标语已随机化');
+    return true;
+  }
+
+  function watchGreeting() {
+    try {
+      applyGreeting();
+    } catch (e) {
+      /* ignore */
+    }
+    // 持续确认：欢迎页每次重新挂载都补一次
+    var obs = new MutationObserver(function () {
+      try {
+        applyGreeting();
+      } catch (e) {
+        /* ignore */
+      }
+    });
+    obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  }
+
   /**
    * 启动遮罩。
    *
@@ -5336,11 +5482,13 @@
     seedApiBase();
     installStyles();
     installMotion();
+    installBrand();
     installIdbHook();
     installFetchHook();
     watchForSettings();
     watchMessages();
     watchSider();
+    watchGreeting();
     installComposerOutsideClick();
     watchDeepLink();
 

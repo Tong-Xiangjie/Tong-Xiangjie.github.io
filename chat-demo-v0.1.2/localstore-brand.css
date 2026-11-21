@@ -1,0 +1,184 @@
+/* ===========================================================================
+ * localstore-brand.css —— 品牌外观改造（logo、鲸鱼图标、标语随机化）
+ *
+ * 与 localstore-motion.css 的分工：
+ *   · motion 层是**动效**，可以被设置里的开关整体关掉；
+ *   · 这里换的是**品牌标识**（侧栏 logo、鲸鱼图标），属于外观本身，
+ *     跟「要不要动效」无关，所以**不受运动开关控制**，永远生效。
+ *
+ * 做法一律是「加一层伪元素 / 遮罩」，不删官方节点：
+ *   · 侧栏标题是 React 渲染的文本节点，删掉它下次渲染又会回来；
+ *   · 用 CSS 把文字藏起来、用 ::before 画图层，React 重渲染也不会打架。
+ *   · 图标一律用 mask + currentColor，跟随主题与文字色，不用改 SVG 文件。
+ *
+ * 选用的图片：
+ *   · images/logo.svg   195 × 41.3594，DeepSeek 完整字标（含鲸鱼）
+ *   · images/whale.svg  60  × 41.3594，只要鲸鱼
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * 1. 侧栏左上角的标题：把「API 使用 demo」换成 logo.svg
+ *
+ * appName 实测宽 149px、高 22px（侧栏 261 - 左右各 12 内边距 - 收放按钮 34 - 间隙）。
+ * logo 宽高比 195/41.3594 ≈ 4.715，所以取高 22px 时宽约 104px，放得下。
+ * 图片用 contain 等比缩放，不会变形。
+ * ------------------------------------------------------------------------- */
+.ls-brand .appName-ac14ac {
+  /* 文字藏起来但**不删**：保留节点，React 重渲染不会与我们抢 */
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent !important;
+  width: 104px;
+  height: 22px;
+  background-image: url('images/logo.svg');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+}
+
+/* 万一图片没加载出来，至少让占位高度稳定，不塌成 0 */
+.ls-brand .appName-ac14ac::after {
+  content: '';
+  display: block;
+  height: 22px;
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. 鲸鱼图标
+ *
+ * 统一用一个 mask 混入，颜色跟着 currentColor 走（浅色/深色主题都自动适配），
+ * 不直接 <img> 引 SVG —— 那样没法跟着主题变色。
+ * 比例 60/41.3594 ≈ 1.451。
+ * ------------------------------------------------------------------------- */
+
+/* 2a. 欢迎语左边
+ * greeting 是 display:flex; justify-content:center; align-items:center;
+ * 所以 ::before 会作为一个 flex 项排在文字前面，用 gap 控制间距。 */
+.ls-brand .greeting-_1f155 {
+  gap: 12px;
+}
+
+.ls-brand .greeting-_1f155::before {
+  content: '';
+  /* 与按钮上那条同理：伪元素必须显式给 display，
+     否则计算值可能是 none，图标整个不出现。 */
+  display: block;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 22px;
+  background-color: var(--dsw-alias-brand-primary, #4d6bfe);
+  -webkit-mask-image: url('images/whale.svg');
+  mask-image: url('images/whale.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* 2b. 侧栏顶部的「收起边栏」按钮左边
+ * .top-ac14ac 是 flex + space-between：标题 | 按钮。
+ * 实测标题右边到按钮左边还有约 45px 空档，32px 的鲸鱼放得下。
+ * 挂在按钮上（而不是 .top 上）是为了让「标题 | 按钮」的两栏关系不变，
+ * 只在按钮自己内部往左伸出一点，space-between 的布局不受影响；
+ * 按钮自身 overflow 是 visible，所以不会被裁掉。 */
+.ls-brand .top-ac14ac button[aria-label]::before {
+  content: '';
+  /* display 必须显式声明：伪元素默认是 inline，宽高会失效；
+     实测不写时计算值会落到 none（鲸鱼完全不出现）。 */
+  display: block;
+  position: absolute;
+  left: -44px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 22px;
+  pointer-events: none;
+  background-color: var(--dsw-alias-brand-primary, #4d6bfe);
+  -webkit-mask-image: url('images/whale.svg');
+  mask-image: url('images/whale.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* ::before 的定位上下文：按钮本身必须是定位元素 */
+.ls-brand .top-ac14ac button[aria-label] {
+  position: relative;
+}
+
+/* 2c. 折叠态那组按钮（打开边栏 / 开启新对话）左边
+ * .collapsed-ac14ac 是 position:absolute; left:16px，
+ * 所以往左伸要留出空间：鲸鱼放在它左边 40px 处，仍在侧栏（261px）范围内。
+ * 侧栏收起后这个按钮组就是唯一的入口，加个鲸鱼让它更像品牌入口。 */
+.ls-brand .collapsed-ac14ac::before {
+  content: '';
+  display: block;
+  position: absolute;
+  left: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 21px;
+  pointer-events: none;
+  background-color: var(--dsw-alias-brand-primary, #4d6bfe);
+  -webkit-mask-image: url('images/whale.svg');
+  mask-image: url('images/whale.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* 折叠态本来没有内容区，鲸鱼别被裁掉 */
+.ls-brand .collapsed-ac14ac {
+  overflow: visible;
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. 开屏标语随机化：把官方文字藏起来，只显示我们插入的那个节点
+ *
+ * 为什么不直接改官方那个文本节点：实测改完会被 React 的下一次渲染写回原文
+ * （轮询 7 秒，一次都没留住）。所以改成 CSS 层面「盖住 + 换显示」：
+ *   · greeting 自身的文字用 font-size:0 收起（保留节点，React 随便写）；
+ *   · 我们插入的 [data-ls-greeting] 恢复正常字号。
+ * 两者都在 flex 容器里，justify-content:center 会自动把它居中。
+ * ------------------------------------------------------------------------- */
+.ls-brand .greeting-_1f155.ls-greeting-random {
+  font-size: 0 !important;
+}
+
+.ls-brand .greeting-_1f155 > [data-ls-greeting] {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+  color: var(--dsw-alias-label-primary);
+  white-space: nowrap;
+}
+
+@media (max-width: 439px) {
+  .ls-brand .greeting-_1f155 > [data-ls-greeting] {
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 28px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. 窄屏兜底
+ *
+ * 收窄到手机上时侧栏本来就变窄，标题与按钮之间的空档不够放鲸鱼，
+ * 这时把鲸鱼藏起来，避免和标题叠在一起。
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .ls-brand .top-ac14ac button[aria-label]::before,
+  .ls-brand .collapsed-ac14ac::before {
+    display: none;
+  }
+}
