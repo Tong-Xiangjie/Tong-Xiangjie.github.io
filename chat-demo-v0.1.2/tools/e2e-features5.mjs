@@ -161,6 +161,17 @@ try {
   }
   await sleep(1500);
 
+  // 轨道是功能层异步挂上去的，且要等对话真正渲染出来才有内容。
+  // 不在这里等一下的话，后面直接 getBoundingClientRect 会撞到 null
+  // （表现为偶发的「运行异常: Cannot read properties of null」）。
+  for (let i = 0; i < 40; i++) {
+    const ready = await ev(
+      `!!document.querySelector('.ls-msg-rail') && !!document.querySelector('.main-_9fdf5')`
+    );
+    if (ready) break;
+    await sleep(500);
+  }
+
   /* ---------------------------------------------------------------- */
   console.log('\n[2] 消息索引轨道');
 
