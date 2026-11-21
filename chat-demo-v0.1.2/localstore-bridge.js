@@ -2734,11 +2734,36 @@
 
     var w = Math.round(r.width);
     lastSiderWidth = w;
+
+    /**
+     * 替身必须自己「会画背景」。
+     *
+     * 早先只克隆了内部结构，外层 wrapper 是透明的，于是宽度一收，
+     * **让出去的那部分就露出 frame 的更深底色**（#151517），
+     * 看起来就像左边凭空多出一块东西 —— 用户报的「奇怪的多出来的东西」。
+     * 真侧栏的填充色在 .sider 自身上（rgb(27,27,28)），克隆体内层虽然有，
+     * 但外层变窄后那层也被裁掉了，所以要把它一并画到 wrapper 上。
+     *
+     * 颜色从真身现读，不写死：主题/设计令牌变了也能跟着变。
+     */
+    var cs = getComputedStyle(sider);
+    var padL = cs.paddingLeft;
+    var padR = cs.paddingRight;
+
     var ghost = document.createElement('div');
     ghost.className = GHOST_CLASS;
     ghost.setAttribute('aria-hidden', 'true');
     ghost.style.width = w + 'px';
     ghost.style.minWidth = w + 'px';
+    // 真侧栏用 border-box（.sider 自带 box-sizing:border-box）。
+    // 替身要照抄，否则 width 会再叠上 padding 与 border，量出来比真身宽
+    // （实测变成 286px 而真身 261px），接管当帧就会跳一下。
+    ghost.style.boxSizing = cs.boxSizing || 'border-box';
+    ghost.style.backgroundColor = cs.backgroundColor;
+    ghost.style.borderRight =
+      cs.borderRightWidth + ' ' + cs.borderRightStyle + ' ' + cs.borderRightColor;
+    ghost.style.paddingLeft = padL;
+    ghost.style.paddingRight = padR;
     ghost.innerHTML = sider.outerHTML;
     // 恢复克隆体自身的可见性，并锁住内层尺寸，避免收拢时被挤压变形
     var clone = ghost.firstElementChild;
@@ -2746,6 +2771,8 @@
       clone.style.visibility = '';
       clone.style.width = w + 'px';
       clone.style.height = Math.round(r.height) + 'px';
+      clone.style.paddingLeft = padL;
+      clone.style.paddingRight = padR;
     }
     frame.insertBefore(ghost, sider);
 
@@ -2768,6 +2795,7 @@
       ghost.style.paddingRight = '0px';
       ghost.style.opacity = '0';
       ghost.style.borderRightColor = 'transparent';
+      ghost.style.borderRightWidth = '0px';
     });
     // 兜底：减弱动效时不会有 transitionend
     setTimeout(remove, SIDER_COLLAPSE_MS + 260);

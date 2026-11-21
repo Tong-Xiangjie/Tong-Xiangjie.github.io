@@ -210,21 +210,35 @@ const collapseResult = JSON.parse(await ev(`
     // 逐帧记录主内容区宽度，用来验证它是「渐变」而不是「瞬跳」
     const mainTrace = [];
     let ghostInfo = { exists: false };
+    const realBg = getComputedStyle(document.querySelector('.sider-ac14ac')).backgroundColor;
+    const ghostBgTrace = [];
     btn.click();
     for (let i = 0; i < 24; i++) {
       await new Promise(r => requestAnimationFrame(() => r()));
       mainTrace.push(Math.round(mainEl().getBoundingClientRect().width));
       // 替身在收拢结束就被移除，所以要在循环里抓它的信息
       const g = document.querySelector('.ls-sider-ghost');
-      if (g && !ghostInfo.exists) {
+      if (g) {
         const gcs = getComputedStyle(g);
-        ghostInfo = { exists: true, flex: gcs.flex, pointerEvents: gcs.pointerEvents,
-          overflow: gcs.overflow, aria: g.getAttribute('aria-hidden'),
-          // 替身必须在 flex 流里（position:static）才能给主区让位
-          position: gcs.position,
-          parentIsFrame: String(g.parentElement.className) };
+        const gw = g.getBoundingClientRect().width;
+        if (gw > 4) ghostBgTrace.push(gcs.backgroundColor);
+        if (!ghostInfo.exists) {
+          ghostInfo = { exists: true, flex: gcs.flex, pointerEvents: gcs.pointerEvents,
+            overflow: gcs.overflow, aria: g.getAttribute('aria-hidden'),
+            // 替身必须在 flex 流里（position:static）才能给主区让位
+            position: gcs.position,
+            // 替身必须自己会画背景：真身藏起来后，让出去的那块会露出
+            // frame 的更深底色，看着像左边凭空多出一块东西
+            backgroundColor: gcs.backgroundColor,
+            boxSizing: gcs.boxSizing,
+            width: Math.round(gw),
+            parentIsFrame: String(g.parentElement.className) };
+        }
       }
     }
+    // 替身在整个收拢过程里都必须是不透明的（不能中途变透明露底）
+    const ghostBgOpaque = ghostBgTrace.length > 0 &&
+      ghostBgTrace.every((c) => c === realBg);
 
     await new Promise(r => setTimeout(r, 800));
     const after = { siderGone: !document.querySelector('.sider-ac14ac'),
@@ -239,7 +253,7 @@ const collapseResult = JSON.parse(await ev(`
     let monotonic = true;
     for (let i = 1; i < mainTrace.length; i++) if (mainTrace[i] < mainTrace[i-1] - 2) monotonic = false;
 
-    return JSON.stringify({ before, ghostInfo, after, ghostSpawns, animFlips, distinctMainWidths: distinct.length, monotonic });
+    return JSON.stringify({ before, ghostInfo, after, ghostSpawns, animFlips, distinctMainWidths: distinct.length, monotonic, ghostBgOpaque, realBg, ghostBgTrace });
   })()
 `));
 console.log('    ' + JSON.stringify(collapseResult, null, 2).split('\n').join('\n    '));
@@ -259,6 +273,19 @@ check('主内容区宽度是渐变而非瞬跳（≥5 个中间值）',
   collapseResult.distinctMainWidths >= 5, '不同宽度值 ' + collapseResult.distinctMainWidths + ' 个');
 check('主内容区宽度单调变化（没有来回回弹）', collapseResult.monotonic === true);
 check('替身只生成 1 次（无自我误判循环）', collapseResult.ghostSpawns === 1, '实际 ' + collapseResult.ghostSpawns + ' 次');
+// 回归：替身外层曾只克隆结构、自己不带背景色，宽度一收就露出 frame 的更深
+// 底色（#151517），用户看到的是「左边凭空多出一块奇怪的东西」。
+check('替身自带侧栏背景色（不透明，不露 frame 底色）',
+  collapseResult.ghostBgOpaque === true,
+  '真身 ' + collapseResult.realBg + ' 替身逐帧 ' + JSON.stringify(collapseResult.ghostBgTrace));
+// 回归：替身写了 padding/border 之后必须同时也用 border-box，
+// 否则量出来比真身宽（实测 286 vs 261），接管当帧会跳一下。
+check('替身与真身同宽（border-box 生效）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.width === Math.round(collapseResult.before.siderW),
+  '替身 ' + (collapseResult.ghostInfo && collapseResult.ghostInfo.width) + ' vs 真身 ' + collapseResult.before.siderW);
+check('替身用 border-box 计算宽度',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.boxSizing === 'border-box',
+  JSON.stringify(collapseResult.ghostInfo && collapseResult.ghostInfo.boxSizing));
 check('收起过程中没有动画标记反复抖动',
   collapseResult.animFlips.filter((x) => x === 'enter').length === 0,
   JSON.stringify(collapseResult.animFlips));

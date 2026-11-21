@@ -205,7 +205,11 @@
  *
  * 过渡的属性集合参考 collection/layout.css 的 `.sidebar`：
  *   width / min-width 负责让位（同时过渡，否则 min-width 会卡住宽度），
- *   opacity 负责淡出，border-right-color 单独过渡避免边框在收窄时突变。
+ *   opacity 负责淡出，padding 与 border 一并过渡免得收窄时突跳。
+ *
+ * ★ 背景色由 JS 从真侧栏现读后内联写上（见 collapseSider）。
+ *   替身必须自己会画背景：真侧栏一藏起来，让出去的那块就露出 frame
+ *   的更深底色（#151517），看着像左边凭空多出一块东西。
  *
  * 时长用应用自带的 --ds-transition-duration（0.2s）与 --ds-ease-in-out，
  * 与应用其它过渡保持一致；这里不发明新节奏。 */
@@ -219,6 +223,7 @@
     min-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
     padding-left var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
     padding-right var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
+    border-right-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
     opacity var(--ds-transition-duration, 0.2s) var(--ds-ease-out, ease-out),
     border-right-color var(--ds-transition-duration, 0.2s) var(--ds-ease-out, ease-out);
 }
