@@ -766,6 +766,86 @@ E:\chat\
     - 菜单的类名是 **`menu-_5f384`**（不是 `menu-b81146`，那是另一个组件），
       菜单项是 `option-_5f384`。早期测试用错了类名，导致「菜单没弹出」的假失败。
 
+### 32k 上限的真正原因（safety_check）
+
+如果你看到过：
+
+```
+user input too long, 34112 tokens exceeds max 32768 tokens
+```
+
+**这不是模型的限制，也不是你账号的限制**，而是请求体里 `safety_check`
+这个字段带来的。官方 demo 把它硬编码在每次请求里：
+
+```js
+ed = { level: 'high' }                        // bundle @189654
+fetch(url, { ..., safety_check: ed, ... })    // bundle @197770
+```
+
+实测（官方 key，单条大消息约 33000 字符 ≈ 33000 tokens）：
+
+| 请求形状 | 结果 |
+|---|---|
+| 裸请求（只有 messages） | ✅ 32987 tokens 通过 |
+| + system | ✅ 33003 通过 |
+| + thinking disabled / enabled | ✅ 32908 通过 |
+| **+ safety_check** | ❌ user input too long, exceeds max 32768 |
+| 多条消息合计 5 万 tokens（无 safety_check） | ✅ 49685 通过 |
+
+摘掉 `safety_check` 之后逐级加大，到 **394720 tokens 仍然 HTTP 200**，
+模型自报 `context_window = 1048576`。官方两个端点
+（`/anthropic/v1/messages` 与 `/v1/chat/completions`）都是这个规律。
+
+所以 Chatbox 之类没有限制，是因为它们**根本不发这个字段**。
+
+桥接层的做法：**只有估算超过 32768 的请求才摘掉它**。短请求原样保留，
+安全检查行为不变；摘掉时只动这一个字段，不裁正文。超长请求因此在
+控制台会看到一条 `safety-drop` 诊断记录。
+
+### 附件在 OpenAI 协议下怎么处理
+
+应用的附件流程（从 bundle 挖出来的真实形状）：
+
+```
+上传： POST {base}/anthropic/v1/files
+       headers: x-api-key + anthropic-beta: files-api-2025-04-14
+       body:    FormData{ purpose?, file }
+       读回：   (await res.json()).id  →  存进附件对象的 serverId
+引用：  { type:'document'|'image', source:{ type:'file', file_id: serverId } }
+```
+
+`files-api-2025-04-14` 是 **Anthropic 兼容层专有**的能力，中转站没有这条
+路由（实测打过去 401/404）。所以切到 OpenAI 协议后附件必然上传失败。
+
+桥接层的处理：
+
+1. **上传改道**到 OpenAI 的 `POST {base}/v1/files`，换成 `Bearer` 鉴权；
+2. **上传前把文本附件的正文读到本地**（`chat-demo:ls-file-text`，按 id 存），
+   因为上传后 `File` 对象就拿不到了；
+3. **聊天时把 `source:{type:'file'}` 的 document 块换成正文文字内联发出**。
+
+第 3 步是关键：OpenAI 的 `/v1/files` 上传出来的 id **不能**在
+`/v1/chat/completions` 里被引用（那是 Assistants API 的东西，普通中转站不
+支持），所以"引用式"注定走不通。把内容内联进消息，模型才真的读得到。
+
+**`purpose` 各家不同，桥接层会自动逐个试**（实测）：
+
+| 端点 | 对 `purpose` 的要求 |
+|---|---|
+| 官方 `api.deepseek.com` | 只认 `user_data` / `text_recognition` / `rich_layout_recognition`；`file` 直接 400 |
+| 中转站（one-api 系） | 认 `assistants` / `vision` / `user_data` / `batch`…；`file` 也 400 |
+
+`user_data` 是**两边都认**的那个，所以放在第一个试；试出结果会记在
+`chat-demo:ls-file-purpose` 里，后续不再重复试。
+
+**已知限制（上游的，不是这里能修的）**：
+
+- **图片**读不出像素，只能内联成一句占位说明；
+- **部分中转站只收 Office 文档**。实测 paratera 对 `.txt` 直接回
+  「文件格式暂不支持，仅支持: pptx/ppt/docx/doc/xlsx/xls/pdf」——
+  这种情况下 `.txt` 附件仍然会失败。但它**不影响把长文本直接粘进输入框**
+  （32k 那道闸已经拿掉了），也就是"内容多"这件事本身不再需要靠附件绕过。
+
 ### 上传问题自查
 
 页面 Console 里跑这一行，会打印一段可直接复制的结论：

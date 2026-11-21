@@ -3941,6 +3941,324 @@
    * 比"图片变成一行说明"糟糕得多。所以这里选择降级：
    * 明确写出这里有张图/有个附件，让模型和用户都知道，但不去猜怎么传。
    */
+  /* ------------------------------------------------------------------------
+   * 附件适配（OpenAI 协议）
+   *
+   * 应用的附件流程（从 bundle 里挖出来的真实形状）：
+   *   上传： POST {base}/anthropic/v1/files
+   *          headers: { 'x-api-key': key, 'anthropic-beta': 'files-api-2025-04-14' }
+   *          body:    FormData{ purpose?, file }
+   *          读回：  (await res.json()).id  → 存进附件对象的 serverId
+   *   引用：  { type:'document'|'image', source:{ type:'file', file_id: serverId } }
+   *
+   * 问题：`files-api-2025-04-14` 是 **Anthropic 兼容层专有**的能力。
+   * 中转站只提供 OpenAI 协议，那条 `/anthropic/v1/files` 根本不存在
+   * （实测 paratera 直接 401/404），所以切了协议之后附件必然上传失败。
+   *
+   * 做法（务实优先，不假装支持做不到的事）：
+   *   1) 上传改道到 OpenAI 的 `POST {base}/v1/files`（Bearer + purpose=file）；
+   *   2) **上传前就把文本类附件的内容读到本地**，按 serverId 存起来；
+   *   3) 聊天时把 `source:{type:'file'}` 的 document 块**换成正文文字**内联发出。
+   *
+   * 第 2、3 步是关键：OpenAI 的 /v1/files 上传出来的 id 并不能在
+   * /v1/chat/completions 里被引用（那是 Assistants API 的东西，普通中转站
+   * 不支持），所以"引用式"注定走不通。把内容内联进消息，AI 就真的能读到附件，
+   * 这是唯一真正有用的做法。
+   *
+   * 图片仍然只能降级成占位文字（读不出像素）。
+   * ---------------------------------------------------------------------- */
+
+  var LS_FILE_TEXT = 'chat-demo:ls-file-text';
+  /** 单个附件最多内联多少字符（避免把上下文挤爆） */
+  var ATTACH_INLINE_MAX = 120000;
+  /** 本地缓存的附件正文总量上限 */
+  var ATTACH_CACHE_MAX_CHARS = 600000;
+  /** 一次上传期间，把「本地预读的正文」传给响应处理（跨 fetch 的临时传递） */
+  var pendingUploadText = null;
+
+  function getFileTextCache() {
+    try {
+      var raw = lsGet(LS_FILE_TEXT);
+      if (!raw) return {};
+      var o = JSON.parse(raw);
+      return (o && typeof o === 'object') ? o : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveFileTextCache(cache) {
+    try {
+      // 超量时按加入顺序丢最老的，避免把 localStorage 撑爆
+      var keys = Object.keys(cache);
+      var total = 0;
+      for (var i = 0; i < keys.length; i++) total += String(cache[keys[i]].text || '').length;
+      while (total > ATTACH_CACHE_MAX_CHARS && keys.length) {
+        var k = keys.shift();
+        total -= String(cache[k].text || '').length;
+        delete cache[k];
+      }
+      lsSet(LS_FILE_TEXT, JSON.stringify(cache));
+    } catch (e) { /* ignore */ }
+  }
+
+  function rememberFileText(id, name, text, mime) {
+    if (!id) return;
+    var cache = getFileTextCache();
+    cache[id] = {
+      name: name || '',
+      mime: mime || '',
+      text: String(text || '').slice(0, ATTACH_INLINE_MAX),
+      at: Date.now()
+    };
+    saveFileTextCache(cache);
+  }
+
+  function lookupFileText(id) {
+    if (!id) return null;
+    var cache = getFileTextCache();
+    return cache[id] || null;
+  }
+
+  /** 上传的目标地址：OpenAI 协议的 /v1/files */
+  function openAIFilesUrl(base) {
+    var chat = openAIChatUrl(base);
+    if (!chat) return null;
+    // /v1/chat/completions → /v1/files（保留 base 里的路径段）
+    return chat.replace(/\/chat\/completions(\?.*)?$/, '/files');
+  }
+
+  /**
+   * 记住每个端点认哪个 purpose。
+   * 各家合法列表差别很大（官方只认 user_data 那一组，中转站认 assistants 那一组），
+   * 试出一次就存下来，后续上传直接用，不必每次都撞一遍 400。
+   */
+  var LS_FILE_PURPOSE = 'chat-demo:ls-file-purpose';
+
+  function getFilePurpose(url) {
+    try {
+      var o = JSON.parse(lsGet(LS_FILE_PURPOSE) || '{}');
+      return (o && o[url]) || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function setFilePurpose(url, purpose) {
+    try {
+      var o = JSON.parse(lsGet(LS_FILE_PURPOSE) || '{}');
+      if (!o || typeof o !== 'object') o = {};
+      if (o[url] === purpose) return;
+      o[url] = purpose;
+      lsSet(LS_FILE_PURPOSE, JSON.stringify(o));
+    } catch (e) { /* ignore */ }
+  }
+
+  /** 是不是"能被读成文字"的附件（.txt 以及其它纯文本类型） */
+  function isTextishFile(file) {
+    if (!file) return false;
+    var name = String(file.name || '');
+    var mime = String(file.type || '');
+    if (/^text\//i.test(mime)) return true;
+    if (/\.(txt|md|markdown|csv|json|log|xml|yaml|yml|tsv|ini|cfg|conf|srt|vtt)$/i.test(name)) return true;
+    return false;
+  }
+
+  /** 上传前把文本附件读出来（FormData 里的 File 之后就拿不到了） */
+  function preloadUploadFile(body) {
+    try {
+      if (typeof FormData === 'undefined' || !(body instanceof FormData)) return;
+      var file = null;
+      if (typeof body.get === 'function') file = body.get('file');
+      if (!file || typeof file.text !== 'function') {
+        // 有些实现拿不到 get()，退化到遍历 entries()
+        if (typeof body.forEach === 'function') {
+          body.forEach(function (v, k) { if (k === 'file' && v && typeof v.text === 'function') file = v; });
+        }
+      }
+      if (!file || !isTextishFile(file)) return;
+      pendingUploadText = { name: String(file.name || ''), mime: String(file.type || ''), text: null };
+      // File.text() 是异步的，但这里不能 await（fetch 包装是同步返回的）。
+      // 改成把 promise 挂上，响应处理时再 await。
+      pendingUploadText.promise = file.text().then(function (t) {
+        pendingUploadText.text = t;
+        return t;
+      }).catch(function () { return null; });
+      log('附件（OpenAI 协议）：已预读「' + pendingUploadText.name + '」的正文，稍后内联进消息');
+    } catch (e) {
+      sniffState.errors.push('attach-preload: ' + ((e && e.message) || e));
+    }
+  }
+
+  /**
+   * 上传请求改道 + 换鉴权头。
+   * 返回 null 表示"没接管"，调用方回退到原逻辑。
+   */
+  function openAIAdapterUpload(original, input, init, rawUrl) {
+    try {
+      if (!urlLooksLikeFiles(rawUrl)) return null;
+      if (resolveProtocolLive() !== 'openai') return null;
+
+      var liveBase = effectiveBaseForProtocol();
+      var url = openAIFilesUrl(liveBase);
+      if (!url) return null;
+
+      var p = activeProvider();
+      var key = lsGet(LS_APP_API_KEY) || (p && p.apiKey) || '';
+      var form = init && init.body;
+      var isForm = typeof FormData !== 'undefined' && form instanceof FormData;
+
+      // 官方的 FormData 里可能带着 Anthropic 自己的 purpose，先记下来
+      var appPurpose = '';
+      if (isForm && typeof form.get === 'function') {
+        try { appPurpose = String(form.get('purpose') || ''); } catch (e) { /* ignore */ }
+      }
+
+      preloadUploadFile(form);
+
+      traceNet({
+        kind: 'openai-upload',
+        url: url,
+        key: maskKey(key),
+        keyFrom: lsGet(LS_APP_API_KEY) ? 'app api-key' : (p && p.apiKey ? 'provider.apiKey' : '无'),
+        purpose: appPurpose || '(自动)'
+      });
+      log('附件（OpenAI 协议）：POST ' + url);
+
+      /**
+       * ★ purpose 各家不同，必须按顺序试 ★
+       *
+       * 实测（同一个请求，两个端点给的合法列表完全不一样）：
+       *   官方 api.deepseek.com  → 只认 ["user_data","text_recognition","rich_layout_recognition"]
+       *                             「file」直接 400
+       *   中转站（one-api 系）    → 认 ["assistants","vision","user_data","batch",...]
+       *                             「file」也 400
+       *
+       * `user_data` 是**两边都认**的那个，所以放第一个；
+       * 其余按"越通用越靠前"排，最后一个 file 兜底给宽松实现。
+       * 一旦某个值成功就记下来，后续上传直接用它，不再逐个试。
+       */
+      var purposes = [];
+      if (appPurpose) purposes.push(appPurpose);
+      var remembered = getFilePurpose(url);
+      if (remembered) purposes.push(remembered);
+      var FALLBACK = ['user_data', 'assistants', 'vision', 'file'];
+      for (var i = 0; i < FALLBACK.length; i++) purposes.push(FALLBACK[i]);
+
+      function attempt(n) {
+        if (n >= purposes.length) {
+          traceNet({ kind: 'openai-upload', note: '所有 purpose 取值都被拒绝' });
+          return null;
+        }
+        var purpose = purposes[n];
+        var body = form;
+        if (isForm) {
+          // FormData 不能原地改 purpose：每轮重建一份，保留除 purpose 外的字段
+          try {
+            var next = new FormData();
+            form.forEach(function (v, k) { if (k !== 'purpose') next.append(k, v); });
+            next.append('purpose', purpose);
+            body = next;
+          } catch (e) {
+            body = form;
+          }
+        }
+        return original(url, {
+          method: 'POST',
+          headers: key ? { Authorization: 'Bearer ' + key } : {},
+          body: body
+        }).then(function (res) {
+          if (res.ok) {
+            setFilePurpose(url, purpose);
+            traceNet({ kind: 'openai-upload', note: 'purpose=' + purpose + ' 被接受', status: res.status });
+            return res;
+          }
+          // 只有"参数不被接受"才值得换一个 purpose 再试；
+          // 401/429/5xx 换 purpose 也没用，直接交回给应用显示真实错误。
+          var again = (res.status === 400 || res.status === 422);
+          return res.clone().text().then(function (txt) {
+            traceNet({
+              kind: 'openai-upload', status: res.status,
+              note: 'purpose=' + purpose + ' 被拒', body: String(txt).slice(0, 160)
+            });
+            if (again) return attempt(n + 1);
+            return res;
+          }).catch(function () {
+            if (again) return attempt(n + 1);
+            return res;
+          });
+        }, function (err) {
+          throw err;
+        });
+      }
+
+      var finalRes = attempt(0);
+
+      return finalRes.then(function (res) {
+        if (!res) return res;
+        // 把响应里的文件 id 与预读的正文对上，供聊天时内联
+        try {
+          var clone = res.clone();
+          var pend = pendingUploadText;
+          pendingUploadText = null;
+          clone.json().then(function (j) {
+            var id = j && (j.id || j.file_id || (j.data && j.data.id));
+            if (!id) {
+              traceNet({ kind: 'openai-upload', note: '响应里没有 id 字段', body: JSON.stringify(j).slice(0, 200) });
+              return;
+            }
+            if (pend && pend.promise) {
+              pend.promise.then(function (text) {
+                if (typeof text === 'string') {
+                  rememberFileText(id, pend.name, text, pend.mime);
+                  traceNet({ kind: 'openai-upload', note: '已缓存正文 ' + text.length + ' 字符', id: id });
+                }
+              });
+            } else {
+              traceNet({ kind: 'openai-upload', note: '非文本附件，只能内联占位说明', id: id });
+            }
+          }).catch(function () { /* 非 JSON 响应，应用自己会报错 */ });
+        } catch (e) { /* ignore */ }
+        return res;
+      });
+    } catch (e) {
+      sniffState.errors.push('openai-upload: ' + ((e && e.message) || e));
+      return null;
+    }
+  }
+
+  /**
+   * 附件的文本缓存目录：serverId → {header, lines, truncate}
+   * 让聊天时的 document 块能取回正文。
+   * （正文可能存在多个提供方的缓存里，这里做一个扁平索引。）
+   */
+  function attachmentText(serverId) {
+    var rec = lookupFileText(serverId);
+    if (!rec) return null;
+    return rec;
+  }
+
+  /** 把 document 块替换成正文；图片仍只能占位 */
+  function attachmentTextFor(block) {
+    var src = block && block.source;
+    if (!src) return null;
+    var id = src.file_id || src.id;
+    if (!id) return null;
+
+    var rec = attachmentText(id);
+    if (rec && typeof rec.text === 'string' && rec.text) {
+      var name = rec.name || '附件';
+      return '［附件：' + name + '，内容如下］\n' + rec.text;
+    }
+    // 取不到正文（旧附件 / 图片 / 上传失败）：给出明确说明，
+    // 别让模型以为用户什么都没发
+    if (src.type === 'file' || src.type === 'file_id') {
+      return '［这里有一个附件（' + (id ? '' : '') + '当前接口协议下未能读取到内容，' +
+        '如需处理请重新上传一次）］';
+    }
+    return null;
+  }
+
   function degradeMediaBlocks(content) {
     if (!Array.isArray(content)) return content;
     var out = [];
@@ -3952,7 +4270,9 @@
         continue;
       }
       if (b.type === 'document') {
-        out.push({ type: 'text', text: '［这里有一个附件，当前接口协议下未能一并发送］' });
+        // 先试内联正文（用户重新上传过的文本附件能取到）
+        var text = attachmentTextFor(b);
+        out.push({ type: 'text', text: text || '［这里有一个附件，当前接口协议下未能一并发送］' });
         continue;
       }
       out.push(b);
@@ -4194,8 +4514,20 @@
       ).toUpperCase();
       var rawUrl = typeof input === 'string' ? input : (input && input.url) || '';
 
-      // 附件上传：加一层瞬时故障重试
+      // 附件上传
       if (method === 'POST' && urlLooksLikeFiles(rawUrl)) {
+        // OpenAI 协议下先把上传改道到 /v1/files（Anthropic 那条路中转站没有），
+        // 并把文本附件的正文预读下来，供聊天时内联。
+        try {
+          var up = openAIAdapterUpload(original, input, init, rawUrl);
+          if (up) {
+            // 仍然保留瞬时故障重试（网络抖动 / 429 / 5xx）
+            return retryUpload(function () { return up; });
+          }
+        } catch (e) {
+          sniffState.errors.push('openai-upload-hook: ' + ((e && e.message) || e));
+        }
+        // 加一层瞬时故障重试
         return retryUpload(function () {
           return original(input, init);
         });

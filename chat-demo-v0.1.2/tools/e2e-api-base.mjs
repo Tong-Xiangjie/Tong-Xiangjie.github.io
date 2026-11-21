@@ -546,9 +546,16 @@ try {
   console.log('    实际上传地址: ' + uploadResult.url);
   console.log('    假服务收到的上传请求: ' + JSON.stringify(fileReqs));
   check('假服务收到了文件上传', fileReqs.length >= 1, JSON.stringify(fileReqs));
+  // 上传端点随协议而定：
+  //   · Anthropic 协议 → {base}/anthropic/v1/files
+  //   · OpenAI 协议    → {base}/v1/files（Anthropic 那条路由中转站没有）
+  // 这里用的提供方是 OpenAI 协议，所以应该是后者。
+  // 两种情况都必须满足：路径正确，且没有把 /anthropic 叠成两遍。
   check(
-    '上传路径没有重复 /anthropic',
-    fileReqs.length > 0 && fileReqs.every((r) => r.path === '/anthropic/v1/files'),
+    '上传路径正确（OpenAI 协议走 /v1/files，且 /anthropic 没有重复）',
+    fileReqs.length > 0 &&
+      fileReqs.every((r) => /(^|\/)(anthropic\/)?v1\/files$/.test(r.path) &&
+        (r.path.match(/anthropic/g) || []).length <= 1),
     JSON.stringify(fileReqs.map((r) => r.path))
   );
   check('上传请求成功', uploadResult.ok === true, JSON.stringify(uploadResult));
