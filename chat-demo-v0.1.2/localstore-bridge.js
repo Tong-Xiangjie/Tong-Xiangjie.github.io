@@ -2746,6 +2746,8 @@
       // 用户设的上限就是"我要的上限"，再留 8% 余量
       return Math.floor(reqTokenLimit * 0.92);
     }
+    // 服务端报过精确值时，用它的真实上限来定预算（最准）
+    if (serverTokenFact.max > 0) return Math.floor(serverTokenFact.max * 0.92);
     return REQ_TOKEN_BUDGET;
   }
 
@@ -2861,22 +2863,56 @@
   }
 
   /**
-   * 把请求体压到预算内。返回 {body, trimmed, removed} 或 null（压不动）。
+   * 把请求体压到预算内。
    *
-   * 策略：从**最长的**文本片段开始截，一段一段削，直到总量进预算。
-   * 这样对话历史（通常短）不受影响，只有那段超长内容会被削。
+   * 返回 {body, trimmed, removed, strategy}。
+   *
+   * ★ 分两层，尽量少破坏用户的东西 ★
+   *
+   *   1) **先删最老的对话历史**：历史被裁掉只是"AI 少记得早先的事"，
+   *      远比裁掉用户当次的问题轻。最后一条（本次输入）在这一层绝不动。
+   *   2) 历史删完还超，才动用户这次的内容。这时**掐中间、留头尾**：
+   *      开头通常是背景和问题，结尾通常是要求与约束，中间往往最可丢。
+   *      比"只留前半段、把结尾的要求整段丢掉"安全得多。
    */
   function fitRequestToBudget(body) {
     var budget = effectiveTokenBudget();
     var total = estimateRequestTokens(body);
-    if (total <= budget) return { body: body, trimmed: false, removed: 0 };
+    if (total <= budget) return { body: body, trimmed: false, removed: 0, strategy: 'none' };
 
+    var strategy = 'none';
+    var removedChars = 0;
+
+    /* --- 第 1 层：裁最老的对话历史 --- */
+    var msgs = Array.isArray(body.messages) ? body.messages : [];
+    var lastIdx = msgs.length - 1;      // 本次输入，这层不许动
+    for (var i = 0; i < lastIdx && total > budget; i++) {
+      var m = msgs[i];
+      if (!m) continue;
+      var mt = estimateContentTokens(m.content);
+      if (!mt) continue;
+      removedChars += String(m.content || '').length;
+      m.content = '';
+      total -= mt;
+      strategy = 'history';
+    }
+    if (strategy === 'history') {
+      body.messages = msgs.filter(function (mm, idx) {
+        return idx === lastIdx || estimateContentTokens(mm.content) > 0;
+      });
+      total = estimateRequestTokens(body);
+    }
+    if (total <= budget) {
+      return { body: body, trimmed: removedChars > 0, removed: removedChars, strategy: strategy };
+    }
+
+    /* --- 第 2 层：掐本次内容的中间，留头尾 --- */
     var parts = collectTextParts(body);
-    if (!parts.length) return null;
+    if (!parts.length) {
+      return { body: body, trimmed: removedChars > 0, removed: removedChars, strategy: strategy };
+    }
     parts.sort(function (a, b) { return b.len - a.len; });
 
-    var removedChars = 0;
-    // 每轮砍最长那一段。估算里 CJK 最费 token，所以按字符数砍是保守的。
     for (var round = 0; round < 40 && total > budget; round++) {
       var worst = parts[0];
       if (!worst) break;
@@ -2890,52 +2926,155 @@
         removedChars += cur.length;
         total -= curTokens;
         parts.shift();
+        strategy = 'content';
         continue;
       }
-      // 这一段够赔：按比例算要留多少字符（留一点余量，乘 0.95）
+      // 这一段够赔：按比例留，头 60% / 尾 40%
       var keepRatio = Math.max(0.02, (curTokens - over) / curTokens) * 0.95;
-      var keep = Math.max(1, Math.floor(cur.length * keepRatio));
-      var cut = cur.slice(0, keep);
-      var dropped = cur.length - cut.length;
-      worst.set(cut + '\n\n…（内容过长，已在本机截断 ' + dropped + ' 字符）');
+      var keep = Math.max(2, Math.floor(cur.length * keepRatio));
+      var headLen = Math.floor(keep * 0.6);
+      var tailLen = keep - headLen;
+      var headPart = cur.slice(0, headLen);
+      var tailPart = tailLen > 0 ? cur.slice(cur.length - tailLen) : '';
+      var dropped = cur.length - keep;
+      worst.set(headPart +
+        '\n\n…（中间 ' + dropped + ' 字符超出单次请求上限，已省略；' +
+        '完整原文可在提示里点「导出原文」取回）…\n\n' + tailPart);
       removedChars += dropped;
       total = estimateRequestTokens(body);
+      strategy = 'content';
       if (dropped <= 0) parts.shift();
     }
-    return { body: body, trimmed: removedChars > 0, removed: removedChars };
+    return { body: body, trimmed: removedChars > 0, removed: removedChars, strategy: strategy };
   }
 
-  /** 压完给用户一个提示，不然内容少了会以为丢数据了 */
-  function noticeTrimmed(removed, tokens) {
+  /**
+   * 把用户这次的完整原文备份下来，别让它真的消失。
+   *
+   * 备份存 localStorage（原始文本，未截断），并挂到提示条上让用户一键导出。
+   * 用 localStorage 而不是直接写文件夹：fetch 里是同步路径，
+   * 不能等异步 IO；而且文件夹可能没连上。
+   */
+  var LS_LAST_TRIMMED = 'chat-demo:ls-last-trimmed';
+
+  function stashOriginal(texts) {
+    try {
+      var joined = texts.filter(Boolean).join('\n\n===== 分段 =====\n\n');
+      if (!joined) return '';
+      lsSet(LS_LAST_TRIMMED, joined);
+      return joined;
+    } catch (e) { return ''; }
+  }
+
+  function exportStashed() {
+    var text = '';
+    try { text = lsGet(LS_LAST_TRIMMED) || ''; } catch (e) { /* ignore */ }
+    if (!text) return false;
+    try {
+      var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '被截断的原文-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.txt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        try { URL.revokeObjectURL(a.href); } catch (e) { /* ignore */ }
+        if (a.parentNode) a.parentNode.removeChild(a);
+      }, 1000);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /** 压完给用户一个提示：说清发生了什么 + 一键取回原文 */
+  function noticeTrimmed(removed, tokens, strategy) {
     try {
       var id = 'ls-token-notice';
       var old = document.getElementById(id);
       if (old && old.parentNode) old.parentNode.removeChild(old);
+
       var el = document.createElement('div');
       el.id = id;
-      el.textContent = '内容超过本次请求上限（约 ' + tokens + ' tokens），' +
-        '已在本机截断 ' + removed + ' 个字符后再发送。';
+      var why = strategy === 'history'
+        ? '较早的对话历史已从本次请求中省略（' + removed + ' 字符）'
+        : '内容超限，已省略中间约 ' + removed + ' 个字符（开头结尾都保留）';
       el.style.cssText = [
         'position:fixed', 'left:50%', 'transform:translateX(-50%)', 'bottom:28px',
-        'z-index:2147483000', 'max-width:min(560px,92vw)',
+        'z-index:2147483000', 'max-width:min(620px,92vw)',
         'padding:10px 14px', 'border-radius:10px',
-        'background:rgba(28,28,32,.96)', 'color:#fff',
-        'font-size:13px', 'line-height:1.5', 'box-shadow:0 6px 24px rgba(0,0,0,.32)',
-        'pointer-events:none'
+        'background:rgba(28,28,32,.97)', 'color:#fff',
+        'font-size:13px', 'line-height:1.6', 'box-shadow:0 6px 24px rgba(0,0,0,.34)',
+        'display:flex', 'gap:12px', 'align-items:center'
       ].join(';');
+
+      var span = document.createElement('span');
+      span.textContent = why + '。本次请求约 ' + tokens + ' tokens，上限 ' +
+        (reqTokenLimit || REQ_TOKEN_MAX) + '。原文已备份：';
+      el.appendChild(span);
+
+      var btn = document.createElement('button');
+      btn.textContent = '导出原文';
+      btn.style.cssText = [
+        'flex:0 0 auto', 'padding:5px 12px', 'border-radius:7px',
+        'border:1px solid rgba(255,255,255,.32)', 'background:transparent',
+        'color:#fff', 'font-size:13px', 'cursor:pointer'
+      ].join(';');
+      btn.onclick = function () { exportStashed(); };
+      el.appendChild(btn);
+
+      var close = document.createElement('button');
+      close.textContent = '×';
+      close.style.cssText = [
+        'flex:0 0 auto', 'padding:2px 8px', 'border-radius:7px', 'border:0',
+        'background:transparent', 'color:rgba(255,255,255,.7)',
+        'font-size:16px', 'cursor:pointer', 'line-height:1'
+      ].join(';');
+      close.onclick = function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      };
+      el.appendChild(close);
+
       document.body.appendChild(el);
+      // 不给自动消失：用户可能要慢慢导出，留到他手动关
       setTimeout(function () {
         if (el.parentNode) el.parentNode.removeChild(el);
-      }, 6000);
+      }, 60000);
     } catch (e) { /* ignore */ }
   }
 
   /**
-   * 在 fetch 之前拦一道：把超限的请求体截断。
+   * 服务端在拒绝时会给出**精确**的 token 数，形如：
+   *   user input too long, 34112 tokens exceeds max 32768 tokens
+   * 把它记下来，直接当作"真实 token 数"用 —— 比我们的估算准得多，
+   * 下次按它算出来的截断比例就一步到位，不用估、不用试。
+   */
+  var serverTokenFact = { actual: 0, max: 0, ratio: 0, at: 0 };
+
+  async function learnFromTooLong(res) {
+    try {
+      if (!res || res.status < 400) return;
+      var text = await res.clone().text();
+      var m = /(\d+)\s*tokens?\s*exceeds\s*max\s*(\d+)\s*tokens?/i.exec(text);
+      if (!m) return;
+      var actual = Number(m[1]);
+      var max = Number(m[2]);
+      if (!(actual > 0) || !(max > 0)) return;
+      serverTokenFact = {
+        actual: actual,
+        max: max,
+        ratio: actual / max,       // 我们高估/低估了多少倍
+        at: Date.now()
+      };
+      log('服务端回报精确 token：实际 ' + actual + '，上限 ' + max +
+        '（估算倍率 ' + (serverTokenFact.ratio).toFixed(3) + '）');
+    } catch (e) { /* ignore */ }
+  }
+
+
+  /**
+   * 在 fetch 之前拦一道：把超限的请求体压进预算，并把完整原文备份下来。
    *
-   * 返回 true 表示"已经处理过了"（调用方不要再发原请求）。
-   * 这里要**重新构造 Request 并带上原来的 body 流**，所以用
-   * `init.body` 优先；应用发消息时 body 就是字符串，够用。
+   * 返回 true 表示改过请求体。应用发消息时 body 是字符串
+   * （见 installFetchHook 里对 init.body 的用法），所以能直接解析改写。
    */
   function clampRequestBody(input, init) {
     var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
@@ -2951,15 +3090,20 @@
     if (!parsed || typeof parsed !== 'object') return false;
 
     var before = estimateRequestTokens(parsed);
+    // 先备份完整原文（在改写之前，拿到的就是真原文）
+    var originals = collectTextParts(parsed).map(function (p) { return p.get(); });
+
     var fit;
     try { fit = fitRequestToBudget(parsed); } catch (e) { return false; }
     if (!fit || !fit.trimmed) return false;
 
-    var newBody = JSON.stringify(fit.body);
-    init.body = newBody;
-    log('请求超限：约 ' + before + ' tokens > 上限 ' + effectiveTokenBudget() +
-      '，已截断 ' + fit.removed + ' 字符');
-    noticeTrimmed(fit.removed, before);
+    // 备份整段原文（在改写之前拿到的是真原文），供提示里的「导出原文」取回
+    stashOriginal(originals);
+
+    init.body = JSON.stringify(fit.body);
+    log('请求超限：约 ' + before + ' tokens > 预算 ' + effectiveTokenBudget() +
+      '，策略=' + fit.strategy + '，省略 ' + fit.removed + ' 字符');
+    noticeTrimmed(fit.removed, before, fit.strategy);
     return true;
   }
 
@@ -3143,6 +3287,9 @@
 
         return result.then(function (res) {
           sniffState.calls++;
+          // 服务端若回了 "… tokens exceeds max …"，把精确数字学下来，
+          // 下次估算/预算就按真实值走（比我们的估算准）
+          learnFromTooLong(res);
           if (!res || !res.body || !looksLikeSse(res)) {
             sniffState.skipped++;
             return res;
@@ -6562,7 +6709,14 @@
     tokenLimit: {
       get: function () { return reqTokenLimit || REQ_TOKEN_MAX; },
       set: setRequestTokenLimit,
-      budget: effectiveTokenBudget
+      budget: effectiveTokenBudget,
+      /** 服务端最近一次回报的精确 token 与上限 */
+      serverFact: function () { return serverTokenFact; }
+    },
+    /** 取回最近一次被省略的完整原文 */
+    exportTrimmedOriginal: exportStashed,
+    lastTrimmedOriginal: function () {
+      try { return lsGet(LS_LAST_TRIMMED) || ''; } catch (e) { return ''; }
     },
       /** 模型相关 */
       currentModel: currentModel,
