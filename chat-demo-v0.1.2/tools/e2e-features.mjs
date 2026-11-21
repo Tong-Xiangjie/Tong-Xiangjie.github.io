@@ -550,9 +550,11 @@ const brand = JSON.parse(await ev(`
 `));
 check('品牌样式层已加载并挂上 .ls-brand', brand.cssLoaded && /(^|\s)ls-brand(\s|$)/.test(brand.htmlClass),
   JSON.stringify({ css: brand.cssLoaded, cls: brand.htmlClass }));
+// 只断言「确实换成了 logo、文字确实收起、盒子有实际尺寸」，
+// **不要写死具体宽高** —— logo 是用户会自己替换的素材，尺寸随时会调。
 check('侧栏标题被换成 logo.svg（文字收起 + 背景图）',
   brand.logo && brand.logo.fontSize === '0px' && brand.logo.bg === 'logo.svg' &&
-  brand.logo.h === 22 && brand.logo.w > 60,
+  brand.logo.h >= 20 && brand.logo.w >= 60,
   JSON.stringify(brand.logo));
 check('欢迎语左边有鲸鱼图标（且确实会渲染：display 不是 none）',
   brand.greetWhale && brand.greetWhale.display !== 'none' &&
@@ -562,6 +564,31 @@ check('收起按钮左边有鲸鱼图标（且确实会渲染）',
   brand.btnWhale && brand.btnWhale.display !== 'none' &&
   parseFloat(brand.btnWhale.w) > 0 && brand.btnWhale.mask === 'whale.svg',
   JSON.stringify(brand.btnWhale));
+// 折叠态那两个按钮（打开边栏 / 开启新对话）各有一个鲸鱼，
+// 且都不能伸到屏外（left 为负说明被裁掉了）。实测踩过：-36px 会跑到 x=-17。
+// 先收起侧栏才能看到那组按钮。
+await ev(`(function(){ var b=document.querySelector('.top-ac14ac button[aria-label]'); if(b) b.click(); })()`);
+await sleep(1400);
+const colWhales2 = JSON.parse(await ev(`
+  JSON.stringify((function(){
+    const out = [];
+    document.querySelectorAll('.collapsed-ac14ac button[aria-label]').forEach(function(b){
+      const cs = getComputedStyle(b, '::before');
+      const r = b.getBoundingClientRect();
+      const left = r.left + parseFloat(cs.left || 0);
+      out.push({ aria: b.getAttribute('aria-label'), display: cs.display,
+        w: parseFloat(cs.width), h: parseFloat(cs.height),
+        screenLeft: Math.round(left), screenRight: Math.round(left + (parseFloat(cs.width) || 0)),
+        mask: (cs.webkitMaskImage || cs.maskImage || '').split('/').pop().replace(/["')]+$/, '') });
+    });
+    return out;
+  })())
+`));
+check('折叠态两个按钮各有鲸鱼，且都完整在屏内（不被裁）',
+  colWhales2.length === 2 &&
+  colWhales2.every((w) => w.display !== 'none' && w.w > 0 && w.mask === 'whale.svg' &&
+    w.screenLeft >= 0 && w.screenRight <= 261),
+  JSON.stringify(colWhales2));
 // 回归：直接改官方文本节点会被 React 写回（实测 7 秒内一次都没留住），
 // 所以必须是自己插入的节点承载文案 + 官方文字 font-size:0 收起。
 check('开屏标语用自定义节点承载，官方文字被收起',

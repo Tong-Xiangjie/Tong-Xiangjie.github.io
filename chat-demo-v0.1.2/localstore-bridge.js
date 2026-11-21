@@ -2571,9 +2571,16 @@
    * 起不到给主区让位的作用。
    */
   var SIDER_ANIM_ATTR = 'data-ls-sider-anim';
-  /** 与 localstore-motion.css 里 .ls-sider-ghost 的 transition 时长保持一致
-   *  （用应用自带的 --ds-transition-duration，即 0.2s） */
-  var SIDER_COLLAPSE_MS = 200;
+  /** 与 localstore-motion.css 里 --ls-motion-sider 一致（0.26s）。
+   *
+   *  这里只用于**兜底清理**：首选路径是 ghost 的 transitionend。
+   *  但减弱动效（prefers-reduced-motion）时不会有 transitionend，
+   *  只能靠这个定时器，所以它必须 ≥ CSS 的真实时长 ——
+   *  取小了会在动画播到一半时把替身删掉，看得见地「啪」一下。
+   *
+   *  ⚠ 改 CSS 时长时这里要跟着改。收起与展开共用同一个值，
+   *  这正是「收起 = 展开倒放」的前提。 */
+  var SIDER_COLLAPSE_MS = 260;
   var GHOST_CLASS = 'ls-sider-ghost';
   var GHOST_CLONE_CLASS = 'ls-sider-clone';
   /** 收起时记下的侧栏宽度；展开时侧栏还没挂载，量不到，用它来定过渡终点 */
@@ -2843,16 +2850,12 @@
     // 下一帧再改目标值：同一帧里「插入 + 改样式」会被合并成一次样式计算，
     // 过渡的起始值从未被渲染，动画会被跳过（表现是瞬间收没）。
     //
-    // 同时改两个值，它们共用同一条过渡：
-    //   · width / min-width → 让出水平空间，主内容区跟着逐帧变大；
-    //   · --ls-clip（CSS 里驱动克隆体的 clip-path 右内缩）→ 把内容从右边裁掉。
-    // 两者严格同步，所以可见内容区域恒等于面板区域：
-    // 文字原地不动，只是一条边界从右往左扫过它（展开时边界再从右往左退回来）。
+    // 这里只收 wrapper 的**布局宽度**（让主内容区跟着逐帧变大）。
+    // 内容怎么退场由 CSS 负责：克隆体上播 `ls-sider-out`，
+    // 也就是入场动画 `ls-sider-in` 完全反着放一遍（左移 + 淡出）。
     requestAnimationFrame(function () {
-      ghost.style.setProperty('--ls-clip', '0px');
       ghost.style.width = '0px';
       ghost.style.minWidth = '0px';
-      ghost.style.opacity = '0';
       ghost.style.borderRightColor = 'transparent';
       ghost.style.borderRightWidth = '0px';
     });

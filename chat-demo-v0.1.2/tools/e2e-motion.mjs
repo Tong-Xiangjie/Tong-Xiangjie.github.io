@@ -239,12 +239,11 @@ const collapseResult = JSON.parse(await ev(`
             childCount: g.children.length,
             innerSiderLike: g.querySelectorAll('.appName-ac14ac, .item-ff6fc9, .top-ac14ac').length,
             textLen: (g.textContent || '').replace(/\s+/g, '').length,
-            // 克隆体内部**不允许**还带着 animation：侧栏列表项自带
-            // ls-item-in（还带错峰延迟），克隆体一插入就全部重播 ——
-            // 用户看到的是「闪很多下」。替身是静态快照，整棵子树都该按住。
-            cloneAnimCount: [g, ...g.querySelectorAll('*')]
-              .filter((e) => getComputedStyle(e).animationName !== 'none').length,
-            cloneAnim: clone ? getComputedStyle(clone).animationName : null,
+            // 收起复用展开的动画、只是倒过来放：克隆体上应当是 ls-sider-out
+            cloneAnimName: clone ? getComputedStyle(clone).animationName : null,
+            clonePosition: clone ? getComputedStyle(clone).position : null,
+            cloneClip: clone ? getComputedStyle(clone).clipPath : null,
+            cloneMarginLeft: clone ? clone.style.marginLeft : null,
             // 入场动画属性绝不能残留在 <html> 上，否则收起时新节点会被套上
             // 滑入动画（用户原话：「收起时文字从左边滑过来」）。
             // 用 String() 归一化：getAttribute 返回 null，JSON 往返后字段会消失。
@@ -286,8 +285,14 @@ const collapseResult = JSON.parse(await ev(`
 `));
 console.log('    ' + JSON.stringify(collapseResult, null, 2).split('\n').join('\n    '));
 check('收起时有替身在做收拢', collapseResult.ghostInfo && collapseResult.ghostInfo.exists === true, JSON.stringify(collapseResult.ghostInfo));
-check('替身在 flex 流里（position:static，能为主区让位）',
-  collapseResult.ghostInfo && collapseResult.ghostInfo.position === 'static', JSON.stringify(collapseResult.ghostInfo));
+// 替身必须**留在 flex 流里**才能为主区让位（宽度收拢 -> main 变大）。
+// 注意它自己现在带 position:relative —— 那是给绝对定位的内容层做定位上下文，
+// 它仍然是 frame 的 flex 子项，没有脱离流（脱离流的是里面的 .ls-sider-clone）。
+check('替身在 flex 流里（未脱离文档流，能为主区让位）',
+  collapseResult.ghostInfo && ['static', 'relative'].indexOf(collapseResult.ghostInfo.position) !== -1 &&
+  collapseResult.ghostInfo.flex === '0 0 auto',
+  JSON.stringify({ position: collapseResult.ghostInfo && collapseResult.ghostInfo.position,
+    flex: collapseResult.ghostInfo && collapseResult.ghostInfo.flex }));
 check('替身不接鼠标事件', collapseResult.ghostInfo && collapseResult.ghostInfo.pointerEvents === 'none');
 check('替身裁剪溢出内容', collapseResult.ghostInfo && collapseResult.ghostInfo.overflow === 'hidden');
 check('替身对读屏隐藏', collapseResult.ghostInfo && collapseResult.ghostInfo.aria === 'true');
@@ -320,18 +325,20 @@ check('替身带着侧栏内容（收起时内容跟着退场，不是瞬间消�
   collapseResult.ghostInfo && collapseResult.ghostInfo.innerSiderLike > 0 && collapseResult.ghostInfo.textLen > 0,
   JSON.stringify({ innerSiderLike: collapseResult.ghostInfo && collapseResult.ghostInfo.innerSiderLike,
     textLen: collapseResult.ghostInfo && collapseResult.ghostInfo.textLen }));
-// 回归（用户报「闪很多下」）：替身里的克隆体是静态快照，整棵子树都不该再播动画。
-// 侧栏列表项自带 `ls-item-in` 且带错峰延迟，克隆体一插入就全部重播 —— 就是那个闪。
-check('替身内部没有任何元素还在播动画（否则会闪很多下）',
-  collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnimCount === 0,
-  '仍带 animation 的元素数 ' + (collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnimCount));
+// 回归（用户报「闪很多下」）：替身里的内容层必须**只播 ls-sider-out 这一条**
+// 我们自己的动画。侧栏列表项自带 ls-item-in 且带错峰延迟，若被重播就是那个闪。
+check('内容层只播「展开动画的倒放」这一条（不重播内部错峰动画）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnimName === 'ls-sider-out',
+  '克隆体动画: ' + (collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnimName));
+// 内容层必须脱离文档流，否则它会把 wrapper 撑住、宽度收不到 0
+check('内容层绝对定位（不撑住 wrapper 的宽度）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.clonePosition === 'absolute',
+  'position: ' + (collapseResult.ghostInfo && collapseResult.ghostInfo.clonePosition));
 // 回归（用户报「收起时文字从左边滑过来」）：入场动画属性不许在收起期间出现，
 // 否则新出现的节点会被套上展开用的滑入动画。
 check('收起期间没有入场动画标记（不会重播展开动画）',
-  collapseResult.ghostInfo && collapseResult.ghostInfo.animAttr === 'null' &&
-  collapseResult.ghostInfo.cloneAnim === 'none',
-  JSON.stringify({ attr: collapseResult.ghostInfo && collapseResult.ghostInfo.animAttr,
-    cloneAnim: collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnim }));
+  collapseResult.ghostInfo && collapseResult.ghostInfo.animAttr === 'null',
+  JSON.stringify({ attr: collapseResult.ghostInfo && collapseResult.ghostInfo.animAttr }));
 // 回归（用户报「闪一下」）：交接必须像素级无缝 ——
 // 替身插入的那一帧，克隆体与真身的自然几何应当重合。
 check('交接时克隆体与真身几何重合（不闪）',
@@ -759,6 +766,79 @@ check('上传诊断接口未被影响', stillWorks.uploadLog && stillWorks.probe
 
 const sessionRead = await ev(`window.__localstore.readAllSessions().then(a => a.length)`);
 check('仍能读到会话（IndexedDB hook 未受影响）', sessionRead === 2, String(sessionRead));
+
+// ---------------------------------------------------------------------------
+console.log('\n[8] 收起 = 展开的倒放');
+// ---------------------------------------------------------------------------
+// 用户提的思路（实测「对味了」）：收起完全复用展开的动画、只是反向播。
+// 实现 = 内容层播 @keyframes ls-sider-out（ls-sider-in 的镜像），
+// 并且缓动用 in 曲线的镜像 --ls-motion-sider-ease-out，
+// 这样 collapse(p) 与 expand(1-p) 逐帧重合。
+//
+// 直接量内容层的 transform / opacity 轨迹来锁住这个关系：
+// 收起时 tx 从 0 单调走到 -面板宽、opacity 从 1 单调走到 0。
+// 注意位置：必须在展开侧全部跑完、侧栏稳定展开之后再做。
+const mirror = JSON.parse(await ev(`
+  (async () => {
+    const readContent = () => {
+      const g = document.querySelector('.ls-sider-ghost');
+      const el = g ? g.firstElementChild : null;
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const m = /matrix\\(([^)]+)\\)/.exec(cs.transform);
+      return { tx: m ? +parseFloat(m[1].split(',')[4]).toFixed(1) : 0,
+        op: +Number(cs.opacity).toFixed(3),
+        panelW: g ? Math.round(g.getBoundingClientRect().width) : null };
+    };
+    const btn = document.querySelector('.top-ac14ac button[aria-label]');
+    if (!btn) return JSON.stringify({ error: '找不到收起按钮' });
+    btn.click();
+    const out = [];
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => requestAnimationFrame(() => r()));
+      const s = readContent();
+      if (s) out.push(s);
+    }
+    return JSON.stringify({ trace: out });
+  })()
+`));
+const mt = mirror.trace || [];
+const mFirst = mt[0];
+const mLast = mt[mt.length - 1];
+const panel0 = mFirst && mFirst.panelW;
+const txMonotonicDown = mt.every((f, i) => i === 0 || f.tx <= mt[i - 1].tx + 0.6);
+const opMonotonicDown = mt.every((f, i) => i === 0 || f.op <= mt[i - 1].op + 0.02);
+check('收起时内容向左滑出（tx 单调变负，不是向右）',
+  mt.length > 3 && mFirst.tx > -1 && mLast.tx < -(panel0 || 261) * 0.8 && txMonotonicDown,
+  JSON.stringify({ 首帧tx: mFirst && mFirst.tx, 末帧tx: mLast && mLast.tx, 面板宽: panel0,
+    单调: txMonotonicDown, 轨迹: mt.map((f) => f.tx).slice(0, 12) }));
+check('收起时内容同步淡出（opacity 单调降到 0）',
+  mt.length > 3 && mFirst.op > 0.9 && mLast.op < 0.2 && opMonotonicDown,
+  JSON.stringify({ 首帧op: mFirst && mFirst.op, 末帧op: mLast && mLast.op, 单调: opMonotonicDown,
+    轨迹: mt.map((f) => f.op).slice(0, 12) }));
+// 位移幅度与面板宽度同量级 —— 说明「滑出的距离」就是「侧栏的宽度」
+check('内容滑出的距离与侧栏宽度一致（同一个位移量）',
+  mt.length > 3 && Math.abs(mLast.tx) > (panel0 || 261) * 0.8,
+  JSON.stringify({ 位移: mLast && mLast.tx, 面板宽: panel0 }));
+// 缓动必须是镜像：收起用 --ls-motion-sider-ease-out，展开用 -ease-in
+const eases = JSON.parse(await ev(`
+  JSON.stringify((function(){
+    const cs = getComputedStyle(document.documentElement);
+    return { inEase: cs.getPropertyValue('--ls-motion-sider-ease-in').trim(),
+      outEase: cs.getPropertyValue('--ls-motion-sider-ease-out').trim(),
+      dur: cs.getPropertyValue('--ls-motion-sider').trim() };
+  })())
+`));
+check('收起与展开分别用镜像的一对缓动曲线',
+  eases.outEase === 'cubic-bezier(0, 0.7, 0.84, 1)' &&
+  eases.inEase === 'cubic-bezier(0.16, 1, 0.3, 1)', JSON.stringify(eases));
+// 两条动画时长必须一致，否则「倒放」在时间轴上对不齐
+check('收起与展开时长一致（倒放才成立）',
+  eases.dur === '0.26s', '时长 ' + eases.dur);
+// 恢复现场
+await ev(`(function(){ var g=document.querySelector('.collapsed-ac14ac');
+  var b=g&&(g.querySelector('button[aria-label]')||g.querySelector('button')); if(b) b.click(); })()`);
+await sleep(1000);
 
 console.log('\n' + '='.repeat(64));
 console.log(`结果: ${pass} 通过, ${fail} 失败`);

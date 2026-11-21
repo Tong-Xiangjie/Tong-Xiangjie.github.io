@@ -32,13 +32,25 @@
   --ls-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   /* 侧栏收／展的宽度过渡 —— 唯一一处会真正触发布局的动画。
    *
-   * 时长恢复成应用自己的 --ds-transition-duration（0.2s）：一开始嫌「太快」
-   * 其实是**另一个 bug** 造成的错觉 —— 收起时侧栏内容直接消失，只有一块底色
-   * 在收，看着就像「啪一下没了」。内容补回来、并且做成展开的逆过程之后，
-   * 0.2s 是对的手感（用户确认：动画速度恢复原来那样）。
-   * 缓动用对称 S 曲线，起步慢、收尾慢，位移摊得均匀。 */
-  --ls-motion-sider: var(--ds-transition-duration, 0.2s);
-  --ls-motion-sider-ease: cubic-bezier(0.4, 0, 0.2, 1);
+   * 时长取 0.26s，与入场动画（`ls-sider-in` 用的 --ls-motion-enter）**一致**。
+   * 用户确认过整体速度没问题，而这里对齐时长是为了「收起 = 展开倒放」：
+   * 两条曲线同长、同缓动，逐帧才严格互逆。
+   *
+   * 缓动分两条，这是「倒放」能成立的关键：
+   *   · in   = cubic-bezier(0.16, 1, 0.3, 1)  展开用（前快后慢，有到位感）
+   *   · out  = cubic-bezier(0, 0.7, 0.84, 1)   收起用
+   * out 是 in 关于 (0.5, 0.5) 的**镜像**：把 in 的曲线绕中心转 180°，
+   * 正好就是 out。所以「收起在 1-p 处的样子」= 「展开在 p 处的样子」，
+   * 两边共用同一段位移，只是方向相反。
+   *
+   * 不这么做的后果：收起若沿用同一条 ease（不是镜像），
+   * 观感就不是逆过程 —— 实测会显得「先快后慢」而展开是「先慢后快」，
+   * 看着像两段不相干的动画。 */
+  --ls-motion-sider: 0.26s;
+  --ls-motion-sider-ease-in: cubic-bezier(0.16, 1, 0.3, 1);
+  --ls-motion-sider-ease-out: cubic-bezier(0, 0.7, 0.84, 1);
+  /* 兼容旧名：仍按「收起方向」解释 */
+  --ls-motion-sider-ease: var(--ls-motion-sider-ease-out);
 }
 
 /* ---------------------------------------------------------------------------
@@ -176,6 +188,26 @@
   }
 }
 
+/* 收起专用：**就是上面那条完全反着播**。
+ *
+ * 这是用户提的思路，比之前那套「裁切 + 宽度收拢」干净得多，
+ * 也让收起在观感上真正成为展开的逆过程（两者共用同一段位移与淡出，
+ * 只有方向相反）。以前那套是靠 clip-path 从右往左扫，和展开的位移
+ * 不是一回事，看着就不像逆过程。
+ *
+ * 两条动画的时长/缓动必须与 --ls-motion-sider 一致，
+ * 这样「面板宽度收拢」与「内容位移淡出」逐帧同步。 */
+@keyframes ls-sider-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
 /* ★ 入场动画只给**真正的侧栏**，绝不能落到替身里的克隆体上。
  *
  * 踩过的坑（用户反馈「收起时文字从左边滑过来」）：这条规则原来写成
@@ -184,25 +216,9 @@
  *
  * 用 `.frame >` 把它限定为 frame 的直接子元素：真侧栏是 frame 的直系子节点，
  * 克隆体被包在 .ls-sider-ghost 里，天然被排除。
- * （不要再写回不带 `>` 的选择器。）
- *
- * 注意**不要**给 `.ls-sider-ghost *` 加 `animation: none !important`：
- * 那会把侧栏内部（列表项的渐入等）真正的动画一起打掉，观感更糟。
- * 这里只需要保证克隆体本身不重播入场动画即可，上面这条选择器已经做到了。 */
+ * （不要再写回不带 `>` 的选择器。） */
 .ls-motion .frame-_9fdf5 > .sider-ac14ac {
   animation: ls-sider-in 0.26s var(--ls-motion-ease-out) both;
-}
-
-/* 替身里的克隆体是**静态快照**：它只该被裁切/淡出，不该自己播任何动画。
- *
- * 必须整棵子树都按住。只按克隆体本身不够 —— 侧栏列表项自己带
- * `ls-item-in`（`.list-ac14ac > .item-ff6fc9`，还带 0/16/32/48ms 的错峰延迟），
- * 克隆体一插入它们就全部重播一遍，视觉上就是「闪很多下」（用户反馈）。
- * 而 `animation: none !important` 只会命中 `.ls-sider-ghost` 这棵子树，
- * 不会碰到真侧栏里正常播放的动画，所以是安全的。 */
-.ls-motion .ls-sider-ghost,
-.ls-motion .ls-sider-ghost * {
-  animation: none !important;
 }
 
 /* --- 侧栏折叠 / 展开 ---
@@ -221,12 +237,13 @@
  */
 
 /* 展开时由 JS 接管 .sider 自身的宽度（先设 0 再放开），这里只负责让它过渡。
- * 只过渡 width / min-width —— 与收起侧用的属性集合一致，两边节奏才对称。
+ * 用 **ease-in**：展开是「到场」，与入场动画同一条曲线，
+ * 这样它的逐帧节奏与收起的 ease-out 恰好互为镜像。
  * 注意这条要能盖过应用自己的 `width:261px`：内联样式优先级更高，JS 设的是内联值。 */
 .ls-motion .sider-ac14ac {
   transition:
-    width var(--ls-motion-sider) var(--ls-motion-sider-ease),
-    min-width var(--ls-motion-sider) var(--ls-motion-sider-ease);
+    width var(--ls-motion-sider) var(--ls-motion-sider-ease-in),
+    min-width var(--ls-motion-sider) var(--ls-motion-sider-ease-in);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -271,33 +288,46 @@
   overflow: hidden;
   pointer-events: none;
   contain: paint;
-  --ls-clip: 100%;
+  /* 内容节点要绝对定位，所以 wrapper 必须是定位上下文 */
+  position: relative;
   transition:
-    width var(--ls-motion-sider) var(--ls-motion-sider-ease),
-    min-width var(--ls-motion-sider) var(--ls-motion-sider-ease),
-    opacity var(--ls-motion-sider) var(--ls-motion-sider-ease),
-    border-right-width var(--ls-motion-sider) var(--ls-motion-sider-ease),
-    border-right-color var(--ls-motion-sider) var(--ls-motion-sider-ease);
+    width var(--ls-motion-sider) var(--ls-motion-sider-ease-out),
+    min-width var(--ls-motion-sider) var(--ls-motion-sider-ease-out),
+    border-right-width var(--ls-motion-sider) var(--ls-motion-sider-ease-out),
+    border-right-color var(--ls-motion-sider) var(--ls-motion-sider-ease-out);
 }
 
-/* ③ 克隆体原地不动，只裁可见范围。
+/* ③ 克隆体 = 内容层，**播放 ls-sider-in 的反向动画**（即 ls-sider-out）。
  *
- * 为什么还要 clip-path：只让 wrapper 变窄的话，克隆体（块级）也会跟着变窄，
- * 内容于是重排 —— 文字被自己的盒子往里挤，看起来就是「向右滑」。
- * 所以克隆体的宽度用内联钉死在 w 上（不参与收窄），再用 clip-path 的右内缩
- * 把超出部分裁掉。可见区域 = 面板区域，文字位置一个字都不动，
- * 只是一条边界从右往左扫过去。
+ * 用户提的思路：收起完全复用展开的动画，只是倒过来放。确实干净得多 ——
+ * 展开时内容从左侧滑入，收起时就从原位滑出到左侧，两者共用同一段
+ * 位移与淡出，观感天然互逆。
  *
- * --ls-clip 与宽度共用同一条过渡，所以两者严格同步。 */
+ * 两个实现要点：
+ *   · **绝对定位**：克隆体宽度被内联钉在 261（不重排），若还留在流里，
+ *     它会把 wrapper 撑到 261，wrapper 就收不到 0 了。所以脱离文档流，
+ *     由 wrapper 自己的宽度过渡去驱动主内容区重排。
+ *   · **`animation: none` 兜底**：这里显式覆盖，防止第 192 行那条入场动画
+ *     误伤克隆体（它带着相同的 .sider-ac14ac class）。
+ *
+ * wrapper 一直画着侧栏底色，所以内容淡出后剩下的是「一块收拢的面板」，
+ * 不会闪出 frame 的更深底色。 */
 .ls-motion .ls-sider-ghost > .ls-sider-clone {
-  clip-path: inset(0 var(--ls-clip, 100%) 0 0);
-  transition: clip-path var(--ls-motion-sider) var(--ls-motion-sider-ease);
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* 显式重生,避免第 192 行那条按 class 命中的入场动画落到克隆体上 */
+  animation: ls-sider-out var(--ls-motion-sider) var(--ls-motion-sider-ease-out) both;
+  will-change: transform, opacity;
 }
 
-/* 减弱动态效果时不播宽度过渡，直接一帧到位（动画本来就该关掉） */
+/* 减弱动态效果时不播任何过渡/动画，直接一帧到位（动画本来就该关掉） */
 @media (prefers-reduced-motion: reduce) {
   .ls-motion .ls-sider-ghost {
     transition: none !important;
+  }
+  .ls-motion .ls-sider-ghost > .ls-sider-clone {
+    animation: none !important;
   }
 }
 
