@@ -2992,12 +2992,28 @@
    * 保证请求一定能过。宁可内容少一点，也不要整条失败。
    * ==================================================================== */
 
-  /** 服务端硬上限 */
+  /** 服务端硬上限（历史默认值；实测这个数字来自 safety_check 字段，见 dropSafetyCheckForOversize） */
   var REQ_TOKEN_MAX = 32768;
   /** 留出余量给服务端可能追加的东西（系统提示、工具定义等） */
   var REQ_TOKEN_BUDGET = 30000;
+  /**
+   * 摘掉 safety_check 之后可以放心用的额度。
+   *
+   * 实测（官方 key / Anthropic 层 / 无 safety_check）：
+   *   59292 / 98752 / 148085 / 246736 / 394720 tokens 全部 HTTP 200 通过，
+   *   deepseek-flash 同样到 39 万；模型自报 context_window = 1048576。
+   * 所以原来的 30000 预算是被那道 32768 的假天花板拖累的，没必要那么小。
+   *
+   * 取 131072（128k）：比"人手动粘贴的内容"宽裕得多，又不会让
+   * estimateRequestTokens 在超大 body 上做无谓的长循环。
+   * 真撞到某个中转站的上限也不怕：learnFromTooLong 会从服务端错误里
+   * 学到精确的 max，之后按它收紧（见 effectiveTokenBudget）。
+   */
+  var REQ_TOKEN_BUDGET_UNCAPPED = 131072;
   /** 上限可以被设置覆盖（见 localstore 设置里的 tokenLimit） */
   var reqTokenLimit = null;
+  /** 本次页面生命周期内，是否已经为某个请求摘掉过 safety_check */
+  var safetyDroppedOnce = false;
 
   function effectiveTokenBudget() {
     if (reqTokenLimit && reqTokenLimit > 0) {
@@ -3006,6 +3022,8 @@
     }
     // 服务端报过精确值时，用它的真实上限来定预算（最准）
     if (serverTokenFact.max > 0) return Math.floor(serverTokenFact.max * 0.92);
+    // 摘过 safety_check 说明真正的闸门已经拿掉，放宽预算，别再白裁正文
+    if (safetyDroppedOnce) return REQ_TOKEN_BUDGET_UNCAPPED;
     return REQ_TOKEN_BUDGET;
   }
 
@@ -3334,6 +3352,56 @@
    * 返回 true 表示改过请求体。应用发消息时 body 是字符串
    * （见 installFetchHook 里对 init.body 的用法），所以能直接解析改写。
    */
+  /**
+   * ★ 32768 上限的真正原因：safety_check ★
+   *
+   * 实测（2026-11，官方 key，模型 deepseek-v4-pro / deepseek-flash）：
+   *
+   *   请求形状                          tokens    结果
+   *   裸请求（只有 messages）            32987    ✅ 通过
+   *   + system                          33003    ✅ 通过
+   *   + thinking disabled/enabled       32908    ✅ 通过
+   *   + safety_check:{level:'high'}      ~33000   ❌ user input too long, exceeds max 32768
+   *   多条消息合计 5 万 tokens（无它）     49685    ✅ 通过
+   *
+   * 结论：**只要带上 `safety_check`，输入一过 32768 就被拒**；
+   * 不带这个字段，5 万 token 也能正常跑。官方两个端点
+   * （/anthropic/v1/messages 与 /v1/chat/completions）都是如此。
+   *
+   * 而官方 demo 把这个字段**硬编码**在请求里：
+   *     ed = { level: 'high' }
+   *     fetch(..., { ..., safety_check: ed, ... })
+   * 所以 demo 天然被卡在 32768；Chatbox 之类不发这个字段，因此没有限制
+   * —— 这正是用户观察到「官方 demo 有、Chatbox 没有」的原因。
+   *
+   * 修法：只有当请求**确实超长**（估算 > 32768）时才摘掉这个字段。
+   * 短请求原样保留，不影响正常的安全检查行为；超长时以"能发出去"优先。
+   * 另外保留了「导出原文」的能力不受影响（这里只动 safety_check，
+   * 不裁正文）。
+   */
+  var SAFETY_LIMIT = 32768;
+
+  function dropSafetyCheckForOversize(parsed) {
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!('safety_check' in parsed)) return null;
+
+    var tokens = estimateRequestTokens(parsed);
+    if (tokens <= SAFETY_LIMIT) return null;   // 没超长，保持原样
+
+    var had = parsed.safety_check;
+    try { delete parsed.safety_check; } catch (e) { parsed.safety_check = undefined; }
+    safetyDroppedOnce = true;
+
+    traceNet({
+      kind: 'safety-drop',
+      reason: '输入约 ' + tokens + ' tokens > ' + SAFETY_LIMIT + '，摘掉 safety_check 以避开该上限',
+      tokens: tokens,
+      had: had && typeof had === 'object' ? had.level : String(had)
+    });
+    log('请求约 ' + tokens + ' tokens，已摘掉 safety_check（实测这是 32768 上限的来源）');
+    return tokens;
+  }
+
   function clampRequestBody(input, init) {
     var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
     if (method !== 'POST') return false;
@@ -3347,21 +3415,46 @@
     try { parsed = JSON.parse(bodyText); } catch (e) { return false; }
     if (!parsed || typeof parsed !== 'object') return false;
 
-    var before = estimateRequestTokens(parsed);
-    // 先备份完整原文（在改写之前，拿到的就是真原文）
+    /** 未做任何改动前的真实规模，用于日志与提示 */
+    var origTokens = estimateRequestTokens(parsed);
+
+    /**
+     * 先处理 32768 那道闸：实测它的来源是 safety_check 字段本身。
+     * 必须放在裁剪之前 —— 否则会出现"把用户的问题裁短了，其实只要摘掉
+     * 一个字段就能原样发出去"的过度裁剪。
+     */
+    var safetyDropped = false;
+    try {
+      safetyDropped = !!dropSafetyCheckForOversize(parsed);
+    } catch (e) {
+      sniffState.errors.push('safety-drop: ' + ((e && e.message) || e));
+    }
+
+    // 备份完整原文（在裁剪之前，拿到的就是真原文）
     var originals = collectTextParts(parsed).map(function (p) { return p.get(); });
 
     var fit;
-    try { fit = fitRequestToBudget(parsed); } catch (e) { return false; }
-    if (!fit || !fit.trimmed) return false;
+    try { fit = fitRequestToBudget(parsed); } catch (e) {
+      if (safetyDropped) { init.body = JSON.stringify(parsed); return true; }
+      return false;
+    }
+
+    if (!fit || !fit.trimmed) {
+      // 只摘了 safety_check、正文一个字没动 —— 把改写后的 body 写回去即可
+      if (safetyDropped) {
+        init.body = JSON.stringify(parsed);
+        return true;
+      }
+      return false;
+    }
 
     // 备份整段原文（在改写之前拿到的是真原文），供提示里的「导出原文」取回
     stashOriginal(originals);
 
     init.body = JSON.stringify(fit.body);
-    log('请求超限：约 ' + before + ' tokens > 预算 ' + effectiveTokenBudget() +
+    log('请求超限：约 ' + origTokens + ' tokens > 预算 ' + effectiveTokenBudget() +
       '，策略=' + fit.strategy + '，省略 ' + fit.removed + ' 字符');
-    noticeTrimmed(fit.removed, before, fit.strategy);
+    noticeTrimmed(fit.removed, origTokens, fit.strategy);
     return true;
   }
 
