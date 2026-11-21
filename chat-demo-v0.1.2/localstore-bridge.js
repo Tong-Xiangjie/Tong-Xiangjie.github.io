@@ -2262,8 +2262,105 @@
     apiKey: '',
     models: ['deepseek-flash', 'deepseek-v4-pro'],
     defaultModel: 'deepseek-flash',
+    // 官方地址同时提供 Anthropic 兼容层与原生 OpenAI 端点，默认走它自带的
+    // Anthropic 兼容层（和官方 demo 行为一致）；可切到 openai 绕过 32k 限制。
+    protocol: 'anthropic',
     builtin: true
   };
+
+  /* ------------------------------------------------------------------------
+   * 协议（protocol）
+   *
+   * 背景：官方 chat-demo **只会说 Anthropic 协议**，写死打
+   *   POST {base}/anthropic/v1/messages
+   * 于是两类问题：
+   *   1) 中转站大多只提供 OpenAI 协议（/v1/chat/completions），
+   *      被请求 /anthropic/v1/messages → 404/401「API 无效」；
+   *   2) 官方那个 Anthropic 兼容层把输入压到 32768 tokens，
+   *      而原生 /v1/chat/completions 没有这个限制。
+   *
+   * 所以提供方要能声明协议，由桥接层在 fetch 层做双向翻译：
+   *   anthropic —— 原样（默认，官方 demo 的行为）
+   *   openai    —— 请求翻成 /v1/chat/completions，响应 SSE 翻回 Anthropic 格式
+   *   auto      —— 按地址/名称猜
+   * ---------------------------------------------------------------------- */
+
+  var PROVIDER_PROTOCOLS = ['auto', 'anthropic', 'openai'];
+
+  /** 地址里带这些特征基本可以断定是 OpenAI 兼容端点 */
+  function looksOpenAIBase(base) {
+    var b = String(base || '').toLowerCase();
+    if (!b) return false;
+    if (/\/v\d+(\/|$)/.test(b)) return true;              // …/v1、…/v1/chat/completions
+    if (/(^|[/.-])openai([/.-]|$)/.test(b)) return true;
+    if (b.indexOf('/chat/completions') !== -1) return true;
+    return false;
+  }
+
+  /** 名称/模型名里的关键字也算线索 */
+  function looksOpenAIText(s) {
+    return /openai|兼容|中转|relay|proxy|oneapi|newapi|chatbox|siliconflow|paratera|volc|dashscope|moonshot|zhipu/i
+      .test(String(s || ''));
+  }
+
+  /**
+   * 判定某提供方最终走哪套协议。
+   * 明确选了就听用户的；auto 才自己猜。
+   */
+  function resolveProtocol(p) {
+    if (!p) return 'anthropic';
+    var v = String(p.protocol || 'auto').toLowerCase();
+    if (v === 'anthropic' || v === 'openai') return v;
+    // auto：官方内置地址走它自己的 Anthropic 层，保持和官方 demo 一致
+    var base = String(p.baseURL || '');
+    if (p.builtin || p.id === OFFICIAL_PROVIDER.id) return 'anthropic';
+    if (looksOpenAIBase(base)) return 'openai';
+    if (looksOpenAIText(p.name) || looksOpenAIText(p.id)) return 'openai';
+    if ((p.models || []).some(function (m) { return looksOpenAIText(m); })) return 'openai';
+    return 'anthropic';
+  }
+
+  /** 取当前生效的提供方（桥接层的 provider 列表里 activeId 那个） */
+  function activeProvider() {
+    try {
+      var st = getProviders();
+      if (!st || !st.list || !st.list.length) return null;
+      for (var i = 0; i < st.list.length; i++) {
+        if (st.list[i].id === st.activeId) return st.list[i];
+      }
+      return st.list[0];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 把一个提供方的 baseURL 归一化成 **OpenAI 端点的父地址**。
+   *
+   * 用户填什么的都有，全都要能对：
+   *   https://llmapi.paratera.com                                  → …/v1/chat/completions
+   *   https://llmapi.paratera.com/v1                               → …/v1/chat/completions
+   *   https://llmapi.paratera.com/v1/chat/completions              → 原样
+   *   https://llmapi.paratera.com/anthropic                        → 去掉 anthropic 段
+   *   https://api.deepseek.com                                     → …/v1/chat/completions
+   */
+  function openAIChatUrl(base) {
+    var b = String(base || '').trim().replace(/\s+$/, '');
+    if (!b) return '';
+    if (/\/chat\/completions$/i.test(b)) return b;          // 已经是完整地址
+    b = b.replace(/\/+$/, '');
+    b = b.replace(/\/anthropic$/i, '');                     // 误填的兼容层段
+    b = b.replace(/\/anthropic\/v\d+$/i, '');
+    if (/\/v\d+$/i.test(b)) return b + '/chat/completions'; // 已经带版本段
+    return b + '/v1/chat/completions';
+  }
+
+  /** 同理，模型列表地址 */
+  function openAIModelsUrl(base) {
+    var c = openAIChatUrl(base);
+    if (!c) return '';
+    return c.replace(/\/chat\/completions$/i, '/models');
+  }
 
   function uid(prefix) {
     return (
@@ -2281,6 +2378,10 @@
       name: p.name || '',
       baseURL: p.baseURL || '',
       apiKey: p.apiKey || '',
+      // 协议：auto / anthropic / openai（见 resolveProtocol 的说明）
+      protocol: PROVIDER_PROTOCOLS.indexOf(String(p.protocol || '').toLowerCase()) !== -1
+        ? String(p.protocol).toLowerCase()
+        : 'auto',
       models: Array.isArray(p.models) ? p.models.slice() : [],
       // 接口返回过的完整列表（含未勾选的），用于下次进设置页仍能显示全部候选
       availableModels: Array.isArray(p.availableModels) ? p.availableModels.slice() : [],
@@ -2341,6 +2442,7 @@
         name: '自定义服务',
         baseURL: oldBase,
         apiKey: oldKey,
+        protocol: 'auto',
         models: [],
         defaultModel: '',
         builtin: false
@@ -2621,13 +2723,32 @@
     var base = normalizeBase(p.baseURL || OFFICIAL_PROVIDER.baseURL);
     var key = p.apiKey || '';
 
-    // 依次尝试三种常见挂载路径：官方既支持 /models 也支持 /anthropic/v1/models，
+    // 依次尝试常见挂载路径：官方既支持 /models 也支持 /anthropic/v1/models，
     // 各家中转站（one-api / LiteLLM / new-api 等）习惯不同，全部试一遍。
-    var attempts = [
-      { url: base + '/anthropic/v1/models', auth: 'x-api-key' },
-      { url: base + '/models', auth: 'bearer' },
-      { url: base + '/v1/models', auth: 'bearer' }
-    ];
+    //
+    // 顺序按协议定：OpenAI 兼容的提供方先试 /v1/models（Bearer），
+    // 它们通常**没有** /anthropic/v1/models，先试那个只会白等一轮。
+    var attempts;
+    if (resolveProtocol(p) === 'openai') {
+      attempts = [
+        { url: openAIModelsUrl(base), auth: 'bearer' },
+        { url: base + '/models', auth: 'bearer' },
+        { url: base + '/anthropic/v1/models', auth: 'x-api-key' }
+      ];
+    } else {
+      attempts = [
+        { url: base + '/anthropic/v1/models', auth: 'x-api-key' },
+        { url: base + '/models', auth: 'bearer' },
+        { url: base + '/v1/models', auth: 'bearer' }
+      ];
+    }
+    // 去重并丢掉空地址
+    var seenUrl = {};
+    attempts = attempts.filter(function (a) {
+      if (!a.url || seenUrl[a.url]) return false;
+      seenUrl[a.url] = 1;
+      return true;
+    });
 
     var errors = [];
     for (var i = 0; i < attempts.length; i++) {
@@ -3255,6 +3376,459 @@
     return run();
   }
 
+  /* ======================================================================== *
+   * OpenAI 协议适配层
+   *
+   * 官方 chat-demo 只讲 Anthropic 协议。这里在 fetch 层做双向翻译，
+   * 让「OpenAI 兼容」的提供方（中转站、官方原生端点）也能直接用：
+   *
+   *   请求  Anthropic {system, messages, tools, thinking}
+   *      →  OpenAI   {messages:[{role:system},…], tools, stream:true}
+   *   响应  OpenAI SSE (chat.completion.chunk)
+   *      →  Anthropic SSE (message_start / content_block_delta / message_stop)
+   *
+   * 为什么要门面 Response 而不是改 Request：应用的 SDK 会检查
+   * `Content-Type` 必须是 text/event-stream，且要有 body 流可读，
+   * 所以必须造一个完整的 Response 交回去。
+   * ======================================================================== */
+
+  /** 把 Anthropic 的 content（字符串或 block 数组）拍成纯文本 */
+  function anthropicContentToText(content) {
+    if (content == null) return '';
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      var out = [];
+      for (var i = 0; i < content.length; i++) {
+        var b = content[i];
+        if (!b) continue;
+        if (typeof b === 'string') { out.push(b); continue; }
+        if (b.type === 'text' && typeof b.text === 'string') out.push(b.text);
+        else if (b.type === 'thinking' && typeof b.thinking === 'string') {
+          // OpenAI 协议里思维链通常单独放 reasoning_content；
+          // 作为历史回放时并回正文，避免丢信息
+          out.push(b.thinking);
+        } else if (b.type === 'tool_use') {
+          out.push('[tool_use ' + (b.name || '') + '] ' + JSON.stringify(b.input || {}));
+        } else if (b.type === 'tool_result') {
+          out.push('[tool_result] ' + anthropicContentToText(b.content));
+        } else if (typeof b.text === 'string') out.push(b.text);
+      }
+      return out.join('');
+    }
+    return String(content);
+  }
+
+  /** Anthropic block 里有没有图片/文档（这些在 OpenAI 协议里表达方式不同） */
+  function anthropicHasMedia(content) {
+    if (!Array.isArray(content)) return false;
+    for (var i = 0; i < content.length; i++) {
+      var t = content[i] && content[i].type;
+      if (t === 'image' || t === 'document') return true;
+    }
+    return false;
+  }
+
+  /** Anthropic tools → OpenAI tools（只翻能翻的） */
+  function toOpenAITools(tools) {
+    if (!Array.isArray(tools) || !tools.length) return null;
+    var out = [];
+    for (var i = 0; i < tools.length; i++) {
+      var t = tools[i];
+      if (!t) continue;
+      // Anthropic 的服务端工具（如 web_search_20250305）OpenAI 侧没有对应物，跳过
+      if (t.type && t.type !== 'custom') continue;
+      var name = t.name || (t.type === 'custom' ? 'custom' : '');
+      if (!name) continue;
+      out.push({
+        type: 'function',
+        function: {
+          name: name,
+          description: t.description || '',
+          parameters: t.input_schema || { type: 'object', properties: {} }
+        }
+      });
+    }
+    return out.length ? out : null;
+  }
+
+  /**
+   * Anthropic 请求体 → OpenAI 请求体。
+   * 返回 null 表示这条请求不适合翻译（比如带图片/文档）。
+   */
+  function toOpenAIBody(a, model) {
+    if (!a || !Array.isArray(a.messages)) return null;
+
+    var out = { model: model || a.model, stream: true };
+    var msgs = [];
+
+    if (a.system) {
+      var sys = anthropicContentToText(a.system);
+      if (sys) msgs.push({ role: 'system', content: sys });
+    }
+
+    for (var i = 0; i < a.messages.length; i++) {
+      var m = a.messages[i];
+      if (!m) continue;
+      // 图片/文档在 OpenAI 协议里要换成 image_url / file，这一层先不硬翻
+      if (anthropicHasMedia(m.content)) return null;
+      var role = m.role === 'assistant' ? 'assistant' : 'user';
+      var text;
+      if (Array.isArray(m.content)) {
+        var toolResults = [];
+        for (var j = 0; j < m.content.length; j++) {
+          var b = m.content[j];
+          if (b && b.type === 'tool_result') {
+            toolResults.push({
+              role: 'tool',
+              tool_call_id: b.tool_use_id || '',
+              content: anthropicContentToText(b.content)
+            });
+          }
+        }
+        text = anthropicContentToText(m.content);
+        if (toolResults.length) {
+          // tool 结果必须紧跟在 assistant 的 tool_calls 之后
+          for (var k = 0; k < toolResults.length; k++) msgs.push(toolResults[k]);
+          if (!text) continue;
+          msgs.push({ role: 'user', content: text });
+          continue;
+        }
+      } else {
+        text = anthropicContentToText(m.content);
+      }
+      msgs.push({ role: role, content: text });
+    }
+    if (!msgs.length) return null;
+    out.messages = msgs;
+
+    var tools = toOpenAITools(a.tools);
+    if (tools) out.tools = tools;
+
+    // 思考开关：DeepSeek/多数中转站认 reasoning_effort 或 thinking；
+    // 这里只在开启时带上，关掉就不传（让服务端用默认）
+    if (a.thinking && a.thinking.type === 'enabled') {
+      out.reasoning_effort = 'medium';
+    }
+    // safety_check / title / anthropic-beta 之类 Anthropic 专有字段直接丢弃
+    return out;
+  }
+
+  /** 造一个 OpenAI 风格的 SSE data 行 */
+  function sseChunk(obj) {
+    return 'data: ' + JSON.stringify(obj) + '\n\n';
+  }
+
+  /**
+   * OpenAI SSE → Anthropic SSE 的流式转换器。
+   *
+   * 逐块喂（read() 的每个 Uint8Array），按行缓冲，遇到事件就产出。
+   * 为什么要用 TransformStream 而不是先全读再转：应用是边收边渲染的，
+   * 缓存到结束再吐会让"逐字显示"整个失效。
+   */
+  function createOpenAItoAnthropicStream(messageId, model) {
+    var dec = new TextDecoder();
+    var enc = new TextEncoder();
+    var buf = '';
+    var started = false;
+    var textIndex = -1;      // 正文块的 index（Anthropic 里块是有序编号的）
+    var thinkingIndex = -1;
+    var sawThinking = false;
+    var nextIndex = 0;
+    var finished = false;
+    var usage = null;
+
+    function ev(obj) {
+      return enc.encode('event: ' + obj.type + '\ndata: ' + JSON.stringify(obj) + '\n\n');
+    }
+
+    function onStart() {
+      if (started) return null;
+      started = true;
+      return ev({
+        type: 'message_start',
+        message: {
+          id: messageId,
+          type: 'message',
+          role: 'assistant',
+          model: model,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 0, output_tokens: 0 }
+        }
+      });
+    }
+
+    /** 处理一条 OpenAI chunk，返回要往上游推的字节数组（可能是 0~n 段） */
+    function handleChunk(j) {
+      var pieces = [];
+      var s = onStart();
+      if (s) pieces.push(s);
+      var ch = (j.choices && j.choices[0]) || null;
+      if (j.usage) usage = j.usage;
+      if (j.model) model = j.model;
+
+      if (ch && ch.delta) {
+        var d = ch.delta;
+        // reasoning_content 是本轮新增内容 → Anthropic 的 thinking_delta
+        if (typeof d.reasoning_content === 'string' && d.reasoning_content) {
+          if (thinkingIndex === -1) {
+            thinkingIndex = nextIndex++;
+            pieces.push(ev({
+              type: 'content_block_start',
+              index: thinkingIndex,
+              content_block: { type: 'thinking', thinking: '' }
+            }));
+          }
+          sawThinking = true;
+          pieces.push(ev({
+            type: 'content_block_delta',
+            index: thinkingIndex,
+            delta: { type: 'thinking_delta', thinking: d.reasoning_content }
+          }));
+        }
+        if (typeof d.content === 'string' && d.content) {
+          if (textIndex === -1) {
+            textIndex = nextIndex++;
+            pieces.push(ev({
+              type: 'content_block_start',
+              index: textIndex,
+              content_block: { type: 'text', text: '' }
+            }));
+          }
+          pieces.push(ev({
+            type: 'content_block_delta',
+            index: textIndex,
+            delta: { type: 'text_delta', text: d.content }
+          }));
+        }
+      }
+
+      if (ch && ch.finish_reason) {
+        pieces.push.apply(pieces, onFinish(ch.finish_reason));
+      }
+      return pieces;
+    }
+
+    /** 收尾：关块 + message_delta + message_stop */
+    function onFinish(reason) {
+      if (finished) return [];
+      finished = true;
+      var pieces = [];
+      // 没正文也没思维（比如直接报错）时补一个空正文块，保证结构完整
+      if (textIndex === -1 && thinkingIndex === -1) {
+        textIndex = nextIndex++;
+        pieces.push(ev({
+          type: 'content_block_start',
+          index: textIndex,
+          content_block: { type: 'text', text: '' }
+        }));
+      }
+      if (thinkingIndex !== -1) pieces.push(ev({ type: 'content_block_stop', index: thinkingIndex }));
+      if (textIndex !== -1) pieces.push(ev({ type: 'content_block_stop', index: textIndex }));
+      var stop = 'end_turn';
+      if (reason === 'length') stop = 'max_tokens';
+      else if (reason === 'tool_calls' || reason === 'function_call') stop = 'tool_use';
+      else if (reason === 'content_filter') stop = 'refusal';
+      pieces.push(ev({
+        type: 'message_delta',
+        delta: { stop_reason: stop, stop_sequence: null },
+        usage: {
+          input_tokens: (usage && usage.prompt_tokens) || 0,
+          output_tokens: (usage && usage.completion_tokens) || 0
+        }
+      }));
+      pieces.push(ev({ type: 'message_stop' }));
+      return pieces;
+    }
+
+    return new TransformStream({
+      transform: function (chunk, controller) {
+        if (finished) return;
+        buf += dec.decode(chunk, { stream: true });
+        var lines = buf.split(/\r\n|\r|\n/);
+        buf = lines.pop() || '';
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (!line || line.charAt(0) === ':') continue;   // 空行/注释(心跳)
+          if (line.indexOf('data:') !== 0) continue;
+          var payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') {
+            if (payload === '[DONE]') {
+              var done = onFinish('stop');
+              for (var q = 0; q < done.length; q++) controller.enqueue(done[q]);
+            }
+            continue;
+          }
+          var j;
+          try { j = JSON.parse(payload); } catch (e) { continue; }
+          // OpenAI 出错时也会走 SSE：{error:{message}}
+          if (j && j.error) {
+            var msg = j.error.message || '上游返回错误';
+            var errPieces = onFinish('stop');
+            for (var w = 0; w < errPieces.length; w++) controller.enqueue(errPieces[w]);
+            throw new Error(msg);
+          }
+          var pieces = handleChunk(j);
+          for (var p = 0; p < pieces.length; p++) controller.enqueue(pieces[p]);
+        }
+      },
+      flush: function (controller) {
+        if (finished) return;
+        // 上游没送 finish_reason 就断了：也要把流收干净，否则应用一直转圈
+        var tail = onFinish('stop');
+        for (var i = 0; i < tail.length; i++) controller.enqueue(tail[i]);
+      }
+    });
+  }
+
+  /** 判断某个请求该不该走 OpenAI 翻译 */
+  function shouldUseOpenAIProtocol(url) {
+    try {
+      var p = activeProvider();
+      if (!p) return false;
+      var proto = resolveProtocol(p);
+      if (proto !== 'openai') return false;
+      // 只翻译聊天端点；附件上传另有一套，先不碰
+      var base = String(p.baseURL || '');
+      var chat = openAIChatUrl(base);
+      if (!chat) return false;
+      // 应用请求的地址里必须含有它自己拼的 /anthropic/v1/messages
+      return /\/messages(\?|$)/.test(String(url || ''));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * 把一次 Anthropic 请求改写成 OpenAI 请求并发出，返回值已翻回 Anthropic SSE。
+   * 返回 null 表示"这次不接管"（调用方应回退到原逻辑）。
+   */
+  function openAIAdapterFetch(original, input, init, rawUrl) {
+    try {
+      if (!shouldUseOpenAIProtocol(rawUrl)) return null;
+      var bodyText = init && init.body;
+      if (typeof bodyText !== 'string') return null;
+      var a;
+      try { a = JSON.parse(bodyText); } catch (e) { return null; }
+
+      var p = activeProvider();
+      var model = a.model || (p && p.defaultModel) || '';
+      var oa = toOpenAIBody(a, model);
+      if (!oa) return null;
+
+      var url = openAIChatUrl(p.baseURL);
+      var key = (p && p.apiKey) || lsGet(LS_APP_API_KEY) || '';
+
+      var headers = {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream'
+      };
+      if (key) headers.Authorization = 'Bearer ' + key;
+
+      log('OpenAI 协议适配：POST ' + url + '（model=' + oa.model + '，' +
+        oa.messages.length + ' 条消息）');
+
+      return original(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(oa),
+        signal: init && init.signal
+      }).then(function (res) {
+        if (!res || !res.ok) {
+          // 让应用的错误处理照旧：交回原始响应，它会解析出 message
+          return res;
+        }
+        var ct = (res.headers && res.headers.get('Content-Type')) || '';
+        if (ct.indexOf('text/event-stream') === -1) {
+          // 上游没用 SSE（有些中转站对 stream:true 也返回整体 JSON）：
+          // 直接把整体 JSON 也翻一遍
+          return res.text().then(function (txt) {
+            return openAIFullBodyToAnthropicResponse(txt, model, res.status);
+          });
+        }
+        var mid = 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        var translated = res.body.pipeThrough(createOpenAItoAnthropicStream(mid, model));
+        return new Response(translated, {
+          status: 200,
+          statusText: 'OK',
+          headers: {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive'
+          }
+        });
+      });
+    } catch (e) {
+      warn('OpenAI 适配失败，回退到原请求', e);
+      return null;
+    }
+  }
+
+  /**
+   * 上游对 stream:true 仍返回整体 JSON 时的兜底：合成一整套 Anthropic SSE 文本。
+   * 这样无论中转站支不支持 SSE，应用都能拿到东西。
+   */
+  function openAIFullBodyToAnthropicResponse(txt, model, status) {
+    var j = null;
+    try { j = JSON.parse(txt); } catch (e) { j = null; }
+    if (!j) {
+      return new Response(txt, {
+        status: status || 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    if (j.error) {
+      return new Response(JSON.stringify(j), {
+        status: status && status >= 400 ? status : 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    var msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
+    var mid = 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var parts = [];
+    function push(o) {
+      parts.push('event: ' + o.type + '\ndata: ' + JSON.stringify(o) + '\n\n');
+    }
+    push({
+      type: 'message_start',
+      message: {
+        id: mid, type: 'message', role: 'assistant', model: j.model || model,
+        content: [], stop_reason: null, stop_sequence: null,
+        usage: { input_tokens: (j.usage && j.usage.prompt_tokens) || 0, output_tokens: 0 }
+      }
+    });
+    var idx = 0;
+    if (msg.reasoning_content) {
+      push({ type: 'content_block_start', index: idx, content_block: { type: 'thinking', thinking: '' } });
+      push({
+        type: 'content_block_delta', index: idx,
+        delta: { type: 'thinking_delta', thinking: msg.reasoning_content }
+      });
+      push({ type: 'content_block_stop', index: idx });
+      idx++;
+    }
+    push({ type: 'content_block_start', index: idx, content_block: { type: 'text', text: '' } });
+    push({
+      type: 'content_block_delta', index: idx,
+      delta: { type: 'text_delta', text: msg.content || '' }
+    });
+    push({ type: 'content_block_stop', index: idx });
+    push({
+      type: 'message_delta',
+      delta: { stop_reason: 'end_turn', stop_sequence: null },
+      usage: {
+        input_tokens: (j.usage && j.usage.prompt_tokens) || 0,
+        output_tokens: (j.usage && j.usage.completion_tokens) || 0
+      }
+    });
+    push({ type: 'message_stop' });
+    return new Response(parts.join(''), {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream; charset=utf-8' }
+    });
+  }
+
   function installFetchHook() {
     if (typeof window.fetch !== 'function' || window.fetch.__localstorePatched) return;
     var original = window.fetch.bind(window);
@@ -3278,6 +3852,26 @@
         clampRequestBody(input, init);
       } catch (e) {
         sniffState.errors.push('clamp: ' + ((e && e.message) || e));
+      }
+
+      // OpenAI 协议提供方（中转站、官方原生端点）：翻译后发出，响应再翻回来。
+      // 这一步必须在 clamp 之后：先按 Anthropic 预算裁好，再翻译。
+      try {
+        var adapted = openAIAdapterFetch(original, input, init, rawUrl);
+        if (adapted) {
+          // 仍然要嗅探真实模型名，所以在这里接上原来的 then 链
+          return adapted.then(function (res) {
+            try {
+              if (res && res.body && looksLikeSse(res)) {
+                var clone = res.clone();
+                watchStreamForModel(clone);
+              }
+            } catch (e) { /* ignore */ }
+            return res;
+          });
+        }
+      } catch (e) {
+        sniffState.errors.push('openai-adapter: ' + ((e && e.message) || e));
       }
 
       var result = original(input, init);
@@ -4469,6 +5063,28 @@
       baseInput
     ]));
 
+    // 协议：决定走 Anthropic 兼容层还是 OpenAI 原生端点。
+    // 「自动」会按地址猜（带 /v1 的判为 OpenAI），大多数中转站选自动就够了。
+    var protoSelect = el('select', { class: 'ls-input' });
+    [
+      { v: 'auto', label: t('provProtoAuto') },
+      { v: 'anthropic', label: t('provProtoAnthropic') },
+      { v: 'openai', label: t('provProtoOpenAI') }
+    ].forEach(function (o) {
+      var opt = el('option', { value: o.v, text: o.label });
+      if ((p.protocol || 'auto') === o.v) opt.selected = true;
+      protoSelect.appendChild(opt);
+    });
+    var protoHint = el('div', {
+      class: 'ls-meta',
+      text: t('provProtoHint')
+    });
+    card.appendChild(el('div', { class: 'ls-field' }, [
+      el('label', { class: 'ls-label', text: t('provProto') }),
+      protoSelect,
+      protoHint
+    ]));
+
     // API Key
     var keyInput = el('input', {
       type: 'password',
@@ -4606,7 +5222,12 @@
       var base = normalizeBase(baseInput.value);
       if (!name) return { err: t('provErrName') };
       if (base && !/^https?:\/\/[^\s]+$/i.test(base)) return { err: t('provErrBase') };
-      return { name: name, base: base, key: (keyInput.value || '').trim() };
+      return {
+        name: name,
+        base: base,
+        key: (keyInput.value || '').trim(),
+        protocol: String(protoSelect.value || 'auto')
+      };
     }
 
     var btns = [];
@@ -4661,6 +5282,7 @@
             if (!target) return;
             target.name = r.name;
             target.baseURL = r.base;
+            target.protocol = r.protocol;
 
             // 关键保护：卡片上没填 Key 时，不要用空值覆盖已有的 Key。
             // 用户很可能是在应用自带的界面里填的 Key，桥接层并不知道，
@@ -4704,10 +5326,11 @@
             }
             var target = findProvider(p.id);
             if (!target) return;
-            // 先把当前输入落盘，拉取时才能用上最新的地址与 Key
+            // 先把当前输入落盘，拉取时才能用上最新的地址、Key 与协议
             target.name = r.name;
             target.baseURL = r.base;
             target.apiKey = r.key;
+            target.protocol = r.protocol;
             saveProviders();
 
             composerState.fetchingId = p.id;
@@ -4874,6 +5497,11 @@
       provName: '名称',
       provBase: 'API 地址',
       provBaseHint: '只填根地址即可，例如 https://llmapi.paratera.com（结尾的 /anthropic 会自动去掉）',
+    provProto: '接口协议',
+    provProtoAuto: '自动识别（推荐）',
+    provProtoAnthropic: 'Anthropic 兼容层（/anthropic/v1/messages）',
+    provProtoOpenAI: 'OpenAI 兼容（/v1/chat/completions）',
+    provProtoHint: '中转站大多是 OpenAI 协议，选自动即可。OpenAI 协议会由本扩展自动翻译；官方地址的 Anthropic 兼容层有 32768 tokens 输入上限，切到 OpenAI 可绕开。',
       provKey: 'API Key',
       provKeyPlaceholder: 'sk-…（留空则用主页里填的那个）',
       provModels: '模型列表',
@@ -5007,6 +5635,11 @@
       provName: 'Name',
       provBase: 'API base URL',
       provBaseHint: 'Root URL only, e.g. https://llmapi.paratera.com (a trailing /anthropic is stripped automatically)',
+    provProto: 'API protocol',
+    provProtoAuto: 'Auto-detect (recommended)',
+    provProtoAnthropic: 'Anthropic compatible (/anthropic/v1/messages)',
+    provProtoOpenAI: 'OpenAI compatible (/v1/chat/completions)',
+    provProtoHint: 'Most relays speak the OpenAI protocol — Auto handles them. OpenAI requests/responses are translated for you. The official Anthropic-compatible layer caps input at 32768 tokens; switching to OpenAI avoids that.',
       provKey: 'API Key',
       provKeyPlaceholder: 'sk-… (leave empty to use the one entered on the main page)',
       provModels: 'Models',
@@ -6717,6 +7350,25 @@
     exportTrimmedOriginal: exportStashed,
     lastTrimmedOriginal: function () {
       try { return lsGet(LS_LAST_TRIMMED) || ''; } catch (e) { return ''; }
+    },
+    /** 协议适配：查看当前生效协议与翻译后的真实端点 */
+    protocol: {
+      resolve: function (id) {
+        var p = id ? findProvider(id) : activeProvider();
+        return p ? resolveProtocol(p) : 'anthropic';
+      },
+      chatUrl: function (id) {
+        var p = id ? findProvider(id) : activeProvider();
+        return p ? openAIChatUrl(p.baseURL) : '';
+      },
+      modelsUrl: function (id) {
+        var p = id ? findProvider(id) : activeProvider();
+        return p ? openAIModelsUrl(p.baseURL) : '';
+      },
+      // 手动翻译一次请求体，便于排查（不改任何状态）
+      translate: function (anthropicBody, model) {
+        return toOpenAIBody(anthropicBody, model);
+      }
     },
       /** 模型相关 */
       currentModel: currentModel,
