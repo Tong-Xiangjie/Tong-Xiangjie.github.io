@@ -2557,6 +2557,7 @@
    *  （用应用自带的 --ds-transition-duration，即 0.2s） */
   var SIDER_COLLAPSE_MS = 200;
   var GHOST_CLASS = 'ls-sider-ghost';
+  var GHOST_CLONE_CLASS = 'ls-sider-clone';
   /** 收起时记下的侧栏宽度；展开时侧栏还没挂载，量不到，用它来定过渡终点 */
   var lastSiderWidth = 0;
 
@@ -2671,6 +2672,9 @@
       var onEnd = function (ev) {
         if (ev.target !== s || ev.propertyName !== 'width') return;
         s.removeEventListener('transitionend', onEnd);
+        // ★ 一定要在这里也摘掉入场动画属性：否则它会一直留在 <html> 上，
+        //   下次收起时新节点又被套上滑入动画（表现为「收起时文字从左边滑过来」）。
+        setSiderAnim(null);
         cleanup();
       };
       s.addEventListener('transitionend', onEnd);
@@ -2724,6 +2728,22 @@
    */
   function collapseSider(sider) {
     if (!sider) return;
+
+    /**
+     * ★ 先掐掉「入场动画」的开关，再做交接。
+     *
+     * 两个理由：
+     *  1. `html[data-ls-sider-anim='enter'] .sider-ac14ac { animation: ls-sider-in … }`
+     *     是给**展开**用的滑入动画。这个属性只在 expandSider 的 cleanup 里被摘掉，
+     *     而 expandSider 在「sider 已挂载」时是 `start(existing); return;`，
+     *     **走不到 cleanup**。连点几下之后它会一直留在 <html> 上，
+     *     收起时新节点又被套上滑入动画 —— 用户看到「收起时文字从左边滑过来」。
+     *  2. 下面要克隆真身。若真身此刻还在播入场动画（带 transform），
+     *     克隆出来的是「动画中间态」，跟稳定态对不上，交接就会闪。
+     *     先掐掉动画，真身立刻回到**自然几何**，克隆体也就与之一致。
+     */
+    setSiderAnim(null);
+
     var frame = sider.parentElement;
     if (!frame) return;
     var r = sider.getBoundingClientRect();
@@ -2736,15 +2756,21 @@
     lastSiderWidth = w;
 
     /**
-     * 替身必须自己「会画背景」。
+     * 替身 = 真侧栏的克隆 + 一层 wrapper，照搬 collection/layout.css 的折叠做法。
      *
-     * 早先只克隆了内部结构，外层 wrapper 是透明的，于是宽度一收，
-     * **让出去的那部分就露出 frame 的更深底色**（#151517），
-     * 看起来就像左边凭空多出一块东西 —— 用户报的「奇怪的多出来的东西」。
-     * 真侧栏的填充色在 .sider 自身上（rgb(27,27,28)），克隆体内层虽然有，
-     * 但外层变窄后那层也被裁掉了，所以要把它一并画到 wrapper 上。
+     * 收起必须是**展开的逆过程**：展开时真侧栏从左侧滑入
+     * （`ls-sider-in`，`translate3d(-100%,0,0)` → 0），所以收起时内容要
+     * 跟着一起退场。若只收一块纯色底色、内容瞬间消失，就是「啪一下没了」。
      *
-     * 颜色从真身现读，不写死：主题/设计令牌变了也能跟着变。
+     * ★ 交接必须**像素级无缝**，否则就是一闪。做法是让克隆体对齐真身的
+     *   **自然几何**（动画已在上面的 setSiderAnim(null) 里掐掉）：
+     *   宽度用内联钉死在 w 上（克隆体就不参与收窄、内容不重排），
+     *   内边距照抄真身，margin-left 归零 —— 于是克隆体的 rect 与真身
+     *   逐像素重合（实测面板/标题的 left/width/opacity 差值全为 0.0）。
+     *
+     *   ⚠ 不要在真身还带着 transform 时克隆：那克隆到的是「动画中间态」，
+     *     与稳定态对不上，交接就会闪。也不要给 `.ls-sider-ghost *` 加
+     *     `animation: none !important`：那会把侧栏内部真正的渐入动画一起打掉。
      */
     var cs = getComputedStyle(sider);
     var padL = cs.paddingLeft;
@@ -2753,26 +2779,36 @@
     var ghost = document.createElement('div');
     ghost.className = GHOST_CLASS;
     ghost.setAttribute('aria-hidden', 'true');
+    ghost.style.boxSizing = 'border-box';
+    // 替身自己**不带内边距**：内边距留在克隆体上（克隆体原样保留真侧栏的
+    // padding，所以内容位置与真身逐像素一致）。
+    // 若把 padding 写在替身上，它一收窄，内容盒就同时被自己的 padding
+    // 往里挤 —— 逐帧实测 padding 12 → 9.2 → 2.7 → 0，可见文字量比面板
+    // 收得更快，观感就是「内容在往右滑」。collection 的 `.sidebar.collapsed`
+    // 之所以要 `padding:0`，正是同一个道理；这里干脆放到克隆体上，
+    // 让它根本不影响宽度。
+    ghost.style.padding = '0px';
     ghost.style.width = w + 'px';
     ghost.style.minWidth = w + 'px';
-    // 真侧栏用 border-box（.sider 自带 box-sizing:border-box）。
-    // 替身要照抄，否则 width 会再叠上 padding 与 border，量出来比真身宽
-    // （实测变成 286px 而真身 261px），接管当帧就会跳一下。
-    ghost.style.boxSizing = cs.boxSizing || 'border-box';
+    ghost.style.height = Math.round(r.height) + 'px';
     ghost.style.backgroundColor = cs.backgroundColor;
     ghost.style.borderRight =
       cs.borderRightWidth + ' ' + cs.borderRightStyle + ' ' + cs.borderRightColor;
-    ghost.style.paddingLeft = padL;
-    ghost.style.paddingRight = padR;
     ghost.innerHTML = sider.outerHTML;
-    // 恢复克隆体自身的可见性，并锁住内层尺寸，避免收拢时被挤压变形
+
+    // 克隆体：宽度用**内联**钉在 w 上（不参与收窄，内容就不会重排），
+    // 内边距照抄真身，margin-left 归零 —— 与真身的自然几何逐像素重合。
     var clone = ghost.firstElementChild;
     if (clone) {
+      clone.classList.add(GHOST_CLONE_CLASS);
       clone.style.visibility = '';
+      clone.style.boxSizing = 'border-box';
       clone.style.width = w + 'px';
+      clone.style.minWidth = w + 'px';
       clone.style.height = Math.round(r.height) + 'px';
       clone.style.paddingLeft = padL;
       clone.style.paddingRight = padR;
+      clone.style.marginLeft = '0px';
     }
     frame.insertBefore(ghost, sider);
 
@@ -2786,13 +2822,18 @@
       if (ev.target === ghost && ev.propertyName === 'width') remove();
     });
 
-    // 下一帧再改宽度：同一帧里「插入 + 改宽度」会被合并成一次样式计算，
+    // 下一帧再改目标值：同一帧里「插入 + 改样式」会被合并成一次样式计算，
     // 过渡的起始值从未被渲染，动画会被跳过（表现是瞬间收没）。
+    //
+    // 同时改两个值，它们共用同一条过渡：
+    //   · width / min-width → 让出水平空间，主内容区跟着逐帧变大；
+    //   · --ls-clip（CSS 里驱动克隆体的 clip-path 右内缩）→ 把内容从右边裁掉。
+    // 两者严格同步，所以可见内容区域恒等于面板区域：
+    // 文字原地不动，只是一条边界从右往左扫过它（展开时边界再从右往左退回来）。
     requestAnimationFrame(function () {
+      ghost.style.setProperty('--ls-clip', '0px');
       ghost.style.width = '0px';
       ghost.style.minWidth = '0px';
-      ghost.style.paddingLeft = '0px';
-      ghost.style.paddingRight = '0px';
       ghost.style.opacity = '0';
       ghost.style.borderRightColor = 'transparent';
       ghost.style.borderRightWidth = '0px';

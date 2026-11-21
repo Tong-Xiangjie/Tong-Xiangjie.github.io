@@ -30,6 +30,15 @@
   /* 入场稍慢一点：出场要快、入场要有「到位感」 */
   --ls-motion-enter: 0.26s;
   --ls-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* 侧栏收／展的宽度过渡 —— 唯一一处会真正触发布局的动画。
+   *
+   * 时长恢复成应用自己的 --ds-transition-duration（0.2s）：一开始嫌「太快」
+   * 其实是**另一个 bug** 造成的错觉 —— 收起时侧栏内容直接消失，只有一块底色
+   * 在收，看着就像「啪一下没了」。内容补回来、并且做成展开的逆过程之后，
+   * 0.2s 是对的手感（用户确认：动画速度恢复原来那样）。
+   * 缓动用对称 S 曲线，起步慢、收尾慢，位移摊得均匀。 */
+  --ls-motion-sider: var(--ds-transition-duration, 0.2s);
+  --ls-motion-sider-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ---------------------------------------------------------------------------
@@ -167,8 +176,33 @@
   }
 }
 
-.ls-motion .sider-ac14ac {
+/* ★ 入场动画只给**真正的侧栏**，绝不能落到替身里的克隆体上。
+ *
+ * 踩过的坑（用户反馈「收起时文字从左边滑过来」）：这条规则原来写成
+ * `.ls-motion .sider-ac14ac`，而替身里的克隆体带着一模一样的 class，
+ * 于是替身一插入，克隆体就播了一遍滑入动画 —— 收起时看到的是**展开的动画**。
+ *
+ * 用 `.frame >` 把它限定为 frame 的直接子元素：真侧栏是 frame 的直系子节点，
+ * 克隆体被包在 .ls-sider-ghost 里，天然被排除。
+ * （不要再写回不带 `>` 的选择器。）
+ *
+ * 注意**不要**给 `.ls-sider-ghost *` 加 `animation: none !important`：
+ * 那会把侧栏内部（列表项的渐入等）真正的动画一起打掉，观感更糟。
+ * 这里只需要保证克隆体本身不重播入场动画即可，上面这条选择器已经做到了。 */
+.ls-motion .frame-_9fdf5 > .sider-ac14ac {
   animation: ls-sider-in 0.26s var(--ls-motion-ease-out) both;
+}
+
+/* 替身里的克隆体是**静态快照**：它只该被裁切/淡出，不该自己播任何动画。
+ *
+ * 必须整棵子树都按住。只按克隆体本身不够 —— 侧栏列表项自己带
+ * `ls-item-in`（`.list-ac14ac > .item-ff6fc9`，还带 0/16/32/48ms 的错峰延迟），
+ * 克隆体一插入它们就全部重播一遍，视觉上就是「闪很多下」（用户反馈）。
+ * 而 `animation: none !important` 只会命中 `.ls-sider-ghost` 这棵子树，
+ * 不会碰到真侧栏里正常播放的动画，所以是安全的。 */
+.ls-motion .ls-sider-ghost,
+.ls-motion .ls-sider-ghost * {
+  animation: none !important;
 }
 
 /* --- 侧栏折叠 / 展开 ---
@@ -191,8 +225,8 @@
  * 注意这条要能盖过应用自己的 `width:261px`：内联样式优先级更高，JS 设的是内联值。 */
 .ls-motion .sider-ac14ac {
   transition:
-    width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
-    min-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out);
+    width var(--ls-motion-sider) var(--ls-motion-sider-ease),
+    min-width var(--ls-motion-sider) var(--ls-motion-sider-ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -201,36 +235,63 @@
   }
 }
 
-/* 收起期间的替身：留在 flex 流里负责「让位」，宽度由 CSS 过渡驱动。
+/* 收起期间的替身：一块**纯色面板**，留在 flex 流里负责「让位」，
+ * 宽度由 CSS 过渡驱动，让出去的部分由主内容区逐帧补上。
  *
- * 过渡的属性集合参考 collection/layout.css 的 `.sidebar`：
- *   width / min-width 负责让位（同时过渡，否则 min-width 会卡住宽度），
- *   opacity 负责淡出，padding 与 border 一并过渡免得收窄时突跳。
+/* 收起期间的替身 = 真侧栏的克隆 + 一层 wrapper，照搬 collection/layout.css
+ * 里 `.sidebar` 的折叠写法（用户要求对齐它）：
+ *   `.sidebar { width:200px; min-width:200px; padding:8px 0 8px var(--sal);
+ *               overflow:hidden; flex-shrink:0;
+ *               transition: width .22s, min-width .22s, opacity .22s, border-right-color .22s }`
+ *   `.sidebar.collapsed { width:0; min-width:0; padding:0; opacity:0;
+ *                          border-right-color:transparent }`
+ *
+ * ① 宽度与 min-width 一起过渡（只改一个会被另一个卡住）。
+ * ② 内容必须**原地不动**，只被 wrapper 的 overflow:hidden 从右边裁掉。
+ *    任何让内容位移或让内容盒变窄的写法都会让它看起来「向右滑」：
+ *    - 内联改 clone 的 width/padding/box-sizing → 内容盒与 wrapper 不一致，
+ *      浏览器把这个「比容器宽的溢出行」摆到右边缘（实测 wrapper 199 时
+ *      clone.left=-68），文字就真的右漂。
+ *    - 把 padding 放在 wrapper 上并让它过渡 → 内容盒被自己的 padding 往里挤，
+ *      逐帧实测 padding 12 → 9.2 → 2.7 → 0，可见文字量比面板收得更快，
+ *      观感同样是「往右滑」。
+ *    所以：padding 只留在 clone 上、wrapper 的 padding 恒为 0。
+ *    （collection 里 `.sidebar.collapsed{padding:0}` 是同一个道理，
+ *      它把 padding 归零正是为了让内容不再被挤。这里更进一步：压根不给
+ *      wrapper padding。）
  *
  * ★ 背景色由 JS 从真侧栏现读后内联写上（见 collapseSider）。
  *   替身必须自己会画背景：真侧栏一藏起来，让出去的那块就露出 frame
  *   的更深底色（#151517），看着像左边凭空多出一块东西。
  *
- * 时长用应用自带的 --ds-transition-duration（0.2s）与 --ds-ease-in-out，
- * 与应用其它过渡保持一致；这里不发明新节奏。 */
+ * 时长与缓动见文件头 :root 的 --ls-motion-sider*，与展开侧共用同一组值，
+ * 两边节奏一致 —— 收起就是展开的逆过程。 */
 .ls-motion .ls-sider-ghost {
   flex: 0 0 auto;
   overflow: hidden;
   pointer-events: none;
   contain: paint;
+  --ls-clip: 100%;
   transition:
-    width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
-    min-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
-    padding-left var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
-    padding-right var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
-    border-right-width var(--ds-transition-duration, 0.2s) var(--ds-ease-in-out, ease-in-out),
-    opacity var(--ds-transition-duration, 0.2s) var(--ds-ease-out, ease-out),
-    border-right-color var(--ds-transition-duration, 0.2s) var(--ds-ease-out, ease-out);
+    width var(--ls-motion-sider) var(--ls-motion-sider-ease),
+    min-width var(--ls-motion-sider) var(--ls-motion-sider-ease),
+    opacity var(--ls-motion-sider) var(--ls-motion-sider-ease),
+    border-right-width var(--ls-motion-sider) var(--ls-motion-sider-ease),
+    border-right-color var(--ls-motion-sider) var(--ls-motion-sider-ease);
 }
 
-/* 内层保持原宽，收拢时只被裁掉、不被压扁 */
-.ls-motion .ls-sider-ghost > * {
-  flex: 0 0 auto;
+/* ③ 克隆体原地不动，只裁可见范围。
+ *
+ * 为什么还要 clip-path：只让 wrapper 变窄的话，克隆体（块级）也会跟着变窄，
+ * 内容于是重排 —— 文字被自己的盒子往里挤，看起来就是「向右滑」。
+ * 所以克隆体的宽度用内联钉死在 w 上（不参与收窄），再用 clip-path 的右内缩
+ * 把超出部分裁掉。可见区域 = 面板区域，文字位置一个字都不动，
+ * 只是一条边界从右往左扫过去。
+ *
+ * --ls-clip 与宽度共用同一条过渡，所以两者严格同步。 */
+.ls-motion .ls-sider-ghost > .ls-sider-clone {
+  clip-path: inset(0 var(--ls-clip, 100%) 0 0);
+  transition: clip-path var(--ls-motion-sider) var(--ls-motion-sider-ease);
 }
 
 /* 减弱动态效果时不播宽度过渡，直接一帧到位（动画本来就该关掉） */
@@ -240,13 +301,16 @@
   }
 }
 
-/* 展开：从左侧滑入。桥接层在挂载瞬间打上 data 属性，动画结束就移除，
-   这样「刷新页面时的首屏」不会被重复触发。 */
-html[data-ls-sider-anim='enter'] .sider-ac14ac {
-  animation: ls-sider-in 0.26s var(--ls-motion-ease-out) both;
-}
-
-/* 折叠后左上角浮出的按钮组 */
+/* ⚠ 这里**不能**再写一条 `html[data-ls-sider-anim='enter'] .sider-ac14ac`。
+ *
+ * 这个选择器匹配 <html> 下所有 `.sider-ac14ac`，而替身里的克隆体
+ * **也带着这个 class**，于是收起时它照样会播一遍 `ls-sider-in` 滑入动画
+ * —— 用户看到的「闪一下 / 闪很多下」就是它（克隆体集体从 translate3d(-100%)
+ * 滑回来，同时整块 opacity 从 0 涨到 1）。
+ * 入场动画只允许由上面那条带 `.frame-_9fdf5 >` 的规则给出：
+ * 真侧栏是 frame 的直系子节点，克隆体被包在 .ls-sider-ghost 里，天然被排除。
+ *
+ * 折叠后左上角浮出的按钮组 */
 @keyframes ls-collapsed-in {
   from {
     opacity: 0;

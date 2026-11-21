@@ -21,6 +21,8 @@ import { CDP, fetchPageTarget } from './minimal-cdp.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8885;
 const CDP_PORT = 9385;
+/** 与桥接层 SIDER_ANIM_ATTR 保持一致 */
+const SIDER_ANIM_ATTR_NAME = 'data-ls-sider-anim';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 
 const server = http.createServer((req, res) => {
@@ -223,6 +225,7 @@ const collapseResult = JSON.parse(await ev(`
         const gw = g.getBoundingClientRect().width;
         if (gw > 4) ghostBgTrace.push(gcs.backgroundColor);
         if (!ghostInfo.exists) {
+          const clone = g.firstElementChild;
           ghostInfo = { exists: true, flex: gcs.flex, pointerEvents: gcs.pointerEvents,
             overflow: gcs.overflow, aria: g.getAttribute('aria-hidden'),
             // 替身必须在 flex 流里（position:static）才能给主区让位
@@ -232,6 +235,31 @@ const collapseResult = JSON.parse(await ev(`
             backgroundColor: gcs.backgroundColor,
             boxSizing: gcs.boxSizing,
             width: Math.round(gw),
+            // 收起必须是展开的逆过程：内容要跟着退场，而不是瞬间消失。
+            childCount: g.children.length,
+            innerSiderLike: g.querySelectorAll('.appName-ac14ac, .item-ff6fc9, .top-ac14ac').length,
+            textLen: (g.textContent || '').replace(/\s+/g, '').length,
+            // 克隆体内部**不允许**还带着 animation：侧栏列表项自带
+            // ls-item-in（还带错峰延迟），克隆体一插入就全部重播 ——
+            // 用户看到的是「闪很多下」。替身是静态快照，整棵子树都该按住。
+            cloneAnimCount: [g, ...g.querySelectorAll('*')]
+              .filter((e) => getComputedStyle(e).animationName !== 'none').length,
+            cloneAnim: clone ? getComputedStyle(clone).animationName : null,
+            // 入场动画属性绝不能残留在 <html> 上，否则收起时新节点会被套上
+            // 滑入动画（用户原话：「收起时文字从左边滑过来」）。
+            // 用 String() 归一化：getAttribute 返回 null，JSON 往返后字段会消失。
+            animAttr: String(document.documentElement.getAttribute('data-ls-sider-anim')),
+            // 交接必须像素级无缝：克隆体与真身的自然几何应当重合
+            cloneRect: clone ? (function () {
+              const cr = clone.getBoundingClientRect();
+              return { l: Math.round(cr.left), w: Math.round(cr.width) };
+            })() : null,
+            realRect: (function () {
+              const rr = document.querySelector('.sider-ac14ac');
+              if (!rr) return null;
+              const b = rr.getBoundingClientRect();
+              return { l: Math.round(b.left), w: Math.round(b.width) };
+            })(),
             parentIsFrame: String(g.parentElement.className) };
         }
       }
@@ -286,6 +314,32 @@ check('替身与真身同宽（border-box 生效）',
 check('替身用 border-box 计算宽度',
   collapseResult.ghostInfo && collapseResult.ghostInfo.boxSizing === 'border-box',
   JSON.stringify(collapseResult.ghostInfo && collapseResult.ghostInfo.boxSizing));
+// 回归：替身曾经只收一块纯色底色、内容瞬间消失，看起来像「啪一下没了」。
+// 收起必须是展开（从左侧滑入）的逆过程 —— 内容要跟着退场。
+check('替身带着侧栏内容（收起时内容跟着退场，不是瞬间消失）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.innerSiderLike > 0 && collapseResult.ghostInfo.textLen > 0,
+  JSON.stringify({ innerSiderLike: collapseResult.ghostInfo && collapseResult.ghostInfo.innerSiderLike,
+    textLen: collapseResult.ghostInfo && collapseResult.ghostInfo.textLen }));
+// 回归（用户报「闪很多下」）：替身里的克隆体是静态快照，整棵子树都不该再播动画。
+// 侧栏列表项自带 `ls-item-in` 且带错峰延迟，克隆体一插入就全部重播 —— 就是那个闪。
+check('替身内部没有任何元素还在播动画（否则会闪很多下）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnimCount === 0,
+  '仍带 animation 的元素数 ' + (collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnimCount));
+// 回归（用户报「收起时文字从左边滑过来」）：入场动画属性不许在收起期间出现，
+// 否则新出现的节点会被套上展开用的滑入动画。
+check('收起期间没有入场动画标记（不会重播展开动画）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.animAttr === 'null' &&
+  collapseResult.ghostInfo.cloneAnim === 'none',
+  JSON.stringify({ attr: collapseResult.ghostInfo && collapseResult.ghostInfo.animAttr,
+    cloneAnim: collapseResult.ghostInfo && collapseResult.ghostInfo.cloneAnim }));
+// 回归（用户报「闪一下」）：交接必须像素级无缝 ——
+// 替身插入的那一帧，克隆体与真身的自然几何应当重合。
+check('交接时克隆体与真身几何重合（不闪）',
+  collapseResult.ghostInfo && collapseResult.ghostInfo.cloneRect && collapseResult.ghostInfo.realRect &&
+  Math.abs(collapseResult.ghostInfo.cloneRect.l - collapseResult.ghostInfo.realRect.l) <= 1 &&
+  Math.abs(collapseResult.ghostInfo.cloneRect.w - collapseResult.ghostInfo.realRect.w) <= 1,
+  JSON.stringify({ clone: collapseResult.ghostInfo && collapseResult.ghostInfo.cloneRect,
+    real: collapseResult.ghostInfo && collapseResult.ghostInfo.realRect }));
 check('收起过程中没有动画标记反复抖动',
   collapseResult.animFlips.filter((x) => x === 'enter').length === 0,
   JSON.stringify(collapseResult.animFlips));
