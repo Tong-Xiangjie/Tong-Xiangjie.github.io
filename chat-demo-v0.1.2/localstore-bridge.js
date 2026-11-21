@@ -4076,8 +4076,13 @@
           body.forEach(function (v, k) { if (k === 'file' && v && typeof v.text === 'function') file = v; });
         }
       }
-      if (!file || !isTextishFile(file)) return;
+      if (!file) return;
+      // 记下附件名/类型：purpose 该取什么值要靠它判断（PDF 与 txt 不一样）
       pendingUploadText = { name: String(file.name || ''), mime: String(file.type || ''), text: null };
+      if (!isTextishFile(file)) {
+        log('附件（OpenAI 协议）：「' + pendingUploadText.name + '」不是纯文本，不走内联，只做上传');
+        return;
+      }
       // File.text() 是异步的，但这里不能 await（fetch 包装是同步返回的）。
       // 改成把 promise 挂上，响应处理时再 await。
       pendingUploadText.promise = file.text().then(function (t) {
@@ -4088,6 +4093,42 @@
     } catch (e) {
       sniffState.errors.push('attach-preload: ' + ((e && e.message) || e));
     }
+  }
+
+  /** 大概是 PDF 吗（看扩展名与 MIME） */
+  function looksLikePdf(name, mime) {
+    if (/pdf/i.test(String(mime || ''))) return true;
+    return /\.pdf$/i.test(String(name || ''));
+  }
+
+  /**
+   * ★ purpose 的取值必须**按文件类型**排 ★
+   *
+   * 实测（官方 api.deepseek.com）：
+   *   .txt + user_data           → 200 ✅
+   *   .txt + text_recognition    → 也行
+   *   .pdf + user_data           → 400「Files with purpose 'user_data' must be
+   *                                  images or plain-text files, but this file
+   *                                  looks like a PDF document. To upload
+   *                                  documents, use purpose 'text_recognition'
+   *                                  or 'rich_layout_recognition'」
+   *   .pdf + text_recognition    → 200 ✅
+   *   （不发 purpose）            → 400，且明确要求 purpose 字段要排在 file 前面
+   *
+   * 所以 PDF 必须把 text_recognition 排在最前，否则会白撞好几次才轮到它 ——
+   * 万一撞到别的错误（或次数受限）用户看到的就是"上传失败"。
+   */
+  function purposeOrderFor(name, mime) {
+    var lists = looksLikePdf(name, mime)
+      ? [
+        ['text_recognition', 'rich_layout_recognition', 'user_data', 'assistants', 'vision', 'file'],
+        ['text_recognition', 'rich_layout_recognition', 'user_data', 'file']
+      ]
+      : [
+        ['user_data', 'assistants', 'vision', 'file', 'text_recognition'],
+        ['user_data', 'assistants', 'vision', 'file']
+      ];
+    return lists;
   }
 
   /**
@@ -4139,11 +4180,29 @@
        * 一旦某个值成功就记下来，后续上传直接用它，不再逐个试。
        */
       var purposes = [];
-      if (appPurpose) purposes.push(appPurpose);
       var remembered = getFilePurpose(url);
-      if (remembered) purposes.push(remembered);
-      var FALLBACK = ['user_data', 'assistants', 'vision', 'file'];
-      for (var i = 0; i < FALLBACK.length; i++) purposes.push(FALLBACK[i]);
+
+      // purpose 的顺序按文件类型来（PDF 必须先试 text_recognition，见 purposeOrderFor）
+      var pendName = pendingUploadText ? pendingUploadText.name : '';
+      var pendMime = pendingUploadText ? pendingUploadText.mime : '';
+      var ladders = purposeOrderFor(pendName, pendMime);
+      var ordered = [];
+
+      // 1) 应用自己带的 purpose（通常是 Anthropic 的 file，多半会被拒，但先试无妨）
+      if (appPurpose) ordered.push(appPurpose);
+      // 2) 上次成功过的那个（各家不一样，记住了）
+      if (remembered) ordered.push(remembered);
+      // 3) 按类型的默认顺序；先走主表，主表全被拒再走备用表
+      for (var li = 0; li < ladders.length; li++) {
+        var L = ladders[li];
+        for (var lj = 0; lj < L.length; lj++) ordered.push(L[lj]);
+      }
+      // 去重，保持先后
+      for (var oi = 0; oi < ordered.length; oi++) {
+        if (ordered[oi] && purposes.indexOf(ordered[oi]) < 0) purposes.push(ordered[oi]);
+      }
+      log('附件 purpose 尝试顺序：' + purposes.join(' → ') +
+        '（文件=' + (pendName || '?') + '，类型=' + (pendMime || '?') + '）');
 
       function attempt(n) {
         if (n >= purposes.length) {
@@ -4153,11 +4212,22 @@
         var purpose = purposes[n];
         var body = form;
         if (isForm) {
-          // FormData 不能原地改 purpose：每轮重建一份，保留除 purpose 外的字段
+          /**
+           * ★ purpose 必须排在 file 之前 ★
+           *
+           * 官方会明确报错要求这一点：
+           *   「To upload documents, set the 'purpose' field to
+           *     'text_recognition' ..., and send the 'purpose' field
+           *     **before** the 'file' field.」
+           * 它是流式解析 multipart 的：读到 file 那一部分时还不知道 purpose，
+           * 于是直接按"不允许"处理。所以重建 FormData 时必须先 append purpose。
+           * （之前是先 append 其余字段、最后才 append purpose，顺序反了 ——
+           *   表现就是"所有 purpose 都被拒"，PDF 永远传不上去。）
+           */
           try {
             var next = new FormData();
-            form.forEach(function (v, k) { if (k !== 'purpose') next.append(k, v); });
             next.append('purpose', purpose);
+            form.forEach(function (v, k) { if (k !== 'purpose') next.append(k, v); });
             body = next;
           } catch (e) {
             body = form;

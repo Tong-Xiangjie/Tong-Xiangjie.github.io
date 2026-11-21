@@ -2030,7 +2030,9 @@
         // 它有可能是 display:none（0×0），量出来又会回到左上角。
         // CLONE_FORCE 那条 CSS 强制把它显出来。
         if (!pointerPatch || pointerPatch.real !== real) {
-          releasePointerPatch();
+          // 换了一行：先把上一个的修正撤干净（这份还是我们自己在管的，
+          // 直接硬撤，不必等菜单关）
+          if (pointerPatch) undoPatchNow();
           var cloneRow = t.closest('.' + PIN_CLONE);
           if (cloneRow) cloneRow.classList.add(CLONE_FORCE);
           placeRealRowAt(real, cloneBtn);
@@ -2038,10 +2040,12 @@
             real: real,
             clone: cloneRow,
             undo: fakeAnchorRect(real, cloneBtn),
-            timer: null,
-            stopHold: holdActionUntilMenuCloses(cloneRow)
+            timer: null
           };
         }
+        // 菜单关掉之后再撤（见 watchMenuClose 的注释：
+        // 中途撤会让锚点缩回 0×0，应用立刻把菜单重算到左上角）
+        if (pointerPatch && pointerPatch.clone) watchMenuClose(pointerPatch.clone);
         try {
           realBtn.click();
         } catch (e2) {
@@ -2090,25 +2094,149 @@
    */
   var pointerPatch = null;
 
-  function releasePointerPatch() {
+  /**
+   * 当前菜单还开着吗？
+   * 菜单是 portal 到 body 的，靠这个判断"修正还要不要继续按住"。
+   */
+  function anyMenuOpen() {
+    try { return !!document.querySelector(SEL.menu); } catch (e) { return false; }
+  }
+
+  /**
+   * ★ 把还没开的定时器排掉，但**不动**任何页面上生效的修正 ★
+   *
+   * 这是「按下菜单项的一刻菜单跳到左上角」的修复关键。
+   * 详见 installPinPointerPatch 里的注释。
+   */
+  function stopPatchTimer() {
     if (!pointerPatch) return;
+    if (pointerPatch.timer) {
+      try { clearTimeout(pointerPatch.timer); } catch (e) { /* ignore */ }
+      pointerPatch.timer = null;
+    }
+  }
+
+  /** 真正把修正撤掉：摆位、矩形顶替、按钮强制显示 */
+  function undoPatchNow() {
     var p = pointerPatch;
+    if (!p) return;
     pointerPatch = null;
     if (p.timer) { try { clearTimeout(p.timer); } catch (e) { /* ignore */ } }
-    if (p.stopHold) { try { p.stopHold(); } catch (e) { /* ignore */ } }
-    restoreAnchorRect(p.real, p.undo);
-    clearRealRowPlacement(p.real);
-    restoreAnchorRect(p.real, null);
+    try { clearRealRowPlacement(p.real); } catch (e) { /* ignore */ }
+    try { restoreAnchorRect(p.real, p.undo); } catch (e) { /* ignore */ }
     if (p.clone && p.clone.classList) {
       try { p.clone.classList.remove(CLONE_FORCE); } catch (e) { /* ignore */ }
     }
+  }
+
+  /**
+   * 菜单关掉之后再撤修正。
+   *
+   * 为什么要等：应用在 `ResizeObserver` 里盯着锚点，锚点尺寸一变就重算菜单位置。
+   * 如果我们在菜单还开着的时候就把「摆位 / 矩形顶替 / FORCE」撤掉，
+   * 锚点会瞬间缩回 0×0 → 应用把菜单重算到 (8,4) = 左上角。
+   * 所以撤的时机必须是"菜单已经不在 DOM 里了"。
+   *
+   * 也不用 rAF 轮询：菜单的增删会冒到 body，MutationObserver 足够，
+   * 再加一个 5 秒兜底防止 observer 漏掉（比如整棵子树被替换）。
+   */
+  function watchMenuClose(patchedClone) {
+    if (!patchedClone || !patchedClone.classList) return;
+    var done = false;
+    var seenOpen = false;
+    var obs = null;
+
+    var finish = function () {
+      if (done) return;
+      seenOpen = true;
+      // 菜单真的没了才撤
+      if (anyMenuOpen()) return;
+      done = true;
+      if (obs) { try { obs.disconnect(); } catch (e) { /* ignore */ } obs = null; }
+      // 等两帧：应用可能刚重排完，确保它量到的是正确坐标
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (pointerPatch && pointerPatch.clone === patchedClone) undoPatchNow();
+        });
+      });
+    };
+
+    var tick = function () {
+      if (done) return;
+      if (anyMenuOpen()) { seenOpen = true; return; }
+      // 还没见过菜单打开 → 可能只是 React 还没 commit，别急着撤
+      if (!seenOpen) return;
+      finish();
+    };
+
+    try {
+      obs = new MutationObserver(tick);
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* ignore */ }
+
+    var n = 0;
+    var poll = function () {
+      if (done) return;
+      n += 1;
+      if (anyMenuOpen()) seenOpen = true;
+      if (seenOpen && !anyMenuOpen()) { finish(); return; }
+      // 5 秒兜底：菜单一直不出现（点击被吞了）也得把修正撤掉，
+      // 否则那份"矩形顶替"会污染之后打开的所有菜单位置
+      if (!seenOpen && n > 100) { done = true;
+        if (obs) { try { obs.disconnect(); } catch (e) { /* ignore */ } obs = null; }
+        if (pointerPatch && pointerPatch.clone === patchedClone) undoPatchNow();
+        return;
+      }
+      if (n < 100) setTimeout(poll, 50);
+    };
+    setTimeout(poll, 50);
+  }
+
+  /**
+   * 换成"软收"：只清掉记账与定时器，**保留页面上的修正**。
+   *
+   * 注意不要在这里 restoreAnchorRect / clearRealRowPlacement ——
+   * 一撤就会让锚点缩回 0×0，菜单立刻跳走（这就是那个 bug）。
+   * 真正的撤销交给 watchMenuClose（菜单消失后）或 undoPatchNow。
+   */
+  function releasePointerPatch() {
+    if (!pointerPatch) return;
+    stopPatchTimer();
+    pointerPatch = null;
   }
 
   function installPinPointerPatch() {
     if (pinnedState.pointerPatchBound) return;
     pinnedState.pointerPatchBound = true;
     document.addEventListener('pointerdown', function (ev) {
-      releasePointerPatch();                 // 上一次的先收掉
+      /**
+       * ★ 「菜单闪到左上角」的根因就在这一行 ★
+       *
+       * 用户的动作：点「...」打开菜单 → 鼠标移向菜单项 → **在菜单项上按下**。
+       * 这个 pointerdown 命中的是**菜单**，不是置顶行。原来这里无条件调用
+       * releasePointerPatch()，于是"按下菜单项"的一瞬间把三样修正全撤了：
+       *   · clearRealRowPlacement  → 真身回到 display:none
+       *   · restoreAnchorRect      → 锚点不再是按钮的矩形
+       *   · 摘掉 CLONE_FORCE       → 克隆的「...」缩回 0×0
+       * 应用在 ResizeObserver 里盯着锚点，尺寸一变就把菜单重算到 (8,4)
+       * —— 用户看到的就是"正要按下去，面板跳到左上角"。
+       *
+       * 实测（探针逐帧）：
+       *   t=2070 pointermove menu=[209,198] btnW=28 class=FORCE display=flex
+       *   t=2380 pointerdown menu=[209,198] btnW= 0 class=-     display=none  ← 收紧
+       *
+       * 所以：**菜单还开着就不许撤**。指针从置顶行移开时（自然 hover 丢失）
+       * 也同理 —— 那时菜单也开着，按钮必须继续按住。
+       */
+      if (anyMenuOpen()) {
+        // 菜单开着：修正继续按住，什么都不撤
+        return;
+      }
+
+      // 到这里说明没有菜单开着 —— 上一次的修正已经完成使命，硬撤干净。
+      // （不要用 releasePointerPatch：它是"软收"，只清记账不撤页面，
+      //   在这里用会把摆位和 FORCE 留在页面上，越攒越多。）
+      undoPatchNow();
       var t = ev.target;
       if (!t || !t.closest) return;
       var clone = t.closest('.' + PIN_CLONE);
@@ -2129,10 +2257,12 @@
         real: real,
         clone: clone,
         undo: fakeAnchorRect(real, cloneBtn),
-        timer: null,
-        // 菜单还开着就一直按住按钮（否则手一移开按钮就 0×0、菜单跳走）
-        stopHold: holdActionUntilMenuCloses(clone)
+        timer: null
       };
+      // ★ 菜单关掉之后才撤修正 ★
+      // 中途撤（比如"在菜单项上按下"时）会让锚点缩回 0×0，
+      // 应用立刻把菜单重算到左上角 —— 用户看到的就是"闪"。
+      watchMenuClose(clone);
     }, true);
 
     installCloneHover();
@@ -2157,31 +2287,30 @@
    * 这里用 MutationObserver 盯菜单的消失，菜单一走才收掉。
    * （之前用 900ms 定时器收，太早了 —— 用户还在点。）
    */
+  /**
+   * 把「...」按住显示，直到菜单从 DOM 里消失。
+   *
+   * ★ 用户报的「点开菜单后，手一动去点面板上的按键就闪」的根因 ★
+   *
+   * 应用算菜单位置的办法是量**锚点**（也就是那一行的「...」按钮）的矩形，
+   * 而且它在 `ResizeObserver` 里盯着这个锚点 —— 锚点尺寸一变就重算位置。
+   *
+   * 而我们的「...」平时是藏着的（`display:none`），靠鼠标在行里才显形
+   * （见 installCloneHover）。于是：
+   *     鼠标从「...」移向菜单 → 离开了那一行 → ls-pin-hover 被撤掉
+   *     → 按钮回到 display:none → 矩形变 0×0
+   *     → ResizeObserver 触发 → 应用把菜单重算到左上角 (8,4)
+   * 用户看到的就是"正准备点，面板跳走了"。
+   *
+   * 所以：**菜单开着的时候，按钮必须一直保持可见**。
+   * 现在统一由 watchMenuClose() 负责（菜单消失后才撤），
+   * 这里保留一个薄封装，供"菜单已经打开、但没走过 pointerdown"的路径调用。
+   */
   function holdActionUntilMenuCloses(clone) {
     if (!clone || !clone.classList) return function () {};
-    var stopped = false;
-    var obs = null;
-    var check = function () {
-      if (stopped) return;
-      if (document.querySelector(SEL.menu)) return;   // 菜单还在，继续按住
-      stop();
-    };
-    var stop = function () {
-      if (stopped) return;
-      stopped = true;
-      if (obs) { try { obs.disconnect(); } catch (e) { /* ignore */ } obs = null; }
-      try { clone.classList.remove(CLONE_FORCE); } catch (e) { /* ignore */ }
-    };
-    try {
-      obs = new MutationObserver(function () {
-        // 菜单是 portal 到 body 的：它的增删都会冒到 body 这一层
-        check();
-      });
-      obs.observe(document.body, { childList: true, subtree: true });
-    } catch (e) { /* ignore */ }
-    // 兜底：菜单一直不出现（比如点击被吞了）也别把按钮永远按住
-    setTimeout(check, 4000);
-    return stop;
+    clone.classList.add(CLONE_FORCE);
+    watchMenuClose(clone);
+    return function () { /* 撤销由 watchMenuClose / undoPatchNow 统一负责 */ };
   }
 
   /**
