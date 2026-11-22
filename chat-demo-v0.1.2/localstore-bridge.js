@@ -368,6 +368,84 @@
    * 附件用 base64 内嵌，因此导出的 JSON 是**自包含**的：换台机器、换个浏览器，
    * 只要有这一个文件就能完整还原，不需要再去找附件目录。
    */
+  // -------------------------------------------------------------------------
+  // 标题 → 对话 id 的映射
+  //
+  // 为什么需要：扩展层（localstore-features.js）是从 DOM 上认会话的，
+  // 它能拿到的只有**标题文本**，而导出一个对话需要的是**id**。
+  // 标题并不唯一 —— 用户列表里就真的同时存在两个「新对话」——
+  // 所以不能只靠标题猜。
+  //
+  // 这里在 IDB 钩子里顺手记下每次写入的 sessions 记录，得到一个
+  // 标题 → [id...] 的表。扩展层查表时：
+  //   · 唯一命中 → 直接用；
+  //   · 多个同名 → 抛错让它去问用户，绝不瞎选一条导出。
+  // -------------------------------------------------------------------------
+  var titleIndex = {};
+
+  function indexSessionTitle(session) {
+    if (!session || !session.id) return;
+    var t = String(session.title == null ? '' : session.title).trim();
+    if (!t) return;
+    if (!titleIndex[t]) titleIndex[t] = [];
+    if (titleIndex[t].indexOf(session.id) < 0) titleIndex[t].push(session.id);
+  }
+
+  /** 由扩展层调用：按标题拿对话 id */
+  async function findSessionIdByTitle(title) {
+    var t = String(title == null ? '' : title).trim();
+    if (!t) throw new Error('没有拿到对话标题');
+    var ids = titleIndex[t] || [];
+    if (ids.length === 1) return ids[0];
+    // 表里没有或对不上（比如刚启动还没写过库）→ 现读一次库兜底
+    var all = await readAllSessions();
+    var hit = all.filter(function (s) {
+      return s && String(s.title == null ? '' : s.title).trim() === t;
+    });
+    if (hit.length === 1) return hit[0].id;
+    if (!hit.length) throw new Error('找不到标题为「' + t + '」的对话');
+    throw new Error('有 ' + hit.length + ' 个对话都叫「' + t
+      + '」，无法确定是哪一个（请先给它们改个不同的名字）');
+  }
+
+  /**
+   * 收集要随备份一起搬走的"配置"：界面偏好 + API Key。
+   *
+   * ⚠ 这个对象**含明文 API Key**，所以导出的文件本身就是敏感文件。
+   * 之所以要带上：文件夹那条路已经彻底去掉，Key 和偏好就没有别的地方可存了；
+   * 不带的话换浏览器后 Key 要重填、设置要重设，"换浏览器照样能用"就不成立。
+   */
+  function collectConfig() {
+    return {
+      settings: collectSettings(),
+      apiKey: lsGet(LS_APP_API_KEY) || null,
+      apiBase: lsGet(LS_API_BASE) || null
+    };
+  }
+
+  /**
+   * 应用备份里的配置。
+   *
+   * 顺序有讲究：先 applySettings（它会切当前提供方），再 adoptKeyIntoActiveProvider，
+   * 这样 Key 落到的正是备份里那个当前提供方。反过来会写进旧提供方。
+   */
+  function applyConfig(cfg) {
+    if (!cfg) return { settings: 0, key: false };
+    var n = 0;
+    if (cfg.settings) n = applySettings(cfg.settings);
+    // Key：先落回应用槽位，再采纳进（刚被设置切好的）当前提供方
+    if (cfg.apiKey) {
+      try {
+        lsSet(LS_APP_API_KEY, cfg.apiKey);
+        if (cfg.apiBase) lsSet(LS_API_BASE, cfg.apiBase);
+        adoptKeyIntoActiveProvider(cfg.apiKey);
+      } catch (e) {
+        warn('恢复 API Key 失败：' + ((e && e.message) || e));
+      }
+    }
+    return { settings: n, key: !!cfg.apiKey };
+  }
+
   async function exportBundleToFile(onProgress) {
     var sessions = await readAllSessions();
     var files = await readAllFiles();
@@ -412,7 +490,8 @@
     var bundle = {
       schema: 'chat-demo-export@1',
       note: '本文件由 chat-demo 本地存档桥接层导出，自包含（附件原件以 base64 内嵌）。'
-        + '换浏览器或清空浏览器数据后，用同一页面的「导入对话」还原。',
+        + '换浏览器或清空浏览器数据后，用同一页面的「导入」还原。',
+      warning: '⚠ 本文件含明文 API Key，请勿上传网盘、提交到 Git 或分享给他人。',
       exportedAt: Date.now(),
       exportedAtText: fmtTime(Date.now()),
       appVersion: '0.1.2',
@@ -420,6 +499,8 @@
       origin: location.origin,
       sessionCount: sessions.length,
       attachmentCount: fileRows.length,
+      /** 界面偏好 + API Key（换浏览器后连配置一起还原） */
+      config: collectConfig(),
       sessions: sessions,
       files: fileRows
     };
@@ -430,6 +511,89 @@
     triggerDownload(JSON.stringify(bundle), name, 'application/json');
     log('已导出 ' + sessions.length + ' 个对话、' + fileRows.length + ' 个附件 → ' + name);
     return { sessionCount: sessions.length, attachmentCount: fileRows.length, name: name };
+  }
+
+  /**
+   * 导出单个对话。
+   *
+   * 格式与"全量导出"完全相同（同一个 schema），所以单个对话的文件
+   * **可以直接被「导入」按钮吃下** —— 不需要再单独写一套导入逻辑，
+   * 也不会出现"单条导出的文件导不回去"这种坑。
+   *
+   * ⚠ 故意**不带 config**：导出单个对话时用户只是想分享/备份这一条，
+   * 把 API Key 一起塞进去会让人毫无防备地把密钥发出去。
+   * 全量导出才带配置。
+   */
+  async function exportSingleSession(sessionId) {
+    var all = await readAllSessions();
+    var session = null;
+    for (var i = 0; i < all.length; i++) {
+      if (all[i] && all[i].id === sessionId) { session = all[i]; break; }
+    }
+    if (!session) throw new Error('找不到这个对话（可能已被删除）');
+
+    // 只挑这条对话真正引用到的附件：单条备份不该把整库附件都拖进来
+    var wanted = {};
+    (session.messages || []).forEach(function (m) {
+      if (m && Array.isArray(m.files)) {
+        m.files.forEach(function (f) {
+          if (f && f.id) wanted[f.id] = true;
+        });
+      }
+    });
+    var ids = Object.keys(wanted);
+    var allFiles = ids.length ? await readAllFiles() : [];
+    var fileRows = [];
+    for (var k = 0; k < allFiles.length; k++) {
+      var f = allFiles[k];
+      if (!f || !wanted[f.id] || !f.blob) continue;
+      var b64 = null;
+      try {
+        b64 = await new Promise(function (resolve, reject) {
+          var fr = new FileReader();
+          fr.onload = function () {
+            var s = String(fr.result || '');
+            var comma = s.indexOf(',');
+            resolve(comma >= 0 ? s.slice(comma + 1) : s);
+          };
+          fr.onerror = function () { reject(fr.error); };
+          fr.readAsDataURL(f.blob);
+        });
+      } catch (e) {
+        warn('单条导出：附件读取失败，已跳过原件 ' + f.id);
+      }
+      fileRows.push({
+        id: f.id,
+        name: f.name == null ? null : f.name,
+        mimeType: f.mimeType == null ? null : f.mimeType,
+        isImage: !!f.isImage,
+        serverId: f.serverId == null ? null : f.serverId,
+        blobB64: b64
+      });
+    }
+
+    var bundle = {
+      schema: 'chat-demo-export@1',
+      note: '本文件是单个对话的备份，可直接用「导入」还原。',
+      exportedAt: Date.now(),
+      exportedAtText: fmtTime(Date.now()),
+      appVersion: '0.1.2',
+      bridgeVersion: BRIDGE_VERSION,
+      origin: location.origin,
+      sessionCount: 1,
+      attachmentCount: fileRows.length,
+      // 不带 config：单条导出不该顺手泄漏 API Key
+      sessions: [session],
+      files: fileRows
+    };
+
+    var safeTitle = String(session.title || '未命名对话')
+      .replace(/[\\/:*?"<>|\r\n\t]/g, '_').slice(0, 60);
+    var name = safeTitle + '-'
+      + new Date().toISOString().slice(0, 10) + '.json';
+    triggerDownload(JSON.stringify(bundle), name, 'application/json');
+    log('已导出单个对话「' + safeTitle + '」（附件 ' + fileRows.length + ' 个）');
+    return { title: session.title, name: name, attachments: fileRows.length };
   }
 
   /** 用 <a download> 触发下载（不碰 File System Access） */
@@ -467,19 +631,25 @@
    *   · 本地更新 → 保留本地
    * 只写 IndexedDB，**不碰文件夹**，所以即使全局停用了文件夹同步也能用。
    */
-  async function importBundleFromText(text, onProgress) {
-    var bundle = JSON.parse(text);
-    if (!bundle || bundle.schema !== 'chat-demo-export@1') {
-      throw new Error('这不是本页面导出的备份文件（schema 不匹配）');
-    }
-    var inSessions = Array.isArray(bundle.sessions) ? bundle.sessions : [];
-    var inFiles = Array.isArray(bundle.files) ? bundle.files : [];
-    if (!inSessions.length) throw new Error('备份文件里没有任何对话');
-
-    var local = await readAllSessions();
+  /**
+   * 纯决策函数：给定"本地已有的对话"和"备份里的对话"，决定该写哪些。
+   *
+   * 抽出来单独一个函数是为了能真正被测到 —— 这段规则决定了导入会不会
+   * 覆盖掉用户更新的内容，是最该有测试、也最容易写错的地方。
+   *
+   * 规则（与文件夹反向同步保持一致）：
+   *   · 本地没有这条 id            → 写入（新增）
+   *   · 本地有、备份的 updatedAt 更新 → 写入（覆盖这一条）
+   *   · 本地有、本地的不更旧        → 跳过（**不覆盖**）
+   *
+   * 注意这里是**逐条合并**，不是整库替换：备份里没有的对话一律不动，
+   * 所以「Chrome 导出 → Edge 导入」不会把 Edge 原有的对话挤掉。
+   */
+  function planImportMerge(localSessions, inSessions) {
     var localById = {};
-    for (var i = 0; i < local.length; i++) localById[local[i].id] = local[i];
-
+    for (var i = 0; i < localSessions.length; i++) {
+      if (localSessions[i] && localSessions[i].id) localById[localSessions[i].id] = localSessions[i];
+    }
     var toWrite = [];
     var skipped = 0;
     for (var j = 0; j < inSessions.length; j++) {
@@ -490,39 +660,89 @@
       if ((s.updatedAt || 0) > (l.updatedAt || 0)) toWrite.push(s);
       else skipped++;
     }
+    return { toWrite: toWrite, skipped: skipped };
+  }
+
+  async function importBundleFromText(text, onProgress) {
+    var bundle = JSON.parse(text);
+    if (!bundle || bundle.schema !== 'chat-demo-export@1') {
+      throw new Error('这不是本页面导出的备份文件（schema 不匹配）');
+    }
+    var inSessions = Array.isArray(bundle.sessions) ? bundle.sessions : [];
+    var inFiles = Array.isArray(bundle.files) ? bundle.files : [];
+    if (!inSessions.length) throw new Error('备份文件里没有任何对话');
+
+    var local = await readAllSessions();
+    var plan = planImportMerge(local, inSessions);
+    var toWrite = plan.toWrite;
+    var skipped = plan.skipped;
 
     // 附件：还原 base64 → Blob，交给 writeBack 一起写
+    //
+    // ⚠ 这里有一条必须守住的底线：**绝不能用"没有原件"的记录去覆盖已有的原件**。
+    // files 表主键是 id，put 是覆盖写 —— 如果 bundle 里的某条附件没有 blobB64
+    // （导出时解码失败、或用户手改过 JSON），而本地那条附件本来好好的，
+    // 照写就会把用户的附件变成一条只有 id/名字、没有内容的空记录，
+    // 表现为"图片打不开、PDF 变成 0 字节"，而这是**不可逆**的。
+    // 所以解码拿不到内容时，宁可整条跳过（保留本地原件），也不写空壳。
     var fileRows = [];
+    var filesSkipped = 0;
     for (var k = 0; k < inFiles.length; k++) {
       var fr = inFiles[k];
       if (!fr || !fr.id) continue;
-      var rec = {
-        id: fr.id,
-        name: fr.name == null ? null : fr.name,
-        mimeType: fr.mimeType == null ? null : fr.mimeType,
-        isImage: !!fr.isImage,
-        serverId: fr.serverId == null ? null : fr.serverId
-      };
+
+      var blob = null;
       if (fr.blobB64) {
         try {
-          rec.blob = b64ToBlob(fr.blobB64, fr.mimeType);
-          rec.size = rec.blob.size;
+          blob = b64ToBlob(fr.blobB64, fr.mimeType);
         } catch (e) {
           warn('附件还原失败：' + fr.id);
         }
       }
-      fileRows.push(rec);
+      if (!blob) {
+        // 没有原件：跳过，不给它写任何记录（本地若已有原件会被完整保留）
+        filesSkipped++;
+        warn('备份里这条附件没有原件，已跳过以免覆盖本地原件：' + fr.id);
+        continue;
+      }
+
+      fileRows.push({
+        id: fr.id,
+        name: fr.name == null ? null : fr.name,
+        mimeType: fr.mimeType == null ? null : fr.mimeType,
+        isImage: !!fr.isImage,
+        serverId: fr.serverId == null ? null : fr.serverId,
+        blob: blob
+      });
       if (onProgress) onProgress(k + 1, inFiles.length, '附件 ' + (k + 1) + '/' + inFiles.length);
+    }
+
+    // 配置（偏好 + API Key）：即使一条对话都不需要写，也要应用 ——
+    // 换浏览器后"只想把 Key 和设置带过来"是最常见的用法。
+    var cfgApplied = { settings: 0, key: false };
+    try {
+      cfgApplied = applyConfig(bundle.config);
+    } catch (e) {
+      warn('恢复配置失败：' + ((e && e.message) || e));
     }
 
     var result = {
       total: inSessions.length,
       imported: toWrite.length,
       skipped: skipped,
-      attachments: fileRows.length
+      attachments: fileRows.length,
+      attachmentsSkipped: filesSkipped,
+      settings: cfgApplied.settings,
+      keyRestored: cfgApplied.key
     };
+    // ⚠ 没有对话要写时**不能**单独写附件：附件是靠 sessionSummaries.fileIds
+    // 被"认领"的，官方回收逻辑会 `count(fileIds) === 0 → delete`，
+    // 于是刚写进去的附件会被当成孤儿马上删掉，白写一场还可能误伤。
     if (!toWrite.length) {
-      log('导入：文件里的 ' + inSessions.length + ' 个对话都不比本地新，无需改动');
+      log('导入：没有需要写入的对话（跳过 ' + skipped + ' 个不更新的），已只应用配置');
+      if (fileRows.length) {
+        warn('本次没有对话要写，' + fileRows.length + ' 个附件一并跳过（避免写成无主附件被回收）');
+      }
       return result;
     }
 
@@ -1769,38 +1989,17 @@
    *      「内容还在追加、但还没最终写库」的窗口。
    * 两路都走同一个防抖计时器，因此不会重复写。
    */
+  /**
+   * 「存档变了」通知。
+   *
+   * 只做一件事：告诉功能扩展层该丢缓存了（置顶排序要按最后一条消息的时间重排，
+   * 而那个时间来自 IndexedDB）。这里**不做任何文件系统操作** ——
+   * 原来它还会顺带排一次自动保存到文件夹，那段已经随文件夹通道一起删除。
+   */
   function scheduleAutoSync(reason) {
-    // 无论同步是否开着，都要通知外面「存档变了」。
-    //
-    // 为什么放在这里而不是只放在真正写盘的分支里：功能扩展层需要知道
-    // 什么时候该丢掉自己的缓存（例如「置顶」小节要按最后一条消息的时间重排，
-    // 而那个时间来自 IndexedDB）。如果只在开自动同步时才通知，用户一关同步
-    // 置顶排序就再也不更新了。
     try {
       document.dispatchEvent(new CustomEvent('localstore-changed', { detail: { reason: reason || '' } }));
     } catch (e) { /* 老浏览器没有 CustomEvent 构造器就算了，不影响主链路 */ }
-
-    if (autoSyncSuspended > 0) return;
-    if (lsGet(LS_AUTOSYNC) === 'false') return;
-    if (!supportsFs) return;
-    if (!dirCache && !lsGet(LS_FOLDER)) return;
-    // 熔断中（盘没响应）：不要再排自动保存。
-    // 自动保存会被对话变化反复触发，对一个坏盘就是"持续的请求流"，
-    // 而 File System Access 的请求会进浏览器进程、拖垮共用的 GPU 进程。
-    if (permCircuitOpen()) return;
-
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function () {
-      snapshot('auto' + (reason ? ':' + reason : ''))
-        .then(function (r) {
-          if (r) {
-            log('自动保存完成：' + r.sessionCount + ' 个对话');
-          }
-        })
-        .catch(function (e) {
-          warn('自动保存失败：' + ((e && e.message) || e));
-        });
-    }, AUTO_SYNC_DEBOUNCE);
   }
 
   function installIdbHook() {
@@ -1830,6 +2029,16 @@
             } catch (e) {
               /* ignore */
             }
+          }
+        }
+
+        // 顺手维护「标题 → id」索引：扩展层只能从 DOM 拿到标题，
+        // 而导出单个对话需要 id（列表里可能有两个同名对话）。
+        if (storeName === 'sessions' && args.length >= 1) {
+          try {
+            indexSessionTitle(args[0]);
+          } catch (e) {
+            /* ignore */
           }
         }
 
@@ -6993,9 +7202,8 @@
 
   var STRINGS = {
     'zh-CN': {
-      title: '本地文件夹存储',
-      desc:
-        '把对话自动保存到你电脑上的真实文件夹，不受清理浏览器数据影响，换浏览器也能读回。',
+      title: '备份与恢复',
+      desc: '把对话、附件与设置导出成一个文件；换浏览器或清空数据后，用「导入」还原。',
       unsupported:
         '当前浏览器不支持文件夹写入。请使用 Chrome 或 Edge 打开本页；你也可以使用上方的「导出所有历史对话」手动备份。',
       noFolder: '尚未选择文件夹',
@@ -7351,171 +7559,91 @@
       ])
     );
 
-    if (!supportsFs) {
-      lines.push(el('div', { class: 'ls-warn', text: t('unsupported') }));
-    } else {
-      // 状态行
-      var statusText;
-      if (uiState.busy) statusText = t('busy');
-      else if (connected) statusText = t('connected');
-      else if (syncState.lastError) statusText = syncState.lastError;
-      else statusText = t('noFolder');
-
-      var statusChildren = [
-        el('span', {
-          class:
-            'ls-dot ' +
-            (connected ? 'ls-dot-ok' : syncState.lastError ? 'ls-dot-err' : 'ls-dot-off')
-        }),
-        el('span', {
-          class: 'ls-status-text',
-          text: (folderName ? folderName + ' · ' : '') + statusText
-        })
-      ];
-      lines.push(el('div', { class: 'ls-status' }, statusChildren));
-
-      // 上次同步
-      if (syncState.lastSync) {
-        lines.push(
-          el('div', {
-            class: 'ls-meta',
-            text: t('lastSync') + '：' + fmtTime(syncState.lastSync)
-          })
-        );
-      }
-
-      // 按钮组
-      var btns = [];
-      if (!connected) {
-        btns.push(
-          button(folderName ? t('reconnect') : t('pick'), onPick, {
-            primary: true,
-            disabled: uiState.busy
-          })
-        );
-      } else {
-        btns.push(
-          button(uiState.busy ? t('syncing') : t('syncNow'), onSyncNow, {
-            primary: true,
-            disabled: uiState.busy
-          })
-        );
-        btns.push(button(t('restore'), onRestore, { disabled: uiState.busy, title: t('restoreHint') }));
-        btns.push(button(t('change'), onPick, { disabled: uiState.busy }));
-        btns.push(button(t('disconnect'), onDisconnect, { disabled: uiState.busy }));
-      }
-
-      // ⛔ 紧急开关：停用文件夹同步。
-      //
-      // 为什么要有界面按钮而不是只留控制台命令：用户实测即便熔断生效
-      // （调用次数停在 6 不动）页面**仍然崩过** —— 而崩溃是整机级别的
-      // （所有标签一起没），没法要求用户"崩之前赶紧去控制台敲一行"。
-      // 必须给一个点得到的按钮，让他在需要时立刻把页面变成绝对安全的状态。
-      //
-      // 这个开关放在**断开状态也能点**的地方，因为它正是"连不上又一直被拖崩"
-      // 时的逃生口。
-      if (fsGloballyDisabled()) {
-        btns.push(
-          button('⛔ 已停用文件夹同步（点此恢复）', function () {
-            setFsGloballyDisabled(false);
-            setMessage('已恢复文件夹同步，请点「重新连接」重新授权。', false);
-            rerender();
-          }, { title: '当前桥接层不会发起任何文件系统调用' })
-        );
-      } else {
-        btns.push(
-          button('停用文件夹同步（防止浏览器被拖崩）', function () {
-            setFsGloballyDisabled(true);
-            setMessage('已停用文件夹同步：不会再发起任何文件夹读写。'
-              + '需要时再点同一按钮恢复。', false);
-            rerender();
-          }, {
-            title: '打开后桥接层一个文件系统调用都不再发起；' +
-              '用于文件夹读写异常导致浏览器卡死/崩溃时自救'
-          })
-        );
-      }
-      // 手动导出 / 导入：完全不碰 File System Access 的一条备份通道。
-      //
-      // 为什么必须提供：用户那台机器上文件夹读写会把 Chrome 拖崩，而导出/导入
-      // 走的是"下载文件 + 选文件读入"，与文件夹权限、磁盘状态都无关。
-      // 于是即使全局停用了文件夹同步，换浏览器/清数据前也照样能完整搬运。
-      // 特意也放在 if/else 之外 —— 没连上文件夹时同样该能备份。
-      btns.push(
-        button('导出对话（下载备份文件）', function () {
+    // ---------------------------------------------------------------------
+    // 备份与恢复（唯一的数据搬运方式）
+    //
+    // 原来的「本地文件夹存储」整块已经删除：在用户的 Chrome 上，
+    // File System Access 的调用会挂起并把共享 GPU 进程拖到被看门狗杀掉，
+    // 表现为**所有标签一起崩**（整机级）。同一个文件夹在 Edge 上完全正常，
+    // 所以这是 Chrome 在该环境下的实现问题，页面侧再怎么加熔断也只能缓解。
+    //
+    // 导出/导入走的是"下载文件 + 选文件读入"，**完全不碰 File System Access**：
+    //   · 不会挂起、不会拖累浏览器进程；
+    //   · 不依赖文件夹权限，不受 Chrome 权限回收影响；
+    //   · 备份文件是自包含的（含附件原件），可直接搬到别的浏览器。
+    // ---------------------------------------------------------------------
+    var btns = [];
+    btns.push(
+      button('导出', function () {
+        withBusy(async function () {
+          try {
+            var r = await exportBundleToFile(function (done, total, label) {
+              setMessage(label, false);
+              rerender();
+            });
+            setMessage('已导出 ' + r.sessionCount + ' 个对话 · '
+              + r.attachmentCount + ' 个附件', false);
+          } catch (e) {
+            setMessage('导出失败：' + ((e && e.message) || e), true);
+          }
+        });
+      }, { primary: true, disabled: uiState.busy, title: '把所有对话、附件、设置与 Key 打包下载' })
+    );
+    btns.push(
+      button('导入', function () {
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = '.json,application/json';
+        inp.style.display = 'none';
+        inp.addEventListener('change', function () {
+          var file = inp.files && inp.files[0];
+          try { inp.remove(); } catch (e) { /* ignore */ }
+          if (!file) return;
           withBusy(async function () {
             try {
-              var r = await exportBundleToFile(function (done, total, label) {
-                setMessage('正在导出… ' + label, false);
+              setMessage('读取中…', false);
+              rerender();
+              var text = await file.text();
+              var r = await importBundleFromText(text, function (done, total, label) {
+                setMessage(label, false);
                 rerender();
               });
-              setMessage('已导出 ' + r.sessionCount + ' 个对话、'
-                + r.attachmentCount + ' 个附件：' + r.name, false);
+              if (!r.imported) {
+                setMessage('没有更新的对话', false);
+                return;
+              }
+              setMessage('已导入 ' + r.imported + ' 个对话，正在刷新…', false);
+              // 应用只在启动时读一次 IndexedDB，必须刷新才能看到新数据。
+              // 先放掉 busy 再排队刷新，否则被熔断拦下时面板会卡在「处理中」。
+              uiState.busy = false;
+              rerender();
+              setTimeout(function () {
+                if (requestReload('导入后刷新')) return;
+                setMessage('已导入 ' + r.imported + ' 个对话，请刷新页面', false);
+              }, 300);
             } catch (e) {
-              setMessage('导出失败：' + ((e && e.message) || e), true);
+              setMessage('导入失败：' + ((e && e.message) || e), true);
             }
           });
-        }, { disabled: uiState.busy, title: '把所有对话和附件打包成一个 JSON 下载，不依赖文件夹权限' })
-      );
-      btns.push(
-        button('导入对话（选择备份文件）', function () {
-          var inp = document.createElement('input');
-          inp.type = 'file';
-          inp.accept = '.json,application/json';
-          inp.style.display = 'none';
-          inp.addEventListener('change', function () {
-            var file = inp.files && inp.files[0];
-            try { inp.remove(); } catch (e) { /* ignore */ }
-            if (!file) return;
-            withBusy(async function () {
-              try {
-                setMessage('正在读取备份文件…', false);
-                rerender();
-                var text = await file.text();
-                var r = await importBundleFromText(text, function (done, total, label) {
-                  setMessage('正在导入… ' + label, false);
-                  rerender();
-                });
-                if (!r.imported) {
-                  setMessage('导入完成：文件里的 ' + r.total
-                    + ' 个对话都不比本地新，无需改动。', false);
-                  return;
-                }
-                setMessage('已导入 ' + r.imported + ' 个对话，正在刷新页面…', false);
-                // 应用只在启动时读一次 IndexedDB，必须刷新才能看到新数据。
-                // 先放掉 busy 再排队刷新（否则被熔断拦下时面板会永远卡在「处理中」）。
-                uiState.busy = false;
-                rerender();
-                setTimeout(function () {
-                  if (requestReload('导入对话后刷新')) return;
-                  setMessage('已导入 ' + r.imported + ' 个对话。'
-                    + '自动刷新被拦下了，请手动刷新页面（F5）查看。', false);
-                }, 300);
-              } catch (e) {
-                setMessage('导入失败：' + ((e && e.message) || e), true);
-              }
-            });
-          });
-          document.body.appendChild(inp);
-          inp.click();
-        }, { disabled: uiState.busy, title: '选择之前导出的 JSON 备份，把对话合并回本地库' })
-      );
+        });
+        document.body.appendChild(inp);
+        inp.click();
+      }, { disabled: uiState.busy, title: '选择之前导出的备份文件' })
+    );
+    lines.push(el('div', { class: 'ls-btns' }, btns));
 
-      lines.push(el('div', { class: 'ls-btns' }, btns));
-
-      // 自动同步状态（仅展示，默认恒开，通过 localStorage 可关）
-      lines.push(
-        el('div', {
-          class: 'ls-meta',
-          text:
-            t('autosync') +
-            '：' +
-            (lsGet(LS_AUTOSYNC) === 'false' ? t('off') : t('on'))
-        })
-      );
-
-      // 界面动效开关已在函数开头加入，这里不再重复。
-    }
+    lines.push(
+      el('div', {
+        class: 'ls-meta',
+        text: '备份含明文 API Key，请勿分享'
+      })
+    );
+    lines.push(
+      el('div', {
+        class: 'ls-meta',
+        text: '换浏览器或清空数据后，用「导入」还原'
+      })
+    );
 
     // 提示 / 错误
     if (uiState.message) {
@@ -7626,63 +7754,6 @@
       ])
     );
 
-    // ---- API Key 存到文件夹 ----
-    lines.push(el('div', { class: 'ls-sep' }));
-    lines.push(el('div', { class: 'ls-head', text: t('keyTitle') }));
-    lines.push(el('div', { class: 'ls-desc', text: t('keyDesc') }));
-    lines.push(el('div', { class: 'ls-warn', text: t('keyWarn') }));
-
-    var keyInFolder = lsGet('chat-demo:local-key') === '1';
-    var keyInBrowser = !!lsGet(LS_APP_API_KEY);
-    lines.push(
-      el('div', {
-        class: 'ls-meta',
-        text: t('status') + '：' + (keyInFolder ? t('keyOn') : t('keyOff'))
-      })
-    );
-
-    var keyMsg = el('span', { class: 'ls-inline-msg' });
-    var keyBtns = [
-      button(
-        t('keySave'),
-        function () {
-          withBusy(async function () {
-            try {
-              await writeKeyToFolder();
-              keyMsg.textContent = '';
-              setMessage(t('keySaved'), false);
-            } catch (e) {
-              setMessage(t('keyLoadFailed') + ((e && e.message) || e), true);
-            }
-          });
-        },
-        { primary: true, disabled: uiState.busy || !keyInBrowser || !connected }
-      )
-    ];
-    if (keyInFolder) {
-      keyBtns.push(
-        button(
-          t('keyRemove'),
-          function () {
-            withBusy(async function () {
-              try {
-                await removeKeyFromFolder();
-                setMessage(t('keyRemoved'), false);
-              } catch (e) {
-                setMessage(((e && e.message) || e), true);
-              }
-            });
-          },
-          { disabled: uiState.busy }
-        )
-      );
-    }
-    lines.push(el('div', { class: 'ls-btns' }, keyBtns));
-    lines.push(keyMsg);
-    if (!keyInBrowser) {
-      lines.push(el('div', { class: 'ls-meta', text: t('keyNone') }));
-    }
-
     // ---- 模型显示开关 ----
     lines.push(el('div', { class: 'ls-sep' }));
     lines.push(el('div', { class: 'ls-head', text: t('modelTitle') }));
@@ -7717,55 +7788,8 @@
       ])
     );
 
-    // ---- 设置项存到文件夹 ----
-    lines.push(el('div', { class: 'ls-sep' }));
-    lines.push(el('div', { class: 'ls-head', text: t('settingsTitle') }));
-    lines.push(el('div', { class: 'ls-desc', text: t('settingsDesc') }));
-
-    var settingsCount = Object.keys(collectSettings()).length;
-    lines.push(
-      el('div', {
-        class: 'ls-meta',
-        text: t('status') + '：' + settingsCount + ' · ' + t('settingsScope')
-      })
-    );
-
-    var settingsMsg = el('span', { class: 'ls-inline-msg' });
-    var settingsBtns = [
-      button(
-        t('settingsSave'),
-        function () {
-          withBusy(async function () {
-            try {
-              var r = await writeSettingsToFolder();
-              setMessage(t('settingsSaved', { n: r.count }), false);
-            } catch (e) {
-              setMessage(((e && e.message) || String(e)), true);
-            }
-          });
-        },
-        { primary: true, disabled: uiState.busy || !connected }
-      ),
-      button(
-        t('settingsRestore'),
-        function () {
-          withBusy(async function () {
-            try {
-              var n = await restoreSettingsFromFolder();
-              setMessage(t('settingsRestored', { n: n }), false);
-              setTimeout(function () {
-                requestReload('用户手动恢复了设置');
-              }, 800);
-            } catch (e) {
-              setMessage(((e && e.message) || String(e)), true);
-            }
-          });
-        },
-        { disabled: uiState.busy || !connected, title: t('settingsWillReload') }
-      )
-    ];
-    lines.push(el('div', { class: 'ls-btns' }, settingsBtns));
-    lines.push(settingsMsg);
+    // API Key 与设置项的「存到文件夹」卡片已删除：配置现在随「导出」文件一起走
+    // （见 collectConfig / applyConfig），不再需要单独的文件夹通道。
 
     var section = el('div', { class: 'ls-section', id: UI_ID }, lines);
     return section;
@@ -7776,7 +7800,6 @@
     if (!existing) return;
     var fresh = renderSection();
     existing.replaceWith(fresh);
-    refreshPermissionState();
   }
 
   function setMessage(text, isError) {
@@ -7909,81 +7932,55 @@
     return { imported: 0, connected: true };
   }
 
-  function onPick() {
-    withBusy(async function () {
-      try {
-        await pickAndRestoreFolder();
-      } catch (e) {
-        setMessage(t('errPick') + ((e && e.message) || e), true);
-      }
-    });
-  }
+  // 原「选择 / 立即同步 / 从文件夹恢复 / 断开」与「启动前探权限」等函数已随之删除。
+  // 文件夹通道整个移除后它们没有任何调用点；留着只会让人误以为还有一条可用的文件夹通路。
 
-  function onSyncNow() {
-    withBusy(async function () {
-      try {
-        var r = await snapshot('manual');
-        setMessage(t('doneSync', { sessions: r ? r.sessionCount : 0 }), false);
-      } catch (e) {
-        setMessage(t('errSync') + ((e && e.message) || e), true);
-      }
-    });
-  }
+  // 所以「往容器里 append 一个区块」是会串台的：弹窗默认停在「数据管理」
+  // （尤其首次启动、还没填 API Key 时），区块就被挂到了数据管理下，
+  // 切到通用设置又跟着显示，看起来就是两块内容混在一起。
+  //
+  // 正确做法：先判断当前激活的标签页，只有「通用设置」才挂；
+  // 切到别的标签页就把自己的区块摘掉（React 重渲染会清掉官方节点，
+  // 我们只需保证不留下自己的残留）。
 
-  function onRestore() {
-    withBusy(async function () {
-      try {
-        var manifest = await readManifest();
-        var hint = manifest
-          ? '（存档最后同步于 ' + (manifest.lastSyncAtText || '未知') + '）'
-          : '';
-        var ok = window.confirm(
-          t('restore') + hint + '\n\n' + t('restoreHint')
-        );
-        if (!ok) return;
-        var r = await restoreFromFolder();
-        setMessage(t('doneRestore', { sessions: r.sessions }), false);
-        setTimeout(function () {
-          requestReload('用户手动从文件夹恢复了对话');
-        }, 1200);
-      } catch (e) {
-        setMessage(t('errRestore') + ((e && e.message) || e), true);
-      }
-    });
-  }
+  var TAB_GENERAL = 'general';
+  var TAB_DATA = 'data';
+  var TAB_UNKNOWN = 'unknown';
 
-  function onDisconnect() {
-    withBusy(async function () {
-      await disconnect();
-      uiState.message = null;
-      rerender();
-    });
-  }
-
-  async function refreshPermissionState() {
-    if (!supportsFs) return;
-    var root = await getRootHandle();
-    if (!root) {
-      uiState.permission = null;
-      return;
+  /** 判断当前激活的是哪个标签页（优先看导航高亮，其次看内容特征） */
+  function detectActiveTab(scope) {
+    // scope 存在时，优先从 scope 自己或其祖先找弹窗：
+    // 这样「传入某个内容容器」时不会被页面上另一个真实的设置弹窗干扰。
+    var dlg = null;
+    if (scope && scope.nodeType === 1) {
+      dlg = scope.closest ? scope.closest('.dialog-_85c1b') : null;
     }
-    var state = await ensurePermission(root, false);
-    var changed = uiState.permission !== state;
-    uiState.permission = state;
-    // ⚠ 这里以前是直接往 DOM 里塞一句提示。问题是它在渲染**之后**执行，
-    // 下一次 rerender 会把节点整个换掉，提示就没了 —— 用户打开设置面板
-    // 大多数时候根本看不到"权限被收回"这句话。
-    // 改成写进 uiState 并重新渲染，让它成为真正持久的状态。
-    if (changed && state !== 'granted') {
-      setMessage(t('needReconnect'), true);
-    } else if (state === 'granted' && uiState.message === t('needReconnect')) {
-      // 重新连接成功后，把这句提示撤掉
-      setMessage(null, false);
+    if (!dlg) dlg = document.querySelector('.dialog-_85c1b');
+    if (!dlg) return TAB_UNKNOWN;
+
+    // 1) 导航项高亮最可靠
+    var items = dlg.querySelectorAll('.navItem-_85c1b');
+    for (var i = 0; i < items.length; i++) {
+      if (/navItemActive/.test(items[i].className || '')) {
+        var txt = (items[i].textContent || '').trim();
+        if (/通用|General/i.test(txt)) return TAB_GENERAL;
+        if (/数据|Data/i.test(txt)) return TAB_DATA;
+      }
     }
+
+    // 2) 退而求其次：看内容里有没有「语言」选择框（通用设置独有）
+    if (dlg.querySelector('[aria-label="语言"], [aria-label="Language"]')) return TAB_GENERAL;
+
+    // 3) 或者有没有导入/导出那一组（数据管理独有）
+    var rows = dlg.querySelectorAll('.row-_85c1b');
+    for (var j = 0; j < rows.length; j++) {
+      if (/导出所有历史对话|导入历史对话|Export|Import/i.test(rows[j].textContent || '')) {
+        return TAB_DATA;
+      }
+    }
+    return TAB_UNKNOWN;
   }
 
-  // -------------------------------------------------------------------------
-  // 把区块挂进官方设置弹窗
   // -------------------------------------------------------------------------
 
   /**
@@ -8034,90 +8031,6 @@
     return null;
   }
 
-  // ---------------------------------------------------------------------------
-  // 挂载点：只能挂在「通用设置」标签页下
-  // ---------------------------------------------------------------------------
-  //
-  // 官方设置弹窗的两个标签页（通用设置 / 数据管理）共用**同一个**内容容器
-  // `.content-_85c1b`，靠切换子节点来换页：
-  //
-  //   <div class="content-_85c1b">
-  //     "general" === tab ? [主题, 语言, 朗读音色, 位置信息]
-  //                      : [导入, 导出, 删除]
-  //   </div>
-  //
-  // 所以「往容器里 append 一个区块」是会串台的：弹窗默认停在「数据管理」
-  // （尤其首次启动、还没填 API Key 时），区块就被挂到了数据管理下，
-  // 切到通用设置又跟着显示，看起来就是两块内容混在一起。
-  //
-  // 正确做法：先判断当前激活的标签页，只有「通用设置」才挂；
-  // 切到别的标签页就把自己的区块摘掉（React 重渲染会清掉官方节点，
-  // 我们只需保证不留下自己的残留）。
-
-  var TAB_GENERAL = 'general';
-  var TAB_DATA = 'data';
-  var TAB_UNKNOWN = 'unknown';
-
-  /** 判断当前激活的是哪个标签页（优先看导航高亮，其次看内容特征） */
-  function detectActiveTab(scope) {
-    // scope 存在时，优先从 scope 自己或其祖先找弹窗：
-    // 这样「传入某个内容容器」时不会被页面上另一个真实的设置弹窗干扰。
-    var dlg = null;
-    if (scope && scope.nodeType === 1) {
-      dlg = scope.closest ? scope.closest('.dialog-_85c1b') : null;
-    }
-    if (!dlg) dlg = document.querySelector('.dialog-_85c1b');
-    if (!dlg) return TAB_UNKNOWN;
-
-    // 1) 导航项高亮最可靠
-    var items = dlg.querySelectorAll('.navItem-_85c1b');
-    for (var i = 0; i < items.length; i++) {
-      if (/navItemActive/.test(items[i].className || '')) {
-        var txt = (items[i].textContent || '').trim();
-        if (/通用|General/i.test(txt)) return TAB_GENERAL;
-        if (/数据|Data/i.test(txt)) return TAB_DATA;
-      }
-    }
-
-    // 2) 退而求其次：看内容里有没有「语言」选择框（通用设置独有）
-    if (dlg.querySelector('[aria-label="语言"], [aria-label="Language"]')) return TAB_GENERAL;
-
-    // 3) 或者有没有导入/导出那一组（数据管理独有）
-    var rows = dlg.querySelectorAll('.row-_85c1b');
-    for (var j = 0; j < rows.length; j++) {
-      if (/导出所有历史对话|导入历史对话|Export|Import/i.test(rows[j].textContent || '')) {
-        return TAB_DATA;
-      }
-    }
-    return TAB_UNKNOWN;
-  }
-
-  /**
-   * 启动时就先探一次文件夹权限。
-   *
-   * 为什么必须有这一步：Chromium 会在浏览器重启后把已保存句柄的 readwrite
-   * 权限降回 `prompt`。此时**自动落盘会一直失败**（`snapshot()` 用的是
-   * `ensurePermission(root, false)`，只查不申请，于是直接抛错），
-   * 而失败只写进控制台。用户看到的现象就是"选了文件夹、也显示已连接，
-   * 但对话就是写不进去"，而且完全没有提示。
-   *
-   * 用户实测就是这种情况：Chrome 侧最后一次成功写入停在 2026-11-21 22:14，
-   * 之后新建的对话一条都没进文件夹，界面上却什么提示都没有。
-   * 提前探一次，设置面板一打开就能看到「需要重新连接」。
-   */
-  async function probePermissionOnBoot() {
-    if (!supportsFs) return;
-    var root = await getRootHandle();
-    if (!root) return;
-    var state = await ensurePermission(root, false);
-    uiState.permission = state;
-    if (state !== 'granted') {
-      uiState.message = t('needReconnect');
-      uiState.messageError = true;
-      log('文件夹权限当前是 ' + state + '，自动落盘会被跳过，需要用户点「重新连接」');
-    }
-  }
-
   function mountSection(scope) {
     var container = findMountContainer(scope);
 
@@ -8140,7 +8053,6 @@
 
     container.appendChild(renderSection());
     log('已挂载设置区块 → .' + (container.className || container.tagName) + '（通用设置）');
-    refreshPermissionState();
     return true;
   }
 
@@ -8168,8 +8080,6 @@
     observer.observe(document.body, { childList: true, subtree: true });
     // 面板可能已经存在（脚本晚于首屏渲染）
     sync();
-    // 顺手探一次权限，让「需要重新连接」在用户打开面板时就已经在了
-    probePermissionOnBoot();
     log('已开始监听设置弹窗');
   }
 
@@ -9436,117 +9346,18 @@
     watchGreeting();
     installComposerOutsideClick();
     watchDeepLink();
-    startFolderWatcher();
-    // 单次请求 token 上限（用户可在设置里调低；默认按服务端硬上限 32768）
-    loadRequestTokenLimit();
-    // 反向同步：盯着文件夹，外部新增/修改的对话自动收进来。
-    // 它自己会先取句柄再对齐，这里不 await，免得拖慢首屏。
-
-    // 从文件夹恢复设置与 API Key（仅当浏览器里没有时才回填）
+    // ---------------------------------------------------------------------
+    // 文件夹自动同步已整块移除（含 startFolderWatcher / 启动恢复设置与 Key /
+    // 取句柄 / 检查权限 / 自动恢复对话 / 启动对账）。
     //
-    // ⚠ 每一步前面都要看熔断状态。句柄确认无响应后，这些步骤每一步都要先白等
-    // 3 秒（权限查询）+ 2 秒（只读探针），启动连做三步就是十几秒不停往浏览器
-    // 进程里塞挂起请求 —— 用户正是在这种"持续发起文件系统调用"的形态下崩溃的。
-    // 熔断后整段直接跳过，一个调用都不发。
-    if (!permCircuitOpen()) {
-      try {
-        var settingsRestored = await bootStepRun('恢复设置', hydrateSettingsFromFolder());
-        if (settingsRestored) {
-          if (requestReload('从文件夹恢复了设置')) return;
-        }
-      } catch (e) {
-        warn('恢复设置失败', e);
-      }
-    }
-
-    if (!permCircuitOpen()) {
-      try {
-        var restored = await bootStepRun('恢复 API Key', hydrateKeyFromFolder());
-        if (restored) {
-          // 官方应用在启动时读取一次 apiKey，这里刷新让它生效
-          if (requestReload('从文件夹恢复了 API Key')) return;
-        }
-      } catch (e) {
-        warn('恢复 API Key 失败', e);
-      }
-    }
-
-    // 把文件夹里 / 应用里已有的 Key 收进提供方，避免设置面板显示为空、
-    // 以及后续保存时用空 Key 覆盖掉可用的 Key（「Key 无效」的根因）。
-    if (!permCircuitOpen()) {
-      try {
-        await bootStepRun('同步 API Key 到提供方', syncKeyFromFolderToProvider());
-        adoptKeyIntoActiveProvider();
-      } catch (e) {
-        warn('同步 API Key 到提供方失败', e);
-      }
-    }
-
-    // 之后持续对账：官方「数据管理」里的 Key 编辑框会直接写槽位，
-    // 桥接层收不到通知，只能靠轮询把它采纳进当前提供方。
-    startKeySync();
-
-    // 熔断已触发（句柄确认无响应）就整段跳过：一次文件系统调用都不发。
-    if (supportsFs && !permCircuitOpen()) {
-      try {
-        var root = await bootStepRun('取文件夹句柄', getRootHandle());
-        if (root) {
-          dirCache = root;
-          var state = await bootStepRun('检查文件夹权限', ensurePermission(root, false));
-          // 句柄确认无响应：查权限和只读访问都挂。
-          // 这个句柄救不回来，必须让用户重新选一次文件夹换新句柄。
-          if (permissionStuck) {
-            uiState.permission = 'stuck';
-            // 措辞指向"句柄/文件夹访问"，并给出明确的下一步动作。
-            // （之前的措辞指向"磁盘坏了"，但用户确认 E: 是能正常打开的本机盘，
-            //  写错了方向会让用户去查一块没问题的盘。）
-            uiState.message = '无法访问存档文件夹（读取与授权检查都没有响应）。'
-              + '请点「更换文件夹」重新选择同一个文件夹 —— '
-              + 'Chrome 需要重新拿一个有效的文件夹句柄才能继续同步。';
-            uiState.messageError = true;
-            warn('文件夹句柄无响应，已提示用户重新选择文件夹');
-          } else {
-            uiState.permission = state;
-            // 权限恢复正常：把之前那条告警收掉，
-            // 否则用户照做之后告警还挂着，会以为没修好。
-            if (state === 'granted' && uiState.messageError
-                && /无法访问存档文件夹/.test(uiState.message || '')) {
-              uiState.message = null;
-              uiState.messageError = false;
-            }
-          }
-          log('已恢复文件夹句柄：' + (root.name || '') + '（权限：' + state + '）');
-          if (state === 'granted') {
-            // 全新浏览器（清空数据后重连）先把对话读回来，再对账，
-            // 否则对账会把空库当成事实、把文件夹里的存档删掉。
-            //
-            // ⚠ 判据必须是 n > 0，不能是"真值"。autoRestoreAfterConnect 现在
-            // 返回数量；旧写法返回 true/false，而 maybeAutoRestoreHistory 在
-            // "文件夹里没有可恢复的对话"时也会返回一个真值对象，
-            // 于是启动时反复刷新 —— 页面一直卡在「处理中…」。
-            try {
-              var restoredCount = await bootStepRun('自动恢复对话', autoRestoreAfterConnect());
-              if (restoredCount > 0) {
-                if (requestReload('自动恢复了 ' + restoredCount + ' 个对话')) return;
-              }
-            } catch (e) {
-              warn('自动恢复对话失败：' + ((e && e.message) || e));
-            }
-
-            // 静默做一次对账，让文件夹与浏览器保持一致
-            snapshot('boot')
-              .then(function (r) {
-                if (r) log('启动对账完成', r);
-              })
-              .catch(function (e) {
-                warn('启动对账失败：' + ((e && e.message) || e));
-              });
-          }
-        }
-      } catch (e) {
-        warn('恢复文件夹句柄失败', e);
-      }
-    }
+    // 原因：这一整段是**每次页面加载都会跑**的 File System Access 调用，而在用户的
+    // Chrome 上它会让共享 GPU 进程被看门狗杀掉，导致**所有标签一起崩**（整机级）。
+    // 同一个文件夹换 Edge 完全正常，所以是 Chrome 在该环境下的实现问题 ——
+    // 页面侧加熔断只能"少打几次"，删掉才是"一次都不打"。
+    //
+    // 数据搬运改由「导出 / 导入」承担：走下载与选文件，完全不碰
+    // File System Access，因此不受文件夹权限、磁盘状态、浏览器差异影响。
+    // ---------------------------------------------------------------------
 
     /**
      * ★ 一键排查「同步不工作」 ★
@@ -9741,7 +9552,18 @@
 
       // 手动导出 / 导入（不碰 File System Access）
       exportBundle: exportBundleToFile,
+      exportSession: exportSingleSession,
+      /**
+       * 给扩展层用：按**标题**导出单个对话。
+       * 标题不唯一时抛错（不瞎选一条），错误信息可直接展示给用户。
+       */
+      exportSessionByTitle: async function (title) {
+        var id = await findSessionIdByTitle(title);
+        return exportSingleSession(id);
+      },
       importBundle: importBundleFromText,
+      /** 只给测试用：导入的合并决策（决定会不会覆盖用户更新的内容） */
+      __planImportMergeForTest: planImportMerge,
       /** 只给测试用：base64 ↔ Blob 的往返必须无损（附件靠它搬运） */
       __b64ToBlobForTest: b64ToBlob,
       __blobToB64ForTest: function (blob) {
@@ -9835,67 +9657,23 @@
       },
 
       onSync: onSync,
-      pickFolder: pickFolder,
-      disconnect: disconnect,
-      reconnect: reconnect,
-      snapshot: snapshot,
-      restoreFromFolder: restoreFromFolder,
-      /** 首次连接后自动读回对话（仅全新浏览器会真正执行） */
-      autoRestoreAfterConnect: autoRestoreAfterConnect,
-      maybeAutoRestoreHistory: maybeAutoRestoreHistory,
-      /** 反向同步（盯着文件夹收外部改动）—— 只读诊断 + 手动触发 */
-      folderWatch: {
-        state: watchState,
-        prime: primeFolderWatcher,
-        reconcile: reconcileFolderOnBoot,
-        poll: pollFolderForChanges,
-        start: startFolderWatcher,
-        stop: stopFolderWatcher,
-        /** 等「启动对齐 + 首轮排程」完成 */
-        ready: watchReady
-      },
+      // ---------------------------------------------------------------------
+      // 文件夹相关的手动入口已全部移除（pickFolder / disconnect / reconnect /
+      // snapshot / restoreFromFolder / autoRestoreAfterConnect / folderWatch 等）。
+      //
+      // 为什么连"手动"入口也删：只要它还挂在 __localstore 上，就随时可能被
+      // 误调用而重新引入 File System Access 调用 —— 而在用户的 Chrome 上，
+      // 那正是让共享 GPU 进程被看门狗杀掉、所有标签一起崩的原因。
+      // 留一个"手动但危险"的后门，等于前功尽弃。
+      // ---------------------------------------------------------------------
       countLocalSessions: countLocalSessions,
       /**
        * 一键排查同步问题（在真实浏览器里跑才有意义）。
        * 用法：copy(JSON.stringify(await window.__localstore.syncDoctor(), null, 2))
        */
       syncDoctor: syncDoctor,
-      /**
-       * 只给测试用：直接跑一次"启动对账"。
-       *
-       * 这条路径每次**页面加载**都会执行，而且里面有需要"收完刷新页面"的动作
-       * （历史上是无保护的 location.reload，正是无限自刷新的来源）。
-       * 暴露出来才能在测试里反复触发它、验证熔断器真的兜得住。
-       */
-      __reconcileForTest: function () { return reconcileFolderOnBoot(); },
       /** 最近一次快照的清理判据（排查"为什么删了别人的对话"用） */
       lastSnapshotDiag: function () { return lastSnapshotDiag; },
-      /**
-       * 只给测试用：重新装一次文件夹监看。
-       *
-       * ⚠ 这才是**生产路径**：它会跑 primeFolderWatcher + 对账，
-       * 并在收到对话后申请刷新页面（历史上这里是裸的 location.reload，
-       * 正是"无限自己刷新"的来源）。
-       * 直接调 __reconcileForTest() 是绕过那段刷新逻辑的，测不出刷新行为。
-       */
-      startFolderWatcher: function () { return startFolderWatcher(); },
-      /**
-       * 只给测试用：看看"对账眼里的文件夹"长什么样。
-       * 排查"文件夹里明明有文件，对账却认为没有东西要收"这类问题时，
-       * 需要同时看到：扫到哪些文件、每个文件的大小/时间、本地有哪些 id。
-       */
-      __scanForTest: async function () {
-        var list = await scanSessionFiles();
-        var local = await readAllSessions();
-        return {
-          scan: list,
-          lastError: watchState.lastError,
-          reconciled: watchState.reconciled,
-          localIds: local.map(function (s) {
-            return { id: s.id, updatedAt: s.updatedAt };
-          })
-        };
-      },
       /**
        * 手动解除「处理中…」卡死（逃生舱）。
        *

@@ -775,7 +775,9 @@
     search: 'M6.8 1.6a5.2 5.2 0 0 1 4.11 8.39l3.55 3.55a.8.8 0 0 1-1.13 1.13l-3.55-3.55A5.2 5.2 0 1 1 6.8 1.6zm0 1.6a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2z',
     left: 'M10.5 2.3a.8.8 0 0 1 0 1.13L5.93 8l4.57 4.57a.8.8 0 1 1-1.13 1.13L4.23 8.57a.8.8 0 0 1 0-1.13l5.14-5.14a.8.8 0 0 1 1.13 0z',
     chevron: 'M3.4 5.7a.8.8 0 0 1 1.13 0L8 9.17l3.47-3.47a.8.8 0 1 1 1.13 1.13L8.57 10.9a.8.8 0 0 1-1.13 0L3.4 6.83a.8.8 0 0 1 0-1.13z',
-    close: 'M3.3 3.3a.8.8 0 0 1 1.13 0L8 6.87l3.57-3.57a.8.8 0 1 1 1.13 1.13L9.13 8l3.57 3.57a.8.8 0 1 1-1.13 1.13L8 9.13l-3.57 3.57a.8.8 0 0 1-1.13-1.13L6.87 8 3.3 4.43a.8.8 0 0 1 0-1.13z'
+    close: 'M3.3 3.3a.8.8 0 0 1 1.13 0L8 6.87l3.57-3.57a.8.8 0 1 1 1.13 1.13L9.13 8l3.57 3.57a.8.8 0 1 1-1.13 1.13L8 9.13l-3.57 3.57a.8.8 0 0 1-1.13-1.13L6.87 8 3.3 4.43a.8.8 0 0 1 0-1.13z',
+    // 导出（下载到本地）：向下箭头 + 托盘
+    download: 'M8 1.6a.8.8 0 0 1 .8.8v6.06l1.97-1.97a.8.8 0 1 1 1.13 1.13l-3.34 3.34a.8.8 0 0 1-1.13 0L4.1 7.62a.8.8 0 0 1 1.13-1.13L7.2 8.46V2.4a.8.8 0 0 1 .8-.8zM2.4 12.4a.8.8 0 0 1 .8.8v.4h9.6v-.4a.8.8 0 1 1 1.6 0v.8a1.2 1.2 0 0 1-1.2 1.2H2.8a1.2 1.2 0 0 1-1.2-1.2v-.8a.8.8 0 0 1 .8-.8z'
   };
 
   /* ================================================================== *
@@ -1088,6 +1090,7 @@
   var PIN_CLASS = 'ls-pin-option';
   var PINNED_CLASS = 'ls-pinned';
   var PIN_BADGE = 'ls-pin-badge';
+  var EXPORT_CLASS = 'ls-export-option';
 
   /** 会话项标题（trim 过的） */
   function itemTitle(it) {
@@ -1095,7 +1098,7 @@
     return t ? (t.textContent || '').trim() : '';
   }
 
-  /** 往弹出菜单里补一条「置顶 / 取消置顶」 */
+  /** 往弹出菜单里补一条「置顶 / 取消置顶」和一条「导出」 */
   function decorateMenu(menu) {
     if (!menu || menu.querySelector('.' + PIN_CLASS)) return;
     var first = menu.querySelector(SEL.menuOption);
@@ -1128,6 +1131,44 @@
 
     // 插到最前面（重命名/删除之前）
     menu.insertBefore(opt, first);
+
+    // ---- 「导出」：把这一条对话存成文件 ----
+    // 复用同一个菜单容器与样式（option-_5f384 / icon-_5f384），
+    // 所以外观与官方的「重命名」「删除」完全一致，不需要自己写 UI。
+    var expOpt = el('div', 'option-_5f384 ' + EXPORT_CLASS);
+    expOpt.setAttribute('role', 'menuitem');
+    expOpt.tabIndex = 0;
+    var expIc = el('span', 'icon-_5f384');
+    expIc.appendChild(svgIcon(ICON.download, 16));
+    expOpt.appendChild(expIc);
+    expOpt.appendChild(document.createTextNode('导出'));
+    expOpt.dataset.lsExportFor = title || '';
+
+    var doExport = function (ev) {
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      var t = expOpt.dataset.lsExportFor;
+      if (!t) return;
+      var api = window.__localstore;
+      if (!api || typeof api.exportSessionByTitle !== 'function') {
+        log('导出失败：桥接层未就绪');
+        return;
+      }
+      closeMenu();
+      api.exportSessionByTitle(t).then(function (r) {
+        log('已导出「' + (r.title || t) + '」→ ' + r.name);
+      }).catch(function (e) {
+        // 同名对话等无法确定的情况：明确告诉用户，而不是悄悄导出错的那条
+        log('导出失败：' + ((e && e.message) || e));
+        alert('导出失败：' + ((e && e.message) || e));
+      });
+    };
+    expOpt.addEventListener('click', doExport);
+    expOpt.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') doExport(ev);
+    });
+    // 放在「置顶」之后（置顶最前，其次是导出）
+    if (opt.nextSibling) menu.insertBefore(expOpt, opt.nextSibling);
+    else menu.appendChild(expOpt);
   }
 
   /** 菜单弹出时，它属于哪个会话？
