@@ -46,6 +46,46 @@
   var DIR_SUFFIX = '-本地存档';
   var AUTO_SYNC_DEBOUNCE = 700;
 
+  /**
+   * 启动阶段每一步"要读文件夹"的操作，都不允许无限期挂着。
+   *
+   * 用户实测的故障形态：`window.__localstore.booted === false`、
+   * `bootError === null` —— 也就是说 boot() **既没跑完、也没抛错，而是卡住了**，
+   * 于是 `window.__localstore` 的完整版（在 boot() 末尾赋值）永远装不上，
+   * 「立即同步」也永远等不到返回，面板就停在「同步中…」。
+   *
+   * 所以每一步都加上限：超时按"这一步失败"处理，后面的步骤继续走，
+   * 保证 boot() 一定能走到末尾。哪一步超时也会被明确记下来。
+   */
+  var BOOT_STEP_TIMEOUT_MS = 12000;
+
+  /** 当前正在执行的启动步骤（排查挂起用：卡住时这里就是最后一步） */
+  var bootStep = null;
+  var bootStepStart = 0;
+
+  /** 带超时的启动步骤：超时不阻断后续，只记录 */
+  function bootStepRun(label, promise) {
+    bootStep = label;
+    bootStepStart = Date.now();
+    log('启动步骤开始：' + label);
+    var timer = null;
+    return Promise.race([
+      Promise.resolve(promise).then(function (v) {
+        log('启动步骤完成：' + label + '（' + (Date.now() - bootStepStart) + 'ms）');
+        return v;
+      }),
+      new Promise(function (_res, rej) {
+        timer = setTimeout(function () {
+          warn('启动步骤超时（' + BOOT_STEP_TIMEOUT_MS + 'ms）：' + label + ' —— 跳过它继续启动');
+          rej(new Error('启动步骤超时：' + label));
+        }, BOOT_STEP_TIMEOUT_MS);
+      })
+    ]).then(
+      function (v) { clearTimeout(timer); return v; },
+      function (e) { clearTimeout(timer); throw e; }
+    );
+  }
+
   var BRIDGE_VERSION = '1.2.0';
 
   // -------------------------------------------------------------------------
@@ -1186,6 +1226,20 @@
     };
   }
 
+  /**
+   * 快照卡死时的看门狗。
+   *
+   * 为什么必须有：`syncState.running` 是"同一时刻只跑一次快照"的锁。正常情况下
+   * `finally` 会释放它，但**如果 `doSnapshot()` 里的 File System Access 调用
+   * 永远不 settled（不 reject 也不 resolve），`finally` 根本不会执行** ——
+   * 锁就永远留在 true。后果是双重的：
+   *   · 界面永远显示「同步中…」（用户实测就是这个）；
+   *   · 之后每一次同步都走 `if (syncState.running) { queued = true; return null; }`
+   *     直接被吞掉 —— 自动保存、手动「立即同步」全部无效。
+   * 加超时强制解锁，至少让后续同步有机会重试，并把原因报到界面上。
+   */
+  var SNAPSHOT_WATCHDOG_MS = 45000;
+
   /** 带串行化与状态上报的快照入口 */
   async function snapshot(reason) {
     if (!supportsFs) throw new Error('当前浏览器不支持文件夹写入');
@@ -1208,6 +1262,24 @@
     syncState.lastError = null;
     emitSync();
 
+    // 看门狗：卡住也要把锁放掉，否则后续所有同步都会被静默吞掉
+    var watchdog = setTimeout(function () {
+      if (!syncState.running) return;
+      var msg = '同步超时（' + Math.round(SNAPSHOT_WATCHDOG_MS / 1000)
+        + ' 秒没有完成），已强制解除占用。可能是文件夹授权弹窗未响应，'
+        + '或文件夹所在磁盘不可用。';
+      syncState.running = false;
+      syncState.lastError = msg;
+      warn(msg + '（触发原因：' + reason + '）');
+      emitSync();
+      try {
+        uiState.busy = false;
+        uiState.message = msg;
+        uiState.messageError = true;
+        rerender();
+      } catch (e) { /* 界面还没挂上就算了 */ }
+    }, SNAPSHOT_WATCHDOG_MS);
+
     var result = null;
     try {
       result = await doSnapshot(root, { reason: reason });
@@ -1220,6 +1292,7 @@
       warn('同步失败', e);
       throw e;
     } finally {
+      clearTimeout(watchdog);
       syncState.running = false;
       emitSync();
       if (syncState.queued) {
@@ -8790,7 +8863,7 @@
 
     // 从文件夹恢复设置与 API Key（仅当浏览器里没有时才回填）
     try {
-      var settingsRestored = await hydrateSettingsFromFolder();
+      var settingsRestored = await bootStepRun('恢复设置', hydrateSettingsFromFolder());
       if (settingsRestored) {
         if (requestReload('从文件夹恢复了设置')) return;
       }
@@ -8799,7 +8872,7 @@
     }
 
     try {
-      var restored = await hydrateKeyFromFolder();
+      var restored = await bootStepRun('恢复 API Key', hydrateKeyFromFolder());
       if (restored) {
         // 官方应用在启动时读取一次 apiKey，这里刷新让它生效
         if (requestReload('从文件夹恢复了 API Key')) return;
@@ -8811,7 +8884,7 @@
     // 把文件夹里 / 应用里已有的 Key 收进提供方，避免设置面板显示为空、
     // 以及后续保存时用空 Key 覆盖掉可用的 Key（「Key 无效」的根因）。
     try {
-      await syncKeyFromFolderToProvider();
+      await bootStepRun('同步 API Key 到提供方', syncKeyFromFolderToProvider());
       adoptKeyIntoActiveProvider();
     } catch (e) {
       warn('同步 API Key 到提供方失败', e);
@@ -8823,10 +8896,10 @@
 
     if (supportsFs) {
       try {
-        var root = await getRootHandle();
+        var root = await bootStepRun('取文件夹句柄', getRootHandle());
         if (root) {
           dirCache = root;
-          var state = await ensurePermission(root, false);
+          var state = await bootStepRun('检查文件夹权限', ensurePermission(root, false));
           uiState.permission = state;
           log('已恢复文件夹句柄：' + (root.name || '') + '（权限：' + state + '）');
           if (state === 'granted') {
@@ -8838,7 +8911,7 @@
             // "文件夹里没有可恢复的对话"时也会返回一个真值对象，
             // 于是启动时反复刷新 —— 页面一直卡在「处理中…」。
             try {
-              var restoredCount = await autoRestoreAfterConnect();
+              var restoredCount = await bootStepRun('自动恢复对话', autoRestoreAfterConnect());
               if (restoredCount > 0) {
                 if (requestReload('自动恢复了 ' + restoredCount + ' 个对话')) return;
               }
@@ -9702,6 +9775,8 @@
     })(),
     /** 启动流程是否已经跑完（false 且没有 bootError，说明还卡在某一步） */
     booted: false,
+    /** 当前/最后一个启动步骤；配合 booted:false 就能看出卡在哪一步 */
+    bootStep: function () { return bootStep; },
     /** 手动放开「处理中…」卡死（完整版会替换掉它） */
     unstick: function () { return { booted: false, note: '启动尚未完成，完整接口未就绪' }; },
     reloadLog: function () { return readReloadLog(); },
