@@ -86,7 +86,7 @@
     );
   }
 
-  var BRIDGE_VERSION = '1.2.0';
+  var BRIDGE_VERSION = '1.3.0';
 
   /**
    * 功能扩展层（localstore-features.js / .css）的内容指纹。
@@ -772,6 +772,114 @@ var FEATURES_CSS_VERSION = 'ba3bc949';
     emitSync();
     log('导入完成：' + toWrite.length + ' 个对话写回本地库（跳过 ' + skipped + ' 个不更新的）');
     return result;
+  }
+
+  /* -------------------------------------------------------------------------
+   * 数据修复：补上「应用会无条件读取、但早期版本漏写」的字段
+   *
+   * ★ 为什么需要（真实事故：随便点一个对话就黑屏）★
+   *
+   * 2026-11 我第一次转换 DeepSeek 官方导出时，用户消息只在**有附件**时才写
+   * `files` 字段。而应用的输入框/消息渲染里直接写：
+   *
+   *     n.files.length > 0
+   *     k = !u && (v.trim() !== '' || n.files.length > 0)
+   *
+   * 没有 `files` 的用户消息 → `undefined.length` →
+   *   TypeError: Cannot read properties of undefined (reading 'length')
+   * 页面又**没有错误边界**，这个异常会把整棵 React 树卸载：
+   * body 里只剩空的 `div#root` 和一个浮层，侧栏也一起消失 ——
+   * 用户看到的就是"随便点一个对话就黑屏"。
+   *
+   * 官方导出里 39/39 条用户消息**全部**带 `files`（其中 33 条是空数组），
+   * 应用依赖的正是这个不变量。助手消息同理，62/62 条都带 `latestReminder`。
+   *
+   * 为什么单独做修复、而不是"重新导入一遍已经补好的包"：
+   *   `planImportMerge` 的规则是 `文件.updatedAt > 本地.updatedAt` 才覆盖，
+   *   而包里是**官方时间戳**，与库里的完全相等 → 会被判为"不更新"而跳过，
+   *   坏数据永远修不好。改包里的 updatedAt 又会打乱侧栏按时间排序。
+   *   所以这里就地补字段，**时间戳一律不动**。
+   *
+   * 幂等：字段已经存在就跳过，重复执行没有副作用。
+   * ---------------------------------------------------------------------- */
+  function buildLatestReminder(millis) {
+    var WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    var d = millis == null ? new Date() : new Date(millis);
+    if (isNaN(d.getTime())) return '';
+    var p2 = function (x) { return (x < 10 ? '0' : '') + x; };
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate())
+      + ',' + WEEKDAYS[d.getDay()] + ',,Web,中文';
+  }
+
+  /**
+   * 就地修复本地库里的会话数据。
+   * 返回 { sessions, fixedSessions, fixedFiles, fixedReminders, imagesRefilled }
+   */
+  async function repairLocalSessions(onProgress) {
+    var sessions = await readAllSessions();
+    var fixedSessions = 0;
+    var fixedFiles = 0;
+    var fixedReminders = 0;
+
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i];
+      if (!s || !Array.isArray(s.messages)) continue;
+      var touched = false;
+
+      for (var j = 0; j < s.messages.length; j++) {
+        var m = s.messages[j];
+        if (!m || !m.role) continue;
+
+        if (m.role === 'user') {
+          // ① 用户消息必须有 files 数组（没有附件就是空数组）
+          if (!Array.isArray(m.files)) {
+            m.files = [];
+            fixedFiles++;
+            touched = true;
+          }
+        } else {
+          // ② 助手消息必须有 latestReminder
+          if (typeof m.latestReminder !== 'string' || !m.latestReminder) {
+            var v = buildLatestReminder(typeof m.createdAt === 'number' ? m.createdAt : null);
+            if (v) { m.latestReminder = v; fixedReminders++; touched = true; }
+          }
+          // ③ blocks 必须是数组（渲染器直接遍历它）
+          if (!Array.isArray(m.blocks)) {
+            if (Array.isArray(m.content)) { m.blocks = m.content; }
+            else if (typeof m.content === 'string' && m.content) {
+              m.blocks = [{ type: 'text', text: m.content }];
+            } else {
+              m.blocks = [];
+            }
+            touched = true;
+          }
+        }
+      }
+
+      if (touched) fixedSessions++;
+      if (onProgress && (i % 25 === 0)) onProgress(i + 1, sessions.length);
+    }
+
+    if (!fixedSessions) {
+      log('数据修复：检查了 ' + sessions.length + ' 个对话，没有发现需要补的字段');
+      return { sessions: sessions.length, fixedSessions: 0, fixedFiles: 0, fixedReminders: 0 };
+    }
+
+    autoSyncSuspended++;
+    try {
+      // 只写会话，附件不动（files 传空数组 —— writeBack 不会删已有附件）
+      await writeBack(sessions, [], onProgress);
+    } finally {
+      autoSyncSuspended--;
+    }
+    log('数据修复：' + fixedSessions + ' 个对话已补字段'
+      + '（files ' + fixedFiles + ' 处，latestReminder ' + fixedReminders + ' 处）');
+    return {
+      sessions: sessions.length,
+      fixedSessions: fixedSessions,
+      fixedFiles: fixedFiles,
+      fixedReminders: fixedReminders
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -7646,6 +7754,119 @@ var FEATURES_CSS_VERSION = 'ba3bc949';
         inp.click();
       }, { disabled: uiState.busy, title: '选择之前导出的备份文件' })
     );
+    btns.push(
+      button('批量导入', function () {
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = '.json,application/json';
+        inp.multiple = true;
+        inp.style.display = 'none';
+        inp.addEventListener('change', function () {
+          var picked = inp.files ? Array.prototype.slice.call(inp.files) : [];
+          try { inp.remove(); } catch (e) { /* ignore */ }
+          if (!picked.length) return;
+          withBusy(async function () {
+            var imported = 0;
+            var skipped = 0;
+            var failed = [];
+            /**
+             * 进度回调必须**限流**。
+             *
+             * `importBundleFromText` 的 onProgress 是**每写一条记录回调一次**，
+             * 而 setMessage + rerender 会整块重建面板 DOM。一个几百条消息的包
+             * 就是几百次全量重绘，会把界面拖住（也让自动化测试超时）。
+             * 400ms 一次足够让用户看到进展。
+             */
+            var lastPaint = 0;
+            var paint = function (text) {
+              var now = Date.now();
+              if (now - lastPaint < 400) return;
+              lastPaint = now;
+              setMessage(text, false);
+              rerender();
+            };
+            try {
+              for (var i = 0; i < picked.length; i++) {
+                paint('正在导入 ' + (i + 1) + '/' + picked.length + '：' + picked[i].name);
+                try {
+                  var text = await picked[i].text();
+                  var r = await importBundleFromText(text, function (done, total, label) {
+                    paint('正在导入 ' + (i + 1) + '/' + picked.length + '：' + label);
+                  });
+                  imported += r.imported || 0;
+                  skipped += r.skipped || 0;
+                } catch (e) {
+                  failed.push(picked[i].name + '（' + ((e && e.message) || e) + '）');
+                  warn('批量导入失败：' + picked[i].name + ' — ' + ((e && e.message) || e));
+                }
+              }
+            } finally {
+              // 失败的包不阻断其余导入；下面统一给结论
+            }
+
+            var tail = failed.length ? ('，' + failed.length + ' 个包失败：' + failed.slice(0, 3).join('；')
+              + (failed.length > 3 ? ' 等' : '')) : '';
+            if (!imported) {
+              setMessage('没有更新的对话（跳过 ' + skipped + ' 个）' + tail, failed.length > 0);
+              return;
+            }
+            /**
+             * 收尾前先自己核对一遍：库里现在到底有多少个对话。
+             * 既给用户一个可信的数字（"已导入 N 个 / 库里共 M 个"），
+             * 也让自动化测试能直接读到结论 —— 页面马上就刷新了。
+             */
+            var summary = '已导入 ' + imported + ' 个对话'
+              + (skipped ? '，跳过 ' + skipped + ' 个已有的' : '') + tail;
+            try {
+              var nowAll = await readAllSessions();
+              summary += '；库里共 ' + nowAll.length + ' 个对话';
+              log('批量导入小结：' + summary
+                + '（处理 ' + picked.length + ' 个包，失败 ' + failed.length + ' 个）');
+            } catch (e) {
+              warn('批量导入后统计失败：' + ((e && e.message) || e));
+            }
+            setMessage(summary + '，正在刷新…', failed.length > 0);
+            // ★ 只在这里刷新一次（以前每导一个包就刷一次，98 个包要刷 98 次）
+            uiState.busy = false;
+            rerender();
+            setTimeout(function () {
+              if (requestReload('批量导入后刷新')) return;
+              setMessage('已导入 ' + imported + ' 个对话，请手动刷新页面', false);
+            }, 300);
+          });
+        });
+        document.body.appendChild(inp);
+        inp.click();
+      }, { title: '一次选多个备份文件，只刷新一次（导入官方导出分批包时用）' })
+    );
+    btns.push(
+      button('修复数据', function () {
+        withBusy(async function () {
+          try {
+            setMessage('正在检查本地数据…', false);
+            rerender();
+            var r = await repairLocalSessions(function (done, total) {
+              setMessage('正在修复 ' + done + '/' + total + ' 个对话…', false);
+              rerender();
+            });
+            if (!r.fixedSessions) {
+              setMessage('检查了 ' + r.sessions + ' 个对话，没有需要修复的', false);
+              return;
+            }
+            setMessage('已修复 ' + r.fixedSessions + ' 个对话（补 files ' + r.fixedFiles
+              + ' 处、latestReminder ' + r.fixedReminders + ' 处），正在刷新…', false);
+            uiState.busy = false;
+            rerender();
+            setTimeout(function () {
+              if (requestReload('数据修复后刷新')) return;
+              setMessage('已修复 ' + r.fixedSessions + ' 个对话，请手动刷新页面', false);
+            }, 300);
+          } catch (e) {
+            setMessage('修复失败：' + ((e && e.message) || e), true);
+          }
+        });
+      }, { title: '补上缺失的字段（点开对话黑屏时点这个）' })
+    );
     lines.push(el('div', { class: 'ls-btns' }, btns));
 
     lines.push(
@@ -9578,6 +9799,12 @@ var FEATURES_CSS_VERSION = 'ba3bc949';
         return exportSingleSession(id);
       },
       importBundle: importBundleFromText,
+      /**
+       * 就地修复本地会话里缺失的必填字段（用户消息的 files、助手消息的
+       * latestReminder / blocks）。幂等，不动时间戳。
+       * 用途：修好"点开对话黑屏"这类由旧转换器漏写字段造成的问题。
+       */
+      repairSessions: repairLocalSessions,
       /** 只给测试用：导入的合并决策（决定会不会覆盖用户更新的内容） */
       __planImportMergeForTest: planImportMerge,
       /** 只给测试用：base64 ↔ Blob 的往返必须无损（附件靠它搬运） */

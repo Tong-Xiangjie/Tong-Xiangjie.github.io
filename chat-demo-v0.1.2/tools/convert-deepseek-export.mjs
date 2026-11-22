@@ -422,6 +422,12 @@ function buildTree(msgs, currentMessageId) {
       msg.search = m.search_enabled === true;
       msg.prefix = false;
       msg.status = 'done';
+      /**
+       * latestReminder：官方导出里 62/62 条助手消息**全都有**这个字段，
+       * 形如 "2026-11-20,星期五,北京市,Web,中文"（日期,星期,城市,平台,语言，城市可空）。
+       * 官方导出不记录城市，这里留空；日期/星期取自消息时间。
+       */
+      msg.latestReminder = buildReminder(ts);
     }
 
     // 官方另外两个标记字段，保留下来（应用认这两个名字）
@@ -429,7 +435,30 @@ function buildTree(msgs, currentMessageId) {
     if (m.search_enabled === true) msg.searchEnabled = true;
     if (typeof m.accumulated_token_usage === 'number') msg.tokens = m.accumulated_token_usage;
 
-    if (role === 'user' && conv.refs.length) {
+    /**
+     * ★ 用户消息的 files 字段**必须永远存在**（没有附件就是空数组）★
+     *
+     * 这个 bug 导致「随便点一个对话就黑屏」，教训记在这里。
+     *
+     * 我原来只在有附件时才写 files：
+     *     if (role === 'user' && conv.refs.length) msg.files = [...]
+     * 没有附件的用户消息就没有 files 字段。而应用的输入框/消息渲染里有：
+     *
+     *     n.files.length > 0
+     *     k = !u && (v.trim() !== '' || n.files.length > 0)
+     *
+     * 直接读 n.files.length —— undefined 时抛
+     * `TypeError: Cannot read properties of undefined (reading 'length')`。
+     * 页面没有错误边界，这个异常会把**整棵 React 树卸载**，于是 body 里只剩
+     * 空 div#root + 一个浮层，也就是用户看到的"黑屏"，而且侧栏也一起没了。
+     *
+     * 证据：
+     *   1. 官方导出里的 39 条 user 消息，**全部**有 files 字段（其中 33 条是空数组）
+     *      —— 应用依赖的正是这个不变量
+     *   2. 崩溃栈精确落在 main.6fd9c886.js:2:120632 的 `n.files.length` 上
+     *   3. 手写一个带 files:[] 的最小会话就能正常渲染
+     */
+    if (role === 'user') {
       msg.files = conv.refs.map((af) => ({
         id: af.id,
         serverId: null,
@@ -448,6 +477,23 @@ function buildTree(msgs, currentMessageId) {
   // 但应用从这里开始往下走，所以必须指向真正在选中路径上的那条。
   const rootId = active.length ? mid(active[0].id) : (all.length ? all[0].id : null);
   return { all, rootId, activeCount: active.length, refs: allRefs };
+}
+
+/**
+ * 生成 latestReminder 字符串。
+ *
+ * 官方导出里助手消息 62/62 条都带这个字段，形如：
+ *     "2026-11-20,星期五,,Web,中文"
+ *     "2026-11-21,星期六,北京市,Web,中文"
+ * 即 "日期,星期,城市,平台,语言"。城市官方不导出，留空。
+ */
+const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+function buildReminder(millis) {
+  const d = millis == null ? new Date() : new Date(millis);
+  if (!Number.isFinite(d.getTime())) return '';
+  const p2 = (x) => String(x).padStart(2, '0');
+  const date = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  return `${date},${WEEKDAYS[d.getDay()]},,Web,中文`;
 }
 
 // ---------------------------------------------------------------------------

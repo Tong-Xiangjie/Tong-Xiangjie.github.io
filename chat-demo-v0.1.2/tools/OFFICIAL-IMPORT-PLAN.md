@@ -4,6 +4,76 @@
 
 ---
 
+## ★ 黑屏事故与修复（后来补记，优先级最高）
+
+**症状**：导入分批包之后，随便点开任何一个对话都黑屏 ——
+`div#root` 被清空（`rootChildren: 0`），侧栏也一起消失。
+
+**根因**：第一版转换器只在**有附件**时才给用户消息写 `files` 字段。
+而应用的渲染里直接读 `n.files.length`：
+
+```js
+n.files.length > 0
+k = !u && (v.trim() !== '' || n.files.length > 0)
+```
+
+`undefined.length` →
+`TypeError: Cannot read properties of undefined (reading 'length')`
+（`main.6fd9c886.js:2:120632`，正好是 `n.files` 里那个 `e`）。
+应用**没有错误边界**（`componentDidCatch` / `getDerivedStateFromError` 全库 0 命中），
+异常直接把整棵 React 树卸载。
+
+**官方数据的不变量**（逐字段核对过 `chat-demo-导出-2026-11-22105216.json`）：
+
+| 角色 | 字段 | 覆盖率 |
+|---|---|---|
+| user | `files` | **39/39**（其中 33 条是空数组）|
+| assistant | `blocks, createdAt, id, latestReminder, model, parentId, prefix, role, search, status, thinking` | **62/62** |
+
+所以正确做法是**无条件**写这两个字段（没附件就是 `files: []`）。
+
+**修复分三处**：
+
+1. `convert-deepseek-export.mjs` —— user 消息**总是**写 `files`；
+   assistant 消息写 `latestReminder`（`WEEKDAYS` + `buildReminder()`，
+   格式 `YYYY-MM-DD,星期X,,Web,中文`，与官方一致，城市留空）
+2. `patch-batches.mjs` —— 就地修补**已生成**的批包（本次补了
+   user `files` 15475 处、assistant `latestReminder` 17500 处，源里找不到的 0 条）
+3. 桥接层 `repairLocalSessions()` + 「修复数据」按钮 —— 修**已经导进库**的坏数据
+
+**为什么必须单独做修复函数，不能"重新导入补好的包"**：
+`planImportMerge` 的规则是 `文件.updatedAt > 本地.updatedAt` 才覆盖，
+而包里是**官方时间戳**，与库里的完全相等 → 判为"不更新"而跳过，坏数据永远修不好。
+改包里的 `updatedAt` 又会打乱侧栏按时间排序。
+所以 `repairLocalSessions()` **就地补字段、时间戳一律不动**，且幂等。
+
+**验证**（`tools/verify-repair.mjs`，故意造坏数据走真实 UI）：
+
+| 阶段 | root 子节点 | 助手气泡 | 用户气泡 |
+|---|---|---|---|
+| 修复前 | **0**（黑屏复现）| 0 | 0 |
+| 修复后 | 1 | 1 | 1 |
+
+**附带发现**：修复用的 `writeBack()` 只 `put`、**从不删除**；
+它还会按 `m.files` 重算 `sessionSummaries.fileIds`，
+顺带把附件归属也修正了。
+
+### 批量导入（同样后来补记）
+
+桥接层原来的「导入」input 没有 `multiple`，且只用 `files[0]`；
+官方自带的「导入历史对话」input 也一样（`accept: ".zip,…"`、无 `multiple`、取 `files[0]`）。
+所以**原生一次只能选一个文件**，批量只能做在桥接层。
+
+新增「批量导入」按钮：多选 → 顺序导入 → **只在最后刷新一次**
+（原来每导一个包就刷一次，98 个包要刷 98 次）。
+进度回调**限流 400ms** —— `importBundleFromText` 的 onProgress 是每写一条记录
+回调一次，而 `setMessage + rerender` 会整块重建面板 DOM，不限流会把界面拖死。
+
+**验证**（`tools/verify-batch-import.mjs`）：一次选中 3 个包（共 6 个对话），
+侧栏立刻变成 6 项，只刷新一次。
+
+---
+
 ## ★★ 最终结论：合并进官方 ZIP 做不到 ★★
 
 **应用的导入器要求 ZIP 与官方导出器产出的字节结构完全一致 —— 任何改动，哪怕
