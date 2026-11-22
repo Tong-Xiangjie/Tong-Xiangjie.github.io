@@ -706,17 +706,64 @@
     }
   })();
 
+  /**
+   * `queryPermission()` / `requestPermission()` 的上限。
+   *
+   * ⚠ 实测：这两个调用会**永远不返回**（既不 resolve 也不 reject）。
+   * 用户那台机器上就是如此 —— 控制台最后一行停在「启动步骤开始：检查文件夹权限」，
+   * 之后再无输出；启动流程、自动保存、「立即同步」全部堵在这一个 promise 上，
+   * 表现就是面板永远停在「同步中…」、文件夹几小时没被写过。
+   *
+   * 一个永远不 settled 的 promise 会一直占着锁，所以这里必须设上限。
+   * 超时按"权限拿不到"处理（调用方会给出明确提示），至少不把整个应用堵死。
+   */
+  var PERMISSION_TIMEOUT_MS = 3000;
+
+  /**
+   * 是否遇到过"权限查询卡死"的句柄。
+   * 这种句柄无法恢复（queryPermission 永远不返回），只能让用户重新选文件夹。
+   */
+  var permissionStuck = false;
+
+  function withPermissionTimeout(promise, label) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        warn('文件夹权限检查超时（' + PERMISSION_TIMEOUT_MS + 'ms）：' + label
+          + ' —— Chrome 没有返回权限状态，先按"未授权"处理');
+        reject(new Error('权限检查超时：' + label));
+      }, PERMISSION_TIMEOUT_MS);
+      Promise.resolve(promise).then(
+        function (v) { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
+        function (e) { if (!done) { done = true; clearTimeout(timer); reject(e); } }
+      );
+    });
+  }
+
   /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
   async function ensurePermission(handle, request) {
     if (!handle) return 'denied';
+    // 每次检查都重新判定：卡死是"这一次这个句柄"的属性，
+    // 换了新句柄（用户重新选文件夹）后就该恢复正常，不能一直留着告警。
+    permissionStuck = false;
     var opts = { mode: 'readwrite' };
     try {
-      var state = await handle.queryPermission(opts);
+      var state = await withPermissionTimeout(handle.queryPermission(opts), 'queryPermission');
       if (state === 'granted') return 'granted';
       if (!request) return state;
-      state = await handle.requestPermission(opts);
+      state = await withPermissionTimeout(handle.requestPermission(opts), 'requestPermission');
       return state;
     } catch (e) {
+      // 超时或抛错：统一按"拿不到权限"返回，并由调用方提示用户重新选择文件夹。
+      // 注意这里**不能**返回 'granted' 去赌 —— 赌错会让写入抛错，更难查。
+      //
+      // 实测的坏状态：Chrome 里那个文件夹句柄的 queryPermission() 永远不返回，
+      // 之后每一次权限检查都会重复卡满一个超时周期，等于整个同步永久失效。
+      // 这种句柄救不回来，只能让用户重新选一次文件夹换一个句柄
+      // —— 所以这里直接标记出来，由启动流程提示用户（见 permissionStuck）。
+      permissionStuck = true;
       return 'denied';
     }
   }
@@ -8900,7 +8947,25 @@
         if (root) {
           dirCache = root;
           var state = await bootStepRun('检查文件夹权限', ensurePermission(root, false));
-          uiState.permission = state;
+          // 句柄的权限查询卡死过：这个句柄救不回来（queryPermission 永远不返回），
+          // 必须让用户重新选一次文件夹换一个新句柄。否则后续每次权限检查
+          // 都要白等一个超时，自动保存与「立即同步」会全部失效。
+          if (permissionStuck) {
+            uiState.permission = 'stuck';
+            uiState.message = '读取文件夹权限时 Chrome 没有响应（句柄已失效）。'
+              + '请点「更换文件夹」重新选一次同一个文件夹，即可恢复自动保存。';
+            uiState.messageError = true;
+            warn('文件夹句柄的权限查询卡死，已提示用户重新选择文件夹');
+          } else {
+            uiState.permission = state;
+            // 权限恢复正常：把之前那条"请重新选择文件夹"的告警收掉，
+            // 否则用户照做之后告警还挂着，会以为没修好。
+            if (state === 'granted' && uiState.messageError
+                && /Chrome 没有响应/.test(uiState.message || '')) {
+              uiState.message = null;
+              uiState.messageError = false;
+            }
+          }
           log('已恢复文件夹句柄：' + (root.name || '') + '（权限：' + state + '）');
           if (state === 'granted') {
             // 全新浏览器（清空数据后重连）先把对话读回来，再对账，
@@ -9777,6 +9842,8 @@
     booted: false,
     /** 当前/最后一个启动步骤；配合 booted:false 就能看出卡在哪一步 */
     bootStep: function () { return bootStep; },
+    /** 文件夹句柄的权限查询是否卡死过（卡死过的句柄必须重新选择文件夹） */
+    permissionStuck: function () { return !!permissionStuck; },
     /** 手动放开「处理中…」卡死（完整版会替换掉它） */
     unstick: function () { return { booted: false, note: '启动尚未完成，完整接口未就绪' }; },
     reloadLog: function () { return readReloadLog(); },
