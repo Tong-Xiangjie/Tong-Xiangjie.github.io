@@ -773,18 +773,54 @@
     return true;
   }
 
+  /**
+   * "这块盘现在动不了"的短期记忆。
+   *
+   * 用户实测：E: 盘上的文件夹，`queryPermission` 挂了，连**真实写入探针**
+   * （getFileHandle create → createWritable → write → close）也一起挂。
+   * 说明不是权限问题，而是**那块盘本身没有响应**（休眠的外置盘/移动硬盘、
+   * 或掉线的网络盘）。这种情况下任何一次文件系统调用都要白等一个超时。
+   *
+   * 而启动流程会连续检查很多次权限，于是每次都要等 3 秒 + 3 秒（探针），
+   * 实测启动被拖了 ~40 秒（「恢复设置 7814ms」「恢复 API Key 7990ms」…）。
+   * 记录下"刚试过、动不了"，短时间内直接返回，不再反复重试同一个坏盘。
+   */
+  var PERMISSION_RETRY_COOLDOWN_MS = 30000;
+  var permCache = { result: null, at: 0 };
+
+  /** 用户重新选文件夹 / 页面重新可见时调用：作废缓存，给一次干净的重试 */
+  function invalidatePermissionCache() {
+    permCache.result = null;
+    permCache.at = 0;
+  }
+
   /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
   async function ensurePermission(handle, request) {
     if (!handle) return 'denied';
+
+    // 刚试过而且动不了 → 冷却期内直接复用结果，不再白等超时。
+    // 只对"失败"结果做冷却：成功的结果本来就会立刻返回，不需要缓存。
+    if (permCache.result && permCache.result !== 'granted'
+        && (Date.now() - permCache.at) < PERMISSION_RETRY_COOLDOWN_MS) {
+      return permCache.result;
+    }
+
     // 每次检查都重新判定：卡死是"这一次这个句柄"的属性，
     // 换了新句柄（用户重新选文件夹）后就该恢复正常，不能一直留着告警。
     permissionStuck = false;
     var opts = { mode: 'readwrite' };
     try {
       var state = await withPermissionTimeout(handle.queryPermission(opts), 'queryPermission');
-      if (state === 'granted') return 'granted';
-      if (!request) return state;
+      if (state === 'granted') {
+        invalidatePermissionCache();
+        return 'granted';
+      }
+      if (!request) {
+        permCache = { result: state, at: Date.now() };
+        return state;
+      }
       state = await withPermissionTimeout(handle.requestPermission(opts), 'requestPermission');
+      permCache = { result: state, at: Date.now() };
       return state;
     } catch (e) {
       // 问不到权限状态。**先别急着判死刑** —— 可能只是查询接口卡住，
@@ -796,11 +832,13 @@
         var ok = await withPermissionTimeout(probeWritable(handle), '写入探针');
         if (ok) {
           log('权限查询卡住，但实测写入可用 —— 按已授权继续（句柄本身是好的）');
+          invalidatePermissionCache();
           return 'granted';
         }
       } catch (e2) { /* 探针也卡住，往下走 */ }
 
       permissionStuck = true;
+      permCache = { result: 'denied', at: Date.now() };
       return 'denied';
     }
   }
@@ -1514,6 +1552,8 @@
     if (perm !== 'granted') {
       throw new Error('未获得文件夹读写权限');
     }
+    // 刚拿到一个全新句柄（用户亲手选的），之前的"这块盘动不了"记忆作废
+    invalidatePermissionCache();
 
     // 句柄要存进 IndexedDB 才能"下次打开还记得这个文件夹"。
     //
@@ -2050,6 +2090,8 @@
   async function reconnect() {
     var root = await getRootHandle();
     if (!root) throw new Error('没有已保存的文件夹');
+    // 这是用户主动点「重新连接」，属于人工重试：作废冷却，真正再试一次
+    invalidatePermissionCache();
     var perm = await ensurePermission(root, true);
     if (perm !== 'granted') throw new Error('授权被拒绝');
     dirCache = root;
@@ -8989,10 +9031,15 @@
           // 都要白等一个超时，自动保存与「立即同步」会全部失效。
           if (permissionStuck) {
             uiState.permission = 'stuck';
-            uiState.message = '读取文件夹权限时 Chrome 没有响应（句柄已失效）。'
-              + '请点「更换文件夹」重新选一次同一个文件夹，即可恢复自动保存。';
+            // 实测证据：不只是权限查询挂了，连**真实写入探针**（建文件→写→删）
+            // 也一起挂。所以问题不在权限，而在**那个文件夹所在的盘没有响应**
+            // （休眠的外置/移动硬盘、掉线的网络盘、或盘符已不存在）。
+            // 措辞必须指向"盘"，否则用户会一直去点「重新连接」而白费力气。
+            uiState.message = '无法访问存档文件夹所在的磁盘（读写都没有响应）。'
+              + '请先确认该磁盘在「此电脑」里能正常打开，再点「更换文件夹」重新选择；'
+              + '若这块盘不常插着，建议把存档文件夹放到本机硬盘上。';
             uiState.messageError = true;
-            warn('文件夹句柄的权限查询卡死，已提示用户重新选择文件夹');
+            warn('文件夹所属磁盘无响应（权限查询与写入探针都超时），已提示用户检查磁盘');
           } else {
             uiState.permission = state;
             // 权限恢复正常：把之前那条"请重新选择文件夹"的告警收掉，
@@ -9183,7 +9230,15 @@
     window.__localstore = {
       version: BRIDGE_VERSION,
       supportsFs: supportsFs,
-      state: syncState,
+      // ⚠ 必须是函数，不能写成 `state: syncState`。
+      //
+      // 占位接口里 state 是函数（`state: function () { return syncState; }`），
+      // 用户复测时正好撞上这个不一致：占位版能过，完整版这里直接报
+      // 「window.__localstore.state is not a function」，排查卡住。
+      // 更根本的原因是：这里引用的几个状态变量都是 var、初始化在本行**之后**，
+      // 直接取值会拿到 undefined（外面以前就是这样拿到 undefined 的）。
+      state: function () { return syncState; },
+
       onSync: onSync,
       pickFolder: pickFolder,
       disconnect: disconnect,
