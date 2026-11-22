@@ -580,6 +580,77 @@
     return stamp(when) + '_' + title;
   }
 
+  var LS_BROWSER_ID = 'chat-demo:browser-id';
+
+  /**
+   * 本浏览器的稳定标识（每个浏览器/配置文件一个，随便起的短 id）。
+   *
+   * 为什么要它：多个浏览器共用一个文件夹时，**每个浏览器的本地库都只是一部分**。
+   * 快照清理必须只作用于"本机写出去的文件"，否则本地库小（或刚重置）的那个
+   * 浏览器会把别人的对话当成"本机已删除"给清掉。
+   * 用户实测：文件夹里 9 条对话，Chrome 有 6 条、Edge 有 4 条，
+   * 结果 Edge 一同步就把 Chrome 独有的 5 条删了。
+   */
+  function browserId() {
+    try {
+      var v = lsGet(LS_BROWSER_ID);
+      if (v) return v;
+      var nv = 'b' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+      lsSet(LS_BROWSER_ID, nv);
+      return nv;
+    } catch (e) {
+      return 'bunknown';
+    }
+  }
+
+  /** 把名字作为"发布者"记到参与方名单里（人看得懂，方便排查） */
+  function noteParty(id, name) {
+    if (!id) return;
+    try {
+      var m = {};
+      try { m = JSON.parse(lsGet(LS_PARTIES) || '{}') || {}; } catch (e2) { m = {}; }
+      m[id] = { name: name || '', at: Date.now() };
+      lsSet(LS_PARTIES, JSON.stringify(m));
+    } catch (e) { /* ignore */ }
+  }
+
+  var LS_PARTIES = 'chat-demo:folder-parties';
+
+  /** 本浏览器的可读名字（只用于在索引/清单里显示"是谁写的"） */
+  function describeThisBrowser() {
+    try {
+      var ua = String(navigator.userAgent || '');
+      var name = '浏览器';
+      if (/Edg\//.test(ua)) name = 'Edge';
+      else if (/OPR\//.test(ua)) name = 'Opera';
+      else if (/Chrome\//.test(ua)) name = 'Chrome';
+      else if (/Firefox\//.test(ua)) name = 'Firefox';
+      else if (/Safari\//.test(ua)) name = 'Safari';
+      return name;
+    } catch (e) {
+      return '浏览器';
+    }
+  }
+
+  /**
+   * 取出索引条目里已记录的文件名（去掉扩展名），用作本次的名字。
+   *
+   * ⚠ 为什么必须复用：文件名是按 `updatedAt` 生成的，对话一更新名字就变。
+   * 多个浏览器共用一个文件夹时，这会造成真正的麻烦：
+   *   · 同一条对话在两个浏览器里算出**不同的文件名** → 文件夹里出现两份；
+   *   · 先写的那份变成"上次索引里有、这次没人写"的孤儿，
+   *     下一次快照就把它当残留删掉（实测：跨浏览器同步后对话成批消失）。
+   * 复用旧名之后，同一条对话无论谁来写都落在同一个文件上，只是覆盖内容。
+   */
+  function reuseEntryBase(entry) {
+    if (!entry || !Array.isArray(entry.files)) return null;
+    for (var i = 0; i < entry.files.length; i++) {
+      var n = entry.files[i];
+      if (typeof n === 'string' && /\.json$/i.test(n)) return n.replace(/\.json$/i, '');
+    }
+    return null;
+  }
+
   // -------------------------------------------------------------------------
   // 文件夹访问抽象
   // -------------------------------------------------------------------------
@@ -728,8 +799,23 @@
     var dataDir = await subdir(root, '数据', true);
     var attachDir = await subdir(root, '附件', true);
 
+    // --- 上次的会话索引：文件名复用、清理资格、跨浏览器条目保留都要用 ---
+    // 必须在写文件之前读，因为下面确定文件名时要靠它复用旧名。
+    var prevById = {};
+    try {
+      var prevIdx0 = await readSessionIndex();
+      var prevSessions0 = (prevIdx0 && prevIdx0.sessions) || [];
+      for (var p0 = 0; p0 < prevSessions0.length; p0++) {
+        var e0 = prevSessions0[p0];
+        if (e0 && e0.id) prevById[e0.id] = e0;
+      }
+    } catch (e) { /* 读不到就当没有 */ }
+
     // --- 会话文件 ---
     var usedNames = new Map(); // 处理同名冲突
+    // 本浏览器的身份：写进索引，用来区分"谁写的"（清理权限的判据）
+    var MY_PARTY = browserId();
+    var MY_PARTY_NAME = describeThisBrowser();
     var written = [];
     var index = [];
 
@@ -737,9 +823,14 @@
       var s = sessions[i];
       if (!s || !s.id) continue;
 
-      var base = fileBaseName(s);
-      if (usedNames.has(base)) {
-        base = base + '_' + String(s.id).slice(0, 6);
+      // 优先复用上次为这条会话记下的文件名，保证"同一条对话永远同一个文件"。
+      // 没有记录（新对话）才按时间+标题生成。
+      var base = reuseEntryBase(prevById[s.id]);
+      if (!base) {
+        base = fileBaseName(s);
+        // 同名冲突：用 id 前缀区分，保证确定（同 id 每次都得到同一个名字）。
+        // 用户实测就有两条对话都叫「新对话」，这一步是必须的。
+        if (usedNames.has(base)) base = base + '_' + String(s.id).slice(0, 6);
       }
       usedNames.set(base, true);
 
@@ -752,7 +843,10 @@
         title: s.title == null ? null : s.title,
         createdAt: s.createdAt == null ? null : s.createdAt,
         updatedAt: s.updatedAt == null ? null : s.updatedAt,
-        files: [base + '.json', base + '.md']
+        files: [base + '.json', base + '.md'],
+        // 谁写的：跨浏览器共用一个文件夹时，清理只允许动自己写的文件
+        wroteBy: MY_PARTY,
+        wroteByName: MY_PARTY_NAME || null
       });
     }
 
@@ -813,6 +907,11 @@
     var pruneSkipped = false;
     var pruneSkipReason = '';
     var current = new Set(written);
+    // 本机这次拥有的会话 id（判断"是不是本机删掉的"用）
+    var localIds = new Set();
+    for (var li = 0; li < sessions.length; li++) {
+      if (sessions[li] && sessions[li].id) localIds.add(sessions[li].id);
+    }
     var existing = await listSessionJson(convDir).then(function (a) {
       return a.concat(
         a.map(function (n) {
@@ -827,16 +926,56 @@
     // 不在 `数据/manifest.json` —— manifest.json 只有统计信息（会话数、同步时间等）。
     // 读错文件的结果是 mine 永远是空集，清理逻辑从此一个文件都不删，
     // 表现成「改名之后文件夹里新旧两份都在」（实测踩过）。
+    //
+    // ⚠⚠ 跨浏览器数据丢失的真正根源（实测：文件夹里 9 条对话被削成 4 条）：
+    //   `数据/sessions.json` 是**多个浏览器共用**的文件，而每个浏览器快照时
+    //   都用"自己本地库里的会话"把它整个覆盖掉。于是：
+    //     · 浏览器 A（有 6 条）写完后，索引里只剩 A 的 6 条；
+    //     · 浏览器 B（有 4 条）本地库其实**根本没有** A 那几条，
+    //       它快照时算出的 mine 里也就没有 A 的文件名；
+    //     · B 的空库保护闸门（只看"本地是否为空"）不成立，于是进入清理，
+    //       把"上次索引里没有"的 A 的对话文件当成残留删掉。
+    //   结果就是谁最后同步，文件夹里就只剩谁的对话 —— 反复丢。
+    //
+    //   所以清理资格必须收窄成：**上次索引里确实记过的会话文件**，
+    //   而不是"上次索引里的全部文件名"。只有"上次存在、这次不见了"的
+    //   会话才可能是被删掉的。上次索引里根本没有的，一律不碰。
+    //
+    //   （`prevById` 已在函数开头读好，文件名复用也靠它。）
+
+    // 真正有资格被删的：**上次由本浏览器写出、这次却不在本机会话里的**那些。
+    //
+    // ⚠ 为什么必须按"谁写的"来限定（用户实测的数据丢失根因）：
+    //   每个浏览器的本地库都只是**一部分**对话。用户的情况是
+    //   Chrome 有 6 条、Edge 有 4 条，共用一个文件夹。Edge 同步时它的
+    //   `sessions` 里没有 Chrome 独有的 5 条，于是那 5 条被判成"本机已删除"，
+    //   文件夹里被清掉 —— Chrome 那边的对话在文件夹中就没了。
+    //   旧索引没有记录"谁写的"，所以只能一律当成自己的，必然误删。
+    //
+    //   加一个"发布者"标记后，判断变成：
+    //     · 本机写的、这次不见了 → 本机确实删了，可以清理（功能保留）；
+    //     · 别的浏览器写的 → 本机无权删除，一律留着（别人的对话保住）。
+    var myParty = browserId();
+    var possibleDeletes = new Set();
+    var foreignEntries = 0;
+    // `mine`：上次索引里记过的文件名。只用来兜底 —— 认不出来的文件一律不删。
     var mine = new Set();
-    try {
-      var prevIdx = await readSessionIndex();
-      var prevSessions = (prevIdx && prevIdx.sessions) || [];
-      for (var pi = 0; pi < prevSessions.length; pi++) {
-        var fl = prevSessions[pi] && prevSessions[pi].files;
-        if (!Array.isArray(fl)) continue;
-        for (var fj = 0; fj < fl.length; fj++) mine.add(fl[fj]);
+    Object.keys(prevById).forEach(function (pid) {
+      var pe = prevById[pid] || {};
+      var pfl = pe.files;
+      if (Array.isArray(pfl)) {
+        for (var pj = 0; pj < pfl.length; pj++) mine.add(pfl[pj]);
       }
-    } catch (e) { /* 读不到就当没有，宁可不清理 */ }
+      if (localIds.has(pid)) return; // 本机还有，不可能要删
+      // 没有标记的老索引（升级前写的）按"自己的"处理，保持老行为，
+      // 否则升级后一条都清不掉，用户的"删除对话"会失效。
+      if (pe.wroteBy && pe.wroteBy !== myParty) {
+        foreignEntries++;
+        return;
+      }
+      if (!Array.isArray(pfl)) return;
+      pfl.forEach(function (n) { possibleDeletes.add(n); });
+    });
 
     if (!watchState.reconciled && existing.length) {
       pruneSkipped = true;
@@ -862,6 +1001,12 @@
           keptForeign.push(name);
           continue;
         }
+        // ⚠ 跨浏览器：上次索引里记过、但本机本地库没有它的，不能由本机删。
+        // 那不是"本机删掉的"，而是另一个浏览器的对话（见上面 possibleDeletes 的说明）。
+        if (!possibleDeletes.has(name)) {
+          keptForeign.push(name);
+          continue;
+        }
         await removeEntry(convDir, name);
         removed++;
       }
@@ -872,8 +1017,41 @@
     }
     watchState.lastPrune = { removed: removed, keptForeign: keptForeign.length,
       skipped: pruneSkipped, reason: pruneSkipReason };
+    // 排查"为什么删了/为什么没删"用：把这次清理的判据完整留下来
+    lastSnapshotDiag = {
+      wroteCount: index.length,
+      existingCount: existing.length,
+      mineCount: mine.size,
+      possibleDeleteCount: possibleDeletes.size,
+      possibleDeletes: Array.from(possibleDeletes).slice(0, 20),
+      keptForeign: keptForeign.slice(0, 20),
+      foreignEntries: foreignEntries,
+      myParty: myParty,
+      removed: removed,
+      pruneSkipped: pruneSkipped,
+      pruneSkipReason: pruneSkipReason
+    };
 
     // --- 数据索引 ---
+    //
+    // ⚠ 索引必须保留"本机没有、但文件夹里还有"的那些会话条目。
+    //
+    // `数据/sessions.json` 是多浏览器共用的。如果每次快照都用本机会话整个覆盖，
+    // 别人的会话条目就被抹掉了；而"哪些文件是我们写过的"（清理资格）正是靠
+    // 这个索引判断的 —— 条目一没，下一次快照就会把别人的对话当成残留删掉。
+    // 这也是实测"文件夹里 9 条被削成 4 条"的直接原因。
+    var indexIds = new Set();
+    for (var ii = 0; ii < index.length; ii++) indexIds.add(index[ii].id);
+    var carriedOver = 0;
+    Object.keys(prevById).forEach(function (pid) {
+      if (indexIds.has(pid)) return; // 本机这次已经写了
+      index.push(prevById[pid]);     // 别人的会话：保留条目，别抹掉
+      carriedOver++;
+    });
+    if (carriedOver) {
+      log('索引里保留了 ' + carriedOver + ' 条不是本机写出的会话条目（跨浏览器共用一个文件夹时需要）');
+    }
+
     var manifest = {
       schema: 'chat-demo-mirror/manifest@1',
       bridgeVersion: BRIDGE_VERSION,
@@ -889,6 +1067,13 @@
       imageCount: blobCount,
       apiBase: lsGet(LS_API_BASE) || DEFAULT_API_BASE,
       pruneSkipped: pruneSkipped,
+      // 谁在写这个文件夹：多个浏览器共用一个文件夹时，方便排查
+      lastWriter: MY_PARTY,
+      lastWriterName: MY_PARTY_NAME || null,
+      parties: (function () {
+        try { noteParty(MY_PARTY, MY_PARTY_NAME); return JSON.parse(lsGet(LS_PARTIES) || '{}'); }
+        catch (e) { return {}; }
+      })(),
       note:
         '本文件夹由 chat-demo 的本地存档功能自动维护，可安全备份。请勿手工改动 数据/ 下的文件结构。' +
         (pruneSkipped
@@ -1260,6 +1445,9 @@
   var watchState = { baselineAt: 0, imported: 0, lastScan: 0, lastError: null, enabled: false,
     lastImported: [], hashes: null, reconciled: false, booted: false, listenersBound: false,
     fileCount: 0 };
+
+  /** 最近一次快照的清理判据（排查"为什么删了别人的对话"用） */
+  var lastSnapshotDiag = null;
 
   /** 测试开关：置为 'false' 时收完不刷新页面（无头测试里页面一刷新，
    *  注入的模拟文件夹就没了，没法接着断言）。默认是刷新的。 */
@@ -8822,6 +9010,8 @@
        * 暴露出来才能在测试里反复触发它、验证熔断器真的兜得住。
        */
       __reconcileForTest: function () { return reconcileFolderOnBoot(); },
+      /** 最近一次快照的清理判据（排查"为什么删了别人的对话"用） */
+      lastSnapshotDiag: function () { return lastSnapshotDiag; },
       /**
        * 只给测试用：重新装一次文件夹监看。
        *
@@ -9321,7 +9511,15 @@
         // 否则测试会跟启动对齐对撞（断言跑在导入之前，看起来像功能没生效）
         startFolderWatcher();
         await watchReady();
-      }
+      },
+      /**
+       * 只给测试用：把内存里的目录句柄缓存丢掉，强制下一次重新解析。
+       *
+       * 为什么需要：`getRootHandle()` 会缓存句柄，而"换一个浏览器"这种场景
+       * 在同一个页面里只能靠换句柄来模拟。若不清缓存，第二个"浏览器"读到的
+       * 可能还是上一个的句柄，测出来的东西就不是真实行为了。
+       */
+      __clearRootCacheForTest: function () { dirCache = null; return true; }
     };
 
     log('v' + BRIDGE_VERSION + ' 已加载（文件夹写入' + (supportsFs ? '可用' : '不可用') + '）');

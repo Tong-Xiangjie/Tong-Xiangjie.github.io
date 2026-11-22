@@ -536,10 +536,27 @@ try {
   const jsonCount = files2.filter((f) => /^对话\/.*\.json$/.test(f)).length;
   check('改名后旧文件被清理（Markdown 仍只 1 份）', mdCount === 1, `实际 ${mdCount} 份`);
   check('改名后旧文件被清理（JSON 仍只 1 份）', jsonCount === 1, `实际 ${jsonCount} 份`);
+
+  // ⚠ 这里以前断言"文件名跟着标题变成新标题"。
+  // 现在**故意不再改名**，改成"同一条对话永远落在同一个文件上"：
+  // 文件名按 updatedAt 生成，一旦改名，同一个会话在不同浏览器/不同时刻
+  // 就会算出不同文件名 —— 共用一个文件夹时就会**出现重复文件**，
+  // 而且先写的那份会变成孤儿被清理掉（实测：跨浏览器同步后对话成批消失）。
+  // 所以文件名只作为"稳定的存放位置"，标题以文件内容为准。
+  const jsonName = files2.find((f) => /^对话\/.*\.json$/.test(f));
+  const mirrorRaw = await evaluateStable(
+    `window.__fsBucket[${JSON.stringify(jsonName)}]`
+  );
+  const mirror = JSON.parse(mirrorRaw);
   check(
-    '新文件名反映了新标题',
-    files2.some((f) => /^对话\/.*改名之后的标题.*\.md$/.test(f)),
-    files2.filter((f) => f.includes('对话')).join(' | ')
+    '★ 改名后新标题写进了文件内容（标题以内容为准，不再靠改名）',
+    mirror && mirror.title === '改名之后的标题',
+    mirror && mirror.title
+  );
+  check(
+    '★ 同一条对话只产生一个文件（文件名保持稳定，避免跨浏览器重复）',
+    jsonCount === 1 && mdCount === 1,
+    `json=${jsonCount} md=${mdCount}`
   );
 
   // -------------------------------------------------------------------------
