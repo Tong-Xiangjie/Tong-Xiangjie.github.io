@@ -1570,10 +1570,14 @@
     emitSync();
 
     // 页面重载才能让应用看见新数据（应用只在启动时读一次库）
+    //
+    // ⚠ 必须走 requestReload() 的熔断器，不能直接 location.reload()。
+    // 这里原来是无保护的直接刷新：只要"收进来的对话数"判断每次都为真，
+    // 就变成"启动 → 收对话 → 刷新 → 启动 → 又收 → 又刷新"的无限循环，
+    // 页面永远在加载，设置面板永远停在「同步中…」，看起来就是卡死。
+    // 熔断器保证了每次页面加载最多只自动刷新一次。
     if (watchReloadEnabled()) {
-      try {
-        location.reload();
-      } catch (e) { /* ignore */ }
+      requestReload('监看文件夹收进了 ' + toWrite.length + ' 个对话');
     }
   }
 
@@ -1670,9 +1674,13 @@
         return reconcileFolderOnBoot();
       })
       .then(function (n) {
+        // ⚠ 同样必须走熔断器。这里每次**页面加载**都会跑一遍对账，
+        // 一旦 reconcileFolderOnBoot 每次都认为"有新的要收"，
+        // 直接刷新就会变成无限循环（这正是用户看到的"卡在同步中…"）。
+        // 走 requestReload() 后，每次页面加载最多自动刷新一次，
+        // 最坏也只是"少刷一次"，不会永远刷不完。
         if (n && watchReloadEnabled()) {
-          try { location.reload(); } catch (e) { /* ignore */ }
-          return;
+          if (requestReload('启动对账收进了 ' + n + ' 个对话')) return;
         }
         scheduleNextWatch();
         markWatchReady();
@@ -8762,6 +8770,14 @@
        * 用法：copy(JSON.stringify(await window.__localstore.syncDoctor(), null, 2))
        */
       syncDoctor: syncDoctor,
+      /**
+       * 只给测试用：直接跑一次"启动对账"。
+       *
+       * 这条路径每次**页面加载**都会执行，而且里面有需要"收完刷新页面"的动作
+       * （历史上是无保护的 location.reload，正是无限自刷新的来源）。
+       * 暴露出来才能在测试里反复触发它、验证熔断器真的兜得住。
+       */
+      __reconcileForTest: function () { return reconcileFolderOnBoot(); },
       /**
        * 手动解除「处理中…」卡死（逃生舱）。
        *
