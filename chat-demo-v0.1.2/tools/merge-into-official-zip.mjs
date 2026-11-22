@@ -182,6 +182,31 @@ function sessionToOfficial(s) {
           });
         }
       }
+
+      /**
+       * ★ 绝不能产生 fragments 为空的助手消息 ★
+       *
+       * 实测依据：官方原包抽查 400 个会话、12341 条消息，
+       * fragments 为空的是 **0 条** —— 应用自己从不生成这种消息。
+       *
+       * 而你导出的会话里有 27 条助手消息 blocks 为空（全部带 error，
+       * 例如 "model not found: deepseek-flash"）。原样转换就成了
+       * fragments: []，应用在解析到这种消息时直接让**整个导入**失败，
+       * 界面只显示笼统的「文件导入失败，可能是文件格式错误…」。
+       *
+       * 实测定位过程：官方原包在同环境下 → "已导入 2763 个对话"；
+       * 只并入 1 个本地会话后 → 失败，且 JSON.parse 停在 3 次
+       * （manifest/user/index 各一次），说明是会话内容被拒，不是结构。
+       *
+       * 处理：给空消息补一个 RESPONSE 片段，有 error 就写明原因。
+       * 这样对话保留、失败原因可见，且不会让整包导入失败。
+       */
+      if (fragments.length === 0) {
+        const errText = m.error
+          ? `（此条回复未生成内容：${m.error.message || m.error.kind || '未知错误'}）`
+          : '（此条回复没有内容）';
+        fragments.push({ type: 'RESPONSE', content: errText });
+      }
     }
 
     return {
@@ -255,6 +280,17 @@ console.log('写入现有对话…');
 const sessDir = join(work, 'chat_sessions');
 if (!existsSync(sessDir)) mkdirSync(sessDir, { recursive: true });
 
+/**
+ * NO_LOCAL=1 时完全不写本地会话，但其它流程（解压/重打包）一模一样。
+ * 用途：二分定位 —— 如果这样出来的包能被导入，说明问题在本地会话的转换；
+ * 如果同样失败，说明问题在重打包本身。
+ */
+if (process.env.NO_LOCAL === '1') {
+  console.log('  ★ NO_LOCAL=1：跳过写入本地会话（仅用于对照）');
+  addedSessions.length = 0;
+  addedFiles.length = 0;
+}
+
 const existingIds = new Set(index.map((e) => e.id));
 let added = 0, renamed = 0;
 for (const s of addedSessions) {
@@ -294,16 +330,27 @@ writeFileSync(idxPath, JSON.stringify(index), 'utf8');
 /**
  * ★ 必须手工写条目，不能图省事用现成命令 ★
  *
- * ZIP 规范要求条目名用**正斜杠**，而 Windows 上两个"方便"的办法都会写成反斜杠：
+ * 有两个坑，都会导致"导入失败"或"导入成功但一个对话都没有"：
  *
- *   Compress-Archive                          → [chat_sessions\xxx.json]
- *   ZipFile::CreateFromDirectory              → [chat_sessions\xxx.json]
- *   官方原包                                   → [chat_sessions/xxx.json]
+ * 坑 1：条目名必须用正斜杠
+ *   ZIP 规范要求正斜杠，而 Windows 上两个"方便"的办法都写成反斜杠：
+ *     Compress-Archive                       → [chat_sessions\xxx.json]
+ *     ZipFile::CreateFromDirectory            → [chat_sessions\xxx.json]
+ *     官方原包                                 → [chat_sessions/xxx.json]
+ *   应用解压后按 `/` 切路径，反斜杠会让它一个会话都找不到。
  *
- * 反斜杠的后果很严重：应用解压后按 `/` 切路径，一个会话都找不到。
- * 而且这个错误**不会报错**，导入会"成功"但变成空的。
+ * 坑 2：★ 第一条条目必须是 manifest.json ★
+ *   应用遍历 ZIP 的第一个条目时就走这个分支：
+ *     if (第一个条目 !== "manifest.json") 报错
+ *     else { 解析 manifest; manifestDone = true }
+ *   所以只要 manifest.json 不是第一个，应用会在读到任何 JSON 之前就失败，
+ *   界面只显示一句笼统的「文件导入失败，可能是文件格式错误…」。
  *
- * 所以这里用 Node 自己走目录，逐条 CreateEntry，路径手工换成 `/`。
+ *   这个坑很隐蔽：普通 zip 工具天然按字母序写条目，
+ *   "chat_session_index.json" < "manifest.json"，正好把顺序弄反。
+ *   实测：官方原包 → 已导入 2763 个对话；仅把 manifest 挪到第一位即可通过。
+ *
+ * 所以这里显式指定顺序：manifest → user → index → 其余。
  */
 console.log('重新打包 ZIP…');
 if (existsSync(zipOut)) rmSync(zipOut, { force: true });
@@ -317,19 +364,29 @@ $fs = [System.IO.File]::Open($out, [System.IO.FileMode]::CreateNew)
 $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create)
 $rootLen = $root.TrimEnd('\\').Length + 1
 $n = 0
-foreach ($f in [System.IO.Directory]::EnumerateFiles($root, '*', [System.IO.SearchOption]::AllDirectories)) {
-  # ★ 关键：手工把反斜杠换成正斜杠
-  $rel = $f.Substring($rootLen).Replace('\\', '/')
+function Write-One([string]$rel) {
+  $full = Join-Path $root ($rel.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+  if (-not [System.IO.File]::Exists($full)) { return }
+  # ★ 关键 1：手工把反斜杠换成正斜杠
   $entry = $zip.CreateEntry($rel, [System.IO.Compression.CompressionLevel]::Optimal)
   $es = $entry.Open()
-  $bytes = [System.IO.File]::ReadAllBytes($f)
+  $bytes = [System.IO.File]::ReadAllBytes($full)
   $es.Write($bytes, 0, $bytes.Length)
   $es.Dispose()
-  $n++
+  $script:n++
+}
+# ★ 关键 2：manifest.json 必须第一个写进去
+Write-One 'manifest.json'
+Write-One 'user.json'
+Write-One 'chat_session_index.json'
+foreach ($f in [System.IO.Directory]::EnumerateFiles($root, '*', [System.IO.SearchOption]::AllDirectories)) {
+  $rel = $f.Substring($rootLen).Replace('\\', '/')
+  if ($rel -eq 'manifest.json' -or $rel -eq 'user.json' -or $rel -eq 'chat_session_index.json') { continue }
+  Write-One $rel
 }
 $zip.Dispose()
 $fs.Dispose()
-Write-Host "  写入 $n 个条目"
+Write-Host "  写入 $n 个条目（manifest/user/index 已在最前）"
 `;
 execFileSync('powershell', ['-NoProfile', '-Command', zipScript], { stdio: 'inherit' });
 
