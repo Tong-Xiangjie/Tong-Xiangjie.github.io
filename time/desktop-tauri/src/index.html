@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Time Clock</title>
+
+<link rel="preload" as="font" type="font/woff" href="./fonts/OCRB10PitchBT-Regular.woff" crossorigin>
+
+<!-- 与父级 index 一致：尽早打上主题 / 液态玻璃类，避免闪烁 -->
+<script>
+    try {
+        var _t    = localStorage.getItem('tc_theme');
+        var _dark = _t === 'dark' || (_t !== 'light' &&
+                    window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var _r    = document.documentElement;
+        _r.classList.add(_dark ? 'theme-dark' : 'theme-light');
+        if (localStorage.getItem('tc_liquid') === 'true') _r.classList.add('liquid');
+    } catch (e) {}
+</script>
+
+<style>
+    /* ═══════════ @property：可过渡颜色变量（照抄父级 index） ═══════════ */
+    @property --aur1 { syntax: '<color>'; inherits: false; initial-value: rgba(0, 229, 255, .40); }
+    @property --aur2 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 61, 129, .40); }
+    @property --aur3 { syntax: '<color>'; inherits: false; initial-value: rgba(122, 0, 255, .34); }
+
+    @property --o1a { syntax: '<color>'; inherits: false; initial-value: #ff3d81; }
+    @property --o1b { syntax: '<color>'; inherits: false; initial-value: #7a00ff; }
+    @property --o2a { syntax: '<color>'; inherits: false; initial-value: #00e5ff; }
+    @property --o2b { syntax: '<color>'; inherits: false; initial-value: #0047ff; }
+    @property --o3a { syntax: '<color>'; inherits: false; initial-value: #ffd166; }
+    @property --o3b { syntax: '<color>'; inherits: false; initial-value: #ff7a00; }
+    @property --o4a { syntax: '<color>'; inherits: false; initial-value: #5cffb1; }
+    @property --o4b { syntax: '<color>'; inherits: false; initial-value: #00c2a8; }
+    @property --o5a { syntax: '<color>'; inherits: false; initial-value: #ff8ae2; }
+    @property --o5b { syntax: '<color>'; inherits: false; initial-value: #b400ff; }
+
+    @property --gg1 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .14); }
+    @property --gg2 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .04); }
+    @property --gg3 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .02); }
+    @property --gg4 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .10); }
+
+    @property --ge1 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .95); }
+    @property --ge2 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .10); }
+    @property --ge3 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .02); }
+    @property --ge4 { syntax: '<color>'; inherits: false; initial-value: rgba(255, 255, 255, .85); }
+
+    @property --time-a { syntax: '<color>'; inherits: true; initial-value: #1a2634; }
+    @property --time-b { syntax: '<color>'; inherits: true; initial-value: #1a2634; }
+    @property --time-shadow { syntax: '<color>'; inherits: true; initial-value: transparent; }
+
+    @font-face {
+        font-family: "OCRB10";
+        src: url('./fonts/OCRB10PitchBT-Regular.woff') format('woff');
+        font-weight: normal; font-style: normal; font-display: block;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ═══════════ 主题变量（照抄父级 index） ═══════════ */
+    :root {
+        color-scheme: light;
+
+        --bg:    #f5f7fa;
+        --fg:    #1a2634;
+        --muted: rgba(26, 38, 52, 0.60);
+        --faint: rgba(26, 38, 52, 0.38);
+        --hover: rgba(26, 38, 52, 0.08);
+
+        --time-a: #1a2634;
+        --time-b: #1a2634;
+        --time-shadow: transparent;
+        --time-ampm-color: rgba(26, 38, 52, 0.70);
+
+        /* 玻璃底板：透明度由设置面板的滑块写入。
+           --glass-see 是「透明度」本身（0.22 = 22% 透明），越大越透、越能看见下面的东西，
+           玻璃浓度 = 1 - 透明度 */
+        --glass-rgb: 255, 255, 255;
+        --glass-see: .22;
+        --glass-a:   calc(1 - var(--glass-see));
+        --glass-border: rgba(0, 0, 0, 0.07);
+
+        /* 时间字号系数：JS 量出「刚好填满窗格」的倍数 */
+        --time-fit: 3.6;
+    }
+    :root.theme-dark {
+        color-scheme: dark;
+
+        --bg:    #0a0e12;
+        --fg:    #eef2ff;
+        --muted: rgba(238, 242, 255, 0.58);
+        --faint: rgba(238, 242, 255, 0.32);
+        --hover: rgba(238, 242, 255, 0.10);
+
+        --time-a: #eef2ff;
+        --time-b: #eef2ff;
+        --time-shadow: transparent;
+        --time-ampm-color: rgba(238, 242, 255, 0.70);
+
+        --glass-rgb: 20, 24, 32;
+        --glass-border: rgba(255, 255, 255, 0.08);
+    }
+    :root.theme-light.liquid {
+        --time-a: #16253c;
+        --time-b: rgba(22, 37, 60, .72);
+        --time-shadow: rgba(120, 160, 220, .22);
+        --time-ampm-color: rgba(22, 37, 60, .72);
+    }
+    :root.theme-dark.liquid {
+        --time-a: #ffffff;
+        --time-b: rgba(255, 255, 255, .68);
+        --time-shadow: rgba(150, 210, 255, .30);
+        --time-ampm-color: rgba(255, 255, 255, .75);
+    }
+    /* 液态玻璃：底板必须像父级那样够"实"（父级 html 背景是不透明的 --bg），
+       极光才有一层毛玻璃底子；否则极光等于直接糊在透明窗格上，桌面会穿透进来，
+       看上去就"少了一层毛玻璃蒙版"。父级那层 = 不透明底色 + ::before 奶白渐变，
+       这里用深一点的底色补上第一层，::before 仍是第二层。
+       底色跟着滑块一路走到几乎全透（--glass-a 见下），不再留 .35 的底：
+       原来那个底太厚，滑块拉到最大也只能透 65%，看着就是"对透明度不灵敏"。 */
+    html.liquid { --glass-a: calc(1 - var(--glass-see) * .94); }
+
+    html, body {
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        user-select: none; -webkit-user-select: none;
+    }
+    /* 整块界面按 460×140 设计稿等比缩放：根字号同时受宽、高约束，
+       窗格再变形也不会把界面拉扁。所有尺寸都用 rem，跟着一起放大缩小 */
+    html {
+        font-size: min(calc(100vw * 24 / 460), calc(100vh * 24 / 140));
+    }
+    body {
+        position: relative;
+        color: var(--fg);
+        font-family: "OCRB10", "Source Han Sans", "Noto Sans CJK SC",
+                     "思源黑体", "Segoe UI", system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* 打开面板时窗口会被撑大，但钟表必须一个像素都不动，所以：
+       窗格按打开前的尺寸钉在左上角；根字号也钉回打开前的值 ——
+       根字号是按 100vw/100vh 算的，窗口一变，所有 rem 尺寸都会重排。 */
+    html.panel-open { font-size: var(--clock-rem, 24px); }
+    html.panel-open .widget {
+        inset: 0 auto auto 0;
+        margin: 0;
+        width: var(--clock-w);
+        height: var(--clock-h);
+    }
+
+    /* ═══════════ 主容器 = 玻璃壳（永远保持 460:140 比例） ═══════════ */    .widget {
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width:  min(100vw, calc(100vh * 460 / 140));
+        height: min(100vh, calc(100vw * 140 / 460));
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.34rem 0.72rem;
+        border-radius: 0.62rem;
+        overflow: hidden;
+        isolation: isolate;
+
+        background: rgba(var(--glass-rgb), var(--glass-a));
+        border: 1px solid var(--glass-border);
+        -webkit-backdrop-filter: blur(18px) saturate(160%);
+                backdrop-filter: blur(18px) saturate(160%);
+        /* 底色过渡别太长：滑块是连续拖动的，.6s 会让手感发黏 */
+        transition: background .22s ease, border-color .5s ease, transform .4s cubic-bezier(.22, 1, .36, 1);
+    }
+    /* 鼠标一动玻璃就跟着倾斜（照抄父级 .glass-shell 的 --rx/--ry 视差），
+       只在液态玻璃下启用，和父级一致。
+       父级 perspective 是按上千像素的大卡片定的，这里用 vmax，任何窗口尺寸下立体感一致；
+       --tilt-scale 由 JS 跟着倾斜幅度给（不倾斜时就是 1，不会平白缩小），
+       倾斜到极限时收到 .964，免得贴边的圆角被系统窗口切掉。 */
+    html.liquid .widget {
+        border-color: transparent;
+        -webkit-backdrop-filter: none;
+                backdrop-filter: none;
+        transform: perspective(160vmax)
+                   rotateX(var(--rx, 0deg))
+                   rotateY(var(--ry, 0deg))
+                   scale(var(--tilt-scale, 1));
+    }
+
+    /* ═══════════ 液态玻璃（照抄父级 index） ═══════════ */
+    .liquid-bg {
+        position: absolute;
+        inset: -22vmax;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.7s ease, visibility 0s linear 0.7s;
+        will-change: transform;
+    }
+    /* 液态玻璃下装饰层（极光 / 光球 / 扫光 / 浅色白底衬）是盖在玻璃底色上面的，
+       它们的浓度不跟滑块走的话，滑块就只剩底色那一点点变化 —— 所以整体挂到 --glass-dec 上
+       （由 JS 按透明度算好：默认 22% 时是 1，往更透的方向拖才明显淡出）。 */
+    html.liquid .liquid-bg {
+        opacity: var(--glass-dec, 1);
+        visibility: visible;
+        transition: opacity 0.7s ease, visibility 0s linear 0s;
+    }
+    /* 越透明越少糊后面的桌面：拉满时几乎不糊，桌面是清楚的 */
+    html.liquid .widget::before {
+        -webkit-backdrop-filter: blur(calc(4px + var(--glass-dec, 1) * 20px)) saturate(190%) brightness(1.02);
+                backdrop-filter: blur(calc(4px + var(--glass-dec, 1) * 20px)) saturate(190%) brightness(1.02);
+    }
+
+    .liquid-base {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(130% 110% at 50% 0%, #ffffff 0%, #f4f8ff 52%, #fdf5fa 100%);
+        opacity: 0;
+        transition: opacity 0.7s ease;
+        pointer-events: none;
+    }
+    /* 浅色液体的白色底衬：跟着透明度走，否则滑块在浅色液态下等于失效 */
+    html.theme-light.liquid .liquid-base { opacity: calc(1 - var(--glass-see)); }
+
+    .aurora {
+        position: absolute;
+        inset: -25%;
+        background:
+            radial-gradient(38% 38% at 28% 32%, var(--aur1), transparent 70%),
+            radial-gradient(34% 34% at 72% 62%, var(--aur2), transparent 70%),
+            radial-gradient(46% 46% at 52% 46%, var(--aur3), transparent 72%);
+        /* 父级 blur(50px) 是按 1920 宽视口定的（1vmax≈19.2px），换成 vmax 才等比 */
+        filter: blur(2.6vmax);
+        animation: aurora-spin 44s linear infinite;
+        will-change: transform;
+        transition:
+            --aur1 0.7s ease, --aur2 0.7s ease, --aur3 0.7s ease,
+            filter 0.7s ease, opacity 0.7s ease;
+    }
+    html.theme-dark.liquid .aurora {
+        --aur1: rgba(0, 229, 255, .40);
+        --aur2: rgba(255, 61, 129, .40);
+        --aur3: rgba(122, 0, 255, .34);
+    }
+    html.theme-light.liquid .aurora {
+        --aur1: rgba(130, 190, 255, .55);
+        --aur2: rgba(255, 160, 200, .50);
+        --aur3: rgba(170, 150, 255, .40);
+        filter: blur(4.2vmax);
+        opacity: .72;
+    }
+    @keyframes aurora-spin {
+        from { transform: rotate(0deg)   scale(1.05); }
+        to   { transform: rotate(360deg) scale(1.18); }
+    }
+
+    .sweep {
+        position: absolute;
+        inset: -30%;
+        background: linear-gradient(115deg,
+            transparent 42%,
+            rgba(255, 255, 255, .07) 50%,
+            transparent 58%);
+        background-size: 220% 220%;
+        mix-blend-mode: screen;
+        animation: sweep 16s ease-in-out infinite;
+        will-change: background-position;
+    }
+    html.theme-light.liquid .sweep {
+        mix-blend-mode: soft-light;
+        background: linear-gradient(115deg,
+            transparent 40%,
+            rgba(255, 255, 255, .85) 50%,
+            transparent 60%);
+        background-size: 220% 220%;
+    }
+    @keyframes sweep {
+        0%   { background-position:   0%   0%; }
+        50%  { background-position: 100% 100%; }
+        100% { background-position:   0%   0%; }
+    }
+
+    .orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(3.1vmax);
+        opacity: .85;
+        will-change: transform;
+        transition:
+            --o1a 0.7s ease, --o1b 0.7s ease, --o2a 0.7s ease, --o2b 0.7s ease,
+            --o3a 0.7s ease, --o3b 0.7s ease, --o4a 0.7s ease, --o4b 0.7s ease,
+            --o5a 0.7s ease, --o5b 0.7s ease, opacity 0.7s ease;
+    }
+    html.theme-light.liquid .orb { opacity: .72; }
+
+    .orb-1 {
+        width: 55vmax; height: 55vmax;
+        background: radial-gradient(circle at 35% 35%, var(--o1a), var(--o1b) 55%, transparent 70%);
+        top: -12vmax; left: -14vmax;
+    }
+    html.theme-dark.liquid .orb-1  { --o1a: #ff3d81; --o1b: #7a00ff; }
+    html.theme-light.liquid .orb-1 { --o1a: #3d8eff; --o1b: #5aa6ff; }
+
+    .orb-2 {
+        width: 50vmax; height: 50vmax;
+        background: radial-gradient(circle at 60% 40%, var(--o2a), var(--o2b) 55%, transparent 72%);
+        bottom: -18vmax; right: -12vmax;
+    }
+    html.theme-dark.liquid .orb-2  { --o2a: #00e5ff; --o2b: #0047ff; }
+    html.theme-light.liquid .orb-2 { --o2a: #ff5c96; --o2b: #ff7fae; }
+
+    .orb-3 {
+        width: 36vmax; height: 36vmax;
+        background: radial-gradient(circle at 50% 50%, var(--o3a), var(--o3b) 55%, transparent 72%);
+        top: 42%; left: 46%;
+        margin-left: -18vmax; margin-top: -18vmax;
+    }
+    html.theme-dark.liquid .orb-3  { --o3a: #ffd166; --o3b: #ff7a00; }
+    html.theme-light.liquid .orb-3 { --o3a: #22d4a0; --o3b: #4ae2b4; }
+
+    .orb-4 {
+        width: 26vmax; height: 26vmax;
+        background: radial-gradient(circle at 50% 50%, var(--o4a), var(--o4b) 55%, transparent 72%);
+        top: -6vmax; right: 6vmax;
+    }
+    html.theme-dark.liquid .orb-4  { --o4a: #5cffb1; --o4b: #00c2a8; }
+    html.theme-light.liquid .orb-4 { --o4a: #8d6bff; --o4b: #a78bff; }
+
+    .orb-5 {
+        width: 30vmax; height: 30vmax;
+        background: radial-gradient(circle at 50% 50%, var(--o5a), var(--o5b) 55%, transparent 72%);
+        bottom: -6vmax; left: 4vmax;
+    }
+    html.theme-dark.liquid .orb-5  { --o5a: #ff8ae2; --o5b: #b400ff; }
+    html.theme-light.liquid .orb-5 { --o5a: #ff9638; --o5b: #ffb15c; }
+
+    /* 粒子层（照抄父级 index，数量按小窗格调稀） */
+    .particles {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.7s ease, visibility 0s linear 0.7s;
+    }
+    html.liquid .particles {
+        opacity: .72;
+        visibility: visible;
+        transition: opacity 0.7s ease, visibility 0s linear 0s;
+    }
+    html.theme-light.liquid .particles { opacity: .50; }
+
+    /* 鼠标光晕（照抄父级 index） */
+    .cursor-glow {
+        position: absolute;
+        left: 0; top: 0;
+        /* 父级是 460px 固定直径，1920 宽下 1vmax≈19.2px，换算成 24vmax 才等比 */
+        width: 24vmax; height: 24vmax;
+        margin: -12vmax 0 0 -12vmax;
+        border-radius: 50%;
+        z-index: 0;
+        pointer-events: none;
+        background: radial-gradient(circle,
+            rgba(80, 190, 255, .22) 0%,
+            rgba(120, 90, 255, .10) 42%,
+            transparent 68%);
+        filter: blur(1.2vmax);
+        mix-blend-mode: screen;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.7s ease, visibility 0s linear 0.7s;
+        will-change: transform;
+    }
+    html.theme-light.liquid .cursor-glow {
+        background: radial-gradient(circle,
+            rgba(140, 190, 255, .28) 0%,
+            rgba(170, 150, 255, .14) 42%,
+            transparent 68%);
+        mix-blend-mode: normal;
+        filter: blur(1.4vmax);
+    }
+    /* 只在指针真的停在钟表上时才亮：指针一离开就得消失，
+       否则光晕会定在最后那个位置上，看着像一块不明所以的亮斑。
+       锁定状态下窗口是穿透的、前端收不到鼠标事件，指针位置由 Rust 报过来（tc-hover），
+       走的是同一个开关，所以锁定和没锁定表现一致。 */
+    html.liquid .cursor-glow {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+    }
+    html.liquid.hovering .cursor-glow {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.45s ease, visibility 0s linear 0s;
+    }
+
+    /* 玻璃填充层（照抄父级 .glass-shell::before） */
+    .widget::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        background: linear-gradient(140deg,
+            var(--gg1) 0%,
+            var(--gg2) 45%,
+            var(--gg3) 60%,
+            var(--gg4) 100%);
+        -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.02);
+                backdrop-filter: blur(24px) saturate(190%) brightness(1.02);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 0.5s ease, visibility 0s linear 0.5s,
+            --gg1 0.6s ease, --gg2 0.6s ease, --gg3 0.6s ease, --gg4 0.6s ease,
+            box-shadow 0.6s ease;
+        pointer-events: none;
+    }
+    html.liquid .widget::before {
+        opacity: 1;
+        visibility: visible;
+        transition:
+            opacity 0.5s ease, visibility 0s linear 0s,
+            --gg1 0.6s ease, --gg2 0.6s ease, --gg3 0.6s ease, --gg4 0.6s ease,
+            box-shadow 0.6s ease;
+    }
+    html.theme-dark.liquid .widget::before {
+        --gg1: rgba(255, 255, 255, .14);
+        --gg2: rgba(255, 255, 255, .04);
+        --gg3: rgba(255, 255, 255, .02);
+        --gg4: rgba(255, 255, 255, .10);
+        box-shadow:
+            0 40px 90px -40px rgba(0, 0, 0, .85),
+            0 12px 30px -14px rgba(0, 0, 0, .60),
+            inset 0 1px 0 rgba(255, 255, 255, .70),
+            inset 0 -1px 1px rgba(255, 255, 255, .20),
+            inset 0 0 80px rgba(255, 255, 255, .05);
+    }
+    html.theme-light.liquid .widget::before {
+        --gg1: rgba(255, 255, 255, .38);
+        --gg2: rgba(255, 255, 255, .16);
+        --gg3: rgba(255, 255, 255, .12);
+        --gg4: rgba(255, 255, 255, .34);
+        box-shadow:
+            0 40px 90px -40px rgba(150, 190, 255, .26),
+            0 12px 30px -14px rgba(150, 190, 255, .18),
+            inset 0 1px 0 rgba(255, 255, 255, 1),
+            inset 0 -1px 1px rgba(255, 255, 255, .60),
+            inset 0 0 80px rgba(255, 255, 255, .26);
+    }
+
+    /* 玻璃描边层（照抄父级 .glass-shell::after） */
+    .widget::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        border-radius: inherit;
+        padding: 1.5px;
+        background: linear-gradient(140deg,
+            var(--ge1) 0%,
+            var(--ge2) 25%,
+            var(--ge3) 50%,
+            var(--ge2) 75%,
+            var(--ge4) 100%);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+                mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                mask-composite: exclude;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 0.5s ease, visibility 0s linear 0.5s,
+            --ge1 0.6s ease, --ge2 0.6s ease, --ge3 0.6s ease, --ge4 0.6s ease;
+        pointer-events: none;
+    }
+    html.liquid .widget::after {
+        opacity: 1;
+        visibility: visible;
+        transition:
+            opacity 0.5s ease, visibility 0s linear 0s,
+            --ge1 0.6s ease, --ge2 0.6s ease, --ge3 0.6s ease, --ge4 0.6s ease;
+    }
+    html.theme-dark.liquid .widget::after {
+        --ge1: rgba(255, 255, 255, .95);
+        --ge2: rgba(255, 255, 255, .10);
+        --ge3: rgba(255, 255, 255, .02);
+        --ge4: rgba(255, 255, 255, .85);
+    }
+    html.theme-light.liquid .widget::after {
+        --ge1: rgba(255, 255, 255, 1);
+        --ge2: rgba(255, 255, 255, .55);
+        --ge3: rgba(255, 255, 255, .25);
+        --ge4: rgba(255, 255, 255, .98);
+    }
+
+    /* 玻璃高光（跟随鼠标，照抄父级 .glass-reflect） */
+    .glass-reflect {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        border-radius: inherit;
+        background: radial-gradient(
+            60% 60% at var(--mx, 50%) var(--my, 0%),
+            rgba(255, 255, 255, .30),
+            rgba(255, 255, 255, .06) 38%,
+            transparent 66%);
+        mix-blend-mode: screen;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+        pointer-events: none;
+    }
+    html.theme-light.liquid .glass-reflect {
+        background: radial-gradient(
+            62% 62% at var(--mx, 50%) var(--my, 0%),
+            rgba(255, 255, 255, .80),
+            rgba(255, 255, 255, .22) 38%,
+            transparent 66%);
+        mix-blend-mode: normal;
+    }
+    html.liquid .widget:hover .glass-reflect {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.4s ease, visibility 0s linear 0s;
+    }
+    html.theme-light.liquid .widget:hover .glass-reflect { opacity: .70; }
+
+    /* ═══════════ 时间区 ═══════════ */
+    .stage {
+        position: relative;
+        z-index: 3;
+        flex: 1 1 auto;
+        align-self: stretch;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+
+    .time-col { display: flex; flex-direction: column; align-items: center; width: 100%; }
+
+    .time-row {
+        /* 字号 = 量出来的「刚好填满窗格」倍数 × 根字号，
+           根字号随窗口等比变化，所以文字永远跟着窗口一起放大缩小 */
+        font-size: calc(var(--time-fit) * 1rem);
+        line-height: 1;
+        white-space: nowrap;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        font-feature-settings: "tnum" 1;
+    }
+    /* 首次量字号之前不开过渡，免得从兜底值"长"出来 */
+    html.fitted .time-row { transition: font-size .22s cubic-bezier(.22, 1, .36, 1); }
+    .time-line {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: center;
+        background-image: linear-gradient(180deg, var(--time-a), var(--time-b));
+        -webkit-background-clip: text;
+                background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 .05em .45em var(--time-shadow));
+        transition:
+            --time-a 0.6s ease,
+            --time-b 0.6s ease,
+            --time-shadow 0.6s ease;
+    }
+    .time-num { font-weight: 700; letter-spacing: 0.01em; }
+    .sep { opacity: 0.75; }
+
+    /* 秒：连同前面跟着的 ":" 一起进一个盒子 —— 一起出现、一起消失、一起变小。
+       盒子字号 = 主字号的 .75 倍 */
+    .seconds-wrap {
+        display: inline-flex;
+        align-items: baseline;
+        font-size: .75em;
+        opacity: 1;
+        transition: opacity .16s ease;
+    }
+    .seconds-wrap.fading { opacity: 0; }
+    .seconds-wrap.hidden { display: none; }
+
+    .ampm {
+        display: none;
+        font-size: 0.3em;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        margin-left: 0.35em;
+        opacity: 0.7;
+        color: var(--time-ampm-color);
+        -webkit-text-fill-color: currentColor;
+        transition: color 0.6s ease;
+    }
+    .ampm.show { display: inline-block; }
+
+    .date-row {
+        margin-top: .2rem;
+        /* 字号由 JS 定：整行宽度对齐「带秒数的时间」宽度（--date-fit 是 rem 倍数）。
+           行高压到 1.02：中文默认行高约 1.5，一行字会白白吃掉三成高度，
+           那份高度是留给时钟数字的。 */
+        font-size: calc(var(--date-fit, .46) * 1rem);
+        line-height: 1.02;
+        font-weight: 400;
+        letter-spacing: .07em;
+        color: var(--muted);
+        white-space: nowrap;
+        transition: color .5s ease;
+    }
+    html.fitted .date-row { transition: font-size .22s cubic-bezier(.22, 1, .36, 1), color .5s ease; }
+    html.liquid.theme-dark .date-row { text-shadow: 0 1px 14px rgba(0, 0, 0, .35); }
+    html.liquid.theme-light .date-row { color: rgba(22, 37, 60, .72); }
+
+    /* ═══════════ 设置按钮 ═══════════ */
+    .gear-btn {
+        position: absolute;
+        top: .14rem; right: .2rem;
+        width: .9rem; height: .9rem;
+        border-radius: 50%;
+        background: transparent; border: none;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        opacity: .35;
+        transition: opacity .2s, color .2s;
+        z-index: 10;                 /* 必须压住设置面板，否则关不掉面板 */
+    }
+    .widget.panel-open .gear-btn { opacity: .8; }
+    .gear-btn:hover { opacity: 1; color: var(--fg); }
+    /* 锁定时：不能拖也不能缩，缩放手柄直接藏掉；
+       齿轮必须常亮 —— 鼠标穿透之后 hover 不会再触发，否则看不见它在哪。
+       窗口小的时候齿轮会跟着缩到很小，这里给它兜一个最小可点尺寸。 */
+    html.locked .widget { cursor: default; }
+    html.locked .resize-grip { display: none; }
+    html.locked .gear-btn {
+        width: max(.9rem, 22px); height: max(.9rem, 22px);
+        opacity: .45;
+    }
+    html.locked .widget.panel-open .gear-btn,
+    html.locked .gear-btn:hover { opacity: 1; }
+    .gear-btn svg {
+        width: 100%; height: 100%;
+        stroke: currentColor; stroke-width: 1.6; fill: none;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: transform .5s cubic-bezier(.22, 1, .36, 1);
+    }
+    .gear-btn:hover svg { transform: rotate(30deg); }
+
+    /* ═══════════ 缩放手柄（按住等比缩放窗口） ═══════════ */
+    .resize-grip {
+        position: absolute;
+        right: .08rem; bottom: .08rem;
+        width: .62rem; height: .62rem;
+        z-index: 6;
+        color: var(--muted);
+        opacity: 0;
+        cursor: nwse-resize;
+        transition: opacity .2s, color .2s;
+        touch-action: none;
+    }
+    .widget:hover .resize-grip { opacity: .38; }
+    .resize-grip:hover { opacity: .95; color: var(--fg); }
+    .resize-grip svg {
+        width: 100%; height: 100%;
+        stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round;
+    }
+
+    /* ═══════════ 设置面板 ═══════════
+       面板故意用「固定字号」排版：14px 基准 + em 单位，完全不跟窗格缩放走。
+       窗格缩到最小的时候，设置里的字还是这么大，不会小到看不清。
+       代价是窗格本身放不下面板，所以打开面板时 JS 会把窗口临时撑到够用，
+       关掉再恢复原来的大小和位置。 */
+    .panel {
+        position: fixed;             /* 挂在 body 上：面板能伸到钟表外面去 */
+        left: var(--panel-x, 50%);
+        top: var(--panel-y, 50%);
+        width: 15.5em;               /* 固定宽度 217px */
+        height: 23em;                /* 固定高度 322px，一次显示完，不需要滚动 */
+        z-index: 8;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        border-radius: .85em;
+        padding: 1.15em;
+        font-size: 14px;             /* 字号写死：面板不跟着窗口缩放，读起来始终是这个大小 */
+        background: rgba(var(--glass-rgb), .97);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+                backdrop-filter: blur(24px) saturate(180%);
+        border: 1px solid var(--glass-border);
+        box-shadow: 0 .32em .95em rgba(0, 0, 0, .28);
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(.965);
+        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+        pointer-events: none;
+        overflow: auto;              /* 兜底：内容真装不下也能滚 */
+        overscroll-behavior: contain;
+        scrollbar-width: none;       /* 但别真的画出滚动条 —— 它就该是一整块面板 */
+    }
+    .panel::-webkit-scrollbar { width: 0; height: 0; }
+    html.theme-light .panel { box-shadow: 0 .32em .95em rgba(60, 90, 140, .16); }
+    .panel.show {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+        transition: opacity .18s ease, transform .18s ease, visibility 0s linear 0s;
+        pointer-events: auto;
+    }
+
+    .panel-head {
+        font-size: 1em;
+        font-weight: 600;
+        letter-spacing: .1em;
+        color: var(--muted);
+        padding: 0 0 .55em .1em;
+    }
+    .panel-grid {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;      /* 单列 */
+        gap: .42em 0;
+    }
+    .panel-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .8em;
+        min-width: 0;
+        padding: .26em 0;
+    }
+    .panel-label {
+        font-size: 1em;
+        color: var(--muted);
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+    .switch { position: relative; width: 2.45em; height: 1.35em; flex-shrink: 0; }
+    .switch input { display: none; }
+    .slider { position: absolute; inset: 0; background: rgba(127, 127, 127, .32);
+              border-radius: 999px; cursor: pointer; transition: background .25s; }
+    html.theme-dark .slider { background: rgba(255, 255, 255, .16); }
+    .slider::before { content: ""; position: absolute; width: 1.05em; height: 1.05em;
+                      left: .15em; top: .15em; background: #fff; border-radius: 50%;
+                      box-shadow: 0 .05em .15em rgba(0, 0, 0, .3);
+                      transition: transform .25s; }
+    .switch input:checked + .slider { background: rgba(80, 180, 255, .8); }
+    .switch input:checked + .slider::before { transform: translateX(1.1em); }
+
+    .seg-group {
+        display: flex;
+        background: rgba(127, 127, 127, .18);
+        border-radius: .55em;
+        padding: .12em;
+        gap: .1em;
+        flex-shrink: 0;
+    }
+    .seg-btn {
+        padding: .2em .62em;
+        font-size: .88em;
+        font-weight: 500;
+        border: none;
+        border-radius: .42em;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        transition: background .2s, color .2s;
+        font-family: inherit;
+        white-space: nowrap;
+    }
+    .seg-btn.active { background: rgba(127, 127, 127, .32); color: var(--fg);
+                      box-shadow: 0 .05em .25em rgba(0, 0, 0, .12); }
+
+    .range-wrap { display: flex; align-items: center; gap: .55em; flex: 1 1 auto; min-width: 0; }
+    .range-wrap input[type=range] {
+        flex: 1 1 auto; min-width: 0; max-width: 6em; height: 1.15em;
+        accent-color: rgba(80, 180, 255, .85); cursor: pointer;
+    }
+    .range-val {
+        font-size: .88em; color: var(--muted); min-width: 2.4em;
+        text-align: right; font-variant-numeric: tabular-nums;
+    }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        html.liquid.theme-light .widget::before { background: rgba(255, 255, 255, .92); }
+        html.liquid.theme-dark  .widget::before { background: rgba(18, 22, 38, .88); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .aurora, .sweep { animation: none !important; }
+        .cursor-glow { display: none; }
+        .time-row { transition: none; }
+    }
+</style>
+</head>
+<body>
+
+<!-- data-tauri-drag-region="deep"：整块窗格都能拖动窗口，
+     按钮 / 输入框等可点元素会自动被排除 -->
+<div class="widget" id="widget" data-tauri-drag-region="deep">
+
+    <!-- 液态玻璃底层 -->
+    <div class="liquid-bg" id="liquidBg" aria-hidden="true">
+        <div class="liquid-base"></div>
+        <div class="aurora"></div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+        <div class="orb orb-5"></div>
+        <div class="sweep"></div>
+    </div>
+    <canvas class="particles" id="particles" aria-hidden="true"></canvas>
+    <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+    <div class="glass-reflect" aria-hidden="true"></div>
+
+    <div class="stage" id="stage">
+        <div class="time-col">
+            <div class="time-row" id="timeRow">
+                <span class="time-line" id="timeLine"><span class="time-num" id="hours">00</span><span class="sep time-num">:</span><span class="time-num" id="minutes">00</span><span class="seconds-wrap hidden" id="secWrap"><span class="sep time-num">:</span><span class="time-num" id="seconds">00</span></span><span class="ampm" id="ampm"></span></span>
+            </div>
+            <div class="date-row" id="dateRow"></div>
+        </div>
+    </div>
+
+    <button class="gear-btn" id="gearBtn" type="button" aria-label="设置" title="设置">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </button>
+
+    <div class="resize-grip" id="resizeGrip" data-tauri-drag-region="false"
+         title="拖动可等比缩放" aria-hidden="true">
+        <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11 5 L5 11"/><path d="M11 8.5 L8.5 11"/>
+        </svg>
+    </div>
+
+    <!-- 设置面板：初始化时会被搬到 body 上（见 JS），这样才能伸出钟表外面，
+         贴在齿轮下方弹出。它自己不参与拖窗口，免得拖面板时把钟表一起挪走。 -->
+    <div class="panel" id="panel">
+        <div class="panel-head">设置</div>
+        <div class="panel-grid">
+            <div class="panel-item">
+                <span class="panel-label">液态玻璃</span>
+                <label class="switch"><input type="checkbox" id="liqToggle"><span class="slider"></span></label>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">显示秒数</span>
+                <label class="switch"><input type="checkbox" id="showSec"><span class="slider"></span></label>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">窗口置顶</span>
+                <label class="switch"><input type="checkbox" id="topToggle"><span class="slider"></span></label>
+            </div>
+            <div class="panel-item" title="锁定后不能拖动、不能缩放；除了设置按钮，其余部分鼠标会穿透到下面的窗口">
+                <span class="panel-label">锁定</span>
+                <label class="switch"><input type="checkbox" id="lockToggle"><span class="slider"></span></label>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">主题</span>
+                <div class="seg-group" id="themeSeg">
+                    <button class="seg-btn" type="button" data-theme="auto">自动</button>
+                    <button class="seg-btn" type="button" data-theme="light">浅色</button>
+                    <button class="seg-btn" type="button" data-theme="dark">深色</button>
+                </div>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">格式</span>
+                <div class="seg-group" id="fmtSeg">
+                    <button class="seg-btn" type="button" data-fmt="24">24时</button>
+                    <button class="seg-btn" type="button" data-fmt="12">12时</button>
+                </div>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">透明度</span>
+                <div class="range-wrap">
+                    <input type="range" id="seeSlider" min="0" max="100" step="1" value="22">
+                    <span class="range-val" id="seeVal">22%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ══════════ 窗口比例 ══════════ */
+    var RATIO = 460 / 140;      // 设计稿比例
+    var MIN_W = 230;            // 230 : 70 = 23 : 7（正好是 460×140 的一半，等比不会走样）
+    var MAX_W = 1380;
+
+    /* ══════════ 农历（照抄父级 index） ══════════ */
+    var lunarInfo = [
+        0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
+        0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
+        0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,
+        0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,
+        0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,
+        0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,
+        0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,
+        0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,
+        0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,
+        0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x055c0,0x0ab60,0x096d5,0x092e0,
+        0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,
+        0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,
+        0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,
+        0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,
+        0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,
+        0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06b20,0x1a6c4,0x0aae0,
+        0x0a2e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,
+        0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,
+        0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,
+        0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a2d0,0x0d150,0x0f252,
+        0x0d520
+    ];
+    var lunarMonthNames = ['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+    var lunarDayNames = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十',
+                         '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+                         '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+    function leapMonth(y){ return lunarInfo[y-1900] & 0xf; }
+    function leapDays(y){ if(leapMonth(y)) return (lunarInfo[y-1900] & 0x10000) ? 30 : 29; return 0; }
+    function monthDays(y,m){ return (lunarInfo[y-1900] & (0x10000 >> m)) ? 30 : 29; }
+    function yearDays(y){ var s=348; for(var i=0x8000;i>0x8;i>>=1) s += (lunarInfo[y-1900] & i) ? 1 : 0; return s + leapDays(y); }
+    function solarToLunar(y,m,d){
+        var off = Math.floor((Date.UTC(y,m-1,d) - Date.UTC(1900,0,31)) / 86400000);
+        var i, t = 0;
+        for (i = 1900; i < 2101 && off > 0; i++) { t = yearDays(i); off -= t; }
+        if (off < 0) { off += t; i--; }
+        var ly = i, leap = leapMonth(ly), isLeap = false, j;
+        for (j = 1; j < 13 && off > 0; j++) {
+            if (leap > 0 && j === leap + 1 && !isLeap) { --j; isLeap = true; t = leapDays(ly); }
+            else { t = monthDays(ly, j); }
+            if (isLeap && j === leap + 1) isLeap = false;
+            off -= t;
+        }
+        if (off === 0 && leap > 0 && j === leap + 1) {
+            if (isLeap) isLeap = false; else { isLeap = true; --j; }
+        }
+        if (off < 0) { off += t; --j; }
+        return { year: ly, month: j, day: off + 1, isLeap: isLeap };
+    }
+    function getLunar(y,m,d){
+        if (y < 1900 || y > 2100) return '';
+        var l = solarToLunar(y,m,d);
+        return (l.isLeap ? '闰' : '') + lunarMonthNames[l.month-1] + lunarDayNames[l.day-1];
+    }
+
+    /* ══════════ 状态 ══════════ */
+    var DEFAULTS = { theme:'auto', liquid:false, showSec:true, is24Hour:true, alwaysOnTop:false, locked:false, see:22 };
+    var S = {};
+    function loadState(){
+        try {
+            var t = localStorage.getItem('tc_theme');
+            S.theme       = (t === 'light' || t === 'dark' || t === 'auto') ? t : DEFAULTS.theme;
+            S.liquid      = localStorage.getItem('tc_liquid') === 'true';
+            S.showSec     = localStorage.getItem('tc_showSec') !== 'false';
+            S.is24Hour    = localStorage.getItem('tc_24h') !== 'false';
+            S.alwaysOnTop = localStorage.getItem('tc_top') === 'true';
+            S.locked      = localStorage.getItem('tc_locked') === 'true';
+            var see       = parseInt(localStorage.getItem('tc_see'), 10);
+            S.see         = (see >= 0 && see <= 100) ? see : DEFAULTS.see;
+        } catch (e) { S = Object.assign({}, DEFAULTS); }
+    }
+    function saveState(){
+        try {
+            localStorage.setItem('tc_theme', S.theme);
+            localStorage.setItem('tc_liquid', S.liquid);
+            localStorage.setItem('tc_showSec', S.showSec);
+            localStorage.setItem('tc_24h', S.is24Hour);
+            localStorage.setItem('tc_top', S.alwaysOnTop);
+            localStorage.setItem('tc_locked', S.locked);
+            localStorage.setItem('tc_see', S.see);
+            localStorage.removeItem('tc_op');   // 旧键：语义是「不透明度」，已废
+        } catch (e) {}
+    }
+
+    /* ══════════ DOM ══════════ */
+    var root = document.documentElement;
+    var $widget   = document.getElementById('widget');
+    var $stage    = document.getElementById('stage');
+    var $timeRow  = document.getElementById('timeRow');
+    var $timeLine = document.getElementById('timeLine');
+    var $dateRow  = document.getElementById('dateRow');
+    var $hours    = document.getElementById('hours');
+    var $minutes  = document.getElementById('minutes');
+    var $seconds  = document.getElementById('seconds');
+    var $secWrap  = document.getElementById('secWrap');
+    var $ampm     = document.getElementById('ampm');
+    var $panel    = document.getElementById('panel');
+    var $gearBtn  = document.getElementById('gearBtn');
+    var $grip     = document.getElementById('resizeGrip');
+    var $liqToggle= document.getElementById('liqToggle');
+    var $showSec  = document.getElementById('showSec');
+    var $topToggle= document.getElementById('topToggle');
+    var $lockToggle= document.getElementById('lockToggle');
+    var $themeSeg = document.getElementById('themeSeg');
+    var $fmtSeg   = document.getElementById('fmtSeg');
+    var $seeSlider = document.getElementById('seeSlider');
+    var $seeVal    = document.getElementById('seeVal');
+    var $canvas   = document.getElementById('particles');
+    var $glow     = document.getElementById('cursorGlow');
+    var $liquidBg = document.getElementById('liquidBg');
+
+    /* ══════════ Tauri 窗口工具 ══════════ */
+    function tauriWindow(){
+        try {
+            var T = window.__TAURI__;
+            if (T && T.window && T.window.getCurrentWindow) return T.window.getCurrentWindow();
+        } catch (e) {}
+        return null;
+    }
+    function logicalSize(w, h){
+        try {
+            var T = window.__TAURI__;
+            var LW = (T && T.window && T.window.LogicalSize) ||
+                     (T && T.dpi && T.dpi.LogicalSize);
+            if (LW) return new LW(w, h);
+        } catch (e) {}
+        // 退路：JS API 会把普通对象包一层，带上 type 才能被 Rust 端反序列化
+        return { type: 'Logical', width: w, height: h };
+    }
+    // 记录「我们自己设过的尺寸」，避免自己触发的 resize 又去纠正自己
+    var expectW = 0, expectH = 0;
+    function setWinSize(w, h){
+        w = Math.round(w); h = Math.round(h);
+        expectW = w; expectH = h;
+        var win = tauriWindow();
+        if (!win) return;
+        try { win.setSize(logicalSize(w, h)); } catch (e) {}
+    }
+    function logicalPos(x, y){
+        try {
+            var T = window.__TAURI__;
+            var LP = (T && T.window && T.window.LogicalPosition) ||
+                     (T && T.dpi && T.dpi.LogicalPosition);
+            if (LP) return new LP(x, y);
+        } catch (e) {}
+        return { type: 'Logical', x: x, y: y };
+    }
+
+    /* ══════════ 记住窗口的位置和大小，下次打开照原样摆回来 ══════════ */
+    var GEO_KEY = 'tc_geo';
+    var lastGeoJson = '';
+    function readGeo(){
+        try {
+            var g = JSON.parse(localStorage.getItem(GEO_KEY) || 'null');
+            if (g && isFinite(g.x) && isFinite(g.y) && g.w > 0) return g;
+        } catch (e) {}
+        return null;
+    }
+    // 统一存「逻辑像素」：换屏幕、改缩放比都不会错位
+    function saveGeometry(){
+        // 面板撑着窗口的时候别记：那不是用户想要的窗格大小
+        if (panelPrev) return;
+        var win = tauriWindow(); if (!win) return;
+        Promise.all([win.outerPosition(), win.outerSize(), win.scaleFactor()])
+            .then(function (r) {
+                var sf = r[2] || 1;
+                var iw = window.innerWidth, ih = window.innerHeight;   // CSS 像素，最准
+                // 缩放比/DPI 切换的空档里，innerWidth 会短暂地报成物理像素。
+                // 这时候存下去，就等于把物理尺寸当逻辑尺寸记了 ——
+                // 下次开机窗口会整整大 1.5 倍。对不上就这次不记，等下一次事件。
+                if (Math.abs(iw * sf - r[1].width) > 2) return;
+                var ow = r[1].width / sf, oh = r[1].height / sf;       // 外框比视口多出的那几像素
+                var g = {
+                    x: Math.round(r[0].x / sf), y: Math.round(r[0].y / sf),
+                    w: iw, h: ih,
+                    fx: +(ow - iw).toFixed(2), fy: +(oh - ih).toFixed(2)
+                };
+                var s = JSON.stringify(g);
+                if (s === lastGeoJson) return;
+                lastGeoJson = s;
+                try { localStorage.setItem(GEO_KEY, s); } catch (e) {}
+            })
+            .catch(function () {});
+    }
+    // 只要和任意一块屏幕还剩 80×40 以上的重叠，就认这个位置
+    function positionVisible(g, w, h){
+        var sf = window.devicePixelRatio || 1;
+        var px = g.x * sf, py = g.y * sf, pw = w * sf, ph = h * sf;
+        var mons;
+        try {
+            var T = window.__TAURI__;
+            mons = (T && T.window && T.window.availableMonitors) ? T.window.availableMonitors() : null;
+        } catch (e) { mons = null; }
+        return Promise.resolve(mons).then(function (list) {
+            if (!list || !list.length) {                   // 拿不到显示器清单就用当前屏幕
+                var L = window.screen.availLeft  || 0;
+                var Tp = window.screen.availTop  || 0;
+                var W = window.screen.availWidth || 1920;
+                var H = window.screen.availHeight || 1080;
+                return g.x + w > L + 80 && g.x < L + W - 80 &&
+                       g.y + h > Tp + 40 && g.y < Tp + H - 40;
+            }
+            for (var i = 0; i < list.length; i++) {
+                var m = list[i];
+                var ovx = Math.min(px + pw, m.position.x + m.size.width)  - Math.max(px, m.position.x);
+                var ovy = Math.min(py + ph, m.position.y + m.size.height) - Math.max(py, m.position.y);
+                if (ovx > 80 * sf && ovy > 40 * sf) return true;
+            }
+            return false;
+        }).catch(function () { return true; });
+    }
+    function restoreGeometry(win){
+        if (!win) return Promise.resolve();
+        var g = readGeo();
+        if (!g) return Promise.resolve();
+        var w = Math.min(MAX_W, Math.max(MIN_W, Math.round(g.w)));
+        // 在大屏幕上存过、换到小屏幕时按当前屏幕再收一次
+        w = Math.min(w, Math.max(MIN_W, (window.screen.availWidth || 1920) * 0.98));
+        var h = Math.round(w / RATIO);
+        expectW = w; expectH = h;                       // 这次 resize 是我们自己干的，别去纠正
+        return Promise.resolve()
+            .then(function () { return win.setSize(logicalSize(w + (g.fx || 0), h + (g.fy || 0))); })
+            .then(function () { return positionVisible(g, w, h); })
+            .then(function (ok) {
+                // 拔了显示器 / 改了分辨率 → 宁可回到系统居中，也别把窗口丢到看不见的地方
+                if (ok) return win.setPosition(logicalPos(g.x, g.y));
+            })
+            .catch(function () {});
+    }
+    function hookGeoSave(win){
+        if (!win) return;
+        var t = 0;
+        function later(){ clearTimeout(t); t = setTimeout(saveGeometry, 250); }
+        try { if (win.onMoved)   win.onMoved(later); }   catch (e) {}
+        try { if (win.onResized) win.onResized(later); } catch (e) {}
+        window.addEventListener('beforeunload', saveGeometry);
+        window.addEventListener('pagehide', saveGeometry);
+    }
+
+    /* ══════════ 时间排版：量出「刚好填满窗格」的字号系数 ══════════ */
+    var fitTimer = 0;
+    // 量一段文字在指定字号下的自然宽度。块级元素（比如日期行）整行宽度等于窗格宽度，
+    // 直接用 getBoundingClientRect 量不到文字宽度，所以用 Range 取内联内容。
+    function naturalTextWidth(el, fs){
+        var prev = el.style.fontSize, w = 0;
+        el.style.fontSize = fs + 'px';
+        try {
+            var r = document.createRange();
+            r.selectNodeContents(el);
+            w = r.getBoundingClientRect().width;
+            if (r.detach) r.detach();
+        } catch (e) { w = 0; }
+        el.style.fontSize = prev;
+        return w;
+    }
+
+    function fitTimeNow(){
+        var stageW = $stage.clientWidth;
+        var stageH = $stage.clientHeight;
+        if (!stageW || !stageH) return;
+
+        var rootFs = parseFloat(getComputedStyle(root).fontSize) || 24;
+
+        // 量「1 像素字号」下的自然宽度（秒、AM/PM 都在时更宽）
+        var prev = $timeLine.style.fontSize;
+        $timeLine.style.fontSize = '100px';
+        var natural = $timeLine.getBoundingClientRect().width;
+        $timeLine.style.fontSize = prev;
+        if (!natural) return;
+
+        var dateStyle = getComputedStyle($dateRow);
+        var dateGap = parseFloat(dateStyle.marginTop) || 0;
+        // 日期行的行高倍数。CSS 里写的是数值 line-height，computed 会给成 px，
+        // 直接除最稳（用 offsetHeight 反推会因为取整而抖动，字号就会来回跳）。
+        var dateFsNow = parseFloat(dateStyle.fontSize) || rootFs;
+        var dateLineNow = parseFloat(dateStyle.lineHeight);
+        var dateLine = (isFinite(dateLineNow) && dateLineNow > 0)
+            ? (dateLineNow / dateFsNow)
+            : ($dateRow.offsetHeight > 0 ? ($dateRow.offsetHeight / dateFsNow) : 1.02);
+
+        var byWidth = stageW / (natural / 100);
+
+        // 日期行：目标是整行宽度对齐「带秒数的时间」宽度，
+        // 但前提是不能把时间挤小 —— 时间先按宽度撑满，日期只能用剩下的高度。
+        var dateFs = 0;
+        var natDate = naturalTextWidth($dateRow, 100);
+        if (natDate > 0) {
+            var fsNow = byWidth * 0.985;                     // 当前时间撑满宽度时多大
+            // 日期目标宽度 = 时间「带秒数」时的宽度。直接用窗格宽度算，
+            // 跟秒数开不开无关，切换秒数时日期行不会跟着跳。
+            var want = (stageW * 0.985) * 100 / natDate;
+            var allowed = (stageH - fsNow - dateGap) / dateLine;   // 高度上还能给多大
+            dateFs = Math.max(rootFs * .34, Math.min(want, allowed, rootFs * 1.1));
+            root.style.setProperty('--date-fit', (dateFs / rootFs).toFixed(4));
+        }
+
+        // 时间：宽度优先；只有窗格真的不够高时（去掉日期仍放不下）才按高度收
+        var dateH = dateGap + (dateFs > 0 ? dateLine * dateFs : $dateRow.offsetHeight);
+        var fs = Math.min(byWidth, stageH - dateH) * 0.985;
+        if (!isFinite(fs) || fs <= 0) return;
+
+        root.style.setProperty('--time-fit', (fs / rootFs).toFixed(4));
+    }
+    function fitTime(){
+        // 用 setTimeout 而不是 rAF 合并重算：窗口不可见 / 无合成帧时也不会漏掉
+        if (fitTimer) return;
+        fitTimer = setTimeout(function () { fitTimer = 0; fitTimeNow(); }, 0);
+    }
+
+    /* ══════════ 主题 ══════════ */
+    var darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+    function isSystemDark(){ return darkMQ.matches; }
+    function isDarkNow(){ return S.theme === 'auto' ? isSystemDark() : S.theme === 'dark'; }
+    function applyTheme(){
+        var dark = isDarkNow();
+        root.classList.toggle('theme-dark', dark);
+        root.classList.toggle('theme-light', !dark);
+    }
+    if (darkMQ.addEventListener) darkMQ.addEventListener('change', function () {
+        if (S.theme === 'auto') { applyTheme(); fx.setTheme(!isDarkNow()); }
+    });
+
+    /* ══════════ 时钟 ══════════ */
+    var WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+    function pad2(n){ return n < 10 ? '0' + n : '' + n; }
+
+    function updateClock(){
+        var now = new Date();
+        var h24 = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        var hShow = S.is24Hour ? h24 : (h24 % 12 || 12);
+
+        $hours.textContent   = pad2(hShow);
+        $minutes.textContent = pad2(m);
+        $seconds.textContent = pad2(s);
+
+        if (S.is24Hour) {
+            $ampm.classList.remove('show');
+            $ampm.textContent = '';
+        } else {
+            $ampm.textContent = h24 >= 12 ? 'PM' : 'AM';
+            $ampm.classList.add('show');
+        }
+
+        var Y = now.getFullYear(), M = now.getMonth() + 1, D = now.getDate();
+        var dateText = Y + '年' + M + '月' + D + '日  ' +
+                       WEEKDAYS[now.getDay()] + '  ' + getLunar(Y, M, D);
+        // 日期文案变了（跨天 / 农历变化）宽度也变，字号得跟着重算
+        if ($dateRow.textContent !== dateText) {
+            $dateRow.textContent = dateText;
+            fitTime();
+        }
+    }
+    function tick(){
+        updateClock();
+        setTimeout(tick, 1000 - (Date.now() % 1000));
+    }
+
+    /* ══════════ 秒：连同前面的 ":" 一起淡入淡出 ══════════ */
+    var secTimer = 0;
+    function syncSeconds(animate){
+        clearTimeout(secTimer);
+        if (S.showSec) {
+            $secWrap.classList.remove('hidden');
+            void $secWrap.offsetWidth;          // 强制回流，让淡入真的播出来
+            $secWrap.classList.remove('fading');
+            fitTime();
+        } else if (animate) {
+            $secWrap.classList.add('fading');
+            secTimer = setTimeout(function () {
+                $secWrap.classList.add('hidden');
+                fitTime();
+            }, 170);
+        } else {
+            $secWrap.classList.remove('fading');
+            $secWrap.classList.add('hidden');
+            fitTime();
+        }
+    }
+
+    /* ══════════ 应用状态 ══════════ */
+    // 图标上的四个数字由 Rust 那边按分钟自己画，这里只负责告诉它用 12 还是 24 小时制
+    function syncIconFormat(){
+        try {
+            var T = window.__TAURI__;
+            if (T && T.core && T.core.invoke) {
+                T.core.invoke('set_icon_format', { hour24: !!S.is24Hour });
+            }
+        } catch (e) {}
+    }
+    // 透明度只有一个滑块，但落下去是三处：玻璃底色（--glass-see 直接算）、
+    // 装饰层浓度（--glass-dec）、以及 blur 半径（同样吃 --glass-dec）。
+    // 装饰层这一段特意做成「默认 22% 时正好是 1」：默认观感不变，往更透的方向拖才明显淡出，
+    // 否则极光/光球一直盖在底色上，滑块拉到头也看不出区别。
+    function applySee(){
+        var see = Math.max(0, Math.min(1, (S.see || 0) / 100));
+        root.style.setProperty('--glass-see', see.toFixed(2));
+        var dec = see <= 0.22 ? 1 : Math.max(0.08, 1 - (see - 0.22) * 1.18);
+        root.style.setProperty('--glass-dec', dec.toFixed(3));
+    }
+    function applyAll(){
+        applyTheme();
+        root.classList.toggle('liquid', S.liquid);
+        applySee();
+        if (!S.liquid) {
+            // 关掉液态玻璃时把倾斜角度归零，否则下次打开会从上次的角度弹一下
+            $widget.style.setProperty('--rx', '0deg');
+            $widget.style.setProperty('--ry', '0deg');
+            $widget.style.setProperty('--tilt-scale', '1');
+        }
+
+        updateClock();
+        updatePanelUI();
+        syncSeconds(false);
+        syncIconFormat();
+        fx.setTheme(!isDarkNow());
+        fx.sync();
+        setAlwaysOnTop(S.alwaysOnTop);
+        applyLock();
+        fitTime();
+    }
+    function updatePanelUI(){
+        $liqToggle.checked  = S.liquid;
+        $showSec.checked    = S.showSec;
+        $topToggle.checked  = S.alwaysOnTop;
+        $lockToggle.checked = S.locked;
+        $seeSlider.value    = S.see;
+        $seeVal.textContent = S.see + '%';
+        Array.prototype.forEach.call($themeSeg.querySelectorAll('.seg-btn'), function (b) {
+            b.classList.toggle('active', b.dataset.theme === S.theme);
+        });
+        Array.prototype.forEach.call($fmtSeg.querySelectorAll('.seg-btn'), function (b) {
+            b.classList.toggle('active', b.dataset.fmt === (S.is24Hour ? '24' : '12'));
+        });
+    }
+    function setAlwaysOnTop(on){
+        var win = tauriWindow();
+        if (!win) return;
+        try { win.setAlwaysOnTop(!!on); } catch (e) {}
+    }
+
+    /* ══════════ 锁定 ══════════
+       锁定后：不能拖动（摘掉 Tauri 的拖拽区属性）、不能缩放（窗口设为不可缩放，
+       边角拖拽和右下角手柄一起失效）、不跟鼠标倾斜。
+       鼠标整体「穿透」到下面的窗口，只有齿轮那一小块还能点 ——
+       这不归前端管：前端把「现在哪些地方还能点」的矩形报给 Rust，
+       Rust 按光标位置轮询切换窗口的 ignore_cursor_events。 */
+    function pushLockState(){
+        var rects = [];
+        if (S.locked) {
+            if ($panel.classList.contains('show')) {
+                // 面板开着：整个窗口都可点。这样面板本身一定点得到，
+                // 点面板外面也能触发「点外面关掉面板」。
+                // 报一块足够大的矩形就行，「窗口内全部可点」这个意思最准。
+                rects.push([0, 0, 4096, 4096]);
+            } else {
+                // 只留齿轮，四周放宽。齿轮会跟着玻璃一起倾斜（锁定时也保留这个悬停效果），
+                // 3D 旋转会把它从布局位置挪开十几到几十像素，所以可点区跟着齿轮本身放大，
+                // 把这个位移一起圈进来 —— 否则会出现「指针停在齿轮上 → 齿轮转开 →
+                // 落进穿透区 → 倾斜复位 → 齿轮转回来」的来回抖。
+                // 用 offsetLeft/Top/Width/Height 而不是 getBoundingClientRect：
+                // 前者不受 transform 影响，算出来的是稳定不变的「家」的位置。
+                var pad = Math.max(16, Math.round($gearBtn.offsetWidth * 1.25));
+                rects.push([
+                    $gearBtn.offsetLeft - pad,
+                    $gearBtn.offsetTop - pad,
+                    $gearBtn.offsetWidth + pad * 2,
+                    $gearBtn.offsetHeight + pad * 2
+                ]);
+            }
+        }
+        try {
+            var T = window.__TAURI__;
+            if (T && T.core && T.core.invoke) {
+                T.core.invoke('set_lock_state', { locked: !!S.locked, rects: rects });
+            }
+        } catch (e) {}
+    }
+
+    function applyLock(){
+        var on = !!S.locked;
+        root.classList.toggle('locked', on);
+        // Tauri 靠 data-tauri-drag-region 决定「按住这里能不能拖窗口」。
+        // 面板不给拖拽区：它在钟表外面，拖它却把钟表挪走太反直觉。
+        if (on) {
+            $widget.removeAttribute('data-tauri-drag-region');
+        } else {
+            $widget.setAttribute('data-tauri-drag-region', 'deep');
+        }
+        $panel.removeAttribute('data-tauri-drag-region');
+        var win = tauriWindow();
+        if (win) { try { win.setResizable(!on); } catch (e) {} }
+        resetTilt();
+        pushLockState();
+    }
+
+    function setLocked(on){
+        S.locked = !!on;
+        saveState();
+        applyLock();
+        updatePanelUI();
+    }
+    $lockToggle.addEventListener('change', function () { setLocked(this.checked); });
+
+    // 托盘菜单里也能切（万一鼠标穿透出了什么岔子，还有条退路）
+    try {
+        var TE = window.__TAURI__ && window.__TAURI__.event;
+        if (TE && TE.listen) TE.listen('tc-lock', function (e) { setLocked(!!e.payload); });
+    } catch (e) {}
+
+    /* ══════════ 设置面板 ══════════
+       面板是钟表的「邻居」：贴在齿轮下方弹出，尺寸固定（217×322，字号固定 14px），
+       一次显示完、不滚动，可以伸到钟表外面 —— 所以它挂在 body 上，不是窗格的子元素。
+       窗口装不下就把窗口撑开，但撑窗口不许把钟表挪动：
+       窗格按打开前的尺寸钉在左上角、根字号钉回打开前的值（见 CSS 的 html.panel-open），
+       这样钟表连字号都不会重排，看着就是「面板自己冒出来」。 */
+    var PANEL_GAP = 10;
+    var panelPrev = null;        // 撑窗口前的窗口尺寸（还回去用）
+
+    // 面板必须挂在 body 上才能伸出钟表：它原来在窗格内部，而窗格是 overflow:hidden
+    if ($panel.parentElement !== document.body) document.body.appendChild($panel);
+
+    function openPanelRoom(){
+        if (panelPrev) return;
+        var w0 = window.innerWidth, h0 = window.innerHeight;
+        var pw = $panel.offsetWidth  || 217;
+        var ph = $panel.offsetHeight || 322;
+        // 贴着齿轮下沿、右边留一条缝：就近弹出，不居中也不铺满
+        var x = Math.round(w0 - pw - PANEL_GAP);
+        if (x < PANEL_GAP) x = PANEL_GAP;
+        var y = Math.round($gearBtn.offsetTop + $gearBtn.offsetHeight + PANEL_GAP);
+        if (y < PANEL_GAP) y = PANEL_GAP;
+
+        panelPrev = { w: w0, h: h0, x: null, y: null };
+        var root = document.documentElement;
+        root.style.setProperty('--clock-w', w0 + 'px');
+        root.style.setProperty('--clock-h', h0 + 'px');
+        root.style.setProperty('--clock-rem', getComputedStyle(root).fontSize);
+        root.style.setProperty('--panel-x', x + 'px');
+        root.style.setProperty('--panel-y', y + 'px');
+        root.classList.add('panel-open');       // 先钉住钟表，再撑窗口
+        var nw = Math.max(w0, x + pw + PANEL_GAP);
+        var nh = Math.max(h0, y + ph + PANEL_GAP);
+        // 钟表贴着屏幕下边时，撑下去会顶出屏幕 —— 把窗口整体往上挪一点（只在贴边时发生）
+        var availH = (window.screen && window.screen.availHeight) ? window.screen.availHeight : 0;
+        var sy = window.screenY || 0;
+        if (availH && sy + nh > availH) {
+            var shift = Math.min(sy + nh - availH, sy);
+            if (shift > 0) {
+                panelPrev.x = window.screenX || 0;
+                panelPrev.y = sy;
+                var win = tauriWindow();
+                if (win) { try { win.setPosition(logicalPos(panelPrev.x, sy - shift)); } catch (e) {} }
+            }
+        }
+        setWinSize(nw, nh);
+    }
+
+    function closePanelRoom(){
+        if (!panelPrev) return;
+        var p = panelPrev;
+        panelPrev = null;
+        document.documentElement.classList.remove('panel-open');
+        setWinSize(p.w, p.h);
+        if (p.x !== null) {
+            var win = tauriWindow();
+            if (win) { try { win.setPosition(logicalPos(p.x, p.y)); } catch (e) {} }
+        }
+    }
+
+    function togglePanel(show){
+        var on = (show === undefined) ? !$panel.classList.contains('show') : !!show;
+        if (on === $panel.classList.contains('show')) return;
+        if (on) { resetTilt(); openPanelRoom(); } else { closePanelRoom(); }
+        $panel.classList.toggle('show', on);
+        $widget.classList.toggle('panel-open', on);
+        $gearBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+        pushLockState();      // 面板开关会改变「哪些地方还能点」
+        if (on) $panel.scrollTop = 0;   // 面板一次显示完，打开时总是从顶上开始
+    }
+    $gearBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        togglePanel();
+    });
+    document.addEventListener('click', function (e) {
+        if (!$panel.classList.contains('show')) return;
+        if ($panel.contains(e.target) || $gearBtn.contains(e.target)) return;
+        togglePanel(false);
+    });
+    // 点面板外面收起来。用 mousedown 而不是 click：窗口本身就是 Tauri 的拖拽区，
+    // 按下去系统就进拖拽循环了，mouseup 未必还回得到网页里，click 事件经常收不到，
+    // 表现就是「点外面关不掉」。mousedown 一定拿得到，而且只是单击、窗口不会动。
+    document.addEventListener('mousedown', function (e) {
+        if (!$panel.classList.contains('show')) return;
+        if ($panel.contains(e.target) || $gearBtn.contains(e.target)) return;
+        togglePanel(false);
+    }, true);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') togglePanel(false);
+    });
+
+    /* ══════════ 设置项事件 ══════════ */
+    $liqToggle.addEventListener('change', function () { S.liquid = this.checked; saveState(); applyAll(); });
+    $showSec.addEventListener('change', function () {
+        S.showSec = this.checked; saveState();
+        applyTheme();
+        root.classList.toggle('liquid', S.liquid);
+        updateClock(); updatePanelUI();
+        syncSeconds(true);            // 带淡入淡出
+        fitTime();
+    });
+    $topToggle.addEventListener('change', function () { S.alwaysOnTop = this.checked; saveState(); applyAll(); });
+
+    Array.prototype.forEach.call($themeSeg.querySelectorAll('.seg-btn'), function (b) {
+        b.addEventListener('click', function () { S.theme = this.dataset.theme; saveState(); applyAll(); });
+    });
+    Array.prototype.forEach.call($fmtSeg.querySelectorAll('.seg-btn'), function (b) {
+        b.addEventListener('click', function () { S.is24Hour = this.dataset.fmt === '24'; saveState(); applyAll(); });
+    });
+
+    function onSeeInput(){
+        S.see = parseInt($seeSlider.value, 10);
+        $seeVal.textContent = S.see + '%';
+        applySee();
+    }
+    $seeSlider.addEventListener('input', onSeeInput);
+    $seeSlider.addEventListener('change', function () { onSeeInput(); saveState(); });
+
+    /* ══════════ 液态玻璃特效（照抄父级 index 的 fx） ══════════ */
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var fx = (function () {
+        var ctx = null, cw = 0, ch = 0;
+        var particles = [], running = false, rafId = 0, isLight = true;
+        var orbEls = $liquidBg.querySelectorAll('.orb');
+        var orbs = [], orbReady = false, orbT = 0, lastNow = 0;
+
+        var targetX = 0, targetY = 0, curX = 0, curY = 0;
+        var glowTX = window.innerWidth / 2, glowTY = window.innerHeight / 2;
+        var glowX = glowTX, glowY = glowTY;
+        var glowOn = false;          // 指针在不在钟表上（CSS 用 html.hovering 控制亮度）
+
+        function vmax(){ return Math.max(window.innerWidth, window.innerHeight) / 100; }
+        function orbRange(i){ return (12 + i * 3) * vmax(); }
+
+        function initOrbs(){
+            if (orbReady) return;
+            orbs = [];
+            for (var i = 0; i < orbEls.length; i++) {
+                orbs.push({
+                    el: orbEls[i],
+                    range: orbRange(i),
+                    p: [Math.random()*Math.PI*2, Math.random()*Math.PI*2,
+                        Math.random()*Math.PI*2, Math.random()*Math.PI*2],
+                    w: [0.850 + Math.random()*0.400, 0.575 + Math.random()*0.350,
+                        0.750 + Math.random()*0.400, 0.500 + Math.random()*0.300],
+                    sp: 0.60 + Math.random()*0.50,
+                    sp0: Math.random()*Math.PI*2
+                });
+            }
+            orbReady = true;
+        }
+        function updateOrbs(t){
+            for (var i = 0; i < orbs.length; i++) {
+                var o = orbs[i];
+                var x = o.range * (0.62*Math.sin(t*o.w[0]+o.p[0]) + 0.38*Math.sin(t*o.w[1]+o.p[1]));
+                var y = o.range * (0.62*Math.cos(t*o.w[2]+o.p[2]) + 0.38*Math.cos(t*o.w[3]+o.p[3]));
+                var s = 1 + 0.07*Math.sin(t*o.sp + o.sp0);
+                o.el.style.transform = 'translate3d(' + x.toFixed(2) + 'px,' + y.toFixed(2) + 'px,0) scale(' + s.toFixed(3) + ')';
+            }
+        }
+        function sizeCanvas(){
+            if (!$canvas) return;
+            var dpr = Math.min(window.devicePixelRatio || 1, 2);
+            cw = window.innerWidth; ch = window.innerHeight;
+            $canvas.width  = Math.floor(cw * dpr);
+            $canvas.height = Math.floor(ch * dpr);
+            $canvas.style.width  = cw + 'px';
+            $canvas.style.height = ch + 'px';
+            if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        function makeParticles(){
+            var n = cw < 400 ? 18 : (cw < 900 ? 28 : 44);
+            particles = [];
+            for (var i = 0; i < n; i++) {
+                particles.push({
+                    x: Math.random()*cw, y: Math.random()*ch,
+                    r: Math.random() * 1.7 + 0.5,
+                    vx: (Math.random()-0.5)*0.28, vy: (Math.random()-0.5)*0.28,
+                    a: Math.random()*0.4 + 0.15,
+                    ph: Math.random()*Math.PI*2,
+                    sp: Math.random()*0.02 + 0.007
+                });
+            }
+        }
+        function particleColor(a){ return isLight ? 'rgba(40,60,90,' + a + ')' : 'rgba(255,255,255,' + a + ')'; }
+        function drawParticles(){
+            if (!ctx) return;
+            ctx.clearRect(0, 0, cw, ch);
+            for (var i = 0; i < particles.length; i++) {
+                var p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.ph += p.sp;
+                if (p.x < -20) p.x = cw + 20;
+                if (p.x > cw + 20) p.x = -20;
+                if (p.y < -20) p.y = ch + 20;
+                if (p.y > ch + 20) p.y = -20;
+                var alpha = p.a * (0.55 + 0.45*Math.sin(p.ph));
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+                ctx.fillStyle = particleColor(alpha.toFixed(3));
+                ctx.fill();
+            }
+        }
+        function loop(now){
+            if (!running) return;
+            if (!lastNow) lastNow = now;
+            var dt = (now - lastNow) / 1000;
+            if (dt > 0.05) dt = 0.05;
+            lastNow = now;
+            orbT += dt;
+
+            curX += (targetX - curX) * 0.05;
+            curY += (targetY - curY) * 0.05;
+            var vm = vmax();
+            $liquidBg.style.transform =
+                'translate3d(' + (-curX * vm * 2).toFixed(2) + 'px,' + (-curY * vm * 2).toFixed(2) + 'px,0)';
+
+            glowX += (glowTX - glowX) * 0.14;
+            glowY += (glowTY - glowY) * 0.14;
+            $glow.style.transform = 'translate3d(' + glowX.toFixed(1) + 'px,' + glowY.toFixed(1) + 'px,0)';
+
+            updateOrbs(orbT);
+            drawParticles();
+            rafId = requestAnimationFrame(loop);
+        }
+        function start(){
+            if (running || reduceMotion) return;
+            if (!ctx && $canvas && $canvas.getContext) ctx = $canvas.getContext('2d');
+            initOrbs();
+            lastNow = 0;
+            running = true;
+            sizeCanvas();
+            makeParticles();
+            rafId = requestAnimationFrame(loop);
+        }
+        function stop(){
+            running = false;
+            if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+            if (ctx) ctx.clearRect(0, 0, cw, ch);
+            lastNow = 0;
+        }
+        function setPointer(x, y){
+            targetX = (x / window.innerWidth  - 0.5) * 2;
+            targetY = (y / window.innerHeight - 0.5) * 2;
+            // 刚从「指针不在钟表上」的状态回来：光晕直接落在指针下，
+            // 别从上一次离开的位置慢慢滑过来。
+            if (!glowOn) { glowOn = true; glowX = x; glowY = y; }
+            glowTX = x; glowTY = y;
+        }
+        // 指针离开钟表：光晕收掉，下次进来重新从指针处亮起
+        function hideGlow(){ glowOn = false; }
+        function resize(){
+            for (var i = 0; i < orbs.length; i++) orbs[i].range = orbRange(i);
+            if (!running) return;
+            sizeCanvas();
+            makeParticles();
+        }
+        return {
+            start: start, stop: stop, setPointer: setPointer, hideGlow: hideGlow,
+            resize: resize, setTheme: function (t) { isLight = (t === 'light'); },
+            sync: function () { if (root.classList.contains('liquid')) start(); else stop(); }
+        };
+    })();
+
+    /* 悬停效果（倾斜 + 下压 + 高光）统一走这里，两个来源共用：
+       1) 正常情况下的 pointermove；
+       2) 锁定状态下窗口是「穿透」的，浏览器收不到任何鼠标事件，
+          由 Rust 那个本来就在跟光标的轮询把位置报过来（tc-hover）。 */
+    function applyHover(x, y){
+        root.classList.add('hovering');     // 指针在钟表上：光晕亮起来
+        fx.setPointer(x, y);
+        var rect = $widget.getBoundingClientRect();
+        $widget.style.setProperty('--mx', (x - rect.left) + 'px');
+        $widget.style.setProperty('--my', (y - rect.top)  + 'px');
+
+        // 鼠标一动玻璃跟着倾斜（照抄父级：±5deg，0.4s 缓动追上去）
+        // 角度用窗口尺寸算，不用 rect：rect 会被 transform 影响，容易自激抖动
+        if (!root.classList.contains('liquid') || reduceMotion) return;
+        var px = x / window.innerWidth  - 0.5;
+        var py = y / window.innerHeight - 0.5;
+        px = Math.max(-0.5, Math.min(0.5, px));
+        py = Math.max(-0.5, Math.min(0.5, py));
+        $widget.style.setProperty('--ry', (px * 5).toFixed(2) + 'deg');
+        $widget.style.setProperty('--rx', (-py * 5).toFixed(2) + 'deg');
+        // 转起来以后，靠近观察者的那条边会被透视放大、顶出窗口，按几何精确抵消：
+        // perspective = 160vmax = 1.6×窗口长边，位移 z ≈ sin(θ)·半宽，
+        // 放大倍数 = d/(d-z)，所以收 d/(d-z) 的倒数就正好贴回窗口内。
+        // offsetWidth/Height 是布局尺寸，不受 transform 影响，正好当基准。
+        var d = 1.6 * Math.max(window.innerWidth, window.innerHeight);
+        var z = 0.0872 * (($widget.offsetWidth  / 2) * Math.abs(px) +
+                          ($widget.offsetHeight / 2) * Math.abs(py));
+        $widget.style.setProperty('--tilt-scale', (1 - Math.min(.05, z / d * 1.1)).toFixed(4));
+    }
+
+    window.addEventListener('pointermove', function (e) {
+        // 面板开着的时候，指针大多在面板上（面板在钟表外面）。
+        // 这时候既不要倾斜、也不要动高光 —— 用户要的是钟表纹丝不动。
+        if (panelPrev) return;
+        applyHover(e.clientX, e.clientY);
+    }, { passive: true });
+
+    // 锁定时窗口穿透，前端收不到鼠标位置，靠 Rust 报（见 spawn_lock_watcher）
+    try {
+        var TH = window.__TAURI__ && window.__TAURI__.event;
+        if (TH && TH.listen) TH.listen('tc-hover', function (e) {
+            if (panelPrev) return;                  // 面板开着时指针在面板上，别去动钟表
+            var p = e && e.payload;
+            if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') { resetTilt(); return; }
+            applyHover(p.x, p.y);
+        });
+    } catch (e) {}
+
+    // 鼠标离开时钟：倾斜角度和「压下去」的缩放都得复位，
+    // 不然指针一出去，玻璃就永远保持最后那个歪着、缩着的姿势；
+    // 鼠标光晕也一起收掉，否则它会定在离开的地方一直亮着。
+    function resetTilt(){
+        root.classList.remove('hovering');
+        if (fx && fx.hideGlow) fx.hideGlow();
+        $widget.style.setProperty('--rx', '0deg');
+        $widget.style.setProperty('--ry', '0deg');
+        $widget.style.setProperty('--tilt-scale', '1');
+        // 高光也回到「鼠标不在」时的默认位置
+        $widget.style.setProperty('--mx', '50%');
+        $widget.style.setProperty('--my', '0%');
+    }
+    document.documentElement.addEventListener('pointerleave', resetTilt, { passive: true });
+    document.addEventListener('mouseleave', resetTilt, { passive: true });
+    window.addEventListener('blur', resetTilt);
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) fx.stop();
+        else if (root.classList.contains('liquid')) fx.start();
+    });
+
+    /* ══════════ 窗口等比缩放 ══════════ */
+    var ratioTimer = 0;
+    function enforceRatio(){
+        // 面板开着的时候窗口是被撑大的（不是等比尺寸），别去纠它
+        if (panelPrev) return;
+        if (S.locked) return;        // 锁定期间窗口尺寸不许动
+        var w = window.innerWidth, h = window.innerHeight;
+        if (!w || !h) return;
+        if (Math.abs(w / RATIO - h) <= 1.5) return;      // 已经足够接近
+        var nw = Math.min(MAX_W, Math.max(MIN_W, w));
+        setWinSize(nw, nw / RATIO);
+    }
+    function onWindowResize(){
+        fitTime();
+        // 面板撑窗口时别动粒子和极光：它们按 window.innerWidth/Height 铺，
+        // 一重算就会跟着铺到钟表外面去，等于把钟表画变了。
+        if (!panelPrev) fx.resize();
+        // 锁定期间窗口尺寸一变，齿轮那块「还能点」的矩形就过期了（撑面板、系统缩放都会），
+        // 重报一次；解锁时不用管，那会儿整个窗口本来就能点。
+        if (S.locked) pushLockState();
+        var w = window.innerWidth, h = window.innerHeight;
+        if (Math.abs(w - expectW) <= 1 && Math.abs(h - expectH) <= 1) return;  // 自己设的，别再纠正
+        clearTimeout(ratioTimer);
+        // 等用户拖完再一次性纠正，避免和系统拖拽循环打架
+        ratioTimer = setTimeout(enforceRatio, 90);
+    }
+    window.addEventListener('resize', onWindowResize, { passive: true });
+
+    /* 手柄：自己算尺寸，保证全程严格等比 */
+    (function () {
+        var dragging = false, startX = 0, startY = 0, startW = 0, pending = null, raf = 0;
+
+        function flush(){
+            raf = 0;
+            if (!pending) return;
+            setWinSize(pending.w, pending.h);
+            pending = null;
+        }
+        function onMove(e){
+            if (!dragging) return;
+            var availW = Math.max(window.screen.availWidth  || 1920, 640);
+            var availH = Math.max(window.screen.availHeight || 1080, 400);
+            var maxW = Math.min(MAX_W, availW * 0.96, availH * RATIO * 0.96);
+            var w = startW + (e.screenX - startX);
+            w = Math.min(Math.max(w, MIN_W), Math.max(MIN_W, maxW));
+            pending = { w: w, h: w / RATIO };
+            if (!raf) raf = requestAnimationFrame(flush);
+        }
+        function onUp(){
+            dragging = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
+            document.body.style.cursor = '';
+        }
+        $grip.addEventListener('pointerdown', function (e) {
+            if (e.button !== 0) return;
+            if (S.locked) return;            // 锁定时手柄本来就是隐藏的，这里再兜一层
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            startX = e.screenX; startY = e.screenY;
+            startW = window.innerWidth;
+            document.body.style.cursor = 'nwse-resize';
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+            document.addEventListener('pointercancel', onUp);
+        });
+    })();
+
+    // 双击窗格会触发 Tauri 的「最大化」，等比窗口不适合最大化，这里直接拦掉
+    window.addEventListener('mousedown', function (e) {
+        if (e.detail === 2 && e.button === 0) e.stopPropagation();
+    }, true);
+
+    /* ══════════ 启动 ══════════ */
+    // 窗口在 tauri.conf.json 里是 visible:false，先摆回上次的位置大小再显示，
+    // 否则会先看到它停在屏幕中间、再「啪」地跳走。900ms 兜底保证一定显示出来。
+    var bootWin = tauriWindow(), winShown = false;
+    function showOnce(){
+        if (winShown || !bootWin) return;
+        winShown = true;
+        try { bootWin.show(); } catch (e) {}
+    }
+    setTimeout(showOnce, 900);
+    restoreGeometry(bootWin).then(showOnce, showOnce);
+    hookGeoSave(bootWin);
+
+    loadState();
+    applyAll();
+    tick();
+
+    // 同步先量一次字号，量完再放开过渡，避免第一帧从兜底字号跳一下
+    fitTimeNow();
+    void $timeRow.offsetWidth;
+    root.classList.add('fitted');
+
+    // 字体真正加载完后再量一次（字形宽度变了，填满窗格的倍数也会变）
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(fitTime).catch(function () {});
+    }
+    if (window.ResizeObserver) new ResizeObserver(function () { fitTime(); }).observe($widget);
+    window.addEventListener('load', fitTime);
+})();
+</script>
+
+</body>
+</html>

@@ -2,3 +2,10 @@
 # 原始官方 bundle 体积近 500KB，且 git 历史本身就能回溯，没必要留副本。
 chat-demo-v0.1.2/*.orig
 chat-demo-v0.1.2/**/*.orig
+
+# ── 本地生成的东西，绝不入库 ──
+# Rust / Tauri 编译产物：target/ 里单个 .rlib 就有 95MB，提交一次仓库就废了
+# （2026-11-21 已经误提交过一次，靠改写历史才清掉），本地 cargo build 随时能重建。
+target/
+# 前端依赖：npm install 就能还原，没必要背着几十 MB 的二进制进历史
+node_modules/

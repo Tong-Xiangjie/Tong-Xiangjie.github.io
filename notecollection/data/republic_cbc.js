@@ -46,7 +46,7 @@ const republic_cbcData = {
                             price: "328元",
                             purchaseDate: "2026年11月15日",
                             krause: "193a",
-                            remark: "",
+                            remark: "Sign. #1",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/M830856-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/M830856-2.jpg"
                         }
@@ -54,7 +54,7 @@ const republic_cbcData = {
                 }
             ]
         },{
-            seriesName: "中华民国十七年（1928年） 美钞版 兑换券·大洋券",
+            seriesName: "中华民国十七年（1928年） 美钞版·上海地名 兑换券·大洋券",
             year: "1928",
             varieties: [
                 {
@@ -75,7 +75,7 @@ const republic_cbcData = {
                             price: "100元",
                             purchaseDate: "2026年9月4日",
                             krause: "197h",
-                            remark: "单面号码；绿色签名。此张纸币为后期印刷版本。冠号的两个前缀字母“SX”实际上分别代表地名“上海（Shanghai）”以及与该纸币的面额相对应的罗马数字“Ⅹ”。",
+                            remark: "Sign. #7；单面号码；绿色签名 | 此张纸币为后期印刷版本。冠号的两个前缀字母“SX”实际上分别代表地名“上海（Shanghai）”以及与该纸币的面额相对应的罗马数字“Ⅹ”。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/SX975747QJ-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/SX975747QJ-2.jpg"
                         }
@@ -104,7 +104,7 @@ const republic_cbcData = {
                             price: "69元",
                             purchaseDate: "2026年8月24日",
                             krause: "328",
-                            remark: "双字轨版",
+                            remark: "Sign. #7；双字轨",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/YF758914-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/YF758914-2.jpg"
                         }
@@ -133,7 +133,7 @@ const republic_cbcData = {
                             price: "85元",
                             purchaseDate: "2026年6月17日",
                             krause: "202",
-                            remark: "杏坛，位于曲阜孔庙大成殿前，是孔子当年“设教讲学”的地方，亭内有金代石碑并植有古杏树，是儒家教育精神的象征。",
+                            remark: "Sign. #5 | 杏坛，位于曲阜孔庙大成殿前，是孔子当年“设教讲学”的地方，亭内有金代石碑并植有古杏树，是儒家教育精神的象征。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/Y619524L-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/Y619524L-2.jpg"
                         }
@@ -142,6 +142,24 @@ const republic_cbcData = {
                     varietyName: "1931年 2角 洙水桥",
                     copies: [
                         {
+                            copyId: 12193587,
+                            year: 1931,
+                            version: "C078365R",
+                            bank: "中央银行",
+                            print: "中华书局有限公司/CHB",
+                            signature1: "总经理（General Manager）：李觉（D.L. Lichia）",
+                            signature2: "协理（Asst. Gen. Manager）：黄秀峰（Siufeng Huang）",
+                            issueDate: "民国二十年四月（1931）",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 62E",
+                            price: "46元",
+                            purchaseDate: "2026年11月22日",
+                            krause: "203",
+                            remark: "Sign. #5 | 洙水桥坐落在曲阜孔林内，横跨洙水河，是通往孔子墓甬道的必经石桥。周围古柏森森，氛围肃穆庄严。这张是复品，2026年11月22日一位卖家定价138元卖三张纸币，性价比很高，因此三张通走一并买下了这张。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/12193587-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/12193587-2.jpg"
+                        },{
                             copyId: 22661868,
                             year: 1931,
                             version: "F616958Q",
@@ -156,7 +174,7 @@ const republic_cbcData = {
                             price: "88元",
                             purchaseDate: "2026年6月18日",
                             krause: "203",
-                            remark: "洙水桥，坐落在曲阜孔林内，横跨洙水河，是通往孔子墓甬道的必经石桥，周围古柏森森，氛围肃穆庄严。",
+                            remark: "Sign. #5",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/F616958Q-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/F616958Q-2.jpg"
                         }
@@ -237,7 +255,7 @@ const republic_cbcData = {
                             price: "88元",
                             purchaseDate: "2026年10月14日",
                             krause: "217a",
-                            remark: "冠号的后缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
+                            remark: "Sign. #5 | 冠号的后缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10701916-2.jpg"
                         }
@@ -260,7 +278,7 @@ const republic_cbcData = {
                             price: "78元",
                             purchaseDate: "2026年7月17日",
                             krause: "218a",
-                            remark: "冠号的后缀字母“X”实际上代表罗马数字“Ⅹ”，与该纸币的面额“10”相对应。",
+                            remark: "Sign. #5 | 冠号的后缀字母“X”实际上代表罗马数字“Ⅹ”，与该纸币的面额“10”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/CV684686X-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/CV684686X-2.jpg"
                         }
@@ -312,7 +330,7 @@ const republic_cbcData = {
                             price: "78元",
                             purchaseDate: "2026年7月17日",
                             krause: "212a",
-                            remark: "",
+                            remark: "Sign. #5",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/215191PH-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/215191PH-2.jpg"
                         }
@@ -335,9 +353,27 @@ const republic_cbcData = {
                             price: "59元",
                             purchaseDate: "2026年8月24日",
                             krause: "213a",
-                            remark: "冠号的前缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
+                            remark: "Sign. #5 | 冠号的前缀字母“V”实际上代表罗马数字“Ⅴ”，与该纸币的面额“5”相对应。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/V136249XA-2.jpg"
+                        },{
+                            copyId: 18978752,
+                            year: 1936,
+                            version: "V005188 Y/G",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            signature1: "总经理（General Manager）：李觉（D.L. Lichia）",
+                            signature2: "协理（Asst. General Manager）：黄秀峰（Siufeng Huang）",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 64E",
+                            price: "46元",
+                            purchaseDate: "2026年11月22日",
+                            krause: "213a",
+                            remark: "Sign. #5",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/18978752-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/18978752-2.jpg"
                         },{
                             copyId: 10008444,
                             year: 1936,
@@ -353,7 +389,7 @@ const republic_cbcData = {
                             price: "88元",
                             purchaseDate: "2026年10月14日",
                             krause: "213c",
-                            remark: "",
+                            remark: "Sign. #9",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10008444-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/10008444-2.jpg"
                         }
@@ -382,7 +418,7 @@ const republic_cbcData = {
                             price: "56元",
                             purchaseDate: "2026年11月11日",
                             krause: "224b",
-                            remark: "【版别】单字轨、短厂铭。坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
+                            remark: "单字轨；短厂铭 | 坐落于南京紫金山灵谷寺旁的灵谷塔（原名国民革命军阵亡将士纪念塔）是为纪念北伐及抗战阵亡将士而建的九层八面螺旋式纪念塔。游人可沿阶梯盘旋登顶，俯瞰钟山胜景。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/G791313-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/G791313-2.jpg"
                         },{
@@ -400,7 +436,7 @@ const republic_cbcData = {
                             price: "56元",
                             purchaseDate: "2026年11月11日",
                             krause: "224b",
-                            remark: "【版别】双字轨、短厂铭。A-E冠是短厂铭版别的最后一个冠号。",
+                            remark: "双字轨；短厂铭 | A-E冠是短厂铭版别的最后一个冠号。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/A238768E-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/A238768E-2.jpg"
                         },{
@@ -418,7 +454,7 @@ const republic_cbcData = {
                             price: "80元",
                             purchaseDate: "2026年6月13日",
                             krause: "224a",
-                            remark: "【版别】双字轨、长厂铭。",
+                            remark: "双字轨；长厂铭",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/B501637D-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/B501637D-2.jpg"
                         },{
@@ -436,7 +472,7 @@ const republic_cbcData = {
                             price: "56元",
                             purchaseDate: "2026年11月11日",
                             krause: "224a",
-                            remark: "【版别】双字轨、长厂铭。",
+                            remark: "双字轨；长厂铭",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/C387934G-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/C387934G-2.jpg"
                         }
@@ -540,7 +576,7 @@ const republic_cbcData = {
                             price: "228元",
                             purchaseDate: "2026年9月6日",
                             krause: "240c",
-                            remark: "红章、棕色签名版本",
+                            remark: "红章；棕色签名",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/IZ359076-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/IZ359076-2.jpg"
                         }
@@ -563,7 +599,7 @@ const republic_cbcData = {
                             price: "298元",
                             purchaseDate: "2026年2月25日",
                             krause: "243a",
-                            remark: "",
+                            remark: "紫色签名",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/IO038655-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/IO038655-2.jpg"
                         }
@@ -679,7 +715,7 @@ const republic_cbcData = {
                             price: "60元",
                             purchaseDate: "2026年9月26日",
                             krause: "387",
-                            remark: "双字轨：共505种，发行量5.05亿张。",
+                            remark: "双字轨 | 该纸币双字轨冠号共505种，发行量5.05亿张。",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/27171406-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/27171406-2.jpg"
                         }
@@ -711,6 +747,35 @@ const republic_cbcData = {
                             remark: "",
                             img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/6D838457-1.jpg",
                             img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/6D838457-2.jpg"
+                        }
+                    ]
+                }
+            ]
+        },{
+            seriesName: "中华民国三十八年（1949年） 中华书局版·广州地名 银圆券",
+            year: "1949",
+            varieties: [
+                {
+                    varietyName: "1949年 1元 船洋",
+                    copies: [
+                        {
+                            copyId: 19054216,
+                            year: 1949,
+                            version: "1-F 016102",
+                            bank: "中央银行",
+                            print: "德纳罗印钞公司/TDLR",
+                            signature1: "无",
+                            signature2: "无",
+                            issueDate: "",
+                            withdrawnDate: "",
+                            size: "",
+                            condition: "ACG 63E",
+                            price: "46元",
+                            purchaseDate: "2026年11月22日",
+                            krause: "441",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/19054216-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/republic_cbc/19054216-2.jpg"
                         }
                     ]
                 }
