@@ -9555,6 +9555,7 @@
       __clearRootCacheForTest: function () { dirCache = null; return true; }
     };
 
+    try { window.__localstore.booted = true; } catch (e) { /* ignore */ }
     log('v' + BRIDGE_VERSION + ' 已加载（文件夹写入' + (supportsFs ? '可用' : '不可用') + '）');
   }
 
@@ -9636,11 +9637,89 @@
     }
   }
 
+  /**
+   * 启动失败必须留下痕迹。
+   *
+   * 用户实测的故障：桥接层加载了（控制台能看到它的日志），设置面板也能挂上，
+   * 但 `window.__localstore` 是 undefined、面板停在「同步中…」。
+   * 而 `window.__localstore` 就在 boot() 末尾赋值 —— 说明 boot() 在中途
+   * **抛了异常并且被吞掉了**：原来这里就是一句裸的 `boot();`，
+   * 它返回的 promise 一旦 reject，就成了 unhandled rejection，控制台里
+   * 既不明显也不带现场。于是"同步莫名不工作"完全无从查起。
+   *
+   * 现在统一记录：控制台一条醒目日志 + sessionStorage（跨刷新保留），
+   * 排查时执行 `window.__lsBootError()` 即可拿到完整堆栈。
+   */
+  function recordBootError(where, e) {
+    var info = {
+      where: where,
+      at: new Date().toISOString(),
+      message: (e && e.message) || String(e),
+      stack: (e && e.stack) || null,
+      name: (e && e.name) || null
+    };
+    try { window.__lsBootErrorInfo = info; } catch (e2) { /* ignore */ }
+    try { sessionStorage.setItem('chat-demo:boot-error', JSON.stringify(info)); } catch (e2) { /* ignore */ }
+    try {
+      console.error('[localstore] 启动流程出错（' + where + '）：' + info.message + '\n' + (info.stack || ''));
+    } catch (e2) { /* ignore */ }
+    return info;
+  }
+
+  window.__lsBootError = function () {
+    try {
+      var raw = sessionStorage.getItem('chat-demo:boot-error');
+      return raw ? JSON.parse(raw) : (window.__lsBootErrorInfo || null);
+    } catch (e) {
+      return window.__lsBootErrorInfo || null;
+    }
+  };
+
+  function startBoot(where) {
+    try {
+      var p = boot();
+      if (p && typeof p.catch === 'function') {
+        p.catch(function (e) { recordBootError(where, e); });
+      }
+    } catch (e) {
+      recordBootError(where + ':sync-throw', e);
+    }
+  }
+
+  /**
+   * 先把最小可用接口挂上，boot() 结束时再整体替换成完整版。
+   *
+   * 为什么：完整接口在 boot() 末尾赋值。若启动中途抛错（用户那台机器上就是
+   * 如此），`window.__localstore` 会一直是 undefined —— 连排查用的接口都拿不到。
+   * 这里先放一个占位版本，至少保证 unstick / 启动错误 / 刷新记录随时可查。
+   */
+  window.__localstore = {
+    version: BRIDGE_VERSION,
+    supportsFs: (function () {
+      try {
+        return typeof window.showDirectoryPicker === 'function' && window.isSecureContext !== false;
+      } catch (e) { return false; }
+    })(),
+    /** 启动流程是否已经跑完（false 且没有 bootError，说明还卡在某一步） */
+    booted: false,
+    /** 手动放开「处理中…」卡死（完整版会替换掉它） */
+    unstick: function () { return { booted: false, note: '启动尚未完成，完整接口未就绪' }; },
+    reloadLog: function () { return readReloadLog(); },
+    clearReloadLog: function () { clearReloadLog(); return readReloadLog(); },
+    /** 启动期异常（排查"同步不工作却毫无提示"） */
+    bootError: function () {
+      try {
+        var raw = sessionStorage.getItem('chat-demo:boot-error');
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+  };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
-      boot();
+      startBoot('DOMContentLoaded');
     });
   } else {
-    boot();
+    startBoot('immediate');
   }
 })();
